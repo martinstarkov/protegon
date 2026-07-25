@@ -5044,7 +5044,7 @@ void DrawActionPickerWithInline(DemoEditorDrawContext& ui, ScriptStep& action, b
 	if (editor && editor->draw_inline) {
 		ImGui::SameLine(0.0f, spacing);
 		ImGui::SetNextItemWidth(-FLT_MIN);
-		if (editor->draw_inline(action.value, ui.context)) {
+		if (editor->draw_inline(ui.context, action.value)) {
 			action.runtime_factory = {};
 		}
 	}
@@ -5266,7 +5266,7 @@ void DrawActionParameters(DemoEditorDrawContext& ui, ScriptStep& action, float l
 		)) {
 		const bool changed{
 			step_editor
-				? step_editor->draw(action.value, ui.context)
+				? step_editor->draw(ui.context, action.value)
 				: script_editor->draw(action.value)
 		};
 		if (changed) {
@@ -5965,8 +5965,8 @@ struct ApplyDamageScript final : managed::Script {
 };
 
 template <typename T>
-bool DrawRegisteredDemoContents(ptgn::Entity entity) {
-	return ptgn::editor::inspector::DrawComponentContents(entity.Get<T>());
+bool DrawRegisteredDemoContents(ptgn::editor::EditorContext& ctx, ptgn::Entity entity) {
+	return ptgn::editor::inspector::DrawComponentContents(ctx, entity.Get<T>());
 }
 
 namespace editor::inspector {

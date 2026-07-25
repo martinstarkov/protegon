@@ -53,12 +53,12 @@ public:
 	AssetManager& GetAssetManager();
 	const DebugSystem& GetDebugSystem() const;
 	DebugSystem& GetDebugSystem();
-	const impl::SceneManager& GetSceneManager() const;
-	impl::SceneManager& GetSceneManager();
+	const ::ptgn::impl::SceneManager& GetSceneManager() const;
+	::ptgn::impl::SceneManager& GetSceneManager();
 	const Renderer& GetRenderer() const;
 	Renderer& GetRenderer();
 
-	impl::TextureId GetPresentationTexture() const;
+	::ptgn::impl::TextureId GetPresentationTexture() const;
 	V2_int GetPresentationTextureSize() const;
 
 	void SetTimeScale(float time_scale);
@@ -108,6 +108,7 @@ public:
 
 	bool CanSaveProject() const;
 
+	bool IsPlaying() const;
 private:
 	struct PlaySnapshot {
 		std::string scene_tag;
@@ -132,7 +133,7 @@ private:
 
 	void ApplyEntityPickingSettings();
 
-	impl::FramebufferId GetSceneFramebuffer(Scene& scene) const;
+	::ptgn::impl::FramebufferId GetSceneFramebuffer(Scene& scene) const;
 
 	std::unique_ptr<EditorContext> context_;
 	UndoStack undo_stack_;

@@ -543,12 +543,12 @@ void SceneHierarchyPanel::OnRender(EditorContext& ctx) {
 			ImGui::EndDisabled();
 		};
 
-		auto draw_submenu = [&](const char* label, auto&& draw_contents) {
+		auto draw_submenu = [&]<typename S>(const char* label, S&& draw) {
 			if (!ImGui::BeginMenu(label)) {
 				return;
 			}
 
-			std::invoke(std::forward<decltype(draw_contents)>(draw_contents));
+			std::invoke(std::forward<S>(draw));
 
 			ImGui::EndMenu();
 		};

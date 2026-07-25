@@ -173,11 +173,11 @@ bool DrawSignalEvent(json& value) {
 }
 
 template <typename T>
-bool DrawNothing(T&, ScriptEditorContext&) {
+bool DrawNothing(ScriptEditorContext&, T&) {
 	return false;
 }
 
-bool DrawScriptSequenceInline(Script& script, ScriptEditorContext& context) {
+bool DrawScriptSequenceInline(ScriptEditorContext& context, Script& script) {
 	const auto* selected{
 		script.sequence.shared_reference
 			? context.shared_sequences.Find(script.sequence.shared_sequence_id)
@@ -206,7 +206,7 @@ bool DrawScriptSequenceInline(Script& script, ScriptEditorContext& context) {
 	return changed;
 }
 
-bool DrawMoveToInline(MoveToScript& script, ScriptEditorContext&) {
+bool DrawMoveToInline(ScriptEditorContext&, MoveToScript& script) {
 	bool changed{ false };
 	const float available{ ImGui::GetContentRegionAvail().x };
 	const float spacing{ ImGui::GetStyle().ItemSpacing.x };
@@ -241,7 +241,7 @@ bool DrawMoveToInline(MoveToScript& script, ScriptEditorContext&) {
 	return changed;
 }
 
-bool DrawRotateToInline(RotateToScript& script, ScriptEditorContext&) {
+bool DrawRotateToInline(ScriptEditorContext&, RotateToScript& script) {
 	const float available{ ImGui::GetContentRegionAvail().x };
 	const float spacing{ ImGui::GetStyle().ItemSpacing.x };
 	const float shortest_width{
@@ -273,7 +273,7 @@ bool DrawRotateToInline(RotateToScript& script, ScriptEditorContext&) {
 	return changed;
 }
 
-bool DrawScaleToInline(ScaleToScript& script, ScriptEditorContext&) {
+bool DrawScaleToInline(ScriptEditorContext&, ScaleToScript& script) {
 	const float available{ ImGui::GetContentRegionAvail().x };
 	const float spacing{ ImGui::GetStyle().ItemSpacing.x };
 	const float mode_width{
@@ -308,7 +308,7 @@ bool DrawScaleToInline(ScaleToScript& script, ScriptEditorContext&) {
 	return changed;
 }
 
-bool DrawSetVisibleInline(SetVisibleScript& script, ScriptEditorContext&) {
+bool DrawSetVisibleInline(ScriptEditorContext&, SetVisibleScript& script) {
 	const char* preview{ script.visible ? "True" : "False" };
 	bool changed{ false };
 	ImGui::SetNextItemWidth(-FLT_MIN);
@@ -327,7 +327,7 @@ bool DrawSetVisibleInline(SetVisibleScript& script, ScriptEditorContext&) {
 	return changed;
 }
 
-bool DrawEmitSignalInline(EmitSignalScript& script, ScriptEditorContext&) {
+bool DrawEmitSignalInline(ScriptEditorContext&, EmitSignalScript& script) {
 	ImGui::SetNextItemWidth(-FLT_MIN);
 	const bool changed{ ImGui::InputTextWithHint(
 		"##SignalName", "Signal name", &script.signal.value
@@ -336,7 +336,7 @@ bool DrawEmitSignalInline(EmitSignalScript& script, ScriptEditorContext&) {
 	return changed;
 }
 
-bool DrawAddComponentsInline(AddComponentsScript& script, ScriptEditorContext&) {
+bool DrawAddComponentsInline(ScriptEditorContext&, AddComponentsScript& script) {
 	std::vector<std::string> selected_labels;
 	std::string preview;
 	for (const auto& definition : script.components) {
@@ -423,7 +423,7 @@ bool DrawAddComponentsInline(AddComponentsScript& script, ScriptEditorContext&) 
 	return changed;
 }
 
-bool DrawAddComponentsDetails(AddComponentsScript& script, ScriptEditorContext&) {
+bool DrawAddComponentsDetails(ScriptEditorContext& context, AddComponentsScript& script) {
 	bool changed{ false };
 	int remove{ -1 };
 	for (int i{ 0 }; i < static_cast<int>(script.components.size()); ++i) {
@@ -458,7 +458,7 @@ bool DrawAddComponentsDetails(AddComponentsScript& script, ScriptEditorContext&)
 			if (definition.value.is_null()) {
 				definition.value = json::object();
 			}
-			if (ComponentEditorRegistry::DrawJson(*component, definition.value)) {
+			if (ComponentEditorRegistry::DrawJson(context.ctx, *component, definition.value)) {
 				definition.apply_live = {};
 				changed = true;
 			}
@@ -472,7 +472,7 @@ bool DrawAddComponentsDetails(AddComponentsScript& script, ScriptEditorContext&)
 	return changed;
 }
 
-bool DrawRemoveComponentsInline(RemoveComponentsScript& script, ScriptEditorContext&) {
+bool DrawRemoveComponentsInline(ScriptEditorContext&, RemoveComponentsScript& script) {
 	std::vector<std::string> selected_labels;
 	std::string preview;
 	for (const auto& name : script.components) {
@@ -545,20 +545,20 @@ bool DrawRemoveComponentsInline(RemoveComponentsScript& script, ScriptEditorCont
 	return changed;
 }
 
-bool DrawMoveTo(MoveToScript& script, ScriptEditorContext&) {
+bool DrawMoveTo(ScriptEditorContext&, MoveToScript& script) {
 	bool changed{ ImGui::DragFloat2("Destination", &script.destination.x, 0.1f) };
 	changed |= ImGui::Checkbox("Relative", &script.relative);
 	return changed;
 }
 
-bool DrawFollowTarget(FollowTargetScript& script, ScriptEditorContext&) {
+bool DrawFollowTarget(ScriptEditorContext&, FollowTargetScript& script) {
 	bool changed{ ImGui::DragFloat("Speed", &script.speed, 1.0f, 0.0f) };
 	changed |= ImGui::DragFloat("Stopping Distance", &script.stopping_distance, 0.1f, 0.0f);
 	ImGui::TextDisabled("Target selection should use your UUID/entity-reference field.");
 	return changed;
 }
 
-bool DrawTintTo(TintToScript& script, ScriptEditorContext&) {
+bool DrawTintTo(ScriptEditorContext&, TintToScript& script) {
 	auto tint{ script.tint.Normalized() };
 	if (!ImGui::ColorEdit4("Tint", tint.Data())) {
 		return false;
@@ -567,36 +567,36 @@ bool DrawTintTo(TintToScript& script, ScriptEditorContext&) {
 	return true;
 }
 
-bool DrawBounce(BounceScript& script, ScriptEditorContext&) {
+bool DrawBounce(ScriptEditorContext&, BounceScript& script) {
 	bool changed{ ImGui::DragFloat2("Amplitude", &script.amplitude.x, 0.1f) };
 	changed |= ImGui::DragFloat2("Static Offset", &script.static_offset.x, 0.1f);
 	changed |= ImGui::Checkbox("Symmetrical", &script.symmetrical);
 	return changed;
 }
 
-bool DrawShake(ShakeScript& script, ScriptEditorContext&) {
+bool DrawShake(ScriptEditorContext& context, ShakeScript& script) {
 	bool changed{ ImGui::DragFloat("Intensity", &script.intensity, 0.01f, -1.0f, 1.0f) };
 	changed |= ImGui::Checkbox("Reset On Complete", &script.reset_on_complete);
-	changed |= inspector::DrawComponentContents(script.config);
+	changed |= inspector::DrawComponentContents(context.ctx, script.config);
 	return changed;
 }
 
-bool DrawAddShakeTrauma(AddShakeTraumaScript& script, ScriptEditorContext&) {
+bool DrawAddShakeTrauma(ScriptEditorContext& context, AddShakeTraumaScript& script) {
 	bool changed{ ImGui::DragFloat("Intensity", &script.intensity, 0.01f, -1.0f, 1.0f) };
-	changed |= inspector::DrawComponentContents(script.config);
+	changed |= inspector::DrawComponentContents(context.ctx, script.config);
 	return changed;
 }
 
-bool DrawRecoverShake(RecoverShakeScript& script, ScriptEditorContext&) {
-	return inspector::DrawComponentContents(script.config);
+bool DrawRecoverShake(ScriptEditorContext& context, RecoverShakeScript& script) {
+	return inspector::DrawComponentContents(context.ctx, script.config);
 }
 
-bool DrawFollowEntity(FollowEntityScript& script, ScriptEditorContext&) {
+bool DrawFollowEntity(ScriptEditorContext& context, FollowEntityScript& script) {
 	ImGui::TextDisabled("Target selection should use your UUID/entity-reference field.");
-	return inspector::DrawComponentContents(script.config);
+	return inspector::DrawComponentContents(context.ctx, script.config);
 }
 
-bool DrawFollowPath(FollowPathScript& script, ScriptEditorContext&) {
+bool DrawFollowPath(ScriptEditorContext& context, FollowPathScript& script) {
 	bool changed{ false };
 	int remove{ -1 };
 	for (int i{ 0 }; i < static_cast<int>(script.waypoints.size()); ++i) {
@@ -620,7 +620,7 @@ bool DrawFollowPath(FollowPathScript& script, ScriptEditorContext&) {
 		changed = true;
 	}
 	changed |= ImGui::Checkbox("Reset Waypoint Index", &script.reset_waypoint_index);
-	changed |= inspector::DrawComponentContents(script.config);
+	changed |= inspector::DrawComponentContents(context.ctx, script.config);
 	return changed;
 }
 

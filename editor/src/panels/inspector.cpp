@@ -76,7 +76,9 @@
 #include "runtime/scene/scene_context.h"
 #include "runtime/scripting/script.h"
 
-namespace ptgn::editor::inspector {
+namespace ptgn::editor {
+
+namespace inspector {
 
 namespace {
 
@@ -709,7 +711,7 @@ bool DrawActionPickerWithInline(
 	if (editor && editor->draw_inline) {
 		ImGui::SameLine(0.0f, spacing);
 		ImGui::SetNextItemWidth(-FLT_MIN);
-		if (editor->draw_inline(action.value, context)) {
+		if (editor->draw_inline(context, action.value)) {
 			action.runtime_factory = {};
 			changed = true;
 		}
@@ -933,7 +935,7 @@ bool DrawActionParameters(
 			ImVec2{ std::max(1.0f, right_screen_x - left_screen_x), 0.0f },
 			ImGuiChildFlags_AutoResizeY
 		)) {
-		changed = editor->draw(action.value, context);
+		changed = editor->draw(context, action.value);
 		if (changed) {
 			action.runtime_factory = {};
 		}
@@ -1545,7 +1547,8 @@ bool DrawSequence(
 	auto& state{ GetScriptInspectorState() };
 	ImGui::PushID(static_cast<int>(binding.id));
 	const float button_size{ ImGui::GetFrameHeight() };
-	const int column_count{ 6 };
+	const bool show_runtime_controls{ context.ctx.state.is_playing };
+	const int column_count{ show_runtime_controls ? 6 : 3 };
 	const float available_width{ ImGui::GetContentRegionAvail().x };
 	const float sequence_width{
 		std::max(1.0f, (available_width - CompactControlSpacing()) * 0.5f)
@@ -1564,10 +1567,22 @@ bool DrawSequence(
 		ImGui::TableSetupColumn(
 			"Sequence", ImGuiTableColumnFlags_WidthFixed, sequence_width
 		);
-		ImGui::TableSetupColumn("Options", ImGuiTableColumnFlags_WidthStretch);
-		ImGui::TableSetupColumn("Play", ImGuiTableColumnFlags_WidthFixed, button_size);
-		ImGui::TableSetupColumn("Pause", ImGuiTableColumnFlags_WidthFixed, button_size);
-		ImGui::TableSetupColumn("Stop", ImGuiTableColumnFlags_WidthFixed, button_size);
+		ImGui::TableSetupColumn(
+			"Options", ImGuiTableColumnFlags_WidthStretch
+		);
+
+		if (show_runtime_controls) {
+			ImGui::TableSetupColumn(
+				"Play", ImGuiTableColumnFlags_WidthFixed, button_size
+			);
+			ImGui::TableSetupColumn(
+				"Pause", ImGuiTableColumnFlags_WidthFixed, button_size
+			);
+			ImGui::TableSetupColumn(
+				"Stop", ImGuiTableColumnFlags_WidthFixed, button_size
+			);
+		}
+
 		ImGui::TableSetupColumn(
 			"Controls", ImGuiTableColumnFlags_WidthFixed,
 			EnabledDeleteControlsWidth()
@@ -1791,50 +1806,82 @@ bool DrawSequence(
 			}
 			ImGui::EndCombo();
 		}
+
 		DrawSelectedItemsTooltip(selected_sequence_options);
 
-		ImGui::TableSetColumnIndex(2);
-		if (DrawCenteredTextButton(
-				"##Play", ">", ImVec2{ button_size, button_size }
-			)) {
-			script_runtime::Start(context.owner, binding.id, true);
-		}
-		DrawTooltip(
-			binding.runtime.running ? "Restart this sequence." : "Start this sequence."
-		);
+		int column{ 2 };
 
-		ImGui::TableSetColumnIndex(3);
-		ImGui::BeginDisabled(!binding.runtime.running);
-		if (DrawCenteredTextButton(
-				"##Pause", "||", ImVec2{ button_size, button_size }
-			)) {
-			script_runtime::SetPaused(
-				context.owner, binding.id, !binding.runtime.paused
+		if (show_runtime_controls) {
+			ImGui::TableSetColumnIndex(column++);
+
+			if (DrawCenteredTextButton(
+					"##Play", ">", ImVec2{ button_size, button_size }
+				)) {
+				script_runtime::Start(
+					context.owner,
+					binding.id,
+					true
+				);
+			}
+
+			DrawTooltip(
+				binding.runtime.running
+					? "Restart this sequence."
+					: "Start this sequence."
 			);
-		}
-		ImGui::EndDisabled();
-		DrawTooltip(
-			binding.runtime.paused ? "Resume this sequence." : "Pause this sequence."
-		);
 
-		ImGui::TableSetColumnIndex(4);
-		ImGui::BeginDisabled(!binding.runtime.running);
-		if (DrawCenteredTextButton(
-				"##Stop", "[]", ImVec2{ button_size, button_size }
-			)) {
-			script_runtime::Stop(context.owner, binding.id);
-		}
-		ImGui::EndDisabled();
-		DrawTooltip("Stop this sequence.");
+			ImGui::TableSetColumnIndex(column++);
 
-		ImGui::TableSetColumnIndex(5);
+			ImGui::BeginDisabled(!binding.runtime.running);
+
+			if (DrawCenteredTextButton(
+					"##Pause", "||",
+					ImVec2{ button_size, button_size }
+				)) {
+				script_runtime::SetPaused(
+					context.owner,
+					binding.id,
+					!binding.runtime.paused
+				);
+			}
+
+			ImGui::EndDisabled();
+
+			DrawTooltip(
+				binding.runtime.paused
+					? "Resume this sequence."
+					: "Pause this sequence."
+			);
+
+			ImGui::TableSetColumnIndex(column++);
+
+			ImGui::BeginDisabled(!binding.runtime.running);
+
+			if (DrawCenteredTextButton(
+					"##Stop", "[]",
+					ImVec2{ button_size, button_size }
+				)) {
+				script_runtime::Stop(
+					context.owner,
+					binding.id
+				);
+			}
+
+			ImGui::EndDisabled();
+			DrawTooltip("Stop this sequence.");
+		}
+
+		ImGui::TableSetColumnIndex(column);
+
 		bool enabled_changed{ false };
+
 		remove = DrawEnabledDeleteControls(
 			binding.enabled,
 			"Enable or disable this script sequence.",
 			"Delete this script sequence.",
 			enabled_changed
 		);
+
 		changed |= enabled_changed;
 		ImGui::EndTable();
 	}
@@ -2163,7 +2210,7 @@ bool DrawResidentScripts(
 		}
 
 		if (open && editor && editor->has_contents && editor->draw) {
-			if (editor->draw(script.value, context)) {
+			if (editor->draw(context, script.value)) {
 				changed = true;
 				script.runtime_factory = {};
 				if (!script.instance) {
@@ -2184,34 +2231,6 @@ bool DrawResidentScripts(
 	}
 	return changed;
 }
-
-bool DrawScriptsComponent(Entity entity) {
-	if (!entity) {
-		return false;
-	}
-
-	auto* scripts{ entity.TryGet<::ptgn::impl::Scripts>() };
-	if (!scripts) {
-		return false;
-	}
-	scripts->Attach(entity);
-	ScriptEditorContext context{ entity, entity.GetScene().ctx().shared_script_sequences };
-
-	bool changed{ false };
-	ImGui::PushStyleColor(ImGuiCol_Button, ImVec4{ 0.20f, 0.34f, 0.33f, 1.0f });
-	ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4{ 0.26f, 0.43f, 0.41f, 1.0f });
-	ImGui::PushStyleColor(ImGuiCol_ButtonActive, ImVec4{ 0.31f, 0.49f, 0.47f, 1.0f });
-	if (ImGui::Button("+ Script", ImVec2{ -FLT_MIN, 0.0f })) {
-		ImGui::OpenPopup("AddScript");
-	}
-	ImGui::PopStyleColor(3);
-	DrawTooltip("Add a custom script or an editor-authored sequence script.");
-
-	changed |= DrawAddRootScriptPopup(context, *scripts);
-	changed |= DrawResidentScripts(context, *scripts);
-	return changed;
-}
-
 
 template <std::size_t N>
 struct FixedString {
@@ -2236,7 +2255,7 @@ std::optional<std::string_view> HasAnyComponent(Entity entity) {
 }
 
 bool DrawOptionalViewport(
-	std::string_view label, std::optional<Viewport>& value, ViewportSpace viewport_space
+	EditorContext& ctx, std::string_view label, std::optional<Viewport>& value, ViewportSpace viewport_space
 ) {
 	ImGui::PushID(&value);
 
@@ -2274,8 +2293,8 @@ bool DrawOptionalViewport(
 				.flags	= ImGuiSliderFlags_AlwaysClamp,
 			};
 
-			changed |= DrawValue("Position", value->position, options);
-			changed |= DrawValue("Size", value->size, options);
+			changed |= DrawValue(ctx, "Position", value->position, options);
+			changed |= DrawValue(ctx, "Size", value->size, options);
 
 			if (value->size.x > 1.0f || value->size.y > 1.0f) {
 				value->size.x = std::min(1.0f, value->size.x);
@@ -2283,7 +2302,7 @@ bool DrawOptionalViewport(
 				changed		  = true;
 			}
 		} else {
-			changed |= DrawValue(
+			changed |= DrawValue(ctx, 
 				"Position", value->position,
 				FieldOptions{
 					.speed	= 1.0f,
@@ -2291,7 +2310,7 @@ bool DrawOptionalViewport(
 				}
 			);
 
-			changed |= DrawValue(
+			changed |= DrawValue(ctx, 
 				"Size", value->size,
 				FieldOptions{
 					.speed	= 1.0f,
@@ -2316,207 +2335,9 @@ bool DrawOptionalViewport(
 	return changed;
 }
 
-} // namespace
-
-// TODO: Add Material.
-
-template <>
-struct Contents<::ptgn::impl::CameraData> {
-	static bool Draw(::ptgn::impl::CameraData& camera) {
-		bool changed{ false };
-
-		// Draw this first because it controls the raw viewport's defaults and bounds.
-		changed |= DrawValue("Viewport Space", camera.viewport_space);
-
-		changed |= DrawOptionalViewport("Raw Viewport", camera.raw_viewport, camera.viewport_space);
-
-		changed |= DrawValue("Pixel Rounding", camera.pixel_rounding);
-		changed |= DrawValue("Bounding Box", camera.bounding_box);
-
-		DrawReadOnlyValue("View Projection", camera.view_projection);
-
-		return changed;
-	}
-};
-
-template <>
-struct Contents<::ptgn::impl::IDrawable> {
-	static bool Draw(::ptgn::impl::IDrawable& drawable) {
-		auto* current_info{ ::ptgn::impl::IDrawable::FindInfo(drawable.hash) };
-
-		std::string preview{ current_info ? std::string{ current_info->GetDisplayName() }
-										  : "<Unregistered Drawable>" };
-
-		bool changed{ DrawPropertyRow("Drawable", [&]() {
-			bool local_changed{ false };
-
-			if (ImGui::BeginCombo("##value", preview.c_str())) {
-				for (const auto& info : ::ptgn::impl::IDrawable::data()) {
-					bool selected{ drawable.hash == info.hash };
-					std::string display_name{ info.GetDisplayName() };
-
-					if (ImGui::Selectable(display_name.c_str(), selected)) {
-						drawable.hash = info.hash;
-						local_changed = true;
-					}
-
-					if (selected) {
-						ImGui::SetItemDefaultFocus();
-					}
-				}
-
-				ImGui::EndCombo();
-			}
-
-			return local_changed;
-		}) };
-
-		if (!current_info && drawable.hash != 0) {
-			ImGui::TextDisabled("Stored hash: %zu", drawable.hash);
-		}
-
-		return changed;
-	}
-};
-
-// Only types whose default reflected layout is not ideal need a specialization.
-template <>
-struct Contents<Hollow> {
-	static bool Draw(Hollow& hollow) {
-		return DrawValue(
-			"Line Width", hollow.line_width,
-			FieldOptions{
-				.speed	= 0.1f,
-				.min	= kMinLineWidth,
-				.max	= 1000.0f,
-				.format = "%.2f",
-				.flags	= ImGuiSliderFlags_AlwaysClamp,
-			}
-		);
-	}
-};
-
-template <>
-struct Contents<Rect> {
-	static bool Draw(Rect& rect) {
-		bool changed{ false };
-
-		auto size{ rect.max - rect.min };
-
-		if (DrawValue(
-				"Size", size,
-				FieldOptions{
-					.speed	= 0.1f,
-					.min	= 0.0,
-					.max	= 0.0,
-					.format = "%.3f",
-				}
-			)) {
-			size.x = std::max(size.x, 0.0f);
-			size.y = std::max(size.y, 0.0f);
-
-			auto center{ rect.GetCenter() };
-			auto half_size{ size * 0.5f };
-
-			rect.min = center - half_size;
-			rect.max = center + half_size;
-
-			changed = true;
-		}
-
-		changed |= DrawValue("Min", rect.min);
-		changed |= DrawValue("Max", rect.max);
-
-		return changed;
-	}
-};
-
-template <>
-struct Contents<TextRun> {
-	static bool Draw(TextRun& run) {
-		bool changed{ false };
-		changed |= DrawValue("Text", run.text, FieldOptions{ .multiline = true });
-		changed |= DrawValue("Font", run.font);
-		changed |= DrawValue("Style", run.style);
-		return changed;
-	}
-};
-
-template <>
-struct Contents<StyledText> {
-	static bool Draw(StyledText& text) {
-		return DrawVectorEditor(
-			text.runs, VectorOptions{
-						   .item_name	 = "Text Run",
-						   .default_open = true,
-						   .reorderable	 = true,
-					   }
-		);
-	}
-};
-
-template <>
-struct Contents<Polygon> {
-	static bool Draw(Polygon& polygon) {
-		return DrawVectorEditor(
-			polygon.vertices, VectorOptions{
-								  .item_name	= "Vertex",
-								  .default_open = true,
-								  .reorderable	= true,
-							  }
-		);
-	}
-};
-
-template <>
-struct Contents<ButtonBorderVisuals> {
-	static bool Draw(ButtonBorderVisuals& visuals) {
-		return DrawEnumArrayEditor<ButtonVisualState>(visuals.states);
-	}
-};
-
-template <>
-struct Contents<ButtonBackgroundVisuals> {
-	static bool Draw(ButtonBackgroundVisuals& visuals) {
-		return DrawEnumArrayEditor<ButtonVisualState>(visuals.states);
-	}
-};
-
-template <>
-struct Contents<ButtonTextVisuals> {
-	static bool Draw(ButtonTextVisuals& visuals) {
-		return DrawEnumArrayEditor<ButtonVisualState>(visuals.states);
-	}
-};
-
-template <>
-struct Contents<ButtonSpriteVisuals> {
-	static bool Draw(ButtonSpriteVisuals& visuals) {
-		return DrawEnumArrayEditor<ButtonVisualState>(visuals.states);
-	}
-};
-
-template <>
-struct Contents<ButtonSounds> {
-	static bool Draw(ButtonSounds& sounds) {
-		bool changed{ false };
-		changed |= DrawEnumArrayEditor<ButtonVisualState>("Sounds", sounds.states);
-		changed |= DrawValue("Exclusive Audio", sounds.exclusive);
-		return changed;
-	}
-};
-
-} // namespace ptgn::editor::inspector
-
-namespace ptgn::editor {
-
-namespace {
-
-using namespace inspector;
-
 template <typename T>
-bool DrawRegisteredContents(Entity entity) {
-	return DrawComponentContents(entity.Get<T>());
+bool DrawRegisteredContents(EditorContext& ctx, Entity entity) {
+	return DrawComponentContents(ctx, entity.Get<T>());
 }
 
 void MarkTextLayoutDirty(Entity entity) {
@@ -2698,7 +2519,7 @@ bool DrawScaleValue(Entity entity, V2_float& scale, const FieldOptions& options)
 	return changed;
 }
 
-void DrawTransformComponent(Entity entity) {
+void DrawTransformComponent(EditorContext& ctx, Entity entity) {
 	auto& transform{ entity.TryAdd<Transform>() };
 	auto& depth{ entity.TryAdd<Depth>() };
 
@@ -2725,7 +2546,7 @@ void DrawTransformComponent(Entity entity) {
 
 	ReadOnlyScope read_only_scope{ read_only_reason.has_value() };
 
-	DrawValue(
+	DrawValue(ctx,
 		"Position", transform.position,
 		FieldOptions{
 			.speed	= 1.0f,
@@ -2733,7 +2554,7 @@ void DrawTransformComponent(Entity entity) {
 		}
 	);
 
-	DrawValue(
+	DrawValue(ctx,
 		"Depth", depth.value,
 		FieldOptions{
 			.speed	= 0.05f,
@@ -2744,7 +2565,7 @@ void DrawTransformComponent(Entity entity) {
 		}
 	);
 
-	DrawValue(
+	DrawValue(ctx,
 		"Rotation", transform.rotation,
 		FieldOptions{
 			.speed	= 1.0f,
@@ -2771,51 +2592,264 @@ void DrawTransformComponent(Entity entity) {
 	ImGui::Unindent();
 }
 
+} // namespace
 
-bool DrawRenderTargetSizeContents(Entity entity) {
-	auto& target_size{ entity.Get<::ptgn::impl::RenderTargetSize>() };
+template <>
+struct Contents<::ptgn::impl::Scripts> {
+	static bool Draw(EditorContext& ctx, ::ptgn::impl::Scripts& scripts) {
+		auto entity{ ::ptgn::impl::ScriptsAccessor::GetOwner(scripts) };
 
-	bool changed{
-		ImGui::Checkbox(
-			"Follow Display Size",
-			&target_size.follow_display_size
-		)
-	};
+		if (!entity) {
+		return false;
+		}
 
-	ImGui::BeginDisabled(target_size.follow_display_size);
+		ScriptEditorContext context{ ctx, entity, entity.GetScene().ctx().shared_script_sequences };
 
-	int size[2]{
-		target_size.size.x,
-		target_size.size.y,
-	};
+		bool changed{ false };
+		ImGui::PushStyleColor(ImGuiCol_Button, ImVec4{ 0.20f, 0.34f, 0.33f, 1.0f });
+		ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4{ 0.26f, 0.43f, 0.41f, 1.0f });
+		ImGui::PushStyleColor(ImGuiCol_ButtonActive, ImVec4{ 0.31f, 0.49f, 0.47f, 1.0f });
+		if (ImGui::Button("+ Script", ImVec2{ -FLT_MIN, 0.0f })) {
+			ImGui::OpenPopup("AddScript");
+		}
+		ImGui::PopStyleColor(3);
+		DrawTooltip("Add a custom script or an editor-authored sequence script.");
 
-	if (ImGui::DragInt2(
-			"Size",
-			size,
-			1.0f,
-			1,
-			16384,
-			"%d",
-			ImGuiSliderFlags_AlwaysClamp
-		)) {
-		target_size.size = {
-			std::max(size[0], 1),
-			std::max(size[1], 1),
+		changed |= DrawAddRootScriptPopup(context, scripts);
+		changed |= DrawResidentScripts(context, scripts);
+		return changed;
+	}
+};
+
+template <>
+struct Contents<::ptgn::impl::RenderTargetSize> {
+	static bool Draw(EditorContext&, ::ptgn::impl::RenderTargetSize& target_size) {
+		bool changed{
+			ImGui::Checkbox(
+				"Follow Display Size",
+				&target_size.follow_display_size
+			)
 		};
 
-		changed = true;
+		ImGui::BeginDisabled(target_size.follow_display_size);
+
+		int size[2]{
+			target_size.size.x,
+			target_size.size.y,
+		};
+
+		if (ImGui::DragInt2(
+				"Size",
+				size,
+				1.0f,
+				1,
+				16384,
+				"%d",
+				ImGuiSliderFlags_AlwaysClamp
+			)) {
+			target_size.size = {
+				std::max(size[0], 1),
+				std::max(size[1], 1),
+			};
+
+			changed = true;
+		}
+
+		ImGui::EndDisabled();
+
+		return changed;
 	}
+};
 
-	ImGui::EndDisabled();
+template <>
+struct Contents<::ptgn::impl::CameraData> {
+	static bool Draw(EditorContext& ctx, ::ptgn::impl::CameraData& camera) {
+		bool changed{ false };
 
-	return changed;
-}
+		// Draw this first because it controls the raw viewport's defaults and bounds.
+		changed |= DrawValue(ctx, "Viewport Space", camera.viewport_space);
 
-} // namespace
+		changed |= DrawOptionalViewport(ctx, "Raw Viewport", camera.raw_viewport, camera.viewport_space);
+
+		changed |= DrawValue(ctx, "Pixel Rounding", camera.pixel_rounding);
+		changed |= DrawValue(ctx, "Bounding Box", camera.bounding_box);
+
+		DrawReadOnlyValue(ctx, "View Projection", camera.view_projection);
+
+		return changed;
+	}
+};
+
+template <>
+struct Contents<::ptgn::impl::IDrawable> {
+	static bool Draw(EditorContext&, ::ptgn::impl::IDrawable& drawable) {
+		auto* current_info{ ::ptgn::impl::IDrawable::FindInfo(drawable.hash) };
+
+		std::string preview{ current_info ? std::string{ current_info->GetDisplayName() }
+										  : "<Unregistered Drawable>" };
+
+		bool changed{ DrawPropertyRow("Drawable", [&]() {
+			bool local_changed{ false };
+
+			if (ImGui::BeginCombo("##value", preview.c_str())) {
+				for (const auto& info : ::ptgn::impl::IDrawable::data()) {
+					bool selected{ drawable.hash == info.hash };
+					std::string display_name{ info.GetDisplayName() };
+
+					if (ImGui::Selectable(display_name.c_str(), selected)) {
+						drawable.hash = info.hash;
+						local_changed = true;
+					}
+
+					if (selected) {
+						ImGui::SetItemDefaultFocus();
+					}
+				}
+
+				ImGui::EndCombo();
+			}
+
+			return local_changed;
+		}) };
+
+		if (!current_info && drawable.hash != 0) {
+			ImGui::TextDisabled("Stored hash: %zu", drawable.hash);
+		}
+
+		return changed;
+	}
+};
+
+// Only types whose default reflected layout is not ideal need a specialization.
+template <>
+struct Contents<Hollow> {
+	static bool Draw(EditorContext& ctx, Hollow& hollow) {
+		return DrawValue(ctx, 
+			"Line Width", hollow.line_width,
+			FieldOptions{
+				.speed	= 0.1f,
+				.min	= kMinLineWidth,
+				.max	= 1000.0f,
+				.format = "%.2f",
+				.flags	= ImGuiSliderFlags_AlwaysClamp,
+			}
+		);
+	}
+};
+
+template <>
+struct Contents<Rect> {
+	static bool Draw(EditorContext& ctx, Rect& rect) {
+		bool changed{ false };
+
+		auto size{ rect.max - rect.min };
+
+		if (DrawValue(ctx, 
+				"Size", size,
+				FieldOptions{
+					.speed	= 0.1f,
+					.min	= 0.0,
+					.max	= 0.0,
+					.format = "%.3f",
+				}
+			)) {
+			size.x = std::max(size.x, 0.0f);
+			size.y = std::max(size.y, 0.0f);
+
+			auto center{ rect.GetCenter() };
+			auto half_size{ size * 0.5f };
+
+			rect.min = center - half_size;
+			rect.max = center + half_size;
+
+			changed = true;
+		}
+
+		changed |= DrawValue(ctx, "Min", rect.min);
+		changed |= DrawValue(ctx, "Max", rect.max);
+
+		return changed;
+	}
+};
+
+template <>
+struct Contents<TextRun> {
+	static bool Draw(EditorContext& ctx, TextRun& run) {
+		bool changed{ false };
+		changed |= DrawValue(ctx, "Text", run.text, FieldOptions{ .multiline = true });
+		changed |= DrawValue(ctx, "Font", run.font);
+		changed |= DrawValue(ctx, "Style", run.style);
+		return changed;
+	}
+};
+
+template <>
+struct Contents<StyledText> {
+	static bool Draw(EditorContext& ctx, StyledText& text) {
+		return DrawVectorEditor(ctx, 
+			text.runs, VectorOptions{
+						   .item_name	 = "Text Run",
+						   .default_open = true,
+						   .reorderable	 = true,
+					   }
+		);
+	}
+};
+
+template <>
+struct Contents<Polygon> {
+	static bool Draw(EditorContext& ctx, Polygon& polygon) {
+		return DrawVectorEditor(ctx, 
+			polygon.vertices, VectorOptions{
+								  .item_name	= "Vertex",
+								  .default_open = true,
+								  .reorderable	= true,
+							  }
+		);
+	}
+};
+
+template <>
+struct Contents<ButtonBorderVisuals> {
+	static bool Draw(EditorContext& ctx, ButtonBorderVisuals& visuals) {
+		return DrawEnumArrayEditor<ButtonVisualState>(ctx, visuals.states);
+	}
+};
+
+template <>
+struct Contents<ButtonBackgroundVisuals> {
+	static bool Draw(EditorContext& ctx, ButtonBackgroundVisuals& visuals) {
+		return DrawEnumArrayEditor<ButtonVisualState>(ctx, visuals.states);
+	}
+};
+
+template <>
+struct Contents<ButtonTextVisuals> {
+	static bool Draw(EditorContext& ctx, ButtonTextVisuals& visuals) {
+		return DrawEnumArrayEditor<ButtonVisualState>(ctx, visuals.states);
+	}
+};
+
+template <>
+struct Contents<ButtonSpriteVisuals> {
+	static bool Draw(EditorContext& ctx, ButtonSpriteVisuals& visuals) {
+		return DrawEnumArrayEditor<ButtonVisualState>(ctx, visuals.states);
+	}
+};
+
+template <>
+struct Contents<ButtonSounds> {
+	static bool Draw(EditorContext& ctx, ButtonSounds& sounds) {
+		bool changed{ false };
+		changed |= DrawEnumArrayEditor<ButtonVisualState>(ctx, "Sounds", sounds.states);
+		changed |= DrawValue(ctx, "Exclusive Audio", sounds.exclusive);
+		return changed;
+	}
+};
 
 PTGN_REGISTER_COMPONENT(::ptgn::impl::Scripts,
 	{
-		.draw_contents = &DrawScriptsComponent,
+		.draw_contents = &DrawRegisteredContents<::ptgn::impl::Scripts>,
 	}
 );
 
@@ -2826,7 +2860,7 @@ PTGN_REGISTER_COMPONENT(
 		.group = "Graphics",
 		.removable = false,
 		.addable = false,
-		.draw_contents = &DrawRenderTargetSizeContents,
+		.draw_contents = &DrawRegisteredContents<::ptgn::impl::RenderTargetSize>,
 	}
 );
 
@@ -2975,9 +3009,9 @@ PTGN_REGISTER_COMPONENT(
 				  }
 );
 
-void InspectorPanel::OnRender(EditorContext& ctx) {
-	inspector::InspectorAssetManagerScope asset_manager_scope{ ctx.editor.GetAssetManager() };
+} // namespace inspector
 
+void InspectorPanel::OnRender(EditorContext& ctx) {
 	ImGui::Begin("Inspector");
 
 	auto& scene_hierarchy{ ctx.editor.GetSceneHierarchyPanel() };
@@ -2995,10 +3029,10 @@ void InspectorPanel::OnRender(EditorContext& ctx) {
 
 	ImGui::Separator();
 
-	DrawTransformComponent(selected_entity);
-	ComponentEditorRegistry::DrawComponents(selected_entity);
+	inspector::DrawTransformComponent(ctx, selected_entity);
+	ComponentEditorRegistry::DrawComponents(ctx, selected_entity);
 	ComponentEditorRegistry::DrawTagComponents(selected_entity);
-	ComponentEditorRegistry::DrawComponents(selected_entity, true);
+	ComponentEditorRegistry::DrawComponents(ctx, selected_entity, true);
 
 	ImGui::Separator();
 

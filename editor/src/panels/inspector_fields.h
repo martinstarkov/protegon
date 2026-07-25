@@ -23,6 +23,8 @@
 #include <variant>
 #include <vector>
 
+#include "core/editor.h"
+#include "core/editor_context.h"
 #include "core/graphics/color.h"
 #include "core/math/angle.h"
 #include "core/math/matrix4.h"
@@ -35,7 +37,9 @@
 #include "runtime/asset/asset_manager.h"
 #include "runtime/graphics/text/font_system.h"
 
-namespace ptgn::editor::inspector {
+namespace ptgn::editor {
+
+namespace inspector {
 
 inline constexpr float kDefaultLabelWidth{ 180.0f };
 inline constexpr float kLabelValueSpacing{ 12.0f };
@@ -332,47 +336,47 @@ concept AssetKeyType = std::derived_from<std::remove_cvref_t<T>, AssetKey>;
 
 template <typename T>
 bool DrawValue(
-	std::string_view label, T& value,
+	EditorContext& ctx, std::string_view label, T& value,
 	FieldOptions options = kDefaultFieldOptions<std::remove_cvref_t<T>>
 );
 
 template <typename T>
 bool DrawReadOnlyValue(
-	std::string_view label, const T& value,
+	EditorContext& ctx, std::string_view label, const T& value,
 	FieldOptions options = kDefaultFieldOptions<std::remove_cvref_t<T>>
 );
 
 template <typename T>
-bool DrawDefaultContents(T& value);
+bool DrawDefaultContents(EditorContext& ctx, T& value);
 
 template <typename T>
 struct Contents {
-	static bool Draw(T& value) {
-		return DrawDefaultContents(value);
+	static bool Draw(EditorContext& ctx, T& value) {
+		return DrawDefaultContents(ctx, value);
 	}
 };
 
 template <typename T>
-bool DrawContents(T& value) {
-	return Contents<std::remove_cvref_t<T>>::Draw(value);
+bool DrawContents(EditorContext& ctx, T& value) {
+	return Contents<std::remove_cvref_t<T>>::Draw(ctx, value);
 }
 
 template <typename T>
-bool DrawComponentContents(T& value) {
+bool DrawComponentContents(EditorContext& ctx, T& value) {
 	auto label{ TypeLabel<std::remove_cvref_t<T>>() };
 	AutoLabelWidthScope label_width{ label };
 
-	bool changed{ DrawContents(value) };
+	bool changed{ DrawContents(ctx, value) };
 
 	return changed;
 }
 
 template <typename T>
-bool DrawDefaultComponentContents(T& value) {
+bool DrawDefaultComponentContents(EditorContext& ctx, T& value) {
 	auto label{ TypeLabel<std::remove_cvref_t<T>>() };
 	AutoLabelWidthScope label_width{ label };
 
-	return DrawDefaultContents(value);
+	return DrawDefaultContents(ctx, value);
 }
 
 inline int& ReadOnlyDepth() {
@@ -421,7 +425,7 @@ bool DrawDisabledIf(bool disabled, F&& draw) {
 }
 
 template <typename T>
-bool DrawReadOnlyValue(std::string_view label, const T& value, FieldOptions options) {
+bool DrawReadOnlyValue(EditorContext& ctx, std::string_view label, const T& value, FieldOptions options) {
 	using Value = std::remove_cvref_t<T>;
 
 	static_assert(
@@ -433,14 +437,14 @@ bool DrawReadOnlyValue(std::string_view label, const T& value, FieldOptions opti
 	options.read_only = true;
 
 	ImGui::PushID(&value);
-	DrawValue(label, display_value, options);
+	DrawValue(ctx, label, display_value, options);
 	ImGui::PopID();
 
 	return false;
 }
 
 template <typename T>
-bool DrawMembers(T& value) {
+bool DrawMembers(EditorContext& ctx, T& value) {
 	bool changed{ false };
 
 	if constexpr (ReflectedMembers<T>) {
@@ -448,7 +452,7 @@ bool DrawMembers(T& value) {
 
 		std::apply(
 			[&]<typename... TMember>(TMember&&... member) {
-				((changed |= DrawValue(PrettyName(member.name), member.value)), ...);
+				((changed |= DrawValue(ctx, PrettyName(member.name), member.value)), ...);
 			},
 			members
 		);
@@ -458,8 +462,8 @@ bool DrawMembers(T& value) {
 		auto members{ ReflectReadOnlyMembers(value) };
 
 		std::apply(
-			[]<typename... TMember>(TMember&&... member) {
-				(DrawReadOnlyValue(PrettyName(member.name), member.value), ...);
+			[&ctx]<typename... TMember>(TMember&&... member) {
+				(DrawReadOnlyValue(ctx, PrettyName(member.name), member.value), ...);
 			},
 			members
 		);
@@ -468,55 +472,19 @@ bool DrawMembers(T& value) {
 	return changed;
 }
 
-inline AssetManager*& CurrentInspectorAssetManager() {
-	static thread_local AssetManager* assets{ nullptr };
-	return assets;
-}
-
-class InspectorAssetManagerScope {
-public:
-	explicit InspectorAssetManagerScope(AssetManager& assets) :
-		previous_{ CurrentInspectorAssetManager() } {
-		CurrentInspectorAssetManager() = &assets;
-	}
-
-	~InspectorAssetManagerScope() {
-		CurrentInspectorAssetManager() = previous_;
-	}
-
-	InspectorAssetManagerScope(const InspectorAssetManagerScope&)			 = delete;
-	InspectorAssetManagerScope& operator=(const InspectorAssetManagerScope&) = delete;
-
-	InspectorAssetManagerScope(InspectorAssetManagerScope&&)			= delete;
-	InspectorAssetManagerScope& operator=(InspectorAssetManagerScope&&) = delete;
-
-private:
-	AssetManager* previous_{ nullptr };
-};
-
 template <AssetKeyType T>
-bool IsValidAssetKey(const T& key) {
-	using Value = std::remove_cvref_t<T>;
-
+bool IsValidAssetKey(EditorContext& ctx, const T& key) {
 	if (key.value.empty()) {
 		return true;
 	}
 
-	auto* assets{ CurrentInspectorAssetManager() };
+	auto& assets{ ctx.editor.GetAssetManager() };
 
-	if (assets == nullptr) {
-		return true;
-	}
-
-	if constexpr (std::same_as<Value, AssetKey>) {
-		return assets->Has(key);
-	} else {
-		return assets->Has(key);
-	}
+	return assets.Has(key);
 }
 
 template <AssetKeyType T>
-bool DrawAssetKeyInline(T& value, const FieldOptions& options) {
+bool DrawAssetKeyInline(EditorContext& ctx, T& value, const FieldOptions& options) {
 	bool read_only{ IsReadOnly(options) };
 
 	std::string hint;
@@ -539,7 +507,7 @@ bool DrawAssetKeyInline(T& value, const FieldOptions& options) {
 		changed |= ptgn::editor::AcceptAssetKeyDragDrop(value);
 	}
 
-	if (IsValidAssetKey(value)) {
+	if (IsValidAssetKey(ctx, value)) {
 		return changed;
 	}
 
@@ -568,8 +536,8 @@ bool DrawAssetKeyInline(T& value, const FieldOptions& options) {
 }
 
 template <AssetKeyType T>
-bool DrawAssetKey(std::string_view label, T& value, const FieldOptions& options) {
-	return DrawPropertyRow(label, [&]() { return DrawAssetKeyInline(value, options); });
+bool DrawAssetKey(EditorContext& ctx, std::string_view label, T& value, const FieldOptions& options) {
+	return DrawPropertyRow(label, [&]() { return DrawAssetKeyInline(ctx, value, options); });
 }
 
 inline bool DrawFloat(std::string_view label, float& value, const FieldOptions& options) {
@@ -705,14 +673,14 @@ bool DrawDuration(
 }
 
 template <typename T, std::size_t N, typename Label>
-bool DrawArrayEditorItems(std::array<T, N>& values, Label&& get_item_label) {
+bool DrawArrayEditorItems(EditorContext& ctx, std::array<T, N>& values, Label&& get_item_label) {
 	bool changed{ false };
 
 	for (auto i{ 0uz }; i < N; ++i) {
 		ImGui::PushID(static_cast<int>(i));
 
 		auto item_label{ std::invoke(get_item_label, i) };
-		changed |= DrawValue(item_label, values[i]);
+		changed |= DrawValue(ctx, item_label, values[i]);
 
 		ImGui::PopID();
 	}
@@ -722,7 +690,7 @@ bool DrawArrayEditorItems(std::array<T, N>& values, Label&& get_item_label) {
 
 template <typename T, std::size_t N, typename Label>
 bool DrawArrayEditor(
-	std::string_view label, std::array<T, N>& values, Label&& get_item_label,
+	EditorContext& ctx, std::string_view label, std::array<T, N>& values, Label&& get_item_label,
 	FieldOptions options = {}
 ) {
 	auto header{ std::string{ label } + " (" + std::to_string(N) + ")" };
@@ -739,7 +707,7 @@ bool DrawArrayEditor(
 		return false;
 	}
 
-	bool changed{ DrawArrayEditorItems(values, std::forward<Label>(get_item_label)) };
+	bool changed{ DrawArrayEditorItems(ctx, values, std::forward<Label>(get_item_label)) };
 
 	ImGui::TreePop();
 
@@ -747,8 +715,8 @@ bool DrawArrayEditor(
 }
 
 template <typename T, std::size_t N>
-bool DrawArrayEditor(std::string_view label, std::array<T, N>& values, FieldOptions options = {}) {
-	return DrawArrayEditor(
+bool DrawArrayEditor(EditorContext& ctx, std::string_view label, std::array<T, N>& values, FieldOptions options = {}) {
+	return DrawArrayEditor(ctx,
 		label, values,
 		[&](std::size_t index) {
 			return std::string{ options.array_item_name } + " " + std::to_string(index);
@@ -758,13 +726,13 @@ bool DrawArrayEditor(std::string_view label, std::array<T, N>& values, FieldOpti
 }
 
 template <typename T, std::size_t N, typename Label>
-bool DrawArrayEditor(std::array<T, N>& values, Label&& get_item_label) {
-	return DrawArrayEditorItems(values, std::forward<Label>(get_item_label));
+bool DrawArrayEditor(EditorContext& ctx, std::array<T, N>& values, Label&& get_item_label) {
+	return DrawArrayEditorItems(ctx, values, std::forward<Label>(get_item_label));
 }
 
 template <typename T, std::size_t N>
-bool DrawArrayEditor(std::array<T, N>& values, FieldOptions options = {}) {
-	return DrawArrayEditor(
+bool DrawArrayEditor(EditorContext& ctx, std::array<T, N>& values, FieldOptions options = {}) {
+	return DrawArrayEditor(ctx,
 		values,
 		[&](std::size_t index) {
 			return std::string{ options.array_item_name } + " " + std::to_string(index);
@@ -775,7 +743,7 @@ bool DrawArrayEditor(std::array<T, N>& values, FieldOptions options = {}) {
 
 template <typename TEnum, typename T, std::size_t N>
 	requires std::is_enum_v<TEnum>
-bool DrawEnumArrayEditor(
+bool DrawEnumArrayEditor(EditorContext& ctx,
 	std::string_view label, std::array<T, N>& values, FieldOptions options = {}
 ) {
 	constexpr auto entries{ magic_enum::enum_entries<TEnum>() };
@@ -787,14 +755,14 @@ bool DrawEnumArrayEditor(
 	);
 #endif
 
-	return DrawArrayEditor(
+	return DrawArrayEditor(ctx,
 		label, values, [&](std::size_t index) { return PrettyName(entries[index].second); }, options
 	);
 }
 
 template <typename TEnum, typename T, std::size_t N>
 	requires std::is_enum_v<TEnum>
-bool DrawEnumArrayEditor(std::array<T, N>& values) {
+bool DrawEnumArrayEditor(EditorContext& ctx, std::array<T, N>& values) {
 	constexpr auto entries{ magic_enum::enum_entries<TEnum>() };
 
 #ifndef PTGN_PLATFORM_MACOS
@@ -804,7 +772,7 @@ bool DrawEnumArrayEditor(std::array<T, N>& values) {
 	);
 #endif
 
-	return DrawArrayEditor(values, [&](std::size_t index) {
+	return DrawArrayEditor(ctx, values, [&](std::size_t index) {
 		return PrettyName(entries[index].second);
 	});
 }
@@ -1278,18 +1246,18 @@ bool DrawVectorEditor(std::vector<T>& values, VectorOptions options, Draw&& draw
 }
 
 template <typename T>
-bool DrawVectorEditor(std::string_view label, std::vector<T>& values, VectorOptions options = {}) {
+bool DrawVectorEditor(EditorContext& ctx, std::string_view label, std::vector<T>& values, VectorOptions options = {}) {
 	return DrawVectorEditor(
 		label, values, std::move(options),
-		[]<typename TValue>(TValue& value, std::size_t) { return DrawContents(value); }
+		[&ctx]<typename TValue>(TValue& value, std::size_t) { return DrawContents(ctx, value); }
 	);
 }
 
 template <typename T>
-bool DrawVectorEditor(std::vector<T>& values, VectorOptions options = {}) {
+bool DrawVectorEditor(EditorContext& ctx, std::vector<T>& values, VectorOptions options = {}) {
 	return DrawVectorEditor(
 		values, std::move(options),
-		[]<typename TValue>(TValue& value, std::size_t) { return DrawContents(value); }
+		[&ctx]<typename TValue>(TValue& value, std::size_t) { return DrawContents(ctx, value); }
 	);
 }
 
@@ -1340,7 +1308,7 @@ inline constexpr bool kHasNoReflectedContents = []() {
 
 template <typename... T>
 bool DrawVariant(
-	std::string_view label, std::variant<T...>& value, std::string_view value_label = {},
+	EditorContext& ctx, std::string_view label, std::variant<T...>& value, std::string_view value_label = {},
 	FieldOptions options = {}
 ) {
 	using Variant = std::variant<T...>;
@@ -1380,9 +1348,9 @@ bool DrawVariant(
 				ImGui::Indent();
 
 				if (value_label.empty()) {
-					changed |= DrawContents(active);
+					changed |= DrawContents(ctx, active);
 				} else {
-					changed |= DrawValue(value_label, active, options);
+					changed |= DrawValue(ctx, value_label, active, options);
 				}
 
 				ImGui::Unindent();
@@ -1569,7 +1537,7 @@ bool DrawDurationInlineValue(
 }
 
 template <typename T>
-bool DrawOptionalInlineValue(T& value, const FieldOptions& options) {
+bool DrawOptionalInlineValue(EditorContext& ctx, T& value, const FieldOptions& options) {
 	using Value = std::remove_cvref_t<T>;
 
 	if constexpr (std::same_as<Value, float>) {
@@ -1625,7 +1593,7 @@ bool DrawOptionalInlineValue(T& value, const FieldOptions& options) {
 	} else if constexpr (DurationType<Value>) {
 		return DrawDurationInlineValue(value, options);
 	} else if constexpr (AssetKeyType<Value>) {
-		return DrawAssetKeyInline(value, options);
+		return DrawAssetKeyInline(ctx, value, options);
 	} else if constexpr (std::same_as<Value, std::string>) {
 		return DrawDisabledIf(IsReadOnly(options), [&]() {
 			return ImGui::InputText("##value", &value);
@@ -1696,11 +1664,11 @@ bool DrawOptionalInlineValue(T& value, const FieldOptions& options) {
 
 		return changed;
 	} else if constexpr (std::same_as<Value, Degrees>) {
-		return DrawOptionalInlineValue(value.value, options);
+		return DrawOptionalInlineValue(ctx, value.value, options);
 	} else if constexpr (std::same_as<Value, Radians>) {
 		float degrees{ value.ToDeg().value };
 
-		if (!DrawOptionalInlineValue(degrees, options)) {
+		if (!DrawOptionalInlineValue(ctx, degrees, options)) {
 			return false;
 		}
 
@@ -1714,7 +1682,7 @@ bool DrawOptionalInlineValue(T& value, const FieldOptions& options) {
 }
 
 template <typename T>
-bool DrawOptionalInline(std::string_view label, std::optional<T>& value, FieldOptions options) {
+bool DrawOptionalInline(EditorContext& ctx, std::string_view label, std::optional<T>& value, FieldOptions options) {
 	ImGui::PushID(&value);
 
 	bool enabled{ value.has_value() };
@@ -1739,7 +1707,7 @@ bool DrawOptionalInline(std::string_view label, std::optional<T>& value, FieldOp
 		ImGui::SetNextItemWidth(-FLT_MIN);
 
 		if (value.has_value()) {
-			local_changed |= DrawOptionalInlineValue(value.value(), options);
+			local_changed |= DrawOptionalInlineValue(ctx, value.value(), options);
 		} else {
 			DrawUnsetOptionalInlineValue();
 		}
@@ -1755,7 +1723,7 @@ bool DrawOptionalInline(std::string_view label, std::optional<T>& value, FieldOp
 }
 
 template <typename T>
-bool DrawOptional(std::string_view label, std::optional<T>& value, FieldOptions options) {
+bool DrawOptional(EditorContext& ctx, std::string_view label, std::optional<T>& value, FieldOptions options) {
 	if constexpr (std::is_enum_v<T>) {
 		return DrawOptionalEnum(label, value);
 	} else if constexpr (std::same_as<T, bool>) {
@@ -1765,7 +1733,7 @@ bool DrawOptional(std::string_view label, std::optional<T>& value, FieldOptions 
 
 		if constexpr (kCanDrawOptionalInlineValue<Value>) {
 			if (CanDrawOptionalInlineValue<Value>(options)) {
-				return DrawOptionalInline(label, value, options);
+				return DrawOptionalInline(ctx, label, value, options);
 			}
 		}
 
@@ -1793,14 +1761,14 @@ bool DrawOptional(std::string_view label, std::optional<T>& value, FieldOptions 
 			ImGui::Indent();
 
 			if constexpr (kIsVariant<Value>) {
-				changed |= DrawVariant("Variant", value.value(), "Value", options);
+				changed |= DrawVariant(ctx, "Variant", value.value(), "Value", options);
 			} else if constexpr (
 				ReflectedValue<Value> || ReflectedMembers<Value> ||
 				ReflectedReadOnlyMembers<Value>
 			) {
-				changed |= DrawContents(value.value());
+				changed |= DrawContents(ctx, value.value());
 			} else {
-				changed |= DrawValue("Value", value.value(), options);
+				changed |= DrawValue(ctx, "Value", value.value(), options);
 			}
 
 			ImGui::Unindent();
@@ -1813,7 +1781,7 @@ bool DrawOptional(std::string_view label, std::optional<T>& value, FieldOptions 
 }
 
 template <typename T>
-bool DrawValue(std::string_view label, T& value, FieldOptions options) {
+bool DrawValue(EditorContext& ctx, std::string_view label, T& value, FieldOptions options) {
 	using Value = std::remove_cvref_t<T>;
 
 	static_assert(!std::is_empty_v<T>, "Value type cannot be empty struct/class");
@@ -1839,7 +1807,7 @@ bool DrawValue(std::string_view label, T& value, FieldOptions options) {
 	} else if constexpr (DurationType<Value>) {
 		return DrawDuration(label, value, options);
 	} else if constexpr (AssetKeyType<Value>) {
-		return DrawAssetKey(label, value, options);
+		return DrawAssetKey(ctx, label, value, options);
 	} else if constexpr (std::same_as<Value, std::string>) {
 		return DrawPropertyRow(label, [&]() {
 			return DrawDisabledIf(IsReadOnly(options), [&]() {
@@ -1876,29 +1844,29 @@ bool DrawValue(std::string_view label, T& value, FieldOptions options) {
 	} else if constexpr (std::is_enum_v<Value>) {
 		return DrawEnum(label, value);
 	} else if constexpr (kIsOptional<Value>) {
-		return DrawOptional(label, value, options);
+		return DrawOptional(ctx, label, value, options);
 	} else if constexpr (kIsArray<Value>) {
-		return DrawArrayEditor(label, value, options);
+		return DrawArrayEditor(ctx, label, value, options);
 	} else if constexpr (kIsVector<Value>) {
 		using Element = typename Value::value_type;
 		return DrawVectorEditor(
-			label, value,
+			ctx, label, value,
 			VectorOptions{
 				.item_name = TypeLabel<Element>(),
 			}
 		);
 	} else if constexpr (kIsVariant<Value>) {
-		return DrawVariant(label, value);
+		return DrawVariant(ctx, label, value);
 	} else if constexpr (std::same_as<Value, Matrix4>) {
 		return DrawMatrix4(label, value, options);
 	} else if constexpr (ReflectedValue<Value>) {
 		auto member{ ReflectValue(value) };
-		return DrawValue(label, member.value, options);
+		return DrawValue(ctx, label, member.value, options);
 	} else if constexpr (ReflectedMembers<Value> || ReflectedReadOnlyMembers<Value>) {
 		auto title{ std::string{ label } };
 		bool changed{ false };
 		if (ImGui::TreeNodeEx(title.c_str(), ImGuiTreeNodeFlags_SpanAvailWidth)) {
-			changed = DrawContents(value);
+			changed = DrawContents(ctx, value);
 			ImGui::TreePop();
 		}
 		return changed;
@@ -1908,20 +1876,22 @@ bool DrawValue(std::string_view label, T& value, FieldOptions options) {
 }
 
 template <typename T>
-bool DrawDefaultContents(T& value) {
+bool DrawDefaultContents(EditorContext& ctx, T& value) {
 	using Value = std::remove_cvref_t<T>;
 
 	if constexpr (AssetKeyType<Value>) {
-		return DrawValue(TypeLabel<Value>(), value);
+		return DrawValue(ctx, TypeLabel<Value>(), value);
 	} else if constexpr (ReflectedMembers<Value> || ReflectedReadOnlyMembers<Value>) {
-		return DrawMembers(value);
+		return DrawMembers(ctx, value);
 	} else if constexpr (ReflectedValue<Value>) {
 		auto member{ ReflectValue(value) };
 		auto label{ member.name == "value" ? TypeLabel<Value>() : PrettyName(member.name) };
-		return DrawValue(label, member.value);
+		return DrawValue(ctx, label, member.value);
 	} else {
-		return DrawValue(TypeLabel<Value>(), value);
+		return DrawValue(ctx, TypeLabel<Value>(), value);
 	}
 }
 
-} // namespace ptgn::editor::inspector
+} // namespace inspector
+
+} // namespace ptgn::editor

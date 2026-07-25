@@ -18,14 +18,16 @@
 
 namespace ptgn::editor {
 
+class EditorContext;
+
 inline constexpr std::string_view kTagComponentGroup{ "Tag Components" };
 
 using ComponentEditorChangedCallback = void (*)(Entity entity);
 /// @return Optional: If not nullopt, entry is read only. Value contains the reason for being read
 /// only. If value is empty, reason is not displayed.
 using ComponentEditorReadOnlyCallback	  = std::optional<std::string_view> (*)(Entity entity);
-using ComponentEditorDrawContentsCallback = bool (*)(Entity entity);
-using ComponentEditorDrawJsonCallback	  = bool (*)(json& value);
+using ComponentEditorDrawContentsCallback = bool (*)(EditorContext& ctx, Entity entity);
+using ComponentEditorDrawJsonCallback	  = bool (*)(EditorContext& ctx, json& value);
 using ComponentEditorAddMenuCallback	  = void (*)(Entity entity, std::string_view label);
 
 /// @brief Sparse editor overrides for a component registration.
@@ -78,7 +80,7 @@ struct RegisteredComponentEditor {
 	std::string default_label;
 	ComponentEditorOptions options;
 	void (*draw)(
-		Entity entity, const RegisteredComponent& component,
+		EditorContext& ctx, Entity entity, const RegisteredComponent& component,
 		const ResolvedComponentEditorOptions& options
 	){ nullptr };
 	ComponentEditorDrawJsonCallback draw_json{ nullptr };
@@ -88,12 +90,12 @@ namespace impl {
 
 template <typename T>
 void DrawRegisteredEditorComponent(
-	Entity entity, const RegisteredComponent& component,
+	EditorContext& ctx, Entity entity, const RegisteredComponent& component,
 	const ResolvedComponentEditorOptions& options
 );
 
 template <typename T>
-bool DrawRegisteredEditorComponentJson(json& input);
+bool DrawRegisteredEditorComponentJson(EditorContext& ctx, json& input);
 
 } // namespace impl
 
@@ -182,22 +184,22 @@ public:
 		return resolved;
 	}
 
-	static bool DrawJson(const RegisteredComponent& component, json& value) {
+	static bool DrawJson(EditorContext& ctx, const RegisteredComponent& component, json& value) {
 		const auto* editor{ Find(component.type_id) };
 
 		if (!editor || !editor->draw_json) {
 			return false;
 		}
 
-		return editor->draw_json(value);
+		return editor->draw_json(ctx, value);
 	}
 
-	static bool DrawJson(std::string_view component_name, json& value) {
+	static bool DrawJson(EditorContext& ctx, std::string_view component_name, json& value) {
 		const auto* component{ ComponentRegistry::Find(component_name) };
-		return component && DrawJson(*component, value);
+		return component && DrawJson(ctx, *component, value);
 	}
 
-	static void DrawComponents(Entity entity, bool draw_after_tags = false) {
+	static void DrawComponents(EditorContext& ctx, Entity entity, bool draw_after_tags = false) {
 		for (const auto& component : ComponentRegistry::Components()) {
 			// Drawn manually.
 			if (component.type_id == Hash<Transform>() || component.type_id == Hash<Depth>()) {
@@ -216,7 +218,7 @@ public:
 				continue;
 			}
 
-			editor->draw(entity, component, options);
+			editor->draw(ctx, entity, component, options);
 		}
 	}
 
@@ -460,7 +462,7 @@ private:
 
 	template <typename T>
 	friend void impl::DrawRegisteredEditorComponent(
-		Entity entity, const RegisteredComponent& component,
+		EditorContext& ctx, Entity entity, const RegisteredComponent& component,
 		const ResolvedComponentEditorOptions& options
 	);
 };
@@ -469,7 +471,7 @@ namespace impl {
 
 template <typename T>
 void DrawRegisteredEditorComponent(
-	Entity entity, const RegisteredComponent& component,
+	EditorContext& ctx, Entity entity, const RegisteredComponent& component,
 	const ResolvedComponentEditorOptions& options
 ) {
 	if constexpr (std::is_empty_v<T>) {
@@ -502,8 +504,8 @@ void DrawRegisteredEditorComponent(
 
 		inspector::ReadOnlyScope read_only_scope{ read_only };
 
-		bool changed{ options.draw_contents ? options.draw_contents(entity)
-											: inspector::DrawComponentContents(entity.Get<T>()) };
+		bool changed{ options.draw_contents ? options.draw_contents(ctx, entity)
+											: inspector::DrawComponentContents(ctx, entity.Get<T>()) };
 
 		if (changed && !read_only && options.on_changed) {
 			options.on_changed(entity);
@@ -514,14 +516,14 @@ void DrawRegisteredEditorComponent(
 }
 
 template <typename T>
-bool DrawRegisteredEditorComponentJson(json& input) {
+bool DrawRegisteredEditorComponentJson(EditorContext& ctx, json& input) {
 	if constexpr (std::is_empty_v<T>) {
 		return false;
 	} else if constexpr (std::default_initializable<T>) {
 		T value{};
 		input.get_to(value);
 
-		if (!inspector::DrawComponentContents(value)) {
+		if (!inspector::DrawComponentContents(ctx, value)) {
 			return false;
 		}
 
@@ -530,7 +532,7 @@ bool DrawRegisteredEditorComponentJson(json& input) {
 	} else {
 		T value{ input.template get<T>() };
 
-		if (!inspector::DrawComponentContents(value)) {
+		if (!inspector::DrawComponentContents(ctx, value)) {
 			return false;
 		}
 

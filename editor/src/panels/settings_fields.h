@@ -40,20 +40,20 @@ bool EditSection(
 
 template <typename Get, typename Set>
 bool EditSection(
-	std::string_view label, Get&& get, Set&& set,
+	EditorContext& ctx, std::string_view label, Get&& get, Set&& set,
 	ImGuiTreeNodeFlags flags = ImGuiTreeNodeFlags_DefaultOpen
 ) {
 	return EditSection(
 		label, std::forward<Get>(get), std::forward<Set>(set),
-		[](auto& value) { return inspector::DrawComponentContents(value); }, flags
+		[&ctx](auto& value) { return inspector::DrawComponentContents(ctx, value); }, flags
 	);
 }
 
 template <typename Get, typename Set>
-bool EditValue(std::string_view label, Get&& get, Set&& set) {
+bool EditValue(EditorContext& ctx, std::string_view label, Get&& get, Set&& set) {
 	auto value{ std::invoke(std::forward<Get>(get)) };
 
-	if (!inspector::DrawValue(label, value)) {
+	if (!inspector::DrawValue(ctx, label, value)) {
 		return false;
 	}
 
@@ -62,10 +62,10 @@ bool EditValue(std::string_view label, Get&& get, Set&& set) {
 }
 
 template <typename Get, typename Set>
-bool EditValue(std::string_view label, Get&& get, Set&& set, inspector::FieldOptions options) {
+bool EditValue(EditorContext& ctx, std::string_view label, Get&& get, Set&& set, inspector::FieldOptions options) {
 	auto value{ std::invoke(std::forward<Get>(get)) };
 
-	if (!inspector::DrawValue(label, value, options)) {
+	if (!inspector::DrawValue(ctx, label, value, options)) {
 		return false;
 	}
 

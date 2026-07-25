@@ -25,13 +25,13 @@ namespace ptgn::editor::inspector {
 
 namespace {
 
-bool DrawLineDebugSettings(bool& draw_enabled, Color& draw_color, float& draw_line_width) {
+bool DrawLineDebugSettings(EditorContext& ctx, bool& draw_enabled, Color& draw_color, float& draw_line_width) {
 	bool changed{ false };
 
-	changed |= DrawValue("Draw Enabled", draw_enabled);
-	changed |= DrawValue("Draw Color", draw_color);
+	changed |= DrawValue(ctx, "Draw Enabled", draw_enabled);
+	changed |= DrawValue(ctx, "Draw Color", draw_color);
 	changed |= DrawValue(
-		"Draw Line Width", draw_line_width,
+		ctx, "Draw Line Width", draw_line_width,
 		FieldOptions{
 			.speed	= 0.1f,
 			.min	= kMinLineWidth,
@@ -44,12 +44,12 @@ bool DrawLineDebugSettings(bool& draw_enabled, Color& draw_color, float& draw_li
 	return changed;
 }
 
-bool DrawFillDebugSettings(bool& draw_enabled, Color& draw_color, FillStyle& draw_fill_style) {
+bool DrawFillDebugSettings(EditorContext& ctx, bool& draw_enabled, Color& draw_color, FillStyle& draw_fill_style) {
 	bool changed{ false };
 
-	changed |= DrawValue("Draw Enabled", draw_enabled);
-	changed |= DrawValue("Draw Color", draw_color);
-	changed |= DrawValue("Draw Fill Style", draw_fill_style);
+	changed |= DrawValue(ctx, "Draw Enabled", draw_enabled);
+	changed |= DrawValue(ctx, "Draw Color", draw_color);
+	changed |= DrawValue(ctx, "Draw Fill Style", draw_fill_style);
 
 	return changed;
 }
@@ -58,8 +58,8 @@ bool DrawFillDebugSettings(bool& draw_enabled, Color& draw_color, FillStyle& dra
 
 template <>
 struct Contents<InteractiveDebugSettings> {
-	static bool Draw(InteractiveDebugSettings& settings) {
-		return DrawLineDebugSettings(
+	static bool Draw(EditorContext& ctx, InteractiveDebugSettings& settings) {
+		return DrawLineDebugSettings(ctx,
 			settings.draw_enabled, settings.draw_color, settings.draw_line_width
 		);
 	}
@@ -67,14 +67,14 @@ struct Contents<InteractiveDebugSettings> {
 
 template <>
 struct Contents<CollisionDebugSettings> {
-	static bool Draw(CollisionDebugSettings& settings) {
+	static bool Draw(EditorContext& ctx, CollisionDebugSettings& settings) {
 		bool changed{ false };
 
 		changed |= DrawFillDebugSettings(
-			settings.draw_enabled, settings.draw_color, settings.draw_fill_style
+			ctx, settings.draw_enabled, settings.draw_color, settings.draw_fill_style
 		);
 
-		changed |= DrawValue("Draw CCD", settings.draw_ccd);
+		changed |= DrawValue(ctx, "Draw CCD", settings.draw_ccd);
 
 		return changed;
 	}
@@ -82,17 +82,17 @@ struct Contents<CollisionDebugSettings> {
 
 template <>
 struct Contents<LightVisibilityDebugSettings> {
-	static bool Draw(LightVisibilityDebugSettings& settings) {
+	static bool Draw(EditorContext& ctx, LightVisibilityDebugSettings& settings) {
 		bool changed{ false };
 
-		changed |= DrawValue("Draw Enabled", settings.draw_enabled);
-		changed |= DrawValue("Draw Interiors", settings.draw_interiors);
+		changed |= DrawValue(ctx, "Draw Enabled", settings.draw_enabled);
+		changed |= DrawValue(ctx, "Draw Interiors", settings.draw_interiors);
 
-		changed |= DrawValue("Polygon Color", settings.polygon_color);
-		changed |= DrawValue("Masks Inside Color", settings.masks_inside_color);
-		changed |= DrawValue("Does Not Mask Inside Color", settings.does_not_mask_inside_color);
+		changed |= DrawValue(ctx, "Polygon Color", settings.polygon_color);
+		changed |= DrawValue(ctx, "Masks Inside Color", settings.masks_inside_color);
+		changed |= DrawValue(ctx, "Does Not Mask Inside Color", settings.does_not_mask_inside_color);
 
-		changed |= DrawValue("Draw Fill Style", settings.draw_fill_style);
+		changed |= DrawValue(ctx, "Draw Fill Style", settings.draw_fill_style);
 
 		return changed;
 	}
@@ -100,12 +100,12 @@ struct Contents<LightVisibilityDebugSettings> {
 
 template <>
 struct Contents<TextDebugSettings> {
-	static bool Draw(TextDebugSettings& settings) {
-		bool changed{ DrawLineDebugSettings(
+	static bool Draw(EditorContext& ctx, TextDebugSettings& settings) {
+		bool changed{ DrawLineDebugSettings(ctx,
 			settings.draw_enabled, settings.draw_color, settings.draw_line_width
 		) };
 
-		changed |= DrawValue("Clip Draw Color", settings.clip_draw_color);
+		changed |= DrawValue(ctx, "Clip Draw Color", settings.clip_draw_color);
 
 		return changed;
 	}
@@ -113,14 +113,14 @@ struct Contents<TextDebugSettings> {
 
 template <>
 struct Contents<RenderSettings> {
-	static bool Draw(RenderSettings& settings) {
+	static bool Draw(EditorContext& ctx, RenderSettings& settings) {
 		bool changed{ false };
 
-		changed |= DrawValue("Tone Mapping", settings.tone_mapping.op);
+		changed |= DrawValue(ctx, "Tone Mapping", settings.tone_mapping.op);
 
 		if (settings.tone_mapping.op == ToneMappingOperator::Exposure ||
 			settings.tone_mapping.op == ToneMappingOperator::ACES) {
-			changed |= DrawValue(
+			changed |= DrawValue(ctx, 
 				"Exposure", settings.tone_mapping.exposure,
 				FieldOptions{
 					.speed	= 0.05f,
@@ -132,7 +132,7 @@ struct Contents<RenderSettings> {
 			);
 		}
 
-		changed |= DrawValue(
+		changed |= DrawValue(ctx, 
 			"Gamma", settings.gamma,
 			FieldOptions{
 				.speed	= 0.05f,
@@ -178,13 +178,13 @@ constexpr std::array<ResolutionPreset, 12> kResolutionPresets{
 static_assert(!ContainsDuplicates(kResolutionPresets, &ResolutionPreset::size));
 static_assert(!ContainsDuplicates(kResolutionPresets, &ResolutionPreset::label));
 
-bool DrawResolutionMode(Editor& editor) {
+bool DrawResolutionMode(EditorContext& ctx) {
 	constexpr std::array names{
 		"Use Window Size",
 		"Use Logical Size",
 	};
 
-	auto& renderer{ editor.GetRenderer() };
+	auto& renderer{ ctx.editor.GetRenderer() };
 
 	int mode{ renderer.HasLogicalSize() ? 1 : 0 };
 
@@ -205,8 +205,8 @@ bool DrawResolutionMode(Editor& editor) {
 	return true;
 }
 
-bool DrawResolutionPreset(Editor& editor) {
-	auto& renderer{ editor.GetRenderer() };
+bool DrawResolutionPreset(EditorContext& ctx) {
+	auto& renderer{ ctx.editor.GetRenderer() };
 
 	auto logical_size{ renderer.GetLogicalSize() };
 
@@ -240,23 +240,23 @@ bool DrawResolutionPreset(Editor& editor) {
 	});
 }
 
-void DrawDisplaySettings(Editor& editor) {
+void DrawDisplaySettings(EditorContext& ctx) {
 	if (!ImGui::CollapsingHeader("Display", ImGuiTreeNodeFlags_DefaultOpen)) {
 		return;
 	}
 
 	ImGui::Indent();
 
-	DrawResolutionMode(editor);
+	DrawResolutionMode(ctx);
 
-	auto& renderer{ editor.GetRenderer() };
+	auto& renderer{ ctx.editor.GetRenderer() };
 
 	if (renderer.HasLogicalSize()) {
-		DrawResolutionPreset(editor);
+		DrawResolutionPreset(ctx);
 
 		auto logical_size{ renderer.GetLogicalSize() };
 
-		if (DrawValue(
+		if (DrawValue(ctx,
 				"Logical Size", logical_size,
 				FieldOptions{
 					.speed	= 1.0f,
@@ -271,25 +271,25 @@ void DrawDisplaySettings(Editor& editor) {
 
 		auto scaling_mode{ renderer.GetScalingMode() };
 
-		if (DrawValue("Scaling Mode", scaling_mode)) {
+		if (DrawValue(ctx, "Scaling Mode", scaling_mode)) {
 			renderer.SetScalingMode(scaling_mode);
 		}
 	} else {
 		auto window_size{ renderer.GetDisplayViewport().size };
 
 		ImGui::BeginDisabled();
-		DrawValue("Window Size", window_size);
+		DrawValue(ctx, "Window Size", window_size);
 		ImGui::EndDisabled();
 	}
 
-	settings::EditValue(
-		"Window Background", [&]() { return editor.GetWindow().GetBackgroundColor(); },
-		[&](Color color) { editor.GetWindow().SetBackgroundColor(color); }
+	settings::EditValue(ctx,
+		"Window Background", [&]() { return ctx.editor.GetWindow().GetBackgroundColor(); },
+		[&](Color color) { ctx.editor.GetWindow().SetBackgroundColor(color); }
 	);
 
-	settings::EditValue(
-		"Renderer Background", [&]() { return editor.GetRenderer().GetBackgroundColor(); },
-		[&](Color color) { editor.GetRenderer().SetBackgroundColor(color); }
+	settings::EditValue(ctx,
+		"Renderer Background", [&]() { return ctx.editor.GetRenderer().GetBackgroundColor(); },
+		[&](Color color) { ctx.editor.GetRenderer().SetBackgroundColor(color); }
 	);
 
 	ImGui::Unindent();
@@ -303,10 +303,10 @@ void EngineSettingsPanel::OnRender(EditorContext& ctx) {
 
 	{
 		AutoLabelWidthScope label_width{ "DisplaySettings" };
-		DrawDisplaySettings(ctx.editor);
+		DrawDisplaySettings(ctx);
 	}
 
-	settings::EditSection(
+	settings::EditSection(ctx,
 		"Rendering", [&]() { return ctx.editor.GetRenderer().GetSettings(); },
 		[&](const RenderSettings& value) { ctx.editor.GetRenderer().SetSettings(value); }
 	);
@@ -323,24 +323,24 @@ void DebugSettingsPanel::OnRender(EditorContext& ctx) {
 		ImGui::ShowMetricsWindow(&show_imgui_metrics_);
 	}
 
-	settings::EditSection(
+	settings::EditSection(ctx,
 		"Interaction", [&]() { return ctx.editor.GetDebugSystem().interaction; },
 		[&](const InteractiveDebugSettings& value) {
 			ctx.editor.GetDebugSystem().interaction = value;
 		}
 	);
 
-	settings::EditSection(
+	settings::EditSection(ctx,
 		"Collision", [&]() { return ctx.editor.GetDebugSystem().collision; },
 		[&](const CollisionDebugSettings& value) { ctx.editor.GetDebugSystem().collision = value; }
 	);
 
-	settings::EditSection(
+	settings::EditSection(ctx,
 		"Text", [&]() { return ctx.editor.GetDebugSystem().text; },
 		[&](const TextDebugSettings& value) { ctx.editor.GetDebugSystem().text = value; }
 	);
 
-	settings::EditSection(
+	settings::EditSection(ctx,
 		"Light Visibility", [&]() { return ctx.editor.GetDebugSystem().light; },
 		[&](const LightVisibilityDebugSettings& value) {
 			ctx.editor.GetDebugSystem().light = value;

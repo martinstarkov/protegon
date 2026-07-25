@@ -163,7 +163,7 @@ void SceneListPanel::DrawSceneParamUI(EditorContext& ctx) {
 	ctx.state.is_dirty = true;
 
 	QueueSceneSelection(
-		ctx.editor,
+		ctx,
 		std::move(scene_tag),
 		false
 	);
@@ -180,7 +180,7 @@ void SceneListPanel::OnRender(
 
 	auto select_scene = [&](Scene* scene) {
 		SetSelectedScene(
-			ctx.editor,
+			ctx,
 			scene
 		);
 
@@ -444,7 +444,7 @@ Scene* SceneListPanel::GetSelectedScene() const {
 	return selected_scene_;
 }
 
-bool SceneListPanel::ResolvePendingSceneSelection(Editor& editor) {
+bool SceneListPanel::ResolvePendingSceneSelection(EditorContext& ctx) {
 	if (!pending_scene_selection_.has_value()) {
 		return false;
 	}
@@ -459,7 +459,7 @@ bool SceneListPanel::ResolvePendingSceneSelection(Editor& editor) {
 	};
 
 	auto& scenes{
-		editor.GetSceneManager().GetScenes()
+		ctx.editor.GetSceneManager().GetScenes()
 	};
 
 	auto it{
@@ -481,9 +481,9 @@ bool SceneListPanel::ResolvePendingSceneSelection(Editor& editor) {
 
 	pending_scene_selection_.reset();
 
-	SetSelectedScene(editor, scene);
+	SetSelectedScene(ctx, scene);
 
-	editor
+	ctx.editor
 		.GetSceneHierarchyPanel()
 		.SetSelectedEntity({});
 
@@ -491,7 +491,7 @@ bool SceneListPanel::ResolvePendingSceneSelection(Editor& editor) {
 }
 
 void SceneListPanel::QueueSceneSelection(
-	Editor& editor,
+	EditorContext& ctx,
 	std::string scene_tag,
 	bool runtime
 ) {
@@ -503,13 +503,13 @@ void SceneListPanel::QueueSceneSelection(
 				ImGui::GetFrameCount() + 1,
 		};
 
-	editor
+	ctx.editor
 		.GetSceneHierarchyPanel()
 		.SetSelectedEntity({});
 }
 
 void SceneListPanel::SetSelectedScene(
-	Editor& editor,
+	EditorContext& ctx,
 	Scene* scene
 ) {
 	if (selected_scene_ == scene) {
@@ -521,7 +521,7 @@ void SceneListPanel::SetSelectedScene(
 	bool previous_scene_exists{
 		previous_scene &&
 		std::ranges::any_of(
-			editor.GetSceneManager()
+			ctx.editor.GetSceneManager()
 				.GetScenes(),
 			[previous_scene](
 				const auto& active_scene
@@ -573,7 +573,7 @@ void SceneListPanel::SetSelectedScene(
 		}
 	}
 
-	editor.OnSelectedSceneChanged(
+	ctx.editor.OnSelectedSceneChanged(
 		previous_scene_exists
 			? previous_scene
 			: nullptr,

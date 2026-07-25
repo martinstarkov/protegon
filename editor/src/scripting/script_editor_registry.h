@@ -18,6 +18,8 @@
 
 namespace ptgn::editor {
 
+class EditorContext;
+
 namespace impl {
 
 /// @brief Ensures the translation unit containing the built-in editor registrations is linked.
@@ -119,6 +121,7 @@ enum class ScriptType : std::uint8_t {
 }
 
 struct ScriptEditorContext {
+	EditorContext& ctx;
 	Entity owner;
 	SharedScriptSequenceRegistry& shared_sequences;
 };
@@ -132,8 +135,8 @@ struct ScriptEditorOptions {
 	int menu_order{ 100 };
 	bool separator_after{ false };
 	bool hidden{ false };
-	std::function<bool(T&, ScriptEditorContext&)> draw_inline;
-	std::function<bool(T&, ScriptEditorContext&)> draw;
+	std::function<bool(ScriptEditorContext&, T&)> draw_inline;
+	std::function<bool(ScriptEditorContext&, T&)> draw;
 };
 
 struct RegisteredScriptEditorOptions {
@@ -150,8 +153,8 @@ struct ScriptEditorRegistration {
 	TypeHashValue type_hash{ 0 };
 	RegisteredScriptEditorOptions options;
 	bool has_contents{ false };
-	std::function<bool(json&, ScriptEditorContext&)> draw_inline;
-	std::function<bool(json&, ScriptEditorContext&)> draw;
+	std::function<bool(ScriptEditorContext&, json&)> draw_inline;
+	std::function<bool(ScriptEditorContext&, json&)> draw;
 };
 
 template <typename T>
@@ -162,7 +165,7 @@ struct TypedJsonEditorState {
 };
 
 template <typename T, typename F>
-bool DrawTypedJsonEditor(json& input, ScriptEditorContext& context, F& fn) {
+bool DrawTypedJsonEditor(ScriptEditorContext& context, json& input, F& fn) {
 	static std::unordered_map<const json*, TypedJsonEditorState<T>> states;
 	auto& state{ states[&input] };
 	if (!state.initialized || state.synchronized_value != input) {
@@ -174,7 +177,7 @@ bool DrawTypedJsonEditor(json& input, ScriptEditorContext& context, F& fn) {
 		state.initialized = true;
 	}
 
-	const bool changed{ std::invoke(fn, state.value, context) };
+	const bool changed{ std::invoke(fn, context, state.value) };
 
 	if constexpr (requires(json& output, const T& value) { output = value; }) {
 		json updated;
@@ -242,17 +245,17 @@ public:
 		if (options.draw_inline) {
 			registration.draw_inline =
 				[fn = std::move(options.draw_inline)](
-					json& input, ScriptEditorContext& context
+					ScriptEditorContext& context, json& input
 				) mutable {
-					return DrawTypedJsonEditor<T>(input, context, fn);
+					return DrawTypedJsonEditor<T>(context, input, fn);
 				};
 		}
 		if (options.draw) {
 			registration.draw =
 				[fn = std::move(options.draw)](
-					json& input, ScriptEditorContext& context
+					ScriptEditorContext& context, json& input
 				) mutable {
-					return DrawTypedJsonEditor<T>(input, context, fn);
+					return DrawTypedJsonEditor<T>(context, input, fn);
 				};
 		}
 

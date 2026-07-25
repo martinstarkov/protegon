@@ -28,17 +28,17 @@ public:
 	[[nodiscard]] Scene* GetSelectedScene() const;
 
 	void SetSelectedScene(
-		Editor& editor,
+		EditorContext& ctx,
 		Scene* scene
 	);
 
 	void QueueSceneSelection(
-		Editor& editor,
+		EditorContext& ctx,
 		std::string scene_tag,
 		bool runtime
 	);
 
-	bool ResolvePendingSceneSelection(Editor& editor);
+	bool ResolvePendingSceneSelection(EditorContext& ctx);
 private:
 	struct PendingSceneSelection {
 		std::string tag;

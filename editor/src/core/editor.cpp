@@ -272,7 +272,7 @@ bool Editor::CreateProjectScene(
 ) {
 	PTGN_ASSERT(context_);
 
-	if (context_->state.is_playing) {
+	if (IsPlaying()) {
 		return false;
 	}
 
@@ -355,7 +355,7 @@ bool Editor::CreateProjectScene(
 	);
 
 	scene_list_panel_.QueueSceneSelection(
-		*this,
+		*context_,
 		scene_tag,
 		false
 	);
@@ -368,7 +368,7 @@ bool Editor::DeleteProjectScene(
 ) {
 	PTGN_ASSERT(context_);
 
-	if (context_->state.is_playing) {
+	if (IsPlaying()) {
 		return false;
 	}
 
@@ -412,7 +412,7 @@ bool Editor::DeleteProjectScene(
 	if (selected_scene &&
 		selected_scene->GetTag() == scene_tag) {
 		scene_list_panel_.SetSelectedScene(
-			*this,
+			*context_,
 			nullptr
 		);
 
@@ -450,7 +450,7 @@ bool Editor::SetStartupProjectScene(
 ) {
 	PTGN_ASSERT(context_);
 
-	if (context_->state.is_playing) {
+	if (IsPlaying()) {
 		return false;
 	}
 
@@ -594,7 +594,9 @@ void Editor::DrawMainMenuBar() {
 }
 
 void Editor::DrawPanels() {
-	if (scene_list_panel_.ResolvePendingSceneSelection(*this)) {
+	PTGN_ASSERT(context_);
+
+	if (scene_list_panel_.ResolvePendingSceneSelection(*context_)) {
 		auto* scene{ scene_list_panel_.GetSelectedScene() };
 
 		viewport_panel_.SetUseEditorCamera(
@@ -614,12 +616,12 @@ void Editor::DrawPanels() {
 	content_browser_panel_.OnRender(*context_);
 }
 
-const impl::SceneManager& Editor::GetSceneManager() const {
-	return impl::ApplicationAccessor::ctx(app).scene_manager;
+const ::ptgn::impl::SceneManager& Editor::GetSceneManager() const {
+	return ::ptgn::impl::ApplicationAccessor::ctx(app).scene_manager;
 }
 
-impl::SceneManager& Editor::GetSceneManager() {
-	return impl::ApplicationAccessor::ctx(app).scene_manager;
+::ptgn::impl::SceneManager& Editor::GetSceneManager() {
+	return ::ptgn::impl::ApplicationAccessor::ctx(app).scene_manager;
 }
 
 SceneHierarchyPanel& Editor::GetSceneHierarchyPanel() {
@@ -635,10 +637,10 @@ bool Editor::ShouldEnableEntityPicking() const {
 	return context_->settings.entity_picking && render_enabled_;
 }
 
-impl::FramebufferId Editor::GetSceneFramebuffer(Scene& scene) const {
+::ptgn::impl::FramebufferId Editor::GetSceneFramebuffer(Scene& scene) const {
 	auto render_target{ scene.GetRenderTarget() };
 
-	return static_cast<impl::FramebufferId>(render_target.Get<impl::FramebufferObject>());
+	return static_cast<::ptgn::impl::FramebufferId>(render_target.Get<::ptgn::impl::FramebufferObject>());
 }
 
 void Editor::OnSelectedSceneChanged(Scene* previous_scene, Scene* selected_scene) {
@@ -742,7 +744,7 @@ void Editor::ApplyEntityPickingSettings() {
 void Editor::Play() {
 	PTGN_ASSERT(context_);
 
-	if (context_->state.is_playing) {
+	if (IsPlaying()) {
 		return;
 	}
 
@@ -779,7 +781,7 @@ void Editor::Play() {
 	}
 
 	scene_list_panel_.QueueSceneSelection(
-		*this,
+		*context_,
 		play_snapshot_->scene_tag,
 		true
 	);
@@ -793,7 +795,7 @@ void Editor::Play() {
 void Editor::Stop() {
 	PTGN_ASSERT(context_);
 
-	if (!context_->state.is_playing ||
+	if (!IsPlaying() ||
 		!play_snapshot_) {
 		return;
 	}
@@ -835,7 +837,7 @@ void Editor::Stop() {
 	}
 
 	scene_list_panel_.QueueSceneSelection(
-		*this,
+		*context_,
 		scene_tag,
 		false
 	);
@@ -853,7 +855,7 @@ void Editor::Stop() {
 void Editor::TogglePause() {
 	PTGN_ASSERT(context_);
 
-	if (!context_->state.is_playing) {
+	if (!IsPlaying()) {
 		return;
 	}
 
@@ -864,7 +866,7 @@ void Editor::TogglePause() {
 }
 
 bool Editor::CanSaveProject() const {
-	if (!context_ || context_->state.is_playing) {
+	if (!context_ || IsPlaying()) {
 		return false;
 	}
 
@@ -893,7 +895,7 @@ bool Editor::CanSaveProject() const {
 void Editor::SaveProjectScene() {
 	PTGN_ASSERT(context_);
 
-	if (context_->state.is_playing) {
+	if (IsPlaying()) {
 		return;
 	}
 
@@ -944,6 +946,12 @@ void Editor::SaveProjectScene() {
 	}
 
 	context_->state.is_dirty = false;
+}
+
+bool Editor::IsPlaying() const {
+	PTGN_ASSERT(context_);
+
+	return context_->state.is_playing;
 }
 
 void Editor::SetTimeScale(float time_scale) {
