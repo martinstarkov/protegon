@@ -476,7 +476,7 @@ json Scene::SerializeContent() const {
 	json content = json::object();
 	content["primary_entities"] = std::move(primary_entities);
 	content["entities"] = std::move(serialized_entities);
-	
+
 	return content;
 }
 
