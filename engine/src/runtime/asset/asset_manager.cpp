@@ -438,6 +438,7 @@ Shader AssetManager::LoadShader(
 
 json AssetManager::CreateJson(const path& asset_path) const {
 	json j = ptgn::LoadJson(asset_path);
+	return j;
 }
 
 json& AssetManager::LoadJson(const JsonKey& key, const path& asset_path) {

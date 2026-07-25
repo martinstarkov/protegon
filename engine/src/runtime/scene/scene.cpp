@@ -58,6 +58,9 @@
 #include "runtime/scene/scene_transition.h"
 #include "runtime/scripting/script.h"
 #include "runtime/ui/button.h"
+#include "runtime/ui/dropdown.h"
+#include "runtime/ui/toggle_button.h"
+#include "runtime/ui/tooltip.h"
 #include "tools/debug/debug_system.h"
 
 namespace ptgn {
@@ -665,8 +668,15 @@ void Scene::InternalOnEvent() {
 		Event event{ entity_event.event };
 
 		if (entity_event.entity) {
-			// Single entity event.
-			script_runtime::DispatchEvent(entity_event.entity, event);
+			Entity entity{ entity_event.entity };
+
+			// Built-in component behavior runs before user-authored scripts and sequence triggers.
+			impl::ButtonSystem::OnEvent(entity, event);
+			impl::ToggleButtonSystem::OnEvent(entity, event);
+			impl::DropdownSystem::OnEvent(entity, event);
+			impl::TooltipSystem::OnEvent(entity, event);
+
+			script_runtime::DispatchEvent(entity, event);
 			continue;
 		}
 
@@ -678,6 +688,15 @@ void Scene::InternalOnEvent() {
 
 void Scene::InternalPreUpdate() {
 	if (data_.runtime) {
+		// Derived UI components first add ButtonData; ButtonSystem then adds Interactive.
+		impl::ToggleButtonSystem::Prepare(*this);
+		impl::DropdownSystem::Prepare(*this);
+		impl::TooltipSystem::Prepare(*this);
+		Refresh();
+
+		impl::ButtonSystem::Prepare(*this);
+		Refresh();
+
 		ctx().interaction.Update(*this);
 	}
 }
@@ -878,7 +897,7 @@ void Scene::InternalRuntimeUpdate() {
 	ctx().physics.PreCollisionUpdate();
 	ctx().collision.Update(*this, dt);
 	ctx().physics.PostCollisionUpdate();
-	impl::UpdateButtons(*this);
+	impl::ButtonSystem::Update(*this);
 }
 
 void Scene::InternalMaintenanceUpdate() {

@@ -55,8 +55,8 @@ namespace ptgn::impl {
 
 template <class T>
 void optional_to_json(json& j, std::string_view name, const std::optional<T>& value) {
-	if (value) {
-		j[name] = *value;
+	if (value.has_value()) {
+		j[name] = value.value();
 	}
 }
 

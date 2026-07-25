@@ -15,7 +15,6 @@
 #include "runtime/ecs/tag.h"
 #include "runtime/scene/scene.h"
 #include "runtime/scene/scene_event.h"
-#include "runtime/scripting/script.h"
 #include "runtime/ui/button.h"
 
 namespace ptgn {
@@ -27,7 +26,7 @@ std::optional<ToggleButton> FindToggleButtonByKey(ToggleButtonGroup group, std::
 		return std::nullopt;
 	}
 
-	impl::ToggleButtonGroupKey target_key{ key };
+	auto hash{ Hash(key) };
 
 	for (Entity child : GetChildren(group)) {
 		auto item{ child.TryGet<impl::ToggleButtonGroupItem>() };
@@ -35,7 +34,7 @@ std::optional<ToggleButton> FindToggleButtonByKey(ToggleButtonGroup group, std::
 			continue;
 		}
 
-		if (item->key == target_key) {
+		if (Hash(item->key) == hash) {
 			return ToggleButton{ child };
 		}
 	}
@@ -47,43 +46,49 @@ std::optional<ToggleButton> FindToggleButtonByKey(ToggleButtonGroup group, std::
 
 namespace impl {
 
-void ToggleButtonScript::OnEvent(Event event) {
-	event.Dispatch<ptgn::event::ButtonPress>(&ToggleButtonScript::OnButtonPress, this);
+void ToggleButtonSystem::Prepare(Scene& scene) {
+	for (auto [entity, _data] : scene.EntitiesWith<ToggleButtonData>()) {
+		entity.TryAdd<ButtonData>();
+	}
+
+	for (auto [entity, _item] : scene.EntitiesWith<ToggleButtonGroupItem>()) {
+		entity.TryAdd<ToggleButtonData>();
+		entity.TryAdd<ButtonData>();
+	}
 }
 
-void ToggleButtonScript::OnButtonPress() const {
+void ToggleButtonSystem::OnEvent(Entity entity, Event event) {
+	if (!entity || !entity.Has<ToggleButtonData>()) {
+		return;
+	}
+
+	event.Dispatch<ptgn::event::ButtonPress>([entity]() { OnButtonPress(entity); });
+}
+
+void ToggleButtonSystem::OnButtonPress(Entity entity) {
 	ToggleButton self{ entity };
 
 	if (!self.IsEnabled(false)) {
 		return;
 	}
 
-	// Grouped toggle buttons are controlled by ToggleButtonGroupScript.
-	// Otherwise the button toggles itself first, then the group toggles it again.
-	if (self.Has<ToggleButtonGroupItem>()) {
+	if (!self.Has<ToggleButtonGroupItem>()) {
+		self.Toggle();
 		return;
 	}
 
-	self.Toggle();
-}
+	PTGN_ASSERT(
+		HasParent(self),
+		"ToggleButtonGroupItem must be a direct child of a ToggleButtonGroup"
+	);
 
-ToggleButtonGroupScript::ToggleButtonGroupScript(ToggleButtonGroup group) :
-	toggle_button_group_{ group } {}
+	Entity parent{ GetParent(self) };
+	PTGN_ASSERT(
+		parent.Has<ToggleButtonGroupData>(),
+		"ToggleButtonGroupItem parent must have ToggleButtonGroupData"
+	);
 
-void ToggleButtonGroupScript::OnEvent(Event event) {
-	event.Dispatch<ptgn::event::ButtonPress>(&ToggleButtonGroupScript::OnButtonPress, this);
-}
-
-void ToggleButtonGroupScript::OnButtonPress() {
-	ToggleButton self{ entity };
-
-	if (!self.IsEnabled(false)) {
-		return;
-	}
-
-	PTGN_ASSERT(self.Has<ToggleButtonGroupItem>());
-
-	toggle_button_group_.SetActiveKey(self.Get<ToggleButtonGroupItem>().key);
+	ToggleButtonGroup{ parent }.SetActiveKey(self.Get<ToggleButtonGroupItem>().key);
 }
 
 } // namespace impl
@@ -94,6 +99,7 @@ bool ToggleButton::IsToggled() const {
 }
 
 ToggleButton& ToggleButton::SetToggled(bool toggled) {
+	TryAdd<impl::ButtonData>();
 	auto& button{ TryAdd<impl::ToggleButtonData>() };
 
 	if (button.toggled == toggled) {
@@ -140,17 +146,16 @@ void ToggleButtonGroup::SetAlwaysOneActive(
 ToggleButton ToggleButtonGroup::Add(std::string_view button_key, ToggleButton toggle_button) {
 	TryAdd<impl::ToggleButtonGroupData>();
 
-	RemoveScript<impl::ToggleButtonScript>(toggle_button);
+	toggle_button.TryAdd<impl::ToggleButtonData>();
+	toggle_button.TryAdd<impl::ButtonData>();
 
-	if (!toggle_button.Has<impl::ToggleButtonData>()) {
-		toggle_button.Add<impl::ToggleButtonData>();
+	if (toggle_button.Has<impl::ToggleButtonGroupItem>()) {
+		toggle_button.Get<impl::ToggleButtonGroupItem>().key = button_key;
+	} else {
+		toggle_button.Add<impl::ToggleButtonGroupItem>(button_key);
 	}
 
-	toggle_button.Add<impl::ToggleButtonGroupItem>(impl::ToggleButtonGroupKey{ button_key });
-
 	SetParent(toggle_button, *this);
-
-	AddToggleScript(toggle_button);
 
 	if (auto buttons{ GetButtons() };
 		Get<impl::ToggleButtonGroupData>().always_active && buttons.size() == 1) {
@@ -167,17 +172,12 @@ void ToggleButtonGroup::Remove(std::string_view button_key) const {
 		return;
 	}
 
-	if (!HasScript<impl::ToggleButtonScript>(button.value())) {
-		AddScript<impl::ToggleButtonScript>(button.value());
-	}
-
-	RemoveScript<impl::ToggleButtonGroupScript>(button.value());
-	button.value().Remove<impl::ToggleButtonGroupItem>();
+	button->Remove<impl::ToggleButtonGroupItem>();
 	SetParent(button.value(), Entity{});
 }
 
 void ToggleButtonGroup::SetActive(std::string_view button_key) {
-	SetActiveKey(impl::ToggleButtonGroupKey{ button_key });
+	SetActiveKey(button_key);
 }
 
 std::optional<ToggleButton> ToggleButtonGroup::GetActive() const {
@@ -220,16 +220,10 @@ std::vector<ToggleButton> ToggleButtonGroup::GetButtons() const {
 	return result;
 }
 
-void ToggleButtonGroup::AddToggleScript(ToggleButton toggle_button) const {
-	if (!HasScript<impl::ToggleButtonGroupScript>(toggle_button)) {
-		AddScript<impl::ToggleButtonGroupScript>(toggle_button, *this);
-	}
-}
-
 void ToggleButtonGroup::SetActiveKey(impl::ToggleButtonGroupKey key) {
 	auto& data{ TryAdd<impl::ToggleButtonGroupData>() };
 
-	bool same_as_current{ data.active.has_value() && data.active.value() == key };
+	const bool same_as_current{ data.active.has_value() && data.active.value() == key };
 
 	if (same_as_current && data.always_active) {
 		return;
@@ -244,7 +238,7 @@ void ToggleButtonGroup::SetActiveKey(impl::ToggleButtonGroupKey key) {
 	for (ToggleButton button : GetButtons()) {
 		const auto& item{ button.Get<impl::ToggleButtonGroupItem>() };
 
-		bool active{ data.active.has_value() && item.key == data.active.value() };
+		const bool active{ data.active.has_value() && item.key == data.active.value() };
 		button.SetToggled(active);
 	}
 }
@@ -257,14 +251,7 @@ ToggleButton CreateToggleButton(
 	ToggleButton button{ CreateButton(scene, transform, shape, origin) };
 
 	button.Add<Tag>("Toggle Button");
-	button.Add<impl::ToggleButtonData>();
-
-	PTGN_ASSERT(
-		!HasScript<impl::ToggleButtonScript>(button), "Toggle button cannot be part of a group"
-	);
-
-	AddScript<impl::ToggleButtonScript>(button);
-
+	button.TryAdd<impl::ToggleButtonData>();
 	button.SetToggled(toggled);
 
 	return button;

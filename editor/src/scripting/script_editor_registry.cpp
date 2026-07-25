@@ -28,6 +28,8 @@
 #include "runtime/physics/collision_event.h"
 #include "runtime/scripting/builtin_scripts.h"
 #include "runtime/ui/button.h"
+#include "runtime/ui/dropdown.h"
+#include "runtime/ui/toggle_button.h"
 #include "scripting/script_registration_editor.h"
 
 namespace ptgn::editor {
@@ -990,6 +992,78 @@ PTGN_REGISTER_EVENT(
 		.label = "On Button Press",
 		.group = "Button",
 		.description = "Matches when the owner emits ButtonPress.",
+	}
+);
+
+PTGN_REGISTER_EVENT(
+	event::ButtonHoverStart,
+	{
+		.label = "On Button Hover Start",
+		.group = "Button",
+		.description = "Matches when the pointer starts hovering over the owner button.",
+	}
+);
+
+PTGN_REGISTER_EVENT(
+	event::ButtonHover,
+	{
+		.label = "On Button Hover",
+		.group = "Button",
+		.description = "Matches while the pointer remains over the owner button.",
+	}
+);
+
+PTGN_REGISTER_EVENT(
+	event::ButtonHoverStop,
+	{
+		.label = "On Button Hover Stop",
+		.group = "Button",
+		.description = "Matches when the pointer stops hovering over the owner button.",
+	}
+);
+
+PTGN_REGISTER_EVENT(
+	event::ToggleButtonToggle,
+	{
+		.label = "On Toggle",
+		.group = "Toggle Button",
+		.description = "Matches when the owner toggle button changes state.",
+	}
+);
+
+PTGN_REGISTER_EVENT(
+	event::DropdownOpen,
+	{
+		.label = "On Dropdown Open",
+		.group = "Dropdown",
+		.description = "Matches when the owner dropdown opens.",
+	}
+);
+
+PTGN_REGISTER_EVENT(
+	event::DropdownClose,
+	{
+		.label = "On Dropdown Close",
+		.group = "Dropdown",
+		.description = "Matches when the owner dropdown closes.",
+	}
+);
+
+PTGN_REGISTER_EVENT(
+	event::DropdownToggle,
+	{
+		.label = "On Dropdown Toggle",
+		.group = "Dropdown",
+		.description = "Matches whenever the owner dropdown opens or closes.",
+	}
+);
+
+PTGN_REGISTER_EVENT(
+	event::DropdownItemPress,
+	{
+		.label = "On Dropdown Item Press",
+		.group = "Dropdown",
+		.description = "Matches when one of the owner dropdown's direct items is pressed.",
 	}
 );
 

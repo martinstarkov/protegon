@@ -13,11 +13,12 @@
 #include "core/util/time.h"
 #include "runtime/ecs/entity.h"
 #include "runtime/graphics/sprite.h"
-#include "runtime/scripting/script.h"
+#include "serialization/serialize.h"
 
 namespace ptgn {
 
 class Scene;
+class Tooltip;
 
 struct TooltipProperties {
 	std::string content{ "Default Tooltip Text" };
@@ -40,9 +41,13 @@ enum class TooltipPart : std::uint8_t {
 	Text
 };
 
-struct TooltipBackgroundPart {};
+struct TooltipBackgroundPart {
+	PTGN_REFLECT_EMPTY(TooltipBackgroundPart)
+};
 
-struct TooltipTextPart {};
+struct TooltipTextPart {
+	PTGN_REFLECT_EMPTY(TooltipTextPart)
+};
 
 class TooltipData {
 public:
@@ -53,6 +58,30 @@ public:
 
 	Ease fade_in_ease{ Ease::Linear };
 	Ease fade_out_ease{ Ease::Linear };
+
+	PTGN_REFLECT(
+		TooltipData, hash, fade_in_duration, fade_out_duration, fade_in_ease, fade_out_ease
+	)
+};
+
+struct TooltipHoverData {
+	std::string name;
+	V2_float offset;
+
+	PTGN_REFLECT(TooltipHoverData, name, offset)
+};
+
+struct TooltipSystem {
+	/// @brief Makes TooltipHoverData entities interactive and attaches their tooltip.
+	static void Prepare(Scene& scene);
+
+	/// @brief Shows and hides the configured tooltip from pointer enter/leave events.
+	static void OnEvent(Entity entity, Event event);
+
+private:
+	static Tooltip GetTooltip(Entity entity);
+	static void OnMouseEnter(Entity entity);
+	static void OnMouseLeave(Entity entity);
 };
 
 } // namespace impl
@@ -73,25 +102,6 @@ private:
 	[[nodiscard]] Entity FindPart(impl::TooltipPart part) const;
 };
 
-struct TooltipHoverScript : public Script {
-	std::string name;
-	V2_float offset;
-
-	TooltipHoverScript() = default;
-
-	TooltipHoverScript(std::string_view tooltip_name, V2_float tooltip_offset);
-
-	void OnEvent(Event event) override;
-
-	void OnCreate() override;
-
-	void OnMouseEnter();
-
-	void OnMouseLeave();
-
-private:
-	Tooltip GetTooltip();
-};
 
 Tooltip CreateTooltip(
 	Scene& scene, std::string_view tooltip_name, const TooltipProperties& tooltip_properties

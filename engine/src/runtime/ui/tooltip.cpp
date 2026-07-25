@@ -14,6 +14,7 @@
 #include "core/math/easing.h"
 #include "core/math/geometry/origin.h"
 #include "core/math/geometry/rect.h"
+#include "core/math/transform.h"
 #include "core/math/vector2.h"
 #include "core/util/hash.h"
 #include "core/util/time.h"
@@ -28,7 +29,6 @@
 #include "runtime/interaction/interactive.h"
 #include "runtime/interaction/interactive_event.h"
 #include "runtime/scene/scene.h"
-#include "runtime/scripting/script.h"
 
 namespace ptgn {
 
@@ -37,7 +37,7 @@ namespace {
 bool IsTooltipPart(Entity entity, impl::TooltipPart part) {
 	switch (part) {
 		case impl::TooltipPart::Background: return entity.Has<impl::TooltipBackgroundPart>();
-		case impl::TooltipPart::Text:		return entity.Has<impl::TooltipTextPart>();
+		case impl::TooltipPart::Text:       return entity.Has<impl::TooltipTextPart>();
 	}
 
 	return false;
@@ -120,41 +120,78 @@ Entity Tooltip::FindPart(impl::TooltipPart part) const {
 	return it != children.end() ? *it : Entity{};
 }
 
-TooltipHoverScript::TooltipHoverScript(std::string_view name, V2_float tooltip_offset) :
-	name{ name }, offset{ tooltip_offset } {}
+namespace impl {
 
-void TooltipHoverScript::OnEvent(Event event) {
-	event.Dispatch<event::MouseEnter>(&TooltipHoverScript::OnMouseEnter, this);
-	event.Dispatch<event::MouseLeave>(&TooltipHoverScript::OnMouseLeave, this);
-}
+Tooltip TooltipSystem::GetTooltip(Entity entity) {
+	const auto& hover{ entity.Get<TooltipHoverData>() };
+	auto tooltip{ Tooltip::Get(entity.GetScene(), hover.name) };
 
-void TooltipHoverScript::OnCreate() {
-	auto& manager{ entity.GetManager() };
-	manager.Refresh();
-	auto tooltip{ GetTooltip() };
-	SetParent(tooltip, entity);
-	IgnoreParentRotation(tooltip);
-	IgnoreParentScale(tooltip);
-}
-
-void TooltipHoverScript::OnMouseEnter() {
-	auto tooltip{ GetTooltip() };
-	tooltip.Show(offset);
-}
-
-void TooltipHoverScript::OnMouseLeave() {
-	auto tooltip{ GetTooltip() };
-	tooltip.Hide();
-}
-
-Tooltip TooltipHoverScript::GetTooltip() {
-	auto& scene{ entity.GetScene() };
-	auto tooltip{ Tooltip::Get(scene, name) };
 	PTGN_ASSERT(
-		tooltip.has_value(), "Tooltip with the name: ", name, " does not exist in the manager"
+		tooltip.has_value(), "Tooltip with the name: ", hover.name,
+		" does not exist in the scene"
 	);
+
 	return tooltip.value();
 }
+
+void TooltipSystem::Prepare(Scene& scene) {
+	for (auto [entity, hover] : scene.EntitiesWith<TooltipHoverData>()) {
+		entity.TryAdd<Transform>();
+
+		if (!entity.Has<Interactive>()) {
+			SetInteractive(entity);
+		}
+
+		if (entity.HasAny<ptgn::Texture, ptgn::TextureKey>() && !HasInteractiveShape(entity)) {
+			auto rect{ scene.CreateEntity() };
+			rect.Add<ptgn::Tag>("Tooltip Interactive Rect");
+			rect.Add<ptgn::Rect>(*GetTextureSize(entity));
+			AddInteractiveShape(entity, rect);
+		}
+
+		PTGN_ASSERT(
+			HasInteractiveShape(entity),
+			"TooltipHoverData requires a Rect, Circle, or interactive child shape"
+		);
+
+		auto tooltip{ Tooltip::Get(scene, hover.name) };
+		PTGN_ASSERT(
+			tooltip.has_value(), "Tooltip with the name: ", hover.name,
+			" does not exist in the scene"
+		);
+
+		PTGN_ASSERT(
+			!HasParent(tooltip.value()) || GetParent(tooltip.value()) == entity,
+			"Tooltip '", hover.name, "' is already attached to another entity"
+		);
+
+		if (!HasParent(tooltip.value())) {
+			SetParent(tooltip.value(), entity);
+			ptgn::IgnoreParentRotation(tooltip.value());
+			ptgn::IgnoreParentScale(tooltip.value());
+		}
+	}
+}
+
+void TooltipSystem::OnEvent(Entity entity, Event event) {
+	if (!entity || !entity.Has<TooltipHoverData>()) {
+		return;
+	}
+
+	event.Dispatch<event::MouseEnter>([entity]() { OnMouseEnter(entity); });
+	event.Dispatch<event::MouseLeave>([entity]() { OnMouseLeave(entity); });
+}
+
+void TooltipSystem::OnMouseEnter(Entity entity) {
+	const auto& hover{ entity.Get<TooltipHoverData>() };
+	GetTooltip(entity).Show(hover.offset);
+}
+
+void TooltipSystem::OnMouseLeave(Entity entity) {
+	GetTooltip(entity).Hide();
+}
+
+} // namespace impl
 
 Tooltip CreateTooltip(
 	Scene& scene, std::string_view tooltip_name, const TooltipProperties& tooltip_properties
@@ -197,10 +234,13 @@ Tooltip CreateTooltip(
 }
 
 void ShowTooltipOnHover(Entity entity, std::string_view tooltip_name, V2_float tooltip_offset) {
-	PTGN_ASSERT(
-		entity.Has<impl::Interactive>(), "Entity that shows tooltip on hover should be interactive"
-	);
-	AddScript<TooltipHoverScript>(entity, tooltip_name, tooltip_offset);
+	auto& hover{ entity.TryAdd<impl::TooltipHoverData>() };
+	hover.name = tooltip_name;
+	hover.offset = tooltip_offset;
+
+	if (!entity.Has<impl::Interactive>()) {
+		SetInteractive(entity);
+	}
 }
 
 Tooltip AddTooltipOnHover(
@@ -209,9 +249,9 @@ Tooltip AddTooltipOnHover(
 ) {
 	SetInteractive(entity);
 
-	if (entity.HasAny<Texture, TextureKey>() && !HasInteractiveShape(entity)) {
+	if (entity.HasAny<ptgn::Texture, ptgn::TextureKey>() && !HasInteractiveShape(entity)) {
 		auto rect{ entity.GetScene().CreateEntity() };
-		rect.Add<Tag>("Tooltip Interactive Rect");
+		rect.Add<ptgn::Tag>("Tooltip Interactive Rect");
 		V2_float size{ *GetTextureSize(entity) };
 		rect.Add<Rect>(size);
 		AddInteractiveShape(entity, rect);

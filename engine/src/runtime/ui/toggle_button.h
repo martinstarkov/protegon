@@ -9,6 +9,7 @@
 #include "core/math/geometry/origin.h"
 #include "core/math/transform.h"
 #include "core/math/vector2.h"
+#include "core/util/strong_string.h"
 #include "runtime/ecs/entity.h"
 #include "runtime/ecs/key_hash.h"
 #include "runtime/scripting/script.h"
@@ -36,31 +37,43 @@ struct ToggleButtonData {
 	PTGN_REFLECT(ToggleButtonData, toggled)
 };
 
-class ToggleButtonScript : public Script {
-public:
-	ToggleButtonScript() = default;
+struct ToggleButtonGroupKey : public StrongString<ToggleButtonGroupKey> {
+	using StrongString::StrongString;
 
-	void OnEvent(Event event) override;
+	constexpr ToggleButtonGroupKey() = default;
 
-private:
-	void OnButtonPress() const;
-};
+	friend std::ostream& operator<<(std::ostream& os, const ToggleButtonGroupKey& key) {
+		os << key.value;
+		return os;
+	}
 
-struct ToggleButtonGroupKey : public KeyHash {
-	using KeyHash::KeyHash;
+	PTGN_REFLECT_VALUE(ToggleButtonGroupKey, value)
 };
 
 struct ToggleButtonGroupData {
 	bool always_active{ true };
 	std::optional<ToggleButtonGroupKey> active;
+
+	PTGN_REFLECT(ToggleButtonGroupData, always_active, active)
 };
 
 /// @brief Marker for direct child toggle buttons belonging to a toggle group.
 struct ToggleButtonGroupItem {
 	ToggleButtonGroupKey key;
+
+	PTGN_REFLECT_VALUE(ToggleButtonGroupItem, key)
 };
 
-class ToggleButtonGroupScript;
+struct ToggleButtonSystem {
+	/// @brief Makes ToggleButtonData entities ordinary buttons automatically.
+	static void Prepare(Scene& scene);
+
+	/// @brief Applies standalone or grouped toggle behavior when ButtonPress is emitted.
+	static void OnEvent(Entity entity, Event event);
+
+private:
+	static void OnButtonPress(Entity entity);
+};
 
 } // namespace impl
 
@@ -99,28 +112,10 @@ public:
 	[[nodiscard]] std::vector<ToggleButton> GetButtons() const;
 
 private:
-	friend class impl::ToggleButtonGroupScript;
+	friend struct impl::ToggleButtonSystem;
 
-	void AddToggleScript(ToggleButton toggle_button) const;
 	void SetActiveKey(impl::ToggleButtonGroupKey key);
 };
-
-namespace impl {
-
-class ToggleButtonGroupScript : public Script {
-public:
-	ToggleButtonGroupScript() = default;
-	explicit ToggleButtonGroupScript(ToggleButtonGroup group);
-
-	void OnEvent(Event event) override;
-
-private:
-	void OnButtonPress();
-
-	ToggleButtonGroup toggle_button_group_;
-};
-
-} // namespace impl
 
 namespace event {
 

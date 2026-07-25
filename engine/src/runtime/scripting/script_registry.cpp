@@ -14,6 +14,8 @@
 #include "runtime/physics/collision_event.h"
 #include "runtime/scripting/builtin_scripts.h"
 #include "runtime/ui/button.h"
+#include "runtime/ui/dropdown.h"
+#include "runtime/ui/toggle_button.h"
 
 namespace ptgn {
 
@@ -54,6 +56,18 @@ template <typename TEvent>
 template <typename TEvent>
 [[nodiscard]] bool MatchMouseEvent(Entity, const json& value, const TEvent& event) {
 	return EventMouse(event) == JsonValueOr<Mouse>(value, "button", Mouse::Left);
+}
+
+[[nodiscard]] bool HasButtonData(Entity entity) {
+	return entity && entity.Has<impl::ButtonData>();
+}
+
+[[nodiscard]] bool HasToggleButtonData(Entity entity) {
+	return entity && entity.Has<impl::ToggleButtonData>();
+}
+
+[[nodiscard]] bool HasDropdownData(Entity entity) {
+	return entity && entity.Has<impl::DropdownData>();
 }
 
 } // namespace
@@ -264,7 +278,51 @@ PTGN_REGISTER_EVENT(
 	}
 );
 
-PTGN_REGISTER_EVENT(event::ButtonPress);
+PTGN_REGISTER_EVENT(
+	event::ButtonPress,
+	{ .available = &HasButtonData }
+);
+
+PTGN_REGISTER_EVENT(
+	event::ButtonHoverStart,
+	{ .available = &HasButtonData }
+);
+
+PTGN_REGISTER_EVENT(
+	event::ButtonHover,
+	{ .available = &HasButtonData }
+);
+
+PTGN_REGISTER_EVENT(
+	event::ButtonHoverStop,
+	{ .available = &HasButtonData }
+);
+
+PTGN_REGISTER_EVENT(
+	event::ToggleButtonToggle,
+	{ .available = &HasToggleButtonData }
+);
+
+PTGN_REGISTER_EVENT(
+	event::DropdownOpen,
+	{ .available = &HasDropdownData }
+);
+
+PTGN_REGISTER_EVENT(
+	event::DropdownClose,
+	{ .available = &HasDropdownData }
+);
+
+PTGN_REGISTER_EVENT(
+	event::DropdownToggle,
+	{ .available = &HasDropdownData }
+);
+
+PTGN_REGISTER_EVENT(
+	event::DropdownItemPress,
+	{ .available = &HasDropdownData }
+);
+
 PTGN_REGISTER_EVENT(event::DragStart);
 PTGN_REGISTER_EVENT(event::Drag);
 PTGN_REGISTER_EVENT(event::DragStop);

@@ -857,25 +857,57 @@ void ButtonAnimationCompleteScript::OnEvent(Event event) {
 	});
 }
 
-void ButtonScript::OnEvent(Event event) {
-	using namespace ptgn::event;
+void ButtonSystem::Prepare(Scene& scene) {
+	for (auto [entity, _data] : scene.EntitiesWith<ButtonData>()) {
+		entity.TryAdd<Transform>();
+		entity.TryAdd<Origin>();
 
-	event.Dispatch<MouseMoveOver>(&ButtonScript::OnMouseMoveOver, this);
-	event.Dispatch<MouseMoveOut>(&ButtonScript::OnMouseMoveOut, this);
-	event.Dispatch<MousePressedOver>(&ButtonScript::OnMousePressedOver, this);
-	event.Dispatch<MousePressedOut>(&ButtonScript::OnMousePressedOut, this);
-	event.Dispatch<MouseReleasedOver>(&ButtonScript::OnMouseReleasedOver, this);
-	event.Dispatch<MouseReleasedOut>(&ButtonScript::OnMouseReleasedOut, this);
+		if (!entity.Has<Interactive>()) {
+			SetInteractive(entity);
+		}
+
+		// A sprite-backed entity can become a usable button by adding ButtonData alone.
+		if (!HasInteractiveShape(entity) &&
+			entity.HasAny<ptgn::Texture, ptgn::TextureKey>()) {
+			if (auto texture_size{ GetTextureSize(entity) }) {
+				entity.TryAdd<ptgn::Rect>(*texture_size);
+			}
+		}
+	}
 }
 
-void ButtonScript::OnMouseMoveOver() const {
+void ButtonSystem::OnEvent(Entity entity, Event event) {
+	if (!entity || !entity.Has<ButtonData>()) {
+		return;
+	}
+
+	using namespace ptgn::event;
+
+	event.Dispatch<MouseMoveOver>([entity]() { OnMouseMoveOver(entity); });
+	event.Dispatch<MouseMoveOut>([entity]() { OnMouseMoveOut(entity); });
+
+	event.Dispatch<MousePressedOver>([entity](Mouse mouse) {
+		OnMousePressedOver(entity, mouse);
+	});
+	event.Dispatch<MousePressedOut>([entity](Mouse mouse) {
+		OnMousePressedOut(entity, mouse);
+	});
+	event.Dispatch<MouseReleasedOver>([entity](Mouse mouse) {
+		OnMouseReleasedOver(entity, mouse);
+	});
+	event.Dispatch<MouseReleasedOut>([entity](Mouse mouse) {
+		OnMouseReleasedOut(entity, mouse);
+	});
+}
+
+void ButtonSystem::OnMouseMoveOver(Entity entity) {
 	Button button{ entity };
 
 	if (!button.IsEnabled(true)) {
 		return;
 	}
 
-	auto state{ button.GetInternalState() };
+	const auto state{ button.GetInternalState() };
 
 	using enum InternalButtonState;
 
@@ -893,14 +925,14 @@ void ButtonScript::OnMouseMoveOver() const {
 	button.ContinueHover();
 }
 
-void ButtonScript::OnMouseMoveOut() const {
+void ButtonSystem::OnMouseMoveOut(Entity entity) {
 	Button button{ entity };
 
 	if (!button.IsEnabled(true)) {
 		return;
 	}
 
-	auto state{ button.GetInternalState() };
+	const auto state{ button.GetInternalState() };
 
 	using enum InternalButtonState;
 
@@ -916,7 +948,7 @@ void ButtonScript::OnMouseMoveOut() const {
 	}
 }
 
-void ButtonScript::OnMousePressedOver(Mouse mouse) const {
+void ButtonSystem::OnMousePressedOver(Entity entity, Mouse mouse) {
 	Button button{ entity };
 
 	if (!button.IsEnabled(false) || mouse != Mouse::Left) {
@@ -928,7 +960,7 @@ void ButtonScript::OnMousePressedOver(Mouse mouse) const {
 	}
 }
 
-void ButtonScript::OnMousePressedOut(Mouse mouse) const {
+void ButtonSystem::OnMousePressedOut(Entity entity, Mouse mouse) {
 	Button button{ entity };
 
 	if (!button.IsEnabled(false) || mouse != Mouse::Left) {
@@ -940,14 +972,14 @@ void ButtonScript::OnMousePressedOut(Mouse mouse) const {
 	}
 }
 
-void ButtonScript::OnMouseReleasedOver(Mouse mouse) const {
+void ButtonSystem::OnMouseReleasedOver(Entity entity, Mouse mouse) {
 	Button button{ entity };
 
 	if (!button.IsEnabled(false) || mouse != Mouse::Left) {
 		return;
 	}
 
-	auto state{ button.GetInternalState() };
+	const auto state{ button.GetInternalState() };
 
 	using enum InternalButtonState;
 
@@ -959,14 +991,14 @@ void ButtonScript::OnMouseReleasedOver(Mouse mouse) const {
 	}
 }
 
-void ButtonScript::OnMouseReleasedOut(Mouse mouse) const {
+void ButtonSystem::OnMouseReleasedOut(Entity entity, Mouse mouse) {
 	Button button{ entity };
 
 	if (!button.IsEnabled(false) || mouse != Mouse::Left) {
 		return;
 	}
 
-	auto state{ button.GetInternalState() };
+	const auto state{ button.GetInternalState() };
 
 	using enum InternalButtonState;
 
@@ -975,12 +1007,12 @@ void ButtonScript::OnMouseReleasedOut(Mouse mouse) const {
 	}
 }
 
-void UpdateButtons(Scene& scene) {
-	for (auto [entity, _data] : scene.EntitiesWith<impl::ButtonData>()) {
+void ButtonSystem::Update(Scene& scene) {
+	for (auto [entity, _data] : scene.EntitiesWith<ButtonData>()) {
 		// TODO: Come up with a better way to sync button origins to their parts. Keep in mind that
 		// it may not be as simple as looping over the button parts because the origin may influence
 		// things like transform, etc.
-		Button{ entity }.MarkDirty(impl::ButtonDirty::All);
+		Button{ entity }.MarkDirty(ButtonDirty::All);
 		Button{ entity }.RefreshDirty();
 	}
 }
@@ -3055,7 +3087,6 @@ Button CreateButton(Scene& scene, Transform transform, const ButtonDesc& desc) {
 
 	SetInteractive(button);
 
-	AddScript<impl::ButtonScript>(button);
 
 	if (resolved_desc.size.has_value()) {
 		std::visit(

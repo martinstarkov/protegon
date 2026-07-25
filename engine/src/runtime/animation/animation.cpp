@@ -355,10 +355,12 @@ Animation AnimationMap::Find(impl::AnimationMapKey key) const {
 		return {};
 	}
 
+	auto hash{ Hash(key) };
+
 	auto children{ GetChildren(*this) };
-	auto it{ std::ranges::find_if(children, [key](Entity child) {
+	auto it{ std::ranges::find_if(children, [hash](Entity child) {
 		auto child_key{ child.TryGet<impl::AnimationMapKey>() };
-		return child_key && *child_key == key;
+		return child_key && Hash(*child_key) == hash;
 	}) };
 
 	return it != children.end() ? Animation{ *it } : Animation{};

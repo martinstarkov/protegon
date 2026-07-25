@@ -11,6 +11,7 @@
 #include "core/math/transform.h"
 #include "core/math/vector2.h"
 #include "core/util/time.h"
+#include "core/util/strong_string.h"
 #include "core/util/timer.h"
 #include "runtime/asset/asset_key.h"
 #include "runtime/ecs/entity.h"
@@ -219,8 +220,17 @@ private:
 
 namespace impl {
 
-struct AnimationMapKey : public KeyHash {
-	using KeyHash::KeyHash;
+struct AnimationMapKey : public StrongString<AnimationMapKey> {
+	using StrongString::StrongString;
+
+	constexpr AnimationMapKey() = default;
+
+	friend std::ostream& operator<<(std::ostream& os, const AnimationMapKey& key) {
+		os << key.value;
+		return os;
+	}
+
+	PTGN_REFLECT_VALUE(AnimationMapKey, value)
 };
 
 struct AnimationMapData {

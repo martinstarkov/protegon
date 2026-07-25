@@ -37,6 +37,9 @@
 #include "runtime/scene/scene_camera.h"
 #include "runtime/scripting/script.h"
 #include "runtime/ui/button.h"
+#include "runtime/ui/toggle_button.h"
+#include "runtime/ui/dropdown.h"
+#include "runtime/ui/tooltip.h"
 #include "runtime/ui/button_config.h"
 
 namespace ptgn {
@@ -93,16 +96,26 @@ PTGN_REGISTER_COMPONENT(ShaderKey, { .group = "Asset" });
 PTGN_REGISTER_COMPONENT(JsonKey, { .group = "Asset" });
 
 // Button behavior, visuals, animation, and audio.
-PTGN_REGISTER_COMPONENT(impl::ButtonData, { .group = "Button" });
+PTGN_REGISTER_COMPONENT(impl::ButtonData, { .group = "UI" });
 PTGN_REGISTER_COMPONENT(
 	impl::ButtonAnimationPart,
-	{ .group = "Button" }
+	{ .group = "UI" }
 );
-PTGN_REGISTER_COMPONENT(ButtonBackgroundVisuals, { .group = "Button" });
-PTGN_REGISTER_COMPONENT(ButtonBorderVisuals, { .group = "Button" });
-PTGN_REGISTER_COMPONENT(ButtonSpriteVisuals, { .group = "Button" });
-PTGN_REGISTER_COMPONENT(ButtonTextVisuals, { .group = "Button" });
-PTGN_REGISTER_COMPONENT(ButtonSounds, { .group = "Button" });
+PTGN_REGISTER_COMPONENT(ButtonBackgroundVisuals, { .group = "UI" });
+PTGN_REGISTER_COMPONENT(ButtonBorderVisuals, { .group = "UI" });
+PTGN_REGISTER_COMPONENT(ButtonSpriteVisuals, { .group = "UI" });
+PTGN_REGISTER_COMPONENT(ButtonTextVisuals, { .group = "UI" });
+PTGN_REGISTER_COMPONENT(ButtonSounds, { .group = "UI" });
+PTGN_REGISTER_COMPONENT(impl::ToggleButtonData, { .group = "UI" });
+PTGN_REGISTER_COMPONENT(impl::ToggleButtonGroupData, { .group = "UI" });
+PTGN_REGISTER_COMPONENT(impl::ToggleButtonGroupItem, { .group = "UI" });
+PTGN_REGISTER_COMPONENT(impl::DropdownData, { .group = "UI" });
+PTGN_REGISTER_COMPONENT(impl::DropdownItem, { .group = "UI" });
+PTGN_REGISTER_COMPONENT(impl::TooltipData, { .group = "UI" });
+PTGN_REGISTER_COMPONENT(impl::TooltipHoverData, { .group = "UI" });
+PTGN_REGISTER_COMPONENT(impl::TooltipBackgroundPart, { .group = "UI" });
+PTGN_REGISTER_COMPONENT(impl::TooltipTextPart, { .group = "UI" });
+
 
 // Parent inheritance.
 PTGN_REGISTER_COMPONENT(

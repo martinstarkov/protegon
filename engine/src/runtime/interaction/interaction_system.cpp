@@ -41,7 +41,6 @@
 #include "runtime/scene/scene_context.h"
 #include "runtime/scene/scene_event.h"
 #include "runtime/scene/scene_input.h"
-#include "runtime/scripting/script.h"
 
 namespace ptgn {
 
@@ -274,18 +273,12 @@ void InteractionSystem::UpdateMouseOverStates(
 	const std::vector<Entity>& current, const std::vector<Entity>& last_mouse_over
 ) {
 	for (const Entity& e : current) {
-		if (!e.Has<impl::Scripts>()) {
-			continue;
-		}
 		if (!std::ranges::contains(last_mouse_over, e)) {
 			PushEvent<event::MouseEnter>(e);
 		}
 	}
 
 	for (const Entity& e : last_mouse_over) {
-		if (!e.Has<impl::Scripts>()) {
-			continue;
-		}
 		if (!std::ranges::contains(current, e)) {
 			PushEvent<event::MouseLeave>(e);
 		}
@@ -588,9 +581,6 @@ void InteractionSystem::DispatchMouseEvents(
 	const std::vector<Entity>& over, const std::vector<Entity>& out, const impl::MouseInfo& mouse
 ) {
 	for (Entity e : over) {
-		if (!e.Has<impl::Scripts>()) {
-			continue;
-		}
 
 		if (auto lock{ e.TryGet<InteractionLock>() }; lock && lock->block_press) {
 			PTGN_ASSERT(
@@ -616,9 +606,6 @@ void InteractionSystem::DispatchMouseEvents(
 	}
 
 	for (const Entity& e : out) {
-		if (!e.Has<impl::Scripts>()) {
-			continue;
-		}
 
 		if (std::ranges::contains(over, e)) {
 			continue;

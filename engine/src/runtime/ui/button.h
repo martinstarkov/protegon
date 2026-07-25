@@ -124,24 +124,26 @@ struct ButtonAnimationPart {
 
 struct ButtonAnimationCompleteScript;
 
-class ButtonScript : public Script {
-public:
-	ButtonScript() = default;
+struct ButtonSystem {
+	/// @brief Ensures ButtonData entities participate in the interaction system.
+	static void Prepare(Scene& scene);
 
-	void OnEvent(Event event) override;
+	/// @brief Converts raw interaction events into button state changes and semantic button events.
+	static void OnEvent(Entity entity, Event event);
+
+	/// @brief Refreshes button visuals after runtime state changes.
+	static void Update(Scene& scene);
 
 private:
-	void OnMouseMoveOver() const;
-	void OnMouseMoveOut() const;
+	static void OnMouseMoveOver(Entity entity);
+	static void OnMouseMoveOut(Entity entity);
 
-	void OnMousePressedOver(Mouse mouse) const;
-	void OnMousePressedOut(Mouse mouse) const;
+	static void OnMousePressedOver(Entity entity, Mouse mouse);
+	static void OnMousePressedOut(Entity entity, Mouse mouse);
 
-	void OnMouseReleasedOver(Mouse mouse) const;
-	void OnMouseReleasedOut(Mouse mouse) const;
+	static void OnMouseReleasedOver(Entity entity, Mouse mouse);
+	static void OnMouseReleasedOut(Entity entity, Mouse mouse);
 };
-
-void UpdateButtons(Scene& scene);
 
 } // namespace impl
 
@@ -228,9 +230,8 @@ private:
 	friend class ButtonSprite;
 	friend class ButtonAnimation;
 	friend class Dropdown;
-	friend class impl::ButtonScript;
+	friend struct impl::ButtonSystem;
 	friend struct impl::ButtonAnimationCompleteScript;
-	friend void impl::UpdateButtons(Scene& scene);
 	friend Button CreateButton(Scene& scene, Transform transform, const ButtonDesc& desc);
 
 	template <typename E, EventCallbackInvocable<E> F>

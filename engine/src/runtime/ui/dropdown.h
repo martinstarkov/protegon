@@ -23,11 +23,8 @@ class Scene;
 namespace event {
 
 struct DropdownOpen;
-
 struct DropdownClose;
-
 struct DropdownToggle;
-
 struct DropdownItemPress;
 
 } // namespace event
@@ -41,6 +38,9 @@ struct DropdownData {
 	/// @brief Whether dropdown is currently open.
 	bool open{ false };
 
+	/// @brief Runtime-only initialization flag used by DropdownSystem.
+	bool initialized{ false };
+
 	/// @brief Default value of {} means each item uses the parent dropdown button size.
 	std::optional<V2_float> button_size;
 
@@ -52,6 +52,11 @@ struct DropdownData {
 
 	/// @brief Edge/corner on which the dropdown starts relative to the parent button.
 	Origin origin{ Origin::CenterBottom };
+
+	PTGN_REFLECT(
+		DropdownData, start_open, open, button_size, button_offset, direction, origin
+	)
+	PTGN_REFLECT_READONLY(DropdownData, initialized)
 };
 
 struct DropdownEnabledState {
@@ -68,18 +73,15 @@ struct DropdownItem {
 	PTGN_REFLECT_VALUE(DropdownItem, enabled_state)
 };
 
-class DropdownScript : public Script {
-public:
-	DropdownScript() = default;
+struct DropdownSystem {
+	/// @brief Makes DropdownData and DropdownItem entities ordinary buttons automatically.
+	static void Prepare(Scene& scene);
 
-	void OnEvent(Event event) override;
-};
+	/// @brief Applies dropdown root and item behavior when ButtonPress is emitted.
+	static void OnEvent(Entity entity, Event event);
 
-class DropdownItemScript : public Script {
-public:
-	DropdownItemScript() = default;
-
-	void OnEvent(Event event) override;
+private:
+	static void OnButtonPress(Entity entity);
 };
 
 } // namespace impl
@@ -143,11 +145,9 @@ public:
 	}
 
 private:
-	friend class impl::DropdownScript;
-	friend class impl::DropdownItemScript;
+	friend struct impl::DropdownSystem;
 
 	void HideDropdownBranch(Button button);
-
 	void ShowDropdownItem(Button button) const;
 
 	template <typename E, EventCallbackInvocable<E> F>

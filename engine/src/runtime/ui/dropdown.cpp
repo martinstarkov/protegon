@@ -20,45 +20,80 @@
 #include "runtime/graphics/visible.h"
 #include "runtime/scene/scene.h"
 #include "runtime/scene/scene_event.h"
-#include "runtime/scripting/script.h"
 #include "runtime/ui/button.h"
 
 namespace ptgn {
 
 namespace impl {
 
-void DropdownScript::OnEvent(Event event) {
-	event.Dispatch<ptgn::event::ButtonPress>([this]() { Dropdown{ entity }.Toggle(); });
+void DropdownSystem::Prepare(Scene& scene) {
+	// Items must become buttons before a root initializes and hides/shows its branch.
+	for (auto [entity, _item] : scene.EntitiesWith<DropdownItem>()) {
+		entity.TryAdd<ButtonData>();
+	}
+
+	for (auto [entity, data] : scene.EntitiesWith<DropdownData>()) {
+		entity.TryAdd<ButtonData>();
+
+		if (data.initialized) {
+			continue;
+		}
+
+		Dropdown dropdown{ entity };
+		dropdown.RecalculateButtonPositions();
+
+		const bool should_open{ data.open || data.start_open };
+		data.initialized = true;
+
+		if (should_open) {
+			dropdown.Open();
+		} else {
+			dropdown.Close(false);
+		}
+	}
 }
 
-void DropdownItemScript::OnEvent(Event event) {
-	event.Dispatch<ptgn::event::ButtonPress>([this]() {
-		if (!HasParent(entity)) {
-			PTGN_WARN("Cannot update dropdown item script if item has no parent");
-			return;
-		}
+void DropdownSystem::OnEvent(Entity entity, Event event) {
+	if (!entity ||
+		(!entity.Has<DropdownData>() && !entity.Has<DropdownItem>())) {
+		return;
+	}
 
-		Entity parent{ GetParent(entity) };
+	event.Dispatch<ptgn::event::ButtonPress>([entity]() { OnButtonPress(entity); });
+}
 
-		if (!parent.Has<impl::DropdownData>()) {
-			PTGN_WARN("Cannot update dropdown item script if item parent has no dropdown data");
-			return;
-		}
+void DropdownSystem::OnButtonPress(Entity entity) {
+	if (entity.Has<DropdownData>()) {
+		Dropdown{ entity }.Toggle();
+	}
 
-		Dropdown parent_dropdown{ parent };
+	if (!entity.Has<DropdownItem>()) {
+		return;
+	}
 
-		PushEvent<ptgn::event::DropdownItemPress>(
-			parent_dropdown, parent_dropdown, Button{ entity }
-		);
+	if (!HasParent(entity)) {
+		PTGN_WARN("Cannot process dropdown item press if item has no parent");
+		return;
+	}
 
-		// Nested dropdown roots are also dropdown items. Pressing them should open/close own
-		// menu, not close the parent menu.
-		if (entity.Has<impl::DropdownData>()) {
-			return;
-		}
+	Entity parent{ GetParent(entity) };
 
+	if (!parent.Has<DropdownData>()) {
+		PTGN_WARN("Cannot process dropdown item press if parent has no dropdown data");
+		return;
+	}
+
+	Dropdown parent_dropdown{ parent };
+
+	PushEvent<ptgn::event::DropdownItemPress>(
+		parent_dropdown, parent_dropdown, Button{ entity }
+	);
+
+	// Nested dropdown roots are also dropdown items. Pressing them opens/closes their own menu
+	// without closing the parent branch.
+	if (!entity.Has<DropdownData>()) {
 		parent_dropdown.Close();
-	});
+	}
 }
 
 } // namespace impl
@@ -290,9 +325,6 @@ Dropdown& Dropdown::AddButton(Button button) {
 	auto& item{ button.TryAdd<impl::DropdownItem>() };
 	item.enabled_state.reset();
 
-	if (!HasScript<impl::DropdownItemScript>(button)) {
-		AddScript<impl::DropdownItemScript>(button);
-	}
 
 	if (old_parent && old_parent != *this && old_parent.Has<impl::DropdownData>()) {
 		Dropdown{ old_parent }.RecalculateButtonPositions();
@@ -489,15 +521,14 @@ Dropdown CreateDropdown(
 	auto& info{ dropdown.Add<impl::DropdownData>() };
 	info.start_open = start_open;
 
-	if (!HasScript<impl::DropdownScript>(dropdown)) {
-		AddScript<impl::DropdownScript>(dropdown);
-	}
 
 	if (start_open) {
 		dropdown.Open();
 	} else {
 		dropdown.Close(false);
 	}
+
+	info.initialized = true;
 
 	return dropdown;
 }
