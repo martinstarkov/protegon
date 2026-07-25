@@ -7,7 +7,6 @@
 #include <cctype>
 #include <compare>
 #include <cstdint>
-#include <functional>
 #include <initializer_list>
 #include <optional>
 #include <string>
@@ -50,6 +49,10 @@
 #include "runtime/scene/scene_camera.h"
 #include "runtime/ui/button.h"
 #include "runtime/ui/button_config.h"
+#include "runtime/ui/dialogue.h"
+#include "runtime/ui/dropdown.h"
+#include "runtime/ui/toggle_button.h"
+#include "runtime/ui/tooltip.h"
 
 namespace ptgn::editor {
 
@@ -477,6 +480,451 @@ void DrawRestrictionReasons(std::initializer_list<std::optional<std::string_view
 	}
 }
 
+constexpr V2_float kDefaultShapeSize{ 100, 100 };
+constexpr float kDefaultShapeRadius{ 50.0f };
+constexpr V2_float kDefaultInteractiveSpriteSize{ 100, 100 };
+
+constexpr V2_float kDefaultUIButtonSize{ 180, 50 };
+constexpr V2_float kDefaultUISquareButtonSize{ 64, 64 };
+constexpr V2_float kDefaultUISpriteSize{ 40, 40 };
+constexpr V2_float kDefaultUIPanelSize{ 320, 180 };
+constexpr V2_float kDefaultUIDialogueSize{ 640, 160 };
+
+struct CreateMenuContext {
+	Scene& scene;
+	Entity parent;
+	Entity& selected_entity;
+
+	[[nodiscard]] bool IsCreatingChild() const {
+		return static_cast<bool>(parent);
+	}
+};
+
+using CreateEntityFunction = Entity (*)(Scene&);
+
+void SetCreatedEntityTag(Entity entity, std::string_view tag) {
+	if (entity && entity.Has<Tag>()) {
+		entity.Get<Tag>().value = tag;
+	}
+}
+
+void FinalizeCreatedEntity(CreateMenuContext& context, Entity created) {
+	if (!created) {
+		return;
+	}
+
+	if (context.parent) {
+		// This is a final safeguard for entities such as cameras that are
+		// not allowed to become children.
+		if (!CanReparent(created, context.parent)) {
+			PTGN_WARN(
+				"Could not create entity as a child of ", context.parent.Get<Tag>().value,
+				" because the hierarchy relationship is restricted"
+			);
+			created.Destroy();
+			return;
+		}
+
+		SetParent(created, context.parent);
+	}
+
+	context.selected_entity = created;
+}
+
+void DrawCreateMenuItem(
+	CreateMenuContext& context, const char* label, CreateEntityFunction create,
+	bool can_create_as_child = true
+) {
+	bool disabled{ context.IsCreatingChild() && !can_create_as_child };
+
+	ImGui::BeginDisabled(disabled);
+
+	if (ImGui::MenuItem(label)) {
+		FinalizeCreatedEntity(context, create(context.scene));
+	}
+
+	ImGui::EndDisabled();
+}
+
+Entity CreateDefaultSprite(Scene& scene) {
+	return CreateSprite(scene);
+}
+
+Entity CreateDefaultAnimation(Scene& scene) {
+	return CreateAnimation(scene);
+}
+
+Entity CreateDefaultParticleEmitter(Scene& scene) {
+	return CreateParticleEmitter(scene, {}, {}, true);
+}
+
+Entity CreateDefaultLight(Scene& scene) {
+	return CreateLight(scene);
+}
+
+Entity CreateDefaultRenderTarget(Scene& scene) {
+	return CreateRenderTarget(scene);
+}
+
+Entity CreateDefaultCamera(Scene& scene) {
+	return CreateCamera(scene);
+}
+
+Entity CreateDefaultCustomShader(Scene& scene) {
+	return CreateCustomShader(scene);
+}
+
+template <typename T>
+Entity CreateDefaultEffect(Scene& scene) {
+	return CreateEffect<T>(scene);
+}
+
+Entity CreateDefaultRect(Scene& scene) {
+	return CreateRect(scene, {}, kDefaultShapeSize, color::White);
+}
+
+Entity CreateDefaultCircle(Scene& scene) {
+	return CreateCircle(scene, {}, kDefaultShapeRadius, color::White);
+}
+
+Entity CreateDefaultLine(Scene& scene) {
+	return CreateLine(scene, {}, { -100, -100 }, { 100, 100 }, color::White);
+}
+
+Entity CreateDefaultPolygon(Scene& scene) {
+	return CreatePolygon(
+		scene, {},
+		{
+			{ 0, -50 },
+			{ 47, -15 },
+			{ 29, 40 },
+			{ -29, 40 },
+			{ -47, -15 },
+		},
+		color::White
+	);
+}
+
+Entity CreateDefaultEllipse(Scene& scene) {
+	return CreateEllipse(
+		scene, {}, { kDefaultShapeRadius * 2, kDefaultShapeRadius }, color::White
+	);
+}
+
+Entity CreateDefaultArc(Scene& scene) {
+	return CreateArc(scene, {}, kDefaultShapeRadius, 0.0f, 90.0f, true, color::White);
+}
+
+Entity CreateDefaultRoundedRect(Scene& scene) {
+	return CreateRoundedRect(scene, {}, kDefaultShapeSize, 10.0f, color::White);
+}
+
+Entity CreateDefaultTriangle(Scene& scene) {
+	return CreateTriangle(scene, {}, { -100, 50 }, { 0, -50 }, { 100, 50 }, color::White);
+}
+
+Entity CreateDefaultCapsule(Scene& scene) {
+	return CreateCapsule(
+		scene, {}, { -100, -100 }, { 100, 100 }, kDefaultShapeRadius, color::White
+	);
+}
+
+enum class InteractivePreset {
+	Interactive,
+	Draggable,
+	Dropzone
+};
+
+void ApplyInteractivePreset(Entity entity, InteractivePreset preset) {
+	switch (preset) {
+		case InteractivePreset::Interactive: break;
+		case InteractivePreset::Draggable: SetDraggable(entity); break;
+		case InteractivePreset::Dropzone: SetDropzone(entity); break;
+	}
+}
+
+template <InteractivePreset Preset>
+Entity CreateDefaultInteractiveRect(Scene& scene) {
+	auto entity{ CreateRect(scene, {}, kDefaultShapeSize, color::White) };
+	auto shape{ scene.CreateEntity() };
+	shape.Add<Rect>(kDefaultShapeSize);
+	AddInteractiveShape(entity, shape);
+	ApplyInteractivePreset(entity, Preset);
+	return entity;
+}
+
+template <InteractivePreset Preset>
+Entity CreateDefaultInteractiveCircle(Scene& scene) {
+	auto entity{ CreateCircle(scene, {}, kDefaultShapeRadius, color::White) };
+	auto shape{ scene.CreateEntity() };
+	shape.Add<Circle>(kDefaultShapeRadius);
+	AddInteractiveShape(entity, shape);
+	ApplyInteractivePreset(entity, Preset);
+	return entity;
+}
+
+template <InteractivePreset Preset>
+Entity CreateDefaultInteractiveSprite(Scene& scene) {
+	auto entity{ CreateSprite(scene) };
+	auto shape{ scene.CreateEntity() };
+	shape.Add<Rect>(kDefaultInteractiveSpriteSize);
+	AddInteractiveShape(entity, shape);
+	ApplyInteractivePreset(entity, Preset);
+	return entity;
+}
+
+void ConfigureDefaultButton(Button button, std::string_view text) {
+	button.Background().Color(color::Black.WithAlpha(180));
+	button.Text().Content(text).Color(color::White);
+}
+
+Entity CreateDefaultUIButton(Scene& scene) {
+	auto button{ CreateButton(scene, {}, kDefaultUIButtonSize) };
+	ConfigureDefaultButton(button, "Button");
+	SetCreatedEntityTag(button, "Button");
+	return button;
+}
+
+Entity CreateDefaultUISpriteButton(Scene& scene) {
+	auto button{ CreateButton(scene, {}, kDefaultUISquareButtonSize) };
+	button.Background().Color(color::Black.WithAlpha(96));
+	button.Sprite().Size(kDefaultUISpriteSize);
+	SetCreatedEntityTag(button, "Sprite Button");
+	return button;
+}
+
+Entity CreateDefaultUIAnimatedButton(Scene& scene) {
+	auto button{ CreateButton(scene, {}, kDefaultUIButtonSize) };
+	ConfigureDefaultButton(button, "Animated Button");
+	button.Animation().Size(kDefaultUISpriteSize);
+	SetCreatedEntityTag(button, "Animated Button");
+	return button;
+}
+
+Entity CreateDefaultUIToggleButton(Scene& scene) {
+	auto button{ CreateToggleButton(scene, {}, kDefaultUIButtonSize) };
+	ConfigureDefaultButton(button, "Toggle");
+	SetCreatedEntityTag(button, "Toggle Button");
+	return button;
+}
+
+Entity CreateDefaultUIToggleGroup(Scene& scene) {
+	auto group{ CreateToggleButtonGroup(scene) };
+	SetCreatedEntityTag(group, "Toggle Group");
+	return group;
+}
+
+Entity CreateDefaultUIDropdown(Scene& scene) {
+	auto dropdown{ CreateDropdown(scene, {}, kDefaultUIButtonSize) };
+	ConfigureDefaultButton(dropdown, "Dropdown");
+
+	auto first_item{ dropdown.AddItem("Item 1") };
+	auto second_item{ dropdown.AddItem("Item 2") };
+	ConfigureDefaultButton(first_item, "Item 1");
+	ConfigureDefaultButton(second_item, "Item 2");
+
+	SetCreatedEntityTag(dropdown, "Dropdown");
+	return dropdown;
+}
+
+Entity CreateDefaultUIText(Scene& scene) {
+	auto text{ CreateText(scene, {}, "Default Text", color::White) };
+	SetCreatedEntityTag(text, "Text");
+	return text;
+}
+
+Entity CreateDefaultUIPanel(Scene& scene) {
+	auto panel{ CreateRect(scene, {}, kDefaultUIPanelSize, color::Black.WithAlpha(180)) };
+	SetCreatedEntityTag(panel, "Panel");
+	return panel;
+}
+
+std::string GetUniqueTooltipName(Scene& scene) {
+	std::string name{ "Tooltip" };
+	std::size_t suffix{ 2 };
+
+	while (Tooltip::Get(scene, name).has_value()) {
+		name = "Tooltip " + std::to_string(suffix++);
+	}
+
+	return name;
+}
+
+Entity CreateDefaultUITooltip(Scene& scene) {
+	auto name{ GetUniqueTooltipName(scene) };
+
+	TooltipProperties properties;
+	properties.content = "Tooltip";
+
+	auto tooltip{ CreateTooltip(scene, name, properties) };
+	SetCreatedEntityTag(tooltip, name);
+	return tooltip;
+}
+
+Entity CreateDefaultUIDialogueBox(Scene& scene) {
+	DialogueDesc desc;
+	desc.box_size = kDefaultUIDialogueSize;
+
+	auto dialogue_box{ CreateDialogueBox(scene, {}, desc) };
+	SetCreatedEntityTag(dialogue_box, "Dialogue Box");
+	return dialogue_box;
+}
+
+void DrawEffectsCreateMenu(CreateMenuContext& context) {
+	if (!ImGui::BeginMenu("Effects")) {
+		return;
+	}
+
+	DrawCreateMenuItem(context, "Bloom", CreateDefaultEffect<Bloom>);
+	DrawCreateMenuItem(context, "Blur", CreateDefaultEffect<Blur>);
+	DrawCreateMenuItem(context, "Gaussian Blur", CreateDefaultEffect<GaussianBlur>);
+	DrawCreateMenuItem(context, "Grayscale", CreateDefaultEffect<Grayscale>);
+	DrawCreateMenuItem(context, "Inverse Color", CreateDefaultEffect<InverseColor>);
+	DrawCreateMenuItem(context, "Sharpen", CreateDefaultEffect<Sharpen>);
+	DrawCreateMenuItem(context, "Edge Detection", CreateDefaultEffect<EdgeDetection>);
+
+	ImGui::EndMenu();
+}
+
+void DrawShapesCreateMenu(CreateMenuContext& context) {
+	if (!ImGui::BeginMenu("Shapes")) {
+		return;
+	}
+
+	DrawCreateMenuItem(context, "Rect", CreateDefaultRect);
+	DrawCreateMenuItem(context, "Circle", CreateDefaultCircle);
+	DrawCreateMenuItem(context, "Line", CreateDefaultLine);
+	DrawCreateMenuItem(context, "Polygon", CreateDefaultPolygon);
+	DrawCreateMenuItem(context, "Ellipse", CreateDefaultEllipse);
+	DrawCreateMenuItem(context, "Arc", CreateDefaultArc);
+	DrawCreateMenuItem(context, "Rounded Rect", CreateDefaultRoundedRect);
+	DrawCreateMenuItem(context, "Triangle", CreateDefaultTriangle);
+	DrawCreateMenuItem(context, "Capsule", CreateDefaultCapsule);
+
+	ImGui::EndMenu();
+}
+
+void DrawInteractivePresetItems(CreateMenuContext& context, InteractivePreset preset) {
+	switch (preset) {
+		case InteractivePreset::Interactive:
+			DrawCreateMenuItem(
+				context, "Rect", CreateDefaultInteractiveRect<InteractivePreset::Interactive>
+			);
+			DrawCreateMenuItem(
+				context, "Circle", CreateDefaultInteractiveCircle<InteractivePreset::Interactive>
+			);
+			DrawCreateMenuItem(
+				context, "Sprite", CreateDefaultInteractiveSprite<InteractivePreset::Interactive>
+			);
+			break;
+
+		case InteractivePreset::Draggable:
+			DrawCreateMenuItem(
+				context, "Rect", CreateDefaultInteractiveRect<InteractivePreset::Draggable>
+			);
+			DrawCreateMenuItem(
+				context, "Circle", CreateDefaultInteractiveCircle<InteractivePreset::Draggable>
+			);
+			DrawCreateMenuItem(
+				context, "Sprite", CreateDefaultInteractiveSprite<InteractivePreset::Draggable>
+			);
+			break;
+
+		case InteractivePreset::Dropzone:
+			DrawCreateMenuItem(
+				context, "Rect", CreateDefaultInteractiveRect<InteractivePreset::Dropzone>
+			);
+			DrawCreateMenuItem(
+				context, "Circle", CreateDefaultInteractiveCircle<InteractivePreset::Dropzone>
+			);
+			DrawCreateMenuItem(
+				context, "Sprite", CreateDefaultInteractiveSprite<InteractivePreset::Dropzone>
+			);
+			break;
+	}
+}
+
+void DrawInteractiveCreateMenu(CreateMenuContext& context) {
+	if (!ImGui::BeginMenu("Interactive")) {
+		return;
+	}
+
+	DrawInteractivePresetItems(context, InteractivePreset::Interactive);
+
+	if (ImGui::BeginMenu("Draggable")) {
+		DrawInteractivePresetItems(context, InteractivePreset::Draggable);
+		ImGui::EndMenu();
+	}
+
+	if (ImGui::BeginMenu("Dropzone")) {
+		DrawInteractivePresetItems(context, InteractivePreset::Dropzone);
+		ImGui::EndMenu();
+	}
+
+	ImGui::EndMenu();
+}
+
+void DrawUICreateMenu(CreateMenuContext& context) {
+	if (!ImGui::BeginMenu("UI")) {
+		return;
+	}
+
+	DrawCreateMenuItem(context, "Button", CreateDefaultUIButton);
+	DrawCreateMenuItem(context, "Sprite Button", CreateDefaultUISpriteButton);
+	DrawCreateMenuItem(context, "Animated Button", CreateDefaultUIAnimatedButton);
+	DrawCreateMenuItem(context, "Toggle Button", CreateDefaultUIToggleButton);
+	DrawCreateMenuItem(context, "Toggle Group", CreateDefaultUIToggleGroup);
+	DrawCreateMenuItem(context, "Dropdown", CreateDefaultUIDropdown);
+	DrawCreateMenuItem(context, "Text", CreateDefaultUIText);
+	DrawCreateMenuItem(context, "Panel", CreateDefaultUIPanel);
+	DrawCreateMenuItem(context, "Tooltip", CreateDefaultUITooltip);
+	DrawCreateMenuItem(context, "Dialogue Box", CreateDefaultUIDialogueBox);
+
+	ImGui::EndMenu();
+}
+
+void DrawCreateEntityMenu(Scene& scene, Entity parent, Entity& selected_entity) {
+	CreateMenuContext context{
+		.scene{ scene },
+		.parent{ parent },
+		.selected_entity{ selected_entity },
+	};
+
+	bool creating_child{ context.IsCreatingChild() };
+	const char* create_entity_label{ creating_child ? "Create Child Entity" : "Create Entity" };
+	const char* create_submenu_label{ creating_child ? "Create Child" : "Create" };
+
+	auto child_acceptance_reason{ parent ? GetChildAcceptanceLockReason(parent)
+									 : std::optional<std::string_view>{} };
+	bool can_create_child{ !child_acceptance_reason.has_value() };
+
+	if (ImGui::MenuItem(create_entity_label, nullptr, false, can_create_child)) {
+		FinalizeCreatedEntity(context, scene.CreateEntity());
+	}
+
+	if (!ImGui::BeginMenu(create_submenu_label, can_create_child)) {
+		return;
+	}
+
+	DrawCreateMenuItem(context, "Sprite", CreateDefaultSprite);
+	DrawCreateMenuItem(context, "Animation", CreateDefaultAnimation);
+	DrawCreateMenuItem(context, "Particle Emitter", CreateDefaultParticleEmitter);
+	DrawCreateMenuItem(context, "Light", CreateDefaultLight);
+	DrawCreateMenuItem(context, "Render Target", CreateDefaultRenderTarget);
+
+	// Cameras must remain at the scene root.
+	DrawCreateMenuItem(context, "Camera", CreateDefaultCamera, false);
+
+	DrawCreateMenuItem(context, "Custom Shader", CreateDefaultCustomShader);
+
+	DrawEffectsCreateMenu(context);
+	DrawShapesCreateMenu(context);
+	DrawInteractiveCreateMenu(context);
+	DrawUICreateMenu(context);
+
+	ImGui::EndMenu();
+}
+
 } // namespace
 
 void SceneHierarchyPanel::OnRender(EditorContext& ctx) {
@@ -492,275 +940,6 @@ void SceneHierarchyPanel::OnRender(EditorContext& ctx) {
 
 	Entity entity_to_delete;
 	PendingHierarchyDrop pending_drop;
-
-	auto select_created_entity = [&](Entity entity) {
-		if (!entity) {
-			return;
-		}
-
-		selected_entity_ = entity;
-	};
-
-	auto draw_create_entity_menu = [&](Entity parent = {}) {
-		bool creating_child{ static_cast<bool>(parent) };
-
-		const char* create_entity_label{ creating_child ? "Create Child Entity" : "Create Entity" };
-		const char* create_submenu_label{ creating_child ? "Create Child" : "Create" };
-
-		auto finalize_created_entity = [&](Entity created) {
-			if (!created) {
-				return;
-			}
-
-			if (parent) {
-				// This is a final safeguard for entities such as cameras that are
-				// not allowed to become children.
-				if (!CanReparent(created, parent)) {
-					PTGN_WARN(
-						"Could not create entity as a child of ", parent.Get<Tag>().value,
-						" because the hierarchy relationship is restricted"
-					);
-					created.Destroy();
-					return;
-				}
-
-				SetParent(created, parent);
-			}
-
-			select_created_entity(created);
-		};
-
-		auto create_menu_item = [&](const char* label, auto&& create,
-									bool can_create_as_child = true) {
-			bool disabled{ creating_child && !can_create_as_child };
-
-			ImGui::BeginDisabled(disabled);
-
-			if (ImGui::MenuItem(label)) {
-				finalize_created_entity(std::invoke(std::forward<decltype(create)>(create)));
-			}
-
-			ImGui::EndDisabled();
-		};
-
-		auto draw_submenu = [&]<typename S>(const char* label, S&& draw) {
-			if (!ImGui::BeginMenu(label)) {
-				return;
-			}
-
-			std::invoke(std::forward<S>(draw));
-
-			ImGui::EndMenu();
-		};
-
-		auto child_acceptance_reason{ parent ? GetChildAcceptanceLockReason(parent)
-											 : std::optional<std::string_view>{} };
-
-		bool can_create_child{ !child_acceptance_reason.has_value() };
-
-		if (ImGui::MenuItem(create_entity_label, nullptr, false, can_create_child)) {
-			finalize_created_entity(selected_scene->CreateEntity());
-		}
-
-		if (ImGui::BeginMenu(create_submenu_label, can_create_child)) {
-			create_menu_item("Sprite", [&]() { return CreateSprite(*selected_scene); });
-
-			create_menu_item("Animation", [&]() { return CreateAnimation(*selected_scene); });
-
-			create_menu_item("Particle Emitter", [&]() {
-				return CreateParticleEmitter(*selected_scene, {}, {}, true);
-			});
-
-			create_menu_item("Light", [&]() { return CreateLight(*selected_scene); });
-
-			create_menu_item("Text", [&]() {
-				return CreateText(*selected_scene, {}, "Default Text", color::White);
-			});
-
-			create_menu_item("Render Target", [&]() {
-				return CreateRenderTarget(*selected_scene);
-			});
-
-			// Cameras must remain at the scene root.
-			create_menu_item("Camera", [&]() { return CreateCamera(*selected_scene); }, false);
-
-			create_menu_item("Custom Shader", [&]() {
-				return CreateCustomShader(*selected_scene);
-			});
-
-			draw_submenu("Effects", [&]() {
-				create_menu_item("Bloom", [&]() { return CreateEffect<Bloom>(*selected_scene); });
-
-				create_menu_item("Blur", [&]() { return CreateEffect<Blur>(*selected_scene); });
-
-				create_menu_item("Gaussian Blur", [&]() {
-					return CreateEffect<GaussianBlur>(*selected_scene);
-				});
-
-				create_menu_item("Grayscale", [&]() {
-					return CreateEffect<Grayscale>(*selected_scene);
-				});
-
-				create_menu_item("Inverse Color", [&]() {
-					return CreateEffect<InverseColor>(*selected_scene);
-				});
-
-				create_menu_item("Sharpen", [&]() {
-					return CreateEffect<Sharpen>(*selected_scene);
-				});
-
-				create_menu_item("Edge Detection", [&]() {
-					return CreateEffect<EdgeDetection>(*selected_scene);
-				});
-			});
-
-			draw_submenu("Shapes", [&]() {
-				constexpr auto kShapeColor{ color::White };
-				constexpr V2_float kShapeSize{ 100, 100 };
-				constexpr float kShapeRadius{ 50 };
-
-				create_menu_item("Rect", [&]() {
-					return CreateRect(*selected_scene, {}, kShapeSize, kShapeColor);
-				});
-
-				create_menu_item("Circle", [&]() {
-					return CreateCircle(*selected_scene, {}, kShapeRadius, kShapeColor);
-				});
-
-				create_menu_item("Line", [&]() {
-					return CreateLine(
-						*selected_scene, {}, { -100, -100 }, { 100, 100 }, kShapeColor
-					);
-				});
-
-				create_menu_item("Polygon", [&]() {
-					return CreatePolygon(
-						*selected_scene, {},
-						{
-							{ 0, -50 },
-							{ 47, -15 },
-							{ 29, 40 },
-							{ -29, 40 },
-							{ -47, -15 },
-						},
-						kShapeColor
-					);
-				});
-
-				create_menu_item("Ellipse", [&]() {
-					return CreateEllipse(
-						*selected_scene, {}, { kShapeRadius * 2, kShapeRadius }, kShapeColor
-					);
-				});
-
-				create_menu_item("Arc", [&]() {
-					return CreateArc(
-						*selected_scene, {}, kShapeRadius, 0.0f, 90.0f, true, kShapeColor
-					);
-				});
-
-				create_menu_item("Rounded Rect", [&]() {
-					return CreateRoundedRect(*selected_scene, {}, kShapeSize, 10.0f, kShapeColor);
-				});
-
-				create_menu_item("Triangle", [&]() {
-					return CreateTriangle(
-						*selected_scene, {}, { -100, 50 }, { 0, -50 }, { 100, 50 }, kShapeColor
-					);
-				});
-
-				create_menu_item("Capsule", [&]() {
-					return CreateCapsule(
-						*selected_scene, {}, { -100, -100 }, { 100, 100 }, kShapeRadius, kShapeColor
-					);
-				});
-			});
-
-			draw_submenu("Interactive", [&]() {
-				constexpr auto kInteractiveColor{ color::White };
-				constexpr V2_float kInteractiveRectSize{ 100, 100 };
-				constexpr float kInteractiveCircleRadius{ 50.0f };
-				constexpr V2_float kInteractiveSpriteSize{ 100, 100 };
-
-				auto create_interactive_rect = [&](auto&& configure) {
-					auto entity = CreateRect(
-						*selected_scene, {}, kInteractiveRectSize, kInteractiveColor
-					);
-					auto shape = selected_scene->CreateEntity();
-					shape.Add<Rect>(kInteractiveRectSize);
-					AddInteractiveShape(entity, shape);
-					std::invoke(std::forward<decltype(configure)>(configure), entity);
-					return entity;
-				};
-
-				auto create_interactive_circle = [&](auto&& configure) {
-					auto entity = CreateCircle(
-						*selected_scene, {}, kInteractiveCircleRadius, kInteractiveColor
-					);
-					auto shape = selected_scene->CreateEntity();
-					shape.Add<Circle>(kInteractiveCircleRadius);
-					AddInteractiveShape(entity, shape);
-					std::invoke(std::forward<decltype(configure)>(configure), entity);
-					return entity;
-				};
-
-				auto create_interactive_sprite = [&](auto&& configure) {
-					auto entity = CreateSprite(*selected_scene);
-					auto shape = selected_scene->CreateEntity();
-					shape.Add<Rect>(kInteractiveSpriteSize);
-					AddInteractiveShape(entity, shape);
-					std::invoke(std::forward<decltype(configure)>(configure), entity);
-					return entity;
-				};
-
-				auto leave_interactive = [](Entity) {};
-				auto make_draggable = [](Entity entity) { SetDraggable(entity); };
-				auto make_dropzone = [](Entity entity) { SetDropzone(entity); };
-
-				create_menu_item("Rect", [&]() {
-					return create_interactive_rect(leave_interactive);
-				});
-
-				create_menu_item("Circle", [&]() {
-					return create_interactive_circle(leave_interactive);
-				});
-
-				create_menu_item("Sprite", [&]() {
-					return create_interactive_sprite(leave_interactive);
-				});
-
-				draw_submenu("Draggable", [&]() {
-					create_menu_item("Rect", [&]() {
-						return create_interactive_rect(make_draggable);
-					});
-
-					create_menu_item("Circle", [&]() {
-						return create_interactive_circle(make_draggable);
-					});
-
-					create_menu_item("Sprite", [&]() {
-						return create_interactive_sprite(make_draggable);
-					});
-				});
-
-				draw_submenu("Dropzone", [&]() {
-					create_menu_item("Rect", [&]() {
-						return create_interactive_rect(make_dropzone);
-					});
-
-					create_menu_item("Circle", [&]() {
-						return create_interactive_circle(make_dropzone);
-					});
-
-					create_menu_item("Sprite", [&]() {
-						return create_interactive_sprite(make_dropzone);
-					});
-				});
-			});
-
-			ImGui::EndMenu();
-		}
-	};
 
 	ImGui::SetNextItemWidth(-1.0f);
 	ImGui::InputTextWithHint(
@@ -903,7 +1082,7 @@ void SceneHierarchyPanel::OnRender(EditorContext& ctx) {
 		}
 
 		if (ImGui::BeginPopupContextItem()) {
-			draw_create_entity_menu(entity);
+			DrawCreateEntityMenu(*selected_scene, entity, selected_entity_);
 
 			if (ptgn::HasParent(entity)) {
 				bool can_move_to_root{ CanReparent(entity, {}) };
@@ -987,7 +1166,7 @@ void SceneHierarchyPanel::OnRender(EditorContext& ctx) {
 		// entity.
 		selected_entity_ = {};
 
-		draw_create_entity_menu();
+		DrawCreateEntityMenu(*selected_scene, {}, selected_entity_);
 		ImGui::EndPopup();
 	}
 
