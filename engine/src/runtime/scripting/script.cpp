@@ -249,12 +249,12 @@ void impl::Scripts::Attach(Entity owner) {
 	owner_ = owner;
 	for (auto& entry : scripts) {
 		if (entry.instance) {
-			impl_ScriptAccess::Attach(*entry.instance, owner);
+			impl::ScriptAccessor::Attach(*entry.instance, owner);
 		}
 	}
 	for (auto& entry : pending_additions) {
 		if (entry.instance) {
-			impl_ScriptAccess::Attach(*entry.instance, owner);
+			impl::ScriptAccessor::Attach(*entry.instance, owner);
 		}
 	}
 }
@@ -510,7 +510,7 @@ Script* EnsureInstance(Entity owner, ScriptEntry& entry) {
 		CopySequenceDefinition(entry.instance->sequence, entry.sequence);
 	}
 
-	impl_ScriptAccess::Attach(*entry.instance, owner);
+	impl::ScriptAccessor::Attach(*entry.instance, owner);
 	if (!entry.initialized) {
 		entry.instance->OnCreate();
 		entry.instance->OnStart();
@@ -686,7 +686,7 @@ bool CancelBinding(
 
 	if (binding.runtime.script_instance) {
 		auto& script{ *binding.runtime.script_instance };
-		impl_ScriptAccess::SetFrame(
+		impl::ScriptAccessor::SetFrame(
 			script,
 			0.0f, 0.0f, 0.0f,
 			binding.runtime.current_repeat,
@@ -800,7 +800,7 @@ bool StartBinding(
 			: registration->instantiate(action.value)
 	};
 	if (instance) {
-		impl_ScriptAccess::Attach(*instance, owner);
+		impl::ScriptAccessor::Attach(*instance, owner);
 	}
 	return instance;
 }
@@ -813,7 +813,7 @@ void StartChildScript(
 	int repeat,
 	bool reversed
 ) {
-	impl_ScriptAccess::SetFrame(script, 0.0f, linear, progress, repeat, reversed);
+	impl::ScriptAccessor::SetFrame(script, 0.0f, linear, progress, repeat, reversed);
 	script.OnCreate();
 	script.OnStart();
 	if (script.sequence.enabled && script.sequence.start_events.empty() &&
@@ -829,7 +829,7 @@ ScriptStatus UpdateChildScript(
 ) {
 	ScriptStatus status{ script.OnUpdate() };
 	UpdateSequence(owner, script.sequence, delta_seconds);
-	if (impl_ScriptAccess::TakeCompletionRequest(script) ||
+	if (impl::ScriptAccessor::TakeCompletionRequest(script) ||
 		(HasSequenceDefinition(script.sequence) && script.sequence.runtime.completed)) {
 		status = ScriptStatus::Complete;
 	}
@@ -845,7 +845,7 @@ void ExecuteInstantStep(Entity owner, const ScriptStep& action) {
 		return;
 	}
 	StartChildScript(owner, *instance, 1.0f, 1.0f, 0, false);
-	impl_ScriptAccess::SetFrame(*instance, 0.0f, 1.0f, 1.0f, 0, false);
+	impl::ScriptAccessor::SetFrame(*instance, 0.0f, 1.0f, 1.0f, 0, false);
 	UpdateChildScript(owner, *instance, 0.0f);
 	instance->OnComplete();
 }
@@ -890,7 +890,7 @@ void CompleteCurrentStep(
 ) {
 	auto& runtime{ binding.runtime };
 	if (runtime.script_instance) {
-		impl_ScriptAccess::SetFrame(
+		impl::ScriptAccessor::SetFrame(
 			*runtime.script_instance,
 			0.0f, 1.0f, 1.0f,
 			runtime.current_repeat,
@@ -1011,7 +1011,7 @@ void UpdateSequence(
 		progress = ptgn::ApplyEase(directed, timing.ease);
 	}
 
-	impl_ScriptAccess::SetFrame(
+	impl::ScriptAccessor::SetFrame(
 		*runtime.script_instance,
 		delta_seconds, linear, progress,
 		runtime.current_repeat, runtime.currently_reversed
@@ -1054,7 +1054,7 @@ void UpdateSequence(
 			runtime.currently_reversed = !runtime.currently_reversed;
 			InvokeLifecycle(owner, binding, SequenceLifecycle::Yoyo);
 		}
-		impl_ScriptAccess::SetFrame(
+		impl::ScriptAccessor::SetFrame(
 			*runtime.script_instance,
 			0.0f, 0.0f, 0.0f,
 			runtime.current_repeat, runtime.currently_reversed
@@ -1210,13 +1210,13 @@ void Update(Scene& scene, secondsf delta_time) {
 			if (!script || !entry.enabled) {
 				continue;
 			}
-			impl_ScriptAccess::SetFrame(
+			impl::ScriptAccessor::SetFrame(
 				*script, delta_seconds, 0.0f, 0.0f, 0, false
 			);
 			const ScriptStatus status{ script->OnUpdate() };
 			UpdateSequence(entity, script->sequence, delta_seconds);
 			if (status == ScriptStatus::Complete ||
-				impl_ScriptAccess::TakeCompletionRequest(*script)) {
+				impl::ScriptAccessor::TakeCompletionRequest(*script)) {
 				script->OnComplete();
 				entry.enabled = false;
 			}

@@ -34,6 +34,13 @@ class Script;
 struct SignalKey;
 struct SequenceHandle;
 
+namespace impl {
+
+class ScriptAccessor;
+class ScriptsAccessor;
+
+} // namespace impl
+
 using SequenceId = std::uint64_t;
 using TypeHashValue = std::size_t;
 
@@ -276,7 +283,7 @@ protected:
 	void MoveOn() { Complete(); }
 
 private:
-	friend struct impl_ScriptAccess;
+	friend class impl::ScriptAccessor;
 
 	float delta_seconds_{ 0.0f };
 	float linear_progress_{ 0.0f };
@@ -293,7 +300,10 @@ struct WaitScript : public Script {
 template <typename T>
 concept ScriptClass = std::derived_from<T, Script>;
 
-struct impl_ScriptAccess {
+namespace impl {
+
+class ScriptAccessor {
+public:
 	static void Attach(Script& script, Entity owner) { script.entity = owner; }
 	static void SetFrame(
 		Script& script, float delta_seconds, float linear_progress, float progress, int repeat,
@@ -309,6 +319,8 @@ struct impl_ScriptAccess {
 		return std::exchange(script.completion_requested_, false);
 	}
 };
+
+} // namespace impl
 
 template <typename T>
 bool TryReadScriptJson(const json& input, T& output) {
@@ -697,12 +709,21 @@ public:
 	std::vector<ScriptEntry> pending_additions;
 	std::vector<SequenceId> pending_removals;
 
-private:
+private: 
+	friend class ScriptsAccessor;
+
 	Entity owner_;
 };
 
 void from_json(const json& j, Scripts& scripts);
 void to_json(json& j, const Scripts& scripts);
+
+class ScriptsAccessor {
+public:
+	static Entity GetOwner(const Scripts& scripts) {
+		return scripts.owner_;
+	}
+};
 
 } // namespace impl
 
@@ -888,7 +909,7 @@ T& impl::Scripts::Add(Entity owner, TArgs&&... constructor_args) {
 	const auto* registration{ ScriptRegistry::Find(Hash<T>()) };
 
 	auto instance{ std::make_unique<T>(std::forward<TArgs>(constructor_args)...) };
-	impl_ScriptAccess::Attach(*instance, owner);
+	impl::ScriptAccessor::Attach(*instance, owner);
 	auto* raw{ instance.get() };
 
 	json snapshot = json::object();
