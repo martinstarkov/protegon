@@ -7,8 +7,8 @@
 
 namespace ptgn {
 
-void SetDropzone(Entity entity, ComponentState state) {
-	impl::SetComponentState<impl::Dropzone>(entity, state);
+void SetDropzone(Entity entity, bool enabled) {
+	entity.TryAdd<impl::Dropzone>().enabled = enabled;
 }
 
 bool IsDropzone(Entity entity) {
@@ -16,6 +16,10 @@ bool IsDropzone(Entity entity) {
 }
 
 std::vector<Entity> GetDraggables(Entity dropzone) {
+	if (!dropzone.Has<impl::Dropzone>()) {
+		PTGN_WARN("Cannot get draggables currently dropped onto an entity without Dropzone component");
+		return {};
+	}
 	return dropzone.Get<impl::Dropzone>().draggables;
 }
 

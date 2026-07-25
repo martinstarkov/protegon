@@ -401,9 +401,15 @@ void InteractionSystem::HandleDragging(
 			if (!dragging.Has<impl::Draggable>() || !dragging.Get<impl::Draggable>().enabled) {
 				continue;
 			}
-			auto offset{ dragging.Get<impl::Draggable>().offset };
-			auto position{ mouse.position + offset };
-			PushEvent<event::Drag>(dragging, position, offset);
+
+			const auto& draggable{ dragging.Get<impl::Draggable>() };
+			auto position{ mouse.position + draggable.offset };
+
+			if (draggable.follow_mouse) {
+				SetPosition(dragging, position);
+			}
+
+			PushEvent<event::Drag>(dragging, position, draggable.offset);
 		}
 	}
 

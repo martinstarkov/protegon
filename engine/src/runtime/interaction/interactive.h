@@ -17,12 +17,12 @@ namespace ptgn {
 /// @brief Add to an interactive entity to temporarily block interactions with it for the specified
 /// remaining time. Automatically removed when the remaining time reaches zero.
 struct InteractionLock {
-	secondsf remaining_time{ 0.0f };
-
 	bool block_hover{ true };
 	bool block_press{ true };
 
-	PTGN_REFLECT(InteractionLock, remaining_time, block_hover, block_press)
+	secondsf remaining_time{ 0.0f };
+
+	PTGN_REFLECT_READONLY(InteractionLock, block_hover, block_press, remaining_time)
 };
 
 namespace impl {
@@ -39,7 +39,7 @@ struct Interactive {
 
 /// Sets the entity to be interactive, allowing it to have interactable shapes as children and
 /// trigger interact scripts.
-void SetInteractive(Entity entity, ComponentState state = ComponentState::Enabled);
+void SetInteractive(Entity entity, bool enabled = true);
 
 /// @return True if the entity is interactive and enabled, false otherwise.
 [[nodiscard]] bool IsInteractive(Entity entity);
@@ -51,7 +51,7 @@ void SetInteractive(Entity entity, ComponentState state = ComponentState::Enable
 /// @param ignore_parent_transform If true, the shape's position will be treated as world space
 /// instead of relative to the interactive entity's transform.
 void AddInteractiveShape(
-	Entity interactive_entity, Entity shape, std::optional<std::string_view> shape_id = {},
+	Entity interactive_entity, Entity shape, std::optional<std::string_view> shape_id = std::nullopt,
 	bool ignore_parent_transform = false
 );
 
@@ -63,30 +63,30 @@ void AddInteractiveShape(
 /// @param ignore_parent_transform If true, the shape's position will be treated as world space
 /// instead of relative to the interactive entity's transform.
 void SetInteractiveShape(
-	Entity interactive_entity, Entity shape, std::optional<std::string_view> shape_id = {},
+	Entity interactive_entity, Entity shape, std::optional<std::string_view> shape_id = std::nullopt,
 	bool ignore_parent_transform = false
 );
 
 void AddInteractiveRect(
 	Entity interactive_entity, Transform transform, V2_float size,
-	Origin origin = Origin::Center, std::optional<std::string_view> shape_id = {},
+	Origin origin = Origin::Center, std::optional<std::string_view> shape_id = std::nullopt,
 	bool ignore_parent_transform = false
 );
 
 void SetInteractiveRect(
 	Entity interactive_entity, Transform transform, V2_float size,
-	Origin origin = Origin::Center, std::optional<std::string_view> shape_id = {},
+	Origin origin = Origin::Center, std::optional<std::string_view> shape_id = std::nullopt,
 	bool ignore_parent_transform = false
 );
 
 void AddInteractiveCircle(
 	Entity interactive_entity, Transform transform, float radius,
-	std::optional<std::string_view> shape_id = {}, bool ignore_parent_transform = false
+	std::optional<std::string_view> shape_id = std::nullopt, bool ignore_parent_transform = false
 );
 
 void SetInteractiveCircle(
 	Entity interactive_entity, Transform transform, float radius,
-	std::optional<std::string_view> shape_id = {}, bool ignore_parent_transform = false
+	std::optional<std::string_view> shape_id = std::nullopt, bool ignore_parent_transform = false
 );
 
 /// Remove an interactable shape from the interactive entity.

@@ -39,17 +39,6 @@
 
 using namespace ptgn;
 
-struct DragScript : public Script {
-	void OnEvent(Event d) override {
-		d.Dispatch<event::Drag>([this](auto& e) { OnDrag(e.position); });
-	}
-
-	void OnDrag(V2_float pos) {
-		// PTGN_LOG(entity, " drag pos: ", pos);
-		SetPosition(entity, pos);
-	}
-};
-
 struct DropzoneScript : public Script {
 	void OnEvent(Event d) override {
 		d.Dispatch<event::DropIntoDropzone>([this](auto& e) { OnDrop(e.draggable); });
@@ -85,8 +74,7 @@ struct DraggableScript : public Script {
 	}
 
 	void OnDrag(V2_float pos) {
-		// PTGN_LOG("Setting draggable entity position to: ", pos);
-		SetPosition(entity, pos);
+		PTGN_LOG("Dragged entity to: ", pos);
 	}
 
 	void OnMousePressedOver(Mouse mouse) {
@@ -207,7 +195,6 @@ struct InteractiveScene : public Scene {
 		auto r3_child = CreateInteractiveRect(*GetDisplaySize(r3));
 		AddInteractiveShape(r3, r3_child);
 		SetDraggable(r3);
-		AddScript<DragScript>(r3);
 
 		PTGN_LOG("Rect drag: ", r3);
 
@@ -222,7 +209,7 @@ struct InteractiveScene : public Scene {
 		auto c4		  = CreateSprite(*this, { 0, offset.y }, "circle");
 		auto c4_child = CreateInteractiveCircle(GetDisplaySize(c4)->x * 0.5f);
 		AddInteractiveShape(c4, c4_child);
-		SetDraggable(c4, ComponentState::Disabled);
+		SetDraggable(c4, false);
 		AddScript<DraggableScript>(c4);
 
 		PTGN_LOG("Disabled circle drag: ", c4);
@@ -258,7 +245,6 @@ struct InteractiveScene : public Scene {
 };
 
 PTGN_REGISTER_SCENE(InteractiveScene, "Interactive Scene");
-PTGN_REGISTER_SCRIPT(DragScript);
 PTGN_REGISTER_SCRIPT(DropzoneScript);
 PTGN_REGISTER_SCRIPT(DraggableScript);
 

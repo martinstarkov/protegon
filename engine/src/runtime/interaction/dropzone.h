@@ -11,22 +11,22 @@ namespace ptgn {
 namespace impl {
 
 struct Dropzone {
+	bool enabled{ true };
+	
 	TriggerCondition move_condition{ TriggerCondition::MouseOverlaps };
 	TriggerCondition drop_condition{ TriggerCondition::MouseOverlaps };
 	TriggerCondition pickup_condition{ TriggerCondition::Overlaps };
 
-	bool enabled{ true };
-
 	/// @brief Draggables currently on the dropzone.
 	std::vector<Entity> draggables;
 
-	PTGN_REFLECT(Dropzone, move_condition, drop_condition, pickup_condition, enabled)
+	PTGN_REFLECT(Dropzone, enabled, move_condition, drop_condition, pickup_condition)
 };
 
 } // namespace impl
 
 /// @brief If true, enables the entity to trigger dropzone scripts.
-void SetDropzone(Entity entity, ComponentState state = ComponentState::Enabled);
+void SetDropzone(Entity entity, bool enabled = true);
 
 /// @return True if the entity is dropzone, false otherwise.
 [[nodiscard]] bool IsDropzone(Entity entity);

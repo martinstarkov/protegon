@@ -12,6 +12,16 @@ namespace ptgn {
 namespace impl {
 
 struct Draggable {
+	bool enabled{ true };
+
+	/// @brief If true, the interaction system updates the entity position to follow the mouse while
+	/// it is being dragged. The original click offset is preserved.
+	bool follow_mouse{ true };
+
+	TriggerCondition move_condition{ TriggerCondition::MouseOverlaps };
+	TriggerCondition drop_condition{ TriggerCondition::MouseOverlaps };
+	TriggerCondition pickup_condition{ TriggerCondition::Overlaps };
+
 	/// @brief The offset of the current mouse position compared to the mouse position where the
 	/// drag started.
 	V2_float offset;
@@ -21,12 +31,6 @@ struct Draggable {
 
 	/// @brief If the entity is currently being dragged.
 	bool dragging{ false };
-
-	bool enabled{ true };
-
-	TriggerCondition move_condition{ TriggerCondition::MouseOverlaps };
-	TriggerCondition drop_condition{ TriggerCondition::MouseOverlaps };
-	TriggerCondition pickup_condition{ TriggerCondition::Overlaps };
 
 	/// @brief Dropzone entities that the draggable is currently dropped on.
 	std::vector<Entity> dropzones;
@@ -39,7 +43,7 @@ struct Draggable {
 	std::vector<Entity> last_hovered_dropzones;
 
 	PTGN_REFLECT(
-		Draggable, enabled, move_condition, drop_condition, pickup_condition
+		Draggable, enabled, follow_mouse, move_condition, drop_condition, pickup_condition
 	)
 	PTGN_REFLECT_READONLY(Draggable, offset, start, dragging)
 };
@@ -47,13 +51,20 @@ struct Draggable {
 } // namespace impl
 
 /// @brief If true, enables the entity to trigger drag scripts.
-void SetDraggable(Entity entity, ComponentState state = ComponentState::Enabled);
+void SetDraggable(Entity entity, bool enabled = true);
 
 /// @return True if the entity is draggable and enabled, false otherwise.
 [[nodiscard]] bool IsDraggable(Entity entity);
 
 /// @return True if the entity is currently being dragged, false otherwise.
 [[nodiscard]] bool IsDragging(Entity entity);
+
+/// @brief Controls whether the interaction system automatically moves the entity with the mouse
+/// while it is being dragged.
+void SetDraggableFollowMouse(Entity draggable_entity, bool follow_mouse = true);
+
+/// @return True if the draggable is configured to automatically follow the mouse.
+[[nodiscard]] bool DoesDraggableFollowMouse(Entity draggable_entity);
 
 /// @return Offset from the drag target center. Adding this value to the target position will
 /// maintain the relative position between the mouse and drag target.

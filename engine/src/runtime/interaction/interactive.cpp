@@ -21,8 +21,8 @@
 
 namespace ptgn {
 
-void SetInteractive(Entity entity, ComponentState state) {
-	impl::SetComponentState<impl::Interactive>(entity, state);
+void SetInteractive(Entity entity, bool enabled) {
+	entity.TryAdd<impl::Interactive>().enabled = enabled;
 }
 
 bool IsInteractive(Entity entity) {
@@ -58,7 +58,7 @@ void AddInteractiveRect(
 	std::optional<std::string_view> shape_id, bool ignore_parent_transform
 ) {
 	auto& scene{ interactive_entity.GetScene() };
-	auto shape = scene.CreateEntity();
+	auto shape{ scene.CreateEntity() };
 
 	shape.Add<Tag>("Interactive Rect");
 	shape.Add<Rect>(size);
@@ -83,7 +83,7 @@ void AddInteractiveCircle(
 	std::optional<std::string_view> shape_id, bool ignore_parent_transform
 ) {
 	auto& scene{ interactive_entity.GetScene() };
-	auto shape = scene.CreateEntity();
+	auto shape{ scene.CreateEntity() };
 	shape.Add<Tag>("Interactive Circle");
 	shape.Add<Circle>(radius);
 	shape.Add<Transform>(transform);
@@ -100,15 +100,18 @@ void SetInteractiveCircle(
 
 void RemoveInteractiveShape(Entity entity, std::string_view name) {
 	if (!entity.Has<impl::Interactive>()) {
+		PTGN_WARN("Cannot remove interactive shape from entity without Interactive component");
 		return;
 	}
 	if (!HasChild(entity, name)) {
+		PTGN_WARN("Could not remove interactive shape, name '", name, "' not found");
 		return;
 	}
 	Entity child{ GetChild(entity, name) };
-	PTGN_ASSERT(
-		child.Has<impl::InteractiveTag>(), "Cannot remove a child entity that is not interactive"
-	);
+	if (!child.Has<impl::InteractiveTag>()) {
+		PTGN_WARN("Cannot remove a child entity that is not interactive");
+		return;
+	}
 	RemoveChild(entity, name);
 	child.Destroy();
 }
@@ -143,7 +146,10 @@ bool HasInteractiveShape(Entity entity, std::string_view name) {
 }
 
 std::vector<Entity> GetInteractiveShapes(Entity entity) {
-	PTGN_ASSERT(entity.Has<impl::Interactive>(), "Entity must have interactive component");
+	if (!entity.Has<impl::Interactive>()) {
+		PTGN_WARN("Cannot get interactive shapes of entity without Interactive component");
+		return {};
+	}
 	if (!HasChildren(entity)) {
 		return {};
 	}
@@ -156,6 +162,7 @@ std::vector<Entity> GetInteractiveShapes(Entity entity) {
 
 void ClearInteractiveShapes(Entity entity) {
 	if (!entity.Has<impl::Interactive>()) {
+		PTGN_WARN("Cannot clear interactive shapes of entity without Interactive component");
 		return;
 	}
 	if (!HasChildren(entity)) {

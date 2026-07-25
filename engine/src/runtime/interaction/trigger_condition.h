@@ -3,6 +3,7 @@
 #include <utility>
 
 #include "core/log.h"
+#include "core/util/type_info.h"
 #include "runtime/ecs/entity.h"
 #include "serialization/serialize.h"
 
@@ -33,21 +34,14 @@ enum class DragEventPhase {
 };
 PTGN_REFLECT_ENUM(DragEventPhase);
 
-/// @brief Controls the lifecycle state of a behavior/component on an entity.
-enum class ComponentState {
-	/// @brief Component exists but is inactive.
-	Disabled,
-	/// @brief Component exists and is active.
-	Enabled,
-	/// @brief Component is removed entirely from the entity.
-	Removed
-};
-PTGN_REFLECT_ENUM(ComponentState);
-
 namespace impl {
 
 template <typename TComponent>
 void SetTriggerCondition(Entity entity, DragEventPhase phase, TriggerCondition condition) {
+	if (!entity.Has<TComponent>()) {
+		PTGN_WARN("Cannot set trigger condition of entity without ", type_name_without_namespaces<TComponent>());
+		return;
+	}
 	auto& component{ entity.Get<TComponent>() };
 	switch (phase) {
 		using enum ptgn::DragEventPhase;
@@ -55,17 +49,6 @@ void SetTriggerCondition(Entity entity, DragEventPhase phase, TriggerCondition c
 		case Drop:	   component.drop_condition = condition; break;
 		case Pickup:   component.pickup_condition = condition; break;
 		default:	   PTGN_ERROR("Unknown DragEventPhase: ", std::to_underlying(condition));
-	}
-}
-
-template <typename TComponent>
-void SetComponentState(Entity entity, ComponentState state) {
-	switch (state) {
-		using enum ptgn::ComponentState;
-		case Disabled: entity.TryAdd<TComponent>().enabled = false; break;
-		case Enabled:  entity.TryAdd<TComponent>().enabled = true; break;
-		case Removed:  entity.Remove<TComponent>(); break;
-		default:	   PTGN_ERROR("Unknown ComponentState: ", std::to_underlying(state));
 	}
 }
 
