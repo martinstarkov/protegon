@@ -288,8 +288,8 @@ void DrawPreview(
 	};
 
 	draw_list->AddImage(
-		static_cast<ImTextureID>(preview->texture), image_min, image_max, ImVec2{ 0.0f, 1.0f },
-		ImVec2{ 1.0f, 0.0f }, ImGui::GetColorU32(tint)
+		static_cast<ImTextureID>(preview->texture), image_min, image_max, ImVec2{ 0.0f, 0.0f },
+		ImVec2{ 1.0f, 1.0f }, ImGui::GetColorU32(tint)
 	);
 }
 
