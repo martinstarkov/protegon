@@ -55,8 +55,8 @@ struct TextData {
 	StyledText text;
 	TextBox box;
 	
-	/// @brief Number of glyphs revealed. Set to numeric limits max for all glyphs.
-	std::size_t glyph_count{ std::numeric_limits<std::size_t>::max() };
+	/// @brief Number of glyphs revealed. Nullopt means all glyphs are revealed.
+	std::optional<std::size_t> glyph_count;
 
 	std::optional<TextClip> clip;
 
@@ -131,9 +131,9 @@ public:
 	/// If nullopt, clears any previously set clipping.
 	Text& Clip(std::optional<TextClip> clip = std::nullopt);
 
-	/// @brief Sets the number of glyphs to reveal. If the count is greater than the total number of
-	/// glyphs, all glyphs will be revealed.
-	Text& Reveal(std::size_t glyph_count = std::numeric_limits<std::size_t>::max());
+	/// @brief Sets the number of glyphs to reveal. 
+	/// @param glyph_count If nullopt or greater than the total number of glyphs, all glyphs will be revealed.
+	Text& Reveal(std::optional<std::size_t> glyph_count = std::nullopt);
 
 	/// @brief Sets the fraction of the total glyphs to reveal. Clamped to range: [0.0, 1.0]. 0.0 =
 	/// no glyphs revealed, 1.0 = all glyphs revealed.
@@ -224,7 +224,7 @@ public:
 
 private:
 	friend class Scene;
-	
+
 	void UpdateLayout() const;
 
 	TextRun& CurrentRun();

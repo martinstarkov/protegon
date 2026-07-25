@@ -237,7 +237,12 @@ Text& Text::Select(std::size_t index) {
 	}
 
 	auto& data{ Get<impl::TextData>() };
-	data.current_run_index = std::max(index, data.text.runs.size() - 1);
+
+	if (data.text.runs.empty()) {
+		data.text.runs.emplace_back();
+	}
+
+	data.current_run_index = std::min(index, data.text.runs.size() - 1);
 
 	return *this;
 }
@@ -270,7 +275,7 @@ Text& Text::Box(const TextBox& text_box) {
 	return *this;
 }
 
-Text& Text::Reveal(std::size_t glyph_count) {
+Text& Text::Reveal(std::optional<std::size_t> glyph_count) {
 	if (!Has<impl::TextData>()) {
 		PTGN_WARN("Cannot set text glyph reveal count without TextData component");
 		return *this;
@@ -494,8 +499,14 @@ Text& Text::ScaleToFit(float min_scale, float max_scale) {
 		return *this;
 	}
 
-	min_scale = std::clamp(min_scale, kEpsilon<float>, max_scale);
+	PTGN_ASSERT(
+		std::isfinite(min_scale) && std::isfinite(max_scale),
+		"Text scale limits must be finite"
+	);
+
+	// Order is important.
 	max_scale = std::max(kEpsilon<float>, max_scale);
+	min_scale = std::clamp(min_scale, kEpsilon<float>, max_scale);
 
 	ShrinkScale scale{ .min = min_scale, .max = max_scale };
 
@@ -812,7 +823,7 @@ std::size_t Text::GetRevealGlyphCount() const {
 
 	const auto& data{ Get<impl::TextData>() };
 
-	return data.glyph_count;
+	return data.glyph_count.value_or(std::numeric_limits<std::size_t>::max());
 }
 
 bool Text::IsFullyRevealed() const {
@@ -821,10 +832,10 @@ bool Text::IsFullyRevealed() const {
 		return false;
 	}
 
-	const auto& data{ Get<impl::TextData>() };
 	auto glyph_count{ GetLayout().GetVisibleGlyphCount() };
+	auto revealed_glyphs{ GetRevealGlyphCount() };
 
-	return data.glyph_count >= glyph_count;
+	return revealed_glyphs >= glyph_count;
 }
 
 const StyledText& Text::GetStyledText() const {
@@ -849,12 +860,22 @@ void Text::UpdateLayout() const {
 }
 
 TextRun& Text::CurrentRun() {
-	PTGN_ASSERT(Has<impl::TextData>(), "Cannot get current text run without TextData component");
+	PTGN_ASSERT(
+		Has<impl::TextData>(),
+		"Cannot get current text run without TextData component"
+	);
 
 	auto& data{ Get<impl::TextData>() };
-	auto index{ std::clamp(data.current_run_index, 0uz, data.text.runs.size() - 1) };
 
-	return data.text.runs[index];
+	if (data.text.runs.empty()) {
+		data.text.runs.emplace_back();
+		data.current_run_index = 0;
+	}
+
+	data.current_run_index =
+		std::min(data.current_run_index, data.text.runs.size() - 1);
+
+	return data.text.runs[data.current_run_index];
 }
 
 void Text::InvalidateLayout() {
