@@ -123,7 +123,8 @@ concept HasConventionalConstPosition = requires(const TVertex& vertex) {
 };
 
 template <typename TVertex>
-struct PositionAccessor {
+class PositionAccessor {
+public:
 	static constexpr bool has_position{ HasRegisteredPosition<TVertex> ||
 										HasConventionalPosition<TVertex> };
 
@@ -194,7 +195,8 @@ concept HasConventionalConstTextureIndex = requires(const TVertex& vertex) {
 };
 
 template <typename TVertex>
-struct TextureIndexAccessor {
+class TextureIndexAccessor {
+public:
 	static constexpr bool has_texture_index{ HasRegisteredTextureIndex<TVertex> ||
 											 HasConventionalTextureIndex<TVertex> };
 
@@ -265,7 +267,8 @@ concept HasConventionalConstEntityId = requires(const TVertex& vertex) {
 };
 
 template <typename TVertex>
-struct EntityIdAccessor {
+class EntityIdAccessor {
+public:
 	static constexpr bool has_entity_id{ HasRegisteredEntityId<TVertex> ||
 										 HasConventionalEntityId<TVertex> };
 
