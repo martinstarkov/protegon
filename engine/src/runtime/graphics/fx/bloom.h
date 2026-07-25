@@ -2,7 +2,7 @@
 
 #include "core/graphics/color.h"
 #include "runtime/ecs/entity.h"
-#include "runtime/graphics/fx/effects.h"
+#include "runtime/graphics/fx/effect_registration.h"
 #include "serialization/serialize.h"
 
 namespace ptgn {
