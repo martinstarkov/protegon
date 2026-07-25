@@ -28,6 +28,7 @@
 #include "runtime/audio/audio.h"
 #include "runtime/ecs/key_hash.h"
 #include "runtime/graphics/text/font.h"
+#include "runtime/asset/prefab.h"
 #include "serialization/json/json.h"
 #include "serialization/serialize.h"
 
@@ -122,6 +123,18 @@ struct AssetInfo<json> {
 	};
 };
 
+template <>
+struct AssetInfo<Prefab> {
+	static constexpr AssetKind kind = AssetKind::Prefab;
+	using Object					= Prefab;
+	using Get						= std::reference_wrapper<Prefab>;
+	using ConstGet					= std::reference_wrapper<const Prefab>;
+
+	static constexpr std::array extensions{
+		kPrefabExtension,
+	};
+};
+
 } // namespace impl
 
 template <typename T>
@@ -184,6 +197,13 @@ struct JsonAssetData {
 	json value;
 };
 
+struct PrefabAssetData {
+	PrefabKey key;
+	path file_path;
+	path source_path;
+	Prefab value;
+};
+
 class AssetAccessor {
 public:
 	explicit AssetAccessor(AssetManager& assets);
@@ -239,6 +259,8 @@ public:
 	///
 	/// JSON: .JSON
 	///
+	/// Prefab: .PTGNPREFAB
+	///
 	/// Shader: .GLSL or array of [vertex shader path or name, fragment shader path or name]. Name
 	/// is used to reference an already loaded shader, while path is used to load a new shader.
 	///
@@ -289,6 +311,14 @@ public:
 	/// @brief Note: Do not brace initialize JSON objects.
 	/// See: https://json.nlohmann.me/home/faq/#brace-initialization-yields-arrays
 	json& LoadJson(const JsonKey& key, const path& json_path);
+
+	Prefab& LoadPrefab(PrefabKey key, const path& prefab_path);
+	Prefab& SavePrefab(Prefab prefab, const path& prefab_path);
+	Prefab& SavePrefab(Prefab prefab, const path& file_path, const path& source_path);
+	bool SavePrefab(const PrefabKey& key);
+	bool RemovePrefab(const PrefabKey& key, bool remove_file = true);
+	[[nodiscard]] std::vector<PrefabKey> GetPrefabKeys() const;
+	[[nodiscard]] path GetPrefabPath(const PrefabKey& key) const;
 
 	Shader LoadShader(
 		ShaderKey key, const std::variant<ShaderCode, ShaderPath, ShaderPair>& source,
@@ -411,6 +441,7 @@ private:
 	ecs::Manager manager_;
 
 	std::unordered_map<std::size_t, impl::JsonAssetData> jsons_;
+	std::unordered_map<std::size_t, impl::PrefabAssetData> prefabs_;
 	std::unordered_map<std::size_t, SerializedAsset> catalog_;
 	std::vector<AssetKey> project_asset_dependencies_;
 	std::vector<AssetKey>* captured_asset_dependencies_{ nullptr };

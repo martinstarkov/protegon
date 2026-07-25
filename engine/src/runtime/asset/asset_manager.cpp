@@ -11,6 +11,7 @@
 #include <optional>
 #include <string>
 #include <string_view>
+#include <system_error>
 #include <type_traits>
 #include <unordered_map>
 #include <unordered_set>
@@ -98,6 +99,9 @@ AssetKind GetAssetKind(const path& path) {
 	}
 	if (MatchesExtension<Shader>(extension)) {
 		return AssetKind::Shader;
+	}
+	if (MatchesExtension<Prefab>(extension)) {
+		return AssetKind::Prefab;
 	}
 
 	return AssetKind::Unknown;
@@ -188,6 +192,14 @@ void AssetManager::RegisterCatalog(std::span<const SerializedAsset> assets) {
 		);
 
 		catalog_.insert_or_assign(Hash(asset.key), asset);
+	}
+
+	// Prefabs back editor create menus and runtime Scene::CreatePrefab(), so they are
+	// loaded with the project catalog rather than waiting for a scene dependency.
+	for (const auto& asset : assets) {
+		if (asset.kind == AssetKind::Prefab) {
+			LoadPrefab(PrefabKey{ asset.key }, asset.source_path);
+		}
 	}
 }
 
@@ -437,8 +449,120 @@ Shader AssetManager::LoadShader(
 }
 
 json AssetManager::CreateJson(const path& asset_path) const {
-	json j = ptgn::LoadJson(asset_path);
-	return j;
+	json value = ptgn::LoadJson(asset_path);
+	return value;
+}
+
+Prefab& AssetManager::LoadPrefab(PrefabKey key, const path& asset_path) {
+	PTGN_ASSERT(!key.value.empty(), "Prefab key cannot be empty");
+	PTGN_ASSERT(FileExists(asset_path), "Prefab file does not exist: ", asset_path.string());
+
+	TrackAssetLoad(key, AssetKind::Prefab, asset_path);
+
+	Prefab prefab{ LoadPrefabFile(asset_path) };
+	prefab.key = key;
+
+	auto hash{ Hash(key) };
+	auto [it, _] = prefabs_.insert_or_assign(
+		hash,
+		impl::PrefabAssetData{
+			.key = std::move(key),
+			.file_path = asset_path,
+			.source_path = asset_path,
+			.value = std::move(prefab),
+		}
+	);
+
+	return it->second.value;
+}
+
+Prefab& AssetManager::SavePrefab(Prefab prefab, const path& asset_path) {
+	return SavePrefab(std::move(prefab), asset_path, asset_path);
+}
+
+Prefab& AssetManager::SavePrefab(
+	Prefab prefab, const path& file_path, const path& source_path
+) {
+	PTGN_ASSERT(!prefab.key.value.empty(), "Prefab key cannot be empty");
+	PTGN_ASSERT(!file_path.empty(), "Prefab file path cannot be empty");
+	PTGN_ASSERT(!source_path.empty(), "Prefab source path cannot be empty");
+
+	SavePrefabFile(file_path, prefab);
+
+	PrefabKey key{ prefab.key };
+	auto hash{ Hash(key) };
+	auto [it, _] = prefabs_.insert_or_assign(
+		hash,
+		impl::PrefabAssetData{
+			.key = key,
+			.file_path = file_path,
+			.source_path = source_path,
+			.value = std::move(prefab),
+		}
+	);
+
+	catalog_.insert_or_assign(
+		hash,
+		SerializedAsset{
+			.key = key,
+			.kind = AssetKind::Prefab,
+			.source_path = source_path,
+		}
+	);
+
+	return it->second.value;
+}
+
+bool AssetManager::SavePrefab(const PrefabKey& key) {
+	auto it{ prefabs_.find(Hash(key)) };
+	if (it == prefabs_.end()) {
+		return false;
+	}
+
+	SavePrefabFile(it->second.file_path, it->second.value);
+	return true;
+}
+
+bool AssetManager::RemovePrefab(const PrefabKey& key, bool remove_file) {
+	auto hash{ Hash(key) };
+	auto it{ prefabs_.find(hash) };
+	if (it == prefabs_.end()) {
+		return false;
+	}
+
+	path file_path{ it->second.file_path };
+	prefabs_.erase(it);
+	catalog_.erase(hash);
+	project_asset_dependencies_.erase(
+		std::remove(project_asset_dependencies_.begin(), project_asset_dependencies_.end(), AssetKey{ key.value }),
+		project_asset_dependencies_.end()
+	);
+
+	if (remove_file && !file_path.empty()) {
+		std::error_code error;
+		fs::remove(file_path, error);
+	}
+
+	return true;
+}
+
+std::vector<PrefabKey> AssetManager::GetPrefabKeys() const {
+	std::vector<PrefabKey> keys;
+	keys.reserve(prefabs_.size());
+
+	for (const auto& [_, prefab] : prefabs_) {
+		keys.emplace_back(prefab.key);
+	}
+
+	std::ranges::sort(keys, [](const PrefabKey& lhs, const PrefabKey& rhs) {
+		return lhs.value < rhs.value;
+	});
+	return keys;
+}
+
+path AssetManager::GetPrefabPath(const PrefabKey& key) const {
+	auto it{ prefabs_.find(Hash(key)) };
+	return it == prefabs_.end() ? path{} : it->second.file_path;
 }
 
 json& AssetManager::LoadJson(const JsonKey& key, const path& asset_path) {
@@ -594,6 +718,7 @@ void AssetManager::Load(AssetKey key, const path& asset_path, AssetKind kind) {
 		case Audio:	 LoadAudio(std::move(key), asset_path); break;
 		case Font:	 LoadFont(std::move(key), asset_path); break;
 		case Json:	 LoadJson(std::move(key), asset_path); break;
+		case Prefab: LoadPrefab(PrefabKey{ std::move(key) }, asset_path); break;
 
 		case Shader: {
 			if (auto shader_content = FileToString(asset_path);
@@ -678,6 +803,8 @@ template <AssetType T>
 bool AssetManager::Unload(const AssetKey& key) {
 	if constexpr (std::is_same_v<std::remove_cvref_t<T>, json>) {
 		return jsons_.erase(Hash(key)) != 0;
+	} else if constexpr (std::is_same_v<std::remove_cvref_t<T>, Prefab>) {
+		return prefabs_.erase(Hash(key)) != 0;
 	} else {
 		return UnloadAssetImpl<T>(manager_, key);
 	}
@@ -691,6 +818,12 @@ std::optional<ConstAsset<T>> AssetManager::TryGet(const AssetKey& key) const {
 			return std::nullopt;
 		}
 		return std::cref(it->second.value);
+	} else if constexpr (std::is_same_v<std::remove_cvref_t<T>, Prefab>) {
+		auto it = prefabs_.find(Hash(key));
+		if (it == prefabs_.end()) {
+			return std::nullopt;
+		}
+		return std::cref(it->second.value);
 	} else {
 		return TryGetAssetImpl<T>(manager_, key);
 	}
@@ -701,6 +834,12 @@ std::optional<Asset<T>> AssetManager::TryGet(const AssetKey& key) {
 	if constexpr (std::is_same_v<std::remove_cvref_t<T>, json>) {
 		auto it = jsons_.find(Hash(key));
 		if (it == jsons_.end()) {
+			return std::nullopt;
+		}
+		return std::ref(it->second.value);
+	} else if constexpr (std::is_same_v<std::remove_cvref_t<T>, Prefab>) {
+		auto it = prefabs_.find(Hash(key));
+		if (it == prefabs_.end()) {
 			return std::nullopt;
 		}
 		return std::ref(it->second.value);
@@ -732,6 +871,7 @@ bool AssetManager::Has(const AssetKey& key, AssetKind kind) const {
 		case Font:	  return Has<ptgn::Font>(key);
 		case Json:	  return Has<json>(key);
 		case Shader:  return Has<ptgn::Shader>(key);
+		case Prefab: return Has<ptgn::Prefab>(key);
 		case Unknown: break;
 	}
 
@@ -742,13 +882,15 @@ template <AssetType T>
 bool AssetManager::Has(const AssetKey& key) const {
 	if constexpr (std::is_same_v<std::remove_cvref_t<T>, json>) {
 		return jsons_.contains(Hash(key));
+	} else if constexpr (std::is_same_v<std::remove_cvref_t<T>, Prefab>) {
+		return prefabs_.contains(Hash(key));
 	} else {
 		return HasAssetImpl<T>(manager_, key);
 	}
 }
 
 std::size_t AssetManager::Size() const {
-	return manager_.Size() + jsons_.size();
+	return manager_.Size() + jsons_.size() + prefabs_.size();
 }
 
 V2_int AssetManager::GetTextureSize(const TextureKey& key) const {
@@ -765,7 +907,7 @@ impl::TextureId AssetManager::GetFontAtlasTexture(const FontKey& key) const {
 
 std::vector<impl::AssetRecord> AssetManager::GetAssets() const {
 	std::vector<impl::AssetRecord> records;
-	records.reserve(manager_.Size() + jsons_.size());
+	records.reserve(manager_.Size() + jsons_.size() + prefabs_.size());
 
 	for (auto [asset, key] : manager_.EntitiesWith<AssetKey>()) {
 		path source_path;
@@ -805,12 +947,22 @@ std::vector<impl::AssetRecord> AssetManager::GetAssets() const {
 		);
 	}
 
+	for (const auto& [_, asset] : prefabs_) {
+		records.emplace_back(
+			impl::AssetRecord{
+				.key = asset.key,
+				.source_path = asset.source_path,
+				.kind = AssetKind::Prefab,
+			}
+		);
+	}
+
 	return records;
 }
 
 bool AssetManager::Has(const AssetKey& key) const {
 	return Has<Texture>(key) || Has<Audio>(key) || Has<Font>(key) || Has<Shader>(key) ||
-		   Has<json>(key);
+		   Has<json>(key) || Has<Prefab>(key);
 }
 
 bool AssetManager::Unload(const AssetKey& key, AssetKind kind) {
@@ -820,6 +972,7 @@ bool AssetManager::Unload(const AssetKey& key, AssetKind kind) {
 		case AssetKind::Font:	 return Unload<Font>(key);
 		case AssetKind::Json:	 return Unload<json>(key);
 		case AssetKind::Shader:	 return Unload<Shader>(key);
+		case AssetKind::Prefab: return Unload<Prefab>(key);
 		case AssetKind::Unknown: break;
 	}
 
@@ -861,5 +1014,13 @@ template std::optional<Asset<Font>> AssetManager::TryGet<Font>(const AssetKey&);
 template std::optional<Asset<Texture>> AssetManager::TryGet<Texture>(const AssetKey&);
 template std::optional<Asset<Audio>> AssetManager::TryGet<Audio>(const AssetKey&);
 template std::optional<Asset<Shader>> AssetManager::TryGet<Shader>(const AssetKey&);
+
+
+template bool AssetManager::Unload<Prefab>(const AssetKey&);
+template bool AssetManager::Has<Prefab>(const AssetKey&) const;
+template ConstAsset<Prefab> AssetManager::Get<Prefab>(const AssetKey&) const;
+template Asset<Prefab> AssetManager::Get<Prefab>(const AssetKey&);
+template std::optional<ConstAsset<Prefab>> AssetManager::TryGet<Prefab>(const AssetKey&) const;
+template std::optional<Asset<Prefab>> AssetManager::TryGet<Prefab>(const AssetKey&);
 
 } // namespace ptgn

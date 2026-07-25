@@ -8,7 +8,6 @@
 #include <cctype>
 #include <cfloat>
 #include <cstring>
-#include <magic_enum/magic_enum.hpp>
 #include <optional>
 #include <span>
 #include <string>
@@ -16,11 +15,11 @@
 #include <utility>
 #include <vector>
 
+#include "content_browser_icons.h"
 #include "core/editor.h"
 #include "core/editor_context.h"
 #include "core/graphics/surface.h"
 #include "core/util/string.h"
-#include "panels/content_browser_icons.h"
 #include "platform/file_dialog.h"
 #include "platform/window.h"
 #include "renderer/renderer.h"
@@ -35,7 +34,6 @@ namespace ptgn::editor {
 
 namespace {
 
-inline constexpr int kMaxItemsPerRow{ 10 };
 inline constexpr char kAssetKeyPayloadType[]{ "PTGN_ASSET_KEY" };
 inline constexpr V2_int kEmbeddedIconSize{ 64, 64 };
 
@@ -136,7 +134,7 @@ void ImportAssetPaths(EditorContext& ctx, std::span<const path> asset_paths, std
 		}
 
 		auto key{ MakeUniqueAssetKey(ctx.editor.GetAssetManager(), asset_path) };
-		ctx.editor.GetAssetManager().LoadProjectAsset(std::move(key), asset_path);
+		ctx.editor.GetAssetManager().Load(key, asset_path);
 
 		++imported_count;
 	}
@@ -181,11 +179,12 @@ impl::TextureObject CreateEmbeddedIconTexture(
 	impl::Surface surface{ png, 4 };
 
 	return impl::RendererAccessor{ renderer }.CreateTexture(
-		surface.Data(), TextureDesc{
-							.size{ surface.GetSize() },
-							.format = TextureFormat::RGBA8,
-							.params{ TextureMinFilter::Linear, TextureMagFilter::Linear },
-						}
+		surface.Data(),
+		TextureDesc{
+			.size{ surface.GetSize() },
+			.format = TextureFormat::RGBA8,
+			.params{ TextureMinFilter::Linear, TextureMagFilter::Linear },
+		}
 	);
 }
 
@@ -202,21 +201,22 @@ std::optional<TilePreview> GetTilePreview(
 	switch (asset.kind) {
 		case AssetKind::Audio:
 			return TilePreview{
-				.texture			  = audio_icon,
-				.size				  = kEmbeddedIconSize,
-				.tint_with_text_color = true,
+				.texture				 = audio_icon,
+				.size					 = kEmbeddedIconSize,
+				.tint_with_text_color	 = true,
 			};
 
 		case AssetKind::Shader: [[fallthrough]];
-		case AssetKind::Json:
+		case AssetKind::Json: [[fallthrough]];
+		case AssetKind::Prefab:
 			return TilePreview{
-				.texture			  = document_icon,
-				.size				  = kEmbeddedIconSize,
-				.tint_with_text_color = true,
+				.texture				 = document_icon,
+				.size					 = kEmbeddedIconSize,
+				.tint_with_text_color	 = true,
 			};
 
 		case AssetKind::Texture: [[fallthrough]];
-		case AssetKind::Font:	 [[fallthrough]];
+		case AssetKind::Font: [[fallthrough]];
 		case AssetKind::Unknown: break;
 	}
 
@@ -246,7 +246,9 @@ void DrawWrappedText(std::string_view text, float width, bool disabled = false) 
 	}
 }
 
-void DrawPreview(float preview_size, const std::optional<TilePreview>& preview) {
+void DrawPreview(
+	float preview_size, const std::optional<TilePreview>& preview
+) {
 	auto preview_min{ ImGui::GetCursorScreenPos() };
 
 	ImGui::InvisibleButton("##preview", ImVec2{ preview_size, preview_size });
@@ -280,12 +282,14 @@ void DrawPreview(float preview_size, const std::optional<TilePreview>& preview) 
 	};
 	ImVec2 image_max{ image_min.x + image_size.x, image_min.y + image_size.y };
 
-	auto tint{ preview->tint_with_text_color ? ImGui::GetStyleColorVec4(ImGuiCol_Text)
-											 : ImVec4{ 1.0f, 1.0f, 1.0f, 1.0f } };
+	auto tint{
+		preview->tint_with_text_color ? ImGui::GetStyleColorVec4(ImGuiCol_Text)
+									  : ImVec4{ 1.0f, 1.0f, 1.0f, 1.0f }
+	};
 
 	draw_list->AddImage(
-		static_cast<ImTextureID>(preview->texture), image_min, image_max, ImVec2{ 0.0f, 0.0f },
-		ImVec2{ 1.0f, 1.0f }, ImGui::GetColorU32(tint)
+		static_cast<ImTextureID>(preview->texture), image_min, image_max, ImVec2{ 0.0f, 1.0f },
+		ImVec2{ 1.0f, 0.0f }, ImGui::GetColorU32(tint)
 	);
 }
 
@@ -312,7 +316,8 @@ bool DrawSortDirectionButton(
 }
 
 bool AssetLess(
-	const impl::AssetRecord& a, const impl::AssetRecord& b, ContentBrowserPanel::SortMode sort_mode
+	const impl::AssetRecord& a, const impl::AssetRecord& b,
+	ContentBrowserPanel::SortMode sort_mode
 ) {
 	auto a_kind{ magic_enum::enum_name(a.kind) };
 	auto b_kind{ magic_enum::enum_name(b.kind) };
@@ -331,7 +336,7 @@ bool AssetLess(
 	return a_kind < b_kind;
 }
 
-void DrawAssetTileContent(
+void DrawAssetTile(
 	float tile_width, const impl::AssetRecord& asset, impl::TextureId audio_icon,
 	impl::TextureId document_icon, std::optional<impl::AssetRecord>& asset_to_unload
 ) {
@@ -353,11 +358,9 @@ void DrawAssetTileContent(
 
 	if (ImGui::BeginPopupContextItem("##asset_context")) {
 		ImGui::BeginDisabled(!unloadable_asset);
-
 		if (ImGui::MenuItem("Unload")) {
 			asset_to_unload = asset;
 		}
-
 		ImGui::EndDisabled();
 		ImGui::EndPopup();
 	}
@@ -375,28 +378,13 @@ void DrawAssetTileContent(
 		DrawWrappedText("Generated asset", tile_width, true);
 	}
 
-	ImGui::EndGroup();
-	ImGui::PopID();
-}
-
-void DrawAssetTileUnloadButton(
-	float tile_width, const impl::AssetRecord& asset,
-	std::optional<impl::AssetRecord>& asset_to_unload
-) {
-	ImGui::PushID(asset.key.value.c_str());
-
-	bool unloadable_asset{ asset.key.value != kDefaultFont };
-
 	ImGui::BeginDisabled(!unloadable_asset);
-
 	if (ImGui::Button("Unload", ImVec2{ tile_width, 0.0f })) {
 		asset_to_unload = asset;
 	}
-
 	ImGui::EndDisabled();
 
-	ImGui::Dummy(ImVec2{ 0.0f, ImGui::GetStyle().FramePadding.y });
-
+	ImGui::EndGroup();
 	ImGui::PopID();
 }
 
@@ -446,10 +434,12 @@ void ContentBrowserPanel::InitializePreviewIcons(EditorContext& ctx) {
 		return;
 	}
 
-	audio_icon_texture_ =
-		CreateEmbeddedIconTexture(ctx.editor.GetRenderer(), std::span{ embedded::kAudioNotePng });
-	document_icon_texture_ =
-		CreateEmbeddedIconTexture(ctx.editor.GetRenderer(), std::span{ embedded::kDocumentPng });
+	audio_icon_texture_ = CreateEmbeddedIconTexture(
+		ctx.editor.GetRenderer(), std::span{ embedded::kAudioNotePng }
+	);
+	document_icon_texture_ = CreateEmbeddedIconTexture(
+		ctx.editor.GetRenderer(), std::span{ embedded::kDocumentPng }
+	);
 
 	preview_icons_initialized_ = true;
 }
@@ -502,13 +492,8 @@ void ContentBrowserPanel::DrawToolbar(EditorContext& ctx) {
 
 	ImGui::SameLine();
 
-	ImGui::TextUnformatted("Items per row");
-	ImGui::SameLine();
-
-	ImGui::SetNextItemWidth(80.0f);
-	ImGui::InputInt("##items_per_row", &items_per_row_, 1, 1);
-
-	items_per_row_ = std::clamp(items_per_row_, 1, kMaxItemsPerRow);
+	ImGui::SetNextItemWidth(180.0f);
+	ImGui::SliderInt("##items_per_row", &items_per_row_, 1, 8, "Items Per Row: %d");
 
 	ImGui::SameLine();
 	ImGui::TextUnformatted("Sort by");
@@ -567,7 +552,9 @@ void ContentBrowserPanel::DrawAssetGrid(EditorContext& ctx) {
 		return;
 	}
 
-	auto column_count{ std::clamp(items_per_row_, 1, kMaxItemsPerRow) };
+	auto column_count{
+		std::min(std::max(1, items_per_row_), static_cast<int>(assets.size()))
+	};
 
 	std::optional<impl::AssetRecord> asset_to_unload;
 
@@ -577,41 +564,22 @@ void ContentBrowserPanel::DrawAssetGrid(EditorContext& ctx) {
 				ImGuiTableFlags_PadOuterX
 		)) {
 		for (auto i{ 0 }; i < column_count; ++i) {
-			ImGui::TableSetupColumn(nullptr, ImGuiTableColumnFlags_WidthStretch, 1.0f);
+			ImGui::TableSetupColumn(
+				nullptr, ImGuiTableColumnFlags_WidthStretch, 1.0f
+			);
 		}
 
-		auto assets_per_row{ static_cast<std::size_t>(column_count) };
+		for (auto& asset : assets) {
+			ImGui::TableNextColumn();
 
-		for (auto row_begin{ 0uz }; row_begin < assets.size(); row_begin += assets_per_row) {
-			auto row_asset_count{ std::min(assets_per_row, assets.size() - row_begin) };
+			auto tile_width{ std::max(1.0f, ImGui::GetContentRegionAvail().x) };
 
-			// The table uses the tallest content cell as the height of this row.
-			ImGui::TableNextRow();
+			DrawAssetTile(
+				tile_width, asset, static_cast<impl::TextureId>(audio_icon_texture_),
+				static_cast<impl::TextureId>(document_icon_texture_), asset_to_unload
+			);
 
-			for (auto column{ 0uz }; column < row_asset_count; ++column) {
-				ImGui::TableSetColumnIndex(static_cast<int>(column));
-
-				auto tile_width{ std::max(1.0f, ImGui::GetContentRegionAvail().x) };
-				auto& asset{ assets[row_begin + column] };
-
-				DrawAssetTileContent(
-					tile_width, asset, static_cast<impl::TextureId>(audio_icon_texture_),
-					static_cast<impl::TextureId>(document_icon_texture_), asset_to_unload
-				);
-			}
-
-			// Starting another table row places every button below the tallest content
-			// cell from the previous row, leaving blank space in shorter cells.
-			ImGui::TableNextRow();
-
-			for (auto column{ 0uz }; column < row_asset_count; ++column) {
-				ImGui::TableSetColumnIndex(static_cast<int>(column));
-
-				auto tile_width{ std::max(1.0f, ImGui::GetContentRegionAvail().x) };
-				auto& asset{ assets[row_begin + column] };
-
-				DrawAssetTileUnloadButton(tile_width, asset, asset_to_unload);
-			}
+			ImGui::Dummy(ImVec2{ 0.0f, ImGui::GetStyle().FramePadding.y });
 		}
 
 		ImGui::EndTable();

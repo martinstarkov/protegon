@@ -1,6 +1,8 @@
 #pragma once
 
+#include <functional>
 #include <ostream>
+#include <utility>
 
 #include "core/util/hash.h"
 #include "core/util/strong_string.h"
@@ -14,6 +16,7 @@ enum class AssetKind {
 	Font,
 	Json,
 	Shader,
+	Prefab,
 	Unknown
 };
 PTGN_REFLECT_ENUM(AssetKind);
@@ -101,6 +104,20 @@ struct JsonKey : public AssetKey {
 	PTGN_REFLECT_VALUE(JsonKey, value)
 };
 
+struct PrefabKey : public AssetKey {
+	using AssetKey::AssetKey;
+
+	static constexpr AssetKind kind{ AssetKind::Prefab };
+
+	constexpr PrefabKey() = default;
+
+	constexpr PrefabKey(AssetKey key) : AssetKey{ std::move(key.value) } {}
+
+	constexpr auto operator<=>(const PrefabKey&) const = default;
+
+	PTGN_REFLECT_VALUE(PrefabKey, value)
+};
+
 } // namespace ptgn
 
 template <>
@@ -141,6 +158,14 @@ struct std::hash<ptgn::ShaderKey> {
 template <>
 struct std::hash<ptgn::JsonKey> {
 	std::size_t operator()(const ptgn::JsonKey& key) const {
+		return ptgn::Hash(key.value);
+	}
+};
+
+
+template <>
+struct std::hash<ptgn::PrefabKey> {
+	std::size_t operator()(const ptgn::PrefabKey& key) const {
 		return ptgn::Hash(key.value);
 	}
 };

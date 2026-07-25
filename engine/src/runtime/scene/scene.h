@@ -129,6 +129,12 @@ public:
 	/// if unspecified. Make sure to call Refresh() after this function.
 	Entity CreateEntity(Tag tag = {}, UUID uuid = {});
 
+	/// @brief Instantiates a project prefab with fresh UUIDs.
+	/// The string overload accepts either "player" or "prefabs/player".
+	/// The prefab asset must be present in the project asset catalog.
+	Entity CreatePrefab(std::string_view prefab_key);
+	Entity CreatePrefab(const PrefabKey& prefab_key);
+
 	/// @brief Copies all of the from entity's specified components into a new entity with a
 	/// specified tag and UUID, or a default tag and a random UUID if unspecified.
 	/// Make sure to call Refresh() after this function.

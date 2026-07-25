@@ -35,6 +35,7 @@
 #include "runtime/asset/asset_manager.h"
 #include "runtime/ecs/component_registry.h"
 #include "runtime/ecs/entity.h"
+#include "runtime/asset/prefab.h"
 #include "runtime/ecs/entity_hierarchy.h"
 #include "runtime/ecs/entity_serialization.h"
 #include "runtime/ecs/manager.h"
@@ -960,6 +961,15 @@ Entity Scene::CreateEntity(Tag tag, UUID uuid) {
 	entity.Add<Tag>(std::move(tag));
 	entity.Add<UUID>(uuid);
 	return Entity{ entity, this };
+}
+
+Entity Scene::CreatePrefab(std::string_view prefab_key) {
+	return CreatePrefab(MakePrefabKey(prefab_key));
+}
+
+Entity Scene::CreatePrefab(const PrefabKey& prefab_key) {
+	auto prefab{ impl::AssetAccessor{ ctx().asset }.Get<Prefab>(prefab_key) };
+	return InstantiatePrefab(*this, prefab.get());
 }
 
 void Scene::SetBackgroundColor(Color background_color) {
