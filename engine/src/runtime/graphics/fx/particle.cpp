@@ -154,7 +154,7 @@ void ParticleEmitterPlayback::Start() {
 }
 
 void ParticleEmitterPlayback::Update(
-	ParticleEmitterComponent& emitter, const ParticleRate& rate, secondsf dt
+	ParticleEmitterData& emitter, const ParticleRate& rate, secondsf dt
 ) {
 	elapsed		  += dt;
 	cycle_elapsed += dt;
@@ -191,7 +191,7 @@ void ParticleEmitterPlayback::Update(
 }
 
 void ParticleEmitterPlayback::Update(
-	ParticleEmitterComponent& emitter, const ParticleBurst& burst, secondsf dt
+	ParticleEmitterData& emitter, const ParticleBurst& burst, secondsf dt
 ) {
 	if (state != ParticleEmitterState::Playing) {
 		return;
@@ -217,10 +217,10 @@ void ParticleEmitterPlayback::Update(
 	}
 }
 
-ParticleEmitterComponent::ParticleEmitterComponent(const ParticleConfig& config) :
+ParticleEmitterData::ParticleEmitterData(const ParticleConfig& config) :
 	config{ config } {}
 
-Entity ParticleEmitterComponent::TrySpawnParticle() {
+Entity ParticleEmitterData::TrySpawnParticle() {
 	if (live_particle_count >= config.max_particles) {
 		return {};
 	}
@@ -232,7 +232,7 @@ Entity ParticleEmitterComponent::TrySpawnParticle() {
 	return particle_entity;
 }
 
-void ParticleEmitterComponent::Start() {
+void ParticleEmitterData::Start() {
 	playback.Start();
 
 	// Starting a new run should not keep old particles around unless that is
@@ -277,7 +277,7 @@ void ParticleEmitterComponent::Start() {
 	}
 }
 
-void ParticleEmitterComponent::Update(const ParticleEmitter& emitter, secondsf dt) {
+void ParticleEmitterData::Update(const ParticleEmitter& emitter, secondsf dt) {
 	if (playback.state == impl::ParticleEmitterState::Playing) {
 		// Update emission (spawn new particles).
 		std::visit(
@@ -403,7 +403,7 @@ ParticleEmitter::ParticleEmitter(Entity entity) : Entity{ entity } {}
 ParticleEmitter& ParticleEmitter::Start() {
 	using enum impl::ParticleEmitterState;
 
-	auto& emitter{ Get<impl::ParticleEmitterComponent>() };
+	auto& emitter{ Get<impl::ParticleEmitterData>() };
 
 	if (emitter.playback.state == Paused) {
 		emitter.playback.state = Playing;
@@ -419,13 +419,13 @@ ParticleEmitter& ParticleEmitter::Start() {
 }
 
 ParticleEmitter& ParticleEmitter::Stop() {
-	auto& emitter{ Get<impl::ParticleEmitterComponent>() };
+	auto& emitter{ Get<impl::ParticleEmitterData>() };
 	emitter.playback.state = impl::ParticleEmitterState::Stopped;
 	return *this;
 }
 
 ParticleEmitter& ParticleEmitter::Pause() {
-	if (auto& emitter{ Get<impl::ParticleEmitterComponent>() };
+	if (auto& emitter{ Get<impl::ParticleEmitterData>() };
 		emitter.playback.state == impl::ParticleEmitterState::Playing) {
 		emitter.playback.state = impl::ParticleEmitterState::Paused;
 	}
@@ -433,7 +433,7 @@ ParticleEmitter& ParticleEmitter::Pause() {
 }
 
 ParticleEmitter& ParticleEmitter::Resume() {
-	if (auto& emitter{ Get<impl::ParticleEmitterComponent>() };
+	if (auto& emitter{ Get<impl::ParticleEmitterData>() };
 		emitter.playback.state == impl::ParticleEmitterState::Paused) {
 		emitter.playback.state = impl::ParticleEmitterState::Playing;
 	}
@@ -441,7 +441,7 @@ ParticleEmitter& ParticleEmitter::Resume() {
 }
 
 ParticleEmitter& ParticleEmitter::Toggle() {
-	switch (const auto& emitter{ Get<impl::ParticleEmitterComponent>() }; emitter.playback.state) {
+	switch (const auto& emitter{ Get<impl::ParticleEmitterData>() }; emitter.playback.state) {
 		using enum impl::ParticleEmitterState;
 		case Stopped: Start(); break;
 		case Playing: Pause(); break;
@@ -452,7 +452,7 @@ ParticleEmitter& ParticleEmitter::Toggle() {
 }
 
 ParticleEmitter& ParticleEmitter::Reset() {
-	auto& emitter{ Get<impl::ParticleEmitterComponent>() };
+	auto& emitter{ Get<impl::ParticleEmitterData>() };
 	emitter.playback = {};
 	emitter.manager.Clear();
 	emitter.live_particle_count = 0;
@@ -460,29 +460,29 @@ ParticleEmitter& ParticleEmitter::Reset() {
 }
 
 bool ParticleEmitter::IsPlaying() const {
-	return Get<impl::ParticleEmitterComponent>().playback.state ==
+	return Get<impl::ParticleEmitterData>().playback.state ==
 		   impl::ParticleEmitterState::Playing;
 }
 
 bool ParticleEmitter::IsPaused() const {
-	return Get<impl::ParticleEmitterComponent>().playback.state ==
+	return Get<impl::ParticleEmitterData>().playback.state ==
 		   impl::ParticleEmitterState::Paused;
 }
 
 bool ParticleEmitter::IsStopped() const {
-	return Get<impl::ParticleEmitterComponent>().playback.state ==
+	return Get<impl::ParticleEmitterData>().playback.state ==
 		   impl::ParticleEmitterState::Stopped;
 }
 
 void ParticleEmitter::Draw(DrawContext& ctx, Entity entity) {
-	if (!entity.Has<impl::ParticleEmitterComponent>()) {
+	if (!entity.Has<impl::ParticleEmitterData>()) {
 		return;
 	}
 
 	auto depth{ GetDepth(entity) };
 	auto blend_mode{ GetBlendMode(entity) };
 
-	const auto& emitter{ entity.Get<impl::ParticleEmitterComponent>() };
+	const auto& emitter{ entity.Get<impl::ParticleEmitterData>() };
 
 	auto& scene{ entity.GetScene() };
 	auto& assets{ scene.ctx().asset };
@@ -513,7 +513,7 @@ void ParticleEmitter::Draw(DrawContext& ctx, Entity entity) {
 }
 
 void ParticleEmitter::Update(Scene& scene, secondsf dt) {
-	for (auto [entity, emitter] : scene.EntitiesWith<impl::ParticleEmitterComponent>()) {
+	for (auto [entity, emitter] : scene.EntitiesWith<impl::ParticleEmitterData>()) {
 		emitter.Update(ParticleEmitter{ entity }, dt);
 	}
 }
@@ -525,7 +525,7 @@ ParticleEmitter CreateParticleEmitter(
 
 	particle.Add<Tag>("Particle Emitter");
 	particle.Add<Transform>(transform);
-	particle.Add<impl::ParticleEmitterComponent>(config);
+	particle.Add<impl::ParticleEmitterData>(config);
 	particle.Add<Visible>(true);
 
 	SetDraw<ParticleEmitter>(particle);

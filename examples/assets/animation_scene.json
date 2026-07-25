@@ -191,7 +191,7 @@
                 "dense_set": [],
                 "sparse_set": []
             },
-            "ParticleEmitterComponent": {
+            "ParticleEmitterData": {
                 "components": [],
                 "dense_set": [],
                 "sparse_set": []

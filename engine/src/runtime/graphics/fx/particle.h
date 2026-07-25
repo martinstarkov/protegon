@@ -30,7 +30,7 @@ class ParticleEmitter;
 
 namespace impl {
 
-struct ParticleEmitterComponent;
+struct ParticleEmitterData;
 
 } // namespace impl
 
@@ -245,8 +245,8 @@ struct ParticleEmitterPlayback {
 
 	void Start();
 
-	void Update(ParticleEmitterComponent& emitter, const ParticleBurst& burst, secondsf dt);
-	void Update(ParticleEmitterComponent& emitter, const ParticleRate& rate, secondsf dt);
+	void Update(ParticleEmitterData& emitter, const ParticleBurst& burst, secondsf dt);
+	void Update(ParticleEmitterData& emitter, const ParticleRate& rate, secondsf dt);
 
 	PTGN_REFLECT(
 		ParticleEmitterPlayback, state, elapsed, cycle_elapsed, spawn_accumulator, burst_elapsed,
@@ -254,10 +254,10 @@ struct ParticleEmitterPlayback {
 	)
 };
 
-struct ParticleEmitterComponent {
-	ParticleEmitterComponent() = default;
+struct ParticleEmitterData {
+	ParticleEmitterData() = default;
 
-	explicit ParticleEmitterComponent(const ParticleConfig& config);
+	explicit ParticleEmitterData(const ParticleConfig& config);
 
 	ParticleConfig config;
 	ParticleEmitterPlayback playback;
@@ -271,7 +271,8 @@ struct ParticleEmitterComponent {
 
 	void Update(const ParticleEmitter& emitter, secondsf dt);
 
-	PTGN_REFLECT(ParticleEmitterComponent, config, playback)
+	PTGN_REFLECT(ParticleEmitterData, config, playback)
+	PTGN_REFLECT_READONLY(ParticleEmitterData, live_particle_count)
 };
 
 } // namespace impl
@@ -341,7 +342,7 @@ struct Particle {
 		size, rotation, age, lifetime
 	)
 private:
-	friend struct impl::ParticleEmitterComponent;
+	friend struct impl::ParticleEmitterData;
 
 	/// @return True if the particle died during the update, false otherwise.
 	[[nodiscard]] bool Update(secondsf dt);

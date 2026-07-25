@@ -81,7 +81,7 @@ public:
 		grid.Set({ 1, 2 }, CreateParticleButton("Toggle Emission", [this]() { p.Toggle(); }));
 
 		grid.Set({ 1, 3 }, CreateParticleButton("Toggle Gravity", [this]() {
-					 auto& emitter = p.Get<impl::ParticleEmitterComponent>();
+					 auto& emitter = p.Get<impl::ParticleEmitterData>();
 
 					 if (constexpr V2_float toggled_gravity{ 0.0f, 300.0f };
 						 emitter.config.start_gravity.has_value() &&
