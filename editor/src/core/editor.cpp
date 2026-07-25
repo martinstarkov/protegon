@@ -41,6 +41,7 @@
 #include "app/project.h"
 #include "runtime/scene/scene_file.h"
 #include "runtime/scene/scene_manager.h"
+#include "serialization/json/json.h"
 #include "tools/debug/debug_system.h"
 
 namespace ptgn::editor {
@@ -49,6 +50,11 @@ namespace {
 
 constexpr float kLeftColumnRatio{ 0.25f };
 constexpr float kRightColumnRatio{ 0.30f };
+
+void SaveProjectManifest(Application& app, Project& project) {
+	project.settings = GetProjectSettings(app);
+	SaveProject(project);
+}
 
 std::string MakeUniqueProjectSceneTag(
 	const Project& project,
@@ -253,6 +259,8 @@ void Editor::OnRender() {
 	DrawPanels();
 
 	ImGui::End();
+
+	SaveEditorLocalStateIfChanged();
 }
 
 bool Editor::CreateProjectScene(
@@ -306,7 +314,7 @@ bool Editor::CreateProjectScene(
 
 	project.scenes.emplace_back(entry);
 
-	SaveProject(project);
+	SaveProjectManifest(app, project);
 
 	bool accepted{
 		GetSceneManager().EnterFactory(
@@ -328,7 +336,7 @@ bool Editor::CreateProjectScene(
 			}
 		);
 
-		SaveProject(project);
+		SaveProjectManifest(app, project);
 
 		std::error_code error;
 		fs::remove(
@@ -422,7 +430,7 @@ bool Editor::DeleteProjectScene(
 	);
 
 	// Remove the manifest entry before deleting the file.
-	SaveProject(project);
+	SaveProjectManifest(app, project);
 
 	std::error_code error;
 
@@ -463,7 +471,7 @@ bool Editor::SetStartupProjectScene(
 
 	project.startup_scene = entry->scene_path;
 
-	SaveProject(project);
+	SaveProjectManifest(app, project);
 
 	return true;
 }
@@ -665,6 +673,8 @@ void Editor::EnableRendering(bool enable) {
 }
 
 void Editor::OnUpdate() {
+	UpdateProjectLocalState();
+
 	if (ImGui::IsKeyPressed(ImGuiKey_F10)) {
 		EnableRendering(!render_enabled_);
 	}
@@ -687,6 +697,7 @@ void Editor::OnUpdate() {
 			ShouldEnableEntityPicking()
 		);
 	}
+
 }
 
 const EditorSettings& Editor::GetSettings() const {
@@ -1013,21 +1024,92 @@ V2_int Editor::GetPresentationTextureSize() const {
 	return renderer.GetSize(texture).value();
 }
 
+void Editor::UpdateProjectLocalState() {
+	auto& app_context{
+		impl::ApplicationAccessor::ctx(app)
+	};
+
+	if (!app_context.project.has_value()) {
+		local_state_project_path_.reset();
+		saved_editor_local_state_json_.reset();
+		return;
+	}
+
+	const auto project_path{
+		app_context.project->file_path.lexically_normal()
+	};
+
+	if (local_state_project_path_.has_value() &&
+		local_state_project_path_->lexically_normal() == project_path) {
+		return;
+	}
+
+	local_state_project_path_ = project_path;
+	OnProjectChanged();
+}
+
+void Editor::SaveEditorLocalStateIfChanged() {
+	PTGN_ASSERT(context_, "Editor context must be initialized");
+
+	auto& app_context{
+		impl::ApplicationAccessor::ctx(app)
+	};
+
+	if (!app_context.project.has_value()) {
+		return;
+	}
+
+	json value = context_->local;
+
+	std::string serialized{ value.dump() };
+
+	if (saved_editor_local_state_json_.has_value() &&
+		saved_editor_local_state_json_.value() == serialized) {
+		return;
+	}
+
+	SaveEditorLocalState(
+		app_context.project.value(),
+		context_->local
+	);
+
+	saved_editor_local_state_json_ =
+		std::move(serialized);
+}
+
 void Editor::OnProjectChanged() {
 	PTGN_ASSERT(
 		context_,
 		"Editor context must be initialized"
 	);
 
-	context_->local.selection.Clear();
+	auto& app_context{
+		impl::ApplicationAccessor::ctx(app)
+	};
+
+	PTGN_ASSERT(
+		app_context.project.has_value(),
+		"Cannot load editor local state without a project"
+	);
 
 	undo_stack_.Clear();
 	play_snapshot_.reset();
 	pending_scene_bootstrap_saves_.clear();
 
+	context_->local = LoadEditorLocalState(
+		app_context.project.value()
+	);
+
+	// These values describe the current process and must never resume from disk.
 	context_->local.state.is_dirty = false;
 	context_->local.state.is_playing = false;
 	context_->local.state.is_paused = false;
+
+	json value = context_->local;
+
+	saved_editor_local_state_json_ = value.dump();
+
+	ApplyEntityPickingSettings();
 }
 
 void Editor::SetSceneEntityPickingEnabled(Scene& scene, bool enabled) {

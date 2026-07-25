@@ -17,15 +17,20 @@
 #include "platform/window.h"
 #include "renderer/pipeline/scaling_mode.h"
 #include "renderer/pipeline/viewport.h"
-#include "renderer/renderer_settings.h"
 #include "renderer/renderer.h"
+#include "renderer/renderer_settings.h"
 #include "tools/debug/debug_system.h"
 
 namespace ptgn::editor::inspector {
 
 namespace {
 
-bool DrawLineDebugSettings(EditorContext& ctx, bool& draw_enabled, Color& draw_color, float& draw_line_width) {
+bool DrawLineDebugSettings(
+	EditorContext& ctx,
+	bool& draw_enabled,
+	Color& draw_color,
+	float& draw_line_width
+) {
 	bool changed{ false };
 
 	changed |= DrawValue(ctx, "Draw Enabled", draw_enabled);
@@ -33,18 +38,23 @@ bool DrawLineDebugSettings(EditorContext& ctx, bool& draw_enabled, Color& draw_c
 	changed |= DrawValue(
 		ctx, "Draw Line Width", draw_line_width,
 		FieldOptions{
-			.speed	= 0.1f,
-			.min	= kMinLineWidth,
-			.max	= 100.0,
+			.speed = 0.1f,
+			.min = kMinLineWidth,
+			.max = 100.0,
 			.format = "%.2f",
-			.flags	= ImGuiSliderFlags_AlwaysClamp,
+			.flags = ImGuiSliderFlags_AlwaysClamp,
 		}
 	);
 
 	return changed;
 }
 
-bool DrawFillDebugSettings(EditorContext& ctx, bool& draw_enabled, Color& draw_color, FillStyle& draw_fill_style) {
+bool DrawFillDebugSettings(
+	EditorContext& ctx,
+	bool& draw_enabled,
+	Color& draw_color,
+	FillStyle& draw_fill_style
+) {
 	bool changed{ false };
 
 	changed |= DrawValue(ctx, "Draw Enabled", draw_enabled);
@@ -59,8 +69,11 @@ bool DrawFillDebugSettings(EditorContext& ctx, bool& draw_enabled, Color& draw_c
 template <>
 struct Contents<InteractiveDebugSettings> {
 	static bool Draw(EditorContext& ctx, InteractiveDebugSettings& settings) {
-		return DrawLineDebugSettings(ctx,
-			settings.draw_enabled, settings.draw_color, settings.draw_line_width
+		return DrawLineDebugSettings(
+			ctx,
+			settings.draw_enabled,
+			settings.draw_color,
+			settings.draw_line_width
 		);
 	}
 };
@@ -71,7 +84,10 @@ struct Contents<CollisionDebugSettings> {
 		bool changed{ false };
 
 		changed |= DrawFillDebugSettings(
-			ctx, settings.draw_enabled, settings.draw_color, settings.draw_fill_style
+			ctx,
+			settings.draw_enabled,
+			settings.draw_color,
+			settings.draw_fill_style
 		);
 
 		changed |= DrawValue(ctx, "Draw CCD", settings.draw_ccd);
@@ -90,7 +106,11 @@ struct Contents<LightVisibilityDebugSettings> {
 
 		changed |= DrawValue(ctx, "Polygon Color", settings.polygon_color);
 		changed |= DrawValue(ctx, "Masks Inside Color", settings.masks_inside_color);
-		changed |= DrawValue(ctx, "Does Not Mask Inside Color", settings.does_not_mask_inside_color);
+		changed |= DrawValue(
+			ctx,
+			"Does Not Mask Inside Color",
+			settings.does_not_mask_inside_color
+		);
 
 		changed |= DrawValue(ctx, "Draw Fill Style", settings.draw_fill_style);
 
@@ -101,8 +121,11 @@ struct Contents<LightVisibilityDebugSettings> {
 template <>
 struct Contents<TextDebugSettings> {
 	static bool Draw(EditorContext& ctx, TextDebugSettings& settings) {
-		bool changed{ DrawLineDebugSettings(ctx,
-			settings.draw_enabled, settings.draw_color, settings.draw_line_width
+		bool changed{ DrawLineDebugSettings(
+			ctx,
+			settings.draw_enabled,
+			settings.draw_color,
+			settings.draw_line_width
 		) };
 
 		changed |= DrawValue(ctx, "Clip Draw Color", settings.clip_draw_color);
@@ -120,26 +143,30 @@ struct Contents<RendererSettings> {
 
 		if (settings.tone_mapping.op == ToneMappingOperator::Exposure ||
 			settings.tone_mapping.op == ToneMappingOperator::ACES) {
-			changed |= DrawValue(ctx, 
-				"Exposure", settings.tone_mapping.exposure,
+			changed |= DrawValue(
+				ctx,
+				"Exposure",
+				settings.tone_mapping.exposure,
 				FieldOptions{
-					.speed	= 0.05f,
-					.min	= 0.0,
-					.max	= 20.0,
+					.speed = 0.05f,
+					.min = 0.0,
+					.max = 20.0,
 					.format = "%.2f",
-					.flags	= ImGuiSliderFlags_AlwaysClamp,
+					.flags = ImGuiSliderFlags_AlwaysClamp,
 				}
 			);
 		}
 
-		changed |= DrawValue(ctx, 
-			"Gamma", settings.gamma,
+		changed |= DrawValue(
+			ctx,
+			"Gamma",
+			settings.gamma,
 			FieldOptions{
-				.speed	= 0.05f,
-				.min	= 0.01f,
-				.max	= 5.0,
+				.speed = 0.05f,
+				.min = 0.01f,
+				.max = 5.0,
 				.format = "%.2f",
-				.flags	= ImGuiSliderFlags_AlwaysClamp,
+				.flags = ImGuiSliderFlags_AlwaysClamp,
 			}
 		);
 
@@ -189,7 +216,12 @@ bool DrawResolutionMode(EditorContext& ctx) {
 	int mode{ renderer.GetSettings().logical_size.has_value() ? 1 : 0 };
 
 	bool changed{ DrawPropertyRow("Resolution Source", [&]() {
-		return ImGui::Combo("##value", &mode, names.data(), static_cast<int>(names.size()));
+		return ImGui::Combo(
+			"##value",
+			&mode,
+			names.data(),
+			static_cast<int>(names.size())
+		);
 	}) };
 
 	if (!changed) {
@@ -210,9 +242,12 @@ bool DrawResolutionPreset(EditorContext& ctx) {
 
 	auto logical_size{ renderer.GetLogicalSize() };
 
-	auto selected{ std::ranges::find_if(kResolutionPresets, [&](const ResolutionPreset& preset) {
-		return preset.size == logical_size;
-	}) };
+	auto selected{ std::ranges::find_if(
+		kResolutionPresets,
+		[&](const ResolutionPreset& preset) {
+			return preset.size == logical_size;
+		}
+	) };
 
 	auto preview{ selected != kResolutionPresets.end() ? selected->label : "Custom" };
 
@@ -240,39 +275,45 @@ bool DrawResolutionPreset(EditorContext& ctx) {
 	});
 }
 
-void DrawDisplaySettings(EditorContext& ctx) {
+bool DrawDisplaySettings(EditorContext& ctx) {
 	if (!ImGui::CollapsingHeader("Display", ImGuiTreeNodeFlags_DefaultOpen)) {
-		return;
+		return false;
 	}
+
+	bool changed{ false };
 
 	ImGui::Indent();
 
-	DrawResolutionMode(ctx);
+	changed |= DrawResolutionMode(ctx);
 
 	auto& renderer{ ctx.editor.GetRenderer() };
 
 	if (renderer.GetSettings().logical_size.has_value()) {
-		DrawResolutionPreset(ctx);
+		changed |= DrawResolutionPreset(ctx);
 
 		auto logical_size{ renderer.GetLogicalSize() };
 
-		if (DrawValue(ctx,
-				"Logical Size", logical_size,
+		if (DrawValue(
+				ctx,
+				"Logical Size",
+				logical_size,
 				FieldOptions{
-					.speed	= 1.0f,
-					.min	= 1.0,
-					.max	= 4096.0,
+					.speed = 1.0f,
+					.min = 1.0,
+					.max = 4096.0,
 					.format = "%d",
-					.flags	= ImGuiSliderFlags_AlwaysClamp,
+					.flags = ImGuiSliderFlags_AlwaysClamp,
 				}
 			)) {
 			renderer.SetLogicalSize(logical_size);
+			changed = true;
 		}
 
 		auto scaling_mode{ renderer.GetSettings().scaling_mode };
 
 		if (DrawValue(ctx, "Scaling Mode", scaling_mode)) {
 			renderer.SetScalingMode(scaling_mode);
+			changed = true;
 		}
 	} else {
 		auto window_size{ renderer.GetDisplayViewport().size };
@@ -282,18 +323,41 @@ void DrawDisplaySettings(EditorContext& ctx) {
 		ImGui::EndDisabled();
 	}
 
-	settings::EditValue(ctx,
-		"Window Background", [&]() { return ctx.editor.GetWindow().GetSettings().background_color; },
-		[&](Color color) { ctx.editor.GetWindow().SetBackgroundColor(color); }
-	);
+	auto window_settings{ ctx.editor.GetWindow().GetSettings() };
+	bool window_changed{ false };
 
-	settings::EditValue(ctx,
-		"Renderer Background", [&]() { return ctx.editor.GetRenderer().GetSettings().background_color; },
+	window_changed |= DrawValue(
+		ctx,
+		"Default Window Size",
+		window_settings.size,
+		FieldOptions{
+			.speed = 1.0f,
+			.min = 1.0,
+			.max = 8192.0,
+			.format = "%d",
+			.flags = ImGuiSliderFlags_AlwaysClamp,
+		}
+	);
+	window_changed |= DrawValue(ctx, "Resizable", window_settings.resizable);
+	window_changed |= DrawValue(ctx, "Start Maximized", window_settings.maximized);
+	window_changed |= DrawValue(ctx, "Window Background", window_settings.background_color);
+
+	if (window_changed) {
+		ctx.editor.GetWindow().SetSettings(window_settings);
+		changed = true;
+	}
+
+	changed |= settings::EditValue(
+		ctx,
+		"Renderer Background",
+		[&]() { return ctx.editor.GetRenderer().GetSettings().background_color; },
 		[&](Color color) { ctx.editor.GetRenderer().SetBackgroundColor(color); }
 	);
 
 	ImGui::Unindent();
 	ImGui::Spacing();
+
+	return changed;
 }
 
 } // namespace
@@ -301,15 +365,25 @@ void DrawDisplaySettings(EditorContext& ctx) {
 void EngineSettingsPanel::OnRender(EditorContext& ctx) {
 	ImGui::Begin("Engine Settings");
 
+	bool changed{ false };
+
 	{
 		AutoLabelWidthScope label_width{ "DisplaySettings" };
-		DrawDisplaySettings(ctx);
+		changed |= DrawDisplaySettings(ctx);
 	}
 
-	settings::EditSection(ctx,
-		"Rendering", [&]() { return ctx.editor.GetRenderer().GetSettings(); },
-		[&](const RendererSettings& value) { ctx.editor.GetRenderer().SetSettings(value); }
+	changed |= settings::EditSection(
+		ctx,
+		"Rendering",
+		[&]() { return ctx.editor.GetRenderer().GetSettings(); },
+		[&](const RendererSettings& value) {
+			ctx.editor.GetRenderer().SetSettings(value);
+		}
 	);
+
+	if (changed) {
+		ctx.local.state.is_dirty = true;
+	}
 
 	ImGui::End();
 }
@@ -323,29 +397,47 @@ void DebugSettingsPanel::OnRender(EditorContext& ctx) {
 		ImGui::ShowMetricsWindow(&ctx.local.settings.show_imgui_metrics);
 	}
 
-	settings::EditSection(ctx,
-		"Interaction", [&]() { return ctx.editor.GetDebugSystem().settings.interaction; },
+	bool changed{ false };
+
+	changed |= settings::EditSection(
+		ctx,
+		"Interaction",
+		[&]() { return ctx.editor.GetDebugSystem().settings.interaction; },
 		[&](const InteractiveDebugSettings& value) {
 			ctx.editor.GetDebugSystem().settings.interaction = value;
 		}
 	);
 
-	settings::EditSection(ctx,
-		"Collision", [&]() { return ctx.editor.GetDebugSystem().settings.collision; },
-		[&](const CollisionDebugSettings& value) { ctx.editor.GetDebugSystem().settings.collision = value; }
+	changed |= settings::EditSection(
+		ctx,
+		"Collision",
+		[&]() { return ctx.editor.GetDebugSystem().settings.collision; },
+		[&](const CollisionDebugSettings& value) {
+			ctx.editor.GetDebugSystem().settings.collision = value;
+		}
 	);
 
-	settings::EditSection(ctx,
-		"Text", [&]() { return ctx.editor.GetDebugSystem().settings.text; },
-		[&](const TextDebugSettings& value) { ctx.editor.GetDebugSystem().settings.text = value; }
+	changed |= settings::EditSection(
+		ctx,
+		"Text",
+		[&]() { return ctx.editor.GetDebugSystem().settings.text; },
+		[&](const TextDebugSettings& value) {
+			ctx.editor.GetDebugSystem().settings.text = value;
+		}
 	);
 
-	settings::EditSection(ctx,
-		"Light Visibility", [&]() { return ctx.editor.GetDebugSystem().settings.light; },
+	changed |= settings::EditSection(
+		ctx,
+		"Light Visibility",
+		[&]() { return ctx.editor.GetDebugSystem().settings.light; },
 		[&](const LightVisibilityDebugSettings& value) {
 			ctx.editor.GetDebugSystem().settings.light = value;
 		}
 	);
+
+	if (changed) {
+		ctx.local.state.is_dirty = true;
+	}
 
 	ImGui::End();
 }
@@ -359,13 +451,17 @@ void EditorSettingsPanel::OnRender(EditorContext& ctx) {
 		ctx.editor.SetEntityPickingMode(entity_picking);
 	}
 
-	auto gizmo_uses_local_orientation{ ctx.editor.GetSettings().gizmo_uses_local_orientation };
+	auto gizmo_uses_local_orientation{
+		ctx.editor.GetSettings().gizmo_uses_local_orientation
+	};
 
 	if (ImGui::Checkbox("Local Gizmo Orientation", &gizmo_uses_local_orientation)) {
 		ctx.editor.SetGizmoUsesLocalOrientation(gizmo_uses_local_orientation);
 	}
 
-	ImGui::TextDisabled("Local orientation rotates the translate and scale axes with the entity.");
+	ImGui::TextDisabled(
+		"Local orientation rotates the translate and scale axes with the entity."
+	);
 
 	ImGui::End();
 }

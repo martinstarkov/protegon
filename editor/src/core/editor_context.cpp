@@ -15,13 +15,14 @@ path GetEditorLocalStatePath(const Project& project) {
 EditorLocalState LoadEditorLocalState(const Project& project) {
 	const auto path{ GetEditorLocalStatePath(project) };
 
+	EditorLocalState state;
+
 	if (!FileExists(path)) {
-		return {};
+		return state;
 	}
 
-    json value = LoadJson(path);
-
-    return value.get<EditorLocalState>();
+	LoadJson(path).get_to(state);
+	return state;
 }
 
 void SaveEditorLocalState(
@@ -30,11 +31,9 @@ void SaveEditorLocalState(
 ) {
 	const auto path{ GetEditorLocalStatePath(project) };
 
-    EnsureDirectory(path.parent_path());
-
+	EnsureDirectory(path.parent_path());
     json value = state;
-
-    SaveJson(value, path);
+	SaveJson(value, path);
 }
 
 } // namespace ptgn::editor

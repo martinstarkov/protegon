@@ -20,6 +20,8 @@ engine/vendor/*
 !engine/vendor/glad/
 !engine/vendor/stb/
 !engine/vendor/CMakeLists.txt
+*.ptgneditor
+*.ptgnlocal
 
 # Build results
 [Bb]uild/

@@ -62,7 +62,7 @@ struct Project {
 	/// @brief Assets loaded globally whenever the project is opened.
 	std::vector<AssetKey> preload_assets;
 
-	/// @brief Shared project settings.
+	/// @brief Shared, tracked project settings.
 	ProjectSettings settings;
 
 	PTGN_REFLECT(
@@ -71,16 +71,21 @@ struct Project {
 		startup_scene,
 		scenes,
 		assets,
-		preload_assets
+		preload_assets,
+		settings
 	)
 };
 
-
-Project LoadProject(const path& file_path);
+/// @brief Loads a project, using default_settings for fields missing from older manifests.
+Project LoadProject(
+	const path& file_path,
+	const ProjectSettings& default_settings = {}
+);
 
 Project CreateProject(
 	const path& file_path,
-	const impl::SceneRegistryEntry& default_scene
+	const impl::SceneRegistryEntry& default_scene,
+	ProjectSettings settings = {}
 );
 
 void SaveProject(const Project& project);

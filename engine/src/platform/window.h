@@ -160,8 +160,14 @@ public:
 
 	void Center();
 
+	/// @return Project-owned window defaults. Live OS window geometry is returned by
+	/// GetLocalSettings() instead.
 	WindowSettings GetSettings() const;
 	void SetSettings(const WindowSettings& settings);
+
+	/// @return Current machine/user window geometry suitable for .ptgnlocal.
+	WindowLocalSettings GetLocalSettings() const;
+	void SetLocalSettings(const WindowLocalSettings& settings);
 
 	void SetBackgroundColor(Color background_color = color::Transparent);
 

@@ -391,7 +391,7 @@ void DialogueData::LoadFromJson(
 
 	PTGN_ASSERT(root.contains("dialogues"));
 
-	const auto& dialogues_json{ root.at("dialogues") };
+	const auto& dialogues_json = root.at("dialogues");
 
 	PTGN_ASSERT(
 		current_dialogue.empty() || dialogues_json.contains(current_dialogue),
@@ -421,7 +421,7 @@ void DialogueData::LoadFromJson(
 
 		PTGN_ASSERT(dialogue_json.contains("lines"));
 
-		const auto& lines_json{ dialogue_json.at("lines") };
+		const auto& lines_json = dialogue_json.at("lines");
 
 		auto append_pages = [&](DialogueLine& line, std::string_view content,
 								const DialoguePageProperties& properties) {
@@ -445,7 +445,7 @@ void DialogueData::LoadFromJson(
 
 					PTGN_ASSERT(line_json.contains("pages"));
 
-					const auto& pages_json{ line_json.at("pages") };
+					const auto& pages_json = line_json.at("pages");
 
 					if (pages_json.is_string()) {
 						append_pages(line, pages_json.get<std::string>(), line_properties);

@@ -13,6 +13,7 @@
 #include "commands/undo_stack.h"
 #include "core/editor_context.h"
 #include "core/math/vector2.h"
+#include "core/util/file.h"
 #include "panels/content_browser.h"
 #include "panels/inspector.h"
 #include "panels/scene_hierarchy.h"
@@ -110,6 +111,7 @@ public:
 
 	bool IsPlaying() const;
 	bool IsPaused() const;
+
 private:
 	struct PlaySnapshot {
 		std::string scene_tag;
@@ -121,6 +123,8 @@ private:
 
 	void SavePendingBootstrapScenes();
 
+	void UpdateProjectLocalState();
+	void SaveEditorLocalStateIfChanged();
 	void OnProjectChanged();
 
 	void DrawMainMenuBar();
@@ -150,6 +154,9 @@ private:
 	SceneListPanel scene_list_panel_;
 
 	std::optional<PlaySnapshot> play_snapshot_;
+
+	std::optional<path> local_state_project_path_;
+	std::optional<std::string> saved_editor_local_state_json_;
 
 	std::uint32_t dock_left_column_id_{ 0 };
 	std::uint32_t dock_right_column_id_{ 0 };

@@ -12,16 +12,19 @@
 #include <imgui_impl_opengl3.h>
 
 #include <chrono>
+#include <exception>
 #include <filesystem>
 #include <functional>
 #include <memory>
 #include <string_view>
 #include <utility>
+#include <vector>
 
 #include "app/application_config.h"
 #include "app/application_context.h"
 #include "app/application_layer.h"
 #include "app/application_state.h"
+#include "app/project.h"
 #include "core/assert.h"
 #include "core/event/event.h"
 #include "core/event/event_handler.h"
@@ -37,7 +40,6 @@
 #include "runtime/audio/audio_system.h"
 #include "runtime/graphics/draw.h"
 #include "runtime/graphics/drawable.h"
-#include "app/project.h"
 #include "runtime/scene/scene.h"
 #include "runtime/scene/scene_file.h"
 #include "runtime/scene/scene_manager.h"
@@ -54,7 +56,25 @@ Application::Application(std::string_view title) :
 Application::Application(std::string_view title, V2_int window_size) :
 	Application{ ApplicationConfig{ .window{ .title{ title }, .size{ window_size } } } } {}
 
-Application::~Application() noexcept = default;
+Application::~Application() noexcept {
+	if (!ctx_.project.has_value()) {
+		return;
+	}
+
+	try {
+		SaveProjectLocalState(
+			ctx_.project.value(),
+			GetProjectLocalState(*this)
+		);
+	} catch (const std::exception& exception) {
+		PTGN_ERROR(
+			"Failed to save project local state: ",
+			exception.what()
+		);
+	} catch (...) {
+		PTGN_ERROR("Failed to save project local state");
+	}
+}
 
 void Application::StartProject(const path& project_path) {
 	StartProjectImpl(project_path, nullptr);
@@ -64,10 +84,17 @@ void Application::StartProjectImpl(
 	const path& project_path,
 	const impl::SceneRegistryEntry* default_scene
 ) {
+	// Existing projects created before ProjectSettings was serialized inherit the
+	// application's current configuration for any missing settings fields.
+	const auto application_defaults{ GetProjectSettings(*this) };
+
 	Project project;
 
 	if (FileExists(project_path)) {
-		project = LoadProject(project_path);
+		project = LoadProject(
+			project_path,
+			application_defaults
+		);
 	} else {
 		PTGN_ASSERT(
 			default_scene,
@@ -78,13 +105,25 @@ void Application::StartProjectImpl(
 
 		project = CreateProject(
 			project_path,
-			*default_scene
+			*default_scene,
+			application_defaults
 		);
 	}
 
 	ctx_.project = std::move(project);
 
 	auto& loaded_project{ ctx_.project.value() };
+
+	// Tracked project defaults are applied first. The ignored .ptgnlocal file then
+	// restores this user's window geometry without mutating the tracked defaults.
+	SetProjectSettings(
+		*this,
+		loaded_project.settings
+	);
+	SetProjectLocalState(
+		*this,
+		LoadProjectLocalState(loaded_project)
+	);
 
 	if (ctx_.start_project_runtime) {
 		const auto& startup{
@@ -210,14 +249,17 @@ void Application::StartProjectImpl(
 		loaded_project.preload_assets =
 			ctx_.assets.GetProjectAssetDependencies();
 
-		// Save catalog entries before scene dependency keys.
+		loaded_project.settings =
+			GetProjectSettings(*this);
+
+		// Save catalog entries and settings before scene dependency keys.
 		SaveProject(loaded_project);
 
 		for (const auto& bootstrap :
 			 bootstrap_scenes) {
 			PTGN_ASSERT(
 				bootstrap.entry &&
-				bootstrap.scene
+					bootstrap.scene
 			);
 
 			SaveSceneFile(
@@ -237,12 +279,16 @@ void Application::StartProjectImpl(
 	EnterMainLoop();
 }
 
-void Application::StartWithFactory(std::string_view scene_tag, impl::SceneFactory scene_factory) {
+void Application::StartWithFactory(
+	std::string_view scene_tag,
+	impl::SceneFactory scene_factory
+) {
 	PTGN_ASSERT(scene_factory, "Cannot start application with a null scene factory");
 	PTGN_ASSERT(ctx_.scene_manager.scenes_.empty(), "Application has already been started");
 
 	auto first_scene{ std::invoke(
-		scene_factory, *this,
+		scene_factory,
+		*this,
 		impl::SceneData{
 			.tag{ scene_tag },
 			.tag_hash = Hash(scene_tag),

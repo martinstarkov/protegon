@@ -126,9 +126,16 @@ void Window::SetCallbacks() {
 		}
 
 		V2_int pos{ x, y };
-		if (!glfwGetWindowMonitor(window)) {
+		bool can_cache_windowed_rect{
+			!glfwGetWindowMonitor(window) &&
+			glfwGetWindowAttrib(window, GLFW_MAXIMIZED) != GLFW_TRUE &&
+			glfwGetWindowAttrib(window, GLFW_ICONIFIED) != GLFW_TRUE
+		};
+
+		if (can_cache_windowed_rect) {
 			self->windowed_pos_ = pos;
 		}
+
 		self->PushEvent<event::WindowMoved>(pos);
 	});
 
@@ -137,8 +144,12 @@ void Window::SetCallbacks() {
 		if (!self) {
 			return;
 		}
+		self->windowed_was_maximized_ = maximized == GLFW_TRUE;
+
 		if (maximized) {
 			self->PushEvent<event::WindowMaximized>(self->windowed_size_);
+		} else if (glfwGetWindowAttrib(window, GLFW_ICONIFIED) != GLFW_TRUE) {
+			self->CacheWindowedRect();
 		}
 	});
 
@@ -159,9 +170,20 @@ void Window::SetCallbacks() {
 		}
 
 		if (!glfwGetWindowMonitor(window)) {
-			self->windowed_size_ = { width, height };
-			self->windowed_was_maximized_ =
-				glfwGetWindowAttrib(window, GLFW_MAXIMIZED) == GLFW_TRUE;
+			bool maximized{
+				glfwGetWindowAttrib(window, GLFW_MAXIMIZED) == GLFW_TRUE
+			};
+			bool minimized{
+				glfwGetWindowAttrib(window, GLFW_ICONIFIED) == GLFW_TRUE
+			};
+
+			if (!minimized) {
+				self->windowed_was_maximized_ = maximized;
+			}
+
+			if (!maximized && !minimized) {
+				self->windowed_size_ = { width, height };
+			}
 		}
 
 		V2_int size{ width, height };
@@ -270,7 +292,18 @@ void Window::SetCallbacks() {
 }
 
 Window::Window(const WindowConfig& config, std::function<void(impl::EventData&&)>&& event_sink) :
-	file{ *this }, event_sink_{ std::move(event_sink) }, title_{ config.title } {
+	file{ *this },
+	event_sink_{ std::move(event_sink) },
+	window_settings_{
+		.background_color = color::Transparent,
+		.size = config.size,
+		.resizable = config.resizable,
+		.maximized = config.maximized,
+	},
+	title_{ config.title },
+	windowed_pos_{ config.x.value_or(100), config.y.value_or(100) },
+	windowed_size_{ config.size },
+	windowed_was_maximized_{ config.maximized } {
 	PTGN_ASSERT(event_sink_, "Window event sink must be set to a function");
 
 	int exclusive_states = static_cast<int>(config.minimized) + static_cast<int>(config.maximized) +
@@ -375,6 +408,10 @@ Window::Window(const WindowConfig& config, std::function<void(impl::EventData&&)
 	}
 
 	SetMouseMode(config.mouse_mode);
+
+	if (!config.fullscreen && !config.maximized && !config.minimized) {
+		CacheWindowedRect();
+	}
 
 	glfwSetWindowSizeLimits(instance_.get(), 1, 1, GLFW_DONT_CARE, GLFW_DONT_CARE);
 
@@ -532,9 +569,16 @@ void Window::CacheWindowedRect() {
 		return; // fullscreen, do not overwrite cached windowed rect
 	}
 
+	windowed_was_maximized_ =
+		glfwGetWindowAttrib(win, GLFW_MAXIMIZED) == GLFW_TRUE;
+
+	if (windowed_was_maximized_ ||
+		glfwGetWindowAttrib(win, GLFW_ICONIFIED) == GLFW_TRUE) {
+		return;
+	}
+
 	glfwGetWindowPos(win, &windowed_pos_.x, &windowed_pos_.y);
 	glfwGetWindowSize(win, &windowed_size_.x, &windowed_size_.y);
-	windowed_was_maximized_ = glfwGetWindowAttrib(win, GLFW_MAXIMIZED) == GLFW_TRUE;
 }
 
 void Window::SetMouseMode(MouseMode mode) {
@@ -659,7 +703,84 @@ WindowSettings Window::GetSettings() const {
 }
 
 void Window::SetSettings(const WindowSettings& settings) {
+	PTGN_ASSERT(settings.size.IsPositive(), "Window settings size must be positive");
+
+	window_settings_ = settings;
+
 	SetBackgroundColor(settings.background_color);
+
+	if (settings.resizable) {
+		SetResizable();
+	} else {
+		SetFixedSize();
+	}
+
+	if (GetSetting(WindowSetting::Fullscreen)) {
+		return;
+	}
+
+	if (GetSetting(WindowSetting::Maximized) ||
+		GetSetting(WindowSetting::Minimized)) {
+		SetSetting(WindowSetting::Restored);
+	}
+
+	SetSize(settings.size, false);
+
+	if (settings.maximized) {
+		SetSetting(WindowSetting::Maximized);
+	}
+}
+
+WindowLocalSettings Window::GetLocalSettings() const {
+	auto win{ instance_.get() };
+	PTGN_ASSERT(win, "Window is null");
+
+	V2_int position{ windowed_pos_ };
+	V2_int size{ windowed_size_ };
+
+	bool is_windowed{ glfwGetWindowMonitor(win) == nullptr };
+	bool maximized{ glfwGetWindowAttrib(win, GLFW_MAXIMIZED) == GLFW_TRUE };
+	bool minimized{ glfwGetWindowAttrib(win, GLFW_ICONIFIED) == GLFW_TRUE };
+
+	if (is_windowed && !maximized && !minimized) {
+		glfwGetWindowPos(win, &position.x, &position.y);
+		glfwGetWindowSize(win, &size.x, &size.y);
+	}
+
+	return WindowLocalSettings{
+		.position = position,
+		.size = size,
+		.maximized = maximized || (minimized && windowed_was_maximized_),
+	};
+}
+
+void Window::SetLocalSettings(const WindowLocalSettings& settings) {
+	if (GetSetting(WindowSetting::Fullscreen)) {
+		return;
+	}
+
+	bool should_maximize{
+		settings.maximized.value_or(GetSetting(WindowSetting::Maximized))
+	};
+
+	if (settings.position.has_value() ||
+		settings.size.has_value() ||
+		settings.maximized.has_value()) {
+		SetSetting(WindowSetting::Restored);
+	}
+
+	if (settings.size.has_value()) {
+		PTGN_ASSERT(settings.size->IsPositive(), "Local window size must be positive");
+		SetSize(settings.size.value(), false);
+	}
+
+	if (settings.position.has_value()) {
+		SetPosition(settings.position.value());
+	}
+
+	if (should_maximize) {
+		SetSetting(WindowSetting::Maximized);
+	}
 }
 
 void Window::SetBackgroundColor(Color background_color) {

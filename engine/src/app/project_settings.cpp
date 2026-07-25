@@ -2,21 +2,23 @@
 
 #include "app/application.h"
 #include "app/application_context.h"
+#include "app/project.h"
+#include "core/util/file.h"
 #include "platform/window.h"
 #include "renderer/renderer.h"
+#include "serialization/json/json.h"
+#include "serialization/json/json_file.h"
 
 namespace ptgn {
 
 ProjectSettings GetProjectSettings(Application& app) {
 	auto& context{ impl::ApplicationAccessor::ctx(app) };
-    
-	ProjectSettings settings{
+
+	return ProjectSettings{
 		.window = context.window.GetSettings(),
 		.renderer = context.renderer.GetSettings(),
 		.debug = context.debug.GetSettings(),
 	};
-
-	return settings;
 }
 
 void SetProjectSettings(
@@ -24,10 +26,61 @@ void SetProjectSettings(
 	const ProjectSettings& settings
 ) {
 	auto& context{ impl::ApplicationAccessor::ctx(app) };
-    
+
+	if (context.project.has_value()) {
+		context.project->settings = settings;
+	}
+
+	// Apply the window first because renderer viewport sizing depends on it.
 	context.window.SetSettings(settings.window);
 	context.renderer.SetSettings(settings.renderer);
-    context.debug.SetSettings(settings.debug);
+	context.debug.SetSettings(settings.debug);
+}
+
+path GetProjectLocalStatePath(const Project& project) {
+	auto path{ project.file_path };
+	path.replace_extension(".ptgnlocal");
+	return path;
+}
+
+ProjectLocalState LoadProjectLocalState(const Project& project) {
+	const auto path{ GetProjectLocalStatePath(project) };
+
+	ProjectLocalState state;
+
+	if (!FileExists(path)) {
+		return state;
+	}
+
+	LoadJson(path).get_to(state);
+	return state;
+}
+
+void SaveProjectLocalState(
+	const Project& project,
+	const ProjectLocalState& state
+) {
+	const auto path{ GetProjectLocalStatePath(project) };
+
+	EnsureDirectory(path.parent_path());
+    json value = state;
+	SaveJson(value, path);
+}
+
+ProjectLocalState GetProjectLocalState(Application& app) {
+	auto& context{ impl::ApplicationAccessor::ctx(app) };
+
+	return ProjectLocalState{
+		.window = context.window.GetLocalSettings(),
+	};
+}
+
+void SetProjectLocalState(
+	Application& app,
+	const ProjectLocalState& state
+) {
+	auto& context{ impl::ApplicationAccessor::ctx(app) };
+	context.window.SetLocalSettings(state.window);
 }
 
 } // namespace ptgn

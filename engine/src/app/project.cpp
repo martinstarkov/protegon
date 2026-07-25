@@ -1,20 +1,22 @@
 #include "app/project.h"
 
+#include <algorithm>
 #include <filesystem>
+#include <ranges>
 #include <fstream>
+#include <span>
 #include <string>
 #include <utility>
-#include <span>
 #include <vector>
 
-#include "app/application_context.h"
 #include "app/application.h"
-#include "core/util/file.h"
+#include "app/application_context.h"
 #include "core/assert.h"
-#include "runtime/scene/scene_file.h"
-#include "runtime/scene/scene_registry.h"
+#include "core/util/file.h"
 #include "runtime/asset/asset_manager.h"
 #include "runtime/scene/scene.h"
+#include "runtime/scene/scene_file.h"
+#include "runtime/scene/scene_registry.h"
 #include "serialization/json/json.h"
 #include "serialization/json/json_file.h"
 
@@ -141,8 +143,9 @@ bool SaveProjectScenes(
 	project.assets = app_context.assets.GetCatalog();
 	project.preload_assets =
 		app_context.assets.GetProjectAssetDependencies();
+	project.settings = GetProjectSettings(app);
 
-	// Catalog descriptors must exist before scene dependency keys
+	// Catalog descriptors and project settings must exist before scene dependency keys
 	// are written to their scene files.
 	SaveProject(project);
 
@@ -182,9 +185,14 @@ bool SaveBootstrapProjectScene(
 
 } // namespace impl
 
-Project LoadProject(const path& file_path) {
-	Project project{ LoadJson(file_path).get<Project>() };
+Project LoadProject(
+	const path& file_path,
+	const ProjectSettings& default_settings
+) {
+	Project project;
+	project.settings = default_settings;
 
+	LoadJson(file_path).get_to(project);
 	project.file_path = file_path;
 
 	ValidateProject(project);
@@ -194,7 +202,8 @@ Project LoadProject(const path& file_path) {
 
 Project CreateProject(
 	const path& file_path,
-	const impl::SceneRegistryEntry& default_scene
+	const impl::SceneRegistryEntry& default_scene,
+	ProjectSettings settings
 ) {
 	const auto root{ file_path.parent_path() };
 
@@ -213,6 +222,7 @@ Project CreateProject(
 					"Main.ptgnscene",
 			},
 		},
+		.settings = std::move(settings),
 	};
 
 	// Write the scene before the manifest so the project never points
@@ -236,7 +246,8 @@ void SaveProject(const Project& project) {
 	ValidateProject(project);
 
 	EnsureDirectory(project.file_path.parent_path());
-	SaveJson(json{ project }, project.file_path);
+	json value = project;
+	SaveJson(value, project.file_path);
 }
 
 ProjectSceneEntry* FindProjectScene(
