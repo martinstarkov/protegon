@@ -32,6 +32,14 @@ constexpr std::string_view kPlaySignal{
 	"animation.play"
 };
 
+constexpr std::string_view kStopSignal{
+	"animation.stop"
+};
+
+constexpr std::string_view kPlayOnceSignal{
+	"animation.play_once"
+};
+
 constexpr std::string_view kCompleteSignal{
 	"animation.complete"
 };
@@ -152,15 +160,25 @@ public:
 				*this,
 				animation_transform,
 				"animation",
-				{ 4, 500ms, V2_int{ 16, 32 }, 1, { 0, 32 } },
+				{
+					4,
+					500ms,
+					V2_int{ 16, 32 },
+					1,
+					{ 0, 32 }
+				},
 				Origin::Center
 			)
 		};
 
-		SetScale(animation, 4.0f);
+		SetScale(
+			animation,
+			4.0f
+		);
 
 		animation.Stop(true);
 
+		// Signal -> advance exactly one frame.
 		AnimationActionScript next_frame;
 
 		next_frame.action =
@@ -187,6 +205,7 @@ public:
 			)
 		);
 
+		// Signal -> reset and play the full animation.
 		AnimationActionScript reset;
 
 		reset.action =
@@ -223,6 +242,80 @@ public:
 			)
 		);
 
+		// Signal -> stop on the current frame.
+		AnimationActionScript stop;
+
+		stop.action =
+			AnimationAction::Stop;
+
+		stop.reset_on_stop = false;
+
+		ScriptSequence stop_sequence{
+			"Stop Animation"
+		};
+
+		stop_sequence
+			.StartOn<Signal>(
+				MakeSignalCondition(
+					kStopSignal
+				)
+			)
+			.Then(
+				std::move(stop)
+			);
+
+		AttachSequence(
+			animation,
+			std::move(
+				stop_sequence
+			)
+		);
+
+		// Signal -> reset and play exactly once.
+		//
+		// The animation's configured play_count is 1, so it automatically
+		// stops after completing one full sequence.
+		AnimationActionScript play_once_reset;
+
+		play_once_reset.action =
+			AnimationAction::Reset;
+
+		AnimationActionScript play_once;
+
+		play_once.action =
+			AnimationAction::Start;
+
+		play_once.force = true;
+
+		ScriptSequence play_once_sequence{
+			"Play Animation Once"
+		};
+
+		play_once_sequence
+			.StartOn<Signal>(
+				MakeSignalCondition(
+					kPlayOnceSignal
+				)
+			)
+			.Then(
+				std::move(
+					play_once_reset
+				)
+			)
+			.Then(
+				std::move(
+					play_once
+				)
+			);
+
+		AttachSequence(
+			animation,
+			std::move(
+				play_once_sequence
+			)
+		);
+
+		// The real animation completion event emits a global signal.
 		ScriptSequence complete_sequence{
 			"Send Animation Complete Signal"
 		};
@@ -284,12 +377,13 @@ public:
 			)
 		);
 
+		// Top-left: advance one frame.
 		Button next_frame_button{
 			CreateTextButton(
 				*this,
 				{
 					-160.0f,
-					210.0f
+					190.0f
 				},
 				"Next Frame"
 			)
@@ -303,12 +397,13 @@ public:
 			)
 		);
 
+		// Top-right: restart and play the full animation.
 		Button play_button{
 			CreateTextButton(
 				*this,
 				{
 					160.0f,
-					210.0f
+					190.0f
 				},
 				"Play Full Animation"
 			)
@@ -319,6 +414,46 @@ public:
 			MakeButtonSignalSequence(
 				"Request Full Animation",
 				kPlaySignal
+			)
+		);
+
+		// Bottom-left: stop without resetting.
+		Button stop_button{
+			CreateTextButton(
+				*this,
+				{
+					-160.0f,
+					280.0f
+				},
+				"Stop Animation"
+			)
+		};
+
+		AttachSequence(
+			stop_button,
+			MakeButtonSignalSequence(
+				"Request Animation Stop",
+				kStopSignal
+			)
+		);
+
+		// Bottom-right: reset and play one configured loop.
+		Button play_once_button{
+			CreateTextButton(
+				*this,
+				{
+					160.0f,
+					280.0f
+				},
+				"Play Once"
+			)
+		};
+
+		AttachSequence(
+			play_once_button,
+			MakeButtonSignalSequence(
+				"Request Animation Once",
+				kPlayOnceSignal
 			)
 		);
 	}
