@@ -303,6 +303,7 @@ public:
 
 class AnimationSystem {
 public:
+	static void Prepare(Scene& scene);
 	static void Update(Scene& scene, secondsf dt);
 };
 

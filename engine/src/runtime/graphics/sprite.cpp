@@ -151,7 +151,9 @@ std::optional<V2_int> GetCroppedTextureSize(Entity entity) {
 		if (!crop->size.has_value()) {
 			return GetTextureSize(entity);
 		}
-		PTGN_ASSERT(!crop->size.value().IsZero(), "Cropped texture does not have a valid size");
+		if (crop->size.value().IsZero()) {
+			return std::nullopt;
+		}
 		if (crop->size.has_value()) {
 			return crop->size.value();
 		}

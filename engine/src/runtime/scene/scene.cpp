@@ -1007,6 +1007,8 @@ void Scene::DrawSceneTarget(DrawContext& draw_context) const {
 void Scene::InternalUpdate() {
 	script_runtime::ApplyPending(*this);
 
+	impl::AnimationSystem::Prepare(*this);
+
 	if (data_.runtime) {
 		InternalRuntimeUpdate();
 	}

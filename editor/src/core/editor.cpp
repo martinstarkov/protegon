@@ -962,6 +962,10 @@ void Editor::DrawMainMenuBar() {
 void Editor::DrawPanels() {
 	PTGN_ASSERT(context_);
 
+	scene_list_panel_.ClearInvalidSceneSelection(
+		*context_
+	);
+
 	if (scene_list_panel_.ResolvePendingSceneSelection(*context_)) {
 		auto* scene{ scene_list_panel_.GetSelectedScene() };
 
@@ -1071,6 +1075,10 @@ void Editor::EnableRendering(
 }
 
 void Editor::OnUpdate() {
+	scene_list_panel_.ClearInvalidSceneSelection(
+		*context_
+	);
+
 	UpdateProjectLocalState();
 
 	if (!IsPlaying()) {

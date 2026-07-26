@@ -43,6 +43,9 @@ public:
 
 	bool ResolvePendingSceneSelection(EditorContext& ctx);
 
+	void ClearInvalidSceneSelection(
+		EditorContext& ctx
+	);
 private:
 	struct PendingSceneSelection {
 		std::string key;
