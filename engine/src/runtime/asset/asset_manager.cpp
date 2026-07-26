@@ -607,6 +607,10 @@ void AssetManager::LoadDirectory(const path& directory, bool recursive) {
 
 		auto kind{ impl::GetAssetKind(asset_path) };
 
+		if (kind == AssetKind::Unknown) {
+			return;
+		}
+
 		PTGN_ASSERT(
 			!taken_asset_keys[kind].contains(hash), "Duplicate ", json(kind),
 			" key detected while loading directory: ", key
@@ -738,7 +742,7 @@ void AssetManager::Load(AssetKey key, const path& asset_path, AssetKind kind) {
 
 		case Unknown: [[fallthrough]];
 		default:
-			PTGN_ERROR(
+			PTGN_WARN(
 				"Attempting to load unsupported file extension from asset file: ",
 				asset_path.string()
 			);

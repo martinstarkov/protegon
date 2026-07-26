@@ -147,7 +147,9 @@ bool IsDirectoryPath(std::string_view s) {
 }
 
 std::string GetExtension(const path& file) {
-	PTGN_ASSERT(file.has_extension(), "File extension is missing: ", file.string());
+	if (!file.has_extension()) {
+		return "";
+	}
 	return ToLower(file.extension().string());
 }
 
