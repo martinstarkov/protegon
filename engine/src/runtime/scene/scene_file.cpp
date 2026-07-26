@@ -146,7 +146,7 @@ SceneFactory MakeSceneFactory(
 			};
 
 			app_context.assets.RegisterCatalog(
-				project.assets
+				project.assets, project
 			);
 
 			app_context.assets.AddProjectAssetDependencies(

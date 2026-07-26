@@ -39,6 +39,7 @@ class FontSystem;
 class Text;
 class Renderer;
 class AssetManager;
+struct Project;
 
 namespace impl {
 
@@ -293,7 +294,7 @@ public:
 	void LoadProjectAsset(AssetKey key, const path& asset_path);
 
 	/// @brief Merges persistent descriptors into the known project asset catalog.
-	void RegisterCatalog(std::span<const SerializedAsset> assets);
+	void RegisterCatalog(std::span<const SerializedAsset> assets, const Project& project);
 
 	/// @return The complete known path-backed project asset catalog.
 	[[nodiscard]] std::vector<SerializedAsset> GetCatalog() const;
@@ -312,7 +313,11 @@ public:
 	/// See: https://json.nlohmann.me/home/faq/#brace-initialization-yields-arrays
 	json& LoadJson(const JsonKey& key, const path& json_path);
 
-	Prefab& LoadPrefab(PrefabKey key, const path& prefab_path);
+	Prefab& LoadPrefab(
+		PrefabKey key,
+		const path& file_path,
+		const path& source_path
+	);
 	Prefab& SavePrefab(Prefab prefab, const path& prefab_path);
 	Prefab& SavePrefab(Prefab prefab, const path& file_path, const path& source_path);
 	bool SavePrefab(const PrefabKey& key);

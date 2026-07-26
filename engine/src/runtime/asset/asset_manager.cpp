@@ -19,6 +19,7 @@
 #include <variant>
 #include <vector>
 
+#include "app/project.h"
 #include "core/assert.h"
 #include "core/graphics/surface.h"
 #include "core/log.h"
@@ -177,7 +178,7 @@ void AssetManager::TrackAssetLoad(
 	}
 }
 
-void AssetManager::RegisterCatalog(std::span<const SerializedAsset> assets) {
+void AssetManager::RegisterCatalog(std::span<const SerializedAsset> assets, const Project& project) {
 	for (const auto& asset : assets) {
 		PTGN_ASSERT(!asset.key.value.empty(), "Serialized asset key cannot be empty");
 		PTGN_ASSERT(
@@ -194,12 +195,28 @@ void AssetManager::RegisterCatalog(std::span<const SerializedAsset> assets) {
 		catalog_.insert_or_assign(Hash(asset.key), asset);
 	}
 
+	const path project_root{
+		project.file_path.parent_path()
+	};
+
 	// Prefabs back editor create menus and runtime Scene::CreatePrefab(), so they are
 	// loaded with the project catalog rather than waiting for a scene dependency.
 	for (const auto& asset : assets) {
 		if (asset.kind == AssetKind::Prefab) {
-			LoadPrefab(PrefabKey{ asset.key }, asset.source_path);
+			const path file_path{
+				(project_root / asset.source_path).lexically_normal()
+			};
+
+			LoadPrefab(
+				PrefabKey{ asset.key },
+				file_path,
+				asset.source_path
+			);
+			continue;
 		}
+
+		// Existing loading behavior for textures, audio, fonts, etc.
+		Load(asset);
 	}
 }
 
@@ -453,13 +470,19 @@ json AssetManager::CreateJson(const path& asset_path) const {
 	return value;
 }
 
-Prefab& AssetManager::LoadPrefab(PrefabKey key, const path& asset_path) {
+Prefab& AssetManager::LoadPrefab(
+	PrefabKey key,
+	const path& asset_path,
+	const path& source_path
+) {
+	auto file_path{ asset_path };
+
 	PTGN_ASSERT(!key.value.empty(), "Prefab key cannot be empty");
-	PTGN_ASSERT(FileExists(asset_path), "Prefab file does not exist: ", asset_path.string());
+	PTGN_ASSERT(FileExists(file_path), "Prefab file does not exist: ", file_path.string());
 
-	TrackAssetLoad(key, AssetKind::Prefab, asset_path);
+	TrackAssetLoad(key, AssetKind::Prefab, file_path);
 
-	Prefab prefab{ LoadPrefabFile(asset_path) };
+	Prefab prefab{ LoadPrefabFile(file_path) };
 	prefab.key = key;
 
 	auto hash{ Hash(key) };
@@ -467,8 +490,8 @@ Prefab& AssetManager::LoadPrefab(PrefabKey key, const path& asset_path) {
 		hash,
 		impl::PrefabAssetData{
 			.key = std::move(key),
-			.file_path = asset_path,
-			.source_path = asset_path,
+			.file_path = file_path,
+			.source_path = source_path,
 			.value = std::move(prefab),
 		}
 	);
@@ -722,7 +745,7 @@ void AssetManager::Load(AssetKey key, const path& asset_path, AssetKind kind) {
 		case Audio:	 LoadAudio(std::move(key), asset_path); break;
 		case Font:	 LoadFont(std::move(key), asset_path); break;
 		case Json:	 LoadJson(std::move(key), asset_path); break;
-		case Prefab: LoadPrefab(PrefabKey{ std::move(key) }, asset_path); break;
+		case Prefab: LoadPrefab(PrefabKey{ std::move(key) }, asset_path, ""); break;
 
 		case Shader: {
 			if (auto shader_content = FileToString(asset_path);

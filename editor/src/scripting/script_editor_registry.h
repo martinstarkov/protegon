@@ -131,6 +131,16 @@ struct ScriptEditorContext {
 
 template <ScriptClass T>
 struct ScriptEditorOptions {
+	// Runtime registration options.
+	ScriptCompletion completion{
+		ScriptCompletion::ScriptControlled
+	};
+	bool supports_timing{ false };
+	bool requires_timing{ false };
+	bool serializable{ true };
+	std::optional<ScriptTiming> default_timing;
+
+	// Editor registration options.
 	std::string label;
 	std::string group;
 	std::string description;
@@ -138,8 +148,41 @@ struct ScriptEditorOptions {
 	int menu_order{ 100 };
 	bool separator_after{ false };
 	bool hidden{ false };
-	std::function<bool(ScriptEditorContext&, T&)> draw_inline;
-	std::function<bool(ScriptEditorContext&, T&)> draw;
+	std::function<bool(
+		ScriptEditorContext&,
+		T&
+	)> draw_inline;
+	std::function<bool(
+		ScriptEditorContext&,
+		T&
+	)> draw;
+
+	[[nodiscard]] ScriptRegistrationOptions
+	RuntimeOptions() const {
+		return ScriptRegistrationOptions{
+			.completion =
+				completion,
+			.supports_timing =
+				supports_timing,
+			.requires_timing =
+				requires_timing,
+			.serializable =
+				serializable,
+			.default_timing =
+				default_timing,
+		};
+	}
+
+	/// @return Whether this registration contains non-default runtime metadata.
+	[[nodiscard]] bool HasRuntimeOptions() const {
+		return completion !=
+				   ScriptCompletion::
+					   ScriptControlled ||
+			   supports_timing ||
+			   requires_timing ||
+			   !serializable ||
+			   default_timing.has_value();
+	}
 };
 
 struct RegisteredScriptEditorOptions {
@@ -304,6 +347,10 @@ public:
 		ScriptEditorRegistration registration{
 			.type_hash =
 				type_hash,
+			.name =
+				std::string{
+					type_name_without_namespaces<T>()
+				},
 			.options = {
 				.label =
 					std::move(
@@ -381,5 +428,27 @@ public:
 private:
 	[[nodiscard]] static std::vector<ScriptEditorRegistration>& MutableEntries();
 };
+
+template <ScriptClass T>
+bool RegisterScript(
+	ScriptEditorOptions<T> options
+) {
+	const bool runtime_registered{
+		options.HasRuntimeOptions()
+			? ScriptRegistry::Register<T>(
+				options.RuntimeOptions()
+			)
+			: ScriptRegistry::Register<T>()
+	};
+
+	const bool editor_registered{
+		ScriptEditorRegistry::Register<T>(
+			std::move(options)
+		)
+	};
+
+	return runtime_registered ||
+		editor_registered;
+}
 
 } // namespace ptgn::editor
