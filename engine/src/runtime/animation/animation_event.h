@@ -61,6 +61,15 @@ struct AnimationUpdate {
 	}
 };
 
+/// @brief Triggered when the final frame of the animation plays.
+struct AnimationFinalFrame {
+	Animation animation;
+
+	operator Animation() const { // NOSONAR
+		return animation;
+	}
+};
+
 /// @brief Triggered when all animation plays have completed.
 struct AnimationComplete {
 	Animation animation;

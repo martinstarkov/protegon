@@ -26,6 +26,137 @@
 
 namespace ptgn {
 
+namespace {
+
+void DispatchFrameChange(
+	Animation animation,
+	impl::AnimationData& data,
+	impl::TextureCrop& crop
+) {
+	crop.Update(data);
+	data.frame_dirty = false;
+
+	PushEvent<event::AnimationFrameChange>(
+		animation,
+		animation
+	);
+}
+
+[[nodiscard]] bool IsFinalFrameBeforeComplete(
+	const impl::AnimationData& data
+) {
+	if (data.config.frame_count == 0 ||
+		!data.config.play_count.has_value()) {
+		return false;
+	}
+
+	const std::size_t total_frames{
+		data.config.play_count.value() *
+		data.config.frame_count
+	};
+
+	if (total_frames == 0) {
+		return false;
+	}
+
+	return data.frames_played ==
+			   total_frames - 1 &&
+		   data.current_frame ==
+			   data.config.frame_count - 1;
+}
+
+void DispatchFinalFrameIfNeeded(
+	Animation animation,
+	const impl::AnimationData& data
+) {
+	if (!IsFinalFrameBeforeComplete(data)) {
+		return;
+	}
+
+	PushEvent<event::AnimationFinalFrame>(
+		animation,
+		animation
+	);
+}
+
+/// @return Whether the animation completed.
+bool AdvanceAnimationFrame(
+	Animation animation,
+	impl::AnimationData& data,
+	impl::TextureCrop& crop
+) {
+	if (data.config.frame_count == 0) {
+		return false;
+	}
+
+	const std::size_t next_frames_played{
+		data.frames_played + 1
+	};
+
+	if (data.config.play_count.has_value()) {
+		const std::size_t total_frames{
+			data.config.play_count.value() *
+			data.config.frame_count
+		};
+
+		if (next_frames_played >=
+			total_frames) {
+			PushEvent<event::AnimationComplete>(
+				animation,
+				animation
+			);
+
+			if (data.config.reset_on_complete) {
+				data.SetCurrentFrame(0);
+
+				DispatchFrameChange(
+					animation,
+					data,
+					crop
+				);
+			}
+
+			data.frame_timer.Stop();
+
+			PushEvent<event::AnimationStop>(
+				animation,
+				animation
+			);
+
+			return true;
+		}
+	}
+
+	data.frames_played =
+		next_frames_played;
+
+	data.IncrementFrame();
+
+	DispatchFrameChange(
+		animation,
+		data,
+		crop
+	);
+
+	DispatchFinalFrameIfNeeded(
+		animation,
+		data
+	);
+
+	if (data.frames_played %
+			data.config.frame_count ==
+		0) {
+		PushEvent<event::AnimationLoopComplete>(
+			animation,
+			animation
+		);
+	}
+
+	return false;
+}
+
+} // namespace
+
 Animation::Animation(Entity entity) : Entity{ entity } {}
 
 Animation& Animation::SetConfig(AnimationConfig config) {
@@ -45,17 +176,41 @@ Animation& Animation::SetConfig(AnimationConfig config) {
 }
 
 Animation& Animation::Start(bool force) {
-	if (!Has<impl::AnimationData, impl::TextureCrop>()) {
+	if (!Has<
+			impl::AnimationData,
+			impl::TextureCrop
+		>()) {
 		return *this;
 	}
-	auto& anim{ Get<impl::AnimationData>() };
+
+	auto& anim{
+		Get<impl::AnimationData>()
+	};
+
 	anim.current_frame = 0;
 	anim.frames_played = 0;
-	auto& crop{ Get<impl::TextureCrop>() };
+
+	auto& crop{
+		Get<impl::TextureCrop>()
+	};
+
 	crop.Update(anim);
-	if (bool started{ anim.frame_timer.Start(force) }; started) {
-		PushEvent<event::AnimationStart>(*this, *this);
+
+	if (const bool started{
+			anim.frame_timer.Start(force)
+		};
+		started) {
+		PushEvent<event::AnimationStart>(
+			*this,
+			*this
+		);
+
+		DispatchFinalFrameIfNeeded(
+			*this,
+			anim
+		);
 	}
+
 	return *this;
 }
 
@@ -188,11 +343,26 @@ Animation& Animation::SetTexture(TextureKey texture_key) {
 }
 
 Animation& Animation::IncrementFrame() {
-	if (!Has<impl::AnimationData>()) {
+	if (!Has<
+			impl::AnimationData,
+			impl::TextureCrop
+		>()) {
 		return *this;
 	}
-	auto& anim{ Get<impl::AnimationData>() };
-	anim.IncrementFrame();
+
+	auto& data{
+		Get<impl::AnimationData>()
+	};
+	auto& crop{
+		Get<impl::TextureCrop>()
+	};
+
+	AdvanceAnimationFrame(
+		*this,
+		data,
+		crop
+	);
+
 	return *this;
 }
 
@@ -282,71 +452,64 @@ void AnimationSystem::Prepare(Scene& scene) {
 	}
 }
 
-void AnimationSystem::Update(Scene& scene, secondsf dt) {
-	const auto frame_change = [](Animation anim_entity, auto& crop, const auto& anim) {
-		PushEvent<event::AnimationFrameChange>(anim_entity, anim_entity);
-		crop.Update(anim);
-	};
+void AnimationSystem::Update(
+	Scene& scene,
+	secondsf dt
+) {
+	for (auto [entity, data, crop] :
+		 scene.EntitiesWith<
+			 AnimationData,
+			 TextureCrop
+		 >()) {
+		data.frame_timer.Update(dt);
 
-	for (auto [entity, anim, crop] : scene.EntitiesWith<AnimationData, TextureCrop>()) {
-		anim.frame_timer.Update(dt);
+		Animation animation{
+			entity
+		};
 
-		Animation anim_entity{ entity };
-
-		if (anim.frame_dirty) {
-			crop.Update(anim);
-
-			anim.frame_dirty = false;
+		// Handles direct SetCurrentFrame calls that did not go through
+		// IncrementFrame.
+		if (data.frame_dirty) {
+			DispatchFrameChange(
+				animation,
+				data,
+				crop
+			);
 		}
 
-		if (anim.config.frame_count == 0 || anim.config.duration <= 0ms ||
-			!anim.frame_timer.IsRunning() || anim.frame_timer.IsPaused()) {
-			// Timer is not active or animation has no frames / duration.
+		if (data.config.frame_count == 0 ||
+			data.config.duration <= 0ms ||
+			!data.frame_timer.IsRunning() ||
+			data.frame_timer.IsPaused()) {
 			continue;
 		}
 
-		std::size_t next_frames_played{ anim.frames_played + 1 };
+		PushEvent<event::AnimationUpdate>(
+			animation,
+			animation
+		);
 
-		// All animation plays have completed.
-		if (anim.config.play_count.has_value()) {
-			if (std::size_t total_frames{ anim.config.play_count.value() *
-										  anim.config.frame_count };
-				next_frames_played >= total_frames) {
-				PushEvent<event::AnimationComplete>(anim_entity, anim_entity);
+		const auto frame_duration{
+			data.GetFrameDuration()
+		};
 
-				if (anim.config.reset_on_complete) {
-					// Reset animation to start frame after it finishes.
-					anim.SetCurrentFrame(0);
-
-					frame_change(anim_entity, crop, anim);
-				}
-
-				anim.frame_timer.Stop();
-
-				PushEvent<event::AnimationStop>(anim_entity, anim_entity);
-				continue;
-			}
-		}
-
-		PushEvent<event::AnimationUpdate>(anim_entity, anim_entity);
-
-		if (auto frame_duration{ anim.GetFrameDuration() };
-			!anim.frame_timer.Completed(frame_duration)) {
+		if (!data.frame_timer.Completed(
+				frame_duration
+			)) {
 			continue;
 		}
 
-		anim.frames_played = next_frames_played;
+		const bool completed{
+			AdvanceAnimationFrame(
+				animation,
+				data,
+				crop
+			)
+		};
 
-		anim.IncrementFrame();
-
-		frame_change(anim_entity, crop, anim);
-
-		// Loop completed.
-		if (anim.frames_played % anim.config.frame_count == 0) {
-			PushEvent<event::AnimationLoopComplete>(anim_entity, anim_entity);
+		if (!completed) {
+			data.frame_timer.Start(true);
 		}
-
-		anim.frame_timer.Start(true);
 	}
 }
 

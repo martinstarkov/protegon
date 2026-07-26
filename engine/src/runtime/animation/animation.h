@@ -88,6 +88,7 @@ struct AnimationPause;
 struct AnimationResume;
 struct AnimationFrameChange;
 struct AnimationUpdate;
+struct AnimationFinalFrame;
 struct AnimationComplete;
 struct AnimationLoopComplete;
 
@@ -139,6 +140,12 @@ struct Animation : public Entity {
 	template <EventCallbackInvocable<event::AnimationUpdate> F>
 	Animation& OnUpdate(F&& callback) {
 		return OnEvent<event::AnimationUpdate>(std::forward<F>(callback));
+	}
+
+	/// @brief Triggered when an animation is paused.
+	template <EventCallbackInvocable<event::AnimationFinalFrame> F>
+	Animation& OnFinalFrame(F&& callback) {
+		return OnEvent<event::AnimationFinalFrame>(std::forward<F>(callback));
 	}
 
 	/// @brief Triggered when all animation plays have completed.

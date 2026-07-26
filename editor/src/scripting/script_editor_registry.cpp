@@ -2120,6 +2120,14 @@ PTGN_REGISTER_EVENT(
 );
 
 PTGN_REGISTER_EVENT(
+	event::AnimationFinalFrame, {
+								  .label	   = "On Animation Final Frame",
+								  .group	   = "Animation",
+								  .description = "Matches whenever the final frame of an animation plays.",
+							  }
+);
+
+PTGN_REGISTER_EVENT(
 	event::AnimationComplete, {
 								  .label	   = "On Animation Complete",
 								  .group	   = "Animation",

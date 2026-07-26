@@ -371,6 +371,7 @@ PTGN_REGISTER_EVENT(event::AnimationPause, { .available = &HasAnimationData });
 PTGN_REGISTER_EVENT(event::AnimationResume, { .available = &HasAnimationData });
 PTGN_REGISTER_EVENT(event::AnimationFrameChange, { .available = &HasAnimationData });
 PTGN_REGISTER_EVENT(event::AnimationUpdate, { .available = &HasAnimationData });
+PTGN_REGISTER_EVENT(event::AnimationFinalFrame, { .available = &HasAnimationData });
 PTGN_REGISTER_EVENT(event::AnimationComplete, { .available = &HasAnimationData });
 PTGN_REGISTER_EVENT(event::AnimationLoopComplete, { .available = &HasAnimationData });
 
