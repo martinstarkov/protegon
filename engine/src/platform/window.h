@@ -150,7 +150,14 @@ public:
 	V2_int GetMaximumSize() const;
 
 	void SetSize(V2_int new_size, bool centered = true);
+	
+	/// @return Window content size in screen coordinates.
+	/// On the web, these correspond to CSS pixels.
 	V2_int GetSize() const;
+
+	/// @return Default framebuffer size in physical pixels.
+	/// Use this for OpenGL viewports and render targets.
+	V2_int GetFramebufferSize() const;
 
 	/// @return Top left of the window relative to the top left of the screen.
 	V2_int GetPosition() const;
@@ -189,8 +196,10 @@ public:
 	void SwapBuffers() const;
 
 #ifdef __EMSCRIPTEN__
-	void SetCanvasSize(V2_int new_size);
-	V2_int GetCanvasSize() const;
+	void SetCanvasCssSize(V2_int size);
+	V2_int GetCanvasCssSize() const;
+	void SetCanvasFramebufferSize(V2_int size);
+	V2_int GetCanvasFramebufferSize() const;
 #endif
 
 	void ClearInputState();

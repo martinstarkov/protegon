@@ -7,13 +7,15 @@
 #include <type_traits>
 #include <utility>
 
+#include "app/application_context.h"
+#include "app/project.h"
 #include "core/log.h"
 #include "core/math/angle.h"
 #include "core/math/math_utils.h"
 #include "core/math/noise.h"
 #include "core/math/rng.h"
-#include "runtime/audio/audio_system.h"
 #include "core/math/tolerance.h"
+#include "runtime/audio/audio_system.h"
 #include "runtime/animation/animation.h"
 #include "runtime/animation/offsets.h"
 #include "runtime/ecs/entity_hierarchy.h"
@@ -27,6 +29,7 @@
 #include "runtime/scene/scene_transitions.h"
 #include "runtime/scene/scene.h"
 #include "runtime/scene/scene_context.h"
+#include "runtime/scene/scene_file.h"
 
 namespace ptgn {
 
@@ -802,42 +805,123 @@ void SceneChangeScript::OnStart() {
 		return;
 	}
 
-	std::string target_type{ scene_type };
-	json parameters = scene_parameters;
-	if (target_type.empty() && target_tag == current_scene.GetTag()) {
-		target_type = std::string{ current_scene.GetRegisteredType() };
-		if (!target_type.empty() && parameters.empty()) {
-			const auto& registration{ impl::GetSceneRegistration(target_type) };
-			parameters = registration.serialize_parameters(current_scene);
+	impl::SceneFactory factory;
+
+	if (!project_scene_tag.empty()) {
+		auto& app{
+			impl::SceneContextAccessor::app(
+				current_scene.ctx()
+			)
+		};
+		auto& app_context{
+			impl::ApplicationAccessor::ctx(app)
+		};
+
+		if (!app_context.project.has_value()) {
+			PTGN_WARN(
+				"Cannot load project scene without an active project: ",
+				project_scene_tag
+			);
+			return;
 		}
-	}
 
-	if (target_type.empty() || !impl::GetSceneRegistry().contains(target_type)) {
-		PTGN_WARN("Scene action requires a registered scene type: ", target_type);
-		return;
-	}
+		const auto& project = app_context.project.value();
+		const auto* project_scene{
+			FindProjectScene(
+				project,
+				project_scene_tag
+			)
+		};
 
-	auto factory{ impl::SceneManager::MakeRegisteredFactory(
-		std::move(target_type), std::move(parameters)
-	) };
+		if (!project_scene) {
+			PTGN_WARN(
+				"Project scene is not registered in the project manifest: ",
+				project_scene_tag
+			);
+			return;
+		}
+
+		auto serialized_scene{
+			LoadSceneFile(
+				GetProjectScenePath(
+					project,
+					*project_scene
+				)
+			)
+		};
+
+		factory = impl::MakeSceneFactory(
+			std::move(serialized_scene),
+			true
+		);
+	} else {
+		std::string target_type{ scene_type };
+		json parameters = scene_parameters;
+
+		if (target_type.empty() &&
+			target_tag == current_scene.GetTag()) {
+			target_type = std::string{
+				current_scene.GetRegisteredType()
+			};
+
+			if (!target_type.empty() &&
+				parameters.empty()) {
+				const auto& registration{
+					impl::GetSceneRegistration(
+						target_type
+					)
+				};
+				parameters =
+					registration.serialize_parameters(
+						current_scene
+					);
+			}
+		}
+
+		if (target_type.empty() ||
+			!impl::GetSceneRegistry().contains(
+				target_type
+			)) {
+			PTGN_WARN(
+				"Scene action requires a project scene or registered scene type: ",
+				target_type
+			);
+			return;
+		}
+
+		factory =
+			impl::SceneManager::MakeRegisteredFactory(
+				std::move(target_type),
+				std::move(parameters)
+			);
+	}
 
 	switch (action) {
 		case SceneChangeAction::Enter:
 			scene_manager.EnterFactory(
-				target_tag, std::move(factory), std::move(transitions.in), transition_priority
+				target_tag, std::move(factory),
+				std::move(transitions.in),
+				transition_priority
 			);
 			break;
+
 		case SceneChangeAction::Exit:
 			break;
+
 		case SceneChangeAction::Switch:
 			scene_manager.TransitionFactory(
-				current_scene.GetTag(), target_tag, std::move(factory),
-				std::move(transitions.out), std::move(transitions.in), transition_priority
+				current_scene.GetTag(), target_tag,
+				std::move(factory),
+				std::move(transitions.out),
+				std::move(transitions.in),
+				transition_priority
 			);
 			break;
+
 		case SceneChangeAction::ReEnter:
 			scene_manager.ReEnterFactory(
-				target_tag, std::move(factory), std::move(transitions.out),
+				target_tag, std::move(factory),
+				std::move(transitions.out),
 				std::move(transitions.in)
 			);
 			break;

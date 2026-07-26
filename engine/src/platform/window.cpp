@@ -58,21 +58,47 @@ duration<double> GetTimeSince(impl::Timestamp timestamp) {
 
 namespace {
 
-EM_BOOL EmscriptenResize(int event_type, const EmscriptenUiEvent* ui_event, void* window_ptr) {
+void ResizeCanvasToCssSize(Window& window) {
+	double width{};
+	double height{};
+
+	auto result{
+		emscripten_get_element_css_size(
+			"#canvas",
+			&width,
+			&height
+		)
+	};
+
+	if (result != EMSCRIPTEN_RESULT_SUCCESS) {
+		return;
+	}
+
+	V2_int size{
+		std::max(1, static_cast<int>(std::lround(width))),
+		std::max(1, static_cast<int>(std::lround(height)))
+	};
+
+	if (window.GetSize() != size) {
+		window.SetSize(size, false);
+	}
+}
+
+EM_BOOL EmscriptenResize(
+	int,
+	const EmscriptenUiEvent*,
+	void* window_ptr
+) {
 	if (!window_ptr) {
-		return -1;
+		return EM_FALSE;
 	}
-	auto& window{ *static_cast<::ptgn::Window*>(window_ptr) };
-	V2_int window_size{ ui_event->windowInnerWidth, ui_event->windowInnerHeight };
-	// TODO: Figure out how to deal with itch.io fullscreen button not changing status to
-	// fullscreen.
-	V2_int screen_size{ get_screen_width(), get_screen_height() };
-	if (window_size == screen_size) {
-		auto device_pixel_ratio{ get_device_pixel_ratio() };
-		window_size = window_size * device_pixel_ratio;
-	}
-	window.SetSize(window_size);
-	return 0;
+
+	auto& window{
+		*static_cast<::ptgn::Window*>(window_ptr)
+	};
+
+	ResizeCanvasToCssSize(window);
+	return EM_TRUE;
 }
 
 EM_BOOL EmscriptenResizeMouseLeave(
@@ -88,12 +114,48 @@ EM_BOOL EmscriptenResizeMouseLeave(
 
 } // namespace
 
-void Window::SetCanvasSize(V2_int new_size) {
-	emscripten_set_element_css_size("#canvas", new_size.x, new_size.y);
+void Window::SetCanvasCssSize(V2_int size) {
+	emscripten_set_element_css_size(
+		"#canvas",
+		size.x,
+		size.y
+	);
 }
 
-V2_int Window::GetCanvasSize() const {
-	return { get_canvas_width(), get_canvas_height() };
+V2_int Window::GetCanvasCssSize() const {
+	double width{};
+	double height{};
+
+	emscripten_get_element_css_size(
+		"#canvas",
+		&width,
+		&height
+	);
+
+	return {
+		static_cast<int>(std::lround(width)),
+		static_cast<int>(std::lround(height))
+	};
+}
+
+void Window::SetCanvasFramebufferSize(V2_int size) {
+	emscripten_set_canvas_element_size(
+		"#canvas",
+		size.x,
+		size.y
+	);
+}
+
+V2_int Window::GetCanvasFramebufferSize() const {
+	V2_int size;
+
+	emscripten_get_canvas_element_size(
+		"#canvas",
+		&size.x,
+		&size.y
+	);
+
+	return size;
 }
 
 #endif
@@ -162,6 +224,22 @@ void Window::SetCallbacks() {
 			self->PushEvent<event::WindowMinimized>(self->windowed_size_);
 		}
 	});
+
+	glfwSetFramebufferSizeCallback(
+		win,
+		[](GLFWwindow* glfw_window, int width, int height) {
+			auto self{
+				static_cast<Window*>(glfwGetWindowUserPointer(glfw_window))
+			};
+			if (!self || width <= 0 || height <= 0) {
+				return;
+			}
+
+			V2_int size{ width, height };
+
+			self->PushEvent<event::FramebufferResized>(size);
+		}
+	);
 
 	glfwSetWindowSizeCallback(win, [](GLFWwindow* window, int width, int height) {
 		auto self{ static_cast<Window*>(glfwGetWindowUserPointer(window)) };
@@ -385,6 +463,7 @@ Window::Window(const WindowConfig& config, std::function<void(impl::EventData&&)
 		EMSCRIPTEN_EVENT_TARGET_WINDOW, static_cast<void*>(this), EM_TRUE,
 		EmscriptenResizeMouseLeave
 	);
+	ResizeCanvasToCssSize(*this);
 #else
 	int status{ gladLoadGL(glfwGetProcAddress) };
 	PTGN_ASSERT(status, "Failed to load OpenGL functions");
@@ -686,16 +765,18 @@ V2_int Window::GetSize() const {
 	auto win{ instance_.get() };
 	PTGN_ASSERT(win, "Window is null");
 
-	V2_int window_size;
-	V2_float scale{ 1.0f, 1.0f };
-	glfwGetWindowContentScale(win, &scale.x, &scale.y);
+	V2_int size;
+	glfwGetWindowSize(win, &size.x, &size.y);
+	return size;
+}
 
-	// glfwGetWindowSize(win, &window_size.x, &window_size.y);
-	glfwGetFramebufferSize(win, &window_size.x, &window_size.y);
+V2_int Window::GetFramebufferSize() const {
+	auto win{ instance_.get() };
+	PTGN_ASSERT(win, "Window is null");
 
-	PTGN_ASSERT(scale.IsPositive());
-
-	return window_size / scale;
+	V2_int size;
+	glfwGetFramebufferSize(win, &size.x, &size.y);
+	return size;
 }
 
 WindowSettings Window::GetSettings() const {

@@ -8,7 +8,7 @@ namespace editor {
 
 struct EditorSettings {
 	bool entity_picking{ true };
-	bool render_only_selected_scene{ false };
+	bool render_only_selected_scene{ true };
 	bool gizmo_uses_local_orientation{ false };
 	bool show_imgui_metrics{ false };
 

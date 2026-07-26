@@ -3,7 +3,6 @@
 #include <optional>
 #include <string>
 
-#include "core/util/file.h"
 #include "runtime/ecs/uuid.h"
 #include "serialization/json/json.h"
 
@@ -28,12 +27,10 @@ public:
 	void OnRender(EditorContext& ctx);
 
 	[[nodiscard]] Scene* GetSelectedScene() const;
-	[[nodiscard]] const path& GetSelectedScenePath() const;
 
 	void SetSelectedScene(
 		EditorContext& ctx,
-		Scene* scene,
-		const path& scene_path = {}
+		Scene* scene
 	);
 
 	/// @brief Clears the current raw Scene and Entity handles, then selects the requested
@@ -53,7 +50,6 @@ private:
 	struct PendingSceneSelection {
 		std::string tag;
 		bool runtime{ false };
-		path scene_path;
 		std::optional<UUID> selected_entity_uuid;
 		int earliest_frame{ 0 };
 	};
@@ -61,7 +57,6 @@ private:
 	void DrawSceneParamUI(EditorContext& ctx);
 
 	Scene* selected_scene_{ nullptr };
-	path selected_scene_path_;
 	std::optional<SceneEditorState> state_;
 	std::optional<PendingSceneSelection>
 		pending_scene_selection_;

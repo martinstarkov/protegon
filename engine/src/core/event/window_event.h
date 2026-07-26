@@ -14,6 +14,16 @@ struct WindowResized {
 	}
 };
 
+/// @brief Fired one or more times after size change
+/// occurs or resizing is finished (window is released).
+struct FramebufferResized {
+	V2_int size;
+
+	operator V2_int() const { // NOSONAR
+		return size;
+	}
+};
+
 /// @brief Fired every time the window is moved.
 struct WindowMoved {
 	V2_int position;
