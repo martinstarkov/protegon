@@ -248,16 +248,17 @@ if(EMSCRIPTEN AND _built_examples)
     "${PTGN_DIST_DIR}/style.css"
     COPYONLY
   )
-
+  
   foreach(_t IN LISTS _built_targets)
     add_custom_command(
       TARGET ${_t}
       POST_BUILD
       COMMAND
-        ${CMAKE_COMMAND}
-          -DINPUT_HTML=$<TARGET_FILE:${_t}>
-          -DDEST_DIR=${PTGN_DIST_DIR}
-          -P ${CMAKE_CURRENT_SOURCE_DIR}/../cmake/CopyEmscriptenOutput.cmake
+        "${CMAKE_COMMAND}"
+          "-DINPUT_HTML=$<TARGET_FILE:${_t}>"
+          "-DDEST_DIR=${PTGN_DIST_DIR}"
+          -P "${CMAKE_CURRENT_SOURCE_DIR}/../cmake/CopyEmscriptenOutput.cmake"
+      VERBATIM
     )
   endforeach()
 endif()

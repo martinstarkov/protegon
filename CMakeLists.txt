@@ -9,6 +9,7 @@ endif()
 set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
+set(CMAKE_CXX_SCAN_FOR_MODULES OFF)
 
 option(PTGN_WARNINGS_AS_ERRORS "Treat compiler warnings as errors" OFF)
 option(PTGN_EDITOR "Build editor support" ON)

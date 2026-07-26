@@ -7,21 +7,21 @@
 namespace ptgn::editor {
 
 path GetEditorLocalStatePath(const Project& project) {
-	auto path{ project.file_path };
-	path.replace_extension(".ptgneditor");
-	return path;
+	auto file_path{ project.file_path };
+	file_path.replace_extension(".ptgneditor");
+	return file_path;
 }
 
 EditorLocalState LoadEditorLocalState(const Project& project) {
-	const auto path{ GetEditorLocalStatePath(project) };
+	const auto file_path{ GetEditorLocalStatePath(project) };
 
 	EditorLocalState state;
 
-	if (!FileExists(path)) {
+	if (!FileExists(file_path)) {
 		return state;
 	}
 
-	LoadJson(path).get_to(state);
+	LoadJson(file_path).get_to(state);
 	return state;
 }
 
@@ -29,11 +29,11 @@ void SaveEditorLocalState(
 	const Project& project,
 	const EditorLocalState& state
 ) {
-	const auto path{ GetEditorLocalStatePath(project) };
+	const auto file_path{ GetEditorLocalStatePath(project) };
 
-	EnsureDirectory(path.parent_path());
+	EnsureDirectory(file_path.parent_path());
     json value = state;
-	SaveJson(value, path);
+	SaveJson(value, file_path);
 }
 
 } // namespace ptgn::editor

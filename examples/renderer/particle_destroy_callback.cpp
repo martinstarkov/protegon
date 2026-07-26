@@ -54,7 +54,7 @@ public:
 			if (Chance(0.3f)) {
 				auto& scene{ p.emitter.GetScene() };
 
-				auto duration{ 250ms };
+				milliseconds duration{ 250ms };
 
 				auto anim = PlayTemporaryAnimation(
 					scene, p.particle.position, "anim",

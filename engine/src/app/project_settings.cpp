@@ -38,21 +38,21 @@ void SetProjectSettings(
 }
 
 path GetProjectLocalStatePath(const Project& project) {
-	auto path{ project.file_path };
-	path.replace_extension(".ptgnlocal");
-	return path;
+	auto file_path{ project.file_path };
+	file_path.replace_extension(".ptgnlocal");
+	return file_path;
 }
 
 ProjectLocalState LoadProjectLocalState(const Project& project) {
-	const auto path{ GetProjectLocalStatePath(project) };
+	const auto file_path{ GetProjectLocalStatePath(project) };
 
 	ProjectLocalState state;
 
-	if (!FileExists(path)) {
+	if (!FileExists(file_path)) {
 		return state;
 	}
 
-	LoadJson(path).get_to(state);
+	LoadJson(file_path).get_to(state);
 	return state;
 }
 
@@ -60,11 +60,11 @@ void SaveProjectLocalState(
 	const Project& project,
 	const ProjectLocalState& state
 ) {
-	const auto path{ GetProjectLocalStatePath(project) };
+	const auto file_path{ GetProjectLocalStatePath(project) };
 
-	EnsureDirectory(path.parent_path());
+	EnsureDirectory(file_path.parent_path());
     json value = state;
-	SaveJson(value, path);
+	SaveJson(value, file_path);
 }
 
 ProjectLocalState GetProjectLocalState(Application& app) {

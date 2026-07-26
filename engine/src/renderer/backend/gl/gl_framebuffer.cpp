@@ -1198,8 +1198,7 @@ void Framebuffers::UpdateDrawBuffers(FramebufferId framebuffer) const {
 	}
 
 	if (!draw_buffer_count) {
-		GLCall(glDrawBuffer(GL_NONE));
-		return;
+		draw_buffer_count = 1;
 	}
 
 	GLCall(glDrawBuffers(draw_buffer_count, draw_buffers.data()));

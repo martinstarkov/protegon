@@ -159,7 +159,7 @@ void ParticleEmitterPlayback::Update(
 	elapsed		  += dt;
 	cycle_elapsed += dt;
 
-	if (auto duration{ duration_cast<secondsf>(rate.duration) }; cycle_elapsed >= duration) {
+	if (secondsf duration{ duration_cast<secondsf>(rate.duration) }; cycle_elapsed >= duration) {
 		if (rate.loop) {
 			cycle_elapsed -= duration * static_cast<int>(cycle_elapsed / duration);
 

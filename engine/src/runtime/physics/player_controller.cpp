@@ -132,7 +132,7 @@ Entity CreateTopDownPlayer(Scene& scene, Transform transform, const TopDownPlaye
 
 	if (config.animation_texture_key && config.animation_frame_count.has_value()) {
 		Transform animation_transform;
-		auto duration{ config.animation_duration.value_or(1000ms) };
+		milliseconds duration{ config.animation_duration.value_or(1000ms) };
 
 		AnimationMap anim_map{ CreateAnimationMap(scene) };
 		auto anim0{ CreateAnimation(

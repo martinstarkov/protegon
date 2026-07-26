@@ -23,7 +23,7 @@
 #include "platform/window.h"
 #include "runtime/animation/animation.h"
 #include "runtime/animation/tween.h"
-#include "runtime/animation/tween_effect.h"
+#include "runtime/animation/scripted_animation.h"
 #include "runtime/asset/asset_manager.h"
 #include "runtime/graphics/text/font_system.h"
 #include "runtime/audio/audio_system.h"
