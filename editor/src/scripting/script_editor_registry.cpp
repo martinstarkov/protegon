@@ -13,6 +13,7 @@
 #include <string>
 #include <string_view>
 #include <utility>
+#include <limits>
 #include <vector>
 
 #include "core/event/key_event.h"
@@ -31,6 +32,7 @@
 #include "runtime/scene/scene_registry.h"
 #include "runtime/scripting/builtin_scripts.h"
 #include "runtime/ui/button.h"
+#include "runtime/animation/animation.h"
 #include "runtime/ui/dropdown.h"
 #include "runtime/ui/toggle_button.h"
 #include "runtime/audio/audio_system.h"
@@ -568,51 +570,259 @@ inline constexpr std::array kSceneTransitions{
 	return it != kSceneActions.end() ? it->second : "Scene";
 }
 
-bool DrawAnimationActionInline(ScriptEditorContext&, AnimationActionScript& script) {
-	const float available{ ImGui::GetContentRegionAvail().x };
-	const float spacing{ ImGui::GetStyle().ItemSpacing.x };
-	const float action_width{ std::max(120.0f, available * 0.45f) };
-	bool changed{ false };
-	ImGui::SetNextItemWidth(action_width);
-	if (ImGui::BeginCombo("##AnimationAction", AnimationActionLabel(script.action))) {
-		for (const auto& [candidate, label] : kAnimationActions) {
-			if (ImGui::Selectable(label, candidate == script.action)) {
-				script.action = candidate;
-				changed		  = true;
-			}
-		}
-		ImGui::EndCombo();
+[[nodiscard]] std::size_t GetAnimationActionFrameCount(
+	const ScriptEditorContext& context
+) {
+	if (!context.owner) {
+		return 0;
 	}
-	DrawItemTooltip("Animation operation to perform.");
-	SameLineControl();
-	ImGui::SetNextItemWidth(std::max(1.0f, available - action_width - spacing));
-	changed |= ImGui::InputTextWithHint(
-		"##AnimationKey", "Animation map key (optional)", &script.animation_key
-	);
-	DrawItemTooltip("Leave empty for the owner or the currently active map animation.");
-	return changed;
+
+	if (context.owner.Has<
+			::ptgn::impl::AnimationData
+		>()) {
+		return context.owner
+			.Get<::ptgn::impl::AnimationData>()
+			.config
+			.frame_count;
+	}
+
+	if (!context.owner.Has<
+			::ptgn::impl::AnimationMapData
+		>()) {
+		return 0;
+	}
+
+	const auto active{
+		AnimationMap{
+			context.owner
+		}.GetActive()
+	};
+
+	return active.has_value()
+		? active->GetFrameCount()
+		: 0;
 }
 
-bool DrawAnimationAction(ScriptEditorContext&, AnimationActionScript& script) {
-	bool changed{ ImGui::InputTextWithHint(
-		"Animation Key", "Optional AnimationMap key", &script.animation_key
-	) };
-	changed |= DrawNamedEnumCombo(
-		"Action", script.action, kAnimationActions, "Animation operation to perform."
+bool DrawAnimationActionInline(
+	ScriptEditorContext& context,
+	AnimationActionScript& script
+) {
+	const float available{
+		ImGui::GetContentRegionAvail().x
+	};
+
+	const float spacing{
+		ImGui::GetStyle().ItemSpacing.x
+	};
+
+	const bool shows_force{
+		script.action ==
+		AnimationAction::Start
+	};
+
+	const bool shows_reset{
+		script.action ==
+		AnimationAction::Stop
+	};
+
+	const bool shows_frame{
+		script.action ==
+		AnimationAction::SetFrame
+	};
+
+	const bool has_inline_value{
+		shows_force ||
+		shows_reset ||
+		shows_frame
+	};
+
+	float value_width{ 0.0f };
+
+	if (shows_force) {
+		value_width =
+			ImGui::GetFrameHeight() +
+			ImGui::GetStyle()
+				.ItemInnerSpacing.x +
+			ImGui::CalcTextSize(
+				"Force"
+			).x;
+	} else if (shows_reset) {
+		value_width =
+			ImGui::GetFrameHeight() +
+			ImGui::GetStyle()
+				.ItemInnerSpacing.x +
+			ImGui::CalcTextSize(
+				"Reset"
+			).x;
+	} else if (shows_frame) {
+		value_width =
+			std::min(
+				110.0f,
+				available * 0.4f
+			);
+	}
+
+	const float action_width{
+		has_inline_value
+			? std::max(
+				100.0f,
+				available -
+					value_width -
+					spacing
+			)
+			: available
+	};
+
+	bool changed{ false };
+
+	ImGui::SetNextItemWidth(
+		action_width
 	);
-	if (script.action == AnimationAction::Start) {
-		changed |= ImGui::Checkbox("Force Restart", &script.force);
-	}
-	if (script.action == AnimationAction::Stop) {
-		changed |= ImGui::Checkbox("Reset To First Frame", &script.reset_on_stop);
-	}
-	if (script.action == AnimationAction::SetFrame) {
-		int frame{ static_cast<int>(script.frame) };
-		if (ImGui::DragInt("Frame", &frame, 1.0f, 0)) {
-			script.frame = static_cast<std::size_t>(std::max(0, frame));
-			changed		 = true;
+
+	if (ImGui::BeginCombo(
+			"##AnimationAction",
+			AnimationActionLabel(
+				script.action
+			)
+		)) {
+		for (const auto& [
+				 candidate,
+				 label
+			 ] : kAnimationActions) {
+			if (ImGui::Selectable(
+					label,
+					candidate ==
+						script.action
+				)) {
+				script.action =
+					candidate;
+
+				changed = true;
+			}
 		}
+
+		ImGui::EndCombo();
 	}
+
+	DrawItemTooltip(
+		"Animation operation to perform."
+	);
+
+	if (!has_inline_value) {
+		return changed;
+	}
+
+	SameLineControl();
+
+	if (shows_force) {
+		changed |= ImGui::Checkbox(
+			"Force##AnimationForce",
+			&script.force
+		);
+
+		DrawItemTooltip(
+			"Restart the animation even if it is already playing."
+		);
+
+		return changed;
+	}
+
+	if (shows_reset) {
+		changed |= ImGui::Checkbox(
+			"Reset##AnimationStopReset",
+			&script.reset_on_stop
+		);
+
+		DrawItemTooltip(
+			"Reset to the first frame when stopping."
+		);
+
+		return changed;
+	}
+
+	const std::size_t frame_count{
+		GetAnimationActionFrameCount(
+			context
+		)
+	};
+
+	const int maximum_frame{
+		frame_count > 0
+			? static_cast<int>(
+				std::min<std::size_t>(
+					frame_count - 1,
+					static_cast<
+						std::size_t
+					>(
+						std::numeric_limits<
+							int
+						>::max()
+					)
+				)
+			)
+			: 0
+	};
+
+	const std::size_t clamped_frame{
+		std::min(
+			script.frame,
+			static_cast<std::size_t>(
+				maximum_frame
+			)
+		)
+	};
+
+	if (script.frame != clamped_frame) {
+		script.frame =
+			clamped_frame;
+
+		changed = true;
+	}
+
+	int frame{
+		static_cast<int>(
+			script.frame
+		)
+	};
+
+	ImGui::SetNextItemWidth(
+		std::max(
+			1.0f,
+			available -
+				action_width -
+				spacing
+		)
+	);
+
+	ImGui::BeginDisabled(
+		frame_count == 0
+	);
+
+	if (ImGui::DragInt(
+			"##AnimationFrame",
+			&frame,
+			1.0f,
+			0,
+			maximum_frame,
+			"Frame: %d",
+			ImGuiSliderFlags_AlwaysClamp
+		)) {
+		script.frame =
+			static_cast<std::size_t>(
+				frame
+			);
+
+		changed = true;
+	}
+
+	ImGui::EndDisabled();
+
+	DrawItemTooltip(
+		frame_count > 0
+			? "Animation frame to select."
+			: "The owner has no configured animation frames."
+	);
+
 	return changed;
 }
 
@@ -1275,23 +1485,29 @@ PTGN_REGISTER_SCRIPT(
 );
 
 PTGN_REGISTER_SCRIPT(
-	FollowEntityScript, {
-							.label		 = "Follow Entity",
-							.group		 = "Movement",
-							.description = "Follow an entity using TargetFollowConfig.",
-							.type		 = ScriptType::Both,
-							.draw		 = &DrawFollowEntity,
-						}
+	FollowEntityScript,
+	{
+		.label = "Follow Entity",
+		.group = "Transform",
+		.description =
+			"Follow an entity using TargetFollowConfig.",
+		.type = ScriptType::Both,
+		.draw =
+			&DrawFollowEntity,
+	}
 );
 
 PTGN_REGISTER_SCRIPT(
-	FollowPathScript, {
-						  .label	   = "Follow Path",
-						  .group	   = "Movement",
-						  .description = "Follow a configurable waypoint path.",
-						  .type		   = ScriptType::Both,
-						  .draw		   = &DrawFollowPath,
-					  }
+	FollowPathScript,
+	{
+		.label = "Follow Path",
+		.group = "Transform",
+		.description =
+			"Follow a configurable waypoint path.",
+		.type = ScriptType::Both,
+		.draw =
+			&DrawFollowPath,
+	}
 );
 
 PTGN_REGISTER_SCRIPT(
@@ -1309,35 +1525,41 @@ PTGN_REGISTER_SCRIPT(
 	PlaySoundScript,
 	{
 		.label = "Play Audio",
-		.group = "Audio",
-		.description = "Play an audio asset.",
+		.group = "Other",
+		.description =
+			"Play an audio asset.",
 		.type = ScriptType::Sequence,
-		.draw_inline = &DrawPlaySoundInline,
-		.draw = &DrawPlaySound,
+		.draw_inline =
+			&DrawPlaySoundInline,
+		.draw =
+			&DrawPlaySound,
 	}
 );
 
 PTGN_REGISTER_SCRIPT(
 	AnimationActionScript,
 	{
-		.label		 = "Animation Action",
-		.group		 = "Animation",
-		.description = "Start, stop, pause, resume, or change an animation frame.",
-		.type		 = ScriptType::Sequence,
-		.menu_order	 = 1,
+		.label = "Animation Action",
+		.group = "Animation",
+		.description =
+			"Start, stop, pause, resume, or change an animation frame.",
+		.type = ScriptType::Sequence,
+		.menu_order = 1,
 		.draw_inline = &DrawAnimationActionInline,
-		.draw		 = &DrawAnimationAction,
 	}
 );
 
 PTGN_REGISTER_SCRIPT(
-	SetTextureScript, {
-						  .label	   = "Set Texture",
-						  .group	   = "Graphics",
-						  .description = "Assign a texture asset key to the owner.",
-						  .type		   = ScriptType::Sequence,
-						  .draw_inline = &DrawSetTextureInline,
-					  }
+	SetTextureScript,
+	{
+		.label = "Set Texture",
+		.group = "Animation",
+		.description =
+			"Assign a texture asset key to the owner.",
+		.type = ScriptType::Sequence,
+		.draw_inline =
+			&DrawSetTextureInline,
+	}
 );
 
 PTGN_REGISTER_SCRIPT(
@@ -1353,14 +1575,18 @@ PTGN_REGISTER_SCRIPT(
 );
 
 PTGN_REGISTER_SCRIPT(
-	SceneChangeScript, {
-						   .label		= "Change Scene",
-						   .group		= "Scene",
-						   .description = "Enter, exit, switch, or re-enter a registered scene.",
-						   .type		= ScriptType::Sequence,
-						   .draw_inline = &DrawSceneChangeInline,
-						   .draw		= &DrawSceneChange,
-					   }
+	SceneChangeScript,
+	{
+		.label = "Change Scene",
+		.group = "Other",
+		.description =
+			"Enter, exit, switch, or re-enter a registered scene.",
+		.type = ScriptType::Sequence,
+		.draw_inline =
+			&DrawSceneChangeInline,
+		.draw =
+			&DrawSceneChange,
+	}
 );
 
 PTGN_REGISTER_SCRIPT(
