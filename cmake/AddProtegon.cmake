@@ -66,16 +66,23 @@ function(add_protegon_to target)
       target_compile_options(${target} PRIVATE
         -O0
         -g3
+        -fexceptions
+        "-sDISABLE_EXCEPTION_CATCHING=0"
       )
 
       target_link_options(${target} PRIVATE
         -O0
         -g3
+        -fexceptions
+        "-sDISABLE_EXCEPTION_CATCHING=0"
         "-sASSERTIONS=2"
         "-sSTACK_OVERFLOW_CHECK=2"
         "-sSAFE_HEAP=1"
       )
 
+      target_compile_definitions(${target} PRIVATE
+        JSON_DIAGNOSTICS=1
+      )
     elseif(CMAKE_BUILD_TYPE STREQUAL "RelWithDebInfo")
       target_compile_options(${target} PRIVATE
         -O2

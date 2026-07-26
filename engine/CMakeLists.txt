@@ -56,6 +56,10 @@ target_compile_features(protegon PUBLIC cxx_std_23)
 target_compile_definitions(
   protegon PRIVATE PTGN_ENGINE_ROOT="${CMAKE_CURRENT_SOURCE_DIR}")
 
+if(EMSCRIPTEN AND (CMAKE_BUILD_TYPE STREQUAL "Debug"))
+  target_compile_definitions(protegon PRIVATE JSON_DIAGNOSTICS=1)
+endif()
+
 target_precompile_headers(protegon PRIVATE "${PTGN_SRC_DIR}/ptgn_pch.h")
 
 target_link_libraries(

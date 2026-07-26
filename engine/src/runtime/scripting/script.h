@@ -232,7 +232,7 @@ public:
 	ScriptSequence& Yoyo(bool value = true);
 	ScriptSequence& Wait(float duration_ms);
 	ScriptSequence& EmitSignal(SignalKey signal);
-	[[nodiscard]] SequenceHandle Start(Entity owner, bool force = true) const;
+	SequenceHandle Start(Entity owner, bool force = true) const;
 
 	PTGN_REFLECT(
 		ScriptSequence, id, enabled, shared_reference, shared_sequence_id, name, reentry, channel,
