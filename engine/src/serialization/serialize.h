@@ -93,38 +93,77 @@ template <typename T>
 inline constexpr bool is_optional<std::optional<T>>{ true };
 
 template <typename T>
-void extended_to_json(std::string_view key, json& j, const T& value) {
-	if constexpr (is_optional<T>) {
-		optional_to_json(j, key, value);
+inline constexpr bool is_json{ std::same_as<std::remove_cvref_t<T>, json> };
+
+template <typename T>
+void extended_to_json(
+	std::string_view key,
+	json& output,
+	const T& value
+) {
+	if constexpr (is_json<T>) {
+		output[key] = value;
+	} else if constexpr (is_optional<T>) {
+		optional_to_json(
+			output,
+			key,
+			value
+		);
 	} else if constexpr (JsonSerializable<T>) {
-		j[key] = value;
+		output[key] = value;
 	}
 }
 
 template <typename T>
-void extended_from_json(std::string_view key, const json& j, T& value) {
-	if constexpr (is_optional<T>) {
-		optional_from_json(j, key, value);
+void extended_from_json(
+	std::string_view key,
+	const json& input,
+	T& value
+) {
+	if constexpr (is_json<T>) {
+		value = input.at(key);
+	} else if constexpr (is_optional<T>) {
+		optional_from_json(
+			input,
+			key,
+			value
+		);
 	} else if constexpr (JsonDeserializable<T>) {
-		j.at(key).get_to(value);
+		input.at(key).get_to(value);
 	}
 }
 
 template <typename T>
-void extended_to_json(json& j, const T& value) {
-	if constexpr (is_optional<T>) {
-		optional_to_json(j, value);
+void extended_to_json(
+	json& output,
+	const T& value
+) {
+	if constexpr (is_json<T>) {
+		output = value;
+	} else if constexpr (is_optional<T>) {
+		optional_to_json(
+			output,
+			value
+		);
 	} else if constexpr (JsonSerializable<T>) {
-		j = value;
+		output = value;
 	}
 }
 
 template <typename T>
-void extended_from_json(const json& j, T& value) {
-	if constexpr (is_optional<T>) {
-		optional_from_json(j, value);
+void extended_from_json(
+	const json& input,
+	T& value
+) {
+	if constexpr (is_json<T>) {
+		value = input;
+	} else if constexpr (is_optional<T>) {
+		optional_from_json(
+			input,
+			value
+		);
 	} else if constexpr (JsonDeserializable<T>) {
-		j.get_to(value);
+		input.get_to(value);
 	}
 }
 

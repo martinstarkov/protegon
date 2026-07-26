@@ -191,7 +191,7 @@ void ChunkManager::Update(Scene& scene, const Camera& camera) {
 	chunks.rehash(0);
 
 	/*for (auto [coord, json_cache] : chunk_cache) {
-		PTGN_LOG(json_cache.dump(4));
+	//	PTGN_LOG(json_cache.dump(4));
 	}*/
 
 	scene.Refresh();

@@ -256,7 +256,7 @@ struct SignalKey;
 		return {};
 	}
 
-	ptgn::json value{ component.make_default_json() };
+	ptgn::json value = component.make_default_json();
 	if (value.is_null()) {
 		value = ptgn::json::object();
 	}
@@ -892,6 +892,7 @@ ScriptEntry ScriptRegistry::Make(T value) {
 	ScriptEntry entry;
 	entry.enabled = true;
 	entry.type_hash = registration->type_hash;
+	entry.name = registration->name;
 	entry.value = std::move(snapshot);
 	entry.sequence = prototype->sequence;
 	entry.sequence.id = prototype->sequence.id;
@@ -910,6 +911,7 @@ inline ScriptEntry ScriptRegistry::Make(TypeHashValue type_hash) {
 	ScriptEntry entry;
 	entry.enabled = true;
 	entry.type_hash = registration->type_hash;
+	entry.name = registration->name;
 	entry.value = registration->make_default();
 	entry.sequence = registration->make_default_sequence();
 	return entry;
@@ -1928,7 +1930,7 @@ public:
 				if (value.is_null()) {
 					value = ptgn::json::object();
 				}
-				const ptgn::json previous{ value };
+				const ptgn::json previous = value;
 				const bool changed{ std::invoke(fn, value) };
 				return changed || value != previous;
 			},
@@ -4776,6 +4778,7 @@ bool DrawEvent(
 						candidate.type_hash == event.type_hash
 					)) {
 					event.type_hash = candidate.type_hash;
+					event.name = candidate.name;
 					registration->set_defaults(event);
 					selected = editor::EventEditorRegistry::Find(event.type_hash);
 					event_type_changed = true;

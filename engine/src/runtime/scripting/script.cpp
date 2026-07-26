@@ -183,6 +183,7 @@ ScriptStep ScriptRegistry::MakeStep(TypeHashValue type_hash) {
 	ScriptStep step;
 	step.enabled = true;
 	step.type_hash = registration->type_hash;
+	step.name = registration->name;
 	step.value = registration->make_default();
 	step.timing = registration->default_timing;
 	return step;
@@ -202,6 +203,7 @@ EventCondition SequenceEventRegistry::MakeCondition(TypeHashValue type_hash, jso
 		.enabled = true,
 		.consume = false,
 		.type_hash = entry->type_hash,
+		.name = entry->name
 	};
 	if (value.is_null()) {
 		entry->set_defaults(condition);
@@ -392,6 +394,7 @@ void DeserializeScriptEntry(const json& input, std::vector<ScriptEntry>& output)
 
 	ScriptEntry entry;
 	entry.type_hash = registration->type_hash;
+	entry.name = registration->name;
 	entry.enabled = true;
 	entry.value = registration->make_default ? registration->make_default() : json{};
 	entry.sequence = registration->make_default_sequence
@@ -1296,6 +1299,7 @@ SequenceHandle RunSequence(
 	ScriptEntry entry;
 	entry.enabled = true;
 	entry.type_hash = Hash<Script>();
+	entry.name = type_name_without_namespaces<Script>();
 	entry.value = json::object();
 	entry.sequence = std::move(sequence);
 	entry.instance = std::make_unique<Script>();

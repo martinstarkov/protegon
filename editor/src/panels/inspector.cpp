@@ -469,9 +469,7 @@ void EnsureActionValue(ScriptStep& action) {
 		return;
 	}
 
-	json defaults{
-		registration->make_default()
-	};
+	json defaults = registration->make_default();
 
 	if (action.value.is_null()) {
 		action.value = std::move(defaults);
@@ -555,6 +553,7 @@ ScriptEntry MakeRootEntry(TypeHashValue type_hash) {
 	ScriptEntry entry;
 	entry.enabled = true;
 	entry.type_hash = type_hash;
+	entry.name = registration->name;
 	entry.value = registration->make_default ? registration->make_default() : json::object();
 	entry.sequence = registration->make_default_sequence
 		? registration->make_default_sequence()
@@ -579,6 +578,7 @@ ScriptEntry MakeRootEntry(T script) {
 	ScriptEntry entry;
 	entry.enabled = true;
 	entry.type_hash = registration->type_hash;
+	entry.name = registration->name;
 	entry.value = std::move(value);
 	entry.sequence = script.sequence;
 	return entry;
@@ -1458,6 +1458,7 @@ bool DrawEvent(
 						candidate.type_hash == event.type_hash
 					)) {
 					event.type_hash = candidate.type_hash;
+					event.name = candidate.name;
 					registration->set_defaults(event);
 					selected = EventEditorRegistry::Find(event.type_hash);
 					event_type_changed = true;
@@ -1562,6 +1563,7 @@ bool DrawEvents(ScriptEditorContext& context, ScriptSequence& sequence) {
 					EventCondition trigger{
 						.enabled = true,
 						.type_hash = registration->type_hash,
+						.name = registration->name
 					};
 					registration->set_defaults(trigger);
 					sequence.start_events.push_back(std::move(trigger));

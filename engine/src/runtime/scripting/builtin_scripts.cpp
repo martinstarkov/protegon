@@ -293,7 +293,7 @@ ComponentDefinition MakeComponentDefinition(const RegisteredComponent& component
 		return {};
 	}
 
-	json value{ component.make_default_json() };
+	json value = component.make_default_json();
 	if (value.is_null()) {
 		value = json::object();
 	}

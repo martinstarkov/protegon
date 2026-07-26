@@ -8,6 +8,7 @@
 #include <type_traits>
 #include <utility>
 #include <vector>
+#include <string_view>
 
 #include "core/util/hash.h"
 #include "core/util/type_info.h"
@@ -36,6 +37,7 @@ struct EventEditorOptions {
 
 struct EventEditorRegistration {
 	TypeHashValue type_hash{ 0 };
+	std::string_view name;
 	EventEditorOptions options;
 };
 
@@ -76,7 +78,7 @@ public:
 				if (value.is_null()) {
 					value = json::object();
 				}
-				const json previous{ value };
+				const json previous = value;
 				const bool changed{ std::invoke(fn, value) };
 				return changed || value != previous;
 			};
@@ -84,6 +86,7 @@ public:
 
 		entries.push_back(EventEditorRegistration{
 			.type_hash = type_hash,
+			.name = type_name_without_namespaces<TEvent>(),
 			.options = std::move(options),
 		});
 		return inserted;
@@ -150,6 +153,7 @@ struct RegisteredScriptEditorOptions {
 
 struct ScriptEditorRegistration {
 	TypeHashValue type_hash{ 0 };
+	std::string_view name;
 	RegisteredScriptEditorOptions options;
 	bool has_contents{ false };
 	std::function<bool(ScriptEditorContext&, json&)> draw_inline;
@@ -171,26 +175,17 @@ bool DrawTypedJsonEditor(
 ) {
 	T value{};
 
-	json normalized = json::object();
+	json normalized = value;
 
 	try {
-		// Start with every serialized default parameter.
-		normalized = value;
-
-		// Preserve parameters already stored in the input.
 		if (normalized.is_object() && input.is_object()) {
-			normalized.update(
-				input,
-				true
-			);
+			normalized.update(input, true);
 		} else if (!input.is_null()) {
 			normalized = input;
 		}
 
 		normalized.get_to(value);
 	} catch (...) {
-		// Keep the default-constructed value. The drawer must still run,
-		// because its caller may already have repositioned the ImGui cursor.
 		value = T{};
 	}
 
@@ -202,19 +197,18 @@ bool DrawTypedJsonEditor(
 		)
 	};
 
-	json updated = json::object();
-
-	try {
-		updated = value;
-	} catch (...) {
-		return changed;
+	if (!changed) {
+		return false;
 	}
 
+	json updated = value;
+
 	if (updated == input) {
-		return changed;
+		return false;
 	}
 
 	input = std::move(updated);
+
 	return true;
 }
 
@@ -250,6 +244,7 @@ public:
 
 		ScriptEditorRegistration registration{
 			.type_hash = type_hash,
+			.name = type_name_without_namespaces<T>(),
 			.options = {
 				.label = std::move(options.label),
 				.group = std::move(options.group),
