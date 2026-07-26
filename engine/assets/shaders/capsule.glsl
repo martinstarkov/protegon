@@ -1,3 +1,5 @@
+#option auto_layout
+
 #type fragment
 
 out vec4 o_Color;
