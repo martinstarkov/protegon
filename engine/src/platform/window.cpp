@@ -805,14 +805,15 @@ void Window::SetSettings(const WindowSettings& settings) {
 		SetSetting(WindowSetting::Restored);
 	}
 
-	SetSize(settings.size, false);
-
 	if (settings.maximized) {
 		SetSetting(WindowSetting::Maximized);
 	}
 }
 
 WindowLocalSettings Window::GetLocalSettings() const {
+#ifdef __EMSCRIPTEN__
+	return {};
+#else
 	auto win{ instance_.get() };
 	PTGN_ASSERT(win, "Window is null");
 
@@ -833,9 +834,14 @@ WindowLocalSettings Window::GetLocalSettings() const {
 		.size = size,
 		.maximized = maximized || (minimized && windowed_was_maximized_),
 	};
+#endif
 }
 
 void Window::SetLocalSettings(const WindowLocalSettings& settings) {
+#ifdef __EMSCRIPTEN__
+	(void)settings;
+	return;
+#else
 	if (GetSetting(WindowSetting::Fullscreen)) {
 		return;
 	}
@@ -862,6 +868,7 @@ void Window::SetLocalSettings(const WindowLocalSettings& settings) {
 	if (should_maximize) {
 		SetSetting(WindowSetting::Maximized);
 	}
+#endif
 }
 
 void Window::SetBackgroundColor(Color background_color) {
