@@ -316,8 +316,10 @@ bool DrawUnframedSectionHeader(
 	const char* add_tooltip, bool& add_requested
 ) {
 	static std::unordered_map<ImGuiID, bool> force_open_next_frame;
+
 	ImGui::PushID(id);
-	const ImGuiID tree_id{ ImGui::GetID("Tree") };
+
+	const ImGuiID tree_id{ ImGui::GetID("##Tree") };
 	if (force_open_next_frame[tree_id]) {
 		ImGui::SetNextItemOpen(true, ImGuiCond_Always);
 		force_open_next_frame[tree_id] = false;
@@ -326,39 +328,80 @@ bool DrawUnframedSectionHeader(
 	bool open{ false };
 	const float button_size{ ImGui::GetFrameHeight() };
 	const int columns{ show_add_button ? 2 : 1 };
-	if (ImGui::BeginTable("SectionHeaderRow", columns, ImGuiTableFlags_SizingStretchProp)) {
-		ImGui::TableSetupColumn("Section", ImGuiTableColumnFlags_WidthStretch);
+	constexpr ImGuiTableFlags table_flags{
+		ImGuiTableFlags_SizingStretchProp |
+		ImGuiTableFlags_NoSavedSettings |
+		ImGuiTableFlags_NoPadOuterX
+	};
+
+	if (ImGui::BeginTable("##SectionHeaderRow", columns, table_flags)) {
+		ImGui::TableSetupColumn(
+			"Section",
+			ImGuiTableColumnFlags_WidthStretch,
+			1.0f
+		);
+
 		if (show_add_button) {
-			ImGui::TableSetupColumn("Add", ImGuiTableColumnFlags_WidthFixed, button_size);
+			ImGui::TableSetupColumn(
+				"Add",
+				ImGuiTableColumnFlags_WidthFixed,
+				button_size
+			);
 		}
+
 		ImGui::TableNextRow(ImGuiTableRowFlags_None, button_size);
 		ImGui::TableSetColumnIndex(0);
+
 		ImGuiTreeNodeFlags flags{
 			ImGuiTreeNodeFlags_SpanAvailWidth |
 			ImGuiTreeNodeFlags_NoTreePushOnOpen |
-			ImGuiTreeNodeFlags_FramePadding
+			ImGuiTreeNodeFlags_FramePadding |
+			ImGuiTreeNodeFlags_AllowOverlap
 		};
+
 		if (empty) {
 			flags |= ImGuiTreeNodeFlags_Leaf;
 		} else if (default_open) {
 			flags |= ImGuiTreeNodeFlags_DefaultOpen;
 		}
-		const bool tree_open{ ImGui::TreeNodeEx("Tree", flags, "%s", label) };
+
+		const bool tree_open{
+			ImGui::TreeNodeEx(
+				"##Tree",
+				flags,
+				"%s",
+				label
+			)
+		};
+
 		open = !empty && tree_open;
-		DrawTooltip(empty ? "Add an item to use this section." : tooltip);
+
+		DrawTooltip(
+			empty
+				? "Add an item to use this section."
+				: tooltip
+		);
 
 		if (show_add_button) {
 			ImGui::TableSetColumnIndex(1);
-			if (ImGui::Button("+", ImVec2{ button_size, button_size })) {
+
+			if (ImGui::Button(
+					"+",
+					ImVec2{ button_size, button_size }
+				)) {
 				add_requested = true;
 				open = true;
 				force_open_next_frame[tree_id] = true;
 			}
+
 			DrawTooltip(add_tooltip);
 		}
+
 		ImGui::EndTable();
 	}
+
 	ImGui::PopID();
+
 	return open || add_requested;
 }
 
@@ -1476,9 +1519,16 @@ bool DrawEvents(ScriptEditorContext& context, ScriptSequence& sequence) {
 	if (ImGui::BeginPopup("AddEventEntry")) {
 		if (ImGui::BeginMenu("Trigger")) {
 			auto candidate_available = [&](const EventEditorRegistration& candidate) {
-				const auto* registration{ SequenceEventRegistry::Find(candidate.type_hash) };
+				const auto* registration{
+					SequenceEventRegistry::Find(candidate.type_hash)
+				};
+
 				return registration &&
-					(!registration->available || registration->available(context.owner));
+					(
+						!registration->available ||
+						!context.owner ||
+						registration->available(context.owner)
+					);
 			};
 			auto add_candidate = [&](const EventEditorRegistration& candidate) {
 				const auto* registration{ SequenceEventRegistry::Find(candidate.type_hash) };
@@ -1629,10 +1679,6 @@ bool DrawSequence(
 		context.ctx.editor.IsPlaying()
 	};
 	const int column_count{ show_runtime_controls ? 6 : 3 };
-	const float available_width{ ImGui::GetContentRegionAvail().x };
-	const float sequence_width{
-		std::max(1.0f, (available_width - CompactControlSpacing()) * 0.5f)
-	};
 	bool open{ state.sequence_open_states.try_emplace(binding.id, true).first->second };
 	ImVec2 name_input_min{};
 	ImVec2 name_input_max{};
@@ -1641,14 +1687,20 @@ bool DrawSequence(
 	bool began_name_edit_this_frame{ false };
 
 	if (ImGui::BeginTable(
-			"ScriptSequenceHeader", column_count,
-			ImGuiTableFlags_SizingStretchProp
+			"ScriptSequenceHeader",
+			column_count,
+			ImGuiTableFlags_SizingStretchProp |
+				ImGuiTableFlags_NoSavedSettings
 		)) {
 		ImGui::TableSetupColumn(
-			"Sequence", ImGuiTableColumnFlags_WidthFixed, sequence_width
+			"Sequence",
+			ImGuiTableColumnFlags_WidthStretch,
+			1.0f
 		);
 		ImGui::TableSetupColumn(
-			"Options", ImGuiTableColumnFlags_WidthStretch
+			"Options",
+			ImGuiTableColumnFlags_WidthStretch,
+			1.0f
 		);
 
 		if (show_runtime_controls) {
@@ -1825,16 +1877,30 @@ bool DrawSequence(
 		}
 		ImGui::SetNextItemWidth(-FLT_MIN);
 		if (ImGui::BeginCombo("##SequenceOptions", "Options")) {
-			const bool global{ binding.shared_reference };
-			if (ImGui::MenuItem("Global sequence", nullptr, global)) {
-				if (global) {
-					DetachToLocal(context, binding);
-				} else {
-					PromoteToShared(context, binding);
+			if (context.owner) {
+				const bool global{ binding.shared_reference };
+
+				if (ImGui::MenuItem(
+						"Global sequence",
+						nullptr,
+						global
+					)) {
+					if (global) {
+						DetachToLocal(context, binding);
+					} else {
+						PromoteToShared(context, binding);
+					}
+
+					sequence = ResolveEditorSequence(
+						context,
+						binding
+					);
+					changed = true;
 				}
-				sequence = ResolveEditorSequence(context, binding);
-				changed = true;
+
+				ImGui::Separator();
 			}
+
 			if (sequence && ImGui::MenuItem(
 					"Remove binding on complete", nullptr,
 					sequence->remove_binding_on_complete
@@ -1862,7 +1928,6 @@ bool DrawSequence(
 					changed = true;
 				}
 			}
-			ImGui::Separator();
 			if (sequence && ImGui::MenuItem(
 					"Ignore on retrigger", nullptr,
 					sequence->reentry == ReentryMode::IgnoreWhileRunning
@@ -2029,18 +2094,21 @@ bool DrawSequence(
 					sequence->steps.push_back(
 						ScriptRegistry::MakeStep<EmitSignalScript>()
 					);
+					changed = true;
 				}
 
 				if (ImGui::MenuItem("Tween")) {
 					sequence->steps.push_back(
 						ScriptRegistry::MakeStep<MoveToScript>()
 					);
+					changed = true;
 				}
 
 				if (ImGui::MenuItem("Delay")) {
 					sequence->steps.push_back(
 						ScriptRegistry::MakeStep<WaitScript>()
 					);
+					changed = true;
 				}
 
 				ImGui::EndPopup();
