@@ -1078,8 +1078,10 @@ Entity Scene::GetEntity(UUID uuid) const {
 
 Entity Scene::GetEntity(const Tag& tag) const {
 	for (const Entity& e : Entities()) {
-		PTGN_ASSERT(e.Has<Tag>(), "Entity does not have a valid Tag component");
-		if (e.Get<Tag>().value == tag) {
+		if (!e.Has<Tag>()) {
+			continue;
+		}
+		if (e.Get<Tag>().value == tag.value) {
 			return e;
 		}
 	}
