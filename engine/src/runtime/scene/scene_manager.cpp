@@ -340,8 +340,20 @@ void LocalSceneManager::Rebind(Scene& scene) {
 }
 
 bool LocalSceneManager::CanIssueCommands() const {
-	PTGN_ASSERT(scene_);
-	return scene_->IsRuntime() && !scene_->IsTransitioning();
+	if (!scene_ ||
+		scene_->IsTransitioning()) {
+		return false;
+	}
+
+	for (const auto& active_scene :
+		 scene_manager_.GetScenes()) {
+		if (active_scene.get() ==
+			scene_) {
+			return true;
+		}
+	}
+
+	return false;
 }
 
 } // namespace ptgn

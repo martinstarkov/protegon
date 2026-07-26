@@ -122,24 +122,34 @@ public:
 
 	/// @brief Replaces an active scene through a type-erased factory with optional transitions.
 	bool ReEnterFactory(
-		std::string_view scene_tag, SceneFactory scene_factory,
+		std::string_view scene_tag,
+		SceneFactory scene_factory,
 		std::unique_ptr<SceneTransition> transition_out,
 		std::unique_ptr<SceneTransition> transition_in
 	) {
-		const auto scene_tag_hash{ Hash(scene_tag) };
-		if (!CanIssueCommands(scene_tag_hash)) {
+		const auto scene_tag_hash{
+			Hash(scene_tag)
+		};
+
+		if (!CanIssueCommands(scene_tag_hash) ||
+			!HasScene(scene_tag_hash)) {
 			return false;
 		}
 
-		PTGN_ASSERT(
-			HasScene(scene_tag_hash), "Cannot re-enter a scene tag hash which has not been entered"
+		PushCommand(
+			CommandType::ReEnter,
+			std::string{ scene_tag },
+			scene_tag_hash,
+			SceneTransitionPriority{
+				std::numeric_limits<
+					std::size_t
+				>::max()
+			},
+			std::move(scene_factory),
+			std::move(transition_out),
+			std::move(transition_in)
 		);
 
-		PushCommand(
-			CommandType::ReEnter, std::string{ scene_tag }, scene_tag_hash,
-			SceneTransitionPriority{ std::numeric_limits<std::size_t>::max() },
-			std::move(scene_factory), std::move(transition_out), std::move(transition_in)
-		);
 		return true;
 	}
 
@@ -282,42 +292,89 @@ public:
 		return Exit(scene_tag, NoTransition{}, priority);
 	}
 
-	template <
-		SceneType T, SceneTransitionType TransitionOut, SceneTransitionType TransitionIn,
-		typename... TArgs>
+	template <SceneType T, SceneTransitionType TransitionOut, SceneTransitionType TransitionIn, typename... TArgs>
 		requires std::constructible_from<T, TArgs...>
 	bool ReEnter(
-		std::string_view scene_tag, SceneTransitionPair<TransitionOut, TransitionIn>&& transition,
+		std::string_view scene_tag,
+		SceneTransitionPair<
+			TransitionOut,
+			TransitionIn
+		>&& transition,
 		TArgs&&... constructor_args
 	) {
-		auto scene_tag_hash{ Hash(scene_tag) };
+		const auto scene_tag_hash{
+			Hash(scene_tag)
+		};
 
-		if (!CanIssueCommands(scene_tag_hash)) {
+		if (!CanIssueCommands(scene_tag_hash) ||
+			!HasScene(scene_tag_hash)) {
 			return false;
 		}
 
-		PTGN_ASSERT(
-			HasScene(scene_tag_hash), "Cannot re-enter a scene tag hash which has not been entered"
-		);
+		std::unique_ptr<
+			SceneTransition
+		> transition_out_ptr;
 
-		std::unique_ptr<SceneTransition> transition_out_ptr;
-		std::unique_ptr<SceneTransition> transition_in_ptr;
+		std::unique_ptr<
+			SceneTransition
+		> transition_in_ptr;
 
-		if constexpr (!std::same_as<std::decay_t<TransitionOut>, NoTransition>) {
+		if constexpr (
+			!std::same_as<
+				std::decay_t<TransitionOut>,
+				NoTransition
+			>
+		) {
 			transition_out_ptr =
-				std::make_unique<std::decay_t<TransitionOut>>(std::move(transition.out));
+				std::make_unique<
+					std::decay_t<
+						TransitionOut
+					>
+				>(
+					std::move(
+						transition.out
+					)
+				);
 		}
 
-		if constexpr (!std::same_as<std::decay_t<TransitionIn>, NoTransition>) {
+		if constexpr (
+			!std::same_as<
+				std::decay_t<TransitionIn>,
+				NoTransition
+			>
+		) {
 			transition_in_ptr =
-				std::make_unique<std::decay_t<TransitionIn>>(std::move(transition.in));
+				std::make_unique<
+					std::decay_t<
+						TransitionIn
+					>
+				>(
+					std::move(
+						transition.in
+					)
+				);
 		}
 
 		PushCommand(
-			impl::SceneManager::CommandType::ReEnter, std::string{ scene_tag }, scene_tag_hash,
-			SceneTransitionPriority{ std::numeric_limits<std::size_t>::max() },
-			GetFactory<T>(std::forward<TArgs>(constructor_args)...), std::move(transition_out_ptr),
-			std::move(transition_in_ptr)
+			CommandType::ReEnter,
+			std::string{ scene_tag },
+			scene_tag_hash,
+			SceneTransitionPriority{
+				std::numeric_limits<
+					std::size_t
+				>::max()
+			},
+			GetFactory<T>(
+				std::forward<TArgs>(
+					constructor_args
+				)...
+			),
+			std::move(
+				transition_out_ptr
+			),
+			std::move(
+				transition_in_ptr
+			)
 		);
 
 		return true;
@@ -469,25 +526,47 @@ public:
 	}
 
 	bool ReEnterFactory(
-		std::string_view scene_tag, impl::SceneFactory scene_factory,
-		std::unique_ptr<SceneTransition> transition_out,
-		std::unique_ptr<SceneTransition> transition_in
+		std::string_view scene_tag,
+		impl::SceneFactory scene_factory,
+		std::unique_ptr<SceneTransition>
+			transition_out,
+		std::unique_ptr<SceneTransition>
+			transition_in
 	) {
+		if (!CanIssueCommands()) {
+			return false;
+		}
+
 		return scene_manager_.ReEnterFactory(
-			scene_tag, std::move(scene_factory), std::move(transition_out),
+			scene_tag,
+			std::move(scene_factory),
+			std::move(transition_out),
 			std::move(transition_in)
 		);
 	}
 
 	bool TransitionFactory(
-		std::string_view from_scene_tag, std::string_view to_scene_tag,
-		impl::SceneFactory scene_factory, std::unique_ptr<SceneTransition> transition_out,
-		std::unique_ptr<SceneTransition> transition_in,
-		SceneTransitionPriority priority = SceneTransitionPriority{}
+		std::string_view from_scene_tag,
+		std::string_view to_scene_tag,
+		impl::SceneFactory scene_factory,
+		std::unique_ptr<SceneTransition>
+			transition_out,
+		std::unique_ptr<SceneTransition>
+			transition_in,
+		SceneTransitionPriority priority =
+			SceneTransitionPriority{}
 	) {
+		if (!CanIssueCommands()) {
+			return false;
+		}
+
 		return scene_manager_.TransitionFactory(
-			from_scene_tag, to_scene_tag, std::move(scene_factory),
-			std::move(transition_out), std::move(transition_in), priority
+			from_scene_tag,
+			to_scene_tag,
+			std::move(scene_factory),
+			std::move(transition_out),
+			std::move(transition_in),
+			priority
 		);
 	}
 
