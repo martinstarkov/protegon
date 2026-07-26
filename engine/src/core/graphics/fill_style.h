@@ -125,6 +125,7 @@ public:
 		});
 	}
 
+	PTGN_REFLECT_VALUE(FillStyle, style_)
 private:
 	Variant style_{};
 };
