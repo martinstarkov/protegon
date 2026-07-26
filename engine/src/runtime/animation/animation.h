@@ -297,7 +297,8 @@ public:
 	/// @brief If the current frame has been changed externally.
 	bool frame_dirty{ false };
 
-	PTGN_REFLECT(AnimationData, config, frame_timer, current_frame, frames_played)
+	PTGN_REFLECT(AnimationData, config, current_frame)
+	PTGN_REFLECT_READONLY(AnimationData, frame_timer, frames_played)
 };
 
 class AnimationSystem {

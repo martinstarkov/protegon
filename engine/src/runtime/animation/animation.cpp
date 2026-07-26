@@ -38,10 +38,8 @@ Animation& Animation::SetConfig(AnimationConfig config) {
 
 	const auto& anim{ Add<impl::AnimationData>(std::move(config), texture_size) };
 
-	if (Has<impl::TextureCrop>()) {
-		auto& crop{ Get<impl::TextureCrop>() };
-		crop.Update(anim);
-	}
+	auto& crop{ TryAdd<impl::TextureCrop>() };
+	crop.Update(anim);
 
 	return Reset();
 }
