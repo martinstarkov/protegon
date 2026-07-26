@@ -111,6 +111,10 @@ public:
 
 	bool IsPlaying() const;
 	bool IsPaused() const;
+	bool CanPlay() const;
+	bool CanStop() const;
+	bool CanPause() const;
+	bool IsDirectRuntime() const;
 
 	std::optional<path> GetProjectRoot() const;
 

@@ -892,14 +892,51 @@ void Editor::Stop() {
 void Editor::TogglePause() {
 	PTGN_ASSERT(context_);
 
-	if (!IsPlaying()) {
+	if (!CanPause()) {
 		return;
 	}
 
-	context_->local.state.is_paused = !context_->local.state.is_paused;
+	context_->local.state.is_paused =
+		!context_->local.state.is_paused;
+
 	SetApplicationState(
-		context_->local.state.is_paused ? ApplicationState::Paused : ApplicationState::Running
+		context_->local.state.is_paused
+			? ApplicationState::Paused
+			: ApplicationState::Running
 	);
+}
+
+bool Editor::CanPlay() const {
+	const auto* scene{
+		scene_list_panel_.GetSelectedScene()
+	};
+
+	return
+		!IsPlaying() &&
+		scene &&
+		!scene->IsRuntime();
+}
+
+bool Editor::CanStop() const {
+	return
+		IsPlaying() &&
+		play_snapshot_.has_value();
+}
+
+bool Editor::CanPause() const {
+	return std::ranges::any_of(
+		GetSceneManager().GetScenes(),
+		[](const auto& scene) {
+			return scene &&
+				   scene->IsRuntime();
+		}
+	);
+}
+
+bool Editor::IsDirectRuntime() const {
+	return
+		CanPause() &&
+		!IsPlaying();
 }
 
 bool Editor::CanSaveProject() const {
