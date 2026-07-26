@@ -326,18 +326,14 @@ bool DrawDisplaySettings(EditorContext& ctx) {
 	auto window_settings{ ctx.editor.GetWindow().GetSettings() };
 	bool window_changed{ false };
 
-	window_changed |= DrawValue(
-		ctx,
-		"Default Window Size",
-		window_settings.size,
-		FieldOptions{
-			.speed = 1.0f,
-			.min = 1.0,
-			.max = 8192.0,
-			.format = "%d",
-			.flags = ImGuiSliderFlags_AlwaysClamp,
-		}
-	);
+	DrawPropertyRow("Default Window Size", [&]() {
+		ImGui::Text(
+			"%d x %d",
+			window_settings.size.x,
+			window_settings.size.y
+		);
+		return false;
+	});
 	window_changed |= DrawValue(ctx, "Resizable", window_settings.resizable);
 	window_changed |= DrawValue(ctx, "Start Maximized", window_settings.maximized);
 	window_changed |= DrawValue(ctx, "Window Background", window_settings.background_color);
