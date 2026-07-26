@@ -220,15 +220,30 @@ bool SceneListPanel::ResolvePendingSceneSelection(EditorContext& ctx) {
 		return false;
 	}
 
-	auto* scene{ it->get() };
-
+	auto pending_selection{
+		std::move(pending_scene_selection_.value())
+	};
 	pending_scene_selection_.reset();
 
-	SetSelectedScene(ctx, scene);
+	auto* scene{ it->get() };
+
+	SetSelectedScene(
+		ctx,
+		scene,
+		pending_selection.scene_path
+	);
+
+	Entity selected_entity;
+
+	if (pending_selection.selected_entity_uuid.has_value()) {
+		selected_entity = scene->GetEntity(
+			pending_selection.selected_entity_uuid.value()
+		);
+	}
 
 	ctx.editor
 		.GetSceneHierarchyPanel()
-		.SetSelectedEntity({});
+		.SetSelectedEntity(selected_entity);
 
 	return true;
 }
@@ -238,15 +253,23 @@ void SceneListPanel::OnRender(EditorContext& ctx) {
 
 	auto& scenes{ ctx.editor.GetSceneManager().GetScenes() };
 
-	auto select_scene = [&](Scene* scene, const path& scene_path = path{}) {
+	auto select_scene = [&](
+		Scene* scene,
+		const path& scene_path = path{},
+		std::optional<UUID> selected_entity_uuid = std::nullopt
+	) {
 		SetSelectedScene(ctx, scene, scene_path);
 
 		if (!selected_scene_) {
 			return;
 		}
 
-		auto& scene_hierarchy{ ctx.editor.GetSceneHierarchyPanel() };
-		const auto& entities{ selected_scene_->Entities() };
+		auto& scene_hierarchy{
+			ctx.editor.GetSceneHierarchyPanel()
+		};
+		const auto& entities{
+			selected_scene_->Entities()
+		};
 
 		auto select_if_present = [&](Entity entity) {
 			if (!entity || !entities.Contains(entity)) {
@@ -256,6 +279,15 @@ void SceneListPanel::OnRender(EditorContext& ctx) {
 			scene_hierarchy.SetSelectedEntity(entity);
 			return true;
 		};
+
+		if (selected_entity_uuid.has_value() &&
+			select_if_present(
+				selected_scene_->GetEntity(
+					selected_entity_uuid.value()
+				)
+			)) {
+			return;
+		}
 
 		auto& scene_ctx{ selected_scene_->ctx() };
 		auto render_target{ selected_scene_->GetRenderTarget() };
@@ -283,20 +315,32 @@ void SceneListPanel::OnRender(EditorContext& ctx) {
 
 	if (pending_scene_selection_.has_value() &&
 		ImGui::GetFrameCount() >= pending_scene_selection_->earliest_frame) {
-		const auto& pending{ pending_scene_selection_.value() };
+		const auto& pending{
+			pending_scene_selection_.value()
+		};
 
 		auto it{ std::ranges::find_if(
 			scenes,
 			[&pending](const auto& scene) {
-				return scene && scene->GetTag() == pending.tag &&
+				return scene &&
+					   scene->GetTag() == pending.tag &&
 					   scene->IsRuntime() == pending.runtime;
 			}
 		) };
 
 		if (it != scenes.end()) {
-			path scene_path{ pending.scene_path };
+			auto pending_selection{
+				std::move(
+					pending_scene_selection_.value()
+				)
+			};
 			pending_scene_selection_.reset();
-			select_scene(it->get(), scene_path);
+
+			select_scene(
+				it->get(),
+				pending_selection.scene_path,
+				pending_selection.selected_entity_uuid
+			);
 		}
 	}
 
@@ -411,7 +455,8 @@ const path& SceneListPanel::GetSelectedScenePath() const {
 void SceneListPanel::QueueSceneSelection(
 	EditorContext& ctx,
 	std::string scene_tag,
-	bool runtime
+	bool runtime,
+	std::optional<UUID> selected_entity_uuid
 ) {
 	path scene_path;
 
@@ -425,6 +470,8 @@ void SceneListPanel::QueueSceneSelection(
 		.tag = std::move(scene_tag),
 		.runtime = runtime,
 		.scene_path = std::move(scene_path),
+		.selected_entity_uuid =
+			std::move(selected_entity_uuid),
 		.earliest_frame = ImGui::GetFrameCount() + 1,
 	};
 

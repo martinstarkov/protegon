@@ -4,6 +4,7 @@
 #include <string>
 
 #include "core/util/file.h"
+#include "runtime/ecs/uuid.h"
 #include "serialization/json/json.h"
 
 namespace ptgn {
@@ -29,18 +30,31 @@ public:
 	[[nodiscard]] Scene* GetSelectedScene() const;
 	[[nodiscard]] const path& GetSelectedScenePath() const;
 
-	void SetSelectedScene(EditorContext& ctx, Scene* scene, const path& scene_path = {});
+	void SetSelectedScene(
+		EditorContext& ctx,
+		Scene* scene,
+		const path& scene_path = {}
+	);
 
-	/// @brief Clears the current raw Scene pointer and selects the requested replacement once the
-	/// deferred SceneManager command has been applied.
-	void QueueSceneSelection(EditorContext& ctx, std::string scene_tag, bool runtime);
+	/// @brief Clears the current raw Scene and Entity handles, then selects the requested
+	/// replacement scene and restores the entity with the supplied UUID once the deferred
+	/// SceneManager command has been applied.
+	void QueueSceneSelection(
+		EditorContext& ctx,
+		std::string scene_tag,
+		bool runtime,
+		std::optional<UUID> selected_entity_uuid =
+			std::nullopt
+	);
 
 	bool ResolvePendingSceneSelection(EditorContext& ctx);
+
 private:
 	struct PendingSceneSelection {
 		std::string tag;
 		bool runtime{ false };
 		path scene_path;
+		std::optional<UUID> selected_entity_uuid;
 		int earliest_frame{ 0 };
 	};
 
@@ -49,7 +63,8 @@ private:
 	Scene* selected_scene_{ nullptr };
 	path selected_scene_path_;
 	std::optional<SceneEditorState> state_;
-	std::optional<PendingSceneSelection> pending_scene_selection_;
+	std::optional<PendingSceneSelection>
+		pending_scene_selection_;
 };
 
 } // namespace editor

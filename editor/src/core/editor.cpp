@@ -38,6 +38,7 @@
 #include "renderer/renderer.h"
 #include "renderer/resources/id.h"
 #include "runtime/asset/asset_manager.h"
+#include "runtime/ecs/uuid.h"
 #include "app/project.h"
 #include "runtime/scene/scene_file.h"
 #include "runtime/scene/scene_manager.h"
@@ -50,6 +51,26 @@ namespace {
 
 constexpr float kLeftColumnRatio{ 0.25f };
 constexpr float kRightColumnRatio{ 0.30f };
+
+[[nodiscard]] std::optional<UUID> GetSelectedEntityUUID(
+	const SceneHierarchyPanel& hierarchy,
+	const Scene* scene
+) {
+	if (!scene) {
+		return std::nullopt;
+	}
+
+	Entity selected_entity{
+		hierarchy.GetSelectedEntity()
+	};
+
+	if (!selected_entity ||
+		std::addressof(selected_entity.GetScene()) != scene) {
+		return std::nullopt;
+	}
+
+	return selected_entity.Get<UUID>();
+}
 
 void SaveProjectManifest(Application& app, Project& project) {
 	project.settings = GetProjectSettings(app);
@@ -756,6 +777,13 @@ void Editor::Play() {
 		return;
 	}
 
+	const auto selected_entity_uuid{
+		GetSelectedEntityUUID(
+			scene_hierarchy_panel_,
+			scene
+		)
+	};
+
 	play_snapshot_ = PlaySnapshot{
 		.scene_tag = scene->GetTag(),
 		.scene = CaptureScene(*scene),
@@ -783,7 +811,8 @@ void Editor::Play() {
 	scene_list_panel_.QueueSceneSelection(
 		*context_,
 		play_snapshot_->scene_tag,
-		true
+		true,
+		selected_entity_uuid
 	);
 
 	viewport_panel_.SetUseEditorCamera(false);
@@ -799,6 +828,13 @@ void Editor::Stop() {
 		!play_snapshot_) {
 		return;
 	}
+
+	const auto selected_entity_uuid{
+		GetSelectedEntityUUID(
+			scene_hierarchy_panel_,
+			scene_list_panel_.GetSelectedScene()
+		)
+	};
 
 	context_->local.selection.Clear();
 
@@ -839,7 +875,8 @@ void Editor::Stop() {
 	scene_list_panel_.QueueSceneSelection(
 		*context_,
 		scene_tag,
-		false
+		false,
+		selected_entity_uuid
 	);
 
 	viewport_panel_.SetUseEditorCamera(true);
