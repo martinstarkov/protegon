@@ -1012,6 +1012,26 @@ ApplicationState Editor::GetApplicationState() const {
 	return impl::ApplicationAccessor::ctx(app).state;
 }
 
+std::optional<path> Editor::GetProjectRoot() const {
+	const auto& app_context{
+		impl::ApplicationAccessor::ctx(app)
+	};
+
+	if (!app_context.project.has_value()) {
+		return std::nullopt;
+	}
+
+	const auto& project_path{
+		app_context.project->file_path
+	};
+
+	if (project_path.empty()) {
+		return std::nullopt;
+	}
+
+	return project_path.parent_path();
+}
+
 impl::TextureId Editor::GetPresentationTexture() const {
 	impl::RendererAccessor renderer{ impl::ApplicationAccessor::ctx(app).renderer };
 	auto texture{ renderer.GetPresentationTexture() };
@@ -1165,6 +1185,7 @@ void Editor::BuildDefaultDockLayout(std::uint32_t dockspace_id) {
 	ImGui::DockBuilderSplitNode(dock_main, ImGuiDir_Down, 0.25f, &dock_center_bottom, &dock_main);
 
 	ImGui::DockBuilderDockWindow("Scene Hierarchy###SceneHierarchyWindow", dock_left);
+	ImGui::DockBuilderDockWindow("Prefabs###PrefabsWindow", dock_left);
 	ImGui::DockBuilderDockWindow("Scenes", dock_left_bottom);
 
 	ImGui::DockBuilderDockWindow("Inspector", dock_right);

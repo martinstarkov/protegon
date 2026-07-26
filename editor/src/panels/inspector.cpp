@@ -37,7 +37,6 @@
 #include "panels/inspector_fields.h"
 #include "scripting/script_editor_registry.h"
 #include "panels/scene_hierarchy.h"
-#include "panels/scene_list.h"
 #include "renderer/pipeline/blend_mode.h"
 #include "renderer/pipeline/render_state.h"
 #include "renderer/text/text_layout.h"
@@ -78,7 +77,6 @@
 #include "runtime/scene/scene_context.h"
 #include "runtime/asset/asset_manager.h"
 #include "runtime/asset/prefab.h"
-#include "runtime/scripting/script.h"
 
 namespace ptgn::editor {
 
@@ -2450,8 +2448,12 @@ void DrawAddDrawableMenu(Entity entity, std::string_view label) {
 	ImGui::EndMenu();
 }
 
-bool DrawScaleValue(Entity entity, V2_float& scale, const FieldOptions& options) {
-	ImGui::PushID(entity.Get<UUID>());
+bool DrawScaleValue(
+	const void* owner_id,
+	V2_float& scale,
+	const FieldOptions& options
+) {
+	ImGui::PushID(owner_id);
 	ImGui::PushID("Scale");
 
 	ImGuiStorage* storage{ ImGui::GetStateStorage() };
@@ -2523,22 +2525,21 @@ bool DrawScaleValue(Entity entity, V2_float& scale, const FieldOptions& options)
 	return changed;
 }
 
-void DrawTransformComponent(EditorContext& ctx, Entity entity) {
-	auto& transform{ entity.TryAdd<Transform>() };
-	auto& depth{ entity.TryAdd<Depth>() };
-
+bool DrawTransformValues(
+	EditorContext& ctx,
+	Transform& transform,
+	Depth& depth,
+	const void* owner_id,
+	std::optional<std::string_view> read_only_reason = std::nullopt
+) {
 	ImGui::PushID(static_cast<int>(Hash<Transform>()));
 	bool open{ ImGui::CollapsingHeader("Transform", ImGuiTreeNodeFlags_DefaultOpen) };
 	ImGui::PopID();
 
 	if (!open) {
 		ImGui::Spacing();
-		return;
+		return false;
 	}
-
-	auto read_only_reason{ HasAnyComponent<
-		"Controlled by Button Visuals", ButtonBackgroundVisuals, ButtonBorderVisuals,
-		ButtonSpriteVisuals, ButtonTextVisuals>(entity) };
 
 	if (read_only_reason.has_value() && !read_only_reason->empty()) {
 		ImGui::TextDisabled(
@@ -2550,7 +2551,9 @@ void DrawTransformComponent(EditorContext& ctx, Entity entity) {
 
 	ReadOnlyScope read_only_scope{ read_only_reason.has_value() };
 
-	DrawValue(ctx,
+	bool changed{ false };
+
+	changed |= DrawValue(ctx,
 		"Position", transform.position,
 		FieldOptions{
 			.speed	= 1.0f,
@@ -2558,7 +2561,7 @@ void DrawTransformComponent(EditorContext& ctx, Entity entity) {
 		}
 	);
 
-	DrawValue(ctx,
+	changed |= DrawValue(ctx,
 		"Depth", depth.value,
 		FieldOptions{
 			.speed	= 0.05f,
@@ -2569,7 +2572,7 @@ void DrawTransformComponent(EditorContext& ctx, Entity entity) {
 		}
 	);
 
-	DrawValue(ctx,
+	changed |= DrawValue(ctx,
 		"Rotation", transform.rotation,
 		FieldOptions{
 			.speed	= 1.0f,
@@ -2581,7 +2584,7 @@ void DrawTransformComponent(EditorContext& ctx, Entity entity) {
 	);
 
 	if (DrawScaleValue(
-			entity, transform.scale,
+			owner_id, transform.scale,
 			FieldOptions{
 				.speed	= 0.01f,
 				.min	= -1000.0,
@@ -2591,9 +2594,28 @@ void DrawTransformComponent(EditorContext& ctx, Entity entity) {
 			}
 		)) {
 		transform.ClampScale();
+		changed = true;
 	}
 
 	ImGui::Unindent();
+	return changed;
+}
+
+bool DrawTransformComponent(EditorContext& ctx, Entity entity) {
+	auto& transform{ entity.TryAdd<Transform>() };
+	auto& depth{ entity.TryAdd<Depth>() };
+
+	auto read_only_reason{ HasAnyComponent<
+		"Controlled by Button Visuals", ButtonBackgroundVisuals, ButtonBorderVisuals,
+		ButtonSpriteVisuals, ButtonTextVisuals>(entity) };
+
+	return DrawTransformValues(
+		ctx,
+		transform,
+		depth,
+		std::addressof(entity.Get<UUID>()),
+		read_only_reason
+	);
 }
 
 } // namespace
@@ -3013,85 +3035,418 @@ PTGN_REGISTER_COMPONENT(
 				  }
 );
 
-
 namespace {
 
-struct PrefabAddMenuEntry {
-	const RegisteredComponent* component{ nullptr };
-	std::string label;
-	std::string group;
-};
-
-bool PrefabHasComponent(const PrefabEntity& entity, std::string_view type) {
-	return std::ranges::any_of(entity.components, [type](const PrefabComponent& component) {
-		return component.type == type;
-	});
+template <typename TRegistry = ComponentEditorRegistry>
+bool DrawRegisteredComponentJson(
+	EditorContext& ctx,
+	const RegisteredComponent& component,
+	json& value
+) {
+	if constexpr (requires {
+		TRegistry::DrawJson(ctx, component, value);
+	}) {
+		return TRegistry::DrawJson(ctx, component, value);
+	} else {
+		return TRegistry::DrawJson(component, value);
+	}
 }
 
-std::vector<PrefabAddMenuEntry> GetPrefabAddMenuEntries(const PrefabEntity& entity) {
-	std::vector<PrefabAddMenuEntry> entries;
-
-	for (const auto& component : ComponentRegistry::Components()) {
-		const auto* editor{ ComponentEditorRegistry::Find(component.type_id) };
-		if (!editor || !editor->draw_json || !component.make_default_json ||
-			!IsPrefabComponentSupported(component) || PrefabHasComponent(entity, component.name)) {
-			continue;
+PrefabComponent* FindPrefabComponent(
+	PrefabEntity& prefab,
+	std::string_view component_name
+) {
+	auto it{ std::ranges::find_if(
+		prefab.components,
+		[component_name](const PrefabComponent& component) {
+			return component.type == component_name;
 		}
+	) };
 
-		auto options{ ComponentEditorRegistry::Resolve(component, *editor) };
-		if (!options.addable) {
-			continue;
+	return it == prefab.components.end() ? nullptr : std::addressof(*it);
+}
+
+const PrefabComponent* FindPrefabComponent(
+	const PrefabEntity& prefab,
+	std::string_view component_name
+) {
+	auto it{ std::ranges::find_if(
+		prefab.components,
+		[component_name](const PrefabComponent& component) {
+			return component.type == component_name;
 		}
+	) };
 
-		entries.emplace_back(PrefabAddMenuEntry{
-			.component = &component,
-			.label = options.label,
-			.group = options.group,
-		});
+	return it == prefab.components.end() ? nullptr : std::addressof(*it);
+}
+
+bool HasPrefabComponent(
+	const PrefabEntity& prefab,
+	const RegisteredComponent& component
+) {
+	return FindPrefabComponent(prefab, component.name) != nullptr;
+}
+
+template <typename T>
+bool HasPrefabComponent(const PrefabEntity& prefab) {
+	const auto* component{ ComponentRegistry::Find<T>() };
+	return component && HasPrefabComponent(prefab, *component);
+}
+
+template <typename... T>
+bool HasAnyPrefabComponent(const PrefabEntity& prefab) {
+	return (HasPrefabComponent<T>(prefab) || ...);
+}
+
+void RemovePrefabComponent(
+	PrefabEntity& prefab,
+	std::string_view component_name
+) {
+	std::erase_if(
+		prefab.components,
+		[component_name](const PrefabComponent& component) {
+			return component.type == component_name;
+		}
+	);
+}
+
+PrefabComponent* AddDefaultPrefabComponent(
+	PrefabEntity& prefab,
+	const RegisteredComponent& component
+) {
+	if (!component.make_default_json ||
+		!IsPrefabComponentSupported(component) ||
+		HasPrefabComponent(prefab, component)) {
+		return nullptr;
 	}
 
-	std::ranges::sort(entries, [](const auto& lhs, const auto& rhs) {
-		if (lhs.group != rhs.group) {
-			return lhs.group < rhs.group;
-		}
-		return lhs.label < rhs.label;
-	});
-	return entries;
-}
+	json value = component.make_default_json();
 
-void AddPrefabComponent(PrefabEntity& entity, const PrefabAddMenuEntry& entry) {
-	json value = entry.component->make_default_json();
 	if (value.is_null()) {
 		value = json::object();
 	}
 
-	entity.components.emplace_back(PrefabComponent{
-		.type = std::string{ entry.component->name },
-		.value = std::move(value),
-	});
+	prefab.components.emplace_back(
+		PrefabComponent{
+			.type = std::string{ component.name },
+			.value = std::move(value),
+		}
+	);
+
+	return std::addressof(prefab.components.back());
 }
 
-bool DrawPrefabAddComponentMenu(PrefabEntity& entity) {
-	auto entries{ GetPrefabAddMenuEntries(entity) };
+template <typename T>
+PrefabComponent* EnsurePrefabComponent(
+	PrefabEntity& prefab,
+	bool& added
+) {
+	const auto* registration{ ComponentRegistry::Find<T>() };
+
+	if (!registration) {
+		return nullptr;
+	}
+
+	if (auto* component{ FindPrefabComponent(prefab, registration->name) }) {
+		return component;
+	}
+
+	auto* component{ AddDefaultPrefabComponent(prefab, *registration) };
+	added |= component != nullptr;
+	return component;
+}
+
+bool DrawPrefabTransformComponent(
+	EditorContext& ctx,
+	PrefabEntity& prefab
+) {
 	bool changed{ false };
 
-	for (const auto& entry : entries) {
-		if (!entry.group.empty()) {
+	auto* transform_component{
+		EnsurePrefabComponent<Transform>(prefab, changed)
+	};
+	auto* depth_component{
+		EnsurePrefabComponent<Depth>(prefab, changed)
+	};
+
+	if (!transform_component || !depth_component) {
+		return changed;
+	}
+
+	Transform transform{};
+	Depth depth{};
+
+	transform_component->value.get_to(transform);
+	depth_component->value.get_to(depth);
+
+	std::optional<std::string_view> read_only_reason;
+
+	if (HasAnyPrefabComponent<
+			ButtonBackgroundVisuals,
+			ButtonBorderVisuals,
+			ButtonSpriteVisuals,
+			ButtonTextVisuals
+		>(prefab)) {
+		read_only_reason = "Controlled by Button Visuals";
+	}
+
+	if (!DrawTransformValues(
+			ctx,
+			transform,
+			depth,
+			std::addressof(prefab),
+			read_only_reason
+		)) {
+		return changed;
+	}
+
+	transform_component->value = transform;
+	depth_component->value = depth;
+	return true;
+}
+
+struct PrefabComponentHeaderResult {
+	bool open{ false };
+	bool remove{ false };
+};
+
+PrefabComponentHeaderResult DrawPrefabComponentHeader(
+	const RegisteredComponent& component,
+	const ResolvedComponentEditorOptions& options
+) {
+	ImGui::PushID(static_cast<int>(component.type_id));
+
+	auto flags{
+		options.default_open
+			? ImGuiTreeNodeFlags_DefaultOpen
+			: ImGuiTreeNodeFlags_None
+	};
+
+	PrefabComponentHeaderResult result;
+	result.open = ImGui::CollapsingHeader(
+		options.label.c_str(),
+		flags
+	);
+
+	if (options.removable &&
+		ImGui::BeginPopupContextItem("ComponentContextMenu")) {
+		result.remove = ImGui::MenuItem("Remove Component");
+		ImGui::EndPopup();
+	}
+
+	ImGui::PopID();
+	return result;
+}
+
+bool DrawPrefabComponents(
+	EditorContext& ctx,
+	PrefabEntity& prefab,
+	bool draw_after_tags
+) {
+	bool changed{ false };
+
+	for (const auto& component : ComponentRegistry::Components()) {
+		if (component.type_id == Hash<Transform>() ||
+			component.type_id == Hash<Depth>()) {
 			continue;
 		}
 
-		if (ImGui::MenuItem(entry.label.c_str())) {
-			AddPrefabComponent(entity, entry);
+		const auto* editor{
+			ComponentEditorRegistry::Find(component.type_id)
+		};
+
+		if (!editor || component.is_empty) {
+			continue;
+		}
+
+		auto options{
+			ComponentEditorRegistry::Resolve(component, *editor)
+		};
+
+		if (options.draw_after_tags != draw_after_tags) {
+			continue;
+		}
+
+		auto* prefab_component{
+			FindPrefabComponent(prefab, component.name)
+		};
+
+		if (!prefab_component) {
+			continue;
+		}
+
+		auto header{
+			DrawPrefabComponentHeader(component, options)
+		};
+
+		if (header.remove) {
+			RemovePrefabComponent(prefab, component.name);
 			changed = true;
+			continue;
+		}
+
+		if (!header.open) {
+			ImGui::Spacing();
+			continue;
+		}
+
+		ImGui::Indent();
+
+		if (editor->draw_json) {
+			changed |= DrawRegisteredComponentJson(
+				ctx,
+				component,
+				prefab_component->value
+			);
+		} else {
+			ImGui::TextDisabled(
+				"This component does not support prefab editing."
+			);
+		}
+
+		ImGui::Unindent();
+	}
+
+	return changed;
+}
+
+bool DrawPrefabTagComponents(PrefabEntity& prefab) {
+	bool has_tags{ false };
+
+	for (const auto& component : ComponentRegistry::Components()) {
+		if (!component.is_empty ||
+			!HasPrefabComponent(prefab, component)) {
+			continue;
+		}
+
+		has_tags = true;
+		break;
+	}
+
+	if (!has_tags) {
+		return false;
+	}
+
+	if (!ImGui::CollapsingHeader(kTagComponentGroup.data())) {
+		ImGui::Spacing();
+		return false;
+	}
+
+	bool changed{ false };
+	ImGui::Indent();
+
+	for (const auto& component : ComponentRegistry::Components()) {
+		if (!component.is_empty ||
+			!HasPrefabComponent(prefab, component)) {
+			continue;
+		}
+
+		const auto* editor{
+			ComponentEditorRegistry::Find(component.type_id)
+		};
+
+		if (!editor) {
+			continue;
+		}
+
+		auto options{
+			ComponentEditorRegistry::Resolve(component, *editor)
+		};
+
+		ImGui::Spacing();
+		ImGui::PushID(static_cast<int>(component.type_id));
+		ImGui::Selectable(options.label.c_str(), false);
+
+		if (options.removable &&
+			ImGui::BeginPopupContextItem("TagComponentContextMenu")) {
+			if (ImGui::MenuItem("Remove Component")) {
+				RemovePrefabComponent(prefab, component.name);
+				changed = true;
+			}
+
+			ImGui::EndPopup();
+		}
+
+		ImGui::PopID();
+		ImGui::Spacing();
+	}
+
+	ImGui::Unindent();
+	return changed;
+}
+
+struct PrefabAddMenuEntry {
+	const RegisteredComponent* component{ nullptr };
+	ResolvedComponentEditorOptions options;
+};
+
+std::vector<PrefabAddMenuEntry> GetPrefabAddMenuEntries(
+	const PrefabEntity& prefab
+) {
+	std::vector<PrefabAddMenuEntry> entries;
+
+	for (const auto& component : ComponentRegistry::Components()) {
+		if (component.type_id == Hash<Transform>() ||
+			component.type_id == Hash<Depth>() ||
+			!component.make_default_json ||
+			!IsPrefabComponentSupported(component) ||
+			HasPrefabComponent(prefab, component)) {
+			continue;
+		}
+
+		const auto* editor{
+			ComponentEditorRegistry::Find(component.type_id)
+		};
+
+		if (!editor) {
+			continue;
+		}
+
+		auto options{
+			ComponentEditorRegistry::Resolve(component, *editor)
+		};
+
+		if (!options.addable) {
+			continue;
+		}
+
+		entries.emplace_back(
+			PrefabAddMenuEntry{
+				.component = std::addressof(component),
+				.options = std::move(options),
+			}
+		);
+	}
+
+	return entries;
+}
+
+bool DrawPrefabAddComponentMenu(PrefabEntity& prefab) {
+	auto entries{ GetPrefabAddMenuEntries(prefab) };
+	bool changed{ false };
+
+	for (const auto& entry : entries) {
+		if (!entry.options.group.empty()) {
+			continue;
+		}
+
+		if (ImGui::MenuItem(entry.options.label.c_str())) {
+			changed |= AddDefaultPrefabComponent(
+				prefab,
+				*entry.component
+			) != nullptr;
 		}
 	}
 
 	std::vector<std::string> groups;
+
 	for (const auto& entry : entries) {
-		if (entry.group.empty() || std::ranges::contains(groups, entry.group)) {
+		if (entry.options.group.empty() ||
+			std::ranges::contains(groups, entry.options.group)) {
 			continue;
 		}
-		groups.emplace_back(entry.group);
+
+		groups.emplace_back(entry.options.group);
 	}
 
 	for (const auto& group : groups) {
@@ -3100,9 +3455,15 @@ bool DrawPrefabAddComponentMenu(PrefabEntity& entity) {
 		}
 
 		for (const auto& entry : entries) {
-			if (entry.group == group && ImGui::MenuItem(entry.label.c_str())) {
-				AddPrefabComponent(entity, entry);
-				changed = true;
+			if (entry.options.group != group) {
+				continue;
+			}
+
+			if (ImGui::MenuItem(entry.options.label.c_str())) {
+				changed |= AddDefaultPrefabComponent(
+					prefab,
+					*entry.component
+				) != nullptr;
 			}
 		}
 
@@ -3112,128 +3473,139 @@ bool DrawPrefabAddComponentMenu(PrefabEntity& entity) {
 	return changed;
 }
 
-struct PrefabComponentDrawResult {
-	bool changed{ false };
-	bool remove{ false };
+struct EntityInspectorTarget {
+	Entity entity;
+
+	bool DrawName() {
+		auto name{ std::string{ entity.Get<Tag>() } };
+		bool changed{ ImGui::InputText("Name", &name) };
+
+		if (changed) {
+			entity.Add<Tag>(name);
+		}
+
+		return changed;
+	}
+
+	bool DrawTransform(EditorContext& ctx) {
+		return DrawTransformComponent(ctx, entity);
+	}
+
+	bool DrawComponents(EditorContext& ctx, bool draw_after_tags) {
+		ComponentEditorRegistry::DrawComponents(
+			ctx,
+			entity,
+			draw_after_tags
+		);
+		return false;
+	}
+
+	bool DrawTags() {
+		ComponentEditorRegistry::DrawTagComponents(entity);
+		return false;
+	}
+
+	bool DrawAddComponentMenu(EditorContext&) {
+		ComponentEditorRegistry::DrawAddComponentMenu(entity);
+		return false;
+	}
 };
 
-PrefabComponentDrawResult DrawPrefabComponent(EditorContext& ctx, PrefabComponent& component, std::size_t index) {
-	const RegisteredComponent* registration{ ComponentRegistry::Find(component.type) };
+struct PrefabInspectorTarget {
+	PrefabEntity& prefab;
 
-	ImGui::PushID(static_cast<int>(index));
-
-	std::string label{ component.type.empty() ? "Unknown Component" : component.type };
-	bool removable{ true };
-	if (registration) {
-		if (const auto* editor{ ComponentEditorRegistry::Find(registration->type_id) }) {
-			auto options{ ComponentEditorRegistry::Resolve(*registration, *editor) };
-			label = options.label;
-			removable = options.removable;
-		}
+	bool DrawName() {
+		return ImGui::InputText("Name", &prefab.tag);
 	}
 
-	bool open{ ImGui::TreeNodeEx(
-		"##PrefabComponent", ImGuiTreeNodeFlags_DefaultOpen | ImGuiTreeNodeFlags_SpanAvailWidth,
-		"%s", label.c_str()
-	) };
-
-	ImGui::SameLine();
-	PrefabComponentDrawResult result;
-	ImGui::BeginDisabled(!removable);
-	result.remove = ImGui::SmallButton("x");
-	ImGui::EndDisabled();
-
-	if (open) {
-		if (registration) {
-			result.changed = ComponentEditorRegistry::DrawJson(ctx, *registration, component.value);
-		} else {
-			ImGui::TextDisabled("This component type is not currently registered.");
-		}
-		ImGui::TreePop();
+	bool DrawTransform(EditorContext& ctx) {
+		return DrawPrefabTransformComponent(ctx, prefab);
 	}
 
-	ImGui::PopID();
-	return result;
-}
-
-bool DrawPrefabEntityInspector(EditorContext& ctx, PrefabEntity& entity, std::string_view heading, std::size_t depth) {
-	ImGui::PushID(static_cast<int>(depth));
-	bool open{ depth == 0 || ImGui::TreeNodeEx(
-		"##PrefabEntity", ImGuiTreeNodeFlags_DefaultOpen | ImGuiTreeNodeFlags_SpanAvailWidth,
-		"%.*s", static_cast<int>(heading.size()), heading.data()
-	) };
-	bool changed{ false };
-
-	if (open) {
-		changed |= ImGui::InputText("Tag", &entity.tag);
-
-		for (std::size_t i{ 0 }; i < entity.components.size();) {
-			auto result{ DrawPrefabComponent(ctx, entity.components[i], i) };
-			if (result.remove) {
-				entity.components.erase(entity.components.begin() + static_cast<std::ptrdiff_t>(i));
-				changed = true;
-				continue;
-			}
-
-			changed |= result.changed;
-			++i;
-		}
-
-		if (ImGui::Button("Add Component", ImVec2{ -1.0f, 0.0f })) {
-			ImGui::OpenPopup("AddPrefabComponentPopup");
-		}
-
-		if (ImGui::BeginPopup("AddPrefabComponentPopup")) {
-			changed |= DrawPrefabAddComponentMenu(entity);
-			ImGui::EndPopup();
-		}
-
-		if (!entity.children.empty() && ImGui::TreeNodeEx("Children", ImGuiTreeNodeFlags_DefaultOpen)) {
-			for (std::size_t i{ 0 }; i < entity.children.size(); ++i) {
-				auto child_heading{ entity.children[i].tag.empty()
-					? std::string{ "Child " } + std::to_string(i + 1)
-					: entity.children[i].tag };
-				changed |= DrawPrefabEntityInspector(ctx, entity.children[i], child_heading, depth + i + 1);
-			}
-			ImGui::TreePop();
-		}
-
-		if (depth != 0) {
-			ImGui::TreePop();
-		}
+	bool DrawComponents(EditorContext& ctx, bool draw_after_tags) {
+		return DrawPrefabComponents(
+			ctx,
+			prefab,
+			draw_after_tags
+		);
 	}
 
-	ImGui::PopID();
+	bool DrawTags() {
+		return DrawPrefabTagComponents(prefab);
+	}
+
+	bool DrawAddComponentMenu(EditorContext&) {
+		return DrawPrefabAddComponentMenu(prefab);
+	}
+};
+
+template <typename TTarget>
+bool DrawInspectorContents(
+	EditorContext& ctx,
+	TTarget& target
+) {
+	bool changed{ target.DrawName() };
+
+	ImGui::Separator();
+
+	changed |= target.DrawTransform(ctx);
+	changed |= target.DrawComponents(ctx, false);
+	changed |= target.DrawTags();
+	changed |= target.DrawComponents(ctx, true);
+
+	ImGui::Separator();
+
+	if (ImGui::Button(
+			"Add Component",
+			ImVec2{ -1.0f, 0.0f }
+		)) {
+		ImGui::OpenPopup("AddComponentPopup");
+	}
+
+	if (ImGui::BeginPopup("AddComponentPopup")) {
+		changed |= target.DrawAddComponentMenu(ctx);
+		ImGui::EndPopup();
+	}
+
 	return changed;
 }
 
 } // namespace
 
-void DrawPrefabInspector(EditorContext& ctx, Scene& scene, const PrefabKey& key) {
-	auto& assets{ scene.ctx().asset };
+void DrawEntityInspector(EditorContext& ctx, Entity entity) {
+	EntityInspectorTarget target{
+		.entity = entity,
+	};
+
+	(void)DrawInspectorContents(ctx, target);
+}
+
+void DrawPrefabInspector(
+	EditorContext& ctx,
+	const PrefabKey& key
+) {
+	auto& assets{ ctx.editor.GetAssetManager() };
+
 	if (!assets.Has(key)) {
 		ImGui::TextDisabled("Prefab is not currently loaded.");
 		return;
 	}
 
-	auto prefab_asset{ ::ptgn::impl::AssetAccessor{ assets }.Get<Prefab>(key) };
+	auto prefab_asset{
+		::ptgn::impl::AssetAccessor{ assets }.Get<Prefab>(key)
+	};
 	auto& prefab{ prefab_asset.get() };
 
-	ImGui::TextUnformatted("Prefab");
-	ImGui::SameLine();
-	ImGui::TextDisabled("%s", key.value.c_str());
+	PrefabInspectorTarget target{
+		.prefab = prefab.root,
+	};
 
-	auto source_path{ assets.GetPrefabPath(key) };
-	if (!source_path.empty()) {
-		ImGui::TextDisabled("%s", source_path.generic_string().c_str());
+	if (!DrawInspectorContents(ctx, target)) {
+		return;
 	}
 
-	ImGui::Separator();
-
-	if (DrawPrefabEntityInspector(ctx, prefab.root, "Root", 0)) {
-		assets.SavePrefab(key);
-		ctx.local.state.is_dirty = true;
-	}
+	assets.SavePrefab(key);
+	ctx.local.state.is_dirty = true;
 }
 
 } // namespace inspector
@@ -3241,45 +3613,24 @@ void DrawPrefabInspector(EditorContext& ctx, Scene& scene, const PrefabKey& key)
 void InspectorPanel::OnRender(EditorContext& ctx) {
 	ImGui::Begin("Inspector");
 
-	auto& scene_hierarchy{ ctx.editor.GetSceneHierarchyPanel() };
+	auto& hierarchy{
+		ctx.editor.GetSceneHierarchyPanel()
+	};
 
-	if (const auto& selected_prefab{ scene_hierarchy.GetSelectedPrefab() };
+	if (const auto& selected_prefab{
+			hierarchy.GetSelectedPrefab()
+		};
 		selected_prefab.has_value()) {
-		if (auto* scene{ ctx.editor.GetSceneListPanel().GetSelectedScene() }) {
-			inspector::DrawPrefabInspector(ctx, *scene, selected_prefab.value());
-		}
+		inspector::DrawPrefabInspector(
+			ctx,
+			selected_prefab.value()
+		);
 		ImGui::End();
 		return;
 	}
 
-	auto selected_entity{ scene_hierarchy.GetSelectedEntity() };
-
-	if (!selected_entity) {
-		ImGui::End();
-		return;
-	}
-
-	auto name{ std::string{ selected_entity.Get<Tag>() } };
-	if (ImGui::InputText("Name", &name)) {
-		selected_entity.Add<Tag>(name);
-	}
-
-	ImGui::Separator();
-
-	inspector::DrawTransformComponent(ctx, selected_entity);
-	ComponentEditorRegistry::DrawComponents(ctx, selected_entity);
-	ComponentEditorRegistry::DrawTagComponents(selected_entity);
-	ComponentEditorRegistry::DrawComponents(ctx, selected_entity, true);
-
-	ImGui::Separator();
-
-	if (ImGui::Button("Add Component", ImVec2{ -1.0f, 0.0f })) {
-		ImGui::OpenPopup("AddComponentPopup");
-	}
-
-	if (ImGui::BeginPopup("AddComponentPopup")) {
-		ComponentEditorRegistry::DrawAddComponentMenu(selected_entity);
-		ImGui::EndPopup();
+	if (auto entity{ hierarchy.GetSelectedEntity() }) {
+		inspector::DrawEntityInspector(ctx, entity);
 	}
 
 	ImGui::End();

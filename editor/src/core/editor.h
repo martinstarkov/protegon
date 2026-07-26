@@ -112,6 +112,8 @@ public:
 	bool IsPlaying() const;
 	bool IsPaused() const;
 
+	std::optional<path> GetProjectRoot() const;
+
 private:
 	struct PlaySnapshot {
 		std::string scene_tag;
