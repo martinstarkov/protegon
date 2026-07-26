@@ -1,9 +1,11 @@
 #include "runtime/scene/scene_manager.h"
 
 #include <algorithm>
+#include <cstddef>
 #include <functional>
 #include <limits>
 #include <memory>
+#include <ranges>
 #include <string>
 #include <string_view>
 #include <unordered_map>
@@ -57,6 +59,131 @@ bool SceneManager::ReEnterFactory(std::string_view scene_tag, SceneFactory scene
 		std::move(scene_factory), nullptr, nullptr
 	);
 	return true;
+}
+
+bool SceneManager::RenameScene(
+	std::string_view current_key,
+	std::string_view new_key
+) {
+	if (current_key.empty() || new_key.empty()) {
+		return false;
+	}
+
+	const auto current_hash{ Hash(current_key) };
+	const auto new_hash{ Hash(new_key) };
+
+	if (!HasScene(current_hash)) {
+		return false;
+	}
+
+	if (current_hash == new_hash) {
+		auto& scene{ GetScene(current_hash) };
+		scene.data_.tag = std::string{ new_key };
+		return true;
+	}
+
+	if (HasScene(new_hash) ||
+		!CanIssueCommands(current_hash)) {
+		return false;
+	}
+
+	for (const auto& command : commands_) {
+		if (command.to_scene_tag_hash == current_hash ||
+			command.to_scene_tag_hash == new_hash) {
+			return false;
+		}
+	}
+
+	auto& scene{ GetScene(current_hash) };
+	scene.data_.tag = std::string{ new_key };
+	scene.data_.tag_hash = new_hash;
+
+	for (auto& reentering : reentering_scenes_) {
+		if (reentering.scene_tag_hash == current_hash) {
+			reentering.scene_tag_hash = new_hash;
+		}
+	}
+
+	return true;
+}
+
+bool SceneManager::MoveScene(
+	std::size_t from_index,
+	std::size_t to_index
+) {
+	if (from_index >= scenes_.size() ||
+		to_index >= scenes_.size()) {
+		return false;
+	}
+
+	if (from_index == to_index) {
+		return true;
+	}
+
+	if (from_index < to_index) {
+		std::rotate(
+			scenes_.begin() + static_cast<std::ptrdiff_t>(from_index),
+			scenes_.begin() + static_cast<std::ptrdiff_t>(from_index + 1),
+			scenes_.begin() + static_cast<std::ptrdiff_t>(to_index + 1)
+		);
+	} else {
+		std::rotate(
+			scenes_.begin() + static_cast<std::ptrdiff_t>(to_index),
+			scenes_.begin() + static_cast<std::ptrdiff_t>(from_index),
+			scenes_.begin() + static_cast<std::ptrdiff_t>(from_index + 1)
+		);
+	}
+
+	return true;
+}
+
+void SceneManager::ReorderScenes(
+	std::span<const std::string> ordered_keys,
+	bool runtime
+) {
+	std::unordered_map<std::string_view, std::size_t> order;
+	order.reserve(ordered_keys.size());
+
+	for (std::size_t index{ 0 }; index < ordered_keys.size(); ++index) {
+		order.emplace(ordered_keys[index], index);
+	}
+
+	std::vector<std::size_t> matching_slots;
+	std::vector<std::unique_ptr<Scene>> matching_scenes;
+
+	for (std::size_t index{ 0 }; index < scenes_.size(); ++index) {
+		if (scenes_[index] &&
+			scenes_[index]->IsRuntime() == runtime) {
+			matching_slots.emplace_back(index);
+			matching_scenes.emplace_back(std::move(scenes_[index]));
+		}
+	}
+
+	std::ranges::stable_sort(
+		matching_scenes,
+		[&order](const auto& a, const auto& b) {
+			const auto a_it{ order.find(a->GetTag()) };
+			const auto b_it{ order.find(b->GetTag()) };
+
+			const auto a_order{
+				a_it == order.end()
+					? std::numeric_limits<std::size_t>::max()
+					: a_it->second
+			};
+			const auto b_order{
+				b_it == order.end()
+					? std::numeric_limits<std::size_t>::max()
+					: b_it->second
+			};
+
+			return a_order < b_order;
+		}
+	);
+
+	for (std::size_t index{ 0 }; index < matching_slots.size(); ++index) {
+		scenes_[matching_slots[index]] =
+			std::move(matching_scenes[index]);
+	}
 }
 
 std::unordered_map<std::size_t, SceneManager::Command> SceneManager::GetTopPriorityCommands() {

@@ -37,10 +37,15 @@ bool SaveBootstrapProjectScene(
 } // namespace impl
 
 struct ProjectSceneEntry {
-	std::string tag;
+	/// @brief Unique project scene identifier used by scene transitions and runtime scene tags.
+	std::string key;
+
+	/// @brief Non-unique editor-facing label.
+	std::string display_name;
+
 	path scene_path;
 
-	PTGN_REFLECT(ProjectSceneEntry, tag, scene_path)
+	PTGN_REFLECT(ProjectSceneEntry, key, display_name, scene_path)
 };
 
 struct Project {
@@ -50,10 +55,10 @@ struct Project {
 	/// This is runtime state and is intentionally not serialized.
 	path file_path;
 
-	/// @brief Project relative path of the scene used for runtime startup.
-	path startup_scene;
+	/// @brief Key of the project scene used for direct runtime startup.
+	std::string startup_scene_key;
 
-	/// @brief Every serialized scene belonging to the project.
+	/// @brief Every serialized scene belonging to the project, in editor/runtime ordering.
 	std::vector<ProjectSceneEntry> scenes;
 
 	/// @brief Complete path asset catalog known to the project.
@@ -68,7 +73,7 @@ struct Project {
 	PTGN_REFLECT(
 		Project,
 		name,
-		startup_scene,
+		startup_scene_key,
 		scenes,
 		assets,
 		preload_assets,
@@ -76,7 +81,7 @@ struct Project {
 	)
 };
 
-/// @brief Loads a project, using default_settings for fields missing from older manifests.
+/// @brief Loads a project, using default_settings for fields missing from the manifest.
 Project LoadProject(
 	const path& file_path,
 	const ProjectSettings& default_settings = {}
@@ -92,12 +97,12 @@ void SaveProject(const Project& project);
 
 ProjectSceneEntry* FindProjectScene(
 	Project& project,
-	std::string_view scene_tag
+	std::string_view scene_key
 );
 
 const ProjectSceneEntry* FindProjectScene(
 	const Project& project,
-	std::string_view scene_tag
+	std::string_view scene_key
 );
 
 const ProjectSceneEntry& GetStartupProjectScene(

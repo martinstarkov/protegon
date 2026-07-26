@@ -3,9 +3,9 @@
 #include <algorithm>
 #include <filesystem>
 #include <ranges>
-#include <fstream>
 #include <span>
 #include <string>
+#include <string_view>
 #include <utility>
 #include <vector>
 
@@ -32,10 +32,23 @@ namespace {
 		   b.lexically_normal().generic_string();
 }
 
+[[nodiscard]] std::string TypeNameWithoutNamespaces(
+	std::string_view type
+) {
+	if (type == impl::kBaseSceneType) {
+		return "Scene";
+	}
+
+	const auto separator{ type.rfind("::") };
+	return separator == std::string_view::npos
+		? std::string{ type }
+		: std::string{ type.substr(separator + 2) };
+}
+
 void ValidateProject(const Project& project) {
 	PTGN_ASSERT(
-		!project.startup_scene.empty(),
-		"Project startup scene path cannot be empty"
+		!project.startup_scene_key.empty(),
+		"Project startup scene key cannot be empty"
 	);
 
 	PTGN_ASSERT(
@@ -47,23 +60,29 @@ void ValidateProject(const Project& project) {
 		const auto& scene{ project.scenes[i] };
 
 		PTGN_ASSERT(
-			!scene.tag.empty(),
-			"Project scene tag cannot be empty"
+			!scene.key.empty(),
+			"Project scene key cannot be empty"
+		);
+
+		PTGN_ASSERT(
+			!scene.display_name.empty(),
+			"Project scene display name cannot be empty: ",
+			scene.key
 		);
 
 		PTGN_ASSERT(
 			!scene.scene_path.empty(),
 			"Project scene path cannot be empty: ",
-			scene.tag
+			scene.key
 		);
 
 		for (std::size_t j{ i + 1 }; j < project.scenes.size(); ++j) {
 			const auto& other{ project.scenes[j] };
 
 			PTGN_ASSERT(
-				scene.tag != other.tag,
-				"Duplicate project scene tag: ",
-				scene.tag
+				scene.key != other.key,
+				"Duplicate project scene key: ",
+				scene.key
 			);
 
 			PTGN_ASSERT(
@@ -74,20 +93,13 @@ void ValidateProject(const Project& project) {
 		}
 	}
 
-	bool startup_scene_exists{ std::ranges::any_of(
-		project.scenes,
-		[&project](const ProjectSceneEntry& scene) {
-			return ScenePathsEqual(
-				scene.scene_path,
-				project.startup_scene
-			);
-		}
-	) };
-
 	PTGN_ASSERT(
-		startup_scene_exists,
-		"Project startup scene is not present in the project scene list: ",
-		project.startup_scene.string()
+		FindProjectScene(
+			project,
+			project.startup_scene_key
+		),
+		"Project startup scene key is not present in the project scene list: ",
+		project.startup_scene_key
 	);
 }
 
@@ -115,7 +127,6 @@ bool SaveProjectScenes(
 	std::vector<PendingSceneWrite> writes;
 	writes.reserve(scenes.size());
 
-	// Capture and validate every scene before modifying any files.
 	for (const Scene* scene : scenes) {
 		if (!scene || scene->IsRuntime()) {
 			return false;
@@ -145,8 +156,6 @@ bool SaveProjectScenes(
 		app_context.assets.GetProjectAssetDependencies();
 	project.settings = GetProjectSettings(app);
 
-	// Catalog descriptors and project settings must exist before scene dependency keys
-	// are written to their scene files.
 	SaveProject(project);
 
 	for (const auto& write : writes) {
@@ -212,11 +221,12 @@ Project CreateProject(
 	Project project{
 		.name = file_path.stem().string(),
 		.file_path = file_path,
-		.startup_scene =
-			path{ "Scenes" } / "Main.ptgnscene",
+		.startup_scene_key = "Main",
 		.scenes = {
 			ProjectSceneEntry{
-				.tag = "Main",
+				.key = "Main",
+				.display_name =
+					TypeNameWithoutNamespaces(default_scene.type),
 				.scene_path =
 					path{ "Scenes" } /
 					"Main.ptgnscene",
@@ -225,8 +235,6 @@ Project CreateProject(
 		.settings = std::move(settings),
 	};
 
-	// Write the scene before the manifest so the project never points
-	// at a scene file which does not exist.
 	SaveSceneFile(
 		GetStartupScenePath(project),
 		SerializedScene{
@@ -252,12 +260,12 @@ void SaveProject(const Project& project) {
 
 ProjectSceneEntry* FindProjectScene(
 	Project& project,
-	std::string_view scene_tag
+	std::string_view scene_key
 ) {
 	auto it{ std::ranges::find_if(
 		project.scenes,
-		[scene_tag](const ProjectSceneEntry& scene) {
-			return scene.tag == scene_tag;
+		[scene_key](const ProjectSceneEntry& scene) {
+			return scene.key == scene_key;
 		}
 	) };
 
@@ -268,12 +276,12 @@ ProjectSceneEntry* FindProjectScene(
 
 const ProjectSceneEntry* FindProjectScene(
 	const Project& project,
-	std::string_view scene_tag
+	std::string_view scene_key
 ) {
 	auto it{ std::ranges::find_if(
 		project.scenes,
-		[scene_tag](const ProjectSceneEntry& scene) {
-			return scene.tag == scene_tag;
+		[scene_key](const ProjectSceneEntry& scene) {
+			return scene.key == scene_key;
 		}
 	) };
 
@@ -285,23 +293,20 @@ const ProjectSceneEntry* FindProjectScene(
 const ProjectSceneEntry& GetStartupProjectScene(
 	const Project& project
 ) {
-	auto it{ std::ranges::find_if(
-		project.scenes,
-		[&project](const ProjectSceneEntry& scene) {
-			return ScenePathsEqual(
-				scene.scene_path,
-				project.startup_scene
-			);
-		}
-	) };
+	const auto* scene{
+		FindProjectScene(
+			project,
+			project.startup_scene_key
+		)
+	};
 
 	PTGN_ASSERT(
-		it != project.scenes.end(),
-		"Project startup scene is missing from scene list: ",
-		project.startup_scene.string()
+		scene,
+		"Project startup scene key is missing from scene list: ",
+		project.startup_scene_key
 	);
 
-	return *it;
+	return *scene;
 }
 
 path GetProjectScenePath(

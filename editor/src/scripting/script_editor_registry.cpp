@@ -16,6 +16,9 @@
 #include <limits>
 #include <vector>
 
+#include "app/project.h"
+#include "core/editor.h"
+#include "core/editor_context.h"
 #include "core/event/key_event.h"
 #include "core/event/mouse_event.h"
 #include "core/input/key.h"
@@ -883,131 +886,69 @@ bool DrawSetEnabledInline(ScriptEditorContext&, SetEnabledScript& script) {
 	return changed;
 }
 
-void ResetSceneParameters(SceneChangeScript& script) {
-	const auto it{ ::ptgn::impl::GetSceneRegistry().find(script.scene_type) };
-	if (it == ::ptgn::impl::GetSceneRegistry().end() || !it->second.default_parameters) {
-		script.scene_parameters = json::object();
-		return;
-	}
-	script.scene_parameters = it->second.default_parameters();
-}
-
-bool DrawJsonValue(const char* label, json& value) {
-	bool changed{ false };
-	if (value.is_boolean()) {
-		bool current{ value.get<bool>() };
-		if (ImGui::Checkbox(label, &current)) {
-			value	= current;
-			changed = true;
-		}
-	} else if (value.is_number_integer()) {
-		int current{ value.get<int>() };
-		if (ImGui::InputInt(label, &current)) {
-			value	= current;
-			changed = true;
-		}
-	} else if (value.is_number_float()) {
-		float current{ value.get<float>() };
-		if (ImGui::InputFloat(label, &current)) {
-			value	= current;
-			changed = true;
-		}
-	} else if (value.is_string()) {
-		std::string current{ value.get<std::string>() };
-		if (ImGui::InputText(label, &current)) {
-			value	= std::move(current);
-			changed = true;
-		}
-	} else if (value.is_object()) {
-		if (ImGui::TreeNode(label)) {
-			for (auto it{ value.begin() }; it != value.end(); ++it) {
-				changed |= DrawJsonValue(it.key().c_str(), it.value());
-			}
-			ImGui::TreePop();
-		}
-	} else if (value.is_array()) {
-		if (ImGui::TreeNode(label)) {
-			for (std::size_t i{ 0 }; i < value.size(); ++i) {
-				const std::string item{ "[" + std::to_string(i) + "]" };
-				changed |= DrawJsonValue(item.c_str(), value[i]);
-			}
-			ImGui::TreePop();
-		}
-	} else {
-		ImGui::TextDisabled("%s: unsupported", label);
-	}
-	return changed;
-}
-
 struct ProjectSceneChoice {
-	std::string tag;
+	std::string key;
 	std::string label;
 };
 
-[[nodiscard]] std::vector<ProjectSceneChoice> GetProjectSceneChoices(
+[[nodiscard]] std::vector<ProjectSceneChoice>
+GetProjectSceneChoices(
 	ScriptEditorContext& context
 ) {
 	std::vector<ProjectSceneChoice> choices;
 
-	for (const auto& scene :
-		 context.ctx.editor.GetSceneManager().GetScenes()) {
-		if (!scene || scene->IsRuntime()) {
-			continue;
-		}
+	const auto* project{
+		context.ctx.editor.GetProject()
+	};
 
-		std::string label{ scene->GetTag() };
-		const auto type{ scene->GetRegisteredType() };
-
-		if (!type.empty()) {
-			const auto& registry{
-				::ptgn::impl::GetSceneRegistry()
-			};
-			const auto it{ registry.find(type) };
-
-			if (it != registry.end() &&
-				it->second.display_name != label) {
-				label += " (";
-				label += it->second.display_name;
-				label += ')';
-			}
-		}
-
-		choices.emplace_back(ProjectSceneChoice{
-			.tag = scene->GetTag(),
-			.label = std::move(label),
-		});
+	if (!project) {
+		return choices;
 	}
 
-	std::ranges::sort(
-		choices,
-		[](const auto& a, const auto& b) {
-			return a.tag < b.tag;
-		}
-	);
+	choices.reserve(project->scenes.size());
+
+	for (const auto& entry :
+		 project->scenes) {
+		choices.emplace_back(
+			ProjectSceneChoice{
+				.key = entry.key,
+				.label =
+					entry.display_name +
+					" [" + entry.key + "]",
+			}
+		);
+	}
 
 	return choices;
 }
 
-[[nodiscard]] std::string GetSceneSourcePreview(
+[[nodiscard]] std::string
+GetProjectScenePreview(
+	ScriptEditorContext& context,
 	const SceneChangeScript& script
 ) {
-	if (!script.project_scene_tag.empty()) {
-		return script.project_scene_tag;
-	}
-
-	const auto& registry{
-		::ptgn::impl::GetSceneRegistry()
-	};
-	const auto selected{
-		registry.find(script.scene_type)
+	const auto choices{
+		GetProjectSceneChoices(context)
 	};
 
-	return selected != registry.end()
-		? selected->second.display_name
-		: "Select Scene Source";
+	const auto it{
+		std::ranges::find_if(
+			choices,
+			[&script](
+				const ProjectSceneChoice& choice
+			) {
+				return choice.key ==
+					   script.scene_key;
+			}
+		)
+	};
+
+	return it == choices.end()
+		? std::string{ "Select Project Scene" }
+		: it->label;
 }
 
-bool DrawSceneSourceCombo(
+bool DrawProjectSceneCombo(
 	const char* label,
 	ScriptEditorContext& context,
 	SceneChangeScript& script
@@ -1016,46 +957,45 @@ bool DrawSceneSourceCombo(
 		GetProjectSceneChoices(context)
 	};
 	const std::string preview{
-		GetSceneSourcePreview(script)
+		GetProjectScenePreview(
+			context,
+			script
+		)
 	};
 
 	bool changed{ false };
 
-	if (!ImGui::BeginCombo(label, preview.c_str())) {
+	if (!ImGui::BeginCombo(
+			label,
+			preview.c_str()
+		)) {
 		return false;
 	}
 
-	if (ImGui::Selectable(
-			"Registered Scene Type",
-			script.project_scene_tag.empty()
-		)) {
-		script.project_scene_tag.clear();
-		changed = true;
+	if (choices.empty()) {
+		ImGui::TextDisabled(
+			"No project scenes"
+		);
 	}
 
-	if (!choices.empty()) {
-		ImGui::SeparatorText("Project Scenes");
-	}
-
-	for (const auto& choice : choices) {
-		if (!ImGui::Selectable(
+	for (const auto& choice :
+		 choices) {
+		if (ImGui::Selectable(
 				choice.label.c_str(),
-				script.project_scene_tag == choice.tag
+				script.scene_key ==
+					choice.key
 			)) {
-			continue;
+			script.scene_key =
+				choice.key;
+			changed = true;
 		}
-
-		script.project_scene_tag = choice.tag;
-		script.scene_type.clear();
-		script.scene_parameters = json::object();
-		changed = true;
 	}
 
 	ImGui::EndCombo();
 	return changed;
 }
 
-bool DrawSceneChangeInline(
+bool DrawSceneChangeActionAndKey(
 	ScriptEditorContext& context,
 	SceneChangeScript& script
 ) {
@@ -1066,12 +1006,17 @@ bool DrawSceneChangeInline(
 		ImGui::GetStyle().ItemSpacing.x
 	};
 	const float action_width{
-		std::max(90.0f, available * 0.35f)
+		std::max(
+			90.0f,
+			available * 0.35f
+		)
 	};
 
 	bool changed{ false };
 
-	ImGui::SetNextItemWidth(action_width);
+	ImGui::SetNextItemWidth(
+		action_width
+	);
 
 	if (ImGui::BeginCombo(
 			"##SceneAction",
@@ -1081,9 +1026,11 @@ bool DrawSceneChangeInline(
 			 kSceneActions) {
 			if (ImGui::Selectable(
 					label,
-					candidate == script.action
+					candidate ==
+						script.action
 				)) {
-				script.action = candidate;
+				script.action =
+					candidate;
 				changed = true;
 			}
 		}
@@ -1092,28 +1039,33 @@ bool DrawSceneChangeInline(
 	}
 
 	SameLineControl();
+
 	ImGui::SetNextItemWidth(
 		std::max(
 			1.0f,
-			available - action_width - spacing
+			available -
+				action_width -
+				spacing
 		)
 	);
 
-	if (script.action == SceneChangeAction::Exit) {
-		changed |= ImGui::InputTextWithHint(
-			"##RuntimeSceneTag",
-			"Runtime scene tag",
-			&script.scene_tag
-		);
-	} else {
-		changed |= DrawSceneSourceCombo(
-			"##SceneSource",
-			context,
-			script
-		);
-	}
+	changed |= DrawProjectSceneCombo(
+		"##ProjectSceneKey",
+		context,
+		script
+	);
 
 	return changed;
+}
+
+bool DrawSceneChangeInline(
+	ScriptEditorContext& context,
+	SceneChangeScript& script
+) {
+	return DrawSceneChangeActionAndKey(
+		context,
+		script
+	);
 }
 
 bool DrawSceneChange(
@@ -1121,127 +1073,101 @@ bool DrawSceneChange(
 	SceneChangeScript& script
 ) {
 	bool changed{
-		DrawNamedEnumCombo(
-			"Action",
-			script.action,
-			kSceneActions
+		DrawSceneChangeActionAndKey(
+			context,
+			script
 		)
 	};
 
-	changed |= ImGui::InputTextWithHint(
-		"Runtime Scene Tag",
-		"Empty reuses the current scene tag",
-		&script.scene_tag
-	);
-	DrawItemTooltip(
-		"The active runtime instance tag. This is separate from the project scene used as its source."
-	);
-
-	if (script.action != SceneChangeAction::Exit) {
-		changed |= DrawSceneSourceCombo(
-			"Scene Source",
-			context,
-			script
-		);
-		DrawItemTooltip(
-			"Project scenes load their saved .ptgnscene contents. Registered scene types construct code-only defaults."
-		);
-
-		if (script.project_scene_tag.empty()) {
-			std::vector<
-				const ::ptgn::impl::SceneRegistryEntry*
-			> entries;
-
-			for (const auto& [type, entry] :
-				 ::ptgn::impl::GetSceneRegistry()) {
-				(void)type;
-				entries.push_back(&entry);
-			}
-
-
-
-
-			std::ranges::sort(
-				entries,
-				[](const auto* a, const auto* b) {
-					return a->display_name <
-						b->display_name;
-				}
-			);
-
-			const auto selected{
-				::ptgn::impl::GetSceneRegistry().find(
-					script.scene_type
-				)
-			};
-			const char* preview{
-				selected !=
-					::ptgn::impl::GetSceneRegistry().end()
-					? selected->second.display_name.c_str()
-					: "Select Scene Type"
-			};
-
-			if (ImGui::BeginCombo(
-					"Scene Type",
-					preview
-				)) {
-				for (const auto* entry : entries) {
-					if (ImGui::Selectable(
-							entry->display_name.c_str(),
-							script.scene_type == entry->type
-						)) {
-						script.scene_type = entry->type;
-						ResetSceneParameters(script);
-						changed = true;
-					}
-				}
-
-				ImGui::EndCombo();
-			}
-
-			if (!script.scene_parameters.empty()) {
-				changed |= DrawJsonValue(
-					"Scene Parameters",
-					script.scene_parameters
-				);
-			}
-		}
-	}
-
 	changed |= DrawNamedEnumCombo(
-		"Transition", script.transition, kSceneTransitions,
+		"Transition",
+		script.transition,
+		kSceneTransitions,
 		"Fade is sequential for switches; Cross Fade overlaps both scenes."
 	);
-	if (script.transition != SceneTransitionStyle::None) {
-		changed |= ImGui::DragFloat("Duration (ms)", &script.duration_ms, 10.0f, 0.0f);
-		changed |= ImGui::DragFloat("Delay (ms)", &script.delay_ms, 10.0f, 0.0f);
-		if (ImGui::BeginCombo("Ease", std::string{ magic_enum::enum_name(script.ease) }.c_str())) {
-			for (const auto candidate : magic_enum::enum_values<Ease>()) {
-				const std::string label{ magic_enum::enum_name(candidate) };
-				if (ImGui::Selectable(label.c_str(), candidate == script.ease)) {
-					script.ease = candidate;
-					changed		= true;
+
+	if (script.transition !=
+		SceneTransitionStyle::None) {
+		changed |= ImGui::DragFloat(
+			"Duration (ms)",
+			&script.duration_ms,
+			10.0f,
+			0.0f
+		);
+		changed |= ImGui::DragFloat(
+			"Delay (ms)",
+			&script.delay_ms,
+			10.0f,
+			0.0f
+		);
+
+		if (ImGui::BeginCombo(
+				"Ease",
+				std::string{
+					magic_enum::enum_name(
+						script.ease
+					)
+				}.c_str()
+			)) {
+			for (const auto candidate :
+				 magic_enum::enum_values<Ease>()) {
+				const std::string label{
+					magic_enum::enum_name(
+						candidate
+					)
+				};
+
+				if (ImGui::Selectable(
+						label.c_str(),
+						candidate ==
+							script.ease
+					)) {
+					script.ease =
+						candidate;
+					changed = true;
 				}
 			}
+
 			ImGui::EndCombo();
 		}
-		if (script.transition == SceneTransitionStyle::Slide) {
-			changed |= ImGui::DragFloat2("Exit Direction", &script.direction.x, 0.05f);
+
+		if (script.transition ==
+			SceneTransitionStyle::Slide) {
+			changed |= ImGui::DragFloat2(
+				"Exit Direction",
+				&script.direction.x,
+				0.05f
+			);
 			DrawItemTooltip(
 				"Direction the old scene exits. The new scene enters from the opposite direction."
 			);
 		}
 	}
 
-	int priority{ static_cast<int>(script.priority) };
-	if (ImGui::DragInt("Priority", &priority, 1.0f, 0)) {
-		script.priority = static_cast<std::size_t>(std::max(0, priority));
-		changed			= true;
+	int priority{
+		static_cast<int>(
+			script.priority
+		)
+	};
+
+	if (ImGui::DragInt(
+			"Priority",
+			&priority,
+			1.0f,
+			0
+		)) {
+		script.priority =
+			static_cast<std::size_t>(
+				std::max(
+					0,
+					priority
+				)
+			);
+		changed = true;
 	}
+
 	return changed;
 }
-
-
 
 bool DrawEmitSignalInline(ScriptEditorContext&, EmitSignalScript& script) {
 	ImGui::SetNextItemWidth(-FLT_MIN);

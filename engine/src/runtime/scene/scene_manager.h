@@ -3,6 +3,7 @@
 #include <concepts>
 #include <limits>
 #include <memory>
+#include <span>
 #include <string>
 #include <string_view>
 #include <type_traits>
@@ -68,6 +69,24 @@ public:
 
 	const std::vector<std::unique_ptr<Scene>>& GetScenes() const;
 	std::vector<std::unique_ptr<Scene>>& GetScenes();
+
+	/// @brief Renames a loaded scene key without reconstructing the scene.
+	bool RenameScene(
+		std::string_view current_key,
+		std::string_view new_key
+	);
+
+	/// @brief Moves one loaded scene within the SceneManager draw/update order.
+	bool MoveScene(
+		std::size_t from_index,
+		std::size_t to_index
+	);
+
+	/// @brief Reorders the runtime or non-runtime subset to match the supplied keys.
+	void ReorderScenes(
+		std::span<const std::string> ordered_keys,
+		bool runtime
+	);
 
 	const Scene& GetScene(std::size_t scene_tag_hash) const;
 	Scene& GetScene(std::size_t scene_tag_hash);

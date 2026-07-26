@@ -2,11 +2,13 @@
 
 #include <memory>
 #include <optional>
+#include <string>
 #include <vector>
 
 #include "app/application_config.h"
 #include "app/application_layer.h"
 #include "app/application_state.h"
+#include "app/project.h"
 #include "core/event/event_handler.h"
 #include "core/util/time.h"
 #include "platform/window.h"
@@ -15,7 +17,7 @@
 #include "runtime/audio/audio_system.h"
 #include "runtime/ecs/manager.h"
 #include "runtime/graphics/text/font_system.h"
-#include "app/project.h"
+#include "runtime/scene/scene_file.h"
 #include "runtime/scene/scene_manager.h"
 #include "tools/debug/debug_system.h"
 
@@ -26,6 +28,11 @@ class Application;
 namespace impl {
 
 class ApplicationContext;
+
+struct RuntimeProjectSceneSnapshot {
+	std::string key;
+	SerializedScene scene;
+};
 
 class ApplicationLibrary {
 private:
@@ -76,6 +83,10 @@ public:
 	bool project_bootstrap_save_pending{ false };
 
 	std::optional<Project> project;
+
+	/// @brief In-memory editor play snapshots used by project scene transitions.
+	/// Empty for direct runtime projects, which load scene files from disk.
+	std::vector<RuntimeProjectSceneSnapshot> runtime_project_scenes;
 
 	[[nodiscard]] milliseconds TimeSinceStart() const;
 

@@ -12,14 +12,13 @@ class Scene;
 
 namespace editor {
 
-class Editor;
 class EditorContext;
 
 struct SceneEditorState {
 	std::string scene_type;
-	std::string display_name;
-	std::string scene_tag{ "Main" };
-	json params = json::object();
+	std::string type_display_name;
+	std::string scene_key;
+	json parameters = json::object();
 };
 
 class SceneListPanel {
@@ -33,12 +32,10 @@ public:
 		Scene* scene
 	);
 
-	/// @brief Clears the current raw Scene and Entity handles, then selects the requested
-	/// replacement scene and restores the entity with the supplied UUID once the deferred
-	/// SceneManager command has been applied.
+	/// @brief Clears current raw handles, then selects a deferred replacement scene.
 	void QueueSceneSelection(
 		EditorContext& ctx,
-		std::string scene_tag,
+		std::string scene_key,
 		bool runtime,
 		std::optional<UUID> selected_entity_uuid =
 			std::nullopt
@@ -48,18 +45,19 @@ public:
 
 private:
 	struct PendingSceneSelection {
-		std::string tag;
+		std::string key;
 		bool runtime{ false };
 		std::optional<UUID> selected_entity_uuid;
 		int earliest_frame{ 0 };
 	};
 
-	void DrawSceneParamUI(EditorContext& ctx);
+	void DrawSceneDetails(EditorContext& ctx);
 
 	Scene* selected_scene_{ nullptr };
 	std::optional<SceneEditorState> state_;
 	std::optional<PendingSceneSelection>
 		pending_scene_selection_;
+	std::string key_error_;
 };
 
 } // namespace editor

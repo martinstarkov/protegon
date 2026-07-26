@@ -9,6 +9,7 @@
 
 #include "app/application_layer.h"
 #include "app/application_state.h"
+#include "app/project.h"
 #include "commands/editor_commands.h"
 #include "commands/undo_stack.h"
 #include "core/editor_context.h"
@@ -69,7 +70,6 @@ public:
 	void SetApplicationState(ApplicationState state);
 	ApplicationState GetApplicationState() const;
 
-	// Called by the viewport toolbar. These own the editor/runtime scene replacement lifecycle.
 	void Play();
 	void Stop();
 	void TogglePause();
@@ -90,21 +90,34 @@ public:
 
 	void SetSceneEntityPickingEnabled(Scene& scene, bool enabled);
 
-	bool CreateProjectScene(
-		std::string_view preferred_name,
-		SerializedScene serialized_scene
+	[[nodiscard]] Project* GetProject();
+	[[nodiscard]] const Project* GetProject() const;
+
+	void MarkProjectDirty();
+
+	bool CreateProjectScene(std::string_view scene_type);
+	bool DuplicateProjectScene(std::string_view scene_key);
+	bool DeleteProjectScene(std::string_view scene_key);
+
+	bool RenameProjectSceneKey(
+		std::string_view current_key,
+		std::string_view new_key
 	);
 
-	bool DeleteProjectScene(
-		std::string_view scene_tag
+	bool RenameProjectSceneDisplayName(
+		std::string_view scene_key,
+		std::string display_name
 	);
 
-	bool SetStartupProjectScene(
-		std::string_view scene_tag
+	bool MoveProjectScene(
+		std::size_t from_index,
+		std::size_t to_index
 	);
+
+	bool SetStartupProjectScene(std::string_view scene_key);
 
 	[[nodiscard]] bool IsStartupProjectScene(
-		std::string_view scene_tag
+		std::string_view scene_key
 	) const;
 
 	bool CanSaveProject() const;
@@ -120,14 +133,14 @@ public:
 
 private:
 	struct PlaySnapshot {
-		std::string scene_tag;
-		SerializedScene scene;
+		std::string selected_scene_key;
 		bool was_dirty{ false };
 	};
 
 	Application& app;
 
 	void SavePendingBootstrapScenes();
+	void SyncProjectSceneOrder();
 
 	void UpdateProjectLocalState();
 	void SaveEditorLocalStateIfChanged();

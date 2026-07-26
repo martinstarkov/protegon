@@ -147,7 +147,7 @@ void Application::StartProjectImpl(
 		};
 
 		StartWithFactory(
-			startup.tag,
+			startup.key,
 			std::move(scene_factory)
 		);
 
@@ -159,22 +159,6 @@ void Application::StartProjectImpl(
 		"Application has already been started"
 	);
 
-	const auto& startup{
-		GetStartupProjectScene(loaded_project)
-	};
-
-	std::vector<const ProjectSceneEntry*> ordered_scenes;
-	ordered_scenes.reserve(loaded_project.scenes.size());
-
-	// Load the startup scene first so it remains the primary editor
-	// scene and initial selection.
-	ordered_scenes.emplace_back(&startup);
-
-	for (const auto& entry : loaded_project.scenes) {
-		if (&entry != &startup) {
-			ordered_scenes.emplace_back(&entry);
-		}
-	}
 
 	struct BootstrapScene {
 		const ProjectSceneEntry* entry{ nullptr };
@@ -184,9 +168,9 @@ void Application::StartProjectImpl(
 	std::vector<BootstrapScene> bootstrap_scenes;
 
 	for (std::size_t i{ 0 };
-		 i < ordered_scenes.size();
+		 i < loaded_project.scenes.size();
 		 ++i) {
-		const auto& entry{ *ordered_scenes[i] };
+		const auto& entry{ loaded_project.scenes[i] };
 
 		auto serialized_scene{
 			LoadSceneFile(
@@ -212,8 +196,8 @@ void Application::StartProjectImpl(
 			scene_factory,
 			*this,
 			impl::SceneData{
-				.tag = entry.tag,
-				.tag_hash = Hash(entry.tag),
+				.tag = entry.key,
+				.tag_hash = Hash(entry.key),
 				.state = impl::SceneState::Active,
 				.runtime = false,
 				.first_scene = i == 0,
@@ -223,7 +207,7 @@ void Application::StartProjectImpl(
 		PTGN_ASSERT(
 			scene,
 			"Project scene factory returned null: ",
-			entry.tag
+			entry.key
 		);
 
 		auto* scene_ptr{ scene.get() };
@@ -339,7 +323,7 @@ void Application::HandleGlobalEvents(bool dispatch_scene_events) {
 
 	for (auto& global_event : global_events) {
 		Event event{ global_event };
-		event.Dispatch<event::FramebufferResized>([this](const auto& size) {
+		event.Dispatch<event::WindowResized>([this](const auto& size) {
 			ctx_.renderer.OnWindowResize(size);
 		});
 		if (!dispatch_scene_events) {

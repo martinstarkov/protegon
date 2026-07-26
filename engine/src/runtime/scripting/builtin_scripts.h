@@ -419,16 +419,11 @@ enum class SceneTransitionStyle : std::uint8_t {
 	Slide
 };
 
-/// @brief Queues a type-erased scene enter, exit, switch, or re-entry operation.
-/// A non-empty project_scene_tag loads the saved project scene file. Otherwise, registered scene
-/// construction uses scene_type and scene_parameters. scene_tag is the runtime instance tag; an
-/// empty value reuses the current scene tag.
+/// @brief Queues a project scene enter, exit, switch, or re-entry operation.
+/// scene_key must identify a scene in the active project's scene list.
 struct SceneChangeScript : public Script {
 	SceneChangeAction action{ SceneChangeAction::Switch };
-	std::string scene_tag{ "Main" };
-	std::string project_scene_tag;
-	std::string scene_type;
-	json scene_parameters = json::object();
+	std::string scene_key{ "Main" };
 
 	SceneTransitionStyle transition{ SceneTransitionStyle::None };
 	float duration_ms{ 500.0f };
@@ -440,8 +435,8 @@ struct SceneChangeScript : public Script {
 	void OnStart() override;
 
 	PTGN_REFLECT(
-		SceneChangeScript, action, scene_tag, project_scene_tag, scene_type, scene_parameters,
-		transition, duration_ms, delay_ms, ease, direction, priority
+		SceneChangeScript, action, scene_key, transition,
+		duration_ms, delay_ms, ease, direction, priority
 	)
 };
 

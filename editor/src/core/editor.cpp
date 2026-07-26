@@ -4,6 +4,7 @@
 #include <imgui_internal.h>
 
 #include <algorithm>
+#include <cstddef>
 #include <cstdint>
 #include <memory>
 #include <optional>
@@ -77,14 +78,46 @@ void SaveProjectManifest(Application& app, Project& project) {
 	SaveProject(project);
 }
 
-std::string MakeUniqueProjectSceneTag(
+[[nodiscard]] std::string SceneTypeName(
+	std::string_view scene_type
+) {
+	if (scene_type == impl::kBaseSceneType) {
+		return "Scene";
+	}
+
+	const auto separator{ scene_type.rfind("::") };
+	return separator == std::string_view::npos
+		? std::string{ scene_type }
+		: std::string{ scene_type.substr(separator + 2) };
+}
+
+[[nodiscard]] std::string SanitizeSceneKey(
+	std::string_view value
+) {
+	std::string result;
+	result.reserve(value.size());
+
+	for (char c : value) {
+		const auto byte{ static_cast<unsigned char>(c) };
+
+		if (std::isalnum(byte) ||
+			c == '_' ||
+			c == '-') {
+			result.push_back(c);
+		}
+	}
+
+	return result.empty()
+		? std::string{ "Scene" }
+		: result;
+}
+
+[[nodiscard]] std::string MakeUniqueProjectSceneKey(
 	const Project& project,
 	std::string_view preferred_name
 ) {
-	std::string base{
-		preferred_name.empty()
-			? "Scene"
-			: std::string{ preferred_name }
+	const std::string base{
+		SanitizeSceneKey(preferred_name)
 	};
 
 	auto is_available =
@@ -101,7 +134,7 @@ std::string MakeUniqueProjectSceneTag(
 
 	for (std::size_t index{ 2 };; ++index) {
 		std::string candidate{
-			base + " " + std::to_string(index)
+			base + std::to_string(index)
 		};
 
 		if (is_available(candidate)) {
@@ -110,14 +143,14 @@ std::string MakeUniqueProjectSceneTag(
 	}
 }
 
-std::string SanitizeSceneFileName(
+[[nodiscard]] std::string SanitizeSceneFileName(
 	std::string_view preferred_name
 ) {
 	std::string result;
 	result.reserve(preferred_name.size());
 
 	for (char c : preferred_name) {
-		auto byte{
+		const auto byte{
 			static_cast<unsigned char>(c)
 		};
 
@@ -137,18 +170,16 @@ std::string SanitizeSceneFileName(
 		result.pop_back();
 	}
 
-	if (result.empty()) {
-		return "Scene";
-	}
-
-	return result;
+	return result.empty()
+		? std::string{ "Scene" }
+		: result;
 }
 
-path MakeUniqueProjectScenePath(
+[[nodiscard]] path MakeUniqueProjectScenePath(
 	const Project& project,
 	std::string_view preferred_name
 ) {
-	std::string base{
+	const std::string base{
 		SanitizeSceneFileName(preferred_name)
 	};
 
@@ -156,7 +187,7 @@ path MakeUniqueProjectScenePath(
 		[&project](
 			const path& candidate
 		) {
-			bool used_by_project{
+			const bool used_by_project{
 				std::ranges::any_of(
 					project.scenes,
 					[&candidate](
@@ -171,14 +202,11 @@ path MakeUniqueProjectScenePath(
 				)
 			};
 
-			if (used_by_project) {
-				return false;
-			}
-
-			return !FileExists(
-				project.file_path.parent_path() /
-				candidate
-			);
+			return !used_by_project &&
+				   !FileExists(
+					   project.file_path.parent_path() /
+					   candidate
+				   );
 		};
 
 	path candidate{
@@ -204,6 +232,31 @@ path MakeUniqueProjectScenePath(
 		}
 	}
 }
+
+[[nodiscard]] SerializedScene MakeProjectSceneDefinition(
+	std::string_view scene_type
+) {
+	if (scene_type == impl::kBaseSceneType) {
+		return SerializedScene{
+			.type = std::string{ impl::kBaseSceneType },
+			.parameters = json::object(),
+			.assets = {},
+			.content = std::nullopt,
+		};
+	}
+
+	const auto& registration{
+		impl::GetSceneRegistration(scene_type)
+	};
+
+	return SerializedScene{
+		.type = registration.type,
+		.parameters = registration.default_parameters(),
+		.assets = {},
+		.content = std::nullopt,
+	};
+}
+
 
 } // namespace
 
@@ -284,9 +337,34 @@ void Editor::OnRender() {
 	SaveEditorLocalStateIfChanged();
 }
 
+Project* Editor::GetProject() {
+	return impl::ApplicationAccessor::ctx(app)
+		.project
+		? std::addressof(
+			impl::ApplicationAccessor::ctx(app)
+				.project.value()
+		)
+		: nullptr;
+}
+
+const Project* Editor::GetProject() const {
+	const auto& project{
+		impl::ApplicationAccessor::ctx(app)
+			.project
+	};
+
+	return project
+		? std::addressof(project.value())
+		: nullptr;
+}
+
+void Editor::MarkProjectDirty() {
+	PTGN_ASSERT(context_);
+	context_->local.state.is_dirty = true;
+}
+
 bool Editor::CreateProjectScene(
-	std::string_view preferred_name,
-	SerializedScene serialized_scene
+	std::string_view scene_type
 ) {
 	PTGN_ASSERT(context_);
 
@@ -294,70 +372,62 @@ bool Editor::CreateProjectScene(
 		return false;
 	}
 
-	auto& app_context{
-		impl::ApplicationAccessor::ctx(app)
-	};
+	auto* project{ GetProject() };
 
-	if (!app_context.project.has_value()) {
+	if (!project) {
 		return false;
 	}
 
-	auto& project{ app_context.project.value() };
+	if (scene_type != impl::kBaseSceneType &&
+		!impl::GetSceneRegistry().contains(scene_type)) {
+		return false;
+	}
 
-	std::string scene_tag{
-		MakeUniqueProjectSceneTag(
-			project,
-			preferred_name
+	const std::string display_name{
+		SceneTypeName(scene_type)
+	};
+	const std::string scene_key{
+		MakeUniqueProjectSceneKey(
+			*project,
+			display_name
+		)
+	};
+	const path relative_path{
+		MakeUniqueProjectScenePath(
+			*project,
+			display_name
 		)
 	};
 
-	auto relative_path{
-		MakeUniqueProjectScenePath(
-			project,
-			scene_tag
-		)
+	SerializedScene serialized_scene{
+		MakeProjectSceneDefinition(scene_type)
 	};
 
 	ProjectSceneEntry entry{
-		.tag = scene_tag,
+		.key = scene_key,
+		.display_name = display_name,
 		.scene_path = relative_path,
 	};
 
-	auto absolute_path{
-		GetProjectScenePath(project, entry)
+	const path absolute_path{
+		GetProjectScenePath(*project, entry)
 	};
 
-	// Create the file before adding it to the project manifest.
 	SaveSceneFile(
 		absolute_path,
 		serialized_scene
 	);
 
-	project.scenes.emplace_back(entry);
+	project->scenes.emplace_back(entry);
 
-	SaveProjectManifest(app, project);
-
-	bool accepted{
-		GetSceneManager().EnterFactory(
-			scene_tag,
+	if (!GetSceneManager().EnterFactory(
+			scene_key,
 			impl::MakeSceneFactory(
 				std::move(serialized_scene),
 				false
 			)
-		)
-	};
-
-	if (!accepted) {
-		std::erase_if(
-			project.scenes,
-			[&scene_tag](
-				const ProjectSceneEntry& scene
-			) {
-				return scene.tag == scene_tag;
-			}
-		);
-
-		SaveProjectManifest(app, project);
+		)) {
+		project->scenes.pop_back();
 
 		std::error_code error;
 		fs::remove(
@@ -368,21 +438,26 @@ bool Editor::CreateProjectScene(
 		return false;
 	}
 
+	SaveProjectManifest(app, *project);
+
 	pending_scene_bootstrap_saves_.emplace(
-		scene_tag
+		scene_key
 	);
 
 	scene_list_panel_.QueueSceneSelection(
 		*context_,
-		scene_tag,
+		scene_key,
 		false
 	);
+
+	MarkProjectDirty();
+	SyncProjectSceneOrder();
 
 	return true;
 }
 
-bool Editor::DeleteProjectScene(
-	std::string_view scene_tag
+bool Editor::DuplicateProjectScene(
+	std::string_view scene_key
 ) {
 	PTGN_ASSERT(context_);
 
@@ -390,36 +465,148 @@ bool Editor::DeleteProjectScene(
 		return false;
 	}
 
-	auto& app_context{
-		impl::ApplicationAccessor::ctx(app)
-	};
+	auto* project{ GetProject() };
 
-	if (!app_context.project.has_value()) {
+	if (!project) {
 		return false;
 	}
 
-	auto& project{ app_context.project.value() };
-
-	auto* entry{
-		FindProjectScene(project, scene_tag)
+	const auto* source_entry{
+		FindProjectScene(
+			*project,
+			scene_key
+		)
 	};
 
-	if (!entry) {
+	if (!source_entry) {
 		return false;
 	}
 
-	if (entry->scene_path.lexically_normal() ==
-		project.startup_scene.lexically_normal()) {
+	auto& manager{ GetSceneManager() };
+	const auto source_hash{ Hash(scene_key) };
+
+	if (!manager.HasScene(source_hash)) {
 		return false;
 	}
 
-	auto absolute_path{
-		GetProjectScenePath(project, *entry)
+	const auto& source_scene{
+		manager.GetScene(source_hash)
 	};
 
-	auto& scene_manager{ GetSceneManager() };
+	if (source_scene.IsRuntime()) {
+		return false;
+	}
 
-	if (!scene_manager.Exit(scene_tag)) {
+	SerializedScene serialized_scene{
+		CaptureScene(source_scene)
+	};
+
+	const std::string duplicate_display_name{
+		source_entry->display_name + " Copy"
+	};
+	const std::string duplicate_key{
+		MakeUniqueProjectSceneKey(
+			*project,
+			source_entry->key + "Copy"
+		)
+	};
+	const path relative_path{
+		MakeUniqueProjectScenePath(
+			*project,
+			duplicate_display_name
+		)
+	};
+
+	ProjectSceneEntry entry{
+		.key = duplicate_key,
+		.display_name = duplicate_display_name,
+		.scene_path = relative_path,
+	};
+
+	const path absolute_path{
+		GetProjectScenePath(*project, entry)
+	};
+
+	SaveSceneFile(
+		absolute_path,
+		serialized_scene
+	);
+
+	project->scenes.emplace_back(entry);
+
+	if (!manager.EnterFactory(
+			duplicate_key,
+			impl::MakeSceneFactory(
+				std::move(serialized_scene),
+				false
+			)
+		)) {
+		project->scenes.pop_back();
+
+		std::error_code error;
+		fs::remove(
+			absolute_path,
+			error
+		);
+
+		return false;
+	}
+
+	SaveProjectManifest(app, *project);
+
+	scene_list_panel_.QueueSceneSelection(
+		*context_,
+		duplicate_key,
+		false
+	);
+
+	MarkProjectDirty();
+	SyncProjectSceneOrder();
+
+	return true;
+}
+
+bool Editor::DeleteProjectScene(
+	std::string_view scene_key
+) {
+	PTGN_ASSERT(context_);
+
+	if (IsPlaying()) {
+		return false;
+	}
+
+	auto* project{ GetProject() };
+
+	if (!project ||
+		project->scenes.size() <= 1) {
+		return false;
+	}
+
+	const auto it{
+		std::ranges::find_if(
+			project->scenes,
+			[scene_key](const ProjectSceneEntry& entry) {
+				return entry.key == scene_key;
+			}
+		)
+	};
+
+	if (it == project->scenes.end()) {
+		return false;
+	}
+
+	const path absolute_path{
+		GetProjectScenePath(*project, *it)
+	};
+	const bool was_startup{
+		it->key == project->startup_scene_key
+	};
+
+	auto& manager{ GetSceneManager() };
+	const auto scene_hash{ Hash(scene_key) };
+
+	if (manager.HasScene(scene_hash) &&
+		!manager.Exit(scene_key)) {
 		return false;
 	}
 
@@ -428,43 +615,142 @@ bool Editor::DeleteProjectScene(
 	};
 
 	if (selected_scene &&
-		selected_scene->GetTag() == scene_tag) {
+		selected_scene->GetTag() == scene_key) {
 		scene_list_panel_.SetSelectedScene(
 			*context_,
 			nullptr
 		);
-
 		scene_hierarchy_panel_.SetSelectedEntity({});
 	}
 
 	pending_scene_bootstrap_saves_.erase(
-		std::string{ scene_tag }
+		std::string{ scene_key }
 	);
 
-	std::erase_if(
-		project.scenes,
-		[scene_tag](
-			const ProjectSceneEntry& scene
-		) {
-			return scene.tag == scene_tag;
-		}
-	);
+	project->scenes.erase(it);
 
-	// Remove the manifest entry before deleting the file.
-	SaveProjectManifest(app, project);
+	if (was_startup) {
+		project->startup_scene_key =
+			project->scenes.front().key;
+	}
+
+	SaveProjectManifest(app, *project);
 
 	std::error_code error;
-
 	fs::remove(
 		absolute_path,
 		error
 	);
 
+	MarkProjectDirty();
+	SyncProjectSceneOrder();
+
 	return true;
 }
 
-bool Editor::SetStartupProjectScene(
-	std::string_view scene_tag
+bool Editor::RenameProjectSceneKey(
+	std::string_view current_key,
+	std::string_view new_key
+) {
+	PTGN_ASSERT(context_);
+
+	if (IsPlaying() ||
+		current_key.empty() ||
+		new_key.empty()) {
+		return false;
+	}
+
+	auto* project{ GetProject() };
+
+	if (!project) {
+		return false;
+	}
+
+	auto* entry{
+		FindProjectScene(
+			*project,
+			current_key
+		)
+	};
+
+	if (!entry) {
+		return false;
+	}
+
+	if (current_key == new_key) {
+		return true;
+	}
+
+	if (FindProjectScene(*project, new_key) ||
+		!GetSceneManager().RenameScene(
+			current_key,
+			new_key
+		)) {
+		return false;
+	}
+
+	const std::string old_key{ entry->key };
+	const bool was_startup{
+		project->startup_scene_key == old_key
+	};
+
+	entry->key = std::string{ new_key };
+
+	if (was_startup) {
+		project->startup_scene_key = entry->key;
+	}
+
+	if (pending_scene_bootstrap_saves_.erase(old_key) > 0) {
+		pending_scene_bootstrap_saves_.emplace(
+			entry->key
+		);
+	}
+
+	MarkProjectDirty();
+	return true;
+}
+
+bool Editor::RenameProjectSceneDisplayName(
+	std::string_view scene_key,
+	std::string display_name
+) {
+	PTGN_ASSERT(context_);
+
+	if (IsPlaying() ||
+		display_name.empty()) {
+		return false;
+	}
+
+	auto* project{ GetProject() };
+
+	if (!project) {
+		return false;
+	}
+
+	auto* entry{
+		FindProjectScene(
+			*project,
+			scene_key
+		)
+	};
+
+	if (!entry) {
+		return false;
+	}
+
+	if (entry->display_name == display_name) {
+		return true;
+	}
+
+	entry->display_name = std::move(display_name);
+	MarkProjectDirty();
+
+	return true;
+}
+
+bool Editor::MoveProjectScene(
+	std::size_t from_index,
+	std::size_t to_index
 ) {
 	PTGN_ASSERT(context_);
 
@@ -472,53 +758,95 @@ bool Editor::SetStartupProjectScene(
 		return false;
 	}
 
-	auto& app_context{
-		impl::ApplicationAccessor::ctx(app)
-	};
+	auto* project{ GetProject() };
 
-	if (!app_context.project.has_value()) {
+	if (!project ||
+		from_index >= project->scenes.size() ||
+		to_index >= project->scenes.size()) {
 		return false;
 	}
 
-	auto& project{ app_context.project.value() };
+	if (from_index == to_index) {
+		return true;
+	}
+
+	if (from_index < to_index) {
+		std::rotate(
+			project->scenes.begin() +
+				static_cast<std::ptrdiff_t>(from_index),
+			project->scenes.begin() +
+				static_cast<std::ptrdiff_t>(from_index + 1),
+			project->scenes.begin() +
+				static_cast<std::ptrdiff_t>(to_index + 1)
+		);
+	} else {
+		std::rotate(
+			project->scenes.begin() +
+				static_cast<std::ptrdiff_t>(to_index),
+			project->scenes.begin() +
+				static_cast<std::ptrdiff_t>(from_index),
+			project->scenes.begin() +
+				static_cast<std::ptrdiff_t>(from_index + 1)
+		);
+	}
+
+	MarkProjectDirty();
+	SyncProjectSceneOrder();
+
+	return true;
+}
+
+bool Editor::SetStartupProjectScene(
+	std::string_view scene_key
+) {
+	PTGN_ASSERT(context_);
+
+	if (IsPlaying()) {
+		return false;
+	}
+
+	auto* project{ GetProject() };
+
+	if (!project) {
+		return false;
+	}
 
 	const auto* entry{
-		FindProjectScene(project, scene_tag)
+		FindProjectScene(
+			*project,
+			scene_key
+		)
 	};
 
 	if (!entry) {
 		return false;
 	}
 
-	project.startup_scene = entry->scene_path;
-
-	SaveProjectManifest(app, project);
+	project->startup_scene_key = entry->key;
+	SaveProjectManifest(app, *project);
+	MarkProjectDirty();
 
 	return true;
 }
 
 bool Editor::IsStartupProjectScene(
-	std::string_view scene_tag
+	std::string_view scene_key
 ) const {
-	const auto& app_context{
-		impl::ApplicationAccessor::ctx(app)
-	};
+	const auto* project{ GetProject() };
 
-	if (!app_context.project.has_value()) {
+	if (!project) {
 		return false;
 	}
 
-	const auto& project{
-		app_context.project.value()
-	};
-
 	const auto* entry{
-		FindProjectScene(project, scene_tag)
+		FindProjectScene(
+			*project,
+			scene_key
+		)
 	};
 
 	return entry &&
-		   entry->scene_path.lexically_normal() ==
-			   project.startup_scene.lexically_normal();
+		   entry->key == project->startup_scene_key;
 }
 
 void Editor::SavePendingBootstrapScenes() {
@@ -591,6 +919,26 @@ void Editor::SavePendingBootstrapScenes() {
 			scene_tag
 		);
 	}
+}
+
+void Editor::SyncProjectSceneOrder() {
+	const auto* project{ GetProject() };
+
+	if (!project) {
+		return;
+	}
+
+	std::vector<std::string> ordered_keys;
+	ordered_keys.reserve(project->scenes.size());
+
+	for (const auto& entry : project->scenes) {
+		ordered_keys.emplace_back(entry.key);
+	}
+
+	GetSceneManager().ReorderScenes(
+		ordered_keys,
+		false
+	);
 }
 
 void Editor::DrawMainMenuBar() {
@@ -725,6 +1073,10 @@ void Editor::EnableRendering(
 void Editor::OnUpdate() {
 	UpdateProjectLocalState();
 
+	if (!IsPlaying()) {
+		SyncProjectSceneOrder();
+	}
+
 	if (ImGui::IsKeyPressed(
 			ImGuiKey_F10
 		)) {
@@ -811,24 +1163,89 @@ void Editor::Play() {
 		return;
 	}
 
-	auto* scene{
+	auto* selected_scene{
 		scene_list_panel_.GetSelectedScene()
 	};
 
-	if (!scene || scene->IsRuntime()) {
+	if (!selected_scene ||
+		selected_scene->IsRuntime()) {
+		return;
+	}
+
+	auto* project{ GetProject() };
+
+	if (!project) {
 		return;
 	}
 
 	const auto selected_entity_uuid{
 		GetSelectedEntityUUID(
 			scene_hierarchy_panel_,
-			scene
+			selected_scene
 		)
 	};
 
+	auto& app_context{
+		impl::ApplicationAccessor::ctx(app)
+	};
+	auto& manager{ GetSceneManager() };
+
+	app_context.runtime_project_scenes.clear();
+	app_context.runtime_project_scenes.reserve(
+		project->scenes.size()
+	);
+
+	for (const auto& entry : project->scenes) {
+		const auto scene_hash{ Hash(entry.key) };
+
+		PTGN_ASSERT(
+			manager.HasScene(scene_hash),
+			"Project scene is not loaded in the editor: ",
+			entry.key
+		);
+
+		const auto& scene{
+			manager.GetScene(scene_hash)
+		};
+
+		PTGN_ASSERT(
+			!scene.IsRuntime(),
+			"Cannot begin editor play with an existing runtime scene: ",
+			entry.key
+		);
+
+		app_context.runtime_project_scenes.emplace_back(
+			impl::RuntimeProjectSceneSnapshot{
+				.key = entry.key,
+				.scene = CaptureScene(scene),
+			}
+		);
+	}
+
+	const std::string selected_key{
+		selected_scene->GetTag()
+	};
+
+	const auto snapshot_it{
+		std::ranges::find_if(
+			app_context.runtime_project_scenes,
+			[&selected_key](
+				const impl::RuntimeProjectSceneSnapshot& snapshot
+			) {
+				return snapshot.key == selected_key;
+			}
+		)
+	};
+
+	PTGN_ASSERT(
+		snapshot_it !=
+			app_context.runtime_project_scenes.end(),
+		"Selected project scene snapshot is missing: ",
+		selected_key
+	);
+
 	play_snapshot_ = PlaySnapshot{
-		.scene_tag = scene->GetTag(),
-		.scene = CaptureScene(*scene),
+		.selected_scene_key = selected_key,
 		.was_dirty = context_->local.state.is_dirty,
 	};
 
@@ -839,20 +1256,33 @@ void Editor::Play() {
 		ApplicationState::Running
 	);
 
-	if (!GetSceneManager().ReEnterFactory(
-			play_snapshot_->scene_tag,
+	if (!manager.ReEnterFactory(
+			selected_key,
 			impl::MakeSceneFactory(
-				play_snapshot_->scene,
+				snapshot_it->scene,
 				true
 			)
 		)) {
+		app_context.runtime_project_scenes.clear();
 		play_snapshot_.reset();
 		return;
 	}
 
+	for (const auto& entry : project->scenes) {
+		if (entry.key == selected_key) {
+			continue;
+		}
+
+		PTGN_ASSERT(
+			manager.Exit(entry.key),
+			"Failed to remove editor scene before play: ",
+			entry.key
+		);
+	}
+
 	scene_list_panel_.QueueSceneSelection(
 		*context_,
-		play_snapshot_->scene_tag,
+		selected_key,
 		true,
 		selected_entity_uuid
 	);
@@ -884,39 +1314,50 @@ void Editor::Stop() {
 		ApplicationState::Running
 	);
 
-	std::string scene_tag{
-		play_snapshot_->scene_tag
+	auto& app_context{
+		impl::ApplicationAccessor::ctx(app)
 	};
-
-	auto factory{
-		impl::MakeSceneFactory(
-			play_snapshot_->scene,
-			false
-		)
-	};
-
 	auto& manager{ GetSceneManager() };
-	auto scene_hash{ Hash(scene_tag) };
 
-	bool accepted{
-		manager.HasScene(scene_hash)
-			? manager.ReEnterFactory(
-				scene_tag,
-				std::move(factory)
-			)
-			: manager.EnterFactory(
-				scene_tag,
-				std::move(factory)
-			)
-	};
+	for (const auto& snapshot :
+		 app_context.runtime_project_scenes) {
+		const auto scene_hash{
+			Hash(snapshot.key)
+		};
 
-	if (!accepted) {
-		return;
+		auto factory{
+			impl::MakeSceneFactory(
+				snapshot.scene,
+				false
+			)
+		};
+
+		const bool accepted{
+			manager.HasScene(scene_hash)
+				? manager.ReEnterFactory(
+					snapshot.key,
+					std::move(factory)
+				)
+				: manager.EnterFactory(
+					snapshot.key,
+					std::move(factory)
+				)
+		};
+
+		PTGN_ASSERT(
+			accepted,
+			"Failed to restore project scene after editor play: ",
+			snapshot.key
+		);
 	}
+
+	const std::string selected_key{
+		play_snapshot_->selected_scene_key
+	};
 
 	scene_list_panel_.QueueSceneSelection(
 		*context_,
-		scene_tag,
+		selected_key,
 		false,
 		selected_entity_uuid
 	);
@@ -928,6 +1369,7 @@ void Editor::Stop() {
 	context_->local.state.is_dirty =
 		play_snapshot_->was_dirty;
 
+	app_context.runtime_project_scenes.clear();
 	play_snapshot_.reset();
 }
 
@@ -1065,24 +1507,24 @@ bool Editor::CanSaveProject() const {
 		return false;
 	}
 
-	const auto& app_context{
-		impl::ApplicationAccessor::ctx(app)
-	};
+	const auto* project{ GetProject() };
 
-	if (!app_context.project.has_value()) {
+	if (!project) {
 		return false;
 	}
 
-	const auto& project{ app_context.project.value() };
-	const auto& scene_manager{ app_context.scene_manager };
+	const auto& scene_manager{
+		GetSceneManager()
+	};
 
-	return std::ranges::none_of(
-		project.scenes,
+	return std::ranges::all_of(
+		project->scenes,
 		[&scene_manager](const ProjectSceneEntry& entry) {
-			const auto scene_hash{ Hash(entry.tag) };
+			const auto scene_hash{ Hash(entry.key) };
 
 			return scene_manager.HasScene(scene_hash) &&
-				scene_manager.GetScene(scene_hash).IsRuntime();
+				   !scene_manager.GetScene(scene_hash)
+						.IsRuntime();
 		}
 	);
 }
@@ -1090,44 +1532,35 @@ bool Editor::CanSaveProject() const {
 void Editor::SaveProjectScene() {
 	PTGN_ASSERT(context_);
 
-	if (IsPlaying()) {
+	if (!CanSaveProject()) {
 		return;
 	}
 
-	auto& app_context{
-		impl::ApplicationAccessor::ctx(app)
-	};
-
-	if (!app_context.project.has_value()) {
-		return;
-	}
-
-	const auto& project{
-		app_context.project.value()
-	};
+	const auto* project{ GetProject() };
+	PTGN_ASSERT(project);
 
 	auto& scene_manager{ GetSceneManager() };
 
 	std::vector<const Scene*> scenes;
-	scenes.reserve(project.scenes.size());
+	scenes.reserve(project->scenes.size());
 
-	for (const auto& entry : project.scenes) {
-		auto scene_hash{ Hash(entry.tag) };
+	for (const auto& entry : project->scenes) {
+		const auto scene_hash{ Hash(entry.key) };
 
 		PTGN_ASSERT(
 			scene_manager.HasScene(scene_hash),
 			"Project scene is not loaded in the editor: ",
-			entry.tag
+			entry.key
 		);
 
-		auto& scene{
+		const auto& scene{
 			scene_manager.GetScene(scene_hash)
 		};
 
 		PTGN_ASSERT(
 			!scene.IsRuntime(),
 			"Cannot save a runtime scene: ",
-			entry.tag
+			entry.key
 		);
 
 		scenes.emplace_back(&scene);
@@ -1311,6 +1744,7 @@ void Editor::OnProjectChanged() {
 
 	undo_stack_.Clear();
 	play_snapshot_.reset();
+	app_context.runtime_project_scenes.clear();
 	pending_scene_bootstrap_saves_
 		.clear();
 

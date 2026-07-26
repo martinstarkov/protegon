@@ -792,114 +792,96 @@ void SetEnabledScript::OnStart() {
 
 void SceneChangeScript::OnStart() {
 	auto& current_scene{ GetScene() };
-	auto& scene_manager{ current_scene.ctx().scene };
+	auto& scene_manager{
+		current_scene.ctx().scene
+	};
+	auto& app{
+		impl::SceneContextAccessor::app(
+			current_scene.ctx()
+		)
+	};
+	auto& app_context{
+		impl::ApplicationAccessor::ctx(app)
+	};
 
-	const std::string target_tag{ scene_tag.empty() ? current_scene.GetTag() : scene_tag };
-	auto transitions{ MakeSceneTransitions(*this) };
-	const SceneTransitionPriority transition_priority{ priority };
-
-	if (action == SceneChangeAction::Exit) {
-		scene_manager.Exit(
-			target_tag, std::move(transitions.out), transition_priority
+	if (!app_context.project) {
+		PTGN_WARN(
+			"Scene change requires an active project"
 		);
 		return;
 	}
 
-	impl::SceneFactory factory;
+	const auto& project{
+		app_context.project.value()
+	};
+	const auto* project_scene{
+		FindProjectScene(
+			project,
+			scene_key
+		)
+	};
 
-	if (!project_scene_tag.empty()) {
-		auto& app{
-			impl::SceneContextAccessor::app(
-				current_scene.ctx()
-			)
-		};
-		auto& app_context{
-			impl::ApplicationAccessor::ctx(app)
-		};
+	if (!project_scene) {
+		PTGN_WARN(
+			"Scene key is not part of the active project: ",
+			scene_key
+		);
+		return;
+	}
 
-		if (!app_context.project.has_value()) {
-			PTGN_WARN(
-				"Cannot load project scene without an active project: ",
-				project_scene_tag
-			);
-			return;
-		}
+	auto transitions{
+		MakeSceneTransitions(*this)
+	};
+	const SceneTransitionPriority
+		transition_priority{ priority };
 
-		const auto& project = app_context.project.value();
-		const auto* project_scene{
-			FindProjectScene(
+	if (action ==
+		SceneChangeAction::Exit) {
+		scene_manager.Exit(
+			scene_key,
+			std::move(transitions.out),
+			transition_priority
+		);
+		return;
+	}
+
+	SerializedScene serialized_scene;
+	const auto snapshot{
+		std::ranges::find_if(
+			app_context.runtime_project_scenes,
+			[this](
+				const impl::RuntimeProjectSceneSnapshot& candidate
+			) {
+				return candidate.key ==
+					   scene_key;
+			}
+		)
+	};
+
+	if (snapshot !=
+		app_context.runtime_project_scenes.end()) {
+		serialized_scene = snapshot->scene;
+	} else {
+		serialized_scene = LoadSceneFile(
+			GetProjectScenePath(
 				project,
-				project_scene_tag
+				*project_scene
 			)
-		};
+		);
+	}
 
-		if (!project_scene) {
-			PTGN_WARN(
-				"Project scene is not registered in the project manifest: ",
-				project_scene_tag
-			);
-			return;
-		}
-
-		auto serialized_scene{
-			LoadSceneFile(
-				GetProjectScenePath(
-					project,
-					*project_scene
-				)
-			)
-		};
-
-		factory = impl::MakeSceneFactory(
+	auto factory{
+		impl::MakeSceneFactory(
 			std::move(serialized_scene),
 			true
-		);
-	} else {
-		std::string target_type{ scene_type };
-		json parameters = scene_parameters;
-
-		if (target_type.empty() &&
-			target_tag == current_scene.GetTag()) {
-			target_type = std::string{
-				current_scene.GetRegisteredType()
-			};
-
-			if (!target_type.empty() &&
-				parameters.empty()) {
-				const auto& registration{
-					impl::GetSceneRegistration(
-						target_type
-					)
-				};
-				parameters =
-					registration.serialize_parameters(
-						current_scene
-					);
-			}
-		}
-
-		if (target_type.empty() ||
-			!impl::GetSceneRegistry().contains(
-				target_type
-			)) {
-			PTGN_WARN(
-				"Scene action requires a project scene or registered scene type: ",
-				target_type
-			);
-			return;
-		}
-
-		factory =
-			impl::SceneManager::MakeRegisteredFactory(
-				std::move(target_type),
-				std::move(parameters)
-			);
-	}
+		)
+	};
 
 	switch (action) {
 		case SceneChangeAction::Enter:
 			scene_manager.EnterFactory(
-				target_tag, std::move(factory),
+				scene_key,
+				std::move(factory),
 				std::move(transitions.in),
 				transition_priority
 			);
@@ -910,7 +892,8 @@ void SceneChangeScript::OnStart() {
 
 		case SceneChangeAction::Switch:
 			scene_manager.TransitionFactory(
-				current_scene.GetTag(), target_tag,
+				current_scene.GetTag(),
+				scene_key,
 				std::move(factory),
 				std::move(transitions.out),
 				std::move(transitions.in),
@@ -920,7 +903,8 @@ void SceneChangeScript::OnStart() {
 
 		case SceneChangeAction::ReEnter:
 			scene_manager.ReEnterFactory(
-				target_tag, std::move(factory),
+				scene_key,
+				std::move(factory),
 				std::move(transitions.out),
 				std::move(transitions.in)
 			);

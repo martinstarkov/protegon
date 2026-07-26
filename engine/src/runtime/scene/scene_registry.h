@@ -9,8 +9,8 @@
 #include <utility>
 
 #include "core/assert.h"
-#include "core/util/string.h"
 #include "core/util/hash.h"
+#include "core/util/string.h"
 #include "runtime/scene/scene.h"
 #include "serialization/json/json.h"
 #include "serialization/serialize.h"
@@ -32,6 +32,7 @@ struct SceneRegistryEntry {
 	std::function<json()> default_parameters;
 	std::function<std::unique_ptr<Scene>(const json& parameters)> construct;
 	std::function<json(const Scene& scene)> serialize_parameters;
+	std::function<void(const json& parameters, Scene& scene)> deserialize_parameters;
 };
 
 inline auto& GetSceneRegistry() {
@@ -106,7 +107,8 @@ bool RegisterScene(std::string_view type, std::string_view display_name) {
 	if (auto existing{ registry.find(type) }; existing != registry.end()) {
 		PTGN_ASSERT(
 			existing->second.type_id == type_id,
-			"Scene registration key is already used by another C++ type: ", type
+			"Scene registration key is already used by another C++ type: ",
+			type
 		);
 		return false;
 	}
@@ -125,7 +127,15 @@ bool RegisterScene(std::string_view type, std::string_view display_name) {
 			return scene;
 		},
 		.serialize_parameters = [](const Scene& scene) {
-			return SerializeSceneParameters(static_cast<const TScene&>(scene));
+			return SerializeSceneParameters(
+				static_cast<const TScene&>(scene)
+			);
+		},
+		.deserialize_parameters = [](const json& parameters, Scene& scene) {
+			DeserializeSceneParameters(
+				parameters,
+				static_cast<TScene&>(scene)
+			);
 		},
 	};
 
@@ -136,9 +146,15 @@ bool RegisterScene(std::string_view type, std::string_view display_name) {
 	return true;
 }
 
-[[nodiscard]] inline const SceneRegistryEntry& GetSceneRegistration(std::string_view type) {
+[[nodiscard]] inline const SceneRegistryEntry& GetSceneRegistration(
+	std::string_view type
+) {
 	auto it{ GetSceneRegistry().find(type) };
-	PTGN_ASSERT(it != GetSceneRegistry().end(), "Scene type is not registered: ", type);
+	PTGN_ASSERT(
+		it != GetSceneRegistry().end(),
+		"Scene type is not registered: ",
+		type
+	);
 	return it->second;
 }
 
