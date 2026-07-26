@@ -327,6 +327,31 @@ struct SetVisibleScript : public Script {
 	PTGN_REFLECT(SetVisibleScript, visible)
 };
 
+/// @brief Plays a loaded audio asset.
+///
+/// loops is the number of additional plays after the first play.
+/// A value of 0 plays the sound once.
+struct PlaySoundScript : public Script {
+	AudioKey sound{ "door_open" };
+	float volume{ 1.0f };
+	int loops{ 0 };
+
+	PlaySoundScript() = default;
+
+	explicit PlaySoundScript(
+		AudioKey sound,
+		float volume = 1.0f,
+		int loops = 0
+	) :
+		sound{ std::move(sound) },
+		volume{ volume },
+		loops{ loops } {}
+
+	void OnStart() override;
+
+	PTGN_REFLECT(PlaySoundScript, sound, volume, loops)
+};
+
 enum class AnimationAction : std::uint8_t {
 	Start,
 	Stop,

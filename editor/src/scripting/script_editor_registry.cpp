@@ -32,11 +32,14 @@
 #include "runtime/ui/button.h"
 #include "runtime/ui/dropdown.h"
 #include "runtime/ui/toggle_button.h"
+#include "runtime/audio/audio_system.h"
 #include "scripting/script_registration_editor.h"
 
 namespace ptgn::editor {
 
 namespace {
+
+constexpr int kMaxAudioPlayLoops{ 100 };
 
 void DrawItemTooltip(const char* text) {
 	if (text && *text && ImGui::IsItemHovered()) {
@@ -305,6 +308,51 @@ bool DrawSetVisibleInline(ScriptEditorContext&, SetVisibleScript& script) {
 		ImGui::EndCombo();
 	}
 	DrawItemTooltip("Visibility value assigned by this action.");
+	return changed;
+}
+
+bool DrawPlaySoundInline(ScriptEditorContext&, PlaySoundScript& script) {
+	ImGui::SetNextItemWidth(-FLT_MIN);
+
+	const bool changed{ ImGui::InputTextWithHint(
+		"##SoundKey",
+		"Audio key",
+		&script.sound.value
+	) };
+
+	DrawItemTooltip("Loaded audio asset key to play.");
+	return changed;
+}
+
+bool DrawPlaySound(ScriptEditorContext&, PlaySoundScript& script) {
+	bool changed{ false };
+
+	script.volume = std::clamp(script.volume, kMinVolume, kMaxVolume);
+	script.loops = std::max(0, script.loops);
+
+	changed |= ImGui::SliderFloat(
+		"Volume",
+		&script.volume,
+		kMinVolume,
+		kMaxVolume,
+		"%.2f",
+		ImGuiSliderFlags_AlwaysClamp
+	);
+	DrawItemTooltip("Playback volume.");
+
+	changed |= ImGui::DragInt(
+		"Additional Loops",
+		&script.loops,
+		1.0f,
+		0,
+		kMaxAudioPlayLoops
+	);
+	DrawItemTooltip(
+		"Number of additional plays after the first. Zero plays the sound once."
+	);
+
+	script.loops = std::clamp(script.loops, 0, kMaxAudioPlayLoops);
+
 	return changed;
 }
 
@@ -1124,6 +1172,18 @@ PTGN_REGISTER_SCRIPT(
 						  .menu_order  = 3,
 						  .draw_inline = &DrawSetVisibleInline,
 					  }
+);
+
+PTGN_REGISTER_SCRIPT(
+	PlaySoundScript,
+	{
+		.label = "Play Sound",
+		.group = "Audio",
+		.description = "Play a loaded audio asset.",
+		.type = ScriptType::Sequence,
+		.draw_inline = &DrawPlaySoundInline,
+		.draw = &DrawPlaySound,
+	}
 );
 
 PTGN_REGISTER_SCRIPT(

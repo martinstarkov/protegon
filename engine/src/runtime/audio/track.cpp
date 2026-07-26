@@ -19,6 +19,7 @@
 #include <string>
 #include <utility>
 
+#include "core/log.h"
 #include "core/assert.h"
 #include "core/util/file.h"
 #include "core/util/string.h"
@@ -42,10 +43,11 @@ Track::Track(
 ) :
 	id_{ id }, sound_{ std::make_unique<ma_sound>() }, remaining_loops_{ loops } {
 	PTGN_ASSERT(engine, "Audio engine must be valid");
-	PTGN_ASSERT(
-		!loops.has_value() || loops.value() >= 0,
-		"Audio loop count must be positive or infinite (nullopt)"
-	);
+
+	if (loops.has_value() && loops.value() < 0) {
+		PTGN_WARN("Cannot play negative number of audio loops, clamping to 0");
+		loops = 0;
+	}
 
 	ma_uint32 flags = MA_SOUND_FLAG_NO_SPATIALIZATION;
 

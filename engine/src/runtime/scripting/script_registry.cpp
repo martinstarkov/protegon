@@ -169,6 +169,7 @@ PTGN_REGISTER_SCRIPT(
 );
 
 PTGN_REGISTER_SCRIPT(SetVisibleScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(PlaySoundScript, { .completion = ScriptCompletion::Instant });
 PTGN_REGISTER_SCRIPT(AnimationActionScript, { .completion = ScriptCompletion::Instant });
 PTGN_REGISTER_SCRIPT(SetTextureScript, { .completion = ScriptCompletion::Instant });
 PTGN_REGISTER_SCRIPT(SetEnabledScript, { .completion = ScriptCompletion::Instant });

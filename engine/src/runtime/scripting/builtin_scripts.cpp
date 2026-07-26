@@ -12,6 +12,7 @@
 #include "core/math/math_utils.h"
 #include "core/math/noise.h"
 #include "core/math/rng.h"
+#include "runtime/audio/audio_system.h"
 #include "core/math/tolerance.h"
 #include "runtime/animation/animation.h"
 #include "runtime/animation/offsets.h"
@@ -694,6 +695,15 @@ void NativeScript::OnCancel(SequenceCancelReason reason) {
 
 void SetVisibleScript::OnStart() {
 	SetVisible(Owner(), visible);
+}
+
+void PlaySoundScript::OnStart() {
+	if (sound.value.empty()) {
+		PTGN_WARN("Play Sound requires a non empty audio asset key");
+		return;
+	}
+
+	GetScene().ctx().audio.Play(sound, volume, loops);
 }
 
 void AnimationActionScript::OnStart() {
