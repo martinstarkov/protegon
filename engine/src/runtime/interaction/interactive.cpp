@@ -6,7 +6,7 @@
 #include <string_view>
 #include <vector>
 
-#include "core/assert.h"
+#include "core/log.h"
 #include "core/math/geometry/circle.h"
 #include "core/math/geometry/origin.h"
 #include "core/math/geometry/rect.h"
@@ -33,14 +33,14 @@ void AddInteractiveShape(
 	Entity entity, Entity shape, std::optional<std::string_view> shape_id,
 	bool ignore_parent_transform
 ) {
-	IgnoreParentTransform(shape, ignore_parent_transform);
-	SetInteractive(entity);
-	if (shape_id.has_value()) {
-		PTGN_ASSERT(
-			!HasChild(entity, shape_id.value()),
+	if (shape_id.has_value() && HasChild(entity, shape_id.value())) {
+		PTGN_WARN(
 			"Cannot add the same named interactable to an entity more than once"
 		);
+		return;
 	}
+	IgnoreParentTransform(shape, ignore_parent_transform);
+	SetInteractive(entity);
 	shape.Add<impl::InteractiveTag>();
 	AddChild(entity, shape, shape_id);
 }

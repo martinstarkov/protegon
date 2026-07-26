@@ -2,6 +2,7 @@
 
 #include <vector>
 
+#include "core/log.h"
 #include "runtime/ecs/entity.h"
 #include "runtime/interaction/trigger_condition.h"
 

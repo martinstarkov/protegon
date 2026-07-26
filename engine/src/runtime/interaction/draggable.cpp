@@ -4,7 +4,7 @@
 #include <utility>
 #include <vector>
 
-#include "core/assert.h"
+#include "core/log.h"
 #include "core/math/vector2.h"
 #include "runtime/ecs/entity.h"
 #include "runtime/interaction/interaction_system.h"
