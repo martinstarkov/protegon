@@ -3951,26 +3951,38 @@ void DrawPrefabInspector(
 } // namespace inspector
 
 void InspectorPanel::OnRender(EditorContext& ctx) {
-	ImGui::Begin("Inspector");
-
 	auto& hierarchy{
 		ctx.editor.GetSceneHierarchyPanel()
 	};
 
-	if (const auto& selected_prefab{
-			hierarchy.GetSelectedPrefab()
-		};
-		selected_prefab.has_value()) {
-		inspector::DrawPrefabInspector(
-			ctx,
-			selected_prefab.value()
-		);
-		ImGui::End();
-		return;
-	}
+	const bool prefab_tab_active{
+		hierarchy.GetActiveTab() ==
+		SceneHierarchyTab::Prefabs
+	};
 
-	if (auto entity{ hierarchy.GetSelectedEntity() }) {
-		inspector::DrawEntityInspector(ctx, entity);
+	ImGui::Begin(
+		prefab_tab_active
+			? "Prefab Inspector###Inspector"
+			: "Entity Inspector###Inspector"
+	);
+
+	if (prefab_tab_active) {
+		if (const auto& selected_prefab{
+				hierarchy.GetSelectedPrefab()
+			};
+			selected_prefab.has_value()) {
+			inspector::DrawPrefabInspector(
+				ctx,
+				selected_prefab.value()
+			);
+		}
+	} else if (auto entity{
+			hierarchy.GetSelectedEntity()
+		}) {
+		inspector::DrawEntityInspector(
+			ctx,
+			entity
+		);
 	}
 
 	ImGui::End();

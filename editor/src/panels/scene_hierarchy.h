@@ -11,6 +11,11 @@ namespace ptgn::editor {
 
 class EditorContext;
 
+enum class SceneHierarchyTab {
+	SceneHierarchy,
+	Prefabs
+};
+
 class SceneHierarchyPanel {
 public:
 	void OnRender(EditorContext& ctx);
@@ -21,12 +26,15 @@ public:
 	[[nodiscard]] const std::optional<PrefabKey>& GetSelectedPrefab() const;
 	void SetSelectedPrefab(std::optional<PrefabKey> prefab);
 
+	[[nodiscard]] SceneHierarchyTab GetActiveTab() const;
+
 private:
-	void DrawSceneHierarchy(EditorContext& ctx);
-	void DrawPrefabs(EditorContext& ctx);
+	[[nodiscard]] bool DrawSceneHierarchy(EditorContext& ctx);
+	[[nodiscard]] bool DrawPrefabs(EditorContext& ctx);
 
 	Entity selected_entity_;
 	std::optional<PrefabKey> selected_prefab_;
+	SceneHierarchyTab active_tab_{ SceneHierarchyTab::SceneHierarchy };
 
 	std::optional<PrefabKey> renaming_prefab_;
 	std::string prefab_rename_text_;

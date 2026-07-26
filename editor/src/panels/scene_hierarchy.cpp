@@ -500,7 +500,6 @@ struct CreateMenuContext {
 	Scene& scene;
 	Entity parent;
 	Entity& selected_entity;
-	std::optional<PrefabKey>* selected_prefab{ nullptr };
 
 	[[nodiscard]] bool IsCreatingChild() const {
 		return static_cast<bool>(parent);
@@ -536,9 +535,6 @@ void FinalizeCreatedEntity(CreateMenuContext& context, Entity created) {
 	}
 
 	context.selected_entity = created;
-	if (context.selected_prefab) {
-		context.selected_prefab->reset();
-	}
 }
 
 void DrawCreateMenuItem(
@@ -1074,14 +1070,14 @@ void DrawPrefabCreateMenu(CreateMenuContext& context) {
 }
 
 void DrawCreateEntityMenu(
-	Scene& scene, Entity parent, Entity& selected_entity,
-	std::optional<PrefabKey>* selected_prefab = nullptr
+	Scene& scene,
+	Entity parent,
+	Entity& selected_entity
 ) {
 	CreateMenuContext context{
 		.scene{ scene },
 		.parent{ parent },
 		.selected_entity{ selected_entity },
-		.selected_prefab = selected_prefab,
 	};
 
 	bool creating_child{ context.IsCreatingChild() };
@@ -1237,14 +1233,12 @@ void DrawSceneHierarchyContents(
 		}
 
 		if (ImGui::IsItemClicked(ImGuiMouseButton_Left)) {
-			selected_entity			   = entity;
-			selected_prefab.reset();
+			selected_entity = entity;
 			entity_left_clicked_this_frame = true;
 		}
 
 		if (ImGui::IsItemClicked(ImGuiMouseButton_Right)) {
 			selected_entity = entity;
-			selected_prefab.reset();
 		}
 
 		auto hierarchy_restriction_reason{ GetHierarchyRestrictionReason(entity) };
@@ -1271,7 +1265,7 @@ void DrawSceneHierarchyContents(
 		}
 
 		if (ImGui::BeginPopupContextItem()) {
-			DrawCreateEntityMenu(scene, entity, selected_entity, &selected_prefab);
+			DrawCreateEntityMenu(scene, entity, selected_entity);
 
 			ImGui::BeginDisabled(!project_root.has_value());
 
@@ -1282,7 +1276,6 @@ void DrawSceneHierarchyContents(
 					entity
 				);
 
-				selected_entity = {};
 				ctx.local.state.is_dirty = true;
 
 				ImGui::SetWindowFocus(
@@ -1376,7 +1369,7 @@ void DrawSceneHierarchyContents(
 		// entity.
 		selected_entity = {};
 
-		DrawCreateEntityMenu(scene, {}, selected_entity, &selected_prefab);
+		DrawCreateEntityMenu(scene, {}, selected_entity);
 		ImGui::EndPopup();
 	}
 
@@ -1401,12 +1394,21 @@ void DrawSceneHierarchyContents(
 
 } // namespace
 
-void SceneHierarchyPanel::DrawSceneHierarchy(
+bool SceneHierarchyPanel::DrawSceneHierarchy(
 	EditorContext& ctx
 ) {
-	ImGui::Begin(
-		"Scene Hierarchy###SceneHierarchyWindow"
-	);
+	const bool visible{
+		ImGui::Begin(
+			"Scene Hierarchy###SceneHierarchyWindow"
+		)
+	};
+
+	if (visible &&
+		ImGui::IsWindowFocused(
+			ImGuiFocusedFlags_RootAndChildWindows
+		)) {
+		active_tab_ = SceneHierarchyTab::SceneHierarchy;
+	}
 
 	const auto& scene_list{
 		ctx.editor.GetSceneListPanel()
@@ -1428,10 +1430,20 @@ void SceneHierarchyPanel::DrawSceneHierarchy(
 	}
 
 	ImGui::End();
+	return visible;
 }
 
-void SceneHierarchyPanel::DrawPrefabs(EditorContext& ctx) {
-	ImGui::Begin("Prefabs###PrefabsWindow");
+bool SceneHierarchyPanel::DrawPrefabs(EditorContext& ctx) {
+	const bool visible{
+		ImGui::Begin("Prefabs###PrefabsWindow")
+	};
+
+	if (visible &&
+		ImGui::IsWindowFocused(
+			ImGuiFocusedFlags_RootAndChildWindows
+		)) {
+		active_tab_ = SceneHierarchyTab::Prefabs;
+	}
 
 	auto& assets{ ctx.editor.GetAssetManager() };
 	
@@ -1714,11 +1726,22 @@ void SceneHierarchyPanel::DrawPrefabs(EditorContext& ctx) {
 	}
 
 	ImGui::End();
+	return visible;
 }
 
 void SceneHierarchyPanel::OnRender(EditorContext& ctx) {
-	DrawSceneHierarchy(ctx);
-	DrawPrefabs(ctx);
+	const bool scene_hierarchy_visible{
+		DrawSceneHierarchy(ctx)
+	};
+	const bool prefabs_visible{
+		DrawPrefabs(ctx)
+	};
+
+	if (scene_hierarchy_visible != prefabs_visible) {
+		active_tab_ = scene_hierarchy_visible
+			? SceneHierarchyTab::SceneHierarchy
+			: SceneHierarchyTab::Prefabs;
+	}
 }
 
 Entity SceneHierarchyPanel::GetSelectedEntity() const {
@@ -1727,7 +1750,6 @@ Entity SceneHierarchyPanel::GetSelectedEntity() const {
 
 void SceneHierarchyPanel::SetSelectedEntity(Entity entity) {
 	selected_entity_ = entity;
-	selected_prefab_.reset();
 }
 
 const std::optional<PrefabKey>& SceneHierarchyPanel::GetSelectedPrefab() const {
@@ -1736,10 +1758,10 @@ const std::optional<PrefabKey>& SceneHierarchyPanel::GetSelectedPrefab() const {
 
 void SceneHierarchyPanel::SetSelectedPrefab(std::optional<PrefabKey> prefab) {
 	selected_prefab_ = std::move(prefab);
+}
 
-	if (selected_prefab_.has_value()) {
-		selected_entity_ = {};
-	}
+SceneHierarchyTab SceneHierarchyPanel::GetActiveTab() const {
+	return active_tab_;
 }
 
 } // namespace ptgn::editor
