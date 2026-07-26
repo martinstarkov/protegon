@@ -113,7 +113,7 @@ struct EventCondition {
 	bool enabled{ true };
 	bool consume{ false };
 	TypeHashValue type_hash{ 0 };
-	std::string_view name;
+	std::string name;
 	json value = json::object();
 
 	PTGN_REFLECT(EventCondition, enabled, consume, type_hash, name, value)
@@ -122,7 +122,7 @@ struct EventCondition {
 struct ScriptStep {
 	bool enabled{ true };
 	TypeHashValue type_hash{ 0 };
-	std::string_view name;
+	std::string name;
 	json value = json::object();
 	std::optional<ScriptCompletion> completion;
 	std::optional<ScriptTiming> timing;
@@ -349,7 +349,6 @@ void EnsureEngineScriptsRegistered();
 } // namespace impl
 
 struct ScriptRegistrationOptions {
-	std::uint32_t schema_version{ 1 };
 	ScriptCompletion completion{ ScriptCompletion::ScriptControlled };
 	bool supports_timing{ false };
 	bool requires_timing{ false };
@@ -359,9 +358,8 @@ struct ScriptRegistrationOptions {
 
 struct ScriptRegistration {
 	TypeHashValue type_hash{ 0 };
-	std::string_view name;
+	std::string name;
 	std::string type;
-	std::uint32_t schema_version{ 1 };
 	ScriptCompletion completion{ ScriptCompletion::ScriptControlled };
 	bool supports_timing{ false };
 	bool requires_timing{ false };
@@ -400,7 +398,6 @@ public:
 			.type_hash = type_hash,
 			.name = type_name_without_namespaces<T>(),
 			.type = std::string{ type_name_without_namespaces<T>() },
-			.schema_version = options.schema_version,
 			.completion = options.completion,
 			.supports_timing = options.supports_timing,
 			.requires_timing = options.requires_timing,
@@ -501,7 +498,7 @@ private:
 struct ScriptEntry {
 	bool enabled{ true };
 	TypeHashValue type_hash{ 0 };
-	std::string_view name;
+	std::string name;
 	json value = json::object();
 	ScriptSequence sequence;
 
@@ -548,7 +545,6 @@ struct SharedScriptSequenceRegistry {
 
 template <typename TEvent>
 struct SequenceEventRegistrationOptions {
-	std::uint32_t schema_version{ 1 };
 	json default_value = json::object();
 	std::function<bool(Entity, const json&, const TEvent&)> matches;
 	std::function<bool(Entity)> available{ [](Entity) { return true; } };
@@ -556,8 +552,7 @@ struct SequenceEventRegistrationOptions {
 
 struct SequenceEventRegistration {
 	TypeHashValue type_hash{ 0 };
-	std::string_view name;
-	std::uint32_t schema_version{ 1 };
+	std::string name;
 	std::function<void(EventCondition&)> set_defaults;
 	std::function<bool(Entity, Event, const EventCondition&, bool consume)> matches;
 	std::function<bool(Entity)> available;
@@ -600,7 +595,6 @@ public:
 		SequenceEventRegistration registration{
 			.type_hash = type_hash,
 			.name = type_name_without_namespaces<TEvent>(),
-			.schema_version = options.schema_version,
 			.set_defaults = [value = std::move(options.default_value)](EventCondition& output) {
 				output.value = value;
 			},

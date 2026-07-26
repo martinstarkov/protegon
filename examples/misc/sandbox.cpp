@@ -336,7 +336,6 @@ void LogScriptActivity(ptgn::Scene& scene, std::string text);
 
 struct SequenceEventRegistration {
 	TypeHashValue type_hash{ 0 };
-	std::uint32_t schema_version{ 1 };
 	std::function<void(EventCondition&)> set_defaults;
 	std::function<bool(ptgn::Entity, Event, const EventCondition&, bool consume)> matches;
 	std::function<bool(ptgn::Entity)> available;
@@ -697,7 +696,6 @@ inline void ScriptSequenceRuntime::ClearActiveScript() {
 
 struct ScriptRegistration {
 	TypeHashValue type_hash{ 0 };
-	std::uint32_t schema_version{ 1 };
 	ScriptCompletion completion{ ScriptCompletion::ScriptControlled };
 	bool supports_timing{ false };
 	bool requires_timing{ false };

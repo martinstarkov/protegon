@@ -37,7 +37,7 @@ struct EventEditorOptions {
 
 struct EventEditorRegistration {
 	TypeHashValue type_hash{ 0 };
-	std::string_view name;
+	std::string name;
 	EventEditorOptions options;
 };
 
@@ -153,7 +153,7 @@ struct RegisteredScriptEditorOptions {
 
 struct ScriptEditorRegistration {
 	TypeHashValue type_hash{ 0 };
-	std::string_view name;
+	std::string name;
 	RegisteredScriptEditorOptions options;
 	bool has_contents{ false };
 	std::function<bool(ScriptEditorContext&, json&)> draw_inline;

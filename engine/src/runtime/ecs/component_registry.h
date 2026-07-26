@@ -69,7 +69,7 @@ void DeserializeRegisteredComponent(const json& input, Entity entity) {
 } // namespace impl
 
 struct ReflectedComponentMember {
-	std::string_view name;
+	std::string name;
 	std::size_t type_id{ 0 };
 	const void* value{ nullptr };
 	void* mutable_value{ nullptr };
@@ -159,7 +159,7 @@ using ComponentVisitMembersCallback = void (*)(Entity entity, ComponentReflectio
 
 struct RegisteredComponent {
 	std::size_t type_id{ 0 };
-	std::string_view name;
+	std::string name;
 	bool is_empty{ false };
 	bool default_constructible{ false };
 	bool serializable{ false };

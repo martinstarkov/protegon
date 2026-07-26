@@ -19,7 +19,7 @@ struct EventData {
 	using Payload = std::unique_ptr<void, void (*)(void*)>;
 
 	/// @brief For debug purposes.
-	std::string_view name;
+	std::string name;
 
 	std::size_t type_hash{ 0 };
 	bool handled{ false };
