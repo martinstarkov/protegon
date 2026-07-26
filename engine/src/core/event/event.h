@@ -5,6 +5,7 @@
 #include <type_traits>
 #include <utility>
 #include <variant>
+#include <string>
 
 #include "core/assert.h"
 #include "core/util/type_info.h"
@@ -30,10 +31,10 @@ struct EventData {
 		requires BraceConstructible<T, TArgs...>
 	static EventData Create(TArgs&&... args) {
 		if constexpr (sizeof...(TArgs) == 0 && std::is_empty_v<T>) {
-			return EventData{ .name = type_name_without_namespaces<T>(), .type_hash = Hash<T>(), .handled = false };
+			return EventData{ .name = std::string{ type_name_without_namespaces<T>() }, .type_hash = Hash<T>(), .handled = false };
 		} else {
 			auto payload{ new T{ std::forward<TArgs>(args)... } };
-			return EventData{ .name = type_name_without_namespaces<T>(), .type_hash = Hash<T>(), .handled = false,
+			return EventData{ .name = std::string{ type_name_without_namespaces<T>() }, .type_hash = Hash<T>(), .handled = false,
 				.payload = Payload{ payload, +[](void* ptr) {
 															delete static_cast<T*>(ptr);
 														} } };

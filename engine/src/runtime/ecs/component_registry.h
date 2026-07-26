@@ -2,6 +2,7 @@
 
 #include <concepts>
 #include <memory>
+#include <string>
 #include <string_view>
 #include <tuple>
 #include <type_traits>
@@ -108,7 +109,7 @@ void VisitRegisteredComponentMembers(Entity entity, ComponentReflectionVisitor v
 				(visitor.callback(
 					 visitor.user_data,
 					 ReflectedComponentMember{
-						 .name			= member.name,
+						 .name			= std::string{ member.name },
 						 .type_id		= Hash<decltype(member.value)>(),
 						 .value			= std::addressof(member.value),
 						 .mutable_value = std::addressof(member.value),
@@ -129,7 +130,7 @@ void VisitRegisteredComponentMembers(Entity entity, ComponentReflectionVisitor v
 				(visitor.callback(
 					 visitor.user_data,
 					 ReflectedComponentMember{
-						 .name			= member.name,
+						 .name			= std::string{ member.name },
 						 .type_id		= Hash<decltype(member.value)>(),
 						 .value			= std::addressof(member.value),
 						 .mutable_value = nullptr,
@@ -185,7 +186,7 @@ public:
 
 		for (auto& component : components) {
 			if (component.type_id == type_id) {
-				component.name = name;
+				component.name = std::string{ name };
 				return false;
 			}
 
@@ -228,7 +229,7 @@ public:
 		components.push_back(
 			RegisteredComponent{
 				.type_id			   = type_id,
-				.name				   = name,
+				.name				   = std::string{ name },
 				.is_empty			   = std::is_empty_v<Component>,
 				.default_constructible = std::default_initializable<Component>,
 				.serializable		   = serialize != nullptr,

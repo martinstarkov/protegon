@@ -86,7 +86,7 @@ public:
 
 		entries.push_back(EventEditorRegistration{
 			.type_hash = type_hash,
-			.name = type_name_without_namespaces<TEvent>(),
+			.name = std::string{ type_name_without_namespaces<TEvent>() },
 			.options = std::move(options),
 		});
 		return inserted;
@@ -244,7 +244,7 @@ public:
 
 		ScriptEditorRegistration registration{
 			.type_hash = type_hash,
-			.name = type_name_without_namespaces<T>(),
+			.name = std::string{ type_name_without_namespaces<T>() },
 			.options = {
 				.label = std::move(options.label),
 				.group = std::move(options.group),

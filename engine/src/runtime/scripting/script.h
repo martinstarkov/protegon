@@ -396,7 +396,7 @@ public:
 
 		ScriptRegistration registration{
 			.type_hash = type_hash,
-			.name = type_name_without_namespaces<T>(),
+			.name = std::string{ type_name_without_namespaces<T>() },
 			.type = std::string{ type_name_without_namespaces<T>() },
 			.completion = options.completion,
 			.supports_timing = options.supports_timing,
@@ -594,7 +594,7 @@ public:
 
 		SequenceEventRegistration registration{
 			.type_hash = type_hash,
-			.name = type_name_without_namespaces<TEvent>(),
+			.name = std::string{ type_name_without_namespaces<TEvent>() },
 			.set_defaults = [value = std::move(options.default_value)](EventCondition& output) {
 				output.value = value;
 			},
@@ -926,7 +926,7 @@ T& impl::Scripts::Add(Entity owner, TArgs&&... constructor_args) {
 
 	ScriptEntry entry;
 	entry.type_hash = Hash<T>();
-	entry.name = type_name_without_namespaces<T>(),
+	entry.name = std::string{ type_name_without_namespaces<T>() },
 	entry.value = std::move(snapshot);
 	const SequenceId sequence_id{ instance->sequence.id };
 	entry.sequence = instance->sequence;
