@@ -661,64 +661,106 @@ bool Editor::ShouldEnableEntityPicking() const {
 	return static_cast<::ptgn::impl::FramebufferId>(render_target.Get<::ptgn::impl::FramebufferObject>());
 }
 
-void Editor::OnSelectedSceneChanged(Scene* previous_scene, Scene* selected_scene) {
+void Editor::OnSelectedSceneChanged(
+	Scene* previous_scene,
+	Scene* selected_scene
+) {
 	if (previous_scene) {
-		SetSceneEntityPickingEnabled(*previous_scene, false);
+		SetSceneEntityPickingEnabled(
+			*previous_scene,
+			false
+		);
 	}
 
 	if (selected_scene) {
-		SetSceneEntityPickingEnabled(*selected_scene, ShouldEnableEntityPicking());
+		SetSceneEntityPickingEnabled(
+			*selected_scene,
+			ShouldEnableEntityPicking()
+		);
 	}
+
+	ApplySceneRenderSettings();
 }
 
-void Editor::EnableRendering(bool enable) {
+void Editor::EnableRendering(
+	bool enable
+) {
 	render_enabled_ = enable;
 
-	auto& window{ GetWindow() };
+	auto& window{
+		GetWindow()
+	};
 
-	window.SetSetting(render_enabled_ ? WindowSetting::Maximized : WindowSetting::Restored);
+	window.SetSetting(
+		render_enabled_
+			? WindowSetting::Maximized
+			: WindowSetting::Restored
+	);
 
 	if (render_enabled_) {
-		dock_layout_update_requested_ = true;
+		dock_layout_update_requested_ =
+			true;
 
 		// Maximizing may produce multiple window size updates.
-		dock_resize_frames_remaining_ = 4;
+		dock_resize_frames_remaining_ =
+			4;
 	} else {
-		auto& renderer{ GetRenderer() };
+		auto& renderer{
+			GetRenderer()
+		};
 
-		renderer.SetPresentationViewport(std::nullopt);
-		renderer.SetPrimaryWorldCamera(std::nullopt);
+		renderer.SetPresentationViewport(
+			std::nullopt
+		);
+
+		renderer.SetPrimaryWorldCamera(
+			std::nullopt
+		);
 	}
 
 	ApplyEntityPickingSettings();
+	ApplySceneRenderSettings();
 }
 
 void Editor::OnUpdate() {
 	UpdateProjectLocalState();
 
-	if (ImGui::IsKeyPressed(ImGuiKey_F10)) {
-		EnableRendering(!render_enabled_);
+	if (ImGui::IsKeyPressed(
+			ImGuiKey_F10
+		)) {
+		EnableRendering(
+			!render_enabled_
+		);
 	}
 
-	const auto& io{ ImGui::GetIO() };
+	const auto& io{
+		ImGui::GetIO()
+	};
 
 	if ((io.KeyCtrl || io.KeySuper) &&
-		ImGui::IsKeyPressed(ImGuiKey_S, false) &&
+		ImGui::IsKeyPressed(
+			ImGuiKey_S,
+			false
+		) &&
 		CanSaveProject()) {
 		SaveProjectScene();
 	}
 
 	SavePendingBootstrapScenes();
 
+	// Keep newly entered, removed, or replaced scenes synchronized with
+	// the current selection and editor setting.
+	ApplySceneRenderSettings();
+
 	if (auto* scene{
-			scene_list_panel_.GetSelectedScene()
+			scene_list_panel_
+				.GetSelectedScene()
 		}) {
 		SetSceneEntityPickingEnabled(
 			*scene,
 			ShouldEnableEntityPicking()
 		);
 	}
-
 }
 
 const EditorSettings& Editor::GetSettings() const {
@@ -887,6 +929,85 @@ void Editor::Stop() {
 		play_snapshot_->was_dirty;
 
 	play_snapshot_.reset();
+}
+
+void Editor::SetRenderOnlySelectedScene(
+	bool enabled
+) {
+	PTGN_ASSERT(
+		context_,
+		"Editor context must be initialized"
+	);
+
+	if (context_->local.settings
+			.render_only_selected_scene ==
+		enabled) {
+		return;
+	}
+
+	context_->local.settings
+		.render_only_selected_scene =
+		enabled;
+
+	ApplySceneRenderSettings();
+}
+
+void Editor::ApplySceneRenderSettings() {
+	PTGN_ASSERT(
+		context_,
+		"Editor context must be initialized"
+	);
+
+	auto& scenes{
+		GetSceneManager().GetScenes()
+	};
+
+	Scene* selected_scene{
+		scene_list_panel_.GetSelectedScene()
+	};
+
+	auto selected_it{
+		std::ranges::find_if(
+			scenes,
+			[selected_scene](
+				const auto& scene
+			) {
+				return
+					scene &&
+					scene.get() ==
+						selected_scene;
+			}
+		)
+	};
+
+	const bool has_valid_selection{
+		selected_it != scenes.end()
+	};
+
+	// Render every scene while the editor UI is hidden. This preserves
+	// the normal game presentation when F10 switches out of editor view.
+	//
+	// Also render all scenes during a scene transition so incoming and
+	// outgoing scenes can both participate in the transition.
+	const bool render_only_selected{
+		render_enabled_ &&
+		context_->local.settings
+			.render_only_selected_scene &&
+		has_valid_selection &&
+		!(*selected_it)->IsTransitioning()
+	};
+
+	for (auto& scene : scenes) {
+		if (!scene) {
+			continue;
+		}
+
+		scene->SetRenderEnabled(
+			!render_only_selected ||
+			scene.get() ==
+				selected_scene
+		);
+	}
 }
 
 void Editor::TogglePause() {
@@ -1178,7 +1299,9 @@ void Editor::OnProjectChanged() {
 	);
 
 	auto& app_context{
-		impl::ApplicationAccessor::ctx(app)
+		impl::ApplicationAccessor::ctx(
+			app
+		)
 	};
 
 	PTGN_ASSERT(
@@ -1188,22 +1311,31 @@ void Editor::OnProjectChanged() {
 
 	undo_stack_.Clear();
 	play_snapshot_.reset();
-	pending_scene_bootstrap_saves_.clear();
+	pending_scene_bootstrap_saves_
+		.clear();
 
-	context_->local = LoadEditorLocalState(
-		app_context.project.value()
-	);
+	context_->local =
+		LoadEditorLocalState(
+			app_context.project.value()
+		);
 
 	// These values describe the current process and must never resume from disk.
-	context_->local.state.is_dirty = false;
-	context_->local.state.is_playing = false;
-	context_->local.state.is_paused = false;
+	context_->local.state.is_dirty =
+		false;
+
+	context_->local.state.is_playing =
+		false;
+
+	context_->local.state.is_paused =
+		false;
 
 	json value = context_->local;
 
-	saved_editor_local_state_json_ = value.dump();
+	saved_editor_local_state_json_ =
+		value.dump();
 
 	ApplyEntityPickingSettings();
+	ApplySceneRenderSettings();
 }
 
 void Editor::SetSceneEntityPickingEnabled(Scene& scene, bool enabled) {

@@ -442,21 +442,62 @@ void DebugSettingsPanel::OnRender(EditorContext& ctx) {
 	ImGui::End();
 }
 
-void EditorSettingsPanel::OnRender(EditorContext& ctx) {
-	ImGui::Begin("Editor Settings");
+void EditorSettingsPanel::OnRender(
+	EditorContext& ctx
+) {
+	ImGui::Begin(
+		"Editor Settings"
+	);
 
-	auto entity_picking{ ctx.editor.GetSettings().entity_picking };
-
-	if (ImGui::Checkbox("Entity Picking", &entity_picking)) {
-		ctx.editor.SetEntityPickingMode(entity_picking);
-	}
-
-	auto gizmo_uses_local_orientation{
-		ctx.editor.GetSettings().gizmo_uses_local_orientation
+	auto entity_picking{
+		ctx.editor
+			.GetSettings()
+			.entity_picking
 	};
 
-	if (ImGui::Checkbox("Local Gizmo Orientation", &gizmo_uses_local_orientation)) {
-		ctx.editor.SetGizmoUsesLocalOrientation(gizmo_uses_local_orientation);
+	if (ImGui::Checkbox(
+			"Entity Picking",
+			&entity_picking
+		)) {
+		ctx.editor.SetEntityPickingMode(
+			entity_picking
+		);
+	}
+
+	auto render_only_selected_scene{
+		ctx.editor
+			.GetSettings()
+			.render_only_selected_scene
+	};
+
+	if (ImGui::Checkbox(
+			"Render Only Selected Scene",
+			&render_only_selected_scene
+		)) {
+		ctx.editor
+			.SetRenderOnlySelectedScene(
+				render_only_selected_scene
+			);
+	}
+
+	ImGui::TextDisabled(
+		"Excludes unselected scenes from the editor presentation."
+	);
+
+	auto gizmo_uses_local_orientation{
+		ctx.editor
+			.GetSettings()
+			.gizmo_uses_local_orientation
+	};
+
+	if (ImGui::Checkbox(
+			"Local Gizmo Orientation",
+			&gizmo_uses_local_orientation
+		)) {
+		ctx.editor
+			.SetGizmoUsesLocalOrientation(
+				gizmo_uses_local_orientation
+			);
 	}
 
 	ImGui::TextDisabled(

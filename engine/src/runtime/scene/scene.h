@@ -53,6 +53,9 @@ struct SceneData {
 	bool runtime{ true };
 	bool first_scene{ false };
 	std::string registered_type;
+
+	// Process local render state. This is not serialized into scene files.
+	bool render_enabled{ true };
 };
 
 template <SceneType TScene>
@@ -228,6 +231,9 @@ public:
 	std::size_t GetTagHash() const;
 	std::string GetTag() const;
 
+	void SetRenderEnabled(bool enabled = true);
+
+	[[nodiscard]] bool IsRenderEnabled() const;
 	[[nodiscard]] bool IsRuntime() const;
 	[[nodiscard]] bool IsTransitioning() const;
 	[[nodiscard]] std::string_view GetRegisteredType() const;

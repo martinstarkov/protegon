@@ -8,10 +8,17 @@ namespace editor {
 
 struct EditorSettings {
 	bool entity_picking{ true };
+	bool render_only_selected_scene{ false };
 	bool gizmo_uses_local_orientation{ false };
 	bool show_imgui_metrics{ false };
 
-	PTGN_REFLECT(EditorSettings, entity_picking, gizmo_uses_local_orientation, show_imgui_metrics)
+	PTGN_REFLECT(
+		EditorSettings,
+		entity_picking,
+		render_only_selected_scene,
+		gizmo_uses_local_orientation,
+		show_imgui_metrics
+	)
 };
 
 } // namespace editor

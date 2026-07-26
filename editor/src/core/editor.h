@@ -85,8 +85,8 @@ public:
 	const EditorSettings& GetSettings() const;
 
 	void SetEntityPickingMode(bool enabled);
-
 	void SetGizmoUsesLocalOrientation(bool enabled);
+	void SetRenderOnlySelectedScene(bool enabled);
 
 	void SetSceneEntityPickingEnabled(Scene& scene, bool enabled);
 
@@ -141,8 +141,8 @@ private:
 	void UpdateDockLayout(std::uint32_t dockspace_id, float width);
 
 	bool ShouldEnableEntityPicking() const;
-
 	void ApplyEntityPickingSettings();
+	void ApplySceneRenderSettings();
 
 	::ptgn::impl::FramebufferId GetSceneFramebuffer(Scene& scene) const;
 

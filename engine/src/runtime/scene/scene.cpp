@@ -725,6 +725,22 @@ void Scene::InternalEnter() {
 	Refresh();
 }
 
+void Scene::SetRenderEnabled(bool enabled) {
+	data_.render_enabled = enabled;
+}
+
+bool Scene::IsRenderEnabled() const {
+	return data_.render_enabled;
+}
+
+bool Scene::IsRuntime() const {
+	return data_.runtime;
+}
+
+std::string_view Scene::GetRegisteredType() const {
+	return data_.registered_type;
+}
+
 bool Scene::IsTransitioning() const {
 	return data_.state == impl::SceneState::TransitionIn ||
 		   data_.state == impl::SceneState::TransitionOut;
@@ -778,83 +794,195 @@ void Scene::DrawCameras(DrawContext& draw_context, const std::vector<Entity>& ca
 	}
 }
 
-void Scene::InternalDraw(DrawContext& draw_context) {
+void Scene::InternalDraw(
+	DrawContext& draw_context
+) {
+	if (!data_.render_enabled) {
+		// Draw commands may still be generated during update. Discard them
+		// every frame while this scene is excluded from rendering.
+		ctx().render_queue.render_commands_.clear();
+		ctx().render_queue.debug_commands_.clear();
+		return;
+	}
+
 	// The editor may update its presentation viewport after scene update.
 	// Synchronize again immediately before rendering to avoid a stretched frame.
 	UpdateRenderTargetSizes(*this);
 
 	ClearRenderTargets();
 
-	if (const auto& primary_world_camera{ ctx().renderer.GetPrimaryWorldCamera() };
+	if (const auto& primary_world_camera{
+			ctx().renderer.GetPrimaryWorldCamera()
+		};
 		primary_world_camera.has_value()) {
 		std::vector<Entity> non_scene_cameras;
 
-		for (auto [camera_entity, _data] : EntitiesWith<impl::CameraData>()) {
-			impl::RecalculateCameraViewProjection(SceneCamera{ camera_entity });
-			if (SceneCamera{ camera_entity }.GetRenderTarget() == ctx_->render_target_) {
+		for (auto [camera_entity, _data] :
+			 EntitiesWith<impl::CameraData>()) {
+			impl::RecalculateCameraViewProjection(
+				SceneCamera{
+					camera_entity
+				}
+			);
+
+			if (SceneCamera{
+					camera_entity
+				}.GetRenderTarget() ==
+				ctx_->render_target_) {
 				continue;
 			}
-			non_scene_cameras.emplace_back(camera_entity);
+
+			non_scene_cameras.emplace_back(
+				camera_entity
+			);
 		}
 
-		SortByDepth(non_scene_cameras, false);
+		SortByDepth(
+			non_scene_cameras,
+			false
+		);
 
-		DrawCameras(draw_context, non_scene_cameras);
+		DrawCameras(
+			draw_context,
+			non_scene_cameras
+		);
 
 		ctx().render_queue.CombineCommands();
 
-		PTGN_ASSERT(ctx().render_queue.render_commands_.size() == 1);
-		PTGN_ASSERT(ctx().render_queue.debug_commands_.size() == 1);
+		PTGN_ASSERT(
+			ctx().render_queue
+					.render_commands_
+					.size() == 1
+		);
+
+		PTGN_ASSERT(
+			ctx().render_queue
+					.debug_commands_
+					.size() == 1
+		);
 
 		SceneCamera camera;
-		auto render_target{ GetRenderTarget() };
-		auto tint{ color::White };
-		impl::EffectParams effect_params;
-		Camera cam{ primary_world_camera.value() };
-		std::optional<Color> clear_color;
-		auto filter = [this](auto entity) {
-			auto entity_mask = GetMask(entity);
-			auto include	 = ctx().camera.GetIncludeMask();
-			auto exclude	 = ctx().camera.GetExcludeMask();
 
-			bool in_include = (entity_mask & include) != 0;
-			bool in_exclude = (entity_mask & exclude) != 0;
-
-			return !((in_include && !in_exclude) || IsUI(entity)) || !IsVisible(entity);
+		auto render_target{
+			GetRenderTarget()
 		};
 
-		auto& commands{ ctx().render_queue.GetRenderCommands(camera, false) };
-		auto& debug_commands{ ctx().render_queue.GetRenderCommands(camera, true) };
+		auto tint{
+			color::White
+		};
+
+		impl::EffectParams effect_params;
+
+		Camera cam{
+			primary_world_camera.value()
+		};
+
+		std::optional<Color> clear_color;
+
+		auto filter = [this](
+			auto entity
+		) {
+			auto entity_mask{
+				GetMask(entity)
+			};
+
+			auto include{
+				ctx().camera.GetIncludeMask()
+			};
+
+			auto exclude{
+				ctx().camera.GetExcludeMask()
+			};
+
+			bool in_include{
+				(entity_mask & include) != 0
+			};
+
+			bool in_exclude{
+				(entity_mask & exclude) != 0
+			};
+
+			return
+				!((in_include && !in_exclude) ||
+				  IsUI(entity)) ||
+				!IsVisible(entity);
+		};
+
+		auto& commands{
+			ctx().render_queue.GetRenderCommands(
+				camera,
+				false
+			)
+		};
+
+		auto& debug_commands{
+			ctx().render_queue.GetRenderCommands(
+				camera,
+				true
+			)
+		};
 
 		DrawScene(
-			*this, commands, debug_commands, draw_context, render_target, cam, camera, clear_color,
-			tint, effect_params, filter
+			*this,
+			commands,
+			debug_commands,
+			draw_context,
+			render_target,
+			cam,
+			camera,
+			clear_color,
+			tint,
+			effect_params,
+			filter
 		);
 	} else {
 		std::vector<Entity> cameras;
 
-		for (auto [camera_entity, _data] : EntitiesWith<impl::CameraData>()) {
-			impl::RecalculateCameraViewProjection(SceneCamera{ camera_entity });
-			cameras.emplace_back(camera_entity);
+		for (auto [camera_entity, _data] :
+			 EntitiesWith<impl::CameraData>()) {
+			impl::RecalculateCameraViewProjection(
+				SceneCamera{
+					camera_entity
+				}
+			);
+
+			cameras.emplace_back(
+				camera_entity
+			);
 		}
 
-		SortByDepth(cameras, false);
+		SortByDepth(
+			cameras,
+			false
+		);
 
-		DrawCameras(draw_context, cameras);
+		DrawCameras(
+			draw_context,
+			cameras
+		);
 	}
 
-	impl::RendererAccessor renderer{ ctx().renderer };
+	impl::RendererAccessor renderer{
+		ctx().renderer
+	};
 
 	renderer.FlushBatch();
 
 	renderer.SetupPresentationFramebuffer();
 
-	DrawSceneTarget(draw_context);
+	DrawSceneTarget(
+		draw_context
+	);
 
 	renderer.FlushBatch();
 
-	ctx().render_queue.render_commands_.clear();
-	ctx().render_queue.debug_commands_.clear();
+	ctx().render_queue
+		.render_commands_
+		.clear();
+
+	ctx().render_queue
+		.debug_commands_
+		.clear();
 }
 
 void Scene::DrawSceneTarget(DrawContext& draw_context) const {
@@ -986,14 +1114,6 @@ std::size_t Scene::GetTagHash() const {
 
 std::string Scene::GetTag() const {
 	return data_.tag;
-}
-
-bool Scene::IsRuntime() const {
-	return data_.runtime;
-}
-
-std::string_view Scene::GetRegisteredType() const {
-	return data_.registered_type;
 }
 
 RenderTarget Scene::GetRenderTarget() const {
