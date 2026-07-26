@@ -12,6 +12,10 @@
 #include "runtime/interaction/draggable_event.h"
 #include "runtime/interaction/dropzone_event.h"
 #include "runtime/interaction/interactive_event.h"
+#include "runtime/interaction/interactive.h"
+#include "runtime/interaction/draggable.h"
+#include "runtime/interaction/dropzone.h"
+#include "runtime/physics/collider.h"
 #include "runtime/physics/collision_event.h"
 #include "runtime/scripting/builtin_scripts.h"
 #include "runtime/ui/button.h"
@@ -64,6 +68,42 @@ template <typename TEvent>
 template <typename TEvent>
 [[nodiscard]] bool MatchMouseEvent(Entity, const json& value, const TEvent& event) {
 	return EventMouse(event) == JsonValueOr<Mouse>(value, "button", Mouse::Left);
+}
+
+[[nodiscard]] bool HasOverlapCollider(Entity entity) {
+	if (!entity || !entity.Has<Collider>()) {
+		return false;
+	}
+
+	const auto& collider{ entity.Get<Collider>() };
+
+	return collider.mode == CollisionMode::Overlap;
+}
+
+[[nodiscard]] bool HasCollisionCollider(Entity entity) {
+	if (!entity || !entity.Has<Collider>()) {
+		return false;
+	}
+
+	const auto& collider{ entity.Get<Collider>() };
+
+	return collider.mode == CollisionMode::Discrete || collider.mode == CollisionMode::Continuous;
+}
+
+[[nodiscard]] bool HasInteractive(Entity entity) {
+	return entity && entity.Has<impl::Interactive>();
+}
+
+[[nodiscard]] bool HasDraggable(Entity entity) {
+	return HasInteractive(entity) && entity && entity.Has<impl::Draggable>();
+}
+
+[[nodiscard]] bool HasDropzone(Entity entity) {
+	return HasInteractive(entity) entity && entity.Has<impl::Dropzone>();
+}
+
+[[nodiscard]] bool HasAnimationData(Entity entity) {
+	return entity && entity.Has<impl::AnimationData>();
 }
 
 [[nodiscard]] bool HasButtonData(Entity entity) {
@@ -226,14 +266,19 @@ PTGN_REGISTER_EVENT(
 	}
 );
 
-PTGN_REGISTER_EVENT(event::MouseMoveOver);
-PTGN_REGISTER_EVENT(event::MouseMoveOut);
+PTGN_REGISTER_EVENT(event::MouseMoveOver, {
+	.available = &HasInteractive,
+});
+PTGN_REGISTER_EVENT(event::MouseMoveOut, {
+	.available = &HasInteractive,
+});
 
 PTGN_REGISTER_EVENT(
 	event::MousePressedOver,
 	{
 		.default_value = MakeEventDefault("button", Mouse::Left),
 		.matches = &MatchMouseEvent<event::MousePressedOver>,
+		.available = &HasInteractive,
 	}
 );
 
@@ -242,6 +287,7 @@ PTGN_REGISTER_EVENT(
 	{
 		.default_value = MakeEventDefault("button", Mouse::Left),
 		.matches = &MatchMouseEvent<event::MouseHeldOver>,
+		.available = &HasInteractive,
 	}
 );
 
@@ -250,6 +296,7 @@ PTGN_REGISTER_EVENT(
 	{
 		.default_value = MakeEventDefault("button", Mouse::Left),
 		.matches = &MatchMouseEvent<event::MouseReleasedOver>,
+		.available = &HasInteractive,
 	}
 );
 
@@ -298,22 +345,34 @@ PTGN_REGISTER_EVENT(
 	{ .available = &HasDropdownData }
 );
 
-PTGN_REGISTER_EVENT(event::DragStart);
-PTGN_REGISTER_EVENT(event::Drag);
-PTGN_REGISTER_EVENT(event::DragStop);
-PTGN_REGISTER_EVENT(event::OverlapStart);
-PTGN_REGISTER_EVENT(event::Overlap);
-PTGN_REGISTER_EVENT(event::OverlapStop);
-PTGN_REGISTER_EVENT(event::Collision);
+PTGN_REGISTER_EVENT(event::DragStart, { .available = &HasDraggable });
+PTGN_REGISTER_EVENT(event::Drag, { .available = &HasDraggable });
+PTGN_REGISTER_EVENT(event::DragStop, { .available = &HasDraggable });
+PTGN_REGISTER_EVENT(event::PickupDraggable, { .available = &HasDraggable });
+PTGN_REGISTER_EVENT(event::DropDraggable, { .available = &HasDraggable });
+PTGN_REGISTER_EVENT(event::DragEnter, { .available = &HasDraggable });
+PTGN_REGISTER_EVENT(event::DragLeave, { .available = &HasDraggable });
+PTGN_REGISTER_EVENT(event::DragOver, { .available = &HasDraggable });
+PTGN_REGISTER_EVENT(event::DragOut, { .available = &HasDraggable });
+PTGN_REGISTER_EVENT(event::PickupFromDropzone, { .available = &HasDropzone });
+PTGN_REGISTER_EVENT(event::DropIntoDropzone, { .available = &HasDropzone });
+PTGN_REGISTER_EVENT(event::EnterDropzone, { .available = &HasDropzone });
+PTGN_REGISTER_EVENT(event::LeaveDropzone, { .available = &HasDropzone });
+PTGN_REGISTER_EVENT(event::MoveOverDropzone, { .available = &HasDropzone });
+PTGN_REGISTER_EVENT(event::MoveOutsideDropzone, { .available = &HasDropzone });
+PTGN_REGISTER_EVENT(event::OverlapStart, { .available = &HasOverlapCollider });
+PTGN_REGISTER_EVENT(event::Overlap, { .available = &HasOverlapCollider });
+PTGN_REGISTER_EVENT(event::OverlapStop, { .available = &HasOverlapCollider });
+PTGN_REGISTER_EVENT(event::Collision, { .available = &HasCollisionCollider });
 
-PTGN_REGISTER_EVENT(event::AnimationStart);
-PTGN_REGISTER_EVENT(event::AnimationStop);
-PTGN_REGISTER_EVENT(event::AnimationPause);
-PTGN_REGISTER_EVENT(event::AnimationResume);
-PTGN_REGISTER_EVENT(event::AnimationFrameChange);
-PTGN_REGISTER_EVENT(event::AnimationUpdate);
-PTGN_REGISTER_EVENT(event::AnimationComplete);
-PTGN_REGISTER_EVENT(event::AnimationLoopComplete);
+PTGN_REGISTER_EVENT(event::AnimationStart, { .available = &HasAnimationData });
+PTGN_REGISTER_EVENT(event::AnimationStop, { .available = &HasAnimationData });
+PTGN_REGISTER_EVENT(event::AnimationPause, { .available = &HasAnimationData });
+PTGN_REGISTER_EVENT(event::AnimationResume, { .available = &HasAnimationData });
+PTGN_REGISTER_EVENT(event::AnimationFrameChange, { .available = &HasAnimationData });
+PTGN_REGISTER_EVENT(event::AnimationUpdate, { .available = &HasAnimationData });
+PTGN_REGISTER_EVENT(event::AnimationComplete, { .available = &HasAnimationData });
+PTGN_REGISTER_EVENT(event::AnimationLoopComplete, { .available = &HasAnimationData });
 
 PTGN_REGISTER_EVENT(
 	Signal,
