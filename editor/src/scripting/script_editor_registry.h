@@ -14,6 +14,7 @@
 #include "core/util/type_info.h"
 #include "runtime/ecs/entity.h"
 #include "runtime/scripting/script.h"
+#include "panels/inspector_fields.h"
 #include "serialization/json/json.h"
 
 namespace ptgn::editor {
@@ -227,77 +228,150 @@ public:
 	}
 
 	template <ScriptClass T>
-	static bool Register(ScriptEditorOptions<T> options) {
-		auto& entries{ MutableEntries() };
-		const TypeHashValue type_hash{ Hash<T>() };
-		const bool inserted{ std::ranges::none_of(entries, [type_hash](const auto& entry) {
-			return entry.type_hash == type_hash;
-		}) };
+	static bool Register(
+		ScriptEditorOptions<T> options
+	) {
+		auto& entries{
+			MutableEntries()
+		};
+		const TypeHashValue type_hash{
+			Hash<T>()
+		};
+		const bool inserted{
+			std::ranges::none_of(
+				entries,
+				[type_hash](
+					const auto& entry
+				) {
+					return entry.type_hash ==
+						type_hash;
+				}
+			)
+		};
 
-		std::erase_if(entries, [type_hash](const auto& entry) {
-			return entry.type_hash == type_hash;
-		});
+		std::erase_if(
+			entries,
+			[type_hash](
+				const auto& entry
+			) {
+				return entry.type_hash ==
+					type_hash;
+			}
+		);
 
 		if (options.label.empty()) {
-			options.label = std::string{ type_name_without_namespaces<T>() };
+			options.label =
+				std::string{
+					type_name_without_namespaces<T>()
+				};
+		}
+
+		// Supply the standard reflected inspector only when the
+		// registration has no custom inline or details editor.
+		if (!options.draw &&
+			!options.draw_inline) {
+			if constexpr (
+				std::default_initializable<T> &&
+				inspector::
+					kHasDefaultInspectorDrawer<T> &&
+				requires(
+					const json& input,
+					T& output
+				) {
+					input.get_to(output);
+				} &&
+				requires(
+					json& output,
+					const T& value
+				) {
+					output = value;
+				}
+			) {
+				options.draw =
+					[](
+						ScriptEditorContext& context,
+						T& script
+					) {
+						return inspector::
+							DrawComponentContents(
+								context.ctx,
+								script
+							);
+					};
+			}
 		}
 
 		ScriptEditorRegistration registration{
-			.type_hash = type_hash,
-			.name = std::string{ type_name_without_namespaces<T>() },
+			.type_hash =
+				type_hash,
 			.options = {
-				.label = std::move(options.label),
-				.group = std::move(options.group),
-				.description = std::move(options.description),
-				.type = options.type,
-				.menu_order = options.menu_order,
-				.separator_after = options.separator_after,
-				.hidden = options.hidden,
+				.label =
+					std::move(
+						options.label
+					),
+				.group =
+					std::move(
+						options.group
+					),
+				.description =
+					std::move(
+						options.description
+					),
+				.type =
+					options.type,
+				.menu_order =
+					options.menu_order,
+				.separator_after =
+					options.separator_after,
+				.hidden =
+					options.hidden,
 			},
-			.has_contents = static_cast<bool>(options.draw),
+			.has_contents =
+				static_cast<bool>(
+					options.draw
+				),
 		};
 
-		if constexpr (TypedScriptJsonEditable<T>) {
-			if (options.draw_inline) {
-				registration.draw_inline =
-					[
-						fn = std::move(options.draw_inline)
-					](
-						ScriptEditorContext& context,
-						json& input
-					) mutable {
-						return DrawTypedJsonEditor<T>(
-							context,
-							input,
-							fn
-						);
-					};
-			}
-
-			if (options.draw) {
-				registration.draw =
-					[
-						fn = std::move(options.draw)
-					](
-						ScriptEditorContext& context,
-						json& input
-					) mutable {
-						return DrawTypedJsonEditor<T>(
-							context,
-							input,
-							fn
-						);
-					};
-			}
-		} else {
-			PTGN_ASSERT(
-				!options.draw_inline && !options.draw,
-				"Script has a typed editor but does not support JSON parameter serialization: ",
-				type_name_without_namespaces<T>()
-			);
+		if (options.draw_inline) {
+			registration.draw_inline =
+				[
+					fn = std::move(
+						options.draw_inline
+					)
+				](
+					ScriptEditorContext& context,
+					json& input
+				) mutable {
+					return DrawTypedJsonEditor<T>(
+						context,
+						input,
+						fn
+					);
+				};
 		}
 
-		entries.push_back(std::move(registration));
+		if (options.draw) {
+			registration.draw =
+				[
+					fn = std::move(
+						options.draw
+					)
+				](
+					ScriptEditorContext& context,
+					json& input
+				) mutable {
+					return DrawTypedJsonEditor<T>(
+						context,
+						input,
+						fn
+					);
+				};
+		}
+
+		entries.push_back(
+			std::move(registration)
+		);
+
 		return inserted;
 	}
 

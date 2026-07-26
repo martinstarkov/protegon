@@ -198,6 +198,210 @@ inline constexpr FieldOptions kDefaultFieldOptions<Matrix4>{
 	.default_open = false,
 };
 
+template <typename T>
+concept ReflectedMembers = requires(T& value) { ReflectMembers(value); };
+
+template <typename T>
+concept ReflectedReadOnlyMembers = requires(const T& value) { ReflectReadOnlyMembers(value); };
+
+template <typename T>
+concept ReflectedValue = requires(T& value) { ReflectValue(value); };
+
+template <typename T>
+struct IsVector : std::false_type {};
+
+template <typename T, typename Allocator>
+struct IsVector<std::vector<T, Allocator>> : std::true_type {};
+
+template <typename T>
+inline constexpr bool kIsVector{ IsVector<T>::value };
+
+template <typename T>
+struct IsArray : std::false_type {};
+
+template <typename T, std::size_t N>
+struct IsArray<std::array<T, N>> : std::true_type {};
+
+template <typename T>
+inline constexpr bool kIsArray{ IsArray<T>::value };
+
+template <typename T>
+struct IsVariant : std::false_type {};
+
+template <typename... T>
+struct IsVariant<std::variant<T...>> : std::true_type {};
+
+template <typename T>
+inline constexpr bool kIsVariant{ IsVariant<T>::value };
+
+template <typename T>
+struct IsOptional : std::false_type {};
+
+template <typename T>
+struct IsOptional<std::optional<T>> : std::true_type {};
+
+template <typename T>
+inline constexpr bool kIsOptional{ IsOptional<T>::value };
+
+template <typename T>
+concept AssetKeyType = std::derived_from<std::remove_cvref_t<T>, AssetKey>;
+
+
+template <typename T>
+consteval bool HasDefaultInspectorDrawer();
+
+template <
+	typename TTuple,
+	std::size_t... TIndex
+>
+consteval bool ReflectedTupleHasDefaultInspectorDrawer(
+	std::index_sequence<TIndex...>
+) {
+	return (
+		HasDefaultInspectorDrawer<
+			std::remove_cvref_t<
+				decltype(
+					std::get<TIndex>(
+						std::declval<TTuple&>()
+					).value
+				)
+			>
+		>() &&
+		...
+	);
+}
+
+template <
+	typename TVariant,
+	std::size_t... TIndex
+>
+consteval bool VariantHasDefaultInspectorDrawer(
+	std::index_sequence<TIndex...>
+) {
+	return (
+		HasDefaultInspectorDrawer<
+			std::variant_alternative_t<
+				TIndex,
+				TVariant
+			>
+		>() &&
+		...
+	);
+}
+
+template <typename T>
+consteval bool HasDefaultInspectorDrawer() {
+	using Value =
+		std::remove_cvref_t<T>;
+
+	if constexpr (
+		std::same_as<Value, bool> ||
+		std::same_as<Value, float> ||
+		std::same_as<Value, int> ||
+		std::same_as<Value, std::size_t> ||
+		DurationType<Value> ||
+		std::same_as<Value, std::string> ||
+		std::same_as<Value, Color> ||
+		std::same_as<Value, V2_float> ||
+		std::same_as<Value, V2_int> ||
+		std::same_as<Value, Degrees> ||
+		std::same_as<Value, Radians> ||
+		std::same_as<Value, FontStyle> ||
+		std::same_as<Value, Matrix4> ||
+		std::is_enum_v<Value>
+	) {
+		return true;
+	} else if constexpr (
+		kIsOptional<Value> ||
+		kIsArray<Value> ||
+		kIsVector<Value>
+	) {
+		return HasDefaultInspectorDrawer<
+			typename Value::value_type
+		>();
+	} else if constexpr (
+		kIsVariant<Value>
+	) {
+		return VariantHasDefaultInspectorDrawer<Value>(
+			std::make_index_sequence<
+				std::variant_size_v<Value>
+			>{}
+		);
+	} else if constexpr (
+		ReflectedValue<Value>
+	) {
+		using Member =
+			decltype(
+				ReflectValue(
+					std::declval<Value&>()
+				)
+			);
+		using MemberValue =
+			std::remove_cvref_t<
+				decltype(
+					std::declval<Member&>().value
+				)
+			>;
+
+		return HasDefaultInspectorDrawer<
+			MemberValue
+		>();
+	} else if constexpr (
+		ReflectedMembers<Value>
+	) {
+		using Members =
+			decltype(
+				ReflectMembers(
+					std::declval<Value&>()
+				)
+			);
+
+		if constexpr (
+			std::tuple_size_v<Members> == 0
+		) {
+			return false;
+		} else {
+			return ReflectedTupleHasDefaultInspectorDrawer<
+				Members
+			>(
+				std::make_index_sequence<
+					std::tuple_size_v<Members>
+				>{}
+			);
+		}
+	} else if constexpr (
+		ReflectedReadOnlyMembers<Value>
+	) {
+		using Members =
+			decltype(
+				ReflectReadOnlyMembers(
+					std::declval<const Value&>()
+				)
+			);
+
+		if constexpr (
+			std::tuple_size_v<Members> == 0
+		) {
+			return false;
+		} else {
+			return ReflectedTupleHasDefaultInspectorDrawer<
+				Members
+			>(
+				std::make_index_sequence<
+					std::tuple_size_v<Members>
+				>{}
+			);
+		}
+	} else {
+		return false;
+	}
+}
+
+template <typename T>
+inline constexpr bool kHasDefaultInspectorDrawer{
+	HasDefaultInspectorDrawer<T>()
+};
+
 inline std::string PrettyName(std::string_view name) {
 	while (!name.empty() && name.back() == '_') {
 		name.remove_suffix(1);
@@ -285,55 +489,6 @@ bool DrawPropertyRow(std::string_view label, F&& draw) {
 
 	return changed;
 }
-
-template <typename T>
-concept ReflectedMembers = requires(T& value) { ReflectMembers(value); };
-
-template <typename T>
-concept ReflectedReadOnlyMembers = requires(const T& value) { ReflectReadOnlyMembers(value); };
-
-template <typename T>
-concept ReflectedValue = requires(T& value) { ReflectValue(value); };
-
-template <typename T>
-struct IsVector : std::false_type {};
-
-template <typename T, typename Allocator>
-struct IsVector<std::vector<T, Allocator>> : std::true_type {};
-
-template <typename T>
-inline constexpr bool kIsVector{ IsVector<T>::value };
-
-template <typename T>
-struct IsArray : std::false_type {};
-
-template <typename T, std::size_t N>
-struct IsArray<std::array<T, N>> : std::true_type {};
-
-template <typename T>
-inline constexpr bool kIsArray{ IsArray<T>::value };
-
-template <typename T>
-struct IsVariant : std::false_type {};
-
-template <typename... T>
-struct IsVariant<std::variant<T...>> : std::true_type {};
-
-template <typename T>
-inline constexpr bool kIsVariant{ IsVariant<T>::value };
-
-template <typename T>
-struct IsOptional : std::false_type {};
-
-template <typename T>
-struct IsOptional<std::optional<T>> : std::true_type {};
-
-template <typename T>
-inline constexpr bool kIsOptional{ IsOptional<T>::value };
-
-template <typename T>
-concept AssetKeyType = std::derived_from<std::remove_cvref_t<T>, AssetKey>;
-
 template <typename T>
 bool DrawValue(
 	EditorContext& ctx, std::string_view label, T& value,
