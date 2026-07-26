@@ -99,7 +99,7 @@ template <typename TEvent>
 }
 
 [[nodiscard]] bool HasDropzone(Entity entity) {
-	return HasInteractive(entity) entity && entity.Has<impl::Dropzone>();
+	return HasInteractive(entity) && entity && entity.Has<impl::Dropzone>();
 }
 
 [[nodiscard]] bool HasAnimationData(Entity entity) {

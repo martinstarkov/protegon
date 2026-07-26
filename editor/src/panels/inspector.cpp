@@ -107,9 +107,9 @@ struct DurationEditState {
 };
 
 struct ScriptInspectorState {
-	std::optional<SequenceId> editing_sequence_name;
+	std::optional<ImGuiID> editing_sequence_name;
 	std::string editing_sequence_original_name;
-	std::unordered_map<SequenceId, bool> sequence_open_states;
+	std::unordered_map<ImGuiID, bool> sequence_open_states;
 };
 
 ScriptInspectorState& GetScriptInspectorState() {
@@ -1063,6 +1063,8 @@ bool DrawActionParameters(
 bool DrawActions(
 	ScriptEditorContext& context, ScriptSequence& sequence, ScriptSequence& binding
 ) {
+	ImGui::PushID("SequenceActions");
+
 	bool changed{ false };
 	int remove_index{ -1 };
 	int duplicate_index{ -1 };
@@ -1073,7 +1075,7 @@ bool DrawActions(
 		auto& action{ sequence.steps[static_cast<std::size_t>(index)] };
 		bool remove{ false };
 		bool duplicate{ false };
-		ImGui::PushID(&action);
+		ImGui::PushID(index);
 
 		constexpr float drag_width{ 28.0f };
 		const float label_width{
@@ -1275,14 +1277,18 @@ bool DrawActions(
 		binding.runtime = ScriptSequenceRuntime{};
 		changed = true;
 	}
+	ImGui::PopID();
 	return changed;
 }
+
 bool DrawLifecycleRows(ScriptEditorContext& context, ScriptSequence& sequence) {
+	ImGui::PushID("LifecycleRows");
+
 	bool changed{ false };
 	int remove{ -1 };
 	for (int i{ 0 }; i < static_cast<int>(sequence.lifecycle_actions.size()); ++i) {
 		auto& callback{ sequence.lifecycle_actions[static_cast<std::size_t>(i)] };
-		ImGui::PushID(&callback);
+		ImGui::PushID(i);
 
 		const float lifecycle_width{ 145.0f };
 		if (ImGui::BeginTable("LifecycleRow", 3, ImGuiTableFlags_SizingStretchProp)) {
@@ -1340,6 +1346,7 @@ bool DrawLifecycleRows(ScriptEditorContext& context, ScriptSequence& sequence) {
 		sequence.lifecycle_actions.erase(sequence.lifecycle_actions.begin() + remove);
 		changed = true;
 	}
+	ImGui::PopID();
 	return changed;
 }
 
@@ -1348,7 +1355,6 @@ bool DrawEvent(
 	bool stop_event, bool& switch_kind, bool& changed
 ) {
 	bool remove{ false };
-	ImGui::PushID(&event);
 
 	const float kind_width{
 		std::max(ImGui::CalcTextSize("Start").x, ImGui::CalcTextSize("Stop").x) +
@@ -1495,7 +1501,6 @@ bool DrawEvent(
 		ImGui::EndTable();
 	}
 
-	ImGui::PopID();
 	return remove;
 }
 
@@ -1596,33 +1601,55 @@ bool DrawEvents(ScriptEditorContext& context, ScriptSequence& sequence) {
 
 	int remove_start{ -1 };
 	int move_start_to_stop{ -1 };
+
+	ImGui::PushID("StartEvents");
 	for (int i{ 0 }; i < static_cast<int>(sequence.start_events.size()); ++i) {
+		ImGui::PushID(i);
+
 		bool switch_kind{ false };
 		if (DrawEvent(
-				context, sequence.start_events[static_cast<std::size_t>(i)],
-				false, switch_kind, changed
+				context,
+				sequence.start_events[static_cast<std::size_t>(i)],
+				false,
+				switch_kind,
+				changed
 			)) {
 			remove_start = i;
 		}
+
 		if (switch_kind) {
 			move_start_to_stop = i;
 		}
+
+		ImGui::PopID();
 	}
+	ImGui::PopID();
 
 	int remove_stop{ -1 };
 	int move_stop_to_start{ -1 };
+
+	ImGui::PushID("StopEvents");
 	for (int i{ 0 }; i < static_cast<int>(sequence.stop_events.size()); ++i) {
+		ImGui::PushID(i);
+
 		bool switch_kind{ false };
 		if (DrawEvent(
-				context, sequence.stop_events[static_cast<std::size_t>(i)],
-				true, switch_kind, changed
+				context,
+				sequence.stop_events[static_cast<std::size_t>(i)],
+				true,
+				switch_kind,
+				changed
 			)) {
 			remove_stop = i;
 		}
+
 		if (switch_kind) {
 			move_stop_to_start = i;
 		}
+
+		ImGui::PopID();
 	}
+	ImGui::PopID();
 
 	std::optional<EventCondition> moved_to_stop;
 	std::optional<EventCondition> moved_to_start;
@@ -1662,7 +1689,10 @@ bool DrawEvents(ScriptEditorContext& context, ScriptSequence& sequence) {
 	return changed;
 }
 bool DrawSequence(
-	ScriptEditorContext& context, ScriptSequence& binding, bool& changed
+	ScriptEditorContext& context,
+	ScriptSequence& binding,
+	bool& changed,
+	int resident_index
 ) {
 	ScriptSequence* sequence{ ResolveEditorSequence(context, binding) };
 	if (!sequence) {
@@ -1672,14 +1702,20 @@ bool DrawSequence(
 
 	bool remove{ false };
 	auto& state{ GetScriptInspectorState() };
-	ImGui::PushID(static_cast<int>(binding.id));
+
+	ImGui::PushID("ScriptSequence");
+	ImGui::PushID(resident_index);
+
+	const ImGuiID editor_id{
+		ImGui::GetID("EditorState")
+	};
 	const float button_size{ ImGui::GetFrameHeight() };
 	const bool show_runtime_controls{
 		context.owner &&
 		context.ctx.editor.IsPlaying()
 	};
 	const int column_count{ show_runtime_controls ? 6 : 3 };
-	bool open{ state.sequence_open_states.try_emplace(binding.id, true).first->second };
+	bool open{ state.sequence_open_states.try_emplace(editor_id, true).first->second };
 	ImVec2 name_input_min{};
 	ImVec2 name_input_max{};
 	bool name_input_drawn{ false };
@@ -1729,9 +1765,9 @@ bool DrawSequence(
 		};
 		const ImVec2 mouse{ ImGui::GetMousePos() };
 
-		auto& stored_open{ state.sequence_open_states[binding.id] };
+		auto& stored_open{ state.sequence_open_states[editor_id] };
 		ImGui::SetNextItemOpen(stored_open, ImGuiCond_Always);
-		const bool editing_before_draw{ state.editing_sequence_name == binding.id };
+		const bool editing_before_draw{ state.editing_sequence_name == editor_id };
 		const ImVec4 header{
 			binding.enabled ? ImVec4{ 0.35f, 0.24f, 0.39f, 1.0f }
 							: ImVec4{ 0.25f, 0.25f, 0.25f, 1.0f }
@@ -1810,7 +1846,7 @@ bool DrawSequence(
 			ImGui::EndPopup();
 		}
 		if (begin_edit) {
-			state.editing_sequence_name = binding.id;
+			state.editing_sequence_name = editor_id;
 			state.editing_sequence_original_name = sequence->name;
 			began_name_edit_this_frame = true;
 		}
@@ -1821,7 +1857,7 @@ bool DrawSequence(
 			stored_open = open;
 		}
 
-		if (state.editing_sequence_name == binding.id) {
+		if (state.editing_sequence_name == editor_id) {
 			ImGui::SetCursorScreenPos(ImVec2{ text_start_x, tree_min.y });
 			ImGui::SetNextItemWidth(std::max(
 				minimum_name_width,
@@ -1834,6 +1870,7 @@ bool DrawSequence(
 				"##SequenceName", &sequence->name,
 				ImGuiInputTextFlags_EnterReturnsTrue
 			) };
+			changed |= ImGui::IsItemEdited();
 			name_input_min = ImGui::GetItemRectMin();
 			name_input_max = ImGui::GetItemRectMax();
 			name_input_drawn = true;
@@ -1846,7 +1883,7 @@ bool DrawSequence(
 				changed = true;
 			}
 		}
-		if (tree_hovered && state.editing_sequence_name != binding.id) {
+		if (tree_hovered && state.editing_sequence_name != editor_id) {
 			ImGui::SetTooltip("Double-click name to rename.");
 		}
 
@@ -2031,7 +2068,7 @@ bool DrawSequence(
 		ImGui::EndTable();
 	}
 
-	if (state.editing_sequence_name == binding.id && name_input_drawn &&
+	if (state.editing_sequence_name == editor_id && name_input_drawn &&
 		!began_name_edit_this_frame) {
 		const bool clicked{
 			ImGui::IsMouseClicked(ImGuiMouseButton_Left) ||
@@ -2120,6 +2157,7 @@ bool DrawSequence(
 		}
 	}
 
+	ImGui::PopID();
 	ImGui::PopID();
 	return remove;
 }
@@ -2282,7 +2320,8 @@ bool DrawResidentScripts(
 			if (DrawSequence(
 					context,
 					*editable_sequence,
-					changed
+					changed,
+					i
 				)) {
 				remove = i;
 			}
@@ -2303,7 +2342,7 @@ bool DrawResidentScripts(
 			continue;
 		}
 
-		ImGui::PushID(&script);
+		ImGui::PushID(i);
 		bool open{ false };
 		const float button_size{ ImGui::GetFrameHeight() };
 
@@ -3588,11 +3627,17 @@ bool DrawPrefabComponents(
 		ImGui::Indent();
 
 		if (editor->draw_json) {
+			// The JSON node lives inside PrefabEntity::components and remains
+			// stable while its temporary typed editor value is rebuilt.
+			ImGui::PushID(prefab_component);
+
 			changed |= DrawRegisteredComponentJson(
 				ctx,
 				component,
 				*prefab_component
 			);
+
+			ImGui::PopID();
 		} else {
 			ImGui::TextDisabled(
 				"This component does not support prefab editing."
