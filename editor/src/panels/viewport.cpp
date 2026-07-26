@@ -1211,29 +1211,92 @@ void ViewportPanel::DrawSceneCameraOutlines(
 	}
 }
 
-void ViewportPanel::DrawViewportToolbar(EditorContext& ctx) {
-	bool playing{ ctx.editor.IsPlaying() };
-	bool paused{ playing && ctx.editor.IsPaused() };
+void ViewportPanel::DrawViewportToolbar(
+	EditorContext& ctx
+) {
+	const bool playing{
+		ctx.editor.IsPlaying()
+	};
 
-	if (ImGui::Button(playing ? "Stop" : "Play")) {
-		if (playing) {
+	const bool paused{
+		ctx.editor.IsPaused()
+	};
+
+	const bool can_play{
+		ctx.editor.CanPlay()
+	};
+
+	const bool can_stop{
+		ctx.editor.CanStop()
+	};
+
+	const bool can_pause{
+		ctx.editor.CanPause()
+	};
+
+	const auto* selected_scene{
+		ctx.editor
+			.GetSceneListPanel()
+			.GetSelectedScene()
+	};
+
+	const bool direct_runtime{
+		selected_scene &&
+		selected_scene->IsRuntime() &&
+		!playing
+	};
+
+	if (playing) {
+		ImGui::BeginDisabled(
+			!can_stop
+		);
+
+		if (ImGui::Button("Stop")) {
 			ctx.editor.Stop();
-		} else {
+		}
+
+		ImGui::EndDisabled();
+	} else if (direct_runtime) {
+		ImGui::BeginDisabled();
+
+		ImGui::Button("Runtime");
+
+		ImGui::EndDisabled();
+	} else {
+		ImGui::BeginDisabled(
+			!can_play
+		);
+
+		if (ImGui::Button("Play")) {
 			ctx.editor.Play();
 		}
+
+		ImGui::EndDisabled();
 	}
 
 	ImGui::SameLine();
-	ImGui::BeginDisabled(!playing);
 
-	if (ImGui::Button(paused ? "Resume" : "Pause")) {
+	ImGui::BeginDisabled(
+		!can_pause
+	);
+
+	if (ImGui::Button(
+			paused
+				? "Resume"
+				: "Pause"
+		)) {
 		ctx.editor.TogglePause();
 	}
 
 	ImGui::EndDisabled();
 
 	ImGui::SameLine();
-	ImGui::BeginDisabled(!paused);
+
+	ImGui::BeginDisabled(
+		!can_pause ||
+		!paused
+	);
+
 	ImGui::PushButtonRepeat(true);
 
 	if (ImGui::Button("Step")) {
@@ -1241,23 +1304,41 @@ void ViewportPanel::DrawViewportToolbar(EditorContext& ctx) {
 	}
 
 	ImGui::PopButtonRepeat();
+
 	ImGui::EndDisabled();
 
 	ImGui::SameLine();
 
-	float speed{ ctx.editor.GetTimeScale() };
+	float speed{
+		ctx.editor.GetTimeScale()
+	};
 
 	ImGui::SetNextItemWidth(120.0f);
+
 	if (ImGui::DragFloat(
-			"Speed", &speed, 0.05f, 0.0f, 100.0f, "%.2fx", ImGuiSliderFlags_AlwaysClamp
+			"Speed",
+			&speed,
+			0.05f,
+			0.0f,
+			100.0f,
+			"%.2fx",
+			ImGuiSliderFlags_AlwaysClamp
 		)) {
-		ctx.editor.SetTimeScale(speed);
+		ctx.editor.SetTimeScale(
+			speed
+		);
 	}
 
 	ImGui::SameLine();
 
-	if (ImGui::Button(use_editor_camera_ ? "Use Scene Cameras" : "Use Editor Camera")) {
-		SetUseEditorCamera(!use_editor_camera_);
+	if (ImGui::Button(
+			use_editor_camera_
+				? "Use Scene Cameras"
+				: "Use Editor Camera"
+		)) {
+		SetUseEditorCamera(
+			!use_editor_camera_
+		);
 	}
 }
 
