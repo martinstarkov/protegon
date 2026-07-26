@@ -458,15 +458,33 @@ void AddEditorScriptEntry(
 }
 
 void EnsureActionValue(ScriptStep& action) {
-	if (!action.value.is_null()) {
+	const auto* registration{
+		ScriptRegistry::Find(action.type_hash)
+	};
+
+	if (!registration || !registration->make_default) {
+		if (action.value.is_null()) {
+			action.value = json::object();
+		}
 		return;
 	}
-	if (const auto* registration{ ScriptRegistry::Find(action.type_hash) };
-		registration && registration->make_default) {
-		action.value = registration->make_default();
-	}
+
+	json defaults{
+		registration->make_default()
+	};
+
 	if (action.value.is_null()) {
-		action.value = json::object();
+		action.value = std::move(defaults);
+		return;
+	}
+
+	if (defaults.is_object() && action.value.is_object()) {
+		defaults.update(
+			action.value,
+			true
+		);
+
+		action.value = std::move(defaults);
 	}
 }
 

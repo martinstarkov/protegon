@@ -6,7 +6,6 @@
 #include <ranges>
 #include <string>
 #include <type_traits>
-#include <unordered_map>
 #include <utility>
 #include <vector>
 
@@ -158,44 +157,65 @@ struct ScriptEditorRegistration {
 };
 
 template <typename T>
-struct TypedJsonEditorState {
-	T value{};
-	json synchronized_value = json::object();
-	bool initialized{ false };
-};
+concept TypedScriptJsonEditable =
+	std::default_initializable<T> &&
+	JsonSerializable<T> &&
+	JsonDeserializable<T>;
 
 template <typename T, typename F>
-bool DrawTypedJsonEditor(ScriptEditorContext& context, json& input, F& fn) {
-	static std::unordered_map<const json*, TypedJsonEditorState<T>> states;
-	auto& state{ states[&input] };
-	if (!state.initialized || state.synchronized_value != input) {
-		state.value = T{};
-		if constexpr (requires(const json& value, T& output) { value.get_to(output); }) {
-			TryReadScriptJson(input, state.value);
+	requires TypedScriptJsonEditable<T>
+bool DrawTypedJsonEditor(
+	ScriptEditorContext& context,
+	json& input,
+	F& draw
+) {
+	T value{};
+
+	json normalized = json::object();
+
+	try {
+		// Start with every serialized default parameter.
+		normalized = value;
+
+		// Preserve parameters already stored in the input.
+		if (normalized.is_object() && input.is_object()) {
+			normalized.update(
+				input,
+				true
+			);
+		} else if (!input.is_null()) {
+			normalized = input;
 		}
-		state.synchronized_value = input;
-		state.initialized = true;
+
+		normalized.get_to(value);
+	} catch (...) {
+		// Keep the default-constructed value. The drawer must still run,
+		// because its caller may already have repositioned the ImGui cursor.
+		value = T{};
 	}
 
-	const bool changed{ std::invoke(fn, context, state.value) };
+	const bool changed{
+		std::invoke(
+			draw,
+			context,
+			value
+		)
+	};
 
-	if constexpr (requires(json& output, const T& value) { output = value; }) {
-		json updated;
-		try {
-			updated = state.value;
-		} catch (...) {
-			updated = input;
-		}
-		const bool serialized_changed{ updated != input };
-		input = std::move(updated);
-		state.synchronized_value = input;
-		return changed || serialized_changed;
-	} else {
-		// Metadata-only Script registrations do not require a JSON adapter. A custom drawer for a
-		// non-serializable Script may still run, but there is no payload to write back.
-		state.synchronized_value = input;
+	json updated = json::object();
+
+	try {
+		updated = value;
+	} catch (...) {
 		return changed;
 	}
+
+	if (updated == input) {
+		return changed;
+	}
+
+	input = std::move(updated);
+	return true;
 }
 
 class ScriptEditorRegistry {
@@ -242,21 +262,44 @@ public:
 			.has_contents = static_cast<bool>(options.draw),
 		};
 
-		if (options.draw_inline) {
-			registration.draw_inline =
-				[fn = std::move(options.draw_inline)](
-					ScriptEditorContext& context, json& input
-				) mutable {
-					return DrawTypedJsonEditor<T>(context, input, fn);
-				};
-		}
-		if (options.draw) {
-			registration.draw =
-				[fn = std::move(options.draw)](
-					ScriptEditorContext& context, json& input
-				) mutable {
-					return DrawTypedJsonEditor<T>(context, input, fn);
-				};
+		if constexpr (TypedScriptJsonEditable<T>) {
+			if (options.draw_inline) {
+				registration.draw_inline =
+					[
+						fn = std::move(options.draw_inline)
+					](
+						ScriptEditorContext& context,
+						json& input
+					) mutable {
+						return DrawTypedJsonEditor<T>(
+							context,
+							input,
+							fn
+						);
+					};
+			}
+
+			if (options.draw) {
+				registration.draw =
+					[
+						fn = std::move(options.draw)
+					](
+						ScriptEditorContext& context,
+						json& input
+					) mutable {
+						return DrawTypedJsonEditor<T>(
+							context,
+							input,
+							fn
+						);
+					};
+			}
+		} else {
+			PTGN_ASSERT(
+				!options.draw_inline && !options.draw,
+				"Script has a typed editor but does not support JSON parameter serialization: ",
+				type_name_without_namespaces<T>()
+			);
 		}
 
 		entries.push_back(std::move(registration));
