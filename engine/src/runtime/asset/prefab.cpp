@@ -29,9 +29,7 @@ namespace {
 		output.tag = entity.Get<Tag>().value;
 	}
 
-	json serialized_tags{
-		SerializeEntityTags(entity)
-	};
+	json serialized_tags = SerializeEntityTags(entity);
 
 	for (const auto& serialized_tag : serialized_tags) {
 		output.tags.emplace_back(
@@ -39,12 +37,9 @@ namespace {
 		);
 	}
 
-	json serialized_components{
-		SerializeEntityComponents(entity)
-	};
+	json serialized_components = SerializeEntityComponents(entity);
 
-	for (auto& [name, value] :
-		 serialized_components.items()) {
+	for (auto& [name, value] : serialized_components.items()) {
 		output.components.insert_or_assign(
 			name,
 			std::move(value)
@@ -86,18 +81,14 @@ namespace {
 		)
 	};
 
-	json serialized_tags{
-		definition.tags
-	};
+	json serialized_tags = definition.tags;
 
 	DeserializeEntityTags(
 		serialized_tags,
 		entity
 	);
 
-	json serialized_components{
-		definition.components
-	};
+	json serialized_components = definition.components;
 
 	DeserializeEntityComponents(
 		serialized_components,
@@ -111,8 +102,7 @@ namespace {
 		);
 	}
 
-	for (const auto& child :
-		 definition.children) {
+	for (const auto& child : definition.children) {
 		(void)InstantiatePrefabEntity(
 			scene,
 			child,
