@@ -9,7 +9,7 @@
 #include "core/math/geometry/rect.h"
 #include "core/math/vector2.h"
 #include "renderer/renderer.h"
-#include "runtime/animation/tween_effect.h"
+#include "runtime/animation/scripted_animation.h"
 #include "runtime/asset/asset_manager.h"
 #include "runtime/ecs/entity.h"
 #include "runtime/graphics/draw.h"

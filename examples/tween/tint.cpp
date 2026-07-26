@@ -4,7 +4,7 @@
 #include "core/input/mouse.h"
 #include "core/math/easing.h"
 #include "core/util/time.h"
-#include "runtime/animation/tween_effect.h"
+#include "runtime/animation/scripted_animation.h"
 #include "runtime/asset/asset_manager.h"
 #include "runtime/graphics/sprite.h"
 #include "runtime/scene/scene.h"
