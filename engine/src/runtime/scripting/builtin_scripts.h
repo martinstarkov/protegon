@@ -332,7 +332,7 @@ struct SetVisibleScript : public Script {
 /// loops is the number of additional plays after the first play.
 /// A value of 0 plays the sound once.
 struct PlaySoundScript : public Script {
-	AudioKey sound{ "door_open" };
+	AudioKey sound{};
 	float volume{ 1.0f };
 	int loops{ 0 };
 
