@@ -1,6 +1,7 @@
 #include "panels/scene_hierarchy.h"
 
 #include <imgui.h>
+#include <imgui_stdlib.h>
 
 #include <algorithm>
 #include <array>
@@ -920,11 +921,9 @@ void AddDefaultPrefabComponent(
 		value = json::object();
 	}
 
-	entity.components.emplace_back(
-		PrefabComponent{
-			.type = std::string{ component->name },
-			.value = std::move(value),
-		}
+	entity.components.insert_or_assign(
+		std::string{ component->name },
+		std::move(value)
 	);
 }
 
@@ -948,6 +947,77 @@ PrefabKey SaveNewPrefab(
 	return key;
 }
 
+[[nodiscard]] std::string GetPrefabDisplayName(
+	const PrefabKey& key
+) {
+	std::string name{ key.value };
+
+	if (name.starts_with(kPrefabKeyPrefix)) {
+		name.erase(0, kPrefabKeyPrefix.size());
+	}
+
+	return name;
+}
+
+[[nodiscard]] bool IsPrefabKeyAvailable(
+	const AssetManager& assets,
+	const path& project_root,
+	const PrefabKey& current_key,
+	const PrefabKey& candidate_key
+) {
+	if (candidate_key == current_key) {
+		return true;
+	}
+
+	if (assets.Has(candidate_key) ||
+		assets.HasCatalogAsset(candidate_key)) {
+		return false;
+	}
+
+	return !FileExists(
+		project_root /
+		GetPrefabSourcePath(candidate_key)
+	);
+}
+
+[[nodiscard]] bool RenamePrefabAsset(
+	AssetManager& assets,
+	const path& project_root,
+	const PrefabKey& old_key,
+	const PrefabKey& new_key
+) {
+	if (old_key == new_key) {
+		return true;
+	}
+
+	if (!IsPrefabKeyAvailable(
+			assets,
+			project_root,
+			old_key,
+			new_key
+		)) {
+		return false;
+	}
+
+	auto source{
+		impl::AssetAccessor{ assets }.Get<Prefab>(
+			old_key
+		)
+	};
+
+	// Copy the complete prefab, including every component's serialized data.
+	Prefab renamed{ source.get() };
+	renamed.key = new_key;
+
+	SaveNewPrefab(
+		assets,
+		project_root,
+		std::move(renamed)
+	);
+
+	return assets.RemovePrefab(old_key);
+}
+
 PrefabKey CreateBlankPrefab(AssetManager& assets, const path& project_root) {
 	Prefab prefab;
 	prefab.key = MakeUniquePrefabKey(assets, "New Prefab");
@@ -957,11 +1027,25 @@ PrefabKey CreateBlankPrefab(AssetManager& assets, const path& project_root) {
 }
 
 PrefabKey CreatePrefabFromEntity(
-	AssetManager& assets, const path& project_root, Entity entity
+	AssetManager& assets,
+	const path& project_root,
+	Entity entity
 ) {
-	std::string name{ entity.Has<Tag>() ? entity.Get<Tag>().value : std::string{ "Prefab" } };
-	auto key{ MakeUniquePrefabKey(assets, name) };
-	return SaveNewPrefab(assets, project_root, CapturePrefab(entity, key, true));
+	std::string name{
+		entity.Has<Tag>()
+			? entity.Get<Tag>().value
+			: std::string{ "Prefab" }
+	};
+
+	auto key{
+		MakeUniquePrefabKey(assets, name)
+	};
+
+	return SaveNewPrefab(
+		assets,
+		project_root,
+		CapturePrefab(entity, key, true)
+	);
 }
 
 void DrawPrefabCreateMenu(CreateMenuContext& context) {
@@ -1385,58 +1469,198 @@ void SceneHierarchyPanel::DrawPrefabs(EditorContext& ctx) {
 
 	std::optional<PrefabKey> prefab_to_delete;
 	std::optional<PrefabKey> prefab_to_duplicate;
+	std::optional<std::pair<PrefabKey, PrefabKey>> prefab_to_rename;
+
 	bool prefab_left_clicked_this_frame{ false };
 
 	for (const auto& key : assets.GetPrefabKeys()) {
+		ImGui::PushID(key.value.c_str());
+
+		std::string label{
+			GetPrefabDisplayName(key)
+		};
+
+		if (renaming_prefab_ == key) {
+			if (focus_prefab_rename_) {
+				ImGui::SetKeyboardFocusHere();
+				focus_prefab_rename_ = false;
+			}
+
+			ImGui::SetNextItemWidth(-FLT_MIN);
+
+			bool submitted{
+				ImGui::InputText(
+					"##RenamePrefab",
+					&prefab_rename_text_,
+					ImGuiInputTextFlags_EnterReturnsTrue |
+						ImGuiInputTextFlags_AutoSelectAll
+				)
+			};
+
+			bool cancel{
+				ImGui::IsItemActive() &&
+				ImGui::IsKeyPressed(ImGuiKey_Escape)
+			};
+
+			bool commit{
+				submitted ||
+				ImGui::IsItemDeactivatedAfterEdit()
+			};
+
+			if (cancel) {
+				renaming_prefab_.reset();
+				prefab_rename_text_.clear();
+				prefab_rename_error_.clear();
+			} else if (commit) {
+				auto display_name{
+					TrimWhitespace(
+						prefab_rename_text_
+					)
+				};
+
+				if (display_name.empty()) {
+					prefab_rename_error_ =
+						"Prefab name cannot be empty.";
+				} else {
+					PrefabKey new_key{
+						MakePrefabKey(display_name)
+					};
+
+					if (!project_root.has_value()) {
+						prefab_rename_error_ =
+							"No project path is available.";
+					} else if (!IsPrefabKeyAvailable(
+								assets,
+								project_root.value(),
+								key,
+								new_key
+							)) {
+						prefab_rename_error_ =
+							"A prefab with that key already exists.";
+					} else {
+						if (new_key != key) {
+							prefab_to_rename =
+								std::pair{
+									key,
+									std::move(new_key)
+								};
+						}
+
+						renaming_prefab_.reset();
+						prefab_rename_text_.clear();
+						prefab_rename_error_.clear();
+					}
+				}
+			}
+
+			if (!prefab_rename_error_.empty()) {
+				ImGui::TextDisabled(
+					"%s",
+					prefab_rename_error_.c_str()
+				);
+			}
+
+			ImGui::PopID();
+			continue;
+		}
+
 		bool selected{
 			selected_prefab_.has_value() &&
 			selected_prefab_.value() == key
 		};
 
-		std::string label{ key.value };
-
-		if (label.starts_with(kPrefabKeyPrefix)) {
-			label.erase(0, kPrefabKeyPrefix.size());
-		}
-
-		if (ImGui::Selectable(label.c_str(), selected)) {
+		if (ImGui::Selectable(
+				label.c_str(),
+				selected
+			)) {
 			SetSelectedPrefab(key);
 			prefab_left_clicked_this_frame = true;
 		}
 
 		if (selected_scene &&
 			ImGui::IsItemHovered() &&
-			ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left)) {
-			SetSelectedEntity(selected_scene->CreatePrefab(key));
-			ImGui::SetWindowFocus("Scene Hierarchy###SceneHierarchyWindow");
+			ImGui::IsMouseDoubleClicked(
+				ImGuiMouseButton_Left
+			)) {
+			SetSelectedEntity(
+				selected_scene->CreatePrefab(key)
+			);
+
+			ImGui::SetWindowFocus(
+				"Scene Hierarchy###SceneHierarchyWindow"
+			);
 		}
 
-		if (!ImGui::BeginPopupContextItem()) {
-			continue;
+		if (ImGui::BeginPopupContextItem(
+				"PrefabContextMenu"
+			)) {
+			ImGui::BeginDisabled(!selected_scene);
+
+			if (ImGui::MenuItem("Create Instance")) {
+				SetSelectedEntity(
+					selected_scene->CreatePrefab(key)
+				);
+
+				ImGui::SetWindowFocus(
+					"Scene Hierarchy###SceneHierarchyWindow"
+				);
+			}
+
+			ImGui::EndDisabled();
+
+			ImGui::BeginDisabled(
+				!project_root.has_value()
+			);
+
+			if (ImGui::MenuItem("Rename")) {
+				SetSelectedPrefab(key);
+
+				renaming_prefab_ = key;
+				prefab_rename_text_ = label;
+				prefab_rename_error_.clear();
+				focus_prefab_rename_ = true;
+			}
+
+			if (ImGui::MenuItem("Duplicate")) {
+				prefab_to_duplicate = key;
+			}
+
+			ImGui::EndDisabled();
+
+			if (ImGui::MenuItem("Delete")) {
+				prefab_to_delete = key;
+			}
+
+			ImGui::EndPopup();
 		}
 
-		ImGui::BeginDisabled(!selected_scene);
+		ImGui::PopID();
+	}
 
-		if (ImGui::MenuItem("Create Instance")) {
-			SetSelectedEntity(selected_scene->CreatePrefab(key));
-			ImGui::SetWindowFocus("Scene Hierarchy###SceneHierarchyWindow");
+	if (prefab_to_rename.has_value()) {
+		const auto& [old_key, new_key]{
+			prefab_to_rename.value()
+		};
+
+		if (RenamePrefabAsset(
+				assets,
+				project_root.value(),
+				old_key,
+				new_key
+			)) {
+			if (selected_prefab_ == old_key) {
+				SetSelectedPrefab(new_key);
+			}
+
+			ctx.local.state.is_dirty = true;
+		} else {
+			renaming_prefab_ = old_key;
+			prefab_rename_text_ =
+				GetPrefabDisplayName(new_key);
+			prefab_rename_error_ =
+				"Failed to rename prefab.";
+			focus_prefab_rename_ = true;
 		}
-
-		ImGui::EndDisabled();
-
-		ImGui::BeginDisabled(!project_root.has_value());
-
-		if (ImGui::MenuItem("Duplicate")) {
-			prefab_to_duplicate = key;
-		}
-
-		ImGui::EndDisabled();
-
-		if (ImGui::MenuItem("Delete")) {
-			prefab_to_delete = key;
-		}
-
-		ImGui::EndPopup();
 	}
 
 	if (prefab_to_duplicate.has_value()) {
@@ -1469,7 +1693,16 @@ void SceneHierarchyPanel::DrawPrefabs(EditorContext& ctx) {
 			selected_prefab_.reset();
 		}
 
-		assets.RemovePrefab(prefab_to_delete.value());
+		if (renaming_prefab_ == prefab_to_delete) {
+			renaming_prefab_.reset();
+			prefab_rename_text_.clear();
+			prefab_rename_error_.clear();
+		}
+
+		assets.RemovePrefab(
+			prefab_to_delete.value()
+		);
+
 		ctx.local.state.is_dirty = true;
 	}
 

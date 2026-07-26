@@ -7,89 +7,117 @@
 #include <utility>
 
 #include "core/assert.h"
-#include "core/util/hash.h"
-#include "runtime/ecs/component_registry.h"
 #include "runtime/ecs/relatives.h"
 #include "runtime/graphics/draw.h"
 #include "runtime/ecs/entity_hierarchy.h"
 #include "runtime/ecs/tag.h"
-#include "runtime/ecs/uuid.h"
 #include "runtime/scene/scene.h"
 #include "serialization/json/json_file.h"
+#include "runtime/ecs/entity_serialization.h"
 
 namespace ptgn {
 
 namespace {
 
-[[nodiscard]] bool IsPrefabInfrastructureComponent(const RegisteredComponent& component) {
-	return component.type_id == Hash<Tag>() || component.type_id == Hash<UUID>() ||
-		component.type_id == Hash<impl::Parent>() || component.type_id == Hash<impl::Children>();
-}
-
-[[nodiscard]] PrefabEntity CapturePrefabEntity(Entity entity, bool include_children) {
+[[nodiscard]] PrefabEntity CapturePrefabEntity(
+	Entity entity,
+	bool include_children
+) {
 	PrefabEntity output;
 
 	if (entity.Has<Tag>()) {
 		output.tag = entity.Get<Tag>().value;
 	}
 
-	for (const auto& component : ComponentRegistry::Components()) {
-		if (!IsPrefabComponentSupported(component) || !component.has(entity)) {
-			continue;
-		}
+	json serialized_tags{
+		SerializeEntityTags(entity)
+	};
 
-		json value;
-		component.serialize(value, entity);
-		if (value.is_null()) {
-			value = json::object();
-		}
-
-		output.components.emplace_back(PrefabComponent{
-			.type = std::string{ component.name },
-			.value = std::move(value),
-		});
+	for (const auto& serialized_tag : serialized_tags) {
+		output.tags.emplace_back(
+			serialized_tag.get<std::string>()
+		);
 	}
 
-	if (!include_children || !HasChildren(entity)) {
+	json serialized_components{
+		SerializeEntityComponents(entity)
+	};
+
+	for (auto& [name, value] :
+		 serialized_components.items()) {
+		output.components.insert_or_assign(
+			name,
+			std::move(value)
+		);
+	}
+
+	if (!include_children ||
+		!HasChildren(entity)) {
 		return output;
 	}
 
 	auto children{ GetChildren(entity) };
 	SortByLocalDepth(children);
-	output.children.reserve(children.size());
+
+	output.children.reserve(
+		children.size()
+	);
 
 	for (Entity child : children) {
-		output.children.emplace_back(CapturePrefabEntity(child, true));
+		output.children.emplace_back(
+			CapturePrefabEntity(
+				child,
+				true
+			)
+		);
 	}
 
 	return output;
 }
 
 [[nodiscard]] Entity InstantiatePrefabEntity(
-	Scene& scene, const PrefabEntity& definition, Entity parent
+	Scene& scene,
+	const PrefabEntity& definition,
+	Entity parent
 ) {
-	auto entity{ scene.CreateEntity(Tag{ definition.tag }) };
+	auto entity{
+		scene.CreateEntity(
+			Tag{ definition.tag }
+		)
+	};
 
-	for (const auto& component_data : definition.components) {
-		const RegisteredComponent* component{ ComponentRegistry::Find(component_data.type) };
+	json serialized_tags{
+		definition.tags
+	};
 
-		if (!component || IsPrefabInfrastructureComponent(*component)) {
-			continue;
-		}
+	DeserializeEntityTags(
+		serialized_tags,
+		entity
+	);
 
-		if (component->deserialize) {
-			component->deserialize(component_data.value, entity);
-		} else if (component->add_default) {
-			component->add_default(entity);
-		}
-	}
+	json serialized_components{
+		definition.components
+	};
+
+	DeserializeEntityComponents(
+		serialized_components,
+		entity
+	);
 
 	if (parent) {
-		SetParent(entity, parent);
+		SetParent(
+			entity,
+			parent
+		);
 	}
 
-	for (const auto& child : definition.children) {
-		(void)InstantiatePrefabEntity(scene, child, entity);
+	for (const auto& child :
+		 definition.children) {
+		(void)InstantiatePrefabEntity(
+			scene,
+			child,
+			entity
+		);
 	}
 
 	return entity;
@@ -97,8 +125,11 @@ namespace {
 
 } // namespace
 
-bool IsPrefabComponentSupported(const RegisteredComponent& component) {
-	if (IsPrefabInfrastructureComponent(component) || !component.has || !component.serialize) {
+bool IsPrefabComponentSupported(
+	const RegisteredComponent& component
+) {
+	if (impl::IsSceneMetadataComponent(component) ||
+		!component.has) {
 		return false;
 	}
 
@@ -106,16 +137,34 @@ bool IsPrefabComponentSupported(const RegisteredComponent& component) {
 		return component.add_default != nullptr;
 	}
 
-	return component.deserialize != nullptr;
+	return component.serializable &&
+		component.deserializable &&
+		component.serialize &&
+		component.deserialize;
 }
 
-Prefab CapturePrefab(Entity entity, PrefabKey key, bool include_children) {
-	PTGN_ASSERT(entity, "Cannot capture a null entity as a prefab");
-	PTGN_ASSERT(!key.value.empty(), "Prefab key cannot be empty");
+Prefab CapturePrefab(
+	Entity entity,
+	PrefabKey key,
+	bool include_children
+) {
+	PTGN_ASSERT(
+		entity,
+		"Cannot capture a null entity as a prefab"
+	);
+
+	PTGN_ASSERT(
+		!key.value.empty(),
+		"Prefab key cannot be empty"
+	);
 
 	Prefab prefab;
 	prefab.key = std::move(key);
-	prefab.root = CapturePrefabEntity(entity, include_children);
+	prefab.root = CapturePrefabEntity(
+		entity,
+		include_children
+	);
+
 	return prefab;
 }
 

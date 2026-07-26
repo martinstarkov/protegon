@@ -378,6 +378,42 @@ void DrawSelectedItemsTooltip(std::span<const std::string> items) {
 	ImGui::SetTooltip("%s", tooltip.c_str());
 }
 
+[[nodiscard]] ScriptSequence* ResolveEditorSequence(
+	ScriptEditorContext& context,
+	ScriptSequence& binding
+) {
+	if (!context.owner) {
+		return binding.shared_reference
+			? nullptr
+			: std::addressof(binding);
+	}
+
+	return script_runtime::Resolve(
+		context.owner,
+		binding
+	);
+}
+
+void AddEditorScriptEntry(
+	ScriptEditorContext& context,
+	::ptgn::impl::Scripts& scripts,
+	ScriptEntry entry
+) {
+	if (context.owner) {
+		scripts.AddEntryDeferred(
+			std::move(entry)
+		);
+
+		return;
+	}
+
+	// Prefab JSON components are temporary values and do not receive
+	// the normal ECS pending-operation flush.
+	scripts.scripts.emplace_back(
+		std::move(entry)
+	);
+}
+
 void EnsureActionValue(ScriptStep& action) {
 	if (!action.value.is_null()) {
 		return;
@@ -559,9 +595,19 @@ bool DrawActionPicker(
 		current_registration ? resolve_candidate(*current_registration) : std::nullopt
 	};
 	ImGui::SetNextItemWidth(width);
+
+	const float popup_min_width{ ImGui::CalcItemWidth() };
+
+	ImGui::SetNextWindowSizeConstraints(
+		ImVec2{ popup_min_width, 0.0f },
+		ImVec2{ FLT_MAX, FLT_MAX }
+	);
+
 	const bool open{ ImGui::BeginCombo(
-		"##RegisteredAction", current ? current->label.data() : "Missing Action"
+		"##RegisteredAction",
+		current ? current->label.data() : "Missing Action"
 	) };
+
 	DrawTooltip(
 		current ? current->description.data()
 				: "Choose a registered Script for this sequence entry."
@@ -623,7 +669,7 @@ bool DrawActionPicker(
 		ImGui::Separator();
 	}
 
-	if (!timed_only && !context.shared_sequences.sequences.empty() &&
+	if (context.owner && !timed_only && !context.shared_sequences.sequences.empty() &&
 		ImGui::BeginMenu("Global")) {
 		for (const auto& shared : context.shared_sequences.sequences) {
 			bool selected{ false };
@@ -690,36 +736,61 @@ bool DrawActionPicker(
 }
 
 bool DrawActionPickerWithInline(
-	ScriptEditorContext& context, ScriptStep& action, bool timed_only
+	ScriptEditorContext& context,
+	ScriptStep& action,
+	bool timed_only
 ) {
 	EnsureActionValue(action);
-	const auto* editor{ ScriptEditorRegistry::Find(action.type_hash) };
-	const bool has_inline_editor{
-		!timed_only && editor &&
-		HasScriptType(editor->options.type, ScriptType::Sequence) &&
-		static_cast<bool>(editor->draw_inline)
+
+	const auto* registered_editor{
+		ScriptEditorRegistry::Find(action.type_hash)
 	};
+	const bool has_inline_editor{
+		!timed_only &&
+		registered_editor &&
+		static_cast<bool>(registered_editor->draw_inline)
+	};
+
 	if (!has_inline_editor) {
 		return DrawActionPicker(context, action, timed_only);
 	}
 
-	bool changed{ false };
 	const float available{ ImGui::GetContentRegionAvail().x };
 	const float spacing{ ImGui::GetStyle().ItemSpacing.x };
-	const float picker_width{ std::min(150.0f, std::max(110.0f, available * 0.32f)) };
-	changed |= DrawActionPicker(context, action, timed_only, picker_width);
+	const float picker_width{
+		std::min(150.0f, std::max(110.0f, available * 0.32f))
+	};
+	const float row_y{ ImGui::GetCursorScreenPos().y };
 
-	editor = ScriptEditorRegistry::Find(action.type_hash);
-	if (editor && editor->draw_inline) {
+	bool changed{
+		DrawActionPicker(
+			context,
+			action,
+			timed_only,
+			picker_width
+		)
+	};
+
+	registered_editor = ScriptEditorRegistry::Find(action.type_hash);
+
+	if (registered_editor && registered_editor->draw_inline) {
 		ImGui::SameLine(0.0f, spacing);
+
+		ImVec2 inline_position{ ImGui::GetCursorScreenPos() };
+		inline_position.y = row_y;
+		ImGui::SetCursorScreenPos(inline_position);
+
 		ImGui::SetNextItemWidth(-FLT_MIN);
-		if (editor->draw_inline(context, action.value)) {
+
+		if (registered_editor->draw_inline(context, action.value)) {
 			action.runtime_factory = {};
 			changed = true;
 		}
 	}
+
 	return changed;
 }
+
 bool DrawTimingOptions(
 	ScriptEditorContext& context, ScriptStep& action, ScriptTiming& timing,
 	float left_screen_x
@@ -1304,7 +1375,11 @@ bool DrawEvent(
 			auto candidate_available = [&](const EventEditorRegistration& candidate) {
 				const auto* registration{ SequenceEventRegistry::Find(candidate.type_hash) };
 				return registration &&
-					(!registration->available || registration->available(context.owner));
+									(
+										!registration->available ||
+										!context.owner ||
+										registration->available(context.owner)
+									);
 			};
 			auto select_candidate = [&](const EventEditorRegistration& candidate) {
 				const auto* registration{ SequenceEventRegistry::Find(candidate.type_hash) };
@@ -1539,7 +1614,7 @@ bool DrawEvents(ScriptEditorContext& context, ScriptSequence& sequence) {
 bool DrawSequence(
 	ScriptEditorContext& context, ScriptSequence& binding, bool& changed
 ) {
-	ScriptSequence* sequence{ script_runtime::Resolve(context.owner, binding) };
+	ScriptSequence* sequence{ ResolveEditorSequence(context, binding) };
 	if (!sequence) {
 		ImGui::TextDisabled("Missing shared Script Sequence");
 		return false;
@@ -1549,7 +1624,10 @@ bool DrawSequence(
 	auto& state{ GetScriptInspectorState() };
 	ImGui::PushID(static_cast<int>(binding.id));
 	const float button_size{ ImGui::GetFrameHeight() };
-	const bool show_runtime_controls{ context.ctx.editor.IsPlaying() };
+	const bool show_runtime_controls{
+		context.owner &&
+		context.ctx.editor.IsPlaying()
+	};
 	const int column_count{ show_runtime_controls ? 6 : 3 };
 	const float available_width{ ImGui::GetContentRegionAvail().x };
 	const float sequence_width{
@@ -1754,7 +1832,7 @@ bool DrawSequence(
 				} else {
 					PromoteToShared(context, binding);
 				}
-				sequence = script_runtime::Resolve(context.owner, binding);
+				sequence = ResolveEditorSequence(context, binding);
 				changed = true;
 			}
 			if (sequence && ImGui::MenuItem(
@@ -1907,7 +1985,7 @@ bool DrawSequence(
 	}
 
 	if (open && !remove) {
-		sequence = script_runtime::Resolve(context.owner, binding);
+		sequence = ResolveEditorSequence(context, binding);
 		if (sequence) {
 			if (sequence->channel && ImGui::BeginTable(
 					"SequenceChannelRow", 2, ImGuiTableFlags_SizingStretchProp
@@ -1947,30 +2025,24 @@ bool DrawSequence(
 				ImGui::OpenPopup("AddSequenceAction");
 			}
 			if (ImGui::BeginPopup("AddSequenceAction")) {
-				if (ImGui::MenuItem("Emit Signal")) {
+				if (ImGui::MenuItem("Action")) {
 					sequence->steps.push_back(
 						ScriptRegistry::MakeStep<EmitSignalScript>()
 					);
-					changed = true;
 				}
-				if (ImGui::MenuItem("Action")) {
-					sequence->steps.push_back(
-						ScriptRegistry::MakeStep<SetVisibleScript>()
-					);
-					changed = true;
-				}
+
 				if (ImGui::MenuItem("Tween")) {
 					sequence->steps.push_back(
 						ScriptRegistry::MakeStep<MoveToScript>()
 					);
-					changed = true;
 				}
+
 				if (ImGui::MenuItem("Delay")) {
 					sequence->steps.push_back(
 						ScriptRegistry::MakeStep<WaitScript>()
 					);
-					changed = true;
 				}
+
 				ImGui::EndPopup();
 			}
 			ImGui::PopID();
@@ -2000,7 +2072,11 @@ bool DrawAddRootScriptPopup(
 			return;
 		}
 		if (ImGui::MenuItem(editor->options.label.c_str())) {
-			scripts.AddEntryDeferred(MakeRootEntry(registration.type_hash));
+			AddEditorScriptEntry(
+				context,
+				scripts,
+				MakeRootEntry(registration.type_hash)
+			);
 			changed = true;
 		}
 		DrawTooltip(editor->options.description.c_str());
@@ -2012,14 +2088,18 @@ bool DrawAddRootScriptPopup(
 		ImGui::Separator();
 	}
 
-	if (!context.shared_sequences.sequences.empty() && ImGui::BeginMenu("Global")) {
+	if (context.owner && !context.shared_sequences.sequences.empty() && ImGui::BeginMenu("Global")) {
 		for (const auto& shared : context.shared_sequences.sequences) {
 			if (ImGui::MenuItem(shared.name.c_str())) {
 				Script script;
 				script.sequence.name = shared.name;
 				script.sequence.shared_reference = true;
 				script.sequence.shared_sequence_id = shared.id;
-				scripts.AddEntryDeferred(MakeRootEntry(std::move(script)));
+				AddEditorScriptEntry(
+					context,
+					scripts,
+					MakeRootEntry(std::move(script))
+				);
 				changed = true;
 			}
 			DrawTooltip("Add a reference to this global editor-authored script.");
@@ -2105,23 +2185,53 @@ bool DrawResidentScripts(
 		};
 
 		if (script.type_hash == Hash<Script>()) {
-			if (!script.instance && registration) {
-				script_runtime::AttachEntry(context.owner, script);
-			}
-			auto* sequence_script{ script.instance.get() };
-			if (!sequence_script) {
-				continue;
+			ScriptSequence* editable_sequence{
+				std::addressof(script.sequence)
+			};
+
+			if (context.owner) {
+				if (!script.instance && registration) {
+					script_runtime::AttachEntry(
+						context.owner,
+						script
+					);
+				}
+
+				auto* sequence_script{
+					script.instance.get()
+				};
+
+				if (!sequence_script) {
+					continue;
+				}
+
+				editable_sequence =
+					std::addressof(sequence_script->sequence);
 			}
 
-			sequence_script->sequence.enabled = script.enabled;
-			if (DrawSequence(context, sequence_script->sequence, changed)) {
+			editable_sequence->enabled = script.enabled;
+
+			if (DrawSequence(
+					context,
+					*editable_sequence,
+					changed
+				)) {
 				remove = i;
 			}
-			script.enabled = sequence_script->sequence.enabled;
-			const SequenceId sequence_id{ sequence_script->sequence.id };
-			script.sequence = sequence_script->sequence;
-			script.sequence.id = sequence_id;
-			script.sequence.runtime = ScriptSequenceRuntime{};
+
+			script.enabled = editable_sequence->enabled;
+
+			if (context.owner) {
+				const SequenceId sequence_id{
+					editable_sequence->id
+				};
+
+				script.sequence = *editable_sequence;
+				script.sequence.id = sequence_id;
+				script.sequence.runtime =
+					ScriptSequenceRuntime{};
+			}
+
 			continue;
 		}
 
@@ -2211,14 +2321,29 @@ bool DrawResidentScripts(
 			ImGui::EndTable();
 		}
 
-		if (open && editor && editor->has_contents && editor->draw) {
+		if (open &&
+			editor &&
+			editor->has_contents &&
+			editor->draw) {
 			if (editor->draw(context, script.value)) {
 				changed = true;
 				script.runtime_factory = {};
-				if (!script.instance) {
-					script_runtime::AttachEntry(context.owner, script);
-				} else if (registration && registration->apply) {
-					registration->apply(*script.instance, script.value);
+
+				if (context.owner) {
+					if (!script.instance) {
+						script_runtime::AttachEntry(
+							context.owner,
+							script
+						);
+					} else if (
+						registration &&
+						registration->apply
+					) {
+						registration->apply(
+							*script.instance,
+							script.value
+						);
+					}
 				}
 			}
 		}
@@ -2226,9 +2351,26 @@ bool DrawResidentScripts(
 	}
 
 	if (remove >= 0) {
-		auto& entry{ scripts.scripts[static_cast<std::size_t>(remove)] };
-		const SequenceId id{ entry.instance ? entry.instance->sequence.id : entry.sequence.id };
-		scripts.RemoveDeferred(id);
+		if (context.owner) {
+			auto& entry{
+				scripts.scripts[
+					static_cast<std::size_t>(remove)
+				]
+			};
+
+			const SequenceId id{
+				entry.instance
+					? entry.instance->sequence.id
+					: entry.sequence.id
+			};
+
+			scripts.RemoveDeferred(id);
+		} else {
+			scripts.scripts.erase(
+				scripts.scripts.begin() + remove
+			);
+		}
+
 		changed = true;
 	}
 	return changed;
@@ -2622,27 +2764,67 @@ bool DrawTransformComponent(EditorContext& ctx, Entity entity) {
 
 template <>
 struct Contents<::ptgn::impl::Scripts> {
-	static bool Draw(EditorContext& ctx, ::ptgn::impl::Scripts& scripts) {
-		auto entity{ ::ptgn::impl::ScriptsAccessor::GetOwner(scripts) };
+	static bool Draw(
+		EditorContext& ctx,
+		::ptgn::impl::Scripts& scripts
+	) {
+		auto entity{
+			::ptgn::impl::ScriptsAccessor::GetOwner(scripts)
+		};
 
-		if (!entity) {
-		return false;
-		}
+		// Prefab component editing has no live Scene or Entity. Supply an
+		// empty registry so the ordinary data editors can still be reused.
+		SharedScriptSequenceRegistry prefab_shared_sequences;
 
-		ScriptEditorContext context{ ctx, entity, entity.GetScene().ctx().shared_script_sequences };
+		auto& shared_sequences{
+			entity
+				? entity.GetScene().ctx().shared_script_sequences
+				: prefab_shared_sequences
+		};
+
+		ScriptEditorContext context{
+			ctx,
+			entity,
+			shared_sequences
+		};
 
 		bool changed{ false };
-		ImGui::PushStyleColor(ImGuiCol_Button, ImVec4{ 0.20f, 0.34f, 0.33f, 1.0f });
-		ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4{ 0.26f, 0.43f, 0.41f, 1.0f });
-		ImGui::PushStyleColor(ImGuiCol_ButtonActive, ImVec4{ 0.31f, 0.49f, 0.47f, 1.0f });
-		if (ImGui::Button("+ Script", ImVec2{ -FLT_MIN, 0.0f })) {
+
+		ImGui::PushStyleColor(
+			ImGuiCol_Button,
+			ImVec4{ 0.20f, 0.34f, 0.33f, 1.0f }
+		);
+		ImGui::PushStyleColor(
+			ImGuiCol_ButtonHovered,
+			ImVec4{ 0.26f, 0.43f, 0.41f, 1.0f }
+		);
+		ImGui::PushStyleColor(
+			ImGuiCol_ButtonActive,
+			ImVec4{ 0.31f, 0.49f, 0.47f, 1.0f }
+		);
+
+		if (ImGui::Button(
+				"+ Script",
+				ImVec2{ -FLT_MIN, 0.0f }
+			)) {
 			ImGui::OpenPopup("AddScript");
 		}
-		ImGui::PopStyleColor(3);
-		DrawTooltip("Add a custom script or an editor-authored sequence script.");
 
-		changed |= DrawAddRootScriptPopup(context, scripts);
-		changed |= DrawResidentScripts(context, scripts);
+		ImGui::PopStyleColor(3);
+
+		DrawTooltip(
+			"Add a custom script or an editor-authored sequence script."
+		);
+
+		changed |= DrawAddRootScriptPopup(
+			context,
+			scripts
+		);
+		changed |= DrawResidentScripts(
+			context,
+			scripts
+		);
+
 		return changed;
 	}
 };
@@ -3052,39 +3234,51 @@ bool DrawRegisteredComponentJson(
 	}
 }
 
-PrefabComponent* FindPrefabComponent(
+json* FindPrefabComponent(
 	PrefabEntity& prefab,
 	std::string_view component_name
 ) {
-	auto it{ std::ranges::find_if(
-		prefab.components,
-		[component_name](const PrefabComponent& component) {
-			return component.type == component_name;
-		}
-	) };
+	auto it{
+		prefab.components.find(
+			std::string{ component_name }
+		)
+	};
 
-	return it == prefab.components.end() ? nullptr : std::addressof(*it);
+	return it == prefab.components.end()
+		? nullptr
+		: std::addressof(it->second);
 }
 
-const PrefabComponent* FindPrefabComponent(
+const json* FindPrefabComponent(
 	const PrefabEntity& prefab,
 	std::string_view component_name
 ) {
-	auto it{ std::ranges::find_if(
-		prefab.components,
-		[component_name](const PrefabComponent& component) {
-			return component.type == component_name;
-		}
-	) };
+	auto it{
+		prefab.components.find(
+			std::string{ component_name }
+		)
+	};
 
-	return it == prefab.components.end() ? nullptr : std::addressof(*it);
+	return it == prefab.components.end()
+		? nullptr
+		: std::addressof(it->second);
 }
 
 bool HasPrefabComponent(
 	const PrefabEntity& prefab,
 	const RegisteredComponent& component
 ) {
-	return FindPrefabComponent(prefab, component.name) != nullptr;
+	if (component.is_empty) {
+		return std::ranges::find(
+			prefab.tags,
+			component.name
+		) != prefab.tags.end();
+	}
+
+	return FindPrefabComponent(
+		prefab,
+		component.name
+	) != nullptr;
 }
 
 template <typename T>
@@ -3100,24 +3294,41 @@ bool HasAnyPrefabComponent(const PrefabEntity& prefab) {
 
 void RemovePrefabComponent(
 	PrefabEntity& prefab,
-	std::string_view component_name
+	const RegisteredComponent& component
 ) {
-	std::erase_if(
-		prefab.components,
-		[component_name](const PrefabComponent& component) {
-			return component.type == component_name;
-		}
+	if (component.is_empty) {
+		std::erase(
+			prefab.tags,
+			std::string{ component.name }
+		);
+
+		return;
+	}
+
+	prefab.components.erase(
+		std::string{ component.name }
 	);
 }
 
-PrefabComponent* AddDefaultPrefabComponent(
+bool AddDefaultPrefabComponent(
 	PrefabEntity& prefab,
 	const RegisteredComponent& component
 ) {
-	if (!component.make_default_json ||
-		!IsPrefabComponentSupported(component) ||
+	if (!IsPrefabComponentSupported(component) ||
 		HasPrefabComponent(prefab, component)) {
-		return nullptr;
+		return false;
+	}
+
+	if (component.is_empty) {
+		prefab.tags.emplace_back(
+			component.name
+		);
+
+		return true;
+	}
+
+	if (!component.make_default_json) {
+		return false;
 	}
 
 	json value = component.make_default_json();
@@ -3126,34 +3337,49 @@ PrefabComponent* AddDefaultPrefabComponent(
 		value = json::object();
 	}
 
-	prefab.components.emplace_back(
-		PrefabComponent{
-			.type = std::string{ component.name },
-			.value = std::move(value),
-		}
+	prefab.components.insert_or_assign(
+		std::string{ component.name },
+		std::move(value)
 	);
 
-	return std::addressof(prefab.components.back());
+	return true;
 }
 
 template <typename T>
-PrefabComponent* EnsurePrefabComponent(
+json* EnsurePrefabComponent(
 	PrefabEntity& prefab,
 	bool& added
 ) {
-	const auto* registration{ ComponentRegistry::Find<T>() };
+	const auto* registration{
+		ComponentRegistry::Find<T>()
+	};
 
 	if (!registration) {
 		return nullptr;
 	}
 
-	if (auto* component{ FindPrefabComponent(prefab, registration->name) }) {
+	if (auto* component{
+			FindPrefabComponent(
+				prefab,
+				registration->name
+			)
+		}) {
 		return component;
 	}
 
-	auto* component{ AddDefaultPrefabComponent(prefab, *registration) };
-	added |= component != nullptr;
-	return component;
+	if (!AddDefaultPrefabComponent(
+			prefab,
+			*registration
+		)) {
+		return nullptr;
+	}
+
+	added = true;
+
+	return FindPrefabComponent(
+		prefab,
+		registration->name
+	);
 }
 
 bool DrawPrefabTransformComponent(
@@ -3173,11 +3399,11 @@ bool DrawPrefabTransformComponent(
 		return changed;
 	}
 
-	Transform transform{};
-	Depth depth{};
+	Transform transform;
+	Depth depth;
 
-	transform_component->value.get_to(transform);
-	depth_component->value.get_to(depth);
+	transform_component->get_to(transform);
+	depth_component->get_to(depth);
 
 	std::optional<std::string_view> read_only_reason;
 
@@ -3200,8 +3426,9 @@ bool DrawPrefabTransformComponent(
 		return changed;
 	}
 
-	transform_component->value = transform;
-	depth_component->value = depth;
+	*transform_component = transform;
+	*depth_component = depth;
+	
 	return true;
 }
 
@@ -3280,7 +3507,7 @@ bool DrawPrefabComponents(
 		};
 
 		if (header.remove) {
-			RemovePrefabComponent(prefab, component.name);
+			RemovePrefabComponent(prefab, component);
 			changed = true;
 			continue;
 		}
@@ -3296,7 +3523,7 @@ bool DrawPrefabComponents(
 			changed |= DrawRegisteredComponentJson(
 				ctx,
 				component,
-				prefab_component->value
+				*prefab_component
 			);
 		} else {
 			ImGui::TextDisabled(
@@ -3360,7 +3587,7 @@ bool DrawPrefabTagComponents(PrefabEntity& prefab) {
 		if (options.removable &&
 			ImGui::BeginPopupContextItem("TagComponentContextMenu")) {
 			if (ImGui::MenuItem("Remove Component")) {
-				RemovePrefabComponent(prefab, component.name);
+				RemovePrefabComponent(prefab, component);
 				changed = true;
 			}
 
@@ -3434,7 +3661,7 @@ bool DrawPrefabAddComponentMenu(PrefabEntity& prefab) {
 			changed |= AddDefaultPrefabComponent(
 				prefab,
 				*entry.component
-			) != nullptr;
+			);
 		}
 	}
 
@@ -3463,7 +3690,7 @@ bool DrawPrefabAddComponentMenu(PrefabEntity& prefab) {
 				changed |= AddDefaultPrefabComponent(
 					prefab,
 					*entry.component
-				) != nullptr;
+				);
 			}
 		}
 

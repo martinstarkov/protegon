@@ -484,24 +484,33 @@ bool IsValidAssetKey(EditorContext& ctx, const T& key) {
 }
 
 template <AssetKeyType T>
-bool DrawAssetKeyInline(EditorContext& ctx, T& value, const FieldOptions& options) {
-	bool read_only{ IsReadOnly(options) };
+bool DrawAssetKeyInline(
+	EditorContext& ctx,
+	T& value,
+	const FieldOptions& options,
+	std::string_view hint = {}
+) {
+	const bool read_only{ IsReadOnly(options) };
 
-	std::string hint;
+	std::string resolved_hint{ hint };
 
 	if constexpr (std::same_as<T, FontKey>) {
-		if (value.value == kDefaultFont) {
-			hint = "Default Font";
+		if (resolved_hint.empty() && value.value == kDefaultFont) {
+			resolved_hint = "Default Font";
 		}
 	}
 
 	bool changed{ DrawDisabledIf(read_only, [&]() {
-		return ImGui::InputTextWithHint("##value", hint.c_str(), &value.value);
+		return ImGui::InputTextWithHint(
+			"##value",
+			resolved_hint.c_str(),
+			&value.value
+		);
 	}) };
 
-	auto input_min{ ImGui::GetItemRectMin() };
-	auto input_max{ ImGui::GetItemRectMax() };
-	bool input_hovered{ ImGui::IsItemHovered() };
+	const ImVec2 input_min{ ImGui::GetItemRectMin() };
+	const ImVec2 input_max{ ImGui::GetItemRectMax() };
+	const bool input_hovered{ ImGui::IsItemHovered() };
 
 	if (!read_only) {
 		changed |= ptgn::editor::AcceptAssetKeyDragDrop(value);
@@ -511,23 +520,37 @@ bool DrawAssetKeyInline(EditorContext& ctx, T& value, const FieldOptions& option
 		return changed;
 	}
 
-	auto error_color{ ImGui::GetColorU32(ImVec4{ 1.0f, 0.25f, 0.25f, 1.0f }) };
+	const ImU32 error_color{
+		ImGui::GetColorU32(
+			ImVec4{ 1.0f, 0.25f, 0.25f, 1.0f }
+		)
+	};
 
 	ImGui::GetWindowDrawList()->AddRect(
-		input_min, input_max, error_color, ImGui::GetStyle().FrameRounding
+		input_min,
+		input_max,
+		error_color,
+		ImGui::GetStyle().FrameRounding
 	);
 
 	if (input_hovered) {
 		using Value = std::remove_cvref_t<T>;
 
 		if constexpr (std::same_as<Value, AssetKey>) {
-			ImGui::SetTooltip("No asset exists with key \"%s\".", value.value.c_str());
+			ImGui::SetTooltip(
+				"No asset exists with key \"%s\".",
+				value.value.c_str()
+			);
 		} else {
-			auto kind_name{ magic_enum::enum_name(Value::kind) };
+			const auto kind_name{
+				magic_enum::enum_name(Value::kind)
+			};
 
 			ImGui::SetTooltip(
-				"No %.*s asset exists with key \"%s\".", static_cast<int>(kind_name.size()),
-				kind_name.data(), value.value.c_str()
+				"No %.*s asset exists with key \"%s\".",
+				static_cast<int>(kind_name.size()),
+				kind_name.data(),
+				value.value.c_str()
 			);
 		}
 	}

@@ -2,6 +2,7 @@
 
 #include <array>
 #include <optional>
+#include <string>
 
 #include "runtime/asset/asset_key.h"
 #include "runtime/ecs/entity.h"
@@ -26,6 +27,12 @@ private:
 
 	Entity selected_entity_;
 	std::optional<PrefabKey> selected_prefab_;
+
+	std::optional<PrefabKey> renaming_prefab_;
+	std::string prefab_rename_text_;
+	std::string prefab_rename_error_;
+	bool focus_prefab_rename_{ false };
+
 	std::array<char, 256> filter_{};
 };
 

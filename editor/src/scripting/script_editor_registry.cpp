@@ -21,6 +21,7 @@
 #include "core/input/mouse.h"
 #include "panels/component_editor_registry.h"
 #include "panels/inspector_fields.h"
+#include "panels/content_browser.h"
 #include "runtime/animation/animation_event.h"
 #include "runtime/ecs/component_registry.h"
 #include "runtime/interaction/draggable_event.h"
@@ -49,6 +50,64 @@ void DrawItemTooltip(const char* text) {
 
 void SameLineControl() {
 	ImGui::SameLine(0.0f, ImGui::GetStyle().ItemSpacing.x);
+}
+
+float GetCountControlWidth(const char* label) {
+	const float button_width{ ImGui::GetFrameHeight() };
+	const float spacing{ ImGui::GetStyle().ItemSpacing.x };
+	const std::string widest{ std::string{ label } + ": 100" };
+
+	return ImGui::CalcTextSize(widest.c_str()).x +
+		button_width * 2.0f + spacing * 2.0f;
+}
+
+void DrawCountControl(
+	const char* label,
+	int& value,
+	int minimum,
+	int maximum = 100,
+	bool disabled = false,
+	const char* tooltip = nullptr
+) {
+	value = std::clamp(value, minimum, maximum);
+
+	const float button_width{ ImGui::GetFrameHeight() };
+	const float spacing{ ImGui::GetStyle().ItemSpacing.x };
+	const std::string widest{ std::string{ label } + ": 100" };
+	const float text_width{ ImGui::CalcTextSize(widest.c_str()).x };
+	const float start_x{ ImGui::GetCursorScreenPos().x };
+
+	ImGui::PushID(label);
+	ImGui::BeginDisabled(disabled);
+
+	ImGui::AlignTextToFramePadding();
+	ImGui::Text("%s: %d", label, value);
+	DrawItemTooltip(tooltip);
+
+	ImGui::SameLine(0.0f, spacing);
+	ImGui::SetCursorScreenPos(
+		ImVec2{
+			start_x + text_width + spacing,
+			ImGui::GetCursorScreenPos().y
+		}
+	);
+
+	ImGui::BeginDisabled(value >= maximum);
+	if (ImGui::Button("+", ImVec2{ button_width, button_width })) {
+		++value;
+	}
+	ImGui::EndDisabled();
+
+	SameLineControl();
+
+	ImGui::BeginDisabled(value <= minimum);
+	if (ImGui::Button("-", ImVec2{ button_width, button_width })) {
+		--value;
+	}
+	ImGui::EndDisabled();
+
+	ImGui::EndDisabled();
+	ImGui::PopID();
 }
 
 bool DrawToggleButton(const char* label, bool& value, ImVec2 size, const char* tooltip) {
@@ -311,47 +370,114 @@ bool DrawSetVisibleInline(ScriptEditorContext&, SetVisibleScript& script) {
 	return changed;
 }
 
-bool DrawPlaySoundInline(ScriptEditorContext&, PlaySoundScript& script) {
+bool DrawPlaySoundInline(
+	ScriptEditorContext& context,
+	PlaySoundScript& script
+) {
 	ImGui::SetNextItemWidth(-FLT_MIN);
 
-	const bool changed{ ImGui::InputTextWithHint(
-		"##SoundKey",
-		"Audio key",
-		&script.sound.value
-	) };
-
-	DrawItemTooltip("Loaded audio asset key to play.");
-	return changed;
+	return inspector::DrawAssetKeyInline(
+		context.ctx,
+		script.sound,
+		inspector::FieldOptions{},
+		"Audio key"
+	);
 }
 
-bool DrawPlaySound(ScriptEditorContext&, PlaySoundScript& script) {
-	bool changed{ false };
-
-	script.volume = std::clamp(script.volume, kMinVolume, kMaxVolume);
-	script.loops = std::max(0, script.loops);
-
-	changed |= ImGui::SliderFloat(
-		"Volume",
-		&script.volume,
+bool DrawPlaySound(
+	ScriptEditorContext&,
+	PlaySoundScript& script
+) {
+	script.volume = std::clamp(
+		script.volume,
 		kMinVolume,
-		kMaxVolume,
-		"%.2f",
-		ImGuiSliderFlags_AlwaysClamp
+		kMaxVolume
 	);
-	DrawItemTooltip("Playback volume.");
-
-	changed |= ImGui::DragInt(
-		"Additional Loops",
-		&script.loops,
-		1.0f,
+	script.loops = std::clamp(
+		script.loops,
 		0,
 		kMaxAudioPlayLoops
 	);
-	DrawItemTooltip(
-		"Number of additional plays after the first. Zero plays the sound once."
-	);
 
-	script.loops = std::clamp(script.loops, 0, kMaxAudioPlayLoops);
+	bool changed{ false };
+
+	if (ImGui::BeginTable(
+			"PlaySoundParameters",
+			2,
+			ImGuiTableFlags_SizingStretchProp
+		)) {
+		ImGui::TableSetupColumn(
+			"Volume",
+			ImGuiTableColumnFlags_WidthStretch
+		);
+		ImGui::TableSetupColumn(
+			"Loops",
+			ImGuiTableColumnFlags_WidthFixed,
+			GetCountControlWidth("Loops")
+		);
+
+		ImGui::TableNextRow(
+			ImGuiTableRowFlags_None,
+			ImGui::GetFrameHeight()
+		);
+
+		ImGui::TableSetColumnIndex(0);
+		ImGui::SetNextItemWidth(-FLT_MIN);
+
+		changed |= ImGui::SliderFloat(
+			"##Volume",
+			&script.volume,
+			kMinVolume,
+			kMaxVolume,
+			"Volume: %.2f",
+			ImGuiSliderFlags_AlwaysClamp
+		);
+		DrawItemTooltip(
+			"Audio volume. Double-click to enter an exact value."
+		);
+
+		if (ImGui::IsItemHovered() &&
+			ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left)) {
+			ImGui::OpenPopup("ExactVolume");
+		}
+
+		if (ImGui::BeginPopup("ExactVolume")) {
+			ImGui::SetNextItemWidth(110.0f);
+
+			changed |= ImGui::InputFloat(
+				"Volume",
+				&script.volume,
+				0.01f,
+				0.1f,
+				"%.3f"
+			);
+
+			script.volume = std::clamp(
+				script.volume,
+				kMinVolume,
+				kMaxVolume
+			);
+
+			ImGui::EndPopup();
+		}
+
+		ImGui::TableSetColumnIndex(1);
+
+		const int previous_loops{ script.loops };
+
+		DrawCountControl(
+			"Loops",
+			script.loops,
+			0,
+			kMaxAudioPlayLoops,
+			false,
+			"Number of additional plays after the first."
+		);
+
+		changed |= previous_loops != script.loops;
+
+		ImGui::EndTable();
+	}
 
 	return changed;
 }
@@ -490,13 +616,18 @@ bool DrawAnimationAction(ScriptEditorContext&, AnimationActionScript& script) {
 	return changed;
 }
 
-bool DrawSetTextureInline(ScriptEditorContext&, SetTextureScript& script) {
+bool DrawSetTextureInline(
+	ScriptEditorContext& context,
+	SetTextureScript& script
+) {
 	ImGui::SetNextItemWidth(-FLT_MIN);
-	const bool changed{
-		ImGui::InputTextWithHint("##TextureKey", "Texture key", &script.texture_key.value)
-	};
-	DrawItemTooltip("Texture asset key assigned to the owner.");
-	return changed;
+
+	return inspector::DrawAssetKeyInline(
+		context.ctx,
+		script.texture_key,
+		inspector::FieldOptions{},
+		"Texture key"
+	);
 }
 
 bool DrawSetEnabledInline(ScriptEditorContext&, SetEnabledScript& script) {
@@ -1177,9 +1308,9 @@ PTGN_REGISTER_SCRIPT(
 PTGN_REGISTER_SCRIPT(
 	PlaySoundScript,
 	{
-		.label = "Play Sound",
+		.label = "Play Audio",
 		.group = "Audio",
-		.description = "Play a loaded audio asset.",
+		.description = "Play an audio asset.",
 		.type = ScriptType::Sequence,
 		.draw_inline = &DrawPlaySoundInline,
 		.draw = &DrawPlaySound,
