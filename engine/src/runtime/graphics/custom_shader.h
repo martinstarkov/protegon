@@ -39,6 +39,11 @@ public:
 
 	CustomShader& SetMaterialUniforms(const std::vector<UniformWrite>& material_uniforms);
 
+	/// @brief If uniform is already set, its value is updated.
+	CustomShader& SetMaterialUniform(
+		std::string_view name, const UniformValue& value
+	);
+
 	CustomShader& SetMaterial(Material material);
 };
 

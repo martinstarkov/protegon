@@ -95,6 +95,27 @@ CustomShader& CustomShader::SetMaterialUniforms(
 	return *this;
 }
 
+CustomShader& CustomShader::SetMaterialUniform(
+	std::string_view name, const UniformValue& value
+) {
+	auto& uniforms{ TryAdd<Material>().uniforms }; 
+
+	auto it{ std::ranges::find_if(
+		uniforms,
+		[name](const UniformWrite& uniform) {
+			return uniform.name == name;
+		}
+	) };
+
+	if (it != uniforms.end()) {
+		it->value = value;
+	} else {
+		uniforms.emplace_back(std::string{ name }, value);
+	}
+
+	return *this;
+}
+
 CustomShader& CustomShader::SetMaterial(Material material) {
 	Add<Material>(std::move(material));
 	return *this;
