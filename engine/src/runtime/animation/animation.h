@@ -282,7 +282,7 @@ public:
 
 	milliseconds GetFrameDuration() const;
 	V2_int GetFrameSize(std::optional<V2_int> texture_size) const;
-	V2_int GetCurrentFramePosition() const;
+	V2_int GetCurrentFramePosition(std::optional<V2_int> texture_size) const;
 
 	/// @return Total number of animation repeats.
 	std::size_t GetPlayCount() const;

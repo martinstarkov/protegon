@@ -46,8 +46,8 @@ TextureId GetTexture(Entity entity) {
 	return {};
 }
 
-void TextureCrop::Update(const AnimationData& anim) {
-	position = anim.GetCurrentFramePosition();
+void TextureCrop::Update(const AnimationData& anim, std::optional<V2_int> texture_size) {
+	position = anim.GetCurrentFramePosition(texture_size);
 	size	 = anim.config.frame_size;
 }
 

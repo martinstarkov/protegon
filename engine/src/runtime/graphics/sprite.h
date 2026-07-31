@@ -60,7 +60,7 @@ struct TextureCrop {
 	bool operator==(const TextureCrop&) const = default;
 
 	/// @brief Updates the crop size based on the animation data.
-	void Update(const AnimationData& anim);
+	void Update(const AnimationData& anim, std::optional<V2_int> texture_size);
 
 	PTGN_REFLECT(TextureCrop, position, size)
 };

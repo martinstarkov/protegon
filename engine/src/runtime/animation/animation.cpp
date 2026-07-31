@@ -33,7 +33,8 @@ void DispatchFrameChange(
 	impl::AnimationData& data,
 	impl::TextureCrop& crop
 ) {
-	crop.Update(data);
+	auto texture_size{ GetTextureSize(animation) };
+	crop.Update(data, texture_size);
 	data.frame_dirty = false;
 
 	PushEvent<event::AnimationFrameChange>(
@@ -170,7 +171,7 @@ Animation& Animation::SetConfig(AnimationConfig config) {
 	const auto& anim{ Add<impl::AnimationData>(std::move(config), texture_size) };
 
 	auto& crop{ TryAdd<impl::TextureCrop>() };
-	crop.Update(anim);
+	crop.Update(anim, texture_size);
 
 	return Reset();
 }
@@ -194,7 +195,9 @@ Animation& Animation::Start(bool force) {
 		Get<impl::TextureCrop>()
 	};
 
-	crop.Update(anim);
+	auto texture_size{ GetTextureSize(*this) };
+
+	crop.Update(anim, texture_size);
 
 	if (const bool started{
 			anim.frame_timer.Start(force)
@@ -222,7 +225,8 @@ Animation& Animation::Reset() {
 	anim.current_frame = 0;
 	anim.frames_played = 0;
 	auto& crop{ Get<impl::TextureCrop>() };
-	crop.Update(anim);
+	auto texture_size{ GetTextureSize(*this) };
+	crop.Update(anim, texture_size);
 	anim.frame_timer.Reset();
 	PushEvent<event::AnimationStop>(*this, *this);
 	return *this;
@@ -388,7 +392,8 @@ V2_int Animation::GetCurrentFramePosition() const {
 		return {};
 	}
 	const auto& anim{ Get<impl::AnimationData>() };
-	return anim.GetCurrentFramePosition();
+	auto texture_size{ GetTextureSize(*this) };
+	return anim.GetCurrentFramePosition(texture_size);
 }
 
 V2_int Animation::GetFrameSize() const {
@@ -424,8 +429,8 @@ V2_int AnimationData::GetFrameSize(std::optional<V2_int> texture_size) const {
 	);
 }
 
-V2_int AnimationData::GetCurrentFramePosition() const {
-	auto frame_size{ GetFrameSize(std::nullopt) };
+V2_int AnimationData::GetCurrentFramePosition(std::optional<V2_int> texture_size) const {
+	auto frame_size{ GetFrameSize(texture_size) };
 	return { config.start_pixel.x + frame_size.x * static_cast<int>(current_frame),
 			 config.start_pixel.y };
 }
@@ -448,7 +453,8 @@ void AnimationData::IncrementFrame() {
 
 void AnimationSystem::Prepare(Scene& scene) {
 	for (auto [entity, anim, crop] : scene.EntitiesWith<AnimationData, TextureCrop>()) {
-		crop.Update(anim);
+		auto texture_size{ GetTextureSize(entity) };
+		crop.Update(anim, texture_size);
 	}
 }
 
