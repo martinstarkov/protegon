@@ -614,14 +614,16 @@ bool DrawMembers(EditorContext& ctx, T& value) {
 	}
 
 	if constexpr (ReflectedReadOnlyMembers<T>) {
-		auto members{ ReflectReadOnlyMembers(value) };
+		if (ctx.local.settings.show_read_only_inspector_data) {
+			auto members{ ReflectReadOnlyMembers(value) };
 
-		std::apply(
-			[&ctx]<typename... TMember>(TMember&&... member) {
-				(DrawReadOnlyValue(ctx, PrettyName(member.name), member.value), ...);
-			},
-			members
-		);
+			std::apply(
+				[&ctx]<typename... TMember>(TMember&&... member) {
+					(DrawReadOnlyValue(ctx, PrettyName(member.name), member.value), ...);
+				},
+				members
+			);
+		}
 	}
 
 	return changed;
