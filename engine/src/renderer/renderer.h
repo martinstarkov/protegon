@@ -708,6 +708,8 @@ public:
 
 	bool IsEntityPickingEnabled(FramebufferId framebuffer) const;
 
+	std::size_t GetMaxTextureSlots() const;
+
 private:
 	Renderer& renderer_;
 };

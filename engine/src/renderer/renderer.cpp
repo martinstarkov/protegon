@@ -957,16 +957,21 @@ void Renderer::DrawElements(const impl::RenderPipeline& pipeline, std::size_t in
 }
 
 void Renderer::SetMaterial(const MaterialState& material) {
-	SetShader(material.shader);
+	const auto resolved_texture_slot_capacity{
+		material.texture_slot_capacity.value_or(1)
+	};
 
-	auto resolved_texture_slot_capacity{ material.texture_slot_capacity.value_or(1) };
-
-	if (current_uniforms_ == material.uniforms &&
+	if (GetBoundShader() == material.shader &&
+		current_uniforms_ == material.uniforms &&
 		current_texture_slot_capacity_ == resolved_texture_slot_capacity) {
 		return;
 	}
+
 	FlushBatch();
-	current_uniforms_			   = material.uniforms;
+
+	auto _ = gl_->Bind(material.shader, false);
+
+	current_uniforms_ = material.uniforms;
 	current_texture_slot_capacity_ = resolved_texture_slot_capacity;
 }
 
@@ -996,7 +1001,13 @@ void Renderer::DrawRenderPass(const impl::DrawPassRequest& request) {
 	PTGN_ASSERT(request.viewport.size.IsPositive(), "Render pass viewport size must be non-zero");
 
 	auto previous_state{ GetRenderState() };
-	auto previous_shader{ GetBoundShader() };
+
+	MaterialState previous_material{
+		.shader = GetBoundShader(),
+		.uniforms = current_uniforms_,
+		.texture_slot_capacity = current_texture_slot_capacity_
+	};
+	
 	auto previous_pipeline{ pipeline_manager_.GetCurrentPipelineId() };
 
 	auto _ = gl_->Bind(request.output, false);
@@ -1059,7 +1070,7 @@ void Renderer::DrawRenderPass(const impl::DrawPassRequest& request) {
 	FlushBatch();
 
 	SetCurrentPipeline(previous_pipeline);
-	SetShader(previous_shader);
+	SetMaterial(previous_material);
 	SetRenderState(previous_state);
 }
 
@@ -1416,6 +1427,10 @@ std::optional<std::int32_t> RendererAccessor::ReadEntityId(
 	FramebufferId framebuffer, V2_int pixel
 ) const {
 	return renderer_.ReadEntityId(framebuffer, pixel);
+}
+
+std::size_t RendererAccessor::GetMaxTextureSlots() const {
+	return renderer_.GetMaxTextureSlots();
 }
 
 } // namespace impl

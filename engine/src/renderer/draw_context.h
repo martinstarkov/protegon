@@ -271,6 +271,8 @@ private:
 
 	explicit DrawContext(Renderer& renderer);
 
+	void SetMaterial(std::string_view shader);
+
 	void DrawRenderPass(const impl::DrawPassRequest& request);
 
 	[[nodiscard]] bool FramebufferPoolHas(impl::FramebufferId id) const;

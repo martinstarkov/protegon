@@ -263,11 +263,19 @@ void DrawContext::DrawLines(
 	renderer_.Draw(request);
 }
 
+void DrawContext::SetMaterial(std::string_view shader) {
+	renderer_.SetMaterial(
+		MaterialState{
+			.shader = GetShader(shader),
+		}
+	);
+}
+
 void DrawContext::DrawShape(
 	Transform transform, const V2_float& shape, Color color, const ShapeDrawParams& params
 ) {
 	renderer_.SetCurrentPipeline("color");
-	renderer_.SetShader("color");
+	SetMaterial("color");
 	DrawShapeImpl(renderer_, transform, shape, color, params);
 }
 
@@ -275,7 +283,7 @@ void DrawContext::DrawShape(
 	Transform transform, const Rect& shape, Color color, const ShapeDrawParams& params
 ) {
 	renderer_.SetCurrentPipeline("color");
-	renderer_.SetShader("color");
+	SetMaterial("color");
 	DrawShapeImpl(renderer_, transform, shape, color, params);
 }
 
@@ -283,7 +291,7 @@ void DrawContext::DrawShape(
 	Transform transform, const RoundedRect& shape, Color color, const ShapeDrawParams& params
 ) {
 	renderer_.SetCurrentPipeline("shape");
-	renderer_.SetShader("rounded_rect");
+	SetMaterial("rounded_rect");
 	DrawShapeImpl(renderer_, transform, shape, color, params);
 }
 
@@ -291,7 +299,7 @@ void DrawContext::DrawShape(
 	Transform transform, const Polygon& shape, Color color, const ShapeDrawParams& params
 ) {
 	renderer_.SetCurrentPipeline("color");
-	renderer_.SetShader("color");
+	SetMaterial("color");
 	DrawShapeImpl(renderer_, transform, shape, color, params);
 }
 
@@ -299,7 +307,7 @@ void DrawContext::DrawShape(
 	Transform transform, const Triangle& shape, Color color, const ShapeDrawParams& params
 ) {
 	renderer_.SetCurrentPipeline("color");
-	renderer_.SetShader("color");
+	SetMaterial("color");
 	DrawShapeImpl(renderer_, transform, shape, color, params);
 }
 
@@ -307,7 +315,7 @@ void DrawContext::DrawShape(
 	Transform transform, const Capsule& shape, Color color, const ShapeDrawParams& params
 ) {
 	renderer_.SetCurrentPipeline("shape");
-	renderer_.SetShader("capsule");
+	SetMaterial("capsule");
 	DrawShapeImpl(renderer_, transform, shape, color, params);
 }
 
@@ -315,7 +323,7 @@ void DrawContext::DrawShape(
 	Transform transform, const Line& shape, Color color, const ShapeDrawParams& params
 ) {
 	renderer_.SetCurrentPipeline("color");
-	renderer_.SetShader("color");
+	SetMaterial("color");
 	DrawShapeImpl(renderer_, transform, shape, color, params);
 }
 
@@ -323,7 +331,7 @@ void DrawContext::DrawShape(
 	Transform transform, const Arc& shape, Color color, const ShapeDrawParams& params
 ) {
 	renderer_.SetCurrentPipeline("shape");
-	renderer_.SetShader("arc");
+	SetMaterial("arc");
 	DrawShapeImpl(renderer_, transform, shape, color, params);
 }
 
@@ -331,7 +339,7 @@ void DrawContext::DrawShape(
 	Transform transform, const Circle& shape, Color color, const ShapeDrawParams& params
 ) {
 	renderer_.SetCurrentPipeline("shape");
-	renderer_.SetShader("ellipse");
+	SetMaterial("ellipse");
 	DrawShapeImpl(renderer_, transform, shape, color, params);
 }
 
@@ -339,7 +347,7 @@ void DrawContext::DrawShape(
 	Transform transform, const Ellipse& shape, Color color, const ShapeDrawParams& params
 ) {
 	renderer_.SetCurrentPipeline("shape");
-	renderer_.SetShader("ellipse");
+	SetMaterial("ellipse");
 	DrawShapeImpl(renderer_, transform, shape, color, params);
 }
 
