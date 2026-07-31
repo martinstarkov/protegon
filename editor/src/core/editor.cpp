@@ -268,7 +268,9 @@ Editor::Editor(Application& app) : app{ app } {
 		*this, commands_, undo_stack_
 	);
 
-	commands_ = EditorCommands{ &undo_stack_, &scene_list_panel_ };
+	commands_.Bind(*context_);
+	scene_hierarchy_panel_.Bind(*context_);
+	scene_list_panel_.Bind(*context_);
 }
 
 void Editor::UpdateDockLayout(std::uint32_t dockspace_id, float width) {
@@ -618,9 +620,9 @@ bool Editor::DeleteProjectScene(
 		selected_scene->GetTag() == scene_key) {
 		scene_list_panel_.SetSelectedScene(
 			*context_,
-			nullptr
+			nullptr,
+			false
 		);
-		scene_hierarchy_panel_.SetSelectedEntity({});
 	}
 
 	pending_scene_bootstrap_saves_.erase(
@@ -628,6 +630,7 @@ bool Editor::DeleteProjectScene(
 	);
 
 	project->scenes.erase(it);
+	context_->local.selection.RemoveScene(scene_key);
 
 	if (was_startup) {
 		project->startup_scene_key =
@@ -654,26 +657,7 @@ bool Editor::RenameProjectSceneKey(
 ) {
 	PTGN_ASSERT(context_);
 
-	if (IsPlaying() ||
-		current_key.empty() ||
-		new_key.empty()) {
-		return false;
-	}
-
-	auto* project{ GetProject() };
-
-	if (!project) {
-		return false;
-	}
-
-	auto* entry{
-		FindProjectScene(
-			*project,
-			current_key
-		)
-	};
-
-	if (!entry) {
+	if (IsPlaying() || current_key.empty() || new_key.empty()) {
 		return false;
 	}
 
@@ -681,32 +665,51 @@ bool Editor::RenameProjectSceneKey(
 		return true;
 	}
 
-	if (FindProjectScene(*project, new_key) ||
-		!GetSceneManager().RenameScene(
-			current_key,
-			new_key
-		)) {
+	auto apply = [this](std::string_view from, std::string_view to) {
+		auto* project{ GetProject() };
+		if (!project || from.empty() || to.empty() || FindProjectScene(*project, to)) {
+			return false;
+		}
+
+		auto* entry{ FindProjectScene(*project, from) };
+		if (!entry || !GetSceneManager().RenameScene(from, to)) {
+			return false;
+		}
+
+		const std::string old_key{ entry->key };
+		const bool was_startup{ project->startup_scene_key == old_key };
+
+		entry->key = std::string{ to };
+		if (was_startup) {
+			project->startup_scene_key = entry->key;
+		}
+
+		if (pending_scene_bootstrap_saves_.erase(old_key) > 0) {
+			pending_scene_bootstrap_saves_.emplace(entry->key);
+		}
+
+		context_->local.selection.RenameScene(old_key, entry->key);
+		scene_list_panel_.RefreshSelectedSceneState();
+		MarkProjectDirty();
+		return true;
+	};
+
+	const std::string before{ current_key };
+	const std::string after{ new_key };
+	if (!apply(before, after)) {
 		return false;
 	}
 
-	const std::string old_key{ entry->key };
-	const bool was_startup{
-		project->startup_scene_key == old_key
-	};
+	undo_stack_.PushApplied(
+		"Rename Scene Key",
+		[apply, before, after]() mutable {
+			(void)apply(after, before);
+		},
+		[apply, before, after]() mutable {
+			(void)apply(before, after);
+		}
+	);
 
-	entry->key = std::string{ new_key };
-
-	if (was_startup) {
-		project->startup_scene_key = entry->key;
-	}
-
-	if (pending_scene_bootstrap_saves_.erase(old_key) > 0) {
-		pending_scene_bootstrap_saves_.emplace(
-			entry->key
-		);
-	}
-
-	MarkProjectDirty();
 	return true;
 }
 
@@ -956,6 +959,20 @@ void Editor::DrawMainMenuBar() {
 		ImGui::EndMenu();
 	}
 
+	if (ImGui::BeginMenu("Edit")) {
+		if (ImGui::MenuItem("Undo", "Ctrl+Z", false, undo_stack_.CanUndo())) {
+			context_->local.position_picker.Cancel();
+			undo_stack_.Undo();
+		}
+
+		if (ImGui::MenuItem("Redo", "Ctrl+Shift+Z", false, undo_stack_.CanRedo())) {
+			context_->local.position_picker.Cancel();
+			undo_stack_.Redo();
+		}
+
+		ImGui::EndMenu();
+	}
+
 	ImGui::EndMenuBar();
 }
 
@@ -1104,6 +1121,20 @@ void Editor::OnUpdate() {
 		) &&
 		CanSaveProject()) {
 		SaveProjectScene();
+	}
+
+	if ((io.KeyCtrl || io.KeySuper) && !io.WantTextInput) {
+		if (ImGui::IsKeyPressed(ImGuiKey_Z, false)) {
+			context_->local.position_picker.Cancel();
+			if (io.KeyShift) {
+				undo_stack_.Redo();
+			} else {
+				undo_stack_.Undo();
+			}
+		} else if (ImGui::IsKeyPressed(ImGuiKey_Y, false)) {
+			context_->local.position_picker.Cancel();
+			undo_stack_.Redo();
+		}
 	}
 
 	SavePendingBootstrapScenes();
@@ -1257,7 +1288,7 @@ void Editor::Play() {
 		.was_dirty = context_->local.state.is_dirty,
 	};
 
-	context_->local.selection.Clear();
+	context_->local.position_picker.Cancel();
 	undo_stack_.Clear();
 
 	SetApplicationState(
@@ -1316,7 +1347,7 @@ void Editor::Stop() {
 		)
 	};
 
-	context_->local.selection.Clear();
+	context_->local.position_picker.Cancel();
 
 	SetApplicationState(
 		ApplicationState::Running
@@ -1761,6 +1792,9 @@ void Editor::OnProjectChanged() {
 			app_context.project.value()
 		);
 
+	context_->local.selection.selected_scene_runtime = false;
+	scene_list_panel_.RefreshSelectedSceneState();
+
 	// These values describe the current process and must never resume from disk.
 	context_->local.state.is_dirty =
 		false;
@@ -1786,6 +1820,11 @@ void Editor::SetSceneEntityPickingEnabled(Scene& scene, bool enabled) {
 	for (auto [entity, framebuffer] : scene.EntitiesWith<impl::FramebufferObject>()) {
 		renderer.SetEntityPickingEnabled(static_cast<impl::FramebufferId>(framebuffer), enabled);
 	}
+}
+
+std::size_t Editor::GetMaxTextureSlots() const {
+	impl::RendererAccessor renderer{ impl::ApplicationAccessor::ctx(app).renderer };
+	return renderer.GetMaxTextureSlots();
 }
 
 void Editor::BuildDefaultDockLayout(std::uint32_t dockspace_id) {
