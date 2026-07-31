@@ -903,6 +903,8 @@ void Shaders::SetUniform(ShaderId id, const char* uniform_name, const Matrix4& v
 		constexpr bool transpose_matrix{ false };
 		constexpr int matrix_count{ 1 };
 		GLCall(glUniformMatrix4fv(location, matrix_count, transpose_matrix, v.Data()));
+	} else {
+		PTGN_WARN("Shader location not found for uniform: ", uniform_name);
 	}
 }
 
@@ -910,6 +912,8 @@ void Shaders::SetUniform(ShaderId id, const char* uniform_name, float v) {
 	std::int32_t location{ GetUniform(id, uniform_name) };
 	if (location != -1) {
 		GLCall(glUniform1f(location, v));
+	} else {
+		PTGN_WARN("Shader location not found for uniform: ", uniform_name);
 	}
 }
 
@@ -917,6 +921,8 @@ void Shaders::SetUniform(ShaderId id, const char* uniform_name, V2_float v) {
 	std::int32_t location{ GetUniform(id, uniform_name) };
 	if (location != -1) {
 		GLCall(glUniform2f(location, v.x, v.y));
+	} else {
+		PTGN_WARN("Shader location not found for uniform: ", uniform_name);
 	}
 }
 
@@ -924,6 +930,8 @@ void Shaders::SetUniform(ShaderId id, const char* uniform_name, V3_float v) {
 	std::int32_t location{ GetUniform(id, uniform_name) };
 	if (location != -1) {
 		GLCall(glUniform3f(location, v.x, v.y, v.z));
+	} else {
+		PTGN_WARN("Shader location not found for uniform: ", uniform_name);
 	}
 }
 
@@ -931,6 +939,8 @@ void Shaders::SetUniform(ShaderId id, const char* uniform_name, V4_float v) {
 	std::int32_t location{ GetUniform(id, uniform_name) };
 	if (location != -1) {
 		GLCall(glUniform4f(location, v.x, v.y, v.z, v.w));
+	} else {
+		PTGN_WARN("Shader location not found for uniform: ", uniform_name);
 	}
 }
 
@@ -938,6 +948,8 @@ void Shaders::SetUniform(ShaderId id, const char* uniform_name, std::span<const 
 	std::int32_t location{ GetUniform(id, uniform_name) };
 	if (location != -1) {
 		GLCall(glUniform1fv(location, static_cast<std::int32_t>(values.size()), values.data()));
+	} else {
+		PTGN_WARN("Shader location not found for uniform: ", uniform_name);
 	}
 }
 
@@ -945,6 +957,8 @@ void Shaders::SetUniform(ShaderId id, const char* uniform_name, int v) {
 	std::int32_t location{ GetUniform(id, uniform_name) };
 	if (location != -1) {
 		GLCall(glUniform1i(location, v));
+	} else {
+		PTGN_WARN("Shader location not found for uniform: ", uniform_name);
 	}
 }
 
@@ -952,6 +966,8 @@ void Shaders::SetUniform(ShaderId id, const char* uniform_name, V2_int v) {
 	std::int32_t location{ GetUniform(id, uniform_name) };
 	if (location != -1) {
 		GLCall(glUniform2i(location, v.x, v.y));
+	} else {
+		PTGN_WARN("Shader location not found for uniform: ", uniform_name);
 	}
 }
 
@@ -959,6 +975,8 @@ void Shaders::SetUniform(ShaderId id, const char* uniform_name, V3_int v) {
 	std::int32_t location{ GetUniform(id, uniform_name) };
 	if (location != -1) {
 		GLCall(glUniform3i(location, v.x, v.y, v.z));
+	} else {
+		PTGN_WARN("Shader location not found for uniform: ", uniform_name);
 	}
 }
 
@@ -966,6 +984,8 @@ void Shaders::SetUniform(ShaderId id, const char* uniform_name, V4_int v) {
 	std::int32_t location{ GetUniform(id, uniform_name) };
 	if (location != -1) {
 		GLCall(glUniform4i(location, v.x, v.y, v.z, v.w));
+	} else {
+		PTGN_WARN("Shader location not found for uniform: ", uniform_name);
 	}
 }
 
@@ -973,6 +993,8 @@ void Shaders::SetUniform(ShaderId id, const char* uniform_name, std::span<const 
 	std::int32_t location{ GetUniform(id, uniform_name) };
 	if (location != -1) {
 		GLCall(glUniform1iv(location, static_cast<std::int32_t>(v.size()), v.data()));
+	} else {
+		PTGN_WARN("Shader location not found for uniform: ", uniform_name);
 	}
 }
 
@@ -1005,7 +1027,10 @@ std::int32_t Shaders::GetUniform(ShaderId id, const char* uniform_name) {
 
 ShaderId Shaders::GetProgram(std::string_view program_name) const {
 	auto hash{ Hash(program_name) };
-	PTGN_ASSERT(programs_.contains(hash), "No shader program with name '", program_name, "' found");
+	if (!programs_.contains(hash)) {
+		PTGN_WARN("Shader program with name '", program_name, "' not found");
+		return ShaderId{ 0 };
+	}
 	return programs_.find(hash)->second;
 }
 
