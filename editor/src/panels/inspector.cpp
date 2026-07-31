@@ -30,6 +30,7 @@
 #include "core/editor_context.h"
 #include "core/graphics/color.h"
 #include "core/graphics/fill_style.h"
+#include "core/math/angle.h"
 #include "core/math/geometry/circle.h"
 #include "core/math/geometry/origin.h"
 #include "core/math/geometry/rect.h"
@@ -129,7 +130,7 @@ inline constexpr std::array kLifecycleLabels{
 inline constexpr std::array kActionFormLabels{ "Action", "Tween", "Delay" };
 inline constexpr std::array kEaseEntries{
 	std::pair{ Ease::Linear, "Linear" },	  std::pair{ Ease::InQuad, "In Quad" },
-	std::pair{ Ease::OutQuad, "Out Quad" },	  std::pair{ Ease::InOutQuad, "In-Out Quad" },
+	std::pair{ Ease::OutQuad, "Out Quad" },	  std::pair{ Ease::InOutQuad, "In Out Quad" },
 	std::pair{ Ease::OutCubic, "Out Cubic" }, std::pair{ Ease::OutBack, "Out Back" },
 };
 
@@ -407,7 +408,7 @@ void AddEditorScriptEntry(
 	}
 
 	// Prefab JSON components are temporary values and do not receive
-	// the normal ECS pending-operation flush.
+	// the normal ECS pending operation flush.
 	scripts.scripts.emplace_back(std::move(entry));
 }
 
@@ -692,7 +693,7 @@ bool DrawActionPicker(
 				action.timing.reset();
 				changed = true;
 			}
-			DrawTooltip("Run this global editor-authored Script as the sequence step.");
+			DrawTooltip("Run this global editor authored Script as the sequence step.");
 		}
 		ImGui::EndMenu();
 	}
@@ -1042,8 +1043,8 @@ bool DrawActions(ScriptEditorContext& context, ScriptSequence& sequence, ScriptS
 				duplicate = true;
 			}
 			DrawTooltip(
-				action.enabled ? "Drag to reorder. Right-click to duplicate."
-							   : "Disabled action. Right-click to duplicate."
+				action.enabled ? "Drag to reorder. Right click to duplicate."
+							   : "Disabled action. Right click to duplicate."
 			);
 			if (ImGui::BeginDragDropSource(ImGuiDragDropFlags_SourceAllowNullID)) {
 				const ActionDragPayload payload{ index };
@@ -1111,7 +1112,7 @@ bool DrawActions(ScriptEditorContext& context, ScriptSequence& sequence, ScriptS
 			if (displayed_form == ActionForm::Tween) {
 				changed |= DrawCountControl(
 					"Repeats", action.timing->additional_repeats, 0, 100,
-					action.timing->infinite_repeats, "Additional full-duration cycles."
+					action.timing->infinite_repeats, "Additional full duration cycles."
 				);
 				SameLineControl();
 			}
@@ -1641,9 +1642,9 @@ bool DrawSequence(
 		ImGui::PopStyleColor(3);
 		stored_open = open;
 
-		// Use the measured table-cell rectangle for both display and edit modes. Framed TreeNodeEx
-		// expands its native background beyond the cursor by a style-dependent amount, which causes
-		// the one- or two-pixel width change when the InputText overlay becomes active.
+		// Use the measured table cell rectangle for both display and edit modes. Framed TreeNodeEx
+		// expands its native background beyond the cursor by a style dependent amount, which causes
+		// the one or two pixel width change when the InputText overlay becomes active.
 		const ImVec2 tree_min{ header_min };
 		const ImVec2 tree_max{ header_max };
 		const bool tree_hovered{ ImGui::IsItemHovered() };
@@ -1703,7 +1704,7 @@ bool DrawSequence(
 			}
 		}
 		if (tree_hovered && state.editing_sequence_name != editor_id) {
-			ImGui::SetTooltip("Double-click name to rename.");
+			ImGui::SetTooltip("Double click name to rename.");
 		}
 
 		ImGui::TableSetColumnIndex(1);
@@ -1964,7 +1965,7 @@ bool DrawAddRootScriptPopup(ScriptEditorContext& context, ::ptgn::impl::Scripts&
 				AddEditorScriptEntry(context, scripts, MakeRootEntry(std::move(script)));
 				changed = true;
 			}
-			DrawTooltip("Add a reference to this global editor-authored script.");
+			DrawTooltip("Add a reference to this global editor authored script.");
 		}
 		ImGui::EndMenu();
 	}
@@ -2322,7 +2323,7 @@ struct Contents<::ptgn::impl::Scripts> {
 
 		ImGui::PopStyleColor(3);
 
-		DrawTooltip("Add a custom script or an editor-authored sequence script.");
+		DrawTooltip("Add a custom script or an editor authored sequence script.");
 
 		changed |= DrawAddRootScriptPopup(context, scripts);
 		changed |= DrawResidentScripts(context, scripts);
@@ -2817,16 +2818,6 @@ void AssignEntityComponent(Entity entity, ComponentState<T> state) {
 	} else {
 		entity.Add<T>(*state);
 	}
-}
-
-Entity FindEntityByUUID(Scene& scene, const UUID& uuid) {
-	for (auto entity : scene.Entities()) {
-		if (entity.Has<UUID>() && entity.Get<UUID>() == uuid) {
-			return entity;
-		}
-	}
-
-	return {};
 }
 
 template <typename T>
@@ -3603,7 +3594,7 @@ bool DrawName(Target& target) {
 					&displayed,
 					ImGuiInputTextFlags_ReadOnly
 				);
-				DrawTooltip("Read-only entity identifier.");
+				DrawTooltip("Read only entity identifier.");
 				return false;
 			}
 		);
@@ -3965,7 +3956,15 @@ template <typename Target>
 
 	const bool has_visible_read_only_component{
 		target.ctx.local.settings.show_read_only_inspector_data &&
-		HasFeatureComponent<Target, InteractionLock>(target)
+		[&]() {
+			if constexpr (std::same_as<std::remove_cvref_t<Target>, EntityInspectorTarget>) {
+				return target.entity.template Has<InteractionLock>();
+			} else if constexpr (Target::template Supports<InteractionLock>()) {
+				return target.template Capture<InteractionLock>().has_value();
+			} else {
+				return false;
+			}
+		}()
 	};
 
 	return has_editable_component ||
@@ -4571,6 +4570,46 @@ bool DrawRequiredInlineVisualComponent(
 	);
 }
 
+
+template <typename Target, typename T, typename Draw, typename Callback = std::nullptr_t>
+bool DrawRequiredInlineVisualComponentWithDefault(
+	Target& target,
+	std::string_view label,
+	T default_value,
+	Draw&& draw,
+	Callback callback = nullptr
+) {
+	ScopedID target_scope{ target.Id() };
+	ScopedID component_scope{ static_cast<int>(Hash<T>()) };
+
+	auto before{ target.template Capture<T>() };
+	bool changed{ false };
+
+	if (!before) {
+		target.template SetLive<T>(std::move(default_value), callback);
+		changed = true;
+	}
+
+	T value{ target.template Capture<T>().value_or(T{}) };
+	changed |= std::invoke(std::forward<Draw>(draw), value);
+
+	if (changed) {
+		target.template SetLive<T>(value, callback);
+	}
+
+	auto after{ target.template Capture<T>() };
+	TrackComponentState(
+		target,
+		std::string{ "Edit " } + std::string{ label },
+		std::move(before),
+		std::move(after),
+		changed,
+		callback
+	);
+
+	return changed;
+}
+
 template <typename Target, typename T>
 bool DrawOptionalVisualComponent(
 	Target& target,
@@ -4616,6 +4655,83 @@ bool DrawOptionalVisualComponent(
 		   visual == "arc";
 }
 
+inline constexpr V2_float kInspectorDefaultShapeSize{ 100.0f, 100.0f };
+inline constexpr float kInspectorDefaultShapeRadius{ 50.0f };
+
+// Keep renderer selected geometry consistent with the Scene Hierarchy create menu.
+template <typename T>
+[[nodiscard]] T MakeDefaultShapeGeometry() {
+	if constexpr (std::same_as<T, Rect>) {
+		if constexpr (std::constructible_from<T, V2_float>) {
+			return T{ kInspectorDefaultShapeSize };
+		}
+	} else if constexpr (std::same_as<T, Circle>) {
+		if constexpr (std::constructible_from<T, float>) {
+			return T{ kInspectorDefaultShapeRadius };
+		}
+	} else if constexpr (std::same_as<T, Line>) {
+		if constexpr (std::constructible_from<T, V2_float, V2_float>) {
+			return T{ V2_float{ -100.0f, -100.0f }, V2_float{ 100.0f, 100.0f } };
+		}
+	} else if constexpr (std::same_as<T, Polygon>) {
+		std::vector<V2_float> vertices{
+			{ 0.0f, -50.0f },
+			{ 47.0f, -15.0f },
+			{ 29.0f, 40.0f },
+			{ -29.0f, 40.0f },
+			{ -47.0f, -15.0f },
+		};
+
+		if constexpr (std::constructible_from<T, std::vector<V2_float>>) {
+			return T{ std::move(vertices) };
+		}
+	} else if constexpr (std::same_as<T, Ellipse>) {
+		if constexpr (std::constructible_from<T, V2_float>) {
+			return T{ V2_float{ 100.0f, 50.0f } };
+		}
+	} else if constexpr (std::same_as<T, Arc>) {
+		if constexpr (std::constructible_from<T, float, float, float, bool>) {
+			return T{ kInspectorDefaultShapeRadius, 0.0f, 90.0f, true };
+		} else if constexpr (std::constructible_from<T, float, Degrees, Degrees, bool>) {
+			return T{
+				kInspectorDefaultShapeRadius,
+				Degrees{ 0.0f },
+				Degrees{ 90.0f },
+				true,
+			};
+		}
+	} else if constexpr (std::same_as<T, RoundedRect>) {
+		if constexpr (std::constructible_from<T, V2_float, float>) {
+			return T{ kInspectorDefaultShapeSize, 10.0f };
+		} else if constexpr (std::constructible_from<T, Rect, float>) {
+			return T{ MakeDefaultShapeGeometry<Rect>(), 10.0f };
+		}
+	} else if constexpr (std::same_as<T, Triangle>) {
+		if constexpr (std::constructible_from<T, V2_float, V2_float, V2_float>) {
+			return T{
+				V2_float{ -100.0f, 50.0f },
+				V2_float{ 0.0f, -50.0f },
+				V2_float{ 100.0f, 50.0f },
+			};
+		}
+	} else if constexpr (std::same_as<T, Capsule>) {
+		if constexpr (std::constructible_from<T, V2_float, V2_float, float>) {
+			return T{
+				V2_float{ -100.0f, -100.0f },
+				V2_float{ 100.0f, 100.0f },
+				kInspectorDefaultShapeRadius,
+			};
+		} else if constexpr (std::constructible_from<T, Line, float>) {
+			return T{
+				MakeDefaultShapeGeometry<Line>(),
+				kInspectorDefaultShapeRadius,
+			};
+		}
+	}
+
+	return T{};
+}
+
 template <typename Target>
 std::string DrawRendererRow(Target& target) {
 	using Drawable = ::ptgn::impl::IDrawable;
@@ -4623,7 +4739,11 @@ std::string DrawRendererRow(Target& target) {
 	auto before_drawable{ target.template Capture<Drawable>() };
 	auto drawable{ before_drawable };
 	auto before_visible{ target.template Capture<Visible>() };
-	bool visible{ before_visible.has_value() };
+	bool visible{
+		before_visible
+			? before_visible->visible
+			: true
+	};
 
 	ComponentState<TextureKey> before_texture;
 	ComponentState<Color> before_color;
@@ -4721,10 +4841,12 @@ std::string DrawRendererRow(Target& target) {
 	}
 
 	if (visible_changed) {
+		Visible updated{
+			before_visible.value_or(Visible{})
+		};
+		updated.visible = visible;
 		target.template SetLive<Visible>(
-			visible
-				? ComponentState<Visible>{ Visible{} }
-				: std::nullopt
+			ComponentState<Visible>{ updated }
 		);
 	}
 
@@ -5453,9 +5575,10 @@ bool DrawShapeVisual(
 	bool changed{ false };
 
 	auto draw_shape = [&]<typename T>() {
-		changed |= DrawRequiredInlineVisualComponent<Target, T>(
+		changed |= DrawRequiredInlineVisualComponentWithDefault<Target, T>(
 			target,
 			TypeLabel<T>(),
+			MakeDefaultShapeGeometry<T>(),
 			[&target](T& value) {
 				return DrawGeometryComponent(target, value);
 			}
@@ -6225,13 +6348,25 @@ bool DrawReadOnlyInteractionLock(Target& target) {
 				ImGuiTreeNodeFlags_SpanAvailWidth
 			)) {
 			ScopedIndent indent;
-			ScopedDisabled read_only{ true };
+			AutoLabelWidthScope label_width{ "InteractionLockReadOnlyFields" };
 
-			if constexpr (std::is_empty_v<InteractionLock>) {
-				ImGui::TextDisabled("Read-only component");
-			} else {
-				(void)DrawComponentContents(target.ctx, *state);
-			}
+			[&]<typename T>(const T& value) {
+				if constexpr (ReflectedReadOnlyMembers<T>) {
+					auto members{ ReflectReadOnlyMembers(value) };
+					std::apply(
+						[&](auto&&... member) {
+							(DrawReadOnlyValue(
+								target.ctx,
+								PrettyName(member.name),
+								member.value
+							), ...);
+						},
+						members
+					);
+				} else {
+					ImGui::TextDisabled("Read only component");
+				}
+			}(*state);
 
 			ImGui::TreePop();
 		}
@@ -6521,15 +6656,19 @@ bool DrawCameraFeature(Target& target) {
 	}
 
 	ScopedIndent feature_indent;
+	AutoLabelWidthScope camera_label_width{ "CameraFeatureFields" };
 
 	bool changed{ header.changed };
-	changed |= DrawOptionalReflected<
+	changed |= DrawOptionalComponent<
 		Target,
 		::ptgn::impl::CameraData
 	>(
 		target,
 		"Camera",
-		false
+		false,
+		[&target](::ptgn::impl::CameraData& value) {
+			return DrawContents(target.ctx, value);
+		}
 	);
 	changed |= DrawRequiredComponent<
 		Target,
@@ -6538,11 +6677,10 @@ bool DrawCameraFeature(Target& target) {
 		target,
 		"Layers",
 		false,
-		[&target](::ptgn::impl::CameraMask& value) {
-			return DrawComponentContents(
-				target.ctx,
-				value
-			);
+		[](::ptgn::impl::CameraMask& value) {
+			bool masks_changed{ DrawLayerMaskValue("Include Layer", value.include) };
+			masks_changed |= DrawLayerMaskValue("Exclude Layer", value.exclude);
+			return masks_changed;
 		}
 	);
 
