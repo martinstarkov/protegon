@@ -68,8 +68,8 @@ struct ShaderPair {
 [[nodiscard]] bool HasVertexAndFragmentShader(std::string_view source);
 
 using UniformValue = std::variant<
-	Matrix4, float, V2_float, V3_float, V4_float, std::vector<float>, int, V2_int, V3_int, V4_int,
-	std::vector<int>, bool>;
+	float, V2_float, V3_float, V4_float, std::vector<float>, int, V2_int, V3_int, V4_int,
+	std::vector<int>, bool, Matrix4>;
 
 struct UniformWrite {
 	std::string name;
