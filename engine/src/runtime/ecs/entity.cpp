@@ -44,14 +44,14 @@ Transform GetWorldTransformImpl(Entity entity, std::size_t search_depth) {
 	}
 
 	if (search_depth >= kMaxParentDepth) {
-		PTGN_ASSERT(false, "Maximum parent depth exceeded while resolving world transform");
+		PTGN_WARN("Maximum parent depth exceeded while resolving world transform");
 		return transform;
 	}
 
 	auto parent{ GetParent(entity) };
 
 	if (parent == entity) {
-		PTGN_ASSERT(false, "Entity cannot be its own parent while resolving world transform");
+		PTGN_WARN("Entity cannot be its own parent while resolving world transform");
 		return transform;
 	}
 
@@ -84,14 +84,14 @@ Transform GetTransformImpl(Entity entity, Transform world_transform, std::size_t
 	}
 
 	if (search_depth >= kMaxParentDepth) {
-		PTGN_ASSERT(false, "Maximum parent depth exceeded while resolving local transform");
+		PTGN_WARN("Maximum parent depth exceeded while resolving local transform");
 		return world_transform;
 	}
 
 	auto parent{ GetParent(entity) };
 
 	if (parent == entity) {
-		PTGN_ASSERT(false, "Entity cannot be its own parent while resolving local transform");
+		PTGN_WARN("Entity cannot be its own parent while resolving local transform");
 		return world_transform;
 	}
 
@@ -262,9 +262,6 @@ void SetWorldTransform(Entity entity, Transform world_transform) {
 
 Transform GetDrawTransform(Entity entity) {
 	auto offset_transform{ GetOffset(entity) };
-	PTGN_ASSERT(
-		!entity.Has<impl::CameraData>(), "GetDrawTransform is not meant to be used on scene cameras"
-	);
 	auto transform{ GetWorldTransform(entity) };
 	transform = transform.RelativeTo(offset_transform);
 	return transform;

@@ -23,15 +23,15 @@ std::array<V2_float, 4> GetTextureCoordinates(
 	V2_float source_position, V2_float source_size, V2_float texture_size, bool flip_vertically,
 	bool offset_texels
 ) {
-	PTGN_ASSERT(texture_size.x > 0.0f, "Texture must have width > 0");
-	PTGN_ASSERT(texture_size.y > 0.0f, "Texture must have height > 0");
+	if (!texture_size.IsPositive()) {
+		PTGN_WARN("Texture size must be positive, using default texture coordinates");
+		return GetDefaultTextureCoordinates(flip_vertically);
+	}
 
-	PTGN_ASSERT(
-		source_position.x < texture_size.x, "Source position X must be within texture width"
-	);
-	PTGN_ASSERT(
-		source_position.y < texture_size.y, "Source position Y must be within texture height"
-	);
+	if (source_position.x >= texture_size.x || source_position.y >= texture_size.y) {
+		PTGN_WARN("Source position out of texture size bounds, using default texture coordinates");
+		return GetDefaultTextureCoordinates(flip_vertically);
+	}
 
 	if (source_size.IsZero()) {
 		source_size = texture_size - source_position;

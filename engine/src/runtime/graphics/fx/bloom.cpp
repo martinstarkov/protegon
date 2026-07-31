@@ -1,5 +1,6 @@
 #include "runtime/graphics/fx/bloom.h"
 
+#include "core/log.h"
 #include "core/math/vector2.h"
 #include "renderer/draw_context.h"
 #include "renderer/pipeline/render_pass_builder.h"
@@ -9,6 +10,7 @@ namespace ptgn {
 
 void Bloom::Draw(DrawContext& ctx, Entity entity) {
 	if (!entity.Has<Bloom>()) {
+		PTGN_WARN("Bloom component missing from bloom entity");
 		return;
 	}
 

@@ -81,7 +81,7 @@ std::array<V2_float, 4> GetAspectScaledTexCoords(float aspect_ratio) {
 }
 
 float GetFade(float diameter_y) {
-	PTGN_ASSERT(diameter_y > 0.0f, "Diameter cannot be negative or zero");
+	diameter_y = std::max(kEpsilon<float>, diameter_y);
 	constexpr float fade_scaling_constant{ 0.12f };
 	return fade_scaling_constant / diameter_y;
 }
@@ -91,12 +91,12 @@ float GetFade(V2_float diameter) {
 }
 
 float GetAspectRatio(V2_float size) {
-	PTGN_ASSERT(size.x > 0.0f);
+	size = Max(size, V2_float{ kEpsilon<float>, kEpsilon<float> });
 	return size.y / size.x;
 }
 
 float GetNormalizedRadius(float diameter, float size_x) {
-	PTGN_ASSERT(size_x > 0.0f);
+	size_x = std::max(kEpsilon<float>, size_x);
 	float normalized_radius{ diameter / size_x };
 	return Clamp01(normalized_radius);
 }

@@ -1,5 +1,6 @@
 #include "runtime/graphics/fx/gaussian_blur.h"
 
+#include "core/log.h"
 #include "core/math/vector2.h"
 #include "renderer/draw_context.h"
 #include "renderer/pipeline/render_pass_builder.h"
@@ -8,6 +9,11 @@
 namespace ptgn {
 
 void GaussianBlur::Draw(DrawContext& ctx, Entity entity) {
+	if (!entity.Has<GaussianBlur>()) {
+		PTGN_WARN("GaussianBlur component missing from gaussian blur entity");
+		return;
+	}
+
 	const auto& gaussian_blur{ entity.Get<GaussianBlur>() };
 
 	if (!gaussian_blur.iterations) {
