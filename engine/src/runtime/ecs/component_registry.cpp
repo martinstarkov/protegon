@@ -25,6 +25,7 @@
 #include "runtime/graphics/render_target.h"
 #include "runtime/graphics/sprite.h"
 #include "runtime/graphics/tint.h"
+#include "runtime/graphics/custom_shader.h"
 #include "runtime/graphics/visible.h"
 #include "runtime/interaction/draggable.h"
 #include "runtime/interaction/dropzone.h"
@@ -132,6 +133,7 @@ PTGN_REGISTER_COMPONENT(impl::ClearColor);
 PTGN_REGISTER_COMPONENT(impl::ClearDepth);
 PTGN_REGISTER_COMPONENT(impl::ClearStencil);
 PTGN_REGISTER_COMPONENT(impl::UILayer);
+PTGN_REGISTER_COMPONENT(Material);
 
 PTGN_REGISTER_COMPONENT(impl::TextureSize);
 PTGN_REGISTER_COMPONENT(impl::TextureCrop);

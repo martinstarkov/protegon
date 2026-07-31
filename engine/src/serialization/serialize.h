@@ -23,12 +23,22 @@
 namespace ptgn::impl {
 
 // Try to set the value of type T into the variant data if it fails, do nothing
-template <typename T, typename... Ts>
-void variant_from_json(const json& j, std::variant<Ts...>& data) {
-	try {
-		data = j.get<T>();
-	} catch (...) {
-		/* Ignore */
+template <std::size_t I = 0, typename... Ts>
+void variant_from_json(
+	const json& input,
+	std::size_t index,
+	std::variant<Ts...>& data
+) {
+	if constexpr (I == sizeof...(Ts)) {
+		throw std::out_of_range("Variant index is out of range");
+	} else {
+		if (index == I) {
+			using Alternative = std::variant_alternative_t<I, std::variant<Ts...>>;
+			data.template emplace<I>(input.get<Alternative>());
+			return;
+		}
+
+		variant_from_json<I + 1>(input, index, data);
 	}
 }
 
@@ -39,13 +49,33 @@ NLOHMANN_JSON_NAMESPACE_BEGIN
 template <typename... Ts>
 struct adl_serializer<std::variant<Ts...>> {
 	static void to_json(json& j, const std::variant<Ts...>& data) {
-		// Will call j = v automatically for the right type
-		std::visit([&j](const auto& v) { j = v; }, data);
+		j = json::object();
+		j["index"] = data.index();
+
+		std::visit(
+			[&j](const auto& value) {
+				j["value"] = value;
+			},
+			data
+		);
 	}
 
 	static void from_json(const json& j, std::variant<Ts...>& data) {
-		// Call variant_from_json for all types, only one will succeed
-		(::ptgn::impl::variant_from_json<Ts>(j, data), ...);
+		if (!j.is_object()) {
+			throw std::invalid_argument("Variant JSON must be an object");
+		}
+
+		const std::size_t index{ j.at("index").get<std::size_t>() };
+
+		if (index >= sizeof...(Ts)) {
+			throw std::out_of_range("Variant index is out of range");
+		}
+
+		::ptgn::impl::variant_from_json(
+			j.at("value"),
+			index,
+			data
+		);
 	}
 };
 
