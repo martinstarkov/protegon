@@ -457,27 +457,29 @@ void DrawPositionPickerPreview(
 		1.5f
 	);
 
-	char coordinates[160]{};
+	char coordinates[240]{};
 
-	if (const auto initial{ inspector::GetPositionPickInitial(ctx) }) {
-		const V2_float delta{ *preview - *initial };
-
+	if (preview->relative) {
 		std::snprintf(
 			coordinates,
 			sizeof(coordinates),
-			"X %.0f  Y %.0f\nDelta X %+.0f  Y %+.0f",
-			static_cast<double>(preview->x),
-			static_cast<double>(preview->y),
-			static_cast<double>(delta.x),
-			static_cast<double>(delta.y)
+			"Absolute  X %.0f  Y %.0f\nRelative  X %.0f  Y %.0f\nDelta     X %+.0f  Y %+.0f",
+			static_cast<double>(preview->absolute.x),
+			static_cast<double>(preview->absolute.y),
+			static_cast<double>(preview->relative->x),
+			static_cast<double>(preview->relative->y),
+			static_cast<double>(preview->delta.x),
+			static_cast<double>(preview->delta.y)
 		);
 	} else {
 		std::snprintf(
 			coordinates,
 			sizeof(coordinates),
-			"X %.0f  Y %.0f",
-			static_cast<double>(preview->x),
-			static_cast<double>(preview->y)
+			"Absolute  X %.0f  Y %.0f\nDelta     X %+.0f  Y %+.0f",
+			static_cast<double>(preview->absolute.x),
+			static_cast<double>(preview->absolute.y),
+			static_cast<double>(preview->delta.x),
+			static_cast<double>(preview->delta.y)
 		);
 	}
 

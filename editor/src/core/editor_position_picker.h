@@ -17,12 +17,20 @@ public:
 	using Convert = std::function<std::optional<V2_float>(V2_float)>;
 	using Apply = std::function<void(V2_float)>;
 
+	struct PreviewData {
+		V2_float absolute;
+		std::optional<V2_float> relative;
+		V2_float value;
+		V2_float delta;
+	};
+
 	void Begin(
 		std::string label,
 		V2_float initial,
 		Convert convert,
 		Apply apply,
-		std::optional<V2_float> reference_world = std::nullopt
+		std::optional<V2_float> reference_world = std::nullopt,
+		bool show_relative = false
 	) {
 		if (request_) {
 			return;
@@ -34,6 +42,7 @@ public:
 			.convert = std::move(convert),
 			.apply = std::move(apply),
 			.reference_world = reference_world,
+			.show_relative = show_relative,
 		};
 	}
 
@@ -57,10 +66,13 @@ public:
 		return request_ ? request_->reference_world : std::nullopt;
 	}
 
-	[[nodiscard]] std::optional<V2_float> Preview(V2_float world_position) const {
+	[[nodiscard]] std::optional<PreviewData> Preview(V2_float world_position) const {
 		if (!request_) {
 			return std::nullopt;
 		}
+
+		V2_float absolute{ world_position };
+		RoundPosition(absolute);
 
 		auto converted{
 			request_->convert
@@ -73,7 +85,15 @@ public:
 		}
 
 		RoundPosition(*converted);
-		return converted;
+
+		return PreviewData{
+			.absolute = absolute,
+			.relative = request_->show_relative
+				? std::optional<V2_float>{ *converted }
+				: std::nullopt,
+			.value = *converted,
+			.delta = *converted - request_->initial,
+		};
 	}
 
 	[[nodiscard]] bool Submit(UndoStack& undo, V2_float world_position) {
@@ -118,6 +138,7 @@ private:
 		Convert convert;
 		Apply apply;
 		std::optional<V2_float> reference_world;
+		bool show_relative{ false };
 	};
 
 	static void RoundPosition(V2_float& position) {

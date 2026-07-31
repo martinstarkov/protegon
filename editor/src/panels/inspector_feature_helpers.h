@@ -147,7 +147,7 @@ inline PositionPicker& GetPositionPicker(EditorContext& ctx) {
 	return GetPositionPicker(ctx).ReferenceWorld();
 }
 
-[[nodiscard]] inline std::optional<V2_float> PreviewPickedPosition(
+[[nodiscard]] inline std::optional<PositionPicker::PreviewData> PreviewPickedPosition(
 	EditorContext& ctx,
 	V2_float world_position
 ) {
@@ -164,7 +164,8 @@ inline bool DrawPositionPickButton(
 	V2_float current,
 	PositionPicker::Convert convert,
 	PositionPicker::Apply apply,
-	std::optional<V2_float> reference_world = std::nullopt
+	std::optional<V2_float> reference_world = std::nullopt,
+	bool show_relative = false
 ) {
 	ScopedID scope{ id };
 
@@ -179,7 +180,8 @@ inline bool DrawPositionPickButton(
 			current,
 			std::move(convert),
 			std::move(apply),
-			reference_world
+			reference_world,
+			show_relative
 		);
 		return true;
 	}
@@ -200,7 +202,8 @@ inline bool DrawPositionPickButton(
 	std::string_view id,
 	V2_float current,
 	PositionPicker::Apply apply,
-	std::optional<V2_float> reference_world = std::nullopt
+	std::optional<V2_float> reference_world = std::nullopt,
+	bool show_relative = false
 ) {
 	return DrawPositionPickButton(
 		ctx,
@@ -208,7 +211,8 @@ inline bool DrawPositionPickButton(
 		current,
 		{},
 		std::move(apply),
-		reference_world
+		reference_world,
+		show_relative
 	);
 }
 

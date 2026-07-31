@@ -2799,43 +2799,211 @@ ManualFeatureState& GetManualFeatureState(const FeatureTargetKey& target) {
 	return states.back();
 }
 
+enum class ButtonChildPart : std::uint8_t {
+	Background,
+	Border,
+	Text,
+	Sprite,
+};
+
+struct ButtonChildInfo {
+	Entity child;
+	Entity button;
+	ButtonChildPart part{ ButtonChildPart::Background };
+};
+
+[[nodiscard]] bool IsButtonRoot(Entity entity) {
+	return entity &&
+		(
+			entity.Has<::ptgn::impl::ButtonData>() ||
+			entity.Has<::ptgn::impl::ToggleButtonData>() ||
+			entity.Has<::ptgn::impl::DropdownData>()
+		);
+}
+
+template <typename Target>
+[[nodiscard]] std::optional<ButtonChildInfo> GetButtonChildInfo(
+	const Target& target
+) {
+	if constexpr (!requires { target.entity; }) {
+		return std::nullopt;
+	} else {
+		Entity child{ target.entity };
+
+		if (!child) {
+			return std::nullopt;
+		}
+
+		Entity button{ GetParent(child) };
+
+		if (!IsButtonRoot(button)) {
+			return std::nullopt;
+		}
+
+		if (child.Has<ButtonBackgroundVisuals>()) {
+			return ButtonChildInfo{
+				.child = child,
+				.button = button,
+				.part = ButtonChildPart::Background,
+			};
+		}
+
+		if (child.Has<ButtonBorderVisuals>()) {
+			return ButtonChildInfo{
+				.child = child,
+				.button = button,
+				.part = ButtonChildPart::Border,
+			};
+		}
+
+		if (child.Has<ButtonTextVisuals>()) {
+			return ButtonChildInfo{
+				.child = child,
+				.button = button,
+				.part = ButtonChildPart::Text,
+			};
+		}
+
+		if (child.Has<ButtonSpriteVisuals>()) {
+			return ButtonChildInfo{
+				.child = child,
+				.button = button,
+				.part = ButtonChildPart::Sprite,
+			};
+		}
+
+		return std::nullopt;
+	}
+}
+
 template <typename Target>
 [[nodiscard]] std::optional<ButtonVisualState> GetButtonVisualEditState(
 	const Target& target
 ) {
-	const auto selected_state{
-		GetManualFeatureState(
-			target.GetFeatureTargetKey()
-		).button_visual_state
-	};
-
-	if (selected_state) {
-		return selected_state;
+	if (!GetButtonChildInfo(target)) {
+		return std::nullopt;
 	}
 
-	if constexpr (requires { target.entity; }) {
-		Entity entity{ target.entity };
+	return GetManualFeatureState(
+		target.GetFeatureTargetKey()
+	).button_visual_state;
+}
 
-		if (!entity || entity.Has<::ptgn::impl::ButtonData>()) {
-			return std::nullopt;
-		}
+[[nodiscard]] std::span<const ButtonVisualState> GetButtonVisualStateFallbacks(
+	ButtonVisualState state
+) {
+	using enum ButtonVisualState;
 
-		Entity parent{ GetParent(entity) };
+	static constexpr std::array idle{ Idle };
+	static constexpr std::array hover{ Hover, Idle };
+	static constexpr std::array press{ Press, Hover, Idle };
+	static constexpr std::array disabled{ Disabled, Idle };
+	static constexpr std::array disabled_hover{ DisabledHover, Disabled, Hover, Idle };
+	static constexpr std::array disabled_press{
+		DisabledPress, DisabledHover, Disabled, Press, Hover, Idle
+	};
+	static constexpr std::array toggled{ Toggled, Idle };
+	static constexpr std::array toggled_hover{ ToggledHover, Toggled, Hover, Idle };
+	static constexpr std::array toggled_press{
+		ToggledPress, ToggledHover, Toggled, Press, Hover, Idle
+	};
 
-		if (!parent || !parent.Has<::ptgn::impl::ButtonData>()) {
-			return std::nullopt;
-		}
+	switch (state) {
+		case Idle: return idle;
+		case Hover: return hover;
+		case Press: return press;
+		case Disabled: return disabled;
+		case DisabledHover: return disabled_hover;
+		case DisabledPress: return disabled_press;
+		case Toggled: return toggled;
+		case ToggledHover: return toggled_hover;
+		case ToggledPress: return toggled_press;
+	}
 
-		const auto& button_data{
-			parent.Get<::ptgn::impl::ButtonData>()
+	return idle;
+}
+
+template <typename Visual, typename T, std::size_t N>
+[[nodiscard]] std::optional<T> ResolveButtonVisualProperty(
+	const std::array<Visual, N>& states,
+	ButtonVisualState state,
+	const std::optional<T> Visual::* member
+) {
+	for (const ButtonVisualState fallback : GetButtonVisualStateFallbacks(state)) {
+		const auto& visual{
+			states[static_cast<std::size_t>(std::to_underlying(fallback))]
 		};
 
-		return button_data.applied_visual_state.value_or(
-			ButtonVisualState::Idle
-		);
+		if (!visual.defined) {
+			continue;
+		}
+
+		const auto& value{ visual.*member };
+
+		if (value) {
+			return value;
+		}
 	}
 
 	return std::nullopt;
+}
+
+template <typename Visual, typename T, std::size_t N>
+bool DrawButtonVisualOverrideValue(
+	EditorContext& ctx,
+	std::string_view label,
+	std::array<Visual, N>& states,
+	ButtonVisualState state,
+	std::optional<T> Visual::* member
+) {
+	auto& visual{
+		states[static_cast<std::size_t>(std::to_underlying(state))]
+	};
+	auto& value{ visual.*member };
+	const bool had_override{ value.has_value() };
+	const std::optional<T> inherited{
+		ResolveButtonVisualProperty(states, state, member)
+	};
+	const bool changed{ DrawValue(ctx, label, value) };
+
+	if (changed && !had_override && value && inherited) {
+		value = *inherited;
+	}
+
+	return changed;
+}
+
+[[nodiscard]] bool HasButtonVisualOverrides(const ButtonShapeVisual& visual) {
+	return visual.size || visual.origin || visual.anchor || visual.transform ||
+		visual.color || visual.fill_style;
+}
+
+[[nodiscard]] bool HasButtonVisualOverrides(const ButtonTextVisual& visual) {
+	return visual.styled_text || visual.box || visual.origin || visual.anchor ||
+		visual.transform || visual.auto_box || visual.padding;
+}
+
+[[nodiscard]] bool HasButtonVisualOverrides(const ButtonSpriteVisual& visual) {
+	return visual.texture || visual.origin || visual.anchor || visual.transform ||
+		visual.size || visual.tint || visual.animation || visual.animation_options;
+}
+
+[[nodiscard]] Rect GetButtonInspectorLocalRect(Entity button_entity) {
+	Button button{ button_entity };
+	V2_float size;
+
+	std::visit(
+		[&size]<typename T>(const T& value) {
+			if constexpr (std::same_as<T, V2_float>) {
+				size = value;
+			} else {
+				size = V2_float{ value * 2.0f };
+			}
+		},
+		button.GetSize()
+	);
+
+	return Rect{ size, button.GetOrDefault<Origin>() };
 }
 
 [[nodiscard]] bool IsFeatureManuallyAdded(
@@ -3951,6 +4119,27 @@ template <typename Target>
 	}
 }
 
+
+template <typename Target>
+[[nodiscard]] bool ShouldShowTransformRelativePosition(const Target& target) {
+	if constexpr (!requires { target.entity; }) {
+		return false;
+	} else {
+		Entity entity{ target.entity };
+
+		if (!entity) {
+			return false;
+		}
+
+		const bool ignores_parent_position{
+			entity.Has<::ptgn::impl::IgnoreParentTransform>() ||
+			entity.Has<::ptgn::impl::IgnoreParentPosition>()
+		};
+
+		return !ignores_parent_position && static_cast<bool>(GetParent(entity));
+	}
+}
+
 template <typename Target, typename Apply>
 bool DrawTransformFeatureFields(
 	Target& target, TransformFeatureState<Target>& state, Apply apply_state
@@ -4033,7 +4222,8 @@ bool DrawTransformFeatureFields(
 				apply_state(state);
 			}
 		},
-		GetTargetWorldReferencePosition(target)
+		GetTargetWorldReferencePosition(target),
+		ShouldShowTransformRelativePosition(target)
 	);
 	changed |= draw_ignore(state.ignore_position, "Ignore parent position.");
 	ImGui::PopID();
@@ -4151,8 +4341,18 @@ template <typename Target>
 }
 
 template <typename Target>
+[[nodiscard]] bool IsReservedFixedCamera(const Target& target) {
+	if constexpr (requires { target.entity; }) {
+		Entity entity{ target.entity };
+		return entity && entity == entity.GetScene().GetFixedCamera();
+	} else {
+		return false;
+	}
+}
+
+template <typename Target>
 [[nodiscard]] bool HasVisualFeature(const Target& target) {
-	if (IsPrimarySceneRenderTarget(target)) {
+	if (IsPrimarySceneRenderTarget(target) || IsReservedFixedCamera(target)) {
 		return false;
 	}
 
@@ -4163,21 +4363,10 @@ template <typename Target>
 		return true;
 	}
 
-	const bool is_camera{
-		HasFeatureComponent<Target, ::ptgn::impl::CameraData>(target)
-	};
-	const bool has_renderer{
-		HasFeatureComponent<Target, ::ptgn::impl::IDrawable>(target)
-	};
-
-	// Camera bookkeeping such as UILayer or RenderMask must not create an empty
-	// Visual feature. A camera only exposes Visual automatically when it has an
-	// actual renderer. Manual feature addition remains an explicit override.
-	if (is_camera && !has_renderer) {
-		return false;
-	}
-
-	return HasAnyFeatureComponent(target, VisualFeatureComponents{});
+	return HasFeatureComponent<
+		Target,
+		::ptgn::impl::IDrawable
+	>(target);
 }
 
 template <typename Target>
@@ -4242,8 +4431,347 @@ template <typename Target>
 	return HasInspectorFeature(target, InspectorFeature::Utilities, UtilitiesFeatureComponents{});
 }
 
+template <typename Visuals, typename Visual>
+[[nodiscard]] Origin ResolveButtonChildAnchor(
+	const Visuals& visuals,
+	ButtonVisualState state,
+	Origin fallback
+) {
+	return ResolveButtonVisualProperty(
+		visuals.states,
+		state,
+		&Visual::anchor
+	).value_or(fallback);
+}
+
+template <typename Visuals, typename Visual>
+[[nodiscard]] V2_float GetButtonChildStateWorldPosition(
+	Entity child,
+	Entity button,
+	ButtonVisualState state,
+	Origin fallback_anchor,
+	V2_float relative_position
+) {
+	if (!child || !button || !child.Has<Visuals>()) {
+		return {};
+	}
+
+	const auto& visuals{ child.Get<Visuals>() };
+	const Origin anchor{
+		ResolveButtonChildAnchor<Visuals, Visual>(
+			visuals,
+			state,
+			fallback_anchor
+		)
+	};
+	const V2_float anchor_position{
+		GetButtonInspectorLocalRect(button).GetOriginPoint(anchor)
+	};
+
+	return GetDrawTransform(button).Apply(
+		anchor_position + relative_position
+	);
+}
+
+template <typename Visuals, typename Visual>
+[[nodiscard]] PositionPicker::Convert MakeButtonChildStatePositionConverter(
+	Entity child,
+	Entity button,
+	ButtonVisualState state,
+	Origin fallback_anchor
+) {
+	return [child, button, state, fallback_anchor](
+		V2_float world_position
+	) mutable -> std::optional<V2_float> {
+		if (!child || !button || !child.Has<Visuals>()) {
+			return std::nullopt;
+		}
+
+		const auto& visuals{ child.Get<Visuals>() };
+		const Origin anchor{
+			ResolveButtonChildAnchor<Visuals, Visual>(
+				visuals,
+				state,
+				fallback_anchor
+			)
+		};
+		const V2_float anchor_position{
+			GetButtonInspectorLocalRect(button).GetOriginPoint(anchor)
+		};
+		const V2_float button_local{
+			GetDrawTransform(button).ApplyInverse(world_position)
+		};
+
+		return button_local - anchor_position;
+	};
+}
+
+template <
+	typename Target,
+	typename Visuals,
+	typename Visual,
+	typename Callback
+>
+bool DrawButtonChildStateTransformComponent(
+	Target& target,
+	const ButtonChildInfo& child_info,
+	ButtonVisualState state,
+	Origin fallback_anchor,
+	std::string_view part_label,
+	Callback callback
+) {
+	if constexpr (!Target::template Supports<Visuals>()) {
+		return false;
+	} else {
+		const auto header_open{
+			ImGui::CollapsingHeader(
+				"Transform##ButtonVisualStateTransform",
+				ImGuiTreeNodeFlags_DefaultOpen
+			)
+		};
+
+		if (!header_open) {
+			return false;
+		}
+
+		ScopedIndent feature_indent;
+		AutoLabelWidthScope label_width{ "ButtonVisualStateTransformFields" };
+
+		ScopedID target_scope{ target.Id() };
+		ScopedID component_scope{ static_cast<int>(Hash<Visuals>()) };
+
+		auto before{ target.template Capture<Visuals>() };
+		Visuals visuals{ before.value_or(Visuals{}) };
+		const auto index{
+			static_cast<std::size_t>(std::to_underlying(state))
+		};
+		auto& visual{ visuals.states[index] };
+		Transform transform{
+			ResolveButtonVisualProperty(
+				visuals.states,
+				state,
+				&Visual::transform
+			).value_or(Transform{})
+		};
+		const bool had_override{ visual.transform.has_value() };
+		bool changed{ false };
+
+		ImGui::TextDisabled(
+			"%s %s transform. Unset values inherit from fallback states.",
+			PrettyName(magic_enum::enum_name(state)).c_str(),
+			std::string{ part_label }.c_str()
+		);
+
+		changed |= DrawPropertyRow(
+			"Position",
+			[&]() {
+				const float spacing{ ImGui::GetStyle().ItemInnerSpacing.x };
+				const float pick_width{
+					ImGui::CalcTextSize("Pick").x +
+					ImGui::GetStyle().FramePadding.x * 2.0f
+				};
+				const float available{ ImGui::GetContentRegionAvail().x };
+				const float field_width{
+					std::max(36.0f, (available - pick_width - spacing * 2.0f) * 0.5f)
+				};
+				bool local_changed{ false };
+
+				ImGui::SetNextItemWidth(field_width);
+				local_changed |= ImGui::DragFloat(
+					"##X",
+					&transform.position.x,
+					1.0f,
+					0.0f,
+					0.0f,
+					"X %.0f"
+				);
+				ImGui::SameLine(0.0f, spacing);
+				ImGui::SetNextItemWidth(field_width);
+				local_changed |= ImGui::DragFloat(
+					"##Y",
+					&transform.position.y,
+					1.0f,
+					0.0f,
+					0.0f,
+					"Y %.0f"
+				);
+				ImGui::SameLine(0.0f, spacing);
+
+				auto apply{ target.template MakeApply<Visuals>(callback) };
+				Visuals snapshot{ visuals };
+
+				(void)DrawPositionPickButton(
+					target.ctx,
+					"ButtonVisualStatePosition",
+					transform.position,
+					MakeButtonChildStatePositionConverter<Visuals, Visual>(
+						child_info.child,
+						child_info.button,
+						state,
+						fallback_anchor
+					),
+					[apply, snapshot = std::move(snapshot), index, state](
+						V2_float picked
+					) mutable {
+						auto& selected{ snapshot.states[index] };
+						Transform updated{
+							ResolveButtonVisualProperty(
+								snapshot.states,
+								state,
+								&Visual::transform
+							).value_or(Transform{})
+						};
+						updated.position = picked;
+						selected.defined = true;
+						selected.transform = updated;
+						apply(ComponentState<Visuals>{ snapshot });
+					},
+					GetButtonChildStateWorldPosition<Visuals, Visual>(
+						child_info.child,
+						child_info.button,
+						state,
+						fallback_anchor,
+						transform.position
+					),
+					true
+				);
+
+				return local_changed;
+			}
+		);
+		changed |= DrawValue(
+			target.ctx,
+			"Rotation",
+			transform.rotation,
+			FieldOptions{
+				.speed = 1.0f,
+				.min = 0.0,
+				.max = 360.0,
+				.format = "%.1f deg",
+				.flags = ImGuiSliderFlags_AlwaysClamp,
+			}
+		);
+		changed |= DrawValue(
+			target.ctx,
+			"Scale",
+			transform.scale,
+			FieldOptions{
+				.speed = 0.01f,
+				.format = "%.3f",
+			}
+		);
+
+		if (had_override) {
+			if (ImGui::Button("Use Inherited Transform", ImVec2{ -FLT_MIN, 0.0f })) {
+				visual.transform.reset();
+				visual.defined = HasButtonVisualOverrides(visual);
+				changed = true;
+			}
+		}
+
+		if (changed && (!had_override || visual.transform.has_value())) {
+			transform.ClampScale();
+			visual.defined = true;
+			visual.transform = transform;
+		}
+
+		if (changed) {
+			target.template SetLive<Visuals>(
+				ComponentState<Visuals>{ visuals },
+				callback
+			);
+		}
+
+		auto after{ target.template Capture<Visuals>() };
+		TrackComponentState(
+			target,
+			std::string{ "Edit " } + std::string{ part_label } + " State Transform",
+			std::move(before),
+			std::move(after),
+			changed,
+			callback
+		);
+
+		return changed;
+	}
+}
+
+template <typename Target>
+bool DrawButtonChildStateTransformFeature(
+	Target& target,
+	const ButtonChildInfo& child_info,
+	ButtonVisualState state
+) {
+	switch (child_info.part) {
+		case ButtonChildPart::Background:
+			return DrawButtonChildStateTransformComponent<
+				Target,
+				ButtonBackgroundVisuals,
+				ButtonShapeVisual
+			>(
+				target,
+				child_info,
+				state,
+				Button{ child_info.button }.GetOrDefault<Origin>(),
+				"Button Background",
+				&MarkButtonBackgroundDirty
+			);
+		case ButtonChildPart::Border:
+			return DrawButtonChildStateTransformComponent<
+				Target,
+				ButtonBorderVisuals,
+				ButtonShapeVisual
+			>(
+				target,
+				child_info,
+				state,
+				Button{ child_info.button }.GetOrDefault<Origin>(),
+				"Button Border",
+				&MarkButtonBorderDirty
+			);
+		case ButtonChildPart::Text:
+			return DrawButtonChildStateTransformComponent<
+				Target,
+				ButtonTextVisuals,
+				ButtonTextVisual
+			>(
+				target,
+				child_info,
+				state,
+				Origin::Center,
+				"Button Text",
+				&MarkButtonTextDirty
+			);
+		case ButtonChildPart::Sprite:
+			return DrawButtonChildStateTransformComponent<
+				Target,
+				ButtonSpriteVisuals,
+				ButtonSpriteVisual
+			>(
+				target,
+				child_info,
+				state,
+				Button{ child_info.button }.GetOrDefault<Origin>(),
+				"Button Sprite",
+				&MarkButtonSpriteDirty
+			);
+	}
+
+	return false;
+}
+
 template <typename Target>
 bool DrawTransformFeature(Target& target) {
+	if (const auto child_info{ GetButtonChildInfo(target) }) {
+		if (const auto state{ GetButtonVisualEditState(target) }) {
+			return DrawButtonChildStateTransformFeature(
+				target,
+				*child_info,
+				*state
+			);
+		}
+	}
+
 	if (!HasTransformFeature(target)) {
 		return false;
 	}
@@ -4420,7 +4948,8 @@ bool DrawPickableLocalPosition(
 					locator(snapshot) = picked;
 					apply(ComponentState<Component>{ snapshot });
 				},
-				GetTargetWorldReferencePosition(target, position)
+				GetTargetWorldReferencePosition(target, position),
+				true
 			);
 
 			if constexpr (!CanPickLocalPosition<Target>()) {
@@ -5026,6 +5555,31 @@ void SetRendererOwnedComponent(Target& target, T value = T{}) {
 	}
 }
 
+[[nodiscard]] ::ptgn::impl::TextData MakeDefaultTextRendererData() {
+	::ptgn::impl::TextData data;
+	auto members{ ReflectMembers(data) };
+
+	std::apply(
+		[](auto&&... member) {
+			(
+				[&] {
+					using Member = std::remove_cvref_t<decltype(member.value)>;
+
+					if constexpr (std::same_as<Member, StyledText>) {
+						if (member.value.runs.empty()) {
+							member.value.runs.emplace_back();
+						}
+					}
+				}(),
+				...
+			);
+		},
+		members
+	);
+
+	return data;
+}
+
 template <typename Target>
 void InitializeRendererOwnedComponents(Target& target, std::string_view visual) {
 	auto add_shape = [&]<typename T>() {
@@ -5055,7 +5609,10 @@ void InitializeRendererOwnedComponents(Target& target, std::string_view visual) 
 	} else if (visual.contains("sprite")) {
 		SetRendererOwnedComponent<TextureKey>(target);
 	} else if (visual.contains("text")) {
-		SetRendererOwnedComponent<::ptgn::impl::TextData>(target);
+		SetRendererOwnedComponent<::ptgn::impl::TextData>(
+			target,
+			MakeDefaultTextRendererData()
+		);
 	} else if (visual.contains("particle")) {
 		SetRendererOwnedComponent<::ptgn::impl::ParticleEmitterData>(target);
 	} else if (visual.contains("light")) {
@@ -5103,8 +5660,13 @@ void ApplyRendererSelection(
 	);
 }
 
+struct RendererRowResult {
+	std::string visual;
+	bool changed{ false };
+};
+
 template <typename Target>
-std::string DrawRendererRow(Target& target) {
+RendererRowResult DrawRendererRow(Target& target) {
 	using Drawable = ::ptgn::impl::IDrawable;
 
 	auto drawable{ target.template Capture<Drawable>() };
@@ -5297,9 +5859,12 @@ std::string DrawRendererRow(Target& target) {
 			: nullptr
 	};
 
-	return selected_info
-		? NormalizeFeatureName(selected_info->GetDisplayName())
-		: std::string{};
+	return RendererRowResult{
+		.visual = selected_info
+			? NormalizeFeatureName(selected_info->GetDisplayName())
+			: std::string{},
+		.changed = renderer_changed,
+	};
 }
 
 template <typename Target>
@@ -6589,8 +7154,228 @@ bool DrawVisualAdditionalOptions(
 	return changed;
 }
 
+template <
+	typename Target,
+	typename Visuals,
+	typename Draw,
+	typename Callback
+>
+bool DrawButtonChildStateVisualComponent(
+	Target& target,
+	ButtonVisualState state,
+	std::string_view part_label,
+	Draw&& draw,
+	Callback callback
+) {
+	if constexpr (!Target::template Supports<Visuals>()) {
+		return false;
+	} else {
+		const bool open{
+			ImGui::CollapsingHeader(
+				"Visual##ButtonVisualStateVisual",
+				ImGuiTreeNodeFlags_DefaultOpen
+			)
+		};
+
+		if (!open) {
+			return false;
+		}
+
+		ScopedIndent feature_indent;
+		AutoLabelWidthScope label_width{ "ButtonVisualStateVisualFields" };
+		ScopedID target_scope{ target.Id() };
+		ScopedID component_scope{ static_cast<int>(Hash<Visuals>()) };
+
+		auto before{ target.template Capture<Visuals>() };
+		Visuals visuals{ before.value_or(Visuals{}) };
+		const auto index{
+			static_cast<std::size_t>(std::to_underlying(state))
+		};
+		auto& visual{ visuals.states[index] };
+
+		ImGui::TextDisabled(
+			"%s %s overrides. Unset values inherit from fallback states.",
+			PrettyName(magic_enum::enum_name(state)).c_str(),
+			std::string{ part_label }.c_str()
+		);
+
+		const bool changed{
+			std::invoke(
+				std::forward<Draw>(draw),
+				visuals.states,
+				visual
+			)
+		};
+
+		if (changed) {
+			visual.defined = HasButtonVisualOverrides(visual);
+			target.template SetLive<Visuals>(
+				ComponentState<Visuals>{ visuals },
+				callback
+			);
+		}
+
+		auto after{ target.template Capture<Visuals>() };
+		TrackComponentState(
+			target,
+			std::string{ "Edit " } + std::string{ part_label } + " State Visual",
+			std::move(before),
+			std::move(after),
+			changed,
+			callback
+		);
+
+		return changed;
+	}
+}
+
+template <typename Target>
+bool DrawButtonChildStateVisualFeature(
+	Target& target,
+	const ButtonChildInfo& child_info,
+	ButtonVisualState state
+) {
+	switch (child_info.part) {
+		case ButtonChildPart::Background:
+			return DrawButtonChildStateVisualComponent<
+				Target,
+				ButtonBackgroundVisuals
+			>(
+				target,
+				state,
+				"Button Background",
+				[&target, state](auto& states, ButtonShapeVisual&) {
+					bool changed{ false };
+					changed |= DrawButtonVisualOverrideValue(
+						target.ctx, "Size", states, state, &ButtonShapeVisual::size
+					);
+					changed |= DrawButtonVisualOverrideValue(
+						target.ctx, "Origin", states, state, &ButtonShapeVisual::origin
+					);
+					changed |= DrawButtonVisualOverrideValue(
+						target.ctx, "Anchor", states, state, &ButtonShapeVisual::anchor
+					);
+					changed |= DrawButtonVisualOverrideValue(
+						target.ctx, "Color", states, state, &ButtonShapeVisual::color
+					);
+					return changed;
+				},
+				&MarkButtonBackgroundDirty
+			);
+		case ButtonChildPart::Border:
+			return DrawButtonChildStateVisualComponent<
+				Target,
+				ButtonBorderVisuals
+			>(
+				target,
+				state,
+				"Button Border",
+				[&target, state](auto& states, ButtonShapeVisual&) {
+					bool changed{ false };
+					changed |= DrawButtonVisualOverrideValue(
+						target.ctx, "Size", states, state, &ButtonShapeVisual::size
+					);
+					changed |= DrawButtonVisualOverrideValue(
+						target.ctx, "Origin", states, state, &ButtonShapeVisual::origin
+					);
+					changed |= DrawButtonVisualOverrideValue(
+						target.ctx, "Anchor", states, state, &ButtonShapeVisual::anchor
+					);
+					changed |= DrawButtonVisualOverrideValue(
+						target.ctx, "Color", states, state, &ButtonShapeVisual::color
+					);
+					changed |= DrawButtonVisualOverrideValue(
+						target.ctx, "Fill Style", states, state, &ButtonShapeVisual::fill_style
+					);
+					return changed;
+				},
+				&MarkButtonBorderDirty
+			);
+		case ButtonChildPart::Text:
+			return DrawButtonChildStateVisualComponent<
+				Target,
+				ButtonTextVisuals
+			>(
+				target,
+				state,
+				"Button Text",
+				[&target, state](auto& states, ButtonTextVisual&) {
+					bool changed{ false };
+					changed |= DrawButtonVisualOverrideValue(
+						target.ctx, "Content", states, state, &ButtonTextVisual::styled_text
+					);
+					changed |= DrawButtonVisualOverrideValue(
+						target.ctx, "Text Box", states, state, &ButtonTextVisual::box
+					);
+					changed |= DrawButtonVisualOverrideValue(
+						target.ctx, "Origin", states, state, &ButtonTextVisual::origin
+					);
+					changed |= DrawButtonVisualOverrideValue(
+						target.ctx, "Anchor", states, state, &ButtonTextVisual::anchor
+					);
+					changed |= DrawButtonVisualOverrideValue(
+						target.ctx, "Auto Box", states, state, &ButtonTextVisual::auto_box
+					);
+					changed |= DrawButtonVisualOverrideValue(
+						target.ctx, "Padding", states, state, &ButtonTextVisual::padding
+					);
+					return changed;
+				},
+				&MarkButtonTextDirty
+			);
+		case ButtonChildPart::Sprite:
+			return DrawButtonChildStateVisualComponent<
+				Target,
+				ButtonSpriteVisuals
+			>(
+				target,
+				state,
+				"Button Sprite",
+				[&target, state](auto& states, ButtonSpriteVisual&) {
+					bool changed{ false };
+					changed |= DrawButtonVisualOverrideValue(
+						target.ctx, "Texture Key", states, state, &ButtonSpriteVisual::texture
+					);
+					changed |= DrawButtonVisualOverrideValue(
+						target.ctx, "Origin", states, state, &ButtonSpriteVisual::origin
+					);
+					changed |= DrawButtonVisualOverrideValue(
+						target.ctx, "Anchor", states, state, &ButtonSpriteVisual::anchor
+					);
+					changed |= DrawButtonVisualOverrideValue(
+						target.ctx, "Size", states, state, &ButtonSpriteVisual::size
+					);
+					changed |= DrawButtonVisualOverrideValue(
+						target.ctx, "Tint", states, state, &ButtonSpriteVisual::tint
+					);
+					changed |= DrawButtonVisualOverrideValue(
+						target.ctx, "Animation", states, state, &ButtonSpriteVisual::animation
+					);
+					changed |= DrawButtonVisualOverrideValue(
+						target.ctx, "Animation Options", states, state,
+						&ButtonSpriteVisual::animation_options
+					);
+					return changed;
+				},
+				&MarkButtonSpriteDirty
+			);
+	}
+
+	return false;
+}
+
 template <typename Target>
 bool DrawVisualFeature(Target& target) {
+	if (const auto child_info{ GetButtonChildInfo(target) }) {
+		if (const auto state{ GetButtonVisualEditState(target) }) {
+			return DrawButtonChildStateVisualFeature(
+				target,
+				*child_info,
+				*state
+			);
+		}
+	}
+
 	if (!HasVisualFeature(target)) {
 		return false;
 	}
@@ -6611,7 +7396,13 @@ bool DrawVisualFeature(Target& target) {
 	AutoLabelWidthScope visual_label_width{ "VisualFeatureFields" };
 
 	bool changed{ header.changed };
-	const std::string visual{ DrawRendererRow(target) };
+	const RendererRowResult renderer{ DrawRendererRow(target) };
+	const std::string& visual{ renderer.visual };
+	changed |= renderer.changed;
+
+	if (renderer.changed) {
+		return true;
+	}
 
 	if (visual.empty()) {
 		ImGui::TextDisabled(
@@ -6997,263 +7788,42 @@ bool DrawButtonVisualStateSelector(std::optional<ButtonVisualState>& state) {
 	);
 }
 
-bool DrawButtonShapeVisualFields(
-	EditorContext& ctx,
-	ButtonShapeVisual& visual,
-	bool draw_fill
-) {
-	bool changed{ false };
-	changed |= DrawValue(ctx, "Size", visual.size);
-	changed |= DrawValue(ctx, "Origin", visual.origin);
-	changed |= DrawValue(ctx, "Anchor", visual.anchor);
-	changed |= DrawValue(ctx, "Transform", visual.transform);
-	changed |= DrawValue(ctx, "Color", visual.color);
-
-	if (draw_fill) {
-		changed |= DrawValue(ctx, "Fill Style", visual.fill_style);
-	}
-
-	return changed;
-}
-
-bool DrawButtonTextVisualFields(EditorContext& ctx, ButtonTextVisual& visual) {
-	bool changed{ false };
-	changed |= DrawValue(ctx, "Content", visual.styled_text);
-	changed |= DrawValue(ctx, "Text Box", visual.box);
-	changed |= DrawValue(ctx, "Origin", visual.origin);
-	changed |= DrawValue(ctx, "Anchor", visual.anchor);
-	changed |= DrawValue(ctx, "Transform", visual.transform);
-	changed |= DrawValue(ctx, "Auto Box", visual.auto_box);
-	changed |= DrawValue(ctx, "Padding", visual.padding);
-	return changed;
-}
-
-bool DrawButtonSpriteVisualFields(EditorContext& ctx, ButtonSpriteVisual& visual) {
-	bool changed{ false };
-	changed |= DrawValue(ctx, "Texture Key", visual.texture);
-	changed |= DrawValue(ctx, "Origin", visual.origin);
-	changed |= DrawValue(ctx, "Anchor", visual.anchor);
-	changed |= DrawValue(ctx, "Transform", visual.transform);
-	changed |= DrawValue(ctx, "Size", visual.size);
-	changed |= DrawValue(ctx, "Tint", visual.tint);
-	changed |= DrawValue(ctx, "Animation", visual.animation);
-	changed |= DrawValue(ctx, "Animation Options", visual.animation_options);
-	return changed;
-}
-
-template <typename Visuals>
-[[nodiscard]] bool HasDefinedButtonVisual(const Visuals& visuals) {
-	return std::ranges::any_of(
-		visuals.states,
-		[](const auto& visual) {
-			return visual.defined;
-		}
-	);
-}
-
-template <
-	typename Target,
-	typename Visuals,
-	typename Draw,
-	typename Callback
->
-bool DrawButtonStatePart(
-	Target& target,
-	std::string_view label,
-	ButtonVisualState state,
-	Draw&& draw,
-	Callback callback
-) {
-	if constexpr (!Target::template Supports<Visuals>()) {
-		return false;
-	} else {
-		ScopedID target_scope{ target.Id() };
-		ScopedID component_scope{ static_cast<int>(Hash<Visuals>()) };
-
-		auto before{ target.template Capture<Visuals>() };
-		Visuals visuals{ before.value_or(Visuals{}) };
-		const auto index{ static_cast<std::size_t>(std::to_underlying(state)) };
-		auto& visual{ visuals.states[index] };
-		bool enabled{ visual.defined };
-		bool changed{ false };
-
-		if (ImGui::Checkbox("##Enabled", &enabled)) {
-			if (enabled) {
-				visual.defined = true;
-			} else {
-				using Visual = std::remove_cvref_t<decltype(visual)>;
-				visual = Visual{};
-			}
-
-			changed = true;
-		}
-
-		ImGui::SameLine();
-		const std::string tree_label{ std::string{ label } + "##Tree" };
-		const bool open{
-			ImGui::TreeNodeEx(
-				tree_label.c_str(),
-				ImGuiTreeNodeFlags_SpanAvailWidth
-			)
-		};
-
-		if (open) {
-			ScopedDisabled disabled{ !enabled };
-			const bool contents_changed{
-				std::invoke(std::forward<Draw>(draw), visual)
-			};
-
-			if (enabled && contents_changed) {
-				visual.defined = true;
-				changed = true;
-			}
-
-			ImGui::TreePop();
-		}
-
-		if (changed) {
-			target.template SetLive<Visuals>(
-				HasDefinedButtonVisual(visuals)
-					? ComponentState<Visuals>{ visuals }
-					: std::nullopt,
-				callback
-			);
-		}
-
-		auto after{ target.template Capture<Visuals>() };
-		TrackComponentState(
-			target,
-			std::string{ "Edit Button " } + std::string{ label },
-			std::move(before),
-			std::move(after),
-			changed,
-			callback
-		);
-
-		return changed;
-	}
-}
-
-template <typename Target>
-bool DrawButtonStateSound(Target& target, ButtonVisualState state) {
-	if constexpr (!Target::template Supports<ButtonSounds>()) {
-		return false;
-	} else {
-		ScopedID target_scope{ target.Id() };
-		ScopedID component_scope{ static_cast<int>(Hash<ButtonSounds>()) };
-
-		auto before{ target.template Capture<ButtonSounds>() };
-		ButtonSounds sounds{ before.value_or(ButtonSounds{}) };
-		const auto index{ static_cast<std::size_t>(std::to_underlying(state)) };
-		auto& sound{ sounds.states[index] };
-		bool enabled{ sound.has_value() };
-		bool changed{ false };
-
-		if (ImGui::Checkbox("##Enabled", &enabled)) {
-			if (enabled) {
-				sound.emplace();
-			} else {
-				sound.reset();
-			}
-
-			changed = true;
-		}
-
-		ImGui::SameLine();
-		ImGui::AlignTextToFramePadding();
-		ImGui::TextUnformatted("Sound");
-
-		if (enabled) {
-			ImGui::SameLine();
-			ImGui::SetNextItemWidth(-FLT_MIN);
-			changed |= DrawValue(target.ctx, "##SoundKey", *sound);
-		}
-
-		changed |= DrawValue(target.ctx, "Exclusive Audio", sounds.exclusive);
-
-		if (changed) {
-			const bool has_sound{
-				std::ranges::any_of(
-					sounds.states,
-					[](const auto& value) {
-						return value.has_value();
-					}
-				)
-			};
-
-			target.template SetLive<ButtonSounds>(
-				has_sound || sounds.exclusive
-					? ComponentState<ButtonSounds>{ sounds }
-					: std::nullopt
-			);
-		}
-
-		auto after{ target.template Capture<ButtonSounds>() };
-		TrackComponentState(
-			target,
-			"Edit Button Sound",
-			std::move(before),
-			std::move(after),
-			changed
-		);
-
-		return changed;
-	}
-}
-
-template <typename Target>
-bool DrawButtonVisualParts(Target& target, ButtonVisualState state) {
-	bool changed{ false };
-
-	ImGui::SeparatorText("Parts");
-
-	changed |= DrawButtonStatePart<Target, ButtonBackgroundVisuals>(
-		target,
-		"Background",
-		state,
-		[&target](ButtonShapeVisual& visual) {
-			return DrawButtonShapeVisualFields(target.ctx, visual, false);
-		},
-		&MarkButtonBackgroundDirty
-	);
-
-	changed |= DrawButtonStatePart<Target, ButtonBorderVisuals>(
-		target,
-		"Border",
-		state,
-		[&target](ButtonShapeVisual& visual) {
-			return DrawButtonShapeVisualFields(target.ctx, visual, true);
-		},
-		&MarkButtonBorderDirty
-	);
-
-	changed |= DrawButtonStatePart<Target, ButtonSpriteVisuals>(
-		target,
-		"Sprite",
-		state,
-		[&target](ButtonSpriteVisual& visual) {
-			return DrawButtonSpriteVisualFields(target.ctx, visual);
-		},
-		&MarkButtonSpriteDirty
-	);
-
-	changed |= DrawButtonStatePart<Target, ButtonTextVisuals>(
-		target,
-		"Text",
-		state,
-		[&target](ButtonTextVisual& visual) {
-			return DrawButtonTextVisualFields(target.ctx, visual);
-		},
-		&MarkButtonTextDirty
-	);
-
-	changed |= DrawButtonStateSound(target, state);
-	return changed;
-}
-
 template <typename Target>
 bool DrawUIFeature(Target& target) {
 	if (!HasUIFeature(target)) {
+		return false;
+	}
+
+	if (const auto child_info{ GetButtonChildInfo(target) }) {
+		const bool open{
+			ImGui::CollapsingHeader(
+				"UI##ButtonChildUI",
+				ImGuiTreeNodeFlags_None
+			)
+		};
+
+		if (!open) {
+			return false;
+		}
+
+		ScopedIndent feature_indent;
+		auto& editor_state{
+			GetManualFeatureState(target.GetFeatureTargetKey())
+		};
+		(void)DrawButtonVisualStateSelector(
+			editor_state.button_visual_state
+		);
+
+		if (editor_state.button_visual_state) {
+			ImGui::TextDisabled(
+				"Transform and Visual edit the selected state. Unset values inherit from fallback states."
+			);
+		} else {
+			ImGui::TextDisabled(
+				"Transform and Visual edit the base child entity."
+			);
+		}
+
 		return false;
 	}
 
@@ -7271,26 +7841,6 @@ bool DrawUIFeature(Target& target) {
 
 	changed |= DrawOptionalReflected<Target, ::ptgn::impl::ButtonData>(target, "Button", true);
 
-	if (target.template Capture<::ptgn::impl::ButtonData>()) {
-		auto& editor_state{
-			GetManualFeatureState(target.GetFeatureTargetKey())
-		};
-
-		(void)DrawButtonVisualStateSelector(
-			editor_state.button_visual_state
-		);
-
-		if (editor_state.button_visual_state) {
-			changed |= DrawButtonVisualParts(
-				target,
-				*editor_state.button_visual_state
-			);
-		} else {
-			ImGui::TextDisabled(
-				"Use Transform and Visual to edit the base button entity."
-			);
-		}
-	}
 
 	changed |= DrawOptionalReflected<Target, ::ptgn::impl::ToggleButtonData>(
 		target, "Toggle Button", true
@@ -7463,10 +8013,11 @@ bool DrawAddFeatureMenu(Target& target) {
 		TransformFeatureComponents{}
 	);
 	const bool primary_render_target{ IsPrimarySceneRenderTarget(target) };
+	const bool fixed_camera{ IsReservedFixedCamera(target) };
 	const bool visual_exists{ HasVisualFeature(target) };
 	const bool camera_exists{ HasCameraFeature(target) };
 
-	if (!primary_render_target && !camera_exists) {
+	if (!primary_render_target && !fixed_camera && !camera_exists) {
 		item_with_default.template operator()<::ptgn::impl::IDrawable>(
 			InspectorFeature::Visual, "Visual", visual_exists, VisualFeatureComponents{}
 		);
