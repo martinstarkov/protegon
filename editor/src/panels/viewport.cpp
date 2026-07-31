@@ -7,6 +7,7 @@
 #include <array>
 #include <cmath>
 #include <cstdint>
+#include <cstdio>
 #include <limits>
 #include <optional>
 #include <vector>
@@ -21,6 +22,7 @@
 #include "core/math/matrix4.h"
 #include "core/math/vector2.h"
 #include "core/math/vector4.h"
+#include "panels/inspector_feature_helpers.h"
 #include "panels/scene_hierarchy.h"
 #include "platform/window.h"
 #include "renderer/pipeline/blend_mode.h"
@@ -371,6 +373,167 @@ Entity ResolveRenderTargetPick(
 	}
 
 	return nested_entity;
+}
+
+
+[[nodiscard]] bool ContainsPoint(Viewport viewport, V2_float point) {
+	return point.x >= viewport.position.x &&
+		   point.y >= viewport.position.y &&
+		   point.x < viewport.position.x + viewport.size.x &&
+		   point.y < viewport.position.y + viewport.size.y;
+}
+
+void DrawPositionPickerPreview(
+	EditorContext& ctx,
+	Viewport image_viewport,
+	Viewport presentation_viewport,
+	const FrameContext& frame_context
+) {
+	auto* draw_list{ ImGui::GetForegroundDrawList() };
+	draw_list->PushClipRectFullScreen();
+
+	if (const auto reference_world{ inspector::GetPositionPickReferenceWorld(ctx) }) {
+		const V2_float reference_screen{
+			WorldToScreen(
+				*reference_world,
+				frame_context,
+				presentation_viewport,
+				Frame::World
+			)
+		};
+
+		if (ContainsPoint(image_viewport, reference_screen)) {
+			const ImVec2 point{ ToImGui(reference_screen) };
+			draw_list->AddCircleFilled(point, 5.0f, IM_COL32(0, 0, 0, 220));
+			draw_list->AddCircleFilled(point, 3.5f, IM_COL32(255, 255, 255, 255));
+		}
+	}
+
+	const V2_float mouse_screen{ FromImGui(ImGui::GetIO().MousePos) };
+
+	if (!ContainsPoint(image_viewport, mouse_screen)) {
+		draw_list->PopClipRect();
+		return;
+	}
+
+	const V2_float world_position{
+		ScreenToWorld(
+			mouse_screen,
+			frame_context,
+			presentation_viewport,
+			Frame::World
+		)
+	};
+
+	const auto preview{
+		inspector::PreviewPickedPosition(
+			ctx,
+			world_position
+		)
+	};
+
+	if (!preview) {
+		draw_list->PopClipRect();
+		return;
+	}
+
+	const ImVec2 mouse{ ToImGui(mouse_screen) };
+	const ImVec2 viewport_min{ ToImGui(image_viewport.position) };
+	const ImVec2 viewport_max{ ToImGui(image_viewport.position + image_viewport.size) };
+	const ImU32 color{ ImGui::GetColorU32(ImGuiCol_Text) };
+	constexpr float kCrosshairRadius{ 7.0f };
+
+	draw_list->AddLine(
+		ImVec2{ mouse.x - kCrosshairRadius, mouse.y },
+		ImVec2{ mouse.x + kCrosshairRadius, mouse.y },
+		color,
+		1.5f
+	);
+	draw_list->AddLine(
+		ImVec2{ mouse.x, mouse.y - kCrosshairRadius },
+		ImVec2{ mouse.x, mouse.y + kCrosshairRadius },
+		color,
+		1.5f
+	);
+
+	char coordinates[160]{};
+
+	if (const auto initial{ inspector::GetPositionPickInitial(ctx) }) {
+		const V2_float delta{ *preview - *initial };
+
+		std::snprintf(
+			coordinates,
+			sizeof(coordinates),
+			"X %.0f  Y %.0f\nDelta X %+.0f  Y %+.0f",
+			static_cast<double>(preview->x),
+			static_cast<double>(preview->y),
+			static_cast<double>(delta.x),
+			static_cast<double>(delta.y)
+		);
+	} else {
+		std::snprintf(
+			coordinates,
+			sizeof(coordinates),
+			"X %.0f  Y %.0f",
+			static_cast<double>(preview->x),
+			static_cast<double>(preview->y)
+		);
+	}
+
+	const ImVec2 text_size{ ImGui::CalcTextSize(coordinates) };
+	const ImVec2 padding{ 5.0f, 3.0f };
+	const ImVec2 box_size{
+		text_size.x + padding.x * 2.0f,
+		text_size.y + padding.y * 2.0f
+	};
+
+	ImVec2 box_min{
+		mouse.x + 12.0f,
+		mouse.y + 12.0f
+	};
+
+	if (box_min.x + box_size.x > viewport_max.x) {
+		box_min.x = mouse.x - 12.0f - box_size.x;
+	}
+
+	if (box_min.y + box_size.y > viewport_max.y) {
+		box_min.y = mouse.y - 12.0f - box_size.y;
+	}
+
+	box_min.x = std::clamp(
+		box_min.x,
+		viewport_min.x,
+		std::max(viewport_min.x, viewport_max.x - box_size.x)
+	);
+	box_min.y = std::clamp(
+		box_min.y,
+		viewport_min.y,
+		std::max(viewport_min.y, viewport_max.y - box_size.y)
+	);
+
+	const ImVec2 box_max{
+		box_min.x + box_size.x,
+		box_min.y + box_size.y
+	};
+	const ImVec2 text_position{
+		box_min.x + padding.x,
+		box_min.y + padding.y
+	};
+
+	draw_list->AddRectFilled(
+		box_min,
+		box_max,
+		ImGui::GetColorU32(ImGuiCol_PopupBg),
+		3.0f
+	);
+	draw_list->AddRect(
+		box_min,
+		box_max,
+		ImGui::GetColorU32(ImGuiCol_Border),
+		3.0f
+	);
+	draw_list->AddText(text_position, color, coordinates);
+	draw_list->PopClipRect();
 }
 
 void UpdateEditorCamera(EditorCamera& editor_camera) {
@@ -1466,6 +1629,48 @@ void ViewportPanel::OnRender(EditorContext& ctx) {
 	// Count this draw call so that draw call counts match with and without the editor.
 	ctx.editor.GetDebugSystem().stats.Increment("draw_calls");
 
+	const bool position_pick_was_active{
+		inspector::IsPositionPickingActive(ctx)
+	};
+	const V2_float mouse_screen{
+		FromImGui(ImGui::GetIO().MousePos)
+	};
+	const bool mouse_inside_image{
+		ContainsPoint(viewport, mouse_screen)
+	};
+
+	if (position_pick_was_active) {
+		ImGui::GetForegroundDrawList()->AddRect(
+			ToImGui(viewport.position),
+			ToImGui(viewport.position + viewport.size),
+			IM_COL32(255, 214, 64, 255),
+			0.0f,
+			0,
+			3.0f
+		);
+	}
+
+	if (position_pick_was_active) {
+		const bool cancel_with_escape{
+			ImGui::IsKeyPressed(ImGuiKey_Escape, false)
+		};
+		const bool cancel_with_right_click{
+			ImGui::IsMouseClicked(ImGuiMouseButton_Right)
+		};
+		const bool cancel_with_other_panel_click{
+			ImGui::IsMouseClicked(ImGuiMouseButton_Left) &&
+			!mouse_inside_image
+		};
+
+		if (
+			cancel_with_escape ||
+			cancel_with_right_click ||
+			cancel_with_other_panel_click
+		) {
+			inspector::CancelPositionPicking(ctx);
+		}
+	}
+
 	if (auto scene{ ctx.editor.GetSceneListPanel().GetSelectedScene() };
 		scene && use_editor_camera_) {
 		FrameContext frame_context{ renderer, GetTransform(scene->GetRenderTarget()),
@@ -1478,9 +1683,47 @@ void ViewportPanel::OnRender(EditorContext& ctx) {
 
 		DrawSceneCameraOutlines(ctx, presentation_viewport, frame_context);
 
-		DrawSelectedEntityGizmo(ctx, presentation_viewport, frame_context);
+		if (
+			position_pick_was_active &&
+			inspector::IsPositionPickingActive(ctx)
+		) {
+			DrawPositionPickerPreview(
+				ctx,
+				viewport,
+				presentation_viewport,
+				frame_context
+			);
 
-		HandleEntityPicking(ctx, viewport, presentation_size, presentation_viewport, frame_context);
+			if (
+				mouse_inside_image &&
+				!ImGui::GetIO().WantTextInput &&
+				ImGui::IsMouseClicked(ImGuiMouseButton_Left)
+			) {
+				const V2_float world_position{
+					ScreenToWorld(
+						mouse_screen,
+						frame_context,
+						presentation_viewport,
+						Frame::World
+					)
+				};
+
+				(void)inspector::SubmitPickedPosition(
+					ctx,
+					world_position
+				);
+			}
+		} else if (!position_pick_was_active) {
+			DrawSelectedEntityGizmo(ctx, presentation_viewport, frame_context);
+
+			HandleEntityPicking(
+				ctx,
+				viewport,
+				presentation_size,
+				presentation_viewport,
+				frame_context
+			);
+		}
 
 		draw_list->PopClipRect();
 	}
