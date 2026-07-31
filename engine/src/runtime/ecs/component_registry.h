@@ -61,7 +61,7 @@ void DeserializeRegisteredComponent(const json& input, Entity entity) {
 	} else {
 		static_assert(
 			JsonGettable<T>,
-			"A registered non-default-constructible component must support json::get<T>()"
+			"A registered non default constructible component must support json::get<T>()"
 		);
 		entity.Add<T>(input.template get<T>());
 	}

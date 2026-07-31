@@ -176,7 +176,7 @@ template <SceneType TScene>
 #define PTGN_IMPL_SCENE_CONCAT_INNER(a, b) a##b
 #define PTGN_IMPL_SCENE_CONCAT(a, b) PTGN_IMPL_SCENE_CONCAT_INNER(a, b)
 
-/// @brief Registers a default-constructible scene for project-file loading.
+/// @brief Registers a default constructible scene for project file loading.
 /// Place this once in the scene's .cpp file.
 #define PTGN_REGISTER_SCENE(SceneTypeName, DisplayName)                                      \
 	namespace {                                                                                \

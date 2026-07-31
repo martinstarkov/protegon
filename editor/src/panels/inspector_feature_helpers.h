@@ -509,7 +509,7 @@ inline bool DrawPositionPickButton(
 		ImGui::SetTooltip(
 			picking_active
 				? "A position pick is already active. Finish or cancel it first."
-				: "Pick a position in the viewport. Escape, right-click, or clicking another panel cancels."
+				: "Pick a position in the viewport. Escape, right click, or clicking another panel cancels."
 		);
 	}
 

@@ -585,7 +585,7 @@ bool DrawReadOnlyValue(EditorContext& ctx, std::string_view label, const T& valu
 
 	static_assert(
 		std::copy_constructible<Value>,
-		"Read-only reflected inspector values must be copy constructible"
+		"Read only reflected inspector values must be copy constructible"
 	);
 
 	Value display_value{ value };
@@ -931,7 +931,7 @@ bool DrawEnumArrayEditor(EditorContext& ctx,
 #ifndef PTGN_PLATFORM_MACOS
 	static_assert(
 		magic_enum::enum_count<TEnum>() == N,
-		"Enum-indexed array size must match the number of reflected enum values"
+		"Enum indexed array size must match the number of reflected enum values"
 	);
 #endif
 
@@ -948,7 +948,7 @@ bool DrawEnumArrayEditor(EditorContext& ctx, std::array<T, N>& values) {
 #ifndef PTGN_PLATFORM_MACOS
 	static_assert(
 		magic_enum::enum_count<TEnum>() == N,
-		"Enum-indexed array size must match the number of reflected enum values"
+		"Enum indexed array size must match the number of reflected enum values"
 	);
 #endif
 
@@ -1110,7 +1110,7 @@ inline bool DrawMatrix4(std::string_view label, Matrix4& value, const FieldOptio
 
 				if (ImGui::IsItemHovered()) {
 					ImGui::SetTooltip(
-						"Index %zu\nm(%zu, %zu)\nColumn-major offset: row + column * 4",
+						"Index %zu\nm(%zu, %zu)\nColumn major offset: row + column * 4",
 						row + column * 4uz, row, column
 					);
 				}

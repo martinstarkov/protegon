@@ -38,7 +38,7 @@ struct DropdownData {
 	/// @brief Whether dropdown is currently open.
 	bool open{ false };
 
-	/// @brief Runtime-only initialization flag used by DropdownSystem.
+	/// @brief Runtime only initialization flag used by DropdownSystem.
 	bool initialized{ false };
 
 	/// @brief Default value of {} means each item uses the parent dropdown button size.

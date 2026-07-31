@@ -390,7 +390,7 @@ struct SetTextureScript : public Script {
 };
 
 /// @brief Sets the reflected enabled value of a registered component on the owning entity.
-/// Supports value-reflected bool components such as Interactive and object-reflected components
+/// Supports value reflected bool components such as Interactive and object reflected components
 /// with a bool field named enabled, such as Draggable and Dropzone.
 struct SetEnabledScript : public Script {
 	std::string component{ "Interactive" };
@@ -476,7 +476,7 @@ ScriptSequence& EmitSignal(ScriptSequence& sequence, SignalKey signal);
 SequenceHandle After(Scene& scene, milliseconds duration, SequenceFunction function);
 SequenceHandle During(Scene& scene, milliseconds duration, DuringSequenceFunction function);
 
-/// Runtime-only property animation helper used from custom C++ scripts.
+/// Runtime only property animation helper used from custom C++ scripts.
 template <typename T, typename TGetter, typename TSetter>
 SequenceHandle PropertyTo(
 	Entity entity, SequenceChannelKey channel, T target, float duration_ms, TGetter getter,

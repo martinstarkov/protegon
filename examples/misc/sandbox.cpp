@@ -108,7 +108,7 @@ public:
     void Register() {
         static_assert(
             std::copy_constructible<TComponent>,
-            "Undo snapshots require copy-constructible editor components"
+            "Undo snapshots require copy constructible editor components"
         );
 
         capture_functions_.push_back([](const Entity& entity) -> std::unique_ptr<ComponentSnapshot> {

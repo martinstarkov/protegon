@@ -475,7 +475,7 @@ public:
 	static void EnsureRegistered() {
 		if (!Find(Hash<T>())) {
 			// Script identity is serializable independently of whether T has reflected/custom JSON
-			// payload data. A default-constructible stateless Script can be restored from its type.
+			// payload data. A default constructible stateless Script can be restored from its type.
 			Register<T>(ScriptRegistrationOptions{
 				.serializable = std::default_initializable<T>,
 			});

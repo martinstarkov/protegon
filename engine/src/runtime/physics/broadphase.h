@@ -118,7 +118,7 @@ private:
 	/// old tree leaf the "previous" rect is needed; to keep it simple here, assume UpdateRect
 	/// replaced rect in entity_map but also kept a copy of the previous rect in the node's
 	/// objects (match by entity id). So traverse the tree like in Remove() to find
-	/// the leaf and mark that object as deleted (swap-remove) so the node keeps compact storage.
+	/// the leaf and mark that object as deleted (swap remove) so the node keeps compact storage.
 	///
 	/// Collect the moved objects from entity_map (current rect) and insert them into leaf nodes
 	/// in bulk.

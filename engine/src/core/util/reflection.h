@@ -95,6 +95,6 @@ ReadOnlyMember(std::string_view, const T&) -> ReadOnlyMember<T>;
 		return std::tuple{};                            \
 	}
 
-/// @brief Adds inspector-visible, read-only reflection. These members are not included in the
+/// @brief Adds inspector visible, read only reflection. These members are not included in the
 /// automatically generated JSON representation from PTGN_REFLECT.
 #define PTGN_REFLECT_READONLY(Type, ...) PTGN_IMPL_REFLECT_READONLY_MEMBERS(Type, __VA_ARGS__)

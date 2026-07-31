@@ -154,7 +154,7 @@ public:
 		Refresh();
 
 		std::cout
-			<< "[SceneSerializationDemo] OnEnter applied runtime-only mutations.\n";
+			<< "[SceneSerializationDemo] OnEnter applied runtime only mutations.\n";
 	}
 
 	void OnUpdate() override {

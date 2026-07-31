@@ -167,7 +167,7 @@ public:
 
 	void Center();
 
-	/// @return Project-owned window defaults. Live OS window geometry is returned by
+	/// @return Project owned window defaults. Live OS window geometry is returned by
 	/// GetLocalSettings() instead.
 	WindowSettings GetSettings() const;
 	void SetSettings(const WindowSettings& settings);

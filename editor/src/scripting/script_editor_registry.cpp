@@ -665,7 +665,7 @@ bool DrawPlaySound(
 			ImGuiSliderFlags_AlwaysClamp
 		);
 		DrawItemTooltip(
-			"Audio volume. Double-click to enter an exact value."
+			"Audio volume. Double click to enter an exact value."
 		);
 
 		if (ImGui::IsItemHovered() &&
@@ -1619,7 +1619,7 @@ bool DrawMoveTo(ScriptEditorContext&, MoveToScript& script) {
 bool DrawFollowTarget(ScriptEditorContext&, FollowTargetScript& script) {
 	bool changed{ ImGui::DragFloat("Speed", &script.speed, 1.0f, 0.0f) };
 	changed |= ImGui::DragFloat("Stopping Distance", &script.stopping_distance, 0.1f, 0.0f);
-	ImGui::TextDisabled("Target selection should use your UUID/entity-reference field.");
+	ImGui::TextDisabled("Target selection should use your UUID/entity reference field.");
 	return changed;
 }
 
@@ -1657,7 +1657,7 @@ bool DrawRecoverShake(ScriptEditorContext& context, RecoverShakeScript& script) 
 }
 
 bool DrawFollowEntity(ScriptEditorContext& context, FollowEntityScript& script) {
-	ImGui::TextDisabled("Target selection should use your UUID/entity-reference field.");
+	ImGui::TextDisabled("Target selection should use your UUID/entity reference field.");
 	return inspector::DrawComponentContents(context.ctx, script.config);
 }
 
@@ -1732,7 +1732,7 @@ PTGN_REGISTER_SCRIPT(
 	Script, {
 				.label		 = "Script Sequence",
 				.group		 = "Sequence",
-				.description = "Editor-authored sequence of registered scripts.",
+				.description = "Editor authored sequence of registered scripts.",
 				.type		 = ScriptType::Both,
 				.draw_inline = &DrawScriptSequenceInline,
 				.draw		 = &DrawNothing<Script>,
@@ -2381,7 +2381,7 @@ namespace impl {
 void EnsureEngineScriptEditorsRegistered() {
 	// Intentionally empty.
 	//
-	// Referencing this function forces the linker to include this object file. The namespace-scope
+	// Referencing this function forces the linker to include this object file. The namespace scope
 	// PTGN_REGISTER_SCRIPT and PTGN_REGISTER_EVENT initializers then populate the editor
 	// registries.
 }

@@ -209,7 +209,7 @@ private:
 	}
 
 	void AddPulseSequence(Entity pulse) {
-		// This is a resident Script rather than a one-off ScriptSequence handle. Its sequence starts
+		// This is a resident Script rather than a one off ScriptSequence handle. Its sequence starts
 		// automatically because it has steps and no start trigger. A global signal later stops it.
 		auto& script{ AddScript<Script>(pulse) };
 		script.sequence = ScriptSequence{ "Pulse: Infinite Scale Until Signal" };
@@ -321,7 +321,7 @@ private:
 	float follower_speed_{ 185.0f };
 	float stop_pulse_after_ms_{ 5200.0f };
 
-	// Runtime-only handles are deliberately omitted from reflection.
+	// Runtime only handles are deliberately omitted from reflection.
 	SequenceHandle mover_sequence_;
 	SequenceHandle spinner_sequence_;
 	SequenceHandle visibility_sequence_;

@@ -87,7 +87,7 @@ namespace impl {
 
 /// @brief Adds registered empty components listed in an entity's tags array.
 ///
-/// Unknown tags and registered tags that cannot be default-constructed are ignored.
+/// Unknown tags and registered tags that cannot be default constructed are ignored.
 inline void DeserializeEntityTags(const json& input, Entity entity) {
 	PTGN_ASSERT(input.is_array(), "Serialized entity tags must be a JSON array");
 	PTGN_ASSERT(entity, "Cannot deserialize tags into a null entity");
@@ -113,7 +113,7 @@ inline void DeserializeEntityTags(const json& input, Entity entity) {
 	}
 }
 
-/// @brief Deserializes ordinary entity components into an already-created entity.
+/// @brief Deserializes ordinary entity components into an already created entity.
 ///
 /// Empty marker components must be stored in the entity's "tags" array.
 /// UUID, Tag, Parent, and Children are ignored because the scene loader owns them.

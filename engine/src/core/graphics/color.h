@@ -200,7 +200,7 @@ struct Color {
 				  static_cast<std::uint8_t>(Lerp(lhs.a, rhs.a, t)) };
 }
 
-/// @brief Linearly interpolates between two colors (per-channel).
+/// @brief Linearly interpolates between two colors (per channel).
 /// @param t Separate RGBA interpolation factors in range [0.0, 1.0]
 [[nodiscard]] constexpr Color Lerp(Color lhs, Color rhs, V4_float t) {
 	return Color{ static_cast<std::uint8_t>(Lerp(lhs.r, rhs.r, t.x)),

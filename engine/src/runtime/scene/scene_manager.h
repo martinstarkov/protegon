@@ -82,7 +82,7 @@ public:
 		std::size_t to_index
 	);
 
-	/// @brief Reorders the runtime or non-runtime subset to match the supplied keys.
+	/// @brief Reorders the runtime or non runtime subset to match the supplied keys.
 	void ReorderScenes(
 		std::span<const std::string> ordered_keys,
 		bool runtime

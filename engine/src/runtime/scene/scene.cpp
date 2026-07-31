@@ -560,7 +560,7 @@ void Scene::DeserializeContent(const json& serialized_content) {
 	PTGN_ASSERT(fixed_camera_serialized, "Serialized fixed camera entity is missing");
 
 	// Pass 1: construct every entity and assign its persistent UUID and Tag before any component
-	// data is deserialized. Primary entities use their specialized constructors so runtime-only
+	// data is deserialized. Primary entities use their specialized constructors so runtime only
 	// renderer and camera components are recreated rather than loaded from JSON.
 	ctx_->render_target_ =
 		CreateRenderTarget(*this, {}, kDefaultSceneBackgroundColor, kDefaultSceneTargetFormat);
@@ -1032,7 +1032,7 @@ void Scene::InternalRuntimeUpdate() {
 }
 
 void Scene::InternalMaintenanceUpdate() {
-	// Runs for editor and runtime scenes, unlike gameplay-only resize events.
+	// Runs for editor and runtime scenes, unlike gameplay only resize events.
 	UpdateRenderTargetSizes(*this);
 
 	for (auto [camera_entity, _data] : EntitiesWith<impl::CameraData>()) {

@@ -90,7 +90,7 @@ public:
 	}
 
 	/// @brief Called after either new or serialized scene contents have been initialized.
-	/// Called for both runtime and non-runtime scenes.
+	/// Called for both runtime and non runtime scenes.
 	virtual void OnLoad() {
 		/* User implementation */
 	}

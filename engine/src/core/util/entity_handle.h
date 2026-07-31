@@ -20,7 +20,7 @@ struct RefCount {
 } // namespace impl
 
 /// @brief An optionally reference counted object that owns an entity.
-/// This creates a uniform interface for user-owned entities and manager-owned entities.
+/// This creates a uniform interface for user owned entities and manager owned entities.
 class EntityHandle {
 public:
 	EntityHandle() = default;
