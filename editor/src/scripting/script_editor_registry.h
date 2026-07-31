@@ -3,18 +3,19 @@
 #include <algorithm>
 #include <cstdint>
 #include <functional>
+#include <optional>
 #include <ranges>
 #include <string>
+#include <string_view>
 #include <type_traits>
 #include <utility>
 #include <vector>
-#include <string_view>
 
 #include "core/util/hash.h"
 #include "core/util/type_info.h"
+#include "panels/inspector_fields.h"
 #include "runtime/ecs/entity.h"
 #include "runtime/scripting/script.h"
-#include "panels/inspector_fields.h"
 #include "serialization/json/json.h"
 
 namespace ptgn::editor {
@@ -48,11 +49,13 @@ public:
 	static bool Register() {
 		auto& entries{ MutableEntries() };
 		const TypeHashValue type_hash{ Hash<TEvent>() };
+
 		if (std::ranges::any_of(entries, [type_hash](const auto& entry) {
 			return entry.type_hash == type_hash;
 		})) {
 			return false;
 		}
+
 		return Register<TEvent>(EventEditorOptions{});
 	}
 
@@ -71,6 +74,7 @@ public:
 		if (options.label.empty()) {
 			options.label = std::string{ type_name_without_namespaces<TEvent>() };
 		}
+
 		options.inline_fields = std::max(0, options.inline_fields);
 
 		if (options.draw) {
@@ -79,6 +83,7 @@ public:
 				if (value.is_null()) {
 					value = json::object();
 				}
+
 				const json previous = value;
 				const bool changed{ std::invoke(fn, value) };
 				return changed || value != previous;
@@ -90,6 +95,7 @@ public:
 			.name = std::string{ type_name_without_namespaces<TEvent>() },
 			.options = std::move(options),
 		});
+
 		return inserted;
 	}
 
@@ -101,10 +107,10 @@ private:
 };
 
 enum class ScriptType : std::uint8_t {
-	None	 = 0,
+	None = 0,
 	Resident = 1 << 0,
 	Sequence = 1 << 1,
-	Both	 = (1 << 0) | (1 << 1)
+	Both = (1 << 0) | (1 << 1)
 };
 
 [[nodiscard]] constexpr ScriptType operator|(ScriptType lhs, ScriptType rhs) {
@@ -132,9 +138,7 @@ struct ScriptEditorContext {
 template <ScriptClass T>
 struct ScriptEditorOptions {
 	// Runtime registration options.
-	ScriptCompletion completion{
-		ScriptCompletion::ScriptControlled
-	};
+	ScriptCompletion completion{ ScriptCompletion::ScriptControlled };
 	bool supports_timing{ false };
 	bool requires_timing{ false };
 	bool serializable{ true };
@@ -148,40 +152,26 @@ struct ScriptEditorOptions {
 	int menu_order{ 100 };
 	bool separator_after{ false };
 	bool hidden{ false };
-	std::function<bool(
-		ScriptEditorContext&,
-		T&
-	)> draw_inline;
-	std::function<bool(
-		ScriptEditorContext&,
-		T&
-	)> draw;
+	std::function<bool(ScriptEditorContext&, T&)> draw_inline;
+	std::function<bool(ScriptEditorContext&, T&)> draw;
 
-	[[nodiscard]] ScriptRegistrationOptions
-	RuntimeOptions() const {
+	[[nodiscard]] ScriptRegistrationOptions RuntimeOptions() const {
 		return ScriptRegistrationOptions{
-			.completion =
-				completion,
-			.supports_timing =
-				supports_timing,
-			.requires_timing =
-				requires_timing,
-			.serializable =
-				serializable,
-			.default_timing =
-				default_timing,
+			.completion = completion,
+			.supports_timing = supports_timing,
+			.requires_timing = requires_timing,
+			.serializable = serializable,
+			.default_timing = default_timing,
 		};
 	}
 
 	/// @return Whether this registration contains non-default runtime metadata.
 	[[nodiscard]] bool HasRuntimeOptions() const {
-		return completion !=
-				   ScriptCompletion::
-					   ScriptControlled ||
-			   supports_timing ||
-			   requires_timing ||
-			   !serializable ||
-			   default_timing.has_value();
+		return completion != ScriptCompletion::ScriptControlled ||
+			supports_timing ||
+			requires_timing ||
+			!serializable ||
+			default_timing.has_value();
 	}
 };
 
@@ -210,6 +200,13 @@ concept TypedScriptJsonEditable =
 	JsonSerializable<T> &&
 	JsonDeserializable<T>;
 
+/// The default script editor is only available when every reflected member
+/// has a supported inspector drawer. This prevents broad reflected types such
+/// as Script from instantiating drawers for raw json members.
+template <typename T>
+concept ReflectedScriptInspectorDrawable =
+	inspector::kHasDefaultInspectorDrawer<T>;
+
 template <typename T, typename F>
 	requires TypedScriptJsonEditable<T>
 bool DrawTypedJsonEditor(
@@ -233,13 +230,7 @@ bool DrawTypedJsonEditor(
 		value = T{};
 	}
 
-	const bool changed{
-		std::invoke(
-			draw,
-			context,
-			value
-		)
-	};
+	const bool changed{ std::invoke(draw, context, value) };
 
 	if (!changed) {
 		return false;
@@ -252,7 +243,6 @@ bool DrawTypedJsonEditor(
 	}
 
 	input = std::move(updated);
-
 	return true;
 }
 
@@ -262,163 +252,79 @@ public:
 	static bool Register() {
 		auto& entries{ MutableEntries() };
 		const TypeHashValue type_hash{ Hash<T>() };
+
 		if (std::ranges::any_of(entries, [type_hash](const auto& entry) {
 			return entry.type_hash == type_hash;
 		})) {
 			return false;
 		}
+
 		return Register<T>(ScriptEditorOptions<T>{});
 	}
 
 	template <ScriptClass T>
-	static bool Register(
-		ScriptEditorOptions<T> options
-	) {
-		auto& entries{
-			MutableEntries()
-		};
-		const TypeHashValue type_hash{
-			Hash<T>()
-		};
-		const bool inserted{
-			std::ranges::none_of(
-				entries,
-				[type_hash](
-					const auto& entry
-				) {
-					return entry.type_hash ==
-						type_hash;
-				}
-			)
-		};
+	static bool Register(ScriptEditorOptions<T> options) {
+		auto& entries{ MutableEntries() };
+		const TypeHashValue type_hash{ Hash<T>() };
+		const bool inserted{ std::ranges::none_of(entries, [type_hash](const auto& entry) {
+			return entry.type_hash == type_hash;
+		}) };
 
-		std::erase_if(
-			entries,
-			[type_hash](
-				const auto& entry
-			) {
-				return entry.type_hash ==
-					type_hash;
-			}
-		);
+		std::erase_if(entries, [type_hash](const auto& entry) {
+			return entry.type_hash == type_hash;
+		});
 
 		if (options.label.empty()) {
-			options.label =
-				std::string{
-					type_name_without_namespaces<T>()
-				};
+			options.label = std::string{ type_name_without_namespaces<T>() };
 		}
 
-		// Supply the standard reflected inspector only when the
-		// registration has no custom inline or details editor.
-		if (!options.draw &&
-			!options.draw_inline) {
+		// Supply the standard reflected inspector only when no custom editor
+		// was registered. No component-editor registry participates here.
+		if (!options.draw && !options.draw_inline) {
 			if constexpr (
-				std::default_initializable<T> &&
-				inspector::
-					kHasDefaultInspectorDrawer<T> &&
-				requires(
-					const json& input,
-					T& output
-				) {
-					input.get_to(output);
-				} &&
-				requires(
-					json& output,
-					const T& value
-				) {
-					output = value;
-				}
+				TypedScriptJsonEditable<T> &&
+				ReflectedScriptInspectorDrawable<T>
 			) {
-				options.draw =
-					[](
-						ScriptEditorContext& context,
-						T& script
-					) {
-						return inspector::
-							DrawComponentContents(
-								context.ctx,
-								script
-							);
-					};
+				options.draw = [](ScriptEditorContext& context, T& script) {
+					return inspector::DrawComponentContents(context.ctx, script);
+				};
 			}
 		}
 
 		ScriptEditorRegistration registration{
-			.type_hash =
-				type_hash,
-			.name =
-				std::string{
-					type_name_without_namespaces<T>()
-				},
+			.type_hash = type_hash,
+			.name = std::string{ type_name_without_namespaces<T>() },
 			.options = {
-				.label =
-					std::move(
-						options.label
-					),
-				.group =
-					std::move(
-						options.group
-					),
-				.description =
-					std::move(
-						options.description
-					),
-				.type =
-					options.type,
-				.menu_order =
-					options.menu_order,
-				.separator_after =
-					options.separator_after,
-				.hidden =
-					options.hidden,
+				.label = std::move(options.label),
+				.group = std::move(options.group),
+				.description = std::move(options.description),
+				.type = options.type,
+				.menu_order = options.menu_order,
+				.separator_after = options.separator_after,
+				.hidden = options.hidden,
 			},
-			.has_contents =
-				static_cast<bool>(
-					options.draw
-				),
+			.has_contents = static_cast<bool>(options.draw),
 		};
 
 		if (options.draw_inline) {
-			registration.draw_inline =
-				[
-					fn = std::move(
-						options.draw_inline
-					)
-				](
-					ScriptEditorContext& context,
-					json& input
-				) mutable {
-					return DrawTypedJsonEditor<T>(
-						context,
-						input,
-						fn
-					);
-				};
+			registration.draw_inline = [fn = std::move(options.draw_inline)](
+				ScriptEditorContext& context,
+				json& input
+			) mutable {
+				return DrawTypedJsonEditor<T>(context, input, fn);
+			};
 		}
 
 		if (options.draw) {
-			registration.draw =
-				[
-					fn = std::move(
-						options.draw
-					)
-				](
-					ScriptEditorContext& context,
-					json& input
-				) mutable {
-					return DrawTypedJsonEditor<T>(
-						context,
-						input,
-						fn
-					);
-				};
+			registration.draw = [fn = std::move(options.draw)](
+				ScriptEditorContext& context,
+				json& input
+			) mutable {
+				return DrawTypedJsonEditor<T>(context, input, fn);
+			};
 		}
 
-		entries.push_back(
-			std::move(registration)
-		);
-
+		entries.push_back(std::move(registration));
 		return inserted;
 	}
 
@@ -430,25 +336,18 @@ private:
 };
 
 template <ScriptClass T>
-bool RegisterScript(
-	ScriptEditorOptions<T> options
-) {
+bool RegisterScript(ScriptEditorOptions<T> options) {
 	const bool runtime_registered{
 		options.HasRuntimeOptions()
-			? ScriptRegistry::Register<T>(
-				options.RuntimeOptions()
-			)
+			? ScriptRegistry::Register<T>(options.RuntimeOptions())
 			: ScriptRegistry::Register<T>()
 	};
 
 	const bool editor_registered{
-		ScriptEditorRegistry::Register<T>(
-			std::move(options)
-		)
+		ScriptEditorRegistry::Register<T>(std::move(options))
 	};
 
-	return runtime_registered ||
-		editor_registered;
+	return runtime_registered || editor_registered;
 }
 
 } // namespace ptgn::editor

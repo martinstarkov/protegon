@@ -37,159 +37,111 @@
 #include "runtime/scene/scene_camera.h"
 #include "runtime/scripting/script.h"
 #include "runtime/ui/button.h"
-#include "runtime/ui/toggle_button.h"
-#include "runtime/ui/dropdown.h"
-#include "runtime/ui/tooltip.h"
 #include "runtime/ui/button_config.h"
+#include "runtime/ui/dropdown.h"
+#include "runtime/ui/toggle_button.h"
+#include "runtime/ui/tooltip.h"
 
 namespace ptgn {
 
-// Fundamental entity state.
-PTGN_REGISTER_COMPONENT(Transform, { .group = "Core" });
-PTGN_REGISTER_COMPONENT(impl::Scripts, { .group = "Core" });
+PTGN_REGISTER_COMPONENT(Transform);
+PTGN_REGISTER_COMPONENT(impl::Scripts);
 
-// Drawable description and geometry.
-PTGN_REGISTER_COMPONENT(impl::TextData, { .group = "Drawing" });
-PTGN_REGISTER_COMPONENT(impl::GraphicsData, { .group = "Drawing" });
-PTGN_REGISTER_COMPONENT(impl::ParticleEmitterData, { .group = "Drawing" });
-PTGN_REGISTER_COMPONENT(LightData, { .group = "Drawing" });
-PTGN_REGISTER_COMPONENT(impl::ShadowCaster, { .group = "Drawing" });
-PTGN_REGISTER_COMPONENT(impl::IDrawable, { .group = "Drawing" });
-PTGN_REGISTER_COMPONENT(Depth, { .group = "Drawing" });
-PTGN_REGISTER_COMPONENT(Visible, { .group = "Drawing" });
-PTGN_REGISTER_COMPONENT(Tint, { .group = "Drawing" });
-PTGN_REGISTER_COMPONENT(FillStyle, { .group = "Drawing" });
-PTGN_REGISTER_COMPONENT(BlendMode, { .group = "Drawing" });
-PTGN_REGISTER_COMPONENT(Color, { .group = "Drawing" });
-PTGN_REGISTER_COMPONENT(Origin, { .group = "Drawing" });
-PTGN_REGISTER_COMPONENT(Rect, { .group = "Drawing" });
-PTGN_REGISTER_COMPONENT(Circle, { .group = "Drawing" });
-PTGN_REGISTER_COMPONENT(RoundedRect, { .group = "Drawing" });
-PTGN_REGISTER_COMPONENT(Polygon, { .group = "Drawing" });
-PTGN_REGISTER_COMPONENT(Ellipse, { .group = "Drawing" });
-PTGN_REGISTER_COMPONENT(Triangle, { .group = "Drawing" });
-PTGN_REGISTER_COMPONENT(Line, { .group = "Drawing" });
-PTGN_REGISTER_COMPONENT(Capsule, { .group = "Drawing" });
-PTGN_REGISTER_COMPONENT(Arc, { .group = "Drawing" });
+PTGN_REGISTER_COMPONENT(impl::TextData);
+PTGN_REGISTER_COMPONENT(impl::GraphicsData);
+PTGN_REGISTER_COMPONENT(impl::ParticleEmitterData);
+PTGN_REGISTER_COMPONENT(LightData);
+PTGN_REGISTER_COMPONENT(impl::ShadowCaster);
+PTGN_REGISTER_COMPONENT(impl::IDrawable);
+PTGN_REGISTER_COMPONENT(Depth);
+PTGN_REGISTER_COMPONENT(Visible);
+PTGN_REGISTER_COMPONENT(Tint);
+PTGN_REGISTER_COMPONENT(FillStyle);
+PTGN_REGISTER_COMPONENT(BlendMode);
+PTGN_REGISTER_COMPONENT(Color);
+PTGN_REGISTER_COMPONENT(Origin);
+PTGN_REGISTER_COMPONENT(Rect);
+PTGN_REGISTER_COMPONENT(Circle);
+PTGN_REGISTER_COMPONENT(RoundedRect);
+PTGN_REGISTER_COMPONENT(Polygon);
+PTGN_REGISTER_COMPONENT(Ellipse);
+PTGN_REGISTER_COMPONENT(Triangle);
+PTGN_REGISTER_COMPONENT(Line);
+PTGN_REGISTER_COMPONENT(Capsule);
+PTGN_REGISTER_COMPONENT(Arc);
 
-// Input and interaction.
-PTGN_REGISTER_COMPONENT(impl::Interactive, { .group = "Interactive" });
-PTGN_REGISTER_COMPONENT(impl::Draggable, { .group = "Interactive" });
-PTGN_REGISTER_COMPONENT(impl::Dropzone, { .group = "Interactive" });
-PTGN_REGISTER_COMPONENT(InteractionLock, { .group = "Interactive" });
-PTGN_REGISTER_COMPONENT(impl::InteractiveTag, { .group = "Interactive" });
+PTGN_REGISTER_COMPONENT(impl::Interactive);
+PTGN_REGISTER_COMPONENT(impl::Draggable);
+PTGN_REGISTER_COMPONENT(impl::Dropzone);
+PTGN_REGISTER_COMPONENT(InteractionLock);
+PTGN_REGISTER_COMPONENT(impl::InteractiveTag);
 
-// Physics and movement.
-PTGN_REGISTER_COMPONENT(Collider, { .group = "Physics" });
-PTGN_REGISTER_COMPONENT(RigidBody, { .group = "Physics" });
-PTGN_REGISTER_COMPONENT(BoundaryBehavior, { .group = "Physics" });
-PTGN_REGISTER_COMPONENT(Lifetime, { .group = "Physics" });
-PTGN_REGISTER_COMPONENT(TopDownMovement, { .group = "Physics" });
-PTGN_REGISTER_COMPONENT(PlatformerMovement, { .group = "Physics" });
-PTGN_REGISTER_COMPONENT(PlatformerJump, { .group = "Physics" });
+PTGN_REGISTER_COMPONENT(Collider);
+PTGN_REGISTER_COMPONENT(RigidBody);
+PTGN_REGISTER_COMPONENT(BoundaryBehavior);
+PTGN_REGISTER_COMPONENT(Lifetime);
+PTGN_REGISTER_COMPONENT(TopDownMovement);
+PTGN_REGISTER_COMPONENT(PlatformerMovement);
+PTGN_REGISTER_COMPONENT(PlatformerJump);
 
-// Asset references.
-PTGN_REGISTER_COMPONENT(TextureKey, { .group = "Asset" });
-PTGN_REGISTER_COMPONENT(FontKey, { .group = "Asset" });
-PTGN_REGISTER_COMPONENT(AudioKey, { .group = "Asset" });
-PTGN_REGISTER_COMPONENT(ShaderKey, { .group = "Asset" });
-PTGN_REGISTER_COMPONENT(JsonKey, { .group = "Asset" });
+PTGN_REGISTER_COMPONENT(TextureKey);
+PTGN_REGISTER_COMPONENT(FontKey);
+PTGN_REGISTER_COMPONENT(AudioKey);
+PTGN_REGISTER_COMPONENT(ShaderKey);
+PTGN_REGISTER_COMPONENT(JsonKey);
 
-// Button behavior, visuals, animation, and audio.
-PTGN_REGISTER_COMPONENT(impl::ButtonData, { .group = "UI" });
-PTGN_REGISTER_COMPONENT(
-	impl::ButtonAnimationPart,
-	{ .group = "UI" }
-);
-PTGN_REGISTER_COMPONENT(ButtonBackgroundVisuals, { .group = "UI" });
-PTGN_REGISTER_COMPONENT(ButtonBorderVisuals, { .group = "UI" });
-PTGN_REGISTER_COMPONENT(ButtonSpriteVisuals, { .group = "UI" });
-PTGN_REGISTER_COMPONENT(ButtonTextVisuals, { .group = "UI" });
-PTGN_REGISTER_COMPONENT(ButtonSounds, { .group = "UI" });
-PTGN_REGISTER_COMPONENT(impl::ToggleButtonData, { .group = "UI" });
-PTGN_REGISTER_COMPONENT(impl::ToggleButtonGroupData, { .group = "UI" });
-PTGN_REGISTER_COMPONENT(impl::ToggleButtonGroupItem, { .group = "UI" });
-PTGN_REGISTER_COMPONENT(impl::DropdownData, { .group = "UI" });
-PTGN_REGISTER_COMPONENT(impl::DropdownItem, { .group = "UI" });
-PTGN_REGISTER_COMPONENT(impl::TooltipData, { .group = "UI" });
-PTGN_REGISTER_COMPONENT(impl::TooltipHoverData, { .group = "UI" });
-PTGN_REGISTER_COMPONENT(impl::TooltipBackgroundPart, { .group = "UI" });
-PTGN_REGISTER_COMPONENT(impl::TooltipTextPart, { .group = "UI" });
+PTGN_REGISTER_COMPONENT(impl::ButtonData);
+PTGN_REGISTER_COMPONENT(impl::ButtonAnimationPart);
+PTGN_REGISTER_COMPONENT(ButtonBackgroundVisuals);
+PTGN_REGISTER_COMPONENT(ButtonBorderVisuals);
+PTGN_REGISTER_COMPONENT(ButtonSpriteVisuals);
+PTGN_REGISTER_COMPONENT(ButtonTextVisuals);
+PTGN_REGISTER_COMPONENT(ButtonSounds);
+PTGN_REGISTER_COMPONENT(impl::ToggleButtonData);
+PTGN_REGISTER_COMPONENT(impl::ToggleButtonGroupData);
+PTGN_REGISTER_COMPONENT(impl::ToggleButtonGroupItem);
+PTGN_REGISTER_COMPONENT(impl::DropdownData);
+PTGN_REGISTER_COMPONENT(impl::DropdownItem);
+PTGN_REGISTER_COMPONENT(impl::TooltipData);
+PTGN_REGISTER_COMPONENT(impl::TooltipHoverData);
+PTGN_REGISTER_COMPONENT(impl::TooltipBackgroundPart);
+PTGN_REGISTER_COMPONENT(impl::TooltipTextPart);
 
+PTGN_REGISTER_COMPONENT(impl::IgnoreParentOffset);
+PTGN_REGISTER_COMPONENT(impl::IgnoreParentImmovable);
+PTGN_REGISTER_COMPONENT(impl::IgnoreParentTransform);
+PTGN_REGISTER_COMPONENT(impl::IgnoreParentPosition);
+PTGN_REGISTER_COMPONENT(impl::IgnoreParentRotation);
+PTGN_REGISTER_COMPONENT(impl::IgnoreParentScale);
+PTGN_REGISTER_COMPONENT(impl::IgnoreParentDepth);
+PTGN_REGISTER_COMPONENT(impl::IgnoreParentVisibility);
+PTGN_REGISTER_COMPONENT(impl::IgnoreParentTint);
 
-// Parent inheritance.
-PTGN_REGISTER_COMPONENT(
-	impl::IgnoreParentOffset,
-	{ .group = "Hierarchy" }
-);
-PTGN_REGISTER_COMPONENT(
-	impl::IgnoreParentImmovable,
-	{ .group = "Hierarchy" }
-);
-PTGN_REGISTER_COMPONENT(
-	impl::IgnoreParentTransform,
-	{ .group = "Hierarchy" }
-);
-PTGN_REGISTER_COMPONENT(
-	impl::IgnoreParentPosition,
-	{ .group = "Hierarchy" }
-);
-PTGN_REGISTER_COMPONENT(
-	impl::IgnoreParentRotation,
-	{ .group = "Hierarchy" }
-);
-PTGN_REGISTER_COMPONENT(
-	impl::IgnoreParentScale,
-	{ .group = "Hierarchy" }
-);
-PTGN_REGISTER_COMPONENT(
-	impl::IgnoreParentDepth,
-	{ .group = "Hierarchy" }
-);
-PTGN_REGISTER_COMPONENT(
-	impl::IgnoreParentVisibility,
-	{ .group = "Hierarchy" }
-);
-PTGN_REGISTER_COMPONENT(
-	impl::IgnoreParentTint,
-	{ .group = "Hierarchy" }
-);
+PTGN_REGISTER_COMPONENT(impl::EffectTag);
+PTGN_REGISTER_COMPONENT(impl::HDREffectTag);
+PTGN_REGISTER_COMPONENT(EffectMargin);
+PTGN_REGISTER_COMPONENT(Bloom);
+PTGN_REGISTER_COMPONENT(Blur);
+PTGN_REGISTER_COMPONENT(GaussianBlur);
 
-// Post-processing effects.
-PTGN_REGISTER_COMPONENT(impl::EffectTag, { .group = "Effect" });
-PTGN_REGISTER_COMPONENT(impl::HDREffectTag, { .group = "Effect" });
-PTGN_REGISTER_COMPONENT(EffectMargin, { .group = "Effect" });
-PTGN_REGISTER_COMPONENT(Bloom, { .group = "Effect" });
-PTGN_REGISTER_COMPONENT(Blur, { .group = "Effect" });
-PTGN_REGISTER_COMPONENT(GaussianBlur, { .group = "Effect" });
+PTGN_REGISTER_COMPONENT(impl::RenderTargetSize);
+PTGN_REGISTER_COMPONENT(impl::RenderMask);
+PTGN_REGISTER_COMPONENT(impl::CameraMask);
+PTGN_REGISTER_COMPONENT(impl::CameraData);
+PTGN_REGISTER_COMPONENT(impl::ClearColor);
+PTGN_REGISTER_COMPONENT(impl::ClearDepth);
+PTGN_REGISTER_COMPONENT(impl::ClearStencil);
+PTGN_REGISTER_COMPONENT(impl::UILayer);
 
-// Cameras and render targets.
-PTGN_REGISTER_COMPONENT(
-	impl::RenderTargetSize,
-	{ .group = "Rendering" }
-);
-PTGN_REGISTER_COMPONENT(impl::RenderMask, { .group = "Rendering" });
-PTGN_REGISTER_COMPONENT(impl::CameraMask, { .group = "Rendering" });
-PTGN_REGISTER_COMPONENT(impl::CameraData, { .group = "Rendering" });
-PTGN_REGISTER_COMPONENT(impl::ClearColor, { .group = "Rendering" });
-PTGN_REGISTER_COMPONENT(impl::ClearDepth, { .group = "Rendering" });
-PTGN_REGISTER_COMPONENT(impl::ClearStencil, { .group = "Rendering" });
-PTGN_REGISTER_COMPONENT(impl::UILayer, { .group = "Rendering" });
-
-// Internal graphics state used by drawable entities.
-PTGN_REGISTER_COMPONENT(impl::TextureSize, { .group = "Animation" });
-PTGN_REGISTER_COMPONENT(impl::TextureCrop, { .group = "Animation" });
-PTGN_REGISTER_COMPONENT(impl::AnimationData, { .group = "Animation" });
-PTGN_REGISTER_COMPONENT(impl::Offsets, { .group = "Animation" });
+PTGN_REGISTER_COMPONENT(impl::TextureSize);
+PTGN_REGISTER_COMPONENT(impl::TextureCrop);
+PTGN_REGISTER_COMPONENT(impl::AnimationData);
+PTGN_REGISTER_COMPONENT(impl::Offsets);
 
 namespace impl {
 
 void EnsureEngineComponentsRegistered() {
-	// Intentionally empty.
-	//
 	// Referencing this function forces the linker to include this object file.
-	// The PTGN_REGISTER_COMPONENT static initializers then register the
-	// components before main().
 }
 
 } // namespace impl

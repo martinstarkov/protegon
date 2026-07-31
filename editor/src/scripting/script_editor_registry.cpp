@@ -8,7 +8,9 @@
 #include <algorithm>
 #include <array>
 #include <cfloat>
+#include <cstdint>
 #include <magic_enum/magic_enum.hpp>
+#include <memory>
 #include <ranges>
 #include <string>
 #include <string_view>
@@ -23,7 +25,6 @@
 #include "core/event/mouse_event.h"
 #include "core/input/key.h"
 #include "core/input/mouse.h"
-#include "panels/component_editor_registry.h"
 #include "panels/inspector_fields.h"
 #include "panels/content_browser.h"
 #include "runtime/animation/animation_event.h"
@@ -149,28 +150,253 @@ void DrawSelectedItemsTooltip(const std::vector<std::string>& items) {
 	ImGui::SetTooltip("%s", tooltip.c_str());
 }
 
-[[nodiscard]] const RegisteredComponentEditor* FindComponentEditor(
-	const RegisteredComponent& component
-) {
-	return ComponentEditorRegistry::Find(component.type_id);
-}
+[[nodiscard]] std::string ComponentLabel(const RegisteredComponent& component) {
+	std::string_view name{ component.name };
+	const auto separator{ name.rfind("::") };
 
-[[nodiscard]] ResolvedComponentEditorOptions ResolveComponentEditor(
-	const RegisteredComponent& component
-) {
-	const auto* editor{ FindComponentEditor(component) };
-	if (!editor) {
-		return ResolvedComponentEditorOptions{
-			.label = std::string{ component.name },
-			.group = component.is_empty ? std::string{ kTagComponentGroup } : std::string{},
-		};
+	if (separator != std::string_view::npos) {
+		name.remove_prefix(separator + 2);
 	}
-	return ComponentEditorRegistry::Resolve(component, *editor);
+
+	return inspector::PrettyName(name);
 }
 
-[[nodiscard]] bool HasComponentJsonEditor(const RegisteredComponent& component) {
-	const auto* editor{ FindComponentEditor(component) };
-	return editor && editor->draw_json;
+template <typename Predicate>
+[[nodiscard]] std::vector<const RegisteredComponent*> GetSortedComponents(Predicate&& predicate) {
+	std::vector<const RegisteredComponent*> result;
+
+	for (const auto& component : ComponentRegistry::Components()) {
+		if (std::invoke(predicate, component)) {
+			result.push_back(std::addressof(component));
+		}
+	}
+
+	std::ranges::sort(result, [](const auto* lhs, const auto* rhs) {
+		return ComponentLabel(*lhs) < ComponentLabel(*rhs);
+	});
+
+	return result;
+}
+
+[[nodiscard]] bool CanAddComponentDefinition(const RegisteredComponent& component) {
+	return component.is_empty || component.make_default_json != nullptr;
+}
+
+bool NormalizeJsonAgainstDefaults(json& value, const json& defaults) {
+	const json previous = value;
+
+	if (value.is_null()) {
+		value = defaults;
+	} else if (value.is_object() && defaults.is_object()) {
+		json normalized = defaults;
+		normalized.update(value, true);
+		value = std::move(normalized);
+	}
+
+	return value != previous;
+}
+
+bool DrawJsonValue(
+	std::string_view label,
+	json& value,
+	const json* defaults = nullptr
+);
+
+bool DrawJsonObject(json& value, const json* defaults) {
+	bool changed{ false };
+
+	for (auto it{ value.begin() }; it != value.end(); ++it) {
+		const json* member_defaults{ nullptr };
+
+		if (defaults && defaults->is_object()) {
+			const auto default_it{ defaults->find(it.key()) };
+			if (default_it != defaults->end()) {
+				member_defaults = std::addressof(*default_it);
+			}
+		}
+
+		changed |= DrawJsonValue(
+			inspector::PrettyName(it.key()),
+			it.value(),
+			member_defaults
+		);
+	}
+
+	return changed;
+}
+
+bool DrawJsonArray(
+	std::string_view label,
+	json& value,
+	const json* defaults
+) {
+	const std::string title{
+		std::string{ label } + " [" + std::to_string(value.size()) + "]"
+	};
+
+	if (!ImGui::TreeNodeEx(title.c_str(), ImGuiTreeNodeFlags_SpanAvailWidth)) {
+		return false;
+	}
+
+	bool changed{ false };
+
+	for (std::size_t i{ 0 }; i < value.size(); ++i) {
+		ImGui::PushID(static_cast<int>(i));
+
+		const json* item_defaults{ nullptr };
+		if (defaults && defaults->is_array() && i < defaults->size()) {
+			item_defaults = std::addressof((*defaults)[i]);
+		}
+
+		changed |= DrawJsonValue(
+			"Item " + std::to_string(i + 1),
+			value[i],
+			item_defaults
+		);
+
+		ImGui::PopID();
+	}
+
+	if (value.empty()) {
+		ImGui::TextDisabled("No items");
+	}
+
+	ImGui::TreePop();
+	return changed;
+}
+
+bool DrawJsonValue(
+	std::string_view label,
+	json& value,
+	const json* defaults
+) {
+	if (defaults) {
+		NormalizeJsonAgainstDefaults(value, *defaults);
+	}
+
+	if (value.is_boolean()) {
+		bool temporary{ value.get<bool>() };
+		const bool changed{ inspector::DrawPropertyRow(label, [&]() {
+			return ImGui::Checkbox("##Value", &temporary);
+		}) };
+
+		if (changed) {
+			value = temporary;
+		}
+		return changed;
+	}
+
+	if (value.is_number_unsigned()) {
+		std::uint64_t temporary{ value.get<std::uint64_t>() };
+		const bool changed{ inspector::DrawPropertyRow(label, [&]() {
+			return ImGui::DragScalar(
+				"##Value",
+				ImGuiDataType_U64,
+				&temporary,
+				1.0f
+			);
+		}) };
+
+		if (changed) {
+			value = temporary;
+		}
+		return changed;
+	}
+
+	if (value.is_number_integer()) {
+		std::int64_t temporary{ value.get<std::int64_t>() };
+		const bool changed{ inspector::DrawPropertyRow(label, [&]() {
+			return ImGui::DragScalar(
+				"##Value",
+				ImGuiDataType_S64,
+				&temporary,
+				1.0f
+			);
+		}) };
+
+		if (changed) {
+			value = temporary;
+		}
+		return changed;
+	}
+
+	if (value.is_number_float()) {
+		double temporary{ value.get<double>() };
+		const bool changed{ inspector::DrawPropertyRow(label, [&]() {
+			return ImGui::DragScalar(
+				"##Value",
+				ImGuiDataType_Double,
+				&temporary,
+				0.1f,
+				nullptr,
+				nullptr,
+				"%.6g"
+			);
+		}) };
+
+		if (changed) {
+			value = temporary;
+		}
+		return changed;
+	}
+
+	if (value.is_string()) {
+		std::string temporary{ value.get<std::string>() };
+		const bool changed{ inspector::DrawPropertyRow(label, [&]() {
+			return ImGui::InputText("##Value", &temporary);
+		}) };
+
+		if (changed) {
+			value = std::move(temporary);
+		}
+		return changed;
+	}
+
+	if (value.is_object()) {
+		const std::string title{ label };
+		if (!ImGui::TreeNodeEx(title.c_str(), ImGuiTreeNodeFlags_SpanAvailWidth)) {
+			return false;
+		}
+
+		const bool changed{ DrawJsonObject(value, defaults) };
+		ImGui::TreePop();
+		return changed;
+	}
+
+	if (value.is_array()) {
+		return DrawJsonArray(label, value, defaults);
+	}
+
+	inspector::DrawPropertyRow(label, []() {
+		ImGui::TextDisabled("Null");
+		return false;
+	});
+	return false;
+}
+
+bool DrawRegisteredComponentJson(
+	const RegisteredComponent& component,
+	json& value
+) {
+	json defaults = json::object();
+
+	if (component.make_default_json) {
+		try {
+			defaults = component.make_default_json();
+		} catch (...) {
+			defaults = json::object();
+		}
+	}
+
+	bool changed{ NormalizeJsonAgainstDefaults(value, defaults) };
+
+	if (value.is_object()) {
+		changed |= DrawJsonObject(value, std::addressof(defaults));
+	} else {
+		changed |= DrawJsonValue("Value", value, std::addressof(defaults));
+	}
+
+	return changed;
 }
 
 template <typename T>
@@ -845,43 +1071,55 @@ bool DrawSetTextureInline(
 }
 
 bool DrawSetEnabledInline(ScriptEditorContext&, SetEnabledScript& script) {
-	std::vector<const RegisteredComponent*> components;
-	for (const auto& component : ComponentRegistry::Components()) {
-		if (IsEnabledComponent(component)) {
-			components.push_back(&component);
-		}
-	}
-	std::ranges::sort(components, [](const auto* a, const auto* b) {
-		return ResolveComponentEditor(*a).label < ResolveComponentEditor(*b).label;
-	});
+	auto components{ GetSortedComponents([](const RegisteredComponent& component) {
+		return IsEnabledComponent(component);
+	}) };
 
 	const float available{ ImGui::GetContentRegionAvail().x };
 	const float spacing{ ImGui::GetStyle().ItemSpacing.x };
-	const float value_width{ ImGui::CalcTextSize("Disabled").x +
-							 ImGui::GetStyle().FramePadding.x * 2.0f };
+	const float value_width{
+		ImGui::CalcTextSize("Disabled").x +
+		ImGui::GetStyle().FramePadding.x * 2.0f
+	};
+
 	bool changed{ false };
 	ImGui::SetNextItemWidth(std::max(1.0f, available - value_width - spacing));
+
 	const auto* selected{ ComponentRegistry::Find(script.component) };
-	const std::string preview{ selected ? ResolveComponentEditor(*selected).label
-										: script.component };
-	if (ImGui::BeginCombo("##EnabledComponent", preview.empty() ? "Component" : preview.c_str())) {
+	const std::string preview{
+		selected ? ComponentLabel(*selected) : script.component
+	};
+
+	if (ImGui::BeginCombo(
+			"##EnabledComponent",
+			preview.empty() ? "Component" : preview.c_str()
+		)) {
 		for (const auto* component : components) {
-			const auto options{ ResolveComponentEditor(*component) };
-			if (ImGui::Selectable(options.label.c_str(), script.component == component->name)) {
-				script.component = std::string{ component->name };
-				changed			 = true;
+			const std::string label{ ComponentLabel(*component) };
+
+			if (ImGui::Selectable(
+					label.c_str(),
+					script.component == component->name
+				)) {
+				script.component = component->name;
+				changed = true;
 			}
 		}
+
 		ImGui::EndCombo();
 	}
+
 	DrawItemTooltip("Registered component whose enabled value is changed.");
 	SameLineControl();
+
 	if (ImGui::Button(
-			script.enabled ? "Enabled" : "Disabled", ImVec2{ value_width, ImGui::GetFrameHeight() }
+			script.enabled ? "Enabled" : "Disabled",
+			ImVec2{ value_width, ImGui::GetFrameHeight() }
 		)) {
 		script.enabled = !script.enabled;
-		changed		   = true;
+		changed = true;
 	}
+
 	DrawItemTooltip("Toggle the value assigned by this action.");
 	return changed;
 }
@@ -1181,209 +1419,193 @@ bool DrawEmitSignalInline(ScriptEditorContext&, EmitSignalScript& script) {
 bool DrawAddComponentsInline(ScriptEditorContext&, AddComponentsScript& script) {
 	std::vector<std::string> selected_labels;
 	std::string preview;
+
 	for (const auto& definition : script.components) {
 		const auto* component{ ComponentRegistry::Find(definition.type) };
-		const std::string label{ component ? ResolveComponentEditor(*component).label
-										   : definition.type };
+		const std::string label{
+			component ? ComponentLabel(*component) : definition.type
+		};
+
 		selected_labels.push_back(label);
+
 		if (!preview.empty()) {
 			preview += ", ";
 		}
 		preview += label;
 	}
+
 	if (preview.empty()) {
 		preview = "None";
 	}
 
+	auto components{ GetSortedComponents([](const RegisteredComponent& component) {
+		return CanAddComponentDefinition(component);
+	}) };
+
 	bool changed{ false };
 	ImGui::SetNextItemWidth(-FLT_MIN);
-	if (ImGui::BeginCombo("##AddComponents", preview.c_str())) {
-		std::vector<std::string> groups;
-		for (const auto& component : ComponentRegistry::Components()) {
-			if (!component.make_default_json || !HasComponentJsonEditor(component)) {
-				continue;
-			}
-			auto options{ ResolveComponentEditor(component) };
-			if (!options.group.empty() && !std::ranges::contains(groups, options.group)) {
-				groups.push_back(options.group);
-			}
-		}
 
-		auto draw_component = [&](const RegisteredComponent& component) {
-			if (!component.make_default_json || !HasComponentJsonEditor(component)) {
-				return;
-			}
-			auto options{ ResolveComponentEditor(component) };
+	if (ImGui::BeginCombo("##AddComponents", preview.c_str())) {
+		for (const auto* component : components) {
 			bool selected{ std::ranges::any_of(
-				script.components, [&](const ComponentDefinition& definition) {
-					return definition.type == component.name;
+				script.components,
+				[component](const ComponentDefinition& definition) {
+					return definition.type == component->name;
 				}
 			) };
-			if (ImGui::Checkbox(options.label.c_str(), &selected)) {
+
+			const std::string label{ ComponentLabel(*component) };
+
+			if (ImGui::Checkbox(label.c_str(), &selected)) {
 				if (selected) {
-					script.components.push_back(MakeComponentDefinition(component));
+					script.components.push_back(MakeComponentDefinition(*component));
 				} else {
-					std::erase_if(script.components, [&](const ComponentDefinition& definition) {
-						return definition.type == component.name;
-					});
+					std::erase_if(
+						script.components,
+						[component](const ComponentDefinition& definition) {
+							return definition.type == component->name;
+						}
+					);
 				}
+
 				changed = true;
 			}
+
 			if (ImGui::IsItemHovered()) {
-				if (component.is_empty) {
+				if (component->is_empty) {
 					ImGui::SetTooltip("Tag component");
 				} else {
 					ImGui::SetTooltip(
-						"%.*s", static_cast<int>(component.name.size()), component.name.data()
+						"%s",
+						component->name.c_str()
 					);
 				}
 			}
-		};
+		}
 
-		for (const auto& component : ComponentRegistry::Components()) {
-			if (component.make_default_json && HasComponentJsonEditor(component) &&
-				ResolveComponentEditor(component).group.empty()) {
-				draw_component(component);
-			}
-		}
-		for (const auto& group : groups) {
-			if (!ImGui::BeginMenu(group.c_str())) {
-				continue;
-			}
-			for (const auto& component : ComponentRegistry::Components()) {
-				if (component.make_default_json && HasComponentJsonEditor(component) &&
-					ResolveComponentEditor(component).group == group) {
-					draw_component(component);
-				}
-			}
-			ImGui::EndMenu();
-		}
 		ImGui::EndCombo();
 	}
+
 	DrawSelectedItemsTooltip(selected_labels);
 	return changed;
 }
 
-bool DrawAddComponentsDetails(ScriptEditorContext& context, AddComponentsScript& script) {
+bool DrawAddComponentsDetails(ScriptEditorContext&, AddComponentsScript& script) {
 	bool changed{ false };
 	int remove{ -1 };
+
 	for (int i{ 0 }; i < static_cast<int>(script.components.size()); ++i) {
 		auto& definition{ script.components[static_cast<std::size_t>(i)] };
 		const auto* component{ ComponentRegistry::Find(definition.type) };
-		const std::string label{ component ? ResolveComponentEditor(*component).label
-										   : definition.type };
+		const std::string label{
+			component ? ComponentLabel(*component) : definition.type
+		};
+
 		ImGui::PushID(i);
-		if (ImGui::BeginTable("ComponentTitle", 2, ImGuiTableFlags_SizingStretchProp)) {
+
+		if (ImGui::BeginTable(
+				"ComponentTitle",
+				2,
+				ImGuiTableFlags_SizingStretchProp
+			)) {
 			ImGui::TableSetupColumn("Title", ImGuiTableColumnFlags_WidthStretch);
 			ImGui::TableSetupColumn(
-				"Remove", ImGuiTableColumnFlags_WidthFixed, ImGui::GetFrameHeight()
+				"Remove",
+				ImGuiTableColumnFlags_WidthFixed,
+				ImGui::GetFrameHeight()
 			);
 			ImGui::TableNextRow(ImGuiTableRowFlags_None, ImGui::GetFrameHeight());
 			ImGui::TableSetColumnIndex(0);
 			ImGui::SeparatorText(label.c_str());
+
 			if (component && component->is_empty) {
 				DrawItemTooltip("Tag component");
 			}
+
 			ImGui::TableSetColumnIndex(1);
-			if (ImGui::Button("x", ImVec2{ ImGui::GetFrameHeight(), ImGui::GetFrameHeight() })) {
+			if (ImGui::Button(
+					"x",
+					ImVec2{ ImGui::GetFrameHeight(), ImGui::GetFrameHeight() }
+				)) {
 				remove = i;
 			}
+
 			ImGui::EndTable();
 		}
 
 		if (component && !component->is_empty) {
-			if (definition.value.is_null() && component->make_default_json) {
-				definition.value = component->make_default_json();
-			}
-			if (definition.value.is_null()) {
-				definition.value = json::object();
-			}
-			if (ComponentEditorRegistry::DrawJson(context.ctx, *component, definition.value)) {
+			if (DrawRegisteredComponentJson(*component, definition.value)) {
 				definition.apply_live = {};
-				changed				  = true;
+				changed = true;
 			}
 		}
+
 		ImGui::PopID();
 	}
+
 	if (remove >= 0) {
 		script.components.erase(script.components.begin() + remove);
 		changed = true;
 	}
+
 	return changed;
 }
 
 bool DrawRemoveComponentsInline(ScriptEditorContext&, RemoveComponentsScript& script) {
 	std::vector<std::string> selected_labels;
 	std::string preview;
+
 	for (const auto& name : script.components) {
 		const auto* component{ ComponentRegistry::Find(name) };
-		const std::string label{ component ? ResolveComponentEditor(*component).label : name };
+		const std::string label{
+			component ? ComponentLabel(*component) : name
+		};
+
 		selected_labels.push_back(label);
+
 		if (!preview.empty()) {
 			preview += ", ";
 		}
 		preview += label;
 	}
+
 	if (preview.empty()) {
 		preview = "None";
 	}
 
+	auto components{ GetSortedComponents([](const RegisteredComponent& component) {
+		return component.remove != nullptr;
+	}) };
+
 	bool changed{ false };
 	ImGui::SetNextItemWidth(-FLT_MIN);
-	if (ImGui::BeginCombo("##RemoveComponents", preview.c_str())) {
-		std::vector<std::string> groups;
-		for (const auto& component : ComponentRegistry::Components()) {
-			if (!FindComponentEditor(component)) {
-				continue;
-			}
-			auto options{ ResolveComponentEditor(component) };
-			if (!options.group.empty() && !std::ranges::contains(groups, options.group)) {
-				groups.push_back(options.group);
-			}
-		}
 
-		auto draw_component = [&](const RegisteredComponent& component) {
-			if (!FindComponentEditor(component)) {
-				return;
-			}
-			auto options{ ResolveComponentEditor(component) };
+	if (ImGui::BeginCombo("##RemoveComponents", preview.c_str())) {
+		for (const auto* component : components) {
 			bool selected{
-				std::ranges::contains(script.components, std::string{ component.name })
+				std::ranges::contains(script.components, component->name)
 			};
-			if (ImGui::Checkbox(options.label.c_str(), &selected)) {
+
+			const std::string label{ ComponentLabel(*component) };
+
+			if (ImGui::Checkbox(label.c_str(), &selected)) {
 				if (selected) {
-					script.components.emplace_back(component.name);
+					script.components.push_back(component->name);
 				} else {
-					std::erase(script.components, std::string{ component.name });
+					std::erase(script.components, component->name);
 				}
+
 				changed = true;
 			}
-			if (ImGui::IsItemHovered()) {
-				ImGui::SetTooltip(
-					"%.*s", static_cast<int>(component.name.size()), component.name.data()
-				);
-			}
-		};
 
-		for (const auto& component : ComponentRegistry::Components()) {
-			if (FindComponentEditor(component) && ResolveComponentEditor(component).group.empty()) {
-				draw_component(component);
+			if (ImGui::IsItemHovered()) {
+				ImGui::SetTooltip("%s", component->name.c_str());
 			}
 		}
-		for (const auto& group : groups) {
-			if (!ImGui::BeginMenu(group.c_str())) {
-				continue;
-			}
-			for (const auto& component : ComponentRegistry::Components()) {
-				if (FindComponentEditor(component) &&
-					ResolveComponentEditor(component).group == group) {
-					draw_component(component);
-				}
-			}
-			ImGui::EndMenu();
-		}
+
 		ImGui::EndCombo();
 	}
+
 	DrawSelectedItemsTooltip(selected_labels);
 	return changed;
 }
