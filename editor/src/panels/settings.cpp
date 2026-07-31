@@ -500,6 +500,17 @@ void EditorSettingsPanel::OnRender(
 		"Local orientation rotates the translate and scale axes with the entity."
 	);
 
+	ImGui::Spacing();
+
+	ImGui::Checkbox(
+		"Show Read-Only Inspector Data",
+		&ctx.local.settings.show_read_only_inspector_data
+	);
+
+	ImGui::TextDisabled(
+		"Shows read-only components and reflected read-only component members."
+	);
+
 	ImGui::End();
 }
 
