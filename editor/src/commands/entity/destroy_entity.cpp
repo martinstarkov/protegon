@@ -1,25 +1,41 @@
 #include "commands/entity/destroy_entity.h"
 
-#include "core/assert.h"
-#include "runtime/ecs/entity.h"
+#include <utility>
+
+#include "core/editor_context.h"
 #include "runtime/scene/scene.h"
 
 namespace ptgn::editor {
 
-DeleteEntityCommand::DeleteEntityCommand(Scene* scene, Entity entity) :
-	scene_{ scene }, entity_{ entity } {}
-
-void DeleteEntityCommand::Execute() {
-	PTGN_ASSERT(scene_);
-	// TODO: Fix entity component serialization.
-	// backup_ = scene_->SerializeEntity(entity_);
-	entity_.Destroy();
-}
+DeleteEntityCommand::DeleteEntityCommand(
+	EditorContext& ctx,
+	EntityReference entity,
+	EntitySnapshot snapshot,
+	EditorSelection before_selection,
+	EditorSelection after_selection
+) :
+	ctx_{ &ctx },
+	entity_{ std::move(entity) },
+	snapshot_{ std::move(snapshot) },
+	before_selection_{ std::move(before_selection) },
+	after_selection_{ std::move(after_selection) } {}
 
 void DeleteEntityCommand::Undo() {
-	PTGN_ASSERT(scene_);
-	// TODO: Fix entity component deserialization.
-	// entity_ = scene_->DeserializeEntity(backup_);
+	if (auto* scene{ entity_.ResolveScene(ctx_->editor) }) {
+		(void)RestoreEntitySnapshot(*scene, snapshot_);
+	}
+	ApplyEditorSelection(*ctx_, before_selection_);
+}
+
+void DeleteEntityCommand::Redo() {
+	if (auto* scene{ entity_.ResolveScene(ctx_->editor) }) {
+		DestroyEntitySnapshot(*scene, snapshot_);
+	}
+	ApplyEditorSelection(*ctx_, after_selection_);
+}
+
+std::string_view DeleteEntityCommand::Label() const {
+	return "Delete Entity";
 }
 
 } // namespace ptgn::editor

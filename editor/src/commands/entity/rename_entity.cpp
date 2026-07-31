@@ -1,33 +1,39 @@
 #include "commands/entity/rename_entity.h"
 
-#include <string>
-#include <string_view>
 #include <utility>
 
-#include "runtime/ecs/entity.h"
+#include "core/editor.h"
+#include "runtime/ecs/tag.h"
 
 namespace ptgn::editor {
 
-RenameEntityCommand::RenameEntityCommand(Entity entity, std::string_view new_name) :
-	entity_{ entity }, new_name_{ new_name } {}
-
-void RenameEntityCommand::Execute() {
-	if (!entity_) {
-		return;
-	}
-
-	// TODO: Use actual name component.
-	old_name_ = entity_.Get<std::string>();
-	entity_.Add<std::string>(new_name_);
-}
+RenameEntityCommand::RenameEntityCommand(
+	Editor& editor,
+	EntityReference entity,
+	std::string before,
+	std::string after
+) :
+	editor_{ &editor },
+	entity_{ std::move(entity) },
+	before_{ std::move(before) },
+	after_{ std::move(after) } {}
 
 void RenameEntityCommand::Undo() {
-	if (!entity_) {
-		return;
-	}
+	Apply(before_);
+}
 
-	// TODO: Use actual name component.
-	entity_.Add<std::string>(old_name_);
+void RenameEntityCommand::Redo() {
+	Apply(after_);
+}
+
+std::string_view RenameEntityCommand::Label() const {
+	return "Rename Entity";
+}
+
+void RenameEntityCommand::Apply(const std::string& name) const {
+	if (Entity entity{ entity_.Resolve(*editor_) }) {
+		entity.Get<Tag>().value = name;
+	}
 }
 
 } // namespace ptgn::editor

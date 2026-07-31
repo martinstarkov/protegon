@@ -1,32 +1,37 @@
 #pragma once
 
 #include <string>
-#include <string_view>
 
 #include "commands/editor_command.h"
-#include "runtime/ecs/entity.h"
+#include "commands/entity/entity_reference.h"
+#include "commands/entity/entity_snapshot.h"
+#include "core/editor_selection.h"
 
-namespace ptgn {
+namespace ptgn::editor {
 
-class Scene;
+class EditorContext;
 
-namespace editor {
-
-class CreateEntityCommand : public EditorCommand {
+class CreateEntityCommand final : public EditorCommand {
 public:
-	CreateEntityCommand(Scene* scene, std::string_view name);
+	CreateEntityCommand(
+		EditorContext& ctx,
+		EntityReference entity,
+		EntitySnapshot snapshot,
+		EditorSelection before_selection,
+		EditorSelection after_selection
+	);
 
-	void Execute() override;
 	void Undo() override;
+	void Redo() override;
 
-	Entity GetEntity() const;
+	[[nodiscard]] std::string_view Label() const override;
 
 private:
-	Scene* scene_{ nullptr };
-	std::string name_;
-	Entity entity_;
+	EditorContext* ctx_{ nullptr };
+	EntityReference entity_;
+	EntitySnapshot snapshot_;
+	EditorSelection before_selection_;
+	EditorSelection after_selection_;
 };
 
-} // namespace editor
-
-} // namespace ptgn
+} // namespace ptgn::editor

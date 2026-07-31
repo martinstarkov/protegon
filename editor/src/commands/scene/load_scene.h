@@ -3,29 +3,35 @@
 #include <string>
 
 #include "commands/editor_command.h"
-#include "core/util/file.h"
-#include "serialization/json/json.h"
+#include "runtime/scene/scene_file.h"
 
-namespace ptgn {
+namespace ptgn::editor {
 
-class Scene;
+class EditorContext;
 
-namespace editor {
-
-class LoadSceneCommand : public EditorCommand {
+class LoadSceneCommand final : public EditorCommand {
 public:
-	LoadSceneCommand(Scene* scene, path path);
+	LoadSceneCommand(
+		EditorContext& ctx,
+		std::string scene_key,
+		bool runtime,
+		SerializedScene before,
+		SerializedScene after
+	);
 
-	void Execute() override;
 	void Undo() override;
+	void Redo() override;
+
+	[[nodiscard]] std::string_view Label() const override;
 
 private:
-	Scene* scene_ = nullptr;
-	path path_;
+	void Apply(const SerializedScene& scene) const;
 
-	json previous_scene_data_; // serialized backup
+	EditorContext* ctx_{ nullptr };
+	std::string scene_key_;
+	bool runtime_{ false };
+	SerializedScene before_;
+	SerializedScene after_;
 };
 
-} // namespace editor
-
-} // namespace ptgn
+} // namespace ptgn::editor

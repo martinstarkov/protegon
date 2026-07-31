@@ -1,73 +1,246 @@
 #include "commands/editor_commands.h"
 
 #include <memory>
+#include <optional>
 #include <string>
 #include <string_view>
 #include <utility>
 
+#include "commands/editor_command.h"
 #include "commands/entity/create_entity.h"
 #include "commands/entity/destroy_entity.h"
+#include "commands/entity/entity_reference.h"
+#include "commands/entity/entity_snapshot.h"
 #include "commands/entity/rename_entity.h"
 #include "commands/entity/reparent_entity.h"
 #include "commands/scene/load_scene.h"
-#include "commands/scene/save_scene.h"
-#include "commands/undo_stack.h"
 #include "core/assert.h"
-#include "core/editor_state.h"
-#include "core/util/file.h"
+#include "core/editor.h"
+#include "core/editor_context.h"
 #include "panels/scene_list.h"
-#include "runtime/ecs/entity.h"
+#include "runtime/ecs/entity_hierarchy.h"
+#include "runtime/ecs/tag.h"
+#include "runtime/scene/scene.h"
+#include "runtime/scene/scene_file.h"
+#include "runtime/scene/scene_manager.h"
 
 namespace ptgn::editor {
 
-EditorCommands::EditorCommands(UndoStack* undo_stack, SceneListPanel* scene_list) :
-	scene_list_{ scene_list }, undo_stack_{ undo_stack } {}
+namespace {
+
+bool SnapshotContains(const EntitySnapshot& snapshot, UUID uuid) {
+	if (snapshot.uuid == uuid) {
+		return true;
+	}
+
+	for (const auto& child : snapshot.children) {
+		if (SnapshotContains(child, uuid)) {
+			return true;
+		}
+	}
+
+	return false;
+}
+
+EditorSelection SelectEntity(EditorSelection selection, Entity entity) {
+	auto& scene{ entity.GetScene() };
+	selection.selected_scene_key = scene.GetTag();
+	selection.selected_scene_runtime = scene.IsRuntime();
+	selection.SetEntityUUID(scene.GetTag(), scene.IsRuntime(), entity.Get<UUID>());
+	selection.mode = EditorSelectionMode::SceneHierarchy;
+	return selection;
+}
+
+std::optional<EntityReference> ParentReference(Entity entity) {
+	return HasParent(entity)
+		? std::optional<EntityReference>{ MakeEntityReference(GetParent(entity)) }
+		: std::nullopt;
+}
+
+void ApplyParent(Entity child, Entity parent, bool preserve_world_transform) {
+	std::optional<Transform> world_transform;
+	if (preserve_world_transform && child.Has<Transform>()) {
+		world_transform = GetWorldTransform(child);
+	}
+
+	if (parent) {
+		SetParent(child, parent);
+	} else if (HasParent(child)) {
+		RemoveParent(child);
+	}
+
+	if (world_transform) {
+		SetWorldTransform(child, *world_transform);
+	}
+}
+
+} // namespace
+
+EditorCommands::EditorCommands(EditorContext* context) : context_{ context } {
+	if (context_) {
+		editor_ = &context_->editor;
+		undo_stack_ = &context_->undo;
+	}
+}
+
+void EditorCommands::Bind(EditorContext& context) {
+	context_ = &context;
+	editor_ = &context.editor;
+	undo_stack_ = &context.undo;
+}
 
 Entity EditorCommands::CreateEntity(std::string_view name) {
-	PTGN_ASSERT(scene_list_);
-	PTGN_ASSERT(undo_stack_);
-	auto command = std::make_unique<CreateEntityCommand>(scene_list_->GetSelectedScene(), name);
+	PTGN_ASSERT(context_);
 
-	auto raw{ command.get() };
+	Scene* scene{ ResolveSelectedScene(*context_) };
+	if (!scene) {
+		return {};
+	}
 
-	undo_stack_->Execute(std::move(command));
+	const EditorSelection before{ context_->local.selection };
+	Entity entity{ scene->CreateEntity(Tag{ std::string{ name } }) };
+	scene->Refresh();
+	return RecordCreatedEntity(entity, before);
+}
 
-	PTGN_ASSERT(raw);
+Entity EditorCommands::RecordCreatedEntity(
+	Entity entity,
+	EditorSelection before_selection
+) {
+	PTGN_ASSERT(context_);
 
-	return raw->GetEntity();
+	if (!entity) {
+		return {};
+	}
+
+	auto reference{ MakeEntityReference(entity) };
+	auto snapshot{ CaptureEntitySnapshot(entity) };
+	auto after_selection{ SelectEntity(before_selection, entity) };
+
+	ApplyEditorSelection(*context_, after_selection);
+
+	context_->undo.PushApplied(std::make_unique<CreateEntityCommand>(
+		*context_,
+		reference,
+		std::move(snapshot),
+		std::move(before_selection),
+		std::move(after_selection)
+	));
+
+	return reference.Resolve(context_->editor);
 }
 
 void EditorCommands::DeleteEntity(Entity entity) {
-	PTGN_ASSERT(scene_list_);
-	PTGN_ASSERT(undo_stack_);
-	undo_stack_->Execute(
-		std::make_unique<DeleteEntityCommand>(scene_list_->GetSelectedScene(), entity)
-	);
-}
+	PTGN_ASSERT(context_);
 
-void EditorCommands::SaveScene(const path& path) {
-	PTGN_ASSERT(scene_list_);
-	// Do NOT push to undo stack
-	SaveSceneCommand command{ scene_list_->GetSelectedScene(), path };
-	command.Execute();
-}
+	if (!entity) {
+		return;
+	}
 
-void EditorCommands::LoadScene(const path& path) {
-	PTGN_ASSERT(scene_list_);
-	PTGN_ASSERT(undo_stack_);
-	undo_stack_->Execute(std::make_unique<LoadSceneCommand>(scene_list_->GetSelectedScene(), path));
+	auto reference{ MakeEntityReference(entity) };
+	auto snapshot{ CaptureEntitySnapshot(entity) };
+	const EditorSelection before{ context_->local.selection };
+	EditorSelection after{ before };
+
+	const auto selected_uuid{ before.GetEntityUUID(reference.scene_key, reference.runtime) };
+	if (selected_uuid && SnapshotContains(snapshot, *selected_uuid)) {
+		after.SetEntityUUID(reference.scene_key, reference.runtime, std::nullopt);
+	}
+
+	context_->undo.Execute(std::make_unique<DeleteEntityCommand>(
+		*context_,
+		std::move(reference),
+		std::move(snapshot),
+		before,
+		std::move(after)
+	));
 }
 
 void EditorCommands::RenameEntity(Entity entity, std::string_view new_name) {
-	PTGN_ASSERT(undo_stack_);
-	undo_stack_->Execute(std::make_unique<RenameEntityCommand>(entity, new_name));
+	PTGN_ASSERT(context_);
+
+	if (!entity || !entity.Has<Tag>()) {
+		return;
+	}
+
+	const std::string before{ entity.Get<Tag>().value };
+	const std::string after{ new_name };
+	if (before == after) {
+		return;
+	}
+
+	context_->undo.Execute(std::make_unique<RenameEntityCommand>(
+		context_->editor,
+		MakeEntityReference(entity),
+		before,
+		after
+	));
 }
 
-void EditorCommands::ReparentEntity(Entity child, Entity new_parent, bool ignore_parent_transform) {
-	PTGN_ASSERT(undo_stack_);
-	undo_stack_->Execute(
-		std::make_unique<ReparentEntityCommand>(child, new_parent, ignore_parent_transform)
-	);
+void EditorCommands::ReparentEntity(
+	Entity child,
+	Entity new_parent,
+	bool preserve_world_transform
+) {
+	PTGN_ASSERT(context_);
+
+	if (!child || (new_parent && &child.GetScene() != &new_parent.GetScene())) {
+		return;
+	}
+
+	const auto before_parent{ ParentReference(child) };
+	const std::optional<Transform> before_transform{
+		child.Has<Transform>()
+			? std::optional<Transform>{ child.Get<Transform>() }
+			: std::nullopt
+	};
+
+	ApplyParent(child, new_parent, preserve_world_transform);
+
+	const auto after_parent{ ParentReference(child) };
+	const std::optional<Transform> after_transform{
+		child.Has<Transform>()
+			? std::optional<Transform>{ child.Get<Transform>() }
+			: std::nullopt
+	};
+
+	if (before_parent == after_parent && before_transform == after_transform) {
+		return;
+	}
+
+	context_->undo.PushApplied(std::make_unique<ReparentEntityCommand>(
+		context_->editor,
+		MakeEntityReference(child),
+		before_parent,
+		after_parent,
+		before_transform,
+		after_transform
+	));
+}
+
+void EditorCommands::SaveScene(const path& path) {
+	PTGN_ASSERT(context_);
+
+	if (Scene* scene{ ResolveSelectedScene(*context_) }) {
+		SaveSceneFile(path, CaptureScene(*scene));
+	}
+}
+
+void EditorCommands::LoadScene(const path& path) {
+	PTGN_ASSERT(context_);
+
+	Scene* scene{ ResolveSelectedScene(*context_) };
+	if (!scene) {
+		return;
+	}
+
+	context_->undo.Execute(std::make_unique<LoadSceneCommand>(
+		*context_,
+		scene->GetTag(),
+		scene->IsRuntime(),
+		CaptureScene(*scene),
+		LoadSceneFile(path)
+	));
 }
 
 } // namespace ptgn::editor

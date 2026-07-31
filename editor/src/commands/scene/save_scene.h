@@ -1,8 +1,5 @@
 #pragma once
 
-#include <string>
-
-#include "commands/editor_command.h"
 #include "core/util/file.h"
 
 namespace ptgn {
@@ -11,16 +8,14 @@ class Scene;
 
 namespace editor {
 
-class SaveSceneCommand : public EditorCommand {
+class SaveSceneCommand {
 public:
-	SaveSceneCommand(Scene* scene, path path);
-
-	void Execute() override;
-	void Undo() override; // no-op
+	SaveSceneCommand(Scene* scene, path file_path);
+	void Execute();
 
 private:
 	Scene* scene_{ nullptr };
-	path path_;
+	path file_path_;
 };
 
 } // namespace editor

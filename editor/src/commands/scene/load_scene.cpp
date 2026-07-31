@@ -2,29 +2,53 @@
 
 #include <utility>
 
-#include "core/assert.h"
-#include "core/util/file.h"
-#include "runtime/scene/scene.h"
+#include "core/editor.h"
+#include "core/editor_context.h"
+#include "panels/scene_list.h"
+#include "runtime/scene/scene_manager.h"
 
 namespace ptgn::editor {
 
-LoadSceneCommand::LoadSceneCommand(Scene* scene, path path) :
-	scene_{ scene }, path_{ std::move(path) } {}
-
-void LoadSceneCommand::Execute() {
-	PTGN_ASSERT(scene_);
-	// TODO: Fix scene serialization to string.
-	// previous_scene_data_ = scene_->SerializeToString();
-
-	// TODO: Fix scene deserialization from file.
-	// Load new scene
-	// scene_->DeserializeFromFile(path_);
-}
+LoadSceneCommand::LoadSceneCommand(
+	EditorContext& ctx,
+	std::string scene_key,
+	bool runtime,
+	SerializedScene before,
+	SerializedScene after
+) :
+	ctx_{ &ctx },
+	scene_key_{ std::move(scene_key) },
+	runtime_{ runtime },
+	before_{ std::move(before) },
+	after_{ std::move(after) } {}
 
 void LoadSceneCommand::Undo() {
-	PTGN_ASSERT(scene_);
-	// TODO: Fix scene deserialization from string.
-	// scene_->DeserializeFromString(previous_scene_data_);
+	Apply(before_);
+}
+
+void LoadSceneCommand::Redo() {
+	Apply(after_);
+}
+
+std::string_view LoadSceneCommand::Label() const {
+	return "Load Scene";
+}
+
+void LoadSceneCommand::Apply(const SerializedScene& scene) const {
+	auto& manager{ ctx_->editor.GetSceneManager() };
+	if (!manager.ReEnterFactory(
+			scene_key_,
+			impl::MakeSceneFactory(scene, runtime_)
+		)) {
+		return;
+	}
+
+	ctx_->editor.GetSceneListPanel().QueueSceneSelection(
+		*ctx_,
+		scene_key_,
+		runtime_,
+		ctx_->local.selection.GetEntityUUID(scene_key_, runtime_)
+	);
 }
 
 } // namespace ptgn::editor

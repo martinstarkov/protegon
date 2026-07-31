@@ -1,24 +1,35 @@
 #pragma once
 
 #include <string>
-#include <string_view>
 
 #include "commands/editor_command.h"
-#include "runtime/ecs/entity.h"
+#include "commands/entity/entity_reference.h"
 
 namespace ptgn::editor {
 
-class RenameEntityCommand : public EditorCommand {
-public:
-	RenameEntityCommand(Entity entity, std::string_view new_name);
+class Editor;
 
-	void Execute() override;
+class RenameEntityCommand final : public EditorCommand {
+public:
+	RenameEntityCommand(
+		Editor& editor,
+		EntityReference entity,
+		std::string before,
+		std::string after
+	);
+
 	void Undo() override;
+	void Redo() override;
+
+	[[nodiscard]] std::string_view Label() const override;
 
 private:
-	Entity entity_;
-	std::string new_name_;
-	std::string old_name_;
+	void Apply(const std::string& name) const;
+
+	Editor* editor_{ nullptr };
+	EntityReference entity_;
+	std::string before_;
+	std::string after_;
 };
 
 } // namespace ptgn::editor

@@ -1,28 +1,37 @@
 #pragma once
 
+#include <string>
+
 #include "commands/editor_command.h"
-#include "runtime/ecs/entity.h"
-#include "serialization/json/json.h"
+#include "commands/entity/entity_reference.h"
+#include "commands/entity/entity_snapshot.h"
+#include "core/editor_selection.h"
 
-namespace ptgn {
+namespace ptgn::editor {
 
-class Scene;
+class EditorContext;
 
-namespace editor {
-
-class DeleteEntityCommand : public EditorCommand {
+class DeleteEntityCommand final : public EditorCommand {
 public:
-	DeleteEntityCommand(Scene* scene, Entity entity);
+	DeleteEntityCommand(
+		EditorContext& ctx,
+		EntityReference entity,
+		EntitySnapshot snapshot,
+		EditorSelection before_selection,
+		EditorSelection after_selection
+	);
 
-	void Execute() override;
 	void Undo() override;
+	void Redo() override;
+
+	[[nodiscard]] std::string_view Label() const override;
 
 private:
-	Scene* scene_{ nullptr };
-	Entity entity_;
-	json backup_ = json::object();
+	EditorContext* ctx_{ nullptr };
+	EntityReference entity_;
+	EntitySnapshot snapshot_;
+	EditorSelection before_selection_;
+	EditorSelection after_selection_;
 };
 
-} // namespace editor
-
-} // namespace ptgn
+} // namespace ptgn::editor

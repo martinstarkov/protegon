@@ -1,29 +1,27 @@
 #pragma once
 
-#include <concepts>
+#include <optional>
+#include <utility>
 
-#include "commands/editor_command.h"
-#include "runtime/ecs/entity.h"
+#include "commands/component/component_state_command.h"
 
 namespace ptgn::editor {
 
-template <std::copy_constructible T>
-class AddComponentCommand : public EditorCommand {
+template <typename T>
+class AddComponentCommand final : public ComponentStateCommand<T> {
 public:
-	AddComponentCommand(Entity entity, const T& component) :
-		entity_{ entity }, component_{ component } {}
-
-	void Execute() override {
-		entity_.Add<T>(component_);
-	}
-
-	void Undo() override {
-		entity_.Remove<T>();
-	}
-
-private:
-	Entity entity_;
-	T component_;
+	AddComponentCommand(
+		Editor& editor,
+		EntityReference entity,
+		T component
+	) :
+		ComponentStateCommand<T>{
+			editor,
+			std::move(entity),
+			std::nullopt,
+			std::optional<T>{ std::move(component) },
+			"Add Component"
+		} {}
 };
 
 } // namespace ptgn::editor

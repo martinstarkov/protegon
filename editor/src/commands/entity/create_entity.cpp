@@ -1,32 +1,41 @@
 #include "commands/entity/create_entity.h"
 
-#include <string>
-#include <string_view>
 #include <utility>
 
-#include "core/assert.h"
-#include "runtime/ecs/entity.h"
+#include "core/editor_context.h"
 #include "runtime/scene/scene.h"
 
 namespace ptgn::editor {
 
-CreateEntityCommand::CreateEntityCommand(Scene* scene, std::string_view name) :
-	scene_{ scene }, name_{ name } {}
-
-void CreateEntityCommand::Execute() {
-	PTGN_ASSERT(scene_);
-	entity_ = scene_->CreateEntity();
-	// TODO: Use actual name component.
-	entity_.Add<std::string>(name_);
-}
+CreateEntityCommand::CreateEntityCommand(
+	EditorContext& ctx,
+	EntityReference entity,
+	EntitySnapshot snapshot,
+	EditorSelection before_selection,
+	EditorSelection after_selection
+) :
+	ctx_{ &ctx },
+	entity_{ std::move(entity) },
+	snapshot_{ std::move(snapshot) },
+	before_selection_{ std::move(before_selection) },
+	after_selection_{ std::move(after_selection) } {}
 
 void CreateEntityCommand::Undo() {
-	PTGN_ASSERT(scene_);
-	entity_.Destroy();
+	if (auto* scene{ entity_.ResolveScene(ctx_->editor) }) {
+		DestroyEntitySnapshot(*scene, snapshot_);
+	}
+	ApplyEditorSelection(*ctx_, before_selection_);
 }
 
-Entity CreateEntityCommand::GetEntity() const {
-	return entity_;
+void CreateEntityCommand::Redo() {
+	if (auto* scene{ entity_.ResolveScene(ctx_->editor) }) {
+		(void)RestoreEntitySnapshot(*scene, snapshot_);
+	}
+	ApplyEditorSelection(*ctx_, after_selection_);
+}
+
+std::string_view CreateEntityCommand::Label() const {
+	return "Create Entity";
 }
 
 } // namespace ptgn::editor

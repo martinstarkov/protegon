@@ -1,27 +1,29 @@
 #pragma once
 
-#include "commands/editor_command.h"
+#include <optional>
+#include <string>
+#include <utility>
+
+#include "commands/component/component_state_command.h"
 
 namespace ptgn::editor {
 
 template <typename T>
-class SetComponentValueCommand : public EditorCommand {
+class SetComponentValueCommand final : public ComponentStateCommand<T> {
 public:
-	SetComponentValueCommand(T* target, const T& value) :
-		target_{ target }, new_value_{ value }, old_value_{ *target } {}
-
-	void Execute() override {
-		*target_ = new_value_;
-	}
-
-	void Undo() override {
-		*target_ = old_value_;
-	}
-
-private:
-	T* target_{ nullptr };
-	T new_value_;
-	T old_value_;
+	SetComponentValueCommand(
+		Editor& editor,
+		EntityReference entity,
+		std::optional<T> before,
+		T after
+	) :
+		ComponentStateCommand<T>{
+			editor,
+			std::move(entity),
+			std::move(before),
+			std::optional<T>{ std::move(after) },
+			"Set Component Value"
+		} {}
 };
 
 } // namespace ptgn::editor

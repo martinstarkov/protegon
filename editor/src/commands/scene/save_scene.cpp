@@ -2,23 +2,18 @@
 
 #include <utility>
 
-#include "core/assert.h"
-#include "core/util/file.h"
 #include "runtime/scene/scene.h"
+#include "runtime/scene/scene_file.h"
 
 namespace ptgn::editor {
 
-SaveSceneCommand::SaveSceneCommand(Scene* scene, path path) :
-	scene_{ scene }, path_{ std::move(path) } {}
+SaveSceneCommand::SaveSceneCommand(Scene* scene, path file_path) :
+	scene_{ scene }, file_path_{ std::move(file_path) } {}
 
 void SaveSceneCommand::Execute() {
-	PTGN_ASSERT(scene_);
-	// TODO: Fix scene serialization to file.
-	// scene_->SerializeToFile(path_);
-}
-
-void SaveSceneCommand::Undo() {
-	// Intentionally empty
+	if (scene_) {
+		SaveSceneFile(file_path_, CaptureScene(*scene_));
+	}
 }
 
 } // namespace ptgn::editor
