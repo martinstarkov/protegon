@@ -23,29 +23,25 @@ struct SceneEditorState {
 
 class SceneListPanel {
 public:
+	void Bind(EditorContext& ctx);
 	void OnRender(EditorContext& ctx);
 
 	[[nodiscard]] Scene* GetSelectedScene() const;
 
-	void SetSelectedScene(
-		EditorContext& ctx,
-		Scene* scene
-	);
+	void SetSelectedScene(EditorContext& ctx, Scene* scene, bool undoable = true);
 
-	/// @brief Clears current raw handles, then selects a deferred replacement scene.
+	/// Clears current selection and selects a deferred replacement scene later.
 	void QueueSceneSelection(
 		EditorContext& ctx,
 		std::string scene_key,
 		bool runtime,
-		std::optional<UUID> selected_entity_uuid =
-			std::nullopt
+		std::optional<UUID> selected_entity_uuid = std::nullopt
 	);
 
 	bool ResolvePendingSceneSelection(EditorContext& ctx);
+	void ClearInvalidSceneSelection(EditorContext& ctx);
+	void RefreshSelectedSceneState();
 
-	void ClearInvalidSceneSelection(
-		EditorContext& ctx
-	);
 private:
 	struct PendingSceneSelection {
 		std::string key;
@@ -55,11 +51,13 @@ private:
 	};
 
 	void DrawSceneDetails(EditorContext& ctx);
+	void RebuildSceneEditorState(Scene* scene);
 
-	Scene* selected_scene_{ nullptr };
+	EditorContext* context_{ nullptr };
 	std::optional<SceneEditorState> state_;
-	std::optional<PendingSceneSelection>
-		pending_scene_selection_;
+	std::optional<PendingSceneSelection> pending_scene_selection_;
+	std::optional<std::string> editing_display_name_scene_key_;
+	std::string display_name_edit_buffer_;
 	std::string key_error_;
 };
 

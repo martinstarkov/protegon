@@ -12,6 +12,7 @@
 #include <optional>
 #include <vector>
 
+#include "commands/entity/entity_reference.h"
 #include "core/assert.h"
 #include "core/editor.h"
 #include "core/editor_context.h"
@@ -1815,6 +1816,35 @@ void ViewportPanel::DrawSelectedEntityGizmo(
 		ApplyGizmoDeltaToButtonVisualTransforms(
 			selected_entity, applied_handle, local_transform_before, local_transform_after
 		);
+	}
+
+	const bool transform_changed{ local_transform_before != local_transform_after };
+	if (transform_changed) {
+		const auto reference{ MakeEntityReference(selected_entity) };
+		Editor* editor{ std::addressof(ctx.editor) };
+		auto apply = [editor, reference](Transform value) {
+			if (Entity entity{ reference.Resolve(*editor) }; entity && entity.Has<Transform>()) {
+				entity.Get<Transform>() = value;
+			}
+		};
+
+		ctx.undo.TrackInteraction(
+			selected_uuid,
+			"Edit Transform",
+			true,
+			gizmo_state_.active != GizmoHandle::None,
+			[apply, local_transform_before]() mutable {
+				apply(local_transform_before);
+			},
+			[apply, local_transform_after]() mutable {
+				apply(local_transform_after);
+			}
+		);
+	}
+
+	if (active_handle_before_update != GizmoHandle::None &&
+		gizmo_state_.active == GizmoHandle::None) {
+		ctx.undo.CommitActiveEdit();
 	}
 }
 

@@ -10,6 +10,7 @@
 #include <chrono>
 #include <cmath>
 #include <concepts>
+#include <cstddef>
 #include <cstdint>
 #include <functional>
 #include <magic_enum/magic_enum.hpp>
@@ -29,6 +30,8 @@
 #include "core/math/angle.h"
 #include "core/math/matrix4.h"
 #include "core/math/vector2.h"
+#include "core/math/vector3.h"
+#include "core/math/vector4.h"
 #include "core/util/time.h"
 #include "core/util/type_info.h"
 #include "panels/content_browser.h"
@@ -957,44 +960,88 @@ bool DrawEnumArrayEditor(EditorContext& ctx, std::array<T, N>& values) {
 	});
 }
 
-inline bool DrawVector(std::string_view label, V2_float& value, const FieldOptions& options) {
-	return DrawPropertyRow(label, [&]() {
-		float values[2]{ value.x, value.y };
-		float min{ static_cast<float>(options.min) };
-		float max{ static_cast<float>(options.max) };
+template <typename T>
+inline constexpr bool kInspectorVectorType =
+	std::same_as<T, V2_float> ||
+	std::same_as<T, V3_float> ||
+	std::same_as<T, V4_float> ||
+	std::same_as<T, V2_int> ||
+	std::same_as<T, V3_int> ||
+	std::same_as<T, V4_int>;
 
-		bool changed{ DrawDisabledIf(IsReadOnly(options), [&]() {
-			return ImGui::DragFloat2(
-				"##value", values, options.speed, HasBounds(options) ? min : 0.0f,
-				HasBounds(options) ? max : 0.0f, options.format ? options.format : "%.3f",
+template <typename T>
+	requires kInspectorVectorType<std::remove_cvref_t<T>>
+inline bool DrawVector(std::string_view label, T& value, const FieldOptions& options) {
+	using Vector = std::remove_cvref_t<T>;
+	using Scalar = std::remove_cvref_t<decltype(value.x)>;
+
+	constexpr int component_count{
+		requires(Vector vector) { vector.w; }
+			? 4
+			: requires(Vector vector) { vector.z; }
+				  ? 3
+				  : 2
+	};
+
+	return DrawPropertyRow(label, [&]() {
+		std::array<Scalar, static_cast<std::size_t>(component_count)> values{};
+		values[0] = value.x;
+		values[1] = value.y;
+
+		if constexpr (component_count >= 3) {
+			values[2] = value.z;
+		}
+		if constexpr (component_count >= 4) {
+			values[3] = value.w;
+		}
+
+		Scalar min{ static_cast<Scalar>(options.min) };
+		Scalar max{ static_cast<Scalar>(options.max) };
+		const void* min_value{ HasBounds(options) ? &min : nullptr };
+		const void* max_value{ HasBounds(options) ? &max : nullptr };
+
+		constexpr ImGuiDataType data_type{
+			std::same_as<Scalar, float>
+				? ImGuiDataType_Float
+				: ImGuiDataType_S32
+		};
+		const char* format{
+			options.format
+				? options.format
+				: std::same_as<Scalar, float>
+					  ? "%.3f"
+					  : "%d"
+		};
+
+		const bool changed{ DrawDisabledIf(IsReadOnly(options), [&]() {
+			return ImGui::DragScalarN(
+				"##value",
+				data_type,
+				values.data(),
+				component_count,
+				options.speed,
+				min_value,
+				max_value,
+				format,
 				options.flags
 			);
 		}) };
 
-		if (changed) {
-			value = { values[0], values[1] };
+		if (!changed) {
+			return false;
 		}
-		return changed;
-	});
-}
 
-inline bool DrawVector(std::string_view label, V2_int& value, const FieldOptions& options) {
-	return DrawPropertyRow(label, [&]() {
-		int values[2]{ value.x, value.y };
-		int min{ static_cast<int>(options.min) };
-		int max{ static_cast<int>(options.max) };
+		value.x = values[0];
+		value.y = values[1];
 
-		bool changed{ DrawDisabledIf(IsReadOnly(options), [&]() {
-			return ImGui::DragInt2(
-				"##value", values, options.speed, HasBounds(options) ? min : 0,
-				HasBounds(options) ? max : 0, options.format ? options.format : "%d", options.flags
-			);
-		}) };
-
-		if (changed) {
-			value = { values[0], values[1] };
+		if constexpr (component_count >= 3) {
+			value.z = values[2];
 		}
-		return changed;
+		if constexpr (component_count >= 4) {
+			value.w = values[3];
+		}
+
+		return true;
 	});
 }
 
@@ -1110,7 +1157,7 @@ inline bool DrawMatrix4(std::string_view label, Matrix4& value, const FieldOptio
 
 				if (ImGui::IsItemHovered()) {
 					ImGui::SetTooltip(
-						"Index %zu\nm(%zu, %zu)\nColumn major offset: row + column * 4",
+						"Index %zu\nm(%zu, %zu)\nColumn-major offset: row + column * 4",
 						row + column * 4uz, row, column
 					);
 				}
@@ -1298,6 +1345,7 @@ struct VectorOptions {
 	std::string item_name{ "Item" };
 	bool default_open{ true };
 	bool reorderable{ true };
+	std::size_t minimum_items{ 0 };
 };
 
 template <typename T, typename Draw>
@@ -1351,7 +1399,7 @@ bool DrawVectorEditorItems(std::vector<T>& values, VectorOptions options, Draw&&
 			ImGui::SameLine(0.0f, spacing);
 		}
 
-		ImGui::BeginDisabled(read_only);
+		ImGui::BeginDisabled(read_only || values.size() <= options.minimum_items);
 		if (ImGui::Button("X##remove", button_size)) {
 			remove_index = i;
 		}
@@ -2006,9 +2054,7 @@ bool DrawValue(EditorContext& ctx, std::string_view label, T& value, FieldOption
 		});
 	} else if constexpr (std::same_as<Value, Color>) {
 		return DrawColor(label, value);
-	} else if constexpr (std::same_as<Value, V2_float>) {
-		return DrawVector(label, value, options);
-	} else if constexpr (std::same_as<Value, V2_int>) {
+	} else if constexpr (kInspectorVectorType<Value>) {
 		return DrawVector(label, value, options);
 	} else if constexpr (std::same_as<Value, Degrees>) {
 		return DrawFloat(label, value.value, options);

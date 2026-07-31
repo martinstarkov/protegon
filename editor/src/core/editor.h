@@ -59,6 +59,7 @@ public:
 	::ptgn::impl::SceneManager& GetSceneManager();
 	const Renderer& GetRenderer() const;
 	Renderer& GetRenderer();
+	std::size_t GetMaxTextureSlots() const;
 
 	::ptgn::impl::TextureId GetPresentationTexture() const;
 	V2_int GetPresentationTextureSize() const;

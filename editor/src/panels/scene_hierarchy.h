@@ -4,6 +4,7 @@
 #include <optional>
 #include <string>
 
+#include "core/editor_selection.h"
 #include "runtime/asset/asset_key.h"
 #include "runtime/ecs/entity.h"
 
@@ -11,30 +12,27 @@ namespace ptgn::editor {
 
 class EditorContext;
 
-enum class SceneHierarchyTab {
-	SceneHierarchy,
-	Prefabs
-};
+using SceneHierarchyTab = EditorSelectionMode;
 
 class SceneHierarchyPanel {
 public:
+	void Bind(EditorContext& ctx);
 	void OnRender(EditorContext& ctx);
 
 	[[nodiscard]] Entity GetSelectedEntity() const;
-	void SetSelectedEntity(Entity entity);
+	void SetSelectedEntity(Entity entity, bool undoable = true);
 
-	[[nodiscard]] const std::optional<PrefabKey>& GetSelectedPrefab() const;
-	void SetSelectedPrefab(std::optional<PrefabKey> prefab);
+	[[nodiscard]] std::optional<PrefabKey> GetSelectedPrefab() const;
+	void SetSelectedPrefab(std::optional<PrefabKey> prefab, bool undoable = true);
 
 	[[nodiscard]] SceneHierarchyTab GetActiveTab() const;
 
 private:
 	[[nodiscard]] bool DrawSceneHierarchy(EditorContext& ctx);
 	[[nodiscard]] bool DrawPrefabs(EditorContext& ctx);
+	void SetActiveTab(SceneHierarchyTab tab);
 
-	Entity selected_entity_;
-	std::optional<PrefabKey> selected_prefab_;
-	SceneHierarchyTab active_tab_{ SceneHierarchyTab::SceneHierarchy };
+	EditorContext* context_{ nullptr };
 
 	std::optional<PrefabKey> renaming_prefab_;
 	std::string prefab_rename_text_;

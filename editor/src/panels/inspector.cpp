@@ -26,6 +26,7 @@
 #include <string>
 #include <string_view>
 
+#include "commands/entity/entity_reference.h"
 #include "core/editor.h"
 #include "core/editor_context.h"
 #include "core/graphics/color.h"
@@ -41,6 +42,7 @@
 #include "panels/scene_hierarchy.h"
 #include "renderer/pipeline/blend_mode.h"
 #include "renderer/pipeline/render_state.h"
+#include "renderer/renderer.h"
 #include "renderer/text/text_layout.h"
 #include "renderer/text/text_style.h"
 #include "runtime/animation/animation.h"
@@ -58,6 +60,7 @@
 #include "runtime/graphics/fx/gaussian_blur.h"
 #include "runtime/graphics/fx/light.h"
 #include "runtime/graphics/fx/particle.h"
+#include "runtime/graphics/custom_shader.h"
 #include "runtime/graphics/graphics.h"
 #include "runtime/graphics/render_target.h"
 #include "runtime/graphics/sprite.h"
@@ -2268,31 +2271,35 @@ void MarkTextLayoutDirty(Entity entity) {
 	}
 }
 
-void MarkParentButtonDirty(Entity entity, ::ptgn::impl::ButtonDirty dirty) {
-	Entity parent{ GetParent(entity) };
+void MarkButtonDirty(Entity entity, ::ptgn::impl::ButtonDirty dirty) {
+	Entity button{ entity };
 
-	if (!parent || !parent.Has<::ptgn::impl::ButtonData>()) {
+	if (!button.Has<::ptgn::impl::ButtonData>()) {
+		button = GetParent(entity);
+	}
+
+	if (!button || !button.Has<::ptgn::impl::ButtonData>()) {
 		return;
 	}
 
-	parent.Get<::ptgn::impl::ButtonData>().dirty |= dirty;
+	button.Get<::ptgn::impl::ButtonData>().dirty |= dirty;
 }
 
 void MarkButtonTextDirty(Entity entity) {
 	MarkTextLayoutDirty(entity);
-	MarkParentButtonDirty(entity, ::ptgn::impl::ButtonDirty::Text);
+	MarkButtonDirty(entity, ::ptgn::impl::ButtonDirty::Text);
 }
 
 void MarkButtonBorderDirty(Entity entity) {
-	MarkParentButtonDirty(entity, ::ptgn::impl::ButtonDirty::Border);
+	MarkButtonDirty(entity, ::ptgn::impl::ButtonDirty::Border);
 }
 
 void MarkButtonBackgroundDirty(Entity entity) {
-	MarkParentButtonDirty(entity, ::ptgn::impl::ButtonDirty::Background);
+	MarkButtonDirty(entity, ::ptgn::impl::ButtonDirty::Background);
 }
 
 void MarkButtonSpriteDirty(Entity entity) {
-	MarkParentButtonDirty(entity, ::ptgn::impl::ButtonDirty::Sprite);
+	MarkButtonDirty(entity, ::ptgn::impl::ButtonDirty::Sprite);
 }
 
 } // namespace
@@ -2603,14 +2610,17 @@ struct Contents<TextRun> {
 		};
 
 		if (style_open) {
-			ScopedIndent indent;
-			changed |= DrawValue(ctx, "Bold Weight", run.style.bold_weight);
-			changed |= DrawValue(ctx, "Kerning", run.style.kerning);
-			changed |= DrawValue(ctx, "Tracking", run.style.tracking);
-			changed |= DrawValue(ctx, "Line Spacing", run.style.line_spacing);
-			changed |= DrawValue(ctx, "Flags", run.style.flags);
-			changed |= DrawValue(ctx, "Distance Field", run.style.sdf);
-			changed |= DrawValue(ctx, "Effect", run.style.effect);
+			{
+				ScopedUnindent align_with_style;
+				changed |= DrawValue(ctx, "Bold Weight", run.style.bold_weight);
+				changed |= DrawValue(ctx, "Kerning", run.style.kerning);
+				changed |= DrawValue(ctx, "Tracking", run.style.tracking);
+				changed |= DrawValue(ctx, "Line Spacing", run.style.line_spacing);
+				changed |= DrawValue(ctx, "Flags", run.style.flags);
+				changed |= DrawValue(ctx, "Distance Field", run.style.sdf);
+				changed |= DrawValue(ctx, "Effect", run.style.effect);
+			}
+
 			ImGui::TreePop();
 		}
 
@@ -2621,14 +2631,24 @@ struct Contents<TextRun> {
 template <>
 struct Contents<StyledText> {
 	static bool Draw(EditorContext& ctx, StyledText& text) {
-		return DrawVectorEditor(
+		bool changed{ false };
+
+		if (text.runs.empty()) {
+			text.runs.emplace_back();
+			changed = true;
+		}
+
+		changed |= DrawVectorEditor(
 			ctx, text.runs,
 			VectorOptions{
-				.item_name	  = "Text Run",
-				.default_open = true,
-				.reorderable  = true,
+				.item_name	   = "Text Run",
+				.default_open  = true,
+				.reorderable   = true,
+				.minimum_items = 1,
 			}
 		);
+
+		return changed;
 	}
 };
 
@@ -2716,7 +2736,7 @@ using VisualFeatureComponents = FeatureComponents<
 	::ptgn::impl::AnimationData, ::ptgn::impl::Offsets, Tint,
 	::ptgn::impl::IgnoreParentTint, ::ptgn::impl::TextData,
 	::ptgn::impl::ParticleEmitterData, LightData, ::ptgn::impl::ShadowCaster,
-	::ptgn::impl::GraphicsData, ShaderKey, ::ptgn::impl::RenderTargetSize,
+	::ptgn::impl::GraphicsData, ::ptgn::Material, ShaderKey, ::ptgn::impl::RenderTargetSize,
 	::ptgn::impl::RenderMask, ::ptgn::impl::UILayer, ::ptgn::impl::EffectTag,
 	::ptgn::impl::HDREffectTag, EffectMargin, Bloom, Blur, GaussianBlur,
 	::ptgn::impl::ClearColor, ::ptgn::impl::ClearDepth, ::ptgn::impl::ClearStencil>;
@@ -2759,6 +2779,7 @@ struct ManualFeatureState {
 	bool text_box_state_initialized{ false };
 	bool text_box_enabled{ false };
 	bool scale_ratio_locked{ true };
+	std::optional<ButtonVisualState> button_visual_state;
 };
 
 std::vector<ManualFeatureState>& ManualFeatureStates() {
@@ -2776,6 +2797,45 @@ ManualFeatureState& GetManualFeatureState(const FeatureTargetKey& target) {
 
 	states.push_back(ManualFeatureState{ .target = target });
 	return states.back();
+}
+
+template <typename Target>
+[[nodiscard]] std::optional<ButtonVisualState> GetButtonVisualEditState(
+	const Target& target
+) {
+	const auto selected_state{
+		GetManualFeatureState(
+			target.GetFeatureTargetKey()
+		).button_visual_state
+	};
+
+	if (selected_state) {
+		return selected_state;
+	}
+
+	if constexpr (requires { target.entity; }) {
+		Entity entity{ target.entity };
+
+		if (!entity || entity.Has<::ptgn::impl::ButtonData>()) {
+			return std::nullopt;
+		}
+
+		Entity parent{ GetParent(entity) };
+
+		if (!parent || !parent.Has<::ptgn::impl::ButtonData>()) {
+			return std::nullopt;
+		}
+
+		const auto& button_data{
+			parent.Get<::ptgn::impl::ButtonData>()
+		};
+
+		return button_data.applied_visual_state.value_or(
+			ButtonVisualState::Idle
+		);
+	}
+
+	return std::nullopt;
 }
 
 [[nodiscard]] bool IsFeatureManuallyAdded(
@@ -2938,11 +2998,11 @@ struct EntityInspectorTarget {
 
 	template <typename T, typename Callback = std::nullptr_t>
 	auto MakeApply(Callback callback = nullptr) const {
-		const Scene& scene{ entity.GetScene() };
-		const UUID uuid{ entity.Get<UUID>() };
+		Editor* editor{ std::addressof(ctx.editor) };
+		const EntityReference reference{ MakeEntityReference(entity) };
 
-		return [&scene, uuid, callback](ComponentState<T> state) mutable {
-			Entity resolved{ scene.GetEntity(uuid) };
+		return [editor, reference, callback](ComponentState<T> state) mutable {
+			Entity resolved{ reference.Resolve(*editor) };
 
 			if (!resolved) {
 				return;
@@ -2984,11 +3044,11 @@ struct EntityInspectorTarget {
 	}
 
 	auto MakeNameApply() const {
-		const Scene& scene{ entity.GetScene() };
-		const UUID uuid{ entity.Get<UUID>() };
+		Editor* editor{ std::addressof(ctx.editor) };
+		const EntityReference reference{ MakeEntityReference(entity) };
 
-		return [&scene, uuid](std::string name) {
-			Entity resolved{ scene.GetEntity(uuid) };
+		return [editor, reference](std::string name) {
+			Entity resolved{ reference.Resolve(*editor) };
 
 			if (resolved) {
 				resolved.Add<Tag>(std::move(name));
@@ -3415,8 +3475,7 @@ void TrackInspectorFeatureState(
 ) {
 	auto apply{ MakeInspectorFeatureApply(target, feature, components) };
 
-	GetEditorUndoHistory(target.ctx)
-		.PushApplied(
+	target.ctx.undo.PushApplied(
 			std::move(label), [apply, before]() mutable { apply(before); },
 			[apply, after]() mutable { apply(after); }
 		);
@@ -3607,6 +3666,10 @@ template <typename Target>
 struct TransformFeatureState {
 	Transform transform;
 	Depth depth;
+	ComponentState<ButtonBackgroundVisuals> button_backgrounds;
+	ComponentState<ButtonBorderVisuals> button_borders;
+	ComponentState<ButtonTextVisuals> button_texts;
+	ComponentState<ButtonSpriteVisuals> button_sprites;
 	bool ignore_position{ false };
 	bool ignore_rotation{ false };
 	bool ignore_scale{ false };
@@ -3623,6 +3686,10 @@ TransformFeatureState<Target> CaptureTransformFeature(const Target& target) {
 	return TransformFeatureState<Target>{
 		.transform = target.template Capture<Transform>().value_or(Transform{}),
 		.depth	   = target.template Capture<Depth>().value_or(Depth{}),
+		.button_backgrounds = target.template Capture<ButtonBackgroundVisuals>(),
+		.button_borders = target.template Capture<ButtonBorderVisuals>(),
+		.button_texts = target.template Capture<ButtonTextVisuals>(),
+		.button_sprites = target.template Capture<ButtonSpriteVisuals>(),
 		.ignore_position =
 			ignore_transform ||
 			target.template Capture<::ptgn::impl::IgnoreParentPosition>().has_value(),
@@ -3646,12 +3713,28 @@ auto MakeTransformFeatureApply(Target& target) {
 	auto apply_scale{ target.template MakeApply<::ptgn::impl::IgnoreParentScale>() };
 	auto apply_depth_ignore{ target.template MakeApply<::ptgn::impl::IgnoreParentDepth>() };
 	auto apply_transform_ignore{ target.template MakeApply<::ptgn::impl::IgnoreParentTransform>() };
+	auto apply_backgrounds{
+		target.template MakeApply<ButtonBackgroundVisuals>(&MarkButtonBackgroundDirty)
+	};
+	auto apply_borders{
+		target.template MakeApply<ButtonBorderVisuals>(&MarkButtonBorderDirty)
+	};
+	auto apply_texts{
+		target.template MakeApply<ButtonTextVisuals>(&MarkButtonTextDirty)
+	};
+	auto apply_sprites{
+		target.template MakeApply<ButtonSpriteVisuals>(&MarkButtonSpriteDirty)
+	};
 
 	return [apply_transform, apply_depth, apply_position, apply_rotation, apply_scale,
-			apply_depth_ignore,
-			apply_transform_ignore](TransformFeatureState<Target> state) mutable {
+			apply_depth_ignore, apply_transform_ignore, apply_backgrounds, apply_borders,
+			apply_texts, apply_sprites](TransformFeatureState<Target> state) mutable {
 		apply_transform(state.transform);
 		apply_depth(state.depth);
+		apply_backgrounds(state.button_backgrounds);
+		apply_borders(state.button_borders);
+		apply_texts(state.button_texts);
+		apply_sprites(state.button_sprites);
 		apply_transform_ignore(
 			state.ignore_transform
 				? ComponentState<
@@ -3689,6 +3772,22 @@ template <typename Target>
 void SetTransformFeatureLive(Target& target, const TransformFeatureState<Target>& state) {
 	target.template SetLive<Transform>(state.transform);
 	target.template SetLive<Depth>(state.depth);
+	target.template SetLive<ButtonBackgroundVisuals>(
+		state.button_backgrounds,
+		&MarkButtonBackgroundDirty
+	);
+	target.template SetLive<ButtonBorderVisuals>(
+		state.button_borders,
+		&MarkButtonBorderDirty
+	);
+	target.template SetLive<ButtonTextVisuals>(
+		state.button_texts,
+		&MarkButtonTextDirty
+	);
+	target.template SetLive<ButtonSpriteVisuals>(
+		state.button_sprites,
+		&MarkButtonSpriteDirty
+	);
 	target.template SetLive<::ptgn::impl::IgnoreParentTransform>(
 		state.ignore_transform
 			? ComponentState<
@@ -3719,6 +3818,81 @@ void SetTransformFeatureLive(Target& target, const TransformFeatureState<Target>
 	);
 }
 
+template <typename Visuals>
+void ApplyButtonVisualTransformDelta(
+	ComponentState<Visuals>& visuals,
+	std::optional<ButtonVisualState> selected_state,
+	const Transform& before,
+	const Transform& after
+) {
+	if (!visuals || !selected_state || before == after) {
+		return;
+	}
+
+	const auto index{
+		static_cast<std::size_t>(
+			std::to_underlying(*selected_state)
+		)
+	};
+	auto& visual{ visuals->states[index] };
+
+	if (!visual.transform) {
+		return;
+	}
+
+	auto& transform{ *visual.transform };
+	transform.position += after.position - before.position;
+	transform.rotation = Radians{
+		transform.rotation.value +
+		after.rotation.value -
+		before.rotation.value
+	};
+
+	constexpr float epsilon{ 0.000001f };
+
+	if (std::abs(before.scale.x) > epsilon) {
+		transform.scale.x *= after.scale.x / before.scale.x;
+	}
+
+	if (std::abs(before.scale.y) > epsilon) {
+		transform.scale.y *= after.scale.y / before.scale.y;
+	}
+
+	transform.ClampScale();
+}
+
+template <typename Target>
+void ApplyButtonVisualTransformDelta(
+	TransformFeatureState<Target>& state,
+	std::optional<ButtonVisualState> selected_state,
+	const Transform& before
+) {
+	ApplyButtonVisualTransformDelta(
+		state.button_backgrounds,
+		selected_state,
+		before,
+		state.transform
+	);
+	ApplyButtonVisualTransformDelta(
+		state.button_borders,
+		selected_state,
+		before,
+		state.transform
+	);
+	ApplyButtonVisualTransformDelta(
+		state.button_texts,
+		selected_state,
+		before,
+		state.transform
+	);
+	ApplyButtonVisualTransformDelta(
+		state.button_sprites,
+		selected_state,
+		before,
+		state.transform
+	);
+}
+
 template <typename Target>
 [[nodiscard]] std::optional<V2_float> GetTargetWorldReferencePosition(const Target& target) {
 	if constexpr (requires { target.entity; }) {
@@ -3730,6 +3904,51 @@ template <typename Target>
 	}
 
 	return std::nullopt;
+}
+
+template <typename Target>
+[[nodiscard]] std::optional<V2_float> GetTargetWorldReferencePosition(
+	const Target& target, V2_float local_position
+) {
+	if constexpr (requires { target.entity; }) {
+		Entity entity{ target.entity };
+
+		if (entity && entity.Has<Transform>()) {
+			return GetDrawTransform(entity).Apply(local_position);
+		}
+	}
+
+	return std::nullopt;
+}
+
+template <typename Target>
+[[nodiscard]] PositionPicker::Convert MakeTransformPositionConverter(const Target& target) {
+	if constexpr (requires { target.entity; }) {
+		Entity entity{ target.entity };
+
+		return [entity](V2_float world_position) mutable -> std::optional<V2_float> {
+			if (!entity || !entity.Has<Transform>()) {
+				return std::nullopt;
+			}
+
+			const bool ignores_parent_position{
+				entity.Has<::ptgn::impl::IgnoreParentTransform>() ||
+				entity.Has<::ptgn::impl::IgnoreParentPosition>()
+			};
+
+			Entity parent{ GetParent(entity) };
+
+			if (!parent || ignores_parent_position) {
+				return world_position;
+			}
+
+			return GetDrawTransform(parent).ApplyInverse(world_position);
+		};
+	} else {
+		return [](V2_float) -> std::optional<V2_float> {
+			return std::nullopt;
+		};
+	}
 }
 
 template <typename Target, typename Apply>
@@ -3794,14 +4013,23 @@ bool DrawTransformFeatureFields(
 		);
 	}
 	ImGui::TableSetColumnIndex(3);
+	const auto selected_button_state{
+		GetButtonVisualEditState(target)
+	};
 	(void)DrawPositionPickButton(
 		target.ctx,
 		"Position",
 		state.transform.position,
-		PositionPicker::Convert{},
+		MakeTransformPositionConverter(target),
 		PositionPicker::Apply{
-			[apply_state, state](V2_float picked) mutable {
+			[apply_state, state, selected_button_state](V2_float picked) mutable {
+				const Transform before_transform{ state.transform };
 				state.transform.position = picked;
+				ApplyButtonVisualTransformDelta(
+					state,
+					selected_button_state,
+					before_transform
+				);
 				apply_state(state);
 			}
 		},
@@ -3913,7 +4141,21 @@ template <typename Target>
 }
 
 template <typename Target>
+[[nodiscard]] bool IsPrimarySceneRenderTarget(const Target& target) {
+	if constexpr (requires { target.entity; }) {
+		Entity entity{ target.entity };
+		return entity && entity == entity.GetScene().GetRenderTarget();
+	} else {
+		return false;
+	}
+}
+
+template <typename Target>
 [[nodiscard]] bool HasVisualFeature(const Target& target) {
+	if (IsPrimarySceneRenderTarget(target)) {
+		return false;
+	}
+
 	if (IsFeatureManuallyAdded(
 			target.GetFeatureTargetKey(),
 			InspectorFeature::Visual
@@ -3983,6 +4225,10 @@ template <typename Target>
 
 template <typename Target>
 [[nodiscard]] bool HasCameraFeature(const Target& target) {
+	if (IsPrimarySceneRenderTarget(target)) {
+		return false;
+	}
+
 	return HasInspectorFeature(target, InspectorFeature::Camera, CameraFeatureComponents{});
 }
 
@@ -4030,6 +4276,11 @@ bool DrawTransformFeature(Target& target) {
 	if (changed) {
 		state.ignore_transform = false;
 		state.transform.ClampScale();
+		ApplyButtonVisualTransformDelta(
+			state,
+			GetButtonVisualEditState(target),
+			before.transform
+		);
 		SetTransformFeatureLive(target, state);
 	}
 
@@ -4169,7 +4420,7 @@ bool DrawPickableLocalPosition(
 					locator(snapshot) = picked;
 					apply(ComponentState<Component>{ snapshot });
 				},
-				GetTargetWorldReferencePosition(target)
+				GetTargetWorldReferencePosition(target, position)
 			);
 
 			if constexpr (!CanPickLocalPosition<Target>()) {
@@ -4374,13 +4625,25 @@ bool DrawGeometryValue(
 	using Type = std::remove_cvref_t<Value>;
 
 	if constexpr (std::same_as<Type, V2_float>) {
-		return DrawPickableLocalPosition(
-			target,
-			component,
-			label,
-			locator,
-			callback
-		);
+		if constexpr (std::same_as<std::remove_cvref_t<Component>, Ellipse>) {
+			return DrawValue(
+				target.ctx,
+				label,
+				value,
+				FieldOptions{
+					.speed = 0.1f,
+					.format = "%.3f",
+				}
+			);
+		} else {
+			return DrawPickableLocalPosition(
+				target,
+				component,
+				label,
+				locator,
+				callback
+			);
+		}
 	} else if constexpr (std::same_as<Type, Rect>) {
 		bool changed{ false };
 		V2_float size{ value.GetSize() };
@@ -4655,6 +4918,8 @@ bool DrawOptionalVisualComponent(
 		   visual == "arc";
 }
 
+[[nodiscard]] bool IsEffectRenderer(std::string_view visual);
+
 inline constexpr V2_float kInspectorDefaultShapeSize{ 100.0f, 100.0f };
 inline constexpr float kInspectorDefaultShapeRadius{ 50.0f };
 
@@ -4732,32 +4997,123 @@ template <typename T>
 	return T{};
 }
 
+using RendererOwnedComponents = FeatureComponents<
+	Rect, Circle, RoundedRect, Polygon, Ellipse, Triangle, Line, Capsule, Arc, Color, FillStyle,
+	TextureKey, ::ptgn::impl::TextureSize, ::ptgn::impl::TextureCrop,
+	::ptgn::impl::AnimationData, ::ptgn::impl::Offsets, ::ptgn::impl::TextData,
+	::ptgn::impl::ParticleEmitterData, LightData, ::ptgn::impl::ShadowCaster,
+	::ptgn::impl::GraphicsData, ::ptgn::Material, ShaderKey,
+	::ptgn::impl::RenderTargetSize, ::ptgn::impl::EffectTag,
+	::ptgn::impl::HDREffectTag, EffectMargin, Bloom, Blur, GaussianBlur,
+	::ptgn::impl::ClearColor, ::ptgn::impl::ClearDepth, ::ptgn::impl::ClearStencil>;
+
+template <typename Target, typename T>
+void ClearRendererOwnedComponent(Target& target) {
+	if constexpr (Target::template Supports<T>()) {
+		target.template SetLive<T>(std::nullopt);
+	}
+}
+
+template <typename Target, typename... T>
+void ClearRendererOwnedComponents(Target& target, FeatureComponents<T...>) {
+	(ClearRendererOwnedComponent<Target, T>(target), ...);
+}
+
+template <typename T, typename Target>
+void SetRendererOwnedComponent(Target& target, T value = T{}) {
+	if constexpr (Target::template Supports<T>()) {
+		target.template SetLive<T>(std::move(value));
+	}
+}
+
+template <typename Target>
+void InitializeRendererOwnedComponents(Target& target, std::string_view visual) {
+	auto add_shape = [&]<typename T>() {
+		SetRendererOwnedComponent<T>(target, MakeDefaultShapeGeometry<T>());
+		SetRendererOwnedComponent<Color>(target, Color{ color::White });
+		SetRendererOwnedComponent<FillStyle>(target, FillStyle{ Solid{} });
+	};
+
+	if (visual == "rect") {
+		add_shape.template operator()<Rect>();
+	} else if (visual == "circle") {
+		add_shape.template operator()<Circle>();
+	} else if (visual == "roundedrect") {
+		add_shape.template operator()<RoundedRect>();
+	} else if (visual == "polygon") {
+		add_shape.template operator()<Polygon>();
+	} else if (visual == "ellipse") {
+		add_shape.template operator()<Ellipse>();
+	} else if (visual == "triangle") {
+		add_shape.template operator()<Triangle>();
+	} else if (visual == "line") {
+		add_shape.template operator()<Line>();
+	} else if (visual == "capsule") {
+		add_shape.template operator()<Capsule>();
+	} else if (visual == "arc") {
+		add_shape.template operator()<Arc>();
+	} else if (visual.contains("sprite")) {
+		SetRendererOwnedComponent<TextureKey>(target);
+	} else if (visual.contains("text")) {
+		SetRendererOwnedComponent<::ptgn::impl::TextData>(target);
+	} else if (visual.contains("particle")) {
+		SetRendererOwnedComponent<::ptgn::impl::ParticleEmitterData>(target);
+	} else if (visual.contains("light")) {
+		SetRendererOwnedComponent<LightData>(target);
+	} else if (visual.contains("customshader")) {
+		SetRendererOwnedComponent<::ptgn::Material>(target);
+	} else if (visual.contains("graphics")) {
+		SetRendererOwnedComponent<::ptgn::impl::GraphicsData>(target);
+	} else if (visual.contains("rendertarget")) {
+		SetRendererOwnedComponent<::ptgn::impl::RenderTargetSize>(target);
+	}
+
+	if (visual.contains("gaussianblur")) {
+		SetRendererOwnedComponent<GaussianBlur>(target);
+	} else if (visual.contains("blur")) {
+		SetRendererOwnedComponent<Blur>(target);
+	} else if (visual.contains("bloom")) {
+		SetRendererOwnedComponent<Bloom>(target);
+	}
+}
+
+template <typename Target>
+void ApplyRendererSelection(
+	Target& target,
+	ComponentState<::ptgn::impl::IDrawable> drawable
+) {
+	ClearRendererOwnedComponents(target, RendererOwnedComponents{});
+	target.template SetLive<::ptgn::impl::IDrawable>(drawable);
+
+	if (!drawable) {
+		return;
+	}
+
+	const auto* info{
+		::ptgn::impl::IDrawable::FindInfo(drawable->hash)
+	};
+
+	if (!info) {
+		return;
+	}
+
+	InitializeRendererOwnedComponents(
+		target,
+		NormalizeFeatureName(info->GetDisplayName())
+	);
+}
+
 template <typename Target>
 std::string DrawRendererRow(Target& target) {
 	using Drawable = ::ptgn::impl::IDrawable;
 
-	auto before_drawable{ target.template Capture<Drawable>() };
-	auto drawable{ before_drawable };
+	auto drawable{ target.template Capture<Drawable>() };
 	auto before_visible{ target.template Capture<Visible>() };
 	bool visible{
 		before_visible
 			? before_visible->visible
 			: true
 	};
-
-	ComponentState<TextureKey> before_texture;
-	ComponentState<Color> before_color;
-	ComponentState<FillStyle> before_fill_style;
-
-	if constexpr (Target::template Supports<TextureKey>()) {
-		before_texture = target.template Capture<TextureKey>();
-	}
-	if constexpr (Target::template Supports<Color>()) {
-		before_color = target.template Capture<Color>();
-	}
-	if constexpr (Target::template Supports<FillStyle>()) {
-		before_fill_style = target.template Capture<FillStyle>();
-	}
 
 	const auto* info{
 		drawable
@@ -4797,16 +5153,38 @@ std::string DrawRendererRow(Target& target) {
 		)
 	};
 
-	bool drawable_changed{ false };
+	bool renderer_changed{ false };
+	auto before_renderer{
+		CaptureInspectorFeatureState(
+			target,
+			InspectorFeature::Visual,
+			VisualFeatureComponents{}
+		)
+	};
+
+	auto choose_renderer = [&](ComponentState<Drawable> selected) {
+		const bool same_renderer{
+			selected.has_value() == drawable.has_value() &&
+			(!selected || selected->hash == drawable->hash)
+		};
+
+		if (same_renderer) {
+			return;
+		}
+
+		ApplyRendererSelection(target, selected);
+		drawable = target.template Capture<Drawable>();
+		renderer_changed = true;
+	};
+
 	ImGui::SetNextItemWidth(combo_width);
 
 	if (ImGui::BeginCombo("##RendererSelector", preview.c_str())) {
 		if (ImGui::Selectable("None", !drawable.has_value())) {
-			drawable.reset();
-			drawable_changed = true;
+			choose_renderer(std::nullopt);
 		}
 
-		for (const auto& candidate : Drawable::data()) {
+		auto draw_candidate = [&](const auto& candidate) {
 			const std::string label{ candidate.GetDisplayName() };
 			const bool selected{
 				drawable &&
@@ -4814,16 +5192,73 @@ std::string DrawRendererRow(Target& target) {
 			};
 
 			if (ImGui::Selectable(label.c_str(), selected)) {
-				drawable = Drawable{ candidate.hash };
-				drawable_changed = true;
+				choose_renderer(Drawable{ candidate.hash });
 			}
 
 			if (selected) {
 				ImGui::SetItemDefaultFocus();
 			}
+		};
+
+		for (const auto& candidate : Drawable::data()) {
+			const std::string visual{
+				NormalizeFeatureName(candidate.GetDisplayName())
+			};
+
+			if (!IsShapeRenderer(visual) &&
+				!IsEffectRenderer(visual)) {
+				draw_candidate(candidate);
+			}
+		}
+
+		if (ImGui::BeginMenu("Shapes")) {
+			for (const auto& candidate : Drawable::data()) {
+				const std::string visual{
+					NormalizeFeatureName(candidate.GetDisplayName())
+				};
+
+				if (IsShapeRenderer(visual)) {
+					draw_candidate(candidate);
+				}
+			}
+
+			ImGui::EndMenu();
+		}
+
+		if (ImGui::BeginMenu("Effects")) {
+			for (const auto& candidate : Drawable::data()) {
+				const std::string visual{
+					NormalizeFeatureName(candidate.GetDisplayName())
+				};
+
+				if (IsEffectRenderer(visual)) {
+					draw_candidate(candidate);
+				}
+			}
+
+			ImGui::EndMenu();
 		}
 
 		ImGui::EndCombo();
+	}
+
+	if (renderer_changed) {
+		auto after_renderer{
+			CaptureInspectorFeatureState(
+				target,
+				InspectorFeature::Visual,
+				VisualFeatureComponents{}
+			)
+		};
+
+		TrackInspectorFeatureState(
+			target,
+			InspectorFeature::Visual,
+			"Change Renderer",
+			std::move(before_renderer),
+			std::move(after_renderer),
+			VisualFeatureComponents{}
+		);
 	}
 
 	bool visible_changed{ false };
@@ -4836,10 +5271,6 @@ std::string DrawRendererRow(Target& target) {
 		);
 	}
 
-	if (drawable_changed) {
-		target.template SetLive<Drawable>(drawable);
-	}
-
 	if (visible_changed) {
 		Visible updated{
 			before_visible.value_or(Visible{})
@@ -4850,58 +5281,8 @@ std::string DrawRendererRow(Target& target) {
 		);
 	}
 
-	const auto* chosen_info{
-		drawable
-			? Drawable::FindInfo(drawable->hash)
-			: nullptr
-	};
-	const std::string chosen_visual{
-		chosen_info
-			? NormalizeFeatureName(chosen_info->GetDisplayName())
-			: std::string{}
-	};
-
-	bool texture_changed{ false };
-	bool color_changed{ false };
-	bool fill_style_changed{ false };
-
-	if constexpr (Target::template Supports<TextureKey>()) {
-		if (
-			drawable_changed &&
-			chosen_visual.contains("sprite") &&
-			!target.template Capture<TextureKey>()
-		) {
-			target.template SetLive<TextureKey>(TextureKey{});
-			texture_changed = true;
-		}
-	}
-
-	if (drawable_changed && IsShapeRenderer(chosen_visual)) {
-		if constexpr (Target::template Supports<Color>()) {
-			if (!target.template Capture<Color>()) {
-				target.template SetLive<Color>(Color{ color::White });
-				color_changed = true;
-			}
-		}
-
-		if constexpr (Target::template Supports<FillStyle>()) {
-			if (!target.template Capture<FillStyle>()) {
-				target.template SetLive<FillStyle>(FillStyle{ Solid{} });
-				fill_style_changed = true;
-			}
-		}
-	}
-
-	auto after_drawable{ target.template Capture<Drawable>() };
 	auto after_visible{ target.template Capture<Visible>() };
 
-	TrackComponentState(
-		target,
-		"Change Renderer",
-		std::move(before_drawable),
-		after_drawable,
-		drawable_changed
-	);
 	TrackComponentState(
 		target,
 		"Toggle Visibility",
@@ -4910,43 +5291,9 @@ std::string DrawRendererRow(Target& target) {
 		visible_changed
 	);
 
-	if constexpr (Target::template Supports<TextureKey>()) {
-		auto after_texture{ target.template Capture<TextureKey>() };
-
-		TrackComponentState(
-			target,
-			"Enable Texture Key",
-			std::move(before_texture),
-			std::move(after_texture),
-			texture_changed
-		);
-	}
-
-	if constexpr (Target::template Supports<Color>()) {
-		auto after_color{ target.template Capture<Color>() };
-		TrackComponentState(
-			target,
-			"Enable Shape Color",
-			std::move(before_color),
-			std::move(after_color),
-			color_changed
-		);
-	}
-
-	if constexpr (Target::template Supports<FillStyle>()) {
-		auto after_fill_style{ target.template Capture<FillStyle>() };
-		TrackComponentState(
-			target,
-			"Enable Solid Fill",
-			std::move(before_fill_style),
-			std::move(after_fill_style),
-			fill_style_changed
-		);
-	}
-
 	const auto* selected_info{
-		after_drawable
-			? Drawable::FindInfo(after_drawable->hash)
+		drawable
+			? Drawable::FindInfo(drawable->hash)
 			: nullptr
 	};
 
@@ -5030,6 +5377,7 @@ bool DrawEffectMargin(Target& target) {
 		visual.contains("particle") ||
 		visual.contains("light") ||
 		visual.contains("graphics") ||
+		visual.contains("customshader") ||
 		visual.contains("rendertarget")
 	};
 
@@ -5094,85 +5442,24 @@ bool DrawTextRunsFlat(
 	StyledText& text
 ) {
 	bool changed{ false };
-	int remove_index{ -1 };
 
 	if (text.runs.empty()) {
 		text.runs.emplace_back();
 		changed = true;
 	}
 
-	for (int index{ 0 }; index < static_cast<int>(text.runs.size()); ++index) {
-		ImGui::PushID(index);
+	ImGui::SeparatorText("Content");
 
-		const std::string label{
-			std::string{ "Text Run " } +
-			std::to_string(index + 1)
-		};
-
-		if (ImGui::BeginTable(
-				"##TextRunHeader",
-				2,
-				ImGuiTableFlags_SizingStretchProp |
-					ImGuiTableFlags_NoSavedSettings |
-					ImGuiTableFlags_NoPadOuterX
-			)) {
-			ImGui::TableSetupColumn(
-				"Label",
-				ImGuiTableColumnFlags_WidthStretch
-			);
-			ImGui::TableSetupColumn(
-				"Remove",
-				ImGuiTableColumnFlags_WidthFixed,
-				ImGui::GetFrameHeight()
-			);
-			ImGui::TableNextRow(
-				ImGuiTableRowFlags_None,
-				ImGui::GetFrameHeight()
-			);
-			ImGui::TableSetColumnIndex(0);
-			ImGui::SeparatorText(label.c_str());
-			ImGui::TableSetColumnIndex(1);
-
-			ScopedDisabled disable_remove{
-				text.runs.size() <= 1
-			};
-
-			if (ImGui::Button(
-					"x",
-					ImVec2{
-						ImGui::GetFrameHeight(),
-						ImGui::GetFrameHeight()
-					}
-				)) {
-				remove_index = index;
-			}
-
-			ImGui::EndTable();
+	changed |= DrawVectorEditor(
+		ctx,
+		text.runs,
+		VectorOptions{
+			.item_name = "Text Run",
+			.default_open = true,
+			.reorderable = true,
+			.minimum_items = 1,
 		}
-
-		changed |= DrawComponentContents(
-			ctx,
-			text.runs[static_cast<std::size_t>(index)]
-		);
-
-		ImGui::PopID();
-	}
-
-	if (remove_index >= 0) {
-		text.runs.erase(
-			text.runs.begin() +
-			remove_index
-		);
-		changed = true;
-	}
-
-	if (ImGui::Button(
-			"+ Text Run",
-			ImVec2{ -FLT_MIN, 0.0f }
-		)) {
-		text.runs.emplace_back();
-		changed = true;
-	}
+	);
 
 	return changed;
 }
@@ -5358,11 +5645,14 @@ bool DrawTextBoxMember(
 			};
 
 			if (style_open) {
-				ScopedIndent style_indent;
-				changed |= DrawComponentContents(
-					target.ctx,
-					box_member.value
-				);
+				{
+					ScopedUnindent align_with_additional_options;
+					changed |= DrawComponentContents(
+						target.ctx,
+						box_member.value
+					);
+				}
+
 				ImGui::TreePop();
 			}
 
@@ -5909,10 +6199,9 @@ bool DrawSpritePrimary(Target& target) {
 	const auto before_texture{ target.template Capture<TextureKey>() };
 	const auto before_animation{ target.template Capture<AnimationData>() };
 
-	changed |= DrawOptionalComponent<Target, TextureKey>(
+	changed |= DrawRequiredInlineVisualComponent<Target, TextureKey>(
 		target,
 		"Texture Key",
-		false,
 		[&target](TextureKey& value) {
 			return DrawValue(target.ctx, "Texture Key", value);
 		}
@@ -5970,6 +6259,97 @@ bool DrawSpritePrimary(Target& target) {
 	} else if (animation_enabled && (!animation_was_enabled || frame_count_changed)) {
 		changed |= SynchronizeAnimationTextureCrop(target);
 	}
+
+	return changed;
+}
+
+template <typename Target>
+bool DrawMaterialDetails(Target& target, ::ptgn::Material& material) {
+	bool changed{ false };
+
+	ImGui::SeparatorText("Uniforms");
+	changed |= DrawVectorEditor(
+		target.ctx,
+		material.uniforms,
+		VectorOptions{
+			.item_name = "Uniform",
+		}
+	);
+
+	const std::size_t max_texture_slots{
+		std::max(
+			std::size_t{ 1 },
+			static_cast<std::size_t>(
+				target.ctx.editor.GetMaxTextureSlots()
+			)
+		)
+	};
+
+	changed |= DrawValue(
+		target.ctx,
+		"Texture Slot Capacity",
+		material.texture_slot_capacity,
+		FieldOptions{
+			.speed = 1.0f,
+			.min = 1.0f,
+			.max = static_cast<float>(max_texture_slots),
+			.format = "%llu",
+			.flags = ImGuiSliderFlags_AlwaysClamp,
+		}
+	);
+
+	if (material.texture_slot_capacity.has_value()) {
+		const std::size_t clamped{
+			std::clamp(
+				*material.texture_slot_capacity,
+				std::size_t{ 1 },
+				max_texture_slots
+			)
+		};
+
+		if (*material.texture_slot_capacity != clamped) {
+			material.texture_slot_capacity = clamped;
+			changed = true;
+		}
+	}
+
+	return changed;
+}
+
+template <typename Target>
+bool DrawCustomShaderPrimary(Target& target) {
+	bool changed{ false };
+
+	changed |= DrawRequiredComponent<Target, ::ptgn::Material>(
+		target,
+		"Material Shader",
+		false,
+		[&target](::ptgn::Material& material) {
+			return DrawValue(
+				target.ctx,
+				"Shader Key",
+				material.shader
+			);
+		}
+	);
+
+	changed |= DrawOptionalComponent<Target, TextureKey>(
+		target,
+		"Texture Key",
+		false,
+		[&target](TextureKey& value) {
+			return DrawValue(target.ctx, "Texture Key", value);
+		}
+	);
+
+	changed |= DrawRequiredComponent<Target, ::ptgn::Material>(
+		target,
+		"Material",
+		false,
+		[&target](::ptgn::Material& material) {
+			return DrawMaterialDetails(target, material);
+		}
+	);
 
 	return changed;
 }
@@ -6123,83 +6503,86 @@ bool DrawVisualAdditionalOptions(
 		return false;
 	}
 
-	ScopedIndent indent;
 	bool changed{ false };
 
-	if (visual.contains("sprite")) {
-		changed |= DrawSpriteAdditional(target);
-	}
-
-	if (visual == "rect" || visual == "circle") {
-		changed |= DrawOptionalVisualComponent<
-			Target,
-			::ptgn::impl::ShadowCaster
-		>(
-			target,
-			"Shadow Caster",
-			true
-		);
-	}
-
-	if (visual.contains("text")) {
-		ScopedID text_additional_scope{ "TextAdditional" };
-		changed |= DrawRequiredComponent<
-			Target,
-			::ptgn::impl::TextData
-		>(
-			target,
-			"Text Additional Options",
-			false,
-			[&target](::ptgn::impl::TextData& value) {
-				return DrawTextAdditional(target, value);
-			},
-			&MarkTextLayoutDirty
-		);
-	}
-
-	changed |= DrawOptionalVisualComponent<Target, BlendMode>(
-		target,
-		"Blend Mode"
-	);
-
-	if (draw_tint) {
-		changed |= DrawOptionalVisualComponent<
-			Target,
-			::ptgn::impl::IgnoreParentTint
-		>(
-			target,
-			"Ignore Parent Tint"
-		);
-		changed |= DrawOptionalVisualComponent<Target, Tint>(
-			target,
-			"Tint"
-		);
-	}
-
-	changed |= DrawOptionalVisualComponent<
-		Target,
-		::ptgn::impl::IgnoreParentVisibility
-	>(
-		target,
-		"Ignore Parent Visibility"
-	);
-	changed |= DrawOptionalVisualComponent<
-		Target,
-		::ptgn::impl::RenderMask
-	>(
-		target,
-		"Render Layer"
-	);
-
 	{
-		ScopedID ui_layer_scope{ "VisualUILayer" };
+		ScopedUnindent align_with_additional_options;
+
+		if (visual.contains("sprite")) {
+			changed |= DrawSpriteAdditional(target);
+		}
+
+		if (visual == "rect" || visual == "circle") {
+			changed |= DrawOptionalVisualComponent<
+				Target,
+				::ptgn::impl::ShadowCaster
+			>(
+				target,
+				"Shadow Caster",
+				true
+			);
+		}
+
+		if (visual.contains("text")) {
+			ScopedID text_additional_scope{ "TextAdditional" };
+			changed |= DrawRequiredComponent<
+				Target,
+				::ptgn::impl::TextData
+			>(
+				target,
+				"Text Additional Options",
+				false,
+				[&target](::ptgn::impl::TextData& value) {
+					return DrawTextAdditional(target, value);
+				},
+				&MarkTextLayoutDirty
+			);
+		}
+
+		changed |= DrawOptionalVisualComponent<Target, BlendMode>(
+			target,
+			"Blend Mode"
+		);
+
+		if (draw_tint) {
+			changed |= DrawOptionalVisualComponent<Target, Tint>(
+				target,
+				"Tint"
+			);
+			changed |= DrawOptionalVisualComponent<
+				Target,
+				::ptgn::impl::IgnoreParentTint
+			>(
+				target,
+				"Ignore Parent Tint"
+			);
+		}
+
 		changed |= DrawOptionalVisualComponent<
 			Target,
-			::ptgn::impl::UILayer
+			::ptgn::impl::IgnoreParentVisibility
 		>(
 			target,
-			"UI Layer"
+			"Ignore Parent Visibility"
 		);
+		changed |= DrawOptionalVisualComponent<
+			Target,
+			::ptgn::impl::RenderMask
+		>(
+			target,
+			"Render Layer"
+		);
+
+		{
+			ScopedID ui_layer_scope{ "VisualUILayer" };
+			changed |= DrawOptionalVisualComponent<
+				Target,
+				::ptgn::impl::UILayer
+			>(
+				target,
+				"UI Layer"
+			);
+		}
 	}
 
 	ImGui::TreePop();
@@ -6293,6 +6676,8 @@ bool DrawVisualFeature(Target& target) {
 				return DrawContents(target.ctx, value);
 			}
 		);
+	} else if (visual.contains("customshader")) {
+		changed |= DrawCustomShaderPrimary(target);
 	} else if (visual.contains("graphics")) {
 		changed |= DrawRequiredInlineVisualComponent<
 			Target,
@@ -6335,13 +6720,24 @@ bool DrawReadOnlyInteractionLock(Target& target) {
 		return false;
 	} else {
 		auto state{ target.template Capture<InteractionLock>() };
-
-		if (!state) {
-			return false;
-		}
+		bool enabled{ state.has_value() };
 
 		ScopedID target_scope{ target.Id() };
 		ScopedID component_scope{ static_cast<int>(Hash<InteractionLock>()) };
+
+		{
+			ScopedDisabled disabled{ true };
+			ImGui::Checkbox("##Enabled", &enabled);
+		}
+
+		DrawTooltip("Interaction Lock is managed by the runtime.");
+		ImGui::SameLine();
+
+		if (!state) {
+			ImGui::AlignTextToFramePadding();
+			ImGui::TextUnformatted("Interaction Lock");
+			return false;
+		}
 
 		if (ImGui::TreeNodeEx(
 				"Interaction Lock##ReadOnlyInteractionLock",
@@ -6363,8 +6759,6 @@ bool DrawReadOnlyInteractionLock(Target& target) {
 						},
 						members
 					);
-				} else {
-					ImGui::TextDisabled("Read only component");
 				}
 			}(*state);
 
@@ -6559,6 +6953,304 @@ bool DrawPhysicsFeature(Target& target) {
 	return changed;
 }
 
+bool DrawButtonVisualStateSelector(std::optional<ButtonVisualState>& state) {
+	return DrawPropertyRow(
+		"Visual State",
+		[&]() {
+			const std::string preview{
+				state
+					? PrettyName(magic_enum::enum_name(*state))
+					: "Base Entity"
+			};
+
+			ImGui::SetNextItemWidth(-FLT_MIN);
+
+			if (!ImGui::BeginCombo("##ButtonVisualState", preview.c_str())) {
+				return false;
+			}
+
+			bool changed{ false };
+			const bool base_selected{ !state };
+
+			if (ImGui::Selectable("Base Entity", base_selected)) {
+				state.reset();
+				changed = !base_selected;
+			}
+
+			ImGui::Separator();
+
+			for (const auto candidate : magic_enum::enum_values<ButtonVisualState>()) {
+				const bool selected{ state && *state == candidate };
+				const std::string label{
+					PrettyName(magic_enum::enum_name(candidate))
+				};
+
+				if (ImGui::Selectable(label.c_str(), selected)) {
+					state = candidate;
+					changed = !selected;
+				}
+			}
+
+			ImGui::EndCombo();
+			return changed;
+		}
+	);
+}
+
+bool DrawButtonShapeVisualFields(
+	EditorContext& ctx,
+	ButtonShapeVisual& visual,
+	bool draw_fill
+) {
+	bool changed{ false };
+	changed |= DrawValue(ctx, "Size", visual.size);
+	changed |= DrawValue(ctx, "Origin", visual.origin);
+	changed |= DrawValue(ctx, "Anchor", visual.anchor);
+	changed |= DrawValue(ctx, "Transform", visual.transform);
+	changed |= DrawValue(ctx, "Color", visual.color);
+
+	if (draw_fill) {
+		changed |= DrawValue(ctx, "Fill Style", visual.fill_style);
+	}
+
+	return changed;
+}
+
+bool DrawButtonTextVisualFields(EditorContext& ctx, ButtonTextVisual& visual) {
+	bool changed{ false };
+	changed |= DrawValue(ctx, "Content", visual.styled_text);
+	changed |= DrawValue(ctx, "Text Box", visual.box);
+	changed |= DrawValue(ctx, "Origin", visual.origin);
+	changed |= DrawValue(ctx, "Anchor", visual.anchor);
+	changed |= DrawValue(ctx, "Transform", visual.transform);
+	changed |= DrawValue(ctx, "Auto Box", visual.auto_box);
+	changed |= DrawValue(ctx, "Padding", visual.padding);
+	return changed;
+}
+
+bool DrawButtonSpriteVisualFields(EditorContext& ctx, ButtonSpriteVisual& visual) {
+	bool changed{ false };
+	changed |= DrawValue(ctx, "Texture Key", visual.texture);
+	changed |= DrawValue(ctx, "Origin", visual.origin);
+	changed |= DrawValue(ctx, "Anchor", visual.anchor);
+	changed |= DrawValue(ctx, "Transform", visual.transform);
+	changed |= DrawValue(ctx, "Size", visual.size);
+	changed |= DrawValue(ctx, "Tint", visual.tint);
+	changed |= DrawValue(ctx, "Animation", visual.animation);
+	changed |= DrawValue(ctx, "Animation Options", visual.animation_options);
+	return changed;
+}
+
+template <typename Visuals>
+[[nodiscard]] bool HasDefinedButtonVisual(const Visuals& visuals) {
+	return std::ranges::any_of(
+		visuals.states,
+		[](const auto& visual) {
+			return visual.defined;
+		}
+	);
+}
+
+template <
+	typename Target,
+	typename Visuals,
+	typename Draw,
+	typename Callback
+>
+bool DrawButtonStatePart(
+	Target& target,
+	std::string_view label,
+	ButtonVisualState state,
+	Draw&& draw,
+	Callback callback
+) {
+	if constexpr (!Target::template Supports<Visuals>()) {
+		return false;
+	} else {
+		ScopedID target_scope{ target.Id() };
+		ScopedID component_scope{ static_cast<int>(Hash<Visuals>()) };
+
+		auto before{ target.template Capture<Visuals>() };
+		Visuals visuals{ before.value_or(Visuals{}) };
+		const auto index{ static_cast<std::size_t>(std::to_underlying(state)) };
+		auto& visual{ visuals.states[index] };
+		bool enabled{ visual.defined };
+		bool changed{ false };
+
+		if (ImGui::Checkbox("##Enabled", &enabled)) {
+			if (enabled) {
+				visual.defined = true;
+			} else {
+				using Visual = std::remove_cvref_t<decltype(visual)>;
+				visual = Visual{};
+			}
+
+			changed = true;
+		}
+
+		ImGui::SameLine();
+		const std::string tree_label{ std::string{ label } + "##Tree" };
+		const bool open{
+			ImGui::TreeNodeEx(
+				tree_label.c_str(),
+				ImGuiTreeNodeFlags_SpanAvailWidth
+			)
+		};
+
+		if (open) {
+			ScopedDisabled disabled{ !enabled };
+			const bool contents_changed{
+				std::invoke(std::forward<Draw>(draw), visual)
+			};
+
+			if (enabled && contents_changed) {
+				visual.defined = true;
+				changed = true;
+			}
+
+			ImGui::TreePop();
+		}
+
+		if (changed) {
+			target.template SetLive<Visuals>(
+				HasDefinedButtonVisual(visuals)
+					? ComponentState<Visuals>{ visuals }
+					: std::nullopt,
+				callback
+			);
+		}
+
+		auto after{ target.template Capture<Visuals>() };
+		TrackComponentState(
+			target,
+			std::string{ "Edit Button " } + std::string{ label },
+			std::move(before),
+			std::move(after),
+			changed,
+			callback
+		);
+
+		return changed;
+	}
+}
+
+template <typename Target>
+bool DrawButtonStateSound(Target& target, ButtonVisualState state) {
+	if constexpr (!Target::template Supports<ButtonSounds>()) {
+		return false;
+	} else {
+		ScopedID target_scope{ target.Id() };
+		ScopedID component_scope{ static_cast<int>(Hash<ButtonSounds>()) };
+
+		auto before{ target.template Capture<ButtonSounds>() };
+		ButtonSounds sounds{ before.value_or(ButtonSounds{}) };
+		const auto index{ static_cast<std::size_t>(std::to_underlying(state)) };
+		auto& sound{ sounds.states[index] };
+		bool enabled{ sound.has_value() };
+		bool changed{ false };
+
+		if (ImGui::Checkbox("##Enabled", &enabled)) {
+			if (enabled) {
+				sound.emplace();
+			} else {
+				sound.reset();
+			}
+
+			changed = true;
+		}
+
+		ImGui::SameLine();
+		ImGui::AlignTextToFramePadding();
+		ImGui::TextUnformatted("Sound");
+
+		if (enabled) {
+			ImGui::SameLine();
+			ImGui::SetNextItemWidth(-FLT_MIN);
+			changed |= DrawValue(target.ctx, "##SoundKey", *sound);
+		}
+
+		changed |= DrawValue(target.ctx, "Exclusive Audio", sounds.exclusive);
+
+		if (changed) {
+			const bool has_sound{
+				std::ranges::any_of(
+					sounds.states,
+					[](const auto& value) {
+						return value.has_value();
+					}
+				)
+			};
+
+			target.template SetLive<ButtonSounds>(
+				has_sound || sounds.exclusive
+					? ComponentState<ButtonSounds>{ sounds }
+					: std::nullopt
+			);
+		}
+
+		auto after{ target.template Capture<ButtonSounds>() };
+		TrackComponentState(
+			target,
+			"Edit Button Sound",
+			std::move(before),
+			std::move(after),
+			changed
+		);
+
+		return changed;
+	}
+}
+
+template <typename Target>
+bool DrawButtonVisualParts(Target& target, ButtonVisualState state) {
+	bool changed{ false };
+
+	ImGui::SeparatorText("Parts");
+
+	changed |= DrawButtonStatePart<Target, ButtonBackgroundVisuals>(
+		target,
+		"Background",
+		state,
+		[&target](ButtonShapeVisual& visual) {
+			return DrawButtonShapeVisualFields(target.ctx, visual, false);
+		},
+		&MarkButtonBackgroundDirty
+	);
+
+	changed |= DrawButtonStatePart<Target, ButtonBorderVisuals>(
+		target,
+		"Border",
+		state,
+		[&target](ButtonShapeVisual& visual) {
+			return DrawButtonShapeVisualFields(target.ctx, visual, true);
+		},
+		&MarkButtonBorderDirty
+	);
+
+	changed |= DrawButtonStatePart<Target, ButtonSpriteVisuals>(
+		target,
+		"Sprite",
+		state,
+		[&target](ButtonSpriteVisual& visual) {
+			return DrawButtonSpriteVisualFields(target.ctx, visual);
+		},
+		&MarkButtonSpriteDirty
+	);
+
+	changed |= DrawButtonStatePart<Target, ButtonTextVisuals>(
+		target,
+		"Text",
+		state,
+		[&target](ButtonTextVisual& visual) {
+			return DrawButtonTextVisualFields(target.ctx, visual);
+		},
+		&MarkButtonTextDirty
+	);
+
+	changed |= DrawButtonStateSound(target, state);
+	return changed;
+}
+
 template <typename Target>
 bool DrawUIFeature(Target& target) {
 	if (!HasUIFeature(target)) {
@@ -6580,41 +7272,24 @@ bool DrawUIFeature(Target& target) {
 	changed |= DrawOptionalReflected<Target, ::ptgn::impl::ButtonData>(target, "Button", true);
 
 	if (target.template Capture<::ptgn::impl::ButtonData>()) {
-		ScopedIndent button_indent;
+		auto& editor_state{
+			GetManualFeatureState(target.GetFeatureTargetKey())
+		};
 
-		changed |= DrawOptionalComponent<Target, ButtonBackgroundVisuals>(
-			target, "Background", true,
-			[&target](ButtonBackgroundVisuals& value) {
-				return DrawComponentContents(target.ctx, value);
-			},
-			false, false, &MarkButtonBackgroundDirty
+		(void)DrawButtonVisualStateSelector(
+			editor_state.button_visual_state
 		);
 
-		changed |= DrawOptionalComponent<Target, ButtonBorderVisuals>(
-			target, "Border", true,
-			[&target](ButtonBorderVisuals& value) {
-				return DrawComponentContents(target.ctx, value);
-			},
-			false, false, &MarkButtonBorderDirty
-		);
-
-		changed |= DrawOptionalComponent<Target, ButtonSpriteVisuals>(
-			target, "Sprite", true,
-			[&target](ButtonSpriteVisuals& value) {
-				return DrawComponentContents(target.ctx, value);
-			},
-			false, false, &MarkButtonSpriteDirty
-		);
-
-		changed |= DrawOptionalComponent<Target, ButtonTextVisuals>(
-			target, "Text", true,
-			[&target](ButtonTextVisuals& value) {
-				return DrawComponentContents(target.ctx, value);
-			},
-			false, false, &MarkButtonTextDirty
-		);
-
-		changed |= DrawOptionalReflected<Target, ButtonSounds>(target, "Sounds", true);
+		if (editor_state.button_visual_state) {
+			changed |= DrawButtonVisualParts(
+				target,
+				*editor_state.button_visual_state
+			);
+		} else {
+			ImGui::TextDisabled(
+				"Use Transform and Visual to edit the base button entity."
+			);
+		}
 	}
 
 	changed |= DrawOptionalReflected<Target, ::ptgn::impl::ToggleButtonData>(
@@ -6787,9 +7462,15 @@ bool DrawAddFeatureMenu(Target& target) {
 		InspectorFeature::Transform, "Transform", HasTransformFeature(target),
 		TransformFeatureComponents{}
 	);
-	item_with_default.template operator()<::ptgn::impl::IDrawable>(
-		InspectorFeature::Visual, "Visual", HasVisualFeature(target), VisualFeatureComponents{}
-	);
+	const bool primary_render_target{ IsPrimarySceneRenderTarget(target) };
+	const bool visual_exists{ HasVisualFeature(target) };
+	const bool camera_exists{ HasCameraFeature(target) };
+
+	if (!primary_render_target && !camera_exists) {
+		item_with_default.template operator()<::ptgn::impl::IDrawable>(
+			InspectorFeature::Visual, "Visual", visual_exists, VisualFeatureComponents{}
+		);
+	}
 	item_with_default.template operator()<::ptgn::impl::Interactive>(
 		InspectorFeature::Interaction, "Interaction", HasInteractionFeature(target),
 		InteractionFeatureComponents{}
@@ -6801,9 +7482,11 @@ bool DrawAddFeatureMenu(Target& target) {
 	item_with_default.template operator()<::ptgn::impl::ButtonData>(
 		InspectorFeature::UI, "UI", HasUIFeature(target), UIFeatureComponents{}
 	);
-	item_with_default.template operator()<::ptgn::impl::CameraData>(
-		InspectorFeature::Camera, "Camera", HasCameraFeature(target), CameraFeatureComponents{}
-	);
+	if (!primary_render_target && !visual_exists) {
+		item_with_default.template operator()<::ptgn::impl::CameraData>(
+			InspectorFeature::Camera, "Camera", camera_exists, CameraFeatureComponents{}
+		);
+	}
 	item_with_default.template operator()<::ptgn::impl::Scripts>(
 		InspectorFeature::Scripts, "Scripts", HasScriptsFeature(target), ScriptsFeatureComponents{}
 	);

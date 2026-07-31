@@ -1,11 +1,12 @@
 #pragma once
 
-#include "core/util/file.h"
 #include "commands/editor_commands.h"
 #include "commands/undo_stack.h"
+#include "core/editor_position_picker.h"
 #include "core/editor_selection.h"
 #include "core/editor_settings.h"
 #include "core/editor_state.h"
+#include "core/util/file.h"
 #include "serialization/serialize.h"
 
 namespace ptgn {
@@ -20,6 +21,9 @@ struct EditorLocalState {
 	EditorSettings settings;
 	EditorState state;
 	EditorSelection selection;
+
+	/// Runtime editor state. This is intentionally not serialized.
+	PositionPicker position_picker;
 
 	PTGN_REFLECT(EditorLocalState, settings, state, selection)
 };
@@ -36,10 +40,10 @@ public:
 /// @return Path of the local editor state file stored beside the project manifest.
 path GetEditorLocalStatePath(const Project& project);
 
-/// @brief Loads local editor state. Missing files and missing fields preserve defaults.
+/// @brief Loads local editor state. Missing files and fields preserve defaults.
 [[nodiscard]] EditorLocalState LoadEditorLocalState(const Project& project);
 
-/// @brief Writes local editor state to the project-specific local file.
+/// @brief Writes local editor state to the project specific local file.
 void SaveEditorLocalState(const Project& project, const EditorLocalState& state);
 
 } // namespace editor
