@@ -44,6 +44,8 @@ namespace impl {
 
 struct ParentRenderTarget {
 	UUID render_target;
+
+	PTGN_REFLECT_VALUE(ParentRenderTarget, render_target)
 };
 
 struct UILayer {};
