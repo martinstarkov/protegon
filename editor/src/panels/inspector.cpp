@@ -2811,7 +2811,13 @@ template <>
 struct Contents<TextRun> {
 	static bool Draw(EditorContext& ctx, TextRun& run) {
 		bool changed{ false };
-		changed |= DrawValue(ctx, "Text", run.text, FieldOptions{ .multiline = true, .line_count = 8 });
+		changed |= DrawValue(ctx, "Text", run.text, 
+		FieldOptions{
+			.multiline	   = true,
+			.line_count	   = 8,
+			.resizable_y   = true,
+			.large_editor  = true,
+		});
 		changed |= DrawValue(ctx, "Font", run.font);
 		changed |= DrawValue(ctx, "Color", run.style.color);
 		changed |= DrawValue(ctx, "Size", run.style.size);

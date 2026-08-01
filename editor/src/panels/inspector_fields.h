@@ -131,9 +131,18 @@ struct FieldOptions {
 	float max{ 0.0 };
 	const char* format{ nullptr };
 	ImGuiSliderFlags flags{ ImGuiSliderFlags_None };
+	
 	bool multiline{ false };
+
 	/// @brief Line count in a multiline text box.
 	std::size_t line_count{ 4 };
+
+	/// @brief Allow the multiline input to be resized by dragging its bottom edge.
+	bool resizable_y{ false };
+
+	/// @brief Add a context menu option for opening a larger text editor.
+	bool large_editor{ false };
+
 	bool default_open{ true };
 	bool read_only{ false };
 	std::string_view array_item_name{ "Item" };
@@ -477,6 +486,40 @@ inline float GetPropertyValueX(float fallback_start_x) {
 	return stack.back()->start_x + stack.back()->width;
 }
 
+inline ImVec2 GetResizableMultilineSize(
+	const char* id,
+	ImVec2 default_size
+) {
+	const ImVec2 cursor_position{
+		ImGui::GetCursorScreenPos()
+	};
+
+	ImGui::PushStyleVar(
+		ImGuiStyleVar_FramePadding,
+		ImVec2{ 0.0f, 0.0f }
+	);
+
+	ImGui::BeginChild(
+		id,
+		default_size,
+		ImGuiChildFlags_ResizeY |
+			ImGuiChildFlags_FrameStyle |
+			ImGuiChildFlags_Borders
+	);
+
+	const ImVec2 actual_size{
+		ImGui::GetWindowSize()
+	};
+
+	ImGui::EndChild();
+	ImGui::PopStyleVar();
+
+	// Draw the actual input over the temporary resizable child.
+	ImGui::SetCursorScreenPos(cursor_position);
+
+	return actual_size;
+}
+
 template <typename F>
 bool DrawPropertyRow(std::string_view label, F&& draw) {
 	auto id{ std::string{ label } };
@@ -494,6 +537,7 @@ bool DrawPropertyRow(std::string_view label, F&& draw) {
 
 	return changed;
 }
+
 template <typename T>
 bool DrawValue(
 	EditorContext& ctx, std::string_view label, T& value,
@@ -582,6 +626,141 @@ bool DrawDisabledIf(bool disabled, F&& draw) {
 	bool changed{ std::invoke(std::forward<F>(draw)) };
 	ImGui::EndDisabled();
 	return changed;
+}
+
+inline bool DrawString(
+	std::string_view label,
+	std::string& value,
+	const FieldOptions& options
+) {
+	return DrawPropertyRow(label, [&]() {
+		const bool read_only{
+			IsReadOnly(options)
+		};
+
+		if (!options.multiline) {
+			return DrawDisabledIf(read_only, [&]() {
+				return ImGui::InputText(
+					"##value",
+					&value
+				);
+			});
+		}
+
+		const float default_height{
+			ImGui::GetTextLineHeightWithSpacing() *
+			static_cast<float>(
+				std::max<std::size_t>(
+					options.line_count,
+					1
+				)
+			)
+		};
+
+		ImVec2 input_size{
+			-FLT_MIN,
+			default_height
+		};
+
+		if (options.resizable_y) {
+			input_size = GetResizableMultilineSize(
+				"##resize",
+				input_size
+			);
+		}
+
+		constexpr ImGuiInputTextFlags input_flags{
+			ImGuiInputTextFlags_AllowTabInput |
+			ImGuiInputTextFlags_WordWrap
+		};
+
+		bool changed{
+			DrawDisabledIf(read_only, [&]() {
+				return ImGui::InputTextMultiline(
+					"##value",
+					&value,
+					input_size,
+					input_flags
+				);
+			})
+		};
+
+		const std::string popup_name{
+			std::string{ "Edit " } +
+			std::string{ label } +
+			"##LargeTextEditor"
+		};
+
+		bool open_large_editor{ false };
+
+		if (
+			options.large_editor &&
+			ImGui::BeginPopupContextItem(
+				"##MultilineContext"
+			)
+		) {
+			open_large_editor = ImGui::MenuItem(
+				"Edit in Large Window..."
+			);
+
+			ImGui::EndPopup();
+		}
+
+		if (open_large_editor) {
+			ImGui::OpenPopup(
+				popup_name.c_str()
+			);
+		}
+
+		ImGui::SetNextWindowSize(
+			ImVec2{ 700.0f, 500.0f },
+			ImGuiCond_Appearing
+		);
+
+		if (
+			ImGui::BeginPopupModal(
+				popup_name.c_str(),
+				nullptr,
+				ImGuiWindowFlags_NoSavedSettings
+			)
+		) {
+			const float footer_height{
+				ImGui::GetFrameHeightWithSpacing()
+			};
+
+			const ImVec2 available{
+				ImGui::GetContentRegionAvail()
+			};
+
+			const ImVec2 editor_size{
+				available.x,
+				std::max(
+					100.0f,
+					available.y - footer_height
+				)
+			};
+
+			changed |= DrawDisabledIf(
+				read_only,
+				[&]() {
+					return ImGui::InputTextMultiline(
+						"##LargeValue",
+						&value,
+						editor_size,
+						input_flags
+					);
+				}
+			);
+
+			if (ImGui::Button("Close")) {
+				ImGui::CloseCurrentPopup();
+			}
+
+			ImGui::EndPopup();
+		}
+
+		return changed;
+	});
 }
 
 template <typename T>
@@ -2039,21 +2218,7 @@ bool DrawValue(EditorContext& ctx, std::string_view label, T& value, FieldOption
 	} else if constexpr (AssetKeyType<Value>) {
 		return DrawAssetKey(ctx, label, value, options);
 	} else if constexpr (std::same_as<Value, std::string>) {
-		return DrawPropertyRow(label, [&]() {
-			return DrawDisabledIf(IsReadOnly(options), [&]() {
-				if (options.multiline) {
-					return ImGui::InputTextMultiline(
-						"##value", &value,
-						ImVec2{
-							-FLT_MIN,
-							ImGui::GetTextLineHeightWithSpacing() * static_cast<float>(options.line_count),
-						}, ImGuiInputTextFlags_AllowTabInput | ImGuiInputTextFlags_WordWrap
-					);
-				}
-
-				return ImGui::InputText("##value", &value);
-			});
-		});
+		return DrawString(label, value, options);
 	} else if constexpr (std::same_as<Value, Color>) {
 		return DrawColor(label, value);
 	} else if constexpr (kInspectorVectorType<Value>) {
