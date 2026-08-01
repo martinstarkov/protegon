@@ -143,10 +143,10 @@ public:
 	/// Make sure to call Refresh() after this function.
 	template <typename... Ts>
 	Entity CopyEntity(Entity from, Tag tag = {}, UUID uuid = {}) {
-		auto entity{ manager_.CopyEntity<Ts...>(from) };
+		auto entity{ manager_.CopyEntity<Ts...>(from.entity_) };
 		entity.template Add<Tag>(std::move(tag));
 		entity.template Add<UUID>(uuid);
-		return entity;
+		return Entity{ entity, this };
 	}
 
 	template <typename... Ts>

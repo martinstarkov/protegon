@@ -62,14 +62,18 @@ std::optional<EntityReference> ParentReference(Entity entity) {
 Entity DuplicateEntityNode(Scene& scene, Entity source) {
 	PTGN_ASSERT(source);
 	PTGN_ASSERT(source.Has<Tag>());
+	PTGN_ASSERT(&source.GetScene() == &scene);
 
 	Entity duplicate{
-		scene.CreateEntity(source.Get<Tag>())
+		scene.CopyEntity(
+			source,
+			source.Get<Tag>()
+		)
 	};
-	DeserializeEntityComponents(
-		SerializeEntityComponents(source),
-		duplicate
-	);
+
+	// CopyEntity copied the source hierarchy references.
+	// Remove them because the duplicated hierarchy is rebuilt below.
+	duplicate.Remove<impl::Parent, impl::Children>();
 
 	if (HasChildren(source)) {
 		auto children{ GetChildren(source) };
