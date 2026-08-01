@@ -215,23 +215,6 @@ public:
 
 	void OnLoad() override {
 		LoadAssets(*this);
-
-		// TODO: Remove these:
-
-		ctx().asset.Load("whirlpool", "assets/shader.glsl");
-		ctx().asset.Load("noise", "assets/noise.png");
-
-		CreateCustomShader(*this, {}, "whirlpool", "noise", V2_float{ 150 }, {}, Origin::Center).
-				SetMaterialUniform("u_Scale", 0.5f).SetMaterialUniform("u_Opacity", 0.5f).SetMaterialUpdate([](auto entity) mutable {
-					float timescale{ 1.0f };
-					float time{
-						static_cast<float>(entity.GetScene().ctx().TimeSinceStart().count())
-					};
-
-					entity.SetMaterialUniform(
-						"u_Time", time / 1000.0f * timescale
-					);
-				});
 	}
 };
 
