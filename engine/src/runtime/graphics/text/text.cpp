@@ -113,7 +113,7 @@ void Text::Draw(DrawContext& ctx, Entity entity) {
 	auto& scene{ entity.GetScene() };
 
 	if (!entity.Has<impl::TextData>()) {
-		PTGN_WARN("Cannot draw text without TextData component");
+		PTGN_WARN("Text entity cannot be drawn without TextData component");
 		return;
 	}
 

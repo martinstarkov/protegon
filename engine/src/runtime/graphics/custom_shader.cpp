@@ -61,6 +61,7 @@ void CustomShader::Draw(DrawContext& ctx, Entity entity) {
 	auto material{ impl::GetMaterialState(entity) };
 
 	if (!material) {
+		PTGN_WARN("Custom shader cannot be drawn without material");
 		return;
 	}
 

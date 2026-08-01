@@ -65,18 +65,25 @@ ShapeDrawParams GetShapeDrawParams(Entity entity) {
 
 template <ShapeType T>
 void DrawShape(DrawContext& ctx, Entity entity) {
-	if (!entity.Has<T, Color>()) {
+	if (!entity.Has<T>()) {
+		PTGN_WARN("Shape entity cannot be drawn without ", type_name_without_namespaces<T>(), " component");
 		return;
 	}
 
 	const auto& shape{ entity.Get<T>() };
 	auto draw_transform{ GetDrawTransform(entity) };
-	auto color{ entity.Get<Color>() };
+	auto color{ entity.GetOrDefault<Color>(color::White) };
 	auto blend_mode{ GetBlendMode(entity) };
 	auto tint{ GetTint(entity) };
 	auto color_final{ Color::Multiply(color, tint) };
 
 	auto params{ impl::GetShapeDrawParams(entity) };
+
+	if constexpr (std::is_same_v<T, Line>) {
+		if (!entity.Has<FillStyle>()) {
+			params.fill_style = FillStyle{ 1.0f };
+		}
+	}
 
 	ctx.SetBlendMode(blend_mode);
 	ctx.DrawShape(draw_transform, shape, color_final, params);

@@ -476,6 +476,7 @@ bool ParticleEmitter::IsStopped() const {
 
 void ParticleEmitter::Draw(DrawContext& ctx, Entity entity) {
 	if (!entity.Has<impl::ParticleEmitterData>()) {
+		PTGN_WARN("Particle emitter entity cannot be drawn without ParticleEmitterData component");
 		return;
 	}
 

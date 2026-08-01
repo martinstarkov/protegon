@@ -506,6 +506,7 @@ Light::Light(Entity entity) : Entity{ entity } {}
 
 void Light::Draw(DrawContext& ctx, Entity entity) {
 	if (!entity.Has<LightData>()) {
+		PTGN_WARN("Light entity cannot be drawn without LightData component");
 		return;
 	}
 

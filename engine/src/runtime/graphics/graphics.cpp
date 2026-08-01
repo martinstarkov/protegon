@@ -46,6 +46,7 @@ Graphics::Graphics(Entity entity) : Entity{ entity } {}
 
 void Graphics::Draw(DrawContext& ctx, Entity entity) {
 	if (!entity.Has<impl::GraphicsData>()) {
+		PTGN_WARN("Graphics entity cannot be drawn without GraphicsData component");
 		return;
 	}
 
