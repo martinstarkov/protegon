@@ -4,6 +4,8 @@
 
 #include "core/editor_context.h"
 #include "runtime/scene/scene.h"
+#include "runtime/ui/button.h"
+#include "runtime/ecs/entity_hierarchy.h"
 
 namespace ptgn::editor {
 
@@ -22,8 +24,9 @@ DeleteEntityCommand::DeleteEntityCommand(
 
 void DeleteEntityCommand::Undo() {
 	if (auto* scene{ entity_.ResolveScene(ctx_->editor) }) {
-		(void)RestoreEntitySnapshot(*scene, snapshot_);
+		RestoreEntitySnapshot(*scene, snapshot_);
 	}
+
 	ApplyEditorSelection(*ctx_, before_selection_);
 }
 

@@ -23,7 +23,7 @@ struct EntitySnapshot {
 };
 
 [[nodiscard]] EntitySnapshot CaptureEntitySnapshot(Entity entity);
-[[nodiscard]] Entity RestoreEntitySnapshot(Scene& scene, const EntitySnapshot& snapshot);
+Entity RestoreEntitySnapshot(Scene& scene, const EntitySnapshot& snapshot);
 void DestroyEntitySnapshot(Scene& scene, const EntitySnapshot& snapshot);
 
 } // namespace editor

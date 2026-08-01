@@ -29,7 +29,7 @@ void CreateEntityCommand::Undo() {
 
 void CreateEntityCommand::Redo() {
 	if (auto* scene{ entity_.ResolveScene(ctx_->editor) }) {
-		(void)RestoreEntitySnapshot(*scene, snapshot_);
+		RestoreEntitySnapshot(*scene, snapshot_);
 	}
 	ApplyEditorSelection(*ctx_, after_selection_);
 }
