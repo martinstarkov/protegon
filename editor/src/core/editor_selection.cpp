@@ -43,6 +43,7 @@ void EditorSelection::Clear() {
 	selected_scene_runtime = false;
 	scene_entities.clear();
 	selected_prefab.reset();
+	selected_prefab_entity_path.clear();
 	mode = EditorSelectionMode::SceneHierarchy;
 }
 
@@ -113,7 +114,10 @@ void EditorSelection::RemoveScene(std::string_view scene_key) {
 	}
 }
 
-void EditorSelection::RenameScene(std::string_view old_key, std::string_view new_key) {
+void EditorSelection::RenameScene(
+	std::string_view old_key,
+	std::string_view new_key
+) {
 	if (selected_scene_key == old_key) {
 		selected_scene_key = std::string{ new_key };
 	}

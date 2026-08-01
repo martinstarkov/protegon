@@ -1,7 +1,10 @@
 #pragma once
 
+#include <cstddef>
 #include <map>
+#include <memory>
 #include <optional>
+#include <span>
 #include <string>
 #include <string_view>
 #include <utility>
@@ -14,14 +17,15 @@
 #include "runtime/ecs/entity_hierarchy.h"
 #include "runtime/ecs/relatives.h"
 #include "runtime/ecs/tag.h"
-#include "runtime/ecs/uuid.h"
 #include "runtime/graphics/draw.h"
+#include "runtime/ecs/uuid.h"
 #include "serialization/json/json.h"
 #include "serialization/serialize.h"
 
 namespace ptgn {
 
 using SerializedComponentMap = std::map<std::string, json>;
+using SerializedEntityPath = std::vector<std::size_t>;
 
 /// @brief Complete persistent representation of an entity subtree.
 ///
@@ -30,7 +34,7 @@ using SerializedComponentMap = std::map<std::string, json>;
 ///
 /// Parent is deliberately excluded. Child relationships inside the serialized
 /// subtree are represented by children. A parent outside the subtree is
-/// restoration context and is stored by EntitySnapshot instead.
+/// restoration context and is stored by the caller when needed.
 struct SerializedEntity {
 	std::optional<UUID> uuid;
 	std::string tag{ "Entity" };
@@ -56,7 +60,6 @@ struct SerializedEntity {
 
 struct SerializeEntityOptions {
 	/// Preserve the entity's UUID in the serialized result.
-	///
 	/// Scenes and snapshots use true. Prefabs use false.
 	bool include_uuid{ true };
 
@@ -86,8 +89,7 @@ namespace impl {
 SerializeEntityTagComponents(Entity entity) {
 	std::vector<std::string> output;
 
-	for (const auto& component :
-		 ComponentRegistry::Components()) {
+	for (const auto& component : ComponentRegistry::Components()) {
 		if (!IsSerializedTagComponent(component) ||
 			!component.has ||
 			!component.has(entity)) {
@@ -104,8 +106,7 @@ SerializeEntityTagComponents(Entity entity) {
 SerializeEntityValueComponents(Entity entity) {
 	SerializedComponentMap output;
 
-	for (const auto& component :
-		 ComponentRegistry::Components()) {
+	for (const auto& component : ComponentRegistry::Components()) {
 		if (IsEntityMetadataComponent(component) ||
 			component.is_empty ||
 			!component.serializable ||
@@ -135,9 +136,7 @@ inline void DeserializeEntityTagComponents(
 ) {
 	for (const auto& name : tags) {
 		const auto* component{
-			ComponentRegistry::Find(
-				std::string_view{ name }
-			)
+			ComponentRegistry::Find(std::string_view{ name })
 		};
 
 		if (!component ||
@@ -157,12 +156,9 @@ inline void DeserializeEntityValueComponents(
 	const SerializedComponentMap& components,
 	Entity entity
 ) {
-	for (const auto& [name, component_json] :
-		 components) {
+	for (const auto& [name, component_json] : components) {
 		const auto* component{
-			ComponentRegistry::Find(
-				std::string_view{ name }
-			)
+			ComponentRegistry::Find(std::string_view{ name })
 		};
 
 		if (!component ||
@@ -173,33 +169,57 @@ inline void DeserializeEntityValueComponents(
 			continue;
 		}
 
-		component->deserialize(
-			component_json,
-			entity
-		);
+		component->deserialize(component_json, entity);
 	}
 }
 
 } // namespace impl
 
-/// @brief Serializes an entity's persistent ECS data and optionally its children.
+/// @brief Resolves an entity in a serialized hierarchy by child-index path.
 ///
-/// Callers do not need to separately serialize marker components and ordinary
-/// components. The distinction exists only inside SerializedEntity and these
-/// implementation helpers.
+/// An empty path resolves the root. Each subsequent index selects a child of
+/// the previously resolved entity.
+[[nodiscard]] inline SerializedEntity* ResolveSerializedEntity(
+	SerializedEntity& root,
+	std::span<const std::size_t> path
+) {
+	SerializedEntity* current{ std::addressof(root) };
+
+	for (const std::size_t index : path) {
+		if (index >= current->children.size()) {
+			return nullptr;
+		}
+
+		current = std::addressof(current->children[index]);
+	}
+
+	return current;
+}
+
+[[nodiscard]] inline const SerializedEntity* ResolveSerializedEntity(
+	const SerializedEntity& root,
+	std::span<const std::size_t> path
+) {
+	const SerializedEntity* current{ std::addressof(root) };
+
+	for (const std::size_t index : path) {
+		if (index >= current->children.size()) {
+			return nullptr;
+		}
+
+		current = std::addressof(current->children[index]);
+	}
+
+	return current;
+}
+
+/// @brief Serializes an entity's persistent ECS data and optionally its children.
 [[nodiscard]] inline SerializedEntity SerializeEntity(
 	Entity entity,
 	SerializeEntityOptions options = {}
 ) {
-	PTGN_ASSERT(
-		entity,
-		"Cannot serialize a null entity"
-	);
-
-	PTGN_ASSERT(
-		entity.Has<Tag>(),
-		"Serialized entity must have a Tag component"
-	);
+	PTGN_ASSERT(entity, "Cannot serialize a null entity");
+	PTGN_ASSERT(entity.Has<Tag>(), "Serialized entity must have a Tag component");
 
 	SerializedEntity output;
 
@@ -213,13 +233,10 @@ inline void DeserializeEntityValueComponents(
 	}
 
 	output.tag = entity.Get<Tag>().value;
-	output.tags =
-		impl::SerializeEntityTagComponents(entity);
-	output.components =
-		impl::SerializeEntityValueComponents(entity);
+	output.tags = impl::SerializeEntityTagComponents(entity);
+	output.components = impl::SerializeEntityValueComponents(entity);
 
-	if (!options.include_children ||
-		!HasChildren(entity)) {
+	if (!options.include_children || !HasChildren(entity)) {
 		return output;
 	}
 
@@ -230,10 +247,7 @@ inline void DeserializeEntityValueComponents(
 
 	for (Entity child : children) {
 		output.children.emplace_back(
-			SerializeEntity(
-				child,
-				options
-			)
+			SerializeEntity(child, options)
 		);
 	}
 
@@ -245,17 +259,11 @@ inline void DeserializeEntityValueComponents(
 /// This applies Tag, empty marker components, and ordinary components. It does
 /// not modify UUID or hierarchy because entity creation and hierarchy restoration
 /// require context from scenes, prefabs, or editor commands.
-///
-/// This function adds and updates serialized components. It does not remove
-/// pre-existing runtime-only components that are absent from the data.
 inline void DeserializeEntity(
 	const SerializedEntity& input,
 	Entity entity
 ) {
-	PTGN_ASSERT(
-		entity,
-		"Cannot deserialize into a null entity"
-	);
+	PTGN_ASSERT(entity, "Cannot deserialize into a null entity");
 
 	if (entity.Has<Tag>()) {
 		entity.Get<Tag>().value = input.tag;
@@ -263,17 +271,8 @@ inline void DeserializeEntity(
 		entity.Add<Tag>(input.tag);
 	}
 
-	// Marker components are restored first so ordinary component
-	// deserializers may inspect them.
-	impl::DeserializeEntityTagComponents(
-		input.tags,
-		entity
-	);
-
-	impl::DeserializeEntityValueComponents(
-		input.components,
-		entity
-	);
+	impl::DeserializeEntityTagComponents(input.tags, entity);
+	impl::DeserializeEntityValueComponents(input.components, entity);
 }
 
 /// @return The required persistent UUID of serialized scene/snapshot data.

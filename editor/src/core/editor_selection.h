@@ -7,6 +7,7 @@
 
 #include "runtime/asset/asset_key.h"
 #include "runtime/ecs/entity.h"
+#include "runtime/ecs/entity_serialization.h"
 #include "runtime/ecs/uuid.h"
 #include "serialization/serialize.h"
 
@@ -38,18 +39,32 @@ struct EditorSelection {
 	std::string selected_scene_key;
 	bool selected_scene_runtime{ false };
 	std::vector<SceneEntitySelection> scene_entities;
+
+	/// Selected prefab asset. The selected entity inside the prefab is stored
+	/// separately as a child-index path from the prefab root.
 	std::optional<PrefabKey> selected_prefab;
+	SerializedEntityPath selected_prefab_entity_path;
+
 	EditorSelectionMode mode{ EditorSelectionMode::SceneHierarchy };
 
 	void Clear();
 
-	[[nodiscard]] bool HasEntitySelection(std::string_view scene_key, bool runtime) const;
-	[[nodiscard]] std::optional<UUID> GetEntityUUID(std::string_view scene_key, bool runtime) const;
+	[[nodiscard]] bool HasEntitySelection(
+		std::string_view scene_key,
+		bool runtime
+	) const;
+
+	[[nodiscard]] std::optional<UUID> GetEntityUUID(
+		std::string_view scene_key,
+		bool runtime
+	) const;
+
 	void SetEntityUUID(
 		std::string scene_key,
 		bool runtime,
 		std::optional<UUID> entity_uuid
 	);
+
 	void RemoveScene(std::string_view scene_key);
 	void RenameScene(std::string_view old_key, std::string_view new_key);
 
@@ -61,6 +76,7 @@ struct EditorSelection {
 		selected_scene_runtime,
 		scene_entities,
 		selected_prefab,
+		selected_prefab_entity_path,
 		mode
 	)
 };

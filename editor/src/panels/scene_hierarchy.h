@@ -7,6 +7,7 @@
 #include "core/editor_selection.h"
 #include "runtime/asset/asset_key.h"
 #include "runtime/ecs/entity.h"
+#include "runtime/ecs/entity_serialization.h"
 
 namespace ptgn::editor {
 
@@ -23,14 +24,25 @@ public:
 	void SetSelectedEntity(Entity entity, bool undoable = true);
 
 	[[nodiscard]] std::optional<PrefabKey> GetSelectedPrefab() const;
-	void SetSelectedPrefab(std::optional<PrefabKey> prefab, bool undoable = true);
+	[[nodiscard]] const SerializedEntityPath& GetSelectedPrefabEntityPath() const;
+
+	void SetSelectedPrefab(
+		std::optional<PrefabKey> prefab,
+		bool undoable = true
+	);
+
+	void SetSelectedPrefab(
+		std::optional<PrefabKey> prefab,
+		SerializedEntityPath entity_path,
+		bool undoable = true
+	);
 
 	[[nodiscard]] SceneHierarchyTab GetActiveTab() const;
+	void SetActiveTab(SceneHierarchyTab tab);
 
 private:
 	[[nodiscard]] bool DrawSceneHierarchy(EditorContext& ctx);
 	[[nodiscard]] bool DrawPrefabs(EditorContext& ctx);
-	void SetActiveTab(SceneHierarchyTab tab);
 
 	EditorContext* context_{ nullptr };
 
@@ -38,6 +50,9 @@ private:
 	std::string prefab_rename_text_;
 	std::string prefab_rename_error_;
 	bool focus_prefab_rename_{ false };
+
+	std::optional<PrefabKey> force_open_prefab_;
+	SerializedEntityPath force_open_prefab_entity_path_;
 
 	std::array<char, 256> filter_{};
 };

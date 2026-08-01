@@ -2990,6 +2990,7 @@ struct FeatureTargetKey {
 	const Scene* scene{ nullptr };
 	std::optional<UUID> entity;
 	std::optional<PrefabKey> prefab;
+	SerializedEntityPath prefab_entity_path;
 
 	bool operator==(const FeatureTargetKey&) const = default;
 };
@@ -3387,9 +3388,7 @@ void AssignPrefabComponent(
 			serialized.tags.emplace_back(name);
 		}
 	} else if constexpr (JsonSerializable<T>) {
-		json value{
-			*state
-		};
+		json value = *state;
 
 		serialized.components.insert_or_assign(
 			name,
@@ -3510,6 +3509,7 @@ struct EntityInspectorTarget {
 struct PrefabInspectorTarget {
 	EditorContext& ctx;
 	PrefabKey key;
+	SerializedEntityPath entity_path;
 	SerializedEntity& prefab;
 
 	template <typename T>
@@ -3532,69 +3532,57 @@ struct PrefabInspectorTarget {
 	[[nodiscard]] FeatureTargetKey GetFeatureTargetKey() const {
 		return FeatureTargetKey{
 			.prefab = key,
+			.prefab_entity_path = entity_path,
 		};
 	}
 
 	template <typename T>
 	[[nodiscard]] ComponentState<T> Capture() const {
-		return CapturePrefabComponent<T>(
-			prefab
-		);
+		return CapturePrefabComponent<T>(prefab);
 	}
 
-	template <
-		typename T,
-		typename Callback = std::nullptr_t
-	>
+	template <typename T, typename Callback = std::nullptr_t>
 	void SetLive(
 		ComponentState<T> state,
 		Callback = nullptr
 	) {
-		AssignPrefabComponent<T>(
-			prefab,
-			std::move(state)
-		);
+		AssignPrefabComponent<T>(prefab, std::move(state));
 	}
 
-	template <
-		typename T,
-		typename Callback = std::nullptr_t
-	>
-	auto MakeApply(
-		Callback = nullptr
-	) const {
-		EditorContext* context{
-			std::addressof(ctx)
-		};
-
-		PrefabKey prefab_key{
-			key
-		};
+	template <typename T, typename Callback = std::nullptr_t>
+	auto MakeApply(Callback = nullptr) const {
+		EditorContext* context{ std::addressof(ctx) };
+		PrefabKey prefab_key{ key };
+		SerializedEntityPath path{ entity_path };
 
 		return [
 			context,
-			prefab_key
-		](
-			ComponentState<T> state
-		) mutable {
-			auto& assets{
-				context->editor.GetAssetManager()
-			};
+			prefab_key,
+			path = std::move(path)
+		](ComponentState<T> state) mutable {
+			auto& assets{ context->editor.GetAssetManager() };
 
 			if (!assets.Has(prefab_key)) {
 				return;
 			}
 
 			auto prefab_asset{
-				::ptgn::impl::AssetAccessor{
-					assets
-				}.Get<Prefab>(
-					prefab_key
+				::ptgn::impl::AssetAccessor{ assets }.Get<Prefab>(prefab_key)
+			};
+
+			auto* serialized{
+				ResolveSerializedEntity(
+					prefab_asset.get().root,
+					path
 				)
 			};
 
+			if (!serialized) {
+				return;
+			}
+
 			AssignPrefabComponent<T>(
-				prefab_asset.get().root,
+				*serialized,
 				std::move(state)
 			);
 
@@ -3612,39 +3600,37 @@ struct PrefabInspectorTarget {
 	}
 
 	auto MakeNameApply() const {
-		EditorContext* context{
-			std::addressof(ctx)
-		};
-
-		PrefabKey prefab_key{
-			key
-		};
+		EditorContext* context{ std::addressof(ctx) };
+		PrefabKey prefab_key{ key };
+		SerializedEntityPath path{ entity_path };
 
 		return [
 			context,
-			prefab_key
-		](
-			std::string name
-		) {
-			auto& assets{
-				context->editor.GetAssetManager()
-			};
+			prefab_key,
+			path = std::move(path)
+		](std::string name) {
+			auto& assets{ context->editor.GetAssetManager() };
 
 			if (!assets.Has(prefab_key)) {
 				return;
 			}
 
 			auto prefab_asset{
-				::ptgn::impl::AssetAccessor{
-					assets
-				}.Get<Prefab>(
-					prefab_key
+				::ptgn::impl::AssetAccessor{ assets }.Get<Prefab>(prefab_key)
+			};
+
+			auto* serialized{
+				ResolveSerializedEntity(
+					prefab_asset.get().root,
+					path
 				)
 			};
 
-			prefab_asset.get().root.tag =
-				std::move(name);
+			if (!serialized) {
+				return;
+			}
 
+			serialized->tag = std::move(name);
 			assets.SavePrefab(prefab_key);
 			context->local.state.is_dirty = true;
 		};
@@ -8944,12 +8930,33 @@ void DrawPrefabInspector(EditorContext& ctx, const PrefabKey& key) {
 		return;
 	}
 
-	auto prefab_asset{ ::ptgn::impl::AssetAccessor{ assets }.Get<Prefab>(key) };
+	auto prefab_asset{
+		::ptgn::impl::AssetAccessor{ assets }.Get<Prefab>(key)
+	};
+
+	const SerializedEntityPath entity_path{
+		ctx.local.selection.selected_prefab_entity_path
+	};
+
+	auto* selected_entity{
+		ResolveSerializedEntity(
+			prefab_asset.get().root,
+			entity_path
+		)
+	};
+
+	if (!selected_entity) {
+		ImGui::TextDisabled(
+			"The selected prefab entity no longer exists."
+		);
+		return;
+	}
 
 	PrefabInspectorTarget target{
-		.ctx	= ctx,
-		.key	= key,
-		.prefab = prefab_asset.get().root,
+		.ctx = ctx,
+		.key = key,
+		.entity_path = entity_path,
+		.prefab = *selected_entity,
 	};
 
 	if (!DrawInspectorContents(ctx, target)) {

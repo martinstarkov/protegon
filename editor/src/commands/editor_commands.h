@@ -11,9 +11,15 @@
 #include "commands/undo_stack.h"
 #include "core/editor_selection.h"
 #include "core/util/file.h"
+#include "runtime/asset/prefab.h"
 #include "runtime/ecs/entity.h"
+#include "runtime/ecs/entity_serialization.h"
 
-namespace ptgn::editor {
+namespace ptgn {
+
+class Scene;
+
+namespace editor {
 
 class Editor;
 class EditorContext;
@@ -32,6 +38,52 @@ public:
 
 	void RenameEntity(Entity entity, std::string_view new_name);
 	void ReparentEntity(Entity child, Entity new_parent, bool preserve_world_transform);
+
+	/// @brief Creates a prefab asset and selects its root.
+	/// @return The created key, or an empty key if creation failed.
+	[[nodiscard]] PrefabKey CreatePrefabAsset(Prefab prefab);
+
+	/// @brief Deletes a prefab asset. Undo restores the complete asset and selection.
+	[[nodiscard]] bool DeletePrefabAsset(const PrefabKey& key);
+
+	/// @brief Renames a prefab asset while preserving its complete serialized hierarchy.
+	[[nodiscard]] bool RenamePrefabAsset(
+		const PrefabKey& old_key,
+		const PrefabKey& new_key
+	);
+
+	/// @brief Copies a prefab to a new key and selects the duplicate.
+	[[nodiscard]] PrefabKey DuplicatePrefabAsset(
+		const PrefabKey& source_key,
+		PrefabKey duplicate_key
+	);
+
+	/// @brief Adds a serialized child to a prefab entity.
+	///
+	/// parent_path is empty for the prefab root. The newly created child is selected.
+	[[nodiscard]] bool AddPrefabChild(
+		const PrefabKey& key,
+		SerializedEntityPath parent_path,
+		SerializedEntity child
+	);
+
+	/// @brief Duplicates a non-root serialized prefab entity beside the source.
+	[[nodiscard]] bool DuplicatePrefabEntity(
+		const PrefabKey& key,
+		SerializedEntityPath entity_path
+	);
+
+	/// @brief Deletes a non-root serialized prefab entity and selects its parent.
+	[[nodiscard]] bool DeletePrefabEntity(
+		const PrefabKey& key,
+		SerializedEntityPath entity_path
+	);
+
+	/// @brief Instantiates a prefab in a scene as one undoable entity creation.
+	[[nodiscard]] Entity CreatePrefabInstance(
+		Scene& scene,
+		const PrefabKey& key
+	);
 
 	template <std::copy_constructible T>
 	void SetComponentValue(Entity entity, const T& value) {
@@ -92,4 +144,6 @@ private:
 	EditorContext* context_{ nullptr };
 };
 
-} // namespace ptgn::editor
+} // namespace editor
+
+} // namespace ptgn
