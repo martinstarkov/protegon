@@ -73,9 +73,22 @@ void ApplyCameraBounds(SceneCamera camera) {
 }
 
 void RecalculateCameraViewProjection(SceneCamera camera) {
-	auto& c{ camera.Get<impl::CameraData>() };
+	auto& data{ camera.Get<impl::CameraData>() };
 
-	auto view_size{ camera.GetLogicalViewport().size };
+	V2_float view_size{ camera.GetLogicalViewport().size };
+
+	if (!view_size.IsPositive()) {
+		PTGN_WARN(
+			"Camera has a zero or negative logical viewport size; "
+			"clamping it to one logical unit"
+		);
+
+		view_size = Max(view_size, V2_float{ 1.0f, 1.0f });
+	}
+
+	if (data.pixel_rounding) {
+		view_size = Max(view_size, V2_float{ 1.0f, 1.0f });
+	}
 
 	// TODO: Consider adding flip in the future.
 	// V2_float flip_dir{ 1.0f, 1.0f };
@@ -97,12 +110,13 @@ void RecalculateCameraViewProjection(SceneCamera camera) {
 	auto current_offsets{ GetOffset(camera) };
 
 	camera_transform.Translate(current_offsets.position);
+
 	camera_transform.Rotate(current_offsets.rotation);
 
 	camera_transform.position = ptgn::ApplyCameraBounds(camera, camera_transform.position);
 
-	c.view_projection =
-		GetOrthographicViewProjection(camera_transform, view_size, c.pixel_rounding);
+	data.view_projection =
+		GetOrthographicViewProjection(camera_transform, view_size, data.pixel_rounding);
 }
 
 } // namespace impl
@@ -179,14 +193,36 @@ SceneCamera& SceneCamera::SetViewport(
 		PTGN_ASSERT(
 			viewport.has_value(), "Viewport must have a value when using normalized viewport space"
 		);
+
 		PTGN_ASSERT(
-			WithinRangeInclusive(viewport.value().position, 0.0f, 1.0f),
+			WithinRangeInclusive(viewport->position, 0.0f, 1.0f),
 			"Viewport position must be between 0 and 1 in normalized viewport space"
 		);
+
+		PTGN_ASSERT(
+			viewport->size.IsPositive(),
+			"Viewport size must be positive in normalized viewport space"
+		);
+
+		PTGN_ASSERT(
+			WithinRangeInclusive(viewport->size, 0.0f, 1.0f),
+			"Viewport size must not exceed 1 in normalized viewport space"
+		);
+
+		PTGN_ASSERT(
+			viewport->position.x + viewport->size.x <= 1.0f &&
+				viewport->position.y + viewport->size.y <= 1.0f,
+			"Normalized viewport must remain within the unit viewport"
+		);
+	} else if (viewport.has_value()) {
+		PTGN_ASSERT(viewport->size.IsPositive(), "Viewport size must be positive");
 	}
-	auto& c{ Get<impl::CameraData>() };
-	c.viewport_space = viewport_space;
-	c.raw_viewport	 = viewport;
+
+	auto& camera{ Get<impl::CameraData>() };
+
+	camera.viewport_space = viewport_space;
+	camera.raw_viewport	  = viewport;
+
 	return *this;
 }
 
@@ -324,8 +360,7 @@ SceneCamera& SceneCamera::SetRenderTarget(const std::optional<RenderTarget>& par
 	}
 
 	PTGN_ASSERT(
-		parent.value(),
-		"Cannot set camera parent render target to an invalid render target"
+		parent.value(), "Cannot set camera parent render target to an invalid render target"
 	);
 
 	Add<impl::ParentRenderTarget>(parent.value().Get<UUID>());
