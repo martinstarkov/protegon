@@ -731,15 +731,12 @@ void InteractionSystem::Update(Scene& scene) {
 		for (const Entity& camera_entity : cameras) {
 			SceneCamera camera{ camera_entity };
 
-			RenderTarget render_target;
+			RenderTarget render_target{ camera.GetRenderTarget() };
 
-			if (auto rt{ camera.TryGet<impl::ParentRenderTarget>() }) {
-				render_target = rt->render_target;
-			} else {
-				render_target = scene.GetRenderTarget();
+			if (!render_target) {
+				PTGN_WARN("Camera parent render target must be a valid entity");
+				continue;
 			}
-
-			PTGN_ASSERT(render_target, "Render target must be a valid entity");
 
 			UpdateForCamera(
 				scene, mouse_state, handled_under_mouse, render_target,

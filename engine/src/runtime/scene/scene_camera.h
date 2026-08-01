@@ -14,6 +14,7 @@
 #include "renderer/pipeline/camera.h"
 #include "renderer/pipeline/viewport.h"
 #include "runtime/ecs/entity.h"
+#include "runtime/ecs/uuid.h"
 #include "runtime/graphics/render_target.h"
 
 namespace ptgn {
@@ -42,7 +43,7 @@ struct BoundingBox {
 namespace impl {
 
 struct ParentRenderTarget {
-	RenderTarget render_target;
+	UUID render_target;
 };
 
 struct UILayer {};

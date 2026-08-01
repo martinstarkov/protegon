@@ -318,35 +318,29 @@ bool SceneCamera::CanSee(Entity entity) const {
 }
 
 SceneCamera& SceneCamera::SetRenderTarget(const std::optional<RenderTarget>& parent) {
+	if (!parent.has_value() || parent.value() == GetScene().GetRenderTarget()) {
+		Remove<impl::ParentRenderTarget>();
+		return *this;
+	}
+
 	PTGN_ASSERT(
-		!parent.has_value() || parent.value(),
+		parent.value(),
 		"Cannot set camera parent render target to an invalid render target"
 	);
 
-	auto new_parent{ parent.value_or(GetScene().GetRenderTarget()) };
-
-	PTGN_ASSERT(
-		HasDraw<RenderTarget>(new_parent) || new_parent == GetScene().GetRenderTarget(),
-		"Camera parent must be a render target"
-	);
-
-	Add<impl::ParentRenderTarget>(new_parent);
+	Add<impl::ParentRenderTarget>(parent.value().Get<UUID>());
 
 	return *this;
 }
 
 RenderTarget SceneCamera::GetRenderTarget() const {
-	PTGN_ASSERT(
-		Has<impl::ParentRenderTarget>(),
-		"Each camera must have a parent render target assigned to it"
-	);
+	const auto& scene{ GetScene() };
 
-	auto parent{ Get<impl::ParentRenderTarget>().render_target };
+	if (!Has<impl::ParentRenderTarget>()) {
+		return scene.GetRenderTarget();
+	}
 
-	PTGN_ASSERT(
-		HasDraw<RenderTarget>(parent) || parent == GetScene().GetRenderTarget(),
-		"Camera parent must be a render target"
-	);
+	RenderTarget parent{ scene.GetEntity(Get<impl::ParentRenderTarget>().render_target) };
 
 	return parent;
 }

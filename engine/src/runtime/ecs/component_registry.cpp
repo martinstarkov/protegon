@@ -47,6 +47,7 @@ namespace ptgn {
 
 PTGN_REGISTER_COMPONENT(Transform);
 PTGN_REGISTER_COMPONENT(impl::Scripts);
+PTGN_REGISTER_COMPONENT(impl::ParentRenderTarget);
 
 PTGN_REGISTER_COMPONENT(impl::TextData);
 PTGN_REGISTER_COMPONENT(impl::GraphicsData);
