@@ -633,134 +633,237 @@ inline bool DrawString(
 	std::string& value,
 	const FieldOptions& options
 ) {
-	return DrawPropertyRow(label, [&]() {
-		const bool read_only{
-			IsReadOnly(options)
-		};
+	return DrawPropertyRow(
+		label,
+		[&]() {
+			const bool read_only{
+				IsReadOnly(options)
+			};
 
-		if (!options.multiline) {
-			return DrawDisabledIf(read_only, [&]() {
-				return ImGui::InputText(
-					"##value",
-					&value
+			if (!options.multiline) {
+				return DrawDisabledIf(
+					read_only,
+					[&]() {
+						return ImGui::InputText(
+							"##value",
+							&value
+						);
+					}
 				);
-			});
-		}
-
-		const float default_height{
-			ImGui::GetTextLineHeightWithSpacing() *
-			static_cast<float>(
-				std::max<std::size_t>(
-					options.line_count,
-					1
-				)
-			)
-		};
-
-		ImVec2 input_size{
-			-FLT_MIN,
-			default_height
-		};
-
-		if (options.resizable_y) {
-			input_size = GetResizableMultilineSize(
-				"##resize",
-				input_size
-			);
-		}
-
-		constexpr ImGuiInputTextFlags input_flags{
-			ImGuiInputTextFlags_AllowTabInput |
-			ImGuiInputTextFlags_WordWrap
-		};
-
-		bool changed{
-			DrawDisabledIf(read_only, [&]() {
-				return ImGui::InputTextMultiline(
-					"##value",
-					&value,
-					input_size,
-					input_flags
-				);
-			})
-		};
-
-		const std::string popup_name{
-			std::string{ "Edit " } +
-			std::string{ label } +
-			"##LargeTextEditor"
-		};
-
-		bool open_large_editor{ false };
-
-		if (
-			options.large_editor &&
-			ImGui::BeginPopupContextItem(
-				"##MultilineContext"
-			)
-		) {
-			open_large_editor = ImGui::MenuItem(
-				"Edit in Large Window..."
-			);
-
-			ImGui::EndPopup();
-		}
-
-		if (open_large_editor) {
-			ImGui::OpenPopup(
-				popup_name.c_str()
-			);
-		}
-
-		ImGui::SetNextWindowSize(
-			ImVec2{ 700.0f, 500.0f },
-			ImGuiCond_Appearing
-		);
-
-		if (
-			ImGui::BeginPopupModal(
-				popup_name.c_str(),
-				nullptr,
-				ImGuiWindowFlags_NoSavedSettings
-			)
-		) {
-			const float footer_height{
-				ImGui::GetFrameHeightWithSpacing()
-			};
-
-			const ImVec2 available{
-				ImGui::GetContentRegionAvail()
-			};
-
-			const ImVec2 editor_size{
-				available.x,
-				std::max(
-					100.0f,
-					available.y - footer_height
-				)
-			};
-
-			changed |= DrawDisabledIf(
-				read_only,
-				[&]() {
-					return ImGui::InputTextMultiline(
-						"##LargeValue",
-						&value,
-						editor_size,
-						input_flags
-					);
-				}
-			);
-
-			if (ImGui::Button("Close")) {
-				ImGui::CloseCurrentPopup();
 			}
 
-			ImGui::EndPopup();
-		}
+			const std::string popup_name{
+				std::string{ "Edit " } +
+				std::string{ label } +
+				"##LargeTextEditor"
+			};
 
-		return changed;
-	});
+			const float default_height{
+				ImGui::GetTextLineHeightWithSpacing() *
+				static_cast<float>(
+					std::max<std::size_t>(
+						options.line_count,
+						1
+					)
+				)
+			};
+
+			ImVec2 input_size{
+				-FLT_MIN,
+				default_height
+			};
+
+			bool open_large_editor{ false };
+
+			// DrawPropertyRow() has already placed the cursor at the
+			// normal beginning of the value column.
+			const ImVec2 input_position{
+				ImGui::GetCursorScreenPos()
+			};
+
+			if (options.large_editor) {
+				const float button_size{
+					ImGui::GetFrameHeight()
+				};
+
+				const float spacing{
+					ImGui::GetStyle().ItemInnerSpacing.x
+				};
+
+				// Draw the button immediately before the value column
+				// without shifting the multiline input.
+				ImGui::SetCursorScreenPos(
+					ImVec2{
+						input_position.x -
+							button_size -
+							spacing,
+						input_position.y
+					}
+				);
+
+				if (
+					ImGui::Button(
+						"...##OpenLargeEditor",
+						ImVec2{
+							button_size,
+							button_size
+						}
+					)
+				) {
+					open_large_editor = true;
+				}
+
+				if (ImGui::IsItemHovered()) {
+					ImGui::SetTooltip(
+						"Open the large text editor."
+					);
+				}
+
+				// Restore the regular value column position.
+				ImGui::SetCursorScreenPos(
+					input_position
+				);
+			}
+
+			if (options.resizable_y) {
+				input_size = GetResizableMultilineSize(
+					"##resize",
+					input_size
+				);
+			}
+
+			constexpr ImGuiInputTextFlags input_flags{
+				ImGuiInputTextFlags_AllowTabInput |
+				ImGuiInputTextFlags_WordWrap
+			};
+
+			// The button or resize child may consume the item width
+			// configured by DrawPropertyRow().
+			ImGui::SetNextItemWidth(
+				-FLT_MIN
+			);
+
+			bool changed{
+				DrawDisabledIf(
+					read_only,
+					[&]() {
+						return ImGui::InputTextMultiline(
+							"##value",
+							&value,
+							input_size,
+							input_flags
+						);
+					}
+				)
+			};
+
+			// This must remain immediately after InputTextMultiline(),
+			// because BeginPopupContextItem() acts on the last item.
+			if (
+				options.large_editor &&
+				ImGui::BeginPopupContextItem(
+					"##MultilineContext"
+				)
+			) {
+				if (
+					ImGui::MenuItem(
+						"Edit in Large Window..."
+					)
+				) {
+					open_large_editor = true;
+				}
+
+				ImGui::EndPopup();
+			}
+
+			// Both the button and context menu reach this path.
+			if (open_large_editor) {
+				ImGui::OpenPopup(
+					popup_name.c_str()
+				);
+			}
+
+			if (options.large_editor) {
+				ImGui::SetNextWindowSize(
+					ImVec2{
+						700.0f,
+						500.0f
+					},
+					ImGuiCond_Appearing
+				);
+
+				ImGui::SetNextWindowSizeConstraints(
+					ImVec2{
+						350.0f,
+						250.0f
+					},
+					ImVec2{
+						FLT_MAX,
+						FLT_MAX
+					}
+				);
+
+				if (
+					ImGui::BeginPopupModal(
+						popup_name.c_str(),
+						nullptr,
+						ImGuiWindowFlags_NoSavedSettings
+					)
+				) {
+					const bool close_requested{
+						ImGui::IsKeyPressed(
+							ImGuiKey_Escape,
+							false
+						)
+					};
+
+					if (!close_requested) {
+						const float footer_height{
+							ImGui::GetFrameHeightWithSpacing()
+						};
+
+						const ImVec2 available{
+							ImGui::GetContentRegionAvail()
+						};
+
+						const ImVec2 editor_size{
+							std::max(
+								1.0f,
+								available.x
+							),
+							std::max(
+								100.0f,
+								available.y -
+									footer_height
+							)
+						};
+
+						changed |= DrawDisabledIf(
+							read_only,
+							[&]() {
+								return ImGui::InputTextMultiline(
+									"##LargeValue",
+									&value,
+									editor_size,
+									input_flags
+								);
+							}
+						);
+
+						if (ImGui::Button("Close")) {
+							ImGui::CloseCurrentPopup();
+						}
+					} else {
+						ImGui::CloseCurrentPopup();
+					}
+
+					ImGui::EndPopup();
+				}
+			}
+
+			return changed;
+		}
+	);
 }
 
 template <typename T>
