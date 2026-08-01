@@ -401,7 +401,7 @@ bool Renderer::IsAttachedToCurrentFramebuffer(impl::TextureId texture) const {
 	return gl_->framebuffers.GetAttachment(bound) == texture;
 }
 
-void Renderer::OnFramebufferResize(V2_int size) {
+void Renderer::OnOutputResize(V2_int size) {
 	if (presentation_viewport_.has_value()) {
 		return;
 	}
@@ -486,7 +486,7 @@ void Renderer::SetPresentationViewport(std::optional<Viewport> presentation_view
 	presentation_viewport_ = presentation_viewport;
 
 	if (!presentation_viewport_.has_value()) {
-		OnFramebufferResize(GetFramebufferSize());
+		OnOutputResize(GetOutputSize());
 		return;
 	}
 
@@ -522,7 +522,7 @@ V2_int Renderer::GetPresentationSize() const {
 	if (presentation_viewport_.has_value()) {
 		return presentation_viewport_.value().size;
 	}
-	return GetFramebufferSize();
+	return GetOutputSize();
 }
 
 Viewport Renderer::GetDisplayViewport() const {
@@ -547,7 +547,7 @@ V2_float Renderer::GetScale() const {
 	return V2_float{ display_size } / logical_size;
 }
 
-V2_int Renderer::GetFramebufferSize() const {
+V2_int Renderer::GetOutputSize() const {
 	return window_.GetFramebufferSize();
 }
 

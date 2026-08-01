@@ -398,7 +398,8 @@ Window::Window(const WindowConfig& config, std::function<void(impl::EventData&&)
 	// Disable OS DPI aware resizing so window is 1:1 with screen coordinates
 	glfwWindowHint(GLFW_SCALE_TO_MONITOR, GLFW_FALSE);
 	// On MacOS displays disable high resolution framebuffers
-	glfwWindowHint(GLFW_COCOA_RETINA_FRAMEBUFFER, GLFW_TRUE);
+	glfwWindowHint(GLFW_COCOA_RETINA_FRAMEBUFFER, GLFW_FALSE);
+	glfwWindowHint(GLFW_SCALE_FRAMEBUFFER, GLFW_FALSE);
 	glfwWindowHint(GLFW_RESIZABLE, config.resizable ? GLFW_TRUE : GLFW_FALSE);
 	glfwWindowHint(GLFW_DECORATED, config.borderless ? GLFW_FALSE : GLFW_TRUE);
 	glfwWindowHint(GLFW_FLOATING, config.always_on_top ? GLFW_TRUE : GLFW_FALSE);
@@ -424,7 +425,6 @@ Window::Window(const WindowConfig& config, std::function<void(impl::EventData&&)
 #endif
 #endif
 
-	float main_scale = ImGui_ImplGlfw_GetContentScaleForMonitor(monitor);
 	instance_		 = std::unique_ptr<GLFWwindow, impl::WindowDeleter>{
 		glfwCreateWindow(
 			config.size.x, config.size.y, title_.c_str(), config.fullscreen ? monitor : nullptr,
@@ -449,11 +449,6 @@ Window::Window(const WindowConfig& config, std::function<void(impl::EventData&&)
 	io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;
 
 	ImGui::StyleColorsDark();
-
-	// Setup scaling
-	ImGuiStyle& style = ImGui::GetStyle();
-	style.ScaleAllSizes(main_scale);
-	style.FontScaleDpi = main_scale;
 
 #ifdef __EMSCRIPTEN__
 	emscripten_set_resize_callback(

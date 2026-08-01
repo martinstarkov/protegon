@@ -51,7 +51,7 @@ namespace ptgn::editor {
 namespace {
 
 constexpr float kLeftColumnRatio{ 0.25f };
-constexpr float kRightColumnRatio{ 0.30f };
+constexpr float kRightColumnRatio{ 0.40f };
 
 class ScopedRuntimeEditorTheme {
 public:
