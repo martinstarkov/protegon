@@ -26,8 +26,12 @@ namespace impl {
 
 struct RenderTargetDesc {
 	bool follow_display_size{ true };
-	/// @brief Must be above zero.
+
+	/// @brief Custom logical size used when follow_display_size is false.
+	/// In custom size mode, the framebuffer uses the same dimensions.
+	/// Must be positive.
 	V2_int size{ 1, 1 };
+
 	TextureFormat format{ kDefaultRenderTargetFormat };
 
 	PTGN_REFLECT(RenderTargetDesc, follow_display_size, size, format)
@@ -98,24 +102,29 @@ public:
 	std::optional<DepthStencil> GetClearDepthStencil() const;
 
 	/// @brief Enables or disables automatic display size tracking.
-	/// When disabled, the current framebuffer size becomes the custom size.
+	/// When disabled, the renderer's current logical size becomes the custom size.
 	RenderTarget& SetFollowDisplaySize(bool follow_display_size);
 
-	/// @brief Sets a custom render target size and disables display size tracking.
+	/// @brief Sets the render target's custom logical size and disables
+	/// display size tracking.
 	RenderTarget& SetSize(V2_int size);
 
 	/// @return Whether the target tracks the renderer display size.
 	bool FollowsDisplaySize() const;
 
-	/// @return The desired size stored by RenderTargetDesc.
-	/// When following the display, this is refreshed every frame.
-	V2_int GetConfiguredSize() const;
-
 	/// @return The scale of the actual framebuffer size relative to the logical size.
 	V2_float GetScale() const;
 
-	/// @return The actual framebuffer size.
+	/// @return The configured custom logical size.
+	/// This value is used only when display size following is disabled.
+	V2_int GetCustomSize() const;
+
+	/// @return The actual framebuffer size in pixels.
 	V2_int GetSize() const;
+
+	/// @return Size used when drawing the render target as an entity.
+	/// This is separate from the framebuffer's pixel dimensions.
+	V2_float GetDrawSize() const;
 
 	TextureFormat GetFormat() const;
 	TextureParams GetParams() const;
@@ -125,7 +134,6 @@ public:
 	/// @param display_size Current renderer display size.
 	/// @return Whether the frame buffer was resized.
 	bool UpdateSize(V2_int display_size);
-
 private:
 	friend class Scene;
 

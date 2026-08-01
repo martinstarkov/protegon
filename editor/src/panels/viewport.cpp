@@ -268,39 +268,69 @@ V2_float ScreenToWorld(
 }
 
 std::optional<V2_int> WorldToRenderTargetPixel(
-	Entity render_target_entity, V2_float world_position
+	Entity render_target_entity,
+	V2_float world_position
 ) {
 	if (!render_target_entity.Has<impl::FramebufferObject>()) {
 		return std::nullopt;
 	}
 
-	RenderTarget render_target{ render_target_entity };
-
-	auto size{ render_target.GetSize() };
-
-	if (!size.IsPositive()) {
-		return std::nullopt;
-	}
-
-	auto draw_transform{ GetDrawTransform(render_target_entity) };
-
-	auto local_position{ draw_transform.ApplyInverse(world_position) };
-
-	Rect local_rect{ V2_float{ size }, render_target_entity.GetOrDefault<Origin>() };
-
-	if (local_position.x < local_rect.min.x || local_position.x >= local_rect.max.x ||
-		local_position.y < local_rect.min.y || local_position.y >= local_rect.max.y) {
-		return std::nullopt;
-	}
-
-	auto uv{ (local_position - local_rect.min) / local_rect.GetSize() };
-
-	V2_int pixel{
-		static_cast<int>(uv.x * static_cast<float>(size.x)),
-		static_cast<int>(uv.y * static_cast<float>(size.y)),
+	RenderTarget render_target{
+		render_target_entity
 	};
 
-	return Clamp(pixel, V2_int{ 0, 0 }, size - V2_int{ 1, 1 });
+	const V2_int framebuffer_size{
+		render_target.GetSize()
+	};
+
+	const V2_float draw_size{
+		render_target.GetDrawSize()
+	};
+
+	if (!framebuffer_size.IsPositive() ||
+		!draw_size.IsPositive()) {
+		return std::nullopt;
+	}
+
+	auto draw_transform{
+		GetDrawTransform(render_target_entity)
+	};
+
+	auto local_position{
+		draw_transform.ApplyInverse(world_position)
+	};
+
+	Rect local_rect{
+		draw_size,
+		render_target_entity.GetOrDefault<Origin>()
+	};
+
+	if (local_position.x < local_rect.min.x ||
+		local_position.x >= local_rect.max.x ||
+		local_position.y < local_rect.min.y ||
+		local_position.y >= local_rect.max.y) {
+		return std::nullopt;
+	}
+
+	const V2_float uv{
+		(local_position - local_rect.min) /
+		local_rect.GetSize()
+	};
+
+	V2_int pixel{
+		static_cast<int>(
+			uv.x * static_cast<float>(framebuffer_size.x)
+		),
+		static_cast<int>(
+			uv.y * static_cast<float>(framebuffer_size.y)
+		)
+	};
+
+	return Clamp(
+		pixel,
+		V2_int{ 0, 0 },
+		framebuffer_size - V2_int{ 1, 1 }
+	);
 }
 
 std::optional<V2_int> ScreenToFramebufferPixel(
@@ -570,24 +600,47 @@ void UpdateEditorCamera(EditorCamera& editor_camera) {
 	}
 }
 
-std::optional<V2_float> RenderTargetPixelToWorld(Entity render_target_entity, V2_float pixel) {
+std::optional<V2_float> RenderTargetPixelToWorld(
+	Entity render_target_entity,
+	V2_float pixel
+) {
 	if (!render_target_entity.Has<impl::FramebufferObject>()) {
 		return std::nullopt;
 	}
 
-	RenderTarget render_target{ render_target_entity };
-	auto size{ render_target.GetSize() };
+	RenderTarget render_target{
+		render_target_entity
+	};
 
-	if (!size.IsPositive()) {
+	const V2_int framebuffer_size{
+		render_target.GetSize()
+	};
+
+	const V2_float draw_size{
+		render_target.GetDrawSize()
+	};
+
+	if (!framebuffer_size.IsPositive() ||
+		!draw_size.IsPositive()) {
 		return std::nullopt;
 	}
 
-	Rect local_rect{ V2_float{ size }, render_target_entity.GetOrDefault<Origin>() };
+	Rect local_rect{
+		draw_size,
+		render_target_entity.GetOrDefault<Origin>()
+	};
 
-	auto uv{ pixel / V2_float{ size } };
-	auto local_position{ local_rect.min + uv * local_rect.GetSize() };
+	const V2_float uv{
+		pixel / V2_float{ framebuffer_size }
+	};
 
-	return GetDrawTransform(render_target_entity).Apply(local_position);
+	const V2_float local_position{
+		local_rect.min + uv * local_rect.GetSize()
+	};
+
+	return GetDrawTransform(
+		render_target_entity
+	).Apply(local_position);
 }
 
 std::optional<V2_float> ProjectWorldToCameraTarget(SceneCamera camera, V2_float world_position) {
