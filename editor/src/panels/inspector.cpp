@@ -2,6 +2,7 @@
 
 #include <imgui.h>
 #include <imgui_stdlib.h>
+#include <magic_enum/magic_enum.hpp>
 
 #include <algorithm>
 #include <array>
@@ -86,6 +87,21 @@
 #include "runtime/ui/tooltip.h"
 #include "scripting/script_editor_registry.h"
 
+namespace magic_enum::customize {
+
+template <>
+struct enum_range<ptgn::TextureFormat> {
+	static constexpr int min{
+		static_cast<int>(ptgn::TextureFormat::RGB8)
+	};
+
+	static constexpr int max{
+		static_cast<int>(ptgn::TextureFormat::Stencil8)
+	};
+};
+
+} // namespace magic_enum::customize
+
 namespace ptgn::editor {
 
 namespace inspector {
@@ -107,6 +123,174 @@ void DrawDisabledWrappedText(std::string_view text) {
 	ImGui::TextUnformatted(text.data(), text.data() + text.size());
 	ImGui::PopTextWrapPos();
 	ImGui::PopStyleColor();
+}
+
+
+bool DrawWHValue(
+	std::string_view label,
+	V2_float& value,
+	float speed = 0.1f,
+	float minimum = 0.0f,
+	float maximum = 0.0f,
+	const char* format = "%.3f",
+	ImGuiSliderFlags flags = ImGuiSliderFlags_None,
+	bool disabled = false
+) {
+	ImGui::PushID(&value);
+
+	const bool changed{ DrawPropertyRow(label, [&]() {
+		ScopedDisabled scoped_disabled{ disabled || IsReadOnly() };
+		const float spacing{ ImGui::GetStyle().ItemInnerSpacing.x };
+		const float width{ std::max(1.0f, (ImGui::GetContentRegionAvail().x - spacing) * 0.5f) };
+		const std::string width_format{ std::string{ "W: " } + format };
+		const std::string height_format{ std::string{ "H: " } + format };
+		bool local_changed{ false };
+
+		ImGui::SetNextItemWidth(width);
+		local_changed |= ImGui::DragFloat(
+			"##W", &value.x, speed, minimum, maximum, width_format.c_str(), flags
+		);
+		ImGui::SameLine(0.0f, spacing);
+		ImGui::SetNextItemWidth(width);
+		local_changed |= ImGui::DragFloat(
+			"##H", &value.y, speed, minimum, maximum, height_format.c_str(), flags
+		);
+
+		return local_changed;
+	}) };
+
+	if (changed) {
+		value.x = std::max(value.x, minimum);
+		value.y = std::max(value.y, minimum);
+
+		if (maximum > minimum) {
+			value.x = std::min(value.x, maximum);
+			value.y = std::min(value.y, maximum);
+		}
+	}
+
+	ImGui::PopID();
+	return changed;
+}
+
+bool DrawWHValue(
+	std::string_view label,
+	V2_int& value,
+	float speed = 1.0f,
+	int minimum = 0,
+	int maximum = 0,
+	ImGuiSliderFlags flags = ImGuiSliderFlags_None,
+	bool disabled = false
+) {
+	ImGui::PushID(&value);
+
+	const bool changed{ DrawPropertyRow(label, [&]() {
+		ScopedDisabled scoped_disabled{ disabled || IsReadOnly() };
+		const float spacing{ ImGui::GetStyle().ItemInnerSpacing.x };
+		const float width{ std::max(1.0f, (ImGui::GetContentRegionAvail().x - spacing) * 0.5f) };
+		bool local_changed{ false };
+
+		ImGui::SetNextItemWidth(width);
+		local_changed |= ImGui::DragInt(
+			"##W", &value.x, speed, minimum, maximum, "W: %d", flags
+		);
+		ImGui::SameLine(0.0f, spacing);
+		ImGui::SetNextItemWidth(width);
+		local_changed |= ImGui::DragInt(
+			"##H", &value.y, speed, minimum, maximum, "H: %d", flags
+		);
+
+		return local_changed;
+	}) };
+
+	if (changed) {
+		value.x = std::max(value.x, minimum);
+		value.y = std::max(value.y, minimum);
+
+		if (maximum > minimum) {
+			value.x = std::min(value.x, maximum);
+			value.y = std::min(value.y, maximum);
+		}
+	}
+
+	ImGui::PopID();
+	return changed;
+}
+
+bool DrawRValue(
+	std::string_view label,
+	float& value,
+	float speed = 0.1f,
+	float minimum = 0.0f,
+	float maximum = 0.0f,
+	const char* format = "%.3f",
+	ImGuiSliderFlags flags = ImGuiSliderFlags_None
+) {
+	ImGui::PushID(&value);
+	const std::string radius_format{ std::string{ "R: " } + format };
+
+	const bool changed{ DrawPropertyRow(label, [&]() {
+		ScopedDisabled disabled{ IsReadOnly() };
+		ImGui::SetNextItemWidth(-FLT_MIN);
+		return ImGui::DragFloat(
+			"##R", &value, speed, minimum, maximum, radius_format.c_str(), flags
+		);
+	}) };
+
+	if (changed) {
+		value = std::max(value, minimum);
+		if (maximum > minimum) {
+			value = std::min(value, maximum);
+		}
+	}
+
+	ImGui::PopID();
+	return changed;
+}
+
+bool DrawOptionalWHValue(
+	std::string_view label,
+	std::optional<V2_float>& value
+) {
+	ImGui::PushID(&value);
+	bool enabled{ value.has_value() };
+	V2_float displayed{ value.value_or(V2_float{}) };
+
+	const bool changed{ DrawPropertyRow(label, [&]() {
+		ScopedDisabled read_only{ IsReadOnly() };
+		const float spacing{ ImGui::GetStyle().ItemInnerSpacing.x };
+		const float checkbox_width{ ImGui::GetFrameHeight() };
+		const float field_width{ std::max(
+			1.0f,
+			(ImGui::GetContentRegionAvail().x - checkbox_width - spacing * 2.0f) * 0.5f
+		) };
+		bool local_changed{ ImGui::Checkbox("##Enabled", &enabled) };
+
+		ImGui::SameLine(0.0f, spacing);
+		{
+			ScopedDisabled no_override{ !enabled };
+			ImGui::SetNextItemWidth(field_width);
+			local_changed |= ImGui::DragFloat("##W", &displayed.x, 0.1f, 0.0f, 0.0f, "W: %.3f");
+			ImGui::SameLine(0.0f, spacing);
+			ImGui::SetNextItemWidth(field_width);
+			local_changed |= ImGui::DragFloat("##H", &displayed.y, 0.1f, 0.0f, 0.0f, "H: %.3f");
+		}
+
+		return local_changed;
+	}) };
+
+	if (changed) {
+		displayed.x = std::max(displayed.x, 0.0f);
+		displayed.y = std::max(displayed.y, 0.0f);
+		if (enabled) {
+			value = displayed;
+		} else {
+			value.reset();
+		}
+	}
+
+	ImGui::PopID();
+	return changed;
 }
 
 enum class ActionForm {
@@ -2235,7 +2419,10 @@ bool DrawOptionalViewport(
 			};
 
 			changed |= DrawValue(ctx, "Position", value->position, options);
-			changed |= DrawValue(ctx, "Size", value->size, options);
+			changed |= DrawWHValue(
+				"Size", value->size, options.speed, static_cast<float>(options.min),
+				static_cast<float>(options.max), options.format, options.flags
+			);
 
 			if (value->size.x > 1.0f || value->size.y > 1.0f) {
 				value->size.x = std::min(1.0f, value->size.x);
@@ -2251,14 +2438,9 @@ bool DrawOptionalViewport(
 				}
 			);
 
-			changed |= DrawValue(
-				ctx, "Size", value->size,
-				FieldOptions{
-					.speed	= 1.0f,
-					.min	= 1.0f,
-					.max	= 4096.0f,
-					.format = "%.0f",
-				}
+			changed |= DrawWHValue(
+				"Size", value->size, 1.0f, 1.0f, 4096.0f, "%.0f",
+				ImGuiSliderFlags_AlwaysClamp
 			);
 
 			if (value->size.x < 1.0f || value->size.y < 1.0f) {
@@ -2350,28 +2532,57 @@ struct Contents<::ptgn::impl::Scripts> {
 	}
 };
 
-template <>
-struct Contents<::ptgn::impl::RenderTargetSize> {
-	static bool Draw(EditorContext&, ::ptgn::impl::RenderTargetSize& target_size) {
-		bool changed{ ImGui::Checkbox("Follow Display Size", &target_size.follow_display_size) };
+bool DrawTextureFormatCombo(
+	const char* label,
+	TextureFormat& format,
+	bool color_only = true
+) {
+	bool changed{ false };
 
-		ImGui::BeginDisabled(target_size.follow_display_size);
+	const std::string_view preview{ magic_enum::enum_name(format) };
 
-		int size[2]{
-			target_size.size.x,
-			target_size.size.y,
-		};
+	ImGui::SetNextItemWidth(-FLT_MIN);
+	if (ImGui::BeginCombo(label, preview.empty() ? ToString(format).data() : preview.data())) {
+		for (const TextureFormat candidate : magic_enum::enum_values<TextureFormat>()) {
+			if (color_only && !IsColorFormat(candidate)) {
+				continue;
+			}
 
-		if (ImGui::DragInt2("Size", size, 1.0f, 1, 16384, "%d", ImGuiSliderFlags_AlwaysClamp)) {
-			target_size.size = {
-				std::max(size[0], 1),
-				std::max(size[1], 1),
-			};
+			const std::string_view name{ magic_enum::enum_name(candidate) };
+			const bool selected{ candidate == format };
 
-			changed = true;
+			if (ImGui::Selectable(name.data(), selected)) {
+				format = candidate;
+				changed = true;
+			}
+
+			if (selected) {
+				ImGui::SetItemDefaultFocus();
+			}
 		}
 
-		ImGui::EndDisabled();
+		ImGui::EndCombo();
+	}
+
+	return changed;
+}
+
+template <>
+struct Contents<::ptgn::impl::RenderTargetDesc> {
+	static bool Draw(EditorContext& ctx, ::ptgn::impl::RenderTargetDesc& target) {
+		bool changed{ DrawValue(ctx, "Follow Display Size", target.follow_display_size) };
+
+		changed |= DrawWHValue(
+			"Size",
+			target.size,
+			1.0f,
+			1,
+			4096,
+			ImGuiSliderFlags_AlwaysClamp,
+			target.follow_display_size
+		);
+
+		changed |= DrawTextureFormatCombo("Texture Format", target.format);
 
 		return changed;
 	}
@@ -2576,15 +2787,7 @@ struct Contents<Rect> {
 
 		auto size{ rect.max - rect.min };
 
-		if (DrawValue(
-				ctx, "Size", size,
-				FieldOptions{
-					.speed	= 0.1f,
-					.min	= 0.0,
-					.max	= 0.0,
-					.format = "%.3f",
-				}
-			)) {
+		if (DrawWHValue("Size", size, 0.1f, 0.0f, 0.0f, "%.3f")) {
 			size.x = std::max(size.x, 0.0f);
 			size.y = std::max(size.y, 0.0f);
 
@@ -2747,7 +2950,7 @@ using VisualFeatureComponents = FeatureComponents<
 	::ptgn::impl::AnimationData, ::ptgn::impl::Offsets, Tint,
 	::ptgn::impl::IgnoreParentTint, ::ptgn::impl::TextData,
 	::ptgn::impl::ParticleEmitterData, LightData, ::ptgn::impl::ShadowCaster,
-	::ptgn::impl::GraphicsData, ::ptgn::Material, ShaderKey, ::ptgn::impl::RenderTargetSize,
+	::ptgn::impl::GraphicsData, ::ptgn::Material, ShaderKey, ::ptgn::impl::RenderTargetDesc,
 	::ptgn::impl::RenderMask, ::ptgn::impl::UILayer, ::ptgn::impl::EffectTag,
 	::ptgn::impl::HDREffectTag, EffectMargin, Bloom, Blur, GaussianBlur,
 	::ptgn::impl::ClearColor, ::ptgn::impl::ClearDepth, ::ptgn::impl::ClearStencil>;
@@ -2961,6 +3164,19 @@ template <typename Visual, typename T, std::size_t N>
 	return std::nullopt;
 }
 
+std::string NormalizeFeatureName(std::string_view input) {
+	std::string result;
+	result.reserve(input.size());
+
+	for (const char c : input) {
+		if (std::isalnum(static_cast<unsigned char>(c))) {
+			result.push_back(static_cast<char>(std::tolower(static_cast<unsigned char>(c))));
+		}
+	}
+
+	return result;
+}
+
 template <typename Visual, typename T, std::size_t N>
 bool DrawButtonVisualOverrideValue(
 	EditorContext& ctx,
@@ -2977,7 +3193,16 @@ bool DrawButtonVisualOverrideValue(
 	const std::optional<T> inherited{
 		ResolveButtonVisualProperty(states, state, member)
 	};
-	const bool changed{ DrawValue(ctx, label, value) };
+	const bool changed{
+		[&]() {
+			if constexpr (std::same_as<T, V2_float>) {
+				if (NormalizeFeatureName(label) == "size") {
+					return DrawOptionalWHValue(label, value);
+				}
+			}
+			return DrawValue(ctx, label, value);
+		}()
+	};
 
 	if (changed && !had_override && value && inherited) {
 		value = *inherited;
@@ -4930,19 +5155,6 @@ bool DrawTransformFeature(Target& target) {
 	return changed;
 }
 
-std::string NormalizeFeatureName(std::string_view input) {
-	std::string result;
-	result.reserve(input.size());
-
-	for (const char c : input) {
-		if (std::isalnum(static_cast<unsigned char>(c))) {
-			result.push_back(static_cast<char>(std::tolower(static_cast<unsigned char>(c))));
-		}
-	}
-
-	return result;
-}
-
 template <typename Target>
 [[nodiscard]] PositionPicker::Convert MakeLocalPositionConverter(const Target& target) {
 	if constexpr (requires { target.entity; }) {
@@ -5251,16 +5463,11 @@ bool DrawGeometryValue(
 	using Type = std::remove_cvref_t<Value>;
 
 	if constexpr (std::same_as<Type, V2_float>) {
+		const std::string normalized{ NormalizeFeatureName(label) };
 		if constexpr (std::same_as<std::remove_cvref_t<Component>, Ellipse>) {
-			return DrawValue(
-				target.ctx,
-				label,
-				value,
-				FieldOptions{
-					.speed = 0.1f,
-					.format = "%.3f",
-				}
-			);
+			return DrawWHValue(label, value, 0.1f, 0.0f, 0.0f, "%.3f");
+		} else if (normalized == "size" || normalized == "dimensions") {
+			return DrawWHValue(label, value, 0.1f, 0.0f, 0.0f, "%.3f");
 		} else {
 			return DrawPickableLocalPosition(
 				target,
@@ -5274,15 +5481,7 @@ bool DrawGeometryValue(
 		bool changed{ false };
 		V2_float size{ value.GetSize() };
 
-		if (DrawValue(
-				target.ctx,
-				"Size",
-				size,
-				FieldOptions{
-					.speed = 0.1f,
-					.format = "%.3f",
-				}
-			)) {
+		if (DrawWHValue("Size", size, 0.1f, 0.0f, 0.0f, "%.3f")) {
 			size.x = std::max(size.x, 0.0f);
 			size.y = std::max(size.y, 0.0f);
 
@@ -5389,6 +5588,12 @@ bool DrawGeometryValue(
 			callback,
 			std::make_index_sequence<std::variant_size_v<Type>>{}
 		);
+	} else if constexpr (std::same_as<Type, float>) {
+		const std::string normalized{ NormalizeFeatureName(label) };
+		if (normalized.contains("radius")) {
+			return DrawRValue(label, value, 0.1f, 0.0f, 0.0f, "%.3f");
+		}
+		return DrawValue(target.ctx, label, value);
 	} else if constexpr (ReflectedValue<Type>) {
 		auto reflected{ ReflectValue(value) };
 		auto value_locator = [locator](Component& root) -> decltype(auto) {
@@ -5629,7 +5834,7 @@ using RendererOwnedComponents = FeatureComponents<
 	::ptgn::impl::AnimationData, ::ptgn::impl::Offsets, ::ptgn::impl::TextData,
 	::ptgn::impl::ParticleEmitterData, LightData, ::ptgn::impl::ShadowCaster,
 	::ptgn::impl::GraphicsData, ::ptgn::Material, ShaderKey,
-	::ptgn::impl::RenderTargetSize, ::ptgn::impl::EffectTag,
+	::ptgn::impl::RenderTargetDesc, ::ptgn::impl::EffectTag,
 	::ptgn::impl::HDREffectTag, EffectMargin, Bloom, Blur, GaussianBlur,
 	::ptgn::impl::ClearColor, ::ptgn::impl::ClearDepth, ::ptgn::impl::ClearStencil>;
 
@@ -5721,7 +5926,7 @@ void InitializeRendererOwnedComponents(Target& target, std::string_view visual) 
 	} else if (visual.contains("graphics")) {
 		SetRendererOwnedComponent<::ptgn::impl::GraphicsData>(target);
 	} else if (visual.contains("rendertarget")) {
-		SetRendererOwnedComponent<::ptgn::impl::RenderTargetSize>(target);
+		SetRendererOwnedComponent<::ptgn::impl::RenderTargetDesc>(target);
 	}
 
 	if (visual.contains("gaussianblur")) {
@@ -6750,14 +6955,14 @@ bool DrawTextureSizeAsIntegers(EditorContext& ctx, Value& value) {
 	using Type = std::remove_cvref_t<Value>;
 
 	if constexpr (std::same_as<Type, V2_int>) {
-		return DrawValue(ctx, "Texture Size", value);
+		return DrawWHValue("Texture Size", value, 1.0f, 0, 4096);
 	} else if constexpr (std::same_as<Type, V2_float>) {
 		V2_int displayed{
 			static_cast<int>(std::round(value.x)),
 			static_cast<int>(std::round(value.y))
 		};
 
-		if (!DrawValue(ctx, "Texture Size", displayed)) {
+		if (!DrawWHValue("Texture Size", displayed, 1.0f, 0, 4096)) {
 			return false;
 		}
 
@@ -7184,10 +7389,10 @@ bool DrawRenderTargetPrimary(Target& target) {
 
 	changed |= DrawOptionalVisualComponent<
 		Target,
-		::ptgn::impl::RenderTargetSize
+		::ptgn::impl::RenderTargetDesc
 	>(
 		target,
-		"Render Target Size"
+		"Render Target"
 	);
 	changed |= DrawOptionalNamedValue<
 		Target,
@@ -7521,15 +7726,7 @@ bool DrawButtonTextBoxOverride(
 			using Member = std::remove_cvref_t<decltype(member.value)>;
 			if constexpr (std::same_as<Member, Rect>) {
 				V2_float size{ member.value.GetSize() };
-				if (DrawValue(
-					target.ctx,
-					"Size",
-					size,
-					FieldOptions{
-						.speed = 0.1f,
-						.format = "%.3f",
-					}
-				)) {
+				if (DrawWHValue("Size", size, 0.1f, 0.0f, 0.0f, "%.3f")) {
 					size.x = std::max(size.x, 0.0f);
 					size.y = std::max(size.y, 0.0f);
 					const V2_float center{ member.value.GetCenter() };
@@ -8288,21 +8485,20 @@ bool DrawCameraParentRenderTarget(Target& target) {
 
 		auto& scene{ camera_entity.GetScene() };
 		const Entity scene_target{ scene.GetRenderTarget() };
+		const Entity main_camera{ scene.GetCamera() };
+		const Entity fixed_camera{ scene.GetFixedCamera() };
+		const bool parent_target_read_only{
+			camera_entity == main_camera || camera_entity == fixed_camera
+		};
 
 		std::string scene_target_label{ "Scene Target" };
-		if (scene_target && scene_target.Has<Tag, UUID>()) {
-			scene_target_label += " - ";
-			scene_target_label += std::string{ scene_target.Get<Tag>() };
-			scene_target_label += " [";
-			scene_target_label += uuid_text(scene_target.Get<UUID>());
-			scene_target_label += "]";
+		if (scene_target && scene_target.Has<Tag>()) {
+			scene_target_label = std::string{ scene_target.Get<Tag>() };
 		}
 
 		std::vector<RenderTargetOption> render_targets;
-		for (auto [entity, target_size] :
-			 scene.EntitiesWith<::ptgn::impl::RenderTargetSize>()) {
-			(void)target_size;
-
+		for (auto [entity, _target] :
+			 scene.EntitiesWith<::ptgn::impl::RenderTargetDesc>()) {
 			if (!entity || entity == scene_target || !entity.Has<Tag, UUID>()) {
 				continue;
 			}
@@ -8330,29 +8526,6 @@ bool DrawCameraParentRenderTarget(Target& target) {
 
 		changed |= DrawPropertyRow("Parent Render Target", [&]() {
 			bool row_changed{ false };
-			bool custom_target{ value.has_value() };
-
-			ImGui::BeginDisabled(render_targets.empty() && !custom_target);
-			if (ImGui::Checkbox("##Enabled", &custom_target)) {
-				if (!custom_target) {
-					value.reset();
-				} else if (!render_targets.empty()) {
-					value = ::ptgn::impl::ParentRenderTarget{
-						.render_target = render_targets.front().uuid,
-					};
-				}
-
-				row_changed = true;
-			}
-			ImGui::EndDisabled();
-
-			DrawTooltip(
-				custom_target
-					? "Uncheck to use the scene render target."
-					: "Uses the scene render target. Select another render target from the list."
-			);
-			ImGui::SameLine();
-
 			const char* preview{ scene_target_label.c_str() };
 			std::string missing_preview;
 
@@ -8373,6 +8546,7 @@ bool DrawCameraParentRenderTarget(Target& target) {
 				}
 			}
 
+			ImGui::BeginDisabled(parent_target_read_only);
 			ImGui::SetNextItemWidth(-FLT_MIN);
 			if (ImGui::BeginCombo("##RenderTarget", preview)) {
 				const bool scene_selected{ !value.has_value() };
@@ -8405,6 +8579,11 @@ bool DrawCameraParentRenderTarget(Target& target) {
 				}
 
 				ImGui::EndCombo();
+			}
+			ImGui::EndDisabled();
+
+			if (parent_target_read_only) {
+				DrawTooltip("The main and fixed cameras cannot change their parent render target.");
 			}
 
 			return row_changed;

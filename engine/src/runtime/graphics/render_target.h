@@ -24,12 +24,13 @@ inline constexpr Color kDefaultRenderTargetClearColor{ color::Transparent };
 
 namespace impl {
 
-struct RenderTargetSize {
+struct RenderTargetDesc {
 	bool follow_display_size{ true };
 	/// @brief Must be above zero.
 	V2_int size{ 1, 1 };
+	TextureFormat format{ kDefaultRenderTargetFormat };
 
-	PTGN_REFLECT(RenderTargetSize, follow_display_size, size)
+	PTGN_REFLECT(RenderTargetDesc, follow_display_size, size, format)
 };
 
 struct ClearColor {
@@ -106,7 +107,7 @@ public:
 	/// @return Whether the target tracks the renderer display size.
 	bool FollowsDisplaySize() const;
 
-	/// @return The desired size stored by RenderTargetSize.
+	/// @return The desired size stored by RenderTargetDesc.
 	/// When following the display, this is refreshed every frame.
 	V2_int GetConfiguredSize() const;
 

@@ -44,18 +44,17 @@ V2_int GetInitialDisplaySize(Renderer& renderer) {
 RenderTarget CreateRenderTargetImpl(
 	Scene& scene,
 	Transform transform,
-	impl::RenderTargetSize target_size,
-	Color clear_color,
-	TextureFormat texture_format
+	impl::RenderTargetDesc target,
+	Color clear_color
 ) {
 	RenderTarget render_target{ scene.CreateEntity() };
 
-	target_size.size = Max(target_size.size, { 1, 1 });
+	target.size = Max(target.size, { 1, 1 });
 
 	render_target.Add<Tag>("Render Target");
 	render_target.Add<Visible>(true);
 	render_target.Add<Transform>(transform);
-	render_target.Add<impl::RenderTargetSize>(target_size);
+	render_target.Add<impl::RenderTargetDesc>(target);
 
 	SetDraw<RenderTarget>(render_target);
 
@@ -64,8 +63,8 @@ RenderTarget CreateRenderTargetImpl(
 	render_target.Add<impl::FramebufferObject>(
 		impl::RendererAccessor{ scene.ctx().renderer }.CreateFramebuffer(
 			{
-				.size = target_size.size,
-				.format = texture_format,
+				.size = target.size,
+				.format = target.format,
 			},
 			std::nullopt
 		)
@@ -190,18 +189,18 @@ std::optional<DepthStencil> RenderTarget::GetClearDepthStencil() const {
 }
 
 RenderTarget& RenderTarget::SetFollowDisplaySize(bool follow_display_size) {
-	auto& target_size{ Get<impl::RenderTargetSize>() };
+	auto& target{ Get<impl::RenderTargetDesc>() };
 
-	if (target_size.follow_display_size == follow_display_size) {
+	if (target.follow_display_size == follow_display_size) {
 		return *this;
 	}
 
 	if (!follow_display_size) {
 		// Turning tracking off freezes the current actual size.
-		target_size.size = GetSize();
+		target.size = GetSize();
 	}
 
-	target_size.follow_display_size = follow_display_size;
+	target.follow_display_size = follow_display_size;
 
 	UpdateSize(GetScene().ctx().renderer.GetDisplaySize());
 
@@ -211,9 +210,9 @@ RenderTarget& RenderTarget::SetFollowDisplaySize(bool follow_display_size) {
 RenderTarget& RenderTarget::SetSize(V2_int size) {
 	PTGN_ASSERT(size.IsPositive(), "Render target size cannot be zero or negative");
 
-	auto& target_size{ Get<impl::RenderTargetSize>() };
-	target_size.follow_display_size = false;
-	target_size.size = size;
+	auto& target{ Get<impl::RenderTargetDesc>() };
+	target.follow_display_size = false;
+	target.size = size;
 
 	UpdateSize(GetScene().ctx().renderer.GetDisplaySize());
 
@@ -221,16 +220,16 @@ RenderTarget& RenderTarget::SetSize(V2_int size) {
 }
 
 bool RenderTarget::FollowsDisplaySize() const {
-	if (auto target_size{ TryGet<impl::RenderTargetSize>() }) {
-		return target_size->follow_display_size;
+	if (auto target{ TryGet<impl::RenderTargetDesc>() }) {
+		return target->follow_display_size;
 	}
 
 	return false;
 }
 
 V2_int RenderTarget::GetConfiguredSize() const {
-	if (auto target_size{ TryGet<impl::RenderTargetSize>() }) {
-		return target_size->size;
+	if (auto target{ TryGet<impl::RenderTargetDesc>() }) {
+		return target->size;
 	}
 
 	return GetSize();
@@ -265,30 +264,51 @@ TextureDesc RenderTarget::GetDesc() const {
 }
 
 bool RenderTarget::UpdateSize(V2_int display_size) {
-	if (!Has<impl::FramebufferObject, impl::RenderTargetSize>()) {
+	if (!Has<impl::RenderTargetDesc>()) {
 		return false;
 	}
 
-	auto& target_size{ Get<impl::RenderTargetSize>() };
+	auto& target{ Get<impl::RenderTargetDesc>() };
 
-	if (target_size.follow_display_size) {
+	if (target.follow_display_size) {
 		if (!display_size.IsPositive()) {
 			return false;
 		}
 
-		target_size.size = display_size;
+		target.size = display_size;
 	} else {
-		target_size.size = Max(target_size.size, { 1, 1 });
+		target.size = Max(target.size, { 1, 1 });
+	}
+
+	const bool recreate_framebuffer{
+		!Has<impl::FramebufferObject>() ||
+		Get<impl::FramebufferObject>().GetDesc().format != target.format
+	};
+
+	if (recreate_framebuffer) {
+		auto& scene{ GetScene() };
+		impl::RendererAccessor renderer{ scene.ctx().renderer };
+
+		Add<impl::FramebufferObject>(
+			renderer.CreateFramebuffer(
+				{
+					.size = target.size,
+					.format = target.format,
+				},
+				std::nullopt
+			)
+		);
+
+		return true;
 	}
 
 	auto& framebuffer{ Get<impl::FramebufferObject>() };
 
-	if (framebuffer.GetDesc().size == target_size.size) {
+	if (framebuffer.GetDesc().size == target.size) {
 		return false;
 	}
 
-	framebuffer.Resize(target_size.size);
-
+	framebuffer.Resize(target.size);
 	return true;
 }
 
@@ -341,12 +361,12 @@ RenderTarget CreateRenderTarget(
 	return CreateRenderTargetImpl(
 		scene,
 		transform,
-		impl::RenderTargetSize{
+		impl::RenderTargetDesc{
 			.follow_display_size = follow_display_size,
 			.size = size,
+			.format = texture_format
 		},
-		clear_color,
-		texture_format
+		clear_color
 	);
 }
 
@@ -359,12 +379,12 @@ RenderTarget CreateRenderTarget(
 	return CreateRenderTargetImpl(
 		scene,
 		transform,
-		impl::RenderTargetSize{
+		impl::RenderTargetDesc{
 			.follow_display_size = true,
 			.size = GetInitialDisplaySize(scene.ctx().renderer),
+			.format = texture_format
 		},
-		clear_color,
-		texture_format
+		clear_color
 	);
 }
 

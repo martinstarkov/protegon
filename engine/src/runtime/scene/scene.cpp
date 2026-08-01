@@ -87,22 +87,7 @@ void UpdateRenderTargetSizes(Scene& scene) {
 		display_size = scene.ctx().renderer.GetPresentationSize();
 	}
 
-	if (!display_size.IsPositive()) {
-		return;
-	}
-
-	for (auto [entity, framebuffer] : scene.EntitiesWith<impl::FramebufferObject>()) {
-		if (!entity.Has<impl::RenderTargetSize>()) {
-			// Backwards compatibility for render targets serialized before
-			// RenderTargetSize existed. Existing targets become fixed-size.
-			entity.Add<impl::RenderTargetSize>(
-				impl::RenderTargetSize{
-					.follow_display_size = false,
-					.size = framebuffer.GetDesc().size,
-				}
-			);
-		}
-
+	for (auto [entity, _target] : scene.EntitiesWith<impl::RenderTargetDesc>()) {
 		RenderTarget{ entity }.UpdateSize(display_size);
 	}
 }
