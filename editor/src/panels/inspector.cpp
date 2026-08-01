@@ -2769,8 +2769,10 @@ using UIFeatureComponents = FeatureComponents<
 	::ptgn::impl::TooltipHoverData, ::ptgn::impl::TooltipBackgroundPart,
 	::ptgn::impl::TooltipTextPart>;
 
-using CameraFeatureComponents =
-	FeatureComponents<::ptgn::impl::CameraData, ::ptgn::impl::CameraMask>;
+using CameraFeatureComponents = FeatureComponents<
+	::ptgn::impl::CameraData,
+	::ptgn::impl::CameraMask,
+	::ptgn::impl::ParentRenderTarget>;
 
 using ScriptsFeatureComponents = FeatureComponents<::ptgn::impl::Scripts>;
 
@@ -7888,8 +7890,9 @@ bool DrawReadOnlyInteractionLock(Target& target) {
 	if constexpr (!Target::template Supports<InteractionLock>()) {
 		return false;
 	} else {
-		auto state{ target.template Capture<InteractionLock>() };
+		const auto state{ target.template Capture<InteractionLock>() };
 		bool enabled{ state.has_value() };
+		const InteractionLock value{ state.value_or(InteractionLock{}) };
 
 		ScopedID target_scope{ target.Id() };
 		ScopedID component_scope{ static_cast<int>(Hash<InteractionLock>()) };
@@ -7902,12 +7905,6 @@ bool DrawReadOnlyInteractionLock(Target& target) {
 		DrawTooltip("Interaction Lock is managed by the runtime.");
 		ImGui::SameLine();
 
-		if (!state) {
-			ImGui::AlignTextToFramePadding();
-			ImGui::TextUnformatted("Interaction Lock");
-			return false;
-		}
-
 		if (ImGui::TreeNodeEx(
 				"Interaction Lock##ReadOnlyInteractionLock",
 				ImGuiTreeNodeFlags_SpanAvailWidth
@@ -7916,9 +7913,9 @@ bool DrawReadOnlyInteractionLock(Target& target) {
 			AutoLabelWidthScope label_width{ "InteractionLockReadOnlyFields" };
 			ReadOnlyScope read_only{ true };
 
-			[&]<typename T>(const T& value) {
+			[&]<typename T>(const T& reflected_value) {
 				if constexpr (ReflectedMembers<T>) {
-					auto members{ ReflectMembers(value) };
+					auto members{ ReflectMembers(reflected_value) };
 					std::apply(
 						[&](auto&&... member) {
 							(DrawReadOnlyValue(
@@ -7932,7 +7929,7 @@ bool DrawReadOnlyInteractionLock(Target& target) {
 				}
 
 				if constexpr (ReflectedReadOnlyMembers<T>) {
-					auto members{ ReflectReadOnlyMembers(value) };
+					auto members{ ReflectReadOnlyMembers(reflected_value) };
 					std::apply(
 						[&](auto&&... member) {
 							(DrawReadOnlyValue(
@@ -7944,7 +7941,7 @@ bool DrawReadOnlyInteractionLock(Target& target) {
 						members
 					);
 				}
-			}(*state);
+			}(value);
 
 			ImGui::TreePop();
 		}
@@ -8256,6 +8253,181 @@ bool DrawUIFeature(Target& target) {
 }
 
 template <typename Target>
+bool DrawCameraParentRenderTarget(Target& target) {
+	if constexpr (!requires { target.entity; }) {
+		return false;
+	} else {
+		Entity camera_entity{ target.entity };
+
+		if (!camera_entity) {
+			return false;
+		}
+
+		struct RenderTargetOption {
+			UUID uuid;
+			std::string label;
+		};
+
+		auto uuid_text = []<typename T>(const T& value) {
+			if constexpr (JsonSerializable<T>) {
+				json serialized = value;
+
+				if (serialized.is_string()) {
+					return serialized.template get<std::string>();
+				}
+
+				return serialized.dump();
+			} else if constexpr (requires { std::to_string(value.value); }) {
+				return std::to_string(value.value);
+			} else if constexpr (requires { std::to_string(value.value()); }) {
+				return std::to_string(value.value());
+			} else {
+				return std::to_string(Hash(value));
+			}
+		};
+
+		auto& scene{ camera_entity.GetScene() };
+		const Entity scene_target{ scene.GetRenderTarget() };
+
+		std::string scene_target_label{ "Scene Target" };
+		if (scene_target && scene_target.Has<Tag, UUID>()) {
+			scene_target_label += " - ";
+			scene_target_label += std::string{ scene_target.Get<Tag>() };
+			scene_target_label += " [";
+			scene_target_label += uuid_text(scene_target.Get<UUID>());
+			scene_target_label += "]";
+		}
+
+		std::vector<RenderTargetOption> render_targets;
+		for (auto [entity, target_size] :
+			 scene.EntitiesWith<::ptgn::impl::RenderTargetSize>()) {
+			(void)target_size;
+
+			if (!entity || entity == scene_target || !entity.Has<Tag, UUID>()) {
+				continue;
+			}
+
+			const UUID uuid{ entity.Get<UUID>() };
+			std::string label{ std::string{ entity.Get<Tag>() } };
+			label += " [";
+			label += uuid_text(uuid);
+			label += "]";
+
+			render_targets.push_back(RenderTargetOption{
+				.uuid = uuid,
+				.label = std::move(label),
+			});
+		}
+
+		std::ranges::sort(render_targets, {}, &RenderTargetOption::label);
+
+		ScopedID target_scope{ target.Id() };
+		ScopedID component_scope{ static_cast<int>(Hash<::ptgn::impl::ParentRenderTarget>()) };
+
+		auto before{ target.template Capture<::ptgn::impl::ParentRenderTarget>() };
+		auto value{ before };
+		bool changed{ false };
+
+		changed |= DrawPropertyRow("Parent Render Target", [&]() {
+			bool row_changed{ false };
+			bool custom_target{ value.has_value() };
+
+			ImGui::BeginDisabled(render_targets.empty() && !custom_target);
+			if (ImGui::Checkbox("##Enabled", &custom_target)) {
+				if (!custom_target) {
+					value.reset();
+				} else if (!render_targets.empty()) {
+					value = ::ptgn::impl::ParentRenderTarget{
+						.render_target = render_targets.front().uuid,
+					};
+				}
+
+				row_changed = true;
+			}
+			ImGui::EndDisabled();
+
+			DrawTooltip(
+				custom_target
+					? "Uncheck to use the scene render target."
+					: "Uses the scene render target. Select another render target from the list."
+			);
+			ImGui::SameLine();
+
+			const char* preview{ scene_target_label.c_str() };
+			std::string missing_preview;
+
+			if (value) {
+				const auto selected{ std::ranges::find(
+					render_targets,
+					value->render_target,
+					&RenderTargetOption::uuid
+				) };
+
+				if (selected != render_targets.end()) {
+					preview = selected->label.c_str();
+				} else {
+					missing_preview = "Missing Render Target [";
+					missing_preview += uuid_text(value->render_target);
+					missing_preview += "]";
+					preview = missing_preview.c_str();
+				}
+			}
+
+			ImGui::SetNextItemWidth(-FLT_MIN);
+			if (ImGui::BeginCombo("##RenderTarget", preview)) {
+				const bool scene_selected{ !value.has_value() };
+				if (ImGui::Selectable(scene_target_label.c_str(), scene_selected)) {
+					value.reset();
+					row_changed = true;
+				}
+
+				if (scene_selected) {
+					ImGui::SetItemDefaultFocus();
+				}
+
+				if (!render_targets.empty()) {
+					ImGui::Separator();
+				}
+
+				for (const auto& option : render_targets) {
+					const bool selected{ value && value->render_target == option.uuid };
+
+					if (ImGui::Selectable(option.label.c_str(), selected)) {
+						value = ::ptgn::impl::ParentRenderTarget{
+							.render_target = option.uuid,
+						};
+						row_changed = true;
+					}
+
+					if (selected) {
+						ImGui::SetItemDefaultFocus();
+					}
+				}
+
+				ImGui::EndCombo();
+			}
+
+			return row_changed;
+		});
+
+		if (changed) {
+			target.template SetLive<::ptgn::impl::ParentRenderTarget>(value);
+		}
+
+		auto after{ target.template Capture<::ptgn::impl::ParentRenderTarget>() };
+		TrackComponentState(
+			target,
+			"Edit Parent Render Target",
+			std::move(before),
+			std::move(after),
+			changed
+		);
+
+		return changed;
+	}
+}
+
+template <typename Target>
 bool DrawCameraFeature(Target& target) {
 	if (!HasCameraFeature(target)) {
 		return false;
@@ -8277,6 +8449,7 @@ bool DrawCameraFeature(Target& target) {
 	AutoLabelWidthScope camera_label_width{ "CameraFeatureFields" };
 
 	bool changed{ header.changed };
+	changed |= DrawCameraParentRenderTarget(target);
 	changed |= DrawOptionalComponent<
 		Target,
 		::ptgn::impl::CameraData
