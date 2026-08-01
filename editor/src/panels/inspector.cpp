@@ -98,6 +98,17 @@ void DrawTooltip(const char* text) {
 	}
 }
 
+void DrawDisabledWrappedText(std::string_view text) {
+	ImGui::PushStyleColor(
+		ImGuiCol_Text,
+		ImGui::GetStyleColorVec4(ImGuiCol_TextDisabled)
+	);
+	ImGui::PushTextWrapPos(0.0f);
+	ImGui::TextUnformatted(text.data(), text.data() + text.size());
+	ImGui::PopTextWrapPos();
+	ImGui::PopStyleColor();
+}
+
 enum class ActionForm {
 	Action,
 	Tween,
@@ -4506,6 +4517,90 @@ template <typename Visuals, typename Visual>
 	};
 }
 
+template <typename Visuals, typename Visual>
+[[nodiscard]] Transform ResolveButtonChildStateLocalTransform(
+	const Visuals& visuals,
+	Entity button,
+	ButtonVisualState state,
+	Origin fallback_anchor
+) {
+	Transform transform{
+		ResolveButtonVisualProperty(
+			visuals.states,
+			state,
+			&Visual::transform
+		).value_or(Transform{})
+	};
+	const Origin anchor{
+		ResolveButtonChildAnchor<Visuals, Visual>(
+			visuals,
+			state,
+			fallback_anchor
+		)
+	};
+	transform.position +=
+		GetButtonInspectorLocalRect(button).GetOriginPoint(anchor);
+	return transform;
+}
+
+[[nodiscard]] PositionPicker::Convert MakeButtonTextBoxPositionConverter(
+	Entity child,
+	Entity button,
+	ButtonVisualState state
+) {
+	return [child, button, state](
+		V2_float world_position
+	) mutable -> std::optional<V2_float> {
+		if (!child || !button || !child.Has<ButtonTextVisuals>()) {
+			return std::nullopt;
+		}
+
+		const auto& visuals{ child.Get<ButtonTextVisuals>() };
+		const Transform local_transform{
+			ResolveButtonChildStateLocalTransform<
+				ButtonTextVisuals,
+				ButtonTextVisual
+			>(
+				visuals,
+				button,
+				state,
+				Origin::Center
+			)
+		};
+		const V2_float button_local{
+			GetDrawTransform(button).ApplyInverse(world_position)
+		};
+		return local_transform.ApplyInverse(button_local);
+	};
+}
+
+[[nodiscard]] std::optional<V2_float> GetButtonTextBoxWorldPosition(
+	Entity child,
+	Entity button,
+	ButtonVisualState state,
+	V2_float local_position
+) {
+	if (!child || !button || !child.Has<ButtonTextVisuals>()) {
+		return std::nullopt;
+	}
+
+	const auto& visuals{ child.Get<ButtonTextVisuals>() };
+	const Transform local_transform{
+		ResolveButtonChildStateLocalTransform<
+			ButtonTextVisuals,
+			ButtonTextVisual
+		>(
+			visuals,
+			button,
+			state,
+			Origin::Center
+		)
+	};
+	return GetDrawTransform(button).Apply(
+		local_transform.Apply(local_position)
+	);
+}
+
 template <
 	typename Target,
 	typename Visuals,
@@ -4556,10 +4651,10 @@ bool DrawButtonChildStateTransformComponent(
 		const bool had_override{ visual.transform.has_value() };
 		bool changed{ false };
 
-		ImGui::TextDisabled(
-			"%s %s transform. Unset values inherit from fallback states.",
-			PrettyName(magic_enum::enum_name(state)).c_str(),
-			std::string{ part_label }.c_str()
+		DrawDisabledWrappedText(
+			PrettyName(magic_enum::enum_name(state)) + " " +
+			std::string{ part_label } +
+			" transform. Unset values inherit from fallback states."
 		);
 
 		changed |= DrawPropertyRow(
@@ -4712,7 +4807,7 @@ bool DrawButtonChildStateTransformFeature(
 				target,
 				child_info,
 				state,
-				Button{ child_info.button }.GetOrDefault<Origin>(),
+				child_info.button.GetOrDefault<Origin>(),
 				"Button Background",
 				&MarkButtonBackgroundDirty
 			);
@@ -4725,7 +4820,7 @@ bool DrawButtonChildStateTransformFeature(
 				target,
 				child_info,
 				state,
-				Button{ child_info.button }.GetOrDefault<Origin>(),
+				child_info.button.GetOrDefault<Origin>(),
 				"Button Border",
 				&MarkButtonBorderDirty
 			);
@@ -4751,7 +4846,7 @@ bool DrawButtonChildStateTransformFeature(
 				target,
 				child_info,
 				state,
-				Button{ child_info.button }.GetOrDefault<Origin>(),
+				child_info.button.GetOrDefault<Origin>(),
 				"Button Sprite",
 				&MarkButtonSpriteDirty
 			);
@@ -5601,7 +5696,9 @@ void InitializeRendererOwnedComponents(Target& target, std::string_view visual) 
 	} else if (visual == "triangle") {
 		add_shape.template operator()<Triangle>();
 	} else if (visual == "line") {
-		add_shape.template operator()<Line>();
+		SetRendererOwnedComponent<Line>(target, MakeDefaultShapeGeometry<Line>());
+		SetRendererOwnedComponent<Color>(target, Color{ color::White });
+		SetRendererOwnedComponent<FillStyle>(target, FillStyle{ kMinLineWidth });
 	} else if (visual == "capsule") {
 		add_shape.template operator()<Capsule>();
 	} else if (visual == "arc") {
@@ -6423,6 +6520,66 @@ bool DrawFlattenedConfig(
 }
 
 template <typename Target>
+bool DrawLineWidthVisual(Target& target) {
+	if constexpr (!Target::template Supports<FillStyle>()) {
+		return false;
+	} else {
+		ScopedID target_scope{ target.Id() };
+		ScopedID component_scope{ static_cast<int>(Hash<FillStyle>()) };
+
+		auto before{ target.template Capture<FillStyle>() };
+		bool enabled{ before.has_value() };
+		bool changed{ false };
+
+		if (ImGui::Checkbox("##Enabled", &enabled)) {
+			target.template SetLive<FillStyle>(
+				enabled
+					? ComponentState<FillStyle>{ FillStyle{ kMinLineWidth } }
+					: std::nullopt
+			);
+			changed = true;
+		}
+
+		ImGui::SameLine();
+
+		float line_width{ kMinLineWidth };
+		if (const auto current{ target.template Capture<FillStyle>() }) {
+			line_width = current->GetLineWidth().value_or(kMinLineWidth);
+		}
+
+		{
+			ScopedDisabled disabled{ !enabled };
+			if (DrawValue(
+				target.ctx,
+				"Line Width",
+				line_width,
+				FieldOptions{
+					.speed = 0.1f,
+					.min = kMinLineWidth,
+					.max = 1000.0f,
+					.format = "%.2f",
+					.flags = ImGuiSliderFlags_AlwaysClamp,
+				}
+			)) {
+				target.template SetLive<FillStyle>(FillStyle{ line_width });
+				changed = true;
+			}
+		}
+
+		auto after{ target.template Capture<FillStyle>() };
+		TrackComponentState(
+			target,
+			"Edit Line Width",
+			std::move(before),
+			std::move(after),
+			changed
+		);
+
+		return changed;
+	}
+}
+
+template <typename Target>
 bool DrawShapeVisual(
 	Target& target,
 	std::string_view visual
@@ -6464,10 +6621,14 @@ bool DrawShapeVisual(
 		target,
 		"Color"
 	);
-	changed |= DrawOptionalVisualComponent<Target, FillStyle>(
-		target,
-		"Fill Style"
-	);
+	if (visual == "line") {
+		changed |= DrawLineWidthVisual(target);
+	} else {
+		changed |= DrawOptionalVisualComponent<Target, FillStyle>(
+			target,
+			"Fill Style"
+		);
+	}
 
 	return changed;
 }
@@ -7193,16 +7354,16 @@ bool DrawButtonChildStateVisualComponent(
 		};
 		auto& visual{ visuals.states[index] };
 
-		ImGui::TextDisabled(
-			"%s %s overrides. Unset values inherit from fallback states.",
-			PrettyName(magic_enum::enum_name(state)).c_str(),
-			std::string{ part_label }.c_str()
+		DrawDisabledWrappedText(
+			PrettyName(magic_enum::enum_name(state)) + " " +
+			std::string{ part_label } +
+			" overrides. Unset values inherit from fallback states."
 		);
 
 		const bool changed{
 			std::invoke(
 				std::forward<Draw>(draw),
-				visuals.states,
+				visuals,
 				visual
 			)
 		};
@@ -7229,6 +7390,219 @@ bool DrawButtonChildStateVisualComponent(
 	}
 }
 
+template <typename Target, typename Locator>
+bool DrawPickableButtonTextBoxPosition(
+	Target& target,
+	ButtonTextVisuals& visuals,
+	const ButtonChildInfo& child_info,
+	ButtonVisualState state,
+	std::string_view label,
+	Locator locator
+) {
+	V2_float& position{ locator(visuals) };
+
+	return DrawPropertyRow(label, [&]() {
+		const float spacing{ ImGui::GetStyle().ItemInnerSpacing.x };
+		const float pick_width{
+			ImGui::CalcTextSize("Pick").x +
+			ImGui::GetStyle().FramePadding.x * 2.0f
+		};
+		const float available{ ImGui::GetContentRegionAvail().x };
+		const float field_width{
+			std::max(36.0f, (available - pick_width - spacing * 2.0f) * 0.5f)
+		};
+		bool changed{ false };
+
+		ImGui::SetNextItemWidth(field_width);
+		changed |= ImGui::DragFloat(
+			"##X", &position.x, 0.1f, 0.0f, 0.0f, "X %.2f"
+		);
+		ImGui::SameLine(0.0f, spacing);
+		ImGui::SetNextItemWidth(field_width);
+		changed |= ImGui::DragFloat(
+			"##Y", &position.y, 0.1f, 0.0f, 0.0f, "Y %.2f"
+		);
+		ImGui::SameLine(0.0f, spacing);
+
+		auto apply{
+			target.template MakeApply<ButtonTextVisuals>(
+				&MarkButtonTextDirty
+			)
+		};
+		ButtonTextVisuals snapshot{ visuals };
+
+		(void)DrawPositionPickButton(
+			target.ctx,
+			label,
+			position,
+			MakeButtonTextBoxPositionConverter(
+				child_info.child,
+				child_info.button,
+				state
+			),
+			[apply, snapshot = std::move(snapshot), locator](
+				V2_float picked
+			) mutable {
+				locator(snapshot) = picked;
+				apply(ComponentState<ButtonTextVisuals>{ snapshot });
+			},
+			GetButtonTextBoxWorldPosition(
+				child_info.child,
+				child_info.button,
+				state,
+				position
+			),
+			true
+		);
+
+		return changed;
+	});
+}
+
+template <typename Target>
+bool DrawButtonTextBoxOverride(
+	Target& target,
+	ButtonTextVisuals& visuals,
+	ButtonTextVisual& visual,
+	const ButtonChildInfo& child_info,
+	ButtonVisualState state
+) {
+	const auto index{
+		static_cast<std::size_t>(std::to_underlying(state))
+	};
+	const std::optional<TextBox> inherited{
+		ResolveButtonVisualProperty(
+			visuals.states,
+			state,
+			&ButtonTextVisual::box
+		)
+	};
+	bool enabled{ visual.box.has_value() };
+	bool changed{ false };
+
+	ScopedID box_scope{ "ButtonTextBoxOverride" };
+
+	if (ImGui::Checkbox("##Enabled", &enabled)) {
+		if (enabled) {
+			visual.box = inherited.value_or(TextBox{});
+			visual.defined = true;
+		} else {
+			visual.box.reset();
+		}
+		changed = true;
+	}
+
+	ImGui::SameLine();
+	const bool open{
+		ImGui::TreeNodeEx(
+			"Text Box##ButtonTextBoxTree",
+			ImGuiTreeNodeFlags_SpanAvailWidth
+		)
+	};
+
+	if (!open) {
+		return changed;
+	}
+
+	ScopedIndent indent;
+	TextBox displayed{
+		visual.box.value_or(inherited.value_or(TextBox{}))
+	};
+	TextBox& box{ enabled ? visual.box.value() : displayed };
+	ScopedDisabled disabled{ !enabled };
+
+	auto members{ ReflectMembers(box) };
+	auto draw_member = [&](auto&& member) {
+		const std::string normalized{ NormalizeFeatureName(member.name) };
+
+		if (normalized == "rect") {
+			using Member = std::remove_cvref_t<decltype(member.value)>;
+			if constexpr (std::same_as<Member, Rect>) {
+				V2_float size{ member.value.GetSize() };
+				if (DrawValue(
+					target.ctx,
+					"Size",
+					size,
+					FieldOptions{
+						.speed = 0.1f,
+						.format = "%.3f",
+					}
+				)) {
+					size.x = std::max(size.x, 0.0f);
+					size.y = std::max(size.y, 0.0f);
+					const V2_float center{ member.value.GetCenter() };
+					const V2_float half_size{ size * 0.5f };
+					member.value.min = center - half_size;
+					member.value.max = center + half_size;
+					changed = true;
+				}
+
+				if (enabled) {
+					auto min_locator = [index](ButtonTextVisuals& root) -> V2_float& {
+						return root.states[index].box.value().rect.min;
+					};
+					auto max_locator = [index](ButtonTextVisuals& root) -> V2_float& {
+						return root.states[index].box.value().rect.max;
+					};
+					changed |= DrawPickableButtonTextBoxPosition(
+						target,
+						visuals,
+						child_info,
+						state,
+						"Min",
+						min_locator
+					);
+					changed |= DrawPickableButtonTextBoxPosition(
+						target,
+						visuals,
+						child_info,
+						state,
+						"Max",
+						max_locator
+					);
+				} else {
+					changed |= DrawValue(target.ctx, "Min", member.value.min);
+					changed |= DrawValue(target.ctx, "Max", member.value.max);
+				}
+			}
+			return;
+		}
+
+		if (normalized == "style") {
+			if (ImGui::TreeNodeEx(
+					"Additional Options##ButtonTextBoxAdditionalOptions",
+					ImGuiTreeNodeFlags_SpanAvailWidth
+				)) {
+				{
+					ScopedUnindent align_with_additional_options;
+					changed |= DrawComponentContents(
+						target.ctx,
+						member.value
+					);
+				}
+				ImGui::TreePop();
+			}
+			return;
+		}
+
+		changed |= DrawValue(
+			target.ctx,
+			PrettyName(member.name),
+			member.value
+		);
+	};
+
+	std::apply(
+		[&](auto&&... member) {
+			(draw_member(member), ...);
+		},
+		members
+	);
+
+	ImGui::TreePop();
+	return changed;
+}
+
 template <typename Target>
 bool DrawButtonChildStateVisualFeature(
 	Target& target,
@@ -7244,19 +7618,19 @@ bool DrawButtonChildStateVisualFeature(
 				target,
 				state,
 				"Button Background",
-				[&target, state](auto& states, ButtonShapeVisual&) {
+				[&target, state](auto& visuals, ButtonShapeVisual&) {
 					bool changed{ false };
 					changed |= DrawButtonVisualOverrideValue(
-						target.ctx, "Size", states, state, &ButtonShapeVisual::size
+						target.ctx, "Size", visuals.states, state, &ButtonShapeVisual::size
 					);
 					changed |= DrawButtonVisualOverrideValue(
-						target.ctx, "Origin", states, state, &ButtonShapeVisual::origin
+						target.ctx, "Origin", visuals.states, state, &ButtonShapeVisual::origin
 					);
 					changed |= DrawButtonVisualOverrideValue(
-						target.ctx, "Anchor", states, state, &ButtonShapeVisual::anchor
+						target.ctx, "Anchor", visuals.states, state, &ButtonShapeVisual::anchor
 					);
 					changed |= DrawButtonVisualOverrideValue(
-						target.ctx, "Color", states, state, &ButtonShapeVisual::color
+						target.ctx, "Color", visuals.states, state, &ButtonShapeVisual::color
 					);
 					return changed;
 				},
@@ -7270,22 +7644,22 @@ bool DrawButtonChildStateVisualFeature(
 				target,
 				state,
 				"Button Border",
-				[&target, state](auto& states, ButtonShapeVisual&) {
+				[&target, state](auto& visuals, ButtonShapeVisual&) {
 					bool changed{ false };
 					changed |= DrawButtonVisualOverrideValue(
-						target.ctx, "Size", states, state, &ButtonShapeVisual::size
+						target.ctx, "Size", visuals.states, state, &ButtonShapeVisual::size
 					);
 					changed |= DrawButtonVisualOverrideValue(
-						target.ctx, "Origin", states, state, &ButtonShapeVisual::origin
+						target.ctx, "Origin", visuals.states, state, &ButtonShapeVisual::origin
 					);
 					changed |= DrawButtonVisualOverrideValue(
-						target.ctx, "Anchor", states, state, &ButtonShapeVisual::anchor
+						target.ctx, "Anchor", visuals.states, state, &ButtonShapeVisual::anchor
 					);
 					changed |= DrawButtonVisualOverrideValue(
-						target.ctx, "Color", states, state, &ButtonShapeVisual::color
+						target.ctx, "Color", visuals.states, state, &ButtonShapeVisual::color
 					);
 					changed |= DrawButtonVisualOverrideValue(
-						target.ctx, "Fill Style", states, state, &ButtonShapeVisual::fill_style
+						target.ctx, "Fill Style", visuals.states, state, &ButtonShapeVisual::fill_style
 					);
 					return changed;
 				},
@@ -7299,25 +7673,29 @@ bool DrawButtonChildStateVisualFeature(
 				target,
 				state,
 				"Button Text",
-				[&target, state](auto& states, ButtonTextVisual&) {
+				[&target, &child_info, state](ButtonTextVisuals& visuals, ButtonTextVisual& visual) {
 					bool changed{ false };
 					changed |= DrawButtonVisualOverrideValue(
-						target.ctx, "Content", states, state, &ButtonTextVisual::styled_text
+						target.ctx, "Content", visuals.states, state, &ButtonTextVisual::styled_text
+					);
+					changed |= DrawButtonTextBoxOverride(
+						target,
+						visuals,
+						visual,
+						child_info,
+						state
 					);
 					changed |= DrawButtonVisualOverrideValue(
-						target.ctx, "Text Box", states, state, &ButtonTextVisual::box
+						target.ctx, "Origin", visuals.states, state, &ButtonTextVisual::origin
 					);
 					changed |= DrawButtonVisualOverrideValue(
-						target.ctx, "Origin", states, state, &ButtonTextVisual::origin
+						target.ctx, "Anchor", visuals.states, state, &ButtonTextVisual::anchor
 					);
 					changed |= DrawButtonVisualOverrideValue(
-						target.ctx, "Anchor", states, state, &ButtonTextVisual::anchor
+						target.ctx, "Auto Box", visuals.states, state, &ButtonTextVisual::auto_box
 					);
 					changed |= DrawButtonVisualOverrideValue(
-						target.ctx, "Auto Box", states, state, &ButtonTextVisual::auto_box
-					);
-					changed |= DrawButtonVisualOverrideValue(
-						target.ctx, "Padding", states, state, &ButtonTextVisual::padding
+						target.ctx, "Padding", visuals.states, state, &ButtonTextVisual::padding
 					);
 					return changed;
 				},
@@ -7331,28 +7709,28 @@ bool DrawButtonChildStateVisualFeature(
 				target,
 				state,
 				"Button Sprite",
-				[&target, state](auto& states, ButtonSpriteVisual&) {
+				[&target, state](auto& visuals, ButtonSpriteVisual&) {
 					bool changed{ false };
 					changed |= DrawButtonVisualOverrideValue(
-						target.ctx, "Texture Key", states, state, &ButtonSpriteVisual::texture
+						target.ctx, "Texture Key", visuals.states, state, &ButtonSpriteVisual::texture
 					);
 					changed |= DrawButtonVisualOverrideValue(
-						target.ctx, "Origin", states, state, &ButtonSpriteVisual::origin
+						target.ctx, "Origin", visuals.states, state, &ButtonSpriteVisual::origin
 					);
 					changed |= DrawButtonVisualOverrideValue(
-						target.ctx, "Anchor", states, state, &ButtonSpriteVisual::anchor
+						target.ctx, "Anchor", visuals.states, state, &ButtonSpriteVisual::anchor
 					);
 					changed |= DrawButtonVisualOverrideValue(
-						target.ctx, "Size", states, state, &ButtonSpriteVisual::size
+						target.ctx, "Size", visuals.states, state, &ButtonSpriteVisual::size
 					);
 					changed |= DrawButtonVisualOverrideValue(
-						target.ctx, "Tint", states, state, &ButtonSpriteVisual::tint
+						target.ctx, "Tint", visuals.states, state, &ButtonSpriteVisual::tint
 					);
 					changed |= DrawButtonVisualOverrideValue(
-						target.ctx, "Animation", states, state, &ButtonSpriteVisual::animation
+						target.ctx, "Animation", visuals.states, state, &ButtonSpriteVisual::animation
 					);
 					changed |= DrawButtonVisualOverrideValue(
-						target.ctx, "Animation Options", states, state,
+						target.ctx, "Animation Options", visuals.states, state,
 						&ButtonSpriteVisual::animation_options
 					);
 					return changed;
@@ -7536,8 +7914,23 @@ bool DrawReadOnlyInteractionLock(Target& target) {
 			)) {
 			ScopedIndent indent;
 			AutoLabelWidthScope label_width{ "InteractionLockReadOnlyFields" };
+			ReadOnlyScope read_only{ true };
 
 			[&]<typename T>(const T& value) {
+				if constexpr (ReflectedMembers<T>) {
+					auto members{ ReflectMembers(value) };
+					std::apply(
+						[&](auto&&... member) {
+							(DrawReadOnlyValue(
+								target.ctx,
+								PrettyName(member.name),
+								member.value
+							), ...);
+						},
+						members
+					);
+				}
+
 				if constexpr (ReflectedReadOnlyMembers<T>) {
 					auto members{ ReflectReadOnlyMembers(value) };
 					std::apply(
@@ -7815,11 +8208,11 @@ bool DrawUIFeature(Target& target) {
 		);
 
 		if (editor_state.button_visual_state) {
-			ImGui::TextDisabled(
+			DrawDisabledWrappedText(
 				"Transform and Visual edit the selected state. Unset values inherit from fallback states."
 			);
 		} else {
-			ImGui::TextDisabled(
+			DrawDisabledWrappedText(
 				"Transform and Visual edit the base child entity."
 			);
 		}
