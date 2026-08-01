@@ -53,6 +53,258 @@ namespace {
 constexpr float kLeftColumnRatio{ 0.25f };
 constexpr float kRightColumnRatio{ 0.30f };
 
+class ScopedRuntimeEditorTheme {
+public:
+	explicit ScopedRuntimeEditorTheme(
+		bool enabled
+	) {
+		if (!enabled) {
+			return;
+		}
+
+		// Main panel and popup backgrounds.
+		Push(
+			ImGuiCol_WindowBg,
+			ImVec4{ 0.105f, 0.095f, 0.055f, 1.0f }
+		);
+		Push(
+			ImGuiCol_ChildBg,
+			ImVec4{ 0.095f, 0.085f, 0.050f, 1.0f }
+		);
+		Push(
+			ImGuiCol_PopupBg,
+			ImVec4{ 0.130f, 0.115f, 0.060f, 1.0f }
+		);
+		Push(
+			ImGuiCol_Border,
+			ImVec4{ 0.340f, 0.280f, 0.100f, 0.75f }
+		);
+
+		// Inputs, checkboxes, sliders, and drag controls.
+		Push(
+			ImGuiCol_FrameBg,
+			ImVec4{ 0.230f, 0.190f, 0.065f, 1.0f }
+		);
+		Push(
+			ImGuiCol_FrameBgHovered,
+			ImVec4{ 0.360f, 0.290f, 0.080f, 1.0f }
+		);
+		Push(
+			ImGuiCol_FrameBgActive,
+			ImVec4{ 0.470f, 0.370f, 0.090f, 1.0f }
+		);
+
+		Push(
+			ImGuiCol_CheckMark,
+			ImVec4{ 0.820f, 0.670f, 0.200f, 1.0f }
+		);
+		Push(
+			ImGuiCol_CheckboxSelectedBg,
+			ImVec4{ 0.460f, 0.360f, 0.080f, 1.0f }
+		);
+
+		Push(
+			ImGuiCol_SliderGrab,
+			ImVec4{ 0.640f, 0.510f, 0.130f, 1.0f }
+		);
+		Push(
+			ImGuiCol_SliderGrabActive,
+			ImVec4{ 0.820f, 0.650f, 0.160f, 1.0f }
+		);
+
+		// Buttons, tree nodes, selectables, and collapsing headers.
+		Push(
+			ImGuiCol_Button,
+			ImVec4{ 0.280f, 0.230f, 0.070f, 1.0f }
+		);
+		Push(
+			ImGuiCol_ButtonHovered,
+			ImVec4{ 0.420f, 0.340f, 0.090f, 1.0f }
+		);
+		Push(
+			ImGuiCol_ButtonActive,
+			ImVec4{ 0.540f, 0.430f, 0.110f, 1.0f }
+		);
+
+		Push(
+			ImGuiCol_Header,
+			ImVec4{ 0.260f, 0.215f, 0.065f, 1.0f }
+		);
+		Push(
+			ImGuiCol_HeaderHovered,
+			ImVec4{ 0.410f, 0.330f, 0.090f, 1.0f }
+		);
+		Push(
+			ImGuiCol_HeaderActive,
+			ImVec4{ 0.520f, 0.410f, 0.105f, 1.0f }
+		);
+
+		// Title bars and menu bars.
+		Push(
+			ImGuiCol_TitleBg,
+			ImVec4{ 0.125f, 0.110f, 0.055f, 1.0f }
+		);
+		Push(
+			ImGuiCol_TitleBgActive,
+			ImVec4{ 0.235f, 0.195f, 0.065f, 1.0f }
+		);
+		Push(
+			ImGuiCol_TitleBgCollapsed,
+			ImVec4{ 0.100f, 0.090f, 0.050f, 1.0f }
+		);
+		Push(
+			ImGuiCol_MenuBarBg,
+			ImVec4{ 0.150f, 0.130f, 0.055f, 1.0f }
+		);
+
+		// Scrollbars.
+		Push(
+			ImGuiCol_ScrollbarBg,
+			ImVec4{ 0.080f, 0.075f, 0.040f, 1.0f }
+		);
+		Push(
+			ImGuiCol_ScrollbarGrab,
+			ImVec4{ 0.290f, 0.240f, 0.075f, 1.0f }
+		);
+		Push(
+			ImGuiCol_ScrollbarGrabHovered,
+			ImVec4{ 0.400f, 0.320f, 0.090f, 1.0f }
+		);
+		Push(
+			ImGuiCol_ScrollbarGrabActive,
+			ImVec4{ 0.500f, 0.390f, 0.100f, 1.0f }
+		);
+
+		// Separators and resize handles.
+		Push(
+			ImGuiCol_Separator,
+			ImVec4{ 0.310f, 0.260f, 0.085f, 1.0f }
+		);
+		Push(
+			ImGuiCol_SeparatorHovered,
+			ImVec4{ 0.560f, 0.450f, 0.120f, 1.0f }
+		);
+		Push(
+			ImGuiCol_SeparatorActive,
+			ImVec4{ 0.720f, 0.570f, 0.145f, 1.0f }
+		);
+
+		Push(
+			ImGuiCol_ResizeGrip,
+			ImVec4{ 0.380f, 0.310f, 0.085f, 0.35f }
+		);
+		Push(
+			ImGuiCol_ResizeGripHovered,
+			ImVec4{ 0.600f, 0.480f, 0.125f, 0.75f }
+		);
+		Push(
+			ImGuiCol_ResizeGripActive,
+			ImVec4{ 0.760f, 0.600f, 0.150f, 1.0f }
+		);
+
+		// Docked panel tabs.
+		Push(
+			ImGuiCol_Tab,
+			ImVec4{ 0.150f, 0.130f, 0.055f, 1.0f }
+		);
+		Push(
+			ImGuiCol_TabHovered,
+			ImVec4{ 0.420f, 0.335f, 0.090f, 1.0f }
+		);
+		Push(
+			ImGuiCol_TabSelected,
+			ImVec4{ 0.300f, 0.250f, 0.070f, 1.0f }
+		);
+		Push(
+			ImGuiCol_TabSelectedOverline,
+			ImVec4{ 0.720f, 0.570f, 0.140f, 1.0f }
+		);
+		Push(
+			ImGuiCol_TabDimmed,
+			ImVec4{ 0.110f, 0.100f, 0.050f, 1.0f }
+		);
+		Push(
+			ImGuiCol_TabDimmedSelected,
+			ImVec4{ 0.220f, 0.185f, 0.060f, 1.0f }
+		);
+		Push(
+			ImGuiCol_TabDimmedSelectedOverline,
+			ImVec4{ 0.500f, 0.400f, 0.100f, 1.0f }
+		);
+
+		// Docking regions.
+		Push(
+			ImGuiCol_DockingPreview,
+			ImVec4{ 0.720f, 0.570f, 0.140f, 0.70f }
+		);
+		Push(
+			ImGuiCol_DockingEmptyBg,
+			ImVec4{ 0.080f, 0.075f, 0.040f, 1.0f }
+		);
+
+		// Tables used throughout the Inspector.
+		Push(
+			ImGuiCol_TableHeaderBg,
+			ImVec4{ 0.190f, 0.160f, 0.055f, 1.0f }
+		);
+		Push(
+			ImGuiCol_TableBorderStrong,
+			ImVec4{ 0.350f, 0.290f, 0.090f, 1.0f }
+		);
+		Push(
+			ImGuiCol_TableBorderLight,
+			ImVec4{ 0.240f, 0.200f, 0.065f, 1.0f }
+		);
+
+		// Other highlights that otherwise remain blue.
+		Push(
+			ImGuiCol_TextSelectedBg,
+			ImVec4{ 0.500f, 0.400f, 0.100f, 0.45f }
+		);
+		Push(
+			ImGuiCol_TreeLines,
+			ImVec4{ 0.460f, 0.370f, 0.110f, 1.0f }
+		);
+		Push(
+			ImGuiCol_DragDropTarget,
+			ImVec4{ 0.850f, 0.680f, 0.180f, 1.0f }
+		);
+		Push(
+			ImGuiCol_DragDropTargetBg,
+			ImVec4{ 0.650f, 0.510f, 0.110f, 0.20f }
+		);
+		Push(
+			ImGuiCol_NavCursor,
+			ImVec4{ 0.780f, 0.620f, 0.160f, 1.0f }
+		);
+	}
+
+	~ScopedRuntimeEditorTheme() {
+		if (color_count_ > 0) {
+			ImGui::PopStyleColor(color_count_);
+		}
+	}
+
+	ScopedRuntimeEditorTheme(
+		const ScopedRuntimeEditorTheme&
+	) = delete;
+
+	ScopedRuntimeEditorTheme& operator=(
+		const ScopedRuntimeEditorTheme&
+	) = delete;
+
+private:
+	void Push(
+		ImGuiCol target,
+		ImVec4 color
+	) {
+		ImGui::PushStyleColor(target, color);
+		++color_count_;
+	}
+
+	int color_count_{ 0 };
+};
+
 [[nodiscard]] std::optional<UUID> GetSelectedEntityUUID(
 	const SceneHierarchyPanel& hierarchy,
 	const Scene* scene
@@ -299,6 +551,10 @@ void Editor::UpdateDockLayout(std::uint32_t dockspace_id, float width) {
 }
 
 void Editor::OnRender() {
+	ScopedRuntimeEditorTheme runtime_theme{
+		IsPlaying()
+	};
+
 	auto* viewport{ ImGui::GetMainViewport() };
 
 	ImGui::SetNextWindowPos(viewport->WorkPos);
