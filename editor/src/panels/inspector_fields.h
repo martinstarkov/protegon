@@ -132,6 +132,8 @@ struct FieldOptions {
 	const char* format{ nullptr };
 	ImGuiSliderFlags flags{ ImGuiSliderFlags_None };
 	bool multiline{ false };
+	/// @brief Line count in a multiline text box.
+	std::size_t line_count{ 4 };
 	bool default_open{ true };
 	bool read_only{ false };
 	std::string_view array_item_name{ "Item" };
@@ -2044,8 +2046,8 @@ bool DrawValue(EditorContext& ctx, std::string_view label, T& value, FieldOption
 						"##value", &value,
 						ImVec2{
 							-FLT_MIN,
-							ImGui::GetTextLineHeightWithSpacing() * 4.0f,
-						}
+							ImGui::GetTextLineHeightWithSpacing() * static_cast<float>(options.line_count),
+						}, ImGuiInputTextFlags_AllowTabInput | ImGuiInputTextFlags_WordWrap
 					);
 				}
 
