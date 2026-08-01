@@ -46,6 +46,11 @@ private:
 
 	EditorContext* context_{ nullptr };
 
+	std::optional<SceneEntitySelection> renaming_entity_;
+	std::string entity_rename_text_;
+	std::string entity_rename_error_;
+	bool focus_entity_rename_{ false };
+
 	std::optional<PrefabKey> renaming_prefab_;
 	std::string prefab_rename_text_;
 	std::string prefab_rename_error_;

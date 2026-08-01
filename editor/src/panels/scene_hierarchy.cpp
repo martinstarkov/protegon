@@ -6,6 +6,7 @@
 #include <algorithm>
 #include <array>
 #include <cctype>
+#include <cfloat>
 #include <compare>
 #include <cstddef>
 #include <cstdint>
@@ -1127,13 +1128,33 @@ void DrawCreateEntityMenu(
 }
 
 void DrawSceneHierarchyContents(
-	EditorContext& ctx, Scene& scene, const std::optional<path>& project_root,
-	Entity& selected_entity, std::optional<PrefabKey>& selected_prefab,
-	std::array<char, 256>& filter
+	EditorContext& ctx,
+	Scene& scene,
+	const std::optional<path>& project_root,
+	Entity& selected_entity,
+	std::optional<PrefabKey>& selected_prefab,
+	std::array<char, 256>& filter,
+	std::optional<SceneEntitySelection>& renaming_entity,
+	std::string& entity_rename_text,
+	std::string& entity_rename_error,
+	bool& focus_entity_rename
 ) {
+	Entity entity_to_rename;
+	std::string entity_rename_name;
 	Entity entity_to_duplicate;
 	Entity entity_to_delete;
 	PendingHierarchyDrop pending_drop;
+
+	if (renaming_entity.has_value() &&
+		(renaming_entity->scene_key != scene.GetTag() ||
+		 renaming_entity->runtime != scene.IsRuntime() ||
+		 !renaming_entity->entity_uuid.has_value() ||
+		 !scene.GetEntity(renaming_entity->entity_uuid.value()))) {
+		renaming_entity.reset();
+		entity_rename_text.clear();
+		entity_rename_error.clear();
+		focus_entity_rename = false;
+	}
 
 	ImGui::SetNextItemWidth(-1.0f);
 	ImGui::InputTextWithHint(
@@ -1205,7 +1226,81 @@ void DrawSceneHierarchyContents(
 
 		bool has_visible_children{ !children.empty() };
 
-		ImGui::PushID(entity.Get<UUID>());
+		const UUID entity_uuid{ entity.Get<UUID>() };
+		ImGui::PushID(entity_uuid);
+
+		if (renaming_entity.has_value() &&
+			renaming_entity->scene_key == scene.GetTag() &&
+			renaming_entity->runtime == scene.IsRuntime() &&
+			renaming_entity->entity_uuid == entity_uuid) {
+			if (focus_entity_rename) {
+				ImGui::SetKeyboardFocusHere();
+				focus_entity_rename = false;
+			}
+
+			ImGui::SetNextItemWidth(-FLT_MIN);
+
+			const bool submitted{
+				ImGui::InputText(
+					"##RenameEntity",
+					&entity_rename_text,
+					ImGuiInputTextFlags_EnterReturnsTrue |
+						ImGuiInputTextFlags_AutoSelectAll
+				)
+			};
+
+			if (ImGui::IsItemClicked(ImGuiMouseButton_Left)) {
+				entity_left_clicked_this_frame = true;
+			}
+
+			const bool cancel{
+				ImGui::IsItemActive() &&
+				ImGui::IsKeyPressed(ImGuiKey_Escape)
+			};
+
+			const bool commit{
+				submitted ||
+				ImGui::IsItemDeactivated()
+			};
+
+			if (cancel) {
+				renaming_entity.reset();
+				entity_rename_text.clear();
+				entity_rename_error.clear();
+				focus_entity_rename = false;
+			} else if (commit) {
+				auto name{
+					TrimWhitespace(entity_rename_text)
+				};
+
+				if (name.empty()) {
+					entity_rename_error =
+						"Entity name cannot be empty.";
+					focus_entity_rename = true;
+				} else {
+					if (name != entity.Get<Tag>().value) {
+						entity_to_rename = entity;
+						entity_rename_name =
+							std::move(name);
+					}
+
+					renaming_entity.reset();
+					entity_rename_text.clear();
+					entity_rename_error.clear();
+					focus_entity_rename = false;
+				}
+			}
+
+			if (!entity_rename_error.empty()) {
+				ImGui::TextDisabled(
+					"%s",
+					entity_rename_error.c_str()
+				);
+			}
+
+			ImGui::PopID();
+			return;
+		}
 
 		ImGuiTreeNodeFlags flags{ ImGuiTreeNodeFlags_OpenOnArrow |
 								  ImGuiTreeNodeFlags_OpenOnDoubleClick |
@@ -1278,6 +1373,18 @@ void DrawSceneHierarchyContents(
 
 		if (ImGui::BeginPopupContextItem()) {
 			DrawCreateEntityMenu(ctx, scene, entity, selected_entity);
+
+			if (ImGui::MenuItem("Rename")) {
+				renaming_entity = SceneEntitySelection{
+					.scene_key = scene.GetTag(),
+					.runtime = scene.IsRuntime(),
+					.entity_uuid = entity_uuid,
+				};
+				entity_rename_text =
+					entity.Get<Tag>().value;
+				entity_rename_error.clear();
+				focus_entity_rename = true;
+			}
 
 			ImGui::BeginDisabled(duplication_lock_reason.has_value());
 
@@ -1409,6 +1516,13 @@ void DrawSceneHierarchyContents(
 		ApplyHierarchyDrop(ctx, pending_drop);
 	}
 
+	if (entity_to_rename) {
+		ctx.commands.RenameEntity(
+			entity_to_rename,
+			entity_rename_name
+		);
+	}
+
 	if (entity_to_duplicate && !GetDuplicationLockReason(entity_to_duplicate).has_value()) {
 		selected_entity = ctx.commands.DuplicateEntity(entity_to_duplicate);
 	}
@@ -1459,7 +1573,11 @@ bool SceneHierarchyPanel::DrawSceneHierarchy(
 			ctx.editor.GetProjectRoot(),
 			selected_entity,
 			selected_prefab,
-			filter_
+			filter_,
+			renaming_entity_,
+			entity_rename_text_,
+			entity_rename_error_,
+			focus_entity_rename_
 		);
 
 		if (selected_entity && !selected_scene->Entities().Contains(selected_entity)) {
@@ -1473,6 +1591,11 @@ bool SceneHierarchyPanel::DrawSceneHierarchy(
 		if (selected_prefab != GetSelectedPrefab()) {
 			SetSelectedPrefab(std::move(selected_prefab));
 		}
+	} else {
+		renaming_entity_.reset();
+		entity_rename_text_.clear();
+		entity_rename_error_.clear();
+		focus_entity_rename_ = false;
 	}
 
 	ImGui::End();
