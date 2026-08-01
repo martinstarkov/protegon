@@ -804,7 +804,7 @@ void Scene::InternalDraw(DrawContext& draw_context) {
 		for (auto [camera_entity, _data] : EntitiesWith<impl::CameraData>()) {
 			impl::RecalculateCameraViewProjection(SceneCamera{ camera_entity });
 
-			if (SceneCamera{ camera_entity }.GetRenderTarget() == ctx_->render_target_) {
+			if ((camera_entity == ctx_->camera || camera_entity == ctx_->fixed_camera_) && SceneCamera{ camera_entity }.GetRenderTarget() == ctx_->render_target_) {
 				continue;
 			}
 
