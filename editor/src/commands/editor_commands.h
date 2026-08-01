@@ -27,6 +27,7 @@ public:
 
 	Entity CreateEntity(std::string_view name);
 	Entity RecordCreatedEntity(Entity entity, EditorSelection before_selection);
+	Entity DuplicateEntity(Entity entity);
 	void DeleteEntity(Entity entity);
 
 	void RenameEntity(Entity entity, std::string_view new_name);

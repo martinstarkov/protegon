@@ -189,6 +189,18 @@ std::optional<std::string_view> GetDeletionLockReason(Entity entity) {
 	return std::nullopt;
 }
 
+std::optional<std::string_view> GetDuplicationLockReason(Entity entity) {
+	if (auto reason{ GetDeletionLockReason(entity) }) {
+		return reason;
+	}
+
+	if (IsManagedButtonVisual(entity)) {
+		return "Button part cannot be duplicated independently";
+	}
+
+	return std::nullopt;
+}
+
 std::optional<std::string_view> GetParentAssignmentLockReason(Entity entity, Entity new_parent) {
 	if (!entity) {
 		return "Invalid entity";
@@ -1113,6 +1125,7 @@ void DrawSceneHierarchyContents(
 	Entity& selected_entity, std::optional<PrefabKey>& selected_prefab,
 	std::array<char, 256>& filter
 ) {
+	Entity entity_to_duplicate;
 	Entity entity_to_delete;
 	PendingHierarchyDrop pending_drop;
 
@@ -1234,6 +1247,7 @@ void DrawSceneHierarchyContents(
 		}
 
 		auto hierarchy_restriction_reason{ GetHierarchyRestrictionReason(entity) };
+		auto duplication_lock_reason{ GetDuplicationLockReason(entity) };
 		auto deletion_lock_reason{ GetDeletionLockReason(entity) };
 		auto child_acceptance_reason{ GetChildAcceptanceLockReason(entity) };
 
@@ -1258,6 +1272,14 @@ void DrawSceneHierarchyContents(
 
 		if (ImGui::BeginPopupContextItem()) {
 			DrawCreateEntityMenu(ctx, scene, entity, selected_entity);
+
+			ImGui::BeginDisabled(duplication_lock_reason.has_value());
+
+			if (ImGui::MenuItem("Duplicate")) {
+				entity_to_duplicate = entity;
+			}
+
+			ImGui::EndDisabled();
 
 			ImGui::BeginDisabled(!project_root.has_value());
 
@@ -1306,6 +1328,7 @@ void DrawSceneHierarchyContents(
 				{
 					child_acceptance_reason,
 					hierarchy_restriction_reason,
+					duplication_lock_reason,
 					deletion_lock_reason,
 				}
 			);
@@ -1372,6 +1395,10 @@ void DrawSceneHierarchyContents(
 
 	if (pending_drop) {
 		ApplyHierarchyDrop(ctx, pending_drop);
+	}
+
+	if (entity_to_duplicate && !GetDuplicationLockReason(entity_to_duplicate).has_value()) {
+		selected_entity = ctx.commands.DuplicateEntity(entity_to_duplicate);
 	}
 
 	if (entity_to_delete && !GetDeletionLockReason(entity_to_delete).has_value()) {

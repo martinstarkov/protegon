@@ -21,8 +21,10 @@
 #include "runtime/ecs/entity_hierarchy.h"
 #include "runtime/ecs/tag.h"
 #include "runtime/scene/scene.h"
+#include "runtime/graphics/draw.h"
 #include "runtime/scene/scene_file.h"
 #include "runtime/scene/scene_manager.h"
+#include "runtime/ecs/entity_serialization.h"
 
 namespace ptgn::editor {
 
@@ -55,6 +57,33 @@ std::optional<EntityReference> ParentReference(Entity entity) {
 	return HasParent(entity)
 		? std::optional<EntityReference>{ MakeEntityReference(GetParent(entity)) }
 		: std::nullopt;
+}
+
+Entity DuplicateEntityNode(Scene& scene, Entity source) {
+	PTGN_ASSERT(source);
+	PTGN_ASSERT(source.Has<Tag>());
+
+	Entity duplicate{
+		scene.CreateEntity(source.Get<Tag>())
+	};
+	DeserializeEntityComponents(
+		SerializeEntityComponents(source),
+		duplicate
+	);
+
+	if (HasChildren(source)) {
+		auto children{ GetChildren(source) };
+		SortByLocalDepth(children);
+
+		for (Entity child : children) {
+			Entity duplicate_child{
+				DuplicateEntityNode(scene, child)
+			};
+			SetParent(duplicate_child, duplicate);
+		}
+	}
+
+	return duplicate;
 }
 
 void ApplyParent(Entity child, Entity parent, bool preserve_world_transform) {
@@ -128,6 +157,32 @@ Entity EditorCommands::RecordCreatedEntity(
 	));
 
 	return reference.Resolve(context_->editor);
+}
+
+Entity EditorCommands::DuplicateEntity(Entity entity) {
+	PTGN_ASSERT(context_);
+
+	if (!entity) {
+		return {};
+	}
+
+	Scene& scene{ entity.GetScene() };
+	const EditorSelection before{ context_->local.selection };
+	Entity parent{
+		HasParent(entity)
+			? GetParent(entity)
+			: Entity{}
+	};
+	Entity duplicate{
+		DuplicateEntityNode(scene, entity)
+	};
+
+	if (parent) {
+		SetParent(duplicate, parent);
+	}
+
+	scene.Refresh();
+	return RecordCreatedEntity(duplicate, before);
 }
 
 void EditorCommands::DeleteEntity(Entity entity) {
