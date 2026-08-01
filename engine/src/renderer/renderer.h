@@ -134,7 +134,7 @@ public:
 
 	/// @return The size of the entire viewport that the presentation viewport is within. This is
 	/// always equal to the window size.
-	V2_int GetWindowSize() const;
+	V2_int GetFramebufferSize() const;
 
 	void SetPrimaryWorldCamera(const std::optional<Camera>& primary_world_camera = std::nullopt);
 
@@ -541,7 +541,7 @@ private:
 
 	void ResizePresentationFramebuffer(V2_int size);
 
-	void OnWindowResize(V2_int size);
+	void OnFramebufferResize(V2_int size);
 
 	void ResetState();
 

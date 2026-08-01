@@ -398,7 +398,7 @@ Window::Window(const WindowConfig& config, std::function<void(impl::EventData&&)
 	// Disable OS DPI aware resizing so window is 1:1 with screen coordinates
 	glfwWindowHint(GLFW_SCALE_TO_MONITOR, GLFW_FALSE);
 	// On MacOS displays disable high resolution framebuffers
-	glfwWindowHint(GLFW_COCOA_RETINA_FRAMEBUFFER, GLFW_FALSE);
+	glfwWindowHint(GLFW_COCOA_RETINA_FRAMEBUFFER, GLFW_TRUE);
 	glfwWindowHint(GLFW_RESIZABLE, config.resizable ? GLFW_TRUE : GLFW_FALSE);
 	glfwWindowHint(GLFW_DECORATED, config.borderless ? GLFW_FALSE : GLFW_TRUE);
 	glfwWindowHint(GLFW_FLOATING, config.always_on_top ? GLFW_TRUE : GLFW_FALSE);

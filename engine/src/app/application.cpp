@@ -323,8 +323,8 @@ void Application::HandleGlobalEvents(bool dispatch_scene_events) {
 
 	for (auto& global_event : global_events) {
 		Event event{ global_event };
-		event.Dispatch<event::WindowResized>([this](const auto& size) {
-			ctx_.renderer.OnWindowResize(size);
+		event.Dispatch<event::FramebufferResized>([this](const auto& size) {
+			ctx_.renderer.OnFramebufferResize(size);
 		});
 		if (!dispatch_scene_events) {
 			continue;
