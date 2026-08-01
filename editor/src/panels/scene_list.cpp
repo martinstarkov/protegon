@@ -429,9 +429,8 @@ void DrawAddScenePopup(
 		impl::GetSceneRegistry().size()
 	);
 
-	for (const auto& [type, registration] :
+	for (const auto& [_type, registration] :
 		 impl::GetSceneRegistry()) {
-		(void)type;
 		registrations.emplace_back(
 			&registration
 		);
@@ -1067,7 +1066,7 @@ void SceneListPanel::SetSelectedScene(
 	}
 
 	if (undoable) {
-		(void)SetEditorSelection(ctx, std::move(selection), "Select Scene");
+		SetEditorSelection(ctx, std::move(selection), "Select Scene");
 	} else {
 		ApplyEditorSelection(ctx, std::move(selection));
 	}

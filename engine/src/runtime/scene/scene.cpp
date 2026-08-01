@@ -33,9 +33,9 @@
 #include "renderer/resources/texture_format.h"
 #include "runtime/animation/animation.h"
 #include "runtime/asset/asset_manager.h"
+#include "runtime/asset/prefab.h"
 #include "runtime/ecs/component_registry.h"
 #include "runtime/ecs/entity.h"
-#include "runtime/asset/prefab.h"
 #include "runtime/ecs/entity_hierarchy.h"
 #include "runtime/ecs/entity_serialization.h"
 #include "runtime/ecs/manager.h"
@@ -290,70 +290,111 @@ void DrawScene(
 	);
 }
 
-[[nodiscard]] UUID GetSerializedEntityUUID(const json& serialized_entity) {
-	PTGN_ASSERT(serialized_entity.is_object(), "Serialized entity must be a JSON object");
-	return serialized_entity.at("uuid").get<UUID>();
-}
-
-[[nodiscard]] Tag GetSerializedEntityTag(const json& serialized_entity) {
-	PTGN_ASSERT(serialized_entity.is_object(), "Serialized entity must be a JSON object");
-	return serialized_entity.at("tag").get<Tag>();
-}
-
-[[nodiscard]] json SerializeSceneEntity(Entity entity) {
-	PTGN_ASSERT(entity, "Cannot serialize a null scene entity");
-	PTGN_ASSERT(entity.Has<UUID>(), "Serialized scene entity is missing UUID");
-	PTGN_ASSERT(entity.Has<Tag>(), "Serialized scene entity is missing Tag");
-
-	json serialized_entity{
-		{ "uuid", entity.Get<UUID>() },
-		{ "tag", entity.Get<Tag>() },
-	};
-
-	auto tags = SerializeEntityTags(entity);
-	if (!tags.empty()) {
-		serialized_entity["tags"] = std::move(tags);
+[[nodiscard]] const SerializedEntity* FindSerializedEntity(
+	const SerializedEntity& serialized, UUID uuid
+) {
+	if (GetSerializedEntityUUID(serialized) == uuid) {
+		return &serialized;
 	}
 
-	auto components = SerializeEntityComponents(entity);
-	if (!components.empty()) {
-		serialized_entity["components"] = std::move(components);
-	}
-
-	if (HasChildren(entity)) {
-		json children = json::array();
-
-		for (Entity child : GetChildren(entity)) {
-			PTGN_ASSERT(child, "Cannot serialize a null child entity");
-			PTGN_ASSERT(child.Has<UUID>(), "Serialized child entity is missing UUID");
-			children.emplace_back(child.Get<UUID>());
-		}
-
-		if (!children.empty()) {
-			serialized_entity["children"] = std::move(children);
-		}
-	}
-
-	return serialized_entity;
-}
-
-[[nodiscard]] const json* FindSerializedEntity(const json& serialized_entities, UUID uuid) {
-	for (const auto& serialized_entity : serialized_entities) {
-		if (GetSerializedEntityUUID(serialized_entity) == uuid) {
-			return &serialized_entity;
+	for (const auto& child : serialized.children) {
+		if (const auto* result{ FindSerializedEntity(child, uuid) }) {
+			return result;
 		}
 	}
 
 	return nullptr;
 }
 
-void ApplySerializedIdentity(Entity entity, const json& serialized_entity) {
+[[nodiscard]] const SerializedEntity* FindSerializedEntity(
+	const std::vector<SerializedEntity>& roots, UUID uuid
+) {
+	for (const auto& root : roots) {
+		if (const auto* result{ FindSerializedEntity(root, uuid) }) {
+			return result;
+		}
+	}
+
+	return nullptr;
+}
+
+void CollectSerializedUUIDs(const SerializedEntity& serialized, std::vector<UUID>& uuids) {
+	const UUID uuid{ GetSerializedEntityUUID(serialized) };
+
+	PTGN_ASSERT(
+		!std::ranges::contains(uuids, uuid), "Serialized scene contains duplicate entity UUID"
+	);
+
+	uuids.emplace_back(uuid);
+
+	for (const auto& child : serialized.children) {
+		CollectSerializedUUIDs(child, uuids);
+	}
+}
+
+void ApplySerializedIdentity(Entity entity, const SerializedEntity& serialized) {
 	PTGN_ASSERT(entity, "Cannot apply serialized identity to a null entity");
+
 	PTGN_ASSERT(entity.Has<UUID>(), "Created entity is missing UUID");
+
 	PTGN_ASSERT(entity.Has<Tag>(), "Created entity is missing Tag");
 
-	entity.Get<UUID>() = GetSerializedEntityUUID(serialized_entity);
-	entity.Get<Tag>() = GetSerializedEntityTag(serialized_entity);
+	entity.Get<UUID>() = GetSerializedEntityUUID(serialized);
+
+	entity.Get<Tag>().value = serialized.tag;
+}
+
+[[nodiscard]] bool IsPrimarySerializedEntity(
+	UUID uuid, UUID render_target_uuid, UUID camera_uuid, UUID fixed_camera_uuid
+) {
+	return uuid == render_target_uuid || uuid == camera_uuid || uuid == fixed_camera_uuid;
+}
+
+void CreateSerializedNodes(
+	Scene& scene, const SerializedEntity& serialized, UUID render_target_uuid, UUID camera_uuid,
+	UUID fixed_camera_uuid
+) {
+	const UUID uuid{ GetSerializedEntityUUID(serialized) };
+
+	if (!IsPrimarySerializedEntity(uuid, render_target_uuid, camera_uuid, fixed_camera_uuid)) {
+		scene.CreateEntity(Tag{ serialized.tag }, uuid);
+	}
+
+	for (const auto& child : serialized.children) {
+		CreateSerializedNodes(scene, child, render_target_uuid, camera_uuid, fixed_camera_uuid);
+	}
+}
+
+void DeserializeSerializedNodes(Scene& scene, const SerializedEntity& serialized) {
+	Entity entity{ scene.GetEntity(GetSerializedEntityUUID(serialized)) };
+
+	PTGN_ASSERT(entity, "Failed to find entity created for serialized UUID");
+
+	DeserializeEntity(serialized, entity);
+
+	for (const auto& child : serialized.children) {
+		DeserializeSerializedNodes(scene, child);
+	}
+}
+
+void RestoreSerializedChildren(Scene& scene, const SerializedEntity& serialized) {
+	Entity parent{ scene.GetEntity(GetSerializedEntityUUID(serialized)) };
+
+	PTGN_ASSERT(parent, "Failed to find serialized hierarchy parent entity");
+
+	for (const auto& child_serialized : serialized.children) {
+		Entity child{ scene.GetEntity(GetSerializedEntityUUID(child_serialized)) };
+
+		PTGN_ASSERT(child, "Serialized hierarchy references a missing child UUID");
+
+		PTGN_ASSERT(
+			!HasParent(child), "Serialized hierarchy assigns the same child to multiple parents"
+		);
+
+		SetParent(child, parent);
+
+		RestoreSerializedChildren(scene, child_serialized);
+	}
 }
 
 } // namespace
@@ -370,9 +411,9 @@ Scene::Scene(Scene&& other) noexcept :
 
 Scene& Scene::operator=(Scene&& other) noexcept {
 	if (this != &other) {
-		ctx_	 = std::exchange(other.ctx_, nullptr);
-		manager_ = std::exchange(other.manager_, {});
-		data_	 = std::exchange(other.data_, {});
+		ctx_				= std::exchange(other.ctx_, nullptr);
+		manager_			= std::exchange(other.manager_, {});
+		data_				= std::exchange(other.data_, {});
 		asset_dependencies_ = std::exchange(other.asset_dependencies_, {});
 
 		if (ctx_) {
@@ -386,8 +427,8 @@ Scene& Scene::operator=(Scene&& other) noexcept {
 Scene::~Scene() = default;
 
 void Scene::InitBase(Application& app, impl::SceneData&& scene_data) {
-	data_	 = std::move(scene_data);
-	ctx_	 = std::make_unique<SceneContext>(app, *this);
+	data_ = std::move(scene_data);
+	ctx_  = std::make_unique<SceneContext>(app, *this);
 }
 
 void Scene::Init(Application& app, impl::SceneData&& scene_data) {
@@ -395,10 +436,8 @@ void Scene::Init(Application& app, impl::SceneData&& scene_data) {
 	CreateDefaultSceneEntities();
 
 	{
-		impl::AssetCaptureScope capture{
-			impl::ApplicationAccessor::ctx(app).assets,
-			asset_dependencies_
-		};
+		impl::AssetCaptureScope capture{ impl::ApplicationAccessor::ctx(app).assets,
+										 asset_dependencies_ };
 
 		OnNew();
 	}
@@ -407,12 +446,8 @@ void Scene::Init(Application& app, impl::SceneData&& scene_data) {
 	UpdateRenderTargetSizes(*this);
 
 	auto& app_context{ impl::ApplicationAccessor::ctx(app) };
-	
-	impl::SaveBootstrapProjectScene(
-		app,
-		*this,
-		app_context.project_bootstrap_save_pending
-	);
+
+	impl::SaveBootstrapProjectScene(app, *this, app_context.project_bootstrap_save_pending);
 
 	OnLoad();
 	Refresh();
@@ -451,19 +486,39 @@ void Scene::CreateDefaultSceneEntities() {
 }
 
 json Scene::SerializeContent() const {
-	json serialized_entities = json::array();
+	std::vector<Entity> roots;
 
 	for (Entity entity : Entities()) {
-		serialized_entities.emplace_back(SerializeSceneEntity(entity));
+		if (!HasParent(entity)) {
+			roots.emplace_back(entity);
+		}
+	}
+
+	SortByLocalDepth(roots);
+
+	json serialized_entities = json::array();
+
+	for (Entity root : roots) {
+		serialized_entities.emplace_back(SerializeEntity(
+			root, {
+					  .include_uuid		= true,
+					  .include_children = true,
+				  }
+		));
 	}
 
 	json primary_entities = json::object();
+
 	primary_entities["render_target"] = GetRenderTarget().Get<UUID>();
+
 	primary_entities["camera"] = GetCamera().Get<UUID>();
+
 	primary_entities["fixed_camera"] = GetFixedCamera().Get<UUID>();
 
 	json content = json::object();
+
 	content["primary_entities"] = std::move(primary_entities);
+
 	content["entities"] = std::move(serialized_entities);
 
 	return content;
@@ -472,14 +527,20 @@ json Scene::SerializeContent() const {
 void Scene::DeserializeContent(const json& serialized_content) {
 	PTGN_ASSERT(serialized_content.is_object(), "Serialized scene content must be a JSON object");
 
-	const auto& primary_entities = serialized_content.at("primary_entities");
-	const auto& serialized_entities = serialized_content.at("entities");
+	const auto& primary_entities{ serialized_content.at("primary_entities") };
+
+	const auto& serialized_entities_json{ serialized_content.at("entities") };
 
 	PTGN_ASSERT(primary_entities.is_object(), "Serialized primary entities must be a JSON object");
-	PTGN_ASSERT(serialized_entities.is_array(), "Serialized scene entities must be a JSON array");
+
+	PTGN_ASSERT(
+		serialized_entities_json.is_array(), "Serialized scene entities must be a JSON array"
+	);
 
 	const UUID render_target_uuid{ primary_entities.at("render_target").get<UUID>() };
+
 	const UUID camera_uuid{ primary_entities.at("camera").get<UUID>() };
+
 	const UUID fixed_camera_uuid{ primary_entities.at("fixed_camera").get<UUID>() };
 
 	PTGN_ASSERT(
@@ -488,141 +549,83 @@ void Scene::DeserializeContent(const json& serialized_content) {
 		"Serialized primary entity UUIDs must be unique"
 	);
 
+	std::vector<SerializedEntity> serialized_entities;
+
+	serialized_entities_json.get_to(serialized_entities);
+
 	std::vector<UUID> serialized_uuids;
-	serialized_uuids.reserve(serialized_entities.size());
 
-	for (const auto& serialized_entity : serialized_entities) {
-		PTGN_ASSERT(serialized_entity.is_object(), "Serialized entity must be a JSON object");
-		
-		PTGN_ASSERT(
-			serialized_entity.contains("uuid") &&
-				serialized_entity.contains("tag"),
-			"Serialized entity must contain uuid and tag"
-		);
-
-		if (const auto components{ serialized_entity.find("components") };
-			components != serialized_entity.end()) {
-			PTGN_ASSERT(
-				components->is_object(),
-				"Serialized entity components must be a JSON object"
-			);
-		}
-
-		if (const auto tags{ serialized_entity.find("tags") };
-			tags != serialized_entity.end()) {
-			PTGN_ASSERT(
-				tags->is_array(),
-				"Serialized entity tags must be a JSON array"
-			);
-		}
-
-		if (const auto children{ serialized_entity.find("children") };
-			children != serialized_entity.end()) {
-			PTGN_ASSERT(
-				children->is_array(),
-				"Serialized entity children must be a JSON array"
-			);
-		}
-
-		const UUID uuid{ GetSerializedEntityUUID(serialized_entity) };
-		PTGN_ASSERT(
-			!std::ranges::contains(serialized_uuids, uuid),
-			"Serialized scene contains duplicate entity UUID"
-		);
-		serialized_uuids.emplace_back(uuid);
+	for (const auto& root : serialized_entities) {
+		CollectSerializedUUIDs(root, serialized_uuids);
 	}
 
-	const json* render_target_serialized{
+	const SerializedEntity* render_target_serialized{
 		FindSerializedEntity(serialized_entities, render_target_uuid)
 	};
-	const json* camera_serialized{ FindSerializedEntity(serialized_entities, camera_uuid) };
-	const json* fixed_camera_serialized{
+
+	const SerializedEntity* camera_serialized{
+		FindSerializedEntity(serialized_entities, camera_uuid)
+	};
+
+	const SerializedEntity* fixed_camera_serialized{
 		FindSerializedEntity(serialized_entities, fixed_camera_uuid)
 	};
 
 	PTGN_ASSERT(render_target_serialized, "Serialized primary render target entity is missing");
+
 	PTGN_ASSERT(camera_serialized, "Serialized primary camera entity is missing");
+
 	PTGN_ASSERT(fixed_camera_serialized, "Serialized fixed camera entity is missing");
 
-	// Pass 1: construct every entity and assign its persistent UUID and Tag before any component
-	// data is deserialized. Primary entities use their specialized constructors so runtime only
-	// renderer and camera components are recreated rather than loaded from JSON.
+	// Pass 1: construct primary entities through their specialized
+	// factories and assign their persistent identities.
 	ctx_->render_target_ =
 		CreateRenderTarget(*this, {}, kDefaultSceneBackgroundColor, kDefaultSceneTargetFormat);
+
 	ApplySerializedIdentity(ctx_->render_target_, *render_target_serialized);
+
 	ctx_->render_target_.Remove<impl::IDrawable>();
 
 	ctx_->camera = CreateCamera(*this, {}, std::nullopt, ViewportSpace::Logical);
+
 	ApplySerializedIdentity(ctx_->camera, *camera_serialized);
 
 	ctx_->fixed_camera_ = CreateCamera(*this, {}, std::nullopt, ViewportSpace::Logical);
+
 	ApplySerializedIdentity(ctx_->fixed_camera_, *fixed_camera_serialized);
+
 	ctx_->fixed_camera_.SetMasks(
 		kDefaultFixedCameraIncludeLayerMask, kDefaultFixedCameraExcludeLayerMask
 	);
+
 	SetUI(ctx_->fixed_camera_, true);
 
 	if (data_.first_scene) {
 		SetBlendMode(GetRenderTarget(), kDefaultFirstSceneBlendMode);
 	}
 
-	for (const auto& serialized_entity : serialized_entities) {
-		const UUID uuid{ GetSerializedEntityUUID(serialized_entity) };
-
-		if (uuid == render_target_uuid || uuid == camera_uuid || uuid == fixed_camera_uuid) {
-			continue;
-		}
-
-		CreateEntity(GetSerializedEntityTag(serialized_entity), uuid);
+	// Create all non-primary entities before component data is
+	// deserialized so every persistent UUID can be resolved.
+	for (const auto& root : serialized_entities) {
+		CreateSerializedNodes(*this, root, render_target_uuid, camera_uuid, fixed_camera_uuid);
 	}
 
 	Refresh();
 
-	// Pass 2: all UUIDs now resolve, so ordinary component deserializers may safely run.
-	for (const auto& serialized_entity : serialized_entities) {
-		const UUID uuid{ GetSerializedEntityUUID(serialized_entity) };
-		Entity entity{ GetEntity(uuid) };
-
-		PTGN_ASSERT(entity, "Failed to find entity created for serialized UUID");
-
-		if (const auto tags{ serialized_entity.find("tags") };
-			tags != serialized_entity.end()) {
-			DeserializeEntityTags(*tags, entity);
-		}
-
-		if (const auto components{ serialized_entity.find("components") };
-			components != serialized_entity.end()) {
-			DeserializeEntityComponents(*components, entity);
-		}
+	// Pass 2: restore Tag, marker components, and ordinary components.
+	for (const auto& root : serialized_entities) {
+		DeserializeSerializedNodes(*this, root);
 	}
 
 	Refresh();
 
-	// Pass 3: rebuild hierarchy from child UUID lists after all entities and components exist.
-	for (const auto& serialized_entity : serialized_entities) {
-		const auto children{ serialized_entity.find("children") };
-		if (children == serialized_entity.end()) {
-			continue;
-		}
-
-		Entity parent{ GetEntity(GetSerializedEntityUUID(serialized_entity)) };
-		PTGN_ASSERT(parent, "Failed to find serialized hierarchy parent entity");
-
-		for (const auto& serialized_child_uuid : *children) {
-			const UUID child_uuid{ serialized_child_uuid.get<UUID>() };
-			Entity child{ GetEntity(child_uuid) };
-
-			PTGN_ASSERT(child, "Serialized hierarchy references a missing child UUID");
-			PTGN_ASSERT(
-				!HasParent(child),
-				"Serialized hierarchy assigns the same child to multiple parents"
-			);
-
-			AddChild(parent, child);
-		}
+	// Pass 3: rebuild the recursively represented hierarchy.
+	for (const auto& root : serialized_entities) {
+		RestoreSerializedChildren(*this, root);
 	}
 
 	Refresh();
+
 	UpdateRenderTargetSizes(*this);
 }
 
@@ -779,9 +782,7 @@ void Scene::DrawCameras(DrawContext& draw_context, const std::vector<Entity>& ca
 	}
 }
 
-void Scene::InternalDraw(
-	DrawContext& draw_context
-) {
+void Scene::InternalDraw(DrawContext& draw_context) {
 	if (!data_.render_enabled) {
 		// Draw commands may still be generated during update. Discard them
 		// every frame while this scene is excluded from rendering.
@@ -796,178 +797,91 @@ void Scene::InternalDraw(
 
 	ClearRenderTargets();
 
-	if (const auto& primary_world_camera{
-			ctx().renderer.GetPrimaryWorldCamera()
-		};
+	if (const auto& primary_world_camera{ ctx().renderer.GetPrimaryWorldCamera() };
 		primary_world_camera.has_value()) {
 		std::vector<Entity> non_scene_cameras;
 
-		for (auto [camera_entity, _data] :
-			 EntitiesWith<impl::CameraData>()) {
-			impl::RecalculateCameraViewProjection(
-				SceneCamera{
-					camera_entity
-				}
-			);
+		for (auto [camera_entity, _data] : EntitiesWith<impl::CameraData>()) {
+			impl::RecalculateCameraViewProjection(SceneCamera{ camera_entity });
 
-			if (SceneCamera{
-					camera_entity
-				}.GetRenderTarget() ==
-				ctx_->render_target_) {
+			if (SceneCamera{ camera_entity }.GetRenderTarget() == ctx_->render_target_) {
 				continue;
 			}
 
-			non_scene_cameras.emplace_back(
-				camera_entity
-			);
+			non_scene_cameras.emplace_back(camera_entity);
 		}
 
-		SortByDepth(
-			non_scene_cameras,
-			false
-		);
+		SortByDepth(non_scene_cameras, false);
 
-		DrawCameras(
-			draw_context,
-			non_scene_cameras
-		);
+		DrawCameras(draw_context, non_scene_cameras);
 
 		ctx().render_queue.CombineCommands();
 
-		PTGN_ASSERT(
-			ctx().render_queue
-					.render_commands_
-					.size() == 1
-		);
+		PTGN_ASSERT(ctx().render_queue.render_commands_.size() == 1);
 
-		PTGN_ASSERT(
-			ctx().render_queue
-					.debug_commands_
-					.size() == 1
-		);
+		PTGN_ASSERT(ctx().render_queue.debug_commands_.size() == 1);
 
 		SceneCamera camera;
 
-		auto render_target{
-			GetRenderTarget()
-		};
+		auto render_target{ GetRenderTarget() };
 
-		auto tint{
-			color::White
-		};
+		auto tint{ color::White };
 
 		impl::EffectParams effect_params;
 
-		Camera cam{
-			primary_world_camera.value()
-		};
+		Camera cam{ primary_world_camera.value() };
 
 		std::optional<Color> clear_color;
 
-		auto filter = [this](
-			auto entity
-		) {
-			auto entity_mask{
-				GetMask(entity)
-			};
+		auto filter = [this](auto entity) {
+			auto entity_mask{ GetMask(entity) };
 
-			auto include{
-				ctx().camera.GetIncludeMask()
-			};
+			auto include{ ctx().camera.GetIncludeMask() };
 
-			auto exclude{
-				ctx().camera.GetExcludeMask()
-			};
+			auto exclude{ ctx().camera.GetExcludeMask() };
 
-			bool in_include{
-				(entity_mask & include) != 0
-			};
+			bool in_include{ (entity_mask & include) != 0 };
 
-			bool in_exclude{
-				(entity_mask & exclude) != 0
-			};
+			bool in_exclude{ (entity_mask & exclude) != 0 };
 
-			return
-				!((in_include && !in_exclude) ||
-				  IsUI(entity)) ||
-				!IsVisible(entity);
+			return !((in_include && !in_exclude) || IsUI(entity)) || !IsVisible(entity);
 		};
 
-		auto& commands{
-			ctx().render_queue.GetRenderCommands(
-				camera,
-				false
-			)
-		};
+		auto& commands{ ctx().render_queue.GetRenderCommands(camera, false) };
 
-		auto& debug_commands{
-			ctx().render_queue.GetRenderCommands(
-				camera,
-				true
-			)
-		};
+		auto& debug_commands{ ctx().render_queue.GetRenderCommands(camera, true) };
 
 		DrawScene(
-			*this,
-			commands,
-			debug_commands,
-			draw_context,
-			render_target,
-			cam,
-			camera,
-			clear_color,
-			tint,
-			effect_params,
-			filter
+			*this, commands, debug_commands, draw_context, render_target, cam, camera, clear_color,
+			tint, effect_params, filter
 		);
 	} else {
 		std::vector<Entity> cameras;
 
-		for (auto [camera_entity, _data] :
-			 EntitiesWith<impl::CameraData>()) {
-			impl::RecalculateCameraViewProjection(
-				SceneCamera{
-					camera_entity
-				}
-			);
+		for (auto [camera_entity, _data] : EntitiesWith<impl::CameraData>()) {
+			impl::RecalculateCameraViewProjection(SceneCamera{ camera_entity });
 
-			cameras.emplace_back(
-				camera_entity
-			);
+			cameras.emplace_back(camera_entity);
 		}
 
-		SortByDepth(
-			cameras,
-			false
-		);
+		SortByDepth(cameras, false);
 
-		DrawCameras(
-			draw_context,
-			cameras
-		);
+		DrawCameras(draw_context, cameras);
 	}
 
-	impl::RendererAccessor renderer{
-		ctx().renderer
-	};
+	impl::RendererAccessor renderer{ ctx().renderer };
 
 	renderer.FlushBatch();
 
 	renderer.SetupPresentationFramebuffer();
 
-	DrawSceneTarget(
-		draw_context
-	);
+	DrawSceneTarget(draw_context);
 
 	renderer.FlushBatch();
 
-	ctx().render_queue
-		.render_commands_
-		.clear();
+	ctx().render_queue.render_commands_.clear();
 
-	ctx().render_queue
-		.debug_commands_
-		.clear();
+	ctx().render_queue.debug_commands_.clear();
 }
 
 void Scene::DrawSceneTarget(DrawContext& draw_context) const {

@@ -1,14 +1,13 @@
 #pragma once
 
-#include <map>
 #include <string>
 #include <string_view>
-#include <vector>
+#include <utility>
 
 #include "core/util/file.h"
 #include "runtime/asset/asset_key.h"
 #include "runtime/ecs/entity.h"
-#include "serialization/json/json.h"
+#include "runtime/ecs/entity_serialization.h"
 #include "serialization/serialize.h"
 
 namespace ptgn {
@@ -16,31 +15,30 @@ namespace ptgn {
 class Scene;
 struct RegisteredComponent;
 
-inline constexpr std::string_view kPrefabDirectory{ "Prefabs" };
-inline constexpr std::string_view kPrefabExtension{ ".ptgnprefab" };
-inline constexpr std::string_view kPrefabKeyPrefix{ "prefabs/" };
+inline constexpr std::string_view kPrefabDirectory{
+	"Prefabs"
+};
 
-using PrefabComponentMap = std::map<std::string, json>;
+inline constexpr std::string_view kPrefabExtension{
+	".ptgnprefab"
+};
 
-struct PrefabEntity {
-	std::string tag{ "Entity" };
-
-	// Empty registered components use the same separate representation as scenes.
-	std::vector<std::string> tags;
-
-	// Non empty components are keyed by their registered component name.
-	PrefabComponentMap components;
-
-	std::vector<PrefabEntity> children;
-
-	PTGN_REFLECT(PrefabEntity, tag, tags, components, children)
+inline constexpr std::string_view kPrefabKeyPrefix{
+	"prefabs/"
 };
 
 struct Prefab {
 	PrefabKey key;
-	PrefabEntity root;
 
-	PTGN_REFLECT(Prefab, key, root)
+	/// UUID is absent for prefab captures. Instantiation always creates
+	/// fresh UUIDs for the complete hierarchy.
+	SerializedEntity root;
+
+	PTGN_REFLECT(
+		Prefab,
+		key,
+		root
+	)
 };
 
 /// @return Whether a registered component can be represented in a prefab asset.
@@ -49,13 +47,15 @@ struct Prefab {
 );
 
 /// @brief Captures an entity and, optionally, its complete child hierarchy.
+///
+/// Persistent UUIDs are deliberately excluded.
 [[nodiscard]] Prefab CapturePrefab(
 	Entity entity,
 	PrefabKey key,
 	bool include_children = true
 );
 
-/// @brief Creates a new entity hierarchy using fresh UUIDs and the stored component values.
+/// @brief Creates a new entity hierarchy using fresh UUIDs.
 [[nodiscard]] Entity InstantiatePrefab(
 	Scene& scene,
 	const Prefab& prefab

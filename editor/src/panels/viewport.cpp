@@ -1711,7 +1711,7 @@ void ViewportPanel::OnRender(EditorContext& ctx) {
 					)
 				};
 
-				(void)inspector::SubmitPickedPosition(
+				inspector::SubmitPickedPosition(
 					ctx,
 					world_position
 				);

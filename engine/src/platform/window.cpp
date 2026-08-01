@@ -837,9 +837,8 @@ WindowLocalSettings Window::GetLocalSettings() const {
 #endif
 }
 
-void Window::SetLocalSettings(const WindowLocalSettings& settings) {
+void Window::SetLocalSettings([[maybe_unused]] const WindowLocalSettings& settings) {
 #ifdef __EMSCRIPTEN__
-	(void)settings;
 	return;
 #else
 	if (GetSetting(WindowSetting::Fullscreen)) {

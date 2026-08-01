@@ -30,18 +30,36 @@ namespace ptgn::editor {
 
 namespace {
 
-bool SnapshotContains(const EntitySnapshot& snapshot, UUID uuid) {
-	if (snapshot.uuid == uuid) {
+bool SerializedEntityContains(
+	const SerializedEntity& serialized,
+	UUID uuid
+) {
+	PTGN_ASSERT(
+		serialized.uuid.has_value(),
+		"Snapshot serialized entity must contain a UUID"
+	);
+
+	if (*serialized.uuid == uuid) {
 		return true;
 	}
 
-	for (const auto& child : snapshot.children) {
-		if (SnapshotContains(child, uuid)) {
+	for (const auto& child : serialized.children) {
+		if (SerializedEntityContains(child, uuid)) {
 			return true;
 		}
 	}
 
 	return false;
+}
+
+bool SnapshotContains(
+	const EntitySnapshot& snapshot,
+	UUID uuid
+) {
+	return SerializedEntityContains(
+		snapshot.root,
+		uuid
+	);
 }
 
 EditorSelection SelectEntity(EditorSelection selection, Entity entity) {

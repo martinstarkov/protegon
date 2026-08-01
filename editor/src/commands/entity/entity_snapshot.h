@@ -1,12 +1,10 @@
 #pragma once
 
 #include <optional>
-#include <vector>
 
 #include "runtime/ecs/entity.h"
-#include "runtime/ecs/tag.h"
+#include "runtime/ecs/entity_serialization.h"
 #include "runtime/ecs/uuid.h"
-#include "serialization/json/json.h"
 
 namespace ptgn {
 
@@ -14,17 +12,29 @@ class Scene;
 
 namespace editor {
 
+/// @brief Serializable entity subtree plus editor restoration context.
+///
+/// root contains the complete entity hierarchy. parent_uuid records the
+/// parent outside that hierarchy so deleting and undoing a child restores
+/// it to its original owner.
 struct EntitySnapshot {
-	UUID uuid;
-	Tag tag;
-	json components = json::object();
+	SerializedEntity root;
 	std::optional<UUID> parent_uuid;
-	std::vector<EntitySnapshot> children;
 };
 
-[[nodiscard]] EntitySnapshot CaptureEntitySnapshot(Entity entity);
-Entity RestoreEntitySnapshot(Scene& scene, const EntitySnapshot& snapshot);
-void DestroyEntitySnapshot(Scene& scene, const EntitySnapshot& snapshot);
+[[nodiscard]] EntitySnapshot CaptureEntitySnapshot(
+	Entity entity
+);
+
+Entity RestoreEntitySnapshot(
+	Scene& scene,
+	const EntitySnapshot& snapshot
+);
+
+void DestroyEntitySnapshot(
+	Scene& scene,
+	const EntitySnapshot& snapshot
+);
 
 } // namespace editor
 

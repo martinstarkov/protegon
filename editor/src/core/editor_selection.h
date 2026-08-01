@@ -73,7 +73,7 @@ struct EditorSelection {
 void ApplyEditorSelection(EditorContext& ctx, EditorSelection selection);
 
 /// Applies selection and records it in the shared undo stack.
-[[nodiscard]] bool SetEditorSelection(
+bool SetEditorSelection(
 	EditorContext& ctx,
 	EditorSelection selection,
 	std::string label

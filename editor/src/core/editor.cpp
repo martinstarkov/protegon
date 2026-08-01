@@ -806,10 +806,10 @@ bool Editor::CreateProjectScene(
 	undo_stack_.PushApplied(
 		"Create Scene",
 		[remove_scene, before_selection]() mutable {
-			(void)remove_scene(before_selection);
+			remove_scene(before_selection);
 		},
 		[create_scene, after_selection]() mutable {
-			(void)create_scene(after_selection);
+			create_scene(after_selection);
 		}
 	);
 
@@ -980,10 +980,10 @@ bool Editor::DuplicateProjectScene(
 	undo_stack_.PushApplied(
 		"Duplicate Scene",
 		[remove_scene, before_selection]() mutable {
-			(void)remove_scene(before_selection);
+			remove_scene(before_selection);
 		},
 		[create_scene, after_selection]() mutable {
-			(void)create_scene(after_selection);
+			create_scene(after_selection);
 		}
 	);
 
@@ -1204,10 +1204,10 @@ bool Editor::DeleteProjectScene(
 	undo_stack_.PushApplied(
 		"Delete Scene",
 		[restore_scene, before_selection]() mutable {
-			(void)restore_scene(before_selection);
+			restore_scene(before_selection);
 		},
 		[remove_scene, after_selection]() mutable {
-			(void)remove_scene(after_selection);
+			remove_scene(after_selection);
 		}
 	);
 
@@ -1268,10 +1268,10 @@ bool Editor::RenameProjectSceneKey(
 	undo_stack_.PushApplied(
 		"Rename Scene Key",
 		[apply, before, after]() mutable {
-			(void)apply(after, before);
+			apply(after, before);
 		},
 		[apply, before, after]() mutable {
-			(void)apply(before, after);
+			apply(before, after);
 		}
 	);
 
@@ -1329,10 +1329,10 @@ bool Editor::RenameProjectSceneDisplayName(
 	undo_stack_.PushApplied(
 		"Rename Scene Display Name",
 		[apply, before]() mutable {
-			(void)apply(before);
+			apply(before);
 		},
 		[apply, after]() mutable {
-			(void)apply(after);
+			apply(after);
 		}
 	);
 

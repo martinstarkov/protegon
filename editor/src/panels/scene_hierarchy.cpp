@@ -904,16 +904,36 @@ PrefabKey MakeUniquePrefabKey(AssetManager& assets, std::string_view display_nam
 }
 
 void AddDefaultPrefabComponent(
-	PrefabEntity& entity,
+	SerializedEntity& entity,
 	const RegisteredComponent* component
 ) {
 	if (!component ||
-		!component->make_default_json ||
 		!IsPrefabComponentSupported(*component)) {
 		return;
 	}
 
-	json value = component->make_default_json();
+	if (component->is_empty) {
+		const std::string name{
+			component->name
+		};
+
+		if (!std::ranges::contains(
+				entity.tags,
+				name
+			)) {
+			entity.tags.emplace_back(name);
+		}
+
+		return;
+	}
+
+	if (!component->make_default_json) {
+		return;
+	}
+
+	json value{
+		component->make_default_json()
+	};
 
 	if (value.is_null()) {
 		value = json::object();
@@ -925,11 +945,14 @@ void AddDefaultPrefabComponent(
 	);
 }
 
-void AddDefaultPrefabSpatialComponents(PrefabEntity& entity) {
+void AddDefaultPrefabSpatialComponents(
+	SerializedEntity& entity
+) {
 	AddDefaultPrefabComponent(
 		entity,
 		ComponentRegistry::Find<Transform>()
 	);
+
 	AddDefaultPrefabComponent(
 		entity,
 		ComponentRegistry::Find<Depth>()
@@ -1016,12 +1039,28 @@ PrefabKey SaveNewPrefab(
 	return assets.RemovePrefab(old_key);
 }
 
-PrefabKey CreateBlankPrefab(AssetManager& assets, const path& project_root) {
+PrefabKey CreateBlankPrefab(
+	AssetManager& assets,
+	const path& project_root
+) {
 	Prefab prefab;
-	prefab.key = MakeUniquePrefabKey(assets, "New Prefab");
+
+	prefab.key = MakeUniquePrefabKey(
+		assets,
+		"New Prefab"
+	);
+
 	prefab.root.tag = "New Prefab";
-	AddDefaultPrefabSpatialComponents(prefab.root);
-	return SaveNewPrefab(assets, project_root, std::move(prefab));
+
+	AddDefaultPrefabSpatialComponents(
+		prefab.root
+	);
+
+	return SaveNewPrefab(
+		assets,
+		project_root,
+		std::move(prefab)
+	);
 }
 
 PrefabKey CreatePrefabFromEntity(
@@ -1811,7 +1850,7 @@ void SceneHierarchyPanel::SetSelectedEntity(Entity entity, bool undoable) {
 	selection.mode = EditorSelectionMode::SceneHierarchy;
 
 	if (undoable) {
-		(void)SetEditorSelection(*context_, std::move(selection), "Select Entity");
+		SetEditorSelection(*context_, std::move(selection), "Select Entity");
 	} else {
 		ApplyEditorSelection(*context_, std::move(selection));
 	}
@@ -1834,7 +1873,7 @@ void SceneHierarchyPanel::SetSelectedPrefab(
 	selection.mode = EditorSelectionMode::Prefabs;
 
 	if (undoable) {
-		(void)SetEditorSelection(*context_, std::move(selection), "Select Prefab");
+		SetEditorSelection(*context_, std::move(selection), "Select Prefab");
 	} else {
 		ApplyEditorSelection(*context_, std::move(selection));
 	}

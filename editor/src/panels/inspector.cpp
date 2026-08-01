@@ -972,9 +972,8 @@ bool DrawActionPickerWithInline(ScriptEditorContext& context, ScriptStep& action
 }
 
 bool DrawTimingOptions(
-	ScriptEditorContext& context, ScriptStep& action, ScriptTiming& timing, float left_screen_x
+	ScriptEditorContext&, ScriptStep& action, ScriptTiming& timing, float left_screen_x
 ) {
-	(void)context;
 	EnsureActionValue(action);
 	bool changed{ false };
 
@@ -3293,33 +3292,52 @@ void AssignEntityComponent(Entity entity, ComponentState<T> state) {
 }
 
 template <typename T>
-ComponentState<T> CapturePrefabComponent(const PrefabEntity& prefab) {
-	const auto* registration{ ComponentRegistry::Find<T>() };
+ComponentState<T> CapturePrefabComponent(
+	const SerializedEntity& serialized
+) {
+	const auto* registration{
+		ComponentRegistry::Find<T>()
+	};
 
 	if (!registration) {
 		return std::nullopt;
 	}
 
-	if constexpr (std::is_empty_v<T>) {
-		return std::ranges::contains(prefab.tags, std::string{ registration->name })
-				 ? ComponentState<T>{ T{} }
-				 : std::nullopt;
-	} else {
-		auto it{ prefab.components.find(std::string{ registration->name }) };
+	const std::string name{
+		registration->name
+	};
 
-		if (it == prefab.components.end()) {
+	if constexpr (std::is_empty_v<T>) {
+		return std::ranges::contains(
+			serialized.tags,
+			name
+		)
+				   ? ComponentState<T>{ T{} }
+				   : std::nullopt;
+	} else {
+		const auto it{
+			serialized.components.find(name)
+		};
+
+		if (it == serialized.components.end()) {
 			return std::nullopt;
 		}
 
-		if constexpr (JsonDeserializable<T> && std::default_initializable<T>) {
+		if constexpr (
+			JsonDeserializable<T> &&
+			std::default_initializable<T>
+		) {
 			T value{};
+
 			try {
 				it->second.get_to(value);
 				return value;
 			} catch (...) {
 				return std::nullopt;
 			}
-		} else if constexpr (::ptgn::impl::JsonGettable<T>) {
+		} else if constexpr (
+			::ptgn::impl::JsonGettable<T>
+		) {
 			try {
 				return it->second.template get<T>();
 			} catch (...) {
@@ -3332,31 +3350,51 @@ ComponentState<T> CapturePrefabComponent(const PrefabEntity& prefab) {
 }
 
 template <typename T>
-void AssignPrefabComponent(PrefabEntity& prefab, ComponentState<T> state) {
-	const auto* registration{ ComponentRegistry::Find<T>() };
+void AssignPrefabComponent(
+	SerializedEntity& serialized,
+	ComponentState<T> state
+) {
+	const auto* registration{
+		ComponentRegistry::Find<T>()
+	};
 
 	if (!registration) {
 		return;
 	}
 
-	const std::string name{ registration->name };
+	const std::string name{
+		registration->name
+	};
 
 	if (!state) {
 		if constexpr (std::is_empty_v<T>) {
-			std::erase(prefab.tags, name);
+			std::erase(
+				serialized.tags,
+				name
+			);
 		} else {
-			prefab.components.erase(name);
+			serialized.components.erase(name);
 		}
+
 		return;
 	}
 
 	if constexpr (std::is_empty_v<T>) {
-		if (!std::ranges::contains(prefab.tags, name)) {
-			prefab.tags.push_back(name);
+		if (!std::ranges::contains(
+				serialized.tags,
+				name
+			)) {
+			serialized.tags.emplace_back(name);
 		}
 	} else if constexpr (JsonSerializable<T>) {
-		json value = *state;
-		prefab.components.insert_or_assign(name, std::move(value));
+		json value{
+			*state
+		};
+
+		serialized.components.insert_or_assign(
+			name,
+			std::move(value)
+		);
 	}
 }
 
@@ -3472,13 +3510,19 @@ struct EntityInspectorTarget {
 struct PrefabInspectorTarget {
 	EditorContext& ctx;
 	PrefabKey key;
-	PrefabEntity& prefab;
+	SerializedEntity& prefab;
 
 	template <typename T>
 	[[nodiscard]] static constexpr bool Supports() {
 		return std::is_empty_v<T> ||
-			   (JsonSerializable<T> && JsonDeserializable<T> &&
-				(std::default_initializable<T> || ::ptgn::impl::JsonGettable<T>));
+			   (
+				   JsonSerializable<T> &&
+				   JsonDeserializable<T> &&
+				   (
+					   std::default_initializable<T> ||
+					   ::ptgn::impl::JsonGettable<T>
+				   )
+			   );
 	}
 
 	[[nodiscard]] const void* Id() const {
@@ -3493,29 +3537,66 @@ struct PrefabInspectorTarget {
 
 	template <typename T>
 	[[nodiscard]] ComponentState<T> Capture() const {
-		return CapturePrefabComponent<T>(prefab);
+		return CapturePrefabComponent<T>(
+			prefab
+		);
 	}
 
-	template <typename T, typename Callback = std::nullptr_t>
-	void SetLive(ComponentState<T> state, Callback = nullptr) {
-		AssignPrefabComponent<T>(prefab, std::move(state));
+	template <
+		typename T,
+		typename Callback = std::nullptr_t
+	>
+	void SetLive(
+		ComponentState<T> state,
+		Callback = nullptr
+	) {
+		AssignPrefabComponent<T>(
+			prefab,
+			std::move(state)
+		);
 	}
 
-	template <typename T, typename Callback = std::nullptr_t>
-	auto MakeApply(Callback = nullptr) const {
-		EditorContext* context{ std::addressof(ctx) };
-		PrefabKey prefab_key{ key };
+	template <
+		typename T,
+		typename Callback = std::nullptr_t
+	>
+	auto MakeApply(
+		Callback = nullptr
+	) const {
+		EditorContext* context{
+			std::addressof(ctx)
+		};
 
-		return [context, prefab_key](ComponentState<T> state) mutable {
-			auto& assets{ context->editor.GetAssetManager() };
+		PrefabKey prefab_key{
+			key
+		};
+
+		return [
+			context,
+			prefab_key
+		](
+			ComponentState<T> state
+		) mutable {
+			auto& assets{
+				context->editor.GetAssetManager()
+			};
 
 			if (!assets.Has(prefab_key)) {
 				return;
 			}
 
-			auto prefab_asset{ ::ptgn::impl::AssetAccessor{ assets }.Get<Prefab>(prefab_key) };
+			auto prefab_asset{
+				::ptgn::impl::AssetAccessor{
+					assets
+				}.Get<Prefab>(
+					prefab_key
+				)
+			};
 
-			AssignPrefabComponent<T>(prefab_asset.get().root, std::move(state));
+			AssignPrefabComponent<T>(
+				prefab_asset.get().root,
+				std::move(state)
+			);
 
 			assets.SavePrefab(prefab_key);
 			context->local.state.is_dirty = true;
@@ -3531,19 +3612,39 @@ struct PrefabInspectorTarget {
 	}
 
 	auto MakeNameApply() const {
-		EditorContext* context{ std::addressof(ctx) };
-		PrefabKey prefab_key{ key };
+		EditorContext* context{
+			std::addressof(ctx)
+		};
 
-		return [context, prefab_key](std::string name) {
-			auto& assets{ context->editor.GetAssetManager() };
+		PrefabKey prefab_key{
+			key
+		};
+
+		return [
+			context,
+			prefab_key
+		](
+			std::string name
+		) {
+			auto& assets{
+				context->editor.GetAssetManager()
+			};
 
 			if (!assets.Has(prefab_key)) {
 				return;
 			}
 
-			auto prefab_asset{ ::ptgn::impl::AssetAccessor{ assets }.Get<Prefab>(prefab_key) };
+			auto prefab_asset{
+				::ptgn::impl::AssetAccessor{
+					assets
+				}.Get<Prefab>(
+					prefab_key
+				)
+			};
 
-			prefab_asset.get().root.tag = std::move(name);
+			prefab_asset.get().root.tag =
+				std::move(name);
+
 			assets.SavePrefab(prefab_key);
 			context->local.state.is_dirty = true;
 		};
@@ -3737,7 +3838,7 @@ bool DrawReadOnlyExistingComponent(
 			)) {
 			ScopedIndent indent;
 			ScopedDisabled disabled{ true };
-			(void)std::invoke(
+			std::invoke(
 				std::forward<Draw>(draw),
 				*state
 			);
@@ -3745,7 +3846,7 @@ bool DrawReadOnlyExistingComponent(
 		}
 	} else {
 		ScopedDisabled disabled{ true };
-		(void)std::invoke(
+		std::invoke(
 			std::forward<Draw>(draw),
 			*state
 		);
@@ -4060,7 +4161,7 @@ bool DrawName(Target& target) {
 				ImGui::SetNextItemWidth(-FLT_MIN);
 				std::string displayed{ uuid };
 				ScopedDisabled read_only{ true };
-				(void)ImGui::InputText(
+				ImGui::InputText(
 					"##UUID",
 					&displayed,
 					ImGuiInputTextFlags_ReadOnly
@@ -4449,7 +4550,7 @@ bool DrawTransformFeatureFields(
 	const auto selected_button_state{
 		GetButtonVisualEditState(target)
 	};
-	(void)DrawPositionPickButton(
+	DrawPositionPickButton(
 		target.ctx,
 		"Position",
 		state.transform.position,
@@ -4494,7 +4595,7 @@ bool DrawTransformFeatureFields(
 
 	begin_row("Scale", "Scale");
 	ImGui::TableSetColumnIndex(1);
-	(void)ImGui::Checkbox("##LockRatio", &editor_state.scale_ratio_locked);
+	ImGui::Checkbox("##LockRatio", &editor_state.scale_ratio_locked);
 	DrawTooltip(
 		"Lock the scale ratio. Editing either axis changes the other by the same proportional factor."
 	);
@@ -4928,7 +5029,7 @@ bool DrawButtonChildStateTransformComponent(
 				auto apply{ target.template MakeApply<Visuals>(callback) };
 				Visuals snapshot{ visuals };
 
-				(void)DrawPositionPickButton(
+				DrawPositionPickButton(
 					target.ctx,
 					"ButtonVisualStatePosition",
 					transform.position,
@@ -5250,7 +5351,7 @@ bool DrawPickableLocalPosition(
 			auto apply{ target.template MakeApply<Component>(callback) };
 			Component snapshot{ component };
 
-			(void)DrawPositionPickButton(
+			DrawPositionPickButton(
 				target.ctx,
 				label,
 				position,
@@ -7644,7 +7745,7 @@ bool DrawPickableButtonTextBoxPosition(
 		};
 		ButtonTextVisuals snapshot{ visuals };
 
-		(void)DrawPositionPickButton(
+		DrawPositionPickButton(
 			target.ctx,
 			label,
 			position,
@@ -8403,7 +8504,7 @@ bool DrawUIFeature(Target& target) {
 		auto& editor_state{
 			GetManualFeatureState(target.GetFeatureTargetKey())
 		};
-		(void)DrawButtonVisualStateSelector(
+		DrawButtonVisualStateSelector(
 			editor_state.button_visual_state
 		);
 
@@ -8832,7 +8933,7 @@ void DrawEntityInspector(EditorContext& ctx, Entity entity) {
 		.entity = entity,
 	};
 
-	(void)DrawInspectorContents(ctx, target);
+	DrawInspectorContents(ctx, target);
 }
 
 void DrawPrefabInspector(EditorContext& ctx, const PrefabKey& key) {

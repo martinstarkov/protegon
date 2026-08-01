@@ -1,119 +1,242 @@
 #include "commands/entity/entity_snapshot.h"
 
-#include <utility>
-
 #include "core/assert.h"
 #include "runtime/ecs/entity_hierarchy.h"
-#include "runtime/scene/scene.h"
 #include "runtime/ecs/entity_serialization.h"
-#include "runtime/graphics/draw.h"
+#include "runtime/ecs/relatives.h"
+#include "runtime/ecs/tag.h"
+#include "runtime/scene/scene.h"
 
 namespace ptgn::editor {
 
 namespace {
 
-EntitySnapshot CaptureNode(Entity entity) {
-	PTGN_ASSERT(entity);
-	PTGN_ASSERT(entity.Has<UUID>());
-	PTGN_ASSERT(entity.Has<Tag>());
+void CreateNodes(
+	Scene& scene,
+	const SerializedEntity& serialized
+) {
+	const UUID uuid{
+		GetSerializedEntityUUID(serialized)
+	};
+
+	if (!scene.GetEntity(uuid)) {
+		scene.CreateEntity(
+			Tag{ serialized.tag },
+			uuid
+		);
+	}
+
+	for (const auto& child :
+		 serialized.children) {
+		CreateNodes(
+			scene,
+			child
+		);
+	}
+}
+
+void RestoreEntityData(
+	Scene& scene,
+	const SerializedEntity& serialized
+) {
+	Entity entity{
+		scene.GetEntity(
+			GetSerializedEntityUUID(serialized)
+		)
+	};
+
+	PTGN_ASSERT(
+		entity,
+		"Failed to find entity created for snapshot"
+	);
+
+	DeserializeEntity(
+		serialized,
+		entity
+	);
+
+	for (const auto& child :
+		 serialized.children) {
+		RestoreEntityData(
+			scene,
+			child
+		);
+	}
+}
+
+void RestoreChildren(
+	Scene& scene,
+	const SerializedEntity& serialized
+) {
+	Entity parent{
+		scene.GetEntity(
+			GetSerializedEntityUUID(serialized)
+		)
+	};
+
+	PTGN_ASSERT(
+		parent,
+		"Failed to find snapshot hierarchy parent"
+	);
+
+	for (const auto& child_serialized :
+		 serialized.children) {
+		Entity child{
+			scene.GetEntity(
+				GetSerializedEntityUUID(
+					child_serialized
+				)
+			)
+		};
+
+		PTGN_ASSERT(
+			child,
+			"Failed to find snapshot hierarchy child"
+		);
+
+		SetParent(
+			child,
+			parent
+		);
+
+		RestoreChildren(
+			scene,
+			child_serialized
+		);
+	}
+}
+
+void DestroyNode(
+	Scene& scene,
+	const SerializedEntity& serialized
+) {
+	for (const auto& child :
+		 serialized.children) {
+		DestroyNode(
+			scene,
+			child
+		);
+	}
+
+	Entity entity{
+		scene.GetEntity(
+			GetSerializedEntityUUID(serialized)
+		)
+	};
+
+	if (!entity) {
+		return;
+	}
+
+	if (HasParent(entity)) {
+		RemoveParent(entity);
+	}
+
+	entity.Destroy();
+}
+
+} // namespace
+
+EntitySnapshot CaptureEntitySnapshot(
+	Entity entity
+) {
+	PTGN_ASSERT(
+		entity,
+		"Cannot capture a null entity snapshot"
+	);
 
 	EntitySnapshot snapshot{
-		.uuid = entity.Get<UUID>(),
-		.tag = entity.Get<Tag>(),
-		.components = SerializeEntityComponents(entity),
+		.root = SerializeEntity(
+			entity,
+			{
+				.include_uuid = true,
+				.include_children = true,
+			}
+		),
 	};
 
 	if (HasParent(entity)) {
-		snapshot.parent_uuid = GetParent(entity).Get<UUID>();
-	}
+		Entity parent{
+			GetParent(entity)
+		};
 
-	if (HasChildren(entity)) {
-		auto children{ GetChildren(entity) };
-		SortByLocalDepth(children);
-		snapshot.children.reserve(children.size());
+		PTGN_ASSERT(
+			parent.Has<UUID>(),
+			"Snapshot parent must have a UUID"
+		);
 
-		for (Entity child : children) {
-			snapshot.children.push_back(CaptureNode(child));
-		}
+		snapshot.parent_uuid =
+			parent.Get<UUID>();
 	}
 
 	return snapshot;
 }
 
-void CreateNodes(Scene& scene, const EntitySnapshot& snapshot) {
-	if (!scene.GetEntity(snapshot.uuid)) {
-		(void)scene.CreateEntity(snapshot.tag, snapshot.uuid);
-	}
+Entity RestoreEntitySnapshot(
+	Scene& scene,
+	const EntitySnapshot& snapshot
+) {
+	CreateNodes(
+		scene,
+		snapshot.root
+	);
 
-	for (const auto& child : snapshot.children) {
-		CreateNodes(scene, child);
-	}
-}
-
-void RestoreComponents(Scene& scene, const EntitySnapshot& snapshot) {
-	Entity entity{ scene.GetEntity(snapshot.uuid) };
-	PTGN_ASSERT(entity);
-	DeserializeEntityComponents(snapshot.components, entity);
-
-	for (const auto& child : snapshot.children) {
-		RestoreComponents(scene, child);
-	}
-}
-
-void RestoreChildren(Scene& scene, const EntitySnapshot& snapshot) {
-	Entity parent{ scene.GetEntity(snapshot.uuid) };
-	PTGN_ASSERT(parent);
-
-	for (const auto& child_snapshot : snapshot.children) {
-		Entity child{ scene.GetEntity(child_snapshot.uuid) };
-		PTGN_ASSERT(child);
-		SetParent(child, parent);
-		RestoreChildren(scene, child_snapshot);
-	}
-}
-
-void DestroyNode(Scene& scene, const EntitySnapshot& snapshot) {
-	for (const auto& child : snapshot.children) {
-		DestroyNode(scene, child);
-	}
-
-	if (Entity entity{ scene.GetEntity(snapshot.uuid) }) {
-		if (HasParent(entity)) {
-			RemoveParent(entity);
-		}
-		entity.Destroy();
-	}
-}
-
-} // namespace
-
-EntitySnapshot CaptureEntitySnapshot(Entity entity) {
-	return CaptureNode(entity);
-}
-
-Entity RestoreEntitySnapshot(Scene& scene, const EntitySnapshot& snapshot) {
-	CreateNodes(scene, snapshot);
+	// All persistent UUIDs must resolve before component deserializers run.
 	scene.Refresh();
 
-	RestoreComponents(scene, snapshot);
+	RestoreEntityData(
+		scene,
+		snapshot.root
+	);
+
 	scene.Refresh();
 
-	RestoreChildren(scene, snapshot);
+	RestoreChildren(
+		scene,
+		snapshot.root
+	);
 
 	if (snapshot.parent_uuid) {
-		Entity root{ scene.GetEntity(snapshot.uuid) };
-		Entity parent{ scene.GetEntity(*snapshot.parent_uuid) };
+		Entity root{
+			scene.GetEntity(
+				GetSerializedEntityUUID(
+					snapshot.root
+				)
+			)
+		};
+
+		Entity parent{
+			scene.GetEntity(
+				*snapshot.parent_uuid
+			)
+		};
+
 		if (root && parent) {
-			SetParent(root, parent);
+			SetParent(
+				root,
+				parent
+			);
 		}
 	}
 
 	scene.Refresh();
-	return scene.GetEntity(snapshot.uuid);
+
+	return scene.GetEntity(
+		GetSerializedEntityUUID(
+			snapshot.root
+		)
+	);
 }
 
-void DestroyEntitySnapshot(Scene& scene, const EntitySnapshot& snapshot) {
-	DestroyNode(scene, snapshot);
+void DestroyEntitySnapshot(
+	Scene& scene,
+	const EntitySnapshot& snapshot
+) {
+	DestroyNode(
+		scene,
+		snapshot.root
+	);
+
 	scene.Refresh();
 }
 
