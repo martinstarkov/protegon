@@ -1338,7 +1338,7 @@ inline bool DrawMatrix4(std::string_view label, Matrix4& value, const FieldOptio
 
 				if (ImGui::IsItemHovered()) {
 					ImGui::SetTooltip(
-						"Index %zu\nm(%zu, %zu)\nColumn-major offset: row + column * 4",
+						"Index %zu\nm(%zu, %zu)\nColumn major offset: row + column * 4",
 						row + column * 4uz, row, column
 					);
 				}
