@@ -4,8 +4,13 @@
 
 #include <algorithm>
 #include <array>
+#include <cctype>
+#include <cstddef>
+#include <initializer_list>
 #include <optional>
+#include <string_view>
 
+#include "commands/undo_stack.h"
 #include "core/editor.h"
 #include "core/editor_context.h"
 #include "core/graphics/color.h"
@@ -13,7 +18,6 @@
 #include "core/math/vector2.h"
 #include "core/util/span.h"
 #include "panels/inspector_fields.h"
-#include "panels/settings_fields.h"
 #include "platform/window.h"
 #include "renderer/pipeline/scaling_mode.h"
 #include "renderer/pipeline/viewport.h"
@@ -202,8 +206,253 @@ constexpr std::array<ResolutionPreset, 12> kResolutionPresets{
 	  { "1024 x 768 (XGA)", { 1024, 768 } } }
 };
 
+constexpr std::array kSettingsPages{
+	SettingsPage::ProjectDisplay,
+	SettingsPage::ProjectRendering,
+	SettingsPage::EditorGeneral,
+	SettingsPage::DebugInteraction,
+	SettingsPage::DebugCollision,
+	SettingsPage::DebugText,
+	SettingsPage::DebugVisibility,
+};
+
 static_assert(!ContainsDuplicates(kResolutionPresets, &ResolutionPreset::size));
 static_assert(!ContainsDuplicates(kResolutionPresets, &ResolutionPreset::label));
+
+[[nodiscard]] bool ContainsInsensitive(
+	std::string_view text,
+	std::string_view query
+) {
+	if (query.empty()) {
+		return true;
+	}
+
+	const auto result{ std::search(
+		text.begin(),
+		text.end(),
+		query.begin(),
+		query.end(),
+		[](char lhs, char rhs) {
+			return std::tolower(static_cast<unsigned char>(lhs)) ==
+				   std::tolower(static_cast<unsigned char>(rhs));
+		}
+	) };
+
+	return result != text.end();
+}
+
+[[nodiscard]] bool IsSearchSeparator(char value) {
+	return !std::isalnum(static_cast<unsigned char>(value));
+}
+
+[[nodiscard]] bool IsNavigationSearchTerm(std::string_view term) {
+	constexpr std::array navigation_terms{
+		std::string_view{ "project" },
+		std::string_view{ "editor" },
+		std::string_view{ "debug" },
+		std::string_view{ "setting" },
+		std::string_view{ "settings" },
+		std::string_view{ "display" },
+		std::string_view{ "rendering" },
+		std::string_view{ "general" },
+		std::string_view{ "interaction" },
+		std::string_view{ "interactions" },
+		std::string_view{ "collision" },
+		std::string_view{ "collisions" },
+		std::string_view{ "text" },
+		std::string_view{ "box" },
+		std::string_view{ "boxes" },
+		std::string_view{ "visibility" },
+		std::string_view{ "polygon" },
+		std::string_view{ "polygons" },
+	};
+
+	return std::ranges::any_of(
+		navigation_terms,
+		[term](std::string_view candidate) {
+			return candidate.size() == term.size() &&
+				   ContainsInsensitive(candidate, term);
+		}
+	);
+}
+
+[[nodiscard]] bool MatchesSearchTerms(
+	std::string_view filter,
+	std::initializer_list<std::string_view> values,
+	bool ignore_navigation_terms
+) {
+	if (filter.empty()) {
+		return true;
+	}
+
+	std::size_t position{ 0 };
+
+	while (position < filter.size()) {
+		while (position < filter.size() && IsSearchSeparator(filter[position])) {
+			++position;
+		}
+
+		const std::size_t start{ position };
+
+		while (position < filter.size() && !IsSearchSeparator(filter[position])) {
+			++position;
+		}
+
+		if (start == position) {
+			continue;
+		}
+
+		const std::string_view term{ filter.substr(start, position - start) };
+
+		if (ignore_navigation_terms && IsNavigationSearchTerm(term)) {
+			continue;
+		}
+
+
+		if (!std::ranges::any_of(values, [term](std::string_view value) {
+				return ContainsInsensitive(value, term);
+			})) {
+			return false;
+		}
+	}
+
+	return true;
+}
+
+[[nodiscard]] bool MatchesFilter(
+	std::string_view filter,
+	std::initializer_list<std::string_view> values
+) {
+	return MatchesSearchTerms(filter, values, true);
+}
+
+[[nodiscard]] bool MatchesPageFilter(
+	std::string_view filter,
+	std::initializer_list<std::string_view> values
+) {
+	return MatchesSearchTerms(filter, values, false);
+}
+
+[[nodiscard]] bool PageMatchesFilter(
+	SettingsPage page,
+	std::string_view filter
+) {
+	switch (page) {
+		case SettingsPage::ProjectDisplay:
+			return MatchesPageFilter(
+				filter,
+				{
+					"project display resolution source preset logical size scaling mode",
+					"window size default window size resizable start maximized",
+					"window background renderer background",
+				}
+			);
+
+		case SettingsPage::ProjectRendering:
+			return MatchesPageFilter(
+				filter,
+				{
+					"project rendering tone mapping exposure gamma",
+					"color correction hdr",
+				}
+			);
+
+		case SettingsPage::EditorGeneral:
+			return MatchesPageFilter(
+				filter,
+				{
+					"editor general entity picking",
+					"render only selected scene",
+					"local gizmo orientation transform",
+					"show read only inspector data components members",
+				}
+			);
+
+		case SettingsPage::DebugInteraction:
+			return MatchesPageFilter(
+				filter,
+				{
+					"debug interaction interactions draw enabled color line width",
+				}
+			);
+
+		case SettingsPage::DebugCollision:
+			return MatchesPageFilter(
+				filter,
+				{
+					"debug collision collisions draw enabled color fill style ccd",
+					"continuous collision detection",
+				}
+			);
+
+		case SettingsPage::DebugText:
+			return MatchesPageFilter(
+				filter,
+				{
+					"debug text text boxes bounds draw enabled color line width clip color",
+				}
+			);
+
+		case SettingsPage::DebugVisibility:
+			return MatchesPageFilter(
+				filter,
+				{
+					"debug visibility polygons lighting draw enabled interiors",
+					"polygon color masks inside does not mask inside fill style",
+				}
+			);
+	}
+
+	return false;
+}
+
+[[nodiscard]] const char* PageTitle(SettingsPage page) {
+	switch (page) {
+		case SettingsPage::ProjectDisplay: return "Project / Display";
+		case SettingsPage::ProjectRendering: return "Project / Rendering";
+		case SettingsPage::EditorGeneral: return "Editor / General";
+		case SettingsPage::DebugInteraction: return "Debug / Interactions";
+		case SettingsPage::DebugCollision: return "Debug / Collisions";
+		case SettingsPage::DebugText: return "Debug / Text Boxes";
+		case SettingsPage::DebugVisibility: return "Debug / Visibility Polygons";
+	}
+
+	return "Settings";
+}
+
+[[nodiscard]] const char* PageDescription(SettingsPage page) {
+	switch (page) {
+		case SettingsPage::ProjectDisplay:
+			return "Configure the project display, window, and presentation resolution.";
+
+		case SettingsPage::ProjectRendering:
+			return "Configure tone mapping and output color correction.";
+
+		case SettingsPage::EditorGeneral:
+			return "Configure editor-only selection, rendering, gizmo, and inspector behavior.";
+
+		case SettingsPage::DebugInteraction:
+			return "Configure how interactive regions are drawn for debugging.";
+
+		case SettingsPage::DebugCollision:
+			return "Configure collider and continuous collision detection visualization.";
+
+		case SettingsPage::DebugText:
+			return "Configure text bounds and clipping visualization.";
+
+		case SettingsPage::DebugVisibility:
+			return "Configure light visibility polygon visualization.";
+	}
+
+	return "";
+}
+
+void DrawSectionTitle(std::string_view title) {
+	ImGui::Spacing();
+	ImGui::TextUnformatted(title.data(), title.data() + title.size());
+	ImGui::Separator();
+	ImGui::Spacing();
+}
 
 bool DrawResolutionMode(EditorContext& ctx) {
 	constexpr std::array names{
@@ -275,241 +524,773 @@ bool DrawResolutionPreset(EditorContext& ctx) {
 	});
 }
 
-bool DrawDisplaySettings(EditorContext& ctx) {
-	if (!ImGui::CollapsingHeader("Display", ImGuiTreeNodeFlags_DefaultOpen)) {
-		return false;
-	}
-
+bool DrawProjectDisplaySettings(
+	EditorContext& ctx,
+	std::string_view filter
+) {
 	bool changed{ false };
-
-	ImGui::Indent();
-
-	changed |= DrawResolutionMode(ctx);
-
 	auto& renderer{ ctx.editor.GetRenderer() };
 
-	if (renderer.GetSettings().logical_size.has_value()) {
-		changed |= DrawResolutionPreset(ctx);
+	const bool show_resolution{
+		MatchesFilter(
+			filter,
+			{
+				"resolution source",
+				"preset",
+				"logical size",
+				"window size",
+				"scaling mode",
+			}
+		)
+	};
 
-		auto logical_size{ renderer.GetLogicalSize() };
+	if (show_resolution) {
+		DrawSectionTitle("Resolution");
 
-		if (DrawValue(
-				ctx,
-				"Logical Size",
-				logical_size,
-				FieldOptions{
-					.speed = 1.0f,
-					.min = 1.0,
-					.max = 4096.0,
-					.format = "%d",
-					.flags = ImGuiSliderFlags_AlwaysClamp,
+		if (MatchesFilter(filter, { "resolution source", "window size", "logical size" })) {
+			changed |= DrawResolutionMode(ctx);
+		}
+
+		if (renderer.GetSettings().logical_size.has_value()) {
+			if (MatchesFilter(filter, { "preset", "resolution preset" })) {
+				changed |= DrawResolutionPreset(ctx);
+			}
+
+			if (MatchesFilter(filter, { "logical size", "resolution size" })) {
+				auto logical_size{ renderer.GetLogicalSize() };
+
+				if (DrawValue(
+						ctx,
+						"Logical Size",
+						logical_size,
+						FieldOptions{
+							.speed = 1.0f,
+							.min = 1.0,
+							.max = 4096.0,
+							.format = "%d",
+							.flags = ImGuiSliderFlags_AlwaysClamp,
+						}
+					)) {
+					renderer.SetLogicalSize(logical_size);
+					changed = true;
 				}
-			)) {
-			renderer.SetLogicalSize(logical_size);
-			changed = true;
+			}
+
+			if (MatchesFilter(filter, { "scaling mode", "scaling" })) {
+				auto scaling_mode{ renderer.GetSettings().scaling_mode };
+
+				if (DrawValue(ctx, "Scaling Mode", scaling_mode)) {
+					renderer.SetScalingMode(scaling_mode);
+					changed = true;
+				}
+			}
+		} else if (MatchesFilter(filter, { "window size", "current window size" })) {
+			auto window_size{ renderer.GetDisplayViewport().size };
+
+			ImGui::BeginDisabled();
+			DrawValue(ctx, "Window Size", window_size);
+			ImGui::EndDisabled();
 		}
-
-		auto scaling_mode{ renderer.GetSettings().scaling_mode };
-
-		if (DrawValue(ctx, "Scaling Mode", scaling_mode)) {
-			renderer.SetScalingMode(scaling_mode);
-			changed = true;
-		}
-	} else {
-		auto window_size{ renderer.GetDisplayViewport().size };
-
-		ImGui::BeginDisabled();
-		DrawValue(ctx, "Window Size", window_size);
-		ImGui::EndDisabled();
 	}
 
-	auto window_settings{ ctx.editor.GetWindow().GetSettings() };
-	bool window_changed{ false };
+	const bool show_window{
+		MatchesFilter(
+			filter,
+			{
+				"default window size",
+				"resizable",
+				"start maximized",
+				"window background",
+			}
+		)
+	};
 
-	DrawPropertyRow("Default Window Size", [&]() {
-		ImGui::Text(
-			"%d x %d",
-			window_settings.size.x,
-			window_settings.size.y
-		);
-		return false;
-	});
-	window_changed |= DrawValue(ctx, "Resizable", window_settings.resizable);
-	window_changed |= DrawValue(ctx, "Start Maximized", window_settings.maximized);
-	window_changed |= DrawValue(ctx, "Window Background", window_settings.background_color);
+	if (show_window) {
+		DrawSectionTitle("Window");
 
-	if (window_changed) {
-		ctx.editor.GetWindow().SetSettings(window_settings);
-		changed = true;
+		auto window_settings{ ctx.editor.GetWindow().GetSettings() };
+		bool window_changed{ false };
+
+		if (MatchesFilter(filter, { "default window size", "window size" })) {
+			DrawPropertyRow("Default Window Size", [&]() {
+				ImGui::Text(
+					"%d x %d",
+					window_settings.size.x,
+					window_settings.size.y
+				);
+				return false;
+			});
+		}
+
+		if (MatchesFilter(filter, { "resizable", "resize window" })) {
+			window_changed |= DrawValue(ctx, "Resizable", window_settings.resizable);
+		}
+
+		if (MatchesFilter(filter, { "start maximized", "maximized" })) {
+			window_changed |= DrawValue(ctx, "Start Maximized", window_settings.maximized);
+		}
+
+		if (MatchesFilter(filter, { "window background", "background" })) {
+			window_changed |= DrawValue(
+				ctx,
+				"Window Background",
+				window_settings.background_color
+			);
+		}
+
+		if (window_changed) {
+			ctx.editor.GetWindow().SetSettings(window_settings);
+			changed = true;
+		}
 	}
 
-	changed |= settings::EditValue(
-		ctx,
-		"Renderer Background",
-		[&]() { return ctx.editor.GetRenderer().GetSettings().background_color; },
-		[&](Color color) { ctx.editor.GetRenderer().SetBackgroundColor(color); }
-	);
+	if (MatchesFilter(filter, { "renderer background", "presentation background" })) {
+		DrawSectionTitle("Presentation");
 
-	ImGui::Unindent();
-	ImGui::Spacing();
+		auto background{ renderer.GetSettings().background_color };
+		if (DrawValue(ctx, "Renderer Background", background)) {
+			renderer.SetBackgroundColor(background);
+			changed = true;
+		}
+	}
 
 	return changed;
 }
 
-} // namespace
-
-void EngineSettingsPanel::OnRender(EditorContext& ctx) {
-	ImGui::Begin("Engine Settings");
-
-	bool changed{ false };
-
-	{
-		AutoLabelWidthScope label_width{ "DisplaySettings" };
-		changed |= DrawDisplaySettings(ctx);
-	}
-
-	changed |= settings::EditSection(
-		ctx,
-		"Rendering",
-		[&]() { return ctx.editor.GetRenderer().GetSettings(); },
-		[&](const RendererSettings& value) {
-			ctx.editor.GetRenderer().SetSettings(value);
-		}
-	);
-
-	if (changed) {
-		ctx.local.state.is_dirty = true;
-	}
-
-	ImGui::End();
-}
-
-void DebugSettingsPanel::OnRender(EditorContext& ctx) {
-	ImGui::Begin("Debug Settings");
-
-	ImGui::Checkbox("ImGui Metrics", &ctx.local.settings.show_imgui_metrics);
-
-	if (ctx.local.settings.show_imgui_metrics) {
-		ImGui::ShowMetricsWindow(&ctx.local.settings.show_imgui_metrics);
-	}
-
-	bool changed{ false };
-
-	changed |= settings::EditSection(
-		ctx,
-		"Interaction",
-		[&]() { return ctx.editor.GetDebugSystem().settings.interaction; },
-		[&](const InteractiveDebugSettings& value) {
-			ctx.editor.GetDebugSystem().settings.interaction = value;
-		}
-	);
-
-	changed |= settings::EditSection(
-		ctx,
-		"Collision",
-		[&]() { return ctx.editor.GetDebugSystem().settings.collision; },
-		[&](const CollisionDebugSettings& value) {
-			ctx.editor.GetDebugSystem().settings.collision = value;
-		}
-	);
-
-	changed |= settings::EditSection(
-		ctx,
-		"Text",
-		[&]() { return ctx.editor.GetDebugSystem().settings.text; },
-		[&](const TextDebugSettings& value) {
-			ctx.editor.GetDebugSystem().settings.text = value;
-		}
-	);
-
-	changed |= settings::EditSection(
-		ctx,
-		"Light Visibility",
-		[&]() { return ctx.editor.GetDebugSystem().settings.light; },
-		[&](const LightVisibilityDebugSettings& value) {
-			ctx.editor.GetDebugSystem().settings.light = value;
-		}
-	);
-
-	if (changed) {
-		ctx.local.state.is_dirty = true;
-	}
-
-	ImGui::End();
-}
-
-void EditorSettingsPanel::OnRender(
-	EditorContext& ctx
+bool DrawProjectRenderingSettings(
+	EditorContext& ctx,
+	std::string_view filter
 ) {
-	ImGui::Begin(
-		"Editor Settings"
-	);
+	auto& renderer{ ctx.editor.GetRenderer() };
+	auto settings{ renderer.GetSettings() };
+	bool changed{ false };
 
-	auto entity_picking{
-		ctx.editor
-			.GetSettings()
-			.entity_picking
-	};
+	DrawSectionTitle("Renderer Output");
 
-	if (ImGui::Checkbox(
-			"Entity Picking",
-			&entity_picking
-		)) {
-		ctx.editor.SetEntityPickingMode(
-			entity_picking
+	if (MatchesFilter(filter, { "tone mapping", "tone map", "hdr" })) {
+		changed |= DrawValue(ctx, "Tone Mapping", settings.tone_mapping.op);
+	}
+
+	if ((settings.tone_mapping.op == ToneMappingOperator::Exposure ||
+		 settings.tone_mapping.op == ToneMappingOperator::ACES) &&
+		MatchesFilter(filter, { "exposure", "brightness", "tone mapping" })) {
+		changed |= DrawValue(
+			ctx,
+			"Exposure",
+			settings.tone_mapping.exposure,
+			FieldOptions{
+				.speed = 0.05f,
+				.min = 0.0,
+				.max = 20.0,
+				.format = "%.2f",
+				.flags = ImGuiSliderFlags_AlwaysClamp,
+			}
 		);
 	}
 
-	auto render_only_selected_scene{
-		ctx.editor
-			.GetSettings()
-			.render_only_selected_scene
-	};
-
-	if (ImGui::Checkbox(
-			"Render Only Selected Scene",
-			&render_only_selected_scene
-		)) {
-		ctx.editor
-			.SetRenderOnlySelectedScene(
-				render_only_selected_scene
-			);
+	if (MatchesFilter(filter, { "gamma", "color correction", "srgb" })) {
+		changed |= DrawValue(
+			ctx,
+			"Gamma",
+			settings.gamma,
+			FieldOptions{
+				.speed = 0.05f,
+				.min = 0.01f,
+				.max = 5.0,
+				.format = "%.2f",
+				.flags = ImGuiSliderFlags_AlwaysClamp,
+			}
+		);
 	}
 
-	ImGui::TextDisabled(
-		"Excludes unselected scenes from the editor presentation."
-	);
-
-	auto gizmo_uses_local_orientation{
-		ctx.editor
-			.GetSettings()
-			.gizmo_uses_local_orientation
-	};
-
-	if (ImGui::Checkbox(
-			"Local Gizmo Orientation",
-			&gizmo_uses_local_orientation
-		)) {
-		ctx.editor
-			.SetGizmoUsesLocalOrientation(
-				gizmo_uses_local_orientation
-			);
+	if (changed) {
+		renderer.SetSettings(settings);
 	}
 
-	ImGui::TextDisabled(
-		"Local orientation rotates the translate and scale axes with the entity."
+	return changed;
+}
+
+void DrawEditorGeneralSettings(
+	EditorContext& ctx,
+	std::string_view filter
+) {
+	DrawSectionTitle("General");
+
+	if (MatchesFilter(filter, { "entity picking", "picking", "selection" })) {
+		auto entity_picking{ ctx.editor.GetSettings().entity_picking };
+
+		if (ImGui::Checkbox("Entity Picking", &entity_picking)) {
+			ctx.editor.SetEntityPickingMode(entity_picking);
+		}
+	}
+
+	if (MatchesFilter(filter, { "render only selected scene", "selected scene" })) {
+		auto render_only_selected_scene{
+			ctx.editor.GetSettings().render_only_selected_scene
+		};
+
+		if (ImGui::Checkbox(
+				"Render Only Selected Scene",
+				&render_only_selected_scene
+			)) {
+			ctx.editor.SetRenderOnlySelectedScene(render_only_selected_scene);
+		}
+
+		ImGui::TextDisabled(
+			"Excludes unselected scenes from the editor presentation."
+		);
+	}
+
+	if (MatchesFilter(filter, { "local gizmo orientation", "gizmo", "transform orientation" })) {
+		auto gizmo_uses_local_orientation{
+			ctx.editor.GetSettings().gizmo_uses_local_orientation
+		};
+
+		if (ImGui::Checkbox(
+				"Local Gizmo Orientation",
+				&gizmo_uses_local_orientation
+			)) {
+			ctx.editor.SetGizmoUsesLocalOrientation(gizmo_uses_local_orientation);
+		}
+
+		ImGui::TextDisabled(
+			"Local orientation rotates the translate and scale axes with the entity."
+		);
+	}
+
+	if (MatchesFilter(filter, { "show read only data", "read only inspector", "inspector data" })) {
+		ImGui::Checkbox(
+			"Show Read-Only Data",
+			&ctx.local.settings.show_read_only_inspector_data
+		);
+
+		ImGui::TextDisabled(
+			"Shows read-only components and reflected read-only component members."
+		);
+	}
+}
+
+bool DrawDebugInteractionSettings(
+	EditorContext& ctx,
+	std::string_view filter
+) {
+	DrawSectionTitle("Interaction");
+
+	auto settings{ ctx.editor.GetDebugSystem().settings.interaction };
+	bool changed{ false };
+
+	if (MatchesFilter(filter, { "draw enabled", "enabled", "interactions" })) {
+		changed |= DrawValue(ctx, "Draw Enabled", settings.draw_enabled);
+	}
+
+	if (MatchesFilter(filter, { "draw color", "color", "interactions" })) {
+		changed |= DrawValue(ctx, "Draw Color", settings.draw_color);
+	}
+
+	if (MatchesFilter(filter, { "draw line width", "line width", "interactions" })) {
+		changed |= DrawValue(
+			ctx,
+			"Draw Line Width",
+			settings.draw_line_width,
+			FieldOptions{
+				.speed = 0.1f,
+				.min = kMinLineWidth,
+				.max = 100.0,
+				.format = "%.2f",
+				.flags = ImGuiSliderFlags_AlwaysClamp,
+			}
+		);
+	}
+
+	if (changed) {
+		ctx.editor.GetDebugSystem().settings.interaction = settings;
+	}
+
+	return changed;
+}
+
+bool DrawDebugCollisionSettings(
+	EditorContext& ctx,
+	std::string_view filter
+) {
+	DrawSectionTitle("Collision");
+
+	auto settings{ ctx.editor.GetDebugSystem().settings.collision };
+	bool changed{ false };
+
+	if (MatchesFilter(filter, { "draw enabled", "enabled", "collisions" })) {
+		changed |= DrawValue(ctx, "Draw Enabled", settings.draw_enabled);
+	}
+
+	if (MatchesFilter(filter, { "draw color", "color", "collisions" })) {
+		changed |= DrawValue(ctx, "Draw Color", settings.draw_color);
+	}
+
+	if (MatchesFilter(filter, { "draw fill style", "fill style", "collisions" })) {
+		changed |= DrawValue(ctx, "Draw Fill Style", settings.draw_fill_style);
+	}
+
+	if (MatchesFilter(filter, { "draw ccd", "ccd", "continuous collision detection" })) {
+		changed |= DrawValue(ctx, "Draw CCD", settings.draw_ccd);
+	}
+
+	if (changed) {
+		ctx.editor.GetDebugSystem().settings.collision = settings;
+	}
+
+	return changed;
+}
+
+bool DrawDebugTextSettings(
+	EditorContext& ctx,
+	std::string_view filter
+) {
+	DrawSectionTitle("Text");
+
+	auto settings{ ctx.editor.GetDebugSystem().settings.text };
+	bool changed{ false };
+
+	if (MatchesFilter(filter, { "draw enabled", "enabled", "text boxes" })) {
+		changed |= DrawValue(ctx, "Draw Enabled", settings.draw_enabled);
+	}
+
+	if (MatchesFilter(filter, { "draw color", "color", "text boxes" })) {
+		changed |= DrawValue(ctx, "Draw Color", settings.draw_color);
+	}
+
+	if (MatchesFilter(filter, { "draw line width", "line width", "text boxes" })) {
+		changed |= DrawValue(
+			ctx,
+			"Draw Line Width",
+			settings.draw_line_width,
+			FieldOptions{
+				.speed = 0.1f,
+				.min = kMinLineWidth,
+				.max = 100.0,
+				.format = "%.2f",
+				.flags = ImGuiSliderFlags_AlwaysClamp,
+			}
+		);
+	}
+
+	if (MatchesFilter(filter, { "clip draw color", "clip color", "clipping" })) {
+		changed |= DrawValue(ctx, "Clip Draw Color", settings.clip_draw_color);
+	}
+
+	if (changed) {
+		ctx.editor.GetDebugSystem().settings.text = settings;
+	}
+
+	return changed;
+}
+
+bool DrawDebugVisibilitySettings(
+	EditorContext& ctx,
+	std::string_view filter
+) {
+	DrawSectionTitle("Visibility");
+
+	auto settings{ ctx.editor.GetDebugSystem().settings.light };
+	bool changed{ false };
+
+	if (MatchesFilter(filter, { "draw enabled", "enabled", "visibility polygons" })) {
+		changed |= DrawValue(ctx, "Draw Enabled", settings.draw_enabled);
+	}
+
+	if (MatchesFilter(filter, { "draw interiors", "interiors" })) {
+		changed |= DrawValue(ctx, "Draw Interiors", settings.draw_interiors);
+	}
+
+	if (MatchesFilter(filter, { "polygon color", "visibility polygon color" })) {
+		changed |= DrawValue(ctx, "Polygon Color", settings.polygon_color);
+	}
+
+	if (MatchesFilter(filter, { "masks inside color", "mask color" })) {
+		changed |= DrawValue(ctx, "Masks Inside Color", settings.masks_inside_color);
+	}
+
+	if (MatchesFilter(filter, { "does not mask inside color", "non mask color" })) {
+		changed |= DrawValue(
+			ctx,
+			"Does Not Mask Inside Color",
+			settings.does_not_mask_inside_color
+		);
+	}
+
+	if (MatchesFilter(filter, { "draw fill style", "fill style" })) {
+		changed |= DrawValue(ctx, "Draw Fill Style", settings.draw_fill_style);
+	}
+
+	if (changed) {
+		ctx.editor.GetDebugSystem().settings.light = settings;
+	}
+
+	return changed;
+}
+
+void DrawPageNavigationItem(
+	const char* label,
+	SettingsPage page,
+	SettingsPage& selected_page,
+	std::string_view filter
+) {
+	if (!PageMatchesFilter(page, filter)) {
+		return;
+	}
+
+	ImGui::PushID(static_cast<int>(page));
+
+	if (ImGui::Selectable(label, selected_page == page)) {
+		selected_page = page;
+	}
+
+	ImGui::PopID();
+}
+
+void DrawSettingsNavigation(
+	SettingsPage& selected_page,
+	std::string_view filter
+) {
+	const bool project_visible{
+		PageMatchesFilter(SettingsPage::ProjectDisplay, filter) ||
+		PageMatchesFilter(SettingsPage::ProjectRendering, filter)
+	};
+
+	const bool editor_visible{
+		PageMatchesFilter(SettingsPage::EditorGeneral, filter)
+	};
+
+	const bool debug_visible{
+		PageMatchesFilter(SettingsPage::DebugInteraction, filter) ||
+		PageMatchesFilter(SettingsPage::DebugCollision, filter) ||
+		PageMatchesFilter(SettingsPage::DebugText, filter) ||
+		PageMatchesFilter(SettingsPage::DebugVisibility, filter)
+	};
+
+	if (project_visible) {
+		if (!filter.empty()) {
+			ImGui::SetNextItemOpen(true, ImGuiCond_Always);
+		}
+
+		if (ImGui::TreeNodeEx(
+				"Project",
+				ImGuiTreeNodeFlags_DefaultOpen | ImGuiTreeNodeFlags_SpanAvailWidth
+			)) {
+			DrawPageNavigationItem(
+				"Display",
+				SettingsPage::ProjectDisplay,
+				selected_page,
+				filter
+			);
+			DrawPageNavigationItem(
+				"Rendering",
+				SettingsPage::ProjectRendering,
+				selected_page,
+				filter
+			);
+			ImGui::TreePop();
+		}
+	}
+
+	if (editor_visible) {
+		if (!filter.empty()) {
+			ImGui::SetNextItemOpen(true, ImGuiCond_Always);
+		}
+
+		if (ImGui::TreeNodeEx(
+				"Editor",
+				ImGuiTreeNodeFlags_DefaultOpen | ImGuiTreeNodeFlags_SpanAvailWidth
+			)) {
+			DrawPageNavigationItem(
+				"General",
+				SettingsPage::EditorGeneral,
+				selected_page,
+				filter
+			);
+			ImGui::TreePop();
+		}
+	}
+
+	if (debug_visible) {
+		if (!filter.empty()) {
+			ImGui::SetNextItemOpen(true, ImGuiCond_Always);
+		}
+
+		if (ImGui::TreeNodeEx(
+				"Debug",
+				ImGuiTreeNodeFlags_DefaultOpen | ImGuiTreeNodeFlags_SpanAvailWidth
+			)) {
+			DrawPageNavigationItem(
+				"Interactions",
+				SettingsPage::DebugInteraction,
+				selected_page,
+				filter
+			);
+			DrawPageNavigationItem(
+				"Collisions",
+				SettingsPage::DebugCollision,
+				selected_page,
+				filter
+			);
+			DrawPageNavigationItem(
+				"Text Boxes",
+				SettingsPage::DebugText,
+				selected_page,
+				filter
+			);
+			DrawPageNavigationItem(
+				"Visibility Polygons",
+				SettingsPage::DebugVisibility,
+				selected_page,
+				filter
+			);
+			ImGui::TreePop();
+		}
+	}
+}
+
+[[nodiscard]] std::optional<SettingsPage> FirstMatchingPage(
+	std::string_view filter
+) {
+	const auto it{ std::ranges::find_if(kSettingsPages, [filter](SettingsPage page) {
+		return PageMatchesFilter(page, filter);
+	}) };
+
+	return it == kSettingsPages.end()
+		? std::nullopt
+		: std::optional<SettingsPage>{ *it };
+}
+
+bool DrawSelectedSettingsPage(
+	EditorContext& ctx,
+	SettingsPage page,
+	std::string_view filter
+) {
+	// ImGui::TextUnformatted(PageTitle(page));
+	// ImGui::TextDisabled("%s", PageDescription(page));
+	// ImGui::Separator();
+
+	AutoLabelWidthScope label_width{ "SettingsWindowContent" };
+
+	switch (page) {
+		case SettingsPage::ProjectDisplay:
+			return DrawProjectDisplaySettings(ctx, filter);
+
+		case SettingsPage::ProjectRendering:
+			return DrawProjectRenderingSettings(ctx, filter);
+
+		case SettingsPage::EditorGeneral:
+			DrawEditorGeneralSettings(ctx, filter);
+			return false;
+
+		case SettingsPage::DebugInteraction:
+			return DrawDebugInteractionSettings(ctx, filter);
+
+		case SettingsPage::DebugCollision:
+			return DrawDebugCollisionSettings(ctx, filter);
+
+		case SettingsPage::DebugText:
+			return DrawDebugTextSettings(ctx, filter);
+
+		case SettingsPage::DebugVisibility:
+			return DrawDebugVisibilitySettings(ctx, filter);
+	}
+
+	return false;
+}
+
+void DrawHistorySectionTitle(const char* title) {
+	ImGui::TextDisabled("%s", title);
+	ImGui::Separator();
+}
+
+} // namespace
+
+void SettingsWindow::Open(SettingsPage page) {
+	selected_page_ = page;
+	search_.fill('\0');
+	open_ = true;
+	focus_requested_ = true;
+}
+
+void SettingsWindow::OnRender(EditorContext& ctx) {
+	if (!open_) {
+		return;
+	}
+
+	ImGui::SetNextWindowSize(ImVec2{ 900.0f, 620.0f }, ImGuiCond_FirstUseEver);
+
+	if (focus_requested_) {
+		ImGui::SetNextWindowFocus();
+		focus_requested_ = false;
+	}
+
+	if (!ImGui::Begin(
+			"Settings",
+			&open_,
+			ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoDocking
+		)) {
+		ImGui::End();
+		return;
+	}
+
+	if (ImGui::IsWindowFocused(ImGuiFocusedFlags_RootAndChildWindows) &&
+		ImGui::IsKeyPressed(ImGuiKey_Escape)) {
+		open_ = false;
+	}
+
+	// ImGui::TextUnformatted("Settings");
+	// ImGui::Separator();
+
+	ImGui::SetNextItemWidth(-1.0f);
+	ImGui::InputTextWithHint(
+		"##SettingsSearch",
+		"Search settings",
+		search_.data(),
+		search_.size()
 	);
 
 	ImGui::Spacing();
 
-	ImGui::Checkbox(
-		"Show Read Only Inspector Data",
-		&ctx.local.settings.show_read_only_inspector_data
-	);
+	const std::string_view filter{ search_.data() };
+	const auto first_matching_page{ FirstMatchingPage(filter) };
 
-	ImGui::TextDisabled(
-		"Shows read only components and reflected read only component members."
-	);
+	if (!PageMatchesFilter(selected_page_, filter) && first_matching_page) {
+		selected_page_ = *first_matching_page;
+	}
+
+	constexpr float navigation_width{ 230.0f };
+
+	if (ImGui::BeginChild(
+			"SettingsNavigation",
+			ImVec2{ navigation_width, 0.0f },
+			ImGuiChildFlags_Borders
+		)) {
+		DrawSettingsNavigation(selected_page_, filter);
+	}
+	ImGui::EndChild();
+
+	ImGui::SameLine();
+
+	if (ImGui::BeginChild(
+			"SettingsContent",
+			ImVec2{ 0.0f, 0.0f },
+			ImGuiChildFlags_Borders,
+			ImGuiWindowFlags_AlwaysVerticalScrollbar
+		)) {
+		if (!first_matching_page) {
+			ImGui::TextDisabled("No settings match \"%s\".", search_.data());
+		} else {
+			const bool changed{
+				DrawSelectedSettingsPage(ctx, selected_page_, filter)
+			};
+
+			if (changed) {
+				ctx.local.state.is_dirty = true;
+			}
+		}
+	}
+	ImGui::EndChild();
+
+	ImGui::End();
+}
+
+void UndoHistoryWindow::Open() {
+	open_ = true;
+	focus_requested_ = true;
+}
+
+void UndoHistoryWindow::OnRender(
+	EditorContext& ctx,
+	UndoStack& undo_stack
+) {
+	if (!open_) {
+		return;
+	}
+
+	ImGui::SetNextWindowSize(ImVec2{ 390.0f, 420.0f }, ImGuiCond_FirstUseEver);
+
+	if (focus_requested_) {
+		ImGui::SetNextWindowFocus();
+		focus_requested_ = false;
+	}
+
+	if (!ImGui::Begin(
+			"Undo History",
+			&open_,
+			ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoDocking
+		)) {
+		ImGui::End();
+		return;
+	}
+
+	if (ImGui::IsWindowFocused(ImGuiFocusedFlags_RootAndChildWindows) &&
+		ImGui::IsKeyPressed(ImGuiKey_Escape)) {
+		open_ = false;
+	}
+
+	ImGui::BeginDisabled(!undo_stack.CanUndo());
+	if (ImGui::Button("Undo")) {
+		ctx.local.position_picker.Cancel();
+		undo_stack.Undo();
+	}
+	ImGui::EndDisabled();
+
+	ImGui::SameLine();
+
+	ImGui::BeginDisabled(!undo_stack.CanRedo());
+	if (ImGui::Button("Redo")) {
+		ctx.local.position_picker.Cancel();
+		undo_stack.Redo();
+	}
+	ImGui::EndDisabled();
+
+	const auto history{ undo_stack.History() };
+	const std::size_t cursor{ undo_stack.Cursor() };
+
+	ImGui::SameLine();
+	ImGui::TextDisabled("%zu / %zu applied", cursor, history.size());
+	ImGui::Separator();
+
+	if (!undo_stack.IsUndoRedoEnabled()) {
+		ImGui::TextDisabled("Undo and redo are disabled while runtime editing is active.");
+		ImGui::Separator();
+	}
+
+	if (history.empty()) {
+		ImGui::TextDisabled("No undo or redo actions.");
+		ImGui::End();
+		return;
+	}
+
+	if (ImGui::BeginChild("UndoHistoryEntries", ImVec2{ 0.0f, 0.0f })) {
+		DrawHistorySectionTitle("Redo");
+
+		if (cursor >= history.size()) {
+			ImGui::TextDisabled("No actions available to redo.");
+		} else {
+			for (std::size_t index{ cursor }; index < history.size(); ++index) {
+				ImGui::PushID(static_cast<int>(index));
+				ImGui::BulletText("%s", history[index].label.c_str());
+				ImGui::PopID();
+			}
+		}
+
+		ImGui::Spacing();
+		DrawHistorySectionTitle("Undo");
+
+		if (cursor == 0) {
+			ImGui::TextDisabled("No actions available to undo.");
+		} else {
+			for (std::size_t index{ cursor }; index > 0; --index) {
+				const auto& entry{ history[index - 1] };
+				ImGui::PushID(static_cast<int>(index - 1));
+				ImGui::BulletText("%s", entry.label.c_str());
+				ImGui::PopID();
+			}
+		}
+	}
+	ImGui::EndChild();
 
 	ImGui::End();
 }

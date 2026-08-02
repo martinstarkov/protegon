@@ -166,9 +166,8 @@ private:
 
 	ViewportPanel viewport_panel_;
 	ContentBrowserPanel content_browser_panel_;
-	EngineSettingsPanel engine_settings_panel_;
-	DebugSettingsPanel debug_settings_panel_;
-	EditorSettingsPanel editor_settings_panel_;
+	SettingsWindow settings_window_;
+	UndoHistoryWindow undo_history_window_;
 	InspectorPanel inspector_panel_;
 	SceneHierarchyPanel scene_hierarchy_panel_;
 	SceneListPanel scene_list_panel_;

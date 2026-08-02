@@ -1544,6 +1544,16 @@ void Editor::DrawMainMenuBar() {
 			SaveProjectScene();
 		}
 
+		ImGui::Separator();
+
+		if (ImGui::MenuItem("Project Settings")) {
+			settings_window_.Open(SettingsPage::ProjectDisplay);
+		}
+
+		if (ImGui::MenuItem("Editor Settings")) {
+			settings_window_.Open(SettingsPage::EditorGeneral);
+		}
+
 		ImGui::EndMenu();
 	}
 
@@ -1556,6 +1566,128 @@ void Editor::DrawMainMenuBar() {
 		if (ImGui::MenuItem("Redo", "Ctrl+Shift+Z", false, undo_stack_.CanRedo())) {
 			context_->local.position_picker.Cancel();
 			undo_stack_.Redo();
+		}
+
+		ImGui::Separator();
+
+		if (ImGui::MenuItem("Undo History")) {
+			undo_history_window_.Open();
+		}
+
+		ImGui::EndMenu();
+	}
+
+	if (ImGui::BeginMenu("View")) {
+		auto render_only_selected_scene{
+			GetSettings().render_only_selected_scene
+		};
+
+		if (ImGui::MenuItem(
+				"Render Only Selected Scene",
+				nullptr,
+				render_only_selected_scene
+			)) {
+			SetRenderOnlySelectedScene(!render_only_selected_scene);
+		}
+
+		ImGui::EndMenu();
+	}
+
+	if (ImGui::BeginMenu("Tools")) {
+		auto entity_picking{ GetSettings().entity_picking };
+
+		if (ImGui::MenuItem("Entity Picking", nullptr, entity_picking)) {
+			SetEntityPickingMode(!entity_picking);
+		}
+
+		auto local_gizmo_orientation{
+			GetSettings().gizmo_uses_local_orientation
+		};
+
+		if (ImGui::MenuItem(
+				"Local Gizmo Orientation",
+				nullptr,
+				local_gizmo_orientation
+			)) {
+			SetGizmoUsesLocalOrientation(!local_gizmo_orientation);
+		}
+
+		auto show_read_only_data{
+			context_->local.settings.show_read_only_inspector_data
+		};
+
+		if (ImGui::MenuItem(
+				"Show Read-Only Data",
+				nullptr,
+				show_read_only_data
+			)) {
+			context_->local.settings.show_read_only_inspector_data =
+				!show_read_only_data;
+		}
+
+		ImGui::EndMenu();
+	}
+
+	if (ImGui::BeginMenu("Debug")) {
+		auto& debug_settings{ GetDebugSystem().settings };
+
+		if (ImGui::BeginMenu("Draw")) {
+			if (ImGui::MenuItem(
+					"Interactions",
+					nullptr,
+					debug_settings.interaction.draw_enabled
+				)) {
+				debug_settings.interaction.draw_enabled =
+					!debug_settings.interaction.draw_enabled;
+				MarkProjectDirty();
+			}
+
+			if (ImGui::MenuItem(
+					"Collisions",
+					nullptr,
+					debug_settings.collision.draw_enabled
+				)) {
+				debug_settings.collision.draw_enabled =
+					!debug_settings.collision.draw_enabled;
+				MarkProjectDirty();
+			}
+
+			if (ImGui::MenuItem(
+					"Text Boxes",
+					nullptr,
+					debug_settings.text.draw_enabled
+				)) {
+				debug_settings.text.draw_enabled =
+					!debug_settings.text.draw_enabled;
+				MarkProjectDirty();
+			}
+
+			if (ImGui::MenuItem(
+					"Visibility Polygons",
+					nullptr,
+					debug_settings.light.draw_enabled
+				)) {
+				debug_settings.light.draw_enabled =
+					!debug_settings.light.draw_enabled;
+				MarkProjectDirty();
+			}
+
+			ImGui::EndMenu();
+		}
+
+		ImGui::Separator();
+
+		if (ImGui::MenuItem("Debug Settings")) {
+			settings_window_.Open(SettingsPage::DebugInteraction);
+		}
+
+		if (ImGui::MenuItem(
+				"ImGui Metrics",
+				nullptr,
+				context_->local.settings.show_imgui_metrics
+			)) {
+			context_->local.settings.show_imgui_metrics =
+				!context_->local.settings.show_imgui_metrics;
 		}
 
 		ImGui::EndMenu();
@@ -1585,10 +1717,13 @@ void Editor::DrawPanels() {
 	scene_hierarchy_panel_.OnRender(*context_);
 	scene_list_panel_.OnRender(*context_);
 	inspector_panel_.OnRender(*context_);
-	engine_settings_panel_.OnRender(*context_);
-	debug_settings_panel_.OnRender(*context_);
-	editor_settings_panel_.OnRender(*context_);
 	content_browser_panel_.OnRender(*context_);
+	settings_window_.OnRender(*context_);
+	undo_history_window_.OnRender(*context_, undo_stack_);
+
+	if (context_->local.settings.show_imgui_metrics) {
+		ImGui::ShowMetricsWindow(&context_->local.settings.show_imgui_metrics);
+	}
 }
 
 const ::ptgn::impl::SceneManager& Editor::GetSceneManager() const {
@@ -2471,9 +2606,6 @@ void Editor::BuildDefaultDockLayout(std::uint32_t dockspace_id) {
 
 	ImGui::DockBuilderDockWindow("Viewport", dock_main);
 
-	ImGui::DockBuilderDockWindow("Engine Settings", dock_center_bottom);
-	ImGui::DockBuilderDockWindow("Debug Settings", dock_center_bottom);
-	ImGui::DockBuilderDockWindow("Editor Settings", dock_center_bottom);
 	ImGui::DockBuilderDockWindow("Content Browser", dock_center_bottom);
 	ImGui::DockBuilderDockWindow("Render Stats", dock_center_bottom);
 
