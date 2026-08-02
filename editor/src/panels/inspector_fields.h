@@ -12,9 +12,16 @@
 #include <concepts>
 #include <cstddef>
 #include <cstdint>
+#include <cstdio>
+#include <cstdlib>
+#include <format>
 #include <functional>
+#include <limits>
 #include <magic_enum/magic_enum.hpp>
+#include <memory>
 #include <optional>
+#include <ratio>
+#include <ranges>
 #include <string>
 #include <string_view>
 #include <tuple>
@@ -131,7 +138,7 @@ struct FieldOptions {
 	float max{ 0.0 };
 	const char* format{ nullptr };
 	ImGuiSliderFlags flags{ ImGuiSliderFlags_None };
-	
+
 	bool multiline{ false };
 
 	/// @brief Line count in a multiline text box.
@@ -1084,59 +1091,365 @@ inline bool DrawSize(std::string_view label, std::size_t& value, const FieldOpti
 	return true;
 }
 
+enum class DurationInputUnit {
+	Nanoseconds,
+	Microseconds,
+	Milliseconds,
+	Seconds,
+	Minutes,
+	Hours,
+	Days,
+	Weeks
+};
+
+struct ParsedInspectorDuration {
+	long double count{ 0.0L };
+	DurationInputUnit unit{ DurationInputUnit::Milliseconds };
+};
+
+[[nodiscard]] inline std::string TrimDurationInputText(std::string_view text) {
+	while (!text.empty() && std::isspace(static_cast<unsigned char>(text.front())) != 0) {
+		text.remove_prefix(1);
+	}
+
+	while (!text.empty() && std::isspace(static_cast<unsigned char>(text.back())) != 0) {
+		text.remove_suffix(1);
+	}
+
+	return std::string{ text };
+}
+
+[[nodiscard]] inline std::string NormalizeDurationInputUnit(std::string_view unit) {
+	std::string normalized{ TrimDurationInputText(unit) };
+
+	// Accept the common UTF-8 micro signs as aliases for ASCII 'u'.
+	if (normalized.starts_with("\xC2\xB5") || normalized.starts_with("\xCE\xBC")) {
+		normalized.replace(0, 2, "u");
+	}
+
+	std::ranges::transform(normalized, normalized.begin(), [](unsigned char c) {
+		return static_cast<char>(std::tolower(c));
+	});
+
+	return normalized;
+}
+
+template <typename... Aliases>
+[[nodiscard]] constexpr bool IsDurationInputUnit(std::string_view unit, Aliases... aliases) {
+	return ((unit == aliases) || ...);
+}
+
+[[nodiscard]] inline std::optional<DurationInputUnit> ParseDurationInputUnit(
+	std::string_view unit
+) {
+	const std::string normalized{ NormalizeDurationInputUnit(unit) };
+
+	if (IsDurationInputUnit(
+			normalized, "ns", "nsec", "nsecs", "nanosecond", "nanoseconds"
+		)) {
+		return DurationInputUnit::Nanoseconds;
+	}
+
+	if (IsDurationInputUnit(
+			normalized, "us", "usec", "usecs", "microsecond", "microseconds"
+		)) {
+		return DurationInputUnit::Microseconds;
+	}
+
+	if (IsDurationInputUnit(
+			normalized, "ms", "msec", "msecs", "millisecond", "milliseconds"
+		)) {
+		return DurationInputUnit::Milliseconds;
+	}
+
+	if (IsDurationInputUnit(normalized, "s", "sec", "secs", "second", "seconds")) {
+		return DurationInputUnit::Seconds;
+	}
+
+	if (IsDurationInputUnit(normalized, "m", "min", "mins", "minute", "minutes")) {
+		return DurationInputUnit::Minutes;
+	}
+
+	if (IsDurationInputUnit(normalized, "h", "hr", "hrs", "hour", "hours")) {
+		return DurationInputUnit::Hours;
+	}
+
+	if (IsDurationInputUnit(normalized, "d", "day", "days")) {
+		return DurationInputUnit::Days;
+	}
+
+	if (IsDurationInputUnit(normalized, "w", "wk", "wks", "week", "weeks")) {
+		return DurationInputUnit::Weeks;
+	}
+
+	return std::nullopt;
+}
+
+[[nodiscard]] constexpr std::string_view DurationInputUnitSuffix(DurationInputUnit unit) {
+	switch (unit) {
+		case DurationInputUnit::Nanoseconds: return "ns";
+		case DurationInputUnit::Microseconds: return "us";
+		case DurationInputUnit::Milliseconds: return "ms";
+		case DurationInputUnit::Seconds: return "s";
+		case DurationInputUnit::Minutes: return "m";
+		case DurationInputUnit::Hours: return "h";
+		case DurationInputUnit::Days: return "d";
+		case DurationInputUnit::Weeks: return "w";
+	}
+
+	return "ms";
+}
+
+[[nodiscard]] inline std::optional<ParsedInspectorDuration> ParseInspectorDuration(
+	std::string_view text,
+	DurationInputUnit default_unit = DurationInputUnit::Milliseconds
+) {
+	const std::string input{ TrimDurationInputText(text) };
+
+	if (input.empty()) {
+		return ParsedInspectorDuration{
+			.count = 0.0L,
+			.unit  = default_unit,
+		};
+	}
+
+	char* end{ nullptr };
+	const long double count{ std::strtold(input.c_str(), &end) };
+
+	if (end == input.c_str() || !std::isfinite(count)) {
+		return std::nullopt;
+	}
+
+	const std::string entered_suffix{ TrimDurationInputText(std::string_view{ end }) };
+	const std::optional<DurationInputUnit> unit{
+		entered_suffix.empty() ? std::optional<DurationInputUnit>{ default_unit }
+						   : ParseDurationInputUnit(entered_suffix)
+	};
+
+	if (!unit) {
+		return std::nullopt;
+	}
+
+	return ParsedInspectorDuration{
+		.count = count,
+		.unit  = *unit,
+	};
+}
+
+template <DurationType T>
+[[nodiscard]] std::optional<T> ConvertInspectorDuration(
+	const ParsedInspectorDuration& parsed
+) {
+	using Duration         = std::remove_cvref_t<T>;
+	using Rep              = typename Duration::rep;
+	using Period           = typename Duration::period;
+	using FloatingDuration = duration<long double, Period>;
+
+	const auto convert = [&]<typename SourcePeriod>() {
+		using SourceDuration = duration<long double, SourcePeriod>;
+		return std::chrono::duration_cast<FloatingDuration>(
+			SourceDuration{ parsed.count }
+		).count();
+	};
+
+	long double count{ 0.0L };
+
+	switch (parsed.unit) {
+		case DurationInputUnit::Nanoseconds:
+			count = convert.template operator()<nanoseconds::period>();
+			break;
+		case DurationInputUnit::Microseconds:
+			count = convert.template operator()<microseconds::period>();
+			break;
+		case DurationInputUnit::Milliseconds:
+			count = convert.template operator()<milliseconds::period>();
+			break;
+		case DurationInputUnit::Seconds:
+			count = convert.template operator()<seconds::period>();
+			break;
+		case DurationInputUnit::Minutes:
+			count = convert.template operator()<minutes::period>();
+			break;
+		case DurationInputUnit::Hours:
+			count = convert.template operator()<hours::period>();
+			break;
+		case DurationInputUnit::Days:
+			count = convert.template operator()<days::period>();
+			break;
+		case DurationInputUnit::Weeks:
+			count = convert.template operator()<weeks::period>();
+			break;
+	}
+
+	if (!std::isfinite(count) ||
+		count < static_cast<long double>(std::numeric_limits<Rep>::lowest()) ||
+		count > static_cast<long double>(std::numeric_limits<Rep>::max())) {
+		return std::nullopt;
+	}
+
+	return Duration{ static_cast<Rep>(count) };
+}
+
+template <DurationType T>
+[[nodiscard]] long double InspectorDurationCount(T value, DurationInputUnit unit) {
+	const auto convert = [&]<DurationType Destination>() {
+		using FloatingDestination = duration<long double, typename Destination::period>;
+		return std::chrono::duration_cast<FloatingDestination>(value).count();
+	};
+
+	switch (unit) {
+		case DurationInputUnit::Nanoseconds:
+			return convert.template operator()<nanosecondsf>();
+		case DurationInputUnit::Microseconds:
+			return convert.template operator()<microsecondsf>();
+		case DurationInputUnit::Milliseconds:
+			return convert.template operator()<millisecondsf>();
+		case DurationInputUnit::Seconds:
+			return convert.template operator()<secondsf>();
+		case DurationInputUnit::Minutes:
+			return convert.template operator()<minutesf>();
+		case DurationInputUnit::Hours:
+			return convert.template operator()<hoursf>();
+		case DurationInputUnit::Days:
+			return convert.template operator()<daysf>();
+		case DurationInputUnit::Weeks:
+			return convert.template operator()<weeksf>();
+	}
+
+	return 0.0L;
+}
+
+template <DurationType T>
+[[nodiscard]] std::string FormatInspectorDuration(T value, std::string_view suffix = {}) {
+	std::string displayed_suffix{ suffix };
+	std::optional<DurationInputUnit> unit;
+
+	if (!displayed_suffix.empty()) {
+		unit = ParseDurationInputUnit(displayed_suffix);
+	}
+
+	if (!unit) {
+		displayed_suffix = std::string{ DurationUnit<T>() };
+		unit             = ParseDurationInputUnit(displayed_suffix);
+	}
+
+	if (!unit) {
+		unit = DurationInputUnit::Milliseconds;
+	}
+
+	displayed_suffix = DurationInputUnitSuffix(*unit);
+
+	return std::format(
+		"{:.6g}{}", InspectorDurationCount(value, *unit), displayed_suffix
+	);
+}
+
+struct DurationTextEditState {
+	std::string buffer;
+	std::string display_unit;
+	bool initialized{ false };
+	bool was_active{ false };
+};
+
+inline std::unordered_map<ImGuiID, DurationTextEditState>& DurationTextEditStates() {
+	static std::unordered_map<ImGuiID, DurationTextEditState> states;
+	return states;
+}
+
+template <DurationType T>
+bool DrawDurationTextInput(
+	const char* label, T& value, float width, bool disabled, const char* tooltip,
+	const FieldOptions* options = nullptr
+) {
+	using Duration = std::remove_cvref_t<T>;
+	using Rep      = typename Duration::rep;
+
+	const ImGuiID id{ ImGui::GetID(label) };
+	auto& state{ DurationTextEditStates()[id] };
+
+	if (!state.initialized) {
+		state.display_unit = std::string{ DurationUnit<Duration>() };
+		if (!ParseDurationInputUnit(state.display_unit)) {
+			state.display_unit = "ms";
+		}
+		state.initialized = true;
+	}
+
+	if (!state.was_active) {
+		state.buffer = FormatInspectorDuration(value, state.display_unit);
+	}
+
+	ImGui::SetNextItemWidth(width);
+	const bool submitted{ DrawDisabledIf(disabled, [&]() {
+		return ImGui::InputText(label, &state.buffer, ImGuiInputTextFlags_EnterReturnsTrue);
+	}) };
+	const bool active{ ImGui::IsItemActive() };
+	const bool commit{ submitted || ImGui::IsItemDeactivatedAfterEdit() };
+	bool changed{ false };
+
+	if (commit) {
+		const auto parsed{ ParseInspectorDuration(state.buffer) };
+
+		if (parsed && parsed->count >= 0.0L) {
+			if (auto updated{ ConvertInspectorDuration<Duration>(*parsed) }) {
+				long double count{ static_cast<long double>(updated->count()) };
+
+				if (options && HasBounds(*options)) {
+					count = std::clamp(
+						count, static_cast<long double>(options->min),
+						static_cast<long double>(options->max)
+					);
+				}
+
+				const Duration bounded{ static_cast<Rep>(count) };
+				state.display_unit = std::string{ DurationInputUnitSuffix(parsed->unit) };
+
+				if (bounded != value) {
+					value   = bounded;
+					changed = true;
+				}
+			}
+		}
+
+		state.buffer = FormatInspectorDuration(value, state.display_unit);
+	}
+
+	state.was_active = active;
+
+	if (tooltip && *tooltip &&
+		ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled)) {
+		ImGui::SetTooltip("%s", tooltip);
+	}
+
+	return changed;
+}
+
+inline bool DrawDurationInput(
+	const char* label, float& milliseconds, float width, const char* tooltip = nullptr
+) {
+	millisecondsf duration{ milliseconds };
+	const bool changed{ DrawDurationTextInput(
+		label, duration, width, false, tooltip
+	) };
+
+	if (changed) {
+		milliseconds = duration.count();
+	}
+
+	return changed;
+}
+
 template <typename Rep, typename Period>
 bool DrawDuration(
-	std::string_view label, std::chrono::duration<Rep, Period>& value, const FieldOptions& options
+	std::string_view label, std::chrono::duration<Rep, Period>& value,
+	const FieldOptions& options
 ) {
-	auto unit{ DurationUnit<Period>() };
-
-	if constexpr (std::integral<Rep>) {
-		return DrawPropertyRow(label, [&]() {
-			std::int64_t temporary{ static_cast<std::int64_t>(value.count()) };
-			std::int64_t min{ static_cast<std::int64_t>(options.min) };
-			std::int64_t max{ static_cast<std::int64_t>(options.max) };
-
-			auto default_format{ std::string{ "%lld " } + std::string{ unit } };
-			auto format{ options.format ? options.format : default_format.c_str() };
-
-			bool changed{ DrawDisabledIf(IsReadOnly(options), [&]() {
-				return ImGui::DragScalar(
-					"##value", ImGuiDataType_S64, &temporary, options.speed,
-					HasBounds(options) ? &min : nullptr, HasBounds(options) ? &max : nullptr,
-					format, options.flags
-				);
-			}) };
-
-			if (changed) {
-				value = std::chrono::duration<Rep, Period>{ static_cast<Rep>(temporary) };
-			}
-
-			return changed;
-		});
-	} else {
-		return DrawPropertyRow(label, [&]() {
-			float temporary{ static_cast<float>(value.count()) };
-			float min{ static_cast<float>(options.min) };
-			float max{ static_cast<float>(options.max) };
-
-			auto default_format{ std::string{ "%.3f " } + std::string{ unit } };
-			auto format{ options.format ? options.format : default_format.c_str() };
-
-			bool changed{ DrawDisabledIf(IsReadOnly(options), [&]() {
-				return ImGui::DragScalar(
-					"##value", ImGuiDataType_Float, &temporary, options.speed,
-					HasBounds(options) ? &min : nullptr, HasBounds(options) ? &max : nullptr,
-					format, options.flags
-				);
-			}) };
-
-			if (changed) {
-				value = std::chrono::duration<Rep, Period>{ static_cast<Rep>(temporary) };
-			}
-
-			return changed;
-		});
-	}
+	return DrawPropertyRow(label, [&]() {
+		return DrawDurationTextInput(
+			"##value", value, -FLT_MIN, IsReadOnly(options), nullptr,
+			std::addressof(options)
+		);
+	});
 }
 
 template <typename T, std::size_t N, typename Label>
@@ -2001,51 +2314,10 @@ template <typename Rep, typename Period>
 bool DrawDurationInlineValue(
 	std::chrono::duration<Rep, Period>& value, const FieldOptions& options
 ) {
-	auto unit{ DurationUnit<Period>() };
-
-	if constexpr (std::integral<Rep>) {
-		std::int64_t temporary{ static_cast<std::int64_t>(value.count()) };
-		std::int64_t min{ static_cast<std::int64_t>(options.min) };
-		std::int64_t max{ static_cast<std::int64_t>(options.max) };
-
-		auto default_format{ std::string{ "%lld " } + std::string{ unit } };
-		auto format{ options.format ? options.format : default_format.c_str() };
-
-		bool changed{ DrawDisabledIf(IsReadOnly(options), [&]() {
-			return ImGui::DragScalar(
-				"##value", ImGuiDataType_S64, &temporary, options.speed,
-				HasBounds(options) ? &min : nullptr, HasBounds(options) ? &max : nullptr, format,
-				options.flags
-			);
-		}) };
-
-		if (changed) {
-			value = std::chrono::duration<Rep, Period>{ static_cast<Rep>(temporary) };
-		}
-
-		return changed;
-	} else {
-		float temporary{ static_cast<float>(value.count()) };
-		float min{ static_cast<float>(options.min) };
-		float max{ static_cast<float>(options.max) };
-
-		auto default_format{ std::string{ "%.3f " } + std::string{ unit } };
-		auto format{ options.format ? options.format : default_format.c_str() };
-
-		bool changed{ DrawDisabledIf(IsReadOnly(options), [&]() {
-			return ImGui::DragScalar(
-				"##value", ImGuiDataType_Float, &temporary, options.speed,
-				HasBounds(options) ? &min : nullptr, HasBounds(options) ? &max : nullptr, format,
-				options.flags
-			);
-		}) };
-
-		if (changed) {
-			value = std::chrono::duration<Rep, Period>{ static_cast<Rep>(temporary) };
-		}
-
-		return changed;
-	}
+	return DrawDurationTextInput(
+		"##value", value, -FLT_MIN, IsReadOnly(options), nullptr,
+		std::addressof(options)
+	);
 }
 
 template <typename T>

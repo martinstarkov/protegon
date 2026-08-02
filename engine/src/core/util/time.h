@@ -1,6 +1,8 @@
 #pragma once
 
+#include <algorithm>
 #include <chrono>
+#include <cctype>
 #include <format>
 #include <ostream>
 #include <ratio>
@@ -31,25 +33,33 @@ struct is_chrono_duration<std::chrono::duration<Rep, Period>> : std::true_type {
 template <typename T>
 concept DurationType = impl::is_chrono_duration<std::remove_cvref_t<T>>::value;
 
-using hours			= std::chrono::hours;
-using hoursf		= duration<float, hours::period>;
-using minutes		= std::chrono::minutes;
-using minutesf		= duration<float, minutes::period>;
-using seconds		= std::chrono::seconds;
-using secondsf		= duration<float, seconds::period>;
-using milliseconds	= std::chrono::milliseconds;
-using millisecondsf = duration<float, milliseconds::period>;
-using microseconds	= std::chrono::microseconds;
-using microsecondsf = duration<float, microseconds::period>;
-using nanoseconds	= std::chrono::nanoseconds;
-using nanosecondsf	= duration<float, nanoseconds::period>;
+using weeks          = std::chrono::weeks;
+using weeksf         = duration<float, weeks::period>;
+using days           = std::chrono::days;
+using daysf          = duration<float, days::period>;
+using hours          = std::chrono::hours;
+using hoursf         = duration<float, hours::period>;
+using minutes        = std::chrono::minutes;
+using minutesf       = duration<float, minutes::period>;
+using seconds        = std::chrono::seconds;
+using secondsf       = duration<float, seconds::period>;
+using milliseconds   = std::chrono::milliseconds;
+using millisecondsf  = duration<float, milliseconds::period>;
+using microseconds   = std::chrono::microseconds;
+using microsecondsf  = duration<float, microseconds::period>;
+using nanoseconds    = std::chrono::nanoseconds;
+using nanosecondsf   = duration<float, nanoseconds::period>;
 
 template <typename Period>
 [[nodiscard]] constexpr std::string_view DurationUnit() {
-	if constexpr (std::ratio_equal_v<Period, hours::period>) {
+	if constexpr (std::ratio_equal_v<Period, weeks::period>) {
+		return "w";
+	} else if constexpr (std::ratio_equal_v<Period, days::period>) {
+		return "d";
+	} else if constexpr (std::ratio_equal_v<Period, hours::period>) {
 		return "h";
 	} else if constexpr (std::ratio_equal_v<Period, minutes::period>) {
-		return "min";
+		return "m";
 	} else if constexpr (std::ratio_equal_v<Period, seconds::period>) {
 		return "s";
 	} else if constexpr (std::ratio_equal_v<Period, milliseconds::period>) {
@@ -101,13 +111,15 @@ struct adl_serializer<ptgn::duration<Rep, Period>> {
 		std::string s{ j.get<std::string>() };
 		std::smatch match;
 
-		if (std::regex pattern{ R"(^\s*([+-]?(?:\d+(?:\.\d*)?|\.\d+))\s*(ns|us|ms|min|s|h)\s*$)",
-								std::regex::icase };
+		if (std::regex pattern{
+				R"(^\s*([+-]?(?:\d+(?:\.\d*)?|\.\d+))\s*(ns|us|ms|m|min|s|h|d|w)\s*$)",
+				std::regex::icase
+			};
 			!std::regex_match(s, match, pattern)) {
 			PTGN_ERROR("Invalid duration format: ", s);
 		}
 
-		float value{ std::stof(match[1].str()) };
+		const float value{ std::stof(match[1].str()) };
 		std::string unit{ match[2].str() };
 
 		std::ranges::transform(unit, unit.begin(), [](unsigned char c) {
@@ -116,9 +128,13 @@ struct adl_serializer<ptgn::duration<Rep, Period>> {
 
 		using Duration = ptgn::duration<Rep, Period>;
 
-		if (unit == "h") {
+		if (unit == "w") {
+			d = duration_cast<Duration>(weeksf{ value });
+		} else if (unit == "d") {
+			d = duration_cast<Duration>(daysf{ value });
+		} else if (unit == "h") {
 			d = duration_cast<Duration>(hoursf{ value });
-		} else if (unit == "min") {
+		} else if (unit == "m" || unit == "min") {
 			d = duration_cast<Duration>(minutesf{ value });
 		} else if (unit == "s") {
 			d = duration_cast<Duration>(secondsf{ value });

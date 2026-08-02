@@ -277,12 +277,6 @@ struct ActionDragPayload {
 	int index;
 };
 
-struct DurationEditState {
-	std::array<char, 32> buffer{};
-	bool initialized{ false };
-	bool was_active{ false };
-};
-
 struct ScriptInspectorState {
 	std::optional<ImGuiID> editing_sequence_name;
 	std::string editing_sequence_original_name;
@@ -305,81 +299,6 @@ inline constexpr std::array kEaseEntries{
 	std::pair{ Ease::OutQuad, "Out Quad" },	  std::pair{ Ease::InOutQuad, "In Out Quad" },
 	std::pair{ Ease::OutCubic, "Out Cubic" }, std::pair{ Ease::OutBack, "Out Back" },
 };
-
-bool DrawDurationInput(const char* label, float& milliseconds, float width, const char* tooltip) {
-	static std::unordered_map<ImGuiID, DurationEditState> states;
-	const ImGuiID id{ ImGui::GetID(label) };
-	auto& state{ states[id] };
-
-	auto format = [](float value, char* buffer, std::size_t size) {
-		const double clamped{ std::max(0.0, static_cast<double>(value)) };
-		if (clamped == 0.0) {
-			std::snprintf(buffer, size, "0s");
-		} else if (clamped >= 1000.0 && std::fmod(clamped, 1000.0) == 0.0) {
-			std::snprintf(buffer, size, "%.4gs", clamped / 1000.0);
-		} else {
-			std::snprintf(buffer, size, "%.4gms", clamped);
-		}
-	};
-
-	if (!state.initialized || !state.was_active) {
-		format(milliseconds, state.buffer.data(), state.buffer.size());
-		state.initialized = true;
-	}
-
-	ImGui::SetNextItemWidth(width);
-	const bool submitted{ ImGui::InputText(
-		label, state.buffer.data(), state.buffer.size(), ImGuiInputTextFlags_EnterReturnsTrue
-	) };
-	const bool active{ ImGui::IsItemActive() };
-	const bool commit{ submitted || ImGui::IsItemDeactivatedAfterEdit() };
-	bool changed{ false };
-
-	if (commit) {
-		std::string text{ state.buffer.data() };
-		while (!text.empty() && std::isspace(static_cast<unsigned char>(text.back()))) {
-			text.pop_back();
-		}
-		std::size_t first{ 0 };
-		while (first < text.size() && std::isspace(static_cast<unsigned char>(text[first]))) {
-			++first;
-		}
-		text.erase(0, first);
-
-		char* end{ nullptr };
-		const double value{ std::strtod(text.c_str(), &end) };
-		std::string unit{ end ? end : "" };
-		while (!unit.empty() && std::isspace(static_cast<unsigned char>(unit.front()))) {
-			unit.erase(unit.begin());
-		}
-		std::ranges::transform(unit, unit.begin(), [](unsigned char c) {
-			return static_cast<char>(std::tolower(c));
-		});
-
-		double multiplier{ 1.0 };
-		bool valid{ end != text.c_str() && std::isfinite(value) && value >= 0.0 };
-		if (unit.empty() || unit == "ms") {
-			multiplier = 1.0;
-		} else if (unit == "s" || unit == "sec") {
-			multiplier = 1000.0;
-		} else if (unit == "m" || unit == "min") {
-			multiplier = 60000.0;
-		} else {
-			valid = false;
-		}
-
-		if (valid) {
-			const float updated{ static_cast<float>(value * multiplier) };
-			changed		 = updated != milliseconds;
-			milliseconds = updated;
-		}
-		format(milliseconds, state.buffer.data(), state.buffer.size());
-	}
-
-	state.was_active = active;
-	DrawTooltip(tooltip);
-	return changed;
-}
 
 float CompactControlSpacing() {
 	return ImGui::GetStyle().ItemSpacing.x;
