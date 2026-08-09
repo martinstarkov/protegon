@@ -1,6 +1,5 @@
 #pragma once
 
-#include <cmrc/cmrc.hpp>
 #include <cstdint>
 #include <span>
 #include <string>
@@ -17,9 +16,8 @@
 #include "core/util/id_map.h"
 #include "renderer/resources/id.h"
 #include "renderer/resources/shader.h"
+#include "runtime/asset/engine_shader_library.h"
 #include "serialization/json/fwd.h"
-
-CMRC_DECLARE(shaders);
 
 namespace ptgn::impl {
 
@@ -122,7 +120,7 @@ private:
 
 	void CompileShaders(const std::vector<ShaderSpec>& sources);
 	void PopulateShadersFromCache(const json& manifest);
-	void PopulateShaderCache(const cmrc::embedded_filesystem& filesystem);
+	void PopulateShaderCache(std::span<const ::ptgn::impl::EngineShaderFile> files);
 
 	bool ShaderExists(std::string_view shader_name, ShaderType type) const;
 	ShaderId GetShaderId(std::string_view shader_name, ShaderType type) const;

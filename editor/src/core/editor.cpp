@@ -521,6 +521,8 @@ void SaveProjectManifest(Application& app, Project& project) {
 } // namespace
 
 Editor::Editor(Application& app) : app{ app } {
+	app.SetCloseGuard([this]() { return content_browser_panel_.CanApplicationClose(); });
+
 	// Generic application startup preference. The engine does not know why it was changed.
 	impl::ApplicationAccessor::ctx(app).start_project_runtime = false;
 
@@ -531,6 +533,10 @@ Editor::Editor(Application& app) : app{ app } {
 	commands_.Bind(*context_);
 	scene_hierarchy_panel_.Bind(*context_);
 	scene_list_panel_.Bind(*context_);
+}
+
+void Editor::RequestQuit() {
+	app.RequestQuit();
 }
 
 void Editor::UpdateDockLayout(std::uint32_t dockspace_id, float width) {

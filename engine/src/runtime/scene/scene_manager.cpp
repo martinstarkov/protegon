@@ -245,8 +245,8 @@ void SceneManager::ApplyLoadedCommand(
 			app,
 			SceneData{
 				.tag{ enter_command.to_scene_tag },
-				.tag_hash = target_scene_tag_hash,
-				.state = SceneState::TransitionIn,
+				.tag_hash{ target_scene_tag_hash },
+				.state{ SceneState::TransitionIn },
 				.transition{ std::move(enter_command.transition_in) },
 			}
 		) };
@@ -320,14 +320,13 @@ void SceneManager::UpdatePendingLoads(Application& app) {
 		}
 
 		if (progress.failed_assets > 0) {
-			PTGN_ERROR(
+			PTGN_WARN(
 				"Failed to load ",
 				progress.failed_assets,
 				" asset(s) for scene: ",
-				it->command.to_scene_tag
+				it->command.to_scene_tag,
+				". Continuing with available assets."
 			);
-			it = pending_loads_.erase(it);
-			continue;
 		}
 
 		auto command{ std::move(it->command) };
@@ -361,10 +360,17 @@ void SceneManager::ApplyCommands(
 				.ticket = std::move(ticket),
 			});
 			defer_exits = true;
-		} else if (progress.failed_assets == 0) {
-			ApplyLoadedCommand(app, std::move(command), std::move(ticket));
 		} else {
-			PTGN_ERROR("Failed to load assets for scene: ", command.to_scene_tag);
+			if (progress.failed_assets > 0) {
+				PTGN_WARN(
+					"Failed to load ",
+					progress.failed_assets,
+					" asset(s) for scene: ",
+					command.to_scene_tag,
+					". Continuing with available assets."
+				);
+			}
+			ApplyLoadedCommand(app, std::move(command), std::move(ticket));
 		}
 
 		it = top_priority_commands.erase(it);

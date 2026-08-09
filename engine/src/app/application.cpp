@@ -431,6 +431,14 @@ void Application::RenderScenes() {
 	});
 }
 
+void Application::SetCloseGuard(std::function<bool()> close_guard) {
+	close_guard_ = std::move(close_guard);
+}
+
+void Application::RequestQuit() {
+	ctx_.window.RequestQuit();
+}
+
 void Application::Update() {
 	bool step_requested{ ctx_.step_requested };
 
@@ -464,7 +472,13 @@ void Application::Update() {
 
 	start = end;
 
-	ctx_.running = ctx_.window.Update();
+	const bool window_running{ ctx_.window.Update() };
+	if (!window_running && close_guard_ && !close_guard_()) {
+		ctx_.window.CancelQuit();
+		ctx_.running = true;
+	} else {
+		ctx_.running = window_running;
+	}
 	ctx_.assets.Update();
 
 	if (ctx_.window.GetSetting(WindowSetting::Minimized)) {

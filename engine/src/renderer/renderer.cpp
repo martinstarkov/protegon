@@ -275,6 +275,13 @@ void Renderer::SetShader(std::string_view shader) {
 }
 
 void Renderer::SetShader(impl::ShaderId shader) {
+	if (!shader) {
+		FlushBatch();
+		current_material_valid_ = false;
+		PTGN_WARN("Cannot bind invalid shader program; draw calls using it will be skipped");
+		return;
+	}
+	current_material_valid_ = true;
 	if (shader == GetBoundShader()) {
 		return;
 	}
@@ -920,13 +927,6 @@ std::size_t Renderer::GetMaxTextureSlots() const {
 	return gl_->GetMaxTextureSlots();
 }
 
-std::span<const std::string> Renderer::GetBuiltinVertexShaderNames() const {
-	return gl_->shaders.GetVertexShaderNames();
-}
-
-std::span<const std::string> Renderer::GetBuiltinFragmentShaderNames() const {
-	return gl_->shaders.GetFragmentShaderNames();
-}
 
 void Renderer::UploadVertices(
 	const impl::RenderPipeline& pipeline, std::span<const std::byte> vertices,
@@ -965,6 +965,16 @@ void Renderer::DrawElements(const impl::RenderPipeline& pipeline, std::size_t in
 }
 
 void Renderer::SetMaterial(const MaterialState& material) {
+	if (!material.shader) {
+		FlushBatch();
+		current_material_valid_ = false;
+		current_uniforms_.clear();
+		current_texture_slot_capacity_ = 1;
+		PTGN_WARN("Cannot use material with invalid shader program; draw calls using it will be skipped");
+		return;
+	}
+
+	current_material_valid_ = true;
 	const auto resolved_texture_slot_capacity{
 		material.texture_slot_capacity.value_or(1)
 	};

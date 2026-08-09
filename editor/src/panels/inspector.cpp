@@ -2,6 +2,7 @@
 
 #include <imgui.h>
 #include <imgui_stdlib.h>
+#include <magic_enum/magic_enum.hpp>
 
 #include <algorithm>
 #include <array>
@@ -14,18 +15,17 @@
 #include <cstdio>
 #include <cstdlib>
 #include <functional>
-#include <magic_enum/magic_enum.hpp>
 #include <memory>
 #include <optional>
 #include <ranges>
 #include <span>
-#include <string>
-#include <string_view>
 #include <tuple>
 #include <unordered_map>
 #include <utility>
-#include <variant>
 #include <vector>
+#include <variant>
+#include <string>
+#include <string_view>
 
 #include "commands/entity/entity_reference.h"
 #include "core/editor.h"
@@ -47,7 +47,6 @@
 #include "renderer/text/text_layout.h"
 #include "renderer/text/text_style.h"
 #include "runtime/animation/animation.h"
-#include "runtime/animation/animation_event.h"
 #include "runtime/animation/offsets.h"
 #include "runtime/asset/asset_manager.h"
 #include "runtime/asset/prefab.h"
@@ -55,7 +54,6 @@
 #include "runtime/ecs/component_registry.h"
 #include "runtime/ecs/entity.h"
 #include "runtime/ecs/entity_hierarchy.h"
-#include "runtime/graphics/custom_shader.h"
 #include "runtime/graphics/draw.h"
 #include "runtime/graphics/drawable.h"
 #include "runtime/graphics/fx/bloom.h"
@@ -63,19 +61,16 @@
 #include "runtime/graphics/fx/gaussian_blur.h"
 #include "runtime/graphics/fx/light.h"
 #include "runtime/graphics/fx/particle.h"
+#include "runtime/graphics/custom_shader.h"
 #include "runtime/graphics/graphics.h"
 #include "runtime/graphics/render_target.h"
 #include "runtime/graphics/sprite.h"
 #include "runtime/graphics/tint.h"
 #include "runtime/graphics/visible.h"
 #include "runtime/interaction/draggable.h"
-#include "runtime/interaction/draggable_event.h"
 #include "runtime/interaction/dropzone.h"
-#include "runtime/interaction/dropzone_event.h"
 #include "runtime/interaction/interactive.h"
-#include "runtime/interaction/interactive_event.h"
 #include "runtime/physics/collider.h"
-#include "runtime/physics/collision_event.h"
 #include "runtime/physics/lifetime.h"
 #include "runtime/physics/movement.h"
 #include "runtime/physics/physics.h"
@@ -96,9 +91,13 @@ namespace magic_enum::customize {
 
 template <>
 struct enum_range<ptgn::TextureFormat> {
-	static constexpr int min{ static_cast<int>(ptgn::TextureFormat::RGB8) };
+	static constexpr int min{
+		static_cast<int>(ptgn::TextureFormat::RGB8)
+	};
 
-	static constexpr int max{ static_cast<int>(ptgn::TextureFormat::Stencil8) };
+	static constexpr int max{
+		static_cast<int>(ptgn::TextureFormat::Stencil8)
+	};
 };
 
 } // namespace magic_enum::customize
@@ -116,17 +115,26 @@ void DrawTooltip(const char* text) {
 }
 
 void DrawDisabledWrappedText(std::string_view text) {
-	ImGui::PushStyleColor(ImGuiCol_Text, ImGui::GetStyleColorVec4(ImGuiCol_TextDisabled));
+	ImGui::PushStyleColor(
+		ImGuiCol_Text,
+		ImGui::GetStyleColorVec4(ImGuiCol_TextDisabled)
+	);
 	ImGui::PushTextWrapPos(0.0f);
 	ImGui::TextUnformatted(text.data(), text.data() + text.size());
 	ImGui::PopTextWrapPos();
 	ImGui::PopStyleColor();
 }
 
+
 bool DrawWHValue(
-	std::string_view label, V2_float& value, float speed = 0.1f, float minimum = 0.0f,
-	float maximum = 0.0f, const char* format = "%.3f",
-	ImGuiSliderFlags flags = ImGuiSliderFlags_None, bool disabled = false
+	std::string_view label,
+	V2_float& value,
+	float speed = 0.1f,
+	float minimum = 0.0f,
+	float maximum = 0.0f,
+	const char* format = "%.3f",
+	ImGuiSliderFlags flags = ImGuiSliderFlags_None,
+	bool disabled = false
 ) {
 	ImGui::PushID(&value);
 
@@ -139,8 +147,9 @@ bool DrawWHValue(
 		bool local_changed{ false };
 
 		ImGui::SetNextItemWidth(width);
-		local_changed |=
-			ImGui::DragFloat("##W", &value.x, speed, minimum, maximum, width_format.c_str(), flags);
+		local_changed |= ImGui::DragFloat(
+			"##W", &value.x, speed, minimum, maximum, width_format.c_str(), flags
+		);
 		ImGui::SameLine(0.0f, spacing);
 		ImGui::SetNextItemWidth(width);
 		local_changed |= ImGui::DragFloat(
@@ -165,8 +174,13 @@ bool DrawWHValue(
 }
 
 bool DrawWHValue(
-	std::string_view label, V2_int& value, float speed = 1.0f, int minimum = 0, int maximum = 0,
-	ImGuiSliderFlags flags = ImGuiSliderFlags_None, bool disabled = false
+	std::string_view label,
+	V2_int& value,
+	float speed = 1.0f,
+	int minimum = 0,
+	int maximum = 0,
+	ImGuiSliderFlags flags = ImGuiSliderFlags_None,
+	bool disabled = false
 ) {
 	ImGui::PushID(&value);
 
@@ -177,10 +191,14 @@ bool DrawWHValue(
 		bool local_changed{ false };
 
 		ImGui::SetNextItemWidth(width);
-		local_changed |= ImGui::DragInt("##W", &value.x, speed, minimum, maximum, "W: %d", flags);
+		local_changed |= ImGui::DragInt(
+			"##W", &value.x, speed, minimum, maximum, "W: %d", flags
+		);
 		ImGui::SameLine(0.0f, spacing);
 		ImGui::SetNextItemWidth(width);
-		local_changed |= ImGui::DragInt("##H", &value.y, speed, minimum, maximum, "H: %d", flags);
+		local_changed |= ImGui::DragInt(
+			"##H", &value.y, speed, minimum, maximum, "H: %d", flags
+		);
 
 		return local_changed;
 	}) };
@@ -200,8 +218,12 @@ bool DrawWHValue(
 }
 
 bool DrawRValue(
-	std::string_view label, float& value, float speed = 0.1f, float minimum = 0.0f,
-	float maximum = 0.0f, const char* format = "%.3f",
+	std::string_view label,
+	float& value,
+	float speed = 0.1f,
+	float minimum = 0.0f,
+	float maximum = 0.0f,
+	const char* format = "%.3f",
 	ImGuiSliderFlags flags = ImGuiSliderFlags_None
 ) {
 	ImGui::PushID(&value);
@@ -226,7 +248,10 @@ bool DrawRValue(
 	return changed;
 }
 
-bool DrawOptionalWHValue(std::string_view label, std::optional<V2_float>& value) {
+bool DrawOptionalWHValue(
+	std::string_view label,
+	std::optional<V2_float>& value
+) {
 	ImGui::PushID(&value);
 	bool enabled{ value.has_value() };
 	V2_float displayed{ value.value_or(V2_float{}) };
@@ -236,7 +261,8 @@ bool DrawOptionalWHValue(std::string_view label, std::optional<V2_float>& value)
 		const float spacing{ ImGui::GetStyle().ItemInnerSpacing.x };
 		const float checkbox_width{ ImGui::GetFrameHeight() };
 		const float field_width{ std::max(
-			1.0f, (ImGui::GetContentRegionAvail().x - checkbox_width - spacing * 2.0f) * 0.5f
+			1.0f,
+			(ImGui::GetContentRegionAvail().x - checkbox_width - spacing * 2.0f) * 0.5f
 		) };
 		bool local_changed{ ImGui::Checkbox("##Enabled", &enabled) };
 
@@ -277,10 +303,16 @@ struct ActionDragPayload {
 	int index;
 };
 
+struct DurationEditState {
+	std::array<char, 32> buffer{};
+	bool initialized{ false };
+	bool was_active{ false };
+};
+
 struct ScriptInspectorState {
 	std::optional<ImGuiID> editing_sequence_name;
 	std::string editing_sequence_original_name;
-	std::unordered_map<SequenceId, bool> sequence_open_states;
+	std::unordered_map<ImGuiID, bool> sequence_open_states;
 };
 
 ScriptInspectorState& GetScriptInspectorState() {
@@ -300,6 +332,81 @@ inline constexpr std::array kEaseEntries{
 	std::pair{ Ease::OutCubic, "Out Cubic" }, std::pair{ Ease::OutBack, "Out Back" },
 };
 
+bool DrawDurationInput(const char* label, float& milliseconds, float width, const char* tooltip) {
+	static std::unordered_map<ImGuiID, DurationEditState> states;
+	const ImGuiID id{ ImGui::GetID(label) };
+	auto& state{ states[id] };
+
+	auto format = [](float value, char* buffer, std::size_t size) {
+		const double clamped{ std::max(0.0, static_cast<double>(value)) };
+		if (clamped == 0.0) {
+			std::snprintf(buffer, size, "0s");
+		} else if (clamped >= 1000.0 && std::fmod(clamped, 1000.0) == 0.0) {
+			std::snprintf(buffer, size, "%.4gs", clamped / 1000.0);
+		} else {
+			std::snprintf(buffer, size, "%.4gms", clamped);
+		}
+	};
+
+	if (!state.initialized || !state.was_active) {
+		format(milliseconds, state.buffer.data(), state.buffer.size());
+		state.initialized = true;
+	}
+
+	ImGui::SetNextItemWidth(width);
+	const bool submitted{ ImGui::InputText(
+		label, state.buffer.data(), state.buffer.size(), ImGuiInputTextFlags_EnterReturnsTrue
+	) };
+	const bool active{ ImGui::IsItemActive() };
+	const bool commit{ submitted || ImGui::IsItemDeactivatedAfterEdit() };
+	bool changed{ false };
+
+	if (commit) {
+		std::string text{ state.buffer.data() };
+		while (!text.empty() && std::isspace(static_cast<unsigned char>(text.back()))) {
+			text.pop_back();
+		}
+		std::size_t first{ 0 };
+		while (first < text.size() && std::isspace(static_cast<unsigned char>(text[first]))) {
+			++first;
+		}
+		text.erase(0, first);
+
+		char* end{ nullptr };
+		const double value{ std::strtod(text.c_str(), &end) };
+		std::string unit{ end ? end : "" };
+		while (!unit.empty() && std::isspace(static_cast<unsigned char>(unit.front()))) {
+			unit.erase(unit.begin());
+		}
+		std::ranges::transform(unit, unit.begin(), [](unsigned char c) {
+			return static_cast<char>(std::tolower(c));
+		});
+
+		double multiplier{ 1.0 };
+		bool valid{ end != text.c_str() && std::isfinite(value) && value >= 0.0 };
+		if (unit.empty() || unit == "ms") {
+			multiplier = 1.0;
+		} else if (unit == "s" || unit == "sec") {
+			multiplier = 1000.0;
+		} else if (unit == "m" || unit == "min") {
+			multiplier = 60000.0;
+		} else {
+			valid = false;
+		}
+
+		if (valid) {
+			const float updated{ static_cast<float>(value * multiplier) };
+			changed		 = updated != milliseconds;
+			milliseconds = updated;
+		}
+		format(milliseconds, state.buffer.data(), state.buffer.size());
+	}
+
+	state.was_active = active;
+	DrawTooltip(tooltip);
+	return changed;
+}
+
 float CompactControlSpacing() {
 	return ImGui::GetStyle().ItemSpacing.x;
 }
@@ -308,18 +415,20 @@ void SameLineControl() {
 	ImGui::SameLine(0.0f, CompactControlSpacing());
 }
 
-bool IsItemRightClicked() {
-	return ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled) &&
-		   ImGui::IsMouseClicked(ImGuiMouseButton_Right);
+float EnabledDeleteControlsWidth() {
+	return ImGui::GetFrameHeight() * 2.0f + CompactControlSpacing();
 }
 
-bool DrawEnableDisableMenuItem(bool& enabled) {
-	if (!ImGui::MenuItem(enabled ? "Disable" : "Enable")) {
-		return false;
-	}
-
-	enabled = !enabled;
-	return true;
+bool DrawEnabledDeleteControls(
+	bool& enabled, const char* enabled_tooltip, const char* delete_tooltip, bool& enabled_changed
+) {
+	const float size{ ImGui::GetFrameHeight() };
+	enabled_changed |= ImGui::Checkbox("##Enabled", &enabled);
+	DrawTooltip(enabled_tooltip);
+	SameLineControl();
+	const bool remove{ ImGui::Button("x", ImVec2{ size, size }) };
+	DrawTooltip(delete_tooltip);
+	return remove;
 }
 
 bool DrawCenteredTextButton(const char* id, const char* text, ImVec2 size) {
@@ -393,7 +502,73 @@ bool DrawCountControl(
 	return previous != value;
 }
 
+bool DrawUnframedSectionHeader(
+	const char* id, const char* label, bool default_open, bool empty, const char* tooltip,
+	bool show_add_button, const char* add_tooltip, bool& add_requested
+) {
+	static std::unordered_map<ImGuiID, bool> force_open_next_frame;
 
+	ImGui::PushID(id);
+
+	const ImGuiID tree_id{ ImGui::GetID("##Tree") };
+	if (force_open_next_frame[tree_id]) {
+		ImGui::SetNextItemOpen(true, ImGuiCond_Always);
+		force_open_next_frame[tree_id] = false;
+	}
+
+	bool open{ false };
+	const float button_size{ ImGui::GetFrameHeight() };
+	const int columns{ show_add_button ? 2 : 1 };
+	constexpr ImGuiTableFlags table_flags{ ImGuiTableFlags_SizingStretchProp |
+										   ImGuiTableFlags_NoSavedSettings |
+										   ImGuiTableFlags_NoPadOuterX };
+
+	if (ImGui::BeginTable("##SectionHeaderRow", columns, table_flags)) {
+		ImGui::TableSetupColumn("Section", ImGuiTableColumnFlags_WidthStretch, 1.0f);
+
+		if (show_add_button) {
+			ImGui::TableSetupColumn("Add", ImGuiTableColumnFlags_WidthFixed, button_size);
+		}
+
+		ImGui::TableNextRow(ImGuiTableRowFlags_None, button_size);
+		ImGui::TableSetColumnIndex(0);
+
+		ImGuiTreeNodeFlags flags{ ImGuiTreeNodeFlags_SpanAvailWidth |
+								  ImGuiTreeNodeFlags_NoTreePushOnOpen |
+								  ImGuiTreeNodeFlags_FramePadding |
+								  ImGuiTreeNodeFlags_AllowOverlap };
+
+		if (empty) {
+			flags |= ImGuiTreeNodeFlags_Leaf;
+		} else if (default_open) {
+			flags |= ImGuiTreeNodeFlags_DefaultOpen;
+		}
+
+		const bool tree_open{ ImGui::TreeNodeEx("##Tree", flags, "%s", label) };
+
+		open = !empty && tree_open;
+
+		DrawTooltip(empty ? "Add an item to use this section." : tooltip);
+
+		if (show_add_button) {
+			ImGui::TableSetColumnIndex(1);
+
+			if (ImGui::Button("+", ImVec2{ button_size, button_size })) {
+				add_requested				   = true;
+				open						   = true;
+				force_open_next_frame[tree_id] = true;
+			}
+
+			DrawTooltip(add_tooltip);
+		}
+
+		ImGui::EndTable();
+	}
+
+	ImGui::PopID();
+
+	return open || add_requested;
+}
 
 void DrawSelectedItemsTooltip(std::span<const std::string> items) {
 	if (!ImGui::IsItemHovered()) {
@@ -414,107 +589,25 @@ void DrawSelectedItemsTooltip(std::span<const std::string> items) {
 [[nodiscard]] ScriptSequence* ResolveEditorSequence(
 	ScriptEditorContext& context, ScriptSequence& binding
 ) {
-	return binding.shared_reference
-		? context.shared_sequences.Find(binding.shared_sequence_id)
-		: std::addressof(binding);
+	if (!context.owner) {
+		return binding.shared_reference ? nullptr : std::addressof(binding);
+	}
+
+	return script_runtime::Resolve(context.owner, binding);
 }
-
-[[nodiscard]] Entity ResolveInspectedEntity(const ScriptEditorContext& context) {
-	if (context.owner) {
-		return context.owner;
-	}
-
-	auto& hierarchy{ context.ctx.editor.GetSceneHierarchyPanel() };
-	if (hierarchy.GetActiveTab() == SceneHierarchyTab::Prefabs) {
-		return {};
-	}
-
-	return hierarchy.GetSelectedEntity();
-}
-
-[[nodiscard]] Entity ResolveRuntimeOwner(const ScriptEditorContext& context) {
-	if (!context.ctx.editor.IsPlaying()) {
-		return {};
-	}
-
-	return ResolveInspectedEntity(context);
-}
-
-[[nodiscard]] ScriptSequence* FindRuntimeRootSequence(
-	Entity owner, SequenceId id, int resident_index = -1
-) {
-	if (!owner) {
-		return nullptr;
-	}
-
-	auto* scripts{ owner.TryGet<::ptgn::impl::Scripts>() };
-	if (!scripts) {
-		return nullptr;
-	}
-
-	scripts->Attach(owner);
-
-	auto find = [&](auto& entries) -> ScriptSequence* {
-		for (auto& entry : entries) {
-			if (entry.instance && entry.instance->sequence.id == id) {
-				return std::addressof(entry.instance->sequence);
-			}
-
-			if (entry.sequence.id == id) {
-				return entry.instance ? std::addressof(entry.instance->sequence)
-								  : std::addressof(entry.sequence);
-			}
-		}
-
-		return nullptr;
-	};
-
-	if (auto* sequence{ find(scripts->scripts) }) {
-		return sequence;
-	}
-
-	if (auto* sequence{ find(scripts->pending_additions) }) {
-		return sequence;
-	}
-
-	if (resident_index < 0 || resident_index >= static_cast<int>(scripts->scripts.size())) {
-		return nullptr;
-	}
-
-	auto& entry{ scripts->scripts[static_cast<std::size_t>(resident_index)] };
-	if (entry.type_hash != Hash<Script>()) {
-		return nullptr;
-	}
-
-	return entry.instance ? std::addressof(entry.instance->sequence)
-						 : std::addressof(entry.sequence);
-}
-
-[[nodiscard]] std::string TrimMenuText(std::string_view text) {
-	const auto is_space = [](unsigned char c) { return std::isspace(c) != 0; };
-
-	while (!text.empty() && is_space(static_cast<unsigned char>(text.front()))) {
-		text.remove_prefix(1);
-	}
-
-	while (!text.empty() && is_space(static_cast<unsigned char>(text.back()))) {
-		text.remove_suffix(1);
-	}
-
-	return std::string{ text };
-}
-
 
 void AddEditorScriptEntry(
 	ScriptEditorContext& context, ::ptgn::impl::Scripts& scripts, ScriptEntry entry
 ) {
-	scripts.scripts.emplace_back(std::move(entry));
+	if (context.owner) {
+		scripts.AddEntryDeferred(std::move(entry));
 
-	const Entity owner{ ::ptgn::impl::ScriptsAccessor::GetOwner(scripts) };
-	if (owner && context.ctx.editor.IsPlaying()) {
-		scripts.Attach(owner);
-		script_runtime::AttachEntry(owner, scripts.scripts.back());
+		return;
 	}
+
+	// Prefab JSON components are temporary values and do not receive
+	// the normal ECS pending operation flush.
+	scripts.scripts.emplace_back(std::move(entry));
 }
 
 void EnsureActionValue(ScriptStep& action) {
@@ -675,8 +768,7 @@ void DetachToLocal(ScriptEditorContext& context, ScriptSequence& binding) {
 }
 
 bool DrawActionPicker(
-	ScriptEditorContext& context, ScriptStep& action, bool timed_only, float width = -FLT_MIN,
-	bool* context_requested = nullptr
+	ScriptEditorContext& context, ScriptStep& action, bool timed_only, float width = -FLT_MIN
 ) {
 	struct Candidate {
 		const ScriptRegistration* runtime{ nullptr };
@@ -720,10 +812,6 @@ bool DrawActionPicker(
 	const bool open{
 		ImGui::BeginCombo("##RegisteredAction", current ? current->label.data() : "Missing Action")
 	};
-
-	if (context_requested) {
-		*context_requested |= IsItemRightClicked();
-	}
 
 	DrawTooltip(
 		current ? current->description.data()
@@ -780,7 +868,7 @@ bool DrawActionPicker(
 		ImGui::Separator();
 	}
 
-	if (!timed_only && !context.shared_sequences.sequences.empty() &&
+	if (context.owner && !timed_only && !context.shared_sequences.sequences.empty() &&
 		ImGui::BeginMenu("Global")) {
 		for (const auto& shared : context.shared_sequences.sequences) {
 			bool selected{ false };
@@ -845,10 +933,7 @@ bool DrawActionPicker(
 	return changed;
 }
 
-bool DrawActionPickerWithInline(
-	ScriptEditorContext& context, ScriptStep& action, bool timed_only,
-	bool* context_requested = nullptr
-) {
+bool DrawActionPickerWithInline(ScriptEditorContext& context, ScriptStep& action, bool timed_only) {
 	EnsureActionValue(action);
 
 	const auto* registered_editor{ ScriptEditorRegistry::Find(action.type_hash) };
@@ -856,7 +941,7 @@ bool DrawActionPickerWithInline(
 								  static_cast<bool>(registered_editor->draw_inline) };
 
 	if (!has_inline_editor) {
-		return DrawActionPicker(context, action, timed_only, -FLT_MIN, context_requested);
+		return DrawActionPicker(context, action, timed_only);
 	}
 
 	const float available{ ImGui::GetContentRegionAvail().x };
@@ -864,9 +949,7 @@ bool DrawActionPickerWithInline(
 	const float picker_width{ std::min(150.0f, std::max(110.0f, available * 0.32f)) };
 	const float row_y{ ImGui::GetCursorScreenPos().y };
 
-	bool changed{
-		DrawActionPicker(context, action, timed_only, picker_width, context_requested)
-	};
+	bool changed{ DrawActionPicker(context, action, timed_only, picker_width) };
 
 	registered_editor = ScriptEditorRegistry::Find(action.type_hash);
 
@@ -1093,45 +1176,8 @@ bool DrawActionParameters(ScriptEditorContext& context, ScriptStep& action, floa
 	return changed;
 }
 
-
-[[nodiscard]] const ScriptSequenceRuntime& GetDisplayedSequenceRuntime(
-	const ScriptSequence& sequence, const ScriptSequence& binding
-) {
-	if (binding.runtime.running || binding.runtime.paused) {
-		return binding.runtime;
-	}
-
-	return sequence.runtime;
-}
-
-void DrawActiveActionProgress(
-	const ScriptSequenceRuntime& runtime, std::size_t action_index, const ScriptStep& action
-) {
-	if (!runtime.running || runtime.step_index != action_index) {
-		return;
-	}
-
-	const float duration_ms{ action.timing ? action.timing->duration_ms : 0.0f };
-	const float progress{
-		duration_ms > 0.0f ? std::clamp(runtime.elapsed_ms / duration_ms, 0.0f, 1.0f) : 0.0f
-	};
-
-	ImGui::ProgressBar(progress, ImVec2{ -FLT_MIN, 2.0f }, "");
-}
-
-bool DrawActions(
-	ScriptEditorContext& context, ScriptSequence& sequence, ScriptSequence& binding,
-	int resident_index
-) {
+bool DrawActions(ScriptEditorContext& context, ScriptSequence& sequence, ScriptSequence& binding) {
 	ImGui::PushID("SequenceActions");
-
-	const Entity runtime_owner{ ResolveRuntimeOwner(context) };
-	const ScriptSequence* runtime_binding{
-		runtime_owner ? FindRuntimeRootSequence(runtime_owner, binding.id, resident_index) : nullptr
-	};
-	const ScriptSequenceRuntime& displayed_runtime{
-		runtime_binding ? runtime_binding->runtime : GetDisplayedSequenceRuntime(sequence, binding)
-	};
 
 	bool changed{ false };
 	int remove_index{ -1 };
@@ -1143,7 +1189,6 @@ bool DrawActions(
 		auto& action{ sequence.steps[static_cast<std::size_t>(index)] };
 		bool remove{ false };
 		bool duplicate{ false };
-		bool action_context_requested{ false };
 		ImGui::PushID(index);
 
 		constexpr float drag_width{ 28.0f };
@@ -1158,84 +1203,72 @@ bool DrawActions(
 		const float repeats_width{ GetCountControlWidth("Repeats") };
 		const float button_width{ ImGui::GetFrameHeight() };
 		ActionForm displayed_form{ GetActionForm(action) };
+		const float controls_width{
+			EnabledDeleteControlsWidth() +
+			(displayed_form == ActionForm::Tween ? CompactControlSpacing() + repeats_width : 0.0f)
+		};
 		ActionForm requested_form{ displayed_form };
 		bool form_changed{ false };
 		float parameter_left_screen_x{ ImGui::GetCursorScreenPos().x };
-		const int column_count{ displayed_form == ActionForm::Tween ? 5 : 3 };
+		const int column_count{ displayed_form == ActionForm::Tween ? 5 : 4 };
 
-		if (ImGui::BeginTable(
-				"ActionRow", column_count,
-				ImGuiTableFlags_SizingStretchProp | ImGuiTableFlags_NoSavedSettings
-			)) {
+		if (ImGui::BeginTable("ActionRow", column_count, ImGuiTableFlags_SizingStretchProp)) {
 			ImGui::TableSetupColumn("Drag", ImGuiTableColumnFlags_WidthFixed, drag_width);
 			ImGui::TableSetupColumn("Type", ImGuiTableColumnFlags_WidthFixed, type_width);
-
 			if (displayed_form == ActionForm::Tween) {
 				ImGui::TableSetupColumn(
 					"Duration", ImGuiTableColumnFlags_WidthFixed, duration_width
 				);
 				ImGui::TableSetupColumn("Action", ImGuiTableColumnFlags_WidthStretch);
-				ImGui::TableSetupColumn(
-					"Repeats", ImGuiTableColumnFlags_WidthFixed, repeats_width
-				);
 			} else {
 				ImGui::TableSetupColumn("Value", ImGuiTableColumnFlags_WidthStretch);
 			}
-
+			ImGui::TableSetupColumn("Controls", ImGuiTableColumnFlags_WidthFixed, controls_width);
 			ImGui::TableNextRow(ImGuiTableRowFlags_None, button_width);
 
 			int column{};
 			ImGui::TableSetColumnIndex(column++);
 			const bool dimmed{ !action.enabled };
-
 			if (dimmed) {
 				ImGui::PushStyleVar(ImGuiStyleVar_Alpha, ImGui::GetStyle().Alpha * 0.45f);
 			}
-
 			ImGui::Button("::", ImVec2{ drag_width, button_width });
-
 			if (dimmed) {
 				ImGui::PopStyleVar();
 			}
-
-			action_context_requested = IsItemRightClicked();
-
+			if (ImGui::IsItemClicked(ImGuiMouseButton_Right)) {
+				duplicate = true;
+			}
 			DrawTooltip(
-				action.enabled ? "Drag to reorder. Right click for action options."
-							   : "Disabled action. Right click for action options."
+				action.enabled ? "Drag to reorder. Right click to duplicate."
+							   : "Disabled action. Right click to duplicate."
 			);
-
 			if (ImGui::BeginDragDropSource(ImGuiDragDropFlags_SourceAllowNullID)) {
 				const ActionDragPayload payload{ index };
 				ImGui::SetDragDropPayload("PTGN_SCRIPT_ACTION", &payload, sizeof(payload));
 				ImGui::Text("%d. %s", index + 1, ActionSummary(action).c_str());
 				ImGui::EndDragDropSource();
 			}
-
 			if (ImGui::BeginDragDropTarget()) {
 				if (const ImGuiPayload* payload{
 						ImGui::AcceptDragDropPayload("PTGN_SCRIPT_ACTION") }) {
 					const auto* drag{ static_cast<const ActionDragPayload*>(payload->Data) };
-
 					if (drag) {
 						move_from = drag->index;
 						move_to	  = index;
 					}
 				}
-
 				ImGui::EndDragDropTarget();
 			}
 
 			ImGui::TableSetColumnIndex(column++);
 			parameter_left_screen_x = ImGui::GetCursorScreenPos().x;
 			ImGui::SetNextItemWidth(-FLT_MIN);
-
 			if (ImGui::BeginCombo(
 					"##Form", kActionFormLabels[static_cast<std::size_t>(displayed_form)]
 				)) {
 				for (int i{ 0 }; i < static_cast<int>(kActionFormLabels.size()); ++i) {
 					const auto candidate{ static_cast<ActionForm>(i) };
-
 					if (ImGui::Selectable(
 							kActionFormLabels[static_cast<std::size_t>(i)],
 							candidate == displayed_form
@@ -1244,12 +1277,9 @@ bool DrawActions(
 						form_changed   = true;
 					}
 				}
-
 				ImGui::EndCombo();
 			}
-
-			action_context_requested |= IsItemRightClicked();
-			DrawTooltip("Choose an Action, Tween, or Delay. Right click for action options.");
+			DrawTooltip("Choose an Action, Tween, or Delay.");
 
 			if (displayed_form == ActionForm::Tween) {
 				ImGui::TableSetColumnIndex(column++);
@@ -1257,25 +1287,13 @@ bool DrawActions(
 					"##Duration", action.timing->duration_ms, -FLT_MIN,
 					"Duration of each Tween cycle."
 				);
-
 				ImGui::TableSetColumnIndex(column++);
-				changed |= DrawActionPicker(
-					context, action, true, -FLT_MIN, &action_context_requested
-				);
-
-				ImGui::TableSetColumnIndex(column);
-				changed |= DrawCountControl(
-					"Repeats", action.timing->additional_repeats, 0, 100,
-					action.timing->infinite_repeats, "Additional full duration cycles."
-				);
+				changed |= DrawActionPicker(context, action, true);
 			} else {
-				ImGui::TableSetColumnIndex(column);
-
+				ImGui::TableSetColumnIndex(column++);
 				switch (displayed_form) {
 					case ActionForm::Action:
-						changed |= DrawActionPickerWithInline(
-							context, action, false, &action_context_requested
-						);
+						changed |= DrawActionPickerWithInline(context, action, false);
 						break;
 					case ActionForm::Delay:
 						changed |= DrawDurationInput(
@@ -1287,27 +1305,21 @@ bool DrawActions(
 				}
 			}
 
+			ImGui::TableSetColumnIndex(column);
+			if (displayed_form == ActionForm::Tween) {
+				changed |= DrawCountControl(
+					"Repeats", action.timing->additional_repeats, 0, 100,
+					action.timing->infinite_repeats, "Additional full duration cycles."
+				);
+				SameLineControl();
+			}
+			bool enabled_changed{ false };
+			remove = DrawEnabledDeleteControls(
+				action.enabled, "Enable or disable this action.", "Delete this action.",
+				enabled_changed
+			);
+			changed |= enabled_changed;
 			ImGui::EndTable();
-		}
-
-		if (action_context_requested) {
-			ImGui::OpenPopup("ActionContext");
-		}
-
-		if (ImGui::BeginPopup("ActionContext")) {
-			changed |= DrawEnableDisableMenuItem(action.enabled);
-
-			if (ImGui::MenuItem("Duplicate")) {
-				duplicate = true;
-			}
-
-			ImGui::Separator();
-
-			if (ImGui::MenuItem("Delete")) {
-				remove = true;
-			}
-
-			ImGui::EndPopup();
 		}
 
 		if (form_changed) {
@@ -1315,25 +1327,27 @@ bool DrawActions(
 			displayed_form = requested_form;
 			changed		   = true;
 		}
-
 		if (displayed_form == ActionForm::Tween && action.timing) {
 			changed |= DrawTimingOptions(context, action, *action.timing, parameter_left_screen_x);
 		}
-
 		if (displayed_form == ActionForm::Action || displayed_form == ActionForm::Tween) {
 			changed |= DrawActionParameters(context, action, parameter_left_screen_x);
 		}
-
-		DrawActiveActionProgress(
-			displayed_runtime, static_cast<std::size_t>(index), action
-		);
-
+		if (binding.runtime.running &&
+			binding.runtime.step_index == static_cast<std::size_t>(index)) {
+			const float duration_ms{ action.timing ? action.timing->duration_ms : 0.0f };
+			const float progress{
+				duration_ms > 0.0f
+					? std::clamp(binding.runtime.elapsed_ms / duration_ms, 0.0f, 1.0f)
+					: 0.0f
+			};
+			ImGui::ProgressBar(progress, ImVec2{ -FLT_MIN, 2.0f }, "");
+		}
 		ImGui::PopID();
 
 		if (remove) {
 			remove_index = index;
 		}
-
 		if (duplicate) {
 			duplicate_index = index;
 		}
@@ -1344,51 +1358,43 @@ bool DrawActions(
 		binding.runtime = ScriptSequenceRuntime{};
 		changed			= true;
 	}
-
 	if (duplicate_index >= 0) {
 		ScriptStep copy{ sequence.steps[static_cast<std::size_t>(duplicate_index)] };
 		sequence.steps.insert(sequence.steps.begin() + duplicate_index + 1, std::move(copy));
 		binding.runtime = ScriptSequenceRuntime{};
 		changed			= true;
 	}
-
 	if (remove_index >= 0) {
 		sequence.steps.erase(sequence.steps.begin() + remove_index);
 		binding.runtime = ScriptSequenceRuntime{};
 		changed			= true;
 	}
-
 	ImGui::PopID();
 	return changed;
 }
-
 
 bool DrawLifecycleRows(ScriptEditorContext& context, ScriptSequence& sequence) {
 	ImGui::PushID("LifecycleRows");
 
 	bool changed{ false };
 	int remove{ -1 };
-
 	for (int i{ 0 }; i < static_cast<int>(sequence.lifecycle_actions.size()); ++i) {
 		auto& callback{ sequence.lifecycle_actions[static_cast<std::size_t>(i)] };
-		bool context_requested{ false };
 		ImGui::PushID(i);
 
 		const float lifecycle_width{ 145.0f };
-
-		if (ImGui::BeginTable(
-				"LifecycleRow", 2,
-				ImGuiTableFlags_SizingStretchProp | ImGuiTableFlags_NoSavedSettings
-			)) {
+		if (ImGui::BeginTable("LifecycleRow", 3, ImGuiTableFlags_SizingStretchProp)) {
 			ImGui::TableSetupColumn("Lifecycle", ImGuiTableColumnFlags_WidthFixed, lifecycle_width);
 			ImGui::TableSetupColumn("Action", ImGuiTableColumnFlags_WidthStretch);
+			ImGui::TableSetupColumn(
+				"Controls", ImGuiTableColumnFlags_WidthFixed, EnabledDeleteControlsWidth()
+			);
 			ImGui::TableNextRow(ImGuiTableRowFlags_None, ImGui::GetFrameHeight());
 
 			ImGui::TableSetColumnIndex(0);
 			ImGui::BeginDisabled(!callback.enabled);
 			int lifecycle{ static_cast<int>(callback.lifecycle) };
 			ImGui::SetNextItemWidth(-FLT_MIN);
-
 			if (ImGui::Combo(
 					"##Lifecycle", &lifecycle, kLifecycleLabels.data(),
 					static_cast<int>(kLifecycleLabels.size())
@@ -1396,32 +1402,24 @@ bool DrawLifecycleRows(ScriptEditorContext& context, ScriptSequence& sequence) {
 				callback.lifecycle = static_cast<SequenceLifecycle>(lifecycle);
 				changed			   = true;
 			}
-
-			context_requested |= IsItemRightClicked();
 			DrawTooltip("Choose when this callback runs.");
 			ImGui::EndDisabled();
 
 			ImGui::TableSetColumnIndex(1);
 			ImGui::BeginDisabled(!callback.enabled);
 			changed |= DrawActionPickerWithInline(context, callback.action, false);
-			context_requested |= IsItemRightClicked();
 			ImGui::EndDisabled();
-			ImGui::EndTable();
-		}
 
-		if (context_requested) {
-			ImGui::OpenPopup("LifecycleContext");
-		}
-
-		if (ImGui::BeginPopup("LifecycleContext")) {
-			changed |= DrawEnableDisableMenuItem(callback.enabled);
-			ImGui::Separator();
-
-			if (ImGui::MenuItem("Delete")) {
+			ImGui::TableSetColumnIndex(2);
+			bool enabled_changed{ false };
+			if (DrawEnabledDeleteControls(
+					callback.enabled, "Enable or disable this lifecycle callback.",
+					"Remove this lifecycle callback.", enabled_changed
+				)) {
 				remove = i;
 			}
-
-			ImGui::EndPopup();
+			changed |= enabled_changed;
+			ImGui::EndTable();
 		}
 
 		ImGui::BeginDisabled(!callback.enabled);
@@ -1429,104 +1427,19 @@ bool DrawLifecycleRows(ScriptEditorContext& context, ScriptSequence& sequence) {
 		ImGui::EndDisabled();
 		ImGui::PopID();
 	}
-
 	if (remove >= 0) {
 		sequence.lifecycle_actions.erase(sequence.lifecycle_actions.begin() + remove);
 		changed = true;
 	}
-
 	ImGui::PopID();
 	return changed;
 }
-
-
-template <typename... TEvents>
-[[nodiscard]] bool IsTriggerType(TypeHashValue type_hash) {
-	return ((type_hash == Hash<TEvents>()) || ...);
-}
-
-[[nodiscard]] bool HasRequiredTriggerComponent(Entity owner, TypeHashValue type_hash) {
-	if (IsTriggerType<
-			event::MouseMoveOver, event::MouseMoveOut, event::MousePressedOver,
-			event::MouseHeldOver, event::MouseReleasedOver
-		>(type_hash)) {
-		return owner && owner.Has<::ptgn::impl::Interactive>();
-	}
-
-	if (IsTriggerType<
-			event::ButtonPress, event::ButtonHoverStart, event::ButtonHover,
-			event::ButtonHoverStop
-		>(type_hash)) {
-		return owner && owner.Has<::ptgn::impl::ButtonData>();
-	}
-
-	if (IsTriggerType<event::ToggleButtonToggle>(type_hash)) {
-		return owner && owner.Has<::ptgn::impl::ToggleButtonData>();
-	}
-
-	if (IsTriggerType<
-			event::DropdownOpen, event::DropdownClose, event::DropdownToggle,
-			event::DropdownItemPress
-		>(type_hash)) {
-		return owner && owner.Has<::ptgn::impl::DropdownData>();
-	}
-
-	if (IsTriggerType<
-			event::DragStart, event::Drag, event::DragStop, event::PickupDraggable,
-			event::DropDraggable, event::DragEnter, event::DragLeave, event::DragOver,
-			event::DragOut
-		>(type_hash)) {
-		return owner && owner.Has<::ptgn::impl::Draggable>();
-	}
-
-	if (IsTriggerType<
-			event::PickupFromDropzone, event::DropIntoDropzone, event::EnterDropzone,
-			event::LeaveDropzone, event::MoveOverDropzone, event::MoveOutsideDropzone
-		>(type_hash)) {
-		return owner && owner.Has<::ptgn::impl::Dropzone>();
-	}
-
-	if (IsTriggerType<
-			event::OverlapStart, event::Overlap, event::OverlapStop, event::Collision
-		>(type_hash)) {
-		return owner && owner.Has<Collider>();
-	}
-
-	if (IsTriggerType<
-			event::AnimationStart, event::AnimationStop, event::AnimationPause,
-			event::AnimationResume, event::AnimationFrameChange, event::AnimationUpdate,
-			event::AnimationComplete, event::AnimationLoopComplete
-		>(type_hash)) {
-		return owner && owner.Has<::ptgn::impl::AnimationData>();
-	}
-
-	return true;
-}
-
-[[nodiscard]] bool IsTriggerCandidateAvailable(
-	const ScriptEditorContext& context, const EventEditorRegistration& candidate
-) {
-	const auto* registration{ SequenceEventRegistry::Find(candidate.type_hash) };
-	const Entity owner{ ResolveInspectedEntity(context) };
-
-	if (!registration || !HasRequiredTriggerComponent(owner, candidate.type_hash)) {
-		return false;
-	}
-
-	if (owner && registration->available && !registration->available(owner)) {
-		return false;
-	}
-
-	return true;
-}
-
 
 bool DrawEvent(
 	ScriptEditorContext& context, EventCondition& event, bool stop_event, bool& switch_kind,
 	bool& changed
 ) {
 	bool remove{ false };
-	bool context_requested{ false };
 
 	const float kind_width{
 		std::max(ImGui::CalcTextSize("Start").x, ImGui::CalcTextSize("Stop").x) +
@@ -1542,29 +1455,26 @@ bool DrawEvent(
 	};
 
 	if (ImGui::BeginTable(
-			"EventRow", 3,
-			ImGuiTableFlags_SizingStretchProp | ImGuiTableFlags_NoSavedSettings
+			"EventRow", 4, ImGuiTableFlags_SizingStretchProp | ImGuiTableFlags_NoSavedSettings
 		)) {
 		ImGui::TableSetupColumn("Kind", ImGuiTableColumnFlags_WidthFixed, kind_width);
 		ImGui::TableSetupColumn("Event", ImGuiTableColumnFlags_WidthStretch);
 		ImGui::TableSetupColumn("Consume", ImGuiTableColumnFlags_WidthFixed, consume_width);
+		ImGui::TableSetupColumn(
+			"Controls", ImGuiTableColumnFlags_WidthFixed, EnabledDeleteControlsWidth()
+		);
 		ImGui::TableNextRow(ImGuiTableRowFlags_None, ImGui::GetFrameHeight());
 
 		int column{};
 		ImGui::TableSetColumnIndex(column++);
 		ImGui::BeginDisabled(!event.enabled);
-
 		if (ImGui::Button(
 				stop_event ? "Stop" : "Start", ImVec2{ -FLT_MIN, ImGui::GetFrameHeight() }
 			)) {
 			switch_kind = true;
 		}
-
-		context_requested |= IsItemRightClicked();
-
 		DrawTooltip(
-			stop_event ? "Change this to a start trigger. Right click for trigger options."
-					   : "Change this to a stop trigger. Right click for trigger options."
+			stop_event ? "Change this to a start trigger." : "Change this to a stop trigger."
 		);
 		ImGui::EndDisabled();
 
@@ -1575,11 +1485,9 @@ bool DrawEvent(
 		const float available_width{ ImGui::GetContentRegionAvail().x };
 		const float spacing{ ImGui::GetStyle().ItemSpacing.x };
 		float event_width{ available_width };
-
 		if (initial_inline_fields > 0) {
 			event_width = std::clamp(available_width * 0.4f, 110.0f, 190.0f);
 			const float minimum_fields_width{ 80.0f * initial_inline_fields };
-
 			if (available_width - event_width -
 					spacing * static_cast<float>(initial_inline_fields) <
 				minimum_fields_width) {
@@ -1590,25 +1498,23 @@ bool DrawEvent(
 			}
 		}
 
-		const std::string selected_label{
-			selected ? TrimMenuText(selected->options.label) : std::string{ "Missing Event" }
-		};
 		ImGui::SetNextItemWidth(std::max(1.0f, event_width));
-		const bool combo_open{ ImGui::BeginCombo("##Event", selected_label.c_str()) };
-		context_requested |= IsItemRightClicked();
-
-		if (combo_open) {
+		if (ImGui::BeginCombo(
+				"##Event", selected ? selected->options.label.c_str() : "Missing Event"
+			)) {
+			auto candidate_available = [&](const EventEditorRegistration& candidate) {
+				const auto* registration{ SequenceEventRegistry::Find(candidate.type_hash) };
+				return registration && (!registration->available || !context.owner ||
+										registration->available(context.owner));
+			};
 			auto select_candidate = [&](const EventEditorRegistration& candidate) {
 				const auto* registration{ SequenceEventRegistry::Find(candidate.type_hash) };
-
-				if (!IsTriggerCandidateAvailable(context, candidate)) {
+				if (!candidate_available(candidate)) {
 					return;
 				}
-
-				const std::string label{ TrimMenuText(candidate.options.label) };
-
 				if (ImGui::MenuItem(
-						label.c_str(), nullptr, candidate.type_hash == event.type_hash
+						candidate.options.label.c_str(), nullptr,
+						candidate.type_hash == event.type_hash
 					)) {
 					event.type_hash = candidate.type_hash;
 					event.name		= candidate.name;
@@ -1617,41 +1523,32 @@ bool DrawEvent(
 					event_type_changed = true;
 					changed			   = true;
 				}
-
 				DrawTooltip(candidate.options.description.c_str());
 			};
 
 			for (const auto& candidate : EventEditorRegistry::Entries()) {
-				if (TrimMenuText(candidate.options.group).empty()) {
+				if (candidate.options.group.empty()) {
 					select_candidate(candidate);
 				}
 			}
-
 			std::vector<std::string> groups;
-
 			for (const auto& candidate : EventEditorRegistry::Entries()) {
-				const std::string group{ TrimMenuText(candidate.options.group) };
-
-				if (!group.empty() && IsTriggerCandidateAvailable(context, candidate) &&
-					!std::ranges::contains(groups, group)) {
-					groups.push_back(group);
+				if (!candidate.options.group.empty() && candidate_available(candidate) &&
+					!std::ranges::contains(groups, candidate.options.group)) {
+					groups.push_back(candidate.options.group);
 				}
 			}
-
 			for (const auto& group : groups) {
 				if (!ImGui::BeginMenu(group.c_str())) {
 					continue;
 				}
-
 				for (const auto& candidate : EventEditorRegistry::Entries()) {
-					if (TrimMenuText(candidate.options.group) == group) {
+					if (candidate.options.group == group) {
 						select_candidate(candidate);
 					}
 				}
-
 				ImGui::EndMenu();
 			}
-
 			ImGui::EndCombo();
 		}
 
@@ -1660,383 +1557,124 @@ bool DrawEvent(
 			ImGui::SameLine();
 			changed |= selected->options.draw(event.value);
 		}
-
 		ImGui::EndDisabled();
 
-		ImGui::TableSetColumnIndex(column);
+		ImGui::TableSetColumnIndex(column++);
 		ImGui::BeginDisabled(!event.enabled);
 		changed |= DrawToggleButton(
 			"Consume", event.consume, ImVec2{ -FLT_MIN, ImGui::GetFrameHeight() },
 			"Stop propagation after this event matches."
 		);
 		ImGui::EndDisabled();
+
+		ImGui::TableSetColumnIndex(column);
+		bool enabled_changed{ false };
+		remove = DrawEnabledDeleteControls(
+			event.enabled, "Enable or disable this trigger.", "Remove this trigger.",
+			enabled_changed
+		);
+		changed |= enabled_changed;
 		ImGui::EndTable();
-	}
-
-	if (context_requested) {
-		ImGui::OpenPopup("TriggerContext");
-	}
-
-	if (ImGui::BeginPopup("TriggerContext")) {
-		changed |= DrawEnableDisableMenuItem(event.enabled);
-		ImGui::Separator();
-
-		if (ImGui::MenuItem("Delete")) {
-			remove = true;
-		}
-
-		ImGui::EndPopup();
 	}
 
 	return remove;
 }
 
-
-bool DrawAddTriggerPopup(ScriptEditorContext& context, ScriptSequence& sequence) {
-	if (!ImGui::BeginPopup("AddTrigger")) {
-		return false;
-	}
-
-	bool changed{ false };
-	auto add_candidate = [&](const EventEditorRegistration& candidate) {
-		const auto* registration{ SequenceEventRegistry::Find(candidate.type_hash) };
-
-		if (!registration || !IsTriggerCandidateAvailable(context, candidate)) {
-			return;
-		}
-
-		const std::string label{ TrimMenuText(candidate.options.label) };
-
-		if (ImGui::MenuItem(label.c_str())) {
-			EventCondition trigger{
-				.enabled   = true,
-				.type_hash = registration->type_hash,
-				.name      = registration->name,
-			};
-			registration->set_defaults(trigger);
-			sequence.start_events.push_back(std::move(trigger));
-			changed = true;
-		}
-
-		DrawTooltip(candidate.options.description.c_str());
-	};
-
-	for (const auto& candidate : EventEditorRegistry::Entries()) {
-		if (TrimMenuText(candidate.options.group).empty()) {
-			add_candidate(candidate);
-		}
-	}
-
-	std::vector<std::string> groups;
-
-	for (const auto& candidate : EventEditorRegistry::Entries()) {
-		const std::string group{ TrimMenuText(candidate.options.group) };
-
-		if (!group.empty() && IsTriggerCandidateAvailable(context, candidate) &&
-			!std::ranges::contains(groups, group)) {
-			groups.push_back(group);
-		}
-	}
-
-	for (const auto& group : groups) {
-		if (!ImGui::BeginMenu(group.c_str())) {
-			continue;
-		}
-
-		for (const auto& candidate : EventEditorRegistry::Entries()) {
-			if (TrimMenuText(candidate.options.group) == group) {
-				add_candidate(candidate);
-			}
-		}
-
-		ImGui::EndMenu();
-	}
-
-	ImGui::EndPopup();
-	return changed;
-}
-
-bool DrawAddActionPopup(ScriptSequence& sequence) {
-	if (!ImGui::BeginPopup("AddAction")) {
-		return false;
-	}
-
-	bool changed{ false };
-
-	if (ImGui::MenuItem("Action")) {
-		sequence.steps.push_back(ScriptRegistry::MakeStep<EmitSignalScript>());
-		changed = true;
-	}
-
-	if (ImGui::MenuItem("Tween")) {
-		sequence.steps.push_back(ScriptRegistry::MakeStep<MoveToScript>());
-		changed = true;
-	}
-
-	if (ImGui::MenuItem("Delay")) {
-		sequence.steps.push_back(ScriptRegistry::MakeStep<WaitScript>());
-		changed = true;
-	}
-
-	ImGui::Separator();
-
-	if (ImGui::BeginMenu("Lifecycle callback")) {
-		for (int i{ 0 }; i < static_cast<int>(kLifecycleLabels.size()); ++i) {
-			if (ImGui::MenuItem(kLifecycleLabels[static_cast<std::size_t>(i)])) {
-				sequence.lifecycle_actions.push_back(
-					LifecycleScript{
-						.enabled   = true,
-						.lifecycle = static_cast<SequenceLifecycle>(i),
-						.action	   = ScriptRegistry::MakeStep<EmitSignalScript>(),
-					}
-				);
-				changed = true;
-			}
-		}
-
-		ImGui::EndMenu();
-	}
-
-	DrawTooltip("Add a lifecycle callback.");
-	ImGui::EndPopup();
-	return changed;
-}
-
-bool DrawSequenceOptionsCombo(
-	ScriptEditorContext& context, ScriptSequence& binding, ScriptSequence*& sequence,
-	float width = -FLT_MIN
-) {
-	bool changed{ false };
-	std::vector<std::string> selected_sequence_options;
-
-	if (binding.shared_reference) {
-		selected_sequence_options.emplace_back("Global sequence");
-	}
-
-	if (sequence->remove_binding_on_complete) {
-		selected_sequence_options.emplace_back("Remove binding on complete");
-	}
-
-	if (sequence->destroy_owner_on_complete) {
-		selected_sequence_options.emplace_back("Destroy owner on complete");
-	}
-
-	if (sequence->channel) {
-		selected_sequence_options.emplace_back("Channel: " + sequence->channel->value);
-	}
-
-	switch (sequence->reentry) {
-		case ReentryMode::IgnoreWhileRunning:
-			selected_sequence_options.emplace_back("Ignore on retrigger");
-			break;
-		case ReentryMode::Restart:
-			selected_sequence_options.emplace_back("Restart on retrigger");
-			break;
-		case ReentryMode::Queue:
-			selected_sequence_options.emplace_back("Queue on retrigger");
-			break;
-	}
-
-	ImGui::SetNextItemWidth(width);
-
-	if (ImGui::BeginCombo("##SequenceOptions", "Options")) {
-		if (ResolveInspectedEntity(context)) {
-			const bool global{ binding.shared_reference };
-
-			if (ImGui::MenuItem("Global sequence", nullptr, global)) {
-				if (global) {
-					DetachToLocal(context, binding);
-				} else {
-					PromoteToShared(context, binding);
-				}
-
-				sequence = ResolveEditorSequence(context, binding);
-				changed	 = true;
-			}
-
-			ImGui::Separator();
-		}
-
-		if (sequence &&
-			ImGui::MenuItem(
-				"Remove binding on complete", nullptr, sequence->remove_binding_on_complete
-			)) {
-			sequence->remove_binding_on_complete = !sequence->remove_binding_on_complete;
-			changed								 = true;
-		}
-
-		if (sequence &&
-			ImGui::MenuItem(
-				"Destroy owner on complete", nullptr, sequence->destroy_owner_on_complete
-			)) {
-			sequence->destroy_owner_on_complete = !sequence->destroy_owner_on_complete;
-			changed								= true;
-		}
-
-		if (sequence) {
-			const bool has_channel{ sequence->channel.has_value() };
-
-			if (ImGui::MenuItem("Use sequence channel", nullptr, has_channel)) {
-				if (has_channel) {
-					sequence->channel.reset();
-				} else {
-					sequence->channel = "default";
-				}
-
-				changed = true;
-			}
-		}
-
-		if (sequence &&
-			ImGui::MenuItem(
-				"Ignore on retrigger", nullptr,
-				sequence->reentry == ReentryMode::IgnoreWhileRunning
-			)) {
-			sequence->reentry = ReentryMode::IgnoreWhileRunning;
-			changed			  = true;
-		}
-
-		if (sequence &&
-			ImGui::MenuItem(
-				"Restart on retrigger", nullptr, sequence->reentry == ReentryMode::Restart
-			)) {
-			sequence->reentry = ReentryMode::Restart;
-			changed			  = true;
-		}
-
-		if (sequence &&
-			ImGui::MenuItem(
-				"Queue on retrigger", nullptr, sequence->reentry == ReentryMode::Queue
-			)) {
-			sequence->reentry = ReentryMode::Queue;
-			changed			  = true;
-		}
-
-		ImGui::EndCombo();
-	}
-
-	DrawSelectedItemsTooltip(selected_sequence_options);
-	return changed;
-}
-
-bool DrawSequenceToolbar(
-	ScriptEditorContext& context, ScriptSequence& binding, ScriptSequence*& sequence,
-	int resident_index
-) {
-	bool changed{ false };
-	const bool show_runtime_controls{ context.ctx.editor.IsPlaying() };
-	const Entity runtime_owner{ ResolveRuntimeOwner(context) };
-	ScriptSequence* runtime_binding{
-		show_runtime_controls
-			? FindRuntimeRootSequence(runtime_owner, binding.id, resident_index)
-			: nullptr
-	};
-	const bool can_control_runtime{ runtime_owner && runtime_binding };
-	const float button_size{ ImGui::GetFrameHeight() };
-	const float spacing{ ImGui::GetStyle().ItemSpacing.x };
-
-	if (!ImGui::BeginTable(
-			"SequenceToolbar", 3,
-			ImGuiTableFlags_SizingStretchSame | ImGuiTableFlags_NoSavedSettings
-		)) {
-		return false;
-	}
-
-	ImGui::TableSetupColumn("Trigger", ImGuiTableColumnFlags_WidthStretch, 1.0f);
-	ImGui::TableSetupColumn("Action", ImGuiTableColumnFlags_WidthStretch, 1.0f);
-	ImGui::TableSetupColumn("Options", ImGuiTableColumnFlags_WidthStretch, 1.0f);
-	ImGui::TableNextRow(ImGuiTableRowFlags_None, button_size);
-
-	ImGui::TableSetColumnIndex(0);
-
-	if (ImGui::Button("+ Trigger", ImVec2{ -FLT_MIN, button_size })) {
-		ImGui::OpenPopup("AddTrigger");
-	}
-
-	DrawTooltip("Add a start trigger.");
-
-	if (sequence) {
-		changed |= DrawAddTriggerPopup(context, *sequence);
-	}
-
-	ImGui::TableSetColumnIndex(1);
-
-	if (ImGui::Button("+ Action", ImVec2{ -FLT_MIN, button_size })) {
-		ImGui::OpenPopup("AddAction");
-	}
-
-	DrawTooltip("Add an Action, Tween, Delay, or lifecycle callback.");
-
-	if (sequence) {
-		changed |= DrawAddActionPopup(*sequence);
-	}
-
-	ImGui::TableSetColumnIndex(2);
-
-	const float available_width{ ImGui::GetContentRegionAvail().x };
-	const float runtime_width{
-		show_runtime_controls ? button_size * 3.0f + spacing * 3.0f : 0.0f
-	};
-	const float options_width{ std::max(1.0f, available_width - runtime_width) };
-
-	changed |= DrawSequenceOptionsCombo(
-		context, binding, sequence, show_runtime_controls ? options_width : -FLT_MIN
-	);
-
-	if (show_runtime_controls) {
-		const ScriptSequenceRuntime& runtime{
-			runtime_binding ? runtime_binding->runtime
-						: (sequence ? GetDisplayedSequenceRuntime(*sequence, binding)
-									: binding.runtime)
-		};
-
-		ImGui::SameLine(0.0f, spacing);
-		ImGui::BeginDisabled(!can_control_runtime);
-
-		if (DrawCenteredTextButton("##Play", ">", ImVec2{ button_size, button_size })) {
-			(void)script_runtime::Start(runtime_owner, runtime_binding->id, true);
-		}
-
-		ImGui::EndDisabled();
-		DrawTooltip(runtime.running ? "Restart this sequence." : "Start this sequence.");
-
-		ImGui::SameLine(0.0f, spacing);
-		ImGui::BeginDisabled(!can_control_runtime || !runtime.running);
-
-		if (DrawCenteredTextButton("##Pause", "||", ImVec2{ button_size, button_size })) {
-			(void)script_runtime::SetPaused(runtime_owner, runtime_binding->id, !runtime.paused);
-		}
-
-		ImGui::EndDisabled();
-		DrawTooltip(runtime.paused ? "Resume this sequence." : "Pause this sequence.");
-
-		ImGui::SameLine(0.0f, spacing);
-		ImGui::BeginDisabled(!can_control_runtime || !runtime.running);
-
-		if (DrawCenteredTextButton("##Stop", "[]", ImVec2{ button_size, button_size })) {
-			(void)script_runtime::Stop(runtime_owner, runtime_binding->id);
-		}
-
-		ImGui::EndDisabled();
-		DrawTooltip("Stop this sequence.");
-	}
-
-	ImGui::EndTable();
-	return changed;
-}
-
 bool DrawEvents(ScriptEditorContext& context, ScriptSequence& sequence) {
 	bool changed{ false };
+	bool add_requested{ false };
+	const bool empty{ sequence.start_events.empty() && sequence.stop_events.empty() &&
+					  sequence.lifecycle_actions.empty() };
+	const bool open{ DrawUnframedSectionHeader(
+		"EventsSection", "Events", true, empty, "Start and stop triggers plus lifecycle callbacks.",
+		true, "Add a trigger or lifecycle callback.", add_requested
+	) };
+
+	ImGui::PushID("EventsSection");
+	if (add_requested) {
+		ImGui::OpenPopup("AddEventEntry");
+	}
+	if (ImGui::BeginPopup("AddEventEntry")) {
+		if (ImGui::BeginMenu("Trigger")) {
+			auto candidate_available = [&](const EventEditorRegistration& candidate) {
+				const auto* registration{ SequenceEventRegistry::Find(candidate.type_hash) };
+
+				return registration && (!registration->available || !context.owner ||
+										registration->available(context.owner));
+			};
+			auto add_candidate = [&](const EventEditorRegistration& candidate) {
+				const auto* registration{ SequenceEventRegistry::Find(candidate.type_hash) };
+				if (!candidate_available(candidate)) {
+					return;
+				}
+				if (ImGui::MenuItem(candidate.options.label.c_str())) {
+					EventCondition trigger{ .enabled   = true,
+											.type_hash = registration->type_hash,
+											.name	   = registration->name };
+					registration->set_defaults(trigger);
+					sequence.start_events.push_back(std::move(trigger));
+					changed = true;
+				}
+				DrawTooltip(candidate.options.description.c_str());
+			};
+
+			for (const auto& candidate : EventEditorRegistry::Entries()) {
+				if (candidate.options.group.empty()) {
+					add_candidate(candidate);
+				}
+			}
+			std::vector<std::string> groups;
+			for (const auto& candidate : EventEditorRegistry::Entries()) {
+				if (!candidate.options.group.empty() && candidate_available(candidate) &&
+					!std::ranges::contains(groups, candidate.options.group)) {
+					groups.push_back(candidate.options.group);
+				}
+			}
+			for (const auto& group : groups) {
+				if (!ImGui::BeginMenu(group.c_str())) {
+					continue;
+				}
+				for (const auto& candidate : EventEditorRegistry::Entries()) {
+					if (candidate.options.group == group) {
+						add_candidate(candidate);
+					}
+				}
+				ImGui::EndMenu();
+			}
+			ImGui::EndMenu();
+		}
+		if (ImGui::BeginMenu("Lifecycle callback")) {
+			for (int i{ 0 }; i < static_cast<int>(kLifecycleLabels.size()); ++i) {
+				if (ImGui::MenuItem(kLifecycleLabels[static_cast<std::size_t>(i)])) {
+					sequence.lifecycle_actions.push_back(
+						LifecycleScript{
+							.enabled   = true,
+							.lifecycle = static_cast<SequenceLifecycle>(i),
+							.action	   = ScriptRegistry::MakeStep<EmitSignalScript>(),
+						}
+					);
+					changed = true;
+				}
+			}
+			ImGui::EndMenu();
+		}
+		DrawTooltip("Add a lifecycle callback.");
+		ImGui::EndPopup();
+	}
+	ImGui::PopID();
+
+	if (!open) {
+		return changed;
+	}
+
 	int remove_start{ -1 };
 	int move_start_to_stop{ -1 };
 
 	ImGui::PushID("StartEvents");
-
 	for (int i{ 0 }; i < static_cast<int>(sequence.start_events.size()); ++i) {
 		ImGui::PushID(i);
 
 		bool switch_kind{ false };
-
 		if (DrawEvent(
 				context, sequence.start_events[static_cast<std::size_t>(i)], false, switch_kind,
 				changed
@@ -2050,19 +1688,16 @@ bool DrawEvents(ScriptEditorContext& context, ScriptSequence& sequence) {
 
 		ImGui::PopID();
 	}
-
 	ImGui::PopID();
 
 	int remove_stop{ -1 };
 	int move_stop_to_start{ -1 };
 
 	ImGui::PushID("StopEvents");
-
 	for (int i{ 0 }; i < static_cast<int>(sequence.stop_events.size()); ++i) {
 		ImGui::PushID(i);
 
 		bool switch_kind{ false };
-
 		if (DrawEvent(
 				context, sequence.stop_events[static_cast<std::size_t>(i)], true, switch_kind,
 				changed
@@ -2076,18 +1711,15 @@ bool DrawEvents(ScriptEditorContext& context, ScriptSequence& sequence) {
 
 		ImGui::PopID();
 	}
-
 	ImGui::PopID();
 
 	std::optional<EventCondition> moved_to_stop;
 	std::optional<EventCondition> moved_to_start;
-
 	if (remove_start < 0 && move_start_to_stop >= 0) {
 		moved_to_stop.emplace(
 			std::move(sequence.start_events[static_cast<std::size_t>(move_start_to_stop)])
 		);
 	}
-
 	if (remove_stop < 0 && move_stop_to_start >= 0) {
 		moved_to_start.emplace(
 			std::move(sequence.stop_events[static_cast<std::size_t>(move_stop_to_start)])
@@ -2101,7 +1733,6 @@ bool DrawEvents(ScriptEditorContext& context, ScriptSequence& sequence) {
 		sequence.start_events.erase(sequence.start_events.begin() + move_start_to_stop);
 		changed = true;
 	}
-
 	if (remove_stop >= 0) {
 		sequence.stop_events.erase(sequence.stop_events.begin() + remove_stop);
 		changed = true;
@@ -2109,11 +1740,9 @@ bool DrawEvents(ScriptEditorContext& context, ScriptSequence& sequence) {
 		sequence.stop_events.erase(sequence.stop_events.begin() + move_stop_to_start);
 		changed = true;
 	}
-
 	if (moved_to_stop) {
 		sequence.stop_events.push_back(std::move(*moved_to_stop));
 	}
-
 	if (moved_to_start) {
 		sequence.start_events.push_back(std::move(*moved_to_start));
 	}
@@ -2122,12 +1751,10 @@ bool DrawEvents(ScriptEditorContext& context, ScriptSequence& sequence) {
 	return changed;
 }
 
-
 bool DrawSequence(
 	ScriptEditorContext& context, ScriptSequence& binding, bool& changed, int resident_index
 ) {
 	ScriptSequence* sequence{ ResolveEditorSequence(context, binding) };
-
 	if (!sequence) {
 		ImGui::TextDisabled("Missing shared Script Sequence");
 		return false;
@@ -2141,30 +1768,40 @@ bool DrawSequence(
 
 	const ImGuiID editor_id{ ImGui::GetID("EditorState") };
 	const float button_size{ ImGui::GetFrameHeight() };
-	auto& stored_open{ state.sequence_open_states.try_emplace(binding.id, true).first->second };
-	bool open{ stored_open };
+	const bool show_runtime_controls{ context.owner && context.ctx.editor.IsPlaying() };
+	const int column_count{ show_runtime_controls ? 6 : 3 };
+	bool open{ state.sequence_open_states.try_emplace(editor_id, true).first->second };
 	ImVec2 name_input_min{};
 	ImVec2 name_input_max{};
 	bool name_input_drawn{ false };
 	bool name_input_hovered{ false };
 	bool began_name_edit_this_frame{ false };
-	bool begin_edit{ false };
 
 	if (ImGui::BeginTable(
-			"ScriptSequenceHeader", 1,
+			"ScriptSequenceHeader", column_count,
 			ImGuiTableFlags_SizingStretchProp | ImGuiTableFlags_NoSavedSettings
 		)) {
 		ImGui::TableSetupColumn("Sequence", ImGuiTableColumnFlags_WidthStretch, 1.0f);
-		ImGui::TableNextRow(ImGuiTableRowFlags_None, button_size);
-		ImGui::TableSetColumnIndex(0);
+		ImGui::TableSetupColumn("Options", ImGuiTableColumnFlags_WidthStretch, 1.0f);
 
+		if (show_runtime_controls) {
+			ImGui::TableSetupColumn("Play", ImGuiTableColumnFlags_WidthFixed, button_size);
+			ImGui::TableSetupColumn("Pause", ImGuiTableColumnFlags_WidthFixed, button_size);
+			ImGui::TableSetupColumn("Stop", ImGuiTableColumnFlags_WidthFixed, button_size);
+		}
+
+		ImGui::TableSetupColumn(
+			"Controls", ImGuiTableColumnFlags_WidthFixed, EnabledDeleteControlsWidth()
+		);
+		ImGui::TableNextRow(ImGuiTableRowFlags_None, button_size);
+
+		ImGui::TableSetColumnIndex(0);
 		const ImVec2 header_min{ ImGui::GetCursorScreenPos() };
-		const ImVec2 header_max{
-			header_min.x + std::max(1.0f, ImGui::GetContentRegionAvail().x),
-			header_min.y + button_size,
-		};
+		const ImVec2 header_max{ header_min.x + std::max(1.0f, ImGui::GetContentRegionAvail().x),
+								 header_min.y + button_size };
 		const ImVec2 mouse{ ImGui::GetMousePos() };
 
+		auto& stored_open{ state.sequence_open_states[editor_id] };
 		ImGui::SetNextItemOpen(stored_open, ImGuiCond_Always);
 		const bool editing_before_draw{ state.editing_sequence_name == editor_id };
 		const ImVec4 header{ binding.enabled ? ImVec4{ 0.35f, 0.24f, 0.39f, 1.0f }
@@ -2173,9 +1810,8 @@ bool DrawSequence(
 													 : ImVec4{ 0.30f, 0.30f, 0.30f, 1.0f } };
 		const ImVec4 header_active{ binding.enabled ? ImVec4{ 0.50f, 0.36f, 0.55f, 1.0f }
 													: ImVec4{ 0.34f, 0.34f, 0.34f, 1.0f } };
-		const bool header_hovered_before_draw{
-			ImGui::IsMouseHoveringRect(header_min, header_max)
-		};
+
+		const bool header_hovered_before_draw{ ImGui::IsMouseHoveringRect(header_min, header_max) };
 		const bool header_active_before_draw{ !editing_before_draw && header_hovered_before_draw &&
 											  ImGui::IsMouseDown(ImGuiMouseButton_Left) };
 		const ImVec4 header_color{
@@ -2203,6 +1839,9 @@ bool DrawSequence(
 		ImGui::PopStyleColor(3);
 		stored_open = open;
 
+		// Use the measured table cell rectangle for both display and edit modes. Framed TreeNodeEx
+		// expands its native background beyond the cursor by a style dependent amount, which causes
+		// the one or two pixel width change when the InputText overlay becomes active.
 		const ImVec2 tree_min{ header_min };
 		const ImVec2 tree_max{ header_max };
 		const bool tree_hovered{ ImGui::IsItemHovered() };
@@ -2216,27 +1855,14 @@ bool DrawSequence(
 									 mouse.x <= name_hit_end_x };
 		const bool tree_clicked_left{ ImGui::IsItemClicked(ImGuiMouseButton_Left) };
 
-		begin_edit = !editing_before_draw && name_hit_hovered &&
-					 ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left);
-
-		if (ImGui::BeginPopupContextItem("SequenceContext")) {
+		bool begin_edit{ !editing_before_draw && name_hit_hovered &&
+						 ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left) };
+		if (ImGui::BeginPopupContextItem("SequenceNameContext")) {
 			if (ImGui::MenuItem("Rename")) {
 				begin_edit = true;
 			}
-
-			if (DrawEnableDisableMenuItem(binding.enabled)) {
-				changed = true;
-			}
-
-			ImGui::Separator();
-
-			if (ImGui::MenuItem("Delete")) {
-				remove = true;
-			}
-
 			ImGui::EndPopup();
 		}
-
 		if (begin_edit) {
 			state.editing_sequence_name			 = editor_id;
 			state.editing_sequence_original_name = sequence->name;
@@ -2255,11 +1881,9 @@ bool DrawSequence(
 					minimum_name_width, tree_max.x - text_start_x - ImGui::GetStyle().FramePadding.x
 				)
 			);
-
 			if (begin_edit) {
 				ImGui::SetKeyboardFocusHere();
 			}
-
 			const bool submitted{ ImGui::InputText(
 				"##SequenceName", &sequence->name, ImGuiInputTextFlags_EnterReturnsTrue
 			) };
@@ -2268,7 +1892,6 @@ bool DrawSequence(
 			name_input_max		= ImGui::GetItemRectMax();
 			name_input_drawn	= true;
 			name_input_hovered	= ImGui::IsItemHovered() || ImGui::IsItemActive();
-
 			if (ImGui::IsKeyPressed(ImGuiKey_Escape)) {
 				sequence->name = state.editing_sequence_original_name;
 				state.editing_sequence_name.reset();
@@ -2277,11 +1900,152 @@ bool DrawSequence(
 				changed = true;
 			}
 		}
-
 		if (tree_hovered && state.editing_sequence_name != editor_id) {
-			ImGui::SetTooltip("Double click to rename. Right click for sequence options.");
+			ImGui::SetTooltip("Double click name to rename.");
 		}
 
+		ImGui::TableSetColumnIndex(1);
+		std::vector<std::string> selected_sequence_options;
+		if (binding.shared_reference) {
+			selected_sequence_options.emplace_back("Global sequence");
+		}
+		if (sequence->remove_binding_on_complete) {
+			selected_sequence_options.emplace_back("Remove binding on complete");
+		}
+		if (sequence->destroy_owner_on_complete) {
+			selected_sequence_options.emplace_back("Destroy owner on complete");
+		}
+		if (sequence->channel) {
+			selected_sequence_options.emplace_back("Channel: " + sequence->channel->value);
+		}
+		switch (sequence->reentry) {
+			case ReentryMode::IgnoreWhileRunning:
+				selected_sequence_options.emplace_back("Ignore on retrigger");
+				break;
+			case ReentryMode::Restart:
+				selected_sequence_options.emplace_back("Restart on retrigger");
+				break;
+			case ReentryMode::Queue:
+				selected_sequence_options.emplace_back("Queue on retrigger");
+				break;
+		}
+		ImGui::SetNextItemWidth(-FLT_MIN);
+		if (ImGui::BeginCombo("##SequenceOptions", "Options")) {
+			if (context.owner) {
+				const bool global{ binding.shared_reference };
+
+				if (ImGui::MenuItem("Global sequence", nullptr, global)) {
+					if (global) {
+						DetachToLocal(context, binding);
+					} else {
+						PromoteToShared(context, binding);
+					}
+
+					sequence = ResolveEditorSequence(context, binding);
+					changed	 = true;
+				}
+
+				ImGui::Separator();
+			}
+
+			if (sequence &&
+				ImGui::MenuItem(
+					"Remove binding on complete", nullptr, sequence->remove_binding_on_complete
+				)) {
+				sequence->remove_binding_on_complete = !sequence->remove_binding_on_complete;
+				changed								 = true;
+			}
+			if (sequence &&
+				ImGui::MenuItem(
+					"Destroy owner on complete", nullptr, sequence->destroy_owner_on_complete
+				)) {
+				sequence->destroy_owner_on_complete = !sequence->destroy_owner_on_complete;
+				changed								= true;
+			}
+			if (sequence) {
+				const bool has_channel{ sequence->channel.has_value() };
+				if (ImGui::MenuItem("Use sequence channel", nullptr, has_channel)) {
+					if (has_channel) {
+						sequence->channel.reset();
+					} else {
+						sequence->channel = "default";
+					}
+					changed = true;
+				}
+			}
+			if (sequence && ImGui::MenuItem(
+								"Ignore on retrigger", nullptr,
+								sequence->reentry == ReentryMode::IgnoreWhileRunning
+							)) {
+				sequence->reentry = ReentryMode::IgnoreWhileRunning;
+				changed			  = true;
+			}
+			if (sequence &&
+				ImGui::MenuItem(
+					"Restart on retrigger", nullptr, sequence->reentry == ReentryMode::Restart
+				)) {
+				sequence->reentry = ReentryMode::Restart;
+				changed			  = true;
+			}
+			if (sequence &&
+				ImGui::MenuItem(
+					"Queue on retrigger", nullptr, sequence->reentry == ReentryMode::Queue
+				)) {
+				sequence->reentry = ReentryMode::Queue;
+				changed			  = true;
+			}
+			ImGui::EndCombo();
+		}
+
+		DrawSelectedItemsTooltip(selected_sequence_options);
+
+		int column{ 2 };
+
+		if (show_runtime_controls) {
+			ImGui::TableSetColumnIndex(column++);
+
+			if (DrawCenteredTextButton("##Play", ">", ImVec2{ button_size, button_size })) {
+				script_runtime::Start(context.owner, binding.id, true);
+			}
+
+			DrawTooltip(
+				binding.runtime.running ? "Restart this sequence." : "Start this sequence."
+			);
+
+			ImGui::TableSetColumnIndex(column++);
+
+			ImGui::BeginDisabled(!binding.runtime.running);
+
+			if (DrawCenteredTextButton("##Pause", "||", ImVec2{ button_size, button_size })) {
+				script_runtime::SetPaused(context.owner, binding.id, !binding.runtime.paused);
+			}
+
+			ImGui::EndDisabled();
+
+			DrawTooltip(binding.runtime.paused ? "Resume this sequence." : "Pause this sequence.");
+
+			ImGui::TableSetColumnIndex(column++);
+
+			ImGui::BeginDisabled(!binding.runtime.running);
+
+			if (DrawCenteredTextButton("##Stop", "[]", ImVec2{ button_size, button_size })) {
+				script_runtime::Stop(context.owner, binding.id);
+			}
+
+			ImGui::EndDisabled();
+			DrawTooltip("Stop this sequence.");
+		}
+
+		ImGui::TableSetColumnIndex(column);
+
+		bool enabled_changed{ false };
+
+		remove = DrawEnabledDeleteControls(
+			binding.enabled, "Enable or disable this script sequence.",
+			"Delete this script sequence.", enabled_changed
+		);
+
+		changed |= enabled_changed;
 		ImGui::EndTable();
 	}
 
@@ -2293,28 +2057,17 @@ bool DrawSequence(
 		const ImVec2 mouse{ ImGui::GetMousePos() };
 		const bool inside_input{ mouse.x >= name_input_min.x && mouse.x <= name_input_max.x &&
 								 mouse.y >= name_input_min.y && mouse.y <= name_input_max.y };
-
 		if (clicked && !inside_input && !name_input_hovered) {
 			state.editing_sequence_name.reset();
 			changed = true;
 		}
 	}
 
-	if (remove) {
-		state.editing_sequence_name.reset();
-	}
-
 	if (open && !remove) {
 		sequence = ResolveEditorSequence(context, binding);
-
 		if (sequence) {
-			changed |= DrawSequenceToolbar(context, binding, sequence, resident_index);
-
-			if (sequence && sequence->channel &&
-				ImGui::BeginTable(
-					"SequenceChannelRow", 2,
-					ImGuiTableFlags_SizingStretchProp | ImGuiTableFlags_NoSavedSettings
-				)) {
+			if (sequence->channel &&
+				ImGui::BeginTable("SequenceChannelRow", 2, ImGuiTableFlags_SizingStretchProp)) {
 				const float label_width{ ImGui::CalcTextSize("Channel:").x +
 										 ImGui::GetStyle().ItemInnerSpacing.x };
 				ImGui::TableSetupColumn("Label", ImGuiTableColumnFlags_WidthFixed, label_width);
@@ -2331,10 +2084,39 @@ bool DrawSequence(
 				);
 				ImGui::EndTable();
 			}
+			changed |= DrawEvents(context, *sequence);
 
-			if (sequence) {
-				changed |= DrawEvents(context, *sequence);
-				changed |= DrawActions(context, *sequence, binding, resident_index);
+			bool add_action_requested{ false };
+			const bool sequence_open{ DrawUnframedSectionHeader(
+				"SequenceSection", "Sequence", true, sequence->steps.empty(),
+				"Ordered actions executed by this script sequence.", true,
+				"Add an action to this sequence.", add_action_requested
+			) };
+			ImGui::PushID("SequenceSection");
+			if (add_action_requested) {
+				ImGui::OpenPopup("AddSequenceAction");
+			}
+			if (ImGui::BeginPopup("AddSequenceAction")) {
+				if (ImGui::MenuItem("Action")) {
+					sequence->steps.push_back(ScriptRegistry::MakeStep<EmitSignalScript>());
+					changed = true;
+				}
+
+				if (ImGui::MenuItem("Tween")) {
+					sequence->steps.push_back(ScriptRegistry::MakeStep<MoveToScript>());
+					changed = true;
+				}
+
+				if (ImGui::MenuItem("Delay")) {
+					sequence->steps.push_back(ScriptRegistry::MakeStep<WaitScript>());
+					changed = true;
+				}
+
+				ImGui::EndPopup();
+			}
+			ImGui::PopID();
+			if (sequence_open) {
+				changed |= DrawActions(context, *sequence, binding);
 			}
 		}
 	}
@@ -2369,7 +2151,8 @@ bool DrawAddRootScriptPopup(ScriptEditorContext& context, ::ptgn::impl::Scripts&
 		ImGui::Separator();
 	}
 
-	if (!context.shared_sequences.sequences.empty() && ImGui::BeginMenu("Global")) {
+	if (context.owner && !context.shared_sequences.sequences.empty() &&
+		ImGui::BeginMenu("Global")) {
 		for (const auto& shared : context.shared_sequences.sequences) {
 			if (ImGui::MenuItem(shared.name.c_str())) {
 				Script script;
@@ -2427,20 +2210,17 @@ bool DrawAddRootScriptPopup(ScriptEditorContext& context, ::ptgn::impl::Scripts&
 	return changed;
 }
 
-
 bool DrawResidentScripts(ScriptEditorContext& context, ::ptgn::impl::Scripts& scripts) {
 	bool changed{ false };
 	int remove{ -1 };
 
 	std::vector<int> display_order;
 	display_order.reserve(scripts.scripts.size());
-
 	for (int i{ 0 }; i < static_cast<int>(scripts.scripts.size()); ++i) {
 		if (scripts.scripts[static_cast<std::size_t>(i)].type_hash != Hash<Script>()) {
 			display_order.push_back(i);
 		}
 	}
-
 	for (int i{ 0 }; i < static_cast<int>(scripts.scripts.size()); ++i) {
 		if (scripts.scripts[static_cast<std::size_t>(i)].type_hash == Hash<Script>()) {
 			display_order.push_back(i);
@@ -2498,19 +2278,18 @@ bool DrawResidentScripts(ScriptEditorContext& context, ::ptgn::impl::Scripts& sc
 		bool open{ false };
 		const float button_size{ ImGui::GetFrameHeight() };
 
-		if (ImGui::BeginTable(
-				"ScriptRow", 1,
-				ImGuiTableFlags_SizingStretchProp | ImGuiTableFlags_NoSavedSettings
-			)) {
+		if (ImGui::BeginTable("ScriptRow", 2, ImGuiTableFlags_SizingStretchProp)) {
 			ImGui::TableSetupColumn("Script", ImGuiTableColumnFlags_WidthStretch);
+			ImGui::TableSetupColumn(
+				"Controls", ImGuiTableColumnFlags_WidthFixed, EnabledDeleteControlsWidth()
+			);
 			ImGui::TableNextRow(ImGuiTableRowFlags_None, button_size);
 			ImGui::TableSetColumnIndex(0);
 
 			const ImVec2 header_min{ ImGui::GetCursorScreenPos() };
-			const ImVec2 header_max{
-				header_min.x + std::max(1.0f, ImGui::GetContentRegionAvail().x),
-				header_min.y + button_size,
-			};
+			const ImVec2 header_max{ header_min.x +
+										 std::max(1.0f, ImGui::GetContentRegionAvail().x),
+									 header_min.y + button_size };
 			const ImVec4 header{ script.enabled ? ImVec4{ 0.20f, 0.34f, 0.33f, 1.0f }
 												: ImVec4{ 0.25f, 0.25f, 0.25f, 1.0f } };
 			const ImVec4 header_hovered{ script.enabled ? ImVec4{ 0.26f, 0.43f, 0.41f, 1.0f }
@@ -2540,36 +2319,28 @@ bool DrawResidentScripts(ScriptEditorContext& context, ::ptgn::impl::Scripts& sc
 			ImGuiTreeNodeFlags flags{ ImGuiTreeNodeFlags_FramePadding |
 									  ImGuiTreeNodeFlags_SpanAvailWidth |
 									  ImGuiTreeNodeFlags_NoTreePushOnOpen };
-
 			if (has_contents) {
 				flags |= ImGuiTreeNodeFlags_DefaultOpen;
 			} else {
 				flags |= ImGuiTreeNodeFlags_Leaf;
 			}
-
 			open = ImGui::TreeNodeEx(
 				"##Script", flags, "%s", editor ? editor->options.label.c_str() : "Missing Script"
 			);
 			ImGui::PopStyleColor(3);
-
 			if (editor) {
 				DrawTooltip(editor->options.description.c_str());
 			}
 
-			if (ImGui::BeginPopupContextItem("ScriptContext")) {
-				if (DrawEnableDisableMenuItem(script.enabled)) {
-					changed = true;
-				}
-
-				ImGui::Separator();
-
-				if (ImGui::MenuItem("Delete")) {
-					remove = i;
-				}
-
-				ImGui::EndPopup();
+			ImGui::TableSetColumnIndex(1);
+			bool enabled_changed{ false };
+			if (DrawEnabledDeleteControls(
+					script.enabled, "Enable or disable this script.", "Remove this script.",
+					enabled_changed
+				)) {
+				remove = i;
 			}
-
+			changed |= enabled_changed;
 			ImGui::EndTable();
 		}
 
@@ -2587,14 +2358,15 @@ bool DrawResidentScripts(ScriptEditorContext& context, ::ptgn::impl::Scripts& sc
 				}
 			}
 		}
-
 		ImGui::PopID();
 	}
 
 	if (remove >= 0) {
 		if (context.owner) {
 			auto& entry{ scripts.scripts[static_cast<std::size_t>(remove)] };
+
 			const SequenceId id{ entry.instance ? entry.instance->sequence.id : entry.sequence.id };
+
 			scripts.RemoveDeferred(id);
 		} else {
 			scripts.scripts.erase(scripts.scripts.begin() + remove);
@@ -2602,7 +2374,6 @@ bool DrawResidentScripts(ScriptEditorContext& context, ::ptgn::impl::Scripts& sc
 
 		changed = true;
 	}
-
 	return changed;
 }
 
@@ -2638,13 +2409,7 @@ bool DrawOptionalViewport(
 		ImGui::Indent();
 
 		if (viewport_space == ViewportSpace::Normalized) {
-			auto logical_size{ V2_float{ ctx.editor.GetRenderer().GetLogicalSize() } };
-
-			logical_size = Max(logical_size, V2_float{ 1.0f, 1.0f });
-
-			const V2_float minimum_size{ 1.0f / logical_size };
-
-			FieldOptions position_options{
+			FieldOptions options{
 				.speed	= 0.01f,
 				.min	= 0.0,
 				.max	= 1.0,
@@ -2652,29 +2417,16 @@ bool DrawOptionalViewport(
 				.flags	= ImGuiSliderFlags_AlwaysClamp,
 			};
 
-			changed |= DrawValue(ctx, "Position", value->position, position_options);
-
+			changed |= DrawValue(ctx, "Position", value->position, options);
 			changed |= DrawWHValue(
-				"Size", value->size, 0.01f, 0.0f, 1.0f, "%.3f", ImGuiSliderFlags_AlwaysClamp
+				"Size", value->size, options.speed, static_cast<float>(options.min),
+				static_cast<float>(options.max), options.format, options.flags
 			);
 
-			const V2_float previous_size{ value->size };
-
-			value->size = Clamp(value->size, minimum_size, V2_float{ 1.0f, 1.0f });
-
-			if (value->size != previous_size) {
-				changed = true;
-			}
-
-			const V2_float previous_position{ value->position };
-
-			value->position = Clamp(
-				value->position, V2_float{ 0.0f, 0.0f },
-				Max(V2_float{ 0.0f, 0.0f }, V2_float{ 1.0f, 1.0f } - value->size)
-			);
-
-			if (value->position != previous_position) {
-				changed = true;
+			if (value->size.x > 1.0f || value->size.y > 1.0f) {
+				value->size.x = std::min(1.0f, value->size.x);
+				value->size.y = std::min(1.0f, value->size.y);
+				changed		  = true;
 			}
 		} else {
 			changed |= DrawValue(
@@ -2686,13 +2438,14 @@ bool DrawOptionalViewport(
 			);
 
 			changed |= DrawWHValue(
-				"Size", value->size, 1.0f, 1.0f, 4096.0f, "%.0f", ImGuiSliderFlags_AlwaysClamp
+				"Size", value->size, 1.0f, 1.0f, 4096.0f, "%.0f",
+				ImGuiSliderFlags_AlwaysClamp
 			);
 
 			if (value->size.x < 1.0f || value->size.y < 1.0f) {
-				value->size = Max(value->size, V2_float{ 1.0f, 1.0f });
-
-				changed = true;
+				value->size.x = std::max(1.0f, value->size.x);
+				value->size.y = std::max(1.0f, value->size.y);
+				changed		  = true;
 			}
 		}
 
@@ -2746,27 +2499,16 @@ void MarkButtonSpriteDirty(Entity entity) {
 template <>
 struct Contents<::ptgn::impl::Scripts> {
 	static bool Draw(EditorContext& ctx, ::ptgn::impl::Scripts& scripts) {
-		const Entity owner{ ::ptgn::impl::ScriptsAccessor::GetOwner(scripts) };
-		Entity inspected_entity{ owner };
-
-		if (!inspected_entity) {
-			auto& hierarchy{ ctx.editor.GetSceneHierarchyPanel() };
-
-			if (hierarchy.GetActiveTab() != SceneHierarchyTab::Prefabs) {
-				inspected_entity = hierarchy.GetSelectedEntity();
-			}
-		}
+		auto entity{ ::ptgn::impl::ScriptsAccessor::GetOwner(scripts) };
 
 		// Prefab component editing has no live Scene or Entity. Supply an
 		// empty registry so the ordinary data editors can still be reused.
 		SharedScriptSequenceRegistry prefab_shared_sequences;
 
-		auto& shared_sequences{
-			inspected_entity ? inspected_entity.GetScene().ctx().shared_script_sequences
-							 : prefab_shared_sequences
-		};
+		auto& shared_sequences{ entity ? entity.GetScene().ctx().shared_script_sequences
+									   : prefab_shared_sequences };
 
-		ScriptEditorContext context{ ctx, owner, shared_sequences };
+		ScriptEditorContext context{ ctx, entity, shared_sequences };
 
 		bool changed{ false };
 
@@ -2789,84 +2531,164 @@ struct Contents<::ptgn::impl::Scripts> {
 	}
 };
 
-bool DrawTextureFormatCombo(const char* label, TextureFormat& format, bool color_only = true) {
+bool DrawTextureFormatCombo(
+	const char* label,
+	TextureFormat& format,
+	bool color_only = true
+) {
 	ImGui::PushID(&format);
 
-	const bool changed{ DrawPropertyRow(label, [&]() {
-		const std::string_view preview{ magic_enum::enum_name(format) };
+	const bool changed{
+		DrawPropertyRow(label, [&]() {
+			const std::string_view preview{
+				magic_enum::enum_name(format)
+			};
 
-		bool local_changed{ false };
+			bool local_changed{ false };
 
-		ImGui::SetNextItemWidth(-FLT_MIN);
+			ImGui::SetNextItemWidth(-FLT_MIN);
 
-		if (ImGui::BeginCombo(
-				"##TextureFormat", preview.empty() ? ToString(format).data() : preview.data()
-			)) {
-			for (const TextureFormat candidate : magic_enum::enum_values<TextureFormat>()) {
-				if (color_only && !IsColorFormat(candidate)) {
-					continue;
+			if (ImGui::BeginCombo(
+					"##TextureFormat",
+					preview.empty()
+						? ToString(format).data()
+						: preview.data()
+				)) {
+				for (
+					const TextureFormat candidate :
+					magic_enum::enum_values<TextureFormat>()
+				) {
+					if (
+						color_only &&
+						!IsColorFormat(candidate)
+					) {
+						continue;
+					}
+
+					const std::string_view name{
+						magic_enum::enum_name(candidate)
+					};
+
+					const bool selected{
+						candidate == format
+					};
+
+					if (ImGui::Selectable(
+							name.data(),
+							selected
+						)) {
+						format = candidate;
+						local_changed = true;
+					}
+
+					if (selected) {
+						ImGui::SetItemDefaultFocus();
+					}
 				}
 
-				const std::string_view name{ magic_enum::enum_name(candidate) };
-
-				const bool selected{ candidate == format };
-
-				if (ImGui::Selectable(name.data(), selected)) {
-					format		  = candidate;
-					local_changed = true;
-				}
-
-				if (selected) {
-					ImGui::SetItemDefaultFocus();
-				}
+				ImGui::EndCombo();
 			}
 
-			ImGui::EndCombo();
-		}
-
-		return local_changed;
-	}) };
+			return local_changed;
+		})
+	};
 
 	ImGui::PopID();
 
 	return changed;
 }
 
-bool DrawRenderTargetDesc(EditorContext& ctx, ::ptgn::impl::RenderTargetDesc& target) {
-	auto& renderer{ ctx.editor.GetRenderer() };
+bool DrawRenderTargetDesc(
+	EditorContext& ctx,
+	::ptgn::impl::RenderTargetDesc& target,
+	std::optional<V2_int> framebuffer_size = std::nullopt
+) {
+	V2_int followed_size{
+		framebuffer_size.value_or(V2_int{})
+	};
 
-	const V2_int logical_size{ Max(renderer.GetLogicalSize(), V2_int{ 1, 1 }) };
+	// Prefab and non-entity inspectors do not have a live framebuffer,
+	// so use the requested display size as a fallback.
+	if (!followed_size.IsPositive()) {
+		auto& renderer{
+			ctx.editor.GetRenderer()
+		};
 
-	const bool was_following{ target.follow_display_size };
+		followed_size = renderer.GetDisplaySize();
 
-	bool changed{ DrawValue(ctx, "Follow Display Size", target.follow_display_size) };
-
-	if (was_following && !target.follow_display_size) {
-		// Preserve the logical size shown while following.
-		target.size = logical_size;
+		if (!followed_size.IsPositive()) {
+			followed_size =
+				renderer.GetPresentationSize();
+		}
 	}
 
-	V2_int displayed_size{ target.follow_display_size ? logical_size : target.size };
-
-	const bool size_changed{ DrawWHValue(
-		"Size", displayed_size, 1.0f, 1, 4096, ImGuiSliderFlags_AlwaysClamp,
+	const bool was_following{
 		target.follow_display_size
-	) };
+	};
 
-	if (size_changed && !target.follow_display_size) {
-		target.size = displayed_size;
-		changed		= true;
+	bool changed{
+		DrawValue(
+			ctx,
+			"Follow Display Size",
+			target.follow_display_size
+		)
+	};
+
+	// Turning following off freezes the actual framebuffer size,
+	// rather than independently recalculating the display size.
+	if (
+		was_following &&
+		!target.follow_display_size &&
+		followed_size.IsPositive()
+	) {
+		target.size = followed_size;
 	}
 
-	changed |= DrawTextureFormatCombo("Framebuffer Format", target.format);
+	V2_int displayed_size{
+		target.follow_display_size &&
+			followed_size.IsPositive()
+			? followed_size
+			: target.size
+	};
+
+	const bool size_changed{
+		DrawWHValue(
+			"Framebuffer Size",
+			displayed_size,
+			1.0f,
+			1,
+			4096,
+			ImGuiSliderFlags_AlwaysClamp,
+			target.follow_display_size
+		)
+	};
+
+	if (
+		size_changed &&
+		!target.follow_display_size
+	) {
+		target.size = displayed_size;
+		changed = true;
+	}
+
+	changed |= DrawTextureFormatCombo(
+		"Framebuffer Format",
+		target.format
+	);
 
 	return changed;
 }
 
 template <>
 struct Contents<::ptgn::impl::RenderTargetDesc> {
-	static bool Draw(EditorContext& ctx, ::ptgn::impl::RenderTargetDesc& target) {
-		return DrawRenderTargetDesc(ctx, target);
+	static bool Draw(
+		EditorContext& ctx,
+		::ptgn::impl::RenderTargetDesc& target
+	) {
+		return DrawRenderTargetDesc(
+			ctx,
+			target
+		);
 	}
 };
 
@@ -2892,7 +2714,10 @@ struct Contents<::ptgn::impl::CameraData> {
 	}
 };
 
-bool DrawLayerMaskValue(std::string_view label, LayerMask& value) {
+bool DrawLayerMaskValue(
+	std::string_view label,
+	LayerMask& value
+) {
 	ScopedID scope{ label };
 	const char* preview{ nullptr };
 	char raw_preview[32]{};
@@ -2905,73 +2730,84 @@ bool DrawLayerMaskValue(std::string_view label, LayerMask& value) {
 		preview = "Default";
 	} else {
 		std::snprintf(
-			raw_preview, sizeof(raw_preview), "0x%016llX", static_cast<unsigned long long>(value)
+			raw_preview,
+			sizeof(raw_preview),
+			"0x%016llX",
+			static_cast<unsigned long long>(value)
 		);
 		preview = raw_preview;
 	}
 
-	return DrawPropertyRow(label, [&]() {
-		bool changed{ false };
-		ImGui::SetNextItemWidth(-FLT_MIN);
+	return DrawPropertyRow(
+		label,
+		[&]() {
+			bool changed{ false };
+			ImGui::SetNextItemWidth(-FLT_MIN);
 
-		if (ImGui::BeginCombo("##LayerMask", preview)) {
-			if (ImGui::Selectable("All", value == kLayersAll)) {
-				value	= kLayersAll;
-				changed = true;
-			}
+			if (ImGui::BeginCombo("##LayerMask", preview)) {
+				if (ImGui::Selectable("All", value == kLayersAll)) {
+					value = kLayersAll;
+					changed = true;
+				}
 
-			if (ImGui::Selectable("None", value == kLayersNone)) {
-				value	= kLayersNone;
-				changed = true;
-			}
+				if (ImGui::Selectable("None", value == kLayersNone)) {
+					value = kLayersNone;
+					changed = true;
+				}
 
-			if (ImGui::Selectable("Default", value == kLayerDefault)) {
-				value	= kLayerDefault;
-				changed = true;
-			}
+				if (ImGui::Selectable("Default", value == kLayerDefault)) {
+					value = kLayerDefault;
+					changed = true;
+				}
 
-			ImGui::Separator();
+				ImGui::Separator();
 
-			if (ImGui::BeginChild(
-					"##LayerMaskValues",
-					ImVec2{ 0.0f, ImGui::GetTextLineHeightWithSpacing() * 10.0f },
-					ImGuiChildFlags_Borders
-				)) {
-				for (int index{ 0 }; index < 64; ++index) {
-					const LayerMask layer{ GetLayer(index) };
-					bool selected{ (value & layer) != 0 };
-					const std::string layer_label{ index == 0 ? "Layer 0 (Default)"
-															  : std::string{ "Layer " } +
-																	std::to_string(index) };
+				if (ImGui::BeginChild(
+						"##LayerMaskValues",
+						ImVec2{ 0.0f, ImGui::GetTextLineHeightWithSpacing() * 10.0f },
+						ImGuiChildFlags_Borders
+					)) {
+					for (int index{ 0 }; index < 64; ++index) {
+						const LayerMask layer{ GetLayer(index) };
+						bool selected{ (value & layer) != 0 };
+						const std::string layer_label{
+							index == 0
+								? "Layer 0 (Default)"
+								: std::string{ "Layer " } + std::to_string(index)
+						};
 
-					ImGui::PushID(index);
+						ImGui::PushID(index);
 
-					if (ImGui::Checkbox(layer_label.c_str(), &selected)) {
-						if (selected) {
-							value |= layer;
-						} else {
-							value &= ~layer;
+						if (ImGui::Checkbox(layer_label.c_str(), &selected)) {
+							if (selected) {
+								value |= layer;
+							} else {
+								value &= ~layer;
+							}
+
+							changed = true;
 						}
 
-						changed = true;
+						ImGui::PopID();
 					}
-
-					ImGui::PopID();
 				}
+
+				ImGui::EndChild();
+				ImGui::EndCombo();
 			}
 
-			ImGui::EndChild();
-			ImGui::EndCombo();
+			return changed;
 		}
-
-		return changed;
-	});
+	);
 }
 
 template <>
 struct Contents<::ptgn::impl::RenderMask> {
 	static bool Draw(EditorContext&, ::ptgn::impl::RenderMask& mask) {
-		return DrawLayerMaskValue("Layers", mask.layers);
+		return DrawLayerMaskValue(
+			"Layers",
+			mask.layers
+		);
 	}
 };
 
@@ -2979,8 +2815,14 @@ template <>
 struct Contents<::ptgn::impl::CameraMask> {
 	static bool Draw(EditorContext&, ::ptgn::impl::CameraMask& mask) {
 		bool changed{ false };
-		changed |= DrawLayerMaskValue("Include Layer", mask.include);
-		changed |= DrawLayerMaskValue("Exclude Layer", mask.exclude);
+		changed |= DrawLayerMaskValue(
+			"Include Layer",
+			mask.include
+		);
+		changed |= DrawLayerMaskValue(
+			"Exclude Layer",
+			mask.exclude
+		);
 		return changed;
 	}
 };
@@ -3073,21 +2915,22 @@ template <>
 struct Contents<TextRun> {
 	static bool Draw(EditorContext& ctx, TextRun& run) {
 		bool changed{ false };
-		changed |= DrawValue(
-			ctx, "Text", run.text,
-			FieldOptions{
-				.multiline	  = true,
-				.line_count	  = 8,
-				.resizable_y  = true,
-				.large_editor = true,
-			}
-		);
+		changed |= DrawValue(ctx, "Text", run.text, 
+		FieldOptions{
+			.multiline	   = true,
+			.line_count	   = 8,
+			.resizable_y   = true,
+			.large_editor  = true,
+		});
 		changed |= DrawValue(ctx, "Font", run.font);
 		changed |= DrawValue(ctx, "Color", run.style.color);
 		changed |= DrawValue(ctx, "Size", run.style.size);
 
 		const bool style_open{
-			ImGui::TreeNodeEx("Style##TextRunStyle", ImGuiTreeNodeFlags_SpanAvailWidth)
+			ImGui::TreeNodeEx(
+				"Style##TextRunStyle",
+				ImGuiTreeNodeFlags_SpanAvailWidth
+			)
 		};
 
 		if (style_open) {
@@ -3211,34 +3054,38 @@ using TransformFeatureComponents = FeatureComponents<
 	::ptgn::impl::IgnoreParentDepth>;
 
 using VisualFeatureComponents = FeatureComponents<
-	::ptgn::impl::IDrawable, Visible, ::ptgn::impl::IgnoreParentVisibility, Origin, BlendMode, Rect,
-	Circle, RoundedRect, Polygon, Ellipse, Triangle, Line, Capsule, Arc, Color, FillStyle,
-	TextureKey, ::ptgn::impl::TextureSize, ::ptgn::impl::TextureCrop, ::ptgn::impl::AnimationData,
-	::ptgn::impl::Offsets, Tint, ::ptgn::impl::IgnoreParentTint, ::ptgn::impl::TextData,
+	::ptgn::impl::IDrawable, Visible, ::ptgn::impl::IgnoreParentVisibility, Origin, BlendMode,
+	Rect, Circle, RoundedRect, Polygon, Ellipse, Triangle, Line, Capsule, Arc, Color, FillStyle,
+	TextureKey, ::ptgn::impl::TextureSize, ::ptgn::impl::TextureCrop,
+	::ptgn::impl::AnimationData, ::ptgn::impl::Offsets, Tint,
+	::ptgn::impl::IgnoreParentTint, ::ptgn::impl::TextData,
 	::ptgn::impl::ParticleEmitterData, LightData, ::ptgn::impl::ShadowCaster,
 	::ptgn::impl::GraphicsData, ::ptgn::Material, ShaderKey, ::ptgn::impl::RenderTargetDesc,
 	::ptgn::impl::RenderMask, ::ptgn::impl::UILayer, ::ptgn::impl::EffectTag,
-	::ptgn::impl::HDREffectTag, EffectMargin, Bloom, Blur, GaussianBlur, ::ptgn::impl::ClearColor,
-	::ptgn::impl::ClearDepth, ::ptgn::impl::ClearStencil>;
+	::ptgn::impl::HDREffectTag, EffectMargin, Bloom, Blur, GaussianBlur,
+	::ptgn::impl::ClearColor, ::ptgn::impl::ClearDepth, ::ptgn::impl::ClearStencil>;
 
 using InteractionFeatureComponents = FeatureComponents<
-	::ptgn::impl::Interactive, ::ptgn::impl::Draggable, ::ptgn::impl::Dropzone, InteractionLock,
-	::ptgn::impl::InteractiveTag>;
+	::ptgn::impl::Interactive, ::ptgn::impl::Draggable, ::ptgn::impl::Dropzone,
+	InteractionLock, ::ptgn::impl::InteractiveTag>;
 
 using PhysicsFeatureComponents = FeatureComponents<
-	Collider, RigidBody, ::ptgn::impl::IgnoreParentImmovable, BoundaryBehavior, TopDownMovement,
-	PlatformerMovement, PlatformerJump>;
+	Collider, RigidBody, ::ptgn::impl::IgnoreParentImmovable, BoundaryBehavior,
+	TopDownMovement, PlatformerMovement, PlatformerJump>;
 
 using UIFeatureComponents = FeatureComponents<
 	::ptgn::impl::ButtonData, ::ptgn::impl::ButtonAnimationPart, ButtonBackgroundVisuals,
 	ButtonBorderVisuals, ButtonSpriteVisuals, ButtonTextVisuals, ButtonSounds,
 	::ptgn::impl::ToggleButtonData, ::ptgn::impl::ToggleButtonGroupData,
-	::ptgn::impl::ToggleButtonGroupItem, ::ptgn::impl::DropdownData, ::ptgn::impl::DropdownItem,
-	::ptgn::impl::TooltipData, ::ptgn::impl::TooltipHoverData, ::ptgn::impl::TooltipBackgroundPart,
+	::ptgn::impl::ToggleButtonGroupItem, ::ptgn::impl::DropdownData,
+	::ptgn::impl::DropdownItem, ::ptgn::impl::TooltipData,
+	::ptgn::impl::TooltipHoverData, ::ptgn::impl::TooltipBackgroundPart,
 	::ptgn::impl::TooltipTextPart>;
 
 using CameraFeatureComponents = FeatureComponents<
-	::ptgn::impl::CameraData, ::ptgn::impl::CameraMask, ::ptgn::impl::ParentRenderTarget>;
+	::ptgn::impl::CameraData,
+	::ptgn::impl::CameraMask,
+	::ptgn::impl::ParentRenderTarget>;
 
 using ScriptsFeatureComponents = FeatureComponents<::ptgn::impl::Scripts>;
 
@@ -3293,13 +3140,18 @@ struct ButtonChildInfo {
 };
 
 [[nodiscard]] bool IsButtonRoot(Entity entity) {
-	return entity && (entity.Has<::ptgn::impl::ButtonData>() ||
-					  entity.Has<::ptgn::impl::ToggleButtonData>() ||
-					  entity.Has<::ptgn::impl::DropdownData>());
+	return entity &&
+		(
+			entity.Has<::ptgn::impl::ButtonData>() ||
+			entity.Has<::ptgn::impl::ToggleButtonData>() ||
+			entity.Has<::ptgn::impl::DropdownData>()
+		);
 }
 
 template <typename Target>
-[[nodiscard]] std::optional<ButtonChildInfo> GetButtonChildInfo(const Target& target) {
+[[nodiscard]] std::optional<ButtonChildInfo> GetButtonChildInfo(
+	const Target& target
+) {
 	if constexpr (!requires { target.entity; }) {
 		return std::nullopt;
 	} else {
@@ -3317,33 +3169,33 @@ template <typename Target>
 
 		if (child.Has<ButtonBackgroundVisuals>()) {
 			return ButtonChildInfo{
-				.child	= child,
+				.child = child,
 				.button = button,
-				.part	= ButtonChildPart::Background,
+				.part = ButtonChildPart::Background,
 			};
 		}
 
 		if (child.Has<ButtonBorderVisuals>()) {
 			return ButtonChildInfo{
-				.child	= child,
+				.child = child,
 				.button = button,
-				.part	= ButtonChildPart::Border,
+				.part = ButtonChildPart::Border,
 			};
 		}
 
 		if (child.Has<ButtonTextVisuals>()) {
 			return ButtonChildInfo{
-				.child	= child,
+				.child = child,
 				.button = button,
-				.part	= ButtonChildPart::Text,
+				.part = ButtonChildPart::Text,
 			};
 		}
 
 		if (child.Has<ButtonSpriteVisuals>()) {
 			return ButtonChildInfo{
-				.child	= child,
+				.child = child,
 				.button = button,
-				.part	= ButtonChildPart::Sprite,
+				.part = ButtonChildPart::Sprite,
 			};
 		}
 
@@ -3352,12 +3204,16 @@ template <typename Target>
 }
 
 template <typename Target>
-[[nodiscard]] std::optional<ButtonVisualState> GetButtonVisualEditState(const Target& target) {
+[[nodiscard]] std::optional<ButtonVisualState> GetButtonVisualEditState(
+	const Target& target
+) {
 	if (!GetButtonChildInfo(target)) {
 		return std::nullopt;
 	}
 
-	return GetManualFeatureState(target.GetFeatureTargetKey()).button_visual_state;
+	return GetManualFeatureState(
+		target.GetFeatureTargetKey()
+	).button_visual_state;
 }
 
 [[nodiscard]] std::span<const ButtonVisualState> GetButtonVisualStateFallbacks(
@@ -3370,23 +3226,25 @@ template <typename Target>
 	static constexpr std::array press{ Press, Hover, Idle };
 	static constexpr std::array disabled{ Disabled, Idle };
 	static constexpr std::array disabled_hover{ DisabledHover, Disabled, Hover, Idle };
-	static constexpr std::array disabled_press{ DisabledPress, DisabledHover, Disabled,
-												Press,		   Hover,		  Idle };
+	static constexpr std::array disabled_press{
+		DisabledPress, DisabledHover, Disabled, Press, Hover, Idle
+	};
 	static constexpr std::array toggled{ Toggled, Idle };
 	static constexpr std::array toggled_hover{ ToggledHover, Toggled, Hover, Idle };
-	static constexpr std::array toggled_press{ ToggledPress, ToggledHover, Toggled,
-											   Press,		 Hover,		   Idle };
+	static constexpr std::array toggled_press{
+		ToggledPress, ToggledHover, Toggled, Press, Hover, Idle
+	};
 
 	switch (state) {
-		case Idle:			return idle;
-		case Hover:			return hover;
-		case Press:			return press;
-		case Disabled:		return disabled;
+		case Idle: return idle;
+		case Hover: return hover;
+		case Press: return press;
+		case Disabled: return disabled;
 		case DisabledHover: return disabled_hover;
 		case DisabledPress: return disabled_press;
-		case Toggled:		return toggled;
-		case ToggledHover:	return toggled_hover;
-		case ToggledPress:	return toggled_press;
+		case Toggled: return toggled;
+		case ToggledHover: return toggled_hover;
+		case ToggledPress: return toggled_press;
 	}
 
 	return idle;
@@ -3394,11 +3252,14 @@ template <typename Target>
 
 template <typename Visual, typename T, std::size_t N>
 [[nodiscard]] std::optional<T> ResolveButtonVisualProperty(
-	const std::array<Visual, N>& states, ButtonVisualState state,
+	const std::array<Visual, N>& states,
+	ButtonVisualState state,
 	const std::optional<T> Visual::* member
 ) {
 	for (const ButtonVisualState fallback : GetButtonVisualStateFallbacks(state)) {
-		const auto& visual{ states[static_cast<std::size_t>(std::to_underlying(fallback))] };
+		const auto& visual{
+			states[static_cast<std::size_t>(std::to_underlying(fallback))]
+		};
 
 		if (!visual.defined) {
 			continue;
@@ -3429,21 +3290,30 @@ std::string NormalizeFeatureName(std::string_view input) {
 
 template <typename Visual, typename T, std::size_t N>
 bool DrawButtonVisualOverrideValue(
-	EditorContext& ctx, std::string_view label, std::array<Visual, N>& states,
-	ButtonVisualState state, std::optional<T> Visual::* member
+	EditorContext& ctx,
+	std::string_view label,
+	std::array<Visual, N>& states,
+	ButtonVisualState state,
+	std::optional<T> Visual::* member
 ) {
-	auto& visual{ states[static_cast<std::size_t>(std::to_underlying(state))] };
+	auto& visual{
+		states[static_cast<std::size_t>(std::to_underlying(state))]
+	};
 	auto& value{ visual.*member };
 	const bool had_override{ value.has_value() };
-	const std::optional<T> inherited{ ResolveButtonVisualProperty(states, state, member) };
-	const bool changed{ [&]() {
-		if constexpr (std::same_as<T, V2_float>) {
-			if (NormalizeFeatureName(label) == "size") {
-				return DrawOptionalWHValue(label, value);
+	const std::optional<T> inherited{
+		ResolveButtonVisualProperty(states, state, member)
+	};
+	const bool changed{
+		[&]() {
+			if constexpr (std::same_as<T, V2_float>) {
+				if (NormalizeFeatureName(label) == "size") {
+					return DrawOptionalWHValue(label, value);
+				}
 			}
-		}
-		return DrawValue(ctx, label, value);
-	}() };
+			return DrawValue(ctx, label, value);
+		}()
+	};
 
 	if (changed && !had_override && value && inherited) {
 		value = *inherited;
@@ -3453,18 +3323,18 @@ bool DrawButtonVisualOverrideValue(
 }
 
 [[nodiscard]] bool HasButtonVisualOverrides(const ButtonShapeVisual& visual) {
-	return visual.size || visual.origin || visual.anchor || visual.transform || visual.color ||
-		   visual.fill_style;
+	return visual.size || visual.origin || visual.anchor || visual.transform ||
+		visual.color || visual.fill_style;
 }
 
 [[nodiscard]] bool HasButtonVisualOverrides(const ButtonTextVisual& visual) {
-	return visual.styled_text || visual.box || visual.origin || visual.anchor || visual.transform ||
-		   visual.auto_box || visual.padding;
+	return visual.styled_text || visual.box || visual.origin || visual.anchor ||
+		visual.transform || visual.auto_box || visual.padding;
 }
 
 [[nodiscard]] bool HasButtonVisualOverrides(const ButtonSpriteVisual& visual) {
-	return visual.texture || visual.origin || visual.anchor || visual.transform || visual.size ||
-		   visual.tint || visual.animation || visual.animation_options;
+	return visual.texture || visual.origin || visual.anchor || visual.transform ||
+		visual.size || visual.tint || visual.animation || visual.animation_options;
 }
 
 [[nodiscard]] Rect GetButtonInspectorLocalRect(Entity button_entity) {
@@ -3528,26 +3398,41 @@ void AssignEntityComponent(Entity entity, ComponentState<T> state) {
 }
 
 template <typename T>
-ComponentState<T> CapturePrefabComponent(const SerializedEntity& serialized) {
-	const auto* registration{ ComponentRegistry::Find<T>() };
+ComponentState<T> CapturePrefabComponent(
+	const SerializedEntity& serialized
+) {
+	const auto* registration{
+		ComponentRegistry::Find<T>()
+	};
 
 	if (!registration) {
 		return std::nullopt;
 	}
 
-	const std::string name{ registration->name };
+	const std::string name{
+		registration->name
+	};
 
 	if constexpr (std::is_empty_v<T>) {
-		return std::ranges::contains(serialized.tags, name) ? ComponentState<T>{ T{} }
-															: std::nullopt;
+		return std::ranges::contains(
+			serialized.tags,
+			name
+		)
+				   ? ComponentState<T>{ T{} }
+				   : std::nullopt;
 	} else {
-		const auto it{ serialized.components.find(name) };
+		const auto it{
+			serialized.components.find(name)
+		};
 
 		if (it == serialized.components.end()) {
 			return std::nullopt;
 		}
 
-		if constexpr (JsonDeserializable<T> && std::default_initializable<T>) {
+		if constexpr (
+			JsonDeserializable<T> &&
+			std::default_initializable<T>
+		) {
 			T value{};
 
 			try {
@@ -3556,7 +3441,9 @@ ComponentState<T> CapturePrefabComponent(const SerializedEntity& serialized) {
 			} catch (...) {
 				return std::nullopt;
 			}
-		} else if constexpr (::ptgn::impl::JsonGettable<T>) {
+		} else if constexpr (
+			::ptgn::impl::JsonGettable<T>
+		) {
 			try {
 				return it->second.template get<T>();
 			} catch (...) {
@@ -3569,18 +3456,28 @@ ComponentState<T> CapturePrefabComponent(const SerializedEntity& serialized) {
 }
 
 template <typename T>
-void AssignPrefabComponent(SerializedEntity& serialized, ComponentState<T> state) {
-	const auto* registration{ ComponentRegistry::Find<T>() };
+void AssignPrefabComponent(
+	SerializedEntity& serialized,
+	ComponentState<T> state
+) {
+	const auto* registration{
+		ComponentRegistry::Find<T>()
+	};
 
 	if (!registration) {
 		return;
 	}
 
-	const std::string name{ registration->name };
+	const std::string name{
+		registration->name
+	};
 
 	if (!state) {
 		if constexpr (std::is_empty_v<T>) {
-			std::erase(serialized.tags, name);
+			std::erase(
+				serialized.tags,
+				name
+			);
 		} else {
 			serialized.components.erase(name);
 		}
@@ -3589,13 +3486,19 @@ void AssignPrefabComponent(SerializedEntity& serialized, ComponentState<T> state
 	}
 
 	if constexpr (std::is_empty_v<T>) {
-		if (!std::ranges::contains(serialized.tags, name)) {
+		if (!std::ranges::contains(
+				serialized.tags,
+				name
+			)) {
 			serialized.tags.emplace_back(name);
 		}
 	} else if constexpr (JsonSerializable<T>) {
 		json value = *state;
 
-		serialized.components.insert_or_assign(name, std::move(value));
+		serialized.components.insert_or_assign(
+			name,
+			std::move(value)
+		);
 	}
 }
 
@@ -3717,8 +3620,14 @@ struct PrefabInspectorTarget {
 	template <typename T>
 	[[nodiscard]] static constexpr bool Supports() {
 		return std::is_empty_v<T> ||
-			   (JsonSerializable<T> && JsonDeserializable<T> &&
-				(std::default_initializable<T> || ::ptgn::impl::JsonGettable<T>));
+			   (
+				   JsonSerializable<T> &&
+				   JsonDeserializable<T> &&
+				   (
+					   std::default_initializable<T> ||
+					   ::ptgn::impl::JsonGettable<T>
+				   )
+			   );
 	}
 
 	[[nodiscard]] const void* Id() const {
@@ -3727,7 +3636,7 @@ struct PrefabInspectorTarget {
 
 	[[nodiscard]] FeatureTargetKey GetFeatureTargetKey() const {
 		return FeatureTargetKey{
-			.prefab				= key,
+			.prefab = key,
 			.prefab_entity_path = entity_path,
 		};
 	}
@@ -3738,7 +3647,10 @@ struct PrefabInspectorTarget {
 	}
 
 	template <typename T, typename Callback = std::nullptr_t>
-	void SetLive(ComponentState<T> state, Callback = nullptr) {
+	void SetLive(
+		ComponentState<T> state,
+		Callback = nullptr
+	) {
 		AssignPrefabComponent<T>(prefab, std::move(state));
 	}
 
@@ -3748,22 +3660,36 @@ struct PrefabInspectorTarget {
 		PrefabKey prefab_key{ key };
 		SerializedEntityPath path{ entity_path };
 
-		return [context, prefab_key, path = std::move(path)](ComponentState<T> state) mutable {
+		return [
+			context,
+			prefab_key,
+			path = std::move(path)
+		](ComponentState<T> state) mutable {
 			auto& assets{ context->editor.GetAssetManager() };
 
 			if (!assets.Has(prefab_key)) {
 				return;
 			}
 
-			auto prefab_asset{ ::ptgn::impl::AssetAccessor{ assets }.Get<Prefab>(prefab_key) };
+			auto prefab_asset{
+				::ptgn::impl::AssetAccessor{ assets }.Get<Prefab>(prefab_key)
+			};
 
-			auto* serialized{ ResolveSerializedEntity(prefab_asset.get().root, path) };
+			auto* serialized{
+				ResolveSerializedEntity(
+					prefab_asset.get().root,
+					path
+				)
+			};
 
 			if (!serialized) {
 				return;
 			}
 
-			AssignPrefabComponent<T>(*serialized, std::move(state));
+			AssignPrefabComponent<T>(
+				*serialized,
+				std::move(state)
+			);
 
 			assets.SavePrefab(prefab_key);
 			context->local.state.is_dirty = true;
@@ -3783,16 +3709,27 @@ struct PrefabInspectorTarget {
 		PrefabKey prefab_key{ key };
 		SerializedEntityPath path{ entity_path };
 
-		return [context, prefab_key, path = std::move(path)](std::string name) {
+		return [
+			context,
+			prefab_key,
+			path = std::move(path)
+		](std::string name) {
 			auto& assets{ context->editor.GetAssetManager() };
 
 			if (!assets.Has(prefab_key)) {
 				return;
 			}
 
-			auto prefab_asset{ ::ptgn::impl::AssetAccessor{ assets }.Get<Prefab>(prefab_key) };
+			auto prefab_asset{
+				::ptgn::impl::AssetAccessor{ assets }.Get<Prefab>(prefab_key)
+			};
 
-			auto* serialized{ ResolveSerializedEntity(prefab_asset.get().root, path) };
+			auto* serialized{
+				ResolveSerializedEntity(
+					prefab_asset.get().root,
+					path
+				)
+			};
 
 			if (!serialized) {
 				return;
@@ -3886,8 +3823,10 @@ bool DrawOptionalComponent(
 		return false;
 	}
 
-	if ((contents_read_only || toggle_read_only) &&
-		!target.ctx.local.settings.show_read_only_inspector_data) {
+	if (
+		(contents_read_only || toggle_read_only) &&
+		!target.ctx.local.settings.show_read_only_inspector_data
+	) {
 		return false;
 	}
 
@@ -3959,9 +3898,16 @@ bool DrawOptionalComponent(
 }
 
 template <typename Target, typename T, typename Draw>
-bool DrawReadOnlyExistingComponent(Target& target, std::string_view label, bool tree, Draw&& draw) {
-	if (!Target::template Supports<T>() ||
-		!target.ctx.local.settings.show_read_only_inspector_data) {
+bool DrawReadOnlyExistingComponent(
+	Target& target,
+	std::string_view label,
+	bool tree,
+	Draw&& draw
+) {
+	if (
+		!Target::template Supports<T>() ||
+		!target.ctx.local.settings.show_read_only_inspector_data
+	) {
 		return false;
 	}
 
@@ -3977,25 +3923,46 @@ bool DrawReadOnlyExistingComponent(Target& target, std::string_view label, bool 
 	if (tree) {
 		const std::string node_label{ std::string{ label } + "##ReadOnlyTree" };
 
-		if (ImGui::TreeNodeEx(node_label.c_str(), ImGuiTreeNodeFlags_SpanAvailWidth)) {
+		if (ImGui::TreeNodeEx(
+				node_label.c_str(),
+				ImGuiTreeNodeFlags_SpanAvailWidth
+			)) {
 			ScopedIndent indent;
 			ScopedDisabled disabled{ true };
-			std::invoke(std::forward<Draw>(draw), *state);
+			std::invoke(
+				std::forward<Draw>(draw),
+				*state
+			);
 			ImGui::TreePop();
 		}
 	} else {
 		ScopedDisabled disabled{ true };
-		std::invoke(std::forward<Draw>(draw), *state);
+		std::invoke(
+			std::forward<Draw>(draw),
+			*state
+		);
 	}
 
 	return false;
 }
 
 template <typename Target, typename T>
-bool DrawReadOnlyExistingReflected(Target& target, std::string_view label, bool tree = true) {
-	return DrawReadOnlyExistingComponent<Target, T>(target, label, tree, [&target](T& value) {
-		return DrawComponentContents(target.ctx, value);
-	});
+bool DrawReadOnlyExistingReflected(
+	Target& target,
+	std::string_view label,
+	bool tree = true
+) {
+	return DrawReadOnlyExistingComponent<Target, T>(
+		target,
+		label,
+		tree,
+		[&target](T& value) {
+			return DrawComponentContents(
+				target.ctx,
+				value
+			);
+		}
+	);
 }
 
 template <typename Target, typename T>
@@ -4113,9 +4080,9 @@ void TrackInspectorFeatureState(
 	auto apply{ MakeInspectorFeatureApply(target, feature, components) };
 
 	target.ctx.undo.PushApplied(
-		std::move(label), [apply, before]() mutable { apply(before); },
-		[apply, after]() mutable { apply(after); }
-	);
+			std::move(label), [apply, before]() mutable { apply(before); },
+			[apply, after]() mutable { apply(after); }
+		);
 }
 
 template <typename Target, typename... T>
@@ -4245,10 +4212,15 @@ bool DrawName(Target& target) {
 	const std::string before{ target.GetName() };
 	std::string value{ before };
 
-	const bool changed{ DrawPropertyRow("Tag", [&]() {
-		ImGui::SetNextItemWidth(-FLT_MIN);
-		return ImGui::InputText("##Tag", &value);
-	}) };
+	const bool changed{
+		DrawPropertyRow(
+			"Tag",
+			[&]() {
+				ImGui::SetNextItemWidth(-FLT_MIN);
+				return ImGui::InputText("##Tag", &value);
+			}
+		)
+	};
 
 	if (changed) {
 		target.SetName(value);
@@ -4258,22 +4230,37 @@ bool DrawName(Target& target) {
 		auto apply{ target.MakeNameApply() };
 
 		TrackUndoableInteraction(
-			target.ctx, key, "Rename Entity", true, [apply, before]() mutable { apply(before); },
-			[apply, value]() mutable { apply(value); }
+			target.ctx,
+			key,
+			"Rename Entity",
+			true,
+			[apply, before]() mutable {
+				apply(before);
+			},
+			[apply, value]() mutable {
+				apply(value);
+			}
 		);
 	}
 
 	if constexpr (requires { target.GetUUIDText(); }) {
 		const std::string uuid{ target.GetUUIDText() };
 
-		DrawPropertyRow("UUID", [&]() {
-			ImGui::SetNextItemWidth(-FLT_MIN);
-			std::string displayed{ uuid };
-			ScopedDisabled read_only{ true };
-			ImGui::InputText("##UUID", &displayed, ImGuiInputTextFlags_ReadOnly);
-			DrawTooltip("Read only entity identifier.");
-			return false;
-		});
+		DrawPropertyRow(
+			"UUID",
+			[&]() {
+				ImGui::SetNextItemWidth(-FLT_MIN);
+				std::string displayed{ uuid };
+				ScopedDisabled read_only{ true };
+				ImGui::InputText(
+					"##UUID",
+					&displayed,
+					ImGuiInputTextFlags_ReadOnly
+				);
+				DrawTooltip("Read only entity identifier.");
+				return false;
+			}
+		);
 	}
 
 	return changed;
@@ -4301,12 +4288,12 @@ TransformFeatureState<Target> CaptureTransformFeature(const Target& target) {
 	};
 
 	return TransformFeatureState<Target>{
-		.transform			= target.template Capture<Transform>().value_or(Transform{}),
-		.depth				= target.template Capture<Depth>().value_or(Depth{}),
+		.transform = target.template Capture<Transform>().value_or(Transform{}),
+		.depth	   = target.template Capture<Depth>().value_or(Depth{}),
 		.button_backgrounds = target.template Capture<ButtonBackgroundVisuals>(),
-		.button_borders		= target.template Capture<ButtonBorderVisuals>(),
-		.button_texts		= target.template Capture<ButtonTextVisuals>(),
-		.button_sprites		= target.template Capture<ButtonSpriteVisuals>(),
+		.button_borders = target.template Capture<ButtonBorderVisuals>(),
+		.button_texts = target.template Capture<ButtonTextVisuals>(),
+		.button_sprites = target.template Capture<ButtonSpriteVisuals>(),
 		.ignore_position =
 			ignore_transform ||
 			target.template Capture<::ptgn::impl::IgnoreParentPosition>().has_value(),
@@ -4333,9 +4320,15 @@ auto MakeTransformFeatureApply(Target& target) {
 	auto apply_backgrounds{
 		target.template MakeApply<ButtonBackgroundVisuals>(&MarkButtonBackgroundDirty)
 	};
-	auto apply_borders{ target.template MakeApply<ButtonBorderVisuals>(&MarkButtonBorderDirty) };
-	auto apply_texts{ target.template MakeApply<ButtonTextVisuals>(&MarkButtonTextDirty) };
-	auto apply_sprites{ target.template MakeApply<ButtonSpriteVisuals>(&MarkButtonSpriteDirty) };
+	auto apply_borders{
+		target.template MakeApply<ButtonBorderVisuals>(&MarkButtonBorderDirty)
+	};
+	auto apply_texts{
+		target.template MakeApply<ButtonTextVisuals>(&MarkButtonTextDirty)
+	};
+	auto apply_sprites{
+		target.template MakeApply<ButtonSpriteVisuals>(&MarkButtonSpriteDirty)
+	};
 
 	return [apply_transform, apply_depth, apply_position, apply_rotation, apply_scale,
 			apply_depth_ignore, apply_transform_ignore, apply_backgrounds, apply_borders,
@@ -4384,11 +4377,21 @@ void SetTransformFeatureLive(Target& target, const TransformFeatureState<Target>
 	target.template SetLive<Transform>(state.transform);
 	target.template SetLive<Depth>(state.depth);
 	target.template SetLive<ButtonBackgroundVisuals>(
-		state.button_backgrounds, &MarkButtonBackgroundDirty
+		state.button_backgrounds,
+		&MarkButtonBackgroundDirty
 	);
-	target.template SetLive<ButtonBorderVisuals>(state.button_borders, &MarkButtonBorderDirty);
-	target.template SetLive<ButtonTextVisuals>(state.button_texts, &MarkButtonTextDirty);
-	target.template SetLive<ButtonSpriteVisuals>(state.button_sprites, &MarkButtonSpriteDirty);
+	target.template SetLive<ButtonBorderVisuals>(
+		state.button_borders,
+		&MarkButtonBorderDirty
+	);
+	target.template SetLive<ButtonTextVisuals>(
+		state.button_texts,
+		&MarkButtonTextDirty
+	);
+	target.template SetLive<ButtonSpriteVisuals>(
+		state.button_sprites,
+		&MarkButtonSpriteDirty
+	);
 	target.template SetLive<::ptgn::impl::IgnoreParentTransform>(
 		state.ignore_transform
 			? ComponentState<
@@ -4421,14 +4424,20 @@ void SetTransformFeatureLive(Target& target, const TransformFeatureState<Target>
 
 template <typename Visuals>
 void ApplyButtonVisualTransformDelta(
-	ComponentState<Visuals>& visuals, std::optional<ButtonVisualState> selected_state,
-	const Transform& before, const Transform& after
+	ComponentState<Visuals>& visuals,
+	std::optional<ButtonVisualState> selected_state,
+	const Transform& before,
+	const Transform& after
 ) {
 	if (!visuals || !selected_state || before == after) {
 		return;
 	}
 
-	const auto index{ static_cast<std::size_t>(std::to_underlying(*selected_state)) };
+	const auto index{
+		static_cast<std::size_t>(
+			std::to_underlying(*selected_state)
+		)
+	};
 	auto& visual{ visuals->states[index] };
 
 	if (!visual.transform) {
@@ -4437,8 +4446,11 @@ void ApplyButtonVisualTransformDelta(
 
 	auto& transform{ *visual.transform };
 	transform.position += after.position - before.position;
-	transform.rotation =
-		Radians{ transform.rotation.value + after.rotation.value - before.rotation.value };
+	transform.rotation = Radians{
+		transform.rotation.value +
+		after.rotation.value -
+		before.rotation.value
+	};
 
 	constexpr float epsilon{ 0.000001f };
 
@@ -4455,15 +4467,34 @@ void ApplyButtonVisualTransformDelta(
 
 template <typename Target>
 void ApplyButtonVisualTransformDelta(
-	TransformFeatureState<Target>& state, std::optional<ButtonVisualState> selected_state,
+	TransformFeatureState<Target>& state,
+	std::optional<ButtonVisualState> selected_state,
 	const Transform& before
 ) {
 	ApplyButtonVisualTransformDelta(
-		state.button_backgrounds, selected_state, before, state.transform
+		state.button_backgrounds,
+		selected_state,
+		before,
+		state.transform
 	);
-	ApplyButtonVisualTransformDelta(state.button_borders, selected_state, before, state.transform);
-	ApplyButtonVisualTransformDelta(state.button_texts, selected_state, before, state.transform);
-	ApplyButtonVisualTransformDelta(state.button_sprites, selected_state, before, state.transform);
+	ApplyButtonVisualTransformDelta(
+		state.button_borders,
+		selected_state,
+		before,
+		state.transform
+	);
+	ApplyButtonVisualTransformDelta(
+		state.button_texts,
+		selected_state,
+		before,
+		state.transform
+	);
+	ApplyButtonVisualTransformDelta(
+		state.button_sprites,
+		selected_state,
+		before,
+		state.transform
+	);
 }
 
 template <typename Target>
@@ -4504,8 +4535,10 @@ template <typename Target>
 				return std::nullopt;
 			}
 
-			const bool ignores_parent_position{ entity.Has<::ptgn::impl::IgnoreParentTransform>() ||
-												entity.Has<::ptgn::impl::IgnoreParentPosition>() };
+			const bool ignores_parent_position{
+				entity.Has<::ptgn::impl::IgnoreParentTransform>() ||
+				entity.Has<::ptgn::impl::IgnoreParentPosition>()
+			};
 
 			Entity parent{ GetParent(entity) };
 
@@ -4522,6 +4555,7 @@ template <typename Target>
 	}
 }
 
+
 template <typename Target>
 [[nodiscard]] bool ShouldShowTransformRelativePosition(const Target& target) {
 	if constexpr (!requires { target.entity; }) {
@@ -4533,8 +4567,10 @@ template <typename Target>
 			return false;
 		}
 
-		const bool ignores_parent_position{ entity.Has<::ptgn::impl::IgnoreParentTransform>() ||
-											entity.Has<::ptgn::impl::IgnoreParentPosition>() };
+		const bool ignores_parent_position{
+			entity.Has<::ptgn::impl::IgnoreParentTransform>() ||
+			entity.Has<::ptgn::impl::IgnoreParentPosition>()
+		};
 
 		return !ignores_parent_position && static_cast<bool>(GetParent(entity));
 	}
@@ -4544,17 +4580,21 @@ template <typename Target, typename Apply>
 bool DrawTransformFeatureFields(
 	Target& target, TransformFeatureState<Target>& state, Apply apply_state
 ) {
-	constexpr ImGuiTableFlags flags{ ImGuiTableFlags_SizingStretchProp |
-									 ImGuiTableFlags_NoSavedSettings |
-									 ImGuiTableFlags_NoPadOuterX };
+	constexpr ImGuiTableFlags flags{
+		ImGuiTableFlags_SizingStretchProp |
+		ImGuiTableFlags_NoSavedSettings |
+		ImGuiTableFlags_NoPadOuterX
+	};
 
 	if (!ImGui::BeginTable("##TransformFields", 5, flags)) {
 		return false;
 	}
 
 	const float compact_width{ ImGui::GetFrameHeight() };
-	const float pick_width{ ImGui::CalcTextSize("Pick").x +
-							ImGui::GetStyle().FramePadding.x * 2.0f };
+	const float pick_width{
+		ImGui::CalcTextSize("Pick").x +
+		ImGui::GetStyle().FramePadding.x * 2.0f
+	};
 
 	ImGui::TableSetupColumn("Property", ImGuiTableColumnFlags_WidthFixed, 76.0f);
 	ImGui::TableSetupColumn("Lock", ImGuiTableColumnFlags_WidthFixed, compact_width);
@@ -4588,23 +4628,38 @@ bool DrawTransformFeatureFields(
 		const float field_width{ std::max(36.0f, (available - spacing) * 0.5f) };
 
 		ImGui::SetNextItemWidth(field_width);
-		changed |= ImGui::DragFloat("##X", &state.transform.position.x, 1.0f, 0.0f, 0.0f, "X %.0f");
+		changed |= ImGui::DragFloat(
+			"##X", &state.transform.position.x, 1.0f, 0.0f, 0.0f, "X %.0f"
+		);
 		ImGui::SameLine(0.0f, spacing);
 		ImGui::SetNextItemWidth(field_width);
-		changed |= ImGui::DragFloat("##Y", &state.transform.position.y, 1.0f, 0.0f, 0.0f, "Y %.0f");
+		changed |= ImGui::DragFloat(
+			"##Y", &state.transform.position.y, 1.0f, 0.0f, 0.0f, "Y %.0f"
+		);
 	}
 	ImGui::TableSetColumnIndex(3);
-	const auto selected_button_state{ GetButtonVisualEditState(target) };
+	const auto selected_button_state{
+		GetButtonVisualEditState(target)
+	};
 	DrawPositionPickButton(
-		target.ctx, "Position", state.transform.position, MakeTransformPositionConverter(target),
+		target.ctx,
+		"Position",
+		state.transform.position,
+		MakeTransformPositionConverter(target),
 		PositionPicker::Apply{
 			[apply_state, state, selected_button_state](V2_float picked) mutable {
 				const Transform before_transform{ state.transform };
 				state.transform.position = picked;
-				ApplyButtonVisualTransformDelta(state, selected_button_state, before_transform);
+				ApplyButtonVisualTransformDelta(
+					state,
+					selected_button_state,
+					before_transform
+				);
 				apply_state(state);
-			} },
-		GetTargetWorldReferencePosition(target), ShouldShowTransformRelativePosition(target)
+			}
+		},
+		GetTargetWorldReferencePosition(target),
+		ShouldShowTransformRelativePosition(target)
 	);
 	changed |= draw_ignore(state.ignore_position, "Ignore parent position.");
 	ImGui::PopID();
@@ -4633,13 +4688,29 @@ bool DrawTransformFeatureFields(
 	ImGui::TableSetColumnIndex(1);
 	ImGui::Checkbox("##LockRatio", &editor_state.scale_ratio_locked);
 	DrawTooltip(
-		"Lock the scale ratio. Editing either axis changes the other by the same proportional "
-		"factor."
+		"Lock the scale ratio. Editing either axis changes the other by the same proportional factor."
 	);
 
 	ImGui::TableSetColumnIndex(2);
 	{
+		constexpr float kMinScaleMagnitude{ 0.001f };
+		constexpr float kScaleRatioEpsilon{ 0.000001f };
+
 		const V2_float before_scale{ state.transform.scale };
+
+		const auto clamp_scale{
+			[](float value, float previous) {
+				if (std::abs(value) >= kMinScaleMagnitude) {
+					return value;
+				}
+
+				const float sign{
+					value < 0.0f || (value == 0.0f && previous < 0.0f) ? -1.0f : 1.0f
+				};
+				return sign * kMinScaleMagnitude;
+			}
+		};
+
 		const float spacing{ ImGui::GetStyle().ItemInnerSpacing.x };
 		const float available{ ImGui::GetContentRegionAvail().x };
 		const float field_width{ std::max(36.0f, (available - spacing) * 0.5f) };
@@ -4649,16 +4720,25 @@ bool DrawTransformFeatureFields(
 			"##X", &state.transform.scale.x, 0.01f, -1000.0f, 1000.0f, "X %.2f",
 			ImGuiSliderFlags_AlwaysClamp
 		) };
+
 		ImGui::SameLine(0.0f, spacing);
+
 		ImGui::SetNextItemWidth(field_width);
 		const bool y_changed{ ImGui::DragFloat(
 			"##Y", &state.transform.scale.y, 0.01f, -1000.0f, 1000.0f, "Y %.2f",
 			ImGuiSliderFlags_AlwaysClamp
 		) };
 
-		if (editor_state.scale_ratio_locked) {
-			constexpr float kScaleRatioEpsilon{ 0.000001f };
+		if (x_changed) {
+			state.transform.scale.x =
+				clamp_scale(state.transform.scale.x, before_scale.x);
+		}
+		if (y_changed) {
+			state.transform.scale.y =
+				clamp_scale(state.transform.scale.y, before_scale.y);
+		}
 
+		if (editor_state.scale_ratio_locked) {
 			if (x_changed && !y_changed) {
 				if (std::abs(before_scale.x) > kScaleRatioEpsilon) {
 					state.transform.scale.y =
@@ -4675,6 +4755,11 @@ bool DrawTransformFeatureFields(
 				}
 			}
 		}
+
+		state.transform.scale.x =
+			clamp_scale(state.transform.scale.x, before_scale.x);
+		state.transform.scale.y =
+			clamp_scale(state.transform.scale.y, before_scale.y);
 
 		changed |= x_changed || y_changed;
 	}
@@ -4738,16 +4823,25 @@ template <typename Target>
 		return false;
 	}
 
-	if (IsFeatureManuallyAdded(target.GetFeatureTargetKey(), InspectorFeature::Visual)) {
+	if (IsFeatureManuallyAdded(
+			target.GetFeatureTargetKey(),
+			InspectorFeature::Visual
+		)) {
 		return true;
 	}
 
-	return HasFeatureComponent<Target, ::ptgn::impl::IDrawable>(target);
+	return HasFeatureComponent<
+		Target,
+		::ptgn::impl::IDrawable
+	>(target);
 }
 
 template <typename Target>
 [[nodiscard]] bool HasInteractionFeature(const Target& target) {
-	if (IsFeatureManuallyAdded(target.GetFeatureTargetKey(), InspectorFeature::Interaction)) {
+	if (IsFeatureManuallyAdded(
+			target.GetFeatureTargetKey(),
+			InspectorFeature::Interaction
+		)) {
 		return true;
 	}
 
@@ -4771,7 +4865,8 @@ template <typename Target>
 		}()
 	};
 
-	return has_editable_component || has_visible_read_only_component;
+	return has_editable_component ||
+		   has_visible_read_only_component;
 }
 
 template <typename Target>
@@ -4805,14 +4900,23 @@ template <typename Target>
 
 template <typename Visuals, typename Visual>
 [[nodiscard]] Origin ResolveButtonChildAnchor(
-	const Visuals& visuals, ButtonVisualState state, Origin fallback
+	const Visuals& visuals,
+	ButtonVisualState state,
+	Origin fallback
 ) {
-	return ResolveButtonVisualProperty(visuals.states, state, &Visual::anchor).value_or(fallback);
+	return ResolveButtonVisualProperty(
+		visuals.states,
+		state,
+		&Visual::anchor
+	).value_or(fallback);
 }
 
 template <typename Visuals, typename Visual>
 [[nodiscard]] V2_float GetButtonChildStateWorldPosition(
-	Entity child, Entity button, ButtonVisualState state, Origin fallback_anchor,
+	Entity child,
+	Entity button,
+	ButtonVisualState state,
+	Origin fallback_anchor,
 	V2_float relative_position
 ) {
 	if (!child || !button || !child.Has<Visuals>()) {
@@ -4821,31 +4925,49 @@ template <typename Visuals, typename Visual>
 
 	const auto& visuals{ child.Get<Visuals>() };
 	const Origin anchor{
-		ResolveButtonChildAnchor<Visuals, Visual>(visuals, state, fallback_anchor)
+		ResolveButtonChildAnchor<Visuals, Visual>(
+			visuals,
+			state,
+			fallback_anchor
+		)
 	};
-	const V2_float anchor_position{ GetButtonInspectorLocalRect(button).GetOriginPoint(anchor) };
+	const V2_float anchor_position{
+		GetButtonInspectorLocalRect(button).GetOriginPoint(anchor)
+	};
 
-	return GetDrawTransform(button).Apply(anchor_position + relative_position);
+	return GetDrawTransform(button).Apply(
+		anchor_position + relative_position
+	);
 }
 
 template <typename Visuals, typename Visual>
 [[nodiscard]] PositionPicker::Convert MakeButtonChildStatePositionConverter(
-	Entity child, Entity button, ButtonVisualState state, Origin fallback_anchor
+	Entity child,
+	Entity button,
+	ButtonVisualState state,
+	Origin fallback_anchor
 ) {
-	return [child, button, state,
-			fallback_anchor](V2_float world_position) mutable -> std::optional<V2_float> {
+	return [child, button, state, fallback_anchor](
+		V2_float world_position
+	) mutable -> std::optional<V2_float> {
 		if (!child || !button || !child.Has<Visuals>()) {
 			return std::nullopt;
 		}
 
 		const auto& visuals{ child.Get<Visuals>() };
 		const Origin anchor{
-			ResolveButtonChildAnchor<Visuals, Visual>(visuals, state, fallback_anchor)
+			ResolveButtonChildAnchor<Visuals, Visual>(
+				visuals,
+				state,
+				fallback_anchor
+			)
 		};
 		const V2_float anchor_position{
 			GetButtonInspectorLocalRect(button).GetOriginPoint(anchor)
 		};
-		const V2_float button_local{ GetDrawTransform(button).ApplyInverse(world_position) };
+		const V2_float button_local{
+			GetDrawTransform(button).ApplyInverse(world_position)
+		};
 
 		return button_local - anchor_position;
 	};
@@ -4853,39 +4975,66 @@ template <typename Visuals, typename Visual>
 
 template <typename Visuals, typename Visual>
 [[nodiscard]] Transform ResolveButtonChildStateLocalTransform(
-	const Visuals& visuals, Entity button, ButtonVisualState state, Origin fallback_anchor
+	const Visuals& visuals,
+	Entity button,
+	ButtonVisualState state,
+	Origin fallback_anchor
 ) {
 	Transform transform{
-		ResolveButtonVisualProperty(visuals.states, state, &Visual::transform).value_or(Transform{})
+		ResolveButtonVisualProperty(
+			visuals.states,
+			state,
+			&Visual::transform
+		).value_or(Transform{})
 	};
 	const Origin anchor{
-		ResolveButtonChildAnchor<Visuals, Visual>(visuals, state, fallback_anchor)
+		ResolveButtonChildAnchor<Visuals, Visual>(
+			visuals,
+			state,
+			fallback_anchor
+		)
 	};
-	transform.position += GetButtonInspectorLocalRect(button).GetOriginPoint(anchor);
+	transform.position +=
+		GetButtonInspectorLocalRect(button).GetOriginPoint(anchor);
 	return transform;
 }
 
 [[nodiscard]] PositionPicker::Convert MakeButtonTextBoxPositionConverter(
-	Entity child, Entity button, ButtonVisualState state
+	Entity child,
+	Entity button,
+	ButtonVisualState state
 ) {
-	return [child, button, state](V2_float world_position) mutable -> std::optional<V2_float> {
+	return [child, button, state](
+		V2_float world_position
+	) mutable -> std::optional<V2_float> {
 		if (!child || !button || !child.Has<ButtonTextVisuals>()) {
 			return std::nullopt;
 		}
 
 		const auto& visuals{ child.Get<ButtonTextVisuals>() };
 		const Transform local_transform{
-			ResolveButtonChildStateLocalTransform<ButtonTextVisuals, ButtonTextVisual>(
-				visuals, button, state, Origin::Center
+			ResolveButtonChildStateLocalTransform<
+				ButtonTextVisuals,
+				ButtonTextVisual
+			>(
+				visuals,
+				button,
+				state,
+				Origin::Center
 			)
 		};
-		const V2_float button_local{ GetDrawTransform(button).ApplyInverse(world_position) };
+		const V2_float button_local{
+			GetDrawTransform(button).ApplyInverse(world_position)
+		};
 		return local_transform.ApplyInverse(button_local);
 	};
 }
 
 [[nodiscard]] std::optional<V2_float> GetButtonTextBoxWorldPosition(
-	Entity child, Entity button, ButtonVisualState state, V2_float local_position
+	Entity child,
+	Entity button,
+	ButtonVisualState state,
+	V2_float local_position
 ) {
 	if (!child || !button || !child.Has<ButtonTextVisuals>()) {
 		return std::nullopt;
@@ -4893,24 +5042,44 @@ template <typename Visuals, typename Visual>
 
 	const auto& visuals{ child.Get<ButtonTextVisuals>() };
 	const Transform local_transform{
-		ResolveButtonChildStateLocalTransform<ButtonTextVisuals, ButtonTextVisual>(
-			visuals, button, state, Origin::Center
+		ResolveButtonChildStateLocalTransform<
+			ButtonTextVisuals,
+			ButtonTextVisual
+		>(
+			visuals,
+			button,
+			state,
+			Origin::Center
 		)
 	};
-	return GetDrawTransform(button).Apply(local_transform.Apply(local_position));
+	return GetDrawTransform(button).Apply(
+		local_transform.Apply(local_position)
+	);
 }
 
-template <typename Target, typename Visuals, typename Visual, typename Callback>
+template <
+	typename Target,
+	typename Visuals,
+	typename Visual,
+	typename Callback
+>
 bool DrawButtonChildStateTransformComponent(
-	Target& target, const ButtonChildInfo& child_info, ButtonVisualState state,
-	Origin fallback_anchor, std::string_view part_label, Callback callback
+	Target& target,
+	const ButtonChildInfo& child_info,
+	ButtonVisualState state,
+	Origin fallback_anchor,
+	std::string_view part_label,
+	Callback callback
 ) {
 	if constexpr (!Target::template Supports<Visuals>()) {
 		return false;
 	} else {
-		const auto header_open{ ImGui::CollapsingHeader(
-			"Transform##ButtonVisualStateTransform", ImGuiTreeNodeFlags_DefaultOpen
-		) };
+		const auto header_open{
+			ImGui::CollapsingHeader(
+				"Transform##ButtonVisualStateTransform",
+				ImGuiTreeNodeFlags_DefaultOpen
+			)
+		};
 
 		if (!header_open) {
 			return false;
@@ -4924,78 +5093,121 @@ bool DrawButtonChildStateTransformComponent(
 
 		auto before{ target.template Capture<Visuals>() };
 		Visuals visuals{ before.value_or(Visuals{}) };
-		const auto index{ static_cast<std::size_t>(std::to_underlying(state)) };
+		const auto index{
+			static_cast<std::size_t>(std::to_underlying(state))
+		};
 		auto& visual{ visuals.states[index] };
-		Transform transform{ ResolveButtonVisualProperty(visuals.states, state, &Visual::transform)
-								 .value_or(Transform{}) };
+		Transform transform{
+			ResolveButtonVisualProperty(
+				visuals.states,
+				state,
+				&Visual::transform
+			).value_or(Transform{})
+		};
 		const bool had_override{ visual.transform.has_value() };
 		bool changed{ false };
 
 		DrawDisabledWrappedText(
-			PrettyName(magic_enum::enum_name(state)) + " " + std::string{ part_label } +
+			PrettyName(magic_enum::enum_name(state)) + " " +
+			std::string{ part_label } +
 			" transform. Unset values inherit from fallback states."
 		);
 
-		changed |= DrawPropertyRow("Position", [&]() {
-			const float spacing{ ImGui::GetStyle().ItemInnerSpacing.x };
-			const float pick_width{ ImGui::CalcTextSize("Pick").x +
-									ImGui::GetStyle().FramePadding.x * 2.0f };
-			const float available{ ImGui::GetContentRegionAvail().x };
-			const float field_width{
-				std::max(36.0f, (available - pick_width - spacing * 2.0f) * 0.5f)
-			};
-			bool local_changed{ false };
+		changed |= DrawPropertyRow(
+			"Position",
+			[&]() {
+				const float spacing{ ImGui::GetStyle().ItemInnerSpacing.x };
+				const float pick_width{
+					ImGui::CalcTextSize("Pick").x +
+					ImGui::GetStyle().FramePadding.x * 2.0f
+				};
+				const float available{ ImGui::GetContentRegionAvail().x };
+				const float field_width{
+					std::max(36.0f, (available - pick_width - spacing * 2.0f) * 0.5f)
+				};
+				bool local_changed{ false };
 
-			ImGui::SetNextItemWidth(field_width);
-			local_changed |=
-				ImGui::DragFloat("##X", &transform.position.x, 1.0f, 0.0f, 0.0f, "X %.0f");
-			ImGui::SameLine(0.0f, spacing);
-			ImGui::SetNextItemWidth(field_width);
-			local_changed |=
-				ImGui::DragFloat("##Y", &transform.position.y, 1.0f, 0.0f, 0.0f, "Y %.0f");
-			ImGui::SameLine(0.0f, spacing);
+				ImGui::SetNextItemWidth(field_width);
+				local_changed |= ImGui::DragFloat(
+					"##X",
+					&transform.position.x,
+					1.0f,
+					0.0f,
+					0.0f,
+					"X %.0f"
+				);
+				ImGui::SameLine(0.0f, spacing);
+				ImGui::SetNextItemWidth(field_width);
+				local_changed |= ImGui::DragFloat(
+					"##Y",
+					&transform.position.y,
+					1.0f,
+					0.0f,
+					0.0f,
+					"Y %.0f"
+				);
+				ImGui::SameLine(0.0f, spacing);
 
-			auto apply{ target.template MakeApply<Visuals>(callback) };
-			Visuals snapshot{ visuals };
+				auto apply{ target.template MakeApply<Visuals>(callback) };
+				Visuals snapshot{ visuals };
 
-			DrawPositionPickButton(
-				target.ctx, "ButtonVisualStatePosition", transform.position,
-				MakeButtonChildStatePositionConverter<Visuals, Visual>(
-					child_info.child, child_info.button, state, fallback_anchor
-				),
-				[apply, snapshot = std::move(snapshot), index, state](V2_float picked) mutable {
-					auto& selected{ snapshot.states[index] };
-					Transform updated{
-						ResolveButtonVisualProperty(snapshot.states, state, &Visual::transform)
-							.value_or(Transform{})
-					};
-					updated.position   = picked;
-					selected.defined   = true;
-					selected.transform = updated;
-					apply(ComponentState<Visuals>{ snapshot });
-				},
-				GetButtonChildStateWorldPosition<Visuals, Visual>(
-					child_info.child, child_info.button, state, fallback_anchor, transform.position
-				),
-				true
-			);
+				DrawPositionPickButton(
+					target.ctx,
+					"ButtonVisualStatePosition",
+					transform.position,
+					MakeButtonChildStatePositionConverter<Visuals, Visual>(
+						child_info.child,
+						child_info.button,
+						state,
+						fallback_anchor
+					),
+					[apply, snapshot = std::move(snapshot), index, state](
+						V2_float picked
+					) mutable {
+						auto& selected{ snapshot.states[index] };
+						Transform updated{
+							ResolveButtonVisualProperty(
+								snapshot.states,
+								state,
+								&Visual::transform
+							).value_or(Transform{})
+						};
+						updated.position = picked;
+						selected.defined = true;
+						selected.transform = updated;
+						apply(ComponentState<Visuals>{ snapshot });
+					},
+					GetButtonChildStateWorldPosition<Visuals, Visual>(
+						child_info.child,
+						child_info.button,
+						state,
+						fallback_anchor,
+						transform.position
+					),
+					true
+				);
 
-			return local_changed;
-		});
-		changed |= DrawValue(
-			target.ctx, "Rotation", transform.rotation,
-			FieldOptions{
-				.speed	= 1.0f,
-				.min	= 0.0,
-				.max	= 360.0,
-				.format = "%.1f deg",
-				.flags	= ImGuiSliderFlags_AlwaysClamp,
+				return local_changed;
 			}
 		);
 		changed |= DrawValue(
-			target.ctx, "Scale", transform.scale,
+			target.ctx,
+			"Rotation",
+			transform.rotation,
 			FieldOptions{
-				.speed	= 0.01f,
+				.speed = 1.0f,
+				.min = 0.0,
+				.max = 360.0,
+				.format = "%.1f deg",
+				.flags = ImGuiSliderFlags_AlwaysClamp,
+			}
+		);
+		changed |= DrawValue(
+			target.ctx,
+			"Scale",
+			transform.scale,
+			FieldOptions{
+				.speed = 0.01f,
 				.format = "%.3f",
 			}
 		);
@@ -5004,24 +5216,31 @@ bool DrawButtonChildStateTransformComponent(
 			if (ImGui::Button("Use Inherited Transform", ImVec2{ -FLT_MIN, 0.0f })) {
 				visual.transform.reset();
 				visual.defined = HasButtonVisualOverrides(visual);
-				changed		   = true;
+				changed = true;
 			}
 		}
 
 		if (changed && (!had_override || visual.transform.has_value())) {
 			transform.ClampScale();
-			visual.defined	 = true;
+			visual.defined = true;
 			visual.transform = transform;
 		}
 
 		if (changed) {
-			target.template SetLive<Visuals>(ComponentState<Visuals>{ visuals }, callback);
+			target.template SetLive<Visuals>(
+				ComponentState<Visuals>{ visuals },
+				callback
+			);
 		}
 
 		auto after{ target.template Capture<Visuals>() };
 		TrackComponentState(
-			target, std::string{ "Edit " } + std::string{ part_label } + " State Transform",
-			std::move(before), std::move(after), changed, callback
+			target,
+			std::string{ "Edit " } + std::string{ part_label } + " State Transform",
+			std::move(before),
+			std::move(after),
+			changed,
+			callback
 		);
 
 		return changed;
@@ -5030,31 +5249,62 @@ bool DrawButtonChildStateTransformComponent(
 
 template <typename Target>
 bool DrawButtonChildStateTransformFeature(
-	Target& target, const ButtonChildInfo& child_info, ButtonVisualState state
+	Target& target,
+	const ButtonChildInfo& child_info,
+	ButtonVisualState state
 ) {
 	switch (child_info.part) {
 		case ButtonChildPart::Background:
 			return DrawButtonChildStateTransformComponent<
-				Target, ButtonBackgroundVisuals, ButtonShapeVisual>(
-				target, child_info, state, child_info.button.GetOrDefault<Origin>(),
-				"Button Background", &MarkButtonBackgroundDirty
+				Target,
+				ButtonBackgroundVisuals,
+				ButtonShapeVisual
+			>(
+				target,
+				child_info,
+				state,
+				child_info.button.GetOrDefault<Origin>(),
+				"Button Background",
+				&MarkButtonBackgroundDirty
 			);
 		case ButtonChildPart::Border:
 			return DrawButtonChildStateTransformComponent<
-				Target, ButtonBorderVisuals, ButtonShapeVisual>(
-				target, child_info, state, child_info.button.GetOrDefault<Origin>(),
-				"Button Border", &MarkButtonBorderDirty
+				Target,
+				ButtonBorderVisuals,
+				ButtonShapeVisual
+			>(
+				target,
+				child_info,
+				state,
+				child_info.button.GetOrDefault<Origin>(),
+				"Button Border",
+				&MarkButtonBorderDirty
 			);
 		case ButtonChildPart::Text:
 			return DrawButtonChildStateTransformComponent<
-				Target, ButtonTextVisuals, ButtonTextVisual>(
-				target, child_info, state, Origin::Center, "Button Text", &MarkButtonTextDirty
+				Target,
+				ButtonTextVisuals,
+				ButtonTextVisual
+			>(
+				target,
+				child_info,
+				state,
+				Origin::Center,
+				"Button Text",
+				&MarkButtonTextDirty
 			);
 		case ButtonChildPart::Sprite:
 			return DrawButtonChildStateTransformComponent<
-				Target, ButtonSpriteVisuals, ButtonSpriteVisual>(
-				target, child_info, state, child_info.button.GetOrDefault<Origin>(),
-				"Button Sprite", &MarkButtonSpriteDirty
+				Target,
+				ButtonSpriteVisuals,
+				ButtonSpriteVisual
+			>(
+				target,
+				child_info,
+				state,
+				child_info.button.GetOrDefault<Origin>(),
+				"Button Sprite",
+				&MarkButtonSpriteDirty
 			);
 	}
 
@@ -5065,7 +5315,11 @@ template <typename Target>
 bool DrawTransformFeature(Target& target) {
 	if (const auto child_info{ GetButtonChildInfo(target) }) {
 		if (const auto state{ GetButtonVisualEditState(target) }) {
-			return DrawButtonChildStateTransformFeature(target, *child_info, *state);
+			return DrawButtonChildStateTransformFeature(
+				target,
+				*child_info,
+				*state
+			);
 		}
 	}
 
@@ -5074,7 +5328,10 @@ bool DrawTransformFeature(Target& target) {
 	}
 
 	const auto header{ DrawFeatureHeader(
-		target, InspectorFeature::Transform, "Transform", ImGuiTreeNodeFlags_DefaultOpen,
+		target,
+		InspectorFeature::Transform,
+		"Transform",
+		ImGuiTreeNodeFlags_DefaultOpen,
 		TransformFeatureComponents{}
 	) };
 
@@ -5089,12 +5346,20 @@ bool DrawTransformFeature(Target& target) {
 	auto apply{ MakeTransformFeatureApply(target) };
 	bool changed{ header.changed };
 
-	changed |= DrawTransformFeatureFields(target, state, apply);
+	changed |= DrawTransformFeatureFields(
+		target,
+		state,
+		apply
+	);
 
 	if (changed) {
 		state.ignore_transform = false;
 		state.transform.ClampScale();
-		ApplyButtonVisualTransformDelta(state, GetButtonVisualEditState(target), before.transform);
+		ApplyButtonVisualTransformDelta(
+			state,
+			GetButtonVisualEditState(target),
+			before.transform
+		);
 		SetTransformFeatureLive(target, state);
 	}
 
@@ -5103,8 +5368,16 @@ bool DrawTransformFeature(Target& target) {
 		const ImGuiID key{ ImGui::GetID("##TransformFeature") };
 
 		TrackUndoableInteraction(
-			target.ctx, key, "Edit Transform", true, [apply, before]() mutable { apply(before); },
-			[apply, state]() mutable { apply(state); }
+			target.ctx,
+			key,
+			"Edit Transform",
+			true,
+			[apply, before]() mutable {
+				apply(before);
+			},
+			[apply, state]() mutable {
+				apply(state);
+			}
 		);
 	}
 
@@ -5132,35 +5405,65 @@ template <typename Target>
 
 template <typename Target>
 [[nodiscard]] constexpr bool CanPickLocalPosition() {
-	return requires(Target target) { target.entity; };
+	return requires(Target target) {
+		target.entity;
+	};
 }
 
-template <typename Target, typename Component, typename Locator, typename Callback>
+template <
+	typename Target,
+	typename Component,
+	typename Locator,
+	typename Callback
+>
 bool DrawPickableLocalPosition(
-	Target& target, Component& component, std::string_view label, Locator locator,
-	Callback callback, bool* remove_requested = nullptr
+	Target& target,
+	Component& component,
+	std::string_view label,
+	Locator locator,
+	Callback callback,
+	bool* remove_requested = nullptr
 ) {
 	V2_float& position{ locator(component) };
 
 	const bool changed{ DrawPropertyRow(label, [&]() {
 		const float spacing{ ImGui::GetStyle().ItemInnerSpacing.x };
-		const float pick_width{ ImGui::CalcTextSize("Pick").x +
-								ImGui::GetStyle().FramePadding.x * 2.0f };
+		const float pick_width{
+			ImGui::CalcTextSize("Pick").x +
+			ImGui::GetStyle().FramePadding.x * 2.0f
+		};
 		const float remove_width{ remove_requested ? ImGui::GetFrameHeight() : 0.0f };
 		const float remove_spacing{ remove_requested ? spacing : 0.0f };
 		const float available{ ImGui::GetContentRegionAvail().x };
-		const float field_width{ std::max(
-			36.0f, (available - pick_width - remove_width - remove_spacing - spacing * 2.0f) * 0.5f
-		) };
+		const float field_width{
+			std::max(
+				36.0f,
+				(available - pick_width - remove_width - remove_spacing - spacing * 2.0f) * 0.5f
+			)
+		};
 
 		bool local_changed{ false };
 
 		ImGui::SetNextItemWidth(field_width);
-		local_changed |= ImGui::DragFloat("##X", &position.x, 0.1f, 0.0f, 0.0f, "X %.2f");
+		local_changed |= ImGui::DragFloat(
+			"##X",
+			&position.x,
+			0.1f,
+			0.0f,
+			0.0f,
+			"X %.2f"
+		);
 
 		ImGui::SameLine(0.0f, spacing);
 		ImGui::SetNextItemWidth(field_width);
-		local_changed |= ImGui::DragFloat("##Y", &position.y, 0.1f, 0.0f, 0.0f, "Y %.2f");
+		local_changed |= ImGui::DragFloat(
+			"##Y",
+			&position.y,
+			0.1f,
+			0.0f,
+			0.0f,
+			"Y %.2f"
+		);
 
 		ImGui::SameLine(0.0f, spacing);
 
@@ -5171,12 +5474,20 @@ bool DrawPickableLocalPosition(
 			Component snapshot{ component };
 
 			DrawPositionPickButton(
-				target.ctx, label, position, MakeLocalPositionConverter(target),
-				[apply, snapshot = std::move(snapshot), locator](V2_float picked) mutable {
+				target.ctx,
+				label,
+				position,
+				MakeLocalPositionConverter(target),
+				[
+					apply,
+					snapshot = std::move(snapshot),
+					locator
+				](V2_float picked) mutable {
 					locator(snapshot) = picked;
 					apply(ComponentState<Component>{ snapshot });
 				},
-				GetTargetWorldReferencePosition(target, position), true
+				GetTargetWorldReferencePosition(target, position),
+				true
 			);
 
 			if constexpr (!CanPickLocalPosition<Target>()) {
@@ -5198,17 +5509,36 @@ bool DrawPickableLocalPosition(
 	return changed;
 }
 
-template <typename Target, typename Component, typename Value, typename Locator, typename Callback>
+template <
+	typename Target,
+	typename Component,
+	typename Value,
+	typename Locator,
+	typename Callback
+>
 bool DrawGeometryValue(
-	Target& target, Component& component, Value& value, std::string_view label, Locator locator,
+	Target& target,
+	Component& component,
+	Value& value,
+	std::string_view label,
+	Locator locator,
 	Callback callback
 );
 
 template <
-	std::size_t I, typename Target, typename Component, typename Parent, typename Locator,
-	typename Callback>
+	std::size_t I,
+	typename Target,
+	typename Component,
+	typename Parent,
+	typename Locator,
+	typename Callback
+>
 bool DrawReflectedGeometryMember(
-	Target& target, Component& component, Parent& parent, Locator locator, Callback callback
+	Target& target,
+	Component& component,
+	Parent& parent,
+	Locator locator,
+	Callback callback
 ) {
 	auto members{ ReflectMembers(parent) };
 	auto& member{ std::get<I>(members) };
@@ -5219,29 +5549,58 @@ bool DrawReflectedGeometryMember(
 	};
 
 	return DrawGeometryValue(
-		target, component, member.value, PrettyName(member.name), member_locator, callback
+		target,
+		component,
+		member.value,
+		PrettyName(member.name),
+		member_locator,
+		callback
 	);
 }
 
 template <
-	typename Target, typename Component, typename Parent, typename Locator, typename Callback,
-	std::size_t... I>
+	typename Target,
+	typename Component,
+	typename Parent,
+	typename Locator,
+	typename Callback,
+	std::size_t... I
+>
 bool DrawReflectedGeometryMembers(
-	Target& target, Component& component, Parent& parent, Locator locator, Callback callback,
+	Target& target,
+	Component& component,
+	Parent& parent,
+	Locator locator,
+	Callback callback,
 	std::index_sequence<I...>
 ) {
 	bool changed{ false };
-	((changed |= DrawReflectedGeometryMember<I>(target, component, parent, locator, callback)),
-	 ...);
+	((changed |= DrawReflectedGeometryMember<I>(
+		target,
+		component,
+		parent,
+		locator,
+		callback
+	)), ...);
 	return changed;
 }
 
 template <
-	typename Target, typename Component, typename Variant, typename Locator, typename Callback,
-	std::size_t... I>
+	typename Target,
+	typename Component,
+	typename Variant,
+	typename Locator,
+	typename Callback,
+	std::size_t... I
+>
 bool DrawGeometryVariant(
-	Target& target, Component& component, Variant& value, std::string_view label, Locator locator,
-	Callback callback, std::index_sequence<I...>
+	Target& target,
+	Component& component,
+	Variant& value,
+	std::string_view label,
+	Locator locator,
+	Callback callback,
+	std::index_sequence<I...>
 ) {
 	bool changed{ false };
 	std::string preview{ "None" };
@@ -5267,9 +5626,11 @@ bool DrawGeometryVariant(
 			auto draw_option = [&]<std::size_t Index>() {
 				using Alternative = std::variant_alternative_t<Index, Variant>;
 
-				const std::string option{ std::same_as<Alternative, std::monostate>
-											  ? "None"
-											  : TypeLabel<Alternative>() };
+				const std::string option{
+					std::same_as<Alternative, std::monostate>
+						? "None"
+						: TypeLabel<Alternative>()
+				};
 
 				if constexpr (std::default_initializable<Alternative>) {
 					if (ImGui::Selectable(option.c_str(), value.index() == Index)) {
@@ -5299,8 +5660,12 @@ bool DrawGeometryVariant(
 			};
 
 			changed |= DrawGeometryValue(
-				target, component, std::get<Index>(value), TypeLabel<Alternative>(),
-				alternative_locator, callback
+				target,
+				component,
+				std::get<Index>(value),
+				TypeLabel<Alternative>(),
+				alternative_locator,
+				callback
 			);
 		}
 	};
@@ -5309,9 +5674,19 @@ bool DrawGeometryVariant(
 	return changed;
 }
 
-template <typename Target, typename Component, typename Value, typename Locator, typename Callback>
+template <
+	typename Target,
+	typename Component,
+	typename Value,
+	typename Locator,
+	typename Callback
+>
 bool DrawGeometryValue(
-	Target& target, Component& component, Value& value, std::string_view label, Locator locator,
+	Target& target,
+	Component& component,
+	Value& value,
+	std::string_view label,
+	Locator locator,
 	Callback callback
 ) {
 	using Type = std::remove_cvref_t<Value>;
@@ -5323,7 +5698,13 @@ bool DrawGeometryValue(
 		} else if (normalized == "size" || normalized == "dimensions") {
 			return DrawWHValue(label, value, 0.1f, 0.0f, 0.0f, "%.3f");
 		} else {
-			return DrawPickableLocalPosition(target, component, label, locator, callback);
+			return DrawPickableLocalPosition(
+				target,
+				component,
+				label,
+				locator,
+				callback
+			);
 		}
 	} else if constexpr (std::same_as<Type, Rect>) {
 		bool changed{ false };
@@ -5337,7 +5718,7 @@ bool DrawGeometryValue(
 			const V2_float half_size{ size * 0.5f };
 			value.min = center - half_size;
 			value.max = center + half_size;
-			changed	  = true;
+			changed = true;
 		}
 
 		auto min_locator = [locator](Component& root) -> V2_float& {
@@ -5347,8 +5728,20 @@ bool DrawGeometryValue(
 			return locator(root).max;
 		};
 
-		changed |= DrawPickableLocalPosition(target, component, "Min", min_locator, callback);
-		changed |= DrawPickableLocalPosition(target, component, "Max", max_locator, callback);
+		changed |= DrawPickableLocalPosition(
+			target,
+			component,
+			"Min",
+			min_locator,
+			callback
+		);
+		changed |= DrawPickableLocalPosition(
+			target,
+			component,
+			"Max",
+			max_locator,
+			callback
+		);
 
 		return changed;
 	} else if constexpr (kIsVector<Type>) {
@@ -5364,8 +5757,12 @@ bool DrawGeometryValue(
 				bool remove_vertex{ false };
 
 				changed |= DrawPickableLocalPosition(
-					target, component, std::string{ "Vertex " } + std::to_string(index + 1),
-					vertex_locator, callback, &remove_vertex
+					target,
+					component,
+					std::string{ "Vertex " } + std::to_string(index + 1),
+					vertex_locator,
+					callback,
+					&remove_vertex
 				);
 
 				if (remove_vertex) {
@@ -5398,8 +5795,11 @@ bool DrawGeometryValue(
 				};
 
 				changed |= DrawPickableLocalPosition(
-					target, component, std::string{ "Vertex " } + std::to_string(index + 1),
-					vertex_locator, callback
+					target,
+					component,
+					std::string{ "Vertex " } + std::to_string(index + 1),
+					vertex_locator,
+					callback
 				);
 			}
 
@@ -5409,7 +5809,12 @@ bool DrawGeometryValue(
 		}
 	} else if constexpr (kIsVariant<Type>) {
 		return DrawGeometryVariant(
-			target, component, value, label, locator, callback,
+			target,
+			component,
+			value,
+			label,
+			locator,
+			callback,
 			std::make_index_sequence<std::variant_size_v<Type>>{}
 		);
 	} else if constexpr (std::same_as<Type, float>) {
@@ -5425,13 +5830,22 @@ bool DrawGeometryValue(
 		};
 
 		return DrawGeometryValue(
-			target, component, reflected.value, label, value_locator, callback
+			target,
+			component,
+			reflected.value,
+			label,
+			value_locator,
+			callback
 		);
 	} else if constexpr (ReflectedMembers<Type>) {
 		auto members{ ReflectMembers(value) };
 
 		return DrawReflectedGeometryMembers(
-			target, component, value, locator, callback,
+			target,
+			component,
+			value,
+			locator,
+			callback,
 			std::make_index_sequence<std::tuple_size_v<decltype(members)>>{}
 		);
 	} else {
@@ -5439,29 +5853,53 @@ bool DrawGeometryValue(
 	}
 }
 
-template <typename Target, typename Component, typename Callback = std::nullptr_t>
-bool DrawGeometryComponent(Target& target, Component& component, Callback callback = nullptr) {
+template <
+	typename Target,
+	typename Component,
+	typename Callback = std::nullptr_t
+>
+bool DrawGeometryComponent(
+	Target& target,
+	Component& component,
+	Callback callback = nullptr
+) {
 	auto root_locator = [](Component& value) -> Component& {
 		return value;
 	};
 
 	return DrawGeometryValue(
-		target, component, component, TypeLabel<Component>(), root_locator, callback
+		target,
+		component,
+		component,
+		TypeLabel<Component>(),
+		root_locator,
+		callback
 	);
 }
 
 template <typename Target, typename T, typename Draw, typename Callback = std::nullptr_t>
 bool DrawRequiredInlineVisualComponent(
-	Target& target, std::string_view label, Draw&& draw, Callback callback = nullptr
+	Target& target,
+	std::string_view label,
+	Draw&& draw,
+	Callback callback = nullptr
 ) {
 	return DrawRequiredComponent<Target, T>(
-		target, label, false, std::forward<Draw>(draw), callback
+		target,
+		label,
+		false,
+		std::forward<Draw>(draw),
+		callback
 	);
 }
 
+
 template <typename Target, typename T, typename Draw, typename Callback = std::nullptr_t>
 bool DrawRequiredInlineVisualComponentWithDefault(
-	Target& target, std::string_view label, T default_value, Draw&& draw,
+	Target& target,
+	std::string_view label,
+	T default_value,
+	Draw&& draw,
 	Callback callback = nullptr
 ) {
 	ScopedID target_scope{ target.Id() };
@@ -5484,8 +5922,12 @@ bool DrawRequiredInlineVisualComponentWithDefault(
 
 	auto after{ target.template Capture<T>() };
 	TrackComponentState(
-		target, std::string{ "Edit " } + std::string{ label }, std::move(before), std::move(after),
-		changed, callback
+		target,
+		std::string{ "Edit " } + std::string{ label },
+		std::move(before),
+		std::move(after),
+		changed,
+		callback
 	);
 
 	return changed;
@@ -5493,25 +5935,47 @@ bool DrawRequiredInlineVisualComponentWithDefault(
 
 template <typename Target, typename T>
 bool DrawOptionalVisualComponent(
-	Target& target, std::string_view label, bool tree = false, bool contents_read_only = false,
+	Target& target,
+	std::string_view label,
+	bool tree = false,
+	bool contents_read_only = false,
 	bool toggle_read_only = false
 ) {
 	if constexpr (std::is_empty_v<T>) {
 		return DrawOptionalComponent<Target, T>(
-			target, label, false, [](T&) { return false; }, contents_read_only, toggle_read_only
+			target,
+			label,
+			false,
+			[](T&) {
+				return false;
+			},
+			contents_read_only,
+			toggle_read_only
 		);
 	} else {
 		return DrawOptionalComponent<Target, T>(
-			target, label, tree, [&target](T& value) { return DrawContents(target.ctx, value); },
-			contents_read_only, toggle_read_only
+			target,
+			label,
+			tree,
+			[&target](T& value) {
+				return DrawContents(target.ctx, value);
+			},
+			contents_read_only,
+			toggle_read_only
 		);
 	}
 }
 
 [[nodiscard]] bool IsShapeRenderer(std::string_view visual) {
-	return visual == "rect" || visual == "circle" || visual == "roundedrect" ||
-		   visual == "polygon" || visual == "ellipse" || visual == "triangle" || visual == "line" ||
-		   visual == "capsule" || visual == "arc";
+	return visual == "rect" ||
+		   visual == "circle" ||
+		   visual == "roundedrect" ||
+		   visual == "polygon" ||
+		   visual == "ellipse" ||
+		   visual == "triangle" ||
+		   visual == "line" ||
+		   visual == "capsule" ||
+		   visual == "arc";
 }
 
 [[nodiscard]] bool IsEffectRenderer(std::string_view visual);
@@ -5536,8 +6000,11 @@ template <typename T>
 		}
 	} else if constexpr (std::same_as<T, Polygon>) {
 		std::vector<V2_float> vertices{
-			{ 0.0f, -50.0f },  { 47.0f, -15.0f },  { 29.0f, 40.0f },
-			{ -29.0f, 40.0f }, { -47.0f, -15.0f },
+			{ 0.0f, -50.0f },
+			{ 47.0f, -15.0f },
+			{ 29.0f, 40.0f },
+			{ -29.0f, 40.0f },
+			{ -47.0f, -15.0f },
 		};
 
 		if constexpr (std::constructible_from<T, std::vector<V2_float>>) {
@@ -5592,12 +6059,13 @@ template <typename T>
 
 using RendererOwnedComponents = FeatureComponents<
 	Rect, Circle, RoundedRect, Polygon, Ellipse, Triangle, Line, Capsule, Arc, Color, FillStyle,
-	TextureKey, ::ptgn::impl::TextureSize, ::ptgn::impl::TextureCrop, ::ptgn::impl::AnimationData,
-	::ptgn::impl::Offsets, ::ptgn::impl::TextData, ::ptgn::impl::ParticleEmitterData, LightData,
-	::ptgn::impl::ShadowCaster, ::ptgn::impl::GraphicsData, ::ptgn::Material, ShaderKey,
-	::ptgn::impl::RenderTargetDesc, ::ptgn::impl::EffectTag, ::ptgn::impl::HDREffectTag,
-	EffectMargin, Bloom, Blur, GaussianBlur, ::ptgn::impl::ClearColor, ::ptgn::impl::ClearDepth,
-	::ptgn::impl::ClearStencil>;
+	TextureKey, ::ptgn::impl::TextureSize, ::ptgn::impl::TextureCrop,
+	::ptgn::impl::AnimationData, ::ptgn::impl::Offsets, ::ptgn::impl::TextData,
+	::ptgn::impl::ParticleEmitterData, LightData, ::ptgn::impl::ShadowCaster,
+	::ptgn::impl::GraphicsData, ::ptgn::Material, ShaderKey,
+	::ptgn::impl::RenderTargetDesc, ::ptgn::impl::EffectTag,
+	::ptgn::impl::HDREffectTag, EffectMargin, Bloom, Blur, GaussianBlur,
+	::ptgn::impl::ClearColor, ::ptgn::impl::ClearDepth, ::ptgn::impl::ClearStencil>;
 
 template <typename Target, typename T>
 void ClearRendererOwnedComponent(Target& target) {
@@ -5634,7 +6102,8 @@ void SetRendererOwnedComponent(Target& target, T value = T{}) {
 						}
 					}
 				}(),
-				...);
+				...
+			);
 		},
 		members
 	);
@@ -5673,7 +6142,10 @@ void InitializeRendererOwnedComponents(Target& target, std::string_view visual) 
 	} else if (visual.contains("sprite")) {
 		SetRendererOwnedComponent<TextureKey>(target);
 	} else if (visual.contains("text")) {
-		SetRendererOwnedComponent<::ptgn::impl::TextData>(target, MakeDefaultTextRendererData());
+		SetRendererOwnedComponent<::ptgn::impl::TextData>(
+			target,
+			MakeDefaultTextRendererData()
+		);
 	} else if (visual.contains("particle")) {
 		SetRendererOwnedComponent<::ptgn::impl::ParticleEmitterData>(target);
 	} else if (visual.contains("light")) {
@@ -5696,7 +6168,10 @@ void InitializeRendererOwnedComponents(Target& target, std::string_view visual) 
 }
 
 template <typename Target>
-void ApplyRendererSelection(Target& target, ComponentState<::ptgn::impl::IDrawable> drawable) {
+void ApplyRendererSelection(
+	Target& target,
+	ComponentState<::ptgn::impl::IDrawable> drawable
+) {
 	ClearRendererOwnedComponents(target, RendererOwnedComponents{});
 	target.template SetLive<::ptgn::impl::IDrawable>(drawable);
 
@@ -5704,13 +6179,18 @@ void ApplyRendererSelection(Target& target, ComponentState<::ptgn::impl::IDrawab
 		return;
 	}
 
-	const auto* info{ ::ptgn::impl::IDrawable::FindInfo(drawable->hash) };
+	const auto* info{
+		::ptgn::impl::IDrawable::FindInfo(drawable->hash)
+	};
 
 	if (!info) {
 		return;
 	}
 
-	InitializeRendererOwnedComponents(target, NormalizeFeatureName(info->GetDisplayName()));
+	InitializeRendererOwnedComponents(
+		target,
+		NormalizeFeatureName(info->GetDisplayName())
+	);
 }
 
 struct RendererRowResult {
@@ -5724,13 +6204,28 @@ RendererRowResult DrawRendererRow(Target& target) {
 
 	auto drawable{ target.template Capture<Drawable>() };
 	auto before_visible{ target.template Capture<Visible>() };
-	bool visible{ before_visible ? before_visible->visible : true };
+	bool visible{
+		before_visible
+			? before_visible->visible
+			: true
+	};
 
-	const auto* info{ drawable ? Drawable::FindInfo(drawable->hash) : nullptr };
-	const std::string preview{ info ? std::string{ info->GetDisplayName() } : "None" };
+	const auto* info{
+		drawable
+			? Drawable::FindInfo(drawable->hash)
+			: nullptr
+	};
+	const std::string preview{
+		info
+			? std::string{ info->GetDisplayName() }
+			: "None"
+	};
 
 	const float start_x{ ImGui::GetCursorPosX() };
-	const float checkbox_slot{ ImGui::GetFrameHeight() + ImGui::GetStyle().ItemSpacing.x };
+	const float checkbox_slot{
+		ImGui::GetFrameHeight() +
+		ImGui::GetStyle().ItemSpacing.x
+	};
 
 	ImGui::AlignTextToFramePadding();
 	ImGui::TextUnformatted("Renderer");
@@ -5739,27 +6234,41 @@ RendererRowResult DrawRendererRow(Target& target) {
 	ImGui::SetCursorPosX(GetPropertyValueX(start_x));
 
 	const float spacing{ ImGui::GetStyle().ItemSpacing.x };
-	const float visible_width{ ImGui::GetFrameHeight() + ImGui::GetStyle().ItemInnerSpacing.x +
-							   ImGui::CalcTextSize("Visible").x };
+	const float visible_width{
+		ImGui::GetFrameHeight() +
+		ImGui::GetStyle().ItemInnerSpacing.x +
+		ImGui::CalcTextSize("Visible").x
+	};
 	const float combo_width{
-		std::max(80.0f, ImGui::GetContentRegionAvail().x - visible_width - spacing)
+		std::max(
+			80.0f,
+			ImGui::GetContentRegionAvail().x -
+				visible_width -
+				spacing
+		)
 	};
 
 	bool renderer_changed{ false };
 	auto before_renderer{
-		CaptureInspectorFeatureState(target, InspectorFeature::Visual, VisualFeatureComponents{})
+		CaptureInspectorFeatureState(
+			target,
+			InspectorFeature::Visual,
+			VisualFeatureComponents{}
+		)
 	};
 
 	auto choose_renderer = [&](ComponentState<Drawable> selected) {
-		const bool same_renderer{ selected.has_value() == drawable.has_value() &&
-								  (!selected || selected->hash == drawable->hash) };
+		const bool same_renderer{
+			selected.has_value() == drawable.has_value() &&
+			(!selected || selected->hash == drawable->hash)
+		};
 
 		if (same_renderer) {
 			return;
 		}
 
 		ApplyRendererSelection(target, selected);
-		drawable		 = target.template Capture<Drawable>();
+		drawable = target.template Capture<Drawable>();
 		renderer_changed = true;
 	};
 
@@ -5772,7 +6281,10 @@ RendererRowResult DrawRendererRow(Target& target) {
 
 		auto draw_candidate = [&](const auto& candidate) {
 			const std::string label{ candidate.GetDisplayName() };
-			const bool selected{ drawable && drawable->hash == candidate.hash };
+			const bool selected{
+				drawable &&
+				drawable->hash == candidate.hash
+			};
 
 			if (ImGui::Selectable(label.c_str(), selected)) {
 				choose_renderer(Drawable{ candidate.hash });
@@ -5784,16 +6296,21 @@ RendererRowResult DrawRendererRow(Target& target) {
 		};
 
 		for (const auto& candidate : Drawable::data()) {
-			const std::string visual{ NormalizeFeatureName(candidate.GetDisplayName()) };
+			const std::string visual{
+				NormalizeFeatureName(candidate.GetDisplayName())
+			};
 
-			if (!IsShapeRenderer(visual) && !IsEffectRenderer(visual)) {
+			if (!IsShapeRenderer(visual) &&
+				!IsEffectRenderer(visual)) {
 				draw_candidate(candidate);
 			}
 		}
 
 		if (ImGui::BeginMenu("Shapes")) {
 			for (const auto& candidate : Drawable::data()) {
-				const std::string visual{ NormalizeFeatureName(candidate.GetDisplayName()) };
+				const std::string visual{
+					NormalizeFeatureName(candidate.GetDisplayName())
+				};
 
 				if (IsShapeRenderer(visual)) {
 					draw_candidate(candidate);
@@ -5805,7 +6322,9 @@ RendererRowResult DrawRendererRow(Target& target) {
 
 		if (ImGui::BeginMenu("Effects")) {
 			for (const auto& candidate : Drawable::data()) {
-				const std::string visual{ NormalizeFeatureName(candidate.GetDisplayName()) };
+				const std::string visual{
+					NormalizeFeatureName(candidate.GetDisplayName())
+				};
 
 				if (IsEffectRenderer(visual)) {
 					draw_candidate(candidate);
@@ -5819,13 +6338,21 @@ RendererRowResult DrawRendererRow(Target& target) {
 	}
 
 	if (renderer_changed) {
-		auto after_renderer{ CaptureInspectorFeatureState(
-			target, InspectorFeature::Visual, VisualFeatureComponents{}
-		) };
+		auto after_renderer{
+			CaptureInspectorFeatureState(
+				target,
+				InspectorFeature::Visual,
+				VisualFeatureComponents{}
+			)
+		};
 
 		TrackInspectorFeatureState(
-			target, InspectorFeature::Visual, "Change Renderer", std::move(before_renderer),
-			std::move(after_renderer), VisualFeatureComponents{}
+			target,
+			InspectorFeature::Visual,
+			"Change Renderer",
+			std::move(before_renderer),
+			std::move(after_renderer),
+			VisualFeatureComponents{}
 		);
 	}
 
@@ -5833,27 +6360,42 @@ RendererRowResult DrawRendererRow(Target& target) {
 
 	if (drawable) {
 		ImGui::SameLine(0.0f, spacing);
-		visible_changed = ImGui::Checkbox("Visible##RendererVisible", &visible);
+		visible_changed = ImGui::Checkbox(
+			"Visible##RendererVisible",
+			&visible
+		);
 	}
 
 	if (visible_changed) {
-		Visible updated{ before_visible.value_or(Visible{}) };
+		Visible updated{
+			before_visible.value_or(Visible{})
+		};
 		updated.visible = visible;
-		target.template SetLive<Visible>(ComponentState<Visible>{ updated });
+		target.template SetLive<Visible>(
+			ComponentState<Visible>{ updated }
+		);
 	}
 
 	auto after_visible{ target.template Capture<Visible>() };
 
 	TrackComponentState(
-		target, "Toggle Visibility", std::move(before_visible), std::move(after_visible),
+		target,
+		"Toggle Visibility",
+		std::move(before_visible),
+		std::move(after_visible),
 		visible_changed
 	);
 
-	const auto* selected_info{ drawable ? Drawable::FindInfo(drawable->hash) : nullptr };
+	const auto* selected_info{
+		drawable
+			? Drawable::FindInfo(drawable->hash)
+			: nullptr
+	};
 
 	return RendererRowResult{
-		.visual =
-			selected_info ? NormalizeFeatureName(selected_info->GetDisplayName()) : std::string{},
+		.visual = selected_info
+			? NormalizeFeatureName(selected_info->GetDisplayName())
+			: std::string{},
 		.changed = renderer_changed,
 	};
 }
@@ -5861,28 +6403,43 @@ RendererRowResult DrawRendererRow(Target& target) {
 template <typename Target>
 bool DrawEffectMargin(Target& target) {
 	return DrawOptionalComponent<Target, EffectMargin>(
-		target, "Effect Margin", false, [&target](EffectMargin& margin) {
+		target,
+		"Effect Margin",
+		false,
+		[&target](EffectMargin& margin) {
 			const FieldOptions options{
 				.speed = 1.0f,
-				.min   = 0.0,
-				.max   = 4096.0,
+				.min = 0.0,
+				.max = 4096.0,
 				.flags = ImGuiSliderFlags_AlwaysClamp,
 			};
 
 			return [&target, &options]<typename Margin>(Margin& value) {
 				if constexpr (ReflectedValue<Margin>) {
 					auto member{ ReflectValue(value) };
-					return DrawValue(target.ctx, "Effect Margin", member.value, options);
+					return DrawValue(
+						target.ctx,
+						"Effect Margin",
+						member.value,
+						options
+					);
 				} else if constexpr (ReflectedMembers<Margin>) {
 					bool changed{ false };
 					auto members{ ReflectMembers(value) };
 
 					std::apply(
 						[&](auto&&... member) {
-							((changed |= DrawValue(
-								  target.ctx, PrettyName(member.name), member.value, options
-							  )),
-							 ...);
+							(
+								(
+									changed |= DrawValue(
+										target.ctx,
+										PrettyName(member.name),
+										member.value,
+										options
+									)
+								),
+								...
+							);
 						},
 						members
 					);
@@ -5896,43 +6453,79 @@ bool DrawEffectMargin(Target& target) {
 	);
 }
 
-[[nodiscard]] bool IsEffectRenderer(std::string_view visual) {
+[[nodiscard]] bool IsEffectRenderer(
+	std::string_view visual
+) {
 	if (visual.empty()) {
 		return false;
 	}
 
 	const bool standard_renderer{
-		visual == "rect" || visual == "circle" || visual == "roundedrect" || visual == "polygon" ||
-		visual == "ellipse" || visual == "triangle" || visual == "line" || visual == "capsule" ||
-		visual == "arc" || visual.contains("sprite") || visual.contains("text") ||
-		visual.contains("particle") || visual.contains("light") || visual.contains("graphics") ||
-		visual.contains("customshader") || visual.contains("rendertarget")
+		visual == "rect" ||
+		visual == "circle" ||
+		visual == "roundedrect" ||
+		visual == "polygon" ||
+		visual == "ellipse" ||
+		visual == "triangle" ||
+		visual == "line" ||
+		visual == "capsule" ||
+		visual == "arc" ||
+		visual.contains("sprite") ||
+		visual.contains("text") ||
+		visual.contains("particle") ||
+		visual.contains("light") ||
+		visual.contains("graphics") ||
+		visual.contains("customshader") ||
+		visual.contains("rendertarget")
 	};
 
 	return !standard_renderer;
 }
 
 template <typename Target, typename Effect>
-bool DrawSelectedEffectComponent(Target& target, std::string_view label) {
+bool DrawSelectedEffectComponent(
+	Target& target,
+	std::string_view label
+) {
 	if constexpr (!Target::template Supports<Effect>()) {
 		return false;
 	} else {
-		return DrawRequiredComponent<Target, Effect>(target, label, true, [&target](Effect& value) {
-			return DrawComponentContents(target.ctx, value);
-		});
+		return DrawRequiredComponent<Target, Effect>(
+			target,
+			label,
+			true,
+			[&target](Effect& value) {
+				return DrawComponentContents(
+					target.ctx,
+					value
+				);
+			}
+		);
 	}
 }
 
 template <typename Target>
-bool DrawVisualEffects(Target& target, std::string_view visual) {
+bool DrawVisualEffects(
+	Target& target,
+	std::string_view visual
+) {
 	bool changed{ false };
 
 	if (visual.contains("gaussianblur")) {
-		changed |= DrawSelectedEffectComponent<Target, GaussianBlur>(target, "Gaussian Blur");
+		changed |= DrawSelectedEffectComponent<Target, GaussianBlur>(
+			target,
+			"Gaussian Blur"
+		);
 	} else if (visual.contains("blur")) {
-		changed |= DrawSelectedEffectComponent<Target, Blur>(target, "Blur");
+		changed |= DrawSelectedEffectComponent<Target, Blur>(
+			target,
+			"Blur"
+		);
 	} else if (visual.contains("bloom")) {
-		changed |= DrawSelectedEffectComponent<Target, Bloom>(target, "Bloom");
+		changed |= DrawSelectedEffectComponent<Target, Bloom>(
+			target,
+			"Bloom"
+		);
 	}
 
 	if (IsEffectRenderer(visual)) {
@@ -5942,7 +6535,10 @@ bool DrawVisualEffects(Target& target, std::string_view visual) {
 	return changed;
 }
 
-bool DrawTextRunsFlat(EditorContext& ctx, StyledText& text) {
+bool DrawTextRunsFlat(
+	EditorContext& ctx,
+	StyledText& text
+) {
 	bool changed{ false };
 
 	if (text.runs.empty()) {
@@ -5953,11 +6549,12 @@ bool DrawTextRunsFlat(EditorContext& ctx, StyledText& text) {
 	ImGui::SeparatorText("Content");
 
 	changed |= DrawVectorEditor(
-		ctx, text.runs,
+		ctx,
+		text.runs,
 		VectorOptions{
-			.item_name	   = "Text Run",
-			.default_open  = true,
-			.reorderable   = true,
+			.item_name = "Text Run",
+			.default_open = true,
+			.reorderable = true,
 			.minimum_items = 1,
 		}
 	);
@@ -5965,32 +6562,53 @@ bool DrawTextRunsFlat(EditorContext& ctx, StyledText& text) {
 	return changed;
 }
 
-template <std::size_t I, typename Target, typename TextData>
-bool DrawTextBoxMember(Target& target, TextData& text_data, auto& box) {
+template <
+	std::size_t I,
+	typename Target,
+	typename TextData
+>
+bool DrawTextBoxMember(
+	Target& target,
+	TextData& text_data,
+	auto& box
+) {
 	using Box = std::remove_cvref_t<decltype(box)>;
 	bool changed{ false };
-	auto& editor_state{ GetManualFeatureState(target.GetFeatureTargetKey()) };
+	auto& editor_state{
+		GetManualFeatureState(
+			target.GetFeatureTargetKey()
+		)
+	};
 
 	bool box_has_non_default_data{ false };
 
-	if constexpr (JsonSerializable<Box> && std::default_initializable<Box>) {
-		json current			 = box;
-		json defaults			 = Box{};
+	if constexpr (
+		JsonSerializable<Box> &&
+		std::default_initializable<Box>
+	) {
+		json current = box;
+		json defaults = Box{};
 		box_has_non_default_data = current != defaults;
 	}
 
 	if (!editor_state.text_box_state_initialized) {
-		editor_state.text_box_enabled			= box_has_non_default_data;
+		editor_state.text_box_enabled =
+			box_has_non_default_data;
 		editor_state.text_box_state_initialized = true;
 	} else if (box_has_non_default_data) {
 		editor_state.text_box_enabled = true;
 	}
 
-	bool enabled{ editor_state.text_box_enabled };
+	bool enabled{
+		editor_state.text_box_enabled
+	};
 
 	ScopedID box_scope{ "TextBox" };
 
-	if (ImGui::Checkbox("##Enabled", &enabled)) {
+	if (ImGui::Checkbox(
+			"##Enabled",
+			&enabled
+		)) {
 		editor_state.text_box_enabled = enabled;
 
 		if (!enabled) {
@@ -6002,7 +6620,12 @@ bool DrawTextBoxMember(Target& target, TextData& text_data, auto& box) {
 
 	ImGui::SameLine();
 
-	const bool open{ ImGui::TreeNodeEx("Text Box##Tree", ImGuiTreeNodeFlags_SpanAvailWidth) };
+	const bool open{
+		ImGui::TreeNodeEx(
+			"Text Box##Tree",
+			ImGuiTreeNodeFlags_SpanAvailWidth
+		)
+	};
 
 	if (!open) {
 		return changed;
@@ -6013,61 +6636,119 @@ bool DrawTextBoxMember(Target& target, TextData& text_data, auto& box) {
 	auto box_members{ ReflectMembers(box) };
 
 	auto draw_box_member = [&](auto&& box_member) {
-		const std::string box_name{ NormalizeFeatureName(box_member.name) };
+		const std::string box_name{
+			NormalizeFeatureName(box_member.name)
+		};
 
 		if (box_name == "rect") {
-			using BoxMember = std::remove_cvref_t<decltype(box_member.value)>;
+			using BoxMember =
+				std::remove_cvref_t<
+					decltype(box_member.value)
+				>;
 
 			if constexpr (std::same_as<BoxMember, Rect>) {
-				auto box_locator = [](TextData& value) -> Box& {
-					auto reflected{ ReflectMembers(value) };
-					return std::get<I>(reflected).value;
-				};
+				auto box_locator =
+					[](TextData& value) -> Box& {
+						auto reflected{
+							ReflectMembers(value)
+						};
+						return std::get<I>(
+							reflected
+						).value;
+					};
 
-				auto rect_locator = [box_locator](TextData& value) -> Rect& {
-					auto reflected{ ReflectMembers(box_locator(value)) };
-					constexpr std::size_t count{ std::tuple_size_v<decltype(reflected)> };
-					Rect* result{ nullptr };
+				auto rect_locator =
+					[box_locator](TextData& value) -> Rect& {
+						auto reflected{
+							ReflectMembers(
+								box_locator(value)
+							)
+						};
+						constexpr std::size_t count{
+							std::tuple_size_v<
+								decltype(reflected)
+							>
+						};
+						Rect* result{ nullptr };
 
-					[&]<std::size_t... Index>(std::index_sequence<Index...>) {
-						(
-							[&] {
-								auto& candidate{ std::get<Index>(reflected) };
+						[&]<std::size_t... Index>(
+							std::index_sequence<Index...>
+						) {
+							(
+								[&] {
+									auto& candidate{
+										std::get<Index>(
+											reflected
+										)
+									};
 
-								if constexpr (
-									std::same_as<
-										std::remove_cvref_t<decltype(candidate.value)>, Rect>
-								) {
-									if (NormalizeFeatureName(candidate.name) == "rect") {
-										result = std::addressof(candidate.value);
+									if constexpr (
+										std::same_as<
+											std::remove_cvref_t<
+												decltype(
+													candidate.value
+												)
+											>,
+											Rect
+										>
+									) {
+										if (
+											NormalizeFeatureName(
+												candidate.name
+											) == "rect"
+										) {
+											result =
+												std::addressof(
+													candidate.value
+												);
+										}
 									}
-								}
-							}(),
-							...);
-					}(std::make_index_sequence<count>{});
+								}(),
+								...
+							);
+						}(
+							std::make_index_sequence<
+								count
+							>{}
+						);
 
-					return *result;
-				};
+						return *result;
+					};
 
 				changed |= DrawGeometryValue(
-					target, text_data, box_member.value, "Rect", rect_locator, &MarkTextLayoutDirty
+					target,
+					text_data,
+					box_member.value,
+					"Rect",
+					rect_locator,
+					&MarkTextLayoutDirty
 				);
 			} else {
-				changed |= DrawValue(target.ctx, "Rect", box_member.value);
+				changed |= DrawValue(
+					target.ctx,
+					"Rect",
+					box_member.value
+				);
 			}
 
 			return;
 		}
 
 		if (box_name == "style") {
-			const bool style_open{ ImGui::TreeNodeEx(
-				"Additional Options##TextBoxAdditionalOptions", ImGuiTreeNodeFlags_SpanAvailWidth
-			) };
+			const bool style_open{
+				ImGui::TreeNodeEx(
+					"Additional Options##TextBoxAdditionalOptions",
+					ImGuiTreeNodeFlags_SpanAvailWidth
+				)
+			};
 
 			if (style_open) {
 				{
 					ScopedUnindent align_with_additional_options;
-					changed |= DrawComponentContents(target.ctx, box_member.value);
+					changed |= DrawComponentContents(
+						target.ctx,
+						box_member.value
+					);
 				}
 
 				ImGui::TreePop();
@@ -6076,82 +6757,163 @@ bool DrawTextBoxMember(Target& target, TextData& text_data, auto& box) {
 			return;
 		}
 
-		changed |= DrawValue(target.ctx, PrettyName(box_member.name), box_member.value);
+		changed |= DrawValue(
+			target.ctx,
+			PrettyName(box_member.name),
+			box_member.value
+		);
 	};
 
-	std::apply([&](auto&&... box_member) { (draw_box_member(box_member), ...); }, box_members);
+	std::apply(
+		[&](auto&&... box_member) {
+			(draw_box_member(box_member), ...);
+		},
+		box_members
+	);
 
 	ImGui::TreePop();
 	return changed;
 }
 
-template <std::size_t I, typename Target, typename TextData>
-bool DrawTextPrimaryMember(Target& target, TextData& text_data) {
+template <
+	std::size_t I,
+	typename Target,
+	typename TextData
+>
+bool DrawTextPrimaryMember(
+	Target& target,
+	TextData& text_data
+) {
 	auto members{ ReflectMembers(text_data) };
 	auto& member{ std::get<I>(members) };
-	const std::string normalized{ NormalizeFeatureName(member.name) };
+	const std::string normalized{
+		NormalizeFeatureName(member.name)
+	};
 
-	if (normalized == "text" || normalized == "content") {
-		using Member = std::remove_cvref_t<decltype(member.value)>;
+	if (
+		normalized == "text" ||
+		normalized == "content"
+	) {
+		using Member =
+			std::remove_cvref_t<
+				decltype(member.value)
+			>;
 
 		if constexpr (std::same_as<Member, StyledText>) {
-			return DrawTextRunsFlat(target.ctx, member.value);
+			return DrawTextRunsFlat(
+				target.ctx,
+				member.value
+			);
 		} else {
-			return DrawValue(target.ctx, "Content", member.value);
+			return DrawValue(
+				target.ctx,
+				"Content",
+				member.value
+			);
 		}
 	}
 
-	if (normalized.contains("glyph") || normalized.contains("clip") ||
-		normalized.contains("currentrun")) {
+	if (
+		normalized.contains("glyph") ||
+		normalized.contains("clip") ||
+		normalized.contains("currentrun")
+	) {
 		return false;
 	}
 
 	if (normalized == "box") {
-		using Box = std::remove_cvref_t<decltype(member.value)>;
+		using Box =
+			std::remove_cvref_t<
+				decltype(member.value)
+			>;
 
 		if constexpr (ReflectedMembers<Box>) {
-			return DrawTextBoxMember<I>(target, text_data, member.value);
+			return DrawTextBoxMember<I>(
+				target,
+				text_data,
+				member.value
+			);
 		}
 	}
 
-	return DrawValue(target.ctx, PrettyName(member.name), member.value);
+	return DrawValue(
+		target.ctx,
+		PrettyName(member.name),
+		member.value
+	);
 }
 
 template <typename Target, typename TextData, std::size_t... I>
-bool DrawTextPrimaryMembers(Target& target, TextData& text_data, std::index_sequence<I...>) {
+bool DrawTextPrimaryMembers(
+	Target& target,
+	TextData& text_data,
+	std::index_sequence<I...>
+) {
 	bool changed{ false };
-	((changed |= DrawTextPrimaryMember<I>(target, text_data)), ...);
+	((changed |= DrawTextPrimaryMember<I>(
+		target,
+		text_data
+	)), ...);
 	return changed;
 }
 
 template <typename Target>
-bool DrawTextPrimary(Target& target, ::ptgn::impl::TextData& text_data) {
+bool DrawTextPrimary(
+	Target& target,
+	::ptgn::impl::TextData& text_data
+) {
 	auto members{ ReflectMembers(text_data) };
 	return DrawTextPrimaryMembers(
-		target, text_data, std::make_index_sequence<std::tuple_size_v<decltype(members)>>{}
+		target,
+		text_data,
+		std::make_index_sequence<
+			std::tuple_size_v<
+				decltype(members)
+			>
+		>{}
 	);
 }
 
 template <typename Target>
-bool DrawTextAdditional(Target& target, ::ptgn::impl::TextData& text_data) {
+bool DrawTextAdditional(
+	Target& target,
+	::ptgn::impl::TextData& text_data
+) {
 	bool changed{ false };
 	auto members{ ReflectMembers(text_data) };
 
 	auto draw_member = [&](auto&& member) {
-		const std::string normalized{ NormalizeFeatureName(member.name) };
+		const std::string normalized{
+			NormalizeFeatureName(member.name)
+		};
 
-		if (normalized.contains("glyph") || normalized.contains("clip")) {
-			changed |= DrawValue(target.ctx, PrettyName(member.name), member.value);
+		if (
+			normalized.contains("glyph") ||
+			normalized.contains("clip")
+		) {
+			changed |= DrawValue(
+				target.ctx,
+				PrettyName(member.name),
+				member.value
+			);
 		}
 	};
 
-	std::apply([&](auto&&... member) { (draw_member(member), ...); }, members);
+	std::apply(
+		[&](auto&&... member) {
+			(draw_member(member), ...);
+		},
+		members
+	);
 
 	return changed;
 }
 
 template <typename T>
-bool DrawFlattenedConfig(EditorContext& ctx, T& value) {
+bool DrawFlattenedConfig(
+	EditorContext& ctx,
+	T& value
+) {
 	if constexpr (!ReflectedMembers<T>) {
 		return DrawContents(ctx, value);
 	} else {
@@ -6159,20 +6921,35 @@ bool DrawFlattenedConfig(EditorContext& ctx, T& value) {
 		auto members{ ReflectMembers(value) };
 
 		auto draw_member = [&](auto&& member) {
-			using Member = std::remove_cvref_t<decltype(member.value)>;
-			const std::string normalized{ NormalizeFeatureName(member.name) };
+			using Member =
+				std::remove_cvref_t<decltype(member.value)>;
+			const std::string normalized{
+				NormalizeFeatureName(member.name)
+			};
 
 			if (normalized == "config") {
 				if constexpr (ReflectedMembers<Member>) {
-					changed |= DrawMembers(ctx, member.value);
+					changed |= DrawMembers(
+						ctx,
+						member.value
+					);
 					return;
 				}
 			}
 
-			changed |= DrawValue(ctx, PrettyName(member.name), member.value);
+			changed |= DrawValue(
+				ctx,
+				PrettyName(member.name),
+				member.value
+			);
 		};
 
-		std::apply([&](auto&&... member) { (draw_member(member), ...); }, members);
+		std::apply(
+			[&](auto&&... member) {
+				(draw_member(member), ...);
+			},
+			members
+		);
 
 		return changed;
 	}
@@ -6192,7 +6969,9 @@ bool DrawLineWidthVisual(Target& target) {
 
 		if (ImGui::Checkbox("##Enabled", &enabled)) {
 			target.template SetLive<FillStyle>(
-				enabled ? ComponentState<FillStyle>{ FillStyle{ kMinLineWidth } } : std::nullopt
+				enabled
+					? ComponentState<FillStyle>{ FillStyle{ kMinLineWidth } }
+					: std::nullopt
 			);
 			changed = true;
 		}
@@ -6207,15 +6986,17 @@ bool DrawLineWidthVisual(Target& target) {
 		{
 			ScopedDisabled disabled{ !enabled };
 			if (DrawValue(
-					target.ctx, "Line Width", line_width,
-					FieldOptions{
-						.speed	= 0.1f,
-						.min	= kMinLineWidth,
-						.max	= 1000.0f,
-						.format = "%.2f",
-						.flags	= ImGuiSliderFlags_AlwaysClamp,
-					}
-				)) {
+				target.ctx,
+				"Line Width",
+				line_width,
+				FieldOptions{
+					.speed = 0.1f,
+					.min = kMinLineWidth,
+					.max = 1000.0f,
+					.format = "%.2f",
+					.flags = ImGuiSliderFlags_AlwaysClamp,
+				}
+			)) {
 				target.template SetLive<FillStyle>(FillStyle{ line_width });
 				changed = true;
 			}
@@ -6223,7 +7004,11 @@ bool DrawLineWidthVisual(Target& target) {
 
 		auto after{ target.template Capture<FillStyle>() };
 		TrackComponentState(
-			target, "Edit Line Width", std::move(before), std::move(after), changed
+			target,
+			"Edit Line Width",
+			std::move(before),
+			std::move(after),
+			changed
 		);
 
 		return changed;
@@ -6231,13 +7016,20 @@ bool DrawLineWidthVisual(Target& target) {
 }
 
 template <typename Target>
-bool DrawShapeVisual(Target& target, std::string_view visual) {
+bool DrawShapeVisual(
+	Target& target,
+	std::string_view visual
+) {
 	bool changed{ false };
 
 	auto draw_shape = [&]<typename T>() {
 		changed |= DrawRequiredInlineVisualComponentWithDefault<Target, T>(
-			target, TypeLabel<T>(), MakeDefaultShapeGeometry<T>(),
-			[&target](T& value) { return DrawGeometryComponent(target, value); }
+			target,
+			TypeLabel<T>(),
+			MakeDefaultShapeGeometry<T>(),
+			[&target](T& value) {
+				return DrawGeometryComponent(target, value);
+			}
 		);
 	};
 
@@ -6261,34 +7053,56 @@ bool DrawShapeVisual(Target& target, std::string_view visual) {
 		draw_shape.template operator()<Arc>();
 	}
 
-	changed |= DrawOptionalVisualComponent<Target, Color>(target, "Color");
+	changed |= DrawOptionalVisualComponent<Target, Color>(
+		target,
+		"Color"
+	);
 	if (visual == "line") {
 		changed |= DrawLineWidthVisual(target);
 	} else {
-		changed |= DrawOptionalVisualComponent<Target, FillStyle>(target, "Fill Style");
+		changed |= DrawOptionalVisualComponent<Target, FillStyle>(
+			target,
+			"Fill Style"
+		);
 	}
 
 	return changed;
 }
 
-bool DrawAnimationDataFlattened(EditorContext& ctx, ::ptgn::impl::AnimationData& animation) {
+bool DrawAnimationDataFlattened(
+	EditorContext& ctx,
+	::ptgn::impl::AnimationData& animation
+) {
 	bool changed{ false };
 	auto members{ ReflectMembers(animation) };
 
 	auto draw_member = [&](auto&& member) {
-		const std::string normalized{ NormalizeFeatureName(member.name) };
+		const std::string normalized{
+			NormalizeFeatureName(member.name)
+		};
 
-		using Member = std::remove_cvref_t<decltype(member.value)>;
+		using Member = std::remove_cvref_t<
+			decltype(member.value)
+		>;
 
 		if (normalized == "config") {
 			if constexpr (ReflectedMembers<Member>) {
-				auto config_members{ ReflectMembers(member.value) };
+				auto config_members{
+					ReflectMembers(member.value)
+				};
 
 				std::apply(
 					[&](auto&&... config_member) {
-						((changed |=
-						  DrawValue(ctx, PrettyName(config_member.name), config_member.value)),
-						 ...);
+						(
+							(
+								changed |= DrawValue(
+									ctx,
+									PrettyName(config_member.name),
+									config_member.value
+								)
+							),
+							...
+						);
 					},
 					config_members
 				);
@@ -6297,19 +7111,37 @@ bool DrawAnimationDataFlattened(EditorContext& ctx, ::ptgn::impl::AnimationData&
 			}
 		}
 
-		changed |= DrawValue(ctx, PrettyName(member.name), member.value);
+		changed |= DrawValue(
+			ctx,
+			PrettyName(member.name),
+			member.value
+		);
 	};
 
-	std::apply([&](auto&&... member) { (draw_member(member), ...); }, members);
+	std::apply(
+		[&](auto&&... member) {
+			(draw_member(member), ...);
+		},
+		members
+	);
 
 	if (ctx.local.settings.show_read_only_inspector_data) {
 		[&]<typename T>(T& value) {
 			if constexpr (ReflectedReadOnlyMembers<T>) {
-				auto read_only_members{ ReflectReadOnlyMembers(value) };
+				auto read_only_members{
+					ReflectReadOnlyMembers(value)
+				};
 
 				std::apply(
 					[&](auto&&... member) {
-						(DrawReadOnlyValue(ctx, PrettyName(member.name), member.value), ...);
+						(
+							DrawReadOnlyValue(
+								ctx,
+								PrettyName(member.name),
+								member.value
+							),
+							...
+						);
 					},
 					read_only_members
 				);
@@ -6330,8 +7162,10 @@ template <typename Value>
 	if constexpr (std::same_as<Type, V2_int>) {
 		return value;
 	} else if constexpr (std::same_as<Type, V2_float>) {
-		return V2_int{ static_cast<int>(std::round(value.x)),
-					   static_cast<int>(std::round(value.y)) };
+		return V2_int{
+			static_cast<int>(std::round(value.x)),
+			static_cast<int>(std::round(value.y))
+		};
 	} else if constexpr (ReflectedValue<Type>) {
 		return ExtractTexturePixelSize(ReflectValue(value).value);
 	} else if constexpr (ReflectedMembers<Type>) {
@@ -6352,14 +7186,19 @@ bool DrawTextureSizeAsIntegers(EditorContext& ctx, Value& value) {
 	if constexpr (std::same_as<Type, V2_int>) {
 		return DrawWHValue("Texture Size", value, 1.0f, 0, 4096);
 	} else if constexpr (std::same_as<Type, V2_float>) {
-		V2_int displayed{ static_cast<int>(std::round(value.x)),
-						  static_cast<int>(std::round(value.y)) };
+		V2_int displayed{
+			static_cast<int>(std::round(value.x)),
+			static_cast<int>(std::round(value.y))
+		};
 
 		if (!DrawWHValue("Texture Size", displayed, 1.0f, 0, 4096)) {
 			return false;
 		}
 
-		value = V2_float{ static_cast<float>(displayed.x), static_cast<float>(displayed.y) };
+		value = V2_float{
+			static_cast<float>(displayed.x),
+			static_cast<float>(displayed.y)
+		};
 		return true;
 	} else if constexpr (ReflectedValue<Type>) {
 		auto member{ ReflectValue(value) };
@@ -6384,7 +7223,9 @@ template <typename Target>
 
 		if (entity) {
 			const auto texture_size{ GetTextureSize(entity) };
-			return texture_size && texture_size->IsPositive() ? texture_size : std::nullopt;
+			return texture_size && texture_size->IsPositive()
+				? texture_size
+				: std::nullopt;
 		}
 	}
 
@@ -6401,7 +7242,7 @@ template <typename Target>
 template <typename Target>
 bool SynchronizeAnimationFrameData(Target& target, std::string_view reason) {
 	using AnimationData = ::ptgn::impl::AnimationData;
-	using TextureCrop	= ::ptgn::impl::TextureCrop;
+	using TextureCrop = ::ptgn::impl::TextureCrop;
 
 	if constexpr (!Target::template Supports<AnimationData>()) {
 		return false;
@@ -6426,7 +7267,13 @@ bool SynchronizeAnimationFrameData(Target& target, std::string_view reason) {
 		animation.frame_dirty = true;
 		target.template SetLive<AnimationData>(animation);
 		auto after_animation{ target.template Capture<AnimationData>() };
-		TrackComponentState(target, reason, std::move(before_animation), after_animation, true);
+		TrackComponentState(
+			target,
+			reason,
+			std::move(before_animation),
+			after_animation,
+			true
+		);
 
 		if constexpr (Target::template Supports<TextureCrop>()) {
 			auto before_crop{ target.template Capture<TextureCrop>() };
@@ -6435,8 +7282,11 @@ bool SynchronizeAnimationFrameData(Target& target, std::string_view reason) {
 			target.template SetLive<TextureCrop>(crop);
 			auto after_crop{ target.template Capture<TextureCrop>() };
 			TrackComponentState(
-				target, "Update Animation Texture Crop", std::move(before_crop),
-				std::move(after_crop), true
+				target,
+				"Update Animation Texture Crop",
+				std::move(before_crop),
+				std::move(after_crop),
+				true
 			);
 		}
 
@@ -6447,10 +7297,11 @@ bool SynchronizeAnimationFrameData(Target& target, std::string_view reason) {
 template <typename Target>
 bool SynchronizeAnimationTextureCrop(Target& target) {
 	using AnimationData = ::ptgn::impl::AnimationData;
-	using TextureCrop	= ::ptgn::impl::TextureCrop;
+	using TextureCrop = ::ptgn::impl::TextureCrop;
 
 	if constexpr (
-		!Target::template Supports<AnimationData>() || !Target::template Supports<TextureCrop>()
+		!Target::template Supports<AnimationData>() ||
+		!Target::template Supports<TextureCrop>()
 	) {
 		return false;
 	} else {
@@ -6466,7 +7317,10 @@ bool SynchronizeAnimationTextureCrop(Target& target) {
 		target.template SetLive<TextureCrop>(crop);
 		auto after_crop{ target.template Capture<TextureCrop>() };
 		TrackComponentState(
-			target, "Update Animation Texture Crop", std::move(before_crop), std::move(after_crop),
+			target,
+			"Update Animation Texture Crop",
+			std::move(before_crop),
+			std::move(after_crop),
 			true
 		);
 		return true;
@@ -6489,7 +7343,11 @@ bool DisableAnimationTextureCrop(Target& target) {
 		target.template SetLive<TextureCrop>(std::nullopt);
 		auto after_crop{ target.template Capture<TextureCrop>() };
 		TrackComponentState(
-			target, "Disable Texture Crop", std::move(before_crop), std::move(after_crop), true
+			target,
+			"Disable Texture Crop",
+			std::move(before_crop),
+			std::move(after_crop),
+			true
 		);
 		return true;
 	}
@@ -6504,29 +7362,39 @@ bool DrawSpritePrimary(Target& target) {
 	const auto before_animation{ target.template Capture<AnimationData>() };
 
 	changed |= DrawRequiredInlineVisualComponent<Target, TextureKey>(
-		target, "Texture Key",
-		[&target](TextureKey& value) { return DrawValue(target.ctx, "Texture Key", value); }
+		target,
+		"Texture Key",
+		[&target](TextureKey& value) {
+			return DrawValue(target.ctx, "Texture Key", value);
+		}
 	);
 
 	changed |= DrawOptionalComponent<Target, ::ptgn::impl::TextureSize>(
-		target, "Texture Size", false, [&target](::ptgn::impl::TextureSize& value) {
+		target,
+		"Texture Size",
+		false,
+		[&target](::ptgn::impl::TextureSize& value) {
 			return DrawTextureSizeAsIntegers(target.ctx, value);
 		}
 	);
 
 	changed |= DrawOptionalComponent<Target, AnimationData>(
-		target, "Animation", true, [&target](AnimationData& value) {
+		target,
+		"Animation",
+		true,
+		[&target](AnimationData& value) {
 			const std::size_t before_frame_count{ value.config.frame_count };
 			const bool local_changed{ DrawAnimationDataFlattened(target.ctx, value) };
 
 			if (local_changed && before_frame_count != value.config.frame_count) {
 				value.config.frame_size = ::ptgn::impl::GetFrameSize(
-					ResolveAnimationTextureSize(target), value.config.frame_count
+					ResolveAnimationTextureSize(target),
+					value.config.frame_count
 				);
 				value.current_frame = value.config.frame_count == 0
-										? 0
-										: value.current_frame % value.config.frame_count;
-				value.frame_dirty	= true;
+					? 0
+					: value.current_frame % value.config.frame_count;
+				value.frame_dirty = true;
 			}
 
 			return local_changed;
@@ -6538,15 +7406,18 @@ bool DrawSpritePrimary(Target& target) {
 	const bool texture_changed{ before_texture != after_texture };
 	const bool animation_enabled{ after_animation.has_value() };
 	const bool animation_was_enabled{ before_animation.has_value() };
-	const bool frame_count_changed{ before_animation && after_animation &&
-									before_animation->config.frame_count !=
-										after_animation->config.frame_count };
+	const bool frame_count_changed{
+		before_animation && after_animation &&
+		before_animation->config.frame_count != after_animation->config.frame_count
+	};
 
 	if (!animation_enabled && animation_was_enabled) {
 		changed |= DisableAnimationTextureCrop(target);
 	} else if (animation_enabled && texture_changed) {
-		changed |=
-			SynchronizeAnimationFrameData(target, "Recalculate Animation Frame Size From Texture");
+		changed |= SynchronizeAnimationFrameData(
+			target,
+			"Recalculate Animation Frame Size From Texture"
+		);
 	} else if (animation_enabled && (!animation_was_enabled || frame_count_changed)) {
 		changed |= SynchronizeAnimationTextureCrop(target);
 	}
@@ -6560,38 +7431,191 @@ bool DrawMaterialDetails(Target& target, ::ptgn::Material& material) {
 
 	ImGui::SeparatorText("Uniforms");
 	changed |= DrawVectorEditor(
-		target.ctx, material.uniforms,
+		target.ctx,
+		material.uniforms,
 		VectorOptions{
 			.item_name = "Uniform",
 		}
 	);
 
 	const std::size_t max_texture_slots{
-		std::max(std::size_t{ 1 }, static_cast<std::size_t>(target.ctx.editor.GetMaxTextureSlots()))
+		std::max(
+			std::size_t{ 1 },
+			static_cast<std::size_t>(
+				target.ctx.editor.GetMaxTextureSlots()
+			)
+		)
 	};
 
 	changed |= DrawValue(
-		target.ctx, "Texture Slot Capacity", material.texture_slot_capacity,
+		target.ctx,
+		"Texture Slot Capacity",
+		material.texture_slot_capacity,
 		FieldOptions{
-			.speed	= 1.0f,
-			.min	= 1.0f,
-			.max	= static_cast<float>(max_texture_slots),
+			.speed = 1.0f,
+			.min = 1.0f,
+			.max = static_cast<float>(max_texture_slots),
 			.format = "%llu",
-			.flags	= ImGuiSliderFlags_AlwaysClamp,
+			.flags = ImGuiSliderFlags_AlwaysClamp,
 		}
 	);
 
 	if (material.texture_slot_capacity.has_value()) {
 		const std::size_t clamped{
-			std::clamp(*material.texture_slot_capacity, std::size_t{ 1 }, max_texture_slots)
+			std::clamp(
+				*material.texture_slot_capacity,
+				std::size_t{ 1 },
+				max_texture_slots
+			)
 		};
 
 		if (*material.texture_slot_capacity != clamped) {
 			material.texture_slot_capacity = clamped;
-			changed						   = true;
+			changed = true;
 		}
 	}
 
+	return changed;
+}
+
+struct ShaderProgramInspectorEditState {
+	bool initialized{ false };
+	bool separate{ false };
+	std::string vertex;
+	std::string fragment;
+};
+
+bool DrawInspectorShaderSourceCombo(
+	const char* label,
+	std::string& selected,
+	ShaderStageMask requested_stage,
+	const ::ptgn::impl::AssetRecord& owner,
+	AssetManager& assets
+) {
+	std::string preview{ "Select source" };
+	if (selected == kShaderSourceToken) {
+		preview = "This shader file";
+	} else if (selected.starts_with(kBuiltinShaderPrefix)) {
+		preview = "Engine / " + selected.substr(kBuiltinShaderPrefix.size());
+	} else if (!selected.empty()) {
+		preview = "Project / " + selected;
+	}
+	bool changed{ false };
+	if (!ImGui::BeginCombo(label, preview.c_str())) {
+		return false;
+	}
+	if (HasShaderStage(owner.metadata.shader_stages, requested_stage) &&
+		ImGui::Selectable("This shader file", selected == kShaderSourceToken)) {
+		selected = std::string{ kShaderSourceToken };
+		changed = true;
+	}
+	const auto engine_names{
+		requested_stage == ShaderStageMask::Vertex
+			? assets.GetEngineVertexShaderNames()
+			: assets.GetEngineFragmentShaderNames()
+	};
+	if (ImGui::BeginMenu("Engine")) {
+		for (const auto& name : engine_names) {
+			const std::string value{ std::string{ kBuiltinShaderPrefix } + name };
+			if (ImGui::MenuItem(name.c_str(), nullptr, selected == value)) {
+				selected = value;
+				changed = true;
+			}
+		}
+		ImGui::EndMenu();
+	}
+	if (ImGui::BeginMenu("Project")) {
+		for (const auto& candidate : ::ptgn::impl::AssetAccessor{ assets }.GetAssets()) {
+			if (candidate.kind != AssetKind::Shader || candidate.key == owner.key) {
+				continue;
+			}
+			auto source{ assets.GetShaderSource(ShaderKey{ candidate.key }) };
+			if (!source || !HasShaderStage(DetectShaderStages(source.value()), requested_stage)) {
+				continue;
+			}
+			auto serialized{ assets.GetCatalogAsset(candidate.key) };
+			if (!serialized) {
+				continue;
+			}
+			const std::string value{ serialized->source_path.generic_string() };
+			if (ImGui::MenuItem(candidate.key.value.c_str(), nullptr, selected == value)) {
+				selected = value;
+				changed = true;
+			}
+		}
+		ImGui::EndMenu();
+	}
+	ImGui::EndCombo();
+	return changed;
+}
+
+bool DrawShaderProgramInspector(EditorContext& ctx, const ShaderKey& key) {
+	if (key.value.empty()) {
+		return false;
+	}
+	auto& assets{ ctx.editor.GetAssetManager() };
+	const auto record_list{ ::ptgn::impl::AssetAccessor{ assets }.GetAssets() };
+	const auto record_it{ std::ranges::find_if(record_list, [&](const auto& record) {
+		return record.key == static_cast<const AssetKey&>(key);
+	}) };
+	if (record_it == record_list.end() || record_it->kind != AssetKind::Shader) {
+		return false;
+	}
+
+	static std::unordered_map<std::size_t, ShaderProgramInspectorEditState> states;
+	auto& state{ states[Hash(key)] };
+	const auto catalog{ assets.GetCatalogAsset(key) };
+	if (!state.initialized) {
+		state.separate = catalog && catalog->shader.has_value();
+		if (catalog && catalog->shader) {
+			state.vertex = catalog->shader->vertex.value_or(std::string{});
+			state.fragment = catalog->shader->fragment.value_or(std::string{});
+		}
+		state.initialized = true;
+	}
+
+	bool changed{ false };
+	ImGui::SeparatorText("Shader Program");
+	if (ImGui::RadioButton("Combined##ShaderProgram", !state.separate)) {
+		state.separate = false;
+	}
+	ImGui::SameLine();
+	if (ImGui::RadioButton("Separate##ShaderProgram", state.separate)) {
+		state.separate = true;
+		if (state.vertex.empty() && HasShaderStage(record_it->metadata.shader_stages, ShaderStageMask::Vertex)) {
+			state.vertex = std::string{ kShaderSourceToken };
+		}
+		if (state.fragment.empty() && HasShaderStage(record_it->metadata.shader_stages, ShaderStageMask::Fragment)) {
+			state.fragment = std::string{ kShaderSourceToken };
+		}
+	}
+
+	bool valid{ false };
+	if (state.separate) {
+		DrawInspectorShaderSourceCombo("Vertex Source", state.vertex, ShaderStageMask::Vertex, *record_it, assets);
+		DrawInspectorShaderSourceCombo("Fragment Source", state.fragment, ShaderStageMask::Fragment, *record_it, assets);
+		valid = !state.vertex.empty() && !state.fragment.empty();
+	} else {
+		valid = record_it->metadata.shader_stages == ShaderStageMask::VertexFragment;
+		if (!valid) {
+			ImGui::TextDisabled("Combined mode requires vertex and fragment blocks in this file.");
+		}
+	}
+	ImGui::BeginDisabled(!valid);
+	if (ImGui::Button("Apply Shader Program")) {
+		const bool configured{
+			state.separate
+				? assets.ConfigureShaderProgram(key, state.vertex, state.fragment)
+				: assets.ConfigureShaderProgram(key, std::nullopt, std::nullopt)
+		};
+		if (configured) {
+			ctx.editor.MarkProjectDirty();
+			changed = true;
+		}
+	}
+	ImGui::EndDisabled();
+	ImGui::SameLine();
+	ImGui::TextDisabled("Reload a resident shader to apply source changes.");
 	return changed;
 }
 
@@ -6600,19 +7624,41 @@ bool DrawCustomShaderPrimary(Target& target) {
 	bool changed{ false };
 
 	changed |= DrawRequiredComponent<Target, ::ptgn::Material>(
-		target, "Material Shader", false, [&target](::ptgn::Material& material) {
-			return DrawValue(target.ctx, "Shader Key", material.shader);
+		target,
+		"Material Shader",
+		false,
+		[&target](::ptgn::Material& material) {
+			bool local_changed{ DrawValue(target.ctx, "Shader Key", material.shader) };
+			local_changed |= DrawShaderProgramInspector(target.ctx, material.shader);
+			return local_changed;
 		}
 	);
 
 	changed |= DrawOptionalComponent<Target, TextureKey>(
-		target, "Texture Key", false,
-		[&target](TextureKey& value) { return DrawValue(target.ctx, "Texture Key", value); }
+		target,
+		"Texture Key",
+		false,
+		[&target](TextureKey& value) {
+			return DrawValue(target.ctx, "Texture Key", value);
+		}
+	);
+
+	changed |= DrawOptionalComponent<Target, Rect>(
+		target,
+		"Size",
+		false,
+		[&target](Rect& value) {
+			return DrawValue(target.ctx, "Size", value);
+		}
 	);
 
 	changed |= DrawRequiredComponent<Target, ::ptgn::Material>(
-		target, "Material", false,
-		[&target](::ptgn::Material& material) { return DrawMaterialDetails(target, material); }
+		target,
+		"Material",
+		false,
+		[&target](::ptgn::Material& material) {
+			return DrawMaterialDetails(target, material);
+		}
 	);
 
 	return changed;
@@ -6621,17 +7667,38 @@ bool DrawCustomShaderPrimary(Target& target) {
 template <typename Target>
 bool DrawSpriteAdditional(Target& target) {
 	bool changed{ false };
-	const bool animated{ target.template Capture<::ptgn::impl::AnimationData>().has_value() };
+	const bool animated{
+		target.template Capture<
+			::ptgn::impl::AnimationData
+		>().has_value()
+	};
 
-	changed |= DrawOptionalVisualComponent<Target, ::ptgn::impl::Offsets>(target, "Offsets", true);
+	changed |= DrawOptionalVisualComponent<
+		Target,
+		::ptgn::impl::Offsets
+	>(
+		target,
+		"Offsets",
+		true
+	);
 
 	if (animated) {
-		changed |= DrawReadOnlyExistingReflected<Target, ::ptgn::impl::TextureCrop>(
-			target, "Texture Crop", true
+		changed |= DrawReadOnlyExistingReflected<
+			Target,
+			::ptgn::impl::TextureCrop
+		>(
+			target,
+			"Texture Crop",
+			true
 		);
 	} else {
-		changed |= DrawOptionalVisualComponent<Target, ::ptgn::impl::TextureCrop>(
-			target, "Texture Crop", true
+		changed |= DrawOptionalVisualComponent<
+			Target,
+			::ptgn::impl::TextureCrop
+		>(
+			target,
+			"Texture Crop",
+			true
 		);
 	}
 
@@ -6639,49 +7706,141 @@ bool DrawSpriteAdditional(Target& target) {
 }
 
 template <typename Target, typename T>
-bool DrawOptionalNamedValue(Target& target, std::string_view label) {
-	return DrawOptionalComponent<Target, T>(target, label, false, [&target, label](T& value) {
-		return [&target, label]<typename Value>(Value& reflected_value) {
-			if constexpr (ReflectedValue<Value>) {
-				auto member{ ReflectValue(reflected_value) };
-				return DrawValue(target.ctx, label, member.value);
-			} else if constexpr (ReflectedMembers<Value>) {
-				auto members{ ReflectMembers(reflected_value) };
+bool DrawOptionalNamedValue(
+	Target& target,
+	std::string_view label
+) {
+	return DrawOptionalComponent<Target, T>(
+		target,
+		label,
+		false,
+		[&target, label](T& value) {
+			return [&target, label]<typename Value>(Value& reflected_value) {
+				if constexpr (ReflectedValue<Value>) {
+					auto member{
+						ReflectValue(reflected_value)
+					};
+					return DrawValue(
+						target.ctx,
+						label,
+						member.value
+					);
+				} else if constexpr (ReflectedMembers<Value>) {
+					auto members{
+						ReflectMembers(reflected_value)
+					};
 
-				if constexpr (std::tuple_size_v<decltype(members)> == 1) {
-					auto& member{ std::get<0>(members) };
-					return DrawValue(target.ctx, label, member.value);
+					if constexpr (
+						std::tuple_size_v<
+							decltype(members)
+						> == 1
+					) {
+						auto& member{
+							std::get<0>(members)
+						};
+						return DrawValue(
+							target.ctx,
+							label,
+							member.value
+						);
+					} else {
+						return DrawMembers(
+							target.ctx,
+							reflected_value
+						);
+					}
 				} else {
-					return DrawMembers(target.ctx, reflected_value);
+					return DrawComponentContents(
+						target.ctx,
+						reflected_value
+					);
 				}
-			} else {
-				return DrawComponentContents(target.ctx, reflected_value);
-			}
-		}(value);
-	});
+			}(value);
+		}
+	);
 }
 
 template <typename Target>
 bool DrawRenderTargetPrimary(Target& target) {
 	bool changed{ false };
 
-	changed |= DrawOptionalVisualComponent<Target, ::ptgn::impl::RenderTargetDesc>(
-		target, "Render Target"
+	std::optional<V2_int> framebuffer_size;
+
+	if constexpr (requires { target.entity; }) {
+		Entity entity{
+			target.entity
+		};
+
+		if (
+			entity &&
+			entity.Has<::ptgn::impl::FramebufferObject>()
+		) {
+			const V2_int actual_size{
+				RenderTarget{ entity }.GetSize()
+			};
+
+			if (actual_size.IsPositive()) {
+				framebuffer_size = actual_size;
+			}
+		}
+	}
+
+	changed |= DrawOptionalComponent<
+		Target,
+		::ptgn::impl::RenderTargetDesc
+	>(
+		target,
+		"Render Target",
+		false,
+		[&target, framebuffer_size](
+			::ptgn::impl::RenderTargetDesc& value
+		) {
+			return DrawRenderTargetDesc(
+				target.ctx,
+				value,
+				framebuffer_size
+			);
+		}
 	);
 
-	changed |= DrawOptionalNamedValue<Target, ::ptgn::impl::ClearColor>(target, "Clear Color");
+	changed |= DrawOptionalNamedValue<
+		Target,
+		::ptgn::impl::ClearColor
+	>(
+		target,
+		"Clear Color"
+	);
 
-	changed |= DrawOptionalNamedValue<Target, ::ptgn::impl::ClearDepth>(target, "Clear Depth");
+	changed |= DrawOptionalNamedValue<
+		Target,
+		::ptgn::impl::ClearDepth
+	>(
+		target,
+		"Clear Depth"
+	);
 
-	changed |= DrawOptionalNamedValue<Target, ::ptgn::impl::ClearStencil>(target, "Clear Stencil");
+	changed |= DrawOptionalNamedValue<
+		Target,
+		::ptgn::impl::ClearStencil
+	>(
+		target,
+		"Clear Stencil"
+	);
 
 	return changed;
 }
 
 template <typename Target>
-bool DrawVisualAdditionalOptions(Target& target, std::string_view visual, bool draw_tint) {
+bool DrawVisualAdditionalOptions(
+	Target& target,
+	std::string_view visual,
+	bool draw_tint
+) {
 	const bool open{
-		ImGui::TreeNodeEx("Additional Options##Visual", ImGuiTreeNodeFlags_SpanAvailWidth)
+		ImGui::TreeNodeEx(
+			"Additional Options##Visual",
+			ImGuiTreeNodeFlags_SpanAvailWidth
+		)
 	};
 
 	if (!open) {
@@ -6698,15 +7857,25 @@ bool DrawVisualAdditionalOptions(Target& target, std::string_view visual, bool d
 		}
 
 		if (visual == "rect" || visual == "circle") {
-			changed |= DrawOptionalVisualComponent<Target, ::ptgn::impl::ShadowCaster>(
-				target, "Shadow Caster", true
+			changed |= DrawOptionalVisualComponent<
+				Target,
+				::ptgn::impl::ShadowCaster
+			>(
+				target,
+				"Shadow Caster",
+				true
 			);
 		}
 
 		if (visual.contains("text")) {
 			ScopedID text_additional_scope{ "TextAdditional" };
-			changed |= DrawRequiredComponent<Target, ::ptgn::impl::TextData>(
-				target, "Text Additional Options", false,
+			changed |= DrawRequiredComponent<
+				Target,
+				::ptgn::impl::TextData
+			>(
+				target,
+				"Text Additional Options",
+				false,
 				[&target](::ptgn::impl::TextData& value) {
 					return DrawTextAdditional(target, value);
 				},
@@ -6714,25 +7883,49 @@ bool DrawVisualAdditionalOptions(Target& target, std::string_view visual, bool d
 			);
 		}
 
-		changed |= DrawOptionalVisualComponent<Target, BlendMode>(target, "Blend Mode");
+		changed |= DrawOptionalVisualComponent<Target, BlendMode>(
+			target,
+			"Blend Mode"
+		);
 
 		if (draw_tint) {
-			changed |= DrawOptionalVisualComponent<Target, Tint>(target, "Tint");
-			changed |= DrawOptionalVisualComponent<Target, ::ptgn::impl::IgnoreParentTint>(
-				target, "Ignore Parent Tint"
+			changed |= DrawOptionalVisualComponent<Target, Tint>(
+				target,
+				"Tint"
+			);
+			changed |= DrawOptionalVisualComponent<
+				Target,
+				::ptgn::impl::IgnoreParentTint
+			>(
+				target,
+				"Ignore Parent Tint"
 			);
 		}
 
-		changed |= DrawOptionalVisualComponent<Target, ::ptgn::impl::IgnoreParentVisibility>(
-			target, "Ignore Parent Visibility"
+		changed |= DrawOptionalVisualComponent<
+			Target,
+			::ptgn::impl::IgnoreParentVisibility
+		>(
+			target,
+			"Ignore Parent Visibility"
 		);
-		changed |=
-			DrawOptionalVisualComponent<Target, ::ptgn::impl::RenderMask>(target, "Render Layer");
+		changed |= DrawOptionalVisualComponent<
+			Target,
+			::ptgn::impl::RenderMask
+		>(
+			target,
+			"Render Layer"
+		);
 
 		{
 			ScopedID ui_layer_scope{ "VisualUILayer" };
-			changed |=
-				DrawOptionalVisualComponent<Target, ::ptgn::impl::UILayer>(target, "UI Layer");
+			changed |= DrawOptionalVisualComponent<
+				Target,
+				::ptgn::impl::UILayer
+			>(
+				target,
+				"UI Layer"
+			);
 		}
 	}
 
@@ -6740,17 +7933,28 @@ bool DrawVisualAdditionalOptions(Target& target, std::string_view visual, bool d
 	return changed;
 }
 
-template <typename Target, typename Visuals, typename Draw, typename Callback>
+template <
+	typename Target,
+	typename Visuals,
+	typename Draw,
+	typename Callback
+>
 bool DrawButtonChildStateVisualComponent(
-	Target& target, ButtonVisualState state, std::string_view part_label, Draw&& draw,
+	Target& target,
+	ButtonVisualState state,
+	std::string_view part_label,
+	Draw&& draw,
 	Callback callback
 ) {
 	if constexpr (!Target::template Supports<Visuals>()) {
 		return false;
 	} else {
-		const bool open{ ImGui::CollapsingHeader(
-			"Visual##ButtonVisualStateVisual", ImGuiTreeNodeFlags_DefaultOpen
-		) };
+		const bool open{
+			ImGui::CollapsingHeader(
+				"Visual##ButtonVisualStateVisual",
+				ImGuiTreeNodeFlags_DefaultOpen
+			)
+		};
 
 		if (!open) {
 			return false;
@@ -6763,25 +7967,41 @@ bool DrawButtonChildStateVisualComponent(
 
 		auto before{ target.template Capture<Visuals>() };
 		Visuals visuals{ before.value_or(Visuals{}) };
-		const auto index{ static_cast<std::size_t>(std::to_underlying(state)) };
+		const auto index{
+			static_cast<std::size_t>(std::to_underlying(state))
+		};
 		auto& visual{ visuals.states[index] };
 
 		DrawDisabledWrappedText(
-			PrettyName(magic_enum::enum_name(state)) + " " + std::string{ part_label } +
+			PrettyName(magic_enum::enum_name(state)) + " " +
+			std::string{ part_label } +
 			" overrides. Unset values inherit from fallback states."
 		);
 
-		const bool changed{ std::invoke(std::forward<Draw>(draw), visuals, visual) };
+		const bool changed{
+			std::invoke(
+				std::forward<Draw>(draw),
+				visuals,
+				visual
+			)
+		};
 
 		if (changed) {
 			visual.defined = HasButtonVisualOverrides(visual);
-			target.template SetLive<Visuals>(ComponentState<Visuals>{ visuals }, callback);
+			target.template SetLive<Visuals>(
+				ComponentState<Visuals>{ visuals },
+				callback
+			);
 		}
 
 		auto after{ target.template Capture<Visuals>() };
 		TrackComponentState(
-			target, std::string{ "Edit " } + std::string{ part_label } + " State Visual",
-			std::move(before), std::move(after), changed, callback
+			target,
+			std::string{ "Edit " } + std::string{ part_label } + " State Visual",
+			std::move(before),
+			std::move(after),
+			changed,
+			callback
 		);
 
 		return changed;
@@ -6790,15 +8010,21 @@ bool DrawButtonChildStateVisualComponent(
 
 template <typename Target, typename Locator>
 bool DrawPickableButtonTextBoxPosition(
-	Target& target, ButtonTextVisuals& visuals, const ButtonChildInfo& child_info,
-	ButtonVisualState state, std::string_view label, Locator locator
+	Target& target,
+	ButtonTextVisuals& visuals,
+	const ButtonChildInfo& child_info,
+	ButtonVisualState state,
+	std::string_view label,
+	Locator locator
 ) {
 	V2_float& position{ locator(visuals) };
 
 	return DrawPropertyRow(label, [&]() {
 		const float spacing{ ImGui::GetStyle().ItemInnerSpacing.x };
-		const float pick_width{ ImGui::CalcTextSize("Pick").x +
-								ImGui::GetStyle().FramePadding.x * 2.0f };
+		const float pick_width{
+			ImGui::CalcTextSize("Pick").x +
+			ImGui::GetStyle().FramePadding.x * 2.0f
+		};
 		const float available{ ImGui::GetContentRegionAvail().x };
 		const float field_width{
 			std::max(36.0f, (available - pick_width - spacing * 2.0f) * 0.5f)
@@ -6806,23 +8032,44 @@ bool DrawPickableButtonTextBoxPosition(
 		bool changed{ false };
 
 		ImGui::SetNextItemWidth(field_width);
-		changed |= ImGui::DragFloat("##X", &position.x, 0.1f, 0.0f, 0.0f, "X %.2f");
+		changed |= ImGui::DragFloat(
+			"##X", &position.x, 0.1f, 0.0f, 0.0f, "X %.2f"
+		);
 		ImGui::SameLine(0.0f, spacing);
 		ImGui::SetNextItemWidth(field_width);
-		changed |= ImGui::DragFloat("##Y", &position.y, 0.1f, 0.0f, 0.0f, "Y %.2f");
+		changed |= ImGui::DragFloat(
+			"##Y", &position.y, 0.1f, 0.0f, 0.0f, "Y %.2f"
+		);
 		ImGui::SameLine(0.0f, spacing);
 
-		auto apply{ target.template MakeApply<ButtonTextVisuals>(&MarkButtonTextDirty) };
+		auto apply{
+			target.template MakeApply<ButtonTextVisuals>(
+				&MarkButtonTextDirty
+			)
+		};
 		ButtonTextVisuals snapshot{ visuals };
 
 		DrawPositionPickButton(
-			target.ctx, label, position,
-			MakeButtonTextBoxPositionConverter(child_info.child, child_info.button, state),
-			[apply, snapshot = std::move(snapshot), locator](V2_float picked) mutable {
+			target.ctx,
+			label,
+			position,
+			MakeButtonTextBoxPositionConverter(
+				child_info.child,
+				child_info.button,
+				state
+			),
+			[apply, snapshot = std::move(snapshot), locator](
+				V2_float picked
+			) mutable {
 				locator(snapshot) = picked;
 				apply(ComponentState<ButtonTextVisuals>{ snapshot });
 			},
-			GetButtonTextBoxWorldPosition(child_info.child, child_info.button, state, position),
+			GetButtonTextBoxWorldPosition(
+				child_info.child,
+				child_info.button,
+				state,
+				position
+			),
 			true
 		);
 
@@ -6832,12 +8079,21 @@ bool DrawPickableButtonTextBoxPosition(
 
 template <typename Target>
 bool DrawButtonTextBoxOverride(
-	Target& target, ButtonTextVisuals& visuals, ButtonTextVisual& visual,
-	const ButtonChildInfo& child_info, ButtonVisualState state
+	Target& target,
+	ButtonTextVisuals& visuals,
+	ButtonTextVisual& visual,
+	const ButtonChildInfo& child_info,
+	ButtonVisualState state
 ) {
-	const auto index{ static_cast<std::size_t>(std::to_underlying(state)) };
+	const auto index{
+		static_cast<std::size_t>(std::to_underlying(state))
+	};
 	const std::optional<TextBox> inherited{
-		ResolveButtonVisualProperty(visuals.states, state, &ButtonTextVisual::box)
+		ResolveButtonVisualProperty(
+			visuals.states,
+			state,
+			&ButtonTextVisual::box
+		)
 	};
 	bool enabled{ visual.box.has_value() };
 	bool changed{ false };
@@ -6846,7 +8102,7 @@ bool DrawButtonTextBoxOverride(
 
 	if (ImGui::Checkbox("##Enabled", &enabled)) {
 		if (enabled) {
-			visual.box	   = inherited.value_or(TextBox{});
+			visual.box = inherited.value_or(TextBox{});
 			visual.defined = true;
 		} else {
 			visual.box.reset();
@@ -6856,7 +8112,10 @@ bool DrawButtonTextBoxOverride(
 
 	ImGui::SameLine();
 	const bool open{
-		ImGui::TreeNodeEx("Text Box##ButtonTextBoxTree", ImGuiTreeNodeFlags_SpanAvailWidth)
+		ImGui::TreeNodeEx(
+			"Text Box##ButtonTextBoxTree",
+			ImGuiTreeNodeFlags_SpanAvailWidth
+		)
 	};
 
 	if (!open) {
@@ -6864,7 +8123,9 @@ bool DrawButtonTextBoxOverride(
 	}
 
 	ScopedIndent indent;
-	TextBox displayed{ visual.box.value_or(inherited.value_or(TextBox{})) };
+	TextBox displayed{
+		visual.box.value_or(inherited.value_or(TextBox{}))
+	};
 	TextBox& box{ enabled ? visual.box.value() : displayed };
 	ScopedDisabled disabled{ !enabled };
 
@@ -6883,7 +8144,7 @@ bool DrawButtonTextBoxOverride(
 					const V2_float half_size{ size * 0.5f };
 					member.value.min = center - half_size;
 					member.value.max = center + half_size;
-					changed			 = true;
+					changed = true;
 				}
 
 				if (enabled) {
@@ -6894,10 +8155,20 @@ bool DrawButtonTextBoxOverride(
 						return root.states[index].box.value().rect.max;
 					};
 					changed |= DrawPickableButtonTextBoxPosition(
-						target, visuals, child_info, state, "Min", min_locator
+						target,
+						visuals,
+						child_info,
+						state,
+						"Min",
+						min_locator
 					);
 					changed |= DrawPickableButtonTextBoxPosition(
-						target, visuals, child_info, state, "Max", max_locator
+						target,
+						visuals,
+						child_info,
+						state,
+						"Max",
+						max_locator
 					);
 				} else {
 					changed |= DrawValue(target.ctx, "Min", member.value.min);
@@ -6914,17 +8185,29 @@ bool DrawButtonTextBoxOverride(
 				)) {
 				{
 					ScopedUnindent align_with_additional_options;
-					changed |= DrawComponentContents(target.ctx, member.value);
+					changed |= DrawComponentContents(
+						target.ctx,
+						member.value
+					);
 				}
 				ImGui::TreePop();
 			}
 			return;
 		}
 
-		changed |= DrawValue(target.ctx, PrettyName(member.name), member.value);
+		changed |= DrawValue(
+			target.ctx,
+			PrettyName(member.name),
+			member.value
+		);
 	};
 
-	std::apply([&](auto&&... member) { (draw_member(member), ...); }, members);
+	std::apply(
+		[&](auto&&... member) {
+			(draw_member(member), ...);
+		},
+		members
+	);
 
 	ImGui::TreePop();
 	return changed;
@@ -6932,12 +8215,19 @@ bool DrawButtonTextBoxOverride(
 
 template <typename Target>
 bool DrawButtonChildStateVisualFeature(
-	Target& target, const ButtonChildInfo& child_info, ButtonVisualState state
+	Target& target,
+	const ButtonChildInfo& child_info,
+	ButtonVisualState state
 ) {
 	switch (child_info.part) {
 		case ButtonChildPart::Background:
-			return DrawButtonChildStateVisualComponent<Target, ButtonBackgroundVisuals>(
-				target, state, "Button Background",
+			return DrawButtonChildStateVisualComponent<
+				Target,
+				ButtonBackgroundVisuals
+			>(
+				target,
+				state,
+				"Button Background",
 				[&target, state](auto& visuals, ButtonShapeVisual&) {
 					bool changed{ false };
 					changed |= DrawButtonVisualOverrideValue(
@@ -6957,8 +8247,13 @@ bool DrawButtonChildStateVisualFeature(
 				&MarkButtonBackgroundDirty
 			);
 		case ButtonChildPart::Border:
-			return DrawButtonChildStateVisualComponent<Target, ButtonBorderVisuals>(
-				target, state, "Button Border",
+			return DrawButtonChildStateVisualComponent<
+				Target,
+				ButtonBorderVisuals
+			>(
+				target,
+				state,
+				"Button Border",
 				[&target, state](auto& visuals, ButtonShapeVisual&) {
 					bool changed{ false };
 					changed |= DrawButtonVisualOverrideValue(
@@ -6974,24 +8269,32 @@ bool DrawButtonChildStateVisualFeature(
 						target.ctx, "Color", visuals.states, state, &ButtonShapeVisual::color
 					);
 					changed |= DrawButtonVisualOverrideValue(
-						target.ctx, "Fill Style", visuals.states, state,
-						&ButtonShapeVisual::fill_style
+						target.ctx, "Fill Style", visuals.states, state, &ButtonShapeVisual::fill_style
 					);
 					return changed;
 				},
 				&MarkButtonBorderDirty
 			);
 		case ButtonChildPart::Text:
-			return DrawButtonChildStateVisualComponent<Target, ButtonTextVisuals>(
-				target, state, "Button Text",
-				[&target, &child_info,
-				 state](ButtonTextVisuals& visuals, ButtonTextVisual& visual) {
+			return DrawButtonChildStateVisualComponent<
+				Target,
+				ButtonTextVisuals
+			>(
+				target,
+				state,
+				"Button Text",
+				[&target, &child_info, state](ButtonTextVisuals& visuals, ButtonTextVisual& visual) {
 					bool changed{ false };
 					changed |= DrawButtonVisualOverrideValue(
 						target.ctx, "Content", visuals.states, state, &ButtonTextVisual::styled_text
 					);
-					changed |=
-						DrawButtonTextBoxOverride(target, visuals, visual, child_info, state);
+					changed |= DrawButtonTextBoxOverride(
+						target,
+						visuals,
+						visual,
+						child_info,
+						state
+					);
 					changed |= DrawButtonVisualOverrideValue(
 						target.ctx, "Origin", visuals.states, state, &ButtonTextVisual::origin
 					);
@@ -7009,13 +8312,17 @@ bool DrawButtonChildStateVisualFeature(
 				&MarkButtonTextDirty
 			);
 		case ButtonChildPart::Sprite:
-			return DrawButtonChildStateVisualComponent<Target, ButtonSpriteVisuals>(
-				target, state, "Button Sprite",
+			return DrawButtonChildStateVisualComponent<
+				Target,
+				ButtonSpriteVisuals
+			>(
+				target,
+				state,
+				"Button Sprite",
 				[&target, state](auto& visuals, ButtonSpriteVisual&) {
 					bool changed{ false };
 					changed |= DrawButtonVisualOverrideValue(
-						target.ctx, "Texture Key", visuals.states, state,
-						&ButtonSpriteVisual::texture
+						target.ctx, "Texture Key", visuals.states, state, &ButtonSpriteVisual::texture
 					);
 					changed |= DrawButtonVisualOverrideValue(
 						target.ctx, "Origin", visuals.states, state, &ButtonSpriteVisual::origin
@@ -7030,8 +8337,7 @@ bool DrawButtonChildStateVisualFeature(
 						target.ctx, "Tint", visuals.states, state, &ButtonSpriteVisual::tint
 					);
 					changed |= DrawButtonVisualOverrideValue(
-						target.ctx, "Animation", visuals.states, state,
-						&ButtonSpriteVisual::animation
+						target.ctx, "Animation", visuals.states, state, &ButtonSpriteVisual::animation
 					);
 					changed |= DrawButtonVisualOverrideValue(
 						target.ctx, "Animation Options", visuals.states, state,
@@ -7050,7 +8356,11 @@ template <typename Target>
 bool DrawVisualFeature(Target& target) {
 	if (const auto child_info{ GetButtonChildInfo(target) }) {
 		if (const auto state{ GetButtonVisualEditState(target) }) {
-			return DrawButtonChildStateVisualFeature(target, *child_info, *state);
+			return DrawButtonChildStateVisualFeature(
+				target,
+				*child_info,
+				*state
+			);
 		}
 	}
 
@@ -7059,7 +8369,10 @@ bool DrawVisualFeature(Target& target) {
 	}
 
 	const auto header{ DrawFeatureHeader(
-		target, InspectorFeature::Visual, "Visual", ImGuiTreeNodeFlags_DefaultOpen,
+		target,
+		InspectorFeature::Visual,
+		"Visual",
+		ImGuiTreeNodeFlags_DefaultOpen,
 		VisualFeatureComponents{}
 	) };
 
@@ -7080,54 +8393,98 @@ bool DrawVisualFeature(Target& target) {
 	}
 
 	if (visual.empty()) {
-		ImGui::TextDisabled("Choose a renderer to expose its relevant components.");
+		ImGui::TextDisabled(
+			"Choose a renderer to expose its relevant components."
+		);
 		return changed;
 	}
 
 	changed |= DrawVisualEffects(target, visual);
 
 	bool draw_tint{ false };
-	const bool shape{ visual == "rect" || visual == "circle" || visual == "roundedrect" ||
-					  visual == "polygon" || visual == "ellipse" || visual == "triangle" ||
-					  visual == "line" || visual == "capsule" || visual == "arc" };
+	const bool shape{
+		visual == "rect" ||
+		visual == "circle" ||
+		visual == "roundedrect" ||
+		visual == "polygon" ||
+		visual == "ellipse" ||
+		visual == "triangle" ||
+		visual == "line" ||
+		visual == "capsule" ||
+		visual == "arc"
+	};
 
 	if (shape) {
 		changed |= DrawShapeVisual(target, visual);
 	} else if (visual.contains("sprite")) {
-		changed	  |= DrawSpritePrimary(target);
-		draw_tint  = true;
+		changed |= DrawSpritePrimary(target);
+		draw_tint = true;
 	} else if (visual.contains("text")) {
 		ScopedID text_primary_scope{ "TextPrimary" };
-		changed |= DrawRequiredInlineVisualComponent<Target, ::ptgn::impl::TextData>(
-			target, "Text",
-			[&target](::ptgn::impl::TextData& value) { return DrawTextPrimary(target, value); },
+		changed |= DrawRequiredInlineVisualComponent<
+			Target,
+			::ptgn::impl::TextData
+		>(
+			target,
+			"Text",
+			[&target](::ptgn::impl::TextData& value) {
+				return DrawTextPrimary(target, value);
+			},
 			&MarkTextLayoutDirty
 		);
 		draw_tint = true;
 	} else if (visual.contains("particle")) {
-		changed |= DrawRequiredInlineVisualComponent<Target, ::ptgn::impl::ParticleEmitterData>(
-			target, "Particle Emitter", [&target](::ptgn::impl::ParticleEmitterData& value) {
+		changed |= DrawRequiredInlineVisualComponent<
+			Target,
+			::ptgn::impl::ParticleEmitterData
+		>(
+			target,
+			"Particle Emitter",
+			[&target](::ptgn::impl::ParticleEmitterData& value) {
 				return DrawFlattenedConfig(target.ctx, value);
 			}
 		);
 	} else if (visual.contains("light")) {
-		changed |= DrawRequiredInlineVisualComponent<Target, LightData>(
-			target, "Light", [&target](LightData& value) { return DrawContents(target.ctx, value); }
+		changed |= DrawRequiredInlineVisualComponent<
+			Target,
+			LightData
+		>(
+			target,
+			"Light",
+			[&target](LightData& value) {
+				return DrawContents(target.ctx, value);
+			}
 		);
 	} else if (visual.contains("customshader")) {
 		changed |= DrawCustomShaderPrimary(target);
 	} else if (visual.contains("graphics")) {
-		changed |= DrawRequiredInlineVisualComponent<Target, ::ptgn::impl::GraphicsData>(
-			target, "Graphics",
-			[&target](::ptgn::impl::GraphicsData& value) { return DrawContents(target.ctx, value); }
+		changed |= DrawRequiredInlineVisualComponent<
+			Target,
+			::ptgn::impl::GraphicsData
+		>(
+			target,
+			"Graphics",
+			[&target](::ptgn::impl::GraphicsData& value) {
+				return DrawContents(target.ctx, value);
+			}
 		);
-		changed |= DrawOptionalValue<Target, ShaderKey>(target, "Shader");
+		changed |= DrawOptionalValue<Target, ShaderKey>(
+			target,
+			"Shader"
+		);
 	} else if (visual.contains("rendertarget")) {
 		changed |= DrawRenderTargetPrimary(target);
 	}
 
-	changed |= DrawOptionalVisualComponent<Target, Origin>(target, "Origin");
-	changed |= DrawVisualAdditionalOptions(target, visual, draw_tint);
+	changed |= DrawOptionalVisualComponent<Target, Origin>(
+		target,
+		"Origin"
+	);
+	changed |= DrawVisualAdditionalOptions(
+		target,
+		visual,
+		draw_tint
+	);
 
 	return changed;
 }
@@ -7157,7 +8514,8 @@ bool DrawReadOnlyInteractionLock(Target& target) {
 		ImGui::SameLine();
 
 		if (ImGui::TreeNodeEx(
-				"Interaction Lock##ReadOnlyInteractionLock", ImGuiTreeNodeFlags_SpanAvailWidth
+				"Interaction Lock##ReadOnlyInteractionLock",
+				ImGuiTreeNodeFlags_SpanAvailWidth
 			)) {
 			ScopedIndent indent;
 			AutoLabelWidthScope label_width{ "InteractionLockReadOnlyFields" };
@@ -7168,8 +8526,11 @@ bool DrawReadOnlyInteractionLock(Target& target) {
 					auto members{ ReflectMembers(reflected_value) };
 					std::apply(
 						[&](auto&&... member) {
-							(DrawReadOnlyValue(target.ctx, PrettyName(member.name), member.value),
-							 ...);
+							(DrawReadOnlyValue(
+								target.ctx,
+								PrettyName(member.name),
+								member.value
+							), ...);
 						},
 						members
 					);
@@ -7179,8 +8540,11 @@ bool DrawReadOnlyInteractionLock(Target& target) {
 					auto members{ ReflectReadOnlyMembers(reflected_value) };
 					std::apply(
 						[&](auto&&... member) {
-							(DrawReadOnlyValue(target.ctx, PrettyName(member.name), member.value),
-							 ...);
+							(DrawReadOnlyValue(
+								target.ctx,
+								PrettyName(member.name),
+								member.value
+							), ...);
 						},
 						members
 					);
@@ -7226,27 +8590,56 @@ template <typename Target>
 bool DrawRigidBodyWithInheritance(Target& target) {
 	bool inheritance_changed{ false };
 
-	const bool changed{ DrawOptionalComponent<Target, RigidBody>(
-		target, "Rigid Body", true, [&](RigidBody& value) {
-			const bool rigid_body_changed{ DrawComponentContents(target.ctx, value) };
+	const bool changed{
+		DrawOptionalComponent<Target, RigidBody>(
+			target,
+			"Rigid Body",
+			true,
+			[&](RigidBody& value) {
+				const bool rigid_body_changed{
+					DrawComponentContents(target.ctx, value)
+				};
 
-			inheritance_changed |=
-				DrawOptionalReflected<Target, ::ptgn::impl::IgnoreParentImmovable>(
-					target, "Ignore Parent Immovable", false
+				inheritance_changed |= DrawOptionalReflected<
+					Target,
+					::ptgn::impl::IgnoreParentImmovable
+				>(
+					target,
+					"Ignore Parent Immovable",
+					false
 				);
 
-			return rigid_body_changed;
-		}
-	) };
+				return rigid_body_changed;
+			}
+		)
+	};
 
-	if (!target.template Capture<RigidBody>() &&
-		target.template Capture<::ptgn::impl::IgnoreParentImmovable>()) {
-		auto before{ target.template Capture<::ptgn::impl::IgnoreParentImmovable>() };
-		target.template SetLive<::ptgn::impl::IgnoreParentImmovable>(std::nullopt);
-		auto after{ target.template Capture<::ptgn::impl::IgnoreParentImmovable>() };
+	if (
+		!target.template Capture<RigidBody>() &&
+		target.template Capture<
+			::ptgn::impl::IgnoreParentImmovable
+		>()
+	) {
+		auto before{
+			target.template Capture<
+				::ptgn::impl::IgnoreParentImmovable
+			>()
+		};
+		target.template SetLive<
+			::ptgn::impl::IgnoreParentImmovable
+		>(std::nullopt);
+		auto after{
+			target.template Capture<
+				::ptgn::impl::IgnoreParentImmovable
+			>()
+		};
 
 		TrackComponentState(
-			target, "Remove Ignore Parent Immovable", std::move(before), std::move(after), true
+			target,
+			"Remove Ignore Parent Immovable",
+			std::move(before),
+			std::move(after),
+			true
 		);
 
 		inheritance_changed = true;
@@ -7275,11 +8668,19 @@ bool DrawPhysicsFeature(Target& target) {
 	bool changed{ header.changed };
 
 	changed |= DrawOptionalComponent<Target, Collider>(
-		target, "Collider", true,
-		[&target](Collider& value) { return DrawGeometryComponent(target, value); }
+		target,
+		"Collider",
+		true,
+		[&target](Collider& value) {
+			return DrawGeometryComponent(target, value);
+		}
 	);
 	changed |= DrawRigidBodyWithInheritance(target);
-	changed |= DrawOptionalReflected<Target, BoundaryBehavior>(target, "Boundary Behavior", false);
+	changed |= DrawOptionalReflected<Target, BoundaryBehavior>(
+		target,
+		"Boundary Behavior",
+		false
+	);
 
 	enum class MovementKind {
 		None,
@@ -7342,39 +8743,47 @@ bool DrawPhysicsFeature(Target& target) {
 }
 
 bool DrawButtonVisualStateSelector(std::optional<ButtonVisualState>& state) {
-	return DrawPropertyRow("Visual State", [&]() {
-		const std::string preview{ state ? PrettyName(magic_enum::enum_name(*state))
-										 : "Base Entity" };
+	return DrawPropertyRow(
+		"Visual State",
+		[&]() {
+			const std::string preview{
+				state
+					? PrettyName(magic_enum::enum_name(*state))
+					: "Base Entity"
+			};
 
-		ImGui::SetNextItemWidth(-FLT_MIN);
+			ImGui::SetNextItemWidth(-FLT_MIN);
 
-		if (!ImGui::BeginCombo("##ButtonVisualState", preview.c_str())) {
-			return false;
-		}
-
-		bool changed{ false };
-		const bool base_selected{ !state };
-
-		if (ImGui::Selectable("Base Entity", base_selected)) {
-			state.reset();
-			changed = !base_selected;
-		}
-
-		ImGui::Separator();
-
-		for (const auto candidate : magic_enum::enum_values<ButtonVisualState>()) {
-			const bool selected{ state && *state == candidate };
-			const std::string label{ PrettyName(magic_enum::enum_name(candidate)) };
-
-			if (ImGui::Selectable(label.c_str(), selected)) {
-				state	= candidate;
-				changed = !selected;
+			if (!ImGui::BeginCombo("##ButtonVisualState", preview.c_str())) {
+				return false;
 			}
-		}
 
-		ImGui::EndCombo();
-		return changed;
-	});
+			bool changed{ false };
+			const bool base_selected{ !state };
+
+			if (ImGui::Selectable("Base Entity", base_selected)) {
+				state.reset();
+				changed = !base_selected;
+			}
+
+			ImGui::Separator();
+
+			for (const auto candidate : magic_enum::enum_values<ButtonVisualState>()) {
+				const bool selected{ state && *state == candidate };
+				const std::string label{
+					PrettyName(magic_enum::enum_name(candidate))
+				};
+
+				if (ImGui::Selectable(label.c_str(), selected)) {
+					state = candidate;
+					changed = !selected;
+				}
+			}
+
+			ImGui::EndCombo();
+			return changed;
+		}
+	);
 }
 
 template <typename Target>
@@ -7384,23 +8793,33 @@ bool DrawUIFeature(Target& target) {
 	}
 
 	if (const auto child_info{ GetButtonChildInfo(target) }) {
-		const bool open{ ImGui::CollapsingHeader("UI##ButtonChildUI", ImGuiTreeNodeFlags_None) };
+		const bool open{
+			ImGui::CollapsingHeader(
+				"UI##ButtonChildUI",
+				ImGuiTreeNodeFlags_None
+			)
+		};
 
 		if (!open) {
 			return false;
 		}
 
 		ScopedIndent feature_indent;
-		auto& editor_state{ GetManualFeatureState(target.GetFeatureTargetKey()) };
-		DrawButtonVisualStateSelector(editor_state.button_visual_state);
+		auto& editor_state{
+			GetManualFeatureState(target.GetFeatureTargetKey())
+		};
+		DrawButtonVisualStateSelector(
+			editor_state.button_visual_state
+		);
 
 		if (editor_state.button_visual_state) {
 			DrawDisabledWrappedText(
-				"Transform and Visual edit the selected state. Unset values inherit from fallback "
-				"states."
+				"Transform and Visual edit the selected state. Unset values inherit from fallback states."
 			);
 		} else {
-			DrawDisabledWrappedText("Transform and Visual edit the base child entity.");
+			DrawDisabledWrappedText(
+				"Transform and Visual edit the base child entity."
+			);
 		}
 
 		return false;
@@ -7419,6 +8838,7 @@ bool DrawUIFeature(Target& target) {
 	bool changed{ header.changed };
 
 	changed |= DrawOptionalReflected<Target, ::ptgn::impl::ButtonData>(target, "Button", true);
+
 
 	changed |= DrawOptionalReflected<Target, ::ptgn::impl::ToggleButtonData>(
 		target, "Toggle Button", true
@@ -7478,8 +8898,9 @@ bool DrawCameraParentRenderTarget(Target& target) {
 		const Entity scene_target{ scene.GetRenderTarget() };
 		const Entity main_camera{ scene.GetCamera() };
 		const Entity fixed_camera{ scene.GetFixedCamera() };
-		const bool parent_target_read_only{ camera_entity == main_camera ||
-											camera_entity == fixed_camera };
+		const bool parent_target_read_only{
+			camera_entity == main_camera || camera_entity == fixed_camera
+		};
 
 		std::string scene_target_label{ "Scene Target" };
 		if (scene_target && scene_target.Has<Tag>()) {
@@ -7487,7 +8908,8 @@ bool DrawCameraParentRenderTarget(Target& target) {
 		}
 
 		std::vector<RenderTargetOption> render_targets;
-		for (auto [entity, _target] : scene.EntitiesWith<::ptgn::impl::RenderTargetDesc>()) {
+		for (auto [entity, _target] :
+			 scene.EntitiesWith<::ptgn::impl::RenderTargetDesc>()) {
 			if (!entity || entity == scene_target || !entity.Has<Tag, UUID>()) {
 				continue;
 			}
@@ -7498,12 +8920,10 @@ bool DrawCameraParentRenderTarget(Target& target) {
 			label += uuid_text(uuid);
 			label += "]";
 
-			render_targets.push_back(
-				RenderTargetOption{
-					.uuid  = uuid,
-					.label = std::move(label),
-				}
-			);
+			render_targets.push_back(RenderTargetOption{
+				.uuid = uuid,
+				.label = std::move(label),
+			});
 		}
 
 		std::ranges::sort(render_targets, {}, &RenderTargetOption::label);
@@ -7522,16 +8942,18 @@ bool DrawCameraParentRenderTarget(Target& target) {
 
 			if (value) {
 				const auto selected{ std::ranges::find(
-					render_targets, value->render_target, &RenderTargetOption::uuid
+					render_targets,
+					value->render_target,
+					&RenderTargetOption::uuid
 				) };
 
 				if (selected != render_targets.end()) {
 					preview = selected->label.c_str();
 				} else {
-					missing_preview	 = "Missing Render Target [";
+					missing_preview = "Missing Render Target [";
 					missing_preview += uuid_text(value->render_target);
 					missing_preview += "]";
-					preview			 = missing_preview.c_str();
+					preview = missing_preview.c_str();
 				}
 			}
 
@@ -7584,7 +9006,11 @@ bool DrawCameraParentRenderTarget(Target& target) {
 
 		auto after{ target.template Capture<::ptgn::impl::ParentRenderTarget>() };
 		TrackComponentState(
-			target, "Edit Parent Render Target", std::move(before), std::move(after), changed
+			target,
+			"Edit Parent Render Target",
+			std::move(before),
+			std::move(after),
+			changed
 		);
 
 		return changed;
@@ -7598,7 +9024,10 @@ bool DrawCameraFeature(Target& target) {
 	}
 
 	const auto header{ DrawFeatureHeader(
-		target, InspectorFeature::Camera, "Camera", ImGuiTreeNodeFlags_None,
+		target,
+		InspectorFeature::Camera,
+		"Camera",
+		ImGuiTreeNodeFlags_None,
 		CameraFeatureComponents{}
 	) };
 
@@ -7611,12 +9040,25 @@ bool DrawCameraFeature(Target& target) {
 
 	bool changed{ header.changed };
 	changed |= DrawCameraParentRenderTarget(target);
-	changed |= DrawOptionalComponent<Target, ::ptgn::impl::CameraData>(
-		target, "Camera", false,
-		[&target](::ptgn::impl::CameraData& value) { return DrawContents(target.ctx, value); }
+	changed |= DrawOptionalComponent<
+		Target,
+		::ptgn::impl::CameraData
+	>(
+		target,
+		"Camera",
+		false,
+		[&target](::ptgn::impl::CameraData& value) {
+			return DrawContents(target.ctx, value);
+		}
 	);
-	changed |= DrawRequiredComponent<Target, ::ptgn::impl::CameraMask>(
-		target, "Layers", false, [](::ptgn::impl::CameraMask& value) {
+	changed |= DrawRequiredComponent<
+		Target,
+		::ptgn::impl::CameraMask
+	>(
+		target,
+		"Layers",
+		false,
+		[](::ptgn::impl::CameraMask& value) {
 			bool masks_changed{ DrawLayerMaskValue("Include Layer", value.include) };
 			masks_changed |= DrawLayerMaskValue("Exclude Layer", value.exclude);
 			return masks_changed;
@@ -7806,22 +9248,33 @@ void DrawPrefabInspector(EditorContext& ctx, const PrefabKey& key) {
 		return;
 	}
 
-	auto prefab_asset{ ::ptgn::impl::AssetAccessor{ assets }.Get<Prefab>(key) };
+	auto prefab_asset{
+		::ptgn::impl::AssetAccessor{ assets }.Get<Prefab>(key)
+	};
 
-	const SerializedEntityPath entity_path{ ctx.local.selection.selected_prefab_entity_path };
+	const SerializedEntityPath entity_path{
+		ctx.local.selection.selected_prefab_entity_path
+	};
 
-	auto* selected_entity{ ResolveSerializedEntity(prefab_asset.get().root, entity_path) };
+	auto* selected_entity{
+		ResolveSerializedEntity(
+			prefab_asset.get().root,
+			entity_path
+		)
+	};
 
 	if (!selected_entity) {
-		ImGui::TextDisabled("The selected prefab entity no longer exists.");
+		ImGui::TextDisabled(
+			"The selected prefab entity no longer exists."
+		);
 		return;
 	}
 
 	PrefabInspectorTarget target{
-		.ctx		 = ctx,
-		.key		 = key,
+		.ctx = ctx,
+		.key = key,
 		.entity_path = entity_path,
-		.prefab		 = *selected_entity,
+		.prefab = *selected_entity,
 	};
 
 	if (!DrawInspectorContents(ctx, target)) {

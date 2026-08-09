@@ -2,6 +2,7 @@
 
 #include <concepts>
 #include <filesystem>
+#include <functional>
 #include <memory>
 #include <string_view>
 #include <tuple>
@@ -36,6 +37,10 @@ public:
 	Application(Application&&) noexcept = delete;
 	Application& operator=(Application&&) noexcept = delete;
 
+	/// @brief Installs an editor/application shutdown guard. Return false to cancel the close.
+	void SetCloseGuard(std::function<bool()> close_guard);
+	void RequestQuit();
+
 	/// @brief Opens an existing project. The project file must already exist.
 	void StartProject(const path& project_path);
 
@@ -50,7 +55,7 @@ public:
 		StartProjectImpl(project_path, default_scene);
 	}
 
-	/// @brief Starts a code only runtime scene without creating or loading a project.
+	/// @brief Starts a code-only runtime scene without creating or loading a project.
 	template <SceneType TScene, typename... TArgs>
 		requires std::constructible_from<TScene, TArgs...>
 	void StartWith(std::string_view scene_tag, TArgs&&... args) {
@@ -127,6 +132,8 @@ private:
 	void Update();
 	void RenderScenes();
 	void HandleGlobalEvents(bool dispatch_scene_events);
+
+	std::function<bool()> close_guard_;
 
 	impl::ApplicationContext ctx_;
 };

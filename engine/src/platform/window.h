@@ -204,6 +204,11 @@ public:
 
 	void ClearInputState();
 
+	/// @brief Requests application shutdown through the normal window-update path.
+	void RequestQuit();
+	/// @brief Cancels a pending OS/application quit request. Used by editor unsaved-change guards.
+	void CancelQuit();
+
 	FileDialog file;
 
 private:

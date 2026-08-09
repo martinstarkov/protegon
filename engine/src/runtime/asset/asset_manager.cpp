@@ -1,7 +1,6 @@
 #include "runtime/asset/asset_manager.h"
 
 #include <ecs/ecs.h>
-
 #if defined(__clang__) || defined(__GNUC__)
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wold-style-cast"
@@ -53,6 +52,7 @@
 #include "core/util/hash.h"
 #include "core/util/string.h"
 #include "renderer/renderer.h"
+#include "renderer/shader_compiler.h"
 #include "renderer/resources/id.h"
 #include "renderer/resources/shader.h"
 #include "renderer/resources/texture.h"
@@ -60,6 +60,7 @@
 #include "renderer/text/font_atlas.h"
 #include "renderer/text/font_cache.h"
 #include "runtime/asset/asset_key.h"
+#include "runtime/asset/engine_shader_library.h"
 #include "runtime/audio/audio.h"
 #include "runtime/audio/audio_system.h"
 #include "runtime/graphics/text/font.h"
@@ -222,18 +223,88 @@ std::string BuiltinShaderName(std::string_view value) {
 	return std::string{ value };
 }
 
+std::optional<std::string> ResolveShaderPairStageForValidation(
+	const std::variant<ShaderCode, ShaderPathOrName>& value
+) {
+	if (const auto* code{ std::get_if<ShaderCode>(&value) }) {
+		return code->content;
+	}
+
+	const auto& path_or_name{ std::get<ShaderPathOrName>(value) };
+	if (IsFilePath(path_or_name)) {
+		const path file_path{ path_or_name };
+		if (!FileExists(file_path)) {
+			return std::nullopt;
+		}
+		return FileToString(file_path);
+	}
+
+	const auto engine_shaders{ impl::GetEngineShaderFiles() };
+	const auto it{ std::ranges::find_if(engine_shaders, [&](const auto& shader_file) {
+		return shader_file.filename.stem().string() == path_or_name;
+	}) };
+	if (it == engine_shaders.end()) {
+		return std::nullopt;
+	}
+	return it->source;
+}
+
+ShaderCompileResult ValidateShaderPairForLoad(
+	const ShaderPair& pair,
+	std::size_t max_texture_slots
+) {
+	auto vertex{ ResolveShaderPairStageForValidation(pair.vertex) };
+	auto fragment{ ResolveShaderPairStageForValidation(pair.fragment) };
+	if (!vertex.has_value() || !fragment.has_value()) {
+		return { false, "Could not resolve one or more shader-pair sources." };
+	}
+	return impl::ValidateShaderProgram(
+		vertex.value(), fragment.value(), max_texture_slots
+	);
+}
+
+ShaderCompileResult ValidateShaderProgramSourceForLoad(
+	const std::variant<ShaderCode, ShaderPath, ShaderPair>& source,
+	std::size_t max_texture_slots
+) {
+	if (const auto* pair{ std::get_if<ShaderPair>(&source) }) {
+		return ValidateShaderPairForLoad(*pair, max_texture_slots);
+	}
+
+	std::string program_source;
+	if (const auto* code{ std::get_if<ShaderCode>(&source) }) {
+		program_source = code->content;
+	} else {
+		const auto& shader_path{ std::get<ShaderPath>(source).path };
+		if (!FileExists(shader_path)) {
+			return { false, "Shader source path does not exist: " + shader_path.string() };
+		}
+		program_source = FileToString(shader_path);
+	}
+
+	if (DetectShaderStages(program_source) != ShaderStageMask::VertexFragment) {
+		return { false, "A shader program source requires both vertex and fragment stages." };
+	}
+	return impl::ValidateShaderSource(program_source, max_texture_slots);
+}
+
 std::variant<ShaderCode, ShaderPathOrName> ResolveSerializedShaderStage(
 	std::string_view reference,
 	const path& source_path,
-	const path& project_root
+	const path& project_root,
+	ShaderStageMask stage
 ) {
-	if (reference == kShaderSourceToken) {
-		return ShaderCode{ FileToString(source_path) };
-	}
 	if (reference.starts_with(kBuiltinShaderPrefix)) {
 		return BuiltinShaderName(reference);
 	}
-	return ShaderCode{ FileToString((project_root / path{ reference }).lexically_normal()) };
+
+	const path stage_path{
+		reference == kShaderSourceToken
+			? source_path
+			: (project_root / path{ reference }).lexically_normal()
+	};
+	const std::string source{ FileToString(stage_path) };
+	return ShaderCode{ impl::ExtractShaderStageSource(source, stage) };
 }
 
 } // namespace
@@ -481,17 +552,20 @@ private:
 	static std::variant<ShaderCode, ShaderPathOrName> PrepareShaderStage(
 		std::string_view reference,
 		const path& source_path,
-		const path& project_root
+		const path& project_root,
+		ShaderStageMask stage
 	) {
-		if (reference == kShaderSourceToken) {
-			return ShaderCode{ FileToString(source_path) };
-		}
 		if (reference.starts_with(kBuiltinShaderPrefix)) {
 			return BuiltinShaderName(reference);
 		}
 
-		const auto stage_path{ (project_root / path{ reference }).lexically_normal() };
-		return ShaderCode{ FileToString(stage_path) };
+		const path stage_path{
+			reference == kShaderSourceToken
+				? source_path
+				: (project_root / path{ reference }).lexically_normal()
+		};
+		const std::string source{ FileToString(stage_path) };
+		return ShaderCode{ impl::ExtractShaderStageSource(source, stage) };
 	}
 
 	static Result Prepare(Job job) {
@@ -556,10 +630,10 @@ private:
 					result.payload = PreparedShader{
 						ShaderPair{
 							.vertex = PrepareShaderStage(
-								program.vertex.value(), job.absolute_path, job.project_root
+								program.vertex.value(), job.absolute_path, job.project_root, ShaderStageMask::Vertex
 							),
 							.fragment = PrepareShaderStage(
-								program.fragment.value(), job.absolute_path, job.project_root
+								program.fragment.value(), job.absolute_path, job.project_root, ShaderStageMask::Fragment
 							),
 						},
 					};
@@ -621,6 +695,257 @@ AssetManager::AssetManager(Renderer& renderer) :
 		TextureKey{ std::string{ kMissingTextureAssetKey } },
 		std::nullopt
 	);
+
+	InitializeEngineShaderCatalog();
+}
+
+
+void AssetManager::InitializeEngineShaderCatalog() {
+	engine_shader_sources_.clear();
+	engine_vertex_shader_names_.clear();
+	engine_fragment_shader_names_.clear();
+
+	for (const auto& shader_file : impl::GetEngineShaderFiles()) {
+		const path& filename{ shader_file.filename };
+		const std::string name{ filename.stem().string() };
+		const auto stages{ DetectShaderStages(shader_file.source) };
+		engine_shader_sources_.push_back(impl::EngineShaderSource{
+			.key = AssetKey{ "$engine/shaders/" + filename.string() },
+			.name = name,
+			.virtual_path = path{ "Shaders" } / filename,
+			.stages = stages,
+			.source = shader_file.source,
+		});
+		if (HasShaderStage(stages, ShaderStageMask::Vertex)) {
+			engine_vertex_shader_names_.push_back(name);
+		}
+		if (HasShaderStage(stages, ShaderStageMask::Fragment)) {
+			engine_fragment_shader_names_.push_back(name);
+		}
+	}
+	std::ranges::sort(engine_shader_sources_, {}, &impl::EngineShaderSource::name);
+	std::ranges::sort(engine_vertex_shader_names_);
+	std::ranges::sort(engine_fragment_shader_names_);
+}
+
+std::vector<impl::AssetRecord> AssetManager::GetEngineShaderAssets() const {
+	std::vector<impl::AssetRecord> records;
+	records.reserve(engine_shader_sources_.size());
+	for (const auto& shader : engine_shader_sources_) {
+		records.push_back(impl::AssetRecord{
+			.key = shader.key,
+			.source_path = shader.virtual_path,
+			.kind = AssetKind::Shader,
+			.load_state = AssetLoadState::Loaded,
+			.cataloged = false,
+			.engine_asset = true,
+			.read_only = true,
+			.metadata = impl::AssetMetadata{ .shader_stages = shader.stages },
+		});
+	}
+	return records;
+}
+
+std::optional<std::string> AssetManager::GetEngineShaderSource(const AssetKey& key) const {
+	const auto it{ std::ranges::find(engine_shader_sources_, key, &impl::EngineShaderSource::key) };
+	if (it == engine_shader_sources_.end()) {
+		return std::nullopt;
+	}
+	return it->source;
+}
+
+std::span<const std::string> AssetManager::GetEngineVertexShaderNames() const {
+	return engine_vertex_shader_names_;
+}
+
+std::span<const std::string> AssetManager::GetEngineFragmentShaderNames() const {
+	return engine_fragment_shader_names_;
+}
+
+std::optional<std::string> AssetManager::GetShaderSource(const ShaderKey& key) const {
+	if (auto engine{ GetEngineShaderSource(key) }) {
+		return engine;
+	}
+	const auto it{ catalog_.find(Hash(key)) };
+	if (it == catalog_.end() || it->second.kind != AssetKind::Shader) {
+		return std::nullopt;
+	}
+	const auto path{ ResolveAssetPath(it->second) };
+	if (!FileExists(path)) {
+		return std::nullopt;
+	}
+	return FileToString(path);
+}
+
+std::optional<std::string> AssetManager::ResolveShaderStageSourceText(
+	std::string_view reference,
+	const SerializedAsset& owner,
+	std::optional<std::string_view> source_override
+) const {
+	if (reference == kShaderSourceToken) {
+		if (source_override.has_value()) {
+			return std::string{ source_override.value() };
+		}
+		const auto path{ ResolveAssetPath(owner) };
+		return FileExists(path) ? std::optional<std::string>{ FileToString(path) } : std::nullopt;
+	}
+	if (reference.starts_with(kBuiltinShaderPrefix)) {
+		const std::string name{ reference.substr(kBuiltinShaderPrefix.size()) };
+		const auto it{ std::ranges::find(engine_shader_sources_, name, &impl::EngineShaderSource::name) };
+		if (it == engine_shader_sources_.end()) {
+			return std::nullopt;
+		}
+		return it->source;
+	}
+	const auto root{ project_root_.value_or(GetWorkingDirectory()) };
+	const path stage_path{ (root / path{ reference }).lexically_normal() };
+	if (!FileExists(stage_path)) {
+		return std::nullopt;
+	}
+	return FileToString(stage_path);
+}
+
+ShaderCompileResult AssetManager::ValidateShaderSource(
+	const ShaderKey& key,
+	std::string_view source
+) const {
+	const auto catalog_it{ catalog_.find(Hash(key)) };
+	auto max_texture_slots{ impl::RendererAccessor{ renderer_ }.GetMaxTextureSlots() };
+	if (catalog_it == catalog_.end()) {
+		return impl::ValidateShaderSource(source, max_texture_slots);
+	}
+	const auto& asset{ catalog_it->second };
+	const auto stages{ DetectShaderStages(source) };
+	if (!asset.shader.has_value() && stages == ShaderStageMask::VertexFragment) {
+		return impl::ValidateShaderSource(source, max_texture_slots);
+	}
+	if (!asset.shader.has_value()) {
+		return impl::ValidateShaderSource(source, max_texture_slots);
+	}
+	const auto& program{ asset.shader.value() };
+	if (!program.vertex.has_value() || !program.fragment.has_value()) {
+		return { false, "Shader program configuration must provide both vertex and fragment stages." };
+	}
+	auto vertex{ ResolveShaderStageSourceText(program.vertex.value(), asset, source) };
+	auto fragment{ ResolveShaderStageSourceText(program.fragment.value(), asset, source) };
+	if (!vertex.has_value() || !fragment.has_value()) {
+		return { false, "One or more configured shader stage sources could not be resolved." };
+	}
+	return impl::ValidateShaderProgram(
+		vertex.value(), fragment.value(), max_texture_slots
+	);
+}
+
+bool AssetManager::SaveShaderSource(
+	const ShaderKey& key,
+	std::string_view source,
+	const ShaderCompileResult& validation
+) {
+	auto catalog_it{ catalog_.find(Hash(key)) };
+	if (catalog_it == catalog_.end() || catalog_it->second.kind != AssetKind::Shader) {
+		return false;
+	}
+	const auto file_path{ ResolveAssetPath(catalog_it->second) };
+	std::ofstream output{ file_path, std::ios::binary | std::ios::trunc };
+	if (!output) {
+		return false;
+	}
+	output.write(source.data(), static_cast<std::streamsize>(source.size()));
+	if (!output) {
+		return false;
+	}
+	auto& state{ runtime_states_[Hash(key)] };
+	state.metadata = ProbeMetadata(catalog_it->second);
+	state.compile_error = !validation.success;
+	state.compile_log = validation.log;
+	if (!validation.success) {
+		PTGN_WARN("Saved shader with compile errors: ", key, "\n", validation.log);
+	}
+	return true;
+}
+
+std::optional<std::variant<ShaderCode, ShaderPath, ShaderPair>> AssetManager::BuildShaderProgramSource(
+	const SerializedAsset& asset,
+	std::optional<std::string_view> source_override
+) const {
+	const auto source_path{ ResolveAssetPath(asset) };
+	std::string source;
+	if (source_override.has_value()) {
+		source = std::string{ source_override.value() };
+	} else if (FileExists(source_path)) {
+		source = FileToString(source_path);
+	} else {
+		return std::nullopt;
+	}
+	if (!asset.shader.has_value()) {
+		return std::variant<ShaderCode, ShaderPath, ShaderPair>{ ShaderCode{ source } };
+	}
+	const auto& program{ asset.shader.value() };
+	if (program.vertex == std::optional<std::string>{ kShaderSourceToken } &&
+		program.fragment == std::optional<std::string>{ kShaderSourceToken }) {
+		return std::variant<ShaderCode, ShaderPath, ShaderPair>{ ShaderCode{ source } };
+	}
+	if (!program.vertex.has_value() || !program.fragment.has_value()) {
+		return std::nullopt;
+	}
+	const auto root{ project_root_.value_or(GetWorkingDirectory()) };
+	auto resolve_stage = [&](
+		std::string_view reference, ShaderStageMask stage
+	) -> std::variant<ShaderCode, ShaderPathOrName> {
+		if (reference.starts_with(kBuiltinShaderPrefix)) {
+			return std::string{ reference.substr(kBuiltinShaderPrefix.size()) };
+		}
+
+		std::string stage_source;
+		if (reference == kShaderSourceToken) {
+			stage_source = source;
+		} else {
+			stage_source = FileToString((root / path{ reference }).lexically_normal());
+		}
+		return ShaderCode{ impl::ExtractShaderStageSource(stage_source, stage) };
+	};
+	return std::variant<ShaderCode, ShaderPath, ShaderPair>{ ShaderPair{
+		.vertex = resolve_stage(program.vertex.value(), ShaderStageMask::Vertex),
+		.fragment = resolve_stage(program.fragment.value(), ShaderStageMask::Fragment),
+	} };
+}
+
+ShaderCompileResult AssetManager::RecompileShaderSource(
+	const ShaderKey& key,
+	std::string_view source
+) {
+	auto validation{ ValidateShaderSource(key, source) };
+	if (!validation.success) {
+		return validation;
+	}
+	auto catalog_it{ catalog_.find(Hash(key)) };
+	if (catalog_it == catalog_.end()) {
+		return { false, "Shader is not in the project catalog." };
+	}
+	auto& state{ runtime_states_[Hash(key)] };
+	if (state.load_state != AssetLoadState::Loaded || !Has<ptgn::Shader>(key)) {
+		validation.log += "\nShader is not resident; source was validated but no runtime program was replaced.";
+		return validation;
+	}
+	auto prepared{ BuildShaderProgramSource(catalog_it->second, source) };
+	if (!prepared.has_value()) {
+		return { false, "Could not resolve shader program sources for reload." };
+	}
+
+	const RuntimeAssetState retained_state{ state };
+	ForceUnload(key, AssetKind::Shader);
+	LoadShader(ShaderKey{ key }, prepared.value(), key.value);
+	auto& refreshed_state{ runtime_states_[Hash(key)] };
+	refreshed_state.reference_count = retained_state.reference_count;
+	refreshed_state.globally_pinned = retained_state.globally_pinned;
+	refreshed_state.manually_pinned = retained_state.manually_pinned;
+	refreshed_state.metadata = retained_state.metadata;
+	refreshed_state.load_state = AssetLoadState::Loaded;
+	refreshed_state.error.clear();
+	refreshed_state.compile_error = false;
+	refreshed_state.compile_log = validation.log;
+	validation.log += "\nResident shader program recompiled successfully.";
+	return validation;
 }
 
 AssetManager::~AssetManager() noexcept = default;
@@ -653,7 +978,7 @@ void AssetManager::Update() {
 
 		try {
 			std::visit(
-				[this, &result]<typename T>(T&& prepared) {
+				[this, &result, &success, &error]<typename T>(T&& prepared) {
 					using Value = std::remove_cvref_t<T>;
 					const auto& asset{ result->asset };
 					const auto absolute_path{ ResolveAssetPath(asset) };
@@ -691,6 +1016,17 @@ void AssetManager::Update() {
 							}
 						);
 					} else if constexpr (std::same_as<Value, AsyncLoader::PreparedShader>) {
+						const auto disk_source{ FileToString(absolute_path) };
+						auto validation{ ValidateShaderSource(ShaderKey{ asset.key }, disk_source) };
+						auto& shader_state{ runtime_states_[Hash(asset.key)] };
+						shader_state.compile_error = !validation.success;
+						shader_state.compile_log = validation.log;
+						if (!validation.success) {
+							success = false;
+							error = validation.log;
+							PTGN_WARN("Shader failed to compile and was left unavailable: ", asset.key);
+							return;
+						}
 						auto shader{ CreateShader(true, prepared.source, asset.key.value) };
 						impl::AddAssetKey(shader.GetEntity(), asset.key, absolute_path);
 					} else if constexpr (std::same_as<Value, AsyncLoader::PreparedScene>) {
@@ -1471,41 +1807,25 @@ bool AssetManager::DeleteAsset(const AssetKey& key, bool delete_file) {
 
 bool AssetManager::ConfigureShaderProgram(
 	const ShaderKey& key,
-	std::optional<std::string> builtin_vertex,
-	std::optional<std::string> builtin_fragment
+	std::optional<std::string> vertex_source,
+	std::optional<std::string> fragment_source
 ) {
 	auto catalog_it{ catalog_.find(Hash(key)) };
 	if (catalog_it == catalog_.end() || catalog_it->second.kind != AssetKind::Shader) {
 		return false;
 	}
-
-	auto& state{ runtime_states_[Hash(key)] };
-	if (state.reference_count > 0 || state.globally_pinned ||
-		state.load_state == AssetLoadState::Queued ||
-		state.load_state == AssetLoadState::Loading ||
-		state.load_state == AssetLoadState::Finalizing) {
+	if (!vertex_source.has_value() && !fragment_source.has_value()) {
+		catalog_it->second.shader.reset();
+		return true;
+	}
+	if (!vertex_source.has_value() || !fragment_source.has_value() ||
+		vertex_source->empty() || fragment_source->empty()) {
 		return false;
 	}
-
-	const auto stages{ state.metadata.shader_stages };
 	SerializedShaderProgram program;
-
-	if (HasShaderStage(stages, ShaderStageMask::Vertex)) {
-		program.vertex = std::string{ kShaderSourceToken };
-	} else if (builtin_vertex.has_value() && !builtin_vertex->empty()) {
-		program.vertex = std::string{ kBuiltinShaderPrefix } + builtin_vertex.value();
-	}
-
-	if (HasShaderStage(stages, ShaderStageMask::Fragment)) {
-		program.fragment = std::string{ kShaderSourceToken };
-	} else if (builtin_fragment.has_value() && !builtin_fragment->empty()) {
-		program.fragment = std::string{ kBuiltinShaderPrefix } + builtin_fragment.value();
-	}
-
+	program.vertex = std::move(vertex_source.value());
+	program.fragment = std::move(fragment_source.value());
 	catalog_it->second.shader = std::move(program);
-	ForceUnload(key, AssetKind::Shader);
-	runtime_states_[Hash(key)].load_state = AssetLoadState::Unloaded;
-	runtime_states_[Hash(key)].error.clear();
 	return true;
 }
 
@@ -1531,6 +1851,16 @@ void AssetManager::Load(const SerializedAsset& asset) {
 	}
 
 	const auto source{ FileToString(source_path) };
+	auto validation{ ValidateShaderSource(ShaderKey{ asset.key }, source) };
+	auto& shader_state{ runtime_states_[Hash(asset.key)] };
+	shader_state.compile_error = !validation.success;
+	shader_state.compile_log = validation.log;
+	if (!validation.success) {
+		shader_state.load_state = AssetLoadState::Failed;
+		shader_state.error = validation.log;
+		PTGN_WARN("Shader failed to compile and was not loaded: ", asset.key);
+		return;
+	}
 	if (!asset.shader.has_value()) {
 		if (!HasVertexAndFragmentShader(source)) {
 			PTGN_WARN(
@@ -1565,10 +1895,10 @@ void AssetManager::Load(const SerializedAsset& asset) {
 		ShaderKey{ asset.key },
 		ShaderPair{
 			.vertex = ResolveSerializedShaderStage(
-				program.vertex.value(), source_path, root
+				program.vertex.value(), source_path, root, ShaderStageMask::Vertex
 			),
 			.fragment = ResolveSerializedShaderStage(
-				program.fragment.value(), source_path, root
+				program.fragment.value(), source_path, root, ShaderStageMask::Fragment
 			),
 		},
 		asset.key.value
@@ -1761,6 +2091,14 @@ Shader AssetManager::CreateShader(
 	const std::variant<ShaderCode, ShaderPath, ShaderPair>& source,
 	std::string_view shader_name
 ) {
+	auto max_texture_slots{ impl::RendererAccessor{ renderer_ }.GetMaxTextureSlots() };
+	const auto validation{ ValidateShaderProgramSourceForLoad(source, max_texture_slots) };
+	if (!validation.success) {
+		PTGN_WARN(
+			"Shader failed validation and was not created: ", shader_name, "\n", validation.log
+		);
+		return {};
+	}
 	return CreateShader(false, source, shader_name);
 }
 
@@ -1958,10 +2296,36 @@ void AssetManager::Load(
 }
 
 void AssetManager::Load(ShaderKey key, const ShaderCode& shader_code) {
+	auto max_texture_slots{ impl::RendererAccessor{ renderer_ }.GetMaxTextureSlots() };
+	auto validation{ impl::ValidateShaderSource(shader_code.content, max_texture_slots) };
+	if (DetectShaderStages(shader_code.content) != ShaderStageMask::VertexFragment) {
+		validation.success = false;
+		validation.log = "A directly loaded ShaderCode program requires both vertex and fragment stages.";
+	}
+	if (!validation.success) {
+		auto& state{ runtime_states_[Hash(key)] };
+		state.load_state = AssetLoadState::Failed;
+		state.error = validation.log;
+		state.compile_error = true;
+		state.compile_log = validation.log;
+		PTGN_WARN("Shader failed validation and was not loaded: ", key, "\n", validation.log);
+		return;
+	}
 	LoadShader(std::move(key), shader_code, std::nullopt);
 }
 
 void AssetManager::Load(ShaderKey key, const ShaderPair& shader_pair) {
+	auto max_texture_slots{ impl::RendererAccessor{ renderer_ }.GetMaxTextureSlots() };
+	auto validation{ ValidateShaderPairForLoad(shader_pair, max_texture_slots) };
+	if (!validation.success) {
+		auto& state{ runtime_states_[Hash(key)] };
+		state.load_state = AssetLoadState::Failed;
+		state.error = validation.log;
+		state.compile_error = true;
+		state.compile_log = validation.log;
+		PTGN_WARN("Shader pair failed validation and was not loaded: ", key, "\n", validation.log);
+		return;
+	}
 	LoadShader(std::move(key), shader_pair, std::nullopt);
 }
 
@@ -2000,11 +2364,25 @@ void AssetManager::Load(AssetKey key, const path& asset_path, AssetKind kind) {
 			break;
 		case Shader: {
 			const auto source{ FileToString(asset_path) };
+			TrackAssetLoad(key, AssetKind::Shader, asset_path);
+			auto max_texture_slots{ impl::RendererAccessor{ renderer_ }.GetMaxTextureSlots() };
+			auto validation{ impl::ValidateShaderSource(source, max_texture_slots) };
 			if (!HasVertexAndFragmentShader(source)) {
-				PTGN_WARN("Shader requires a configured vertex/fragment pair: ", asset_path.string());
+				validation.success = false;
+				validation.log = "Shader requires both vertex and fragment stages or a configured pair.";
+			}
+			if (!validation.success) {
+				auto& state{ runtime_states_[Hash(key)] };
+				state.load_state = AssetLoadState::Failed;
+				state.error = validation.log;
+				state.compile_error = true;
+				state.compile_log = validation.log;
+				PTGN_WARN(
+					"Shader failed validation and was not loaded: ", asset_path.string(), "\n",
+					validation.log
+				);
 				return;
 			}
-			TrackAssetLoad(key, AssetKind::Shader, asset_path);
 			LoadShader(ShaderKey{ std::move(key) }, ShaderCode{ source }, std::nullopt);
 			break;
 		}
@@ -2223,7 +2601,9 @@ std::vector<impl::AssetRecord> AssetManager::GetAssets() const {
 			.globally_pinned = state && state->globally_pinned,
 			.manually_pinned = state && state->manually_pinned,
 			.cataloged = true,
+			.compile_error = state && state->compile_error,
 			.load_error = state ? state->error : std::string{},
+			.compile_log = state ? state->compile_log : std::string{},
 			.metadata = state ? state->metadata : impl::AssetMetadata{},
 		};
 

@@ -1,7 +1,6 @@
 #include "renderer/backend/gl/gl_shader.h"
 
 #include <algorithm>
-#include <cmrc/cmrc.hpp>
 #include <cstdint>
 #include <filesystem>
 #include <format>
@@ -33,6 +32,7 @@
 #include "renderer/backend/gl/gl_context.h"
 #include "renderer/resources/id.h"
 #include "renderer/resources/shader.h"
+#include "runtime/asset/engine_shader_library.h"
 #include "serialization/json/fwd.h"
 
 namespace ptgn::impl::gl {
@@ -403,24 +403,6 @@ void SubstituteShaderTokens(std::vector<ShaderSpec>& sources, std::size_t max_te
 	}
 }
 
-json GetShaderManifest(const cmrc::embedded_filesystem& fs) {
-	std::string manifest_name{ "manifest.json" };
-
-	PTGN_ASSERT(
-		fs.exists(manifest_name), "Could not find shader manifest file with name: ", manifest_name
-	);
-	auto manifest_file{ fs.open(manifest_name) };
-
-	std::string_view manifest_data(manifest_file.begin(), manifest_file.end());
-
-	json manifest = json::parse(manifest_data);
-
-	// PTGN_LOG("--------- Manifest Name ----------");
-	// PTGN_LOG(manifest_name);
-	// PTGN_LOG("-------- Manifest Content -------");
-	// PTGN_LOG(manifest.dump(4));
-	return manifest;
-}
 
 } // namespace
 
@@ -477,28 +459,13 @@ void Shaders::CompileShaders(const std::vector<ShaderSpec>& sources) {
 	}
 }
 
-void Shaders::PopulateShaderCache(const cmrc::embedded_filesystem& filesystem) {
-	path subdir{ "" };
-	auto dir{ filesystem.iterate_directory(subdir.string()) };
-
+void Shaders::PopulateShaderCache(std::span<const ::ptgn::impl::EngineShaderFile> files) {
 	std::vector<ShaderSpec> sources;
 
-	for (const auto& resource : dir) {
-		if (!resource.is_file()) {
-			continue;
-		}
-
-		path filename{ resource.filename() };
-
-		if (!HasExtension(filename, ".glsl")) {
-			continue;
-		}
-
-		auto file{ filesystem.open((subdir / filename).string()) };
-		std::string shader_src(file.begin(), file.end());
-		std::string name_without_ext{ filename.stem().string() };
-		auto srcs{ ParseShader(shader_src, name_without_ext) };
-		std::ranges::move(srcs, std::back_inserter(sources));
+	for (const auto& shader_file : files) {
+		const std::string name_without_ext{ shader_file.filename.stem().string() };
+		auto parsed{ ParseShader(shader_file.source, name_without_ext) };
+		std::ranges::move(parsed, std::back_inserter(sources));
 	}
 
 	SubstituteShaderTokens(sources, max_texture_slots_);
@@ -675,13 +642,8 @@ Shaders::Shaders(GLContext& gl, std::size_t max_texture_slots) :
 	gl_{ gl }, max_texture_slots_{ max_texture_slots } {
 	PTGN_ASSERT(max_texture_slots > 0, "Platform must support at least one texture slot");
 
-	auto fs{ cmrc::shaders::get_filesystem() };
-
-	PopulateShaderCache(fs);
-
-	auto manifest(GetShaderManifest(fs));
-
-	PopulateShadersFromCache(manifest);
+	PopulateShaderCache(::ptgn::impl::GetEngineShaderFiles());
+	PopulateShadersFromCache(::ptgn::impl::GetEngineShaderManifest());
 }
 
 Shaders::~Shaders() noexcept {

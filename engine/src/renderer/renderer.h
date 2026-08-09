@@ -142,8 +142,6 @@ public:
 
 	impl::ShaderId GetShader(std::string_view name) const;
 
-	[[nodiscard]] std::span<const std::string> GetBuiltinVertexShaderNames() const;
-	[[nodiscard]] std::span<const std::string> GetBuiltinFragmentShaderNames() const;
 
 private:
 	friend class Application;
@@ -314,6 +312,9 @@ private:
 	template <impl::RenderPrimitive T>
 	void DrawNormally(const impl::DrawRequest<T>& request) {
 		PTGN_ASSERT(!request.primitives.empty());
+		if (!current_material_valid_) {
+			return;
+		}
 		PTGN_ASSERT(!request.effect_params.draw_callback);
 
 		std::span<const impl::TextureId> textures;
@@ -632,6 +633,7 @@ private:
 
 	std::size_t current_texture_slot_capacity_{ 1 };
 	std::vector<UniformWrite> current_uniforms_;
+	bool current_material_valid_{ true };
 	impl::FramebufferObject* current_framebuffer_{ nullptr };
 
 	impl::RenderBatcher batcher_;

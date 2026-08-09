@@ -7,6 +7,7 @@
 #include <variant>
 
 #include "core/assert.h"
+#include "core/log.h"
 #include "core/math/matrix4.h"
 #include "core/math/vector2.h"
 #include "core/math/vector3.h"
@@ -98,56 +99,58 @@ std::size_t Hash(const UniformValue& value) {
 	return std::visit([](const auto& v) { return Hash(v); }, value);
 }
 
+namespace {
+
+impl::ShaderObject* TryShaderObject(Shader& shader) {
+	if (!shader) {
+		PTGN_WARN("Attempted to use an unavailable shader; draw/update skipped");
+		return nullptr;
+	}
+	auto object{ shader.GetEntity().TryGet<impl::ShaderObject>() };
+	if (!object) {
+		PTGN_WARN("Attempted to use a shader that has no compiled program; draw/update skipped");
+		return nullptr;
+	}
+	return object;
+}
+
+} // namespace
+
+#define PTGN_SHADER_SAFE_UNIFORM(TYPE) \
+void Shader::SetUniform(const char* uniform_name, TYPE v) { \
+	if (auto* object{ TryShaderObject(*this) }) { object->SetUniform(uniform_name, v); } \
+}
+
 void Shader::SetUniform(const char* uniform_name, const Matrix4& v) {
-	GetEntity().Get<impl::ShaderObject>().SetUniform(uniform_name, v);
+	if (auto* object{ TryShaderObject(*this) }) { object->SetUniform(uniform_name, v); }
 }
-
-void Shader::SetUniform(const char* uniform_name, float v) {
-	GetEntity().Get<impl::ShaderObject>().SetUniform(uniform_name, v);
-}
-
-void Shader::SetUniform(const char* uniform_name, V2_float v) {
-	GetEntity().Get<impl::ShaderObject>().SetUniform(uniform_name, v);
-}
-
-void Shader::SetUniform(const char* uniform_name, V3_float v) {
-	GetEntity().Get<impl::ShaderObject>().SetUniform(uniform_name, v);
-}
-
-void Shader::SetUniform(const char* uniform_name, V4_float v) {
-	GetEntity().Get<impl::ShaderObject>().SetUniform(uniform_name, v);
-}
-
+PTGN_SHADER_SAFE_UNIFORM(float)
+PTGN_SHADER_SAFE_UNIFORM(V2_float)
+PTGN_SHADER_SAFE_UNIFORM(V3_float)
+PTGN_SHADER_SAFE_UNIFORM(V4_float)
 void Shader::SetUniform(const char* uniform_name, std::span<const float> v) {
-	GetEntity().Get<impl::ShaderObject>().SetUniform(uniform_name, v);
+	if (auto* object{ TryShaderObject(*this) }) { object->SetUniform(uniform_name, v); }
 }
-
-void Shader::SetUniform(const char* uniform_name, int v) {
-	GetEntity().Get<impl::ShaderObject>().SetUniform(uniform_name, v);
-}
-
-void Shader::SetUniform(const char* uniform_name, V2_int v) {
-	GetEntity().Get<impl::ShaderObject>().SetUniform(uniform_name, v);
-}
-
-void Shader::SetUniform(const char* uniform_name, V3_int v) {
-	GetEntity().Get<impl::ShaderObject>().SetUniform(uniform_name, v);
-}
-
-void Shader::SetUniform(const char* uniform_name, V4_int v) {
-	GetEntity().Get<impl::ShaderObject>().SetUniform(uniform_name, v);
-}
-
+PTGN_SHADER_SAFE_UNIFORM(int)
+PTGN_SHADER_SAFE_UNIFORM(V2_int)
+PTGN_SHADER_SAFE_UNIFORM(V3_int)
+PTGN_SHADER_SAFE_UNIFORM(V4_int)
 void Shader::SetUniform(const char* uniform_name, std::span<const int> v) {
-	GetEntity().Get<impl::ShaderObject>().SetUniform(uniform_name, v);
+	if (auto* object{ TryShaderObject(*this) }) { object->SetUniform(uniform_name, v); }
 }
-
-void Shader::SetUniform(const char* uniform_name, bool v) {
-	GetEntity().Get<impl::ShaderObject>().SetUniform(uniform_name, v);
-}
+PTGN_SHADER_SAFE_UNIFORM(bool)
+#undef PTGN_SHADER_SAFE_UNIFORM
 
 Shader::operator impl::ShaderId() const {
-	return GetEntity().Get<impl::ShaderObject>();
+	if (!*this) {
+		PTGN_WARN("Attempted to use an unavailable shader; rendering skipped");
+		return {};
+	}
+	if (auto object{ GetEntity().TryGet<impl::ShaderObject>() }) {
+		return *object;
+	}
+	PTGN_WARN("Attempted to use a shader with compile errors; rendering skipped");
+	return {};
 }
 
 } // namespace ptgn

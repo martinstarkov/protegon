@@ -96,6 +96,7 @@ public:
 	[[nodiscard]] const Project* GetProject() const;
 
 	void MarkProjectDirty();
+	void RequestQuit();
 
 	bool CreateProjectScene(std::string_view scene_type);
 	bool DuplicateProjectScene(std::string_view scene_key);

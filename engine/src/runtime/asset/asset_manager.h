@@ -20,6 +20,7 @@
 #include "core/math/vector2.h"
 #include "core/util/file.h"
 #include "renderer/resources/id.h"
+#include "renderer/shader_compiler.h"
 #include "renderer/resources/shader.h"
 #include "renderer/resources/texture.h"
 #include "renderer/resources/texture_format.h"
@@ -179,6 +180,14 @@ struct AssetMetadata {
 	ShaderStageMask shader_stages{ ShaderStageMask::None };
 };
 
+struct EngineShaderSource {
+	AssetKey key;
+	std::string name;
+	path virtual_path;
+	ShaderStageMask stages{ ShaderStageMask::None };
+	std::string source;
+};
+
 struct AssetRecord {
 	AssetKey key;
 	path source_path;
@@ -188,7 +197,11 @@ struct AssetRecord {
 	bool globally_pinned{ false };
 	bool manually_pinned{ false };
 	bool cataloged{ false };
+	bool engine_asset{ false };
+	bool read_only{ false };
+	bool compile_error{ false };
 	std::string load_error;
+	std::string compile_log;
 	AssetMetadata metadata;
 	std::optional<AssetPreview> preview;
 };
@@ -388,12 +401,34 @@ public:
 	/// @brief Removes a catalog entry and optionally deletes its project file.
 	bool DeleteAsset(const AssetKey& key, bool delete_file = true);
 
-	/// @brief Sets or clears a missing engine shader stage for a single-stage GLSL asset.
+	/// @brief Sets the vertex/fragment source descriptors for a shader program.
+	/// $source selects this shader file, $builtin:<name> selects an embedded engine stage, and a
+	/// project-relative path selects another GLSL file. Passing nullopt for both returns to combined
+	/// source mode and requires this file to contain both stages.
 	bool ConfigureShaderProgram(
 		const ShaderKey& key,
-		std::optional<std::string> builtin_vertex,
-		std::optional<std::string> builtin_fragment
+		std::optional<std::string> vertex_source,
+		std::optional<std::string> fragment_source
 	);
+
+	[[nodiscard]] std::vector<impl::AssetRecord> GetEngineShaderAssets() const;
+	[[nodiscard]] std::optional<std::string> GetEngineShaderSource(const AssetKey& key) const;
+	[[nodiscard]] std::span<const std::string> GetEngineVertexShaderNames() const;
+	[[nodiscard]] std::span<const std::string> GetEngineFragmentShaderNames() const;
+	[[nodiscard]] ShaderCompileResult ValidateShaderSource(
+		const ShaderKey& key,
+		std::string_view source
+	) const;
+	[[nodiscard]] bool SaveShaderSource(
+		const ShaderKey& key,
+		std::string_view source,
+		const ShaderCompileResult& validation
+	);
+	[[nodiscard]] ShaderCompileResult RecompileShaderSource(
+		const ShaderKey& key,
+		std::string_view source
+	);
+	[[nodiscard]] std::optional<std::string> GetShaderSource(const ShaderKey& key) const;
 
 	[[nodiscard]] std::optional<path> GetProjectRoot() const;
 	[[nodiscard]] std::optional<path> GetAssetDirectory() const;
@@ -468,6 +503,8 @@ private:
 		bool globally_pinned{ false };
 		bool manually_pinned{ false };
 		std::string error;
+		bool compile_error{ false };
+		std::string compile_log;
 		impl::AssetMetadata metadata;
 		std::vector<std::weak_ptr<impl::AssetLoadBatchState>> waiters;
 	};
@@ -563,6 +600,16 @@ private:
 	) const;
 	void ReleaseDependencies(std::span<const AssetKey> dependencies) noexcept;
 	void PinProjectDependency(const AssetKey& key);
+	void InitializeEngineShaderCatalog();
+	[[nodiscard]] std::optional<std::string> ResolveShaderStageSourceText(
+		std::string_view reference,
+		const SerializedAsset& owner,
+		std::optional<std::string_view> source_override = std::nullopt
+	) const;
+	[[nodiscard]] std::optional<std::variant<ShaderCode, ShaderPath, ShaderPair>> BuildShaderProgramSource(
+		const SerializedAsset& asset,
+		std::optional<std::string_view> source_override = std::nullopt
+	) const;
 
 	Renderer& renderer_;
 	AudioSystem* audio_{ nullptr };
@@ -579,6 +626,9 @@ private:
 	std::vector<std::weak_ptr<impl::AssetLoadBatchState>> active_batches_;
 	std::vector<impl::AssetLoadTicket> project_load_tickets_;
 	std::vector<impl::AssetLoadTicket> manual_load_tickets_;
+	std::vector<impl::EngineShaderSource> engine_shader_sources_;
+	std::vector<std::string> engine_vertex_shader_names_;
+	std::vector<std::string> engine_fragment_shader_names_;
 
 	std::optional<path> project_root_;
 	std::optional<path> asset_directory_;
