@@ -142,6 +142,9 @@ public:
 
 	impl::ShaderId GetShader(std::string_view name) const;
 
+	[[nodiscard]] std::span<const std::string> GetBuiltinVertexShaderNames() const;
+	[[nodiscard]] std::span<const std::string> GetBuiltinFragmentShaderNames() const;
+
 private:
 	friend class Application;
 	friend class impl::ApplicationContext;

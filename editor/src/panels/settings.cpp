@@ -768,6 +768,27 @@ void DrawEditorGeneralSettings(
 			"Shows read-only components and reflected read-only component members."
 		);
 	}
+
+	if (MatchesFilter(filter, { "content browser", "assets per row", "asset grid" })) {
+		ImGui::DragInt(
+			"Content Browser Items Per Row",
+			&ctx.local.settings.content_browser_items_per_row,
+			1.0f,
+			1,
+			16,
+			"%d",
+			ImGuiSliderFlags_AlwaysClamp
+		);
+
+		ImGui::Checkbox(
+			"Search All Asset Folders",
+			&ctx.local.settings.content_browser_search_entire_tree
+		);
+
+		ImGui::TextDisabled(
+			"The Content Browser counter can also be changed by hovering and scrolling."
+		);
+	}
 }
 
 bool DrawDebugInteractionSettings(

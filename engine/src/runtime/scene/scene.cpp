@@ -15,6 +15,7 @@
 #include "app/application.h"
 #include "app/application_context.h"
 #include "core/assert.h"
+#include "core/log.h"
 #include "core/event/event.h"
 #include "core/graphics/color.h"
 #include "core/math/matrix4.h"
@@ -56,6 +57,7 @@
 #include "runtime/scene/scene_camera.h"
 #include "runtime/scene/scene_context.h"
 #include "runtime/scene/scene_event_handler.h"
+#include "runtime/scene/scene_file.h"
 #include "runtime/scene/scene_transition.h"
 #include "runtime/scripting/script.h"
 #include "runtime/ui/button.h"
@@ -403,7 +405,9 @@ Scene::Scene(Scene&& other) noexcept :
 	ctx_{ std::exchange(other.ctx_, nullptr) },
 	manager_{ std::exchange(other.manager_, {}) },
 	data_{ std::exchange(other.data_, {}) },
-	asset_dependencies_{ std::exchange(other.asset_dependencies_, {}) } {
+	asset_dependencies_{ std::exchange(other.asset_dependencies_, {}) },
+	explicit_asset_dependencies_{ std::exchange(other.explicit_asset_dependencies_, {}) },
+	retained_asset_dependencies_{ std::exchange(other.retained_asset_dependencies_, {}) } {
 	if (ctx_) {
 		ctx_->Rebind(*this);
 	}
@@ -411,10 +415,16 @@ Scene::Scene(Scene&& other) noexcept :
 
 Scene& Scene::operator=(Scene&& other) noexcept {
 	if (this != &other) {
-		ctx_				= std::exchange(other.ctx_, nullptr);
-		manager_			= std::exchange(other.manager_, {});
-		data_				= std::exchange(other.data_, {});
+		ReleaseLoadedAssetDependencies();
+
+		ctx_ = std::exchange(other.ctx_, nullptr);
+		manager_ = std::exchange(other.manager_, {});
+		data_ = std::exchange(other.data_, {});
 		asset_dependencies_ = std::exchange(other.asset_dependencies_, {});
+		explicit_asset_dependencies_ =
+			std::exchange(other.explicit_asset_dependencies_, {});
+		retained_asset_dependencies_ =
+			std::exchange(other.retained_asset_dependencies_, {});
 
 		if (ctx_) {
 			ctx_->Rebind(*this);
@@ -424,7 +434,9 @@ Scene& Scene::operator=(Scene&& other) noexcept {
 	return *this;
 }
 
-Scene::~Scene() = default;
+Scene::~Scene() {
+	ReleaseLoadedAssetDependencies();
+}
 
 void Scene::InitBase(Application& app, impl::SceneData&& scene_data) {
 	data_ = std::move(scene_data);
@@ -435,14 +447,34 @@ void Scene::Init(Application& app, impl::SceneData&& scene_data) {
 	InitBase(app, std::move(scene_data));
 	CreateDefaultSceneEntities();
 
+	std::vector<AssetKey> loaded_during_on_new;
 	{
-		impl::AssetCaptureScope capture{ impl::ApplicationAccessor::ctx(app).assets,
-										 asset_dependencies_ };
+		impl::AssetCaptureScope capture{
+			impl::ApplicationAccessor::ctx(app).assets,
+			loaded_during_on_new
+		};
 
 		OnNew();
 	}
 
 	Refresh();
+
+	const auto discovered_dependencies{
+		impl::DiscoverSceneAssetDependencies(*this)
+	};
+
+	for (const auto& key : loaded_during_on_new) {
+		if (!std::ranges::contains(discovered_dependencies, key) &&
+			!std::ranges::contains(explicit_asset_dependencies_, key)) {
+			explicit_asset_dependencies_.emplace_back(key);
+		}
+	}
+
+	asset_dependencies_ = impl::DiscoverSceneAssetDependencies(
+		*this,
+		explicit_asset_dependencies_
+	);
+
 	UpdateRenderTargetSizes(*this);
 
 	auto& app_context{ impl::ApplicationAccessor::ctx(app) };
@@ -804,7 +836,8 @@ void Scene::InternalDraw(DrawContext& draw_context) {
 		for (auto [camera_entity, _data] : EntitiesWith<impl::CameraData>()) {
 			impl::RecalculateCameraViewProjection(SceneCamera{ camera_entity });
 
-			if ((camera_entity == ctx_->camera || camera_entity == ctx_->fixed_camera_) && SceneCamera{ camera_entity }.GetRenderTarget() == ctx_->render_target_) {
+			if ((camera_entity == ctx_->camera || camera_entity == ctx_->fixed_camera_) &&
+				SceneCamera{ camera_entity }.GetRenderTarget() == ctx_->render_target_) {
 				continue;
 			}
 
@@ -999,7 +1032,13 @@ Entity Scene::CreatePrefab(std::string_view prefab_key) {
 }
 
 Entity Scene::CreatePrefab(const PrefabKey& prefab_key) {
-	auto prefab{ impl::AssetAccessor{ ctx().asset }.Get<Prefab>(prefab_key) };
+	auto assets{ impl::AssetAccessor{ ctx().asset } };
+	if (!assets.Has<Prefab>(prefab_key)) {
+		PTGN_WARN("Cannot create missing prefab asset: ", prefab_key);
+		return {};
+	}
+
+	auto prefab{ assets.Get<Prefab>(prefab_key) };
 	return InstantiatePrefab(*this, prefab.get());
 }
 
@@ -1031,16 +1070,113 @@ SceneCamera Scene::GetFixedCamera() const {
 	return ctx_->fixed_camera_;
 }
 
-void Scene::AddAssetDependency(AssetKey key) {
-	if (key.value.empty() || std::ranges::contains(asset_dependencies_, key)) {
-		return;
+bool Scene::AddAssetDependency(AssetKey key) {
+	if (key.value.empty() ||
+		std::ranges::contains(explicit_asset_dependencies_, key)) {
+		return false;
 	}
 
-	asset_dependencies_.emplace_back(std::move(key));
+	explicit_asset_dependencies_.emplace_back(std::move(key));
+	return true;
+}
+
+bool Scene::RemoveAssetDependency(const AssetKey& key) {
+	return std::erase(explicit_asset_dependencies_, key) > 0;
+}
+
+bool Scene::HasAssetDependency(const AssetKey& key) const {
+	return std::ranges::contains(asset_dependencies_, key);
+}
+
+bool Scene::HasExplicitAssetDependency(const AssetKey& key) const {
+	return std::ranges::contains(explicit_asset_dependencies_, key);
 }
 
 const std::vector<AssetKey>& Scene::GetAssetDependencies() const {
 	return asset_dependencies_;
+}
+
+const std::vector<AssetKey>& Scene::GetExplicitAssetDependencies() const {
+	return explicit_asset_dependencies_;
+}
+
+bool Scene::SyncAssetDependenciesFromSerialization() {
+	if (!ctx_) {
+		return false;
+	}
+
+	auto dependencies{ impl::DiscoverSceneAssetDependencies(
+		*this,
+		explicit_asset_dependencies_
+	) };
+
+	if (dependencies == asset_dependencies_) {
+		return false;
+	}
+
+	asset_dependencies_ = std::move(dependencies);
+	ReloadLoadedAssetDependencies();
+	return true;
+}
+
+void Scene::SetAssetDependencies(
+	std::vector<AssetKey> dependencies,
+	std::vector<AssetKey> explicit_dependencies
+) {
+	asset_dependencies_ = std::move(dependencies);
+	explicit_asset_dependencies_ = std::move(explicit_dependencies);
+}
+
+void Scene::ReloadLoadedAssetDependencies() {
+	if (!ctx_) {
+		return;
+	}
+
+	auto ticket{ ctx_->asset.AcquireDependenciesAsync(asset_dependencies_) };
+	auto dependencies{ ticket.ReleaseOwnership() };
+
+	ReleaseLoadedAssetDependencies();
+	retained_asset_dependencies_ = std::move(dependencies);
+}
+
+void Scene::AdoptLoadedAssetDependencies(std::vector<AssetKey> dependencies) {
+	if (ctx_) {
+		asset_dependencies_ = impl::DiscoverSceneAssetDependencies(
+			*this,
+			explicit_asset_dependencies_
+		);
+
+		std::vector<AssetKey> missing_dependencies;
+		for (const auto& key : asset_dependencies_) {
+			if (!std::ranges::contains(dependencies, key) &&
+				ctx_->asset.HasCatalogAsset(key)) {
+				missing_dependencies.emplace_back(key);
+			}
+		}
+
+		if (!missing_dependencies.empty()) {
+			auto ticket{ ctx_->asset.AcquireDependenciesAsync(missing_dependencies) };
+			auto acquired_dependencies{ ticket.ReleaseOwnership() };
+			for (auto& key : acquired_dependencies) {
+				if (!std::ranges::contains(dependencies, key)) {
+					dependencies.emplace_back(std::move(key));
+				}
+			}
+		}
+	}
+
+	ReleaseLoadedAssetDependencies();
+	retained_asset_dependencies_ = std::move(dependencies);
+}
+
+void Scene::ReleaseLoadedAssetDependencies() noexcept {
+	if (!ctx_ || retained_asset_dependencies_.empty()) {
+		retained_asset_dependencies_.clear();
+		return;
+	}
+
+	ctx_->asset.ReleaseDependencies(retained_asset_dependencies_);
+	retained_asset_dependencies_.clear();
 }
 
 void Scene::Refresh() {

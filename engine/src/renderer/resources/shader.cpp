@@ -77,8 +77,21 @@ void ShaderObject::SetUniform(const char* uniform_name, std::span<const int> v) 
 
 } // namespace impl
 
+ShaderStageMask DetectShaderStages(std::string_view source) {
+	ShaderStageMask stages{ ShaderStageMask::None };
+
+	if (source.contains("#type vertex")) {
+		stages = stages | ShaderStageMask::Vertex;
+	}
+	if (source.contains("#type fragment")) {
+		stages = stages | ShaderStageMask::Fragment;
+	}
+
+	return stages;
+}
+
 bool HasVertexAndFragmentShader(std::string_view source) {
-	return source.contains("#type vertex") && source.contains("#type fragment");
+	return DetectShaderStages(source) == ShaderStageMask::VertexFragment;
 }
 
 std::size_t Hash(const UniformValue& value) {

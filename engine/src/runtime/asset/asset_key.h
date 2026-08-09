@@ -1,7 +1,9 @@
 #pragma once
 
+#include <compare>
 #include <functional>
 #include <ostream>
+#include <string>
 #include <utility>
 
 #include "core/util/hash.h"
@@ -17,9 +19,20 @@ enum class AssetKind {
 	Json,
 	Shader,
 	Prefab,
+	Scene,
 	Unknown
 };
 PTGN_REFLECT_ENUM(AssetKind);
+
+enum class AssetLoadState {
+	Unloaded,
+	Queued,
+	Loading,
+	Finalizing,
+	Loaded,
+	Failed
+};
+PTGN_REFLECT_ENUM(AssetLoadState);
 
 struct AssetKey : public StrongString<AssetKey> {
 	using StrongString::StrongString;
@@ -40,7 +53,6 @@ struct TextureKey : public AssetKey {
 	static constexpr AssetKind kind{ AssetKind::Texture };
 
 	constexpr TextureKey() = default;
-
 	constexpr TextureKey(AssetKey key) : AssetKey{ std::move(key.value) } {}
 
 	constexpr auto operator<=>(const TextureKey&) const = default;
@@ -54,7 +66,6 @@ struct FontKey : public AssetKey {
 	static constexpr AssetKind kind{ AssetKind::Font };
 
 	constexpr FontKey() = default;
-
 	constexpr FontKey(AssetKey key) : AssetKey{ std::move(key.value) } {}
 
 	constexpr auto operator<=>(const FontKey&) const = default;
@@ -68,7 +79,6 @@ struct AudioKey : public AssetKey {
 	static constexpr AssetKind kind{ AssetKind::Audio };
 
 	constexpr AudioKey() = default;
-
 	constexpr AudioKey(AssetKey key) : AssetKey{ std::move(key.value) } {}
 
 	constexpr auto operator<=>(const AudioKey&) const = default;
@@ -82,7 +92,6 @@ struct ShaderKey : public AssetKey {
 	static constexpr AssetKind kind{ AssetKind::Shader };
 
 	constexpr ShaderKey() = default;
-
 	constexpr ShaderKey(AssetKey key) : AssetKey{ std::move(key.value) } {}
 
 	constexpr auto operator<=>(const ShaderKey&) const = default;
@@ -96,7 +105,6 @@ struct JsonKey : public AssetKey {
 	static constexpr AssetKind kind{ AssetKind::Json };
 
 	constexpr JsonKey() = default;
-
 	constexpr JsonKey(AssetKey key) : AssetKey{ std::move(key.value) } {}
 
 	constexpr auto operator<=>(const JsonKey&) const = default;
@@ -110,7 +118,6 @@ struct PrefabKey : public AssetKey {
 	static constexpr AssetKind kind{ AssetKind::Prefab };
 
 	constexpr PrefabKey() = default;
-
 	constexpr PrefabKey(AssetKey key) : AssetKey{ std::move(key.value) } {}
 
 	constexpr auto operator<=>(const PrefabKey&) const = default;
@@ -161,7 +168,6 @@ struct std::hash<ptgn::JsonKey> {
 		return ptgn::Hash(key.value);
 	}
 };
-
 
 template <>
 struct std::hash<ptgn::PrefabKey> {

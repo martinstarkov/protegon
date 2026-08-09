@@ -17,6 +17,7 @@
 #include <functional>
 #include <memory>
 #include <string_view>
+#include <thread>
 #include <utility>
 #include <vector>
 
@@ -47,6 +48,63 @@
 #include "tools/debug/debug_system.h"
 
 namespace ptgn {
+
+namespace {
+
+impl::AssetLoadTicket LoadStartupDependencies(
+	Application& app,
+	const impl::SceneFactory& scene_factory
+) {
+	auto& assets{ impl::ApplicationAccessor::ctx(app).assets };
+	auto ticket{ assets.AcquireDependenciesAsync(
+		scene_factory.GetPreloadDependencies(app)
+	) };
+
+	while (!ticket.IsComplete()) {
+		assets.Update();
+#ifndef __EMSCRIPTEN__
+		std::this_thread::sleep_for(std::chrono::milliseconds{ 1 });
+#endif
+	}
+
+	const auto progress{ ticket.GetProgress() };
+	if (progress.failed_assets > 0) {
+		PTGN_WARN(
+			"Failed to load ",
+			progress.failed_assets,
+			" startup asset(s); continuing with available assets"
+		);
+	}
+
+	return ticket;
+}
+
+void LoadProjectPreloads(Application& app) {
+	auto& assets{ impl::ApplicationAccessor::ctx(app).assets };
+	const auto& dependencies{ assets.GetProjectAssetDependencies() };
+	if (dependencies.empty()) {
+		return;
+	}
+
+	auto ticket{ assets.AcquireDependenciesAsync(dependencies) };
+	while (!ticket.IsComplete()) {
+		assets.Update();
+#ifndef __EMSCRIPTEN__
+		std::this_thread::sleep_for(std::chrono::milliseconds{ 1 });
+#endif
+	}
+
+	const auto progress{ ticket.GetProgress() };
+	if (progress.failed_assets > 0) {
+		PTGN_WARN(
+			"Failed to load ",
+			progress.failed_assets,
+			" project preload asset(s); continuing with available assets"
+		);
+	}
+}
+
+} // namespace
 
 Application::Application(const ApplicationConfig& config) : ctx_{ config } {}
 
@@ -125,6 +183,9 @@ void Application::StartProjectImpl(
 		LoadProjectLocalState(loaded_project)
 	);
 
+	ctx_.assets.RegisterCatalog(loaded_project.assets, loaded_project);
+	LoadProjectPreloads(*this);
+
 	if (ctx_.start_project_runtime) {
 		const auto& startup{
 			GetStartupProjectScene(loaded_project)
@@ -192,8 +253,9 @@ void Application::StartProjectImpl(
 			)
 		};
 
-		auto scene{ std::invoke(
-			scene_factory,
+		auto asset_ticket{ LoadStartupDependencies(*this, scene_factory) };
+
+		auto scene{ scene_factory(
 			*this,
 			impl::SceneData{
 				.tag = entry.key,
@@ -209,6 +271,8 @@ void Application::StartProjectImpl(
 			"Project scene factory returned null: ",
 			entry.key
 		);
+
+		scene->AdoptLoadedAssetDependencies(asset_ticket.ReleaseOwnership());
 
 		auto* scene_ptr{ scene.get() };
 
@@ -270,8 +334,8 @@ void Application::StartWithFactory(
 	PTGN_ASSERT(scene_factory, "Cannot start application with a null scene factory");
 	PTGN_ASSERT(ctx_.scene_manager.scenes_.empty(), "Application has already been started");
 
-	auto first_scene{ std::invoke(
-		scene_factory,
+	auto asset_ticket{ LoadStartupDependencies(*this, scene_factory) };
+	auto first_scene{ scene_factory(
 		*this,
 		impl::SceneData{
 			.tag{ scene_tag },
@@ -282,6 +346,7 @@ void Application::StartWithFactory(
 	) };
 
 	PTGN_ASSERT(first_scene, "Startup scene factory returned null");
+	first_scene->AdoptLoadedAssetDependencies(asset_ticket.ReleaseOwnership());
 
 	auto& scene{ ctx_.scene_manager.scenes_.emplace_back(std::move(first_scene)) };
 	scene->InternalEnter();
@@ -400,6 +465,7 @@ void Application::Update() {
 	start = end;
 
 	ctx_.running = ctx_.window.Update();
+	ctx_.assets.Update();
 
 	if (ctx_.window.GetSetting(WindowSetting::Minimized)) {
 		ctx_.audio.Update();

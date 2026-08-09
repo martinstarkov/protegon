@@ -3,11 +3,14 @@
 #include <ecs/ecs.h>
 
 #include <algorithm>
+#include <concepts>
 #include <cstdint>
 #include <memory>
 #include <optional>
+#include <ranges>
 #include <string>
 #include <string_view>
+#include <type_traits>
 #include <utility>
 #include <vector>
 
@@ -35,6 +38,31 @@ class LocalEventHandler;
 class SceneContext;
 class DrawContext;
 
+/// @brief Dependency builder used before a scene is constructed and initialized.
+/// Add assets that may be needed by entities created later at runtime and therefore
+/// cannot be discovered from the serialized ECS content.
+class AssetPreloadContext {
+public:
+	void Add(AssetKey key) {
+		if (!key.value.empty() && !std::ranges::contains(dependencies_, key)) {
+			dependencies_.emplace_back(std::move(key));
+		}
+	}
+
+	template <typename T>
+		requires std::derived_from<std::remove_cvref_t<T>, AssetKey>
+	void Add(T key) {
+		Add(AssetKey{ std::move(key.value) });
+	}
+
+	[[nodiscard]] const std::vector<AssetKey>& GetDependencies() const {
+		return dependencies_;
+	}
+
+private:
+	std::vector<AssetKey> dependencies_;
+};
+
 namespace impl {
 
 class SceneFileAccess;
@@ -53,8 +81,6 @@ struct SceneData {
 	bool runtime{ true };
 	bool first_scene{ false };
 	std::string registered_type;
-
-	// Process local render state. This is not serialized into scene files.
 	bool render_enabled{ true };
 };
 
@@ -79,68 +105,52 @@ public:
 	Scene(Scene&&) noexcept;
 	Scene& operator=(Scene&&) noexcept;
 
-	Scene(const Scene&)			   = delete;
+	Scene(const Scene&) = delete;
 	Scene& operator=(const Scene&) = delete;
 
 	virtual ~Scene();
 
-	/// @brief Called only when a new scene has no serialized ECS contents yet.
+	/// @brief Called on a temporary, uninitialized scene before asynchronous loading begins.
+	/// Keep constructors and this method free of renderer/window access.
+	virtual void OnPreload(AssetPreloadContext&) const {
+		/* User implementation */
+	}
+
 	virtual void OnNew() {
 		/* User implementation */
 	}
 
-	/// @brief Called after either new or serialized scene contents have been initialized.
-	/// Called for both runtime and non runtime scenes.
 	virtual void OnLoad() {
 		/* User implementation */
 	}
 
-	/// @brief Called when a runtime scene is added to active scenes.
 	virtual void OnEnter() {
 		/* User implementation */
 	}
 
-	/// @brief Called once per frame for each runtime scene.
 	virtual void OnUpdate() {
 		/* User implementation */
 	}
 
-	/// @brief Called when a runtime scene is removed from active scenes.
 	virtual void OnExit() {
 		/* User implementation */
 	}
 
-	/// @brief Called when an event is emitted to a runtime scene.
 	virtual void OnEvent(Event) {
 		/* User implementation */
 	}
 
-	/// @brief Sets the background color of the scene. The default background color is transparent.
 	void SetBackgroundColor(Color background_color);
-
-	/// @return The background color of the scene.
 	Color GetBackgroundColor() const;
 
-	/// @return Null entity if no entity with the given uuid exists in the manager.
 	Entity GetEntity(UUID uuid) const;
-
-	/// @return Null entity if no entity with the given tag exists in the scene.
-	/// If multiple entities have the same tag, returns the first one found.
 	Entity GetEntity(const Tag& tag) const;
 
-	/// @brief Creates an entity with a specified tag and UUID, or a default tag and a random UUID
-	/// if unspecified. Make sure to call Refresh() after this function.
 	Entity CreateEntity(Tag tag = {}, UUID uuid = {});
 
-	/// @brief Instantiates a project prefab with fresh UUIDs.
-	/// The string overload accepts either "player" or "prefabs/player".
-	/// The prefab asset must be present in the project asset catalog.
 	Entity CreatePrefab(std::string_view prefab_key);
 	Entity CreatePrefab(const PrefabKey& prefab_key);
 
-	/// @brief Copies all of the from entity's specified components into a new entity with a
-	/// specified tag and UUID, or a default tag and a random UUID if unspecified.
-	/// Make sure to call Refresh() after this function.
 	template <typename... Ts>
 	Entity CopyEntity(Entity from, Tag tag = {}, UUID uuid = {}) {
 		auto entity{ manager_.CopyEntity<Ts...>(from.entity_) };
@@ -211,11 +221,32 @@ public:
 		return SceneHook<TComponent>{ *this, manager_.template OnUpdate<TComponent>() };
 	}
 
-	/// @brief Adds an already registered path-backed asset as a persistent dependency of this scene.
-	void AddAssetDependency(AssetKey key);
+	/// @brief Adds a persistent preload-only dependency that serialized-content discovery cannot see.
+	bool AddAssetDependency(AssetKey key);
 
-	/// @return Persistent asset keys that must be loaded before this scene is initialized.
+	/// @brief Removes a persistent preload-only scene dependency. Automatically discovered references
+	/// remain part of the scene until the serialized field referencing them is changed.
+	bool RemoveAssetDependency(const AssetKey& key);
+
+	/// @return True when the asset is either explicitly preloaded or referenced by serialized scene data.
+	[[nodiscard]] bool HasAssetDependency(const AssetKey& key) const;
+
+	/// @return True only for dependencies explicitly added through code or the editor context menu.
+	[[nodiscard]] bool HasExplicitAssetDependency(const AssetKey& key) const;
+
+	/// @return The effective dependency set used for scene residency and scene-file preloading.
 	[[nodiscard]] const std::vector<AssetKey>& GetAssetDependencies() const;
+
+	/// @return Explicit preload-only dependencies. CaptureScene combines these with serialized refs.
+	[[nodiscard]] const std::vector<AssetKey>& GetExplicitAssetDependencies() const;
+
+	/// @brief Rebuilds effective dependencies from the current serialized parameters/content plus
+	/// explicit preload-only dependencies. Added assets are acquired and removed assets are released.
+	/// @return True when the effective dependency set changed.
+	bool SyncAssetDependenciesFromSerialization();
+
+	/// @brief Reacquires the current effective dependency set for an already-live scene.
+	void ReloadLoadedAssetDependencies();
 
 	void Refresh();
 
@@ -238,7 +269,6 @@ public:
 	[[nodiscard]] bool IsTransitioning() const;
 	[[nodiscard]] std::string_view GetRegisteredType() const;
 
-	/// @brief Serializes the persistent scene ECS state used by project save and editor play mode.
 	[[nodiscard]] json SerializeContent() const;
 
 private:
@@ -255,10 +285,7 @@ private:
 	template <SceneType TScene>
 	friend void impl::InitScene(TScene& scene, Application& app, impl::SceneData&& scene_data);
 
-	/// @brief Initializes a newly created scene with default primary entities and OnNew().
 	void Init(Application& app, impl::SceneData&& scene_data);
-
-	/// @brief Initializes a scene from serialized project contents.
 	void Init(Application& app, impl::SceneData&& scene_data, const json& serialized_content);
 
 	void InitBase(Application& app, impl::SceneData&& scene_data);
@@ -270,7 +297,6 @@ private:
 		(static_cast<TScene*>(this)->*Member)(Entity{ handle, this });
 	}
 
-	/// @brief Called by scene manager when a new runtime scene is loaded and entered.
 	void InternalEnter();
 	void InternalExit();
 	void InternalOnEvent(Event event);
@@ -286,12 +312,19 @@ private:
 	void DrawSceneTarget(DrawContext& draw_context) const;
 	[[nodiscard]] bool IsAwaitingTransitionDelay() const;
 
+	void SetAssetDependencies(
+		std::vector<AssetKey> dependencies,
+		std::vector<AssetKey> explicit_dependencies
+	);
+	void AdoptLoadedAssetDependencies(std::vector<AssetKey> dependencies);
+	void ReleaseLoadedAssetDependencies() noexcept;
+
 	std::unique_ptr<SceneContext> ctx_;
-
 	Manager manager_;
-
 	impl::SceneData data_;
 	std::vector<AssetKey> asset_dependencies_;
+	std::vector<AssetKey> explicit_asset_dependencies_;
+	std::vector<AssetKey> retained_asset_dependencies_;
 };
 
 namespace impl {
@@ -320,7 +353,6 @@ template <typename TComponent>
 template <auto Member>
 void SceneHook<TComponent>::Connect() {
 	using TScene = typename impl::MemberPointerClass<decltype(Member)>::type;
-
 	hook.template Connect<Scene, &Scene::template HookThunk<TScene, Member>>(&scene);
 }
 

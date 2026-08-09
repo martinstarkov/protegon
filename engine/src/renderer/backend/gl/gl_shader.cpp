@@ -463,12 +463,14 @@ void Shaders::CompileShaders(const std::vector<ShaderSpec>& sources) {
 					"Cannot add shader to cache twice: ", sts.name
 				);
 				fragment_shaders_.emplace(hash, shader_id);
+				fragment_shader_names_.emplace_back(sts.name);
 				break;
 			case ShaderType::Vertex:
 				PTGN_ASSERT(
 					!vertex_shaders_.contains(hash), "Cannot add shader to cache twice: ", sts.name
 				);
 				vertex_shaders_.emplace(hash, shader_id);
+				vertex_shader_names_.emplace_back(sts.name);
 				break;
 			default: PTGN_ERROR("Unknown shader type");
 		}
@@ -885,6 +887,14 @@ ShaderId Shaders::CreateProgram(std::string_view program_name) {
 	PTGN_ASSERT(id, "Failed to create shader program");
 	cache_.Add(id, ProgramCache{ .program_name = std::string{ program_name } });
 	return id;
+}
+
+std::span<const std::string> Shaders::GetVertexShaderNames() const {
+	return vertex_shader_names_;
+}
+
+std::span<const std::string> Shaders::GetFragmentShaderNames() const {
+	return fragment_shader_names_;
 }
 
 void Shaders::DestroyProgram(ShaderId id) {

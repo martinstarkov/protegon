@@ -2,9 +2,7 @@
 
 #include "serialization/serialize.h"
 
-namespace ptgn {
-
-namespace editor {
+namespace ptgn::editor {
 
 struct EditorSettings {
 	bool entity_picking{ true };
@@ -12,6 +10,8 @@ struct EditorSettings {
 	bool gizmo_uses_local_orientation{ false };
 	bool show_read_only_inspector_data{ false };
 	bool show_imgui_metrics{ false };
+	int content_browser_items_per_row{ 8 };
+	bool content_browser_search_entire_tree{ false };
 
 	PTGN_REFLECT(
 		EditorSettings,
@@ -19,10 +19,10 @@ struct EditorSettings {
 		render_only_selected_scene,
 		gizmo_uses_local_orientation,
 		show_read_only_inspector_data,
-		show_imgui_metrics
+		show_imgui_metrics,
+		content_browser_items_per_row,
+		content_browser_search_entire_tree
 	)
 };
 
-} // namespace editor
-
-} // namespace ptgn
+} // namespace ptgn::editor

@@ -326,6 +326,10 @@ private:
 }
 
 void SaveProjectManifest(Application& app, Project& project) {
+	auto& assets{ impl::ApplicationAccessor::ctx(app).assets };
+	assets.RefreshCatalogFromDisk();
+	project.assets = assets.GetCatalog();
+	project.preload_assets = assets.GetProjectAssetDependencies();
 	project.settings = GetProjectSettings(app);
 	SaveProject(project);
 }
@@ -462,7 +466,8 @@ void SaveProjectManifest(Application& app, Project& project) {
 		};
 
 	path candidate{
-		path{ "Scenes" } /
+		project.asset_directory /
+		"Scenes" /
 		(base + ".ptgnscene")
 	};
 
@@ -472,7 +477,8 @@ void SaveProjectManifest(Application& app, Project& project) {
 
 	for (std::size_t index{ 2 };; ++index) {
 		candidate =
-			path{ "Scenes" } /
+			project.asset_directory /
+			"Scenes" /
 			(
 				base + " " +
 				std::to_string(index) +
@@ -493,6 +499,7 @@ void SaveProjectManifest(Application& app, Project& project) {
 			.type = std::string{ impl::kBaseSceneType },
 			.parameters = json::object(),
 			.assets = {},
+			.preload_assets = {},
 			.content = std::nullopt,
 		};
 	}
@@ -505,6 +512,7 @@ void SaveProjectManifest(Application& app, Project& project) {
 		.type = registration.type,
 		.parameters = registration.default_parameters(),
 		.assets = {},
+		.preload_assets = {},
 		.content = std::nullopt,
 	};
 }
@@ -619,6 +627,7 @@ const Project* Editor::GetProject() const {
 void Editor::MarkProjectDirty() {
 	PTGN_ASSERT(context_);
 	context_->local.state.is_dirty = true;
+	scene_asset_dependencies_dirty_ = true;
 }
 
 bool Editor::CreateProjectScene(
@@ -788,10 +797,9 @@ bool Editor::CreateProjectScene(
 				current_project->scenes.front().key;
 		}
 
-		SaveProjectManifest(app, *current_project);
-
 		std::error_code error;
 		fs::remove(absolute_path, error);
+		SaveProjectManifest(app, *current_project);
 
 		MarkProjectDirty();
 		SyncProjectSceneOrder();
@@ -962,10 +970,9 @@ bool Editor::DuplicateProjectScene(
 			GetProjectScenePath(*current_project, *it)
 		};
 		current_project->scenes.erase(it);
-		SaveProjectManifest(app, *current_project);
-
 		std::error_code error;
 		fs::remove(absolute_path, error);
+		SaveProjectManifest(app, *current_project);
 
 		MarkProjectDirty();
 		SyncProjectSceneOrder();
@@ -1113,9 +1120,9 @@ bool Editor::DeleteProjectScene(
 		current_project->scenes.erase(current_it);
 		current_project->startup_scene_key = after_startup;
 
-		SaveProjectManifest(app, *current_project);
 		std::error_code error;
 		fs::remove(current_absolute_path, error);
+		SaveProjectManifest(app, *current_project);
 
 		MarkProjectDirty();
 		SyncProjectSceneOrder();
@@ -1561,11 +1568,13 @@ void Editor::DrawMainMenuBar() {
 		if (ImGui::MenuItem("Undo", "Ctrl+Z", false, undo_stack_.CanUndo())) {
 			context_->local.position_picker.Cancel();
 			undo_stack_.Undo();
+			scene_asset_dependencies_dirty_ = true;
 		}
 
 		if (ImGui::MenuItem("Redo", "Ctrl+Shift+Z", false, undo_stack_.CanRedo())) {
 			context_->local.position_picker.Cancel();
 			undo_stack_.Redo();
+			scene_asset_dependencies_dirty_ = true;
 		}
 
 		ImGui::Separator();
@@ -1717,6 +1726,10 @@ void Editor::DrawPanels() {
 	scene_hierarchy_panel_.OnRender(*context_);
 	scene_list_panel_.OnRender(*context_);
 	inspector_panel_.OnRender(*context_);
+	if (ConsumeAcceptedAssetKeyDrop()) {
+		scene_asset_dependencies_dirty_ = true;
+	}
+	SyncSelectedSceneAssetDependencies();
 	content_browser_panel_.OnRender(*context_);
 	settings_window_.OnRender(*context_);
 	undo_history_window_.OnRender(*context_, undo_stack_);
@@ -1771,7 +1784,25 @@ void Editor::OnSelectedSceneChanged(
 		);
 	}
 
+	scene_asset_dependencies_dirty_ = true;
 	ApplySceneRenderSettings();
+}
+
+void Editor::SyncSelectedSceneAssetDependencies() {
+	if (!scene_asset_dependencies_dirty_) {
+		return;
+	}
+
+	scene_asset_dependencies_dirty_ = false;
+
+	auto* scene{ scene_list_panel_.GetSelectedScene() };
+	if (!scene || scene->IsRuntime()) {
+		return;
+	}
+
+	if (scene->SyncAssetDependenciesFromSerialization()) {
+		context_->local.state.is_dirty = true;
+	}
 }
 
 void Editor::EnableRendering(
@@ -1860,9 +1891,11 @@ void Editor::OnUpdate() {
 			} else {
 				undo_stack_.Undo();
 			}
+			scene_asset_dependencies_dirty_ = true;
 		} else if (ImGui::IsKeyPressed(ImGuiKey_Y, false)) {
 			context_->local.position_picker.Cancel();
 			undo_stack_.Redo();
+			scene_asset_dependencies_dirty_ = true;
 		}
 	}
 
@@ -1884,6 +1917,11 @@ void Editor::OnUpdate() {
 }
 
 const EditorSettings& Editor::GetSettings() const {
+	PTGN_ASSERT(context_, "Editor context must be initialized");
+	return context_->local.settings;
+}
+
+EditorSettings& Editor::GetSettings() {
 	PTGN_ASSERT(context_, "Editor context must be initialized");
 	return context_->local.settings;
 }

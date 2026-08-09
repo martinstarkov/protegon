@@ -4,6 +4,7 @@
 #include <filesystem>
 #include <memory>
 #include <string_view>
+#include <tuple>
 #include <type_traits>
 #include <utility>
 
@@ -30,9 +31,9 @@ public:
 	explicit Application(std::string_view title, V2_int window_size);
 
 	~Application() noexcept;
-	Application(const Application&)            = delete;
+	Application(const Application&) = delete;
 	Application& operator=(const Application&) = delete;
-	Application(Application&&) noexcept         = delete;
+	Application(Application&&) noexcept = delete;
 	Application& operator=(Application&&) noexcept = delete;
 
 	/// @brief Opens an existing project. The project file must already exist.
@@ -53,16 +54,46 @@ public:
 	template <SceneType TScene, typename... TArgs>
 		requires std::constructible_from<TScene, TArgs...>
 	void StartWith(std::string_view scene_tag, TArgs&&... args) {
-		impl::SceneFactory factory = [args...] (
-			Application& app, impl::SceneData&& scene_data
-		) mutable -> std::unique_ptr<Scene> {
-			auto scene{ std::make_unique<TScene>(args...) };
+		auto arguments{
+			std::make_shared<std::tuple<std::decay_t<TArgs>...>>(
+				std::forward<TArgs>(args)...
+			)
+		};
+
+		impl::SceneFactory::Construct construct = [arguments](
+			Application& app,
+			impl::SceneData&& scene_data
+		) -> std::unique_ptr<Scene> {
+			auto scene{ std::apply(
+				[](const auto&... values) {
+					return std::make_unique<TScene>(values...);
+				},
+				*arguments
+			) };
 			scene_data.runtime = true;
 			scene->Init(app, std::move(scene_data));
 			return scene;
 		};
 
-		StartWithFactory(scene_tag, std::move(factory));
+		impl::SceneFactory::Preload preload = [arguments](Application&) {
+			auto scene{ std::apply(
+				[](const auto&... values) {
+					return TScene{ values... };
+				},
+				*arguments
+			) };
+			AssetPreloadContext context;
+			scene.OnPreload(context);
+			for (const auto& key : scene.GetExplicitAssetDependencies()) {
+				context.Add(key);
+			}
+			return context.GetDependencies();
+		};
+
+		StartWithFactory(
+			scene_tag,
+			impl::SceneFactory{ std::move(construct), std::move(preload) }
+		);
 	}
 
 	template <SceneType TScene>

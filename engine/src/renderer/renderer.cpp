@@ -920,6 +920,14 @@ std::size_t Renderer::GetMaxTextureSlots() const {
 	return gl_->GetMaxTextureSlots();
 }
 
+std::span<const std::string> Renderer::GetBuiltinVertexShaderNames() const {
+	return gl_->shaders.GetVertexShaderNames();
+}
+
+std::span<const std::string> Renderer::GetBuiltinFragmentShaderNames() const {
+	return gl_->shaders.GetFragmentShaderNames();
+}
+
 void Renderer::UploadVertices(
 	const impl::RenderPipeline& pipeline, std::span<const std::byte> vertices,
 	std::uint32_t vertex_size
@@ -1007,7 +1015,7 @@ void Renderer::DrawRenderPass(const impl::DrawPassRequest& request) {
 		.uniforms = current_uniforms_,
 		.texture_slot_capacity = current_texture_slot_capacity_
 	};
-	
+
 	auto previous_pipeline{ pipeline_manager_.GetCurrentPipelineId() };
 
 	auto _ = gl_->Bind(request.output, false);

@@ -6,6 +6,7 @@
 #include <span>
 #include <string>
 #include <string_view>
+#include <tuple>
 #include <type_traits>
 #include <unordered_map>
 #include <utility>
@@ -14,6 +15,7 @@
 #include "core/assert.h"
 #include "core/util/hash.h"
 #include "core/util/time.h"
+#include "runtime/asset/asset_manager.h"
 #include "runtime/scene/scene.h"
 #include "runtime/scene/scene_common.h"
 #include "runtime/scene/scene_registry.h"
@@ -105,14 +107,23 @@ public:
 	[[nodiscard]] static SceneFactory MakeRegisteredFactory(
 		std::string scene_type, json parameters = json::object()
 	) {
-		return [scene_type = std::move(scene_type), parameters = std::move(parameters)](
+		auto type{ std::make_shared<const std::string>(std::move(scene_type)) };
+		auto values{ std::make_shared<const json>(std::move(parameters)) };
+
+		SceneFactory::Construct construct = [type, values](
 			Application& app, SceneData&& scene_data
 		) -> std::unique_ptr<Scene> {
-			const auto& registration{ GetSceneRegistration(scene_type) };
-			auto scene{ registration.construct(parameters) };
+			const auto& registration{ GetSceneRegistration(*type) };
+			auto scene{ registration.construct(*values) };
 			scene->Init(app, std::move(scene_data));
 			return scene;
 		};
+
+		SceneFactory::Preload preload = [type, values](Application&) {
+			return GetSceneRegistration(*type).preload_dependencies(*values);
+		};
+
+		return SceneFactory{ std::move(construct), std::move(preload) };
 	}
 
 	/// @brief Enters a scene through a type-erased factory with an optional transition.
@@ -483,13 +494,37 @@ private:
 
 	template <SceneType T, typename... TArgs>
 	[[nodiscard]] static SceneFactory GetFactory(TArgs&&... constructor_args) {
-		return [constructor_args...](
-				   Application& app, SceneData&& scene_data
-			   ) -> std::unique_ptr<Scene> {
-			auto scene{ std::make_unique<T>(constructor_args...) };
+		auto arguments{
+			std::make_shared<std::tuple<std::decay_t<TArgs>...>>(
+				std::forward<TArgs>(constructor_args)...
+			)
+		};
+
+		SceneFactory::Construct construct = [arguments](
+			Application& app, SceneData&& scene_data
+		) -> std::unique_ptr<Scene> {
+			auto scene{ std::apply(
+				[](const auto&... args) { return std::make_unique<T>(args...); },
+				*arguments
+			) };
 			scene->Init(app, std::move(scene_data));
 			return scene;
 		};
+
+		SceneFactory::Preload preload = [arguments](Application&) {
+			auto scene{ std::apply(
+				[](const auto&... args) { return T{ args... }; },
+				*arguments
+			) };
+			AssetPreloadContext context;
+			scene.OnPreload(context);
+			for (const auto& key : scene.GetExplicitAssetDependencies()) {
+				context.Add(key);
+			}
+			return context.GetDependencies();
+		};
+
+		return SceneFactory{ std::move(construct), std::move(preload) };
 	}
 
 	void PreUpdate();
@@ -508,6 +543,12 @@ private:
 	void ApplyCommands(
 		Application& app, std::unordered_map<std::size_t, Command>& top_priority_commands
 	);
+	void ApplyLoadedCommand(
+		Application& app,
+		Command command,
+		impl::AssetLoadTicket ticket
+	);
+	void UpdatePendingLoads(Application& app);
 	void UpdateTransitions(secondsf dt);
 	void UpdateReEnteredSceneTagHashes();
 
@@ -518,6 +559,13 @@ private:
 	std::vector<std::unique_ptr<Scene>> scenes_;
 
 	std::vector<Command> commands_;
+
+	struct PendingLoad {
+		Command command;
+		impl::AssetLoadTicket ticket;
+	};
+
+	std::vector<PendingLoad> pending_loads_;
 
 	/// @brief Contains the scene tag hashes of currently re-entering scenes.
 	std::vector<ReEnteringScene> reentering_scenes_;

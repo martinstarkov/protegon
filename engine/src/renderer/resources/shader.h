@@ -2,6 +2,7 @@
 
 #include <array>
 #include <concepts>
+#include <cstdint>
 #include <ostream>
 #include <span>
 #include <string>
@@ -27,6 +28,30 @@ namespace ptgn {
 
 class Shader;
 
+enum class ShaderStageMask : std::uint8_t {
+	None = 0,
+	Vertex = 1 << 0,
+	Fragment = 1 << 1,
+	VertexFragment = 3,
+};
+PTGN_REFLECT_ENUM(ShaderStageMask);
+
+constexpr ShaderStageMask operator|(ShaderStageMask a, ShaderStageMask b) {
+	return static_cast<ShaderStageMask>(
+		static_cast<std::uint8_t>(a) | static_cast<std::uint8_t>(b)
+	);
+}
+
+constexpr ShaderStageMask operator&(ShaderStageMask a, ShaderStageMask b) {
+	return static_cast<ShaderStageMask>(
+		static_cast<std::uint8_t>(a) & static_cast<std::uint8_t>(b)
+	);
+}
+
+constexpr bool HasShaderStage(ShaderStageMask stages, ShaderStageMask stage) {
+	return static_cast<std::uint8_t>(stages & stage) != 0;
+}
+
 struct ShaderCode {
 	constexpr ShaderCode() = default;
 
@@ -40,8 +65,6 @@ struct ShaderCode {
 struct ShaderPath {
 	ShaderPath() = default;
 
-	// Not explicit on purpose. Allows implicit conversion from path to ShaderPath, which is useful
-	// for the common case of loading shaders from files.
 	ShaderPath(const char* path, bool delete_after = true) : // NOSONAR
 		path{ path }, delete_after{ delete_after } {}
 
@@ -53,18 +76,16 @@ struct ShaderPath {
 };
 
 using ShaderName = std::string;
-
 using ShaderPathOrName = std::string;
 
 struct ShaderPair {
-	/// @brief If ShaderPathOrName, can either be a path (if valid path) or a shader name for an
-	/// already loaded shader in the asset manager.
+	/// @brief If ShaderPathOrName, can either be a path or an already loaded engine shader name.
 	std::variant<ShaderCode, ShaderPathOrName> vertex;
-	/// @brief If ShaderPathOrName, can either be a path (if valid path) or a shader name for an
-	/// already loaded shader in the asset manager.
+	/// @brief If ShaderPathOrName, can either be a path or an already loaded engine shader name.
 	std::variant<ShaderCode, ShaderPathOrName> fragment;
 };
 
+[[nodiscard]] ShaderStageMask DetectShaderStages(std::string_view source);
 [[nodiscard]] bool HasVertexAndFragmentShader(std::string_view source);
 
 using UniformValue = std::variant<
@@ -90,7 +111,8 @@ struct UniformWrite {
 			[&]<typename T>(const T& lhs) {
 				const auto& rhs{ std::get<T>(o.value) };
 
-				if constexpr (std::same_as<T, float> || std::same_as<T, std::vector<float>>) {
+				if constexpr (std::same_as<T, float> ||
+							  std::same_as<T, std::vector<float>>) {
 					return NearlyEqual(lhs, rhs);
 				} else {
 					return lhs == rhs;
@@ -147,12 +169,11 @@ public:
 	/// @brief Behaves identically to int overload.
 	void SetUniform(const char* uniform_name, bool v);
 
-	friend std::ostream& operator<<(std::ostream& os, const Shader& s) {
-		os << "{ shader id: " << s.operator impl::ShaderId() << " }";
+	friend std::ostream& operator<<(std::ostream& os, const Shader& shader) {
+		os << "{ shader id: " << shader.operator impl::ShaderId() << " }";
 		return os;
 	}
 
-	// TODO: Consider moving this to private and not exposing any render functions that use ids.
 	operator impl::ShaderId() const; // NOSONAR
 };
 

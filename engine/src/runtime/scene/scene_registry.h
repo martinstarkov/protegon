@@ -1,12 +1,14 @@
 #pragma once
 
 #include <concepts>
+#include <cstddef>
 #include <functional>
 #include <memory>
 #include <string>
 #include <string_view>
 #include <unordered_map>
 #include <utility>
+#include <vector>
 
 #include "core/assert.h"
 #include "core/util/hash.h"
@@ -21,8 +23,32 @@ class Application;
 
 namespace impl {
 
-using SceneFactory =
-	std::function<std::unique_ptr<Scene>(Application& app, SceneData&& scene_data)>;
+struct SceneFactory {
+	using Construct = std::function<std::unique_ptr<Scene>(Application&, SceneData&&)>;
+	using Preload = std::function<std::vector<AssetKey>(Application&)>;
+
+	SceneFactory() = default;
+	SceneFactory(std::nullptr_t) {}
+	SceneFactory(Construct construct) : construct{ std::move(construct) } {} // NOSONAR
+	SceneFactory(Construct construct, Preload preload) :
+		construct{ std::move(construct) }, preload{ std::move(preload) } {}
+
+	[[nodiscard]] explicit operator bool() const {
+		return static_cast<bool>(construct);
+	}
+
+	std::unique_ptr<Scene> operator()(Application& app, SceneData&& scene_data) const {
+		PTGN_ASSERT(construct, "Cannot invoke an empty scene factory");
+		return construct(app, std::move(scene_data));
+	}
+
+	[[nodiscard]] std::vector<AssetKey> GetPreloadDependencies(Application& app) const {
+		return preload ? preload(app) : std::vector<AssetKey>{};
+	}
+
+	Construct construct;
+	Preload preload;
+};
 
 struct SceneRegistryEntry {
 	std::string type;
@@ -33,6 +59,7 @@ struct SceneRegistryEntry {
 	std::function<std::unique_ptr<Scene>(const json& parameters)> construct;
 	std::function<json(const Scene& scene)> serialize_parameters;
 	std::function<void(const json& parameters, Scene& scene)> deserialize_parameters;
+	std::function<std::vector<AssetKey>(const json& parameters)> preload_dependencies;
 };
 
 inline auto& GetSceneRegistry() {
@@ -66,14 +93,11 @@ void DeserializeSceneParameters(const json& parameters, TScene& scene) {
 		);
 
 		json complete_parameters = SerializeSceneParameters(scene);
-
 		for (const auto& [key, value] : parameters.items()) {
 			std::string normalized_key{ key };
-
 			if (!normalized_key.empty() && normalized_key.back() == '_') {
 				normalized_key.pop_back();
 			}
-
 			complete_parameters[normalized_key] = value;
 		}
 
@@ -101,7 +125,6 @@ template <SceneType TScene>
 	requires std::default_initializable<TScene>
 bool RegisterScene(std::string_view type, std::string_view display_name) {
 	auto& registry{ GetSceneRegistry() };
-
 	constexpr auto type_id{ Hash<TScene>() };
 
 	if (auto existing{ registry.find(type) }; existing != registry.end()) {
@@ -127,34 +150,32 @@ bool RegisterScene(std::string_view type, std::string_view display_name) {
 			return scene;
 		},
 		.serialize_parameters = [](const Scene& scene) {
-			return SerializeSceneParameters(
-				static_cast<const TScene&>(scene)
-			);
+			return SerializeSceneParameters(static_cast<const TScene&>(scene));
 		},
 		.deserialize_parameters = [](const json& parameters, Scene& scene) {
-			DeserializeSceneParameters(
-				parameters,
-				static_cast<TScene&>(scene)
-			);
+			DeserializeSceneParameters(parameters, static_cast<TScene&>(scene));
+		},
+		.preload_dependencies = [](const json& parameters) {
+			TScene scene;
+			DeserializeSceneParameters(parameters, scene);
+			AssetPreloadContext preload;
+			scene.OnPreload(preload);
+			for (const auto& key : scene.GetExplicitAssetDependencies()) {
+				preload.Add(key);
+			}
+			return preload.GetDependencies();
 		},
 	};
 
 	auto [it, inserted]{ registry.emplace(entry.type, std::move(entry)) };
 	PTGN_ASSERT(inserted, "Failed to register scene type: ", type);
-
 	GetSceneCppTypeRegistry().emplace(type_id, it->first);
 	return true;
 }
 
-[[nodiscard]] inline const SceneRegistryEntry& GetSceneRegistration(
-	std::string_view type
-) {
+[[nodiscard]] inline const SceneRegistryEntry& GetSceneRegistration(std::string_view type) {
 	auto it{ GetSceneRegistry().find(type) };
-	PTGN_ASSERT(
-		it != GetSceneRegistry().end(),
-		"Scene type is not registered: ",
-		type
-	);
+	PTGN_ASSERT(it != GetSceneRegistry().end(), "Scene type is not registered: ", type);
 	return it->second;
 }
 
@@ -176,8 +197,6 @@ template <SceneType TScene>
 #define PTGN_IMPL_SCENE_CONCAT_INNER(a, b) a##b
 #define PTGN_IMPL_SCENE_CONCAT(a, b) PTGN_IMPL_SCENE_CONCAT_INNER(a, b)
 
-/// @brief Registers a default constructible scene for project file loading.
-/// Place this once in the scene's .cpp file.
 #define PTGN_REGISTER_SCENE(SceneTypeName, DisplayName)                                      \
 	namespace {                                                                                \
 	[[maybe_unused]] const bool PTGN_IMPL_SCENE_CONCAT(_ptgn_registered_scene_, __COUNTER__) \

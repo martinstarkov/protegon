@@ -21,33 +21,15 @@ Entity InstantiatePrefabEntity(
 	const SerializedEntity& definition,
 	Entity parent
 ) {
-	// Deliberately ignores definition.uuid. Every prefab instance receives
-	// a fresh UUID from Scene::CreateEntity.
-	Entity entity{
-		scene.CreateEntity(
-			Tag{ definition.tag }
-		)
-	};
-
-	DeserializeEntity(
-		definition,
-		entity
-	);
+	Entity entity{ scene.CreateEntity(Tag{ definition.tag }) };
+	DeserializeEntity(definition, entity);
 
 	if (parent) {
-		SetParent(
-			entity,
-			parent
-		);
+		SetParent(entity, parent);
 	}
 
-	for (const auto& child :
-		 definition.children) {
-		InstantiatePrefabEntity(
-			scene,
-			child,
-			entity
-		);
+	for (const auto& child : definition.children) {
+		InstantiatePrefabEntity(scene, child, entity);
 	}
 
 	return entity;
@@ -55,11 +37,8 @@ Entity InstantiatePrefabEntity(
 
 } // namespace
 
-bool IsPrefabComponentSupported(
-	const RegisteredComponent& component
-) {
-	if (impl::IsEntityMetadataComponent(component) ||
-		!component.has) {
+bool IsPrefabComponentSupported(const RegisteredComponent& component) {
+	if (impl::IsEntityMetadataComponent(component) || !component.has) {
 		return false;
 	}
 
@@ -67,26 +46,13 @@ bool IsPrefabComponentSupported(
 		return component.add_default != nullptr;
 	}
 
-	return component.serializable &&
-		   component.deserializable &&
-		   component.serialize &&
+	return component.serializable && component.deserializable && component.serialize &&
 		   component.deserialize;
 }
 
-Prefab CapturePrefab(
-	Entity entity,
-	PrefabKey key,
-	bool include_children
-) {
-	PTGN_ASSERT(
-		entity,
-		"Cannot capture a null entity as a prefab"
-	);
-
-	PTGN_ASSERT(
-		!key.value.empty(),
-		"Prefab key cannot be empty"
-	);
+Prefab CapturePrefab(Entity entity, PrefabKey key, bool include_children) {
+	PTGN_ASSERT(entity, "Cannot capture a null entity as a prefab");
+	PTGN_ASSERT(!key.value.empty(), "Prefab key cannot be empty");
 
 	return Prefab{
 		.key = std::move(key),
@@ -100,130 +66,69 @@ Prefab CapturePrefab(
 	};
 }
 
-Entity InstantiatePrefab(
-	Scene& scene,
-	const Prefab& prefab
-) {
-	Entity root{
-		InstantiatePrefabEntity(
-			scene,
-			prefab.root,
-			{}
-		)
-	};
-
+Entity InstantiatePrefab(Scene& scene, const Prefab& prefab) {
+	Entity root{ InstantiatePrefabEntity(scene, prefab.root, {}) };
 	scene.Refresh();
-
 	return root;
 }
 
-Prefab LoadPrefabFile(
-	const path& file_path
-) {
+Prefab LoadPrefabFile(const path& file_path) {
 	Prefab prefab;
 	LoadJson(file_path).get_to(prefab);
 	return prefab;
 }
 
-void SavePrefabFile(
-	const path& file_path,
-	const Prefab& prefab
-) {
-	EnsureDirectory(
-		file_path.parent_path()
-	);
-
+void SavePrefabFile(const path& file_path, const Prefab& prefab) {
+	EnsureDirectory(file_path.parent_path());
 	json value = prefab;
 	SaveJson(value, file_path);
 }
 
-std::string MakePrefabSlug(
-	std::string_view value
-) {
+std::string MakePrefabSlug(std::string_view value) {
 	std::string output;
 	output.reserve(value.size());
-
 	bool separator_pending{ false };
 
 	for (char c : value) {
-		const auto character{
-			static_cast<unsigned char>(c)
-		};
-
+		const auto character{ static_cast<unsigned char>(c) };
 		if (std::isalnum(character)) {
-			if (separator_pending &&
-				!output.empty()) {
+			if (separator_pending && !output.empty()) {
 				output.push_back('_');
 			}
-
 			separator_pending = false;
-
-			output.push_back(
-				static_cast<char>(
-					std::tolower(character)
-				)
-			);
+			output.push_back(static_cast<char>(std::tolower(character)));
 		} else {
 			separator_pending = true;
 		}
 	}
 
-	while (!output.empty() &&
-		   output.back() == '_') {
+	while (!output.empty() && output.back() == '_') {
 		output.pop_back();
 	}
 
-	return output.empty()
-		? "prefab"
-		: output;
+	return output.empty() ? "prefab" : output;
 }
 
-PrefabKey MakePrefabKey(
-	std::string_view value
-) {
-	if (value.starts_with(
-			kPrefabKeyPrefix
-		)) {
-		value.remove_prefix(
-			kPrefabKeyPrefix.size()
-		);
+PrefabKey MakePrefabKey(std::string_view value) {
+	if (value.starts_with(kPrefabKeyPrefix)) {
+		value.remove_prefix(kPrefabKeyPrefix.size());
 	}
 
-	return PrefabKey{
-		std::string{ kPrefabKeyPrefix } +
-		MakePrefabSlug(value)
-	};
+	return PrefabKey{ std::string{ kPrefabKeyPrefix } + MakePrefabSlug(value) };
 }
 
-path GetPrefabSourcePath(
-	const PrefabKey& key
-) {
-	std::string key_value{
-		key.value
-	};
-
-	if (key_value.starts_with(
-			kPrefabKeyPrefix
-		)) {
-		key_value.erase(
-			0,
-			kPrefabKeyPrefix.size()
-		);
+path GetPrefabSourcePath(const PrefabKey& key) {
+	std::string key_value{ key.value };
+	if (key_value.starts_with(kPrefabKeyPrefix)) {
+		key_value.erase(0, kPrefabKeyPrefix.size());
 	}
 
 	return path{ kPrefabDirectory } /
-		path{
-			MakePrefabSlug(key_value) +
-			std::string{ kPrefabExtension }
-		};
+		   path{ MakePrefabSlug(key_value) + std::string{ kPrefabExtension } };
 }
 
-path GetPrefabFilePath(
-	const path& project_root,
-	const PrefabKey& key
-) {
-	return project_root /
-		   GetPrefabSourcePath(key);
+path GetPrefabFilePath(const path& project_root, const PrefabKey& key) {
+	return project_root / GetPrefabSourcePath(key);
 }
 
 } // namespace ptgn

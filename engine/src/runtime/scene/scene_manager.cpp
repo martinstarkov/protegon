@@ -12,6 +12,7 @@
 #include <utility>
 #include <vector>
 
+#include "app/application_context.h"
 #include "core/assert.h"
 #include "core/log.h"
 #include "core/util/hash.h"
@@ -230,19 +231,28 @@ std::unordered_map<std::size_t, SceneManager::Command> SceneManager::GetTopPrior
 	return top_priority_commands;
 }
 
-void SceneManager::ApplyCommands(
-	Application& app, std::unordered_map<std::size_t, Command>& top_priority_commands
+void SceneManager::ApplyLoadedCommand(
+	Application& app,
+	Command command,
+	impl::AssetLoadTicket ticket
 ) {
-	const auto enter = [this, &app](auto target_scene_tag_hash, auto& command) {
-		auto new_scene{ std::invoke(
-			command.scene_factory, app,
+	const auto enter = [this, &app](
+		std::size_t target_scene_tag_hash,
+		Command& enter_command,
+		impl::AssetLoadTicket& asset_ticket
+	) {
+		auto new_scene{ enter_command.scene_factory(
+			app,
 			SceneData{
-				.tag{ command.to_scene_tag },
-				.tag_hash{ target_scene_tag_hash },
-				.state{ SceneState::TransitionIn },
-				.transition{ std::move(command.transition_in) },
+				.tag{ enter_command.to_scene_tag },
+				.tag_hash = target_scene_tag_hash,
+				.state = SceneState::TransitionIn,
+				.transition{ std::move(enter_command.transition_in) },
 			}
 		) };
+
+		PTGN_ASSERT(new_scene, "Scene factory returned null: ", enter_command.to_scene_tag);
+		new_scene->AdoptLoadedAssetDependencies(asset_ticket.ReleaseOwnership());
 
 		if (!new_scene->data_.transition) {
 			new_scene->InternalEnter();
@@ -258,10 +268,10 @@ void SceneManager::ApplyCommands(
 		scenes_.emplace_back(std::move(new_scene));
 	};
 
-	const auto exit = [this](auto target_scene_tag_hash, auto& command) {
+	const auto exit = [this](std::size_t target_scene_tag_hash, Command& exit_command) {
 		auto& target_scene{ GetScene(target_scene_tag_hash) };
-		target_scene.data_.state      = SceneState::TransitionOut;
-		target_scene.data_.transition = std::move(command.transition_out);
+		target_scene.data_.state = SceneState::TransitionOut;
+		target_scene.data_.transition = std::move(exit_command.transition_out);
 		if (target_scene.data_.transition) {
 			target_scene.data_.transition->OnDelayStart(target_scene);
 			if (!target_scene.data_.transition->IsInDelay()) {
@@ -271,37 +281,116 @@ void SceneManager::ApplyCommands(
 		}
 	};
 
+	const auto target_scene_tag_hash{ command.to_scene_tag_hash };
+
+	switch (command.type) {
+		case CommandType::Enter:
+			PTGN_ASSERT(
+				!HasScene(target_scene_tag_hash),
+				"Cannot enter a scene which is already in the scene manager"
+			);
+			enter(target_scene_tag_hash, command, ticket);
+			break;
+
+		case CommandType::ReEnter: {
+			PTGN_ASSERT(
+				HasScene(target_scene_tag_hash),
+				"Cannot re-enter a scene which is not in the scene manager"
+			);
+
+			const std::size_t temporary_tag_hash{ GenerateTempTagHash() };
+			exit(target_scene_tag_hash, command);
+			enter(temporary_tag_hash, command, ticket);
+			reentering_scenes_.emplace_back(target_scene_tag_hash, temporary_tag_hash);
+			break;
+		}
+
+		case CommandType::Exit:
+			PTGN_ERROR("Loaded scene command cannot be an exit command");
+			break;
+	}
+}
+
+void SceneManager::UpdatePendingLoads(Application& app) {
+	for (auto it{ pending_loads_.begin() }; it != pending_loads_.end();) {
+		const auto progress{ it->ticket.GetProgress() };
+		if (!progress.IsComplete()) {
+			++it;
+			continue;
+		}
+
+		if (progress.failed_assets > 0) {
+			PTGN_ERROR(
+				"Failed to load ",
+				progress.failed_assets,
+				" asset(s) for scene: ",
+				it->command.to_scene_tag
+			);
+			it = pending_loads_.erase(it);
+			continue;
+		}
+
+		auto command{ std::move(it->command) };
+		auto ticket{ std::move(it->ticket) };
+		it = pending_loads_.erase(it);
+		ApplyLoadedCommand(app, std::move(command), std::move(ticket));
+	}
+}
+
+void SceneManager::ApplyCommands(
+	Application& app,
+	std::unordered_map<std::size_t, Command>& top_priority_commands
+) {
+	auto& assets{ ApplicationAccessor::ctx(app).assets };
+	bool defer_exits{ !pending_loads_.empty() };
+
+	for (auto it{ top_priority_commands.begin() }; it != top_priority_commands.end();) {
+		auto& command{ it->second };
+		if (command.type == CommandType::Exit) {
+			++it;
+			continue;
+		}
+
+		auto dependencies{ command.scene_factory.GetPreloadDependencies(app) };
+		auto ticket{ assets.AcquireDependenciesAsync(dependencies) };
+		const auto progress{ ticket.GetProgress() };
+
+		if (!progress.IsComplete()) {
+			pending_loads_.emplace_back(PendingLoad{
+				.command = std::move(command),
+				.ticket = std::move(ticket),
+			});
+			defer_exits = true;
+		} else if (progress.failed_assets == 0) {
+			ApplyLoadedCommand(app, std::move(command), std::move(ticket));
+		} else {
+			PTGN_ERROR("Failed to load assets for scene: ", command.to_scene_tag);
+		}
+
+		it = top_priority_commands.erase(it);
+	}
+
 	for (auto& [target_scene_tag_hash, command] : top_priority_commands) {
-		switch (command.type) {
-			case CommandType::Enter: {
-				PTGN_ASSERT(
-					!HasScene(target_scene_tag_hash),
-					"Cannot enter a scene which is already in the scene manager"
-				);
-				enter(target_scene_tag_hash, command);
-				break;
-			}
+		PTGN_ASSERT(command.type == CommandType::Exit, "Only exit commands should remain");
 
-			case CommandType::Exit: {
-				PTGN_ASSERT(
-					HasScene(target_scene_tag_hash),
-					"Cannot exit a scene which is not in the scene manager"
-				);
-				exit(target_scene_tag_hash, command);
-				break;
-			}
+		if (defer_exits) {
+			commands_.emplace_back(std::move(command));
+			continue;
+		}
 
-			case CommandType::ReEnter: {
-				PTGN_ASSERT(
-					HasScene(target_scene_tag_hash),
-					"Cannot re-enter a scene which is not in the scene manager"
-				);
+		PTGN_ASSERT(
+			HasScene(target_scene_tag_hash),
+			"Cannot exit a scene which is not in the scene manager"
+		);
 
-				std::size_t temporary_tag_hash{ GenerateTempTagHash() };
-				exit(target_scene_tag_hash, command);
-				enter(temporary_tag_hash, command);
-				reentering_scenes_.emplace_back(target_scene_tag_hash, temporary_tag_hash);
-				break;
+		auto& target_scene{ GetScene(target_scene_tag_hash) };
+		target_scene.data_.state = SceneState::TransitionOut;
+		target_scene.data_.transition = std::move(command.transition_out);
+		if (target_scene.data_.transition) {
+			target_scene.data_.transition->OnDelayStart(target_scene);
+			if (!target_scene.data_.transition->IsInDelay()) {
+				target_scene.data_.transition->started_ = true;
+				target_scene.data_.transition->OnStart(target_scene);
 			}
 		}
 	}
@@ -332,6 +421,8 @@ void SceneManager::Update(Application& app, secondsf dt) {
 		}
 		scene->InternalUpdate();
 	}
+
+	UpdatePendingLoads(app);
 
 	auto top_priority_commands{ GetTopPriorityCommands() };
 	ApplyCommands(app, top_priority_commands);
@@ -445,6 +536,12 @@ std::vector<std::unique_ptr<Scene>>& SceneManager::GetScenes() {
 }
 
 bool SceneManager::CanIssueCommands(std::size_t target_scene_tag_hash) const {
+	if (std::ranges::any_of(pending_loads_, [target_scene_tag_hash](const auto& pending) {
+			return pending.command.to_scene_tag_hash == target_scene_tag_hash;
+		})) {
+		return false;
+	}
+
 	if (!HasScene(target_scene_tag_hash)) {
 		return true;
 	}

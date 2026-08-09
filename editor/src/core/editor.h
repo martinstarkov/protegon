@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstddef>
 #include <cstdint>
 #include <memory>
 #include <optional>
@@ -13,6 +14,7 @@
 #include "commands/editor_commands.h"
 #include "commands/undo_stack.h"
 #include "core/editor_context.h"
+#include "core/editor_settings.h"
 #include "core/math/vector2.h"
 #include "core/util/file.h"
 #include "panels/content_browser.h"
@@ -80,15 +82,14 @@ public:
 	SceneListPanel& GetSceneListPanel();
 
 	void EnableRendering(bool enable = true);
-
 	void OnSelectedSceneChanged(Scene* previous_scene, Scene* selected_scene);
 
 	const EditorSettings& GetSettings() const;
+	EditorSettings& GetSettings();
 
 	void SetEntityPickingMode(bool enabled);
 	void SetGizmoUsesLocalOrientation(bool enabled);
 	void SetRenderOnlySelectedScene(bool enabled);
-
 	void SetSceneEntityPickingEnabled(Scene& scene, bool enabled);
 
 	[[nodiscard]] Project* GetProject();
@@ -99,37 +100,19 @@ public:
 	bool CreateProjectScene(std::string_view scene_type);
 	bool DuplicateProjectScene(std::string_view scene_key);
 	bool DeleteProjectScene(std::string_view scene_key);
-
-	bool RenameProjectSceneKey(
-		std::string_view current_key,
-		std::string_view new_key
-	);
-
-	bool RenameProjectSceneDisplayName(
-		std::string_view scene_key,
-		std::string display_name
-	);
-
-	bool MoveProjectScene(
-		std::size_t from_index,
-		std::size_t to_index
-	);
-
+	bool RenameProjectSceneKey(std::string_view current_key, std::string_view new_key);
+	bool RenameProjectSceneDisplayName(std::string_view scene_key, std::string display_name);
+	bool MoveProjectScene(std::size_t from_index, std::size_t to_index);
 	bool SetStartupProjectScene(std::string_view scene_key);
 
-	[[nodiscard]] bool IsStartupProjectScene(
-		std::string_view scene_key
-	) const;
-
+	[[nodiscard]] bool IsStartupProjectScene(std::string_view scene_key) const;
 	bool CanSaveProject() const;
-
 	bool IsPlaying() const;
 	bool IsPaused() const;
 	bool CanPlay() const;
 	bool CanStop() const;
 	bool CanPause() const;
 	bool IsDirectRuntime() const;
-
 	std::optional<path> GetProjectRoot() const;
 
 private:
@@ -142,28 +125,22 @@ private:
 
 	void SavePendingBootstrapScenes();
 	void SyncProjectSceneOrder();
-
 	void UpdateProjectLocalState();
 	void SaveEditorLocalStateIfChanged();
 	void OnProjectChanged();
-
 	void DrawMainMenuBar();
 	void DrawPanels();
-
 	void BuildDefaultDockLayout(std::uint32_t dockspace_id);
-
 	void UpdateDockLayout(std::uint32_t dockspace_id, float width);
-
 	bool ShouldEnableEntityPicking() const;
 	void ApplyEntityPickingSettings();
 	void ApplySceneRenderSettings();
-
+	void SyncSelectedSceneAssetDependencies();
 	::ptgn::impl::FramebufferId GetSceneFramebuffer(Scene& scene) const;
 
 	std::unique_ptr<EditorContext> context_;
 	UndoStack undo_stack_;
 	EditorCommands commands_;
-
 	ViewportPanel viewport_panel_;
 	ContentBrowserPanel content_browser_panel_;
 	SettingsWindow settings_window_;
@@ -171,21 +148,16 @@ private:
 	InspectorPanel inspector_panel_;
 	SceneHierarchyPanel scene_hierarchy_panel_;
 	SceneListPanel scene_list_panel_;
-
 	std::optional<PlaySnapshot> play_snapshot_;
-
 	std::optional<path> local_state_project_path_;
 	std::optional<std::string> saved_editor_local_state_json_;
-
 	std::uint32_t dock_left_column_id_{ 0 };
 	std::uint32_t dock_right_column_id_{ 0 };
 	std::uint8_t dock_resize_frames_remaining_{ 0 };
-
 	bool dock_layout_update_requested_{ false };
 	V2_float previous_dockspace_size_;
-
 	bool dock_layout_built_{ false };
-
+	bool scene_asset_dependencies_dirty_{ true };
 	std::unordered_set<std::string> pending_scene_bootstrap_saves_;
 };
 
@@ -193,6 +165,5 @@ private:
 
 } // namespace ptgn
 
-/// @param Optional: bool argument to enable rendering on the editor layer. Defaults to true.
 #define PTGN_WITH_EDITOR(application, ...) \
 	application.PushLayer<::ptgn::editor::Editor>(application).EnableRendering(__VA_ARGS__)

@@ -34,12 +34,12 @@ struct ShaderOptions {
 };
 
 enum class ShaderType : std::uint32_t {
-	Vertex		   = 0x8B31, // GL_VERTEX_SHADER
-	Fragment	   = 0x8B30, // GL_FRAGMENT_SHADER
-	Geometry	   = 0x8DD9, // GL_GEOMETRY_SHADER
-	TessControl	   = 0x8E88, // GL_TESS_CONTROL_SHADER
-	TessEvaluation = 0x8E87, // GL_TESS_EVALUATION_SHADER
-	Compute		   = 0x91B9	 // GL_COMPUTE_SHADER
+	Vertex = 0x8B31,
+	Fragment = 0x8B30,
+	Geometry = 0x8DD9,
+	TessControl = 0x8E88,
+	TessEvaluation = 0x8E87,
+	Compute = 0x91B9
 };
 
 struct ShaderSpec {
@@ -61,8 +61,6 @@ struct ProgramInfo {
 
 struct ProgramCache {
 	std::string program_name;
-
-	/// @brief Cache needs to be mutable even in const functions.
 	mutable std::unordered_map<std::size_t, std::int32_t> uniform_locations;
 };
 
@@ -86,10 +84,12 @@ public:
 	void SetUniform(ShaderId id, const char* uniform_name, V3_int v);
 	void SetUniform(ShaderId id, const char* uniform_name, V4_int v);
 	void SetUniform(ShaderId id, const char* uniform_name, std::span<const int> v);
-	/// @brief Behaves identically to int overload.
 	void SetUniform(ShaderId id, const char* uniform_name, bool v);
 
 	ShaderId GetProgram(std::string_view program_name) const;
+
+	[[nodiscard]] std::span<const std::string> GetVertexShaderNames() const;
+	[[nodiscard]] std::span<const std::string> GetFragmentShaderNames() const;
 
 	void DestroyProgram(ShaderId id);
 
@@ -98,82 +98,87 @@ private:
 
 	explicit Shaders(GLContext& gl, std::size_t max_texture_slots);
 	~Shaders() noexcept;
-	Shaders(const Shaders&)				   = delete;
-	Shaders(Shaders&&) noexcept			   = delete;
-	Shaders& operator=(const Shaders&)	   = delete;
+	Shaders(const Shaders&) = delete;
+	Shaders(Shaders&&) noexcept = delete;
+	Shaders& operator=(const Shaders&) = delete;
 	Shaders& operator=(Shaders&&) noexcept = delete;
 
 	std::vector<ShaderSpec> ParseShaderSourceFile(
-		const std::string& source, std::string_view name
+		const std::string& source,
+		std::string_view name
 	) const;
 
 	ShaderId CompileShaderSource(
-		const std::string& source, ShaderType type, std::string_view name
+		const std::string& source,
+		ShaderType type,
+		std::string_view name
 	) const;
 
 	ShaderId CompileShaderPath(
-		const path& shader_path, ShaderType type, std::string_view name
+		const path& shader_path,
+		ShaderType type,
+		std::string_view name
 	) const;
 
 	void CompileShaders(const std::vector<ShaderSpec>& sources);
-
 	void PopulateShadersFromCache(const json& manifest);
-
 	void PopulateShaderCache(const cmrc::embedded_filesystem& filesystem);
 
 	bool ShaderExists(std::string_view shader_name, ShaderType type) const;
-
 	ShaderId GetShaderId(std::string_view shader_name, ShaderType type) const;
 
 	ProgramInfo GetProgramInfo(
-		const std::variant<ShaderCode, ShaderPath>& code_or_path, std::string_view program_name
+		const std::variant<ShaderCode, ShaderPath>& code_or_path,
+		std::string_view program_name
 	) const;
 
-	ProgramInfo GetProgramInfo(const ShaderPair& shader_pair, std::string_view program_name) const;
+	ProgramInfo GetProgramInfo(
+		const ShaderPair& shader_pair,
+		std::string_view program_name
+	) const;
 
-	/// @param program_name Given to the newly compiled shader. Unused if the variant used an
-	/// existing shader name.
 	ProgramInfo GetProgramInfo(
 		const std::variant<ShaderCode, ShaderPath, ShaderPair>& variant,
 		std::string_view program_name
 	) const;
 
-	/// @param shader_name Given to the newly compiled shader. Unused if the variant used an
-	/// existing shader name.
 	ShaderInfo GetShaderInfo(
-		const std::variant<ShaderCode, ShaderPathOrName>& variant, ShaderType type,
+		const std::variant<ShaderCode, ShaderPathOrName>& variant,
+		ShaderType type,
 		std::string_view shader_name
 	) const;
 
 	ShaderInfo GetShaderInfo(
-		const ShaderCode& code, ShaderType type, std::string_view shader_name
+		const ShaderCode& code,
+		ShaderType type,
+		std::string_view shader_name
 	) const;
 
 	ShaderInfo GetShaderInfo(
-		const ShaderPathOrName& path_or_name, ShaderType type, std::string_view shader_name
+		const ShaderPathOrName& path_or_name,
+		ShaderType type,
+		std::string_view shader_name
 	) const;
 
 	[[nodiscard]] ShaderId CompileShader(ShaderType type, const std::string& source) const;
 
 	void CompileProgram(
-		ShaderId id, const std::string& vertex_source, const std::string& fragment_source
+		ShaderId id,
+		const std::string& vertex_source,
+		const std::string& fragment_source
 	) const;
 
 	void LinkProgram(ShaderId id, ShaderId vertex, ShaderId fragment);
-
 	std::int32_t GetUniform(ShaderId id, const char* uniform_name);
-
 	[[nodiscard]] ShaderId CreateProgram(std::string_view program_name);
 
 	GLContext& gl_;
-
 	std::size_t max_texture_slots_{ 0 };
-
 	std::unordered_map<std::size_t, ShaderId> programs_;
-
 	std::unordered_map<std::size_t, ShaderId> vertex_shaders_;
 	std::unordered_map<std::size_t, ShaderId> fragment_shaders_;
-
+	std::vector<std::string> vertex_shader_names_;
+	std::vector<std::string> fragment_shader_names_;
 	IdMap<ProgramCache> cache_;
 };
 
