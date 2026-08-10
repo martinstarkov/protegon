@@ -47,6 +47,7 @@
 #include "runtime/graphics/render_target.h"
 #include "runtime/graphics/shape.h"
 #include "runtime/graphics/sprite.h"
+#include "runtime/graphics/sprite_stack.h"
 #include "runtime/graphics/text/text.h"
 #include "runtime/graphics/visible.h"
 #include "runtime/interaction/draggable.h"
@@ -558,6 +559,10 @@ void DrawCreateMenuItem(
 
 Entity CreateDefaultSprite(Scene& scene) {
 	return CreateSprite(scene);
+}
+
+Entity CreateDefaultSpriteStack(Scene& scene) {
+	return CreateSpriteStack(scene);
 }
 
 Entity CreateDefaultAnimation(Scene& scene) {
@@ -1108,6 +1113,7 @@ void DrawCreateEntityMenu(
 	}
 
 	DrawCreateMenuItem(context, "Sprite", CreateDefaultSprite);
+	DrawCreateMenuItem(context, "Sprite Stack", CreateDefaultSpriteStack);
 	DrawCreateMenuItem(context, "Animation", CreateDefaultAnimation);
 	DrawCreateMenuItem(context, "Particle Emitter", CreateDefaultParticleEmitter);
 	DrawCreateMenuItem(context, "Light", CreateDefaultLight);
