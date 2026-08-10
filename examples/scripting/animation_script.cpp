@@ -35,7 +35,7 @@ constexpr std::string_view kPlayOnceSignal{ "animation.play_once" };
 constexpr std::string_view kCompleteSignal{ "animation.complete" };
 
 void LoadAssets(Scene& scene) {
-	scene.ctx().asset.Load({ { "animation", "assets/animation.png" } });
+	scene.ctx().asset.Load({ { "animation", "assets/animation_frames4.png" } });
 }
 
 Button CreateTextButton(Scene& scene, V2_float position, std::string_view label) {
@@ -90,7 +90,7 @@ public:
 		animation_transform.position = { 0.0f, -100.0f };
 
 		Animation animation{ CreateAnimation(
-			*this, animation_transform, "animation", { 4, 500ms, V2_int{ 16, 32 }, 1, { 0, 32 } },
+			*this, animation_transform, "animation", { 1, 500ms, V2_int{ 16, 32 }, 1, { 0, 32 } },
 			Origin::Center
 		) };
 
