@@ -15,6 +15,7 @@
 #include <system_error>
 #include <vector>
 
+#include "core/build_info.h"
 #include "core/assert.h"
 #include "core/util/string.h"
 
@@ -183,8 +184,7 @@ path GetRelativePath(const path& absolute_path) {
 }
 
 path GetAssetRoot() {
-	path root{ PTGN_ASSET_ROOT };
-	return root.lexically_normal();
+	return impl::GetBuildInfo().runtime_root.lexically_normal();
 }
 
 } // namespace ptgn

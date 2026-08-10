@@ -118,7 +118,7 @@ void RemoveOptions(std::string& source) {
 	source = std::regex_replace(source, option, "");
 }
 
-bool AddAutoLayout(std::string& source, ShaderStageMask stage, std::string& error) {
+bool AddAutoLayout(std::string& source, [[maybe_unused]] ShaderStageMask stage, std::string& error) {
 	std::istringstream input{ source };
 	std::ostringstream output;
 	std::string line;

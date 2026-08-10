@@ -1,0 +1,31 @@
+#include "core/build_info.h"
+
+namespace ptgn::impl {
+
+const BuildInfo& GetBuildInfo() {
+	static const BuildInfo info{
+		.source_directory =
+			R"ptgn(@PTGN_INFO_SOURCE_DIRECTORY@)ptgn",
+		.binary_directory =
+			R"ptgn(@PTGN_INFO_BINARY_DIRECTORY@)ptgn",
+		.engine_directory =
+			R"ptgn(@PTGN_INFO_ENGINE_DIRECTORY@)ptgn",
+		.runtime_root =
+			R"ptgn(@PTGN_INFO_RUNTIME_ROOT@)ptgn",
+		.asset_source_directory =
+			R"ptgn(@PTGN_INFO_ASSET_SOURCE_DIRECTORY@)ptgn",
+		.asset_directory =
+			R"ptgn(@PTGN_INFO_ASSET_DIRECTORY@)ptgn",
+		.target =
+			R"ptgn(@PTGN_INFO_TARGET@)ptgn",
+		.generator =
+			R"ptgn(@PTGN_INFO_GENERATOR@)ptgn",
+		.example_id =
+			R"ptgn(@PTGN_INFO_EXAMPLE_ID@)ptgn",
+		.web = @PTGN_INFO_WEB@,
+	};
+
+	return info;
+}
+
+} // namespace ptgn::impl

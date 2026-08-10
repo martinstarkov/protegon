@@ -65,7 +65,7 @@ if(NOT _select_all)
 endif()
 
 if(EMSCRIPTEN)
-  set(_shell_html "${CMAKE_CURRENT_SOURCE_DIR}/../platform/emscripten/shell.html")
+  set(_shell_html "${CMAKE_CURRENT_FUNCTION_LIST_DIR}/../platform/emscripten/shell.html")
 
   if(NOT EXISTS "${_shell_html}")
     message(FATAL_ERROR
@@ -142,14 +142,16 @@ foreach(_src IN LISTS _example_sources)
   endif()
 
   if(EMSCRIPTEN)
-    add_protegon_to(
+    add_protegon_to_example(
       ${_t}
+      "${_rel_key}"
       ASSETS_DIR "${_assets_src}"
       SHELL_HTML "${_shell_html}"
     )
   else()
-    add_protegon_to(
+    add_protegon_to_example(
       ${_t}
+      "${_rel_key}"
       ASSETS_DIR "${_assets_src}"
     )
   endif()

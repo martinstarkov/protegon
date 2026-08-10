@@ -14,6 +14,7 @@
 #include <utility>
 #include <vector>
 
+#include "core/build_info.h"
 #include "core/assert.h"
 #include "core/config.h"
 #include "core/util/entity_handle.h"
@@ -30,9 +31,9 @@ namespace ptgn {
 
 namespace {
 
-inline constexpr std::string_view kDefaultFontCacheDirectory{ PTGN_ENGINE_ROOT "/assets/fonts" };
-inline constexpr std::string_view kDefaultFontFile{ PTGN_ENGINE_ROOT
-													"/assets/fonts/LiberationSans-Regular.ttf" };
+/// @brief Relative to engine root.
+inline constexpr std::string_view kDefaultFontCacheDirectory{ "/assets/fonts" };
+inline constexpr std::string_view kDefaultFontFile{ "/assets/fonts/LiberationSans-Regular.ttf" };
 /// @brief Relative to the working directory.
 inline constexpr std::string_view kFontCacheDirectory{ "cache/fonts" };
 /// @brief Enables generating a default font atlas at runtime and overwriting default_font.h with
@@ -43,9 +44,10 @@ inline constexpr bool kGenerateDefaultFontAtlas{ false };
 
 void WriteGeneratedDefaultFontHeader(const path& font_png_path) {
 	auto font_png{ ReadBinary(font_png_path) };
-	auto header_path{ path{ kDefaultFontCacheDirectory } / "default_font.h" };
+	auto directory{ impl::GetBuildInfo().engine_directory / path{ kDefaultFontCacheDirectory } };
+	auto header_path{ directory / "default_font.h" };
 
-	PTGN_ASSERT(IsDirectoryPath(kDefaultFontCacheDirectory));
+	PTGN_ASSERT(IsDirectoryPath(directory.string()));
 
 	std::ofstream out{ header_path, std::ios::binary | std::ios::trunc };
 	PTGN_ASSERT(out, "Failed to open generated default font header: ", header_path.string());
@@ -79,7 +81,7 @@ void WriteGeneratedDefaultFontHeader(const path& font_png_path) {
 
 #if !defined(__EMSCRIPTEN__) && defined(PTGN_DEBUG)
 [[maybe_unused]] impl::FontAtlas GenerateDefaultFontAtlas(Renderer& renderer) {
-	path font_path{ kDefaultFontFile };
+	auto font_path{ impl::GetBuildInfo().engine_directory / path{ kDefaultFontFile } };
 
 	PTGN_ASSERT(FileExists(font_path), "Default font file does not exist: ", font_path.string());
 
@@ -88,10 +90,11 @@ void WriteGeneratedDefaultFontHeader(const path& font_png_path) {
 		"Default font file must have a valid extension: ", font_path.string()
 	);
 
-	PTGN_ASSERT(IsDirectoryPath(kDefaultFontCacheDirectory));
+	auto directory{ impl::GetBuildInfo().engine_directory / path{ kDefaultFontCacheDirectory } };
 
-	auto font_png_path{ kDefaultFontCacheDirectory /
-						font_path.filename().replace_extension("png") };
+	PTGN_ASSERT(IsDirectoryPath(directory.string()));
+
+	auto font_png_path{ directory / font_path.filename().replace_extension("png") };
 
 	impl::FontAtlas font_atlas{ renderer, font_path, font_png_path };
 

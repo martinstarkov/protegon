@@ -245,8 +245,8 @@ void SceneManager::ApplyLoadedCommand(
 			app,
 			SceneData{
 				.tag{ enter_command.to_scene_tag },
-				.tag_hash{ target_scene_tag_hash },
-				.state{ SceneState::TransitionIn },
+				.tag_hash = target_scene_tag_hash,
+				.state = SceneState::TransitionIn,
 				.transition{ std::move(enter_command.transition_in) },
 			}
 		) };
