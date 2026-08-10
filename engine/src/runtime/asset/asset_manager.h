@@ -271,22 +271,6 @@ private:
 	bool owns_references_{ false };
 };
 
-/// @brief Temporarily records path-backed asset loads as dependencies of one scene.
-class AssetCaptureScope {
-public:
-	AssetCaptureScope(AssetManager& assets, std::vector<AssetKey>& dependencies);
-	~AssetCaptureScope() noexcept;
-
-	AssetCaptureScope(const AssetCaptureScope&) = delete;
-	AssetCaptureScope& operator=(const AssetCaptureScope&) = delete;
-	AssetCaptureScope(AssetCaptureScope&&) noexcept = delete;
-	AssetCaptureScope& operator=(AssetCaptureScope&&) noexcept = delete;
-
-private:
-	AssetManager& assets_;
-	std::vector<AssetKey>& dependencies_;
-};
-
 struct JsonAssetData {
 	AssetKey key;
 	path source_path;
@@ -488,7 +472,6 @@ public:
 
 private:
 	friend class impl::AssetAccessor;
-	friend class impl::AssetCaptureScope;
 	friend class impl::AssetLoadTicket;
 	friend class impl::ApplicationContext;
 	friend class Scene;

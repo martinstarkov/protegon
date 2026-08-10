@@ -362,18 +362,6 @@ bool AssetAccessor::Unload(const AssetKey& key, AssetKind kind) {
 	return assets.Unload(key, kind);
 }
 
-AssetCaptureScope::AssetCaptureScope(
-	AssetManager& assets,
-	std::vector<AssetKey>& dependencies
-) :
-	assets_{ assets }, dependencies_{ dependencies } {
-	assets_.BeginAssetCapture(dependencies_);
-}
-
-AssetCaptureScope::~AssetCaptureScope() noexcept {
-	assets_.EndAssetCapture(dependencies_);
-}
-
 AssetLoadTicket::AssetLoadTicket(
 	AssetManager& assets,
 	std::shared_ptr<AssetLoadBatchState> state,

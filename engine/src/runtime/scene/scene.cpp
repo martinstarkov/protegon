@@ -448,14 +448,14 @@ void Scene::Init(Application& app, impl::SceneData&& scene_data) {
 	CreateDefaultSceneEntities();
 
 	std::vector<AssetKey> loaded_during_on_new;
-	{
-		impl::AssetCaptureScope capture{
-			impl::ApplicationAccessor::ctx(app).assets,
-			loaded_during_on_new
-		};
 
-		OnNew();
-	}
+	auto& assets{ impl::ApplicationAccessor::ctx(app).assets };
+
+	assets.BeginAssetCapture(loaded_during_on_new);
+
+	OnNew();
+
+	assets.EndAssetCapture(loaded_during_on_new);
 
 	Refresh();
 
