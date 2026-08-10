@@ -19,6 +19,7 @@
 #include <atomic>
 #include <chrono>
 #include <cctype>
+#include <charconv>
 #include <condition_variable>
 #include <cstddef>
 #include <cstdint>
@@ -2798,5 +2799,63 @@ template Asset<Font> AssetManager::Get<Font>(const AssetKey&);
 template Asset<Texture> AssetManager::Get<Texture>(const AssetKey&);
 template Asset<Audio> AssetManager::Get<Audio>(const AssetKey&);
 template Asset<Shader> AssetManager::Get<Shader>(const AssetKey&);
+
+namespace impl {
+
+std::optional<std::size_t> DetectTexturePathCount(
+	AssetManager& assets,
+	const TextureKey& texture_key,
+	std::string_view marker
+) {
+	std::optional<path> source_path;
+
+	if (const auto asset{ assets.GetCatalogAsset(texture_key) }) {
+		source_path = asset->source_path;
+	} else {
+		AssetAccessor accessor{ assets };
+
+		if (accessor.Has<Texture>(texture_key)) {
+			const Texture texture{ accessor.Get<Texture>(texture_key) };
+
+			if (const auto asset_path{ texture.GetEntity().TryGet<AssetPath>() }) {
+				source_path = asset_path->value;
+			}
+		}
+	}
+
+	if (!source_path) {
+		return std::nullopt;
+	}
+
+	const std::string stem_string{ source_path->stem().string() };
+	const std::string_view stem{ stem_string };
+	const auto marker_position{ stem.rfind(marker) };
+
+	if (marker_position == std::string_view::npos) {
+		return std::nullopt;
+	}
+
+	const std::string_view digits{
+		stem.substr(marker_position + marker.size())
+	};
+
+	if (digits.empty()) {
+		return std::nullopt;
+	}
+
+	std::size_t count{ 0 };
+
+	const auto [end, error]{
+		std::from_chars(digits.data(), digits.data() + digits.size(), count)
+	};
+
+	if (error != std::errc{} || end != digits.data() + digits.size() || count == 0) {
+		return std::nullopt;
+	}
+
+	return count;
+}
+
+} // namespace impl
 
 } // namespace ptgn

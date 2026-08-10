@@ -7075,7 +7075,8 @@ bool DrawShapeVisual(
 
 bool DrawAnimationDataFlattened(
 	EditorContext& ctx,
-	::ptgn::impl::AnimationData& animation
+	::ptgn::impl::AnimationData& animation,
+	std::optional<std::size_t> detected_frame_count
 ) {
 	bool changed{ false };
 	auto members{ ReflectMembers(animation) };
@@ -7097,16 +7098,52 @@ bool DrawAnimationDataFlattened(
 
 				std::apply(
 					[&](auto&&... config_member) {
-						(
-							(
-								changed |= DrawValue(
-									ctx,
-									PrettyName(config_member.name),
-									config_member.value
-								)
-							),
-							...
-						);
+						auto draw_config_member = [&](auto&& member) {
+							const std::string normalized{
+								NormalizeFeatureName(member.name)
+							};
+
+							using Value = std::remove_cvref_t<
+								decltype(member.value)
+							>;
+
+							if constexpr (std::same_as<Value, std::size_t>) {
+								if (normalized == "framecount") {
+									if (detected_frame_count) {
+										member.value = *detected_frame_count;
+									}
+
+									{
+										ScopedDisabled disabled{
+											detected_frame_count.has_value()
+										};
+
+										changed |= DrawValue(
+											ctx,
+											PrettyName(member.name),
+											member.value
+										);
+									}
+
+									if (detected_frame_count) {
+										DrawTooltip(
+											"Frame count is automatically detected from the "
+											"texture asset file name."
+										);
+									}
+
+									return;
+								}
+							}
+
+							changed |= DrawValue(
+								ctx,
+								PrettyName(member.name),
+								member.value
+							);
+						};
+
+						(draw_config_member(config_member), ...);
 					},
 					config_members
 				);
@@ -7221,6 +7258,26 @@ bool DrawTextureSizeAsIntegers(EditorContext& ctx, Value& value) {
 }
 
 template <typename Target>
+[[nodiscard]] std::optional<std::size_t> ResolveDetectedAnimationFrameCount(
+	const Target& target
+) {
+	if constexpr (!Target::template Supports<TextureKey>()) {
+		return std::nullopt;
+	} else {
+		const auto texture_key{ target.template Capture<TextureKey>() };
+
+		if (!texture_key) {
+			return std::nullopt;
+		}
+
+		return ::ptgn::impl::DetectAnimationFrameCount(
+			target.ctx.editor.GetAssetManager(),
+			*texture_key
+		);
+	}
+}
+
+template <typename Target>
 [[nodiscard]] std::optional<V2_int> ResolveAnimationTextureSize(const Target& target) {
 	if constexpr (requires { target.entity; }) {
 		Entity entity{ target.entity };
@@ -7258,7 +7315,13 @@ bool SynchronizeAnimationFrameData(Target& target, std::string_view reason) {
 		}
 
 		AnimationData animation{ *before_animation };
+		
+		if (const auto detected{ ResolveDetectedAnimationFrameCount(target) }) {
+			animation.config.frame_count = *detected;
+		}
+
 		const auto texture_size{ ResolveAnimationTextureSize(target) };
+		
 		animation.config.frame_size =
 			::ptgn::impl::GetFrameSize(texture_size, animation.config.frame_count);
 
@@ -7489,6 +7552,10 @@ bool DrawSpritePrimary(Target& target) {
 		}
 	);
 
+	const auto detected_frame_count{
+		ResolveDetectedAnimationFrameCount(target)
+	};
+
 	changed |= DrawOptionalComponent<Target, ::ptgn::impl::TextureSize>(
 		target,
 		"Texture Size",
@@ -7502,22 +7569,35 @@ bool DrawSpritePrimary(Target& target) {
 		target,
 		"Animation",
 		true,
-		[&target](AnimationData& value) {
+		[&target, detected_frame_count](AnimationData& value) {
 			const std::size_t before_frame_count{ value.config.frame_count };
-			const bool local_changed{ DrawAnimationDataFlattened(target.ctx, value) };
 
-			if (local_changed && before_frame_count != value.config.frame_count) {
+			const bool local_changed{
+				DrawAnimationDataFlattened(
+					target.ctx,
+					value,
+					detected_frame_count
+				)
+			};
+
+			const bool frame_count_changed{
+				before_frame_count != value.config.frame_count
+			};
+
+			if (frame_count_changed) {
 				value.config.frame_size = ::ptgn::impl::GetFrameSize(
 					ResolveAnimationTextureSize(target),
 					value.config.frame_count
 				);
+
 				value.current_frame = value.config.frame_count == 0
 					? 0
 					: value.current_frame % value.config.frame_count;
+
 				value.frame_dirty = true;
 			}
 
-			return local_changed;
+			return local_changed || frame_count_changed;
 		}
 	);
 

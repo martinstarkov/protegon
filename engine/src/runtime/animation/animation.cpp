@@ -20,6 +20,7 @@
 #include "runtime/ecs/tag.h"
 #include "runtime/graphics/sprite.h"
 #include "runtime/graphics/visible.h"
+#include "runtime/asset/asset_manager.h"
 #include "runtime/scene/scene.h"
 #include "runtime/scene/scene_context.h"
 #include "runtime/scene/scene_event.h"
@@ -162,6 +163,17 @@ Animation::Animation(Entity entity) : Entity{ entity } {}
 
 Animation& Animation::SetConfig(AnimationConfig config) {
 	auto texture_size{ GetTextureSize(*this) };
+
+	if (const auto texture_key{ TryGet<TextureKey>() }) {
+		if (const auto detected{
+				impl::DetectAnimationFrameCount(
+					GetScene().ctx().asset,
+					*texture_key
+				)
+			}) {
+			config.frame_count = *detected;
+		}
+	}
 
 	if (auto anim_data{ TryGet<impl::AnimationData>() };
 		anim_data && anim_data->config.IsIdentical(config, texture_size)) {
@@ -342,7 +354,44 @@ Animation& Animation::SetCurrentFrame(std::size_t new_frame) {
 }
 
 Animation& Animation::SetTexture(TextureKey texture_key) {
-	Sprite{ *this }.SetTexture(texture_key);
+	Sprite{ *this }.SetTexture(std::move(texture_key));
+
+	auto data{ TryGet<impl::AnimationData>() };
+
+	if (!data) {
+		return *this;
+	}
+
+	if (const auto key{ TryGet<TextureKey>() }) {
+		if (const auto detected{
+				impl::DetectAnimationFrameCount(
+					GetScene().ctx().asset,
+					*key
+				)
+			}) {
+			data->config.frame_count = *detected;
+		}
+	}
+
+	const auto texture_size{ GetTextureSize(*this) };
+
+	data->config.frame_size = impl::GetFrameSize(
+		texture_size,
+		data->config.frame_count
+	);
+
+	if (data->config.frame_count == 0) {
+		data->current_frame = 0;
+	} else {
+		data->current_frame %= data->config.frame_count;
+	}
+
+	data->frame_dirty = true;
+
+	if (auto crop{ TryGet<impl::TextureCrop>() }) {
+		crop->Update(*data, texture_size);
+	}
+
 	return *this;
 }
 
@@ -409,6 +458,13 @@ V2_int Animation::GetFrameSize() const {
 
 namespace impl {
 
+std::optional<std::size_t> DetectAnimationFrameCount(
+	AssetManager& assets,
+	const TextureKey& texture_key
+) {
+	return DetectTexturePathCount(assets, texture_key, "_frames");
+}
+
 AnimationData::AnimationData(AnimationConfig&& anim_config, std::optional<V2_int> texture_size) :
 	config{ std::move(anim_config) } {
 	if (!config.frame_size.has_value()) {
@@ -454,6 +510,26 @@ void AnimationData::IncrementFrame() {
 void AnimationSystem::Prepare(Scene& scene) {
 	for (auto [entity, anim, crop] : scene.EntitiesWith<AnimationData, TextureCrop>()) {
 		auto texture_size{ GetTextureSize(entity) };
+
+		if (const auto texture_key{ entity.TryGet<TextureKey>() }) {
+			if (const auto detected{
+					DetectAnimationFrameCount(
+						scene.ctx().asset,
+						*texture_key
+					)
+				};
+				detected && anim.config.frame_count != *detected) {
+				anim.config.frame_count = *detected;
+				anim.config.frame_size = GetFrameSize(
+					texture_size,
+					anim.config.frame_count
+				);
+
+				anim.current_frame %= anim.config.frame_count;
+				anim.frame_dirty = true;
+			}
+		}
+
 		crop.Update(anim, texture_size);
 	}
 }

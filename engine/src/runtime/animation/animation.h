@@ -23,6 +23,7 @@ namespace ptgn {
 
 class Scene;
 class DrawContext;
+class AssetManager;
 
 namespace impl {
 
@@ -243,6 +244,8 @@ struct AnimationMapKey : public StrongString<AnimationMapKey> {
 struct AnimationMapData {
 	AnimationMapKey active;
 };
+
+std::optional<std::size_t> DetectAnimationFrameCount(AssetManager& assets, const TextureKey& texture_key);
 
 } // namespace impl
 

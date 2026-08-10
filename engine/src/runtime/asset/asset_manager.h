@@ -653,6 +653,12 @@ bool AssetAccessor::Has(const AssetKey& key) const {
 	return assets.Has<T>(key);
 }
 
+std::optional<std::size_t> DetectTexturePathCount(
+	AssetManager& assets,
+	const TextureKey& texture_key,
+	std::string_view marker
+);
+
 } // namespace impl
 
 } // namespace ptgn
