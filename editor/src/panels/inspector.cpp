@@ -65,6 +65,7 @@
 #include "runtime/graphics/graphics.h"
 #include "runtime/graphics/render_target.h"
 #include "runtime/graphics/sprite.h"
+#include "runtime/graphics/sprite_stack.h"
 #include "runtime/graphics/tint.h"
 #include "runtime/graphics/visible.h"
 #include "runtime/interaction/draggable.h"
@@ -3057,7 +3058,7 @@ using VisualFeatureComponents = FeatureComponents<
 	::ptgn::impl::IDrawable, Visible, ::ptgn::impl::IgnoreParentVisibility, Origin, BlendMode,
 	Rect, Circle, RoundedRect, Polygon, Ellipse, Triangle, Line, Capsule, Arc, Color, FillStyle,
 	TextureKey, ::ptgn::impl::TextureSize, ::ptgn::impl::TextureCrop,
-	::ptgn::impl::AnimationData, ::ptgn::impl::Offsets, Tint,
+	::ptgn::impl::AnimationData, ::ptgn::SpriteStackData, ::ptgn::impl::Offsets, Tint,
 	::ptgn::impl::IgnoreParentTint, ::ptgn::impl::TextData,
 	::ptgn::impl::ParticleEmitterData, LightData, ::ptgn::impl::ShadowCaster,
 	::ptgn::impl::GraphicsData, ::ptgn::Material, ShaderKey, ::ptgn::impl::RenderTargetDesc,
@@ -6059,7 +6060,7 @@ template <typename T>
 
 using RendererOwnedComponents = FeatureComponents<
 	Rect, Circle, RoundedRect, Polygon, Ellipse, Triangle, Line, Capsule, Arc, Color, FillStyle,
-	TextureKey, ::ptgn::impl::TextureSize, ::ptgn::impl::TextureCrop,
+	TextureKey, ::ptgn::SpriteStackData, ::ptgn::impl::TextureSize, ::ptgn::impl::TextureCrop,
 	::ptgn::impl::AnimationData, ::ptgn::impl::Offsets, ::ptgn::impl::TextData,
 	::ptgn::impl::ParticleEmitterData, LightData, ::ptgn::impl::ShadowCaster,
 	::ptgn::impl::GraphicsData, ::ptgn::Material, ShaderKey,
@@ -6139,6 +6140,9 @@ void InitializeRendererOwnedComponents(Target& target, std::string_view visual) 
 		add_shape.template operator()<Capsule>();
 	} else if (visual == "arc") {
 		add_shape.template operator()<Arc>();
+	} else if (visual == "spritestack") {
+		SetRendererOwnedComponent<TextureKey>(target);
+		SetRendererOwnedComponent<SpriteStackData>(target);
 	} else if (visual.contains("sprite")) {
 		SetRendererOwnedComponent<TextureKey>(target);
 	} else if (visual.contains("text")) {
@@ -7353,6 +7357,122 @@ bool DisableAnimationTextureCrop(Target& target) {
 	}
 }
 
+bool DrawSpriteStackData(
+	EditorContext& ctx,
+	SpriteStackData& data,
+	std::optional<int> detected_slice_count
+) {
+	bool changed{ false };
+
+	int displayed_slice_count{
+		detected_slice_count.value_or(data.slice_count)
+	};
+
+	{
+		ScopedDisabled disabled{
+			detected_slice_count.has_value()
+		};
+
+		changed |= DrawValue(
+			ctx,
+			"Slice Count",
+			displayed_slice_count,
+			FieldOptions{
+				.speed	= 1.0f,
+				.min	= 1.0f,
+				.max	= 10000.0f,
+				.format = "%d",
+				.flags	= ImGuiSliderFlags_AlwaysClamp,
+			}
+		);
+	}
+
+	if (detected_slice_count) {
+		DrawTooltip(
+			"Slice count is automatically detected from the "
+			"_slicesN suffix in the texture key."
+		);
+	} else if (changed) {
+		data.slice_count = std::max(
+			displayed_slice_count,
+			1
+		);
+	}
+
+	changed |= DrawValue(
+		ctx,
+		"Slice Order",
+		data.slice_order
+	);
+
+	changed |= DrawValue(
+		ctx,
+		"Layer Offset",
+		data.layer_offset,
+		FieldOptions{
+			.speed	= 0.1f,
+			.min	= -1000.0f,
+			.max	= 1000.0f,
+			.format = "%.2f",
+		}
+	);
+
+	changed |= DrawValue(
+		ctx,
+		"Pixel Snap",
+		data.pixel_snap
+	);
+
+	return changed;
+}
+
+template <typename Target>
+bool DrawSpriteStackPrimary(Target& target) {
+	bool changed{ false };
+
+	changed |= DrawRequiredInlineVisualComponent<Target, TextureKey>(
+		target,
+		"Texture Key",
+		[&target](TextureKey& value) {
+			return DrawValue(
+				target.ctx,
+				"Texture Key",
+				value
+			);
+		}
+	);
+
+	const auto texture_key{
+		target.template Capture<TextureKey>()
+	};
+
+	const std::optional<std::size_t> detected_slice_count{
+		texture_key
+			? ::ptgn::impl::DetectSpriteStackSliceCount(
+				target.ctx.editor.GetAssetManager(),
+				*texture_key
+			)
+			: std::nullopt
+	};
+
+	changed |= DrawRequiredInlineVisualComponent<
+		Target,
+		SpriteStackData
+	>(
+		target,
+		"Sprite Stack",
+		[&target, detected_slice_count](SpriteStackData& value) {
+			return DrawSpriteStackData(
+				target.ctx,
+				value,
+				detected_slice_count
+			);
+		}
+	);
+
+	return changed;
+}
+
 template <typename Target>
 bool DrawSpritePrimary(Target& target) {
 	using AnimationData = ::ptgn::impl::AnimationData;
@@ -8416,6 +8536,9 @@ bool DrawVisualFeature(Target& target) {
 
 	if (shape) {
 		changed |= DrawShapeVisual(target, visual);
+	}  else if (visual == "spritestack") {
+		changed |= DrawSpriteStackPrimary(target);
+		draw_tint = true;
 	} else if (visual.contains("sprite")) {
 		changed |= DrawSpritePrimary(target);
 		draw_tint = true;

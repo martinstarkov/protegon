@@ -24,6 +24,7 @@
 #include "runtime/graphics/graphics.h"
 #include "runtime/graphics/render_target.h"
 #include "runtime/graphics/sprite.h"
+#include "runtime/graphics/sprite_stack.h"
 #include "runtime/graphics/tint.h"
 #include "runtime/graphics/custom_shader.h"
 #include "runtime/graphics/visible.h"
@@ -139,6 +140,7 @@ PTGN_REGISTER_COMPONENT(Material);
 PTGN_REGISTER_COMPONENT(impl::TextureSize);
 PTGN_REGISTER_COMPONENT(impl::TextureCrop);
 PTGN_REGISTER_COMPONENT(impl::AnimationData);
+PTGN_REGISTER_COMPONENT(SpriteStackData);
 PTGN_REGISTER_COMPONENT(impl::Offsets);
 
 namespace impl {
