@@ -32,83 +32,13 @@
 
 namespace ptgn {
 
-namespace {
-
-V2_float ToFloat(V2_int value) {
-	return {
-		static_cast<float>(value.x),
-		static_cast<float>(value.y),
-	};
-}
-
-V2_float Round(V2_float value) {
-	return {
-		std::round(value.x),
-		std::round(value.y),
-	};
-}
-
-std::optional<std::size_t> DetectSliceCountFromPath(const path& texture_path) {
-	constexpr std::string_view kSliceMarker{ "_slices" };
-
-	const std::string stem_string{ texture_path.stem().string() };
-	const std::string_view stem{ stem_string };
-
-	const auto marker{ stem.rfind(kSliceMarker) };
-
-	if (marker == std::string_view::npos) {
-		return std::nullopt;
-	}
-
-	const std::string_view digits{ stem.substr(marker + kSliceMarker.size()) };
-
-	if (digits.empty()) {
-		return std::nullopt;
-	}
-
-	std::size_t slice_count{ 0 };
-
-	const auto [end, error]{
-		std::from_chars(digits.data(), digits.data() + digits.size(), slice_count)
-	};
-
-	if (error != std::errc{} || end != digits.data() + digits.size() || slice_count == 0) {
-		return std::nullopt;
-	}
-
-	return slice_count;
-}
-
-} // namespace
-
 namespace impl {
 
 std::optional<std::size_t> DetectSpriteStackSliceCount(
-	AssetManager& assets, const TextureKey& texture_key
+	AssetManager& assets,
+	const TextureKey& texture_key
 ) {
-	// Prefer the catalog path. This also works when the asset is known to the project but is not
-	// currently resident in memory.
-	if (auto asset{ assets.GetCatalogAsset(texture_key) }) {
-		if (auto slice_count{ DetectSliceCountFromPath(asset->source_path) }) {
-			return slice_count;
-		}
-	}
-
-	// Runtime/manual loads are not necessarily cataloged. A loaded asset still stores the source
-	// path directly on its asset entity.
-	AssetAccessor accessor{ assets };
-
-	if (!accessor.Has<Texture>(texture_key)) {
-		return std::nullopt;
-	}
-
-	Texture texture{ accessor.Get<Texture>(texture_key) };
-
-	if (auto asset_path{ texture.GetEntity().TryGet<AssetPath>() }) {
-		return DetectSliceCountFromPath(asset_path->value);
-	}
-
-	return std::nullopt;
+	return DetectTexturePathCount(assets, texture_key, "_slices");
 }
 
 std::size_t GetSpriteStackSliceCount(Entity entity) {
@@ -132,19 +62,19 @@ std::size_t GetSpriteStackSliceCount(Entity entity) {
 }
 
 std::optional<V2_int> GetSpriteStackSliceSize(Entity entity) {
-	const auto texture_size{ GetTextureSize(entity) };
+	auto texture_size{ GetTextureSize(entity) };
 
 	if (!texture_size) {
 		return std::nullopt;
 	}
 
-	const std::size_t slice_count{ GetSpriteStackSliceCount(entity) };
+	std::size_t slice_count{ GetSpriteStackSliceCount(entity) };
 
 	if (slice_count == 0 || slice_count > static_cast<std::size_t>(texture_size->y)) {
 		return std::nullopt;
 	}
 
-	const int slice_count_int{ static_cast<int>(slice_count) };
+	int slice_count_int{ static_cast<int>(slice_count) };
 
 	if (texture_size->y % slice_count_int != 0) {
 		return std::nullopt;
@@ -175,14 +105,14 @@ void SpriteStack::Draw(DrawContext& ctx, Entity entity) {
 		return;
 	}
 
-	const auto texture_size{ GetTextureSize(entity) };
+	auto texture_size{ GetTextureSize(entity) };
 
 	if (!texture_size) {
 		PTGN_WARN("Sprite stack texture does not have a valid texture size");
 		return;
 	}
 
-	const std::size_t slice_count{ impl::GetSpriteStackSliceCount(entity) };
+	std::size_t slice_count{ impl::GetSpriteStackSliceCount(entity) };
 
 	if (slice_count == 0) {
 		PTGN_WARN(
@@ -202,7 +132,7 @@ void SpriteStack::Draw(DrawContext& ctx, Entity entity) {
 		return;
 	}
 
-	const int slice_count_int{ static_cast<int>(slice_count) };
+	auto slice_count_int{ static_cast<int>(slice_count) };
 
 	if (texture_size->y % slice_count_int != 0) {
 		PTGN_WARN(
@@ -215,40 +145,40 @@ void SpriteStack::Draw(DrawContext& ctx, Entity entity) {
 		return;
 	}
 
-	const V2_int slice_size{
+	V2_int slice_size{
 		texture_size->x,
 		texture_size->y / slice_count_int,
 	};
 
 	Transform base_transform{ GetDrawTransform(entity) };
-	const V2_float absolute_scale{ Abs(base_transform.scale) };
+	V2_float absolute_scale{ Abs(base_transform.scale) };
 
 	PTGN_ASSERT(!absolute_scale.HasZero(), "Sprite stack scale cannot have a zero component");
 
-	const V2_float display_size{ ToFloat(slice_size) * absolute_scale };
+	V2_float display_size{ slice_size * absolute_scale };
 
 	// display_size already includes the magnitude of the entity scale.
 	// Keep only the signs in the transform so negative scale still flips the stack.
 	base_transform.Scale(1.0f / absolute_scale);
 
-	const auto depth{ GetDepth(entity) };
-	const auto origin{ entity.GetOrDefault<Origin>() };
-	const auto tint{ GetTint(entity) };
-	const auto effects{ impl::GetEffectParams(entity) };
-	const auto entity_id{ entity.Get<UUID>() };
+	auto depth{ GetDepth(entity) };
+	auto origin{ entity.GetOrDefault<Origin>() };
+	auto tint{ GetTint(entity) };
+	auto effects{ impl::GetEffectParams(entity) };
+	auto entity_id{ entity.Get<UUID>() };
 
 	ctx.SetBlendMode(GetBlendMode(entity));
 
 	for (int draw_layer{ 0 }; draw_layer < slice_count_int; ++draw_layer) {
 		// Draw bottom -> top. slice_order only determines where that layer is stored in the source
 		// vertical strip.
-		const int source_layer{
+		int source_layer{
 			data.slice_order == SpriteStackSliceOrder::BottomToTop
 				? draw_layer
 				: slice_count_int - draw_layer - 1
 		};
 
-		const V2_int source_position{
+		V2_int source_position{
 			0,
 			source_layer * slice_size.y,
 		};
