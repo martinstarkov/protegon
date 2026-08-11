@@ -19,8 +19,8 @@
 #include <vector>
 
 #include "app/project.h"
-#include "core/editor.h"
-#include "core/editor_context.h"
+#include "editor/editor.h"
+#include "editor/editor_context.h"
 #include "core/event/key_event.h"
 #include "core/event/mouse_event.h"
 #include "core/input/key.h"

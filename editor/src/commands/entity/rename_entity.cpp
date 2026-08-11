@@ -2,7 +2,7 @@
 
 #include <utility>
 
-#include "core/editor.h"
+#include "editor/editor.h"
 #include "runtime/ecs/tag.h"
 
 namespace ptgn::editor {

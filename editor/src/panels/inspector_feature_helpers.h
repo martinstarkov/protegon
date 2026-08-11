@@ -8,7 +8,7 @@
 #include <string_view>
 #include <utility>
 
-#include "core/editor_context.h"
+#include "editor/editor_context.h"
 #include "core/math/vector2.h"
 
 namespace ptgn::editor::inspector {

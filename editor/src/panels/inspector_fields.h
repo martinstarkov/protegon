@@ -31,8 +31,8 @@
 #include <variant>
 #include <vector>
 
-#include "core/editor.h"
-#include "core/editor_context.h"
+#include "editor/editor.h"
+#include "editor/editor_context.h"
 #include "core/graphics/color.h"
 #include "core/math/angle.h"
 #include "core/math/matrix4.h"

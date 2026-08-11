@@ -4,7 +4,7 @@
 #include <chrono>
 
 #include "app/application.h"
-#include "core/editor.h"
+#include "app/editor.h"
 #include "core/graphics/color.h"
 #include "core/math/vector2.h"
 #include "runtime/ecs/entity.h"

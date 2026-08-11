@@ -2,7 +2,7 @@
 
 #include <utility>
 
-#include "core/editor.h"
+#include "editor/editor.h"
 #include "runtime/ecs/entity_hierarchy.h"
 
 namespace ptgn::editor {

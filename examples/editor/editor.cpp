@@ -1,5 +1,5 @@
 
-#include "core/editor.h"
+#include "app/editor.h"
 
 #include <chrono>
 #include <string>

@@ -11,8 +11,8 @@
 #include <string_view>
 
 #include "commands/undo_stack.h"
-#include "core/editor.h"
-#include "core/editor_context.h"
+#include "editor/editor.h"
+#include "editor/editor_context.h"
 #include "core/graphics/color.h"
 #include "core/graphics/fill_style.h"
 #include "core/math/vector2.h"

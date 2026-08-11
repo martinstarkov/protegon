@@ -4,7 +4,7 @@
 #include <chrono>
 
 #include "app/application.h"
-#include "core/editor.h"
+#include "app/editor.h"
 #include "core/math/geometry/origin.h"
 #include "core/math/vector2.h"
 #include "renderer/resources/shader.h"

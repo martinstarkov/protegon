@@ -1,4 +1,4 @@
-#include "core/editor_selection.h"
+#include "editor/editor_selection.h"
 
 #include <algorithm>
 #include <memory>
@@ -8,8 +8,8 @@
 #include <utility>
 
 #include "commands/editor_command.h"
-#include "core/editor.h"
-#include "core/editor_context.h"
+#include "editor/editor.h"
+#include "editor/editor_context.h"
 #include "panels/scene_list.h"
 #include "runtime/scene/scene.h"
 #include "runtime/scene/scene_manager.h"

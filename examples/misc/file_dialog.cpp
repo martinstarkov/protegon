@@ -4,7 +4,7 @@
 #include <filesystem>
 
 #include "app/application.h"
-#include "core/editor.h"
+#include "app/editor.h"
 #include "core/graphics/color.h"
 #include "core/log.h"
 #include "core/math/geometry/origin.h"

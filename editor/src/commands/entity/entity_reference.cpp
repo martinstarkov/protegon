@@ -2,7 +2,7 @@
 
 #include <ranges>
 
-#include "core/editor.h"
+#include "editor/editor.h"
 #include "runtime/scene/scene.h"
 #include "runtime/scene/scene_manager.h"
 

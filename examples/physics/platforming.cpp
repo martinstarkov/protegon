@@ -1,5 +1,5 @@
 #include "app/application.h"
-#include "core/editor.h"
+#include "app/editor.h"
 #include "core/event/event.h"
 #include "core/graphics/color.h"
 #include "core/graphics/fill_style.h"

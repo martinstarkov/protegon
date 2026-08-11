@@ -1,5 +1,5 @@
 #include "app/application.h"
-#include "core/editor.h"
+#include "app/editor.h"
 #include "runtime/asset/asset_manager.h"
 #include "runtime/graphics/fx/effects.h"
 #include "runtime/graphics/fx/grayscale.h"

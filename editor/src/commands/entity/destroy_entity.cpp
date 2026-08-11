@@ -2,7 +2,7 @@
 
 #include <utility>
 
-#include "core/editor_context.h"
+#include "editor/editor_context.h"
 #include "runtime/scene/scene.h"
 #include "runtime/ui/button.h"
 #include "runtime/ecs/entity_hierarchy.h"

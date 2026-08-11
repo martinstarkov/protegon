@@ -9,7 +9,7 @@
 #include "commands/component/remove_component.h"
 #include "commands/component/set_component.h"
 #include "commands/undo_stack.h"
-#include "core/editor_selection.h"
+#include "editor/editor_selection.h"
 #include "core/util/file.h"
 #include "runtime/asset/prefab.h"
 #include "runtime/ecs/entity.h"

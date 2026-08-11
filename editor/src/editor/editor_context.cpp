@@ -1,4 +1,4 @@
-#include "core/editor_context.h"
+#include "editor/editor_context.h"
 
 #include "app/project.h"
 #include "serialization/json/json.h"

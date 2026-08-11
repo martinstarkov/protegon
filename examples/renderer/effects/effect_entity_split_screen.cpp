@@ -1,5 +1,5 @@
 #include "app/application.h"
-#include "core/editor.h"
+#include "app/editor.h"
 #include "core/graphics/color.h"
 #include "renderer/pipeline/viewport.h"
 #include "runtime/asset/asset_manager.h"

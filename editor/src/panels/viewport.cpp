@@ -14,9 +14,9 @@
 
 #include "commands/entity/entity_reference.h"
 #include "core/assert.h"
-#include "core/editor.h"
-#include "core/editor_context.h"
-#include "core/editor_state.h"
+#include "editor/editor.h"
+#include "editor/editor_context.h"
+#include "editor/editor_state.h"
 #include "core/graphics/color.h"
 #include "core/math/geometry/origin.h"
 #include "core/math/geometry/rect.h"

@@ -2,8 +2,8 @@
 
 #include <utility>
 
-#include "core/editor.h"
-#include "core/editor_context.h"
+#include "editor/editor.h"
+#include "editor/editor_context.h"
 #include "panels/scene_list.h"
 #include "runtime/scene/scene_manager.h"
 

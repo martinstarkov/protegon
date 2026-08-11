@@ -4,7 +4,7 @@
 #include <optional>
 #include <string>
 
-#include "core/editor_selection.h"
+#include "editor/editor_selection.h"
 #include "runtime/asset/asset_key.h"
 #include "runtime/ecs/entity.h"
 #include "runtime/ecs/entity_serialization.h"

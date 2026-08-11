@@ -23,8 +23,8 @@
 #include <vector>
 
 #include "content_browser_icons.h"
-#include "core/editor.h"
-#include "core/editor_context.h"
+#include "editor/editor.h"
+#include "editor/editor_context.h"
 #include "core/graphics/surface.h"
 #include "core/util/string.h"
 #include "platform/file_dialog.h"

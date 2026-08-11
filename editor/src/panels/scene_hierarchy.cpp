@@ -18,8 +18,8 @@
 #include <vector>
 
 #include "core/assert.h"
-#include "core/editor.h"
-#include "core/editor_context.h"
+#include "editor/editor.h"
+#include "editor/editor_context.h"
 #include "core/graphics/color.h"
 #include "core/log.h"
 #include "core/math/transform.h"

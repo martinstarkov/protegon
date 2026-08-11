@@ -2,7 +2,7 @@
 #include <chrono>
 
 #include "app/application.h"
-#include "core/editor.h"
+#include "app/editor.h"
 #include "core/graphics/color.h"
 #include "core/math/angle.h"
 #include "core/math/geometry/arc.h"

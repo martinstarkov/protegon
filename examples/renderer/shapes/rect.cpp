@@ -5,7 +5,7 @@
 #include "runtime/ecs/entity.h"
 #include "runtime/graphics/shape.h"
 #include "runtime/scene/scene.h"
-#include "core/editor.h"
+#include "app/editor.h"
 
 using namespace ptgn;
 
