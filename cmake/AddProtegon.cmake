@@ -1,168 +1,177 @@
+function(_ptgn_add_build_info target assets_dir distribution_build)
+  get_target_property(
+    _ptgn_example_id
+    ${target}
+    PTGN_EXAMPLE_ID
+  )
 
-function(_ptgn_add_build_info target assets_dir)
-	get_target_property(
-		_ptgn_example_id
-		${target}
-		PTGN_EXAMPLE_ID
-	)
+  if(
+    NOT _ptgn_example_id
+    OR _ptgn_example_id MATCHES "-NOTFOUND$"
+  )
+    set(_ptgn_example_id "")
+  endif()
 
-	if(
-		NOT _ptgn_example_id
-		OR _ptgn_example_id MATCHES "-NOTFOUND$"
-	)
-		set(_ptgn_example_id "")
-	endif()
+  get_filename_component(
+    _ptgn_engine_source_directory
+    "${CMAKE_CURRENT_FUNCTION_LIST_DIR}/.."
+    ABSOLUTE
+  )
 
-	get_filename_component(
-		_ptgn_engine_source_directory
-		"${CMAKE_CURRENT_FUNCTION_LIST_DIR}/.."
-		ABSOLUTE
-	)
+  if(assets_dir)
+    get_filename_component(
+      _ptgn_asset_source_directory
+      "${assets_dir}"
+      ABSOLUTE
+    )
 
-	if(assets_dir)
-		get_filename_component(
-			_ptgn_asset_source_directory
-			"${assets_dir}"
-			ABSOLUTE
-		)
+    get_filename_component(
+      _ptgn_asset_directory_name
+      "${_ptgn_asset_source_directory}"
+      NAME
+    )
 
-		get_filename_component(
-			_ptgn_asset_directory_name
-			"${_ptgn_asset_source_directory}"
-			NAME
-		)
+    get_filename_component(
+      _ptgn_desktop_runtime_root
+      "${_ptgn_asset_source_directory}"
+      DIRECTORY
+    )
+  else()
+    set(_ptgn_asset_source_directory "")
+    set(_ptgn_asset_directory_name "")
+    set(_ptgn_desktop_runtime_root "${CMAKE_SOURCE_DIR}")
+  endif()
 
-		get_filename_component(
-			_ptgn_desktop_runtime_root
-			"${_ptgn_asset_source_directory}"
-			DIRECTORY
-		)
-	else()
-		set(
-			_ptgn_asset_source_directory
-			""
-		)
+  if(EMSCRIPTEN)
+    set(_ptgn_runtime_root "/")
 
-		set(
-			_ptgn_asset_directory_name
-			""
-		)
+    if(_ptgn_asset_directory_name)
+      set(
+        _ptgn_runtime_asset_directory
+        "/${_ptgn_asset_directory_name}"
+      )
+    else()
+      set(_ptgn_runtime_asset_directory "")
+    endif()
 
-		set(
-			_ptgn_desktop_runtime_root
-			"${CMAKE_SOURCE_DIR}"
-		)
-	endif()
+    set(PTGN_INFO_WEB true)
+  else()
+    set(
+      _ptgn_runtime_root
+      "${_ptgn_desktop_runtime_root}"
+    )
 
-	if(EMSCRIPTEN)
-		set(
-			_ptgn_runtime_root
-			"/"
-		)
+    set(
+      _ptgn_runtime_asset_directory
+      "${_ptgn_asset_source_directory}"
+    )
 
-		if(_ptgn_asset_directory_name)
-			set(
-				_ptgn_runtime_asset_directory
-				"/${_ptgn_asset_directory_name}"
-			)
-		else()
-			set(
-				_ptgn_runtime_asset_directory
-				""
-			)
-		endif()
+    set(PTGN_INFO_WEB false)
+  endif()
 
-		set(PTGN_INFO_WEB true)
-	else()
-		set(
-			_ptgn_runtime_root
-			"${_ptgn_desktop_runtime_root}"
-		)
+  set(
+    PTGN_INFO_SOURCE_DIRECTORY
+    "${CMAKE_SOURCE_DIR}"
+  )
 
-		set(
-			_ptgn_runtime_asset_directory
-			"${_ptgn_asset_source_directory}"
-		)
+  set(
+    PTGN_INFO_BINARY_DIRECTORY
+    "${CMAKE_BINARY_DIR}"
+  )
 
-		set(PTGN_INFO_WEB false)
-	endif()
+  set(
+    PTGN_INFO_ENGINE_DIRECTORY
+    "${_ptgn_engine_source_directory}"
+  )
 
-	set(
-		PTGN_INFO_SOURCE_DIRECTORY
-		"${CMAKE_SOURCE_DIR}"
-	)
+  set(
+    PTGN_INFO_RUNTIME_ROOT
+    "${_ptgn_runtime_root}"
+  )
 
-	set(
-		PTGN_INFO_BINARY_DIRECTORY
-		"${CMAKE_BINARY_DIR}"
-	)
+  set(
+    PTGN_INFO_ASSET_SOURCE_DIRECTORY
+    "${_ptgn_asset_source_directory}"
+  )
 
-	set(
-		PTGN_INFO_ENGINE_DIRECTORY
-		"${_ptgn_engine_source_directory}"
-	)
+  set(
+    PTGN_INFO_ASSET_DIRECTORY
+    "${_ptgn_runtime_asset_directory}"
+  )
 
-	set(
-		PTGN_INFO_RUNTIME_ROOT
-		"${_ptgn_runtime_root}"
-	)
+  set(
+    PTGN_INFO_ASSET_DIRECTORY_NAME
+    "${_ptgn_asset_directory_name}"
+  )
 
-	set(
-		PTGN_INFO_ASSET_SOURCE_DIRECTORY
-		"${_ptgn_asset_source_directory}"
-	)
+  if(distribution_build)
+    set(PTGN_INFO_DISTRIBUTION 1)
+  else()
+    set(PTGN_INFO_DISTRIBUTION 0)
+  endif()
 
-	set(
-		PTGN_INFO_ASSET_DIRECTORY
-		"${_ptgn_runtime_asset_directory}"
-	)
+  set(
+    PTGN_INFO_TARGET
+    "${target}"
+  )
 
-	set(
-		PTGN_INFO_TARGET
-		"${target}"
-	)
+  set(
+    PTGN_INFO_GENERATOR
+    "${CMAKE_GENERATOR}"
+  )
 
-	set(
-		PTGN_INFO_GENERATOR
-		"${CMAKE_GENERATOR}"
-	)
+  set(
+    PTGN_INFO_EXAMPLE_ID
+    "${_ptgn_example_id}"
+  )
 
-	set(
-		PTGN_INFO_EXAMPLE_ID
-		"${_ptgn_example_id}"
-	)
+  set(
+    _ptgn_generated_directory
+    "${CMAKE_CURRENT_BINARY_DIR}/ptgn_generated"
+  )
 
-	set(
-		_ptgn_generated_directory
-		"${CMAKE_CURRENT_BINARY_DIR}/ptgn_generated"
-	)
+  file(
+    MAKE_DIRECTORY
+    "${_ptgn_generated_directory}"
+  )
 
-	file(
-		MAKE_DIRECTORY
-		"${_ptgn_generated_directory}"
-	)
+  set(
+    _ptgn_generated_build_info
+    "${_ptgn_generated_directory}/${target}_build_info.cpp"
+  )
 
-	set(
-		_ptgn_generated_build_info
-		"${_ptgn_generated_directory}/${target}_build_info.cpp"
-	)
+  configure_file(
+    "${CMAKE_CURRENT_FUNCTION_LIST_DIR}/BuildInfo.cpp.in"
+    "${_ptgn_generated_build_info}"
+    @ONLY
+  )
 
-	configure_file(
-		"${CMAKE_CURRENT_FUNCTION_LIST_DIR}/BuildInfo.cpp.in"
-		"${_ptgn_generated_build_info}"
-		@ONLY
-	)
+  target_sources(
+    ${target}
+    PRIVATE
+    "${_ptgn_generated_build_info}"
+  )
+endfunction()
 
-	target_sources(
-		${target}
-		PRIVATE
-		"${_ptgn_generated_build_info}"
-	)
+function(_ptgn_is_distribution_target target output_variable)
+  set(_ptgn_matches TRUE)
+
+  if(
+    DEFINED PTGN_BUILD_TARGET
+    AND NOT "${PTGN_BUILD_TARGET}" STREQUAL ""
+    AND NOT "${PTGN_BUILD_TARGET}" STREQUAL "${target}"
+  )
+    set(_ptgn_matches FALSE)
+  endif()
+
+  set(${output_variable} ${_ptgn_matches} PARENT_SCOPE)
 endfunction()
 
 function(add_protegon_to target)
   if(NOT TARGET ${target})
-    message(FATAL_ERROR "add_protegon_to: target '${target}' does not exist")
+    message(FATAL_ERROR
+      "add_protegon_to: target '${target}' does not exist"
+    )
   endif()
 
   set(options)
@@ -181,7 +190,43 @@ function(add_protegon_to target)
     target_link_libraries(${target} PRIVATE protegon)
   endif()
 
-  if(EMSCRIPTEN)
+  _ptgn_is_distribution_target(
+    ${target}
+    _ptgn_distribution_target
+  )
+
+  set(_ptgn_distribution_build FALSE)
+
+  if(
+    _ptgn_distribution_target
+    AND DEFINED PTGN_DISTRIBUTION_BUILD
+    AND PTGN_DISTRIBUTION_BUILD
+  )
+    set(_ptgn_distribution_build TRUE)
+  endif()
+
+  if(NOT EMSCRIPTEN)
+    if(
+      _ptgn_distribution_target
+      AND DEFINED PTGN_BUILD_COPY_DIR
+      AND NOT "${PTGN_BUILD_COPY_DIR}" STREQUAL ""
+    )
+      add_custom_command(
+        TARGET ${target}
+        POST_BUILD
+        COMMAND
+          "${CMAKE_COMMAND}"
+          -E make_directory
+          "${PTGN_BUILD_COPY_DIR}"
+        COMMAND
+          "${CMAKE_COMMAND}"
+          -E copy_if_different
+          "$<TARGET_FILE:${target}>"
+          "${PTGN_BUILD_COPY_DIR}/$<TARGET_FILE_NAME:${target}>"
+        VERBATIM
+      )
+    endif()
+  else()
     if(NOT PTGN_ASSETS_DIR)
       message(FATAL_ERROR
         "add_protegon_to(${target}): ASSETS_DIR is required when building with Emscripten"
@@ -189,22 +234,21 @@ function(add_protegon_to target)
     endif()
 
     if(NOT PTGN_SHELL_HTML)
-      set(PTGN_SHELL_HTML "${CMAKE_CURRENT_FUNCTION_LIST_DIR}/../platform/emscripten/shell.html")
+      set(
+        PTGN_SHELL_HTML
+        "${CMAKE_CURRENT_FUNCTION_LIST_DIR}/../platform/emscripten/shell.html"
+      )
     endif()
 
     file(MAKE_DIRECTORY "${CMAKE_BINARY_DIR}/dist")
 
-    set_target_properties(${target} PROPERTIES
-      RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/dist"
-      OUTPUT_NAME "index"
-      SUFFIX ".html"
+    set_target_properties(
+      ${target}
+      PROPERTIES
+        RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/dist"
+        OUTPUT_NAME "index"
+        SUFFIX ".html"
     )
-
-    if(CMAKE_BUILD_TYPE STREQUAL "Debug")
-      target_compile_options(${target} PRIVATE -O0)
-    else()
-      target_compile_options(${target} PRIVATE -O3)
-    endif()
 
     get_filename_component(
       _ptgn_asset_mount_name
@@ -212,57 +256,96 @@ function(add_protegon_to target)
       NAME
     )
 
-    target_link_options(${target} PRIVATE
-      "--shell-file=${PTGN_SHELL_HTML}"
-      "--preload-file=${PTGN_ASSETS_DIR}@/${_ptgn_asset_mount_name}"
-      "-sALLOW_MEMORY_GROWTH=1"
-      "-sFULL_ES3=1"
-      "-sWARN_ON_UNDEFINED_SYMBOLS=1"
-      "-sNO_EXIT_RUNTIME=1"
-      "-sUSE_ZLIB=1"
+    target_link_options(
+      ${target}
+      PRIVATE
+        "--shell-file=${PTGN_SHELL_HTML}"
+        "--preload-file=${PTGN_ASSETS_DIR}@/${_ptgn_asset_mount_name}"
+        "-sALLOW_MEMORY_GROWTH=1"
+        "-sFULL_ES3=1"
+        "-sWARN_ON_UNDEFINED_SYMBOLS=1"
+        "-sNO_EXIT_RUNTIME=1"
+        "-sUSE_ZLIB=1"
     )
 
+    if(
+      _ptgn_distribution_target
+      AND DEFINED PTGN_BUILD_PROJECT_DIR
+      AND NOT "${PTGN_BUILD_PROJECT_DIR}" STREQUAL ""
+    )
+      if(
+        DEFINED PTGN_BUILD_PROJECT_MOUNT
+        AND NOT "${PTGN_BUILD_PROJECT_MOUNT}" STREQUAL ""
+      )
+        set(
+          _ptgn_project_mount
+          "/${PTGN_BUILD_PROJECT_MOUNT}"
+        )
+      else()
+        set(_ptgn_project_mount "/")
+      endif()
+
+      target_link_options(
+        ${target}
+        PRIVATE
+          "--preload-file=${PTGN_BUILD_PROJECT_DIR}@${_ptgn_project_mount}"
+      )
+    endif()
+
     if(CMAKE_BUILD_TYPE STREQUAL "Debug")
-      target_compile_options(${target} PRIVATE
-        -O0
-        -g3
-        -fexceptions
-        "-sDISABLE_EXCEPTION_CATCHING=0"
+      target_compile_options(
+        ${target}
+        PRIVATE
+          -O0
+          -g3
+          -fexceptions
+          "-sDISABLE_EXCEPTION_CATCHING=0"
       )
 
-      target_link_options(${target} PRIVATE
-        -O0
-        -g3
-        -fexceptions
-        "-sDISABLE_EXCEPTION_CATCHING=0"
-        "-sASSERTIONS=2"
-        "-sSTACK_OVERFLOW_CHECK=2"
-        "-sSAFE_HEAP=1"
+      target_link_options(
+        ${target}
+        PRIVATE
+          -O0
+          -g3
+          -fexceptions
+          "-sDISABLE_EXCEPTION_CATCHING=0"
+          "-sASSERTIONS=2"
+          "-sSTACK_OVERFLOW_CHECK=2"
+          "-sSAFE_HEAP=1"
       )
 
-      target_compile_definitions(${target} PRIVATE
-        JSON_DIAGNOSTICS=1
+      target_compile_definitions(
+        ${target}
+        PRIVATE
+          JSON_DIAGNOSTICS=1
       )
     elseif(CMAKE_BUILD_TYPE STREQUAL "RelWithDebInfo")
-      target_compile_options(${target} PRIVATE
-        -O2
-        -g3
+      target_compile_options(
+        ${target}
+        PRIVATE
+          -O2
+          -g3
       )
 
-      target_link_options(${target} PRIVATE
-        -O2
-        -g3
-        "-sASSERTIONS=1"
+      target_link_options(
+        ${target}
+        PRIVATE
+          -O2
+          -g3
+          "-sASSERTIONS=1"
       )
-
     else()
-      target_compile_options(${target} PRIVATE
-        -O3
+      target_compile_options(
+        ${target}
+        PRIVATE
+          -O3
       )
 
-      target_link_options(${target} PRIVATE
-        -O3
-        "-sASSERTIONS=1"
+      target_link_options(
+        ${target}
+        PRIVATE
+          -O3
+          "-sASSERTIONS=1"
       )
     endif()
   endif()
@@ -270,30 +353,30 @@ function(add_protegon_to target)
   _ptgn_add_build_info(
     ${target}
     "${PTGN_ASSETS_DIR}"
+    "${_ptgn_distribution_build}"
   )
 endfunction()
 
 function(add_protegon_to_example target example_id)
-	if(NOT TARGET ${target})
-		message(FATAL_ERROR
-			"add_protegon_to_example: target '${target}' does not exist"
-		)
-	endif()
+  if(NOT TARGET ${target})
+    message(FATAL_ERROR
+      "add_protegon_to_example: target '${target}' does not exist"
+    )
+  endif()
 
-	if("${example_id}" STREQUAL "")
-		message(FATAL_ERROR
-			"add_protegon_to_example(${target}): example ID cannot be empty"
-		)
-	endif()
+  if("${example_id}" STREQUAL "")
+    message(FATAL_ERROR
+      "add_protegon_to_example(${target}): example ID cannot be empty"
+    )
+  endif()
 
-	set_property(
-		TARGET ${target}
-		PROPERTY
-		PTGN_EXAMPLE_ID "${example_id}"
-	)
+  set_property(
+    TARGET ${target}
+    PROPERTY PTGN_EXAMPLE_ID "${example_id}"
+  )
 
-	add_protegon_to(
-		${target}
-		${ARGN}
-	)
+  add_protegon_to(
+    ${target}
+    ${ARGN}
+  )
 endfunction()

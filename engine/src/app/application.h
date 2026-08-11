@@ -37,7 +37,7 @@ public:
 	Application(Application&&) noexcept = delete;
 	Application& operator=(Application&&) noexcept = delete;
 
-	/// @brief Installs an editor/application shutdown guard. Return false to cancel the close.
+	/// @brief Installs an application shutdown guard. Return false to cancel the close.
 	void SetCloseGuard(std::function<bool()> close_guard);
 	void RequestQuit();
 

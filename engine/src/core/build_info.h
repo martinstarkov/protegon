@@ -25,30 +25,28 @@ struct BuildInfo {
 	path engine_directory;
 
 	/// @brief Root used by the running application's relative paths.
-	/// Protegon example:
-	///   /Users/Dev/protegon/examples
-	/// External game:
+	/// Development desktop build:
 	///   /Users/Dev/game
+	/// Native distribution build:
+	///   Directory containing the executable at runtime.
 	/// Web:
 	///   /
 	path runtime_root;
 
-	/// @brief Host/source asset directory.
+	/// @brief Host/source asset directory used by build/export tooling.
 	/// Protegon example:
 	///   /Users/Dev/protegon/examples/Assets
 	/// External game:
 	///   /Users/Dev/game/Assets
-	/// Web:
-	///	  /Users/Dev/game/Assets
-	/// Useful for determining where the assets are in the source tree / host filesystem used by CMake.
-	/// For example, if calling --preload-file with Emscripten through the executable.
+	/// Web build host path:
+	///   /Users/Dev/game/Assets
 	path asset_source_directory;
 
 	/// @brief Asset directory as visible to the running application.
-	/// Protegon example:
-	///   /Users/Dev/protegon/examples/Assets
-	/// External game:
+	/// Development desktop build:
 	///   /Users/Dev/game/Assets
+	/// Native distribution build:
+	///   <runtime_root>/Assets
 	/// Web:
 	///   /Assets
 	path asset_directory;
@@ -71,14 +69,18 @@ struct BuildInfo {
 	///   scripting/animation_script
 	std::string example_id;
 
-    /// @brief True if web build.
+	/// @brief True if this executable was compiled for Web/Emscripten.
 	bool web{ false };
 
-	bool IsExample() const {
+	/// @brief True when this executable was produced as a distributable build.
+	/// Native distribution builds resolve runtime_root from the executable location.
+	bool distribution{ false };
+
+	[[nodiscard]] bool IsExample() const {
 		return !example_id.empty();
 	}
 };
 
-const BuildInfo& GetBuildInfo();
+[[nodiscard]] const BuildInfo& GetBuildInfo();
 
 } // namespace ptgn::impl

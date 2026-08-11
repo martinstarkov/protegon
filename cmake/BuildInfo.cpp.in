@@ -1,8 +1,13 @@
 #include "core/build_info.h"
 
+#if @PTGN_INFO_DISTRIBUTION@ && !defined(__EMSCRIPTEN__)
+#include "platform/executable.h"
+#endif
+
 namespace ptgn::impl {
 
 const BuildInfo& GetBuildInfo() {
+#if defined(__EMSCRIPTEN__)
 	static const BuildInfo info{
 		.source_directory =
 			R"ptgn(@PTGN_INFO_SOURCE_DIRECTORY@)ptgn",
@@ -22,10 +27,68 @@ const BuildInfo& GetBuildInfo() {
 			R"ptgn(@PTGN_INFO_GENERATOR@)ptgn",
 		.example_id =
 			R"ptgn(@PTGN_INFO_EXAMPLE_ID@)ptgn",
-		.web = @PTGN_INFO_WEB@,
+		.web = true,
+		.distribution = @PTGN_INFO_DISTRIBUTION@ != 0,
 	};
 
 	return info;
+#elif @PTGN_INFO_DISTRIBUTION@
+	static const path runtime_root{
+		GetExecutableDirectory()
+	};
+	static const path asset_directory_name{
+		R"ptgn(@PTGN_INFO_ASSET_DIRECTORY_NAME@)ptgn"
+	};
+	static const BuildInfo info{
+		.source_directory =
+			R"ptgn(@PTGN_INFO_SOURCE_DIRECTORY@)ptgn",
+		.binary_directory =
+			R"ptgn(@PTGN_INFO_BINARY_DIRECTORY@)ptgn",
+		.engine_directory =
+			R"ptgn(@PTGN_INFO_ENGINE_DIRECTORY@)ptgn",
+		.runtime_root = runtime_root,
+		.asset_source_directory =
+			R"ptgn(@PTGN_INFO_ASSET_SOURCE_DIRECTORY@)ptgn",
+		.asset_directory = asset_directory_name.empty()
+			? path{}
+			: runtime_root / asset_directory_name,
+		.target =
+			R"ptgn(@PTGN_INFO_TARGET@)ptgn",
+		.generator =
+			R"ptgn(@PTGN_INFO_GENERATOR@)ptgn",
+		.example_id =
+			R"ptgn(@PTGN_INFO_EXAMPLE_ID@)ptgn",
+		.web = false,
+		.distribution = true,
+	};
+
+	return info;
+#else
+	static const BuildInfo info{
+		.source_directory =
+			R"ptgn(@PTGN_INFO_SOURCE_DIRECTORY@)ptgn",
+		.binary_directory =
+			R"ptgn(@PTGN_INFO_BINARY_DIRECTORY@)ptgn",
+		.engine_directory =
+			R"ptgn(@PTGN_INFO_ENGINE_DIRECTORY@)ptgn",
+		.runtime_root =
+			R"ptgn(@PTGN_INFO_RUNTIME_ROOT@)ptgn",
+		.asset_source_directory =
+			R"ptgn(@PTGN_INFO_ASSET_SOURCE_DIRECTORY@)ptgn",
+		.asset_directory =
+			R"ptgn(@PTGN_INFO_ASSET_DIRECTORY@)ptgn",
+		.target =
+			R"ptgn(@PTGN_INFO_TARGET@)ptgn",
+		.generator =
+			R"ptgn(@PTGN_INFO_GENERATOR@)ptgn",
+		.example_id =
+			R"ptgn(@PTGN_INFO_EXAMPLE_ID@)ptgn",
+		.web = false,
+		.distribution = false,
+	};
+
+	return info;
+#endif
 }
 
 } // namespace ptgn::impl
