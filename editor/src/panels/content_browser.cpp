@@ -62,7 +62,7 @@ struct AssetKeyPayload {
 };
 
 struct TilePreview {
-	impl::TextureId texture;
+	::ptgn::impl::TextureId texture;
 	V2_int size;
 	bool tint_with_text_color{ false };
 };
@@ -171,12 +171,12 @@ std::string ShaderStageText(ShaderStageMask stages) {
 	return "None detected";
 }
 
-impl::TextureObject CreateEmbeddedIconTexture(
+::ptgn::impl::TextureObject CreateEmbeddedIconTexture(
 	Renderer& renderer,
 	std::span<const std::uint8_t> png
 ) {
-	impl::Surface surface{ png, 4 };
-	return impl::RendererAccessor{ renderer }.CreateTexture(
+	::ptgn::impl::Surface surface{ png, 4 };
+	return ::ptgn::impl::RendererAccessor{ renderer }.CreateTexture(
 		surface.Data(),
 		TextureDesc{
 			.size{ surface.GetSize() },
@@ -187,9 +187,9 @@ impl::TextureObject CreateEmbeddedIconTexture(
 }
 
 std::optional<TilePreview> GetTilePreview(
-	const impl::AssetRecord& asset,
-	impl::TextureId audio_icon,
-	impl::TextureId document_icon
+	const ::ptgn::impl::AssetRecord& asset,
+	::ptgn::impl::TextureId audio_icon,
+	::ptgn::impl::TextureId document_icon
 ) {
 	if (asset.preview.has_value()) {
 		return TilePreview{
@@ -286,8 +286,8 @@ void DrawClippedText(std::string_view value, float width, bool disabled = false)
 }
 
 bool AssetLess(
-	const impl::AssetRecord& lhs,
-	const impl::AssetRecord& rhs,
+	const ::ptgn::impl::AssetRecord& lhs,
+	const ::ptgn::impl::AssetRecord& rhs,
 	ContentBrowserPanel::SortMode mode
 ) {
 	const auto lhs_type{ magic_enum::enum_name(lhs.kind) };
@@ -302,7 +302,7 @@ bool AssetLess(
 }
 
 path AssetRelativePath(
-	const impl::AssetRecord& asset,
+	const ::ptgn::impl::AssetRecord& asset,
 	const path& project_root,
 	const path& assets_root
 ) {
@@ -315,7 +315,7 @@ path AssetRelativePath(
 }
 
 bool AssetInFolder(
-	const impl::AssetRecord& asset,
+	const ::ptgn::impl::AssetRecord& asset,
 	const path& project_root,
 	const path& assets_root,
 	const path& selected_directory,
@@ -335,7 +335,7 @@ bool AssetInFolder(
 	return parent_text == selected_text || parent_text.starts_with(selected_text + "/");
 }
 
-bool MatchesSearch(const impl::AssetRecord& asset, std::string_view search) {
+bool MatchesSearch(const ::ptgn::impl::AssetRecord& asset, std::string_view search) {
 	if (search.empty()) {
 		return true;
 	}
@@ -344,7 +344,7 @@ bool MatchesSearch(const impl::AssetRecord& asset, std::string_view search) {
 		   ContainsInsensitive(asset.source_path.generic_string(), search);
 }
 
-void DrawMetadata(const impl::AssetRecord& asset) {
+void DrawMetadata(const ::ptgn::impl::AssetRecord& asset) {
 	ImGui::Text("Type: %s", magic_enum::enum_name(asset.kind).data());
 	ImGui::Text("State: %s", magic_enum::enum_name(asset.load_state).data());
 	ImGui::Text("Size: %s", FormatBytes(asset.metadata.file_size).c_str());
@@ -419,7 +419,7 @@ bool DrawShaderSourceCombo(
 	const char* label,
 	std::string& selected,
 	ShaderStageMask requested_stage,
-	const impl::AssetRecord& owner,
+	const ::ptgn::impl::AssetRecord& owner,
 	AssetManager& assets
 ) {
 	bool changed{ false };
@@ -453,7 +453,7 @@ bool DrawShaderSourceCombo(
 	}
 
 	if (ImGui::BeginMenu("Project")) {
-		for (const auto& candidate : impl::AssetAccessor{ assets }.GetAssets()) {
+		for (const auto& candidate : ::ptgn::impl::AssetAccessor{ assets }.GetAssets()) {
 			if (candidate.kind != AssetKind::Shader || candidate.key == owner.key) {
 				continue;
 			}
@@ -809,9 +809,9 @@ void ContentBrowserPanel::DrawAssetGrid(EditorContext& ctx) {
 		return;
 	}
 
-	auto assets{ impl::AssetAccessor{ assets_manager }.GetAssets() };
+	auto assets{ ::ptgn::impl::AssetAccessor{ assets_manager }.GetAssets() };
 	const bool recursive{ ctx.editor.GetSettings().content_browser_search_entire_tree };
-	std::erase_if(assets, [&](const impl::AssetRecord& asset) {
+	std::erase_if(assets, [&](const ::ptgn::impl::AssetRecord& asset) {
 		return !AssetInFolder(
 			asset,
 			project_root.value(),
@@ -823,7 +823,7 @@ void ContentBrowserPanel::DrawAssetGrid(EditorContext& ctx) {
 
 	if (show_engine_shaders_ && IsShaderDirectory(selected_directory_)) {
 		auto engine_assets{ assets_manager.GetEngineShaderAssets() };
-		std::erase_if(engine_assets, [&](const impl::AssetRecord& asset) {
+		std::erase_if(engine_assets, [&](const ::ptgn::impl::AssetRecord& asset) {
 			return !MatchesSearch(asset, search_);
 		});
 		for (auto& engine_asset : engine_assets) {
@@ -909,8 +909,8 @@ void ContentBrowserPanel::DrawAssetGrid(EditorContext& ctx) {
 				width - ImGui::GetStyle().WindowPadding.x * 2.0f,
 				GetTilePreview(
 					asset,
-					static_cast<impl::TextureId>(audio_icon_texture_),
-					static_cast<impl::TextureId>(document_icon_texture_)
+					static_cast<::ptgn::impl::TextureId>(audio_icon_texture_),
+					static_cast<::ptgn::impl::TextureId>(document_icon_texture_)
 				)
 			);
 			if (!asset.engine_asset && asset.kind != AssetKind::Scene) {
@@ -941,7 +941,7 @@ void ContentBrowserPanel::DrawAssetGrid(EditorContext& ctx) {
 
 					if (asset.manually_pinned) {
 						if (ImGui::MenuItem("Remove from RAM")) {
-							impl::AssetAccessor{ assets_manager }.Unload(asset.key, asset.kind);
+							::ptgn::impl::AssetAccessor{ assets_manager }.Unload(asset.key, asset.kind);
 							status_ = "Removed RAM pin from " + asset.key.value;
 						}
 					} else {
@@ -1064,7 +1064,7 @@ void ContentBrowserPanel::DrawShaderConfiguration(EditorContext& ctx) {
 			ImGuiWindowFlags_AlwaysAutoResize
 		)) {
 		auto& assets{ ctx.editor.GetAssetManager() };
-		const auto records{ impl::AssetAccessor{ assets }.GetAssets() };
+		const auto records{ ::ptgn::impl::AssetAccessor{ assets }.GetAssets() };
 		const auto it{ std::ranges::find_if(records, [&](const auto& record) {
 			return record.key == static_cast<const AssetKey&>(configuring_shader_.value());
 		}) };
@@ -1136,7 +1136,7 @@ void ContentBrowserPanel::DrawShaderConfiguration(EditorContext& ctx) {
 }
 
 
-void ContentBrowserPanel::OpenShaderEditor(EditorContext& ctx, const impl::AssetRecord& asset) {
+void ContentBrowserPanel::OpenShaderEditor(EditorContext& ctx, const ::ptgn::impl::AssetRecord& asset) {
 	if (shader_editor_.has_value() && shader_editor_->key != ShaderKey{ asset.key } &&
 		!shader_editor_->read_only && shader_editor_->source != shader_editor_->saved_source) {
 		shader_editor_->open = true;

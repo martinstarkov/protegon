@@ -27,7 +27,7 @@
 #include "runtime/scene/scene_file.h"
 
 #if !defined(__EMSCRIPTEN__)
-#include "editor/build_manager.h"
+#include "editor/export_manager.h"
 #endif
 
 namespace ptgn {
@@ -129,9 +129,10 @@ private:
 #if !defined(__EMSCRIPTEN__)
 	enum class PendingTaskConfirmation {
 		None,
-		Build,
 		Export,
 		Clean,
+		CloseExportWindowWhileRunning,
+		CloseApplicationWhileRunning,
 	};
 #endif
 
@@ -153,16 +154,11 @@ private:
 	::ptgn::impl::FramebufferId GetSceneFramebuffer(Scene& scene) const;
 
 #if !defined(__EMSCRIPTEN__)
-	void OpenBuildSettings(BuildTarget target);
-	void OpenExportSettings(ExportTarget target);
-	void DrawBuildSettingsWindow();
-	void DrawExportSettingsWindow();
+	void OpenExportWindow();
+	void DrawExportWindow();
 	void DrawTaskConfirmationPopup();
-	BuildRequest MakeBuildRequest(BuildTarget target) const;
-	ExportRequest MakeExportRequest(ExportTarget target) const;
-	bool BuildRequestNeedsConfirmation(const BuildRequest& request) const;
+	ExportRequest MakeExportRequest() const;
 	bool ExportRequestNeedsConfirmation(const ExportRequest& request) const;
-	void StartBuild(BuildRequest request);
 	void StartExport(ExportRequest request);
 #endif
 
@@ -189,22 +185,19 @@ private:
 	std::unordered_set<std::string> pending_scene_bootstrap_saves_;
 
 #if !defined(__EMSCRIPTEN__)
-	BuildManager build_manager_;
-	bool build_settings_open_{ false };
-	BuildTarget build_settings_target_{ BuildTarget::Game };
-	std::string game_build_directory_;
-	std::string web_build_directory_;
-	std::string executable_output_directory_;
-	bool executable_output_user_modified_{ false };
-	bool export_settings_open_{ false };
-	ExportTarget export_settings_target_{ ExportTarget::Game };
-	std::string game_export_directory_;
+	ExportManager export_manager_;
+	bool export_window_open_{ false };
+	ExportTarget export_target_{ ExportTarget::Desktop };
+	ExportConfiguration export_configuration_{ ExportConfiguration::Release };
+	bool export_include_editor_{ false };
+	std::string desktop_export_directory_;
 	std::string web_export_directory_;
 	PendingTaskConfirmation pending_task_confirmation_{ PendingTaskConfirmation::None };
-	std::optional<BuildRequest> pending_build_request_;
 	std::optional<ExportRequest> pending_export_request_;
-	std::optional<path> pending_clean_directory_;
+	std::optional<ExportTarget> pending_clean_target_;
+	std::optional<ExportConfiguration> pending_clean_configuration_;
 	bool task_confirmation_popup_requested_{ false };
+	bool allow_application_close_{ false };
 #endif
 };
 

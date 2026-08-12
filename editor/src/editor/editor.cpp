@@ -6,6 +6,7 @@
 #include <algorithm>
 #include <array>
 #include <cstddef>
+#include <cfloat>
 #include <cstdint>
 #include <memory>
 #include <optional>
@@ -24,9 +25,10 @@
 #include "commands/editor_commands.h"
 #include "commands/undo_stack.h"
 #if !defined(__EMSCRIPTEN__)
-#include "editor/build_manager.h"
+#include "editor/export_manager.h"
 #endif
 #include "core/assert.h"
+#include "core/log.h"
 #include "editor/editor_context.h"
 #include "editor/editor_selection.h"
 #include "editor/editor_state.h"
@@ -331,7 +333,7 @@ private:
 }
 
 void SaveProjectManifest(Application& app, Project& project) {
-	auto& assets{ impl::ApplicationAccessor::ctx(app).assets };
+	auto& assets{ ::ptgn::impl::ApplicationAccessor::ctx(app).assets };
 	assets.RefreshCatalogFromDisk();
 	project.assets = assets.GetCatalog();
 	project.preload_assets = assets.GetProjectAssetDependencies();
@@ -342,7 +344,7 @@ void SaveProjectManifest(Application& app, Project& project) {
 [[nodiscard]] std::string SceneTypeName(
 	std::string_view scene_type
 ) {
-	if (scene_type == impl::kBaseSceneType) {
+	if (scene_type == ::ptgn::impl::kBaseSceneType) {
 		return "Scene";
 	}
 
@@ -499,9 +501,9 @@ void SaveProjectManifest(Application& app, Project& project) {
 [[nodiscard]] SerializedScene MakeProjectSceneDefinition(
 	std::string_view scene_type
 ) {
-	if (scene_type == impl::kBaseSceneType) {
+	if (scene_type == ::ptgn::impl::kBaseSceneType) {
 		return SerializedScene{
-			.type = std::string{ impl::kBaseSceneType },
+			.type = std::string{ ::ptgn::impl::kBaseSceneType },
 			.parameters = json::object(),
 			.assets = {},
 			.preload_assets = {},
@@ -510,7 +512,7 @@ void SaveProjectManifest(Application& app, Project& project) {
 	}
 
 	const auto& registration{
-		impl::GetSceneRegistration(scene_type)
+		::ptgn::impl::GetSceneRegistration(scene_type)
 	};
 
 	return SerializedScene{
@@ -526,48 +528,384 @@ void SaveProjectManifest(Application& app, Project& project) {
 
 #if !defined(__EMSCRIPTEN__)
 
-bool DrawStringInput(const char* label, std::string& value) {
-	std::array<char, 4096> buffer{};
-	const std::size_t count{ std::min(value.size(), buffer.size() - 1) };
-	std::copy_n(value.data(), count, buffer.data());
-
-	if (!ImGui::InputText(label, buffer.data(), buffer.size())) {
-		return false;
-	}
-
-	value = buffer.data();
-	return true;
-}
-
-[[nodiscard]] bool DirectoryHasContent(const path& directory) {
+[[nodiscard]] path NormalizeExistingPath(
+	const path& value
+) {
 	std::error_code error;
-	if (!fs::exists(directory, error) || !fs::is_directory(directory, error)) {
+	const path canonical{
+		fs::weakly_canonical(
+			value,
+			error
+		)
+	};
+	return error
+		? value.lexically_normal()
+		: canonical;
+}
+
+[[nodiscard]] std::optional<path> ExistingDirectoryForDialog(
+	const std::string& value
+) {
+	if (value.empty()) {
+		return std::nullopt;
+	}
+
+	path current{ value };
+	std::error_code error;
+	if (fs::is_regular_file(current, error)) {
+		current = current.parent_path();
+	}
+	error.clear();
+
+	while (!current.empty() &&
+		   !fs::is_directory(current, error)) {
+		error.clear();
+		const path parent{ current.parent_path() };
+		if (parent == current) {
+			break;
+		}
+		current = parent;
+	}
+
+	if (!current.empty() &&
+		fs::is_directory(current, error)) {
+		return current;
+	}
+
+	return std::nullopt;
+}
+
+[[nodiscard]] std::optional<std::string> ValidateOutputDirectoryPath(
+	std::string_view value
+) {
+	if (value.empty()) {
+		return std::string{ "Output directory is required." };
+	}
+
+	if (value.find('\0') != std::string_view::npos) {
+		return std::string{ "Paths cannot contain a NUL character." };
+	}
+
+#if defined(_WIN32)
+	auto is_reserved_component = [](std::string_view component) {
+		if (component.empty() || component == "." || component == "..") {
+			return false;
+		}
+
+		std::string base{ component.substr(0, component.find('.')) };
+		std::ranges::transform(base, base.begin(), [](unsigned char c) {
+			return static_cast<char>(std::toupper(c));
+		});
+
+		if (base == "CON" || base == "PRN" || base == "AUX" || base == "NUL") {
+			return true;
+		}
+		if (base.size() == 4 &&
+			(base.starts_with("COM") || base.starts_with("LPT")) &&
+			base[3] >= '1' && base[3] <= '9') {
+			return true;
+		}
+		return false;
+	};
+
+	for (std::size_t i{ 0 }; i < value.size(); ++i) {
+		const unsigned char c{ static_cast<unsigned char>(value[i]) };
+		if (c < 32) {
+			return std::string{ "Windows paths cannot contain control characters." };
+		}
+		if (value[i] == '<' || value[i] == '>' || value[i] == '"' ||
+			value[i] == '|' || value[i] == '?' || value[i] == '*') {
+			return std::string{ "Windows paths cannot contain < > \" | ? or *." };
+		}
+		if (value[i] == ':' &&
+			!(i == 1 && std::isalpha(static_cast<unsigned char>(value[0])) != 0)) {
+			return std::string{ "A colon is only valid after a Windows drive letter." };
+		}
+	}
+
+	std::size_t component_start{};
+	for (std::size_t i{}; i <= value.size(); ++i) {
+		const bool separator{
+			i == value.size() || value[i] == '/' || value[i] == '\\'
+		};
+		if (!separator) {
+			continue;
+		}
+
+		std::string_view component{
+			value.substr(component_start, i - component_start)
+		};
+		component_start = i + 1;
+		if (component.empty() || component == "." || component == ".." ||
+			(component.size() == 2 && component[1] == ':')) {
+			continue;
+		}
+		if (component.back() == ' ' || component.back() == '.') {
+			return std::string{
+				"Windows path components cannot end with a space or period."
+			};
+		}
+		if (is_reserved_component(component)) {
+			return std::string{
+				"The path contains a reserved Windows device name."
+			};
+		}
+	}
+#endif
+
+	return std::nullopt;
+}
+
+bool DrawDirectoryField(
+	Editor& editor,
+	const char* label,
+	const char* id,
+	std::string& value,
+	const std::optional<std::string>& validation_error = std::nullopt
+) {
+	bool changed{ false };
+
+	ImGui::TableNextRow();
+	ImGui::TableSetColumnIndex(0);
+	ImGui::AlignTextToFramePadding();
+	ImGui::TextUnformatted(label);
+
+	ImGui::TableSetColumnIndex(1);
+	std::array<char, 4096> buffer{};
+	const std::size_t count{
+		std::min(
+			value.size(),
+			buffer.size() - 1
+		)
+	};
+	std::copy_n(
+		value.data(),
+		count,
+		buffer.data()
+	);
+
+	if (validation_error.has_value()) {
+		ImGui::PushStyleColor(
+			ImGuiCol_Border,
+			ImVec4{ 0.90f, 0.20f, 0.20f, 1.0f }
+		);
+		ImGui::PushStyleVar(
+			ImGuiStyleVar_FrameBorderSize,
+			1.0f
+		);
+	}
+
+	ImGui::SetNextItemWidth(-FLT_MIN);
+	if (ImGui::InputText(
+			id,
+			buffer.data(),
+			buffer.size()
+		)) {
+		value = buffer.data();
+		changed = true;
+	}
+	const bool path_hovered{
+		ImGui::IsItemHovered(ImGuiHoveredFlags_Stationary)
+	};
+
+	if (validation_error.has_value()) {
+		ImGui::PopStyleVar();
+		ImGui::PopStyleColor();
+	}
+
+	if (path_hovered) {
+		ImGui::BeginTooltip();
+		ImGui::TextUnformatted(
+			value.empty() ? "<empty>" : value.c_str()
+		);
+		if (validation_error.has_value()) {
+			ImGui::Separator();
+			ImGui::TextColored(
+				ImVec4{ 1.0f, 0.35f, 0.35f, 1.0f },
+				"Invalid path: %s",
+				validation_error->c_str()
+			);
+		}
+		ImGui::EndTooltip();
+	}
+
+	ImGui::TableSetColumnIndex(2);
+	std::string button_id{
+		"Select##"
+	};
+	button_id += id;
+
+	if (ImGui::Button(
+			button_id.c_str(),
+			ImVec2{ -FLT_MIN, 0.0f }
+		)) {
+		FileDialog::Options options;
+		options.default_path =
+			ExistingDirectoryForDialog(value);
+
+		auto result{
+			editor.GetWindow()
+				.file
+				.OpenFolder(options)
+		};
+		if (!result.has_value()) {
+			PTGN_ERROR(
+				"Failed to open folder dialog: ",
+				result.error()
+			);
+		} else if (result.value().has_value()) {
+			value = result.value()
+				.value()
+				.lexically_normal()
+				.string();
+			changed = true;
+		}
+	}
+
+	return changed;
+}
+
+[[nodiscard]] bool DirectoryHasContent(
+	const path& directory
+) {
+	std::error_code error;
+	if (!fs::exists(directory, error) ||
+		!fs::is_directory(directory, error)) {
 		return false;
 	}
 
-	return fs::directory_iterator{ directory, error } != fs::directory_iterator{};
+	return fs::directory_iterator{
+		directory,
+		error
+	} != fs::directory_iterator{};
 }
 
-[[nodiscard]] path AbsoluteRuntimePath(const path& value) {
-	if (value.empty() || value.is_absolute()) {
-		return value.lexically_normal();
+[[nodiscard]] path ResolveProjectFilePath(
+	const Project& project
+) {
+	if (project.file_path.empty()) {
+		return {};
 	}
 
-	return (impl::GetBuildInfo().runtime_root / value).lexically_normal();
+	if (project.file_path.is_absolute()) {
+		return NormalizeExistingPath(
+			project.file_path
+		);
+	}
+
+	std::error_code error;
+	const path working_candidate{
+		fs::absolute(
+			project.file_path,
+			error
+		)
+	};
+	if (!error && fs::exists(
+			working_candidate,
+			error
+		)) {
+		return NormalizeExistingPath(
+			working_candidate
+		);
+	}
+
+	const auto& build_info{
+		::ptgn::impl::GetBuildInfo()
+	};
+	std::vector<path> candidates;
+	if (build_info.IsExample()) {
+		candidates.emplace_back(
+			build_info.binary_directory /
+			"examples" /
+			project.file_path
+		);
+	}
+	candidates.emplace_back(
+		build_info.binary_directory /
+		project.file_path
+	);
+	candidates.emplace_back(
+		build_info.runtime_root /
+		project.file_path
+	);
+	candidates.emplace_back(
+		build_info.source_directory /
+		project.file_path
+	);
+
+	for (const auto& candidate : candidates) {
+		error.clear();
+		if (fs::exists(candidate, error)) {
+			return NormalizeExistingPath(
+				candidate
+			);
+		}
+	}
+
+	if (!working_candidate.empty()) {
+		return working_candidate.lexically_normal();
+	}
+
+	return (
+		build_info.runtime_root /
+		project.file_path
+	).lexically_normal();
 }
 
-[[nodiscard]] path RuntimeRelativePath(const path& value) {
-	const path absolute{ AbsoluteRuntimePath(value) };
-	const path root{ impl::GetBuildInfo().runtime_root.lexically_normal() };
-	const path relative{ absolute.lexically_relative(root) };
+[[nodiscard]] path ResolveProjectRuntimeRoot(
+	const Project& project,
+	const path& resolved_project_file
+) {
+	if (project.file_path.empty() ||
+		project.file_path.is_absolute()) {
+		return ::ptgn::impl::GetBuildInfo()
+			.runtime_root;
+	}
 
+	path root{ resolved_project_file };
+	for (const auto& component :
+		 project.file_path.lexically_normal()) {
+		if (component.empty() ||
+			component == ".") {
+			continue;
+		}
+		if (component == "..") {
+			return ::ptgn::impl::GetBuildInfo()
+				.runtime_root;
+		}
+		root = root.parent_path();
+	}
+
+	return root.lexically_normal();
+}
+
+[[nodiscard]] path ProjectRuntimeMount(
+	const Project& project,
+	const path& resolved_project_file,
+	const path& resolved_runtime_root
+) {
+	if (project.file_path.is_relative()) {
+		return project.file_path
+			.parent_path()
+			.lexically_normal();
+	}
+
+	const path relative{
+		resolved_project_file
+			.parent_path()
+			.lexically_relative(
+				resolved_runtime_root
+			)
+	};
 	if (relative.empty() || relative == ".") {
 		return {};
 	}
 
 	for (const auto& component : relative) {
 		if (component == "..") {
-			return absolute.filename();
+			return resolved_project_file
+				.parent_path()
+				.filename();
 		}
 	}
 
@@ -579,10 +917,24 @@ bool DrawStringInput(const char* label, std::string& value) {
 } // namespace
 
 Editor::Editor(Application& app) : app{ app } {
-	app.SetCloseGuard([this]() { return content_browser_panel_.CanApplicationClose(); });
+	app.SetCloseGuard([this]() {
+#if !defined(__EMSCRIPTEN__)
+		if (!allow_application_close_ && export_manager_.IsBusy()) {
+			if (!render_enabled_) {
+				EnableRendering(true);
+			}
+			export_window_open_ = true;
+			pending_task_confirmation_ =
+				PendingTaskConfirmation::CloseApplicationWhileRunning;
+			task_confirmation_popup_requested_ = true;
+			return false;
+		}
+#endif
+		return content_browser_panel_.CanApplicationClose();
+	});
 
 	// Generic application startup preference. The engine does not know why it was changed.
-	impl::ApplicationAccessor::ctx(app).start_project_runtime = false;
+	::ptgn::impl::ApplicationAccessor::ctx(app).start_project_runtime = false;
 
 	context_ = std::make_unique<EditorContext>(
 		*this, commands_, undo_stack_
@@ -593,18 +945,21 @@ Editor::Editor(Application& app) : app{ app } {
 	scene_list_panel_.Bind(*context_);
 
 #if !defined(__EMSCRIPTEN__)
-	const auto& build_info{ impl::GetBuildInfo() };
-	const path release_root{ build_info.source_directory / "release" };
+	const auto& build_info{
+		::ptgn::impl::GetBuildInfo()
+	};
 
-	game_build_directory_ =
-		(build_info.source_directory / "build-release" / build_info.target).string();
-	web_build_directory_ =
-		(build_info.source_directory / "build-web-release" / build_info.target).string();
-	game_export_directory_ =
-		(release_root / build_info.target).string();
-	web_export_directory_ =
-		(build_info.source_directory / "release-web" / build_info.target).string();
-	executable_output_directory_ = game_build_directory_;
+	desktop_export_directory_ = (
+		build_info.source_directory /
+		"release" /
+		build_info.target
+	).string();
+
+	web_export_directory_ = (
+		build_info.source_directory /
+		"release-web" /
+		build_info.target
+	).string();
 #endif
 }
 
@@ -683,10 +1038,10 @@ void Editor::OnRender() {
 }
 
 Project* Editor::GetProject() {
-	return impl::ApplicationAccessor::ctx(app)
+	return ::ptgn::impl::ApplicationAccessor::ctx(app)
 		.project
 		? std::addressof(
-			impl::ApplicationAccessor::ctx(app)
+			::ptgn::impl::ApplicationAccessor::ctx(app)
 				.project.value()
 		)
 		: nullptr;
@@ -694,7 +1049,7 @@ Project* Editor::GetProject() {
 
 const Project* Editor::GetProject() const {
 	const auto& project{
-		impl::ApplicationAccessor::ctx(app)
+		::ptgn::impl::ApplicationAccessor::ctx(app)
 			.project
 	};
 
@@ -727,8 +1082,8 @@ bool Editor::CreateProjectScene(
 		return false;
 	}
 
-	if (scene_type != impl::kBaseSceneType &&
-		!impl::GetSceneRegistry().contains(scene_type)) {
+	if (scene_type != ::ptgn::impl::kBaseSceneType &&
+		!::ptgn::impl::GetSceneRegistry().contains(scene_type)) {
 		return false;
 	}
 
@@ -804,7 +1159,7 @@ bool Editor::CreateProjectScene(
 			SerializedScene factory_scene{ serialized_scene };
 			if (!manager.EnterFactory(
 					entry.key,
-					impl::MakeSceneFactory(
+					::ptgn::impl::MakeSceneFactory(
 						std::move(factory_scene),
 						false
 					)
@@ -995,7 +1350,7 @@ bool Editor::DuplicateProjectScene(
 			SerializedScene factory_scene{ serialized_scene };
 			if (!current_manager.EnterFactory(
 					entry.key,
-					impl::MakeSceneFactory(
+					::ptgn::impl::MakeSceneFactory(
 						std::move(factory_scene),
 						false
 					)
@@ -1250,7 +1605,7 @@ bool Editor::DeleteProjectScene(
 			SerializedScene factory_scene{ serialized_scene };
 			if (!current_manager.EnterFactory(
 					entry.key,
-					impl::MakeSceneFactory(
+					::ptgn::impl::MakeSceneFactory(
 						std::move(factory_scene),
 						false
 					)
@@ -1556,7 +1911,7 @@ void Editor::SavePendingBootstrapScenes() {
 	}
 
 	auto& app_context{
-		impl::ApplicationAccessor::ctx(app)
+		::ptgn::impl::ApplicationAccessor::ctx(app)
 	};
 
 	if (!app_context.project.has_value()) {
@@ -1608,7 +1963,7 @@ void Editor::SavePendingBootstrapScenes() {
 		return;
 	}
 
-	if (!impl::SaveProjectScenes(
+	if (!::ptgn::impl::SaveProjectScenes(
 			app,
 			std::span<const Scene* const>{ scenes }
 		)) {
@@ -1651,62 +2006,54 @@ void Editor::DrawMainMenuBar() {
 
 	if (ImGui::BeginMenu("File")) {
 #if !defined(__EMSCRIPTEN__)
-		if (ImGui::MenuItem("Save", nullptr, false, CanSaveProject())) {
+		if (ImGui::MenuItem(
+				"Save",
+				nullptr,
+				false,
+				CanSaveProject() &&
+					!export_manager_.IsBusy()
+			)) {
 			SaveProjectScene();
 		}
 
 		ImGui::Separator();
 
-		const bool can_start_task{ !build_manager_.IsBusy() };
-
-		if (ImGui::BeginMenu("Export")) {
-			if (ImGui::MenuItem("Game", nullptr, false, can_start_task)) {
-				OpenExportSettings(ExportTarget::Game);
-			}
-			if (ImGui::MenuItem("Web", nullptr, false, can_start_task)) {
-				OpenExportSettings(ExportTarget::Web);
-			}
-			ImGui::EndMenu();
-		}
-
-		if (ImGui::BeginMenu("Build")) {
-			if (ImGui::MenuItem("Game", nullptr, false, can_start_task)) {
-				OpenBuildSettings(BuildTarget::Game);
-			}
-			if (ImGui::MenuItem("Web", nullptr, false, can_start_task)) {
-				OpenBuildSettings(BuildTarget::Web);
-			}
-			ImGui::Separator();
-			if (ImGui::MenuItem("Build Output")) {
-				build_manager_.OpenOutputWindow();
-			}
-			ImGui::EndMenu();
+		if (ImGui::MenuItem("Export...")) {
+			OpenExportWindow();
 		}
 
 		ImGui::Separator();
 #endif
 
 #if !defined(__EMSCRIPTEN__)
-		if (ImGui::MenuItem("Project Settings")) {
-			settings_window_.Open(SettingsPage::ProjectDisplay);
+		if (ImGui::MenuItem("Settings...")) {
+			settings_window_.Open(
+				SettingsPage::ProjectDisplay
+			);
 		}
 #endif
-
-		if (ImGui::MenuItem("Editor Settings")) {
-			settings_window_.Open(SettingsPage::EditorGeneral);
-		}
 
 		ImGui::EndMenu();
 	}
 
 	if (ImGui::BeginMenu("Edit")) {
-		if (ImGui::MenuItem("Undo", "Ctrl+Z", false, undo_stack_.CanUndo())) {
+		if (ImGui::MenuItem(
+				"Undo",
+				"Ctrl+Z",
+				false,
+				undo_stack_.CanUndo()
+			)) {
 			context_->local.position_picker.Cancel();
 			undo_stack_.Undo();
 			scene_asset_dependencies_dirty_ = true;
 		}
 
-		if (ImGui::MenuItem("Redo", "Ctrl+Shift+Z", false, undo_stack_.CanRedo())) {
+		if (ImGui::MenuItem(
+				"Redo",
+				"Ctrl+Shift+Z",
+				false,
+				undo_stack_.CanRedo()
+			)) {
 			context_->local.position_picker.Cancel();
 			undo_stack_.Redo();
 			scene_asset_dependencies_dirty_ = true;
@@ -1731,33 +2078,35 @@ void Editor::DrawMainMenuBar() {
 				nullptr,
 				render_only_selected_scene
 			)) {
-			SetRenderOnlySelectedScene(!render_only_selected_scene);
+			SetRenderOnlySelectedScene(
+				!render_only_selected_scene
+			);
 		}
 
-		ImGui::EndMenu();
-	}
+		ImGui::Separator();
 
-	if (ImGui::BeginMenu("Tools")) {
-		auto entity_picking{ GetSettings().entity_picking };
-
-		if (ImGui::MenuItem("Entity Picking", nullptr, entity_picking)) {
-			SetEntityPickingMode(!entity_picking);
+		if (ImGui::MenuItem(
+				"Entity Picking",
+				nullptr,
+				GetSettings().entity_picking
+			)) {
+			SetEntityPickingMode(
+				!GetSettings().entity_picking
+			);
 		}
-
-		auto local_gizmo_orientation{
-			GetSettings().gizmo_uses_local_orientation
-		};
 
 		if (ImGui::MenuItem(
 				"Local Gizmo Orientation",
 				nullptr,
-				local_gizmo_orientation
+				GetSettings().gizmo_uses_local_orientation
 			)) {
-			SetGizmoUsesLocalOrientation(!local_gizmo_orientation);
+			SetGizmoUsesLocalOrientation(
+				!GetSettings().gizmo_uses_local_orientation
+			);
 		}
 
 		auto show_read_only_data{
-			context_->local.settings.show_read_only_inspector_data
+			GetSettings().show_read_only_inspector_data
 		};
 
 		if (ImGui::MenuItem(
@@ -1765,7 +2114,7 @@ void Editor::DrawMainMenuBar() {
 				nullptr,
 				show_read_only_data
 			)) {
-			context_->local.settings.show_read_only_inspector_data =
+			GetSettings().show_read_only_inspector_data =
 				!show_read_only_data;
 		}
 
@@ -1773,7 +2122,9 @@ void Editor::DrawMainMenuBar() {
 	}
 
 	if (ImGui::BeginMenu("Debug")) {
-		auto& debug_settings{ GetDebugSystem().settings };
+		auto& debug_settings{
+			GetDebugSystem().settings
+		};
 
 		if (ImGui::BeginMenu("Draw")) {
 			if (ImGui::MenuItem(
@@ -1821,8 +2172,10 @@ void Editor::DrawMainMenuBar() {
 
 		ImGui::Separator();
 
-		if (ImGui::MenuItem("Debug Settings")) {
-			settings_window_.Open(SettingsPage::DebugInteraction);
+		if (ImGui::MenuItem("Settings...")) {
+			settings_window_.Open(
+				SettingsPage::DebugInteraction
+			);
 		}
 
 		if (ImGui::MenuItem(
@@ -1842,246 +2195,298 @@ void Editor::DrawMainMenuBar() {
 
 #if !defined(__EMSCRIPTEN__)
 
-void Editor::OpenBuildSettings(BuildTarget target) {
-	build_settings_target_ = target;
-	build_settings_open_ = true;
-
-	if (target != BuildTarget::Game || executable_output_user_modified_) {
-		return;
-	}
-
-	if (const auto export_directory{
-			build_manager_.GetLastExportDirectory(ExportTarget::Game)
-		}) {
-		executable_output_directory_ = export_directory->string();
-	} else {
-		executable_output_directory_ = game_build_directory_;
-	}
+void Editor::OpenExportWindow() {
+	export_window_open_ = true;
 }
 
-void Editor::OpenExportSettings(ExportTarget target) {
-	export_settings_target_ = target;
-	export_settings_open_ = true;
-}
-
-BuildRequest Editor::MakeBuildRequest(BuildTarget target) const {
-	BuildRequest request{
-		.target = target,
-		.build_directory = target == BuildTarget::Game
-			? path{ game_build_directory_ }
-			: path{ web_build_directory_ },
+ExportRequest Editor::MakeExportRequest() const {
+	const auto& build_info{
+		::ptgn::impl::GetBuildInfo()
 	};
 
-	if (target == BuildTarget::Game) {
-		request.executable_output_directory = path{ executable_output_directory_ };
-		return request;
-	}
-
-	if (const auto* project{ GetProject() }) {
-		const path project_file{ AbsoluteRuntimePath(project->file_path) };
-		request.web_project_directory = project_file.parent_path();
-		request.web_project_mount = RuntimeRelativePath(project_file.parent_path());
-	}
-
-	return request;
-}
-
-ExportRequest Editor::MakeExportRequest(ExportTarget target) const {
-	const auto& build_info{ impl::GetBuildInfo() };
 	ExportRequest request{
-		.target = target,
-		.output_directory = target == ExportTarget::Game
-			? path{ game_export_directory_ }
-			: path{ web_export_directory_ },
-		.runtime_root = build_info.runtime_root,
-		.asset_source_directory = build_info.asset_source_directory,
+		.target = export_target_,
+		.configuration = export_configuration_,
+		.include_editor = export_include_editor_,
+		.output_directory =
+			export_target_ == ExportTarget::Desktop
+				? path{ desktop_export_directory_ }
+				: path{ web_export_directory_ },
+		.asset_source_directory =
+			build_info.asset_source_directory,
 	};
 
 	if (const auto* project{ GetProject() }) {
-		const path project_file{ AbsoluteRuntimePath(project->file_path) };
-		const path project_root{ project_file.parent_path() };
-		request.project_file = project_file;
+		const path project_file{
+			ResolveProjectFilePath(*project)
+		};
+		const path runtime_root{
+			ResolveProjectRuntimeRoot(
+				*project,
+				project_file
+			)
+		};
 
-		if (!project->asset_directory.empty()) {
-			request.project_asset_directory = project->asset_directory.is_absolute()
-				? project->asset_directory
-				: project_root / project->asset_directory;
-		}
+		request.project_directory =
+			project_file.parent_path();
+		request.project_mount =
+			ProjectRuntimeMount(
+				*project,
+				project_file,
+				runtime_root
+			);
 	}
 
 	return request;
 }
 
-bool Editor::BuildRequestNeedsConfirmation(const BuildRequest& request) const {
-	if (DirectoryHasContent(request.build_directory)) {
-		return true;
-	}
-
-	return request.target == BuildTarget::Game &&
-		   !request.executable_output_directory.empty() &&
-		   request.executable_output_directory.lexically_normal() !=
-			   request.build_directory.lexically_normal() &&
-		   DirectoryHasContent(request.executable_output_directory);
-}
-
-bool Editor::ExportRequestNeedsConfirmation(const ExportRequest& request) const {
-	return DirectoryHasContent(request.output_directory);
-}
-
-void Editor::StartBuild(BuildRequest request) {
-	if (build_manager_.Build(std::move(request))) {
-		build_settings_open_ = false;
-	}
-}
-
-void Editor::StartExport(ExportRequest request) {
-	if (build_manager_.Export(std::move(request))) {
-		export_settings_open_ = false;
-	}
-}
-
-void Editor::DrawBuildSettingsWindow() {
-	if (!build_settings_open_) {
-		return;
-	}
-
-	const bool web{ build_settings_target_ == BuildTarget::Web };
-	const char* title{ web
-		? "Build Web###BuildSettingsWindow"
-		: "Build Game###BuildSettingsWindow" };
-
-	ImGui::SetNextWindowSize(ImVec2{ 620.0f, 0.0f }, ImGuiCond_FirstUseEver);
-	if (!ImGui::Begin(title, &build_settings_open_, ImGuiWindowFlags_AlwaysAutoResize)) {
-		ImGui::End();
-		return;
-	}
-
-	ImGui::TextWrapped(
-		web
-			? "Builds the current CMake target as an Emscripten Release build with PTGN_EDITOR=OFF. The Web output remains in the build directory."
-			: "Builds the current CMake target as a native Release build with PTGN_EDITOR=OFF. The executable can optionally be copied to another directory after a successful build."
+bool Editor::ExportRequestNeedsConfirmation(
+	const ExportRequest& request
+) const {
+	return DirectoryHasContent(
+		request.output_directory
 	);
-	ImGui::Separator();
+}
 
-	std::string& build_directory{ web ? web_build_directory_ : game_build_directory_ };
-	const bool build_directory_changed{
-		DrawStringInput("Build Directory", build_directory)
+void Editor::StartExport(
+	ExportRequest request
+) {
+	export_manager_.Export(
+		std::move(request)
+	);
+}
+
+void Editor::DrawExportWindow() {
+	if (!export_window_open_) {
+		return;
+	}
+
+	ImGui::SetNextWindowSize(
+		ImVec2{ 1000.0f, 650.0f },
+		ImGuiCond_FirstUseEver
+	);
+
+	bool window_open{ true };
+	const bool visible{
+		ImGui::Begin(
+			"Export###ExportWindow",
+			&window_open
+		)
 	};
-	if (!web && build_directory_changed && !executable_output_user_modified_ &&
-		!build_manager_.GetLastExportDirectory(ExportTarget::Game).has_value()) {
-		executable_output_directory_ = build_directory;
-	}
 
-	if (!web) {
-		if (DrawStringInput("Executable Output Directory", executable_output_directory_)) {
-			executable_output_user_modified_ = true;
+	const bool busy{ export_manager_.IsBusy() };
+
+	if (visible) {
+		ImGui::BeginDisabled(busy);
+
+		if (ImGui::BeginTable(
+				"ExportSettingsTable",
+				3,
+				ImGuiTableFlags_SizingStretchProp |
+					ImGuiTableFlags_NoSavedSettings
+			)) {
+			ImGui::TableSetupColumn(
+				"Label",
+				ImGuiTableColumnFlags_WidthFixed,
+				175.0f
+			);
+			ImGui::TableSetupColumn(
+				"Value",
+				ImGuiTableColumnFlags_WidthStretch
+			);
+			ImGui::TableSetupColumn(
+				"Select",
+				ImGuiTableColumnFlags_WidthFixed,
+				80.0f
+			);
+
+			ImGui::TableNextRow();
+			ImGui::TableSetColumnIndex(0);
+			ImGui::AlignTextToFramePadding();
+			ImGui::TextUnformatted("Platform");
+			ImGui::TableSetColumnIndex(1);
+			ImGui::SetNextItemWidth(-FLT_MIN);
+			const char* platform_preview{
+				export_target_ == ExportTarget::Desktop
+					? "Desktop"
+					: "Web"
+			};
+			if (ImGui::BeginCombo(
+					"##ExportPlatform",
+					platform_preview
+				)) {
+				if (ImGui::Selectable(
+						"Desktop",
+						export_target_ == ExportTarget::Desktop
+					)) {
+					export_target_ = ExportTarget::Desktop;
+				}
+				if (ImGui::Selectable(
+						"Web",
+						export_target_ == ExportTarget::Web
+					)) {
+					export_target_ = ExportTarget::Web;
+				}
+				ImGui::EndCombo();
+			}
+
+			ImGui::TableNextRow();
+			ImGui::TableSetColumnIndex(0);
+			ImGui::AlignTextToFramePadding();
+			ImGui::TextUnformatted("Configuration");
+			ImGui::TableSetColumnIndex(1);
+			ImGui::SetNextItemWidth(-FLT_MIN);
+			const char* configuration_preview{
+				export_configuration_ == ExportConfiguration::Debug
+					? "Debug"
+					: "Release"
+			};
+			if (ImGui::BeginCombo(
+					"##ExportConfiguration",
+					configuration_preview
+				)) {
+				if (ImGui::Selectable(
+						"Debug",
+						export_configuration_ == ExportConfiguration::Debug
+					)) {
+					export_configuration_ = ExportConfiguration::Debug;
+				}
+				if (ImGui::Selectable(
+						"Release",
+						export_configuration_ == ExportConfiguration::Release
+					)) {
+					export_configuration_ = ExportConfiguration::Release;
+				}
+				ImGui::EndCombo();
+			}
+
+			ImGui::TableNextRow();
+			ImGui::TableSetColumnIndex(0);
+			ImGui::AlignTextToFramePadding();
+			ImGui::TextUnformatted("Include Editor");
+			ImGui::TableSetColumnIndex(1);
+			ImGui::Checkbox(
+				"##ExportIncludeEditor",
+				&export_include_editor_
+			);
+			if (ImGui::IsItemHovered(ImGuiHoveredFlags_Stationary)) {
+				ImGui::SetTooltip(
+					"Build the exported executable with PTGN_EDITOR enabled."
+				);
+			}
+
+			std::string& current_output_directory{
+				export_target_ == ExportTarget::Desktop
+					? desktop_export_directory_
+					: web_export_directory_
+			};
+			const auto current_output_path_error{
+				ValidateOutputDirectoryPath(current_output_directory)
+			};
+			DrawDirectoryField(
+				*this,
+				"Output Directory",
+				"##ExportOutputDirectory",
+				current_output_directory,
+				current_output_path_error
+			);
+
+			ImGui::EndTable();
 		}
-		ImGui::TextDisabled(
-			"If this matches the build directory, no extra executable copy is performed."
-		);
-	} else {
-		ImGui::TextDisabled("Playable Web files are generated under the configured Web build output.");
-	}
 
-	ImGui::Separator();
-	const bool busy{ build_manager_.IsBusy() };
-	const bool can_clean{ !busy && DirectoryHasContent(path{ build_directory }) };
+		ImGui::EndDisabled();
 
-	ImGui::BeginDisabled(!can_clean);
-	if (ImGui::Button("Clean")) {
-		pending_clean_directory_ = path{ build_directory };
-		pending_task_confirmation_ = PendingTaskConfirmation::Clean;
-		task_confirmation_popup_requested_ = true;
-	}
-	ImGui::EndDisabled();
+		const std::string& current_output_directory{
+			export_target_ == ExportTarget::Desktop
+				? desktop_export_directory_
+				: web_export_directory_
+		};
+		const auto current_output_path_error{
+			ValidateOutputDirectoryPath(current_output_directory)
+		};
 
-	ImGui::SameLine();
-	ImGui::BeginDisabled(busy || build_directory.empty());
-	if (ImGui::Button(web ? "Build Web" : "Build Game")) {
-		BuildRequest request{ MakeBuildRequest(build_settings_target_) };
-		if (BuildRequestNeedsConfirmation(request)) {
-			pending_build_request_ = std::move(request);
-			pending_task_confirmation_ = PendingTaskConfirmation::Build;
+		const path build_directory{
+			export_manager_.GetBuildDirectory(
+				export_target_,
+				export_configuration_
+			)
+		};
+		const bool can_clean{
+			!busy && DirectoryHasContent(build_directory)
+		};
+
+		ImGui::Separator();
+
+		ImGui::BeginDisabled(!can_clean);
+		if (ImGui::Button("Clean Build Cache")) {
+			pending_clean_target_ = export_target_;
+			pending_clean_configuration_ = export_configuration_;
+			pending_task_confirmation_ =
+				PendingTaskConfirmation::Clean;
 			task_confirmation_popup_requested_ = true;
-		} else {
-			StartBuild(std::move(request));
 		}
-	}
-	ImGui::EndDisabled();
+		ImGui::EndDisabled();
 
-	ImGui::SameLine();
-	if (ImGui::Button("Open Output")) {
-		build_manager_.OpenOutputWindow();
+		ImGui::SameLine();
+
+		if (busy) {
+			ImGui::BeginDisabled(!export_manager_.CanCancel());
+			if (ImGui::Button("Cancel Export")) {
+				export_manager_.Cancel();
+			}
+			ImGui::EndDisabled();
+		} else {
+			ImGui::BeginDisabled(current_output_path_error.has_value());
+			if (ImGui::Button("Start Export")) {
+				if (CanSaveProject()) {
+					SaveProjectScene();
+				}
+
+				ExportRequest request{ MakeExportRequest() };
+				if (ExportRequestNeedsConfirmation(request)) {
+					pending_export_request_ = std::move(request);
+					pending_task_confirmation_ =
+						PendingTaskConfirmation::Export;
+					task_confirmation_popup_requested_ = true;
+				} else {
+					StartExport(std::move(request));
+				}
+			}
+			ImGui::EndDisabled();
+		}
+
+		ImGui::SeparatorText("Output");
+		export_manager_.DrawOutputPanel();
 	}
 
 	ImGui::End();
-}
 
-void Editor::DrawExportSettingsWindow() {
-	if (!export_settings_open_) {
-		return;
-	}
-
-	const bool web{ export_settings_target_ == ExportTarget::Web };
-	const char* title{ web
-		? "Export Web###ExportSettingsWindow"
-		: "Export Game###ExportSettingsWindow" };
-
-	ImGui::SetNextWindowSize(ImVec2{ 620.0f, 0.0f }, ImGuiCond_FirstUseEver);
-	if (!ImGui::Begin(title, &export_settings_open_, ImGuiWindowFlags_AlwaysAutoResize)) {
-		ImGui::End();
-		return;
-	}
-
-	ImGui::TextWrapped(
-		web
-			? "Exports clean runtime project data for Web. This does not compile WebAssembly; run Build -> Web after data changes to produce a playable Web release."
-			: "Exports clean runtime project data without rebuilding the executable. Project-local editor files such as .ptgnlocal are excluded."
-	);
-	ImGui::Separator();
-
-	std::string& output_directory{ web ? web_export_directory_ : game_export_directory_ };
-	DrawStringInput("Output Directory", output_directory);
-
-	if (!GetProject()) {
-		ImGui::TextDisabled("This application has no project file; only configured runtime assets will be exported.");
-	}
-
-	ImGui::Separator();
-	const bool busy{ build_manager_.IsBusy() };
-	ImGui::BeginDisabled(busy || output_directory.empty());
-	if (ImGui::Button(web ? "Export Web" : "Export Game")) {
-		if (CanSaveProject()) {
-			SaveProjectScene();
-		}
-
-		ExportRequest request{ MakeExportRequest(export_settings_target_) };
-		if (ExportRequestNeedsConfirmation(request)) {
-			pending_export_request_ = std::move(request);
-			pending_task_confirmation_ = PendingTaskConfirmation::Export;
+	if (!window_open) {
+		if (busy) {
+			export_window_open_ = true;
+			pending_task_confirmation_ =
+				PendingTaskConfirmation::CloseExportWindowWhileRunning;
 			task_confirmation_popup_requested_ = true;
 		} else {
-			StartExport(std::move(request));
+			export_window_open_ = false;
 		}
 	}
-	ImGui::EndDisabled();
-
-	ImGui::SameLine();
-	if (ImGui::Button("Open Output")) {
-		build_manager_.OpenOutputWindow();
-	}
-
-	ImGui::End();
 }
 
 void Editor::DrawTaskConfirmationPopup() {
 	if (task_confirmation_popup_requested_) {
-		ImGui::OpenPopup("Confirm Distribution Task###DistributionTaskConfirmation");
+		ImGui::OpenPopup(
+			"Confirm Export Action###ExportTaskConfirmation"
+		);
 		task_confirmation_popup_requested_ = false;
 	}
 
+	ImGui::SetNextWindowSizeConstraints(
+		ImVec2{ 560.0f, 0.0f },
+		ImVec2{ 760.0f, FLT_MAX }
+	);
 	if (!ImGui::BeginPopupModal(
-			"Confirm Distribution Task###DistributionTaskConfirmation",
+			"Confirm Export Action###ExportTaskConfirmation",
 			nullptr,
 			ImGuiWindowFlags_AlwaysAutoResize
 		)) {
@@ -2089,67 +2494,90 @@ void Editor::DrawTaskConfirmationPopup() {
 	}
 
 	switch (pending_task_confirmation_) {
-		case PendingTaskConfirmation::Build:
-			ImGui::TextWrapped(
-				"One or more selected build/output directories already contain files. Continue and allow CMake/the executable copy step to replace matching build outputs? The build directory is reused; use Clean if you want it deleted first."
-			);
-			break;
 		case PendingTaskConfirmation::Export:
 			ImGui::TextWrapped(
-				"The export directory already contains files. Replace the project/asset paths owned by this export? Unrelated files, such as an existing executable in the same directory, are preserved."
+				"The output directory already contains files. Replace files owned by this export?"
 			);
 			break;
+
 		case PendingTaskConfirmation::Clean:
 			ImGui::TextWrapped(
-				"Delete all files in the selected build directory? This cannot be undone."
+				"Delete the cached export build files for the selected platform and configuration? This cannot be undone."
 			);
 			break;
+
+		case PendingTaskConfirmation::CloseExportWindowWhileRunning:
+			ImGui::TextWrapped(
+				"An export is still running. Cancel it and close this window?"
+			);
+			break;
+
+		case PendingTaskConfirmation::CloseApplicationWhileRunning:
+			ImGui::TextWrapped(
+				"An export is still running. Cancel it and exit the application?"
+			);
+			break;
+
 		case PendingTaskConfirmation::None:
 			break;
 	}
 
 	ImGui::Separator();
+
 	if (ImGui::Button("Continue")) {
 		switch (pending_task_confirmation_) {
-			case PendingTaskConfirmation::Build:
-				if (pending_build_request_) {
-					StartBuild(std::move(pending_build_request_.value()));
-				}
-				break;
 			case PendingTaskConfirmation::Export:
 				if (pending_export_request_) {
 					pending_export_request_->replace_existing = true;
-					StartExport(std::move(pending_export_request_.value()));
+					StartExport(
+						std::move(pending_export_request_.value())
+					);
 				}
 				break;
+
 			case PendingTaskConfirmation::Clean:
-				if (pending_clean_directory_) {
-					build_manager_.Clean(std::move(pending_clean_directory_.value()));
+				if (pending_clean_target_ && pending_clean_configuration_) {
+					export_manager_.Clean(
+						pending_clean_target_.value(),
+						pending_clean_configuration_.value()
+					);
 				}
 				break;
+
+			case PendingTaskConfirmation::CloseExportWindowWhileRunning:
+				export_manager_.Cancel();
+				export_window_open_ = false;
+				break;
+
+			case PendingTaskConfirmation::CloseApplicationWhileRunning:
+				export_manager_.Cancel();
+				allow_application_close_ = true;
+				app.RequestQuit();
+				break;
+
 			case PendingTaskConfirmation::None:
 				break;
 		}
 
-		pending_build_request_.reset();
 		pending_export_request_.reset();
-		pending_clean_directory_.reset();
+		pending_clean_target_.reset();
+		pending_clean_configuration_.reset();
 		pending_task_confirmation_ = PendingTaskConfirmation::None;
 		ImGui::CloseCurrentPopup();
 	}
 
 	ImGui::SameLine();
+
 	if (ImGui::Button("Cancel")) {
-		pending_build_request_.reset();
 		pending_export_request_.reset();
-		pending_clean_directory_.reset();
+		pending_clean_target_.reset();
+		pending_clean_configuration_.reset();
 		pending_task_confirmation_ = PendingTaskConfirmation::None;
 		ImGui::CloseCurrentPopup();
 	}
 
 	ImGui::EndPopup();
 }
-
 #endif
 
 void Editor::DrawPanels() {
@@ -2182,10 +2610,8 @@ void Editor::DrawPanels() {
 	undo_history_window_.OnRender(*context_, undo_stack_);
 
 #if !defined(__EMSCRIPTEN__)
-	DrawBuildSettingsWindow();
-	DrawExportSettingsWindow();
+	DrawExportWindow();
 	DrawTaskConfirmationPopup();
-	build_manager_.OnRender();
 #endif
 
 	if (context_->local.settings.show_imgui_metrics) {
@@ -2301,14 +2727,7 @@ void Editor::EnableRendering(
 
 void Editor::OnUpdate() {
 #if !defined(__EMSCRIPTEN__)
-	build_manager_.OnUpdate();
-	if (!executable_output_user_modified_) {
-		if (const auto export_directory{
-				build_manager_.GetLastExportDirectory(ExportTarget::Game)
-			}) {
-			executable_output_directory_ = export_directory->string();
-		}
-	}
+	export_manager_.OnUpdate();
 #endif
 
 	undo_stack_.SetUndoRedoEnabled(!CanPause());
@@ -2342,7 +2761,7 @@ void Editor::OnUpdate() {
 		) &&
 		CanSaveProject()
 #if !defined(__EMSCRIPTEN__)
-		&& !build_manager_.IsBusy()
+		&& !export_manager_.IsBusy()
 #endif
 	) {
 		SaveProjectScene();
@@ -2461,7 +2880,7 @@ void Editor::Play() {
 	};
 
 	auto& app_context{
-		impl::ApplicationAccessor::ctx(app)
+		::ptgn::impl::ApplicationAccessor::ctx(app)
 	};
 	auto& manager{ GetSceneManager() };
 
@@ -2490,7 +2909,7 @@ void Editor::Play() {
 		);
 
 		app_context.runtime_project_scenes.emplace_back(
-			impl::RuntimeProjectSceneSnapshot{
+			::ptgn::impl::RuntimeProjectSceneSnapshot{
 				.key = entry.key,
 				.scene = CaptureScene(scene),
 			}
@@ -2505,7 +2924,7 @@ void Editor::Play() {
 		std::ranges::find_if(
 			app_context.runtime_project_scenes,
 			[&selected_key](
-				const impl::RuntimeProjectSceneSnapshot& snapshot
+				const ::ptgn::impl::RuntimeProjectSceneSnapshot& snapshot
 			) {
 				return snapshot.key == selected_key;
 			}
@@ -2534,7 +2953,7 @@ void Editor::Play() {
 
 	if (!manager.ReEnterFactory(
 			selected_key,
-			impl::MakeSceneFactory(
+			::ptgn::impl::MakeSceneFactory(
 				snapshot_it->scene,
 				true
 			)
@@ -2592,7 +3011,7 @@ void Editor::Stop() {
 	);
 
 	auto& app_context{
-		impl::ApplicationAccessor::ctx(app)
+		::ptgn::impl::ApplicationAccessor::ctx(app)
 	};
 	auto& manager{ GetSceneManager() };
 
@@ -2603,7 +3022,7 @@ void Editor::Stop() {
 		};
 
 		auto factory{
-			impl::MakeSceneFactory(
+			::ptgn::impl::MakeSceneFactory(
 				snapshot.scene,
 				false
 			)
@@ -2848,7 +3267,7 @@ void Editor::SaveProjectScene() {
 		scenes.emplace_back(&scene);
 	}
 
-	if (!impl::SaveProjectScenes(
+	if (!::ptgn::impl::SaveProjectScenes(
 			app,
 			std::span<const Scene* const>{ scenes }
 		)) {
@@ -2871,60 +3290,60 @@ bool Editor::IsPaused() const {
 }
 
 void Editor::SetTimeScale(float time_scale) {
-	impl::ApplicationAccessor::ctx(app).time_scale = std::max(0.0f, time_scale);
+	::ptgn::impl::ApplicationAccessor::ctx(app).time_scale = std::max(0.0f, time_scale);
 }
 
 float Editor::GetTimeScale() const {
-	return impl::ApplicationAccessor::ctx(app).time_scale;
+	return ::ptgn::impl::ApplicationAccessor::ctx(app).time_scale;
 }
 
 void Editor::RequestStep() {
-	impl::ApplicationAccessor::ctx(app).step_requested = true;
+	::ptgn::impl::ApplicationAccessor::ctx(app).step_requested = true;
 }
 
 Window& Editor::GetWindow() {
-	return impl::ApplicationAccessor::ctx(app).window;
+	return ::ptgn::impl::ApplicationAccessor::ctx(app).window;
 }
 
 const Window& Editor::GetWindow() const {
-	return impl::ApplicationAccessor::ctx(app).window;
+	return ::ptgn::impl::ApplicationAccessor::ctx(app).window;
 }
 
 const AssetManager& Editor::GetAssetManager() const {
-	return impl::ApplicationAccessor::ctx(app).assets;
+	return ::ptgn::impl::ApplicationAccessor::ctx(app).assets;
 }
 
 AssetManager& Editor::GetAssetManager() {
-	return impl::ApplicationAccessor::ctx(app).assets;
+	return ::ptgn::impl::ApplicationAccessor::ctx(app).assets;
 }
 
 const Renderer& Editor::GetRenderer() const {
-	return impl::ApplicationAccessor::ctx(app).renderer;
+	return ::ptgn::impl::ApplicationAccessor::ctx(app).renderer;
 }
 
 Renderer& Editor::GetRenderer() {
-	return impl::ApplicationAccessor::ctx(app).renderer;
+	return ::ptgn::impl::ApplicationAccessor::ctx(app).renderer;
 }
 
 DebugSystem& Editor::GetDebugSystem() {
-	return impl::ApplicationAccessor::ctx(app).debug;
+	return ::ptgn::impl::ApplicationAccessor::ctx(app).debug;
 }
 
 const DebugSystem& Editor::GetDebugSystem() const {
-	return impl::ApplicationAccessor::ctx(app).debug;
+	return ::ptgn::impl::ApplicationAccessor::ctx(app).debug;
 }
 
 void Editor::SetApplicationState(ApplicationState state) {
-	impl::ApplicationAccessor::ctx(app).state = state;
+	::ptgn::impl::ApplicationAccessor::ctx(app).state = state;
 }
 
 ApplicationState Editor::GetApplicationState() const {
-	return impl::ApplicationAccessor::ctx(app).state;
+	return ::ptgn::impl::ApplicationAccessor::ctx(app).state;
 }
 
 std::optional<path> Editor::GetProjectRoot() const {
 	const auto& app_context{
-		impl::ApplicationAccessor::ctx(app)
+		::ptgn::impl::ApplicationAccessor::ctx(app)
 	};
 
 	if (!app_context.project.has_value()) {
@@ -2942,21 +3361,21 @@ std::optional<path> Editor::GetProjectRoot() const {
 	return project_path.parent_path();
 }
 
-impl::TextureId Editor::GetPresentationTexture() const {
-	impl::RendererAccessor renderer{ impl::ApplicationAccessor::ctx(app).renderer };
+::ptgn::impl::TextureId Editor::GetPresentationTexture() const {
+	::ptgn::impl::RendererAccessor renderer{ ::ptgn::impl::ApplicationAccessor::ctx(app).renderer };
 	auto texture{ renderer.GetPresentationTexture() };
 	return texture;
 }
 
 V2_int Editor::GetPresentationTextureSize() const {
-	impl::RendererAccessor renderer{ impl::ApplicationAccessor::ctx(app).renderer };
+	::ptgn::impl::RendererAccessor renderer{ ::ptgn::impl::ApplicationAccessor::ctx(app).renderer };
 	auto texture{ renderer.GetPresentationTexture() };
 	return renderer.GetSize(texture).value();
 }
 
 void Editor::UpdateProjectLocalState() {
 	auto& app_context{
-		impl::ApplicationAccessor::ctx(app)
+		::ptgn::impl::ApplicationAccessor::ctx(app)
 	};
 
 	if (!app_context.project.has_value()) {
@@ -2986,7 +3405,7 @@ void Editor::SaveEditorLocalStateIfChanged() {
 	PTGN_ASSERT(context_, "Editor context must be initialized");
 
 	auto& app_context{
-		impl::ApplicationAccessor::ctx(app)
+		::ptgn::impl::ApplicationAccessor::ctx(app)
 	};
 
 	if (!app_context.project.has_value()) {
@@ -3018,7 +3437,7 @@ void Editor::OnProjectChanged() {
 	);
 
 	auto& app_context{
-		impl::ApplicationAccessor::ctx(
+		::ptgn::impl::ApplicationAccessor::ctx(
 			app
 		)
 	};
@@ -3062,10 +3481,10 @@ void Editor::OnProjectChanged() {
 }
 
 void Editor::SetSceneEntityPickingEnabled(Scene& scene, bool enabled) {
-	impl::RendererAccessor renderer{ GetRenderer() };
+	::ptgn::impl::RendererAccessor renderer{ GetRenderer() };
 
-	for (auto [entity, framebuffer] : scene.EntitiesWith<impl::FramebufferObject>()) {
-		renderer.SetEntityPickingEnabled(static_cast<impl::FramebufferId>(framebuffer), enabled);
+	for (auto [entity, framebuffer] : scene.EntitiesWith<::ptgn::impl::FramebufferObject>()) {
+		renderer.SetEntityPickingEnabled(static_cast<::ptgn::impl::FramebufferId>(framebuffer), enabled);
 	}
 }
 
@@ -3128,7 +3547,7 @@ void Editor::BuildDefaultDockLayout(std::uint32_t dockspace_id) {
 }
 
 std::size_t Editor::GetMaxTextureSlots() const {
-	impl::RendererAccessor renderer{ impl::ApplicationAccessor::ctx(app).renderer };
+	::ptgn::impl::RendererAccessor renderer{ ::ptgn::impl::ApplicationAccessor::ctx(app).renderer };
 	return renderer.GetMaxTextureSlots();
 }
 

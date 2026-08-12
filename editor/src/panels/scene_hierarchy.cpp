@@ -93,7 +93,7 @@ struct DeletionRule {
 };
 
 bool IsManagedButtonVisual(Entity entity) {
-	if (!ptgn::HasParent(entity) || !GetParent(entity).Has<impl::ButtonData>()) {
+	if (!ptgn::HasParent(entity) || !GetParent(entity).Has<::ptgn::impl::ButtonData>()) {
 		return false;
 	}
 
@@ -102,7 +102,7 @@ bool IsManagedButtonVisual(Entity entity) {
 }
 
 bool IsCameraEntity(Entity entity) {
-	return entity.Has<impl::CameraData>();
+	return entity.Has<::ptgn::impl::CameraData>();
 }
 
 bool IsPrimarySceneCamera(Entity entity) {
@@ -1674,7 +1674,7 @@ bool SceneHierarchyPanel::DrawPrefabs(EditorContext& ctx) {
 		ImGui::PushID(key.value.c_str());
 
 		auto prefab_asset{
-			impl::AssetAccessor{ assets }.Get<Prefab>(key)
+			::ptgn::impl::AssetAccessor{ assets }.Get<Prefab>(key)
 		};
 
 		auto& prefab{
@@ -1964,7 +1964,7 @@ bool SceneHierarchyPanel::DrawPrefabs(EditorContext& ctx) {
 	if (prefab_to_duplicate.has_value() &&
 		project_root.has_value()) {
 		auto source{
-			impl::AssetAccessor{ assets }.Get<Prefab>(
+			::ptgn::impl::AssetAccessor{ assets }.Get<Prefab>(
 				prefab_to_duplicate.value()
 			)
 		};

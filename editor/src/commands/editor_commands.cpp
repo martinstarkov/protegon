@@ -168,7 +168,7 @@ private:
 	}
 
 	auto prefab_asset{
-		impl::AssetAccessor{ assets }.Get<Prefab>(key)
+		::ptgn::impl::AssetAccessor{ assets }.Get<Prefab>(key)
 	};
 
 	return prefab_asset.get();
@@ -267,7 +267,7 @@ Entity DuplicateEntityNode(Scene& scene, Entity source) {
 
 	// CopyEntity copied the source hierarchy references.
 	// Remove them because the duplicated hierarchy is rebuilt below.
-	duplicate.Remove<impl::Parent, impl::Children>();
+	duplicate.Remove<::ptgn::impl::Parent, ::ptgn::impl::Children>();
 
 	if (HasChildren(source)) {
 		auto children{ GetChildren(source) };

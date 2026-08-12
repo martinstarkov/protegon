@@ -95,7 +95,7 @@ struct PendingSceneOrderMove {
 	}
 
 	return std::string{
-		impl::GetSceneRegistration(
+		::ptgn::impl::GetSceneRegistration(
 			scene.GetRegisteredType()
 		).display_name
 	};
@@ -267,7 +267,7 @@ void SelectDefaultEntity(
 		scene.GetRenderTarget()
 	};
 	const auto fixed_camera{
-		impl::SceneContextAccessor::GetFixedCamera(
+		::ptgn::impl::SceneContextAccessor::GetFixedCamera(
 			scene_ctx
 		)
 	};
@@ -417,20 +417,20 @@ void DrawAddScenePopup(
 
 	if (ImGui::MenuItem("Scene")) {
 		ctx.editor.CreateProjectScene(
-			impl::kBaseSceneType
+			::ptgn::impl::kBaseSceneType
 		);
 		ImGui::CloseCurrentPopup();
 	}
 
 	std::vector<
-		const impl::SceneRegistryEntry*
+		const ::ptgn::impl::SceneRegistryEntry*
 	> registrations;
 	registrations.reserve(
-		impl::GetSceneRegistry().size()
+		::ptgn::impl::GetSceneRegistry().size()
 	);
 
 	for (const auto& [_type, registration] :
-		 impl::GetSceneRegistry()) {
+		 ::ptgn::impl::GetSceneRegistry()) {
 		registrations.emplace_back(
 			&registration
 		);
@@ -580,9 +580,9 @@ void SceneListPanel::DrawSceneDetails(
 	}
 
 	if (state.scene_type !=
-			impl::kBaseSceneType) {
+			::ptgn::impl::kBaseSceneType) {
 		const auto& registration{
-			impl::GetSceneRegistration(
+			::ptgn::impl::GetSceneRegistration(
 				state.scene_type
 			)
 		};
@@ -1036,7 +1036,7 @@ void SceneListPanel::SetSelectedScene(
 			auto& scene_ctx{ next_scene->ctx() };
 			const Entity render_target{ next_scene->GetRenderTarget() };
 			const Entity fixed_camera{
-				impl::SceneContextAccessor::GetFixedCamera(scene_ctx)
+				::ptgn::impl::SceneContextAccessor::GetFixedCamera(scene_ctx)
 			};
 			const Entity camera{ scene_ctx.camera };
 			Entity selected{
@@ -1088,13 +1088,13 @@ void SceneListPanel::RebuildSceneEditorState(Scene* scene) {
 
 	const std::string scene_type{
 		scene->GetRegisteredType().empty()
-			? std::string{ impl::kBaseSceneType }
+			? std::string{ ::ptgn::impl::kBaseSceneType }
 			: std::string{ scene->GetRegisteredType() }
 	};
 
-	if (scene_type == impl::kBaseSceneType) {
+	if (scene_type == ::ptgn::impl::kBaseSceneType) {
 		state_ = SceneEditorState{
-			.scene_type = std::string{ impl::kBaseSceneType },
+			.scene_type = std::string{ ::ptgn::impl::kBaseSceneType },
 			.type_display_name = "Scene",
 			.scene_key = scene->GetTag(),
 			.parameters = json::object(),
@@ -1102,7 +1102,7 @@ void SceneListPanel::RebuildSceneEditorState(Scene* scene) {
 		return;
 	}
 
-	const auto& registration{ impl::GetSceneRegistration(scene_type) };
+	const auto& registration{ ::ptgn::impl::GetSceneRegistration(scene_type) };
 	state_ = SceneEditorState{
 		.scene_type = registration.type,
 		.type_display_name = TypeNameWithoutNamespaces(registration.type),

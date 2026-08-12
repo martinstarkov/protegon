@@ -174,14 +174,14 @@ bool ApplyGizmoDeltaToVisualTransforms(
 	return changed;
 }
 
-void MarkParentButtonDirty(Entity entity, impl::ButtonDirty dirty) {
+void MarkParentButtonDirty(Entity entity, ::ptgn::impl::ButtonDirty dirty) {
 	Entity parent{ GetParent(entity) };
 
-	if (!parent || !parent.Has<impl::ButtonData>()) {
+	if (!parent || !parent.Has<::ptgn::impl::ButtonData>()) {
 		return;
 	}
 
-	parent.Get<impl::ButtonData>().dirty |= dirty;
+	parent.Get<::ptgn::impl::ButtonData>().dirty |= dirty;
 }
 
 bool ApplyGizmoDeltaToButtonVisualTransforms(
@@ -191,21 +191,21 @@ bool ApplyGizmoDeltaToButtonVisualTransforms(
 
 	if (auto visuals{ entity.TryGet<ButtonBackgroundVisuals>() }) {
 		if (ApplyGizmoDeltaToVisualTransforms(*visuals, handle, before, after)) {
-			MarkParentButtonDirty(entity, impl::ButtonDirty::Background);
+			MarkParentButtonDirty(entity, ::ptgn::impl::ButtonDirty::Background);
 			changed = true;
 		}
 	}
 
 	if (auto visuals{ entity.TryGet<ButtonBorderVisuals>() }) {
 		if (ApplyGizmoDeltaToVisualTransforms(*visuals, handle, before, after)) {
-			MarkParentButtonDirty(entity, impl::ButtonDirty::Border);
+			MarkParentButtonDirty(entity, ::ptgn::impl::ButtonDirty::Border);
 			changed = true;
 		}
 	}
 
 	if (auto visuals{ entity.TryGet<ButtonTextVisuals>() }) {
 		if (ApplyGizmoDeltaToVisualTransforms(*visuals, handle, before, after)) {
-			MarkParentButtonDirty(entity, impl::ButtonDirty::Text);
+			MarkParentButtonDirty(entity, ::ptgn::impl::ButtonDirty::Text);
 
 			if (entity.Has<TextLayout>()) {
 				entity.Get<TextLayout>().dirty = true;
@@ -217,7 +217,7 @@ bool ApplyGizmoDeltaToButtonVisualTransforms(
 
 	if (auto visuals{ entity.TryGet<ButtonSpriteVisuals>() }) {
 		if (ApplyGizmoDeltaToVisualTransforms(*visuals, handle, before, after)) {
-			MarkParentButtonDirty(entity, impl::ButtonDirty::Sprite);
+			MarkParentButtonDirty(entity, ::ptgn::impl::ButtonDirty::Sprite);
 			changed = true;
 		}
 	}
@@ -271,7 +271,7 @@ std::optional<V2_int> WorldToRenderTargetPixel(
 	Entity render_target_entity,
 	V2_float world_position
 ) {
-	if (!render_target_entity.Has<impl::FramebufferObject>()) {
+	if (!render_target_entity.Has<::ptgn::impl::FramebufferObject>()) {
 		return std::nullopt;
 	}
 
@@ -360,16 +360,16 @@ std::optional<V2_int> ScreenToFramebufferPixel(
 }
 
 Entity ResolveRenderTargetPick(
-	Scene& scene, impl::RendererAccessor& renderer, Entity outer_entity, V2_float world_position
+	Scene& scene, ::ptgn::impl::RendererAccessor& renderer, Entity outer_entity, V2_float world_position
 ) {
-	if (!outer_entity || !outer_entity.Has<impl::FramebufferObject>()) {
+	if (!outer_entity || !outer_entity.Has<::ptgn::impl::FramebufferObject>()) {
 		return outer_entity;
 	}
 
 	RenderTarget render_target{ outer_entity };
 
 	auto framebuffer{
-		static_cast<impl::FramebufferId>(render_target.Get<impl::FramebufferObject>())
+		static_cast<::ptgn::impl::FramebufferId>(render_target.Get<::ptgn::impl::FramebufferObject>())
 	};
 
 	if (!renderer.IsEntityPickingEnabled(framebuffer)) {
@@ -384,7 +384,7 @@ Entity ResolveRenderTargetPick(
 
 	auto nested_id{ renderer.ReadEntityId(framebuffer, pixel.value()) };
 
-	if (!nested_id.has_value() || nested_id.value() == impl::kNoEntityId) {
+	if (!nested_id.has_value() || nested_id.value() == ::ptgn::impl::kNoEntityId) {
 		return outer_entity;
 	}
 
@@ -604,7 +604,7 @@ std::optional<V2_float> RenderTargetPixelToWorld(
 	Entity render_target_entity,
 	V2_float pixel
 ) {
-	if (!render_target_entity.Has<impl::FramebufferObject>()) {
+	if (!render_target_entity.Has<::ptgn::impl::FramebufferObject>()) {
 		return std::nullopt;
 	}
 
@@ -669,7 +669,7 @@ bool ContainsEntity(const std::vector<Entity>& entities, Entity entity) {
 std::vector<Entity> GetCustomTargetCameras(Scene& scene) {
 	std::vector<Entity> cameras;
 
-	for (auto [entity, _camera] : scene.EntitiesWith<impl::CameraData>()) {
+	for (auto [entity, _camera] : scene.EntitiesWith<::ptgn::impl::CameraData>()) {
 		SceneCamera camera{ entity };
 
 		if (camera.GetRenderTarget() != scene.GetRenderTarget()) {
@@ -1398,7 +1398,7 @@ void ViewportPanel::DrawSceneCameraOutlines(
 
 	Frame from{ Frame::World };
 
-	for (auto [c, _camera] : scene->EntitiesWith<impl::CameraData>()) {
+	for (auto [c, _camera] : scene->EntitiesWith<::ptgn::impl::CameraData>()) {
 		SceneCamera camera{ c };
 
 		auto color{ kCameraOutlineColor };
@@ -1565,7 +1565,7 @@ void SetImageBlendMode(const ImDrawList*, const ImDrawCmd* cmd) {
 	auto* renderer_ptr{ static_cast<Renderer*>(cmd->UserCallbackData) };
 	PTGN_ASSERT(renderer_ptr);
 
-	impl::RendererAccessor renderer{ *renderer_ptr };
+	::ptgn::impl::RendererAccessor renderer{ *renderer_ptr };
 
 	renderer.SetBlendMode(BlendMode::ReplaceRGBA, true);
 }
@@ -1832,7 +1832,7 @@ void ViewportPanel::DrawSelectedEntityGizmo(
 	if (selected_entity == scene.GetRenderTarget()) {
 		direct_frame = Frame::Display;
 		render_paths.push_back(EntityRenderPath{ .id{ kDirectOccurrenceId } });
-	} else if (selected_entity.Has<impl::CameraData>()) {
+	} else if (selected_entity.Has<::ptgn::impl::CameraData>()) {
 		// Cameras are edited in the coordinate system of their parent render target.
 		render_target_transform = GetTransform(SceneCamera{ selected_entity }.GetRenderTarget());
 		editable_transform		= editable_transform.RelativeTo(render_target_transform);
@@ -1859,7 +1859,7 @@ void ViewportPanel::DrawSelectedEntityGizmo(
 	auto applied_handle{ gizmo_state_.active != GizmoHandle::None ? gizmo_state_.active
 																  : active_handle_before_update };
 
-	if (selected_entity.Has<impl::CameraData>()) {
+	if (selected_entity.Has<::ptgn::impl::CameraData>()) {
 		editable_transform = editable_transform.InverseRelativeTo(render_target_transform);
 	}
 
@@ -1916,10 +1916,10 @@ void ViewportPanel::HandleEntityPicking(
 	auto scene_target{ scene->GetRenderTarget() };
 
 	auto scene_framebuffer{
-		static_cast<impl::FramebufferId>(scene_target.Get<impl::FramebufferObject>())
+		static_cast<::ptgn::impl::FramebufferId>(scene_target.Get<::ptgn::impl::FramebufferObject>())
 	};
 
-	impl::RendererAccessor renderer{ ctx.editor.GetRenderer() };
+	::ptgn::impl::RendererAccessor renderer{ ctx.editor.GetRenderer() };
 
 	if (!renderer.IsEntityPickingEnabled(scene_framebuffer)) {
 		return;
@@ -1965,7 +1965,7 @@ void ViewportPanel::HandleEntityPicking(
 
 	auto& hierarchy{ ctx.editor.GetSceneHierarchyPanel() };
 
-	if (!outer_id.has_value() || outer_id.value() == impl::kNoEntityId) {
+	if (!outer_id.has_value() || outer_id.value() == ::ptgn::impl::kNoEntityId) {
 		hierarchy.SetSelectedEntity({});
 		return;
 	}

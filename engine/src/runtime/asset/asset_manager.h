@@ -576,6 +576,12 @@ private:
 
 	[[nodiscard]] ecs::Entity CreateAsset();
 	[[nodiscard]] path ResolveAssetPath(const SerializedAsset& asset) const;
+	[[nodiscard]] path ResolvePathBackedAssetSource(const path& source_path) const;
+	[[nodiscard]] std::optional<path> LocalizeProjectAsset(
+		const AssetKey& key,
+		AssetKind kind,
+		const path& source_path
+	);
 	[[nodiscard]] AssetKey MakeUniqueAssetKey(const path& source_path) const;
 	[[nodiscard]] impl::AssetMetadata ProbeMetadata(const SerializedAsset& asset) const;
 	[[nodiscard]] std::vector<AssetKey> ExpandDependencies(

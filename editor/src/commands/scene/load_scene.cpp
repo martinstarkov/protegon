@@ -38,7 +38,7 @@ void LoadSceneCommand::Apply(const SerializedScene& scene) const {
 	auto& manager{ ctx_->editor.GetSceneManager() };
 	if (!manager.ReEnterFactory(
 			scene_key_,
-			impl::MakeSceneFactory(scene, runtime_)
+			::ptgn::impl::MakeSceneFactory(scene, runtime_)
 		)) {
 		return;
 	}

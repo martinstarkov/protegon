@@ -27,6 +27,7 @@
 #include "app/application_state.h"
 #include "app/project.h"
 #include "core/assert.h"
+#include "core/build_info.h"
 #include "core/event/event.h"
 #include "core/event/event_handler.h"
 #include "core/event/window_event.h"
@@ -72,7 +73,7 @@ impl::AssetLoadTicket LoadStartupDependencies(
 		PTGN_WARN(
 			"Failed to load ",
 			progress.failed_assets,
-			" startup asset(s); continuing with available assets"
+				" startup asset(s); continuing with available assets"
 		);
 	}
 
@@ -99,9 +100,26 @@ void LoadProjectPreloads(Application& app) {
 		PTGN_WARN(
 			"Failed to load ",
 			progress.failed_assets,
-			" project preload asset(s); continuing with available assets"
+				" project preload asset(s); continuing with available assets"
 		);
 	}
+}
+
+[[nodiscard]] path ResolveStartupProjectPath(
+	const path& project_path
+) {
+	if (project_path.empty() || project_path.is_absolute()) {
+		return project_path.lexically_normal();
+	}
+
+	const auto& build_info{ impl::GetBuildInfo() };
+	if (build_info.distribution || build_info.web) {
+		return (
+			build_info.runtime_root / project_path
+		).lexically_normal();
+	}
+
+	return project_path.lexically_normal();
 }
 
 } // namespace
@@ -115,6 +133,9 @@ Application::Application(std::string_view title, V2_int window_size) :
 	Application{ ApplicationConfig{ .window{ .title{ title }, .size{ window_size } } } } {}
 
 Application::~Application() noexcept {
+#if defined(__EMSCRIPTEN__)
+	return;
+#endif
 	if (!ctx_.project.has_value()) {
 		return;
 	}
@@ -142,30 +163,42 @@ void Application::StartProjectImpl(
 	const path& project_path,
 	const impl::SceneRegistryEntry* default_scene
 ) {
+	const path resolved_project_path{
+		ResolveStartupProjectPath(project_path)
+	};
+
 	// Existing projects created before ProjectSettings was serialized inherit the
 	// application's current configuration for any missing settings fields.
 	const auto application_defaults{ GetProjectSettings(*this) };
 
 	Project project;
 
-	if (FileExists(project_path)) {
+	if (FileExists(resolved_project_path)) {
 		project = LoadProject(
-			project_path,
+			resolved_project_path,
 			application_defaults
 		);
 	} else {
+#if defined(__EMSCRIPTEN__)
+		PTGN_ASSERT(
+			false,
+			"Project does not exist in the Web runtime filesystem: ",
+			resolved_project_path.string()
+		);
+#else
 		PTGN_ASSERT(
 			default_scene,
 			"Project does not exist. Use "
 			"StartProject<TDefaultScene>() to create it: ",
-			project_path.string()
+			resolved_project_path.string()
 		);
 
 		project = CreateProject(
-			project_path,
+			resolved_project_path,
 			*default_scene,
 			application_defaults
 		);
+#endif
 	}
 
 	ctx_.project = std::move(project);

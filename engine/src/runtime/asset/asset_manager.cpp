@@ -45,6 +45,7 @@
 
 #include "app/project.h"
 #include "core/assert.h"
+#include "core/build_info.h"
 #include "core/graphics/surface.h"
 #include "core/log.h"
 #include "core/math/vector2.h"
@@ -147,6 +148,22 @@ bool IsWithinDirectory(const path& candidate, const path& directory) {
 
 	const auto first{ relative.begin() };
 	return first != relative.end() && *first != "..";
+}
+
+[[nodiscard]] std::string_view ProjectAssetFolderName(AssetKind kind) {
+	switch (kind) {
+		using enum AssetKind;
+		case Texture: return "Textures";
+		case Audio: return "Audio";
+		case Font: return "Fonts";
+		case Shader: return "Shaders";
+		case Json: return "Json";
+		case Prefab: return "Prefabs";
+		case Scene: return "Scenes";
+		case Unknown: break;
+	}
+
+	return "Other";
 }
 
 std::optional<V2_int> ProbeImageDimensions(const path& file_path) {
@@ -1286,8 +1303,17 @@ void AssetManager::RegisterCatalog(
 		ForceUnload(asset.key, asset.kind);
 	}
 
-	project_root_ = project.file_path.parent_path().lexically_normal();
-	asset_directory_ = (project_root_.value() / project.asset_directory).lexically_normal();
+	const path project_file{
+		project.file_path.is_absolute()
+			? project.file_path.lexically_normal()
+			: GetAbsolutePath(project.file_path).lexically_normal()
+	};
+	project_root_ = project_file.parent_path();
+	asset_directory_ = (
+		project.asset_directory.is_absolute()
+			? project.asset_directory
+			: project_root_.value() / project.asset_directory
+	).lexically_normal();
 
 	catalog_.clear();
 	runtime_states_.clear();
@@ -1296,21 +1322,53 @@ void AssetManager::RegisterCatalog(
 
 	EnsureDirectory(asset_directory_.value());
 
-	for (const auto& asset : assets) {
-		PTGN_ASSERT(!asset.key.value.empty(), "Serialized asset key cannot be empty");
+	for (const auto& source_asset : assets) {
+		PTGN_ASSERT(!source_asset.key.value.empty(), "Serialized asset key cannot be empty");
 		PTGN_ASSERT(
-			asset.kind != AssetKind::Unknown,
+			source_asset.kind != AssetKind::Unknown,
 			"Serialized asset kind cannot be Unknown for key: ",
-			asset.key
+			source_asset.key
 		);
 		PTGN_ASSERT(
-			!asset.source_path.empty(),
+			!source_asset.source_path.empty(),
 			"Serialized asset path cannot be empty for key: ",
-			asset.key
+			source_asset.key
 		);
 
-		catalog_.insert_or_assign(Hash(asset.key), asset);
-		runtime_states_[Hash(asset.key)].metadata = ProbeMetadata(asset);
+		SerializedAsset asset{ source_asset };
+
+		if (asset.kind != AssetKind::Scene) {
+			if (const auto localized{
+					LocalizeProjectAsset(
+						asset.key,
+						asset.kind,
+						asset.source_path
+					)
+				}) {
+				std::error_code error;
+				const path relative{
+					std::filesystem::relative(
+						localized.value(),
+						project_root_.value(),
+						error
+					)
+				};
+
+				if (!error &&
+					!relative.empty() &&
+					!relative.generic_string().starts_with("..")) {
+					asset.source_path =
+						relative.lexically_normal();
+				}
+			}
+		}
+
+		catalog_.insert_or_assign(
+			Hash(asset.key),
+			asset
+		);
+		runtime_states_[Hash(asset.key)].metadata =
+			ProbeMetadata(asset);
 	}
 
 	RefreshCatalogFromDisk();
@@ -1547,6 +1605,160 @@ const std::vector<AssetKey>& AssetManager::GetProjectAssetDependencies() const {
 
 bool AssetManager::HasCatalogAsset(const AssetKey& key) const {
 	return catalog_.contains(Hash(key));
+}
+
+path AssetManager::ResolvePathBackedAssetSource(
+	const path& source_path
+) const {
+	if (source_path.empty()) {
+		return {};
+	}
+
+	if (source_path.is_absolute()) {
+		return source_path.lexically_normal();
+	}
+
+	if (project_root_) {
+		const path project_candidate{
+			(project_root_.value() /
+			 source_path)
+				.lexically_normal()
+		};
+
+		if (FileExists(project_candidate)) {
+			return project_candidate;
+		}
+	}
+
+	if (FileExists(source_path)) {
+		return GetAbsolutePath(
+			source_path
+		).lexically_normal();
+	}
+
+	const auto& build_info{
+		impl::GetBuildInfo()
+	};
+	const path runtime_candidate{
+		(build_info.runtime_root /
+		 source_path)
+			.lexically_normal()
+	};
+
+	if (FileExists(runtime_candidate)) {
+		return runtime_candidate;
+	}
+
+	return source_path.lexically_normal();
+}
+
+std::optional<path>
+AssetManager::LocalizeProjectAsset(
+	const AssetKey& key,
+	AssetKind kind,
+	const path& source_path
+) {
+	if (project_root_ &&
+		asset_directory_) {
+		if (const auto existing{
+				catalog_.find(Hash(key))
+			};
+			existing != catalog_.end()) {
+			const path existing_path{
+				ResolveAssetPath(
+					existing->second
+				)
+			};
+
+			if (FileExists(existing_path) &&
+				IsWithinDirectory(
+					existing_path,
+					asset_directory_.value()
+				)) {
+				return existing_path;
+			}
+		}
+	}
+
+	const path resolved_source{
+		ResolvePathBackedAssetSource(
+			source_path
+		)
+	};
+
+	if (!FileExists(resolved_source)) {
+		return std::nullopt;
+	}
+
+	if (!project_root_ ||
+		!asset_directory_) {
+		return resolved_source;
+	}
+
+	if (IsWithinDirectory(
+			resolved_source,
+			asset_directory_.value()
+		)) {
+		return resolved_source;
+	}
+
+#if defined(__EMSCRIPTEN__)
+	return resolved_source;
+#else
+	const path import_directory{
+		asset_directory_.value() /
+		ProjectAssetFolderName(kind)
+	};
+	EnsureDirectory(import_directory);
+
+	path destination{
+		(import_directory / resolved_source.filename())
+			.lexically_normal()
+	};
+
+	for (std::size_t suffix{ 2 };
+		 FileExists(destination);
+		 ++suffix) {
+		destination = (
+			import_directory /
+			(
+				resolved_source.stem().string() +
+				"_" +
+				std::to_string(suffix) +
+				resolved_source.extension().string()
+			)
+		).lexically_normal();
+	}
+
+	std::error_code error;
+	std::filesystem::copy_file(
+		resolved_source,
+		destination,
+		std::filesystem::copy_options::none,
+		error
+	);
+
+	if (error) {
+		PTGN_WARN(
+			"Failed to copy external asset into project: ",
+			resolved_source.string(),
+			" -> ",
+			destination.string(),
+			" | ",
+			error.message()
+		);
+		return std::nullopt;
+	}
+
+	PTGN_INFO(
+		"Imported external asset into project: ",
+		resolved_source.string(),
+		" -> ",
+		destination.string()
+	);
+
+	return destination;
+#endif
 }
 
 path AssetManager::ResolveAssetPath(const SerializedAsset& asset) const {
@@ -1938,18 +2150,17 @@ void AssetManager::LoadProjectAsset(AssetKey key, const path& asset_path) {
 		return;
 	}
 
-	auto kind{ impl::GetAssetKind(asset_path) };
-	if (kind == AssetKind::Texture && impl::IsFontAtlasPng(asset_path)) {
-		kind = AssetKind::Font;
+	const auto catalog_it{ catalog_.find(Hash(dependency)) };
+	if (catalog_it == catalog_.end()) {
+		PTGN_WARN(
+			"Project asset loaded without a catalog entry: ",
+			dependency
+		);
+		return;
 	}
 
-	SerializedAsset asset{
-		.key = dependency,
-		.kind = kind,
-		.source_path = asset_path,
-	};
-	catalog_.insert_or_assign(Hash(dependency), asset);
-	runtime_states_[Hash(dependency)].metadata = ProbeMetadata(asset);
+	runtime_states_[Hash(dependency)].metadata =
+		ProbeMetadata(catalog_it->second);
 	AddProjectAssetDependency(std::move(dependency));
 }
 
@@ -2318,66 +2529,193 @@ void AssetManager::Load(ShaderKey key, const ShaderPair& shader_pair) {
 	LoadShader(std::move(key), shader_pair, std::nullopt);
 }
 
-void AssetManager::Load(AssetKey key, const path& asset_path, AssetKind kind) {
-	if (!FileExists(asset_path)) {
-		PTGN_WARN("Cannot load nonexistent asset: ", asset_path.string());
+void AssetManager::Load(
+	AssetKey key,
+	const path& asset_path,
+	AssetKind kind
+) {
+	path source_path{
+		ResolvePathBackedAssetSource(
+			asset_path
+		)
+	};
+
+	AssetKind project_asset_kind{ kind };
+	if (project_asset_kind == AssetKind::Texture &&
+		FileExists(source_path) &&
+		impl::IsFontAtlasPng(source_path)) {
+		project_asset_kind = AssetKind::Font;
+	}
+
+	if (project_root_ &&
+		asset_directory_ &&
+		kind != AssetKind::Scene &&
+		kind != AssetKind::Unknown) {
+		if (const auto localized{
+				LocalizeProjectAsset(
+					key,
+					project_asset_kind,
+					source_path
+				)
+			}) {
+			source_path = localized.value();
+		}
+	}
+
+	if (!FileExists(source_path)) {
+		PTGN_WARN(
+			"Cannot load nonexistent asset: ",
+			asset_path.string()
+		);
 		return;
 	}
 
 	switch (kind) {
 		using enum AssetKind;
+
 		case Texture:
-			if (impl::IsFontAtlasPng(asset_path)) {
-				TrackAssetLoad(key, AssetKind::Font, asset_path);
-				LoadFont(FontKey{ std::move(key) }, asset_path);
+			if (impl::IsFontAtlasPng(
+					source_path
+				)) {
+				TrackAssetLoad(
+					key,
+					AssetKind::Font,
+					source_path
+				);
+				LoadFont(
+					FontKey{ std::move(key) },
+					source_path
+				);
 			} else {
-				TrackAssetLoad(key, AssetKind::Texture, asset_path);
-				LoadTexture(TextureKey{ std::move(key) }, asset_path);
+				TrackAssetLoad(
+					key,
+					AssetKind::Texture,
+					source_path
+				);
+				LoadTexture(
+					TextureKey{ std::move(key) },
+					source_path
+				);
 			}
 			break;
+
 		case Audio:
-			TrackAssetLoad(key, AssetKind::Audio, asset_path);
-			LoadAudio(AudioKey{ std::move(key) }, asset_path);
+			TrackAssetLoad(
+				key,
+				AssetKind::Audio,
+				source_path
+			);
+			LoadAudio(
+				AudioKey{ std::move(key) },
+				source_path
+			);
 			break;
+
 		case Font:
-			TrackAssetLoad(key, AssetKind::Font, asset_path);
-			LoadFont(FontKey{ std::move(key) }, asset_path);
+			TrackAssetLoad(
+				key,
+				AssetKind::Font,
+				source_path
+			);
+			LoadFont(
+				FontKey{ std::move(key) },
+				source_path
+			);
 			break;
+
 		case Json:
-			TrackAssetLoad(key, AssetKind::Json, asset_path);
-			LoadJson(JsonKey{ std::move(key) }, asset_path);
+			TrackAssetLoad(
+				key,
+				AssetKind::Json,
+				source_path
+			);
+			LoadJson(
+				JsonKey{ std::move(key) },
+				source_path
+			);
 			break;
+
 		case Prefab:
-			TrackAssetLoad(key, AssetKind::Prefab, asset_path);
-			LoadPrefab(PrefabKey{ std::move(key) }, asset_path, asset_path);
+			TrackAssetLoad(
+				key,
+				AssetKind::Prefab,
+				source_path
+			);
+			LoadPrefab(
+				PrefabKey{ std::move(key) },
+				source_path,
+				source_path
+			);
 			break;
+
 		case Shader: {
-			const auto source{ FileToString(asset_path) };
-			TrackAssetLoad(key, AssetKind::Shader, asset_path);
-			auto max_texture_slots{ impl::RendererAccessor{ renderer_ }.GetMaxTextureSlots() };
-			auto validation{ impl::ValidateShaderSource(source, max_texture_slots) };
-			if (!HasVertexAndFragmentShader(source)) {
+			const auto source{
+				FileToString(source_path)
+			};
+
+			TrackAssetLoad(
+				key,
+				AssetKind::Shader,
+				source_path
+			);
+
+			auto max_texture_slots{
+				impl::RendererAccessor{
+					renderer_
+				}.GetMaxTextureSlots()
+			};
+			auto validation{
+				impl::ValidateShaderSource(
+					source,
+					max_texture_slots
+				)
+			};
+
+			if (!HasVertexAndFragmentShader(
+					source
+				)) {
 				validation.success = false;
-				validation.log = "Shader requires both vertex and fragment stages or a configured pair.";
+				validation.log =
+					"Shader requires both vertex and fragment stages or a configured pair.";
 			}
+
 			if (!validation.success) {
-				auto& state{ runtime_states_[Hash(key)] };
-				state.load_state = AssetLoadState::Failed;
-				state.error = validation.log;
+				auto& state{
+					runtime_states_[Hash(key)]
+				};
+				state.load_state =
+					AssetLoadState::Failed;
+				state.error =
+					validation.log;
 				state.compile_error = true;
-				state.compile_log = validation.log;
+				state.compile_log =
+					validation.log;
+
 				PTGN_WARN(
-					"Shader failed validation and was not loaded: ", asset_path.string(), "\n",
+					"Shader failed validation and was not loaded: ",
+					source_path.string(),
+					"\n",
 					validation.log
 				);
 				return;
 			}
-			LoadShader(ShaderKey{ std::move(key) }, ShaderCode{ source }, std::nullopt);
+
+			LoadShader(
+				ShaderKey{ std::move(key) },
+				ShaderCode{ source },
+				std::nullopt
+			);
 			break;
 		}
-		case Scene: break;
+
+		case Scene:
+			break;
+
 		case Unknown:
-			PTGN_WARN("Unsupported asset file: ", asset_path.string());
+			PTGN_WARN(
+				"Unsupported asset file: ",
+				source_path.string()
+			);
 			break;
 	}
 }

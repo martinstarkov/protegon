@@ -256,17 +256,34 @@ function(add_protegon_to target)
       NAME
     )
 
+    set(_ptgn_preload_app_assets TRUE)
+
+    if(
+      _ptgn_distribution_target
+      AND DEFINED PTGN_BUILD_PRELOAD_APP_ASSETS
+      AND NOT PTGN_BUILD_PRELOAD_APP_ASSETS
+    )
+      set(_ptgn_preload_app_assets FALSE)
+    endif()
+
     target_link_options(
       ${target}
       PRIVATE
         "--shell-file=${PTGN_SHELL_HTML}"
-        "--preload-file=${PTGN_ASSETS_DIR}@/${_ptgn_asset_mount_name}"
         "-sALLOW_MEMORY_GROWTH=1"
         "-sFULL_ES3=1"
         "-sWARN_ON_UNDEFINED_SYMBOLS=1"
         "-sNO_EXIT_RUNTIME=1"
         "-sUSE_ZLIB=1"
     )
+
+    if(_ptgn_preload_app_assets)
+      target_link_options(
+        ${target}
+        PRIVATE
+          "--preload-file=${PTGN_ASSETS_DIR}@/${_ptgn_asset_mount_name}"
+      )
+    endif()
 
     if(
       _ptgn_distribution_target
