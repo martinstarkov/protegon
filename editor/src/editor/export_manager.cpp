@@ -1354,7 +1354,6 @@ void ExportManager::DrawOutputPanel() {
 	}
 
 	ImGui::SameLine();
-
 	ImGui::BeginDisabled(rendered_output_.empty());
 
 	if (ImGui::Button("Copy All")) {
@@ -1366,7 +1365,6 @@ void ExportManager::DrawOutputPanel() {
 	ImGui::EndDisabled();
 
 	ImGui::SameLine();
-
 	ImGui::BeginDisabled(rendered_output_.empty());
 
 	if (ImGui::Button("Jump to Bottom")) {
@@ -1376,83 +1374,209 @@ void ExportManager::DrawOutputPanel() {
 
 	ImGui::EndDisabled();
 
+	// The scroll container owns both axes. The multiline input is expanded to
+	// the exact text dimensions so it never creates a second scrollbar. This
+	// keeps normal InputTextMultiline text selection/copying while giving us one
+	// stable vertical scroll position for tail following.
+	std::string selectable_output{ rendered_output_ };
+	if (!selectable_output.empty() &&
+		selectable_output.back() == '\n') {
+		selectable_output.pop_back();
+	}
+
+	const auto& style{ ImGui::GetStyle() };
+	const float line_height{ ImGui::GetTextLineHeight() };
+
+	std::size_t line_count{ 1 };
+	float maximum_line_width{ 0.0f };
+
+	const char* line_begin{ selectable_output.data() };
+	const char* const text_end{
+		selectable_output.data() + selectable_output.size()
+	};
+
+	for (const char* cursor{ line_begin };; ++cursor) {
+		if (cursor == text_end || *cursor == '\n') {
+			maximum_line_width = std::max(
+				maximum_line_width,
+				ImGui::CalcTextSize(
+					line_begin,
+					cursor,
+					false
+				).x
+			);
+
+			if (cursor == text_end) {
+				break;
+			}
+
+			++line_count;
+			line_begin = cursor + 1;
+		}
+	}
+
+	const ImVec2 available_size{
+		ImGui::GetContentRegionAvail()
+	};
+	const float text_width{
+		maximum_line_width +
+		style.FramePadding.x * 2.0f +
+		1.0f
+	};
+	const float text_height{
+		static_cast<float>(line_count) *
+			line_height +
+		style.FramePadding.y * 2.0f
+	};
+	const float input_width{
+		std::max(
+			available_size.x,
+			text_width
+		)
+	};
+	const float input_height{
+		std::max(
+			line_height +
+				style.FramePadding.y * 2.0f,
+			text_height
+		)
+	};
+
+	ImGui::SetNextWindowContentSize(
+		ImVec2{
+			input_width,
+			input_height,
+		}
+	);
+
+	ImGui::PushStyleColor(
+		ImGuiCol_ChildBg,
+		style.Colors[ImGuiCol_FrameBg]
+	);
+	ImGui::PushStyleVar(
+		ImGuiStyleVar_ChildRounding,
+		style.FrameRounding
+	);
+	ImGui::PushStyleVar(
+		ImGuiStyleVar_ChildBorderSize,
+		style.FrameBorderSize
+	);
+	ImGui::PushStyleVar(
+		ImGuiStyleVar_WindowPadding,
+		ImVec2{ 0.0f, 0.0f }
+	);
+
 	if (ImGui::BeginChild(
 			"ExportOutputRegion",
 			ImVec2{ 0.0f, 0.0f },
-			ImGuiChildFlags_Borders
+			ImGuiChildFlags_Borders,
+			ImGuiWindowFlags_HorizontalScrollbar
 		)) {
-		const ImGuiID output_text_id{
-			ImGui::GetID("##ExportOutputText")
+		ImGuiWindow* output_window{
+			ImGui::GetCurrentWindow()
 		};
+		ImGuiContext& imgui_context{ *GImGui };
+		const auto& io{ ImGui::GetIO() };
+		constexpr float kBottomTolerance{ 2.0f };
 
-		const auto& io{
-			ImGui::GetIO()
+		const ImGuiID vertical_scrollbar_id{
+			ImGui::GetWindowScrollbarID(
+				output_window,
+				ImGuiAxis_Y
+			)
 		};
-
 		const bool output_hovered{
 			ImGui::IsWindowHovered(
 				ImGuiHoveredFlags_ChildWindows
 			)
 		};
-
-		// Explicit user interaction with the output disables
-		// following. This lets the user scroll upward or select
-		// text without new output pulling the view away.
-		const bool user_scrolling{
+		const bool user_scrolled_up_with_wheel{
 			output_hovered &&
-			io.MouseWheel != 0.0f
+			io.MouseWheel > 0.0f
+		};
+		const bool user_dragging_vertical_scrollbar{
+			imgui_context.ActiveId ==
+				vertical_scrollbar_id
 		};
 
-		const bool user_selecting{
-			output_hovered &&
-			ImGui::IsMouseDragging(
-				ImGuiMouseButton_Left
-			)
-		};
-
-		if ((user_scrolling || user_selecting) &&
-			!jump_to_bottom_requested_) {
+		// New output changing ScrollMax must never disable following. Only an
+		// explicit upward wheel action or taking control of the vertical
+		// scrollbar does that.
+		if (!jump_to_bottom_requested_ &&
+			(user_scrolled_up_with_wheel ||
+			 user_dragging_vertical_scrollbar)) {
 			follow_output_tail_ = false;
 		}
 
-		ImGui::InputTextMultiline(
-			"##ExportOutputText",
-			rendered_output_.data(),
-			rendered_output_.size() + 1,
-			ImVec2{ -FLT_MIN, -FLT_MIN },
-			ImGuiInputTextFlags_ReadOnly
+		// Make the actual InputTextMultiline visually merge into the outer
+		// scrolling frame. It is exactly as large as its text, so it has no
+		// scrollbars of its own. Horizontal scrolling is handled by the outer
+		// child, which also means selection coordinates remain correct.
+		ImGui::PushStyleColor(
+			ImGuiCol_FrameBg,
+			ImVec4{ 0.0f, 0.0f, 0.0f, 0.0f }
+		);
+		ImGui::PushStyleVar(
+			ImGuiStyleVar_FrameBorderSize,
+			0.0f
+		);
+		ImGui::PushStyleVar(
+			ImGuiStyleVar_FrameRounding,
+			0.0f
 		);
 
-		if (auto* output_window{
-				ImGui::FindWindowByID(
-					output_text_id
-				)
-			}) {
-			const bool should_scroll_to_bottom{
-				jump_to_bottom_requested_ ||
-				follow_output_tail_
-			};
+		ImGui::InputTextMultiline(
+			"##ExportOutputText",
+			selectable_output.data(),
+			selectable_output.size() + 1,
+			ImVec2{
+				input_width,
+				input_height,
+			},
+			ImGuiInputTextFlags_ReadOnly |
+				ImGuiInputTextFlags_NoHorizontalScroll
+		);
 
-			if (should_scroll_to_bottom) {
-				// Set both the current position and ImGui's
-				// target position. The target is important
-				// because the multiline widget can update its
-				// ScrollMax as new text is laid out.
-				output_window->Scroll.y =
-					output_window->ScrollMax.y;
+		ImGui::PopStyleVar(2);
+		ImGui::PopStyleColor();
 
-				ImGui::SetScrollY(
-					output_window,
-					output_window->ScrollMax.y
-				);
+		const bool at_bottom{
+			output_window->Scroll.y >=
+				output_window->ScrollMax.y -
+					kBottomTolerance
+		};
 
-				follow_output_tail_ = true;
-				jump_to_bottom_requested_ = false;
-			}
+		// Manually returning to the bottom resumes following. Do not do this
+		// while the user still owns the scrollbar, otherwise dragging upward
+		// from the bottom would immediately re-enable following.
+		if (!follow_output_tail_ &&
+			!user_dragging_vertical_scrollbar &&
+			!user_scrolled_up_with_wheel &&
+			at_bottom) {
+			follow_output_tail_ = true;
+		}
+
+		if (follow_output_tail_ ||
+			jump_to_bottom_requested_) {
+			// ScrollMax belongs to this one outer scrolling region and already
+			// reflects the explicit current-frame content size. Updating both the
+			// immediate value and target makes Jump to Bottom immediate and keeps
+			// subsequent frames pinned as new lines are added.
+			output_window->Scroll.y =
+				output_window->ScrollMax.y;
+			ImGui::SetScrollY(
+				output_window,
+				output_window->ScrollMax.y
+			);
+
+			follow_output_tail_ = true;
+			jump_to_bottom_requested_ = false;
 		}
 	}
 
 	ImGui::EndChild();
+	ImGui::PopStyleVar(3);
+	ImGui::PopStyleColor();
 }
 
 bool ExportManager::IsBusy() const {
