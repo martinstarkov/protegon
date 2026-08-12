@@ -32,6 +32,14 @@ enum class ExportTaskState {
 	Cancelled,
 };
 
+enum class ExportPhase {
+	Idle,
+	ProjectFiles,
+	Build,
+	Output,
+	Clean,
+};
+
 struct ExportRequest {
 	ExportTarget target{ ExportTarget::Desktop };
 	ExportConfiguration configuration{ ExportConfiguration::Release };
@@ -70,6 +78,7 @@ struct ExportSharedState {
 	std::string output;
 	std::atomic<std::uint64_t> output_revision{ 0 };
 	std::atomic<float> progress{ 0.0f };
+	std::atomic<ExportPhase> phase{ ExportPhase::Idle };
 	std::atomic<bool> cancel_requested{ false };
 
 	std::mutex process_mutex;
@@ -106,6 +115,8 @@ public:
 	[[nodiscard]] bool IsBusy() const;
 	[[nodiscard]] bool CanCancel() const;
 	[[nodiscard]] ExportTaskState GetState() const;
+	[[nodiscard]] ExportPhase GetPhase() const;
+	[[nodiscard]] bool IsExportingProjectFiles() const;
 	[[nodiscard]] float GetProgress() const;
 	[[nodiscard]] path GetBuildDirectory(
 		ExportTarget target,

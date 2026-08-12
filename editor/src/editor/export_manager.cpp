@@ -857,6 +857,12 @@ bool ExportManager::Export(
 		0.0f,
 		std::memory_order_relaxed
 	);
+	state->phase.store(
+		request.project_directory.has_value()
+			? ExportPhase::ProjectFiles
+			: ExportPhase::Build,
+		std::memory_order_relaxed
+	);
 
 	auto future{
 		std::async(
@@ -901,11 +907,75 @@ bool ExportManager::Export(
 				AppendOutputLine(state, "");
 
 				const bool web{
-					request.target ==
-					ExportTarget::Web
+					request.target == ExportTarget::Web
+				};
+				std::optional<path> staged_project_directory;
+				const path staging_root{
+					build_directory / "runtime_staging"
 				};
 
+				if (request.project_directory) {
+					state->phase.store(
+						ExportPhase::ProjectFiles,
+						std::memory_order_relaxed
+					);
+
+					std::error_code error;
+					fs::remove_all(
+						staging_root,
+						error
+					);
+					error.clear();
+
+					const path destination{
+						request.project_mount.empty()
+							? staging_root
+							: staging_root /
+								request.project_mount
+					};
+
+					AppendOutputLine(
+						state,
+						"Creating project snapshot..."
+					);
+					if (!CopyExportSource(
+							request.project_directory.value(),
+							destination,
+							true,
+							true,
+							state,
+							0.0f,
+							0.10f
+						)) {
+						result.cancelled = IsCancelled(state);
+						return result;
+					}
+
+					staged_project_directory = destination;
+				}
+
+				if (IsCancelled(state)) {
+					result.cancelled = true;
+					return result;
+				}
+
+				state->phase.store(
+					ExportPhase::Build,
+					std::memory_order_relaxed
+				);
+
 				if (!web) {
+					const float build_base{
+						request.project_directory
+							? 0.10f
+							: 0.0f
+					};
+					const float build_scale{
+						request.project_directory
+							? 0.75f
+							: 0.80f
+					};
+
 					if (!RunDistributionBuild(
 							info,
 							request.target,
@@ -917,11 +987,10 @@ bool ExportManager::Export(
 							{},
 							true,
 							state,
-							0.0f,
-							0.80f
+							build_base,
+							build_scale
 						)) {
-						result.cancelled =
-							IsCancelled(state);
+						result.cancelled = IsCancelled(state);
 						return result;
 					}
 
@@ -930,7 +999,12 @@ bool ExportManager::Export(
 						return result;
 					}
 
-					if (request.project_directory) {
+					state->phase.store(
+						ExportPhase::Output,
+						std::memory_order_relaxed
+					);
+
+					if (staged_project_directory) {
 						const path destination{
 							request.project_mount.empty()
 								? request.output_directory
@@ -940,50 +1014,37 @@ bool ExportManager::Export(
 
 						AppendOutputLine(
 							state,
-							"Exporting project: " +
-								request.project_directory
-									->string()
+							"Copying project snapshot to output..."
 						);
 						if (!CopyExportSource(
-								request.project_directory
-									.value(),
+								staged_project_directory.value(),
 								destination,
 								request.replace_existing,
 								!request.project_mount.empty(),
 								state,
-								0.80f,
-								0.20f
+								0.85f,
+								0.15f
 							)) {
-							result.cancelled =
-								IsCancelled(state);
+							result.cancelled = IsCancelled(state);
 							return result;
 						}
-					} else if (
-						!request.asset_source_directory
-							.empty()
-					) {
+					} else if (!request.asset_source_directory.empty()) {
 						AppendOutputLine(
 							state,
 							"Exporting runtime assets: " +
-								request
-									.asset_source_directory
-									.string()
+								request.asset_source_directory.string()
 						);
 						if (!CopyExportSource(
-								request
-									.asset_source_directory,
+								request.asset_source_directory,
 								request.output_directory /
-									request
-										.asset_source_directory
-										.filename(),
+									request.asset_source_directory.filename(),
 								request.replace_existing,
 								true,
 								state,
 								0.80f,
 								0.20f
 							)) {
-							result.cancelled =
-								IsCancelled(state);
+							result.cancelled = IsCancelled(state);
 							return result;
 						}
 					} else {
@@ -993,50 +1054,6 @@ bool ExportManager::Export(
 						);
 					}
 				} else {
-					std::optional<path>
-						staged_project_directory;
-					const path staging_root{
-						build_directory /
-						"runtime_staging"
-					};
-
-					std::error_code error;
-					fs::remove_all(
-						staging_root,
-						error
-					);
-					error.clear();
-
-					if (request.project_directory) {
-						const path destination{
-							request.project_mount.empty()
-								? staging_root
-								: staging_root /
-									request.project_mount
-						};
-
-						AppendOutputLine(
-							state,
-							"Staging project..."
-						);
-						if (!CopyExportSource(
-								request.project_directory
-									.value(),
-								destination,
-								true,
-								true,
-								state,
-								0.0f,
-								0.10f
-							)) {
-							result.cancelled =
-								IsCancelled(state);
-							return result;
-						}
-						staged_project_directory =
-							destination;
-					}
-
 					if (!RunDistributionBuild(
 							info,
 							request.target,
@@ -1046,8 +1063,7 @@ bool ExportManager::Export(
 							{},
 							staged_project_directory,
 							request.project_mount,
-							!request.project_directory
-								.has_value(),
+							!request.project_directory.has_value(),
 							state,
 							request.project_directory
 								? 0.10f
@@ -1056,8 +1072,7 @@ bool ExportManager::Export(
 								? 0.80f
 								: 0.90f
 						)) {
-						result.cancelled =
-							IsCancelled(state);
+						result.cancelled = IsCancelled(state);
 						return result;
 					}
 
@@ -1065,6 +1080,11 @@ bool ExportManager::Export(
 						result.cancelled = true;
 						return result;
 					}
+
+					state->phase.store(
+						ExportPhase::Output,
+						std::memory_order_relaxed
+					);
 
 					const path web_output{
 						build_directory / "dist"
@@ -1082,8 +1102,7 @@ bool ExportManager::Export(
 							0.90f,
 							0.10f
 						)) {
-						result.cancelled =
-							IsCancelled(state);
+						result.cancelled = IsCancelled(state);
 						return result;
 					}
 				}
@@ -1140,6 +1159,10 @@ bool ExportManager::Clean(
 	);
 	state->progress.store(
 		0.0f,
+		std::memory_order_relaxed
+	);
+	state->phase.store(
+		ExportPhase::Clean,
 		std::memory_order_relaxed
 	);
 
@@ -1253,6 +1276,11 @@ void ExportManager::OnUpdate() {
 			"Export failed."
 		);
 	}
+
+	shared_state_->phase.store(
+		ExportPhase::Idle,
+		std::memory_order_relaxed
+	);
 
 	if (result.success &&
 		result.kind ==
@@ -1390,6 +1418,17 @@ bool ExportManager::CanCancel() const {
 
 ExportTaskState ExportManager::GetState() const {
 	return state_;
+}
+
+ExportPhase ExportManager::GetPhase() const {
+	return shared_state_->phase.load(
+		std::memory_order_relaxed
+	);
+}
+
+bool ExportManager::IsExportingProjectFiles() const {
+	return IsBusy() &&
+		GetPhase() == ExportPhase::ProjectFiles;
 }
 
 float ExportManager::GetProgress() const {

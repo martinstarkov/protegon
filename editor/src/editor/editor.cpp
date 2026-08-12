@@ -1905,6 +1905,10 @@ bool Editor::IsStartupProjectScene(
 void Editor::SavePendingBootstrapScenes() {
 #if defined(__EMSCRIPTEN__)
 	return;
+#else
+	if (export_manager_.IsExportingProjectFiles()) {
+		return;
+	}
 #endif
 	if (pending_scene_bootstrap_saves_.empty()) {
 		return;
@@ -2010,8 +2014,7 @@ void Editor::DrawMainMenuBar() {
 				"Save",
 				nullptr,
 				false,
-				CanSaveProject() &&
-					!export_manager_.IsBusy()
+				CanSaveProject()
 			)) {
 			SaveProjectScene();
 		}
@@ -2760,9 +2763,6 @@ void Editor::OnUpdate() {
 			false
 		) &&
 		CanSaveProject()
-#if !defined(__EMSCRIPTEN__)
-		&& !export_manager_.IsBusy()
-#endif
 	) {
 		SaveProjectScene();
 	}
@@ -3202,6 +3202,10 @@ bool Editor::IsDirectRuntime() const {
 bool Editor::CanSaveProject() const {
 #if defined(__EMSCRIPTEN__)
 	return false;
+#else
+	if (export_manager_.IsExportingProjectFiles()) {
+		return false;
+	}
 #endif
 
 	if (!context_ || IsPlaying()) {
