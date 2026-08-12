@@ -1377,6 +1377,321 @@ void UpdateAndDrawGizmoInstances(
 	}
 }
 
+[[nodiscard]] float GetDockAxisValue(
+	const ImVec2& value,
+	ImGuiAxis axis
+) {
+	return axis == ImGuiAxis_X
+		? value.x
+		: value.y;
+}
+
+void SetDockAxisValue(
+	ImVec2& value,
+	ImGuiAxis axis,
+	float axis_value
+) {
+	if (axis == ImGuiAxis_X) {
+		value.x = axis_value;
+	} else {
+		value.y = axis_value;
+	}
+}
+
+[[nodiscard]] ImGuiDockNode* FindDockResizeBranch(
+	ImGuiDockNode* node,
+	ImGuiAxis axis
+) {
+	if (!node) {
+		return nullptr;
+	}
+
+	ImGuiDockNode* branch{ node };
+
+	for (ImGuiDockNode* parent{ node->ParentNode };
+		 parent;
+		 branch = parent, parent = parent->ParentNode) {
+		if (parent->SplitAxis == axis) {
+			return branch;
+		}
+	}
+
+	return nullptr;
+}
+
+[[nodiscard]] std::optional<float> SetDockBranchSize(
+	ImGuiDockNode* branch,
+	ImGuiAxis axis,
+	float requested_size
+) {
+	if (!branch ||
+		!branch->ParentNode ||
+		branch->ParentNode->SplitAxis != axis) {
+		return std::nullopt;
+	}
+
+	ImGuiDockNode* parent{ branch->ParentNode };
+
+	ImGuiDockNode* sibling{
+		parent->ChildNodes[0] == branch
+			? parent->ChildNodes[1]
+			: parent->ChildNodes[0]
+	};
+
+	if (!sibling) {
+		return std::nullopt;
+	}
+
+	const float branch_size{
+		GetDockAxisValue(branch->Size, axis)
+	};
+	const float sibling_size{
+		GetDockAxisValue(sibling->Size, axis)
+	};
+	const float available_size{
+		branch_size + sibling_size
+	};
+
+	if (available_size <= 0.0f) {
+		return std::nullopt;
+	}
+
+	const float window_minimum{
+		GetDockAxisValue(
+			ImGui::GetStyle().WindowMinSize,
+			axis
+		)
+	};
+
+	const float minimum_size{
+		std::min(
+			window_minimum,
+			available_size * 0.5f
+		)
+	};
+
+	const float target_size{
+		std::clamp(
+			requested_size,
+			minimum_size,
+			available_size - minimum_size
+		)
+	};
+
+	if (std::abs(target_size - branch_size) <= 0.5f) {
+		return target_size;
+	}
+
+	SetDockAxisValue(
+		branch->SizeRef,
+		axis,
+		target_size
+	);
+	SetDockAxisValue(
+		sibling->SizeRef,
+		axis,
+		available_size - target_size
+	);
+
+	return target_size;
+}
+
+void ConstrainViewportDockAspectRatio(
+	ImGuiWindow& viewport_window,
+	V2_float content_size,
+	const std::optional<V2_float>& previous_content_size,
+	float aspect_ratio
+) {
+	if (!viewport_window.DockNode ||
+		content_size.x <= 0.0f ||
+		content_size.y <= 0.0f ||
+		aspect_ratio <= 0.0f) {
+		return;
+	}
+
+	const V2_float chrome_size{
+		std::max(
+			0.0f,
+			viewport_window.Size.x - content_size.x
+		),
+		std::max(
+			0.0f,
+			viewport_window.Size.y - content_size.y
+		)
+	};
+
+	bool width_is_driver{ false };
+
+	if (previous_content_size.has_value() &&
+		previous_content_size->x > 0.0f &&
+		previous_content_size->y > 0.0f) {
+		const float relative_x_change{
+			std::abs(
+				content_size.x -
+				previous_content_size->x
+			) /
+			std::max(
+				1.0f,
+				previous_content_size->x
+			)
+		};
+
+		const float relative_y_change{
+			std::abs(
+				content_size.y -
+				previous_content_size->y
+			) /
+			std::max(
+				1.0f,
+				previous_content_size->y
+			)
+		};
+
+		constexpr float kResizeEpsilon{ 0.0005f };
+
+		if (relative_x_change > kResizeEpsilon ||
+			relative_y_change > kResizeEpsilon) {
+			width_is_driver =
+				relative_x_change >=
+				relative_y_change;
+		} else {
+			const float current_aspect{
+				content_size.x /
+				content_size.y
+			};
+
+			// When no axis is actively changing, shrink
+			// the dimension that exceeds the target ratio.
+			width_is_driver =
+				current_aspect <= aspect_ratio;
+		}
+	} else {
+		const float current_aspect{
+			content_size.x / content_size.y
+		};
+
+		width_is_driver =
+			current_aspect <= aspect_ratio;
+	}
+
+	ImGuiDockNode* dock_node{
+		viewport_window.DockNode
+	};
+
+	if (width_is_driver) {
+		const float desired_content_height{
+			content_size.x / aspect_ratio
+		};
+		const float desired_window_height{
+			desired_content_height +
+			chrome_size.y
+		};
+
+		ImGuiDockNode* height_branch{
+			FindDockResizeBranch(
+				dock_node,
+				ImGuiAxis_Y
+			)
+		};
+
+		const auto actual_window_height{
+			SetDockBranchSize(
+				height_branch,
+				ImGuiAxis_Y,
+				desired_window_height
+			)
+		};
+
+		if (actual_window_height.has_value()) {
+			const float actual_content_height{
+				std::max(
+					1.0f,
+					actual_window_height.value() -
+						chrome_size.y
+				)
+			};
+
+			// If Y could not grow/shrink enough because
+			// another dock hit its minimum size, adjust
+			// X to whatever Y can actually support.
+			if (std::abs(
+					actual_content_height -
+					desired_content_height
+				) > 0.5f) {
+				ImGuiDockNode* width_branch{
+					FindDockResizeBranch(
+						dock_node,
+						ImGuiAxis_X
+					)
+				};
+
+				SetDockBranchSize(
+					width_branch,
+					ImGuiAxis_X,
+					actual_content_height *
+							aspect_ratio +
+						chrome_size.x
+				);
+			}
+		}
+	} else {
+		const float desired_content_width{
+			content_size.y * aspect_ratio
+		};
+		const float desired_window_width{
+			desired_content_width +
+			chrome_size.x
+		};
+
+		ImGuiDockNode* width_branch{
+			FindDockResizeBranch(
+				dock_node,
+				ImGuiAxis_X
+			)
+		};
+
+		const auto actual_window_width{
+			SetDockBranchSize(
+				width_branch,
+				ImGuiAxis_X,
+				desired_window_width
+			)
+		};
+
+		if (actual_window_width.has_value()) {
+			const float actual_content_width{
+				std::max(
+					1.0f,
+					actual_window_width.value() -
+						chrome_size.x
+				)
+			};
+
+			// Same fallback if the horizontal dock split
+			// reaches another panel's minimum size.
+			if (std::abs(
+					actual_content_width -
+					desired_content_width
+				) > 0.5f) {
+				ImGuiDockNode* height_branch{
+					FindDockResizeBranch(
+						dock_node,
+						ImGuiAxis_Y
+					)
+				};
+
+				SetDockBranchSize(
+					height_branch,
+					ImGuiAxis_Y,
+					actual_content_width /
+							aspect_ratio +
+						chrome_size.y
+				);
+			}
+		}
+	}
+}
+
 } // namespace
 
 void ViewportPanel::DrawSceneCameraOutlines(
@@ -1571,23 +1886,40 @@ void SetImageBlendMode(const ImDrawList*, const ImDrawCmd* cmd) {
 }
 
 void ViewportPanel::OnRender(EditorContext& ctx) {
-	ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2{ 0.0f, 0.0f });
+	ImGui::PushStyleVar(
+		ImGuiStyleVar_WindowPadding,
+		ImVec2{ 0.0f, 0.0f }
+	);
 
-	constexpr ImGuiWindowFlags kFlags = ImGuiWindowFlags_NoScrollbar |
-										ImGuiWindowFlags_NoScrollWithMouse |
-										ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoCollapse;
+	constexpr ImGuiWindowFlags kFlags{
+		ImGuiWindowFlags_NoScrollbar |
+		ImGuiWindowFlags_NoScrollWithMouse |
+		ImGuiWindowFlags_NoTitleBar |
+		ImGuiWindowFlags_NoCollapse
+	};
 
-	ImGui::Begin("Viewport", nullptr, kFlags);
+	ImGui::Begin(
+		"Viewport",
+		nullptr,
+		kFlags
+	);
+
 	ImGui::PopStyleVar();
 
-	if (ImGuiWindow* viewport_window = ImGui::FindWindowByName("Viewport")) {
-		if (viewport_window->DockNode) {
-			viewport_window->DockNode->LocalFlags |= ImGuiDockNodeFlags_HiddenTabBar;
-		}
+	ImGuiWindow* viewport_window{
+		ImGui::GetCurrentWindow()
+	};
+
+	if (viewport_window->DockNode) {
+		viewport_window->DockNode->LocalFlags |=
+			ImGuiDockNodeFlags_HiddenTabBar;
 	}
 
 	// Add some horizontal padding for the toolbar only.
-	ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2{ 8.0f, 0.0f });
+	ImGui::PushStyleVar(
+		ImGuiStyleVar_WindowPadding,
+		ImVec2{ 8.0f, 0.0f }
+	);
 
 	ImGui::Indent(8.0f);
 	DrawViewportToolbar(ctx);
@@ -1596,31 +1928,129 @@ void ViewportPanel::OnRender(EditorContext& ctx) {
 	ImGui::PopStyleVar();
 
 	// Remove spacing after the toolbar row.
-	ImGui::SetCursorPosY(ImGui::GetCursorPosY() - ImGui::GetStyle().ItemSpacing.y);
+	ImGui::SetCursorPosY(
+		ImGui::GetCursorPosY() -
+		ImGui::GetStyle().ItemSpacing.y
+	);
 
 	// Draw separator without adding spacing after it.
-	ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2{ 0.0f, 0.0f });
+	ImGui::PushStyleVar(
+		ImGuiStyleVar_ItemSpacing,
+		ImVec2{ 0.0f, 0.0f }
+	);
 
 	ImGui::Separator();
 
 	ImGui::PopStyleVar();
 
-	auto min{ FromImGui(ImGui::GetCursorScreenPos()) };
-	auto size{ FromImGui(ImGui::GetContentRegionAvail()) };
-	auto max{ min + size };
+	const V2_float content_min{
+		FromImGui(
+			ImGui::GetCursorScreenPos()
+		)
+	};
+	const V2_float content_size{
+		FromImGui(
+			ImGui::GetContentRegionAvail()
+		)
+	};
+	const V2_float content_max{
+		content_min + content_size
+	};
 
-	Viewport presentation_viewport{ .position{ min }, .size{ size } };
+	auto& renderer{
+		ctx.editor.GetRenderer()
+	};
+	auto& window{
+		ctx.editor.GetWindow()
+	};
 
-	ctx.local.state.viewport.viewport = presentation_viewport;
-	ctx.local.state.viewport.focused	= ImGui::IsWindowFocused();
-	ctx.local.state.viewport.hovered	= ImGui::IsWindowHovered();
+	V2_float min{ content_min };
+	V2_float size{ content_size };
 
-	auto& renderer{ ctx.editor.GetRenderer() };
-	auto& window{ ctx.editor.GetWindow() };
+	const auto logical_size{
+		renderer.GetSettings().logical_size
+	};
 
-	renderer.SetPresentationViewport(presentation_viewport);
+	const bool aspect_ratio_locked{
+		ctx.editor.GetSettings()
+				.viewport_aspect_ratio_locked &&
+		logical_size.has_value() &&
+		logical_size->x > 0 &&
+		logical_size->y > 0 &&
+		content_size.x > 0.0f &&
+		content_size.y > 0.0f
+	};
 
-	if (size.x <= 0.0f || size.y <= 0.0f) {
+	if (aspect_ratio_locked) {
+		const float logical_aspect{
+			static_cast<float>(
+				logical_size->x
+			) /
+			static_cast<float>(
+				logical_size->y
+			)
+		};
+
+		ConstrainViewportDockAspectRatio(
+			*viewport_window,
+			content_size,
+			previous_aspect_locked_content_size_,
+			logical_aspect
+		);
+
+		previous_aspect_locked_content_size_ =
+			content_size;
+
+		// Keep the image correct during the one frame
+		// in which the dock resize is being applied.
+		const float available_aspect{
+			content_size.x /
+			content_size.y
+		};
+
+		if (available_aspect > logical_aspect) {
+			size.x =
+				content_size.y *
+				logical_aspect;
+
+			min.x +=
+				(content_size.x - size.x) *
+				0.5f;
+		} else {
+			size.y =
+				content_size.x /
+				logical_aspect;
+
+			min.y +=
+				(content_size.y - size.y) *
+				0.5f;
+		}
+	} else {
+		previous_aspect_locked_content_size_.reset();
+	}
+
+	const V2_float max{
+		min + size
+	};
+
+	Viewport presentation_viewport{
+		.position{ min },
+		.size{ size }
+	};
+
+	ctx.local.state.viewport.viewport =
+		presentation_viewport;
+	ctx.local.state.viewport.focused =
+		ImGui::IsWindowFocused();
+	ctx.local.state.viewport.hovered =
+		ImGui::IsWindowHovered();
+
+	renderer.SetPresentationViewport(
+		presentation_viewport
+	);
+
+	if (size.x <= 0.0f ||
+		size.y <= 0.0f) {
 		ImGui::End();
 		return;
 	}
@@ -1639,7 +2069,11 @@ void ViewportPanel::OnRender(EditorContext& ctx) {
 
 	auto window_background_color{ window.GetSettings().background_color };
 
-	draw_list->AddRectFilled(ToImGui(min), ToImGui(max), ToImGui(window_background_color));
+	draw_list->AddRectFilled(
+		ToImGui(content_min),
+		ToImGui(content_max),
+		ToImGui(window_background_color)
+	);
 
 	auto display_viewport{ renderer.GetDisplayViewport() };
 	auto presentation_texture{ ctx.editor.GetPresentationTexture() };

@@ -6,9 +6,12 @@
 #include <array>
 #include <cctype>
 #include <cstddef>
+#include <cstdint>
 #include <initializer_list>
 #include <optional>
+#include <string>
 #include <string_view>
+#include <utility>
 
 #include "commands/undo_stack.h"
 #include "editor/editor.h"
@@ -185,6 +188,47 @@ namespace ptgn::editor {
 namespace {
 
 using namespace inspector;
+
+constexpr std::uint64_t kProjectDisplaySettingsUndoKey{ 0x5345540001ULL };
+constexpr std::uint64_t kProjectRenderingSettingsUndoKey{ 0x5345540002ULL };
+constexpr std::uint64_t kEditorGeneralSettingsUndoKey{ 0x5345540003ULL };
+constexpr std::uint64_t kDebugInteractionSettingsUndoKey{ 0x5345540004ULL };
+constexpr std::uint64_t kDebugCollisionSettingsUndoKey{ 0x5345540005ULL };
+constexpr std::uint64_t kDebugTextSettingsUndoKey{ 0x5345540006ULL };
+constexpr std::uint64_t kDebugVisibilitySettingsUndoKey{ 0x5345540007ULL };
+
+template <typename T, typename Apply>
+void TrackSettingsChange(
+	EditorContext& ctx,
+	std::uint64_t key,
+	std::string label,
+	bool changed,
+	T before,
+	T after,
+	Apply apply
+) {
+	if (!changed) {
+		return;
+	}
+
+	ctx.undo.TrackInteraction(
+		key,
+		std::move(label),
+		true,
+		ImGui::IsAnyItemActive(),
+		[apply, before = std::move(before)]() mutable {
+			apply(before);
+		},
+		[apply, after = std::move(after)]() mutable {
+			apply(after);
+		}
+	);
+}
+
+struct ProjectDisplaySettingsState {
+	RendererSettings renderer;
+	WindowSettings window;
+};
 
 struct ResolutionPreset {
 	const char* label{ "" };
@@ -364,6 +408,7 @@ static_assert(!ContainsDuplicates(kResolutionPresets, &ResolutionPreset::label))
 					"editor general entity picking",
 					"render only selected scene",
 					"local gizmo orientation transform",
+					"viewport aspect ratio lock logical size",
 					"show read only inspector data components members",
 				}
 			);
@@ -530,6 +575,11 @@ bool DrawProjectDisplaySettings(
 ) {
 	bool changed{ false };
 	auto& renderer{ ctx.editor.GetRenderer() };
+	auto& window{ ctx.editor.GetWindow() };
+	const ProjectDisplaySettingsState before{
+		.renderer = renderer.GetSettings(),
+		.window = window.GetSettings(),
+	};
 
 	const bool show_resolution{
 		MatchesFilter(
@@ -608,7 +658,7 @@ bool DrawProjectDisplaySettings(
 	if (show_window) {
 		DrawSectionTitle("Window");
 
-		auto window_settings{ ctx.editor.GetWindow().GetSettings() };
+		auto window_settings{ window.GetSettings() };
 		bool window_changed{ false };
 
 		if (MatchesFilter(filter, { "default window size", "window size" })) {
@@ -639,7 +689,7 @@ bool DrawProjectDisplaySettings(
 		}
 
 		if (window_changed) {
-			ctx.editor.GetWindow().SetSettings(window_settings);
+			window.SetSettings(window_settings);
 			changed = true;
 		}
 	}
@@ -654,6 +704,29 @@ bool DrawProjectDisplaySettings(
 		}
 	}
 
+	if (changed) {
+		ctx.editor.MarkProjectDirty();
+	}
+
+	const ProjectDisplaySettingsState after{
+		.renderer = renderer.GetSettings(),
+		.window = window.GetSettings(),
+	};
+
+	TrackSettingsChange(
+		ctx,
+		kProjectDisplaySettingsUndoKey,
+		"Change Project Display Settings",
+		changed,
+		before,
+		after,
+		[editor = &ctx.editor](const ProjectDisplaySettingsState& state) {
+			editor->GetRenderer().SetSettings(state.renderer);
+			editor->GetWindow().SetSettings(state.window);
+			editor->MarkProjectDirty();
+		}
+	);
+
 	return changed;
 }
 
@@ -662,7 +735,8 @@ bool DrawProjectRenderingSettings(
 	std::string_view filter
 ) {
 	auto& renderer{ ctx.editor.GetRenderer() };
-	auto settings{ renderer.GetSettings() };
+	const RendererSettings before{ renderer.GetSettings() };
+	auto settings{ before };
 	bool changed{ false };
 
 	DrawSectionTitle("Renderer Output");
@@ -705,22 +779,40 @@ bool DrawProjectRenderingSettings(
 
 	if (changed) {
 		renderer.SetSettings(settings);
+		ctx.editor.MarkProjectDirty();
 	}
+
+	TrackSettingsChange(
+		ctx,
+		kProjectRenderingSettingsUndoKey,
+		"Change Project Rendering Settings",
+		changed,
+		before,
+		renderer.GetSettings(),
+		[editor = &ctx.editor](const RendererSettings& value) {
+			editor->GetRenderer().SetSettings(value);
+			editor->MarkProjectDirty();
+		}
+	);
 
 	return changed;
 }
 
-void DrawEditorGeneralSettings(
+bool DrawEditorGeneralSettings(
 	EditorContext& ctx,
 	std::string_view filter
 ) {
 	DrawSectionTitle("General");
+
+	const EditorSettings before{ ctx.editor.GetSettings() };
+	bool changed{ false };
 
 	if (MatchesFilter(filter, { "entity picking", "picking", "selection" })) {
 		auto entity_picking{ ctx.editor.GetSettings().entity_picking };
 
 		if (ImGui::Checkbox("Entity Picking", &entity_picking)) {
 			ctx.editor.SetEntityPickingMode(entity_picking);
+			changed = true;
 		}
 	}
 
@@ -734,10 +826,27 @@ void DrawEditorGeneralSettings(
 				&render_only_selected_scene
 			)) {
 			ctx.editor.SetRenderOnlySelectedScene(render_only_selected_scene);
+			changed = true;
 		}
 
 		ImGui::TextDisabled(
 			"Excludes unselected scenes from the editor presentation."
+		);
+	}
+
+	if (MatchesFilter(filter, { "viewport aspect ratio", "aspect ratio", "logical size" })) {
+		auto settings{ ctx.editor.GetSettings() };
+
+		if (ImGui::Checkbox(
+				"Lock Viewport Aspect Ratio",
+				&settings.viewport_aspect_ratio_locked
+			)) {
+			ctx.editor.SetEditorSettings(settings);
+			changed = true;
+		}
+
+		ImGui::TextDisabled(
+			"Keeps the presentation area at the logical-size aspect ratio."
 		);
 	}
 
@@ -751,6 +860,7 @@ void DrawEditorGeneralSettings(
 				&gizmo_uses_local_orientation
 			)) {
 			ctx.editor.SetGizmoUsesLocalOrientation(gizmo_uses_local_orientation);
+			changed = true;
 		}
 
 		ImGui::TextDisabled(
@@ -759,10 +869,14 @@ void DrawEditorGeneralSettings(
 	}
 
 	if (MatchesFilter(filter, { "show read only data", "read only inspector", "inspector data" })) {
-		ImGui::Checkbox(
-			"Show Read-Only Data",
-			&ctx.local.settings.show_read_only_inspector_data
-		);
+		auto settings{ ctx.editor.GetSettings() };
+		if (ImGui::Checkbox(
+				"Show Read-Only Data",
+				&settings.show_read_only_inspector_data
+			)) {
+			ctx.editor.SetEditorSettings(settings);
+			changed = true;
+		}
 
 		ImGui::TextDisabled(
 			"Shows read-only components and reflected read-only component members."
@@ -770,25 +884,48 @@ void DrawEditorGeneralSettings(
 	}
 
 	if (MatchesFilter(filter, { "content browser", "assets per row", "asset grid" })) {
-		ImGui::DragInt(
-			"Content Browser Items Per Row",
-			&ctx.local.settings.content_browser_items_per_row,
-			1.0f,
-			1,
-			16,
-			"%d",
-			ImGuiSliderFlags_AlwaysClamp
-		);
+		auto settings{ ctx.editor.GetSettings() };
 
-		ImGui::Checkbox(
-			"Search All Asset Folders",
-			&ctx.local.settings.content_browser_search_entire_tree
-		);
+		if (ImGui::DragInt(
+				"Content Browser Items Per Row",
+				&settings.content_browser_items_per_row,
+				1.0f,
+				1,
+				16,
+				"%d",
+				ImGuiSliderFlags_AlwaysClamp
+			)) {
+			ctx.editor.SetEditorSettings(settings);
+			changed = true;
+		}
+
+		settings = ctx.editor.GetSettings();
+		if (ImGui::Checkbox(
+				"Search All Asset Folders",
+				&settings.content_browser_search_entire_tree
+			)) {
+			ctx.editor.SetEditorSettings(settings);
+			changed = true;
+		}
 
 		ImGui::TextDisabled(
 			"The Content Browser counter can also be changed by hovering and scrolling."
 		);
 	}
+
+	TrackSettingsChange(
+		ctx,
+		kEditorGeneralSettingsUndoKey,
+		"Change Editor Settings",
+		changed,
+		before,
+		ctx.editor.GetSettings(),
+		[editor = &ctx.editor](const EditorSettings& settings) {
+			editor->SetEditorSettings(settings);
+		}
+	);
+
+	return changed;
 }
 
 bool DrawDebugInteractionSettings(
@@ -797,7 +934,8 @@ bool DrawDebugInteractionSettings(
 ) {
 	DrawSectionTitle("Interaction");
 
-	auto settings{ ctx.editor.GetDebugSystem().settings.interaction };
+	const auto before{ ctx.editor.GetDebugSystem().settings.interaction };
+	auto settings{ before };
 	bool changed{ false };
 
 	if (MatchesFilter(filter, { "draw enabled", "enabled", "interactions" })) {
@@ -825,7 +963,21 @@ bool DrawDebugInteractionSettings(
 
 	if (changed) {
 		ctx.editor.GetDebugSystem().settings.interaction = settings;
+		ctx.editor.MarkProjectDirty();
 	}
+
+	TrackSettingsChange(
+		ctx,
+		kDebugInteractionSettingsUndoKey,
+		"Change Debug Interaction Settings",
+		changed,
+		before,
+		ctx.editor.GetDebugSystem().settings.interaction,
+		[editor = &ctx.editor](const auto& value) {
+			editor->GetDebugSystem().settings.interaction = value;
+			editor->MarkProjectDirty();
+		}
+	);
 
 	return changed;
 }
@@ -836,7 +988,8 @@ bool DrawDebugCollisionSettings(
 ) {
 	DrawSectionTitle("Collision");
 
-	auto settings{ ctx.editor.GetDebugSystem().settings.collision };
+	const auto before{ ctx.editor.GetDebugSystem().settings.collision };
+	auto settings{ before };
 	bool changed{ false };
 
 	if (MatchesFilter(filter, { "draw enabled", "enabled", "collisions" })) {
@@ -857,7 +1010,21 @@ bool DrawDebugCollisionSettings(
 
 	if (changed) {
 		ctx.editor.GetDebugSystem().settings.collision = settings;
+		ctx.editor.MarkProjectDirty();
 	}
+
+	TrackSettingsChange(
+		ctx,
+		kDebugCollisionSettingsUndoKey,
+		"Change Debug Collision Settings",
+		changed,
+		before,
+		ctx.editor.GetDebugSystem().settings.collision,
+		[editor = &ctx.editor](const auto& value) {
+			editor->GetDebugSystem().settings.collision = value;
+			editor->MarkProjectDirty();
+		}
+	);
 
 	return changed;
 }
@@ -868,7 +1035,8 @@ bool DrawDebugTextSettings(
 ) {
 	DrawSectionTitle("Text");
 
-	auto settings{ ctx.editor.GetDebugSystem().settings.text };
+	const auto before{ ctx.editor.GetDebugSystem().settings.text };
+	auto settings{ before };
 	bool changed{ false };
 
 	if (MatchesFilter(filter, { "draw enabled", "enabled", "text boxes" })) {
@@ -900,7 +1068,21 @@ bool DrawDebugTextSettings(
 
 	if (changed) {
 		ctx.editor.GetDebugSystem().settings.text = settings;
+		ctx.editor.MarkProjectDirty();
 	}
+
+	TrackSettingsChange(
+		ctx,
+		kDebugTextSettingsUndoKey,
+		"Change Debug Text Settings",
+		changed,
+		before,
+		ctx.editor.GetDebugSystem().settings.text,
+		[editor = &ctx.editor](const auto& value) {
+			editor->GetDebugSystem().settings.text = value;
+			editor->MarkProjectDirty();
+		}
+	);
 
 	return changed;
 }
@@ -911,7 +1093,8 @@ bool DrawDebugVisibilitySettings(
 ) {
 	DrawSectionTitle("Visibility");
 
-	auto settings{ ctx.editor.GetDebugSystem().settings.light };
+	const auto before{ ctx.editor.GetDebugSystem().settings.light };
+	auto settings{ before };
 	bool changed{ false };
 
 	if (MatchesFilter(filter, { "draw enabled", "enabled", "visibility polygons" })) {
@@ -944,7 +1127,21 @@ bool DrawDebugVisibilitySettings(
 
 	if (changed) {
 		ctx.editor.GetDebugSystem().settings.light = settings;
+		ctx.editor.MarkProjectDirty();
 	}
+
+	TrackSettingsChange(
+		ctx,
+		kDebugVisibilitySettingsUndoKey,
+		"Change Debug Visibility Settings",
+		changed,
+		before,
+		ctx.editor.GetDebugSystem().settings.light,
+		[editor = &ctx.editor](const auto& value) {
+			editor->GetDebugSystem().settings.light = value;
+			editor->MarkProjectDirty();
+		}
+	);
 
 	return changed;
 }
@@ -1101,8 +1298,7 @@ bool DrawSelectedSettingsPage(
 			return DrawProjectRenderingSettings(ctx, filter);
 
 		case SettingsPage::EditorGeneral:
-			DrawEditorGeneralSettings(ctx, filter);
-			return false;
+			return DrawEditorGeneralSettings(ctx, filter);
 
 		case SettingsPage::DebugInteraction:
 			return DrawDebugInteractionSettings(ctx, filter);
@@ -1132,6 +1328,7 @@ void SettingsWindow::Open(SettingsPage page) {
 	search_.fill('\0');
 	open_ = true;
 	focus_requested_ = true;
+	recenter_requested_ = true;
 }
 
 void SettingsWindow::OnRender(EditorContext& ctx) {
@@ -1139,7 +1336,29 @@ void SettingsWindow::OnRender(EditorContext& ctx) {
 		return;
 	}
 
-	ImGui::SetNextWindowSize(ImVec2{ 900.0f, 620.0f }, ImGuiCond_FirstUseEver);
+	if (recenter_requested_) {
+		auto* viewport{ ImGui::GetMainViewport() };
+		const ImVec2 size{
+			viewport->WorkSize.x * 0.60f,
+			viewport->WorkSize.y * 0.70f
+		};
+		const ImVec2 center{
+			viewport->WorkPos.x + viewport->WorkSize.x * 0.5f,
+			viewport->WorkPos.y + viewport->WorkSize.y * 0.5f
+		};
+
+		ImGui::SetNextWindowDockID(0, ImGuiCond_Always);
+		ImGui::SetNextWindowPos(
+			center,
+			ImGuiCond_Always,
+			ImVec2{ 0.5f, 0.5f }
+		);
+		ImGui::SetNextWindowSize(
+			size,
+			ImGuiCond_Always
+		);
+		recenter_requested_ = false;
+	}
 
 	if (focus_requested_) {
 		ImGui::SetNextWindowFocus();
@@ -1148,9 +1367,12 @@ void SettingsWindow::OnRender(EditorContext& ctx) {
 
 	if (!ImGui::Begin(
 			"Settings",
-			&open_,
-			ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoDocking
+			&open_
 		)) {
+		if (undo_interaction_pending_ && !ImGui::IsAnyItemActive()) {
+			ctx.undo.CommitActiveEdit();
+			undo_interaction_pending_ = false;
+		}
 		ImGui::End();
 		return;
 	}
@@ -1193,6 +1415,8 @@ void SettingsWindow::OnRender(EditorContext& ctx) {
 
 	ImGui::SameLine();
 
+	bool settings_changed{ false };
+
 	if (ImGui::BeginChild(
 			"SettingsContent",
 			ImVec2{ 0.0f, 0.0f },
@@ -1202,16 +1426,24 @@ void SettingsWindow::OnRender(EditorContext& ctx) {
 		if (!first_matching_page) {
 			ImGui::TextDisabled("No settings match \"%s\".", search_.data());
 		} else {
-			const bool changed{
-				DrawSelectedSettingsPage(ctx, selected_page_, filter)
-			};
+			settings_changed =
+				DrawSelectedSettingsPage(ctx, selected_page_, filter);
 
-			if (changed) {
+			if (settings_changed) {
 				ctx.local.state.is_dirty = true;
 			}
 		}
 	}
 	ImGui::EndChild();
+
+	if (settings_changed && ctx.undo.HasActiveEdit()) {
+		undo_interaction_pending_ = true;
+	}
+
+	if (undo_interaction_pending_ && !ImGui::IsAnyItemActive()) {
+		ctx.undo.CommitActiveEdit();
+		undo_interaction_pending_ = false;
+	}
 
 	ImGui::End();
 }

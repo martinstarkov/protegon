@@ -60,6 +60,27 @@ namespace {
 constexpr float kLeftColumnRatio{ 0.25f };
 constexpr float kRightColumnRatio{ 0.40f };
 
+template <typename T, typename Apply>
+void PushUndoableValueChange(
+	UndoStack& undo_stack,
+	std::string label,
+	T before,
+	T after,
+	Apply apply
+) {
+	apply(after);
+
+	undo_stack.PushApplied(
+		std::move(label),
+		[apply, before = std::move(before)]() mutable {
+			apply(before);
+		},
+		[apply, after = std::move(after)]() mutable {
+			apply(after);
+		}
+	);
+}
+
 class ScopedRuntimeEditorTheme {
 public:
 	explicit ScopedRuntimeEditorTheme(
@@ -2072,17 +2093,45 @@ void Editor::DrawMainMenuBar() {
 	}
 
 	if (ImGui::BeginMenu("View")) {
-		auto render_only_selected_scene{
-			GetSettings().render_only_selected_scene
-		};
+		auto toggle_editor_setting =
+			[this](
+				std::string label,
+				auto member
+			) {
+				EditorSettings before{ GetSettings() };
+				EditorSettings after{ before };
+				after.*member = !(before.*member);
+
+				PushUndoableValueChange(
+					undo_stack_,
+					std::move(label),
+					std::move(before),
+					std::move(after),
+					[this](const EditorSettings& settings) {
+						SetEditorSettings(settings);
+					}
+				);
+			};
 
 		if (ImGui::MenuItem(
 				"Render Only Selected Scene",
 				nullptr,
-				render_only_selected_scene
+				GetSettings().render_only_selected_scene
 			)) {
-			SetRenderOnlySelectedScene(
-				!render_only_selected_scene
+			toggle_editor_setting(
+				"Toggle Render Only Selected Scene",
+				&EditorSettings::render_only_selected_scene
+			);
+		}
+
+		if (ImGui::MenuItem(
+				"Lock Viewport Aspect Ratio",
+				nullptr,
+				GetSettings().viewport_aspect_ratio_locked
+			)) {
+			toggle_editor_setting(
+				"Toggle Viewport Aspect Ratio Lock",
+				&EditorSettings::viewport_aspect_ratio_locked
 			);
 		}
 
@@ -2093,8 +2142,9 @@ void Editor::DrawMainMenuBar() {
 				nullptr,
 				GetSettings().entity_picking
 			)) {
-			SetEntityPickingMode(
-				!GetSettings().entity_picking
+			toggle_editor_setting(
+				"Toggle Entity Picking",
+				&EditorSettings::entity_picking
 			);
 		}
 
@@ -2103,22 +2153,21 @@ void Editor::DrawMainMenuBar() {
 				nullptr,
 				GetSettings().gizmo_uses_local_orientation
 			)) {
-			SetGizmoUsesLocalOrientation(
-				!GetSettings().gizmo_uses_local_orientation
+			toggle_editor_setting(
+				"Toggle Local Gizmo Orientation",
+				&EditorSettings::gizmo_uses_local_orientation
 			);
 		}
-
-		auto show_read_only_data{
-			GetSettings().show_read_only_inspector_data
-		};
 
 		if (ImGui::MenuItem(
 				"Show Read-Only Data",
 				nullptr,
-				show_read_only_data
+				GetSettings().show_read_only_inspector_data
 			)) {
-			GetSettings().show_read_only_inspector_data =
-				!show_read_only_data;
+			toggle_editor_setting(
+				"Toggle Read-Only Inspector Data",
+				&EditorSettings::show_read_only_inspector_data
+			);
 		}
 
 		ImGui::EndMenu();
@@ -2130,14 +2179,39 @@ void Editor::DrawMainMenuBar() {
 		};
 
 		if (ImGui::BeginMenu("Draw")) {
+			auto toggle_debug_setting =
+				[this, &debug_settings](
+					std::string label,
+					auto toggle
+				) {
+					auto before{ debug_settings };
+					auto after{ before };
+					toggle(after);
+
+					PushUndoableValueChange(
+						undo_stack_,
+						std::move(label),
+						std::move(before),
+						std::move(after),
+						[this](const auto& settings) {
+							GetDebugSystem().settings = settings;
+							MarkProjectDirty();
+						}
+					);
+				};
+
 			if (ImGui::MenuItem(
 					"Interactions",
 					nullptr,
 					debug_settings.interaction.draw_enabled
 				)) {
-				debug_settings.interaction.draw_enabled =
-					!debug_settings.interaction.draw_enabled;
-				MarkProjectDirty();
+				toggle_debug_setting(
+					"Toggle Debug Interactions",
+					[](auto& settings) {
+						settings.interaction.draw_enabled =
+							!settings.interaction.draw_enabled;
+					}
+				);
 			}
 
 			if (ImGui::MenuItem(
@@ -2145,9 +2219,13 @@ void Editor::DrawMainMenuBar() {
 					nullptr,
 					debug_settings.collision.draw_enabled
 				)) {
-				debug_settings.collision.draw_enabled =
-					!debug_settings.collision.draw_enabled;
-				MarkProjectDirty();
+				toggle_debug_setting(
+					"Toggle Debug Collisions",
+					[](auto& settings) {
+						settings.collision.draw_enabled =
+							!settings.collision.draw_enabled;
+					}
+				);
 			}
 
 			if (ImGui::MenuItem(
@@ -2155,9 +2233,13 @@ void Editor::DrawMainMenuBar() {
 					nullptr,
 					debug_settings.text.draw_enabled
 				)) {
-				debug_settings.text.draw_enabled =
-					!debug_settings.text.draw_enabled;
-				MarkProjectDirty();
+				toggle_debug_setting(
+					"Toggle Debug Text Boxes",
+					[](auto& settings) {
+						settings.text.draw_enabled =
+							!settings.text.draw_enabled;
+					}
+				);
 			}
 
 			if (ImGui::MenuItem(
@@ -2165,9 +2247,13 @@ void Editor::DrawMainMenuBar() {
 					nullptr,
 					debug_settings.light.draw_enabled
 				)) {
-				debug_settings.light.draw_enabled =
-					!debug_settings.light.draw_enabled;
-				MarkProjectDirty();
+				toggle_debug_setting(
+					"Toggle Debug Visibility Polygons",
+					[](auto& settings) {
+						settings.light.draw_enabled =
+							!settings.light.draw_enabled;
+					}
+				);
 			}
 
 			ImGui::EndMenu();
@@ -2186,8 +2272,20 @@ void Editor::DrawMainMenuBar() {
 				nullptr,
 				context_->local.settings.show_imgui_metrics
 			)) {
-			context_->local.settings.show_imgui_metrics =
-				!context_->local.settings.show_imgui_metrics;
+			EditorSettings before{ GetSettings() };
+			EditorSettings after{ before };
+			after.show_imgui_metrics =
+				!before.show_imgui_metrics;
+
+			PushUndoableValueChange(
+				undo_stack_,
+				"Toggle ImGui Metrics",
+				std::move(before),
+				std::move(after),
+				[this](const EditorSettings& settings) {
+					SetEditorSettings(settings);
+				}
+			);
 		}
 
 		ImGui::EndMenu();
@@ -2200,6 +2298,7 @@ void Editor::DrawMainMenuBar() {
 
 void Editor::OpenExportWindow() {
 	export_window_open_ = true;
+	export_window_recenter_requested_ = true;
 }
 
 ExportRequest Editor::MakeExportRequest() const {
@@ -2264,10 +2363,30 @@ void Editor::DrawExportWindow() {
 		return;
 	}
 
-	ImGui::SetNextWindowSize(
-		ImVec2{ 1000.0f, 650.0f },
-		ImGuiCond_FirstUseEver
-	);
+	if (export_window_recenter_requested_) {
+		auto* viewport{ ImGui::GetMainViewport() };
+		const ImVec2 size{
+			viewport->WorkSize.x * 0.60f,
+			viewport->WorkSize.y * 0.70f
+		};
+		const ImVec2 center{
+			viewport->WorkPos.x + viewport->WorkSize.x * 0.5f,
+			viewport->WorkPos.y + viewport->WorkSize.y * 0.5f
+		};
+
+		ImGui::SetNextWindowDockID(0, ImGuiCond_Always);
+		ImGui::SetNextWindowPos(
+			center,
+			ImGuiCond_Always,
+			ImVec2{ 0.5f, 0.5f }
+		);
+		ImGui::SetNextWindowSize(
+			size,
+			ImGuiCond_Always
+		);
+		ImGui::SetNextWindowFocus();
+		export_window_recenter_requested_ = false;
+	}
 
 	bool window_open{ true };
 	const bool visible{
@@ -2608,7 +2727,23 @@ void Editor::DrawPanels() {
 		scene_asset_dependencies_dirty_ = true;
 	}
 	SyncSelectedSceneAssetDependencies();
+
+	const EditorSettings before_content_browser_settings{ GetSettings() };
 	content_browser_panel_.OnRender(*context_);
+	const EditorSettings after_content_browser_settings{ GetSettings() };
+
+	if (before_content_browser_settings != after_content_browser_settings) {
+		PushUndoableValueChange(
+			undo_stack_,
+			"Change Content Browser Settings",
+			before_content_browser_settings,
+			after_content_browser_settings,
+			[this](const EditorSettings& settings) {
+				SetEditorSettings(settings);
+			}
+		);
+	}
+
 	settings_window_.OnRender(*context_);
 	undo_history_window_.OnRender(*context_, undo_stack_);
 
@@ -2618,7 +2753,21 @@ void Editor::DrawPanels() {
 #endif
 
 	if (context_->local.settings.show_imgui_metrics) {
+		const EditorSettings before_metrics_settings{ GetSettings() };
 		ImGui::ShowMetricsWindow(&context_->local.settings.show_imgui_metrics);
+		const EditorSettings after_metrics_settings{ GetSettings() };
+
+		if (before_metrics_settings != after_metrics_settings) {
+			PushUndoableValueChange(
+				undo_stack_,
+				"Toggle ImGui Metrics",
+				before_metrics_settings,
+				after_metrics_settings,
+				[this](const EditorSettings& settings) {
+					SetEditorSettings(settings);
+				}
+			);
+		}
 	}
 }
 
@@ -2812,6 +2961,26 @@ const EditorSettings& Editor::GetSettings() const {
 EditorSettings& Editor::GetSettings() {
 	PTGN_ASSERT(context_, "Editor context must be initialized");
 	return context_->local.settings;
+}
+
+void Editor::SetEditorSettings(EditorSettings settings) {
+	PTGN_ASSERT(context_, "Editor context must be initialized");
+
+	SetEntityPickingMode(settings.entity_picking);
+	SetRenderOnlySelectedScene(settings.render_only_selected_scene);
+	SetGizmoUsesLocalOrientation(settings.gizmo_uses_local_orientation);
+
+	auto& current{ context_->local.settings };
+	current.viewport_aspect_ratio_locked =
+		settings.viewport_aspect_ratio_locked;
+	current.show_read_only_inspector_data =
+		settings.show_read_only_inspector_data;
+	current.show_imgui_metrics =
+		settings.show_imgui_metrics;
+	current.content_browser_items_per_row =
+		settings.content_browser_items_per_row;
+	current.content_browser_search_entire_tree =
+		settings.content_browser_search_entire_tree;
 }
 
 void Editor::SetGizmoUsesLocalOrientation(bool enabled) {

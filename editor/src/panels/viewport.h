@@ -94,6 +94,7 @@ private:
 	std::optional<std::uint64_t> gizmo_entity_uuid_;
 
 	bool use_editor_camera_{ true };
+	std::optional<V2_float> previous_aspect_locked_content_size_;
 };
 
 } // namespace ptgn::editor

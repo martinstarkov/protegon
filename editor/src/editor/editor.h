@@ -90,6 +90,7 @@ public:
 
 	const EditorSettings& GetSettings() const;
 	EditorSettings& GetSettings();
+	void SetEditorSettings(EditorSettings settings);
 
 	void SetEntityPickingMode(bool enabled);
 	void SetGizmoUsesLocalOrientation(bool enabled);
@@ -187,6 +188,7 @@ private:
 #if !defined(__EMSCRIPTEN__)
 	ExportManager export_manager_;
 	bool export_window_open_{ false };
+	bool export_window_recenter_requested_{ false };
 	ExportTarget export_target_{ ExportTarget::Desktop };
 	ExportConfiguration export_configuration_{ ExportConfiguration::Release };
 	bool export_include_editor_{ false };

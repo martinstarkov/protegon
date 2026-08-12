@@ -140,7 +140,8 @@ private:
 	std::optional<path> last_web_export_directory_;
 	std::uint64_t last_rendered_output_revision_{ 0 };
 	std::string rendered_output_;
-	bool jump_to_bottom_requested_{ false };
+	bool follow_output_tail_{ true };
+	bool jump_to_bottom_requested_{ true };
 };
 
 } // namespace ptgn::editor

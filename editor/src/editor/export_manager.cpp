@@ -3,6 +3,7 @@
 #if !defined(__EMSCRIPTEN__)
 
 #include <imgui.h>
+#include <imgui_internal.h>
 
 #include <algorithm>
 #include <array>
@@ -61,19 +62,6 @@ struct CopySource {
 	return configuration == ExportConfiguration::Debug
 		? std::string_view{ "Debug" }
 		: std::string_view{ "Release" };
-}
-
-int ExportOutputTextCallback(ImGuiInputTextCallbackData* data) {
-	auto* jump_to_bottom{ static_cast<bool*>(data->UserData) };
-	if (!jump_to_bottom || !*jump_to_bottom) {
-		return 0;
-	}
-
-	data->CursorPos = data->BufTextLen;
-	data->SelectionStart = data->BufTextLen;
-	data->SelectionEnd = data->BufTextLen;
-	*jump_to_bottom = false;
-	return 0;
 }
 
 [[nodiscard]] std::string QuotePosix(std::string_view value) {
@@ -1303,39 +1291,44 @@ void ExportManager::DrawOutputPanel() {
 			std::memory_order_relaxed
 		)
 	};
+	const bool output_updated{
+		revision != last_rendered_output_revision_
+	};
 
-	if (revision !=
-		last_rendered_output_revision_) {
+	if (output_updated) {
 		std::scoped_lock lock{
 			shared_state_->output_mutex
 		};
-		rendered_output_ =
-			shared_state_->output;
-		last_rendered_output_revision_ =
-			revision;
+
+		rendered_output_ = shared_state_->output;
+		last_rendered_output_revision_ = revision;
 	}
 
 	const char* status{ "Idle" };
+
 	switch (state_) {
 		case ExportTaskState::Idle:
 			status = "Idle";
 			break;
+
 		case ExportTaskState::Running:
 			status = "Running";
 			break;
+
 		case ExportTaskState::Succeeded:
 			status = "Succeeded";
 			break;
+
 		case ExportTaskState::Failed:
 			status = "Failed";
 			break;
+
 		case ExportTaskState::Cancelled:
 			status = "Cancelled";
 			break;
 	}
 
-	if (task_kind_ ==
-		impl::ExportTaskKind::None) {
+	if (task_kind_ == impl::ExportTaskKind::None) {
 		ImGui::TextUnformatted(status);
 	} else {
 		ImGui::Text(
@@ -1353,6 +1346,7 @@ void ExportManager::DrawOutputPanel() {
 	if (ImGui::Button("Clear Output")) {
 		ClearOutput();
 		rendered_output_.clear();
+
 		last_rendered_output_revision_ =
 			shared_state_->output_revision.load(
 				std::memory_order_relaxed
@@ -1360,35 +1354,65 @@ void ExportManager::DrawOutputPanel() {
 	}
 
 	ImGui::SameLine();
-	ImGui::BeginDisabled(
-		rendered_output_.empty()
-	);
+
+	ImGui::BeginDisabled(rendered_output_.empty());
+
 	if (ImGui::Button("Copy All")) {
 		ImGui::SetClipboardText(
 			rendered_output_.c_str()
 		);
 	}
+
 	ImGui::EndDisabled();
 
 	ImGui::SameLine();
+
 	ImGui::BeginDisabled(rendered_output_.empty());
+
 	if (ImGui::Button("Jump to Bottom")) {
+		follow_output_tail_ = true;
 		jump_to_bottom_requested_ = true;
 	}
+
 	ImGui::EndDisabled();
 
-	ImGui::SetNextWindowSizeConstraints(
-		ImVec2{ 0.0f, 140.0f },
-		ImVec2{ FLT_MAX, FLT_MAX }
-	);
 	if (ImGui::BeginChild(
 			"ExportOutputRegion",
-			ImVec2{ 0.0f, 300.0f },
-			ImGuiChildFlags_Borders |
-				ImGuiChildFlags_ResizeY
+			ImVec2{ 0.0f, 0.0f },
+			ImGuiChildFlags_Borders
 		)) {
-		if (jump_to_bottom_requested_) {
-			ImGui::SetKeyboardFocusHere();
+		const ImGuiID output_text_id{
+			ImGui::GetID("##ExportOutputText")
+		};
+
+		const auto& io{
+			ImGui::GetIO()
+		};
+
+		const bool output_hovered{
+			ImGui::IsWindowHovered(
+				ImGuiHoveredFlags_ChildWindows
+			)
+		};
+
+		// Explicit user interaction with the output disables
+		// following. This lets the user scroll upward or select
+		// text without new output pulling the view away.
+		const bool user_scrolling{
+			output_hovered &&
+			io.MouseWheel != 0.0f
+		};
+
+		const bool user_selecting{
+			output_hovered &&
+			ImGui::IsMouseDragging(
+				ImGuiMouseButton_Left
+			)
+		};
+
+		if ((user_scrolling || user_selecting) &&
+			!jump_to_bottom_requested_) {
+			follow_output_tail_ = false;
 		}
 
 		ImGui::InputTextMultiline(
@@ -1396,12 +1420,38 @@ void ExportManager::DrawOutputPanel() {
 			rendered_output_.data(),
 			rendered_output_.size() + 1,
 			ImVec2{ -FLT_MIN, -FLT_MIN },
-			ImGuiInputTextFlags_ReadOnly |
-				ImGuiInputTextFlags_CallbackAlways,
-			ExportOutputTextCallback,
-			&jump_to_bottom_requested_
+			ImGuiInputTextFlags_ReadOnly
 		);
+
+		if (auto* output_window{
+				ImGui::FindWindowByID(
+					output_text_id
+				)
+			}) {
+			const bool should_scroll_to_bottom{
+				jump_to_bottom_requested_ ||
+				follow_output_tail_
+			};
+
+			if (should_scroll_to_bottom) {
+				// Set both the current position and ImGui's
+				// target position. The target is important
+				// because the multiline widget can update its
+				// ScrollMax as new text is laid out.
+				output_window->Scroll.y =
+					output_window->ScrollMax.y;
+
+				ImGui::SetScrollY(
+					output_window,
+					output_window->ScrollMax.y
+				);
+
+				follow_output_tail_ = true;
+				jump_to_bottom_requested_ = false;
+			}
+		}
 	}
+
 	ImGui::EndChild();
 }
 
@@ -1480,6 +1530,9 @@ void ExportManager::ClearOutput() {
 		};
 		shared_state_->output.clear();
 	}
+
+	follow_output_tail_ = true;
+	jump_to_bottom_requested_ = true;
 
 	shared_state_->output_revision.fetch_add(
 		1,
