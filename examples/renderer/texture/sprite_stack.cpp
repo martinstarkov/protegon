@@ -139,35 +139,49 @@ public:
 			return;
 		}
 
+		const auto& input{ ctx().input };
+
+		const bool forward{
+			input.KeyHeld(Key::W) ||
+			input.KeyHeld(Key::Up)
+		};
+
+		const bool reverse{
+			input.KeyHeld(Key::S) ||
+			input.KeyHeld(Key::Down)
+		};
+
+		const bool left{
+			input.KeyHeld(Key::A) ||
+			input.KeyHeld(Key::Left)
+		};
+
+		const bool right{
+			input.KeyHeld(Key::D) ||
+			input.KeyHeld(Key::Right)
+		};
+
 		const float dt{
-			std::min(ctx().dt().count(), kMaximumPhysicsDeltaTime)
+			std::min(
+				ctx().dt().count(),
+				kMaximumPhysicsDeltaTime
+			)
 		};
 
 		const float throttle{
-			(forward_ ? 1.0f : 0.0f) - (reverse_ ? 1.0f : 0.0f)
+			(forward ? 1.0f : 0.0f) -
+			(reverse ? 1.0f : 0.0f)
 		};
 
 		const float steering{
-			(right_ ? 1.0f : 0.0f) - (left_ ? 1.0f : 0.0f)
+			(right ? 1.0f : 0.0f) -
+			(left ? 1.0f : 0.0f)
 		};
 
 		UpdateSpeed(throttle, dt);
 		UpdateSteering(steering, dt);
 		UpdateCar(dt);
 	}
-
-	void OnEvent(Event event) override {
-		event.Dispatch<event::KeyPressed>([this](const auto& input) {
-			SetKey(input.key, true);
-		});
-		event.Dispatch<event::KeyHeld>([this](const auto& input) {
-			SetKey(input.key, true);
-		});
-		event.Dispatch<event::KeyReleased>([this](const auto& input) {
-			SetKey(input.key, false);
-		});
-	}
-
 private:
 	void UpdateSpeed(float throttle, float dt) {
 		if (throttle > 0.0f) {
@@ -273,33 +287,12 @@ private:
 		}
 	}
 
-	void SetKey(Key key, bool down) {
-		switch (key) {
-			case Key::W:
-			case Key::Up: forward_ = down; break;
-
-			case Key::S:
-			case Key::Down: reverse_ = down; break;
-
-			case Key::A:
-			case Key::Left: left_ = down; break;
-
-			case Key::D:
-			case Key::Right: right_ = down; break;
-
-			default: break;
-		}
-	}
+	
 
 	SpriteStack car_;
 
 	Radians heading_;
 	float speed_{ 0.0f };
-
-	bool forward_{ false };
-	bool reverse_{ false };
-	bool left_{ false };
-	bool right_{ false };
 };
 
 PTGN_REGISTER_SCENE(SpriteStackDrivingScene, "Sprite Stack Driving Scene");
