@@ -2051,9 +2051,7 @@ std::optional<path> AssetManager::GetAssetDirectory() const {
 void AssetManager::Load(const SerializedAsset& asset) {
 	const auto source_path{ ResolveAssetPath(asset) };
 
-	if (asset.kind != AssetKind::Scene) {
-		TrackAssetLoad(asset.key, asset.kind, source_path);
-	}
+	TrackAssetDependency(asset.key);
 
 	if (asset.kind == AssetKind::Scene) {
 		runtime_states_[Hash(asset.key)].load_state = AssetLoadState::Loaded;
@@ -2064,7 +2062,7 @@ void AssetManager::Load(const SerializedAsset& asset) {
 		Load(asset.key, source_path, asset.kind);
 		return;
 	}
-
+	
 	const auto source{ FileToString(source_path) };
 	auto validation{ ValidateShaderSource(ShaderKey{ asset.key }, source) };
 	auto& shader_state{ runtime_states_[Hash(asset.key)] };
@@ -2121,6 +2119,8 @@ void AssetManager::Load(const SerializedAsset& asset) {
 }
 
 void AssetManager::LoadAssetAsync(const AssetKey& key) {
+	TrackAssetDependency(key);
+
 	auto catalog_it{ catalog_.find(Hash(key)) };
 	if (catalog_it == catalog_.end()) {
 		PTGN_WARN("Cannot load asset because it is missing from the catalog: ", key);
@@ -2144,11 +2144,14 @@ void AssetManager::LoadAssetAsync(const AssetKey& key) {
 
 void AssetManager::LoadDependencies(std::span<const AssetKey> dependencies) {
 	for (const auto& key : ExpandDependencies(dependencies)) {
+		TrackAssetDependency(key);
+
 		auto it{ catalog_.find(Hash(key)) };
 		if (it == catalog_.end()) {
 			PTGN_WARN("Asset dependency is missing from the catalog: ", key);
 			continue;
 		}
+
 		if (!Has(key, it->second.kind)) {
 			Load(it->second);
 		}
@@ -2236,14 +2239,29 @@ Texture AssetManager::LoadTexture(
 	TextureFormat storage_format,
 	TextureParams params
 ) {
-	TrackAssetLoad(key, AssetKind::Texture, asset_path);
+	path source_path{ ResolvePathBackedAssetSource(asset_path) };
+
+	AssetKind project_asset_kind{ AssetKind::Texture };
+	if (FileExists(source_path) && impl::IsFontAtlasPng(source_path)) {
+		project_asset_kind = AssetKind::Font;
+	}
+
+	if (project_root_ && asset_directory_) {
+		if (const auto localized{
+				LocalizeProjectAsset(key, project_asset_kind, source_path)
+			}) {
+			source_path = localized.value();
+		}
+	}
+
+	TrackAssetLoad(key, AssetKind::Texture, source_path);
 
 	if (auto existing{ TryGet<Texture>(key) }; existing.has_value()) {
 		return existing.value();
 	}
 
-	auto texture{ CreateTexture(true, asset_path, storage_format, params) };
-	impl::AddAssetKey(texture.GetEntity(), key, asset_path);
+	auto texture{ CreateTexture(true, source_path, storage_format, params) };
+	impl::AddAssetKey(texture.GetEntity(), key, source_path);
 	runtime_states_[Hash(key)].load_state = AssetLoadState::Loaded;
 	return texture;
 }
@@ -2260,14 +2278,24 @@ Font AssetManager::CreateFont(const path& asset_path) {
 }
 
 Font AssetManager::LoadFont(FontKey key, const path& asset_path) {
-	TrackAssetLoad(key, AssetKind::Font, asset_path);
+	path source_path{ ResolvePathBackedAssetSource(asset_path) };
+
+	if (project_root_ && asset_directory_) {
+		if (const auto localized{
+				LocalizeProjectAsset(key, AssetKind::Font, source_path)
+			}) {
+			source_path = localized.value();
+		}
+	}
+
+	TrackAssetLoad(key, AssetKind::Font, source_path);
 
 	if (auto existing{ TryGet<Font>(key) }; existing.has_value()) {
 		return existing.value();
 	}
 
-	auto font{ CreateFont(true, asset_path) };
-	impl::AddAssetKey(font.GetEntity(), key, asset_path);
+	auto font{ CreateFont(true, source_path) };
+	impl::AddAssetKey(font.GetEntity(), key, source_path);
 	runtime_states_[Hash(key)].load_state = AssetLoadState::Loaded;
 	return font;
 }
@@ -2283,14 +2311,24 @@ Audio AssetManager::CreateAudio(const path& asset_path) {
 }
 
 Audio AssetManager::LoadAudio(AudioKey key, const path& asset_path) {
-	TrackAssetLoad(key, AssetKind::Audio, asset_path);
+	path source_path{ ResolvePathBackedAssetSource(asset_path) };
+
+	if (project_root_ && asset_directory_) {
+		if (const auto localized{
+				LocalizeProjectAsset(key, AssetKind::Audio, source_path)
+			}) {
+			source_path = localized.value();
+		}
+	}
+
+	TrackAssetLoad(key, AssetKind::Audio, source_path);
 
 	if (auto existing{ TryGet<Audio>(key) }; existing.has_value()) {
 		return existing.value();
 	}
 
-	auto audio{ CreateAudio(true, asset_path) };
-	impl::AddAssetKey(audio.GetEntity(), key, asset_path);
+	auto audio{ CreateAudio(true, source_path) };
+	impl::AddAssetKey(audio.GetEntity(), key, source_path);
 	runtime_states_[Hash(key)].load_state = AssetLoadState::Loaded;
 	return audio;
 }
@@ -2327,8 +2365,23 @@ Shader AssetManager::LoadShader(
 	const std::variant<ShaderCode, ShaderPath, ShaderPair>& source,
 	std::optional<std::string_view> shader_name
 ) {
-	if (const auto* shader_path{ std::get_if<ShaderPath>(&source) }) {
-		TrackAssetLoad(key, AssetKind::Shader, shader_path->path);
+	auto resolved_source{ source };
+	std::optional<path> source_path;
+
+	if (auto* shader_path{ std::get_if<ShaderPath>(&resolved_source) }) {
+		path resolved_path{ ResolvePathBackedAssetSource(shader_path->path) };
+
+		if (project_root_ && asset_directory_) {
+			if (const auto localized{
+					LocalizeProjectAsset(key, AssetKind::Shader, resolved_path)
+				}) {
+				resolved_path = localized.value();
+			}
+		}
+
+		shader_path->path = resolved_path;
+		source_path = resolved_path;
+		TrackAssetLoad(key, AssetKind::Shader, resolved_path);
 	} else {
 		TrackAssetDependency(key);
 	}
@@ -2337,13 +2390,7 @@ Shader AssetManager::LoadShader(
 		return existing.value();
 	}
 
-	auto shader{ CreateShader(true, source, shader_name.value_or(key.value)) };
-
-	std::optional<path> source_path;
-	if (const auto* shader_path{ std::get_if<ShaderPath>(&source) }) {
-		source_path = shader_path->path;
-	}
-
+	auto shader{ CreateShader(true, resolved_source, shader_name.value_or(key.value)) };
 	impl::AddAssetKey(shader.GetEntity(), key, source_path);
 	runtime_states_[Hash(key)].load_state = AssetLoadState::Loaded;
 	return shader;
@@ -2354,21 +2401,37 @@ Prefab& AssetManager::LoadPrefab(
 	const path& file_path,
 	const path& source_path
 ) {
-	TrackAssetLoad(key, AssetKind::Prefab, source_path);
+	path resolved_source_path{ ResolvePathBackedAssetSource(source_path) };
+
+	if (project_root_ && asset_directory_) {
+		if (const auto localized{
+				LocalizeProjectAsset(key, AssetKind::Prefab, resolved_source_path)
+			}) {
+			resolved_source_path = localized.value();
+		}
+	}
+
+	path resolved_file_path{
+		file_path == source_path
+			? resolved_source_path
+			: ResolvePathBackedAssetSource(file_path)
+	};
+
+	TrackAssetLoad(key, AssetKind::Prefab, resolved_source_path);
 
 	if (auto existing{ TryGet<Prefab>(key) }; existing.has_value()) {
 		return existing->get();
 	}
 
-	auto prefab{ LoadPrefabFile(file_path) };
+	auto prefab{ LoadPrefabFile(resolved_file_path) };
 	prefab.key = key;
 
 	auto [it, inserted]{ prefabs_.insert_or_assign(
 		Hash(key),
 		impl::PrefabAssetData{
 			.key = key,
-			.file_path = file_path,
-			.source_path = source_path,
+			.file_path = resolved_file_path,
+			.source_path = resolved_source_path,
 			.value = std::move(prefab),
 		}
 	) };
@@ -2447,7 +2510,17 @@ path AssetManager::GetPrefabPath(const PrefabKey& key) const {
 }
 
 json& AssetManager::LoadJson(const JsonKey& key, const path& asset_path) {
-	TrackAssetLoad(key, AssetKind::Json, asset_path);
+	path source_path{ ResolvePathBackedAssetSource(asset_path) };
+
+	if (project_root_ && asset_directory_) {
+		if (const auto localized{
+				LocalizeProjectAsset(key, AssetKind::Json, source_path)
+			}) {
+			source_path = localized.value();
+		}
+	}
+
+	TrackAssetLoad(key, AssetKind::Json, source_path);
 
 	if (auto existing{ TryGet<json>(key) }; existing.has_value()) {
 		return existing->get();
@@ -2457,8 +2530,8 @@ json& AssetManager::LoadJson(const JsonKey& key, const path& asset_path) {
 		Hash(key),
 		impl::JsonAssetData{
 			.key = key,
-			.source_path = asset_path,
-			.value = ptgn::LoadJson(asset_path),
+			.source_path = source_path,
+			.value = ptgn::LoadJson(source_path),
 		}
 	) };
 	(void)inserted;
@@ -2530,36 +2603,58 @@ void AssetManager::Load(
 }
 
 void AssetManager::Load(ShaderKey key, const ShaderCode& shader_code) {
+	TrackAssetDependency(key);
+
 	auto max_texture_slots{ impl::RendererAccessor{ renderer_ }.GetMaxTextureSlots() };
 	auto validation{ impl::ValidateShaderSource(shader_code.content, max_texture_slots) };
+
 	if (DetectShaderStages(shader_code.content) != ShaderStageMask::VertexFragment) {
 		validation.success = false;
-		validation.log = "A directly loaded ShaderCode program requires both vertex and fragment stages.";
+		validation.log =
+			"A directly loaded ShaderCode program requires both vertex and fragment stages.";
 	}
+
 	if (!validation.success) {
 		auto& state{ runtime_states_[Hash(key)] };
 		state.load_state = AssetLoadState::Failed;
 		state.error = validation.log;
 		state.compile_error = true;
 		state.compile_log = validation.log;
-		PTGN_WARN("Shader failed validation and was not loaded: ", key, "\n", validation.log);
+
+		PTGN_WARN(
+			"Shader failed validation and was not loaded: ",
+			key,
+			"\n",
+			validation.log
+		);
 		return;
 	}
+
 	LoadShader(std::move(key), shader_code, std::nullopt);
 }
 
 void AssetManager::Load(ShaderKey key, const ShaderPair& shader_pair) {
+	TrackAssetDependency(key);
+
 	auto max_texture_slots{ impl::RendererAccessor{ renderer_ }.GetMaxTextureSlots() };
 	auto validation{ ValidateShaderPairForLoad(shader_pair, max_texture_slots) };
+
 	if (!validation.success) {
 		auto& state{ runtime_states_[Hash(key)] };
 		state.load_state = AssetLoadState::Failed;
 		state.error = validation.log;
 		state.compile_error = true;
 		state.compile_log = validation.log;
-		PTGN_WARN("Shader pair failed validation and was not loaded: ", key, "\n", validation.log);
+
+		PTGN_WARN(
+			"Shader pair failed validation and was not loaded: ",
+			key,
+			"\n",
+			validation.log
+		);
 		return;
 	}
+
 	LoadShader(std::move(key), shader_pair, std::nullopt);
 }
 
@@ -2653,6 +2748,8 @@ void AssetManager::Load(
 			break;
 
 		case Shader: {
+			TrackAssetLoad(key, AssetKind::Shader, source_path);
+
 			const auto source{
 				FileToString(source_path)
 			};
