@@ -70,6 +70,8 @@ struct EditorSelection {
 
 	bool operator==(const EditorSelection&) const = default;
 
+	bool HasSceneSelection() const;
+
 	PTGN_REFLECT(
 		EditorSelection,
 		selected_scene_key,

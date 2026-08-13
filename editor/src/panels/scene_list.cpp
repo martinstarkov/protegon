@@ -472,7 +472,7 @@ void SceneListPanel::ClearInvalidSceneSelection(
 	EditorContext& ctx
 ) {
 	auto* selected_scene{ GetSelectedScene() };
-	if (selected_scene || ctx.local.selection.selected_scene_key.empty()) {
+	if (selected_scene || !ctx.local.selection.HasSceneSelection()) {
 		return;
 	}
 
@@ -1021,7 +1021,7 @@ void SceneListPanel::SetSelectedScene(
 	Scene* next_scene{ is_loaded_scene(scene) ? scene : nullptr };
 	Scene* previous_scene{ GetSelectedScene() };
 	if (previous_scene == next_scene &&
-		(ctx.local.selection.selected_scene_key.empty() == (next_scene == nullptr))) {
+		(ctx.local.selection.HasSceneSelection() == (next_scene != nullptr))) {
 		return;
 	}
 

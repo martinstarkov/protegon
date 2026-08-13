@@ -507,6 +507,7 @@ private:
 				[](const auto&... args) { return std::make_unique<T>(args...); },
 				*arguments
 			) };
+			scene_data.registered_type = GetRegisteredSceneType<T>();
 			scene->Init(app, std::move(scene_data));
 			return scene;
 		};

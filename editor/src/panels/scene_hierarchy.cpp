@@ -2079,7 +2079,7 @@ void SceneHierarchyPanel::SetSelectedEntity(Entity entity, bool undoable) {
 		selection.selected_scene_key = scene.GetTag();
 		selection.selected_scene_runtime = scene.IsRuntime();
 		selection.SetEntityUUID(scene.GetTag(), scene.IsRuntime(), entity.Get<UUID>());
-	} else if (!selection.selected_scene_key.empty()) {
+	} else if (selection.HasSceneSelection()) {
 		selection.SetEntityUUID(
 			selection.selected_scene_key,
 			selection.selected_scene_runtime,

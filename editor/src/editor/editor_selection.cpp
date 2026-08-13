@@ -19,7 +19,7 @@ namespace ptgn::editor {
 namespace {
 
 Scene* ResolveScene(Editor& editor, const EditorSelection& selection) {
-	if (selection.selected_scene_key.empty()) {
+	if (!selection.HasSceneSelection()) {
 		return nullptr;
 	}
 
@@ -127,6 +127,10 @@ void EditorSelection::RenameScene(
 			selection.scene_key = std::string{ new_key };
 		}
 	}
+}
+
+bool EditorSelection::HasSceneSelection() const {
+	return !selected_scene_key.empty() || selected_scene_runtime;
 }
 
 Scene* ResolveSelectedScene(EditorContext& ctx) {

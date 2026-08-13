@@ -190,6 +190,16 @@ template <SceneType TScene>
 	return GetSceneRegistration(it->second);
 }
 
+template <SceneType TScene>
+[[nodiscard]] std::string GetRegisteredSceneType() {
+	constexpr auto type_id{ Hash<TScene>() };
+
+	const auto it{ GetSceneCppTypeRegistry().find(type_id) };
+	return it == GetSceneCppTypeRegistry().end()
+		? std::string{}
+		: it->second;
+}
+
 } // namespace impl
 
 } // namespace ptgn

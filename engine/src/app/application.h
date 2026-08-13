@@ -76,6 +76,7 @@ public:
 				*arguments
 			) };
 			scene_data.runtime = true;
+			scene_data.registered_type = impl::GetRegisteredSceneType<TScene>();
 			scene->Init(app, std::move(scene_data));
 			return scene;
 		};
