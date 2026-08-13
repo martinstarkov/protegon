@@ -635,6 +635,312 @@ bool DrawDisabledIf(bool disabled, F&& draw) {
 	return changed;
 }
 
+inline bool DrawWHValue(
+	std::string_view label,
+	V2_float& value,
+	float speed = 0.1f,
+	float minimum = 0.0f,
+	float maximum = 0.0f,
+	const char* format = "%.3f",
+	ImGuiSliderFlags flags = ImGuiSliderFlags_None,
+	bool disabled = false
+) {
+	ImGui::PushID(&value);
+
+	const bool changed{ DrawPropertyRow(label, [&]() {
+		const float spacing{ ImGui::GetStyle().ItemInnerSpacing.x };
+		const float width{
+			std::max(
+				1.0f,
+				(ImGui::GetContentRegionAvail().x - spacing) * 0.5f
+			)
+		};
+		const std::string width_format{
+			std::string{ "W: " } + format
+		};
+		const std::string height_format{
+			std::string{ "H: " } + format
+		};
+
+		return DrawDisabledIf(
+			disabled || IsReadOnly(),
+			[&]() {
+				bool local_changed{ false };
+
+				ImGui::SetNextItemWidth(width);
+				local_changed |= ImGui::DragFloat(
+					"##W",
+					&value.x,
+					speed,
+					minimum,
+					maximum,
+					width_format.c_str(),
+					flags
+				);
+
+				ImGui::SameLine(0.0f, spacing);
+
+				ImGui::SetNextItemWidth(width);
+				local_changed |= ImGui::DragFloat(
+					"##H",
+					&value.y,
+					speed,
+					minimum,
+					maximum,
+					height_format.c_str(),
+					flags
+				);
+
+				return local_changed;
+			}
+		);
+	}) };
+
+	if (changed) {
+		value = Clamp(value, minimum, maximum);
+	}
+
+	ImGui::PopID();
+
+	return changed;
+}
+
+inline bool DrawWHValue(
+	std::string_view label,
+	V2_int& value,
+	float speed = 1.0f,
+	int minimum = 0,
+	int maximum = 0,
+	ImGuiSliderFlags flags = ImGuiSliderFlags_None,
+	bool disabled = false
+) {
+	ImGui::PushID(&value);
+
+	const bool changed{ DrawPropertyRow(label, [&]() {
+		const float spacing{ ImGui::GetStyle().ItemInnerSpacing.x };
+		const float width{
+			std::max(
+				1.0f,
+				(ImGui::GetContentRegionAvail().x - spacing) * 0.5f
+			)
+		};
+
+		return DrawDisabledIf(
+			disabled || IsReadOnly(),
+			[&]() {
+				bool local_changed{ false };
+
+				ImGui::SetNextItemWidth(width);
+				local_changed |= ImGui::DragInt(
+					"##W",
+					&value.x,
+					speed,
+					minimum,
+					maximum,
+					"W: %d",
+					flags
+				);
+
+				ImGui::SameLine(0.0f, spacing);
+
+				ImGui::SetNextItemWidth(width);
+				local_changed |= ImGui::DragInt(
+					"##H",
+					&value.y,
+					speed,
+					minimum,
+					maximum,
+					"H: %d",
+					flags
+				);
+
+				return local_changed;
+			}
+		);
+	}) };
+
+	if (changed) {
+		value = Clamp(value, minimum, maximum);
+	}
+
+	ImGui::PopID();
+
+	return changed;
+}
+
+inline bool DrawRValue(
+	std::string_view label,
+	float& value,
+	float speed = 0.1f,
+	float minimum = 0.0f,
+	float maximum = 0.0f,
+	const char* format = "%.3f",
+	ImGuiSliderFlags flags = ImGuiSliderFlags_None,
+	bool disabled = false
+) {
+	ImGui::PushID(&value);
+
+	const std::string radius_format{
+		std::string{ "R: " } + format
+	};
+
+	const bool changed{
+		DrawPropertyRow(
+			label,
+			[&]() {
+				return DrawDisabledIf(
+					disabled || IsReadOnly(),
+					[&]() {
+						ImGui::SetNextItemWidth(-FLT_MIN);
+
+						return ImGui::DragFloat(
+							"##R",
+							&value,
+							speed,
+							minimum,
+							maximum,
+							radius_format.c_str(),
+							flags
+						);
+					}
+				);
+			}
+		)
+	};
+
+	if (changed) {
+		value = std::clamp(value, minimum, maximum);
+	}
+
+	ImGui::PopID();
+
+	return changed;
+}
+
+inline bool DrawOptionalWHValue(
+	std::string_view label,
+	std::optional<V2_float>& value,
+	float speed = 0.1f,
+	float minimum = 0.0f,
+	float maximum = 0.0f,
+	const char* format = "%.3f",
+	ImGuiSliderFlags flags = ImGuiSliderFlags_None,
+	bool disabled = false
+) {
+	ImGui::PushID(&value);
+
+	bool enabled{ value.has_value() };
+	V2_float displayed{ value.value_or(V2_float{}) };
+
+	const bool changed{
+		DrawPropertyRow(
+			label,
+			[&]() {
+				const bool read_only{
+					disabled || IsReadOnly()
+				};
+
+				const float spacing{
+					ImGui::GetStyle().ItemInnerSpacing.x
+				};
+				const float checkbox_width{
+					ImGui::GetFrameHeight()
+				};
+				const float field_width{
+					std::max(
+						1.0f,
+						(
+							ImGui::GetContentRegionAvail().x -
+							checkbox_width -
+							spacing * 2.0f
+						) *
+							0.5f
+					)
+				};
+
+				bool local_changed{ false };
+
+				local_changed |= DrawDisabledIf(
+					read_only,
+					[&]() {
+						return ImGui::Checkbox(
+							"##Enabled",
+							&enabled
+						);
+					}
+				);
+
+				ImGui::SameLine(
+					0.0f,
+					spacing
+				);
+
+				ImGui::BeginDisabled(
+					!enabled || read_only
+				);
+
+				const std::string width_format{
+					std::string{ "W: " } + format
+				};
+				const std::string height_format{
+					std::string{ "H: " } + format
+				};
+
+				ImGui::SetNextItemWidth(
+					field_width
+				);
+
+				local_changed |= ImGui::DragFloat(
+					"##W",
+					&displayed.x,
+					speed,
+					minimum,
+					maximum,
+					width_format.c_str(),
+					flags
+				);
+
+				ImGui::SameLine(
+					0.0f,
+					spacing
+				);
+
+				ImGui::SetNextItemWidth(
+					field_width
+				);
+
+				local_changed |= ImGui::DragFloat(
+					"##H",
+					&displayed.y,
+					speed,
+					minimum,
+					maximum,
+					height_format.c_str(),
+					flags
+				);
+
+				ImGui::EndDisabled();
+
+				return local_changed;
+			}
+		)
+	};
+
+	if (changed) {
+		displayed = Clamp(displayed, minimum, maximum);
+
+		if (enabled) {
+			value = displayed;
+		} else {
+			value.reset();
+		}
+	}
+
+	ImGui::PopID();
+
+	return changed;
+}
+
 inline bool DrawString(
 	std::string_view label,
 	std::string& value,
