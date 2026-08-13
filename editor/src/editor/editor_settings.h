@@ -8,7 +8,6 @@ struct EditorSettings {
 	bool entity_picking{ true };
 	bool render_only_selected_scene{ true };
 	bool gizmo_uses_local_orientation{ false };
-	bool viewport_aspect_ratio_locked{ true };
 	bool show_read_only_inspector_data{ false };
 	bool show_imgui_metrics{ false };
 	int content_browser_items_per_row{ 8 };
@@ -21,7 +20,6 @@ struct EditorSettings {
 		entity_picking,
 		render_only_selected_scene,
 		gizmo_uses_local_orientation,
-		viewport_aspect_ratio_locked,
 		show_read_only_inspector_data,
 		show_imgui_metrics,
 		content_browser_items_per_row,

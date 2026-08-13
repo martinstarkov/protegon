@@ -410,7 +410,6 @@ static_assert(!ContainsDuplicates(kResolutionPresets, &ResolutionPreset::label))
 					"editor general entity picking",
 					"render only selected scene",
 					"local gizmo orientation transform",
-					"viewport aspect ratio lock logical size",
 					"show read only inspector data components members",
 				}
 			);
@@ -838,22 +837,6 @@ bool DrawEditorGeneralSettings(
 
 		ImGui::TextDisabled(
 			"Excludes unselected scenes from the editor presentation."
-		);
-	}
-
-	if (MatchesFilter(filter, { "viewport aspect ratio", "aspect ratio", "logical size" })) {
-		auto settings{ ctx.editor.GetSettings() };
-
-		if (ImGui::Checkbox(
-				"Lock Viewport Aspect Ratio",
-				&settings.viewport_aspect_ratio_locked
-			)) {
-			ctx.editor.SetEditorSettings(settings);
-			changed = true;
-		}
-
-		ImGui::TextDisabled(
-			"Keeps the presentation area at the logical-size aspect ratio."
 		);
 	}
 

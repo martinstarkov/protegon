@@ -2159,17 +2159,6 @@ void Editor::DrawMainMenuBar() {
 			);
 		}
 
-		if (ImGui::MenuItem(
-				"Lock Viewport Aspect Ratio",
-				nullptr,
-				GetSettings().viewport_aspect_ratio_locked
-			)) {
-			toggle_editor_setting(
-				"Toggle Viewport Aspect Ratio Lock",
-				&EditorSettings::viewport_aspect_ratio_locked
-			);
-		}
-
 		ImGui::Separator();
 
 		if (ImGui::MenuItem(
@@ -3021,8 +3010,6 @@ void Editor::SetEditorSettings(EditorSettings settings) {
 	SetGizmoUsesLocalOrientation(settings.gizmo_uses_local_orientation);
 
 	auto& current{ context_->local.settings };
-	current.viewport_aspect_ratio_locked =
-		settings.viewport_aspect_ratio_locked;
 	current.show_read_only_inspector_data =
 		settings.show_read_only_inspector_data;
 	current.show_imgui_metrics =
