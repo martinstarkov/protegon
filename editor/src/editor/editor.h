@@ -144,6 +144,8 @@ private:
 	void UpdateProjectLocalState();
 	void SaveEditorLocalStateIfChanged();
 	void OnProjectChanged();
+	void RefreshProjectDirtyState();
+	void UpdateWindowTitle();
 	void DrawMainMenuBar();
 	void DrawPanels();
 	void BuildDefaultDockLayout(std::uint32_t dockspace_id);
@@ -183,6 +185,7 @@ private:
 	V2_float previous_dockspace_size_;
 	bool dock_layout_built_{ false };
 	bool scene_asset_dependencies_dirty_{ true };
+	bool untracked_project_dirty_{ false };
 	std::unordered_set<std::string> pending_scene_bootstrap_saves_;
 
 #if !defined(__EMSCRIPTEN__)

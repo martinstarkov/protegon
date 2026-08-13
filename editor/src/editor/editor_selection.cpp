@@ -178,15 +178,18 @@ bool SetEditorSelection(
 
 	EditorContext* context{ std::addressof(ctx) };
 
-	ctx.undo.Execute(std::make_unique<ActionEditorCommand>(
-		std::move(label),
-		[context, before]() mutable {
-			ApplyEditorSelection(*context, before);
-		},
-		[context, after = std::move(selection)]() mutable {
-			ApplyEditorSelection(*context, after);
-		}
-	));
+	ctx.undo.Execute(
+		std::make_unique<ActionEditorCommand>(
+			std::move(label),
+			[context, before]() mutable {
+				ApplyEditorSelection(*context, before);
+			},
+			[context, after = std::move(selection)]() mutable {
+				ApplyEditorSelection(*context, after);
+			}
+		),
+		false
+	);
 
 	return true;
 }

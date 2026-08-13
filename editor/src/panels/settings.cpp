@@ -205,7 +205,8 @@ void TrackSettingsChange(
 	bool changed,
 	T before,
 	T after,
-	Apply apply
+	Apply apply,
+	bool affects_project_serialization = true
 ) {
 	if (!changed) {
 		return;
@@ -221,7 +222,8 @@ void TrackSettingsChange(
 		},
 		[apply, after = std::move(after)]() mutable {
 			apply(after);
-		}
+		},
+		affects_project_serialization
 	);
 }
 
@@ -387,7 +389,7 @@ static_assert(!ContainsDuplicates(kResolutionPresets, &ResolutionPreset::label))
 				filter,
 				{
 					"project display resolution source preset logical size scaling mode",
-					"window size default window size resizable start maximized",
+					"window title window size default window size resizable start maximized",
 					"window background renderer background",
 				}
 			);
@@ -647,6 +649,7 @@ bool DrawProjectDisplaySettings(
 		MatchesFilter(
 			filter,
 			{
+				"window title",
 				"default window size",
 				"resizable",
 				"start maximized",
@@ -660,6 +663,14 @@ bool DrawProjectDisplaySettings(
 
 		auto window_settings{ window.GetSettings() };
 		bool window_changed{ false };
+
+		if (MatchesFilter(filter, { "window title", "title" })) {
+			window_changed |= DrawValue(
+				ctx,
+				"Window Title",
+				window_settings.title
+			);
+		}
 
 		if (MatchesFilter(filter, { "default window size", "window size" })) {
 			DrawPropertyRow("Default Window Size", [&]() {
@@ -704,10 +715,6 @@ bool DrawProjectDisplaySettings(
 		}
 	}
 
-	if (changed) {
-		ctx.editor.MarkProjectDirty();
-	}
-
 	const ProjectDisplaySettingsState after{
 		.renderer = renderer.GetSettings(),
 		.window = window.GetSettings(),
@@ -723,7 +730,6 @@ bool DrawProjectDisplaySettings(
 		[editor = &ctx.editor](const ProjectDisplaySettingsState& state) {
 			editor->GetRenderer().SetSettings(state.renderer);
 			editor->GetWindow().SetSettings(state.window);
-			editor->MarkProjectDirty();
 		}
 	);
 
@@ -779,7 +785,6 @@ bool DrawProjectRenderingSettings(
 
 	if (changed) {
 		renderer.SetSettings(settings);
-		ctx.editor.MarkProjectDirty();
 	}
 
 	TrackSettingsChange(
@@ -791,7 +796,6 @@ bool DrawProjectRenderingSettings(
 		renderer.GetSettings(),
 		[editor = &ctx.editor](const RendererSettings& value) {
 			editor->GetRenderer().SetSettings(value);
-			editor->MarkProjectDirty();
 		}
 	);
 
@@ -922,7 +926,8 @@ bool DrawEditorGeneralSettings(
 		ctx.editor.GetSettings(),
 		[editor = &ctx.editor](const EditorSettings& settings) {
 			editor->SetEditorSettings(settings);
-		}
+		},
+		false
 	);
 
 	return changed;
@@ -963,7 +968,6 @@ bool DrawDebugInteractionSettings(
 
 	if (changed) {
 		ctx.editor.GetDebugSystem().settings.interaction = settings;
-		ctx.editor.MarkProjectDirty();
 	}
 
 	TrackSettingsChange(
@@ -975,7 +979,6 @@ bool DrawDebugInteractionSettings(
 		ctx.editor.GetDebugSystem().settings.interaction,
 		[editor = &ctx.editor](const auto& value) {
 			editor->GetDebugSystem().settings.interaction = value;
-			editor->MarkProjectDirty();
 		}
 	);
 
@@ -1010,7 +1013,6 @@ bool DrawDebugCollisionSettings(
 
 	if (changed) {
 		ctx.editor.GetDebugSystem().settings.collision = settings;
-		ctx.editor.MarkProjectDirty();
 	}
 
 	TrackSettingsChange(
@@ -1022,7 +1024,6 @@ bool DrawDebugCollisionSettings(
 		ctx.editor.GetDebugSystem().settings.collision,
 		[editor = &ctx.editor](const auto& value) {
 			editor->GetDebugSystem().settings.collision = value;
-			editor->MarkProjectDirty();
 		}
 	);
 
@@ -1068,7 +1069,6 @@ bool DrawDebugTextSettings(
 
 	if (changed) {
 		ctx.editor.GetDebugSystem().settings.text = settings;
-		ctx.editor.MarkProjectDirty();
 	}
 
 	TrackSettingsChange(
@@ -1080,7 +1080,6 @@ bool DrawDebugTextSettings(
 		ctx.editor.GetDebugSystem().settings.text,
 		[editor = &ctx.editor](const auto& value) {
 			editor->GetDebugSystem().settings.text = value;
-			editor->MarkProjectDirty();
 		}
 	);
 
@@ -1127,7 +1126,6 @@ bool DrawDebugVisibilitySettings(
 
 	if (changed) {
 		ctx.editor.GetDebugSystem().settings.light = settings;
-		ctx.editor.MarkProjectDirty();
 	}
 
 	TrackSettingsChange(
@@ -1139,7 +1137,6 @@ bool DrawDebugVisibilitySettings(
 		ctx.editor.GetDebugSystem().settings.light,
 		[editor = &ctx.editor](const auto& value) {
 			editor->GetDebugSystem().settings.light = value;
-			editor->MarkProjectDirty();
 		}
 	);
 
@@ -1428,10 +1425,6 @@ void SettingsWindow::OnRender(EditorContext& ctx) {
 		} else {
 			settings_changed =
 				DrawSelectedSettingsPage(ctx, selected_page_, filter);
-
-			if (settings_changed) {
-				ctx.local.state.is_dirty = true;
-			}
 		}
 	}
 	ImGui::EndChild();

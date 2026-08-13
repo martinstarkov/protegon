@@ -6,7 +6,10 @@
 
 namespace ptgn::editor {
 
-void UndoStack::Execute(std::unique_ptr<EditorCommand> command) {
+void UndoStack::Execute(
+	std::unique_ptr<EditorCommand> command,
+	bool affects_project_serialization
+) {
 	if (!command) {
 		return;
 	}
@@ -18,26 +21,53 @@ void UndoStack::Execute(std::unique_ptr<EditorCommand> command) {
 
 	CommitActiveEdit();
 	command->Redo();
-	PushApplied(std::move(command));
+	PushApplied(
+		std::move(command),
+		affects_project_serialization
+	);
 }
 
-void UndoStack::PushApplied(std::unique_ptr<EditorCommand> command) {
+void UndoStack::PushApplied(
+	std::unique_ptr<EditorCommand> command,
+	bool affects_project_serialization
+) {
 	if (!command || !undo_redo_enabled_) {
 		return;
 	}
 
 	CommitActiveEdit();
 	DiscardRedoBranch();
-	commands_.push_back(std::move(command));
+
+	std::uint64_t project_state_id{
+		project_state_ids_[cursor_]
+	};
+
+	if (affects_project_serialization) {
+		project_state_id = next_project_state_id_++;
+	}
+
+	commands_.push_back(CommandEntry{
+		.command = std::move(command),
+		.affects_project_serialization = affects_project_serialization,
+	});
 	cursor_ = commands_.size();
+	project_state_ids_.push_back(project_state_id);
 }
 
-void UndoStack::PushApplied(std::string label, Action undo, Action redo) {
-	PushApplied(std::make_unique<ActionEditorCommand>(
-		std::move(label),
-		std::move(undo),
-		std::move(redo)
-	));
+void UndoStack::PushApplied(
+	std::string label,
+	Action undo,
+	Action redo,
+	bool affects_project_serialization
+) {
+	PushApplied(
+		std::make_unique<ActionEditorCommand>(
+			std::move(label),
+			std::move(undo),
+			std::move(redo)
+		),
+		affects_project_serialization
+	);
 }
 
 void UndoStack::TrackInteraction(
@@ -46,7 +76,8 @@ void UndoStack::TrackInteraction(
 	bool changed,
 	bool any_item_active,
 	Action undo,
-	Action redo
+	Action redo,
+	bool affects_project_serialization
 ) {
 	if (!changed || !undo_redo_enabled_) {
 		return;
@@ -56,7 +87,8 @@ void UndoStack::TrackInteraction(
 		PushApplied(
 			std::move(label),
 			std::move(undo),
-			std::move(redo)
+			std::move(redo),
+			affects_project_serialization
 		);
 		return;
 	}
@@ -71,11 +103,14 @@ void UndoStack::TrackInteraction(
 			.label = std::move(label),
 			.undo = std::move(undo),
 			.redo = std::move(redo),
+			.affects_project_serialization = affects_project_serialization,
 		});
 		return;
 	}
 
 	active_edit_->redo = std::move(redo);
+	active_edit_->affects_project_serialization |=
+		affects_project_serialization;
 }
 
 void UndoStack::CommitInactiveInteraction(bool any_item_active) {
@@ -91,11 +126,14 @@ void UndoStack::CommitActiveEdit() {
 
 	auto edit{ std::move(active_edit_) };
 
-	PushApplied(std::make_unique<ActionEditorCommand>(
-		std::move(edit->label),
-		std::move(edit->undo),
-		std::move(edit->redo)
-	));
+	PushApplied(
+		std::make_unique<ActionEditorCommand>(
+			std::move(edit->label),
+			std::move(edit->undo),
+			std::move(edit->redo)
+		),
+		edit->affects_project_serialization
+	);
 }
 
 void UndoStack::CancelActiveEdit() {
@@ -121,7 +159,7 @@ void UndoStack::Undo() {
 	}
 
 	--cursor_;
-	commands_[cursor_]->Undo();
+	commands_[cursor_].command->Undo();
 }
 
 void UndoStack::Redo() {
@@ -135,7 +173,7 @@ void UndoStack::Redo() {
 		return;
 	}
 
-	commands_[cursor_]->Redo();
+	commands_[cursor_].command->Redo();
 	++cursor_;
 }
 
@@ -153,6 +191,21 @@ void UndoStack::SetUndoRedoEnabled(bool enabled) {
 
 bool UndoStack::IsUndoRedoEnabled() const {
 	return undo_redo_enabled_;
+}
+
+void UndoStack::MarkProjectSaved() {
+	saved_project_state_id_ =
+		project_state_ids_[cursor_];
+}
+
+bool UndoStack::IsProjectDirty() const {
+	if (active_edit_ &&
+		active_edit_->affects_project_serialization) {
+		return true;
+	}
+
+	return project_state_ids_[cursor_] !=
+		saved_project_state_id_;
 }
 
 bool UndoStack::CanUndo() const {
@@ -177,7 +230,7 @@ std::vector<UndoStack::HistoryEntry> UndoStack::History() const {
 
 	for (std::size_t index{ 0 }; index < commands_.size(); ++index) {
 		history.push_back(HistoryEntry{
-			.label = std::string{ commands_[index]->Label() },
+			.label = std::string{ commands_[index].command->Label() },
 			.applied = index < cursor_,
 		});
 	}
@@ -189,6 +242,10 @@ void UndoStack::Clear() {
 	commands_.clear();
 	cursor_ = 0;
 	active_edit_.reset();
+
+	project_state_ids_.assign(1, 0);
+	next_project_state_id_ = 1;
+	saved_project_state_id_ = 0;
 }
 
 void UndoStack::DiscardRedoBranch() {
@@ -199,6 +256,12 @@ void UndoStack::DiscardRedoBranch() {
 	commands_.erase(
 		commands_.begin() + static_cast<std::ptrdiff_t>(cursor_),
 		commands_.end()
+	);
+
+	project_state_ids_.erase(
+		project_state_ids_.begin() +
+			static_cast<std::ptrdiff_t>(cursor_ + 1),
+		project_state_ids_.end()
 	);
 }
 

@@ -22,11 +22,22 @@ public:
 		bool applied{ false };
 	};
 
-	void Execute(std::unique_ptr<EditorCommand> command);
+	void Execute(
+		std::unique_ptr<EditorCommand> command,
+		bool affects_project_serialization = true
+	);
 
 	/// Adds a command whose result has already been applied.
-	void PushApplied(std::unique_ptr<EditorCommand> command);
-	void PushApplied(std::string label, Action undo, Action redo);
+	void PushApplied(
+		std::unique_ptr<EditorCommand> command,
+		bool affects_project_serialization = true
+	);
+	void PushApplied(
+		std::string label,
+		Action undo,
+		Action redo,
+		bool affects_project_serialization = true
+	);
 
 	/// Coalesces repeated changes from one active editor control into one command.
 	void TrackInteraction(
@@ -35,7 +46,8 @@ public:
 		bool changed,
 		bool any_item_active,
 		Action undo,
-		Action redo
+		Action redo,
+		bool affects_project_serialization = true
 	);
 
 	void CommitInactiveInteraction(bool any_item_active);
@@ -48,6 +60,13 @@ public:
 	void SetUndoRedoEnabled(bool enabled);
 	[[nodiscard]] bool IsUndoRedoEnabled() const;
 
+	/// Marks the currently applied serialized-project history state as saved.
+	void MarkProjectSaved();
+
+	/// @return True when the applied serialized-project history state differs from the saved state.
+	/// Editor-only commands such as selection and editor preferences do not affect this value.
+	[[nodiscard]] bool IsProjectDirty() const;
+
 	[[nodiscard]] bool CanUndo() const;
 	[[nodiscard]] bool CanRedo() const;
 	[[nodiscard]] bool HasActiveEdit() const;
@@ -57,20 +76,32 @@ public:
 private:
 	friend class Editor;
 
+	struct CommandEntry {
+		std::unique_ptr<EditorCommand> command;
+		bool affects_project_serialization{ true };
+	};
+
 	struct ActiveEdit {
 		std::uint64_t key{ 0 };
 		std::string label;
 		Action undo;
 		Action redo;
+		bool affects_project_serialization{ true };
 	};
 
 	void Clear();
 	void DiscardRedoBranch();
 
-	std::vector<std::unique_ptr<EditorCommand>> commands_;
+	std::vector<CommandEntry> commands_;
 	std::size_t cursor_{ 0 };
 	std::unique_ptr<ActiveEdit> active_edit_;
 	bool undo_redo_enabled_{ true };
+
+	/// State id at every history boundary. Element 0 is the state before the first command,
+	/// and element N is the serialized-project state after N commands have been applied.
+	std::vector<std::uint64_t> project_state_ids_{ 0 };
+	std::uint64_t next_project_state_id_{ 1 };
+	std::uint64_t saved_project_state_id_{ 0 };
 };
 
 } // namespace ptgn::editor

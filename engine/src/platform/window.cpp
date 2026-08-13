@@ -373,6 +373,7 @@ Window::Window(const WindowConfig& config, std::function<void(impl::EventData&&)
 	file{ *this },
 	event_sink_{ std::move(event_sink) },
 	window_settings_{
+		.title = config.title,
 		.background_color = color::Transparent,
 		.size = config.size,
 		.resizable = config.resizable,
@@ -788,6 +789,7 @@ void Window::SetSettings(const WindowSettings& settings) {
 
 	window_settings_ = settings;
 
+	SetTitle(settings.title);
 	SetBackgroundColor(settings.background_color);
 
 	if (settings.resizable) {
@@ -804,6 +806,8 @@ void Window::SetSettings(const WindowSettings& settings) {
 		GetSetting(WindowSetting::Minimized)) {
 		SetSetting(WindowSetting::Restored);
 	}
+
+	SetSize(settings.size, false);
 
 	if (settings.maximized) {
 		SetSetting(WindowSetting::Maximized);

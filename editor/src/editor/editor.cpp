@@ -66,7 +66,8 @@ void PushUndoableValueChange(
 	std::string label,
 	T before,
 	T after,
-	Apply apply
+	Apply apply,
+	bool affects_project_serialization = true
 ) {
 	apply(after);
 
@@ -77,7 +78,8 @@ void PushUndoableValueChange(
 		},
 		[apply, after = std::move(after)]() mutable {
 			apply(after);
-		}
+		},
+		affects_project_serialization
 	);
 }
 
@@ -988,6 +990,44 @@ void Editor::RequestQuit() {
 	app.RequestQuit();
 }
 
+void Editor::RefreshProjectDirtyState() {
+	PTGN_ASSERT(context_);
+
+	const bool dirty{
+		untracked_project_dirty_ ||
+		undo_stack_.IsProjectDirty()
+	};
+
+	if (context_->local.state.is_dirty != dirty) {
+		context_->local.state.is_dirty = dirty;
+	}
+
+	UpdateWindowTitle();
+}
+
+void Editor::UpdateWindowTitle() {
+	auto& window{ GetWindow() };
+
+	std::string title;
+
+	if (!render_enabled_) {
+		title = window.GetSettings().title;
+	} else if (const auto* project{ GetProject() }) {
+		title = "Editor: " + project->name;
+
+		if (context_ &&
+			context_->local.state.is_dirty) {
+			title += " *";
+		}
+	} else {
+		title = "Editor";
+	}
+
+	if (window.GetTitle() != title) {
+		window.SetTitle(title);
+	}
+}
+
 void Editor::UpdateDockLayout(std::uint32_t dockspace_id, float width) {
 	auto* dockspace{ ImGui::DockBuilderGetNode(dockspace_id) };
 
@@ -1055,6 +1095,7 @@ void Editor::OnRender() {
 
 	ImGui::End();
 
+	RefreshProjectDirtyState();
 	SaveEditorLocalStateIfChanged();
 }
 
@@ -1081,8 +1122,9 @@ const Project* Editor::GetProject() const {
 
 void Editor::MarkProjectDirty() {
 	PTGN_ASSERT(context_);
-	context_->local.state.is_dirty = true;
+	untracked_project_dirty_ = true;
 	scene_asset_dependencies_dirty_ = true;
+	RefreshProjectDirtyState();
 }
 
 bool Editor::CreateProjectScene(
@@ -1201,7 +1243,6 @@ bool Editor::CreateProjectScene(
 		}
 
 		SaveProjectManifest(app, *current_project);
-		MarkProjectDirty();
 		SyncProjectSceneOrder();
 
 		const auto selected_uuid{
@@ -1259,7 +1300,6 @@ bool Editor::CreateProjectScene(
 		fs::remove(absolute_path, error);
 		SaveProjectManifest(app, *current_project);
 
-		MarkProjectDirty();
 		SyncProjectSceneOrder();
 		ApplyEditorSelection(*context_, std::move(selection));
 		return true;
@@ -1387,7 +1427,6 @@ bool Editor::DuplicateProjectScene(
 		}
 
 		SaveProjectManifest(app, *current_project);
-		MarkProjectDirty();
 		SyncProjectSceneOrder();
 
 		const auto selected_uuid{
@@ -1435,7 +1474,6 @@ bool Editor::DuplicateProjectScene(
 		fs::remove(absolute_path, error);
 		SaveProjectManifest(app, *current_project);
 
-		MarkProjectDirty();
 		SyncProjectSceneOrder();
 		ApplyEditorSelection(*context_, std::move(selection));
 		return true;
@@ -1588,7 +1626,6 @@ bool Editor::DeleteProjectScene(
 		fs::remove(current_absolute_path, error);
 		SaveProjectManifest(app, *current_project);
 
-		MarkProjectDirty();
 		SyncProjectSceneOrder();
 		ApplyEditorSelection(*context_, std::move(selection));
 		return true;
@@ -1645,7 +1682,6 @@ bool Editor::DeleteProjectScene(
 		}
 
 		SaveProjectManifest(app, *current_project);
-		MarkProjectDirty();
 		SyncProjectSceneOrder();
 
 		const bool select_restored_scene{
@@ -1728,7 +1764,6 @@ bool Editor::RenameProjectSceneKey(
 		context_->local.selection.RenameScene(old_key, entry->key);
 		scene_list_panel_.RefreshSelectedSceneState();
 		SaveProjectManifest(app, *project);
-		MarkProjectDirty();
 		SyncProjectSceneOrder();
 		return true;
 	};
@@ -1795,7 +1830,6 @@ bool Editor::RenameProjectSceneDisplayName(
 
 		current_entry->display_name = value;
 		SaveProjectManifest(app, *current_project);
-		MarkProjectDirty();
 		return true;
 	};
 
@@ -2109,7 +2143,8 @@ void Editor::DrawMainMenuBar() {
 					std::move(after),
 					[this](const EditorSettings& settings) {
 						SetEditorSettings(settings);
-					}
+					},
+					false
 				);
 			};
 
@@ -2195,8 +2230,7 @@ void Editor::DrawMainMenuBar() {
 						std::move(after),
 						[this](const auto& settings) {
 							GetDebugSystem().settings = settings;
-							MarkProjectDirty();
-						}
+											}
 					);
 				};
 
@@ -2284,7 +2318,8 @@ void Editor::DrawMainMenuBar() {
 				std::move(after),
 				[this](const EditorSettings& settings) {
 					SetEditorSettings(settings);
-				}
+				},
+				false
 			);
 		}
 
@@ -2740,7 +2775,8 @@ void Editor::DrawPanels() {
 			after_content_browser_settings,
 			[this](const EditorSettings& settings) {
 				SetEditorSettings(settings);
-			}
+			},
+			false
 		);
 	}
 
@@ -2765,7 +2801,8 @@ void Editor::DrawPanels() {
 				after_metrics_settings,
 				[this](const EditorSettings& settings) {
 					SetEditorSettings(settings);
-				}
+				},
+				false
 			);
 		}
 	}
@@ -2832,9 +2869,7 @@ void Editor::SyncSelectedSceneAssetDependencies() {
 		return;
 	}
 
-	if (scene->SyncAssetDependenciesFromSerialization()) {
-		context_->local.state.is_dirty = true;
-	}
+	(void)scene->SyncAssetDependenciesFromSerialization();
 }
 
 void Editor::EnableRendering(
@@ -2875,6 +2910,7 @@ void Editor::EnableRendering(
 
 	ApplyEntityPickingSettings();
 	ApplySceneRenderSettings();
+	UpdateWindowTitle();
 }
 
 void Editor::OnUpdate() {
@@ -2951,6 +2987,8 @@ void Editor::OnUpdate() {
 			ShouldEnableEntityPicking()
 		);
 	}
+
+	RefreshProjectDirtyState();
 }
 
 const EditorSettings& Editor::GetSettings() const {
@@ -3237,6 +3275,7 @@ void Editor::Stop() {
 
 	app_context.runtime_project_scenes.clear();
 	play_snapshot_.reset();
+	RefreshProjectDirtyState();
 }
 
 void Editor::SetRenderOnlySelectedScene(
@@ -3410,6 +3449,8 @@ void Editor::SaveProjectScene() {
 		return;
 	}
 
+	undo_stack_.CommitActiveEdit();
+
 	const auto* project{ GetProject() };
 	PTGN_ASSERT(project);
 
@@ -3447,7 +3488,9 @@ void Editor::SaveProjectScene() {
 		return;
 	}
 
-	context_->local.state.is_dirty = false;
+	undo_stack_.MarkProjectSaved();
+	untracked_project_dirty_ = false;
+	RefreshProjectDirtyState();
 }
 
 bool Editor::IsPlaying() const {
@@ -3621,6 +3664,8 @@ void Editor::OnProjectChanged() {
 	);
 
 	undo_stack_.Clear();
+	undo_stack_.MarkProjectSaved();
+	untracked_project_dirty_ = false;
 	play_snapshot_.reset();
 	app_context.runtime_project_scenes.clear();
 	pending_scene_bootstrap_saves_
@@ -3651,6 +3696,7 @@ void Editor::OnProjectChanged() {
 
 	ApplyEntityPickingSettings();
 	ApplySceneRenderSettings();
+	RefreshProjectDirtyState();
 }
 
 void Editor::SetSceneEntityPickingEnabled(Scene& scene, bool enabled) {

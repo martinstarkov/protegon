@@ -105,7 +105,6 @@ void ApplyPrefabAssetStates(
 		selection
 	);
 
-	context.local.state.is_dirty = true;
 }
 
 class PrefabAssetCommand final : public EditorCommand {
