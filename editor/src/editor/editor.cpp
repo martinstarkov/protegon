@@ -2936,6 +2936,7 @@ void Editor::OnUpdate() {
 	);
 
 	UpdateProjectLocalState();
+	UpdateRuntimeViewportState();
 
 	if (!IsPlaying()) {
 		SyncProjectSceneOrder();
@@ -3598,6 +3599,18 @@ V2_int Editor::GetPresentationTextureSize() const {
 	::ptgn::impl::RendererAccessor renderer{ ::ptgn::impl::ApplicationAccessor::ctx(app).renderer };
 	auto texture{ renderer.GetPresentationTexture() };
 	return renderer.GetSize(texture).value();
+}
+
+void Editor::UpdateRuntimeViewportState() {
+	bool runtime_active{
+		IsPlaying() || CanPause()
+	};
+
+	if (runtime_active && !runtime_was_active_) {
+		viewport_panel_.SetUseEditorCamera(false);
+	}
+
+	runtime_was_active_ = runtime_active;
 }
 
 void Editor::UpdateProjectLocalState() {
