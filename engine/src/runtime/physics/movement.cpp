@@ -214,7 +214,7 @@ void TopDownMovement::InvokeCallbacks(Entity entity) const {
 
 	if (dir != prev_dir) {
 		// Clamp because turning from left to right can cause a difference in direction of 2.0f.
-		V2_float diff{ Clamp(prev_dir - dir, V2_float{ -1.0f }, V2_float{ 1.0f }) };
+		V2_float diff{ Clamp(prev_dir - dir, -1.0f, 1.0f) };
 		auto dir_state{ GetDirectionState(diff) };
 		PushEvent<event::PlayerMoveDirectionChange>(entity, diff, dir_state);
 	}

@@ -394,10 +394,16 @@ template <Arithmetic T>
 	return { std::clamp(vector.x, min.x, max.x), std::clamp(vector.y, min.y, max.y) };
 }
 
+/// @brief Clamp both components of a vector between min and max.
+template <Arithmetic T>
+[[nodiscard]] constexpr Vector2<T> Clamp(Vector2<T> vector, T min, T max) {
+	return { std::clamp(vector.x, min, max), std::clamp(vector.y, min, max) };
+}
+
 /// @brief Clamp the magnitude of the vector between min and max. This means that a (1, 1) vector
 /// clamped between -1 and 1 will be (0.7, 0.7)
 template <Arithmetic T>
-[[nodiscard]] constexpr Vector2<T> Clamp(Vector2<T> vector, T min, T max) {
+[[nodiscard]] constexpr Vector2<T> ClampMagnitude(Vector2<T> vector, T min, T max) {
 	Vector2<T> dir{ vector.Normalized() };
 	Vector2<T> dir_min{ dir * Vector2<T>{ min, min } };
 	Vector2<T> dir_max{ dir * Vector2<T>{ max, max } };

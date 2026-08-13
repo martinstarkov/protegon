@@ -611,17 +611,13 @@ bool DrawProjectDisplaySettings(
 			if (MatchesFilter(filter, { "logical size", "resolution size" })) {
 				auto logical_size{ renderer.GetLogicalSize() };
 
-				if (DrawValue(
-						ctx,
+				if (DrawWHValue(
 						"Logical Size",
 						logical_size,
-						FieldOptions{
-							.speed = 1.0f,
-							.min = 1.0,
-							.max = 4096.0,
-							.format = "%d",
-							.flags = ImGuiSliderFlags_AlwaysClamp,
-						}
+						1.0f,
+						1,
+						4096,
+						ImGuiSliderFlags_AlwaysClamp
 					)) {
 					renderer.SetLogicalSize(logical_size);
 					changed = true;
@@ -637,11 +633,17 @@ bool DrawProjectDisplaySettings(
 				}
 			}
 		} else if (MatchesFilter(filter, { "window size", "current window size" })) {
-			auto window_size{ renderer.GetDisplayViewport().size };
+			V2_int window_size{ renderer.GetDisplayViewport().size };
 
-			ImGui::BeginDisabled();
-			DrawValue(ctx, "Window Size", window_size);
-			ImGui::EndDisabled();
+			DrawWHValue(
+				"Window Size",
+				window_size,
+				1.0f,
+				0,
+				0,
+				ImGuiSliderFlags_None,
+				true
+			);
 		}
 	}
 
@@ -673,14 +675,15 @@ bool DrawProjectDisplaySettings(
 		}
 
 		if (MatchesFilter(filter, { "default window size", "window size" })) {
-			DrawPropertyRow("Default Window Size", [&]() {
-				ImGui::Text(
-					"%d x %d",
-					window_settings.size.x,
-					window_settings.size.y
-				);
-				return false;
-			});
+			DrawWHValue(
+				"Default Window Size",
+				window_settings.size,
+				1.0f,
+				0,
+				0,
+				ImGuiSliderFlags_None,
+				true
+			);
 		}
 
 		if (MatchesFilter(filter, { "resizable", "resize window" })) {

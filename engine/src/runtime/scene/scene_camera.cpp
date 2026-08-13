@@ -132,8 +132,8 @@ SceneCamera::operator Camera() const {
 
 SceneCamera& SceneCamera::SetZoom(V2_float new_zoom) {
 	auto clamped{ Clamp(
-		new_zoom, V2_float{ 1000.0f * kEpsilon<float> },
-		V2_float{ std::numeric_limits<float>::max() }
+		new_zoom, 1000.0f * kEpsilon<float>,
+		std::numeric_limits<float>::max()
 	) };
 	if (GetZoom() == clamped) {
 		return *this;
