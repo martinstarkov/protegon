@@ -2877,6 +2877,17 @@ void Editor::EnableRendering(
 ) {
 	render_enabled_ = enable;
 
+	auto& app_context{
+		::ptgn::impl::ApplicationAccessor::ctx(app)
+	};
+
+	// Before a project has started, editor visibility determines how the
+	// project should launch. A hidden editor starts directly in runtime.
+	if (!app_context.project.has_value()) {
+		app_context.start_project_runtime =
+			!render_enabled_;
+	}
+
 	auto& window{
 		GetWindow()
 	};
