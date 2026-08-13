@@ -1251,11 +1251,23 @@ void AssetManager::EndAssetCapture(std::vector<AssetKey>& dependencies) {
 	captured_asset_dependencies_ = nullptr;
 }
 
+void AssetManager::TrackAssetDependency(const AssetKey& key) {
+	if (key.value.empty()) {
+		return;
+	}
+
+	if (captured_asset_dependencies_) {
+		AddUnique(*captured_asset_dependencies_, key);
+	}
+}
+
 void AssetManager::TrackAssetLoad(
 	const AssetKey& key,
 	AssetKind kind,
 	const path& source_path
 ) {
+	TrackAssetDependency(key);
+
 	if (key.value.empty() || kind == AssetKind::Unknown || source_path.empty()) {
 		return;
 	}
@@ -1267,7 +1279,9 @@ void AssetManager::TrackAssetLoad(
 		auto relative{
 			std::filesystem::relative(source_path, project_root_.value(), error)
 		};
-		if (!error && !relative.empty() && !relative.generic_string().starts_with("..")) {
+
+		if (!error && !relative.empty() &&
+			!relative.generic_string().starts_with("..")) {
 			serialized_path = relative.lexically_normal();
 		}
 	}
@@ -1285,10 +1299,6 @@ void AssetManager::TrackAssetLoad(
 
 	catalog_.insert_or_assign(Hash(key), asset);
 	runtime_states_[Hash(key)].metadata = ProbeMetadata(asset);
-
-	if (captured_asset_dependencies_) {
-		AddUnique(*captured_asset_dependencies_, key);
-	}
 }
 
 void AssetManager::RegisterCatalog(
@@ -2041,6 +2051,10 @@ std::optional<path> AssetManager::GetAssetDirectory() const {
 void AssetManager::Load(const SerializedAsset& asset) {
 	const auto source_path{ ResolveAssetPath(asset) };
 
+	if (asset.kind != AssetKind::Scene) {
+		TrackAssetLoad(asset.key, asset.kind, source_path);
+	}
+
 	if (asset.kind == AssetKind::Scene) {
 		runtime_states_[Hash(asset.key)].load_state = AssetLoadState::Loaded;
 		return;
@@ -2222,6 +2236,8 @@ Texture AssetManager::LoadTexture(
 	TextureFormat storage_format,
 	TextureParams params
 ) {
+	TrackAssetLoad(key, AssetKind::Texture, asset_path);
+
 	if (auto existing{ TryGet<Texture>(key) }; existing.has_value()) {
 		return existing.value();
 	}
@@ -2244,6 +2260,8 @@ Font AssetManager::CreateFont(const path& asset_path) {
 }
 
 Font AssetManager::LoadFont(FontKey key, const path& asset_path) {
+	TrackAssetLoad(key, AssetKind::Font, asset_path);
+
 	if (auto existing{ TryGet<Font>(key) }; existing.has_value()) {
 		return existing.value();
 	}
@@ -2265,6 +2283,8 @@ Audio AssetManager::CreateAudio(const path& asset_path) {
 }
 
 Audio AssetManager::LoadAudio(AudioKey key, const path& asset_path) {
+	TrackAssetLoad(key, AssetKind::Audio, asset_path);
+
 	if (auto existing{ TryGet<Audio>(key) }; existing.has_value()) {
 		return existing.value();
 	}
@@ -2307,15 +2327,23 @@ Shader AssetManager::LoadShader(
 	const std::variant<ShaderCode, ShaderPath, ShaderPair>& source,
 	std::optional<std::string_view> shader_name
 ) {
+	if (const auto* shader_path{ std::get_if<ShaderPath>(&source) }) {
+		TrackAssetLoad(key, AssetKind::Shader, shader_path->path);
+	} else {
+		TrackAssetDependency(key);
+	}
+
 	if (auto existing{ TryGet<Shader>(key) }; existing.has_value()) {
 		return existing.value();
 	}
 
 	auto shader{ CreateShader(true, source, shader_name.value_or(key.value)) };
+
 	std::optional<path> source_path;
 	if (const auto* shader_path{ std::get_if<ShaderPath>(&source) }) {
 		source_path = shader_path->path;
 	}
+
 	impl::AddAssetKey(shader.GetEntity(), key, source_path);
 	runtime_states_[Hash(key)].load_state = AssetLoadState::Loaded;
 	return shader;
@@ -2326,6 +2354,8 @@ Prefab& AssetManager::LoadPrefab(
 	const path& file_path,
 	const path& source_path
 ) {
+	TrackAssetLoad(key, AssetKind::Prefab, source_path);
+
 	if (auto existing{ TryGet<Prefab>(key) }; existing.has_value()) {
 		return existing->get();
 	}
@@ -2343,6 +2373,7 @@ Prefab& AssetManager::LoadPrefab(
 		}
 	) };
 	(void)inserted;
+
 	runtime_states_[Hash(key)].load_state = AssetLoadState::Loaded;
 	return it->second.value;
 }
@@ -2416,6 +2447,8 @@ path AssetManager::GetPrefabPath(const PrefabKey& key) const {
 }
 
 json& AssetManager::LoadJson(const JsonKey& key, const path& asset_path) {
+	TrackAssetLoad(key, AssetKind::Json, asset_path);
+
 	if (auto existing{ TryGet<json>(key) }; existing.has_value()) {
 		return existing->get();
 	}
@@ -2429,6 +2462,7 @@ json& AssetManager::LoadJson(const JsonKey& key, const path& asset_path) {
 		}
 	) };
 	(void)inserted;
+
 	runtime_states_[Hash(key)].load_state = AssetLoadState::Loaded;
 	return it->second.value;
 }
@@ -2577,21 +2611,11 @@ void AssetManager::Load(
 			if (impl::IsFontAtlasPng(
 					source_path
 				)) {
-				TrackAssetLoad(
-					key,
-					AssetKind::Font,
-					source_path
-				);
 				LoadFont(
 					FontKey{ std::move(key) },
 					source_path
 				);
 			} else {
-				TrackAssetLoad(
-					key,
-					AssetKind::Texture,
-					source_path
-				);
 				LoadTexture(
 					TextureKey{ std::move(key) },
 					source_path
@@ -2600,11 +2624,6 @@ void AssetManager::Load(
 			break;
 
 		case Audio:
-			TrackAssetLoad(
-				key,
-				AssetKind::Audio,
-				source_path
-			);
 			LoadAudio(
 				AudioKey{ std::move(key) },
 				source_path
@@ -2612,11 +2631,6 @@ void AssetManager::Load(
 			break;
 
 		case Font:
-			TrackAssetLoad(
-				key,
-				AssetKind::Font,
-				source_path
-			);
 			LoadFont(
 				FontKey{ std::move(key) },
 				source_path
@@ -2624,11 +2638,6 @@ void AssetManager::Load(
 			break;
 
 		case Json:
-			TrackAssetLoad(
-				key,
-				AssetKind::Json,
-				source_path
-			);
 			LoadJson(
 				JsonKey{ std::move(key) },
 				source_path
@@ -2636,11 +2645,6 @@ void AssetManager::Load(
 			break;
 
 		case Prefab:
-			TrackAssetLoad(
-				key,
-				AssetKind::Prefab,
-				source_path
-			);
 			LoadPrefab(
 				PrefabKey{ std::move(key) },
 				source_path,
@@ -2652,12 +2656,6 @@ void AssetManager::Load(
 			const auto source{
 				FileToString(source_path)
 			};
-
-			TrackAssetLoad(
-				key,
-				AssetKind::Shader,
-				source_path
-			);
 
 			auto max_texture_slots{
 				impl::RendererAccessor{

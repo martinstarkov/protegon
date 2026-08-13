@@ -546,6 +546,7 @@ private:
 
 	void BeginAssetCapture(std::vector<AssetKey>& dependencies);
 	void EndAssetCapture(std::vector<AssetKey>& dependencies);
+	void TrackAssetDependency(const AssetKey& key);
 	void TrackAssetLoad(const AssetKey& key, AssetKind kind, const path& source_path);
 
 	[[nodiscard]] Shader CreateShader(
