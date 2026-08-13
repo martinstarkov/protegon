@@ -459,6 +459,10 @@ void Renderer::SetLogicalSize(
 		return;
 	}
 
+	if (logical_size.has_value()) {
+		logical_size.value() = Max(logical_size.value(), { 1, 1 });
+	}
+
 	PTGN_ASSERT(
 		!logical_size.has_value() || logical_size.has_value() && logical_size.value().IsPositive(),
 		"Logical size cannot be set to negative value or zero"
@@ -527,7 +531,7 @@ V2_int Renderer::GetPresentationPosition() const {
 
 V2_int Renderer::GetPresentationSize() const {
 	if (presentation_viewport_.has_value()) {
-		return presentation_viewport_.value().size;
+		return Ceil(presentation_viewport_.value().size);
 	}
 	return GetOutputSize();
 }

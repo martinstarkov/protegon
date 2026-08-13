@@ -2033,6 +2033,12 @@ void ViewportPanel::OnRender(EditorContext& ctx) {
 		min + size
 	};
 
+	if (size.x <= 0.0f ||
+		size.y <= 0.0f) {
+		ImGui::End();
+		return;
+	}
+
 	Viewport presentation_viewport{
 		.position{ min },
 		.size{ size }
@@ -2048,12 +2054,6 @@ void ViewportPanel::OnRender(EditorContext& ctx) {
 	renderer.SetPresentationViewport(
 		presentation_viewport
 	);
-
-	if (size.x <= 0.0f ||
-		size.y <= 0.0f) {
-		ImGui::End();
-		return;
-	}
 
 	if (ImGui::IsWindowHovered()) {
 		// zoom
