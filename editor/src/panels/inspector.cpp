@@ -2775,14 +2775,13 @@ bool DrawTextureFormatCombo(
 bool DrawRenderTargetDesc(
 	EditorContext& ctx,
 	::ptgn::impl::RenderTargetDesc& target,
-	std::optional<V2_int> framebuffer_size = std::nullopt
+	std::optional<V2_int> framebuffer_size = std::nullopt,
+	bool size_read_only = false
 ) {
 	V2_int followed_size{
 		framebuffer_size.value_or(V2_int{})
 	};
 
-	// Prefab and non-entity inspectors do not have a live framebuffer,
-	// so use the requested display size as a fallback.
 	if (!followed_size.IsPositive()) {
 		auto& renderer{
 			ctx.editor.GetRenderer()
@@ -2804,13 +2803,15 @@ bool DrawRenderTargetDesc(
 		DrawValue(
 			ctx,
 			"Follow Display Size",
-			target.follow_display_size
+			target.follow_display_size,
+			FieldOptions{
+				.read_only = size_read_only,
+			}
 		)
 	};
 
-	// Turning following off freezes the actual framebuffer size,
-	// rather than independently recalculating the display size.
 	if (
+		!size_read_only &&
 		was_following &&
 		!target.follow_display_size &&
 		followed_size.IsPositive()
@@ -2833,18 +2834,21 @@ bool DrawRenderTargetDesc(
 			1,
 			4096,
 			ImGuiSliderFlags_AlwaysClamp,
-			target.follow_display_size
+			size_read_only ||
+				target.follow_display_size
 		)
 	};
 
 	if (
 		size_changed &&
+		!size_read_only &&
 		!target.follow_display_size
 	) {
 		target.size = displayed_size;
 		changed = true;
 	}
 
+	// Intentionally editable for the scene target.
 	changed |= DrawTextureFormatCombo(
 		"Framebuffer Format",
 		target.format
@@ -4334,20 +4338,38 @@ struct FeatureHeaderResult {
 
 template <typename Target, typename... T>
 FeatureHeaderResult DrawFeatureHeader(
-	Target& target, InspectorFeature feature, std::string_view label, ImGuiTreeNodeFlags flags,
-	FeatureComponents<T...> components
+	Target& target,
+	InspectorFeature feature,
+	std::string_view label,
+	ImGuiTreeNodeFlags flags,
+	FeatureComponents<T...> components,
+	bool allow_delete = true
 ) {
 	ScopedID feature_scope{ static_cast<int>(feature) };
-	const std::string header_label{ std::string{ label } + "##FeatureHeader" };
 
-	FeatureHeaderResult result{
-		.open = ImGui::CollapsingHeader(header_label.c_str(), flags),
+	const std::string header_label{
+		std::string{ label } + "##FeatureHeader"
 	};
 
-	if (ImGui::BeginPopupContextItem("##FeatureContext")) {
+	FeatureHeaderResult result{
+		.open = ImGui::CollapsingHeader(
+			header_label.c_str(),
+			flags
+		),
+	};
+
+	if (
+		allow_delete &&
+		ImGui::BeginPopupContextItem("##FeatureContext")
+	) {
 		if (ImGui::MenuItem("Delete Feature")) {
-			result.changed = DeleteInspectorFeature(target, feature, label, components);
-			result.open	   = false;
+			result.changed = DeleteInspectorFeature(
+				target,
+				feature,
+				label,
+				components
+			);
+			result.open = false;
 		}
 
 		ImGui::EndPopup();
@@ -4993,8 +5015,12 @@ template <typename Target>
 
 template <typename Target>
 [[nodiscard]] bool HasVisualFeature(const Target& target) {
-	if (IsPrimarySceneRenderTarget(target) || IsReservedFixedCamera(target)) {
+	if (IsReservedFixedCamera(target)) {
 		return false;
+	}
+
+	if (IsPrimarySceneRenderTarget(target)) {
+		return true;
 	}
 
 	if (IsFeatureManuallyAdded(
@@ -5004,10 +5030,7 @@ template <typename Target>
 		return true;
 	}
 
-	return HasFeatureComponent<
-		Target,
-		::ptgn::impl::IDrawable
-	>(target);
+	return HasFeatureComponent<Target, ::ptgn::impl::IDrawable>(target);
 }
 
 template <typename Target>
@@ -6379,8 +6402,13 @@ template <typename Target>
 RendererRowResult DrawRendererRow(Target& target) {
 	using Drawable = ::ptgn::impl::IDrawable;
 
+	const bool primary_scene_target{
+		IsPrimarySceneRenderTarget(target)
+	};
+
 	auto drawable{ target.template Capture<Drawable>() };
 	auto before_visible{ target.template Capture<Visible>() };
+
 	bool visible{
 		before_visible
 			? before_visible->visible
@@ -6392,10 +6420,13 @@ RendererRowResult DrawRendererRow(Target& target) {
 			? Drawable::FindInfo(drawable->hash)
 			: nullptr
 	};
+
 	const std::string preview{
-		info
-			? std::string{ info->GetDisplayName() }
-			: "None"
+		primary_scene_target
+			? "Render Target"
+			: info
+				? std::string{ info->GetDisplayName() }
+				: "None"
 	};
 
 	const float start_x{ ImGui::GetCursorPosX() };
@@ -6451,67 +6482,94 @@ RendererRowResult DrawRendererRow(Target& target) {
 
 	ImGui::SetNextItemWidth(combo_width);
 
-	if (ImGui::BeginCombo("##RendererSelector", preview.c_str())) {
-		if (ImGui::Selectable("None", !drawable.has_value())) {
-			choose_renderer(std::nullopt);
-		}
+	ImGui::BeginDisabled(primary_scene_target);
 
-		auto draw_candidate = [&](const auto& candidate) {
-			const std::string label{ candidate.GetDisplayName() };
-			const bool selected{
-				drawable &&
-				drawable->hash == candidate.hash
+	if (ImGui::BeginCombo(
+		"##RendererSelector",
+		preview.c_str()
+	)) {
+		if (!primary_scene_target) {
+			if (ImGui::Selectable(
+					"None",
+					!drawable.has_value()
+				)) {
+				choose_renderer(std::nullopt);
+			}
+
+			auto draw_candidate = [&](const auto& candidate) {
+				const std::string label{
+					candidate.GetDisplayName()
+				};
+
+				const bool selected{
+					drawable &&
+					drawable->hash == candidate.hash
+				};
+
+				if (ImGui::Selectable(
+						label.c_str(),
+						selected
+					)) {
+					choose_renderer(
+						Drawable{ candidate.hash }
+					);
+				}
+
+				if (selected) {
+					ImGui::SetItemDefaultFocus();
+				}
 			};
 
-			if (ImGui::Selectable(label.c_str(), selected)) {
-				choose_renderer(Drawable{ candidate.hash });
-			}
-
-			if (selected) {
-				ImGui::SetItemDefaultFocus();
-			}
-		};
-
-		for (const auto& candidate : Drawable::data()) {
-			const std::string visual{
-				NormalizeFeatureName(candidate.GetDisplayName())
-			};
-
-			if (!IsShapeRenderer(visual) &&
-				!IsEffectRenderer(visual)) {
-				draw_candidate(candidate);
-			}
-		}
-
-		if (ImGui::BeginMenu("Shapes")) {
 			for (const auto& candidate : Drawable::data()) {
 				const std::string visual{
 					NormalizeFeatureName(candidate.GetDisplayName())
 				};
 
-				if (IsShapeRenderer(visual)) {
+				if (!IsShapeRenderer(visual) &&
+					!IsEffectRenderer(visual)) {
 					draw_candidate(candidate);
 				}
 			}
 
-			ImGui::EndMenu();
-		}
+			if (ImGui::BeginMenu("Shapes")) {
+				for (const auto& candidate : Drawable::data()) {
+					const std::string visual{
+						NormalizeFeatureName(candidate.GetDisplayName())
+					};
 
-		if (ImGui::BeginMenu("Effects")) {
-			for (const auto& candidate : Drawable::data()) {
-				const std::string visual{
-					NormalizeFeatureName(candidate.GetDisplayName())
-				};
-
-				if (IsEffectRenderer(visual)) {
-					draw_candidate(candidate);
+					if (IsShapeRenderer(visual)) {
+						draw_candidate(candidate);
+					}
 				}
+
+				ImGui::EndMenu();
 			}
 
-			ImGui::EndMenu();
+			if (ImGui::BeginMenu("Effects")) {
+				for (const auto& candidate : Drawable::data()) {
+					const std::string visual{
+						NormalizeFeatureName(candidate.GetDisplayName())
+					};
+
+					if (IsEffectRenderer(visual)) {
+						draw_candidate(candidate);
+					}
+				}
+
+				ImGui::EndMenu();
+			}
 		}
 
 		ImGui::EndCombo();
+	}
+
+	ImGui::EndDisabled();
+
+	if (primary_scene_target &&
+		ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled)) {
+		ImGui::SetTooltip(
+			"The scene render target renderer cannot be changed."
+		);
 	}
 
 	if (renderer_changed) {
@@ -6535,7 +6593,7 @@ RendererRowResult DrawRendererRow(Target& target) {
 
 	bool visible_changed{ false };
 
-	if (drawable) {
+	if (drawable || primary_scene_target) {
 		ImGui::SameLine(0.0f, spacing);
 		visible_changed = ImGui::Checkbox(
 			"Visible##RendererVisible",
@@ -6570,9 +6628,14 @@ RendererRowResult DrawRendererRow(Target& target) {
 	};
 
 	return RendererRowResult{
-		.visual = selected_info
-			? NormalizeFeatureName(selected_info->GetDisplayName())
-			: std::string{},
+		.visual =
+			primary_scene_target
+				? "rendertarget"
+				: selected_info
+					? NormalizeFeatureName(
+						selected_info->GetDisplayName()
+					)
+					: std::string{},
 		.changed = renderer_changed,
 	};
 }
@@ -8134,6 +8197,10 @@ template <typename Target>
 bool DrawRenderTargetPrimary(Target& target) {
 	bool changed{ false };
 
+	const bool primary_scene_target{
+		IsPrimarySceneRenderTarget(target)
+	};
+
 	std::optional<V2_int> framebuffer_size;
 
 	if constexpr (requires { target.entity; }) {
@@ -8155,23 +8222,43 @@ bool DrawRenderTargetPrimary(Target& target) {
 		}
 	}
 
-	changed |= DrawOptionalComponent<
-		Target,
-		::ptgn::impl::RenderTargetDesc
-	>(
-		target,
-		"Render Target",
-		false,
-		[&target, framebuffer_size](
-			::ptgn::impl::RenderTargetDesc& value
-		) {
-			return DrawRenderTargetDesc(
-				target.ctx,
-				value,
-				framebuffer_size
-			);
-		}
-	);
+	if (primary_scene_target) {
+		changed |= DrawRequiredInlineVisualComponent<
+			Target,
+			::ptgn::impl::RenderTargetDesc
+		>(
+			target,
+			"Render Target",
+			[&target, framebuffer_size](
+				::ptgn::impl::RenderTargetDesc& value
+			) {
+				return DrawRenderTargetDesc(
+					target.ctx,
+					value,
+					framebuffer_size,
+					true
+				);
+			}
+		);
+	} else {
+		changed |= DrawOptionalComponent<
+			Target,
+			::ptgn::impl::RenderTargetDesc
+		>(
+			target,
+			"Render Target",
+			false,
+			[&target, framebuffer_size](
+				::ptgn::impl::RenderTargetDesc& value
+			) {
+				return DrawRenderTargetDesc(
+					target.ctx,
+					value,
+					framebuffer_size
+				);
+			}
+		);
+	}
 
 	changed |= DrawOptionalNamedValue<
 		Target,
@@ -8263,6 +8350,7 @@ bool DrawVisualAdditionalOptions(
 				target,
 				"Tint"
 			);
+
 			changed |= DrawOptionalVisualComponent<
 				Target,
 				::ptgn::impl::IgnoreParentTint
@@ -8272,30 +8360,36 @@ bool DrawVisualAdditionalOptions(
 			);
 		}
 
-		changed |= DrawOptionalVisualComponent<
-			Target,
-			::ptgn::impl::IgnoreParentVisibility
-		>(
-			target,
-			"Ignore Parent Visibility"
-		);
-		changed |= DrawOptionalVisualComponent<
-			Target,
-			::ptgn::impl::RenderMask
-		>(
-			target,
-			"Render Layer"
-		);
-
-		{
-			ScopedID ui_layer_scope{ "VisualUILayer" };
+		if (!IsPrimarySceneRenderTarget(target)) {
 			changed |= DrawOptionalVisualComponent<
 				Target,
-				::ptgn::impl::UILayer
+				::ptgn::impl::IgnoreParentVisibility
 			>(
 				target,
-				"UI Layer"
+				"Ignore Parent Visibility"
 			);
+
+			changed |= DrawOptionalVisualComponent<
+				Target,
+				::ptgn::impl::RenderMask
+			>(
+				target,
+				"Render Layer"
+			);
+
+			{
+				ScopedID ui_layer_scope{
+					"VisualUILayer"
+				};
+
+				changed |= DrawOptionalVisualComponent<
+					Target,
+					::ptgn::impl::UILayer
+				>(
+					target,
+					"UI Layer"
+				);
+			}
 		}
 	}
 
@@ -8738,12 +8832,17 @@ bool DrawVisualFeature(Target& target) {
 		return false;
 	}
 
+	const bool primary_scene_target{
+		IsPrimarySceneRenderTarget(target)
+	};
+
 	const auto header{ DrawFeatureHeader(
 		target,
 		InspectorFeature::Visual,
 		"Visual",
 		ImGuiTreeNodeFlags_DefaultOpen,
-		VisualFeatureComponents{}
+		VisualFeatureComponents{},
+		!primary_scene_target
 	) };
 
 	if (!header.open) {
@@ -8849,10 +8948,26 @@ bool DrawVisualFeature(Target& target) {
 		changed |= DrawRenderTargetPrimary(target);
 	}
 
-	changed |= DrawOptionalVisualComponent<Target, Origin>(
-		target,
-		"Origin"
-	);
+	if (primary_scene_target) {
+		const Origin origin{
+			target.template Capture<Origin>()
+				.value_or(Origin::Center)
+		};
+
+		DrawReadOnlyValue(
+			target.ctx,
+			"Origin",
+			origin
+		);
+	} else {
+		changed |= DrawOptionalVisualComponent<
+			Target,
+			Origin
+		>(
+			target,
+			"Origin"
+		);
+	}
 	changed |= DrawVisualAdditionalOptions(
 		target,
 		visual,

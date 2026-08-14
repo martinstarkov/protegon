@@ -918,21 +918,33 @@ void Scene::InternalDraw(DrawContext& draw_context) {
 }
 
 void Scene::DrawSceneTarget(DrawContext& draw_context) const {
+	if (!IsVisible(ctx_->render_target_)) {
+		return;
+	}
+
 	auto texture{ ctx_->render_target_.GetTexture() };
 	auto draw_transform{ GetDrawTransform(ctx_->render_target_) };
 	auto blend_mode{ GetBlendMode(ctx_->render_target_) };
 
-	auto effects{ impl::GetEffectParams(ctx_->render_target_) };
+	auto effects{
+		impl::GetEffectParams(ctx_->render_target_)
+	};
+
 	// No margin for scene effects so render targets do not exceed sizes.
 	effects.margin = 0;
 
 	draw_context.SetBlendMode(blend_mode);
+
 	draw_context.DrawTexture(
-		draw_transform, texture,
-		{ .size				   = ctx_->render_target_.GetSize(),
-		  .tint				   = GetTint(ctx_->render_target_),
-		  .texture_coordinates = impl::GetDefaultTextureCoordinates<true>(),
-		  .effects			   = std::move(effects) }
+		draw_transform,
+		texture,
+		{
+			.size = ctx_->render_target_.GetSize(),
+			.tint = GetTint(ctx_->render_target_),
+			.texture_coordinates =
+				impl::GetDefaultTextureCoordinates<true>(),
+			.effects = std::move(effects),
+		}
 	);
 }
 
