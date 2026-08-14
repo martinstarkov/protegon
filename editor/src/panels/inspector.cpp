@@ -7316,8 +7316,12 @@ bool DrawShapeVisual(
 bool DrawAnimationDataFlattened(
 	EditorContext& ctx,
 	::ptgn::impl::AnimationData& animation,
-	std::optional<std::size_t> detected_frame_count
+	std::optional<std::size_t> detected_frame_count,
+	std::optional<V2_int> texture_size
 ) {
+	const auto initial_frame_size{ animation.config.frame_size };
+	const V2_int initial_start_pixel{ animation.config.start_pixel };
+
 	bool changed{ false };
 	auto members{ ReflectMembers(animation) };
 
@@ -7405,6 +7409,78 @@ bool DrawAnimationDataFlattened(
 		},
 		members
 	);
+
+	{
+		auto& start_pixel{ animation.config.start_pixel };
+		const V2_int before_start_pixel{ start_pixel };
+		const auto before_frame_size{ animation.config.frame_size };
+		const std::size_t before_current_frame{ animation.current_frame };
+		const bool frame_size_edited{ animation.config.frame_size != initial_frame_size };
+		const bool start_pixel_edited{ start_pixel != initial_start_pixel };
+
+		start_pixel.x = std::max(start_pixel.x, 0);
+		start_pixel.y = std::max(start_pixel.y, 0);
+
+		if (animation.config.frame_size.has_value()) {
+			auto& frame_size{ *animation.config.frame_size };
+			frame_size.x = std::max(frame_size.x, 1);
+			frame_size.y = std::max(frame_size.y, 1);
+		}
+
+		std::size_t available_frame_count{ animation.config.frame_count };
+
+		if (texture_size.has_value() && texture_size->IsPositive()) {
+			const V2_int size{ *texture_size };
+			start_pixel.x = std::min(start_pixel.x, size.x - 1);
+			start_pixel.y = std::min(start_pixel.y, size.y - 1);
+
+			if (animation.config.frame_size.has_value()) {
+				auto& frame_size{ *animation.config.frame_size };
+				frame_size.x = std::min(frame_size.x, size.x);
+				frame_size.y = std::min(frame_size.y, size.y);
+
+				if (frame_size_edited && !start_pixel_edited) {
+					frame_size.x = std::min(frame_size.x, size.x - start_pixel.x);
+					frame_size.y = std::min(frame_size.y, size.y - start_pixel.y);
+				} else {
+					start_pixel.x = std::min(start_pixel.x, size.x - frame_size.x);
+					start_pixel.y = std::min(start_pixel.y, size.y - frame_size.y);
+				}
+
+				frame_size.x = std::min(frame_size.x, size.x - start_pixel.x);
+				frame_size.y = std::min(frame_size.y, size.y - start_pixel.y);
+				start_pixel.x = std::min(start_pixel.x, size.x - frame_size.x);
+				start_pixel.y = std::min(start_pixel.y, size.y - frame_size.y);
+
+				available_frame_count = static_cast<std::size_t>(
+					(size.x - start_pixel.x) / frame_size.x
+				);
+			} else if (const auto frame_size{
+					   ::ptgn::impl::GetFrameSize(texture_size, animation.config.frame_count)
+				   };
+				   frame_size && frame_size->IsPositive()) {
+				start_pixel.x = std::min(start_pixel.x, size.x - frame_size->x);
+				start_pixel.y = std::min(start_pixel.y, size.y - frame_size->y);
+				available_frame_count = static_cast<std::size_t>(
+					(size.x - start_pixel.x) / frame_size->x
+				);
+			} else {
+				available_frame_count = 0;
+			}
+		}
+
+		const std::size_t usable_frame_count{
+			std::min(animation.config.frame_count, available_frame_count)
+		};
+
+		animation.current_frame = usable_frame_count == 0
+			? 0
+			: std::min(animation.current_frame, usable_frame_count - 1);
+
+		changed |= start_pixel != before_start_pixel;
+		changed |= animation.config.frame_size != before_frame_size;
+		changed |= animation.current_frame != before_current_frame;
+	}
 
 	if (ctx.local.settings.show_read_only_inspector_data) {
 		[&]<typename T>(T& value) {
@@ -7555,7 +7631,7 @@ bool SynchronizeAnimationFrameData(Target& target, std::string_view reason) {
 		}
 
 		AnimationData animation{ *before_animation };
-
+		
 		if (const auto detected{ ResolveDetectedAnimationFrameCount(target) }) {
 			animation.config.frame_count = *detected;
 		}
@@ -7564,10 +7640,7 @@ bool SynchronizeAnimationFrameData(Target& target, std::string_view reason) {
 
 		if (!animation.config.frame_size.has_value()) {
 			animation.config.frame_size =
-				::ptgn::impl::GetFrameSize(
-					texture_size,
-					animation.config.frame_count
-				);
+				::ptgn::impl::GetFrameSize(texture_size, animation.config.frame_count);
 		}
 
 		if (animation.config.frame_count == 0) {
@@ -7579,7 +7652,6 @@ bool SynchronizeAnimationFrameData(Target& target, std::string_view reason) {
 		animation.frame_dirty = true;
 		target.template SetLive<AnimationData>(animation);
 		auto after_animation{ target.template Capture<AnimationData>() };
-
 		TrackComponentState(
 			target,
 			reason,
@@ -7591,12 +7663,9 @@ bool SynchronizeAnimationFrameData(Target& target, std::string_view reason) {
 		if constexpr (Target::template Supports<TextureCrop>()) {
 			auto before_crop{ target.template Capture<TextureCrop>() };
 			TextureCrop crop{ before_crop.value_or(TextureCrop{}) };
-
 			crop.Update(animation, texture_size);
-
 			target.template SetLive<TextureCrop>(crop);
 			auto after_crop{ target.template Capture<TextureCrop>() };
-
 			TrackComponentState(
 				target,
 				"Update Animation Texture Crop",
@@ -7811,18 +7880,23 @@ bool DrawSpritePrimary(Target& target) {
 		}
 	);
 
+	const auto animation_texture_size{
+		ResolveAnimationTextureSize(target)
+	};
+
 	changed |= DrawOptionalComponent<Target, AnimationData>(
 		target,
 		"Animation",
 		true,
-		[&target, detected_frame_count](AnimationData& value) {
+		[&target, detected_frame_count, animation_texture_size](AnimationData& value) {
 			const std::size_t before_frame_count{ value.config.frame_count };
 
 			const bool local_changed{
 				DrawAnimationDataFlattened(
 					target.ctx,
 					value,
-					detected_frame_count
+					detected_frame_count,
+					animation_texture_size
 				)
 			};
 
@@ -7833,7 +7907,7 @@ bool DrawSpritePrimary(Target& target) {
 			if (frame_count_changed) {
 				if (!value.config.frame_size.has_value()) {
 					value.config.frame_size = ::ptgn::impl::GetFrameSize(
-						ResolveAnimationTextureSize(target),
+						animation_texture_size,
 						value.config.frame_count
 					);
 				}
