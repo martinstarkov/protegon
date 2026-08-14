@@ -65,18 +65,22 @@ struct Vector2 {
 
 	/// @brief Access vector elements by index, 0 for x, 1 for y.
 	constexpr T& operator[](std::size_t idx) {
-		if (idx == 1) {
+		if (idx == 0) {
+			return x;
+		} else if (idx == 1) {
 			return y;
 		}
-		return x; // idx == 0
+		PTGN_ERROR("Vector2 index out of range: ", idx);
 	}
 
 	/// @brief Access vector elements by index, 0 for x, 1 for y.
 	constexpr T operator[](std::size_t idx) const {
-		if (idx == 1) {
+		if (idx == 0) {
+			return x;
+		} else if (idx == 1) {
 			return y;
 		}
-		return x; // idx == 0
+		PTGN_ERROR("Vector2 index out of range: ", idx);
 	}
 
 	constexpr Vector2 operator-() const {
@@ -191,8 +195,8 @@ struct Vector2 {
 		return { T{ 0 }, T{ -1 } };
 	}
 
-	[[nodiscard]] constexpr static Vector2 Infinity() {
-		return { std::numeric_limits<float>::infinity(), std::numeric_limits<float>::infinity() };
+	[[nodiscard]] constexpr static Vector2 Infinity() requires std::floating_point<T> {
+		return { std::numeric_limits<T>::infinity(), std::numeric_limits<T>::infinity() };
 	}
 
 	[[nodiscard]] constexpr float Magnitude() const {
@@ -299,8 +303,16 @@ struct Vector2 {
 		return x > 0 && y > 0 && !HasZero();
 	}
 
+	constexpr bool HasPositive() const {
+		return x > 0 || y > 0;
+	}
+
 	constexpr bool IsNegative() const {
 		return x < 0 && y < 0 && !HasZero();
+	}
+
+	constexpr bool HasNegative() const {
+		return x < 0 || y < 0;
 	}
 };
 

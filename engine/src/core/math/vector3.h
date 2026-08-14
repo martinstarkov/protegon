@@ -78,22 +78,26 @@ struct Vector3 {
 
 	/// @brief Access vector elements by index, 0 for x, 1 for y, 2 for z.
 	constexpr T& operator[](std::size_t idx) {
-		if (idx == 1) {
+		if (idx == 0) {
+			return x;
+		} else if (idx == 1) {
 			return y;
 		} else if (idx == 2) {
 			return z;
 		}
-		return x; // 0
+		PTGN_ERROR("Vector3 index out of range: ", idx);
 	}
 
 	/// @brief Access vector elements by index, 0 for x, 1 for y, 2 for z.
 	constexpr T operator[](std::size_t idx) const {
-		if (idx == 1) {
+		if (idx == 0) {
+			return x;
+		} else if (idx == 1) {
 			return y;
 		} else if (idx == 2) {
 			return z;
 		}
-		return x; // 0
+		PTGN_ERROR("Vector3 index out of range: ", idx);
 	}
 
 	constexpr Vector3 operator-() const {
@@ -222,8 +226,16 @@ struct Vector3 {
 		return x > 0 && y > 0 && z > 0 && !HasZero();
 	}
 
+	constexpr bool HasPositive() const {
+		return x > 0 || y > 0 || z > 0;
+	}
+
 	constexpr bool IsNegative() const {
 		return x < 0 && y < 0 && z < 0 && !HasZero();
+	}
+
+	constexpr bool HasNegative() const {
+		return x < 0 || y < 0 || z < 0;
 	}
 };
 

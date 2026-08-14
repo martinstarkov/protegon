@@ -96,26 +96,30 @@ struct Vector4 {
 
 	/// @brief Access vector elements by index, 0 for x, 1 for y, 2 for z, 3 for w.
 	constexpr T& operator[](std::size_t idx) {
-		if (idx == 1) {
+		if (idx == 0) {
+			return x;
+		} else if (idx == 1) {
 			return y;
 		} else if (idx == 2) {
 			return z;
 		} else if (idx == 3) {
 			return w;
 		}
-		return x; // 0
+		PTGN_ERROR("Vector4 index out of range: ", idx);
 	}
 
 	/// @brief Access vector elements by index, 0 for x, 1 for y, 2 for z, 3 for w.
 	constexpr T operator[](std::size_t idx) const {
-		if (idx == 1) {
+		if (idx == 0) {
+			return x;
+		} else if (idx == 1) {
 			return y;
 		} else if (idx == 2) {
 			return z;
 		} else if (idx == 3) {
 			return w;
 		}
-		return x; // 0
+		PTGN_ERROR("Vector4 index out of range: ", idx);
 	}
 
 	constexpr Vector4 operator-() const {
@@ -230,8 +234,16 @@ struct Vector4 {
 		return x > 0 && y > 0 && z > 0 && w > 0 && !HasZero();
 	}
 
+	constexpr bool HasPositive() const {
+		return x > 0 || y > 0 || z > 0 || w > 0;
+	}
+
 	constexpr bool IsNegative() const {
 		return x < 0 && y < 0 && z < 0 && w < 0 && !HasZero();
+	}
+
+	constexpr bool HasNegative() const {
+		return x < 0 || y < 0 || z < 0 || w < 0;
 	}
 };
 
