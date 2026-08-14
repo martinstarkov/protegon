@@ -197,6 +197,8 @@ void DrawContext::DrawTexture(
 			PTGN_WARN("Texture size not found for texture ", texture, ", skipping draw");
 			return;
 		}
+
+		params.size = size.value();
 	}
 
 	if (!params.size.IsPositive()) {
@@ -259,6 +261,9 @@ void DrawContext::DrawLines(
 		.transform	= transform.value_or(Transform{}),
 		.primitives = primitives,
 	};
+
+	renderer_.SetCurrentPipeline("color");
+	SetMaterial("color");
 
 	renderer_.Draw(request);
 }
