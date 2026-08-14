@@ -1,4 +1,3 @@
-
 #include <chrono>
 #include <cmath>
 #include <vector>
@@ -298,7 +297,7 @@ struct ShapeScene : public Scene {
 };
 
 int main(int, char**) {
-	Application app{ "ShapeScene" };
+	Application app;
 	PTGN_WITH_EDITOR(app, false);
 	app.StartWith<ShapeScene>();
 }

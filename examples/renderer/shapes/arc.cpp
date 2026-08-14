@@ -1,4 +1,5 @@
 #include "app/application.h"
+#include "app/editor.h"
 #include "core/graphics/color.h"
 #include "core/graphics/fill_style.h"
 #include "core/math/angle.h"
@@ -24,6 +25,7 @@ class ArcEntityScene : public Scene {
 };
 
 int main(int, char**) {
-	Application app{ "arc_entity" };
+	Application app;
+	PTGN_WITH_EDITOR(app, false);
 	app.StartWith<ArcEntityScene>();
 }

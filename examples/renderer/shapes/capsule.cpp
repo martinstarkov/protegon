@@ -16,7 +16,7 @@ class CapsuleEntityScene : public Scene {
 };
 
 int main(int, char**) {
-	Application app{ "capsule_entity" };
+	Application app;
 	PTGN_WITH_EDITOR(app, false);
 	app.StartWith<CapsuleEntityScene>();
 }

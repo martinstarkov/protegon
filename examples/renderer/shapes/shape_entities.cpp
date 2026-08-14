@@ -62,7 +62,7 @@ class ShapeEntitiesScene : public Scene {
 };
 
 int main(int, char**) {
-	Application app{ "shape_entities" };
-	PTGN_WITH_EDITOR(app, true);
+	Application app;
+	PTGN_WITH_EDITOR(app, false);
 	app.StartWith<ShapeEntitiesScene>();
 }

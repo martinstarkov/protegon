@@ -1,5 +1,5 @@
-
 #include "app/application.h"
+#include "app/editor.h"
 #include "core/graphics/color.h"
 #include "core/graphics/fill_style.h"
 #include "core/math/geometry/origin.h"
@@ -21,6 +21,7 @@ class RoundedRectEntityScene : public Scene {
 };
 
 int main(int, char**) {
-	Application app{ "rounded_rect_entity" };
+	Application app;
+	PTGN_WITH_EDITOR(app, false);
 	app.StartWith<RoundedRectEntityScene>();
 }
