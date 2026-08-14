@@ -358,7 +358,7 @@ void RenderTarget::Draw(DrawContext& ctx, Entity entity) {
 RenderTarget CreateRenderTarget(
 	Scene& scene, Transform transform, V2_int size, Color clear_color, TextureFormat texture_format
 ) {
-	PTGN_ASSERT(!size.IsNegative(), "Render target size cannot be negative");
+	PTGN_ASSERT(!size.HasNegative(), "Render target size cannot be negative");
 
 	const bool follow_display_size{ size.IsZero() };
 

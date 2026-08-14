@@ -747,7 +747,7 @@ void Framebuffers::CopyRegionImpl(
 	PTGN_ASSERT(source != destination, "Source and destination framebuffers must differ");
 
 	PTGN_ASSERT(
-		!source_region.position.IsNegative() && source_region.size.IsPositive(),
+		!source_region.position.HasNegative() && source_region.size.IsPositive(),
 		"Source framebuffer copy region must be valid"
 	);
 
