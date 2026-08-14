@@ -23,24 +23,24 @@ void FramebufferObject::Bind() {
 	renderer->SetFramebuffer(this);
 }
 
-void FramebufferObject::Clear(Color clear_color, bool restore_bind) {
+void FramebufferObject::Clear(Color clear_color) {
 	PTGN_ASSERT(*this, "Framebuffer must be valid");
-	renderer->Clear(*this, clear_color, restore_bind);
+	renderer->Clear(*this, clear_color);
 }
 
-void FramebufferObject::Clear(Depth clear_depth, bool restore_bind) {
+void FramebufferObject::Clear(Depth clear_depth) {
 	PTGN_ASSERT(*this, "Framebuffer must be valid");
-	renderer->Clear(*this, clear_depth, restore_bind);
+	renderer->Clear(*this, clear_depth);
 }
 
-void FramebufferObject::Clear(Stencil clear_stencil, bool restore_bind) {
+void FramebufferObject::Clear(Stencil clear_stencil) {
 	PTGN_ASSERT(*this, "Framebuffer must be valid");
-	renderer->Clear(*this, clear_stencil, restore_bind);
+	renderer->Clear(*this, clear_stencil);
 }
 
-void FramebufferObject::Clear(DepthStencil clear_depth_stencil, bool restore_bind) {
+void FramebufferObject::Clear(DepthStencil clear_depth_stencil) {
 	PTGN_ASSERT(*this, "Framebuffer must be valid");
-	renderer->Clear(*this, clear_depth_stencil, restore_bind);
+	renderer->Clear(*this, clear_depth_stencil);
 }
 
 TextureId FramebufferObject::GetTexture() const {

@@ -461,12 +461,12 @@ private:
 	void SetParams(impl::FramebufferId framebuffer, TextureParams params);
 	void SetParams(impl::TextureId texture, TextureParams params);
 	void Resize(impl::FramebufferId framebuffer, V2_int new_size);
-	void Clear(impl::FramebufferId framebuffer, Color clear_color, bool restore_bind) const;
-	void Clear(impl::FramebufferId framebuffer, Depth clear_depth, bool restore_bind) const;
-	void Clear(impl::FramebufferId framebuffer, Stencil clear_stencil, bool restore_bind) const;
+	void Clear(impl::FramebufferId framebuffer, Color clear_color);
+	void Clear(impl::FramebufferId framebuffer, Depth clear_depth);
+	void Clear(impl::FramebufferId framebuffer, Stencil clear_stencil);
 	void Clear(
-		impl::FramebufferId framebuffer, DepthStencil clear_depth_stencil, bool restore_bind
-	) const;
+		impl::FramebufferId framebuffer, DepthStencil clear_depth_stencil
+	);
 	void BindPresentationFramebuffer();
 
 	impl::FramebufferId GetPresentationFramebuffer() const;
@@ -649,7 +649,7 @@ private:
 
 	[[nodiscard]] bool IsEntityPickingEnabled(impl::FramebufferId framebuffer) const;
 
-	void ClearEntityIds(impl::FramebufferId framebuffer) const;
+	void ClearEntityIds(impl::FramebufferId framebuffer);
 
 	[[nodiscard]] std::optional<std::int32_t> ReadEntityId(
 		impl::FramebufferId framebuffer, V2_int pixel
@@ -774,7 +774,7 @@ public:
 
 	const FramebufferObject& GetBoundFramebuffer() const;
 
-	void ClearEntityIds(FramebufferId framebuffer) const;
+	void ClearEntityIds(FramebufferId framebuffer);
 
 	impl::FramebufferId GetPresentationFramebuffer() const;
 

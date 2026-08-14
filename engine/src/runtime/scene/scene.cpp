@@ -255,7 +255,7 @@ void DrawCamera(
 	renderer.SetScissor(ScissorState{ display_viewport });
 
 	if (clear_color.has_value()) {
-		render_target.ClearColor(clear_color.value(), false);
+		render_target.ClearColor(clear_color.value());
 	}
 
 	DrawCommands(render, draw_context, commands, view, filter, false);
@@ -791,7 +791,7 @@ void Scene::ClearRenderTargets() {
 		);
 		renderer.SetScissor(ScissorState{ false });
 
-		render_target.ClearColor(std::nullopt, false);
+		render_target.ClearColor();
 
 		renderer.ClearEntityIds(static_cast<impl::FramebufferId>(framebuffer));
 	}

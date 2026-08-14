@@ -220,27 +220,35 @@ impl::RenderbufferId Renderer::GetDepthStencilRenderbuffer(impl::FramebufferId f
 	return gl_->framebuffers.GetAttachmentId<impl::gl::Attachment::DepthStencil>(framebuffer);
 }
 
-void Renderer::Clear(impl::FramebufferId framebuffer, Color clear_color, bool restore_bind) const {
-	auto bind_guard = gl_->Bind(framebuffer, restore_bind);
+void Renderer::Clear(impl::FramebufferId framebuffer, Color clear_color) {
+	FlushBatch();
+
+	auto bind_guard = gl_->Bind(framebuffer, true);
 	gl_->framebuffers.Clear(framebuffer, clear_color);
 }
 
-void Renderer::Clear(impl::FramebufferId framebuffer, Depth clear_depth, bool restore_bind) const {
-	auto bind_guard = gl_->Bind(framebuffer, restore_bind);
+void Renderer::Clear(impl::FramebufferId framebuffer, Depth clear_depth) {
+	FlushBatch();
+
+	auto bind_guard = gl_->Bind(framebuffer, true);
 	gl_->framebuffers.Clear(framebuffer, clear_depth);
 }
 
 void Renderer::Clear(
-	impl::FramebufferId framebuffer, Stencil clear_stencil, bool restore_bind
-) const {
-	auto bind_guard = gl_->Bind(framebuffer, restore_bind);
+	impl::FramebufferId framebuffer, Stencil clear_stencil
+) {
+	FlushBatch();
+
+	auto bind_guard = gl_->Bind(framebuffer, true);
 	gl_->framebuffers.Clear(framebuffer, clear_stencil);
 }
 
 void Renderer::Clear(
-	impl::FramebufferId framebuffer, DepthStencil clear_depth_stencil, bool restore_bind
-) const {
-	auto bind_guard = gl_->Bind(framebuffer, restore_bind);
+	impl::FramebufferId framebuffer, DepthStencil clear_depth_stencil
+) {
+	FlushBatch();
+
+	auto bind_guard = gl_->Bind(framebuffer, true);
 	gl_->framebuffers.Clear(framebuffer, clear_depth_stencil);
 }
 
@@ -703,7 +711,7 @@ void Renderer::BeginFrame() {
 	SetScissor(ScissorState{ false });
 	SetViewport(display_viewport_);
 
-	Clear(presentation_framebuffer_, renderer_settings_.background_color, false);
+	Clear(presentation_framebuffer_, renderer_settings_.background_color);
 }
 
 void Renderer::BindUniforms() {
@@ -1021,71 +1029,76 @@ void Renderer::DrawRenderPass(const impl::DrawPassRequest& request) {
 	auto previous_state{ GetRenderState() };
 
 	MaterialState previous_material{
-		.shader = GetBoundShader(),
-		.uniforms = current_uniforms_,
-		.texture_slot_capacity = current_texture_slot_capacity_
+		.shader				   = GetBoundShader(),
+		.uniforms			   = current_uniforms_,
+		.texture_slot_capacity = current_texture_slot_capacity_,
 	};
 
 	auto previous_pipeline{ pipeline_manager_.GetCurrentPipelineId() };
 
-	auto _ = gl_->Bind(request.output, false);
+	{
+		auto framebuffer_guard{ gl_->Bind(request.output, true) };
 
-	SetCurrentPipeline(request.pipeline);
-	SetMaterial(request.material);
+		SetCurrentPipeline(request.pipeline);
+		SetMaterial(request.material);
 
-	if (request.scissor_to_viewport) {
-		SetScissor(ScissorState{ request.viewport });
-	} else {
-		SetScissor(ScissorState{ false });
-	}
+		if (request.scissor_to_viewport) {
+			SetScissor(ScissorState{ request.viewport });
+		} else {
+			SetScissor(ScissorState{ false });
+		}
 
-	SetViewport(request.viewport);
-	SetViewProjection(request.viewport.size);
-	SetBlendMode(BlendMode::ReplaceRGBA);
+		SetViewport(request.viewport);
+		SetViewProjection(request.viewport.size);
+		SetBlendMode(BlendMode::ReplaceRGBA);
 
-	std::vector<TextureBinding> bindings;
-	std::vector<impl::TextureId> textures;
+		std::vector<TextureBinding> bindings;
+		std::vector<impl::TextureId> textures;
 
-	bindings.reserve(request.inputs.size());
-	textures.reserve(request.inputs.size());
+		bindings.reserve(request.inputs.size());
+		textures.reserve(request.inputs.size());
 
-	for (const auto& input : request.inputs) {
-		auto texture{ GetTexture(input.framebuffer) };
+		for (const auto& input : request.inputs) {
+			auto texture{ GetTexture(input.framebuffer) };
 
-		PTGN_ASSERT(texture, "Render pass input must have a valid color texture");
+			PTGN_ASSERT(texture, "Render pass input must have a valid color texture");
 
-		auto input_size{ GetSize(input.framebuffer) };
+			auto input_size{ GetSize(input.framebuffer) };
 
-		PTGN_ASSERT(input_size.value().IsPositive(), "Render pass input size must be non-zero");
+			PTGN_ASSERT(
+				input_size.value().IsPositive(),
+				"Render pass input size must be non-zero"
+			);
 
-		PTGN_ASSERT(
-			input_size == V2_int{ Floor(request.viewport.size) },
-			"Render pass input size must match the draw viewport size"
+			PTGN_ASSERT(
+				input_size == V2_int{ Floor(request.viewport.size) },
+				"Render pass input size must match the draw viewport size"
+			);
+
+			bindings.emplace_back(input.binding);
+			textures.emplace_back(texture);
+		}
+
+		constexpr auto depth{ 0.0f };
+		constexpr auto tex_coords{ impl::GetDefaultTextureCoordinates<true>() };
+
+		auto local_vertices{ Rect{ request.viewport.size }.GetLocalVertices() };
+
+		auto local_quad{ impl::CreateTextureQuad(
+			local_vertices, depth, request.tint.Normalized(), tex_coords, impl::kNoEntityId
+		) };
+
+		std::span quads{ &local_quad, 1 };
+
+		const auto& pipeline{ pipeline_manager_.GetCurrentPipeline() };
+
+		batcher_.SubmitQuadsWithTextureBindings<impl::TextureVertex>(
+			quads, pipeline.vertex_capacity, pipeline.index_capacity, bindings, textures,
+			current_texture_slot_capacity_
 		);
 
-		bindings.emplace_back(input.binding);
-		textures.emplace_back(texture);
+		FlushBatch();
 	}
-
-	constexpr auto depth{ 0.0f };
-	constexpr auto tex_coords{ impl::GetDefaultTextureCoordinates<true>() };
-
-	auto local_vertices{ Rect{ request.viewport.size }.GetLocalVertices() };
-
-	auto local_quad{ impl::CreateTextureQuad(
-		local_vertices, depth, request.tint.Normalized(), tex_coords, impl::kNoEntityId
-	) };
-
-	std::span quads{ &local_quad, 1 };
-
-	const auto& pipeline{ pipeline_manager_.GetCurrentPipeline() };
-
-	batcher_.SubmitQuadsWithTextureBindings<impl::TextureVertex>(
-		quads, pipeline.vertex_capacity, pipeline.index_capacity, bindings, textures,
-		current_texture_slot_capacity_
-	);
-
-	FlushBatch();
 
 	SetCurrentPipeline(previous_pipeline);
 	SetMaterial(previous_material);
@@ -1341,14 +1354,18 @@ bool Renderer::IsEntityPickingEnabled(impl::FramebufferId framebuffer) const {
 	return true;
 }
 
-void Renderer::ClearEntityIds(impl::FramebufferId framebuffer) const {
+void Renderer::ClearEntityIds(impl::FramebufferId framebuffer) {
 	if (!IsEntityPickingEnabled(framebuffer)) {
 		return;
 	}
 
+	FlushBatch();
+
 	auto bind_guard{ gl_->Bind(framebuffer, true) };
 
-	gl_->framebuffers.ClearInt<impl::gl::Attachment::Color1>(framebuffer, impl::kNoEntityId);
+	gl_->framebuffers.ClearInt<impl::gl::Attachment::Color1>(
+		framebuffer, impl::kNoEntityId
+	);
 }
 
 namespace impl {
@@ -1425,7 +1442,7 @@ const FramebufferObject& RendererAccessor::GetBoundFramebuffer() const {
 	return renderer_.GetBoundFramebuffer();
 }
 
-void RendererAccessor::ClearEntityIds(FramebufferId framebuffer) const {
+void RendererAccessor::ClearEntityIds(FramebufferId framebuffer) {
 	renderer_.ClearEntityIds(framebuffer);
 }
 

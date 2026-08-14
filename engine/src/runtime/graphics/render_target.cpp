@@ -69,7 +69,7 @@ RenderTarget CreateRenderTargetImpl(
 		std::nullopt
 	));
 
-	render_target.ClearColor(std::nullopt, true);
+	render_target.ClearColor(std::nullopt);
 
 	return render_target;
 }
@@ -82,41 +82,41 @@ void RenderTarget::Bind() {
 	Get<impl::FramebufferObject>().Bind();
 }
 
-void RenderTarget::ClearColor(std::optional<Color> color, bool restore_bind) {
+void RenderTarget::ClearColor(std::optional<Color> color) {
 	if (color.has_value()) {
-		Get<impl::FramebufferObject>().Clear(color.value(), restore_bind);
+		Get<impl::FramebufferObject>().Clear(color.value());
 		return;
 	}
 
-	Get<impl::FramebufferObject>().Clear(GetOrDefault<impl::ClearColor>().color, restore_bind);
+	Get<impl::FramebufferObject>().Clear(GetOrDefault<impl::ClearColor>().color);
 }
 
-void RenderTarget::ClearDepth(std::optional<Depth> depth, bool restore_bind) {
+void RenderTarget::ClearDepth(std::optional<Depth> depth) {
 	if (depth.has_value()) {
-		Get<impl::FramebufferObject>().Clear(depth.value(), restore_bind);
+		Get<impl::FramebufferObject>().Clear(depth.value());
 		return;
 	}
 
-	Get<impl::FramebufferObject>().Clear(GetOrDefault<impl::ClearDepth>().depth, restore_bind);
+	Get<impl::FramebufferObject>().Clear(GetOrDefault<impl::ClearDepth>().depth);
 }
 
-void RenderTarget::ClearStencil(std::optional<Stencil> stencil, bool restore_bind) {
+void RenderTarget::ClearStencil(std::optional<Stencil> stencil) {
 	if (stencil.has_value()) {
-		Get<impl::FramebufferObject>().Clear(stencil.value(), restore_bind);
+		Get<impl::FramebufferObject>().Clear(stencil.value());
 		return;
 	}
 
-	Get<impl::FramebufferObject>().Clear(GetOrDefault<impl::ClearStencil>().stencil, restore_bind);
+	Get<impl::FramebufferObject>().Clear(GetOrDefault<impl::ClearStencil>().stencil);
 }
 
-void RenderTarget::ClearDepthStencil(std::optional<DepthStencil> depth_stencil, bool restore_bind) {
+void RenderTarget::ClearDepthStencil(std::optional<DepthStencil> depth_stencil) {
 	if (depth_stencil.has_value()) {
-		Get<impl::FramebufferObject>().Clear(depth_stencil.value(), restore_bind);
+		Get<impl::FramebufferObject>().Clear(depth_stencil.value());
 		return;
 	}
 
 	Get<impl::FramebufferObject>().Clear(
-		GetClearDepthStencil().value_or(DepthStencil{}), restore_bind
+		GetClearDepthStencil().value_or(DepthStencil{})
 	);
 }
 

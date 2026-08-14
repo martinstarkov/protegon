@@ -256,7 +256,7 @@ void RenderPassBuilder::Materialize(RenderPassHandle handle) {
 	);
 
 	auto scratch{ ctx_.AcquireFramebuffer(resource.desc, std::nullopt) };
-	ctx_.renderer_.Clear(scratch, color::Transparent, true);
+	ctx_.renderer_.Clear(scratch, color::Transparent);
 
 	ctx_.WithRenderState(
 		{
@@ -326,7 +326,7 @@ void RenderPassBuilder::Execute(RenderPassHandle final_handle) {
 		);
 
 		auto output{ ctx_.AcquireFramebuffer(pass.output_desc, std::nullopt) };
-		ctx_.renderer_.Clear(output, pass.clear_color.value_or(color::Transparent), true);
+		ctx_.renderer_.Clear(output, pass.clear_color.value_or(color::Transparent));
 
 		GetResource(pass.output).framebuffer = output;
 

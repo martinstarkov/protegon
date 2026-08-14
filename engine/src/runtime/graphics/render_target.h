@@ -69,25 +69,19 @@ public:
 
 	/// @brief Clears the render target's color attachment.
 	/// @param color Clear color. If empty, uses the target's configured clear color.
-	/// @param restore_bind If true, restores the previously bound render target after clearing.
-	void ClearColor(std::optional<Color> color = {}, bool restore_bind = true);
+	void ClearColor(std::optional<Color> color = {});
 
 	/// @brief Clears the render target's depth attachment.
 	/// @param depth Clear depth. If empty, uses the default depth clear value.
-	/// @param restore_bind If true, restores the previously bound render target after clearing.
-	void ClearDepth(std::optional<Depth> depth = {}, bool restore_bind = true);
+	void ClearDepth(std::optional<Depth> depth = {});
 
 	/// @brief Clears the render target's stencil attachment.
 	/// @param stencil Clear stencil. If empty, uses the default stencil clear value.
-	/// @param restore_bind If true, restores the previously bound render target after clearing.
-	void ClearStencil(std::optional<Stencil> stencil = {}, bool restore_bind = true);
+	void ClearStencil(std::optional<Stencil> stencil = {});
 
 	/// @brief Clears the render target's depth and stencil attachment.
 	/// @param depth_stencil Clear depth/stencil values. If empty, uses default clear values.
-	/// @param restore_bind If true, restores the previously bound render target after clearing.
-	void ClearDepthStencil(
-		std::optional<DepthStencil> depth_stencil = {}, bool restore_bind = true
-	);
+	void ClearDepthStencil(std::optional<DepthStencil> depth_stencil = {});
 
 	void SetClearColor(Color clear_color);
 	std::optional<Color> GetClearColor() const;
