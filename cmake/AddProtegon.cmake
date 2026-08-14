@@ -211,9 +211,8 @@ function(add_protegon_to target)
       AND DEFINED PTGN_BUILD_COPY_DIR
       AND NOT "${PTGN_BUILD_COPY_DIR}" STREQUAL ""
     )
-      add_custom_command(
-        TARGET ${target}
-        POST_BUILD
+      add_custom_target(
+        ${target}_ptgn_copy_output
         COMMAND
           "${CMAKE_COMMAND}"
           -E make_directory
@@ -223,6 +222,7 @@ function(add_protegon_to target)
           -E copy_if_different
           "$<TARGET_FILE:${target}>"
           "${PTGN_BUILD_COPY_DIR}/$<TARGET_FILE_NAME:${target}>"
+        DEPENDS ${target}
         VERBATIM
       )
     endif()

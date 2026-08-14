@@ -427,23 +427,40 @@ void TerminateActiveProcess(const std::shared_ptr<impl::ExportSharedState>& stat
 }
 
 
-[[nodiscard]] bool IsEditorOnlyExportPath(const path& source) {
-	return source.extension() == ".ptgnlocal";
+[[nodiscard]] bool IsExcludedExportFile(
+	const path& source,
+	bool include_editor
+) {
+	const auto extension{ source.extension() };
+
+	return extension == ".ptgnlocal" ||
+		   (!include_editor && extension == ".ptgneditor");
+}
+
+[[nodiscard]] bool IsExcludedExportDirectory(
+	const path& source
+) {
+	return source.filename() == "Logs";
 }
 
 [[nodiscard]] std::uintmax_t CountExportFiles(
 	const path& source,
+	bool include_editor,
 	const std::shared_ptr<impl::ExportSharedState>& state
 ) {
 	std::uintmax_t count{};
 	std::error_code error;
 
 	if (fs::is_regular_file(source, error)) {
-		return IsEditorOnlyExportPath(source) ? 1 : 1;
+		return 1;
 	}
 	error.clear();
 
 	if (!fs::is_directory(source, error)) {
+		return 1;
+	}
+
+	if (IsExcludedExportDirectory(source)) {
 		return 1;
 	}
 
@@ -456,8 +473,22 @@ void TerminateActiveProcess(const std::shared_ptr<impl::ExportSharedState>& stat
 			break;
 		}
 
+		const path source_path{ it->path() };
+
+		if (it->is_directory(error)) {
+			if (IsExcludedExportDirectory(source_path)) {
+				it.disable_recursion_pending();
+			}
+			error.clear();
+			continue;
+		}
+
+		if (error) {
+			break;
+		}
+
 		if (it->is_regular_file(error) &&
-			!IsEditorOnlyExportPath(it->path())) {
+			!IsExcludedExportFile(source_path, include_editor)) {
 			++count;
 		}
 		error.clear();
@@ -471,6 +502,7 @@ void TerminateActiveProcess(const std::shared_ptr<impl::ExportSharedState>& stat
 	const path& destination,
 	bool replace_existing,
 	bool remove_destination_before_copy,
+	bool include_editor,
 	const std::shared_ptr<impl::ExportSharedState>& state,
 	float progress_base,
 	float progress_scale
@@ -496,7 +528,7 @@ void TerminateActiveProcess(const std::shared_ptr<impl::ExportSharedState>& stat
 	}
 
 	const std::uintmax_t total_files{
-		CountExportFiles(source, state)
+		CountExportFiles(source, include_editor, state)
 	};
 	std::uintmax_t copied_files{};
 
@@ -515,7 +547,7 @@ void TerminateActiveProcess(const std::shared_ptr<impl::ExportSharedState>& stat
 	};
 
 	if (fs::is_regular_file(source, error)) {
-		if (IsEditorOnlyExportPath(source)) {
+		if (IsExcludedExportFile(source, include_editor)) {
 			state->progress.store(
 				progress_base + progress_scale,
 				std::memory_order_relaxed
@@ -558,6 +590,14 @@ void TerminateActiveProcess(const std::shared_ptr<impl::ExportSharedState>& stat
 		return false;
 	}
 
+	if (IsExcludedExportDirectory(source)) {
+		state->progress.store(
+			progress_base + progress_scale,
+			std::memory_order_relaxed
+		);
+		return true;
+	}
+
 	fs::create_directories(destination, error);
 	if (error) {
 		return false;
@@ -573,27 +613,34 @@ void TerminateActiveProcess(const std::shared_ptr<impl::ExportSharedState>& stat
 		}
 
 		const path source_path{ it->path() };
-		if (IsEditorOnlyExportPath(source_path)) {
-			if (it->is_directory(error)) {
-				it.disable_recursion_pending();
-			}
-			error.clear();
-			continue;
-		}
-
-		const path relative{
-			source_path.lexically_relative(source)
-		};
-		const path destination_path{
-			destination / relative
-		};
 
 		if (it->is_directory(error)) {
+			if (IsExcludedExportDirectory(source_path)) {
+				it.disable_recursion_pending();
+				error.clear();
+				continue;
+			}
+
+			const path relative{
+				source_path.lexically_relative(source)
+			};
 			fs::create_directories(
-				destination_path,
+				destination / relative,
 				error
 			);
 		} else if (it->is_regular_file(error)) {
+			if (IsExcludedExportFile(source_path, include_editor)) {
+				error.clear();
+				continue;
+			}
+
+			const path relative{
+				source_path.lexically_relative(source)
+			};
+			const path destination_path{
+				destination / relative
+			};
+
 			fs::create_directories(
 				destination_path.parent_path(),
 				error
@@ -772,13 +819,19 @@ void TerminateActiveProcess(const std::shared_ptr<impl::ExportSharedState>& stat
 		progress_scale - configure_scale
 	};
 
+	const std::string build_target{
+		!web && !desktop_copy_directory.empty()
+			? info.target + "_ptgn_copy_output"
+			: info.target
+	};
+
 	const std::vector<std::string> build_arguments{
 		"--build",
 		build_directory.string(),
 		"--config",
 		configuration_name,
 		"--target",
-		info.target,
+		build_target,
 	};
 
 	if (!RunLoggedCommand(
@@ -932,6 +985,7 @@ bool ExportManager::Export(
 							destination,
 							true,
 							true,
+							request.include_editor,
 							state,
 							0.0f,
 							0.10f
@@ -1010,6 +1064,7 @@ bool ExportManager::Export(
 								destination,
 								request.replace_existing,
 								!request.project_mount.empty(),
+								request.include_editor,
 								state,
 								0.85f,
 								0.15f
@@ -1029,6 +1084,7 @@ bool ExportManager::Export(
 									request.asset_source_directory.filename(),
 								request.replace_existing,
 								true,
+								request.include_editor,
 								state,
 								0.80f,
 								0.20f
@@ -1087,6 +1143,7 @@ bool ExportManager::Export(
 							request.output_directory,
 							request.replace_existing,
 							true,
+							request.include_editor,
 							state,
 							0.90f,
 							0.10f
