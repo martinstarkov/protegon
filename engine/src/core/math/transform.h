@@ -120,9 +120,21 @@ struct Transform {
 		return *this;
 	}
 
-	/// @brief Clamps scale between [kMinScale, kMaxScale].
+	/// @brief Clamps scale so it between [-kMaxScale, kMaxScale] and not between [-kMinScale, kMinScale].
 	constexpr Transform& ClampScale() {
-		scale = Clamp(scale, kMinScale, kMaxScale);
+		auto clamp_scale_component = [](float value) {
+			if (value >= kMaxScale) {
+				value = kMaxScale;
+			} else if (value <= -kMaxScale) {
+				value = -kMaxScale;
+			} else if (value >= -kMinScale && value <= kMinScale) {
+				value = Sign(value) * kMinScale;
+			}
+			return value;
+		};
+
+		scale.x = clamp_scale_component(scale.x);
+		scale.y = clamp_scale_component(scale.y);
 		return *this;
 	}
 
