@@ -236,68 +236,46 @@ Rect GetButtonLocalRect(Button button) {
 			 button.GetOrDefault<Origin>() };
 }
 
-Rect GetButtonTextContentRect(Button button, Padding padding) {
-	auto rect{ GetButtonLocalRect(button) };
-
-	rect.min += padding.GetLeftTop();
-	rect.max -= padding.GetRightBottom();
-
-	return rect;
-}
-
-Rect GetButtonTextAutoBox(Rect content_rect, V2_float text_origin_position, Origin text_origin) {
-	if (text_origin_position.x < content_rect.min.x ||
-		text_origin_position.x > content_rect.max.x ||
-		text_origin_position.y < content_rect.min.y ||
-		text_origin_position.y > content_rect.max.y) {
+Rect GetButtonTextAutoBox(Rect content_rect, V2_float position, Origin origin) {
+	if (position.x < content_rect.min.x || position.x > content_rect.max.x ||
+		position.y < content_rect.min.y || position.y > content_rect.max.y) {
 		return {};
 	}
 
-	auto origin_alignment{ GetAlignment(text_origin) };
+	const auto alignment{ GetAlignment(origin) };
 
-	PTGN_ASSERT(origin_alignment.horizontal.has_value());
-	PTGN_ASSERT(origin_alignment.vertical.has_value());
+	PTGN_ASSERT(alignment.horizontal.has_value());
+	PTGN_ASSERT(alignment.vertical.has_value());
+
+	const V2_float from_min{ position - content_rect.min };
+	const V2_float to_max{ content_rect.max - position };
 
 	V2_float size;
 
-	switch (origin_alignment.horizontal.value()) {
+	switch (alignment.horizontal.value()) {
 		using enum HorizontalAlign;
 
-		case Left: size.x = content_rect.max.x - text_origin_position.x; break;
-
-		case Center:
-			size.x = 2.0f * std::min(
-								text_origin_position.x - content_rect.min.x,
-								content_rect.max.x - text_origin_position.x
-							);
-			break;
-
-		case Right:	  size.x = text_origin_position.x - content_rect.min.x; break;
+		case Left:	 size.x = to_max.x; break;
+		case Center: size.x = 2.0f * std::min(from_min.x, to_max.x); break;
+		case Right:	 size.x = from_min.x; break;
 		case Justify: PTGN_ERROR("A text Origin cannot resolve to justified alignment");
-
 		default:
 			PTGN_ERROR(
-				"Unknown HorizontalAlign: ", std::to_underlying(origin_alignment.horizontal.value())
+				"Unknown HorizontalAlign: ",
+				std::to_underlying(alignment.horizontal.value())
 			);
 	}
 
-	switch (origin_alignment.vertical.value()) {
+	switch (alignment.vertical.value()) {
 		using enum VerticalAlign;
 
-		case Top: size.y = content_rect.max.y - text_origin_position.y; break;
-
-		case Center:
-			size.y = 2.0f * std::min(
-								text_origin_position.y - content_rect.min.y,
-								content_rect.max.y - text_origin_position.y
-							);
-			break;
-
-		case Bottom: size.y = text_origin_position.y - content_rect.min.y; break;
-
+		case Top:	 size.y = to_max.y; break;
+		case Center: size.y = 2.0f * std::min(from_min.y, to_max.y); break;
+		case Bottom: size.y = from_min.y; break;
 		default:
 			PTGN_ERROR(
-				"Unknown VerticalAlign: ", std::to_underlying(origin_alignment.vertical.value())
+				"Unknown VerticalAlign: ",
+				std::to_underlying(alignment.vertical.value())
 			);
 	}
 
@@ -305,7 +283,7 @@ Rect GetButtonTextAutoBox(Rect content_rect, V2_float text_origin_position, Orig
 		return {};
 	}
 
-	return { size, text_origin };
+	return { size, origin };
 }
 
 template <typename TVisual>
@@ -1709,8 +1687,14 @@ void Button::ApplyTextVisual() const {
 	}
 
 	if (auto_box) {
-		box.rect =
-			GetButtonTextAutoBox(GetButtonTextContentRect(*this, padding), anchor_position, origin);
+		box.rect = GetButtonTextAutoBox(
+			GetButtonLocalRect(*this).Expanded(
+				-padding.GetLeftTop(),
+				-padding.GetRightBottom()
+			),
+			anchor_position,
+			origin
+		);
 	}
 
 	ptgn::Text text{ entity };
