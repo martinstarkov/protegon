@@ -5,15 +5,20 @@
 
 #include <algorithm>
 #include <array>
+#include <chrono>
 #include <cstddef>
 #include <cfloat>
 #include <cstdint>
+#include <ctime>
 #include <memory>
 #include <optional>
 #include <string>
+#include <string_view>
 #include <utility>
 #include <cctype>
 #include <filesystem>
+#include <iomanip>
+#include <sstream>
 #include <system_error>
 #include <vector>
 
@@ -30,11 +35,13 @@
 #include "core/assert.h"
 #include "core/log.h"
 #include "editor/editor_context.h"
+#include "editor/output_console.h"
 #include "editor/editor_selection.h"
 #include "editor/editor_state.h"
 #include "core/math/vector2.h"
 #include "core/util/file.h"
 #include "core/util/hash.h"
+#include "panels/console.h"
 #include "panels/content_browser.h"
 #include "panels/inspector.h"
 #include "panels/scene_hierarchy.h"
@@ -59,6 +66,89 @@ namespace {
 
 constexpr float kLeftColumnRatio{ 0.25f };
 constexpr float kRightColumnRatio{ 0.40f };
+
+#if !defined(__EMSCRIPTEN__)
+[[nodiscard]] std::tm LocalTime(std::time_t value) {
+	std::tm result{};
+#if defined(_WIN32)
+	localtime_s(&result, &value);
+#else
+	localtime_r(&value, &result);
+#endif
+	return result;
+}
+
+[[nodiscard]] std::string MakeConsoleLogFilename() {
+	const auto now{ std::chrono::system_clock::now() };
+	const auto time{ std::chrono::system_clock::to_time_t(now) };
+	const auto local_time{ LocalTime(time) };
+	const auto milliseconds{
+		std::chrono::duration_cast<std::chrono::milliseconds>(
+			now.time_since_epoch()
+		).count() % 1000
+	};
+
+	std::ostringstream output;
+	output << "console_"
+		   << std::put_time(&local_time, "%Y-%m-%d_%H-%M-%S-")
+		   << std::setfill('0') << std::setw(3) << milliseconds
+		   << ".ptgnlog";
+	return output.str();
+}
+#endif
+
+[[nodiscard]] std::string CollapseRepeatedConsoleLines(
+	std::string_view output
+) {
+	std::string collapsed;
+	collapsed.reserve(output.size());
+
+	std::string_view previous_line;
+	std::size_t repeat_count{ 0 };
+	bool previous_has_newline{ false };
+
+	auto flush = [&]() {
+		if (repeat_count == 0) {
+			return;
+		}
+
+		collapsed.append(previous_line);
+		if (repeat_count > 1) {
+			collapsed += " [";
+			collapsed += std::to_string(repeat_count);
+			collapsed += "]";
+		}
+		if (previous_has_newline) {
+			collapsed.push_back('\n');
+		}
+	};
+
+	std::size_t start{ 0 };
+	while (start < output.size()) {
+		const auto newline{ output.find('\n', start) };
+		const bool has_newline{ newline != std::string_view::npos };
+		const auto end{ has_newline ? newline : output.size() };
+		const std::string_view line{ output.substr(start, end - start) };
+
+		if (!line.empty() && repeat_count > 0 && line == previous_line) {
+			++repeat_count;
+			previous_has_newline = has_newline;
+		} else {
+			flush();
+			previous_line = line;
+			repeat_count = 1;
+			previous_has_newline = has_newline;
+		}
+
+		if (!has_newline) {
+			break;
+		}
+		start = newline + 1;
+	}
+
+	flush();
+	return collapsed;
+}
 
 template <typename T, typename Apply>
 void PushUndoableValueChange(
@@ -2726,6 +2816,67 @@ void Editor::DrawTaskConfirmationPopup() {
 }
 #endif
 
+void ConsolePanel::OnRender(EditorContext& ctx) {
+	const auto revision{ ::ptgn::impl::GetConsoleOutputRevision() };
+	if (revision != last_rendered_output_revision_) {
+		auto snapshot{ ::ptgn::impl::GetConsoleOutputSnapshot() };
+		last_rendered_output_revision_ = snapshot.revision;
+		rendered_output_ = CollapseRepeatedConsoleLines(snapshot.output);
+	}
+
+	if (!ImGui::Begin("Console")) {
+		ImGui::End();
+		return;
+	}
+
+	if (!save_status_.empty()) {
+		ImGui::TextUnformatted(save_status_.c_str());
+	}
+
+	const auto actions{
+		DrawOutputConsole(
+			"EditorConsole",
+			rendered_output_,
+			follow_output_tail_,
+			jump_to_bottom_requested_,
+#if defined(__EMSCRIPTEN__)
+			false
+#else
+			true
+#endif
+		)
+	};
+
+	if (actions.clear_requested) {
+		::ptgn::impl::ClearConsoleOutput();
+		auto snapshot{ ::ptgn::impl::GetConsoleOutputSnapshot() };
+		last_rendered_output_revision_ = snapshot.revision;
+		rendered_output_ = CollapseRepeatedConsoleLines(snapshot.output);
+		save_status_.clear();
+	}
+
+#if !defined(__EMSCRIPTEN__)
+	if (actions.save_requested) {
+		const auto& build_info{ ::ptgn::impl::GetBuildInfo() };
+		const path root{
+			ctx.editor.GetProjectRoot().value_or(build_info.runtime_root)
+		};
+
+		const path output_path{
+			(root / "Logs" / MakeConsoleLogFilename()).lexically_normal()
+		};
+
+		if (::ptgn::impl::SaveConsoleOutput(output_path)) {
+			save_status_ = "Saved: " + output_path.string();
+		} else {
+			save_status_ = "Failed to save: " + output_path.string();
+		}
+	}
+#endif
+
+	ImGui::End();
+}
+
 void Editor::DrawPanels() {
 	PTGN_ASSERT(context_);
 
@@ -2768,6 +2919,8 @@ void Editor::DrawPanels() {
 			false
 		);
 	}
+
+	console_panel_.OnRender(*context_);
 
 	settings_window_.OnRender(*context_);
 	undo_history_window_.OnRender(*context_, undo_stack_);
@@ -3565,10 +3718,9 @@ std::optional<path> Editor::GetProjectRoot() const {
 		return std::nullopt;
 	}
 
-	const auto& project_path{
-		app_context.project->file_path
+	const path project_path{
+		ResolveProjectFilePath(*app_context.project)
 	};
-
 	if (project_path.empty()) {
 		return std::nullopt;
 	}
@@ -3772,6 +3924,7 @@ void Editor::BuildDefaultDockLayout(std::uint32_t dockspace_id) {
 
 	ImGui::DockBuilderDockWindow("Content Browser", dock_center_bottom);
 	ImGui::DockBuilderDockWindow("Render Stats", dock_center_bottom);
+	ImGui::DockBuilderDockWindow("Console", dock_center_bottom);
 
 	ImGui::DockBuilderFinish(dockspace_id);
 }

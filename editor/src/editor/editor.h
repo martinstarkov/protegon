@@ -17,6 +17,7 @@
 #include "editor/editor_settings.h"
 #include "core/math/vector2.h"
 #include "core/util/file.h"
+#include "panels/console.h"
 #include "panels/content_browser.h"
 #include "panels/inspector.h"
 #include "panels/scene_hierarchy.h"
@@ -171,6 +172,7 @@ private:
 	EditorCommands commands_;
 	ViewportPanel viewport_panel_;
 	ContentBrowserPanel content_browser_panel_;
+	ConsolePanel console_panel_;
 	SettingsWindow settings_window_;
 	UndoHistoryWindow undo_history_window_;
 	InspectorPanel inspector_panel_;

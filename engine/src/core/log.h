@@ -1,10 +1,14 @@
 #pragma once
 
+#include <cstdint>
 #include <cstdlib>
+#include <filesystem>
 #include <iostream>
 #include <ostream>
 #include <source_location>
+#include <string>
 #include <string_view>
+#include <utility>
 
 #include "core/util/concepts_stream.h"
 #include "core/util/string.h"
@@ -25,10 +29,20 @@ void PrintLine(Ts&&... items) {
 
 namespace impl {
 
+struct ConsoleOutputSnapshot {
+	std::uint64_t revision{ 0 };
+	std::string output;
+};
+
 void DebugPrint(
 	std::string_view prefix, std::string_view message = "",
 	std::source_location where = std::source_location::current()
 );
+
+[[nodiscard]] std::uint64_t GetConsoleOutputRevision();
+[[nodiscard]] ConsoleOutputSnapshot GetConsoleOutputSnapshot();
+void ClearConsoleOutput();
+[[nodiscard]] bool SaveConsoleOutput(const std::filesystem::path& output_path);
 
 template <StreamWritable... Ts>
 void Info(Ts&&... parts) {
@@ -53,7 +67,7 @@ template <StreamWritable... Ts>
 
 } // namespace ptgn
 
-#define PTGN_LOG(...)	::ptgn::PrintLine(__VA_ARGS__)
-#define PTGN_INFO(...)	::ptgn::impl::Info(__VA_ARGS__)
-#define PTGN_WARN(...)	::ptgn::impl::Warn(__VA_ARGS__)
+#define PTGN_LOG(...)  ::ptgn::PrintLine(__VA_ARGS__)
+#define PTGN_INFO(...) ::ptgn::impl::Info(__VA_ARGS__)
+#define PTGN_WARN(...) ::ptgn::impl::Warn(__VA_ARGS__)
 #define PTGN_ERROR(...) ::ptgn::impl::Error(__VA_ARGS__)
