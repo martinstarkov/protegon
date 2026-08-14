@@ -2,7 +2,10 @@
 
 #include <algorithm>
 #include <cmath>
-#include <variant>
+#include <iomanip>
+#include <sstream>
+#include <string>
+#include <utility>
 
 #include "core/assert.h"
 #include "core/graphics/color.h"
@@ -31,6 +34,29 @@ namespace ptgn {
 namespace {
 
 constexpr float kSliderTrackDepth{ -1.0f };
+constexpr float kSliderValueTextDepth{ 1.0f };
+
+[[nodiscard]] bool IsValidSliderLine(const Line& line) {
+	return !line.GetDirection().IsZero();
+}
+
+[[nodiscard]] std::string FormatSliderValueText(
+	float value, const SliderValueTextConfig& config
+) {
+	const float display_value{
+		config.display_min +
+		value * (config.display_max - config.display_min)
+	};
+
+	std::ostringstream stream;
+	stream << config.prefix
+		   << std::fixed
+		   << std::setprecision(static_cast<int>(config.decimal_places))
+		   << display_value
+		   << config.suffix;
+
+	return stream.str();
+}
 
 } // namespace
 
@@ -44,7 +70,7 @@ void SliderSystem::Prepare(Scene& scene) {
 
 		auto& draggable{ entity.TryAdd<Draggable>() };
 
-		// InteractionSystem performs the initial mouse-follow movement. SliderSystem::Update
+		// InteractionSystem performs the initial mouse follow movement. SliderSystem::Update
 		// immediately constrains it back onto the slider segment afterward.
 		draggable.follow_mouse = true;
 
@@ -59,10 +85,11 @@ void SliderSystem::Prepare(Scene& scene) {
 
 		// Keeps manually edited/deserialized values reflected in the thumb position.
 		if (!IsDragging(entity)) {
-			slider.ApplyValuePosition();
+			slider.SetValue(slider.GetValue(), false);
 		}
 
 		slider.RefreshTrack();
+		slider.RefreshValueText();
 	}
 }
 
@@ -74,20 +101,12 @@ void SliderSystem::Update(Scene& scene) {
 
 		Slider slider{ entity };
 
-		// InteractionSystem has already moved this entity toward the mouse.
-		// Use that attempted world-space position to determine the slider fraction.
-		auto attempted_position{ GetWorldTransform(entity).position };
+		// InteractionSystem has already moved this entity toward the mouse. Convert that
+		// attempted world space position into a normalized value along the slider line.
+		const auto attempted_position{ GetWorldTransform(entity).position };
+		const float value{ slider.GetValueForPosition(attempted_position) };
 
-		auto fraction{ slider.GetFractionForPosition(attempted_position) };
-
-		const auto& data{ slider.Get<SliderData>() };
-		auto value{
-			data.min_value +
-			fraction * (data.max_value - data.min_value)
-		};
-
-		// This also reapplies the exact constrained position, removing any movement
-		// perpendicular to the slider segment.
+		// SetValue snaps discrete sliders and reapplies the exact constrained position.
 		slider.SetValue(value);
 	}
 }
@@ -103,56 +122,33 @@ float Slider::GetValue() const {
 	return 0.0f;
 }
 
-float Slider::GetFraction() const {
-	if (!Has<impl::SliderData>()) {
-		return 0.0f;
-	}
-
-	const auto& data{ Get<impl::SliderData>() };
-
-	PTGN_ASSERT(
-		data.max_value > data.min_value,
-		"Slider maximum value must be greater than minimum value"
-	);
-
-	return std::clamp(
-		(data.value - data.min_value) /
-			(data.max_value - data.min_value),
-		0.0f,
-		1.0f
-	);
-}
-
-float Slider::GetMinValue() const {
+Line Slider::GetLine() const {
 	if (auto data{ TryGet<impl::SliderData>() }) {
-		return data->min_value;
+		return data->line;
 	}
 
-	return 0.0f;
-}
-
-float Slider::GetMaxValue() const {
-	if (auto data{ TryGet<impl::SliderData>() }) {
-		return data->max_value;
-	}
-
-	return 0.0f;
-}
-
-V2_float Slider::GetStart() const {
-	if (auto data{ TryGet<impl::SliderData>() }) {
-		return data->start;
-	}
-
+	PTGN_WARN("Cannot get line of entity without SliderData");
 	return {};
 }
 
-V2_float Slider::GetEnd() const {
+bool Slider::IsDiscrete() const {
+	return GetDiscretePositionCount() >= 2;
+}
+
+std::uint32_t Slider::GetDiscretePositionCount() const {
 	if (auto data{ TryGet<impl::SliderData>() }) {
-		return data->end;
+		return data->discrete_positions;
 	}
 
-	return {};
+	return 0;
+}
+
+bool Slider::HasValueText() const {
+	if (auto data{ TryGet<impl::SliderData>() }) {
+		return data->value_text.has_value() && static_cast<bool>(GetValueTextEntity());
+	}
+
+	return false;
 }
 
 Slider& Slider::SetValue(float value) {
@@ -166,77 +162,70 @@ Slider& Slider::SetValue(float value, bool emit_event) {
 	}
 
 	auto& data{ Get<impl::SliderData>() };
-
-	PTGN_ASSERT(
-		data.max_value > data.min_value,
-		"Slider maximum value must be greater than minimum value"
-	);
-
 	const float previous{ data.value };
 
-	data.value = std::clamp(
-		value,
-		data.min_value,
-		data.max_value
-	);
+	data.value = SnapValue(value);
 
 	// Do this even if the value did not change. During a drag, the generic
 	// draggable may have moved perpendicular to the track while keeping the
-	// same fraction.
+	// same normalized value.
 	ApplyValuePosition();
+
+	if (data.value != previous) {
+		RefreshValueTextContent();
+	}
 
 	if (emit_event && data.value != previous) {
 		PushEvent<event::SliderChange>(
 			*this,
 			*this,
 			data.value,
-			previous,
-			GetFraction()
+			previous
 		);
 	}
 
 	return *this;
 }
 
-Slider& Slider::SetRange(float min_value, float max_value) {
+Slider& Slider::SetLine(Line line) {
 	PTGN_ASSERT(
-		max_value > min_value,
-		"Slider maximum value must be greater than minimum value"
+		IsValidSliderLine(line),
+		"Slider line start and end positions must be different"
 	);
 
 	if (!Has<impl::SliderData>()) {
-		PTGN_WARN("Cannot set range of entity without SliderData");
+		PTGN_WARN("Cannot set line of entity without SliderData");
 		return *this;
 	}
 
-	auto& data{ Get<impl::SliderData>() };
-
-	data.min_value = min_value;
-	data.max_value = max_value;
-
-	return SetValue(data.value);
-}
-
-Slider& Slider::SetPositions(V2_float start, V2_float end) {
-	PTGN_ASSERT(
-		(end - start).MagnitudeSquared() > 0.0f,
-		"Slider start and end positions must be different"
-	);
-
-	if (!Has<impl::SliderData>()) {
-		PTGN_WARN("Cannot set positions of entity without SliderData");
-		return *this;
-	}
-
-	auto& data{ Get<impl::SliderData>() };
-
-	data.start = start;
-	data.end = end;
+	Get<impl::SliderData>().line = line;
 
 	ApplyValuePosition();
 	RefreshTrack();
+	RefreshValueText();
 
 	return *this;
+}
+
+Slider& Slider::SetDiscretePositions(std::uint32_t position_count) {
+	PTGN_ASSERT(
+		position_count == 0 || position_count >= 2,
+		"Discrete slider position count must be 0 or at least 2"
+	);
+
+	if (!Has<impl::SliderData>()) {
+		PTGN_WARN("Cannot set discrete positions of entity without SliderData");
+		return *this;
+	}
+
+	Get<impl::SliderData>().discrete_positions = position_count;
+
+	// Snap the existing value immediately if discrete movement was enabled.
+	return SetValue(GetValue());
+}
+
+Slider& Slider::SetContinuous() {
+	return SetDiscretePositions(0);
 }
 
 Slider& Slider::Size(V2_float size) {
@@ -257,14 +246,14 @@ Slider& Slider::TrackLine(Color color) {
 		return *this;
 	}
 
-	const auto& data{ Get<impl::SliderData>() };
+	const auto& line{ Get<impl::SliderData>().line };
 
 	Entity track{
 		CreateLine(
 			GetScene(),
 			{},
-			data.start,
-			data.end,
+			line.start,
+			line.end,
 			color
 		)
 	};
@@ -280,7 +269,7 @@ Slider& Slider::TrackShape(Color color) {
 		return *this;
 	}
 
-	const auto& data{ Get<impl::SliderData>() };
+	const auto& line{ Get<impl::SliderData>().line };
 
 	Entity track;
 
@@ -296,8 +285,8 @@ Slider& Slider::TrackShape(Color color) {
 		track = CreateCapsule(
 			GetScene(),
 			{},
-			data.start,
-			data.end,
+			line.start,
+			line.end,
 			circle->radius,
 			color
 		);
@@ -353,6 +342,121 @@ Entity Slider::GetTrack() const {
 	return {};
 }
 
+ButtonText Slider::ValueText(SliderValueTextConfig config) {
+	if (!Has<impl::SliderData>()) {
+		PTGN_WARN("Cannot add value text to entity without SliderData");
+		return Button::Text();
+	}
+
+	Get<impl::SliderData>().value_text = std::move(config);
+
+	auto text{ Button::Text() };
+	text.Content(FormatSliderValueText(GetValue(), Get<impl::SliderData>().value_text.value()))
+		.Align(Origin::Center)
+		.Origin(Origin::Center);
+
+	RefreshValueText();
+
+	return text;
+}
+
+ButtonText Slider::ValueTextPercent(
+	std::string prefix, std::uint32_t decimal_places, V2_float offset
+) {
+	return ValueText(
+		SliderValueTextConfig{
+			.offset = offset,
+			.prefix = std::move(prefix),
+			.suffix = "%",
+			.display_min = 0.0f,
+			.display_max = 100.0f,
+			.decimal_places = decimal_places,
+		}
+	);
+}
+
+ButtonText Slider::ValueTextRange(
+	float display_min,
+	float display_max,
+	std::string prefix,
+	std::string suffix,
+	std::uint32_t decimal_places,
+	V2_float offset
+) {
+	return ValueText(
+		SliderValueTextConfig{
+			.offset = offset,
+			.prefix = std::move(prefix),
+			.suffix = std::move(suffix),
+			.display_min = display_min,
+			.display_max = display_max,
+			.decimal_places = decimal_places,
+		}
+	);
+}
+
+Slider& Slider::RemoveValueText() {
+	if (auto data{ TryGet<impl::SliderData>() }) {
+		data->value_text.reset();
+	}
+
+	Button::RemoveTexts();
+	return *this;
+}
+
+Entity Slider::GetValueTextEntity() const {
+	if (!HasChildren(*this)) {
+		return {};
+	}
+
+	for (Entity child : GetChildren(*this)) {
+		if (child.Has<ButtonTextVisuals>()) {
+			return child;
+		}
+	}
+
+	return {};
+}
+
+void Slider::RefreshValueText() {
+	if (!Has<impl::SliderData>()) {
+		return;
+	}
+
+	const auto& data{ Get<impl::SliderData>() };
+
+	if (!data.value_text.has_value()) {
+		return;
+	}
+
+	auto text{ GetValueTextEntity() };
+
+	if (!text) {
+		return;
+	}
+
+	// The value text belongs to the slider hierarchy, but it should remain centered
+	// on the slider line instead of following the moving thumb.
+	IgnoreParentTransform(text, true);
+	SetUI(text, IsUI(*this));
+	SetDepth(text, kSliderValueTextDepth);
+	SetPosition(text, Midpoint(data.line.start, data.line.end) + data.value_text->offset);
+}
+
+void Slider::RefreshValueTextContent() {
+	if (!Has<impl::SliderData>()) {
+		return;
+	}
+
+	const auto& data{ Get<impl::SliderData>() };
+
+	if (!data.value_text.has_value() || !GetValueTextEntity()) {
+		return;
+	}
+
+	Button::Text().Content(FormatSliderValueText(data.value, data.value_text.value()));
+}
+
 void Slider::SetTrack(Entity track, impl::SliderTrackKind kind) {
 	RemoveTrack();
 
@@ -361,8 +465,7 @@ void Slider::SetTrack(Entity track, impl::SliderTrackKind kind) {
 
 	SetParent(track, *this);
 
-	// The track belongs to the slider hierarchy but must not follow the
-	// moving thumb.
+	// The track belongs to the slider hierarchy but must not follow the moving thumb.
 	IgnoreParentTransform(track, true);
 
 	SetUI(track, IsUI(*this));
@@ -373,6 +476,24 @@ void Slider::SetTrack(Entity track, impl::SliderTrackKind kind) {
 	RefreshTrack();
 }
 
+float Slider::SnapValue(float value) const {
+	const float normalized{ std::clamp(value, 0.0f, 1.0f) };
+
+	if (!Has<impl::SliderData>()) {
+		return normalized;
+	}
+
+	const auto position_count{ Get<impl::SliderData>().discrete_positions };
+
+	if (position_count < 2) {
+		return normalized;
+	}
+
+	const float interval_count{ static_cast<float>(position_count - 1) };
+
+	return std::round(normalized * interval_count) / interval_count;
+}
+
 void Slider::ApplyValuePosition() const {
 	if (!Has<impl::SliderData>()) {
 		return;
@@ -380,39 +501,30 @@ void Slider::ApplyValuePosition() const {
 
 	const auto& data{ Get<impl::SliderData>() };
 
-	const float fraction{
-		std::clamp(
-			(data.value - data.min_value) /
-				(data.max_value - data.min_value),
-			0.0f,
-			1.0f
-		)
-	};
-
 	SetPosition(
 		*this,
-		data.start + (data.end - data.start) * fraction
+		Lerp(data.line.start, data.line.end, data.value)
 	);
 }
 
-float Slider::GetFractionForPosition(V2_float position) const {
-	const auto& data{ Get<impl::SliderData>() };
-
-	auto delta{ data.end - data.start };
-	auto length_squared{ delta.MagnitudeSquared() };
+float Slider::GetValueForPosition(V2_float position) const {
+	const auto& line{ Get<impl::SliderData>().line };
+	const auto direction{ line.GetDirection() };
+	const float length_squared{ direction.MagnitudeSquared() };
 
 	PTGN_ASSERT(
 		length_squared > 0.0f,
-		"Slider start and end positions must be different"
+		"Slider line start and end positions must be different"
 	);
 
 	// Projection of P onto the finite segment AB:
 	//
 	//     t = dot(P - A, B - A) / |B - A|^2
 	//
-	// Clamping t constrains the slider to its endpoints.
+	// Clamping t constrains the slider to its endpoints. SetValue performs any
+	// additional discrete position snapping.
 	return std::clamp(
-		(position - data.start).Dot(delta) / length_squared,
+		Dot(position - line.start, direction) / length_squared,
 		0.0f,
 		1.0f
 	);
@@ -425,18 +537,18 @@ void Slider::RefreshTrack() {
 		return;
 	}
 
-	const auto& data{ Get<impl::SliderData>() };
+	const auto& line{ Get<impl::SliderData>().line };
 	const auto kind{ track.Get<impl::SliderTrackData>().kind };
 
-	auto delta{ data.end - data.start };
-	auto center{ (data.start + data.end) * 0.5f };
-	Radians rotation{ std::atan2(delta.y, delta.x) };
+	const auto direction{ line.GetDirection() };
+	const auto center{ Midpoint(line.start, line.end) };
+	const Radians rotation{ direction.Angle().ToRad() };
 
 	switch (kind) {
 		using enum impl::SliderTrackKind;
 
 		case Line: {
-			track.Add<ptgn::Line>(ptgn::Line{ data.start, data.end });
+			track.Add<ptgn::Line>(line);
 			SetPosition(track, {});
 			SetRotation(track, Radians{});
 			break;
@@ -450,24 +562,14 @@ void Slider::RefreshTrack() {
 				);
 
 				const auto thumb_size{ thumb_rect->GetSize() };
-				const float track_length{ delta.Magnitude() };
+				const float track_length{ Length(direction) };
+				const auto unit{ Normalize(direction) };
+				const auto normal{ unit.Skewed() };
 
-				auto unit{ delta / track_length };
-				V2_float normal{ -unit.y, unit.x };
-
-				// Projection of the thumb's axis-aligned width/height onto the
-				// slider direction and its perpendicular. This guarantees that
-				// the track extends enough to contain the entire thumb at both
-				// endpoints, including diagonal sliders.
-				const float along{
-					std::abs(unit.x) * thumb_size.x +
-					std::abs(unit.y) * thumb_size.y
-				};
-
-				const float across{
-					std::abs(normal.x) * thumb_size.x +
-					std::abs(normal.y) * thumb_size.y
-				};
+				// Project the axis aligned thumb dimensions onto the track direction and
+				// its perpendicular so the track contains the thumb at both endpoints.
+				const float along{ Dot(Abs(unit), thumb_size) };
+				const float across{ Dot(Abs(normal), thumb_size) };
 
 				track.Add<Rect>(
 					V2_float{
@@ -491,8 +593,8 @@ void Slider::RefreshTrack() {
 
 				track.Add<Capsule>(
 					Capsule{
-						data.start,
-						data.end,
+						line.start,
+						line.end,
 						thumb_circle->radius
 					}
 				);
@@ -522,26 +624,18 @@ namespace {
 template <typename T>
 Slider CreateSlider(
 	Scene& scene,
-	V2_float start,
-	V2_float end,
+	Line line,
 	T button_size,
 	Origin origin,
-	float value,
-	float min_value,
-	float max_value
+	float value
 ) {
 	PTGN_ASSERT(
-		(end - start).MagnitudeSquared() > 0.0f,
-		"Slider start and end positions must be different"
-	);
-
-	PTGN_ASSERT(
-		max_value > min_value,
-		"Slider maximum value must be greater than minimum value"
+		IsValidSliderLine(line),
+		"Slider line start and end positions must be different"
 	);
 
 	Transform transform;
-	transform.position = start;
+	transform.position = line.start;
 
 	Slider slider{
 		CreateButton(
@@ -556,11 +650,8 @@ Slider CreateSlider(
 
 	slider.Add<impl::SliderData>(
 		impl::SliderData{
-			.start = start,
-			.end = end,
-			.min_value = min_value,
-			.max_value = max_value,
-			.value = std::clamp(value, min_value, max_value),
+			.line = line,
+			.value = std::clamp(value, 0.0f, 1.0f),
 		}
 	);
 
@@ -576,45 +667,33 @@ Slider CreateSlider(
 
 Slider CreateSlider(
 	Scene& scene,
-	V2_float start,
-	V2_float end,
+	Line line,
 	V2_float button_size,
 	Origin origin,
-	float value,
-	float min_value,
-	float max_value
+	float value
 ) {
 	return CreateSlider<V2_float>(
 		scene,
-		start,
-		end,
+		line,
 		button_size,
 		origin,
-		value,
-		min_value,
-		max_value
+		value
 	);
 }
 
 Slider CreateSlider(
 	Scene& scene,
-	V2_float start,
-	V2_float end,
+	Line line,
 	float button_radius,
 	Origin origin,
-	float value,
-	float min_value,
-	float max_value
+	float value
 ) {
 	return CreateSlider<float>(
 		scene,
-		start,
-		end,
+		line,
 		button_radius,
 		origin,
-		value,
-		min_value,
-		max_value
+		value
 	);
 }
 

@@ -1,11 +1,14 @@
 #pragma once
 
+#include <cstdint>
+#include <optional>
+#include <string>
 #include <utility>
 
 #include "core/event/event.h"
 #include "core/graphics/color.h"
+#include "core/math/geometry/line.h"
 #include "core/math/geometry/origin.h"
-#include "core/math/transform.h"
 #include "core/math/vector2.h"
 #include "runtime/ecs/entity.h"
 #include "runtime/scripting/script.h"
@@ -23,17 +26,43 @@ struct SliderChange;
 
 } // namespace event
 
+/// @brief Optional automatically updated text displayed with a slider.
+///
+/// The slider value always remains normalized to [0, 1]. display_min/display_max
+/// only control how that normalized value is presented to the user.
+struct SliderValueTextConfig {
+	V2_float offset{ 0.0f, -50.0f };
+	std::string prefix;
+	std::string suffix;
+	float display_min{ 0.0f };
+	float display_max{ 1.0f };
+	std::uint32_t decimal_places{ 2 };
+
+	PTGN_REFLECT(
+		SliderValueTextConfig,
+		offset,
+		prefix,
+		suffix,
+		display_min,
+		display_max,
+		decimal_places
+	)
+};
+
 namespace impl {
 
 struct SliderData {
-	V2_float start;
-	V2_float end;
-
-	float min_value{ 0.0f };
-	float max_value{ 1.0f };
+	Line line;
 	float value{ 0.0f };
 
-	PTGN_REFLECT(SliderData, start, end, min_value, max_value, value)
+	/// @brief Number of allowed slider positions including both endpoints.
+	/// 0 means continuous. A discrete slider must have at least 2 positions.
+	std::uint32_t discrete_positions{ 0 };
+
+	/// @brief Configuration for the optional automatically updated value text.
+	std::optional<SliderValueTextConfig> value_text;
+
+	PTGN_REFLECT(SliderData, line, value, discrete_positions, value_text)
 };
 
 enum class SliderTrackKind : std::uint8_t {
@@ -65,24 +94,33 @@ class Slider : public Button {
 public:
 	using Button::Button;
 
+	/// @return Normalized slider value in the range [0, 1].
 	[[nodiscard]] float GetValue() const;
-	[[nodiscard]] float GetFraction() const;
 
-	[[nodiscard]] float GetMinValue() const;
-	[[nodiscard]] float GetMaxValue() const;
+	[[nodiscard]] Line GetLine() const;
 
-	[[nodiscard]] V2_float GetStart() const;
-	[[nodiscard]] V2_float GetEnd() const;
+	/// @return True when the slider snaps to discrete positions.
+	[[nodiscard]] bool IsDiscrete() const;
 
-	/// @brief Sets the slider value, clamped to its configured range.
+	/// @return Number of allowed positions including both endpoints, or 0 when continuous.
+	[[nodiscard]] std::uint32_t GetDiscretePositionCount() const;
+
+	/// @return True when the slider has automatically updated value text configured.
+	[[nodiscard]] bool HasValueText() const;
+
+	/// @brief Sets the normalized slider value, clamped to [0, 1].
+	/// Discrete sliders additionally snap to the nearest configured position.
 	Slider& SetValue(float value);
 
-	/// @brief Changes the slider value range.
-	/// The existing value is clamped into the new range.
-	Slider& SetRange(float min_value, float max_value);
+	/// @brief Changes the slider segment while preserving its normalized value.
+	Slider& SetLine(Line line);
 
-	/// @brief Changes the start/end positions of the slider track.
-	Slider& SetPositions(V2_float start, V2_float end);
+	/// @brief Snaps the slider to a fixed number of positions including both endpoints.
+	/// For example, 11 positions produce values 0.0, 0.1, ... 1.0.
+	Slider& SetDiscretePositions(std::uint32_t position_count);
+
+	/// @brief Restores continuous movement along the slider segment.
+	Slider& SetContinuous();
 
 	/// @brief Changes the rectangular thumb size.
 	Slider& Size(V2_float size);
@@ -90,7 +128,7 @@ public:
 	/// @brief Changes the circular thumb radius.
 	Slider& Size(float radius);
 
-	/// @brief Creates a line extending exactly from the slider start to end.
+	/// @brief Creates a line extending exactly from the slider line start to end.
 	Slider& TrackLine(Color color = color::Gray);
 
 	/// @brief Creates an automatically sized solid track.
@@ -101,7 +139,7 @@ public:
 	/// A circular thumb produces a capsule with the same radius as the thumb.
 	Slider& TrackShape(Color color = color::Gray);
 
-	/// @brief Creates a sprite centered and rotated along the slider track.
+	/// @brief Creates a sprite centered and rotated along the slider line.
 	Slider& TrackSprite(TextureKey texture, V2_float size, Color tint = color::White);
 
 	/// @brief Removes the slider track. The thumb remains fully functional.
@@ -109,6 +147,34 @@ public:
 
 	/// @return Slider track entity, or a null entity if no track exists.
 	[[nodiscard]] Entity GetTrack() const;
+
+	/// @brief Adds automatically updated text centered on the slider line plus config.offset.
+	/// @return The existing ButtonText API so the label can be styled directly.
+	///
+	/// Example:
+	/// slider.ValueText({ .prefix = "Value: " }).Color(color::White).Size(24.0f);
+	ButtonText ValueText(SliderValueTextConfig config = {});
+
+	/// @brief Convenience value text mapping [0, 1] to [0, 100] with a '%' suffix.
+	ButtonText ValueTextPercent(
+		std::string prefix = {},
+		std::uint32_t decimal_places = 0,
+		V2_float offset = { 0.0f, -50.0f }
+	);
+
+	/// @brief Convenience value text mapping [0, 1] to a display range.
+	/// The display range does not change slider behavior; it is presentation only.
+	ButtonText ValueTextRange(
+		float display_min,
+		float display_max,
+		std::string prefix = {},
+		std::string suffix = {},
+		std::uint32_t decimal_places = 0,
+		V2_float offset = { 0.0f, -50.0f }
+	);
+
+	/// @brief Removes the slider's automatically updated value text.
+	Slider& RemoveValueText();
 
 	template <EventCallbackInvocable<event::SliderChange> F>
 	Slider& OnChange(F&& callback) {
@@ -125,10 +191,14 @@ private:
 
 	void ApplyValuePosition() const;
 	void RefreshTrack();
+	void RefreshValueText();
+	void RefreshValueTextContent();
 
 	void SetTrack(Entity track, impl::SliderTrackKind kind);
 
-	[[nodiscard]] float GetFractionForPosition(V2_float position) const;
+	[[nodiscard]] Entity GetValueTextEntity() const;
+	[[nodiscard]] float SnapValue(float value) const;
+	[[nodiscard]] float GetValueForPosition(V2_float position) const;
 };
 
 namespace event {
@@ -140,33 +210,29 @@ struct SliderChange {
 
 	Slider slider;
 
+	/// @brief New normalized slider value in [0, 1].
 	float value{ 0.0f };
+
+	/// @brief Previous normalized slider value in [0, 1].
 	float previous_value{ 0.0f };
-	float fraction{ 0.0f };
 };
 
 } // namespace event
 
 Slider CreateSlider(
 	Scene& scene,
-	V2_float start,
-	V2_float end,
+	Line line,
 	V2_float button_size,
 	Origin origin = Origin::Center,
-	float value = 0.0f,
-	float min_value = 0.0f,
-	float max_value = 1.0f
+	float value = 0.0f
 );
 
 Slider CreateSlider(
 	Scene& scene,
-	V2_float start,
-	V2_float end,
+	Line line,
 	float button_radius,
 	Origin origin = Origin::Center,
-	float value = 0.0f,
-	float min_value = 0.0f,
-	float max_value = 1.0f
+	float value = 0.0f
 );
 
 } // namespace ptgn

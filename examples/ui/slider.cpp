@@ -1,17 +1,13 @@
 #include "runtime/ui/slider.h"
 
-#include <algorithm>
-#include <cmath>
-#include <string>
+#include <cstdint>
 
 #include "app/application.h"
 #include "app/editor.h"
 #include "core/graphics/color.h"
 #include "core/log.h"
+#include "core/math/geometry/line.h"
 #include "core/math/geometry/origin.h"
-#include "core/math/transform.h"
-#include "renderer/text/text_layout.h"
-#include "runtime/graphics/text/text.h"
 #include "runtime/scene/scene.h"
 #include "runtime/scene/scene_context.h"
 
@@ -19,15 +15,11 @@ using namespace ptgn;
 
 class SliderScene : public Scene {
 public:
-	Text no_track_text;
-	Text line_text;
-	Text rectangle_text;
-	Text circle_text;
-
 	Slider no_track_slider;
 	Slider line_slider;
 	Slider rectangle_slider;
-	Slider circle_slider;
+	Slider capsule_slider;
+	Slider discrete_slider;
 
 	void OnEnter() override {
 		ctx().debug.settings.interaction.draw_enabled = true;
@@ -35,27 +27,13 @@ public:
 		constexpr float start_x{ -220.0f };
 		constexpr float end_x{ 220.0f };
 
-		no_track_text =
-			CreateText(
-				*this,
-				Transform{ 0.0f, -240.0f },
-				"No track: 50%",
-				color::White,
-				26.0f,
-				Origin::Center
-			)
-				.Align(HorizontalAlign::Center, VerticalAlign::Center);
-
 		no_track_slider =
 			CreateSlider(
 				*this,
-				{ start_x, -180.0f },
-				{ end_x, -180.0f },
+				Line{ { start_x, -250.0f }, { end_x, -250.0f } },
 				18.0f,
 				Origin::Center,
-				50.0f,
-				0.0f,
-				100.0f
+				0.5f
 			);
 
 		no_track_slider
@@ -66,49 +44,18 @@ public:
 				color::DarkRed
 			);
 
-		no_track_slider.OnChange(
-			[this](const event::SliderChange& change) {
-				const int value{
-					static_cast<int>(std::lround(change.value))
-				};
-
-				no_track_text
-					.Clear()
-					.Content(
-						"No track: " +
-						std::to_string(value) +
-						"%"
-					)
-					.Color(color::White)
-					.Size(26.0f)
-					.Align(
-						HorizontalAlign::Center,
-						VerticalAlign::Center
-					);
-			}
-		);
-
-		line_text =
-			CreateText(
-				*this,
-				Transform{ 0.0f, -100.0f },
-				"Line track: 50%",
-				color::White,
-				26.0f,
-				Origin::Center
-			)
-				.Align(HorizontalAlign::Center, VerticalAlign::Center);
+		no_track_slider
+			.ValueTextPercent("No track: ")
+			.Color(color::White)
+			.Size(26.0f);
 
 		line_slider =
 			CreateSlider(
 				*this,
-				{ start_x, -40.0f },
-				{ end_x, -40.0f },
+				Line{ { start_x, -120.0f }, { end_x, -120.0f } },
 				18.0f,
 				Origin::Center,
-				50.0f,
-				0.0f,
-				100.0f
+				0.5f
 			);
 
 		line_slider.TrackLine(color::Gray);
@@ -121,49 +68,18 @@ public:
 				color::DarkRed
 			);
 
-		line_slider.OnChange(
-			[this](const event::SliderChange& change) {
-				const int value{
-					static_cast<int>(std::lround(change.value))
-				};
-
-				line_text
-					.Clear()
-					.Content(
-						"Line track: " +
-						std::to_string(value) +
-						"%"
-					)
-					.Color(color::White)
-					.Size(26.0f)
-					.Align(
-						HorizontalAlign::Center,
-						VerticalAlign::Center
-					);
-			}
-		);
-
-		rectangle_text =
-			CreateText(
-				*this,
-				Transform{ 0.0f, 40.0f },
-				"Rectangle track: 50%",
-				color::White,
-				26.0f,
-				Origin::Center
-			)
-				.Align(HorizontalAlign::Center, VerticalAlign::Center);
+		line_slider
+			.ValueTextPercent("Line track: ")
+			.Color(color::White)
+			.Size(26.0f);
 
 		rectangle_slider =
 			CreateSlider(
 				*this,
-				{ start_x, 100.0f },
-				{ end_x, 100.0f },
+				Line{ { start_x, 10.0f }, { end_x, 10.0f } },
 				V2_float{ 36.0f, 24.0f },
 				Origin::Center,
-				50.0f,
-				0.0f,
-				100.0f
+				0.5f
 			);
 
 		rectangle_slider.TrackShape(color::DarkGray);
@@ -176,57 +92,23 @@ public:
 				color::DarkRed
 			);
 
-		rectangle_slider.OnChange(
-			[this](const event::SliderChange& change) {
-				const int value{
-					static_cast<int>(std::lround(change.value))
-				};
+		rectangle_slider
+			.ValueTextPercent("Rectangle track: ")
+			.Color(color::White)
+			.Size(26.0f);
 
-				rectangle_text
-					.Clear()
-					.Content(
-						"Rectangle track: " +
-						std::to_string(value) +
-						"%"
-					)
-					.Color(color::White)
-					.Size(26.0f)
-					.Align(
-						HorizontalAlign::Center,
-						VerticalAlign::Center
-					);
-			}
-		);
-
-		constexpr int discrete_min{ 10 };
-		constexpr int discrete_max{ 20 };
-
-		circle_text =
-			CreateText(
-				*this,
-				Transform{ 0.0f, 180.0f },
-				"Discrete capsule: 15",
-				color::White,
-				26.0f,
-				Origin::Center
-			)
-				.Align(HorizontalAlign::Center, VerticalAlign::Center);
-
-		circle_slider =
+		capsule_slider =
 			CreateSlider(
 				*this,
-				{ start_x, 240.0f },
-				{ end_x, 240.0f },
+				Line{ { start_x, 140.0f }, { end_x, 140.0f } },
 				24.0f,
 				Origin::Center,
-				0.5f,
-				0.0f,
-				1.0f
+				0.5f
 			);
 
-		circle_slider.TrackShape(color::DarkGray);
+		capsule_slider.TrackShape(color::DarkGray);
 
-		circle_slider
+		capsule_slider
 			.Background()
 			.Colors(
 				color::Pink,
@@ -234,48 +116,50 @@ public:
 				color::DarkRed
 			);
 
-		circle_slider.OnChange(
-			[this](const event::SliderChange& change) {
-				constexpr int min_value{ 10 };
-				constexpr int max_value{ 20 };
-				constexpr int value_count{
-					max_value - min_value + 1
-				};
+		capsule_slider
+			.ValueTextPercent("Capsule track: ")
+			.Color(color::White)
+			.Size(26.0f);
 
-				const int discrete_value{
-					std::min(
-						max_value,
-						min_value +
-							static_cast<int>(
-								std::floor(
-									change.fraction *
-									static_cast<float>(value_count)
-								)
-							)
-					)
-				};
+		constexpr int discrete_min{ 10 };
+		constexpr int discrete_max{ 20 };
+		constexpr std::uint32_t discrete_positions{
+			static_cast<std::uint32_t>(discrete_max - discrete_min + 1)
+		};
 
-				circle_text
-					.Clear()
-					.Content(
-						"Discrete capsule: " +
-						std::to_string(discrete_value)
-					)
-					.Color(color::White)
-					.Size(26.0f)
-					.Align(
-						HorizontalAlign::Center,
-						VerticalAlign::Center
-					);
+		discrete_slider =
+			CreateSlider(
+				*this,
+				Line{ { start_x, 270.0f }, { end_x, 270.0f } },
+				V2_float{ 36.0f, 24.0f },
+				Origin::Center,
+				0.5f
+			);
 
-				PTGN_LOG(
-					"Normalized fraction: ",
-					change.fraction,
-					", discrete value: ",
-					discrete_value
-				);
-			}
-		);
+		discrete_slider
+			.SetDiscretePositions(discrete_positions)
+			.TrackShape(color::DarkGray);
+
+		discrete_slider
+			.Background()
+			.Colors(
+				color::Pink,
+				color::Red,
+				color::DarkRed
+			);
+
+		discrete_slider
+			.ValueTextRange(
+				static_cast<float>(discrete_min),
+				static_cast<float>(discrete_max),
+				"Discrete rectangle: "
+			)
+			.Color(color::White)
+			.Size(26.0f);
+
+		discrete_slider.OnChange([](const event::SliderChange& change) {
+			PTGN_LOG("Discrete normalized value: ", change.value);
+		});
 	}
 };
 
