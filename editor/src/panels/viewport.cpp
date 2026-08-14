@@ -40,6 +40,7 @@
 #include "runtime/scene/scene_context.h"
 #include "runtime/ui/button.h"
 #include "runtime/ui/button_config.h"
+#include "runtime/ui/slider.h"
 #include "tools/debug/stats.h"
 
 namespace ptgn::editor {
@@ -2116,6 +2117,9 @@ void ViewportPanel::DrawSelectedEntityGizmo(
 		);
 	}
 
+	::ptgn::impl::SliderSystem::SynchronizeEntity(selected_entity);
+	local_transform_after = GetTransform(selected_entity);
+
 	const bool transform_changed{ local_transform_before != local_transform_after };
 	if (transform_changed) {
 		const auto reference{ MakeEntityReference(selected_entity) };
@@ -2123,6 +2127,7 @@ void ViewportPanel::DrawSelectedEntityGizmo(
 		auto apply = [editor, reference](Transform value) {
 			if (Entity entity{ reference.Resolve(*editor) }; entity && entity.Has<Transform>()) {
 				entity.Get<Transform>() = value;
+				::ptgn::impl::SliderSystem::SynchronizeEntity(entity);
 			}
 		};
 

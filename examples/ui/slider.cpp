@@ -117,7 +117,16 @@ public:
 			);
 
 		capsule_slider
-			.ValueTextPercent("Capsule track: ")
+			.ValueText(
+				SliderValueTextConfig{
+					.offset = { 0.0f, -55.0f },
+					.prefix = "Strength: ",
+					.suffix = " kg",
+					.display_min = 20.0f,
+					.display_max = 80.0f,
+					.decimal_places = 1,
+				}
+			)
 			.Color(color::White)
 			.Size(26.0f);
 

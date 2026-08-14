@@ -89,6 +89,7 @@
 #include "runtime/ui/button.h"
 #include "runtime/ui/button_config.h"
 #include "runtime/ui/dropdown.h"
+#include "runtime/ui/slider.h"
 #include "runtime/ui/toggle_button.h"
 #include "runtime/ui/tooltip.h"
 #include "scripting/script_editor_registry.h"
@@ -3254,11 +3255,11 @@ using PhysicsFeatureComponents = FeatureComponents<
 using UIFeatureComponents = FeatureComponents<
 	::ptgn::impl::ButtonData, ::ptgn::impl::ButtonAnimationPart, ButtonBackgroundVisuals,
 	ButtonBorderVisuals, ButtonSpriteVisuals, ButtonTextVisuals, ButtonSounds,
-	::ptgn::impl::ToggleButtonData, ::ptgn::impl::ToggleButtonGroupData,
-	::ptgn::impl::ToggleButtonGroupItem, ::ptgn::impl::DropdownData,
-	::ptgn::impl::DropdownItem, ::ptgn::impl::TooltipData,
-	::ptgn::impl::TooltipHoverData, ::ptgn::impl::TooltipBackgroundPart,
-	::ptgn::impl::TooltipTextPart>;
+	::ptgn::impl::SliderData, ::ptgn::impl::ToggleButtonData,
+	::ptgn::impl::ToggleButtonGroupData, ::ptgn::impl::ToggleButtonGroupItem,
+	::ptgn::impl::DropdownData, ::ptgn::impl::DropdownItem,
+	::ptgn::impl::TooltipData, ::ptgn::impl::TooltipHoverData,
+	::ptgn::impl::TooltipBackgroundPart, ::ptgn::impl::TooltipTextPart>;
 
 using CameraFeatureComponents = FeatureComponents<
 	::ptgn::impl::CameraData,
@@ -3321,6 +3322,7 @@ struct ButtonChildInfo {
 	return entity &&
 		(
 			entity.Has<::ptgn::impl::ButtonData>() ||
+			entity.Has<::ptgn::impl::SliderData>() ||
 			entity.Has<::ptgn::impl::ToggleButtonData>() ||
 			entity.Has<::ptgn::impl::DropdownData>()
 		);
@@ -3726,6 +3728,7 @@ struct EntityInspectorTarget {
 	void SetLive(ComponentState<T> state, Callback callback = nullptr) {
 		AssignEntityComponent<T>(entity, std::move(state));
 		InvokeEntityChanged(callback, entity);
+		::ptgn::impl::SliderSystem::SynchronizeEntity(entity);
 	}
 
 	template <typename T, typename Callback = std::nullptr_t>
@@ -3742,6 +3745,7 @@ struct EntityInspectorTarget {
 
 			AssignEntityComponent<T>(resolved, std::move(state));
 			InvokeEntityChanged(callback, resolved);
+			::ptgn::impl::SliderSystem::SynchronizeEntity(resolved);
 		};
 	}
 
@@ -4529,12 +4533,12 @@ auto MakeTransformFeatureApply(Target& target) {
 	return [apply_transform, apply_depth, apply_position, apply_rotation, apply_scale,
 			apply_depth_ignore, apply_transform_ignore, apply_backgrounds, apply_borders,
 			apply_texts, apply_sprites](TransformFeatureState<Target> state) mutable {
-		apply_transform(state.transform);
-		apply_depth(state.depth);
 		apply_backgrounds(state.button_backgrounds);
 		apply_borders(state.button_borders);
 		apply_texts(state.button_texts);
 		apply_sprites(state.button_sprites);
+		apply_transform(state.transform);
+		apply_depth(state.depth);
 		apply_transform_ignore(
 			state.ignore_transform
 				? ComponentState<
@@ -4570,8 +4574,6 @@ auto MakeTransformFeatureApply(Target& target) {
 
 template <typename Target>
 void SetTransformFeatureLive(Target& target, const TransformFeatureState<Target>& state) {
-	target.template SetLive<Transform>(state.transform);
-	target.template SetLive<Depth>(state.depth);
 	target.template SetLive<ButtonBackgroundVisuals>(
 		state.button_backgrounds,
 		&MarkButtonBackgroundDirty
@@ -4588,6 +4590,8 @@ void SetTransformFeatureLive(Target& target, const TransformFeatureState<Target>
 		state.button_sprites,
 		&MarkButtonSpriteDirty
 	);
+	target.template SetLive<Transform>(state.transform);
+	target.template SetLive<Depth>(state.depth);
 	target.template SetLive<::ptgn::impl::IgnoreParentTransform>(
 		state.ignore_transform
 			? ComponentState<
@@ -8313,7 +8317,7 @@ bool DrawVisualAdditionalOptions(
 			changed |= DrawSpriteAdditional(target);
 		}
 
-		if (visual == "rect" || visual == "circle") {
+		if (visual == "rect" || visual == "circle" || visual == "sprite") {
 			changed |= DrawOptionalVisualComponent<
 				Target,
 				::ptgn::impl::ShadowCaster
@@ -9274,6 +9278,370 @@ bool DrawButtonVisualStateSelector(std::optional<ButtonVisualState>& state) {
 	);
 }
 
+
+template <typename Target>
+bool DrawSliderWorldPosition(
+	Target& target,
+	::ptgn::impl::SliderData& data,
+	std::string_view label,
+	bool start
+) {
+	V2_float& position{
+		start
+			? data.line.start
+			: data.line.end
+	};
+
+	const V2_float previous{ position };
+
+	const bool changed{
+		DrawPropertyRow(label, [&]() {
+			const float spacing{ ImGui::GetStyle().ItemInnerSpacing.x };
+			const float pick_width{
+				ImGui::CalcTextSize("Pick").x +
+				ImGui::GetStyle().FramePadding.x * 2.0f
+			};
+			const float available{ ImGui::GetContentRegionAvail().x };
+			const float field_width{
+				std::max(
+					36.0f,
+					(available - pick_width - spacing * 2.0f) * 0.5f
+				)
+			};
+
+			bool local_changed{ false };
+
+			ImGui::SetNextItemWidth(field_width);
+			local_changed |= ImGui::DragFloat(
+				"##X",
+				&position.x,
+				0.1f,
+				0.0f,
+				0.0f,
+				"X %.2f"
+			);
+
+			ImGui::SameLine(0.0f, spacing);
+			ImGui::SetNextItemWidth(field_width);
+			local_changed |= ImGui::DragFloat(
+				"##Y",
+				&position.y,
+				0.1f,
+				0.0f,
+				0.0f,
+				"Y %.2f"
+			);
+
+			ImGui::SameLine(0.0f, spacing);
+
+			{
+				ScopedDisabled disabled{ !CanPickLocalPosition<Target>() };
+
+				auto apply{
+					target.template MakeApply<::ptgn::impl::SliderData>()
+				};
+
+				::ptgn::impl::SliderData snapshot{ data };
+				const V2_float reference{ position };
+
+				DrawPositionPickButton(
+					target.ctx,
+					label,
+					position,
+					PositionPicker::Convert{},
+					PositionPicker::Apply{
+						[
+							apply,
+							snapshot = std::move(snapshot),
+							start
+						](V2_float picked) mutable {
+							Line line{ snapshot.line };
+
+							if (start) {
+								line.start = picked;
+							} else {
+								line.end = picked;
+							}
+
+							if (line.GetDirection().IsZero()) {
+								return;
+							}
+
+							snapshot.line = line;
+							apply(ComponentState<::ptgn::impl::SliderData>{ snapshot });
+						}
+					},
+					reference,
+					false
+				);
+
+				if constexpr (!CanPickLocalPosition<Target>()) {
+					DrawTooltip("Position picking is available for scene entities.");
+				}
+			}
+
+			return local_changed;
+		})
+	};
+
+	if (changed && data.line.GetDirection().IsZero()) {
+		position = previous;
+		return false;
+	}
+
+	return changed;
+}
+
+template <typename Target>
+bool DrawSliderValueTextConfig(
+	Target& target,
+	::ptgn::impl::SliderData& data
+) {
+	bool changed{ false };
+	bool enabled{ data.value_text.has_value() };
+
+	changed |= DrawPropertyRow(
+		"Value Text",
+		[&]() {
+			if (!ImGui::Checkbox("##Enabled", &enabled)) {
+				return false;
+			}
+
+			if (enabled) {
+				data.value_text = SliderValueTextConfig{};
+			} else {
+				data.value_text.reset();
+			}
+
+			return true;
+		}
+	);
+
+	if (!data.value_text.has_value()) {
+		return changed;
+	}
+
+	ScopedIndent indent;
+
+	auto& config{ data.value_text.value() };
+
+	changed |= DrawValue(target.ctx, "Prefix", config.prefix);
+	changed |= DrawValue(target.ctx, "Suffix", config.suffix);
+	changed |= DrawValue(target.ctx, "Display Min", config.display_min);
+	changed |= DrawValue(target.ctx, "Display Max", config.display_max);
+
+	int decimal_places{
+		static_cast<int>(
+			std::min<std::uint32_t>(
+				config.decimal_places,
+				9
+			)
+		)
+	};
+
+	if (DrawValue(
+			target.ctx,
+			"Decimal Places",
+			decimal_places,
+			FieldOptions{
+				.speed = 1.0f,
+				.min = 0.0f,
+				.max = 9.0f,
+				.format = "%d",
+				.flags = ImGuiSliderFlags_AlwaysClamp,
+			}
+		)) {
+		config.decimal_places =
+			static_cast<std::uint32_t>(
+				std::clamp(decimal_places, 0, 9)
+			);
+
+		changed = true;
+	}
+
+	return changed;
+}
+
+template <typename Target>
+bool DrawSliderData(
+	Target& target,
+	::ptgn::impl::SliderData& data
+) {
+	bool changed{ false };
+
+	const float clamped_value{
+		std::clamp(data.value, 0.0f, 1.0f)
+	};
+
+	if (data.value != clamped_value) {
+		data.value = clamped_value;
+		changed = true;
+	}
+
+	changed |= DrawValue(
+		target.ctx,
+		"Value",
+		data.value,
+		FieldOptions{
+			.speed = 0.01f,
+			.min = 0.0f,
+			.max = 1.0f,
+			.format = "%.3f",
+			.flags = ImGuiSliderFlags_AlwaysClamp,
+		}
+	);
+
+	changed |= DrawSliderWorldPosition(
+		target,
+		data,
+		"Start",
+		true
+	);
+
+	changed |= DrawSliderWorldPosition(
+		target,
+		data,
+		"End",
+		false
+	);
+
+	bool discrete{
+		data.discrete_positions >= 2
+	};
+
+	if (DrawValue(target.ctx, "Discrete", discrete)) {
+		data.discrete_positions = discrete ? 2u : 0u;
+		changed = true;
+	}
+
+	if (discrete) {
+		int positions{
+			static_cast<int>(
+				std::min<std::uint32_t>(
+					std::max<std::uint32_t>(
+						data.discrete_positions,
+						2
+					),
+					1000
+				)
+			)
+		};
+
+		if (DrawValue(
+				target.ctx,
+				"Positions",
+				positions,
+				FieldOptions{
+					.speed = 1.0f,
+					.min = 2.0f,
+					.max = 1000.0f,
+					.format = "%d",
+					.flags = ImGuiSliderFlags_AlwaysClamp,
+				}
+			)) {
+			data.discrete_positions =
+				static_cast<std::uint32_t>(
+					std::clamp(positions, 2, 1000)
+				);
+
+			changed = true;
+		}
+	} else if (data.discrete_positions != 0) {
+		data.discrete_positions = 0;
+		changed = true;
+	}
+
+	changed |= DrawSliderValueTextConfig(
+		target,
+		data
+	);
+
+	return changed;
+}
+
+template <typename Target>
+bool DrawOptionalSlider(Target& target) {
+	using SliderData = ::ptgn::impl::SliderData;
+
+	if (!Target::template Supports<SliderData>()) {
+		return false;
+	}
+
+	ScopedID target_scope{ target.Id() };
+	ScopedID component_scope{ static_cast<int>(Hash<SliderData>()) };
+
+	auto before{ target.template Capture<SliderData>() };
+	bool enabled{ before.has_value() };
+	bool changed{ false };
+
+	if (ImGui::Checkbox("##Enabled", &enabled)) {
+		if (enabled) {
+			SliderData data;
+
+			if constexpr (requires { target.entity; }) {
+				Entity entity{ target.entity };
+				const V2_float start{
+					entity && entity.Has<Transform>()
+						? GetWorldTransform(entity).position
+						: V2_float{}
+				};
+
+				data.line = Line{
+					start,
+					start + V2_float{ 100.0f, 0.0f }
+				};
+			} else {
+				data.line = Line{
+					V2_float{},
+					V2_float{ 100.0f, 0.0f }
+				};
+			}
+
+			target.template SetLive<SliderData>(data);
+		} else {
+			target.template SetLive<SliderData>(std::nullopt);
+		}
+
+		changed = true;
+	}
+
+	ImGui::SameLine();
+
+	SliderData data{ target.template Capture<SliderData>().value_or(SliderData{}) };
+	const bool open{
+		ImGui::TreeNodeEx(
+			"Slider##Tree",
+			ImGuiTreeNodeFlags_SpanAvailWidth
+		)
+	};
+
+	if (open) {
+		ScopedIndent indent;
+		ScopedDisabled disabled{ !enabled };
+
+		const bool contents_changed{ DrawSliderData(target, data) };
+
+		if (enabled && contents_changed) {
+			target.template SetLive<SliderData>(data);
+			changed = true;
+		}
+
+		ImGui::TreePop();
+	}
+
+	auto after{ target.template Capture<SliderData>() };
+
+	TrackComponentState(
+		target,
+		enabled ? "Edit Slider" : "Disable Slider",
+		std::move(before),
+		std::move(after),
+		changed
+	);
+
+	return changed;
+}
+
 template <typename Target>
 bool DrawUIFeature(Target& target) {
 	if (!HasUIFeature(target)) {
@@ -9327,7 +9695,6 @@ bool DrawUIFeature(Target& target) {
 
 	changed |= DrawOptionalReflected<Target, ::ptgn::impl::ButtonData>(target, "Button", true);
 
-
 	changed |= DrawOptionalReflected<Target, ::ptgn::impl::ToggleButtonData>(
 		target, "Toggle Button", true
 	);
@@ -9340,6 +9707,9 @@ bool DrawUIFeature(Target& target) {
 	changed |= DrawOptionalReflected<Target, ::ptgn::impl::DropdownData>(target, "Dropdown", true);
 	changed |=
 		DrawOptionalReflected<Target, ::ptgn::impl::DropdownItem>(target, "Dropdown Item", true);
+
+	changed |= DrawOptionalSlider(target);
+
 	changed |= DrawOptionalReflected<Target, ::ptgn::impl::TooltipData>(target, "Tooltip", true);
 	changed |= DrawOptionalReflected<Target, ::ptgn::impl::TooltipHoverData>(
 		target, "Tooltip Hover", true

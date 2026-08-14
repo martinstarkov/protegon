@@ -9,6 +9,7 @@
 #include "core/graphics/color.h"
 #include "core/math/geometry/line.h"
 #include "core/math/geometry/origin.h"
+#include "core/math/transform.h"
 #include "core/math/vector2.h"
 #include "runtime/ecs/entity.h"
 #include "runtime/scripting/script.h"
@@ -28,7 +29,7 @@ struct SliderChange;
 
 /// @brief Optional automatically updated text displayed with a slider.
 ///
-/// The slider value always remains normalized to [0, 1]. display_min/display_max
+/// The slider value always remains normalized to [0, 1]. display_min and display_max
 /// only control how that normalized value is presented to the user.
 struct SliderValueTextConfig {
 	V2_float offset{ 0.0f, -50.0f };
@@ -37,6 +38,8 @@ struct SliderValueTextConfig {
 	float display_min{ 0.0f };
 	float display_max{ 1.0f };
 	std::uint32_t decimal_places{ 2 };
+
+	constexpr bool operator==(const SliderValueTextConfig&) const = default;
 
 	PTGN_REFLECT(
 		SliderValueTextConfig,
@@ -62,6 +65,11 @@ struct SliderData {
 	/// @brief Configuration for the optional automatically updated value text.
 	std::optional<SliderValueTextConfig> value_text;
 
+	// Runtime synchronization state. These values are intentionally not reflected or serialized.
+	bool value_text_synchronized{ false };
+	std::optional<SliderValueTextConfig> synchronized_value_text;
+	Transform synchronized_value_text_transform;
+
 	PTGN_REFLECT(SliderData, line, value, discrete_positions, value_text)
 };
 
@@ -72,11 +80,21 @@ enum class SliderTrackKind : std::uint8_t {
 };
 PTGN_REFLECT_ENUM(SliderTrackKind);
 
-/// @brief Marker/data for the visual track belonging to a slider.
+/// @brief Marker and runtime synchronization data for a slider track.
 struct SliderTrackData {
 	SliderTrackKind kind{ SliderTrackKind::Line };
 
+	// Runtime synchronization state. These values are intentionally not reflected or serialized.
+	bool synchronized{ false };
+	Line synchronized_line;
+	std::optional<Line> synchronized_track_line;
+
 	PTGN_REFLECT_VALUE(SliderTrackData, kind)
+};
+
+/// @brief Marker for the text child owned by SliderValueTextConfig.
+struct SliderValueTextData {
+	PTGN_REFLECT_EMPTY(SliderValueTextData)
 };
 
 struct SliderSystem {
@@ -86,6 +104,10 @@ struct SliderSystem {
 	/// @brief Constrains actively dragged slider thumbs to their tracks and updates values.
 	/// Must run immediately after InteractionSystem::Update.
 	static void Update(Scene& scene);
+
+	/// @brief Synchronizes a slider root or one of its track or value text children.
+	/// Editor component edits and gizmos can call this after changing an entity.
+	static void SynchronizeEntity(Entity entity);
 };
 
 } // namespace impl
@@ -148,7 +170,9 @@ public:
 	/// @return Slider track entity, or a null entity if no track exists.
 	[[nodiscard]] Entity GetTrack() const;
 
-	/// @brief Adds automatically updated text centered on the slider line plus config.offset.
+	/// @brief Adds automatically updated text initially placed at the thumb position plus config.offset.
+	/// The text ignores parent position by default, so moving the slider does not move the label.
+	/// Disable IgnoreParentPosition on the text child to make it follow the slider.
 	/// @return The existing ButtonText API so the label can be styled directly.
 	///
 	/// Example:
@@ -186,10 +210,17 @@ public:
 	}
 
 	Slider& SetValue(float value, bool emit_event);
+
 private:
 	friend struct impl::SliderSystem;
 
 	void ApplyValuePosition() const;
+
+	void SynchronizeTrack();
+	void SynchronizeValueText();
+	void SynchronizeFromTrack(Entity track);
+	void SynchronizeValueTextOffset(Entity text);
+
 	void RefreshTrack();
 	void RefreshValueText();
 	void RefreshValueTextContent();
@@ -197,6 +228,7 @@ private:
 	void SetTrack(Entity track, impl::SliderTrackKind kind);
 
 	[[nodiscard]] Entity GetValueTextEntity() const;
+	[[nodiscard]] std::optional<Line> GetLineFromTrack(Entity track) const;
 	[[nodiscard]] float SnapValue(float value) const;
 	[[nodiscard]] float GetValueForPosition(V2_float position) const;
 };
