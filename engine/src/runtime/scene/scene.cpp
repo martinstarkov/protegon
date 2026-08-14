@@ -62,6 +62,7 @@
 #include "runtime/scripting/script.h"
 #include "runtime/ui/button.h"
 #include "runtime/ui/dropdown.h"
+#include "runtime/ui/slider.h"
 #include "runtime/ui/toggle_button.h"
 #include "runtime/ui/tooltip.h"
 #include "tools/debug/debug_system.h"
@@ -710,6 +711,7 @@ void Scene::InternalOnEvent() {
 void Scene::InternalPreUpdate() {
 	if (data_.runtime) {
 		// Derived UI components first add ButtonData; ButtonSystem then adds Interactive.
+		impl::SliderSystem::Prepare(*this);
 		impl::ToggleButtonSystem::Prepare(*this);
 		impl::DropdownSystem::Prepare(*this);
 		impl::TooltipSystem::Prepare(*this);
@@ -719,6 +721,10 @@ void Scene::InternalPreUpdate() {
 		Refresh();
 
 		ctx().interaction.Update(*this);
+
+		// InteractionSystem lets the draggable follow the mouse. Clamp sliders
+		// back onto their configured start/end segment immediately afterward.
+		impl::SliderSystem::Update(*this);
 	}
 }
 

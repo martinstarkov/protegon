@@ -41,6 +41,7 @@
 #include "runtime/ui/button.h"
 #include "runtime/ui/button_config.h"
 #include "runtime/ui/dropdown.h"
+#include "runtime/ui/slider.h"
 #include "runtime/ui/toggle_button.h"
 #include "runtime/ui/tooltip.h"
 
@@ -109,6 +110,8 @@ PTGN_REGISTER_COMPONENT(impl::TooltipData);
 PTGN_REGISTER_COMPONENT(impl::TooltipHoverData);
 PTGN_REGISTER_COMPONENT(impl::TooltipBackgroundPart);
 PTGN_REGISTER_COMPONENT(impl::TooltipTextPart);
+PTGN_REGISTER_COMPONENT(impl::SliderData);
+PTGN_REGISTER_COMPONENT(impl::SliderTrackData);
 
 PTGN_REGISTER_COMPONENT(impl::IgnoreParentOffset);
 PTGN_REGISTER_COMPONENT(impl::IgnoreParentImmovable);
