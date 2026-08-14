@@ -70,8 +70,16 @@ void RenderBatcher::Flush() {
 		return;
 	}
 
+	auto clear_batch = [&]{
+		vertex_size_ = 0;
+		vertices_.clear();
+		indices_.clear();
+		textures_.clear();
+	};
+
 	if (!renderer_.GetBoundShader()) {
 		PTGN_WARN("Attempting to flush render batcher without a bound shader");
+		clear_batch();
 		return;
 	}
 
@@ -88,10 +96,7 @@ void RenderBatcher::Flush() {
 
 	renderer_.DrawElements(pipeline, static_cast<std::uint32_t>(indices_.size()));
 
-	vertex_size_ = 0;
-	vertices_.clear();
-	indices_.clear();
-	textures_.clear();
+	clear_batch();
 }
 
 bool RenderBatcher::IsAttachedToCurrentFramebuffer(TextureId texture) const {
