@@ -35,7 +35,7 @@ constexpr std::string_view kPlayOnceSignal{ "animation.play_once" };
 constexpr std::string_view kCompleteSignal{ "animation.complete" };
 
 void LoadAssets(Scene& scene) {
-	scene.ctx().asset.Load({ { "animation", "assets/animation_frames4.png" } });
+	scene.ctx().asset.Load("animation", "assets/animation_frames4.png");
 }
 
 Button CreateTextButton(Scene& scene, V2_float position, std::string_view label) {
@@ -225,6 +225,7 @@ int main(int, char**) {
 
 	PTGN_WITH_EDITOR(app, true);
 
-	app.StartProject<AnimationScriptScene>("AnimationScriptProject/"
-										   "AnimationScript.ptgnproj");
+	app.StartProject<AnimationScriptScene>(
+		"AnimationScriptProject/AnimationScript.ptgnproj"
+	);
 }
