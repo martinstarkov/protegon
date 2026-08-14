@@ -22,6 +22,7 @@
 #include "runtime/graphics/sprite.h"
 #include "runtime/graphics/text/text.h"
 #include "runtime/scripting/script.h"
+#include "runtime/ui/button_config.h"
 #include "serialization/json/json.h"
 #include "serialization/serialize.h"
 
@@ -75,10 +76,6 @@ struct DialoguePageProperties {
 
 	[[nodiscard]] DialoguePageProperties InheritProperties(const json& j) const;
 
-	void SetPadding(int padding);
-	void SetPadding(V2_int padding);
-	void SetPadding(int top, int right, int bottom, int left);
-
 	[[nodiscard]] V2_float TextAreaSize() const;
 	[[nodiscard]] Rect TextAreaRect() const;
 	[[nodiscard]] TextBox ToTextBox() const;
@@ -90,7 +87,7 @@ struct DialoguePageProperties {
 	float font_size{ kDefaultFontSize };
 
 	V2_float box_size;
-	Rect padding;
+	Padding padding;
 
 	milliseconds scroll_duration{ 1000 };
 

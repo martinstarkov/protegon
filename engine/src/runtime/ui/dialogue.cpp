@@ -47,31 +47,6 @@ namespace {
 
 constexpr std::string_view kDialogueScrollChannel{ "dialogue.scroll" };
 
-void StopDialogueScroll(Entity dialogue) {
-	if (!dialogue) {
-		return;
-	}
-	script_runtime::StopChannel(
-		dialogue, SequenceChannelKey{ kDialogueScrollChannel }, SequenceStopMode::All
-	);
-}
-
-[[nodiscard]] Rect GetLocalRect(Origin origin, V2_float size) {
-	V2_float center{ GetOffset(origin, size) };
-	V2_float half_size{ size * 0.5f };
-
-	return Rect{
-		center - half_size,
-		center + half_size,
-	};
-}
-
-[[nodiscard]] Rect ApplyPadding(Rect rect, Rect padding) {
-	rect.min += padding.min;
-	rect.max -= padding.max;
-	return rect;
-}
-
 [[nodiscard]] std::optional<Entity> FindDialoguePart(Entity dialogue, DialoguePartRole role) {
 	if (!HasChildren(dialogue)) {
 		return std::nullopt;
@@ -197,54 +172,13 @@ DialoguePageProperties DialoguePageProperties::InheritProperties(const json& j) 
 	properties.vertical_align	= j.value("vertical_align", properties.vertical_align);
 	properties.wrap_mode		= j.value("wrap_mode", properties.wrap_mode);
 	properties.overflow_mode	= j.value("overflow_mode", properties.overflow_mode);
-
-	if (j.contains("padding")) {
-		auto padding_json{ j.at("padding").get<int>() };
-		properties.SetPadding(padding_json);
-	}
-
-	if (j.contains("padding_x")) {
-		auto padding_x{ j.at("padding_x").get<int>() };
-		properties.padding.min.x = static_cast<float>(padding_x);
-		properties.padding.max.x = static_cast<float>(padding_x);
-	}
-
-	if (j.contains("padding_y")) {
-		auto padding_y{ j.at("padding_y").get<int>() };
-		properties.padding.min.y = static_cast<float>(padding_y);
-		properties.padding.max.y = static_cast<float>(padding_y);
-	}
-
-	properties.padding.min.x =
-		static_cast<float>(j.value("padding_left", static_cast<int>(properties.padding.min.x)));
-	properties.padding.max.x =
-		static_cast<float>(j.value("padding_right", static_cast<int>(properties.padding.max.x)));
-	properties.padding.min.y =
-		static_cast<float>(j.value("padding_top", static_cast<int>(properties.padding.min.y)));
-	properties.padding.max.y =
-		static_cast<float>(j.value("padding_bottom", static_cast<int>(properties.padding.max.y)));
+	properties.padding			= j.value("padding", properties.padding);
 
 	return properties;
 }
 
-void DialoguePageProperties::SetPadding(int padding_value) {
-	SetPadding(padding_value, padding_value, padding_value, padding_value);
-}
-
-void DialoguePageProperties::SetPadding(V2_int padding_value) {
-	padding.min =
-		V2_float{ static_cast<float>(padding_value.x), static_cast<float>(padding_value.y) };
-	padding.max =
-		V2_float{ static_cast<float>(padding_value.x), static_cast<float>(padding_value.y) };
-}
-
-void DialoguePageProperties::SetPadding(int top, int right, int bottom, int left) {
-	padding.min = V2_float{ static_cast<float>(left), static_cast<float>(top) };
-	padding.max = V2_float{ static_cast<float>(right), static_cast<float>(bottom) };
-}
-
 V2_float DialoguePageProperties::TextAreaSize() const {
-	return box_size - padding.min - padding.max;
+	return box_size - padding.GetLeftTop() - padding.GetRightBottom();
 }
 
 Rect DialoguePageProperties::TextAreaRect() const {
@@ -805,12 +739,21 @@ void DialogueBox::StartCurrentPageScroll() {
 }
 
 void DialogueBox::StopCurrentPageScroll() {
-	StopDialogueScroll(*this);
+	if (!*this) {
+		return;
+	}
+	script_runtime::StopChannel(
+		*this, SequenceChannelKey{ kDialogueScrollChannel }, SequenceStopMode::All
+	);
 }
 
 void DialogueBox::PositionTextForPage(const DialoguePageProperties& properties) {
-	Rect outer_rect{ GetLocalRect(GetOrDefault<Origin>(), properties.box_size) };
-	Rect content_rect{ ApplyPadding(outer_rect, properties.padding) };
+	Rect outer_rect{ properties.box_size, GetOrDefault<Origin>() };
+
+	Rect content_rect{ outer_rect.Expanded(
+		-properties.padding.GetLeftTop(),
+		-properties.padding.GetRightBottom()
+	) };
 
 	Text text{ TextPart() };
 
@@ -883,10 +826,7 @@ void to_json(json& j, const DialoguePageProperties& properties) {
 		{ "font", properties.font },
 		{ "font_size", properties.font_size },
 		{ "box_size", properties.box_size },
-		{ "padding_left", properties.padding.min.x },
-		{ "padding_right", properties.padding.max.x },
-		{ "padding_top", properties.padding.min.y },
-		{ "padding_bottom", properties.padding.max.y },
+		{ "padding", properties.padding },
 		{ "scroll_duration", properties.scroll_duration },
 		{ "horizontal_align", properties.horizontal_align },
 		{ "vertical_align", properties.vertical_align },
