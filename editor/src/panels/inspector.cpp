@@ -9719,6 +9719,41 @@ bool DrawInspectorContents(EditorContext& ctx, Target& target) {
 
 } // namespace
 
+PositionPicker::Finish PreparePositionPickSession(
+	EditorContext& ctx
+) {
+	Editor* editor{
+		&ctx.editor
+	};
+
+	const bool should_resume{
+		editor->CanPause() &&
+		!editor->IsPaused()
+	};
+
+	if (should_resume) {
+		editor->TogglePause();
+	}
+
+	return [
+		editor,
+		should_resume
+	]() {
+		if (!should_resume) {
+			return;
+		}
+
+		// Only resume if this picker owns the pause and the
+		// application is still paused.
+		if (
+			editor->CanPause() &&
+			editor->IsPaused()
+		) {
+			editor->TogglePause();
+		}
+	};
+}
+
 void DrawEntityInspector(EditorContext& ctx, Entity entity) {
 	EntityInspectorTarget target{
 		.ctx	= ctx,

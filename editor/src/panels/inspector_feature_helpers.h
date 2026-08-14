@@ -158,6 +158,12 @@ inline void CancelPositionPicking(EditorContext& ctx) {
 	GetPositionPicker(ctx).Cancel();
 }
 
+/// @brief Pauses a running runtime for a position picking session.
+/// @return Callback that restores the runtime state when the session ends.
+[[nodiscard]] PositionPicker::Finish PreparePositionPickSession(
+	EditorContext& ctx
+);
+
 inline bool DrawPositionPickButton(
 	EditorContext& ctx,
 	std::string_view id,
@@ -169,20 +175,33 @@ inline bool DrawPositionPickButton(
 ) {
 	ScopedID scope{ id };
 
-	const bool picking_active{ IsPositionPickingActive(ctx) };
-	ScopedDisabled disabled{ picking_active };
+	const bool picking_active{
+		IsPositionPickingActive(ctx)
+	};
 
-	const bool pressed{ ImGui::Button("Pick") };
+	ScopedDisabled disabled{
+		picking_active
+	};
+
+	const bool pressed{
+		ImGui::Button("Pick")
+	};
 
 	if (!picking_active && pressed) {
+		auto finish{
+			PreparePositionPickSession(ctx)
+		};
+
 		GetPositionPicker(ctx).Begin(
 			"Pick Position",
 			current,
 			std::move(convert),
 			std::move(apply),
 			reference_world,
-			show_relative
+			show_relative,
+			std::move(finish)
 		);
+
 		return true;
 	}
 
@@ -190,7 +209,7 @@ inline bool DrawPositionPickButton(
 		ImGui::SetTooltip(
 			picking_active
 				? "A position pick is already active. Finish or cancel it first."
-				: "Pick a position in the viewport. Escape, right click, or clicking another panel cancels."
+				: "Press left click to adjust picked position; release to confirm."
 		);
 	}
 
@@ -216,16 +235,33 @@ inline bool DrawPositionPickButton(
 	);
 }
 
-/// Call this only from the viewport after converting the clicked screen point
-/// to world coordinates. Returns false when no request is active or conversion
-/// to the requested coordinate space fails.
-inline bool SubmitPickedPosition(
+[[nodiscard]] inline bool IsPositionPickDragging(EditorContext& ctx) {
+	return GetPositionPicker(ctx).IsDragging();
+}
+
+inline bool BeginPickedPositionDrag(
 	EditorContext& ctx,
 	V2_float world_position
 ) {
-	return GetPositionPicker(ctx).Submit(
-		ctx.undo,
+	return GetPositionPicker(ctx).BeginDrag(
 		world_position
+	);
+}
+
+inline bool UpdatePickedPositionDrag(
+	EditorContext& ctx,
+	V2_float world_position
+) {
+	return GetPositionPicker(ctx).UpdateDrag(
+		world_position
+	);
+}
+
+inline bool CompletePickedPosition(
+	EditorContext& ctx
+) {
+	return GetPositionPicker(ctx).Complete(
+		ctx.undo
 	);
 }
 
