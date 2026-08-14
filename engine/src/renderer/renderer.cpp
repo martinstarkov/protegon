@@ -559,7 +559,7 @@ V2_float Renderer::GetScale() const {
 }
 
 V2_int Renderer::GetOutputSize() const {
-	return window_.GetFramebufferSize();
+	return window_.GetSize();
 }
 
 void Renderer::SetPrimaryWorldCamera(const std::optional<Camera>& primary_world_camera) {
