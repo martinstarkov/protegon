@@ -375,10 +375,12 @@ Animation& Animation::SetTexture(TextureKey texture_key) {
 
 	const auto texture_size{ GetTextureSize(*this) };
 
-	data->config.frame_size = impl::GetFrameSize(
-		texture_size,
-		data->config.frame_count
-	);
+	if (!data->config.frame_size.has_value()) {
+		data->config.frame_size = impl::GetFrameSize(
+			texture_size,
+			data->config.frame_count
+		);
+	}
 
 	if (data->config.frame_count == 0) {
 		data->current_frame = 0;
@@ -519,11 +521,15 @@ void AnimationSystem::Prepare(Scene& scene) {
 					)
 				};
 				detected && anim.config.frame_count != *detected) {
+			
 				anim.config.frame_count = *detected;
-				anim.config.frame_size = GetFrameSize(
-					texture_size,
-					anim.config.frame_count
-				);
+
+				if (!anim.config.frame_size.has_value()) {
+					anim.config.frame_size = GetFrameSize(
+						texture_size,
+						anim.config.frame_count
+					);
+				}
 
 				anim.current_frame %= anim.config.frame_count;
 				anim.frame_dirty = true;

@@ -7555,15 +7555,20 @@ bool SynchronizeAnimationFrameData(Target& target, std::string_view reason) {
 		}
 
 		AnimationData animation{ *before_animation };
-		
+
 		if (const auto detected{ ResolveDetectedAnimationFrameCount(target) }) {
 			animation.config.frame_count = *detected;
 		}
 
 		const auto texture_size{ ResolveAnimationTextureSize(target) };
-		
-		animation.config.frame_size =
-			::ptgn::impl::GetFrameSize(texture_size, animation.config.frame_count);
+
+		if (!animation.config.frame_size.has_value()) {
+			animation.config.frame_size =
+				::ptgn::impl::GetFrameSize(
+					texture_size,
+					animation.config.frame_count
+				);
+		}
 
 		if (animation.config.frame_count == 0) {
 			animation.current_frame = 0;
@@ -7574,6 +7579,7 @@ bool SynchronizeAnimationFrameData(Target& target, std::string_view reason) {
 		animation.frame_dirty = true;
 		target.template SetLive<AnimationData>(animation);
 		auto after_animation{ target.template Capture<AnimationData>() };
+
 		TrackComponentState(
 			target,
 			reason,
@@ -7585,9 +7591,12 @@ bool SynchronizeAnimationFrameData(Target& target, std::string_view reason) {
 		if constexpr (Target::template Supports<TextureCrop>()) {
 			auto before_crop{ target.template Capture<TextureCrop>() };
 			TextureCrop crop{ before_crop.value_or(TextureCrop{}) };
+
 			crop.Update(animation, texture_size);
+
 			target.template SetLive<TextureCrop>(crop);
 			auto after_crop{ target.template Capture<TextureCrop>() };
+
 			TrackComponentState(
 				target,
 				"Update Animation Texture Crop",
@@ -7822,10 +7831,12 @@ bool DrawSpritePrimary(Target& target) {
 			};
 
 			if (frame_count_changed) {
-				value.config.frame_size = ::ptgn::impl::GetFrameSize(
-					ResolveAnimationTextureSize(target),
-					value.config.frame_count
-				);
+				if (!value.config.frame_size.has_value()) {
+					value.config.frame_size = ::ptgn::impl::GetFrameSize(
+						ResolveAnimationTextureSize(target),
+						value.config.frame_count
+					);
+				}
 
 				value.current_frame = value.config.frame_count == 0
 					? 0

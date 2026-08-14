@@ -74,14 +74,24 @@ void Sprite::Draw(
 	auto texture{ impl::GetTexture(entity) };
 
 	if (!texture) {
-		PTGN_WARN("Sprite does not have a valid texture or texture key");
+		PTGN_WARN("Sprite does not have a valid texture or texture key", std::invoke([&entity] -> std::string {
+			if (const auto texture_key{ entity.TryGet<TextureKey>() }) {
+				return ": " + texture_key->value;
+			}
+			return "";
+		}));
 		return;
 	}
 
 	auto texture_size{ GetDisplaySize(entity) };
 
 	if (!texture_size.has_value()) {
-		PTGN_WARN("Sprite texture does not have a valid texture size");
+		PTGN_WARN("Sprite texture (", std::invoke([&entity, &texture] -> std::string {
+			if (const auto texture_key{ entity.TryGet<TextureKey>() }){
+				return ": " + texture_key->value;
+			}
+			return ToString(texture);
+		}), ") does not have a valid texture size");
 		return;
 	}
 
@@ -93,7 +103,7 @@ void Sprite::Draw(
 	draw_transform.Translate(offset);
 
 	// GetDisplaySize already handles the scaling.
-	PTGN_ASSERT(!scale.HasZero(), "Scale cannot have a zero component");
+	PTGN_ASSERT(!scale.HasZero(), "Scale cannot have a zero component: ", scale);
 	// Maintain scale sign as this is used to flip the direction of a sprite.
 	draw_transform.Scale(1.0f / Abs(scale));
 

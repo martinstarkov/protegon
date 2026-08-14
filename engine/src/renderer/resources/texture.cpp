@@ -24,12 +24,12 @@ std::array<V2_float, 4> GetTextureCoordinates(
 	bool offset_texels
 ) {
 	if (!texture_size.IsPositive()) {
-		PTGN_WARN("Texture size must be positive, using default texture coordinates");
+		PTGN_WARN("Texture size ", texture_size, " must be positive, using default texture coordinates");
 		return GetDefaultTextureCoordinates(flip_vertically);
 	}
 
 	if (source_position.x >= texture_size.x || source_position.y >= texture_size.y) {
-		PTGN_WARN("Source position out of texture size bounds, using default texture coordinates");
+		PTGN_WARN("Source position ", source_position, " out of texture size ", texture_size, " bounds, using default texture coordinates");
 		return GetDefaultTextureCoordinates(flip_vertically);
 	}
 
@@ -43,7 +43,7 @@ std::array<V2_float, 4> GetTextureCoordinates(
 	auto max{ (source_position + source_size - texel) / texture_size };
 
 	if (max.x > 1.0f || max.y > 1.0f) {
-		PTGN_WARN("Drawing source size from outside of texture size");
+		PTGN_WARN("Drawing source size from outside of texture size: ", max);
 	}
 
 	std::array uv{ min, V2_float{ max.x, min.y }, max, V2_float{ min.x, max.y } };
@@ -88,7 +88,7 @@ void FlipTextureCoordinates(std::array<V2_float, 4>& tex_coords, Flip flip) {
 			flip_x();
 			flip_y();
 			break;
-		default: PTGN_ERROR("Unrecognized flip state");
+		default: PTGN_ERROR("Unknown Flip: ", std::to_underlying(flip));
 	}
 }
 
