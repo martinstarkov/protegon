@@ -33,11 +33,13 @@ EffectParams GetEffectParams(const Entity& entity) {
 	EffectParams params{ .margin = 0 };
 
 	if (!HasChildren(entity)) {
-		params.draw_callback = [entity](DrawContext&) {
-			if (auto material_update{ entity.TryGet<MaterialUpdate>() }) {
-				material_update->update(CustomShader{ entity });
-			}
-		};
+		if (entity.Has<MaterialUpdate>()) {
+			params.draw_callback = [entity](DrawContext&) {
+				if (auto material_update{ entity.TryGet<MaterialUpdate>() }) {
+					material_update->update(CustomShader{ entity });
+				}
+			};
+		}
 		return params;
 	}
 
@@ -58,11 +60,13 @@ EffectParams GetEffectParams(const Entity& entity) {
 	}
 
 	if (!effect_count) {
-		params.draw_callback = [entity](DrawContext&) {
-			if (auto material_update{ entity.TryGet<MaterialUpdate>() }) {
-				material_update->update(CustomShader{ entity });
-			}
-		};
+		if (entity.Has<MaterialUpdate>()) {
+			params.draw_callback = [entity](DrawContext&) {
+				if (auto material_update{ entity.TryGet<MaterialUpdate>() }) {
+					material_update->update(CustomShader{ entity });
+				}
+			};
+		}
 		return params;
 	}
 

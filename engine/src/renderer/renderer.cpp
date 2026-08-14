@@ -737,10 +737,6 @@ void Renderer::DrawTexture(const impl::DrawTextureRequest& request) {
 	Draw(request);
 }
 
-bool Renderer::IsPresentationViewportVisible() const {
-	return presentation_viewport_.has_value() && !presentation_viewport_.value().size.IsPositive();
-}
-
 impl::ShaderObject Renderer::CreateShader(
 	const std::variant<ShaderCode, ShaderPath, ShaderPair>& source, std::string_view shader_name
 ) {

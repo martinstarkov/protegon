@@ -213,100 +213,175 @@ private:
 	void DrawWithEffect(const impl::DrawRequest<T>& request) {
 		PTGN_ASSERT(!request.primitives.empty());
 
-		using TVertex = typename impl::RenderPrimitiveInfo<std::remove_cvref_t<T>>::Vertex;
+		using TVertex =
+			typename impl::RenderPrimitiveInfo<std::remove_cvref_t<T>>::Vertex;
 
 		PTGN_ASSERT(
 			impl::HaveUniformDepthAndEntityId(request.primitives),
 			"Batched effect vertices must have uniform depth and entity ID"
 		);
 
-		auto bounds{ Rect::FromPoints(
-			request.primitives | std::views::join |
+		const Rect bounds{ Rect::FromPoints(
+			request.primitives |
+			std::views::join |
 			std::views::transform([](const TVertex& vertex) {
-				const auto& pos{ impl::PositionAccessor<TVertex>::Get(vertex) };
-				return V2_float{ pos[0], pos[1] };
+				const auto& pos{
+					impl::PositionAccessor<TVertex>::Get(vertex)
+				};
+
+				return V2_float{
+					pos[0],
+					pos[1],
+				};
 			})
 		) };
 
-		V2_float size{ bounds.GetSize() };
+		const V2_float bounds_center{ bounds.GetCenter() };
 
-		PTGN_ASSERT(size.IsPositive(), "Bounds size must be positive");
+		V2_float size{
+			bounds.GetSize() +
+			V2_float{ request.effect_params.margin * 2 }
+		};
 
-		size += V2_float{ request.effect_params.margin * 2 };
+		PTGN_ASSERT(
+			size.IsPositive(),
+			"Effect bounds size must be positive"
+		);
 
-		TextureDesc desc{ .size	  = size,
-						  .format = impl::GetEffectTextureFormat(request.effect_params.hdr) };
+		size = Max(V2_int{ Ceil(size) }, V2_int{ 1, 1 });
+
+		TextureDesc desc{
+			.size = size,
+			.format = impl::GetEffectTextureFormat(
+				request.effect_params.hdr
+			),
+		};
 
 		if (request.texture) {
-			// Inherit texture parameters from the original texture if it exists, to ensure
-			// consistency of sampling behavior between the original and expanded framebuffer.
 			desc.params = GetParams(request.texture).value();
 		}
 
-		auto expanded_framebuffer{ CreateFramebuffer(desc, std::nullopt) };
+		auto expanded_framebuffer{
+			CreateFramebuffer(desc, std::nullopt)
+		};
 
-		PTGN_ASSERT(GetSize(expanded_framebuffer) == V2_int{ size });
-
-		auto previous_framebuffer{ current_framebuffer_ };
+		auto* previous_framebuffer{
+			current_framebuffer_
+		};
 
 		SetFramebuffer(&expanded_framebuffer);
 
-		auto previous_state{ GetRenderState() };
+		const auto previous_state{
+			GetRenderState()
+		};
 
-		Viewport viewport{ .position{}, .size{ size } };
+		const Viewport viewport{
+			.position{},
+			.size{ size },
+		};
+
 		SetScissor(ScissorState{ viewport });
 		SetViewport(viewport);
+
+		// Temporary effect framebuffer is centered around zero.
 		SetViewProjection(size);
 
-		impl::DrawRequest<T> local_request;
+		// Important: The temporary framebuffer is centered around the origin, while
+		// the primitive's bounds may not be. Copy the primitives and
+		// translate their bounds center to zero before rendering.
+		// Do not transform request.primitives directly because DrawNormally
+		// mutates vertex positions in place.
+		std::vector<T> local_primitives{
+			request.primitives.begin(),
+			request.primitives.end()
+		};
 
-		local_request.primitives = request.primitives;
-		local_request.texture	 = request.texture;
+		impl::DrawRequest<T> local_request{
+			.texture = request.texture,
+			.transform = Transform{
+				-bounds_center
+			},
+			.primitives = local_primitives,
+		};
 
 		DrawNormally(local_request);
 
 		FlushBatch();
 
-		ExecuteEffectCallbacks(request.effect_params.draw_callback);
+		ExecuteEffectCallbacks(
+			request.effect_params.draw_callback
+		);
 
 		FlushBatch();
 
 		SetCurrentPipeline("texture");
 		SetFramebuffer(previous_framebuffer);
-		SetMaterial(
-			{ .shader = GetShader("texture"), .texture_slot_capacity = GetMaxTextureSlots() }
-		);
+
+		SetMaterial({
+			.shader = GetShader("texture"),
+			.texture_slot_capacity = GetMaxTextureSlots(),
+		});
+
 		SetRenderState(previous_state);
 
-		auto positions{ Rect{ size }.GetLocalVertices() };
-
-		PTGN_ASSERT(!request.primitives.empty());
-
-		const auto& first_primitive{ request.primitives.front() };
-
-		PTGN_ASSERT(!first_primitive.empty());
-
-		const auto& first_vertex{ first_primitive.front() };
-
-		auto depth{ impl::PositionAccessor<TVertex>::Get(first_vertex)[2] };
-
-		constexpr auto color_n{ color::White.Normalized() };
-
-		constexpr auto tex_coords{ impl::GetDefaultTextureCoordinates<true>() };
-
-		auto entity_id{ impl::EntityIdAccessor<TVertex>::Get(first_vertex) };
-
-		auto local_quad{
-			impl::CreateTextureQuad(positions, depth, color_n, tex_coords, entity_id)
+		auto positions{
+			Rect{ size }.GetLocalVertices()
 		};
 
-		impl::DrawTextureRequest new_request{ .texture	  = GetTexture(expanded_framebuffer),
-											  .transform  = request.transform,
-											  .primitives = { &local_quad, 1 } };
+		const auto& first_vertex{
+			request.primitives.front().front()
+		};
+
+		const auto depth{
+			impl::PositionAccessor<TVertex>::Get(
+				first_vertex
+			)[2]
+		};
+
+		constexpr auto color_n{
+			color::White.Normalized()
+		};
+
+		constexpr auto tex_coords{
+			impl::GetDefaultTextureCoordinates<true>()
+		};
+
+		const auto entity_id{
+			impl::EntityIdAccessor<TVertex>::Get(
+				first_vertex
+			)
+		};
+
+		auto local_quad{
+			impl::CreateTextureQuad(
+				positions,
+				depth,
+				color_n,
+				tex_coords,
+				entity_id
+			)
+		};
+
+		// The temporary texture is centered at zero, but represents the
+		// original primitive bounds centered at bounds_center. Transform 
+		// that local center through the entity / world transform.
+		const Transform composite_transform{
+			request.transform.Apply(bounds_center),
+			request.transform.rotation,
+			request.transform.scale,
+		};
+
+		impl::DrawTextureRequest new_request{
+			.texture = GetTexture(expanded_framebuffer),
+			.transform = composite_transform,
+			.primitives = { &local_quad, 1 },
+		};
 
 		DrawNormally(new_request);
 
-		temp_framebuffers_.emplace_back(std::move(expanded_framebuffer));
+		temp_framebuffers_.emplace_back(
+			std::move(expanded_framebuffer)
+		);
 	}
 
 	template <impl::RenderPrimitive T>
@@ -534,8 +609,6 @@ private:
 	}
 
 	void SetUniformValue(impl::ShaderId id, const char* uniform_name, const UniformValue& v);
-
-	[[nodiscard]] bool IsPresentationViewportVisible() const;
 
 	std::size_t GetMaxTextureSlots() const;
 
