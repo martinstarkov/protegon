@@ -51,7 +51,17 @@ public:
 		}
 
 		signed_area *= 0.5f;
-		centroid	/= 6.0f * signed_area;
+
+		PTGN_ASSERT(
+			!NearlyEqual(signed_area, 0.0f),
+			"Cannot calculate centroid of a zero area polygon"
+		);
+
+		if (NearlyEqual(signed_area, 0.0f)) {
+			return {};
+		}
+
+		centroid /= 6.0f * signed_area;
 
 		return centroid;
 	}
@@ -60,45 +70,77 @@ public:
 		return transform.Apply(vertices);
 	}
 
-	/// @return True if all the interior angles are less than 180 degrees.
+	/// @return True if the polygon is non degenerate and has no reflex vertices.
+	/// Collinear consecutive vertices are allowed.
 	constexpr bool IsConvex() const {
-		auto count{ vertices.size() };
+		const auto count{ vertices.size() };
 
-		PTGN_ASSERT(count >= 3, "Line or point convexity check is redundant");
+		PTGN_ASSERT(count >= 3, "At least three vertices are required for a polygon");
 
-		const auto get_cross = [](V2_float a, V2_float b, V2_float c) {
-			return (b.x - a.x) * (c.y - b.y) - (b.y - a.y) * (c.x - b.x);
-		};
+		int winding_sign{ 0 };
 
-		int sign{ static_cast<int>(Sign(get_cross(vertices[0], vertices[1], vertices[2]))) };
+		for (auto i{ 0uz }; i < count; ++i) {
+			const auto& a{ vertices[i] };
+			const auto& b{ vertices[(i + 1) % count] };
+			const auto& c{ vertices[(i + 2) % count] };
 
-		// For convex polygons, all sequential point triplet cross products must have the same sign
-		// (+ or -). For convex polygon every triplet makes turn in the same side (or CW, or CCW
-		// depending on walk direction). For concave one some signs will differ (where inner angle
-		// exceeds 180 degrees). Note that you don't need to calculate angle values. Source:
-		// https://stackoverflow.com/a/40739079
+			const float cross{ (b - a).Cross(c - b) };
 
-		// Skip first point since that is the established reference.
-		for (auto i{ 1uz }; i < count; ++i) {
-			auto a{ vertices[i + 0] };
-			auto b{ vertices[(i + 1) % count] };
-			auto c{ vertices[(i + 2) % count] };
+			// A 180 degree turn does not make a polygon concave.
+			if (NearlyEqual(cross, 0.0f)) {
+				continue;
+			}
 
-			auto new_sign{ static_cast<int>(Sign(get_cross(a, b, c))) };
+			const int current_sign{ cross > 0.0f ? 1 : -1 };
 
-			if (new_sign != sign) {
-				// Polygon is concave.
+			if (winding_sign == 0) {
+				winding_sign = current_sign;
+				continue;
+			}
+
+			if (current_sign != winding_sign) {
 				return false;
 			}
 		}
 
-		// Convex.
-		return true;
+		// If every cross product was zero, the polygon has zero area and
+		// should not be considered a valid convex polygon.
+		return winding_sign != 0;
 	}
 
-	/// @return True if any of the interior angles are above 180 degrees.
+	/// @return True if the polygon contains at least one reflex vertex.
+	/// Degenerate/entirely collinear polygons are not considered concave.
 	constexpr bool IsConcave() const {
-		return !IsConvex();
+		const auto count{ vertices.size() };
+
+		PTGN_ASSERT(count >= 3, "At least three vertices are required for a polygon");
+
+		int winding_sign{ 0 };
+
+		for (auto i{ 0uz }; i < count; ++i) {
+			const auto& a{ vertices[i] };
+			const auto& b{ vertices[(i + 1) % count] };
+			const auto& c{ vertices[(i + 2) % count] };
+
+			const float cross{ (b - a).Cross(c - b) };
+
+			if (NearlyEqual(cross, 0.0f)) {
+				continue;
+			}
+
+			const int current_sign{ cross > 0.0f ? 1 : -1 };
+
+			if (winding_sign == 0) {
+				winding_sign = current_sign;
+				continue;
+			}
+
+			if (current_sign != winding_sign) {
+				return true;
+			}
+		}
+
+		return false;
 	}
 
 	constexpr bool operator==(const Polygon&) const = default;

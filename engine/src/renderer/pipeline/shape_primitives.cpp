@@ -359,7 +359,12 @@ std::vector<ColorQuad> GetHollowPrimitives(
 		return {};
 	}
 
-	return GetHollowPrimitives(polygon.vertices, true, params);
+	auto vertices{ polygon.GetWorldVertices(params.transform) };
+
+	CommonShapeParams stroke_params{ params };
+	stroke_params.transform = Transform{};
+
+	return GetHollowPrimitives(vertices, true, stroke_params);
 }
 
 std::vector<ColorQuad> GetHollowPrimitives(const Line& line, const CommonShapeParams& params) {

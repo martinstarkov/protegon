@@ -1,6 +1,7 @@
 #include "core/math/geometry/geometry_utils.h"
 
 #include <algorithm>
+#include <cmath>
 #include <cstdint>
 #include <cstdlib>
 #include <optional>
@@ -24,33 +25,92 @@ namespace impl {
 std::vector<V2_float> GetArcVertices(
 	V2_float center, float radius, Radians start_angle, Radians end_angle, bool clockwise
 ) {
-	if (start_angle.value > end_angle.value) {
-		end_angle += Radians{ kTwoPi };
+	PTGN_ASSERT(std::isfinite(radius), "Arc radius must be finite");
+	PTGN_ASSERT(radius >= 0.0f, "Arc radius cannot be negative");
+
+	if (!std::isfinite(radius) || radius < 0.0f) {
+		return {};
 	}
 
-	auto arc_angle{ end_angle - start_angle };
-
-	PTGN_ASSERT(arc_angle.value >= 0.0f);
-
-	// Resolution indicates the number of vertices the arc is made up of. Each consecutive vertex,
-	// alongside the center of the arc, makes up a triangle which is used to draw solid arcs.
-	auto resolution{ std::max(360uz, static_cast<std::size_t>(30.0f * radius)) };
+	const float start{ start_angle.value };
+	const float end{ end_angle.value };
 
 	PTGN_ASSERT(
-		resolution > 1, "Arc must be made up of at least two vertices (forming one triangle with "
-						"the arc center point)"
+		start >= 0.0f && start < kTwoPi,
+		"Arc start angle must be in range [0, 2pi)"
+	);
+	PTGN_ASSERT(
+		end >= 0.0f && end < kTwoPi,
+		"Arc end angle must be in range [0, 2pi)"
 	);
 
-	auto delta_angle{ arc_angle / static_cast<float>(resolution) };
+	// A zero radius arc is a single point regardless of aperture.
+	if (NearlyEqual(radius, 0.0f)) {
+		return { center };
+	}
 
-	std::vector<V2_float> vertices(resolution);
+	float aperture{};
 
-	auto step{ clockwise ? -delta_angle : delta_angle };
-	auto angle{ start_angle };
+	if (clockwise) {
+		aperture = start - end;
+	} else {
+		aperture = end - start;
+	}
 
-	for (auto& vertex : vertices) {
-		vertex	= center + radius * V2_float{ angle.Cos(), angle.Sin() };
-		angle  += step;
+	if (aperture < 0.0f) {
+		aperture += kTwoPi;
+	}
+
+	// start == end represents a zero length arc.
+	if (NearlyEqual(aperture, 0.0f)) {
+		return {
+			center + radius * V2_float{ start_angle.Cos(), start_angle.Sin() }
+		};
+	}
+
+	// Number of segments that would be used for an entire circle.
+	//
+	// Preserve roughly the old quality target, but scale it according to
+	// the fraction of a full circle actually being generated.
+	const auto full_circle_segment_count{
+		std::max(
+			360uz,
+			static_cast<std::size_t>(std::ceil(30.0f * radius))
+		)
+	};
+
+	const float aperture_fraction{ aperture / kTwoPi };
+
+	const auto segment_count{
+		std::max(
+			1uz,
+			static_cast<std::size_t>(
+				std::ceil(
+					static_cast<float>(full_circle_segment_count) *
+					aperture_fraction
+				)
+			)
+		)
+	};
+
+	// N segments require N + 1 vertices so both endpoints are present.
+	std::vector<V2_float> vertices(segment_count + 1);
+	const float direction{ clockwise ? -1.0f : 1.0f };
+
+	for (auto i{ 0uz }; i <= segment_count; ++i) {
+		const float t{
+			static_cast<float>(i) /
+			static_cast<float>(segment_count)
+		};
+
+		const Radians angle{
+			start + direction * aperture * t
+		};
+
+		vertices[i] = center + radius * V2_float{
+			angle.Cos(),
+			angle.Sin()
+		};
 	}
 
 	return vertices;
@@ -76,7 +136,8 @@ float TriangulateArea(std::span<const V2_float> vertices) {
 }
 
 bool TriangulateInsideTriangle(V2_float A, V2_float B, V2_float C, V2_float P) {
-	return (C - B).Cross(P - B) >= 0.0f && (A - C).Cross(P - C) >= 0.0f &&
+	return (C - B).Cross(P - B) >= 0.0f && 
+	       (A - C).Cross(P - C) >= 0.0f &&
 		   (B - A).Cross(P - A) >= 0.0f;
 }
 
@@ -85,23 +146,39 @@ bool TriangulateSnip(
 	const std::vector<std::size_t>& V
 ) {
 	PTGN_ASSERT(contour);
+	PTGN_ASSERT(u < n);
+	PTGN_ASSERT(v < n);
+	PTGN_ASSERT(w < n);
+	PTGN_ASSERT(n <= V.size());
 
-	auto A{ contour[V[u]] };
-	auto B{ contour[V[v]] };
-	auto C{ contour[V[w]] };
+	const V2_float A{ contour[V[u]] };
+	const V2_float B{ contour[V[v]] };
+	const V2_float C{ contour[V[w]] };
 
-	auto AB{ B - A };
-	auto AC{ C - A };
+	const V2_float AB{ B - A };
+	const V2_float AC{ C - A };
 
-	if (float cross{ AB.Cross(AC) }; NearlyEqual(cross, 0.0f)) {
+	// Triangulate() normalizes the working vertex order to counter clockwise.
+	// Therefore an ear must be a strictly convex / left turn vertex.
+	//
+	// Reject both:
+	//   cross < 0  -> reflex vertex
+	//   cross ~= 0 -> degenerate/collinear triangle
+	const float cross{ AB.Cross(AC) };
+
+	if (cross <= kEpsilon<float>) {
 		return false;
 	}
 
+	// The triangle is geometrically valid. It is only an ear if no other
+	// remaining polygon vertex lies inside or on its boundary.
 	for (auto i{ 0uz }; i < n; ++i) {
-		if ((i == u) || (i == v) || (i == w)) {
+		if (i == u || i == v || i == w) {
 			continue;
 		}
-		auto P{ contour[V[i]] };
+
+		const V2_float P{ contour[V[i]] };
+
 		if (TriangulateInsideTriangle(A, B, C, P)) {
 			return false;
 		}
@@ -135,11 +212,11 @@ std::vector<Triangle> Triangulate(std::span<const V2_float> vertices) {
 
 	std::size_t nv{ n };
 
-	// Remove nv-2 Vertices, creating 1 triangle every time
+	// Remove nv 2 Vertices, creating 1 triangle every time
 	std::int64_t r_count{ 2 * static_cast<std::int64_t>(nv) }; // Error detection
 
 	for ([[maybe_unused]] auto m{ 0uz }, v = nv - 1; nv > 2;) {
-		// If this loop is entered, it is probably a non-simple polygon
+		// If this loop is entered, it is probably a non simple polygon
 		if ((r_count--) < 0) {
 			// Triangulate: ERROR - probable bad polygon
 			return result;
@@ -255,7 +332,7 @@ std::vector<V2_float> GetVisibilityPolygon(V2_float point, std::span<const Line>
 		auto [c, d] = y.GetLocalVertices();
 
 		// Canonicalize endpoint order so Line{A, B} and Line{B, A}
-		// do not get different tie-break order.
+		// do not get different tie break order.
 		if (point_less(b, a)) {
 			std::swap(a, b);
 		}
@@ -516,28 +593,40 @@ std::vector<Line> PointsToLines(std::span<const V2_float> points, bool connect_l
 
 namespace impl {
 
-bool IsInside(V2_float p, const Line& edge) {
-	V2_float edge_vec{ edge.GetDirection() };
-	V2_float point_vec{ p - edge.start };
+bool IsInside(V2_float p, const Line& edge, bool clip_is_counter_clockwise) {
+	const V2_float edge_vec{ edge.GetDirection() };
+	const V2_float point_vec{ p - edge.start };
 
-	// Cross product >= 0 means p is to the left or on the edge line.
-	return edge_vec.Cross(point_vec) >= 0;
-}
+	const float cross{ edge_vec.Cross(point_vec) };
 
-std::optional<V2_float> ComputeIntersection(V2_float a, V2_float b, V2_float c, V2_float d) {
-	V2_float ab{ b - a };
-	V2_float cd{ d - c };
-
-	float denominator{ ab.Cross(cd) };
-
-	if (std::abs(denominator) < kEpsilon<float>) {
-		return std::nullopt; // Lines are parallel.
+	// For a CCW polygon, its interior lies to the left of each edge.
+	// For a CW polygon, its interior lies to the right.
+	//
+	// Include points very slightly outside due to floating point error.
+	if (clip_is_counter_clockwise) {
+		return cross >= -kEpsilon<float>;
 	}
 
-	float t{ (c - a).Cross(cd) / denominator };
+	return cross <= kEpsilon<float>;
+}
+
+std::optional<V2_float> ComputeIntersection(
+	V2_float a, V2_float b, V2_float c, V2_float d
+) {
+	const V2_float ab{ b - a };
+	const V2_float cd{ d - c };
+
+	const float denominator{ ab.Cross(cd) };
+
+	if (std::abs(denominator) < kEpsilon<float>) {
+		return std::nullopt;
+	}
+
+	// Intersection of segment AB with the infinite line through CD.
+	const float t{ (c - a).Cross(cd) / denominator };
 
 	if (t < 0.0f || t > 1.0f) {
-		return std::nullopt; // Intersection not within segment AB.
+		return std::nullopt;
 	}
 
 	return a + ab * t;
@@ -546,20 +635,37 @@ std::optional<V2_float> ComputeIntersection(V2_float a, V2_float b, V2_float c, 
 } // namespace impl
 
 std::vector<V2_float> ClipPolygons(
-	const std::vector<V2_float>& subject_polygon, const std::vector<V2_float>& clip_polygon
+	const std::vector<V2_float>& subject_polygon,
+	const std::vector<V2_float>& clip_polygon
 ) {
+	if (subject_polygon.empty()) {
+		return {};
+	}
+
+	if (clip_polygon.size() < 3) {
+		return {};
+	}
+
+	const float clip_area{ impl::TriangulateArea(clip_polygon) };
+
+	// A clipping polygon with zero area does not define a valid interior.
+	if (NearlyEqual(clip_area, 0.0f)) {
+		return {};
+	}
+
+	const bool clip_is_counter_clockwise{ clip_area > 0.0f };
+
 	std::vector<V2_float> output_list{ subject_polygon };
 
-	auto count{ clip_polygon.size() };
+	const auto count{ clip_polygon.size() };
 
 	for (auto i{ 0uz }; i < count; ++i) {
-		V2_float clip_start = clip_polygon[i];
-		V2_float clip_end	= clip_polygon[(i + 1) % count];
+		const V2_float clip_start{ clip_polygon[i] };
+		const V2_float clip_end{ clip_polygon[(i + 1) % count] };
 
-		Line clip_edge{ clip_start, clip_end };
+		const Line clip_edge{ clip_start, clip_end };
 
-		std::vector<V2_float> input_list{ output_list };
-
+		auto input_list{ std::move(output_list) };
 		output_list.clear();
 
 		if (input_list.empty()) {
@@ -567,27 +673,63 @@ std::vector<V2_float> ClipPolygons(
 		}
 
 		V2_float s{ input_list.back() };
+		bool s_inside{
+			impl::IsInside(
+				s,
+				clip_edge,
+				clip_is_counter_clockwise
+			)
+		};
 
-		for (V2_float e : input_list) {
-			bool e_inside{ impl::IsInside(e, clip_edge) };
-			bool s_inside{ impl::IsInside(s, clip_edge) };
+		for (const V2_float e : input_list) {
+			const bool e_inside{
+				impl::IsInside(
+					e,
+					clip_edge,
+					clip_is_counter_clockwise
+				)
+			};
 
 			if (e_inside) {
+				// Outside -> inside:
+				//
+				//       S -----|---- E
+				//             ^
+				//          intersection
 				if (!s_inside) {
 					if (auto intersection{
-							impl::ComputeIntersection(s, e, clip_edge.start, clip_edge.end) }) {
-						output_list.push_back(*intersection);
+							impl::ComputeIntersection(
+								s,
+								e,
+								clip_edge.start,
+								clip_edge.end
+							)
+						}) {
+						output_list.emplace_back(*intersection);
 					}
 				}
-				output_list.push_back(e);
+
+				output_list.emplace_back(e);
 			} else if (s_inside) {
+				// Inside -> outside:
+				//
+				//       S ----|----- E
+				//            ^
+				//         intersection
 				if (auto intersection{
-						impl::ComputeIntersection(s, e, clip_edge.start, clip_edge.end) }) {
-					output_list.push_back(*intersection);
+						impl::ComputeIntersection(
+							s,
+							e,
+							clip_edge.start,
+							clip_edge.end
+						)
+					}) {
+					output_list.emplace_back(*intersection);
 				}
 			}
 
 			s = e;
+			s_inside = e_inside;
 		}
 	}
 

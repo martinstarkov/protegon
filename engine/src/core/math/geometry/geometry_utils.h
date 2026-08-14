@@ -83,8 +83,8 @@ std::vector<Triangle> GetVisibilityTriangles(V2_float origin, std::span<const Li
 
 namespace impl {
 
-/// @return True if point `p` is inside the edge (i.e., to the left of the edge from start to end).
-[[nodiscard]] bool IsInside(V2_float p, const Line& edge);
+/// @return True if point is inside the edge (i.e., to the left of the edge from start to end).
+[[nodiscard]] bool IsInside(V2_float p, const Line& edge, bool clip_is_counter_clockwise);
 
 /// @brief Computes intersection point between segment AB and line CD (clip edge).
 /// @return Nullopt if lines are parallel or no intersection on AB segment.
@@ -94,10 +94,14 @@ namespace impl {
 
 } // namespace impl
 
-/// @brief Clips the subject polygon by the convex clip polygon using Sutherland-Hodgman algorithm.
-/// Both polygons are represented as vectors of points (in order).
+/// @brief Clips the subject polygon by a convex clip polygon using the
+/// Sutherland-Hodgman algorithm.
+///
+/// The clip polygon may be specified in either clockwise or counter clockwise order.
+/// The clip polygon must be convex and non degenerate.
 [[nodiscard]] std::vector<V2_float> ClipPolygons(
-	const std::vector<V2_float>& subject_polygon, const std::vector<V2_float>& clip_polygon
+	const std::vector<V2_float>& subject_polygon,
+	const std::vector<V2_float>& clip_polygon
 );
 
 namespace impl {

@@ -27,23 +27,24 @@ public:
 	) const {
 		PTGN_ASSERT(line_width >= 1.0f);
 
-		auto dir{ GetDirection() };
+		const auto dir{ GetDirection() };
+		const float length{ dir.Magnitude() };
 
-		auto local_center{ start + dir * 0.5f };
+		Rect rect{ V2_float{ length + line_width, line_width } };
 
-		V2_float center{ transform.Apply(local_center) };
+		const Transform line_transform{
+			start + dir * 0.5f,
+			dir.Angle(),
+			V2_float{ 1.0f },
+		};
 
-		auto rotation{ dir.Angle() };
-
-		Rect rect{ V2_float{ dir.Magnitude() + line_width, line_width } };
+		auto vertices{ rect.GetWorldVertices(line_transform) };
 
 		if (out_size) {
 			*out_size = rect.GetSize(transform);
 		}
 
-		Transform rect_transform{ center, rotation, transform.scale };
-
-		return rect.GetWorldVertices(rect_transform);
+		return transform.Apply(vertices);
 	}
 
 	constexpr std::array<V2_float, 2> GetWorldVertices(Transform transform) const {

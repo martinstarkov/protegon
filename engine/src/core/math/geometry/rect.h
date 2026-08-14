@@ -25,7 +25,7 @@ public:
 	constexpr Rect() = default;
 
 	constexpr Rect(V2_float min, V2_float max) : min{ min }, max{ max } {
-		PTGN_ASSERT(!GetSize().IsNegative(), "Rect size cannot be negative");
+		PTGN_ASSERT(!GetSize().HasNegative(), "Rect size cannot be negative");
 	}
 
 	template <Arithmetic T>
@@ -88,20 +88,23 @@ public:
 
 	/// @return Center relative to the transform.
 	constexpr V2_float GetCenter(Transform transform) const {
-		auto center{ GetCenter() };
-		return center + transform.position;
+		return transform.Apply(GetCenter());
 	}
 
 	/// @return New transform offset by the origin.
 	[[nodiscard]] constexpr Transform Offset(Transform transform, Origin origin) const {
-		auto size{ GetSize(transform) };
-		auto offset{ GetOffset(origin, size) };
+		const auto local_offset{ GetOffset(origin, GetSize()) };
 
-		if (offset.IsZero()) {
+		if (local_offset.IsZero()) {
 			return transform;
 		}
 
-		transform.Translate(offset);
+		// Transform the offset as a vector: apply scale + rotation, but remove translation.
+		const auto world_zero{ transform.Apply(V2_float{}) };
+		const auto world_offset_point{ transform.Apply(local_offset) };
+		const auto world_offset{ world_offset_point - world_zero };
+
+		transform.position += world_offset;
 
 		return transform;
 	}
