@@ -194,7 +194,7 @@ template <ShapeType T>
 constexpr EdgeInfo GetEdges(const T& shape, Transform transform) {
 	EdgeInfo info;
 
-	if constexpr (IsAnyOf<T, RoundedRect, Ellipse, Circle>) {
+	if constexpr (IsAnyOf<T, RoundedRect, Ellipse, Circle, Arc, Capsule>) {
 		info.quad_approximation = true;
 	}
 
