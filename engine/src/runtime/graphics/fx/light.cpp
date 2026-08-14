@@ -73,7 +73,13 @@ std::optional<std::vector<V2_float>> GetShadowCasterWorldVertices(Entity entity)
 	}
 
 	if (entity.Has<Circle>()) {
-		return entity.Get<Circle>().GetVertices(transform, kCircleShadowSegments);
+		const auto& circle{ entity.Get<Circle>() };
+
+		auto offset_transform{
+			Rect{ circle.GetSize() }.Offset(transform, origin)
+		};
+
+		return circle.GetVertices(offset_transform, kCircleShadowSegments);
 	}
 
 	if (auto texture_size{ GetTextureSize(entity) }) {
@@ -86,21 +92,13 @@ std::optional<std::vector<V2_float>> GetShadowCasterWorldVertices(Entity entity)
 }
 
 std::optional<BoundingAABB> GetShadowCasterAABB(Entity entity) {
-	auto transform{ GetDrawTransform(entity) };
+	auto world_vertices{ GetShadowCasterWorldVertices(entity) };
 
-	if (entity.Has<Rect>()) {
-		return GetBoundingAABB(entity.Get<Rect>(), transform);
+	if (!world_vertices.has_value() || world_vertices->empty()) {
+		return std::nullopt;
 	}
 
-	if (entity.Has<Circle>()) {
-		return GetBoundingAABB(entity.Get<Circle>(), transform);
-	}
-
-	if (auto texture_size{ GetTextureSize(entity) }) {
-		return GetBoundingAABB(Rect{ texture_size.value() }, transform);
-	}
-
-	return std::nullopt;
+	return GetBoundingAABB(world_vertices.value());
 }
 
 void AddPolygonSegments(std::vector<Line>& segments, std::span<const V2_float> vertices) {
@@ -346,9 +344,10 @@ void DrawShadowedLight(
 		.format = TextureFormat::RGBA8,
 	};
 
-	TextureDesc shadow_desc{ .size = target_size, .format = TextureFormat::Stencil8 };
-
-	auto composite_params{ impl::GetTextureDrawParams(entity, size, false, color::White) };
+	TextureDesc shadow_desc{
+		.size	= target_size,
+		.format = TextureFormat::Stencil8,
+	};
 
 	Viewport viewport{
 		.position{},
@@ -359,19 +358,31 @@ void DrawShadowedLight(
 		light_desc, shadow_desc,
 		[&ctx, viewport, &visibility_polygon, entity, size, &uniforms, blend_mode,
 		 draw_transform](impl::FramebufferObject& framebuffer) {
-			framebuffer.Clear(color::Transparent, true);
-			framebuffer.Clear(Stencil{ 0 }, true);
+			ctx.WithRenderTarget(&framebuffer, viewport, [&]() {
+				ctx.WithRenderState(
+					{
+						.view_projection = Matrix4::Orthographic(viewport.size),
+						.scissor		 = ScissorState{ false },
+					},
+					[&]() {
+						framebuffer.Clear(color::Transparent);
+						framebuffer.Clear(Stencil{ 0 });
 
-			ctx.WithRenderTarget(
-				&framebuffer, viewport,
-				[&ctx, &visibility_polygon, entity, size, &uniforms, draw_transform]() {
-					WriteLightVisibilityStencil(ctx, draw_transform, visibility_polygon);
-					DrawLightThroughStencil(ctx, entity, size, std::move(uniforms));
-				}
-			);
+						WriteLightVisibilityStencil(
+							ctx, draw_transform, visibility_polygon
+						);
+
+						DrawLightThroughStencil(
+							ctx, entity, size, std::move(uniforms)
+						);
+					}
+				);
+			});
 
 			auto texture{ framebuffer.GetTexture() };
-			auto composite_params{ impl::GetTextureDrawParams(entity, size, true, color::White) };
+			auto composite_params{
+				impl::GetTextureDrawParams(entity, size, true, color::White)
+			};
 
 			ctx.SetBlendMode(blend_mode);
 			ctx.DrawTexture(draw_transform, texture, std::move(composite_params));
