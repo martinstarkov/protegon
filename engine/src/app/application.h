@@ -15,6 +15,7 @@
 #include "app/application_state.h"
 #include "core/math/vector2.h"
 #include "core/util/file.h"
+#include "runtime/graphics/fx/screen_effect_stack.h"
 #include "runtime/scene/scene.h"
 #include "runtime/scene/scene_common.h"
 #include "runtime/scene/scene_context.h"
@@ -40,6 +41,10 @@ public:
 	/// @brief Installs an application shutdown guard. Return false to cancel the close.
 	void SetCloseGuard(std::function<bool()> close_guard);
 	void RequestQuit();
+
+	void SetScreenEffects(const ScreenEffectSettings& settings);
+	void SetScreenEffectsEnabled(bool enabled);
+	[[nodiscard]] bool AreScreenEffectsEnabled() const;
 
 	/// @brief Opens an existing project. The project file must already exist.
 	void StartProject(const path& project_path);

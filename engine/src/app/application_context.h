@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstdint>
 #include <memory>
 #include <optional>
 #include <string>
@@ -15,6 +16,7 @@
 #include "renderer/renderer.h"
 #include "runtime/asset/asset_manager.h"
 #include "runtime/audio/audio_system.h"
+#include "runtime/ecs/entity.h"
 #include "runtime/ecs/manager.h"
 #include "runtime/graphics/text/font_system.h"
 #include "runtime/scene/scene_file.h"
@@ -64,6 +66,9 @@ public:
 	FontSystem font;
 	AudioSystem audio;
 	Manager screen_effect_manager;
+	std::vector<Entity> screen_effect_order;
+	bool screen_effects_enabled{ true };
+	std::uint64_t next_screen_effect_runtime_id{ 1 };
 
 	float fps{ 60.0f };
 	secondsf dt{ 0.0f };

@@ -645,7 +645,11 @@ bool SceneListPanel::ResolvePendingSceneSelection(
 void SceneListPanel::OnRender(
 	EditorContext& ctx
 ) {
-	ImGui::Begin("Scenes");
+	const bool visible{ ImGui::Begin("Scenes") };
+
+	if (visible) {
+		SyncVisibleSceneListTab(ctx, SceneListTab::Scenes);
+	}
 
 	ClearInvalidSceneSelection(ctx);
 

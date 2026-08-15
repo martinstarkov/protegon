@@ -54,6 +54,9 @@
 #include "renderer/resources/id.h"
 #include "runtime/asset/asset_manager.h"
 #include "runtime/ecs/uuid.h"
+#include "runtime/graphics/fx/effect_registry.h"
+#include "runtime/graphics/fx/screen_effect_stack.h"
+#include "runtime/graphics/visible.h"
 #include "app/project.h"
 #include "runtime/scene/scene_file.h"
 #include "runtime/scene/scene_manager.h"
@@ -1182,6 +1185,7 @@ void Editor::OnRender() {
 	ImGui::DockSpace(dockspace_id, dockspace_size, ImGuiDockNodeFlags_None);
 
 	DrawPanels();
+	undo_stack_.CommitInactiveInteraction(ImGui::IsAnyItemActive());
 
 	ImGui::End();
 
@@ -1208,6 +1212,658 @@ const Project* Editor::GetProject() const {
 	return project
 		? std::addressof(project.value())
 		: nullptr;
+}
+
+const ScreenEffectSettings* Editor::GetProjectScreenEffects() const {
+	const auto* project{ GetProject() };
+	return project ? std::addressof(project->screen_effects) : nullptr;
+}
+
+bool Editor::ShouldPreviewScreenEffects() const {
+	PTGN_ASSERT(context_, "Editor context must be initialized");
+	return context_->local.settings.preview_screen_effects;
+}
+
+void Editor::ApplyScreenEffectPreview(bool enabled) {
+	PTGN_ASSERT(context_, "Editor context must be initialized");
+	context_->local.settings.preview_screen_effects = enabled;
+	ApplyScreenEffectPreviewState();
+}
+
+void Editor::SetScreenEffectPreview(bool enabled) {
+	PTGN_ASSERT(context_, "Editor context must be initialized");
+
+	const bool before{ context_->local.settings.preview_screen_effects };
+	if (before == enabled) {
+		return;
+	}
+
+	ApplyScreenEffectPreview(enabled);
+
+	undo_stack_.PushApplied(
+		enabled ? "Enable Screen Effect Preview" : "Disable Screen Effect Preview",
+		[this, before]() {
+			ApplyScreenEffectPreview(before);
+		},
+		[this, enabled]() {
+			ApplyScreenEffectPreview(enabled);
+		},
+		false,
+		true,
+		IsPlaying()
+	);
+}
+
+void Editor::ApplyScreenEffectPreviewState() {
+	app.SetScreenEffectsEnabled(ShouldPreviewScreenEffects());
+}
+
+void Editor::ApplyProjectScreenEffects(const ScreenEffectSettings& settings) {
+	auto* project{ GetProject() };
+	if (!project) {
+		return;
+	}
+
+	project->screen_effects = settings;
+	app.SetScreenEffects(settings);
+	ApplyScreenEffectPreviewState();
+}
+
+bool Editor::AddProjectScreenEffect(std::string_view type) {
+	if (IsPlaying()) {
+		return false;
+	}
+
+	auto* project{ GetProject() };
+	const auto* registration{ ::ptgn::impl::EffectRegistry::Find(type) };
+	if (!project || !registration || !registration->make_default) {
+		return false;
+	}
+
+	const ScreenEffectSettings before{ project->screen_effects };
+	ScreenEffectSettings after{ before };
+	const ScreenEffectId id{ NextScreenEffectId(after) };
+
+	after.effects.emplace_back(
+		SerializedScreenEffect{
+			.id = id,
+			.type = registration->type_name,
+			.enabled = true,
+			.parameters = registration->make_default(),
+		}
+	);
+
+	const EditorSelection before_selection{ context_->local.selection };
+	EditorSelection after_selection{ before_selection };
+	after_selection.scene_list_tab = SceneListTab::ScreenEffects;
+	after_selection.inspector_tab = InspectorTab::ScreenEffect;
+	after_selection.selected_screen_effect = ScreenEffectSelection{
+		.id = id,
+		.runtime = false,
+	};
+
+	ApplyProjectScreenEffects(after);
+	ApplyEditorSelection(*context_, after_selection);
+
+	undo_stack_.PushApplied(
+		"Add Screen Effect",
+		[this, before, before_selection]() {
+			ApplyProjectScreenEffects(before);
+			ApplyEditorSelection(*context_, before_selection);
+		},
+		[this, after, after_selection]() {
+			ApplyProjectScreenEffects(after);
+			ApplyEditorSelection(*context_, after_selection);
+		}
+	);
+	return true;
+}
+
+bool Editor::DuplicateProjectScreenEffect(ScreenEffectId id) {
+	if (IsPlaying()) {
+		return false;
+	}
+
+	auto* project{ GetProject() };
+	if (!project) {
+		return false;
+	}
+
+	const auto* source{ FindScreenEffect(project->screen_effects, id) };
+	if (!source) {
+		return false;
+	}
+
+	const ScreenEffectSettings before{ project->screen_effects };
+	ScreenEffectSettings after{ before };
+	const ScreenEffectId new_id{ NextScreenEffectId(after) };
+	SerializedScreenEffect copy{ *source };
+	copy.id = new_id;
+
+	const auto source_it{ std::ranges::find_if(
+		after.effects,
+		[id](const SerializedScreenEffect& effect) {
+			return effect.id == id;
+		}
+	) };
+	const auto insert_it{ source_it == after.effects.end()
+		? after.effects.end()
+		: source_it + 1 };
+	after.effects.insert(insert_it, std::move(copy));
+
+	const EditorSelection before_selection{ context_->local.selection };
+	EditorSelection after_selection{ before_selection };
+	after_selection.scene_list_tab = SceneListTab::ScreenEffects;
+	after_selection.inspector_tab = InspectorTab::ScreenEffect;
+	after_selection.selected_screen_effect = ScreenEffectSelection{
+		.id = new_id,
+		.runtime = false,
+	};
+
+	ApplyProjectScreenEffects(after);
+	ApplyEditorSelection(*context_, after_selection);
+
+	undo_stack_.PushApplied(
+		"Duplicate Screen Effect",
+		[this, before, before_selection]() {
+			ApplyProjectScreenEffects(before);
+			ApplyEditorSelection(*context_, before_selection);
+		},
+		[this, after, after_selection]() {
+			ApplyProjectScreenEffects(after);
+			ApplyEditorSelection(*context_, after_selection);
+		}
+	);
+	return true;
+}
+
+bool Editor::DeleteProjectScreenEffect(ScreenEffectId id) {
+	if (IsPlaying()) {
+		return false;
+	}
+
+	auto* project{ GetProject() };
+	if (!project) {
+		return false;
+	}
+
+	const ScreenEffectSettings before{ project->screen_effects };
+	ScreenEffectSettings after{ before };
+	const auto old_size{ after.effects.size() };
+	std::erase_if(after.effects, [id](const SerializedScreenEffect& effect) {
+		return effect.id == id;
+	});
+
+	if (after.effects.size() == old_size) {
+		return false;
+	}
+
+	const EditorSelection before_selection{ context_->local.selection };
+	EditorSelection after_selection{ before_selection };
+	if (after_selection.selected_screen_effect ==
+		ScreenEffectSelection{ .id = id, .runtime = false }) {
+		after_selection.selected_screen_effect.reset();
+		after_selection.inspector_tab = InspectorTab::Primary;
+	}
+
+	ApplyProjectScreenEffects(after);
+	ApplyEditorSelection(*context_, after_selection);
+
+	undo_stack_.PushApplied(
+		"Delete Screen Effect",
+		[this, before, before_selection]() {
+			ApplyProjectScreenEffects(before);
+			ApplyEditorSelection(*context_, before_selection);
+		},
+		[this, after, after_selection]() {
+			ApplyProjectScreenEffects(after);
+			ApplyEditorSelection(*context_, after_selection);
+		}
+	);
+	return true;
+}
+
+bool Editor::MoveProjectScreenEffect(
+	std::size_t from_index,
+	std::size_t to_index
+) {
+	if (IsPlaying()) {
+		return false;
+	}
+
+	auto* project{ GetProject() };
+	if (!project || from_index >= project->screen_effects.effects.size() ||
+		to_index >= project->screen_effects.effects.size()) {
+		return false;
+	}
+
+	if (from_index == to_index) {
+		return true;
+	}
+
+	const ScreenEffectSettings before{ project->screen_effects };
+	ScreenEffectSettings after{ before };
+
+	if (from_index < to_index) {
+		std::rotate(
+			after.effects.begin() + static_cast<std::ptrdiff_t>(from_index),
+			after.effects.begin() + static_cast<std::ptrdiff_t>(from_index + 1),
+			after.effects.begin() + static_cast<std::ptrdiff_t>(to_index + 1)
+		);
+	} else {
+		std::rotate(
+			after.effects.begin() + static_cast<std::ptrdiff_t>(to_index),
+			after.effects.begin() + static_cast<std::ptrdiff_t>(from_index),
+			after.effects.begin() + static_cast<std::ptrdiff_t>(from_index + 1)
+		);
+	}
+
+	ApplyProjectScreenEffects(after);
+
+	undo_stack_.PushApplied(
+		"Reorder Screen Effects",
+		[this, before]() {
+			ApplyProjectScreenEffects(before);
+		},
+		[this, after]() {
+			ApplyProjectScreenEffects(after);
+		}
+	);
+	return true;
+}
+
+bool Editor::SetProjectScreenEffectEnabled(ScreenEffectId id, bool enabled) {
+	auto* project{ GetProject() };
+	if (IsPlaying() || !project) {
+		return false;
+	}
+
+	const auto* current{ FindScreenEffect(project->screen_effects, id) };
+	if (!current || current->enabled == enabled) {
+		return false;
+	}
+
+	SerializedScreenEffect updated{ *current };
+	updated.enabled = enabled;
+	return UpdateProjectScreenEffect(
+		id,
+		updated,
+		enabled ? "Enable Screen Effect" : "Disable Screen Effect"
+	);
+}
+
+bool Editor::UpdateProjectScreenEffect(
+	ScreenEffectId id,
+	const SerializedScreenEffect& value,
+	std::string label,
+	std::uint64_t interaction_key
+) {
+	auto* project{ GetProject() };
+	if (IsPlaying() || !project) {
+		return false;
+	}
+
+	const auto* current{ FindScreenEffect(project->screen_effects, id) };
+	if (!current) {
+		return false;
+	}
+
+	json current_json = *current;
+	json value_json = value;
+	if (current_json == value_json) {
+		return false;
+	}
+
+	const ScreenEffectSettings before{ project->screen_effects };
+	ScreenEffectSettings after{ before };
+	auto* updated{ FindScreenEffect(after, id) };
+	PTGN_ASSERT(updated);
+	*updated = value;
+	updated->id = id;
+
+	ApplyProjectScreenEffects(after);
+
+	if (interaction_key != 0) {
+		undo_stack_.TrackInteraction(
+			interaction_key,
+			std::move(label),
+			true,
+			ImGui::IsAnyItemActive(),
+			[this, before]() {
+				ApplyProjectScreenEffects(before);
+			},
+			[this, after]() {
+				ApplyProjectScreenEffects(after);
+			}
+		);
+	} else {
+		undo_stack_.PushApplied(
+			std::move(label),
+			[this, before]() {
+				ApplyProjectScreenEffects(before);
+			},
+			[this, after]() {
+				ApplyProjectScreenEffects(after);
+			}
+		);
+	}
+
+	return true;
+}
+
+const std::vector<Entity>& Editor::GetRuntimeScreenEffects() const {
+	return ::ptgn::impl::ApplicationAccessor::ctx(app).screen_effect_order;
+}
+
+Entity Editor::ResolveScreenEffect(const ScreenEffectSelection& selection) const {
+	auto& app_context{ ::ptgn::impl::ApplicationAccessor::ctx(app) };
+
+	for (Entity entity : app_context.screen_effect_order) {
+		if (!entity || !entity.Has<::ptgn::impl::ScreenEffectInstance>()) {
+			continue;
+		}
+
+		const auto& instance{ entity.Get<::ptgn::impl::ScreenEffectInstance>() };
+		if (selection.runtime) {
+			if (instance.runtime_id == selection.id) {
+				return entity;
+			}
+		} else if (instance.source_id == selection.id) {
+			return entity;
+		}
+	}
+
+	return {};
+}
+
+Entity Editor::AddRuntimeScreenEffect(std::string_view type) {
+	if (!IsPlaying() && !IsDirectRuntime()) {
+		return {};
+	}
+
+	auto& app_context{ ::ptgn::impl::ApplicationAccessor::ctx(app) };
+	const auto* registration{ ::ptgn::impl::EffectRegistry::Find(type) };
+	if (!registration || !registration->make_default) {
+		return {};
+	}
+
+	const EditorSelection before_selection{ context_->local.selection };
+	Entity effect{ ::ptgn::impl::CreateScreenEffectEntity(
+		app_context,
+		type,
+		registration->make_default()
+	) };
+	const auto snapshot{ ::ptgn::impl::CaptureScreenEffect(effect) };
+	if (!snapshot.has_value()) {
+		return {};
+	}
+
+	const std::size_t index{ app_context.screen_effect_order.size() - 1 };
+	EditorSelection after_selection{ before_selection };
+	after_selection.scene_list_tab = SceneListTab::ScreenEffects;
+	after_selection.inspector_tab = InspectorTab::ScreenEffect;
+	after_selection.selected_screen_effect = ScreenEffectSelection{
+		.id = snapshot->runtime_id,
+		.runtime = true,
+	};
+	ApplyEditorSelection(*context_, after_selection);
+
+	undo_stack_.PushApplied(
+		"Add Runtime Screen Effect",
+		[this, runtime_id = snapshot->runtime_id, before_selection]() {
+			auto& ctx{ ::ptgn::impl::ApplicationAccessor::ctx(app) };
+			::ptgn::impl::RemoveScreenEffect(ctx, runtime_id);
+			ApplyEditorSelection(*context_, before_selection);
+		},
+		[this, snapshot = *snapshot, index, after_selection]() {
+			auto& ctx{ ::ptgn::impl::ApplicationAccessor::ctx(app) };
+			::ptgn::impl::RestoreScreenEffect(ctx, snapshot, index);
+			ApplyEditorSelection(*context_, after_selection);
+		},
+		false,
+		true,
+		true
+	);
+
+	return ::ptgn::impl::FindScreenEffectByRuntimeId(
+		app_context,
+		snapshot->runtime_id
+	);
+}
+
+bool Editor::DuplicateRuntimeScreenEffect(std::uint64_t runtime_id) {
+	auto& app_context{ ::ptgn::impl::ApplicationAccessor::ctx(app) };
+	Entity source{ ::ptgn::impl::FindScreenEffectByRuntimeId(app_context, runtime_id) };
+	const auto source_snapshot{ ::ptgn::impl::CaptureScreenEffect(source) };
+	if (!source_snapshot.has_value()) {
+		return false;
+	}
+
+	const EditorSelection before_selection{ context_->local.selection };
+	Entity duplicate{ ::ptgn::impl::CreateScreenEffectEntity(
+		app_context,
+		source_snapshot->type,
+		source_snapshot->parameters
+	) };
+	if (!duplicate) {
+		return false;
+	}
+
+	duplicate.Get<Visible>().visible = source_snapshot->enabled;
+	const auto duplicate_snapshot{ ::ptgn::impl::CaptureScreenEffect(duplicate) };
+	if (!duplicate_snapshot.has_value()) {
+		return false;
+	}
+
+	const std::size_t index{ app_context.screen_effect_order.size() - 1 };
+	EditorSelection after_selection{ before_selection };
+	after_selection.scene_list_tab = SceneListTab::ScreenEffects;
+	after_selection.inspector_tab = InspectorTab::ScreenEffect;
+	after_selection.selected_screen_effect = ScreenEffectSelection{
+		.id = duplicate_snapshot->runtime_id,
+		.runtime = true,
+	};
+	ApplyEditorSelection(*context_, after_selection);
+
+	undo_stack_.PushApplied(
+		"Duplicate Runtime Screen Effect",
+		[this, id = duplicate_snapshot->runtime_id, before_selection]() {
+			auto& ctx{ ::ptgn::impl::ApplicationAccessor::ctx(app) };
+			::ptgn::impl::RemoveScreenEffect(ctx, id);
+			ApplyEditorSelection(*context_, before_selection);
+		},
+		[this, snapshot = *duplicate_snapshot, index, after_selection]() {
+			auto& ctx{ ::ptgn::impl::ApplicationAccessor::ctx(app) };
+			::ptgn::impl::RestoreScreenEffect(ctx, snapshot, index);
+			ApplyEditorSelection(*context_, after_selection);
+		},
+		false,
+		true,
+		true
+	);
+	return true;
+}
+
+bool Editor::DeleteRuntimeScreenEffect(std::uint64_t runtime_id) {
+	auto& app_context{ ::ptgn::impl::ApplicationAccessor::ctx(app) };
+	Entity entity{ ::ptgn::impl::FindScreenEffectByRuntimeId(app_context, runtime_id) };
+	const auto snapshot{ ::ptgn::impl::CaptureScreenEffect(entity) };
+	const auto index{ ::ptgn::impl::FindScreenEffectIndex(app_context, runtime_id) };
+	if (!snapshot.has_value() || !index.has_value()) {
+		return false;
+	}
+
+	const EditorSelection before_selection{ context_->local.selection };
+	EditorSelection after_selection{ before_selection };
+	if (after_selection.selected_screen_effect.has_value()) {
+		const auto selected{ after_selection.selected_screen_effect.value() };
+		const bool deleting_selection{
+			(selected.runtime && selected.id == runtime_id) ||
+			(!selected.runtime && snapshot->source_id != 0 && selected.id == snapshot->source_id)
+		};
+		if (deleting_selection) {
+			after_selection.selected_screen_effect.reset();
+			after_selection.inspector_tab = InspectorTab::Primary;
+		}
+	}
+
+	if (!::ptgn::impl::RemoveScreenEffect(app_context, runtime_id)) {
+		return false;
+	}
+	ApplyEditorSelection(*context_, after_selection);
+
+	undo_stack_.PushApplied(
+		"Delete Runtime Screen Effect",
+		[this, snapshot = *snapshot, index = *index, before_selection]() {
+			auto& ctx{ ::ptgn::impl::ApplicationAccessor::ctx(app) };
+			::ptgn::impl::RestoreScreenEffect(ctx, snapshot, index);
+			ApplyEditorSelection(*context_, before_selection);
+		},
+		[this, runtime_id, after_selection]() {
+			auto& ctx{ ::ptgn::impl::ApplicationAccessor::ctx(app) };
+			::ptgn::impl::RemoveScreenEffect(ctx, runtime_id);
+			ApplyEditorSelection(*context_, after_selection);
+		},
+		false,
+		true,
+		true
+	);
+	return true;
+}
+
+bool Editor::MoveRuntimeScreenEffect(
+	std::size_t from_index,
+	std::size_t to_index
+) {
+	auto& app_context{ ::ptgn::impl::ApplicationAccessor::ctx(app) };
+	if (from_index >= app_context.screen_effect_order.size() ||
+		to_index >= app_context.screen_effect_order.size()) {
+		return false;
+	}
+	if (from_index == to_index) {
+		return true;
+	}
+
+	Entity entity{ app_context.screen_effect_order[from_index] };
+	if (!entity || !entity.Has<::ptgn::impl::ScreenEffectInstance>()) {
+		return false;
+	}
+	const std::uint64_t runtime_id{
+		entity.Get<::ptgn::impl::ScreenEffectInstance>().runtime_id
+	};
+
+	if (!::ptgn::impl::MoveScreenEffect(app_context, runtime_id, to_index)) {
+		return false;
+	}
+
+	undo_stack_.PushApplied(
+		"Reorder Runtime Screen Effects",
+		[this, runtime_id, from_index]() {
+			auto& ctx{ ::ptgn::impl::ApplicationAccessor::ctx(app) };
+			::ptgn::impl::MoveScreenEffect(ctx, runtime_id, from_index);
+		},
+		[this, runtime_id, to_index]() {
+			auto& ctx{ ::ptgn::impl::ApplicationAccessor::ctx(app) };
+			::ptgn::impl::MoveScreenEffect(ctx, runtime_id, to_index);
+		},
+		false,
+		true,
+		true
+	);
+	return true;
+}
+
+bool Editor::SetRuntimeScreenEffectEnabled(
+	std::uint64_t runtime_id,
+	bool enabled
+) {
+	auto& app_context{ ::ptgn::impl::ApplicationAccessor::ctx(app) };
+	Entity entity{ ::ptgn::impl::FindScreenEffectByRuntimeId(app_context, runtime_id) };
+	const auto before{ ::ptgn::impl::CaptureScreenEffect(entity) };
+	if (!before.has_value() || before->enabled == enabled) {
+		return false;
+	}
+
+	if (entity.Has<Visible>()) {
+		entity.Get<Visible>().visible = enabled;
+	} else {
+		entity.Add<Visible>(enabled);
+	}
+
+	const auto after{ ::ptgn::impl::CaptureScreenEffect(entity) };
+	PTGN_ASSERT(after.has_value());
+
+	undo_stack_.PushApplied(
+		enabled ? "Enable Runtime Screen Effect" : "Disable Runtime Screen Effect",
+		[this, before = *before]() {
+			auto& ctx{ ::ptgn::impl::ApplicationAccessor::ctx(app) };
+			::ptgn::impl::RestoreScreenEffect(ctx, before);
+		},
+		[this, after = *after]() {
+			auto& ctx{ ::ptgn::impl::ApplicationAccessor::ctx(app) };
+			::ptgn::impl::RestoreScreenEffect(ctx, after);
+		},
+		false,
+		true,
+		true
+	);
+	return true;
+}
+
+bool Editor::UpdateRuntimeScreenEffect(
+	std::uint64_t runtime_id,
+	const json& parameters,
+	std::string label,
+	std::uint64_t interaction_key
+) {
+	auto& app_context{ ::ptgn::impl::ApplicationAccessor::ctx(app) };
+	Entity entity{ ::ptgn::impl::FindScreenEffectByRuntimeId(app_context, runtime_id) };
+	const auto before{ ::ptgn::impl::CaptureScreenEffect(entity) };
+	if (!before.has_value() || before->parameters == parameters) {
+		return false;
+	}
+
+	const auto* registration{ ::ptgn::impl::EffectRegistry::Find(before->type) };
+	if (!registration || !registration->deserialize) {
+		return false;
+	}
+
+	registration->deserialize(entity, parameters);
+	const auto after{ ::ptgn::impl::CaptureScreenEffect(entity) };
+	PTGN_ASSERT(after.has_value());
+
+	auto undo = [this, before = *before]() {
+		auto& ctx{ ::ptgn::impl::ApplicationAccessor::ctx(app) };
+		::ptgn::impl::RestoreScreenEffect(ctx, before);
+	};
+	auto redo = [this, after = *after]() {
+		auto& ctx{ ::ptgn::impl::ApplicationAccessor::ctx(app) };
+		::ptgn::impl::RestoreScreenEffect(ctx, after);
+	};
+
+	if (interaction_key != 0) {
+		undo_stack_.TrackInteraction(
+			interaction_key,
+			std::move(label),
+			true,
+			ImGui::IsAnyItemActive(),
+			std::move(undo),
+			std::move(redo),
+			false,
+			true,
+			true
+		);
+	} else {
+		undo_stack_.PushApplied(
+			std::move(label),
+			std::move(undo),
+			std::move(redo),
+			false,
+			true,
+			true
+		);
+	}
+	return true;
 }
 
 void Editor::MarkProjectDirty() {
@@ -2897,6 +3553,7 @@ void Editor::DrawPanels() {
 	viewport_panel_.OnRender(*context_);
 	scene_hierarchy_panel_.OnRender(*context_);
 	scene_list_panel_.OnRender(*context_);
+	screen_effects_panel_.OnRender(*context_);
 	inspector_panel_.OnRender(*context_);
 	if (ConsumeAcceptedAssetKeyDrop()) {
 		scene_asset_dependencies_dirty_ = true;
@@ -3063,6 +3720,7 @@ void Editor::EnableRendering(
 
 	ApplyEntityPickingSettings();
 	ApplySceneRenderSettings();
+	ApplyScreenEffectPreviewState();
 	UpdateWindowTitle();
 }
 
@@ -3106,11 +3764,7 @@ void Editor::OnUpdate() {
 		SaveProjectScene();
 	}
 
-	if (
-		undo_stack_.IsUndoRedoEnabled() &&
-		(io.KeyCtrl || io.KeySuper) &&
-		!io.WantTextInput
-	) {
+	if ((io.KeyCtrl || io.KeySuper) && !io.WantTextInput) {
 		if (ImGui::IsKeyPressed(ImGuiKey_Z, false)) {
 			context_->local.position_picker.Cancel();
 			if (io.KeyShift) {
@@ -3167,10 +3821,14 @@ void Editor::SetEditorSettings(EditorSettings settings) {
 		settings.show_read_only_inspector_data;
 	current.show_imgui_metrics =
 		settings.show_imgui_metrics;
+	current.preview_screen_effects =
+		settings.preview_screen_effects;
 	current.content_browser_items_per_row =
 		settings.content_browser_items_per_row;
 	current.content_browser_search_entire_tree =
 		settings.content_browser_search_entire_tree;
+
+	ApplyScreenEffectPreviewState();
 }
 
 void Editor::SetGizmoUsesLocalOrientation(bool enabled) {
@@ -3300,11 +3958,16 @@ void Editor::Play() {
 	play_snapshot_ = PlaySnapshot{
 		.selected_scene_key = selected_key,
 		.was_dirty = context_->local.state.is_dirty,
+		.screen_effect_preview_before_play =
+			context_->local.settings.preview_screen_effects,
 	};
 
 	context_->local.position_picker.Cancel();
 	undo_stack_.CommitActiveEdit();
 	undo_stack_.SetUndoRedoEnabled(false);
+
+	app.SetScreenEffects(project->screen_effects);
+	ApplyScreenEffectPreview(true);
 
 	SetApplicationState(
 		ApplicationState::Running
@@ -3317,9 +3980,13 @@ void Editor::Play() {
 				true
 			)
 		)) {
+		const bool preview_before_play{
+			play_snapshot_->screen_effect_preview_before_play
+		};
 		undo_stack_.SetUndoRedoEnabled(true);
 		app_context.runtime_project_scenes.clear();
 		play_snapshot_.reset();
+		ApplyScreenEffectPreview(preview_before_play);
 		return;
 	}
 
@@ -3421,6 +4088,27 @@ void Editor::Stop() {
 
 	context_->local.state.is_playing = false;
 	context_->local.state.is_paused = false;
+
+	if (auto* project{ GetProject() }) {
+		app.SetScreenEffects(project->screen_effects);
+	}
+
+	const bool runtime_preview{
+		context_->local.settings.preview_screen_effects
+	};
+	const bool restored_preview{
+		runtime_preview &&
+		play_snapshot_->screen_effect_preview_before_play
+	};
+	ApplyScreenEffectPreview(restored_preview);
+
+	if (context_->local.selection.selected_screen_effect.has_value() &&
+		context_->local.selection.selected_screen_effect->runtime) {
+		context_->local.selection.selected_screen_effect.reset();
+		context_->local.selection.inspector_tab = InspectorTab::Primary;
+	}
+
+	undo_stack_.DiscardTransientCommands();
 	undo_stack_.SetUndoRedoEnabled(true);
 	context_->local.state.is_dirty =
 		play_snapshot_->was_dirty;
@@ -3857,8 +4545,10 @@ void Editor::OnProjectChanged() {
 	saved_editor_local_state_json_ =
 		value.dump();
 
+	app.SetScreenEffects(app_context.project->screen_effects);
 	ApplyEntityPickingSettings();
 	ApplySceneRenderSettings();
+	ApplyScreenEffectPreviewState();
 	RefreshProjectDirtyState();
 }
 
@@ -3917,6 +4607,7 @@ void Editor::BuildDefaultDockLayout(std::uint32_t dockspace_id) {
 	ImGui::DockBuilderDockWindow("Scene Hierarchy###SceneHierarchyWindow", dock_left);
 	ImGui::DockBuilderDockWindow("Prefabs###PrefabsWindow", dock_left);
 	ImGui::DockBuilderDockWindow("Scenes", dock_left_bottom);
+	ImGui::DockBuilderDockWindow("Screen Effects", dock_left_bottom);
 
 	ImGui::DockBuilderDockWindow("Inspector", dock_right);
 

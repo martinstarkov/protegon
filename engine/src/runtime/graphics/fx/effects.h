@@ -16,6 +16,7 @@
 #include "runtime/ecs/tag.h"
 #include "runtime/graphics/draw.h"
 #include "runtime/graphics/fx/effect_registration.h"
+#include "runtime/graphics/fx/screen_effect_stack.h"
 #include "runtime/graphics/visible.h"
 #include "runtime/scene/scene.h"
 #include "runtime/scene/scene_context.h"
@@ -39,16 +40,10 @@ namespace impl {
 template <typename T, typename... TArgs>
 	requires BraceConstructible<T, TArgs...>
 EffectEntity<T> CreateEffect(Entity effect, TArgs&&... args) {
-	effect.Add<T>(std::forward<TArgs>(args)...);
-	effect.Add<EffectTag>();
-
-	if constexpr (EffectRegistration<T>::Get().options.hdr) {
-		effect.Add<HDREffectTag>();
-	}
-
-	SetDraw<T>(effect);
-	effect.Add<Visible>(true);
-
+	EffectRegistry::Initialize<
+		T,
+		EffectRegistration<T>::Get().options.hdr
+	>(effect, std::forward<TArgs>(args)...);
 	return EffectEntity<T>{ effect };
 }
 
@@ -100,13 +95,27 @@ EffectEntity<T> AddEffect(Scene& scene, TArgs&&... args) {
 
 template <typename T, typename... TArgs>
 	requires BraceConstructible<T, TArgs...>
-EffectEntity<T> AddScreenEffect(Scene& scene, TArgs&&... args) {
-	auto effect{
-		impl::ApplicationAccessor::ctx(impl::SceneContextAccessor::app(scene.ctx()))
-			.screen_effect_manager.CreateEntity()
-	};
+EffectEntity<T> AddScreenEffect(Application& app, TArgs&&... args) {
+	auto& app_context{ impl::ApplicationAccessor::ctx(app) };
+	auto effect{ app_context.screen_effect_manager.CreateEntity() };
+	auto result{ impl::CreateEffect<T>(effect, std::forward<TArgs>(args)...) };
 
-	return impl::CreateEffect<T>(effect, std::forward<TArgs>(args)...);
+	impl::RegisterScreenEffectEntity(
+		app_context,
+		result,
+		impl::EffectRegistration<T>::Get().type_name
+	);
+
+	return result;
+}
+
+template <typename T, typename... TArgs>
+	requires BraceConstructible<T, TArgs...>
+EffectEntity<T> AddScreenEffect(Scene& scene, TArgs&&... args) {
+	return AddScreenEffect<T>(
+		impl::SceneContextAccessor::app(scene.ctx()),
+		std::forward<TArgs>(args)...
+	);
 }
 
 template <typename T>
@@ -133,9 +142,12 @@ inline void ClearEffects(const Scene& scene) {
 	ClearEffects(scene.GetRenderTarget());
 }
 
+inline void ClearScreenEffects(Application& app) {
+	impl::ClearScreenEffects(impl::ApplicationAccessor::ctx(app));
+}
+
 inline void ClearScreenEffects(Scene& scene) {
-	impl::ApplicationAccessor::ctx(impl::SceneContextAccessor::app(scene.ctx()))
-		.screen_effect_manager.Reset();
+	ClearScreenEffects(impl::SceneContextAccessor::app(scene.ctx()));
 }
 
 } // namespace ptgn

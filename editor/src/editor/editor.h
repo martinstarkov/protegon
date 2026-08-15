@@ -7,6 +7,7 @@
 #include <string>
 #include <string_view>
 #include <unordered_set>
+#include <vector>
 
 #include "app/application_layer.h"
 #include "app/application_state.h"
@@ -22,9 +23,12 @@
 #include "panels/inspector.h"
 #include "panels/scene_hierarchy.h"
 #include "panels/scene_list.h"
+#include "panels/screen_effects.h"
 #include "panels/settings.h"
 #include "panels/viewport.h"
 #include "renderer/resources/id.h"
+#include "runtime/ecs/entity.h"
+#include "runtime/graphics/fx/screen_effect_stack.h"
 #include "runtime/scene/scene_file.h"
 
 #if !defined(__EMSCRIPTEN__)
@@ -48,6 +52,8 @@ class SceneManager;
 } // namespace impl
 
 namespace editor {
+
+struct ScreenEffectSelection;
 
 class Editor : public ApplicationLayer {
 public:
@@ -101,6 +107,37 @@ public:
 	[[nodiscard]] Project* GetProject();
 	[[nodiscard]] const Project* GetProject() const;
 
+	[[nodiscard]] const ScreenEffectSettings* GetProjectScreenEffects() const;
+	[[nodiscard]] bool ShouldPreviewScreenEffects() const;
+	void SetScreenEffectPreview(bool enabled);
+	void ApplyScreenEffectPreviewState();
+
+	bool AddProjectScreenEffect(std::string_view type);
+	bool DuplicateProjectScreenEffect(ScreenEffectId id);
+	bool DeleteProjectScreenEffect(ScreenEffectId id);
+	bool MoveProjectScreenEffect(std::size_t from_index, std::size_t to_index);
+	bool SetProjectScreenEffectEnabled(ScreenEffectId id, bool enabled);
+	bool UpdateProjectScreenEffect(
+		ScreenEffectId id,
+		const SerializedScreenEffect& value,
+		std::string label = "Change Screen Effect",
+		std::uint64_t interaction_key = 0
+	);
+
+	[[nodiscard]] const std::vector<Entity>& GetRuntimeScreenEffects() const;
+	[[nodiscard]] Entity ResolveScreenEffect(const ScreenEffectSelection& selection) const;
+	Entity AddRuntimeScreenEffect(std::string_view type);
+	bool DuplicateRuntimeScreenEffect(std::uint64_t runtime_id);
+	bool DeleteRuntimeScreenEffect(std::uint64_t runtime_id);
+	bool MoveRuntimeScreenEffect(std::size_t from_index, std::size_t to_index);
+	bool SetRuntimeScreenEffectEnabled(std::uint64_t runtime_id, bool enabled);
+	bool UpdateRuntimeScreenEffect(
+		std::uint64_t runtime_id,
+		const json& parameters,
+		std::string label = "Change Runtime Screen Effect",
+		std::uint64_t interaction_key = 0
+	);
+
 	void MarkProjectDirty();
 	void RequestQuit();
 
@@ -126,6 +163,7 @@ private:
 	struct PlaySnapshot {
 		std::string selected_scene_key;
 		bool was_dirty{ false };
+		bool screen_effect_preview_before_play{ true };
 	};
 
 #if !defined(__EMSCRIPTEN__)
@@ -155,6 +193,8 @@ private:
 	bool ShouldEnableEntityPicking() const;
 	void ApplyEntityPickingSettings();
 	void ApplySceneRenderSettings();
+	void ApplyScreenEffectPreview(bool enabled);
+	void ApplyProjectScreenEffects(const ScreenEffectSettings& settings);
 	void SyncSelectedSceneAssetDependencies();
 	::ptgn::impl::FramebufferId GetSceneFramebuffer(Scene& scene) const;
 
@@ -178,6 +218,7 @@ private:
 	InspectorPanel inspector_panel_;
 	SceneHierarchyPanel scene_hierarchy_panel_;
 	SceneListPanel scene_list_panel_;
+	ScreenEffectsPanel screen_effects_panel_;
 	std::optional<PlaySnapshot> play_snapshot_;
 	std::optional<path> local_state_project_path_;
 	std::optional<std::string> saved_editor_local_state_json_;

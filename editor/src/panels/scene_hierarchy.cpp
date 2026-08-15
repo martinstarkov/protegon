@@ -38,6 +38,7 @@
 #include "runtime/graphics/fx/blur.h"
 #include "runtime/graphics/fx/edge_detection.h"
 #include "runtime/graphics/fx/effects.h"
+#include "runtime/graphics/fx/effect_registry.h"
 #include "runtime/graphics/fx/gaussian_blur.h"
 #include "runtime/graphics/fx/grayscale.h"
 #include "runtime/graphics/fx/inverse_color.h"
@@ -589,11 +590,6 @@ Entity CreateDefaultCustomShader(Scene& scene) {
 	return CreateCustomShader(scene);
 }
 
-template <typename T>
-Entity CreateDefaultEffect(Scene& scene) {
-	return CreateEffect<T>(scene);
-}
-
 Entity CreateDefaultRect(Scene& scene) {
 	return CreateRect(scene, {}, kDefaultShapeSize, color::White);
 }
@@ -790,13 +786,42 @@ void DrawEffectsCreateMenu(CreateMenuContext& context) {
 		return;
 	}
 
-	DrawCreateMenuItem(context, "Bloom", CreateDefaultEffect<Bloom>);
-	DrawCreateMenuItem(context, "Blur", CreateDefaultEffect<Blur>);
-	DrawCreateMenuItem(context, "Gaussian Blur", CreateDefaultEffect<GaussianBlur>);
-	DrawCreateMenuItem(context, "Grayscale", CreateDefaultEffect<Grayscale>);
-	DrawCreateMenuItem(context, "Inverse Color", CreateDefaultEffect<InverseColor>);
-	DrawCreateMenuItem(context, "Sharpen", CreateDefaultEffect<Sharpen>);
-	DrawCreateMenuItem(context, "Edge Detection", CreateDefaultEffect<EdgeDetection>);
+	std::vector<const ::ptgn::impl::RegisteredEffect*> effects;
+	for (const auto& effect : ::ptgn::impl::EffectRegistry::Entries()) {
+		effects.emplace_back(&effect);
+	}
+
+	std::ranges::sort(effects, {}, [](const auto* effect) {
+		return effect->display_name;
+	});
+
+	bool has_creatable_effect{ false };
+
+	for (const auto* effect : effects) {
+		if (!effect || !effect->create || !effect->make_default) {
+			continue;
+		}
+
+		has_creatable_effect = true;
+
+		std::string label{ effect->display_name };
+		if (effect->hdr) {
+			label += " [HDR]";
+		}
+
+		if (!ImGui::MenuItem(label.c_str())) {
+			continue;
+		}
+
+		Entity entity{ context.scene.CreateEntity() };
+		entity.Add<Tag>(effect->display_name + " Entity");
+		effect->create(entity, effect->make_default());
+		FinalizeCreatedEntity(context, entity);
+	}
+
+	if (!has_creatable_effect) {
+		ImGui::TextDisabled("No creatable effects are registered.");
+	}
 
 	ImGui::EndMenu();
 }
@@ -2154,13 +2179,11 @@ SceneHierarchyTab SceneHierarchyPanel::GetActiveTab() const {
 }
 
 void SceneHierarchyPanel::SetActiveTab(SceneHierarchyTab tab) {
-	if (!context_ || context_->local.selection.mode == tab) {
+	if (!context_) {
 		return;
 	}
 
-	EditorSelection selection{ context_->local.selection };
-	selection.mode = tab;
-	ApplyEditorSelection(*context_, std::move(selection));
+	SetSceneHierarchyTab(*context_, tab);
 }
 
 } // namespace ptgn::editor

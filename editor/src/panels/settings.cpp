@@ -1485,7 +1485,8 @@ void UndoHistoryWindow::OnRender(
 	ImGui::Separator();
 
 	if (!undo_stack.IsUndoRedoEnabled()) {
-		ImGui::TextDisabled("Undo and redo are disabled while runtime editing is active.");
+		ImGui::TextDisabled("Undo and redo are limited while runtime editing is active.");
+		ImGui::TextDisabled("Screen effect actions remain undoable.");
 		ImGui::Separator();
 	}
 

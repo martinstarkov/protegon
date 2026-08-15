@@ -24,19 +24,25 @@ public:
 
 	void Execute(
 		std::unique_ptr<EditorCommand> command,
-		bool affects_project_serialization = true
+		bool affects_project_serialization = true,
+		bool allow_when_disabled = false,
+		bool transient = false
 	);
 
 	/// Adds a command whose result has already been applied.
 	void PushApplied(
 		std::unique_ptr<EditorCommand> command,
-		bool affects_project_serialization = true
+		bool affects_project_serialization = true,
+		bool allow_when_disabled = false,
+		bool transient = false
 	);
 	void PushApplied(
 		std::string label,
 		Action undo,
 		Action redo,
-		bool affects_project_serialization = true
+		bool affects_project_serialization = true,
+		bool allow_when_disabled = false,
+		bool transient = false
 	);
 
 	/// Coalesces repeated changes from one active editor control into one command.
@@ -47,7 +53,9 @@ public:
 		bool any_item_active,
 		Action undo,
 		Action redo,
-		bool affects_project_serialization = true
+		bool affects_project_serialization = true,
+		bool allow_when_disabled = false,
+		bool transient = false
 	);
 
 	void CommitInactiveInteraction(bool any_item_active);
@@ -79,6 +87,8 @@ private:
 	struct CommandEntry {
 		std::unique_ptr<EditorCommand> command;
 		bool affects_project_serialization{ true };
+		bool allow_when_disabled{ false };
+		bool transient{ false };
 	};
 
 	struct ActiveEdit {
@@ -87,10 +97,13 @@ private:
 		Action undo;
 		Action redo;
 		bool affects_project_serialization{ true };
+		bool allow_when_disabled{ false };
+		bool transient{ false };
 	};
 
 	void Clear();
 	void DiscardRedoBranch();
+	void DiscardTransientCommands();
 
 	std::vector<CommandEntry> commands_;
 	std::size_t cursor_{ 0 };

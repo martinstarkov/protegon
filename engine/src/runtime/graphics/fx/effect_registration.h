@@ -4,6 +4,7 @@
 #include <string_view>
 
 #include "runtime/graphics/drawable.h"
+#include "runtime/graphics/fx/effect_registry.h"
 
 namespace ptgn::impl {
 
@@ -35,6 +36,9 @@ struct EffectRegistration {
 
 } // namespace ptgn::impl
 
+#define PTGN_DETAIL_EFFECT_CONCAT_IMPL(a, b) a##b
+#define PTGN_DETAIL_EFFECT_CONCAT(a, b) PTGN_DETAIL_EFFECT_CONCAT_IMPL(a, b)
+
 #define PTGN_REGISTER_EFFECT(Type, ...)                                                   \
 	template <>                                                                           \
 	struct ::ptgn::impl::EffectRegistration<Type> {                                       \
@@ -58,4 +62,12 @@ struct EffectRegistration {
 			);                                                                            \
 		}                                                                                 \
 	};                                                                                    \
-	template class ::ptgn::impl::DrawableRegistrar<Type>
+	template class ::ptgn::impl::DrawableRegistrar<Type>;                                 \
+	namespace {                                                                           \
+	[[maybe_unused]] const bool PTGN_DETAIL_EFFECT_CONCAT(                                 \
+		ptgn_registered_effect_, __COUNTER__                                               \
+	){ ::ptgn::impl::EffectRegistry::Register<                                             \
+		Type,                                                                               \
+		::ptgn::impl::EffectRegistration<Type>::Get().options.hdr                          \
+	>(::ptgn::impl::EffectRegistration<Type>::Get()) };                                   \
+	}

@@ -42,6 +42,8 @@
 #include "runtime/audio/audio_system.h"
 #include "runtime/graphics/draw.h"
 #include "runtime/graphics/drawable.h"
+#include "runtime/graphics/fx/screen_effect_stack.h"
+#include "runtime/graphics/visible.h"
 #include "runtime/scene/scene.h"
 #include "runtime/scene/scene_file.h"
 #include "runtime/scene/scene_manager.h"
@@ -211,6 +213,7 @@ void Application::StartProjectImpl(
 		*this,
 		loaded_project.settings
 	);
+	SetScreenEffects(loaded_project.screen_effects);
 	SetProjectLocalState(
 		*this,
 		LoadProjectLocalState(loaded_project)
@@ -444,14 +447,19 @@ void Application::RenderScenes() {
 	ctx_.scene_manager.Draw(draw_context);
 
 	ctx_.screen_effect_manager.Refresh();
+	impl::RefreshScreenEffectOrder(ctx_);
 
-	if (ctx_.screen_effect_manager.IsEmpty()) {
+	if (!ctx_.screen_effects_enabled || ctx_.screen_effect_order.empty()) {
 		ctx_.renderer.EndFrame(nullptr);
 		return;
 	}
 
 	ctx_.renderer.EndFrame([this](auto& draw_ctx) {
-		for (auto entity : ctx_.screen_effect_manager.Entities()) {
+		for (Entity entity : ctx_.screen_effect_order) {
+			if (!entity || !IsVisible(entity)) {
+				continue;
+			}
+
 			PTGN_ASSERT(
 				!entity.Has<impl::HDREffectTag>() ||
 					IsHDRFormat(
@@ -462,6 +470,18 @@ void Application::RenderScenes() {
 			impl::InvokeDrawable(draw_ctx, entity);
 		}
 	});
+}
+
+void Application::SetScreenEffects(const ScreenEffectSettings& settings) {
+	impl::RebuildScreenEffects(ctx_, settings);
+}
+
+void Application::SetScreenEffectsEnabled(bool enabled) {
+	ctx_.screen_effects_enabled = enabled;
+}
+
+bool Application::AreScreenEffectsEnabled() const {
+	return ctx_.screen_effects_enabled;
 }
 
 void Application::SetCloseGuard(std::function<bool()> close_guard) {

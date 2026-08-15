@@ -9,6 +9,7 @@
 #include "app/project_settings.h"
 #include "runtime/asset/asset_key.h"
 #include "runtime/asset/asset_serialization.h"
+#include "runtime/graphics/fx/screen_effect_stack.h"
 #include "serialization/serialize.h"
 
 namespace ptgn {
@@ -47,6 +48,7 @@ struct Project {
 	std::vector<ProjectSceneEntry> scenes;
 	std::vector<SerializedAsset> assets;
 	std::vector<AssetKey> preload_assets;
+	ScreenEffectSettings screen_effects;
 	ProjectSettings settings;
 
 	PTGN_REFLECT(
@@ -57,6 +59,7 @@ struct Project {
 		scenes,
 		assets,
 		preload_assets,
+		screen_effects,
 		settings
 	)
 };
