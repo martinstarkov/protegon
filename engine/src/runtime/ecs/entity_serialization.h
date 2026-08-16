@@ -91,8 +91,7 @@ SerializeEntityTagComponents(Entity entity) {
 
 	for (const auto& component : ComponentRegistry::Components()) {
 		if (!IsSerializedTagComponent(component) ||
-			!component.has ||
-			!component.has(entity)) {
+			!component.Has(entity)) {
 			continue;
 		}
 
@@ -111,15 +110,15 @@ SerializeEntityValueComponents(Entity entity) {
 			component.is_empty ||
 			!component.serializable ||
 			!component.deserializable ||
-			!component.serialize ||
-			!component.deserialize ||
-			!component.has ||
-			!component.has(entity)) {
+			!component.Has(entity)) {
 			continue;
 		}
 
 		json value = json::object();
-		component.serialize(value, entity);
+
+		if (!component.Serialize(value, entity)) {
+			continue;
+		}
 
 		output.insert_or_assign(
 			std::string{ component.name },
@@ -141,13 +140,12 @@ inline void DeserializeEntityTagComponents(
 
 		if (!component ||
 			!IsSerializedTagComponent(*component) ||
-			!component->add_default ||
-			!component->has) {
+			!component->default_constructible) {
 			continue;
 		}
 
-		if (!component->has(entity)) {
-			component->add_default(entity);
+		if (!component->Has(entity)) {
+			component->AddDefault(entity);
 		}
 	}
 }
@@ -164,12 +162,11 @@ inline void DeserializeEntityValueComponents(
 		if (!component ||
 			IsEntityMetadataComponent(*component) ||
 			component->is_empty ||
-			!component->deserializable ||
-			!component->deserialize) {
+			!component->deserializable) {
 			continue;
 		}
 
-		component->deserialize(component_json, entity);
+		component->Deserialize(component_json, entity);
 	}
 }
 

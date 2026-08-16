@@ -292,11 +292,12 @@ void MoveUsingVelocity(const FollowConfig& config, Entity entity, V2_float direc
 } // namespace
 
 ComponentDefinition MakeComponentDefinition(const RegisteredComponent& component) {
-	if (!component.make_default_json) {
+	auto default_value{ component.MakeDefaultJson() };
+	if (!default_value) {
 		return {};
 	}
 
-	json value = component.make_default_json();
+	json value{ std::move(*default_value) };
 	if (value.is_null()) {
 		value = json::object();
 	}
@@ -308,8 +309,8 @@ ComponentDefinition MakeComponentDefinition(const RegisteredComponent& component
 		.value = std::move(value),
 		.apply_live = [component_name](Entity entity) {
 			if (const auto* registration{ ComponentRegistry::Find(component_name) };
-				registration && registration->add_default) {
-				registration->add_default(entity);
+				registration && registration->default_constructible) {
+				registration->AddDefault(entity);
 			}
 		},
 	};
@@ -762,17 +763,22 @@ void SetTextureScript::OnStart() {
 
 void SetEnabledScript::OnStart() {
 	const auto* registration{ ComponentRegistry::Find(component) };
-	if (!registration || !registration->has || !registration->has(Owner())) {
+	if (!registration || !registration->Has(Owner())) {
 		PTGN_WARN("Cannot set enabled state for missing component: ", component);
 		return;
 	}
-	if (!registration->serialize || !registration->deserialize) {
+
+	if (!registration->serializable || !registration->deserializable) {
 		PTGN_WARN("Component does not support enabled-state serialization: ", component);
 		return;
 	}
 
 	json value;
-	registration->serialize(value, Owner());
+	if (!registration->Serialize(value, Owner())) {
+		PTGN_WARN("Failed to serialize component enabled state: ", component);
+		return;
+	}
+
 	if (value.is_boolean()) {
 		value = enabled;
 	} else if (value.is_object()) {
@@ -781,13 +787,16 @@ void SetEnabledScript::OnStart() {
 			PTGN_WARN("Component does not expose a bool enabled field: ", component);
 			return;
 		}
+
 		*it = enabled;
 	} else {
 		PTGN_WARN("Component does not expose a supported enabled value: ", component);
 		return;
 	}
 
-	registration->deserialize(value, Owner());
+	if (!registration->Deserialize(value, Owner())) {
+		PTGN_WARN("Failed to deserialize component enabled state: ", component);
+	}
 }
 
 void SceneChangeScript::OnStart() {
@@ -928,12 +937,12 @@ void AddComponentsScript::OnStart() {
 			continue;
 		}
 
-		if (registration->is_empty && registration->add_default) {
-			registration->add_default(Owner());
-		} else if (registration->deserialize && !component.value.is_null()) {
-			registration->deserialize(component.value, Owner());
-		} else if (registration->add_default) {
-			registration->add_default(Owner());
+		if (registration->is_empty && registration->default_constructible) {
+			registration->AddDefault(Owner());
+		} else if (registration->deserializable && !component.value.is_null()) {
+			registration->Deserialize(component.value, Owner());
+		} else if (registration->default_constructible) {
+			registration->AddDefault(Owner());
 		}
 	}
 }
@@ -941,7 +950,7 @@ void AddComponentsScript::OnStart() {
 void RemoveComponentsScript::OnStart() {
 	for (const auto& name : components) {
 		if (const auto* registration{ ComponentRegistry::Find(name) }) {
-			registration->remove(Owner());
+			registration->Remove(Owner());
 		}
 	}
 }

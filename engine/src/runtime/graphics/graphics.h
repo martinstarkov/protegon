@@ -41,7 +41,8 @@ struct GraphicsData {
 	FillStyle line_width_;
 	std::vector<GraphicsCommand> commands_;
 
-	PTGN_REFLECT(GraphicsData, fill_color_, stroke_color_, line_width_, commands_)
+	PTGN_REFLECT_VALUE(GraphicsData, commands_)
+	PTGN_REFLECT_READONLY(GraphicsData, fill_color_, stroke_color_, line_width_)
 };
 
 } // namespace impl

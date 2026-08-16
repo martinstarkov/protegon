@@ -22,6 +22,7 @@
 #include <system_error>
 #include <vector>
 
+#include "panels/test_panel.h"
 #include "app/application.h"
 #include "core/build_info.h"
 #include "app/application_context.h"
@@ -3555,6 +3556,7 @@ void Editor::DrawPanels() {
 	scene_list_panel_.OnRender(*context_);
 	screen_effects_panel_.OnRender(*context_);
 	inspector_panel_.OnRender(*context_);
+	entity_target_demo::DrawScriptTargetingDemo(*context_);
 	if (ConsumeAcceptedAssetKeyDrop()) {
 		scene_asset_dependencies_dirty_ = true;
 	}

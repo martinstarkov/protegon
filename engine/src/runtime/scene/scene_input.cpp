@@ -70,6 +70,10 @@ bool SceneInput::KeyHeld(Key key) const {
 	return window_.KeyHeld(key);
 }
 
+bool SceneInput::KeyHeld(Key key, milliseconds time) const {
+	return window_.KeyHeld(key, time);
+}
+
 milliseconds SceneInput::GetKeyHeldTime(Key key) const {
 	return window_.GetKeyHeldTime(key);
 }

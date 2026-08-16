@@ -38,16 +38,16 @@ Entity InstantiatePrefabEntity(
 } // namespace
 
 bool IsPrefabComponentSupported(const RegisteredComponent& component) {
-	if (impl::IsEntityMetadataComponent(component) || !component.has) {
+	if (impl::IsEntityMetadataComponent(component)) {
 		return false;
 	}
 
 	if (component.is_empty) {
-		return component.add_default != nullptr;
+		return component.default_constructible;
 	}
 
-	return component.serializable && component.deserializable && component.serialize &&
-		   component.deserialize;
+	return component.serializable &&
+		   component.deserializable;
 }
 
 Prefab CapturePrefab(Entity entity, PrefabKey key, bool include_children) {
@@ -91,10 +91,12 @@ std::string MakePrefabSlug(std::string_view value) {
 
 	for (char c : value) {
 		const auto character{ static_cast<unsigned char>(c) };
+
 		if (std::isalnum(character)) {
 			if (separator_pending && !output.empty()) {
 				output.push_back('_');
 			}
+
 			separator_pending = false;
 			output.push_back(static_cast<char>(std::tolower(character)));
 		} else {
@@ -114,21 +116,35 @@ PrefabKey MakePrefabKey(std::string_view value) {
 		value.remove_prefix(kPrefabKeyPrefix.size());
 	}
 
-	return PrefabKey{ std::string{ kPrefabKeyPrefix } + MakePrefabSlug(value) };
+	return PrefabKey{
+		std::string{ kPrefabKeyPrefix } +
+		MakePrefabSlug(value)
+	};
 }
 
 path GetPrefabSourcePath(const PrefabKey& key) {
 	std::string key_value{ key.value };
+
 	if (key_value.starts_with(kPrefabKeyPrefix)) {
-		key_value.erase(0, kPrefabKeyPrefix.size());
+		key_value.erase(
+			0,
+			kPrefabKeyPrefix.size()
+		);
 	}
 
 	return path{ kPrefabDirectory } /
-		   path{ MakePrefabSlug(key_value) + std::string{ kPrefabExtension } };
+		   path{
+			   MakePrefabSlug(key_value) +
+			   std::string{ kPrefabExtension }
+		   };
 }
 
-path GetPrefabFilePath(const path& project_root, const PrefabKey& key) {
-	return project_root / GetPrefabSourcePath(key);
+path GetPrefabFilePath(
+	const path& project_root,
+	const PrefabKey& key
+) {
+	return project_root /
+		   GetPrefabSourcePath(key);
 }
 
 } // namespace ptgn

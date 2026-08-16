@@ -973,11 +973,12 @@ void AddDefaultPrefabComponent(
 		return;
 	}
 
-	if (!component->make_default_json) {
+	auto default_value{ component->MakeDefaultJson() };
+	if (!default_value) {
 		return;
 	}
 
-	json value = component->make_default_json();
+	json value{ std::move(*default_value) };
 
 	if (value.is_null()) {
 		value = json::object();

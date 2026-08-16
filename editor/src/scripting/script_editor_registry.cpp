@@ -8,9 +8,11 @@
 #include <algorithm>
 #include <array>
 #include <cfloat>
+#include <cctype>
 #include <cstdint>
 #include <magic_enum/magic_enum.hpp>
 #include <memory>
+#include <optional>
 #include <ranges>
 #include <string>
 #include <string_view>
@@ -150,6 +152,18 @@ void DrawSelectedItemsTooltip(const std::vector<std::string>& items) {
 	ImGui::SetTooltip("%s", tooltip.c_str());
 }
 
+template <typename T>
+bool DrawReflectedScriptValue(EditorContext& ctx, T& value) {
+	return inspector::DrawReflectedContents(
+		ctx,
+		type_name_without_namespaces<T>(),
+		std::addressof(value),
+		[](void* data, ComponentReflectionVisitor visitor) {
+			::ptgn::VisitReflectedValue(*static_cast<T*>(data), visitor);
+		}
+	);
+}
+
 [[nodiscard]] std::string ComponentLabel(const RegisteredComponent& component) {
 	std::string_view name{ component.name };
 	const auto separator{ name.rfind("::") };
@@ -179,7 +193,7 @@ template <typename Predicate>
 }
 
 [[nodiscard]] bool CanAddComponentDefinition(const RegisteredComponent& component) {
-	return component.is_empty || component.make_default_json != nullptr;
+	return component.is_empty || (component.default_constructible && component.serializable);
 }
 
 bool NormalizeJsonAgainstDefaults(json& value, const json& defaults) {
@@ -380,12 +394,12 @@ bool DrawRegisteredComponentJson(
 ) {
 	json defaults = json::object();
 
-	if (component.make_default_json) {
-		try {
-			defaults = component.make_default_json();
-		} catch (...) {
-			defaults = json::object();
+	try {
+		if (auto default_value{ component.MakeDefaultJson() }) {
+			defaults = std::move(*default_value);
 		}
+	} catch (...) {
+		defaults = json::object();
 	}
 
 	bool changed{ NormalizeJsonAgainstDefaults(value, defaults) };
@@ -415,48 +429,471 @@ template <typename T>
 	}
 }
 
-bool DrawKey(json& value) {
-	Key key{ JsonValueOr<Key>(value, "key", Key::W) };
-	bool changed{ false };
-	ImGui::SetNextItemWidth(-FLT_MIN);
-	if (ImGui::BeginCombo("##Key", std::string{ magic_enum::enum_name(key) }.c_str())) {
-		for (const auto candidate : magic_enum::enum_values<Key>()) {
-			if (ImGui::Selectable(
-					std::string{ magic_enum::enum_name(candidate) }.c_str(), candidate == key
-				)) {
-				key		= candidate;
-				changed = true;
-			}
+std::string KeyExpressionValue(const json& value) {
+	if (const auto expression{ JsonValueOr<std::string>(value, "keys", "") }; !expression.empty()) {
+		return expression;
+	}
+
+	return inspector::KeyDisplayLabel(JsonValueOr<Key>(value, "key", Key::W));
+}
+
+[[nodiscard]] bool IsKeyExpressionWhitespace(char c) {
+	switch (c) {
+		case ' ':  [[fallthrough]];
+		case '	': [[fallthrough]];
+		case '\n': [[fallthrough]];
+		case '\r': [[fallthrough]];
+		case '\f': [[fallthrough]];
+		case '\v': return true;
+		default: return false;
+	}
+}
+
+[[nodiscard]] std::string StripKeyExpressionWhitespace(const std::string& token) {
+	std::size_t first{ 0 };
+	while (first < token.size() && IsKeyExpressionWhitespace(token[first])) {
+		++first;
+	}
+
+	std::size_t last{ token.size() };
+	while (last > first && IsKeyExpressionWhitespace(token[last - 1])) {
+		--last;
+	}
+
+	return token.substr(first, last - first);
+}
+
+[[nodiscard]] bool IsAsciiAlphaNumeric(char c) {
+	return (c >= 'a' && c <= 'z') ||
+		   (c >= 'A' && c <= 'Z') ||
+		   (c >= '0' && c <= '9');
+}
+
+[[nodiscard]] char ToAsciiLower(char c) {
+	return c >= 'A' && c <= 'Z'
+		? static_cast<char>(c - 'A' + 'a')
+		: c;
+}
+
+[[nodiscard]] std::string NormalizeKeyExpressionToken(const std::string& token) {
+	std::string normalized;
+	normalized.reserve(token.size());
+
+	for (char c : token) {
+		if (IsAsciiAlphaNumeric(c)) {
+			normalized.push_back(ToAsciiLower(c));
 		}
-		ImGui::EndCombo();
 	}
-	DrawItemTooltip("Key matched by this trigger.");
-	if (changed) {
-		value["key"] = key;
+
+	return normalized;
+}
+
+[[nodiscard]] std::string NormalizeKeyAlias(std::string normalized) {
+	if (normalized.size() == 1 && normalized.front() >= '0' && normalized.front() <= '9') {
+		normalized.insert(normalized.begin(), 'k');
 	}
+
+	if (normalized == "shift" || normalized == "lshift") {
+		return "leftshift";
+	}
+	if (normalized == "rshift") {
+		return "rightshift";
+	}
+	if (
+		normalized == "ctrl" ||
+		normalized == "control" ||
+		normalized == "lctrl" ||
+		normalized == "leftcontrol"
+	) {
+		return "leftctrl";
+	}
+	if (normalized == "rctrl" || normalized == "rightcontrol") {
+		return "rightctrl";
+	}
+	if (normalized == "alt" || normalized == "option" || normalized == "lalt") {
+		return "leftalt";
+	}
+	if (normalized == "ralt") {
+		return "rightalt";
+	}
+	if (normalized == "super" || normalized == "cmd" || normalized == "command") {
+		return "leftsuper";
+	}
+
+	return normalized;
+}
+
+[[nodiscard]] bool IsDecimalNumberInRange(
+	std::string_view value,
+	int minimum,
+	int maximum
+) {
+	if (value.empty()) {
+		return false;
+	}
+
+	int number{ 0 };
+	for (char c : value) {
+		if (c < '0' || c > '9') {
+			return false;
+		}
+
+		number = number * 10 + static_cast<int>(c - '0');
+		if (number > maximum) {
+			return false;
+		}
+	}
+
+	return number >= minimum && number <= maximum;
+}
+
+[[nodiscard]] bool IsKnownKeyExpressionToken(const std::string& token) {
+	const std::string normalized{
+		NormalizeKeyAlias(NormalizeKeyExpressionToken(token))
+	};
+
+	if (normalized.empty()) {
+		return false;
+	}
+
+	if (
+		normalized.size() == 1 &&
+		normalized.front() >= 'a' &&
+		normalized.front() <= 'z'
+	) {
+		return true;
+	}
+
+	if (
+		normalized.size() == 2 &&
+		normalized.front() == 'k' &&
+		normalized[1] >= '0' &&
+		normalized[1] <= '9'
+	) {
+		return true;
+	}
+
+	if (
+		normalized.size() > 1 &&
+		normalized.front() == 'f' &&
+		IsDecimalNumberInRange(
+			std::string_view{ normalized }.substr(1),
+			1,
+			25
+		)
+	) {
+		return true;
+	}
+
+	if (
+		normalized.size() == 3 &&
+		normalized.starts_with("kp") &&
+		normalized[2] >= '0' &&
+		normalized[2] <= '9'
+	) {
+		return true;
+	}
+
+	static constexpr std::array<std::string_view, 48> kNamedKeys{
+		"space",
+		"apostrophe",
+		"comma",
+		"minus",
+		"period",
+		"slash",
+		"semicolon",
+		"equal",
+		"leftbracket",
+		"backslash",
+		"rightbracket",
+		"graveaccent",
+		"world1",
+		"world2",
+		"escape",
+		"enter",
+		"tab",
+		"backspace",
+		"insert",
+		"delete",
+		"right",
+		"left",
+		"down",
+		"up",
+		"pageup",
+		"pagedown",
+		"home",
+		"end",
+		"capslock",
+		"scrolllock",
+		"numlock",
+		"printscreen",
+		"pause",
+		"kpdecimal",
+		"kpdivide",
+		"kpmultiply",
+		"kpsubtract",
+		"kpadd",
+		"kpenter",
+		"kpequal",
+		"leftshift",
+		"leftctrl",
+		"leftalt",
+		"leftsuper",
+		"rightshift",
+		"rightctrl",
+		"rightalt",
+		"rightsuper",
+	};
+
+	return std::ranges::find(kNamedKeys, normalized) != kNamedKeys.end() ||
+		normalized == "menu";
+}
+
+[[nodiscard]] std::optional<std::string> KeyExpressionError(const std::string& input) {
+	const std::string expression{ StripKeyExpressionWhitespace(input) };
+	if (expression.empty()) {
+		return "Enter at least one key.";
+	}
+
+	std::size_t group_begin{ 0 };
+	while (group_begin <= expression.size()) {
+		const std::size_t comma{ expression.find(',', group_begin) };
+		const std::size_t group_end{
+			comma == std::string::npos ? expression.size() : comma
+		};
+		const std::string group{
+			StripKeyExpressionWhitespace(
+				expression.substr(group_begin, group_end - group_begin)
+			)
+		};
+
+		if (group.empty()) {
+			return "Missing a key near ','.";
+		}
+
+		std::size_t token_begin{ 0 };
+		while (token_begin <= group.size()) {
+			const std::size_t plus{ group.find('+', token_begin) };
+			const std::size_t token_end{
+				plus == std::string::npos ? group.size() : plus
+			};
+			const std::string token{
+				StripKeyExpressionWhitespace(
+					group.substr(token_begin, token_end - token_begin)
+				)
+			};
+
+			if (token.empty()) {
+				return plus == std::string::npos
+					? "Missing a key after '+'."
+					: "Missing a key near '+'.";
+			}
+
+			if (!IsKnownKeyExpressionToken(token)) {
+				return "Unknown key: " + token + ".";
+			}
+
+			if (plus == std::string::npos) {
+				break;
+			}
+			token_begin = plus + 1;
+		}
+
+		if (comma == std::string::npos) {
+			break;
+		}
+		group_begin = comma + 1;
+		if (group_begin >= expression.size()) {
+			return "Missing a key after ','.";
+		}
+	}
+
+	return std::nullopt;
+}
+
+void DrawInvalidKeyExpressionBorder(const std::optional<std::string>& error) {
+	if (!error) {
+		return;
+	}
+
+	const ImVec2 min{ ImGui::GetItemRectMin() };
+	const ImVec2 max{ ImGui::GetItemRectMax() };
+	ImGui::GetWindowDrawList()->AddRect(
+		min,
+		max,
+		ImGui::GetColorU32(ImVec4{ 1.0f, 0.2f, 0.2f, 1.0f }),
+		ImGui::GetStyle().FrameRounding,
+		0,
+		1.5f
+	);
+
+	if (ImGui::IsItemHovered()) {
+		ImGui::SetTooltip("%s", error->c_str());
+	}
+}
+
+bool DrawHeldDurationToggle(bool& require_duration) {
+	const bool changed{ ImGui::Checkbox("##RequireHeldDuration", &require_duration) };
+	DrawItemTooltip(
+		"Checked: require the minimum held duration. Unchecked: match any held state."
+	);
 	return changed;
 }
 
-bool DrawMouse(json& value) {
+bool DrawKeyExpression(json& value, bool with_duration) {
+	std::string expression{ KeyExpressionValue(value) };
+	bool require_duration{
+		JsonValueOr<bool>(value, "require_held_duration", true)
+	};
+	float held_duration_ms{
+		std::max(0.0f, JsonValueOr<float>(value, "held_duration_ms", 250.0f))
+	};
+	const float spacing{ ImGui::GetStyle().ItemSpacing.x };
+	const float duration_width{ 112.0f };
+	const float checkbox_width{ ImGui::GetFrameHeight() };
+	const float expression_width{
+		with_duration
+			? std::max(
+				1.0f,
+				ImGui::GetContentRegionAvail().x - duration_width - checkbox_width - spacing * 2.0f
+			)
+			: -FLT_MIN
+	};
+
+	ImGui::SetNextItemWidth(expression_width);
+	bool changed{ ImGui::InputTextWithHint(
+		"##Keys",
+		"W + X, W + Left Shift",
+		&expression
+	) };
+
+	const auto expression_error{ KeyExpressionError(expression) };
+	if (expression_error) {
+		DrawInvalidKeyExpressionBorder(expression_error);
+	} else {
+		DrawItemTooltip("Use + for AND and comma for OR. Key names are case-insensitive.");
+	}
+
+	if (with_duration) {
+		ImGui::SameLine(0.0f, spacing);
+		changed |= DrawHeldDurationToggle(require_duration);
+
+		ImGui::SameLine(0.0f, spacing);
+		ImGui::BeginDisabled(!require_duration);
+		changed |= inspector::DrawDurationInput(
+			"##HeldDuration",
+			held_duration_ms,
+			duration_width,
+			"Minimum time the key expression must remain held."
+		);
+		ImGui::EndDisabled();
+		held_duration_ms = std::max(0.0f, held_duration_ms);
+	}
+
+	if (changed) {
+		value["keys"] = std::move(expression);
+		value.erase("key");
+		if (with_duration) {
+			value["require_held_duration"] = require_duration;
+			value["held_duration_ms"] = held_duration_ms;
+		}
+	}
+
+	return changed;
+}
+
+bool DrawKey(json& value) {
+	return DrawKeyExpression(value, false);
+}
+
+bool DrawHeldKey(json& value) {
+	return DrawKeyExpression(value, true);
+}
+
+const char* MouseTriggerLabel(Mouse mouse) {
+	switch (mouse) {
+		case Mouse::Left: return "Left";
+		case Mouse::Right: return "Right";
+		case Mouse::Middle: return "Middle";
+		default: return "Left";
+	}
+}
+
+bool DrawMouseTrigger(json& value, bool with_duration) {
 	Mouse mouse{ JsonValueOr<Mouse>(value, "button", Mouse::Left) };
 	bool changed{ false };
-	ImGui::SetNextItemWidth(-FLT_MIN);
-	if (ImGui::BeginCombo("##Button", std::string{ magic_enum::enum_name(mouse) }.c_str())) {
-		for (const auto candidate : magic_enum::enum_values<Mouse>()) {
-			if (ImGui::Selectable(
-					std::string{ magic_enum::enum_name(candidate) }.c_str(), candidate == mouse
-				)) {
-				mouse	= candidate;
+	if (mouse != Mouse::Left && mouse != Mouse::Right && mouse != Mouse::Middle) {
+		mouse = Mouse::Left;
+		changed = true;
+	}
+
+	bool require_duration{
+		JsonValueOr<bool>(value, "require_held_duration", true)
+	};
+	float held_duration_ms{
+		std::max(0.0f, JsonValueOr<float>(value, "held_duration_ms", 250.0f))
+	};
+	const float spacing{ ImGui::GetStyle().ItemSpacing.x };
+	const float duration_width{ 112.0f };
+	const float checkbox_width{ ImGui::GetFrameHeight() };
+	const float mouse_width{
+		with_duration
+			? std::max(
+				1.0f,
+				ImGui::GetContentRegionAvail().x - duration_width - checkbox_width - spacing * 2.0f
+			)
+			: -FLT_MIN
+	};
+
+	ImGui::SetNextItemWidth(mouse_width);
+	if (ImGui::BeginCombo("##Button", MouseTriggerLabel(mouse))) {
+		for (const Mouse candidate : { Mouse::Left, Mouse::Right, Mouse::Middle }) {
+			const bool selected{ candidate == mouse };
+			if (ImGui::Selectable(MouseTriggerLabel(candidate), selected)) {
+				mouse = candidate;
 				changed = true;
+			}
+			if (selected) {
+				ImGui::SetItemDefaultFocus();
 			}
 		}
 		ImGui::EndCombo();
 	}
 	DrawItemTooltip("Mouse button matched by this trigger.");
+
+	if (with_duration) {
+		ImGui::SameLine(0.0f, spacing);
+		changed |= DrawHeldDurationToggle(require_duration);
+
+		ImGui::SameLine(0.0f, spacing);
+		ImGui::BeginDisabled(!require_duration);
+		changed |= inspector::DrawDurationInput(
+			"##HeldDuration",
+			held_duration_ms,
+			duration_width,
+			"Minimum time the mouse button must remain held."
+		);
+		ImGui::EndDisabled();
+		held_duration_ms = std::max(0.0f, held_duration_ms);
+	}
+
 	if (changed) {
 		value["button"] = mouse;
+		if (with_duration) {
+			value["require_held_duration"] = require_duration;
+			value["held_duration_ms"] = held_duration_ms;
+		}
 	}
+
 	return changed;
+}
+
+bool DrawMouse(json& value) {
+	return DrawMouseTrigger(value, false);
+}
+
+bool DrawHeldMouse(json& value) {
+	return DrawMouseTrigger(value, true);
 }
 
 bool DrawSignalEvent(json& value) {
@@ -765,13 +1202,17 @@ inline constexpr std::array kSceneTransitions{
 };
 
 [[nodiscard]] bool IsEnabledComponent(const RegisteredComponent& component) {
-	if (!component.serialize || !component.deserialize || !component.make_default_json) {
+	if (!component.serializable || !component.deserializable) {
 		return false;
 	}
 
 	json value;
 	try {
-		value = component.make_default_json();
+		auto default_value{ component.MakeDefaultJson() };
+		if (!default_value) {
+			return false;
+		}
+		value = std::move(*default_value);
 	} catch (...) {
 		return false;
 	}
@@ -1573,8 +2014,8 @@ bool DrawRemoveComponentsInline(ScriptEditorContext&, RemoveComponentsScript& sc
 		preview = "None";
 	}
 
-	auto components{ GetSortedComponents([](const RegisteredComponent& component) {
-		return component.remove != nullptr;
+	auto components{ GetSortedComponents([](const RegisteredComponent&) {
+		return true;
 	}) };
 
 	bool changed{ false };
@@ -1642,23 +2083,23 @@ bool DrawBounce(ScriptEditorContext&, BounceScript& script) {
 bool DrawShake(ScriptEditorContext& context, ShakeScript& script) {
 	bool changed{ ImGui::DragFloat("Intensity", &script.intensity, 0.01f, -1.0f, 1.0f) };
 	changed |= ImGui::Checkbox("Reset On Complete", &script.reset_on_complete);
-	changed |= inspector::DrawComponentContents(context.ctx, script.config);
+	changed |= DrawReflectedScriptValue(context.ctx, script.config);
 	return changed;
 }
 
 bool DrawAddShakeTrauma(ScriptEditorContext& context, AddShakeTraumaScript& script) {
 	bool changed{ ImGui::DragFloat("Intensity", &script.intensity, 0.01f, -1.0f, 1.0f) };
-	changed |= inspector::DrawComponentContents(context.ctx, script.config);
+	changed |= DrawReflectedScriptValue(context.ctx, script.config);
 	return changed;
 }
 
 bool DrawRecoverShake(ScriptEditorContext& context, RecoverShakeScript& script) {
-	return inspector::DrawComponentContents(context.ctx, script.config);
+	return DrawReflectedScriptValue(context.ctx, script.config);
 }
 
 bool DrawFollowEntity(ScriptEditorContext& context, FollowEntityScript& script) {
 	ImGui::TextDisabled("Target selection should use your UUID/entity reference field.");
-	return inspector::DrawComponentContents(context.ctx, script.config);
+	return DrawReflectedScriptValue(context.ctx, script.config);
 }
 
 bool DrawFollowPath(ScriptEditorContext& context, FollowPathScript& script) {
@@ -1684,7 +2125,7 @@ bool DrawFollowPath(ScriptEditorContext& context, FollowPathScript& script) {
 		changed = true;
 	}
 	changed |= ImGui::Checkbox("Reset Waypoint Index", &script.reset_waypoint_index);
-	changed |= inspector::DrawComponentContents(context.ctx, script.config);
+	changed |= DrawReflectedScriptValue(context.ctx, script.config);
 	return changed;
 }
 
@@ -1991,7 +2432,7 @@ PTGN_REGISTER_EVENT(
 	event::KeyPressed, {
 						   .label		  = "On Key Pressed",
 						   .group		  = "Key",
-						   .description	  = "Matches one key.",
+						   .description	  = "Matches a key expression.",
 						   .inline_fields = 1,
 						   .draw		  = &DrawKey,
 					   }
@@ -2001,9 +2442,9 @@ PTGN_REGISTER_EVENT(
 	event::KeyHeld, {
 						.label		   = "On Key Held",
 						.group		   = "Key",
-						.description   = "Matches one key.",
-						.inline_fields = 1,
-						.draw		   = &DrawKey,
+						.description   = "Matches a held key expression.",
+						.inline_fields = 2,
+						.draw		   = &DrawHeldKey,
 					}
 );
 
@@ -2011,7 +2452,7 @@ PTGN_REGISTER_EVENT(
 	event::KeyReleased, {
 							.label		   = "On Key Released",
 							.group		   = "Key",
-							.description   = "Matches one key.",
+							.description   = "Matches a key expression.",
 							.inline_fields = 1,
 							.draw		   = &DrawKey,
 						}
@@ -2032,8 +2473,8 @@ PTGN_REGISTER_EVENT(
 						  .label		 = "On Mouse Held",
 						  .group		 = "Mouse",
 						  .description	 = "Matches one mouse button.",
-						  .inline_fields = 1,
-						  .draw			 = &DrawMouse,
+						  .inline_fields = 2,
+						  .draw			 = &DrawHeldMouse,
 					  }
 );
 
@@ -2078,8 +2519,8 @@ PTGN_REGISTER_EVENT(
 							  .label		 = "On Mouse Held Over",
 							  .group		 = "Interaction",
 							  .description	 = "Matches one mouse button.",
-							  .inline_fields = 1,
-							  .draw			 = &DrawMouse,
+							  .inline_fields = 2,
+							  .draw			 = &DrawHeldMouse,
 						  }
 );
 

@@ -104,6 +104,12 @@ public:
 	ScopedItemWidth& operator=(const ScopedItemWidth&) = delete;
 };
 
+inline void DrawTooltip(std::string_view text) {
+	if (!text.empty() && ImGui::IsItemHovered()) {
+		ImGui::SetTooltip("%.*s", static_cast<int>(text.size()), text.data());
+	}
+}
+
 inline void CommitInactiveInspectorEdit(EditorContext& ctx) {
 	ctx.undo.CommitInactiveInteraction(ImGui::IsAnyItemActive());
 }
@@ -126,7 +132,6 @@ inline void TrackUndoableInteraction(
 	);
 }
 
-/// The inspector starts a position request and the viewport submits it.
 inline PositionPicker& GetPositionPicker(EditorContext& ctx) {
 	return ctx.local.position_picker;
 }
@@ -158,11 +163,7 @@ inline void CancelPositionPicking(EditorContext& ctx) {
 	GetPositionPicker(ctx).Cancel();
 }
 
-/// @brief Pauses a running runtime for a position picking session.
-/// @return Callback that restores the runtime state when the session ends.
-[[nodiscard]] PositionPicker::Finish PreparePositionPickSession(
-	EditorContext& ctx
-);
+[[nodiscard]] PositionPicker::Finish PreparePositionPickSession(EditorContext& ctx);
 
 inline bool DrawPositionPickButton(
 	EditorContext& ctx,
@@ -175,22 +176,12 @@ inline bool DrawPositionPickButton(
 ) {
 	ScopedID scope{ id };
 
-	const bool picking_active{
-		IsPositionPickingActive(ctx)
-	};
-
-	ScopedDisabled disabled{
-		picking_active
-	};
-
-	const bool pressed{
-		ImGui::Button("Pick")
-	};
+	const bool picking_active{ IsPositionPickingActive(ctx) };
+	ScopedDisabled disabled{ picking_active };
+	const bool pressed{ ImGui::Button("Pick") };
 
 	if (!picking_active && pressed) {
-		auto finish{
-			PreparePositionPickSession(ctx)
-		};
+		auto finish{ PreparePositionPickSession(ctx) };
 
 		GetPositionPicker(ctx).Begin(
 			"Pick Position",
@@ -239,30 +230,16 @@ inline bool DrawPositionPickButton(
 	return GetPositionPicker(ctx).IsDragging();
 }
 
-inline bool BeginPickedPositionDrag(
-	EditorContext& ctx,
-	V2_float world_position
-) {
-	return GetPositionPicker(ctx).BeginDrag(
-		world_position
-	);
+inline bool BeginPickedPositionDrag(EditorContext& ctx, V2_float world_position) {
+	return GetPositionPicker(ctx).BeginDrag(world_position);
 }
 
-inline bool UpdatePickedPositionDrag(
-	EditorContext& ctx,
-	V2_float world_position
-) {
-	return GetPositionPicker(ctx).UpdateDrag(
-		world_position
-	);
+inline bool UpdatePickedPositionDrag(EditorContext& ctx, V2_float world_position) {
+	return GetPositionPicker(ctx).UpdateDrag(world_position);
 }
 
-inline bool CompletePickedPosition(
-	EditorContext& ctx
-) {
-	return GetPositionPicker(ctx).Complete(
-		ctx.undo
-	);
+inline bool CompletePickedPosition(EditorContext& ctx) {
+	return GetPositionPicker(ctx).Complete(ctx.undo);
 }
 
 } // namespace ptgn::editor::inspector

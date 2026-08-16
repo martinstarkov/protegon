@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <cstdint>
 #include <functional>
+#include <memory>
 #include <optional>
 #include <ranges>
 #include <string>
@@ -14,6 +15,7 @@
 #include "core/util/hash.h"
 #include "core/util/type_info.h"
 #include "panels/inspector_fields.h"
+#include "runtime/ecs/component_registry.h"
 #include "runtime/ecs/entity.h"
 #include "runtime/scripting/script.h"
 #include "serialization/json/json.h"
@@ -24,7 +26,6 @@ class EditorContext;
 
 namespace impl {
 
-/// @brief Ensures the translation unit containing the built-in editor registrations is linked.
 void EnsureEngineScriptEditorsRegistered();
 
 } // namespace impl
@@ -137,14 +138,12 @@ struct ScriptEditorContext {
 
 template <ScriptClass T>
 struct ScriptEditorOptions {
-	// Runtime registration options.
 	ScriptCompletion completion{ ScriptCompletion::ScriptControlled };
 	bool supports_timing{ false };
 	bool requires_timing{ false };
 	bool serializable{ true };
 	std::optional<ScriptTiming> default_timing;
 
-	// Editor registration options.
 	std::string label;
 	std::string group;
 	std::string description;
@@ -165,7 +164,6 @@ struct ScriptEditorOptions {
 		};
 	}
 
-	/// @return Whether this registration contains non-default runtime metadata.
 	[[nodiscard]] bool HasRuntimeOptions() const {
 		return completion != ScriptCompletion::ScriptControlled ||
 			supports_timing ||
@@ -200,9 +198,6 @@ concept TypedScriptJsonEditable =
 	JsonSerializable<T> &&
 	JsonDeserializable<T>;
 
-/// The default script editor is only available when every reflected member
-/// has a supported inspector drawer. This prevents broad reflected types such
-/// as Script from instantiating drawers for raw json members.
 template <typename T>
 concept ReflectedScriptInspectorDrawable =
 	inspector::kHasDefaultInspectorDrawer<T>;
@@ -278,15 +273,23 @@ public:
 			options.label = std::string{ type_name_without_namespaces<T>() };
 		}
 
-		// Supply the standard reflected inspector only when no custom editor
-		// was registered. No component-editor registry participates here.
 		if (!options.draw && !options.draw_inline) {
 			if constexpr (
 				TypedScriptJsonEditable<T> &&
 				ReflectedScriptInspectorDrawable<T>
 			) {
 				options.draw = [](ScriptEditorContext& context, T& script) {
-					return inspector::DrawComponentContents(context.ctx, script);
+					return inspector::DrawReflectedContents(
+						context.ctx,
+						type_name_without_namespaces<T>(),
+						std::addressof(script),
+						[](void* value, ComponentReflectionVisitor visitor) {
+							::ptgn::VisitReflectedValue(
+								*static_cast<T*>(value),
+								visitor
+							);
+						}
+					);
 				};
 			}
 		}
