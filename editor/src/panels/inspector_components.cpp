@@ -140,6 +140,10 @@ bool DrawOptionalViewport(
 	}
 
 	if (value.has_value()) {
+		ScopedIndent contents_indent;
+		ScopedPropertyLabelOffset label_offset{
+			ImGui::GetStyle().IndentSpacing
+		};
 		if (viewport_space == ViewportSpace::Normalized) {
 			FieldOptions options{
 				.speed	= 0.01f,
@@ -401,26 +405,10 @@ bool DrawOptionalBoundingBox(
 	bool enabled{ value.has_value() };
 	const bool read_only{ IsReadOnly() };
 	bool changed{
-		DrawDisabledIf(
-			read_only,
-			[&]() {
-				return ImGui::Checkbox(
-					"##enabled",
-					&enabled
-				);
-			}
-		)
-	};
-
-	ImGui::SameLine();
-
-	const std::string tree_label{
-		std::string{ label } + "##Tree"
-	};
-	const bool open{
-		ImGui::TreeNodeEx(
-			tree_label.c_str(),
-			ImGuiTreeNodeFlags_SpanAvailWidth
+		DrawOptionalLabelRow(
+			label,
+			enabled,
+			read_only
 		)
 	};
 
@@ -434,89 +422,76 @@ bool DrawOptionalBoundingBox(
 		changed = true;
 	}
 
-	if (open) {
-		ScopedIndent indent;
+	if (value.has_value()) {
+		ScopedIndent contents_indent;
 		ScopedPropertyLabelOffset label_offset{
 			ImGui::GetStyle().IndentSpacing
 		};
+		ScopedDisabled disabled{ read_only };
 
-		BoundingBox displayed{
-			value.value_or(BoundingBox{})
-		};
+		BoundingBox displayed{ *value };
+		bool contents_changed{ false };
 
-		{
-			ScopedDisabled disabled{
-				!enabled || read_only
-			};
-
-			bool contents_changed{ false };
-			contents_changed |= DrawValue(
-				ctx,
-				"Position",
-				displayed.position,
-				FieldOptions{
-					.speed = kInspectorPositionDragSpeed,
-					.format = "%.3f",
-				}
-			);
-
-			auto& rect{ displayed.rect };
-			V2_float size{ rect.GetSize() };
-
-			if (DrawWHValue(
-					"Size",
-					size,
-					kInspectorSizeDragSpeed,
-					0.0f,
-					0.0f,
-					"%.3f"
-				)) {
-				size.x = std::max(size.x, 0.0f);
-				size.y = std::max(size.y, 0.0f);
-
-				const V2_float center{ rect.GetCenter() };
-				const V2_float half_size{ size * 0.5f };
-
-				rect.min = center - half_size;
-				rect.max = center + half_size;
-				contents_changed = true;
+		contents_changed |= DrawValue(
+			ctx,
+			"Position",
+			displayed.position,
+			FieldOptions{
+				.speed = kInspectorPositionDragSpeed,
+				.format = "%.3f",
 			}
+		);
 
-			contents_changed |= DrawValue(
-				ctx,
-				"Min",
-				rect.min,
-				FieldOptions{
-					.speed = kInspectorPositionDragSpeed,
-					.format = "%.3f",
-				}
-			);
-			contents_changed |= DrawValue(
-				ctx,
-				"Max",
-				rect.max,
-				FieldOptions{
-					.speed = kInspectorPositionDragSpeed,
-					.format = "%.3f",
-				}
-			);
-			contents_changed |= DrawValue(
-				ctx,
-				"Origin",
-				displayed.origin
-			);
+		auto& rect{ displayed.rect };
+		V2_float size{ rect.GetSize() };
 
-			if (
-				enabled &&
-				!read_only &&
-				contents_changed
-			) {
-				value = displayed;
-				changed = true;
-			}
+		if (DrawWHValue(
+				"Size",
+				size,
+				kInspectorSizeDragSpeed,
+				0.0f,
+				0.0f,
+				"%.3f"
+			)) {
+			size.x = std::max(size.x, 0.0f);
+			size.y = std::max(size.y, 0.0f);
+
+			const V2_float center{ rect.GetCenter() };
+			const V2_float half_size{ size * 0.5f };
+
+			rect.min = center - half_size;
+			rect.max = center + half_size;
+			contents_changed = true;
 		}
 
-		ImGui::TreePop();
+		contents_changed |= DrawValue(
+			ctx,
+			"Min",
+			rect.min,
+			FieldOptions{
+				.speed = kInspectorPositionDragSpeed,
+				.format = "%.3f",
+			}
+		);
+		contents_changed |= DrawValue(
+			ctx,
+			"Max",
+			rect.max,
+			FieldOptions{
+				.speed = kInspectorPositionDragSpeed,
+				.format = "%.3f",
+			}
+		);
+		contents_changed |= DrawValue(
+			ctx,
+			"Origin",
+			displayed.origin
+		);
+
+		if (!read_only && contents_changed) {
+			value = displayed;
+			changed = true;
+		}
 	}
 
 	ImGui::PopID();
@@ -528,14 +503,19 @@ struct ComponentDrawer<::ptgn::impl::CameraData> {
 	static bool Draw(EditorContext& ctx, ::ptgn::impl::CameraData& camera) {
 		bool changed{ false };
 
-		// Draw this first because it controls the raw viewport's defaults and bounds.
 		changed |= DrawValue(ctx, "Viewport Space", camera.viewport_space);
-
-		changed |=
-			DrawOptionalViewport(ctx, "Raw Viewport", camera.raw_viewport, camera.viewport_space);
-
+		changed |= DrawOptionalViewport(
+			ctx,
+			"Raw Viewport",
+			camera.raw_viewport,
+			camera.viewport_space
+		);
+		changed |= DrawOptionalBoundingBox(
+			ctx,
+			"Bounding Box",
+			camera.bounding_box
+		);
 		changed |= DrawValue(ctx, "Pixel Rounding", camera.pixel_rounding);
-		changed |= DrawOptionalBoundingBox(ctx, "Bounding Box", camera.bounding_box);
 
 		if (ctx.local.settings.show_read_only_inspector_data) {
 			DrawReadOnlyValue(ctx, "View Projection", camera.view_projection);
@@ -545,15 +525,20 @@ struct ComponentDrawer<::ptgn::impl::CameraData> {
 	}
 };
 
-bool DrawLayerMaskValue(
+namespace {
+
+bool DrawLayerMaskValueImpl(
 	std::string_view label,
-	LayerMask& value
+	LayerMask& value,
+	bool* ui_layer
 ) {
 	ScopedID scope{ label };
 	const char* preview{ nullptr };
 	char raw_preview[32]{};
 
-	if (value == kLayersAll) {
+	if (ui_layer && *ui_layer) {
+		preview = "UI Layer";
+	} else if (value == kLayersAll) {
 		preview = "All";
 	} else if (value == kLayersNone) {
 		preview = "None";
@@ -575,20 +560,46 @@ bool DrawLayerMaskValue(
 			bool changed{ false };
 			ImGui::SetNextItemWidth(-FLT_MIN);
 
+			auto choose_mask = [&](LayerMask mask) {
+				value = mask;
+				if (ui_layer) {
+					*ui_layer = false;
+				}
+				changed = true;
+			};
+
 			if (ImGui::BeginCombo("##LayerMask", preview)) {
-				if (ImGui::Selectable("All", value == kLayersAll)) {
-					value = kLayersAll;
-					changed = true;
+				const bool regular_layers_active{
+					!ui_layer || !*ui_layer
+				};
+
+				if (ui_layer) {
+					bool selected{ *ui_layer };
+
+					if (ImGui::Checkbox("UI Layer", &selected)) {
+						*ui_layer = selected;
+						value = selected
+							? kLayersNone
+							: ::ptgn::impl::RenderMask{}.layers;
+						changed = true;
+					}
+
+					DrawTooltip(
+						"UI Layer adds the UI layer tag. Selecting a normal render layer removes it."
+					);
+					ImGui::Separator();
 				}
 
-				if (ImGui::Selectable("None", value == kLayersNone)) {
-					value = kLayersNone;
-					changed = true;
+				if (ImGui::Selectable("All", regular_layers_active && value == kLayersAll)) {
+					choose_mask(kLayersAll);
 				}
 
-				if (ImGui::Selectable("Default", value == kLayerDefault)) {
-					value = kLayerDefault;
-					changed = true;
+				if (ImGui::Selectable("None", regular_layers_active && value == kLayersNone)) {
+					choose_mask(kLayersNone);
+				}
+
+				if (ImGui::Selectable("Default", regular_layers_active && value == kLayerDefault)) {
+					choose_mask(kLayerDefault);
 				}
 
 				ImGui::Separator();
@@ -600,7 +611,10 @@ bool DrawLayerMaskValue(
 					)) {
 					for (int index{ 0 }; index < 64; ++index) {
 						const LayerMask layer{ GetLayer(index) };
-						bool selected{ (value & layer) != 0 };
+						bool selected{
+							regular_layers_active &&
+							(value & layer) != 0
+						};
 						const std::string layer_label{
 							index == 0
 								? "Layer 0 (Default)"
@@ -610,6 +624,10 @@ bool DrawLayerMaskValue(
 						ImGui::PushID(index);
 
 						if (ImGui::Checkbox(layer_label.c_str(), &selected)) {
+							if (ui_layer) {
+								*ui_layer = false;
+							}
+
 							if (selected) {
 								value |= layer;
 							} else {
@@ -630,6 +648,23 @@ bool DrawLayerMaskValue(
 			return changed;
 		}
 	);
+}
+
+} // namespace
+
+bool DrawLayerMaskValue(
+	std::string_view label,
+	LayerMask& value
+) {
+	return DrawLayerMaskValueImpl(label, value, nullptr);
+}
+
+bool DrawLayerMaskValue(
+	std::string_view label,
+	LayerMask& value,
+	bool& ui_layer
+) {
+	return DrawLayerMaskValueImpl(label, value, &ui_layer);
 }
 
 template <>

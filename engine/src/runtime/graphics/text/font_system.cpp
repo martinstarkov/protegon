@@ -34,7 +34,7 @@ namespace {
 /// @brief Relative to engine root.
 inline constexpr std::string_view kDefaultFontCacheDirectory{ "/assets/fonts" };
 inline constexpr std::string_view kDefaultFontFile{ "/assets/fonts/LiberationSans-Regular.ttf" };
-/// @brief Relative to the working directory.
+/// @brief Relative to the runtime root.
 inline constexpr std::string_view kFontCacheDirectory{ "cache/fonts" };
 /// @brief Enables generating a default font atlas at runtime and overwriting default_font.h with
 /// the generated atlas. This is useful for development and testing.
@@ -159,7 +159,11 @@ impl::FontAtlas FontSystem::CreateFontAtlas(Renderer& renderer, const path& font
 		return impl::FontAtlas{ renderer, absolute_font_path };
 	}
 
-	auto cache_directory{ GetWorkingDirectory() / kFontCacheDirectory };
+	auto cache_directory{
+		impl::GetBuildInfo().runtime_root /
+		path{ kFontCacheDirectory }
+	};
+
 	auto cache_name{ absolute_font_path.stem().string() };
 	auto cache_png_file{ cache_directory / (cache_name + ".png") };
 

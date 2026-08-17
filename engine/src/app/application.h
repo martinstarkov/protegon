@@ -53,14 +53,13 @@ public:
 	template <SceneType TDefaultScene>
 		requires std::default_initializable<TDefaultScene>
 	void StartProject(const path& project_path) {
-		const impl::SceneRegistryEntry* default_scene{ nullptr };
-		if (!FileExists(project_path)) {
-			default_scene = &impl::GetSceneRegistration<TDefaultScene>();
-		}
-		StartProjectImpl(project_path, default_scene);
+		StartProjectImpl(
+			project_path,
+			&impl::GetSceneRegistration<TDefaultScene>()
+		);
 	}
 
-	/// @brief Starts a code-only runtime scene without creating or loading a project.
+	/// @brief Starts a code only runtime scene without creating or loading a project.
 	template <SceneType TScene, typename... TArgs>
 		requires std::constructible_from<TScene, TArgs...>
 	void StartWith(std::string_view scene_tag, TArgs&&... args) {

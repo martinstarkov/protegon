@@ -96,15 +96,27 @@ Surface::Surface(std::span<const std::uint8_t> bytes, std::uint8_t desired_chann
 }
 
 Surface::Surface(const path& file, std::uint8_t desired_channels) : channels_{ desired_channels } {
-	PTGN_ASSERT(FileExists(file), "Cannot create surface from a nonexistent file: ", file.string());
+	const path absolute_path{
+	GetAbsolutePath(file)
+};
+
+	PTGN_ASSERT(
+		FileExists(absolute_path),
+		"Cannot create surface from a nonexistent file: ",
+		absolute_path.string()
+	);
 
 	int channels_in_file{ 0 };
 
-	auto abs_path{ GetAbsolutePath(file) };
-
-	auto data{ stbi_load(
-		abs_path.string().c_str(), &size_.x, &size_.y, &channels_in_file, desired_channels
-	) };
+	auto data{
+		stbi_load(
+			absolute_path.string().c_str(),
+			&size_.x,
+			&size_.y,
+			&channels_in_file,
+			desired_channels
+		)
+	};
 
 	PTGN_ASSERT(data, "Failed to load image '", file.string(), "': ", stbi_failure_reason());
 

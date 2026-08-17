@@ -37,6 +37,7 @@
 #include "core/math/geometry/rect.h"
 #include "core/math/transform.h"
 #include "core/util/hash.h"
+#include "panels/content_browser.h"
 #include "panels/inspector_feature_helpers.h"
 #include "panels/inspector_fields.h"
 #include "renderer/pipeline/blend_mode.h"
@@ -1123,28 +1124,11 @@ bool DrawTransformFeatureFields(
 	begin_row("Rotation", "Rotation");
 	ImGui::TableSetColumnIndex(2);
 	ImGui::SetNextItemWidth(-FLT_MIN);
-
-	Degrees rotation{ state.transform.rotation };
-	float degrees{ rotation.value };
-
-	if (ImGui::DragFloat(
-			"##Value",
-			&degrees,
-			1.0f,
-			0.0f,
-			360.0f,
-			"%.1f deg",
-			ImGuiSliderFlags_AlwaysClamp
-		)) {
-		state.transform.rotation = Radians{ Degrees{ degrees } };
-		changed = true;
-	}
-
-	changed |= draw_ignore(
-		state.ignore_rotation,
-		"Ignore parent rotation."
+	changed |= ImGui::DragFloat(
+		"##Value", &state.transform.rotation.value, 1.0f, 0.0f, 360.0f, "%.1f deg",
+		ImGuiSliderFlags_AlwaysClamp
 	);
-
+	changed |= draw_ignore(state.ignore_rotation, "Ignore parent rotation.");
 	ImGui::PopID();
 
 	begin_row("Scale", "Scale");
@@ -5688,145 +5672,68 @@ bool DrawMaterialDetails(Target& target, ::ptgn::Material& material) {
 	return changed;
 }
 
-struct ShaderProgramInspectorEditState {
-	bool initialized{ false };
-	bool separate{ false };
-	std::string vertex;
-	std::string fragment;
-};
+std::string InspectorShaderStageText(ShaderStageMask stages) {
+	const bool vertex{ HasShaderStage(stages, ShaderStageMask::Vertex) };
+	const bool fragment{ HasShaderStage(stages, ShaderStageMask::Fragment) };
+	if (vertex && fragment) {
+		return "Vertex + Fragment";
+	}
+	if (vertex) {
+		return "Vertex";
+	}
+	if (fragment) {
+		return "Fragment";
+	}
+	return "None detected";
+}
 
-bool DrawInspectorShaderSourceCombo(
-	const char* label,
-	std::string& selected,
-	ShaderStageMask requested_stage,
-	const ::ptgn::impl::AssetRecord& owner,
-	AssetManager& assets
-) {
-	std::string preview{ "Select source" };
-	if (selected == kShaderSourceToken) {
-		preview = "This shader file";
-	} else if (selected.starts_with(kBuiltinShaderPrefix)) {
-		preview = "Engine / " + selected.substr(kBuiltinShaderPrefix.size());
-	} else if (!selected.empty()) {
-		preview = "Project / " + selected;
+std::string InspectorShaderReferenceLabel(const std::optional<std::string>& reference) {
+	if (!reference.has_value() || reference->empty()) {
+		return "Not configured";
 	}
-	bool changed{ false };
-	if (!ImGui::BeginCombo(label, preview.c_str())) {
-		return false;
+	if (reference.value() == kShaderSourceToken) {
+		return "This shader file";
 	}
-	if (HasShaderStage(owner.metadata.shader_stages, requested_stage) &&
-		ImGui::Selectable("This shader file", selected == kShaderSourceToken)) {
-		selected = std::string{ kShaderSourceToken };
-		changed = true;
+	if (reference->starts_with(kBuiltinShaderPrefix)) {
+		return "Engine / " + reference->substr(kBuiltinShaderPrefix.size());
 	}
-	const auto engine_names{
-		requested_stage == ShaderStageMask::Vertex
-			? assets.GetEngineVertexShaderNames()
-			: assets.GetEngineFragmentShaderNames()
-	};
-	if (ImGui::BeginMenu("Engine")) {
-		for (const auto& name : engine_names) {
-			const std::string value{ std::string{ kBuiltinShaderPrefix } + name };
-			if (ImGui::MenuItem(name.c_str(), nullptr, selected == value)) {
-				selected = value;
-				changed = true;
-			}
-		}
-		ImGui::EndMenu();
-	}
-	if (ImGui::BeginMenu("Project")) {
-		for (const auto& candidate : ::ptgn::impl::AssetAccessor{ assets }.GetAssets()) {
-			if (candidate.kind != AssetKind::Shader || candidate.key == owner.key) {
-				continue;
-			}
-			auto source{ assets.GetShaderSource(ShaderKey{ candidate.key }) };
-			if (!source || !HasShaderStage(DetectShaderStages(source.value()), requested_stage)) {
-				continue;
-			}
-			auto serialized{ assets.GetCatalogAsset(candidate.key) };
-			if (!serialized) {
-				continue;
-			}
-			const std::string value{ serialized->source_path.generic_string() };
-			if (ImGui::MenuItem(candidate.key.value.c_str(), nullptr, selected == value)) {
-				selected = value;
-				changed = true;
-			}
-		}
-		ImGui::EndMenu();
-	}
-	ImGui::EndCombo();
-	return changed;
+	return "Project / " + reference.value();
 }
 
 bool DrawShaderProgramInspector(EditorContext& ctx, const ShaderKey& key) {
 	if (key.value.empty()) {
 		return false;
 	}
+
 	auto& assets{ ctx.editor.GetAssetManager() };
-	const auto record_list{ ::ptgn::impl::AssetAccessor{ assets }.GetAssets() };
-	const auto record_it{ std::ranges::find_if(record_list, [&](const auto& record) {
+	const auto records{ ::ptgn::impl::AssetAccessor{ assets }.GetAssets() };
+	const auto record_it{ std::ranges::find_if(records, [&](const auto& record) {
 		return record.key == static_cast<const AssetKey&>(key);
 	}) };
-	if (record_it == record_list.end() || record_it->kind != AssetKind::Shader) {
+	if (record_it == records.end() || record_it->kind != AssetKind::Shader) {
 		return false;
 	}
 
-	static std::unordered_map<std::size_t, ShaderProgramInspectorEditState> states;
-	auto& state{ states[Hash(key)] };
-	const auto catalog{ assets.GetCatalogAsset(key) };
-	if (!state.initialized) {
-		state.separate = catalog && catalog->shader.has_value();
-		if (catalog && catalog->shader) {
-			state.vertex = catalog->shader->vertex.value_or(std::string{});
-			state.fragment = catalog->shader->fragment.value_or(std::string{});
-		}
-		state.initialized = true;
+	SerializedShaderProgram program;
+	if (const auto catalog{ assets.GetCatalogAsset(key) };
+		catalog.has_value() && catalog->shader.has_value()) {
+		program = catalog->shader.value();
+	} else if (const auto source{ assets.GetShaderSource(key) }; source.has_value()) {
+		program = assets.SuggestShaderProgram(source.value()).value_or(SerializedShaderProgram{});
 	}
 
-	bool changed{ false };
 	ImGui::SeparatorText("Shader Program");
-	if (ImGui::RadioButton("Combined##ShaderProgram", !state.separate)) {
-		state.separate = false;
-	}
-	ImGui::SameLine();
-	if (ImGui::RadioButton("Separate##ShaderProgram", state.separate)) {
-		state.separate = true;
-		if (state.vertex.empty() && HasShaderStage(record_it->metadata.shader_stages, ShaderStageMask::Vertex)) {
-			state.vertex = std::string{ kShaderSourceToken };
-		}
-		if (state.fragment.empty() && HasShaderStage(record_it->metadata.shader_stages, ShaderStageMask::Fragment)) {
-			state.fragment = std::string{ kShaderSourceToken };
-		}
-	}
+	ImGui::TextDisabled(
+		"Detected: %s",
+		InspectorShaderStageText(record_it->metadata.shader_stages).c_str()
+	);
+	ImGui::Text("Vertex: %s", InspectorShaderReferenceLabel(program.vertex).c_str());
+	ImGui::Text("Fragment: %s", InspectorShaderReferenceLabel(program.fragment).c_str());
 
-	bool valid{ false };
-	if (state.separate) {
-		DrawInspectorShaderSourceCombo("Vertex Source", state.vertex, ShaderStageMask::Vertex, *record_it, assets);
-		DrawInspectorShaderSourceCombo("Fragment Source", state.fragment, ShaderStageMask::Fragment, *record_it, assets);
-		valid = !state.vertex.empty() && !state.fragment.empty();
-	} else {
-		valid = record_it->metadata.shader_stages == ShaderStageMask::VertexFragment;
-		if (!valid) {
-			ImGui::TextDisabled("Combined mode requires vertex and fragment blocks in this file.");
-		}
+	if (ImGui::Button("Open Shader Editor", ImVec2{ -FLT_MIN, 0.0f })) {
+		RequestShaderEditorOpen(key);
 	}
-	ImGui::BeginDisabled(!valid);
-	if (ImGui::Button("Apply Shader Program")) {
-		const bool configured{
-			state.separate
-				? assets.ConfigureShaderProgram(key, state.vertex, state.fragment)
-				: assets.ConfigureShaderProgram(key, std::nullopt, std::nullopt)
-		};
-		if (configured) {
-			ctx.editor.MarkProjectDirty();
-			changed = true;
-		}
-	}
-	ImGui::EndDisabled();
-	ImGui::SameLine();
-	ImGui::TextDisabled("Reload a resident shader to apply source changes.");
-	return changed;
+	return false;
 }
 
 template <typename Target, AssetKeyType Key>

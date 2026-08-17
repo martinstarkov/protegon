@@ -8,9 +8,11 @@
 #include <vector>
 
 #include "core/util/file.h"
+#include "renderer/resources/shader.h"
 #include "renderer/resources/texture.h"
 #include "runtime/asset/asset_key.h"
 #include "runtime/asset/asset_manager.h"
+#include "runtime/asset/asset_serialization.h"
 
 namespace ptgn::editor {
 
@@ -23,6 +25,9 @@ bool AcceptAssetKeyDragDrop(
 
 /// @return True once after an asset-key payload was accepted by any editor field.
 [[nodiscard]] bool ConsumeAcceptedAssetKeyDrop();
+
+/// @brief Requests that the Content Browser open the shader editor for this key on its next render.
+void RequestShaderEditorOpen(ShaderKey key);
 
 template <typename T>
 concept SpecificAssetKey =
@@ -39,6 +44,7 @@ bool AcceptAssetKeyDragDrop(T& value) {
 class ContentBrowserPanel {
 public:
 	[[nodiscard]] bool CanApplicationClose();
+
 	enum class SortMode {
 		Name,
 		Type,
@@ -47,21 +53,31 @@ public:
 	void OnRender(EditorContext& ctx);
 
 private:
-	void InitializePreviewIcons(EditorContext& ctx);
-	void DrawContentBrowser(EditorContext& ctx);
-	void DrawToolbar(EditorContext& ctx);
-	void DrawFolderTree(EditorContext& ctx);
-	void DrawAssetGrid(EditorContext& ctx);
-	void DrawShaderConfiguration(EditorContext& ctx);
-	void DrawShaderEditor(EditorContext& ctx);
-	void OpenShaderEditor(EditorContext& ctx, const impl::AssetRecord& asset);
+	struct ShaderEditorState {
+		ShaderKey key;
+		std::string display_name;
+		std::string source;
+		std::string saved_source;
+		SerializedShaderProgram program;
+		SerializedShaderProgram saved_program;
+		ShaderStageMask source_stages{ ShaderStageMask::None };
+		std::string diagnostics;
+		bool last_compile_success{ true };
+		bool read_only{ false };
+		bool open{ true };
+	};
 
-	void ImportFiles(EditorContext& ctx, const std::vector<path>& files);
-	bool MoveAssetToFolder(EditorContext& ctx, const AssetKey& key, const path& folder);
+	struct SelectionBoxState {
+		float start_x{ 0.0f };
+		float start_y{ 0.0f };
+		std::vector<AssetKey> base_selection;
+	};
 
-	[[nodiscard]] std::vector<path> ConsumeDroppedFiles();
-	void AddDroppedFile(const path& file_path);
-
+	struct PendingDeleteState {
+		std::vector<AssetKey> assets;
+		std::optional<path> directory;
+		std::vector<path> listed_files;
+	};
 
 	enum class PendingShaderSaveAction : std::uint8_t {
 		None,
@@ -71,31 +87,52 @@ private:
 		SaveAndExit,
 	};
 
-	struct ShaderEditorState {
-		ShaderKey key;
-		std::string display_name;
-		std::string source;
-		std::string saved_source;
-		std::string diagnostics;
-		bool last_compile_success{ true };
-		bool read_only{ false };
-		bool open{ true };
-	};
+	void InitializePreviewIcons(EditorContext& ctx);
+	void DrawContentBrowser(EditorContext& ctx);
+	void DrawToolbar(EditorContext& ctx);
+	void DrawFolderTree(EditorContext& ctx);
+	void DrawAssetGrid(EditorContext& ctx);
+	void DrawContentBrowserPopups(EditorContext& ctx);
+	void DrawShaderEditor(EditorContext& ctx);
+	void OpenShaderEditor(EditorContext& ctx, const impl::AssetRecord& asset);
+	void OpenShaderEditor(EditorContext& ctx, const ShaderKey& key);
+
+	void ImportFiles(EditorContext& ctx, const std::vector<path>& files);
+	bool MoveSelectedAssets(EditorContext& ctx, const path& destination_directory);
+	bool CreateDirectory(EditorContext& ctx, const path& parent_directory, std::string_view name);
+	bool RenameDirectory(EditorContext& ctx, const path& directory, std::string_view new_name);
+	bool DeleteDirectory(EditorContext& ctx, const path& directory);
+	bool DeleteAssets(EditorContext& ctx, const std::vector<AssetKey>& keys);
+	bool RenameAssetKey(EditorContext& ctx, const AssetKey& key, std::string_view new_key);
+
+	[[nodiscard]] std::vector<path> ConsumeDroppedFiles();
+	void AddDroppedFile(const path& file_path);
+
+	[[nodiscard]] bool IsAssetSelected(const AssetKey& key) const;
+	void SelectOnly(const AssetKey& key);
+	void ToggleSelection(const AssetKey& key);
+	void ClearAssetSelection();
 
 	std::vector<path> dropped_files_;
 	path selected_directory_;
+	float folder_pane_width_{ 120.0f };
 	SortMode sort_mode_{ SortMode::Name };
 	bool sort_ascending_{ true };
 	std::string search_;
 	std::string status_;
-	std::string new_folder_name_;
-	std::optional<ShaderKey> configuring_shader_;
-	std::string selected_builtin_vertex_;
-	std::string selected_builtin_fragment_;
-	std::string selected_vertex_source_;
-	std::string selected_fragment_source_;
-	bool shader_separate_mode_{ false };
 	bool show_engine_shaders_{ false };
+
+	std::vector<AssetKey> selected_assets_;
+	std::optional<SelectionBoxState> selection_box_;
+
+	std::string new_folder_name_;
+	std::optional<path> create_folder_parent_;
+	std::optional<path> rename_directory_;
+	std::string rename_directory_value_;
+	std::optional<AssetKey> rename_asset_key_;
+	std::string rename_asset_key_value_;
+	std::optional<PendingDeleteState> pending_delete_;
+
 	std::optional<ShaderEditorState> shader_editor_;
 	PendingShaderSaveAction pending_shader_save_action_{ PendingShaderSaveAction::None };
 	bool pending_shader_compile_error_confirmation_{ false };

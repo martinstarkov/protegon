@@ -5,6 +5,7 @@
 #include <algorithm>
 #include <cstdint>
 #include <format>
+#include <optional>
 #include <regex>
 #include <sstream>
 #include <string>
@@ -20,6 +21,13 @@ struct ParsedStage {
 	ShaderStageMask stage{ ShaderStageMask::None };
 	std::string source;
 };
+
+struct InterfaceVariable {
+	std::string interpolation;
+	std::string type;
+	std::string name;
+};
+
 
 std::string Trim(std::string value) {
 	const auto first{ value.find_first_not_of(" \t\r\n") };
@@ -104,6 +112,59 @@ std::vector<ParsedStage> ParseStages(std::string_view source, std::string& error
 		error = "No supported vertex or fragment shader stage was found.";
 	}
 	return stages;
+}
+
+std::vector<InterfaceVariable> ParseInterfaceVariables(
+	std::string_view source,
+	std::string_view qualifier
+) {
+	std::vector<InterfaceVariable> variables;
+	std::istringstream input{ std::string{ source } };
+	std::string line;
+	bool in_main{ false };
+	const std::regex variable{
+		R"(^\s*(?:layout\s*\([^)]*\)\s*)?((?:flat|smooth|noperspective)\s+)?(in|out)\s+([a-zA-Z_][a-zA-Z0-9_]*)\s+([a-zA-Z_][a-zA-Z0-9_]*)\s*(?:\[[^\]]+\])?\s*;\r?$)"
+	};
+	std::smatch match;
+
+	while (std::getline(input, line)) {
+		if (!in_main && line.contains("void main")) {
+			in_main = true;
+		}
+		if (in_main || !std::regex_match(line, match, variable) || match[2].str() != qualifier) {
+			continue;
+		}
+
+		auto interpolation{ Trim(match[1].str()) };
+		if (interpolation.empty()) {
+			interpolation = "smooth";
+		}
+
+		variables.push_back(InterfaceVariable{
+			.interpolation = std::move(interpolation),
+			.type = match[3].str(),
+			.name = match[4].str(),
+		});
+	}
+
+	return variables;
+}
+
+std::optional<std::string> ParsedStageSource(
+	std::string_view source,
+	ShaderStageMask requested
+) {
+	std::string error;
+	auto stages{ ParseStages(source, error) };
+	if (!error.empty()) {
+		return std::nullopt;
+	}
+	for (auto& stage : stages) {
+		if (stage.stage == requested) {
+			return std::move(stage.source);
+		}
+	}
+	return std::nullopt;
 }
 
 bool HasOption(std::string_view source, std::string_view option) {
@@ -377,5 +438,35 @@ ShaderCompileResult ValidateShaderSource(std::string_view source, std::size_t ma
 	}
 	return result;
 }
+
+int ShaderStageCompatibilityScore(
+	std::string_view vertex_source,
+	std::string_view fragment_source
+) {
+	auto vertex{ ParsedStageSource(vertex_source, ShaderStageMask::Vertex) };
+	auto fragment{ ParsedStageSource(fragment_source, ShaderStageMask::Fragment) };
+	if (!vertex.has_value() || !fragment.has_value()) {
+		return -1;
+	}
+
+	const auto outputs{ ParseInterfaceVariables(vertex.value(), "out") };
+	const auto inputs{ ParseInterfaceVariables(fragment.value(), "in") };
+	int score{ 1000 };
+
+	for (const auto& input : inputs) {
+		const auto it{ std::ranges::find_if(outputs, [&](const InterfaceVariable& output) {
+			return output.name == input.name;
+		}) };
+		if (it == outputs.end() || it->type != input.type || it->interpolation != input.interpolation) {
+			return -1;
+		}
+		score += 100;
+	}
+
+	const auto extra_outputs{ outputs.size() - std::min(outputs.size(), inputs.size()) };
+	score -= static_cast<int>(std::min<std::size_t>(extra_outputs, 999));
+	return score;
+}
+
 
 } // namespace ptgn::impl

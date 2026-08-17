@@ -36,7 +36,7 @@ std::string TypeNameWithoutNamespaces(std::string_view type) {
 
 	const auto separator{ type.rfind("::") };
 	return separator == std::string_view::npos ? std::string{ type }
-													 : std::string{ type.substr(separator + 2) };
+												 : std::string{ type.substr(separator + 2) };
 }
 
 void ValidateProject(const Project& project) {
@@ -228,15 +228,14 @@ void EnsureProjectAssetDirectories(const Project& project) {
 	const auto root{ GetProjectAssetDirectory(project) };
 	EnsureDirectory(root);
 
-	constexpr std::array<std::string_view, 8> directories{
+	constexpr std::array<std::string_view, 7> directories{
 		"Audio",
+		"Data",
 		"Fonts",
 		"Prefabs",
 		"Scenes",
 		"Shaders",
 		"Textures",
-		"UI",
-		"Data",
 	};
 
 	for (const auto directory : directories) {

@@ -157,13 +157,158 @@ bool IsWithinDirectory(const path& candidate, const path& directory) {
 		case Audio: return "Audio";
 		case Font: return "Fonts";
 		case Shader: return "Shaders";
-		case Json: return "Json";
+		case Json: return "Data";
 		case Prefab: return "Prefabs";
 		case Scene: return "Scenes";
 		case Unknown: break;
 	}
 
 	return "Other";
+}
+
+[[nodiscard]] std::optional<AssetKind> ProjectAssetKindFromFolderName(std::string_view name) {
+	for (AssetKind kind : {
+		AssetKind::Texture,
+		AssetKind::Audio,
+		AssetKind::Font,
+		AssetKind::Shader,
+		AssetKind::Json,
+		AssetKind::Prefab,
+		AssetKind::Scene,
+	}) {
+		if (ProjectAssetFolderName(kind) == name) {
+			return kind;
+		}
+	}
+	return std::nullopt;
+}
+
+[[nodiscard]] bool IsSafeAssetRelativePath(const path& value) {
+	if (value.empty() || value.is_absolute()) {
+		return false;
+	}
+	const auto normalized{ value.lexically_normal() };
+	if (normalized.empty() || normalized == ".") {
+		return false;
+	}
+	for (const auto& component : normalized) {
+		if (component == "..") {
+			return false;
+		}
+	}
+	return true;
+}
+
+[[nodiscard]] std::optional<AssetKind> AssetDirectoryKind(const path& relative_directory) {
+	if (!IsSafeAssetRelativePath(relative_directory)) {
+		return std::nullopt;
+	}
+	const auto normalized{ relative_directory.lexically_normal() };
+	const auto first{ normalized.begin() };
+	if (first == normalized.end()) {
+		return std::nullopt;
+	}
+	return ProjectAssetKindFromFolderName(first->string());
+}
+
+void EnsureProjectAssetTypeDirectories(const path& assets_root) {
+	EnsureDirectory(assets_root);
+	for (AssetKind kind : {
+		AssetKind::Texture,
+		AssetKind::Audio,
+		AssetKind::Font,
+		AssetKind::Shader,
+		AssetKind::Json,
+		AssetKind::Prefab,
+		AssetKind::Scene,
+	}) {
+		EnsureDirectory(assets_root / ProjectAssetFolderName(kind));
+	}
+}
+
+[[nodiscard]] bool IsPathInsideOrEqual(const path& candidate, const path& directory) {
+	return IsWithinDirectory(candidate.lexically_normal(), directory.lexically_normal());
+}
+
+void ReplaceShaderPathReference(
+	std::optional<std::string>& reference,
+	const path& old_relative,
+	const path& new_relative
+) {
+	if (!reference.has_value() || reference->empty() ||
+		reference.value() == kShaderSourceToken || reference->starts_with(kBuiltinShaderPrefix)) {
+		return;
+	}
+	if (path{ reference.value() }.lexically_normal() == old_relative.lexically_normal()) {
+		reference = new_relative.generic_string();
+	}
+}
+
+void ReplaceShaderDirectoryReference(
+	std::optional<std::string>& reference,
+	const path& old_directory,
+	const path& new_directory
+) {
+	if (!reference.has_value() || reference->empty() ||
+		reference.value() == kShaderSourceToken || reference->starts_with(kBuiltinShaderPrefix)) {
+		return;
+	}
+	const path current{ path{ reference.value() }.lexically_normal() };
+	if (!IsPathInsideOrEqual(current, old_directory)) {
+		return;
+	}
+	const auto tail{ current.lexically_relative(old_directory) };
+	reference = (new_directory / tail).lexically_normal().generic_string();
+}
+
+AssetKind DetectProjectAssetKind(const path& file_path) {
+	auto kind{ impl::GetAssetKind(file_path) };
+	if (kind == AssetKind::Texture && impl::IsFontAtlasPng(file_path)) {
+		kind = AssetKind::Font;
+	}
+	return kind;
+}
+
+bool SerializedAssetsEquivalent(const SerializedAsset& lhs, const SerializedAsset& rhs) {
+	if (lhs.key != rhs.key || lhs.kind != rhs.kind ||
+		lhs.source_path.lexically_normal() != rhs.source_path.lexically_normal() ||
+		lhs.shader.has_value() != rhs.shader.has_value()) {
+		return false;
+	}
+	if (!lhs.shader.has_value()) {
+		return true;
+	}
+	return lhs.shader->vertex == rhs.shader->vertex &&
+		lhs.shader->fragment == rhs.shader->fragment;
+}
+
+bool CatalogDiffersFrom(
+	std::span<const SerializedAsset> serialized,
+	std::span<const SerializedAsset> current
+) {
+	if (serialized.size() != current.size()) {
+		return true;
+	}
+	for (const auto& asset : serialized) {
+		const auto it{ std::ranges::find_if(current, [&](const SerializedAsset& candidate) {
+			return candidate.key == asset.key;
+		}) };
+		if (it == current.end() || !SerializedAssetsEquivalent(asset, *it)) {
+			return true;
+		}
+	}
+	return false;
+}
+
+path MakeUniqueDestinationPath(const path& directory, const path& source_file) {
+	path destination{ (directory / source_file.filename()).lexically_normal() };
+	for (std::size_t suffix{ 2 }; FileExists(destination); ++suffix) {
+		destination = (
+			directory /
+			(source_file.stem().string() + "_" + std::to_string(suffix) + source_file.extension().string())
+		).lexically_normal();
+	}
+	return destination;
 }
 
 std::optional<V2_int> ProbeImageDimensions(const path& file_path) {
@@ -249,11 +394,16 @@ std::optional<std::string> ResolveShaderPairStageForValidation(
 	}
 
 	const auto& path_or_name{ std::get<ShaderPathOrName>(value) };
+
 	if (IsFilePath(path_or_name)) {
-		const path file_path{ path_or_name };
+		const path file_path{
+			GetAbsolutePath(path{ path_or_name })
+		};
+
 		if (!FileExists(file_path)) {
 			return std::nullopt;
 		}
+
 		return FileToString(file_path);
 	}
 
@@ -768,6 +918,85 @@ std::span<const std::string> AssetManager::GetEngineFragmentShaderNames() const 
 	return engine_fragment_shader_names_;
 }
 
+std::optional<SerializedShaderProgram> AssetManager::SuggestShaderProgram(
+	std::string_view source
+) const {
+	const auto stages{ DetectShaderStages(source) };
+	if (stages == ShaderStageMask::None) {
+		return std::nullopt;
+	}
+
+	SerializedShaderProgram program;
+	if (HasShaderStage(stages, ShaderStageMask::Vertex)) {
+		program.vertex = std::string{ kShaderSourceToken };
+	}
+	if (HasShaderStage(stages, ShaderStageMask::Fragment)) {
+		program.fragment = std::string{ kShaderSourceToken };
+	}
+
+	auto choose_builtin = [&](ShaderStageMask missing_stage) -> std::optional<std::string> {
+		const impl::EngineShaderSource* best{ nullptr };
+		int best_score{ -1 };
+
+		for (const auto& candidate : engine_shader_sources_) {
+			if (!HasShaderStage(candidate.stages, missing_stage)) {
+				continue;
+			}
+
+			const int score{
+				missing_stage == ShaderStageMask::Vertex
+					? impl::ShaderStageCompatibilityScore(candidate.source, source)
+					: impl::ShaderStageCompatibilityScore(source, candidate.source)
+			};
+			if (score > best_score) {
+				best = &candidate;
+				best_score = score;
+			}
+		}
+
+		if (!best) {
+			return std::nullopt;
+		}
+		return std::string{ kBuiltinShaderPrefix } + best->name;
+	};
+
+	if (!program.vertex.has_value()) {
+		program.vertex = choose_builtin(ShaderStageMask::Vertex);
+	}
+	if (!program.fragment.has_value()) {
+		program.fragment = choose_builtin(ShaderStageMask::Fragment);
+	}
+	return program;
+}
+
+void AssetManager::NormalizeShaderProgramConfiguration(
+	SerializedAsset& asset,
+	std::string_view source
+) const {
+	if (asset.kind != AssetKind::Shader) {
+		return;
+	}
+
+	auto suggested{ SuggestShaderProgram(source) };
+	if (!suggested.has_value()) {
+		return;
+	}
+
+	const auto stages{ DetectShaderStages(source) };
+	SerializedShaderProgram program{ suggested.value() };
+	if (asset.shader.has_value()) {
+		if (!HasShaderStage(stages, ShaderStageMask::Vertex) &&
+			asset.shader->vertex.has_value() && !asset.shader->vertex->empty()) {
+			program.vertex = asset.shader->vertex;
+		}
+		if (!HasShaderStage(stages, ShaderStageMask::Fragment) &&
+			asset.shader->fragment.has_value() && !asset.shader->fragment->empty()) {
+			program.fragment = asset.shader->fragment;
+		}
+	}
+	asset.shader = std::move(program);
+}
+
 std::optional<std::string> AssetManager::GetShaderSource(const ShaderKey& key) const {
 	if (auto engine{ GetEngineShaderSource(key) }) {
 		return engine;
@@ -803,7 +1032,7 @@ std::optional<std::string> AssetManager::ResolveShaderStageSourceText(
 		}
 		return it->source;
 	}
-	const auto root{ project_root_.value_or(GetWorkingDirectory()) };
+	const auto root{ GetResolutionRoot() };
 	const path stage_path{ (root / path{ reference }).lexically_normal() };
 	if (!FileExists(stage_path)) {
 		return std::nullopt;
@@ -816,30 +1045,42 @@ ShaderCompileResult AssetManager::ValidateShaderSource(
 	std::string_view source
 ) const {
 	const auto catalog_it{ catalog_.find(Hash(key)) };
-	auto max_texture_slots{ impl::RendererAccessor{ renderer_ }.GetMaxTextureSlots() };
+	const auto max_texture_slots{ impl::RendererAccessor{ renderer_ }.GetMaxTextureSlots() };
 	if (catalog_it == catalog_.end()) {
 		return impl::ValidateShaderSource(source, max_texture_slots);
 	}
-	const auto& asset{ catalog_it->second };
-	const auto stages{ DetectShaderStages(source) };
-	if (!asset.shader.has_value() && stages == ShaderStageMask::VertexFragment) {
-		return impl::ValidateShaderSource(source, max_texture_slots);
+
+	if (catalog_it->second.shader.has_value()) {
+		return ValidateShaderSource(key, source, catalog_it->second.shader.value());
 	}
-	if (!asset.shader.has_value()) {
-		return impl::ValidateShaderSource(source, max_texture_slots);
+	if (auto suggested{ SuggestShaderProgram(source) }) {
+		return ValidateShaderSource(key, source, suggested.value());
 	}
-	const auto& program{ asset.shader.value() };
-	if (!program.vertex.has_value() || !program.fragment.has_value()) {
+	return impl::ValidateShaderSource(source, max_texture_slots);
+}
+
+ShaderCompileResult AssetManager::ValidateShaderSource(
+	const ShaderKey& key,
+	std::string_view source,
+	const SerializedShaderProgram& program
+) const {
+	const auto catalog_it{ catalog_.find(Hash(key)) };
+	if (catalog_it == catalog_.end()) {
+		return { false, "Shader is not in the project catalog." };
+	}
+	if (!program.vertex.has_value() || !program.fragment.has_value() ||
+		program.vertex->empty() || program.fragment->empty()) {
 		return { false, "Shader program configuration must provide both vertex and fragment stages." };
 	}
+
+	const auto max_texture_slots{ impl::RendererAccessor{ renderer_ }.GetMaxTextureSlots() };
+	const auto& asset{ catalog_it->second };
 	auto vertex{ ResolveShaderStageSourceText(program.vertex.value(), asset, source) };
 	auto fragment{ ResolveShaderStageSourceText(program.fragment.value(), asset, source) };
 	if (!vertex.has_value() || !fragment.has_value()) {
 		return { false, "One or more configured shader stage sources could not be resolved." };
 	}
-	return impl::ValidateShaderProgram(
-		vertex.value(), fragment.value(), max_texture_slots
-	);
+	return impl::ValidateShaderProgram(vertex.value(), fragment.value(), max_texture_slots);
 }
 
 bool AssetManager::SaveShaderSource(
@@ -872,7 +1113,8 @@ bool AssetManager::SaveShaderSource(
 
 std::optional<std::variant<ShaderCode, ShaderPath, ShaderPair>> AssetManager::BuildShaderProgramSource(
 	const SerializedAsset& asset,
-	std::optional<std::string_view> source_override
+	std::optional<std::string_view> source_override,
+	const std::optional<SerializedShaderProgram>& program_override
 ) const {
 	const auto source_path{ ResolveAssetPath(asset) };
 	std::string source;
@@ -883,10 +1125,11 @@ std::optional<std::variant<ShaderCode, ShaderPath, ShaderPair>> AssetManager::Bu
 	} else {
 		return std::nullopt;
 	}
-	if (!asset.shader.has_value()) {
+	const auto program_value{ program_override.has_value() ? program_override : asset.shader };
+	if (!program_value.has_value()) {
 		return std::variant<ShaderCode, ShaderPath, ShaderPair>{ ShaderCode{ source } };
 	}
-	const auto& program{ asset.shader.value() };
+	const auto& program{ program_value.value() };
 	if (program.vertex == std::optional<std::string>{ kShaderSourceToken } &&
 		program.fragment == std::optional<std::string>{ kShaderSourceToken }) {
 		return std::variant<ShaderCode, ShaderPath, ShaderPair>{ ShaderCode{ source } };
@@ -894,7 +1137,7 @@ std::optional<std::variant<ShaderCode, ShaderPath, ShaderPair>> AssetManager::Bu
 	if (!program.vertex.has_value() || !program.fragment.has_value()) {
 		return std::nullopt;
 	}
-	const auto root{ project_root_.value_or(GetWorkingDirectory()) };
+	const auto root{ GetResolutionRoot() };
 	auto resolve_stage = [&](
 		std::string_view reference, ShaderStageMask stage
 	) -> std::variant<ShaderCode, ShaderPathOrName> {
@@ -920,7 +1163,26 @@ ShaderCompileResult AssetManager::RecompileShaderSource(
 	const ShaderKey& key,
 	std::string_view source
 ) {
-	auto validation{ ValidateShaderSource(key, source) };
+	const auto catalog_it{ catalog_.find(Hash(key)) };
+	if (catalog_it == catalog_.end()) {
+		return { false, "Shader is not in the project catalog." };
+	}
+
+	if (catalog_it->second.shader.has_value()) {
+		return RecompileShaderSource(key, source, catalog_it->second.shader.value());
+	}
+	if (auto suggested{ SuggestShaderProgram(source) }) {
+		return RecompileShaderSource(key, source, suggested.value());
+	}
+	return ValidateShaderSource(key, source);
+}
+
+ShaderCompileResult AssetManager::RecompileShaderSource(
+	const ShaderKey& key,
+	std::string_view source,
+	const SerializedShaderProgram& program
+) {
+	auto validation{ ValidateShaderSource(key, source, program) };
 	if (!validation.success) {
 		return validation;
 	}
@@ -933,7 +1195,7 @@ ShaderCompileResult AssetManager::RecompileShaderSource(
 		validation.log += "\nShader is not resident; source was validated but no runtime program was replaced.";
 		return validation;
 	}
-	auto prepared{ BuildShaderProgramSource(catalog_it->second, source) };
+	auto prepared{ BuildShaderProgramSource(catalog_it->second, source, program) };
 	if (!prepared.has_value()) {
 		return { false, "Could not resolve shader program sources for reload." };
 	}
@@ -1135,7 +1397,7 @@ void AssetManager::QueueAssetLoad(
 	async_loader_->Queue(AsyncLoader::Job{
 		.asset = asset,
 		.absolute_path = ResolveAssetPath(asset),
-		.project_root = project_root_.value_or(GetWorkingDirectory()),
+		.project_root = GetResolutionRoot(),
 	});
 	state.load_state = AssetLoadState::Loading;
 }
@@ -1301,10 +1563,11 @@ void AssetManager::TrackAssetLoad(
 	runtime_states_[Hash(key)].metadata = ProbeMetadata(asset);
 }
 
-void AssetManager::RegisterCatalog(
+bool AssetManager::RegisterCatalog(
 	std::span<const SerializedAsset> assets,
 	const Project& project
 ) {
+	const std::vector<SerializedAsset> serialized_catalog{ assets.begin(), assets.end() };
 	project_load_tickets_.clear();
 	manual_load_tickets_.clear();
 	active_batches_.clear();
@@ -1330,7 +1593,7 @@ void AssetManager::RegisterCatalog(
 	project_asset_dependencies_.clear();
 	async_loader_ = std::make_unique<AsyncLoader>();
 
-	EnsureDirectory(asset_directory_.value());
+	EnsureProjectAssetTypeDirectories(asset_directory_.value());
 
 	for (const auto& source_asset : assets) {
 		PTGN_ASSERT(!source_asset.key.value.empty(), "Serialized asset key cannot be empty");
@@ -1373,6 +1636,13 @@ void AssetManager::RegisterCatalog(
 			}
 		}
 
+		if (asset.kind == AssetKind::Shader) {
+			const auto shader_path{ ResolveAssetPath(asset) };
+			if (FileExists(shader_path)) {
+				NormalizeShaderProgramConfiguration(asset, FileToString(shader_path));
+			}
+		}
+
 		catalog_.insert_or_assign(
 			Hash(asset.key),
 			asset
@@ -1383,18 +1653,67 @@ void AssetManager::RegisterCatalog(
 
 	RefreshCatalogFromDisk();
 	SetProjectAssetDependencies(project.preload_assets);
+	const auto current_catalog{ GetCatalog() };
+	return CatalogDiffersFrom(serialized_catalog, current_catalog);
 }
 
 void AssetManager::RefreshCatalogFromDisk() {
-	if (!asset_directory_.has_value() || !project_root_.has_value() ||
-		!IsDirectoryPath(asset_directory_->string())) {
+	if (!asset_directory_.has_value() || !project_root_.has_value()) {
 		return;
 	}
 
+	EnsureProjectAssetTypeDirectories(asset_directory_.value());
+
+	auto collect_files = [&]() {
+		std::vector<path> files;
+		std::error_code error;
+		for (std::filesystem::recursive_directory_iterator it{ asset_directory_.value(), error }, end;
+			 !error && it != end; it.increment(error)) {
+			std::error_code entry_error;
+			if (it->is_regular_file(entry_error) && !entry_error) {
+				files.emplace_back(it->path());
+			}
+		}
+		return files;
+	};
+
+	for (const auto& file : collect_files()) {
+		const auto kind{ DetectProjectAssetKind(file) };
+		if (kind == AssetKind::Unknown) {
+			continue;
+		}
+
+		auto normalized{ NormalizeProjectAssetFile(kind, file) };
+		if (!normalized.has_value() || normalized.value() == file.lexically_normal()) {
+			continue;
+		}
+
+		for (auto& [_, asset] : catalog_) {
+			if (ResolveAssetPath(asset).lexically_normal() != file.lexically_normal()) {
+				continue;
+			}
+
+			std::error_code relative_error;
+			const auto relative{
+				std::filesystem::relative(normalized.value(), project_root_.value(), relative_error)
+			};
+			if (!relative_error) {
+				asset.source_path = relative.lexically_normal();
+				asset.kind = kind;
+			}
+			break;
+		}
+	}
+
 	for (auto it{ catalog_.begin() }; it != catalog_.end();) {
+		auto& asset{ it->second };
 		auto& state{ runtime_states_[it->first] };
-		if (FileExists(ResolveAssetPath(it->second))) {
-			state.metadata = ProbeMetadata(it->second);
+		const auto file_path{ ResolveAssetPath(asset) };
+		if (FileExists(file_path)) {
+			if (asset.kind == AssetKind::Shader) {
+				NormalizeShaderProgramConfiguration(asset, FileToString(file_path));
+			}
+			state.metadata = ProbeMetadata(asset);
 			if (state.load_state != AssetLoadState::Failed || state.error == "Source file is missing") {
 				state.error.clear();
 				if (state.load_state == AssetLoadState::Failed) {
@@ -1417,8 +1736,8 @@ void AssetManager::RefreshCatalogFromDisk() {
 			continue;
 		}
 
-		ForceUnload(it->second.key, it->second.kind);
-		std::erase(project_asset_dependencies_, it->second.key);
+		ForceUnload(asset.key, asset.kind);
+		std::erase(project_asset_dependencies_, asset.key);
 		runtime_states_.erase(it->first);
 		it = catalog_.erase(it);
 	}
@@ -1428,37 +1747,24 @@ void AssetManager::RefreshCatalogFromDisk() {
 		catalog_paths.insert(asset.source_path.lexically_normal().generic_string());
 	}
 
-	for (const auto& entry : std::filesystem::recursive_directory_iterator(asset_directory_.value())) {
-		if (!entry.is_regular_file()) {
-			continue;
-		}
-
-		auto kind{ impl::GetAssetKind(entry.path()) };
+	for (const auto& file : collect_files()) {
+		const auto kind{ DetectProjectAssetKind(file) };
 		if (kind == AssetKind::Unknown) {
 			continue;
 		}
-		if (kind == AssetKind::Texture && impl::IsFontAtlasPng(entry.path())) {
-			kind = AssetKind::Font;
-		}
 
 		std::error_code error;
-		auto relative_to_project{
-			std::filesystem::relative(entry.path(), project_root_.value(), error)
-		};
+		const auto relative_to_project{ std::filesystem::relative(file, project_root_.value(), error) };
 		if (error) {
 			continue;
 		}
-
 		const auto normalized_path{ relative_to_project.lexically_normal().generic_string() };
 		if (catalog_paths.contains(normalized_path)) {
 			continue;
 		}
 
-		std::error_code asset_error;
-		auto relative_to_assets{
-			std::filesystem::relative(entry.path(), asset_directory_.value(), asset_error)
-		};
-		if (asset_error) {
+		const auto relative_to_assets{ std::filesystem::relative(file, asset_directory_.value(), error) };
+		if (error) {
 			continue;
 		}
 
@@ -1466,21 +1772,10 @@ void AssetManager::RefreshCatalogFromDisk() {
 		SerializedAsset asset{
 			.key = key,
 			.kind = kind,
-			.source_path = relative_to_project,
+			.source_path = relative_to_project.lexically_normal(),
 		};
-
 		if (kind == AssetKind::Shader) {
-			const auto stages{ DetectShaderStages(FileToString(entry.path())) };
-			if (stages != ShaderStageMask::VertexFragment) {
-				SerializedShaderProgram program;
-				if (HasShaderStage(stages, ShaderStageMask::Vertex)) {
-					program.vertex = std::string{ kShaderSourceToken };
-				}
-				if (HasShaderStage(stages, ShaderStageMask::Fragment)) {
-					program.fragment = std::string{ kShaderSourceToken };
-				}
-				asset.shader = std::move(program);
-			}
+			NormalizeShaderProgramConfiguration(asset, FileToString(file));
 		}
 
 		catalog_.emplace(Hash(key), asset);
@@ -1662,83 +1957,110 @@ path AssetManager::ResolvePathBackedAssetSource(
 	return source_path.lexically_normal();
 }
 
-std::optional<path>
-AssetManager::LocalizeProjectAsset(
-	const AssetKey& key,
+std::optional<path> AssetManager::NormalizeProjectAssetFile(
 	AssetKind kind,
 	const path& source_path
 ) {
-	if (project_root_ &&
-		asset_directory_) {
-		if (const auto existing{
-				catalog_.find(Hash(key))
-			};
-			existing != catalog_.end()) {
-			const path existing_path{
-				ResolveAssetPath(
-					existing->second
-				)
-			};
+	if (!asset_directory_.has_value() || kind == AssetKind::Unknown || !FileExists(source_path)) {
+		return std::nullopt;
+	}
 
-			if (FileExists(existing_path) &&
-				IsWithinDirectory(
-					existing_path,
-					asset_directory_.value()
-				)) {
-				return existing_path;
+	const path normalized_source{ source_path.lexically_normal() };
+	if (!IsWithinDirectory(normalized_source, asset_directory_.value())) {
+		return std::nullopt;
+	}
+
+	const path canonical_directory{
+		(asset_directory_.value() / ProjectAssetFolderName(kind)).lexically_normal()
+	};
+	EnsureDirectory(canonical_directory);
+
+	if (IsWithinDirectory(normalized_source, canonical_directory)) {
+		return normalized_source;
+	}
+
+	std::error_code relative_error;
+	const path relative_to_assets{
+		std::filesystem::relative(normalized_source, asset_directory_.value(), relative_error)
+	};
+
+	path destination_directory{ canonical_directory };
+	if (!relative_error && !relative_to_assets.empty()) {
+		auto component{ relative_to_assets.begin() };
+		if (component != relative_to_assets.end() &&
+			ProjectAssetKindFromFolderName(component->string()).has_value()) {
+			++component;
+			path preserved_subdirectory;
+			for (; component != relative_to_assets.end(); ++component) {
+				auto next{ component };
+				++next;
+				if (next == relative_to_assets.end()) {
+					break;
+				}
+				preserved_subdirectory /= *component;
+			}
+			if (!preserved_subdirectory.empty()) {
+				destination_directory /= preserved_subdirectory;
 			}
 		}
 	}
 
-	const path resolved_source{
-		ResolvePathBackedAssetSource(
-			source_path
-		)
-	};
-
-	if (!FileExists(resolved_source)) {
+	EnsureDirectory(destination_directory);
+	const path destination{ MakeUniqueDestinationPath(destination_directory, normalized_source) };
+	std::error_code error;
+	std::filesystem::rename(normalized_source, destination, error);
+	if (error) {
+		PTGN_WARN(
+			"Failed to move asset into its canonical project folder: ",
+			normalized_source.string(),
+			" -> ",
+			destination.string(),
+			" | ",
+			error.message()
+		);
 		return std::nullopt;
 	}
 
-	if (!project_root_ ||
-		!asset_directory_) {
+	return destination;
+}
+
+std::optional<path> AssetManager::LocalizeProjectAsset(
+	const AssetKey& key,
+	AssetKind kind,
+	const path& source_path
+) {
+	path resolved_source;
+	if (project_root_ && asset_directory_) {
+		if (const auto existing{ catalog_.find(Hash(key)) }; existing != catalog_.end()) {
+			const auto existing_path{ ResolveAssetPath(existing->second) };
+			if (FileExists(existing_path)) {
+				resolved_source = existing_path;
+			}
+		}
+	}
+
+	if (resolved_source.empty()) {
+		resolved_source = ResolvePathBackedAssetSource(source_path);
+	}
+	if (!FileExists(resolved_source)) {
+		return std::nullopt;
+	}
+	if (!project_root_ || !asset_directory_) {
 		return resolved_source;
 	}
 
-	if (IsWithinDirectory(
-			resolved_source,
-			asset_directory_.value()
-		)) {
-		return resolved_source;
+	if (IsWithinDirectory(resolved_source, asset_directory_.value())) {
+		return NormalizeProjectAssetFile(kind, resolved_source);
 	}
 
 #if defined(__EMSCRIPTEN__)
 	return resolved_source;
 #else
 	const path import_directory{
-		asset_directory_.value() /
-		ProjectAssetFolderName(kind)
+		(asset_directory_.value() / ProjectAssetFolderName(kind)).lexically_normal()
 	};
 	EnsureDirectory(import_directory);
-
-	path destination{
-		(import_directory / resolved_source.filename())
-			.lexically_normal()
-	};
-
-	for (std::size_t suffix{ 2 };
-		 FileExists(destination);
-		 ++suffix) {
-		destination = (
-			import_directory /
-			(
-				resolved_source.stem().string() +
-				"_" +
-				std::to_string(suffix) +
-				resolved_source.extension().string()
-			)
-		).lexically_normal();
-	}
+	const path destination{ MakeUniqueDestinationPath(import_directory, resolved_source) };
 
 	std::error_code error;
 	std::filesystem::copy_file(
@@ -1747,7 +2069,6 @@ AssetManager::LocalizeProjectAsset(
 		std::filesystem::copy_options::none,
 		error
 	);
-
 	if (error) {
 		PTGN_WARN(
 			"Failed to copy external asset into project: ",
@@ -1759,14 +2080,6 @@ AssetManager::LocalizeProjectAsset(
 		);
 		return std::nullopt;
 	}
-
-	PTGN_INFO(
-		"Imported external asset into project: ",
-		resolved_source.string(),
-		" -> ",
-		destination.string()
-	);
-
 	return destination;
 #endif
 }
@@ -1832,60 +2145,80 @@ AssetKey AssetManager::MakeUniqueAssetKey(const path& source_path) const {
 	return key;
 }
 
+std::optional<AssetKey> AssetManager::ImportAsset(const path& source_file) {
+	return ImportAsset(source_file, {});
+}
+
 std::optional<AssetKey> AssetManager::ImportAsset(
 	const path& source_file,
 	const path& destination_directory
 ) {
-	if (!asset_directory_.has_value() || !project_root_.has_value() || !FileExists(source_file)) {
+	if (!asset_directory_.has_value() || !project_root_.has_value()) {
 		return std::nullopt;
 	}
 
-	auto kind{ impl::GetAssetKind(source_file) };
+	const auto kind{ DetectProjectAssetKind(source_file) };
 	if (kind == AssetKind::Unknown) {
 		return std::nullopt;
 	}
-	if (kind == AssetKind::Texture && impl::IsFontAtlasPng(source_file)) {
-		kind = AssetKind::Font;
-	}
 
-	path destination_root{
-		destination_directory.is_absolute()
-			? destination_directory
-			: asset_directory_.value() / destination_directory
+	EnsureProjectAssetTypeDirectories(asset_directory_.value());
+
+	path destination;
+	const path resolved_source{
+		source_file.is_absolute()
+			? source_file.lexically_normal()
+			: ResolvePathBackedAssetSource(source_file).lexically_normal()
 	};
-	destination_root = destination_root.lexically_normal();
-	if (!IsWithinDirectory(destination_root, asset_directory_.value())) {
+	if (!FileExists(resolved_source)) {
 		return std::nullopt;
 	}
-	EnsureDirectory(destination_root);
 
-	path destination{ destination_root / source_file.filename() };
-	for (std::size_t suffix{ 2 }; FileExists(destination); ++suffix) {
-		destination = destination_root /
-			(source_file.stem().string() + "_" + std::to_string(suffix) +
-			 source_file.extension().string());
+	if (IsWithinDirectory(resolved_source, asset_directory_.value())) {
+		auto normalized{ NormalizeProjectAssetFile(kind, resolved_source) };
+		if (!normalized.has_value()) {
+			return std::nullopt;
+		}
+		destination = normalized.value();
+
+		for (const auto& [_, asset] : catalog_) {
+			if (ResolveAssetPath(asset).lexically_normal() == destination) {
+				return asset.key;
+			}
+		}
+	} else {
+		path relative_destination{ destination_directory.lexically_normal() };
+		path destination_root{
+			(asset_directory_.value() / ProjectAssetFolderName(kind)).lexically_normal()
+		};
+		if (!relative_destination.empty() && relative_destination != "." &&
+			AssetDirectoryKind(relative_destination) == kind) {
+			destination_root = (asset_directory_.value() / relative_destination).lexically_normal();
+		}
+		EnsureDirectory(destination_root);
+		destination = MakeUniqueDestinationPath(destination_root, resolved_source);
+
+		std::error_code copy_error;
+		std::filesystem::copy_file(
+			resolved_source,
+			destination,
+			std::filesystem::copy_options::none,
+			copy_error
+		);
+		if (copy_error) {
+			PTGN_WARN("Failed to import asset: ", copy_error.message());
+			return std::nullopt;
+		}
 	}
 
 	std::error_code error;
-	std::filesystem::copy_file(
-		source_file,
-		destination,
-		std::filesystem::copy_options::none,
-		error
-	);
-	if (error) {
-		PTGN_WARN("Failed to import asset: ", error.message());
-		return std::nullopt;
-	}
-
-	auto relative_to_project{
+	const auto relative_to_project{
 		std::filesystem::relative(destination, project_root_.value(), error)
 	};
 	if (error) {
 		return std::nullopt;
 	}
-
-	auto relative_to_assets{
+	const auto relative_to_assets{
 		std::filesystem::relative(destination, asset_directory_.value(), error)
 	};
 	if (error) {
@@ -1896,21 +2229,10 @@ std::optional<AssetKey> AssetManager::ImportAsset(
 	SerializedAsset asset{
 		.key = key,
 		.kind = kind,
-		.source_path = relative_to_project,
+		.source_path = relative_to_project.lexically_normal(),
 	};
-
 	if (kind == AssetKind::Shader) {
-		const auto stages{ DetectShaderStages(FileToString(destination)) };
-		if (stages != ShaderStageMask::VertexFragment) {
-			SerializedShaderProgram program;
-			if (HasShaderStage(stages, ShaderStageMask::Vertex)) {
-				program.vertex = std::string{ kShaderSourceToken };
-			}
-			if (HasShaderStage(stages, ShaderStageMask::Fragment)) {
-				program.fragment = std::string{ kShaderSourceToken };
-			}
-			asset.shader = std::move(program);
-		}
+		NormalizeShaderProgramConfiguration(asset, FileToString(destination));
 	}
 
 	catalog_.insert_or_assign(Hash(key), asset);
@@ -1924,62 +2246,223 @@ bool AssetManager::MoveAsset(const AssetKey& key, const path& destination_direct
 	}
 
 	auto catalog_it{ catalog_.find(Hash(key)) };
-	if (catalog_it == catalog_.end() || catalog_it->second.kind == AssetKind::Scene) {
+	if (catalog_it == catalog_.end()) {
 		return false;
 	}
 
 	const auto state_it{ runtime_states_.find(Hash(key)) };
 	if (state_it != runtime_states_.end() &&
-		(state_it->second.reference_count > 0 || state_it->second.globally_pinned ||
+		(state_it->second.reference_count > 0 ||
 		 state_it->second.load_state == AssetLoadState::Queued ||
 		 state_it->second.load_state == AssetLoadState::Loading ||
 		 state_it->second.load_state == AssetLoadState::Finalizing)) {
 		return false;
 	}
 
-	auto source{ ResolveAssetPath(catalog_it->second) };
+	path relative_destination{ destination_directory.lexically_normal() };
+	if (relative_destination.empty() || relative_destination == ".") {
+		relative_destination = path{ ProjectAssetFolderName(catalog_it->second.kind) };
+	}
+	if (AssetDirectoryKind(relative_destination) != catalog_it->second.kind) {
+		return false;
+	}
+
+	const path destination_directory_absolute{
+		(asset_directory_.value() / relative_destination).lexically_normal()
+	};
+	if (!IsWithinDirectory(destination_directory_absolute, asset_directory_.value())) {
+		return false;
+	}
+	EnsureDirectory(destination_directory_absolute);
+
+	const path source{ ResolveAssetPath(catalog_it->second) };
 	if (!FileExists(source)) {
 		return false;
 	}
-
-	path destination_root{
-		destination_directory.is_absolute()
-			? destination_directory
-			: asset_directory_.value() / destination_directory
-	};
-	destination_root = destination_root.lexically_normal();
-	if (!IsWithinDirectory(destination_root, asset_directory_.value())) {
-		return false;
-	}
-	EnsureDirectory(destination_root);
-
-	path destination{ destination_root / source.filename() };
-	if (source.lexically_normal() == destination.lexically_normal()) {
+	if (source.parent_path() == destination_directory_absolute) {
 		return true;
 	}
 
-	for (std::size_t suffix{ 2 }; FileExists(destination); ++suffix) {
-		destination = destination_root /
-			(source.stem().string() + "_" + std::to_string(suffix) + source.extension().string());
+	const path destination{
+		(destination_directory_absolute / source.filename()).lexically_normal()
+	};
+	if (FileExists(destination)) {
+		return false;
 	}
 
+	const path old_project_relative{ catalog_it->second.source_path.lexically_normal() };
 	std::error_code error;
 	std::filesystem::rename(source, destination, error);
 	if (error) {
 		return false;
 	}
 
-	catalog_it->second.source_path =
-		std::filesystem::relative(destination, project_root_.value(), error);
+	const path new_project_relative{
+		std::filesystem::relative(destination, project_root_.value(), error)
+	};
+	if (error) {
+		std::filesystem::rename(destination, source, error);
+		return false;
+	}
+
+	catalog_it->second.source_path = new_project_relative.lexically_normal();
+	for (auto& [_, shader_asset] : catalog_) {
+		if (!shader_asset.shader.has_value()) {
+			continue;
+		}
+		ReplaceShaderPathReference(
+			shader_asset.shader->vertex,
+			old_project_relative,
+			catalog_it->second.source_path
+		);
+		ReplaceShaderPathReference(
+			shader_asset.shader->fragment,
+			old_project_relative,
+			catalog_it->second.source_path
+		);
+	}
+	if (catalog_it->second.kind == AssetKind::Shader) {
+		NormalizeShaderProgramConfiguration(
+			catalog_it->second,
+			FileToString(destination)
+		);
+	}
+	runtime_states_[Hash(key)].metadata = ProbeMetadata(catalog_it->second);
+	return true;
+}
+
+bool AssetManager::MoveAssetDirectory(
+	const path& source_directory,
+	const path& destination_directory
+) {
+	if (!asset_directory_.has_value() || !project_root_.has_value() ||
+		!IsSafeAssetRelativePath(source_directory) ||
+		!IsSafeAssetRelativePath(destination_directory)) {
+		return false;
+	}
+
+	const path source_relative{ source_directory.lexically_normal() };
+	const path destination_relative{ destination_directory.lexically_normal() };
+	const auto source_kind{ AssetDirectoryKind(source_relative) };
+	const auto destination_kind{ AssetDirectoryKind(destination_relative) };
+	if (!source_kind.has_value() || source_kind != destination_kind ||
+		source_relative == path{ ProjectAssetFolderName(source_kind.value()) } ||
+		destination_relative == path{ ProjectAssetFolderName(source_kind.value()) }) {
+		return false;
+	}
+
+	const path source_absolute{ (asset_directory_.value() / source_relative).lexically_normal() };
+	const path destination_absolute{ (asset_directory_.value() / destination_relative).lexically_normal() };
+	if (!IsWithinDirectory(source_absolute, asset_directory_.value()) ||
+		!IsWithinDirectory(destination_absolute, asset_directory_.value())) {
+		return false;
+	}
+
+	std::error_code error;
+	if (!std::filesystem::is_directory(source_absolute, error) || error) {
+		return false;
+	}
+	error.clear();
+	if (std::filesystem::exists(destination_absolute, error) || error) {
+		return false;
+	}
+
+	error.clear();
+	const path old_project_directory{
+		std::filesystem::relative(source_absolute, project_root_.value(), error)
+	};
+	if (error) {
+		return false;
+	}
+	error.clear();
+	const path new_project_directory{
+		std::filesystem::relative(destination_absolute, project_root_.value(), error)
+	};
 	if (error) {
 		return false;
 	}
 
-	if (Has(key)) {
-		ForceUnload(key, catalog_it->second.kind);
+	EnsureDirectory(destination_absolute.parent_path());
+	error.clear();
+	std::filesystem::rename(source_absolute, destination_absolute, error);
+	if (error) {
+		return false;
 	}
-	catalog_it->second.source_path = catalog_it->second.source_path.lexically_normal();
-	runtime_states_[Hash(key)].metadata = ProbeMetadata(catalog_it->second);
+
+	for (auto& [_, asset] : catalog_) {
+		const path old_absolute{ (project_root_.value() / asset.source_path).lexically_normal() };
+		if (!IsWithinDirectory(old_absolute, source_absolute)) {
+			continue;
+		}
+		const path tail{ old_absolute.lexically_relative(source_absolute) };
+		asset.source_path = (new_project_directory / tail).lexically_normal();
+	}
+
+	for (auto& [_, shader_asset] : catalog_) {
+		if (!shader_asset.shader.has_value()) {
+			continue;
+		}
+		ReplaceShaderDirectoryReference(
+			shader_asset.shader->vertex,
+			old_project_directory,
+			new_project_directory
+		);
+		ReplaceShaderDirectoryReference(
+			shader_asset.shader->fragment,
+			old_project_directory,
+			new_project_directory
+		);
+	}
+	return true;
+}
+
+bool AssetManager::RenameAssetKey(const AssetKey& key, AssetKey new_key) {
+	if (key.value.empty() || new_key.value.empty() || key == new_key || HasCatalogAsset(new_key)) {
+		return false;
+	}
+
+	auto catalog_it{ catalog_.find(Hash(key)) };
+	if (catalog_it == catalog_.end()) {
+		return false;
+	}
+	const auto state_it{ runtime_states_.find(Hash(key)) };
+	if (state_it != runtime_states_.end() &&
+		(state_it->second.reference_count > 0 || state_it->second.globally_pinned ||
+		 state_it->second.manually_pinned || state_it->second.load_state == AssetLoadState::Queued ||
+		 state_it->second.load_state == AssetLoadState::Loading ||
+		 state_it->second.load_state == AssetLoadState::Finalizing ||
+		 state_it->second.load_state == AssetLoadState::Loaded)) {
+		return false;
+	}
+
+	SerializedAsset asset{ catalog_it->second };
+	RuntimeAssetState state{};
+	if (state_it != runtime_states_.end()) {
+		state = state_it->second;
+	}
+	catalog_.erase(catalog_it);
+	runtime_states_.erase(Hash(key));
+	asset.key = new_key;
+	catalog_.insert_or_assign(Hash(new_key), std::move(asset));
+	runtime_states_.insert_or_assign(Hash(new_key), std::move(state));
+
+	for (auto& dependency : project_asset_dependencies_) {
+		if (dependency == key) {
+			dependency = new_key;
+		}
+	}
+	return true;
+}
+
+bool AssetManager::RestoreCatalogAsset(const SerializedAsset& asset) {
+	if (asset.key.value.empty() || asset.kind == AssetKind::Unknown || asset.source_path.empty() ||
+		HasCatalogAsset(asset.key) || !FileExists(ResolveAssetPath(asset))) {
+		return false;
+	}
+	catalog_.insert_or_assign(Hash(asset.key), asset);
+	auto& state{ runtime_states_[Hash(asset.key)] };
+	state = RuntimeAssetState{};
+	state.metadata = ProbeMetadata(asset);
 	return true;
 }
 
@@ -1992,7 +2475,7 @@ bool AssetManager::DeleteAsset(const AssetKey& key, bool delete_file) {
 	auto state_it{ runtime_states_.find(Hash(key)) };
 	if (state_it != runtime_states_.end()) {
 		const auto& state{ state_it->second };
-		if (state.reference_count > 0 || state.globally_pinned ||
+		if (state.reference_count > 0 || state.globally_pinned || state.manually_pinned ||
 			state.load_state == AssetLoadState::Queued ||
 			state.load_state == AssetLoadState::Loading ||
 			state.load_state == AssetLoadState::Finalizing) {
@@ -2029,13 +2512,13 @@ bool AssetManager::ConfigureShaderProgram(
 		catalog_it->second.shader.reset();
 		return true;
 	}
-	if (!vertex_source.has_value() || !fragment_source.has_value() ||
-		vertex_source->empty() || fragment_source->empty()) {
+	if ((vertex_source.has_value() && vertex_source->empty()) ||
+		(fragment_source.has_value() && fragment_source->empty())) {
 		return false;
 	}
 	SerializedShaderProgram program;
-	program.vertex = std::move(vertex_source.value());
-	program.fragment = std::move(fragment_source.value());
+	program.vertex = std::move(vertex_source);
+	program.fragment = std::move(fragment_source);
 	catalog_it->second.shader = std::move(program);
 	return true;
 }
@@ -2049,32 +2532,36 @@ std::optional<path> AssetManager::GetAssetDirectory() const {
 }
 
 void AssetManager::Load(const SerializedAsset& asset) {
-	const auto source_path{ ResolveAssetPath(asset) };
+	const auto catalog_it{ catalog_.find(Hash(asset.key)) };
+	const SerializedAsset& load_asset{
+		catalog_it != catalog_.end() ? catalog_it->second : asset
+	};
+	const auto source_path{ ResolveAssetPath(load_asset) };
 
-	TrackAssetDependency(asset.key);
+	TrackAssetDependency(load_asset.key);
 
-	if (asset.kind == AssetKind::Scene) {
-		runtime_states_[Hash(asset.key)].load_state = AssetLoadState::Loaded;
+	if (load_asset.kind == AssetKind::Scene) {
+		runtime_states_[Hash(load_asset.key)].load_state = AssetLoadState::Loaded;
 		return;
 	}
 
-	if (asset.kind != AssetKind::Shader) {
-		Load(asset.key, source_path, asset.kind);
+	if (load_asset.kind != AssetKind::Shader) {
+		Load(load_asset.key, source_path, load_asset.kind);
 		return;
 	}
 	
 	const auto source{ FileToString(source_path) };
-	auto validation{ ValidateShaderSource(ShaderKey{ asset.key }, source) };
-	auto& shader_state{ runtime_states_[Hash(asset.key)] };
+	auto validation{ ValidateShaderSource(ShaderKey{ load_asset.key }, source) };
+	auto& shader_state{ runtime_states_[Hash(load_asset.key)] };
 	shader_state.compile_error = !validation.success;
 	shader_state.compile_log = validation.log;
 	if (!validation.success) {
 		shader_state.load_state = AssetLoadState::Failed;
 		shader_state.error = validation.log;
-		PTGN_WARN("Shader failed to compile and was not loaded: ", asset.key);
+		PTGN_WARN("Shader failed to compile and was not loaded: ", load_asset.key);
 		return;
 	}
-	if (!asset.shader.has_value()) {
+	if (!load_asset.shader.has_value()) {
 		if (!HasVertexAndFragmentShader(source)) {
 			PTGN_WARN(
 				"Shader requires both stages or a configured engine stage: ",
@@ -2083,29 +2570,29 @@ void AssetManager::Load(const SerializedAsset& asset) {
 			return;
 		}
 
-		LoadShader(ShaderKey{ asset.key }, ShaderCode{ source }, asset.key.value);
+		LoadShader(ShaderKey{ load_asset.key }, ShaderCode{ source }, load_asset.key.value);
 		return;
 	}
 
-	const auto& program{ asset.shader.value() };
+	const auto& program{ load_asset.shader.value() };
 	if (program.vertex == std::optional<std::string>{ kShaderSourceToken } &&
 		program.fragment == std::optional<std::string>{ kShaderSourceToken } &&
 		HasVertexAndFragmentShader(source)) {
-		LoadShader(ShaderKey{ asset.key }, ShaderCode{ source }, asset.key.value);
+		LoadShader(ShaderKey{ load_asset.key }, ShaderCode{ source }, load_asset.key.value);
 		return;
 	}
 
 	if (!program.vertex.has_value() || !program.fragment.has_value()) {
 		PTGN_WARN(
 			"Shader program requires both vertex and fragment stages: ",
-			asset.key
+			load_asset.key
 		);
 		return;
 	}
 
-	const auto root{ project_root_.value_or(GetWorkingDirectory()) };
+	const auto root{ GetResolutionRoot() };
 	LoadShader(
-		ShaderKey{ asset.key },
+		ShaderKey{ load_asset.key },
 		ShaderPair{
 			.vertex = ResolveSerializedShaderStage(
 				program.vertex.value(), source_path, root, ShaderStageMask::Vertex
@@ -2114,7 +2601,7 @@ void AssetManager::Load(const SerializedAsset& asset) {
 				program.fragment.value(), source_path, root, ShaderStageMask::Fragment
 			),
 		},
-		asset.key.value
+		load_asset.key.value
 	);
 }
 
@@ -3191,6 +3678,14 @@ std::vector<AssetKey> AssetManager::ExpandDependencies(
 		values.emplace_back(key.value);
 	}
 	return DiscoverDependencies(values, dependencies);
+}
+
+path AssetManager::GetResolutionRoot() const {
+	if (project_root_) {
+		return project_root_->lexically_normal();
+	}
+
+	return GetAssetRoot();
 }
 
 template bool AssetManager::Unload<json>(const AssetKey&);

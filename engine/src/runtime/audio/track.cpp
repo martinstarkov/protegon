@@ -51,17 +51,23 @@ Track::Track(
 
 	ma_uint32 flags = MA_SOUND_FLAG_NO_SPATIALIZATION;
 
+	const path absolute_path{
+		GetAbsolutePath(audio_path)
+	};
+
 	PTGN_ASSERT(
-		FileExists(audio_path), "Cannot create audio from invalid path: ", audio_path.string()
+		FileExists(absolute_path),
+		"Cannot create audio from invalid path: ",
+		absolute_path.string()
 	);
 
-	auto abs_path{ GetAbsolutePath(audio_path) };
-
-	const auto file_path{ abs_path.string() };
+	const auto file_path{
+		absolute_path.string()
+	};
 
 	ma_result result = MA_ERROR;
 
-	if (IsOggFile(abs_path)) {
+	if (IsOggFile(absolute_path)) {
 		vorbis_ = std::make_unique<OggDecoder>();
 
 		PTGN_ASSERT(vorbis_);

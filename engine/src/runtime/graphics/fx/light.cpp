@@ -531,8 +531,6 @@ void Light::Draw(DrawContext& ctx, Entity entity) {
 		return;
 	}
 
-	SetRotation(entity, light.direction_angle);
-
 	auto draw_transform{ GetDrawTransform(entity) };
 	auto size{ Circle{ light.radius }.GetSize() };
 	auto blend_mode{ GetBlendMode(entity) };
@@ -616,8 +614,9 @@ Light& Light::ConeAngle(std::optional<Degrees> cone_angle) {
 }
 
 Light& Light::Config(LightData config) {
+	const Degrees direction_angle{ config.direction_angle };
 	Add<LightData>(std::move(config));
-	SetRotation(*this, config.direction_angle);
+	SetRotation(*this, direction_angle);
 	return *this;
 }
 
@@ -632,8 +631,9 @@ Light CreateLight(Scene& scene, Transform transform, LightData config) {
 	light.Add<Tag>("Light");
 	light.Add<Transform>(transform);
 	light.Add<Visible>(true);
+	const Degrees direction_angle{ config.direction_angle };
 	light.Add<LightData>(std::move(config));
-	SetRotation(light, config.direction_angle);
+	SetRotation(light, direction_angle);
 
 	// Blend mode with which the lights are added to the scene.
 	light.Add<BlendMode>(BlendMode::PremultipliedAddRGBA);

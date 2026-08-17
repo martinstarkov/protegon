@@ -711,11 +711,16 @@ ShaderInfo Shaders::GetShaderInfo(
 	const ShaderPathOrName& path_or_name, ShaderType type, std::string_view shader_name // NOSONAR
 ) const {
 	if (IsFilePath(path_or_name)) {
+		const path file_path{
+			GetAbsolutePath(path{ path_or_name })
+		};
+
 		PTGN_ASSERT(
-			FileExists(path_or_name),
-			"Cannot create shader from non-existent file path: ", path_or_name
+			FileExists(file_path),
+			"Cannot create shader from non-existent file path: ", file_path.string()
 		);
-		return { CompileShaderPath(path_or_name, type, shader_name), true };
+
+		return { CompileShaderPath(file_path, type, shader_name), true };
 	}
 
 	PTGN_ASSERT(

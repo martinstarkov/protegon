@@ -1428,7 +1428,21 @@ bool DrawAssetKeyInline(
 	const bool input_hovered{ ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled) };
 
 	if (!read_only) {
-		changed |= ptgn::editor::AcceptAssetKeyDragDrop(value);
+		using Value = std::remove_cvref_t<T>;
+
+		if constexpr (
+			!std::same_as<Value, AssetKey> &&
+			requires { Value::kind; }
+		) {
+			changed |= ptgn::editor::AcceptAssetKeyDragDrop(
+				static_cast<AssetKey&>(value),
+				Value::kind
+			);
+		} else {
+			changed |= ptgn::editor::AcceptAssetKeyDragDrop(
+				static_cast<AssetKey&>(value)
+			);
+		}
 	}
 
 	if (IsValidAssetKey(ctx, value)) {

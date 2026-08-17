@@ -354,7 +354,8 @@ public:
 	void LoadProjectAsset(AssetKey key, const path& asset_path);
 
 	/// @brief Replaces the known project catalog without loading every entry.
-	void RegisterCatalog(std::span<const SerializedAsset> assets, const Project& project);
+	/// @return True when normalization/discovery changed the serialized catalog.
+	bool RegisterCatalog(std::span<const SerializedAsset> assets, const Project& project);
 
 	/// @brief Adds supported files found under the project Assets directory to the catalog.
 	void RefreshCatalogFromDisk();
@@ -373,22 +374,37 @@ public:
 	[[nodiscard]] const std::vector<AssetKey>& GetProjectAssetDependencies() const;
 	[[nodiscard]] bool HasCatalogAsset(const AssetKey& key) const;
 
-	/// @brief Copies a foreign file into the selected project Assets subdirectory and catalogs it.
+	/// @brief Copies a foreign file into the project folder owned by its detected asset kind.
+	[[nodiscard]] std::optional<AssetKey> ImportAsset(const path& source_file);
+
+	/// @brief Imports into destination_directory only when it belongs to the detected asset kind.
+	/// Otherwise the asset is imported into that kind's base directory.
 	[[nodiscard]] std::optional<AssetKey> ImportAsset(
 		const path& source_file,
 		const path& destination_directory
 	);
 
-	/// @brief Moves an imported file to another project Assets subdirectory without changing its key.
-	bool MoveAsset(const AssetKey& key, const path& destination_directory);
+	/// @brief Moves an asset into a base or user subdirectory belonging to the same asset kind.
+	/// destination_directory is relative to Assets. The asset key is unchanged.
+	bool MoveAsset(const AssetKey& key, const path& destination_directory = {});
+
+	/// @brief Renames a user-created asset directory and preserves catalog keys/paths. Both paths are
+	/// relative to Assets and must remain inside the same protected type directory.
+	bool MoveAssetDirectory(const path& source_directory, const path& destination_directory);
+
+	/// @brief Renames an unloaded, unreferenced catalog key without moving its source file.
+	bool RenameAssetKey(const AssetKey& key, AssetKey new_key);
+
+	/// @brief Restores an exact catalog entry after its source file has been restored.
+	bool RestoreCatalogAsset(const SerializedAsset& asset);
 
 	/// @brief Removes a catalog entry and optionally deletes its project file.
 	bool DeleteAsset(const AssetKey& key, bool delete_file = true);
 
 	/// @brief Sets the vertex/fragment source descriptors for a shader program.
 	/// $source selects this shader file, $builtin:<name> selects an embedded engine stage, and a
-	/// project-relative path selects another GLSL file. Passing nullopt for both returns to combined
-	/// source mode and requires this file to contain both stages.
+	/// project-relative path selects another GLSL file. A missing stage is retained as unconfigured;
+	/// passing nullopt for both clears the explicit program configuration.
 	bool ConfigureShaderProgram(
 		const ShaderKey& key,
 		std::optional<std::string> vertex_source,
@@ -399,9 +415,17 @@ public:
 	[[nodiscard]] std::optional<std::string> GetEngineShaderSource(const AssetKey& key) const;
 	[[nodiscard]] std::span<const std::string> GetEngineVertexShaderNames() const;
 	[[nodiscard]] std::span<const std::string> GetEngineFragmentShaderNames() const;
+	[[nodiscard]] std::optional<SerializedShaderProgram> SuggestShaderProgram(
+		std::string_view source
+	) const;
 	[[nodiscard]] ShaderCompileResult ValidateShaderSource(
 		const ShaderKey& key,
 		std::string_view source
+	) const;
+	[[nodiscard]] ShaderCompileResult ValidateShaderSource(
+		const ShaderKey& key,
+		std::string_view source,
+		const SerializedShaderProgram& program
 	) const;
 	[[nodiscard]] bool SaveShaderSource(
 		const ShaderKey& key,
@@ -411,6 +435,11 @@ public:
 	[[nodiscard]] ShaderCompileResult RecompileShaderSource(
 		const ShaderKey& key,
 		std::string_view source
+	);
+	[[nodiscard]] ShaderCompileResult RecompileShaderSource(
+		const ShaderKey& key,
+		std::string_view source,
+		const SerializedShaderProgram& program
 	);
 	[[nodiscard]] std::optional<std::string> GetShaderSource(const ShaderKey& key) const;
 
@@ -583,6 +612,11 @@ private:
 		AssetKind kind,
 		const path& source_path
 	);
+	[[nodiscard]] std::optional<path> NormalizeProjectAssetFile(
+		AssetKind kind,
+		const path& source_path
+	);
+	void NormalizeShaderProgramConfiguration(SerializedAsset& asset, std::string_view source) const;
 	[[nodiscard]] AssetKey MakeUniqueAssetKey(const path& source_path) const;
 	[[nodiscard]] impl::AssetMetadata ProbeMetadata(const SerializedAsset& asset) const;
 	[[nodiscard]] std::vector<AssetKey> ExpandDependencies(
@@ -598,8 +632,11 @@ private:
 	) const;
 	[[nodiscard]] std::optional<std::variant<ShaderCode, ShaderPath, ShaderPair>> BuildShaderProgramSource(
 		const SerializedAsset& asset,
-		std::optional<std::string_view> source_override = std::nullopt
+		std::optional<std::string_view> source_override = std::nullopt,
+		const std::optional<SerializedShaderProgram>& program_override = std::nullopt
 	) const;
+
+	path GetResolutionRoot() const;
 
 	Renderer& renderer_;
 	AudioSystem* audio_{ nullptr };

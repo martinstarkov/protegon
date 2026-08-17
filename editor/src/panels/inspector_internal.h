@@ -67,6 +67,7 @@ bool DrawRenderTargetDesc(
 );
 
 bool DrawLayerMaskValue(std::string_view label, LayerMask& value);
+bool DrawLayerMaskValue(std::string_view label, LayerMask& value, bool& ui_layer);
 
 void MarkTextLayoutDirty(Entity entity);
 void MarkButtonTextDirty(Entity entity);

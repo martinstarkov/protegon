@@ -36,6 +36,7 @@
 #include "core/util/hash.h"
 #include "core/util/time.h"
 #include "platform/window.h"
+#include "platform/executable.h"
 #include "renderer/draw_context.h"
 #include "renderer/renderer.h"
 #include "renderer/resources/texture_format.h"
@@ -110,18 +111,17 @@ void LoadProjectPreloads(Application& app) {
 [[nodiscard]] path ResolveStartupProjectPath(
 	const path& project_path
 ) {
-	if (project_path.empty() || project_path.is_absolute()) {
+	if (
+		project_path.empty() ||
+		project_path.is_absolute()
+	) {
 		return project_path.lexically_normal();
 	}
 
-	const auto& build_info{ impl::GetBuildInfo() };
-	if (build_info.distribution || build_info.web) {
-		return (
-			build_info.runtime_root / project_path
-		).lexically_normal();
-	}
-
-	return project_path.lexically_normal();
+	return (
+		impl::GetExecutableDirectory() /
+		project_path
+	).lexically_normal();
 }
 
 } // namespace
@@ -219,7 +219,12 @@ void Application::StartProjectImpl(
 		LoadProjectLocalState(loaded_project)
 	);
 
-	ctx_.assets.RegisterCatalog(loaded_project.assets, loaded_project);
+	if (ctx_.assets.RegisterCatalog(loaded_project.assets, loaded_project)) {
+		loaded_project.assets = ctx_.assets.GetCatalog();
+#if !defined(__EMSCRIPTEN__)
+		SaveProject(loaded_project);
+#endif
+	}
 	LoadProjectPreloads(*this);
 
 	if (ctx_.start_project_runtime) {
