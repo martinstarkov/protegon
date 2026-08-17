@@ -55,6 +55,10 @@ public:
 		return delta.ToDeg();
 	}
 
+	constexpr float GetRadius() const {
+		return radius;
+	}
+
 	/// @return Radius scaled relative to the transform.
 	constexpr float GetRadius(Transform transform) const {
 		auto avg_scale{ transform.GetAverageScale() };

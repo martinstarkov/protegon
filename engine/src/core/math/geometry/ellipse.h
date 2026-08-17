@@ -22,6 +22,10 @@ public:
 	template <Arithmetic T>
 	constexpr explicit Ellipse(Vector2<T> radius) : radius{ radius } {}
 
+	constexpr V2_float GetRadius() const {
+		return radius;
+	}
+
 	/// @return Radius scaled relative to the transform.
 	constexpr V2_float GetRadius(Transform transform) const {
 		auto abs_scale{ Abs(transform.scale) };

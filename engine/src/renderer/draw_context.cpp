@@ -40,8 +40,10 @@ namespace ptgn {
 
 namespace {
 
-impl::CommonShapeParams ConvertToCommonShapeParams(Color color, const ShapeDrawParams& params) {
-	return { .transform{},
+impl::CommonShapeParams ConvertToCommonShapeParams(
+	Transform transform, Color color, const ShapeDrawParams& params
+) {
+	return { .transform{ transform },
 			 .fill_style{ params.fill_style },
 			 .origin = params.origin,
 			 .color{ color },
@@ -55,17 +57,19 @@ void DrawShapeImpl(
 	const ShapeDrawParams& params
 ) {
 	impl::VisitPrimitives(
-		shape, ConvertToCommonShapeParams(color, params),
-		[&renderer, transform, &params](auto& primitives) {
+		shape, ConvertToCommonShapeParams(transform, color, params),
+		[&renderer, &params](auto& primitives) {
 			if (primitives.empty()) {
 				return;
 			}
 
 			using TPrimitive = std::remove_reference_t<decltype(primitives[0])>;
 
-			impl::DrawRequest<TPrimitive> request{ .transform	  = transform,
-												   .primitives	  = primitives,
-												   .effect_params = params.effects };
+			impl::DrawRequest<TPrimitive> request{
+				.transform      = {},
+				.primitives     = primitives,
+				.effect_params = params.effects,
+			};
 
 			impl::RendererAccessor{ renderer }.Draw(request);
 		}
@@ -253,12 +257,13 @@ void DrawContext::DrawLines(
 	std::span<const V2_float> points, Color color, const ShapeDrawParams& params, bool closed,
 	std::optional<Transform> transform
 ) {
-	auto primitives{
-		impl::GetHollowPrimitives(points, closed, ConvertToCommonShapeParams(color, params))
-	};
+	auto draw_transform{ transform.value_or(Transform{}) };
+	auto primitives{ impl::GetHollowPrimitives(
+		points, closed, ConvertToCommonShapeParams(draw_transform, color, params)
+	) };
 
 	impl::DrawRequest<impl::ColorQuad> request{
-		.transform	= transform.value_or(Transform{}),
+		.transform  = {},
 		.primitives = primitives,
 	};
 

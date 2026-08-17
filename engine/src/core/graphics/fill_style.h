@@ -31,7 +31,7 @@ struct Hollow {
 		PTGN_ASSERT(line_width >= kMinLineWidth, "Line width must be at least ", kMinLineWidth);
 	}
 
-	float line_width{ kMinLineWidth }; // must be positive and >= kMinLineWidth
+	float line_width{ kMinLineWidth };
 
 	PTGN_REFLECT_VALUE(Hollow, line_width)
 };
@@ -56,8 +56,6 @@ public:
 		return std::holds_alternative<Solid>(style_);
 	}
 
-	/// @brief GetLineWidth() returns the line width if this FillStyle is hollow,
-	/// and std::nullopt otherwise.
 	[[nodiscard]] constexpr std::optional<float> GetLineWidth() const {
 		if (const auto* hollow{ std::get_if<Hollow>(&style_) }) {
 			return hollow->line_width;
@@ -104,21 +102,17 @@ public:
 		}
 	}
 
-	/// @brief Converts a fill style to an SDF line thickness for shaders to draw hollow and solid
-	/// shapes.
-	[[nodiscard]] constexpr float NormalizedToSDFThickness(float fade, V2_float radii) const {
-		return Visit([fade, radii]<typename T>(const T& style) {
+	[[nodiscard]] constexpr float NormalizedToSDFThickness(V2_float radii) const {
+		return Visit([radii]<typename T>(const T& style) {
 			if constexpr (std::is_same_v<T, Solid>) {
-				// Internally line width for a filled SDF is 1.0f.
 				return 1.0f;
 			} else if constexpr (std::is_same_v<T, Hollow>) {
-				PTGN_ASSERT(
-					style.line_width >= kMinLineWidth,
-					"Invalid line width for circle"
-				);
+				PTGN_ASSERT(style.line_width >= kMinLineWidth);
 
-				// Internally line width for a completely hollow ellipse is 0.0f.
-				return fade + style.line_width / std::min(radii.x, radii.y);
+				float radius{ std::min(radii.x, radii.y) };
+				PTGN_ASSERT(radius > 0.0f, "SDF radius must be positive");
+
+				return style.line_width / radius;
 			} else {
 				static_assert(false, "Incomplete visitor");
 			}
@@ -137,7 +131,7 @@ inline void to_json(json& value, const FillStyle& fill_style) {
 		if constexpr (std::is_same_v<T, Solid>) {
 			value["type"] = "Solid";
 		} else if constexpr (std::is_same_v<T, Hollow>) {
-			value["type"]		 = "Hollow";
+			value["type"]       = "Hollow";
 			value["line_width"] = style.line_width;
 		} else {
 			static_assert(false, "Incomplete visitor");

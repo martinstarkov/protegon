@@ -4819,26 +4819,27 @@ float GetEllipseLineWidthLimit(const T& value) {
 }
 
 template <typename T>
-float GetShapeLineWidthLimit(const T& value) {
+float GetShapeLineWidthLimit(const T& value, const Transform& transform) {
 	using Value = std::remove_cvref_t<T>;
 
 	float limit{ 1000.0f };
 
 	if constexpr (std::same_as<Value, Rect>) {
-		const V2_float size{ value.GetSize() };
-		limit = std::min(std::abs(size.x), std::abs(size.y)) * 0.5f;
+		const V2_float size{ value.GetSize(transform) };
+		limit = std::min(size.x, size.y) * 0.5f;
 	} else if constexpr (std::same_as<Value, RoundedRect>) {
-		const V2_float size{ value.rect.GetSize() };
-		const float half_min_size{ std::min(std::abs(size.x), std::abs(size.y)) * 0.5f };
-		limit = std::max(half_min_size, std::abs(value.radius));
+		const V2_float size{ value.rect.GetSize(transform) };
+		const float half_min_size{ std::min(size.x, size.y) * 0.5f };
+		limit = half_min_size;
 	} else if constexpr (std::same_as<Value, Ellipse>) {
-		limit = GetEllipseLineWidthLimit(value);
+		const V2_float radius{ value.GetRadius(transform) };
+		limit = std::min(radius.x, radius.y);
 	} else if constexpr (
 		std::same_as<Value, Circle> ||
 		std::same_as<Value, Capsule> ||
 		std::same_as<Value, Arc>
 	) {
-		limit = GetShapeRadiusLimit(value);
+		limit = value.GetRadius(transform);
 	}
 
 	return std::max(
@@ -4847,34 +4848,84 @@ float GetShapeLineWidthLimit(const T& value) {
 	);
 }
 
+template <typename Target>
+Transform GetShapeLineWidthTransform(const Target& target) {
+	if constexpr (requires { target.entity; }) {
+		Entity entity{ target.entity };
+
+		if (entity && entity.Has<Transform>()) {
+			return GetDrawTransform(entity);
+		}
+	}
+
+	if constexpr (Target::template Supports<Transform>()) {
+		return target.template Capture<Transform>().value_or(Transform{});
+	}
+
+	return {};
+}
+
 template <typename Target, typename Shape>
 bool DrawShapeFillStyle(Target& target) {
-	if constexpr (
-		!Target::template Supports<FillStyle>()
-	) {
+	if constexpr (!Target::template Supports<FillStyle>()) {
 		return false;
 	} else {
 		const Shape shape{
-			target.template Capture<Shape>()
-				.value_or(Shape{})
+			target.template Capture<Shape>().value_or(Shape{})
 		};
-		const float line_width_limit{
-			GetShapeLineWidthLimit(
-				shape
-			)
+		const Transform transform{ GetShapeLineWidthTransform(target) };
+
+		const float unscaled_line_width_limit{
+			GetShapeLineWidthLimit(shape, Transform{})
+		};
+		const float scaled_line_width_limit{
+			GetShapeLineWidthLimit(shape, transform)
+		};
+		const float line_width_scale{
+			scaled_line_width_limit / unscaled_line_width_limit
 		};
 
 		return DrawOptionalComponent<Target, FillStyle>(
 			target,
 			"Style",
 			false,
-			[&target, line_width_limit](FillStyle& style) {
-				return DrawFillStyle(
-					target.ctx,
-					"Style",
-					style,
-					line_width_limit
-				);
+			[&target,
+			 unscaled_line_width_limit,
+			 scaled_line_width_limit,
+			 line_width_scale](FillStyle& style) {
+				FillStyle displayed_style{ style };
+
+				if (const auto stored_line_width{ style.GetLineWidth() }) {
+					displayed_style = FillStyle{
+						std::max(
+							kInspectorMinLineWidth,
+							stored_line_width.value() / line_width_scale
+						)
+					};
+				}
+
+				if (!DrawFillStyle(
+						target.ctx,
+						"Style",
+						displayed_style,
+						unscaled_line_width_limit
+					)) {
+					return false;
+				}
+
+				if (const auto displayed_line_width{ displayed_style.GetLineWidth() }) {
+					style = FillStyle{
+						std::clamp(
+							displayed_line_width.value() * line_width_scale,
+							kInspectorMinLineWidth,
+							scaled_line_width_limit
+						)
+					};
+				} else {
+					style = FillStyle{ Solid{} };
+				}
+
+				return true;
 			}
 		);
 	}

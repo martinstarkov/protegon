@@ -53,7 +53,7 @@ void main() {
     float distance = ArcDistance(v_LocalCoord);
 
     float alpha = smoothstep(0.0, fade, distance);
-    alpha *= smoothstep(thickness + fade, thickness, distance);
+    alpha *= 1.0 - smoothstep(thickness, thickness + fade, distance);
 
     if (alpha <= 0.0) {
         discard;

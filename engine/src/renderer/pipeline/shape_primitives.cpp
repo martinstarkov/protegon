@@ -80,14 +80,11 @@ std::array<V2_float, 4> GetAspectScaledTexCoords(float aspect_ratio) {
 	return tex_coords;
 }
 
-float GetFade(float diameter_y) {
-	diameter_y = std::max(kEpsilon<float>, diameter_y);
-	constexpr float fade_scaling_constant{ 0.12f };
-	return fade_scaling_constant / diameter_y;
-}
+inline constexpr float kSDFWorldFade{ 0.06f };
 
-float GetFade(V2_float diameter) {
-	return GetFade(diameter.y);
+float GetNormalizedFade(float distance_scale) {
+	distance_scale = std::max(kEpsilon<float>, distance_scale);
+	return kSDFWorldFade / distance_scale;
 }
 
 float GetAspectRatio(V2_float size) {
@@ -101,18 +98,23 @@ float GetNormalizedRadius(float diameter, float size_x) {
 	return Clamp01(normalized_radius);
 }
 
+float ClampLineWidth(float line_width, float max_line_width) {
+	max_line_width = std::max(0.0f, max_line_width);
+	return std::min(line_width, max_line_width);
+}
+
 SDFRoundData GetSDFRoundData(float radius, V2_float size, FillStyle fill_style) {
 	float diameter{ 2.0f * radius };
-	float fade{ GetFade(diameter) };
+	float fade{ GetNormalizedFade(radius) };
 	float normalized_radius{ GetNormalizedRadius(diameter, size.x) };
 	float aspect_ratio{ GetAspectRatio(size) };
-	float thickness{ fill_style.NormalizedToSDFThickness(fade, V2_float{ radius }) };
+	float thickness{ fill_style.NormalizedToSDFThickness(V2_float{ radius }) };
 
-	return SDFRoundData{ .diameter			= diameter,
-						 .fade				= fade,
+	return SDFRoundData{ .diameter            = diameter,
+						 .fade                = fade,
 						 .normalized_radius = normalized_radius,
-						 .aspect_ratio		= aspect_ratio,
-						 .thickness			= thickness };
+						 .aspect_ratio       = aspect_ratio,
+						 .thickness          = thickness };
 }
 
 } // namespace
@@ -138,12 +140,21 @@ std::optional<RenderQuadArray<ShapeVertex>> GetSolidPrimitives(
 	}
 
 	auto vertices{ rounded_rect.rect.GetWorldVertices(params.transform, params.origin) };
-	auto sdf{ GetSDFRoundData(radius, size, params.fill_style) };
 
-	std::array<float, 4> data{ sdf.thickness * sdf.aspect_ratio, sdf.fade,
-							   sdf.normalized_radius * sdf.aspect_ratio, sdf.aspect_ratio };
+	float half_width{ std::max(kEpsilon<float>, size.x * 0.5f) };
+	float fade{ GetNormalizedFade(half_width) };
+	float normalized_radius{ GetNormalizedRadius(2.0f * radius, size.x) };
+	float aspect_ratio{ GetAspectRatio(size) };
 
-	auto local_coords{ GetAspectScaledTexCoords(sdf.aspect_ratio) };
+	float thickness{ 1.0f };
+	if (auto line_width{ params.fill_style.GetLineWidth() }) {
+		float max_line_width{ std::max(std::min(size.x, size.y) * 0.5f, radius) };
+		float clamped_line_width{ ClampLineWidth(line_width.value(), max_line_width) };
+		thickness = clamped_line_width / half_width;
+	}
+
+	std::array<float, 4> data{ thickness, fade, normalized_radius, aspect_ratio };
+	auto local_coords{ GetAspectScaledTexCoords(aspect_ratio) };
 
 	return CreateShapeQuadPrimitive(vertices, local_coords, data, params);
 }
@@ -222,14 +233,22 @@ std::optional<RenderQuadArray<ShapeVertex>> GetSolidPrimitives(
 		return std::nullopt;
 	}
 
-	V2_float diameter{ 2.0f * radius };
-	float fade{ GetFade(diameter) };
-	float thickness{ params.fill_style.NormalizedToSDFThickness(fade, radius) };
+	float max_line_width{ std::min(radius.x, radius.y) };
+	float thickness{ max_line_width };
 
-	std::array<float, 4> data{ thickness, fade, 0.0f, 0.0f };
+	if (auto line_width{ params.fill_style.GetLineWidth() }) {
+		thickness = ClampLineWidth(line_width.value(), max_line_width);
+	}
+
+	std::array<float, 4> data{ thickness, kSDFWorldFade, radius.x, radius.y };
 
 	auto vertices{ ellipse.GetWorldQuadVertices(params.transform) };
-	auto local_coords{ GetNDCTextureCoordinates() };
+	std::array<V2_float, 4> local_coords{
+		V2_float{ -radius.x, -radius.y },
+		V2_float{ radius.x, -radius.y },
+		V2_float{ radius.x, radius.y },
+		V2_float{ -radius.x, radius.y },
+	};
 
 	return CreateShapeQuadPrimitive(vertices, local_coords, data, params);
 }
@@ -268,9 +287,8 @@ std::optional<RenderQuadArray<ShapeVertex>> GetSolidPrimitives(
 		return std::nullopt;
 	}
 
-	float diameter{ 2.0f * radius };
-	float fade{ GetFade(diameter) };
-	float thickness{ params.fill_style.NormalizedToSDFThickness(fade, V2_float{ radius }) };
+	float fade{ GetNormalizedFade(radius) };
+	float thickness{ params.fill_style.NormalizedToSDFThickness(V2_float{ radius }) };
 
 	float start_angle{ arc.start_angle.value };
 	float signed_aperture{ arc.GetAperture().ToRad().value * (arc.clockwise ? -1.0f : 1.0f) };
@@ -328,11 +346,60 @@ std::vector<ColorQuad> GetHollowPrimitives(
 }
 
 std::vector<ColorQuad> GetHollowPrimitives(const Rect& rect, const CommonShapeParams& params) {
-	CommonShapeParams stroke_params{ params };
-	stroke_params.transform = Transform{};
+	auto line_width{ params.fill_style.GetLineWidth() };
 
-	auto points{ rect.GetWorldVertices(params.transform, params.origin) };
-	return GetHollowPrimitives(points, true, stroke_params);
+	PTGN_ASSERT(line_width.has_value(), "Cannot use solid fill style for hollow rect");
+
+	if (!line_width) {
+		return {};
+	}
+
+	PTGN_ASSERT(line_width.value() >= kMinLineWidth, "Line width must be at least ", kMinLineWidth);
+
+	if (line_width.value() < kMinLineWidth) {
+		return {};
+	}
+
+	auto transform{ rect.Offset(params.transform, params.origin) };
+	auto outer{ rect.GetWorldVertices(transform) };
+	auto size{ rect.GetSize() };
+	auto world_size{ rect.GetSize(transform) };
+	auto abs_scale{ Abs(transform.scale) };
+
+	float max_line_width{ std::min(world_size.x, world_size.y) * 0.5f };
+	float clamped_line_width{ ClampLineWidth(line_width.value(), max_line_width) };
+
+	V2_float inset{
+		clamped_line_width / abs_scale.x,
+		clamped_line_width / abs_scale.y,
+	};
+
+	Rect inner{
+		rect.min + inset,
+		rect.max - inset,
+	};
+
+	auto inner_vertices{ inner.GetWorldVertices(transform) };
+
+	std::vector<ColorQuad> primitives;
+	primitives.reserve(4);
+
+	for (auto i{ 0uz }; i < 4; ++i) {
+		auto next{ (i + 1) % 4 };
+
+		std::array<V2_float, 4> vertices{
+			outer[i],
+			outer[next],
+			inner_vertices[next],
+			inner_vertices[i],
+		};
+
+		primitives.emplace_back(
+			CreateColorQuad(vertices, params.depth, params.color, params.entity_id)
+		);
+	}
+
+	return primitives;
 }
 
 std::optional<RenderQuadArray<ShapeVertex>> GetHollowPrimitives(

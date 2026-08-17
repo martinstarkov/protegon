@@ -20,13 +20,15 @@ public:
 	constexpr Capsule(V2_float start, V2_float end, float radius) :
 		line{ start, end }, radius{ radius } {}
 
-	/// @param out_size Optional parameter for the unrotated size of the quad.
-	/// @return Quad vertices relative to the given transform for this line with a given a line
-	/// width.
+	/// @param out_size Optional parameter for the unrotated world size of the quad.
 	constexpr std::array<V2_float, 4> GetWorldQuadVertices(
 		Transform transform, V2_float* out_size = nullptr
 	) const {
-		return line.GetWorldQuadVertices(transform, 2.0f * radius, out_size);
+		return line.GetWorldQuadVertices(transform, 2.0f * GetRadius(transform), out_size);
+	}
+
+	constexpr float GetRadius() const {
+		return radius;
 	}
 
 	/// @return Radius scaled relative to the transform.

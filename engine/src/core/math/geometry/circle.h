@@ -21,6 +21,10 @@ public:
 
 	constexpr Circle(float radius) : radius{ radius } {} // NOSONAR
 
+	constexpr float GetRadius() const {
+		return radius;
+	}
+
 	/// @return Radius scaled relative to the transform.
 	constexpr float GetRadius(Transform transform) const {
 		auto avg_scale{ transform.GetAverageScale() };

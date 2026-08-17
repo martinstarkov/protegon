@@ -25,7 +25,7 @@ public:
 	constexpr Rect() = default;
 
 	constexpr Rect(V2_float min, V2_float max) : min{ min }, max{ max } {
-		PTGN_ASSERT(!GetSize().HasNegative(), "Rect size cannot be negative");
+		PTGN_ASSERT(!GetSize().HasNegative(), "Rect size cannot be negative: ", GetSize());
 	}
 
 	template <Arithmetic T>
