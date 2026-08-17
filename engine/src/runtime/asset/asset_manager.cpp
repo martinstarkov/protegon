@@ -79,6 +79,13 @@ using namespace std::chrono_literals;
 inline constexpr std::string_view kMissingTextureAssetKey{ "$ptgn/missing_texture" };
 inline constexpr std::array<std::uint8_t, 4> kMissingTexturePixel{ 176, 48, 224, 255 };
 
+[[nodiscard]] impl::AssetStorageKey MakeAssetStorageKey(
+	const AssetKey& key,
+	AssetKind kind
+) {
+	return impl::AssetStorageKey{ Hash(key), kind };
+}
+
 AssetKind GetAssetKindFromEntity(ecs::Entity asset, const path& source_path) {
 	using enum AssetKind;
 
@@ -114,24 +121,115 @@ std::string SanitizeKeySegment(std::string value) {
 	return ToLower(std::move(value));
 }
 
-std::string MakeKeyFromRelativePath(path relative_path) {
-	relative_path.replace_extension();
-
-	std::string key;
-	for (const auto& part : relative_path) {
-		if (!key.empty()) {
-			key += '/';
+std::string StripGeneratedAssetMetadataSuffix(std::string value) {
+	auto strip_suffix = [&value](std::string_view marker) {
+		const auto marker_position{ value.rfind(marker) };
+		if (marker_position == std::string::npos || marker_position + marker.size() >= value.size()) {
+			return false;
 		}
-		key += SanitizeKeySegment(part.string());
+
+		const std::string_view suffix{ value.data() + marker_position + marker.size(), value.size() - marker_position - marker.size() };
+		if (!std::ranges::all_of(suffix, [](char c) {
+			return std::isdigit(static_cast<unsigned char>(c)) != 0;
+		})) {
+			return false;
+		}
+
+		value.erase(marker_position);
+		return true;
+	};
+
+	while (strip_suffix("_frames") || strip_suffix("_slices")) {
 	}
 
-	return key.empty() ? "asset" : key;
+	return value;
 }
 
 std::uintmax_t SafeFileSize(const path& file_path) {
 	std::error_code error;
 	const auto size{ std::filesystem::file_size(file_path, error) };
 	return error ? 0 : size;
+}
+
+bool FilesHaveSameContents(const path& lhs, const path& rhs) {
+	std::error_code lhs_error;
+	std::error_code rhs_error;
+	const auto lhs_size{ std::filesystem::file_size(lhs, lhs_error) };
+	const auto rhs_size{ std::filesystem::file_size(rhs, rhs_error) };
+
+	if (lhs_error || rhs_error || lhs_size != rhs_size) {
+		return false;
+	}
+
+	std::ifstream lhs_stream{ lhs, std::ios::binary };
+	std::ifstream rhs_stream{ rhs, std::ios::binary };
+
+	if (!lhs_stream || !rhs_stream) {
+		return false;
+	}
+
+	std::array<char, 64 * 1024> lhs_buffer{};
+	std::array<char, 64 * 1024> rhs_buffer{};
+
+	while (lhs_stream && rhs_stream) {
+		lhs_stream.read(lhs_buffer.data(), static_cast<std::streamsize>(lhs_buffer.size()));
+		rhs_stream.read(rhs_buffer.data(), static_cast<std::streamsize>(rhs_buffer.size()));
+
+		const auto lhs_count{ lhs_stream.gcount() };
+		const auto rhs_count{ rhs_stream.gcount() };
+
+		if (lhs_count != rhs_count ||
+			!std::equal(
+				lhs_buffer.begin(),
+				lhs_buffer.begin() + lhs_count,
+				rhs_buffer.begin()
+			)) {
+			return false;
+		}
+	}
+
+	return true;
+}
+
+std::optional<path> FindExistingImportedAssetCopy(
+	const path& import_directory,
+	const path& source_path
+) {
+	std::error_code error;
+	if (!std::filesystem::is_directory(import_directory, error) || error) {
+		return std::nullopt;
+	}
+
+	std::vector<path> candidates;
+
+	for (std::filesystem::recursive_directory_iterator it{
+			 import_directory,
+			 std::filesystem::directory_options::skip_permission_denied,
+			 error
+		 };
+		 !error && it != std::filesystem::recursive_directory_iterator{};
+		 it.increment(error)) {
+		if (!it->is_regular_file(error) || error) {
+			error.clear();
+			continue;
+		}
+
+		if (it->path().filename() == source_path.filename()) {
+			candidates.push_back(it->path().lexically_normal());
+		}
+	}
+
+	std::ranges::sort(candidates, [](const path& lhs, const path& rhs) {
+		return lhs.generic_string() < rhs.generic_string();
+	});
+
+	for (const auto& candidate : candidates) {
+		if (FilesHaveSameContents(source_path, candidate)) {
+			return candidate;
+		}
+	}
+
+	return std::nullopt;
 }
 
 bool IsWithinDirectory(const path& candidate, const path& directory) {
@@ -291,7 +389,7 @@ bool CatalogDiffersFrom(
 	}
 	for (const auto& asset : serialized) {
 		const auto it{ std::ranges::find_if(current, [&](const SerializedAsset& candidate) {
-			return candidate.key == asset.key;
+			return candidate.key == asset.key && candidate.kind == asset.kind;
 		}) };
 		if (it == current.end() || !SerializedAssetsEquivalent(asset, *it)) {
 			return true;
@@ -866,7 +964,7 @@ void AssetManager::InitializeEngineShaderCatalog() {
 		const std::string name{ filename.stem().string() };
 		const auto stages{ DetectShaderStages(shader_file.source) };
 		engine_shader_sources_.push_back(impl::EngineShaderSource{
-			.key = AssetKey{ "$engine/shaders/" + filename.string() },
+			.key = AssetKey{ "$" + name },
 			.name = name,
 			.virtual_path = path{ "Shaders" } / filename,
 			.stages = stages,
@@ -903,11 +1001,27 @@ std::vector<impl::AssetRecord> AssetManager::GetEngineShaderAssets() const {
 }
 
 std::optional<std::string> AssetManager::GetEngineShaderSource(const AssetKey& key) const {
-	const auto it{ std::ranges::find(engine_shader_sources_, key, &impl::EngineShaderSource::key) };
-	if (it == engine_shader_sources_.end()) {
+	if (const auto it{
+			std::ranges::find(engine_shader_sources_, key, &impl::EngineShaderSource::key)
+		};
+		it != engine_shader_sources_.end()) {
+		return it->source;
+	}
+
+	constexpr std::string_view legacy_prefix{ "$engine/shaders/" };
+	if (!key.value.starts_with(legacy_prefix)) {
 		return std::nullopt;
 	}
-	return it->source;
+
+	const std::string name{
+		path{ key.value.substr(legacy_prefix.size()) }.stem().string()
+	};
+	const auto it{
+		std::ranges::find(engine_shader_sources_, name, &impl::EngineShaderSource::name)
+	};
+	return it == engine_shader_sources_.end()
+		? std::nullopt
+		: std::optional<std::string>{ it->source };
 }
 
 std::span<const std::string> AssetManager::GetEngineVertexShaderNames() const {
@@ -934,9 +1048,27 @@ std::optional<SerializedShaderProgram> AssetManager::SuggestShaderProgram(
 		program.fragment = std::string{ kShaderSourceToken };
 	}
 
+	auto vertex_priority = [](std::string_view name) {
+		const std::string lower{ ToLower(std::string{ name }) };
+		if (lower.contains("texture")) {
+			return 0;
+		}
+		if (lower.contains("color")) {
+			return 1;
+		}
+		if (lower.contains("passthrough")) {
+			return 2;
+		}
+		if (lower.contains("shape")) {
+			return 3;
+		}
+		return 4;
+	};
+
 	auto choose_builtin = [&](ShaderStageMask missing_stage) -> std::optional<std::string> {
 		const impl::EngineShaderSource* best{ nullptr };
 		int best_score{ -1 };
+		int best_priority{ 5 };
 
 		for (const auto& candidate : engine_shader_sources_) {
 			if (!HasShaderStage(candidate.stages, missing_stage)) {
@@ -948,9 +1080,20 @@ std::optional<SerializedShaderProgram> AssetManager::SuggestShaderProgram(
 					? impl::ShaderStageCompatibilityScore(candidate.source, source)
 					: impl::ShaderStageCompatibilityScore(source, candidate.source)
 			};
-			if (score > best_score) {
+			if (score < 0) {
+				continue;
+			}
+
+			const int priority{
+				missing_stage == ShaderStageMask::Vertex
+					? vertex_priority(candidate.name)
+					: 0
+			};
+			if (!best || priority < best_priority ||
+				(priority == best_priority && score > best_score)) {
 				best = &candidate;
 				best_score = score;
+				best_priority = priority;
 			}
 		}
 
@@ -1001,7 +1144,7 @@ std::optional<std::string> AssetManager::GetShaderSource(const ShaderKey& key) c
 	if (auto engine{ GetEngineShaderSource(key) }) {
 		return engine;
 	}
-	const auto it{ catalog_.find(Hash(key)) };
+	const auto it{ catalog_.find(MakeAssetStorageKey(key, AssetKind::Shader)) };
 	if (it == catalog_.end() || it->second.kind != AssetKind::Shader) {
 		return std::nullopt;
 	}
@@ -1032,7 +1175,7 @@ std::optional<std::string> AssetManager::ResolveShaderStageSourceText(
 		}
 		return it->source;
 	}
-	const auto root{ GetResolutionRoot() };
+	const auto root{ project_root_.value_or(GetWorkingDirectory()) };
 	const path stage_path{ (root / path{ reference }).lexically_normal() };
 	if (!FileExists(stage_path)) {
 		return std::nullopt;
@@ -1040,11 +1183,44 @@ std::optional<std::string> AssetManager::ResolveShaderStageSourceText(
 	return FileToString(stage_path);
 }
 
+std::optional<std::string> AssetManager::ResolveShaderStageSource(
+	std::string_view owner_source,
+	std::string_view reference,
+	ShaderStageMask stage
+) const {
+	std::string source;
+
+	if (reference == kShaderSourceToken) {
+		source = std::string{ owner_source };
+	} else if (reference.starts_with(kBuiltinShaderPrefix)) {
+		const std::string name{ reference.substr(kBuiltinShaderPrefix.size()) };
+		const auto it{
+			std::ranges::find(engine_shader_sources_, name, &impl::EngineShaderSource::name)
+		};
+		if (it == engine_shader_sources_.end()) {
+			return std::nullopt;
+		}
+		source = it->source;
+	} else {
+		const path root{ project_root_.value_or(GetWorkingDirectory()) };
+		const path stage_path{ (root / path{ reference }).lexically_normal() };
+		if (!FileExists(stage_path)) {
+			return std::nullopt;
+		}
+		source = FileToString(stage_path);
+	}
+
+	if (!HasShaderStage(DetectShaderStages(source), stage)) {
+		return std::nullopt;
+	}
+	return impl::ExtractShaderStageSource(source, stage);
+}
+
 ShaderCompileResult AssetManager::ValidateShaderSource(
 	const ShaderKey& key,
 	std::string_view source
 ) const {
-	const auto catalog_it{ catalog_.find(Hash(key)) };
+	const auto catalog_it{ catalog_.find(MakeAssetStorageKey(key, AssetKind::Shader)) };
 	const auto max_texture_slots{ impl::RendererAccessor{ renderer_ }.GetMaxTextureSlots() };
 	if (catalog_it == catalog_.end()) {
 		return impl::ValidateShaderSource(source, max_texture_slots);
@@ -1064,7 +1240,7 @@ ShaderCompileResult AssetManager::ValidateShaderSource(
 	std::string_view source,
 	const SerializedShaderProgram& program
 ) const {
-	const auto catalog_it{ catalog_.find(Hash(key)) };
+	const auto catalog_it{ catalog_.find(MakeAssetStorageKey(key, AssetKind::Shader)) };
 	if (catalog_it == catalog_.end()) {
 		return { false, "Shader is not in the project catalog." };
 	}
@@ -1088,7 +1264,7 @@ bool AssetManager::SaveShaderSource(
 	std::string_view source,
 	const ShaderCompileResult& validation
 ) {
-	auto catalog_it{ catalog_.find(Hash(key)) };
+	auto catalog_it{ catalog_.find(MakeAssetStorageKey(key, AssetKind::Shader)) };
 	if (catalog_it == catalog_.end() || catalog_it->second.kind != AssetKind::Shader) {
 		return false;
 	}
@@ -1101,7 +1277,7 @@ bool AssetManager::SaveShaderSource(
 	if (!output) {
 		return false;
 	}
-	auto& state{ runtime_states_[Hash(key)] };
+	auto& state{ runtime_states_[MakeAssetStorageKey(key, AssetKind::Shader)] };
 	state.metadata = ProbeMetadata(catalog_it->second);
 	state.compile_error = !validation.success;
 	state.compile_log = validation.log;
@@ -1137,7 +1313,7 @@ std::optional<std::variant<ShaderCode, ShaderPath, ShaderPair>> AssetManager::Bu
 	if (!program.vertex.has_value() || !program.fragment.has_value()) {
 		return std::nullopt;
 	}
-	const auto root{ GetResolutionRoot() };
+	const auto root{ project_root_.value_or(GetWorkingDirectory()) };
 	auto resolve_stage = [&](
 		std::string_view reference, ShaderStageMask stage
 	) -> std::variant<ShaderCode, ShaderPathOrName> {
@@ -1163,7 +1339,7 @@ ShaderCompileResult AssetManager::RecompileShaderSource(
 	const ShaderKey& key,
 	std::string_view source
 ) {
-	const auto catalog_it{ catalog_.find(Hash(key)) };
+	const auto catalog_it{ catalog_.find(MakeAssetStorageKey(key, AssetKind::Shader)) };
 	if (catalog_it == catalog_.end()) {
 		return { false, "Shader is not in the project catalog." };
 	}
@@ -1186,11 +1362,11 @@ ShaderCompileResult AssetManager::RecompileShaderSource(
 	if (!validation.success) {
 		return validation;
 	}
-	auto catalog_it{ catalog_.find(Hash(key)) };
+	auto catalog_it{ catalog_.find(MakeAssetStorageKey(key, AssetKind::Shader)) };
 	if (catalog_it == catalog_.end()) {
 		return { false, "Shader is not in the project catalog." };
 	}
-	auto& state{ runtime_states_[Hash(key)] };
+	auto& state{ runtime_states_[MakeAssetStorageKey(key, AssetKind::Shader)] };
 	if (state.load_state != AssetLoadState::Loaded || !Has<ptgn::Shader>(key)) {
 		validation.log += "\nShader is not resident; source was validated but no runtime program was replaced.";
 		return validation;
@@ -1203,7 +1379,7 @@ ShaderCompileResult AssetManager::RecompileShaderSource(
 	const RuntimeAssetState retained_state{ state };
 	ForceUnload(key, AssetKind::Shader);
 	LoadShader(ShaderKey{ key }, prepared.value(), key.value);
-	auto& refreshed_state{ runtime_states_[Hash(key)] };
+	auto& refreshed_state{ runtime_states_[MakeAssetStorageKey(key, AssetKind::Shader)] };
 	refreshed_state.reference_count = retained_state.reference_count;
 	refreshed_state.globally_pinned = retained_state.globally_pinned;
 	refreshed_state.manually_pinned = retained_state.manually_pinned;
@@ -1228,8 +1404,10 @@ void AssetManager::Update() {
 			break;
 		}
 
-		const auto key_hash{ Hash(result->asset.key) };
-		auto state_it{ runtime_states_.find(key_hash) };
+		const auto storage_key{
+			MakeAssetStorageKey(result->asset.key, result->asset.kind)
+		};
+		auto state_it{ runtime_states_.find(storage_key) };
 		if (state_it == runtime_states_.end()) {
 			continue;
 		}
@@ -1237,7 +1415,7 @@ void AssetManager::Update() {
 		state_it->second.load_state = AssetLoadState::Finalizing;
 
 		if (!result->error.empty() || !result->payload.has_value()) {
-			CompleteAssetLoad(key_hash, false, std::move(result->error));
+			CompleteAssetLoad(storage_key, false, std::move(result->error));
 			continue;
 		}
 
@@ -1286,7 +1464,7 @@ void AssetManager::Update() {
 					} else if constexpr (std::same_as<Value, AsyncLoader::PreparedShader>) {
 						const auto disk_source{ FileToString(absolute_path) };
 						auto validation{ ValidateShaderSource(ShaderKey{ asset.key }, disk_source) };
-						auto& shader_state{ runtime_states_[Hash(asset.key)] };
+						auto& shader_state{ runtime_states_[MakeAssetStorageKey(asset.key, AssetKind::Shader)] };
 						shader_state.compile_error = !validation.success;
 						shader_state.compile_log = validation.log;
 						if (!validation.success) {
@@ -1308,7 +1486,7 @@ void AssetManager::Update() {
 			error = exception.what();
 		}
 
-		CompleteAssetLoad(key_hash, success, std::move(error));
+		CompleteAssetLoad(storage_key, success, std::move(error));
 	}
 
 	std::erase_if(active_batches_, [](const auto& weak_batch) {
@@ -1326,14 +1504,21 @@ void AssetManager::Update() {
 	std::erase_if(manual_load_tickets_, [](const auto& ticket) {
 		return ticket.IsComplete();
 	});
+	std::erase_if(manual_load_batches_, [](const auto& batch) {
+		if (!batch) {
+			return true;
+		}
+		std::scoped_lock lock{ batch->mutex };
+		return batch->progress.IsComplete();
+	});
 }
 
 void AssetManager::CompleteAssetLoad(
-	std::size_t key_hash,
+	impl::AssetStorageKey storage_key,
 	bool success,
 	std::string error
 ) {
-	auto state_it{ runtime_states_.find(key_hash) };
+	auto state_it{ runtime_states_.find(storage_key) };
 	if (state_it == runtime_states_.end()) {
 		return;
 	}
@@ -1342,7 +1527,7 @@ void AssetManager::CompleteAssetLoad(
 	state.load_state = success ? AssetLoadState::Loaded : AssetLoadState::Failed;
 	state.error = std::move(error);
 
-	const auto catalog_it{ catalog_.find(key_hash) };
+	const auto catalog_it{ catalog_.find(storage_key) };
 	const auto file_size{
 		catalog_it == catalog_.end() ? 0 : state.metadata.file_size
 	};
@@ -1377,12 +1562,12 @@ void AssetManager::QueueAssetLoad(
 	const SerializedAsset& asset,
 	const std::shared_ptr<impl::AssetLoadBatchState>& batch
 ) {
-	const auto key_hash{ Hash(asset.key) };
-	auto& state{ runtime_states_[key_hash] };
+	const auto storage_key{ MakeAssetStorageKey(asset.key, asset.kind) };
+	auto& state{ runtime_states_[storage_key] };
 	state.waiters.emplace_back(batch);
 
 	if (state.load_state == AssetLoadState::Loaded) {
-		CompleteAssetLoad(key_hash, true);
+		CompleteAssetLoad(storage_key, true);
 		return;
 	}
 	if (state.load_state == AssetLoadState::Queued ||
@@ -1397,7 +1582,7 @@ void AssetManager::QueueAssetLoad(
 	async_loader_->Queue(AsyncLoader::Job{
 		.asset = asset,
 		.absolute_path = ResolveAssetPath(asset),
-		.project_root = GetResolutionRoot(),
+		.project_root = project_root_.value_or(GetWorkingDirectory()),
 	});
 	state.load_state = AssetLoadState::Loading;
 }
@@ -1406,11 +1591,26 @@ impl::AssetLoadTicket AssetManager::AcquireDependenciesAsync(
 	std::span<const AssetKey> dependencies
 ) {
 	auto expanded_dependencies{ ExpandDependencies(dependencies) };
+	std::vector<SerializedAsset> available_assets;
 	std::vector<AssetKey> available_dependencies;
-	available_dependencies.reserve(expanded_dependencies.size());
 
 	for (const auto& key : expanded_dependencies) {
-		if (!HasCatalogAsset(key)) {
+		bool found{ false };
+		for (const auto& [_, asset] : catalog_) {
+			if (asset.key != key) {
+				continue;
+			}
+			const bool already_added{
+				std::ranges::any_of(available_assets, [&](const SerializedAsset& candidate) {
+					return candidate.key == asset.key && candidate.kind == asset.kind;
+				})
+			};
+			if (!already_added) {
+				available_assets.emplace_back(asset);
+			}
+			found = true;
+		}
+		if (!found) {
 			PTGN_WARN(
 				"Asset dependency is missing from the project catalog: ",
 				key,
@@ -1418,32 +1618,23 @@ impl::AssetLoadTicket AssetManager::AcquireDependenciesAsync(
 			);
 			continue;
 		}
-
-		available_dependencies.emplace_back(key);
+		AddUnique(available_dependencies, key);
 	}
 
 	auto batch{ std::make_shared<impl::AssetLoadBatchState>() };
-
 	{
 		std::scoped_lock lock{ batch->mutex };
-		batch->progress.total_assets = available_dependencies.size();
+		batch->progress.total_assets = available_assets.size();
 	}
 
-	for (const auto& key : available_dependencies) {
-		auto catalog_it{ catalog_.find(Hash(key)) };
-		if (catalog_it == catalog_.end()) {
-			continue;
-		}
-
-		auto& state{ runtime_states_[Hash(key)] };
+	for (const auto& asset : available_assets) {
+		auto& state{ runtime_states_[MakeAssetStorageKey(asset.key, asset.kind)] };
 		++state.reference_count;
-
 		{
 			std::scoped_lock lock{ batch->mutex };
 			batch->progress.total_bytes += state.metadata.file_size;
 		}
-
-		QueueAssetLoad(catalog_it->second, batch);
+		QueueAssetLoad(asset, batch);
 	}
 
 	active_batches_.emplace_back(batch);
@@ -1480,21 +1671,24 @@ bool AssetManager::IsLoading() const {
 
 void AssetManager::ReleaseDependencies(std::span<const AssetKey> dependencies) noexcept {
 	for (const auto& key : dependencies) {
-		auto state_it{ runtime_states_.find(Hash(key)) };
-		if (state_it == runtime_states_.end()) {
-			continue;
-		}
+		for (const auto& [storage_key, asset] : catalog_) {
+			if (asset.key != key) {
+				continue;
+			}
 
-		auto& state{ state_it->second };
-		if (state.reference_count > 0) {
-			--state.reference_count;
-		}
+			auto state_it{ runtime_states_.find(storage_key) };
+			if (state_it == runtime_states_.end()) {
+				continue;
+			}
 
-		if (state.reference_count == 0 && !state.globally_pinned &&
-			!state.manually_pinned && state.load_state == AssetLoadState::Loaded) {
-			auto catalog_it{ catalog_.find(Hash(key)) };
-			if (catalog_it != catalog_.end()) {
-				ForceUnload(key, catalog_it->second.kind);
+			auto& state{ state_it->second };
+			if (state.reference_count > 0) {
+				--state.reference_count;
+			}
+
+			if (state.reference_count == 0 && !state.globally_pinned &&
+				!state.manually_pinned && state.load_state == AssetLoadState::Loaded) {
+				ForceUnload(asset.key, asset.kind);
 			}
 		}
 	}
@@ -1553,14 +1747,63 @@ void AssetManager::TrackAssetLoad(
 		.kind = kind,
 		.source_path = std::move(serialized_path),
 	};
+	const auto storage_key{ MakeAssetStorageKey(key, kind) };
 
-	if (auto existing{ catalog_.find(Hash(key)) };
-		existing != catalog_.end() && existing->second.kind == kind) {
+	if (auto existing{ catalog_.find(storage_key) }; existing != catalog_.end()) {
 		asset.shader = existing->second.shader;
 	}
 
-	catalog_.insert_or_assign(Hash(key), asset);
-	runtime_states_[Hash(key)].metadata = ProbeMetadata(asset);
+	const path resolved_asset_path{ source_path.lexically_normal() };
+	for (auto it{ catalog_.begin() }; it != catalog_.end();) {
+		if (it->first == storage_key || it->second.kind != kind) {
+			++it;
+			continue;
+		}
+
+		const path existing_path{ ResolveAssetPath(it->second) };
+		std::error_code equivalent_error;
+		const bool same_file{
+			FileExists(existing_path) && FileExists(resolved_asset_path) &&
+			std::filesystem::equivalent(existing_path, resolved_asset_path, equivalent_error) &&
+			!equivalent_error
+		};
+
+		if (!same_file) {
+			++it;
+			continue;
+		}
+
+		const AssetKey duplicate_key{ it->second.key };
+		if (!asset.shader && it->second.shader) {
+			asset.shader = it->second.shader;
+		}
+
+		ForceUnload(duplicate_key, kind);
+		runtime_states_.erase(it->first);
+		it = catalog_.erase(it);
+
+		for (auto& dependency : project_asset_dependencies_) {
+			if (dependency == duplicate_key) {
+				dependency = key;
+			}
+		}
+		std::ranges::sort(
+			project_asset_dependencies_,
+			[](const AssetKey& lhs, const AssetKey& rhs) {
+				return lhs.value < rhs.value;
+			}
+		);
+		const auto duplicate_dependencies{
+			std::ranges::unique(project_asset_dependencies_)
+		};
+		project_asset_dependencies_.erase(
+			duplicate_dependencies.begin(),
+			duplicate_dependencies.end()
+		);
+	}
+
+	catalog_.insert_or_assign(storage_key, asset);
+	runtime_states_[storage_key].metadata = ProbeMetadata(asset);
 }
 
 bool AssetManager::RegisterCatalog(
@@ -1570,6 +1813,7 @@ bool AssetManager::RegisterCatalog(
 	const std::vector<SerializedAsset> serialized_catalog{ assets.begin(), assets.end() };
 	project_load_tickets_.clear();
 	manual_load_tickets_.clear();
+	manual_load_batches_.clear();
 	active_batches_.clear();
 	async_loader_.reset();
 	for (const auto& [_, asset] : catalog_) {
@@ -1612,26 +1856,15 @@ bool AssetManager::RegisterCatalog(
 
 		if (asset.kind != AssetKind::Scene) {
 			if (const auto localized{
-					LocalizeProjectAsset(
-						asset.key,
-						asset.kind,
-						asset.source_path
-					)
+					LocalizeProjectAsset(asset.key, asset.kind, asset.source_path)
 				}) {
 				std::error_code error;
 				const path relative{
-					std::filesystem::relative(
-						localized.value(),
-						project_root_.value(),
-						error
-					)
+					std::filesystem::relative(localized.value(), project_root_.value(), error)
 				};
-
-				if (!error &&
-					!relative.empty() &&
+				if (!error && !relative.empty() &&
 					!relative.generic_string().starts_with("..")) {
-					asset.source_path =
-						relative.lexically_normal();
+					asset.source_path = relative.lexically_normal();
 				}
 			}
 		}
@@ -1643,12 +1876,9 @@ bool AssetManager::RegisterCatalog(
 			}
 		}
 
-		catalog_.insert_or_assign(
-			Hash(asset.key),
-			asset
-		);
-		runtime_states_[Hash(asset.key)].metadata =
-			ProbeMetadata(asset);
+		const auto storage_key{ MakeAssetStorageKey(asset.key, asset.kind) };
+		catalog_.insert_or_assign(storage_key, asset);
+		runtime_states_[storage_key].metadata = ProbeMetadata(asset);
 	}
 
 	RefreshCatalogFromDisk();
@@ -1699,7 +1929,6 @@ void AssetManager::RefreshCatalogFromDisk() {
 			};
 			if (!relative_error) {
 				asset.source_path = relative.lexically_normal();
-				asset.kind = kind;
 			}
 			break;
 		}
@@ -1737,7 +1966,14 @@ void AssetManager::RefreshCatalogFromDisk() {
 		}
 
 		ForceUnload(asset.key, asset.kind);
-		std::erase(project_asset_dependencies_, asset.key);
+		const bool has_other_kind{
+			std::ranges::any_of(catalog_, [&](const auto& entry) {
+				return entry.first != it->first && entry.second.key == asset.key;
+			})
+		};
+		if (!has_other_kind) {
+			std::erase(project_asset_dependencies_, asset.key);
+		}
 		runtime_states_.erase(it->first);
 		it = catalog_.erase(it);
 	}
@@ -1768,7 +2004,7 @@ void AssetManager::RefreshCatalogFromDisk() {
 			continue;
 		}
 
-		auto key{ MakeUniqueAssetKey(relative_to_assets) };
+		auto key{ MakeUniqueAssetKey(kind, relative_to_assets) };
 		SerializedAsset asset{
 			.key = key,
 			.kind = kind,
@@ -1778,8 +2014,9 @@ void AssetManager::RefreshCatalogFromDisk() {
 			NormalizeShaderProgramConfiguration(asset, FileToString(file));
 		}
 
-		catalog_.emplace(Hash(key), asset);
-		runtime_states_[Hash(key)].metadata = ProbeMetadata(asset);
+		const auto storage_key{ MakeAssetStorageKey(key, kind) };
+		catalog_.emplace(storage_key, asset);
+		runtime_states_[storage_key].metadata = ProbeMetadata(asset);
 		catalog_paths.insert(normalized_path);
 	}
 }
@@ -1796,6 +2033,9 @@ std::vector<SerializedAsset> AssetManager::GetCatalog() const {
 		if (lhs.source_path != rhs.source_path) {
 			return lhs.source_path.generic_string() < rhs.source_path.generic_string();
 		}
+		if (lhs.kind != rhs.kind) {
+			return lhs.kind < rhs.kind;
+		}
 		return lhs.key < rhs.key;
 	});
 
@@ -1803,16 +2043,33 @@ std::vector<SerializedAsset> AssetManager::GetCatalog() const {
 }
 
 std::optional<SerializedAsset> AssetManager::GetCatalogAsset(const AssetKey& key) const {
-	auto it{ catalog_.find(Hash(key)) };
-	if (it == catalog_.end()) {
-		return std::nullopt;
+	std::optional<SerializedAsset> result;
+	for (const auto& [_, asset] : catalog_) {
+		if (asset.key != key) {
+			continue;
+		}
+		if (result.has_value()) {
+			return std::nullopt;
+		}
+		result = asset;
 	}
-	return it->second;
+	return result;
+}
+
+std::optional<SerializedAsset> AssetManager::GetCatalogAsset(
+	const AssetKey& key,
+	AssetKind kind
+) const {
+	const auto it{ catalog_.find(MakeAssetStorageKey(key, kind)) };
+	return it == catalog_.end() ? std::nullopt : std::optional<SerializedAsset>{ it->second };
 }
 
 void AssetManager::PinProjectDependency(const AssetKey& key) {
-	auto& state{ runtime_states_[Hash(key)] };
-	state.globally_pinned = true;
+	for (const auto& [storage_key, asset] : catalog_) {
+		if (asset.key == key) {
+			runtime_states_[storage_key].globally_pinned = true;
+		}
+	}
 }
 
 void AssetManager::AddProjectAssetDependency(AssetKey key) {
@@ -1834,18 +2091,7 @@ void AssetManager::AddProjectAssetDependency(AssetKey key) {
 
 void AssetManager::PreloadProjectAsset(AssetKey key) {
 	AddProjectAssetDependency(key);
-
-	auto catalog_it{ catalog_.find(Hash(key)) };
-	if (catalog_it == catalog_.end()) {
-		return;
-	}
-
-	const auto state_it{ runtime_states_.find(Hash(key)) };
-	if (state_it != runtime_states_.end() &&
-		(state_it->second.load_state == AssetLoadState::Loaded ||
-		 state_it->second.load_state == AssetLoadState::Queued ||
-		 state_it->second.load_state == AssetLoadState::Loading ||
-		 state_it->second.load_state == AssetLoadState::Finalizing)) {
+	if (!HasCatalogAsset(key)) {
 		return;
 	}
 
@@ -1860,18 +2106,19 @@ void AssetManager::RemoveProjectAssetDependency(const AssetKey& key) {
 		return;
 	}
 
-	auto state_it{ runtime_states_.find(Hash(key)) };
-	if (state_it == runtime_states_.end()) {
-		return;
-	}
-
-	auto& state{ state_it->second };
-	state.globally_pinned = false;
-	if (state.reference_count == 0 && !state.manually_pinned &&
-		state.load_state == AssetLoadState::Loaded) {
-		auto catalog_it{ catalog_.find(Hash(key)) };
-		if (catalog_it != catalog_.end()) {
-			ForceUnload(key, catalog_it->second.kind);
+	for (const auto& [storage_key, asset] : catalog_) {
+		if (asset.key != key) {
+			continue;
+		}
+		auto state_it{ runtime_states_.find(storage_key) };
+		if (state_it == runtime_states_.end()) {
+			continue;
+		}
+		auto& state{ state_it->second };
+		state.globally_pinned = false;
+		if (state.reference_count == 0 && !state.manually_pinned &&
+			state.load_state == AssetLoadState::Loaded) {
+			ForceUnload(asset.key, asset.kind);
 		}
 	}
 }
@@ -1883,24 +2130,10 @@ void AssetManager::AddProjectAssetDependencies(std::span<const AssetKey> depende
 }
 
 void AssetManager::SetProjectAssetDependencies(std::span<const AssetKey> dependencies) {
-	for (const auto& key : project_asset_dependencies_) {
-		auto state_it{ runtime_states_.find(Hash(key)) };
-		if (state_it == runtime_states_.end()) {
-			continue;
-		}
-
-		auto& state{ state_it->second };
-		state.globally_pinned = false;
-		if (state.reference_count == 0 && !state.manually_pinned &&
-			state.load_state == AssetLoadState::Loaded) {
-			auto catalog_it{ catalog_.find(Hash(key)) };
-			if (catalog_it != catalog_.end()) {
-				ForceUnload(key, catalog_it->second.kind);
-			}
-		}
+	const auto old_dependencies{ project_asset_dependencies_ };
+	for (const auto& key : old_dependencies) {
+		RemoveProjectAssetDependency(key);
 	}
-
-	project_asset_dependencies_.clear();
 	AddProjectAssetDependencies(dependencies);
 }
 
@@ -1909,7 +2142,13 @@ const std::vector<AssetKey>& AssetManager::GetProjectAssetDependencies() const {
 }
 
 bool AssetManager::HasCatalogAsset(const AssetKey& key) const {
-	return catalog_.contains(Hash(key));
+	return std::ranges::any_of(catalog_, [&](const auto& entry) {
+		return entry.second.key == key;
+	});
+}
+
+bool AssetManager::HasCatalogAsset(const AssetKey& key, AssetKind kind) const {
+	return catalog_.contains(MakeAssetStorageKey(key, kind));
 }
 
 path AssetManager::ResolvePathBackedAssetSource(
@@ -2031,7 +2270,7 @@ std::optional<path> AssetManager::LocalizeProjectAsset(
 ) {
 	path resolved_source;
 	if (project_root_ && asset_directory_) {
-		if (const auto existing{ catalog_.find(Hash(key)) }; existing != catalog_.end()) {
+		if (const auto existing{ catalog_.find(MakeAssetStorageKey(key, kind)) }; existing != catalog_.end()) {
 			const auto existing_path{ ResolveAssetPath(existing->second) };
 			if (FileExists(existing_path)) {
 				resolved_source = existing_path;
@@ -2060,6 +2299,13 @@ std::optional<path> AssetManager::LocalizeProjectAsset(
 		(asset_directory_.value() / ProjectAssetFolderName(kind)).lexically_normal()
 	};
 	EnsureDirectory(import_directory);
+
+	if (const auto existing_copy{
+			FindExistingImportedAssetCopy(import_directory, resolved_source)
+		}) {
+		return existing_copy;
+	}
+
 	const path destination{ MakeUniqueDestinationPath(import_directory, resolved_source) };
 
 	std::error_code error;
@@ -2134,12 +2380,13 @@ impl::AssetMetadata AssetManager::ProbeMetadata(const SerializedAsset& asset) co
 	return metadata;
 }
 
-AssetKey AssetManager::MakeUniqueAssetKey(const path& source_path) const {
-	const auto base{ MakeKeyFromRelativePath(source_path) };
-	AssetKey key{ base };
+AssetKey AssetManager::MakeUniqueAssetKey(AssetKind kind, const path& source_path) const {
+	const std::string sanitized{ SanitizeKeySegment(source_path.stem().string()) };
+	const std::string base{ StripGeneratedAssetMetadataSuffix(sanitized) };
+	AssetKey key{ base.empty() ? std::string{ "asset" } : base };
 
-	for (std::size_t suffix{ 2 }; HasCatalogAsset(key); ++suffix) {
-		key = base + "_" + std::to_string(suffix);
+	for (std::size_t suffix{ 2 }; HasCatalogAsset(key, kind); ++suffix) {
+		key = (base.empty() ? std::string{ "asset" } : base) + "_" + std::to_string(suffix);
 	}
 
 	return key;
@@ -2225,7 +2472,7 @@ std::optional<AssetKey> AssetManager::ImportAsset(
 		return std::nullopt;
 	}
 
-	auto key{ MakeUniqueAssetKey(relative_to_assets) };
+	auto key{ MakeUniqueAssetKey(kind, relative_to_assets) };
 	SerializedAsset asset{
 		.key = key,
 		.kind = kind,
@@ -2235,35 +2482,38 @@ std::optional<AssetKey> AssetManager::ImportAsset(
 		NormalizeShaderProgramConfiguration(asset, FileToString(destination));
 	}
 
-	catalog_.insert_or_assign(Hash(key), asset);
-	runtime_states_[Hash(key)].metadata = ProbeMetadata(asset);
+	const auto storage_key{ MakeAssetStorageKey(key, kind) };
+	catalog_.insert_or_assign(storage_key, asset);
+	runtime_states_[storage_key].metadata = ProbeMetadata(asset);
 	return key;
 }
 
 bool AssetManager::MoveAsset(const AssetKey& key, const path& destination_directory) {
+	auto asset{ GetCatalogAsset(key) };
+	return asset.has_value() && MoveAsset(key, asset->kind, destination_directory);
+}
+
+bool AssetManager::MoveAsset(
+	const AssetKey& key,
+	AssetKind kind,
+	const path& destination_directory
+) {
 	if (!asset_directory_.has_value() || !project_root_.has_value()) {
 		return false;
 	}
 
-	auto catalog_it{ catalog_.find(Hash(key)) };
+	const auto storage_key{ MakeAssetStorageKey(key, kind) };
+	auto catalog_it{ catalog_.find(storage_key) };
 	if (catalog_it == catalog_.end()) {
 		return false;
 	}
 
-	const auto state_it{ runtime_states_.find(Hash(key)) };
-	if (state_it != runtime_states_.end() &&
-		(state_it->second.reference_count > 0 ||
-		 state_it->second.load_state == AssetLoadState::Queued ||
-		 state_it->second.load_state == AssetLoadState::Loading ||
-		 state_it->second.load_state == AssetLoadState::Finalizing)) {
-		return false;
-	}
 
 	path relative_destination{ destination_directory.lexically_normal() };
 	if (relative_destination.empty() || relative_destination == ".") {
-		relative_destination = path{ ProjectAssetFolderName(catalog_it->second.kind) };
+		relative_destination = path{ ProjectAssetFolderName(kind) };
 	}
-	if (AssetDirectoryKind(relative_destination) != catalog_it->second.kind) {
+	if (AssetDirectoryKind(relative_destination) != kind) {
 		return false;
 	}
 
@@ -2321,13 +2571,10 @@ bool AssetManager::MoveAsset(const AssetKey& key, const path& destination_direct
 			catalog_it->second.source_path
 		);
 	}
-	if (catalog_it->second.kind == AssetKind::Shader) {
-		NormalizeShaderProgramConfiguration(
-			catalog_it->second,
-			FileToString(destination)
-		);
+	if (kind == AssetKind::Shader) {
+		NormalizeShaderProgramConfiguration(catalog_it->second, FileToString(destination));
 	}
-	runtime_states_[Hash(key)].metadata = ProbeMetadata(catalog_it->second);
+	runtime_states_[storage_key].metadata = ProbeMetadata(catalog_it->second);
 	return true;
 }
 
@@ -2417,15 +2664,26 @@ bool AssetManager::MoveAssetDirectory(
 }
 
 bool AssetManager::RenameAssetKey(const AssetKey& key, AssetKey new_key) {
-	if (key.value.empty() || new_key.value.empty() || key == new_key || HasCatalogAsset(new_key)) {
+	auto asset{ GetCatalogAsset(key) };
+	return asset.has_value() && RenameAssetKey(key, asset->kind, std::move(new_key));
+}
+
+bool AssetManager::RenameAssetKey(
+	const AssetKey& key,
+	AssetKind kind,
+	AssetKey new_key
+) {
+	if (key.value.empty() || new_key.value.empty() || key == new_key ||
+		HasCatalogAsset(new_key, kind)) {
 		return false;
 	}
 
-	auto catalog_it{ catalog_.find(Hash(key)) };
+	const auto old_storage_key{ MakeAssetStorageKey(key, kind) };
+	auto catalog_it{ catalog_.find(old_storage_key) };
 	if (catalog_it == catalog_.end()) {
 		return false;
 	}
-	const auto state_it{ runtime_states_.find(Hash(key)) };
+	const auto state_it{ runtime_states_.find(old_storage_key) };
 	if (state_it != runtime_states_.end() &&
 		(state_it->second.reference_count > 0 || state_it->second.globally_pinned ||
 		 state_it->second.manually_pinned || state_it->second.load_state == AssetLoadState::Queued ||
@@ -2441,10 +2699,11 @@ bool AssetManager::RenameAssetKey(const AssetKey& key, AssetKey new_key) {
 		state = state_it->second;
 	}
 	catalog_.erase(catalog_it);
-	runtime_states_.erase(Hash(key));
+	runtime_states_.erase(old_storage_key);
 	asset.key = new_key;
-	catalog_.insert_or_assign(Hash(new_key), std::move(asset));
-	runtime_states_.insert_or_assign(Hash(new_key), std::move(state));
+	const auto new_storage_key{ MakeAssetStorageKey(new_key, kind) };
+	catalog_.insert_or_assign(new_storage_key, std::move(asset));
+	runtime_states_.insert_or_assign(new_storage_key, std::move(state));
 
 	for (auto& dependency : project_asset_dependencies_) {
 		if (dependency == key) {
@@ -2456,23 +2715,30 @@ bool AssetManager::RenameAssetKey(const AssetKey& key, AssetKey new_key) {
 
 bool AssetManager::RestoreCatalogAsset(const SerializedAsset& asset) {
 	if (asset.key.value.empty() || asset.kind == AssetKind::Unknown || asset.source_path.empty() ||
-		HasCatalogAsset(asset.key) || !FileExists(ResolveAssetPath(asset))) {
+		HasCatalogAsset(asset.key, asset.kind) || !FileExists(ResolveAssetPath(asset))) {
 		return false;
 	}
-	catalog_.insert_or_assign(Hash(asset.key), asset);
-	auto& state{ runtime_states_[Hash(asset.key)] };
+	const auto storage_key{ MakeAssetStorageKey(asset.key, asset.kind) };
+	catalog_.insert_or_assign(storage_key, asset);
+	auto& state{ runtime_states_[storage_key] };
 	state = RuntimeAssetState{};
 	state.metadata = ProbeMetadata(asset);
 	return true;
 }
 
 bool AssetManager::DeleteAsset(const AssetKey& key, bool delete_file) {
-	auto catalog_it{ catalog_.find(Hash(key)) };
-	if (catalog_it == catalog_.end() || catalog_it->second.kind == AssetKind::Scene) {
+	auto asset{ GetCatalogAsset(key) };
+	return asset.has_value() && DeleteAsset(key, asset->kind, delete_file);
+}
+
+bool AssetManager::DeleteAsset(const AssetKey& key, AssetKind kind, bool delete_file) {
+	const auto storage_key{ MakeAssetStorageKey(key, kind) };
+	auto catalog_it{ catalog_.find(storage_key) };
+	if (catalog_it == catalog_.end() || kind == AssetKind::Scene) {
 		return false;
 	}
 
-	auto state_it{ runtime_states_.find(Hash(key)) };
+	auto state_it{ runtime_states_.find(storage_key) };
 	if (state_it != runtime_states_.end()) {
 		const auto& state{ state_it->second };
 		if (state.reference_count > 0 || state.globally_pinned || state.manually_pinned ||
@@ -2483,7 +2749,7 @@ bool AssetManager::DeleteAsset(const AssetKey& key, bool delete_file) {
 		}
 	}
 
-	ForceUnload(key, catalog_it->second.kind);
+	ForceUnload(key, kind);
 
 	if (delete_file) {
 		std::error_code error;
@@ -2493,9 +2759,13 @@ bool AssetManager::DeleteAsset(const AssetKey& key, bool delete_file) {
 		}
 	}
 
-	std::erase(project_asset_dependencies_, key);
+	if (!std::ranges::any_of(catalog_, [&](const auto& entry) {
+		return entry.first != storage_key && entry.second.key == key;
+	})) {
+		std::erase(project_asset_dependencies_, key);
+	}
 	catalog_.erase(catalog_it);
-	runtime_states_.erase(Hash(key));
+	runtime_states_.erase(storage_key);
 	return true;
 }
 
@@ -2504,7 +2774,7 @@ bool AssetManager::ConfigureShaderProgram(
 	std::optional<std::string> vertex_source,
 	std::optional<std::string> fragment_source
 ) {
-	auto catalog_it{ catalog_.find(Hash(key)) };
+	auto catalog_it{ catalog_.find(MakeAssetStorageKey(key, AssetKind::Shader)) };
 	if (catalog_it == catalog_.end() || catalog_it->second.kind != AssetKind::Shader) {
 		return false;
 	}
@@ -2532,7 +2802,7 @@ std::optional<path> AssetManager::GetAssetDirectory() const {
 }
 
 void AssetManager::Load(const SerializedAsset& asset) {
-	const auto catalog_it{ catalog_.find(Hash(asset.key)) };
+	const auto catalog_it{ catalog_.find(MakeAssetStorageKey(asset.key, asset.kind)) };
 	const SerializedAsset& load_asset{
 		catalog_it != catalog_.end() ? catalog_it->second : asset
 	};
@@ -2541,7 +2811,7 @@ void AssetManager::Load(const SerializedAsset& asset) {
 	TrackAssetDependency(load_asset.key);
 
 	if (load_asset.kind == AssetKind::Scene) {
-		runtime_states_[Hash(load_asset.key)].load_state = AssetLoadState::Loaded;
+		runtime_states_[MakeAssetStorageKey(load_asset.key, load_asset.kind)].load_state = AssetLoadState::Loaded;
 		return;
 	}
 
@@ -2552,7 +2822,7 @@ void AssetManager::Load(const SerializedAsset& asset) {
 	
 	const auto source{ FileToString(source_path) };
 	auto validation{ ValidateShaderSource(ShaderKey{ load_asset.key }, source) };
-	auto& shader_state{ runtime_states_[Hash(load_asset.key)] };
+	auto& shader_state{ runtime_states_[MakeAssetStorageKey(load_asset.key, load_asset.kind)] };
 	shader_state.compile_error = !validation.success;
 	shader_state.compile_log = validation.log;
 	if (!validation.success) {
@@ -2590,7 +2860,7 @@ void AssetManager::Load(const SerializedAsset& asset) {
 		return;
 	}
 
-	const auto root{ GetResolutionRoot() };
+	const auto root{ project_root_.value_or(GetWorkingDirectory()) };
 	LoadShader(
 		ShaderKey{ load_asset.key },
 		ShaderPair{
@@ -2607,14 +2877,29 @@ void AssetManager::Load(const SerializedAsset& asset) {
 
 void AssetManager::LoadAssetAsync(const AssetKey& key) {
 	TrackAssetDependency(key);
+	bool found{ false };
+	for (const auto& [_, asset] : catalog_) {
+		if (asset.key != key) {
+			continue;
+		}
+		LoadAssetAsync(key, asset.kind);
+		found = true;
+	}
+	if (!found) {
+		PTGN_WARN("Cannot load asset because it is missing from the catalog: ", key);
+	}
+}
 
-	auto catalog_it{ catalog_.find(Hash(key)) };
+void AssetManager::LoadAssetAsync(const AssetKey& key, AssetKind kind) {
+	TrackAssetDependency(key);
+	const auto storage_key{ MakeAssetStorageKey(key, kind) };
+	auto catalog_it{ catalog_.find(storage_key) };
 	if (catalog_it == catalog_.end()) {
 		PTGN_WARN("Cannot load asset because it is missing from the catalog: ", key);
 		return;
 	}
 
-	auto& state{ runtime_states_[Hash(key)] };
+	auto& state{ runtime_states_[storage_key] };
 	state.manually_pinned = true;
 	if (state.load_state == AssetLoadState::Loaded ||
 		state.load_state == AssetLoadState::Queued ||
@@ -2623,24 +2908,32 @@ void AssetManager::LoadAssetAsync(const AssetKey& key) {
 		return;
 	}
 
-	const AssetKey dependency{ key };
-	manual_load_tickets_.emplace_back(AcquireDependenciesAsync(
-		std::span<const AssetKey>{ &dependency, 1 }
-	));
+	auto batch{ std::make_shared<impl::AssetLoadBatchState>() };
+	{
+		std::scoped_lock lock{ batch->mutex };
+		batch->progress.total_assets = 1;
+		batch->progress.total_bytes = state.metadata.file_size;
+	}
+	QueueAssetLoad(catalog_it->second, batch);
+	active_batches_.emplace_back(batch);
+	manual_load_batches_.emplace_back(std::move(batch));
 }
 
 void AssetManager::LoadDependencies(std::span<const AssetKey> dependencies) {
 	for (const auto& key : ExpandDependencies(dependencies)) {
 		TrackAssetDependency(key);
-
-		auto it{ catalog_.find(Hash(key)) };
-		if (it == catalog_.end()) {
-			PTGN_WARN("Asset dependency is missing from the catalog: ", key);
-			continue;
+		bool found{ false };
+		for (const auto& [_, asset] : catalog_) {
+			if (asset.key != key) {
+				continue;
+			}
+			found = true;
+			if (!Has(key, asset.kind)) {
+				Load(asset);
+			}
 		}
-
-		if (!Has(key, it->second.kind)) {
-			Load(it->second);
+		if (!found) {
+			PTGN_WARN("Asset dependency is missing from the catalog: ", key);
 		}
 	}
 }
@@ -2654,17 +2947,11 @@ void AssetManager::LoadProjectAsset(AssetKey key, const path& asset_path) {
 		return;
 	}
 
-	const auto catalog_it{ catalog_.find(Hash(dependency)) };
-	if (catalog_it == catalog_.end()) {
-		PTGN_WARN(
-			"Project asset loaded without a catalog entry: ",
-			dependency
-		);
-		return;
+	for (const auto& [storage_key, asset] : catalog_) {
+		if (asset.key == dependency) {
+			runtime_states_[storage_key].metadata = ProbeMetadata(asset);
+		}
 	}
-
-	runtime_states_[Hash(dependency)].metadata =
-		ProbeMetadata(catalog_it->second);
 	AddProjectAssetDependency(std::move(dependency));
 }
 
@@ -2749,7 +3036,7 @@ Texture AssetManager::LoadTexture(
 
 	auto texture{ CreateTexture(true, source_path, storage_format, params) };
 	impl::AddAssetKey(texture.GetEntity(), key, source_path);
-	runtime_states_[Hash(key)].load_state = AssetLoadState::Loaded;
+	runtime_states_[MakeAssetStorageKey(key, AssetKind::Texture)].load_state = AssetLoadState::Loaded;
 	return texture;
 }
 
@@ -2783,7 +3070,7 @@ Font AssetManager::LoadFont(FontKey key, const path& asset_path) {
 
 	auto font{ CreateFont(true, source_path) };
 	impl::AddAssetKey(font.GetEntity(), key, source_path);
-	runtime_states_[Hash(key)].load_state = AssetLoadState::Loaded;
+	runtime_states_[MakeAssetStorageKey(key, AssetKind::Font)].load_state = AssetLoadState::Loaded;
 	return font;
 }
 
@@ -2816,7 +3103,7 @@ Audio AssetManager::LoadAudio(AudioKey key, const path& asset_path) {
 
 	auto audio{ CreateAudio(true, source_path) };
 	impl::AddAssetKey(audio.GetEntity(), key, source_path);
-	runtime_states_[Hash(key)].load_state = AssetLoadState::Loaded;
+	runtime_states_[MakeAssetStorageKey(key, AssetKind::Audio)].load_state = AssetLoadState::Loaded;
 	return audio;
 }
 
@@ -2879,7 +3166,7 @@ Shader AssetManager::LoadShader(
 
 	auto shader{ CreateShader(true, resolved_source, shader_name.value_or(key.value)) };
 	impl::AddAssetKey(shader.GetEntity(), key, source_path);
-	runtime_states_[Hash(key)].load_state = AssetLoadState::Loaded;
+	runtime_states_[MakeAssetStorageKey(key, AssetKind::Shader)].load_state = AssetLoadState::Loaded;
 	return shader;
 }
 
@@ -2924,7 +3211,7 @@ Prefab& AssetManager::LoadPrefab(
 	) };
 	(void)inserted;
 
-	runtime_states_[Hash(key)].load_state = AssetLoadState::Loaded;
+	runtime_states_[MakeAssetStorageKey(key, AssetKind::Prefab)].load_state = AssetLoadState::Loaded;
 	return it->second.value;
 }
 
@@ -2956,9 +3243,10 @@ Prefab& AssetManager::SavePrefab(
 		.kind = AssetKind::Prefab,
 		.source_path = source_path,
 	};
-	catalog_.insert_or_assign(Hash(key), serialized);
-	runtime_states_[Hash(key)].load_state = AssetLoadState::Loaded;
-	runtime_states_[Hash(key)].metadata = ProbeMetadata(serialized);
+	const auto storage_key{ MakeAssetStorageKey(key, AssetKind::Prefab) };
+	catalog_.insert_or_assign(storage_key, serialized);
+	runtime_states_[storage_key].load_state = AssetLoadState::Loaded;
+	runtime_states_[storage_key].metadata = ProbeMetadata(serialized);
 	return it->second.value;
 }
 
@@ -2972,7 +3260,7 @@ bool AssetManager::SavePrefab(const PrefabKey& key) {
 }
 
 bool AssetManager::RemovePrefab(const PrefabKey& key, bool remove_file) {
-	return DeleteAsset(key, remove_file);
+	return DeleteAsset(key, AssetKind::Prefab, remove_file);
 }
 
 std::vector<PrefabKey> AssetManager::GetPrefabKeys() const {
@@ -2987,7 +3275,7 @@ std::vector<PrefabKey> AssetManager::GetPrefabKeys() const {
 }
 
 path AssetManager::GetPrefabPath(const PrefabKey& key) const {
-	auto it{ catalog_.find(Hash(key)) };
+	auto it{ catalog_.find(MakeAssetStorageKey(key, AssetKind::Prefab)) };
 	if (it == catalog_.end()) {
 		PTGN_WARN("Prefab is not in asset catalog: ", key);
 		return {};
@@ -3023,7 +3311,7 @@ json& AssetManager::LoadJson(const JsonKey& key, const path& asset_path) {
 	) };
 	(void)inserted;
 
-	runtime_states_[Hash(key)].load_state = AssetLoadState::Loaded;
+	runtime_states_[MakeAssetStorageKey(key, AssetKind::Json)].load_state = AssetLoadState::Loaded;
 	return it->second.value;
 }
 
@@ -3102,7 +3390,7 @@ void AssetManager::Load(ShaderKey key, const ShaderCode& shader_code) {
 	}
 
 	if (!validation.success) {
-		auto& state{ runtime_states_[Hash(key)] };
+		auto& state{ runtime_states_[MakeAssetStorageKey(key, AssetKind::Shader)] };
 		state.load_state = AssetLoadState::Failed;
 		state.error = validation.log;
 		state.compile_error = true;
@@ -3127,7 +3415,7 @@ void AssetManager::Load(ShaderKey key, const ShaderPair& shader_pair) {
 	auto validation{ ValidateShaderPairForLoad(shader_pair, max_texture_slots) };
 
 	if (!validation.success) {
-		auto& state{ runtime_states_[Hash(key)] };
+		auto& state{ runtime_states_[MakeAssetStorageKey(key, AssetKind::Shader)] };
 		state.load_state = AssetLoadState::Failed;
 		state.error = validation.log;
 		state.compile_error = true;
@@ -3263,7 +3551,7 @@ void AssetManager::Load(
 
 			if (!validation.success) {
 				auto& state{
-					runtime_states_[Hash(key)]
+					runtime_states_[MakeAssetStorageKey(key, AssetKind::Shader)]
 				};
 				state.load_state =
 					AssetLoadState::Failed;
@@ -3458,9 +3746,11 @@ bool AssetManager::Has(const AssetKey& key, AssetKind kind) const {
 		case Json: return Has<json>(key);
 		case Shader: return Has<ptgn::Shader>(key);
 		case Prefab: return Has<ptgn::Prefab>(key);
-		case Scene:
-			return runtime_states_.contains(Hash(key)) &&
-				   runtime_states_.at(Hash(key)).load_state == AssetLoadState::Loaded;
+		case Scene: {
+			const auto storage_key{ MakeAssetStorageKey(key, AssetKind::Scene) };
+			return runtime_states_.contains(storage_key) &&
+				runtime_states_.at(storage_key).load_state == AssetLoadState::Loaded;
+		}
 		case Unknown: break;
 	}
 	return false;
@@ -3497,8 +3787,8 @@ std::vector<impl::AssetRecord> AssetManager::GetAssets() const {
 	std::vector<impl::AssetRecord> records;
 	records.reserve(catalog_.size() + manager_.Size());
 
-	for (const auto& [key_hash, serialized] : catalog_) {
-		const auto state_it{ runtime_states_.find(key_hash) };
+	for (const auto& [storage_key, serialized] : catalog_) {
+		const auto state_it{ runtime_states_.find(storage_key) };
 		const RuntimeAssetState* state{ state_it == runtime_states_.end() ? nullptr : &state_it->second };
 
 		impl::AssetRecord record{
@@ -3536,7 +3826,8 @@ std::vector<impl::AssetRecord> AssetManager::GetAssets() const {
 	}
 
 	for (auto [asset, key] : manager_.EntitiesWith<AssetKey>()) {
-		if (key.value == kMissingTextureAssetKey || catalog_.contains(Hash(key))) {
+		const AssetKind runtime_kind{ GetAssetKindFromEntity(asset, {}) };
+		if (key.value == kMissingTextureAssetKey || HasCatalogAsset(key, runtime_kind)) {
 			continue;
 		}
 
@@ -3552,6 +3843,16 @@ std::vector<impl::AssetRecord> AssetManager::GetAssets() const {
 			.load_state = AssetLoadState::Loaded,
 		};
 
+		if (record.kind == AssetKind::Font && key.value == kDefaultFont) {
+			record.source_path = path{ "assets/fonts/LiberationSans-Regular.ttf" };
+			const path default_font_file{
+				impl::GetBuildInfo().engine_directory / record.source_path
+			};
+			if (FileExists(default_font_file)) {
+				record.metadata.file_size = SafeFileSize(default_font_file);
+			}
+		}
+
 		if (auto texture{ asset.TryGet<impl::TextureObject>() }) {
 			record.preview = impl::AssetPreview{
 				.texture = static_cast<impl::TextureId>(*texture),
@@ -3562,6 +3863,7 @@ std::vector<impl::AssetRecord> AssetManager::GetAssets() const {
 				.texture = font->GetTexture(),
 				.size = font->GetSize(),
 			};
+			record.metadata.dimensions = font->GetSize();
 		}
 
 		records.emplace_back(std::move(record));
@@ -3589,7 +3891,7 @@ bool AssetManager::ForceUnload(const AssetKey& key, AssetKind kind) {
 		case Unknown: break;
 	}
 
-	auto state_it{ runtime_states_.find(Hash(key)) };
+	auto state_it{ runtime_states_.find(MakeAssetStorageKey(key, kind)) };
 	if (state_it != runtime_states_.end()) {
 		state_it->second.load_state = AssetLoadState::Unloaded;
 		state_it->second.manually_pinned = false;
@@ -3599,7 +3901,7 @@ bool AssetManager::ForceUnload(const AssetKey& key, AssetKind kind) {
 }
 
 bool AssetManager::Unload(const AssetKey& key, AssetKind kind) {
-	auto state_it{ runtime_states_.find(Hash(key)) };
+	auto state_it{ runtime_states_.find(MakeAssetStorageKey(key, kind)) };
 	if (state_it != runtime_states_.end()) {
 		state_it->second.manually_pinned = false;
 		if (state_it->second.reference_count > 0 || state_it->second.globally_pinned) {
@@ -3645,25 +3947,26 @@ std::vector<AssetKey> AssetManager::DiscoverDependencies(
 	collect(value);
 
 	for (std::size_t index{ 0 }; index < dependencies.size(); ++index) {
-		auto catalog_it{ catalog_.find(Hash(dependencies[index])) };
-		if (catalog_it == catalog_.end() || catalog_it->second.kind != AssetKind::Prefab) {
-			continue;
-		}
+		for (const auto& [_, asset] : catalog_) {
+			if (asset.key != dependencies[index] || asset.kind != AssetKind::Prefab) {
+				continue;
+			}
 
-		const auto prefab_path{ ResolveAssetPath(catalog_it->second) };
-		if (!FileExists(prefab_path)) {
-			continue;
-		}
+			const auto prefab_path{ ResolveAssetPath(asset) };
+			if (!FileExists(prefab_path)) {
+				continue;
+			}
 
-		try {
-			collect(json::parse(FileToString(prefab_path)));
-		} catch (const json::exception& error) {
-			PTGN_WARN(
-				"Could not inspect prefab dependencies for ",
-				prefab_path.string(),
-				": ",
-				error.what()
-			);
+			try {
+				collect(json::parse(FileToString(prefab_path)));
+			} catch (const json::exception& error) {
+				PTGN_WARN(
+					"Could not inspect prefab dependencies for ",
+					prefab_path.string(),
+					": ",
+					error.what()
+				);
+			}
 		}
 	}
 
@@ -3678,14 +3981,6 @@ std::vector<AssetKey> AssetManager::ExpandDependencies(
 		values.emplace_back(key.value);
 	}
 	return DiscoverDependencies(values, dependencies);
-}
-
-path AssetManager::GetResolutionRoot() const {
-	if (project_root_) {
-		return project_root_->lexically_normal();
-	}
-
-	return GetAssetRoot();
 }
 
 template bool AssetManager::Unload<json>(const AssetKey&);
@@ -3725,7 +4020,7 @@ std::optional<std::size_t> DetectTexturePathCount(
 ) {
 	std::optional<path> source_path;
 
-	if (const auto asset{ assets.GetCatalogAsset(texture_key) }) {
+	if (const auto asset{ assets.GetCatalogAsset(texture_key, AssetKind::Texture) }) {
 		source_path = asset->source_path;
 	} else {
 		AssetAccessor accessor{ assets };

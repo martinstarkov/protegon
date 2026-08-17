@@ -1392,8 +1392,15 @@ bool IsValidAssetKey(EditorContext& ctx, const T& key) {
 	}
 
 	auto& assets{ ctx.editor.GetAssetManager() };
-
-	return assets.Has(key);
+	using Value = std::remove_cvref_t<T>;
+	if constexpr (std::same_as<Value, AssetKey>) {
+		return assets.HasCatalogAsset(key) || assets.Has(key);
+	} else if constexpr (std::same_as<Value, ShaderKey>) {
+		return assets.HasCatalogAsset(key, Value::kind) ||
+			assets.GetEngineShaderSource(key).has_value() || assets.Has(key);
+	} else {
+		return assets.HasCatalogAsset(key, Value::kind) || assets.Has(key);
+	}
 }
 
 template <AssetKeyType T>
@@ -1404,32 +1411,67 @@ bool DrawAssetKeyInline(
 	std::string_view hint = {},
 	bool input_enabled = true
 ) {
+	using Value = std::remove_cvref_t<T>;
 	const bool read_only{ IsReadOnly(options) };
 	const bool input_disabled{ read_only || !input_enabled };
+	constexpr bool shader_key{ std::same_as<Value, ShaderKey> };
 
 	std::string resolved_hint{ hint };
-
-	if constexpr (std::same_as<T, FontKey>) {
-		if (resolved_hint.empty() && value.value == kDefaultFont) {
-			resolved_hint = "Default Font";
+	std::string displayed_value{ value.value };
+	if constexpr (std::same_as<Value, FontKey>) {
+		if (value.value == kDefaultFont) {
+			displayed_value = "Default Font";
 		}
 	}
 
-	bool changed{ DrawDisabledIf(input_disabled, [&]() {
+	float shader_button_width{ 0.0f };
+	if constexpr (shader_key) {
+		shader_button_width =
+			ImGui::CalcTextSize("[..]").x + ImGui::GetStyle().FramePadding.x * 2.0f;
+		const float input_width{
+			std::max(
+				1.0f,
+				ImGui::GetContentRegionAvail().x - shader_button_width -
+					ImGui::GetStyle().ItemInnerSpacing.x
+			)
+		};
+		ImGui::SetNextItemWidth(input_width);
+	}
+
+	bool input_changed{ DrawDisabledIf(input_disabled, [&]() {
 		return ImGui::InputTextWithHint(
 			"##value",
 			resolved_hint.c_str(),
-			&value.value
+			&displayed_value
 		);
 	}) };
 
+	if (input_changed) {
+		if constexpr (std::same_as<Value, FontKey>) {
+			value.value = displayed_value == "Default Font"
+				? std::string{ kDefaultFont }
+				: displayed_value;
+		} else {
+			value.value = displayed_value;
+		}
+	}
+	bool changed{ input_changed };
+
 	const ImVec2 input_min{ ImGui::GetItemRectMin() };
 	const ImVec2 input_max{ ImGui::GetItemRectMax() };
-	const bool input_hovered{ ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled) };
+	const bool input_hovered{
+		ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled)
+	};
+
+	if constexpr (shader_key) {
+		if (input_hovered) {
+			ImGui::SetTooltip(
+				"Built-in engine shader keys start with '$', e.g. $color."
+			);
+		}
+	}
 
 	if (!read_only) {
-		using Value = std::remove_cvref_t<T>;
-
 		if constexpr (
 			!std::same_as<Value, AssetKey> &&
 			requires { Value::kind; }
@@ -1445,6 +1487,34 @@ bool DrawAssetKeyInline(
 		}
 	}
 
+	if constexpr (shader_key) {
+		auto& assets{ ctx.editor.GetAssetManager() };
+		const bool shader_exists{
+			!value.value.empty() &&
+			(assets.HasCatalogAsset(value, AssetKind::Shader) ||
+			 assets.GetEngineShaderSource(value).has_value() ||
+			 assets.Has(value))
+		};
+		if (input_hovered && shader_exists &&
+			ImGui::IsMouseReleased(ImGuiMouseButton_Right)) {
+			ptgn::editor::RequestShaderEditorOpen(value);
+		}
+
+		ImGui::SameLine(0.0f, ImGui::GetStyle().ItemInnerSpacing.x);
+		ImGui::BeginDisabled(!shader_exists);
+		if (ImGui::Button("[..]##OpenShaderEditor", ImVec2{ shader_button_width, 0.0f })) {
+			ptgn::editor::RequestShaderEditorOpen(value);
+		}
+		ImGui::EndDisabled();
+		if (ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled)) {
+			ImGui::SetTooltip(
+				shader_exists
+					? "Open this shader in the shader editor."
+					: "The shader asset does not exist."
+			);
+		}
+	}
+
 	if (IsValidAssetKey(ctx, value)) {
 		return changed;
 	}
@@ -1454,7 +1524,6 @@ bool DrawAssetKeyInline(
 			ImVec4{ 1.0f, 0.25f, 0.25f, 1.0f }
 		)
 	};
-
 	ImGui::GetWindowDrawList()->AddRect(
 		input_min,
 		input_max,
@@ -1463,18 +1532,13 @@ bool DrawAssetKeyInline(
 	);
 
 	if (input_hovered) {
-		using Value = std::remove_cvref_t<T>;
-
 		if constexpr (std::same_as<Value, AssetKey>) {
 			ImGui::SetTooltip(
 				"No asset exists with key \"%s\".",
 				value.value.c_str()
 			);
 		} else {
-			const auto kind_name{
-				magic_enum::enum_name(Value::kind)
-			};
-
+			const auto kind_name{ magic_enum::enum_name(Value::kind) };
 			ImGui::SetTooltip(
 				"No %.*s asset exists with key \"%s\".",
 				static_cast<int>(kind_name.size()),

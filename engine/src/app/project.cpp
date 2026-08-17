@@ -2,11 +2,14 @@
 
 #include <algorithm>
 #include <array>
+#include <cctype>
 #include <filesystem>
 #include <ranges>
 #include <span>
 #include <string>
 #include <string_view>
+#include <unordered_map>
+#include <unordered_set>
 #include <utility>
 #include <vector>
 
@@ -72,6 +75,159 @@ void ValidateProject(const Project& project) {
 		"Project startup scene key is not present in the scene list: ",
 		project.startup_scene_key
 	);
+}
+
+std::string SanitizeAssetKeyBase(const path& source_path) {
+	std::string value{ source_path.stem().string() };
+	for (char& c : value) {
+		const auto byte{ static_cast<unsigned char>(c) };
+		if (std::isalnum(byte) == 0 && c != '_' && c != '-') {
+			c = '_';
+		} else {
+			c = static_cast<char>(std::tolower(byte));
+		}
+	}
+	return value.empty() ? std::string{ "asset" } : value;
+}
+
+std::string AssetIdentity(AssetKind kind, std::string_view key) {
+	return std::to_string(std::to_underlying(kind)) + ":" + std::string{ key };
+}
+
+bool ReplaceAssetKeyStrings(
+	json& value,
+	const std::unordered_map<std::string, std::string>& replacements
+) {
+	bool changed{ false };
+
+	if (value.is_string()) {
+		const auto current{ value.template get<std::string>() };
+		if (const auto it{ replacements.find(current) }; it != replacements.end()) {
+			value = it->second;
+			return true;
+		}
+		return false;
+	}
+
+	if (value.is_array()) {
+		for (auto& item : value) {
+			changed |= ReplaceAssetKeyStrings(item, replacements);
+		}
+		return changed;
+	}
+
+	if (value.is_object()) {
+		for (auto it{ value.begin() }; it != value.end(); ++it) {
+			changed |= ReplaceAssetKeyStrings(it.value(), replacements);
+		}
+	}
+
+	return changed;
+}
+
+void RewriteAssetKeyReferencesInJsonFile(
+	const path& file_path,
+	const std::unordered_map<std::string, std::string>& replacements
+) {
+	if (!FileExists(file_path)) {
+		return;
+	}
+
+	try {
+		json value{ LoadJson(file_path) };
+		if (ReplaceAssetKeyStrings(value, replacements)) {
+			SaveJson(value, file_path);
+		}
+	} catch (...) {
+	}
+}
+
+bool NormalizeLegacyProjectAssetKeys(Project& project) {
+	std::unordered_set<std::string> used;
+	std::vector<std::size_t> normalize_indices;
+
+	for (std::size_t i{ 0 }; i < project.assets.size(); ++i) {
+		const auto& asset{ project.assets[i] };
+		const bool path_key{
+			asset.key.value.find('/') != std::string::npos ||
+			asset.key.value.find('\\') != std::string::npos
+		};
+		if (path_key) {
+			normalize_indices.emplace_back(i);
+		} else {
+			used.emplace(AssetIdentity(asset.kind, asset.key.value));
+		}
+	}
+
+	std::ranges::sort(normalize_indices, [&](std::size_t lhs, std::size_t rhs) {
+		return project.assets[lhs].source_path.generic_string() <
+			project.assets[rhs].source_path.generic_string();
+	});
+
+	std::unordered_map<std::string, std::string> replacements;
+	for (const auto index : normalize_indices) {
+		auto& asset{ project.assets[index] };
+		const std::string old_key{ asset.key.value };
+		const std::string base{ SanitizeAssetKeyBase(asset.source_path) };
+		std::string key{ base };
+
+		for (std::size_t suffix{ 2 }; used.contains(AssetIdentity(asset.kind, key)); ++suffix) {
+			key = base + "_" + std::to_string(suffix);
+		}
+
+		used.emplace(AssetIdentity(asset.kind, key));
+		asset.key = AssetKey{ key };
+		if (old_key != key) {
+			replacements.insert_or_assign(old_key, key);
+		}
+	}
+
+	if (replacements.empty()) {
+		return false;
+	}
+
+	for (auto& key : project.preload_assets) {
+		if (const auto it{ replacements.find(key.value) }; it != replacements.end()) {
+			key = AssetKey{ it->second };
+		}
+	}
+
+	json screen_effects = project.screen_effects;
+	if (ReplaceAssetKeyStrings(screen_effects, replacements)) {
+		screen_effects.get_to(project.screen_effects);
+	}
+
+	const path project_root{ project.file_path.parent_path() };
+	std::unordered_set<std::string> rewritten_files;
+	for (const auto& scene : project.scenes) {
+		const path scene_path{ (project_root / scene.scene_path).lexically_normal() };
+		rewritten_files.emplace(scene_path.generic_string());
+		RewriteAssetKeyReferencesInJsonFile(scene_path, replacements);
+	}
+
+	const path assets_root{ (project_root / project.asset_directory).lexically_normal() };
+	std::error_code error;
+	for (std::filesystem::recursive_directory_iterator it{ assets_root, error }, end;
+		 !error && it != end; it.increment(error)) {
+		std::error_code entry_error;
+		if (!it->is_regular_file(entry_error) || entry_error) {
+			continue;
+		}
+
+		const path file_path{ it->path().lexically_normal() };
+		if (rewritten_files.contains(file_path.generic_string())) {
+			continue;
+		}
+
+		const auto extension{ file_path.extension().string() };
+		if (extension != ".json" && extension != ".ptgnprefab" && extension != ".ptgnscene") {
+			continue;
+		}
+
+		RewriteAssetKeyReferencesInJsonFile(file_path, replacements);
+	}
+
+	return true;
 }
 
 } // namespace
@@ -144,6 +300,11 @@ Project LoadProject(const path& file_path, const ProjectSettings& default_settin
 
 	ValidateProject(project);
 	EnsureProjectAssetDirectories(project);
+#if !defined(__EMSCRIPTEN__)
+	if (NormalizeLegacyProjectAssetKeys(project)) {
+		SaveProject(project);
+	}
+#endif
 	return project;
 }
 

@@ -29,6 +29,13 @@ bool AcceptAssetKeyDragDrop(
 /// @brief Requests that the Content Browser open the shader editor for this key on its next render.
 void RequestShaderEditorOpen(ShaderKey key);
 
+struct ContentBrowserAssetSelection {
+	AssetKey key;
+	AssetKind kind{ AssetKind::Unknown };
+
+	bool operator==(const ContentBrowserAssetSelection&) const = default;
+};
+
 template <typename T>
 concept SpecificAssetKey =
 	std::derived_from<std::remove_cvref_t<T>, AssetKey> &&
@@ -56,13 +63,17 @@ private:
 	struct ShaderEditorState {
 		ShaderKey key;
 		std::string display_name;
-		std::string source;
-		std::string saved_source;
+		std::string vertex_source;
+		std::string fragment_source;
+		std::string saved_vertex_source;
+		std::string saved_fragment_source;
 		SerializedShaderProgram program;
 		SerializedShaderProgram saved_program;
 		ShaderStageMask source_stages{ ShaderStageMask::None };
 		std::string diagnostics;
 		bool last_compile_success{ true };
+		bool vertex_editable{ false };
+		bool fragment_editable{ false };
 		bool read_only{ false };
 		bool open{ true };
 	};
@@ -70,11 +81,11 @@ private:
 	struct SelectionBoxState {
 		float start_x{ 0.0f };
 		float start_y{ 0.0f };
-		std::vector<AssetKey> base_selection;
+		std::vector<ContentBrowserAssetSelection> base_selection;
 	};
 
 	struct PendingDeleteState {
-		std::vector<AssetKey> assets;
+		std::vector<ContentBrowserAssetSelection> assets;
 		std::optional<path> directory;
 		std::vector<path> listed_files;
 	};
@@ -102,34 +113,35 @@ private:
 	bool CreateDirectory(EditorContext& ctx, const path& parent_directory, std::string_view name);
 	bool RenameDirectory(EditorContext& ctx, const path& directory, std::string_view new_name);
 	bool DeleteDirectory(EditorContext& ctx, const path& directory);
-	bool DeleteAssets(EditorContext& ctx, const std::vector<AssetKey>& keys);
-	bool RenameAssetKey(EditorContext& ctx, const AssetKey& key, std::string_view new_key);
+	bool DeleteAssets(EditorContext& ctx, const std::vector<ContentBrowserAssetSelection>& assets);
+	bool RenameAssetKey(EditorContext& ctx, ContentBrowserAssetSelection asset, std::string_view new_key);
 
 	[[nodiscard]] std::vector<path> ConsumeDroppedFiles();
 	void AddDroppedFile(const path& file_path);
 
-	[[nodiscard]] bool IsAssetSelected(const AssetKey& key) const;
-	void SelectOnly(const AssetKey& key);
-	void ToggleSelection(const AssetKey& key);
+	[[nodiscard]] bool IsAssetSelected(ContentBrowserAssetSelection asset) const;
+	void SelectOnly(ContentBrowserAssetSelection asset);
+	void ToggleSelection(ContentBrowserAssetSelection asset);
 	void ClearAssetSelection();
 
 	std::vector<path> dropped_files_;
 	path selected_directory_;
-	float folder_pane_width_{ 120.0f };
+	float folder_pane_width_{ 80.0f };
+	bool folder_pane_manual_width_{ false };
 	SortMode sort_mode_{ SortMode::Name };
 	bool sort_ascending_{ true };
 	std::string search_;
 	std::string status_;
 	bool show_engine_shaders_{ false };
 
-	std::vector<AssetKey> selected_assets_;
+	std::vector<ContentBrowserAssetSelection> selected_assets_;
 	std::optional<SelectionBoxState> selection_box_;
 
 	std::string new_folder_name_;
 	std::optional<path> create_folder_parent_;
 	std::optional<path> rename_directory_;
 	std::string rename_directory_value_;
-	std::optional<AssetKey> rename_asset_key_;
+	std::optional<ContentBrowserAssetSelection> rename_asset_key_;
 	std::string rename_asset_key_value_;
 	std::optional<PendingDeleteState> pending_delete_;
 

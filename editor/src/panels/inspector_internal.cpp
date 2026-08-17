@@ -37,7 +37,6 @@
 #include "core/math/geometry/rect.h"
 #include "core/math/transform.h"
 #include "core/util/hash.h"
-#include "panels/content_browser.h"
 #include "panels/inspector_feature_helpers.h"
 #include "panels/inspector_fields.h"
 #include "renderer/pipeline/blend_mode.h"
@@ -1124,11 +1123,28 @@ bool DrawTransformFeatureFields(
 	begin_row("Rotation", "Rotation");
 	ImGui::TableSetColumnIndex(2);
 	ImGui::SetNextItemWidth(-FLT_MIN);
-	changed |= ImGui::DragFloat(
-		"##Value", &state.transform.rotation.value, 1.0f, 0.0f, 360.0f, "%.1f deg",
-		ImGuiSliderFlags_AlwaysClamp
+
+	Degrees rotation{ state.transform.rotation };
+	float degrees{ rotation.value };
+
+	if (ImGui::DragFloat(
+			"##Value",
+			&degrees,
+			1.0f,
+			0.0f,
+			360.0f,
+			"%.1f deg",
+			ImGuiSliderFlags_AlwaysClamp
+		)) {
+		state.transform.rotation = Radians{ Degrees{ degrees } };
+		changed = true;
+	}
+
+	changed |= draw_ignore(
+		state.ignore_rotation,
+		"Ignore parent rotation."
 	);
-	changed |= draw_ignore(state.ignore_rotation, "Ignore parent rotation.");
+
 	ImGui::PopID();
 
 	begin_row("Scale", "Scale");
@@ -3014,11 +3030,46 @@ RendererRowResult DrawRendererRow(Target& target) {
 
 	ImGui::SetNextItemWidth(combo_width);
 
+	std::size_t renderer_popup_rows{ 1 };
+	bool has_shapes{ false };
+	bool has_effects{ false };
+	for (const auto& candidate : Drawable::data()) {
+		const std::string visual{
+			NormalizeFeatureName(candidate.GetDisplayName())
+		};
+		if (IsShapeRenderer(visual)) {
+			has_shapes = true;
+		} else if (IsEffectRenderer(visual)) {
+			has_effects = true;
+		} else {
+			++renderer_popup_rows;
+		}
+	}
+	renderer_popup_rows += static_cast<std::size_t>(has_shapes);
+	renderer_popup_rows += static_cast<std::size_t>(has_effects);
+
+	const auto* viewport{ ImGui::GetMainViewport() };
+	const float requested_popup_height{
+		ImGui::GetStyle().WindowPadding.y * 2.0f +
+		static_cast<float>(renderer_popup_rows) * ImGui::GetFrameHeightWithSpacing()
+	};
+	const float popup_height{
+		std::min(
+			requested_popup_height,
+			std::max(120.0f, viewport->WorkSize.y - 32.0f)
+		)
+	};
+	ImGui::SetNextWindowSizeConstraints(
+		ImVec2{ 0.0f, popup_height },
+		ImVec2{ FLT_MAX, popup_height }
+	);
+
 	ImGui::BeginDisabled(primary_scene_target);
 
 	if (ImGui::BeginCombo(
 		"##RendererSelector",
-		preview.c_str()
+		preview.c_str(),
+		ImGuiComboFlags_HeightLargest
 	)) {
 		if (!primary_scene_target) {
 			if (ImGui::Selectable(
@@ -5672,70 +5723,6 @@ bool DrawMaterialDetails(Target& target, ::ptgn::Material& material) {
 	return changed;
 }
 
-std::string InspectorShaderStageText(ShaderStageMask stages) {
-	const bool vertex{ HasShaderStage(stages, ShaderStageMask::Vertex) };
-	const bool fragment{ HasShaderStage(stages, ShaderStageMask::Fragment) };
-	if (vertex && fragment) {
-		return "Vertex + Fragment";
-	}
-	if (vertex) {
-		return "Vertex";
-	}
-	if (fragment) {
-		return "Fragment";
-	}
-	return "None detected";
-}
-
-std::string InspectorShaderReferenceLabel(const std::optional<std::string>& reference) {
-	if (!reference.has_value() || reference->empty()) {
-		return "Not configured";
-	}
-	if (reference.value() == kShaderSourceToken) {
-		return "This shader file";
-	}
-	if (reference->starts_with(kBuiltinShaderPrefix)) {
-		return "Engine / " + reference->substr(kBuiltinShaderPrefix.size());
-	}
-	return "Project / " + reference.value();
-}
-
-bool DrawShaderProgramInspector(EditorContext& ctx, const ShaderKey& key) {
-	if (key.value.empty()) {
-		return false;
-	}
-
-	auto& assets{ ctx.editor.GetAssetManager() };
-	const auto records{ ::ptgn::impl::AssetAccessor{ assets }.GetAssets() };
-	const auto record_it{ std::ranges::find_if(records, [&](const auto& record) {
-		return record.key == static_cast<const AssetKey&>(key);
-	}) };
-	if (record_it == records.end() || record_it->kind != AssetKind::Shader) {
-		return false;
-	}
-
-	SerializedShaderProgram program;
-	if (const auto catalog{ assets.GetCatalogAsset(key) };
-		catalog.has_value() && catalog->shader.has_value()) {
-		program = catalog->shader.value();
-	} else if (const auto source{ assets.GetShaderSource(key) }; source.has_value()) {
-		program = assets.SuggestShaderProgram(source.value()).value_or(SerializedShaderProgram{});
-	}
-
-	ImGui::SeparatorText("Shader Program");
-	ImGui::TextDisabled(
-		"Detected: %s",
-		InspectorShaderStageText(record_it->metadata.shader_stages).c_str()
-	);
-	ImGui::Text("Vertex: %s", InspectorShaderReferenceLabel(program.vertex).c_str());
-	ImGui::Text("Fragment: %s", InspectorShaderReferenceLabel(program.fragment).c_str());
-
-	if (ImGui::Button("Open Shader Editor", ImVec2{ -FLT_MIN, 0.0f })) {
-		RequestShaderEditorOpen(key);
-	}
-	return false;
-}
-
 template <typename Target, AssetKeyType Key>
 bool DrawOptionalAssetComponent(
 	Target& target,
@@ -5785,7 +5772,6 @@ bool DrawCustomShaderMaterial(
 	::ptgn::Material& material
 ) {
 	bool changed{ DrawValue(target.ctx, "Shader Key", material.shader) };
-	changed |= DrawShaderProgramInspector(target.ctx, material.shader);
 	changed |= DrawMaterialDetails(target, material);
 	return changed;
 }

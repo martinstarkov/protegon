@@ -180,6 +180,22 @@ struct AssetMetadata {
 	ShaderStageMask shader_stages{ ShaderStageMask::None };
 };
 
+struct AssetStorageKey {
+	std::size_t key_hash{ 0 };
+	AssetKind kind{ AssetKind::Unknown };
+
+	bool operator==(const AssetStorageKey&) const = default;
+};
+
+struct AssetStorageKeyHash {
+	[[nodiscard]] std::size_t operator()(const AssetStorageKey& value) const noexcept {
+		std::size_t result{ value.key_hash };
+		const std::size_t kind{ static_cast<std::size_t>(value.kind) };
+		result ^= kind + 0x9e3779b97f4a7c15ULL + (result << 6) + (result >> 2);
+		return result;
+	}
+};
+
 struct EngineShaderSource {
 	AssetKey key;
 	std::string name;
@@ -339,6 +355,7 @@ public:
 
 	/// @brief Starts a non-blocking manual residency load. Unload clears this residency pin.
 	void LoadAssetAsync(const AssetKey& key);
+	void LoadAssetAsync(const AssetKey& key, AssetKind kind);
 
 	/// @brief Starts non-blocking loads and retains the assets until the returned ticket is moved
 	/// into a Scene or destroyed.
@@ -363,6 +380,10 @@ public:
 	/// @return The complete known path-backed project asset catalog.
 	[[nodiscard]] std::vector<SerializedAsset> GetCatalog() const;
 	[[nodiscard]] std::optional<SerializedAsset> GetCatalogAsset(const AssetKey& key) const;
+	[[nodiscard]] std::optional<SerializedAsset> GetCatalogAsset(
+		const AssetKey& key,
+		AssetKind kind
+	) const;
 
 	void AddProjectAssetDependency(AssetKey key);
 	/// @brief Pins and starts a non-blocking load for one project-wide dependency.
@@ -373,6 +394,7 @@ public:
 
 	[[nodiscard]] const std::vector<AssetKey>& GetProjectAssetDependencies() const;
 	[[nodiscard]] bool HasCatalogAsset(const AssetKey& key) const;
+	[[nodiscard]] bool HasCatalogAsset(const AssetKey& key, AssetKind kind) const;
 
 	/// @brief Copies a foreign file into the project folder owned by its detected asset kind.
 	[[nodiscard]] std::optional<AssetKey> ImportAsset(const path& source_file);
@@ -387,6 +409,11 @@ public:
 	/// @brief Moves an asset into a base or user subdirectory belonging to the same asset kind.
 	/// destination_directory is relative to Assets. The asset key is unchanged.
 	bool MoveAsset(const AssetKey& key, const path& destination_directory = {});
+	bool MoveAsset(
+		const AssetKey& key,
+		AssetKind kind,
+		const path& destination_directory = {}
+	);
 
 	/// @brief Renames a user-created asset directory and preserves catalog keys/paths. Both paths are
 	/// relative to Assets and must remain inside the same protected type directory.
@@ -394,12 +421,14 @@ public:
 
 	/// @brief Renames an unloaded, unreferenced catalog key without moving its source file.
 	bool RenameAssetKey(const AssetKey& key, AssetKey new_key);
+	bool RenameAssetKey(const AssetKey& key, AssetKind kind, AssetKey new_key);
 
 	/// @brief Restores an exact catalog entry after its source file has been restored.
 	bool RestoreCatalogAsset(const SerializedAsset& asset);
 
 	/// @brief Removes a catalog entry and optionally deletes its project file.
 	bool DeleteAsset(const AssetKey& key, bool delete_file = true);
+	bool DeleteAsset(const AssetKey& key, AssetKind kind, bool delete_file = true);
 
 	/// @brief Sets the vertex/fragment source descriptors for a shader program.
 	/// $source selects this shader file, $builtin:<name> selects an embedded engine stage, and a
@@ -442,6 +471,11 @@ public:
 		const SerializedShaderProgram& program
 	);
 	[[nodiscard]] std::optional<std::string> GetShaderSource(const ShaderKey& key) const;
+	[[nodiscard]] std::optional<std::string> ResolveShaderStageSource(
+		std::string_view owner_source,
+		std::string_view reference,
+		ShaderStageMask stage
+	) const;
 
 	[[nodiscard]] std::optional<path> GetProjectRoot() const;
 	[[nodiscard]] std::optional<path> GetAssetDirectory() const;
@@ -571,7 +605,11 @@ private:
 		const SerializedAsset& asset,
 		const std::shared_ptr<impl::AssetLoadBatchState>& batch
 	);
-	void CompleteAssetLoad(std::size_t key_hash, bool success, std::string error = {});
+	void CompleteAssetLoad(
+		impl::AssetStorageKey storage_key,
+		bool success,
+		std::string error = {}
+	);
 
 	void BeginAssetCapture(std::vector<AssetKey>& dependencies);
 	void EndAssetCapture(std::vector<AssetKey>& dependencies);
@@ -617,7 +655,7 @@ private:
 		const path& source_path
 	);
 	void NormalizeShaderProgramConfiguration(SerializedAsset& asset, std::string_view source) const;
-	[[nodiscard]] AssetKey MakeUniqueAssetKey(const path& source_path) const;
+	[[nodiscard]] AssetKey MakeUniqueAssetKey(AssetKind kind, const path& source_path) const;
 	[[nodiscard]] impl::AssetMetadata ProbeMetadata(const SerializedAsset& asset) const;
 	[[nodiscard]] std::vector<AssetKey> ExpandDependencies(
 		std::span<const AssetKey> dependencies
@@ -636,8 +674,6 @@ private:
 		const std::optional<SerializedShaderProgram>& program_override = std::nullopt
 	) const;
 
-	path GetResolutionRoot() const;
-
 	Renderer& renderer_;
 	AudioSystem* audio_{ nullptr };
 	FontSystem* font_{ nullptr };
@@ -646,13 +682,22 @@ private:
 
 	std::unordered_map<std::size_t, impl::JsonAssetData> jsons_;
 	std::unordered_map<std::size_t, impl::PrefabAssetData> prefabs_;
-	std::unordered_map<std::size_t, SerializedAsset> catalog_;
-	std::unordered_map<std::size_t, RuntimeAssetState> runtime_states_;
+	std::unordered_map<
+		impl::AssetStorageKey,
+		SerializedAsset,
+		impl::AssetStorageKeyHash
+	> catalog_;
+	std::unordered_map<
+		impl::AssetStorageKey,
+		RuntimeAssetState,
+		impl::AssetStorageKeyHash
+	> runtime_states_;
 	std::vector<AssetKey> project_asset_dependencies_;
 	std::vector<AssetKey>* captured_asset_dependencies_{ nullptr };
 	std::vector<std::weak_ptr<impl::AssetLoadBatchState>> active_batches_;
 	std::vector<impl::AssetLoadTicket> project_load_tickets_;
 	std::vector<impl::AssetLoadTicket> manual_load_tickets_;
+	std::vector<std::shared_ptr<impl::AssetLoadBatchState>> manual_load_batches_;
 	std::vector<impl::EngineShaderSource> engine_shader_sources_;
 	std::vector<std::string> engine_vertex_shader_names_;
 	std::vector<std::string> engine_fragment_shader_names_;
