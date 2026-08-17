@@ -3028,48 +3028,34 @@ RendererRowResult DrawRendererRow(Target& target) {
 		renderer_changed = true;
 	};
 
-	ImGui::SetNextItemWidth(combo_width);
-
-	std::size_t renderer_popup_rows{ 1 };
-	bool has_shapes{ false };
-	bool has_effects{ false };
+	std::size_t renderer_popup_items{ 3 };
 	for (const auto& candidate : Drawable::data()) {
 		const std::string visual{
 			NormalizeFeatureName(candidate.GetDisplayName())
 		};
-		if (IsShapeRenderer(visual)) {
-			has_shapes = true;
-		} else if (IsEffectRenderer(visual)) {
-			has_effects = true;
-		} else {
-			++renderer_popup_rows;
+		if (!IsShapeRenderer(visual) && !IsEffectRenderer(visual)) {
+			++renderer_popup_items;
 		}
 	}
-	renderer_popup_rows += static_cast<std::size_t>(has_shapes);
-	renderer_popup_rows += static_cast<std::size_t>(has_effects);
 
-	const auto* viewport{ ImGui::GetMainViewport() };
-	const float requested_popup_height{
+	const float renderer_popup_height{
 		ImGui::GetStyle().WindowPadding.y * 2.0f +
-		static_cast<float>(renderer_popup_rows) * ImGui::GetFrameHeightWithSpacing()
+		static_cast<float>(renderer_popup_items) * ImGui::GetTextLineHeightWithSpacing() -
+		ImGui::GetStyle().ItemSpacing.y
 	};
-	const float popup_height{
-		std::min(
-			requested_popup_height,
-			std::max(120.0f, viewport->WorkSize.y - 32.0f)
-		)
-	};
-	ImGui::SetNextWindowSizeConstraints(
-		ImVec2{ 0.0f, popup_height },
-		ImVec2{ FLT_MAX, popup_height }
-	);
+
+	ImGui::SetNextItemWidth(combo_width);
 
 	ImGui::BeginDisabled(primary_scene_target);
 
+	ImGui::SetNextWindowSizeConstraints(
+		ImVec2{ 0.0f, renderer_popup_height },
+		ImVec2{ FLT_MAX, renderer_popup_height }
+	);
+
 	if (ImGui::BeginCombo(
 		"##RendererSelector",
-		preview.c_str(),
-		ImGuiComboFlags_HeightLargest
+		preview.c_str()
 	)) {
 		if (!primary_scene_target) {
 			if (ImGui::Selectable(
@@ -4839,9 +4825,12 @@ float GetShapeLineWidthLimit(const T& value) {
 	float limit{ 1000.0f };
 
 	if constexpr (std::same_as<Value, Rect>) {
-		limit = 1000.0f;
+		const V2_float size{ value.GetSize() };
+		limit = std::min(std::abs(size.x), std::abs(size.y)) * 0.5f;
 	} else if constexpr (std::same_as<Value, RoundedRect>) {
-		limit = GetShapeRadiusLimit(value);
+		const V2_float size{ value.rect.GetSize() };
+		const float half_min_size{ std::min(std::abs(size.x), std::abs(size.y)) * 0.5f };
+		limit = std::max(half_min_size, std::abs(value.radius));
 	} else if constexpr (std::same_as<Value, Ellipse>) {
 		limit = GetEllipseLineWidthLimit(value);
 	} else if constexpr (
