@@ -42,7 +42,6 @@ namespace ptgn::impl {
 namespace {
 
 using FontAtlasDataType = std::uint8_t;
-
 constexpr float kFontScale{ 1.0f };
 
 using AtlasGenerator = msdf_atlas::ImmediateAtlasGenerator<
@@ -82,9 +81,7 @@ std::uint64_t ToKerningKey(std::uint32_t current_codepoint, std::uint32_t next_c
 
 FontAtlasData GenerateFontAtlas(path font_path, const FontAtlasInfo& atlas_info) {
 	auto freetype{ InitFreetype() };
-
 	font_path = GetAbsolutePath(font_path);
-
 	auto font_face{ LoadFont(freetype, font_path) };
 
 	std::vector<msdf_atlas::GlyphGeometry> glyphs;
@@ -95,7 +92,9 @@ FontAtlasData GenerateFontAtlas(path font_path, const FontAtlasInfo& atlas_info)
 		charset.add(c);
 	}
 
-	auto loaded_glyph_count{ font_geometry.loadCharset(font_face.get(), static_cast<double>(kFontScale), charset) };
+	auto loaded_glyph_count{
+		font_geometry.loadCharset(font_face.get(), static_cast<double>(kFontScale), charset)
+	};
 	PTGN_ASSERT(
 		loaded_glyph_count > 0, "Failed to load ", loaded_glyph_count,
 		" glyphs for font: ", font_path.string()
@@ -104,13 +103,16 @@ FontAtlasData GenerateFontAtlas(path font_path, const FontAtlasInfo& atlas_info)
 	std::uint64_t glyph_seed{ 0 };
 	for (auto& glyph : glyphs) {
 		glyph_seed = glyph_seed * 6364136223846793005ULL + 1442695040888963407ULL;
-		glyph.edgeColoring(&msdfgen::edgeColoringInkTrap, static_cast<double>(atlas_info.max_corner_angle), glyph_seed);
+		glyph.edgeColoring(
+			&msdfgen::edgeColoringInkTrap,
+			static_cast<double>(atlas_info.max_corner_angle), glyph_seed
+		);
 	}
 
 	msdf_atlas::TightAtlasPacker packer;
 	packer.setDimensionsConstraint(msdf_atlas::DimensionsConstraint::SQUARE);
 	packer.setScale(static_cast<double>(atlas_info.em_size));
-	packer.setUnitRange(static_cast<double>(atlas_info.em_range)); // or packer.setPixelRange(atlas_info.pixel_range);
+	packer.setUnitRange(static_cast<double>(atlas_info.em_range));
 	packer.setMiterLimit(static_cast<double>(atlas_info.miter_limit));
 
 	auto remaining_glyph_count{ packer.pack(glyphs.data(), static_cast<int>(glyphs.size())) };
@@ -124,7 +126,7 @@ FontAtlasData GenerateFontAtlas(path font_path, const FontAtlasInfo& atlas_info)
 
 	msdf_atlas::GeneratorAttributes attributes;
 	attributes.config.overlapSupport = true;
-	attributes.scanlinePass			 = true;
+	attributes.scanlinePass = true;
 
 	AtlasGenerator generator{ atlas_size.x, atlas_size.y };
 	generator.setAttributes(attributes);
@@ -134,80 +136,75 @@ FontAtlasData GenerateFontAtlas(path font_path, const FontAtlasInfo& atlas_info)
 	msdfgen::BitmapConstRef<FontAtlasDataType, kFontAtlasChannelCount> bitmap{
 		generator.atlasStorage()
 	};
-
 	atlas_size = { bitmap.width, bitmap.height };
 
-	PTGN_ASSERT(atlas_size.IsPositive(), "Failed to generate a font atlas with a positive size: ", atlas_size);
+	PTGN_ASSERT(
+		atlas_size.IsPositive(), "Failed to generate a font atlas with a positive size: ", atlas_size
+	);
 
-	auto byte_count{ static_cast<std::size_t>(atlas_size.x) * static_cast<std::size_t>(atlas_size.y) *
-					 kFontAtlasChannelCount };
+	auto byte_count{ static_cast<std::size_t>(atlas_size.x) *
+					 static_cast<std::size_t>(atlas_size.y) * kFontAtlasChannelCount };
 
-	Surface surface{ atlas_size, std::span<const FontAtlasDataType>{ bitmap.pixels, byte_count },
-					 kFontAtlasChannelCount, true };
+	Surface surface{
+		atlas_size,
+		std::span<const FontAtlasDataType>{ bitmap.pixels, byte_count },
+		kFontAtlasChannelCount,
+		true
+	};
 
 	FontData font;
 	font.path = std::move(font_path);
 
 	const auto& msdf_metrics{ font_geometry.getMetrics() };
-	font.metrics.ascender	 = static_cast<float>(msdf_metrics.ascenderY);
-	font.metrics.descender	 = static_cast<float>(msdf_metrics.descenderY);
+	font.metrics.ascender = static_cast<float>(msdf_metrics.ascenderY);
+	font.metrics.descender = static_cast<float>(msdf_metrics.descenderY);
 	font.metrics.line_height = static_cast<float>(msdf_metrics.lineHeight);
-	font.metrics.em_size	 = static_cast<float>(packer.getScale());
-	font.metrics.pixel_range =
-		atlas_info.em_range * font.metrics.em_size; // or atlas_info.pixel_range
+	font.metrics.em_size = static_cast<float>(packer.getScale());
+	font.metrics.pixel_range = atlas_info.em_range * font.metrics.em_size;
 	PTGN_ASSERT(
 		font.metrics.em_size == atlas_info.em_size,
 		"Failed to create font with em size: ", atlas_info.em_size
 	);
 
 	font.glyphs.reserve(glyphs.size());
-
 	for (const auto& glyph : glyphs) {
 		double plane_left{ 0.0 };
 		double plane_bottom{ 0.0 };
 		double plane_right{ 0.0 };
 		double plane_top{ 0.0 };
-
 		double atlas_left{ 0.0 };
 		double atlas_bottom{ 0.0 };
 		double atlas_right{ 0.0 };
 		double atlas_top{ 0.0 };
 
 		glyph.getQuadPlaneBounds(plane_left, plane_bottom, plane_right, plane_top);
-
 		glyph.getQuadAtlasBounds(atlas_left, atlas_bottom, atlas_right, atlas_top);
 
 		GlyphMetrics output;
 		output.codepoint = glyph.getCodepoint();
-		output.advance	 = static_cast<float>(glyph.getAdvance());
-
+		output.advance = static_cast<float>(glyph.getAdvance());
 		output.plane = Rect{ { plane_left, -plane_top }, { plane_right, -plane_bottom } };
-
-		output.uv = Rect{ { atlas_left / bitmap.width, 1.0 - atlas_top / bitmap.height },
-						  { atlas_right / bitmap.width, 1.0 - atlas_bottom / bitmap.height } };
-
+		output.uv = Rect{
+			{ atlas_left / bitmap.width, 1.0 - atlas_top / bitmap.height },
+			{ atlas_right / bitmap.width, 1.0 - atlas_bottom / bitmap.height }
+		};
 		font.glyphs[output.codepoint] = output;
 	}
 
 	font.kerning.reserve(glyphs.size());
-
 	for (const auto& left : glyphs) {
 		for (const auto& right : glyphs) {
 			double advance{ 0.0 };
-
 			if (!font_geometry.getAdvance(advance, left.getCodepoint(), right.getCodepoint())) {
 				continue;
 			}
 
 			float adjustment{ static_cast<float>(advance - left.getAdvance()) };
-
 			if (adjustment == 0.0f) {
 				continue;
 			}
 
-			auto kerning_key{ ToKerningKey(left.getCodepoint(), right.getCodepoint()) };
-
-			font.kerning[kerning_key] = adjustment;
+			font.kerning[ToKerningKey(left.getCodepoint(), right.getCodepoint())] = adjustment;
 		}
 	}
 
@@ -225,45 +222,53 @@ void FontAtlas::Initialize(Renderer& renderer, FontAtlasData&& data) {
 	data_ = std::move(data.font);
 }
 
-FontAtlas::FontAtlas(
-	Renderer& renderer, path font_path, const path& cache_png_path, const FontAtlasInfo& atlas_info
+FontAtlasData FontAtlas::PrepareGenerated(
+	path font_path, const path& cache_png_path, const FontAtlasInfo& atlas_info
 ) {
 	auto data{ GenerateFontAtlas(std::move(font_path), atlas_info) };
 
 #ifndef __EMSCRIPTEN__
 	auto cache_write{ WriteFontCache(GetAbsolutePath(cache_png_path), data) };
-
 	PTGN_ASSERT(
 		cache_write.has_value(), "Failed to write font cache path: ", cache_png_path.string(),
 		" with error: ", magic_enum::enum_name(cache_write.error())
 	);
 #endif
 
-	Initialize(renderer, std::move(data));
+	return data;
 }
 
-FontAtlas::FontAtlas(Renderer& renderer, path cache_png_path) {
+FontAtlasData FontAtlas::PrepareCached(path cache_png_path) {
 	cache_png_path = GetAbsolutePath(cache_png_path);
-
 	auto data{ LoadFontCache(cache_png_path) };
-
 	PTGN_ASSERT(
 		data.has_value(), "Failed to read font cache path: ", cache_png_path.string(),
 		" with error: ", magic_enum::enum_name(data.error())
 	);
-
-	Initialize(renderer, std::move(data.value()));
+	return std::move(data.value());
 }
 
-FontAtlas::FontAtlas(Renderer& renderer, FontBinary font_png) {
+FontAtlasData FontAtlas::PrepareCached(FontBinary font_png) {
 	auto data{ LoadFontCache(font_png) };
-
 	PTGN_ASSERT(
-		data.has_value(),
-		"Failed to read embedded font cache with error: ", magic_enum::enum_name(data.error())
+		data.has_value(), "Failed to read embedded font cache with error: ",
+		magic_enum::enum_name(data.error())
 	);
+	return std::move(data.value());
+}
 
-	Initialize(renderer, std::move(data.value()));
+FontAtlas::FontAtlas(
+	Renderer& renderer, path font_path, const path& cache_png_path, const FontAtlasInfo& atlas_info
+) : FontAtlas{ renderer, PrepareGenerated(std::move(font_path), cache_png_path, atlas_info) } {}
+
+FontAtlas::FontAtlas(Renderer& renderer, path cache_png_path) :
+	FontAtlas{ renderer, PrepareCached(std::move(cache_png_path)) } {}
+
+FontAtlas::FontAtlas(Renderer& renderer, FontBinary font_png) :
+	FontAtlas{ renderer, PrepareCached(font_png) } {}
+
+FontAtlas::FontAtlas(Renderer& renderer, FontAtlasData&& data) {
+	Initialize(renderer, std::move(data));
 }
 
 std::optional<GlyphMetrics> FontAtlas::GetGlyph(std::uint32_t codepoint) const {
@@ -276,26 +281,15 @@ std::optional<GlyphMetrics> FontAtlas::GetGlyph(std::uint32_t codepoint) const {
 
 float FontAtlas::GetGlyphAdvance(std::uint32_t codepoint) const {
 	auto glyph{ GetGlyph(codepoint) };
-
-	if (!glyph.has_value()) {
-		return 0.0f;
-	}
-
-	return glyph->advance;
+	return glyph.has_value() ? glyph->advance : 0.0f;
 }
 
 float FontAtlas::GetKerning(std::uint32_t current_codepoint, std::uint32_t next_codepoint) const {
 	if (next_codepoint == 0) {
 		return 0.0f;
 	}
-
 	auto it{ data_.kerning.find(ToKerningKey(current_codepoint, next_codepoint)) };
-
-	if (it == data_.kerning.end()) {
-		return 0.0f;
-	}
-
-	return it->second;
+	return it == data_.kerning.end() ? 0.0f : it->second;
 }
 
 float FontAtlas::GetAdvance(

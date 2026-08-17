@@ -5674,12 +5674,13 @@ template <typename Target>
 bool DrawMaterialDetails(Target& target, ::ptgn::Material& material) {
 	bool changed{ false };
 
-	ImGui::SeparatorText("Uniforms");
 	changed |= DrawVectorEditor(
 		target.ctx,
 		material.uniforms,
 		VectorOptions{
 			.item_name = "Uniform",
+			.add_label = "+ Add Uniform",
+			.add_first = true,
 		}
 	);
 

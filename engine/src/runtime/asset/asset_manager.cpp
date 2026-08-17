@@ -710,6 +710,7 @@ public:
 
 	struct PreparedFont {
 		path file_path;
+		impl::FontAtlasData data;
 	};
 
 	struct PreparedJson {
@@ -830,7 +831,10 @@ private:
 				using enum AssetKind;
 				case Texture: {
 					if (impl::IsFontAtlasPng(job.absolute_path)) {
-						result.payload = PreparedFont{ job.absolute_path };
+						result.payload = PreparedFont{
+							.file_path = job.absolute_path,
+							.data = AssetManager::PrepareFontAsset(job.absolute_path),
+						};
 					} else {
 						result.payload = PreparedTexture{
 							.surface = std::make_unique<impl::Surface>(job.absolute_path),
@@ -839,7 +843,12 @@ private:
 					break;
 				}
 				case Audio: result.payload = PreparedAudio{ job.absolute_path }; break;
-				case Font: result.payload = PreparedFont{ job.absolute_path }; break;
+				case Font:
+					result.payload = PreparedFont{
+						.file_path = job.absolute_path,
+						.data = AssetManager::PrepareFontAsset(job.absolute_path),
+					};
+					break;
 				case Json: {
 					json value = json::parse(FileToString(job.absolute_path));
 					PreparedJson prepared;
@@ -1440,7 +1449,7 @@ void AssetManager::Update() {
 						impl::AddAssetKey(audio.GetEntity(), asset.key, prepared.file_path);
 					} else if constexpr (std::same_as<Value, AsyncLoader::PreparedFont>) {
 						PTGN_ASSERT(font_, "FontSystem must be connected before loading fonts");
-						auto font{ CreateFont(true, prepared.file_path) };
+						auto font{ CreateFont(true, std::move(prepared.data)) };
 						impl::AddAssetKey(font.GetEntity(), asset.key, prepared.file_path);
 					} else if constexpr (std::same_as<Value, AsyncLoader::PreparedJson>) {
 						jsons_.insert_or_assign(
@@ -2875,6 +2884,61 @@ void AssetManager::Load(const SerializedAsset& asset) {
 	);
 }
 
+bool AssetManager::RegisterAsset(AssetKey key, const path& asset_path) {
+	if (key.value.empty() || asset_path.empty()) {
+		return false;
+	}
+
+	path source_path{ ResolvePathBackedAssetSource(asset_path) };
+	if (!FileExists(source_path)) {
+		PTGN_WARN("Cannot register asset because the file does not exist: ", source_path.string());
+		return false;
+	}
+
+	const auto kind{ DetectProjectAssetKind(source_path) };
+	if (kind == AssetKind::Unknown || kind == AssetKind::Scene) {
+		PTGN_WARN("Cannot register unsupported path-backed asset: ", source_path.string());
+		return false;
+	}
+
+	const auto storage_key{ MakeAssetStorageKey(key, kind) };
+	auto& state{ runtime_states_[storage_key] };
+	if (state.load_state == AssetLoadState::Loaded ||
+		state.load_state == AssetLoadState::Queued ||
+		state.load_state == AssetLoadState::Loading ||
+		state.load_state == AssetLoadState::Finalizing) {
+		PTGN_WARN("Cannot replace a resident or in-flight asset registration: ", key);
+		return false;
+	}
+
+	TrackAssetDependency(key);
+
+	path serialized_path{ source_path.lexically_normal() };
+	if (source_path.is_absolute() && project_root_.has_value()) {
+		std::error_code error;
+		auto relative{ std::filesystem::relative(source_path, project_root_.value(), error) };
+		if (!error && !relative.empty() && !relative.generic_string().starts_with("..")) {
+			serialized_path = relative.lexically_normal();
+		}
+	}
+
+	catalog_.insert_or_assign(
+		storage_key,
+		SerializedAsset{
+			.key = key,
+			.kind = kind,
+			.source_path = std::move(serialized_path),
+		}
+	);
+
+	state.load_state = AssetLoadState::Unloaded;
+	state.error.clear();
+	state.compile_error = false;
+	state.compile_log.clear();
+	state.metadata = impl::AssetMetadata{ .file_size = SafeFileSize(source_path) };
+	return true;
+}
+
 void AssetManager::LoadAssetAsync(const AssetKey& key) {
 	TrackAssetDependency(key);
 	bool found{ false };
@@ -3040,11 +3104,19 @@ Texture AssetManager::LoadTexture(
 	return texture;
 }
 
-Font AssetManager::CreateFont(bool persistent, const path& asset_path) {
+impl::FontAtlasData AssetManager::PrepareFontAsset(const path& asset_path) {
+	return FontSystem::PrepareFontAtlas(asset_path);
+}
+
+Font AssetManager::CreateFont(bool persistent, impl::FontAtlasData&& data) {
 	PTGN_ASSERT(font_, "FontSystem must be connected before creating fonts");
 	Font font{ CreateAsset(), persistent };
-	font.GetEntity().Add<impl::FontAtlas>(FontSystem::CreateFontAtlas(renderer_, asset_path));
+	font.GetEntity().Add<impl::FontAtlas>(renderer_, std::move(data));
 	return font;
+}
+
+Font AssetManager::CreateFont(bool persistent, const path& asset_path) {
+	return CreateFont(persistent, PrepareFontAsset(asset_path));
 }
 
 Font AssetManager::CreateFont(const path& asset_path) {

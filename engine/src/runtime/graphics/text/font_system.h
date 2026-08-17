@@ -39,11 +39,12 @@ private:
 
 	explicit FontSystem(Renderer& renderer, AssetManager& asset_manager);
 	~FontSystem() noexcept;
-	FontSystem(const FontSystem&)				 = delete;
-	FontSystem& operator=(const FontSystem&)	 = delete;
-	FontSystem(FontSystem&&) noexcept			 = delete;
-	FontSystem& operator=(FontSystem&&) noexcept = delete;
+	FontSystem(const FontSystem&)                 = delete;
+	FontSystem& operator=(const FontSystem&)      = delete;
+	FontSystem(FontSystem&&) noexcept             = delete;
+	FontSystem& operator=(FontSystem&&) noexcept  = delete;
 
+	[[nodiscard]] static impl::FontAtlasData PrepareFontAtlas(const path& font_path);
 	[[nodiscard]] static impl::FontAtlas CreateFontAtlas(Renderer& renderer, const path& font_path);
 
 	AssetManager& asset_manager_;

@@ -343,6 +343,10 @@ public:
 			asset_keys_and_paths
 	);
 
+	/// @brief Registers a path-backed asset without loading it. This is useful for asynchronous
+	/// loading when the asset is not already present in a project catalog.
+	[[nodiscard]] bool RegisterAsset(AssetKey key, const path& asset_path);
+
 	/// @brief Loads and catalogs a path-backed asset. Relative paths may be project-relative or
 	/// relative to the runtime asset root/current working directory.
 	void Load(AssetKey key, const path& asset_path);
@@ -641,6 +645,8 @@ private:
 		TextureParams params
 	);
 	[[nodiscard]] Font CreateFont(bool persistent, const path& asset_path);
+	[[nodiscard]] Font CreateFont(bool persistent, impl::FontAtlasData&& data);
+	[[nodiscard]] static impl::FontAtlasData PrepareFontAsset(const path& asset_path);
 
 	[[nodiscard]] ecs::Entity CreateAsset();
 	[[nodiscard]] path ResolveAssetPath(const SerializedAsset& asset) const;

@@ -7,6 +7,7 @@
 #include <format>
 #include <fstream>
 #include <ios>
+#include <mutex>
 #include <optional>
 #include <ostream>
 #include <string>
@@ -14,8 +15,8 @@
 #include <utility>
 #include <vector>
 
-#include "core/build_info.h"
 #include "core/assert.h"
+#include "core/build_info.h"
 #include "core/config.h"
 #include "core/util/entity_handle.h"
 #include "core/util/file.h"
@@ -31,13 +32,9 @@ namespace ptgn {
 
 namespace {
 
-/// @brief Relative to engine root.
 inline constexpr std::string_view kDefaultFontCacheDirectory{ "/assets/fonts" };
 inline constexpr std::string_view kDefaultFontFile{ "/assets/fonts/LiberationSans-Regular.ttf" };
-/// @brief Relative to the runtime root.
 inline constexpr std::string_view kFontCacheDirectory{ "cache/fonts" };
-/// @brief Enables generating a default font atlas at runtime and overwriting default_font.h with
-/// the generated atlas. This is useful for development and testing.
 #ifdef PTGN_DEBUG
 inline constexpr bool kGenerateDefaultFontAtlas{ false };
 #endif
@@ -62,9 +59,7 @@ void WriteGeneratedDefaultFontHeader(const path& font_png_path) {
 
 	for (auto i{ 0uz }; i < font_png.size(); ++i) {
 		out << (i % 12 == 0 ? "\n\t" : " ");
-
 		out << std::format("0x{:02X}", std::to_integer<unsigned int>(font_png[i]));
-
 		if (i + 1 != font_png.size()) {
 			out << ',';
 		}
@@ -82,24 +77,18 @@ void WriteGeneratedDefaultFontHeader(const path& font_png_path) {
 #if !defined(__EMSCRIPTEN__) && defined(PTGN_DEBUG)
 [[maybe_unused]] impl::FontAtlas GenerateDefaultFontAtlas(Renderer& renderer) {
 	auto font_path{ impl::GetBuildInfo().engine_directory / path{ kDefaultFontFile } };
-
 	PTGN_ASSERT(FileExists(font_path), "Default font file does not exist: ", font_path.string());
-
 	PTGN_ASSERT(
 		impl::MatchesExtension<Font>(GetExtension(font_path)),
 		"Default font file must have a valid extension: ", font_path.string()
 	);
 
 	auto directory{ impl::GetBuildInfo().engine_directory / path{ kDefaultFontCacheDirectory } };
-
 	PTGN_ASSERT(IsDirectoryPath(directory.string()));
-
 	auto font_png_path{ directory / font_path.filename().replace_extension("png") };
 
 	impl::FontAtlas font_atlas{ renderer, font_path, font_png_path };
-
 	WriteGeneratedDefaultFontHeader(font_png_path);
-
 	return font_atlas;
 }
 #endif
@@ -140,7 +129,7 @@ void FontSystem::SetDefault(FontKey font_key) {
 	default_font_ = std::move(font_key);
 }
 
-impl::FontAtlas FontSystem::CreateFontAtlas(Renderer& renderer, const path& font_path) {
+impl::FontAtlasData FontSystem::PrepareFontAtlas(const path& font_path) {
 	auto absolute_font_path{ GetAbsolutePath(font_path) };
 
 	PTGN_ASSERT(
@@ -149,29 +138,31 @@ impl::FontAtlas FontSystem::CreateFontAtlas(Renderer& renderer, const path& font
 	);
 
 	auto extension{ GetExtension(absolute_font_path) };
-
 	PTGN_ASSERT(
 		impl::MatchesExtension<Font>(extension) || impl::MatchesExtension<Texture>(extension),
 		"Font file must have a valid extension: ", absolute_font_path.string()
 	);
 
+	static std::mutex prepare_mutex;
+	std::scoped_lock lock{ prepare_mutex };
+
 	if (impl::MatchesExtension<Texture>(extension)) {
-		return impl::FontAtlas{ renderer, absolute_font_path };
+		return impl::FontAtlas::PrepareCached(absolute_font_path);
 	}
 
-	auto cache_directory{
-		impl::GetBuildInfo().runtime_root /
-		path{ kFontCacheDirectory }
-	};
-
+	auto cache_directory{ impl::GetBuildInfo().binary_directory / path{ kFontCacheDirectory } };
 	auto cache_name{ absolute_font_path.stem().string() };
 	auto cache_png_file{ cache_directory / (cache_name + ".png") };
 
 	if (FileExists(cache_png_file)) {
-		return impl::FontAtlas{ renderer, cache_png_file };
+		return impl::FontAtlas::PrepareCached(cache_png_file);
 	}
 
-	return impl::FontAtlas{ renderer, absolute_font_path, cache_png_file };
+	return impl::FontAtlas::PrepareGenerated(absolute_font_path, cache_png_file);
+}
+
+impl::FontAtlas FontSystem::CreateFontAtlas(Renderer& renderer, const path& font_path) {
+	return impl::FontAtlas{ renderer, PrepareFontAtlas(font_path) };
 }
 
 } // namespace ptgn

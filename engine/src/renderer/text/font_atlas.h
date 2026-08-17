@@ -65,7 +65,7 @@ namespace impl {
 
 constexpr TextureFormat kFontAtlasFormat{ TextureFormat::RGBA8 };
 constexpr TextureParams kFontAtlasTextureParams{ TextureMinFilter::Linear,
-												 TextureMagFilter::Linear };
+											 TextureMagFilter::Linear };
 constexpr int kFontAtlasChannelCount{ GetChannelCount(kFontAtlasFormat) };
 
 /// @brief Measurements for a single glyph.
@@ -159,6 +159,20 @@ public:
 
 	/// @brief Load built-in font from generated header binary.
 	FontAtlas(Renderer& renderer, FontBinary font_png);
+
+	/// @brief Finalizes already prepared CPU-side atlas data into the renderer texture.
+	FontAtlas(Renderer& renderer, FontAtlasData&& data);
+
+	/// @brief Generates atlas pixels and metrics and writes the cache without accessing Renderer.
+	[[nodiscard]] static FontAtlasData PrepareGenerated(
+		path font_path, const path& cache_png_path, const FontAtlasInfo& atlas_info = {}
+	);
+
+	/// @brief Loads CPU-side atlas data from a cached PNG without accessing Renderer.
+	[[nodiscard]] static FontAtlasData PrepareCached(path cache_png_path);
+
+	/// @brief Loads CPU-side atlas data from an embedded cache without accessing Renderer.
+	[[nodiscard]] static FontAtlasData PrepareCached(FontBinary font_png);
 
 	/// @return std::nullopt if the requested codepoint is not present in the font atlas.
 	std::optional<GlyphMetrics> GetGlyph(std::uint32_t codepoint) const;
