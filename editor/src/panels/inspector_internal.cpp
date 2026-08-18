@@ -52,6 +52,7 @@
 #include "runtime/ecs/component_registry.h"
 #include "runtime/ecs/entity.h"
 #include "runtime/ecs/entity_hierarchy.h"
+#include "runtime/ecs/entity_group.h"
 #include "runtime/ecs/tag.h"
 #include "runtime/graphics/draw.h"
 #include "runtime/graphics/drawable.h"
@@ -158,7 +159,7 @@ using CameraFeatureComponents = FeatureComponents<
 
 using ScriptsFeatureComponents = FeatureComponents<::ptgn::impl::Scripts>;
 
-using UtilitiesFeatureComponents = FeatureComponents<Lifetime>;
+using UtilitiesFeatureComponents = FeatureComponents<Lifetime, Group>;
 
 struct ManualFeatureState {
 	FeatureTargetKey target;
@@ -8422,6 +8423,57 @@ bool DrawScriptsFeature(Target& target) {
 	return changed;
 }
 
+bool DrawGroupContents(Group& group) {
+	bool changed{ false };
+
+	if (ImGui::Button("+ Group", ImVec2{ -FLT_MIN, 0.0f })) {
+		group.groups.emplace_back();
+		changed = true;
+	}
+
+	std::optional<std::size_t> remove_index;
+
+	for (std::size_t index{ 0 }; index < group.groups.size(); ++index) {
+		ScopedID group_scope{ static_cast<int>(index) };
+		std::string label{ "Group " + std::to_string(index + 1) };
+
+		changed |= DrawPropertyRow(
+			label,
+			[&]() {
+				float remove_width{ ImGui::GetFrameHeight() };
+				float spacing{ ImGui::GetStyle().ItemSpacing.x };
+				float available{ ImGui::GetContentRegionAvail().x };
+				float field_width{
+					std::max(60.0f, available - remove_width - spacing)
+				};
+
+				ImGui::SetNextItemWidth(field_width);
+				bool row_changed{
+					ImGui::InputText("##Value", &group.groups[index])
+				};
+
+				ImGui::SameLine(0.0f, spacing);
+
+				if (ImGui::Button("X", ImVec2{ remove_width, remove_width })) {
+					remove_index = index;
+				}
+
+				return row_changed;
+			}
+		);
+	}
+
+	if (remove_index) {
+		group.groups.erase(
+			group.groups.begin() +
+			static_cast<std::ptrdiff_t>(*remove_index)
+		);
+		changed = true;
+	}
+
+	return changed;
+}
+
 template <typename Target>
 bool DrawUtilitiesFeature(Target& target) {
 	if (!HasUtilitiesFeature(target)) {
@@ -8441,6 +8493,14 @@ bool DrawUtilitiesFeature(Target& target) {
 
 	bool changed{ header.changed };
 
+	changed |= DrawOptionalComponent<Target, Group>(
+		target,
+		"Groups",
+		true,
+		[](Group& value) {
+			return DrawGroupContents(value);
+		}
+	);
 	changed |= DrawOptionalReflected<Target, Lifetime>(target, "Lifetime", true);
 
 	return changed;

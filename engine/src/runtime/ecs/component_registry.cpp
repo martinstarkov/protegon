@@ -15,6 +15,7 @@
 #include "runtime/asset/asset_key.h"
 #include "runtime/ecs/component_registration.h"
 #include "runtime/ecs/entity_hierarchy.h"
+#include "runtime/ecs/entity_group.h"
 #include "runtime/graphics/drawable.h"
 #include "runtime/graphics/fx/bloom.h"
 #include "runtime/graphics/fx/blur.h"
@@ -50,6 +51,7 @@ namespace ptgn {
 PTGN_REGISTER_COMPONENT(Transform);
 PTGN_REGISTER_COMPONENT(impl::Scripts);
 PTGN_REGISTER_COMPONENT(impl::ParentRenderTarget);
+PTGN_REGISTER_COMPONENT(Group);
 
 PTGN_REGISTER_COMPONENT(impl::TextData);
 PTGN_REGISTER_COMPONENT(impl::GraphicsData);
