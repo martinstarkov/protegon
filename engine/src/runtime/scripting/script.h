@@ -114,7 +114,7 @@ struct EventCondition {
 	bool enabled{ true };
 	bool consume{ false };
 	TypeHashValue type_hash{ 0 };
-	std::string_view name;
+	std::string name;
 	json value = json::object();
 
 	PTGN_REFLECT(EventCondition, enabled, consume, type_hash, name, value)
@@ -123,7 +123,7 @@ struct EventCondition {
 struct ScriptStep {
 	bool enabled{ true };
 	TypeHashValue type_hash{ 0 };
-	std::string_view name;
+	std::string name;
 	json value = json::object();
 	std::optional<EntityFilter> target;
 	std::optional<ScriptCompletion> completion;
@@ -373,7 +373,7 @@ struct ScriptRegistrationOptions {
 
 struct ScriptRegistration {
 	TypeHashValue type_hash{ 0 };
-	std::string_view name;
+	std::string name;
 	std::string type;
 	std::uint32_t schema_version{ 1 };
 	ScriptCompletion completion{ ScriptCompletion::ScriptControlled };
@@ -412,7 +412,7 @@ public:
 
 		ScriptRegistration registration{
 			.type_hash = type_hash,
-			.name = type_name_without_namespaces<T>(),
+			.name = std::string{ type_name_without_namespaces<T>() },
 			.type = std::string{ type_name_without_namespaces<T>() },
 			.schema_version = options.schema_version,
 			.completion = options.completion,
@@ -515,7 +515,7 @@ private:
 struct ScriptEntry {
 	bool enabled{ true };
 	TypeHashValue type_hash{ 0 };
-	std::string_view name;
+	std::string name;
 	json value = json::object();
 	ScriptSequence sequence;
 
@@ -570,7 +570,7 @@ struct SequenceEventRegistrationOptions {
 
 struct SequenceEventRegistration {
 	TypeHashValue type_hash{ 0 };
-	std::string_view name;
+	std::string name;
 	std::uint32_t schema_version{ 1 };
 	std::function<void(EventCondition&)> set_defaults;
 	std::function<bool(Entity, Event, const EventCondition&, bool consume)> matches;
@@ -613,7 +613,7 @@ public:
 
 		SequenceEventRegistration registration{
 			.type_hash = type_hash,
-			.name = type_name_without_namespaces<TEvent>(),
+			.name = std::string{ type_name_without_namespaces<TEvent>() },
 			.schema_version = options.schema_version,
 			.set_defaults = [value = std::move(options.default_value)](EventCondition& output) {
 				output.value = value;
@@ -946,7 +946,7 @@ T& impl::Scripts::Add(Entity owner, TArgs&&... constructor_args) {
 
 	ScriptEntry entry;
 	entry.type_hash = Hash<T>();
-	entry.name = type_name_without_namespaces<T>(),
+	entry.name = std::string{ type_name_without_namespaces<T>() },
 	entry.value = std::move(snapshot);
 	const SequenceId sequence_id{ instance->sequence.id };
 	entry.sequence = instance->sequence;
