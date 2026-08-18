@@ -3556,7 +3556,7 @@ void Editor::DrawPanels() {
 	scene_list_panel_.OnRender(*context_);
 	screen_effects_panel_.OnRender(*context_);
 	inspector_panel_.OnRender(*context_);
-	entity_target_demo::DrawScriptTargetingDemo(*context_);
+	//entity_target_demo::DrawScriptTargetingDemo(*context_);
 	if (ConsumeAcceptedAssetKeyDrop()) {
 		scene_asset_dependencies_dirty_ = true;
 	}
