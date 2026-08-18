@@ -1000,8 +1000,6 @@ void SceneListPanel::QueueSceneSelection(
 		.selected_entity_uuid = selected_entity_uuid,
 		.earliest_frame = ImGui::GetFrameCount() + 1,
 	};
-
-	SetSelectedScene(ctx, nullptr, false);
 }
 
 void SceneListPanel::SetSelectedScene(
