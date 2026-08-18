@@ -553,6 +553,11 @@ void DrawEntityHierarchyNode(
 		picked_entity = entity;
 	}
 
+	if (ImGui::IsItemHovered()) {
+		const std::string uuid{ UUIDDisplayName(entity) };
+		ImGui::SetTooltip("uuid: %s", uuid.c_str());
+	}
+
 	if (has_visible_children &&
 		open) {
 		for (Entity child :
@@ -599,14 +604,15 @@ bool DrawMiniHierarchy(
 			)
 		};
 
-		ImGui::TextDisabled(
-			"%s",
-			selected
-				? EntityDisplayName(
-					  selected
-				  ).c_str()
-				: "No entity selected"
-		);
+		if (selected) {
+			const std::string selected_label{
+				EntityDisplayName(selected) +
+				" [" + UUIDDisplayName(selected) + "]"
+			};
+			ImGui::TextDisabled("%s", selected_label.c_str());
+		} else {
+			ImGui::TextDisabled("No entity selected");
+		}
 	}
 
 	ImGui::SetNextItemWidth(
@@ -894,14 +900,24 @@ ResolveGroupQuery(
 ) {
 	std::vector<Entity> matches;
 
-	if (query.group.empty()) {
-		return matches;
-	}
-
 	for (Entity entity : scene.Entities()) {
-		auto* groups{ entity.TryGet<Group>() };
+		auto* membership{ entity.TryGet<Group>() };
 
-		if (groups && std::ranges::contains(groups->groups, query.group)) {
+		if (!membership) {
+			continue;
+		}
+
+		bool matches_group{
+			std::ranges::any_of(
+				query.groups,
+				[&membership](const std::string& group) {
+					return !group.empty() &&
+						std::ranges::contains(membership->groups, group);
+				}
+			)
+		};
+
+		if (matches_group) {
 			matches.push_back(entity);
 		}
 	}
@@ -1078,9 +1094,15 @@ ResolveRegisteredQuery(
 		}
 
 		case EntityFilterType::Group:
-			return target.group.group.empty()
-				? "Select Group"
-				: "Group: " + target.group.group;
+			if (target.group.groups.empty()) {
+				return "Select Groups";
+			}
+
+			if (target.group.groups.size() == 1) {
+				return "Group: " + target.group.groups.front();
+			}
+
+			return std::to_string(target.group.groups.size()) + " groups";
 
 		case EntityFilterType::Query: {
 			const auto* query{
@@ -1449,62 +1471,93 @@ bool DrawGroupPicker(
 	GroupEntityQuery& query,
 	EntityFilterEditorState& state
 ) {
-	std::string preview{
-		query.group.empty()
-			? "Select Group"
-			: query.group
-	};
+	std::string preview{ "Select Groups" };
+
+	if (!query.groups.empty()) {
+		preview = "Groups: ";
+
+		for (std::size_t i{ 0 }; i < query.groups.size(); ++i) {
+			if (i > 0) {
+				preview += ", ";
+			}
+
+			preview += query.groups[i];
+		}
+	}
 
 	bool changed{ false };
 
+	ImGui::BeginGroup();
 	ImGui::SetNextItemWidth(-FLT_MIN);
+	bool open{ ImGui::BeginCombo(
+		"##GroupPicker",
+		preview.c_str()
+	) };
 
-	if (!ImGui::BeginCombo(
-			"##GroupPicker",
-			preview.c_str()
-		)) {
-		return false;
-	}
+	if (open) {
+		ImGui::SetNextItemWidth(-FLT_MIN);
 
-	ImGui::SetNextItemWidth(-FLT_MIN);
-
-	ImGui::InputTextWithHint(
-		"##GroupSearch",
-		"Search groups...",
-		&state.group_filter
-	);
-
-	auto groups{ GetSceneGroups(scene) };
-	bool any_visible{ false };
-
-	for (const auto& group : groups) {
-		if (!ContainsCaseInsensitive(
-				group,
-				state.group_filter
-			)) {
-			continue;
-		}
-
-		any_visible = true;
-
-		if (ImGui::Selectable(
-				group.c_str(),
-				query.group == group
-			)) {
-			query.group = group;
-			changed = true;
-		}
-	}
-
-	if (!any_visible) {
-		ImGui::TextDisabled(
-			scene
-				? "No matching groups."
-				: "Group choices require a scene instance."
+		ImGui::InputTextWithHint(
+			"##GroupSearch",
+			"Search groups...",
+			&state.group_filter
 		);
+
+		auto groups{ GetSceneGroups(scene) };
+		bool any_visible{ false };
+
+		for (const auto& group : groups) {
+			if (!ContainsCaseInsensitive(
+					group,
+					state.group_filter
+				)) {
+				continue;
+			}
+
+			any_visible = true;
+			bool selected{ std::ranges::contains(query.groups, group) };
+
+			if (ImGui::Selectable(
+					group.c_str(),
+					selected,
+					ImGuiSelectableFlags_DontClosePopups
+				)) {
+				if (selected) {
+					std::erase(query.groups, group);
+				} else {
+					query.groups.push_back(group);
+				}
+
+				changed = true;
+			}
+		}
+
+		if (!any_visible) {
+			ImGui::TextDisabled(
+				scene
+					? "No matching groups."
+					: "Group choices require a scene instance."
+			);
+		}
+
+		ImGui::EndCombo();
 	}
 
-	ImGui::EndCombo();
+	ImGui::EndGroup();
+
+	if (ImGui::IsItemHovered()) {
+		if (query.groups.empty()) {
+			ImGui::SetTooltip(
+				"No groups selected. Matches entities that belong to any selected group."
+			);
+		} else {
+			ImGui::SetTooltip(
+				"%s\nMatches entities that belong to any selected group.",
+				preview.c_str()
+			);
+		}
+	}
+
 	return changed;
 }
 
@@ -1937,6 +1990,60 @@ bool DrawEntityFilterButtonImpl(
 		ImGui::OpenPopup(
 			"##EntityFilterPopup"
 		);
+	}
+
+	if (ImGui::IsItemHovered()) {
+		switch (target.type) {
+			case EntityFilterType::Entity:
+				if (target.entity.uuid.has_value()) {
+					if (scene) {
+						Entity entity{ ResolveEntity(*scene, target.entity) };
+
+						if (entity) {
+							const std::string uuid{ UUIDDisplayName(entity) };
+							ImGui::SetTooltip("uuid: %s", uuid.c_str());
+						}
+					} else {
+						json uuid = target.entity.uuid.value();
+
+						if (uuid.is_string()) {
+							const std::string uuid_text{ uuid.get<std::string>() };
+							ImGui::SetTooltip("uuid: %s", uuid_text.c_str());
+						} else {
+							const std::string uuid_text{ uuid.dump() };
+							ImGui::SetTooltip("uuid: %s", uuid_text.c_str());
+						}
+					}
+				}
+				break;
+
+			case EntityFilterType::Components: {
+				const std::string full_summary{
+					ComponentQuerySummary(target.components)
+				};
+				ImGui::SetTooltip("%s", full_summary.c_str());
+				break;
+			}
+
+			case EntityFilterType::Group:
+				if (!target.group.groups.empty()) {
+					std::string groups{ "Groups: " };
+
+					for (std::size_t i{ 0 }; i < target.group.groups.size(); ++i) {
+						if (i > 0) {
+							groups += ", ";
+						}
+
+						groups += target.group.groups[i];
+					}
+
+					ImGui::SetTooltip("%s", groups.c_str());
+				}
+				break;
+
+			default:
+				break;
+		}
 	}
 
 	float popup_width{ kTargetPopupWidth };

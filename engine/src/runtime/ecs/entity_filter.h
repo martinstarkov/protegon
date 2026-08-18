@@ -39,25 +39,25 @@ struct ComponentQueryCondition {
 struct ComponentQueryGroup {
 	std::vector<ComponentQueryCondition> conditions;
 
-	PTGN_REFLECT(ComponentQueryGroup, conditions)
+	PTGN_REFLECT_VALUE(ComponentQueryGroup, conditions)
 };
 
 struct ComponentEntityQuery {
 	std::vector<ComponentQueryGroup> groups;
 
-	PTGN_REFLECT(ComponentEntityQuery, groups)
+	PTGN_REFLECT_VALUE(ComponentEntityQuery, groups)
 };
 
 struct GroupEntityQuery {
-	std::string group;
+	std::vector<std::string> groups;
 
-	PTGN_REFLECT(GroupEntityQuery, group)
+	PTGN_REFLECT_VALUE(GroupEntityQuery, groups)
 };
 
 struct RegisteredEntityQueryReference {
 	std::string key;
 
-	PTGN_REFLECT(RegisteredEntityQueryReference, key)
+	PTGN_REFLECT_VALUE(RegisteredEntityQueryReference, key)
 };
 
 struct EntityFilter {
