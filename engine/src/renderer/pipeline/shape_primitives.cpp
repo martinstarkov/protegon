@@ -362,7 +362,6 @@ std::vector<ColorQuad> GetHollowPrimitives(const Rect& rect, const CommonShapePa
 
 	auto transform{ rect.Offset(params.transform, params.origin) };
 	auto outer{ rect.GetWorldVertices(transform) };
-	auto size{ rect.GetSize() };
 	auto world_size{ rect.GetSize(transform) };
 	auto abs_scale{ Abs(transform.scale) };
 
