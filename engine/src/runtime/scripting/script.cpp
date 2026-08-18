@@ -8,6 +8,7 @@
 
 #include "core/assert.h"
 #include "core/math/math_utils.h"
+#include "runtime/ecs/entity_filter.h"
 #include "runtime/scene/scene.h"
 #include "runtime/scene/scene_context.h"
 
@@ -16,7 +17,8 @@ namespace ptgn {
 Script& Script::operator=(const Script& other) {
 	if (this != &other) {
 		sequence = other.sequence;
-		entity = {};
+		owner = {};
+		target = {};
 		delta_seconds_ = 0.0f;
 		linear_progress_ = 0.0f;
 		progress_ = 0.0f;
@@ -33,7 +35,9 @@ ScriptSequenceRuntime::ScriptSequenceRuntime(ScriptSequenceRuntime&&) noexcept =
 ScriptSequenceRuntime& ScriptSequenceRuntime::operator=(ScriptSequenceRuntime&&) noexcept = default;
 
 void ScriptSequenceRuntime::ClearActiveScript() {
-	script_instance.reset();
+	script_targets.clear();
+	script_instances.clear();
+	script_completed.clear();
 	elapsed_ms = 0.0f;
 	current_repeat = 0;
 	currently_reversed = false;
@@ -536,8 +540,12 @@ Script* EnsureInstance(Entity owner, ScriptEntry& entry) {
 	if (script.sequence.id == id) {
 		return &script.sequence;
 	}
-	if (script.sequence.runtime.script_instance) {
-		return FindSequenceInScript(*script.sequence.runtime.script_instance, id);
+	for (auto& instance : script.sequence.runtime.script_instances) {
+		if (instance) {
+			if (auto* sequence{ FindSequenceInScript(*instance, id) }) {
+				return sequence;
+			}
+		}
 	}
 	return nullptr;
 }
@@ -689,21 +697,34 @@ bool CancelBinding(
 		binding.runtime.running || binding.runtime.waiting_for_channel
 	};
 
-	if (binding.runtime.script_instance) {
-		auto& script{ *binding.runtime.script_instance };
+	bool cancelled_step{ false };
+
+	for (std::size_t i{ 0 }; i < binding.runtime.script_instances.size(); ++i) {
+		auto& instance{ binding.runtime.script_instances[i] };
+		if (!instance) {
+			continue;
+		}
+
 		impl::ScriptAccessor::SetFrame(
-			script,
+			*instance,
 			0.0f, 0.0f, 0.0f,
 			binding.runtime.current_repeat,
 			binding.runtime.currently_reversed
 		);
-		if (script.sequence.runtime.running || script.sequence.runtime.waiting_for_channel) {
+
+		if (instance->sequence.runtime.running ||
+			instance->sequence.runtime.waiting_for_channel) {
 			CancelBinding(
-				owner, script.sequence, reason,
+				owner, instance->sequence, reason,
 				false, false, false
 			);
 		}
-		script.OnCancel(reason);
+
+		instance->OnCancel(reason);
+		cancelled_step = true;
+	}
+
+	if (cancelled_step) {
 		InvokeLifecycle(owner, binding, SequenceLifecycle::ScriptCancel);
 	}
 	if (active) {
@@ -792,21 +813,43 @@ bool StartBinding(
 	return true;
 }
 
+[[nodiscard]] std::vector<Entity> ResolveStepTargets(
+	Entity owner,
+	const ScriptStep& action
+) {
+	if (!owner) {
+		return {};
+	}
+
+	if (!action.target) {
+		return { owner };
+	}
+
+	return ResolveEntityFilter(
+		*action.target,
+		owner.GetScene(),
+		owner
+	);
+}
+
 [[nodiscard]] std::unique_ptr<Script> InstantiateStepScript(
-	Entity owner, const ScriptStep& action
+	Entity owner, Entity target, const ScriptStep& action
 ) {
 	const auto* registration{ ScriptRegistry::Find(action.type_hash) };
 	if (!registration) {
 		return nullptr;
 	}
+
 	auto instance{
 		action.runtime_factory
 			? action.runtime_factory()
 			: registration->instantiate(action.value)
 	};
+
 	if (instance) {
-		impl::ScriptAccessor::Attach(*instance, owner);
+		impl::ScriptAccessor::Attach(*instance, owner, target);
 	}
+
 	return instance;
 }
 
@@ -821,6 +864,7 @@ void StartChildScript(
 	impl::ScriptAccessor::SetFrame(script, 0.0f, linear, progress, repeat, reversed);
 	script.OnCreate();
 	script.OnStart();
+
 	if (script.sequence.enabled && script.sequence.start_events.empty() &&
 		HasSequenceDefinition(script.sequence)) {
 		StartBinding(owner, script.sequence, false);
@@ -834,10 +878,12 @@ ScriptStatus UpdateChildScript(
 ) {
 	ScriptStatus status{ script.OnUpdate() };
 	UpdateSequence(owner, script.sequence, delta_seconds);
+
 	if (impl::ScriptAccessor::TakeCompletionRequest(script) ||
 		(HasSequenceDefinition(script.sequence) && script.sequence.runtime.completed)) {
 		status = ScriptStatus::Complete;
 	}
+
 	return status;
 }
 
@@ -845,14 +891,22 @@ void ExecuteInstantStep(Entity owner, const ScriptStep& action) {
 	if (!action.enabled) {
 		return;
 	}
-	auto instance{ InstantiateStepScript(owner, action) };
-	if (!instance) {
-		return;
+
+	for (Entity target : ResolveStepTargets(owner, action)) {
+		if (!target) {
+			continue;
+		}
+
+		auto instance{ InstantiateStepScript(owner, target, action) };
+		if (!instance) {
+			continue;
+		}
+
+		StartChildScript(owner, *instance, 1.0f, 1.0f, 0, false);
+		impl::ScriptAccessor::SetFrame(*instance, 0.0f, 1.0f, 1.0f, 0, false);
+		UpdateChildScript(owner, *instance, 0.0f);
+		instance->OnComplete();
 	}
-	StartChildScript(owner, *instance, 1.0f, 1.0f, 0, false);
-	impl::ScriptAccessor::SetFrame(*instance, 0.0f, 1.0f, 1.0f, 0, false);
-	UpdateChildScript(owner, *instance, 0.0f);
-	instance->OnComplete();
 }
 
 void ProcessImmediateSteps(
@@ -894,15 +948,21 @@ void CompleteCurrentStep(
 	Entity owner, ScriptSequence& binding
 ) {
 	auto& runtime{ binding.runtime };
-	if (runtime.script_instance) {
+
+	for (auto& instance : runtime.script_instances) {
+		if (!instance) {
+			continue;
+		}
+
 		impl::ScriptAccessor::SetFrame(
-			*runtime.script_instance,
+			*instance,
 			0.0f, 1.0f, 1.0f,
 			runtime.current_repeat,
 			runtime.currently_reversed
 		);
-		runtime.script_instance->OnComplete();
+		instance->OnComplete();
 	}
+
 	InvokeLifecycle(owner, binding, SequenceLifecycle::ScriptComplete);
 	++runtime.step_index;
 	runtime.ClearActiveScript();
@@ -927,7 +987,9 @@ void CompleteSequence(
 	binding.runtime.paused = false;
 	binding.runtime.completed = true;
 	binding.runtime.completed_runs = completed_runs;
-	binding.runtime.script_instance.reset();
+	binding.runtime.script_targets.clear();
+	binding.runtime.script_instances.clear();
+	binding.runtime.script_completed.clear();
 
 	InvokeLifecycle(owner, binding, SequenceLifecycle::Complete);
 
@@ -986,87 +1048,164 @@ void UpdateSequence(
 		return;
 	}
 
-	if (!runtime.script_instance) {
-		runtime.script_instance = InstantiateStepScript(owner, action);
-		if (!runtime.script_instance) {
+	if (runtime.script_instances.empty()) {
+		auto targets{ ResolveStepTargets(owner, action) };
+
+		for (Entity target : targets) {
+			if (!target) {
+				continue;
+			}
+
+			auto instance{ InstantiateStepScript(owner, target, action) };
+			if (!instance) {
+				continue;
+			}
+
+			runtime.script_targets.emplace_back(target);
+			runtime.script_instances.emplace_back(std::move(instance));
+			runtime.script_completed.emplace_back(false);
+		}
+
+		if (runtime.script_instances.empty()) {
 			++runtime.step_index;
 			ProcessImmediateSteps(owner, binding);
 			return;
 		}
+
 		runtime.currently_reversed = action.timing && action.timing->reversed;
-		StartChildScript(
-			owner, *runtime.script_instance,
-			0.0f, 0.0f, 0, runtime.currently_reversed
-		);
+
+		for (std::size_t i{ 0 }; i < runtime.script_instances.size(); ++i) {
+			StartChildScript(
+				owner,
+				*runtime.script_instances[i],
+				0.0f,
+				0.0f,
+				0,
+				runtime.currently_reversed
+			);
+		}
+
 		InvokeLifecycle(owner, binding, SequenceLifecycle::ScriptStart);
 	}
 
-	const float delta_ms{ std::max(0.0f, delta_seconds) * 1000.0f };
+	float delta_ms{ std::max(0.0f, delta_seconds) * 1000.0f };
 	if (action.timing) {
 		runtime.elapsed_ms += delta_ms;
 	}
+
 	float linear{ 0.0f };
 	float progress{ 0.0f };
+
 	if (action.timing) {
 		const auto& timing{ *action.timing };
 		linear = timing.duration_ms <= 0.0f
 			? 1.0f
 			: std::clamp(runtime.elapsed_ms / timing.duration_ms, 0.0f, 1.0f);
-		const float directed{ runtime.currently_reversed ? 1.0f - linear : linear };
+
+		float directed{
+			runtime.currently_reversed
+				? 1.0f - linear
+				: linear
+		};
 		progress = ptgn::ApplyEase(directed, timing.ease);
 	}
 
-	impl::ScriptAccessor::SetFrame(
-		*runtime.script_instance,
-		delta_seconds, linear, progress,
-		runtime.current_repeat, runtime.currently_reversed
-	);
-	const ScriptStatus status{
-		UpdateChildScript(owner, *runtime.script_instance, delta_seconds)
-	};
+	bool all_complete{ true };
 
-	bool complete{ false };
-	switch (completion) {
-		case ScriptCompletion::Instant:
-			complete = true;
-			break;
-		case ScriptCompletion::Duration:
-			complete = status == ScriptStatus::Complete || linear >= 1.0f;
-			break;
-		case ScriptCompletion::ScriptControlled:
-			complete = status == ScriptStatus::Complete;
-			break;
-		case ScriptCompletion::Infinite:
-			// Infinite disables automatic time-based completion, but the Script may
-			// still explicitly call Complete()/MoveOn().
-			complete = status == ScriptStatus::Complete;
-			break;
+	for (std::size_t i{ 0 }; i < runtime.script_instances.size(); ++i) {
+		if (runtime.script_completed[i]) {
+			continue;
+		}
+
+		Entity target{ runtime.script_targets[i] };
+		auto& instance{ runtime.script_instances[i] };
+
+		if (!target || !instance) {
+			runtime.script_completed[i] = true;
+			continue;
+		}
+
+		impl::ScriptAccessor::SetFrame(
+			*instance,
+			delta_seconds,
+			linear,
+			progress,
+			runtime.current_repeat,
+			runtime.currently_reversed
+		);
+
+		ScriptStatus status{
+			UpdateChildScript(owner, *instance, delta_seconds)
+		};
+
+		bool instance_complete{ false };
+
+		switch (completion) {
+			case ScriptCompletion::Instant:
+				instance_complete = true;
+				break;
+
+			case ScriptCompletion::Duration:
+				instance_complete =
+					status == ScriptStatus::Complete ||
+					linear >= 1.0f;
+				break;
+
+			case ScriptCompletion::ScriptControlled:
+			case ScriptCompletion::Infinite:
+				instance_complete =
+					status == ScriptStatus::Complete;
+				break;
+		}
+
+		runtime.script_completed[i] = instance_complete;
+
+		if (!instance_complete) {
+			all_complete = false;
+		}
 	}
-	if (!complete) {
+
+	if (!all_complete) {
 		return;
 	}
 
-	const bool repeat{
+	bool repeat{
 		action.timing &&
-		(action.timing->infinite_repeats ||
-		 runtime.current_repeat < action.timing->additional_repeats)
+		(
+			action.timing->infinite_repeats ||
+			runtime.current_repeat < action.timing->additional_repeats
+		)
 	};
+
 	if (repeat) {
 		++runtime.current_repeat;
 		runtime.elapsed_ms = 0.0f;
 		InvokeLifecycle(owner, binding, SequenceLifecycle::Repeat);
+
 		if (action.timing->yoyo) {
 			runtime.currently_reversed = !runtime.currently_reversed;
 			InvokeLifecycle(owner, binding, SequenceLifecycle::Yoyo);
 		}
-		impl::ScriptAccessor::SetFrame(
-			*runtime.script_instance,
-			0.0f, 0.0f, 0.0f,
-			runtime.current_repeat, runtime.currently_reversed
-		);
-		runtime.script_instance->OnRepeat();
+
+		for (std::size_t i{ 0 }; i < runtime.script_instances.size(); ++i) {
+			auto& instance{ runtime.script_instances[i] };
+			if (!instance) {
+				continue;
+			}
+
+			runtime.script_completed[i] = false;
+			impl::ScriptAccessor::SetFrame(
+				*instance,
+				0.0f, 0.0f, 0.0f,
+				runtime.current_repeat,
+				runtime.currently_reversed
+			);
+			instance->OnRepeat();
+		}
+
 		return;
 	}
+
 	CompleteCurrentStep(owner, binding);
 }
 
@@ -1123,8 +1262,19 @@ void DispatchToScript(
 	if (event.IsHandled()) {
 		return;
 	}
-	if (script.sequence.runtime.script_instance) {
-		DispatchToScript(owner, *script.sequence.runtime.script_instance, event);
+	for (std::size_t i{ 0 };
+		 i < script.sequence.runtime.script_instances.size();
+		 ++i) {
+		auto& instance{ script.sequence.runtime.script_instances[i] };
+		if (!instance) {
+			continue;
+		}
+
+		DispatchToScript(owner, *instance, event);
+
+		if (event.IsHandled()) {
+			return;
+		}
 	}
 }
 
@@ -1405,8 +1555,18 @@ bool Skip(Entity owner, SequenceId id) {
 	if (!binding || !binding->runtime.running) {
 		return false;
 	}
-	if (binding->runtime.script_instance) {
-		binding->runtime.script_instance->OnCancel(SequenceCancelReason::Skipped);
+	bool cancelled_step{ false };
+
+	for (auto& instance : binding->runtime.script_instances) {
+		if (!instance) {
+			continue;
+		}
+
+		instance->OnCancel(SequenceCancelReason::Skipped);
+		cancelled_step = true;
+	}
+
+	if (cancelled_step) {
 		InvokeLifecycle(owner, *binding, SequenceLifecycle::ScriptCancel);
 	}
 	++binding->runtime.step_index;
@@ -1585,6 +1745,10 @@ void from_json(const json& input, ScriptStep& step) {
 
 	if (input.contains("value")) {
 		step.value = input.at("value");
+	}
+
+	if (input.contains("target")) {
+		input.at("target").get_to(step.target);
 	}
 
 	if (input.contains("completion")) {

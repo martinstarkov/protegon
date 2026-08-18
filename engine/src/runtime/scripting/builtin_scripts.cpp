@@ -346,12 +346,12 @@ void ResetFollowAnimationState(Entity entity, bool reset_waypoints) {
 } // namespace impl
 
 void MoveToScript::OnStart() {
-	start_ = Owner().Get<Transform>().position;
+	start_ = Target().Get<Transform>().position;
 	end_ = relative ? start_ + destination : destination;
 }
 
 ScriptStatus MoveToScript::OnUpdate() {
-	Owner().Get<Transform>().position = start_ + (end_ - start_) * Progress();
+	Target().Get<Transform>().position = start_ + (end_ - start_) * Progress();
 	return ScriptStatus::Running;
 }
 
@@ -362,7 +362,7 @@ void MoveToScript::OnRepeat() {
 }
 
 void RotateToScript::OnStart() {
-	start_degrees_ = Owner().Get<Transform>().rotation.ToDeg().value;
+	start_degrees_ = Target().Get<Transform>().rotation.ToDeg().value;
 	const float end_degrees{ relative ? start_degrees_ + degrees : degrees };
 	delta_degrees_ = end_degrees - start_degrees_;
 	if (shortest_path) {
@@ -372,7 +372,7 @@ void RotateToScript::OnStart() {
 
 ScriptStatus RotateToScript::OnUpdate() {
 	const float value{ start_degrees_ + delta_degrees_ * Progress() };
-	Owner().Get<Transform>().rotation = Degrees{ value }.ToRad();
+	Target().Get<Transform>().rotation = Degrees{ value }.ToRad();
 	return ScriptStatus::Running;
 }
 
@@ -383,12 +383,12 @@ void RotateToScript::OnRepeat() {
 }
 
 void ScaleToScript::OnStart() {
-	start_ = Owner().Get<Transform>().scale;
+	start_ = Target().Get<Transform>().scale;
 	end_ = relative ? start_ * scale : scale;
 }
 
 ScriptStatus ScaleToScript::OnUpdate() {
-	Owner().Get<Transform>().scale = start_ + (end_ - start_) * Progress();
+	Target().Get<Transform>().scale = start_ + (end_ - start_) * Progress();
 	return ScriptStatus::Running;
 }
 
@@ -399,11 +399,11 @@ void ScaleToScript::OnRepeat() {
 }
 
 void TintToScript::OnStart() {
-	start_ = Owner().GetOrDefault<Tint>();
+	start_ = Target().GetOrDefault<Tint>();
 }
 
 ScriptStatus TintToScript::OnUpdate() {
-	Owner().Add<Tint>(Lerp(start_, tint, Progress()));
+	Target().Add<Tint>(Lerp(start_, tint, Progress()));
 	return ScriptStatus::Running;
 }
 
@@ -414,23 +414,23 @@ void TintToScript::OnRepeat() {
 }
 
 void BounceScript::OnStart() {
-	Owner().TryAdd<impl::Offsets>();
-	impl::ResetBounceAnimationState(Owner());
+	Target().TryAdd<impl::Offsets>();
+	impl::ResetBounceAnimationState(Target());
 }
 
 ScriptStatus BounceScript::OnUpdate() {
-	auto& offsets{ Owner().TryAdd<impl::Offsets>() };
+	auto& offsets{ Target().TryAdd<impl::Offsets>() };
 	offsets.bounce.position =
 		static_offset + amplitude * BounceWave(Progress(), symmetrical);
 	return ScriptStatus::Running;
 }
 
 void BounceScript::OnComplete() {
-	impl::ResetBounceAnimationState(Owner());
+	impl::ResetBounceAnimationState(Target());
 }
 
 void BounceScript::OnCancel(SequenceCancelReason) {
-	impl::ResetBounceAnimationState(Owner());
+	impl::ResetBounceAnimationState(Target());
 }
 
 void ShakeScript::OnStart() {
@@ -439,20 +439,20 @@ void ShakeScript::OnStart() {
 		"Shake intensity must be in range [-1, 1]"
 	);
 
-	auto& state{ Owner().TryAdd<impl::ShakeAnimationState>() };
+	auto& state{ Target().TryAdd<impl::ShakeAnimationState>() };
 	start_trauma_ = Clamp01(state.trauma);
 	target_trauma_ = Clamp01(state.target + intensity);
 	state.target = target_trauma_;
 	state.seed = RandomNumber<std::int32_t>();
-	Owner().TryAdd<impl::Offsets>();
+	Target().TryAdd<impl::Offsets>();
 }
 
 ScriptStatus ShakeScript::OnUpdate() {
-	auto& state{ Owner().TryAdd<impl::ShakeAnimationState>() };
+	auto& state{ Target().TryAdd<impl::ShakeAnimationState>() };
 	const float progress{ LinearProgress() > 0.0f ? Progress() : 1.0f };
 	state.trauma = Clamp01(Lerp(start_trauma_, target_trauma_, progress));
 
-	auto& offsets{ Owner().TryAdd<impl::Offsets>() };
+	auto& offsets{ Target().TryAdd<impl::Offsets>() };
 	ApplyShake(
 		GetScene().ctx().TimeSinceStart(), offsets, state.trauma, config, state.seed
 	);
@@ -465,14 +465,14 @@ void ShakeScript::OnRepeat() {
 
 void ShakeScript::OnComplete() {
 	if (reset_on_complete) {
-		impl::ResetShakeAnimationState(Owner());
+		impl::ResetShakeAnimationState(Target());
 	} else {
-		ClearShakeOffset(Owner());
+		ClearShakeOffset(Target());
 	}
 }
 
 void ShakeScript::OnCancel(SequenceCancelReason) {
-	ClearShakeOffset(Owner());
+	ClearShakeOffset(Target());
 }
 
 void AddShakeTraumaScript::OnStart() {
@@ -481,19 +481,19 @@ void AddShakeTraumaScript::OnStart() {
 		"Shake intensity must be in range [-1, 1]"
 	);
 
-	auto& state{ Owner().TryAdd<impl::ShakeAnimationState>() };
+	auto& state{ Target().TryAdd<impl::ShakeAnimationState>() };
 	state.target = Clamp01(state.target + intensity);
 	state.trauma = state.target;
 	state.seed = RandomNumber<std::int32_t>();
 
-	auto& offsets{ Owner().TryAdd<impl::Offsets>() };
+	auto& offsets{ Target().TryAdd<impl::Offsets>() };
 	ApplyShake(
 		GetScene().ctx().TimeSinceStart(), offsets, state.trauma, config, state.seed
 	);
 }
 
 ScriptStatus RecoverShakeScript::OnUpdate() {
-	auto* state{ Owner().TryGet<impl::ShakeAnimationState>() };
+	auto* state{ Target().TryGet<impl::ShakeAnimationState>() };
 	if (!state) {
 		return ScriptStatus::Complete;
 	}
@@ -506,7 +506,7 @@ ScriptStatus RecoverShakeScript::OnUpdate() {
 		return ScriptStatus::Complete;
 	}
 
-	auto& offsets{ Owner().TryAdd<impl::Offsets>() };
+	auto& offsets{ Target().TryAdd<impl::Offsets>() };
 	ApplyShake(
 		GetScene().ctx().TimeSinceStart(), offsets, state->trauma, config, state->seed
 	);
@@ -514,26 +514,26 @@ ScriptStatus RecoverShakeScript::OnUpdate() {
 }
 
 void RecoverShakeScript::OnComplete() {
-	impl::ResetShakeAnimationState(Owner());
+	impl::ResetShakeAnimationState(Target());
 }
 
 void RecoverShakeScript::OnCancel(SequenceCancelReason) {
-	ClearShakeOffset(Owner());
+	ClearShakeOffset(Target());
 }
 
 void ResetShakeScript::OnStart() {
-	impl::ResetShakeAnimationState(Owner());
+	impl::ResetShakeAnimationState(Target());
 }
 
 ScriptStatus FollowTargetScript::OnUpdate() {
-	const auto& scene{ entity.GetScene() };
+	const auto& scene{ GetScene() };
 	auto target_entity{ scene.GetEntity(target) };
 
-	if (!target_entity || !target_entity.Has<Transform>() || !Owner().Has<Transform>()) {
+	if (!target_entity || !target_entity.Has<Transform>() || !Target().Has<Transform>()) {
 		return ScriptStatus::Complete;
 	}
 
-	auto& position{ Owner().Get<Transform>().position };
+	auto& position{ Target().Get<Transform>().position };
 	const V2_float offset{ target_entity.Get<Transform>().position - position };
 	const float distance{ std::sqrt(offset.x * offset.x + offset.y * offset.y) };
 	if (distance <= std::max(0.0f, stopping_distance)) {
@@ -551,13 +551,17 @@ ScriptStatus FollowTargetScript::OnUpdate() {
 }
 
 void FollowEntityScript::OnStart() {
-	const auto& scene{ entity.GetScene() };
+	const auto& scene{ GetScene() };
 	auto target_entity{ scene.GetEntity(target) };
 
-	if (config.teleport_on_start && target_entity) {
-		SetPosition(Owner(), GetPosition(target_entity) + config.offset);
+	if (!target_entity || target_entity == Target()) {
+		return;
 	}
-	StartFollowMovement(Owner(), config);
+
+	if (config.teleport_on_start) {
+		SetPosition(Target(), GetPosition(target_entity) + config.offset);
+	}
+	StartFollowMovement(Target(), config);
 }
 
 ScriptStatus FollowEntityScript::OnUpdate() {
@@ -565,24 +569,24 @@ ScriptStatus FollowEntityScript::OnUpdate() {
 		return ScriptStatus::Running;
 	}
 
-	const auto& scene{ entity.GetScene() };
+	const auto& scene{ GetScene() };
 	auto target_entity{ scene.GetEntity(target) };
 
-	if (!target_entity) {
+	if (!target_entity || target_entity == Target()) {
 		return ScriptStatus::Complete;
 	}
 
-	const V2_float current{ GetWorldPosition(Owner()) };
+	const V2_float current{ GetWorldPosition(Target()) };
 	const V2_float target_position{ GetWorldPosition(target_entity) + config.offset };
 	V2_float direction{ target_position - current };
 
 	if (config.move_mode == MoveMode::Velocity) {
-		MoveUsingVelocity(config, Owner(), direction);
+		MoveUsingVelocity(config, Target(), direction);
 	} else {
 		const V2_float next{
 			GetFollowPosition(secondsf{ DeltaSeconds() }, config, current, target_position)
 		};
-		SetPosition(Owner(), next);
+		SetPosition(Target(), next);
 		direction = target_position - next;
 	}
 
@@ -592,15 +596,15 @@ ScriptStatus FollowEntityScript::OnUpdate() {
 }
 
 void FollowEntityScript::OnComplete() {
-	StopFollowMovement(Owner());
+	StopFollowMovement(Target());
 }
 
 void FollowEntityScript::OnCancel(SequenceCancelReason) {
-	StopFollowMovement(Owner());
+	StopFollowMovement(Target());
 }
 
 void FollowPathScript::OnStart() {
-	auto& state{ Owner().TryAdd<impl::PathFollowAnimationState>() };
+	auto& state{ Target().TryAdd<impl::PathFollowAnimationState>() };
 	const bool path_changed{ !std::ranges::equal(state.waypoints, waypoints) };
 	state.waypoints = waypoints;
 
@@ -609,9 +613,9 @@ void FollowPathScript::OnStart() {
 	}
 
 	if (config.teleport_on_start && !waypoints.empty()) {
-		SetPosition(Owner(), waypoints.back() + config.offset);
+		SetPosition(Target(), waypoints.back() + config.offset);
 	}
-	StartFollowMovement(Owner(), config);
+	StartFollowMovement(Target(), config);
 }
 
 ScriptStatus FollowPathScript::OnUpdate() {
@@ -626,11 +630,11 @@ ScriptStatus FollowPathScript::OnUpdate() {
 		return ScriptStatus::Complete;
 	}
 
-	auto& state{ Owner().TryAdd<impl::PathFollowAnimationState>() };
+	auto& state{ Target().TryAdd<impl::PathFollowAnimationState>() };
 	state.current_waypoint =
 		std::min(state.current_waypoint, waypoints.size() - 1);
 
-	V2_float current{ GetWorldPosition(Owner()) };
+	V2_float current{ GetWorldPosition(Target()) };
 	V2_float target_position{
 		waypoints[state.current_waypoint] + config.offset
 	};
@@ -651,10 +655,10 @@ ScriptStatus FollowPathScript::OnUpdate() {
 	}
 
 	if (config.move_mode == MoveMode::Velocity) {
-		MoveUsingVelocity(config, Owner(), direction);
+		MoveUsingVelocity(config, Target(), direction);
 	} else {
 		SetPosition(
-			Owner(),
+			Target(),
 			GetFollowPosition(
 				secondsf{ DeltaSeconds() }, config, current, target_position
 			)
@@ -665,11 +669,11 @@ ScriptStatus FollowPathScript::OnUpdate() {
 }
 
 void FollowPathScript::OnComplete() {
-	StopFollowMovement(Owner());
+	StopFollowMovement(Target());
 }
 
 void FollowPathScript::OnCancel(SequenceCancelReason) {
-	StopFollowMovement(Owner());
+	StopFollowMovement(Target());
 }
 
 void NativeScript::OnStart() {
@@ -698,7 +702,7 @@ void NativeScript::OnCancel(SequenceCancelReason reason) {
 }
 
 void SetVisibleScript::OnStart() {
-	SetVisible(Owner(), visible);
+	SetVisible(Target(), visible);
 }
 
 void PlaySoundScript::OnStart() {
@@ -711,7 +715,7 @@ void PlaySoundScript::OnStart() {
 }
 
 void AnimationActionScript::OnStart() {
-	auto animation{ ResolveAnimation(Owner(), animation_key) };
+	auto animation{ ResolveAnimation(Target(), animation_key) };
 	if (!animation) {
 		PTGN_WARN(
 			"Animation action requires an Animation owner or an AnimationMap with an active/keyed "
@@ -758,12 +762,12 @@ void AnimationActionScript::OnStart() {
 }
 
 void SetTextureScript::OnStart() {
-	Sprite{ Owner() }.SetTexture(texture_key);
+	Sprite{ Target() }.SetTexture(texture_key);
 }
 
 void SetEnabledScript::OnStart() {
 	const auto* registration{ ComponentRegistry::Find(component) };
-	if (!registration || !registration->Has(Owner())) {
+	if (!registration || !registration->Has(Target())) {
 		PTGN_WARN("Cannot set enabled state for missing component: ", component);
 		return;
 	}
@@ -774,7 +778,7 @@ void SetEnabledScript::OnStart() {
 	}
 
 	json value;
-	if (!registration->Serialize(value, Owner())) {
+	if (!registration->Serialize(value, Target())) {
 		PTGN_WARN("Failed to serialize component enabled state: ", component);
 		return;
 	}
@@ -794,7 +798,7 @@ void SetEnabledScript::OnStart() {
 		return;
 	}
 
-	if (!registration->Deserialize(value, Owner())) {
+	if (!registration->Deserialize(value, Target())) {
 		PTGN_WARN("Failed to deserialize component enabled state: ", component);
 	}
 }
@@ -928,7 +932,7 @@ void EmitSignalScript::OnStart() {
 void AddComponentsScript::OnStart() {
 	for (const auto& component : components) {
 		if (component.apply_live) {
-			component.apply_live(Owner());
+			component.apply_live(Target());
 			continue;
 		}
 
@@ -938,11 +942,11 @@ void AddComponentsScript::OnStart() {
 		}
 
 		if (registration->is_empty && registration->default_constructible) {
-			registration->AddDefault(Owner());
+			registration->AddDefault(Target());
 		} else if (registration->deserializable && !component.value.is_null()) {
-			registration->Deserialize(component.value, Owner());
+			registration->Deserialize(component.value, Target());
 		} else if (registration->default_constructible) {
-			registration->AddDefault(Owner());
+			registration->AddDefault(Target());
 		}
 	}
 }
@@ -950,7 +954,7 @@ void AddComponentsScript::OnStart() {
 void RemoveComponentsScript::OnStart() {
 	for (const auto& name : components) {
 		if (const auto* registration{ ComponentRegistry::Find(name) }) {
-			registration->Remove(Owner());
+			registration->Remove(Target());
 		}
 	}
 }
@@ -1002,7 +1006,7 @@ SequenceHandle During(Scene& scene, milliseconds duration, DuringSequenceFunctio
 			std::visit(
 				[&](auto& fn) {
 					if constexpr (std::is_invocable_v<decltype(fn), Entity, float>) {
-						fn(script.Owner(), script.Progress());
+						fn(script.Target(), script.Progress());
 					} else {
 						fn();
 					}

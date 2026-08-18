@@ -27,6 +27,7 @@
 #include "core/event/mouse_event.h"
 #include "core/input/key.h"
 #include "core/input/mouse.h"
+#include "panels/entity_filter_editor.h"
 #include "panels/inspector_fields.h"
 #include "panels/content_browser.h"
 #include "runtime/animation/animation_event.h"
@@ -2064,6 +2065,21 @@ bool DrawFollowTarget(ScriptEditorContext&, FollowTargetScript& script) {
 	return changed;
 }
 
+bool DrawTintToInline(ScriptEditorContext&, TintToScript& script) {
+	auto tint{ script.tint.Normalized() };
+
+	if (!ImGui::ColorEdit4(
+			"##Tint",
+			tint.Data(),
+			ImGuiColorEditFlags_NoInputs
+		)) {
+		return false;
+	}
+
+	script.tint = Color{ tint };
+	return true;
+}
+
 bool DrawTintTo(ScriptEditorContext&, TintToScript& script) {
 	auto tint{ script.tint.Normalized() };
 	if (!ImGui::ColorEdit4("Tint", tint.Data())) {
@@ -2098,8 +2114,54 @@ bool DrawRecoverShake(ScriptEditorContext& context, RecoverShakeScript& script) 
 }
 
 bool DrawFollowEntity(ScriptEditorContext& context, FollowEntityScript& script) {
-	ImGui::TextDisabled("Target selection should use your UUID/entity reference field.");
-	return DrawReflectedScriptValue(context.ctx, script.config);
+	bool changed{ false };
+
+	if (context.owner) {
+		EntityFilter filter;
+		filter.type = EntityFilterType::Entity;
+		filter.entity.uuid = script.target;
+
+		if (Entity selected{ context.owner.GetScene().GetEntity(script.target) };
+			selected && selected != context.owner) {
+			SetEntityReference(filter.entity, selected);
+		} else if (selected == context.owner) {
+			filter.entity = {};
+		}
+
+		static inspector::EntityFilterEditorState state;
+
+		inspector::EntityFilterEditorOptions options{
+			.show_any = false,
+			.show_entity = true,
+			.show_components = false,
+			.show_groups = false,
+			.show_queries = false,
+			.allow_select_owner = false,
+			.exclude_owner = true,
+		};
+
+		ImGui::PushID("FollowEntityTarget");
+
+		if (inspector::DrawEntityFilterButton(
+				std::addressof(context.owner.GetScene()),
+				context.owner,
+				filter,
+				state,
+				options
+			)) {
+			if (filter.entity.uuid.has_value()) {
+				script.target = filter.entity.uuid.value();
+				changed = true;
+			}
+		}
+
+		ImGui::PopID();
+	} else {
+		ImGui::TextDisabled("Entity target selection requires a scene instance.");
+	}
+
+	changed |= DrawReflectedScriptValue(context.ctx, script.config);
+	return changed;
 }
 
 bool DrawFollowPath(ScriptEditorContext& context, FollowPathScript& script) {
@@ -2224,8 +2286,9 @@ PTGN_REGISTER_SCRIPT(
 	TintToScript, {
 					  .label	   = "Tint To",
 					  .group	   = "Animation",
-					  .description = "Animate the owner tint to a color.",
+					  .description = "Animate the target tint to a color.",
 					  .type		   = ScriptType::Sequence,
+					  .draw_inline = &DrawTintToInline,
 					  .draw		   = &DrawTintTo,
 				  }
 );

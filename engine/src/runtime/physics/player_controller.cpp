@@ -40,20 +40,20 @@ void TopDownMovementScript::OnEvent(Event event) {
 }
 
 void TopDownMovementScript::OnMoveStart() {
-	auto active{ entity.Get<AnimationMap>().GetActive() };
+	auto active{ Target().Get<AnimationMap>().GetActive() };
 	PTGN_ASSERT(active.has_value());
 	active.value().Start(false);
 }
 
 void TopDownMovementScript::OnMoveStop() {
-	auto active{ entity.Get<AnimationMap>().GetActive() };
+	auto active{ Target().Get<AnimationMap>().GetActive() };
 	PTGN_ASSERT(active.has_value());
 	active.value().Reset();
 }
 
 void TopDownMovementScript::OnDirectionChange() {
-	auto& a{ entity.Get<AnimationMap>() };
-	auto dir{ entity.Get<TopDownMovement>().GetDirection() };
+	auto& a{ Target().Get<AnimationMap>() };
+	auto dir{ Target().Get<TopDownMovement>().GetDirection() };
 	auto prev_active{ a.GetActive() };
 	PTGN_ASSERT(prev_active.has_value());
 	bool active_changed{ false };
@@ -88,9 +88,9 @@ void TopDownAnimationRepeat::OnEvent(Event d) {
 }
 
 void TopDownAnimationRepeat::OnAnimationFrameChange() {
-	auto frame{ Animation{ entity }.GetCurrentFrame() };
+	auto frame{ Animation{ Target() }.GetCurrentFrame() };
 	if (frame % walk_sound_frequency == 0) {
-		entity.GetScene().ctx().audio.Play(walk_sound_key);
+		Target().GetScene().ctx().audio.Play(walk_sound_key);
 	}
 }
 

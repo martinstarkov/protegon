@@ -117,7 +117,7 @@ void DialogueWaitScript::OnEvent(Event event) {
 }
 
 void DialogueWaitScript::OnKeyPressed(Key key) const {
-	DialogueBox dialogue{ entity };
+	DialogueBox dialogue{ Target() };
 
 	if (!dialogue.IsOpen()) {
 		return;

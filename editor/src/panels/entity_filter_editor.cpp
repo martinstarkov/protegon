@@ -459,57 +459,75 @@ void DrawEntityHierarchyNode(
 	const EntityReference& current,
 	std::string_view filter,
 	Entity& picked_entity,
+	Entity excluded_entity = {},
 	std::size_t depth = 0
 ) {
-	if (!entity ||
-		depth >= kMaxHierarchyDepth) {
+	if (!entity || depth >= kMaxHierarchyDepth) {
 		return;
 	}
 
-	if (!EntityOrDescendantMatchesFilter(
-			entity,
-			filter,
-			depth
-		)) {
+	if (entity == excluded_entity) {
+		if (HasChildren(entity)) {
+			auto children{ GetChildren(entity) };
+			SortByLocalDepth(children);
+
+			for (Entity child : children) {
+				DrawEntityHierarchyNode(
+					child,
+					current,
+					filter,
+					picked_entity,
+					excluded_entity,
+					depth
+				);
+			}
+		}
+
+		return;
+	}
+
+	if (!EntityOrDescendantMatchesFilter(entity, filter, depth)) {
 		return;
 	}
 
 	std::vector<Entity> children;
 
 	if (HasChildren(entity)) {
-		children = GetChildren(entity);
+		auto direct_children{ GetChildren(entity) };
+		SortByLocalDepth(direct_children);
 
-		children.erase(
-			std::remove_if(
-				children.begin(),
-				children.end(),
-				[&](Entity child) {
-					return !EntityOrDescendantMatchesFilter(
-						child,
-						filter,
-						depth + 1
-					);
+		for (Entity child : direct_children) {
+			if (child == excluded_entity) {
+				if (HasChildren(child)) {
+					auto grandchildren{ GetChildren(child) };
+					SortByLocalDepth(grandchildren);
+
+					for (Entity grandchild : grandchildren) {
+						if (EntityOrDescendantMatchesFilter(
+								grandchild,
+								filter,
+								depth + 1
+							)) {
+							children.emplace_back(grandchild);
+						}
+					}
 				}
-			),
-			children.end()
-		);
+				continue;
+			}
 
-		SortByLocalDepth(children);
+			if (EntityOrDescendantMatchesFilter(child, filter, depth + 1)) {
+				children.emplace_back(child);
+			}
+		}
 	}
 
-	const bool has_visible_children{
-		!children.empty()
-	};
-
-	const bool selected{
+	bool has_visible_children{ !children.empty() };
+	bool selected{
 		current.uuid.has_value() &&
-		entity.Get<UUID>() ==
-			current.uuid.value()
+		entity.Get<UUID>() == current.uuid.value()
 	};
 
-	ImGui::PushID(
-		entity.Get<UUID>()
-	);
+	ImGui::PushID(entity.Get<UUID>());
 
 	ImGuiTreeNodeFlags flags{
 		ImGuiTreeNodeFlags_OpenOnArrow |
@@ -519,8 +537,7 @@ void DrawEntityHierarchyNode(
 	};
 
 	if (selected) {
-		flags |=
-			ImGuiTreeNodeFlags_Selected;
+		flags |= ImGuiTreeNodeFlags_Selected;
 	}
 
 	if (!has_visible_children) {
@@ -528,17 +545,12 @@ void DrawEntityHierarchyNode(
 			ImGuiTreeNodeFlags_Leaf |
 			ImGuiTreeNodeFlags_NoTreePushOnOpen;
 	} else if (!filter.empty()) {
-		ImGui::SetNextItemOpen(
-			true,
-			ImGuiCond_Always
-		);
+		ImGui::SetNextItemOpen(true, ImGuiCond_Always);
 	}
 
-	const std::string label{
-		EntityDisplayName(entity)
-	};
+	std::string label{ EntityDisplayName(entity) };
 
-	const bool open{
+	bool open{
 		ImGui::TreeNodeEx(
 			"##EntityFilter",
 			flags,
@@ -547,26 +559,23 @@ void DrawEntityHierarchyNode(
 		)
 	};
 
-	if (ImGui::IsItemClicked(
-			ImGuiMouseButton_Left
-		)) {
+	if (ImGui::IsItemClicked(ImGuiMouseButton_Left)) {
 		picked_entity = entity;
 	}
 
 	if (ImGui::IsItemHovered()) {
-		const std::string uuid{ UUIDDisplayName(entity) };
+		std::string uuid{ UUIDDisplayName(entity) };
 		ImGui::SetTooltip("uuid: %s", uuid.c_str());
 	}
 
-	if (has_visible_children &&
-		open) {
-		for (Entity child :
-			 children) {
+	if (has_visible_children && open) {
+		for (Entity child : children) {
 			DrawEntityHierarchyNode(
 				child,
 				current,
 				filter,
 				picked_entity,
+				excluded_entity,
 				depth + 1
 			);
 		}
@@ -581,43 +590,34 @@ bool DrawMiniHierarchy(
 	Scene& scene,
 	Entity owner,
 	EntityReference& reference,
-	EntityFilterEditorState& state
+	EntityFilterEditorState& state,
+	bool allow_select_owner = true,
+	Entity excluded_entity = {}
 ) {
 	bool changed{ false };
-	if (owner) {
-		if (ImGui::Button(
-				"Select Owner"
-			)) {
-			SetEntityRef(
-				reference,
-				owner
-			);
+
+	if (allow_select_owner && owner) {
+		if (ImGui::Button("Select Owner")) {
+			SetEntityRef(reference, owner);
 			changed = true;
 		}
 
 		ImGui::SameLine();
-
-		Entity selected{
-			ResolveEntity(
-				scene,
-				reference
-			)
-		};
-
-		if (selected) {
-			const std::string selected_label{
-				EntityDisplayName(selected) +
-				" [" + UUIDDisplayName(selected) + "]"
-			};
-			ImGui::TextDisabled("%s", selected_label.c_str());
-		} else {
-			ImGui::TextDisabled("No entity selected");
-		}
 	}
 
-	ImGui::SetNextItemWidth(
-		-FLT_MIN
-	);
+	Entity selected{ ResolveEntity(scene, reference) };
+
+	if (selected) {
+		std::string selected_label{
+			EntityDisplayName(selected) +
+			" [" + UUIDDisplayName(selected) + "]"
+		};
+		ImGui::TextDisabled("%s", selected_label.c_str());
+	} else {
+		ImGui::TextDisabled("No entity selected");
+	}
+
+	ImGui::SetNextItemWidth(-FLT_MIN);
 
 	ImGui::InputTextWithHint(
 		"##HierarchyFilter",
@@ -629,35 +629,59 @@ bool DrawMiniHierarchy(
 
 	ImGui::BeginChild(
 		"##EntityHierarchy",
-		ImVec2{
-			0.0f,
-			kEntityHierarchyHeight
-		},
+		ImVec2{ 0.0f, kEntityHierarchyHeight },
 		ImGuiChildFlags_Borders
 	);
 
 	Entity picked_entity;
 
-	for (Entity root :
-		 GetRootEntities(scene)) {
+	for (Entity root : GetRootEntities(scene)) {
 		DrawEntityHierarchyNode(
 			root,
 			reference,
 			state.hierarchy_filter,
-			picked_entity
+			picked_entity,
+			excluded_entity
 		);
 	}
 
 	if (picked_entity) {
-		SetEntityRef(
-			reference,
-			picked_entity
-		);
+		SetEntityRef(reference, picked_entity);
 		changed = true;
 	}
 
 	ImGui::EndChild();
 	return changed;
+}
+
+[[nodiscard]] bool IsOwnerReference(
+	Entity owner,
+	const EntityReference& reference
+) {
+	return owner &&
+		reference.uuid.has_value() &&
+		owner.Get<UUID>() == reference.uuid.value();
+}
+
+[[nodiscard]] float GetPopupWidth(
+	const EntityFilterEditorOptions& options
+) {
+	float width{ 0.0f };
+
+	if (options.show_entity) {
+		width = std::max(width, kEntityModeMinWidth);
+	}
+	if (options.show_components) {
+		width = std::max(width, kComponentsModeMinWidth);
+	}
+	if (options.show_groups) {
+		width = std::max(width, kGroupsModeMinWidth);
+	}
+	if (options.show_queries) {
+		width = std::max(width, kQueriesModeMinWidth);
+	}
+
+	return width > 0.0f ? width : kTargetPopupWidth;
 }
 
 bool DrawComponentPicker(
@@ -1784,133 +1808,125 @@ bool DrawEntityFilterEditor(
 	Scene* scene,
 	Entity owner,
 	EntityFilter& target,
-	EntityFilterEditorState& state
+	EntityFilterEditorState& state,
+	const EntityFilterEditorOptions& options
 ) {
 	bool changed{ false };
 
-	const float close_width{
-		ImGui::GetFrameHeight()
-	};
-
-	const float spacing{
-		ImGui::GetStyle()
-			.ItemSpacing.x
-	};
-
-	const float available{
-		ImGui::GetContentRegionAvail().x
-	};
-
-	const float mode_width{
-		std::max(
-			64.0f,
-			(available - close_width - spacing * 5.0f) / 5.0f
-		)
-	};
-
-	ImGui::PushStyleVar(ImGuiStyleVar_SelectableTextAlign, ImVec2{ 0.5f, 0.5f });
-
-	if (ImGui::Selectable(
-			"Any",
-			target.type == EntityFilterType::Any,
-			ImGuiSelectableFlags_DontClosePopups,
-			ImVec2{ mode_width, close_width }
-		)) {
-		target.type = EntityFilterType::Any;
-		changed = true;
-	}
-
-	ImGui::SameLine();
-
-	{
-		if (!scene) {
-			ImGui::BeginDisabled();
+	auto mode_visible = [&](EntityFilterType type) {
+		switch (type) {
+			case EntityFilterType::Any: return options.show_any;
+			case EntityFilterType::Entity: return options.show_entity;
+			case EntityFilterType::Components: return options.show_components;
+			case EntityFilterType::Group: return options.show_groups;
+			case EntityFilterType::Query: return options.show_queries;
 		}
 
-		if (ImGui::Selectable(
-				"Entity",
-				target.type == EntityFilterType::Entity,
-				ImGuiSelectableFlags_DontClosePopups,
-				ImVec2{ mode_width, close_width }
-			)) {
+		return false;
+	};
+
+	if (!mode_visible(target.type)) {
+		if (options.show_entity) {
 			target.type = EntityFilterType::Entity;
-			changed = true;
+		} else if (options.show_any) {
+			target.type = EntityFilterType::Any;
+		} else if (options.show_components) {
+			target.type = EntityFilterType::Components;
+		} else if (options.show_groups) {
+			target.type = EntityFilterType::Group;
+		} else if (options.show_queries) {
+			target.type = EntityFilterType::Query;
 		}
-
-		if (!scene) {
-			ImGui::EndDisabled();
-		}
 	}
 
-	ImGui::SameLine();
+	std::size_t mode_count{
+		static_cast<std::size_t>(options.show_any) +
+		static_cast<std::size_t>(options.show_entity) +
+		static_cast<std::size_t>(options.show_components) +
+		static_cast<std::size_t>(options.show_groups) +
+		static_cast<std::size_t>(options.show_queries)
+	};
 
-	if (ImGui::Selectable(
-			"Components",
-			target.type ==
-				EntityFilterType::Components,
-			ImGuiSelectableFlags_DontClosePopups,
-			ImVec2{
-				mode_width,
-				close_width
+	float close_width{ ImGui::GetFrameHeight() };
+	float spacing{ ImGui::GetStyle().ItemSpacing.x };
+
+	if (mode_count > 1) {
+		float available{ ImGui::GetContentRegionAvail().x };
+		float mode_width{
+			std::max(
+				64.0f,
+				(
+					available -
+					close_width -
+					spacing * static_cast<float>(mode_count)
+				) /
+				static_cast<float>(mode_count)
+			)
+		};
+
+		bool first{ true };
+
+		auto draw_mode = [&](const char* label, EntityFilterType type, bool visible) {
+			if (!visible) {
+				return;
 			}
-		)) {
-		target.type = EntityFilterType::Components;
-		if (target.components.groups.empty()) {
-			target.components.groups.push_back(ComponentQueryGroup{
-				.conditions{ ComponentQueryCondition{} },
-			});
-		}
 
-		changed = true;
+			if (!first) {
+				ImGui::SameLine();
+			}
+			first = false;
+
+			bool disabled{ type == EntityFilterType::Entity && !scene };
+			if (disabled) {
+				ImGui::BeginDisabled();
+			}
+
+			if (ImGui::Selectable(
+					label,
+					target.type == type,
+					ImGuiSelectableFlags_DontClosePopups,
+					ImVec2{ mode_width, close_width }
+				)) {
+				target.type = type;
+
+				if (type == EntityFilterType::Components &&
+					target.components.groups.empty()) {
+					target.components.groups.push_back(ComponentQueryGroup{
+						.conditions{ ComponentQueryCondition{} },
+					});
+				}
+
+				changed = true;
+			}
+
+			if (disabled) {
+				ImGui::EndDisabled();
+			}
+		};
+
+		ImGui::PushStyleVar(
+			ImGuiStyleVar_SelectableTextAlign,
+			ImVec2{ 0.5f, 0.5f }
+		);
+
+		draw_mode("Any", EntityFilterType::Any, options.show_any);
+		draw_mode("Entity", EntityFilterType::Entity, options.show_entity);
+		draw_mode("Components", EntityFilterType::Components, options.show_components);
+		draw_mode("Groups", EntityFilterType::Group, options.show_groups);
+		draw_mode("Queries", EntityFilterType::Query, options.show_queries);
+
+		ImGui::PopStyleVar();
+
+		ImGui::SameLine();
+	} else {
+		ImGui::SetCursorPosX(
+			ImGui::GetCursorPosX() +
+			ImGui::GetContentRegionAvail().x -
+			close_width
+		);
 	}
 
-	ImGui::SameLine();
-
-	if (ImGui::Selectable(
-			"Groups",
-			target.type ==
-				EntityFilterType::Group,
-			ImGuiSelectableFlags_DontClosePopups,
-			ImVec2{
-				mode_width,
-				close_width
-			}
-		)) {
-		target.type =
-			EntityFilterType::Group;
-
-		changed = true;
-	}
-
-	ImGui::SameLine();
-
-	if (ImGui::Selectable(
-			"Queries",
-			target.type ==
-				EntityFilterType::Query,
-			ImGuiSelectableFlags_DontClosePopups,
-			ImVec2{
-				mode_width,
-				close_width
-			}
-		)) {
-		target.type =
-			EntityFilterType::Query;
-
-		changed = true;
-	}
-
-	ImGui::PopStyleVar();
-
-	ImGui::SameLine();
-
-	if (ImGui::Button(
-			"X",
-			ImVec2{
-				close_width,
-				close_width
-			}
-		)) {
+	if (ImGui::Button("X", ImVec2{ close_width, close_width })) {
 		ImGui::CloseCurrentPopup();
 		return changed;
 	}
@@ -1924,129 +1940,111 @@ bool DrawEntityFilterEditor(
 
 		case EntityFilterType::Entity:
 			if (scene) {
-				changed |= DrawMiniHierarchy(*scene, owner, target.entity, state);
+				changed |= DrawMiniHierarchy(
+					*scene,
+					owner,
+					target.entity,
+					state,
+					options.allow_select_owner,
+					options.exclude_owner ? owner : Entity{}
+				);
 			} else {
 				ImGui::TextDisabled("Exact entity selection requires a scene instance.");
 			}
 			break;
 
 		case EntityFilterType::Components:
-			changed |=
-				DrawComponentQueryEditor(
-					scene,
-					target.components,
-					state
-				);
+			changed |= DrawComponentQueryEditor(
+				scene,
+				target.components,
+				state
+			);
 			break;
 
 		case EntityFilterType::Group:
-			changed |=
-				DrawGroupQueryEditor(
-					scene,
-					target.group,
-					state
-				);
+			changed |= DrawGroupQueryEditor(
+				scene,
+				target.group,
+				state
+			);
 			break;
 
 		case EntityFilterType::Query:
-			changed |=
-				DrawRegisteredQueryEditor(
-					scene,
-					owner,
-					target.query,
-					state
-				);
+			changed |= DrawRegisteredQueryEditor(
+				scene,
+				owner,
+				target.query,
+				state
+			);
 			break;
 	}
 
 	return changed;
 }
 
-bool DrawEntityFilterButtonImpl(
+void DrawFilterButtonTooltip(
 	Scene* scene,
-	Entity owner,
-	EntityFilter& target,
-	EntityFilterEditorState& state
+	const EntityFilter& target
 ) {
-	ImGui::PushID(std::addressof(target));
-
-	const std::string summary{
-		FilterSummary(
-			scene,
-			owner,
-			target
-		)
-	};
-
-	bool changed{ false };
-
-	if (ImGui::Button(
-			summary.c_str(),
-			ImVec2{
-				ImGui::GetContentRegionAvail().x,
-				0.0f
-			}
-		)) {
-		ImGui::OpenPopup(
-			"##EntityFilterPopup"
-		);
+	if (!ImGui::IsItemHovered()) {
+		return;
 	}
 
-	if (ImGui::IsItemHovered()) {
-		switch (target.type) {
-			case EntityFilterType::Entity:
-				if (target.entity.uuid.has_value()) {
-					if (scene) {
-						Entity entity{ ResolveEntity(*scene, target.entity) };
+	switch (target.type) {
+		case EntityFilterType::Entity:
+			if (target.entity.uuid.has_value()) {
+				if (scene) {
+					Entity entity{ ResolveEntity(*scene, target.entity) };
 
-						if (entity) {
-							const std::string uuid{ UUIDDisplayName(entity) };
-							ImGui::SetTooltip("uuid: %s", uuid.c_str());
-						}
-					} else {
-						json uuid = target.entity.uuid.value();
-
-						if (uuid.is_string()) {
-							const std::string uuid_text{ uuid.get<std::string>() };
-							ImGui::SetTooltip("uuid: %s", uuid_text.c_str());
-						} else {
-							const std::string uuid_text{ uuid.dump() };
-							ImGui::SetTooltip("uuid: %s", uuid_text.c_str());
-						}
+					if (entity) {
+						std::string uuid{ UUIDDisplayName(entity) };
+						ImGui::SetTooltip("uuid: %s", uuid.c_str());
 					}
+				} else {
+					json uuid = target.entity.uuid.value();
+					std::string uuid_text{
+						uuid.is_string()
+							? uuid.get<std::string>()
+							: uuid.dump()
+					};
+					ImGui::SetTooltip("uuid: %s", uuid_text.c_str());
 				}
-				break;
-
-			case EntityFilterType::Components: {
-				const std::string full_summary{
-					ComponentQuerySummary(target.components)
-				};
-				ImGui::SetTooltip("%s", full_summary.c_str());
-				break;
 			}
+			break;
 
-			case EntityFilterType::Group:
-				if (!target.group.groups.empty()) {
-					std::string groups{ "Groups: " };
-
-					for (std::size_t i{ 0 }; i < target.group.groups.size(); ++i) {
-						if (i > 0) {
-							groups += ", ";
-						}
-
-						groups += target.group.groups[i];
-					}
-
-					ImGui::SetTooltip("%s", groups.c_str());
-				}
-				break;
-
-			default:
-				break;
+		case EntityFilterType::Components: {
+			std::string full_summary{
+				ComponentQuerySummary(target.components)
+			};
+			ImGui::SetTooltip("%s", full_summary.c_str());
+			break;
 		}
-	}
 
-	float popup_width{ kTargetPopupWidth };
+		case EntityFilterType::Group:
+			if (!target.group.groups.empty()) {
+				std::string groups{ "Groups: " };
+
+				for (std::size_t i{ 0 }; i < target.group.groups.size(); ++i) {
+					if (i > 0) {
+						groups += ", ";
+					}
+
+					groups += target.group.groups[i];
+				}
+
+				ImGui::SetTooltip("%s", groups.c_str());
+			}
+			break;
+
+		default:
+			break;
+	}
+}
+
+void ApplyPopupConstraints(
+	const EntityFilterEditorOptions& options
+) {
+	float popup_width{ GetPopupWidth(options) };
 	float popup_max_height{ FLT_MAX };
 
 	if (auto* viewport{ ImGui::GetWindowViewport() }) {
@@ -2064,48 +2062,181 @@ bool DrawEntityFilterButtonImpl(
 		ImVec2{ popup_width, 0.0f },
 		ImVec2{ popup_width, popup_max_height }
 	);
+}
 
-	if (ImGui::BeginPopup(
+void ClampCurrentPopupToViewport() {
+	auto* viewport{ ImGui::GetWindowViewport() };
+	if (!viewport) {
+		return;
+	}
+
+	ImVec2 popup_position{ ImGui::GetWindowPos() };
+	ImVec2 popup_size{ ImGui::GetWindowSize() };
+
+	float min_x{ viewport->WorkPos.x + kTargetPopupScreenMargin };
+	float min_y{ viewport->WorkPos.y + kTargetPopupScreenMargin };
+	float max_x{
+		viewport->WorkPos.x + viewport->WorkSize.x -
+		popup_size.x - kTargetPopupScreenMargin
+	};
+	float max_y{
+		viewport->WorkPos.y + viewport->WorkSize.y -
+		popup_size.y - kTargetPopupScreenMargin
+	};
+
+	max_x = std::max(max_x, min_x);
+	max_y = std::max(max_y, min_y);
+
+	ImVec2 clamped_position{
+		std::clamp(popup_position.x, min_x, max_x),
+		std::clamp(popup_position.y, min_y, max_y)
+	};
+
+	if (clamped_position.x != popup_position.x ||
+		clamped_position.y != popup_position.y) {
+		ImGui::SetWindowPos(clamped_position, ImGuiCond_Always);
+	}
+}
+
+bool BeginEntityFilterPopup(
+	const EntityFilterEditorOptions& options
+) {
+	ApplyPopupConstraints(options);
+
+	ImGui::PushStyleColor(
+		ImGuiCol_ModalWindowDimBg,
+		ImVec4{ 0.0f, 0.0f, 0.0f, 0.0f }
+	);
+
+	bool open{
+		ImGui::BeginPopupModal(
 			"##EntityFilterPopup",
+			nullptr,
 			ImGuiWindowFlags_AlwaysAutoResize
+		)
+	};
+
+	ImGui::PopStyleColor();
+	return open;
+}
+
+bool DrawEntityFilterButtonImpl(
+	Scene* scene,
+	Entity owner,
+	EntityFilter& target,
+	EntityFilterEditorState& state,
+	const EntityFilterEditorOptions& options
+) {
+	ImGui::PushID(std::addressof(target));
+
+	std::string summary{
+		FilterSummary(scene, owner, target)
+	};
+
+	bool changed{ false };
+
+	if (ImGui::Button(
+			summary.c_str(),
+			ImVec2{ ImGui::GetContentRegionAvail().x, 0.0f }
 		)) {
-		changed |=
+		ImGui::OpenPopup("##EntityFilterPopup");
+	}
+
+	DrawFilterButtonTooltip(scene, target);
+
+	if (BeginEntityFilterPopup(options)) {
+		changed |= DrawEntityFilterEditor(
+			scene,
+			owner,
+			target,
+			state,
+			options
+		);
+
+		ClampCurrentPopupToViewport();
+		ImGui::EndPopup();
+	}
+
+	ImGui::PopID();
+	return changed;
+}
+
+bool DrawEntityFilterButtonImpl(
+	Scene* scene,
+	Entity owner,
+	std::optional<EntityFilter>& target,
+	EntityFilterEditorState& state,
+	const EntityFilterEditorOptions& options
+) {
+	ImGui::PushID(std::addressof(target));
+
+	bool owner_target{
+		!target ||
+		(
+			target->type == EntityFilterType::Entity &&
+			IsOwnerReference(owner, target->entity)
+		)
+	};
+
+	std::string summary{
+		owner_target
+			? "Owner"
+			: FilterSummary(scene, owner, *target)
+	};
+
+	bool changed{ false };
+
+	if (ImGui::Button(
+			summary.c_str(),
+			ImVec2{ ImGui::GetContentRegionAvail().x, 0.0f }
+		)) {
+		ImGui::OpenPopup("##EntityFilterPopup");
+	}
+
+	if (owner_target) {
+		if (ImGui::IsItemHovered()) {
+			ImGui::SetTooltip("The sequence owner is the target.");
+		}
+	} else {
+		DrawFilterButtonTooltip(scene, *target);
+	}
+
+	if (BeginEntityFilterPopup(options)) {
+		EntityFilter edited{
+			target.value_or(
+				EntityFilter{
+					.type = EntityFilterType::Entity,
+				}
+			)
+		};
+
+		if (!target && owner) {
+			edited.type = EntityFilterType::Entity;
+			SetEntityRef(edited.entity, owner);
+		}
+
+		bool local_changed{
 			DrawEntityFilterEditor(
 				scene,
 				owner,
-				target,
-				state
-			);
+				edited,
+				state,
+				options
+			)
+		};
 
-		if (auto* viewport{ ImGui::GetWindowViewport() }) {
-			ImVec2 popup_position{ ImGui::GetWindowPos() };
-			ImVec2 popup_size{ ImGui::GetWindowSize() };
-
-			float min_x{ viewport->WorkPos.x + kTargetPopupScreenMargin };
-			float min_y{ viewport->WorkPos.y + kTargetPopupScreenMargin };
-			float max_x{
-				viewport->WorkPos.x + viewport->WorkSize.x -
-				popup_size.x - kTargetPopupScreenMargin
-			};
-			float max_y{
-				viewport->WorkPos.y + viewport->WorkSize.y -
-				popup_size.y - kTargetPopupScreenMargin
-			};
-
-			max_x = std::max(max_x, min_x);
-			max_y = std::max(max_y, min_y);
-
-			ImVec2 clamped_position{
-				std::clamp(popup_position.x, min_x, max_x),
-				std::clamp(popup_position.y, min_y, max_y)
-			};
-
-			if (clamped_position.x != popup_position.x ||
-				clamped_position.y != popup_position.y) {
-				ImGui::SetWindowPos(clamped_position, ImGuiCond_Always);
+		if (local_changed) {
+			if (edited.type == EntityFilterType::Entity &&
+				IsOwnerReference(owner, edited.entity)) {
+				target.reset();
+			} else {
+				target = std::move(edited);
 			}
+
+			changed = true;
 		}
 
+		ClampCurrentPopupToViewport();
 		ImGui::EndPopup();
 	}
 
@@ -2116,9 +2247,23 @@ bool DrawEntityFilterButtonImpl(
 } // namespace
 
 bool DrawEntityFilterButton(
-	Scene* scene, Entity owner, EntityFilter& filter, EntityFilterEditorState& state
+	Scene* scene,
+	Entity owner,
+	EntityFilter& filter,
+	EntityFilterEditorState& state,
+	const EntityFilterEditorOptions& options
 ) {
-	return DrawEntityFilterButtonImpl(scene, owner, filter, state);
+	return DrawEntityFilterButtonImpl(scene, owner, filter, state, options);
+}
+
+bool DrawEntityFilterButton(
+	Scene* scene,
+	Entity owner,
+	std::optional<EntityFilter>& filter,
+	EntityFilterEditorState& state,
+	const EntityFilterEditorOptions& options
+) {
+	return DrawEntityFilterButtonImpl(scene, owner, filter, state, options);
 }
 
 } // namespace ptgn::editor::inspector

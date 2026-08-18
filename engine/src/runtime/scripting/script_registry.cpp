@@ -1,3 +1,4 @@
+// script_registry.cpp
 #ifndef MAGIC_ENUM_RANGE_MAX
 #define MAGIC_ENUM_RANGE_MAX 512
 #endif

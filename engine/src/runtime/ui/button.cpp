@@ -806,7 +806,7 @@ ButtonAnimationCompleteScript::ButtonAnimationCompleteScript(Button button) : bu
 
 void ButtonAnimationCompleteScript::OnEvent(Event event) {
 	event.Dispatch<ptgn::event::AnimationComplete>([this]() {
-		if (!button || !entity.Has<ButtonSpriteVisuals>()) {
+		if (!button || !Target().Has<ButtonSpriteVisuals>()) {
 			return;
 		}
 
@@ -816,7 +816,7 @@ void ButtonAnimationCompleteScript::OnEvent(Event event) {
 			return;
 		}
 
-		const auto& visuals{ entity.Get<ButtonSpriteVisuals>() };
+		const auto& visuals{ Target().Get<ButtonSpriteVisuals>() };
 
 		ButtonVisualState animation_state;
 		auto animation{ ResolveProperty(

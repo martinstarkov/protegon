@@ -117,7 +117,7 @@ void PlatformerJump::CalculateGravity(PlatformerJumpContext& ctx) const {
 	} else if (fast_fall.has_value() && input.KeyHeld(fast_fall->key)) {
 		gravity_multiplier = fast_fall->gravity_multiplier;
 	} else if (velocity_along_gravity < -0.01f) {
-		if (!variable_jump_height.has_value() || input.KeyHeld(jump_key) && jumping_) {
+		if (!variable_jump_height.has_value() || (input.KeyHeld(jump_key) && jumping_)) {
 			gravity_multiplier = upward_gravity_multiplier;
 		} else {
 			gravity_multiplier = variable_jump_height->gravity_multiplier;

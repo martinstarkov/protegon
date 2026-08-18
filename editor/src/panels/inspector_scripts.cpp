@@ -23,6 +23,7 @@
 #include "editor/editor.h"
 #include "editor/editor_context.h"
 #include "core/util/hash.h"
+#include "panels/entity_filter_editor.h"
 #include "panels/inspector_feature_helpers.h"
 #include "panels/scene_hierarchy.h"
 #include "runtime/animation/animation.h"
@@ -142,6 +143,7 @@ struct ScriptInspectorState {
 	std::optional<ImGuiID> editing_sequence_name;
 	std::string editing_sequence_original_name;
 	std::unordered_map<SequenceId, bool> sequence_open_states;
+	std::unordered_map<ImGuiID, EntityFilterEditorState> target_filter_states;
 };
 
 ScriptInspectorState& GetScriptInspectorState() {
@@ -428,6 +430,7 @@ ActionForm GetActionForm(const ScriptStep& action) {
 
 void SetActionForm(ScriptStep& action, ActionForm form) {
 	bool enabled{ action.enabled };
+	auto target{ action.target };
 	const auto* registration{ ScriptRegistry::Find(action.type_hash) };
 
 	switch (form) {
@@ -457,6 +460,7 @@ void SetActionForm(ScriptStep& action, ActionForm form) {
 	}
 
 	action.enabled = enabled;
+	action.target = std::move(target);
 }
 
 std::string ActionSummary(const ScriptStep& action) {
@@ -552,6 +556,27 @@ void DetachToLocal(ScriptEditorContext& context, ScriptSequence& binding) {
 	binding.runtime			   = ScriptSequenceRuntime{};
 }
 
+bool DrawActionTarget(
+	ScriptEditorContext& context,
+	ScriptStep& action
+) {
+	Entity owner{ ResolveInspectedEntity(context) };
+	Scene* scene{ owner ? std::addressof(owner.GetScene()) : nullptr };
+
+	ImGuiID state_id{ ImGui::GetID("##ActionTargetFilterState") };
+	auto& state{
+		GetScriptInspectorState()
+			.target_filter_states[state_id]
+	};
+
+	return DrawEntityFilterButton(
+		scene,
+		owner,
+		action.target,
+		state
+	);
+}
+
 bool DrawActionPicker(
 	ScriptEditorContext& context, ScriptStep& action, bool timed_only, float width = -FLT_MIN,
 	bool* context_requested = nullptr
@@ -625,8 +650,10 @@ bool DrawActionPicker(
 				candidate.label.data(), nullptr, registration.type_hash == action.type_hash
 			)) {
 			bool enabled{ action.enabled };
+			auto target{ action.target };
 			action		   = ScriptRegistry::MakeStep(registration.type_hash);
 			action.enabled = enabled;
+			action.target = std::move(target);
 			if (timed_only) {
 				action.completion = ScriptCompletion::Duration;
 				action.timing	  = registration.default_timing.value_or(ScriptTiming{});
@@ -671,12 +698,14 @@ bool DrawActionPicker(
 			}
 			if (ImGui::MenuItem(shared.name.c_str(), nullptr, selected)) {
 				bool enabled{ action.enabled };
+				auto target{ action.target };
 				Script script;
 				script.sequence.name			   = shared.name;
 				script.sequence.shared_reference   = true;
 				script.sequence.shared_sequence_id = shared.id;
 				action							   = ScriptRegistry::MakeStep(std::move(script));
 				action.enabled					   = enabled;
+				action.target					   = std::move(target);
 				action.completion				   = ScriptCompletion::ScriptControlled;
 				action.timing.reset();
 				changed = true;
@@ -730,8 +759,15 @@ bool DrawActionPickerWithInline(
 	EnsureActionValue(action);
 
 	const auto* registered_editor{ ScriptEditorRegistry::Find(action.type_hash) };
-	bool has_inline_editor{ !timed_only && registered_editor &&
-								  static_cast<bool>(registered_editor->draw_inline) };
+	bool allow_inline{
+		!timed_only ||
+		action.type_hash == Hash<TintToScript>()
+	};
+	bool has_inline_editor{
+		allow_inline &&
+		registered_editor &&
+		static_cast<bool>(registered_editor->draw_inline)
+	};
 
 	if (!has_inline_editor) {
 		return DrawActionPicker(context, action, timed_only, -FLT_MIN, context_requested);
@@ -944,6 +980,7 @@ bool DrawActionParameters(ScriptEditorContext& context, ScriptStep& action, floa
 		action.type_hash == Hash<EmitSignalScript>() ||
 		action.type_hash == Hash<SetVisibleScript>() || action.type_hash == Hash<MoveToScript>() ||
 		action.type_hash == Hash<RotateToScript>() || action.type_hash == Hash<ScaleToScript>() ||
+		action.type_hash == Hash<TintToScript>() ||
 		action.type_hash == Hash<RemoveComponentsScript>()) {
 		return false;
 	}
@@ -1031,6 +1068,7 @@ bool DrawActions(
 		) };
 		float type_width{ label_width + ImGui::GetFrameHeight() +
 								ImGui::GetStyle().FramePadding.x * 2.0f };
+		float target_width{ 110.0f };
 		float duration_width{ ImGui::CalcTextSize("5000ms").x +
 									ImGui::GetStyle().FramePadding.x * 2.0f };
 		float repeats_width{ GetCountControlWidth("Repeats") };
@@ -1039,7 +1077,13 @@ bool DrawActions(
 		ActionForm requested_form{ displayed_form };
 		bool form_changed{ false };
 		float parameter_left_screen_x{ ImGui::GetCursorScreenPos().x };
-		int column_count{ displayed_form == ActionForm::Tween ? 5 : 3 };
+		int column_count{
+			displayed_form == ActionForm::Tween
+				? 6
+				: displayed_form == ActionForm::Action
+					? 4
+					: 3
+		};
 
 		if (ImGui::BeginTable(
 				"ActionRow", column_count,
@@ -1050,12 +1094,20 @@ bool DrawActions(
 
 			if (displayed_form == ActionForm::Tween) {
 				ImGui::TableSetupColumn(
+					"Target", ImGuiTableColumnFlags_WidthFixed, target_width
+				);
+				ImGui::TableSetupColumn(
 					"Duration", ImGuiTableColumnFlags_WidthFixed, duration_width
 				);
 				ImGui::TableSetupColumn("Action", ImGuiTableColumnFlags_WidthStretch);
 				ImGui::TableSetupColumn(
 					"Repeats", ImGuiTableColumnFlags_WidthFixed, repeats_width
 				);
+			} else if (displayed_form == ActionForm::Action) {
+				ImGui::TableSetupColumn(
+					"Target", ImGuiTableColumnFlags_WidthFixed, target_width
+				);
+				ImGui::TableSetupColumn("Value", ImGuiTableColumnFlags_WidthStretch);
 			} else {
 				ImGui::TableSetupColumn("Value", ImGuiTableColumnFlags_WidthStretch);
 			}
@@ -1131,14 +1183,17 @@ bool DrawActions(
 
 			if (displayed_form == ActionForm::Tween) {
 				ImGui::TableSetColumnIndex(column++);
+				changed |= DrawActionTarget(context, action);
+
+				ImGui::TableSetColumnIndex(column++);
 				changed |= DrawDurationInput(
 					"##Duration", action.timing->duration_ms, -FLT_MIN,
 					"Duration of each Tween cycle."
 				);
 
 				ImGui::TableSetColumnIndex(column++);
-				changed |= DrawActionPicker(
-					context, action, true, -FLT_MIN, &action_context_requested
+				changed |= DrawActionPickerWithInline(
+					context, action, true, &action_context_requested
 				);
 
 				ImGui::TableSetColumnIndex(column);
@@ -1147,6 +1202,11 @@ bool DrawActions(
 					action.timing->infinite_repeats, "Additional full duration cycles."
 				);
 			} else {
+				if (displayed_form == ActionForm::Action) {
+					ImGui::TableSetColumnIndex(column++);
+					changed |= DrawActionTarget(context, action);
+				}
+
 				ImGui::TableSetColumnIndex(column);
 
 				switch (displayed_form) {
