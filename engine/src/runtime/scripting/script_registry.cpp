@@ -33,6 +33,9 @@
 #include "runtime/scene/scene.h"
 #include "runtime/scene/scene_context.h"
 #include "runtime/scripting/builtin_scripts.h"
+#include "runtime/scripting/script_event.h"
+#include "runtime/timer/timer.h"
+#include "runtime/timer/timer_event.h"
 #include "runtime/ui/button.h"
 #include "runtime/ui/dropdown.h"
 #include "runtime/ui/toggle_button.h"
@@ -455,6 +458,10 @@ template <typename TEvent>
 		entity.Has<impl::DropdownData>();
 }
 
+[[nodiscard]] bool HasTimers(Entity entity) {
+	return entity && entity.Has<impl::Timers>();
+}
+
 } // namespace
 
 PTGN_REGISTER_SCRIPT(Script);
@@ -604,6 +611,13 @@ PTGN_REGISTER_SCRIPT(
 
 PTGN_REGISTER_SCRIPT(
 	AnimationActionScript,
+	{
+		.completion = ScriptCompletion::Instant
+	}
+);
+
+PTGN_REGISTER_SCRIPT(
+	TimerActionScript,
 	{
 		.completion = ScriptCompletion::Instant
 	}
@@ -1024,6 +1038,30 @@ PTGN_REGISTER_EVENT(
 	event::AnimationLoopComplete,
 	{
 		.available = &HasAnimationData
+	}
+);
+
+PTGN_REGISTER_EVENT(event::EntityCreated);
+
+PTGN_REGISTER_EVENT(
+	event::TimerElapsed,
+	{
+		.default_value = MakeEventDefault(
+			"timer",
+			TimerKey{ "Timer" }
+		),
+		.matches = [](
+			Entity,
+			const json& value,
+			const event::TimerElapsed& event
+		) {
+			return event.timer == JsonValueOr<TimerKey>(
+				value,
+				"timer",
+				TimerKey{}
+			);
+		},
+		.available = &HasTimers,
 	}
 );
 

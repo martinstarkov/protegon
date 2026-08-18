@@ -11,6 +11,7 @@
 #include "runtime/ecs/entity_filter.h"
 #include "runtime/scene/scene.h"
 #include "runtime/scene/scene_context.h"
+#include "runtime/scripting/script_event.h"
 
 namespace ptgn {
 
@@ -474,6 +475,7 @@ void from_json(const json& input, Scripts& scripts) {
 	scripts.channels.clear();
 	scripts.pending_additions.clear();
 	scripts.pending_removals.clear();
+	scripts.create_event_dispatched = false;
 	scripts.Attach({});
 }
 
@@ -1301,6 +1303,35 @@ void AttachAll(Entity entity) {
 	for (auto& entry : scripts->pending_additions) {
 		AttachEntry(entity, entry);
 	}
+
+	if (!scripts->create_event_dispatched) {
+		scripts->create_event_dispatched = true;
+
+		auto event_data{ impl::EventData::Create<event::EntityCreated>() };
+		Event create_event{ event_data };
+
+		auto dispatch = [&](auto& entries) {
+			for (auto& entry : entries) {
+				if (!entry.enabled) {
+					continue;
+				}
+
+				if (auto* script{ EnsureInstance(entity, entry) }) {
+					DispatchToScript(entity, *script, create_event);
+
+					if (create_event.IsHandled()) {
+						return;
+					}
+				}
+			}
+		};
+
+		dispatch(scripts->scripts);
+
+		if (!create_event.IsHandled()) {
+			dispatch(scripts->pending_additions);
+		}
+	}
 }
 
 void ApplyPending(Scene& scene) {
@@ -1360,6 +1391,7 @@ void Update(Scene& scene, secondsf delta_time) {
 			continue;
 		}
 		scripts->Attach(entity);
+		AttachAll(entity);
 		for (auto& entry : scripts->scripts) {
 			auto* script{ EnsureInstance(entity, entry) };
 			if (!script || !entry.enabled) {

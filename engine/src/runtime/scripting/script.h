@@ -730,6 +730,7 @@ public:
 	std::vector<SequenceChannelRuntime> channels;
 	std::vector<ScriptEntry> pending_additions;
 	std::vector<SequenceId> pending_removals;
+	bool create_event_dispatched{ false };
 
 private: 
 	friend class ScriptsAccessor;

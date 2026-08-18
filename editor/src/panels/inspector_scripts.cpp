@@ -24,6 +24,7 @@
 #include "editor/editor_context.h"
 #include "core/util/hash.h"
 #include "panels/entity_filter_editor.h"
+#include "panels/inspector_fields.h"
 #include "panels/inspector_feature_helpers.h"
 #include "panels/scene_hierarchy.h"
 #include "runtime/animation/animation.h"
@@ -40,6 +41,8 @@
 #include "runtime/scene/scene_context.h"
 #include "runtime/scripting/builtin_scripts.h"
 #include "runtime/scripting/script.h"
+#include "runtime/timer/timer.h"
+#include "runtime/timer/timer_event.h"
 #include "runtime/ui/button.h"
 #include "runtime/ui/dropdown.h"
 #include "runtime/ui/toggle_button.h"
@@ -57,87 +60,6 @@ enum class ActionForm {
 struct ActionDragPayload {
 	int index;
 };
-
-struct DurationEditState {
-	std::array<char, 32> buffer{};
-	bool initialized{ false };
-	bool was_active{ false };
-};
-
-bool DrawDurationInput(const char* label, float& milliseconds, float width, const char* tooltip) {
-	static std::unordered_map<ImGuiID, DurationEditState> states;
-	ImGuiID id{ ImGui::GetID(label) };
-	auto& state{ states[id] };
-
-	auto format = [](float value, char* buffer, std::size_t size) {
-		double clamped{ std::max(0.0, static_cast<double>(value)) };
-		if (clamped == 0.0) {
-			std::snprintf(buffer, size, "0s");
-		} else if (clamped >= 1000.0 && std::fmod(clamped, 1000.0) == 0.0) {
-			std::snprintf(buffer, size, "%.4gs", clamped / 1000.0);
-		} else {
-			std::snprintf(buffer, size, "%.4gms", clamped);
-		}
-	};
-
-	if (!state.initialized || !state.was_active) {
-		format(milliseconds, state.buffer.data(), state.buffer.size());
-		state.initialized = true;
-	}
-
-	ImGui::SetNextItemWidth(width);
-	bool submitted{ ImGui::InputText(
-		label, state.buffer.data(), state.buffer.size(), ImGuiInputTextFlags_EnterReturnsTrue
-	) };
-	bool active{ ImGui::IsItemActive() };
-	bool commit{ submitted || ImGui::IsItemDeactivatedAfterEdit() };
-	bool changed{ false };
-
-	if (commit) {
-		std::string text{ state.buffer.data() };
-		while (!text.empty() && std::isspace(static_cast<unsigned char>(text.back()))) {
-			text.pop_back();
-		}
-		std::size_t first{ 0 };
-		while (first < text.size() && std::isspace(static_cast<unsigned char>(text[first]))) {
-			++first;
-		}
-		text.erase(0, first);
-
-		char* end{ nullptr };
-		double value{ std::strtod(text.c_str(), &end) };
-		std::string unit{ end ? end : "" };
-		while (!unit.empty() && std::isspace(static_cast<unsigned char>(unit.front()))) {
-			unit.erase(unit.begin());
-		}
-		std::ranges::transform(unit, unit.begin(), [](unsigned char c) {
-			return static_cast<char>(std::tolower(c));
-		});
-
-		double multiplier{ 1.0 };
-		bool valid{ end != text.c_str() && std::isfinite(value) && value >= 0.0 };
-		if (unit.empty() || unit == "ms") {
-			multiplier = 1.0;
-		} else if (unit == "s" || unit == "sec") {
-			multiplier = 1000.0;
-		} else if (unit == "m" || unit == "min") {
-			multiplier = 60000.0;
-		} else {
-			valid = false;
-		}
-
-		if (valid) {
-			float updated{ static_cast<float>(value * multiplier) };
-			changed		 = updated != milliseconds;
-			milliseconds = updated;
-		}
-		format(milliseconds, state.buffer.data(), state.buffer.size());
-	}
-
-	state.was_active = active;
-	DrawTooltip(tooltip);
-	return changed;
-}
 
 struct ScriptInspectorState {
 	std::optional<ImGuiID> editing_sequence_name;
@@ -1477,6 +1399,76 @@ template <typename... TEvents>
 }
 
 
+bool DrawTimerElapsedTrigger(
+	ScriptEditorContext& context,
+	json& value
+) {
+	TimerKey timer{ "Timer" };
+
+	if (value.is_object()) {
+		const auto it{ value.find("timer") };
+		if (it != value.end()) {
+			try {
+				it->get_to(timer);
+			} catch (...) {
+				timer = TimerKey{ "Timer" };
+			}
+		}
+	}
+
+	std::vector<TimerKey> choices;
+	Entity owner{ ResolveInspectedEntity(context) };
+	if (owner) {
+		if (const auto* timers{ owner.TryGet<::ptgn::impl::Timers>() }) {
+			for (const auto& entry : timers->timers) {
+				if (entry.config.key.value.empty() ||
+					std::ranges::contains(choices, entry.config.key)) {
+					continue;
+				}
+				choices.push_back(entry.config.key);
+			}
+		}
+	}
+
+	std::ranges::sort(choices, [](const TimerKey& lhs, const TimerKey& rhs) {
+		return lhs.value < rhs.value;
+	});
+
+	bool changed{ false };
+	ImGui::SetNextItemWidth(-FLT_MIN);
+
+	if (choices.empty()) {
+		changed = ImGui::InputTextWithHint("##TimerTrigger", "Timer name", &timer.value);
+	} else {
+		const char* preview{ timer.value.empty() ? "Select Timer" : timer.value.c_str() };
+		if (ImGui::BeginCombo("##TimerTrigger", preview)) {
+			for (const auto& choice : choices) {
+				bool selected{ choice == timer };
+				if (ImGui::Selectable(choice.value.c_str(), selected)) {
+					timer = choice;
+					changed = true;
+				}
+				if (selected) {
+					ImGui::SetItemDefaultFocus();
+				}
+			}
+			ImGui::EndCombo();
+		}
+	}
+
+	DrawTooltip("Named timer whose elapsed event starts or stops this sequence.");
+
+	if (changed) {
+		if (!value.is_object()) {
+			value = json::object();
+		}
+		value["timer"] = timer;
+	}
+
+	return changed;
+}
+
+
 bool DrawEvent(
 	ScriptEditorContext& context, EventCondition& event, bool stop_event, bool& switch_kind,
 	bool& changed
@@ -1611,10 +1603,14 @@ bool DrawEvent(
 			ImGui::EndCombo();
 		}
 
-		if (selected && !event_type_changed && selected->options.inline_fields > 0 &&
-			selected->options.draw) {
+		if (selected && !event_type_changed && selected->options.inline_fields > 0) {
 			ImGui::SameLine();
-			changed |= selected->options.draw(event.value);
+
+			if (event.type_hash == Hash<event::TimerElapsed>()) {
+				changed |= DrawTimerElapsedTrigger(context, event.value);
+			} else if (selected->options.draw) {
+				changed |= selected->options.draw(event.value);
+			}
 		}
 
 		ImGui::EndDisabled();

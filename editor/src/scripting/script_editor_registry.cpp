@@ -41,6 +41,9 @@
 #include "runtime/scene/scene_manager.h"
 #include "runtime/scene/scene_registry.h"
 #include "runtime/scripting/builtin_scripts.h"
+#include "runtime/scripting/script_event.h"
+#include "runtime/timer/timer.h"
+#include "runtime/timer/timer_event.h"
 #include "runtime/ui/button.h"
 #include "runtime/animation/animation.h"
 #include "runtime/ui/dropdown.h"
@@ -1190,6 +1193,21 @@ inline constexpr std::array kAnimationActions{
 	std::pair{ AnimationAction::PreviousFrame, "Previous Frame" },
 };
 
+inline constexpr std::array kTimerActions{
+	std::pair{ TimerAction::Start, "Start" },
+	std::pair{ TimerAction::Restart, "Restart" },
+	std::pair{ TimerAction::Stop, "Stop" },
+	std::pair{ TimerAction::Reset, "Reset" },
+	std::pair{ TimerAction::Pause, "Pause" },
+	std::pair{ TimerAction::Resume, "Resume" },
+	std::pair{ TimerAction::TogglePaused, "Toggle Paused" },
+	std::pair{ TimerAction::Advance, "Advance" },
+	std::pair{ TimerAction::Rewind, "Rewind" },
+	std::pair{ TimerAction::SetDuration, "Set Duration" },
+	std::pair{ TimerAction::AddDuration, "Add Duration" },
+	std::pair{ TimerAction::RemoveDuration, "Remove Duration" },
+};
+
 inline constexpr std::array kSceneActions{
 	std::pair{ SceneChangeAction::Enter, "Enter" },
 	std::pair{ SceneChangeAction::Exit, "Exit" },
@@ -1235,6 +1253,157 @@ inline constexpr std::array kSceneTransitions{
 		return entry.first == action;
 	}) };
 	return it != kAnimationActions.end() ? it->second : "Animation";
+}
+
+
+[[nodiscard]] const char* TimerActionLabel(TimerAction action) {
+	const auto it{ std::ranges::find_if(kTimerActions, [action](const auto& entry) {
+		return entry.first == action;
+	}) };
+	return it != kTimerActions.end() ? it->second : "Timer";
+}
+
+[[nodiscard]] bool TimerActionUsesAmount(TimerAction action) {
+	switch (action) {
+		case TimerAction::Advance:
+		case TimerAction::Rewind:
+		case TimerAction::SetDuration:
+		case TimerAction::AddDuration:
+		case TimerAction::RemoveDuration:
+			return true;
+		case TimerAction::Start:
+		case TimerAction::Restart:
+		case TimerAction::Stop:
+		case TimerAction::Reset:
+		case TimerAction::Pause:
+		case TimerAction::Resume:
+		case TimerAction::TogglePaused:
+			return false;
+	}
+	return false;
+}
+
+[[nodiscard]] std::vector<TimerKey> GetTimerActionChoices(
+	ScriptEditorContext& context
+) {
+	if (!context.owner) {
+		return {};
+	}
+
+	std::vector<Entity> targets;
+	if (context.sequence_target_filter && context.sequence_target_filter->has_value()) {
+		targets = ResolveEntityFilter(
+			context.sequence_target_filter->value(),
+			context.owner.GetScene(),
+			context.owner
+		);
+	} else {
+		targets.push_back(context.owner);
+	}
+
+	std::vector<TimerKey> result;
+	for (Entity target : targets) {
+		const auto* timers{ target.TryGet<::ptgn::impl::Timers>() };
+		if (!timers) {
+			continue;
+		}
+
+		for (const auto& entry : timers->timers) {
+			if (entry.config.key.value.empty() ||
+				std::ranges::contains(result, entry.config.key)) {
+				continue;
+			}
+			result.push_back(entry.config.key);
+		}
+	}
+
+	std::ranges::sort(result, [](const TimerKey& lhs, const TimerKey& rhs) {
+		return lhs.value < rhs.value;
+	});
+	return result;
+}
+
+bool DrawTimerKeyInline(
+	const char* id,
+	TimerKey& timer,
+	const std::vector<TimerKey>& choices,
+	float width
+) {
+	bool changed{ false };
+	ImGui::SetNextItemWidth(width);
+
+	if (choices.empty()) {
+		changed = ImGui::InputTextWithHint(id, "Timer name", &timer.value);
+		DrawItemTooltip("Named timer on the action target.");
+		return changed;
+	}
+
+	const char* preview{ timer.value.empty() ? "Select Timer" : timer.value.c_str() };
+	if (ImGui::BeginCombo(id, preview)) {
+		for (const auto& choice : choices) {
+			bool selected{ choice == timer };
+			if (ImGui::Selectable(choice.value.c_str(), selected)) {
+				timer = choice;
+				changed = true;
+			}
+			if (selected) {
+				ImGui::SetItemDefaultFocus();
+			}
+		}
+		ImGui::EndCombo();
+	}
+	DrawItemTooltip("Named timer on the action target.");
+	return changed;
+}
+
+bool DrawTimerActionInline(
+	ScriptEditorContext& context,
+	TimerActionScript& script
+) {
+	const auto choices{ GetTimerActionChoices(context) };
+	float available{ ImGui::GetContentRegionAvail().x };
+	float spacing{ ImGui::GetStyle().ItemSpacing.x };
+	bool uses_amount{ TimerActionUsesAmount(script.action) };
+	float action_width{
+		std::min(130.0f, std::max(95.0f, available * 0.32f))
+	};
+	float amount_width{
+		std::min(100.0f, std::max(72.0f, available * 0.25f))
+	};
+	float timer_width{
+		std::max(
+			1.0f,
+			available - action_width - (uses_amount ? amount_width + spacing : 0.0f) - spacing
+		)
+	};
+
+	bool changed{ DrawTimerKeyInline("##TimerKey", script.timer, choices, timer_width) };
+	SameLineControl();
+
+	ImGui::SetNextItemWidth(action_width);
+	if (ImGui::BeginCombo("##TimerAction", TimerActionLabel(script.action))) {
+		for (const auto& [candidate, label] : kTimerActions) {
+			if (ImGui::Selectable(label, candidate == script.action)) {
+				script.action = candidate;
+				changed = true;
+			}
+		}
+		ImGui::EndCombo();
+	}
+	DrawItemTooltip("Timer operation to perform.");
+
+	if (TimerActionUsesAmount(script.action)) {
+		SameLineControl();
+		changed |= inspector::DrawDurationTextInput(
+			"##TimerAmount",
+			script.amount,
+			amount_width,
+			false,
+			"Time amount used by this timer operation."
+		);
+	}
+
+	return changed;
 }
 
 [[nodiscard]] const char* SceneActionLabel(SceneChangeAction action) {
@@ -1770,18 +1939,22 @@ bool DrawSceneChange(
 
 	if (script.transition !=
 		SceneTransitionStyle::None) {
-		changed |= ImGui::DragFloat(
-			"Duration (ms)",
-			&script.duration_ms,
-			10.0f,
-			0.0f
-		);
-		changed |= ImGui::DragFloat(
-			"Delay (ms)",
-			&script.delay_ms,
-			10.0f,
-			0.0f
-		);
+		changed |= inspector::DrawPropertyRow("Duration", [&]() {
+			return inspector::DrawDurationInput(
+				"##SceneTransitionDuration",
+				script.duration_ms,
+				-FLT_MIN,
+				"Transition duration."
+			);
+		});
+		changed |= inspector::DrawPropertyRow("Delay", [&]() {
+			return inspector::DrawDurationInput(
+				"##SceneTransitionDelay",
+				script.delay_ms,
+				-FLT_MIN,
+				"Delay before the transition begins."
+			);
+		});
 
 		if (ImGui::BeginCombo(
 				"Ease",
@@ -2468,6 +2641,29 @@ PTGN_REGISTER_SCRIPT(
 );
 
 PTGN_REGISTER_SCRIPT(
+	TimerActionScript,
+	{
+		.label = "Timer Action",
+		.group = "Timing",
+		.description = "Control a named timer on the action target.",
+		.type = ScriptType::Sequence,
+		.draw_inline = &DrawTimerActionInline,
+	}
+);
+
+namespace {
+
+[[maybe_unused]] const bool kTimerActionRuntimeRegistered{
+	ScriptRegistry::Register<TimerActionScript>(
+		ScriptRegistrationOptions{
+			.completion = ScriptCompletion::Instant,
+		}
+	)
+};
+
+} // namespace
+
+PTGN_REGISTER_SCRIPT(
 	SetTextureScript,
 	{
 		.label = "Set Texture",
@@ -2921,6 +3117,16 @@ PTGN_REGISTER_EVENT(
 );
 
 PTGN_REGISTER_EVENT(
+	event::TimerElapsed,
+	{
+		.label = "On Timer Elapsed",
+		.group = "Timing",
+		.description = "Matches when a named timer reaches its duration.",
+		.inline_fields = 1,
+	}
+);
+
+PTGN_REGISTER_EVENT(
 	Signal, {
 				.label		   = "On Signal",
 				.group		   = "",
@@ -2928,6 +3134,15 @@ PTGN_REGISTER_EVENT(
 				.inline_fields = 1,
 				.draw		   = &DrawSignalEvent,
 			}
+);
+
+PTGN_REGISTER_EVENT(
+	event::EntityCreated,
+	{
+		.label = "On Create",
+		.group = "",
+		.description = "Matches once when the entity's scripts are created for runtime.",
+	}
 );
 
 namespace impl {

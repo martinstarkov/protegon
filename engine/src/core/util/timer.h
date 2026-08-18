@@ -194,40 +194,41 @@ public:
 		}
 	}
 
-	/// @brief Starts the timer. Can also be used to restart the timer.
-	/// @param force If false, only starts the timer if it is not already running.
-	/// @return True if the timer is newly started, false if it was already running.
-	bool Start(bool force = true) {
+	/// @brief Starts the timer from zero.
+	/// @param force If false, does nothing while the timer is already running.
+	/// @return True if the timer was started, false if it was already running and force was false.
+	bool Start(bool force = false) {
 		if (!force && IsRunning()) {
 			return false;
 		}
 
-		if (force) {
-			elapsed_ = clock_duration::zero();
-			offset_	 = clock_duration::zero();
-		}
-
+		elapsed_ = clock_duration::zero();
 		running_ = true;
-		paused_	 = false;
+		paused_ = false;
 		has_run_ = true;
-
 		return true;
 	}
 
-	/// @brief Stops and resets the timer.
+	/// @brief Restarts the timer from zero.
+	bool Restart() {
+		return Start(true);
+	}
+
+	/// @brief Stops the timer while retaining its elapsed time.
+	void Stop() {
+		running_ = false;
+		paused_ = false;
+	}
+
+	/// @brief Stops the timer and resets its elapsed time and run state.
 	void Reset() {
 		elapsed_ = clock_duration::zero();
-		offset_	 = clock_duration::zero();
-		Stop();
+		running_ = false;
+		paused_ = false;
 		has_run_ = false;
 	}
 
-	void Stop() {
-		running_ = false;
-		paused_	 = false;
-	}
-
-	/// @brief Toggles the timer running state.
+	/// @brief Toggles between running and stopped. Starting begins again from zero.
 	void Toggle() {
 		if (IsRunning()) {
 			Stop();
@@ -239,42 +240,46 @@ public:
 	void Pause() {
 		if (running_ && !paused_) {
 			running_ = false;
-			paused_	 = true;
+			paused_ = true;
 		}
 	}
 
 	void Resume() {
 		if (!running_ && paused_) {
 			running_ = true;
-			paused_	 = false;
+			paused_ = false;
 		}
 	}
 
-	/// @brief Advances the timer manually.
+	/// @brief Advances the timer manually while it is running.
 	template <DurationType D = secondsf>
 	void Update(D dt) {
-		if (!running_ || paused_) {
+		if (!running_ || paused_ || dt <= D{ 0 }) {
 			return;
 		}
 
+		elapsed_ += duration_cast<clock_duration>(dt);
+		has_run_ = true;
+	}
+
+	/// @brief Advances elapsed time manually even if the timer is paused or stopped.
+	template <DurationType D = secondsf>
+	void AddElapsed(D dt) {
 		if (dt <= D{ 0 }) {
 			return;
 		}
 
 		elapsed_ += duration_cast<clock_duration>(dt);
-		has_run_  = true;
+		has_run_ = true;
 	}
 
-	/// @brief Advances the timer manually even if paused/stopped.
-	template <DurationType D = secondsf>
-	void AddElapsed(D dt) {
-		elapsed_ += duration_cast<clock_duration>(dt);
-		has_run_  = true;
-	}
-
-	/// @brief Removes elapsed time manually.
+	/// @brief Removes elapsed time manually, clamped at zero.
 	template <DurationType D = secondsf>
 	void RemoveElapsed(D dt) {
+		if (dt <= D{ 0 }) {
+			return;
+		}
+
 		elapsed_ -= duration_cast<clock_duration>(dt);
 
 		if (elapsed_ < clock_duration::zero()) {
@@ -282,101 +287,87 @@ public:
 		}
 	}
 
-	/// @return True if the timer is currently paused, false otherwise.
+	/// @brief Compatibility alias for advancing elapsed time.
+	template <DurationType D = milliseconds>
+	void AddOffset(D extra_time) {
+		AddElapsed(extra_time);
+	}
+
+	/// @brief Compatibility alias for rewinding elapsed time.
+	template <DurationType D = milliseconds>
+	void RemoveOffset(D time_to_remove) {
+		RemoveElapsed(time_to_remove);
+	}
+
+	/// @return True if the timer is currently paused.
 	[[nodiscard]] bool IsPaused() const {
 		return paused_;
 	}
 
-	/// @return True if the timer is currently running, false otherwise.
+	/// @return True if the timer is currently running.
 	[[nodiscard]] bool IsRunning() const {
 		return running_;
 	}
 
-	/// @return True if the timer has run before without being reset.
+	/// @return True if the timer has run or been advanced since its last reset.
 	[[nodiscard]] bool HasRun() const {
 		return has_run_;
 	}
 
 	/// @tparam D The unit of time. Default: milliseconds.
-	/// @param extra_time Amount of time to add to the timer.
-	template <DurationType D = milliseconds>
-	void AddOffset(D extra_time) {
-		offset_ += duration_cast<clock_duration>(extra_time);
-	}
-
-	/// @tparam D The unit of time. Default: milliseconds.
-	/// @param time_to_remove Amount of time to remove from the timer.
-	template <DurationType D = milliseconds>
-	void RemoveOffset(D time_to_remove) {
-		offset_ -= duration_cast<clock_duration>(time_to_remove);
-	}
-
-	/// @tparam D The unit of time. Default: milliseconds.
-	/// @return Elapsed duration of time since timer start.
+	/// @return Elapsed duration since the timer started.
 	template <DurationType D = milliseconds>
 	[[nodiscard]] D ElapsedDuration() const {
-		return duration_cast<D>(elapsed_ + offset_);
+		return duration_cast<D>(elapsed_);
 	}
 
-	/// @tparam D The unit of time. Default: milliseconds.
-	/// @param compared_to The time to check that the timer has completed.
-	/// @return True if the timer has elapsed compared_to time.
+	/// @return True if compared_to has elapsed.
 	template <DurationType D = milliseconds>
 	[[nodiscard]] bool Completed(D compared_to) const {
 		return ElapsedFraction(compared_to) >= 1.0f;
 	}
 
-	/// @brief Consumes one completed interval.
+	/// @brief Consumes one completed interval while preserving any remainder.
 	template <DurationType D = milliseconds>
 	bool Consume(D compared_to) {
-		if (!Completed(compared_to)) {
+		if (compared_to <= D{ 0 } || !Completed(compared_to)) {
 			return false;
 		}
 
-		if (compared_to > D{ 0 }) {
-			const auto amount = duration_cast<clock_duration>(compared_to);
-
-			if (elapsed_ >= amount) {
-				elapsed_ -= amount;
-			} else {
-				elapsed_ = clock_duration::zero();
-			}
+		const auto amount{ duration_cast<clock_duration>(compared_to) };
+		if (amount <= clock_duration::zero()) {
+			return false;
 		}
 
+		elapsed_ -= amount;
+		if (elapsed_ < clock_duration::zero()) {
+			elapsed_ = clock_duration::zero();
+		}
 		return true;
 	}
 
-	/// @brief Consumes all completed intervals.
+	/// @brief Consumes every completed interval while preserving the final remainder.
 	template <DurationType D = milliseconds>
 	std::size_t ConsumeAll(D compared_to) {
 		if (compared_to <= D{ 0 }) {
 			return 0;
 		}
 
-		auto interval{ duration_cast<clock_duration>(compared_to) };
-
+		const auto interval{ duration_cast<clock_duration>(compared_to) };
 		if (interval <= clock_duration::zero()) {
 			return 0;
 		}
 
-		auto count{ static_cast<std::size_t>((elapsed_ + offset_) / interval) };
-
+		const auto count{ static_cast<std::size_t>(elapsed_ / interval) };
 		if (count == 0) {
 			return 0;
 		}
 
-		if (auto consumed{ interval * count }; elapsed_ >= consumed) {
-			elapsed_ -= consumed;
-		} else {
-			elapsed_ = clock_duration::zero();
-		}
-
+		elapsed_ -= interval * count;
 		return count;
 	}
 
-	/// @tparam D The unit of time. Default: milliseconds.
-	/// @param duration The time relative to which the elapsed time is returned.
-	/// @return Elapsed fraction clamped to [0.0, 1.0]. Returns 1 if duration is 0.
+	/// @return Elapsed fraction clamped to [0, 1]. Returns 1 for a zero duration.
 	template <DurationType D = milliseconds>
 	[[nodiscard]] float ElapsedFraction(D duration) const {
 		if (duration == D{ 0 }) {
@@ -384,9 +375,7 @@ public:
 		}
 
 		using T = ptgn::duration<float, typename D::period>;
-
 		T elapsed_time{ ElapsedDuration<T>() / duration };
-
 		return Clamp01(elapsed_time.count());
 	}
 
@@ -394,19 +383,24 @@ public:
 
 	friend void to_json(json& j, const ManualTimer& timer) {
 		j["running"] = timer.running_;
-		j["paused"]	 = timer.paused_;
+		j["paused"] = timer.paused_;
 		j["has_run"] = timer.has_run_;
 		j["elapsed"] = timer.ElapsedDuration<milliseconds>().count();
-		j["offset"]	 = duration_cast<milliseconds>(timer.offset_).count();
 	}
 
 	friend void from_json(const json& j, ManualTimer& timer) {
 		timer.running_ = j.value("running", false);
-		timer.paused_  = j.value("paused", false);
+		timer.paused_ = j.value("paused", false);
 		timer.has_run_ = j.value("has_run", false);
-
 		timer.elapsed_ = milliseconds{ j.value("elapsed", 0) };
-		timer.offset_  = milliseconds{ j.value("offset", 0) };
+
+		// Read the old offset field into elapsed time for compatibility with previously serialized data.
+		if (const auto offset{ j.find("offset") }; offset != j.end() && offset->is_number_integer()) {
+			timer.elapsed_ += milliseconds{ offset->get<milliseconds::rep>() };
+			if (timer.elapsed_ < clock_duration::zero()) {
+				timer.elapsed_ = clock_duration::zero();
+			}
+		}
 
 		if (timer.paused_) {
 			timer.running_ = false;
@@ -422,13 +416,11 @@ private:
 	using clock_duration = std::chrono::steady_clock::duration;
 
 	clock_duration elapsed_{};
-	clock_duration offset_{};
-
 	bool running_{ false };
 	bool paused_{ false };
 	bool has_run_{ false };
 
-	PTGN_REFLECT(ManualTimer, elapsed_, offset_, running_, paused_, has_run_)
+	PTGN_REFLECT(ManualTimer, elapsed_, running_, paused_, has_run_)
 };
 
 } // namespace ptgn

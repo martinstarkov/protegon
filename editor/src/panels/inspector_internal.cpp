@@ -21,6 +21,7 @@
 #include <string>
 #include <string_view>
 #include <tuple>
+#include <unordered_map>
 #include <type_traits>
 #include <utility>
 #include <variant>
@@ -82,6 +83,7 @@
 #include "runtime/scene/scene_camera.h"
 #include "runtime/scene/scene_context.h"
 #include "runtime/scripting/script.h"
+#include "runtime/timer/timer.h"
 #include "runtime/ui/button.h"
 #include "runtime/ui/button_config.h"
 #include "runtime/ui/dropdown.h"
@@ -159,7 +161,7 @@ using CameraFeatureComponents = FeatureComponents<
 
 using ScriptsFeatureComponents = FeatureComponents<::ptgn::impl::Scripts>;
 
-using UtilitiesFeatureComponents = FeatureComponents<Lifetime, Group>;
+using UtilitiesFeatureComponents = FeatureComponents<::ptgn::impl::Timers, Lifetime, Group>;
 
 struct ManualFeatureState {
 	FeatureTargetKey target;
@@ -8423,6 +8425,347 @@ bool DrawScriptsFeature(Target& target) {
 	return changed;
 }
 
+[[nodiscard]] TimerKey MakeUniqueTimerKey(const ::ptgn::impl::Timers& timers) {
+	for (std::size_t index{ 1 }; ; ++index) {
+		TimerKey candidate{
+			index == 1
+				? std::string{ "Timer" }
+				: std::string{ "Timer " } + std::to_string(index)
+		};
+
+		bool exists{ std::ranges::any_of(
+			timers.timers,
+			[&candidate](const TimerEntry& entry) {
+				return entry.config.key == candidate;
+			}
+		) };
+
+		if (!exists) {
+			return candidate;
+		}
+	}
+}
+
+[[nodiscard]] bool HasDuplicateTimerKey(
+	const ::ptgn::impl::Timers& timers,
+	std::size_t index
+) {
+	if (index >= timers.timers.size()) {
+		return false;
+	}
+
+	const auto& key{ timers.timers[index].config.key };
+	if (key.value.empty()) {
+		return false;
+	}
+
+	for (std::size_t other{ 0 }; other < timers.timers.size(); ++other) {
+		if (other != index && timers.timers[other].config.key == key) {
+			return true;
+		}
+	}
+
+	return false;
+}
+
+[[nodiscard]] bool IsTimerRuntimeActive(EditorContext& ctx) {
+	return ctx.editor.IsPlaying() || ctx.editor.IsDirectRuntime();
+}
+
+[[nodiscard]] std::string FormatTimerRuntimeDuration(millisecondsf value) {
+	float milliseconds{ std::abs(value.count()) };
+	std::string_view unit{ "ms" };
+
+	if (milliseconds >= 604800000.0f) {
+		unit = "w";
+	} else if (milliseconds >= 86400000.0f) {
+		unit = "d";
+	} else if (milliseconds >= 3600000.0f) {
+		unit = "h";
+	} else if (milliseconds >= 60000.0f) {
+		unit = "m";
+	} else if (milliseconds >= 1000.0f) {
+		unit = "s";
+	}
+
+	return FormatInspectorDuration(value, unit);
+}
+
+void SyncTimerRuntimeSnapshot(
+	Entity entity,
+	const TimerKey& live_key,
+	TimerEntry& edited_entry
+) {
+	if (!entity) {
+		return;
+	}
+
+	const auto* live_timers{ entity.TryGet<::ptgn::impl::Timers>() };
+	if (!live_timers) {
+		return;
+	}
+
+	const auto it{ std::ranges::find_if(
+		live_timers->timers,
+		[&live_key](const TimerEntry& entry) {
+			return entry.config.key == live_key;
+		}
+	) };
+	if (it != live_timers->timers.end()) {
+		edited_entry.runtime = it->runtime;
+	}
+}
+
+void DrawTimerRuntimeControls(
+	Entity entity,
+	const TimerKey& live_key,
+	TimerEntry& edited_entry
+) {
+	TimerHandle timer{ GetTimer(entity, live_key) };
+	if (!timer) {
+		ImGui::TextDisabled("Runtime timer is unavailable.");
+		return;
+	}
+
+	const char* state{
+		timer.IsPaused()
+			? "Paused"
+			: timer.IsRunning()
+				? "Running"
+				: timer.IsCompleted()
+					? "Complete"
+					: "Stopped"
+	};
+
+	const std::string elapsed{ FormatTimerRuntimeDuration(timer.Elapsed()) };
+	const std::string duration{ FormatTimerRuntimeDuration(timer.Duration()) };
+	ImGui::Text("%s  %s / %s", state, elapsed.c_str(), duration.c_str());
+	ImGui::ProgressBar(timer.Progress(), ImVec2{ -FLT_MIN, 0.0f });
+	ImGui::TextDisabled("Elapsed count: %llu", static_cast<unsigned long long>(timer.ElapsedCount()));
+
+	bool runtime_changed{ false };
+	if (ImGui::Button("Start")) {
+		runtime_changed |= timer.Start();
+	}
+	ImGui::SameLine();
+	if (ImGui::Button("Restart")) {
+		runtime_changed |= timer.Restart();
+	}
+	ImGui::SameLine();
+
+	if (timer.IsPaused()) {
+		if (ImGui::Button("Resume")) {
+			runtime_changed |= timer.Resume();
+		}
+	} else {
+		ImGui::BeginDisabled(!timer.IsRunning());
+		if (ImGui::Button("Pause")) {
+			runtime_changed |= timer.Pause();
+		}
+		ImGui::EndDisabled();
+	}
+
+	ImGui::SameLine();
+	if (ImGui::Button("Stop")) {
+		runtime_changed |= timer.Stop();
+	}
+	ImGui::SameLine();
+	if (ImGui::Button("Reset")) {
+		runtime_changed |= timer.Reset();
+	}
+
+	if (ImGui::Button("Time...")) {
+		ImGui::OpenPopup("TimerTimeAdjust");
+	}
+
+	if (ImGui::BeginPopup("TimerTimeAdjust")) {
+		if (ImGui::MenuItem("Advance 100ms")) {
+			runtime_changed |= timer.Advance(100ms);
+		}
+		if (ImGui::MenuItem("Advance 1s")) {
+			runtime_changed |= timer.Advance(1s);
+		}
+		if (ImGui::MenuItem("Rewind 100ms")) {
+			runtime_changed |= timer.Rewind(100ms);
+		}
+		if (ImGui::MenuItem("Rewind 1s")) {
+			runtime_changed |= timer.Rewind(1s);
+		}
+		ImGui::EndPopup();
+	}
+
+	if (runtime_changed) {
+		SyncTimerRuntimeSnapshot(entity, live_key, edited_entry);
+	}
+}
+
+struct TimerNameEditState {
+	std::string value;
+	bool active{ false };
+};
+
+std::unordered_map<ImGuiID, TimerNameEditState>& TimerNameEditStates() {
+	static std::unordered_map<ImGuiID, TimerNameEditState> states;
+	return states;
+}
+
+bool DrawTimerNameInput(std::string& value) {
+	ImGuiID id{ ImGui::GetID("##TimerName") };
+	auto& state{ TimerNameEditStates()[id] };
+
+	if (!state.active) {
+		state.value = value;
+	}
+
+	ImGui::SetNextItemWidth(-FLT_MIN);
+	bool submitted{ ImGui::InputTextWithHint(
+		"##TimerName",
+		"Timer name",
+		&state.value,
+		ImGuiInputTextFlags_EnterReturnsTrue
+	) };
+	bool active{ ImGui::IsItemActive() };
+	bool commit{ submitted || ImGui::IsItemDeactivatedAfterEdit() };
+	bool changed{ false };
+
+	if (commit && state.value != value) {
+		value = state.value;
+		changed = true;
+	}
+
+	state.active = active;
+	if (!active && !commit) {
+		state.value = value;
+	}
+
+	return changed;
+}
+
+template <typename Target>
+bool DrawTimersContents(Target& target, ::ptgn::impl::Timers& timers) {
+	bool changed{ false };
+
+	if (ImGui::Button("+ Timer", ImVec2{ -FLT_MIN, 0.0f })) {
+		timers.timers.push_back(TimerEntry{
+			.config = TimerConfig{
+				.key = MakeUniqueTimerKey(timers),
+			},
+		});
+		changed = true;
+	}
+
+	std::optional<std::size_t> remove_index;
+
+	for (std::size_t index{ 0 }; index < timers.timers.size(); ++index) {
+		ScopedID timer_scope{ static_cast<int>(index) };
+		auto& entry{ timers.timers[index] };
+		const TimerKey live_key{ entry.config.key };
+		std::string label{
+			entry.config.key.value.empty()
+				? std::string{ "Timer " } + std::to_string(index + 1)
+				: entry.config.key.value
+		};
+
+		if constexpr (requires { target.entity; }) {
+			if (target.entity && IsTimerRuntimeActive(target.ctx) && !live_key.value.empty()) {
+				TimerHandle runtime_timer{ GetTimer(target.entity, live_key) };
+				if (runtime_timer) {
+					const char* state{
+						runtime_timer.IsPaused()
+							? "Paused"
+							: runtime_timer.IsRunning()
+								? "Running"
+								: runtime_timer.IsCompleted()
+									? "Complete"
+									: "Stopped"
+					};
+					label += "    ";
+					label += state;
+					label += " ";
+					label += FormatTimerRuntimeDuration(runtime_timer.Elapsed());
+					label += " / ";
+					label += FormatTimerRuntimeDuration(runtime_timer.Duration());
+				}
+			}
+		}
+
+		float button_size{ ImGui::GetFrameHeight() };
+		bool open{ false };
+
+		if (ImGui::BeginTable(
+				"##TimerHeader",
+				2,
+				ImGuiTableFlags_SizingStretchProp | ImGuiTableFlags_NoSavedSettings |
+					ImGuiTableFlags_NoPadOuterX
+			)) {
+			ImGui::TableSetupColumn("Timer", ImGuiTableColumnFlags_WidthStretch, 1.0f);
+			ImGui::TableSetupColumn("Remove", ImGuiTableColumnFlags_WidthFixed, button_size);
+			ImGui::TableNextRow(ImGuiTableRowFlags_None, button_size);
+
+			ImGui::TableSetColumnIndex(0);
+			open = ImGui::TreeNodeEx(
+				(label + "##Timer").c_str(),
+				ImGuiTreeNodeFlags_SpanAvailWidth | ImGuiTreeNodeFlags_DefaultOpen |
+					ImGuiTreeNodeFlags_FramePadding | ImGuiTreeNodeFlags_NoTreePushOnOpen
+			);
+
+			ImGui::TableSetColumnIndex(1);
+			if (ImGui::Button("-##RemoveTimer", ImVec2{ button_size, button_size })) {
+				remove_index = index;
+			}
+			DrawTooltip("Remove this timer.");
+
+			ImGui::EndTable();
+		}
+
+		if (!open) {
+			continue;
+		}
+
+		ScopedIndent timer_indent;
+
+		changed |= DrawPropertyRow("Name", [&]() {
+			return DrawTimerNameInput(entry.config.key.value);
+		});
+
+		if (entry.config.key.value.empty()) {
+			ImGui::TextDisabled("Timer names must not be empty.");
+		} else if (HasDuplicateTimerKey(timers, index)) {
+			ImGui::TextDisabled("Timer names must be unique on an entity.");
+		}
+
+		changed |= DrawValue(target.ctx, "Duration", entry.config.duration);
+		changed |= DrawValue(target.ctx, "Mode", entry.config.mode);
+		changed |= DrawValue(
+			target.ctx,
+			"Start Automatically",
+			entry.config.start_automatically
+		);
+		DrawTooltip("Unchecked: start this timer manually or with a Timer Action.");
+
+		if constexpr (requires { target.entity; }) {
+			if (target.entity && IsTimerRuntimeActive(target.ctx)) {
+				ImGui::SeparatorText("Runtime");
+				DrawTimerRuntimeControls(target.entity, live_key, entry);
+			}
+		}
+
+	}
+
+	if (remove_index) {
+		timers.timers.erase(
+			timers.timers.begin() + static_cast<std::ptrdiff_t>(*remove_index)
+		);
+		changed = true;
+	}
+
+	if (timers.timers.empty()) {
+		ImGui::TextDisabled("No timers.");
+	}
+
+	return changed;
+}
+
 bool DrawGroupContents(Group& group) {
 	bool changed{ false };
 
@@ -8526,6 +8869,15 @@ bool DrawUtilitiesFeature(Target& target) {
 	ScopedIndent feature_indent;
 
 	bool changed{ header.changed };
+
+	changed |= DrawOptionalComponent<Target, ::ptgn::impl::Timers>(
+		target,
+		"Timers",
+		true,
+		[&target](::ptgn::impl::Timers& value) {
+			return DrawTimersContents(target, value);
+		}
+	);
 
 	changed |= DrawOptionalComponent<Target, Group>(
 		target,

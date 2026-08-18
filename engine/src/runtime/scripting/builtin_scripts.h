@@ -20,6 +20,7 @@
 #include "runtime/ecs/component_registry.h"
 #include "runtime/scene/scene_transition.h"
 #include "runtime/scripting/script.h"
+#include "runtime/timer/timer.h"
 
 namespace ptgn {
 
@@ -375,6 +376,33 @@ struct AnimationActionScript : public Script {
 	void OnStart() override;
 
 	PTGN_REFLECT(AnimationActionScript, action, animation_key, frame, force, reset_on_stop)
+};
+
+enum class TimerAction : std::uint8_t {
+	Start,
+	Restart,
+	Stop,
+	Reset,
+	Pause,
+	Resume,
+	TogglePaused,
+	Advance,
+	Rewind,
+	SetDuration,
+	AddDuration,
+	RemoveDuration
+};
+PTGN_REFLECT_ENUM(TimerAction);
+
+/// @brief Controls a named timer on the script target entity.
+struct TimerActionScript : public Script {
+	TimerKey timer{ "Timer" };
+	TimerAction action{ TimerAction::Start };
+	millisecondsf amount{ 1000.0f };
+
+	void OnStart() override;
+
+	PTGN_REFLECT(TimerActionScript, timer, action, amount)
 };
 
 /// @brief Assigns a TextureKey to the owning entity.

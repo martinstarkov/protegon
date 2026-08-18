@@ -761,6 +761,53 @@ void AnimationActionScript::OnStart() {
 	}
 }
 
+void TimerActionScript::OnStart() {
+	TimerHandle handle{ GetTimer(Target(), timer) };
+	if (!handle) {
+		PTGN_WARN("Timer action requires an existing timer on the target: ", timer.value);
+		return;
+	}
+
+	switch (action) {
+		case TimerAction::Start:
+			handle.Start();
+			break;
+		case TimerAction::Restart:
+			handle.Restart();
+			break;
+		case TimerAction::Stop:
+			handle.Stop();
+			break;
+		case TimerAction::Reset:
+			handle.Reset();
+			break;
+		case TimerAction::Pause:
+			handle.Pause();
+			break;
+		case TimerAction::Resume:
+			handle.Resume();
+			break;
+		case TimerAction::TogglePaused:
+			handle.TogglePaused();
+			break;
+		case TimerAction::Advance:
+			handle.Advance(amount);
+			break;
+		case TimerAction::Rewind:
+			handle.Rewind(amount);
+			break;
+		case TimerAction::SetDuration:
+			handle.SetDuration(amount);
+			break;
+		case TimerAction::AddDuration:
+			handle.AddDuration(amount);
+			break;
+		case TimerAction::RemoveDuration:
+			handle.RemoveDuration(amount);
+			break;
+	}
+}
+
 void SetTextureScript::OnStart() {
 	Sprite{ Target() }.SetTexture(texture_key);
 }

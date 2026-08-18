@@ -60,6 +60,7 @@
 #include "runtime/scene/scene_file.h"
 #include "runtime/scene/scene_transition.h"
 #include "runtime/scripting/script.h"
+#include "runtime/timer/timer.h"
 #include "runtime/ui/button.h"
 #include "runtime/ui/dropdown.h"
 #include "runtime/ui/slider.h"
@@ -971,6 +972,10 @@ void Scene::InternalRuntimeUpdate() {
 	script_runtime::Update(*this, dt);
 
 	OnUpdate();
+
+	// Timers advance after script and scene updates so newly triggered timed actions do not
+	// receive the current frame's full dt.
+	timer_runtime::Update(*this, dt);
 
 	ParticleEmitter::Update(*this, dt);
 	impl::AnimationSystem::Update(*this, dt);
