@@ -8,6 +8,7 @@
 #include <ranges>
 #include <string>
 #include <type_traits>
+#include <unordered_map>
 #include <utility>
 #include <vector>
 
@@ -216,6 +217,13 @@ struct ScriptEditorRegistration {
 	)> draw;
 };
 
+template <typename T>
+struct TypedJsonEditorState {
+	T value{};
+	json synchronized_value;
+	bool initialized{ false };
+};
+
 template <typename T, typename F>
 bool DrawTypedJsonEditor(
 	ScriptEditorContext& context,
@@ -225,27 +233,35 @@ bool DrawTypedJsonEditor(
 	if constexpr (!std::default_initializable<T>) {
 		return false;
 	} else {
-		T value{};
+		static std::unordered_map<const json*, TypedJsonEditorState<T>> states;
+		auto& state{ states[std::addressof(input)] };
 
-		if constexpr (
-			requires(
-				const json& json_value,
-				T& typed_value
+		if (!state.initialized || state.synchronized_value != input) {
+			state.value = T{};
+
+			if constexpr (
+				requires(
+					const json& json_value,
+					T& typed_value
+				) {
+					json_value.get_to(typed_value);
+				}
 			) {
-				json_value.get_to(typed_value);
+				(void)TryReadScriptJson(
+					input,
+					state.value
+				);
 			}
-		) {
-			(void)TryReadScriptJson(
-				input,
-				value
-			);
+
+			state.synchronized_value = input;
+			state.initialized = true;
 		}
 
-		const bool changed{
+		bool changed{
 			std::invoke(
 				draw,
 				context,
-				value
+				state.value
 			)
 		};
 
@@ -260,21 +276,21 @@ bool DrawTypedJsonEditor(
 			json updated = json::object();
 
 			try {
-				updated = value;
+				updated = state.value;
 			} catch (...) {
 				return changed;
 			}
 
-			const bool serialized_changed{
-				updated != input
-			};
+			bool serialized_changed{ updated != input };
 
 			if (serialized_changed) {
 				input = std::move(updated);
 			}
 
+			state.synchronized_value = input;
 			return changed || serialized_changed;
 		} else {
+			state.synchronized_value = input;
 			return changed;
 		}
 	}
