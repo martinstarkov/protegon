@@ -8299,22 +8299,31 @@ bool DrawCameraFeature(Target& target) {
 struct ScriptEntryEditorSnapshot {
 	bool enabled{ true };
 	TypeHashValue type_hash{ 0 };
+	std::string name;
 	json value;
 	json sequence;
 	std::function<std::unique_ptr<Script>()> runtime_factory;
 	std::vector<std::function<std::unique_ptr<Script>()>> step_runtime_factories;
 	std::vector<std::function<std::unique_ptr<Script>()>> lifecycle_runtime_factories;
+
+	[[nodiscard]] bool HasSameAuthoredState(const ScriptEntryEditorSnapshot& other) const {
+		return enabled == other.enabled &&
+			type_hash == other.type_hash &&
+			name == other.name &&
+			value == other.value &&
+			sequence == other.sequence;
+	}
 };
 
-using ScriptsEditorSnapshot = std::vector<ScriptEntryEditorSnapshot>;
+using ScriptEntriesEditorSnapshot = std::vector<ScriptEntryEditorSnapshot>;
 
-[[nodiscard]] ScriptsEditorSnapshot CaptureScriptsEditorSnapshot(
-	const ::ptgn::impl::Scripts& scripts
+[[nodiscard]] ScriptEntriesEditorSnapshot CaptureScriptEntriesEditorSnapshot(
+	const std::vector<ScriptEntry>& entries
 ) {
-	ScriptsEditorSnapshot snapshot;
-	snapshot.reserve(scripts.scripts.size());
+	ScriptEntriesEditorSnapshot snapshot;
+	snapshot.reserve(entries.size());
 
-	for (const auto& entry : scripts.scripts) {
+	for (const auto& entry : entries) {
 		const ScriptSequence& sequence{
 			entry.instance ? entry.instance->sequence : entry.sequence
 		};
@@ -8322,6 +8331,7 @@ using ScriptsEditorSnapshot = std::vector<ScriptEntryEditorSnapshot>;
 		ScriptEntryEditorSnapshot entry_snapshot{
 			.enabled = entry.enabled,
 			.type_hash = entry.type_hash,
+			.name = entry.name,
 			.value = entry.value,
 			.sequence = sequence,
 			.runtime_factory = entry.runtime_factory,
@@ -8343,11 +8353,51 @@ using ScriptsEditorSnapshot = std::vector<ScriptEntryEditorSnapshot>;
 	return snapshot;
 }
 
-void RestoreScriptsEditorSnapshot(Entity entity, const ScriptsEditorSnapshot& snapshot) {
-	if (!entity) {
-		return;
+[[nodiscard]] bool HasSameAuthoredState(
+	const ScriptEntriesEditorSnapshot& lhs,
+	const ScriptEntriesEditorSnapshot& rhs
+) {
+	if (lhs.size() != rhs.size()) {
+		return false;
 	}
 
+	for (std::size_t i{ 0 }; i < lhs.size(); ++i) {
+		if (!lhs[i].HasSameAuthoredState(rhs[i])) {
+			return false;
+		}
+	}
+
+	return true;
+}
+
+struct ScriptsEditorSnapshot {
+	ScriptEntriesEditorSnapshot scripts;
+	ScriptEntriesEditorSnapshot pending_additions;
+	std::vector<SequenceId> pending_removals;
+};
+
+[[nodiscard]] ScriptsEditorSnapshot CaptureScriptsEditorSnapshot(
+	const ::ptgn::impl::Scripts& scripts
+) {
+	return ScriptsEditorSnapshot{
+		.scripts = CaptureScriptEntriesEditorSnapshot(scripts.scripts),
+		.pending_additions = CaptureScriptEntriesEditorSnapshot(scripts.pending_additions),
+		.pending_removals = scripts.pending_removals,
+	};
+}
+
+[[nodiscard]] bool HasSameAuthoredState(
+	const ScriptsEditorSnapshot& lhs,
+	const ScriptsEditorSnapshot& rhs
+) {
+	return HasSameAuthoredState(lhs.scripts, rhs.scripts) &&
+		HasSameAuthoredState(lhs.pending_additions, rhs.pending_additions) &&
+		lhs.pending_removals == rhs.pending_removals;
+}
+
+[[nodiscard]] std::vector<ScriptEntry> RestoreScriptEntriesEditorSnapshot(
+	const ScriptEntriesEditorSnapshot& snapshot
+) {
 	std::vector<ScriptEntry> entries;
 	entries.reserve(snapshot.size());
 
@@ -8370,17 +8420,27 @@ void RestoreScriptsEditorSnapshot(Entity entity, const ScriptsEditorSnapshot& sn
 		ScriptEntry entry;
 		entry.enabled = entry_snapshot.enabled;
 		entry.type_hash = entry_snapshot.type_hash;
+		entry.name = entry_snapshot.name;
 		entry.value = entry_snapshot.value;
 		entry.sequence = std::move(sequence);
 		entry.runtime_factory = entry_snapshot.runtime_factory;
 		entries.push_back(std::move(entry));
 	}
 
+	return entries;
+}
+
+void RestoreScriptsEditorSnapshot(Entity entity, const ScriptsEditorSnapshot& snapshot) {
+	if (!entity) {
+		return;
+	}
+
 	auto& scripts{ entity.TryAdd<::ptgn::impl::Scripts>() };
-	scripts.scripts = std::move(entries);
+	scripts.scripts = RestoreScriptEntriesEditorSnapshot(snapshot.scripts);
+	scripts.pending_additions = RestoreScriptEntriesEditorSnapshot(snapshot.pending_additions);
+	scripts.pending_removals = snapshot.pending_removals;
 	scripts.channels.clear();
-	scripts.pending_additions.clear();
-	scripts.pending_removals.clear();
+	scripts.create_event_dispatched = false;
 	scripts.Attach(entity);
 }
 
@@ -8389,6 +8449,12 @@ struct SharedScriptSequenceEditorSnapshot {
 	json sequence;
 	std::vector<std::function<std::unique_ptr<Script>()>> step_runtime_factories;
 	std::vector<std::function<std::unique_ptr<Script>()>> lifecycle_runtime_factories;
+
+	[[nodiscard]] bool HasSameAuthoredState(
+		const SharedScriptSequenceEditorSnapshot& other
+	) const {
+		return id == other.id && sequence == other.sequence;
+	}
 };
 
 using SharedScriptSequencesEditorSnapshot = std::vector<SharedScriptSequenceEditorSnapshot>;
@@ -8421,6 +8487,23 @@ using SharedScriptSequencesEditorSnapshot = std::vector<SharedScriptSequenceEdit
 	}
 
 	return snapshot;
+}
+
+[[nodiscard]] bool HasSameAuthoredState(
+	const SharedScriptSequencesEditorSnapshot& lhs,
+	const SharedScriptSequencesEditorSnapshot& rhs
+) {
+	if (lhs.size() != rhs.size()) {
+		return false;
+	}
+
+	for (std::size_t i{ 0 }; i < lhs.size(); ++i) {
+		if (!lhs[i].HasSameAuthoredState(rhs[i])) {
+			return false;
+		}
+	}
+
+	return true;
 }
 
 void RestoreSharedScriptSequencesEditorSnapshot(
@@ -8707,7 +8790,9 @@ bool DrawScriptsFeature(Target& target) {
 		}
 
 		auto& scripts{ target.entity.template Get<::ptgn::impl::Scripts>() };
+		auto& shared_sequences{ target.entity.GetScene().ctx().shared_script_sequences };
 		auto before{ CaptureScriptsEditorSnapshot(scripts) };
+		auto before_shared{ CaptureSharedScriptSequencesEditorSnapshot(shared_sequences) };
 		const bool scripts_changed{ DrawScriptsComponent(target.ctx, scripts) };
 
 		if (!scripts_changed) {
@@ -8715,6 +8800,13 @@ bool DrawScriptsFeature(Target& target) {
 		}
 
 		auto after{ CaptureScriptsEditorSnapshot(scripts) };
+		auto after_shared{ CaptureSharedScriptSequencesEditorSnapshot(shared_sequences) };
+
+		if (HasSameAuthoredState(before, after) &&
+			HasSameAuthoredState(before_shared, after_shared)) {
+			return changed;
+		}
+
 		ScopedID target_scope{ target.Id() };
 		ScopedID component_scope{ static_cast<int>(Hash<::ptgn::impl::Scripts>()) };
 		const ImGuiID key{ ImGui::GetID("##ComponentEdit") };
@@ -8726,12 +8818,30 @@ bool DrawScriptsFeature(Target& target) {
 			key,
 			"Edit Scripts",
 			true,
-			[editor, reference, before = std::move(before)]() {
+			[editor, reference, before = std::move(before),
+			 before_shared = std::move(before_shared)]() {
 				Entity entity{ reference.Resolve(*editor) };
+				if (!entity) {
+					return;
+				}
+
+				RestoreSharedScriptSequencesEditorSnapshot(
+					entity.GetScene().ctx().shared_script_sequences,
+					before_shared
+				);
 				RestoreScriptsEditorSnapshot(entity, before);
 			},
-			[editor, reference, after = std::move(after)]() {
+			[editor, reference, after = std::move(after),
+			 after_shared = std::move(after_shared)]() {
 				Entity entity{ reference.Resolve(*editor) };
+				if (!entity) {
+					return;
+				}
+
+				RestoreSharedScriptSequencesEditorSnapshot(
+					entity.GetScene().ctx().shared_script_sequences,
+					after_shared
+				);
 				RestoreScriptsEditorSnapshot(entity, after);
 			}
 		);

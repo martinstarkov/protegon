@@ -532,7 +532,9 @@ struct ScriptEntry {
 		name{ other.name },
 		value{ other.value },
 		sequence{ other.sequence },
-		runtime_factory{ other.runtime_factory } {}
+		runtime_factory{ other.runtime_factory } {
+		sequence.id = other.sequence.id;
+	}
 
 	ScriptEntry& operator=(const ScriptEntry& other) {
 		if (this != &other) {
@@ -719,7 +721,7 @@ public:
 	void OnEvent(Event event);
 	void OnEvent(Event event) const { const_cast<Scripts*>(this)->OnEvent(event); }
 
-	PTGN_REFLECT_EMPTY(Scripts)
+	PTGN_REFLECT_VALUE(Scripts, scripts)
 
 	friend std::ostream& operator<<(std::ostream& os, const Scripts& scripts_component) {
 		os << "{ script_count: " << scripts_component.scripts.size() << " }";

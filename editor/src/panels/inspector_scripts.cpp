@@ -2761,7 +2761,7 @@ bool DrawResidentScripts(ScriptEditorContext& context, ::ptgn::impl::Scripts& sc
 	}
 
 	if (remove >= 0) {
-		if (context.owner) {
+		if (context.owner && IsRuntimeActive(context)) {
 			auto& entry{ scripts.scripts[static_cast<std::size_t>(remove)] };
 			SequenceId id{ entry.instance ? entry.instance->sequence.id : entry.sequence.id };
 			scripts.RemoveDeferred(id);
