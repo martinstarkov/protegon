@@ -473,7 +473,7 @@ PTGN_REGISTER_SCRIPT(
 PTGN_REGISTER_SCRIPT(
 	MoveToScript,
 	{
-		.completion = ScriptCompletion::Duration,
+		.completion = ScriptCompletion::Instant,
 		.supports_timing = true,
 		.default_timing = ScriptTiming{
 			.duration_ms = 300.0f,
@@ -485,7 +485,7 @@ PTGN_REGISTER_SCRIPT(
 PTGN_REGISTER_SCRIPT(
 	RotateToScript,
 	{
-		.completion = ScriptCompletion::Duration,
+		.completion = ScriptCompletion::Instant,
 		.supports_timing = true,
 		.default_timing = ScriptTiming{
 			.duration_ms = 300.0f
@@ -496,7 +496,7 @@ PTGN_REGISTER_SCRIPT(
 PTGN_REGISTER_SCRIPT(
 	ScaleToScript,
 	{
-		.completion = ScriptCompletion::Duration,
+		.completion = ScriptCompletion::Instant,
 		.supports_timing = true,
 		.default_timing = ScriptTiming{
 			.duration_ms = 180.0f,
@@ -508,7 +508,7 @@ PTGN_REGISTER_SCRIPT(
 PTGN_REGISTER_SCRIPT(
 	TintToScript,
 	{
-		.completion = ScriptCompletion::Duration,
+		.completion = ScriptCompletion::Instant,
 		.supports_timing = true,
 		.default_timing = ScriptTiming{
 			.duration_ms = 300.0f

@@ -1001,4 +1001,6 @@ private:
 
 } // namespace impl
 
+void from_json(const json& input, ScriptStep& step);
+
 } // namespace ptgn

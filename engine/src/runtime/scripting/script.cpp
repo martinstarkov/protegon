@@ -185,7 +185,9 @@ ScriptStep ScriptRegistry::MakeStep(TypeHashValue type_hash) {
 	step.type_hash = registration->type_hash;
 	step.name = registration->name;
 	step.value = registration->make_default();
-	step.timing = registration->default_timing;
+	if (registration->requires_timing) {
+		step.timing = registration->default_timing;
+	}
 	return step;
 }
 
@@ -1549,6 +1551,60 @@ bool SequenceHandle::IsCompleted() const {
 
 float SequenceHandle::Progress() const {
 	return script_runtime::Progress(owner, binding_id);
+}
+
+void from_json(const json& input, ScriptStep& step) {
+	step = ScriptStep{};
+	step.enabled = input.value("enabled", true);
+
+	const ScriptRegistration* registration{ nullptr };
+
+	if (input.contains("type") && input.at("type").is_string()) {
+		registration = ScriptRegistry::Find(
+			input.at("type").get<std::string>()
+		);
+	}
+
+	if (!registration && input.contains("type_hash")) {
+		registration = ScriptRegistry::Find(
+			input.at("type_hash").get<TypeHashValue>()
+		);
+	}
+
+	if (registration) {
+		step.type_hash = registration->type_hash;
+		step.value = registration->make_default
+			? registration->make_default()
+			: json{};
+	} else {
+		step.type_hash = input.value(
+			"type_hash",
+			TypeHashValue{ 0 }
+		);
+	}
+
+	if (input.contains("value")) {
+		step.value = input.at("value");
+	}
+
+	if (input.contains("completion")) {
+		input.at("completion").get_to(step.completion);
+	}
+
+	if (input.contains("timing")) {
+		input.at("timing").get_to(step.timing);
+	} else if (registration) {
+		ScriptCompletion completion{
+			step.completion.value_or(registration->completion)
+		};
+
+		if (registration->requires_timing ||
+			completion == ScriptCompletion::Duration) {
+			step.timing = registration->default_timing.value_or(
+				ScriptTiming{}
+			);
+		}
+	}
 }
 
 } // namespace ptgn
