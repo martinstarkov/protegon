@@ -17,7 +17,8 @@ class Scene;
 
 struct TimerKey : StrongString<TimerKey> {
 	using StrongString::StrongString;
-	TimerKey() = default;
+	
+	constexpr TimerKey() = default;
 
 	PTGN_REFLECT_VALUE(TimerKey, value)
 };
@@ -34,7 +35,7 @@ struct TimerConfig {
 	TimerMode mode{ TimerMode::Once };
 	bool start_automatically{ true };
 
-	bool operator==(const TimerConfig&) const = default;
+	constexpr bool operator==(const TimerConfig&) const = default;
 
 	PTGN_REFLECT(TimerConfig, key, duration, mode, start_automatically)
 };
@@ -45,14 +46,19 @@ struct TimerRuntime {
 	bool completed{ false };
 	bool initialized{ false };
 
-	bool operator==(const TimerRuntime&) const = default;
+	constexpr bool operator==(const TimerRuntime&) const = default;
+
+	PTGN_REFLECT_READONLY(TimerRuntime, timer, elapsed_count, completed, initialized)
 };
 
 struct TimerEntry {
 	TimerConfig config;
 	TimerRuntime runtime;
 
-	bool operator==(const TimerEntry&) const = default;
+	constexpr bool operator==(const TimerEntry&) const = default;
+
+	PTGN_REFLECT(TimerEntry, config)
+	PTGN_REFLECT_READONLY(TimerEntry, runtime)
 };
 
 namespace impl {
@@ -62,7 +68,7 @@ struct Timers {
 
 	bool operator==(const Timers&) const = default;
 
-	PTGN_REFLECT_EMPTY(Timers)
+	PTGN_REFLECT_VALUE(Timers, timers)
 };
 
 void to_json(json& output, const Timers& timers);

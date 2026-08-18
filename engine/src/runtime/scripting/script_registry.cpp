@@ -1049,7 +1049,7 @@ PTGN_REGISTER_EVENT(
 		.default_value = [] {
 			auto value = MakeEventDefault(
 				"timer",
-				TimerKey{ "Timer" }
+				TimerKey{}
 			);
 			value["duration"] = nullptr;
 			return value;

@@ -217,6 +217,73 @@ void DrawSelectedItemsTooltip(std::span<const std::string> items) {
 	return hierarchy.GetSelectedEntity();
 }
 
+[[nodiscard]] std::vector<TimerKey> GetTimerChoices(
+	Entity owner,
+	const std::optional<EntityFilter>& target_filter
+) {
+	if (!owner) {
+		return {};
+	}
+
+	std::vector<Entity> targets;
+
+	if (target_filter) {
+		targets = ResolveEntityFilter(
+			*target_filter,
+			owner.GetScene(),
+			owner
+		);
+	} else {
+		targets.push_back(owner);
+	}
+
+	std::vector<TimerKey> choices;
+
+	for (Entity target : targets) {
+		const auto* timers{ target.TryGet<::ptgn::impl::Timers>() };
+		if (!timers) {
+			continue;
+		}
+
+		for (const auto& entry : timers->timers) {
+			if (entry.config.key.value.empty() ||
+				std::ranges::contains(choices, entry.config.key)) {
+				continue;
+			}
+
+			choices.push_back(entry.config.key);
+		}
+	}
+
+	return choices;
+}
+
+[[nodiscard]] TimerKey GetDefaultTimerKey(
+	Entity owner,
+	const std::optional<EntityFilter>& target_filter
+) {
+	const auto choices{ GetTimerChoices(owner, target_filter) };
+	return choices.empty() ? TimerKey{} : choices.front();
+}
+
+void ApplyContextualTimerElapsedDefault(
+	ScriptEditorContext& context,
+	EventCondition& event
+) {
+	if (event.type_hash != Hash<event::TimerElapsed>()) {
+		return;
+	}
+
+	if (!event.value.is_object()) {
+		event.value = json::object();
+	}
+
+	event.value["timer"] = GetDefaultTimerKey(
+		ResolveInspectedEntity(context),
+		std::nullopt
+	);
+}
+
 [[nodiscard]] bool IsRuntimeActive(const ScriptEditorContext& context) {
 	return context.ctx.editor.IsPlaying() ||
 		   context.ctx.editor.IsDirectRuntime();
@@ -576,6 +643,18 @@ bool DrawActionPicker(
 			action		   = ScriptRegistry::MakeStep(registration.type_hash);
 			action.enabled = enabled;
 			action.target = std::move(target);
+
+			if (action.type_hash == Hash<TimerActionScript>()) {
+				if (!action.value.is_object()) {
+					action.value = json::object();
+				}
+
+				action.value["timer"] = GetDefaultTimerKey(
+					ResolveInspectedEntity(context),
+					action.target
+				);
+			}
+
 			if (timed_only) {
 				action.completion = ScriptCompletion::Duration;
 				action.timing	  = registration.default_timing.value_or(ScriptTiming{});
@@ -1403,7 +1482,7 @@ bool DrawTimerElapsedTrigger(
 	ScriptEditorContext& context,
 	json& value
 ) {
-	TimerKey timer{ "Timer" };
+	TimerKey timer;
 	std::optional<millisecondsf> duration_override;
 
 	if (value.is_object()) {
@@ -1412,7 +1491,7 @@ bool DrawTimerElapsedTrigger(
 			try {
 				timer_it->get_to(timer);
 			} catch (...) {
-				timer = TimerKey{ "Timer" };
+				timer = TimerKey{};
 			}
 		}
 
@@ -1421,6 +1500,7 @@ bool DrawTimerElapsedTrigger(
 			try {
 				millisecondsf duration;
 				duration_it->get_to(duration);
+
 				if (duration > millisecondsf{ 0.0f }) {
 					duration_override = duration;
 				}
@@ -1430,25 +1510,8 @@ bool DrawTimerElapsedTrigger(
 		}
 	}
 
-	std::vector<TimerKey> choices;
 	Entity owner{ ResolveInspectedEntity(context) };
-
-	if (owner) {
-		if (const auto* timers{ owner.TryGet<::ptgn::impl::Timers>() }) {
-			for (const auto& entry : timers->timers) {
-				if (entry.config.key.value.empty() ||
-					std::ranges::contains(choices, entry.config.key)) {
-					continue;
-				}
-
-				choices.push_back(entry.config.key);
-			}
-		}
-	}
-
-	std::ranges::sort(choices, [](const TimerKey& lhs, const TimerKey& rhs) {
-		return lhs.value < rhs.value;
-	});
+	const auto choices{ GetTimerChoices(owner, std::nullopt) };
 
 	float available{ ImGui::GetContentRegionAvail().x };
 	float spacing{ ImGui::GetStyle().ItemSpacing.x };
@@ -1472,38 +1535,61 @@ bool DrawTimerElapsedTrigger(
 	bool changed{ false };
 	ImGui::SetNextItemWidth(timer_width);
 
-	if (choices.empty()) {
-		changed |= ImGui::InputTextWithHint(
-			"##TimerTrigger",
-			"Timer name",
-			&timer.value
-		);
-	} else {
-		const char* preview{
-			timer.value.empty()
-				? "Select Timer"
-				: timer.value.c_str()
-		};
+	const char* preview{
+		timer.value.empty()
+			? "No Timer"
+			: timer.value.c_str()
+	};
 
-		if (ImGui::BeginCombo("##TimerTrigger", preview)) {
-			for (const auto& choice : choices) {
-				bool selected{ choice == timer };
+	if (ImGui::BeginCombo("##TimerTrigger", preview)) {
+		std::string custom_name{ timer.value };
 
-				if (ImGui::Selectable(choice.value.c_str(), selected)) {
+		ImGui::SetNextItemWidth(-FLT_MIN);
+		if (ImGui::InputTextWithHint(
+				"##CustomTimerName",
+				"Custom timer name...",
+				&custom_name
+			)) {
+			timer.value = std::move(custom_name);
+			changed = true;
+		}
+
+		ImGui::Separator();
+
+		bool none_selected{ timer.value.empty() };
+		if (ImGui::Selectable("None", none_selected)) {
+			if (!none_selected) {
+				timer.value.clear();
+				changed = true;
+			}
+		}
+
+		for (const auto& choice : choices) {
+			bool selected{ choice == timer };
+
+			if (ImGui::Selectable(choice.value.c_str(), selected)) {
+				if (!selected) {
 					timer = choice;
 					changed = true;
 				}
-
-				if (selected) {
-					ImGui::SetItemDefaultFocus();
-				}
 			}
 
-			ImGui::EndCombo();
+			if (selected) {
+				ImGui::SetItemDefaultFocus();
+			}
 		}
+
+		if (choices.empty()) {
+			ImGui::TextDisabled("No timers on this entity.");
+		}
+
+		ImGui::EndCombo();
 	}
 
-	DrawTooltip("Named timer whose elapsed threshold starts or stops this sequence.");
+	DrawTooltip(
+		"Named timer whose elapsed threshold starts or stops this sequence. "
+		"Open the combo to choose an existing timer or enter a custom name."
+	);
 
 	std::optional<millisecondsf> timer_duration;
 
@@ -1693,6 +1779,7 @@ bool DrawEvent(
 					event.type_hash = candidate.type_hash;
 					event.name		= registration->name;
 					registration->set_defaults(event);
+					ApplyContextualTimerElapsedDefault(context, event);
 					selected		   = EventEditorRegistry::Find(event.type_hash);
 					event_type_changed = true;
 					changed			   = true;
@@ -1798,6 +1885,7 @@ bool DrawAddTriggerPopup(ScriptEditorContext& context, ScriptSequence& sequence)
 				.name      = registration->name,
 			};
 			registration->set_defaults(trigger);
+			ApplyContextualTimerElapsedDefault(context, trigger);
 			sequence.start_events.push_back(std::move(trigger));
 			changed = true;
 		}

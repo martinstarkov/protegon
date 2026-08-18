@@ -82,8 +82,10 @@
 #include "runtime/scene/scene.h"
 #include "runtime/scene/scene_camera.h"
 #include "runtime/scene/scene_context.h"
+#include "runtime/scripting/builtin_scripts.h"
 #include "runtime/scripting/script.h"
 #include "runtime/timer/timer.h"
+#include "runtime/timer/timer_event.h"
 #include "runtime/ui/button.h"
 #include "runtime/ui/button_config.h"
 #include "runtime/ui/dropdown.h"
@@ -8382,6 +8384,304 @@ void RestoreScriptsEditorSnapshot(Entity entity, const ScriptsEditorSnapshot& sn
 	scripts.Attach(entity);
 }
 
+struct SharedScriptSequenceEditorSnapshot {
+	SequenceId id{ 0 };
+	json sequence;
+	std::vector<std::function<std::unique_ptr<Script>()>> step_runtime_factories;
+	std::vector<std::function<std::unique_ptr<Script>()>> lifecycle_runtime_factories;
+};
+
+using SharedScriptSequencesEditorSnapshot = std::vector<SharedScriptSequenceEditorSnapshot>;
+
+[[nodiscard]] SharedScriptSequencesEditorSnapshot CaptureSharedScriptSequencesEditorSnapshot(
+	const SharedScriptSequenceRegistry& registry
+) {
+	SharedScriptSequencesEditorSnapshot snapshot;
+	snapshot.reserve(registry.sequences.size());
+
+	for (const auto& sequence : registry.sequences) {
+		SharedScriptSequenceEditorSnapshot sequence_snapshot{
+			.id = sequence.id,
+			.sequence = sequence,
+		};
+
+		sequence_snapshot.step_runtime_factories.reserve(sequence.steps.size());
+		for (const auto& step : sequence.steps) {
+			sequence_snapshot.step_runtime_factories.push_back(step.runtime_factory);
+		}
+
+		sequence_snapshot.lifecycle_runtime_factories.reserve(sequence.lifecycle_actions.size());
+		for (const auto& lifecycle : sequence.lifecycle_actions) {
+			sequence_snapshot.lifecycle_runtime_factories.push_back(
+				lifecycle.action.runtime_factory
+			);
+		}
+
+		snapshot.push_back(std::move(sequence_snapshot));
+	}
+
+	return snapshot;
+}
+
+void RestoreSharedScriptSequencesEditorSnapshot(
+	SharedScriptSequenceRegistry& registry,
+	const SharedScriptSequencesEditorSnapshot& snapshot
+) {
+	registry.sequences.clear();
+	registry.sequences.reserve(snapshot.size());
+
+	for (const auto& sequence_snapshot : snapshot) {
+		ScriptSequence sequence;
+		sequence_snapshot.sequence.get_to(sequence);
+		sequence.id = sequence_snapshot.id;
+
+		for (std::size_t i{ 0 };
+			 i < sequence.steps.size() && i < sequence_snapshot.step_runtime_factories.size();
+			 ++i) {
+			sequence.steps[i].runtime_factory = sequence_snapshot.step_runtime_factories[i];
+		}
+
+		for (std::size_t i{ 0 };
+			 i < sequence.lifecycle_actions.size() &&
+			 i < sequence_snapshot.lifecycle_runtime_factories.size();
+			 ++i) {
+			sequence.lifecycle_actions[i].action.runtime_factory =
+				sequence_snapshot.lifecycle_runtime_factories[i];
+		}
+
+		registry.sequences.push_back(std::move(sequence));
+	}
+}
+
+struct EntityScriptsEditorSnapshot {
+	EntityReference reference;
+	ScriptsEditorSnapshot scripts;
+};
+
+struct TimerReferenceSceneSnapshot {
+	std::vector<EntityScriptsEditorSnapshot> entities;
+	SharedScriptSequencesEditorSnapshot shared_sequences;
+};
+
+[[nodiscard]] TimerReferenceSceneSnapshot CaptureTimerReferenceSceneSnapshot(Scene& scene) {
+	TimerReferenceSceneSnapshot snapshot{
+		.shared_sequences = CaptureSharedScriptSequencesEditorSnapshot(
+			scene.ctx().shared_script_sequences
+		),
+	};
+
+	for (Entity entity : scene.Entities()) {
+		const auto* scripts{ entity.TryGet<::ptgn::impl::Scripts>() };
+		if (!scripts) {
+			continue;
+		}
+
+		snapshot.entities.push_back(EntityScriptsEditorSnapshot{
+			.reference = MakeEntityReference(entity),
+			.scripts = CaptureScriptsEditorSnapshot(*scripts),
+		});
+	}
+
+	return snapshot;
+}
+
+void RestoreTimerReferenceSceneSnapshot(
+	Editor& editor,
+	const EntityReference& anchor_reference,
+	const TimerReferenceSceneSnapshot& snapshot
+) {
+	Entity anchor{ anchor_reference.Resolve(editor) };
+	if (!anchor) {
+		return;
+	}
+
+	auto& scene{ anchor.GetScene() };
+	RestoreSharedScriptSequencesEditorSnapshot(
+		scene.ctx().shared_script_sequences,
+		snapshot.shared_sequences
+	);
+
+	for (const auto& entity_snapshot : snapshot.entities) {
+		RestoreScriptsEditorSnapshot(
+			entity_snapshot.reference.Resolve(editor),
+			entity_snapshot.scripts
+		);
+	}
+}
+
+[[nodiscard]] bool RenameTimerJsonReference(
+	json& value,
+	const TimerKey& old_key,
+	const TimerKey& new_key
+) {
+	if (!value.is_object()) {
+		return false;
+	}
+
+	auto timer_it{ value.find("timer") };
+	if (timer_it == value.end()) {
+		return false;
+	}
+
+	TimerKey timer;
+	try {
+		timer_it->get_to(timer);
+	} catch (...) {
+		return false;
+	}
+
+	if (timer != old_key) {
+		return false;
+	}
+
+	value["timer"] = new_key;
+	return true;
+}
+
+[[nodiscard]] bool ScriptStepTargetsEntity(
+	Entity owner,
+	const ScriptStep& step,
+	Entity target
+) {
+	if (!owner || !target) {
+		return false;
+	}
+
+	if (!step.target) {
+		return owner == target;
+	}
+
+	const auto targets{ ResolveEntityFilter(
+		*step.target,
+		owner.GetScene(),
+		owner
+	) };
+	return std::ranges::contains(targets, target);
+}
+
+bool RenameTimerActionReference(
+	Entity owner,
+	ScriptStep& step,
+	Entity timer_entity,
+	const TimerKey& old_key,
+	const TimerKey& new_key
+) {
+	if (step.type_hash != Hash<TimerActionScript>() ||
+		!ScriptStepTargetsEntity(owner, step, timer_entity)) {
+		return false;
+	}
+
+	if (!RenameTimerJsonReference(step.value, old_key, new_key)) {
+		return false;
+	}
+
+	step.runtime_factory = {};
+	return true;
+}
+
+bool RenameTimerReferencesInSequence(
+	Entity owner,
+	ScriptSequence& sequence,
+	Entity timer_entity,
+	const TimerKey& old_key,
+	const TimerKey& new_key
+) {
+	bool changed{ false };
+
+	if (owner == timer_entity) {
+		auto rename_event = [&](EventCondition& condition) {
+			if (condition.type_hash == Hash<event::TimerElapsed>()) {
+				changed |= RenameTimerJsonReference(condition.value, old_key, new_key);
+			}
+		};
+
+		for (auto& condition : sequence.start_events) {
+			rename_event(condition);
+		}
+		for (auto& condition : sequence.stop_events) {
+			rename_event(condition);
+		}
+	}
+
+	for (auto& step : sequence.steps) {
+		changed |= RenameTimerActionReference(
+			owner,
+			step,
+			timer_entity,
+			old_key,
+			new_key
+		);
+	}
+
+	for (auto& lifecycle : sequence.lifecycle_actions) {
+		changed |= RenameTimerActionReference(
+			owner,
+			lifecycle.action,
+			timer_entity,
+			old_key,
+			new_key
+		);
+	}
+
+	return changed;
+}
+
+bool RenameTimerReferences(
+	Entity timer_entity,
+	const TimerKey& old_key,
+	const TimerKey& new_key
+) {
+	if (!timer_entity || old_key == new_key) {
+		return false;
+	}
+
+	auto& scene{ timer_entity.GetScene() };
+	bool changed{ false };
+
+	for (Entity owner : scene.Entities()) {
+		auto* scripts{ owner.TryGet<::ptgn::impl::Scripts>() };
+		if (!scripts) {
+			continue;
+		}
+
+		for (auto& entry : scripts->scripts) {
+			ScriptSequence& binding{
+				entry.instance
+					? entry.instance->sequence
+					: entry.sequence
+			};
+
+			ScriptSequence* sequence{ std::addressof(binding) };
+			if (binding.shared_reference) {
+				sequence = scene.ctx().shared_script_sequences.Find(
+					binding.shared_sequence_id
+				);
+			}
+
+			if (!sequence || !RenameTimerReferencesInSequence(
+					owner,
+					*sequence,
+					timer_entity,
+					old_key,
+					new_key
+				)) {
+				continue;
+			}
+
+			changed = true;
+
+			if (!binding.shared_reference && entry.instance) {
+				SequenceId sequence_id{ binding.id };
+				entry.sequence = binding;
+				entry.sequence.id = sequence_id;
+				entry.sequence.runtime = ScriptSequenceRuntime{};
+			}
+		}
+	}
+
+	return changed;
+}
+
 template <typename Target>
 bool DrawScriptsFeature(Target& target) {
 	if (!HasScriptsFeature(target)) {
@@ -8542,14 +8842,7 @@ void SyncTimerRuntimeSnapshot(
 	}
 }
 
-struct TimerRuntimeControlState {
-	millisecondsf adjustment{ 100.0f };
-};
-
-std::unordered_map<ImGuiID, TimerRuntimeControlState>& TimerRuntimeControlStates() {
-	static std::unordered_map<ImGuiID, TimerRuntimeControlState> states;
-	return states;
-}
+millisecondsf timer_runtime_adjustment{ 100.0f };
 
 void DrawTimerRuntimeControls(
 	Entity entity,
@@ -8609,9 +8902,6 @@ void DrawTimerRuntimeControls(
 		runtime_changed |= timer.Reset();
 	}
 
-	ImGuiID adjustment_id{ ImGui::GetID("##TimerRuntimeAdjustmentState") };
-	auto& control_state{ TimerRuntimeControlStates()[adjustment_id] };
-
 	float spacing{ ImGui::GetStyle().ItemSpacing.x };
 	float advance_width{
 		ImGui::CalcTextSize("Advance").x +
@@ -8633,24 +8923,24 @@ void DrawTimerRuntimeControls(
 
 	if (DrawDurationTextInput(
 			"##TimerRuntimeAdjustment",
-			control_state.adjustment,
+			timer_runtime_adjustment,
 			adjustment_width,
 			false,
 			"Positive duration to advance or rewind."
 		)) {
-		control_state.adjustment = millisecondsf{
-			std::max(0.001f, control_state.adjustment.count())
+		timer_runtime_adjustment = millisecondsf{
+			std::max(0.001f, timer_runtime_adjustment.count())
 		};
 	}
 
 	ImGui::SameLine(0.0f, spacing);
 	if (ImGui::Button("Advance", ImVec2{ advance_width, 0.0f })) {
-		runtime_changed |= timer.Advance(control_state.adjustment);
+		runtime_changed |= timer.Advance(timer_runtime_adjustment);
 	}
 
 	ImGui::SameLine(0.0f, spacing);
 	if (ImGui::Button("Rewind", ImVec2{ rewind_width, 0.0f })) {
-		runtime_changed |= timer.Rewind(control_state.adjustment);
+		runtime_changed |= timer.Rewind(timer_runtime_adjustment);
 	}
 
 	if (runtime_changed) {
@@ -8658,51 +8948,29 @@ void DrawTimerRuntimeControls(
 	}
 }
 
-struct TimerNameEditState {
-	std::string value;
-	bool active{ false };
+struct TimerRename {
+	TimerKey old_key;
+	TimerKey new_key;
 };
 
-std::unordered_map<ImGuiID, TimerNameEditState>& TimerNameEditStates() {
-	static std::unordered_map<ImGuiID, TimerNameEditState> states;
-	return states;
-}
-
-bool DrawTimerNameInput(std::string& value) {
-	ImGuiID id{ ImGui::GetID("##TimerName") };
-	auto& state{ TimerNameEditStates()[id] };
-
-	if (!state.active) {
-		state.value = value;
-	}
-
-	ImGui::SetNextItemWidth(-FLT_MIN);
-	bool submitted{ ImGui::InputTextWithHint(
-		"##TimerName",
-		"Timer name",
-		&state.value,
-		ImGuiInputTextFlags_EnterReturnsTrue
-	) };
-	bool active{ ImGui::IsItemActive() };
-	bool commit{ submitted || ImGui::IsItemDeactivatedAfterEdit() };
-	bool changed{ false };
-
-	if (commit && state.value != value) {
-		value = state.value;
-		changed = true;
-	}
-
-	state.active = active;
-	if (!active && !commit) {
-		state.value = value;
-	}
-
-	return changed;
-}
-
 template <typename Target>
-bool DrawTimersContents(Target& target, ::ptgn::impl::Timers& timers) {
+bool DrawTimersContents(
+	Target& target,
+	::ptgn::impl::Timers& timers,
+	std::vector<TimerRename>* renames = nullptr,
+	std::string* undo_label = nullptr,
+	std::optional<ImGuiID>* undo_key = nullptr
+) {
 	bool changed{ false };
+
+	auto set_undo = [undo_label, undo_key](std::string_view label, const char* id) {
+		if (undo_label) {
+			*undo_label = label;
+		}
+		if (undo_key) {
+			*undo_key = ImGui::GetID(id);
+		}
+	};
 
 	if (ImGui::Button("+ Timer", ImVec2{ -FLT_MIN, 0.0f })) {
 		timers.timers.push_back(TimerEntry{
@@ -8711,6 +8979,7 @@ bool DrawTimersContents(Target& target, ::ptgn::impl::Timers& timers) {
 			},
 		});
 		changed = true;
+		set_undo("Add Timer", "##AddTimerEdit");
 	}
 
 	std::optional<std::size_t> remove_index;
@@ -8771,6 +9040,7 @@ bool DrawTimersContents(Target& target, ::ptgn::impl::Timers& timers) {
 			ImGui::TableSetColumnIndex(1);
 			if (ImGui::Button("-##RemoveTimer", ImVec2{ button_size, button_size })) {
 				remove_index = index;
+				set_undo("Remove Timer", "##RemoveTimerEdit");
 			}
 			DrawTooltip("Remove this timer.");
 
@@ -8783,9 +9053,25 @@ bool DrawTimersContents(Target& target, ::ptgn::impl::Timers& timers) {
 
 		ScopedIndent timer_indent;
 
-		changed |= DrawPropertyRow("Name", [&]() {
-			return DrawTimerNameInput(entry.config.key.value);
-		});
+		bool name_changed{ DrawPropertyRow("Name", [&]() {
+			ImGui::SetNextItemWidth(-FLT_MIN);
+			return ImGui::InputTextWithHint(
+				"##TimerName",
+				"Timer name",
+				&entry.config.key.value
+			);
+		}) };
+
+		if (name_changed) {
+			if (renames) {
+				renames->push_back(TimerRename{
+					.old_key = live_key,
+					.new_key = entry.config.key,
+				});
+			}
+			changed = true;
+			set_undo("Rename Timer", "##RenameTimerEdit");
+		}
 
 		if (entry.config.key.value.empty()) {
 			ImGui::TextDisabled("Timer names must not be empty.");
@@ -8793,13 +9079,24 @@ bool DrawTimersContents(Target& target, ::ptgn::impl::Timers& timers) {
 			ImGui::TextDisabled("Timer names must be unique on an entity.");
 		}
 
-		changed |= DrawValue(target.ctx, "Duration", entry.config.duration);
-		changed |= DrawValue(target.ctx, "Mode", entry.config.mode);
-		changed |= DrawValue(
-			target.ctx,
-			"Start Automatically",
-			entry.config.start_automatically
-		);
+		if (DrawValue(target.ctx, "Duration", entry.config.duration)) {
+			changed = true;
+			set_undo("Change Timer Duration", "##TimerDurationEdit");
+		}
+
+		if (DrawValue(target.ctx, "Mode", entry.config.mode)) {
+			changed = true;
+			set_undo("Change Timer Mode", "##TimerModeEdit");
+		}
+
+		if (DrawValue(
+				target.ctx,
+				"Start Automatically",
+				entry.config.start_automatically
+			)) {
+			changed = true;
+			set_undo("Change Timer Auto Start", "##TimerAutoStartEdit");
+		}
 		DrawTooltip("Unchecked: start this timer manually or with a Timer Action.");
 
 		if constexpr (requires { target.entity; }) {
@@ -8911,6 +9208,156 @@ bool DrawGroupContents(Group& group) {
 }
 
 template <typename Target>
+bool DrawTimersComponent(Target& target) {
+	using Timers = ::ptgn::impl::Timers;
+
+	ScopedID target_scope{ target.Id() };
+	ScopedID component_scope{ static_cast<int>(Hash<Timers>()) };
+
+	auto before{ target.template Capture<Timers>() };
+	bool enabled{ before.has_value() };
+	bool changed{ false };
+	std::string undo_label{ "Edit Timers" };
+	std::optional<ImGuiID> undo_key;
+
+	if (ImGui::Checkbox("##Enabled", &enabled)) {
+		target.template SetLive<Timers>(
+			enabled
+				? ComponentState<Timers>{ Timers{} }
+				: std::nullopt
+		);
+		changed = true;
+		undo_label = enabled ? "Enable Timers" : "Disable Timers";
+		undo_key = ImGui::GetID("##TimersEnabledEdit");
+	}
+
+	ImGui::SameLine();
+
+	Timers value{ target.template Capture<Timers>().value_or(Timers{}) };
+	std::vector<TimerRename> renames;
+
+	bool open{ ImGui::TreeNodeEx(
+		"Timers##Tree",
+		ImGuiTreeNodeFlags_SpanAvailWidth
+	) };
+
+	if (open) {
+		ScopedIndent indent;
+		ScopedDisabled disabled{ !enabled };
+
+		bool contents_changed{ DrawTimersContents(
+			target,
+			value,
+			&renames,
+			&undo_label,
+			&undo_key
+		) };
+
+		if (enabled && contents_changed) {
+			target.template SetLive<Timers>(value);
+			changed = true;
+		}
+
+		ImGui::TreePop();
+	}
+
+	auto after{ target.template Capture<Timers>() };
+	if (!changed) {
+		return false;
+	}
+
+	if (!undo_key) {
+		undo_key = ImGui::GetID("##TimersComponentEdit");
+	}
+
+	if constexpr (std::same_as<std::remove_cvref_t<Target>, EntityInspectorTarget>) {
+		bool references_changed{ false };
+		std::optional<TimerReferenceSceneSnapshot> before_references;
+		std::optional<TimerReferenceSceneSnapshot> after_references;
+
+		if (target.entity && !renames.empty()) {
+			before_references = CaptureTimerReferenceSceneSnapshot(
+				target.entity.GetScene()
+			);
+
+			for (const auto& rename : renames) {
+				references_changed |= RenameTimerReferences(
+					target.entity,
+					rename.old_key,
+					rename.new_key
+				);
+			}
+
+			if (references_changed) {
+				after_references = CaptureTimerReferenceSceneSnapshot(
+					target.entity.GetScene()
+				);
+			}
+		}
+
+		if (references_changed) {
+			Editor* editor{ std::addressof(target.ctx.editor) };
+			EntityReference reference{ MakeEntityReference(target.entity) };
+			auto apply_timers{ target.template MakeApply<Timers>() };
+
+			TrackUndoableInteraction(
+				target.ctx,
+				*undo_key,
+				undo_label,
+				true,
+				[
+					editor,
+					reference,
+					apply_timers,
+					before = std::move(before),
+					before_references = std::move(*before_references)
+				]() mutable {
+					apply_timers(before);
+					RestoreTimerReferenceSceneSnapshot(
+						*editor,
+						reference,
+						before_references
+					);
+				},
+				[
+					editor,
+					reference,
+					apply_timers,
+					after = std::move(after),
+					after_references = std::move(*after_references)
+				]() mutable {
+					apply_timers(after);
+					RestoreTimerReferenceSceneSnapshot(
+						*editor,
+						reference,
+						after_references
+					);
+				}
+			);
+
+			return true;
+		}
+	}
+
+	auto apply{ target.template MakeApply<Timers>() };
+
+	TrackUndoableInteraction(
+		target.ctx,
+		*undo_key,
+		undo_label,
+		true,
+		[apply, before = std::move(before)]() mutable {
+			apply(before);
+		},
+		[apply, after = std::move(after)]() mutable {
+			apply(after);
+		}
+	);
+
+	return true;
+}
+
+template <typename Target>
 bool DrawUtilitiesFeature(Target& target) {
 	if (!HasUtilitiesFeature(target)) {
 		return false;
@@ -8929,14 +9376,7 @@ bool DrawUtilitiesFeature(Target& target) {
 
 	bool changed{ header.changed };
 
-	changed |= DrawOptionalComponent<Target, ::ptgn::impl::Timers>(
-		target,
-		"Timers",
-		true,
-		[&target](::ptgn::impl::Timers& value) {
-			return DrawTimersContents(target, value);
-		}
-	);
+	changed |= DrawTimersComponent(target);
 
 	changed |= DrawOptionalComponent<Target, Group>(
 		target,

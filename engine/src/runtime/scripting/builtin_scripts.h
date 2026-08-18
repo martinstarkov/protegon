@@ -396,7 +396,7 @@ PTGN_REFLECT_ENUM(TimerAction);
 
 /// @brief Controls a named timer on the script target entity.
 struct TimerActionScript : public Script {
-	TimerKey timer{ "Timer" };
+	TimerKey timer;
 	TimerAction action{ TimerAction::Start };
 	millisecondsf amount{ 1000.0f };
 

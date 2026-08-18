@@ -1317,9 +1317,6 @@ inline constexpr std::array kSceneTransitions{
 		}
 	}
 
-	std::ranges::sort(result, [](const TimerKey& lhs, const TimerKey& rhs) {
-		return lhs.value < rhs.value;
-	});
 	return result;
 }
 
@@ -1332,27 +1329,61 @@ bool DrawTimerKeyInline(
 	bool changed{ false };
 	ImGui::SetNextItemWidth(width);
 
-	if (choices.empty()) {
-		changed = ImGui::InputTextWithHint(id, "Timer name", &timer.value);
-		DrawItemTooltip("Named timer on the action target.");
-		return changed;
-	}
+	const char* preview{
+		timer.value.empty()
+			? "No Timer"
+			: timer.value.c_str()
+	};
 
-	const char* preview{ timer.value.empty() ? "Select Timer" : timer.value.c_str() };
 	if (ImGui::BeginCombo(id, preview)) {
-		for (const auto& choice : choices) {
-			bool selected{ choice == timer };
-			if (ImGui::Selectable(choice.value.c_str(), selected)) {
-				timer = choice;
+		std::string custom_name{ timer.value };
+
+		ImGui::SetNextItemWidth(-FLT_MIN);
+		if (ImGui::InputTextWithHint(
+				"##CustomTimerName",
+				"Custom timer name...",
+				&custom_name
+			)) {
+			timer.value = std::move(custom_name);
+			changed = true;
+		}
+
+		ImGui::Separator();
+
+		bool none_selected{ timer.value.empty() };
+		if (ImGui::Selectable("None", none_selected)) {
+			if (!none_selected) {
+				timer.value.clear();
 				changed = true;
 			}
+		}
+
+		for (const auto& choice : choices) {
+			bool selected{ choice == timer };
+
+			if (ImGui::Selectable(choice.value.c_str(), selected)) {
+				if (!selected) {
+					timer = choice;
+					changed = true;
+				}
+			}
+
 			if (selected) {
 				ImGui::SetItemDefaultFocus();
 			}
 		}
+
+		if (choices.empty()) {
+			ImGui::TextDisabled("No timers on the target.");
+		}
+
 		ImGui::EndCombo();
 	}
-	DrawItemTooltip("Named timer on the action target.");
+
+	DrawItemTooltip(
+		"Named timer on the action target. Open the combo to choose an existing timer "
+		"or enter a custom name."
+	);
 	return changed;
 }
 
