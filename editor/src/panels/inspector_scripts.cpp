@@ -1008,7 +1008,7 @@ bool DrawActions(
 		) };
 		float type_width{ label_width + ImGui::GetFrameHeight() +
 								ImGui::GetStyle().FramePadding.x * 2.0f };
-		float target_width{ 110.0f };
+		float target_width{ 77.0f };
 		float duration_width{ ImGui::CalcTextSize("5000ms").x +
 									ImGui::GetStyle().FramePadding.x * 2.0f };
 		float repeats_width{ GetCountControlWidth("Repeats") };
