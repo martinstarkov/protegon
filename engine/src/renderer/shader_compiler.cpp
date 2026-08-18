@@ -1,6 +1,6 @@
 #include "renderer/shader_compiler.h"
 
-#include <glad/gl.h>
+#include "renderer/backend/gl/gl.h"
 
 #include <algorithm>
 #include <cstdint>
