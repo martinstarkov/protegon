@@ -10,6 +10,7 @@
 #include <memory>
 #include <optional>
 #include <ranges>
+#include <set>
 #include <string>
 #include <string_view>
 #include <utility>
@@ -37,8 +38,6 @@ using RegisteredEntityQueryReference = ::ptgn::RegisteredEntityQueryReference;
 using EntityQueryContext = ::ptgn::EntityQueryContext;
 using RegisteredEntityQuery = ::ptgn::RegisteredEntityQuery;
 using EntityQueryRegistry = ::ptgn::EntityQueryRegistry;
-using RegisteredEntityGroup = ::ptgn::RegisteredEntityGroup;
-using EntityGroupRegistry = ::ptgn::EntityGroupRegistry;
 
 namespace {
 
@@ -48,7 +47,9 @@ constexpr float kEntityModeMinWidth{ 420.0f };
 constexpr float kComponentsModeMinWidth{ 540.0f };
 constexpr float kGroupsModeMinWidth{ 360.0f };
 constexpr float kQueriesModeMinWidth{ 400.0f };
-constexpr float kTargetPopupMaxWidth{ 720.0f };
+constexpr float kTargetPopupWidth{ kComponentsModeMinWidth };
+constexpr float kTargetPopupScreenMargin{ 8.0f };
+constexpr float kComponentRowExtraHeight{ 4.0f };
 
 [[nodiscard]] char LowerAscii(char c) {
 	if (c >= 'A' && c <= 'Z') {
@@ -571,12 +572,13 @@ void DrawEntityHierarchyNode(
 	ImGui::PopID();
 }
 
-void DrawMiniHierarchy(
+bool DrawMiniHierarchy(
 	Scene& scene,
 	Entity owner,
 	EntityReference& reference,
 	EntityFilterEditorState& state
 ) {
+	bool changed{ false };
 	if (owner) {
 		if (ImGui::Button(
 				"Select Owner"
@@ -585,6 +587,7 @@ void DrawMiniHierarchy(
 				reference,
 				owner
 			);
+			changed = true;
 		}
 
 		ImGui::SameLine();
@@ -644,9 +647,11 @@ void DrawMiniHierarchy(
 			reference,
 			picked_entity
 		);
+		changed = true;
 	}
 
 	ImGui::EndChild();
+	return changed;
 }
 
 bool DrawComponentPicker(
@@ -889,25 +894,15 @@ ResolveGroupQuery(
 ) {
 	std::vector<Entity> matches;
 
-	const auto* group{
-		EntityGroupRegistry::Find(
-			query.group
-		)
-	};
-
-	if (!group) {
+	if (query.group.empty()) {
 		return matches;
 	}
 
-	for (Entity entity :
-		 scene.Entities()) {
-		if (std::ranges::contains(
-				group->members,
-				entity.Get<UUID>()
-			)) {
-			matches.push_back(
-				entity
-			);
+	for (Entity entity : scene.Entities()) {
+		auto* groups{ entity.TryGet<Group>() };
+
+		if (groups && std::ranges::contains(groups->groups, query.group)) {
+			matches.push_back(entity);
 		}
 	}
 
@@ -1082,18 +1077,10 @@ ResolveRegisteredQuery(
 				   );
 		}
 
-		case EntityFilterType::Group: {
-			const auto* group{
-				EntityGroupRegistry::Find(
-					target.group.group
-				)
-			};
-
-			return group
-				? "Group: " +
-					  group->label
-				: "Select Group";
-		}
+		case EntityFilterType::Group:
+			return target.group.group.empty()
+				? "Select Group"
+				: "Group: " + target.group.group;
 
 		case EntityFilterType::Query: {
 			const auto* query{
@@ -1282,7 +1269,7 @@ bool DrawComponentQueryEditor(
 
 				ImGui::TableNextRow(
 					0,
-					ImGui::GetFrameHeight()
+					ImGui::GetFrameHeight() + kComponentRowExtraHeight
 				);
 
 				ImGui::TableSetColumnIndex(0);
@@ -1433,27 +1420,44 @@ bool DrawComponentQueryEditor(
 	return changed;
 }
 
+[[nodiscard]] std::set<std::string> GetSceneGroups(Scene* scene) {
+	std::set<std::string> groups;
+
+	if (!scene) {
+		return groups;
+	}
+
+	for (Entity entity : scene->Entities()) {
+		auto* membership{ entity.TryGet<Group>() };
+
+		if (!membership) {
+			continue;
+		}
+
+		for (const auto& group : membership->groups) {
+			if (!group.empty()) {
+				groups.insert(group);
+			}
+		}
+	}
+
+	return groups;
+}
+
 bool DrawGroupPicker(
+	Scene* scene,
 	GroupEntityQuery& query,
 	EntityFilterEditorState& state
 ) {
-	const auto* selected{
-		EntityGroupRegistry::Find(
-			query.group
-		)
-	};
-
-	const std::string preview{
-		selected
-			? selected->label
-			: "Select Group"
+	std::string preview{
+		query.group.empty()
+			? "Select Group"
+			: query.group
 	};
 
 	bool changed{ false };
 
-	ImGui::SetNextItemWidth(
-		280.0f
-	);
+	ImGui::SetNextItemWidth(-FLT_MIN);
 
 	if (!ImGui::BeginCombo(
 			"##GroupPicker",
@@ -1462,9 +1466,7 @@ bool DrawGroupPicker(
 		return false;
 	}
 
-	ImGui::SetNextItemWidth(
-		-FLT_MIN
-	);
+	ImGui::SetNextItemWidth(-FLT_MIN);
 
 	ImGui::InputTextWithHint(
 		"##GroupSearch",
@@ -1472,25 +1474,12 @@ bool DrawGroupPicker(
 		&state.group_filter
 	);
 
-	auto groups{
-		EntityGroupRegistry::Groups()
-	};
-
-	std::ranges::sort(
-		groups,
-		{},
-		&RegisteredEntityGroup::label
-	);
-
+	auto groups{ GetSceneGroups(scene) };
 	bool any_visible{ false };
 
 	for (const auto& group : groups) {
 		if (!ContainsCaseInsensitive(
-				group.label,
-				state.group_filter
-			) &&
-			!ContainsCaseInsensitive(
-				group.key,
+				group,
 				state.group_filter
 			)) {
 			continue;
@@ -1499,17 +1488,19 @@ bool DrawGroupPicker(
 		any_visible = true;
 
 		if (ImGui::Selectable(
-				group.label.c_str(),
-				query.group == group.key
+				group.c_str(),
+				query.group == group
 			)) {
-			query.group = group.key;
+			query.group = group;
 			changed = true;
 		}
 	}
 
 	if (!any_visible) {
 		ImGui::TextDisabled(
-			"No matching groups."
+			scene
+				? "No matching groups."
+				: "Group choices require a scene instance."
 		);
 	}
 
@@ -1524,28 +1515,11 @@ bool DrawGroupQueryEditor(
 ) {
 	bool changed{
 		DrawGroupPicker(
+			scene,
 			query,
 			state
 		)
 	};
-
-	const auto* selected{
-		EntityGroupRegistry::Find(
-			query.group
-		)
-	};
-
-	if (selected) {
-		ImGui::SameLine();
-
-		ImGui::TextDisabled(
-			"%zu %s",
-			selected->members.size(),
-			selected->members.size() == 1
-				? "member"
-				: "members"
-		);
-	}
 
 	if (scene) {
 		DrawMatchPreview(ResolveGroupQuery(*scene, query));
@@ -1573,7 +1547,7 @@ bool DrawRegisteredQueryPicker(
 	bool changed{ false };
 
 	ImGui::SetNextItemWidth(
-		320.0f
+		-FLT_MIN
 	);
 
 	if (!ImGui::BeginCombo(
@@ -1753,29 +1727,6 @@ bool DrawRegisteredQueryEditor(
 	return changed;
 }
 
-[[nodiscard]] float FilterPopupMinWidth(
-	EntityFilterType type
-) {
-	switch (type) {
-		case EntityFilterType::Any:
-			return 300.0f;
-
-		case EntityFilterType::Entity:
-			return kEntityModeMinWidth;
-
-		case EntityFilterType::Components:
-			return kComponentsModeMinWidth;
-
-		case EntityFilterType::Group:
-			return kGroupsModeMinWidth;
-
-		case EntityFilterType::Query:
-			return kQueriesModeMinWidth;
-	}
-
-	return kEntityModeMinWidth;
-}
-
 bool DrawEntityFilterEditor(
 	Scene* scene,
 	Entity owner,
@@ -1803,6 +1754,8 @@ bool DrawEntityFilterEditor(
 			(available - close_width - spacing * 5.0f) / 5.0f
 		)
 	};
+
+	ImGui::PushStyleVar(ImGuiStyleVar_SelectableTextAlign, ImVec2{ 0.5f, 0.5f });
 
 	if (ImGui::Selectable(
 			"Any",
@@ -1894,6 +1847,8 @@ bool DrawEntityFilterEditor(
 		changed = true;
 	}
 
+	ImGui::PopStyleVar();
+
 	ImGui::SameLine();
 
 	if (ImGui::Button(
@@ -1916,7 +1871,7 @@ bool DrawEntityFilterEditor(
 
 		case EntityFilterType::Entity:
 			if (scene) {
-				DrawMiniHierarchy(*scene, owner, target.entity, state);
+				changed |= DrawMiniHierarchy(*scene, owner, target.entity, state);
 			} else {
 				ImGui::TextDisabled("Exact entity selection requires a scene instance.");
 			}
@@ -1984,21 +1939,28 @@ bool DrawEntityFilterButtonImpl(
 		);
 	}
 
+	float popup_width{ kTargetPopupWidth };
+	float popup_max_height{ FLT_MAX };
+
+	if (auto* viewport{ ImGui::GetWindowViewport() }) {
+		popup_width = std::min(
+			popup_width,
+			std::max(1.0f, viewport->WorkSize.x - kTargetPopupScreenMargin * 2.0f)
+		);
+		popup_max_height = std::max(
+			1.0f,
+			viewport->WorkSize.y - kTargetPopupScreenMargin * 2.0f
+		);
+	}
+
 	ImGui::SetNextWindowSizeConstraints(
-		ImVec2{
-			FilterPopupMinWidth(
-				target.type
-			),
-			0.0f
-		},
-		ImVec2{
-			kTargetPopupMaxWidth,
-			FLT_MAX
-		}
+		ImVec2{ popup_width, 0.0f },
+		ImVec2{ popup_width, popup_max_height }
 	);
 
 	if (ImGui::BeginPopup(
-			"##EntityFilterPopup"
+			"##EntityFilterPopup",
+			ImGuiWindowFlags_AlwaysAutoResize
 		)) {
 		changed |=
 			DrawEntityFilterEditor(
@@ -2007,6 +1969,35 @@ bool DrawEntityFilterButtonImpl(
 				target,
 				state
 			);
+
+		if (auto* viewport{ ImGui::GetWindowViewport() }) {
+			ImVec2 popup_position{ ImGui::GetWindowPos() };
+			ImVec2 popup_size{ ImGui::GetWindowSize() };
+
+			float min_x{ viewport->WorkPos.x + kTargetPopupScreenMargin };
+			float min_y{ viewport->WorkPos.y + kTargetPopupScreenMargin };
+			float max_x{
+				viewport->WorkPos.x + viewport->WorkSize.x -
+				popup_size.x - kTargetPopupScreenMargin
+			};
+			float max_y{
+				viewport->WorkPos.y + viewport->WorkSize.y -
+				popup_size.y - kTargetPopupScreenMargin
+			};
+
+			max_x = std::max(max_x, min_x);
+			max_y = std::max(max_y, min_y);
+
+			ImVec2 clamped_position{
+				std::clamp(popup_position.x, min_x, max_x),
+				std::clamp(popup_position.y, min_y, max_y)
+			};
+
+			if (clamped_position.x != popup_position.x ||
+				clamped_position.y != popup_position.y) {
+				ImGui::SetWindowPos(clamped_position, ImGuiCond_Always);
+			}
+		}
 
 		ImGui::EndPopup();
 	}

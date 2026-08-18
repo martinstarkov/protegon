@@ -8452,6 +8452,40 @@ bool DrawGroupContents(Group& group) {
 					ImGui::InputText("##Value", &group.groups[index])
 				};
 
+				ImVec2 field_min{ ImGui::GetItemRectMin() };
+				ImVec2 field_max{ ImGui::GetItemRectMax() };
+
+				bool duplicate{ false };
+
+				if (!group.groups[index].empty()) {
+					for (std::size_t earlier_index{ 0 };
+						 earlier_index < index;
+						 ++earlier_index) {
+						if (!group.groups[earlier_index].empty() &&
+							group.groups[earlier_index] == group.groups[index]) {
+							duplicate = true;
+							break;
+						}
+					}
+				}
+
+				if (duplicate) {
+					ImGui::GetWindowDrawList()->AddRect(
+						field_min,
+						field_max,
+						IM_COL32(255, 200, 0, 255),
+						ImGui::GetStyle().FrameRounding,
+						0,
+						1.0f
+					);
+
+					if (ImGui::IsItemHovered()) {
+						ImGui::SetTooltip(
+							"Duplicate group; this entry is redundant."
+						);
+					}
+				}
+
 				ImGui::SameLine(0.0f, spacing);
 
 				if (ImGui::Button("X", ImVec2{ remove_width, remove_width })) {

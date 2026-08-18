@@ -93,8 +93,14 @@ bool Matches(const EntityFilter& filter, Scene& scene, Entity owner, Entity targ
 		}
 		case EntityFilterType::Components:
 			return MatchesComponentQuery(target, filter.components);
-		case EntityFilterType::Group:
-			return EntityGroupRegistry::Contains(filter.group.group, target);
+		case EntityFilterType::Group: {
+			if (filter.group.group.empty()) {
+				return false;
+			}
+
+			auto* groups{ target.TryGet<Group>() };
+			return groups && std::ranges::contains(groups->groups, filter.group.group);
+		}
 		case EntityFilterType::Query: {
 			const auto* query{ EntityQueryRegistry::Find(filter.query.key) };
 			return query && query->evaluate && query->evaluate(EntityQueryContext{
