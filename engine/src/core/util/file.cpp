@@ -14,6 +14,7 @@
 #include <string_view>
 #include <system_error>
 #include <vector>
+#include <limits>
 
 #include "core/assert.h"
 #include "core/build_info.h"
@@ -77,8 +78,18 @@ std::vector<std::byte> ReadBinary(const path& file) {
 		absolute_path.string()
 	);
 
-	std::vector<std::byte> bytes{
+	std::uintmax_t file_size{
 		fs::file_size(absolute_path)
+	};
+
+	PTGN_ASSERT(
+		file_size <= std::numeric_limits<std::size_t>::max(),
+		"Binary file is too large to load into memory: ",
+		absolute_path.string()
+	);
+
+	std::vector<std::byte> bytes{
+		static_cast<std::size_t>(file_size)
 	};
 
 	std::ifstream in{
