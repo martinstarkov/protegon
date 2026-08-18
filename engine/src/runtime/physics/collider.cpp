@@ -1,6 +1,7 @@
 #include "runtime/physics/collider.h"
 
 #include <algorithm>
+#include <span>
 #include <vector>
 
 #include "core/assert.h"
@@ -92,6 +93,18 @@ CollisionInfo Collider::SweptWith(Entity other) const {
 
 bool Collider::OverlappedWith(Entity other) const {
 	return std::ranges::contains(overlaps_, other);
+}
+
+std::span<const Entity> Collider::GetOverlaps() const {
+	return overlaps_;
+}
+
+std::span<const CollisionInfo> Collider::GetIntersections() const {
+	return intersects_;
+}
+
+std::span<const CollisionInfo> Collider::GetSweeps() const {
+	return sweeps_;
 }
 
 void Collider::ResetContainers() {

@@ -2,6 +2,7 @@
 
 #include <cstdint>
 #include <functional>
+#include <span>
 #include <vector>
 
 #include "core/math/geometry/shape.h"
@@ -72,6 +73,10 @@ struct Collider {
 	[[nodiscard]] CollisionInfo IntersectedWith(Entity other) const;
 	[[nodiscard]] CollisionInfo SweptWith(Entity other) const;
 	[[nodiscard]] bool OverlappedWith(Entity other) const;
+
+	[[nodiscard]] std::span<const Entity> GetOverlaps() const;
+	[[nodiscard]] std::span<const CollisionInfo> GetIntersections() const;
+	[[nodiscard]] std::span<const CollisionInfo> GetSweeps() const;
 
 	/// @brief Optional function to check for early outs before performing collision checks. Should
 	/// return true if the collision check should be performed, false if it should be skipped.
