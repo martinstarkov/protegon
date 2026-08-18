@@ -14,6 +14,7 @@
 #include <memory>
 #include <optional>
 #include <ranges>
+#include <span>
 #include <string>
 #include <string_view>
 #include <utility>
@@ -32,6 +33,7 @@
 #include "panels/content_browser.h"
 #include "runtime/animation/animation_event.h"
 #include "runtime/ecs/component_registry.h"
+#include "runtime/ecs/entity_filter.h"
 #include "runtime/interaction/draggable_event.h"
 #include "runtime/interaction/dropzone_event.h"
 #include "runtime/interaction/interactive_event.h"
@@ -2058,15 +2060,101 @@ bool DrawMoveTo(ScriptEditorContext&, MoveToScript& script) {
 	return changed;
 }
 
-bool DrawFollowTarget(ScriptEditorContext&, FollowTargetScript& script) {
-	bool changed{ ImGui::DragFloat("Speed", &script.speed, 1.0f, 0.0f) };
+[[nodiscard]] std::vector<Entity> ResolveFollowPickerExcludedEntities(
+	ScriptEditorContext& context
+) {
+	if (!context.owner) {
+		return {};
+	}
+
+	if (!context.sequence_target_filter || !context.sequence_target_filter->has_value()) {
+		return { context.owner };
+	}
+
+	return ResolveEntityFilter(
+		context.sequence_target_filter->value(),
+		context.owner.GetScene(),
+		context.owner
+	);
+}
+
+bool DrawFollowEntityPicker(
+	ScriptEditorContext& context,
+	UUID& target,
+	const char* id,
+	inspector::EntityFilterEditorState& state
+) {
+	if (!context.owner) {
+		ImGui::TextDisabled("Entity target selection requires a scene instance.");
+		return false;
+	}
+
+	auto& scene{ context.owner.GetScene() };
+	std::vector<Entity> excluded_entities{ ResolveFollowPickerExcludedEntities(context) };
+	Entity selected{ scene.GetEntity(target) };
+	bool changed{ false };
+
+	if (selected && std::ranges::contains(excluded_entities, selected)) {
+		target = {};
+		selected = {};
+		changed = true;
+	}
+
+	EntityFilter filter;
+	filter.type = EntityFilterType::Entity;
+
+	if (selected) {
+		SetEntityReference(filter.entity, selected);
+	}
+
+	inspector::EntityFilterEditorOptions options{
+		.show_any = false,
+		.show_entity = true,
+		.show_components = false,
+		.show_groups = false,
+		.show_queries = false,
+		.allow_select_owner = false,
+		.exclude_owner = false,
+		.excluded_entities = std::span<const Entity>{ excluded_entities },
+	};
+
+	ImGui::PushID(id);
+
+	if (inspector::DrawEntityFilterButton(
+			std::addressof(scene),
+			context.owner,
+			filter,
+			state,
+			options
+		)) {
+		if (filter.entity.uuid.has_value()) {
+			target = filter.entity.uuid.value();
+			changed = true;
+		}
+	}
+
+	ImGui::PopID();
+	return changed;
+}
+
+bool DrawFollowTarget(ScriptEditorContext& context, FollowTargetScript& script) {
+	static inspector::EntityFilterEditorState state;
+
+	bool changed{ DrawFollowEntityPicker(
+		context,
+		script.target,
+		"FollowTargetTarget",
+		state
+	) };
+	changed |= ImGui::DragFloat("Speed", &script.speed, 1.0f, 0.0f);
 	changed |= ImGui::DragFloat("Stopping Distance", &script.stopping_distance, 0.1f, 0.0f);
-	ImGui::TextDisabled("Target selection should use your UUID/entity reference field.");
 	return changed;
 }
 
 bool DrawTintToInline(ScriptEditorContext&, TintToScript& script) {
 	auto tint{ script.tint.Normalized() };
+
+	ImGui::SetNextItemWidth(ImGui::GetFrameHeight());
 
 	if (!ImGui::ColorEdit4(
 			"##Tint",
@@ -2114,52 +2202,14 @@ bool DrawRecoverShake(ScriptEditorContext& context, RecoverShakeScript& script) 
 }
 
 bool DrawFollowEntity(ScriptEditorContext& context, FollowEntityScript& script) {
-	bool changed{ false };
+	static inspector::EntityFilterEditorState state;
 
-	if (context.owner) {
-		EntityFilter filter;
-		filter.type = EntityFilterType::Entity;
-		filter.entity.uuid = script.target;
-
-		if (Entity selected{ context.owner.GetScene().GetEntity(script.target) };
-			selected && selected != context.owner) {
-			SetEntityReference(filter.entity, selected);
-		} else if (selected == context.owner) {
-			filter.entity = {};
-		}
-
-		static inspector::EntityFilterEditorState state;
-
-		inspector::EntityFilterEditorOptions options{
-			.show_any = false,
-			.show_entity = true,
-			.show_components = false,
-			.show_groups = false,
-			.show_queries = false,
-			.allow_select_owner = false,
-			.exclude_owner = true,
-		};
-
-		ImGui::PushID("FollowEntityTarget");
-
-		if (inspector::DrawEntityFilterButton(
-				std::addressof(context.owner.GetScene()),
-				context.owner,
-				filter,
-				state,
-				options
-			)) {
-			if (filter.entity.uuid.has_value()) {
-				script.target = filter.entity.uuid.value();
-				changed = true;
-			}
-		}
-
-		ImGui::PopID();
-	} else {
-		ImGui::TextDisabled("Entity target selection requires a scene instance.");
-	}
-
+	bool changed{ DrawFollowEntityPicker(
+		context,
+		script.target,
+		"FollowEntityTarget",
+		state
+	) };
 	changed |= DrawReflectedScriptValue(context.ctx, script.config);
 	return changed;
 }

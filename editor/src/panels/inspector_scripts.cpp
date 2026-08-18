@@ -775,7 +775,12 @@ bool DrawActionPickerWithInline(
 
 	float available{ ImGui::GetContentRegionAvail().x };
 	float spacing{ ImGui::GetStyle().ItemSpacing.x };
-	float picker_width{ std::min(150.0f, std::max(110.0f, available * 0.32f)) };
+	bool tint_inline{ action.type_hash == Hash<TintToScript>() };
+	float picker_width{
+		tint_inline
+			? std::max(1.0f, available - spacing - ImGui::GetFrameHeight())
+			: std::min(150.0f, std::max(110.0f, available * 0.32f))
+	};
 	float row_y{ ImGui::GetCursorScreenPos().y };
 
 	bool changed{
@@ -793,9 +798,16 @@ bool DrawActionPickerWithInline(
 
 		ImGui::SetNextItemWidth(-FLT_MIN);
 
-		if (registered_editor->draw_inline(context, action.value)) {
+		auto* previous_target_filter{ context.sequence_target_filter };
+		context.sequence_target_filter = std::addressof(action.target);
+
+		bool inline_changed{ registered_editor->draw_inline(context, action.value) };
+
+		context.sequence_target_filter = previous_target_filter;
+
+		if (inline_changed) {
 			action.runtime_factory = {};
-			changed				   = true;
+			changed = true;
 		}
 	}
 
@@ -999,7 +1011,13 @@ bool DrawActionParameters(ScriptEditorContext& context, ScriptStep& action, floa
 			"ActionParameters", ImVec2{ std::max(1.0f, right_screen_x - left_screen_x), 0.0f },
 			ImGuiChildFlags_AutoResizeY
 		)) {
+		auto* previous_target_filter{ context.sequence_target_filter };
+		context.sequence_target_filter = std::addressof(action.target);
+
 		changed = editor->draw(context, action.value);
+
+		context.sequence_target_filter = previous_target_filter;
+
 		if (changed) {
 			action.runtime_factory = {};
 		}
@@ -1549,7 +1567,7 @@ bool DrawEvent(
 						label.c_str(), nullptr, candidate.type_hash == event.type_hash
 					)) {
 					event.type_hash = candidate.type_hash;
-					event.name		= candidate.name;
+					event.name		= registration->name;
 					registration->set_defaults(event);
 					selected		   = EventEditorRegistry::Find(event.type_hash);
 					event_type_changed = true;
@@ -2114,6 +2132,7 @@ bool DrawSequence(
 		ImVec4 header_active{ binding.enabled ? ImVec4{ 0.50f, 0.36f, 0.55f, 1.0f }
 													: ImVec4{ 0.34f, 0.34f, 0.34f, 1.0f } };
 		bool header_hovered_before_draw{
+			ImGui::IsWindowHovered() &&
 			ImGui::IsMouseHoveringRect(header_min, header_max)
 		};
 		bool header_active_before_draw{ !editing_before_draw && header_hovered_before_draw &&
@@ -2451,6 +2470,7 @@ bool DrawResidentScripts(ScriptEditorContext& context, ::ptgn::impl::Scripts& sc
 			ImVec4 header_active{ script.enabled ? ImVec4{ 0.31f, 0.49f, 0.47f, 1.0f }
 													   : ImVec4{ 0.34f, 0.34f, 0.34f, 1.0f } };
 			bool header_hovered_before_draw{
+				ImGui::IsWindowHovered() &&
 				ImGui::IsMouseHoveringRect(header_min, header_max)
 			};
 			bool header_active_before_draw{ header_hovered_before_draw &&

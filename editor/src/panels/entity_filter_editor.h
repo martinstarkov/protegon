@@ -1,6 +1,7 @@
 #pragma once
 
 #include <optional>
+#include <span>
 #include <string>
 
 #include "runtime/ecs/entity.h"
@@ -27,6 +28,7 @@ struct EntityFilterEditorOptions {
 	bool show_queries{ true };
 	bool allow_select_owner{ true };
 	bool exclude_owner{ false };
+	std::span<const Entity> excluded_entities{};
 };
 
 bool DrawEntityFilterButton(

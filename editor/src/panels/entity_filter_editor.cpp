@@ -11,6 +11,7 @@
 #include <optional>
 #include <ranges>
 #include <set>
+#include <span>
 #include <string>
 #include <string_view>
 #include <utility>
@@ -454,19 +455,29 @@ void DrawHierarchyFilterTooltip() {
 	ImGui::EndTooltip();
 }
 
+[[nodiscard]] bool IsHierarchyEntityExcluded(
+	Entity entity,
+	Entity excluded_entity,
+	std::span<const Entity> excluded_entities
+) {
+	return entity == excluded_entity ||
+		std::ranges::contains(excluded_entities, entity);
+}
+
 void DrawEntityHierarchyNode(
 	Entity entity,
 	const EntityReference& current,
 	std::string_view filter,
 	Entity& picked_entity,
 	Entity excluded_entity = {},
+	std::span<const Entity> excluded_entities = {},
 	std::size_t depth = 0
 ) {
 	if (!entity || depth >= kMaxHierarchyDepth) {
 		return;
 	}
 
-	if (entity == excluded_entity) {
+	if (IsHierarchyEntityExcluded(entity, excluded_entity, excluded_entities)) {
 		if (HasChildren(entity)) {
 			auto children{ GetChildren(entity) };
 			SortByLocalDepth(children);
@@ -478,6 +489,7 @@ void DrawEntityHierarchyNode(
 					filter,
 					picked_entity,
 					excluded_entity,
+					excluded_entities,
 					depth
 				);
 			}
@@ -492,26 +504,17 @@ void DrawEntityHierarchyNode(
 
 	std::vector<Entity> children;
 
-	if (HasChildren(entity)) {
-		auto direct_children{ GetChildren(entity) };
+	auto collect_children = [&](auto&& self, Entity parent) -> void {
+		if (!HasChildren(parent)) {
+			return;
+		}
+
+		auto direct_children{ GetChildren(parent) };
 		SortByLocalDepth(direct_children);
 
 		for (Entity child : direct_children) {
-			if (child == excluded_entity) {
-				if (HasChildren(child)) {
-					auto grandchildren{ GetChildren(child) };
-					SortByLocalDepth(grandchildren);
-
-					for (Entity grandchild : grandchildren) {
-						if (EntityOrDescendantMatchesFilter(
-								grandchild,
-								filter,
-								depth + 1
-							)) {
-							children.emplace_back(grandchild);
-						}
-					}
-				}
+			if (IsHierarchyEntityExcluded(child, excluded_entity, excluded_entities)) {
+				self(self, child);
 				continue;
 			}
 
@@ -519,7 +522,9 @@ void DrawEntityHierarchyNode(
 				children.emplace_back(child);
 			}
 		}
-	}
+	};
+
+	collect_children(collect_children, entity);
 
 	bool has_visible_children{ !children.empty() };
 	bool selected{
@@ -576,6 +581,7 @@ void DrawEntityHierarchyNode(
 				filter,
 				picked_entity,
 				excluded_entity,
+				excluded_entities,
 				depth + 1
 			);
 		}
@@ -592,7 +598,8 @@ bool DrawMiniHierarchy(
 	EntityReference& reference,
 	EntityFilterEditorState& state,
 	bool allow_select_owner = true,
-	Entity excluded_entity = {}
+	Entity excluded_entity = {},
+	std::span<const Entity> excluded_entities = {}
 ) {
 	bool changed{ false };
 
@@ -641,7 +648,8 @@ bool DrawMiniHierarchy(
 			reference,
 			state.hierarchy_filter,
 			picked_entity,
-			excluded_entity
+			excluded_entity,
+			excluded_entities
 		);
 	}
 
@@ -1946,7 +1954,8 @@ bool DrawEntityFilterEditor(
 					target.entity,
 					state,
 					options.allow_select_owner,
-					options.exclude_owner ? owner : Entity{}
+					options.exclude_owner ? owner : Entity{},
+					options.excluded_entities
 				);
 			} else {
 				ImGui::TextDisabled("Exact entity selection requires a scene instance.");

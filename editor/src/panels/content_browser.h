@@ -105,7 +105,7 @@ private:
 	void DrawAssetGrid(EditorContext& ctx);
 	void DrawContentBrowserPopups(EditorContext& ctx);
 	void DrawShaderEditor(EditorContext& ctx);
-	void OpenShaderEditor(EditorContext& ctx, const impl::AssetRecord& asset);
+	void OpenShaderEditor(EditorContext& ctx, const ::ptgn::impl::AssetRecord& asset);
 	void OpenShaderEditor(EditorContext& ctx, const ShaderKey& key);
 
 	void ImportFiles(EditorContext& ctx, const std::vector<path>& files);
