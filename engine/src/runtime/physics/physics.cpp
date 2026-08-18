@@ -11,13 +11,20 @@
 #include "core/util/time.h"
 #include "runtime/ecs/entity.h"
 #include "runtime/physics/movement.h"
+#include "runtime/physics/platformer_event.h"
+#include "runtime/physics/platformer_grounding.h"
+#include "runtime/physics/platformer_jump.h"
+#include "runtime/physics/platformer_jump_registry.h"
 #include "runtime/physics/rigid_body.h"
 #include "runtime/scene/scene.h"
 #include "runtime/scene/scene_context.h"
+#include "runtime/scene/scene_event.h"
 
 namespace ptgn {
 
-Physics::Physics(Scene& scene) : scene_{ &scene } {}
+Physics::Physics(Scene& scene) : scene_{ &scene } {
+	RegisterBuiltInPlatformerJumpControllers();
+}
 
 void Physics::Rebind(Scene& scene) {
 	scene_ = &scene;
@@ -65,32 +72,64 @@ bool Physics::IsEnabled() const {
 	return enabled_;
 }
 
+void Physics::UpdatePlatformerGrounding() const {
+	PTGN_ASSERT(scene_);
+
+	for (auto [entity, movement] : scene_->EntitiesWith<PlatformerMovement>()) {
+		bool was_grounded{ movement.IsGrounded() };
+		ptgn::UpdatePlatformerGrounding(
+			entity,
+			movement.grounding,
+			movement.grounding_state_,
+			gravity_
+		);
+
+		if (!was_grounded && movement.IsGrounded()) {
+			PushEvent<event::PlayerGrounded>(
+				entity,
+				movement.GetGroundEntity(),
+				movement.GetGroundNormal()
+			);
+		} else if (was_grounded && !movement.IsGrounded()) {
+			PushEvent<event::PlayerUngrounded>(entity);
+		}
+	}
+}
+
 void Physics::PreCollisionUpdate() const {
 	if (!enabled_) {
 		return;
 	}
 
-	auto dt{ Physics::dt() };
-
+	auto frame_dt{ Physics::dt() };
 	PTGN_ASSERT(scene_);
+
+	UpdatePlatformerGrounding();
 
 	for (auto [entity, transform, rigid_body, movement] :
 		 scene_->EntitiesWith<Transform, RigidBody, TopDownMovement>()) {
-		movement.Update(entity, transform, rigid_body, dt);
+		movement.Update(entity, transform, rigid_body, frame_dt);
 	}
 
-	for (auto [e, transform, rigid_body, movement, jump] :
-		 scene_->EntitiesWith<Transform, RigidBody, PlatformerMovement, PlatformerJump>()) {
-		movement.Update(*scene_, transform, rigid_body, dt);
-		jump.Update(*scene_, rigid_body, movement.grounded, gravity_, dt);
+	for (auto [entity, transform, rigid_body, movement] :
+		 scene_->EntitiesWith<Transform, RigidBody, PlatformerMovement>()) {
+		movement.Update(*scene_, transform, rigid_body, frame_dt);
+
+
+		PlatformerJumpContext context{
+			.entity = entity,
+			.scene = *scene_,
+			.platformer = movement,
+			.transform = transform,
+			.rigid_body = rigid_body,
+			.gravity = gravity_,
+			.dt = frame_dt,
+		};
+		UpdatePlatformerJumpController(entity, context);
 	}
 
-	for (auto [e, rigid_body] : scene_->EntitiesWith<RigidBody>()) {
-		rigid_body.Update(gravity_, dt);
-	}
-
-	for (auto [e, movement] : scene_->EntitiesWith<PlatformerMovement>()) {
-		movement.grounded = false;
+	for (auto [entity, rigid_body] : scene_->EntitiesWith<RigidBody>()) {
+		rigid_body.Update(gravity_, frame_dt);
 	}
 }
 
@@ -99,29 +138,26 @@ void Physics::PostCollisionUpdate() const {
 		return;
 	}
 
-	auto dt{ Physics::dt() };
-
+	auto frame_dt{ Physics::dt() };
 	PTGN_ASSERT(scene_);
 
 	for (auto [entity, transform, rigid_body] : scene_->EntitiesWith<Transform, RigidBody>()) {
-		transform.Translate(rigid_body.velocity * dt.count());
-		transform.Rotate(rigid_body.angular_velocity * dt.count());
+		transform.Translate(rigid_body.velocity * frame_dt.count());
+		transform.Rotate(rigid_body.angular_velocity * frame_dt.count());
 		transform.ClampRotation();
 
 		if (!bounds_.has_value()) {
 			continue;
 		}
 
-		// Enforce world boundary behavior for the positions.
-
 		BoundaryBehavior behavior{ bounds_.value().behavior };
-
 		if (entity.Has<BoundaryBehavior>()) {
 			behavior = entity.Get<BoundaryBehavior>();
 		}
 
 		HandleBoundary(
-			transform, rigid_body.velocity,
+			transform,
+			rigid_body.velocity,
 			Bounds{ bounds_.value().position, bounds_.value().size, behavior }
 		);
 	}
@@ -143,8 +179,7 @@ void Physics::HandleBoundary(Transform& transform, V2_float& velocity, const Bou
 			break;
 		}
 		case BoundaryBehavior::SlideVelocity: {
-			auto clamped{ Clamp(position, min, max) };
-			transform.position = clamped;
+			transform.position = Clamp(position, min, max);
 			break;
 		}
 		case BoundaryBehavior::ReflectVelocity: {
@@ -158,13 +193,14 @@ void Physics::HandleBoundary(Transform& transform, V2_float& velocity, const Bou
 			transform.position = clamped;
 			break;
 		}
-		default: PTGN_ERROR("Unknown physics boundary behavior specified");
+		default:
+			PTGN_ERROR("Unknown BoundaryBehavior: ", std::to_underlying(bounds.behavior));
 	}
 }
 
 void Physics::Reset() {
 	enabled_ = true;
-	bounds_	 = {};
+	bounds_ = {};
 	gravity_ = {};
 }
 

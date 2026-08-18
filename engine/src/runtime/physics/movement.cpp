@@ -14,10 +14,7 @@
 #include "core/math/transform.h"
 #include "core/math/vector2.h"
 #include "core/util/time.h"
-#include "core/util/timer.h"
 #include "runtime/ecs/entity.h"
-#include "runtime/physics/collider.h"
-#include "runtime/physics/collision.h"
 #include "runtime/physics/move_direction.h"
 #include "runtime/physics/movement_event.h"
 #include "runtime/physics/rigid_body.h"
@@ -373,12 +370,9 @@ void PlatformerMovement::Update(
 	bool right{ input.KeyHeld(right_key) };
 
 	float dir_x{ 0.0f };
-
 	if (left && !right) {
 		dir_x = -1.0f;
-	}
-
-	if (right && !left) {
+	} else if (right && !left) {
 		dir_x = 1.0f;
 	}
 
@@ -392,15 +386,12 @@ void PlatformerMovement::Update(
 	// multiplied by the character's maximum speed
 	V2_float desired_velocity{ dir_x * std::max(max_speed - friction, 0.0f), 0.0f };
 
-	// Calculate movement, depending on whether "Instant Movement" has been checked
 	if (use_acceleration) {
 		RunWithAcceleration(scene, desired_velocity, dir_x, rb, dt);
+	} else if (IsGrounded()) {
+		rb.velocity.x = desired_velocity.x;
 	} else {
-		if (grounded) {
-			rb.velocity.x = desired_velocity.x;
-		} else {
-			RunWithAcceleration(scene, desired_velocity, dir_x, rb, dt);
-		}
+		RunWithAcceleration(scene, desired_velocity, dir_x, rb, dt);
 	}
 }
 
@@ -409,160 +400,44 @@ void PlatformerMovement::RunWithAcceleration(
 ) const {
 	const auto& input{ scene.ctx().input };
 
-	// Set acceleration, deceleration, and turn speed stats, based on whether the player is on
-	// the ground or in the air
-
-	float acceleration{ grounded ? max_acceleration : max_air_acceleration };
-	float deceleration{ grounded ? max_deceleration : max_air_deceleration };
-	float turn_speed{ grounded ? max_turn_speed : max_air_turn_speed };
+	float acceleration{ IsGrounded() ? max_acceleration : max_air_acceleration };
+	float deceleration{ IsGrounded() ? max_deceleration : max_air_deceleration };
+	float turn_speed{ IsGrounded() ? max_turn_speed : max_air_turn_speed };
 
 	bool left{ input.KeyHeld(left_key) };
 	bool right{ input.KeyHeld(right_key) };
 	bool pressing_key{ (left && !right) || (!left && right) };
 
 	float max_speed_change{ 0.0f };
-
 	if (pressing_key) {
 		// If the sign (i.e. positive or negative) of input direction doesn't match
 		// movement, it means the player is turning around and so should use the turn speed stat.
-		if (!NearlyEqual(Sign(dir_x), Sign(rb.velocity.x))) {
-			max_speed_change = turn_speed * dt.count();
-		} else {
-			// If the input direction and velocity match, it means the player is simply running
-			// along and so should use the acceleration stat
-			max_speed_change = acceleration * dt.count();
-		}
+		max_speed_change = !NearlyEqual(Sign(dir_x), Sign(rb.velocity.x))
+			? turn_speed * dt.count()
+			: acceleration * dt.count();
 	} else {
-		// And if not pressing a direction at all, use the deceleration stat
+		// If the input direction and velocity match, it means the player is simply running
+		// along and so should use the acceleration stat
 		max_speed_change = deceleration * dt.count();
 	}
 
-	// Move velocity towards the desired velocity, at the rate of the number calculated
-	// above
 	rb.velocity.x = MoveTowards(rb.velocity.x, desired_velocity.x, max_speed_change);
 }
 
-void PlatformerJump::Ground(
-	Entity entity, const CollisionInfo& collision, ColliderMask ground_mask
-) {
-	if (!entity.Has<PlatformerMovement>()) {
-		return;
-	}
-
-	PTGN_ASSERT((collision.entity.Has<Collider>()));
-
-	if (bool is_ground_collision{ collision.normal == V2_float{ 0.0f, -1.0f } };
-		!is_ground_collision) {
-		return;
-	}
-
-	if (collision.entity.Has<Collider>() && collision.entity.Get<Collider>().IsMask(ground_mask)) {
-		entity.Get<PlatformerMovement>().grounded = true;
-	}
+bool PlatformerMovement::IsGrounded() const {
+	return grounding_state_.grounded;
 }
 
-void PlatformerJump::Update(
-	const Scene& scene, RigidBody& rb, bool grounded, V2_float gravity, secondsf dt
-) {
-	coyote_timer_.Update(dt);
-	jump_buffer_.Update(dt);
-
-	const auto& input{ scene.ctx().input };
-
-	bool pressed_jump{ input.KeyPressed(jump_key) };
-
-	if (grounded) {
-		coyote_timer_.Start();
-		jumping_ = false;
-	}
-
-	if (pressed_jump && !grounded) {
-		// Player desires to jump but currently cant.
-		jump_buffer_.Start();
-	}
-
-	bool jump_buffered{ jump_buffer_.IsRunning() && !jump_buffer_.Completed(jump_buffer_time) };
-	bool in_coyote{ coyote_timer_.IsRunning() && !coyote_timer_.Completed(coyote_time) };
-
-	CalculateGravity(scene, rb, grounded, gravity);
-
-	// Situations where pressing jump triggers a jump:
-	// 1. On ground.
-	// 2. During coyote time.
-	// 3. During jump buffer time.
-
-	if ((pressed_jump && grounded) || (grounded && jump_buffered) ||
-		(pressed_jump && in_coyote && !grounded)) {
-		Jump(rb, gravity);
-	}
+bool PlatformerMovement::WasGrounded() const {
+	return grounding_state_.previous_grounded;
 }
 
-void PlatformerJump::Jump(RigidBody& rb, V2_float gravity) {
-	jumping_ = true;
-
-	jump_buffer_.Stop();
-	coyote_timer_.Stop();
-
-	// If double jump is on, allow the jump again (but only once)
-	// canJumpAgain = (maxAirJumps == 1 && canJumpAgain == false);
-
-	// Determine the power of the jump, based on gravity and stats
-	float jump_speed{ std::sqrt(2.0f * gravity.y * rb.gravity * jump_height) };
-
-	// If player is moving up or down when the player jumps (such as when doing a double jump),
-	// change the jump_speed; This will ensure the jump is the exact same strength, no matter the
-	// velocity.
-	if (rb.velocity.y < 0.0f) {
-		jump_speed = std::max(jump_speed - rb.velocity.y, 0.0f);
-	} else if (rb.velocity.y > 0.0f) {
-		jump_speed += std::abs(rb.velocity.y);
-	}
-
-	rb.velocity.y -= jump_speed;
-
-	// if (juice != null) {
-	//	// Apply the jumping effects on the juice script
-	//	juice.jumpEffects();
-	// }
+Entity PlatformerMovement::GetGroundEntity() const {
+	return grounding_state_.ground_entity;
 }
 
-void PlatformerJump::CalculateGravity(
-	const Scene& scene, RigidBody& rb, bool grounded, V2_float gravity
-) const {
-	const auto& input{ scene.ctx().input };
-
-	float gravity_multiplier{ 0.0f };
-
-	if (grounded) {
-		gravity_multiplier = default_gravity_scale;
-	} else if (downward_key_speedup && input.KeyHeld(down_key)) {
-		gravity_multiplier = downward_speedup_gravity_multiplier;
-	} else if (rb.velocity.y < -0.01f) {
-		if (!variable_jump_height ||
-			(variable_jump_height && input.KeyHeld(jump_key) && jumping_)) {
-			gravity_multiplier = upward_gravity_multiplier;
-		} else if (variable_jump_height) {
-			gravity_multiplier = jump_cut_off_gravity_multiplier;
-		}
-	} else if (rb.velocity.y > 0.01f) {
-		gravity_multiplier = downward_gravity_multiplier;
-	} else {
-		gravity_multiplier = default_gravity_scale;
-	}
-
-	if (rb.velocity.y > 0) {
-		rb.velocity.y = std::clamp(rb.velocity.y, 0.0f, terminal_velocity);
-	}
-
-	if (NearlyEqual(gravity.y, 0.0f)) {
-		rb.gravity = 0.0f;
-	} else {
-		PTGN_ASSERT(time_to_jump_apex != 0.0f);
-
-		rb.gravity = gravity_multiplier * 2 * jump_height /
-					 (time_to_jump_apex * time_to_jump_apex * gravity.y);
-	}
-	PTGN_ASSERT(!std::isinf(rb.gravity));
+V2_float PlatformerMovement::GetGroundNormal() const {
+	return grounding_state_.ground_normal;
 }
 
 } // namespace ptgn

@@ -1,20 +1,22 @@
 #pragma once
 
+#include <string>
+
 #include "core/input/key.h"
 #include "core/math/transform.h"
 #include "core/math/vector2.h"
 #include "core/util/time.h"
-#include "core/util/timer.h"
 #include "runtime/ecs/entity.h"
-#include "runtime/physics/collider.h"
-#include "runtime/physics/collision.h"
 #include "runtime/physics/move_direction.h"
+#include "runtime/physics/platformer_grounding.h"
+#include "runtime/physics/platformer_jump.h"
 #include "runtime/physics/rigid_body.h"
 #include "serialization/serialize.h"
 
 namespace ptgn {
 
 class Scene;
+class Physics;
 
 void MoveWASD(
 	const Scene& scene, V2_float& vel, V2_float amount, bool cancel_velocity_if_unpressed = true
@@ -25,32 +27,20 @@ void MoveArrowKeys(
 );
 
 void MoveWASD(Entity entity, V2_float speed);
-
 void MoveArrowKeys(Entity entity, V2_float speed);
 
 struct TopDownMovement {
-	/// @brief Maximum movement speed.
 	float max_speed{ 4.0f * 60.0f };
-	/// @brief How fast to reach max speed.
 	float max_acceleration{ 20.0f * 60.0f };
-	/// @brief How fast to stop after letting go.
 	float max_deceleration{ 20.0f * 60.0f };
-	/// @brief How fast to stop when changing direction.
 	float max_turn_speed{ 60.0f * 60.0f };
-
 	float friction{ 0.0f };
 
-	/// @brief If false, velocity will be immediately set to desired velocity. Otherwise integration
-	/// is used.
+	/// @brief  If false, velocity will be immediately set to desired velocity. Otherwise
+	/// integration is used.
 	bool use_acceleration{ true };
-
-	/// @brief If true, flips the player transform scale vertically upon moving up.
 	bool flip_vertically{ false };
-
-	/// @brief Whether or not the movement keys cause movement.
 	bool keys_enabled{ true };
-
-	/// @brief If true, only permits vertical and horizontal movement.
 	bool only_orthogonal_movement{ true };
 
 	Key up_key{ Key::W };
@@ -60,23 +50,13 @@ struct TopDownMovement {
 
 	void Update(Entity entity, Transform& transform, RigidBody& rb, secondsf dt);
 
-	/// @brief Invoke a movement command in a specific direction the same as a key input would. If
-	/// move direction is none, movement inputs will be set to false.
 	void Move(MoveDirection direction);
-
 	void Move(V2_float direction);
 
-	/// @return True if the player is moving in the specified direction.
 	[[nodiscard]] bool IsMoving(MoveDirection direction) const;
-
-	/// @return True if the player was moving in the specified direction.
 	[[nodiscard]] bool WasMoving(MoveDirection direction) const;
-
-	/// @return The current direction of movement.
-	MoveDirection GetDirection() const;
-
-	/// @return The previous direction of movement.
-	MoveDirection GetPreviousDirection() const;
+	[[nodiscard]] MoveDirection GetDirection() const;
+	[[nodiscard]] MoveDirection GetPreviousDirection() const;
 
 	V2_float facing_direction;
 
@@ -95,42 +75,26 @@ private:
 	void RunWithAcceleration(V2_float desired_velocity, RigidBody& rb, secondsf dt) const;
 
 	static bool GetMovingState(V2_float d, MoveDirection direction);
-
 	static MoveDirection GetDirectionState(V2_float d);
 
 	void InvokeCallbacks(Entity entity) const;
 
-	/// @brief Whether or not an input of this type has been given in this frame.
-	/// Useful for moving a player without having to press keys.
 	bool up_input{ false };
 	bool down_input{ false };
 	bool left_input{ false };
 	bool right_input{ false };
 
-	/// @brief Keep track of movement starting and stopping.
 	V2_float dir;
 	V2_float prev_dir;
 };
 
 struct PlatformerMovement {
-	// TODO: Move to PlatformerJump class?
-	/// @brief Whether or not the player is currently on the ground. Determines acceleration
-	/// (air or ground) and if the player can jump or not.
-	bool grounded{ false };
-
-	/// @brief Maximum movement speed.
 	float max_speed{ 4.0f * 60.0f };
-	/// @brief  How fast to reach max speed.
 	float max_acceleration{ 20.0f * 60.0f };
-	/// @brief  How fast to stop after letting go.
 	float max_deceleration{ 20.0f * 60.0f };
-	/// @brief  How fast to stop when changing direction.
 	float max_turn_speed{ 60.0f * 60.0f };
-	/// @brief  How fast to reach max speed when in mid-air.
 	float max_air_acceleration{ 40.0f * 60.0f };
-	/// @brief  How fast to stop in mid-air when no direction is used.
 	float max_air_deceleration{ 40.0f * 60.0f };
-	/// @brief  How fast to stop when changing direction when in mid-air.
 	float max_air_turn_speed{ 60.0f * 60.0f };
 
 	/// @brief  If false, velocity will be immediately set to desired velocity. Otherwise
@@ -141,66 +105,32 @@ struct PlatformerMovement {
 	Key left_key{ Key::A };
 	Key right_key{ Key::D };
 
+	PlatformerGrounding grounding;
+
+	// Empty means no jump controller.
+	std::string jump_controller;
+
 	void Update(const Scene& scene, Transform& transform, RigidBody& rb, secondsf dt) const;
 
+	[[nodiscard]] bool IsGrounded() const;
+	[[nodiscard]] bool WasGrounded() const;
+	[[nodiscard]] Entity GetGroundEntity() const;
+	[[nodiscard]] V2_float GetGroundNormal() const;
+
 	PTGN_REFLECT(
-		PlatformerMovement, grounded, max_speed, max_acceleration, max_deceleration, max_turn_speed,
+		PlatformerMovement, max_speed, max_acceleration, max_deceleration, max_turn_speed,
 		max_air_acceleration, max_air_deceleration, max_air_turn_speed, use_acceleration, friction,
-		left_key, right_key
+		left_key, right_key, grounding, jump_controller
 	)
+
 private:
+	friend class Physics;
+
 	void RunWithAcceleration(
 		const Scene& scene, V2_float desired_velocity, float dir_x, RigidBody& rb, secondsf dt
 	) const;
-};
 
-struct PlatformerJump {
-public:
-	void Update(const Scene& scene, RigidBody& rb, bool grounded, V2_float gravity, secondsf dt);
-
-	Key jump_key{ Key::W };
-	Key down_key{ Key::S };
-	/// @brief  Duration of time for which a jump buffer is valid (before hitting the ground).
-	milliseconds jump_buffer_time{ 150 };
-	/// @brief  Duration of time after leaving the ground for which the player can jump.
-	milliseconds coyote_time{ 150 };
-
-	static void Ground(Entity entity, const CollisionInfo& collision, ColliderMask ground_mask);
-
-	/// @brief  Gravity when grounded or near zero velocity.
-	float default_gravity_scale{ 5.0f };
-	/// @brief  Gravity when jumping.
-	float upward_gravity_multiplier{ 5.0f };
-	/// @brief  Gravity when falling.
-	float downward_gravity_multiplier{ 6.0f };
-	/// @brief  Gravity when jump key is released before reaching the jump apex.
-	float jump_cut_off_gravity_multiplier{ 12.0f };
-	/// @brief  Gravity when down key is held.
-	float downward_speedup_gravity_multiplier{ 12.0f };
-	/// @brief  If player presses down_key, downward gravity increases.
-	bool downward_key_speedup{ true };
-	/// @brief  If player lets go of jump key, downward gravity increases.
-	bool variable_jump_height{ true };
-	/// @brief  Maximum downward velocity.
-	float terminal_velocity{ 36000.0f };
-	float jump_height{ 150.0f };
-	float time_to_jump_apex{ 1.0f };
-
-	PTGN_REFLECT(
-		PlatformerJump, jump_key, down_key, jump_buffer_time, coyote_time, default_gravity_scale,
-		upward_gravity_multiplier, downward_gravity_multiplier, jump_cut_off_gravity_multiplier,
-		downward_speedup_gravity_multiplier, downward_key_speedup, variable_jump_height,
-		terminal_velocity, jump_height, time_to_jump_apex, jumping_, jump_buffer_, coyote_timer_
-	)
-
-private:
-	bool jumping_{ false };
-
-	ManualTimer jump_buffer_;
-	ManualTimer coyote_timer_;
-
-	void Jump(RigidBody& rb, V2_float gravity);
-	void CalculateGravity(const Scene& scene, RigidBody& rb, bool grounded, V2_float gravity) const;
+	PlatformerGroundingState grounding_state_;
 };
 
 } // namespace ptgn
