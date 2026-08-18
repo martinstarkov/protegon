@@ -1149,7 +1149,7 @@ void Editor::UpdateDockLayout(std::uint32_t dockspace_id, float width) {
 
 void Editor::OnRender() {
 	ScopedRuntimeEditorTheme runtime_theme{
-		IsPlaying()
+		IsPlaying() || IsDirectRuntime()
 	};
 
 	auto* viewport{ ImGui::GetMainViewport() };

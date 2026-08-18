@@ -65,11 +65,11 @@ struct DurationEditState {
 
 bool DrawDurationInput(const char* label, float& milliseconds, float width, const char* tooltip) {
 	static std::unordered_map<ImGuiID, DurationEditState> states;
-	const ImGuiID id{ ImGui::GetID(label) };
+	ImGuiID id{ ImGui::GetID(label) };
 	auto& state{ states[id] };
 
 	auto format = [](float value, char* buffer, std::size_t size) {
-		const double clamped{ std::max(0.0, static_cast<double>(value)) };
+		double clamped{ std::max(0.0, static_cast<double>(value)) };
 		if (clamped == 0.0) {
 			std::snprintf(buffer, size, "0s");
 		} else if (clamped >= 1000.0 && std::fmod(clamped, 1000.0) == 0.0) {
@@ -85,11 +85,11 @@ bool DrawDurationInput(const char* label, float& milliseconds, float width, cons
 	}
 
 	ImGui::SetNextItemWidth(width);
-	const bool submitted{ ImGui::InputText(
+	bool submitted{ ImGui::InputText(
 		label, state.buffer.data(), state.buffer.size(), ImGuiInputTextFlags_EnterReturnsTrue
 	) };
-	const bool active{ ImGui::IsItemActive() };
-	const bool commit{ submitted || ImGui::IsItemDeactivatedAfterEdit() };
+	bool active{ ImGui::IsItemActive() };
+	bool commit{ submitted || ImGui::IsItemDeactivatedAfterEdit() };
 	bool changed{ false };
 
 	if (commit) {
@@ -104,7 +104,7 @@ bool DrawDurationInput(const char* label, float& milliseconds, float width, cons
 		text.erase(0, first);
 
 		char* end{ nullptr };
-		const double value{ std::strtod(text.c_str(), &end) };
+		double value{ std::strtod(text.c_str(), &end) };
 		std::string unit{ end ? end : "" };
 		while (!unit.empty() && std::isspace(static_cast<unsigned char>(unit.front()))) {
 			unit.erase(unit.begin());
@@ -126,7 +126,7 @@ bool DrawDurationInput(const char* label, float& milliseconds, float width, cons
 		}
 
 		if (valid) {
-			const float updated{ static_cast<float>(value * multiplier) };
+			float updated{ static_cast<float>(value * multiplier) };
 			changed		 = updated != milliseconds;
 			milliseconds = updated;
 		}
@@ -184,22 +184,22 @@ bool DrawEnableDisableMenuItem(bool& enabled) {
 }
 
 bool DrawCenteredTextButton(const char* id, const char* text, ImVec2 size) {
-	const bool pressed{ ImGui::Button(id, size) };
-	const ImVec2 minimum{ ImGui::GetItemRectMin() };
-	const ImVec2 maximum{ ImGui::GetItemRectMax() };
-	const ImVec2 text_size{ ImGui::CalcTextSize(text) };
-	const ImVec2 text_position{ minimum.x + (maximum.x - minimum.x - text_size.x) * 0.5f,
+	bool pressed{ ImGui::Button(id, size) };
+	ImVec2 minimum{ ImGui::GetItemRectMin() };
+	ImVec2 maximum{ ImGui::GetItemRectMax() };
+	ImVec2 text_size{ ImGui::CalcTextSize(text) };
+	ImVec2 text_position{ minimum.x + (maximum.x - minimum.x - text_size.x) * 0.5f,
 								minimum.y + (maximum.y - minimum.y - text_size.y) * 0.5f };
 	ImGui::GetWindowDrawList()->AddText(text_position, ImGui::GetColorU32(ImGuiCol_Text), text);
 	return pressed;
 }
 
 bool DrawToggleButton(const char* label, bool& value, ImVec2 size, const char* tooltip) {
-	const bool dimmed{ !value };
+	bool dimmed{ !value };
 	if (dimmed) {
 		ImGui::PushStyleVar(ImGuiStyleVar_Alpha, ImGui::GetStyle().Alpha * 0.45f);
 	}
-	const bool pressed{ ImGui::Button(label, size) };
+	bool pressed{ ImGui::Button(label, size) };
 	if (dimmed) {
 		ImGui::PopStyleVar();
 	}
@@ -211,9 +211,9 @@ bool DrawToggleButton(const char* label, bool& value, ImVec2 size, const char* t
 }
 
 float GetCountControlWidth(const char* label) {
-	const float button_width{ ImGui::GetFrameHeight() };
-	const float spacing{ CompactControlSpacing() };
-	const std::string widest{ std::string{ label } + ": 100" };
+	float button_width{ ImGui::GetFrameHeight() };
+	float spacing{ CompactControlSpacing() };
+	std::string widest{ std::string{ label } + ": 100" };
 	return ImGui::CalcTextSize(widest.c_str()).x + button_width * 2.0f + spacing * 2.0f;
 }
 
@@ -221,13 +221,13 @@ bool DrawCountControl(
 	const char* label, int& value, int minimum, int maximum = 100, bool disabled = false,
 	const char* tooltip = nullptr
 ) {
-	const int previous{ value };
+	int previous{ value };
 	value = std::clamp(value, minimum, maximum);
-	const float button_width{ ImGui::GetFrameHeight() };
-	const float spacing{ CompactControlSpacing() };
-	const std::string widest{ std::string{ label } + ": 100" };
-	const float text_width{ ImGui::CalcTextSize(widest.c_str()).x };
-	const float start_x{ ImGui::GetCursorScreenPos().x };
+	float button_width{ ImGui::GetFrameHeight() };
+	float spacing{ CompactControlSpacing() };
+	std::string widest{ std::string{ label } + ": 100" };
+	float text_width{ ImGui::CalcTextSize(widest.c_str()).x };
+	float start_x{ ImGui::GetCursorScreenPos().x };
 
 	ImGui::PushID(label);
 	ImGui::BeginDisabled(disabled);
@@ -293,8 +293,13 @@ void DrawSelectedItemsTooltip(std::span<const std::string> items) {
 	return hierarchy.GetSelectedEntity();
 }
 
+[[nodiscard]] bool IsRuntimeActive(const ScriptEditorContext& context) {
+	return context.ctx.editor.IsPlaying() ||
+		   context.ctx.editor.IsDirectRuntime();
+}
+
 [[nodiscard]] Entity ResolveRuntimeOwner(const ScriptEditorContext& context) {
-	if (!context.ctx.editor.IsPlaying()) {
+	if (!IsRuntimeActive(context)) {
 		return {};
 	}
 
@@ -371,8 +376,8 @@ void AddEditorScriptEntry(
 ) {
 	scripts.scripts.emplace_back(std::move(entry));
 
-	const Entity owner{ ::ptgn::impl::ScriptsAccessor::GetOwner(scripts) };
-	if (owner && context.ctx.editor.IsPlaying()) {
+	Entity owner{ ::ptgn::impl::ScriptsAccessor::GetOwner(scripts) };
+	if (owner && IsRuntimeActive(context)) {
 		scripts.Attach(owner);
 		script_runtime::AttachEntry(owner, scripts.scripts.back());
 	}
@@ -406,11 +411,23 @@ ActionForm GetActionForm(const ScriptStep& action) {
 	if (action.type_hash == Hash<WaitScript>()) {
 		return ActionForm::Delay;
 	}
-	return action.timing ? ActionForm::Tween : ActionForm::Action;
+
+	const auto* registration{ ScriptRegistry::Find(action.type_hash) };
+	ScriptCompletion completion{
+		action.completion.value_or(
+			registration
+				? registration->completion
+				: ScriptCompletion::ScriptControlled
+		)
+	};
+
+	return completion == ScriptCompletion::Duration
+		? ActionForm::Tween
+		: ActionForm::Action;
 }
 
 void SetActionForm(ScriptStep& action, ActionForm form) {
-	const bool enabled{ action.enabled };
+	bool enabled{ action.enabled };
 	const auto* registration{ ScriptRegistry::Find(action.type_hash) };
 
 	switch (form) {
@@ -507,7 +524,7 @@ void PromoteToShared(ScriptEditorContext& context, ScriptSequence& binding) {
 	shared.shared_reference	  = false;
 	shared.shared_sequence_id = 0;
 	shared.runtime			  = ScriptSequenceRuntime{};
-	const SequenceId shared_id{ shared.id };
+	SequenceId shared_id{ shared.id };
 	context.shared_sequences.sequences.push_back(std::move(shared));
 	binding.shared_reference   = true;
 	binding.shared_sequence_id = shared_id;
@@ -525,8 +542,8 @@ void DetachToLocal(ScriptEditorContext& context, ScriptSequence& binding) {
 		return;
 	}
 	ScriptSequence local{ *shared };
-	const SequenceId binding_id{ binding.id };
-	const bool enabled{ binding.enabled };
+	SequenceId binding_id{ binding.id };
+	bool enabled{ binding.enabled };
 	binding					   = std::move(local);
 	binding.id				   = binding_id;
 	binding.enabled			   = enabled;
@@ -567,18 +584,18 @@ bool DrawActionPicker(
 	};
 
 	const auto* current_registration{ ScriptRegistry::Find(action.type_hash) };
-	const std::optional<Candidate> current{ current_registration
+	std::optional<Candidate> current{ current_registration
 												? resolve_candidate(*current_registration)
 												: std::nullopt };
 	ImGui::SetNextItemWidth(width);
 
-	const float popup_min_width{ ImGui::CalcItemWidth() };
+	float popup_min_width{ ImGui::CalcItemWidth() };
 
 	ImGui::SetNextWindowSizeConstraints(
 		ImVec2{ popup_min_width, 0.0f }, ImVec2{ FLT_MAX, FLT_MAX }
 	);
 
-	const bool open{
+	bool open{
 		ImGui::BeginCombo("##RegisteredAction", current ? current->label.data() : "Missing Action")
 	};
 
@@ -607,7 +624,7 @@ bool DrawActionPicker(
 		if (ImGui::MenuItem(
 				candidate.label.data(), nullptr, registration.type_hash == action.type_hash
 			)) {
-			const bool enabled{ action.enabled };
+			bool enabled{ action.enabled };
 			action		   = ScriptRegistry::MakeStep(registration.type_hash);
 			action.enabled = enabled;
 			if (timed_only) {
@@ -620,7 +637,7 @@ bool DrawActionPicker(
 			changed = true;
 		}
 		if (ImGui::IsItemHovered()) {
-			const std::string type_hash{ std::to_string(registration.type_hash) };
+			std::string type_hash{ std::to_string(registration.type_hash) };
 			ImGui::SetTooltip("%s\nType hash: %s", candidate.description.data(), type_hash.c_str());
 		}
 	};
@@ -653,7 +670,7 @@ bool DrawActionPicker(
 				}
 			}
 			if (ImGui::MenuItem(shared.name.c_str(), nullptr, selected)) {
-				const bool enabled{ action.enabled };
+				bool enabled{ action.enabled };
 				Script script;
 				script.sequence.name			   = shared.name;
 				script.sequence.shared_reference   = true;
@@ -713,17 +730,17 @@ bool DrawActionPickerWithInline(
 	EnsureActionValue(action);
 
 	const auto* registered_editor{ ScriptEditorRegistry::Find(action.type_hash) };
-	const bool has_inline_editor{ !timed_only && registered_editor &&
+	bool has_inline_editor{ !timed_only && registered_editor &&
 								  static_cast<bool>(registered_editor->draw_inline) };
 
 	if (!has_inline_editor) {
 		return DrawActionPicker(context, action, timed_only, -FLT_MIN, context_requested);
 	}
 
-	const float available{ ImGui::GetContentRegionAvail().x };
-	const float spacing{ ImGui::GetStyle().ItemSpacing.x };
-	const float picker_width{ std::min(150.0f, std::max(110.0f, available * 0.32f)) };
-	const float row_y{ ImGui::GetCursorScreenPos().y };
+	float available{ ImGui::GetContentRegionAvail().x };
+	float spacing{ ImGui::GetStyle().ItemSpacing.x };
+	float picker_width{ std::min(150.0f, std::max(110.0f, available * 0.32f)) };
+	float row_y{ ImGui::GetCursorScreenPos().y };
 
 	bool changed{
 		DrawActionPicker(context, action, timed_only, picker_width, context_requested)
@@ -755,8 +772,8 @@ bool DrawTimingOptions(
 	EnsureActionValue(action);
 	bool changed{ false };
 
-	const float right_screen_x{ ImGui::GetWindowPos().x + ImGui::GetWindowContentRegionMax().x };
-	const float width{ std::max(1.0f, right_screen_x - left_screen_x) };
+	float right_screen_x{ ImGui::GetWindowPos().x + ImGui::GetWindowContentRegionMax().x };
+	float width{ std::max(1.0f, right_screen_x - left_screen_x) };
 	ImGui::SetCursorScreenPos(ImVec2{ left_screen_x, ImGui::GetCursorScreenPos().y });
 
 	std::optional<MoveToScript> move;
@@ -780,7 +797,7 @@ bool DrawTimingOptions(
 		}
 	}
 
-	const int columns{ move || scale ? 5 : (rotate ? 4 : 2) };
+	int columns{ move || scale ? 5 : (rotate ? 4 : 2) };
 	if (!ImGui::BeginTable(
 			"TweenOptions", columns, ImGuiTableFlags_SizingStretchProp, ImVec2{ width, 0.0f }
 		)) {
@@ -938,7 +955,7 @@ bool DrawActionParameters(ScriptEditorContext& context, ScriptStep& action, floa
 		}
 	}
 
-	const float right_screen_x{ ImGui::GetWindowPos().x + ImGui::GetWindowContentRegionMax().x };
+	float right_screen_x{ ImGui::GetWindowPos().x + ImGui::GetWindowContentRegionMax().x };
 	ImGui::SetCursorScreenPos(ImVec2{ left_screen_x, ImGui::GetCursorScreenPos().y });
 	bool changed{ false };
 	if (ImGui::BeginChild(
@@ -972,8 +989,8 @@ void DrawActiveActionProgress(
 		return;
 	}
 
-	const float duration_ms{ action.timing ? action.timing->duration_ms : 0.0f };
-	const float progress{
+	float duration_ms{ action.timing ? action.timing->duration_ms : 0.0f };
+	float progress{
 		duration_ms > 0.0f ? std::clamp(runtime.elapsed_ms / duration_ms, 0.0f, 1.0f) : 0.0f
 	};
 
@@ -986,7 +1003,7 @@ bool DrawActions(
 ) {
 	ImGui::PushID("SequenceActions");
 
-	const Entity runtime_owner{ ResolveRuntimeOwner(context) };
+	Entity runtime_owner{ ResolveRuntimeOwner(context) };
 	const ScriptSequence* runtime_binding{
 		runtime_owner ? FindRuntimeRootSequence(runtime_owner, binding.id, resident_index) : nullptr
 	};
@@ -1008,21 +1025,21 @@ bool DrawActions(
 		ImGui::PushID(index);
 
 		constexpr float drag_width{ 28.0f };
-		const float label_width{ std::max(
+		float label_width{ std::max(
 			{ ImGui::CalcTextSize("Action").x, ImGui::CalcTextSize("Tween").x,
 			  ImGui::CalcTextSize("Delay").x }
 		) };
-		const float type_width{ label_width + ImGui::GetFrameHeight() +
+		float type_width{ label_width + ImGui::GetFrameHeight() +
 								ImGui::GetStyle().FramePadding.x * 2.0f };
-		const float duration_width{ ImGui::CalcTextSize("5000ms").x +
+		float duration_width{ ImGui::CalcTextSize("5000ms").x +
 									ImGui::GetStyle().FramePadding.x * 2.0f };
-		const float repeats_width{ GetCountControlWidth("Repeats") };
-		const float button_width{ ImGui::GetFrameHeight() };
+		float repeats_width{ GetCountControlWidth("Repeats") };
+		float button_width{ ImGui::GetFrameHeight() };
 		ActionForm displayed_form{ GetActionForm(action) };
 		ActionForm requested_form{ displayed_form };
 		bool form_changed{ false };
 		float parameter_left_screen_x{ ImGui::GetCursorScreenPos().x };
-		const int column_count{ displayed_form == ActionForm::Tween ? 5 : 3 };
+		int column_count{ displayed_form == ActionForm::Tween ? 5 : 3 };
 
 		if (ImGui::BeginTable(
 				"ActionRow", column_count,
@@ -1047,7 +1064,7 @@ bool DrawActions(
 
 			int column{};
 			ImGui::TableSetColumnIndex(column++);
-			const bool dimmed{ !action.enabled };
+			bool dimmed{ !action.enabled };
 
 			if (dimmed) {
 				ImGui::PushStyleVar(ImGuiStyleVar_Alpha, ImGui::GetStyle().Alpha * 0.45f);
@@ -1067,7 +1084,7 @@ bool DrawActions(
 			);
 
 			if (ImGui::BeginDragDropSource(ImGuiDragDropFlags_SourceAllowNullID)) {
-				const ActionDragPayload payload{ index };
+				ActionDragPayload payload{ index };
 				ImGui::SetDragDropPayload("PTGN_SCRIPT_ACTION", &payload, sizeof(payload));
 				ImGui::Text("%d. %s", index + 1, ActionSummary(action).c_str());
 				ImGui::EndDragDropSource();
@@ -1095,7 +1112,7 @@ bool DrawActions(
 					"##Form", kActionFormLabels[static_cast<std::size_t>(displayed_form)]
 				)) {
 				for (int i{ 0 }; i < static_cast<int>(kActionFormLabels.size()); ++i) {
-					const auto candidate{ static_cast<ActionForm>(i) };
+					auto candidate{ static_cast<ActionForm>(i) };
 
 					if (ImGui::Selectable(
 							kActionFormLabels[static_cast<std::size_t>(i)],
@@ -1235,7 +1252,7 @@ bool DrawLifecycleRows(ScriptEditorContext& context, ScriptSequence& sequence) {
 		bool context_requested{ false };
 		ImGui::PushID(i);
 
-		const float lifecycle_width{ 145.0f };
+		float lifecycle_width{ 145.0f };
 
 		if (ImGui::BeginTable(
 				"LifecycleRow", 2,
@@ -1368,7 +1385,7 @@ template <typename... TEvents>
 	const ScriptEditorContext& context, const EventEditorRegistration& candidate
 ) {
 	const auto* registration{ SequenceEventRegistry::Find(candidate.type_hash) };
-	const Entity owner{ ResolveInspectedEntity(context) };
+	Entity owner{ ResolveInspectedEntity(context) };
 
 	if (!registration || !HasRequiredTriggerComponent(owner, candidate.type_hash)) {
 		return false;
@@ -1389,11 +1406,11 @@ bool DrawEvent(
 	bool remove{ false };
 	bool context_requested{ false };
 
-	const float kind_width{
+	float kind_width{
 		std::max(ImGui::CalcTextSize("Start").x, ImGui::CalcTextSize("Stop").x) +
 		ImGui::GetStyle().FramePadding.x * 2.0f
 	};
-	const float consume_width{ ImGui::CalcTextSize("Consume").x +
+	float consume_width{ ImGui::CalcTextSize("Consume").x +
 							   ImGui::GetStyle().FramePadding.x * 2.0f };
 	const EventEditorRegistration* selected{ EventEditorRegistry::Find(event.type_hash) };
 	bool event_type_changed{ false };
@@ -1432,14 +1449,14 @@ bool DrawEvent(
 		ImGui::TableSetColumnIndex(column++);
 		ImGui::BeginDisabled(!event.enabled);
 
-		const int initial_inline_fields{ inline_field_count(selected) };
-		const float available_width{ ImGui::GetContentRegionAvail().x };
-		const float spacing{ ImGui::GetStyle().ItemSpacing.x };
+		int initial_inline_fields{ inline_field_count(selected) };
+		float available_width{ ImGui::GetContentRegionAvail().x };
+		float spacing{ ImGui::GetStyle().ItemSpacing.x };
 		float event_width{ available_width };
 
 		if (initial_inline_fields > 0) {
 			event_width = std::clamp(available_width * 0.4f, 110.0f, 190.0f);
-			const float minimum_fields_width{ 80.0f * initial_inline_fields };
+			float minimum_fields_width{ 80.0f * initial_inline_fields };
 
 			if (available_width - event_width -
 					spacing * static_cast<float>(initial_inline_fields) <
@@ -1451,11 +1468,11 @@ bool DrawEvent(
 			}
 		}
 
-		const std::string selected_label{
+		std::string selected_label{
 			selected ? TrimMenuText(selected->options.label) : std::string{ "Missing Event" }
 		};
 		ImGui::SetNextItemWidth(std::max(1.0f, event_width));
-		const bool combo_open{ ImGui::BeginCombo("##Event", selected_label.c_str()) };
+		bool combo_open{ ImGui::BeginCombo("##Event", selected_label.c_str()) };
 		context_requested |= IsItemRightClicked();
 
 		if (combo_open) {
@@ -1466,7 +1483,7 @@ bool DrawEvent(
 					return;
 				}
 
-				const std::string label{ TrimMenuText(candidate.options.label) };
+				std::string label{ TrimMenuText(candidate.options.label) };
 
 				if (ImGui::MenuItem(
 						label.c_str(), nullptr, candidate.type_hash == event.type_hash
@@ -1491,7 +1508,7 @@ bool DrawEvent(
 			std::vector<std::string> groups;
 
 			for (const auto& candidate : EventEditorRegistry::Entries()) {
-				const std::string group{ TrimMenuText(candidate.options.group) };
+				std::string group{ TrimMenuText(candidate.options.group) };
 
 				if (!group.empty() && IsTriggerCandidateAvailable(context, candidate) &&
 					!std::ranges::contains(groups, group)) {
@@ -1566,7 +1583,7 @@ bool DrawAddTriggerPopup(ScriptEditorContext& context, ScriptSequence& sequence)
 			return;
 		}
 
-		const std::string label{ TrimMenuText(candidate.options.label) };
+		std::string label{ TrimMenuText(candidate.options.label) };
 
 		if (ImGui::MenuItem(label.c_str())) {
 			EventCondition trigger{
@@ -1591,7 +1608,7 @@ bool DrawAddTriggerPopup(ScriptEditorContext& context, ScriptSequence& sequence)
 	std::vector<std::string> groups;
 
 	for (const auto& candidate : EventEditorRegistry::Entries()) {
-		const std::string group{ TrimMenuText(candidate.options.group) };
+		std::string group{ TrimMenuText(candidate.options.group) };
 
 		if (!group.empty() && IsTriggerCandidateAvailable(context, candidate) &&
 			!std::ranges::contains(groups, group)) {
@@ -1630,7 +1647,9 @@ bool DrawAddActionPopup(ScriptSequence& sequence) {
 	}
 
 	if (ImGui::MenuItem("Tween")) {
-		sequence.steps.push_back(ScriptRegistry::MakeStep<MoveToScript>());
+		auto action{ ScriptRegistry::MakeStep<MoveToScript>() };
+		SetActionForm(action, ActionForm::Tween);
+		sequence.steps.push_back(std::move(action));
 		changed = true;
 	}
 
@@ -1702,7 +1721,7 @@ bool DrawSequenceOptionsCombo(
 
 	if (ImGui::BeginCombo("##SequenceOptions", "Options")) {
 		if (ResolveInspectedEntity(context)) {
-			const bool global{ binding.shared_reference };
+			bool global{ binding.shared_reference };
 
 			if (ImGui::MenuItem("Global sequence", nullptr, global)) {
 				if (global) {
@@ -1735,7 +1754,7 @@ bool DrawSequenceOptionsCombo(
 		}
 
 		if (sequence) {
-			const bool has_channel{ sequence->channel.has_value() };
+			bool has_channel{ sequence->channel.has_value() };
 
 			if (ImGui::MenuItem("Use sequence channel", nullptr, has_channel)) {
 				if (has_channel) {
@@ -1785,16 +1804,16 @@ bool DrawSequenceToolbar(
 	int resident_index
 ) {
 	bool changed{ false };
-	const bool show_runtime_controls{ context.ctx.editor.IsPlaying() };
-	const Entity runtime_owner{ ResolveRuntimeOwner(context) };
+	bool show_runtime_controls{ IsRuntimeActive(context) };
+	Entity runtime_owner{ ResolveRuntimeOwner(context) };
 	ScriptSequence* runtime_binding{
 		show_runtime_controls
 			? FindRuntimeRootSequence(runtime_owner, binding.id, resident_index)
 			: nullptr
 	};
-	const bool can_control_runtime{ runtime_owner && runtime_binding };
-	const float button_size{ ImGui::GetFrameHeight() };
-	const float spacing{ ImGui::GetStyle().ItemSpacing.x };
+	bool can_control_runtime{ runtime_owner && runtime_binding };
+	float button_size{ ImGui::GetFrameHeight() };
+	float spacing{ ImGui::GetStyle().ItemSpacing.x };
 
 	if (!ImGui::BeginTable(
 			"SequenceToolbar", 3,
@@ -1834,11 +1853,11 @@ bool DrawSequenceToolbar(
 
 	ImGui::TableSetColumnIndex(2);
 
-	const float available_width{ ImGui::GetContentRegionAvail().x };
-	const float runtime_width{
+	float available_width{ ImGui::GetContentRegionAvail().x };
+	float runtime_width{
 		show_runtime_controls ? button_size * 3.0f + spacing * 3.0f : 0.0f
 	};
-	const float options_width{ std::max(1.0f, available_width - runtime_width) };
+	float options_width{ std::max(1.0f, available_width - runtime_width) };
 
 	changed |= DrawSequenceOptionsCombo(
 		context, binding, sequence, show_runtime_controls ? options_width : -FLT_MIN
@@ -2000,8 +2019,8 @@ bool DrawSequence(
 	ImGui::PushID("ScriptSequence");
 	ImGui::PushID(resident_index);
 
-	const ImGuiID editor_id{ ImGui::GetID("EditorState") };
-	const float button_size{ ImGui::GetFrameHeight() };
+	ImGuiID editor_id{ ImGui::GetID("EditorState") };
+	float button_size{ ImGui::GetFrameHeight() };
 	auto& stored_open{ state.sequence_open_states.try_emplace(binding.id, true).first->second };
 	bool open{ stored_open };
 	ImVec2 name_input_min{};
@@ -2019,27 +2038,27 @@ bool DrawSequence(
 		ImGui::TableNextRow(ImGuiTableRowFlags_None, button_size);
 		ImGui::TableSetColumnIndex(0);
 
-		const ImVec2 header_min{ ImGui::GetCursorScreenPos() };
-		const ImVec2 header_max{
+		ImVec2 header_min{ ImGui::GetCursorScreenPos() };
+		ImVec2 header_max{
 			header_min.x + std::max(1.0f, ImGui::GetContentRegionAvail().x),
 			header_min.y + button_size,
 		};
-		const ImVec2 mouse{ ImGui::GetMousePos() };
+		ImVec2 mouse{ ImGui::GetMousePos() };
 
 		ImGui::SetNextItemOpen(stored_open, ImGuiCond_Always);
-		const bool editing_before_draw{ state.editing_sequence_name == editor_id };
-		const ImVec4 header{ binding.enabled ? ImVec4{ 0.35f, 0.24f, 0.39f, 1.0f }
+		bool editing_before_draw{ state.editing_sequence_name == editor_id };
+		ImVec4 header{ binding.enabled ? ImVec4{ 0.35f, 0.24f, 0.39f, 1.0f }
 											 : ImVec4{ 0.25f, 0.25f, 0.25f, 1.0f } };
-		const ImVec4 header_hovered{ binding.enabled ? ImVec4{ 0.44f, 0.31f, 0.48f, 1.0f }
+		ImVec4 header_hovered{ binding.enabled ? ImVec4{ 0.44f, 0.31f, 0.48f, 1.0f }
 													 : ImVec4{ 0.30f, 0.30f, 0.30f, 1.0f } };
-		const ImVec4 header_active{ binding.enabled ? ImVec4{ 0.50f, 0.36f, 0.55f, 1.0f }
+		ImVec4 header_active{ binding.enabled ? ImVec4{ 0.50f, 0.36f, 0.55f, 1.0f }
 													: ImVec4{ 0.34f, 0.34f, 0.34f, 1.0f } };
-		const bool header_hovered_before_draw{
+		bool header_hovered_before_draw{
 			ImGui::IsMouseHoveringRect(header_min, header_max)
 		};
-		const bool header_active_before_draw{ !editing_before_draw && header_hovered_before_draw &&
+		bool header_active_before_draw{ !editing_before_draw && header_hovered_before_draw &&
 											  ImGui::IsMouseDown(ImGuiMouseButton_Left) };
-		const ImVec4 header_color{
+		ImVec4 header_color{
 			editing_before_draw ? header
 								: (header_active_before_draw
 									   ? header_active
@@ -2050,7 +2069,7 @@ bool DrawSequence(
 			ImGui::GetStyle().FrameRounding
 		);
 
-		const ImVec4 transparent{};
+		ImVec4 transparent{};
 		ImGui::PushStyleColor(ImGuiCol_Header, transparent);
 		ImGui::PushStyleColor(ImGuiCol_HeaderHovered, transparent);
 		ImGui::PushStyleColor(ImGuiCol_HeaderActive, transparent);
@@ -2064,16 +2083,16 @@ bool DrawSequence(
 		ImGui::PopStyleColor(3);
 		stored_open = open;
 
-		const ImVec2 tree_min{ header_min };
-		const ImVec2 tree_max{ header_max };
-		const bool tree_hovered{ ImGui::IsItemHovered() };
-		const float text_start_x{ tree_min.x + ImGui::GetFrameHeight() };
-		const float minimum_name_width{ 48.0f };
-		const float visible_name_width{
+		ImVec2 tree_min{ header_min };
+		ImVec2 tree_max{ header_max };
+		bool tree_hovered{ ImGui::IsItemHovered() };
+		float text_start_x{ tree_min.x + ImGui::GetFrameHeight() };
+		float minimum_name_width{ 48.0f };
+		float visible_name_width{
 			std::max(minimum_name_width, ImGui::CalcTextSize(sequence->name.c_str()).x)
 		};
-		const float name_hit_end_x{ std::min(tree_max.x, text_start_x + visible_name_width) };
-		const bool name_hit_hovered{ tree_hovered && mouse.x >= text_start_x &&
+		float name_hit_end_x{ std::min(tree_max.x, text_start_x + visible_name_width) };
+		bool name_hit_hovered{ tree_hovered && mouse.x >= text_start_x &&
 									 mouse.x <= name_hit_end_x };
 		begin_edit = !editing_before_draw && name_hit_hovered &&
 					 ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left);
@@ -2114,7 +2133,7 @@ bool DrawSequence(
 				ImGui::SetKeyboardFocusHere();
 			}
 
-			const bool submitted{ ImGui::InputText(
+			bool submitted{ ImGui::InputText(
 				"##SequenceName", &sequence->name, ImGuiInputTextFlags_EnterReturnsTrue
 			) };
 			changed			   |= ImGui::IsItemEdited();
@@ -2141,11 +2160,11 @@ bool DrawSequence(
 
 	if (state.editing_sequence_name == editor_id && name_input_drawn &&
 		!began_name_edit_this_frame) {
-		const bool clicked{ ImGui::IsMouseClicked(ImGuiMouseButton_Left) ||
+		bool clicked{ ImGui::IsMouseClicked(ImGuiMouseButton_Left) ||
 							ImGui::IsMouseClicked(ImGuiMouseButton_Middle) ||
 							ImGui::IsMouseClicked(ImGuiMouseButton_Right) };
-		const ImVec2 mouse{ ImGui::GetMousePos() };
-		const bool inside_input{ mouse.x >= name_input_min.x && mouse.x <= name_input_max.x &&
+		ImVec2 mouse{ ImGui::GetMousePos() };
+		bool inside_input{ mouse.x >= name_input_min.x && mouse.x <= name_input_max.x &&
 								 mouse.y >= name_input_min.y && mouse.y <= name_input_max.y };
 
 		if (clicked && !inside_input && !name_input_hovered) {
@@ -2169,7 +2188,7 @@ bool DrawSequence(
 					"SequenceChannelRow", 2,
 					ImGuiTableFlags_SizingStretchProp | ImGuiTableFlags_NoSavedSettings
 				)) {
-				const float label_width{ ImGui::CalcTextSize("Channel:").x +
+				float label_width{ ImGui::CalcTextSize("Channel:").x +
 										 ImGui::GetStyle().ItemInnerSpacing.x };
 				ImGui::TableSetupColumn("Label", ImGuiTableColumnFlags_WidthFixed, label_width);
 				ImGui::TableSetupColumn("Value", ImGuiTableColumnFlags_WidthStretch);
@@ -2248,7 +2267,7 @@ bool DrawAddRootScriptPopup(ScriptEditorContext& context, ::ptgn::impl::Scripts&
 			editor->options.hidden) {
 			continue;
 		}
-		const std::string group{ editor->options.group.empty() ? "Other" : editor->options.group };
+		std::string group{ editor->options.group.empty() ? "Other" : editor->options.group };
 		if (!std::ranges::contains(groups, group)) {
 			groups.push_back(group);
 		}
@@ -2267,7 +2286,7 @@ bool DrawAddRootScriptPopup(ScriptEditorContext& context, ::ptgn::impl::Scripts&
 				editor->options.hidden) {
 				continue;
 			}
-			const std::string_view candidate_group{
+			std::string_view candidate_group{
 				editor->options.group.empty() ? std::string_view{ "Other" }
 											  : std::string_view{ editor->options.group }
 			};
@@ -2301,7 +2320,7 @@ bool DrawResidentScripts(ScriptEditorContext& context, ::ptgn::impl::Scripts& sc
 		}
 	}
 
-	for (const int i : display_order) {
+	for (int i : display_order) {
 		auto& script{ scripts.scripts[static_cast<std::size_t>(i)] };
 		const auto* registration{ ScriptRegistry::Find(script.type_hash) };
 		const auto* registered_editor{ ScriptEditorRegistry::Find(script.type_hash) };
@@ -2338,7 +2357,7 @@ bool DrawResidentScripts(ScriptEditorContext& context, ::ptgn::impl::Scripts& sc
 			script.enabled = editable_sequence->enabled;
 
 			if (context.owner) {
-				const SequenceId sequence_id{ editable_sequence->id };
+				SequenceId sequence_id{ editable_sequence->id };
 
 				script.sequence			= *editable_sequence;
 				script.sequence.id		= sequence_id;
@@ -2350,7 +2369,7 @@ bool DrawResidentScripts(ScriptEditorContext& context, ::ptgn::impl::Scripts& sc
 
 		ImGui::PushID(i);
 		bool open{ false };
-		const float button_size{ ImGui::GetFrameHeight() };
+		float button_size{ ImGui::GetFrameHeight() };
 
 		if (ImGui::BeginTable(
 				"ScriptRow", 1,
@@ -2360,23 +2379,23 @@ bool DrawResidentScripts(ScriptEditorContext& context, ::ptgn::impl::Scripts& sc
 			ImGui::TableNextRow(ImGuiTableRowFlags_None, button_size);
 			ImGui::TableSetColumnIndex(0);
 
-			const ImVec2 header_min{ ImGui::GetCursorScreenPos() };
-			const ImVec2 header_max{
+			ImVec2 header_min{ ImGui::GetCursorScreenPos() };
+			ImVec2 header_max{
 				header_min.x + std::max(1.0f, ImGui::GetContentRegionAvail().x),
 				header_min.y + button_size,
 			};
-			const ImVec4 header{ script.enabled ? ImVec4{ 0.20f, 0.34f, 0.33f, 1.0f }
+			ImVec4 header{ script.enabled ? ImVec4{ 0.20f, 0.34f, 0.33f, 1.0f }
 												: ImVec4{ 0.25f, 0.25f, 0.25f, 1.0f } };
-			const ImVec4 header_hovered{ script.enabled ? ImVec4{ 0.26f, 0.43f, 0.41f, 1.0f }
+			ImVec4 header_hovered{ script.enabled ? ImVec4{ 0.26f, 0.43f, 0.41f, 1.0f }
 														: ImVec4{ 0.30f, 0.30f, 0.30f, 1.0f } };
-			const ImVec4 header_active{ script.enabled ? ImVec4{ 0.31f, 0.49f, 0.47f, 1.0f }
+			ImVec4 header_active{ script.enabled ? ImVec4{ 0.31f, 0.49f, 0.47f, 1.0f }
 													   : ImVec4{ 0.34f, 0.34f, 0.34f, 1.0f } };
-			const bool header_hovered_before_draw{
+			bool header_hovered_before_draw{
 				ImGui::IsMouseHoveringRect(header_min, header_max)
 			};
-			const bool header_active_before_draw{ header_hovered_before_draw &&
+			bool header_active_before_draw{ header_hovered_before_draw &&
 												  ImGui::IsMouseDown(ImGuiMouseButton_Left) };
-			const ImVec4 header_color{
+			ImVec4 header_color{
 				header_active_before_draw ? header_active
 										  : (header_hovered_before_draw ? header_hovered : header)
 			};
@@ -2385,12 +2404,12 @@ bool DrawResidentScripts(ScriptEditorContext& context, ::ptgn::impl::Scripts& sc
 				ImGui::GetStyle().FrameRounding
 			);
 
-			const ImVec4 transparent{};
+			ImVec4 transparent{};
 			ImGui::PushStyleColor(ImGuiCol_Header, transparent);
 			ImGui::PushStyleColor(ImGuiCol_HeaderHovered, transparent);
 			ImGui::PushStyleColor(ImGuiCol_HeaderActive, transparent);
 
-			const bool has_contents{ editor && editor->has_contents };
+			bool has_contents{ editor && editor->has_contents };
 			ImGuiTreeNodeFlags flags{ ImGuiTreeNodeFlags_FramePadding |
 									  ImGuiTreeNodeFlags_SpanAvailWidth |
 									  ImGuiTreeNodeFlags_NoTreePushOnOpen };
@@ -2448,7 +2467,7 @@ bool DrawResidentScripts(ScriptEditorContext& context, ::ptgn::impl::Scripts& sc
 	if (remove >= 0) {
 		if (context.owner) {
 			auto& entry{ scripts.scripts[static_cast<std::size_t>(remove)] };
-			const SequenceId id{ entry.instance ? entry.instance->sequence.id : entry.sequence.id };
+			SequenceId id{ entry.instance ? entry.instance->sequence.id : entry.sequence.id };
 			scripts.RemoveDeferred(id);
 		} else {
 			scripts.scripts.erase(scripts.scripts.begin() + remove);
