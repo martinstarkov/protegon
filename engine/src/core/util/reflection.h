@@ -50,20 +50,26 @@ ReadOnlyMember(std::string_view, const T&) -> ReadOnlyMember<T>;
 		};                                                                                \
 	}
 
-#define PTGN_IMPL_REFLECT_DERIVED_MEMBERS(Type, Base, ...)                                      \
-	friend constexpr auto ReflectMembers(Type& reflection_value_t) {                            \
-		return std::tuple_cat(                                                                  \
-			ReflectMembers(static_cast<Base&>(reflection_value_t)),                             \
-			std::tuple{                                                                         \
-				PTGN_MAP_LIST_DATA(PTGN_IMPL_REFLECT_MEMBER, reflection_value_t, __VA_ARGS__) } \
-		);                                                                                      \
-	}                                                                                           \
-	friend constexpr auto ReflectMembers(const Type& reflection_value_t) {                      \
-		return std::tuple_cat(                                                                  \
-			ReflectMembers(static_cast<const Base&>(reflection_value_t)),                       \
-			std::tuple{                                                                         \
-				PTGN_MAP_LIST_DATA(PTGN_IMPL_REFLECT_MEMBER, reflection_value_t, __VA_ARGS__) } \
-		);                                                                                      \
+#define PTGN_IMPL_REFLECT_DERIVED_MEMBERS(Type, Base, ...)                                  \
+	friend constexpr auto ReflectMembers(Type& reflection_value_t) {                        \
+		return std::tuple_cat(                                                              \
+			ReflectMembers(static_cast<Base&>(reflection_value_t)),                         \
+			std::tuple{                                                                     \
+				__VA_OPT__(PTGN_MAP_LIST_DATA(                                              \
+					PTGN_IMPL_REFLECT_MEMBER, reflection_value_t, __VA_ARGS__               \
+				))                                                                          \
+			}                                                                               \
+		);                                                                                  \
+	}                                                                                       \
+	friend constexpr auto ReflectMembers(const Type& reflection_value_t) {                  \
+		return std::tuple_cat(                                                              \
+			ReflectMembers(static_cast<const Base&>(reflection_value_t)),                   \
+			std::tuple{                                                                     \
+				__VA_OPT__(PTGN_MAP_LIST_DATA(                                              \
+					PTGN_IMPL_REFLECT_MEMBER, reflection_value_t, __VA_ARGS__               \
+				))                                                                          \
+			}                                                                               \
+		);                                                                                  \
 	}
 
 #define PTGN_IMPL_REFLECT_READONLY_MEMBERS(Type, ...)                                              \

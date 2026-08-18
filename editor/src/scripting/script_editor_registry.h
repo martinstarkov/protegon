@@ -233,50 +233,33 @@ bool DrawTypedJsonEditor(
 	if constexpr (!std::default_initializable<T>) {
 		return false;
 	} else {
-		static std::unordered_map<const json*, TypedJsonEditorState<T>> states;
-		auto& state{ states[std::addressof(input)] };
+		T value{};
 
-		if (!state.initialized || state.synchronized_value != input) {
-			state.value = T{};
-
-			if constexpr (
-				requires(
-					const json& json_value,
-					T& typed_value
-				) {
-					json_value.get_to(typed_value);
-				}
-			) {
-				(void)TryReadScriptJson(
-					input,
-					state.value
-				);
+		if constexpr (
+			requires(const json& json_value, T& typed_value) {
+				json_value.get_to(typed_value);
 			}
-
-			state.synchronized_value = input;
-			state.initialized = true;
+		) {
+			(void)TryReadScriptJson(input, value);
 		}
 
 		bool changed{
 			std::invoke(
 				draw,
 				context,
-				state.value
+				value
 			)
 		};
 
 		if constexpr (
-			requires(
-				json& json_value,
-				const T& typed_value
-			) {
+			requires(json& json_value, const T& typed_value) {
 				json_value = typed_value;
 			}
 		) {
 			json updated = json::object();
 
 			try {
-				updated = state.value;
+				updated = value;
 			} catch (...) {
 				return changed;
 			}
@@ -287,12 +270,10 @@ bool DrawTypedJsonEditor(
 				input = std::move(updated);
 			}
 
-			state.synchronized_value = input;
 			return changed || serialized_changed;
-		} else {
-			state.synchronized_value = input;
-			return changed;
 		}
+
+		return changed;
 	}
 }
 

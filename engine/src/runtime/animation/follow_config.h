@@ -51,16 +51,19 @@ struct FollowConfig {
 
 	PTGN_REFLECT(
 		FollowConfig, move_mode, follow_x, follow_y, teleport_on_start, stop_distance, lerp,
-		deadzone, offset, max_speed, max_acceleration
+		snap_distance, deadzone, offset, max_speed, max_acceleration
 	)
 };
 
 struct TargetFollowConfig : public FollowConfig {
-	constexpr explicit TargetFollowConfig(const FollowConfig& config) : FollowConfig{ config } {}
+	constexpr explicit TargetFollowConfig(const FollowConfig& config) :
+		FollowConfig{ config } {}
 
 	using FollowConfig::FollowConfig;
 
 	constexpr bool operator==(const TargetFollowConfig&) const = default;
+
+	PTGN_REFLECT_DERIVED(TargetFollowConfig, FollowConfig)
 };
 
 struct PathFollowConfig : public FollowConfig {
