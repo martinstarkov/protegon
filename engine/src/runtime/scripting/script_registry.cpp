@@ -1046,20 +1046,49 @@ PTGN_REGISTER_EVENT(event::EntityCreated);
 PTGN_REGISTER_EVENT(
 	event::TimerElapsed,
 	{
-		.default_value = MakeEventDefault(
-			"timer",
-			TimerKey{ "Timer" }
-		),
+		.default_value = [] {
+			auto value = MakeEventDefault(
+				"timer",
+				TimerKey{ "Timer" }
+			);
+			value["duration"] = nullptr;
+			return value;
+		}(),
 		.matches = [](
 			Entity,
 			const json& value,
 			const event::TimerElapsed& event
 		) {
-			return event.timer == JsonValueOr<TimerKey>(
-				value,
-				"timer",
-				TimerKey{}
-			);
+			if (event.timer != JsonValueOr<TimerKey>(
+					value,
+					"timer",
+					TimerKey{}
+				)) {
+				return false;
+			}
+
+			if (!value.is_object()) {
+				return event.completed;
+			}
+
+			const auto duration_it{ value.find("duration") };
+			if (duration_it == value.end() || duration_it->is_null()) {
+				return event.completed;
+			}
+
+			millisecondsf duration;
+			try {
+				duration_it->get_to(duration);
+			} catch (...) {
+				return false;
+			}
+
+			if (duration <= millisecondsf{ 0.0f }) {
+				return false;
+			}
+
+			return event.previous_elapsed < duration &&
+				   event.elapsed >= duration;
 		},
 		.available = &HasTimers,
 	}

@@ -8542,6 +8542,15 @@ void SyncTimerRuntimeSnapshot(
 	}
 }
 
+struct TimerRuntimeControlState {
+	millisecondsf adjustment{ 100.0f };
+};
+
+std::unordered_map<ImGuiID, TimerRuntimeControlState>& TimerRuntimeControlStates() {
+	static std::unordered_map<ImGuiID, TimerRuntimeControlState> states;
+	return states;
+}
+
 void DrawTimerRuntimeControls(
 	Entity entity,
 	const TimerKey& live_key,
@@ -8600,24 +8609,48 @@ void DrawTimerRuntimeControls(
 		runtime_changed |= timer.Reset();
 	}
 
-	if (ImGui::Button("Time...")) {
-		ImGui::OpenPopup("TimerTimeAdjust");
+	ImGuiID adjustment_id{ ImGui::GetID("##TimerRuntimeAdjustmentState") };
+	auto& control_state{ TimerRuntimeControlStates()[adjustment_id] };
+
+	float spacing{ ImGui::GetStyle().ItemSpacing.x };
+	float advance_width{
+		ImGui::CalcTextSize("Advance").x +
+		ImGui::GetStyle().FramePadding.x * 2.0f
+	};
+	float rewind_width{
+		ImGui::CalcTextSize("Rewind").x +
+		ImGui::GetStyle().FramePadding.x * 2.0f
+	};
+	float adjustment_width{
+		std::max(
+			60.0f,
+			ImGui::GetContentRegionAvail().x -
+				advance_width -
+				rewind_width -
+				spacing * 2.0f
+		)
+	};
+
+	if (DrawDurationTextInput(
+			"##TimerRuntimeAdjustment",
+			control_state.adjustment,
+			adjustment_width,
+			false,
+			"Positive duration to advance or rewind."
+		)) {
+		control_state.adjustment = millisecondsf{
+			std::max(0.001f, control_state.adjustment.count())
+		};
 	}
 
-	if (ImGui::BeginPopup("TimerTimeAdjust")) {
-		if (ImGui::MenuItem("Advance 100ms")) {
-			runtime_changed |= timer.Advance(100ms);
-		}
-		if (ImGui::MenuItem("Advance 1s")) {
-			runtime_changed |= timer.Advance(1s);
-		}
-		if (ImGui::MenuItem("Rewind 100ms")) {
-			runtime_changed |= timer.Rewind(100ms);
-		}
-		if (ImGui::MenuItem("Rewind 1s")) {
-			runtime_changed |= timer.Rewind(1s);
-		}
-		ImGui::EndPopup();
+	ImGui::SameLine(0.0f, spacing);
+	if (ImGui::Button("Advance", ImVec2{ advance_width, 0.0f })) {
+		runtime_changed |= timer.Advance(control_state.adjustment);
+	}
+
+	ImGui::SameLine(0.0f, spacing);
+	if (ImGui::Button("Rewind", ImVec2{ rewind_width, 0.0f })) {
+		runtime_changed |= timer.Rewind(control_state.adjustment);
 	}
 
 	if (runtime_changed) {

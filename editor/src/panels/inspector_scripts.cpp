@@ -1404,20 +1404,35 @@ bool DrawTimerElapsedTrigger(
 	json& value
 ) {
 	TimerKey timer{ "Timer" };
+	std::optional<millisecondsf> duration_override;
 
 	if (value.is_object()) {
-		const auto it{ value.find("timer") };
-		if (it != value.end()) {
+		const auto timer_it{ value.find("timer") };
+		if (timer_it != value.end()) {
 			try {
-				it->get_to(timer);
+				timer_it->get_to(timer);
 			} catch (...) {
 				timer = TimerKey{ "Timer" };
+			}
+		}
+
+		const auto duration_it{ value.find("duration") };
+		if (duration_it != value.end() && !duration_it->is_null()) {
+			try {
+				millisecondsf duration;
+				duration_it->get_to(duration);
+				if (duration > millisecondsf{ 0.0f }) {
+					duration_override = duration;
+				}
+			} catch (...) {
+				duration_override.reset();
 			}
 		}
 	}
 
 	std::vector<TimerKey> choices;
 	Entity owner{ ResolveInspectedEntity(context) };
+
 	if (owner) {
 		if (const auto* timers{ owner.TryGet<::ptgn::impl::Timers>() }) {
 			for (const auto& entry : timers->timers) {
@@ -1425,6 +1440,7 @@ bool DrawTimerElapsedTrigger(
 					std::ranges::contains(choices, entry.config.key)) {
 					continue;
 				}
+
 				choices.push_back(entry.config.key);
 			}
 		}
@@ -1434,40 +1450,156 @@ bool DrawTimerElapsedTrigger(
 		return lhs.value < rhs.value;
 	});
 
+	float available{ ImGui::GetContentRegionAvail().x };
+	float spacing{ ImGui::GetStyle().ItemSpacing.x };
+	float checkbox_width{ ImGui::GetFrameHeight() };
+	float duration_width{
+		std::min(
+			110.0f,
+			std::max(72.0f, available * 0.32f)
+		)
+	};
+	float timer_width{
+		std::max(
+			1.0f,
+			available -
+				checkbox_width -
+				duration_width -
+				spacing * 2.0f
+		)
+	};
+
 	bool changed{ false };
-	ImGui::SetNextItemWidth(-FLT_MIN);
+	ImGui::SetNextItemWidth(timer_width);
 
 	if (choices.empty()) {
-		changed = ImGui::InputTextWithHint("##TimerTrigger", "Timer name", &timer.value);
+		changed |= ImGui::InputTextWithHint(
+			"##TimerTrigger",
+			"Timer name",
+			&timer.value
+		);
 	} else {
-		const char* preview{ timer.value.empty() ? "Select Timer" : timer.value.c_str() };
+		const char* preview{
+			timer.value.empty()
+				? "Select Timer"
+				: timer.value.c_str()
+		};
+
 		if (ImGui::BeginCombo("##TimerTrigger", preview)) {
 			for (const auto& choice : choices) {
 				bool selected{ choice == timer };
+
 				if (ImGui::Selectable(choice.value.c_str(), selected)) {
 					timer = choice;
 					changed = true;
 				}
+
 				if (selected) {
 					ImGui::SetItemDefaultFocus();
 				}
 			}
+
 			ImGui::EndCombo();
 		}
 	}
 
-	DrawTooltip("Named timer whose elapsed event starts or stops this sequence.");
+	DrawTooltip("Named timer whose elapsed threshold starts or stops this sequence.");
+
+	std::optional<millisecondsf> timer_duration;
+
+	if (owner) {
+		if (const auto* timers{ owner.TryGet<::ptgn::impl::Timers>() }) {
+			const auto it{ std::ranges::find_if(
+				timers->timers,
+				[&timer](const TimerEntry& entry) {
+					return entry.config.key == timer;
+				}
+			) };
+
+			if (it != timers->timers.end()) {
+				timer_duration = it->config.duration;
+			}
+		}
+	}
+
+	millisecondsf displayed_duration{
+		duration_override.value_or(
+			timer_duration.value_or(millisecondsf{ 1000.0f })
+		)
+	};
+	displayed_duration = millisecondsf{
+		std::max(0.001f, displayed_duration.count())
+	};
+
+	if (timer_duration && *timer_duration > millisecondsf{ 0.0f }) {
+		displayed_duration = std::min(
+			displayed_duration,
+			*timer_duration
+		);
+	}
+
+	bool use_duration_override{ duration_override.has_value() };
+
+	ImGui::SameLine(0.0f, spacing);
+	if (ImGui::Checkbox(
+			"##TimerElapsedDurationOverride",
+			&use_duration_override
+		)) {
+		if (use_duration_override) {
+			duration_override = displayed_duration;
+		} else {
+			duration_override.reset();
+		}
+
+		changed = true;
+	}
+	DrawTooltip(
+		"Use a custom elapsed duration. Unchecked uses the timer's configured duration."
+	);
+
+	ImGui::SameLine(0.0f, spacing);
+	ImGui::BeginDisabled(!use_duration_override);
+
+	if (DrawDurationTextInput(
+			"##TimerElapsedDuration",
+			displayed_duration,
+			duration_width,
+			false,
+			"Elapsed duration required before this trigger matches."
+		)) {
+		displayed_duration = millisecondsf{
+			std::max(0.001f, displayed_duration.count())
+		};
+
+		if (timer_duration && *timer_duration > millisecondsf{ 0.0f }) {
+			displayed_duration = std::min(
+				displayed_duration,
+				*timer_duration
+			);
+		}
+
+		duration_override = displayed_duration;
+		changed = true;
+	}
+
+	ImGui::EndDisabled();
 
 	if (changed) {
 		if (!value.is_object()) {
 			value = json::object();
 		}
+
 		value["timer"] = timer;
+
+		if (duration_override) {
+			value["duration"] = *duration_override;
+		} else {
+			value["duration"] = nullptr;
+		}
 	}
 
 	return changed;
 }
-
 
 bool DrawEvent(
 	ScriptEditorContext& context, EventCondition& event, bool stop_event, bool& switch_kind,

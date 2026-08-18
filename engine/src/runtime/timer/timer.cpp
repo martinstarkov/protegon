@@ -61,6 +61,152 @@ void InitializeTimerRuntime(TimerEntry& entry, bool apply_auto_start) {
 	return FindTimerEntry(handle.owner, handle.key);
 }
 
+[[nodiscard]] std::vector<event::TimerElapsed> AdvanceTimerEntry(
+	TimerEntry& entry,
+	const TimerKey& key,
+	millisecondsf amount
+) {
+	std::vector<event::TimerElapsed> events;
+
+	if (amount <= millisecondsf{ 0.0f }) {
+		return events;
+	}
+
+	InitializeTimerRuntime(entry, false);
+
+	const millisecondsf duration{ ClampTimerDuration(entry.config.duration) };
+	millisecondsf previous_elapsed{
+		entry.runtime.timer.ElapsedDuration<millisecondsf>()
+	};
+
+	if (entry.config.mode == TimerMode::Once && entry.runtime.completed) {
+		return events;
+	}
+
+	entry.runtime.timer.AddElapsed(amount);
+	millisecondsf elapsed{
+		entry.runtime.timer.ElapsedDuration<millisecondsf>()
+	};
+
+	if (entry.config.mode == TimerMode::Once) {
+		if (duration <= millisecondsf{ 0.0f }) {
+			entry.runtime.timer.RemoveElapsed(elapsed);
+			entry.runtime.timer.Stop();
+			entry.runtime.completed = true;
+			++entry.runtime.elapsed_count;
+
+			events.push_back(event::TimerElapsed{
+				.timer = key,
+				.previous_elapsed = millisecondsf{ 0.0f },
+				.elapsed = millisecondsf{ 0.0f },
+				.duration = duration,
+				.count = entry.runtime.elapsed_count,
+				.completed = true,
+			});
+			return events;
+		}
+
+		previous_elapsed = std::min(previous_elapsed, duration);
+
+		if (elapsed >= duration) {
+			if (elapsed > duration) {
+				entry.runtime.timer.RemoveElapsed(elapsed - duration);
+			}
+
+			entry.runtime.timer.Stop();
+			entry.runtime.completed = true;
+			++entry.runtime.elapsed_count;
+
+			events.push_back(event::TimerElapsed{
+				.timer = key,
+				.previous_elapsed = previous_elapsed,
+				.elapsed = duration,
+				.duration = duration,
+				.count = entry.runtime.elapsed_count,
+				.completed = true,
+			});
+			return events;
+		}
+
+		entry.runtime.completed = false;
+		events.push_back(event::TimerElapsed{
+			.timer = key,
+			.previous_elapsed = previous_elapsed,
+			.elapsed = elapsed,
+			.duration = duration,
+			.count = entry.runtime.elapsed_count,
+			.completed = false,
+		});
+		return events;
+	}
+
+	entry.runtime.completed = false;
+
+	if (duration <= millisecondsf{ 0.0f }) {
+		entry.runtime.timer.RemoveElapsed(elapsed);
+		++entry.runtime.elapsed_count;
+
+		events.push_back(event::TimerElapsed{
+			.timer = key,
+			.previous_elapsed = millisecondsf{ 0.0f },
+			.elapsed = millisecondsf{ 0.0f },
+			.duration = duration,
+			.count = entry.runtime.elapsed_count,
+			.completed = true,
+		});
+		return events;
+	}
+
+	std::size_t fire_count{ entry.runtime.timer.ConsumeAll(duration) };
+	millisecondsf remainder{
+		entry.runtime.timer.ElapsedDuration<millisecondsf>()
+	};
+	std::uint64_t first_count{ entry.runtime.elapsed_count + 1 };
+	entry.runtime.elapsed_count += static_cast<std::uint64_t>(fire_count);
+
+	for (std::size_t index{ 0 }; index < fire_count; ++index) {
+		events.push_back(event::TimerElapsed{
+			.timer = key,
+			.previous_elapsed = index == 0
+				? std::min(previous_elapsed, duration)
+				: millisecondsf{ 0.0f },
+			.elapsed = duration,
+			.duration = duration,
+			.count = first_count + static_cast<std::uint64_t>(index),
+			.completed = true,
+		});
+	}
+
+	millisecondsf segment_start{
+		fire_count == 0 ? previous_elapsed : millisecondsf{ 0.0f }
+	};
+
+	if (fire_count == 0 || remainder > millisecondsf{ 0.0f }) {
+		events.push_back(event::TimerElapsed{
+			.timer = key,
+			.previous_elapsed = segment_start,
+			.elapsed = remainder,
+			.duration = duration,
+			.count = entry.runtime.elapsed_count,
+			.completed = false,
+		});
+	}
+
+	return events;
+}
+
+void DispatchTimerEvents(
+	Entity entity,
+	std::vector<event::TimerElapsed> events
+) {
+	for (auto& timer_event : events) {
+		script_runtime::Dispatch<event::TimerElapsed>(
+			entity,
+			std::move(timer_event)
+		);
+	}
+}
+
 } // namespace
 
 namespace impl {
@@ -193,8 +339,12 @@ bool TimerHandle::Advance(millisecondsf amount) const {
 		return false;
 	}
 
-	InitializeTimerRuntime(*entry, false);
-	entry->runtime.timer.AddElapsed(amount);
+	auto events{ AdvanceTimerEntry(*entry, key, amount) };
+	if (events.empty()) {
+		return false;
+	}
+
+	DispatchTimerEvents(owner, std::move(events));
 	return true;
 }
 
@@ -245,6 +395,11 @@ millisecondsf TimerHandle::Elapsed() const {
 	if (!entry || !entry->runtime.initialized) {
 		return millisecondsf{ 0.0f };
 	}
+
+	if (entry->config.mode == TimerMode::Once && entry->runtime.completed) {
+		return ClampTimerDuration(entry->config.duration);
+	}
+
 	return entry->runtime.timer.ElapsedDuration<millisecondsf>();
 }
 
@@ -356,7 +511,11 @@ bool RemoveTimer(Entity entity, const TimerKey& key) {
 namespace timer_runtime {
 
 void Update(Scene& scene, secondsf delta_time) {
-	const secondsf dt{ std::max(0.0f, delta_time.count()) };
+	const millisecondsf dt{
+		duration_cast<millisecondsf>(
+			secondsf{ std::max(0.0f, delta_time.count()) }
+		)
+	};
 	const auto entities{ scene.EntitiesWith<impl::Timers>().GetVector() };
 
 	for (Entity entity : entities) {
@@ -371,6 +530,7 @@ void Update(Scene& scene, secondsf delta_time) {
 
 		std::vector<TimerKey> keys;
 		keys.reserve(timers->timers.size());
+
 		for (const auto& entry : timers->timers) {
 			keys.push_back(entry.config.key);
 		}
@@ -382,46 +542,13 @@ void Update(Scene& scene, secondsf delta_time) {
 			}
 
 			InitializeTimerRuntime(*entry, true);
+
 			if (!entry->runtime.timer.IsRunning()) {
 				continue;
 			}
 
-			entry->runtime.timer.Update(dt);
-			const millisecondsf duration{ ClampTimerDuration(entry->config.duration) };
-			std::size_t fire_count{ 0 };
-
-			if (entry->config.mode == TimerMode::Once) {
-				if (duration <= millisecondsf{ 0.0f } || entry->runtime.timer.Completed(duration)) {
-					entry->runtime.timer.Stop();
-					entry->runtime.completed = true;
-					fire_count = 1;
-				}
-			} else {
-				entry->runtime.completed = false;
-				if (duration <= millisecondsf{ 0.0f }) {
-					entry->runtime.timer.Restart();
-					fire_count = 1;
-				} else {
-					fire_count = entry->runtime.timer.ConsumeAll(duration);
-				}
-			}
-
-			if (fire_count == 0) {
-				continue;
-			}
-
-			std::uint64_t first_count{ entry->runtime.elapsed_count + 1 };
-			entry->runtime.elapsed_count += static_cast<std::uint64_t>(fire_count);
-
-			for (std::size_t index{ 0 }; index < fire_count; ++index) {
-				script_runtime::Dispatch<event::TimerElapsed>(
-					entity,
-					event::TimerElapsed{
-						.timer = key,
-						.count = first_count + static_cast<std::uint64_t>(index),
-					}
-				);
-			}
+			auto events{ AdvanceTimerEntry(*entry, key, dt) };
+			DispatchTimerEvents(entity, std::move(events));
 		}
 	}
 }

@@ -3121,8 +3121,8 @@ PTGN_REGISTER_EVENT(
 	{
 		.label = "On Timer Elapsed",
 		.group = "Timing",
-		.description = "Matches when a named timer reaches its duration.",
-		.inline_fields = 1,
+		.description = "Matches when a named timer reaches its configured or overridden elapsed duration.",
+		.inline_fields = 3,
 	}
 );
 
