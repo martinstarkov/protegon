@@ -178,9 +178,30 @@ std::vector<ManualFeatureState>& ManualFeatureStates() {
 	return states;
 }
 
+[[nodiscard]] bool SameManualFeatureTarget(
+	const FeatureTargetKey& lhs,
+	const FeatureTargetKey& rhs
+) {
+	if (lhs.entity && rhs.entity) {
+		return lhs.entity == rhs.entity;
+	}
+
+	if (lhs.prefab && rhs.prefab) {
+		return lhs.prefab == rhs.prefab &&
+			   lhs.prefab_entity_path == rhs.prefab_entity_path;
+	}
+
+	return lhs == rhs;
+}
+
 ManualFeatureState& GetManualFeatureState(const FeatureTargetKey& target) {
 	auto& states{ ManualFeatureStates() };
-	const auto it{ std::ranges::find(states, target, &ManualFeatureState::target) };
+	const auto it{ std::ranges::find_if(
+		states,
+		[&target](const ManualFeatureState& state) {
+			return SameManualFeatureTarget(state.target, target);
+		}
+	) };
 
 	if (it != states.end()) {
 		return *it;
@@ -482,7 +503,12 @@ bool DrawButtonVisualOverrideValue(
 	const FeatureTargetKey& target, InspectorFeature feature
 ) {
 	const auto& states{ ManualFeatureStates() };
-	const auto it{ std::ranges::find(states, target, &ManualFeatureState::target) };
+	const auto it{ std::ranges::find_if(
+		states,
+		[&target](const ManualFeatureState& state) {
+			return SameManualFeatureTarget(state.target, target);
+		}
+	) };
 
 	if (it == states.end()) {
 		return false;
@@ -497,7 +523,7 @@ void SetFeatureManuallyAdded(const FeatureTargetKey& target, InspectorFeature fe
 
 	if (!std::ranges::any_of(state.features, std::identity{})) {
 		std::erase_if(ManualFeatureStates(), [&target](const ManualFeatureState& candidate) {
-			return candidate.target == target;
+			return SameManualFeatureTarget(candidate.target, target);
 		});
 	}
 }
@@ -8892,11 +8918,6 @@ bool DrawUtilitiesFeature(Target& target) {
 	return changed;
 }
 
-template <typename Target, typename... T>
-[[nodiscard]] consteval bool SupportsAnyFeatureComponent(FeatureComponents<T...>) {
-	return (Target::template Supports<T>() || ...);
-}
-
 template <typename Target>
 bool DrawAddFeatureMenu(Target& target) {
 	bool changed{ false };
@@ -8921,21 +8942,6 @@ bool DrawAddFeatureMenu(Target& target) {
 
 		if (ImGui::MenuItem(label)) {
 			changed |= AddInspectorFeatureWithDefault<Default>(target, feature, label, components);
-		}
-	};
-
-	auto item_without_default = [&]<typename... T>(
-									InspectorFeature feature, const char* label,
-									bool feature_exists, FeatureComponents<T...> components
-								) {
-		if constexpr (!SupportsAnyFeatureComponent<Target>(components)) {
-			return;
-		}
-
-		ScopedDisabled disabled{ feature_exists };
-
-		if (ImGui::MenuItem(label)) {
-			changed |= AddInspectorFeature(target, feature, label, components);
 		}
 	};
 
@@ -8972,10 +8978,18 @@ bool DrawAddFeatureMenu(Target& target) {
 	item_with_default.template operator()<::ptgn::impl::Scripts>(
 		InspectorFeature::Scripts, "Scripts", HasScriptsFeature(target), ScriptsFeatureComponents{}
 	);
-	item_without_default(
-		InspectorFeature::Utilities, "Utilities", HasUtilitiesFeature(target),
-		UtilitiesFeatureComponents{}
-	);
+	{
+		ScopedDisabled disabled{ HasUtilitiesFeature(target) };
+
+		if (ImGui::MenuItem("Utilities")) {
+			changed |= AddInspectorFeature(
+				target,
+				InspectorFeature::Utilities,
+				"Utilities",
+				UtilitiesFeatureComponents{}
+			);
+		}
+	}
 
 	ImGui::EndPopup();
 	return changed;

@@ -39,6 +39,7 @@
 #include "runtime/physics/rigid_body.h"
 #include "runtime/scene/scene_camera.h"
 #include "runtime/scripting/script.h"
+#include "runtime/timer/timer.h"
 #include "runtime/ui/button.h"
 #include "runtime/ui/button_config.h"
 #include "runtime/ui/dropdown.h"
@@ -49,6 +50,7 @@
 namespace ptgn {
 
 PTGN_REGISTER_COMPONENT(Transform);
+PTGN_REGISTER_COMPONENT(impl::Timers);
 PTGN_REGISTER_COMPONENT(impl::Scripts);
 PTGN_REGISTER_COMPONENT(impl::ParentRenderTarget);
 PTGN_REGISTER_COMPONENT(Group);
