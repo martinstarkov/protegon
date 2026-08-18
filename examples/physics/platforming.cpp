@@ -65,6 +65,6 @@ class PlatformingScene : public Scene {
 
 int main(int, char**) {
 	Application app{ "PlatformingScene", logical_size };
-	PTGN_WITH_EDITOR(app, false);
+	PTGN_WITH_EDITOR(app, true);
 	app.StartWith<PlatformingScene>();
 }
