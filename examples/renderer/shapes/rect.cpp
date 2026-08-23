@@ -12,7 +12,7 @@ using namespace ptgn;
 class RectEntityScene : public Scene {
 	void OnEnter() override {
 		CreateRect(*this, { -100, 0 }, { 80, 40 }, color::Blue, 1.0f, Origin::Center);
-		CreateRect(*this, { 0, 0 }, { 80, 40 }, color::LightBlue, Solid{}, Origin::Center);
+		CreateRect(*this, { 0, 0 }, { 80, 40 }, Color{ 25, 75, 150, 225 }, Solid{}, Origin::Center);
 		auto rect3{
 			CreateRect(*this, { 100, 0 }, { 80, 40 }, color::DarkBlue, 5.0f, Origin::Center)
 		};
