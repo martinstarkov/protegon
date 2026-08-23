@@ -15,7 +15,7 @@ struct ShakeConfig {
 	Degrees maximum_rotation{ 30.0f };
 
 	/// @brief Frequency of the Perlin noise function. Higher values will result in faster shaking.
-	float frequency{ 10.0f };
+	float frequency{ 0.01f };
 
 	/// @brief Trauma is taken to this power before shaking is applied. Higher values will result in
 	/// a smoother falloff as trauma reduces.

@@ -147,7 +147,7 @@ void Text::Draw(DrawContext& ctx, Entity entity) {
 		.entity_id			= entity.Get<UUID>(),
 		.clips				= prepared.GetClips(),
 		.reveal_glyph_count = text.GetRevealGlyphCount(),
-		.time				= scene.ctx().TimeSinceStartSeconds().count(),
+		.time				= scene.ctx().GameTime().count(),
 	};
 
 	ctx.DrawText(prepared.transform, request, effects);

@@ -229,7 +229,7 @@ void RenderQueue::DrawText(
 			.depth	   = params.depth,
 			.entity_id = params.entity_id,
 			.clips	   = prepared.GetClips(),
-			.time	   = ctx.TimeSinceStartSeconds().count(),
+			.time	   = ctx.GameTime().count(),
 		}
 	) };
 

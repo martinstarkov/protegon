@@ -31,8 +31,8 @@ ApplicationLibrary::~ApplicationLibrary() noexcept {
 	PTGN_INFO("Deinitialized GLFW");
 }
 
-milliseconds ApplicationContext::TimeSinceStart() const {
-	return duration_cast<milliseconds>(duration<double>{ glfwGetTime() });
+secondsf ApplicationContext::TimeSinceApplicationStart() const {
+	return secondsf{ glfwGetTime() };
 }
 
 ApplicationContext& ApplicationAccessor::ctx(Application& app) {

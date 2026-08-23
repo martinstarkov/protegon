@@ -82,11 +82,17 @@ public:
 		return duration_cast<T>(dt());
 	}
 
-	/// @brief Returns the time elapsed since the Application instance was constructed.
-	[[nodiscard]] milliseconds TimeSinceStart() const;
+	/// @brief Returns the game time since application start, affected by time scale and pause.
+	[[nodiscard]] secondsf GameTime() const;
 
-	/// @brief Returns the time elapsed since the Application instance was constructed.
-	[[nodiscard]] secondsf TimeSinceStartSeconds() const;
+	/// @brief Returns the game time since application start, affected by pause but not time scale.
+	[[nodiscard]] secondsf UnscaledGameTime() const;
+
+	/// @brief Returns the real time since application start, not affected by time scale or pause.
+	[[nodiscard]] secondsf RealTime() const;
+
+	/// @brief Returns the time elapsed since the Application instance was constructed (based on GLFW).
+	[[nodiscard]] secondsf TimeSinceApplicationStart() const;
 
 	/// @brief Returns whether the application is currently running.
 	bool IsRunning() const;

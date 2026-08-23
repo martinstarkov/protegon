@@ -54,12 +54,20 @@ secondsf SceneContext::dt() const {
 	return impl::ApplicationAccessor::ctx(app_).dt;
 }
 
-milliseconds SceneContext::TimeSinceStart() const {
-	return impl::ApplicationAccessor::ctx(app_).TimeSinceStart();
+secondsf SceneContext::GameTime() const {
+	return impl::ApplicationAccessor::ctx(app_).game_time;
 }
 
-secondsf SceneContext::TimeSinceStartSeconds() const {
-	return duration_cast<secondsf>(TimeSinceStart());
+secondsf SceneContext::UnscaledGameTime() const {
+	return impl::ApplicationAccessor::ctx(app_).unscaled_game_time;
+}
+
+secondsf SceneContext::RealTime() const {
+	return impl::ApplicationAccessor::ctx(app_).real_time;
+}
+
+secondsf SceneContext::TimeSinceApplicationStart() const {
+	return impl::ApplicationAccessor::ctx(app_).TimeSinceApplicationStart();
 }
 
 bool SceneContext::IsRunning() const {

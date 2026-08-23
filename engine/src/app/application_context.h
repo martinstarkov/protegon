@@ -72,6 +72,14 @@ public:
 
 	float fps{ 60.0f };
 	secondsf dt{ 0.0f };
+	
+	/// @brief The game time since application start, affected by time scale and pause.
+	secondsf game_time{ 0.0f };
+	/// @brief The game time since application start, affected by pause but not time scale.
+	secondsf unscaled_game_time{ 0.0f };
+	/// @brief The real time since application start, not affected by time scale or pause.
+	secondsf real_time{ 0.0f };
+
 	bool running{ false };
 	std::size_t frame_count{ 0 };
 	float time_scale{ 1.0f };
@@ -93,7 +101,7 @@ public:
 	/// Empty for direct runtime projects, which load scene files from disk.
 	std::vector<RuntimeProjectSceneSnapshot> runtime_project_scenes;
 
-	[[nodiscard]] milliseconds TimeSinceStart() const;
+	[[nodiscard]] secondsf TimeSinceApplicationStart() const;
 
 private:
 	friend class ptgn::Application;

@@ -153,18 +153,18 @@ void ClearShakeOffset(Entity entity) {
 }
 
 void ApplyShake(
-	milliseconds time, impl::Offsets& offsets, float trauma, const ShakeConfig& config,
+	secondsf time, impl::Offsets& offsets, float trauma, const ShakeConfig& config,
 	std::int32_t seed
 ) {
 	const float shake_value{ std::pow(std::clamp(trauma, 0.0f, 1.0f), config.trauma_exponent) };
-	const float x{ static_cast<float>(time.count()) * config.frequency };
+	const float phase{ time.count() * config.frequency };
 
 	const V2_float position_noise{
-		PerlinNoise::GetValue(x, 0.0f, seed + 0) * 2.0f - 1.0f,
-		PerlinNoise::GetValue(x, 0.0f, seed + 1) * 2.0f - 1.0f
+		PerlinNoise::GetValue(phase, 0.0f, seed + 0) * 2.0f - 1.0f,
+		PerlinNoise::GetValue(phase, 0.0f, seed + 1) * 2.0f - 1.0f
 	};
 	const float rotation_noise{
-		PerlinNoise::GetValue(x, 0.0f, seed + 3) * 2.0f - 1.0f
+		PerlinNoise::GetValue(phase, 0.0f, seed + 3) * 2.0f - 1.0f
 	};
 
 	offsets.shake.position = shake_value * config.maximum_translation * position_noise;
@@ -454,7 +454,7 @@ ScriptStatus ShakeScript::OnUpdate() {
 
 	auto& offsets{ Target().TryAdd<impl::Offsets>() };
 	ApplyShake(
-		GetScene().ctx().TimeSinceStart(), offsets, state.trauma, config, state.seed
+		GetScene().ctx().GameTime(), offsets, state.trauma, config, state.seed
 	);
 	return ScriptStatus::Running;
 }
@@ -488,7 +488,7 @@ void AddShakeTraumaScript::OnStart() {
 
 	auto& offsets{ Target().TryAdd<impl::Offsets>() };
 	ApplyShake(
-		GetScene().ctx().TimeSinceStart(), offsets, state.trauma, config, state.seed
+		GetScene().ctx().GameTime(), offsets, state.trauma, config, state.seed
 	);
 }
 
@@ -508,7 +508,7 @@ ScriptStatus RecoverShakeScript::OnUpdate() {
 
 	auto& offsets{ Target().TryAdd<impl::Offsets>() };
 	ApplyShake(
-		GetScene().ctx().TimeSinceStart(), offsets, state->trauma, config, state->seed
+		GetScene().ctx().GameTime(), offsets, state->trauma, config, state->seed
 	);
 	return ScriptStatus::Running;
 }

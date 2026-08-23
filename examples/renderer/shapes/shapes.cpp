@@ -40,7 +40,7 @@ struct ShapeScene : public Scene {
 		return vertices;
 	}
 
-	void OnUpdate() override {
+	void OnRender() override {
 		ctx().render_queue.DrawPoint({ -350, -300 }, color::Red);
 
 		ctx().render_queue.DrawLine(
@@ -205,9 +205,9 @@ struct ShapeScene : public Scene {
 			V2_int{ 100, -325 }, Rect{ 50, 25 }, color::DarkBlue, { .fill_style = 5.0f }
 		);
 
-		float time{ static_cast<float>(ctx().TimeSinceStart().count()) };
+		float time{ ctx().GameTime().count() };
 
-		Radians rotation{ Degrees{ time / 10.0f } };
+		Radians rotation{ Degrees{ time * 10.0f } };
 
 		ctx().render_queue.DrawShape(
 			{ { -50, -250 }, rotation }, Rect{ 50, 25 }, color::Blue, { .fill_style = 1.0f }

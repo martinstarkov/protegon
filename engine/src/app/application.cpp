@@ -508,27 +508,27 @@ void Application::Update() {
 
 	ctx_.debug.PreUpdate();
 
-	static auto start{ std::chrono::steady_clock::now() };
-	static auto end{ std::chrono::steady_clock::now() };
-	ctx_.dt = end - start;
+	static auto previous_time{ std::chrono::steady_clock::now() };
+
+	auto current_time{ std::chrono::steady_clock::now() };
+	secondsf real_dt{ current_time - previous_time };
+	previous_time = current_time;
+
+	secondsf unscaled_dt{ real_dt };
 
 	secondsf max_dt{ 1.0f / ctx_.fps };
 
-	if (ctx_.dt > max_dt) {
-		ctx_.dt = max_dt;
+	if (unscaled_dt > max_dt || step_requested) {
+		unscaled_dt = max_dt;
 	}
 
 	PTGN_ASSERT(ctx_.time_scale >= 0.0f, "Time scale cannot be negative");
 
-	if (step_requested) {
-		ctx_.dt = max_dt * ctx_.time_scale;
-	} else if (ctx_.state == ApplicationState::Paused) {
-		ctx_.dt = 0s;
-	} else {
-		ctx_.dt *= ctx_.time_scale;
+	if (ctx_.state == ApplicationState::Paused && !step_requested) {
+		unscaled_dt = 0s;
 	}
 
-	start = end;
+	ctx_.dt = unscaled_dt * ctx_.time_scale;
 
 	const bool window_running{ ctx_.window.Update() };
 	if (!window_running && close_guard_ && !close_guard_()) {
@@ -537,13 +537,19 @@ void Application::Update() {
 	} else {
 		ctx_.running = window_running;
 	}
+
 	ctx_.assets.Update();
+
+	auto end_frame = [&]() {
+		ctx_.debug.PostRender();
+
+		ctx_.frame_count++;
+		ctx_.real_time += real_dt;
+	};
 
 	if (ctx_.window.GetSetting(WindowSetting::Minimized)) {
 		ctx_.audio.Update();
-		ctx_.debug.PostRender();
-		end = std::chrono::steady_clock::now();
-		ctx_.frame_count++;
+		end_frame();
 		return;
 	}
 
@@ -562,8 +568,12 @@ void Application::Update() {
 	if (scene_events) {
 		ctx_.scene_manager.OnEvent();
 	}
+
 	if (update_scenes) {
 		ctx_.scene_manager.Update(*this, ctx_.dt);
+
+		ctx_.unscaled_game_time += unscaled_dt;
+		ctx_.game_time += ctx_.dt;
 	}
 
 	for (const auto& layer : ctx_.layers) {
@@ -591,10 +601,7 @@ void Application::Update() {
 
 	ctx_.window.SwapBuffers();
 
-	ctx_.debug.PostRender();
-
-	end = std::chrono::steady_clock::now();
-	ctx_.frame_count++;
+	end_frame();
 }
 
 } // namespace ptgn
