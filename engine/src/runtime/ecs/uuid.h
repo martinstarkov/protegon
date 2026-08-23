@@ -15,6 +15,8 @@ public:
 	operator int() const; // NOSONAR
 
 	PTGN_REFLECT_VALUE(UUID, uuid_)
+
+	constexpr bool operator==(const UUID&) const = default;
 private:
 	int uuid_{ 0 };
 };
