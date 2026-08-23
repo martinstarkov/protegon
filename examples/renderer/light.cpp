@@ -48,7 +48,7 @@ public:
 			static float i = 1.0f;
 			CreateLight(
 				*this, V2_float{ -ctx().renderer.GetLogicalSize() * 0.5f } + V2_float{ i * step },
-				{ .radius = radius, .color = color, .intensity = intensity, .falloff = falloff }
+				{ .color = color, .radius = radius, .intensity = intensity, .falloff = falloff }
 			);
 			i++;
 		};
@@ -63,16 +63,16 @@ public:
 
 		mouse_light = CreateLight(
 			*this, {},
-			{ .radius = 50.0f, .color = color::White, .intensity = 0.1f, .falloff = 0.2f }
+			{ .color = color::White, .radius = 50.0f, .intensity = 0.1f, .falloff = 0.2f }
 		);
 
 		mouse_directional_light = CreateLight(
 			*this, V2_float{ 0, -300 },
-			{ .radius	  = 100.0f,
-			  .color	  = color::Red,
-			  .cone_angle = 10.0f,
+			{ .color	  = color::Red,
+			  .radius	  = 100.0f,
 			  .intensity  = 0.8f,
-			  .falloff	  = 0.2f }
+			  .falloff	  = 0.2f,
+			  .cone_angle = 10.0f }
 		);
 
 		auto sprite2 = CreateSprite(*this, { -200, 150 }, "tree");
@@ -84,16 +84,16 @@ public:
 	void OnUpdate() override {
 		SetPosition(mouse_light, ctx().input.GetMousePosition());
 		SetPosition(mouse_directional_light, ctx().input.GetMousePosition());
-		float time_scale{ 0.1f };
-		auto time{ static_cast<float>(ctx().TimeSinceStart().count()) };
+		float time_scale{ 100.0f };
+		float time{ ctx().GameTime().count() };
 		SetRotation(mouse_directional_light, Degrees{ time * time_scale });
 
 		auto scroll{ ctx().input.GetMouseScroll() };
 
 		if (scroll.y > 0.0f) {
-			mouse_directional_light.SetConeAngle(*mouse_directional_light.GetConeAngle() + 5.0f);
+			mouse_directional_light.ConeAngle(*mouse_directional_light.GetConfig().cone_angle + 5.0f);
 		} else if (scroll.y < 0.0f) {
-			mouse_directional_light.SetConeAngle(*mouse_directional_light.GetConeAngle() - 5.0f);
+			mouse_directional_light.ConeAngle(*mouse_directional_light.GetConfig().cone_angle - 5.0f);
 		}
 	}
 };
