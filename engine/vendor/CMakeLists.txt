@@ -29,7 +29,7 @@ if(EMSCRIPTEN)
   add_library(ptgn_glad INTERFACE)
 else()
   add_library(ptgn_glad STATIC ${CMAKE_CURRENT_SOURCE_DIR}/glad/src/gl.c)
-  target_include_directories(ptgn_glad PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/glad/include)
+  target_include_directories(ptgn_glad SYSTEM PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/glad/include)
 endif()
 
 # Ogg / Vorbis
@@ -48,9 +48,9 @@ add_library(ptgn_miniaudio STATIC
 )
 
 target_include_directories(ptgn_miniaudio
-  PUBLIC
+  SYSTEM PUBLIC
     ${CMAKE_CURRENT_SOURCE_DIR}/miniaudio
-  PRIVATE
+  SYSTEM PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/miniaudio/extras/decoders/libvorbis
     ${CMAKE_CURRENT_SOURCE_DIR}/ogg/include
     ${CMAKE_CURRENT_SOURCE_DIR}/vorbis/include
@@ -66,14 +66,14 @@ target_link_libraries(ptgn_miniaudio
 # stb
 add_library(ptgn_stb STATIC ${CMAKE_CURRENT_SOURCE_DIR}/stb/stb.cpp)
 
-target_include_directories(ptgn_stb PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/stb)
+target_include_directories(ptgn_stb SYSTEM PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/stb)
 
 # nlohmann_json
 add_subdirectory(json)
 
 # ecs
 add_library(ptgn_ecs INTERFACE)
-target_include_directories(ptgn_ecs INTERFACE ${CMAKE_CURRENT_SOURCE_DIR}/ecs/include)
+target_include_directories(ptgn_ecs SYSTEM INTERFACE ${CMAKE_CURRENT_SOURCE_DIR}/ecs/include)
 
 # Dear ImGui
 # GLFW + OpenGL3 backend
@@ -88,7 +88,7 @@ add_library(ptgn_imgui STATIC
 )
 
 target_include_directories(ptgn_imgui
-  PUBLIC
+  SYSTEM PUBLIC
     ${CMAKE_CURRENT_SOURCE_DIR}/imgui
     ${CMAKE_CURRENT_SOURCE_DIR}/imgui/backends
     ${CMAKE_CURRENT_SOURCE_DIR}/imgui/misc/cpp
