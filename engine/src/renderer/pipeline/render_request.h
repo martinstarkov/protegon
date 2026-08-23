@@ -14,15 +14,15 @@ template <RenderPrimitive T>
 struct DrawRequest {
 	/// @brief Optional texture to apply to the primitive. If the pipeline does not support
 	/// texturing, this field will be ignored.
-	TextureId texture;
+	TextureId texture{};
 
 	/// @brief Center of the primitive in world space. Origin should be accounted for in this
 	/// transform.
-	Transform transform;
+	Transform transform{};
 
-	std::span<T> primitives;
+	std::span<T> primitives{};
 
-	EffectParams effect_params;
+	EffectParams effect_params{};
 };
 
 using DrawTextureRequest = DrawRequest<TextureQuad>;

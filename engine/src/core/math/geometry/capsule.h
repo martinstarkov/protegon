@@ -17,8 +17,8 @@ public:
 
 	constexpr Capsule() = default;
 
-	constexpr Capsule(V2_float start, V2_float end, float radius) :
-		line{ start, end }, radius{ radius } {}
+	constexpr Capsule(V2_float start, V2_float end, float capsule_radius) :
+		line{ start, end }, radius{ capsule_radius } {}
 
 	/// @param out_size Optional parameter for the unrotated world size of the quad.
 	constexpr std::array<V2_float, 4> GetWorldQuadVertices(

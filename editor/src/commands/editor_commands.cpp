@@ -38,8 +38,8 @@ namespace ptgn::editor {
 namespace {
 
 struct PrefabAssetState {
-	PrefabKey key;
-	std::optional<Prefab> prefab;
+	PrefabKey key{};
+	std::optional<Prefab> prefab{};
 };
 
 void SavePrefabState(

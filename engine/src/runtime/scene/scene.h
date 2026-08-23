@@ -74,13 +74,13 @@ enum class SceneState {
 };
 
 struct SceneData {
-	std::string tag;
+	std::string tag{};
 	std::size_t tag_hash{ 0 };
 	impl::SceneState state{ impl::SceneState::Active };
-	std::unique_ptr<SceneTransition> transition;
+	std::unique_ptr<SceneTransition> transition{};
 	bool runtime{ true };
 	bool first_scene{ false };
-	std::string registered_type;
+	std::string registered_type{};
 	bool render_enabled{ true };
 };
 

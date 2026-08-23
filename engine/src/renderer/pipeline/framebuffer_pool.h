@@ -40,7 +40,7 @@ public:
 
 private:
 	struct PooledFramebuffer {
-		FramebufferObject framebuffer;
+		FramebufferObject framebuffer{};
 		std::uint64_t last_used_frame{ 0 };
 		bool used{ false };
 	};

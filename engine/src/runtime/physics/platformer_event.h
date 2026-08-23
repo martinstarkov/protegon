@@ -8,8 +8,8 @@
 namespace ptgn::event {
 
 struct PlayerGrounded {
-	Entity ground_entity;
-	V2_float normal;
+	Entity ground_entity{};
+	V2_float normal{};
 };
 
 struct PlayerUngrounded {};

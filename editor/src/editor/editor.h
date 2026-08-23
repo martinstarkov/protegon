@@ -57,7 +57,7 @@ struct ScreenEffectSelection;
 
 class Editor : public ApplicationLayer {
 public:
-	explicit Editor(Application& app);
+	explicit Editor(Application& application);
 
 	void OnUpdate() override;
 	void OnRender() override;
@@ -161,7 +161,7 @@ public:
 
 private:
 	struct PlaySnapshot {
-		std::string selected_scene_key;
+		std::string selected_scene_key{};
 		bool was_dirty{ false };
 		bool screen_effect_preview_before_play{ true };
 	};

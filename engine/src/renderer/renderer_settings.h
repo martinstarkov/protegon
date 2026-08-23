@@ -31,11 +31,11 @@ struct RendererSettings {
 	Color background_color{ color::Transparent };
 
 	/// @brief If nullopt, uses the window size as the logical size.
-	std::optional<V2_int> logical_size;
+	std::optional<V2_int> logical_size{};
 	
 	ScalingMode scaling_mode{ ScalingMode::Letterbox };
 
-	ToneMappingSettings tone_mapping;
+	ToneMappingSettings tone_mapping{};
 	/// @brief Gamma value to use for gamma correction. This is applied after tone mapping and
 	/// should be set to 2.2 for correct sRGB output. Setting this to 1.0 will disable gamma
 	/// correction.

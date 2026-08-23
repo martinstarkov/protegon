@@ -18,7 +18,7 @@ struct ActiveTexture {
 };
 
 struct TextureUnitState {
-	TextureId id;
+	TextureId id{};
 
 	TextureParams params{
 		.min_filter = TextureMinFilter::Linear,
@@ -44,21 +44,21 @@ struct State {
 		PTGN_ASSERT(max_texture_slots > 0);
 	}
 
-	RenderState render_state;
+	RenderState render_state{};
 
-	FramebufferId framebuffer;
-	RenderbufferId renderbuffer;
-	VertexBufferId vertex_buffer;
-	UniformBufferId uniform_buffer;
-	ShaderId shader_program;
-	VertexArrayId vertex_array;
+	FramebufferId framebuffer{};
+	RenderbufferId renderbuffer{};
+	VertexBufferId vertex_buffer{};
+	UniformBufferId uniform_buffer{};
+	ShaderId shader_program{};
+	VertexArrayId vertex_array{};
 
-	ActiveTexture active_texture;
-	TextureUnits texture_units;
+	ActiveTexture active_texture{};
+	TextureUnits texture_units{};
 
-	Depth clear_depth;
-	Stencil clear_stencil;
-	Color clear_color;
+	Depth clear_depth{};
+	Stencil clear_stencil{};
+	Color clear_color{};
 
 	constexpr bool operator==(const State&) const = default;
 };

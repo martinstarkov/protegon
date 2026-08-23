@@ -72,7 +72,7 @@ using ReflectedComponentIndexedNameCallback = std::string_view (*)(std::size_t i
 struct ReflectedComponentMember {
 	ComponentReflectionNodeKind kind{ ComponentReflectionNodeKind::Value };
 	ComponentReflectionValueKind value_kind{ ComponentReflectionValueKind::Unknown };
-	std::string name;
+	std::string name{};
 	std::size_t type_id{ 0 };
 	const void* value{ nullptr };
 	void* mutable_value{ nullptr };
@@ -128,11 +128,11 @@ enum class ComponentOperation {
 
 struct ComponentOperationContext {
 	ComponentOperation operation{ ComponentOperation::Has };
-	Entity entity;
+	Entity entity{};
 	json* output{ nullptr };
 	const json* input{ nullptr };
 	void* value{ nullptr };
-	ComponentReflectionVisitor reflection;
+	ComponentReflectionVisitor reflection{};
 	bool supported{ false };
 	bool success{ false };
 	bool bool_result{ false };
@@ -764,7 +764,7 @@ void VisitReflectedValue(T& value, ComponentReflectionVisitor visitor) {
 
 struct RegisteredComponent {
 	std::size_t type_id{ 0 };
-	std::string name;
+	std::string name{};
 	bool is_empty{ false };
 	bool default_constructible{ false };
 	bool serializable{ false };

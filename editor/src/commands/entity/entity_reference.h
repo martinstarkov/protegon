@@ -14,9 +14,9 @@ namespace editor {
 class Editor;
 
 struct EntityReference {
-	std::string scene_key;
+	std::string scene_key{};
 	bool runtime{ false };
-	UUID entity_uuid;
+	UUID entity_uuid{};
 
 	[[nodiscard]] Scene* ResolveScene(Editor& editor) const;
 	[[nodiscard]] Entity Resolve(Editor& editor) const;

@@ -41,7 +41,7 @@ struct TimerConfig {
 };
 
 struct TimerRuntime {
-	ManualTimer timer;
+	ManualTimer timer{};
 	std::uint64_t elapsed_count{ 0 };
 	bool completed{ false };
 	bool initialized{ false };
@@ -52,8 +52,8 @@ struct TimerRuntime {
 };
 
 struct TimerEntry {
-	TimerConfig config;
-	TimerRuntime runtime;
+	TimerConfig config{};
+	TimerRuntime runtime{};
 
 	constexpr bool operator==(const TimerEntry&) const = default;
 
@@ -64,7 +64,7 @@ struct TimerEntry {
 namespace impl {
 
 struct Timers {
-	std::vector<TimerEntry> timers;
+	std::vector<TimerEntry> timers{};
 
 	bool operator==(const Timers&) const = default;
 
@@ -77,8 +77,8 @@ void from_json(const json& input, Timers& timers);
 } // namespace impl
 
 struct TimerHandle {
-	Entity owner;
-	TimerKey key;
+	Entity owner{};
+	TimerKey key{};
 
 	[[nodiscard]] explicit operator bool() const;
 

@@ -213,66 +213,66 @@ struct FieldOptions {
 };
 
 template <typename T>
-inline constexpr FieldOptions kDefaultFieldOptions{};
+inline const FieldOptions kDefaultFieldOptions{};
 
 template <typename T>
-inline constexpr FieldOptions kDefaultFieldOptions<std::optional<T>>{ kDefaultFieldOptions<T> };
+inline const FieldOptions kDefaultFieldOptions<std::optional<T>>{ kDefaultFieldOptions<T> };
 
 template <>
-inline constexpr FieldOptions kDefaultFieldOptions<float>{
+inline const FieldOptions kDefaultFieldOptions<float>{
 	.speed	= kInspectorScalarDragSpeed,
 	.format = "%.3f",
 };
 
 template <>
-inline constexpr FieldOptions kDefaultFieldOptions<int>{
+inline const FieldOptions kDefaultFieldOptions<int>{
 	.speed	= 1.0f,
 	.format = "%d",
 };
 
 template <>
-inline constexpr FieldOptions kDefaultFieldOptions<std::int64_t>{
+inline const FieldOptions kDefaultFieldOptions<std::int64_t>{
 	.speed	= 1.0f,
 	.format = "%lld",
 };
 
 template <>
-inline constexpr FieldOptions kDefaultFieldOptions<std::size_t>{
+inline const FieldOptions kDefaultFieldOptions<std::size_t>{
 	.speed	= 1.0f,
 	.format = "%llu",
 };
 
 template <>
-inline constexpr FieldOptions kDefaultFieldOptions<V2_float>{
+inline const FieldOptions kDefaultFieldOptions<V2_float>{
 	.speed	= kInspectorPositionDragSpeed,
 	.format = "%.3f",
 };
 
 template <>
-inline constexpr FieldOptions kDefaultFieldOptions<V2_int>{
+inline const FieldOptions kDefaultFieldOptions<V2_int>{
 	.speed	= 1.0f,
 	.format = "%d",
 };
 
 template <>
-inline constexpr FieldOptions kDefaultFieldOptions<Degrees>{
+inline const FieldOptions kDefaultFieldOptions<Degrees>{
 	.speed	= 1.0f,
 	.format = "%.1f deg",
 };
 
 template <>
-inline constexpr FieldOptions kDefaultFieldOptions<Radians>{
+inline const FieldOptions kDefaultFieldOptions<Radians>{
 	.speed	= 1.0f,
 	.format = "%.1f deg",
 };
 
 template <typename Rep, typename Period>
-inline constexpr FieldOptions kDefaultFieldOptions<std::chrono::duration<Rep, Period>>{
+inline const FieldOptions kDefaultFieldOptions<std::chrono::duration<Rep, Period>>{
 	.speed = std::floating_point<Rep> ? 0.01f : 1.0f,
 };
 
 template <>
-inline constexpr FieldOptions kDefaultFieldOptions<Matrix4>{
+inline const FieldOptions kDefaultFieldOptions<Matrix4>{
 	.default_open = false,
 };
 
@@ -562,7 +562,7 @@ inline std::string NormalizeKeySearchText(std::string_view text) {
 
 inline bool DrawKeyCombo(Key& value, const char* id = "##value") {
 	struct SearchState {
-		std::string filter;
+		std::string filter{};
 	};
 
 	static std::unordered_map<ImGuiID, SearchState> states;
@@ -732,6 +732,7 @@ template <typename T>
 bool DrawReadOnlyValue(
 	EditorContext& ctx, std::string_view label, const T& value,
 	FieldOptions options = kDefaultFieldOptions<std::remove_cvref_t<T>>
+
 );
 
 template <typename T>
@@ -1887,8 +1888,8 @@ template <DurationType T>
 }
 
 struct DurationTextEditState {
-	std::string buffer;
-	std::string display_unit;
+	std::string buffer{};
+	std::string display_unit{};
 	bool initialized{ false };
 	bool was_active{ false };
 };
@@ -2623,7 +2624,7 @@ inline bool DrawFixedWidthCollapsingHeader(std::string_view label, float width, 
 
 struct VectorOptions {
 	std::string item_name{ "Item" };
-	std::string add_label;
+	std::string add_label{};
 	bool default_open{ true };
 	bool reorderable{ true };
 	bool add_first{ false };

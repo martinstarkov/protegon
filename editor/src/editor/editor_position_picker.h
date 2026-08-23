@@ -19,10 +19,10 @@ public:
 	using Finish = std::function<void()>;
 
 	struct PreviewData {
-		V2_float absolute;
-		std::optional<V2_float> relative;
-		V2_float value;
-		V2_float delta;
+		V2_float absolute{};
+		std::optional<V2_float> relative{};
+		V2_float value{};
+		V2_float delta{};
 	};
 
 	void Begin(
@@ -198,16 +198,16 @@ public:
 
 private:
 	struct Request {
-		std::string label;
+		std::string label{};
 
-		V2_float initial;
-		V2_float current;
+		V2_float initial{};
+		V2_float current{};
 
-		Convert convert;
-		Apply apply;
-		Finish finish;
+		Convert convert{};
+		Apply apply{};
+		Finish finish{};
 
-		std::optional<V2_float> reference_world;
+		std::optional<V2_float> reference_world{};
 
 		bool show_relative{ false };
 		bool dragging{ false };

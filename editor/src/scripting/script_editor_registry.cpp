@@ -544,7 +544,7 @@ std::string KeyExpressionValue(const json& value) {
 			return false;
 		}
 
-		number = number * 10 + static_cast<int>(c - '0');
+		number = number * 10 + c - '0';
 		if (number > maximum) {
 			return false;
 		}
@@ -1769,8 +1769,8 @@ bool DrawSetEnabledInline(ScriptEditorContext&, SetEnabledScript& script) {
 }
 
 struct ProjectSceneChoice {
-	std::string key;
-	std::string label;
+	std::string key{};
+	std::string label{};
 };
 
 [[nodiscard]] std::vector<ProjectSceneChoice>

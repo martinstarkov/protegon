@@ -22,8 +22,8 @@ namespace {
 using Clock = std::chrono::system_clock;
 
 struct ConsoleLine {
-	Clock::time_point timestamp;
-	std::string text;
+	Clock::time_point timestamp{};
+	std::string text{};
 };
 
 [[nodiscard]] std::tm LocalTime(std::time_t value) {

@@ -33,8 +33,8 @@ inline constexpr LayerMask kLayersNone	 = LayerMask{ 0 };	// 0b00000000
 inline constexpr LayerMask kLayerDefault = GetLayer(0);		// 0b00000001
 
 struct BoundingBox {
-	V2_float position;
-	Rect rect;
+	V2_float position{};
+	Rect rect{};
 	Origin origin{ Origin::Center };
 
 	PTGN_REFLECT(BoundingBox, position, rect, origin)
@@ -43,7 +43,7 @@ struct BoundingBox {
 namespace impl {
 
 struct ParentRenderTarget {
-	UUID render_target;
+	UUID render_target{};
 
 	PTGN_REFLECT_VALUE(ParentRenderTarget, render_target)
 };
@@ -52,14 +52,14 @@ struct UILayer {};
 
 struct CameraData {
 	/// @brief If nullopt, viewport is set to the size of the parent render target.
-	std::optional<Viewport> raw_viewport;
+	std::optional<Viewport> raw_viewport{};
 	ViewportSpace viewport_space{ ViewportSpace::Logical };
 
 	/// @brief If true, rounds camera position to pixel precision.
 	bool pixel_rounding{ false };
 
 	/// @brief If nullopt, no bounds are enforced.
-	std::optional<BoundingBox> bounding_box;
+	std::optional<BoundingBox> bounding_box{};
 
 	Matrix4 view_projection{ 1.0f };
 

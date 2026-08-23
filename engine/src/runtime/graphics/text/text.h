@@ -24,9 +24,9 @@ class Scene;
 class AssetManager;
 
 struct TextRun {
-	std::string text;
+	std::string text{};
 	FontKey font{ kDefaultFont };
-	TextRunStyle style;
+	TextRunStyle style{};
 
 	constexpr bool operator==(const TextRun&) const = default;
 
@@ -34,7 +34,7 @@ struct TextRun {
 };
 
 struct StyledText {
-	std::vector<TextRun> runs;
+	std::vector<TextRun> runs{};
 
 	constexpr StyledText() = default;
 
@@ -52,13 +52,13 @@ struct StyledText {
 namespace impl {
 
 struct TextData {
-	StyledText text;
-	TextBox box;
+	StyledText text{};
+	TextBox box{};
 	
 	/// @brief Number of glyphs revealed. Nullopt means all glyphs are revealed.
-	std::optional<std::size_t> glyph_count;
+	std::optional<std::size_t> glyph_count{};
 
-	std::optional<TextClip> clip;
+	std::optional<TextClip> clip{};
 
 	/// @brief Index of the current text run being edited.
 	std::size_t current_run_index{ 0 };

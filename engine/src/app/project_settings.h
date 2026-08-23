@@ -13,9 +13,9 @@ struct Project;
 
 /// @brief Settings tracked by the project manifest and shared by every user of the project.
 struct ProjectSettings {
-	WindowSettings window;
-	RendererSettings renderer;
-	DebugSettings debug;
+	WindowSettings window{};
+	RendererSettings renderer{};
+	DebugSettings debug{};
 
 	PTGN_REFLECT(
 		ProjectSettings,
@@ -27,7 +27,7 @@ struct ProjectSettings {
 
 /// @brief Machine/user specific engine state stored beside the project in .ptgnlocal.
 struct ProjectLocalState {
-	WindowLocalSettings window;
+	WindowLocalSettings window{};
 
 	PTGN_REFLECT(ProjectLocalState, window)
 };

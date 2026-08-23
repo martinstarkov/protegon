@@ -10,7 +10,7 @@ namespace ptgn::reflection {
 
 template <typename T>
 struct Member {
-	std::string_view name;
+	std::string_view name{};
 	T& value;
 };
 
@@ -19,7 +19,7 @@ Member(std::string_view, T&) -> Member<T>;
 
 template <typename T>
 struct ReadOnlyMember {
-	std::string_view name;
+	std::string_view name{};
 	const T& value;
 };
 

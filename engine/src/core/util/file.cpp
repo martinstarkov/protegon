@@ -22,19 +22,19 @@
 
 namespace ptgn {
 
-void EnsureDirectory(const path& path) {
-	if (path.empty()) {
+void EnsureDirectory(const path& dir_path) {
+	if (dir_path.empty()) {
 		PTGN_WARN("Cannot create directory for empty path");
 		return;
 	}
 
 	std::error_code ec;
-	fs::create_directories(path, ec);
+	fs::create_directories(dir_path, ec);
 
 	PTGN_ASSERT(
 		!ec,
 		"Could not create directory: ",
-		path.string(),
+		dir_path.string(),
 		": ",
 		ec.message()
 	);

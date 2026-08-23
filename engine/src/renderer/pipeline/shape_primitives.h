@@ -41,11 +41,11 @@ template <VertexType TVertex>
 using RenderTriangleArray = std::array<RenderTriangle<TVertex>, 1>;
 
 struct CommonShapeParams {
-	Transform transform;
+	Transform transform{};
 	FillStyle fill_style{ 1.0f };
 	Origin origin{ Origin::Center };
 	V4_float color{ color::White.Normalized() };
-	Depth depth;
+	Depth depth{};
 	int entity_id{ kNoEntityId };
 };
 
@@ -134,14 +134,14 @@ bool VisitPrimitives(const TShape& shape, const CommonShapeParams& params, F&& f
 	};
 
 	auto visit_container =
-		[&to_span]<typename TPrimitives, typename FV>(TPrimitives& primitives, FV&& function) {
+		[&to_span]<typename TPrimitives, typename FV>(TPrimitives& primitives, FV&& func) {
 			if constexpr (OptionalType<TPrimitives>) {
 				if (!primitives || primitives->empty()) {
 					return false;
 				}
 
 				auto span{ to_span(*primitives) };
-				std::invoke(std::forward<FV>(function), span);
+				std::invoke(std::forward<FV>(func), span);
 				return true;
 			} else {
 				if (primitives.empty()) {
@@ -149,7 +149,7 @@ bool VisitPrimitives(const TShape& shape, const CommonShapeParams& params, F&& f
 				}
 
 				auto span{ to_span(primitives) };
-				std::invoke(std::forward<FV>(function), span);
+				std::invoke(std::forward<FV>(func), span);
 				return true;
 			}
 		};

@@ -19,7 +19,7 @@ namespace ptgn::impl {
 namespace {
 
 struct EngineShaderLibrary {
-	std::vector<EngineShaderFile> files;
+	std::vector<EngineShaderFile> files{};
 	json manifest = json::object();
 };
 

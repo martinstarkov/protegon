@@ -58,7 +58,7 @@ struct TopDownMovement {
 	[[nodiscard]] MoveDirection GetDirection() const;
 	[[nodiscard]] MoveDirection GetPreviousDirection() const;
 
-	V2_float facing_direction;
+	V2_float facing_direction{};
 
 	PTGN_REFLECT(
 		TopDownMovement, max_speed, max_acceleration, max_deceleration, max_turn_speed, friction,
@@ -84,8 +84,8 @@ private:
 	bool left_input{ false };
 	bool right_input{ false };
 
-	V2_float dir;
-	V2_float prev_dir;
+	V2_float dir{};
+	V2_float prev_dir{};
 };
 
 struct PlatformerMovement {
@@ -105,10 +105,10 @@ struct PlatformerMovement {
 	Key left_key{ Key::A };
 	Key right_key{ Key::D };
 
-	PlatformerGrounding grounding;
+	PlatformerGrounding grounding{};
 
-	// Empty means no jump controller.
-	std::string jump_controller;
+	/// @brief Empty means no jump controller.
+	std::string jump_controller{};
 
 	void Update(const Scene& scene, Transform& transform, RigidBody& rb, secondsf dt) const;
 
@@ -130,7 +130,7 @@ private:
 		const Scene& scene, V2_float desired_velocity, float dir_x, RigidBody& rb, secondsf dt
 	) const;
 
-	PlatformerGroundingState grounding_state_;
+	PlatformerGroundingState grounding_state_{};
 };
 
 } // namespace ptgn

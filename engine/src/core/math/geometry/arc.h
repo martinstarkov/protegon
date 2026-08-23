@@ -24,14 +24,14 @@ public:
 
 	constexpr Arc() = default;
 
-	constexpr Arc(float arc_radius, Radians start_angle, Radians end_angle, bool clockwise = true) :
+	constexpr Arc(float arc_radius, Radians arc_start_angle, Radians arc_end_angle, bool arc_clockwise = true) :
 		radius{ arc_radius },
-		start_angle{ start_angle },
-		end_angle{ end_angle },
-		clockwise{ clockwise } {}
+		start_angle{ arc_start_angle },
+		end_angle{ arc_end_angle },
+		clockwise{ arc_clockwise } {}
 
-	constexpr Arc(float arc_radius, Degrees start_angle, Degrees end_angle, bool clockwise = true) :
-		Arc{ arc_radius, start_angle.ToRad(), end_angle.ToRad(), clockwise } {}
+	constexpr Arc(float arc_radius, Degrees arc_start_angle, Degrees arc_end_angle, bool arc_clockwise = true) :
+		Arc{ arc_radius, arc_start_angle.ToRad(), arc_end_angle.ToRad(), arc_clockwise } {}
 
 	constexpr Degrees GetAperture() const {
 		auto start = start_angle;

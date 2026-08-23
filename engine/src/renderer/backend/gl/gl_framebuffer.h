@@ -288,7 +288,7 @@ public:
 		V2_int size{};
 		Attachment attachment{ Attachment::Color0 };
 		PixelValueType value_type{ PixelValueType::Color };
-		std::vector<std::uint8_t> data;
+		std::vector<std::uint8_t> data{};
 	};
 
 	/// @brief WARNING: This function is slow and should be primarily used for debugging
@@ -388,10 +388,10 @@ private:
 	};
 
 	struct FramebufferCache {
-		std::array<AttachmentRecord, kMaxColorAttachments> color;
-		AttachmentRecord depth;
-		AttachmentRecord stencil;
-		AttachmentRecord depth_stencil;
+		std::array<AttachmentRecord, kMaxColorAttachments> color{};
+		AttachmentRecord depth{};
+		AttachmentRecord stencil{};
+		AttachmentRecord depth_stencil{};
 	};
 
 	explicit Framebuffers(GLContext& gl);

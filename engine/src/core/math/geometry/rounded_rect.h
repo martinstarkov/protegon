@@ -18,11 +18,11 @@ public:
 
 	constexpr RoundedRect() = default;
 
-	constexpr RoundedRect(V2_float min, V2_float max, float radius) :
-		rect{ min, max }, radius{ radius } {}
+	constexpr RoundedRect(V2_float min, V2_float max, float rounded_rect_radius) :
+		rect{ min, max }, radius{ rounded_rect_radius } {}
 
-	constexpr RoundedRect(V2_float size, float radius) :
-		RoundedRect{ -size * 0.5f, size * 0.5f, radius } {}
+	constexpr RoundedRect(V2_float size, float rounded_rect_radius) :
+		RoundedRect{ -size * 0.5f, size * 0.5f, rounded_rect_radius } {}
 
 	constexpr float GetRadius(Transform transform) const {
 		auto scale{ transform.GetAverageScale() };

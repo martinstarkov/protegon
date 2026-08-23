@@ -52,7 +52,7 @@ impl::CommonShapeParams ConvertToCommonShapeParams(
 	return { .transform{ transform },
 			 .fill_style{ params.fill_style },
 			 .origin = params.origin,
-			 .color{ color },
+			 .color{ color.Normalized() },
 			 .depth{ params.depth },
 			 .entity_id = params.entity_id };
 }
@@ -85,23 +85,18 @@ impl::RenderCommands& RenderQueue::GetRenderCommands(
 
 	PTGN_ASSERT(camera.has_value(), "Invalid camera");
 
-	std::vector<impl::CameraRenderCommands>* commands{ nullptr };
+	auto& commands{ debug ? debug_commands_ : render_commands_ };
 
-	if (debug) {
-		commands = &debug_commands_;
-	} else {
-		commands = &render_commands_;
-	}
-
-	PTGN_ASSERT(commands, "Invalid commands");
-
-	for (auto& [cam, cmds] : *commands) {
-		if (cam == camera.value()) {
-			return cmds;
+	for (auto& camera_render : commands) {
+		if (camera_render.camera == camera.value()) {
+			return camera_render.commands;
 		}
 	}
 
-	return commands->emplace_back(camera.value(), impl::RenderCommands{}).commands;
+	return commands.emplace_back(impl::CameraRenderCommands{
+		.camera = camera.value(),
+		.commands = {},
+	}).commands;
 }
 
 void RenderQueue::DrawTexture(

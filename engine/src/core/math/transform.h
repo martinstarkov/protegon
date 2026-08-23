@@ -28,7 +28,7 @@ using RangeConstReference = std::common_reference_t<
 } // namespace impl
 
 struct Transform {
-	V2_float position;
+	V2_float position{};
 
 	/// @brief Positive clockwise.
 	Radians rotation{ 0.0f };
@@ -43,13 +43,13 @@ struct Transform {
 	constexpr Transform(TX x, TY y) : position{ static_cast<float>(x), static_cast<float>(y) } {}
 
 	template <Arithmetic T>
-	constexpr Transform(Vector2<T> position) : position{ position } {} // NOSONAR
+	constexpr Transform(Vector2<T> pos) : position{ pos } {} // NOSONAR
 
-	constexpr Transform(V2_float position, Radians rotation, V2_float scale = { 1.0f, 1.0f }) :
-		position{ position }, rotation{ rotation }, scale{ scale } {}
+	constexpr Transform(V2_float pos, Radians rot, V2_float sca = { 1.0f, 1.0f }) :
+		position{ pos }, rotation{ rot }, scale{ sca } {}
 
-	constexpr Transform(V2_float position, Degrees rotation, V2_float scale = { 1.0f, 1.0f }) :
-		Transform{ position, rotation.ToRad(), scale } {}
+	constexpr Transform(V2_float pos, Degrees rot, V2_float sca = { 1.0f, 1.0f }) :
+		Transform{ pos, rot.ToRad(), sca } {}
 
 	constexpr bool IsIdentity() const {
 		return *this == Transform{};
@@ -401,8 +401,8 @@ private:
 	) const {
 		WithPointTransform<Dir>([&elements, &get_position, &set_position](auto&& transform) {
 			for (auto&& element : elements) {
-				auto position{ std::invoke(get_position, element) };
-				std::invoke(set_position, element, transform(position));
+				auto pos{ std::invoke(get_position, element) };
+				std::invoke(set_position, element, transform(pos));
 			}
 		});
 	}

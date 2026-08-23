@@ -7,7 +7,7 @@ namespace ptgn {
 
 /// @brief Configuration data used to initialize an Application.
 struct ApplicationConfig {
-	WindowConfig window;
+	WindowConfig window{};
 	PTGN_REFLECT(ApplicationConfig, window)
 };
 

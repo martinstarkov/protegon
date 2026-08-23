@@ -79,9 +79,7 @@ EffectParams GetEffectParams(const Entity& entity) {
 			return;
 		}
 
-		const auto& children{ GetChildren(entity) };
-
-		for (const auto& child : children) {
+		for (const auto& child : GetChildren(entity)) {
 			if (child.Has<EffectTag>()) {
 				PTGN_ASSERT(!IsVisible(child), "Effects attached to entities must be invisible");
 				InvokeDrawable(ctx, child);

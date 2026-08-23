@@ -163,7 +163,7 @@ private:
 	struct DisplayResizeInfo {
 		bool moved{ false };
 		bool resized{ false };
-		Viewport viewport;
+		Viewport viewport{};
 	};
 
 	using EventSink = std::function<void(V2_int, impl::ResizeType)>;
@@ -715,7 +715,7 @@ private:
 	std::vector<impl::FramebufferObject> temp_framebuffers_;
 	impl::TextureObject white_texture_;
 
-	RendererSettings renderer_settings_;
+	RendererSettings renderer_settings_{};
 
 	Viewport display_viewport_;
 	/// @brief Flag to indicate whether the display viewport needs to be recalculated.

@@ -24,7 +24,7 @@ public:
 
 	constexpr Rect() = default;
 
-	constexpr Rect(V2_float min, V2_float max) : min{ min }, max{ max } {
+	constexpr Rect(V2_float rect_min, V2_float rect_max) : min{ rect_min }, max{ rect_max } {
 		PTGN_ASSERT(!GetSize().HasNegative(), "Rect size cannot be negative: ", GetSize());
 	}
 

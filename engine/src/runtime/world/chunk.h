@@ -55,9 +55,9 @@ struct NoiseLayer {
 	) :
 		noise{ fractal_noise }, callback{ creation_callback } {}
 
-	FractalNoise noise;
+	FractalNoise noise{};
 	/// @brief Out: entity, In: coordinate, noise value
-	std::function<Entity(V2_int, float)> callback;
+	std::function<Entity(V2_int, float)> callback{};
 
 	Entity GetEntity(V2_int tile_coordinate, V2_int tile_size) const;
 };
@@ -73,17 +73,17 @@ public:
 
 	void Update(Scene& scene, const Camera& camera);
 
-	std::unordered_map<V2_int, Chunk> chunks;
+	std::unordered_map<V2_int, Chunk> chunks{};
 	V2_int tile_size{ 64, 64 };
 	V2_int chunk_size{ 16, 16 };
 
 	void AddNoiseLayer(const NoiseLayer& noise_layer);
 
-	std::unordered_map<V2_int, json> chunk_cache;
+	std::unordered_map<V2_int, json> chunk_cache{};
 
 private:
-	V2_int previous_min_;
-	V2_int previous_max_;
+	V2_int previous_min_{};
+	V2_int previous_max_{};
 
 	/// @param chunk_padding Number of additional chunks on each side that are loaded past the
 	/// camera view rectangle.
@@ -94,7 +94,7 @@ private:
 
 	[[nodiscard]] std::vector<Entity> GenerateEntities(V2_int chunk_coordinate) const;
 
-	std::vector<NoiseLayer> noise_layers_;
+	std::vector<NoiseLayer> noise_layers_{};
 };
 
 } // namespace ptgn

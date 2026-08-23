@@ -17,8 +17,8 @@ struct SweepCollision {
 	);
 
 	/// @brief CollisionInfo entity.
-	Entity entity;
-	RaycastResult collision;
+	Entity entity{};
+	RaycastResult collision{};
 	float dist2{ 0.0f };
 };
 
@@ -34,10 +34,10 @@ struct CollisionInfo {
 		return entity.operator bool();
 	}
 
-	Entity entity;
+	Entity entity{};
 
 	/// @brief Normal set to {} for overlap only collisions.
-	V2_float normal;
+	V2_float normal{};
 
 	friend bool operator==(const CollisionInfo& a, const CollisionInfo& b) {
 		return a.entity == b.entity;

@@ -10,7 +10,7 @@ class Scene;
 namespace editor {
 
 struct ViewportState {
-	Viewport viewport;
+	Viewport viewport{};
 	bool focused{ false };
 	bool hovered{ false };
 };
@@ -27,7 +27,7 @@ struct EditorState {
 
 	bool is_dirty{ false };
 
-	ViewportState viewport;
+	ViewportState viewport{};
 
 	PlayState play_state{ PlayState::Stopped };
 	float time_scale{ 1.0f };

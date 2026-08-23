@@ -214,8 +214,8 @@ ScissorState GetCurrentScissorState() {
 
 } // namespace
 
-GLContext::GLContext(Stats& stats) :
-	stats{ stats },
+GLContext::GLContext(Stats& statistics) :
+	stats{ statistics },
 	bound_{ ptgn::impl::gl::GetInteger<std::size_t>(GL_MAX_TEXTURE_IMAGE_UNITS) },
 	buffers{ *this },
 	shaders{ *this, GetMaxTextureSlots() },

@@ -29,9 +29,9 @@ struct SceneFactory {
 
 	SceneFactory() = default;
 	SceneFactory(std::nullptr_t) {}
-	SceneFactory(Construct construct) : construct{ std::move(construct) } {} // NOSONAR
-	SceneFactory(Construct construct, Preload preload) :
-		construct{ std::move(construct) }, preload{ std::move(preload) } {}
+	SceneFactory(Construct scene_construct) : construct{ std::move(scene_construct) } {} // NOSONAR
+	SceneFactory(Construct scene_construct, Preload scene_preload) :
+		construct{ std::move(scene_construct) }, preload{ std::move(scene_preload) } {}
 
 	[[nodiscard]] explicit operator bool() const {
 		return static_cast<bool>(construct);
@@ -46,20 +46,20 @@ struct SceneFactory {
 		return preload ? preload(app) : std::vector<AssetKey>{};
 	}
 
-	Construct construct;
-	Preload preload;
+	Construct construct{};
+	Preload preload{};
 };
 
 struct SceneRegistryEntry {
-	std::string type;
-	std::string display_name;
+	std::string type{};
+	std::string display_name{};
 	std::size_t type_id{ 0 };
 
-	std::function<json()> default_parameters;
-	std::function<std::unique_ptr<Scene>(const json& parameters)> construct;
-	std::function<json(const Scene& scene)> serialize_parameters;
-	std::function<void(const json& parameters, Scene& scene)> deserialize_parameters;
-	std::function<std::vector<AssetKey>(const json& parameters)> preload_dependencies;
+	std::function<json()> default_parameters{};
+	std::function<std::unique_ptr<Scene>(const json& parameters)> construct{};
+	std::function<json(const Scene& scene)> serialize_parameters{};
+	std::function<void(const json& parameters, Scene& scene)> deserialize_parameters{};
+	std::function<std::vector<AssetKey>(const json& parameters)> preload_dependencies{};
 };
 
 inline auto& GetSceneRegistry() {
@@ -210,5 +210,5 @@ template <SceneType TScene>
 #define PTGN_REGISTER_SCENE(SceneTypeName, DisplayName)                                      \
 	namespace {                                                                                \
 	[[maybe_unused]] const bool PTGN_IMPL_SCENE_CONCAT(_ptgn_registered_scene_, __COUNTER__) \
-		= ::ptgn::impl::RegisterScene<SceneTypeName>(#SceneTypeName, DisplayName);             \
+		= ptgn::impl::RegisterScene<SceneTypeName>(#SceneTypeName, DisplayName);             \
 	}

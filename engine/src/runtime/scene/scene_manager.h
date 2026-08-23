@@ -30,7 +30,7 @@ struct SceneTransitionPriority {
 	explicit SceneTransitionPriority() = default;
 
 	/// @brief Explicit construction prevents conflict with scene constructor args.
-	explicit SceneTransitionPriority(std::size_t value) : value{ value } {}
+	explicit SceneTransitionPriority(std::size_t priority_value) : value{ priority_value } {}
 
 	std::size_t value{ 0 };
 };
@@ -50,15 +50,15 @@ public:
 	struct Command {
 		CommandType type{ CommandType::Enter };
 
-		std::string to_scene_tag;
+		std::string to_scene_tag{};
 		std::size_t to_scene_tag_hash{ 0 };
 
-		SceneTransitionPriority priority;
+		SceneTransitionPriority priority{};
 
-		SceneFactory scene_factory;
+		SceneFactory scene_factory{};
 
-		std::unique_ptr<SceneTransition> transition_out;
-		std::unique_ptr<SceneTransition> transition_in;
+		std::unique_ptr<SceneTransition> transition_out{};
+		std::unique_ptr<SceneTransition> transition_in{};
 	};
 
 	template <typename... TArgs>
@@ -562,8 +562,8 @@ private:
 	std::vector<Command> commands_;
 
 	struct PendingLoad {
-		Command command;
-		impl::AssetLoadTicket ticket;
+		Command command{};
+		impl::AssetLoadTicket ticket{};
 	};
 
 	std::vector<PendingLoad> pending_loads_;

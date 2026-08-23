@@ -18,11 +18,11 @@ struct StateMachine {
 		std::size_t from_state{ 0 };
 		std::size_t event_id{ 0 };
 		std::size_t to_state{ 0 };
-		std::function<void(TPayload)> callback;
+		std::function<void(TPayload)> callback{};
 	};
 
 	std::size_t current_state{ 0 };
-	std::vector<Transition> transitions;
+	std::vector<Transition> transitions{};
 
 	void OnEvent(Event event, TPayload payload) {
 		for (const auto& transition : transitions) {

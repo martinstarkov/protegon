@@ -42,10 +42,10 @@ struct DropdownData {
 	bool initialized{ false };
 
 	/// @brief Default value of {} means each item uses the parent dropdown button size.
-	std::optional<V2_float> button_size;
+	std::optional<V2_float> button_size{};
 
 	/// @brief Fixed static offset applied to the dropdown item layout.
-	V2_float button_offset;
+	V2_float button_offset{};
 
 	/// @brief Direction in which dropdown items are stacked relative to the parent button.
 	Origin direction{ Origin::CenterBottom };
@@ -68,7 +68,7 @@ struct DropdownEnabledState {
 
 /// @brief Marker for direct child buttons that are dropdown items.
 struct DropdownItem {
-	std::optional<DropdownEnabledState> enabled_state;
+	std::optional<DropdownEnabledState> enabled_state{};
 
 	PTGN_REFLECT_VALUE(DropdownItem, enabled_state)
 };

@@ -39,7 +39,7 @@ struct Children {
 
 	/// Runtime entity handles are not serialized directly. Scene serialization stores the ordered
 	/// child UUID list separately and reconstructs this component after every entity exists.
-	std::vector<Entity> children_;
+	std::vector<Entity> children_{};
 };
 
 } // namespace ptgn::impl

@@ -15,9 +15,9 @@ namespace editor {
 class EditorContext;
 
 struct SceneEditorState {
-	std::string scene_type;
-	std::string type_display_name;
-	std::string scene_key;
+	std::string scene_type{};
+	std::string type_display_name{};
+	std::string scene_key{};
 	json parameters = json::object();
 };
 
@@ -44,9 +44,9 @@ public:
 
 private:
 	struct PendingSceneSelection {
-		std::string key;
+		std::string key{};
 		bool runtime{ false };
-		std::optional<UUID> selected_entity_uuid;
+		std::optional<UUID> selected_entity_uuid{};
 		int earliest_frame{ 0 };
 	};
 

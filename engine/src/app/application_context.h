@@ -32,8 +32,8 @@ namespace impl {
 class ApplicationContext;
 
 struct RuntimeProjectSceneSnapshot {
-	std::string key;
-	SerializedScene scene;
+	std::string key{};
+	SerializedScene scene{};
 };
 
 class ApplicationLibrary {

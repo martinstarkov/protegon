@@ -23,13 +23,13 @@ struct TextPageOptions {
 };
 
 struct TextPage {
-	StyledText styled_text;
-	TextMeasurement measurement;
+	StyledText styled_text{};
+	TextMeasurement measurement{};
 	std::size_t glyph_count{ 0 };
 };
 
 struct TextPaginationResult {
-	std::vector<TextPage> pages;
+	std::vector<TextPage> pages{};
 };
 
 TextPaginationResult PaginateText(

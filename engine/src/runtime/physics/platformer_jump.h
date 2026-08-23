@@ -57,7 +57,7 @@ struct PlatformerJump {
 
 	std::optional<CoyoteTime> coyote_time{ CoyoteTime{} };
 	std::optional<JumpBuffer> jump_buffer{ JumpBuffer{} };
-	std::optional<AirJumps> air_jumps;
+	std::optional<AirJumps> air_jumps{};
 	std::optional<VariableJumpHeight> variable_jump_height{ VariableJumpHeight{} };
 	std::optional<FastFall> fast_fall{ FastFall{} };
 
@@ -72,8 +72,8 @@ struct PlatformerJump {
 private:
 	bool jumping_{ false };
 	std::uint32_t air_jumps_used_{ 0 };
-	ManualTimer jump_buffer_timer_;
-	ManualTimer coyote_timer_;
+	ManualTimer jump_buffer_timer_{};
+	ManualTimer coyote_timer_{};
 
 	void Jump(PlatformerJumpContext& ctx, event::PlayerJumpType type);
 	void CalculateGravity(PlatformerJumpContext& ctx) const;

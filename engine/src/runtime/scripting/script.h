@@ -114,7 +114,7 @@ struct EventCondition {
 	bool enabled{ true };
 	bool consume{ false };
 	TypeHashValue type_hash{ 0 };
-	std::string name;
+	std::string name{};
 	json value = json::object();
 
 	PTGN_REFLECT(EventCondition, enabled, consume, type_hash, name, value)
@@ -123,15 +123,15 @@ struct EventCondition {
 struct ScriptStep {
 	bool enabled{ true };
 	TypeHashValue type_hash{ 0 };
-	std::string name;
+	std::string name{};
 	json value = json::object();
-	std::optional<EntityFilter> target;
-	std::optional<ScriptCompletion> completion;
-	std::optional<ScriptTiming> timing;
+	std::optional<EntityFilter> target{};
+	std::optional<ScriptCompletion> completion{};
+	std::optional<ScriptTiming> timing{};
 
-	// C++-authored steps retain a typed construction path. Serialized/editor-authored steps use
+	// C++ authored steps retain a typed construction path. Serialized/editor authored steps use
 	// the registry JSON construction path instead.
-	std::function<std::unique_ptr<Script>()> runtime_factory;
+	std::function<std::unique_ptr<Script>()> runtime_factory{};
 
 
 	PTGN_REFLECT(ScriptStep, enabled, type_hash, name, value, target, completion, timing)
@@ -140,7 +140,7 @@ struct ScriptStep {
 struct LifecycleScript {
 	bool enabled{ true };
 	SequenceLifecycle lifecycle{ SequenceLifecycle::Complete };
-	ScriptStep action;
+	ScriptStep action{};
 
 	PTGN_REFLECT(LifecycleScript, enabled, lifecycle, action)
 };
@@ -162,9 +162,9 @@ struct ScriptSequenceRuntime {
 	float elapsed_ms{ 0.0f };
 	int current_repeat{ 0 };
 	bool currently_reversed{ false };
-	std::vector<Entity> script_targets;
-	std::vector<std::unique_ptr<Script>> script_instances;
-	std::vector<bool> script_completed;
+	std::vector<Entity> script_targets{};
+	std::vector<std::unique_ptr<Script>> script_instances{};
+	std::vector<bool> script_completed{};
 	int completed_runs{ 0 };
 
 	ScriptSequenceRuntime();
@@ -188,15 +188,15 @@ public:
 	SequenceId shared_sequence_id{ 0 };
 	std::string name{ "New Script Sequence" };
 	ReentryMode reentry{ ReentryMode::IgnoreWhileRunning };
-	std::optional<SequenceChannelKey> channel;
+	std::optional<SequenceChannelKey> channel{};
 	bool transient{ false };
 	bool remove_binding_on_complete{ false };
 	bool destroy_owner_on_complete{ false };
-	std::vector<EventCondition> start_events;
-	std::vector<EventCondition> stop_events;
-	std::vector<ScriptStep> steps;
-	std::vector<LifecycleScript> lifecycle_actions;
-	ScriptSequenceRuntime runtime;
+	std::vector<EventCondition> start_events{};
+	std::vector<EventCondition> stop_events{};
+	std::vector<ScriptStep> steps{};
+	std::vector<LifecycleScript> lifecycle_actions{};
+	ScriptSequenceRuntime runtime{};
 
 	ScriptSequence() = default;
 	explicit ScriptSequence(std::string sequence_name) : name{ std::move(sequence_name) } {}
@@ -284,8 +284,8 @@ public:
 	[[nodiscard]] bool IsReversed() const { return reversed_; }
 
 protected:
-	Entity owner;
-	Entity target;
+	Entity owner{};
+	Entity target{};
 
 	void Complete() { completion_requested_ = true; }
 	void MoveOn() { Complete(); }
@@ -368,23 +368,23 @@ struct ScriptRegistrationOptions {
 	bool supports_timing{ false };
 	bool requires_timing{ false };
 	bool serializable{ true };
-	std::optional<ScriptTiming> default_timing;
+	std::optional<ScriptTiming> default_timing{};
 };
 
 struct ScriptRegistration {
 	TypeHashValue type_hash{ 0 };
-	std::string name;
-	std::string type;
+	std::string name{};
+	std::string type{};
 	std::uint32_t schema_version{ 1 };
 	ScriptCompletion completion{ ScriptCompletion::ScriptControlled };
 	bool supports_timing{ false };
 	bool requires_timing{ false };
 	bool serializable{ true };
-	std::optional<ScriptTiming> default_timing;
-	std::function<json()> make_default;
-	std::function<ScriptSequence()> make_default_sequence;
-	std::function<std::unique_ptr<Script>(const json&)> instantiate;
-	std::function<void(Script&, const json&)> apply;
+	std::optional<ScriptTiming> default_timing{};
+	std::function<json()> make_default{};
+	std::function<ScriptSequence()> make_default_sequence{};
+	std::function<std::unique_ptr<Script>(const json&)> instantiate{};
+	std::function<void(Script&, const json&)> apply{};
 };
 
 class ScriptRegistry {
@@ -515,12 +515,12 @@ private:
 struct ScriptEntry {
 	bool enabled{ true };
 	TypeHashValue type_hash{ 0 };
-	std::string name;
+	std::string name{};
 	json value = json::object();
-	ScriptSequence sequence;
+	ScriptSequence sequence{};
 
-	std::unique_ptr<Script> instance;
-	std::function<std::unique_ptr<Script>()> runtime_factory;
+	std::unique_ptr<Script> instance{};
+	std::function<std::unique_ptr<Script>()> runtime_factory{};
 	bool initialized{ false };
 
 	ScriptEntry() = default;
@@ -548,13 +548,13 @@ struct ScriptEntry {
 };
 
 struct SequenceChannelRuntime {
-	SequenceChannelKey key;
-	std::optional<SequenceId> active;
-	std::deque<SequenceId> waiting;
+	SequenceChannelKey key{};
+	std::optional<SequenceId> active{};
+	std::deque<SequenceId> waiting{};
 };
 
 struct SharedScriptSequenceRegistry {
-	std::vector<ScriptSequence> sequences;
+	std::vector<ScriptSequence> sequences{};
 
 	[[nodiscard]] ScriptSequence* Find(SequenceId id);
 	[[nodiscard]] const ScriptSequence* Find(SequenceId id) const;
@@ -566,17 +566,17 @@ template <typename TEvent>
 struct SequenceEventRegistrationOptions {
 	std::uint32_t schema_version{ 1 };
 	json default_value = json::object();
-	std::function<bool(Entity, const json&, const TEvent&)> matches;
+	std::function<bool(Entity, const json&, const TEvent&)> matches{};
 	std::function<bool(Entity)> available{ [](Entity) { return true; } };
 };
 
 struct SequenceEventRegistration {
 	TypeHashValue type_hash{ 0 };
-	std::string name;
+	std::string name{};
 	std::uint32_t schema_version{ 1 };
-	std::function<void(EventCondition&)> set_defaults;
-	std::function<bool(Entity, Event, const EventCondition&, bool consume)> matches;
-	std::function<bool(Entity)> available;
+	std::function<void(EventCondition&)> set_defaults{};
+	std::function<bool(Entity, Event, const EventCondition&, bool consume)> matches{};
+	std::function<bool(Entity)> available{};
 };
 
 class SequenceEventRegistry {
@@ -728,16 +728,16 @@ public:
 		return os;
 	}
 
-	std::vector<ScriptEntry> scripts;
-	std::vector<SequenceChannelRuntime> channels;
-	std::vector<ScriptEntry> pending_additions;
-	std::vector<SequenceId> pending_removals;
+	std::vector<ScriptEntry> scripts{};
+	std::vector<SequenceChannelRuntime> channels{};
+	std::vector<ScriptEntry> pending_additions{};
+	std::vector<SequenceId> pending_removals{};
 	bool create_event_dispatched{ false };
 
 private: 
 	friend class ScriptsAccessor;
 
-	Entity owner_;
+	Entity owner_{};
 };
 
 void from_json(const json& j, Scripts& scripts);
@@ -753,7 +753,7 @@ public:
 } // namespace impl
 
 struct SequenceHandle {
-	Entity owner;
+	Entity owner{};
 	SequenceId binding_id{ 0 };
 
 	[[nodiscard]] explicit operator bool() const { return owner && binding_id != 0; }

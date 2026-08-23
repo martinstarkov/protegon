@@ -18,7 +18,7 @@ public:
 	using Action = std::function<void()>;
 
 	struct HistoryEntry {
-		std::string label;
+		std::string label{};
 		bool applied{ false };
 	};
 
@@ -85,7 +85,7 @@ private:
 	friend class Editor;
 
 	struct CommandEntry {
-		std::unique_ptr<EditorCommand> command;
+		std::unique_ptr<EditorCommand> command{};
 		bool affects_project_serialization{ true };
 		bool allow_when_disabled{ false };
 		bool transient{ false };
@@ -93,9 +93,9 @@ private:
 
 	struct ActiveEdit {
 		std::uint64_t key{ 0 };
-		std::string label;
-		Action undo;
-		Action redo;
+		std::string label{};
+		Action undo{};
+		Action redo{};
 		bool affects_project_serialization{ true };
 		bool allow_when_disabled{ false };
 		bool transient{ false };

@@ -18,8 +18,8 @@ namespace editor {
 /// parent outside that hierarchy so deleting and undoing a child restores
 /// it to its original owner.
 struct EntitySnapshot {
-	SerializedEntity root;
-	std::optional<UUID> parent_uuid;
+	SerializedEntity root{};
+	std::optional<UUID> parent_uuid{};
 };
 
 [[nodiscard]] EntitySnapshot CaptureEntitySnapshot(

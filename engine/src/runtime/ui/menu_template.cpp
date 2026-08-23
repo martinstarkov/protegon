@@ -79,8 +79,8 @@ void ApplyGridLayout(
 	}
 }
 
-TemplateMenuScene::TemplateMenuScene(const std::string& key, const json& scene_json_arg) :
-	key{ key }, scene_json(scene_json_arg) {}
+TemplateMenuScene::TemplateMenuScene(const std::string& scene_key, const json& scene_json_arg) :
+	key{ scene_key }, scene_json(scene_json_arg) {}
 
 void TemplateMenuScene::OnEnter() {
 	ctx().debug.settings.interaction.draw_enabled = true;

@@ -28,7 +28,7 @@ struct StrongString {
 		return value;
 	}
 
-	std::string value;
+	std::string value{};
 
 	constexpr auto operator<=>(const StrongString&) const = default;
 };

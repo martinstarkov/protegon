@@ -28,7 +28,7 @@ private:
 
 	static void Update(Scene& scene, secondsf dt);
 
-	ManualTimer timer_;
+	ManualTimer timer_{};
 };
 
 } // namespace ptgn

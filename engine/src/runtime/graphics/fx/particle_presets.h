@@ -28,8 +28,8 @@ PTGN_REFLECT_ENUM(ParticlePreset);
 namespace impl {
 
 struct PresetParticleConfigEntry {
-	ParticlePreset effect;
-	ParticleConfig config;
+	ParticlePreset effect{};
+	ParticleConfig config{};
 };
 
 inline constexpr std::array kParticlePresets{

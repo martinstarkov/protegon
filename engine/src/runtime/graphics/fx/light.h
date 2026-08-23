@@ -34,7 +34,7 @@ struct LightData {
 	/// @brief Angle of the light cone. If std::nullopt, the light is a
 	/// point light. Range: [0.0, 360.0]. 0.0 means no light is drawn,
 	/// 360.0 means the light is a point light and has no cone.
-	std::optional<Degrees> cone_angle;
+	std::optional<Degrees> cone_angle{};
 
 	/// @brief Initial angle of the light direction. 0.0 means pointing to the right.
 	/// Range: [0.0, 360.0]. Only applies to lights with a cone angle.
@@ -69,7 +69,7 @@ struct ShadowCaster {
 
 struct ShadowMaskInterior {
 	// World-space vertices of the occluder's filled body.
-	std::vector<V2_float> vertices;
+	std::vector<V2_float> vertices{};
 
 	// If true, the occluder's own interior remains black in the light mask.
 	// If false, the occluder's interior is painted back into the mask.
@@ -78,10 +78,10 @@ struct ShadowMaskInterior {
 
 struct VisibilityPolygon {
 	// World-space visibility polygon vertices.
-	std::vector<V2_float> vertices;
+	std::vector<V2_float> vertices{};
 
 	// World-space filled occluder bodies used by masks_light_inside.
-	std::vector<ShadowMaskInterior> occluder_interiors;
+	std::vector<ShadowMaskInterior> occluder_interiors{};
 };
 
 } // namespace impl

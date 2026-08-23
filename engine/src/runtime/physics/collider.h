@@ -35,9 +35,9 @@ PTGN_REFLECT_ENUM(CollisionMode);
 struct Collider {
 	Collider() = default;
 
-	explicit Collider(const ColliderShape& shape);
+	explicit Collider(const ColliderShape& collider_shape);
 
-	ColliderShape shape;
+	ColliderShape shape{};
 
 	CollisionMode mode{ CollisionMode::Discrete };
 
@@ -80,11 +80,11 @@ struct Collider {
 
 	/// @brief Optional function to check for early outs before performing collision checks. Should
 	/// return true if the collision check should be performed, false if it should be skipped.
-	std::function<bool(Entity, Entity)> pre_collision_check;
+	std::function<bool(Entity, Entity)> pre_collision_check{};
 
 	/// @brief Optional function to check for early outs before performing overlap checks. Should
 	/// return true if the overlap check should be performed, false if it should be skipped.
-	std::function<bool(Entity, Entity)> pre_overlap_check;
+	std::function<bool(Entity, Entity)> pre_overlap_check{};
 
 	PTGN_REFLECT(Collider, shape, mode, response, mask_, collides_with_masks_)
 private:
@@ -101,20 +101,20 @@ private:
 	void AddSweep(const CollisionInfo& collision);
 
 	/// @brief  Which categories this collider collides with.
-	std::vector<ColliderMask> collides_with_masks_;
+	std::vector<ColliderMask> collides_with_masks_{};
 
 	/// @brief  Which mask this collider is a part of.
 	ColliderMask mask_{ 0 };
 
 	/// @brief  Collisions from the current frame.
-	std::vector<Entity> overlaps_;
-	std::vector<CollisionInfo> intersects_;
-	std::vector<CollisionInfo> sweeps_;
+	std::vector<Entity> overlaps_{};
+	std::vector<CollisionInfo> intersects_{};
+	std::vector<CollisionInfo> sweeps_{};
 
 	/// @brief  Collisions from the previous frame.
-	std::vector<Entity> previous_overlaps_;
-	std::vector<CollisionInfo> previous_intersects_;
-	std::vector<CollisionInfo> previous_sweeps_;
+	std::vector<Entity> previous_overlaps_{};
+	std::vector<CollisionInfo> previous_intersects_{};
+	std::vector<CollisionInfo> previous_sweeps_{};
 };
 
 } // namespace ptgn

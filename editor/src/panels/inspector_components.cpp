@@ -1875,15 +1875,15 @@ struct ReflectionFrame {
 	ReflectedComponentSequenceInsertCallback insert{ nullptr };
 	ReflectedComponentSequenceEraseCallback erase{ nullptr };
 	ReflectedComponentSequenceMoveCallback move{ nullptr };
-	std::optional<std::size_t> remove_index;
-	std::optional<std::pair<std::size_t, std::size_t>> move_indices;
+	std::optional<std::size_t> remove_index{};
+	std::optional<std::pair<std::size_t, std::size_t>> move_indices{};
 	bool add_item{ false };
 };
 
 struct ReflectionDrawState {
 	EditorContext& ctx;
 	bool changed{ false };
-	std::vector<ReflectionFrame> frames;
+	std::vector<ReflectionFrame> frames{};
 };
 
 [[nodiscard]] std::string ReflectionLabel(std::string_view name) {

@@ -18,12 +18,12 @@ namespace editor {
 class Editor;
 
 struct EditorLocalState {
-	EditorSettings settings;
-	EditorState state;
-	EditorSelection selection;
+	EditorSettings settings{};
+	EditorState state{};
+	EditorSelection selection{};
 
-	/// Runtime editor state. This is intentionally not serialized.
-	PositionPicker position_picker;
+	/// @brief Runtime editor state. This is intentionally not serialized.
+	PositionPicker position_picker{};
 
 	PTGN_REFLECT(EditorLocalState, settings, state, selection)
 };

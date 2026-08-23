@@ -52,7 +52,7 @@ class ApplicationContext;
 struct AssetPath {
 	explicit AssetPath(const path& asset_path) : value{ asset_path } {}
 
-	path value;
+	path value{};
 
 	PTGN_REFLECT_VALUE(AssetPath, value)
 };
@@ -169,14 +169,14 @@ AssetKind GetAssetKind(const path& path);
 void AddAssetKey(ecs::Entity asset, AssetKey key, const std::optional<path>& path);
 
 struct AssetPreview {
-	TextureId texture;
-	V2_int size;
+	TextureId texture{};
+	V2_int size{};
 };
 
 struct AssetMetadata {
 	std::uintmax_t file_size{ 0 };
-	std::optional<V2_int> dimensions;
-	std::optional<double> duration_seconds;
+	std::optional<V2_int> dimensions{};
+	std::optional<double> duration_seconds{};
 	ShaderStageMask shader_stages{ ShaderStageMask::None };
 };
 
@@ -197,16 +197,16 @@ struct AssetStorageKeyHash {
 };
 
 struct EngineShaderSource {
-	AssetKey key;
-	std::string name;
-	path virtual_path;
+	AssetKey key{};
+	std::string name{};
+	path virtual_path{};
 	ShaderStageMask stages{ ShaderStageMask::None };
-	std::string source;
+	std::string source{};
 };
 
 struct AssetRecord {
-	AssetKey key;
-	path source_path;
+	AssetKey key{};
+	path source_path{};
 	AssetKind kind{ AssetKind::Unknown };
 	AssetLoadState load_state{ AssetLoadState::Unloaded };
 	std::size_t reference_count{ 0 };
@@ -216,10 +216,10 @@ struct AssetRecord {
 	bool engine_asset{ false };
 	bool read_only{ false };
 	bool compile_error{ false };
-	std::string load_error;
-	std::string compile_log;
-	AssetMetadata metadata;
-	std::optional<AssetPreview> preview;
+	std::string load_error{};
+	std::string compile_log{};
+	AssetMetadata metadata{};
+	std::optional<AssetPreview> preview{};
 };
 
 struct AssetLoadProgress {
@@ -228,7 +228,7 @@ struct AssetLoadProgress {
 	std::size_t failed_assets{ 0 };
 	std::uintmax_t total_bytes{ 0 };
 	std::uintmax_t completed_bytes{ 0 };
-	std::string active_asset;
+	std::string active_asset{};
 
 	[[nodiscard]] bool IsComplete() const {
 		return completed_assets >= total_assets;
@@ -282,22 +282,22 @@ private:
 	void Reset() noexcept;
 
 	AssetManager* assets_{ nullptr };
-	std::shared_ptr<AssetLoadBatchState> state_;
-	std::vector<AssetKey> dependencies_;
+	std::shared_ptr<AssetLoadBatchState> state_{};
+	std::vector<AssetKey> dependencies_{};
 	bool owns_references_{ false };
 };
 
 struct JsonAssetData {
-	AssetKey key;
-	path source_path;
-	json value;
+	AssetKey key{};
+	path source_path{};
+	json value = json::object();
 };
 
 struct PrefabAssetData {
-	PrefabKey key;
-	path file_path;
-	path source_path;
-	Prefab value;
+	PrefabKey key{};
+	path file_path{};
+	path source_path{};
+	Prefab value{};
 };
 
 class AssetAccessor {
@@ -552,11 +552,11 @@ private:
 		std::size_t reference_count{ 0 };
 		bool globally_pinned{ false };
 		bool manually_pinned{ false };
-		std::string error;
+		std::string error{};
 		bool compile_error{ false };
-		std::string compile_log;
-		impl::AssetMetadata metadata;
-		std::vector<std::weak_ptr<impl::AssetLoadBatchState>> waiters;
+		std::string compile_log{};
+		impl::AssetMetadata metadata{};
+		std::vector<std::weak_ptr<impl::AssetLoadBatchState>> waiters{};
 	};
 
 	class AsyncLoader;

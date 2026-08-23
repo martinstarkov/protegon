@@ -14,10 +14,10 @@ class Scene;
 namespace editor::inspector {
 
 struct EntityFilterEditorState {
-	std::string hierarchy_filter;
-	std::string component_filter;
-	std::string group_filter;
-	std::string query_filter;
+	std::string hierarchy_filter{};
+	std::string component_filter{};
+	std::string group_filter{};
+	std::string query_filter{};
 };
 
 struct EntityFilterEditorOptions {

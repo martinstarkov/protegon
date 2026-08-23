@@ -27,7 +27,7 @@ struct Solid {
 struct Hollow {
 	constexpr Hollow() = default;
 
-	constexpr Hollow(float line_width) : line_width{ line_width } { // NOSONAR
+	constexpr Hollow(float hollow_line_width) : line_width{ hollow_line_width } { // NOSONAR
 		PTGN_ASSERT(line_width >= kMinLineWidth, "Line width must be at least ", kMinLineWidth);
 	}
 

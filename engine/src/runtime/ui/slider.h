@@ -33,8 +33,8 @@ struct SliderChange;
 /// only control how that normalized value is presented to the user.
 struct SliderValueTextConfig {
 	V2_float offset{ 0.0f, -50.0f };
-	std::string prefix;
-	std::string suffix;
+	std::string prefix{};
+	std::string suffix{};
 	float display_min{ 0.0f };
 	float display_max{ 1.0f };
 	std::uint32_t decimal_places{ 2 };
@@ -55,7 +55,7 @@ struct SliderValueTextConfig {
 namespace impl {
 
 struct SliderData {
-	Line line;
+	Line line{};
 	float value{ 0.0f };
 
 	/// @brief Number of allowed slider positions including both endpoints.
@@ -63,12 +63,12 @@ struct SliderData {
 	std::uint32_t discrete_positions{ 0 };
 
 	/// @brief Configuration for the optional automatically updated value text.
-	std::optional<SliderValueTextConfig> value_text;
+	std::optional<SliderValueTextConfig> value_text{};
 
 	// Runtime synchronization state. These values are intentionally not reflected or serialized.
 	bool value_text_synchronized{ false };
-	std::optional<SliderValueTextConfig> synchronized_value_text;
-	Transform synchronized_value_text_transform;
+	std::optional<SliderValueTextConfig> synchronized_value_text{};
+	Transform synchronized_value_text_transform{};
 
 	PTGN_REFLECT(SliderData, line, value, discrete_positions, value_text)
 };
@@ -86,8 +86,8 @@ struct SliderTrackData {
 
 	// Runtime synchronization state. These values are intentionally not reflected or serialized.
 	bool synchronized{ false };
-	Line synchronized_line;
-	std::optional<Line> synchronized_track_line;
+	Line synchronized_line{};
+	std::optional<Line> synchronized_track_line{};
 
 	PTGN_REFLECT_VALUE(SliderTrackData, kind)
 };
@@ -240,7 +240,7 @@ struct SliderChange {
 		return slider;
 	}
 
-	Slider slider;
+	Slider slider{};
 
 	/// @brief New normalized slider value in [0, 1].
 	float value{ 0.0f };

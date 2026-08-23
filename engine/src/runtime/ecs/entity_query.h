@@ -13,17 +13,17 @@ class Scene;
 
 struct EntityQueryContext {
 	Scene& scene;
-	Entity owner;
-	Entity target;
+	Entity owner{};
+	Entity target{};
 };
 
 using EntityQueryCallback = bool (*)(const EntityQueryContext&);
 
 struct RegisteredEntityQuery {
-	std::string key;
-	std::string label;
-	std::string group;
-	std::string description;
+	std::string key{};
+	std::string label{};
+	std::string group{};
+	std::string description{};
 	EntityQueryCallback evaluate{ nullptr };
 };
 
@@ -55,7 +55,7 @@ public:
 #define PTGN_ENTITY_QUERY_CONCAT_IMPL(a, b) a##b
 #define PTGN_ENTITY_QUERY_CONCAT(a, b) PTGN_ENTITY_QUERY_CONCAT_IMPL(a, b)
 #define PTGN_REGISTER_ENTITY_QUERY(Key, Function, Label, Group, Description)                  \
-	[[maybe_unused]] const ::ptgn::AutoEntityQueryRegistration<Function>                      \
+	[[maybe_unused]] const ptgn::AutoEntityQueryRegistration<Function>                      \
 		PTGN_ENTITY_QUERY_CONCAT(kEntityQueryRegistration_, __COUNTER__){                      \
 			Key, Label, Group, Description                                                       \
 		}

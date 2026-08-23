@@ -174,9 +174,9 @@ public:
 	}
 
 protected:
-	V2_int size;
+	V2_int size{};
 	int length{ 0 };
-	std::vector<T> cells;
+	std::vector<T> cells{};
 };
 
 } // namespace ptgn

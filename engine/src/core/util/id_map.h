@@ -114,14 +114,14 @@ struct IdMap {
 	}
 
 	struct Item {
-		std::size_t id;
+		std::size_t id{ 0 };
 		T& value;
 	};
 
 	auto Items() {
 		struct Iterator {
-			std::size_t index;
-			IdMap* map;
+			std::size_t index{ 0 };
+			IdMap* map{ nullptr };
 
 			Item operator*() const {
 				return { map->dense_[index], map->data_[index] };
@@ -137,7 +137,7 @@ struct IdMap {
 		};
 
 		struct Range {
-			IdMap* map;
+			IdMap* map{ nullptr };
 
 			Iterator begin() {
 				return { 0, map };

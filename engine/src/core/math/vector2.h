@@ -278,7 +278,7 @@ struct Vector2 {
 			return Degrees{ 0.0f };
 		}
 
-		float cos{ Dot(target) / std::sqrt(mag1 * mag2) };
+		float cos{ static_cast<float>(Dot(target)) / std::sqrt(mag1 * mag2) };
 
 		// Clamp cosine to the range [-1, 1] to avoid domain errors for acos. This can very rarely
 		// happen due to floating point inaccuracies.

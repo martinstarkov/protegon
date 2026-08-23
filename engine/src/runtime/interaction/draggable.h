@@ -24,23 +24,23 @@ struct Draggable {
 
 	/// @brief The offset of the current mouse position compared to the mouse position where the
 	/// drag started.
-	V2_float offset;
+	V2_float offset{};
 
 	/// @brief The mouse position at which the drag started.
-	V2_float start;
+	V2_float start{};
 
 	/// @brief If the entity is currently being dragged.
 	bool dragging{ false };
 
 	/// @brief Dropzone entities that the draggable is currently dropped on.
-	std::vector<Entity> dropzones;
+	std::vector<Entity> dropzones{};
 
 	/// @brief Dropzones the draggable is currently hovered on.
-	std::vector<Entity> hovered_dropzones;
+	std::vector<Entity> hovered_dropzones{};
 
 	/// @brief Dropzones the draggable was hovered on during the previous frame (for triggering
 	/// callbacks).
-	std::vector<Entity> last_hovered_dropzones;
+	std::vector<Entity> last_hovered_dropzones{};
 
 	PTGN_REFLECT(
 		Draggable, enabled, follow_mouse, move_condition, drop_condition, pickup_condition

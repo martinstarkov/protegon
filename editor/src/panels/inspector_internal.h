@@ -44,9 +44,9 @@ using ComponentState = std::optional<T>;
 
 struct FeatureTargetKey {
 	const Scene* scene{ nullptr };
-	std::optional<UUID> entity;
-	std::optional<PrefabKey> prefab;
-	SerializedEntityPath prefab_entity_path;
+	std::optional<UUID> entity{};
+	std::optional<PrefabKey> prefab{};
+	SerializedEntityPath prefab_entity_path{};
 
 	bool operator==(const FeatureTargetKey&) const = default;
 };
@@ -232,7 +232,7 @@ void InvokeEntityChanged(Callback callback, Entity entity) {
 
 struct EntityInspectorTarget {
 	EditorContext& ctx;
-	Entity entity;
+	Entity entity{};
 
 	template <typename T>
 	[[nodiscard]] static constexpr bool Supports() {
@@ -353,8 +353,8 @@ struct EntityInspectorTarget {
 
 struct PrefabInspectorTarget {
 	EditorContext& ctx;
-	PrefabKey key;
-	SerializedEntityPath entity_path;
+	PrefabKey key{};
+	SerializedEntityPath entity_path{};
 	SerializedEntity& prefab;
 
 	template <typename T>

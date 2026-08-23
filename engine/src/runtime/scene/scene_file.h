@@ -20,16 +20,16 @@ inline constexpr std::string_view kBaseSceneType{ "$Scene" };
 } // namespace impl
 
 struct SerializedScene {
-	std::string type;
+	std::string type{};
 	json parameters = json::object();
-	/// Complete effective dependency set used for preloading before scene construction.
-	std::vector<AssetKey> assets;
+	/// @brief Complete effective dependency set used for preloading before scene construction.
+	std::vector<AssetKey> assets{};
 
-	/// Explicit preload-only dependencies added through Scene::AddAssetDependency or the editor.
+	/// @brief Explicit preload only dependencies added through Scene::AddAssetDependency or the editor.
 	/// These remain distinct from assets discovered in serialized fields.
-	std::vector<AssetKey> preload_assets;
+	std::vector<AssetKey> preload_assets{};
 
-	std::optional<json> content;
+	std::optional<json> content{};
 };
 
 [[nodiscard]] SerializedScene LoadSceneFile(const path& file_path);

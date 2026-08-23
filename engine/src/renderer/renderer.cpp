@@ -472,7 +472,7 @@ void Renderer::SetLogicalSize(
 	}
 
 	PTGN_ASSERT(
-		!logical_size.has_value() || logical_size.has_value() && logical_size.value().IsPositive(),
+		!logical_size.has_value() || (logical_size.has_value() && logical_size.value().IsPositive()),
 		"Logical size cannot be set to negative value or zero"
 	);
 
@@ -617,7 +617,7 @@ Renderer::DisplayResizeInfo Renderer::RecalculateDisplayViewport() const {
 
 	auto compute_aspect_fit = [&viewport, logical_size, presentation](bool letterbox_mode) {
 		float presentation_aspect{ presentation.size.x / presentation.size.y };
-		float logical_aspect{ static_cast<float>(logical_size.x) / logical_size.y };
+		float logical_aspect{ static_cast<float>(logical_size.x) / static_cast<float>(logical_size.y) };
 
 		// In letterbox mode require presentation_aspect > logical_aspect to fit
 		// height, and in overscan require presentation_aspect > logical_aspect to fit

@@ -25,10 +25,10 @@ class Scene;
 namespace impl {
 
 struct GraphicsCommand {
-	Transform transform;
-	Shape shape;
-	Color color;
-	FillStyle line_width;
+	Transform transform{};
+	Shape shape{};
+	Color color{};
+	FillStyle line_width{};
 
 	PTGN_REFLECT(GraphicsCommand, transform, shape, color, line_width)
 };
@@ -38,8 +38,8 @@ struct GraphicsData {
 
 	Color fill_color_{ color::White };
 	Color stroke_color_{ color::White };
-	FillStyle line_width_;
-	std::vector<GraphicsCommand> commands_;
+	FillStyle line_width_{};
+	std::vector<GraphicsCommand> commands_{};
 
 	PTGN_REFLECT_VALUE(GraphicsData, commands_)
 	PTGN_REFLECT_READONLY(GraphicsData, fill_color_, stroke_color_, line_width_)

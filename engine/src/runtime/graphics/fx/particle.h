@@ -44,7 +44,7 @@ template <typename T>
 struct Range {
 	constexpr Range() = default;
 
-	constexpr Range(T min, T max) : min{ min }, max{ max } {}
+	constexpr Range(T range_min, T range_max) : min{ range_min }, max{ range_max } {}
 
 	T min{};
 	T max{};
@@ -105,8 +105,8 @@ using EmissionShapes = std::variant<EmissionShapeArc, EmissionShapeRect>;
 class EmissionShape {
 public:
 	struct EmissionSample {
-		V2_float position;
-		V2_float direction;
+		V2_float position{};
+		V2_float direction{};
 
 		PTGN_REFLECT(EmissionSample, position, direction)
 	};
@@ -176,17 +176,17 @@ using ParticleType = std::variant<Shape, std::string>;
 using ParticleRateOrBurst = std::variant<ParticleRate, ParticleBurst>;
 
 struct ParticleConfig {
-	ParticleRateOrBurst rate_or_burst;
+	ParticleRateOrBurst rate_or_burst{};
 
 	/// @brief Time after which a particle despawns. If nullopt defaults to duration.
-	std::optional<ConstantOrRange<milliseconds>> lifetime;
+	std::optional<ConstantOrRange<milliseconds>> lifetime{};
 
 	ConstantOrRange<float> start_speed{ 10.0f, 30.0f };
 
 	ConstantOrRange<float> start_size{ 12.0f, 24.0f };
 
 	/// @brief Starting rotation of an individual particle.
-	std::optional<ConstantOrRange<Degrees>> start_rotation;
+	std::optional<ConstantOrRange<Degrees>> start_rotation{};
 
 	/// @brief If true, will attempt to align particles to emission direction upon emission.
 	/// This is overridden if start_rotation is set.
@@ -194,7 +194,7 @@ struct ParticleConfig {
 
 	ConstantOrRange<Color> start_color{ color::White };
 
-	std::optional<V2_float> start_gravity;
+	std::optional<V2_float> start_gravity{};
 
 	std::size_t max_particles{ 1000 };
 
@@ -205,13 +205,13 @@ struct ParticleConfig {
 
 	FillStyle particle_fill_style{ Solid{} };
 
-	EmissionShape emission_shape;
+	EmissionShape emission_shape{};
 
-	std::optional<ConstantOrRange<V2_float>> velocity_over_lifetime;
+	std::optional<ConstantOrRange<V2_float>> velocity_over_lifetime{};
 
 	std::optional<ConstantOrRange<float>> size_over_lifetime{ 40.0f };
 
-	std::optional<ConstantOrRange<Color>> color_over_lifetime;
+	std::optional<ConstantOrRange<Color>> color_over_lifetime{};
 
 	PTGN_REFLECT(
 		ParticleConfig, rate_or_burst, lifetime, start_speed, start_size, start_rotation,
@@ -257,11 +257,11 @@ struct ParticleEmitterPlayback {
 struct ParticleEmitterData {
 	ParticleEmitterData() = default;
 
-	explicit ParticleEmitterData(const ParticleConfig& config);
+	explicit ParticleEmitterData(const ParticleConfig& particle_config);
 
-	ParticleConfig config;
-	ParticleEmitterPlayback playback;
-	Manager manager;
+	ParticleConfig config{};
+	ParticleEmitterPlayback playback{};
+	Manager manager{};
 	std::size_t live_particle_count{ 0 };
 
 	/// @return Null entity if the particle emitter has reached its max particle count.
@@ -320,9 +320,9 @@ struct Particle {
 
 	explicit Particle(const ParticleConfig& config);
 
-	V2_float position;
-	V2_float velocity;
-	V2_float gravity;
+	V2_float position{};
+	V2_float velocity{};
+	V2_float gravity{};
 
 	Color start_color{ color::White };
 	Color end_color{ color::White };

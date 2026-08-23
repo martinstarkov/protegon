@@ -22,7 +22,6 @@
 #include <system_error>
 #include <vector>
 
-#include "panels/test_panel.h"
 #include "app/application.h"
 #include "core/build_info.h"
 #include "app/application_context.h"
@@ -1033,7 +1032,7 @@ bool DrawDirectoryField(
 
 } // namespace
 
-Editor::Editor(Application& app) : app{ app } {
+Editor::Editor(Application& application) : app{ application } {
 	app.SetCloseGuard([this]() {
 #if !defined(__EMSCRIPTEN__)
 		if (!allow_application_close_ && export_manager_.IsBusy()) {
@@ -3556,7 +3555,6 @@ void Editor::DrawPanels() {
 	scene_list_panel_.OnRender(*context_);
 	screen_effects_panel_.OnRender(*context_);
 	inspector_panel_.OnRender(*context_);
-	//entity_target_demo::DrawScriptTargetingDemo(*context_);
 	if (ConsumeAcceptedAssetKeyDrop()) {
 		scene_asset_dependencies_dirty_ = true;
 	}

@@ -25,7 +25,7 @@ struct TooltipProperties {
 
 	Color text_color{ color::White };
 
-	std::optional<TextureKey> texture;
+	std::optional<TextureKey> texture{};
 
 	milliseconds fade_in_duration{ 250 };
 	milliseconds fade_out_duration{ 250 };
@@ -65,8 +65,8 @@ public:
 };
 
 struct TooltipHoverData {
-	std::string name;
-	V2_float offset;
+	std::string name{};
+	V2_float offset{};
 
 	PTGN_REFLECT(TooltipHoverData, name, offset)
 };

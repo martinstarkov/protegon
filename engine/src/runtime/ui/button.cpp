@@ -614,24 +614,24 @@ void ApplyButtonTextVisual(ButtonText text, const ButtonTextVisual& visual) {
 void ApplyButtonSpriteVisual(
 	Button button, ButtonVisualState state, const ButtonSpriteVisual& visual
 ) {
-	auto apply_common = [](auto& sprite, const ButtonSpriteVisual& visual) {
-		if (visual.texture.has_value()) {
-			sprite.Texture(visual.texture.value());
+	auto apply_common = [](auto& sprite, const ButtonSpriteVisual& vis) {
+		if (vis.texture.has_value()) {
+			sprite.Texture(vis.texture.value());
 		}
-		if (visual.origin.has_value()) {
-			sprite.Origin(visual.origin.value());
+		if (vis.origin.has_value()) {
+			sprite.Origin(vis.origin.value());
 		}
-		if (visual.anchor.has_value()) {
-			sprite.Anchor(visual.anchor.value());
+		if (vis.anchor.has_value()) {
+			sprite.Anchor(vis.anchor.value());
 		}
-		if (visual.transform.has_value()) {
-			sprite.Transform(visual.transform.value());
+		if (vis.transform.has_value()) {
+			sprite.Transform(vis.transform.value());
 		}
-		if (visual.size.has_value()) {
-			sprite.Size(visual.size.value());
+		if (vis.size.has_value()) {
+			sprite.Size(vis.size.value());
 		}
-		if (visual.tint.has_value()) {
-			sprite.Tint(visual.tint.value());
+		if (vis.tint.has_value()) {
+			sprite.Tint(vis.tint.value());
 		}
 	};
 
@@ -684,8 +684,8 @@ void ApplyButtonDescVisuals(Button button, const ButtonDesc& desc) {
 }
 
 void ApplyButtonMoveConfig(Button button, const MoveButtonConfig& move) {
-	button.OnHoverStart([move](Button button) {
-		auto text{ FindButtonText(button) };
+	button.OnHoverStart([move](Button button_entity) {
+		auto text{ FindButtonText(button_entity) };
 
 		if (!text.has_value()) {
 			return;
@@ -696,8 +696,8 @@ void ApplyButtonMoveConfig(Button button, const MoveButtonConfig& move) {
 		TranslateTo<Text>(texts, move.offset, move.duration, move.ease);
 	});
 
-	button.OnHoverStop([move](Button button) {
-		auto text{ FindButtonText(button) };
+	button.OnHoverStop([move](Button button_entity) {
+		auto text{ FindButtonText(button_entity) };
 
 		if (!text.has_value()) {
 			return;
@@ -713,26 +713,26 @@ void ApplyButtonScaleConfig(Button button, const ScaleButtonConfig& scale) {
 	auto text{ FindButtonText(button) };
 	auto starting_scale{ text.has_value() ? GetScale(text.value()) : V2_float{ 1.0f, 1.0f } };
 
-	button.OnHoverStart([scale](Button button) {
-		auto text{ FindButtonText(button) };
+	button.OnHoverStart([scale](Button button_entity) {
+		auto text_entity{ FindButtonText(button_entity) };
 
-		if (!text.has_value()) {
+		if (!text_entity.has_value()) {
 			return;
 		}
 
-		std::vector<Text> texts{ text.value() };
+		std::vector<Text> texts{ text_entity.value() };
 
 		ScaleTo<Text>(texts, V2_float{ scale.scale }, scale.duration, scale.ease);
 	});
 
-	button.OnHoverStop([scale, starting_scale](Button button) {
-		auto text{ FindButtonText(button) };
+	button.OnHoverStop([scale, starting_scale](Button button_entity) {
+		auto text_entity{ FindButtonText(button_entity) };
 
-		if (!text.has_value()) {
+		if (!text_entity.has_value()) {
 			return;
 		}
 
-		std::vector<Text> texts{ text.value() };
+		std::vector<Text> texts{ text_entity.value() };
 		std::vector<V2_float> target_scales{ starting_scale };
 
 		ScaleTo<Text>(texts, target_scales, scale.duration, scale.ease);
@@ -802,7 +802,7 @@ ButtonDesc ToButtonDesc(const AnimatedButtonConfig& config) {
 
 namespace impl {
 
-ButtonAnimationCompleteScript::ButtonAnimationCompleteScript(Button button) : button{ button } {}
+ButtonAnimationCompleteScript::ButtonAnimationCompleteScript(Button button_entity) : button{ button_entity } {}
 
 void ButtonAnimationCompleteScript::OnEvent(Event event) {
 	event.Dispatch<ptgn::event::AnimationComplete>([this]() {
@@ -1826,8 +1826,8 @@ void Button::PlaySound(ButtonVisualState state) {
 
 	auto& audio{ GetScene().ctx().audio };
 
-	auto get_sound = [&sounds](auto state) -> std::optional<AudioKey> {
-		for (auto fallback : GetVisualStateFallbacks(state)) {
+	auto get_sound = [&sounds](auto button_state) -> std::optional<AudioKey> {
+		for (auto fallback : GetVisualStateFallbacks(button_state)) {
 			const auto& sound{ sounds.states[std::to_underlying(fallback)] };
 			if (sound.has_value()) {
 				return sound.value();

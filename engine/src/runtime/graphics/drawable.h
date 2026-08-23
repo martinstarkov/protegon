@@ -31,13 +31,13 @@ concept DrawableType = requires(DrawContext& render_context, Entity entity) {
 namespace impl {
 
 struct DrawableRegistrationOptions {
-	std::optional<std::string_view> name;
-	std::optional<std::string_view> group;
+	std::optional<std::string_view> name{};
+	std::optional<std::string_view> group{};
 };
 
 struct DrawableRegistrationData {
-	std::string_view type_name;
-	DrawableRegistrationOptions options;
+	std::string_view type_name{};
+	DrawableRegistrationOptions options{};
 };
 
 constexpr DrawableRegistrationData MakeDrawableRegistration(
@@ -68,13 +68,13 @@ public:
 		std::size_t hash{ 0 };
 
 		/// @brief Actual registered C++ type name.
-		std::string_view type_name;
+		std::string type_name{};
 
 		/// @brief Optional name.
-		std::optional<std::string_view> name;
+		std::optional<std::string_view> name{};
 
 		/// @brief Optional group.
-		std::optional<std::string_view> group;
+		std::optional<std::string_view> group{};
 
 		DrawFunc draw{ nullptr };
 
@@ -109,7 +109,7 @@ public:
 		drawables.push_back(
 			Info{
 				.hash	   = type_hash,
-				.type_name = registration.type_name,
+				.type_name = std::string{ registration.type_name },
 				.name	   = registration.options.name,
 				.group	   = registration.options.group,
 				.draw	   = draw,
@@ -184,11 +184,11 @@ EffectParams GetEffectParams(const Entity& entity);
 
 #define PTGN_REGISTER_DRAWABLE(Type, ...)                                                 \
 	template <>                                                                           \
-	struct ::ptgn::impl::DrawableRegistration<Type> {                                     \
-		static constexpr ::ptgn::impl::DrawableRegistrationData Get() {                   \
-			return ::ptgn::impl::MakeDrawableRegistration(                                \
-				#Type __VA_OPT__(, ::ptgn::impl::DrawableRegistrationOptions __VA_ARGS__) \
+	struct ptgn::impl::DrawableRegistration<Type> {                                     \
+		static constexpr ptgn::impl::DrawableRegistrationData Get() {                   \
+			return ptgn::impl::MakeDrawableRegistration(                                \
+				#Type __VA_OPT__(, ptgn::impl::DrawableRegistrationOptions __VA_ARGS__) \
 			);                                                                            \
 		}                                                                                 \
 	};                                                                                    \
-	template class ::ptgn::impl::DrawableRegistrar<Type>
+	template class ptgn::impl::DrawableRegistrar<Type>

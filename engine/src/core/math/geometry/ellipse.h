@@ -17,10 +17,10 @@ public:
 	constexpr Ellipse() = default;
 
 	template <Arithmetic T>
-	constexpr explicit Ellipse(T radius) : radius{ radius } {}
+	constexpr explicit Ellipse(T ellipse_radius) : radius{ ellipse_radius } {}
 
 	template <Arithmetic T>
-	constexpr explicit Ellipse(Vector2<T> radius) : radius{ radius } {}
+	constexpr explicit Ellipse(Vector2<T> ellipse_radius) : radius{ ellipse_radius } {}
 
 	constexpr V2_float GetRadius() const {
 		return radius;

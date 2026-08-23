@@ -31,7 +31,7 @@ namespace impl {
 
 struct ConsoleOutputSnapshot {
 	std::uint64_t revision{ 0 };
-	std::string output;
+	std::string output{};
 };
 
 void DebugPrint(

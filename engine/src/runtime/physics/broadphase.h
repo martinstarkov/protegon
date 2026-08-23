@@ -21,8 +21,8 @@ enum class KDAxis {
 };
 
 struct KDObject {
-	Entity entity;
-	BoundingAABB aabb;
+	Entity entity{};
+	BoundingAABB aabb{};
 	/// @brief Flag for lazy removals used inside partial updates
 	bool deleted{ false };
 
@@ -33,9 +33,9 @@ struct KDNode {
 	KDAxis split_axis{ KDAxis::X };
 	float split_value{ 0.0f };
 
-	std::vector<KDObject> objects; // only populated on leaves
-	std::unique_ptr<KDNode> left;
-	std::unique_ptr<KDNode> right;
+	std::vector<KDObject> objects{}; // only populated on leaves
+	std::unique_ptr<KDNode> left{};
+	std::unique_ptr<KDNode> right{};
 };
 
 class KDTree {

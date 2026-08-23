@@ -21,20 +21,20 @@ struct PlatformerMovement;
 struct RigidBody;
 
 struct PlatformerJumpContext {
-	Entity entity;
+	Entity entity{};
 	Scene& scene;
 	PlatformerMovement& platformer;
 	Transform& transform;
 	RigidBody& rigid_body;
-	V2_float gravity;
-	secondsf dt;
+	V2_float gravity{};
+	secondsf dt{};
 };
 
 struct RegisteredPlatformerJumpController {
-	std::string key;
-	std::string label;
-	std::string group;
-	std::string description;
+	std::string key{};
+	std::string label{};
+	std::string group{};
+	std::string description{};
 	std::size_t component_hash{ 0 };
 	bool (*has)(Entity){ nullptr };
 	void* (*get)(Entity){ nullptr };
@@ -99,7 +99,7 @@ void UpdatePlatformerJumpController(Entity entity, PlatformerJumpContext& ctx);
 #define PTGN_PLATFORMER_JUMP_CONCAT_IMPL(a, b) a##b
 #define PTGN_PLATFORMER_JUMP_CONCAT(a, b) PTGN_PLATFORMER_JUMP_CONCAT_IMPL(a, b)
 #define PTGN_REGISTER_PLATFORMER_JUMP(Type, Key, Label, Group, Description)                   \
-	[[maybe_unused]] const ::ptgn::AutoPlatformerJumpControllerRegistration<Type>             \
+	[[maybe_unused]] const ptgn::AutoPlatformerJumpControllerRegistration<Type>             \
 		PTGN_PLATFORMER_JUMP_CONCAT(kPlatformerJumpRegistration_, __COUNTER__){                 \
 			Key, Label, Group, Description                                                       \
 		}

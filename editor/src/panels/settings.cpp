@@ -73,13 +73,13 @@ void TrackSettingsChange(
 }
 
 struct ProjectDisplaySettingsState {
-	RendererSettings renderer;
-	WindowSettings window;
+	RendererSettings renderer{};
+	WindowSettings window{};
 };
 
 struct ResolutionPreset {
 	const char* label{ "" };
-	V2_int size;
+	V2_int size{};
 };
 
 constexpr std::array<ResolutionPreset, 12> kResolutionPresets{
@@ -297,46 +297,39 @@ static_assert(!ContainsDuplicates(kResolutionPresets, &ResolutionPreset::label))
 	return false;
 }
 
-[[nodiscard]] const char* PageTitle(SettingsPage page) {
-	switch (page) {
-		case SettingsPage::ProjectDisplay: return "Project / Display";
-		case SettingsPage::ProjectRendering: return "Project / Rendering";
-		case SettingsPage::EditorGeneral: return "Editor / General";
-		case SettingsPage::DebugInteraction: return "Debug / Interactions";
-		case SettingsPage::DebugCollision: return "Debug / Collisions";
-		case SettingsPage::DebugText: return "Debug / Text Boxes";
-		case SettingsPage::DebugVisibility: return "Debug / Visibility Polygons";
-	}
+// [[nodiscard]] const char* PageTitle(SettingsPage page) {
+// 	switch (page) {
+// 		case SettingsPage::ProjectDisplay: return "Project / Display";
+// 		case SettingsPage::ProjectRendering: return "Project / Rendering";
+// 		case SettingsPage::EditorGeneral: return "Editor / General";
+// 		case SettingsPage::DebugInteraction: return "Debug / Interactions";
+// 		case SettingsPage::DebugCollision: return "Debug / Collisions";
+// 		case SettingsPage::DebugText: return "Debug / Text Boxes";
+// 		case SettingsPage::DebugVisibility: return "Debug / Visibility Polygons";
+// 	}
+// 	return "Settings";
+// }
 
-	return "Settings";
-}
+// [[nodiscard]] const char* PageDescription(SettingsPage page) {
+// 	switch (page) {
+// 		case SettingsPage::ProjectDisplay:
+// 			return "Configure the project display, window, and presentation resolution.";
+// 		case SettingsPage::ProjectRendering:
+// 			return "Configure tone mapping and output color correction.";
+// 		case SettingsPage::EditorGeneral:
+// 			return "Configure editor-only selection, rendering, gizmo, and inspector behavior.";
+// 		case SettingsPage::DebugInteraction:
+// 			return "Configure how interactive regions are drawn for debugging.";
+// 		case SettingsPage::DebugCollision:
+// 			return "Configure collider and continuous collision detection visualization.";
+// 		case SettingsPage::DebugText:
+// 			return "Configure text bounds and clipping visualization.";
+// 		case SettingsPage::DebugVisibility:
+// 			return "Configure light visibility polygon visualization.";
+// 	}
 
-[[nodiscard]] const char* PageDescription(SettingsPage page) {
-	switch (page) {
-		case SettingsPage::ProjectDisplay:
-			return "Configure the project display, window, and presentation resolution.";
-
-		case SettingsPage::ProjectRendering:
-			return "Configure tone mapping and output color correction.";
-
-		case SettingsPage::EditorGeneral:
-			return "Configure editor-only selection, rendering, gizmo, and inspector behavior.";
-
-		case SettingsPage::DebugInteraction:
-			return "Configure how interactive regions are drawn for debugging.";
-
-		case SettingsPage::DebugCollision:
-			return "Configure collider and continuous collision detection visualization.";
-
-		case SettingsPage::DebugText:
-			return "Configure text bounds and clipping visualization.";
-
-		case SettingsPage::DebugVisibility:
-			return "Configure light visibility polygon visualization.";
-	}
-
-	return "";
-}
+// 	return "";
+// }
 
 void DrawSectionTitle(std::string_view title) {
 	ImGui::Spacing();

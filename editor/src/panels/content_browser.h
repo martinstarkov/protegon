@@ -30,7 +30,7 @@ bool AcceptAssetKeyDragDrop(
 void RequestShaderEditorOpen(ShaderKey key);
 
 struct ContentBrowserAssetSelection {
-	AssetKey key;
+	AssetKey key{};
 	AssetKind kind{ AssetKind::Unknown };
 
 	bool operator==(const ContentBrowserAssetSelection&) const = default;
@@ -61,16 +61,16 @@ public:
 
 private:
 	struct ShaderEditorState {
-		ShaderKey key;
-		std::string display_name;
-		std::string vertex_source;
-		std::string fragment_source;
-		std::string saved_vertex_source;
-		std::string saved_fragment_source;
-		SerializedShaderProgram program;
-		SerializedShaderProgram saved_program;
+		ShaderKey key{};
+		std::string display_name{};
+		std::string vertex_source{};
+		std::string fragment_source{};
+		std::string saved_vertex_source{};
+		std::string saved_fragment_source{};
+		SerializedShaderProgram program{};
+		SerializedShaderProgram saved_program{};
 		ShaderStageMask source_stages{ ShaderStageMask::None };
-		std::string diagnostics;
+		std::string diagnostics{};
 		bool last_compile_success{ true };
 		bool vertex_editable{ false };
 		bool fragment_editable{ false };
@@ -81,13 +81,13 @@ private:
 	struct SelectionBoxState {
 		float start_x{ 0.0f };
 		float start_y{ 0.0f };
-		std::vector<ContentBrowserAssetSelection> base_selection;
+		std::vector<ContentBrowserAssetSelection> base_selection{};
 	};
 
 	struct PendingDeleteState {
-		std::vector<ContentBrowserAssetSelection> assets;
-		std::optional<path> directory;
-		std::vector<path> listed_files;
+		std::vector<ContentBrowserAssetSelection> assets{};
+		std::optional<path> directory{};
+		std::vector<path> listed_files{};
 	};
 
 	enum class PendingShaderSaveAction : std::uint8_t {

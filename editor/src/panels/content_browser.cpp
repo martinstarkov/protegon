@@ -82,36 +82,36 @@ struct AssetKeyPayload {
 };
 
 struct TilePreview {
-	::ptgn::impl::TextureId texture;
-	V2_int size;
+	::ptgn::impl::TextureId texture{};
+	V2_int size{};
 	bool tint_with_text_color{ false };
 };
 
 struct AssetDeleteSnapshot {
-	SerializedAsset asset;
-	std::vector<std::uint8_t> bytes;
+	SerializedAsset asset{};
+	std::vector<std::uint8_t> bytes{};
 	bool project_preload{ false };
 	bool manual_pin{ false };
 };
 
 struct DirectoryFileSnapshot {
-	path relative_to_assets;
-	std::vector<std::uint8_t> bytes;
-	std::optional<SerializedAsset> asset;
+	path relative_to_assets{};
+	std::vector<std::uint8_t> bytes{};
+	std::optional<SerializedAsset> asset{};
 	bool project_preload{ false };
 	bool manual_pin{ false };
 };
 
 struct DirectoryDeleteSnapshot {
-	path directory;
-	std::vector<path> directories;
-	std::vector<DirectoryFileSnapshot> files;
+	path directory{};
+	std::vector<path> directories{};
+	std::vector<DirectoryFileSnapshot> files{};
 };
 
 struct AssetTileRect {
-	ContentBrowserAssetSelection asset;
-	ImVec2 min;
-	ImVec2 max;
+	ContentBrowserAssetSelection asset{};
+	ImVec2 min{};
+	ImVec2 max{};
 };
 
 std::string AssetIdentityString(const AssetKey& key, AssetKind kind) {
@@ -951,10 +951,6 @@ bool AssetReferencedByEditor(EditorContext& ctx, const AssetKey& key) {
 bool RectsOverlap(ImVec2 a_min, ImVec2 a_max, ImVec2 b_min, ImVec2 b_max) {
 	return a_min.x <= b_max.x && a_max.x >= b_min.x &&
 		a_min.y <= b_max.y && a_max.y >= b_min.y;
-}
-
-std::string DirectoryDisplayName(const path& directory) {
-	return directory.filename().string();
 }
 
 } // namespace

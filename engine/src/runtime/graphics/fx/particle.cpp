@@ -45,11 +45,11 @@ namespace ptgn {
 namespace {
 
 struct ParticleDrawInfo {
-	Transform transform;
+	Transform transform{};
 	float size{ 0.0f };
-	Color color;
-	FillStyle fill_style;
-	Depth depth;
+	Color color{ color::White };
+	FillStyle fill_style{};
+	Depth depth{};
 	BlendMode blend_mode{ BlendMode::Blend };
 	Origin origin{ Origin::Center };
 };
@@ -217,8 +217,8 @@ void ParticleEmitterPlayback::Update(
 	}
 }
 
-ParticleEmitterData::ParticleEmitterData(const ParticleConfig& config) :
-	config{ config } {}
+ParticleEmitterData::ParticleEmitterData(const ParticleConfig& particle_config) :
+	config{ particle_config } {}
 
 Entity ParticleEmitterData::TrySpawnParticle() {
 	if (live_particle_count >= config.max_particles) {

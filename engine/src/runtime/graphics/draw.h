@@ -31,7 +31,7 @@ struct HDREffectTag {};
 
 struct EntityDepthCompare {
 	EntityDepthCompare() = default;
-	explicit EntityDepthCompare(bool ascending);
+	explicit EntityDepthCompare(bool compare_ascending);
 
 	bool operator()(Entity a, Entity b) const;
 

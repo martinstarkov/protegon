@@ -19,7 +19,7 @@ using ScreenEffectId = std::uint64_t;
 
 struct SerializedScreenEffect {
 	ScreenEffectId id{ 0 };
-	std::string type;
+	std::string type{};
 	bool enabled{ true };
 	json parameters = json::object();
 
@@ -27,7 +27,7 @@ struct SerializedScreenEffect {
 };
 
 struct ScreenEffectSettings {
-	std::vector<SerializedScreenEffect> effects;
+	std::vector<SerializedScreenEffect> effects{};
 
 	PTGN_REFLECT(ScreenEffectSettings, effects)
 };
@@ -73,13 +73,13 @@ class ApplicationContext;
 struct ScreenEffectInstance {
 	std::uint64_t runtime_id{ 0 };
 	ScreenEffectId source_id{ 0 };
-	std::string type;
+	std::string type{};
 };
 
 struct RuntimeScreenEffectSnapshot {
 	std::uint64_t runtime_id{ 0 };
 	ScreenEffectId source_id{ 0 };
-	std::string type;
+	std::string type{};
 	bool enabled{ true };
 	json parameters = json::object();
 };

@@ -98,16 +98,16 @@ struct DialoguePageProperties {
 };
 
 struct DialoguePage {
-	StyledText styled_text;
-	DialoguePageProperties properties;
+	StyledText styled_text{};
+	DialoguePageProperties properties{};
 
 	DialoguePage() = default;
 
-	DialoguePage(StyledText styled_text, const DialoguePageProperties& properties);
+	DialoguePage(StyledText styled, const DialoguePageProperties& dialogue_properties);
 };
 
 struct DialogueLine {
-	std::vector<DialoguePage> pages;
+	std::vector<DialoguePage> pages{};
 };
 
 struct DialogueEntry {
@@ -115,10 +115,10 @@ struct DialogueEntry {
 	bool repeatable{ true };
 	DialogueBehavior behavior{ DialogueBehavior::Sequential };
 	bool scroll{ true };
-	std::string next_dialogue;
+	std::string next_dialogue{};
 
-	std::vector<DialogueLine> lines;
-	std::vector<std::size_t> used_line_indices;
+	std::vector<DialogueLine> lines{};
+	std::vector<std::size_t> used_line_indices{};
 
 	[[nodiscard]] std::size_t PickRandomIndex() const;
 	const DialogueLine* GetCurrentDialogueLine() const;
@@ -133,11 +133,11 @@ struct DialogueData {
 
 	std::size_t current_line{ 0 };
 	std::size_t current_page{ 0 };
-	std::string current_dialogue;
+	std::string current_dialogue{};
 
 	bool open{ false };
 
-	DialogueMap dialogues;
+	DialogueMap dialogues{};
 
 	void ClearRuntimeState();
 	void LoadFromJson(
@@ -152,9 +152,9 @@ struct DialogueDesc {
 
 	/// @brief Used when no background texture is supplied, and as a fallback if texture size cannot
 	/// be resolved.
-	V2_float box_size;
+	V2_float box_size{};
 
-	std::optional<TextureKey> background_texture;
+	std::optional<TextureKey> background_texture{};
 	Color background_color{ color::Black.WithAlpha(180) };
 
 	bool ui_layer{ true };

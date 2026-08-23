@@ -46,7 +46,7 @@ impl::CommonShapeParams ConvertToCommonShapeParams(
 	return { .transform{ transform },
 			 .fill_style{ params.fill_style },
 			 .origin = params.origin,
-			 .color{ color },
+			 .color{ color.Normalized() },
 			 .depth{ params.depth },
 			 .entity_id = params.entity_id };
 }

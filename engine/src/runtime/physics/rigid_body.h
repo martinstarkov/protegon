@@ -32,9 +32,9 @@ struct RigidBody {
 	void Update(V2_float physics_gravity, secondsf dt);
 
 	/// @brief nullopt means no enforcement of maximum speed.
-	std::optional<float> max_speed;
+	std::optional<float> max_speed{};
 	/// @brief nullopt means no enforcement of maximum angular speed.
-	std::optional<float> max_angular_speed;
+	std::optional<float> max_angular_speed{};
 
 	float drag{ 0.0f };
 	float angular_drag{ 0.0f };
@@ -44,7 +44,7 @@ struct RigidBody {
 
 	bool immovable{ false };
 
-	V2_float velocity;
+	V2_float velocity{};
 	Radians angular_velocity{ 0.0f };
 
 	PTGN_REFLECT(

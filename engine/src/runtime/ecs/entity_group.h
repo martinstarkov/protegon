@@ -8,7 +8,7 @@
 namespace ptgn {
 
 struct Group {
-	std::vector<std::string> groups;
+	std::vector<std::string> groups{};
 
 	PTGN_REFLECT_VALUE(Group, groups)
 };

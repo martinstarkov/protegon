@@ -106,9 +106,9 @@ struct ButtonData {
 		PTGN_REFLECT(VisualLock, state, block_press)
 	};
 
-	std::optional<VisualLock> visual_lock;
+	std::optional<VisualLock> visual_lock{};
 
-	std::optional<ButtonVisualState> applied_visual_state;
+	std::optional<ButtonVisualState> applied_visual_state{};
 
 	ButtonDirty dirty{ ButtonDirty::All };
 
@@ -117,7 +117,7 @@ struct ButtonData {
 };
 
 struct ButtonAnimationPart {
-	ButtonAnimationOptions options;
+	ButtonAnimationOptions options{};
 
 	PTGN_REFLECT_VALUE(ButtonAnimationPart, options)
 };
@@ -484,7 +484,7 @@ namespace impl {
 
 struct ButtonAnimationCompleteScript : public Script {
 	ButtonAnimationCompleteScript() = default;
-	explicit ButtonAnimationCompleteScript(Button button);
+	explicit ButtonAnimationCompleteScript(Button button_entity);
 
 	Button button;
 

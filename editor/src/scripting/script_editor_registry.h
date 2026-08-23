@@ -30,16 +30,16 @@ void EnsureEngineScriptEditorsRegistered();
 } // namespace impl
 
 struct EventEditorOptions {
-	std::string label;
-	std::string group;
-	std::string description;
+	std::string label{};
+	std::string group{};
+	std::string description{};
 	int inline_fields{ 0 };
-	std::function<bool(json&)> draw;
+	std::function<bool(json&)> draw{};
 };
 
 struct EventEditorRegistration {
 	TypeHashValue type_hash{ 0 };
-	EventEditorOptions options;
+	EventEditorOptions options{};
 };
 
 class EventEditorRegistry {
@@ -169,34 +169,28 @@ enum class ScriptType : std::uint8_t {
 
 struct ScriptEditorContext {
 	EditorContext& ctx;
-	Entity owner;
+	Entity owner{};
 	SharedScriptSequenceRegistry& shared_sequences;
 	const std::optional<EntityFilter>* sequence_target_filter{ nullptr };
 };
 
 template <ScriptClass T>
 struct ScriptEditorOptions {
-	std::string label;
-	std::string group;
-	std::string description;
+	std::string label{};
+	std::string group{};
+	std::string description{};
 	ScriptType type{ ScriptType::Resident };
 	int menu_order{ 100 };
 	bool separator_after{ false };
 	bool hidden{ false };
-	std::function<bool(
-		ScriptEditorContext&,
-		T&
-	)> draw_inline;
-	std::function<bool(
-		ScriptEditorContext&,
-		T&
-	)> draw;
+	std::function<bool(ScriptEditorContext&, T&)> draw_inline{};
+	std::function<bool(ScriptEditorContext&, T&)> draw{};
 };
 
 struct RegisteredScriptEditorOptions {
-	std::string label;
-	std::string group;
-	std::string description;
+	std::string label{};
+	std::string group{};
+	std::string description{};
 	ScriptType type{ ScriptType::Resident };
 	int menu_order{ 100 };
 	bool separator_after{ false };
@@ -205,22 +199,16 @@ struct RegisteredScriptEditorOptions {
 
 struct ScriptEditorRegistration {
 	TypeHashValue type_hash{ 0 };
-	RegisteredScriptEditorOptions options;
+	RegisteredScriptEditorOptions options{};
 	bool has_contents{ false };
-	std::function<bool(
-		ScriptEditorContext&,
-		json&
-	)> draw_inline;
-	std::function<bool(
-		ScriptEditorContext&,
-		json&
-	)> draw;
+	std::function<bool(ScriptEditorContext&, json&)> draw_inline{};
+	std::function<bool(ScriptEditorContext&, json&)> draw{};
 };
 
 template <typename T>
 struct TypedJsonEditorState {
 	T value{};
-	json synchronized_value;
+	json synchronized_value = json::object();
 	bool initialized{ false };
 };
 

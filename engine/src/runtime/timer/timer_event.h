@@ -7,7 +7,7 @@
 namespace ptgn::event {
 
 struct TimerElapsed {
-	TimerKey timer;
+	TimerKey timer{};
 
 	// The elapsed segment crossed by this update or explicit advance.
 	millisecondsf previous_elapsed{ 0.0f };

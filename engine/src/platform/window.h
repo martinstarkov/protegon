@@ -110,10 +110,10 @@ struct WindowConfig {
 	bool resizable{ true };
 
 	/// @brief X position of the window on the screen. If nullopt, defaults to centered.
-	std::optional<int> x;
+	std::optional<int> x{};
 
 	/// @brief Y position of the window on the screen. If nullopt, defaults to centered.
-	std::optional<int> y;
+	std::optional<int> y{};
 
 	bool minimized{ false };
 	bool maximized{ false };

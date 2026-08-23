@@ -56,10 +56,10 @@ constexpr int kLightVisibleStencilRef{ 1 };
 constexpr int kCircleShadowSegments{ 24 };
 
 struct ShadowCasterEntry {
-	Entity entity;
+	Entity entity{};
 	float depth{ 0.0f };
 	std::size_t order{ 0 };
-	BoundingAABB aabb;
+	BoundingAABB aabb{};
 	bool masks_light_inside{ true };
 };
 

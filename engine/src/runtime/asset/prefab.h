@@ -20,11 +20,11 @@ inline constexpr std::string_view kPrefabExtension{ ".ptgnprefab" };
 inline constexpr std::string_view kPrefabKeyPrefix{ "prefabs/" };
 
 struct Prefab {
-	PrefabKey key;
+	PrefabKey key{};
 
-	/// UUID is absent for prefab captures. Instantiation always creates fresh UUIDs for the complete
+	/// @brief UUID is absent for prefab captures. Instantiation always creates fresh UUIDs for the complete
 	/// hierarchy.
-	SerializedEntity root;
+	SerializedEntity root{};
 
 	PTGN_REFLECT(Prefab, key, root)
 };

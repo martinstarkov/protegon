@@ -23,8 +23,8 @@ enum class BoundaryBehavior {
 PTGN_REFLECT_ENUM(BoundaryBehavior);
 
 struct Bounds {
-	V2_float position;
-	V2_float size;
+	V2_float position{};
+	V2_float size{};
 	BoundaryBehavior behavior{ BoundaryBehavior::SlideVelocity };
 
 	PTGN_REFLECT(Bounds, position, size, behavior)

@@ -43,7 +43,7 @@ struct ShakeAnimationState {
 
 struct PathFollowAnimationState {
 	std::size_t current_waypoint{ 0 };
-	std::vector<V2_float> waypoints;
+	std::vector<V2_float> waypoints{};
 };
 
 } // namespace impl
@@ -74,8 +74,8 @@ namespace {
 }
 
 struct SceneTransitionPointers {
-	std::unique_ptr<SceneTransition> out;
-	std::unique_ptr<SceneTransition> in;
+	std::unique_ptr<SceneTransition> out{};
+	std::unique_ptr<SceneTransition> in{};
 };
 
 [[nodiscard]] SceneTransitionPointers MakeSceneTransitions(const SceneChangeScript& script) {

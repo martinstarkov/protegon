@@ -23,13 +23,13 @@ struct Offsets {
 	Transform GetTotal() const;
 
 	/// @brief Temporary transform applied for camera or entity shake effect.
-	Transform shake;
+	Transform shake{};
 
 	/// @brief Temporary transform applied for bounce effect.
-	Transform bounce;
+	Transform bounce{};
 
 	/// @brief User applied offset.
-	Transform custom;
+	Transform custom{};
 
 	PTGN_REFLECT(Offsets, shake, bounce, custom)
 };

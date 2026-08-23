@@ -18,8 +18,8 @@
 namespace ptgn::impl {
 
 struct RegisteredEffect {
-	std::string type_name;
-	std::string display_name;
+	std::string type_name{};
+	std::string display_name{};
 	bool hdr{ false };
 
 	Entity (*create)(Entity entity, const json& parameters){ nullptr };

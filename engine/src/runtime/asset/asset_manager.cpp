@@ -578,8 +578,8 @@ std::variant<ShaderCode, ShaderPathOrName> ResolveSerializedShaderStage(
 namespace impl {
 
 struct AssetLoadBatchState {
-	mutable std::mutex mutex;
-	AssetLoadProgress progress;
+	mutable std::mutex mutex{};
+	AssetLoadProgress progress{};
 };
 
 void AddAssetKey(ecs::Entity asset, AssetKey key, const std::optional<path>& path) {
@@ -617,7 +617,7 @@ AssetKind GetAssetKind(const path& asset_path) {
 	return AssetKind::Unknown;
 }
 
-AssetAccessor::AssetAccessor(AssetManager& assets) : assets{ assets } {}
+AssetAccessor::AssetAccessor(AssetManager& asset_manager) : assets{ asset_manager } {}
 
 std::vector<AssetRecord> AssetAccessor::GetAssets() const {
 	return assets.GetAssets();
@@ -701,28 +701,28 @@ void AssetLoadTicket::Reset() noexcept {
 class AssetManager::AsyncLoader {
 public:
 	struct PreparedTexture {
-		std::unique_ptr<impl::Surface> surface;
+		std::unique_ptr<impl::Surface> surface{};
 	};
 
 	struct PreparedAudio {
-		path file_path;
+		path file_path{};
 	};
 
 	struct PreparedFont {
-		path file_path;
+		path file_path{};
 		impl::FontAtlasData data;
 	};
 
 	struct PreparedJson {
-		json value;
+		json value = json::object();
 	};
 
 	struct PreparedPrefab {
-		Prefab value;
+		Prefab value{};
 	};
 
 	struct PreparedShader {
-		std::variant<ShaderCode, ShaderPath, ShaderPair> source;
+		std::variant<ShaderCode, ShaderPath, ShaderPair> source{};
 	};
 
 	struct PreparedScene {};
@@ -737,15 +737,15 @@ public:
 		PreparedScene>;
 
 	struct Job {
-		SerializedAsset asset;
-		path absolute_path;
-		path project_root;
+		SerializedAsset asset{};
+		path absolute_path{};
+		path project_root{};
 	};
 
 	struct Result {
-		SerializedAsset asset;
-		std::optional<Payload> payload;
-		std::string error;
+		SerializedAsset asset{};
+		std::optional<Payload> payload{};
+		std::string error{};
 	};
 
 	AsyncLoader() {

@@ -37,11 +37,11 @@ enum class InspectorTab {
 };
 
 struct SceneEntitySelection {
-	std::string scene_key;
+	std::string scene_key{};
 	bool runtime{ false };
-	std::optional<UUID> entity_uuid;
+	std::optional<UUID> entity_uuid{};
 
-	bool operator==(const SceneEntitySelection&) const = default;
+	constexpr bool operator==(const SceneEntitySelection&) const = default;
 
 	PTGN_REFLECT(SceneEntitySelection, scene_key, runtime, entity_uuid)
 };
@@ -50,21 +50,21 @@ struct ScreenEffectSelection {
 	ScreenEffectId id{ 0 };
 	bool runtime{ false };
 
-	bool operator==(const ScreenEffectSelection&) const = default;
+	constexpr bool operator==(const ScreenEffectSelection&) const = default;
 
 	PTGN_REFLECT(ScreenEffectSelection, id, runtime)
 };
 
 struct EditorSelection {
-	std::string selected_scene_key;
+	std::string selected_scene_key{};
 	bool selected_scene_runtime{ false };
-	std::vector<SceneEntitySelection> scene_entities;
+	std::vector<SceneEntitySelection> scene_entities{};
 
 	/// Selected prefab asset. The selected entity inside the prefab is stored
 	/// separately as a child-index path from the prefab root.
-	std::optional<PrefabKey> selected_prefab;
-	SerializedEntityPath selected_prefab_entity_path;
-	std::optional<ScreenEffectSelection> selected_screen_effect;
+	std::optional<PrefabKey> selected_prefab{};
+	SerializedEntityPath selected_prefab_entity_path{};
+	std::optional<ScreenEffectSelection> selected_screen_effect{};
 
 	EditorSelectionMode mode{ EditorSelectionMode::SceneHierarchy };
 	SceneListTab scene_list_tab{ SceneListTab::Scenes };

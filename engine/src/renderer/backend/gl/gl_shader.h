@@ -42,24 +42,24 @@ enum class ShaderType : std::uint32_t {
 
 struct ShaderSpec {
 	ShaderType type{ ShaderType::Fragment };
-	ShaderCode code;
-	ShaderName name;
-	ShaderOptions options;
+	ShaderCode code{};
+	ShaderName name{};
+	ShaderOptions options{};
 };
 
 struct ShaderInfo {
-	ShaderId id;
+	ShaderId id{};
 	bool delete_after{ false };
 };
 
 struct ProgramInfo {
-	ShaderInfo vertex;
-	ShaderInfo fragment;
+	ShaderInfo vertex{};
+	ShaderInfo fragment{};
 };
 
 struct ProgramCache {
-	std::string program_name;
-	mutable std::unordered_map<std::size_t, std::int32_t> uniform_locations;
+	std::string program_name{};
+	mutable std::unordered_map<std::size_t, std::int32_t> uniform_locations{};
 };
 
 class Shaders {

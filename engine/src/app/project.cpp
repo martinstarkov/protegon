@@ -243,8 +243,8 @@ bool SaveProjectScenes(Application& app, std::span<const Scene* const> scenes) {
 	auto& project{ app_context.project.value() };
 
 	struct PendingSceneWrite {
-		path file_path;
-		SerializedScene scene;
+		path file_path{};
+		SerializedScene scene{};
 	};
 
 	std::vector<PendingSceneWrite> writes;

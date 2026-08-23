@@ -27,8 +27,8 @@ namespace impl {
 struct MouseInfo {
 	explicit MouseInfo(const Scene& scene);
 
-	V2_float position;
-	V2_float scroll_delta;
+	V2_float position{};
+	V2_float scroll_delta{};
 
 	bool left_held{ false };
 	bool left_pressed{ false };
@@ -36,7 +36,7 @@ struct MouseInfo {
 };
 
 struct InteractedEntities {
-	std::vector<Entity> entities;
+	std::vector<Entity> entities{};
 };
 
 void GetShapes(
@@ -73,8 +73,8 @@ private:
 	};
 
 	struct InteractiveEntities {
-		std::vector<Entity> under_mouse;
-		std::vector<Entity> not_under_mouse;
+		std::vector<Entity> under_mouse{};
+		std::vector<Entity> not_under_mouse{};
 
 		friend std::ostream& operator<<(std::ostream& os, const InteractiveEntities& entities) {
 			os << "{ under_mouse: " << entities.under_mouse.size();

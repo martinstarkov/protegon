@@ -19,13 +19,13 @@ namespace {
 
 struct ParsedStage {
 	ShaderStageMask stage{ ShaderStageMask::None };
-	std::string source;
+	std::string source{};
 };
 
 struct InterfaceVariable {
-	std::string interpolation;
-	std::string type;
-	std::string name;
+	std::string interpolation{};
+	std::string type{};
+	std::string name{};
 };
 
 
@@ -65,7 +65,7 @@ std::vector<ParsedStage> ParseStages(std::string_view source, std::string& error
 	std::string input{ source };
 	std::regex marker{ R"(#type\s+(\w+))" };
 	struct StageMarker {
-		std::string type;
+		std::string type{};
 		std::size_t begin{ 0 };
 		std::size_t end{ 0 };
 	};

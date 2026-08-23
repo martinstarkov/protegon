@@ -25,8 +25,8 @@ float KDObject::GetCenter(KDAxis axis) const {
 	return center;
 }
 
-KDTree::KDTree(std::size_t max_objects_per_node, float rebuild_threshold) :
-	max_objects_per_node{ max_objects_per_node }, rebuild_threshold{ rebuild_threshold } {}
+KDTree::KDTree(std::size_t max_objects, float threshold) :
+	max_objects_per_node{ max_objects }, rebuild_threshold{ threshold } {}
 
 void KDTree::Build(const std::vector<KDObject>& objects) {
 	entity_map.clear();

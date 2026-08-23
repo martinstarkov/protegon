@@ -12,17 +12,17 @@ struct BuildInfo {
 	///   /Users/Dev/protegon
 	/// External game:
 	///   /Users/Dev/game
-	path source_directory;
+	path source_directory{};
 
 	/// @brief Build directory that produced the currently running executable.
 	/// Example:
 	///   /Users/Dev/protegon/build
-	path binary_directory;
+	path binary_directory{};
 
 	/// @brief Protegon repository/source location.
 	/// Example:
 	///   /Users/Dev/protegon
-	path engine_directory;
+	path engine_directory{};
 
 	/// @brief Root used by the running application's relative paths.
 	/// Development desktop build:
@@ -31,7 +31,7 @@ struct BuildInfo {
 	///   Directory containing the executable at runtime.
 	/// Web:
 	///   /
-	path runtime_root;
+	path runtime_root{};
 
 	/// @brief Host/source asset directory used by build/export tooling.
 	/// Protegon example:
@@ -40,7 +40,7 @@ struct BuildInfo {
 	///   /Users/Dev/game/Assets
 	/// Web build host path:
 	///   /Users/Dev/game/Assets
-	path asset_source_directory;
+	path asset_source_directory{};
 
 	/// @brief Asset directory as visible to the running application.
 	/// Development desktop build:
@@ -49,25 +49,25 @@ struct BuildInfo {
 	///   <runtime_root>/Assets
 	/// Web:
 	///   /Assets
-	path asset_directory;
+	path asset_directory{};
 
 	/// @brief Executable CMake target.
 	/// Examples:
 	///   animation_script
 	///   game
-	std::string target;
+	std::string target{};
 
 	/// @brief Generator used for the current CMake configuration.
 	/// Examples:
 	///   Ninja
 	///   Visual Studio 17 2022
 	///   Xcode
-	std::string generator;
+	std::string generator{};
 
 	/// @brief Empty for normal applications.
 	/// Protegon example:
 	///   scripting/animation_script
-	std::string example_id;
+	std::string example_id{};
 
 	/// @brief True if this executable was compiled for Web/Emscripten.
 	bool web{ false };

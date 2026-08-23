@@ -41,40 +41,40 @@ struct StyledText;
 namespace impl {
 
 struct EntityRenderCommand {
-	Entity entity;
-	Depth depth;
+	Entity entity{};
+	Depth depth{};
 };
 
 struct CameraRenderCommands {
-	SceneCamera camera;
-	RenderCommands commands;
+	SceneCamera camera{};
+	RenderCommands commands{};
 };
 
 struct CameraEntityCommands {
-	SceneCamera camera;
-	std::vector<EntityRenderCommand> commands;
+	SceneCamera camera{};
+	std::vector<EntityRenderCommand> commands{};
 };
 
 } // namespace impl
 
 struct TextureRenderParams {
 	/// @brief If nullopt, uses the texture size.
-	std::optional<V2_float> size;
+	std::optional<V2_float> size{};
 	Origin origin{ Origin::Center };
 	Color tint{ color::White };
-	Depth depth;
-	std::optional<BlendMode> blend_mode;
-	std::optional<std::array<V2_float, 4>> texture_coordinates;
-	std::optional<SceneCamera> camera;
+	Depth depth{};
+	std::optional<BlendMode> blend_mode{};
+	std::optional<std::array<V2_float, 4>> texture_coordinates{};
+	std::optional<SceneCamera> camera{};
 	int entity_id{ impl::kNoEntityId };
 };
 
 struct ShapeRenderParams {
 	FillStyle fill_style{ 1.0f };
 	Origin origin{ Origin::Center };
-	Depth depth;
-	std::optional<BlendMode> blend_mode;
-	std::optional<SceneCamera> camera;
+	Depth depth{};
+	std::optional<BlendMode> blend_mode{};
+	std::optional<SceneCamera> camera{};
 	int entity_id{ impl::kNoEntityId };
 	/// @brief If true, the shape will be drawn to the debug layer which is drawn last.
 	bool debug{ false };
@@ -83,9 +83,9 @@ struct ShapeRenderParams {
 struct TextRenderParams {
 	Origin origin{ Origin::Center };
 	Color tint{ color::White };
-	Depth depth;
-	std::optional<BlendMode> blend_mode;
-	std::optional<SceneCamera> camera;
+	Depth depth{};
+	std::optional<BlendMode> blend_mode{};
+	std::optional<SceneCamera> camera{};
 	int entity_id{ impl::kNoEntityId };
 	/// @brief If true, the text will be drawn to the debug layer which is drawn last.
 	bool debug{ false };

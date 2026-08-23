@@ -27,7 +27,7 @@ struct FollowConfig {
 
 	/// @brief What is considered close enough to the target, nullopt means that the follow will
 	/// never complete.
-	std::optional<float> stop_distance;
+	std::optional<float> stop_distance{};
 
 	/// @brief Value from 0 to 1 which determines how aggressively the move mode interpolates. Only
 	/// applicable when move mode is set to lerp.
@@ -38,10 +38,10 @@ struct FollowConfig {
 	float snap_distance{ 0.1f };
 
 	/// @brief Area around target within which no following occurs.
-	V2_float deadzone;
+	V2_float deadzone{};
 
 	/// @brief Offset from the target position that is followed (if zero, uses target transform).
-	V2_float offset;
+	V2_float offset{};
 
 	/// @brief Only applicable when move mode is set to velocity.
 	float max_speed{ 4.0f * 60.0f };

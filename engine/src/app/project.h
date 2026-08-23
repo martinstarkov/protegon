@@ -28,15 +28,15 @@ bool SaveBootstrapProjectScene(Application& app, const Scene& scene, bool save);
 } // namespace impl
 
 struct ProjectSceneEntry {
-	std::string key;
-	std::string display_name;
-	path scene_path;
+	std::string key{};
+	std::string display_name{};
+	path scene_path{};
 
 	PTGN_REFLECT(ProjectSceneEntry, key, display_name, scene_path)
 };
 
 struct Project {
-	std::string name;
+	std::string name{};
 
 	/// @brief Runtime-only location from which the project was loaded.
 	path file_path;
@@ -44,12 +44,12 @@ struct Project {
 	/// @brief Project-relative root shown by the Content Browser.
 	path asset_directory{ "Assets" };
 
-	std::string startup_scene_key;
-	std::vector<ProjectSceneEntry> scenes;
-	std::vector<SerializedAsset> assets;
-	std::vector<AssetKey> preload_assets;
-	ScreenEffectSettings screen_effects;
-	ProjectSettings settings;
+	std::string startup_scene_key{};
+	std::vector<ProjectSceneEntry> scenes{};
+	std::vector<SerializedAsset> assets{};
+	std::vector<AssetKey> preload_assets{};
+	ScreenEffectSettings screen_effects{};
+	ProjectSettings settings{};
 
 	PTGN_REFLECT(
 		Project,

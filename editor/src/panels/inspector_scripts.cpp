@@ -58,14 +58,14 @@ enum class ActionForm {
 };
 
 struct ActionDragPayload {
-	int index;
+	int index{ 0 };
 };
 
 struct ScriptInspectorState {
-	std::optional<ImGuiID> editing_sequence_name;
-	std::string editing_sequence_original_name;
-	std::unordered_map<SequenceId, bool> sequence_open_states;
-	std::unordered_map<ImGuiID, EntityFilterEditorState> target_filter_states;
+	std::optional<ImGuiID> editing_sequence_name{};
+	std::string editing_sequence_original_name{};
+	std::unordered_map<SequenceId, bool> sequence_open_states{};
+	std::unordered_map<ImGuiID, EntityFilterEditorState> target_filter_states{};
 };
 
 ScriptInspectorState& GetScriptInspectorState() {
@@ -573,9 +573,9 @@ bool DrawActionPicker(
 	struct Candidate {
 		const ScriptRegistration* runtime{ nullptr };
 		const ScriptEditorRegistration* editor{ nullptr };
-		std::string_view label;
-		std::string_view group;
-		std::string_view description;
+		std::string_view label{};
+		std::string_view group{};
+		std::string_view description{};
 		int menu_order{ 100 };
 		bool separator_after{ false };
 	};
@@ -1744,7 +1744,7 @@ bool DrawEvent(
 
 		if (initial_inline_fields > 0) {
 			event_width = std::clamp(available_width * 0.4f, 110.0f, 190.0f);
-			float minimum_fields_width{ 80.0f * initial_inline_fields };
+			float minimum_fields_width{ 80.0f * static_cast<float>(initial_inline_fields) };
 
 			if (available_width - event_width -
 					spacing * static_cast<float>(initial_inline_fields) <

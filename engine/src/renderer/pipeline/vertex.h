@@ -16,29 +16,36 @@ constexpr std::int32_t kNoEntityId{ -1 };
 struct ColorVertex : public VertexLayout<ColorVertex, glsl::vec3, glsl::vec4, glsl::int_> {
 	ColorVertex() = default;
 
-	ColorVertex(V2_float position, Depth depth, V4_float color, int entity_id) :
-		position{ position.x, position.y, depth },
-		color{ color[0], color[1], color[2], color[3] },
-		entity_id{ entity_id } {}
+	ColorVertex(V2_float vertex_position, Depth depth, V4_float vertex_color, int vertex_entity_id) :
+		position{ vertex_position.x, vertex_position.y, depth },
+		color{ vertex_color[0], vertex_color[1], vertex_color[2], vertex_color[3] },
+		entity_id{ vertex_entity_id } {}
 
 	glsl::vec3 position{};
 	glsl::vec4 color{};
 	glsl::int_ entity_id{ kNoEntityId };
 };
 
+static_assert(sizeof(glsl::float_) == 4);
+static_assert(sizeof(glsl::vec2) == 8);
+static_assert(sizeof(glsl::vec3) == 12);
+static_assert(sizeof(glsl::vec4) == 16);
+static_assert(sizeof(glsl::int_) == 4);
+static_assert(sizeof(ColorVertex) == 32);
+
 struct ShapeVertex :
 	public VertexLayout<ShapeVertex, glsl::vec3, glsl::vec4, glsl::vec2, glsl::vec4, glsl::int_> {
 	ShapeVertex() = default;
 
 	ShapeVertex(
-		V2_float position, Depth depth, V4_float color, V2_float local_coord,
-		const std::array<float, 4>& shape_data, int entity_id
+		V2_float shape_position, Depth depth, V4_float shape_color, V2_float shape_local_coord,
+		const std::array<float, 4>& vertex_shape_data, int shape_entity_id
 	) :
-		position{ position.x, position.y, depth },
-		color{ color[0], color[1], color[2], color[3] },
-		local_coord{ local_coord.x, local_coord.y },
-		shape_data{ shape_data },
-		entity_id{ entity_id } {}
+		position{ shape_position.x, shape_position.y, depth },
+		color{ shape_color[0], shape_color[1], shape_color[2], shape_color[3] },
+		local_coord{ shape_local_coord.x, shape_local_coord.y },
+		shape_data{ vertex_shape_data },
+		entity_id{ shape_entity_id } {}
 
 	glsl::vec3 position{};
 	glsl::vec4 color{};
@@ -60,14 +67,14 @@ struct TextureVertex :
 	TextureVertex() = default;
 
 	TextureVertex(
-		V2_float position, Depth depth, V4_float color, V2_float tex_coord, float tex_index,
-		int entity_id
+		V2_float texture_position, Depth depth, V4_float texture_color, V2_float texture_coord, float texture_index,
+		int texture_entity_id
 	) :
-		position{ position.x, position.y, depth },
-		color{ color[0], color[1], color[2], color[3] },
-		tex_coord{ tex_coord.x, tex_coord.y },
-		tex_index{ tex_index },
-		entity_id{ entity_id } {}
+		position{ texture_position.x, texture_position.y, depth },
+		color{ texture_color[0], texture_color[1], texture_color[2], texture_color[3] },
+		tex_coord{ texture_coord.x, texture_coord.y },
+		tex_index{ texture_index },
+		entity_id{ texture_entity_id } {}
 
 	glsl::vec3 position{};
 	glsl::vec4 color{};

@@ -156,8 +156,8 @@ void DialogueScrollScript::OnComplete() {
 
 } // namespace impl
 
-DialoguePage::DialoguePage(StyledText styled_text, const DialoguePageProperties& properties) :
-	styled_text{ std::move(styled_text) }, properties{ properties } {}
+DialoguePage::DialoguePage(StyledText styled, const DialoguePageProperties& dialogue_properties) :
+	styled_text{ std::move(styled) }, properties{ dialogue_properties } {}
 
 DialoguePageProperties DialoguePageProperties::InheritProperties(const json& j) const {
 	DialoguePageProperties properties{ *this };

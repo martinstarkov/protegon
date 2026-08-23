@@ -36,17 +36,17 @@ using SerializedEntityPath = std::vector<std::size_t>;
 /// subtree are represented by children. A parent outside the subtree is
 /// restoration context and is stored by the caller when needed.
 struct SerializedEntity {
-	std::optional<UUID> uuid;
+	std::optional<UUID> uuid{};
 	std::string tag{ "Entity" };
 
-	/// Empty registered marker components, stored by registered type name.
-	std::vector<std::string> tags;
+	/// @brief Empty registered marker components, stored by registered type name.
+	std::vector<std::string> tags{};
 
-	/// Non-empty persistent components, keyed by registered type name.
-	SerializedComponentMap components;
+	/// @brief Non-empty persistent components, keyed by registered type name.
+	SerializedComponentMap components{};
 
-	/// Complete serialized child hierarchy.
-	std::vector<SerializedEntity> children;
+	/// @brief Complete serialized child hierarchy.
+	std::vector<SerializedEntity> children{};
 
 	PTGN_REFLECT(
 		SerializedEntity,
@@ -59,11 +59,11 @@ struct SerializedEntity {
 };
 
 struct SerializeEntityOptions {
-	/// Preserve the entity's UUID in the serialized result.
+	/// @brief Preserve the entity's UUID in the serialized result.
 	/// Scenes and snapshots use true. Prefabs use false.
 	bool include_uuid{ true };
 
-	/// Recursively capture the entity's complete child hierarchy.
+	/// @brief Recursively capture the entity's complete child hierarchy.
 	bool include_children{ true };
 };
 
@@ -178,11 +178,11 @@ inline void DeserializeEntityValueComponents(
 /// the previously resolved entity.
 [[nodiscard]] inline SerializedEntity* ResolveSerializedEntity(
 	SerializedEntity& root,
-	std::span<const std::size_t> path
+	std::span<const std::size_t> index_path
 ) {
 	SerializedEntity* current{ std::addressof(root) };
 
-	for (const std::size_t index : path) {
+	for (const std::size_t index : index_path) {
 		if (index >= current->children.size()) {
 			return nullptr;
 		}
@@ -195,11 +195,11 @@ inline void DeserializeEntityValueComponents(
 
 [[nodiscard]] inline const SerializedEntity* ResolveSerializedEntity(
 	const SerializedEntity& root,
-	std::span<const std::size_t> path
+	std::span<const std::size_t> index_path
 ) {
 	const SerializedEntity* current{ std::addressof(root) };
 
-	for (const std::size_t index : path) {
+	for (const std::size_t index : index_path) {
 		if (index >= current->children.size()) {
 			return nullptr;
 		}

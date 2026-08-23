@@ -166,13 +166,13 @@ using ScriptsFeatureComponents = FeatureComponents<::ptgn::impl::Scripts>;
 using UtilitiesFeatureComponents = FeatureComponents<::ptgn::impl::Timers, Lifetime, Group>;
 
 struct ManualFeatureState {
-	FeatureTargetKey target;
+	FeatureTargetKey target{};
 	std::array<bool, static_cast<std::size_t>(InspectorFeature::Count)> features{};
 	bool text_box_state_initialized{ false };
 	bool text_box_enabled{ false };
 	bool scale_ratio_locked{ true };
-	std::optional<ButtonVisualState> button_visual_state;
-	EntityFilterEditorState grounding_filter_state;
+	std::optional<ButtonVisualState> button_visual_state{};
+	EntityFilterEditorState grounding_filter_state{};
 };
 
 std::vector<ManualFeatureState>& ManualFeatureStates() {
@@ -221,8 +221,8 @@ enum class ButtonChildPart : std::uint8_t {
 };
 
 struct ButtonChildInfo {
-	Entity child;
-	Entity button;
+	Entity child{};
+	Entity button{};
 	ButtonChildPart part{ ButtonChildPart::Background };
 };
 
@@ -750,12 +750,12 @@ bool DrawIgnoreCheckbox(Target& target, std::string_view tooltip) {
 
 template <typename Target>
 struct TransformFeatureState {
-	Transform transform;
-	Depth depth;
-	ComponentState<ButtonBackgroundVisuals> button_backgrounds;
-	ComponentState<ButtonBorderVisuals> button_borders;
-	ComponentState<ButtonTextVisuals> button_texts;
-	ComponentState<ButtonSpriteVisuals> button_sprites;
+	Transform transform{};
+	Depth depth{};
+	ComponentState<ButtonBackgroundVisuals> button_backgrounds{};
+	ComponentState<ButtonBorderVisuals> button_borders{};
+	ComponentState<ButtonTextVisuals> button_texts{};
+	ComponentState<ButtonSpriteVisuals> button_sprites{};
 	bool ignore_position{ false };
 	bool ignore_rotation{ false };
 	bool ignore_scale{ false };
@@ -2969,7 +2969,7 @@ void ApplyRendererSelection(
 }
 
 struct RendererRowResult {
-	std::string visual;
+	std::string visual{};
 	bool changed{ false };
 };
 
@@ -3816,7 +3816,6 @@ bool DrawTextBoxAdditionalStyle(EditorContext& ctx, Style& style) {
 		auto members{ ReflectMembers(style) };
 
 		auto draw_member = [&](auto&& member) {
-			using Member = std::remove_cvref_t<decltype(member.value)>;
 			const std::string normalized{ NormalizeFeatureName(member.name) };
 
 			if (normalized == "alignment") {
@@ -5062,19 +5061,19 @@ bool DrawAnimationDataFlattened(
 
 				std::apply(
 					[&](auto&&... config_member) {
-						auto draw_config_member = [&](auto&& member) {
-							const std::string normalized{
-								NormalizeFeatureName(member.name)
+						auto draw_config_member = [&](auto&& mem) {
+							const std::string normalized_name{
+								NormalizeFeatureName(mem.name)
 							};
 
 							using Value = std::remove_cvref_t<
-								decltype(member.value)
+								decltype(mem.value)
 							>;
 
 							if constexpr (std::same_as<Value, std::size_t>) {
-								if (normalized == "framecount") {
+								if (normalized_name == "framecount") {
 									if (detected_frame_count) {
-										member.value = *detected_frame_count;
+										mem.value = *detected_frame_count;
 									}
 
 									{
@@ -5084,8 +5083,8 @@ bool DrawAnimationDataFlattened(
 
 										changed |= DrawValue(
 											ctx,
-											PrettyName(member.name),
-											member.value
+											PrettyName(mem.name),
+											mem.value
 										);
 									}
 
@@ -5102,8 +5101,8 @@ bool DrawAnimationDataFlattened(
 
 							changed |= DrawValue(
 								ctx,
-								PrettyName(member.name),
-								member.value
+								PrettyName(mem.name),
+								mem.value
 							);
 						};
 
@@ -8098,8 +8097,8 @@ bool DrawCameraParentRenderTarget(Target& target) {
 		}
 
 		struct RenderTargetOption {
-			UUID uuid;
-			std::string label;
+			UUID uuid{};
+			std::string label{};
 		};
 
 		auto uuid_text = []<typename T>(const T& value) {
@@ -8299,12 +8298,12 @@ bool DrawCameraFeature(Target& target) {
 struct ScriptEntryEditorSnapshot {
 	bool enabled{ true };
 	TypeHashValue type_hash{ 0 };
-	std::string name;
-	json value;
-	json sequence;
-	std::function<std::unique_ptr<Script>()> runtime_factory;
-	std::vector<std::function<std::unique_ptr<Script>()>> step_runtime_factories;
-	std::vector<std::function<std::unique_ptr<Script>()>> lifecycle_runtime_factories;
+	std::string name{};
+	json value = json::object();
+	json sequence = json::object();
+	std::function<std::unique_ptr<Script>()> runtime_factory{};
+	std::vector<std::function<std::unique_ptr<Script>()>> step_runtime_factories{};
+	std::vector<std::function<std::unique_ptr<Script>()>> lifecycle_runtime_factories{};
 
 	[[nodiscard]] bool HasSameAuthoredState(const ScriptEntryEditorSnapshot& other) const {
 		return enabled == other.enabled &&
@@ -8371,9 +8370,9 @@ using ScriptEntriesEditorSnapshot = std::vector<ScriptEntryEditorSnapshot>;
 }
 
 struct ScriptsEditorSnapshot {
-	ScriptEntriesEditorSnapshot scripts;
-	ScriptEntriesEditorSnapshot pending_additions;
-	std::vector<SequenceId> pending_removals;
+	ScriptEntriesEditorSnapshot scripts{};
+	ScriptEntriesEditorSnapshot pending_additions{};
+	std::vector<SequenceId> pending_removals{};
 };
 
 [[nodiscard]] ScriptsEditorSnapshot CaptureScriptsEditorSnapshot(
@@ -8446,9 +8445,9 @@ void RestoreScriptsEditorSnapshot(Entity entity, const ScriptsEditorSnapshot& sn
 
 struct SharedScriptSequenceEditorSnapshot {
 	SequenceId id{ 0 };
-	json sequence;
-	std::vector<std::function<std::unique_ptr<Script>()>> step_runtime_factories;
-	std::vector<std::function<std::unique_ptr<Script>()>> lifecycle_runtime_factories;
+	json sequence = json::object();
+	std::vector<std::function<std::unique_ptr<Script>()>> step_runtime_factories{};
+	std::vector<std::function<std::unique_ptr<Script>()>> lifecycle_runtime_factories{};
 
 	[[nodiscard]] bool HasSameAuthoredState(
 		const SharedScriptSequenceEditorSnapshot& other
@@ -8537,13 +8536,13 @@ void RestoreSharedScriptSequencesEditorSnapshot(
 }
 
 struct EntityScriptsEditorSnapshot {
-	EntityReference reference;
-	ScriptsEditorSnapshot scripts;
+	EntityReference reference{};
+	ScriptsEditorSnapshot scripts{};
 };
 
 struct TimerReferenceSceneSnapshot {
-	std::vector<EntityScriptsEditorSnapshot> entities;
-	SharedScriptSequencesEditorSnapshot shared_sequences;
+	std::vector<EntityScriptsEditorSnapshot> entities{};
+	SharedScriptSequencesEditorSnapshot shared_sequences{};
 };
 
 [[nodiscard]] TimerReferenceSceneSnapshot CaptureTimerReferenceSceneSnapshot(Scene& scene) {
@@ -9059,8 +9058,8 @@ void DrawTimerRuntimeControls(
 }
 
 struct TimerRename {
-	TimerKey old_key;
-	TimerKey new_key;
+	TimerKey old_key{};
+	TimerKey new_key{};
 };
 
 template <typename Target>

@@ -13,8 +13,8 @@ namespace ptgn::impl {
 /// The embedded shader library lives in the asset subsystem so AssetManager and the renderer
 /// backend consume the same source catalog instead of independently reading CMRC resources.
 struct EngineShaderFile {
-	path filename;
-	std::string source;
+	path filename{};
+	std::string source{};
 };
 
 /// @return Engine GLSL source files embedded in the application.

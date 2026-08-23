@@ -22,7 +22,7 @@ CollisionInfo GetIfExists(const std::vector<CollisionInfo>& collisions, Entity o
 
 } // namespace
 
-Collider::Collider(const ColliderShape& shape) : shape{ shape } {}
+Collider::Collider(const ColliderShape& collider_shape) : shape{ collider_shape } {}
 
 Collider& Collider::SetOverlapMode() {
 	mode = CollisionMode::Overlap;

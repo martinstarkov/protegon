@@ -23,3 +23,4 @@
 /// allows the same registration call to contain editor options without introducing an editor
 /// dependency when PTGN_EDITOR is unavailable.
 #define PTGN_REGISTER_COMPONENT(Type) PTGN_IMPL_REGISTER_ENGINE_COMPONENT(Type)
+

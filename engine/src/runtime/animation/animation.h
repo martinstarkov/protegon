@@ -50,14 +50,14 @@ struct AnimationConfig {
 	/// @brief Pixel size of an individual animation frame within the texture.
 	/// If nullopt, frame size is automatically calculated using impl::GetFrameSize(texture_size,
 	/// frame_count).
-	std::optional<V2_int> frame_size;
+	std::optional<V2_int> frame_size{};
 
 	/// @brief Number of times that the animation plays for, nullopt for infinite replay.
 	std::optional<std::size_t> play_count{ 1 };
 
 	/// @brief Pixel within the texture which indicates the top left position of the
 	/// animation sequence.
-	V2_int start_pixel;
+	V2_int start_pixel{};
 
 	/// @brief Reset animation to frame 0 when it completes.
 	bool reset_on_complete{ false };
@@ -242,7 +242,7 @@ struct AnimationMapKey : public StrongString<AnimationMapKey> {
 };
 
 struct AnimationMapData {
-	AnimationMapKey active;
+	AnimationMapKey active{};
 };
 
 std::optional<std::size_t> DetectAnimationFrameCount(AssetManager& assets, const TextureKey& texture_key);

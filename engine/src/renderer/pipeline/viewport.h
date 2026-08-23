@@ -16,10 +16,10 @@ enum class ViewportSpace {
 
 struct Viewport {
 	/// @brief Top left position in pixels relative to its display target.
-	V2_float position;
+	V2_float position{};
 
 	/// @brief Size in pixels.
-	V2_float size;
+	V2_float size{};
 
 	constexpr V2_float GetCenter() const {
 		return position + size * 0.5f;

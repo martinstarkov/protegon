@@ -19,7 +19,7 @@ public:
 
 	constexpr Circle() = default;
 
-	constexpr Circle(float radius) : radius{ radius } {} // NOSONAR
+	constexpr Circle(float circle_radius) : radius{ circle_radius } {} // NOSONAR
 
 	constexpr float GetRadius() const {
 		return radius;

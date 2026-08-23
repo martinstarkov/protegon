@@ -32,18 +32,18 @@ struct SignalKey : StrongString<SignalKey> {
 };
 
 struct Signal {
-	SignalKey key;
+	SignalKey key{};
 
 	PTGN_REFLECT(Signal, key)
 };
 
 struct ComponentDefinition {
 	TypeHashValue type_hash{ 0 };
-	std::string type;
+	std::string type{};
 	json value = json::object();
 
-	// C++-authored definitions avoid a JSON round-trip at runtime.
-	std::function<void(Entity)> apply_live;
+	/// @brief C++ authored definitions avoid a JSON round trip at runtime.
+	std::function<void(Entity)> apply_live{};
 
 	PTGN_REFLECT(ComponentDefinition, type_hash, type, value)
 };
@@ -95,8 +95,8 @@ struct MoveToScript : public Script {
 	bool relative{ true };
 
 	MoveToScript() = default;
-	MoveToScript(V2_float destination, bool relative = true) :
-		destination{ destination }, relative{ relative } {}
+	MoveToScript(V2_float move_destination, bool relative_movement = true) :
+		destination{ move_destination }, relative{ relative_movement } {}
 
 	void OnStart() override;
 	[[nodiscard]] ScriptStatus OnUpdate() override;
@@ -115,8 +115,8 @@ struct RotateToScript : public Script {
 	bool relative{ false };
 
 	RotateToScript() = default;
-	RotateToScript(float degrees, bool shortest_path = true, bool relative = false) :
-		degrees{ degrees }, shortest_path{ shortest_path }, relative{ relative } {}
+	RotateToScript(float rotate_degrees, bool shortest_rotation_path = true, bool relative_rotation = false) :
+		degrees{ rotate_degrees }, shortest_path{ shortest_rotation_path }, relative{ relative_rotation } {}
 
 	void OnStart() override;
 	[[nodiscard]] ScriptStatus OnUpdate() override;
@@ -134,7 +134,7 @@ struct ScaleToScript : public Script {
 	bool relative{ false };
 
 	ScaleToScript() = default;
-	ScaleToScript(V2_float scale, bool relative = false) : scale{ scale }, relative{ relative } {}
+	ScaleToScript(V2_float target_scale, bool relative_scaling = false) : scale{ target_scale }, relative{ relative_scaling } {}
 
 	void OnStart() override;
 	[[nodiscard]] ScriptStatus OnUpdate() override;
@@ -151,7 +151,7 @@ struct TintToScript : public Script {
 	Color tint{ color::White };
 
 	TintToScript() = default;
-	explicit TintToScript(Color tint) : tint{ tint } {}
+	explicit TintToScript(Color target_tint) : tint{ target_tint } {}
 
 	void OnStart() override;
 	[[nodiscard]] ScriptStatus OnUpdate() override;
@@ -170,8 +170,8 @@ struct BounceScript : public Script {
 	bool symmetrical{ false };
 
 	BounceScript() = default;
-	BounceScript(V2_float amplitude, V2_float static_offset = {}, bool symmetrical = false) :
-		amplitude{ amplitude }, static_offset{ static_offset }, symmetrical{ symmetrical } {}
+	BounceScript(V2_float bounce_amplitude, V2_float bounce_static_offset = {}, bool symmetrical_bounce = false) :
+		amplitude{ bounce_amplitude }, static_offset{ bounce_static_offset }, symmetrical{ symmetrical_bounce } {}
 
 	void OnStart() override;
 	[[nodiscard]] ScriptStatus OnUpdate() override;
@@ -187,13 +187,13 @@ struct BounceScript : public Script {
 /// the new target is applied immediately and the script continues until explicitly stopped.
 struct ShakeScript : public Script {
 	float intensity{ 1.0f };
-	ShakeConfig config;
+	ShakeConfig config{};
 	bool reset_on_complete{ false };
 
 	ShakeScript() = default;
-	ShakeScript(float intensity, ShakeConfig config = {}, bool reset_on_complete = false) :
-		intensity{ intensity }, config{ std::move(config) },
-		reset_on_complete{ reset_on_complete } {}
+	ShakeScript(float shake_intensity, ShakeConfig shake_config = {}, bool reset_shake_on_complete = false) :
+		intensity{ shake_intensity }, config{ std::move(shake_config) },
+		reset_on_complete{ reset_shake_on_complete } {}
 
 	void OnStart() override;
 	[[nodiscard]] ScriptStatus OnUpdate() override;
@@ -211,11 +211,11 @@ private:
 /// Immediately changes the persistent shake trauma.
 struct AddShakeTraumaScript : public Script {
 	float intensity{ 1.0f };
-	ShakeConfig config;
+	ShakeConfig config{};
 
 	AddShakeTraumaScript() = default;
-	AddShakeTraumaScript(float intensity, ShakeConfig config = {}) :
-		intensity{ intensity }, config{ std::move(config) } {}
+	AddShakeTraumaScript(float shake_intensity, ShakeConfig shake_config = {}) :
+		intensity{ shake_intensity }, config{ std::move(shake_config) } {}
 
 	void OnStart() override;
 
@@ -224,10 +224,10 @@ struct AddShakeTraumaScript : public Script {
 
 /// Reduces shake trauma according to ShakeConfig::recovery_speed and completes at zero.
 struct RecoverShakeScript : public Script {
-	ShakeConfig config;
+	ShakeConfig config{};
 
 	RecoverShakeScript() = default;
-	explicit RecoverShakeScript(ShakeConfig config) : config{ std::move(config) } {}
+	explicit RecoverShakeScript(ShakeConfig shake_config) : config{ std::move(shake_config) } {}
 
 	[[nodiscard]] ScriptStatus OnUpdate() override;
 	void OnComplete() override;
@@ -243,13 +243,13 @@ struct ResetShakeScript : public Script {
 };
 
 struct FollowTargetScript : public Script {
-	UUID target;
+	UUID target{};
 	float speed{ 120.0f };
 	float stopping_distance{ 2.0f };
 
 	FollowTargetScript() = default;
-	FollowTargetScript(Entity target, float speed, float stopping_distance = 2.0f) :
-		target{ target.Get<UUID>() }, speed{ speed }, stopping_distance{ stopping_distance } {}
+	FollowTargetScript(Entity follow_target, float follow_speed, float follow_stopping_distance = 2.0f) :
+		target{ follow_target.Get<UUID>() }, speed{ follow_speed }, stopping_distance{ follow_stopping_distance } {}
 
 	[[nodiscard]] ScriptStatus OnUpdate() override;
 
@@ -258,12 +258,12 @@ struct FollowTargetScript : public Script {
 
 /// Full configured target-follow behavior matching TargetFollowConfig.
 struct FollowEntityScript : public Script {
-	UUID target;
-	TargetFollowConfig config;
+	UUID target{};
+	TargetFollowConfig config{};
 
 	FollowEntityScript() = default;
-	FollowEntityScript(Entity target, TargetFollowConfig config = {}) :
-		target{ target.Get<UUID>() }, config{ std::move(config) } {}
+	FollowEntityScript(Entity follow_target, TargetFollowConfig follow_config = {}) :
+		target{ follow_target.Get<UUID>() }, config{ std::move(follow_config) } {}
 
 	void OnStart() override;
 	[[nodiscard]] ScriptStatus OnUpdate() override;
@@ -275,17 +275,17 @@ struct FollowEntityScript : public Script {
 
 /// Full configured waypoint-follow behavior matching PathFollowConfig.
 struct FollowPathScript : public Script {
-	std::vector<V2_float> waypoints;
-	PathFollowConfig config;
+	std::vector<V2_float> waypoints{};
+	PathFollowConfig config{};
 	bool reset_waypoint_index{ false };
 
 	FollowPathScript() = default;
 	FollowPathScript(
-		std::vector<V2_float> waypoints, PathFollowConfig config = {},
-		bool reset_waypoint_index = false
+		std::vector<V2_float> follow_waypoints, PathFollowConfig follow_config = {},
+		bool reset_follow_waypoint_index = false
 	) :
-		waypoints{ std::move(waypoints) }, config{ std::move(config) },
-		reset_waypoint_index{ reset_waypoint_index } {}
+		waypoints{ std::move(follow_waypoints) }, config{ std::move(follow_config) },
+		reset_waypoint_index{ reset_follow_waypoint_index } {}
 
 	void OnStart() override;
 	[[nodiscard]] ScriptStatus OnUpdate() override;
@@ -296,14 +296,14 @@ struct FollowPathScript : public Script {
 };
 
 struct NativeScriptCallbacks {
-	std::function<void(Script&)> on_start;
-	std::function<ScriptStatus(Script&)> on_update;
-	std::function<void(Script&)> on_complete;
-	std::function<void(Script&, SequenceCancelReason)> on_cancel;
+	std::function<void(Script&)> on_start{};
+	std::function<ScriptStatus(Script&)> on_update{};
+	std::function<void(Script&)> on_complete{};
+	std::function<void(Script&, SequenceCancelReason)> on_cancel{};
 };
 
 struct NativeScript : public Script {
-	std::shared_ptr<NativeScriptCallbacks> callbacks;
+	std::shared_ptr<NativeScriptCallbacks> callbacks{};
 
 	NativeScript() = default;
 	explicit NativeScript(NativeScriptCallbacks value) :
@@ -321,7 +321,7 @@ struct SetVisibleScript : public Script {
 	bool visible{ true };
 
 	SetVisibleScript() = default;
-	explicit SetVisibleScript(bool visible) : visible{ visible } {}
+	explicit SetVisibleScript(bool set_visible) : visible{ set_visible } {}
 
 	void OnStart() override;
 
@@ -340,13 +340,13 @@ struct PlaySoundScript : public Script {
 	PlaySoundScript() = default;
 
 	explicit PlaySoundScript(
-		AudioKey sound,
-		float volume = 1.0f,
-		int loops = 0
+		AudioKey audio_key,
+		float audio_volume = 1.0f,
+		int audio_loops = 0
 	) :
-		sound{ std::move(sound) },
-		volume{ volume },
-		loops{ loops } {}
+		sound{ std::move(audio_key) },
+		volume{ audio_volume },
+		loops{ audio_loops } {}
 
 	void OnStart() override;
 
@@ -368,7 +368,7 @@ enum class AnimationAction : std::uint8_t {
 /// @brief Controls an Animation directly, or the active/keyed child of an AnimationMap.
 struct AnimationActionScript : public Script {
 	AnimationAction action{ AnimationAction::Start };
-	std::string animation_key;
+	std::string animation_key{};
 	std::size_t frame{ 0 };
 	bool force{ true };
 	bool reset_on_stop{ false };
@@ -396,7 +396,7 @@ PTGN_REFLECT_ENUM(TimerAction);
 
 /// @brief Controls a named timer on the script target entity.
 struct TimerActionScript : public Script {
-	TimerKey timer;
+	TimerKey timer{};
 	TimerAction action{ TimerAction::Start };
 	millisecondsf amount{ 1000.0f };
 
@@ -407,10 +407,10 @@ struct TimerActionScript : public Script {
 
 /// @brief Assigns a TextureKey to the owning entity.
 struct SetTextureScript : public Script {
-	TextureKey texture_key;
+	TextureKey texture_key{};
 
 	SetTextureScript() = default;
-	explicit SetTextureScript(TextureKey texture_key) : texture_key{ std::move(texture_key) } {}
+	explicit SetTextureScript(TextureKey texture) : texture_key{ std::move(texture) } {}
 
 	void OnStart() override;
 
@@ -425,8 +425,8 @@ struct SetEnabledScript : public Script {
 	bool enabled{ true };
 
 	SetEnabledScript() = default;
-	SetEnabledScript(std::string component, bool enabled = true) :
-		component{ std::move(component) }, enabled{ enabled } {}
+	SetEnabledScript(std::string component_name, bool enable = true) :
+		component{ std::move(component_name) }, enabled{ enable } {}
 
 	void OnStart() override;
 
@@ -472,7 +472,7 @@ struct EmitSignalScript : public Script {
 	SignalKey signal{ "sequence.completed" };
 
 	EmitSignalScript() = default;
-	explicit EmitSignalScript(SignalKey signal) : signal{ std::move(signal) } {}
+	explicit EmitSignalScript(SignalKey signal_key) : signal{ std::move(signal_key) } {}
 
 	void OnStart() override;
 
@@ -480,7 +480,7 @@ struct EmitSignalScript : public Script {
 };
 
 struct AddComponentsScript : public Script {
-	std::vector<ComponentDefinition> components;
+	std::vector<ComponentDefinition> components{};
 
 	void OnStart() override;
 
@@ -488,7 +488,7 @@ struct AddComponentsScript : public Script {
 };
 
 struct RemoveComponentsScript : public Script {
-	std::vector<std::string> components;
+	std::vector<std::string> components{};
 
 	void OnStart() override;
 

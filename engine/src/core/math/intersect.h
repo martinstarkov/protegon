@@ -12,7 +12,7 @@ namespace ptgn {
 
 struct Intersection {
 	float depth{ 0.0f };
-	V2_float normal;
+	V2_float normal{};
 
 	[[nodiscard]] bool Occurred() const;
 	operator bool() const;

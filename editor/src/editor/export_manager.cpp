@@ -43,8 +43,8 @@ namespace {
 using namespace std::chrono_literals;
 
 struct CopySource {
-	path source;
-	path destination;
+	path source{};
+	path destination{};
 };
 
 [[nodiscard]] std::string TaskName(impl::ExportTaskKind kind) {
@@ -65,20 +65,8 @@ struct CopySource {
 		: std::string_view{ "Release" };
 }
 
-[[nodiscard]] std::string QuotePosix(std::string_view value) {
-	std::string result{ "'" };
-	for (char c : value) {
-		if (c == '\'') {
-			result += "'\\''";
-		} else {
-			result.push_back(c);
-		}
-	}
-	result.push_back('\'');
-	return result;
-}
-
-[[nodiscard]] std::string QuoteWindows(std::string_view value) {
+[[nodiscard]] std::string Quote(std::string_view value) {
+#if defined(_WIN32)
 	std::string result{ "\"" };
 	std::size_t backslashes{ 0 };
 	for (char c : value) {
@@ -99,13 +87,17 @@ struct CopySource {
 	result.append(backslashes * 2, '\\');
 	result.push_back('"');
 	return result;
-}
-
-[[nodiscard]] std::string Quote(std::string_view value) {
-#if defined(_WIN32)
-	return QuoteWindows(value);
 #else
-	return QuotePosix(value);
+	std::string result{ "'" };
+	for (char c : value) {
+		if (c == '\'') {
+			result += "'\\''";
+		} else {
+			result.push_back(c);
+		}
+	}
+	result.push_back('\'');
+	return result;
 #endif
 }
 

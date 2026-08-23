@@ -17,7 +17,7 @@ struct RaycastResult {
 	float t{ 1.0f };
 
 	/// @brief Direction normal of the impact (normalised).
-	V2_float normal;
+	V2_float normal{};
 
 	/// @return True if the ray impacted the shape, false if it did not. Impact implies that t is in
 	/// the range [0.0, 1.0) and normal is not zero.

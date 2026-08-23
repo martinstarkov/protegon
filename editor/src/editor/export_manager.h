@@ -48,18 +48,18 @@ struct ExportRequest {
 	bool include_editor{ false };
 
 	/// @brief Final user-selected distribution directory.
-	path output_directory;
+	path output_directory{};
 
 	/// @brief Project directory to export/package. Empty for projectless StartWith<T>() applications.
-	std::optional<path> project_directory;
+	std::optional<path> project_directory{};
 
 	/// @brief Runtime-relative mount of project_directory.
 	/// Example: AnimationScriptProject.
-	path project_mount;
+	path project_mount{};
 
 	/// @brief Host/source asset directory used only for projectless Desktop exports.
 	/// Project-backed exports use only project_directory because foreign assets are localized into it.
-	path asset_source_directory;
+	path asset_source_directory{};
 
 	bool replace_existing{ false };
 };
@@ -74,14 +74,14 @@ enum class ExportTaskKind {
 };
 
 struct ExportSharedState {
-	std::mutex output_mutex;
-	std::string output;
+	std::mutex output_mutex{};
+	std::string output{};
 	std::atomic<std::uint64_t> output_revision{ 0 };
 	std::atomic<float> progress{ 0.0f };
 	std::atomic<ExportPhase> phase{ ExportPhase::Idle };
 	std::atomic<bool> cancel_requested{ false };
 
-	std::mutex process_mutex;
+	std::mutex process_mutex{};
 	std::intptr_t active_process{ 0 };
 	std::intptr_t active_job{ 0 };
 };
@@ -90,7 +90,7 @@ struct ExportTaskResult {
 	bool success{ false };
 	bool cancelled{ false };
 	ExportTaskKind kind{ ExportTaskKind::None };
-	path output_directory;
+	path output_directory{};
 };
 
 } // namespace impl

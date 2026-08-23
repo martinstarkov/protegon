@@ -10,7 +10,7 @@ namespace ptgn {
 
 struct ShaderCompileResult {
 	bool success{ false };
-	std::string log;
+	std::string log{};
 };
 
 namespace impl {

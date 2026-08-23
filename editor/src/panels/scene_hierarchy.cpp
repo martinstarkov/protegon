@@ -78,19 +78,19 @@ enum class ParentAssignmentPolicy {
 };
 
 struct ParentAssignmentRule {
-	HierarchyCondition condition;
-	ParentAssignmentPolicy policy;
-	std::string_view reason;
+	HierarchyCondition condition{};
+	ParentAssignmentPolicy policy{};
+	std::string_view reason{};
 };
 
 struct ChildAcceptanceRule {
-	HierarchyCondition condition;
-	std::string_view reason;
+	HierarchyCondition condition{};
+	std::string_view reason{};
 };
 
 struct DeletionRule {
-	HierarchyCondition condition;
-	std::string_view reason;
+	HierarchyCondition condition{};
+	std::string_view reason{};
 };
 
 bool IsManagedButtonVisual(Entity entity) {
@@ -254,8 +254,8 @@ std::optional<std::string_view> GetHierarchyRestrictionReason(Entity entity) {
 }
 
 struct PendingHierarchyDrop {
-	Entity entity;
-	Entity parent;
+	Entity entity{};
+	Entity parent{};
 
 	[[nodiscard]] explicit operator bool() const {
 		return static_cast<bool>(entity);
@@ -501,7 +501,7 @@ constexpr V2_float kDefaultUIDialogueSize{ 640, 160 };
 struct CreateMenuContext {
 	EditorContext& ctx;
 	Scene& scene;
-	Entity parent;
+	Entity parent{};
 	Entity& selected_entity;
 
 	[[nodiscard]] bool IsCreatingChild() const {
@@ -1684,15 +1684,15 @@ bool SceneHierarchyPanel::DrawPrefabs(EditorContext& ctx) {
 	};
 
 	struct PendingPrefabEntityOperation {
-		PrefabEntityOperationType type;
-		PrefabKey key;
-		SerializedEntityPath path;
+		PrefabEntityOperationType type{};
+		PrefabKey key{};
+		SerializedEntityPath path{};
 	};
 
-	std::optional<PrefabKey> prefab_to_delete;
-	std::optional<PrefabKey> prefab_to_duplicate;
-	std::optional<std::pair<PrefabKey, PrefabKey>> prefab_to_rename;
-	std::optional<PendingPrefabEntityOperation> entity_operation;
+	std::optional<PrefabKey> prefab_to_delete{};
+	std::optional<PrefabKey> prefab_to_duplicate{};
+	std::optional<std::pair<PrefabKey, PrefabKey>> prefab_to_rename{};
+	std::optional<PendingPrefabEntityOperation> entity_operation{};
 
 	bool prefab_left_clicked_this_frame{ false };
 

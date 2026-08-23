@@ -14,7 +14,7 @@ namespace impl {
 
 template <std::copy_constructible TPayload>
 struct StateMachines {
-	std::vector<StateMachine<TPayload>> machines;
+	std::vector<StateMachine<TPayload>> machines{};
 };
 
 class StateMachineScript : public Script {

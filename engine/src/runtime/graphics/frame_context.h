@@ -14,25 +14,25 @@ class Renderer;
 
 struct PresentationFrame {
 	/// @brief Center of the presentation viewport in window frame coordinates.
-	V2_float presentation_center;
+	V2_float presentation_center{};
 };
 
 struct DisplayFrame {
 	/// @brief Center of the display viewport in presentation frame coordinates.
-	V2_float display_center;
+	V2_float display_center{};
 };
 
 struct RenderTargetFrame {
 	/// @brief Position in pixels relative to display center in display frame of reference.
-	Transform render_target_transform;
+	Transform render_target_transform{};
 };
 
 struct CameraFrame {
 	/// @brief Pixels in display frame of reference.
-	Viewport camera_display_viewport;
+	Viewport camera_display_viewport{};
 
 	/// @brief Size of the parent render target.
-	V2_float render_target_size;
+	V2_float render_target_size{};
 
 	/// @brief Scale of the render target relative to the logical size.
 	V2_float scale{ 1.0f, 1.0f };
@@ -40,7 +40,7 @@ struct CameraFrame {
 
 struct WorldFrame {
 	/// @brief Position in world units Relative to world center in world frame of reference.
-	Transform camera_transform;
+	Transform camera_transform{};
 };
 
 /// @brief  Must be ordered from lowest rank to highest rank, where higher rank frames depend on

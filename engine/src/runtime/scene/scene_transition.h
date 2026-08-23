@@ -84,8 +84,8 @@ template <
 struct SceneTransitionPair {
 	SceneTransitionPair() = default;
 
-	SceneTransitionPair(TransitionOut&& out, TransitionIn&& in) :
-		out{ std::move(out) }, in{ std::move(in) } {}
+	SceneTransitionPair(TransitionOut&& transition_out, TransitionIn&& transition_in) :
+		out{ std::move(transition_out) }, in{ std::move(transition_in) } {}
 
 	TransitionOut out{};
 	TransitionIn in{};

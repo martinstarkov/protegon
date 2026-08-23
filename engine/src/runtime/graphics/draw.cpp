@@ -19,7 +19,7 @@ void SetDraw(Entity entity, std::size_t drawable_type_hash) {
 	entity.Add<IDrawable>(drawable_type_hash);
 }
 
-EntityDepthCompare::EntityDepthCompare(bool ascending) : ascending{ ascending } {}
+EntityDepthCompare::EntityDepthCompare(bool compare_ascending) : ascending{ compare_ascending } {}
 
 bool EntityDepthCompare::operator()(Entity a, Entity b) const {
 	auto depth_a{ GetDepth(a) };

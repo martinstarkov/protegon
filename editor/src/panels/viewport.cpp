@@ -63,15 +63,15 @@ constexpr float kScaleDragPixels{ 100.0f };
 constexpr float kMinimumScale{ 0.01f };
 
 struct EntityRenderPath {
-	GizmoOccurrenceId id;
-	std::vector<Entity> cameras;
+	GizmoOccurrenceId id{};
+	std::vector<Entity> cameras{};
 };
 
 struct GizmoProjection2D {
-	V2_float world_anchor;
-	V2_float screen_anchor;
-	V2_float screen_basis_x;
-	V2_float screen_basis_y;
+	V2_float world_anchor{};
+	V2_float screen_anchor{};
+	V2_float screen_basis_x{};
+	V2_float screen_basis_y{};
 
 	[[nodiscard]] V2_float Project(V2_float world_position) const {
 		auto local{ world_position - world_anchor };
@@ -98,24 +98,24 @@ struct GizmoProjection2D {
 };
 
 struct GizmoInstance {
-	GizmoOccurrenceId id;
-	GizmoProjection2D projection;
+	GizmoOccurrenceId id{};
+	GizmoProjection2D projection{};
 	std::size_t draw_order{};
 };
 
 struct GizmoGeometry {
-	V2_float pivot_screen;
-	V2_float axis_x_screen;
-	V2_float axis_y_screen;
-	V2_float world_axis_x;
-	V2_float world_axis_y;
+	V2_float pivot_screen{};
+	V2_float axis_x_screen{};
+	V2_float axis_y_screen{};
+	V2_float world_axis_x{};
+	V2_float world_axis_y{};
 };
 
 struct GizmoHit {
-	GizmoOccurrenceId occurrence;
+	GizmoOccurrenceId occurrence{};
 	GizmoHandle handle{ GizmoHandle::None };
 	float distance{ std::numeric_limits<float>::max() };
-	std::size_t draw_order{};
+	std::size_t draw_order{ 0 };
 };
 
 void ApplyGizmoDeltaToTransform(

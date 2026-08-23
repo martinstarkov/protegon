@@ -24,9 +24,9 @@ struct WindowSettings {
 /// @brief Machine/user specific overrides stored in the project .ptgnlocal file.
 /// Optional fields allow project defaults to remain active when an override is absent.
 struct WindowLocalSettings {
-	std::optional<V2_int> position;
-	std::optional<V2_int> size;
-	std::optional<bool> maximized;
+	std::optional<V2_int> position{};
+	std::optional<V2_int> size{};
+	std::optional<bool> maximized{};
 
 	PTGN_REFLECT(WindowLocalSettings, position, size, maximized)
 };

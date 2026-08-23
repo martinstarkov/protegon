@@ -19,9 +19,9 @@ class DrawContext;
 class Scene;
 
 struct Material {
-	ShaderKey shader;
-	std::vector<UniformWrite> uniforms;
-	std::optional<std::size_t> texture_slot_capacity;
+	ShaderKey shader{};
+	std::vector<UniformWrite> uniforms{};
+	std::optional<std::size_t> texture_slot_capacity{};
 
 	constexpr bool operator==(const Material&) const = default;
 
@@ -55,7 +55,7 @@ MaterialState GetMaterialState(Entity entity);
 /// function for the effect.
 struct MaterialUpdate {
 	/// @brief Called once per draw for the entity with this component.
-	std::function<void(CustomShader)> update;
+	std::function<void(CustomShader)> update{};
 };
 
 } // namespace impl

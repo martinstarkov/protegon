@@ -38,7 +38,7 @@ TextureDrawParams GetTextureDrawParams(
 /// Component for a custom texture size to be used instead of the actual texture size. This can be
 /// used for example to render a texture at a larger size.
 struct TextureSize {
-	V2_float value;
+	V2_float value{};
 
 	operator V2_float() const { // NOSONAR
 		return value;
@@ -52,12 +52,12 @@ struct TextureCrop {
 	/// display size (for example).
 
 	/// @brief Top left position (in pixels) within the texture from which the crop starts.
-	V2_float position;
+	V2_float position{};
 
 	/// @brief Size of the crop in pixels. std::nullopt will use full size of the unscaled texture.
-	std::optional<V2_float> size;
+	std::optional<V2_float> size{};
 
-	bool operator==(const TextureCrop&) const = default;
+	constexpr bool operator==(const TextureCrop&) const = default;
 
 	/// @brief Updates the crop size based on the animation data.
 	void Update(const AnimationData& anim, std::optional<V2_int> texture_size);

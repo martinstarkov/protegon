@@ -32,8 +32,8 @@ struct PlatformerGrounding {
 	bool enabled{ true };
 	GroundingDirection direction{ GroundingDirection::AgainstGravity };
 	Degrees max_angle{ 45.0f };
-	std::vector<ColliderMask> masks;
-	EntityFilter entities;
+	std::vector<ColliderMask> masks{};
+	EntityFilter entities{};
 	GroundEntityScope entity_scope{ GroundEntityScope::Root };
 
 	PTGN_REFLECT(
@@ -44,8 +44,8 @@ struct PlatformerGrounding {
 struct PlatformerGroundingState {
 	bool grounded{ false };
 	bool previous_grounded{ false };
-	Entity ground_entity;
-	V2_float ground_normal;
+	Entity ground_entity{};
+	V2_float ground_normal{};
 };
 
 [[nodiscard]] V2_float GetGroundingNormal(

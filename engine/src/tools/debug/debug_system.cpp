@@ -103,7 +103,8 @@ void DrawDebugTextBoundingBoxes(
 			continue;
 		}
 
-		const auto& layout{ Text{ entity }.GetLayout() };
+		Text text{ entity };
+		const auto& layout{ text.GetLayout() };
 
 		auto transform{ GetDrawTransform(entity) };
 		auto origin{ entity.GetOrDefault<Origin>() };
@@ -130,11 +131,11 @@ void DrawDebugTextBoundingBoxes(
 			}
 
 			// TODO: Dont translate.
-			auto transform{ prepared.transform };
-			transform.Translate(rect.GetCenter());
+			auto transformed{ prepared.transform };
+			transformed.Translate(rect.GetCenter());
 
 			scene.ctx().render_queue.DrawShape(
-				transform, Rect{ rect.GetSize() }, color, shape_params()
+				transformed, Rect{ rect.GetSize() }, color, shape_params()
 			);
 		};
 

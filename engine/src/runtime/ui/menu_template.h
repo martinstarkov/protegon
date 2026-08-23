@@ -30,7 +30,7 @@ class TemplateMenuScene : public Scene {
 public:
 	TemplateMenuScene() = default;
 
-	TemplateMenuScene(const std::string& key, const json& scene_json_arg);
+	TemplateMenuScene(const std::string& scene_key, const json& scene_json_arg);
 
 	std::string key;
 	json scene_json = json::object();

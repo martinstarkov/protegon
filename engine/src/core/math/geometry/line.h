@@ -17,7 +17,7 @@ public:
 
 	constexpr Line() = default;
 
-	constexpr Line(V2_float start, V2_float end) : start{ start }, end{ end } {}
+	constexpr Line(V2_float line_start, V2_float line_end) : start{ line_start }, end{ line_end } {}
 
 	/// @param out_size Optional parameter for the unrotated world size of the quad.
 	/// @return Quad vertices for this line with an absolute line width.

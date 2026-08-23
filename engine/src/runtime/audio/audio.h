@@ -14,7 +14,7 @@ class AudioSystem;
 namespace impl {
 
 struct AudioObject {
-	path path;
+	fs::path path{};
 };
 
 }; // namespace impl

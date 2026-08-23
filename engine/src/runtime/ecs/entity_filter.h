@@ -23,49 +23,49 @@ enum class EntityFilterType : std::uint8_t {
 PTGN_REFLECT_ENUM(EntityFilterType);
 
 struct EntityReference {
-	std::optional<UUID> uuid;
-	std::string tag;
+	std::optional<UUID> uuid{};
+	std::string tag{};
 
 	PTGN_REFLECT(EntityReference, uuid, tag)
 };
 
 struct ComponentQueryCondition {
-	std::string component;
+	std::string component{};
 	bool required{ true };
 
 	PTGN_REFLECT(ComponentQueryCondition, component, required)
 };
 
 struct ComponentQueryGroup {
-	std::vector<ComponentQueryCondition> conditions;
+	std::vector<ComponentQueryCondition> conditions{};
 
 	PTGN_REFLECT_VALUE(ComponentQueryGroup, conditions)
 };
 
 struct ComponentEntityQuery {
-	std::vector<ComponentQueryGroup> groups;
+	std::vector<ComponentQueryGroup> groups{};
 
 	PTGN_REFLECT_VALUE(ComponentEntityQuery, groups)
 };
 
 struct GroupEntityQuery {
-	std::vector<std::string> groups;
+	std::vector<std::string> groups{};
 
 	PTGN_REFLECT_VALUE(GroupEntityQuery, groups)
 };
 
 struct RegisteredEntityQueryReference {
-	std::string key;
+	std::string key{};
 
 	PTGN_REFLECT_VALUE(RegisteredEntityQueryReference, key)
 };
 
 struct EntityFilter {
 	EntityFilterType type{ EntityFilterType::Any };
-	EntityReference entity;
-	ComponentEntityQuery components;
-	GroupEntityQuery group;
-	RegisteredEntityQueryReference query;
+	EntityReference entity{};
+	ComponentEntityQuery components{};
+	GroupEntityQuery group{};
+	RegisteredEntityQueryReference query{};
 
 	PTGN_REFLECT(EntityFilter, type, entity, components, group, query)
 };

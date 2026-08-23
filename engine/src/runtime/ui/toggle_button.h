@@ -52,14 +52,14 @@ struct ToggleButtonGroupKey : public StrongString<ToggleButtonGroupKey> {
 
 struct ToggleButtonGroupData {
 	bool always_active{ true };
-	std::optional<ToggleButtonGroupKey> active;
+	std::optional<ToggleButtonGroupKey> active{};
 
 	PTGN_REFLECT(ToggleButtonGroupData, always_active, active)
 };
 
 /// @brief Marker for direct child toggle buttons belonging to a toggle group.
 struct ToggleButtonGroupItem {
-	ToggleButtonGroupKey key;
+	ToggleButtonGroupKey key{};
 
 	PTGN_REFLECT_VALUE(ToggleButtonGroupItem, key)
 };
