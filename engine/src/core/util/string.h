@@ -2,10 +2,12 @@
 
 #include <algorithm>
 #include <cctype>
+#include <functional>
 #include <iterator>
 #include <sstream>
 #include <string>
 #include <string_view>
+#include <utility>
 
 #include "core/util/concepts_stream.h"
 
@@ -106,7 +108,7 @@ constexpr std::string_view TrimWhitespace(std::string_view s) {
 }
 
 /// @return New string with just the content inside R"( ... )"
-/// This function does not handle delimeters such as R"delim( ... )delim"
+/// This function does not handle delimiters such as R"delim( ... )delim".
 [[nodiscard]] constexpr std::string TrimRawStringLiteral(std::string_view content) {
 	constexpr std::string_view raw_start{ "R\"(" };
 	constexpr std::string_view raw_end{ ")\"" };

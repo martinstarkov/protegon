@@ -54,7 +54,7 @@
 #include "core/util/hash.h"
 #include "core/util/string.h"
 #include "renderer/renderer.h"
-#include "renderer/shader_compiler.h"
+#include "renderer/pipeline/shader_compiler.h"
 #include "renderer/resources/id.h"
 #include "renderer/resources/shader.h"
 #include "renderer/resources/texture.h"

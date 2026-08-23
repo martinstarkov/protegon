@@ -34,6 +34,7 @@
 #include "renderer/backend/gl/gl_vertex_array.h"
 #include "renderer/draw_context.h"
 #include "renderer/pipeline/blend_mode.h"
+#include "renderer/pipeline/shader_preprocessor.h"
 #include "renderer/pipeline/camera.h"
 #include "renderer/pipeline/framebuffer_pool.h"
 #include "renderer/pipeline/primitive_mode.h"

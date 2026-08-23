@@ -4,7 +4,7 @@
 #include <string>
 #include <string_view>
 
-#include "renderer/resources/shader.h"
+#include "renderer/pipeline/shader_preprocessor.h"
 
 namespace ptgn {
 
@@ -27,19 +27,6 @@ namespace impl {
 	std::string_view vertex_source,
 	std::string_view fragment_source,
 	std::size_t max_texture_slots
-);
-
-/// @return The requested raw #type block, including the source header, or an empty string.
-[[nodiscard]] std::string ExtractShaderStageSource(
-	std::string_view source,
-	ShaderStageMask stage
-);
-
-/// @return A non-negative compatibility score when the vertex outputs satisfy the fragment inputs,
-/// or -1 when the two stage interfaces are incompatible.
-[[nodiscard]] int ShaderStageCompatibilityScore(
-	std::string_view vertex_source,
-	std::string_view fragment_source
 );
 
 } // namespace impl

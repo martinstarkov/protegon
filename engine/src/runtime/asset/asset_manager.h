@@ -20,7 +20,7 @@
 #include "core/math/vector2.h"
 #include "core/util/file.h"
 #include "renderer/resources/id.h"
-#include "renderer/shader_compiler.h"
+#include "renderer/pipeline/shader_compiler.h"
 #include "renderer/resources/shader.h"
 #include "renderer/resources/texture.h"
 #include "renderer/resources/texture_format.h"

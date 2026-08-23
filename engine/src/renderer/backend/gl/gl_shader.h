@@ -19,17 +19,9 @@
 #include "runtime/asset/engine_shader_library.h"
 #include "serialization/json/fwd.h"
 
-namespace ptgn::impl {
-
-inline constexpr const char* kTexturesUniform{ "u_Textures" };
-
-namespace gl {
+namespace ptgn::impl::gl {
 
 class GLContext;
-
-struct ShaderOptions {
-	bool auto_layout{ false };
-};
 
 enum class ShaderType : std::uint32_t {
 	Vertex = 0x8B31,
@@ -44,7 +36,6 @@ struct ShaderSpec {
 	ShaderType type{ ShaderType::Fragment };
 	ShaderCode code{};
 	ShaderName name{};
-	ShaderOptions options{};
 };
 
 struct ShaderInfo {
@@ -180,6 +171,4 @@ private:
 	IdMap<ProgramCache> cache_;
 };
 
-} // namespace gl
-
-} // namespace ptgn::impl
+} // namespace ptgn::impl::gl
