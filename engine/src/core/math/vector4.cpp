@@ -24,8 +24,8 @@ void from_json(const json& j, Vector4<T>& vector) {
 	);
 	vector.x = j[0];
 	vector.y = j[1];
-	vector.w = j[2];
-	vector.z = j[3];
+	vector.z = j[2];
+	vector.w = j[3];
 }
 
 template struct Vector4<int>;
