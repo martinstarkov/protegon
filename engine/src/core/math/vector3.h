@@ -40,8 +40,6 @@ struct Vector3 {
 	constexpr Vector3(T x_component, T y_component, T z_component) :
 		x{ x_component }, y{ y_component }, z{ z_component } {}
 
-	explicit Vector3(const json& j);
-
 	template <Arithmetic U>
 	constexpr Vector3(Vector3<U> o) : // NOSONAR
 		x{ static_cast<T>(o.x) }, y{ static_cast<T>(o.y) }, z{ static_cast<T>(o.z) } {}

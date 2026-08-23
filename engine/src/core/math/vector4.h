@@ -44,8 +44,6 @@ struct Vector4 {
 	constexpr Vector4(T x_component, T y_component, T z_component, T w_component) :
 		x{ x_component }, y{ y_component }, z{ z_component }, w{ w_component } {}
 
-	explicit Vector4(const json& j);
-
 	template <Arithmetic U>
 	constexpr Vector4(Vector4<U> o) : // NOSONAR
 		x{ static_cast<T>(o.x) },

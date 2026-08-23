@@ -7,11 +7,6 @@
 namespace ptgn {
 
 template <Arithmetic T>
-Vector4<T>::Vector4(const json& j) {
-	j.get_to(*this);
-}
-
-template <Arithmetic T>
 void to_json(json& j, const Vector4<T>& vector) {
 	j = json::array({ vector.x, vector.y, vector.w, vector.z });
 }
