@@ -405,7 +405,7 @@ void DrawUnmaskedLight(
 	ctx.DrawShader(draw_transform, material, std::move(params));
 }
 
-std::array<UniformWrite, 9> GetUniforms(const LightData& light, Color tint) {
+std::vector<UniformWrite> GetUniforms(const LightData& light, Color tint) {
 	auto color{ Color::Multiply(light.color, tint) };
 	V4_float color_n{ color.Normalized() };
 
@@ -422,8 +422,8 @@ std::array<UniformWrite, 9> GetUniforms(const LightData& light, Color tint) {
 									: kTwoPi },
 			 UniformWrite{ "u_Color", color_n },
 			 UniformWrite{ "u_AmbientColor", ambient_color },
-			 UniformWrite{ "u_AmbientIntensity", light.ambient_intensity },
-			 UniformWrite{ "u_LightAttenuation", light_attenuation } };
+			 UniformWrite{ "u_AmbientIntensity", light.ambient_intensity } };
+			//  UniformWrite{ "u_LightAttenuation", light_attenuation } };
 }
 
 } // namespace
@@ -536,7 +536,7 @@ void Light::Draw(DrawContext& ctx, Entity entity) {
 	auto blend_mode{ GetBlendMode(entity) };
 	auto tint{ GetTint(entity) };
 
-	auto uniforms{ std::ranges::to<std::vector<UniformWrite>>(GetUniforms(light, tint)) };
+	auto uniforms{ GetUniforms(light, tint) };
 
 	if (!entity.Has<impl::VisibilityPolygon>()) {
 		DrawUnmaskedLight(ctx, entity, draw_transform, size, blend_mode, std::move(uniforms));
