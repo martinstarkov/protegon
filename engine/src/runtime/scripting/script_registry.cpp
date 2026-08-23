@@ -150,7 +150,7 @@ template <typename TEvent>
 		normalized = "leftsuper";
 	}
 
-	for (const auto [key, name] : magic_enum::enum_entries<Key>()) {
+	for (const auto& [key, name] : magic_enum::enum_entries<Key>()) {
 		if (NormalizeKeyToken(name) == normalized) {
 			return key;
 		}
