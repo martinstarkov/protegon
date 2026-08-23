@@ -26,13 +26,6 @@ struct ColorVertex : public VertexLayout<ColorVertex, glsl::vec3, glsl::vec4, gl
 	glsl::int_ entity_id{ kNoEntityId };
 };
 
-static_assert(sizeof(glsl::float_) == 4);
-static_assert(sizeof(glsl::vec2) == 8);
-static_assert(sizeof(glsl::vec3) == 12);
-static_assert(sizeof(glsl::vec4) == 16);
-static_assert(sizeof(glsl::int_) == 4);
-static_assert(sizeof(ColorVertex) == 32);
-
 struct ShapeVertex :
 	public VertexLayout<ShapeVertex, glsl::vec3, glsl::vec4, glsl::vec2, glsl::vec4, glsl::int_> {
 	ShapeVertex() = default;
@@ -82,6 +75,28 @@ struct TextureVertex :
 	glsl::float_ tex_index{};
 	glsl::int_ entity_id{ kNoEntityId };
 };
+
+static_assert(sizeof(glsl::float_) == 4);
+static_assert(sizeof(glsl::vec2) == 8);
+static_assert(sizeof(glsl::vec3) == 12);
+static_assert(sizeof(glsl::vec4) == 16);
+static_assert(sizeof(glsl::int_) == 4);
+static_assert(std::is_standard_layout_v<ColorVertex>);
+static_assert(std::is_standard_layout_v<ShapeVertex>);
+static_assert(std::is_standard_layout_v<TextureVertex>);
+static_assert(sizeof(ColorVertex) == 32);
+static_assert(sizeof(ShapeVertex) == 56);
+static_assert(sizeof(TextureVertex) == 44);
+static_assert(alignof(glsl::float_) == 4);
+static_assert(alignof(glsl::vec2) == 4);
+static_assert(alignof(glsl::vec3) == 4);
+static_assert(alignof(glsl::vec4) == 4);
+static_assert(alignof(glsl::int_) == 4);
+static_assert(offsetof(ShapeVertex, position) == 0);
+static_assert(offsetof(ShapeVertex, color) == 12);
+static_assert(offsetof(ShapeVertex, local_coord) == 28);
+static_assert(offsetof(ShapeVertex, shape_data) == 36);
+static_assert(offsetof(ShapeVertex, entity_id) == 52);
 
 struct PositionTag {};
 
