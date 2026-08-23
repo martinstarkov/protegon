@@ -20,14 +20,6 @@ file(
   LIST_DIRECTORIES false
   "${PTGN_SHADER_DIR}/*.glsl")
 
-if(PTGN_EDITOR)
-  list(
-    REMOVE_ITEM
-    PTGN_SOURCES
-    "${PTGN_REGISTRATION_SOURCES}"
-  )
-endif()
-
 set(PTGN_FILES ${PTGN_SOURCES} ${PTGN_HEADERS} ${PTGN_SHADERS}
                "${PTGN_SHADER_DIR}/manifest.json")
 
