@@ -132,6 +132,10 @@ public:
 		/* User implementation */
 	}
 
+	virtual void OnRender() {
+		/* User implementation */
+	}
+
 	virtual void OnExit() {
 		/* User implementation */
 	}
@@ -304,8 +308,6 @@ private:
 	void InternalPreUpdate();
 
 	void InternalUpdate();
-	void InternalRuntimeUpdate();
-	void InternalMaintenanceUpdate();
 	void InternalDraw(DrawContext& draw_context);
 	void ClearRenderTargets();
 	void DrawCameras(DrawContext& draw_context, const std::vector<Entity>& cameras);

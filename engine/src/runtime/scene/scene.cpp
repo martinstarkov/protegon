@@ -822,6 +822,13 @@ void Scene::DrawCameras(DrawContext& draw_context, const std::vector<Entity>& ca
 }
 
 void Scene::InternalDraw(DrawContext& draw_context) {
+	// Runs for editor and runtime scenes, unlike gameplay only resize events.
+	UpdateRenderTargetSizes(*this);
+
+	for (auto [camera_entity, _data] : EntitiesWith<impl::CameraData>()) {
+		impl::ApplyCameraBounds(SceneCamera{ camera_entity });
+	}
+
 	if (!data_.render_enabled) {
 		// Draw commands may still be generated during update. Discard them
 		// every frame while this scene is excluded from rendering.
@@ -830,11 +837,9 @@ void Scene::InternalDraw(DrawContext& draw_context) {
 		return;
 	}
 
-	// The editor may update its presentation viewport after scene update.
-	// Synchronize again immediately before rendering to avoid a stretched frame.
-	UpdateRenderTargetSizes(*this);
-
 	ClearRenderTargets();
+
+	OnRender();
 
 	if (const auto& primary_world_camera{ ctx().renderer.GetPrimaryWorldCamera() };
 		primary_world_camera.has_value()) {
@@ -961,37 +966,22 @@ void Scene::InternalUpdate() {
 	impl::AnimationSystem::Prepare(*this);
 
 	if (data_.runtime) {
-		InternalRuntimeUpdate();
-	}
+		auto dt{ ctx().dt() };
+		script_runtime::Update(*this, dt);
 
-	InternalMaintenanceUpdate();
-}
+		OnUpdate();
 
-void Scene::InternalRuntimeUpdate() {
-	auto dt{ ctx().dt() };
-	script_runtime::Update(*this, dt);
+		// Timers advance after script and scene updates so newly triggered timed actions do not
+		// receive the current frame's full dt.
+		timer_runtime::Update(*this, dt);
 
-	OnUpdate();
-
-	// Timers advance after script and scene updates so newly triggered timed actions do not
-	// receive the current frame's full dt.
-	timer_runtime::Update(*this, dt);
-
-	ParticleEmitter::Update(*this, dt);
-	impl::AnimationSystem::Update(*this, dt);
-	Lifetime::Update(*this, dt);
-	ctx().physics.PreCollisionUpdate();
-	ctx().collision.Update(*this, dt);
-	ctx().physics.PostCollisionUpdate();
-	impl::ButtonSystem::Update(*this);
-}
-
-void Scene::InternalMaintenanceUpdate() {
-	// Runs for editor and runtime scenes, unlike gameplay only resize events.
-	UpdateRenderTargetSizes(*this);
-
-	for (auto [camera_entity, _data] : EntitiesWith<impl::CameraData>()) {
-		impl::ApplyCameraBounds(SceneCamera{ camera_entity });
+		ParticleEmitter::Update(*this, dt);
+		impl::AnimationSystem::Update(*this, dt);
+		Lifetime::Update(*this, dt);
+		ctx().physics.PreCollisionUpdate();
+		ctx().collision.Update(*this, dt);
+		ctx().physics.PostCollisionUpdate();
+		impl::ButtonSystem::Update(*this);
 	}
 
 	Refresh();
