@@ -1,3 +1,26 @@
+if(UNIX AND NOT APPLE AND NOT EMSCRIPTEN)
+  find_program(PTGN_IONICE ionice)
+  find_program(PTGN_NICE nice)
+
+  if(PTGN_IONICE AND PTGN_NICE)
+    set(
+      PTGN_COMPILER_LAUNCHER
+      "${PTGN_IONICE}" -c 2 -n 7
+      "${PTGN_NICE}" -n 10
+    )
+
+    set(
+      CMAKE_C_COMPILER_LAUNCHER
+      ${PTGN_COMPILER_LAUNCHER}
+    )
+
+    set(
+      CMAKE_CXX_COMPILER_LAUNCHER
+      ${PTGN_COMPILER_LAUNCHER}
+    )
+  endif()
+endif()
+
 add_subdirectory(vendor)
 
 include(${CMAKE_CURRENT_SOURCE_DIR}/../cmake/CMakeRC.cmake)
