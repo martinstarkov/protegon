@@ -22,9 +22,9 @@ struct CompiledStage {
 
 CompiledStage CompileStage(ShaderStageMask stage, const std::string& source) {
 	CompiledStage result;
-	GLenum gl_stage{ stage == ShaderStageMask::Vertex ? GL_VERTEX_SHADER : GL_FRAGMENT_SHADER };
+	auto gl_stage{ stage == ShaderStageMask::Vertex ? GL_VERTEX_SHADER : GL_FRAGMENT_SHADER };
 
-	result.id = glCreateShader(gl_stage);
+	result.id = glCreateShader(static_cast<GLenum>(gl_stage));
 	if (result.id == 0) {
 		result.log = "OpenGL could not create a temporary shader object.";
 		return result;
