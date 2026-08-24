@@ -165,6 +165,8 @@ private:
 		bool was_dirty{ false };
 		bool screen_effect_preview_before_play{ true };
 	};
+	
+	void StopDirectRuntime();
 
 #if !defined(__EMSCRIPTEN__)
 	enum class PendingTaskConfirmation {

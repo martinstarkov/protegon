@@ -3967,9 +3967,29 @@ void Editor::OnUpdate() {
 	if (ImGui::IsKeyPressed(
 			ImGuiKey_F10
 		)) {
-		EnableRendering(
-			!render_enabled_
-		);
+		if (!render_enabled_) {
+			// Game view -> editor view.
+			//
+			// If this is a project runtime that can be stopped, F10 returns
+			// all the way to edit mode rather than merely revealing the editor.
+			if (CanStop()) {
+				Stop();
+			}
+
+			EnableRendering(true);
+		} else if (IsPlaying() ||
+				IsDirectRuntime()) {
+			// Runtime with the editor visible -> hide the editor while
+			// leaving runtime active.
+			EnableRendering(false);
+		} else {
+			// Edit mode -> start runtime and switch to game view.
+			Play();
+
+			if (IsPlaying()) {
+				EnableRendering(false);
+			}
+		}
 	}
 
 	const auto& io{
@@ -4235,8 +4255,241 @@ void Editor::Play() {
 	context_->local.state.is_paused = false;
 }
 
+void Editor::StopDirectRuntime() {
+	PTGN_ASSERT(context_);
+
+	if (!IsDirectRuntime()) {
+		return;
+	}
+
+	auto* project{
+		GetProject()
+	};
+
+	if (!project) {
+		return;
+	}
+
+	auto& app_context{
+		::ptgn::impl::ApplicationAccessor::ctx(app)
+	};
+
+	auto& manager{
+		GetSceneManager()
+	};
+
+	// Prefer returning to whichever project scene is currently selected.
+	// If runtime has moved to a scene that is not part of the project,
+	// fall back to the startup scene.
+	std::string selected_key{
+		project->startup_scene_key
+	};
+
+	std::optional<UUID> selected_entity_uuid;
+
+	if (auto* selected_scene{
+			scene_list_panel_.GetSelectedScene()
+		}) {
+		const std::string runtime_key{
+			selected_scene->GetTag()
+		};
+
+		if (FindProjectScene(
+				*project,
+				runtime_key
+			)) {
+			selected_key =
+				runtime_key;
+
+			selected_entity_uuid =
+				GetSelectedEntityUUID(
+					scene_hierarchy_panel_,
+					selected_scene
+				);
+		}
+	}
+
+	if (selected_key.empty() &&
+		!project->scenes.empty()) {
+		selected_key =
+			project->scenes.front().key;
+	}
+
+	// Direct runtime has no editor PlaySnapshot because there was no
+	// editable scene state before it started. Reconstruct that state
+	// from the project's saved scene files instead.
+	std::vector<::ptgn::impl::RuntimeProjectSceneSnapshot>
+		editor_scenes;
+
+	editor_scenes.reserve(
+		project->scenes.size()
+	);
+
+	for (const auto& entry :
+		 project->scenes) {
+		const path scene_path{
+			GetProjectScenePath(
+				*project,
+				entry
+			)
+		};
+
+		if (!FileExists(scene_path)) {
+			PTGN_ERROR(
+				"Cannot stop direct project runtime because "
+				"the project scene file does not exist: ",
+				scene_path
+			);
+			return;
+		}
+
+		editor_scenes.emplace_back(
+			::ptgn::impl::RuntimeProjectSceneSnapshot{
+				.key = entry.key,
+				.scene = LoadSceneFile(
+					scene_path
+				),
+			}
+		);
+	}
+
+	// Remember every runtime scene before replacing project scenes.
+	// Runtime may have entered scenes which are not part of the project
+	// scene list, and those must not remain in edit mode.
+	std::vector<std::string>
+		runtime_scene_keys;
+
+	for (const auto& scene :
+		 manager.GetScenes()) {
+		if (!scene ||
+			!scene->IsRuntime()) {
+			continue;
+		}
+
+		runtime_scene_keys.emplace_back(
+			scene->GetTag()
+		);
+	}
+
+	context_->local.position_picker.Cancel();
+
+	SetApplicationState(
+		ApplicationState::Running
+	);
+
+	// Recreate every project scene as a non runtime editor scene.
+	for (const auto& snapshot :
+		 editor_scenes) {
+		const auto scene_hash{
+			Hash(snapshot.key)
+		};
+
+		auto factory{
+			::ptgn::impl::MakeSceneFactory(
+				snapshot.scene,
+				false
+			)
+		};
+
+		const bool accepted{
+			manager.HasScene(scene_hash)
+				? manager.ReEnterFactory(
+					snapshot.key,
+					std::move(factory)
+				)
+				: manager.EnterFactory(
+					snapshot.key,
+					std::move(factory)
+				)
+		};
+
+		PTGN_ASSERT(
+			accepted,
+			"Failed to restore project scene after direct runtime: ",
+			snapshot.key
+		);
+	}
+
+	// Remove any remaining runtime-only scenes which were entered while
+	// the game was running. Project scenes replaced above are now
+	// non runtime and therefore remain.
+	for (const auto& runtime_key :
+		 runtime_scene_keys) {
+		const auto scene_hash{
+			Hash(runtime_key)
+		};
+
+		if (!manager.HasScene(scene_hash)) {
+			continue;
+		}
+
+		auto& scene{
+			manager.GetScene(scene_hash)
+		};
+
+		if (!scene.IsRuntime()) {
+			continue;
+		}
+
+		PTGN_ASSERT(
+			manager.Exit(runtime_key),
+			"Failed to remove runtime scene while returning to editor: ",
+			runtime_key
+		);
+	}
+
+	context_->local.state.is_playing =
+		false;
+
+	context_->local.state.is_paused =
+		false;
+
+	viewport_panel_.SetUseEditorCamera(
+		true
+	);
+
+	if (!selected_key.empty()) {
+		scene_list_panel_.QueueSceneSelection(
+			*context_,
+			selected_key,
+			false,
+			selected_entity_uuid
+		);
+	}
+
+	app.SetScreenEffects(
+		project->screen_effects
+	);
+
+	ApplyScreenEffectPreviewState();
+
+	if (context_->local.selection
+			.selected_screen_effect
+			.has_value() &&
+		context_->local.selection
+			.selected_screen_effect
+			->runtime) {
+		context_->local.selection
+			.selected_screen_effect
+			.reset();
+
+		context_->local.selection.inspector_tab =
+			InspectorTab::Primary;
+	}
+
+	undo_stack_.DiscardTransientCommands();
+	undo_stack_.SetUndoRedoEnabled(true);
+
+	RefreshProjectDirtyState();
+}
+
 void Editor::Stop() {
 	PTGN_ASSERT(context_);
+
+	if (IsDirectRuntime()) {
+		StopDirectRuntime();
+		return;
+	}
 
 	if (!IsPlaying() ||
 		!play_snapshot_) {
@@ -4446,9 +4699,13 @@ bool Editor::CanPlay() const {
 }
 
 bool Editor::CanStop() const {
+	if (IsPlaying()) {
+		return play_snapshot_.has_value();
+	}
+
 	return
-		IsPlaying() &&
-		play_snapshot_.has_value();
+		IsDirectRuntime() &&
+		GetProject() != nullptr;
 }
 
 bool Editor::CanPause() const {

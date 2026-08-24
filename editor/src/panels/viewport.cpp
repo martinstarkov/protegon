@@ -1391,36 +1391,43 @@ void ViewportPanel::DrawSceneCameraOutlines(
 }
 
 void ViewportPanel::DrawViewportToolbar(EditorContext& ctx) {
-	const bool playing{ ctx.editor.IsPlaying() };
-	const bool paused{ ctx.editor.IsPaused() };
-	const bool can_play{ ctx.editor.CanPlay() };
-	const bool can_stop{ ctx.editor.CanStop() };
-	const bool can_pause{ ctx.editor.CanPause() };
+	const bool playing{
+		ctx.editor.IsPlaying()
+	};
 
-	const auto* selected_scene{
-		ctx.editor.GetSceneListPanel().GetSelectedScene()
+	const bool paused{
+		ctx.editor.IsPaused()
+	};
+
+	const bool can_play{
+		ctx.editor.CanPlay()
+	};
+
+	const bool can_stop{
+		ctx.editor.CanStop()
+	};
+
+	const bool can_pause{
+		ctx.editor.CanPause()
 	};
 
 	const bool direct_runtime{
-		selected_scene &&
-		selected_scene->IsRuntime() &&
-		!playing
+		ctx.editor.IsDirectRuntime()
 	};
 
-	if (playing) {
-		ImGui::BeginDisabled(!can_stop);
-
+	if (can_stop) {
 		if (ImGui::Button("Stop")) {
 			ctx.editor.Stop();
 		}
-
-		ImGui::EndDisabled();
 	} else if (direct_runtime) {
+		// Runtime without an editable project has nowhere to stop to.
 		ImGui::BeginDisabled();
 		ImGui::Button("Runtime");
 		ImGui::EndDisabled();
 	} else {
-		ImGui::BeginDisabled(!can_play);
+		ImGui::BeginDisabled(
+			!can_play
+		);
 
 		if (ImGui::Button("Play")) {
 			ctx.editor.Play();
@@ -1456,15 +1463,27 @@ void ViewportPanel::DrawViewportToolbar(EditorContext& ctx) {
 	ImGui::SetNextItemWidth(120.0f);
 
 	if (ImGui::DragFloat(
-			"Speed", &speed, 0.05f, 0.0f, 100.0f, "%.2fx", ImGuiSliderFlags_AlwaysClamp
+			"Speed",
+			&speed,
+			0.05f,
+			0.0f,
+			100.0f,
+			"%.2fx",
+			ImGuiSliderFlags_AlwaysClamp
 		)) {
 		ctx.editor.SetTimeScale(speed);
 	}
 
 	ImGui::SameLine();
 
-	if (ImGui::Button(use_editor_camera_ ? "Use Scene Cameras" : "Use Editor Camera")) {
-		SetUseEditorCamera(!use_editor_camera_);
+	if (ImGui::Button(
+			use_editor_camera_
+				? "Use Scene Cameras"
+				: "Use Editor Camera"
+		)) {
+		SetUseEditorCamera(
+			!use_editor_camera_
+		);
 	}
 }
 
