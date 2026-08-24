@@ -51,6 +51,12 @@ struct BuildInfo {
 	///   /Assets
 	path asset_directory{};
 
+	/// @brief CMake project name for the application.
+	/// Examples:
+	///   game
+	///   protegon
+	std::string project_name{};
+
 	/// @brief Executable CMake target.
 	/// Examples:
 	///   animation_script

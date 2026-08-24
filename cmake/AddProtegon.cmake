@@ -12,6 +12,48 @@ function(_ptgn_add_build_info target assets_dir distribution_build)
     set(_ptgn_example_id "")
   endif()
 
+  get_target_property(
+    _ptgn_target_source_directory
+    ${target}
+    SOURCE_DIR
+  )
+
+  if(
+    NOT _ptgn_target_source_directory
+    OR _ptgn_target_source_directory MATCHES "-NOTFOUND$"
+  )
+    message(FATAL_ERROR
+      "Could not determine source directory for target '${target}'"
+    )
+  endif()
+
+  get_filename_component(
+    _ptgn_target_source_directory
+    "${_ptgn_target_source_directory}"
+    ABSOLUTE
+  )
+
+  get_target_property(
+    _ptgn_target_binary_directory
+    ${target}
+    BINARY_DIR
+  )
+
+  if(
+    NOT _ptgn_target_binary_directory
+    OR _ptgn_target_binary_directory MATCHES "-NOTFOUND$"
+  )
+    message(FATAL_ERROR
+      "Could not determine binary directory for target '${target}'"
+    )
+  endif()
+
+  get_filename_component(
+    _ptgn_target_binary_directory
+    "${_ptgn_target_binary_directory}"
+    ABSOLUTE
+  )
+
   get_filename_component(
     _ptgn_engine_source_directory
     "${CMAKE_CURRENT_FUNCTION_LIST_DIR}/.."
@@ -30,20 +72,16 @@ function(_ptgn_add_build_info target assets_dir distribution_build)
       "${_ptgn_asset_source_directory}"
       NAME
     )
-
-    get_filename_component(
-      _ptgn_desktop_runtime_root
-      "${_ptgn_asset_source_directory}"
-      DIRECTORY
-    )
   else()
     set(_ptgn_asset_source_directory "")
     set(_ptgn_asset_directory_name "")
-    set(_ptgn_desktop_runtime_root "${CMAKE_SOURCE_DIR}")
   endif()
 
   if(EMSCRIPTEN)
-    set(_ptgn_runtime_root "/")
+    set(
+      _ptgn_runtime_root
+      "/"
+    )
 
     if(_ptgn_asset_directory_name)
       set(
@@ -51,22 +89,38 @@ function(_ptgn_add_build_info target assets_dir distribution_build)
         "/${_ptgn_asset_directory_name}"
       )
     else()
-      set(_ptgn_runtime_asset_directory "")
+      set(
+        _ptgn_runtime_asset_directory
+        ""
+      )
     endif()
 
-    set(PTGN_INFO_WEB true)
-  else()
     set(
-      _ptgn_runtime_root
-      "${_ptgn_desktop_runtime_root}"
+      PTGN_INFO_WEB
+      true
     )
+  else()
+    if(_ptgn_example_id)
+      set(
+        _ptgn_runtime_root
+        "${_ptgn_target_binary_directory}"
+      )
+    else()
+      set(
+        _ptgn_runtime_root
+        "${_ptgn_target_source_directory}"
+      )
+    endif()
 
     set(
       _ptgn_runtime_asset_directory
       "${_ptgn_asset_source_directory}"
     )
 
-    set(PTGN_INFO_WEB false)
+    set(
+      PTGN_INFO_WEB
+      false
+    )
   endif()
 
   set(
@@ -105,9 +159,27 @@ function(_ptgn_add_build_info target assets_dir distribution_build)
   )
 
   if(distribution_build)
-    set(PTGN_INFO_DISTRIBUTION 1)
+    set(
+      PTGN_INFO_DISTRIBUTION
+      1
+    )
   else()
-    set(PTGN_INFO_DISTRIBUTION 0)
+    set(
+      PTGN_INFO_DISTRIBUTION
+      0
+    )
+  endif()
+
+  if(_ptgn_example_id)
+    set(
+      PTGN_INFO_PROJECT_NAME
+      "${target}"
+    )
+  else()
+    set(
+      PTGN_INFO_PROJECT_NAME
+      "${PROJECT_NAME}"
+    )
   endif()
 
   set(

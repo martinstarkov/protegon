@@ -55,6 +55,8 @@ namespace ptgn {
 
 namespace {
 
+constexpr std::string_view kProjectExtension{ ".ptgnproj" };
+
 impl::AssetLoadTicket LoadStartupDependencies(
 	Application& app,
 	const impl::SceneFactory& scene_factory
@@ -108,20 +110,136 @@ void LoadProjectPreloads(Application& app) {
 	}
 }
 
+[[nodiscard]] std::vector<path> FindProjectFiles(
+	const path& directory
+) {
+	std::vector<path> projects;
+
+	std::error_code error;
+
+	if (
+		!fs::is_directory(directory, error) ||
+		error
+	) {
+		return projects;
+	}
+
+	for (
+		fs::directory_iterator it{
+			directory,
+			fs::directory_options::skip_permission_denied,
+			error
+		},
+		end;
+		!error && it != end;
+		it.increment(error)
+	) {
+		std::error_code entry_error;
+
+		if (
+			!it->is_regular_file(entry_error) ||
+			entry_error
+		) {
+			continue;
+		}
+
+		if (
+			GetExtension(it->path()) !=
+			kProjectExtension
+		) {
+			continue;
+		}
+
+		projects.emplace_back(
+			it->path().lexically_normal()
+		);
+	}
+
+	std::ranges::sort(
+		projects,
+		{},
+		[](const path& project) {
+			return project.generic_string();
+		}
+	);
+
+	return projects;
+}
+
 [[nodiscard]] path ResolveStartupProjectPath(
 	const path& project_path
 ) {
+	const auto& build_info{
+		impl::GetBuildInfo()
+	};
+
+	PTGN_ASSERT(
+		!build_info.project_name.empty(),
+		"CMake project name is empty"
+	);
+
+	path requested_path{
+		project_path.empty()
+			? path{ "." }
+			: project_path
+	};
+
+	path resolved_path{
+		requested_path.is_absolute()
+			? requested_path.lexically_normal()
+			: (
+				GetRuntimeRoot() /
+				requested_path
+			).lexically_normal()
+	};
+
+	// An explicit .ptgnproj path always refers to that exact file,
+	// whether or not the file exists yet.
 	if (
-		project_path.empty() ||
-		project_path.is_absolute()
+		GetExtension(resolved_path) ==
+		kProjectExtension
 	) {
-		return project_path.lexically_normal();
+		return resolved_path;
 	}
 
-	return (
-		GetRuntimeRoot() /
-		project_path
-	).lexically_normal();
+	// An existing regular file must be a project file.
+	if (FileExists(resolved_path)) {
+		PTGN_ASSERT(
+			false,
+			"Expected a .ptgnproj file: ",
+			resolved_path.string()
+		);
+	}
+
+	// Anything other than an explicit .ptgnproj file is treated
+	// as a directory.
+	//
+	// Prefer:
+	//   <directory>/<CMake project name>.ptgnproj
+	path preferred_project{
+		resolved_path /
+		(
+			build_info.project_name +
+			std::string{ kProjectExtension }
+		)
+	};
+
+	if (FileExists(preferred_project)) {
+		return preferred_project;
+	}
+
+	// Otherwise use the lexicographically first project file.
+	auto projects{
+		FindProjectFiles(resolved_path)
+	};
+
+	if (!projects.empty()) {
+		return projects.front();
+	}
+
+	// No project exists. Returning the preferred path allows
+	// StartProject<TDefaultScene>() to create it.
+	return preferred_project;
 }
 
 } // namespace
@@ -169,9 +287,9 @@ void Application::StartProjectImpl(
 		ResolveStartupProjectPath(project_path)
 	};
 
-	// Existing projects created before ProjectSettings was serialized inherit the
-	// application's current configuration for any missing settings fields.
-	const auto application_defaults{ GetProjectSettings(*this) };
+	const auto application_defaults{
+		GetProjectSettings(*this)
+	};
 
 	Project project;
 
@@ -190,8 +308,7 @@ void Application::StartProjectImpl(
 #else
 		PTGN_ASSERT(
 			default_scene,
-			"Project does not exist. Use "
-			"StartProject<TDefaultScene>() to create it: ",
+			"No project could be found and no default scene was supplied: ",
 			resolved_project_path.string()
 		);
 

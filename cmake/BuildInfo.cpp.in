@@ -21,6 +21,8 @@ const BuildInfo& GetBuildInfo() {
 			R"ptgn(@PTGN_INFO_ASSET_SOURCE_DIRECTORY@)ptgn",
 		.asset_directory =
 			R"ptgn(@PTGN_INFO_ASSET_DIRECTORY@)ptgn",
+		.project_name =
+			R"ptgn(@PTGN_INFO_PROJECT_NAME@)ptgn",
 		.target =
 			R"ptgn(@PTGN_INFO_TARGET@)ptgn",
 		.generator =
@@ -52,6 +54,8 @@ const BuildInfo& GetBuildInfo() {
 		.asset_directory = asset_directory_name.empty()
 			? path{}
 			: runtime_root / asset_directory_name,
+		.project_name =
+			R"ptgn(@PTGN_INFO_PROJECT_NAME@)ptgn",
 		.target =
 			R"ptgn(@PTGN_INFO_TARGET@)ptgn",
 		.generator =
@@ -77,6 +81,8 @@ const BuildInfo& GetBuildInfo() {
 			R"ptgn(@PTGN_INFO_ASSET_SOURCE_DIRECTORY@)ptgn",
 		.asset_directory =
 			R"ptgn(@PTGN_INFO_ASSET_DIRECTORY@)ptgn",
+		.project_name =
+			R"ptgn(@PTGN_INFO_PROJECT_NAME@)ptgn",
 		.target =
 			R"ptgn(@PTGN_INFO_TARGET@)ptgn",
 		.generator =
