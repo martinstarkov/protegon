@@ -173,6 +173,19 @@ bool RegisterScene(std::string_view type, std::string_view display_name) {
 	return true;
 }
 
+template <SceneType TScene>
+	requires std::default_initializable<TScene>
+bool RegisterScene(std::string_view type) {
+	auto separator{ type.rfind("::") };
+	std::string_view display_name{
+		separator == std::string_view::npos
+			? type
+			: type.substr(separator + 2)
+	};
+
+	return RegisterScene<TScene>(type, display_name);
+}
+
 [[nodiscard]] inline const SceneRegistryEntry& GetSceneRegistration(std::string_view type) {
 	auto it{ GetSceneRegistry().find(type) };
 	PTGN_ASSERT(it != GetSceneRegistry().end(), "Scene type is not registered: ", type);
@@ -207,8 +220,8 @@ template <SceneType TScene>
 #define PTGN_IMPL_SCENE_CONCAT_INNER(a, b) a##b
 #define PTGN_IMPL_SCENE_CONCAT(a, b) PTGN_IMPL_SCENE_CONCAT_INNER(a, b)
 
-#define PTGN_REGISTER_SCENE(SceneTypeName, DisplayName)                                      \
-	namespace {                                                                                \
+#define PTGN_REGISTER_SCENE(SceneTypeName, ...)                                             \
+	namespace {                                                                               \
 	[[maybe_unused]] const bool PTGN_IMPL_SCENE_CONCAT(_ptgn_registered_scene_, __COUNTER__) \
-		= ptgn::impl::RegisterScene<SceneTypeName>(#SceneTypeName, DisplayName);             \
+		= ptgn::impl::RegisterScene<SceneTypeName>(#SceneTypeName __VA_OPT__(,) __VA_ARGS__); \
 	}

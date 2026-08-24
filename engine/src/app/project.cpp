@@ -316,13 +316,13 @@ Project CreateProject(
 	Project project{
 		.name = file_path.stem().string(),
 		.file_path = file_path,
-		.asset_directory = "Assets",
-		.startup_scene_key = "Main",
+		.asset_directory = "assets",
+		.startup_scene_key = "main",
 		.scenes = {
 			ProjectSceneEntry{
-				.key = "Main",
+				.key = "main",
 				.display_name = TypeNameWithoutNamespaces(default_scene.type),
-				.scene_path = path{ "Assets" } / "Scenes" / "Main.ptgnscene",
+				.scene_path = path{ "assets" } / "scenes" / "main.ptgnscene",
 			},
 		},
 		.settings = std::move(settings),
@@ -390,13 +390,13 @@ void EnsureProjectAssetDirectories(const Project& project) {
 	EnsureDirectory(root);
 
 	constexpr std::array<std::string_view, 7> directories{
-		"Audio",
-		"Data",
-		"Fonts",
-		"Prefabs",
-		"Scenes",
-		"Shaders",
-		"Textures",
+		"audio",
+		"data",
+		"fonts",
+		"prefabs",
+		"scenes",
+		"shaders",
+		"textures",
 	};
 
 	for (const auto directory : directories) {

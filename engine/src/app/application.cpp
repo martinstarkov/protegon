@@ -119,7 +119,7 @@ void LoadProjectPreloads(Application& app) {
 	}
 
 	return (
-		impl::GetExecutableDirectory() /
+		GetRuntimeRoot() /
 		project_path
 	).lexically_normal();
 }

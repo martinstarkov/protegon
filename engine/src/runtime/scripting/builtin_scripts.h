@@ -451,7 +451,7 @@ enum class SceneTransitionStyle : std::uint8_t {
 /// scene_key must identify a scene in the active project's scene list.
 struct SceneChangeScript : public Script {
 	SceneChangeAction action{ SceneChangeAction::Switch };
-	std::string scene_key{ "Main" };
+	std::string scene_key{ "main" };
 
 	SceneTransitionStyle transition{ SceneTransitionStyle::None };
 	float duration_ms{ 500.0f };

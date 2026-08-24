@@ -251,17 +251,17 @@ bool IsWithinDirectory(const path& candidate, const path& directory) {
 [[nodiscard]] std::string_view ProjectAssetFolderName(AssetKind kind) {
 	switch (kind) {
 		using enum AssetKind;
-		case Texture: return "Textures";
-		case Audio: return "Audio";
-		case Font: return "Fonts";
-		case Shader: return "Shaders";
-		case Json: return "Data";
-		case Prefab: return "Prefabs";
-		case Scene: return "Scenes";
+		case Texture: return "textures";
+		case Audio: return "audio";
+		case Font: return "fonts";
+		case Shader: return "shaders";
+		case Json: return "data";
+		case Prefab: return "prefabs";
+		case Scene: return "scenes";
 		case Unknown: break;
 	}
 
-	return "Other";
+	return "other";
 }
 
 [[nodiscard]] std::optional<AssetKind> ProjectAssetKindFromFolderName(std::string_view name) {

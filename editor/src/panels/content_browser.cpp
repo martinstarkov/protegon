@@ -61,13 +61,13 @@ inline constexpr V2_int kEmbeddedIconSize{ 64, 64 };
 inline constexpr int kMinItemsPerRow{ 1 };
 inline constexpr int kMaxItemsPerRow{ 16 };
 inline constexpr std::array<std::pair<std::string_view, AssetKind>, 7> kAssetFilters{
-	std::pair{ std::string_view{ "Audio" }, AssetKind::Audio },
-	std::pair{ std::string_view{ "Data" }, AssetKind::Json },
-	std::pair{ std::string_view{ "Fonts" }, AssetKind::Font },
-	std::pair{ std::string_view{ "Prefabs" }, AssetKind::Prefab },
-	std::pair{ std::string_view{ "Scenes" }, AssetKind::Scene },
-	std::pair{ std::string_view{ "Shaders" }, AssetKind::Shader },
-	std::pair{ std::string_view{ "Textures" }, AssetKind::Texture },
+	std::pair{ std::string_view{ "audio" }, AssetKind::Audio },
+	std::pair{ std::string_view{ "data" }, AssetKind::Json },
+	std::pair{ std::string_view{ "fonts" }, AssetKind::Font },
+	std::pair{ std::string_view{ "prefabs" }, AssetKind::Prefab },
+	std::pair{ std::string_view{ "scenes" }, AssetKind::Scene },
+	std::pair{ std::string_view{ "shaders" }, AssetKind::Shader },
+	std::pair{ std::string_view{ "textures" }, AssetKind::Texture },
 };
 
 inline constexpr ImVec4 kSceneAssetBackground{ 0.13f, 0.23f, 0.38f, 1.0f };
@@ -1573,7 +1573,7 @@ void ContentBrowserPanel::DrawFolderTree(EditorContext& ctx) {
 	float measured_width{
 		leading_padding +
 		ImGui::GetTreeNodeToLabelSpacing() +
-		ImGui::CalcTextSize("Assets").x +
+		ImGui::CalcTextSize("assets").x +
 		trailing_padding
 	};
 
@@ -1603,8 +1603,8 @@ void ContentBrowserPanel::DrawFolderTree(EditorContext& ctx) {
 		root_flags |= ImGuiTreeNodeFlags_Selected;
 	}
 
-	measure_node("Assets");
-	const bool root_open{ ImGui::TreeNodeEx("Assets", root_flags) };
+	measure_node("assets");
+	const bool root_open{ ImGui::TreeNodeEx("assets", root_flags) };
 	if (ImGui::IsItemClicked(ImGuiMouseButton_Left) && !ImGui::IsItemToggledOpen()) {
 		selected_directory_.clear();
 		ClearAssetSelection();

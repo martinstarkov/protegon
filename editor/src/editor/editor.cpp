@@ -590,7 +590,7 @@ void SaveProjectManifest(Application& app, Project& project) {
 
 	path candidate{
 		project.asset_directory /
-		"Scenes" /
+		"scenes" /
 		(base + ".ptgnscene")
 	};
 
@@ -601,7 +601,7 @@ void SaveProjectManifest(Application& app, Project& project) {
 	for (std::size_t index{ 2 };; ++index) {
 		candidate =
 			project.asset_directory /
-			"Scenes" /
+			"scenes" /
 			(
 				base + " " +
 				std::to_string(index) +

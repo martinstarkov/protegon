@@ -42,7 +42,7 @@ struct Project {
 	path file_path;
 
 	/// @brief Project-relative root shown by the Content Browser.
-	path asset_directory{ "Assets" };
+	path asset_directory{ "assets" };
 
 	std::string startup_scene_key{};
 	std::vector<ProjectSceneEntry> scenes{};

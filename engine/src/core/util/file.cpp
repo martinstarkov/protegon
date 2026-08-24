@@ -162,7 +162,7 @@ path GetWorkingDirectory() {
 		". Falling back to runtime root."
 	);
 
-	return GetAssetRoot();
+	return GetRuntimeRoot();
 }
 
 path MergePaths(
@@ -255,7 +255,7 @@ path GetAbsolutePath(const path& file) {
 	}
 
 	return (
-		GetAssetRoot() /
+		GetRuntimeRoot() /
 		file
 	).lexically_normal();
 }
@@ -264,7 +264,7 @@ path GetRelativePath(const path& absolute_path) {
 	return absolute_path.relative_path();
 }
 
-path GetAssetRoot() {
+path GetRuntimeRoot() {
 	return impl::GetBuildInfo()
 		.runtime_root
 		.lexically_normal();
