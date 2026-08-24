@@ -435,10 +435,63 @@ void TerminateActiveProcess(const std::shared_ptr<impl::ExportSharedState>& stat
 	return source.filename() == "Logs";
 }
 
+[[nodiscard]] path NormalizeExportPath(const path& value) {
+	std::error_code error;
+
+	path result{ fs::absolute(value, error) };
+	if (error) {
+		return value.lexically_normal();
+	}
+
+	return result.lexically_normal();
+}
+
+[[nodiscard]] bool IsSameOrDescendantPath(
+	const path& candidate,
+	const path& directory
+) {
+	auto candidate_it{ candidate.begin() };
+	auto directory_it{ directory.begin() };
+
+	for (; directory_it != directory.end(); ++directory_it, ++candidate_it) {
+		if (candidate_it == candidate.end() ||
+			*candidate_it != *directory_it) {
+			return false;
+		}
+	}
+
+	return true;
+}
+
+[[nodiscard]] bool IsExcludedExportDirectory(
+	const path& source,
+	const std::vector<path>& excluded_directories
+) {
+	if (source.filename() == "Logs") {
+		return true;
+	}
+
+	const path normalized_source{
+		NormalizeExportPath(source)
+	};
+
+	return std::any_of(
+		excluded_directories.begin(),
+		excluded_directories.end(),
+		[&](const path& excluded) {
+			return IsSameOrDescendantPath(
+				normalized_source,
+				excluded
+			);
+		}
+	);
+}
+
 [[nodiscard]] std::uintmax_t CountExportFiles(
 	const path& source,
 	bool include_editor,
-	const std::shared_ptr<impl::ExportSharedState>& state
+	const std::shared_ptr<impl::ExportSharedState>& state,
+	const std::vector<path>& excluded_directories
 ) {
 	std::uintmax_t count{};
 	std::error_code error;
@@ -446,13 +499,17 @@ void TerminateActiveProcess(const std::shared_ptr<impl::ExportSharedState>& stat
 	if (fs::is_regular_file(source, error)) {
 		return 1;
 	}
+
 	error.clear();
 
 	if (!fs::is_directory(source, error)) {
 		return 1;
 	}
 
-	if (IsExcludedExportDirectory(source)) {
+	if (IsExcludedExportDirectory(
+			source,
+			excluded_directories
+		)) {
 		return 1;
 	}
 
@@ -468,9 +525,13 @@ void TerminateActiveProcess(const std::shared_ptr<impl::ExportSharedState>& stat
 		const path source_path{ it->path() };
 
 		if (it->is_directory(error)) {
-			if (IsExcludedExportDirectory(source_path)) {
+			if (IsExcludedExportDirectory(
+					source_path,
+					excluded_directories
+				)) {
 				it.disable_recursion_pending();
 			}
+
 			error.clear();
 			continue;
 		}
@@ -480,9 +541,13 @@ void TerminateActiveProcess(const std::shared_ptr<impl::ExportSharedState>& stat
 		}
 
 		if (it->is_regular_file(error) &&
-			!IsExcludedExportFile(source_path, include_editor)) {
+			!IsExcludedExportFile(
+				source_path,
+				include_editor
+			)) {
 			++count;
 		}
+
 		error.clear();
 	}
 
@@ -497,9 +562,43 @@ void TerminateActiveProcess(const std::shared_ptr<impl::ExportSharedState>& stat
 	bool include_editor,
 	const std::shared_ptr<impl::ExportSharedState>& state,
 	float progress_base,
-	float progress_scale
+	float progress_scale,
+	std::vector<path> excluded_directories = {}
 ) {
 	std::error_code error;
+
+	const path normalized_source{
+		NormalizeExportPath(source)
+	};
+
+	const path normalized_destination{
+		NormalizeExportPath(destination)
+	};
+
+	if (normalized_source == normalized_destination) {
+		AppendOutputLine(
+			state,
+			"Export source and destination are the same: " +
+				source.string()
+		);
+		return false;
+	}
+
+	for (auto& excluded : excluded_directories) {
+		excluded = NormalizeExportPath(excluded);
+	}
+
+	// A copy destination inside the source must never be traversed.
+	// Otherwise the exporter recursively copies its own output.
+	if (IsSameOrDescendantPath(
+			normalized_destination,
+			normalized_source
+		)) {
+		excluded_directories.emplace_back(
+			normalized_destination
+		);
+	}
+
 	if (!fs::exists(source, error)) {
 		AppendOutputLine(state, "Missing export source: " + source.string());
 		return false;
@@ -520,7 +619,12 @@ void TerminateActiveProcess(const std::shared_ptr<impl::ExportSharedState>& stat
 	}
 
 	const std::uintmax_t total_files{
-		CountExportFiles(source, include_editor, state)
+		CountExportFiles(
+			source,
+			include_editor,
+			state,
+			excluded_directories
+		)
 	};
 	std::uintmax_t copied_files{};
 
@@ -582,7 +686,7 @@ void TerminateActiveProcess(const std::shared_ptr<impl::ExportSharedState>& stat
 		return false;
 	}
 
-	if (IsExcludedExportDirectory(source)) {
+	if (IsExcludedExportDirectory(source, excluded_directories)) {
 		state->progress.store(
 			progress_base + progress_scale,
 			std::memory_order_relaxed
@@ -607,7 +711,7 @@ void TerminateActiveProcess(const std::shared_ptr<impl::ExportSharedState>& stat
 		const path source_path{ it->path() };
 
 		if (it->is_directory(error)) {
-			if (IsExcludedExportDirectory(source_path)) {
+			if (IsExcludedExportDirectory(source_path, excluded_directories)) {
 				it.disable_recursion_pending();
 				error.clear();
 				continue;
@@ -955,11 +1059,22 @@ bool ExportManager::Export(
 					);
 
 					std::error_code error;
+
 					fs::remove_all(
 						staging_root,
 						error
 					);
-					error.clear();
+
+					if (error) {
+						AppendOutputLine(
+							state,
+							"Failed to clear project snapshot staging directory: " +
+								staging_root.string() +
+								" | " +
+								error.message()
+						);
+						return result;
+					}
 
 					const path destination{
 						request.project_mount.empty()
@@ -972,18 +1087,57 @@ bool ExportManager::Export(
 						state,
 						"Creating project snapshot..."
 					);
+
+					std::error_code error;
+
+					fs::create_directories(destination, error);
+					if (error) {
+						AppendOutputLine(
+							state,
+							"Failed to create project snapshot directory: " +
+								error.message()
+						);
+						return result;
+					}
+
+					const path project_directory{
+						request.project_directory.value()
+					};
+
+					const path project_file{
+						project_directory /
+							(project_directory.filename().string() + ".ptgnproj")
+					};
+
 					if (!CopyExportSource(
-							request.project_directory.value(),
-							destination,
+							project_file,
+							destination / project_file.filename(),
 							true,
-							true,
+							false,
 							request.include_editor,
 							state,
 							0.0f,
-							0.10f
+							0.01f
 						)) {
 						result.cancelled = IsCancelled(state);
 						return result;
+					}
+
+					if (!request.asset_source_directory.empty()) {
+						if (!CopyExportSource(
+								request.asset_source_directory,
+								destination /
+									request.asset_source_directory.filename(),
+								true,
+								true,
+								request.include_editor,
+								state,
+								0.01f,
+								0.09f
+							)) {
+							result.cancelled = IsCancelled(state);
+							return result;
+						}
 					}
 
 					staged_project_directory = destination;

@@ -47,13 +47,15 @@ struct ExportRequest {
 	/// @brief Whether PTGN_EDITOR is enabled in the exported executable.
 	bool include_editor{ false };
 
-	/// @brief Final user-selected distribution directory.
+	/// @brief Final user selected distribution directory.
 	path output_directory{};
 
 	/// @brief Project directory to export/package. Empty for projectless StartWith<T>() applications.
 	std::optional<path> project_directory{};
 
-	/// @brief Runtime-relative mount of project_directory.
+	std::optional<path> project_file;
+
+	/// @brief Runtime relative mount of project_directory.
 	/// Example: AnimationScriptProject.
 	path project_mount{};
 
