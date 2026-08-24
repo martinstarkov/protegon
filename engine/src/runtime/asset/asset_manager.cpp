@@ -2173,8 +2173,7 @@ path AssetManager::ResolvePathBackedAssetSource(
 
 	if (project_root_) {
 		path project_candidate{
-			(project_root_.value() /
-			 source_path)
+			(project_root_.value() / source_path)
 				.lexically_normal()
 		};
 
@@ -2183,15 +2182,57 @@ path AssetManager::ResolvePathBackedAssetSource(
 		}
 	}
 
-	if (FileExists(source_path)) {
-		return GetAbsolutePath(
-			source_path
-		).lexically_normal();
-	}
-
 	const auto& build_info{
 		impl::GetBuildInfo()
 	};
+
+	if (!build_info.asset_directory.empty()) {
+		path asset_relative{
+			source_path.lexically_normal()
+		};
+
+		// Paths supplied by game code normally begin with "assets/",
+		// while asset_directory itself already points at that directory.
+		//
+		// Example:
+		//   source_path      = assets/animation_frames4.png
+		//   asset_directory  = /protegon/examples/assets
+		//
+		// Resolve to:
+		//   /protegon/examples/assets/animation_frames4.png
+		auto component{
+			asset_relative.begin()
+		};
+
+		if (
+			component != asset_relative.end() &&
+			*component ==
+				build_info.asset_directory.filename()
+		) {
+			++component;
+
+			path stripped;
+
+			for (;
+				 component != asset_relative.end();
+				 ++component) {
+				stripped /= *component;
+			}
+
+			asset_relative = std::move(stripped);
+		}
+
+		path asset_candidate{
+			(build_info.asset_directory /
+			 asset_relative)
+				.lexically_normal()
+		};
+
+		if (FileExists(asset_candidate)) {
+			return asset_candidate;
+		}
+	}
+
 	path runtime_candidate{
 		(build_info.runtime_root /
 		 source_path)
