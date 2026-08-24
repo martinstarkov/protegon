@@ -43,38 +43,76 @@ std::string TypeNameWithoutNamespaces(std::string_view type) {
 }
 
 void ValidateProject(const Project& project) {
-	PTGN_ASSERT(!project.asset_directory.empty(), "Project asset directory cannot be empty");
+	PTGN_ASSERT(
+		!project.asset_directory.empty(),
+		"Project asset directory cannot be empty"
+	);
+
 	PTGN_ASSERT(
 		!project.asset_directory.is_absolute() &&
 			!project.asset_directory.lexically_normal().generic_string().starts_with(".."),
 		"Project asset directory must remain inside the project root: ",
 		project.asset_directory.string()
 	);
-	PTGN_ASSERT(!project.startup_scene_key.empty(), "Project startup scene key cannot be empty");
-	PTGN_ASSERT(!project.scenes.empty(), "Project must contain at least one scene");
+
+	if (project.scenes.empty()) {
+		PTGN_ASSERT(
+			project.startup_scene_key.empty(),
+			"Project with no scenes cannot have a startup scene"
+		);
+	} else {
+		PTGN_ASSERT(
+			!project.startup_scene_key.empty(),
+			"Project with scenes must have a startup scene"
+		);
+
+		PTGN_ASSERT(
+			FindProjectScene(
+				project,
+				project.startup_scene_key
+			),
+			"Project startup scene key is not present in the scene list: ",
+			project.startup_scene_key
+		);
+	}
 
 	for (std::size_t i{ 0 }; i < project.scenes.size(); ++i) {
 		const auto& scene{ project.scenes[i] };
-		PTGN_ASSERT(!scene.key.empty(), "Project scene key cannot be empty");
-		PTGN_ASSERT(!scene.display_name.empty(), "Project scene display name cannot be empty");
-		PTGN_ASSERT(!scene.scene_path.empty(), "Project scene path cannot be empty");
+
+		PTGN_ASSERT(
+			!scene.key.empty(),
+			"Project scene key cannot be empty"
+		);
+
+		PTGN_ASSERT(
+			!scene.display_name.empty(),
+			"Project scene display name cannot be empty"
+		);
+
+		PTGN_ASSERT(
+			!scene.scene_path.empty(),
+			"Project scene path cannot be empty"
+		);
 
 		for (std::size_t j{ i + 1 }; j < project.scenes.size(); ++j) {
 			const auto& other{ project.scenes[j] };
-			PTGN_ASSERT(scene.key != other.key, "Duplicate project scene key: ", scene.key);
+
 			PTGN_ASSERT(
-				!ScenePathsEqual(scene.scene_path, other.scene_path),
+				scene.key != other.key,
+				"Duplicate project scene key: ",
+				scene.key
+			);
+
+			PTGN_ASSERT(
+				!ScenePathsEqual(
+					scene.scene_path,
+					other.scene_path
+				),
 				"Duplicate project scene path: ",
 				scene.scene_path.string()
 			);
 		}
 	}
-
-	PTGN_ASSERT(
-		FindProjectScene(project, project.startup_scene_key),
-		"Project startup scene key is not present in the scene list: ",
-		project.startup_scene_key
-	);
 }
 
 std::string SanitizeAssetKeyBase(const path& source_path) {
@@ -310,38 +348,45 @@ Project LoadProject(const path& file_path, const ProjectSettings& default_settin
 
 Project CreateProject(
 	const path& file_path,
-	const impl::SceneRegistryEntry& default_scene,
+	const impl::SceneRegistryEntry* default_scene,
 	ProjectSettings settings
 ) {
 	Project project{
 		.name = file_path.stem().string(),
 		.file_path = file_path,
 		.asset_directory = "assets",
-		.startup_scene_key = "main",
-		.scenes = {
-			ProjectSceneEntry{
-				.key = "main",
-				.display_name = TypeNameWithoutNamespaces(default_scene.type),
-				.scene_path = path{ "assets" } / "scenes" / "main.ptgnscene",
-			},
-		},
 		.settings = std::move(settings),
 	};
 
 	EnsureProjectAssetDirectories(project);
 
-	SaveSceneFile(
-		GetStartupScenePath(project),
-		SerializedScene{
-			.type = default_scene.type,
-			.parameters = default_scene.default_parameters(),
-			.assets = {},
-			.preload_assets = {},
-			.content = std::nullopt,
-		}
-	);
+	if (default_scene) {
+		project.startup_scene_key = "main";
+
+		project.scenes.emplace_back(
+			ProjectSceneEntry{
+				.key = "main",
+				.display_name = TypeNameWithoutNamespaces(
+					default_scene->type
+				),
+				.scene_path = path{ "assets" } / "scenes" / "main.ptgnscene",
+			}
+		);
+
+		SaveSceneFile(
+			GetStartupScenePath(project),
+			SerializedScene{
+				.type = default_scene->type,
+				.parameters = default_scene->default_parameters(),
+				.assets = {},
+				.preload_assets = {},
+				.content = std::nullopt,
+			}
+		);
+	}
 
 	SaveProject(project);
+
 	return project;
 }
 

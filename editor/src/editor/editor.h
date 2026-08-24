@@ -178,7 +178,6 @@ private:
 
 	Application& app;
 
-	void SavePendingBootstrapScenes();
 	void SyncProjectSceneOrder();
 	void UpdateProjectLocalState();
 	void UpdateRuntimeViewportState();
@@ -231,7 +230,6 @@ private:
 	bool scene_asset_dependencies_dirty_{ true };
 	bool untracked_project_dirty_{ false };
 	bool runtime_was_active_{ false };
-	std::unordered_set<std::string> pending_scene_bootstrap_saves_;
 
 #if !defined(__EMSCRIPTEN__)
 	ExportManager export_manager_;

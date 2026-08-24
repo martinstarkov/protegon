@@ -46,10 +46,11 @@ public:
 	void SetScreenEffectsEnabled(bool enabled);
 	[[nodiscard]] bool AreScreenEffectsEnabled() const;
 
-	/// @brief Opens an existing project. The project file must already exist.
+	/// @brief Opens an existing project or creates an empty project when it does not exist.
 	void StartProject(const path& project_path = {});
 
-	/// @brief Opens a project or creates it with TDefaultScene when it does not exist.
+	/// @brief Opens an existing project or creates it with TDefaultScene as its initial scene when it
+	/// does not exist.
 	template <SceneType TDefaultScene>
 		requires std::default_initializable<TDefaultScene>
 	void StartProject(const path& project_path = {}) {

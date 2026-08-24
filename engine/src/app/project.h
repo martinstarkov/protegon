@@ -68,7 +68,7 @@ Project LoadProject(const path& file_path, const ProjectSettings& default_settin
 
 Project CreateProject(
 	const path& file_path,
-	const impl::SceneRegistryEntry& default_scene,
+	const impl::SceneRegistryEntry* default_scene,
 	ProjectSettings settings = {}
 );
 

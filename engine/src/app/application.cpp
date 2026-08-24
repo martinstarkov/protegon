@@ -306,15 +306,9 @@ void Application::StartProjectImpl(
 			resolved_project_path.string()
 		);
 #else
-		PTGN_ASSERT(
-			default_scene,
-			"No project could be found and no default scene was supplied: ",
-			resolved_project_path.string()
-		);
-
 		project = CreateProject(
 			resolved_project_path,
-			*default_scene,
+			default_scene,
 			application_defaults
 		);
 #endif
