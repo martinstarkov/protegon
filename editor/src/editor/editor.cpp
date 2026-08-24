@@ -3314,6 +3314,9 @@ ExportRequest Editor::MakeExportRequest() const {
 		const path project_file{
 			ResolveProjectFilePath(*project)
 		};
+		const path project_directory{
+			project_file.parent_path()
+		};
 		const path runtime_root{
 			ResolveProjectRuntimeRoot(
 				*project,
@@ -3321,13 +3324,26 @@ ExportRequest Editor::MakeExportRequest() const {
 			)
 		};
 
+		const path project_asset_directory{
+			project->asset_directory.is_absolute()
+				? project->asset_directory
+				: project_directory /
+					project->asset_directory
+		};
+
 		request.project_directory =
-			project_file.parent_path();
+			project_directory;
+		request.project_file =
+			project_file;
 		request.project_mount =
 			ProjectRuntimeMount(
 				*project,
 				project_file,
 				runtime_root
+			);
+		request.asset_source_directory =
+			NormalizeExistingPath(
+				project_asset_directory
 			);
 	}
 
@@ -3741,7 +3757,7 @@ void ConsolePanel::OnRender(EditorContext& ctx) {
 		};
 
 		const path output_path{
-			(root / "Logs" / MakeConsoleLogFilename()).lexically_normal()
+			(root / "logs" / MakeConsoleLogFilename()).lexically_normal()
 		};
 
 		if (::ptgn::impl::SaveConsoleOutput(output_path)) {

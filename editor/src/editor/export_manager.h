@@ -50,19 +50,27 @@ struct ExportRequest {
 	/// @brief Final user selected distribution directory.
 	path output_directory{};
 
-	/// @brief Project directory to export/package. Empty for projectless StartWith<T>() applications.
+	/// @brief Root directory of a project backed application.
+	/// Empty for projectless StartWith<T>() applications.
 	std::optional<path> project_directory{};
 
-	std::optional<path> project_file;
+	/// @brief Project manifest to package with a project backed application.
+	/// Prefer supplying this explicitly. project_directory/name.ptgnproj is used
+	/// as a backward compatible fallback when this is empty.
+	std::optional<path> project_file{};
 
-	/// @brief Runtime relative mount of project_directory.
+	/// @brief Runtime relative mount of the packaged project.
 	/// Example: AnimationScriptProject.
 	path project_mount{};
 
-	/// @brief Host/source asset directory used only for projectless Desktop exports.
-	/// Project-backed exports use only project_directory because foreign assets are localized into it.
+	/// @brief Resolved runtime asset directory.
+	/// For project backed exports, this is the project's actual asset directory.
+	/// For projectless Desktop exports, this is the application asset directory.
+	/// If omitted for a project backed export, "assets" and then "Assets" under
+	/// project_directory are used as compatibility fallbacks.
 	path asset_source_directory{};
 
+	/// @brief Whether an existing final distribution may be replaced.
 	bool replace_existing{ false };
 };
 

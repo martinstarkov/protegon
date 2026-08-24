@@ -429,12 +429,6 @@ void TerminateActiveProcess(const std::shared_ptr<impl::ExportSharedState>& stat
 		   (!include_editor && extension == ".ptgneditor");
 }
 
-[[nodiscard]] bool IsExcludedExportDirectory(
-	const path& source
-) {
-	return source.filename() == "Logs";
-}
-
 [[nodiscard]] path NormalizeExportPath(const path& value) {
 	std::error_code error;
 
@@ -467,7 +461,7 @@ void TerminateActiveProcess(const std::shared_ptr<impl::ExportSharedState>& stat
 	const path& source,
 	const std::vector<path>& excluded_directories
 ) {
-	if (source.filename() == "Logs") {
+	if (source.filename() == "logs") {
 		return true;
 	}
 
@@ -580,6 +574,20 @@ void TerminateActiveProcess(const std::shared_ptr<impl::ExportSharedState>& stat
 			state,
 			"Export source and destination are the same: " +
 				source.string()
+		);
+		return false;
+	}
+
+	if (replace_existing &&
+		remove_destination_before_copy &&
+		IsSameOrDescendantPath(
+			normalized_source,
+			normalized_destination
+		)) {
+		AppendOutputLine(
+			state,
+			"Refusing to replace export destination because it contains "
+			"the source: " + destination.string()
 		);
 		return false;
 	}
@@ -996,7 +1004,8 @@ bool ExportManager::Export(
 		std::memory_order_relaxed
 	);
 	state->phase.store(
-		request.project_directory.has_value()
+		request.project_directory.has_value() ||
+			request.project_file.has_value()
 			? ExportPhase::ProjectFiles
 			: ExportPhase::Build,
 		std::memory_order_relaxed
@@ -1047,30 +1056,32 @@ bool ExportManager::Export(
 				const bool web{
 					request.target == ExportTarget::Web
 				};
+				const bool has_project{
+					request.project_directory.has_value() ||
+					request.project_file.has_value()
+				};
+
 				std::optional<path> staged_project_directory;
 				const path staging_root{
 					build_directory / "runtime_staging"
 				};
+				const path desktop_build_output{
+					build_directory / "desktop_output"
+				};
 
-				if (request.project_directory) {
+				if (has_project) {
 					state->phase.store(
 						ExportPhase::ProjectFiles,
 						std::memory_order_relaxed
 					);
 
 					std::error_code error;
-
-					fs::remove_all(
-						staging_root,
-						error
-					);
-
+					fs::remove_all(staging_root, error);
 					if (error) {
 						AppendOutputLine(
 							state,
 							"Failed to clear project snapshot staging directory: " +
-								staging_root.string() +
-								" | " +
+								staging_root.string() + " | " +
 								error.message()
 						);
 						return result;
@@ -1079,16 +1090,8 @@ bool ExportManager::Export(
 					const path destination{
 						request.project_mount.empty()
 							? staging_root
-							: staging_root /
-								request.project_mount
+							: staging_root / request.project_mount
 					};
-
-					AppendOutputLine(
-						state,
-						"Creating project snapshot..."
-					);
-
-					std::error_code error;
 
 					fs::create_directories(destination, error);
 					if (error) {
@@ -1100,14 +1103,29 @@ bool ExportManager::Export(
 						return result;
 					}
 
-					const path project_directory{
-						request.project_directory.value()
-					};
+					AppendOutputLine(
+						state,
+						"Creating project snapshot..."
+					);
 
-					const path project_file{
-						project_directory /
-							(project_directory.filename().string() + ".ptgnproj")
-					};
+					path project_file;
+					if (request.project_file) {
+						project_file = request.project_file.value();
+					} else if (request.project_directory) {
+						// Backward-compatible fallback. Prefer supplying project_file.
+						project_file =
+							request.project_directory.value() /
+							(request.project_directory->filename().string() +
+							 ".ptgnproj");
+					}
+
+					if (project_file.empty()) {
+						AppendOutputLine(
+							state,
+							"Project-backed export has no project file."
+						);
+						return result;
+					}
 
 					if (!CopyExportSource(
 							project_file,
@@ -1123,11 +1141,32 @@ bool ExportManager::Export(
 						return result;
 					}
 
-					if (!request.asset_source_directory.empty()) {
+					path project_assets{ request.asset_source_directory };
+					if (project_assets.empty() && request.project_directory) {
+						// Compatibility fallback for existing callers. New callers should
+						// pass the resolved project asset directory explicitly.
+						std::error_code asset_error;
+						const path lowercase_assets{
+							request.project_directory.value() / "assets"
+						};
+						const path uppercase_assets{
+							request.project_directory.value() / "Assets"
+						};
+
+						if (fs::is_directory(lowercase_assets, asset_error)) {
+							project_assets = lowercase_assets;
+						} else {
+							asset_error.clear();
+							if (fs::is_directory(uppercase_assets, asset_error)) {
+								project_assets = uppercase_assets;
+							}
+						}
+					}
+
+					if (!project_assets.empty()) {
 						if (!CopyExportSource(
-								request.asset_source_directory,
-								destination /
-									request.asset_source_directory.filename(),
+								project_assets,
+								destination / project_assets.filename(),
 								true,
 								true,
 								request.include_editor,
@@ -1138,6 +1177,11 @@ bool ExportManager::Export(
 							result.cancelled = IsCancelled(state);
 							return result;
 						}
+					} else {
+						state->progress.store(
+							0.10f,
+							std::memory_order_relaxed
+						);
 					}
 
 					staged_project_directory = destination;
@@ -1154,15 +1198,23 @@ bool ExportManager::Export(
 				);
 
 				if (!web) {
+					std::error_code error;
+					fs::remove_all(desktop_build_output, error);
+					if (error) {
+						AppendOutputLine(
+							state,
+							"Failed to clear staged Desktop output: " +
+								desktop_build_output.string() + " | " +
+								error.message()
+						);
+						return result;
+					}
+
 					const float build_base{
-						request.project_directory
-							? 0.10f
-							: 0.0f
+						has_project ? 0.10f : 0.0f
 					};
 					const float build_scale{
-						request.project_directory
-							? 0.75f
-							: 0.80f
+						has_project ? 0.70f : 0.75f
 					};
 
 					if (!RunDistributionBuild(
@@ -1171,7 +1223,7 @@ bool ExportManager::Export(
 							request.configuration,
 							request.include_editor,
 							build_directory,
-							request.output_directory,
+							desktop_build_output,
 							std::nullopt,
 							{},
 							true,
@@ -1193,6 +1245,24 @@ bool ExportManager::Export(
 						std::memory_order_relaxed
 					);
 
+					AppendOutputLine(
+						state,
+						"Copying Desktop output..."
+					);
+					if (!CopyExportSource(
+							desktop_build_output,
+							request.output_directory,
+							request.replace_existing,
+							true,
+							request.include_editor,
+							state,
+							has_project ? 0.80f : 0.75f,
+							has_project ? 0.10f : 0.15f
+						)) {
+						result.cancelled = IsCancelled(state);
+						return result;
+					}
+
 					if (staged_project_directory) {
 						const path destination{
 							request.project_mount.empty()
@@ -1208,12 +1278,12 @@ bool ExportManager::Export(
 						if (!CopyExportSource(
 								staged_project_directory.value(),
 								destination,
-								request.replace_existing,
+								true,
 								!request.project_mount.empty(),
 								request.include_editor,
 								state,
-								0.85f,
-								0.15f
+								0.90f,
+								0.10f
 							)) {
 							result.cancelled = IsCancelled(state);
 							return result;
@@ -1228,12 +1298,12 @@ bool ExportManager::Export(
 								request.asset_source_directory,
 								request.output_directory /
 									request.asset_source_directory.filename(),
-								request.replace_existing,
+								true,
 								true,
 								request.include_editor,
 								state,
-								0.80f,
-								0.20f
+								0.90f,
+								0.10f
 							)) {
 							result.cancelled = IsCancelled(state);
 							return result;
@@ -1244,6 +1314,7 @@ bool ExportManager::Export(
 							std::memory_order_relaxed
 						);
 					}
+
 				} else {
 					if (!RunDistributionBuild(
 							info,
@@ -1254,12 +1325,12 @@ bool ExportManager::Export(
 							{},
 							staged_project_directory,
 							request.project_mount,
-							!request.project_directory.has_value(),
+							!has_project,
 							state,
-							request.project_directory
+							has_project
 								? 0.10f
 								: 0.0f,
-							request.project_directory
+							has_project
 								? 0.80f
 								: 0.90f
 						)) {
