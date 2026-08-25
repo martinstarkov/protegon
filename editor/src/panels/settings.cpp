@@ -234,8 +234,10 @@ static_assert(!ContainsDuplicates(kResolutionPresets, &ResolutionPreset::label))
 				filter,
 				{
 					"project display resolution source preset logical size scaling mode",
-					"window title window size default window size resizable start maximized",
-					"window background renderer background",
+					"window title window size current window size default window size "
+					"canvas css size resizable start maximized",
+					"window background renderer background presentation background "
+					"backbuffer framebuffer size current backbuffer size",
 				}
 			);
 
@@ -336,6 +338,21 @@ void DrawSectionTitle(std::string_view title) {
 	ImGui::TextUnformatted(title.data(), title.data() + title.size());
 	ImGui::Separator();
 	ImGui::Spacing();
+}
+
+[[nodiscard]] V2_int GetCurrentWindowSize(const Window& window) {
+#ifdef __EMSCRIPTEN__
+	// The browser canvas CSS size is the web equivalent of the native window content size.
+	return window.GetCanvasCssSize();
+#else
+	return window.GetSize();
+#endif
+}
+
+[[nodiscard]] V2_int GetCurrentBackbufferSize(const Renderer& renderer) {
+	// The presentation framebuffer is resized to the display viewport size. Keep this in
+	// presentation/window coordinates rather than using the DPI-scaled native framebuffer size.
+	return Ceil(renderer.GetDisplayViewport().size);
 }
 
 bool DrawResolutionMode(EditorContext& ctx) {
@@ -469,18 +486,6 @@ bool DrawProjectDisplaySettings(
 					changed = true;
 				}
 			}
-		} else if (MatchesFilter(filter, { "window size", "current window size" })) {
-			V2_int window_size{ renderer.GetDisplayViewport().size };
-
-			DrawWHValue(
-				"Window Size",
-				window_size,
-				1.0f,
-				0,
-				0,
-				ImGuiSliderFlags_None,
-				true
-			);
 		}
 	}
 
@@ -489,6 +494,8 @@ bool DrawProjectDisplaySettings(
 			filter,
 			{
 				"window title",
+				"current window size",
+				"canvas css size",
 				"default window size",
 				"resizable",
 				"start maximized",
@@ -508,6 +515,20 @@ bool DrawProjectDisplaySettings(
 				ctx,
 				"Window Title",
 				window_settings.title
+			);
+		}
+
+		if (MatchesFilter(filter, { "current window size", "window size", "canvas css size" })) {
+			auto current_window_size{ GetCurrentWindowSize(window) };
+
+			DrawWHValue(
+				"Current Window Size",
+				current_window_size,
+				1.0f,
+				0,
+				0,
+				ImGuiSliderFlags_None,
+				true
 			);
 		}
 
@@ -545,13 +566,45 @@ bool DrawProjectDisplaySettings(
 		}
 	}
 
-	if (MatchesFilter(filter, { "renderer background", "presentation background" })) {
+	const bool show_presentation{
+		MatchesFilter(
+			filter,
+			{
+				"renderer background",
+				"presentation background",
+				"backbuffer size",
+				"current backbuffer size",
+				"framebuffer size",
+			}
+		)
+	};
+
+	if (show_presentation) {
 		DrawSectionTitle("Presentation");
 
-		auto background{ renderer.GetSettings().background_color };
-		if (DrawValue(ctx, "Renderer Background", background)) {
-			renderer.SetBackgroundColor(background);
-			changed = true;
+		if (MatchesFilter(
+				filter,
+				{ "backbuffer size", "current backbuffer size", "framebuffer size" }
+			)) {
+			auto backbuffer_size{ GetCurrentBackbufferSize(renderer) };
+
+			DrawWHValue(
+				"Current Backbuffer Size",
+				backbuffer_size,
+				1.0f,
+				0,
+				0,
+				ImGuiSliderFlags_None,
+				true
+			);
+		}
+
+		if (MatchesFilter(filter, { "renderer background", "presentation background" })) {
+			auto background{ renderer.GetSettings().background_color };
+			if (DrawValue(ctx, "Renderer Background", background)) {
+				renderer.SetBackgroundColor(background);
+				changed = true;
+			}
 		}
 	}
 
