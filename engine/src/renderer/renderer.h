@@ -575,8 +575,11 @@ private:
 		SetCurrentPipeline("texture");
 		SetMaterial(
 			MaterialState{
-				.shader				   = GetShader("texture"),
-				.texture_slot_capacity = GetMaxTextureSlots(),
+				.shader = GetShader("passthrough"),
+				.uniforms = {
+					UniformWrite{ "u_Texture", 0 },
+				},
+				.texture_slot_capacity = 1,
 			}
 		);
 		SetBlendMode(BlendMode::ReplaceRGBA);
