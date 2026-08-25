@@ -784,8 +784,13 @@ WindowSettings Window::GetSettings() const {
 	return window_settings_;
 }
 
-void Window::SetSettings(const WindowSettings& settings) {
-	PTGN_ASSERT(settings.size.IsPositive(), "Window settings size must be positive");
+void Window::SetSettings(
+	const WindowSettings& settings
+) {
+	PTGN_ASSERT(
+		settings.size.IsPositive(),
+		"Window settings size must be positive"
+	);
 
 	window_settings_ = settings;
 
@@ -798,20 +803,32 @@ void Window::SetSettings(const WindowSettings& settings) {
 		SetFixedSize();
 	}
 
+#ifdef __EMSCRIPTEN__
+	// WindowSettings::size is the project's default native window size.
+	// On the web, the live window size is controlled by the canvas CSS.
+	ResizeCanvasToCssSize(*this);
+	return;
+#else
 	if (GetSetting(WindowSetting::Fullscreen)) {
 		return;
 	}
 
-	if (GetSetting(WindowSetting::Maximized) ||
-		GetSetting(WindowSetting::Minimized)) {
+	if (
+		GetSetting(WindowSetting::Maximized) ||
+		GetSetting(WindowSetting::Minimized)
+	) {
 		SetSetting(WindowSetting::Restored);
 	}
 
-	SetSize(settings.size, false);
+	SetSize(
+		settings.size,
+		false
+	);
 
 	if (settings.maximized) {
 		SetSetting(WindowSetting::Maximized);
 	}
+#endif
 }
 
 WindowLocalSettings Window::GetLocalSettings() const {

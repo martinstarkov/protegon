@@ -509,16 +509,47 @@ void Application::StartWithFactory(
 
 void Application::EnterMainLoop() {
 	// Only show window after initialization has completed.
-	ctx_.window.SetSetting(WindowSetting::Shown);
+	ctx_.window.SetSetting(
+		WindowSetting::Shown
+	);
 
 	ctx_.running = true;
+
+#ifdef __EMSCRIPTEN__
+	// The canvas layout is authoritative on the web. Reread it after
+	// initialization and after showing the window so the first rendered
+	// frame uses the actual browser viewport dimensions.
+	const V2_int canvas_size{
+		ctx_.window.GetCanvasCssSize()
+	};
+
+	if (
+		canvas_size.IsPositive() &&
+		ctx_.window.GetSize() != canvas_size
+	) {
+		ctx_.window.SetSize(
+			canvas_size,
+			false
+		);
+	}
+
+	// Force the renderer to reconsider its presentation/display viewport
+	// before the first frame.
+	ctx_.renderer.OnOutputResize(
+		ctx_.window.GetSize()
+	);
+#endif
 
 	ctx_.renderer.UpdateDisplayViewport(true);
 
 #ifdef __EMSCRIPTEN__
 	emscripten_set_main_loop_arg(
 		[](void* application) {
-			auto& app{ *static_cast<Application*>(application) };
+			auto& app{
+				*static_cast<Application*>(
+					application
+				)
+			};
 
 			app.Update();
 
@@ -526,7 +557,9 @@ void Application::EnterMainLoop() {
 				emscripten_cancel_main_loop();
 			}
 		},
-		this, /*fps=*/0, /*simulateInfiniteLoop=*/true
+		this,
+		/*fps=*/0,
+		/*simulateInfiniteLoop=*/true
 	);
 #else
 	while (ctx_.running) {
@@ -542,6 +575,10 @@ void Application::HandleGlobalEvents(bool dispatch_scene_events) {
 		Event event{ global_event };
 		event.Dispatch<event::WindowResized>([this](const auto& size) {
 			ctx_.renderer.OnOutputResize(size);
+
+			// Apply the new output dimensions immediately so everything
+			// handling this frame sees the current display viewport.
+			ctx_.renderer.UpdateDisplayViewport();
 		});
 		if (!dispatch_scene_events) {
 			continue;
