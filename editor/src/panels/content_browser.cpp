@@ -56,6 +56,13 @@ bool accepted_asset_key_drop{ false };
 std::optional<ShaderKey> requested_shader_editor;
 std::vector<ContentBrowserAssetSelection> dragged_asset_keys;
 bool dragged_asset_move_allowed{ true };
+
+#if defined(__EMSCRIPTEN__)
+inline constexpr bool kAssetImportCreateMoveEnabled{ false };
+#else
+inline constexpr bool kAssetImportCreateMoveEnabled{ true };
+#endif
+
 inline constexpr std::string_view kBuiltinShaderDirectoryName{ "Built-In" };
 inline constexpr V2_int kEmbeddedIconSize{ 64, 64 };
 inline constexpr int kMinItemsPerRow{ 1 };
@@ -154,6 +161,10 @@ void BeginAssetKeyDragDropSource(
 }
 
 std::optional<std::vector<ContentBrowserAssetSelection>> AcceptAssetMovePayload() {
+	if constexpr (!kAssetImportCreateMoveEnabled) {
+		return std::nullopt;
+	}
+
 	if (!ImGui::BeginDragDropTarget()) {
 		return std::nullopt;
 	}
@@ -1150,7 +1161,13 @@ void ContentBrowserPanel::DrawToolbar(EditorContext& ctx) {
 	const bool can_mutate{ ctx.undo.IsUndoRedoEnabled() };
 
 	const bool built_in_directory{ IsBuiltinShaderDirectory(selected_directory_) };
-	ImGui::BeginDisabled(!can_mutate || built_in_directory);
+
+	const bool can_import{
+		can_mutate &&
+		!built_in_directory &&
+		kAssetImportCreateMoveEnabled
+	};
+	ImGui::BeginDisabled(!can_import);
 	if (ImGui::Button("Import...")) {
 		auto result{ ctx.editor.GetWindow().file.OpenFiles(ImportOptions()) };
 		if (!result.has_value()) {
@@ -1159,16 +1176,31 @@ void ContentBrowserPanel::DrawToolbar(EditorContext& ctx) {
 			ImportFiles(ctx, result->value());
 		}
 	}
+#if defined(__EMSCRIPTEN__)
+	if (ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled)) {
+		ImGui::SetTooltip("Importing assets is unavailable in the Web editor.");
+	}
+#endif
+	ImGui::EndDisabled();
+
 	ImGui::SameLine();
+
 	const bool can_create_folder{
-		AssetDirectoryKind(selected_directory_).has_value() && !built_in_directory
+		can_mutate &&
+		AssetDirectoryKind(selected_directory_).has_value() &&
+		!built_in_directory &&
+		kAssetImportCreateMoveEnabled
 	};
 	ImGui::BeginDisabled(!can_create_folder);
 	if (ImGui::Button("New Folder")) {
 		create_folder_parent_ = selected_directory_;
 		new_folder_name_.clear();
 	}
-	ImGui::EndDisabled();
+#if defined(__EMSCRIPTEN__)
+	if (ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled)) {
+		ImGui::SetTooltip("Creating asset folders is unavailable in the Web editor.");
+	}
+#endif
 	ImGui::EndDisabled();
 
 	ImGui::SameLine();
@@ -1233,6 +1265,11 @@ bool ContentBrowserPanel::CreateDirectory(
 	const path& parent_directory,
 	std::string_view name
 ) {
+	if constexpr (!kAssetImportCreateMoveEnabled) {
+		status_ = "Creating asset folders is unavailable in the Web editor.";
+		return false;
+	}
+
 	if (!ctx.undo.IsUndoRedoEnabled() || !AssetDirectoryKind(parent_directory).has_value() ||
 		IsBuiltinShaderDirectory(parent_directory) ||
 		(IsBaseAssetDirectory(parent_directory) &&
@@ -1309,6 +1346,11 @@ bool ContentBrowserPanel::RenameDirectory(
 }
 
 bool ContentBrowserPanel::MoveSelectedAssets(EditorContext& ctx, const path& destination_directory) {
+	if constexpr (!kAssetImportCreateMoveEnabled) {
+		status_ = "Moving assets is unavailable in the Web editor.";
+		return false;
+	}
+
 	if (!ctx.undo.IsUndoRedoEnabled() || selected_assets_.empty()) {
 		return false;
 	}
@@ -1665,14 +1707,23 @@ void ContentBrowserPanel::DrawFolderTree(EditorContext& ctx) {
 			}
 
 			if (ImGui::BeginPopup("##DirectoryContext")) {
-				ImGui::BeginDisabled(!ctx.undo.IsUndoRedoEnabled());
-
+				ImGui::BeginDisabled(
+					!ctx.undo.IsUndoRedoEnabled() ||
+					!kAssetImportCreateMoveEnabled
+				);
 				if (ImGui::MenuItem("New Folder")) {
 					create_folder_parent_ = relative;
 					new_folder_name_.clear();
 				}
+#if defined(__EMSCRIPTEN__)
+				if (ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled)) {
+					ImGui::SetTooltip("Creating asset folders is unavailable in the Web editor.");
+				}
+#endif
+				ImGui::EndDisabled();
 
 				if (IsUserAssetDirectory(relative)) {
+					ImGui::BeginDisabled(!ctx.undo.IsUndoRedoEnabled());
 					if (ImGui::MenuItem("Rename...")) {
 						rename_directory_ = relative;
 						rename_directory_value_ = relative.filename().string();
@@ -1680,9 +1731,9 @@ void ContentBrowserPanel::DrawFolderTree(EditorContext& ctx) {
 					if (ImGui::MenuItem("Delete...")) {
 						pending_delete_ = PendingDeleteState{ .directory = relative };
 					}
+					ImGui::EndDisabled();
 				}
 
-				ImGui::EndDisabled();
 				ImGui::EndPopup();
 			}
 		}
@@ -1884,12 +1935,24 @@ void ContentBrowserPanel::DrawAssetGrid(EditorContext& ctx) {
 						selected_directory_ = relative;
 						ClearAssetSelection();
 					}
-					ImGui::BeginDisabled(!ctx.undo.IsUndoRedoEnabled());
+
+					ImGui::BeginDisabled(
+						!ctx.undo.IsUndoRedoEnabled() ||
+						!kAssetImportCreateMoveEnabled
+					);
 					if (ImGui::MenuItem("New Folder")) {
 						create_folder_parent_ = relative;
 						new_folder_name_.clear();
 					}
+#if defined(__EMSCRIPTEN__)
+					if (ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled)) {
+						ImGui::SetTooltip("Creating asset folders is unavailable in the Web editor.");
+					}
+#endif
+					ImGui::EndDisabled();
+
 					if (IsUserAssetDirectory(relative)) {
+						ImGui::BeginDisabled(!ctx.undo.IsUndoRedoEnabled());
 						if (ImGui::MenuItem("Rename...")) {
 							rename_directory_ = relative;
 							rename_directory_value_ = child_name.string();
@@ -1897,8 +1960,9 @@ void ContentBrowserPanel::DrawAssetGrid(EditorContext& ctx) {
 						if (ImGui::MenuItem("Delete...")) {
 							pending_delete_ = PendingDeleteState{ .directory = relative };
 						}
+						ImGui::EndDisabled();
 					}
-					ImGui::EndDisabled();
+
 					ImGui::EndPopup();
 				}
 			}
