@@ -3049,13 +3049,11 @@ void Editor::DrawMainMenuBar() {
 		ImGui::Separator();
 #endif
 
-#if !defined(__EMSCRIPTEN__)
 		if (ImGui::MenuItem("Settings...")) {
 			settings_window_.Open(
 				SettingsPage::ProjectDisplay
 			);
 		}
-#endif
 
 		ImGui::EndMenu();
 	}
