@@ -65,6 +65,228 @@ struct CopySource {
 		: std::string_view{ "Release" };
 }
 
+[[nodiscard]] bool IsCommandFileUsable(const path& candidate) {
+	std::error_code error;
+	if (!fs::is_regular_file(candidate, error) || error) {
+		return false;
+	}
+
+#if defined(_WIN32)
+	return true;
+#else
+	return access(candidate.c_str(), X_OK) == 0;
+#endif
+}
+
+[[nodiscard]] std::vector<std::string> SplitEnvironmentList(
+	std::string_view value,
+	char separator
+) {
+	std::vector<std::string> result;
+	std::size_t start{};
+
+	while (start <= value.size()) {
+		const auto end{ value.find(separator, start) };
+		const auto length{
+			end == std::string_view::npos
+				? value.size() - start
+				: end - start
+		};
+
+		if (length > 0) {
+			result.emplace_back(value.substr(start, length));
+		}
+
+		if (end == std::string_view::npos) {
+			break;
+		}
+		start = end + 1;
+	}
+
+	return result;
+}
+
+[[nodiscard]] bool CommandExists(std::string_view command) {
+	if (command.empty()) {
+		return false;
+	}
+
+	const path command_path{ command };
+	if (command_path.has_parent_path()) {
+		return IsCommandFileUsable(command_path);
+	}
+
+	const char* path_value{ std::getenv("PATH") };
+	if (!path_value || *path_value == '\0') {
+		return false;
+	}
+
+#if defined(_WIN32)
+	constexpr char kPathSeparator{ ';' };
+	std::vector<std::string> extensions;
+
+	if (command_path.has_extension()) {
+		extensions.emplace_back();
+	} else {
+		const char* path_ext_value{ std::getenv("PATHEXT") };
+		if (path_ext_value && *path_ext_value != '\0') {
+			extensions = SplitEnvironmentList(path_ext_value, ';');
+		}
+		if (extensions.empty()) {
+			extensions = { ".COM", ".EXE", ".BAT", ".CMD" };
+		}
+	}
+#else
+	constexpr char kPathSeparator{ ':' };
+#endif
+
+	for (const auto& directory : SplitEnvironmentList(path_value, kPathSeparator)) {
+		const path base{ path{ directory } / command_path };
+
+#if defined(_WIN32)
+		if (command_path.has_extension()) {
+			if (IsCommandFileUsable(base)) {
+				return true;
+			}
+			continue;
+		}
+
+		for (const auto& extension : extensions) {
+			path candidate{ base };
+			candidate += extension;
+			if (IsCommandFileUsable(candidate)) {
+				return true;
+			}
+		}
+#else
+		if (IsCommandFileUsable(base)) {
+			return true;
+		}
+#endif
+	}
+
+	return false;
+}
+
+void AddMissingCommand(
+	std::vector<std::string>& missing,
+	std::string_view command
+) {
+	if (!CommandExists(command)) {
+		missing.emplace_back(command);
+	}
+}
+
+[[nodiscard]] std::optional<std::string> NativeBuildCommand(
+	std::string_view generator
+) {
+	if (generator.find("Ninja") != std::string_view::npos) {
+		return std::string{ "ninja" };
+	}
+	if (generator.find("Unix Makefiles") != std::string_view::npos ||
+		generator.find("MSYS Makefiles") != std::string_view::npos) {
+		return std::string{ "make" };
+	}
+	if (generator.find("MinGW Makefiles") != std::string_view::npos) {
+		return std::string{ "mingw32-make" };
+	}
+	if (generator.find("NMake Makefiles JOM") != std::string_view::npos) {
+		return std::string{ "jom" };
+	}
+	if (generator.find("NMake Makefiles") != std::string_view::npos) {
+		return std::string{ "nmake" };
+	}
+	if (generator.find("Xcode") != std::string_view::npos) {
+		return std::string{ "xcodebuild" };
+	}
+	return std::nullopt;
+}
+
+[[nodiscard]] std::string JoinCommandNames(
+	const std::vector<std::string>& commands
+) {
+	std::string result;
+	for (std::size_t index{}; index < commands.size(); ++index) {
+		if (index > 0) {
+			result += ", ";
+		}
+		result += commands[index];
+	}
+	return result;
+}
+
+[[nodiscard]] ExportTargetAvailability CheckDesktopAvailability(
+	const ::ptgn::impl::BuildInfo& info
+) {
+	std::vector<std::string> missing;
+	AddMissingCommand(missing, "cmake");
+
+	if (const auto build_command{ NativeBuildCommand(info.generator) }) {
+		AddMissingCommand(missing, build_command.value());
+	}
+
+#if !defined(_WIN32)
+	// The native CMake project enables both C and CXX. Accept the usual driver
+	// names so an installation does not have to provide the cc/c++ aliases.
+	if (!CommandExists("cc") &&
+		!CommandExists("gcc") &&
+		!CommandExists("clang")) {
+		missing.emplace_back("C compiler (cc/gcc/clang)");
+	}
+	if (!CommandExists("c++") &&
+		!CommandExists("g++") &&
+		!CommandExists("clang++")) {
+		missing.emplace_back("C++ compiler (c++/g++/clang++)");
+	}
+#endif
+
+	if (missing.empty()) {
+		return ExportTargetAvailability{
+			.available = true,
+			.unavailable_reason = {},
+		};
+	}
+
+	return ExportTargetAvailability{
+		.available = false,
+		.unavailable_reason =
+			"Desktop export is unavailable. Missing required command" +
+			std::string{ missing.size() == 1 ? " in PATH: " : "s in PATH: " } +
+			JoinCommandNames(missing) + ".",
+	};
+}
+
+[[nodiscard]] ExportTargetAvailability CheckWebAvailability() {
+	std::vector<std::string> missing;
+
+	// Web exports configure with `emcmake cmake` and the Ninja generator.
+	// Emscripten's CMake toolchain also uses its compiler and archive tools.
+	AddMissingCommand(missing, "cmake");
+	AddMissingCommand(missing, "ninja");
+	AddMissingCommand(missing, "emcmake");
+	AddMissingCommand(missing, "emcc");
+	AddMissingCommand(missing, "em++");
+	AddMissingCommand(missing, "emar");
+	AddMissingCommand(missing, "emranlib");
+	AddMissingCommand(missing, "emnm");
+
+	if (missing.empty()) {
+		return ExportTargetAvailability{
+			.available = true,
+			.unavailable_reason = {},
+		};
+	}
+
+	return ExportTargetAvailability{
+		.available = false,
+		.unavailable_reason =
+			"Web export is unavailable. Emscripten and Ninja must be available "
+			"to the editor process. Missing required command" +
+			std::string{ missing.size() == 1 ? " in PATH: " : "s in PATH: " } +
+			JoinCommandNames(missing) + ".",
+	};
+}
+
 [[nodiscard]] std::string Quote(std::string_view value) {
 #if defined(_WIN32)
 	std::string result{ "\"" };
@@ -960,7 +1182,9 @@ void TerminateActiveProcess(const std::shared_ptr<impl::ExportSharedState>& stat
 ExportManager::ExportManager() :
 	shared_state_{
 		std::make_shared<impl::ExportSharedState>()
-	} {}
+	} {
+	RefreshToolAvailability();
+}
 
 ExportManager::~ExportManager() {
 	Cancel();
@@ -974,6 +1198,13 @@ bool ExportManager::Export(
 ) {
 	if (IsBusy() ||
 		request.output_directory.empty()) {
+		return false;
+	}
+
+	// Enforce tool availability here as well as in the editor UI so an export
+	// cannot be started through another caller with an unsupported toolchain.
+	RefreshToolAvailability();
+	if (!IsTargetAvailable(request.target)) {
 		return false;
 	}
 
@@ -1639,6 +1870,24 @@ void ExportManager::DrawOutputPanel() {
 				std::memory_order_relaxed
 			);
 	}
+}
+
+void ExportManager::RefreshToolAvailability() {
+	const auto& info{ ::ptgn::impl::GetBuildInfo() };
+	desktop_availability_ = CheckDesktopAvailability(info);
+	web_availability_ = CheckWebAvailability();
+}
+
+const ExportTargetAvailability& ExportManager::GetTargetAvailability(
+	ExportTarget target
+) const {
+	return target == ExportTarget::Desktop
+		? desktop_availability_
+		: web_availability_;
+}
+
+bool ExportManager::IsTargetAvailable(ExportTarget target) const {
+	return GetTargetAvailability(target).available;
 }
 
 bool ExportManager::IsBusy() const {

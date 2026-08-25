@@ -3289,21 +3289,43 @@ void Editor::DrawMainMenuBar() {
 #if !defined(__EMSCRIPTEN__)
 
 void Editor::OpenExportWindow() {
+	export_manager_.RefreshToolAvailability();
+
+	// Keep the current platform if it is still usable. Otherwise choose the
+	// first available platform, or leave the selection empty when neither
+	// toolchain is available.
+	if (!export_target_.has_value() ||
+		!export_manager_.IsTargetAvailable(export_target_.value())) {
+		if (export_manager_.IsTargetAvailable(ExportTarget::Desktop)) {
+			export_target_ = ExportTarget::Desktop;
+		} else if (export_manager_.IsTargetAvailable(ExportTarget::Web)) {
+			export_target_ = ExportTarget::Web;
+		} else {
+			export_target_.reset();
+		}
+	}
+
 	export_window_open_ = true;
 	export_window_recenter_requested_ = true;
 }
 
 ExportRequest Editor::MakeExportRequest() const {
+	PTGN_ASSERT(
+		export_target_.has_value(),
+		"Cannot create an export request without an export platform"
+	);
+
+	const ExportTarget target{ export_target_.value() };
 	const auto& build_info{
 		::ptgn::impl::GetBuildInfo()
 	};
 
 	ExportRequest request{
-		.target = export_target_,
+		.target = target,
 		.configuration = export_configuration_,
 		.include_editor = export_include_editor_,
 		.output_directory =
-			export_target_ == ExportTarget::Desktop
+			target == ExportTarget::Desktop
 				? path{ desktop_export_directory_ }
 				: path{ web_export_directory_ },
 		.asset_source_directory =
@@ -3405,6 +3427,12 @@ void Editor::DrawExportWindow() {
 	};
 
 	const bool busy{ export_manager_.IsBusy() };
+	const auto& desktop_availability{
+		export_manager_.GetTargetAvailability(ExportTarget::Desktop)
+	};
+	const auto& web_availability{
+		export_manager_.GetTargetAvailability(ExportTarget::Web)
+	};
 
 	if (visible) {
 		ImGui::BeginDisabled(busy);
@@ -3437,27 +3465,62 @@ void Editor::DrawExportWindow() {
 			ImGui::TableSetColumnIndex(1);
 			ImGui::SetNextItemWidth(-FLT_MIN);
 			const char* platform_preview{
-				export_target_ == ExportTarget::Desktop
-					? "Desktop"
-					: "Web"
+				!export_target_.has_value()
+					? "None available"
+					: export_target_.value() == ExportTarget::Desktop
+						? "Desktop"
+						: "Web"
 			};
 			if (ImGui::BeginCombo(
 					"##ExportPlatform",
 					platform_preview
 				)) {
-				if (ImGui::Selectable(
-						"Desktop",
-						export_target_ == ExportTarget::Desktop
-					)) {
-					export_target_ = ExportTarget::Desktop;
-				}
-				if (ImGui::Selectable(
-						"Web",
-						export_target_ == ExportTarget::Web
-					)) {
-					export_target_ = ExportTarget::Web;
-				}
+				auto draw_platform = [&](
+					ExportTarget target,
+					const char* label,
+					const ExportTargetAvailability& availability
+				) {
+					ImGui::BeginDisabled(!availability.available);
+					if (ImGui::Selectable(
+							label,
+							export_target_.has_value() &&
+								export_target_.value() == target
+						)) {
+						export_target_ = target;
+					}
+					ImGui::EndDisabled();
+
+					if (!availability.available &&
+						ImGui::IsItemHovered(
+							ImGuiHoveredFlags_AllowWhenDisabled |
+							ImGuiHoveredFlags_Stationary
+						)) {
+						ImGui::SetTooltip(
+							"%s",
+							availability.unavailable_reason.c_str()
+						);
+					}
+				};
+
+				draw_platform(
+					ExportTarget::Desktop,
+					"Desktop",
+					desktop_availability
+				);
+				draw_platform(
+					ExportTarget::Web,
+					"Web",
+					web_availability
+				);
 				ImGui::EndCombo();
+			}
+
+			if (!export_target_.has_value() &&
+				ImGui::IsItemHovered(ImGuiHoveredFlags_Stationary)) {
+				ImGui::SetTooltip(
+					"No export platforms are available. Open this list and hover "
+					"Desktop or Web to see which tools are missing."
+				);
 			}
 
 			ImGui::TableNextRow();
@@ -3505,14 +3568,21 @@ void Editor::DrawExportWindow() {
 				);
 			}
 
+			std::string no_platform_output_directory;
 			std::string& current_output_directory{
-				export_target_ == ExportTarget::Desktop
-					? desktop_export_directory_
-					: web_export_directory_
+				export_target_.has_value()
+					? export_target_.value() == ExportTarget::Desktop
+						? desktop_export_directory_
+						: web_export_directory_
+					: no_platform_output_directory
 			};
-			const auto current_output_path_error{
-				ValidateOutputDirectoryPath(current_output_directory)
+			const std::optional<std::string> current_output_path_error{
+				export_target_.has_value()
+					? ValidateOutputDirectoryPath(current_output_directory)
+					: std::nullopt
 			};
+
+			ImGui::BeginDisabled(!export_target_.has_value());
 			DrawDirectoryField(
 				*this,
 				"Output Directory",
@@ -3520,36 +3590,47 @@ void Editor::DrawExportWindow() {
 				current_output_directory,
 				current_output_path_error
 			);
+			ImGui::EndDisabled();
 
 			ImGui::EndTable();
 		}
 
 		ImGui::EndDisabled();
 
-		const std::string& current_output_directory{
-			export_target_ == ExportTarget::Desktop
-				? desktop_export_directory_
-				: web_export_directory_
-		};
-		const auto current_output_path_error{
-			ValidateOutputDirectoryPath(current_output_directory)
+		const std::string* current_output_directory{ nullptr };
+		if (export_target_.has_value()) {
+			current_output_directory =
+				export_target_.value() == ExportTarget::Desktop
+					? &desktop_export_directory_
+					: &web_export_directory_;
+		}
+
+		const std::optional<std::string> current_output_path_error{
+			current_output_directory
+				? ValidateOutputDirectoryPath(*current_output_directory)
+				: std::nullopt
 		};
 
-		const path build_directory{
-			export_manager_.GetBuildDirectory(
-				export_target_,
+		path build_directory;
+		if (export_target_.has_value()) {
+			build_directory = export_manager_.GetBuildDirectory(
+				export_target_.value(),
 				export_configuration_
-			)
+			);
+		}
+		const bool build_cache_has_content{
+			export_target_.has_value() &&
+			DirectoryHasContent(build_directory)
 		};
 		const bool can_clean{
-			!busy && DirectoryHasContent(build_directory)
+			!busy && build_cache_has_content
 		};
 
 		ImGui::Separator();
 
 		ImGui::BeginDisabled(!can_clean);
 		if (ImGui::Button("Clean Build Cache")) {
-			pending_clean_target_ = export_target_;
+			pending_clean_target_ = export_target_.value();
 			pending_clean_configuration_ = export_configuration_;
 			pending_task_confirmation_ =
 				PendingTaskConfirmation::Clean;
@@ -3557,16 +3638,65 @@ void Editor::DrawExportWindow() {
 		}
 		ImGui::EndDisabled();
 
+		if (!can_clean &&
+			ImGui::IsItemHovered(
+				ImGuiHoveredFlags_AllowWhenDisabled |
+				ImGuiHoveredFlags_Stationary
+			)) {
+			const char* reason{
+				busy
+					? "An export task is currently running."
+					: !export_target_.has_value()
+						? "No export platform is selected."
+						: "There is no cached build output for this platform and configuration."
+			};
+			ImGui::SetTooltip("%s", reason);
+		}
+
 		ImGui::SameLine();
 
 		if (busy) {
-			ImGui::BeginDisabled(!export_manager_.CanCancel());
+			const bool can_cancel{ export_manager_.CanCancel() };
+			ImGui::BeginDisabled(!can_cancel);
 			if (ImGui::Button("Cancel Export")) {
 				export_manager_.Cancel();
 			}
 			ImGui::EndDisabled();
+
+			if (!can_cancel &&
+				ImGui::IsItemHovered(
+					ImGuiHoveredFlags_AllowWhenDisabled |
+					ImGuiHoveredFlags_Stationary
+				)) {
+				ImGui::SetTooltip(
+					"The current export task cannot be cancelled."
+				);
+			}
 		} else {
-			ImGui::BeginDisabled(current_output_path_error.has_value());
+			std::string start_export_disabled_reason;
+			if (!export_target_.has_value()) {
+				start_export_disabled_reason =
+					"No export platform is selected because no supported "
+					"platform is currently available.";
+			} else {
+				const auto& availability{
+					export_manager_.GetTargetAvailability(
+						export_target_.value()
+					)
+				};
+				if (!availability.available) {
+					start_export_disabled_reason =
+						availability.unavailable_reason;
+				} else if (current_output_path_error.has_value()) {
+					start_export_disabled_reason =
+						current_output_path_error.value();
+				}
+			}
+
+			const bool can_start_export{
+				start_export_disabled_reason.empty()
+			};
+			ImGui::BeginDisabled(!can_start_export);
 			if (ImGui::Button("Start Export")) {
 				if (CanSaveProject()) {
 					SaveProjectScene();
@@ -3583,6 +3713,17 @@ void Editor::DrawExportWindow() {
 				}
 			}
 			ImGui::EndDisabled();
+
+			if (!can_start_export &&
+				ImGui::IsItemHovered(
+					ImGuiHoveredFlags_AllowWhenDisabled |
+					ImGuiHoveredFlags_Stationary
+				)) {
+				ImGui::SetTooltip(
+					"%s",
+					start_export_disabled_reason.c_str()
+				);
+			}
 		}
 
 		ImGui::SeparatorText("Output");

@@ -237,7 +237,7 @@ private:
 	ExportManager export_manager_;
 	bool export_window_open_{ false };
 	bool export_window_recenter_requested_{ false };
-	ExportTarget export_target_{ ExportTarget::Desktop };
+	std::optional<ExportTarget> export_target_{ ExportTarget::Desktop };
 	ExportConfiguration export_configuration_{ ExportConfiguration::Release };
 	bool export_include_editor_{ false };
 	std::string desktop_export_directory_;

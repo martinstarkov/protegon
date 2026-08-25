@@ -40,6 +40,11 @@ enum class ExportPhase {
 	Clean,
 };
 
+struct ExportTargetAvailability {
+	bool available{ false };
+	std::string unavailable_reason{};
+};
+
 struct ExportRequest {
 	ExportTarget target{ ExportTarget::Desktop };
 	ExportConfiguration configuration{ ExportConfiguration::Release };
@@ -122,6 +127,16 @@ public:
 	void OnUpdate();
 	void DrawOutputPanel();
 
+	/// @brief Re-check the current process PATH for export toolchains.
+	/// Call this when opening the export window so tools installed while the
+	/// editor is running can be picked up after the process environment changes.
+	void RefreshToolAvailability();
+
+	[[nodiscard]] const ExportTargetAvailability& GetTargetAvailability(
+		ExportTarget target
+	) const;
+	[[nodiscard]] bool IsTargetAvailable(ExportTarget target) const;
+
 	[[nodiscard]] bool IsBusy() const;
 	[[nodiscard]] bool CanCancel() const;
 	[[nodiscard]] ExportTaskState GetState() const;
@@ -148,6 +163,8 @@ private:
 	path result_directory_;
 	std::optional<path> last_desktop_export_directory_;
 	std::optional<path> last_web_export_directory_;
+	ExportTargetAvailability desktop_availability_;
+	ExportTargetAvailability web_availability_;
 	std::uint64_t last_rendered_output_revision_{ 0 };
 	std::string rendered_output_;
 	bool follow_output_tail_{ true };
