@@ -975,7 +975,7 @@ void AssetManager::InitializeEngineShaderCatalog() {
 		engine_shader_sources_.push_back(impl::EngineShaderSource{
 			.key = AssetKey{ "$" + name },
 			.name = name,
-			.virtual_path = path{ "Shaders" } / filename,
+			.virtual_path = path{ "shaders" } / filename,
 			.stages = stages,
 			.source = shader_file.source,
 		});

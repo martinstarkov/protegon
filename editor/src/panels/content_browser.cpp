@@ -524,7 +524,7 @@ bool IsBaseAssetDirectory(const path& directory) {
 }
 
 path BuiltinShaderDirectory() {
-	return path{ "Shaders" } / kBuiltinShaderDirectoryName;
+	return path{ "shaders" } / kBuiltinShaderDirectoryName;
 }
 
 bool IsBuiltinShaderDirectory(const path& directory) {
@@ -1201,7 +1201,7 @@ void ContentBrowserPanel::DrawToolbar(EditorContext& ctx) {
 		ImGui::SameLine();
 		if (ImGui::Checkbox("Show engine shaders", &show_engine_shaders_) &&
 			!show_engine_shaders_ && IsBuiltinShaderDirectory(selected_directory_)) {
-			selected_directory_ = path{ "Shaders" };
+			selected_directory_ = path{ "shaders" };
 			ClearAssetSelection();
 		}
 	}
@@ -1272,7 +1272,7 @@ bool ContentBrowserPanel::CreateDirectory(
 		},
 		false
 	);
-	status_ = "Created Assets/" + relative.generic_string();
+	status_ = "Created assets/" + relative.generic_string();
 	return true;
 }
 
@@ -1304,7 +1304,7 @@ bool ContentBrowserPanel::RenameDirectory(
 		[assets, before, after]() { assets->MoveAssetDirectory(after, before); },
 		[assets, before, after]() { assets->MoveAssetDirectory(before, after); }
 	);
-	status_ = "Renamed Assets/" + before.generic_string() + " to Assets/" + after.generic_string();
+	status_ = "Renamed assets/" + before.generic_string() + " to assets/" + after.generic_string();
 	return true;
 }
 
@@ -1377,7 +1377,7 @@ bool ContentBrowserPanel::MoveSelectedAssets(EditorContext& ctx, const path& des
 	);
 
 	status_ = std::format(
-		"Moved {} asset{} to Assets/{}",
+		"Moved {} asset{} to assets/{}",
 		before.size(),
 		before.size() == 1 ? "" : "s",
 		destination.generic_string()
@@ -1437,7 +1437,7 @@ bool ContentBrowserPanel::DeleteDirectory(EditorContext& ctx, const path& direct
 	}
 	auto snapshot{ std::make_shared<DirectoryDeleteSnapshot>(std::move(captured.value())) };
 	if (!DeleteDirectorySnapshot(assets, *snapshot)) {
-		status_ = "Could not delete Assets/" + directory.generic_string();
+		status_ = "Could not delete assets/" + directory.generic_string();
 		return false;
 	}
 	const path parent{ directory.parent_path() };
@@ -1451,7 +1451,7 @@ bool ContentBrowserPanel::DeleteDirectory(EditorContext& ctx, const path& direct
 		[assets_ptr, snapshot]() { DeleteDirectorySnapshot(*assets_ptr, *snapshot); }
 	);
 	ClearAssetSelection();
-	status_ = "Deleted Assets/" + directory.generic_string();
+	status_ = "Deleted assets/" + directory.generic_string();
 	return true;
 }
 
@@ -2411,7 +2411,7 @@ void ContentBrowserPanel::DrawContentBrowserPopups(EditorContext& ctx) {
 			)) {
 			if (pending.directory.has_value()) {
 				ImGui::TextWrapped(
-					"Are you sure you want to delete Assets/%s and all its files?",
+					"Are you sure you want to delete assets/%s and all its files?",
 					pending.directory->generic_string().c_str()
 				);
 				if (pending.listed_files.empty()) {

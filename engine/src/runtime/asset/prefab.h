@@ -15,7 +15,7 @@ namespace ptgn {
 class Scene;
 struct RegisteredComponent;
 
-inline constexpr std::string_view kPrefabDirectory{ "Assets/Prefabs" };
+inline constexpr std::string_view kPrefabDirectory{ "assets/prefabs" };
 inline constexpr std::string_view kPrefabExtension{ ".ptgnprefab" };
 inline constexpr std::string_view kPrefabKeyPrefix{ "prefabs/" };
 
