@@ -250,7 +250,7 @@ void AddMissingCommand(
 	return ExportTargetAvailability{
 		.available = false,
 		.unavailable_reason =
-			"Desktop export is unavailable. Missing required command" +
+			"Desktop export may fail. Missing required command" +
 			std::string{ missing.size() == 1 ? " in PATH: " : "s in PATH: " } +
 			JoinCommandNames(missing) + ".",
 	};
@@ -280,7 +280,7 @@ void AddMissingCommand(
 	return ExportTargetAvailability{
 		.available = false,
 		.unavailable_reason =
-			"Web export is unavailable. Emscripten and Ninja must be available "
+			"Web export may fail. Emscripten and Ninja are not fully available "
 			"to the editor process. Missing required command" +
 			std::string{ missing.size() == 1 ? " in PATH: " : "s in PATH: " } +
 			JoinCommandNames(missing) + ".",
@@ -1201,12 +1201,17 @@ bool ExportManager::Export(
 		return false;
 	}
 
-	// Enforce tool availability here as well as in the editor UI so an export
-	// cannot be started through another caller with an unsupported toolchain.
+	// Tool availability is advisory. Always allow the real command to run so
+	// any failure is visible in the export output.
 	RefreshToolAvailability();
-	if (!IsTargetAvailable(request.target)) {
-		return false;
-	}
+	const auto& availability{
+		GetTargetAvailability(request.target)
+	};
+	const std::string toolchain_warning{
+		availability.available
+			? std::string{}
+			: availability.unavailable_reason
+	};
 
 	const auto info{
 		::ptgn::impl::GetBuildInfo()
@@ -1250,13 +1255,26 @@ bool ExportManager::Export(
 				info,
 				build_directory,
 				state,
-				kind
+				kind,
+				toolchain_warning
 			]() mutable {
 				impl::ExportTaskResult result{
 					.kind = kind,
 					.output_directory =
 						request.output_directory,
 				};
+
+				if (!toolchain_warning.empty()) {
+					AppendOutputLine(
+						state,
+						"Warning: " + toolchain_warning
+					);
+					AppendOutputLine(
+						state,
+						"Attempting export anyway."
+					);
+					AppendOutputLine(state, "");
+				}
 
 				AppendOutputLine(
 					state,

@@ -631,10 +631,6 @@ private:
 	};
 }
 
-
-
-#if !defined(__EMSCRIPTEN__)
-
 [[nodiscard]] path NormalizeExistingPath(
 	const path& value
 ) {
@@ -649,6 +645,80 @@ private:
 		? value.lexically_normal()
 		: canonical;
 }
+
+[[nodiscard]] path ResolveProjectFilePath(
+	const Project& project
+) {
+	if (project.file_path.empty()) {
+		return {};
+	}
+
+	if (project.file_path.is_absolute()) {
+		return NormalizeExistingPath(
+			project.file_path
+		);
+	}
+
+	std::error_code error;
+	const path working_candidate{
+		fs::absolute(
+			project.file_path,
+			error
+		)
+	};
+	if (!error && fs::exists(
+			working_candidate,
+			error
+		)) {
+		return NormalizeExistingPath(
+			working_candidate
+		);
+	}
+
+	const auto& build_info{
+		::ptgn::impl::GetBuildInfo()
+	};
+	std::vector<path> candidates;
+	if (build_info.IsExample()) {
+		candidates.emplace_back(
+			build_info.binary_directory /
+			"examples" /
+			project.file_path
+		);
+	}
+	candidates.emplace_back(
+		build_info.binary_directory /
+		project.file_path
+	);
+	candidates.emplace_back(
+		build_info.runtime_root /
+		project.file_path
+	);
+	candidates.emplace_back(
+		build_info.source_directory /
+		project.file_path
+	);
+
+	for (const auto& candidate : candidates) {
+		error.clear();
+		if (fs::exists(candidate, error)) {
+			return NormalizeExistingPath(
+				candidate
+			);
+		}
+	}
+
+	if (!working_candidate.empty()) {
+		return working_candidate.lexically_normal();
+	}
+
+	return (
+		build_info.runtime_root /
+		project.file_path
+	).lexically_normal();
+}
+
+#if !defined(__EMSCRIPTEN__)
 
 [[nodiscard]] std::optional<path> ExistingDirectoryForDialog(
 	const std::string& value
@@ -885,78 +955,6 @@ bool DrawDirectoryField(
 		directory,
 		error
 	} != fs::directory_iterator{};
-}
-
-[[nodiscard]] path ResolveProjectFilePath(
-	const Project& project
-) {
-	if (project.file_path.empty()) {
-		return {};
-	}
-
-	if (project.file_path.is_absolute()) {
-		return NormalizeExistingPath(
-			project.file_path
-		);
-	}
-
-	std::error_code error;
-	const path working_candidate{
-		fs::absolute(
-			project.file_path,
-			error
-		)
-	};
-	if (!error && fs::exists(
-			working_candidate,
-			error
-		)) {
-		return NormalizeExistingPath(
-			working_candidate
-		);
-	}
-
-	const auto& build_info{
-		::ptgn::impl::GetBuildInfo()
-	};
-	std::vector<path> candidates;
-	if (build_info.IsExample()) {
-		candidates.emplace_back(
-			build_info.binary_directory /
-			"examples" /
-			project.file_path
-		);
-	}
-	candidates.emplace_back(
-		build_info.binary_directory /
-		project.file_path
-	);
-	candidates.emplace_back(
-		build_info.runtime_root /
-		project.file_path
-	);
-	candidates.emplace_back(
-		build_info.source_directory /
-		project.file_path
-	);
-
-	for (const auto& candidate : candidates) {
-		error.clear();
-		if (fs::exists(candidate, error)) {
-			return NormalizeExistingPath(
-				candidate
-			);
-		}
-	}
-
-	if (!working_candidate.empty()) {
-		return working_candidate.lexically_normal();
-	}
-
-	return (
-		build_info.runtime_root /
-		project.file_path
-	).lexically_normal();
 }
 
 [[nodiscard]] path ResolveProjectRuntimeRoot(
@@ -3291,41 +3289,21 @@ void Editor::DrawMainMenuBar() {
 void Editor::OpenExportWindow() {
 	export_manager_.RefreshToolAvailability();
 
-	// Keep the current platform if it is still usable. Otherwise choose the
-	// first available platform, or leave the selection empty when neither
-	// toolchain is available.
-	if (!export_target_.has_value() ||
-		!export_manager_.IsTargetAvailable(export_target_.value())) {
-		if (export_manager_.IsTargetAvailable(ExportTarget::Desktop)) {
-			export_target_ = ExportTarget::Desktop;
-		} else if (export_manager_.IsTargetAvailable(ExportTarget::Web)) {
-			export_target_ = ExportTarget::Web;
-		} else {
-			export_target_.reset();
-		}
-	}
-
 	export_window_open_ = true;
 	export_window_recenter_requested_ = true;
 }
 
 ExportRequest Editor::MakeExportRequest() const {
-	PTGN_ASSERT(
-		export_target_.has_value(),
-		"Cannot create an export request without an export platform"
-	);
-
-	const ExportTarget target{ export_target_.value() };
 	const auto& build_info{
 		::ptgn::impl::GetBuildInfo()
 	};
 
 	ExportRequest request{
-		.target = target,
+		.target = export_target_,
 		.configuration = export_configuration_,
 		.include_editor = export_include_editor_,
 		.output_directory =
-			target == ExportTarget::Desktop
+			export_target_ == ExportTarget::Desktop
 				? path{ desktop_export_directory_ }
 				: path{ web_export_directory_ },
 		.asset_source_directory =
@@ -3463,42 +3441,101 @@ void Editor::DrawExportWindow() {
 			ImGui::AlignTextToFramePadding();
 			ImGui::TextUnformatted("Platform");
 			ImGui::TableSetColumnIndex(1);
+
+			const auto& selected_platform_availability{
+				export_manager_.GetTargetAvailability(export_target_)
+			};
+			const bool platform_warning{
+				!selected_platform_availability.available
+			};
+
+			if (platform_warning) {
+				ImGui::PushStyleColor(
+					ImGuiCol_Border,
+					ImVec4{ 0.90f, 0.20f, 0.20f, 1.0f }
+				);
+				ImGui::PushStyleVar(
+					ImGuiStyleVar_FrameBorderSize,
+					1.0f
+				);
+			}
+
 			ImGui::SetNextItemWidth(-FLT_MIN);
 			const char* platform_preview{
-				!export_target_.has_value()
-					? "None available"
-					: export_target_.value() == ExportTarget::Desktop
-						? "Desktop"
-						: "Web"
+				export_target_ == ExportTarget::Desktop
+					? "Desktop"
+					: "Web"
 			};
-			if (ImGui::BeginCombo(
+			const bool platform_combo_open{
+				ImGui::BeginCombo(
 					"##ExportPlatform",
 					platform_preview
-				)) {
+				)
+			};
+			const bool platform_combo_hovered{
+				ImGui::IsItemHovered(
+					ImGuiHoveredFlags_AllowWhenDisabled |
+					ImGuiHoveredFlags_Stationary
+				)
+			};
+
+			if (platform_warning) {
+				ImGui::PopStyleVar();
+				ImGui::PopStyleColor();
+			}
+
+			if (platform_combo_open) {
 				auto draw_platform = [&](
 					ExportTarget target,
 					const char* label,
 					const ExportTargetAvailability& availability
 				) {
-					ImGui::BeginDisabled(!availability.available);
+					const bool selected{
+						export_target_ == target
+					};
+
 					if (ImGui::Selectable(
 							label,
-							export_target_.has_value() &&
-								export_target_.value() == target
+							selected
 						)) {
 						export_target_ = target;
 					}
-					ImGui::EndDisabled();
 
-					if (!availability.available &&
-						ImGui::IsItemHovered(
-							ImGuiHoveredFlags_AllowWhenDisabled |
-							ImGuiHoveredFlags_Stationary
-						)) {
-						ImGui::SetTooltip(
-							"%s",
-							availability.unavailable_reason.c_str()
+					if (!availability.available) {
+						ImGui::GetWindowDrawList()->AddRect(
+							ImGui::GetItemRectMin(),
+							ImGui::GetItemRectMax(),
+							ImGui::GetColorU32(
+								ImVec4{ 0.90f, 0.20f, 0.20f, 1.0f }
+							),
+							ImGui::GetStyle().FrameRounding,
+							0,
+							1.0f
 						);
+
+						if (ImGui::IsItemHovered(
+								ImGuiHoveredFlags_Stationary
+							)) {
+							ImGui::BeginTooltip();
+							ImGui::TextColored(
+								ImVec4{ 1.0f, 0.35f, 0.35f, 1.0f },
+								"Toolchain warning"
+							);
+							ImGui::Separator();
+							ImGui::TextWrapped(
+								"%s",
+								availability.unavailable_reason.c_str()
+							);
+							ImGui::Spacing();
+							ImGui::TextWrapped(
+								"You can still select this platform and attempt the export."
+							);
+							ImGui::EndTooltip();
+						}
+					}
+
+					if (selected) {
+						ImGui::SetItemDefaultFocus();
 					}
 				};
 
@@ -3515,12 +3552,24 @@ void Editor::DrawExportWindow() {
 				ImGui::EndCombo();
 			}
 
-			if (!export_target_.has_value() &&
-				ImGui::IsItemHovered(ImGuiHoveredFlags_Stationary)) {
-				ImGui::SetTooltip(
-					"No export platforms are available. Open this list and hover "
-					"Desktop or Web to see which tools are missing."
+			if (platform_warning && platform_combo_hovered) {
+				ImGui::BeginTooltip();
+				ImGui::TextColored(
+					ImVec4{ 1.0f, 0.35f, 0.35f, 1.0f },
+					"Toolchain warning"
 				);
+				ImGui::Separator();
+				ImGui::TextWrapped(
+					"%s",
+					selected_platform_availability
+						.unavailable_reason
+						.c_str()
+				);
+				ImGui::Spacing();
+				ImGui::TextWrapped(
+					"You can still attempt the export. Any command failure will be shown in the export output."
+				);
+				ImGui::EndTooltip();
 			}
 
 			ImGui::TableNextRow();
@@ -3568,21 +3617,17 @@ void Editor::DrawExportWindow() {
 				);
 			}
 
-			std::string no_platform_output_directory;
 			std::string& current_output_directory{
-				export_target_.has_value()
-					? export_target_.value() == ExportTarget::Desktop
-						? desktop_export_directory_
-						: web_export_directory_
-					: no_platform_output_directory
+				export_target_ == ExportTarget::Desktop
+					? desktop_export_directory_
+					: web_export_directory_
 			};
-			const std::optional<std::string> current_output_path_error{
-				export_target_.has_value()
-					? ValidateOutputDirectoryPath(current_output_directory)
-					: std::nullopt
+			const auto current_output_path_error{
+				ValidateOutputDirectoryPath(
+					current_output_directory
+				)
 			};
 
-			ImGui::BeginDisabled(!export_target_.has_value());
 			DrawDirectoryField(
 				*this,
 				"Output Directory",
@@ -3590,36 +3635,29 @@ void Editor::DrawExportWindow() {
 				current_output_directory,
 				current_output_path_error
 			);
-			ImGui::EndDisabled();
 
 			ImGui::EndTable();
 		}
 
 		ImGui::EndDisabled();
 
-		const std::string* current_output_directory{ nullptr };
-		if (export_target_.has_value()) {
-			current_output_directory =
-				export_target_.value() == ExportTarget::Desktop
-					? &desktop_export_directory_
-					: &web_export_directory_;
-		}
-
-		const std::optional<std::string> current_output_path_error{
-			current_output_directory
-				? ValidateOutputDirectoryPath(*current_output_directory)
-				: std::nullopt
+		const std::string& current_output_directory{
+			export_target_ == ExportTarget::Desktop
+				? desktop_export_directory_
+				: web_export_directory_
 		};
-
-		path build_directory;
-		if (export_target_.has_value()) {
-			build_directory = export_manager_.GetBuildDirectory(
-				export_target_.value(),
+		const auto current_output_path_error{
+			ValidateOutputDirectoryPath(
+				current_output_directory
+			)
+		};
+		const path build_directory{
+			export_manager_.GetBuildDirectory(
+				export_target_,
 				export_configuration_
-			);
-		}
+			)
+		};
 		const bool build_cache_has_content{
-			export_target_.has_value() &&
 			DirectoryHasContent(build_directory)
 		};
 		const bool can_clean{
@@ -3630,7 +3668,7 @@ void Editor::DrawExportWindow() {
 
 		ImGui::BeginDisabled(!can_clean);
 		if (ImGui::Button("Clean Build Cache")) {
-			pending_clean_target_ = export_target_.value();
+			pending_clean_target_ = export_target_;
 			pending_clean_configuration_ = export_configuration_;
 			pending_task_confirmation_ =
 				PendingTaskConfirmation::Clean;
@@ -3641,14 +3679,12 @@ void Editor::DrawExportWindow() {
 		if (!can_clean &&
 			ImGui::IsItemHovered(
 				ImGuiHoveredFlags_AllowWhenDisabled |
-				ImGuiHoveredFlags_Stationary
+					ImGuiHoveredFlags_Stationary
 			)) {
 			const char* reason{
 				busy
 					? "An export task is currently running."
-					: !export_target_.has_value()
-						? "No export platform is selected."
-						: "There is no cached build output for this platform and configuration."
+					: "There is no cached build output for this platform and configuration."
 			};
 			ImGui::SetTooltip("%s", reason);
 		}
@@ -3666,36 +3702,17 @@ void Editor::DrawExportWindow() {
 			if (!can_cancel &&
 				ImGui::IsItemHovered(
 					ImGuiHoveredFlags_AllowWhenDisabled |
-					ImGuiHoveredFlags_Stationary
+						ImGuiHoveredFlags_Stationary
 				)) {
 				ImGui::SetTooltip(
 					"The current export task cannot be cancelled."
 				);
 			}
 		} else {
-			std::string start_export_disabled_reason;
-			if (!export_target_.has_value()) {
-				start_export_disabled_reason =
-					"No export platform is selected because no supported "
-					"platform is currently available.";
-			} else {
-				const auto& availability{
-					export_manager_.GetTargetAvailability(
-						export_target_.value()
-					)
-				};
-				if (!availability.available) {
-					start_export_disabled_reason =
-						availability.unavailable_reason;
-				} else if (current_output_path_error.has_value()) {
-					start_export_disabled_reason =
-						current_output_path_error.value();
-				}
-			}
-
 			const bool can_start_export{
-				start_export_disabled_reason.empty()
+				!current_output_path_error.has_value()
 			};
+
 			ImGui::BeginDisabled(!can_start_export);
 			if (ImGui::Button("Start Export")) {
 				if (CanSaveProject()) {
@@ -3717,11 +3734,13 @@ void Editor::DrawExportWindow() {
 			if (!can_start_export &&
 				ImGui::IsItemHovered(
 					ImGuiHoveredFlags_AllowWhenDisabled |
-					ImGuiHoveredFlags_Stationary
+						ImGuiHoveredFlags_Stationary
 				)) {
 				ImGui::SetTooltip(
 					"%s",
-					start_export_disabled_reason.c_str()
+					current_output_path_error
+						.value()
+						.c_str()
 				);
 			}
 		}
