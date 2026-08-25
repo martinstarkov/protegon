@@ -71,7 +71,7 @@ struct ExportRequest {
 	/// @brief Resolved runtime asset directory.
 	/// For project backed exports, this is the project's actual asset directory.
 	/// For projectless Desktop exports, this is the application asset directory.
-	/// If omitted for a project backed export, "assets" and then "Assets" under
+	/// If omitted for a project backed export, "assets" and
 	/// project_directory are used as compatibility fallbacks.
 	path asset_source_directory{};
 

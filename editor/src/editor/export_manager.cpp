@@ -1395,20 +1395,12 @@ bool ExportManager::Export(
 						// Compatibility fallback for existing callers. New callers should
 						// pass the resolved project asset directory explicitly.
 						std::error_code asset_error;
-						const path lowercase_assets{
+						const path assets_dir{
 							request.project_directory.value() / "assets"
 						};
-						const path uppercase_assets{
-							request.project_directory.value() / "Assets"
-						};
 
-						if (fs::is_directory(lowercase_assets, asset_error)) {
-							project_assets = lowercase_assets;
-						} else {
-							asset_error.clear();
-							if (fs::is_directory(uppercase_assets, asset_error)) {
-								project_assets = uppercase_assets;
-							}
+						if (fs::is_directory(assets_dir, asset_error)) {
+							project_assets = assets_dir;
 						}
 					}
 
