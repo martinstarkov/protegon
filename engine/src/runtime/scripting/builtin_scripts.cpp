@@ -78,7 +78,10 @@ struct SceneTransitionPointers {
 	std::unique_ptr<SceneTransition> in{};
 };
 
-[[nodiscard]] SceneTransitionPointers MakeSceneTransitions(const SceneChangeScript& script) {
+[[nodiscard]] SceneTransitionPointers MakeSceneTransitions(
+	const SceneChangeScript& script,
+	bool entering_active_scene
+) {
 	SceneTransitionPointers transitions;
 	if (script.transition == SceneTransitionStyle::None) {
 		return transitions;
@@ -88,12 +91,13 @@ struct SceneTransitionPointers {
 	const milliseconds delay{ MillisecondsFromFloat(script.delay_ms) };
 	const V2_float direction{ script.direction.IsZero() ? V2_float{ 1.0f, 0.0f } : script.direction };
 	const bool has_out{
-		script.action == SceneChangeAction::Exit || script.action == SceneChangeAction::Switch ||
-		script.action == SceneChangeAction::ReEnter
+		script.action == SceneChangeAction::Exit ||
+		script.action == SceneChangeAction::Switch ||
+		(script.action == SceneChangeAction::Enter && entering_active_scene)
 	};
 	const bool has_in{
-		script.action == SceneChangeAction::Enter || script.action == SceneChangeAction::Switch ||
-		script.action == SceneChangeAction::ReEnter
+		script.action == SceneChangeAction::Enter ||
+		script.action == SceneChangeAction::Switch
 	};
 
 	switch (script.transition) {
@@ -889,8 +893,16 @@ void SceneChangeScript::OnStart() {
 		return;
 	}
 
+	const bool entering_active_scene{
+		action == SceneChangeAction::Enter &&
+		scene_manager.HasScene(scene_key)
+	};
+
 	auto transitions{
-		MakeSceneTransitions(*this)
+		MakeSceneTransitions(
+			*this,
+			entering_active_scene
+		)
 	};
 	const SceneTransitionPriority
 		transition_priority{ priority };
@@ -942,6 +954,7 @@ void SceneChangeScript::OnStart() {
 			scene_manager.EnterFactory(
 				scene_key,
 				std::move(factory),
+				std::move(transitions.out),
 				std::move(transitions.in),
 				transition_priority
 			);
@@ -958,15 +971,6 @@ void SceneChangeScript::OnStart() {
 				std::move(transitions.out),
 				std::move(transitions.in),
 				transition_priority
-			);
-			break;
-
-		case SceneChangeAction::ReEnter:
-			scene_manager.ReEnterFactory(
-				scene_key,
-				std::move(factory),
-				std::move(transitions.out),
-				std::move(transitions.in)
 			);
 			break;
 	}

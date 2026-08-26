@@ -104,8 +104,11 @@ struct PendingSceneOrderMove {
 [[nodiscard]] std::string ProjectSceneLabel(
 	const ProjectSceneEntry& entry
 ) {
-	return entry.display_name +
-		   " [" + entry.key + "]";
+	return
+		entry.key +
+		" [" +
+		entry.display_name +
+		"]";
 }
 
 int FilterSceneKey(
@@ -645,23 +648,33 @@ bool SceneListPanel::ResolvePendingSceneSelection(
 void SceneListPanel::OnRender(
 	EditorContext& ctx
 ) {
-	const bool visible{ ImGui::Begin("Scenes") };
+	const bool visible{
+		ImGui::Begin("Scenes")
+	};
 
 	if (visible) {
-		SyncVisibleSceneListTab(ctx, SceneListTab::Scenes);
+		SyncVisibleSceneListTab(
+			ctx,
+			SceneListTab::Scenes
+		);
 	}
 
 	ClearInvalidSceneSelection(ctx);
 
 	const bool runtime_scene_list{
-		IsRuntimeSceneList(ctx.editor)
+		IsRuntimeSceneList(
+			ctx.editor
+		)
 	};
+
 	auto& manager{
 		ctx.editor.GetSceneManager()
 	};
+
 	auto& loaded_scenes{
 		manager.GetScenes()
 	};
+
 	auto* project{
 		ctx.editor.GetProject()
 	};
@@ -673,8 +686,9 @@ void SceneListPanel::OnRender(
 				std::ranges::find_if(
 					loaded_scenes,
 					[](const auto& scene) {
-						return scene &&
-							   scene->IsRuntime();
+						return
+							scene &&
+							scene->IsRuntime();
 					}
 				)
 			};
@@ -685,17 +699,22 @@ void SceneListPanel::OnRender(
 					it->get(),
 					false
 				);
+
 				SelectDefaultEntity(
 					ctx,
 					**it
 				);
 			}
-		} else if (project &&
-				   !project->scenes.empty()) {
+		} else if (
+			project &&
+			!project->scenes.empty()
+		) {
 			if (auto* scene{
 					FindLoadedScene(
 						ctx.editor,
-						project->scenes.front().key,
+						project->scenes
+							.front()
+							.key,
 						false
 					)
 				}) {
@@ -704,6 +723,7 @@ void SceneListPanel::OnRender(
 					scene,
 					false
 				);
+
 				SelectDefaultEntity(
 					ctx,
 					*scene
@@ -716,7 +736,9 @@ void SceneListPanel::OnRender(
 		pending_move;
 
 	if (!runtime_scene_list) {
-		ImGui::BeginDisabled(!project);
+		ImGui::BeginDisabled(
+			!project
+		);
 
 		if (ImGui::Button(
 				"+ Add Scene",
@@ -731,6 +753,7 @@ void SceneListPanel::OnRender(
 		}
 
 		ImGui::EndDisabled();
+
 		DrawAddScenePopup(ctx);
 
 		ImGui::SeparatorText(
@@ -748,6 +771,7 @@ void SceneListPanel::OnRender(
 				auto& entry{
 					project->scenes[index]
 				};
+
 				auto* scene{
 					FindLoadedScene(
 						ctx.editor,
@@ -758,23 +782,30 @@ void SceneListPanel::OnRender(
 
 				const bool selected{
 					scene &&
-					scene == GetSelectedScene()
+					scene ==
+						GetSelectedScene()
 				};
+
 				std::string label{
-					ProjectSceneLabel(entry)
+					ProjectSceneLabel(
+						entry
+					)
 				};
 
 				if (ctx.editor
 						.IsStartupProjectScene(
 							entry.key
 						)) {
-					label += " [Startup]";
+					label +=
+						" [Startup]";
 				}
 
 				const std::string item_label{
 					label +
 					"###ProjectScene" +
-					std::to_string(index)
+					std::to_string(
+						index
+					)
 				};
 
 				if (ImGui::Selectable(
@@ -786,6 +817,7 @@ void SceneListPanel::OnRender(
 						ctx,
 						scene
 					);
+
 					SelectDefaultEntity(
 						ctx,
 						*scene
@@ -797,6 +829,7 @@ void SceneListPanel::OnRender(
 					false,
 					label
 				);
+
 				DrawSceneOrderDropTarget(
 					index,
 					false,
@@ -808,9 +841,13 @@ void SceneListPanel::OnRender(
 				}
 
 				if (!editing_display_name_scene_key_ ||
-					*editing_display_name_scene_key_ != entry.key) {
-					editing_display_name_scene_key_ = entry.key;
-					display_name_edit_buffer_ = entry.display_name;
+					*editing_display_name_scene_key_ !=
+						entry.key) {
+					editing_display_name_scene_key_ =
+						entry.key;
+
+					display_name_edit_buffer_ =
+						entry.display_name;
 				}
 
 				const bool display_name_submitted{
@@ -823,11 +860,13 @@ void SceneListPanel::OnRender(
 
 				if (display_name_submitted ||
 					ImGui::IsItemDeactivatedAfterEdit()) {
-					if (!ctx.editor.RenameProjectSceneDisplayName(
-							entry.key,
-							display_name_edit_buffer_
-						)) {
-						display_name_edit_buffer_ = entry.display_name;
+					if (!ctx.editor
+							 .RenameProjectSceneDisplayName(
+								 entry.key,
+								 display_name_edit_buffer_
+							 )) {
+						display_name_edit_buffer_ =
+							entry.display_name;
 					}
 
 					editing_display_name_scene_key_.reset();
@@ -840,6 +879,7 @@ void SceneListPanel::OnRender(
 						.DuplicateProjectScene(
 							entry.key
 						);
+
 					ImGui::EndPopup();
 					break;
 				}
@@ -865,20 +905,14 @@ void SceneListPanel::OnRender(
 
 				ImGui::Separator();
 
-				const bool can_delete{
-					project->scenes.size() > 1
-				};
-
 				if (ImGui::MenuItem(
-						"Delete",
-						nullptr,
-						false,
-						can_delete
-					)) {
+					"Delete"
+				)) {
 					ctx.editor
 						.DeleteProjectScene(
 							entry.key
 						);
+
 					ImGui::EndPopup();
 					break;
 				}
@@ -891,7 +925,9 @@ void SceneListPanel::OnRender(
 			"Active Runtime Scenes"
 		);
 
-		std::size_t runtime_index{ 0 };
+		std::size_t runtime_index{
+			0
+		};
 
 		for (const auto& scene :
 			 loaded_scenes) {
@@ -911,13 +947,20 @@ void SceneListPanel::OnRender(
 
 			std::string label{
 				entry
-					? ProjectSceneLabel(*entry)
-					: SceneTypeDisplayName(*scene) +
-					  " [" + scene->GetTag() + "]"
+					? ProjectSceneLabel(
+						*entry
+					)
+					: scene->GetTag() +
+					  " [" +
+					  SceneTypeDisplayName(
+						  *scene
+					  ) +
+					  "]"
 			};
 
 			if (scene->IsTransitioning()) {
-				label += " [Transitioning]";
+				label +=
+					" [Transitioning]";
 			}
 
 			const std::string item_label{
@@ -937,6 +980,7 @@ void SceneListPanel::OnRender(
 					ctx,
 					scene.get()
 				);
+
 				SelectDefaultEntity(
 					ctx,
 					*scene
@@ -948,6 +992,7 @@ void SceneListPanel::OnRender(
 				true,
 				label
 			);
+
 			DrawSceneOrderDropTarget(
 				runtime_index,
 				true,

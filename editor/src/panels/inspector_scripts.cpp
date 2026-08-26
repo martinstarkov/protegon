@@ -567,189 +567,341 @@ bool DrawActionTarget(
 }
 
 bool DrawActionPicker(
-	ScriptEditorContext& context, ScriptStep& action, bool timed_only, float width = -FLT_MIN,
+	ScriptEditorContext& context,
+	ScriptStep& action,
+	bool timed_only,
+	float width = -FLT_MIN,
 	bool* context_requested = nullptr
 ) {
 	struct Candidate {
 		const ScriptRegistration* runtime{ nullptr };
 		const ScriptEditorRegistration* editor{ nullptr };
-		std::string_view label{};
-		std::string_view group{};
-		std::string_view description{};
+		std::string_view label;
+		std::string_view group;
+		std::string_view description;
 		int menu_order{ 100 };
 		bool separator_after{ false };
 	};
 
-	const auto resolve_candidate =
-		[](const ScriptRegistration& registration) -> std::optional<Candidate> {
-		const auto* editor{ ScriptEditorRegistry::Find(registration.type_hash) };
-		if (!editor || !HasScriptType(editor->options.type, ScriptType::Sequence)) {
+	const auto resolve_candidate = [](const ScriptRegistration& registration)
+		-> std::optional<Candidate> {
+		const auto* editor{
+			ScriptEditorRegistry::Find(
+				registration.type_hash
+			)
+		};
+
+		if (!editor ||
+			!HasScriptType(
+				editor->options.type,
+				ScriptType::Sequence
+			)) {
 			return std::nullopt;
 		}
+
 		return Candidate{
-			.runtime		 = &registration,
-			.editor			 = editor,
-			.label			 = editor->options.label,
-			.group			 = editor->options.group,
-			.description	 = editor->options.description,
-			.menu_order		 = editor->options.menu_order,
+			.runtime = &registration,
+			.editor = editor,
+			.label = editor->options.label,
+			.group = editor->options.group,
+			.description = editor->options.description,
+			.menu_order = editor->options.menu_order,
 			.separator_after = editor->options.separator_after,
 		};
 	};
 
-	const auto* current_registration{ ScriptRegistry::Find(action.type_hash) };
-	std::optional<Candidate> current{ current_registration
-												? resolve_candidate(*current_registration)
-												: std::nullopt };
+	const auto* current_registration{
+		ScriptRegistry::Find(
+			action.type_hash
+		)
+	};
+
+	const std::optional<Candidate> current{
+		current_registration
+			? resolve_candidate(*current_registration)
+			: std::nullopt
+	};
+
 	ImGui::SetNextItemWidth(width);
 
-	float popup_min_width{ ImGui::CalcItemWidth() };
+	const float popup_min_width{
+		ImGui::CalcItemWidth()
+	};
 
 	ImGui::SetNextWindowSizeConstraints(
-		ImVec2{ popup_min_width, 0.0f }, ImVec2{ FLT_MAX, FLT_MAX }
+		ImVec2{
+			popup_min_width,
+			0.0f
+		},
+		ImVec2{
+			FLT_MAX,
+			FLT_MAX
+		}
 	);
 
-	bool open{
-		ImGui::BeginCombo("##RegisteredAction", current ? current->label.data() : "Missing Action")
+	const bool open{
+		ImGui::BeginCombo(
+			"##RegisteredAction",
+			current
+				? current->label.data()
+				: "Missing Action"
+		)
 	};
 
 	if (context_requested) {
-		*context_requested |= IsItemRightClicked();
+		*context_requested |=
+			IsItemRightClicked();
 	}
 
 	DrawTooltip(
-		current ? current->description.data()
-				: "Choose a registered Script for this sequence entry."
+		current
+			? current->description.data()
+			: "Choose a registered Script for this sequence entry."
 	);
+
 	if (!open) {
 		return false;
 	}
 
 	bool changed{ false };
+
 	const auto is_available = [&](const Candidate& candidate) {
-		const auto& registration{ *candidate.runtime };
-		return registration.serializable && registration.type_hash != Hash<Script>() &&
-			   registration.type_hash != Hash<WaitScript>() && !candidate.editor->options.hidden &&
-			   (!timed_only || registration.supports_timing) &&
-			   (timed_only || !registration.requires_timing);
+		const auto& registration{
+			*candidate.runtime
+		};
+
+		return
+			registration.serializable &&
+			registration.type_hash != Hash<Script>() &&
+			registration.type_hash != Hash<WaitScript>() &&
+			!candidate.editor->options.hidden &&
+			(!timed_only ||
+			 registration.supports_timing) &&
+			(timed_only ||
+			 !registration.requires_timing);
 	};
+
 	const auto select_candidate = [&](const Candidate& candidate) {
-		const auto& registration{ *candidate.runtime };
+		const auto& registration{
+			*candidate.runtime
+		};
+
 		if (ImGui::MenuItem(
-				candidate.label.data(), nullptr, registration.type_hash == action.type_hash
+				candidate.label.data(),
+				nullptr,
+				registration.type_hash ==
+					action.type_hash
 			)) {
-			bool enabled{ action.enabled };
-			auto target{ action.target };
-			action		   = ScriptRegistry::MakeStep(registration.type_hash);
+			const bool enabled{
+				action.enabled
+			};
+
+			action = ScriptRegistry::MakeStep(
+				registration.type_hash
+			);
+
 			action.enabled = enabled;
-			action.target = std::move(target);
-
-			if (action.type_hash == Hash<TimerActionScript>()) {
-				if (!action.value.is_object()) {
-					action.value = json::object();
-				}
-
-				action.value["timer"] = GetDefaultTimerKey(
-					ResolveInspectedEntity(context),
-					action.target
-				);
-			}
 
 			if (timed_only) {
-				action.completion = ScriptCompletion::Duration;
-				action.timing	  = registration.default_timing.value_or(ScriptTiming{});
+				action.completion =
+					ScriptCompletion::Duration;
+
+				action.timing =
+					registration.default_timing.value_or(
+						ScriptTiming{}
+					);
 			} else {
 				action.completion.reset();
 				action.timing.reset();
 			}
+
 			changed = true;
 		}
-		if (ImGui::IsItemHovered()) {
-			std::string type_hash{ std::to_string(registration.type_hash) };
-			ImGui::SetTooltip("%s\nType hash: %s", candidate.description.data(), type_hash.c_str());
-		}
+
+		// Only show the user-facing description.
+		DrawTooltip(
+			candidate.description.data()
+		);
 	};
 
 	std::vector<Candidate> candidates;
-	for (const auto& registration : ScriptRegistry::Entries()) {
-		if (auto candidate{ resolve_candidate(registration) };
-			candidate && is_available(*candidate)) {
-			candidates.push_back(*candidate);
+
+	for (const auto& registration :
+		 ScriptRegistry::Entries()) {
+		if (auto candidate{
+				resolve_candidate(
+					registration
+				)
+			};
+			candidate &&
+			is_available(*candidate)) {
+			candidates.push_back(
+				*candidate
+			);
 		}
 	}
 
-	const auto emit_signal_it{ std::ranges::find_if(candidates, [](const Candidate& candidate) {
-		return candidate.runtime->type_hash == Hash<EmitSignalScript>();
-	}) };
-	if (emit_signal_it != candidates.end()) {
-		select_candidate(*emit_signal_it);
+	const auto emit_signal_it{
+		std::ranges::find_if(
+			candidates,
+			[](const Candidate& candidate) {
+				return candidate.runtime->type_hash ==
+					Hash<EmitSignalScript>();
+			}
+		)
+	};
+
+	if (emit_signal_it !=
+		candidates.end()) {
+		select_candidate(
+			*emit_signal_it
+		);
+
 		ImGui::Separator();
 	}
 
-	if (!timed_only && !context.shared_sequences.sequences.empty() &&
+	if (context.owner &&
+		!timed_only &&
+		!context.shared_sequences.sequences.empty() &&
 		ImGui::BeginMenu("Global")) {
-		for (const auto& shared : context.shared_sequences.sequences) {
+		for (const auto& shared :
+			 context.shared_sequences.sequences) {
 			bool selected{ false };
-			if (action.type_hash == Hash<Script>()) {
+
+			if (action.type_hash ==
+				Hash<Script>()) {
 				Script current_script;
-				if (TryReadScriptJson(action.value, current_script)) {
-					selected = current_script.sequence.shared_reference &&
-							   current_script.sequence.shared_sequence_id == shared.id;
+
+				if (TryReadScriptJson(
+						action.value,
+						current_script
+					)) {
+					selected =
+						current_script
+							.sequence
+							.shared_reference &&
+						current_script
+							.sequence
+							.shared_sequence_id ==
+							shared.id;
 				}
 			}
-			if (ImGui::MenuItem(shared.name.c_str(), nullptr, selected)) {
-				bool enabled{ action.enabled };
-				auto target{ action.target };
+
+			if (ImGui::MenuItem(
+					shared.name.c_str(),
+					nullptr,
+					selected
+				)) {
+				const bool enabled{
+					action.enabled
+				};
+
 				Script script;
-				script.sequence.name			   = shared.name;
-				script.sequence.shared_reference   = true;
-				script.sequence.shared_sequence_id = shared.id;
-				action							   = ScriptRegistry::MakeStep(std::move(script));
-				action.enabled					   = enabled;
-				action.target					   = std::move(target);
-				action.completion				   = ScriptCompletion::ScriptControlled;
+
+				script.sequence.name =
+					shared.name;
+
+				script.sequence.shared_reference =
+					true;
+
+				script.sequence.shared_sequence_id =
+					shared.id;
+
+				action =
+					ScriptRegistry::MakeStep(
+						std::move(script)
+					);
+
+				action.enabled = enabled;
+
+				action.completion =
+					ScriptCompletion::ScriptControlled;
+
 				action.timing.reset();
+
 				changed = true;
 			}
-			DrawTooltip("Run this global editor authored Script as the sequence step.");
+
+			DrawTooltip(
+				"Run this global editor-authored Script as the sequence step."
+			);
 		}
+
 		ImGui::EndMenu();
 	}
 
-	for (const auto& candidate : candidates) {
-		if (candidate.group.empty() && candidate.runtime->type_hash != Hash<EmitSignalScript>()) {
-			select_candidate(candidate);
+	for (const auto& candidate :
+		 candidates) {
+		if (candidate.group.empty() &&
+			candidate.runtime->type_hash !=
+				Hash<EmitSignalScript>()) {
+			select_candidate(
+				candidate
+			);
 		}
 	}
 
 	std::vector<std::string_view> groups;
-	for (const auto& candidate : candidates) {
-		if (!candidate.group.empty() && !std::ranges::contains(groups, candidate.group)) {
-			groups.push_back(candidate.group);
+
+	for (const auto& candidate :
+		 candidates) {
+		if (!candidate.group.empty() &&
+			!std::ranges::contains(
+				groups,
+				candidate.group
+			)) {
+			groups.push_back(
+				candidate.group
+			);
 		}
 	}
-	for (const auto group : groups) {
-		if (!ImGui::BeginMenu(group.data())) {
+
+	for (const auto group :
+		 groups) {
+		if (!ImGui::BeginMenu(
+				group.data()
+			)) {
 			continue;
 		}
+
 		std::vector<const Candidate*> grouped;
-		for (const auto& candidate : candidates) {
-			if (candidate.group == group) {
-				grouped.push_back(&candidate);
+
+		for (const auto& candidate :
+			 candidates) {
+			if (candidate.group ==
+				group) {
+				grouped.push_back(
+					&candidate
+				);
 			}
 		}
-		std::ranges::sort(grouped, {}, [](const Candidate* candidate) {
-			return candidate->menu_order;
-		});
-		for (std::size_t i{ 0 }; i < grouped.size(); ++i) {
-			select_candidate(*grouped[i]);
-			if (grouped[i]->separator_after && i + 1 < grouped.size()) {
+
+		std::ranges::sort(
+			grouped,
+			{},
+			[](const Candidate* candidate) {
+				return candidate->menu_order;
+			}
+		);
+
+		for (std::size_t i{ 0 };
+			 i < grouped.size();
+			 ++i) {
+			select_candidate(
+				*grouped[i]
+			);
+
+			if (grouped[i]->separator_after &&
+				i + 1 < grouped.size()) {
 				ImGui::Separator();
 			}
 		}
+
 		ImGui::EndMenu();
 	}
+
 	ImGui::EndCombo();
+
 	return changed;
 }
 

@@ -5,42 +5,43 @@
 
 #include <algorithm>
 #include <array>
+#include <cctype>
+#include <cfloat>
 #include <chrono>
 #include <cstddef>
-#include <cfloat>
 #include <cstdint>
 #include <ctime>
-#include <memory>
-#include <optional>
-#include <string>
-#include <string_view>
-#include <utility>
-#include <cctype>
 #include <filesystem>
 #include <iomanip>
+#include <memory>
+#include <optional>
 #include <sstream>
+#include <string>
+#include <string_view>
 #include <system_error>
+#include <utility>
 #include <vector>
 
 #include "app/application.h"
-#include "core/build_info.h"
 #include "app/application_context.h"
 #include "app/application_layer.h"
 #include "app/application_state.h"
 #include "commands/editor_commands.h"
 #include "commands/undo_stack.h"
+#include "core/build_info.h"
 #if !defined(__EMSCRIPTEN__)
 #include "editor/export_manager.h"
 #endif
+#include "app/project.h"
 #include "core/assert.h"
 #include "core/log.h"
-#include "editor/editor_context.h"
-#include "editor/output_console.h"
-#include "editor/editor_selection.h"
-#include "editor/editor_state.h"
 #include "core/math/vector2.h"
 #include "core/util/file.h"
 #include "core/util/hash.h"
+#include "editor/editor_context.h"
+#include "editor/editor_selection.h"
+#include "editor/editor_state.h"
+#include "editor/output_console.h"
 #include "panels/console.h"
 #include "panels/content_browser.h"
 #include "panels/inspector.h"
@@ -58,7 +59,6 @@
 #include "runtime/graphics/fx/effect_registry.h"
 #include "runtime/graphics/fx/screen_effect_stack.h"
 #include "runtime/graphics/visible.h"
-#include "app/project.h"
 #include "runtime/scene/scene_file.h"
 #include "runtime/scene/scene_manager.h"
 #include "serialization/json/json.h"
@@ -87,23 +87,17 @@ constexpr float kRightColumnRatio{ 0.40f };
 	const auto time{ std::chrono::system_clock::to_time_t(now) };
 	const auto local_time{ LocalTime(time) };
 	const auto milliseconds{
-		std::chrono::duration_cast<std::chrono::milliseconds>(
-			now.time_since_epoch()
-		).count() % 1000
+		std::chrono::duration_cast<std::chrono::milliseconds>(now.time_since_epoch()).count() % 1000
 	};
 
 	std::ostringstream output;
-	output << "console_"
-		   << std::put_time(&local_time, "%Y-%m-%d_%H-%M-%S-")
-		   << std::setfill('0') << std::setw(3) << milliseconds
-		   << ".ptgnlog";
+	output << "console_" << std::put_time(&local_time, "%Y-%m-%d_%H-%M-%S-") << std::setfill('0')
+		   << std::setw(3) << milliseconds << ".ptgnlog";
 	return output.str();
 }
 #endif
 
-[[nodiscard]] std::string CollapseRepeatedConsoleLines(
-	std::string_view output
-) {
+[[nodiscard]] std::string CollapseRepeatedConsoleLines(std::string_view output) {
 	std::string collapsed;
 	collapsed.reserve(output.size());
 
@@ -139,8 +133,8 @@ constexpr float kRightColumnRatio{ 0.40f };
 			previous_has_newline = has_newline;
 		} else {
 			flush();
-			previous_line = line;
-			repeat_count = 1;
+			previous_line		 = line;
+			repeat_count		 = 1;
 			previous_has_newline = has_newline;
 		}
 
@@ -156,251 +150,95 @@ constexpr float kRightColumnRatio{ 0.40f };
 
 template <typename T, typename Apply>
 void PushUndoableValueChange(
-	UndoStack& undo_stack,
-	std::string label,
-	T before,
-	T after,
-	Apply apply,
+	UndoStack& undo_stack, std::string label, T before, T after, Apply apply,
 	bool affects_project_serialization = true
 ) {
 	apply(after);
 
 	undo_stack.PushApplied(
-		std::move(label),
-		[apply, before = std::move(before)]() mutable {
-			apply(before);
-		},
-		[apply, after = std::move(after)]() mutable {
-			apply(after);
-		},
-		affects_project_serialization
+		std::move(label), [apply, before = std::move(before)]() mutable { apply(before); },
+		[apply, after = std::move(after)]() mutable { apply(after); }, affects_project_serialization
 	);
 }
 
 class ScopedRuntimeEditorTheme {
 public:
-	explicit ScopedRuntimeEditorTheme(
-		bool enabled
-	) {
+	explicit ScopedRuntimeEditorTheme(bool enabled) {
 		if (!enabled) {
 			return;
 		}
 
 		// Main panel and popup backgrounds.
-		Push(
-			ImGuiCol_WindowBg,
-			ImVec4{ 0.105f, 0.095f, 0.055f, 1.0f }
-		);
-		Push(
-			ImGuiCol_ChildBg,
-			ImVec4{ 0.095f, 0.085f, 0.050f, 1.0f }
-		);
-		Push(
-			ImGuiCol_PopupBg,
-			ImVec4{ 0.130f, 0.115f, 0.060f, 1.0f }
-		);
-		Push(
-			ImGuiCol_Border,
-			ImVec4{ 0.340f, 0.280f, 0.100f, 0.75f }
-		);
+		Push(ImGuiCol_WindowBg, ImVec4{ 0.105f, 0.095f, 0.055f, 1.0f });
+		Push(ImGuiCol_ChildBg, ImVec4{ 0.095f, 0.085f, 0.050f, 1.0f });
+		Push(ImGuiCol_PopupBg, ImVec4{ 0.130f, 0.115f, 0.060f, 1.0f });
+		Push(ImGuiCol_Border, ImVec4{ 0.340f, 0.280f, 0.100f, 0.75f });
 
 		// Inputs, checkboxes, sliders, and drag controls.
-		Push(
-			ImGuiCol_FrameBg,
-			ImVec4{ 0.230f, 0.190f, 0.065f, 1.0f }
-		);
-		Push(
-			ImGuiCol_FrameBgHovered,
-			ImVec4{ 0.360f, 0.290f, 0.080f, 1.0f }
-		);
-		Push(
-			ImGuiCol_FrameBgActive,
-			ImVec4{ 0.470f, 0.370f, 0.090f, 1.0f }
-		);
+		Push(ImGuiCol_FrameBg, ImVec4{ 0.230f, 0.190f, 0.065f, 1.0f });
+		Push(ImGuiCol_FrameBgHovered, ImVec4{ 0.360f, 0.290f, 0.080f, 1.0f });
+		Push(ImGuiCol_FrameBgActive, ImVec4{ 0.470f, 0.370f, 0.090f, 1.0f });
 
-		Push(
-			ImGuiCol_CheckMark,
-			ImVec4{ 0.820f, 0.670f, 0.200f, 1.0f }
-		);
-		Push(
-			ImGuiCol_CheckboxSelectedBg,
-			ImVec4{ 0.460f, 0.360f, 0.080f, 1.0f }
-		);
+		Push(ImGuiCol_CheckMark, ImVec4{ 0.820f, 0.670f, 0.200f, 1.0f });
+		Push(ImGuiCol_CheckboxSelectedBg, ImVec4{ 0.460f, 0.360f, 0.080f, 1.0f });
 
-		Push(
-			ImGuiCol_SliderGrab,
-			ImVec4{ 0.640f, 0.510f, 0.130f, 1.0f }
-		);
-		Push(
-			ImGuiCol_SliderGrabActive,
-			ImVec4{ 0.820f, 0.650f, 0.160f, 1.0f }
-		);
+		Push(ImGuiCol_SliderGrab, ImVec4{ 0.640f, 0.510f, 0.130f, 1.0f });
+		Push(ImGuiCol_SliderGrabActive, ImVec4{ 0.820f, 0.650f, 0.160f, 1.0f });
 
 		// Buttons, tree nodes, selectables, and collapsing headers.
-		Push(
-			ImGuiCol_Button,
-			ImVec4{ 0.280f, 0.230f, 0.070f, 1.0f }
-		);
-		Push(
-			ImGuiCol_ButtonHovered,
-			ImVec4{ 0.420f, 0.340f, 0.090f, 1.0f }
-		);
-		Push(
-			ImGuiCol_ButtonActive,
-			ImVec4{ 0.540f, 0.430f, 0.110f, 1.0f }
-		);
+		Push(ImGuiCol_Button, ImVec4{ 0.280f, 0.230f, 0.070f, 1.0f });
+		Push(ImGuiCol_ButtonHovered, ImVec4{ 0.420f, 0.340f, 0.090f, 1.0f });
+		Push(ImGuiCol_ButtonActive, ImVec4{ 0.540f, 0.430f, 0.110f, 1.0f });
 
-		Push(
-			ImGuiCol_Header,
-			ImVec4{ 0.260f, 0.215f, 0.065f, 1.0f }
-		);
-		Push(
-			ImGuiCol_HeaderHovered,
-			ImVec4{ 0.410f, 0.330f, 0.090f, 1.0f }
-		);
-		Push(
-			ImGuiCol_HeaderActive,
-			ImVec4{ 0.520f, 0.410f, 0.105f, 1.0f }
-		);
+		Push(ImGuiCol_Header, ImVec4{ 0.260f, 0.215f, 0.065f, 1.0f });
+		Push(ImGuiCol_HeaderHovered, ImVec4{ 0.410f, 0.330f, 0.090f, 1.0f });
+		Push(ImGuiCol_HeaderActive, ImVec4{ 0.520f, 0.410f, 0.105f, 1.0f });
 
 		// Title bars and menu bars.
-		Push(
-			ImGuiCol_TitleBg,
-			ImVec4{ 0.125f, 0.110f, 0.055f, 1.0f }
-		);
-		Push(
-			ImGuiCol_TitleBgActive,
-			ImVec4{ 0.235f, 0.195f, 0.065f, 1.0f }
-		);
-		Push(
-			ImGuiCol_TitleBgCollapsed,
-			ImVec4{ 0.100f, 0.090f, 0.050f, 1.0f }
-		);
-		Push(
-			ImGuiCol_MenuBarBg,
-			ImVec4{ 0.150f, 0.130f, 0.055f, 1.0f }
-		);
+		Push(ImGuiCol_TitleBg, ImVec4{ 0.125f, 0.110f, 0.055f, 1.0f });
+		Push(ImGuiCol_TitleBgActive, ImVec4{ 0.235f, 0.195f, 0.065f, 1.0f });
+		Push(ImGuiCol_TitleBgCollapsed, ImVec4{ 0.100f, 0.090f, 0.050f, 1.0f });
+		Push(ImGuiCol_MenuBarBg, ImVec4{ 0.150f, 0.130f, 0.055f, 1.0f });
 
 		// Scrollbars.
-		Push(
-			ImGuiCol_ScrollbarBg,
-			ImVec4{ 0.080f, 0.075f, 0.040f, 1.0f }
-		);
-		Push(
-			ImGuiCol_ScrollbarGrab,
-			ImVec4{ 0.290f, 0.240f, 0.075f, 1.0f }
-		);
-		Push(
-			ImGuiCol_ScrollbarGrabHovered,
-			ImVec4{ 0.400f, 0.320f, 0.090f, 1.0f }
-		);
-		Push(
-			ImGuiCol_ScrollbarGrabActive,
-			ImVec4{ 0.500f, 0.390f, 0.100f, 1.0f }
-		);
+		Push(ImGuiCol_ScrollbarBg, ImVec4{ 0.080f, 0.075f, 0.040f, 1.0f });
+		Push(ImGuiCol_ScrollbarGrab, ImVec4{ 0.290f, 0.240f, 0.075f, 1.0f });
+		Push(ImGuiCol_ScrollbarGrabHovered, ImVec4{ 0.400f, 0.320f, 0.090f, 1.0f });
+		Push(ImGuiCol_ScrollbarGrabActive, ImVec4{ 0.500f, 0.390f, 0.100f, 1.0f });
 
 		// Separators and resize handles.
-		Push(
-			ImGuiCol_Separator,
-			ImVec4{ 0.310f, 0.260f, 0.085f, 1.0f }
-		);
-		Push(
-			ImGuiCol_SeparatorHovered,
-			ImVec4{ 0.560f, 0.450f, 0.120f, 1.0f }
-		);
-		Push(
-			ImGuiCol_SeparatorActive,
-			ImVec4{ 0.720f, 0.570f, 0.145f, 1.0f }
-		);
+		Push(ImGuiCol_Separator, ImVec4{ 0.310f, 0.260f, 0.085f, 1.0f });
+		Push(ImGuiCol_SeparatorHovered, ImVec4{ 0.560f, 0.450f, 0.120f, 1.0f });
+		Push(ImGuiCol_SeparatorActive, ImVec4{ 0.720f, 0.570f, 0.145f, 1.0f });
 
-		Push(
-			ImGuiCol_ResizeGrip,
-			ImVec4{ 0.380f, 0.310f, 0.085f, 0.35f }
-		);
-		Push(
-			ImGuiCol_ResizeGripHovered,
-			ImVec4{ 0.600f, 0.480f, 0.125f, 0.75f }
-		);
-		Push(
-			ImGuiCol_ResizeGripActive,
-			ImVec4{ 0.760f, 0.600f, 0.150f, 1.0f }
-		);
+		Push(ImGuiCol_ResizeGrip, ImVec4{ 0.380f, 0.310f, 0.085f, 0.35f });
+		Push(ImGuiCol_ResizeGripHovered, ImVec4{ 0.600f, 0.480f, 0.125f, 0.75f });
+		Push(ImGuiCol_ResizeGripActive, ImVec4{ 0.760f, 0.600f, 0.150f, 1.0f });
 
 		// Docked panel tabs.
-		Push(
-			ImGuiCol_Tab,
-			ImVec4{ 0.150f, 0.130f, 0.055f, 1.0f }
-		);
-		Push(
-			ImGuiCol_TabHovered,
-			ImVec4{ 0.420f, 0.335f, 0.090f, 1.0f }
-		);
-		Push(
-			ImGuiCol_TabSelected,
-			ImVec4{ 0.300f, 0.250f, 0.070f, 1.0f }
-		);
-		Push(
-			ImGuiCol_TabSelectedOverline,
-			ImVec4{ 0.720f, 0.570f, 0.140f, 1.0f }
-		);
-		Push(
-			ImGuiCol_TabDimmed,
-			ImVec4{ 0.110f, 0.100f, 0.050f, 1.0f }
-		);
-		Push(
-			ImGuiCol_TabDimmedSelected,
-			ImVec4{ 0.220f, 0.185f, 0.060f, 1.0f }
-		);
-		Push(
-			ImGuiCol_TabDimmedSelectedOverline,
-			ImVec4{ 0.500f, 0.400f, 0.100f, 1.0f }
-		);
+		Push(ImGuiCol_Tab, ImVec4{ 0.150f, 0.130f, 0.055f, 1.0f });
+		Push(ImGuiCol_TabHovered, ImVec4{ 0.420f, 0.335f, 0.090f, 1.0f });
+		Push(ImGuiCol_TabSelected, ImVec4{ 0.300f, 0.250f, 0.070f, 1.0f });
+		Push(ImGuiCol_TabSelectedOverline, ImVec4{ 0.720f, 0.570f, 0.140f, 1.0f });
+		Push(ImGuiCol_TabDimmed, ImVec4{ 0.110f, 0.100f, 0.050f, 1.0f });
+		Push(ImGuiCol_TabDimmedSelected, ImVec4{ 0.220f, 0.185f, 0.060f, 1.0f });
+		Push(ImGuiCol_TabDimmedSelectedOverline, ImVec4{ 0.500f, 0.400f, 0.100f, 1.0f });
 
 		// Docking regions.
-		Push(
-			ImGuiCol_DockingPreview,
-			ImVec4{ 0.720f, 0.570f, 0.140f, 0.70f }
-		);
-		Push(
-			ImGuiCol_DockingEmptyBg,
-			ImVec4{ 0.080f, 0.075f, 0.040f, 1.0f }
-		);
+		Push(ImGuiCol_DockingPreview, ImVec4{ 0.720f, 0.570f, 0.140f, 0.70f });
+		Push(ImGuiCol_DockingEmptyBg, ImVec4{ 0.080f, 0.075f, 0.040f, 1.0f });
 
 		// Tables used throughout the Inspector.
-		Push(
-			ImGuiCol_TableHeaderBg,
-			ImVec4{ 0.190f, 0.160f, 0.055f, 1.0f }
-		);
-		Push(
-			ImGuiCol_TableBorderStrong,
-			ImVec4{ 0.350f, 0.290f, 0.090f, 1.0f }
-		);
-		Push(
-			ImGuiCol_TableBorderLight,
-			ImVec4{ 0.240f, 0.200f, 0.065f, 1.0f }
-		);
+		Push(ImGuiCol_TableHeaderBg, ImVec4{ 0.190f, 0.160f, 0.055f, 1.0f });
+		Push(ImGuiCol_TableBorderStrong, ImVec4{ 0.350f, 0.290f, 0.090f, 1.0f });
+		Push(ImGuiCol_TableBorderLight, ImVec4{ 0.240f, 0.200f, 0.065f, 1.0f });
 
 		// Other highlights that otherwise remain blue.
-		Push(
-			ImGuiCol_TextSelectedBg,
-			ImVec4{ 0.500f, 0.400f, 0.100f, 0.45f }
-		);
-		Push(
-			ImGuiCol_TreeLines,
-			ImVec4{ 0.460f, 0.370f, 0.110f, 1.0f }
-		);
-		Push(
-			ImGuiCol_DragDropTarget,
-			ImVec4{ 0.850f, 0.680f, 0.180f, 1.0f }
-		);
-		Push(
-			ImGuiCol_DragDropTargetBg,
-			ImVec4{ 0.650f, 0.510f, 0.110f, 0.20f }
-		);
-		Push(
-			ImGuiCol_NavCursor,
-			ImVec4{ 0.780f, 0.620f, 0.160f, 1.0f }
-		);
+		Push(ImGuiCol_TextSelectedBg, ImVec4{ 0.500f, 0.400f, 0.100f, 0.45f });
+		Push(ImGuiCol_TreeLines, ImVec4{ 0.460f, 0.370f, 0.110f, 1.0f });
+		Push(ImGuiCol_DragDropTarget, ImVec4{ 0.850f, 0.680f, 0.180f, 1.0f });
+		Push(ImGuiCol_DragDropTargetBg, ImVec4{ 0.650f, 0.510f, 0.110f, 0.20f });
+		Push(ImGuiCol_NavCursor, ImVec4{ 0.780f, 0.620f, 0.160f, 1.0f });
 	}
 
 	~ScopedRuntimeEditorTheme() {
@@ -409,19 +247,12 @@ public:
 		}
 	}
 
-	ScopedRuntimeEditorTheme(
-		const ScopedRuntimeEditorTheme&
-	) = delete;
+	ScopedRuntimeEditorTheme(const ScopedRuntimeEditorTheme&) = delete;
 
-	ScopedRuntimeEditorTheme& operator=(
-		const ScopedRuntimeEditorTheme&
-	) = delete;
+	ScopedRuntimeEditorTheme& operator=(const ScopedRuntimeEditorTheme&) = delete;
 
 private:
-	void Push(
-		ImGuiCol target,
-		ImVec4 color
-	) {
+	void Push(ImGuiCol target, ImVec4 color) {
 		ImGui::PushStyleColor(target, color);
 		++color_count_;
 	}
@@ -430,83 +261,61 @@ private:
 };
 
 [[nodiscard]] std::optional<UUID> GetSelectedEntityUUID(
-	const SceneHierarchyPanel& hierarchy,
-	const Scene* scene
+	const SceneHierarchyPanel& hierarchy, const Scene* scene
 ) {
 	if (!scene) {
 		return std::nullopt;
 	}
 
-	Entity selected_entity{
-		hierarchy.GetSelectedEntity()
-	};
+	Entity selected_entity{ hierarchy.GetSelectedEntity() };
 
-	if (!selected_entity ||
-		std::addressof(selected_entity.GetScene()) != scene) {
+	if (!selected_entity || std::addressof(selected_entity.GetScene()) != scene) {
 		return std::nullopt;
 	}
 
 	return selected_entity.Get<UUID>();
 }
 
-[[nodiscard]] std::string SceneTypeName(
-	std::string_view scene_type
-) {
+[[nodiscard]] std::string SceneTypeName(std::string_view scene_type) {
 	if (scene_type == ::ptgn::impl::kBaseSceneType) {
 		return "Scene";
 	}
 
 	const auto separator{ scene_type.rfind("::") };
-	return separator == std::string_view::npos
-		? std::string{ scene_type }
-		: std::string{ scene_type.substr(separator + 2) };
+	return separator == std::string_view::npos ? std::string{ scene_type }
+											   : std::string{ scene_type.substr(separator + 2) };
 }
 
-[[nodiscard]] std::string SanitizeSceneKey(
-	std::string_view value
-) {
+[[nodiscard]] std::string SanitizeSceneKey(std::string_view value) {
 	std::string result;
 	result.reserve(value.size());
 
 	for (char c : value) {
 		const auto byte{ static_cast<unsigned char>(c) };
 
-		if (std::isalnum(byte) ||
-			c == '_' ||
-			c == '-') {
+		if (std::isalnum(byte) || c == '_' || c == '-') {
 			result.push_back(c);
 		}
 	}
 
-	return result.empty()
-		? std::string{ "Scene" }
-		: result;
+	return result.empty() ? std::string{ "Scene" } : result;
 }
 
 [[nodiscard]] std::string MakeUniqueProjectSceneKey(
-	const Project& project,
-	std::string_view preferred_name
+	const Project& project, std::string_view preferred_name
 ) {
-	const std::string base{
-		SanitizeSceneKey(preferred_name)
-	};
+	const std::string base{ SanitizeSceneKey(preferred_name) };
 
-	auto is_available =
-		[&project](std::string_view candidate) {
-			return FindProjectScene(
-				project,
-				candidate
-			) == nullptr;
-		};
+	auto is_available = [&project](std::string_view candidate) {
+		return FindProjectScene(project, candidate) == nullptr;
+	};
 
 	if (is_available(base)) {
 		return base;
 	}
 
 	for (std::size_t index{ 2 };; ++index) {
-		std::string candidate{
-			base + std::to_string(index)
-		};
+		std::string candidate{ base + std::to_string(index) };
 
 		if (is_available(candidate)) {
 			return candidate;
@@ -514,91 +323,62 @@ private:
 	}
 }
 
-[[nodiscard]] std::string SanitizeSceneFileName(
-	std::string_view preferred_name
-) {
+[[nodiscard]] std::string MakeNextProjectSceneKey(const Project& project) {
+	for (std::size_t index{ 1 };; ++index) {
+		const std::string candidate{ "scene" + std::to_string(index) };
+
+		if (!FindProjectScene(project, candidate)) {
+			return candidate;
+		}
+	}
+}
+
+[[nodiscard]] std::string SanitizeSceneFileName(std::string_view preferred_name) {
 	std::string result;
 	result.reserve(preferred_name.size());
 
 	for (char c : preferred_name) {
-		const auto byte{
-			static_cast<unsigned char>(c)
-		};
+		const auto byte{ static_cast<unsigned char>(c) };
 
-		if (std::isalnum(byte) ||
-			c == ' ' ||
-			c == '-' ||
-			c == '_') {
+		if (std::isalnum(byte) || c == ' ' || c == '-' || c == '_') {
 			result.push_back(c);
 		} else {
 			result.push_back('_');
 		}
 	}
 
-	while (!result.empty() &&
-		   (result.back() == ' ' ||
-			result.back() == '.')) {
+	while (!result.empty() && (result.back() == ' ' || result.back() == '.')) {
 		result.pop_back();
 	}
 
-	return result.empty()
-		? std::string{ "Scene" }
-		: result;
+	return result.empty() ? std::string{ "Scene" } : result;
 }
 
 [[nodiscard]] path MakeUniqueProjectScenePath(
-	const Project& project,
-	std::string_view preferred_name
+	const Project& project, std::string_view preferred_name
 ) {
-	const std::string base{
-		SanitizeSceneFileName(preferred_name)
+	const std::string base{ SanitizeSceneFileName(preferred_name) };
+
+	auto is_available = [&project](const path& candidate) {
+		const bool used_by_project{ std::ranges::any_of(
+			project.scenes, [&candidate](const ProjectSceneEntry& scene) {
+				return scene.scene_path.lexically_normal().generic_string() ==
+					   candidate.lexically_normal().generic_string();
+			}
+		) };
+
+		return !used_by_project && !FileExists(project.file_path.parent_path() / candidate);
 	};
 
-	auto is_available =
-		[&project](
-			const path& candidate
-		) {
-			const bool used_by_project{
-				std::ranges::any_of(
-					project.scenes,
-					[&candidate](
-						const ProjectSceneEntry& scene
-					) {
-						return
-							scene.scene_path.lexically_normal()
-								.generic_string() ==
-							candidate.lexically_normal()
-								.generic_string();
-					}
-				)
-			};
-
-			return !used_by_project &&
-				   !FileExists(
-					   project.file_path.parent_path() /
-					   candidate
-				   );
-		};
-
-	path candidate{
-		project.asset_directory /
-		"scenes" /
-		(base + ".ptgnscene")
-	};
+	path candidate{ project.asset_directory / "scenes" / (base + ".ptgnscene") };
 
 	if (is_available(candidate)) {
 		return candidate;
 	}
 
 	for (std::size_t index{ 2 };; ++index) {
-		candidate =
-			project.asset_directory /
-			"scenes" /
-			(
-				base + " " +
-				std::to_string(index) +
-				".ptgnscene"
-			);
+		candidate = project.asset_directory / "scenes" /
+					(base + " " + std::to_string(index) + ".ptgnscene");
 
 		if (is_available(candidate)) {
 			return candidate;
@@ -606,106 +386,62 @@ private:
 	}
 }
 
-[[nodiscard]] SerializedScene MakeProjectSceneDefinition(
-	std::string_view scene_type
-) {
+[[nodiscard]] SerializedScene MakeProjectSceneDefinition(std::string_view scene_type) {
 	if (scene_type == ::ptgn::impl::kBaseSceneType) {
 		return SerializedScene{
-			.type = std::string{ ::ptgn::impl::kBaseSceneType },
-			.parameters = json::object(),
-			.assets = {},
+			.type			= std::string{ ::ptgn::impl::kBaseSceneType },
+			.parameters		= json::object(),
+			.assets			= {},
 			.preload_assets = {},
-			.content = std::nullopt,
+			.content		= std::nullopt,
 		};
 	}
 
-	const auto& registration{
-		::ptgn::impl::GetSceneRegistration(scene_type)
-	};
+	const auto& registration{ ::ptgn::impl::GetSceneRegistration(scene_type) };
 
 	return SerializedScene{
-		.type = registration.type,
-		.parameters = registration.default_parameters(),
-		.assets = {},
+		.type			= registration.type,
+		.parameters		= registration.default_parameters(),
+		.assets			= {},
 		.preload_assets = {},
-		.content = std::nullopt,
+		.content		= std::nullopt,
 	};
 }
 
-[[nodiscard]] path NormalizeExistingPath(
-	const path& value
-) {
+[[nodiscard]] path NormalizeExistingPath(const path& value) {
 	std::error_code error;
-	const path canonical{
-		fs::weakly_canonical(
-			value,
-			error
-		)
-	};
-	return error
-		? value.lexically_normal()
-		: canonical;
+	const path canonical{ fs::weakly_canonical(value, error) };
+	return error ? value.lexically_normal() : canonical;
 }
 
-[[nodiscard]] path ResolveProjectFilePath(
-	const Project& project
-) {
+[[nodiscard]] path ResolveProjectFilePath(const Project& project) {
 	if (project.file_path.empty()) {
 		return {};
 	}
 
 	if (project.file_path.is_absolute()) {
-		return NormalizeExistingPath(
-			project.file_path
-		);
+		return NormalizeExistingPath(project.file_path);
 	}
 
 	std::error_code error;
-	const path working_candidate{
-		fs::absolute(
-			project.file_path,
-			error
-		)
-	};
-	if (!error && fs::exists(
-			working_candidate,
-			error
-		)) {
-		return NormalizeExistingPath(
-			working_candidate
-		);
+	const path working_candidate{ fs::absolute(project.file_path, error) };
+	if (!error && fs::exists(working_candidate, error)) {
+		return NormalizeExistingPath(working_candidate);
 	}
 
-	const auto& build_info{
-		::ptgn::impl::GetBuildInfo()
-	};
+	const auto& build_info{ ::ptgn::impl::GetBuildInfo() };
 	std::vector<path> candidates;
 	if (build_info.IsExample()) {
-		candidates.emplace_back(
-			build_info.binary_directory /
-			"examples" /
-			project.file_path
-		);
+		candidates.emplace_back(build_info.binary_directory / "examples" / project.file_path);
 	}
-	candidates.emplace_back(
-		build_info.binary_directory /
-		project.file_path
-	);
-	candidates.emplace_back(
-		build_info.runtime_root /
-		project.file_path
-	);
-	candidates.emplace_back(
-		build_info.source_directory /
-		project.file_path
-	);
+	candidates.emplace_back(build_info.binary_directory / project.file_path);
+	candidates.emplace_back(build_info.runtime_root / project.file_path);
+	candidates.emplace_back(build_info.source_directory / project.file_path);
 
 	for (const auto& candidate : candidates) {
 		error.clear();
 		if (fs::exists(candidate, error)) {
-			return NormalizeExistingPath(
-				candidate
-			);
+			return NormalizeExistingPath(candidate);
 		}
 	}
 
@@ -713,17 +449,12 @@ private:
 		return working_candidate.lexically_normal();
 	}
 
-	return (
-		build_info.runtime_root /
-		project.file_path
-	).lexically_normal();
+	return (build_info.runtime_root / project.file_path).lexically_normal();
 }
 
 #if !defined(__EMSCRIPTEN__)
 
-[[nodiscard]] std::optional<path> ExistingDirectoryForDialog(
-	const std::string& value
-) {
+[[nodiscard]] std::optional<path> ExistingDirectoryForDialog(const std::string& value) {
 	if (value.empty()) {
 		return std::nullopt;
 	}
@@ -735,8 +466,7 @@ private:
 	}
 	error.clear();
 
-	while (!current.empty() &&
-		   !fs::is_directory(current, error)) {
+	while (!current.empty() && !fs::is_directory(current, error)) {
 		error.clear();
 		const path parent{ current.parent_path() };
 		if (parent == current) {
@@ -745,17 +475,14 @@ private:
 		current = parent;
 	}
 
-	if (!current.empty() &&
-		fs::is_directory(current, error)) {
+	if (!current.empty() && fs::is_directory(current, error)) {
 		return current;
 	}
 
 	return std::nullopt;
 }
 
-[[nodiscard]] std::optional<std::string> ValidateOutputDirectoryPath(
-	std::string_view value
-) {
+[[nodiscard]] std::optional<std::string> ValidateOutputDirectoryPath(std::string_view value) {
 	if (value.empty()) {
 		return std::string{ "Output directory is required." };
 	}
@@ -778,8 +505,7 @@ private:
 		if (base == "CON" || base == "PRN" || base == "AUX" || base == "NUL") {
 			return true;
 		}
-		if (base.size() == 4 &&
-			(base.starts_with("COM") || base.starts_with("LPT")) &&
+		if (base.size() == 4 && (base.starts_with("COM") || base.starts_with("LPT")) &&
 			base[3] >= '1' && base[3] <= '9') {
 			return true;
 		}
@@ -791,8 +517,8 @@ private:
 		if (c < 32) {
 			return std::string{ "Windows paths cannot contain control characters." };
 		}
-		if (value[i] == '<' || value[i] == '>' || value[i] == '"' ||
-			value[i] == '|' || value[i] == '?' || value[i] == '*') {
+		if (value[i] == '<' || value[i] == '>' || value[i] == '"' || value[i] == '|' ||
+			value[i] == '?' || value[i] == '*') {
 			return std::string{ "Windows paths cannot contain < > \" | ? or *." };
 		}
 		if (value[i] == ':' &&
@@ -803,30 +529,22 @@ private:
 
 	std::size_t component_start{};
 	for (std::size_t i{}; i <= value.size(); ++i) {
-		const bool separator{
-			i == value.size() || value[i] == '/' || value[i] == '\\'
-		};
+		const bool separator{ i == value.size() || value[i] == '/' || value[i] == '\\' };
 		if (!separator) {
 			continue;
 		}
 
-		std::string_view component{
-			value.substr(component_start, i - component_start)
-		};
+		std::string_view component{ value.substr(component_start, i - component_start) };
 		component_start = i + 1;
 		if (component.empty() || component == "." || component == ".." ||
 			(component.size() == 2 && component[1] == ':')) {
 			continue;
 		}
 		if (component.back() == ' ' || component.back() == '.') {
-			return std::string{
-				"Windows path components cannot end with a space or period."
-			};
+			return std::string{ "Windows path components cannot end with a space or period." };
 		}
 		if (is_reserved_component(component)) {
-			return std::string{
-				"The path contains a reserved Windows device name."
-			};
+			return std::string{ "The path contains a reserved Windows device name." };
 		}
 	}
 #endif
@@ -835,10 +553,7 @@ private:
 }
 
 bool DrawDirectoryField(
-	Editor& editor,
-	const char* label,
-	const char* id,
-	std::string& value,
+	Editor& editor, const char* label, const char* id, std::string& value,
 	const std::optional<std::string>& validation_error = std::nullopt
 ) {
 	bool changed{ false };
@@ -850,41 +565,20 @@ bool DrawDirectoryField(
 
 	ImGui::TableSetColumnIndex(1);
 	std::array<char, 4096> buffer{};
-	const std::size_t count{
-		std::min(
-			value.size(),
-			buffer.size() - 1
-		)
-	};
-	std::copy_n(
-		value.data(),
-		count,
-		buffer.data()
-	);
+	const std::size_t count{ std::min(value.size(), buffer.size() - 1) };
+	std::copy_n(value.data(), count, buffer.data());
 
 	if (validation_error.has_value()) {
-		ImGui::PushStyleColor(
-			ImGuiCol_Border,
-			ImVec4{ 0.90f, 0.20f, 0.20f, 1.0f }
-		);
-		ImGui::PushStyleVar(
-			ImGuiStyleVar_FrameBorderSize,
-			1.0f
-		);
+		ImGui::PushStyleColor(ImGuiCol_Border, ImVec4{ 0.90f, 0.20f, 0.20f, 1.0f });
+		ImGui::PushStyleVar(ImGuiStyleVar_FrameBorderSize, 1.0f);
 	}
 
 	ImGui::SetNextItemWidth(-FLT_MIN);
-	if (ImGui::InputText(
-			id,
-			buffer.data(),
-			buffer.size()
-		)) {
-		value = buffer.data();
+	if (ImGui::InputText(id, buffer.data(), buffer.size())) {
+		value	= buffer.data();
 		changed = true;
 	}
-	const bool path_hovered{
-		ImGui::IsItemHovered(ImGuiHoveredFlags_Stationary)
-	};
+	const bool path_hovered{ ImGui::IsItemHovered(ImGuiHoveredFlags_Stationary) };
 
 	if (validation_error.has_value()) {
 		ImGui::PopStyleVar();
@@ -893,49 +587,29 @@ bool DrawDirectoryField(
 
 	if (path_hovered) {
 		ImGui::BeginTooltip();
-		ImGui::TextUnformatted(
-			value.empty() ? "<empty>" : value.c_str()
-		);
+		ImGui::TextUnformatted(value.empty() ? "<empty>" : value.c_str());
 		if (validation_error.has_value()) {
 			ImGui::Separator();
 			ImGui::TextColored(
-				ImVec4{ 1.0f, 0.35f, 0.35f, 1.0f },
-				"Invalid path: %s",
-				validation_error->c_str()
+				ImVec4{ 1.0f, 0.35f, 0.35f, 1.0f }, "Invalid path: %s", validation_error->c_str()
 			);
 		}
 		ImGui::EndTooltip();
 	}
 
 	ImGui::TableSetColumnIndex(2);
-	std::string button_id{
-		"Select##"
-	};
+	std::string button_id{ "Select##" };
 	button_id += id;
 
-	if (ImGui::Button(
-			button_id.c_str(),
-			ImVec2{ -FLT_MIN, 0.0f }
-		)) {
+	if (ImGui::Button(button_id.c_str(), ImVec2{ -FLT_MIN, 0.0f })) {
 		FileDialog::Options options;
-		options.default_path =
-			ExistingDirectoryForDialog(value);
+		options.default_path = ExistingDirectoryForDialog(value);
 
-		auto result{
-			editor.GetWindow()
-				.file
-				.OpenFolder(options)
-		};
+		auto result{ editor.GetWindow().file.OpenFolder(options) };
 		if (!result.has_value()) {
-			PTGN_ERROR(
-				"Failed to open folder dialog: ",
-				result.error()
-			);
+			PTGN_ERROR("Failed to open folder dialog: ", result.error());
 		} else if (result.value().has_value()) {
-			value = result.value()
-				.value()
-				.lexically_normal()
-				.string();
+			value	= result.value().value().lexically_normal().string();
 			changed = true;
 		}
 	}
@@ -943,41 +617,29 @@ bool DrawDirectoryField(
 	return changed;
 }
 
-[[nodiscard]] bool DirectoryHasContent(
-	const path& directory
-) {
+[[nodiscard]] bool DirectoryHasContent(const path& directory) {
 	std::error_code error;
-	if (!fs::exists(directory, error) ||
-		!fs::is_directory(directory, error)) {
+	if (!fs::exists(directory, error) || !fs::is_directory(directory, error)) {
 		return false;
 	}
 
-	return fs::directory_iterator{
-		directory,
-		error
-	} != fs::directory_iterator{};
+	return fs::directory_iterator{ directory, error } != fs::directory_iterator{};
 }
 
 [[nodiscard]] path ResolveProjectRuntimeRoot(
-	const Project& project,
-	const path& resolved_project_file
+	const Project& project, const path& resolved_project_file
 ) {
-	if (project.file_path.empty() ||
-		project.file_path.is_absolute()) {
-		return ::ptgn::impl::GetBuildInfo()
-			.runtime_root;
+	if (project.file_path.empty() || project.file_path.is_absolute()) {
+		return ::ptgn::impl::GetBuildInfo().runtime_root;
 	}
 
 	path root{ resolved_project_file };
-	for (const auto& component :
-		 project.file_path.lexically_normal()) {
-		if (component.empty() ||
-			component == ".") {
+	for (const auto& component : project.file_path.lexically_normal()) {
+		if (component.empty() || component == ".") {
 			continue;
 		}
 		if (component == "..") {
-			return ::ptgn::impl::GetBuildInfo()
-				.runtime_root;
+			return ::ptgn::impl::GetBuildInfo().runtime_root;
 		}
 		root = root.parent_path();
 	}
@@ -986,22 +648,14 @@ bool DrawDirectoryField(
 }
 
 [[nodiscard]] path ProjectRuntimeMount(
-	const Project& project,
-	const path& resolved_project_file,
-	const path& resolved_runtime_root
+	const Project& project, const path& resolved_project_file, const path& resolved_runtime_root
 ) {
 	if (project.file_path.is_relative()) {
-		return project.file_path
-			.parent_path()
-			.lexically_normal();
+		return project.file_path.parent_path().lexically_normal();
 	}
 
 	const path relative{
-		resolved_project_file
-			.parent_path()
-			.lexically_relative(
-				resolved_runtime_root
-			)
+		resolved_project_file.parent_path().lexically_relative(resolved_runtime_root)
 	};
 	if (relative.empty() || relative == ".") {
 		return {};
@@ -1009,9 +663,7 @@ bool DrawDirectoryField(
 
 	for (const auto& component : relative) {
 		if (component == "..") {
-			return resolved_project_file
-				.parent_path()
-				.filename();
+			return resolved_project_file.parent_path().filename();
 		}
 	}
 
@@ -1029,9 +681,8 @@ Editor::Editor(Application& application) : app{ application } {
 			if (!render_enabled_) {
 				EnableRendering(true);
 			}
-			export_window_open_ = true;
-			pending_task_confirmation_ =
-				PendingTaskConfirmation::CloseApplicationWhileRunning;
+			export_window_open_		   = true;
+			pending_task_confirmation_ = PendingTaskConfirmation::CloseApplicationWhileRunning;
 			task_confirmation_popup_requested_ = true;
 			return false;
 		}
@@ -1042,42 +693,28 @@ Editor::Editor(Application& application) : app{ application } {
 	// Generic application startup preference. The engine does not know why it was changed.
 	::ptgn::impl::ApplicationAccessor::ctx(app).start_project_runtime = false;
 
-	context_ = std::make_unique<EditorContext>(
-		*this, commands_, undo_stack_
-	);
+	context_ = std::make_unique<EditorContext>(*this, commands_, undo_stack_);
 
 	commands_.Bind(*context_);
 	scene_hierarchy_panel_.Bind(*context_);
 	scene_list_panel_.Bind(*context_);
 
 #if !defined(__EMSCRIPTEN__)
-	const auto& build_info{
-		::ptgn::impl::GetBuildInfo()
-	};
+	const auto& build_info{ ::ptgn::impl::GetBuildInfo() };
 
-	path desktop_export_directory{
-		build_info.source_directory /
-		"release"
-	};
-	path web_export_directory{
-		build_info.source_directory /
-		"release-web"
-	};
+	path desktop_export_directory{ build_info.source_directory / "release" };
+	path web_export_directory{ build_info.source_directory / "release-web" };
 
 	// Protegon examples share one source tree, so each example needs its own
 	// distribution subdirectory. Standalone applications own release/ and
 	// release-web/ directly.
 	if (build_info.IsExample()) {
-		desktop_export_directory /=
-			build_info.target;
-		web_export_directory /=
-			build_info.target;
+		desktop_export_directory /= build_info.target;
+		web_export_directory	 /= build_info.target;
 	}
 
-	desktop_export_directory_ =
-		desktop_export_directory.string();
-	web_export_directory_ =
-		web_export_directory.string();
+	desktop_export_directory_ = desktop_export_directory.string();
+	web_export_directory_	  = web_export_directory.string();
 #endif
 }
 
@@ -1088,10 +725,7 @@ void Editor::RequestQuit() {
 void Editor::RefreshProjectDirtyState() {
 	PTGN_ASSERT(context_);
 
-	const bool dirty{
-		untracked_project_dirty_ ||
-		undo_stack_.IsProjectDirty()
-	};
+	const bool dirty{ untracked_project_dirty_ || undo_stack_.IsProjectDirty() };
 
 	if (context_->local.state.is_dirty != dirty) {
 		context_->local.state.is_dirty = dirty;
@@ -1110,8 +744,7 @@ void Editor::UpdateWindowTitle() {
 	} else if (const auto* project{ GetProject() }) {
 		title = "Editor: " + project->name;
 
-		if (context_ &&
-			context_->local.state.is_dirty) {
+		if (context_ && context_->local.state.is_dirty) {
 			title += " *";
 		}
 	} else {
@@ -1149,9 +782,7 @@ void Editor::UpdateDockLayout(std::uint32_t dockspace_id, float width) {
 }
 
 void Editor::OnRender() {
-	ScopedRuntimeEditorTheme runtime_theme{
-		IsPlaying() || IsDirectRuntime()
-	};
+	ScopedRuntimeEditorTheme runtime_theme{ IsPlaying() || IsDirectRuntime() };
 
 	auto* viewport{ ImGui::GetMainViewport() };
 
@@ -1196,24 +827,15 @@ void Editor::OnRender() {
 }
 
 Project* Editor::GetProject() {
-	return ::ptgn::impl::ApplicationAccessor::ctx(app)
-		.project
-		? std::addressof(
-			::ptgn::impl::ApplicationAccessor::ctx(app)
-				.project.value()
-		)
-		: nullptr;
+	return ::ptgn::impl::ApplicationAccessor::ctx(app).project
+			 ? std::addressof(::ptgn::impl::ApplicationAccessor::ctx(app).project.value())
+			 : nullptr;
 }
 
 const Project* Editor::GetProject() const {
-	const auto& project{
-		::ptgn::impl::ApplicationAccessor::ctx(app)
-			.project
-	};
+	const auto& project{ ::ptgn::impl::ApplicationAccessor::ctx(app).project };
 
-	return project
-		? std::addressof(project.value())
-		: nullptr;
+	return project ? std::addressof(project.value()) : nullptr;
 }
 
 const ScreenEffectSettings* Editor::GetProjectScreenEffects() const {
@@ -1244,15 +866,8 @@ void Editor::SetScreenEffectPreview(bool enabled) {
 
 	undo_stack_.PushApplied(
 		enabled ? "Enable Screen Effect Preview" : "Disable Screen Effect Preview",
-		[this, before]() {
-			ApplyScreenEffectPreview(before);
-		},
-		[this, enabled]() {
-			ApplyScreenEffectPreview(enabled);
-		},
-		false,
-		true,
-		IsPlaying()
+		[this, before]() { ApplyScreenEffectPreview(before); },
+		[this, enabled]() { ApplyScreenEffectPreview(enabled); }, false, true, IsPlaying()
 	);
 }
 
@@ -1288,19 +903,19 @@ bool Editor::AddProjectScreenEffect(std::string_view type) {
 
 	after.effects.emplace_back(
 		SerializedScreenEffect{
-			.id = id,
-			.type = registration->type_name,
-			.enabled = true,
+			.id			= id,
+			.type		= registration->type_name,
+			.enabled	= true,
 			.parameters = registration->make_default(),
 		}
 	);
 
 	const EditorSelection before_selection{ context_->local.selection };
 	EditorSelection after_selection{ before_selection };
-	after_selection.scene_list_tab = SceneListTab::ScreenEffects;
-	after_selection.inspector_tab = InspectorTab::ScreenEffect;
+	after_selection.scene_list_tab		   = SceneListTab::ScreenEffects;
+	after_selection.inspector_tab		   = InspectorTab::ScreenEffect;
 	after_selection.selected_screen_effect = ScreenEffectSelection{
-		.id = id,
+		.id		 = id,
 		.runtime = false,
 	};
 
@@ -1343,22 +958,17 @@ bool Editor::DuplicateProjectScreenEffect(ScreenEffectId id) {
 	copy.id = new_id;
 
 	const auto source_it{ std::ranges::find_if(
-		after.effects,
-		[id](const SerializedScreenEffect& effect) {
-			return effect.id == id;
-		}
+		after.effects, [id](const SerializedScreenEffect& effect) { return effect.id == id; }
 	) };
-	const auto insert_it{ source_it == after.effects.end()
-		? after.effects.end()
-		: source_it + 1 };
+	const auto insert_it{ source_it == after.effects.end() ? after.effects.end() : source_it + 1 };
 	after.effects.insert(insert_it, std::move(copy));
 
 	const EditorSelection before_selection{ context_->local.selection };
 	EditorSelection after_selection{ before_selection };
-	after_selection.scene_list_tab = SceneListTab::ScreenEffects;
-	after_selection.inspector_tab = InspectorTab::ScreenEffect;
+	after_selection.scene_list_tab		   = SceneListTab::ScreenEffects;
+	after_selection.inspector_tab		   = InspectorTab::ScreenEffect;
 	after_selection.selected_screen_effect = ScreenEffectSelection{
-		.id = new_id,
+		.id		 = new_id,
 		.runtime = false,
 	};
 
@@ -1425,10 +1035,7 @@ bool Editor::DeleteProjectScreenEffect(ScreenEffectId id) {
 	return true;
 }
 
-bool Editor::MoveProjectScreenEffect(
-	std::size_t from_index,
-	std::size_t to_index
-) {
+bool Editor::MoveProjectScreenEffect(std::size_t from_index, std::size_t to_index) {
 	if (IsPlaying()) {
 		return false;
 	}
@@ -1463,13 +1070,8 @@ bool Editor::MoveProjectScreenEffect(
 	ApplyProjectScreenEffects(after);
 
 	undo_stack_.PushApplied(
-		"Reorder Screen Effects",
-		[this, before]() {
-			ApplyProjectScreenEffects(before);
-		},
-		[this, after]() {
-			ApplyProjectScreenEffects(after);
-		}
+		"Reorder Screen Effects", [this, before]() { ApplyProjectScreenEffects(before); },
+		[this, after]() { ApplyProjectScreenEffects(after); }
 	);
 	return true;
 }
@@ -1488,16 +1090,12 @@ bool Editor::SetProjectScreenEffectEnabled(ScreenEffectId id, bool enabled) {
 	SerializedScreenEffect updated{ *current };
 	updated.enabled = enabled;
 	return UpdateProjectScreenEffect(
-		id,
-		updated,
-		enabled ? "Enable Screen Effect" : "Disable Screen Effect"
+		id, updated, enabled ? "Enable Screen Effect" : "Disable Screen Effect"
 	);
 }
 
 bool Editor::UpdateProjectScreenEffect(
-	ScreenEffectId id,
-	const SerializedScreenEffect& value,
-	std::string label,
+	ScreenEffectId id, const SerializedScreenEffect& value, std::string label,
 	std::uint64_t interaction_key
 ) {
 	auto* project{ GetProject() };
@@ -1511,7 +1109,7 @@ bool Editor::UpdateProjectScreenEffect(
 	}
 
 	json current_json = *current;
-	json value_json = value;
+	json value_json	  = value;
 	if (current_json == value_json) {
 		return false;
 	}
@@ -1520,33 +1118,21 @@ bool Editor::UpdateProjectScreenEffect(
 	ScreenEffectSettings after{ before };
 	auto* updated{ FindScreenEffect(after, id) };
 	PTGN_ASSERT(updated);
-	*updated = value;
+	*updated	= value;
 	updated->id = id;
 
 	ApplyProjectScreenEffects(after);
 
 	if (interaction_key != 0) {
 		undo_stack_.TrackInteraction(
-			interaction_key,
-			std::move(label),
-			true,
-			ImGui::IsAnyItemActive(),
-			[this, before]() {
-				ApplyProjectScreenEffects(before);
-			},
-			[this, after]() {
-				ApplyProjectScreenEffects(after);
-			}
+			interaction_key, std::move(label), true, ImGui::IsAnyItemActive(),
+			[this, before]() { ApplyProjectScreenEffects(before); },
+			[this, after]() { ApplyProjectScreenEffects(after); }
 		);
 	} else {
 		undo_stack_.PushApplied(
-			std::move(label),
-			[this, before]() {
-				ApplyProjectScreenEffects(before);
-			},
-			[this, after]() {
-				ApplyProjectScreenEffects(after);
-			}
+			std::move(label), [this, before]() { ApplyProjectScreenEffects(before); },
+			[this, after]() { ApplyProjectScreenEffects(after); }
 		);
 	}
 
@@ -1590,11 +1176,9 @@ Entity Editor::AddRuntimeScreenEffect(std::string_view type) {
 	}
 
 	const EditorSelection before_selection{ context_->local.selection };
-	Entity effect{ ::ptgn::impl::CreateScreenEffectEntity(
-		app_context,
-		type,
-		registration->make_default()
-	) };
+	Entity effect{
+		::ptgn::impl::CreateScreenEffectEntity(app_context, type, registration->make_default())
+	};
 	const auto snapshot{ ::ptgn::impl::CaptureScreenEffect(effect) };
 	if (!snapshot.has_value()) {
 		return {};
@@ -1602,10 +1186,10 @@ Entity Editor::AddRuntimeScreenEffect(std::string_view type) {
 
 	const std::size_t index{ app_context.screen_effect_order.size() - 1 };
 	EditorSelection after_selection{ before_selection };
-	after_selection.scene_list_tab = SceneListTab::ScreenEffects;
-	after_selection.inspector_tab = InspectorTab::ScreenEffect;
+	after_selection.scene_list_tab		   = SceneListTab::ScreenEffects;
+	after_selection.inspector_tab		   = InspectorTab::ScreenEffect;
 	after_selection.selected_screen_effect = ScreenEffectSelection{
-		.id = snapshot->runtime_id,
+		.id		 = snapshot->runtime_id,
 		.runtime = true,
 	};
 	ApplyEditorSelection(*context_, after_selection);
@@ -1622,15 +1206,10 @@ Entity Editor::AddRuntimeScreenEffect(std::string_view type) {
 			::ptgn::impl::RestoreScreenEffect(ctx, snapshot, index);
 			ApplyEditorSelection(*context_, after_selection);
 		},
-		false,
-		true,
-		true
+		false, true, true
 	);
 
-	return ::ptgn::impl::FindScreenEffectByRuntimeId(
-		app_context,
-		snapshot->runtime_id
-	);
+	return ::ptgn::impl::FindScreenEffectByRuntimeId(app_context, snapshot->runtime_id);
 }
 
 bool Editor::DuplicateRuntimeScreenEffect(std::uint64_t runtime_id) {
@@ -1643,9 +1222,7 @@ bool Editor::DuplicateRuntimeScreenEffect(std::uint64_t runtime_id) {
 
 	const EditorSelection before_selection{ context_->local.selection };
 	Entity duplicate{ ::ptgn::impl::CreateScreenEffectEntity(
-		app_context,
-		source_snapshot->type,
-		source_snapshot->parameters
+		app_context, source_snapshot->type, source_snapshot->parameters
 	) };
 	if (!duplicate) {
 		return false;
@@ -1659,10 +1236,10 @@ bool Editor::DuplicateRuntimeScreenEffect(std::uint64_t runtime_id) {
 
 	const std::size_t index{ app_context.screen_effect_order.size() - 1 };
 	EditorSelection after_selection{ before_selection };
-	after_selection.scene_list_tab = SceneListTab::ScreenEffects;
-	after_selection.inspector_tab = InspectorTab::ScreenEffect;
+	after_selection.scene_list_tab		   = SceneListTab::ScreenEffects;
+	after_selection.inspector_tab		   = InspectorTab::ScreenEffect;
 	after_selection.selected_screen_effect = ScreenEffectSelection{
-		.id = duplicate_snapshot->runtime_id,
+		.id		 = duplicate_snapshot->runtime_id,
 		.runtime = true,
 	};
 	ApplyEditorSelection(*context_, after_selection);
@@ -1679,9 +1256,7 @@ bool Editor::DuplicateRuntimeScreenEffect(std::uint64_t runtime_id) {
 			::ptgn::impl::RestoreScreenEffect(ctx, snapshot, index);
 			ApplyEditorSelection(*context_, after_selection);
 		},
-		false,
-		true,
-		true
+		false, true, true
 	);
 	return true;
 }
@@ -1699,10 +1274,9 @@ bool Editor::DeleteRuntimeScreenEffect(std::uint64_t runtime_id) {
 	EditorSelection after_selection{ before_selection };
 	if (after_selection.selected_screen_effect.has_value()) {
 		const auto selected{ after_selection.selected_screen_effect.value() };
-		const bool deleting_selection{
-			(selected.runtime && selected.id == runtime_id) ||
-			(!selected.runtime && snapshot->source_id != 0 && selected.id == snapshot->source_id)
-		};
+		const bool deleting_selection{ (selected.runtime && selected.id == runtime_id) ||
+									   (!selected.runtime && snapshot->source_id != 0 &&
+										selected.id == snapshot->source_id) };
 		if (deleting_selection) {
 			after_selection.selected_screen_effect.reset();
 			after_selection.inspector_tab = InspectorTab::Primary;
@@ -1726,17 +1300,12 @@ bool Editor::DeleteRuntimeScreenEffect(std::uint64_t runtime_id) {
 			::ptgn::impl::RemoveScreenEffect(ctx, runtime_id);
 			ApplyEditorSelection(*context_, after_selection);
 		},
-		false,
-		true,
-		true
+		false, true, true
 	);
 	return true;
 }
 
-bool Editor::MoveRuntimeScreenEffect(
-	std::size_t from_index,
-	std::size_t to_index
-) {
+bool Editor::MoveRuntimeScreenEffect(std::size_t from_index, std::size_t to_index) {
 	auto& app_context{ ::ptgn::impl::ApplicationAccessor::ctx(app) };
 	if (from_index >= app_context.screen_effect_order.size() ||
 		to_index >= app_context.screen_effect_order.size()) {
@@ -1750,9 +1319,7 @@ bool Editor::MoveRuntimeScreenEffect(
 	if (!entity || !entity.Has<::ptgn::impl::ScreenEffectInstance>()) {
 		return false;
 	}
-	const std::uint64_t runtime_id{
-		entity.Get<::ptgn::impl::ScreenEffectInstance>().runtime_id
-	};
+	const std::uint64_t runtime_id{ entity.Get<::ptgn::impl::ScreenEffectInstance>().runtime_id };
 
 	if (!::ptgn::impl::MoveScreenEffect(app_context, runtime_id, to_index)) {
 		return false;
@@ -1768,17 +1335,12 @@ bool Editor::MoveRuntimeScreenEffect(
 			auto& ctx{ ::ptgn::impl::ApplicationAccessor::ctx(app) };
 			::ptgn::impl::MoveScreenEffect(ctx, runtime_id, to_index);
 		},
-		false,
-		true,
-		true
+		false, true, true
 	);
 	return true;
 }
 
-bool Editor::SetRuntimeScreenEffectEnabled(
-	std::uint64_t runtime_id,
-	bool enabled
-) {
+bool Editor::SetRuntimeScreenEffectEnabled(std::uint64_t runtime_id, bool enabled) {
 	auto& app_context{ ::ptgn::impl::ApplicationAccessor::ctx(app) };
 	Entity entity{ ::ptgn::impl::FindScreenEffectByRuntimeId(app_context, runtime_id) };
 	const auto before{ ::ptgn::impl::CaptureScreenEffect(entity) };
@@ -1805,17 +1367,13 @@ bool Editor::SetRuntimeScreenEffectEnabled(
 			auto& ctx{ ::ptgn::impl::ApplicationAccessor::ctx(app) };
 			::ptgn::impl::RestoreScreenEffect(ctx, after);
 		},
-		false,
-		true,
-		true
+		false, true, true
 	);
 	return true;
 }
 
 bool Editor::UpdateRuntimeScreenEffect(
-	std::uint64_t runtime_id,
-	const json& parameters,
-	std::string label,
+	std::uint64_t runtime_id, const json& parameters, std::string label,
 	std::uint64_t interaction_key
 ) {
 	auto& app_context{ ::ptgn::impl::ApplicationAccessor::ctx(app) };
@@ -1845,24 +1403,12 @@ bool Editor::UpdateRuntimeScreenEffect(
 
 	if (interaction_key != 0) {
 		undo_stack_.TrackInteraction(
-			interaction_key,
-			std::move(label),
-			true,
-			ImGui::IsAnyItemActive(),
-			std::move(undo),
-			std::move(redo),
-			false,
-			true,
-			true
+			interaction_key, std::move(label), true, ImGui::IsAnyItemActive(), std::move(undo),
+			std::move(redo), false, true, true
 		);
 	} else {
 		undo_stack_.PushApplied(
-			std::move(label),
-			std::move(undo),
-			std::move(redo),
-			false,
-			true,
-			true
+			std::move(label), std::move(undo), std::move(redo), false, true, true
 		);
 	}
 	return true;
@@ -1870,17 +1416,12 @@ bool Editor::UpdateRuntimeScreenEffect(
 
 void Editor::MarkProjectDirty() {
 	PTGN_ASSERT(context_);
-	untracked_project_dirty_ = true;
+	untracked_project_dirty_		= true;
 	scene_asset_dependencies_dirty_ = true;
 	RefreshProjectDirtyState();
 }
 
-bool Editor::CreateProjectScene(
-	std::string_view scene_type
-) {
-#if defined(__EMSCRIPTEN__)
-	return false;
-#endif
+bool Editor::CreateProjectScene(std::string_view scene_type) {
 	PTGN_ASSERT(context_);
 
 	if (IsPlaying()) {
@@ -1898,113 +1439,69 @@ bool Editor::CreateProjectScene(
 		return false;
 	}
 
-	const std::string display_name{
-		SceneTypeName(scene_type)
-	};
+	const std::string display_name{ SceneTypeName(scene_type) };
 
-	const std::string scene_key{
-		MakeUniqueProjectSceneKey(
-			*project,
-			display_name
-		)
-	};
+	// Scene keys generated through Add Scene always use
+	// scene1, scene2, scene3, ...
+	const std::string scene_key{ MakeNextProjectSceneKey(*project) };
 
-	const path relative_path{
-		MakeUniqueProjectScenePath(
-			*project,
-			display_name
-		)
-	};
+	const path relative_path{ MakeUniqueProjectScenePath(*project, display_name) };
 
-	const SerializedScene serialized_scene{
-		MakeProjectSceneDefinition(scene_type)
-	};
+	const SerializedScene serialized_scene{ MakeProjectSceneDefinition(scene_type) };
 
 	const ProjectSceneEntry entry{
-		.key = scene_key,
+		.key		  = scene_key,
 		.display_name = display_name,
-		.scene_path = relative_path,
+		.scene_path	  = relative_path,
 	};
 
-	const std::size_t insertion_index{
-		project->scenes.size()
-	};
+	const std::size_t insertion_index{ project->scenes.size() };
 
-	const EditorSelection before_selection{
-		context_->local.selection
-	};
+	const EditorSelection before_selection{ context_->local.selection };
 
-	EditorSelection after_selection{
-		before_selection
-	};
+	EditorSelection after_selection{ before_selection };
 
 	after_selection.selected_scene_key = entry.key;
+
 	after_selection.selected_scene_runtime = false;
+
 	after_selection.mode = EditorSelectionMode::SceneHierarchy;
 
-	auto create_scene = [
-		this,
-		entry,
-		serialized_scene,
-		insertion_index
-	](EditorSelection selection) mutable {
-		auto* current_project{
-			GetProject()
-		};
+	auto create_scene = [this, entry, serialized_scene,
+						 insertion_index](EditorSelection selection) mutable {
+		auto* current_project{ GetProject() };
 
-		if (!current_project ||
-			FindProjectScene(
-				*current_project,
-				entry.key
-			)) {
+		if (!current_project || FindProjectScene(*current_project, entry.key)) {
 			return false;
 		}
 
-		const std::size_t index{
-			std::min(
-				insertion_index,
-				current_project->scenes.size()
-			)
-		};
+		const std::size_t index{ std::min(insertion_index, current_project->scenes.size()) };
 
-		const std::string previous_startup_scene_key{
-			current_project->startup_scene_key
-		};
+		const std::string previous_startup_scene_key{ current_project->startup_scene_key };
 
 		current_project->scenes.insert(
-			current_project->scenes.begin() +
-				static_cast<std::ptrdiff_t>(index),
-			entry
+			current_project->scenes.begin() + static_cast<std::ptrdiff_t>(index), entry
 		);
 
+		// If this is the first scene in an empty project,
+		// make it the startup scene automatically.
 		if (current_project->startup_scene_key.empty()) {
-			current_project->startup_scene_key =
-				entry.key;
+			current_project->startup_scene_key = entry.key;
 		}
 
-		auto& manager{
-			GetSceneManager()
-		};
+		auto& manager{ GetSceneManager() };
 
 		if (!manager.HasScene(Hash(entry.key))) {
-			SerializedScene factory_scene{
-				serialized_scene
-			};
+			SerializedScene factory_scene{ serialized_scene };
 
 			if (!manager.EnterFactory(
-					entry.key,
-					::ptgn::impl::MakeSceneFactory(
-						std::move(factory_scene),
-						false
-					)
+					entry.key, ::ptgn::impl::MakeSceneFactory(std::move(factory_scene), false)
 				)) {
 				current_project->scenes.erase(
-					current_project->scenes.begin() +
-						static_cast<std::ptrdiff_t>(index)
+					current_project->scenes.begin() + static_cast<std::ptrdiff_t>(index)
 				);
 
-				current_project->startup_scene_key =
-					previous_startup_scene_key;
+				current_project->startup_scene_key = previous_startup_scene_key;
 
 				return false;
 			}
@@ -2012,85 +1509,50 @@ bool Editor::CreateProjectScene(
 
 		SyncProjectSceneOrder();
 
-		const auto selected_uuid{
-			selection.GetEntityUUID(
-				entry.key,
-				false
-			)
-		};
+		const auto selected_uuid{ selection.GetEntityUUID(entry.key, false) };
 
-		ApplyEditorSelection(
-			*context_,
-			std::move(selection)
-		);
+		ApplyEditorSelection(*context_, std::move(selection));
 
-		scene_list_panel_.QueueSceneSelection(
-			*context_,
-			entry.key,
-			false,
-			selected_uuid
-		);
+		scene_list_panel_.QueueSceneSelection(*context_, entry.key, false, selected_uuid);
 
 		return true;
 	};
 
-	auto remove_scene = [
-		this,
-		entry
-	](EditorSelection selection) mutable {
-		auto* current_project{
-			GetProject()
-		};
+	auto remove_scene = [this, entry](EditorSelection selection) mutable {
+		auto* current_project{ GetProject() };
 
 		if (!current_project) {
 			return false;
 		}
 
-		const auto it{
-			std::ranges::find_if(
-				current_project->scenes,
-				[&entry](
-					const ProjectSceneEntry& candidate
-				) {
-					return candidate.key ==
-						entry.key;
-				}
-			)
-		};
+		const auto it{ std::ranges::find_if(
+			current_project->scenes,
+			[&entry](const ProjectSceneEntry& candidate) { return candidate.key == entry.key; }
+		) };
 
 		if (it == current_project->scenes.end()) {
 			return false;
 		}
 
-		auto& manager{
-			GetSceneManager()
-		};
+		auto& manager{ GetSceneManager() };
 
-		if (manager.HasScene(Hash(entry.key)) &&
-			!manager.Exit(entry.key)) {
+		if (manager.HasScene(Hash(entry.key)) && !manager.Exit(entry.key)) {
 			return false;
 		}
 
-		const bool was_startup{
-			current_project->startup_scene_key ==
-				entry.key
-		};
+		const bool was_startup{ current_project->startup_scene_key == entry.key };
 
 		current_project->scenes.erase(it);
 
 		if (current_project->scenes.empty()) {
 			current_project->startup_scene_key.clear();
 		} else if (was_startup) {
-			current_project->startup_scene_key =
-				current_project->scenes.front().key;
+			current_project->startup_scene_key = current_project->scenes.front().key;
 		}
 
 		SyncProjectSceneOrder();
 
-		ApplyEditorSelection(
-			*context_,
-			std::move(selection)
-		);
+		ApplyEditorSelection(*context_, std::move(selection));
 
 		return true;
 	};
@@ -2101,163 +1563,92 @@ bool Editor::CreateProjectScene(
 
 	undo_stack_.PushApplied(
 		"Create Scene",
-		[remove_scene, before_selection]() mutable {
-			remove_scene(before_selection);
-		},
-		[create_scene, after_selection]() mutable {
-			create_scene(after_selection);
-		}
+		[remove_scene, before_selection]() mutable { remove_scene(before_selection); },
+		[create_scene, after_selection]() mutable { create_scene(after_selection); }
 	);
 
 	return true;
 }
 
-bool Editor::DuplicateProjectScene(
-	std::string_view scene_key
-) {
-#if defined(__EMSCRIPTEN__)
-	return false;
-#endif
+bool Editor::DuplicateProjectScene(std::string_view scene_key) {
 	PTGN_ASSERT(context_);
 
 	if (IsPlaying()) {
 		return false;
 	}
 
-	auto* project{
-		GetProject()
-	};
+	auto* project{ GetProject() };
 
 	if (!project) {
 		return false;
 	}
 
-	const auto* source_entry{
-		FindProjectScene(
-			*project,
-			scene_key
-		)
-	};
+	const auto* source_entry{ FindProjectScene(*project, scene_key) };
 
 	if (!source_entry) {
 		return false;
 	}
 
-	auto& manager{
-		GetSceneManager()
-	};
+	auto& manager{ GetSceneManager() };
 
-	const auto source_hash{
-		Hash(scene_key)
-	};
+	const auto source_hash{ Hash(scene_key) };
 
 	if (!manager.HasScene(source_hash)) {
 		return false;
 	}
 
-	const auto& source_scene{
-		manager.GetScene(source_hash)
-	};
+	const auto& source_scene{ manager.GetScene(source_hash) };
 
 	if (source_scene.IsRuntime()) {
 		return false;
 	}
 
-	const SerializedScene serialized_scene{
-		CaptureScene(source_scene)
-	};
+	const SerializedScene serialized_scene{ CaptureScene(source_scene) };
 
-	const std::string duplicate_display_name{
-		source_entry->display_name + " Copy"
-	};
+	const std::string duplicate_display_name{ source_entry->display_name };
 
 	const ProjectSceneEntry entry{
-		.key = MakeUniqueProjectSceneKey(
-			*project,
-			source_entry->key + "Copy"
-		),
+		.key		  = MakeUniqueProjectSceneKey(*project, source_entry->key + "_copy"),
 		.display_name = duplicate_display_name,
-		.scene_path = MakeUniqueProjectScenePath(
-			*project,
-			duplicate_display_name
-		),
+		.scene_path	  = MakeUniqueProjectScenePath(*project, duplicate_display_name),
 	};
 
-	const std::size_t insertion_index{
-		project->scenes.size()
-	};
+	const std::size_t insertion_index{ project->scenes.size() };
 
-	const EditorSelection before_selection{
-		context_->local.selection
-	};
+	const EditorSelection before_selection{ context_->local.selection };
 
-	EditorSelection after_selection{
-		before_selection
-	};
+	EditorSelection after_selection{ before_selection };
 
-	after_selection.selected_scene_key =
-		entry.key;
+	after_selection.selected_scene_key = entry.key;
 
-	after_selection.selected_scene_runtime =
-		false;
+	after_selection.selected_scene_runtime = false;
 
-	after_selection.mode =
-		EditorSelectionMode::SceneHierarchy;
+	after_selection.mode = EditorSelectionMode::SceneHierarchy;
 
-	auto create_scene = [
-		this,
-		entry,
-		serialized_scene,
-		insertion_index
-	](EditorSelection selection) mutable {
-		auto* current_project{
-			GetProject()
-		};
+	auto create_scene = [this, entry, serialized_scene,
+						 insertion_index](EditorSelection selection) mutable {
+		auto* current_project{ GetProject() };
 
-		if (!current_project ||
-			FindProjectScene(
-				*current_project,
-				entry.key
-			)) {
+		if (!current_project || FindProjectScene(*current_project, entry.key)) {
 			return false;
 		}
 
-		const std::size_t index{
-			std::min(
-				insertion_index,
-				current_project->scenes.size()
-			)
-		};
+		const std::size_t index{ std::min(insertion_index, current_project->scenes.size()) };
 
 		current_project->scenes.insert(
-			current_project->scenes.begin() +
-				static_cast<std::ptrdiff_t>(index),
-			entry
+			current_project->scenes.begin() + static_cast<std::ptrdiff_t>(index), entry
 		);
 
-		auto& current_manager{
-			GetSceneManager()
-		};
+		auto& current_manager{ GetSceneManager() };
 
-		if (!current_manager.HasScene(
-				Hash(entry.key)
-			)) {
-			SerializedScene factory_scene{
-				serialized_scene
-			};
+		if (!current_manager.HasScene(Hash(entry.key))) {
+			SerializedScene factory_scene{ serialized_scene };
 
 			if (!current_manager.EnterFactory(
-					entry.key,
-					::ptgn::impl::MakeSceneFactory(
-						std::move(factory_scene),
-						false
-					)
+					entry.key, ::ptgn::impl::MakeSceneFactory(std::move(factory_scene), false)
 				)) {
 				current_project->scenes.erase(
-					current_project->scenes.begin() +
-						static_cast<std::ptrdiff_t>(
-							index
-						)
+					current_project->scenes.begin() + static_cast<std::ptrdiff_t>(index)
 				);
 
 				return false;
@@ -2266,80 +1657,42 @@ bool Editor::DuplicateProjectScene(
 
 		SyncProjectSceneOrder();
 
-		const auto selected_uuid{
-			selection.GetEntityUUID(
-				entry.key,
-				false
-			)
-		};
+		const auto selected_uuid{ selection.GetEntityUUID(entry.key, false) };
 
-		ApplyEditorSelection(
-			*context_,
-			std::move(selection)
-		);
+		ApplyEditorSelection(*context_, std::move(selection));
 
-		scene_list_panel_.QueueSceneSelection(
-			*context_,
-			entry.key,
-			false,
-			selected_uuid
-		);
+		scene_list_panel_.QueueSceneSelection(*context_, entry.key, false, selected_uuid);
 
 		return true;
 	};
 
-	auto remove_scene = [
-		this,
-		entry
-	](EditorSelection selection) mutable {
-		auto* current_project{
-			GetProject()
-		};
+	auto remove_scene = [this, entry](EditorSelection selection) mutable {
+		auto* current_project{ GetProject() };
 
 		if (!current_project) {
 			return false;
 		}
 
-		const auto it{
-			std::ranges::find_if(
-				current_project->scenes,
-				[&entry](
-					const ProjectSceneEntry& candidate
-				) {
-					return candidate.key ==
-						entry.key;
-				}
-			)
-		};
+		const auto it{ std::ranges::find_if(
+			current_project->scenes,
+			[&entry](const ProjectSceneEntry& candidate) { return candidate.key == entry.key; }
+		) };
 
-		if (it ==
-			current_project->scenes.end()) {
+		if (it == current_project->scenes.end()) {
 			return false;
 		}
 
-		auto& current_manager{
-			GetSceneManager()
-		};
+		auto& current_manager{ GetSceneManager() };
 
-		if (current_manager.HasScene(
-				Hash(entry.key)
-			) &&
-			!current_manager.Exit(
-				entry.key
-			)) {
+		if (current_manager.HasScene(Hash(entry.key)) && !current_manager.Exit(entry.key)) {
 			return false;
 		}
 
-		current_project->scenes.erase(
-			it
-		);
+		current_project->scenes.erase(it);
 
 		SyncProjectSceneOrder();
 
-		ApplyEditorSelection(
-			*context_,
-			std::move(selection)
-		);
+		ApplyEditorSelection(*context_, std::move(selection));
 
 		return true;
 	};
@@ -2350,27 +1703,14 @@ bool Editor::DuplicateProjectScene(
 
 	undo_stack_.PushApplied(
 		"Duplicate Scene",
-		[remove_scene, before_selection]() mutable {
-			remove_scene(
-				before_selection
-			);
-		},
-		[create_scene, after_selection]() mutable {
-			create_scene(
-				after_selection
-			);
-		}
+		[remove_scene, before_selection]() mutable { remove_scene(before_selection); },
+		[create_scene, after_selection]() mutable { create_scene(after_selection); }
 	);
 
 	return true;
 }
 
-bool Editor::DeleteProjectScene(
-	std::string_view scene_key
-) {
-#if defined(__EMSCRIPTEN__)
-	return false;
-#endif
+bool Editor::DeleteProjectScene(std::string_view scene_key) {
 	PTGN_ASSERT(context_);
 
 	if (IsPlaying()) {
@@ -2382,268 +1722,152 @@ bool Editor::DeleteProjectScene(
 		return false;
 	}
 
-	const auto it{
-		std::ranges::find_if(
-			project->scenes,
-			[scene_key](const ProjectSceneEntry& entry) {
-				return entry.key == scene_key;
-			}
-		)
-	};
+	const auto it{ std::ranges::find_if(
+		project->scenes,
+		[scene_key](const ProjectSceneEntry& entry) { return entry.key == scene_key; }
+	) };
 
 	if (it == project->scenes.end()) {
 		return false;
 	}
 
-	const std::size_t index{
-		static_cast<std::size_t>(
-			std::distance(
-				project->scenes.begin(),
-				it
-			)
-		)
-	};
+	const std::size_t index{ static_cast<std::size_t>(std::distance(project->scenes.begin(), it)) };
 
 	const ProjectSceneEntry entry{ *it };
 
 	SerializedScene serialized_scene;
 
-	auto& manager{
-		GetSceneManager()
-	};
+	auto& manager{ GetSceneManager() };
 
 	if (manager.HasScene(Hash(scene_key))) {
-		const auto& scene{
-			manager.GetScene(Hash(scene_key))
-		};
+		const auto& scene{ manager.GetScene(Hash(scene_key)) };
 
 		if (scene.IsRuntime()) {
 			return false;
 		}
 
-		serialized_scene =
-			CaptureScene(scene);
+		serialized_scene = CaptureScene(scene);
 	} else {
-		const path absolute_path{
-			GetProjectScenePath(
-				*project,
-				entry
-			)
-		};
+		const path absolute_path{ GetProjectScenePath(*project, entry) };
 
 		if (!FileExists(absolute_path)) {
 			return false;
 		}
 
-		serialized_scene =
-			LoadSceneFile(absolute_path);
+		serialized_scene = LoadSceneFile(absolute_path);
 	}
 
-	const std::string before_startup{
-		project->startup_scene_key
-	};
+	const std::string before_startup{ project->startup_scene_key };
 
-	std::string after_startup{
-		before_startup
-	};
+	std::string after_startup{ before_startup };
 
 	if (before_startup == entry.key) {
 		if (project->scenes.size() == 1) {
 			after_startup.clear();
 		} else {
-			const std::size_t replacement_index{
-				index + 1 < project->scenes.size()
-					? index + 1
-					: index - 1
-			};
+			const std::size_t replacement_index{ index + 1 < project->scenes.size() ? index + 1
+																					: index - 1 };
 
-			after_startup =
-				project->scenes[replacement_index].key;
+			after_startup = project->scenes[replacement_index].key;
 		}
 	}
 
-	const EditorSelection before_selection{
-		context_->local.selection
-	};
+	const EditorSelection before_selection{ context_->local.selection };
 
-	EditorSelection after_selection{
-		before_selection
-	};
+	EditorSelection after_selection{ before_selection };
 
-	const bool deleted_scene_selected{
-		after_selection.selected_scene_key == entry.key &&
-		!after_selection.selected_scene_runtime
-	};
+	const bool deleted_scene_selected{ after_selection.selected_scene_key == entry.key &&
+									   !after_selection.selected_scene_runtime };
 
-	after_selection.RemoveScene(
-		entry.key
-	);
+	after_selection.RemoveScene(entry.key);
 
-	if (deleted_scene_selected &&
-		project->scenes.size() > 1) {
-		const std::size_t replacement_index{
-			index + 1 < project->scenes.size()
-				? index + 1
-				: index - 1
-		};
+	if (deleted_scene_selected && project->scenes.size() > 1) {
+		const std::size_t replacement_index{ index + 1 < project->scenes.size() ? index + 1
+																				: index - 1 };
 
-		after_selection.selected_scene_key =
-			project->scenes[replacement_index].key;
+		after_selection.selected_scene_key = project->scenes[replacement_index].key;
 
-		after_selection.selected_scene_runtime =
-			false;
+		after_selection.selected_scene_runtime = false;
 
-		after_selection.mode =
-			EditorSelectionMode::SceneHierarchy;
+		after_selection.mode = EditorSelectionMode::SceneHierarchy;
 	}
 
-	auto remove_scene = [
-		this,
-		entry,
-		after_startup
-	](EditorSelection selection) mutable {
-		auto* current_project{
-			GetProject()
-		};
+	auto remove_scene = [this, entry, after_startup](EditorSelection selection) mutable {
+		auto* current_project{ GetProject() };
 
 		if (!current_project) {
 			return false;
 		}
 
-		const auto current_it{
-			std::ranges::find_if(
-				current_project->scenes,
-				[&entry](
-					const ProjectSceneEntry& candidate
-				) {
-					return candidate.key ==
-						entry.key;
-				}
-			)
-		};
+		const auto current_it{ std::ranges::find_if(
+			current_project->scenes,
+			[&entry](const ProjectSceneEntry& candidate) { return candidate.key == entry.key; }
+		) };
 
-		if (current_it ==
-			current_project->scenes.end()) {
+		if (current_it == current_project->scenes.end()) {
 			return false;
 		}
 
-		auto& current_manager{
-			GetSceneManager()
-		};
+		auto& current_manager{ GetSceneManager() };
 
-		if (current_manager.HasScene(Hash(entry.key)) &&
-			!current_manager.Exit(entry.key)) {
+		if (current_manager.HasScene(Hash(entry.key)) && !current_manager.Exit(entry.key)) {
 			return false;
 		}
 
-		current_project->scenes.erase(
-			current_it
-		);
+		current_project->scenes.erase(current_it);
 
-		current_project->startup_scene_key =
-			after_startup;
+		current_project->startup_scene_key = after_startup;
 
 		SyncProjectSceneOrder();
 
-		ApplyEditorSelection(
-			*context_,
-			std::move(selection)
-		);
+		ApplyEditorSelection(*context_, std::move(selection));
 
 		return true;
 	};
 
-	auto restore_scene = [
-		this,
-		entry,
-		serialized_scene,
-		index,
-		before_startup
-	](EditorSelection selection) mutable {
-		auto* current_project{
-			GetProject()
-		};
+	auto restore_scene = [this, entry, serialized_scene, index,
+						  before_startup](EditorSelection selection) mutable {
+		auto* current_project{ GetProject() };
 
-		if (!current_project ||
-			FindProjectScene(
-				*current_project,
-				entry.key
-			)) {
+		if (!current_project || FindProjectScene(*current_project, entry.key)) {
 			return false;
 		}
 
-		const std::size_t insertion_index{
-			std::min(
-				index,
-				current_project->scenes.size()
-			)
-		};
+		const std::size_t insertion_index{ std::min(index, current_project->scenes.size()) };
 
 		current_project->scenes.insert(
-			current_project->scenes.begin() +
-				static_cast<std::ptrdiff_t>(
-					insertion_index
-				),
-			entry
+			current_project->scenes.begin() + static_cast<std::ptrdiff_t>(insertion_index), entry
 		);
 
-		auto& current_manager{
-			GetSceneManager()
-		};
+		auto& current_manager{ GetSceneManager() };
 
 		if (!current_manager.HasScene(Hash(entry.key))) {
-			SerializedScene factory_scene{
-				serialized_scene
-			};
+			SerializedScene factory_scene{ serialized_scene };
 
 			if (!current_manager.EnterFactory(
-					entry.key,
-					::ptgn::impl::MakeSceneFactory(
-						std::move(factory_scene),
-						false
-					)
+					entry.key, ::ptgn::impl::MakeSceneFactory(std::move(factory_scene), false)
 				)) {
 				current_project->scenes.erase(
-					current_project->scenes.begin() +
-						static_cast<std::ptrdiff_t>(
-							insertion_index
-						)
+					current_project->scenes.begin() + static_cast<std::ptrdiff_t>(insertion_index)
 				);
 
 				return false;
 			}
 		}
 
-		current_project->startup_scene_key =
-			before_startup;
+		current_project->startup_scene_key = before_startup;
 
 		SyncProjectSceneOrder();
 
-		const bool select_restored_scene{
-			selection.selected_scene_key ==
-				entry.key &&
-			!selection.selected_scene_runtime
-		};
+		const bool select_restored_scene{ selection.selected_scene_key == entry.key &&
+										  !selection.selected_scene_runtime };
 
-		const auto selected_uuid{
-			selection.GetEntityUUID(
-				entry.key,
-				false
-			)
-		};
+		const auto selected_uuid{ selection.GetEntityUUID(entry.key, false) };
 
-		ApplyEditorSelection(
-			*context_,
-			selection
-		);
+		ApplyEditorSelection(*context_, selection);
 
 		if (select_restored_scene) {
-			scene_list_panel_.QueueSceneSelection(
-				*context_,
-				entry.key,
-				false,
-				selected_uuid
-			);
+			scene_list_panel_.QueueSceneSelection(*context_, entry.key, false, selected_uuid);
 		}
 
 		return true;
@@ -2655,29 +1879,17 @@ bool Editor::DeleteProjectScene(
 
 	undo_stack_.PushApplied(
 		"Delete Scene",
-		[restore_scene, before_selection]() mutable {
-			restore_scene(before_selection);
-		},
-		[remove_scene, after_selection]() mutable {
-			remove_scene(after_selection);
-		}
+		[restore_scene, before_selection]() mutable { restore_scene(before_selection); },
+		[remove_scene, after_selection]() mutable { remove_scene(after_selection); }
 	);
 
 	return true;
 }
 
-bool Editor::RenameProjectSceneKey(
-	std::string_view current_key,
-	std::string_view new_key
-) {
-#if defined(__EMSCRIPTEN__)
-	return false;
-#endif
+bool Editor::RenameProjectSceneKey(std::string_view current_key, std::string_view new_key) {
 	PTGN_ASSERT(context_);
 
-	if (IsPlaying() ||
-		current_key.empty() ||
-		new_key.empty()) {
+	if (IsPlaying() || current_key.empty() || new_key.empty()) {
 		return false;
 	}
 
@@ -2685,171 +1897,97 @@ bool Editor::RenameProjectSceneKey(
 		return true;
 	}
 
-	auto apply = [
-		this
-	](
-		std::string_view from,
-		std::string_view to
-	) {
-		auto* project{
-			GetProject()
-		};
+	auto apply = [this](std::string_view from, std::string_view to) {
+		auto* project{ GetProject() };
 
-		if (!project ||
-			from.empty() ||
-			to.empty() ||
-			FindProjectScene(
-				*project,
-				to
-			)) {
+		if (!project || from.empty() || to.empty() || FindProjectScene(*project, to)) {
 			return false;
 		}
 
-		auto* entry{
-			FindProjectScene(
-				*project,
-				from
-			)
-		};
+		auto* entry{ FindProjectScene(*project, from) };
 
-		if (!entry ||
-			!GetSceneManager().RenameScene(
-				from,
-				to
-			)) {
+		if (!entry || !GetSceneManager().RenameScene(from, to)) {
 			return false;
 		}
 
-		const std::string old_key{
-			entry->key
-		};
+		const std::string old_key{ entry->key };
 
-		const bool was_startup{
-			project->startup_scene_key ==
-				old_key
-		};
+		const bool was_startup{ project->startup_scene_key == old_key };
 
-		entry->key =
-			std::string{ to };
+		entry->key = std::string{ to };
 
 		if (was_startup) {
-			project->startup_scene_key =
-				entry->key;
+			project->startup_scene_key = entry->key;
 		}
 
-		context_->local.selection.RenameScene(
-			old_key,
-			entry->key
-		);
+		context_->local.selection.RenameScene(old_key, entry->key);
 
-		scene_list_panel_
-			.RefreshSelectedSceneState();
+		scene_list_panel_.RefreshSelectedSceneState();
 
 		SyncProjectSceneOrder();
 
 		return true;
 	};
 
-	const std::string before{
-		current_key
-	};
+	const std::string before{ current_key };
 
-	const std::string after{
-		new_key
-	};
+	const std::string after{ new_key };
 
 	if (!apply(before, after)) {
 		return false;
 	}
 
 	undo_stack_.PushApplied(
-		"Rename Scene Key",
-		[apply, before, after]() mutable {
-			apply(after, before);
-		},
-		[apply, before, after]() mutable {
-			apply(before, after);
-		}
+		"Rename Scene Key", [apply, before, after]() mutable { apply(after, before); },
+		[apply, before, after]() mutable { apply(before, after); }
 	);
 
 	return true;
 }
 
-bool Editor::RenameProjectSceneDisplayName(
-	std::string_view scene_key,
-	std::string display_name
-) {
-#if defined(__EMSCRIPTEN__)
-	return false;
-#endif
+bool Editor::RenameProjectSceneDisplayName(std::string_view scene_key, std::string display_name) {
 	PTGN_ASSERT(context_);
 
-	if (IsPlaying() ||
-		display_name.empty()) {
+	if (IsPlaying() || display_name.empty()) {
 		return false;
 	}
 
-	auto* project{
-		GetProject()
-	};
+	auto* project{ GetProject() };
 
 	if (!project) {
 		return false;
 	}
 
-	auto* entry{
-		FindProjectScene(
-			*project,
-			scene_key
-		)
-	};
+	auto* entry{ FindProjectScene(*project, scene_key) };
 
 	if (!entry) {
 		return false;
 	}
 
-	const std::string before{
-		entry->display_name
-	};
+	const std::string before{ entry->display_name };
 
-	const std::string after{
-		std::move(display_name)
-	};
+	const std::string after{ std::move(display_name) };
 
 	if (before == after) {
 		return true;
 	}
 
-	const std::string key{
-		scene_key
-	};
+	const std::string key{ scene_key };
 
-	auto apply = [
-		this,
-		key
-	](const std::string& value) {
-		auto* current_project{
-			GetProject()
-		};
+	auto apply = [this, key](const std::string& value) {
+		auto* current_project{ GetProject() };
 
-		if (!current_project ||
-			value.empty()) {
+		if (!current_project || value.empty()) {
 			return false;
 		}
 
-		auto* current_entry{
-			FindProjectScene(
-				*current_project,
-				key
-			)
-		};
+		auto* current_entry{ FindProjectScene(*current_project, key) };
 
 		if (!current_entry) {
 			return false;
 		}
 
-		current_entry->display_name =
-			value;
+		current_entry->display_name = value;
 
 		return true;
 	};
@@ -2859,25 +1997,14 @@ bool Editor::RenameProjectSceneDisplayName(
 	}
 
 	undo_stack_.PushApplied(
-		"Rename Scene Display Name",
-		[apply, before]() mutable {
-			apply(before);
-		},
-		[apply, after]() mutable {
-			apply(after);
-		}
+		"Rename Scene Display Name", [apply, before]() mutable { apply(before); },
+		[apply, after]() mutable { apply(after); }
 	);
 
 	return true;
 }
 
-bool Editor::MoveProjectScene(
-	std::size_t from_index,
-	std::size_t to_index
-) {
-#if defined(__EMSCRIPTEN__)
-	return false;
-#endif
+bool Editor::MoveProjectScene(std::size_t from_index, std::size_t to_index) {
 	PTGN_ASSERT(context_);
 
 	if (IsPlaying()) {
@@ -2886,9 +2013,7 @@ bool Editor::MoveProjectScene(
 
 	auto* project{ GetProject() };
 
-	if (!project ||
-		from_index >= project->scenes.size() ||
-		to_index >= project->scenes.size()) {
+	if (!project || from_index >= project->scenes.size() || to_index >= project->scenes.size()) {
 		return false;
 	}
 
@@ -2898,21 +2023,15 @@ bool Editor::MoveProjectScene(
 
 	if (from_index < to_index) {
 		std::rotate(
-			project->scenes.begin() +
-				static_cast<std::ptrdiff_t>(from_index),
-			project->scenes.begin() +
-				static_cast<std::ptrdiff_t>(from_index + 1),
-			project->scenes.begin() +
-				static_cast<std::ptrdiff_t>(to_index + 1)
+			project->scenes.begin() + static_cast<std::ptrdiff_t>(from_index),
+			project->scenes.begin() + static_cast<std::ptrdiff_t>(from_index + 1),
+			project->scenes.begin() + static_cast<std::ptrdiff_t>(to_index + 1)
 		);
 	} else {
 		std::rotate(
-			project->scenes.begin() +
-				static_cast<std::ptrdiff_t>(to_index),
-			project->scenes.begin() +
-				static_cast<std::ptrdiff_t>(from_index),
-			project->scenes.begin() +
-				static_cast<std::ptrdiff_t>(from_index + 1)
+			project->scenes.begin() + static_cast<std::ptrdiff_t>(to_index),
+			project->scenes.begin() + static_cast<std::ptrdiff_t>(from_index),
+			project->scenes.begin() + static_cast<std::ptrdiff_t>(from_index + 1)
 		);
 	}
 
@@ -2922,97 +2041,63 @@ bool Editor::MoveProjectScene(
 	return true;
 }
 
-bool Editor::SetStartupProjectScene(
-	std::string_view scene_key
-) {
-#if defined(__EMSCRIPTEN__)
-	return false;
-#endif
+bool Editor::SetStartupProjectScene(std::string_view scene_key) {
 	PTGN_ASSERT(context_);
 
 	if (IsPlaying()) {
 		return false;
 	}
 
-	auto* project{
-		GetProject()
-	};
+	auto* project{ GetProject() };
 
 	if (!project) {
 		return false;
 	}
 
-	const auto* entry{
-		FindProjectScene(
-			*project,
-			scene_key
-		)
-	};
+	const auto* entry{ FindProjectScene(*project, scene_key) };
 
 	if (!entry) {
 		return false;
 	}
 
-	const std::string before{
-		project->startup_scene_key
-	};
+	const std::string before{ project->startup_scene_key };
 
-	const std::string after{
-		entry->key
-	};
+	const std::string after{ entry->key };
 
 	if (before == after) {
 		return true;
 	}
 
-	auto apply = [this](
-		const std::string& value
-	) {
-		auto* current_project{
-			GetProject()
-		};
+	auto apply = [this](const std::string& value) {
+		auto* current_project{ GetProject() };
 
 		if (!current_project) {
 			return;
 		}
 
-		current_project->startup_scene_key =
-			value;
+		current_project->startup_scene_key = value;
 	};
 
 	apply(after);
 
 	undo_stack_.PushApplied(
-		"Set Startup Scene",
-		[apply, before]() mutable {
-			apply(before);
-		},
-		[apply, after]() mutable {
-			apply(after);
-		}
+		"Set Startup Scene", [apply, before]() mutable { apply(before); },
+		[apply, after]() mutable { apply(after); }
 	);
 
 	return true;
 }
 
-bool Editor::IsStartupProjectScene(
-	std::string_view scene_key
-) const {
+bool Editor::IsStartupProjectScene(std::string_view scene_key) const {
 	const auto* project{ GetProject() };
 
 	if (!project) {
 		return false;
 	}
 
-	const auto* entry{
-		FindProjectScene(
-			*project,
-			scene_key
-		)
-	};
+	const auto* entry{ FindProjectScene(*project, scene_key) };
 
-	return entry &&
-		   entry->key == project->startup_scene_key;
+	return entry && entry->key == project->startup_scene_key;
 }
 
 void Editor::SyncProjectSceneOrder() {
@@ -3029,10 +2114,7 @@ void Editor::SyncProjectSceneOrder() {
 		ordered_keys.emplace_back(entry.key);
 	}
 
-	GetSceneManager().ReorderScenes(
-		ordered_keys,
-		false
-	);
+	GetSceneManager().ReorderScenes(ordered_keys, false);
 }
 
 void Editor::DrawMainMenuBar() {
@@ -3044,12 +2126,7 @@ void Editor::DrawMainMenuBar() {
 
 	if (ImGui::BeginMenu("File")) {
 #if !defined(__EMSCRIPTEN__)
-		if (ImGui::MenuItem(
-				"Save",
-				nullptr,
-				false,
-				CanSaveProject()
-			)) {
+		if (ImGui::MenuItem("Save", nullptr, false, CanSaveProject())) {
 			SaveProjectScene();
 		}
 
@@ -3063,32 +2140,20 @@ void Editor::DrawMainMenuBar() {
 #endif
 
 		if (ImGui::MenuItem("Settings...")) {
-			settings_window_.Open(
-				SettingsPage::ProjectDisplay
-			);
+			settings_window_.Open(SettingsPage::ProjectDisplay);
 		}
 
 		ImGui::EndMenu();
 	}
 
 	if (ImGui::BeginMenu("Edit")) {
-		if (ImGui::MenuItem(
-				"Undo",
-				"Ctrl+Z",
-				false,
-				undo_stack_.CanUndo()
-			)) {
+		if (ImGui::MenuItem("Undo", "Ctrl+Z", false, undo_stack_.CanUndo())) {
 			context_->local.position_picker.Cancel();
 			undo_stack_.Undo();
 			scene_asset_dependencies_dirty_ = true;
 		}
 
-		if (ImGui::MenuItem(
-				"Redo",
-				"Ctrl+Shift+Z",
-				false,
-				undo_stack_.CanRedo()
-			)) {
+		if (ImGui::MenuItem("Redo", "Ctrl+Shift+Z", false, undo_stack_.CanRedo())) {
 			context_->local.position_picker.Cancel();
 			undo_stack_.Redo();
 			scene_asset_dependencies_dirty_ = true;
@@ -3104,81 +2169,52 @@ void Editor::DrawMainMenuBar() {
 	}
 
 	if (ImGui::BeginMenu("View")) {
-		auto toggle_editor_setting =
-			[this](
-				std::string label,
-				auto member
-			) {
-				EditorSettings before{ GetSettings() };
-				EditorSettings after{ before };
-				after.*member = !(before.*member);
+		auto toggle_editor_setting = [this](std::string label, auto member) {
+			EditorSettings before{ GetSettings() };
+			EditorSettings after{ before };
+			after.*member = !(before.*member);
 
-				PushUndoableValueChange(
-					undo_stack_,
-					std::move(label),
-					std::move(before),
-					std::move(after),
-					[this](const EditorSettings& settings) {
-						SetEditorSettings(settings);
-					},
-					false
-				);
-			};
+			PushUndoableValueChange(
+				undo_stack_, std::move(label), std::move(before), std::move(after),
+				[this](const EditorSettings& settings) { SetEditorSettings(settings); }, false
+			);
+		};
 
 		if (ImGui::MenuItem(
-				"Render Only Selected Scene",
-				nullptr,
-				GetSettings().render_only_selected_scene
+				"Render Only Selected Scene", nullptr, GetSettings().render_only_selected_scene
 			)) {
 			toggle_editor_setting(
-				"Toggle Render Only Selected Scene",
-				&EditorSettings::render_only_selected_scene
+				"Toggle Render Only Selected Scene", &EditorSettings::render_only_selected_scene
 			);
 		}
 
 		ImGui::Separator();
 
+		if (ImGui::MenuItem("Entity Picking", nullptr, GetSettings().entity_picking)) {
+			toggle_editor_setting("Toggle Entity Picking", &EditorSettings::entity_picking);
+		}
+
 		if (ImGui::MenuItem(
-				"Entity Picking",
-				nullptr,
-				GetSettings().entity_picking
+				"Local Gizmo Orientation", nullptr, GetSettings().gizmo_uses_local_orientation
 			)) {
 			toggle_editor_setting(
-				"Toggle Entity Picking",
-				&EditorSettings::entity_picking
+				"Toggle Local Gizmo Orientation", &EditorSettings::gizmo_uses_local_orientation
 			);
 		}
 
 		if (ImGui::MenuItem(
-				"Local Gizmo Orientation",
-				nullptr,
-				GetSettings().gizmo_uses_local_orientation
+				"Show Read-Only Data", nullptr, GetSettings().show_read_only_inspector_data
 			)) {
 			toggle_editor_setting(
-				"Toggle Local Gizmo Orientation",
-				&EditorSettings::gizmo_uses_local_orientation
+				"Toggle Read-Only Inspector Data", &EditorSettings::show_read_only_inspector_data
 			);
 		}
 
 		if (ImGui::MenuItem(
-				"Show Read-Only Data",
-				nullptr,
-				GetSettings().show_read_only_inspector_data
+				"Show Read-Only Scene Data", nullptr, GetSettings().show_read_only_scene_data
 			)) {
 			toggle_editor_setting(
-				"Toggle Read-Only Inspector Data",
-				&EditorSettings::show_read_only_inspector_data
-			);
-		}
-
-		if (ImGui::MenuItem(
-				"Show Read-Only Scene Data",
-				nullptr,
-				GetSettings().show_read_only_scene_data
-			)) {
-			toggle_editor_setting(
-				"Toggle Read-Only Scene Data",
-				&EditorSettings::show_read_only_scene_data
+				"Toggle Read-Only Scene Data", &EditorSettings::show_read_only_scene_data
 			);
 		}
 
@@ -3186,85 +2222,44 @@ void Editor::DrawMainMenuBar() {
 	}
 
 	if (ImGui::BeginMenu("Debug")) {
-		auto& debug_settings{
-			GetDebugSystem().settings
-		};
+		auto& debug_settings{ GetDebugSystem().settings };
 
 		if (ImGui::BeginMenu("Draw")) {
-			auto toggle_debug_setting =
-				[this, &debug_settings](
-					std::string label,
-					auto toggle
-				) {
-					auto before{ debug_settings };
-					auto after{ before };
-					toggle(after);
+			auto toggle_debug_setting = [this, &debug_settings](std::string label, auto toggle) {
+				auto before{ debug_settings };
+				auto after{ before };
+				toggle(after);
 
-					PushUndoableValueChange(
-						undo_stack_,
-						std::move(label),
-						std::move(before),
-						std::move(after),
-						[this](const auto& settings) {
-							GetDebugSystem().settings = settings;
-											}
-					);
-				};
-
-			if (ImGui::MenuItem(
-					"Interactions",
-					nullptr,
-					debug_settings.interaction.draw_enabled
-				)) {
-				toggle_debug_setting(
-					"Toggle Debug Interactions",
-					[](auto& settings) {
-						settings.interaction.draw_enabled =
-							!settings.interaction.draw_enabled;
-					}
+				PushUndoableValueChange(
+					undo_stack_, std::move(label), std::move(before), std::move(after),
+					[this](const auto& settings) { GetDebugSystem().settings = settings; }
 				);
+			};
+
+			if (ImGui::MenuItem("Interactions", nullptr, debug_settings.interaction.draw_enabled)) {
+				toggle_debug_setting("Toggle Debug Interactions", [](auto& settings) {
+					settings.interaction.draw_enabled = !settings.interaction.draw_enabled;
+				});
+			}
+
+			if (ImGui::MenuItem("Collisions", nullptr, debug_settings.collision.draw_enabled)) {
+				toggle_debug_setting("Toggle Debug Collisions", [](auto& settings) {
+					settings.collision.draw_enabled = !settings.collision.draw_enabled;
+				});
+			}
+
+			if (ImGui::MenuItem("Text Boxes", nullptr, debug_settings.text.draw_enabled)) {
+				toggle_debug_setting("Toggle Debug Text Boxes", [](auto& settings) {
+					settings.text.draw_enabled = !settings.text.draw_enabled;
+				});
 			}
 
 			if (ImGui::MenuItem(
-					"Collisions",
-					nullptr,
-					debug_settings.collision.draw_enabled
+					"Visibility Polygons", nullptr, debug_settings.light.draw_enabled
 				)) {
-				toggle_debug_setting(
-					"Toggle Debug Collisions",
-					[](auto& settings) {
-						settings.collision.draw_enabled =
-							!settings.collision.draw_enabled;
-					}
-				);
-			}
-
-			if (ImGui::MenuItem(
-					"Text Boxes",
-					nullptr,
-					debug_settings.text.draw_enabled
-				)) {
-				toggle_debug_setting(
-					"Toggle Debug Text Boxes",
-					[](auto& settings) {
-						settings.text.draw_enabled =
-							!settings.text.draw_enabled;
-					}
-				);
-			}
-
-			if (ImGui::MenuItem(
-					"Visibility Polygons",
-					nullptr,
-					debug_settings.light.draw_enabled
-				)) {
-				toggle_debug_setting(
-					"Toggle Debug Visibility Polygons",
-					[](auto& settings) {
-						settings.light.draw_enabled =
-							!settings.light.draw_enabled;
-					}
-				);
+				toggle_debug_setting("Toggle Debug Visibility Polygons", [](auto& settings) {
+					settings.light.draw_enabled = !settings.light.draw_enabled;
+				});
 			}
 
 			ImGui::EndMenu();
@@ -3273,30 +2268,19 @@ void Editor::DrawMainMenuBar() {
 		ImGui::Separator();
 
 		if (ImGui::MenuItem("Settings...")) {
-			settings_window_.Open(
-				SettingsPage::DebugInteraction
-			);
+			settings_window_.Open(SettingsPage::DebugInteraction);
 		}
 
 		if (ImGui::MenuItem(
-				"ImGui Metrics",
-				nullptr,
-				context_->local.settings.show_imgui_metrics
+				"ImGui Metrics", nullptr, context_->local.settings.show_imgui_metrics
 			)) {
 			EditorSettings before{ GetSettings() };
 			EditorSettings after{ before };
-			after.show_imgui_metrics =
-				!before.show_imgui_metrics;
+			after.show_imgui_metrics = !before.show_imgui_metrics;
 
 			PushUndoableValueChange(
-				undo_stack_,
-				"Toggle ImGui Metrics",
-				std::move(before),
-				std::move(after),
-				[this](const EditorSettings& settings) {
-					SetEditorSettings(settings);
-				},
-				false
+				undo_stack_, "Toggle ImGui Metrics", std::move(before), std::move(after),
+				[this](const EditorSettings& settings) { SetEditorSettings(settings); }, false
 			);
 		}
 
@@ -3311,81 +2295,47 @@ void Editor::DrawMainMenuBar() {
 void Editor::OpenExportWindow() {
 	export_manager_.RefreshToolAvailability();
 
-	export_window_open_ = true;
+	export_window_open_				  = true;
 	export_window_recenter_requested_ = true;
 }
 
 ExportRequest Editor::MakeExportRequest() const {
-	const auto& build_info{
-		::ptgn::impl::GetBuildInfo()
-	};
+	const auto& build_info{ ::ptgn::impl::GetBuildInfo() };
 
 	ExportRequest request{
-		.target = export_target_,
-		.configuration = export_configuration_,
-		.include_editor = export_include_editor_,
-		.output_directory =
-			export_target_ == ExportTarget::Desktop
-				? path{ desktop_export_directory_ }
-				: path{ web_export_directory_ },
-		.asset_source_directory =
-			build_info.asset_source_directory,
+		.target					= export_target_,
+		.configuration			= export_configuration_,
+		.include_editor			= export_include_editor_,
+		.output_directory		= export_target_ == ExportTarget::Desktop
+									? path{ desktop_export_directory_ }
+									: path{ web_export_directory_ },
+		.asset_source_directory = build_info.asset_source_directory,
 	};
 
 	if (const auto* project{ GetProject() }) {
-		const path project_file{
-			ResolveProjectFilePath(*project)
-		};
-		const path project_directory{
-			project_file.parent_path()
-		};
-		const path runtime_root{
-			ResolveProjectRuntimeRoot(
-				*project,
-				project_file
-			)
-		};
+		const path project_file{ ResolveProjectFilePath(*project) };
+		const path project_directory{ project_file.parent_path() };
+		const path runtime_root{ ResolveProjectRuntimeRoot(*project, project_file) };
 
-		const path project_asset_directory{
-			project->asset_directory.is_absolute()
-				? project->asset_directory
-				: project_directory /
-					project->asset_directory
-		};
+		const path project_asset_directory{ project->asset_directory.is_absolute()
+												? project->asset_directory
+												: project_directory / project->asset_directory };
 
-		request.project_directory =
-			project_directory;
-		request.project_file =
-			project_file;
-		request.project_mount =
-			ProjectRuntimeMount(
-				*project,
-				project_file,
-				runtime_root
-			);
-		request.asset_source_directory =
-			NormalizeExistingPath(
-				project_asset_directory
-			);
+		request.project_directory	   = project_directory;
+		request.project_file		   = project_file;
+		request.project_mount		   = ProjectRuntimeMount(*project, project_file, runtime_root);
+		request.asset_source_directory = NormalizeExistingPath(project_asset_directory);
 	}
 
 	return request;
 }
 
-bool Editor::ExportRequestNeedsConfirmation(
-	const ExportRequest& request
-) const {
-	return DirectoryHasContent(
-		request.output_directory
-	);
+bool Editor::ExportRequestNeedsConfirmation(const ExportRequest& request) const {
+	return DirectoryHasContent(request.output_directory);
 }
 
-void Editor::StartExport(
-	ExportRequest request
-) {
-	export_manager_.Export(
-		std::move(request)
-	);
+void Editor::StartExport(ExportRequest request) {
+	export_manager_.Export(std::move(request));
 }
 
 void Editor::DrawExportWindow() {
@@ -3395,68 +2345,36 @@ void Editor::DrawExportWindow() {
 
 	if (export_window_recenter_requested_) {
 		auto* viewport{ ImGui::GetMainViewport() };
-		const ImVec2 size{
-			viewport->WorkSize.x * 0.60f,
-			viewport->WorkSize.y * 0.70f
-		};
-		const ImVec2 center{
-			viewport->WorkPos.x + viewport->WorkSize.x * 0.5f,
-			viewport->WorkPos.y + viewport->WorkSize.y * 0.5f
-		};
+		const ImVec2 size{ viewport->WorkSize.x * 0.60f, viewport->WorkSize.y * 0.70f };
+		const ImVec2 center{ viewport->WorkPos.x + viewport->WorkSize.x * 0.5f,
+							 viewport->WorkPos.y + viewport->WorkSize.y * 0.5f };
 
 		ImGui::SetNextWindowDockID(0, ImGuiCond_Always);
-		ImGui::SetNextWindowPos(
-			center,
-			ImGuiCond_Always,
-			ImVec2{ 0.5f, 0.5f }
-		);
-		ImGui::SetNextWindowSize(
-			size,
-			ImGuiCond_Always
-		);
+		ImGui::SetNextWindowPos(center, ImGuiCond_Always, ImVec2{ 0.5f, 0.5f });
+		ImGui::SetNextWindowSize(size, ImGuiCond_Always);
 		ImGui::SetNextWindowFocus();
 		export_window_recenter_requested_ = false;
 	}
 
 	bool window_open{ true };
-	const bool visible{
-		ImGui::Begin(
-			"Export###ExportWindow",
-			&window_open
-		)
-	};
+	const bool visible{ ImGui::Begin("Export###ExportWindow", &window_open) };
 
 	const bool busy{ export_manager_.IsBusy() };
 	const auto& desktop_availability{
 		export_manager_.GetTargetAvailability(ExportTarget::Desktop)
 	};
-	const auto& web_availability{
-		export_manager_.GetTargetAvailability(ExportTarget::Web)
-	};
+	const auto& web_availability{ export_manager_.GetTargetAvailability(ExportTarget::Web) };
 
 	if (visible) {
 		ImGui::BeginDisabled(busy);
 
 		if (ImGui::BeginTable(
-				"ExportSettingsTable",
-				3,
-				ImGuiTableFlags_SizingStretchProp |
-					ImGuiTableFlags_NoSavedSettings
+				"ExportSettingsTable", 3,
+				ImGuiTableFlags_SizingStretchProp | ImGuiTableFlags_NoSavedSettings
 			)) {
-			ImGui::TableSetupColumn(
-				"Label",
-				ImGuiTableColumnFlags_WidthFixed,
-				175.0f
-			);
-			ImGui::TableSetupColumn(
-				"Value",
-				ImGuiTableColumnFlags_WidthStretch
-			);
-			ImGui::TableSetupColumn(
-				"Select",
-				ImGuiTableColumnFlags_WidthFixed,
-				80.0f
-			);
+			ImGui::TableSetupColumn("Label", ImGuiTableColumnFlags_WidthFixed, 175.0f);
+			ImGui::TableSetupColumn("Value", ImGuiTableColumnFlags_WidthStretch);
+			ImGui::TableSetupColumn("Select", ImGuiTableColumnFlags_WidthFixed, 80.0f);
 
 			ImGui::TableNextRow();
 			ImGui::TableSetColumnIndex(0);
@@ -3467,39 +2385,22 @@ void Editor::DrawExportWindow() {
 			const auto& selected_platform_availability{
 				export_manager_.GetTargetAvailability(export_target_)
 			};
-			const bool platform_warning{
-				!selected_platform_availability.available
-			};
+			const bool platform_warning{ !selected_platform_availability.available };
 
 			if (platform_warning) {
-				ImGui::PushStyleColor(
-					ImGuiCol_Border,
-					ImVec4{ 0.90f, 0.20f, 0.20f, 1.0f }
-				);
-				ImGui::PushStyleVar(
-					ImGuiStyleVar_FrameBorderSize,
-					1.0f
-				);
+				ImGui::PushStyleColor(ImGuiCol_Border, ImVec4{ 0.90f, 0.20f, 0.20f, 1.0f });
+				ImGui::PushStyleVar(ImGuiStyleVar_FrameBorderSize, 1.0f);
 			}
 
 			ImGui::SetNextItemWidth(-FLT_MIN);
-			const char* platform_preview{
-				export_target_ == ExportTarget::Desktop
-					? "Desktop"
-					: "Web"
-			};
+			const char* platform_preview{ export_target_ == ExportTarget::Desktop ? "Desktop"
+																				  : "Web" };
 			const bool platform_combo_open{
-				ImGui::BeginCombo(
-					"##ExportPlatform",
-					platform_preview
-				)
+				ImGui::BeginCombo("##ExportPlatform", platform_preview)
 			};
-			const bool platform_combo_hovered{
-				ImGui::IsItemHovered(
-					ImGuiHoveredFlags_AllowWhenDisabled |
-					ImGuiHoveredFlags_Stationary
-				)
-			};
+			const bool platform_combo_hovered{ ImGui::IsItemHovered(
+				ImGuiHoveredFlags_AllowWhenDisabled | ImGuiHoveredFlags_Stationary
+			) };
 
 			if (platform_warning) {
 				ImGui::PopStyleVar();
@@ -3507,47 +2408,28 @@ void Editor::DrawExportWindow() {
 			}
 
 			if (platform_combo_open) {
-				auto draw_platform = [&](
-					ExportTarget target,
-					const char* label,
-					const ExportTargetAvailability& availability
-				) {
-					const bool selected{
-						export_target_ == target
-					};
+				auto draw_platform = [&](ExportTarget target, const char* label,
+										 const ExportTargetAvailability& availability) {
+					const bool selected{ export_target_ == target };
 
-					if (ImGui::Selectable(
-							label,
-							selected
-						)) {
+					if (ImGui::Selectable(label, selected)) {
 						export_target_ = target;
 					}
 
 					if (!availability.available) {
 						ImGui::GetWindowDrawList()->AddRect(
-							ImGui::GetItemRectMin(),
-							ImGui::GetItemRectMax(),
-							ImGui::GetColorU32(
-								ImVec4{ 0.90f, 0.20f, 0.20f, 1.0f }
-							),
-							ImGui::GetStyle().FrameRounding,
-							0,
-							1.0f
+							ImGui::GetItemRectMin(), ImGui::GetItemRectMax(),
+							ImGui::GetColorU32(ImVec4{ 0.90f, 0.20f, 0.20f, 1.0f }),
+							ImGui::GetStyle().FrameRounding, 0, 1.0f
 						);
 
-						if (ImGui::IsItemHovered(
-								ImGuiHoveredFlags_Stationary
-							)) {
+						if (ImGui::IsItemHovered(ImGuiHoveredFlags_Stationary)) {
 							ImGui::BeginTooltip();
 							ImGui::TextColored(
-								ImVec4{ 1.0f, 0.35f, 0.35f, 1.0f },
-								"Toolchain warning"
+								ImVec4{ 1.0f, 0.35f, 0.35f, 1.0f }, "Toolchain warning"
 							);
 							ImGui::Separator();
-							ImGui::TextWrapped(
-								"%s",
-								availability.unavailable_reason.c_str()
-							);
+							ImGui::TextWrapped("%s", availability.unavailable_reason.c_str());
 							ImGui::Spacing();
 							ImGui::TextWrapped(
 								"You can still select this platform and attempt the export."
@@ -3561,35 +2443,20 @@ void Editor::DrawExportWindow() {
 					}
 				};
 
-				draw_platform(
-					ExportTarget::Desktop,
-					"Desktop",
-					desktop_availability
-				);
-				draw_platform(
-					ExportTarget::Web,
-					"Web",
-					web_availability
-				);
+				draw_platform(ExportTarget::Desktop, "Desktop", desktop_availability);
+				draw_platform(ExportTarget::Web, "Web", web_availability);
 				ImGui::EndCombo();
 			}
 
 			if (platform_warning && platform_combo_hovered) {
 				ImGui::BeginTooltip();
-				ImGui::TextColored(
-					ImVec4{ 1.0f, 0.35f, 0.35f, 1.0f },
-					"Toolchain warning"
-				);
+				ImGui::TextColored(ImVec4{ 1.0f, 0.35f, 0.35f, 1.0f }, "Toolchain warning");
 				ImGui::Separator();
-				ImGui::TextWrapped(
-					"%s",
-					selected_platform_availability
-						.unavailable_reason
-						.c_str()
-				);
+				ImGui::TextWrapped("%s", selected_platform_availability.unavailable_reason.c_str());
 				ImGui::Spacing();
 				ImGui::TextWrapped(
-					"You can still attempt the export. Any command failure will be shown in the export output."
+					"You can still attempt the export. Any command failure will be shown in the "
+					"export output."
 				);
 				ImGui::EndTooltip();
 			}
@@ -3600,24 +2467,17 @@ void Editor::DrawExportWindow() {
 			ImGui::TextUnformatted("Configuration");
 			ImGui::TableSetColumnIndex(1);
 			ImGui::SetNextItemWidth(-FLT_MIN);
-			const char* configuration_preview{
-				export_configuration_ == ExportConfiguration::Debug
-					? "Debug"
-					: "Release"
-			};
-			if (ImGui::BeginCombo(
-					"##ExportConfiguration",
-					configuration_preview
-				)) {
+			const char* configuration_preview{ export_configuration_ == ExportConfiguration::Debug
+												   ? "Debug"
+												   : "Release" };
+			if (ImGui::BeginCombo("##ExportConfiguration", configuration_preview)) {
 				if (ImGui::Selectable(
-						"Debug",
-						export_configuration_ == ExportConfiguration::Debug
+						"Debug", export_configuration_ == ExportConfiguration::Debug
 					)) {
 					export_configuration_ = ExportConfiguration::Debug;
 				}
 				if (ImGui::Selectable(
-						"Release",
-						export_configuration_ == ExportConfiguration::Release
+						"Release", export_configuration_ == ExportConfiguration::Release
 					)) {
 					export_configuration_ = ExportConfiguration::Release;
 				}
@@ -3629,32 +2489,20 @@ void Editor::DrawExportWindow() {
 			ImGui::AlignTextToFramePadding();
 			ImGui::TextUnformatted("Include Editor");
 			ImGui::TableSetColumnIndex(1);
-			ImGui::Checkbox(
-				"##ExportIncludeEditor",
-				&export_include_editor_
-			);
+			ImGui::Checkbox("##ExportIncludeEditor", &export_include_editor_);
 			if (ImGui::IsItemHovered(ImGuiHoveredFlags_Stationary)) {
-				ImGui::SetTooltip(
-					"Build the exported executable with PTGN_EDITOR enabled."
-				);
+				ImGui::SetTooltip("Build the exported executable with PTGN_EDITOR enabled.");
 			}
 
-			std::string& current_output_directory{
-				export_target_ == ExportTarget::Desktop
-					? desktop_export_directory_
-					: web_export_directory_
-			};
+			std::string& current_output_directory{ export_target_ == ExportTarget::Desktop
+													   ? desktop_export_directory_
+													   : web_export_directory_ };
 			const auto current_output_path_error{
-				ValidateOutputDirectoryPath(
-					current_output_directory
-				)
+				ValidateOutputDirectoryPath(current_output_directory)
 			};
 
 			DrawDirectoryField(
-				*this,
-				"Output Directory",
-				"##ExportOutputDirectory",
-				current_output_directory,
+				*this, "Output Directory", "##ExportOutputDirectory", current_output_directory,
 				current_output_path_error
 			);
 
@@ -3663,50 +2511,35 @@ void Editor::DrawExportWindow() {
 
 		ImGui::EndDisabled();
 
-		const std::string& current_output_directory{
-			export_target_ == ExportTarget::Desktop
-				? desktop_export_directory_
-				: web_export_directory_
-		};
+		const std::string& current_output_directory{ export_target_ == ExportTarget::Desktop
+														 ? desktop_export_directory_
+														 : web_export_directory_ };
 		const auto current_output_path_error{
-			ValidateOutputDirectoryPath(
-				current_output_directory
-			)
+			ValidateOutputDirectoryPath(current_output_directory)
 		};
 		const path build_directory{
-			export_manager_.GetBuildDirectory(
-				export_target_,
-				export_configuration_
-			)
+			export_manager_.GetBuildDirectory(export_target_, export_configuration_)
 		};
-		const bool build_cache_has_content{
-			DirectoryHasContent(build_directory)
-		};
-		const bool can_clean{
-			!busy && build_cache_has_content
-		};
+		const bool build_cache_has_content{ DirectoryHasContent(build_directory) };
+		const bool can_clean{ !busy && build_cache_has_content };
 
 		ImGui::Separator();
 
 		ImGui::BeginDisabled(!can_clean);
 		if (ImGui::Button("Clean Build Cache")) {
-			pending_clean_target_ = export_target_;
-			pending_clean_configuration_ = export_configuration_;
-			pending_task_confirmation_ =
-				PendingTaskConfirmation::Clean;
+			pending_clean_target_			   = export_target_;
+			pending_clean_configuration_	   = export_configuration_;
+			pending_task_confirmation_		   = PendingTaskConfirmation::Clean;
 			task_confirmation_popup_requested_ = true;
 		}
 		ImGui::EndDisabled();
 
-		if (!can_clean &&
-			ImGui::IsItemHovered(
-				ImGuiHoveredFlags_AllowWhenDisabled |
-					ImGuiHoveredFlags_Stationary
-			)) {
+		if (!can_clean && ImGui::IsItemHovered(
+							  ImGuiHoveredFlags_AllowWhenDisabled | ImGuiHoveredFlags_Stationary
+						  )) {
 			const char* reason{
-				busy
-					? "An export task is currently running."
-					: "There is no cached build output for this platform and configuration."
+				busy ? "An export task is currently running."
+					 : "There is no cached build output for this platform and configuration."
 			};
 			ImGui::SetTooltip("%s", reason);
 		}
@@ -3723,17 +2556,12 @@ void Editor::DrawExportWindow() {
 
 			if (!can_cancel &&
 				ImGui::IsItemHovered(
-					ImGuiHoveredFlags_AllowWhenDisabled |
-						ImGuiHoveredFlags_Stationary
+					ImGuiHoveredFlags_AllowWhenDisabled | ImGuiHoveredFlags_Stationary
 				)) {
-				ImGui::SetTooltip(
-					"The current export task cannot be cancelled."
-				);
+				ImGui::SetTooltip("The current export task cannot be cancelled.");
 			}
 		} else {
-			const bool can_start_export{
-				!current_output_path_error.has_value()
-			};
+			const bool can_start_export{ !current_output_path_error.has_value() };
 
 			ImGui::BeginDisabled(!can_start_export);
 			if (ImGui::Button("Start Export")) {
@@ -3743,9 +2571,8 @@ void Editor::DrawExportWindow() {
 
 				ExportRequest request{ MakeExportRequest() };
 				if (ExportRequestNeedsConfirmation(request)) {
-					pending_export_request_ = std::move(request);
-					pending_task_confirmation_ =
-						PendingTaskConfirmation::Export;
+					pending_export_request_			   = std::move(request);
+					pending_task_confirmation_		   = PendingTaskConfirmation::Export;
 					task_confirmation_popup_requested_ = true;
 				} else {
 					StartExport(std::move(request));
@@ -3755,89 +2582,41 @@ void Editor::DrawExportWindow() {
 
 			if (!can_start_export &&
 				ImGui::IsItemHovered(
-					ImGuiHoveredFlags_AllowWhenDisabled |
-						ImGuiHoveredFlags_Stationary
+					ImGuiHoveredFlags_AllowWhenDisabled | ImGuiHoveredFlags_Stationary
 				)) {
-				ImGui::SetTooltip(
-					"%s",
-					current_output_path_error
-						.value()
-						.c_str()
-				);
+				ImGui::SetTooltip("%s", current_output_path_error.value().c_str());
 			}
 		}
-
 
 		if (export_target_ == ExportTarget::Web) {
 			ImGui::SeparatorText("Web Distribution");
 
-			const path web_output_directory{
-				web_export_directory_
-			};
-			const bool web_files_exist{
-				export_manager_.HasWebOutput(
-					web_output_directory
-				)
-			};
-			const bool server_running{
-				export_manager_.IsWebServerRunning()
-			};
-			const bool can_run_server{
-				export_manager_.CanRunWebServer(
-					web_output_directory
-				)
-			};
-			const auto& server_availability{
-				export_manager_.GetWebServerAvailability()
-			};
-			const bool server_prerequisite_warning{
-				!server_availability.available
-			};
+			const path web_output_directory{ web_export_directory_ };
+			const bool web_files_exist{ export_manager_.HasWebOutput(web_output_directory) };
+			const bool server_running{ export_manager_.IsWebServerRunning() };
+			const bool can_run_server{ export_manager_.CanRunWebServer(web_output_directory) };
+			const auto& server_availability{ export_manager_.GetWebServerAvailability() };
+			const bool server_prerequisite_warning{ !server_availability.available };
 
 			const char* server_button_label{
-				server_running
-					? (
-						can_run_server
-							? "Restart Web Server"
-							: "Web Server Running"
-					)
-					: "Run Web Server"
+				server_running ? (can_run_server ? "Restart Web Server" : "Web Server Running")
+							   : "Run Web Server"
 			};
 
 			if (server_prerequisite_warning) {
-				ImGui::PushStyleColor(
-					ImGuiCol_Border,
-					ImVec4{
-						0.90f,
-						0.20f,
-						0.20f,
-						1.0f
-					}
-				);
-				ImGui::PushStyleVar(
-					ImGuiStyleVar_FrameBorderSize,
-					1.0f
-				);
+				ImGui::PushStyleColor(ImGuiCol_Border, ImVec4{ 0.90f, 0.20f, 0.20f, 1.0f });
+				ImGui::PushStyleVar(ImGuiStyleVar_FrameBorderSize, 1.0f);
 			}
 
-			ImGui::BeginDisabled(
-				!can_run_server
-			);
-			if (ImGui::Button(
-					server_button_label
-				)) {
-				export_manager_.RunWebServer(
-					web_output_directory
-				);
+			ImGui::BeginDisabled(!can_run_server);
+			if (ImGui::Button(server_button_label)) {
+				export_manager_.RunWebServer(web_output_directory);
 			}
 			ImGui::EndDisabled();
 
-			const bool server_button_hovered{
-				ImGui::IsItemHovered(
-					ImGuiHoveredFlags_AllowWhenDisabled |
-						ImGuiHoveredFlags_Stationary
-				)
-			};
+			const bool server_button_hovered{ ImGui::IsItemHovered(
+				ImGuiHoveredFlags_AllowWhenDisabled | ImGuiHoveredFlags_Stationary
+			) };
 
 			if (server_prerequisite_warning) {
 				ImGui::PopStyleVar();
@@ -3848,44 +2627,26 @@ void Editor::DrawExportWindow() {
 				if (server_prerequisite_warning) {
 					ImGui::BeginTooltip();
 					ImGui::TextColored(
-						ImVec4{
-							1.0f,
-							0.35f,
-							0.35f,
-							1.0f
-						},
-						"Server prerequisite missing"
+						ImVec4{ 1.0f, 0.35f, 0.35f, 1.0f }, "Server prerequisite missing"
 					);
 					ImGui::Separator();
-					ImGui::TextWrapped(
-						"%s",
-						server_availability
-							.unavailable_reason
-							.c_str()
-					);
+					ImGui::TextWrapped("%s", server_availability.unavailable_reason.c_str());
 					ImGui::EndTooltip();
 				} else if (busy) {
-					ImGui::SetTooltip(
-						"Wait for the current export task to finish."
-					);
+					ImGui::SetTooltip("Wait for the current export task to finish.");
 				} else if (!web_files_exist) {
 					ImGui::SetTooltip(
 						"No Web export exists yet. Expected index.html in:\n%s",
 						web_output_directory.string().c_str()
 					);
-				} else if (
-					server_running &&
-					!can_run_server
-				) {
+				} else if (server_running && !can_run_server) {
 					ImGui::SetTooltip(
 						"The current Web files are already being served at http://127.0.0.1:8000/."
 					);
-				} else if (
-					server_running &&
-					can_run_server
-				) {
+				} else if (server_running && can_run_server) {
 					ImGui::SetTooltip(
-						"The Web export changed since the server was started. Restart the server using the current files."
+						"The Web export changed since the server was started. Restart the server "
+						"using the current files."
 					);
 				} else {
 					ImGui::SetTooltip(
@@ -3896,58 +2657,31 @@ void Editor::DrawExportWindow() {
 
 			if (server_running) {
 				ImGui::SameLine();
-				if (ImGui::Button(
-						"Stop Web Server"
-					)) {
+				if (ImGui::Button("Stop Web Server")) {
 					export_manager_.StopWebServer();
 				}
-				if (ImGui::IsItemHovered(
-						ImGuiHoveredFlags_Stationary
-					)) {
-					ImGui::SetTooltip(
-						"Stop the local server on port 8000."
-					);
+				if (ImGui::IsItemHovered(ImGuiHoveredFlags_Stationary)) {
+					ImGui::SetTooltip("Stop the local server on port 8000.");
 				}
 			}
 
 			ImGui::SameLine();
 
-			const path web_zip_path{
-				export_manager_.GetWebZipPath(
-					web_output_directory
-				)
-			};
-			const bool web_zip_current{
-				export_manager_.IsWebZipCurrent(
-					web_output_directory
-				)
-			};
-			const bool can_zip_web{
-				!busy &&
-				web_files_exist &&
-				!web_zip_current
-			};
+			const path web_zip_path{ export_manager_.GetWebZipPath(web_output_directory) };
+			const bool web_zip_current{ export_manager_.IsWebZipCurrent(web_output_directory) };
+			const bool can_zip_web{ !busy && web_files_exist && !web_zip_current };
 
-			ImGui::BeginDisabled(
-				!can_zip_web
-			);
-			if (ImGui::Button(
-					"Zip Web Release"
-				)) {
-				export_manager_.ZipWebOutput(
-					web_output_directory
-				);
+			ImGui::BeginDisabled(!can_zip_web);
+			if (ImGui::Button("Zip Web Release")) {
+				export_manager_.ZipWebOutput(web_output_directory);
 			}
 			ImGui::EndDisabled();
 
 			if (ImGui::IsItemHovered(
-					ImGuiHoveredFlags_AllowWhenDisabled |
-						ImGuiHoveredFlags_Stationary
+					ImGuiHoveredFlags_AllowWhenDisabled | ImGuiHoveredFlags_Stationary
 				)) {
 				if (busy) {
-					ImGui::SetTooltip(
-						"Wait for the current export task to finish."
-					);
+					ImGui::SetTooltip("Wait for the current export task to finish.");
 				} else if (!web_files_exist) {
 					ImGui::SetTooltip(
 						"No Web export exists yet. Expected index.html in:\n%s",
@@ -3955,14 +2689,10 @@ void Editor::DrawExportWindow() {
 					);
 				} else if (web_zip_current) {
 					ImGui::SetTooltip(
-						"The ZIP is already up to date:\n%s",
-						web_zip_path.string().c_str()
+						"The ZIP is already up to date:\n%s", web_zip_path.string().c_str()
 					);
 				} else {
-					ImGui::SetTooltip(
-						"Create or replace:\n%s",
-						web_zip_path.string().c_str()
-					);
+					ImGui::SetTooltip("Create or replace:\n%s", web_zip_path.string().c_str());
 				}
 			}
 		}
@@ -3975,9 +2705,8 @@ void Editor::DrawExportWindow() {
 
 	if (!window_open) {
 		if (busy) {
-			export_window_open_ = true;
-			pending_task_confirmation_ =
-				PendingTaskConfirmation::CloseExportWindowWhileRunning;
+			export_window_open_		   = true;
+			pending_task_confirmation_ = PendingTaskConfirmation::CloseExportWindowWhileRunning;
 			task_confirmation_popup_requested_ = true;
 		} else {
 			export_window_open_ = false;
@@ -3987,19 +2716,13 @@ void Editor::DrawExportWindow() {
 
 void Editor::DrawTaskConfirmationPopup() {
 	if (task_confirmation_popup_requested_) {
-		ImGui::OpenPopup(
-			"Confirm Export Action###ExportTaskConfirmation"
-		);
+		ImGui::OpenPopup("Confirm Export Action###ExportTaskConfirmation");
 		task_confirmation_popup_requested_ = false;
 	}
 
-	ImGui::SetNextWindowSizeConstraints(
-		ImVec2{ 560.0f, 0.0f },
-		ImVec2{ 760.0f, FLT_MAX }
-	);
+	ImGui::SetNextWindowSizeConstraints(ImVec2{ 560.0f, 0.0f }, ImVec2{ 760.0f, FLT_MAX });
 	if (!ImGui::BeginPopupModal(
-			"Confirm Export Action###ExportTaskConfirmation",
-			nullptr,
+			"Confirm Export Action###ExportTaskConfirmation", nullptr,
 			ImGuiWindowFlags_AlwaysAutoResize
 		)) {
 		return;
@@ -4014,24 +2737,20 @@ void Editor::DrawTaskConfirmationPopup() {
 
 		case PendingTaskConfirmation::Clean:
 			ImGui::TextWrapped(
-				"Delete the cached export build files for the selected platform and configuration? This cannot be undone."
+				"Delete the cached export build files for the selected platform and configuration? "
+				"This cannot be undone."
 			);
 			break;
 
 		case PendingTaskConfirmation::CloseExportWindowWhileRunning:
-			ImGui::TextWrapped(
-				"An export is still running. Cancel it and close this window?"
-			);
+			ImGui::TextWrapped("An export is still running. Cancel it and close this window?");
 			break;
 
 		case PendingTaskConfirmation::CloseApplicationWhileRunning:
-			ImGui::TextWrapped(
-				"An export is still running. Cancel it and exit the application?"
-			);
+			ImGui::TextWrapped("An export is still running. Cancel it and exit the application?");
 			break;
 
-		case PendingTaskConfirmation::None:
-			break;
+		case PendingTaskConfirmation::None: break;
 	}
 
 	ImGui::Separator();
@@ -4041,17 +2760,14 @@ void Editor::DrawTaskConfirmationPopup() {
 			case PendingTaskConfirmation::Export:
 				if (pending_export_request_) {
 					pending_export_request_->replace_existing = true;
-					StartExport(
-						std::move(pending_export_request_.value())
-					);
+					StartExport(std::move(pending_export_request_.value()));
 				}
 				break;
 
 			case PendingTaskConfirmation::Clean:
 				if (pending_clean_target_ && pending_clean_configuration_) {
 					export_manager_.Clean(
-						pending_clean_target_.value(),
-						pending_clean_configuration_.value()
+						pending_clean_target_.value(), pending_clean_configuration_.value()
 					);
 				}
 				break;
@@ -4067,8 +2783,7 @@ void Editor::DrawTaskConfirmationPopup() {
 				app.RequestQuit();
 				break;
 
-			case PendingTaskConfirmation::None:
-				break;
+			case PendingTaskConfirmation::None: break;
 		}
 
 		pending_export_request_.reset();
@@ -4097,7 +2812,7 @@ void ConsolePanel::OnRender(EditorContext& ctx) {
 	if (revision != last_rendered_output_revision_) {
 		auto snapshot{ ::ptgn::impl::GetConsoleOutputSnapshot() };
 		last_rendered_output_revision_ = snapshot.revision;
-		rendered_output_ = CollapseRepeatedConsoleLines(snapshot.output);
+		rendered_output_			   = CollapseRepeatedConsoleLines(snapshot.output);
 	}
 
 	if (!ImGui::Begin("Console")) {
@@ -4109,38 +2824,29 @@ void ConsolePanel::OnRender(EditorContext& ctx) {
 		ImGui::TextUnformatted(save_status_.c_str());
 	}
 
-	const auto actions{
-		DrawOutputConsole(
-			"EditorConsole",
-			rendered_output_,
-			follow_output_tail_,
-			jump_to_bottom_requested_,
+	const auto actions{ DrawOutputConsole(
+		"EditorConsole", rendered_output_, follow_output_tail_, jump_to_bottom_requested_,
 #if defined(__EMSCRIPTEN__)
-			false
+		false
 #else
-			true
+		true
 #endif
-		)
-	};
+	) };
 
 	if (actions.clear_requested) {
 		::ptgn::impl::ClearConsoleOutput();
 		auto snapshot{ ::ptgn::impl::GetConsoleOutputSnapshot() };
 		last_rendered_output_revision_ = snapshot.revision;
-		rendered_output_ = CollapseRepeatedConsoleLines(snapshot.output);
+		rendered_output_			   = CollapseRepeatedConsoleLines(snapshot.output);
 		save_status_.clear();
 	}
 
 #if !defined(__EMSCRIPTEN__)
 	if (actions.save_requested) {
 		const auto& build_info{ ::ptgn::impl::GetBuildInfo() };
-		const path root{
-			ctx.editor.GetProjectRoot().value_or(build_info.runtime_root)
-		};
+		const path root{ ctx.editor.GetProjectRoot().value_or(build_info.runtime_root) };
 
-		const path output_path{
-			(root / "logs" / MakeConsoleLogFilename()).lexically_normal()
-		};
+		const path output_path{ (root / "logs" / MakeConsoleLogFilename()).lexically_normal() };
 
 		if (::ptgn::impl::SaveConsoleOutput(output_path)) {
 			save_status_ = "Saved: " + output_path.string();
@@ -4156,16 +2862,12 @@ void ConsolePanel::OnRender(EditorContext& ctx) {
 void Editor::DrawPanels() {
 	PTGN_ASSERT(context_);
 
-	scene_list_panel_.ClearInvalidSceneSelection(
-		*context_
-	);
+	scene_list_panel_.ClearInvalidSceneSelection(*context_);
 
 	if (scene_list_panel_.ResolvePendingSceneSelection(*context_)) {
 		auto* scene{ scene_list_panel_.GetSelectedScene() };
 
-		viewport_panel_.SetUseEditorCamera(
-			!scene || !scene->IsRuntime()
-		);
+		viewport_panel_.SetUseEditorCamera(!scene || !scene->IsRuntime());
 	}
 
 	// Needs to be rendered first so that the additional draw call can be displayed in the render
@@ -4187,14 +2889,9 @@ void Editor::DrawPanels() {
 
 	if (before_content_browser_settings != after_content_browser_settings) {
 		PushUndoableValueChange(
-			undo_stack_,
-			"Change Content Browser Settings",
-			before_content_browser_settings,
+			undo_stack_, "Change Content Browser Settings", before_content_browser_settings,
 			after_content_browser_settings,
-			[this](const EditorSettings& settings) {
-				SetEditorSettings(settings);
-			},
-			false
+			[this](const EditorSettings& settings) { SetEditorSettings(settings); }, false
 		);
 	}
 
@@ -4215,14 +2912,9 @@ void Editor::DrawPanels() {
 
 		if (before_metrics_settings != after_metrics_settings) {
 			PushUndoableValueChange(
-				undo_stack_,
-				"Toggle ImGui Metrics",
-				before_metrics_settings,
+				undo_stack_, "Toggle ImGui Metrics", before_metrics_settings,
 				after_metrics_settings,
-				[this](const EditorSettings& settings) {
-					SetEditorSettings(settings);
-				},
-				false
+				[this](const EditorSettings& settings) { SetEditorSettings(settings); }, false
 			);
 		}
 	}
@@ -4252,25 +2944,18 @@ bool Editor::ShouldEnableEntityPicking() const {
 ::ptgn::impl::FramebufferId Editor::GetSceneFramebuffer(Scene& scene) const {
 	auto render_target{ scene.GetRenderTarget() };
 
-	return static_cast<::ptgn::impl::FramebufferId>(render_target.Get<::ptgn::impl::FramebufferObject>());
+	return static_cast<::ptgn::impl::FramebufferId>(
+		render_target.Get<::ptgn::impl::FramebufferObject>()
+	);
 }
 
-void Editor::OnSelectedSceneChanged(
-	Scene* previous_scene,
-	Scene* selected_scene
-) {
+void Editor::OnSelectedSceneChanged(Scene* previous_scene, Scene* selected_scene) {
 	if (previous_scene) {
-		SetSceneEntityPickingEnabled(
-			*previous_scene,
-			false
-		);
+		SetSceneEntityPickingEnabled(*previous_scene, false);
 	}
 
 	if (selected_scene) {
-		SetSceneEntityPickingEnabled(
-			*selected_scene,
-			ShouldEnableEntityPicking()
-		);
+		SetSceneEntityPickingEnabled(*selected_scene, ShouldEnableEntityPicking());
 	}
 
 	scene_asset_dependencies_dirty_ = true;
@@ -4292,51 +2977,32 @@ void Editor::SyncSelectedSceneAssetDependencies() {
 	(void)scene->SyncAssetDependenciesFromSerialization();
 }
 
-void Editor::EnableRendering(
-	bool enable
-) {
+void Editor::EnableRendering(bool enable) {
 	render_enabled_ = enable;
 
-	auto& app_context{
-		::ptgn::impl::ApplicationAccessor::ctx(app)
-	};
+	auto& app_context{ ::ptgn::impl::ApplicationAccessor::ctx(app) };
 
 	// Before a project has started, editor visibility determines how the
 	// project should launch. A hidden editor starts directly in runtime.
 	if (!app_context.project.has_value()) {
-		app_context.start_project_runtime =
-			!render_enabled_;
+		app_context.start_project_runtime = !render_enabled_;
 	}
 
-	auto& window{
-		GetWindow()
-	};
+	auto& window{ GetWindow() };
 
-	window.SetSetting(
-		render_enabled_
-			? WindowSetting::Maximized
-			: WindowSetting::Restored
-	);
+	window.SetSetting(render_enabled_ ? WindowSetting::Maximized : WindowSetting::Restored);
 
 	if (render_enabled_) {
-		dock_layout_update_requested_ =
-			true;
+		dock_layout_update_requested_ = true;
 
 		// Maximizing may produce multiple window size updates.
-		dock_resize_frames_remaining_ =
-			4;
+		dock_resize_frames_remaining_ = 4;
 	} else {
-		auto& renderer{
-			GetRenderer()
-		};
+		auto& renderer{ GetRenderer() };
 
-		renderer.SetPresentationViewport(
-			std::nullopt
-		);
+		renderer.SetPresentationViewport(std::nullopt);
 
-		renderer.SetPrimaryWorldCamera(
-			std::nullopt
-		);
+		renderer.SetPrimaryWorldCamera(std::nullopt);
 	}
 
 	ApplyEntityPickingSettings();
@@ -4352,9 +3018,7 @@ void Editor::OnUpdate() {
 
 	undo_stack_.SetUndoRedoEnabled(!CanPause());
 
-	scene_list_panel_.ClearInvalidSceneSelection(
-		*context_
-	);
+	scene_list_panel_.ClearInvalidSceneSelection(*context_);
 
 	UpdateProjectLocalState();
 	UpdateRuntimeViewportState();
@@ -4363,9 +3027,7 @@ void Editor::OnUpdate() {
 		SyncProjectSceneOrder();
 	}
 
-	if (ImGui::IsKeyPressed(
-			ImGuiKey_F10
-		)) {
+	if (ImGui::IsKeyPressed(ImGuiKey_F10)) {
 		if (!render_enabled_) {
 			// Game view -> editor view.
 			//
@@ -4376,8 +3038,7 @@ void Editor::OnUpdate() {
 			}
 
 			EnableRendering(true);
-		} else if (IsPlaying() ||
-				IsDirectRuntime()) {
+		} else if (IsPlaying() || IsDirectRuntime()) {
 			// Runtime with the editor visible -> hide the editor while
 			// leaving runtime active.
 			EnableRendering(false);
@@ -4391,17 +3052,9 @@ void Editor::OnUpdate() {
 		}
 	}
 
-	const auto& io{
-		ImGui::GetIO()
-	};
+	const auto& io{ ImGui::GetIO() };
 
-	if ((io.KeyCtrl || io.KeySuper) &&
-		ImGui::IsKeyPressed(
-			ImGuiKey_S,
-			false
-		) &&
-		CanSaveProject()
-	) {
+	if ((io.KeyCtrl || io.KeySuper) && ImGui::IsKeyPressed(ImGuiKey_S, false) && CanSaveProject()) {
 		SaveProjectScene();
 	}
 
@@ -4425,14 +3078,8 @@ void Editor::OnUpdate() {
 	// the current selection and editor setting.
 	ApplySceneRenderSettings();
 
-	if (auto* scene{
-			scene_list_panel_
-				.GetSelectedScene()
-		}) {
-		SetSceneEntityPickingEnabled(
-			*scene,
-			ShouldEnableEntityPicking()
-		);
+	if (auto* scene{ scene_list_panel_.GetSelectedScene() }) {
+		SetSceneEntityPickingEnabled(*scene, ShouldEnableEntityPicking());
 	}
 
 	RefreshProjectDirtyState();
@@ -4456,18 +3103,12 @@ void Editor::SetEditorSettings(EditorSettings settings) {
 	SetGizmoUsesLocalOrientation(settings.gizmo_uses_local_orientation);
 
 	auto& current{ context_->local.settings };
-	current.show_read_only_inspector_data =
-		settings.show_read_only_inspector_data;
-	current.show_read_only_scene_data =
-		settings.show_read_only_scene_data;
-	current.show_imgui_metrics =
-		settings.show_imgui_metrics;
-	current.preview_screen_effects =
-		settings.preview_screen_effects;
-	current.content_browser_items_per_row =
-		settings.content_browser_items_per_row;
-	current.content_browser_search_entire_tree =
-		settings.content_browser_search_entire_tree;
+	current.show_read_only_inspector_data	   = settings.show_read_only_inspector_data;
+	current.show_read_only_scene_data		   = settings.show_read_only_scene_data;
+	current.show_imgui_metrics				   = settings.show_imgui_metrics;
+	current.preview_screen_effects			   = settings.preview_screen_effects;
+	current.content_browser_items_per_row	   = settings.content_browser_items_per_row;
+	current.content_browser_search_entire_tree = settings.content_browser_search_entire_tree;
 
 	ApplyScreenEffectPreviewState();
 }
@@ -4515,12 +3156,9 @@ void Editor::Play() {
 		return;
 	}
 
-	auto* selected_scene{
-		scene_list_panel_.GetSelectedScene()
-	};
+	auto* selected_scene{ scene_list_panel_.GetSelectedScene() };
 
-	if (!selected_scene ||
-		selected_scene->IsRuntime()) {
+	if (!selected_scene || selected_scene->IsRuntime()) {
 		return;
 	}
 
@@ -4531,76 +3169,55 @@ void Editor::Play() {
 	}
 
 	const auto selected_entity_uuid{
-		GetSelectedEntityUUID(
-			scene_hierarchy_panel_,
-			selected_scene
-		)
+		GetSelectedEntityUUID(scene_hierarchy_panel_, selected_scene)
 	};
 
-	auto& app_context{
-		::ptgn::impl::ApplicationAccessor::ctx(app)
-	};
+	auto& app_context{ ::ptgn::impl::ApplicationAccessor::ctx(app) };
 	auto& manager{ GetSceneManager() };
 
 	app_context.runtime_project_scenes.clear();
-	app_context.runtime_project_scenes.reserve(
-		project->scenes.size()
-	);
+	app_context.runtime_project_scenes.reserve(project->scenes.size());
 
 	for (const auto& entry : project->scenes) {
 		const auto scene_hash{ Hash(entry.key) };
 
 		PTGN_ASSERT(
-			manager.HasScene(scene_hash),
-			"Project scene is not loaded in the editor: ",
-			entry.key
+			manager.HasScene(scene_hash), "Project scene is not loaded in the editor: ", entry.key
 		);
 
-		const auto& scene{
-			manager.GetScene(scene_hash)
-		};
+		const auto& scene{ manager.GetScene(scene_hash) };
 
 		PTGN_ASSERT(
 			!scene.IsRuntime(),
-			"Cannot begin editor play with an existing runtime scene: ",
-			entry.key
+			"Cannot begin editor play with an existing runtime scene: ", entry.key
 		);
 
 		app_context.runtime_project_scenes.emplace_back(
 			::ptgn::impl::RuntimeProjectSceneSnapshot{
-				.key = entry.key,
+				.key   = entry.key,
 				.scene = CaptureScene(scene),
 			}
 		);
 	}
 
-	const std::string selected_key{
-		selected_scene->GetTag()
-	};
+	const std::string selected_key{ selected_scene->GetTag() };
 
-	const auto snapshot_it{
-		std::ranges::find_if(
-			app_context.runtime_project_scenes,
-			[&selected_key](
-				const ::ptgn::impl::RuntimeProjectSceneSnapshot& snapshot
-			) {
-				return snapshot.key == selected_key;
-			}
-		)
-	};
+	const auto snapshot_it{ std::ranges::find_if(
+		app_context.runtime_project_scenes,
+		[&selected_key](const ::ptgn::impl::RuntimeProjectSceneSnapshot& snapshot) {
+			return snapshot.key == selected_key;
+		}
+	) };
 
 	PTGN_ASSERT(
-		snapshot_it !=
-			app_context.runtime_project_scenes.end(),
-		"Selected project scene snapshot is missing: ",
-		selected_key
+		snapshot_it != app_context.runtime_project_scenes.end(),
+		"Selected project scene snapshot is missing: ", selected_key
 	);
 
 	play_snapshot_ = PlaySnapshot{
-		.selected_scene_key = selected_key,
-		.was_dirty = context_->local.state.is_dirty,
-		.screen_effect_preview_before_play =
-			context_->local.settings.preview_screen_effects,
+		.selected_scene_key				   = selected_key,
+		.was_dirty						   = context_->local.state.is_dirty,
+		.screen_effect_preview_before_play = context_->local.settings.preview_screen_effects,
 	};
 
 	context_->local.position_picker.Cancel();
@@ -4610,20 +3227,12 @@ void Editor::Play() {
 	app.SetScreenEffects(project->screen_effects);
 	ApplyScreenEffectPreview(true);
 
-	SetApplicationState(
-		ApplicationState::Running
-	);
+	SetApplicationState(ApplicationState::Running);
 
-	if (!manager.ReEnterFactory(
-			selected_key,
-			::ptgn::impl::MakeSceneFactory(
-				snapshot_it->scene,
-				true
-			)
+	if (!manager.EnterFactory(
+			selected_key, ::ptgn::impl::MakeSceneFactory(snapshot_it->scene, true)
 		)) {
-		const bool preview_before_play{
-			play_snapshot_->screen_effect_preview_before_play
-		};
+		const bool preview_before_play{ play_snapshot_->screen_effect_preview_before_play };
 		undo_stack_.SetUndoRedoEnabled(true);
 		app_context.runtime_project_scenes.clear();
 		play_snapshot_.reset();
@@ -4637,23 +3246,16 @@ void Editor::Play() {
 		}
 
 		PTGN_ASSERT(
-			manager.Exit(entry.key),
-			"Failed to remove editor scene before play: ",
-			entry.key
+			manager.Exit(entry.key), "Failed to remove editor scene before play: ", entry.key
 		);
 	}
 
-	scene_list_panel_.QueueSceneSelection(
-		*context_,
-		selected_key,
-		true,
-		selected_entity_uuid
-	);
+	scene_list_panel_.QueueSceneSelection(*context_, selected_key, true, selected_entity_uuid);
 
 	viewport_panel_.SetUseEditorCamera(false);
 
 	context_->local.state.is_playing = true;
-	context_->local.state.is_paused = false;
+	context_->local.state.is_paused	 = false;
 }
 
 void Editor::StopDirectRuntime() {
@@ -4663,77 +3265,46 @@ void Editor::StopDirectRuntime() {
 		return;
 	}
 
-	auto* project{
-		GetProject()
-	};
+	auto* project{ GetProject() };
 
 	if (!project) {
 		return;
 	}
 
-	auto& app_context{
-		::ptgn::impl::ApplicationAccessor::ctx(app)
-	};
+	auto& app_context{ ::ptgn::impl::ApplicationAccessor::ctx(app) };
 
-	auto& manager{
-		GetSceneManager()
-	};
+	auto& manager{ GetSceneManager() };
 
 	// Prefer returning to whichever project scene is currently selected.
 	// If runtime has moved to a scene that is not part of the project,
 	// fall back to the startup scene.
-	std::string selected_key{
-		project->startup_scene_key
-	};
+	std::string selected_key{ project->startup_scene_key };
 
 	std::optional<UUID> selected_entity_uuid;
 
-	if (auto* selected_scene{
-			scene_list_panel_.GetSelectedScene()
-		}) {
-		const std::string runtime_key{
-			selected_scene->GetTag()
-		};
+	if (auto* selected_scene{ scene_list_panel_.GetSelectedScene() }) {
+		const std::string runtime_key{ selected_scene->GetTag() };
 
-		if (FindProjectScene(
-				*project,
-				runtime_key
-			)) {
-			selected_key =
-				runtime_key;
+		if (FindProjectScene(*project, runtime_key)) {
+			selected_key = runtime_key;
 
-			selected_entity_uuid =
-				GetSelectedEntityUUID(
-					scene_hierarchy_panel_,
-					selected_scene
-				);
+			selected_entity_uuid = GetSelectedEntityUUID(scene_hierarchy_panel_, selected_scene);
 		}
 	}
 
-	if (selected_key.empty() &&
-		!project->scenes.empty()) {
-		selected_key =
-			project->scenes.front().key;
+	if (selected_key.empty() && !project->scenes.empty()) {
+		selected_key = project->scenes.front().key;
 	}
 
 	// Direct runtime has no editor PlaySnapshot because there was no
 	// editable scene state before it started. Reconstruct that state
 	// from the project's saved scene files instead.
-	std::vector<::ptgn::impl::RuntimeProjectSceneSnapshot>
-		editor_scenes;
+	std::vector<::ptgn::impl::RuntimeProjectSceneSnapshot> editor_scenes;
 
-	editor_scenes.reserve(
-		project->scenes.size()
-	);
+	editor_scenes.reserve(project->scenes.size());
 
-	for (const auto& entry :
-		 project->scenes) {
-		const path scene_path{
-			GetProjectScenePath(
-				*project,
-				entry
-			)
-		};
+	for (const auto& entry : project->scenes) {
+		const path scene_path{ GetProjectScenePath(*project, entry) };
 
 		if (!FileExists(scene_path)) {
 			PTGN_ERROR(
@@ -4746,10 +3317,8 @@ void Editor::StopDirectRuntime() {
 
 		editor_scenes.emplace_back(
 			::ptgn::impl::RuntimeProjectSceneSnapshot{
-				.key = entry.key,
-				.scene = LoadSceneFile(
-					scene_path
-				),
+				.key   = entry.key,
+				.scene = LoadSceneFile(scene_path),
 			}
 		);
 	}
@@ -4757,76 +3326,47 @@ void Editor::StopDirectRuntime() {
 	// Remember every runtime scene before replacing project scenes.
 	// Runtime may have entered scenes which are not part of the project
 	// scene list, and those must not remain in edit mode.
-	std::vector<std::string>
-		runtime_scene_keys;
+	std::vector<std::string> runtime_scene_keys;
 
-	for (const auto& scene :
-		 manager.GetScenes()) {
-		if (!scene ||
-			!scene->IsRuntime()) {
+	for (const auto& scene : manager.GetScenes()) {
+		if (!scene || !scene->IsRuntime()) {
 			continue;
 		}
 
-		runtime_scene_keys.emplace_back(
-			scene->GetTag()
-		);
+		runtime_scene_keys.emplace_back(scene->GetTag());
 	}
 
 	context_->local.position_picker.Cancel();
 
-	SetApplicationState(
-		ApplicationState::Running
-	);
+	SetApplicationState(ApplicationState::Running);
 
 	// Recreate every project scene as a non runtime editor scene.
-	for (const auto& snapshot :
-		 editor_scenes) {
-		const auto scene_hash{
-			Hash(snapshot.key)
-		};
+	for (const auto& snapshot : editor_scenes) {
+		auto factory{ ::ptgn::impl::MakeSceneFactory(snapshot.scene, false) };
 
-		auto factory{
-			::ptgn::impl::MakeSceneFactory(
-				snapshot.scene,
-				false
+		const bool accepted{
+			manager.EnterFactory(
+				snapshot.key,
+				std::move(factory)
 			)
 		};
 
-		const bool accepted{
-			manager.HasScene(scene_hash)
-				? manager.ReEnterFactory(
-					snapshot.key,
-					std::move(factory)
-				)
-				: manager.EnterFactory(
-					snapshot.key,
-					std::move(factory)
-				)
-		};
-
 		PTGN_ASSERT(
-			accepted,
-			"Failed to restore project scene after direct runtime: ",
-			snapshot.key
+			accepted, "Failed to restore project scene after direct runtime: ", snapshot.key
 		);
 	}
 
 	// Remove any remaining runtime-only scenes which were entered while
 	// the game was running. Project scenes replaced above are now
 	// non runtime and therefore remain.
-	for (const auto& runtime_key :
-		 runtime_scene_keys) {
-		const auto scene_hash{
-			Hash(runtime_key)
-		};
+	for (const auto& runtime_key : runtime_scene_keys) {
+		const auto scene_hash{ Hash(runtime_key) };
 
 		if (!manager.HasScene(scene_hash)) {
 			continue;
 		}
 
-		auto& scene{
-			manager.GetScene(scene_hash)
-		};
+		auto& scene{ manager.GetScene(scene_hash) };
 
 		if (!scene.IsRuntime()) {
 			continue;
@@ -4834,48 +3374,29 @@ void Editor::StopDirectRuntime() {
 
 		PTGN_ASSERT(
 			manager.Exit(runtime_key),
-			"Failed to remove runtime scene while returning to editor: ",
-			runtime_key
+			"Failed to remove runtime scene while returning to editor: ", runtime_key
 		);
 	}
 
-	context_->local.state.is_playing =
-		false;
+	context_->local.state.is_playing = false;
 
-	context_->local.state.is_paused =
-		false;
+	context_->local.state.is_paused = false;
 
-	viewport_panel_.SetUseEditorCamera(
-		true
-	);
+	viewport_panel_.SetUseEditorCamera(true);
 
 	if (!selected_key.empty()) {
-		scene_list_panel_.QueueSceneSelection(
-			*context_,
-			selected_key,
-			false,
-			selected_entity_uuid
-		);
+		scene_list_panel_.QueueSceneSelection(*context_, selected_key, false, selected_entity_uuid);
 	}
 
-	app.SetScreenEffects(
-		project->screen_effects
-	);
+	app.SetScreenEffects(project->screen_effects);
 
 	ApplyScreenEffectPreviewState();
 
-	if (context_->local.selection
-			.selected_screen_effect
-			.has_value() &&
-		context_->local.selection
-			.selected_screen_effect
-			->runtime) {
-		context_->local.selection
-			.selected_screen_effect
-			.reset();
+	if (context_->local.selection.selected_screen_effect.has_value() &&
+		context_->local.selection.selected_screen_effect->runtime) {
+		context_->local.selection.selected_screen_effect.reset();
 
-		context_->local.selection.inspector_tab =
-			InspectorTab::Primary;
+		context_->local.selection.inspector_tab = InspectorTab::Primary;
 	}
 
 	undo_stack_.DiscardTransientCommands();
@@ -4892,88 +3413,50 @@ void Editor::Stop() {
 		return;
 	}
 
-	if (!IsPlaying() ||
-		!play_snapshot_) {
+	if (!IsPlaying() || !play_snapshot_) {
 		return;
 	}
 
 	const auto selected_entity_uuid{
-		GetSelectedEntityUUID(
-			scene_hierarchy_panel_,
-			scene_list_panel_.GetSelectedScene()
-		)
+		GetSelectedEntityUUID(scene_hierarchy_panel_, scene_list_panel_.GetSelectedScene())
 	};
 
 	context_->local.position_picker.Cancel();
 
-	SetApplicationState(
-		ApplicationState::Running
-	);
+	SetApplicationState(ApplicationState::Running);
 
-	auto& app_context{
-		::ptgn::impl::ApplicationAccessor::ctx(app)
-	};
+	auto& app_context{ ::ptgn::impl::ApplicationAccessor::ctx(app) };
 	auto& manager{ GetSceneManager() };
 
-	for (const auto& snapshot :
-		 app_context.runtime_project_scenes) {
-		const auto scene_hash{
-			Hash(snapshot.key)
-		};
+	for (const auto& snapshot : app_context.runtime_project_scenes) {
+		auto factory{ ::ptgn::impl::MakeSceneFactory(snapshot.scene, false) };
 
-		auto factory{
-			::ptgn::impl::MakeSceneFactory(
-				snapshot.scene,
-				false
+		const bool accepted{
+			manager.EnterFactory(
+				snapshot.key,
+				std::move(factory)
 			)
 		};
 
-		const bool accepted{
-			manager.HasScene(scene_hash)
-				? manager.ReEnterFactory(
-					snapshot.key,
-					std::move(factory)
-				)
-				: manager.EnterFactory(
-					snapshot.key,
-					std::move(factory)
-				)
-		};
-
-		PTGN_ASSERT(
-			accepted,
-			"Failed to restore project scene after editor play: ",
-			snapshot.key
-		);
+		PTGN_ASSERT(accepted, "Failed to restore project scene after editor play: ", snapshot.key);
 	}
 
-	const std::string selected_key{
-		play_snapshot_->selected_scene_key
-	};
+	const std::string selected_key{ play_snapshot_->selected_scene_key };
 
-	scene_list_panel_.QueueSceneSelection(
-		*context_,
-		selected_key,
-		false,
-		selected_entity_uuid
-	);
+	scene_list_panel_.QueueSceneSelection(*context_, selected_key, false, selected_entity_uuid);
 
 	viewport_panel_.SetUseEditorCamera(true);
 
 	context_->local.state.is_playing = false;
-	context_->local.state.is_paused = false;
+	context_->local.state.is_paused	 = false;
 
 	if (auto* project{ GetProject() }) {
 		app.SetScreenEffects(project->screen_effects);
 	}
 
-	const bool runtime_preview{
-		context_->local.settings.preview_screen_effects
-	};
-	const bool restored_preview{
-		runtime_preview &&
-		play_snapshot_->screen_effect_preview_before_play
-	};
+	const bool runtime_preview{ context_->local.settings.preview_screen_effects };
+	const bool restored_preview{ runtime_preview &&
+								 play_snapshot_->screen_effect_preview_before_play };
 	ApplyScreenEffectPreview(restored_preview);
 
 	if (context_->local.selection.selected_screen_effect.has_value() &&
@@ -4984,90 +3467,53 @@ void Editor::Stop() {
 
 	undo_stack_.DiscardTransientCommands();
 	undo_stack_.SetUndoRedoEnabled(true);
-	context_->local.state.is_dirty =
-		play_snapshot_->was_dirty;
+	context_->local.state.is_dirty = play_snapshot_->was_dirty;
 
 	app_context.runtime_project_scenes.clear();
 	play_snapshot_.reset();
 	RefreshProjectDirtyState();
 }
 
-void Editor::SetRenderOnlySelectedScene(
-	bool enabled
-) {
-	PTGN_ASSERT(
-		context_,
-		"Editor context must be initialized"
-	);
+void Editor::SetRenderOnlySelectedScene(bool enabled) {
+	PTGN_ASSERT(context_, "Editor context must be initialized");
 
-	if (context_->local.settings
-			.render_only_selected_scene ==
-		enabled) {
+	if (context_->local.settings.render_only_selected_scene == enabled) {
 		return;
 	}
 
-	context_->local.settings
-		.render_only_selected_scene =
-		enabled;
+	context_->local.settings.render_only_selected_scene = enabled;
 
 	ApplySceneRenderSettings();
 }
 
 void Editor::ApplySceneRenderSettings() {
-	PTGN_ASSERT(
-		context_,
-		"Editor context must be initialized"
-	);
+	PTGN_ASSERT(context_, "Editor context must be initialized");
 
-	auto& scenes{
-		GetSceneManager().GetScenes()
-	};
+	auto& scenes{ GetSceneManager().GetScenes() };
 
-	Scene* selected_scene{
-		scene_list_panel_.GetSelectedScene()
-	};
+	Scene* selected_scene{ scene_list_panel_.GetSelectedScene() };
 
-	auto selected_it{
-		std::ranges::find_if(
-			scenes,
-			[selected_scene](
-				const auto& scene
-			) {
-				return
-					scene &&
-					scene.get() ==
-						selected_scene;
-			}
-		)
-	};
+	auto selected_it{ std::ranges::find_if(scenes, [selected_scene](const auto& scene) {
+		return scene && scene.get() == selected_scene;
+	}) };
 
-	const bool has_valid_selection{
-		selected_it != scenes.end()
-	};
+	const bool has_valid_selection{ selected_it != scenes.end() };
 
 	// Render every scene while the editor UI is hidden. This preserves
 	// the normal game presentation when F10 switches out of editor view.
 	//
 	// Also render all scenes during a scene transition so incoming and
 	// outgoing scenes can both participate in the transition.
-	const bool render_only_selected{
-		render_enabled_ &&
-		context_->local.settings
-			.render_only_selected_scene &&
-		has_valid_selection &&
-		!(*selected_it)->IsTransitioning()
-	};
+	const bool render_only_selected{ render_enabled_ &&
+									 context_->local.settings.render_only_selected_scene &&
+									 has_valid_selection && !(*selected_it)->IsTransitioning() };
 
 	for (auto& scene : scenes) {
 		if (!scene) {
 			continue;
 		}
 
-		scene->SetRenderEnabled(
-			!render_only_selected ||
-			scene.get() ==
-				selected_scene
-		);
+		scene->SetRenderEnabled(!render_only_selected || scene.get() == selected_scene);
 	}
 }
 
@@ -5078,25 +3524,17 @@ void Editor::TogglePause() {
 		return;
 	}
 
-	context_->local.state.is_paused =
-		!context_->local.state.is_paused;
+	context_->local.state.is_paused = !context_->local.state.is_paused;
 
 	SetApplicationState(
-		context_->local.state.is_paused
-			? ApplicationState::Paused
-			: ApplicationState::Running
+		context_->local.state.is_paused ? ApplicationState::Paused : ApplicationState::Running
 	);
 }
 
 bool Editor::CanPlay() const {
-	const auto* scene{
-		scene_list_panel_.GetSelectedScene()
-	};
+	const auto* scene{ scene_list_panel_.GetSelectedScene() };
 
-	return
-		!IsPlaying() &&
-		scene &&
-		!scene->IsRuntime();
+	return !IsPlaying() && scene && !scene->IsRuntime();
 }
 
 bool Editor::CanStop() const {
@@ -5104,25 +3542,17 @@ bool Editor::CanStop() const {
 		return play_snapshot_.has_value();
 	}
 
-	return
-		IsDirectRuntime() &&
-		GetProject() != nullptr;
+	return IsDirectRuntime() && GetProject() != nullptr;
 }
 
 bool Editor::CanPause() const {
-	return std::ranges::any_of(
-		GetSceneManager().GetScenes(),
-		[](const auto& scene) {
-			return scene &&
-				   scene->IsRuntime();
-		}
-	);
+	return std::ranges::any_of(GetSceneManager().GetScenes(), [](const auto& scene) {
+		return scene && scene->IsRuntime();
+	});
 }
 
 bool Editor::IsDirectRuntime() const {
-	return
-		CanPause() &&
-		!IsPlaying();
+	return CanPause() && !IsPlaying();
 }
 
 bool Editor::CanSaveProject() const {
@@ -5144,20 +3574,14 @@ bool Editor::CanSaveProject() const {
 		return false;
 	}
 
-	const auto& scene_manager{
-		GetSceneManager()
-	};
+	const auto& scene_manager{ GetSceneManager() };
 
-	return std::ranges::all_of(
-		project->scenes,
-		[&scene_manager](const ProjectSceneEntry& entry) {
-			const auto scene_hash{ Hash(entry.key) };
+	return std::ranges::all_of(project->scenes, [&scene_manager](const ProjectSceneEntry& entry) {
+		const auto scene_hash{ Hash(entry.key) };
 
-			return scene_manager.HasScene(scene_hash) &&
-				   !scene_manager.GetScene(scene_hash)
-						.IsRuntime();
-		}
-	);
+		return scene_manager.HasScene(scene_hash) &&
+			   !scene_manager.GetScene(scene_hash).IsRuntime();
+	});
 }
 
 void Editor::SaveProjectScene() {
@@ -5167,55 +3591,32 @@ void Editor::SaveProjectScene() {
 		return;
 	}
 
-	const auto* project{
-		GetProject()
-	};
+	const auto* project{ GetProject() };
 
 	PTGN_ASSERT(project);
 
-	auto& scene_manager{
-		GetSceneManager()
-	};
+	auto& scene_manager{ GetSceneManager() };
 
 	std::vector<const Scene*> scenes;
 
-	scenes.reserve(
-		project->scenes.size()
-	);
+	scenes.reserve(project->scenes.size());
 
-	for (const auto& entry :
-		 project->scenes) {
-		const auto scene_hash{
-			Hash(entry.key)
-		};
+	for (const auto& entry : project->scenes) {
+		const auto scene_hash{ Hash(entry.key) };
 
 		PTGN_ASSERT(
 			scene_manager.HasScene(scene_hash),
-			"Project scene is not loaded in the editor: ",
-			entry.key
+			"Project scene is not loaded in the editor: ", entry.key
 		);
 
-		const auto& scene{
-			scene_manager.GetScene(scene_hash)
-		};
+		const auto& scene{ scene_manager.GetScene(scene_hash) };
 
-		PTGN_ASSERT(
-			!scene.IsRuntime(),
-			"Cannot save a runtime scene: ",
-			entry.key
-		);
+		PTGN_ASSERT(!scene.IsRuntime(), "Cannot save a runtime scene: ", entry.key);
 
-		scenes.emplace_back(
-			&scene
-		);
+		scenes.emplace_back(&scene);
 	}
 
-	if (!::ptgn::impl::SaveProjectScenes(
-			app,
-			std::span<const Scene* const>{
-				scenes
-			}
-		)) {
+	if (!::ptgn::impl::SaveProjectScenes(app, std::span<const Scene* const>{ scenes })) {
 		return;
 	}
 
@@ -5290,17 +3691,13 @@ ApplicationState Editor::GetApplicationState() const {
 }
 
 std::optional<path> Editor::GetProjectRoot() const {
-	const auto& app_context{
-		::ptgn::impl::ApplicationAccessor::ctx(app)
-	};
+	const auto& app_context{ ::ptgn::impl::ApplicationAccessor::ctx(app) };
 
 	if (!app_context.project.has_value()) {
 		return std::nullopt;
 	}
 
-	const path project_path{
-		ResolveProjectFilePath(*app_context.project)
-	};
+	const path project_path{ ResolveProjectFilePath(*app_context.project) };
 	if (project_path.empty()) {
 		return std::nullopt;
 	}
@@ -5321,9 +3718,7 @@ V2_int Editor::GetPresentationTextureSize() const {
 }
 
 void Editor::UpdateRuntimeViewportState() {
-	bool runtime_active{
-		IsPlaying() || CanPause()
-	};
+	bool runtime_active{ IsPlaying() || CanPause() };
 
 	if (runtime_active && !runtime_was_active_) {
 		viewport_panel_.SetUseEditorCamera(false);
@@ -5333,9 +3728,7 @@ void Editor::UpdateRuntimeViewportState() {
 }
 
 void Editor::UpdateProjectLocalState() {
-	auto& app_context{
-		::ptgn::impl::ApplicationAccessor::ctx(app)
-	};
+	auto& app_context{ ::ptgn::impl::ApplicationAccessor::ctx(app) };
 
 	if (!app_context.project.has_value()) {
 		local_state_project_path_.reset();
@@ -5343,9 +3736,7 @@ void Editor::UpdateProjectLocalState() {
 		return;
 	}
 
-	const auto project_path{
-		app_context.project->file_path.lexically_normal()
-	};
+	const auto project_path{ app_context.project->file_path.lexically_normal() };
 
 	if (local_state_project_path_.has_value() &&
 		local_state_project_path_->lexically_normal() == project_path) {
@@ -5363,9 +3754,7 @@ void Editor::SaveEditorLocalStateIfChanged() {
 
 	PTGN_ASSERT(context_, "Editor context must be initialized");
 
-	auto& app_context{
-		::ptgn::impl::ApplicationAccessor::ctx(app)
-	};
+	auto& app_context{ ::ptgn::impl::ApplicationAccessor::ctx(app) };
 
 	if (!app_context.project.has_value()) {
 		return;
@@ -5380,30 +3769,18 @@ void Editor::SaveEditorLocalStateIfChanged() {
 		return;
 	}
 
-	SaveEditorLocalState(
-		app_context.project.value(),
-		context_->local
-	);
+	SaveEditorLocalState(app_context.project.value(), context_->local);
 
-	saved_editor_local_state_json_ =
-		std::move(serialized);
+	saved_editor_local_state_json_ = std::move(serialized);
 }
 
 void Editor::OnProjectChanged() {
-	PTGN_ASSERT(
-		context_,
-		"Editor context must be initialized"
-	);
+	PTGN_ASSERT(context_, "Editor context must be initialized");
 
-	auto& app_context{
-		::ptgn::impl::ApplicationAccessor::ctx(
-			app
-		)
-	};
+	auto& app_context{ ::ptgn::impl::ApplicationAccessor::ctx(app) };
 
 	PTGN_ASSERT(
-		app_context.project.has_value(),
-		"Cannot load editor local state without a project"
+		app_context.project.has_value(), "Cannot load editor local state without a project"
 	);
 
 	undo_stack_.Clear();
@@ -5412,28 +3789,21 @@ void Editor::OnProjectChanged() {
 	play_snapshot_.reset();
 	app_context.runtime_project_scenes.clear();
 
-	context_->local =
-		LoadEditorLocalState(
-			app_context.project.value()
-		);
+	context_->local = LoadEditorLocalState(app_context.project.value());
 
 	context_->local.selection.selected_scene_runtime = false;
 	scene_list_panel_.RefreshSelectedSceneState();
 
 	// These values describe the current process and must never resume from disk.
-	context_->local.state.is_dirty =
-		false;
+	context_->local.state.is_dirty = false;
 
-	context_->local.state.is_playing =
-		false;
+	context_->local.state.is_playing = false;
 
-	context_->local.state.is_paused =
-		false;
+	context_->local.state.is_paused = false;
 
 	json value = context_->local;
 
-	saved_editor_local_state_json_ =
-		value.dump();
+	saved_editor_local_state_json_ = value.dump();
 
 	app.SetScreenEffects(app_context.project->screen_effects);
 	ApplyEntityPickingSettings();
@@ -5446,7 +3816,9 @@ void Editor::SetSceneEntityPickingEnabled(Scene& scene, bool enabled) {
 	::ptgn::impl::RendererAccessor renderer{ GetRenderer() };
 
 	for (auto [entity, framebuffer] : scene.EntitiesWith<::ptgn::impl::FramebufferObject>()) {
-		renderer.SetEntityPickingEnabled(static_cast<::ptgn::impl::FramebufferId>(framebuffer), enabled);
+		renderer.SetEntityPickingEnabled(
+			static_cast<::ptgn::impl::FramebufferId>(framebuffer), enabled
+		);
 	}
 }
 

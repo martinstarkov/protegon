@@ -36,7 +36,7 @@ std::string_view LoadSceneCommand::Label() const {
 
 void LoadSceneCommand::Apply(const SerializedScene& scene) const {
 	auto& manager{ ctx_->editor.GetSceneManager() };
-	if (!manager.ReEnterFactory(
+	if (!manager.EnterFactory(
 			scene_key_,
 			::ptgn::impl::MakeSceneFactory(scene, runtime_)
 		)) {

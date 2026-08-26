@@ -32,6 +32,7 @@
 #include "runtime/physics/collision_event.h"
 #include "runtime/scene/scene.h"
 #include "runtime/scene/scene_context.h"
+#include "runtime/scene/scene_event.h"
 #include "runtime/scripting/builtin_scripts.h"
 #include "runtime/scripting/script_event.h"
 #include "runtime/timer/timer.h"
@@ -1040,6 +1041,12 @@ PTGN_REGISTER_EVENT(
 		.available = &HasAnimationData
 	}
 );
+
+PTGN_REGISTER_EVENT(event::SceneEnter);
+PTGN_REGISTER_EVENT(event::SceneLeave);
+PTGN_REGISTER_EVENT(event::SceneTransitionStart);
+PTGN_REGISTER_EVENT(event::SceneTransitionUpdate);
+PTGN_REGISTER_EVENT(event::SceneTransitionFinish);
 
 PTGN_REGISTER_EVENT(event::EntityCreated);
 

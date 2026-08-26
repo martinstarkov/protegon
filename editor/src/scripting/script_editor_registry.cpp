@@ -7,9 +7,10 @@
 #endif
 #include <algorithm>
 #include <array>
-#include <cfloat>
 #include <cctype>
+#include <cfloat>
 #include <cstdint>
+#include <limits>
 #include <magic_enum/magic_enum.hpp>
 #include <memory>
 #include <optional>
@@ -18,26 +19,28 @@
 #include <string>
 #include <string_view>
 #include <utility>
-#include <limits>
 #include <vector>
 
 #include "app/project.h"
-#include "editor/editor.h"
-#include "editor/editor_context.h"
 #include "core/event/key_event.h"
 #include "core/event/mouse_event.h"
 #include "core/input/key.h"
 #include "core/input/mouse.h"
+#include "editor/editor.h"
+#include "editor/editor_context.h"
+#include "panels/content_browser.h"
 #include "panels/entity_filter_editor.h"
 #include "panels/inspector_fields.h"
-#include "panels/content_browser.h"
+#include "runtime/animation/animation.h"
 #include "runtime/animation/animation_event.h"
+#include "runtime/audio/audio_system.h"
 #include "runtime/ecs/component_registry.h"
 #include "runtime/ecs/entity_filter.h"
 #include "runtime/interaction/draggable_event.h"
 #include "runtime/interaction/dropzone_event.h"
 #include "runtime/interaction/interactive_event.h"
 #include "runtime/physics/collision_event.h"
+#include "runtime/scene/scene_event.h"
 #include "runtime/scene/scene_manager.h"
 #include "runtime/scene/scene_registry.h"
 #include "runtime/scripting/builtin_scripts.h"
@@ -45,10 +48,8 @@
 #include "runtime/timer/timer.h"
 #include "runtime/timer/timer_event.h"
 #include "runtime/ui/button.h"
-#include "runtime/animation/animation.h"
 #include "runtime/ui/dropdown.h"
 #include "runtime/ui/toggle_button.h"
-#include "runtime/audio/audio_system.h"
 #include "scripting/script_registration_editor.h"
 
 namespace ptgn::editor {
@@ -72,16 +73,11 @@ float GetCountControlWidth(const char* label) {
 	const float spacing{ ImGui::GetStyle().ItemSpacing.x };
 	const std::string widest{ std::string{ label } + ": 100" };
 
-	return ImGui::CalcTextSize(widest.c_str()).x +
-		button_width * 2.0f + spacing * 2.0f;
+	return ImGui::CalcTextSize(widest.c_str()).x + button_width * 2.0f + spacing * 2.0f;
 }
 
 void DrawCountControl(
-	const char* label,
-	int& value,
-	int minimum,
-	int maximum = 100,
-	bool disabled = false,
+	const char* label, int& value, int minimum, int maximum = 100, bool disabled = false,
 	const char* tooltip = nullptr
 ) {
 	value = std::clamp(value, minimum, maximum);
@@ -101,10 +97,7 @@ void DrawCountControl(
 
 	ImGui::SameLine(0.0f, spacing);
 	ImGui::SetCursorScreenPos(
-		ImVec2{
-			start_x + text_width + spacing,
-			ImGui::GetCursorScreenPos().y
-		}
+		ImVec2{ start_x + text_width + spacing, ImGui::GetCursorScreenPos().y }
 	);
 
 	ImGui::BeginDisabled(value >= maximum);
@@ -161,9 +154,7 @@ void DrawSelectedItemsTooltip(const std::vector<std::string>& items) {
 template <typename T>
 bool DrawReflectedScriptValue(EditorContext& ctx, T& value) {
 	return inspector::DrawReflectedContents(
-		ctx,
-		type_name_without_namespaces<T>(),
-		std::addressof(value),
+		ctx, type_name_without_namespaces<T>(), std::addressof(value),
 		[](void* data, ComponentReflectionVisitor visitor) {
 			::ptgn::VisitReflectedValue(*static_cast<T*>(data), visitor);
 		}
@@ -216,11 +207,7 @@ bool NormalizeJsonAgainstDefaults(json& value, const json& defaults) {
 	return value != previous;
 }
 
-bool DrawJsonValue(
-	std::string_view label,
-	json& value,
-	const json* defaults = nullptr
-);
+bool DrawJsonValue(std::string_view label, json& value, const json* defaults = nullptr);
 
 bool DrawJsonObject(json& value, const json* defaults) {
 	bool changed{ false };
@@ -235,24 +222,14 @@ bool DrawJsonObject(json& value, const json* defaults) {
 			}
 		}
 
-		changed |= DrawJsonValue(
-			inspector::PrettyName(it.key()),
-			it.value(),
-			member_defaults
-		);
+		changed |= DrawJsonValue(inspector::PrettyName(it.key()), it.value(), member_defaults);
 	}
 
 	return changed;
 }
 
-bool DrawJsonArray(
-	std::string_view label,
-	json& value,
-	const json* defaults
-) {
-	const std::string title{
-		std::string{ label } + " [" + std::to_string(value.size()) + "]"
-	};
+bool DrawJsonArray(std::string_view label, json& value, const json* defaults) {
+	const std::string title{ std::string{ label } + " [" + std::to_string(value.size()) + "]" };
 
 	if (!ImGui::TreeNodeEx(title.c_str(), ImGuiTreeNodeFlags_SpanAvailWidth)) {
 		return false;
@@ -268,11 +245,7 @@ bool DrawJsonArray(
 			item_defaults = std::addressof((*defaults)[i]);
 		}
 
-		changed |= DrawJsonValue(
-			"Item " + std::to_string(i + 1),
-			value[i],
-			item_defaults
-		);
+		changed |= DrawJsonValue("Item " + std::to_string(i + 1), value[i], item_defaults);
 
 		ImGui::PopID();
 	}
@@ -285,11 +258,7 @@ bool DrawJsonArray(
 	return changed;
 }
 
-bool DrawJsonValue(
-	std::string_view label,
-	json& value,
-	const json* defaults
-) {
+bool DrawJsonValue(std::string_view label, json& value, const json* defaults) {
 	if (defaults) {
 		NormalizeJsonAgainstDefaults(value, *defaults);
 	}
@@ -309,12 +278,7 @@ bool DrawJsonValue(
 	if (value.is_number_unsigned()) {
 		std::uint64_t temporary{ value.get<std::uint64_t>() };
 		const bool changed{ inspector::DrawPropertyRow(label, [&]() {
-			return ImGui::DragScalar(
-				"##Value",
-				ImGuiDataType_U64,
-				&temporary,
-				1.0f
-			);
+			return ImGui::DragScalar("##Value", ImGuiDataType_U64, &temporary, 1.0f);
 		}) };
 
 		if (changed) {
@@ -326,12 +290,7 @@ bool DrawJsonValue(
 	if (value.is_number_integer()) {
 		std::int64_t temporary{ value.get<std::int64_t>() };
 		const bool changed{ inspector::DrawPropertyRow(label, [&]() {
-			return ImGui::DragScalar(
-				"##Value",
-				ImGuiDataType_S64,
-				&temporary,
-				1.0f
-			);
+			return ImGui::DragScalar("##Value", ImGuiDataType_S64, &temporary, 1.0f);
 		}) };
 
 		if (changed) {
@@ -344,13 +303,7 @@ bool DrawJsonValue(
 		double temporary{ value.get<double>() };
 		const bool changed{ inspector::DrawPropertyRow(label, [&]() {
 			return ImGui::DragScalar(
-				"##Value",
-				ImGuiDataType_Double,
-				&temporary,
-				0.1f,
-				nullptr,
-				nullptr,
-				"%.6g"
+				"##Value", ImGuiDataType_Double, &temporary, 0.1f, nullptr, nullptr, "%.6g"
 			);
 		}) };
 
@@ -394,10 +347,7 @@ bool DrawJsonValue(
 	return false;
 }
 
-bool DrawRegisteredComponentJson(
-	const RegisteredComponent& component,
-	json& value
-) {
+bool DrawRegisteredComponentJson(const RegisteredComponent& component, json& value) {
 	json defaults = json::object();
 
 	try {
@@ -451,7 +401,7 @@ std::string KeyExpressionValue(const json& value) {
 		case '\r': [[fallthrough]];
 		case '\f': [[fallthrough]];
 		case '\v': return true;
-		default: return false;
+		default:   return false;
 	}
 }
 
@@ -470,15 +420,11 @@ std::string KeyExpressionValue(const json& value) {
 }
 
 [[nodiscard]] bool IsAsciiAlphaNumeric(char c) {
-	return (c >= 'a' && c <= 'z') ||
-		   (c >= 'A' && c <= 'Z') ||
-		   (c >= '0' && c <= '9');
+	return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9');
 }
 
 [[nodiscard]] char ToAsciiLower(char c) {
-	return c >= 'A' && c <= 'Z'
-		? static_cast<char>(c - 'A' + 'a')
-		: c;
+	return c >= 'A' && c <= 'Z' ? static_cast<char>(c - 'A' + 'a') : c;
 }
 
 [[nodiscard]] std::string NormalizeKeyExpressionToken(const std::string& token) {
@@ -505,12 +451,8 @@ std::string KeyExpressionValue(const json& value) {
 	if (normalized == "rshift") {
 		return "rightshift";
 	}
-	if (
-		normalized == "ctrl" ||
-		normalized == "control" ||
-		normalized == "lctrl" ||
-		normalized == "leftcontrol"
-	) {
+	if (normalized == "ctrl" || normalized == "control" || normalized == "lctrl" ||
+		normalized == "leftcontrol") {
 		return "leftctrl";
 	}
 	if (normalized == "rctrl" || normalized == "rightcontrol") {
@@ -529,11 +471,7 @@ std::string KeyExpressionValue(const json& value) {
 	return normalized;
 }
 
-[[nodiscard]] bool IsDecimalNumberInRange(
-	std::string_view value,
-	int minimum,
-	int maximum
-) {
+[[nodiscard]] bool IsDecimalNumberInRange(std::string_view value, int minimum, int maximum) {
 	if (value.empty()) {
 		return false;
 	}
@@ -554,105 +492,43 @@ std::string KeyExpressionValue(const json& value) {
 }
 
 [[nodiscard]] bool IsKnownKeyExpressionToken(const std::string& token) {
-	const std::string normalized{
-		NormalizeKeyAlias(NormalizeKeyExpressionToken(token))
-	};
+	const std::string normalized{ NormalizeKeyAlias(NormalizeKeyExpressionToken(token)) };
 
 	if (normalized.empty()) {
 		return false;
 	}
 
-	if (
-		normalized.size() == 1 &&
-		normalized.front() >= 'a' &&
-		normalized.front() <= 'z'
-	) {
+	if (normalized.size() == 1 && normalized.front() >= 'a' && normalized.front() <= 'z') {
 		return true;
 	}
 
-	if (
-		normalized.size() == 2 &&
-		normalized.front() == 'k' &&
-		normalized[1] >= '0' &&
-		normalized[1] <= '9'
-	) {
+	if (normalized.size() == 2 && normalized.front() == 'k' && normalized[1] >= '0' &&
+		normalized[1] <= '9') {
 		return true;
 	}
 
-	if (
-		normalized.size() > 1 &&
-		normalized.front() == 'f' &&
-		IsDecimalNumberInRange(
-			std::string_view{ normalized }.substr(1),
-			1,
-			25
-		)
-	) {
+	if (normalized.size() > 1 && normalized.front() == 'f' &&
+		IsDecimalNumberInRange(std::string_view{ normalized }.substr(1), 1, 25)) {
 		return true;
 	}
 
-	if (
-		normalized.size() == 3 &&
-		normalized.starts_with("kp") &&
-		normalized[2] >= '0' &&
-		normalized[2] <= '9'
-	) {
+	if (normalized.size() == 3 && normalized.starts_with("kp") && normalized[2] >= '0' &&
+		normalized[2] <= '9') {
 		return true;
 	}
 
 	static constexpr std::array<std::string_view, 48> kNamedKeys{
-		"space",
-		"apostrophe",
-		"comma",
-		"minus",
-		"period",
-		"slash",
-		"semicolon",
-		"equal",
-		"leftbracket",
-		"backslash",
-		"rightbracket",
-		"graveaccent",
-		"world1",
-		"world2",
-		"escape",
-		"enter",
-		"tab",
-		"backspace",
-		"insert",
-		"delete",
-		"right",
-		"left",
-		"down",
-		"up",
-		"pageup",
-		"pagedown",
-		"home",
-		"end",
-		"capslock",
-		"scrolllock",
-		"numlock",
-		"printscreen",
-		"pause",
-		"kpdecimal",
-		"kpdivide",
-		"kpmultiply",
-		"kpsubtract",
-		"kpadd",
-		"kpenter",
-		"kpequal",
-		"leftshift",
-		"leftctrl",
-		"leftalt",
-		"leftsuper",
-		"rightshift",
-		"rightctrl",
-		"rightalt",
-		"rightsuper",
+		"space",	  "apostrophe",	 "comma",		"minus",	 "period",		 "slash",
+		"semicolon",  "equal",		 "leftbracket", "backslash", "rightbracket", "graveaccent",
+		"world1",	  "world2",		 "escape",		"enter",	 "tab",			 "backspace",
+		"insert",	  "delete",		 "right",		"left",		 "down",		 "up",
+		"pageup",	  "pagedown",	 "home",		"end",		 "capslock",	 "scrolllock",
+		"numlock",	  "printscreen", "pause",		"kpdecimal", "kpdivide",	 "kpmultiply",
+		"kpsubtract", "kpadd",		 "kpenter",		"kpequal",	 "leftshift",	 "leftctrl",
+		"leftalt",	  "leftsuper",	 "rightshift",	"rightctrl", "rightalt",	 "rightsuper",
 	};
 
-	return std::ranges::find(kNamedKeys, normalized) != kNamedKeys.end() ||
-		normalized == "menu";
+	return std::ranges::find(kNamedKeys, normalized) != kNamedKeys.end() || normalized == "menu";
 }
 
 [[nodiscard]] std::optional<std::string> KeyExpressionError(const std::string& input) {
@@ -664,13 +540,9 @@ std::string KeyExpressionValue(const json& value) {
 	std::size_t group_begin{ 0 };
 	while (group_begin <= expression.size()) {
 		const std::size_t comma{ expression.find(',', group_begin) };
-		const std::size_t group_end{
-			comma == std::string::npos ? expression.size() : comma
-		};
+		const std::size_t group_end{ comma == std::string::npos ? expression.size() : comma };
 		const std::string group{
-			StripKeyExpressionWhitespace(
-				expression.substr(group_begin, group_end - group_begin)
-			)
+			StripKeyExpressionWhitespace(expression.substr(group_begin, group_end - group_begin))
 		};
 
 		if (group.empty()) {
@@ -680,19 +552,14 @@ std::string KeyExpressionValue(const json& value) {
 		std::size_t token_begin{ 0 };
 		while (token_begin <= group.size()) {
 			const std::size_t plus{ group.find('+', token_begin) };
-			const std::size_t token_end{
-				plus == std::string::npos ? group.size() : plus
-			};
+			const std::size_t token_end{ plus == std::string::npos ? group.size() : plus };
 			const std::string token{
-				StripKeyExpressionWhitespace(
-					group.substr(token_begin, token_end - token_begin)
-				)
+				StripKeyExpressionWhitespace(group.substr(token_begin, token_end - token_begin))
 			};
 
 			if (token.empty()) {
-				return plus == std::string::npos
-					? "Missing a key after '+'."
-					: "Missing a key near '+'.";
+				return plus == std::string::npos ? "Missing a key after '+'."
+												 : "Missing a key near '+'.";
 			}
 
 			if (!IsKnownKeyExpressionToken(token)) {
@@ -725,12 +592,8 @@ void DrawInvalidKeyExpressionBorder(const std::optional<std::string>& error) {
 	const ImVec2 min{ ImGui::GetItemRectMin() };
 	const ImVec2 max{ ImGui::GetItemRectMax() };
 	ImGui::GetWindowDrawList()->AddRect(
-		min,
-		max,
-		ImGui::GetColorU32(ImVec4{ 1.0f, 0.2f, 0.2f, 1.0f }),
-		ImGui::GetStyle().FrameRounding,
-		0,
-		1.5f
+		min, max, ImGui::GetColorU32(ImVec4{ 1.0f, 0.2f, 0.2f, 1.0f }),
+		ImGui::GetStyle().FrameRounding, 0, 1.5f
 	);
 
 	if (ImGui::IsItemHovered()) {
@@ -740,44 +603,32 @@ void DrawInvalidKeyExpressionBorder(const std::optional<std::string>& error) {
 
 bool DrawHeldDurationToggle(bool& require_duration) {
 	const bool changed{ ImGui::Checkbox("##RequireHeldDuration", &require_duration) };
-	DrawItemTooltip(
-		"Checked: require the minimum held duration. Unchecked: match any held state."
-	);
+	DrawItemTooltip("Checked: require the minimum held duration. Unchecked: match any held state.");
 	return changed;
 }
 
 bool DrawKeyExpression(json& value, bool with_duration) {
 	std::string expression{ KeyExpressionValue(value) };
-	bool require_duration{
-		JsonValueOr<bool>(value, "require_held_duration", true)
-	};
-	float held_duration_ms{
-		std::max(0.0f, JsonValueOr<float>(value, "held_duration_ms", 250.0f))
-	};
+	bool require_duration{ JsonValueOr<bool>(value, "require_held_duration", true) };
+	float held_duration_ms{ std::max(0.0f, JsonValueOr<float>(value, "held_duration_ms", 250.0f)) };
 	const float spacing{ ImGui::GetStyle().ItemSpacing.x };
 	const float duration_width{ 112.0f };
 	const float checkbox_width{ ImGui::GetFrameHeight() };
-	const float expression_width{
-		with_duration
-			? std::max(
-				1.0f,
-				ImGui::GetContentRegionAvail().x - duration_width - checkbox_width - spacing * 2.0f
-			)
-			: -FLT_MIN
-	};
+	const float expression_width{ with_duration ? std::max(
+													  1.0f, ImGui::GetContentRegionAvail().x -
+																duration_width - checkbox_width -
+																spacing * 2.0f
+												  )
+												: -FLT_MIN };
 
 	ImGui::SetNextItemWidth(expression_width);
-	bool changed{ ImGui::InputTextWithHint(
-		"##Keys",
-		"W + X, W + Left Shift",
-		&expression
-	) };
+	bool changed{ ImGui::InputTextWithHint("##Keys", "W + X, W + Left Shift", &expression) };
 
 	const auto expression_error{ KeyExpressionError(expression) };
 	if (expression_error) {
 		DrawInvalidKeyExpressionBorder(expression_error);
 	} else {
-		DrawItemTooltip("Use + for AND and comma for OR. Key names are case-insensitive.");
+		DrawItemTooltip("Use + for AND and comma for OR. Key names are case insensitive.");
 	}
 
 	if (with_duration) {
@@ -787,9 +638,7 @@ bool DrawKeyExpression(json& value, bool with_duration) {
 		ImGui::SameLine(0.0f, spacing);
 		ImGui::BeginDisabled(!require_duration);
 		changed |= inspector::DrawDurationInput(
-			"##HeldDuration",
-			held_duration_ms,
-			duration_width,
+			"##HeldDuration", held_duration_ms, duration_width,
 			"Minimum time the key expression must remain held."
 		);
 		ImGui::EndDisabled();
@@ -801,7 +650,7 @@ bool DrawKeyExpression(json& value, bool with_duration) {
 		value.erase("key");
 		if (with_duration) {
 			value["require_held_duration"] = require_duration;
-			value["held_duration_ms"] = held_duration_ms;
+			value["held_duration_ms"]	   = held_duration_ms;
 		}
 	}
 
@@ -818,10 +667,10 @@ bool DrawHeldKey(json& value) {
 
 const char* MouseTriggerLabel(Mouse mouse) {
 	switch (mouse) {
-		case Mouse::Left: return "Left";
-		case Mouse::Right: return "Right";
+		case Mouse::Left:	return "Left";
+		case Mouse::Right:	return "Right";
 		case Mouse::Middle: return "Middle";
-		default: return "Left";
+		default:			return "Left";
 	}
 }
 
@@ -829,34 +678,28 @@ bool DrawMouseTrigger(json& value, bool with_duration) {
 	Mouse mouse{ JsonValueOr<Mouse>(value, "button", Mouse::Left) };
 	bool changed{ false };
 	if (mouse != Mouse::Left && mouse != Mouse::Right && mouse != Mouse::Middle) {
-		mouse = Mouse::Left;
+		mouse	= Mouse::Left;
 		changed = true;
 	}
 
-	bool require_duration{
-		JsonValueOr<bool>(value, "require_held_duration", true)
-	};
-	float held_duration_ms{
-		std::max(0.0f, JsonValueOr<float>(value, "held_duration_ms", 250.0f))
-	};
+	bool require_duration{ JsonValueOr<bool>(value, "require_held_duration", true) };
+	float held_duration_ms{ std::max(0.0f, JsonValueOr<float>(value, "held_duration_ms", 250.0f)) };
 	const float spacing{ ImGui::GetStyle().ItemSpacing.x };
 	const float duration_width{ 112.0f };
 	const float checkbox_width{ ImGui::GetFrameHeight() };
-	const float mouse_width{
-		with_duration
-			? std::max(
-				1.0f,
-				ImGui::GetContentRegionAvail().x - duration_width - checkbox_width - spacing * 2.0f
-			)
-			: -FLT_MIN
-	};
+	const float mouse_width{ with_duration
+								 ? std::max(
+									   1.0f, ImGui::GetContentRegionAvail().x - duration_width -
+												 checkbox_width - spacing * 2.0f
+								   )
+								 : -FLT_MIN };
 
 	ImGui::SetNextItemWidth(mouse_width);
 	if (ImGui::BeginCombo("##Button", MouseTriggerLabel(mouse))) {
 		for (const Mouse candidate : { Mouse::Left, Mouse::Right, Mouse::Middle }) {
 			const bool selected{ candidate == mouse };
 			if (ImGui::Selectable(MouseTriggerLabel(candidate), selected)) {
-				mouse = candidate;
+				mouse	= candidate;
 				changed = true;
 			}
 			if (selected) {
@@ -874,9 +717,7 @@ bool DrawMouseTrigger(json& value, bool with_duration) {
 		ImGui::SameLine(0.0f, spacing);
 		ImGui::BeginDisabled(!require_duration);
 		changed |= inspector::DrawDurationInput(
-			"##HeldDuration",
-			held_duration_ms,
-			duration_width,
+			"##HeldDuration", held_duration_ms, duration_width,
 			"Minimum time the mouse button must remain held."
 		);
 		ImGui::EndDisabled();
@@ -887,7 +728,7 @@ bool DrawMouseTrigger(json& value, bool with_duration) {
 		value["button"] = mouse;
 		if (with_duration) {
 			value["require_held_duration"] = require_duration;
-			value["held_duration_ms"] = held_duration_ms;
+			value["held_duration_ms"]	   = held_duration_ms;
 		}
 	}
 
@@ -1045,93 +886,47 @@ bool DrawSetVisibleInline(ScriptEditorContext&, SetVisibleScript& script) {
 	return changed;
 }
 
-bool DrawPlaySoundInline(
-	ScriptEditorContext& context,
-	PlaySoundScript& script
-) {
+bool DrawPlaySoundInline(ScriptEditorContext& context, PlaySoundScript& script) {
 	ImGui::SetNextItemWidth(-FLT_MIN);
 
 	return inspector::DrawAssetKeyInline(
-		context.ctx,
-		script.sound,
-		inspector::FieldOptions{},
-		"Audio key"
+		context.ctx, script.sound, inspector::FieldOptions{}, "Audio key"
 	);
 }
 
-bool DrawPlaySound(
-	ScriptEditorContext&,
-	PlaySoundScript& script
-) {
-	script.volume = std::clamp(
-		script.volume,
-		kMinVolume,
-		kMaxVolume
-	);
-	script.loops = std::clamp(
-		script.loops,
-		0,
-		kMaxAudioPlayLoops
-	);
+bool DrawPlaySound(ScriptEditorContext&, PlaySoundScript& script) {
+	script.volume = std::clamp(script.volume, kMinVolume, kMaxVolume);
+	script.loops  = std::clamp(script.loops, 0, kMaxAudioPlayLoops);
 
 	bool changed{ false };
 
-	if (ImGui::BeginTable(
-			"PlaySoundParameters",
-			2,
-			ImGuiTableFlags_SizingStretchProp
-		)) {
+	if (ImGui::BeginTable("PlaySoundParameters", 2, ImGuiTableFlags_SizingStretchProp)) {
+		ImGui::TableSetupColumn("Volume", ImGuiTableColumnFlags_WidthStretch);
 		ImGui::TableSetupColumn(
-			"Volume",
-			ImGuiTableColumnFlags_WidthStretch
-		);
-		ImGui::TableSetupColumn(
-			"Loops",
-			ImGuiTableColumnFlags_WidthFixed,
-			GetCountControlWidth("Loops")
+			"Loops", ImGuiTableColumnFlags_WidthFixed, GetCountControlWidth("Loops")
 		);
 
-		ImGui::TableNextRow(
-			ImGuiTableRowFlags_None,
-			ImGui::GetFrameHeight()
-		);
+		ImGui::TableNextRow(ImGuiTableRowFlags_None, ImGui::GetFrameHeight());
 
 		ImGui::TableSetColumnIndex(0);
 		ImGui::SetNextItemWidth(-FLT_MIN);
 
 		changed |= ImGui::SliderFloat(
-			"##Volume",
-			&script.volume,
-			kMinVolume,
-			kMaxVolume,
-			"Volume: %.2f",
+			"##Volume", &script.volume, kMinVolume, kMaxVolume, "Volume: %.2f",
 			ImGuiSliderFlags_AlwaysClamp
 		);
-		DrawItemTooltip(
-			"Audio volume. Double click to enter an exact value."
-		);
+		DrawItemTooltip("Audio volume. Double click to enter an exact value.");
 
-		if (ImGui::IsItemHovered() &&
-			ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left)) {
+		if (ImGui::IsItemHovered() && ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left)) {
 			ImGui::OpenPopup("ExactVolume");
 		}
 
 		if (ImGui::BeginPopup("ExactVolume")) {
 			ImGui::SetNextItemWidth(110.0f);
 
-			changed |= ImGui::InputFloat(
-				"Volume",
-				&script.volume,
-				0.01f,
-				0.1f,
-				"%.3f"
-			);
+			changed |= ImGui::InputFloat("Volume", &script.volume, 0.01f, 0.1f, "%.3f");
 
-			script.volume = std::clamp(
-				script.volume,
-				kMinVolume,
-				kMaxVolume
-			);
+			script.volume = std::clamp(script.volume, kMinVolume, kMaxVolume);
 
 			ImGui::EndPopup();
 		}
@@ -1141,11 +936,7 @@ bool DrawPlaySound(
 		const int previous_loops{ script.loops };
 
 		DrawCountControl(
-			"Loops",
-			script.loops,
-			0,
-			kMaxAudioPlayLoops,
-			false,
+			"Loops", script.loops, 0, kMaxAudioPlayLoops, false,
 			"Number of additional plays after the first."
 		);
 
@@ -1212,7 +1003,6 @@ inline constexpr std::array kSceneActions{
 	std::pair{ SceneChangeAction::Enter, "Enter" },
 	std::pair{ SceneChangeAction::Exit, "Exit" },
 	std::pair{ SceneChangeAction::Switch, "Switch" },
-	std::pair{ SceneChangeAction::ReEnter, "Re-enter" },
 };
 
 inline constexpr std::array kSceneTransitions{
@@ -1255,7 +1045,6 @@ inline constexpr std::array kSceneTransitions{
 	return it != kAnimationActions.end() ? it->second : "Animation";
 }
 
-
 [[nodiscard]] const char* TimerActionLabel(TimerAction action) {
 	const auto it{ std::ranges::find_if(kTimerActions, [action](const auto& entry) {
 		return entry.first == action;
@@ -1269,23 +1058,19 @@ inline constexpr std::array kSceneTransitions{
 		case TimerAction::Rewind:
 		case TimerAction::SetDuration:
 		case TimerAction::AddDuration:
-		case TimerAction::RemoveDuration:
-			return true;
+		case TimerAction::RemoveDuration: return true;
 		case TimerAction::Start:
 		case TimerAction::Restart:
 		case TimerAction::Stop:
 		case TimerAction::Reset:
 		case TimerAction::Pause:
 		case TimerAction::Resume:
-		case TimerAction::TogglePaused:
-			return false;
+		case TimerAction::TogglePaused:	  return false;
 	}
 	return false;
 }
 
-[[nodiscard]] std::vector<TimerKey> GetTimerActionChoices(
-	ScriptEditorContext& context
-) {
+[[nodiscard]] std::vector<TimerKey> GetTimerActionChoices(ScriptEditorContext& context) {
 	if (!context.owner) {
 		return {};
 	}
@@ -1293,9 +1078,7 @@ inline constexpr std::array kSceneTransitions{
 	std::vector<Entity> targets;
 	if (context.sequence_target_filter && context.sequence_target_filter->has_value()) {
 		targets = ResolveEntityFilter(
-			context.sequence_target_filter->value(),
-			context.owner.GetScene(),
-			context.owner
+			context.sequence_target_filter->value(), context.owner.GetScene(), context.owner
 		);
 	} else {
 		targets.push_back(context.owner);
@@ -1309,8 +1092,7 @@ inline constexpr std::array kSceneTransitions{
 		}
 
 		for (const auto& entry : timers->timers) {
-			if (entry.config.key.value.empty() ||
-				std::ranges::contains(result, entry.config.key)) {
+			if (entry.config.key.value.empty() || std::ranges::contains(result, entry.config.key)) {
 				continue;
 			}
 			result.push_back(entry.config.key);
@@ -1321,31 +1103,20 @@ inline constexpr std::array kSceneTransitions{
 }
 
 bool DrawTimerKeyInline(
-	const char* id,
-	TimerKey& timer,
-	const std::vector<TimerKey>& choices,
-	float width
+	const char* id, TimerKey& timer, const std::vector<TimerKey>& choices, float width
 ) {
 	bool changed{ false };
 	ImGui::SetNextItemWidth(width);
 
-	const char* preview{
-		timer.value.empty()
-			? "No Timer"
-			: timer.value.c_str()
-	};
+	const char* preview{ timer.value.empty() ? "No Timer" : timer.value.c_str() };
 
 	if (ImGui::BeginCombo(id, preview)) {
 		std::string custom_name{ timer.value };
 
 		ImGui::SetNextItemWidth(-FLT_MIN);
-		if (ImGui::InputTextWithHint(
-				"##CustomTimerName",
-				"Custom timer name...",
-				&custom_name
-			)) {
+		if (ImGui::InputTextWithHint("##CustomTimerName", "Custom timer name...", &custom_name)) {
 			timer.value = std::move(custom_name);
-			changed = true;
+			changed		= true;
 		}
 
 		ImGui::Separator();
@@ -1363,7 +1134,7 @@ bool DrawTimerKeyInline(
 
 			if (ImGui::Selectable(choice.value.c_str(), selected)) {
 				if (!selected) {
-					timer = choice;
+					timer	= choice;
 					changed = true;
 				}
 			}
@@ -1387,26 +1158,16 @@ bool DrawTimerKeyInline(
 	return changed;
 }
 
-bool DrawTimerActionInline(
-	ScriptEditorContext& context,
-	TimerActionScript& script
-) {
+bool DrawTimerActionInline(ScriptEditorContext& context, TimerActionScript& script) {
 	const auto choices{ GetTimerActionChoices(context) };
 	float available{ ImGui::GetContentRegionAvail().x };
 	float spacing{ ImGui::GetStyle().ItemSpacing.x };
 	bool uses_amount{ TimerActionUsesAmount(script.action) };
-	float action_width{
-		std::min(130.0f, std::max(95.0f, available * 0.32f))
-	};
-	float amount_width{
-		std::min(100.0f, std::max(72.0f, available * 0.25f))
-	};
-	float timer_width{
-		std::max(
-			1.0f,
-			available - action_width - (uses_amount ? amount_width + spacing : 0.0f) - spacing
-		)
-	};
+	float action_width{ std::min(130.0f, std::max(95.0f, available * 0.32f)) };
+	float amount_width{ std::min(100.0f, std::max(72.0f, available * 0.25f)) };
+	float timer_width{ std::max(
+		1.0f, available - action_width - (uses_amount ? amount_width + spacing : 0.0f) - spacing
+	) };
 
 	bool changed{ DrawTimerKeyInline("##TimerKey", script.timer, choices, timer_width) };
 	SameLineControl();
@@ -1416,7 +1177,7 @@ bool DrawTimerActionInline(
 		for (const auto& [candidate, label] : kTimerActions) {
 			if (ImGui::Selectable(label, candidate == script.action)) {
 				script.action = candidate;
-				changed = true;
+				changed		  = true;
 			}
 		}
 		ImGui::EndCombo();
@@ -1426,10 +1187,7 @@ bool DrawTimerActionInline(
 	if (TimerActionUsesAmount(script.action)) {
 		SameLineControl();
 		changed |= inspector::DrawDurationTextInput(
-			"##TimerAmount",
-			script.amount,
-			amount_width,
-			false,
+			"##TimerAmount", script.amount, amount_width, false,
 			"Time amount used by this timer operation."
 		);
 	}
@@ -1444,132 +1202,60 @@ bool DrawTimerActionInline(
 	return it != kSceneActions.end() ? it->second : "Scene";
 }
 
-[[nodiscard]] std::size_t GetAnimationActionFrameCount(
-	const ScriptEditorContext& context
-) {
+[[nodiscard]] std::size_t GetAnimationActionFrameCount(const ScriptEditorContext& context) {
 	if (!context.owner) {
 		return 0;
 	}
 
-	if (context.owner.Has<
-			::ptgn::impl::AnimationData
-		>()) {
-		return context.owner
-			.Get<::ptgn::impl::AnimationData>()
-			.config
-			.frame_count;
+	if (context.owner.Has<::ptgn::impl::AnimationData>()) {
+		return context.owner.Get<::ptgn::impl::AnimationData>().config.frame_count;
 	}
 
-	if (!context.owner.Has<
-			::ptgn::impl::AnimationMapData
-		>()) {
+	if (!context.owner.Has<::ptgn::impl::AnimationMapData>()) {
 		return 0;
 	}
 
-	const auto active{
-		AnimationMap{
-			context.owner
-		}.GetActive()
-	};
+	const auto active{ AnimationMap{ context.owner }.GetActive() };
 
-	return active.has_value()
-		? active->GetFrameCount()
-		: 0;
+	return active.has_value() ? active->GetFrameCount() : 0;
 }
 
-bool DrawAnimationActionInline(
-	ScriptEditorContext& context,
-	AnimationActionScript& script
-) {
-	const float available{
-		ImGui::GetContentRegionAvail().x
-	};
+bool DrawAnimationActionInline(ScriptEditorContext& context, AnimationActionScript& script) {
+	const float available{ ImGui::GetContentRegionAvail().x };
 
-	const float spacing{
-		ImGui::GetStyle().ItemSpacing.x
-	};
+	const float spacing{ ImGui::GetStyle().ItemSpacing.x };
 
-	const bool shows_force{
-		script.action ==
-		AnimationAction::Start
-	};
+	const bool shows_force{ script.action == AnimationAction::Start };
 
-	const bool shows_reset{
-		script.action ==
-		AnimationAction::Stop
-	};
+	const bool shows_reset{ script.action == AnimationAction::Stop };
 
-	const bool shows_frame{
-		script.action ==
-		AnimationAction::SetFrame
-	};
+	const bool shows_frame{ script.action == AnimationAction::SetFrame };
 
-	const bool has_inline_value{
-		shows_force ||
-		shows_reset ||
-		shows_frame
-	};
+	const bool has_inline_value{ shows_force || shows_reset || shows_frame };
 
 	float value_width{ 0.0f };
 
 	if (shows_force) {
-		value_width =
-			ImGui::GetFrameHeight() +
-			ImGui::GetStyle()
-				.ItemInnerSpacing.x +
-			ImGui::CalcTextSize(
-				"Force"
-			).x;
+		value_width = ImGui::GetFrameHeight() + ImGui::GetStyle().ItemInnerSpacing.x +
+					  ImGui::CalcTextSize("Force").x;
 	} else if (shows_reset) {
-		value_width =
-			ImGui::GetFrameHeight() +
-			ImGui::GetStyle()
-				.ItemInnerSpacing.x +
-			ImGui::CalcTextSize(
-				"Reset"
-			).x;
+		value_width = ImGui::GetFrameHeight() + ImGui::GetStyle().ItemInnerSpacing.x +
+					  ImGui::CalcTextSize("Reset").x;
 	} else if (shows_frame) {
-		value_width =
-			std::min(
-				110.0f,
-				available * 0.4f
-			);
+		value_width = std::min(110.0f, available * 0.4f);
 	}
 
-	const float action_width{
-		has_inline_value
-			? std::max(
-				100.0f,
-				available -
-					value_width -
-					spacing
-			)
-			: available
-	};
+	const float action_width{ has_inline_value ? std::max(100.0f, available - value_width - spacing)
+											   : available };
 
 	bool changed{ false };
 
-	ImGui::SetNextItemWidth(
-		action_width
-	);
+	ImGui::SetNextItemWidth(action_width);
 
-	if (ImGui::BeginCombo(
-			"##AnimationAction",
-			AnimationActionLabel(
-				script.action
-			)
-		)) {
-		for (const auto& [
-				 candidate,
-				 label
-			 ] : kAnimationActions) {
-			if (ImGui::Selectable(
-					label,
-					candidate ==
-						script.action
-				)) {
-				script.action =
-					candidate;
+	if (ImGui::BeginCombo("##AnimationAction", AnimationActionLabel(script.action))) {
+		for (const auto& [candidate, label] : kAnimationActions) {
+			if (ImGui::Selectable(label, candidate == script.action)) {
+				script.action = candidate;
 
 				changed = true;
 			}
@@ -1578,9 +1264,7 @@ bool DrawAnimationActionInline(
 		ImGui::EndCombo();
 	}
 
-	DrawItemTooltip(
-		"Animation operation to perform."
-	);
+	DrawItemTooltip("Animation operation to perform.");
 
 	if (!has_inline_value) {
 		return changed;
@@ -1589,102 +1273,51 @@ bool DrawAnimationActionInline(
 	SameLineControl();
 
 	if (shows_force) {
-		changed |= ImGui::Checkbox(
-			"Force##AnimationForce",
-			&script.force
-		);
+		changed |= ImGui::Checkbox("Force##AnimationForce", &script.force);
 
-		DrawItemTooltip(
-			"Restart the animation even if it is already playing."
-		);
+		DrawItemTooltip("Restart the animation even if it is already playing.");
 
 		return changed;
 	}
 
 	if (shows_reset) {
-		changed |= ImGui::Checkbox(
-			"Reset##AnimationStopReset",
-			&script.reset_on_stop
-		);
+		changed |= ImGui::Checkbox("Reset##AnimationStopReset", &script.reset_on_stop);
 
-		DrawItemTooltip(
-			"Reset to the first frame when stopping."
-		);
+		DrawItemTooltip("Reset to the first frame when stopping.");
 
 		return changed;
 	}
 
-	const std::size_t frame_count{
-		GetAnimationActionFrameCount(
-			context
-		)
-	};
+	const std::size_t frame_count{ GetAnimationActionFrameCount(context) };
 
-	const int maximum_frame{
-		frame_count > 0
-			? static_cast<int>(
-				std::min<std::size_t>(
-					frame_count - 1,
-					static_cast<
-						std::size_t
-					>(
-						std::numeric_limits<
-							int
-						>::max()
-					)
-				)
-			)
-			: 0
-	};
+	const int maximum_frame{ frame_count > 0
+								 ? static_cast<int>(std::min<std::size_t>(
+									   frame_count - 1,
+									   static_cast<std::size_t>(std::numeric_limits<int>::max())
+								   ))
+								 : 0 };
 
 	const std::size_t clamped_frame{
-		std::min(
-			script.frame,
-			static_cast<std::size_t>(
-				maximum_frame
-			)
-		)
+		std::min(script.frame, static_cast<std::size_t>(maximum_frame))
 	};
 
 	if (script.frame != clamped_frame) {
-		script.frame =
-			clamped_frame;
+		script.frame = clamped_frame;
 
 		changed = true;
 	}
 
-	int frame{
-		static_cast<int>(
-			script.frame
-		)
-	};
+	int frame{ static_cast<int>(script.frame) };
 
-	ImGui::SetNextItemWidth(
-		std::max(
-			1.0f,
-			available -
-				action_width -
-				spacing
-		)
-	);
+	ImGui::SetNextItemWidth(std::max(1.0f, available - action_width - spacing));
 
-	ImGui::BeginDisabled(
-		frame_count == 0
-	);
+	ImGui::BeginDisabled(frame_count == 0);
 
 	if (ImGui::DragInt(
-			"##AnimationFrame",
-			&frame,
-			1.0f,
-			0,
-			maximum_frame,
-			"Frame: %d",
+			"##AnimationFrame", &frame, 1.0f, 0, maximum_frame, "Frame: %d",
 			ImGuiSliderFlags_AlwaysClamp
 		)) {
-		script.frame =
-			static_cast<std::size_t>(
-				frame
-			);
+		script.frame = static_cast<std::size_t>(frame);
 
 		changed = true;
 	}
@@ -1692,25 +1325,18 @@ bool DrawAnimationActionInline(
 	ImGui::EndDisabled();
 
 	DrawItemTooltip(
-		frame_count > 0
-			? "Animation frame to select."
-			: "The owner has no configured animation frames."
+		frame_count > 0 ? "Animation frame to select."
+						: "The owner has no configured animation frames."
 	);
 
 	return changed;
 }
 
-bool DrawSetTextureInline(
-	ScriptEditorContext& context,
-	SetTextureScript& script
-) {
+bool DrawSetTextureInline(ScriptEditorContext& context, SetTextureScript& script) {
 	ImGui::SetNextItemWidth(-FLT_MIN);
 
 	return inspector::DrawAssetKeyInline(
-		context.ctx,
-		script.texture_key,
-		inspector::FieldOptions{},
-		"Texture key"
+		context.ctx, script.texture_key, inspector::FieldOptions{}, "Texture key"
 	);
 }
 
@@ -1721,32 +1347,22 @@ bool DrawSetEnabledInline(ScriptEditorContext&, SetEnabledScript& script) {
 
 	const float available{ ImGui::GetContentRegionAvail().x };
 	const float spacing{ ImGui::GetStyle().ItemSpacing.x };
-	const float value_width{
-		ImGui::CalcTextSize("Disabled").x +
-		ImGui::GetStyle().FramePadding.x * 2.0f
-	};
+	const float value_width{ ImGui::CalcTextSize("Disabled").x +
+							 ImGui::GetStyle().FramePadding.x * 2.0f };
 
 	bool changed{ false };
 	ImGui::SetNextItemWidth(std::max(1.0f, available - value_width - spacing));
 
 	const auto* selected{ ComponentRegistry::Find(script.component) };
-	const std::string preview{
-		selected ? ComponentLabel(*selected) : script.component
-	};
+	const std::string preview{ selected ? ComponentLabel(*selected) : script.component };
 
-	if (ImGui::BeginCombo(
-			"##EnabledComponent",
-			preview.empty() ? "Component" : preview.c_str()
-		)) {
+	if (ImGui::BeginCombo("##EnabledComponent", preview.empty() ? "Component" : preview.c_str())) {
 		for (const auto* component : components) {
 			const std::string label{ ComponentLabel(*component) };
 
-			if (ImGui::Selectable(
-					label.c_str(),
-					script.component == component->name
-				)) {
+			if (ImGui::Selectable(label.c_str(), script.component == component->name)) {
 				script.component = component->name;
-				changed = true;
+				changed			 = true;
 			}
 		}
 
@@ -1757,11 +1373,10 @@ bool DrawSetEnabledInline(ScriptEditorContext&, SetEnabledScript& script) {
 	SameLineControl();
 
 	if (ImGui::Button(
-			script.enabled ? "Enabled" : "Disabled",
-			ImVec2{ value_width, ImGui::GetFrameHeight() }
+			script.enabled ? "Enabled" : "Disabled", ImVec2{ value_width, ImGui::GetFrameHeight() }
 		)) {
 		script.enabled = !script.enabled;
-		changed = true;
+		changed		   = true;
 	}
 
 	DrawItemTooltip("Toggle the value assigned by this action.");
@@ -1773,15 +1388,10 @@ struct ProjectSceneChoice {
 	std::string label{};
 };
 
-[[nodiscard]] std::vector<ProjectSceneChoice>
-GetProjectSceneChoices(
-	ScriptEditorContext& context
-) {
+[[nodiscard]] std::vector<ProjectSceneChoice> GetProjectSceneChoices(ScriptEditorContext& context) {
 	std::vector<ProjectSceneChoice> choices;
 
-	const auto* project{
-		context.ctx.editor.GetProject()
-	};
+	const auto* project{ context.ctx.editor.GetProject() };
 
 	if (!project) {
 		return choices;
@@ -1789,14 +1399,11 @@ GetProjectSceneChoices(
 
 	choices.reserve(project->scenes.size());
 
-	for (const auto& entry :
-		 project->scenes) {
+	for (const auto& entry : project->scenes) {
 		choices.emplace_back(
 			ProjectSceneChoice{
-				.key = entry.key,
-				.label =
-					entry.display_name +
-					" [" + entry.key + "]",
+				.key   = entry.key,
+				.label = entry.key + " [" + entry.display_name + "]",
 			}
 		);
 	}
@@ -1804,116 +1411,219 @@ GetProjectSceneChoices(
 	return choices;
 }
 
-[[nodiscard]] std::string
-GetProjectScenePreview(
-	ScriptEditorContext& context,
-	const SceneChangeScript& script
-) {
-	const auto choices{
-		GetProjectSceneChoices(context)
-	};
+[[nodiscard]] std::optional<std::string> GetCurrentProjectSceneKey(ScriptEditorContext& context) {
+	if (!context.owner) {
+		return std::nullopt;
+	}
 
-	const auto it{
-		std::ranges::find_if(
-			choices,
-			[&script](
-				const ProjectSceneChoice& choice
-			) {
-				return choice.key ==
-					   script.scene_key;
-			}
-		)
-	};
-
-	return it == choices.end()
-		? std::string{ "Select Project Scene" }
-		: it->label;
+	return context.owner.GetScene().GetTag();
 }
 
-bool DrawProjectSceneCombo(
-	const char* label,
-	ScriptEditorContext& context,
-	SceneChangeScript& script
-) {
-	const auto choices{
-		GetProjectSceneChoices(context)
-	};
-	const std::string preview{
-		GetProjectScenePreview(
-			context,
-			script
-		)
-	};
+[[nodiscard]] bool HasOtherProjectScene(ScriptEditorContext& context) {
+	const auto choices{ GetProjectSceneChoices(context) };
 
-	bool changed{ false };
-
-	if (!ImGui::BeginCombo(
-			label,
-			preview.c_str()
-		)) {
+	if (choices.empty()) {
 		return false;
 	}
 
-	if (choices.empty()) {
-		ImGui::TextDisabled(
-			"No project scenes"
-		);
+	const auto current_scene{ GetCurrentProjectSceneKey(context) };
+
+	if (!current_scene) {
+		return true;
 	}
 
-	for (const auto& choice :
-		 choices) {
-		if (ImGui::Selectable(
-				choice.label.c_str(),
-				script.scene_key ==
-					choice.key
-			)) {
-			script.scene_key =
-				choice.key;
+	return std::ranges::any_of(choices, [&current_scene](const ProjectSceneChoice& choice) {
+		return choice.key != *current_scene;
+	});
+}
+
+bool NormalizeSceneChangeSelection(ScriptEditorContext& context, SceneChangeScript& script) {
+	const auto choices{ GetProjectSceneChoices(context) };
+
+	const auto current_scene{ GetCurrentProjectSceneKey(context) };
+
+	if (script.action == SceneChangeAction::Enter) {
+		const auto selected{ std::ranges::find_if(
+			choices,
+			[&script](const ProjectSceneChoice& choice) { return choice.key == script.scene_key; }
+		) };
+
+		if (selected != choices.end() || choices.empty()) {
+			return false;
+		}
+
+		if (current_scene) {
+			const auto current{ std::ranges::find_if(
+				choices, [&current_scene](const ProjectSceneChoice& choice) {
+					return choice.key == *current_scene;
+				}
+			) };
+
+			if (current != choices.end()) {
+				script.scene_key = current->key;
+				return true;
+			}
+		}
+
+		script.scene_key = choices.front().key;
+		return true;
+	}
+
+	if (script.action != SceneChangeAction::Switch) {
+		return false;
+	}
+
+	const auto is_valid_destination = [&current_scene](const ProjectSceneChoice& choice) {
+		return !current_scene || choice.key != *current_scene;
+	};
+
+	const auto selected{ std::ranges::find_if(choices, [&](const ProjectSceneChoice& choice) {
+		return choice.key == script.scene_key && is_valid_destination(choice);
+	}) };
+
+	if (selected != choices.end()) {
+		return false;
+	}
+
+	const auto replacement{ std::ranges::find_if(choices, is_valid_destination) };
+
+	if (replacement != choices.end()) {
+		script.scene_key = replacement->key;
+
+		return true;
+	}
+
+	// Switching to the current scene is equivalent to entering an
+	// already active scene, which reconstructs it.
+	script.action = SceneChangeAction::Enter;
+
+	if (current_scene) {
+		script.scene_key = *current_scene;
+	} else if (!choices.empty()) {
+		script.scene_key = choices.front().key;
+	}
+
+	return true;
+}
+
+[[nodiscard]] std::string SceneSelectionTooltip(
+	ScriptEditorContext& context, const SceneChangeScript& script
+) {
+	const std::string current_scene{ GetCurrentProjectSceneKey(context).value_or("Current Scene") };
+
+	const std::string selected_scene{ script.scene_key.empty() ? "Selected Scene"
+															   : script.scene_key };
+
+	switch (script.action) {
+		case SceneChangeAction::Enter:
+			if (current_scene == selected_scene) {
+				return "[" + selected_scene + "]" + " will be re-entered.";
+			}
+
+			return "[" + selected_scene + "]" + " will be entered.";
+
+		case SceneChangeAction::Exit: return "[" + selected_scene + "]" + " will be exited.";
+
+		case SceneChangeAction::Switch:
+			return "Switch from [" + current_scene + "] to [" + selected_scene + "]";
+	}
+
+	return "Choose the scene affected by this action.";
+}
+
+bool DrawProjectSceneCombo(
+	const char* label, ScriptEditorContext& context, SceneChangeScript& script
+) {
+	const auto choices{ GetProjectSceneChoices(context) };
+
+	const auto current_scene{ GetCurrentProjectSceneKey(context) };
+
+	const bool excludes_current_scene{ script.action == SceneChangeAction::Switch };
+
+	const auto is_available = [&](const ProjectSceneChoice& choice) {
+		return !excludes_current_scene || !current_scene || choice.key != *current_scene;
+	};
+
+	const bool has_available_choices{ std::ranges::any_of(choices, is_available) };
+
+	const std::string preview{ script.scene_key.empty() ? "Select Scene" : script.scene_key };
+
+	bool changed{ false };
+
+	const bool open{ ImGui::BeginCombo(label, preview.c_str()) };
+
+	const std::string tooltip{ SceneSelectionTooltip(context, script) };
+
+	DrawItemTooltip(tooltip.c_str());
+
+	if (!open) {
+		return false;
+	}
+
+	if (!has_available_choices) {
+		if (excludes_current_scene) {
+			ImGui::TextDisabled("No other project scenes");
+		} else {
+			ImGui::TextDisabled("No project scenes");
+		}
+	}
+
+	for (const auto& choice : choices) {
+		if (!is_available(choice)) {
+			continue;
+		}
+
+		const bool selected{ script.scene_key == choice.key };
+
+		if (ImGui::Selectable(choice.label.c_str(), selected)) {
+			script.scene_key = choice.key;
+
 			changed = true;
+		}
+
+		if (selected) {
+			ImGui::SetItemDefaultFocus();
 		}
 	}
 
 	ImGui::EndCombo();
+
 	return changed;
 }
 
-bool DrawSceneChangeActionAndKey(
-	ScriptEditorContext& context,
-	SceneChangeScript& script
-) {
-	const float available{
-		ImGui::GetContentRegionAvail().x
-	};
-	const float spacing{
-		ImGui::GetStyle().ItemSpacing.x
-	};
-	const float action_width{
-		std::max(
-			90.0f,
-			available * 0.35f
-		)
-	};
+bool DrawSceneChangeActionAndKey(ScriptEditorContext& context, SceneChangeScript& script) {
+	bool changed{ NormalizeSceneChangeSelection(context, script) };
 
-	bool changed{ false };
+	const bool has_other_scene{ HasOtherProjectScene(context) };
 
-	ImGui::SetNextItemWidth(
-		action_width
-	);
+	const float available{ ImGui::GetContentRegionAvail().x };
 
-	if (ImGui::BeginCombo(
-			"##SceneAction",
-			SceneActionLabel(script.action)
-		)) {
-		for (const auto& [candidate, label] :
-			 kSceneActions) {
-			if (ImGui::Selectable(
-					label,
-					candidate ==
-						script.action
-				)) {
-				script.action =
-					candidate;
+	const float spacing{ ImGui::GetStyle().ItemSpacing.x };
+
+	const float action_width{ std::max(90.0f, available * 0.35f) };
+
+	ImGui::SetNextItemWidth(action_width);
+
+	if (ImGui::BeginCombo("##SceneAction", SceneActionLabel(script.action))) {
+		for (const auto& [candidate, label] : kSceneActions) {
+			const bool requires_other_scene{ candidate == SceneChangeAction::Switch };
+
+			if (requires_other_scene && !has_other_scene) {
+				continue;
+			}
+
+			const bool selected{ candidate == script.action };
+
+			if (ImGui::Selectable(label, selected)) {
+				script.action = candidate;
+
 				changed = true;
+
+				changed |= NormalizeSceneChangeSelection(context, script);
+			}
+
+			if (selected) {
+				ImGui::SetItemDefaultFocus();
 			}
 		}
 
@@ -1922,135 +1632,106 @@ bool DrawSceneChangeActionAndKey(
 
 	SameLineControl();
 
-	ImGui::SetNextItemWidth(
-		std::max(
-			1.0f,
-			available -
-				action_width -
-				spacing
-		)
-	);
+	ImGui::SetNextItemWidth(std::max(1.0f, available - action_width - spacing));
 
-	changed |= DrawProjectSceneCombo(
-		"##ProjectSceneKey",
-		context,
-		script
-	);
+	changed |= DrawProjectSceneCombo("##ProjectSceneKey", context, script);
 
 	return changed;
 }
 
-bool DrawSceneChangeInline(
-	ScriptEditorContext& context,
-	SceneChangeScript& script
-) {
-	return DrawSceneChangeActionAndKey(
-		context,
-		script
-	);
+bool DrawSceneChangeInline(ScriptEditorContext& context, SceneChangeScript& script) {
+	return DrawSceneChangeActionAndKey(context, script);
 }
 
-bool DrawSceneChange(
-	ScriptEditorContext& context,
-	SceneChangeScript& script
-) {
-	bool changed{
-		DrawSceneChangeActionAndKey(
-			context,
-			script
-		)
-	};
+bool DrawSceneChange(ScriptEditorContext&, SceneChangeScript& script) {
+	bool changed{ false };
 
-	changed |= DrawNamedEnumCombo(
-		"Transition",
-		script.transition,
-		kSceneTransitions,
-		"Fade is sequential for switches; Cross Fade overlaps both scenes."
-	);
+	changed |= inspector::DrawPropertyRow("Transition", [&]() {
+		return DrawNamedEnumCombo(
+			"##SceneTransition", script.transition, kSceneTransitions,
+			"Fade is sequential for switches and entering an already active scene; Cross Fade "
+			"overlaps both scenes."
+		);
+	});
 
-	if (script.transition !=
-		SceneTransitionStyle::None) {
+	if (script.transition != SceneTransitionStyle::None) {
 		changed |= inspector::DrawPropertyRow("Duration", [&]() {
 			return inspector::DrawDurationInput(
-				"##SceneTransitionDuration",
-				script.duration_ms,
-				-FLT_MIN,
-				"Transition duration."
+				"##SceneTransitionDuration", script.duration_ms, -FLT_MIN, "Transition duration."
 			);
 		});
+
 		changed |= inspector::DrawPropertyRow("Delay", [&]() {
 			return inspector::DrawDurationInput(
-				"##SceneTransitionDelay",
-				script.delay_ms,
-				-FLT_MIN,
+				"##SceneTransitionDelay", script.delay_ms, -FLT_MIN,
 				"Delay before the transition begins."
 			);
 		});
 
-		if (ImGui::BeginCombo(
-				"Ease",
-				std::string{
-					magic_enum::enum_name(
-						script.ease
-					)
-				}.c_str()
-			)) {
-			for (const auto candidate :
-				 magic_enum::enum_values<Ease>()) {
-				const std::string label{
-					magic_enum::enum_name(
-						candidate
-					)
-				};
+		changed |= inspector::DrawPropertyRow("Ease", [&]() {
+			ImGui::SetNextItemWidth(-FLT_MIN);
 
-				if (ImGui::Selectable(
-						label.c_str(),
-						candidate ==
-							script.ease
-					)) {
-					script.ease =
-						candidate;
-					changed = true;
+			const std::string preview{ magic_enum::enum_name(script.ease) };
+
+			bool ease_changed{ false };
+
+			if (ImGui::BeginCombo("##SceneTransitionEase", preview.c_str())) {
+				for (const auto candidate : magic_enum::enum_values<Ease>()) {
+					const std::string label{ magic_enum::enum_name(candidate) };
+
+					if (ImGui::Selectable(label.c_str(), candidate == script.ease)) {
+						script.ease = candidate;
+
+						ease_changed = true;
+					}
 				}
+
+				ImGui::EndCombo();
 			}
 
-			ImGui::EndCombo();
-		}
+			return ease_changed;
+		});
 
-		if (script.transition ==
-			SceneTransitionStyle::Slide) {
-			changed |= ImGui::DragFloat2(
-				"Exit Direction",
-				&script.direction.x,
-				0.05f
-			);
-			DrawItemTooltip(
-				"Direction the old scene exits. The new scene enters from the opposite direction."
-			);
+		if (script.transition == SceneTransitionStyle::Slide) {
+			script.direction.x = std::clamp(script.direction.x, -1.0f, 1.0f);
+
+			script.direction.y = std::clamp(script.direction.y, -1.0f, 1.0f);
+
+			changed |= inspector::DrawPropertyRow("Exit Direction", [&]() {
+				ImGui::SetNextItemWidth(-FLT_MIN);
+
+				const bool direction_changed{ ImGui::DragFloat2(
+					"##SceneExitDirection", &script.direction.x, 0.05f, -1.0f, 1.0f, "%.2f",
+					ImGuiSliderFlags_AlwaysClamp
+				) };
+
+				DrawItemTooltip(
+					"Direction the old scene exits. The new scene enters from the opposite "
+					"direction."
+				);
+
+				return direction_changed;
+			});
 		}
 	}
 
-	int priority{
-		static_cast<int>(
-			script.priority
-		)
-	};
+	changed |= inspector::DrawPropertyRow("Priority", [&]() {
+		int priority{ static_cast<int>(script.priority) };
 
-	if (ImGui::DragInt(
-			"Priority",
-			&priority,
-			1.0f,
-			0
-		)) {
-		script.priority =
-			static_cast<std::size_t>(
-				std::max(
-					0,
-					priority
-				)
-			);
-		changed = true;
-	}
+		ImGui::SetNextItemWidth(-FLT_MIN);
+
+		const bool priority_changed{ ImGui::DragInt("##SceneChangePriority", &priority, 1.0f, 0) };
+
+		DrawItemTooltip(
+			"Used to resolve competing scene changes. Higher priority takes precedence."
+		);
+
+		if (priority_changed) {
+			script.priority = static_cast<std::size_t>(std::max(0, priority));
+		}
+
+		return priority_changed;
+	});
 
 	return changed;
 }
@@ -2070,9 +1751,7 @@ bool DrawAddComponentsInline(ScriptEditorContext&, AddComponentsScript& script) 
 
 	for (const auto& definition : script.components) {
 		const auto* component{ ComponentRegistry::Find(definition.type) };
-		const std::string label{
-			component ? ComponentLabel(*component) : definition.type
-		};
+		const std::string label{ component ? ComponentLabel(*component) : definition.type };
 
 		selected_labels.push_back(label);
 
@@ -2096,8 +1775,7 @@ bool DrawAddComponentsInline(ScriptEditorContext&, AddComponentsScript& script) 
 	if (ImGui::BeginCombo("##AddComponents", preview.c_str())) {
 		for (const auto* component : components) {
 			bool selected{ std::ranges::any_of(
-				script.components,
-				[component](const ComponentDefinition& definition) {
+				script.components, [component](const ComponentDefinition& definition) {
 					return definition.type == component->name;
 				}
 			) };
@@ -2109,8 +1787,7 @@ bool DrawAddComponentsInline(ScriptEditorContext&, AddComponentsScript& script) 
 					script.components.push_back(MakeComponentDefinition(*component));
 				} else {
 					std::erase_if(
-						script.components,
-						[component](const ComponentDefinition& definition) {
+						script.components, [component](const ComponentDefinition& definition) {
 							return definition.type == component->name;
 						}
 					);
@@ -2123,10 +1800,7 @@ bool DrawAddComponentsInline(ScriptEditorContext&, AddComponentsScript& script) 
 				if (component->is_empty) {
 					ImGui::SetTooltip("Tag component");
 				} else {
-					ImGui::SetTooltip(
-						"%s",
-						component->name.c_str()
-					);
+					ImGui::SetTooltip("%s", component->name.c_str());
 				}
 			}
 		}
@@ -2145,22 +1819,14 @@ bool DrawAddComponentsDetails(ScriptEditorContext&, AddComponentsScript& script)
 	for (int i{ 0 }; i < static_cast<int>(script.components.size()); ++i) {
 		auto& definition{ script.components[static_cast<std::size_t>(i)] };
 		const auto* component{ ComponentRegistry::Find(definition.type) };
-		const std::string label{
-			component ? ComponentLabel(*component) : definition.type
-		};
+		const std::string label{ component ? ComponentLabel(*component) : definition.type };
 
 		ImGui::PushID(i);
 
-		if (ImGui::BeginTable(
-				"ComponentTitle",
-				2,
-				ImGuiTableFlags_SizingStretchProp
-			)) {
+		if (ImGui::BeginTable("ComponentTitle", 2, ImGuiTableFlags_SizingStretchProp)) {
 			ImGui::TableSetupColumn("Title", ImGuiTableColumnFlags_WidthStretch);
 			ImGui::TableSetupColumn(
-				"Remove",
-				ImGuiTableColumnFlags_WidthFixed,
-				ImGui::GetFrameHeight()
+				"Remove", ImGuiTableColumnFlags_WidthFixed, ImGui::GetFrameHeight()
 			);
 			ImGui::TableNextRow(ImGuiTableRowFlags_None, ImGui::GetFrameHeight());
 			ImGui::TableSetColumnIndex(0);
@@ -2171,10 +1837,7 @@ bool DrawAddComponentsDetails(ScriptEditorContext&, AddComponentsScript& script)
 			}
 
 			ImGui::TableSetColumnIndex(1);
-			if (ImGui::Button(
-					"x",
-					ImVec2{ ImGui::GetFrameHeight(), ImGui::GetFrameHeight() }
-				)) {
+			if (ImGui::Button("x", ImVec2{ ImGui::GetFrameHeight(), ImGui::GetFrameHeight() })) {
 				remove = i;
 			}
 
@@ -2184,7 +1847,7 @@ bool DrawAddComponentsDetails(ScriptEditorContext&, AddComponentsScript& script)
 		if (component && !component->is_empty) {
 			if (DrawRegisteredComponentJson(*component, definition.value)) {
 				definition.apply_live = {};
-				changed = true;
+				changed				  = true;
 			}
 		}
 
@@ -2205,9 +1868,7 @@ bool DrawRemoveComponentsInline(ScriptEditorContext&, RemoveComponentsScript& sc
 
 	for (const auto& name : script.components) {
 		const auto* component{ ComponentRegistry::Find(name) };
-		const std::string label{
-			component ? ComponentLabel(*component) : name
-		};
+		const std::string label{ component ? ComponentLabel(*component) : name };
 
 		selected_labels.push_back(label);
 
@@ -2221,18 +1882,14 @@ bool DrawRemoveComponentsInline(ScriptEditorContext&, RemoveComponentsScript& sc
 		preview = "None";
 	}
 
-	auto components{ GetSortedComponents([](const RegisteredComponent&) {
-		return true;
-	}) };
+	auto components{ GetSortedComponents([](const RegisteredComponent&) { return true; }) };
 
 	bool changed{ false };
 	ImGui::SetNextItemWidth(-FLT_MIN);
 
 	if (ImGui::BeginCombo("##RemoveComponents", preview.c_str())) {
 		for (const auto* component : components) {
-			bool selected{
-				std::ranges::contains(script.components, component->name)
-			};
+			bool selected{ std::ranges::contains(script.components, component->name) };
 
 			const std::string label{ ComponentLabel(*component) };
 
@@ -2276,16 +1933,12 @@ bool DrawMoveTo(ScriptEditorContext&, MoveToScript& script) {
 	}
 
 	return ResolveEntityFilter(
-		context.sequence_target_filter->value(),
-		context.owner.GetScene(),
-		context.owner
+		context.sequence_target_filter->value(), context.owner.GetScene(), context.owner
 	);
 }
 
 bool DrawFollowEntityPicker(
-	ScriptEditorContext& context,
-	UUID& target,
-	const char* id,
+	ScriptEditorContext& context, UUID& target, const char* id,
 	inspector::EntityFilterEditorState& state
 ) {
 	if (!context.owner) {
@@ -2299,9 +1952,9 @@ bool DrawFollowEntityPicker(
 	bool changed{ false };
 
 	if (selected && std::ranges::contains(excluded_entities, selected)) {
-		target = {};
+		target	 = {};
 		selected = {};
-		changed = true;
+		changed	 = true;
 	}
 
 	EntityFilter filter;
@@ -2312,27 +1965,23 @@ bool DrawFollowEntityPicker(
 	}
 
 	inspector::EntityFilterEditorOptions options{
-		.show_any = false,
-		.show_entity = true,
-		.show_components = false,
-		.show_groups = false,
-		.show_queries = false,
+		.show_any			= false,
+		.show_entity		= true,
+		.show_components	= false,
+		.show_groups		= false,
+		.show_queries		= false,
 		.allow_select_owner = false,
-		.exclude_owner = false,
-		.excluded_entities = std::span<const Entity>{ excluded_entities },
+		.exclude_owner		= false,
+		.excluded_entities	= std::span<const Entity>{ excluded_entities },
 	};
 
 	ImGui::PushID(id);
 
 	if (inspector::DrawEntityFilterButton(
-			std::addressof(scene),
-			context.owner,
-			filter,
-			state,
-			options
+			std::addressof(scene), context.owner, filter, state, options
 		)) {
 		if (filter.entity.uuid.has_value()) {
-			target = filter.entity.uuid.value();
+			target	= filter.entity.uuid.value();
 			changed = true;
 		}
 	}
@@ -2344,12 +1993,7 @@ bool DrawFollowEntityPicker(
 bool DrawFollowTarget(ScriptEditorContext& context, FollowTargetScript& script) {
 	static inspector::EntityFilterEditorState state;
 
-	bool changed{ DrawFollowEntityPicker(
-		context,
-		script.target,
-		"FollowTargetTarget",
-		state
-	) };
+	bool changed{ DrawFollowEntityPicker(context, script.target, "FollowTargetTarget", state) };
 	changed |= ImGui::DragFloat("Speed", &script.speed, 1.0f, 0.0f);
 	changed |= ImGui::DragFloat("Stopping Distance", &script.stopping_distance, 0.1f, 0.0f);
 	return changed;
@@ -2360,11 +2004,7 @@ bool DrawTintToInline(ScriptEditorContext&, TintToScript& script) {
 
 	ImGui::SetNextItemWidth(ImGui::GetFrameHeight());
 
-	if (!ImGui::ColorEdit4(
-			"##Tint",
-			tint.Data(),
-			ImGuiColorEditFlags_NoInputs
-		)) {
+	if (!ImGui::ColorEdit4("##Tint", tint.Data(), ImGuiColorEditFlags_NoInputs)) {
 		return false;
 	}
 
@@ -2408,12 +2048,7 @@ bool DrawRecoverShake(ScriptEditorContext& context, RecoverShakeScript& script) 
 bool DrawFollowEntity(ScriptEditorContext& context, FollowEntityScript& script) {
 	static inspector::EntityFilterEditorState state;
 
-	bool changed{ DrawFollowEntityPicker(
-		context,
-		script.target,
-		"FollowEntityTarget",
-		state
-	) };
+	bool changed{ DrawFollowEntityPicker(context, script.target, "FollowEntityTarget", state) };
 	changed |= DrawReflectedScriptValue(context.ctx, script.config);
 	return changed;
 }
@@ -2607,29 +2242,23 @@ PTGN_REGISTER_SCRIPT(
 );
 
 PTGN_REGISTER_SCRIPT(
-	FollowEntityScript,
-	{
-		.label = "Follow Entity",
-		.group = "Transform",
-		.description =
-			"Follow an entity using TargetFollowConfig.",
-		.type = ScriptType::Both,
-		.draw =
-			&DrawFollowEntity,
-	}
+	FollowEntityScript, {
+							.label		 = "Follow Entity",
+							.group		 = "Transform",
+							.description = "Follow an entity using TargetFollowConfig.",
+							.type		 = ScriptType::Both,
+							.draw		 = &DrawFollowEntity,
+						}
 );
 
 PTGN_REGISTER_SCRIPT(
-	FollowPathScript,
-	{
-		.label = "Follow Path",
-		.group = "Transform",
-		.description =
-			"Follow a configurable waypoint path.",
-		.type = ScriptType::Both,
-		.draw =
-			&DrawFollowPath,
-	}
+	FollowPathScript, {
+						  .label	   = "Follow Path",
+						  .group	   = "Transform",
+						  .description = "Follow a configurable waypoint path.",
+						  .type		   = ScriptType::Both,
+						  .draw		   = &DrawFollowPath,
+					  }
 );
 
 PTGN_REGISTER_SCRIPT(
@@ -2644,67 +2273,56 @@ PTGN_REGISTER_SCRIPT(
 );
 
 PTGN_REGISTER_SCRIPT(
-	PlaySoundScript,
-	{
-		.label = "Play Audio",
-		.group = "Other",
-		.description =
-			"Play an audio asset.",
-		.type = ScriptType::Sequence,
-		.draw_inline =
-			&DrawPlaySoundInline,
-		.draw =
-			&DrawPlaySound,
-	}
+	PlaySoundScript, {
+						 .label		  = "Play Sound",
+						 .group		  = "",
+						 .description = "Play an audio asset.",
+						 .type		  = ScriptType::Sequence,
+						 .draw_inline = &DrawPlaySoundInline,
+						 .draw		  = &DrawPlaySound,
+					 }
 );
 
 PTGN_REGISTER_SCRIPT(
 	AnimationActionScript,
 	{
-		.label = "Animation Action",
-		.group = "Animation",
-		.description =
-			"Start, stop, pause, resume, or change an animation frame.",
-		.type = ScriptType::Sequence,
-		.menu_order = 1,
+		.label		 = "Animation Action",
+		.group		 = "Animation",
+		.description = "Start, stop, pause, resume, or change an animation frame.",
+		.type		 = ScriptType::Sequence,
+		.menu_order	 = 1,
 		.draw_inline = &DrawAnimationActionInline,
 	}
 );
 
 PTGN_REGISTER_SCRIPT(
-	TimerActionScript,
-	{
-		.label = "Timer Action",
-		.group = "Timing",
-		.description = "Control a named timer on the action target.",
-		.type = ScriptType::Sequence,
-		.draw_inline = &DrawTimerActionInline,
-	}
+	TimerActionScript, {
+						   .label		= "Timer Action",
+						   .group		= "",
+						   .description = "Control a named timer on the action target.",
+						   .type		= ScriptType::Sequence,
+						   .draw_inline = &DrawTimerActionInline,
+					   }
 );
 
 namespace {
 
 [[maybe_unused]] const bool kTimerActionRuntimeRegistered{
-	ScriptRegistry::Register<TimerActionScript>(
-		ScriptRegistrationOptions{
-			.completion = ScriptCompletion::Instant,
-		}
-	)
+	ScriptRegistry::Register<TimerActionScript>(ScriptRegistrationOptions{
+		.completion = ScriptCompletion::Instant,
+	})
 };
 
 } // namespace
 
 PTGN_REGISTER_SCRIPT(
-	SetTextureScript,
-	{
-		.label = "Set Texture",
-		.group = "Animation",
-		.description =
-			"Assign a texture asset key to the owner.",
-		.type = ScriptType::Sequence,
-		.draw_inline =
-			&DrawSetTextureInline,
-	}
+	SetTextureScript, {
+						  .label	   = "Set Texture",
+						  .group	   = "Animation",
+						  .description = "Assign a texture asset key to the owner.",
+						  .type		   = ScriptType::Sequence,
+						  .draw_inline = &DrawSetTextureInline,
+					  }
 );
 
 PTGN_REGISTER_SCRIPT(
@@ -2720,18 +2338,14 @@ PTGN_REGISTER_SCRIPT(
 );
 
 PTGN_REGISTER_SCRIPT(
-	SceneChangeScript,
-	{
-		.label = "Change Scene",
-		.group = "Other",
-		.description =
-			"Enter, exit, switch, or re-enter a registered scene.",
-		.type = ScriptType::Sequence,
-		.draw_inline =
-			&DrawSceneChangeInline,
-		.draw =
-			&DrawSceneChange,
-	}
+	SceneChangeScript, {
+						   .label		= "Change Scene",
+						   .group		= "",
+						   .description = "Enter, exit, or switch a registered scene.",
+						   .type		= ScriptType::Sequence,
+						   .draw_inline = &DrawSceneChangeInline,
+						   .draw		= &DrawSceneChange,
+					   }
 );
 
 PTGN_REGISTER_SCRIPT(
@@ -3123,11 +2737,12 @@ PTGN_REGISTER_EVENT(
 );
 
 PTGN_REGISTER_EVENT(
-	event::AnimationFinalFrame, {
-								  .label	   = "On Animation Final Frame",
-								  .group	   = "Animation",
-								  .description = "Matches whenever the final frame of an animation plays.",
-							  }
+	event::AnimationFinalFrame,
+	{
+		.label		 = "On Animation Final Frame",
+		.group		 = "Animation",
+		.description = "Matches whenever the final frame of an animation plays.",
+	}
 );
 
 PTGN_REGISTER_EVENT(
@@ -3152,7 +2767,8 @@ PTGN_REGISTER_EVENT(
 	{
 		.label = "On Timer Elapsed",
 		.group = "Timing",
-		.description = "Matches when a named timer reaches its configured or overridden elapsed duration.",
+		.description =
+			"Matches when a named timer reaches its configured or overridden elapsed duration.",
 		.inline_fields = 3,
 	}
 );
@@ -3168,10 +2784,56 @@ PTGN_REGISTER_EVENT(
 );
 
 PTGN_REGISTER_EVENT(
+	event::SceneEnter,
+	{
+		.label		 = "On Scene Enter",
+		.group		 = "Scene",
+		.description = "Matches once after the scene has entered and Scene::OnEnter() has run.",
+	}
+);
+
+PTGN_REGISTER_EVENT(
+	event::SceneLeave,
+	{
+		.label		 = "On Scene Leave",
+		.group		 = "Scene",
+		.description = "Matches once immediately before the scene exits. If the scene has an "
+					   "outgoing transition, this occurs after that transition finishes.",
+	}
+);
+
+PTGN_REGISTER_EVENT(
+	event::SceneTransitionStart,
+	{
+		.label		 = "On Scene Transition Start",
+		.group		 = "Scene",
+		.description = "Matches once when this scene's transition starts.",
+	}
+);
+
+PTGN_REGISTER_EVENT(
+	event::SceneTransitionUpdate,
+	{
+		.label		 = "On Scene Transition",
+		.group		 = "Scene",
+		.description = "Matches every frame while this scene's transition is actively running.",
+	}
+);
+
+PTGN_REGISTER_EVENT(
+	event::SceneTransitionFinish,
+	{
+		.label		 = "On Scene Transition Finish",
+		.group		 = "Scene",
+		.description = "Matches once when this scene's transition finishes.",
+	}
+);
+
+PTGN_REGISTER_EVENT(
 	event::EntityCreated,
 	{
-		.label = "On Create",
-		.group = "",
+		.label		 = "On Create",
+		.group		 = "",
 		.description = "Matches once when the entity's scripts are created for runtime.",
 	}
 );

@@ -434,10 +434,10 @@ struct SetEnabledScript : public Script {
 };
 
 enum class SceneChangeAction : std::uint8_t {
+	/// Enters an inactive scene or reconstructs it if it is already active.
 	Enter,
 	Exit,
-	Switch,
-	ReEnter
+	Switch
 };
 
 enum class SceneTransitionStyle : std::uint8_t {
@@ -447,7 +447,7 @@ enum class SceneTransitionStyle : std::uint8_t {
 	Slide
 };
 
-/// @brief Queues a project scene enter, exit, switch, or re-entry operation.
+/// @brief Queues a project scene enter, exit, or switch operation.
 /// scene_key must identify a scene in the active project's scene list.
 struct SceneChangeScript : public Script {
 	SceneChangeAction action{ SceneChangeAction::Switch };
