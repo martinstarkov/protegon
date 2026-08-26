@@ -1,156 +1,194 @@
 # protegon
 
-protegon is a fast, modular 2D game engine written in C++23, using OpenGL for rendering and SDL3 for input, audio, and font support. Designed for flexibility and performance, it gives you full control over your game while providing helpful abstractions to get you started quickly.
+protegon is a C++23 2D game engine with an optional ImGui editor. It uses OpenGL for desktop rendering, WebGL2 for web builds, and GLFW for windowing and input.
 
----
+## Features
 
-## Features at a Glance
+- **Renderer**: Batched 2D rendering, render targets, custom shaders, cameras, layers, blending, and screen effects.
+- **Editor**: Dockable ImGui editor with scene management, hierarchy, inspector, viewport, content browser, settings, console, undo/redo, and play mode.
+- **Scenes**: Multiple active scenes, scene transitions, registered custom scene types, and project scene files.
+- **ECS**: Entity/component system with component registration and editor reflection.
+- **Assets**: Textures, fonts, audio, shaders, prefabs, and project asset management.
+- **Audio**: Audio playback through miniaudio.
+- **Input**: Keyboard and mouse input through GLFW.
+- **Physics & Collision**: 2D rigid bodies, colliders, collision handling, and scene bounds.
+- **Scripting**: Built-in scripts, sequences, triggers, actions, timers, tweens, and animation utilities.
+- **UI**: Buttons, toggle groups, dropdowns, dialogue, and interaction helpers.
+- **Math**: Vectors, matrices, geometry, transforms, interpolation, RNG, and noise.
+- **Platforms**: Windows, Linux, macOS, and WebAssembly/Emscripten.
 
-- **Custom Batch Renderer**: Efficient rendering with minimal draw calls.
-- **Shader Support**: Easily integrate and utilize GLSL shaders.
-- **Scene & Camera System**: Organize your game logic into manageable scenes with camera control.
-- **Entity Component System**: Lightweight ECS for scalable data handling.
-- **Audio Support**: Audio playback using SDL_mixer.
-- **Input Handling**: Mouse and keyboard input built in.
-- **Math Library**: Vectors, matrices, quaternions, and more.
-- **Collision Detection**: Built-in physics utilities for 2D collisions.
-- **UI Elements**: Basic UI widgets like buttons, dropdowns, dialogue boxes.
-- **Timers & Tweens**: Animations and pre-built tween effects.
-- **Randomness & Noise**: Fractal noise and RNG utilities.
-- **Debug Tools**: Function profiling and performance logging.
+## Requirements
 
----
-
-## Getting Started
-
-### Prerequisites
-
-- C++23 or newer
+- C++23 compiler
 - [CMake 3.28+](https://cmake.org/download/)
-- A C++ compiler + build system (Visual Studio, Ninja, Make, etc.)
+- A supported build system such as Ninja, Make, or Visual Studio
+- OpenGL 3.3 capable GPU for desktop builds
 
----
-
-## Adding protegon to your CMake project
-
-Clone or add protegon as a submodule:
-
-```bash
-git clone https://github.com/martinstarkov/protegon.git  
-# or  
-git submodule add https://github.com/martinstarkov/protegon.git  
-```
-
-Then, in your CMakeLists.txt:
-
-```cmake
-add_subdirectory(<repository_directory> binary_dir)  
-add_protegon_to(<target_name>)  
-
-# (optional) create symlink to asset folder  
-create_symlink(<target_name> <source_parent_dir> <destination_parent_dir>) 
-```
-
----
-
-## Building protegon
-
-1. Clone the repository:  
-    `git clone https://github.com/martinstarkov/protegon.git && cd protegon`
-
-2. Create and enter a build directory:  
-```bash
-   mkdir build  
-   cd build  
-```
-
-### Visual Studio
-
-```bash
-cmake .. -G "Visual Studio 17 2022"  
-```
-
-Open the generated `.sln`, set your project as the startup project, then **Build & Run**.
-
-### Ninja
-
-```bash
-cmake .. -G Ninja  
-ninja  
-./your_project_name.exe  
-```
-
-### macOS
-
-```bash
-cmake .. -G Xcode  
-make  
-./your_project_name.exe  
-```
-
-### Linux
-
-```bash
-cmake .. -G "Unix Makefiles"  
-make  
-./your_project_name.exe  
-```
-
-> *On Linux, you may need to install `Homebrew` or development packages for SDL3.*
-
-## Web (Emscripten + WebGL)
-
-### Requirements
+For web builds:
 
 - [Emscripten SDK](https://emscripten.org/)
-- [Ninja](https://ninja-build.org/) or [MinGW](https://www.mingw-w64.org/)
+- Ninja
 
-Verify setup:  
+## Adding protegon to a CMake project
+
+Clone the repository directly or add it as a submodule:
+
 ```bash
-emcc --version  
-ninja --version  # or gcc --version  
+git clone https://github.com/martinstarkov/protegon.git
+
+# or
+
+git submodule add https://github.com/martinstarkov/protegon.git
 ```
 
-## Build Scripts (run from `scripts/`)
+Then add protegon to your `CMakeLists.txt`:
 
-### Web (Engine-Level)
+```cmake
+add_subdirectory(<repository_directory> binary_dir)
 
-> Run `./build_web_dependencies.sh` at least once before building web examples.
+add_protegon_to(<target_name>)
+```
 
-- `./build_web_dependencies.sh` – Build required web dependencies  
-- `./build_web_examples.sh` – Build all web examples (HTML + WASM)  
-- `./run_web_examples.sh` – Serve examples locally  
-- `./build_run_web_examples.sh` – Build and run examples  
+If needed, assets can be linked into the runtime directory with:
 
----
+```cmake
+create_symlink(
+    <target_name>
+    <source_parent_dir>
+    <destination_parent_dir>
+)
+```
 
-### Web (Specific Project)
+## Building
 
-Located in `scripts/project/`:
+A typical native build using Ninja:
 
-- `./build_web.sh` – Build the project (HTML + WASM)  
-- `./run_web.sh` – Serve the project locally  
-- `./build_run_web.sh` – Build and run the project  
-- `./zip_web.sh` – Create distributable `.zip`  
-- `./build_zip_web.sh` – Build and zip in one step  
+```bash
+cmake -S . -B build -G Ninja
+cmake --build build
+```
 
----
+Or with Unix Makefiles:
 
-### SDL Setup (Native Builds)
+```bash
+cmake -S . -B build -G "Unix Makefiles"
+cmake --build build
+```
 
-> Required only if the correct SDL development binaries are not already installed.
+Visual Studio:
 
-- `./download_sdl_windows_msvc.sh` – Windows (MSVC) SDL dev binaries  
-- `./download_sdl_macos_brew.sh` – macOS (Homebrew install)  
-- `./download_sdl_macos_dmg.sh` – macOS (manual DMG download)  
+```bash
+cmake -S . -B build -G "Visual Studio 17 2022"
+```
+
+The editor is controlled by the CMake option:
+
+```cmake
+-DPTGN_EDITOR=ON
+```
+
+Examples can be selected with:
+
+```cmake
+-DPTGN_EXAMPLES=ALL
+```
+
+## Editor
+
+protegon includes an optional editor built with ImGui.
+
+The editor provides:
+
+- Scene creation, deletion, duplication, renaming, and ordering
+- Scene hierarchy and entity selection
+- Component and script inspection
+- Scene and project settings
+- Content browser and asset importing
+- Game viewport and editor camera
+- Play, pause, and stop controls
+- Undo/redo history
+- Console and debug tools
+- Desktop and web export
+
+Editor scenes are stored as part of a protegon project. Changes can also be made in web builds, but browser-side project changes are not written permanently back to the source project files.
+
+## Web Builds
+
+Activate the Emscripten environment first:
+
+```bash
+source ~/emsdk/emsdk_env.sh
+```
+
+Verify it is available:
+
+```bash
+emcc --version
+emcmake --version
+```
+
+### Engine examples
+
+From `scripts/`:
+
+```bash
+./build_web_dependencies.sh
+./build_web_examples.sh
+./run_web_examples.sh
+```
+
+Or build and run together:
+
+```bash
+./build_run_web_examples.sh
+```
+
+`build_web_dependencies.sh` only needs to be rerun when the web dependencies change.
+
+Projects can be exported for the web directly from the editor using the Export window.
+
+## Editor Project
+
+A protegon editor project uses a `.ptgnproj` manifest and typically contains an asset directory with folders such as:
+
+```text
+assets/
+├── audio/
+├── data/
+├── fonts/
+├── prefabs/
+├── scenes/
+├── shaders/
+└── textures/
+```
+
+Scenes are stored as `.ptgnscene` files and referenced by a unique scene key in the project manifest.
 
 ## Troubleshooting
 
-### Windows: Symlink Error
+### Windows symlink permissions
 
-If you see:
-- If you get the error `A required privilege is not held by the client` when creating a symlink using `create_symlink` on Windows, [turn on Developer mode](https://learn.microsoft.com/en-us/windows/apps/get-started/enable-your-device-for-development).
+If Windows reports:
 
+```text
+A required privilege is not held by the client
+```
+
+when creating asset symlinks, enable [Developer Mode](https://learn.microsoft.com/en-us/windows/apps/get-started/enable-your-device-for-development).
+
+### Emscripten commands not found
+
+If `emcc` or `emcmake` is not available, activate the SDK environment:
+
+```bash
+source ~/emsdk/emsdk_env.sh
+```
+
+To load it automatically when logging in:
+
+```bash
+echo 'source "$HOME/emsdk/emsdk_env.sh" >/dev/null' >> ~/.profile
+```
 
 ## License
 
