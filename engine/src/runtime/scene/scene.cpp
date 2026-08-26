@@ -521,7 +521,6 @@ void Scene::CreateDefaultSceneEntities() {
 
 json Scene::SerializeContent() const {
 	std::vector<Entity> roots;
-
 	for (Entity entity : Entities()) {
 		if (!HasParent(entity)) {
 			roots.emplace_back(entity);
@@ -531,29 +530,29 @@ json Scene::SerializeContent() const {
 	SortByLocalDepth(roots);
 
 	json serialized_entities = json::array();
-
 	for (Entity root : roots) {
-		serialized_entities.emplace_back(SerializeEntity(
-			root, {
-					  .include_uuid		= true,
-					  .include_children = true,
-				  }
-		));
+		serialized_entities.emplace_back(
+			SerializeEntity(
+				root,
+				{
+					.include_uuid = true,
+					.include_children = true,
+				}
+			)
+		);
 	}
 
-	json primary_entities = json::object();
-
+	json primary_entities;
 	primary_entities["render_target"] = GetRenderTarget().Get<UUID>();
-
 	primary_entities["camera"] = GetCamera().Get<UUID>();
-
 	primary_entities["fixed_camera"] = GetFixedCamera().Get<UUID>();
 
-	json content = json::object();
-
+	json content;
 	content["primary_entities"] = std::move(primary_entities);
-
 	content["entities"] = std::move(serialized_entities);
+
+	content["settings"]["physics"] = ctx_->physics;
+	content["settings"]["interaction"] = ctx_->interaction;
 
 	return content;
 }
@@ -661,6 +660,9 @@ void Scene::DeserializeContent(const json& serialized_content) {
 	Refresh();
 
 	UpdateRenderTargetSizes(*this);
+
+	serialized_content.at("settings").at("physics").get_to(ctx_->physics);
+	serialized_content.at("settings").at("interaction").get_to(ctx_->interaction);
 }
 
 void Scene::InternalOnEvent(Event event) {

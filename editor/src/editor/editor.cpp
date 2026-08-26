@@ -46,6 +46,7 @@
 #include "panels/inspector.h"
 #include "panels/scene_hierarchy.h"
 #include "panels/scene_list.h"
+#include "panels/scene_settings.h"
 #include "panels/settings.h"
 #include "panels/viewport.h"
 #include "platform/window.h"
@@ -3170,6 +3171,17 @@ void Editor::DrawMainMenuBar() {
 			);
 		}
 
+		if (ImGui::MenuItem(
+				"Show Read-Only Scene Data",
+				nullptr,
+				GetSettings().show_read_only_scene_data
+			)) {
+			toggle_editor_setting(
+				"Toggle Read-Only Scene Data",
+				&EditorSettings::show_read_only_scene_data
+			);
+		}
+
 		ImGui::EndMenu();
 	}
 
@@ -4160,6 +4172,7 @@ void Editor::DrawPanels() {
 	// stats.
 	viewport_panel_.OnRender(*context_);
 	scene_hierarchy_panel_.OnRender(*context_);
+	scene_settings_panel_.OnRender(*context_);
 	scene_list_panel_.OnRender(*context_);
 	screen_effects_panel_.OnRender(*context_);
 	inspector_panel_.OnRender(*context_);
@@ -4445,6 +4458,8 @@ void Editor::SetEditorSettings(EditorSettings settings) {
 	auto& current{ context_->local.settings };
 	current.show_read_only_inspector_data =
 		settings.show_read_only_inspector_data;
+	current.show_read_only_scene_data =
+		settings.show_read_only_scene_data;
 	current.show_imgui_metrics =
 		settings.show_imgui_metrics;
 	current.preview_screen_effects =
@@ -5481,6 +5496,7 @@ void Editor::BuildDefaultDockLayout(std::uint32_t dockspace_id) {
 
 	ImGui::DockBuilderDockWindow("Scene Hierarchy###SceneHierarchyWindow", dock_left);
 	ImGui::DockBuilderDockWindow("Prefabs###PrefabsWindow", dock_left);
+	ImGui::DockBuilderDockWindow("Settings###SceneSettingsWindow", dock_left);
 	ImGui::DockBuilderDockWindow("Scenes", dock_left_bottom);
 	ImGui::DockBuilderDockWindow("Screen Effects", dock_left_bottom);
 

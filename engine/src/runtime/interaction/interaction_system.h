@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstddef>
 #include <functional>
 #include <ostream>
 #include <unordered_map>
@@ -15,6 +16,7 @@
 #include "runtime/interaction/dropzone.h"
 #include "runtime/interaction/trigger_condition.h"
 #include "runtime/scene/scene_camera.h"
+#include "serialization/serialize.h"
 
 namespace ptgn {
 
@@ -45,6 +47,12 @@ void GetShapes(
 
 } // namespace impl
 
+struct InteractionDebugInfo {
+	std::size_t tracked_cameras{ 0 };
+	std::size_t dragging_entities{ 0 };
+	std::size_t hovered_entities{ 0 };
+};
+
 class InteractionSystem {
 public:
 	/// @param True if input is in top only mode (only top interactable reacts to events), false
@@ -58,9 +66,34 @@ public:
 	/// @return True if any draggable entity is being dragged.
 	[[nodiscard]] bool IsAnyDragging(SceneCamera camera) const;
 
+	[[nodiscard]] InteractionDebugInfo GetDebugInfo() const {
+		InteractionDebugInfo info{};
+
+		for (const auto& [camera, entities] : dragging_entities_) {
+			(void)camera;
+			info.dragging_entities += entities.entities.size();
+		}
+
+		for (const auto& [camera, entities] : last_mouse_over_) {
+			(void)camera;
+			info.hovered_entities += entities.entities.size();
+		}
+
+		info.tracked_cameras = dragging_entities_.size();
+		for (const auto& [camera, entities] : last_mouse_over_) {
+			(void)entities;
+			if (!dragging_entities_.contains(camera)) {
+				++info.tracked_cameras;
+			}
+		}
+
+		return info;
+	}
+
 	[[nodiscard]] static bool Overlap(V2_float point, Entity interactive_entity);
 	[[nodiscard]] static bool Overlap(Entity entityA, Entity entityB);
 
+	PTGN_REFLECT(InteractionSystem, top_only_)
 private:
 	friend class Scene;
 	friend class SceneContext;
@@ -184,7 +217,7 @@ private:
 	/// @brief Stores the set of entities that were under the mouse cursor in the previous frame per
 	/// a given camera.
 	std::unordered_map<SceneCamera, impl::InteractedEntities> last_mouse_over_;
-	
+
 	/// @brief Indicates whether only the top interactable entity should be processed or considered.
 	bool top_only_{ false };
 };

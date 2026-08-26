@@ -258,6 +258,7 @@ static_assert(!ContainsDuplicates(kResolutionPresets, &ResolutionPreset::label))
 					"render only selected scene",
 					"local gizmo orientation transform",
 					"show read only inspector data components members",
+					"show read only scene data diagnostics scene settings",
 				}
 			);
 
@@ -761,6 +762,29 @@ bool DrawEditorGeneralSettings(
 
 		ImGui::TextDisabled(
 			"Shows read-only components and reflected read-only component members."
+		);
+	}
+
+	if (MatchesFilter(
+			filter,
+			{
+				"show read only scene data",
+				"read only scene",
+				"scene diagnostics",
+				"scene settings",
+			}
+		)) {
+		auto settings{ ctx.editor.GetSettings() };
+		if (ImGui::Checkbox(
+				"Show Read-Only Scene Data",
+				&settings.show_read_only_scene_data
+			)) {
+			ctx.editor.SetEditorSettings(settings);
+			changed = true;
+		}
+
+		ImGui::TextDisabled(
+			"Shows compact read-only scene and system diagnostics in the scene Settings panel."
 		);
 	}
 

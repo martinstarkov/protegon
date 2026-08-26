@@ -23,6 +23,7 @@
 #include "panels/inspector.h"
 #include "panels/scene_hierarchy.h"
 #include "panels/scene_list.h"
+#include "panels/scene_settings.h"
 #include "panels/screen_effects.h"
 #include "panels/settings.h"
 #include "panels/viewport.h"
@@ -165,7 +166,7 @@ private:
 		bool was_dirty{ false };
 		bool screen_effect_preview_before_play{ true };
 	};
-	
+
 	void StopDirectRuntime();
 
 #if !defined(__EMSCRIPTEN__)
@@ -218,6 +219,7 @@ private:
 	UndoHistoryWindow undo_history_window_;
 	InspectorPanel inspector_panel_;
 	SceneHierarchyPanel scene_hierarchy_panel_;
+	SceneSettingsPanel scene_settings_panel_;
 	SceneListPanel scene_list_panel_;
 	ScreenEffectsPanel screen_effects_panel_;
 	std::optional<PlaySnapshot> play_snapshot_;
