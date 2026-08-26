@@ -184,6 +184,7 @@ private:
 	/// @brief Stores the set of entities that were under the mouse cursor in the previous frame per
 	/// a given camera.
 	std::unordered_map<SceneCamera, impl::InteractedEntities> last_mouse_over_;
+	
 	/// @brief Indicates whether only the top interactable entity should be processed or considered.
 	bool top_only_{ false };
 };

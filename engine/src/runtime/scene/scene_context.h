@@ -63,7 +63,7 @@ public:
 	Physics physics;
 	CollisionHandler collision;
 
-	/// @brief Scene-local shared ScriptSequence definitions used by shared sequence bindings.
+	/// @brief Scene local shared ScriptSequence definitions used by shared sequence bindings.
 	SharedScriptSequenceRegistry shared_script_sequences;
 
 	/// @brief The default camera used by all objects in the scene. By default it resizes to the
