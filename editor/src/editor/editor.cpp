@@ -1054,17 +1054,29 @@ Editor::Editor(Application& application) : app{ application } {
 		::ptgn::impl::GetBuildInfo()
 	};
 
-	desktop_export_directory_ = (
+	path desktop_export_directory{
 		build_info.source_directory /
-		"release" /
-		build_info.target
-	).string();
+		"release"
+	};
+	path web_export_directory{
+		build_info.source_directory /
+		"release-web"
+	};
 
-	web_export_directory_ = (
-		build_info.source_directory /
-		"release-web" /
-		build_info.target
-	).string();
+	// Protegon examples share one source tree, so each example needs its own
+	// distribution subdirectory. Standalone applications own release/ and
+	// release-web/ directly.
+	if (build_info.IsExample()) {
+		desktop_export_directory /=
+			build_info.target;
+		web_export_directory /=
+			build_info.target;
+	}
+
+	desktop_export_directory_ =
+		desktop_export_directory.string();
+	web_export_directory_ =
+		web_export_directory.string();
 #endif
 }
 
@@ -3692,7 +3704,7 @@ void Editor::DrawExportWindow() {
 		if (busy) {
 			const bool can_cancel{ export_manager_.CanCancel() };
 			ImGui::BeginDisabled(!can_cancel);
-			if (ImGui::Button("Cancel Export")) {
+			if (ImGui::Button("Cancel Task")) {
 				export_manager_.Cancel();
 			}
 			ImGui::EndDisabled();
@@ -3740,6 +3752,206 @@ void Editor::DrawExportWindow() {
 						.value()
 						.c_str()
 				);
+			}
+		}
+
+
+		if (export_target_ == ExportTarget::Web) {
+			ImGui::SeparatorText("Web Distribution");
+
+			const path web_output_directory{
+				web_export_directory_
+			};
+			const bool web_files_exist{
+				export_manager_.HasWebOutput(
+					web_output_directory
+				)
+			};
+			const bool server_running{
+				export_manager_.IsWebServerRunning()
+			};
+			const bool can_run_server{
+				export_manager_.CanRunWebServer(
+					web_output_directory
+				)
+			};
+			const auto& server_availability{
+				export_manager_.GetWebServerAvailability()
+			};
+			const bool server_prerequisite_warning{
+				!server_availability.available
+			};
+
+			const char* server_button_label{
+				server_running
+					? (
+						can_run_server
+							? "Restart Web Server"
+							: "Web Server Running"
+					)
+					: "Run Web Server"
+			};
+
+			if (server_prerequisite_warning) {
+				ImGui::PushStyleColor(
+					ImGuiCol_Border,
+					ImVec4{
+						0.90f,
+						0.20f,
+						0.20f,
+						1.0f
+					}
+				);
+				ImGui::PushStyleVar(
+					ImGuiStyleVar_FrameBorderSize,
+					1.0f
+				);
+			}
+
+			ImGui::BeginDisabled(
+				!can_run_server
+			);
+			if (ImGui::Button(
+					server_button_label
+				)) {
+				export_manager_.RunWebServer(
+					web_output_directory
+				);
+			}
+			ImGui::EndDisabled();
+
+			const bool server_button_hovered{
+				ImGui::IsItemHovered(
+					ImGuiHoveredFlags_AllowWhenDisabled |
+						ImGuiHoveredFlags_Stationary
+				)
+			};
+
+			if (server_prerequisite_warning) {
+				ImGui::PopStyleVar();
+				ImGui::PopStyleColor();
+			}
+
+			if (server_button_hovered) {
+				if (server_prerequisite_warning) {
+					ImGui::BeginTooltip();
+					ImGui::TextColored(
+						ImVec4{
+							1.0f,
+							0.35f,
+							0.35f,
+							1.0f
+						},
+						"Server prerequisite missing"
+					);
+					ImGui::Separator();
+					ImGui::TextWrapped(
+						"%s",
+						server_availability
+							.unavailable_reason
+							.c_str()
+					);
+					ImGui::EndTooltip();
+				} else if (busy) {
+					ImGui::SetTooltip(
+						"Wait for the current export task to finish."
+					);
+				} else if (!web_files_exist) {
+					ImGui::SetTooltip(
+						"No Web export exists yet. Expected index.html in:\n%s",
+						web_output_directory.string().c_str()
+					);
+				} else if (
+					server_running &&
+					!can_run_server
+				) {
+					ImGui::SetTooltip(
+						"The current Web files are already being served at http://127.0.0.1:8000/."
+					);
+				} else if (
+					server_running &&
+					can_run_server
+				) {
+					ImGui::SetTooltip(
+						"The Web export changed since the server was started. Restart the server using the current files."
+					);
+				} else {
+					ImGui::SetTooltip(
+						"Serve this Web export at http://127.0.0.1:8000/ using Python 3."
+					);
+				}
+			}
+
+			if (server_running) {
+				ImGui::SameLine();
+				if (ImGui::Button(
+						"Stop Web Server"
+					)) {
+					export_manager_.StopWebServer();
+				}
+				if (ImGui::IsItemHovered(
+						ImGuiHoveredFlags_Stationary
+					)) {
+					ImGui::SetTooltip(
+						"Stop the local server on port 8000."
+					);
+				}
+			}
+
+			ImGui::SameLine();
+
+			const path web_zip_path{
+				export_manager_.GetWebZipPath(
+					web_output_directory
+				)
+			};
+			const bool web_zip_current{
+				export_manager_.IsWebZipCurrent(
+					web_output_directory
+				)
+			};
+			const bool can_zip_web{
+				!busy &&
+				web_files_exist &&
+				!web_zip_current
+			};
+
+			ImGui::BeginDisabled(
+				!can_zip_web
+			);
+			if (ImGui::Button(
+					"Zip Web Release"
+				)) {
+				export_manager_.ZipWebOutput(
+					web_output_directory
+				);
+			}
+			ImGui::EndDisabled();
+
+			if (ImGui::IsItemHovered(
+					ImGuiHoveredFlags_AllowWhenDisabled |
+						ImGuiHoveredFlags_Stationary
+				)) {
+				if (busy) {
+					ImGui::SetTooltip(
+						"Wait for the current export task to finish."
+					);
+				} else if (!web_files_exist) {
+					ImGui::SetTooltip(
+						"No Web export exists yet. Expected index.html in:\n%s",
+						web_output_directory.string().c_str()
+					);
+				} else if (web_zip_current) {
+					ImGui::SetTooltip(
+						"The ZIP is already up to date:\n%s",
+						web_zip_path.string().c_str()
+					);
+				} else {
+					ImGui::SetTooltip(
+						"Create or replace:\n%s",
+						web_zip_path.string().c_str()
+					);
+				}
 			}
 		}
 

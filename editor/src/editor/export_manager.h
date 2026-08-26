@@ -9,6 +9,7 @@
 #include <mutex>
 #include <optional>
 #include <string>
+#include <vector>
 
 #include "core/util/file.h"
 
@@ -37,6 +38,7 @@ enum class ExportPhase {
 	ProjectFiles,
 	Build,
 	Output,
+	Package,
 	Clean,
 };
 
@@ -85,6 +87,7 @@ enum class ExportTaskKind {
 	None,
 	Desktop,
 	Web,
+	ZipWeb,
 	Clean,
 };
 
@@ -123,11 +126,22 @@ public:
 	bool Export(ExportRequest request);
 	bool Clean(ExportTarget target, ExportConfiguration configuration);
 
+	/// @brief Starts a Python HTTP server for an existing Web distribution.
+	/// If this manager is already serving an older version of the same output,
+	/// the old server is stopped and replaced.
+	bool RunWebServer(const path& web_output_directory);
+	void StopWebServer();
+
+	/// @brief Creates/replaces <target>.zip from the selected Web distribution.
+	/// The archive is written in release-web next to example output, or directly
+	/// inside the standalone release-web directory.
+	bool ZipWebOutput(const path& web_output_directory);
+
 	void Cancel();
 	void OnUpdate();
 	void DrawOutputPanel();
 
-	/// @brief Re-check the current process PATH for export toolchains.
+	/// @brief Re-check the current process PATH for export toolchains and Python.
 	/// Call this when opening the export window so tools installed while the
 	/// editor is running can be picked up after the process environment changes.
 	void RefreshToolAvailability();
@@ -136,6 +150,14 @@ public:
 		ExportTarget target
 	) const;
 	[[nodiscard]] bool IsTargetAvailable(ExportTarget target) const;
+
+	[[nodiscard]] const ExportTargetAvailability& GetWebServerAvailability() const;
+	[[nodiscard]] bool HasWebOutput(const path& web_output_directory) const;
+	[[nodiscard]] bool IsWebServerRunning() const;
+	[[nodiscard]] bool CanRunWebServer(const path& web_output_directory) const;
+
+	[[nodiscard]] path GetWebZipPath(const path& web_output_directory) const;
+	[[nodiscard]] bool IsWebZipCurrent(const path& web_output_directory) const;
 
 	[[nodiscard]] bool IsBusy() const;
 	[[nodiscard]] bool CanCancel() const;
@@ -155,6 +177,7 @@ private:
 		std::future<impl::ExportTaskResult> future
 	);
 	void ClearOutput();
+	void RefreshWebServerState();
 
 	std::shared_ptr<impl::ExportSharedState> shared_state_;
 	std::future<impl::ExportTaskResult> future_;
@@ -165,6 +188,18 @@ private:
 	std::optional<path> last_web_export_directory_;
 	ExportTargetAvailability desktop_availability_;
 	ExportTargetAvailability web_availability_;
+	ExportTargetAvailability web_server_availability_;
+	std::string web_server_executable_;
+	std::vector<std::string> web_server_prefix_arguments_;
+	std::intptr_t web_server_process_{ 0 };
+	std::intptr_t web_server_job_{ 0 };
+	path web_server_directory_;
+	std::uint64_t web_server_output_stamp_{ 0 };
+	std::uint64_t web_server_export_revision_{ 0 };
+	std::uint64_t web_export_revision_{ 0 };
+	std::uint64_t web_zip_revision_{ 0 };
+	path web_zip_source_directory_;
+	path pending_web_zip_source_directory_;
 	std::uint64_t last_rendered_output_revision_{ 0 };
 	std::string rendered_output_;
 	bool follow_output_tail_{ true };

@@ -12,8 +12,11 @@
 #include <cstdio>
 #include <cstdlib>
 #include <filesystem>
+#include <fstream>
+#include <limits>
 #include <optional>
 #include <regex>
+#include <span>
 #include <string_view>
 #include <system_error>
 #include <thread>
@@ -30,6 +33,7 @@
 #include <csignal>
 #include <sys/types.h>
 #include <sys/wait.h>
+#include <fcntl.h>
 #include <unistd.h>
 #endif
 
@@ -51,6 +55,7 @@ struct CopySource {
 	switch (kind) {
 		case impl::ExportTaskKind::Desktop: return "Desktop export";
 		case impl::ExportTaskKind::Web: return "Web export";
+		case impl::ExportTaskKind::ZipWeb: return "Web ZIP";
 		case impl::ExportTaskKind::Clean: return "Clean";
 		case impl::ExportTaskKind::None: break;
 	}
@@ -286,6 +291,54 @@ void AddMissingCommand(
 			JoinCommandNames(missing) + ".",
 	};
 }
+
+struct PythonCommand {
+	std::string executable{};
+	std::vector<std::string> prefix_arguments{};
+};
+
+[[nodiscard]] std::optional<PythonCommand> FindPython3Command() {
+	if (CommandExists("python3")) {
+		return PythonCommand{
+			.executable = "python3",
+		};
+	}
+
+#if defined(_WIN32)
+	if (CommandExists("py")) {
+		return PythonCommand{
+			.executable = "py",
+			.prefix_arguments = { "-3" },
+		};
+	}
+#endif
+
+	if (CommandExists("python")) {
+		return PythonCommand{
+			.executable = "python",
+		};
+	}
+
+	return std::nullopt;
+}
+
+[[nodiscard]] ExportTargetAvailability CheckWebServerAvailability(
+	const std::optional<PythonCommand>& python
+) {
+	if (python.has_value()) {
+		return ExportTargetAvailability{
+			.available = true,
+		};
+	}
+
+	return ExportTargetAvailability{
+		.available = false,
+		.unavailable_reason =
+			"Local Web server unavailable. Python 3 was not found in PATH. "
+			"Install Python 3 so python3, py, or python is available.",
+	};
+}
+
 
 [[nodiscard]] std::string Quote(std::string_view value) {
 #if defined(_WIN32)
@@ -1008,6 +1061,929 @@ void TerminateActiveProcess(const std::shared_ptr<impl::ExportSharedState>& stat
 	return !error;
 }
 
+
+[[nodiscard]] path WebIndexPath(const path& web_output_directory) {
+	return (web_output_directory / "index.html").lexically_normal();
+}
+
+[[nodiscard]] bool HasWebDistribution(const path& web_output_directory) {
+	std::error_code error;
+	return fs::is_regular_file(
+		WebIndexPath(web_output_directory),
+		error
+	) && !error;
+}
+
+[[nodiscard]] std::uint64_t WebDistributionStamp(
+	const path& web_output_directory
+) {
+	std::error_code error;
+	const path index_path{ WebIndexPath(web_output_directory) };
+
+	const auto write_time{
+		fs::last_write_time(index_path, error)
+	};
+	if (error) {
+		return 0;
+	}
+
+	error.clear();
+	const auto size{
+		fs::file_size(index_path, error)
+	};
+	if (error) {
+		return 0;
+	}
+
+	const auto ticks{
+		write_time.time_since_epoch().count()
+	};
+
+	std::uint64_t value{
+		static_cast<std::uint64_t>(ticks)
+	};
+	value ^= static_cast<std::uint64_t>(size) +
+			 0x9e3779b97f4a7c15ULL +
+			 (value << 6U) +
+			 (value >> 2U);
+	return value;
+}
+
+struct DetachedProcess {
+	std::intptr_t process{ 0 };
+	std::intptr_t job{ 0 };
+};
+
+#if defined(_WIN32)
+
+[[nodiscard]] std::optional<DetachedProcess> StartDetachedProcess(
+	std::string_view executable,
+	const std::vector<std::string>& arguments
+) {
+	const std::string command{
+		MakeCommand(
+			executable,
+			arguments
+		)
+	};
+
+	std::vector<char> mutable_command(
+		command.begin(),
+		command.end()
+	);
+	mutable_command.push_back('\0');
+
+	STARTUPINFOA startup_info{};
+	startup_info.cb = sizeof(startup_info);
+
+	PROCESS_INFORMATION process_info{};
+	const BOOL created{
+		CreateProcessA(
+			nullptr,
+			mutable_command.data(),
+			nullptr,
+			nullptr,
+			FALSE,
+			CREATE_NO_WINDOW |
+				CREATE_NEW_PROCESS_GROUP,
+			nullptr,
+			nullptr,
+			&startup_info,
+			&process_info
+		)
+	};
+
+	if (!created) {
+		return std::nullopt;
+	}
+
+	HANDLE job{
+		CreateJobObjectA(nullptr, nullptr)
+	};
+	if (!job) {
+		TerminateProcess(process_info.hProcess, 1);
+		CloseHandle(process_info.hThread);
+		CloseHandle(process_info.hProcess);
+		return std::nullopt;
+	}
+
+	JOBOBJECT_EXTENDED_LIMIT_INFORMATION job_info{};
+	job_info.BasicLimitInformation.LimitFlags =
+		JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE;
+	SetInformationJobObject(
+		job,
+		JobObjectExtendedLimitInformation,
+		&job_info,
+		sizeof(job_info)
+	);
+
+	if (!AssignProcessToJobObject(
+			job,
+			process_info.hProcess
+		)) {
+		TerminateProcess(process_info.hProcess, 1);
+		CloseHandle(job);
+		CloseHandle(process_info.hThread);
+		CloseHandle(process_info.hProcess);
+		return std::nullopt;
+	}
+
+	CloseHandle(process_info.hThread);
+
+	return DetachedProcess{
+		.process =
+			reinterpret_cast<std::intptr_t>(
+				process_info.hProcess
+			),
+		.job =
+			reinterpret_cast<std::intptr_t>(job),
+	};
+}
+
+[[nodiscard]] bool IsDetachedProcessRunning(
+	DetachedProcess process
+) {
+	if (process.process == 0) {
+		return false;
+	}
+
+	return WaitForSingleObject(
+		reinterpret_cast<HANDLE>(process.process),
+		0
+	) == WAIT_TIMEOUT;
+}
+
+void CloseDetachedProcess(
+	DetachedProcess& process,
+	bool terminate
+) {
+	if (process.job != 0 && terminate) {
+		TerminateJobObject(
+			reinterpret_cast<HANDLE>(process.job),
+			0
+		);
+	}
+
+	if (process.process != 0) {
+		if (terminate) {
+			WaitForSingleObject(
+				reinterpret_cast<HANDLE>(process.process),
+				1000
+			);
+		}
+		CloseHandle(
+			reinterpret_cast<HANDLE>(process.process)
+		);
+	}
+
+	if (process.job != 0) {
+		CloseHandle(
+			reinterpret_cast<HANDLE>(process.job)
+		);
+	}
+
+	process = {};
+}
+
+#else
+
+[[nodiscard]] std::optional<DetachedProcess> StartDetachedProcess(
+	std::string_view executable,
+	const std::vector<std::string>& arguments
+) {
+	const pid_t pid{ fork() };
+	if (pid < 0) {
+		return std::nullopt;
+	}
+
+	if (pid == 0) {
+		setpgid(0, 0);
+
+		const int dev_null{
+			open("/dev/null", O_WRONLY)
+		};
+		if (dev_null >= 0) {
+			dup2(dev_null, STDOUT_FILENO);
+			dup2(dev_null, STDERR_FILENO);
+			close(dev_null);
+		}
+
+		std::vector<std::string> owned_arguments;
+		owned_arguments.reserve(
+			arguments.size() + 1
+		);
+		owned_arguments.emplace_back(executable);
+		owned_arguments.insert(
+			owned_arguments.end(),
+			arguments.begin(),
+			arguments.end()
+		);
+
+		std::vector<char*> argv;
+		argv.reserve(
+			owned_arguments.size() + 1
+		);
+		for (auto& argument : owned_arguments) {
+			argv.emplace_back(argument.data());
+		}
+		argv.emplace_back(nullptr);
+
+		execvp(
+			owned_arguments.front().c_str(),
+			argv.data()
+		);
+		_exit(127);
+	}
+
+	setpgid(pid, pid);
+
+	return DetachedProcess{
+		.process = static_cast<std::intptr_t>(pid),
+	};
+}
+
+[[nodiscard]] bool IsDetachedProcessRunning(
+	DetachedProcess process
+) {
+	if (process.process == 0) {
+		return false;
+	}
+
+	int status{};
+	const pid_t pid{
+		static_cast<pid_t>(process.process)
+	};
+	const pid_t result{
+		waitpid(
+			pid,
+			&status,
+			WNOHANG
+		)
+	};
+
+	if (result == 0) {
+		return true;
+	}
+	if (result < 0 && errno == EINTR) {
+		return true;
+	}
+	return false;
+}
+
+void CloseDetachedProcess(
+	DetachedProcess& process,
+	bool terminate
+) {
+	if (process.process == 0) {
+		process = {};
+		return;
+	}
+
+	const pid_t pid{
+		static_cast<pid_t>(process.process)
+	};
+
+	if (terminate) {
+		kill(-pid, SIGTERM);
+
+		for (int attempt{}; attempt < 20; ++attempt) {
+			int status{};
+			const pid_t result{
+				waitpid(
+					pid,
+					&status,
+					WNOHANG
+				)
+			};
+			if (result == pid || result < 0) {
+				process = {};
+				return;
+			}
+			std::this_thread::sleep_for(10ms);
+		}
+
+		kill(-pid, SIGKILL);
+	}
+
+	int status{};
+	while (waitpid(pid, &status, 0) < 0 &&
+		   errno == EINTR) {
+	}
+
+	process = {};
+}
+
+#endif
+
+void WriteZipU16(
+	std::ostream& output,
+	std::uint16_t value
+) {
+	const std::array<char, 2> bytes{
+		static_cast<char>(value & 0xFFU),
+		static_cast<char>((value >> 8U) & 0xFFU),
+	};
+	output.write(bytes.data(), bytes.size());
+}
+
+void WriteZipU32(
+	std::ostream& output,
+	std::uint32_t value
+) {
+	const std::array<char, 4> bytes{
+		static_cast<char>(value & 0xFFU),
+		static_cast<char>((value >> 8U) & 0xFFU),
+		static_cast<char>((value >> 16U) & 0xFFU),
+		static_cast<char>((value >> 24U) & 0xFFU),
+	};
+	output.write(bytes.data(), bytes.size());
+}
+
+[[nodiscard]] std::uint32_t UpdateCrc32(
+	std::uint32_t crc,
+	const char* data,
+	std::size_t size
+) {
+	for (std::size_t index{}; index < size; ++index) {
+		crc ^=
+			static_cast<std::uint8_t>(
+				data[index]
+			);
+
+		for (int bit{}; bit < 8; ++bit) {
+			const std::uint32_t mask{
+				static_cast<std::uint32_t>(
+					-static_cast<std::int32_t>(
+						crc & 1U
+					)
+				)
+			};
+			crc =
+				(crc >> 1U) ^
+				(0xEDB88320U & mask);
+		}
+	}
+
+	return crc;
+}
+
+struct ZipEntry {
+	path source{};
+	std::string archive_name{};
+	std::uint32_t crc32{};
+	std::uint32_t size{};
+	std::uint32_t local_header_offset{};
+};
+
+[[nodiscard]] std::optional<std::vector<ZipEntry>>
+CollectZipEntries(
+	const path& source_directory,
+	const path& zip_path,
+	const std::shared_ptr<impl::ExportSharedState>& state,
+	std::uintmax_t& total_bytes
+) {
+	std::vector<ZipEntry> entries;
+	total_bytes = 0;
+
+	const path normalized_zip{
+		NormalizeExportPath(zip_path)
+	};
+
+	std::error_code error;
+	for (
+		fs::recursive_directory_iterator it{
+			source_directory,
+			error
+		},
+			end;
+		it != end && !error;
+		it.increment(error)
+	) {
+		if (IsCancelled(state)) {
+			return std::nullopt;
+		}
+
+		if (!it->is_regular_file(error)) {
+			error.clear();
+			continue;
+		}
+		if (error) {
+			return std::nullopt;
+		}
+
+		const path source{
+			it->path()
+		};
+		if (NormalizeExportPath(source) ==
+			normalized_zip) {
+			continue;
+		}
+
+		const auto size{
+			it->file_size(error)
+		};
+		if (error ||
+			size >
+				std::numeric_limits<std::uint32_t>::max()) {
+			AppendOutputLine(
+				state,
+				error
+					? "Failed to inspect Web file for ZIP: " +
+						source.string() + " | " +
+						error.message()
+					: "Web ZIP does not support individual files larger than 4 GiB: " +
+						source.string()
+			);
+			return std::nullopt;
+		}
+
+		const path relative{
+			source.lexically_relative(
+				source_directory
+			)
+		};
+		const auto utf8_name{
+			relative.generic_u8string()
+		};
+		std::string archive_name{
+			reinterpret_cast<const char*>(
+				utf8_name.data()
+			),
+			utf8_name.size()
+		};
+
+		if (archive_name.size() >
+			std::numeric_limits<std::uint16_t>::max()) {
+			AppendOutputLine(
+				state,
+				"Web ZIP path is too long: " +
+					relative.generic_string()
+			);
+			return std::nullopt;
+		}
+
+		entries.emplace_back(
+			ZipEntry{
+				.source = source,
+				.archive_name =
+					std::move(archive_name),
+				.size =
+					static_cast<std::uint32_t>(
+						size
+					),
+			}
+		);
+		total_bytes += size;
+	}
+
+	if (error) {
+		AppendOutputLine(
+			state,
+			"Failed to enumerate Web files for ZIP: " +
+				error.message()
+		);
+		return std::nullopt;
+	}
+
+	if (entries.size() >
+		std::numeric_limits<std::uint16_t>::max()) {
+		AppendOutputLine(
+			state,
+			"Web ZIP contains too many files for ZIP32."
+		);
+		return std::nullopt;
+	}
+
+	std::ranges::sort(
+		entries,
+		{},
+		&ZipEntry::archive_name
+	);
+
+	return entries;
+}
+
+[[nodiscard]] bool CalculateZipCrcs(
+	std::vector<ZipEntry>& entries,
+	const std::shared_ptr<impl::ExportSharedState>& state,
+	std::uintmax_t total_bytes
+) {
+	std::array<char, 64 * 1024> buffer{};
+	std::uintmax_t processed{};
+
+	for (auto& entry : entries) {
+		if (IsCancelled(state)) {
+			return false;
+		}
+
+		std::ifstream input{
+			entry.source,
+			std::ios::binary
+		};
+		if (!input) {
+			AppendOutputLine(
+				state,
+				"Failed to read Web file for ZIP: " +
+					entry.source.string()
+			);
+			return false;
+		}
+
+		std::uint32_t crc{
+			0xFFFFFFFFU
+		};
+
+		while (input) {
+			input.read(
+				buffer.data(),
+				static_cast<std::streamsize>(
+					buffer.size()
+				)
+			);
+			const auto count{
+				input.gcount()
+			};
+			if (count <= 0) {
+				break;
+			}
+
+			crc = UpdateCrc32(
+				crc,
+				buffer.data(),
+				static_cast<std::size_t>(
+					count
+				)
+			);
+			processed +=
+				static_cast<std::uintmax_t>(
+					count
+				);
+
+			const float ratio{
+				total_bytes == 0
+					? 1.0f
+					: static_cast<float>(
+						processed
+					  ) /
+						static_cast<float>(
+							total_bytes
+						)
+			};
+			state->progress.store(
+				std::clamp(
+					ratio * 0.45f,
+					0.0f,
+					0.45f
+				),
+				std::memory_order_relaxed
+			);
+
+			if (IsCancelled(state)) {
+				return false;
+			}
+		}
+
+		if (!input.eof() && input.fail()) {
+			AppendOutputLine(
+				state,
+				"Failed while reading Web file for ZIP: " +
+					entry.source.string()
+			);
+			return false;
+		}
+
+		entry.crc32 = crc ^ 0xFFFFFFFFU;
+	}
+
+	return true;
+}
+
+[[nodiscard]] bool CreateWebZip(
+	const path& source_directory,
+	const path& zip_path,
+	const std::shared_ptr<impl::ExportSharedState>& state
+) {
+	if (!HasWebDistribution(source_directory)) {
+		AppendOutputLine(
+			state,
+			"Web ZIP source does not contain index.html: " +
+				source_directory.string()
+		);
+		return false;
+	}
+
+	std::error_code error;
+	fs::create_directories(
+		zip_path.parent_path(),
+		error
+	);
+	if (error) {
+		AppendOutputLine(
+			state,
+			"Failed to create ZIP output directory: " +
+				error.message()
+		);
+		return false;
+	}
+
+	error.clear();
+	if (fs::exists(zip_path, error)) {
+		fs::remove(zip_path, error);
+		if (error) {
+			AppendOutputLine(
+				state,
+				"Failed to replace existing Web ZIP: " +
+					zip_path.string() + " | " +
+					error.message()
+			);
+			return false;
+		}
+	}
+
+	std::uintmax_t total_bytes{};
+	auto entries_result{
+		CollectZipEntries(
+			source_directory,
+			zip_path,
+			state,
+			total_bytes
+		)
+	};
+	if (!entries_result.has_value()) {
+		return false;
+	}
+
+	auto entries{
+		std::move(entries_result.value())
+	};
+	if (entries.empty()) {
+		AppendOutputLine(
+			state,
+			"No Web files were found to ZIP."
+		);
+		return false;
+	}
+
+	if (!CalculateZipCrcs(
+			entries,
+			state,
+			total_bytes
+		)) {
+		return false;
+	}
+
+	if (IsCancelled(state)) {
+		return false;
+	}
+
+	std::ofstream output{
+		zip_path,
+		std::ios::binary |
+			std::ios::trunc
+	};
+	if (!output) {
+		AppendOutputLine(
+			state,
+			"Failed to create Web ZIP: " +
+				zip_path.string()
+		);
+		return false;
+	}
+
+	constexpr std::uint16_t kZipVersion{ 20 };
+	constexpr std::uint16_t kUtf8Flag{ 0x0800 };
+	constexpr std::uint16_t kStoreMethod{ 0 };
+	constexpr std::uint16_t kDosTime{ 0 };
+	constexpr std::uint16_t kDosDate{ 0x0021 };
+
+	std::array<char, 64 * 1024> buffer{};
+	std::uintmax_t written_source_bytes{};
+
+	for (auto& entry : entries) {
+		const std::streamoff offset{
+			output.tellp()
+		};
+		if (offset < 0 ||
+			static_cast<std::uint64_t>(offset) >
+				std::numeric_limits<std::uint32_t>::max()) {
+			AppendOutputLine(
+				state,
+				"Web ZIP exceeded ZIP32 size limits."
+			);
+			output.close();
+			fs::remove(zip_path, error);
+			return false;
+		}
+		entry.local_header_offset =
+			static_cast<std::uint32_t>(
+				offset
+			);
+
+		WriteZipU32(output, 0x04034B50U);
+		WriteZipU16(output, kZipVersion);
+		WriteZipU16(output, kUtf8Flag);
+		WriteZipU16(output, kStoreMethod);
+		WriteZipU16(output, kDosTime);
+		WriteZipU16(output, kDosDate);
+		WriteZipU32(output, entry.crc32);
+		WriteZipU32(output, entry.size);
+		WriteZipU32(output, entry.size);
+		WriteZipU16(
+			output,
+			static_cast<std::uint16_t>(
+				entry.archive_name.size()
+			)
+		);
+		WriteZipU16(output, 0);
+		output.write(
+			entry.archive_name.data(),
+			static_cast<std::streamsize>(
+				entry.archive_name.size()
+			)
+		);
+
+		std::ifstream input{
+			entry.source,
+			std::ios::binary
+		};
+		if (!input) {
+			AppendOutputLine(
+				state,
+				"Failed to reopen Web file for ZIP: " +
+					entry.source.string()
+			);
+			output.close();
+			fs::remove(zip_path, error);
+			return false;
+		}
+
+		while (input) {
+			input.read(
+				buffer.data(),
+				static_cast<std::streamsize>(
+					buffer.size()
+				)
+			);
+			const auto count{
+				input.gcount()
+			};
+			if (count <= 0) {
+				break;
+			}
+
+			output.write(
+				buffer.data(),
+				count
+			);
+			if (!output) {
+				AppendOutputLine(
+					state,
+					"Failed while writing Web ZIP."
+				);
+				output.close();
+				fs::remove(zip_path, error);
+				return false;
+			}
+
+			written_source_bytes +=
+				static_cast<std::uintmax_t>(
+					count
+				);
+			const float ratio{
+				total_bytes == 0
+					? 1.0f
+					: static_cast<float>(
+						written_source_bytes
+					  ) /
+						static_cast<float>(
+							total_bytes
+						)
+			};
+			state->progress.store(
+				std::clamp(
+					0.45f +
+						ratio * 0.45f,
+					0.45f,
+					0.90f
+				),
+				std::memory_order_relaxed
+			);
+
+			if (IsCancelled(state)) {
+				output.close();
+				fs::remove(zip_path, error);
+				return false;
+			}
+		}
+	}
+
+	const std::streamoff central_start{
+		output.tellp()
+	};
+	if (central_start < 0 ||
+		static_cast<std::uint64_t>(central_start) >
+			std::numeric_limits<std::uint32_t>::max()) {
+		AppendOutputLine(
+			state,
+			"Web ZIP exceeded ZIP32 size limits."
+		);
+		output.close();
+		fs::remove(zip_path, error);
+		return false;
+	}
+
+	for (const auto& entry : entries) {
+		WriteZipU32(output, 0x02014B50U);
+		WriteZipU16(output, kZipVersion);
+		WriteZipU16(output, kZipVersion);
+		WriteZipU16(output, kUtf8Flag);
+		WriteZipU16(output, kStoreMethod);
+		WriteZipU16(output, kDosTime);
+		WriteZipU16(output, kDosDate);
+		WriteZipU32(output, entry.crc32);
+		WriteZipU32(output, entry.size);
+		WriteZipU32(output, entry.size);
+		WriteZipU16(
+			output,
+			static_cast<std::uint16_t>(
+				entry.archive_name.size()
+			)
+		);
+		WriteZipU16(output, 0);
+		WriteZipU16(output, 0);
+		WriteZipU16(output, 0);
+		WriteZipU16(output, 0);
+		WriteZipU32(output, 0);
+		WriteZipU32(
+			output,
+			entry.local_header_offset
+		);
+		output.write(
+			entry.archive_name.data(),
+			static_cast<std::streamsize>(
+				entry.archive_name.size()
+			)
+		);
+	}
+
+	const std::streamoff central_end{
+		output.tellp()
+	};
+	if (central_end < 0 ||
+		static_cast<std::uint64_t>(central_end) >
+			std::numeric_limits<std::uint32_t>::max()) {
+		AppendOutputLine(
+			state,
+			"Web ZIP exceeded ZIP32 size limits."
+		);
+		output.close();
+		fs::remove(zip_path, error);
+		return false;
+	}
+
+	const auto central_size{
+		static_cast<std::uint32_t>(
+			central_end - central_start
+		)
+	};
+	const auto entry_count{
+		static_cast<std::uint16_t>(
+			entries.size()
+		)
+	};
+
+	WriteZipU32(output, 0x06054B50U);
+	WriteZipU16(output, 0);
+	WriteZipU16(output, 0);
+	WriteZipU16(output, entry_count);
+	WriteZipU16(output, entry_count);
+	WriteZipU32(output, central_size);
+	WriteZipU32(
+		output,
+		static_cast<std::uint32_t>(
+			central_start
+		)
+	);
+	WriteZipU16(output, 0);
+
+	output.flush();
+	if (!output) {
+		AppendOutputLine(
+			state,
+			"Failed to finalize Web ZIP."
+		);
+		output.close();
+		fs::remove(zip_path, error);
+		return false;
+	}
+
+	state->progress.store(
+		1.0f,
+		std::memory_order_relaxed
+	);
+	return true;
+}
+
 [[nodiscard]] path ExportBuildDirectory(
 	const ::ptgn::impl::BuildInfo& info,
 	ExportTarget target,
@@ -1187,6 +2163,7 @@ ExportManager::ExportManager() :
 }
 
 ExportManager::~ExportManager() {
+	StopWebServer();
 	Cancel();
 	if (future_.valid()) {
 		future_.wait();
@@ -1730,6 +2707,218 @@ bool ExportManager::Clean(
 	);
 }
 
+
+bool ExportManager::RunWebServer(
+	const path& web_output_directory
+) {
+	RefreshWebServerState();
+
+	if (IsBusy() ||
+		!web_server_availability_.available ||
+		!HasWebDistribution(web_output_directory)) {
+		return false;
+	}
+
+	if (!CanRunWebServer(web_output_directory)) {
+		return false;
+	}
+
+	if (IsWebServerRunning()) {
+		StopWebServer();
+	}
+
+	std::vector<std::string> arguments{
+		web_server_prefix_arguments_
+	};
+	arguments.emplace_back("-m");
+	arguments.emplace_back("http.server");
+	arguments.emplace_back("8000");
+	arguments.emplace_back("--bind");
+	arguments.emplace_back("127.0.0.1");
+	arguments.emplace_back("--directory");
+	arguments.emplace_back(
+		NormalizeExportPath(
+			web_output_directory
+		).string()
+	);
+
+	auto process{
+		StartDetachedProcess(
+			web_server_executable_,
+			arguments
+		)
+	};
+	if (!process.has_value()) {
+		AppendOutputLine(
+			shared_state_,
+			"Failed to start local Web server."
+		);
+		return false;
+	}
+
+	web_server_process_ =
+		process->process;
+	web_server_job_ =
+		process->job;
+	web_server_directory_ =
+		NormalizeExportPath(
+			web_output_directory
+		);
+	web_server_output_stamp_ =
+		WebDistributionStamp(
+			web_output_directory
+		);
+	web_server_export_revision_ =
+		web_export_revision_;
+
+	AppendOutputLine(
+		shared_state_,
+		"Local Web server started."
+	);
+	AppendOutputLine(
+		shared_state_,
+		"Serving: " +
+			web_server_directory_.string()
+	);
+	AppendOutputLine(
+		shared_state_,
+		"URL: http://127.0.0.1:8000/"
+	);
+
+	return true;
+}
+
+void ExportManager::StopWebServer() {
+	if (web_server_process_ == 0) {
+		return;
+	}
+
+	DetachedProcess process{
+		.process = web_server_process_,
+		.job = web_server_job_,
+	};
+	CloseDetachedProcess(
+		process,
+		true
+	);
+
+	web_server_process_ = 0;
+	web_server_job_ = 0;
+	web_server_directory_.clear();
+	web_server_output_stamp_ = 0;
+	web_server_export_revision_ = 0;
+
+	AppendOutputLine(
+		shared_state_,
+		"Local Web server stopped."
+	);
+}
+
+bool ExportManager::ZipWebOutput(
+	const path& web_output_directory
+) {
+	if (IsBusy() ||
+		!HasWebDistribution(web_output_directory) ||
+		IsWebZipCurrent(web_output_directory)) {
+		return false;
+	}
+
+	const path source_directory{
+		NormalizeExportPath(
+			web_output_directory
+		)
+	};
+	const path zip_path{
+		GetWebZipPath(
+			source_directory
+		)
+	};
+
+	const auto state{
+		shared_state_
+	};
+
+	ClearOutput();
+	state->cancel_requested.store(
+		false,
+		std::memory_order_relaxed
+	);
+	state->progress.store(
+		0.0f,
+		std::memory_order_relaxed
+	);
+	state->phase.store(
+		ExportPhase::Package,
+		std::memory_order_relaxed
+	);
+
+	pending_web_zip_source_directory_ =
+		source_directory;
+
+	auto future{
+		std::async(
+			std::launch::async,
+			[
+				source_directory,
+				zip_path,
+				state
+			]() mutable {
+				impl::ExportTaskResult result{
+					.kind =
+						impl::ExportTaskKind::ZipWeb,
+					.output_directory =
+						zip_path,
+				};
+
+				AppendOutputLine(
+					state,
+					"Creating Web ZIP..."
+				);
+				AppendOutputLine(
+					state,
+					"Source: " +
+						source_directory.string()
+				);
+				AppendOutputLine(
+					state,
+					"Output: " +
+						zip_path.string()
+				);
+				AppendOutputLine(state, "");
+
+				if (!CreateWebZip(
+						source_directory,
+						zip_path,
+						state
+					)) {
+					result.cancelled =
+						IsCancelled(state);
+					return result;
+				}
+
+				if (IsCancelled(state)) {
+					result.cancelled = true;
+					return result;
+				}
+
+				AppendOutputLine(state, "");
+				AppendOutputLine(
+					state,
+					"Web ZIP completed successfully."
+				);
+				result.success = true;
+				return result;
+			}
+		)
+	};
+
+	return StartTask(
+		impl::ExportTaskKind::ZipWeb,
+		std::move(future)
+	);
+}
+
+
 void ExportManager::Cancel() {
 	if (!CanCancel()) {
 		return;
@@ -1749,6 +2938,8 @@ void ExportManager::Cancel() {
 }
 
 void ExportManager::OnUpdate() {
+	RefreshWebServerState();
+
 	if (!IsBusy() ||
 		!future_.valid()) {
 		return;
@@ -1769,7 +2960,8 @@ void ExportManager::OnUpdate() {
 		state_ = ExportTaskState::Cancelled;
 		AppendOutputLine(
 			shared_state_,
-			"Export cancelled."
+			TaskName(result.kind) +
+				" cancelled."
 		);
 	} else if (result.success) {
 		state_ = ExportTaskState::Succeeded;
@@ -1777,7 +2969,8 @@ void ExportManager::OnUpdate() {
 		state_ = ExportTaskState::Failed;
 		AppendOutputLine(
 			shared_state_,
-			"Export failed."
+			TaskName(result.kind) +
+				" failed."
 		);
 	}
 
@@ -1798,6 +2991,21 @@ void ExportManager::OnUpdate() {
 	) {
 		last_web_export_directory_ =
 			result_directory_;
+		++web_export_revision_;
+	} else if (
+		result.success &&
+		result.kind ==
+			impl::ExportTaskKind::ZipWeb
+	) {
+		web_zip_source_directory_ =
+			pending_web_zip_source_directory_;
+		web_zip_revision_ =
+			web_export_revision_;
+	}
+
+	if (result.kind ==
+		impl::ExportTaskKind::ZipWeb) {
+		pending_web_zip_source_directory_.clear();
 	}
 }
 
@@ -1886,6 +3094,20 @@ void ExportManager::RefreshToolAvailability() {
 	const auto& info{ ::ptgn::impl::GetBuildInfo() };
 	desktop_availability_ = CheckDesktopAvailability(info);
 	web_availability_ = CheckWebAvailability();
+
+	const auto python{ FindPython3Command() };
+	web_server_availability_ =
+		CheckWebServerAvailability(python);
+
+	web_server_executable_.clear();
+	web_server_prefix_arguments_.clear();
+
+	if (python.has_value()) {
+		web_server_executable_ =
+			python->executable;
+		web_server_prefix_arguments_ =
+			python->prefix_arguments;
+	}
 }
 
 const ExportTargetAvailability& ExportManager::GetTargetAvailability(
@@ -1898,6 +3120,151 @@ const ExportTargetAvailability& ExportManager::GetTargetAvailability(
 
 bool ExportManager::IsTargetAvailable(ExportTarget target) const {
 	return GetTargetAvailability(target).available;
+}
+
+
+const ExportTargetAvailability&
+ExportManager::GetWebServerAvailability() const {
+	return web_server_availability_;
+}
+
+bool ExportManager::HasWebOutput(
+	const path& web_output_directory
+) const {
+	return HasWebDistribution(
+		web_output_directory
+	);
+}
+
+bool ExportManager::IsWebServerRunning() const {
+	return web_server_process_ != 0;
+}
+
+bool ExportManager::CanRunWebServer(
+	const path& web_output_directory
+) const {
+	if (IsBusy() ||
+		!web_server_availability_.available ||
+		!HasWebDistribution(web_output_directory)) {
+		return false;
+	}
+
+	if (!IsWebServerRunning()) {
+		return true;
+	}
+
+	const path normalized{
+		NormalizeExportPath(
+			web_output_directory
+		)
+	};
+	if (normalized != web_server_directory_) {
+		return true;
+	}
+
+	if (last_web_export_directory_.has_value() &&
+		NormalizeExportPath(
+			last_web_export_directory_.value()
+		) == normalized &&
+		web_server_export_revision_ !=
+			web_export_revision_) {
+		return true;
+	}
+
+	return WebDistributionStamp(
+		web_output_directory
+	) != web_server_output_stamp_;
+}
+
+path ExportManager::GetWebZipPath(
+	const path& web_output_directory
+) const {
+	const auto& info{
+		::ptgn::impl::GetBuildInfo()
+	};
+
+	const path root{
+		info.IsExample()
+			? web_output_directory.parent_path()
+			: web_output_directory
+	};
+
+	return (
+		root /
+		(info.target + ".zip")
+	).lexically_normal();
+}
+
+bool ExportManager::IsWebZipCurrent(
+	const path& web_output_directory
+) const {
+	if (!HasWebDistribution(
+			web_output_directory
+		)) {
+		return false;
+	}
+
+	const path normalized_source{
+		NormalizeExportPath(
+			web_output_directory
+		)
+	};
+	const path zip_path{
+		GetWebZipPath(
+			normalized_source
+		)
+	};
+
+	std::error_code error;
+	if (!fs::is_regular_file(
+			zip_path,
+			error
+		) || error) {
+		return false;
+	}
+
+	if (last_web_export_directory_.has_value() &&
+		NormalizeExportPath(
+			last_web_export_directory_.value()
+		) == normalized_source &&
+		web_export_revision_ != 0) {
+		if (!web_zip_source_directory_.empty() &&
+			NormalizeExportPath(
+				web_zip_source_directory_
+			) == normalized_source &&
+			web_zip_revision_ ==
+				web_export_revision_) {
+			return true;
+		}
+
+		return false;
+	}
+
+	error.clear();
+	const auto zip_time{
+		fs::last_write_time(
+			zip_path,
+			error
+		)
+	};
+	if (error) {
+		return false;
+	}
+
+	error.clear();
+	const auto index_time{
+		fs::last_write_time(
+			WebIndexPath(
+				normalized_source
+			),
+			error
+		)
+	};
+	if (error) {
+		return false;
+	}
+
+	return zip_time >= index_time;
 }
 
 bool ExportManager::IsBusy() const {
@@ -1951,6 +3318,40 @@ ExportManager::GetLastExportDirectory(
 		? last_desktop_export_directory_
 		: last_web_export_directory_;
 }
+
+
+void ExportManager::RefreshWebServerState() {
+	if (web_server_process_ == 0) {
+		return;
+	}
+
+	DetachedProcess process{
+		.process = web_server_process_,
+		.job = web_server_job_,
+	};
+
+	if (IsDetachedProcessRunning(process)) {
+		return;
+	}
+
+	CloseDetachedProcess(
+		process,
+		false
+	);
+
+	web_server_process_ = 0;
+	web_server_job_ = 0;
+	web_server_directory_.clear();
+	web_server_output_stamp_ = 0;
+	web_server_export_revision_ = 0;
+
+	AppendOutputLine(
+		shared_state_,
+		"Local Web server stopped or failed to stay running. "
+		"Port 8000 may already be in use."
+	);
+}
+
 
 bool ExportManager::StartTask(
 	impl::ExportTaskKind kind,
