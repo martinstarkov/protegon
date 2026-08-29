@@ -240,6 +240,11 @@ void DrawContext::DrawTexture(
 void DrawContext::DrawShader(
 	Transform transform, const MaterialState& material, TextureDrawParams params
 ) {
+	// An unset Custom Shader is a valid disabled state.
+	if (!material.shader) {
+		return;
+	}
+
 	DrawTexture(transform, impl::TextureId{}, material, std::move(params));
 }
 
