@@ -316,6 +316,12 @@ public:
 	Asset<T> Get(const AssetKey& key);
 
 	template <AssetType T>
+	std::optional<ConstAsset<T>> TryGet(const AssetKey& key) const;
+
+	template <AssetType T>
+	std::optional<Asset<T>> TryGet(const AssetKey& key);
+
+	template <AssetType T>
 	[[nodiscard]] bool Has(const AssetKey& key) const;
 
 	[[nodiscard]] std::vector<impl::AssetRecord> GetAssets() const;
@@ -724,6 +730,17 @@ ConstAsset<T> AssetAccessor::Get(const AssetKey& key) const {
 template <AssetType T>
 Asset<T> AssetAccessor::Get(const AssetKey& key) {
 	return assets.Get<T>(key);
+}
+
+
+template <AssetType T>
+std::optional<ConstAsset<T>> AssetAccessor::TryGet(const AssetKey& key) const {
+	return assets.TryGet<T>(key);
+}
+
+template <AssetType T>
+std::optional<Asset<T>> AssetAccessor::TryGet(const AssetKey& key) {
+	return assets.TryGet<T>(key);
 }
 
 template <AssetType T>
