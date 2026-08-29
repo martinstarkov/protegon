@@ -115,8 +115,12 @@ PTGN_REGISTER_COMPONENT(impl::TooltipHoverData);
 PTGN_REGISTER_COMPONENT(impl::TooltipBackgroundPart);
 PTGN_REGISTER_COMPONENT(impl::TooltipTextPart);
 PTGN_REGISTER_COMPONENT(impl::SliderData);
-PTGN_REGISTER_COMPONENT(impl::SliderTrackData);
 PTGN_REGISTER_COMPONENT(impl::SliderValueTextData);
+PTGN_REGISTER_COMPONENT(impl::SliderTrackData);
+PTGN_REGISTER_COMPONENT(impl::SliderTrackSpriteData);
+PTGN_REGISTER_COMPONENT(impl::SliderTrackBorderData);
+PTGN_REGISTER_COMPONENT(impl::SliderTrackBackgroundData);
+PTGN_REGISTER_COMPONENT(impl::SliderThumbData);
 
 PTGN_REGISTER_COMPONENT(impl::IgnoreParentOffset);
 PTGN_REGISTER_COMPONENT(impl::IgnoreParentImmovable);
