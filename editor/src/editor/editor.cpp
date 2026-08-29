@@ -2188,6 +2188,23 @@ void Editor::DrawMainMenuBar() {
 			);
 		}
 
+		auto& hierarchy{ GetSceneHierarchyPanel() };
+		if (ImGui::MenuItem(
+				"Show Managed UI Parts", nullptr, hierarchy.GetShowManagedUIParts()
+			)) {
+			const bool before{ hierarchy.GetShowManagedUIParts() };
+			const bool after{ !before };
+			PushUndoableValueChange(
+				undo_stack_, "Toggle Show Managed UI Parts", before, after,
+				[this](bool show) { GetSceneHierarchyPanel().SetShowManagedUIParts(show); }, false
+			);
+		}
+		if (ImGui::IsItemHovered()) {
+			ImGui::SetTooltip(
+				"Show implementation children owned by UI controls, such as visuals and slider tracks."
+			);
+		}
+
 		ImGui::Separator();
 
 		if (ImGui::MenuItem("Entity Picking", nullptr, GetSettings().entity_picking)) {

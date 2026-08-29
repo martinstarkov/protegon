@@ -3148,8 +3148,8 @@ bool CanDrawOptionalInlineValue(const FieldOptions& options) {
 }
 
 inline void DrawUnsetOptionalInlineValue() {
-	std::string unset{ "Unset" };
-	ImGui::InputText("##unset", &unset, ImGuiInputTextFlags_ReadOnly);
+	ImGui::AlignTextToFramePadding();
+	ImGui::TextDisabled("Unset");
 }
 
 template <typename Rep, typename Period>

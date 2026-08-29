@@ -6,6 +6,7 @@
 #include <memory>
 #include <optional>
 #include <ranges>
+#include <span>
 #include <string>
 #include <string_view>
 #include <type_traits>
@@ -25,6 +26,7 @@
 #include "runtime/asset/prefab.h"
 #include "runtime/ecs/component_registry.h"
 #include "runtime/ecs/entity.h"
+#include "runtime/graphics/draw.h"
 #include "runtime/graphics/fx/particle.h"
 #include "runtime/scene/scene.h"
 #include "runtime/scene/scene_camera.h"
@@ -55,6 +57,32 @@ bool DrawRegisteredComponentContents(
 	EditorContext& ctx,
 	std::size_t type_id,
 	void* value
+);
+
+// Draw a value using the same custom component drawer used by the ordinary
+// Inspector when one is registered, falling back to reflected component data.
+bool DrawInspectorValueContents(
+	EditorContext& ctx,
+	std::size_t type_id,
+	void* value
+);
+
+struct RichTextVariableOption {
+	std::string_view label{};
+	std::string_view variable{};
+	std::string_view preview{};
+};
+
+struct RichTextEditorOptions {
+	std::span<const RichTextVariableOption> variables{};
+	bool show_preview{ true };
+	int line_count{ 8 };
+};
+
+/// @brief Unified rich-text source editor used by text components and context-specific UI.
+bool DrawRichTextEditor(
+	EditorContext& ctx, std::string& source, TextRunDefaults& defaults,
+	const RichTextEditorOptions& options = {}
 );
 
 bool DrawScriptsComponent(EditorContext& ctx, ::ptgn::impl::Scripts& scripts);
@@ -230,6 +258,13 @@ void InvokeEntityChanged(Callback callback, Entity entity) {
 	}
 }
 
+template <typename T>
+void AssignEntityInspectorComponent(Entity entity, ComponentState<T> state) {
+	// SliderData::line is local to the slider or enabled Track Transform. Moving the slider
+	// transform must therefore not translate the stored line coordinates.
+	AssignEntityComponent<T>(entity, std::move(state));
+}
+
 struct EntityInspectorTarget {
 	EditorContext& ctx;
 	Entity entity{};
@@ -284,7 +319,7 @@ struct EntityInspectorTarget {
 
 	template <typename T, typename Callback = std::nullptr_t>
 	void SetLive(ComponentState<T> state, Callback callback = nullptr) {
-		AssignEntityComponent<T>(entity, std::move(state));
+		AssignEntityInspectorComponent<T>(entity, std::move(state));
 		InvokeEntityChanged(callback, entity);
 		::ptgn::impl::SliderSystem::SynchronizeEntity(entity);
 	}
@@ -301,7 +336,7 @@ struct EntityInspectorTarget {
 				return;
 			}
 
-			AssignEntityComponent<T>(resolved, std::move(state));
+			AssignEntityInspectorComponent<T>(resolved, std::move(state));
 			InvokeEntityChanged(callback, resolved);
 			::ptgn::impl::SliderSystem::SynchronizeEntity(resolved);
 		};

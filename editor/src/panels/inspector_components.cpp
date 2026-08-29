@@ -1071,25 +1071,44 @@ struct ComponentDrawer<TextRun> {
 template <>
 struct ComponentDrawer<StyledText> {
 	static bool Draw(EditorContext& ctx, StyledText& text) {
+		TextRunDefaults defaults{};
+		if (!text.runs.empty()) {
+			defaults.font = text.runs.front().font;
+			defaults.style = text.runs.front().style;
+		}
+
+		std::string source{ SerializeStyledTextToRichText(text, defaults) };
+
+		if (!DrawRichTextEditor(ctx, source, defaults)) {
+			return false;
+		}
+
+		text = ParseRichText(source, defaults).text;
+		return true;
+	}
+};
+
+template <>
+struct ComponentDrawer<::ptgn::impl::TextData> {
+	static bool Draw(EditorContext& ctx, ::ptgn::impl::TextData& data) {
 		bool changed{ false };
 
-		if (text.runs.empty()) {
-			text.runs.emplace_back();
+		TextRunDefaults defaults{};
+		if (!data.text.runs.empty()) {
+			defaults.font = data.text.runs.front().font;
+			defaults.style = data.text.runs.front().style;
+		}
+
+		std::string source{ SerializeStyledTextToRichText(data.text, defaults) };
+		if (DrawRichTextEditor(ctx, source, defaults)) {
+			data.text = ParseRichText(source, defaults).text;
+			data.current_run_index = data.text.runs.empty() ? 0 : data.text.runs.size() - 1;
 			changed = true;
 		}
 
-		changed |= DrawVectorEditor(
-			ctx, text.runs,
-			VectorOptions{
-				.item_name	   = "Text Run",
-				.add_label	   = "+ Text Run",
-				.default_open  = true,
-				.reorderable   = true,
-				.add_first	   = true,
-				.reset_last_on_remove = true,
-				.minimum_items = 0,
-			}
-		);
+		changed |= DrawValue(ctx, "Text Box", data.box);
+		changed |= DrawValue(ctx, "Reveal Glyph Count", data.glyph_count);
+		changed |= DrawValue(ctx, "Clip", data.clip);
 
 		return changed;
 	}
@@ -1761,6 +1780,9 @@ ErasedComponentDrawer FindCustomDrawer(std::size_t type_id) {
 	}
 
 	PTGN_INSPECTOR_COMPONENT_DRAWER(Transform)
+	PTGN_INSPECTOR_COMPONENT_DRAWER(TextBox)
+	PTGN_INSPECTOR_COMPONENT_DRAWER(StyledText)
+	PTGN_INSPECTOR_COMPONENT_DRAWER(AnimationConfig)
 	PTGN_INSPECTOR_COMPONENT_DRAWER(::ptgn::impl::Scripts)
 	PTGN_INSPECTOR_COMPONENT_DRAWER(::ptgn::impl::ParentRenderTarget)
 
@@ -1825,6 +1847,10 @@ ErasedComponentDrawer FindCustomDrawer(std::size_t type_id) {
 	PTGN_INSPECTOR_COMPONENT_DRAWER(::ptgn::impl::TooltipTextPart)
 	PTGN_INSPECTOR_COMPONENT_DRAWER(::ptgn::impl::SliderData)
 	PTGN_INSPECTOR_COMPONENT_DRAWER(::ptgn::impl::SliderTrackData)
+	PTGN_INSPECTOR_COMPONENT_DRAWER(::ptgn::impl::SliderThumbData)
+	PTGN_INSPECTOR_COMPONENT_DRAWER(::ptgn::impl::SliderTrackBackgroundData)
+	PTGN_INSPECTOR_COMPONENT_DRAWER(::ptgn::impl::SliderTrackBorderData)
+	PTGN_INSPECTOR_COMPONENT_DRAWER(::ptgn::impl::SliderTrackSpriteData)
 	PTGN_INSPECTOR_COMPONENT_DRAWER(::ptgn::impl::SliderValueTextData)
 
 	PTGN_INSPECTOR_COMPONENT_DRAWER(::ptgn::impl::IgnoreParentOffset)
@@ -2349,6 +2375,22 @@ bool DrawReflectedContents(
 		}
 	);
 	return state.changed;
+}
+
+bool DrawInspectorValueContents(
+	EditorContext& ctx,
+	std::size_t type_id,
+	void* value
+) {
+	if (!value) {
+		return false;
+	}
+
+	if (auto drawer{ FindCustomDrawer(type_id) }) {
+		return drawer(ctx, value, false);
+	}
+
+	return DrawRegisteredComponentContents(ctx, type_id, value);
 }
 
 bool DrawRegisteredComponentContents(
