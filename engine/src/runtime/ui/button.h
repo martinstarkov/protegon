@@ -158,6 +158,11 @@ public:
 	[[nodiscard]] ButtonVisualState GetVisualState() const;
 	[[nodiscard]] impl::InternalButtonState GetInternalState() const;
 
+	/// @brief Forces a visual state without changing the logical interaction state.
+	/// Passing std::nullopt restores the state resolved from interaction/toggle/disabled state.
+	/// This is useful for editor previews and other non-interactive presentation.
+	Button& PreviewVisualState(std::optional<ButtonVisualState> state);
+
 	/// @return Unscaled interactive shape size.
 	[[nodiscard]] std::variant<V2_float, float> GetSize() const;
 
@@ -337,6 +342,10 @@ public:
 
 	ButtonText& Content(std::string_view content);
 	ButtonText& Content(StyledText styled_text);
+
+	/// @brief Compiles rich-text markup into the StyledText for this visual state.
+	ButtonText& SetRichText(std::string_view source);
+
 	ButtonText& ClearContent();
 
 	ButtonText& Box(TextBox box);

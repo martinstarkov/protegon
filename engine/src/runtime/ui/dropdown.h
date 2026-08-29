@@ -53,9 +53,7 @@ struct DropdownData {
 	/// @brief Edge/corner on which the dropdown starts relative to the parent button.
 	Origin origin{ Origin::CenterBottom };
 
-	PTGN_REFLECT(
-		DropdownData, start_open, open, button_size, button_offset, direction, origin
-	)
+	PTGN_REFLECT(DropdownData, start_open, open, button_size, button_offset, direction, origin)
 	PTGN_REFLECT_READONLY(DropdownData, initialized)
 };
 
@@ -69,6 +67,11 @@ struct DropdownEnabledState {
 /// @brief Marker for direct child buttons that are dropdown items.
 struct DropdownItem {
 	std::optional<DropdownEnabledState> enabled_state{};
+
+	// Runtime layout anchor. The entity Transform remains the user-editable transform;
+	// layout changes preserve the delta from this anchor.
+	V2_float layout_position{};
+	bool layout_initialized{ false };
 
 	PTGN_REFLECT_VALUE(DropdownItem, enabled_state)
 };
@@ -97,6 +100,9 @@ public:
 	Dropdown& Size(float radius);
 
 	Dropdown& Origin(Origin origin);
+
+	/// @brief Recalculates dropdown item layout while preserving each item's user transform delta.
+	Dropdown& RefreshLayout();
 
 	/// @brief Adds an existing button as a direct child dropdown item.
 	Dropdown& AddButton(Button button);

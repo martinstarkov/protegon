@@ -19,6 +19,7 @@
 #include "renderer/text/text_layout.h"
 #include "renderer/text/text_style.h"
 #include "runtime/animation/animation.h"
+#include "runtime/graphics/text/text.h"
 #include "serialization/serialize.h"
 
 namespace ptgn {
@@ -157,6 +158,7 @@ struct ButtonBorderVisuals : ButtonShapeVisuals {
 struct ButtonTextVisual {
 	bool defined{ false };
 
+	/// @brief Styled text stored for this visual state. Rich-text markup is compiled into this.
 	std::optional<StyledText> styled_text{};
 
 	/// @brief Optional text box. If auto_box is true, the rect may be overwritten from button size.

@@ -96,6 +96,22 @@ void UpdateRenderTargetSizes(Scene& scene) {
 	}
 }
 
+void ValidateUIControlTypes(Scene& scene) {
+	for (Entity entity : scene.Entities()) {
+		const int specialized_count{
+			static_cast<int>(entity.Has<impl::SliderData>()) +
+			static_cast<int>(entity.Has<impl::ToggleButtonData>()) +
+			static_cast<int>(entity.Has<impl::DropdownData>())
+		};
+
+		PTGN_ASSERT(
+			specialized_count <= 1,
+			"A UI control cannot simultaneously be a Slider, ToggleButton, and/or Dropdown. "
+			"ButtonData is the shared base and may coexist with one specialized control type."
+		);
+	}
+}
+
 void ApplyCameraEffects(
 	Renderer& render, DrawContext& draw_context, Viewport display_viewport,
 	V2_float render_target_size, const Matrix4& view_projection, Color tint,
@@ -713,6 +729,8 @@ void Scene::InternalOnEvent() {
 
 void Scene::InternalPreUpdate() {
 	if (data_.runtime) {
+		ValidateUIControlTypes(*this);
+
 		// Derived UI components first add ButtonData; ButtonSystem then adds Interactive.
 		impl::SliderSystem::Prepare(*this);
 		impl::ToggleButtonSystem::Prepare(*this);

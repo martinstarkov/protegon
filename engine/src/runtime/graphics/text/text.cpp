@@ -3,12 +3,19 @@
 #include <ecs/ecs.h>
 
 #include <algorithm>
+#include <charconv>
 #include <chrono>
 #include <cmath>
+#include <cctype>
+#include <cstdint>
+#include <iomanip>
 #include <limits>
 #include <optional>
+#include <ranges>
+#include <sstream>
 #include <string>
 #include <string_view>
+#include <system_error>
 #include <utility>
 #include <vector>
 
@@ -69,6 +76,716 @@ void UpdateLayout(
 }
 
 } // namespace
+
+namespace {
+
+struct RichTextState {
+	FontKey font{ kDefaultFont };
+	TextRunStyle style{};
+};
+
+struct RichTextStackEntry {
+	std::string tag{};
+	RichTextState previous{};
+	std::size_t position{};
+};
+
+[[nodiscard]] std::string_view TrimRichTextToken(std::string_view value) {
+	while (!value.empty() && std::isspace(static_cast<unsigned char>(value.front()))) {
+		value.remove_prefix(1);
+	}
+	while (!value.empty() && std::isspace(static_cast<unsigned char>(value.back()))) {
+		value.remove_suffix(1);
+	}
+	return value;
+}
+
+[[nodiscard]] std::string LowerRichTextToken(std::string_view value) {
+	std::string result{ value };
+	std::ranges::transform(result, result.begin(), [](unsigned char c) {
+		return static_cast<char>(std::tolower(c));
+	});
+	return result;
+}
+
+[[nodiscard]] std::vector<std::string_view> SplitRichTextArguments(std::string_view value) {
+	std::vector<std::string_view> result;
+	while (true) {
+		auto comma{ value.find(',') };
+		if (comma == std::string_view::npos) {
+			result.emplace_back(TrimRichTextToken(value));
+			break;
+		}
+		result.emplace_back(TrimRichTextToken(value.substr(0, comma)));
+		value.remove_prefix(comma + 1);
+	}
+	return result;
+}
+
+[[nodiscard]] bool ParseRichFloat(std::string_view value, float& result) {
+	value = TrimRichTextToken(value);
+	if (value.empty()) {
+		return false;
+	}
+
+	const auto* begin{ value.data() };
+	const auto* end{ value.data() + value.size() };
+	auto parsed{ std::from_chars(begin, end, result) };
+	return parsed.ec == std::errc{} && parsed.ptr == end && std::isfinite(result);
+}
+
+[[nodiscard]] bool ParseHexNibble(char c, std::uint8_t& value) {
+	if (c >= '0' && c <= '9') {
+		value = static_cast<std::uint8_t>(c - '0');
+		return true;
+	}
+	if (c >= 'a' && c <= 'f') {
+		value = static_cast<std::uint8_t>(10 + c - 'a');
+		return true;
+	}
+	if (c >= 'A' && c <= 'F') {
+		value = static_cast<std::uint8_t>(10 + c - 'A');
+		return true;
+	}
+	return false;
+}
+
+[[nodiscard]] bool ParseHexByte(std::string_view value, std::uint8_t& result) {
+	if (value.size() != 2) {
+		return false;
+	}
+	std::uint8_t high{};
+	std::uint8_t low{};
+	if (!ParseHexNibble(value[0], high) || !ParseHexNibble(value[1], low)) {
+		return false;
+	}
+	result = static_cast<std::uint8_t>((high << 4) | low);
+	return true;
+}
+
+[[nodiscard]] bool ParseRichColor(std::string_view value, Color& result) {
+	value = TrimRichTextToken(value);
+	if (value.empty()) {
+		return false;
+	}
+
+	if (value.front() == '#') {
+		value.remove_prefix(1);
+		if (value.size() != 6 && value.size() != 8) {
+			return false;
+		}
+
+		std::uint8_t r{};
+		std::uint8_t g{};
+		std::uint8_t b{};
+		std::uint8_t a{ 255 };
+		if (!ParseHexByte(value.substr(0, 2), r) || !ParseHexByte(value.substr(2, 2), g) ||
+			!ParseHexByte(value.substr(4, 2), b) ||
+			(value.size() == 8 && !ParseHexByte(value.substr(6, 2), a))) {
+			return false;
+		}
+		result = Color{ r, g, b, a };
+		return true;
+	}
+
+	const std::string name{ LowerRichTextToken(value) };
+	if (name == "white") result = color::White;
+	else if (name == "black") result = color::Black;
+	else if (name == "red") result = color::Red;
+	else if (name == "green") result = color::Green;
+	else if (name == "blue") result = color::Blue;
+	else if (name == "yellow") result = color::Yellow;
+	else if (name == "cyan") result = color::Cyan;
+	else if (name == "magenta") result = color::Magenta;
+	else if (name == "gray" || name == "grey") result = color::Gray;
+	else if (name == "orange") result = Color{ 255, 165, 0, 255 };
+	else if (name == "purple") result = Color{ 128, 0, 128, 255 };
+	else if (name == "pink") result = Color{ 255, 105, 180, 255 };
+	else if (name == "transparent") result = color::Transparent;
+	else return false;
+
+	return true;
+}
+
+[[nodiscard]] bool IsOffRichTextValue(std::string_view value) {
+	const std::string lowered{ LowerRichTextToken(TrimRichTextToken(value)) };
+	return lowered == "off" || lowered == "false" || lowered == "0" || lowered == "none";
+}
+
+[[nodiscard]] bool ParseGlyphEffectType(std::string_view value, GlyphEffectType& result) {
+	const std::string name{ LowerRichTextToken(TrimRichTextToken(value)) };
+	if (name == "none") result = GlyphEffectType::None;
+	else if (name == "wobble") result = GlyphEffectType::Wobble;
+	else if (name == "wave") result = GlyphEffectType::Wave;
+	else if (name == "shake") result = GlyphEffectType::Shake;
+	else if (name == "pulse") result = GlyphEffectType::Pulse;
+	else return false;
+	return true;
+}
+
+[[nodiscard]] std::string CanonicalRichTag(std::string_view tag) {
+	std::string result{ LowerRichTextToken(TrimRichTextToken(tag)) };
+	if (result == "strike") {
+		result = "s";
+	} else if (result == "color") {
+		result = "c";
+	}
+	return result;
+}
+
+[[nodiscard]] bool ApplyRichTextOpenTag(
+	std::string_view raw_name, std::optional<std::string_view> argument, RichTextState& state,
+	std::string& canonical_tag, std::string& error
+) {
+	canonical_tag = CanonicalRichTag(raw_name);
+	const auto arg{ argument ? TrimRichTextToken(*argument) : std::string_view{} };
+
+	auto require_argument = [&]() {
+		if (!argument || arg.empty()) {
+			error = "Tag <" + canonical_tag + "> requires a value.";
+			return false;
+		}
+		return true;
+	};
+
+	if (canonical_tag == "b") {
+		const bool enabled{ !argument || !IsOffRichTextValue(arg) };
+		state.style.flags = SetFontFlag(state.style.flags, FontStyle::Bold, enabled);
+		if (enabled && argument) {
+			float weight{};
+			if (!ParseRichFloat(arg, weight)) {
+				error = "Invalid bold weight.";
+				return false;
+			}
+			state.style.bold_weight = weight;
+		}
+		return true;
+	}
+
+	if (canonical_tag == "i" || canonical_tag == "u" || canonical_tag == "s") {
+		const bool enabled{ !argument || !IsOffRichTextValue(arg) };
+		FontStyle flag{ FontStyle::Italic };
+		if (canonical_tag == "u") flag = FontStyle::Underline;
+		if (canonical_tag == "s") flag = FontStyle::Strikethrough;
+		state.style.flags = SetFontFlag(state.style.flags, flag, enabled);
+		return true;
+	}
+
+	if (canonical_tag == "c") {
+		if (!require_argument()) return false;
+		Color parsed{};
+		if (!ParseRichColor(arg, parsed)) {
+			error = "Invalid color. Use a named color, #RRGGBB or #RRGGBBAA.";
+			return false;
+		}
+		state.style.color = parsed;
+		return true;
+	}
+
+	if (canonical_tag == "font") {
+		if (!require_argument()) return false;
+		state.font = FontKey{ std::string{ arg } };
+		return true;
+	}
+
+	auto parse_single_float = [&](float& destination, std::string_view label) {
+		if (!require_argument()) return false;
+		float parsed{};
+		if (!ParseRichFloat(arg, parsed)) {
+			error = "Invalid " + std::string{ label } + ".";
+			return false;
+		}
+		destination = parsed;
+		return true;
+	};
+
+	if (canonical_tag == "size") return parse_single_float(state.style.size, "font size");
+	if (canonical_tag == "kern") return parse_single_float(state.style.kerning, "kerning");
+	if (canonical_tag == "track") return parse_single_float(state.style.tracking, "tracking");
+	if (canonical_tag == "line") return parse_single_float(state.style.line_spacing, "line spacing");
+
+	if (canonical_tag == "outline" || canonical_tag == "outerglow" || canonical_tag == "innerglow") {
+		if (!require_argument()) return false;
+		DistanceFieldLayerStyle* layer{ nullptr };
+		if (canonical_tag == "outline") layer = &state.style.sdf.outline;
+		if (canonical_tag == "outerglow") layer = &state.style.sdf.outer_glow;
+		if (canonical_tag == "innerglow") layer = &state.style.sdf.inner_glow;
+
+		if (IsOffRichTextValue(arg)) {
+			*layer = {};
+			return true;
+		}
+
+		auto args{ SplitRichTextArguments(arg) };
+		if (args.size() < 2 || args.size() > 3) {
+			error = "Expected color,width[,softness].";
+			return false;
+		}
+		Color parsed_color{};
+		float width{};
+		float softness{ 1.0f };
+		if (!ParseRichColor(args[0], parsed_color) || !ParseRichFloat(args[1], width) ||
+			(args.size() == 3 && !ParseRichFloat(args[2], softness))) {
+			error = "Invalid distance-field effect values.";
+			return false;
+		}
+		*layer = DistanceFieldLayerStyle{ .color = parsed_color, .width = width, .softness = softness };
+		return true;
+	}
+
+	if (canonical_tag == "shadow") {
+		if (!require_argument()) return false;
+		if (IsOffRichTextValue(arg)) {
+			state.style.sdf.shadow = {};
+			state.style.sdf.shadow_offset = {};
+			return true;
+		}
+		auto args{ SplitRichTextArguments(arg) };
+		if (args.size() < 3 || args.size() > 5) {
+			error = "Expected color,x,y[,width[,softness]].";
+			return false;
+		}
+		Color parsed_color{};
+		float x{};
+		float y{};
+		float width{};
+		float softness{ 1.0f };
+		if (!ParseRichColor(args[0], parsed_color) || !ParseRichFloat(args[1], x) ||
+			!ParseRichFloat(args[2], y) ||
+			(args.size() >= 4 && !ParseRichFloat(args[3], width)) ||
+			(args.size() >= 5 && !ParseRichFloat(args[4], softness))) {
+			error = "Invalid shadow values.";
+			return false;
+		}
+		state.style.sdf.shadow =
+			DistanceFieldLayerStyle{ .color = parsed_color, .width = width, .softness = softness };
+		state.style.sdf.shadow_offset = { x, y };
+		return true;
+	}
+
+	if (canonical_tag == "fx") {
+		if (!require_argument()) return false;
+		auto args{ SplitRichTextArguments(arg) };
+		if (args.empty() || args.size() > 5) {
+			error = "Expected type[,amplitude[,frequency[,speed[,phase]]]].";
+			return false;
+		}
+
+		GlyphEffectStyle effect{};
+		if (!ParseGlyphEffectType(args[0], effect.type)) {
+			error = "Unknown glyph effect type.";
+			return false;
+		}
+		if (args.size() >= 2 && !ParseRichFloat(args[1], effect.amplitude)) {
+			error = "Invalid glyph effect amplitude.";
+			return false;
+		}
+		if (args.size() >= 3 && !ParseRichFloat(args[2], effect.frequency)) {
+			error = "Invalid glyph effect frequency.";
+			return false;
+		}
+		if (args.size() >= 4 && !ParseRichFloat(args[3], effect.speed)) {
+			error = "Invalid glyph effect speed.";
+			return false;
+		}
+		if (args.size() >= 5 && !ParseRichFloat(args[4], effect.phase)) {
+			error = "Invalid glyph effect phase.";
+			return false;
+		}
+		state.style.effect = effect;
+		return true;
+	}
+
+	error = "Unknown rich-text tag <" + canonical_tag + ">.";
+	return false;
+}
+
+[[nodiscard]] bool IsEscapedRichTextCharacter(std::string_view source, std::size_t position) {
+	std::size_t backslashes{ 0 };
+	while (position > backslashes && source[position - backslashes - 1] == '\\') {
+		++backslashes;
+	}
+	return (backslashes % 2) != 0;
+}
+
+[[nodiscard]] bool HasMatchingRichTextClose(
+	std::string_view source, std::size_t from, std::string_view canonical_tag
+) {
+	std::size_t depth{ 1 };
+
+	for (std::size_t i{ from }; i < source.size();) {
+		auto open{ source.find('<', i) };
+		while (open != std::string_view::npos && IsEscapedRichTextCharacter(source, open)) {
+			open = source.find('<', open + 1);
+		}
+		if (open == std::string_view::npos) {
+			return false;
+		}
+
+		const auto close{ source.find('>', open + 1) };
+		if (close == std::string_view::npos) {
+			return false;
+		}
+
+		auto token{ TrimRichTextToken(source.substr(open + 1, close - open - 1)) };
+		if (token.empty()) {
+			i = close + 1;
+			continue;
+		}
+
+		const bool closing{ token.front() == '/' };
+		if (closing) {
+			token.remove_prefix(1);
+		}
+
+		const auto equals{ token.find('=') };
+		const auto raw_name{ equals == std::string_view::npos ? token : token.substr(0, equals) };
+		const std::string tag{ CanonicalRichTag(raw_name) };
+
+		if (tag == canonical_tag) {
+			if (closing) {
+				if (--depth == 0) {
+					return true;
+				}
+			} else {
+				const std::optional<std::string_view> argument{
+					equals == std::string_view::npos
+						? std::nullopt
+						: std::optional<std::string_view>{ token.substr(equals + 1) }
+				};
+				RichTextState probe{};
+				std::string probe_tag;
+				std::string error;
+				if (ApplyRichTextOpenTag(raw_name, argument, probe, probe_tag, error)) {
+					++depth;
+				}
+			}
+		}
+
+		i = close + 1;
+	}
+
+	return false;
+}
+
+void EmitRichTextRun(StyledText& text, std::string& buffer, const RichTextState& state) {
+	if (buffer.empty()) {
+		return;
+	}
+
+	if (!text.runs.empty() && text.runs.back().font == state.font &&
+		text.runs.back().style == state.style) {
+		text.runs.back().text += buffer;
+	} else {
+		text.runs.emplace_back(TextRun{
+			.text = std::move(buffer),
+			.font = state.font,
+			.style = state.style,
+		});
+	}
+	buffer.clear();
+}
+
+[[nodiscard]] std::string FormatRichFloat(float value) {
+	std::ostringstream stream;
+	stream << std::setprecision(6) << std::defaultfloat << value;
+	return stream.str();
+}
+
+[[nodiscard]] std::string FormatRichColor(Color color) {
+	constexpr char digits[]{ "0123456789ABCDEF" };
+	std::string result{ "#000000" };
+	auto write_byte = [&](std::size_t offset, std::uint8_t value) {
+		result[offset] = digits[(value >> 4) & 0x0F];
+		result[offset + 1] = digits[value & 0x0F];
+	};
+	write_byte(1, color.r);
+	write_byte(3, color.g);
+	write_byte(5, color.b);
+	if (color.a != 255) {
+		result += "00";
+		write_byte(7, color.a);
+	}
+	return result;
+}
+
+[[nodiscard]] std::string GlyphEffectName(GlyphEffectType type) {
+	switch (type) {
+		case GlyphEffectType::None: return "None";
+		case GlyphEffectType::Wobble: return "Wobble";
+		case GlyphEffectType::Wave: return "Wave";
+		case GlyphEffectType::Shake: return "Shake";
+		case GlyphEffectType::Pulse: return "Pulse";
+	}
+	return "None";
+}
+
+void AddRichWrapper(
+	std::vector<std::pair<std::string, std::string>>& wrappers, std::string open,
+	std::string close
+) {
+	wrappers.emplace_back(std::move(open), std::move(close));
+}
+
+[[nodiscard]] std::string LayerArgument(const DistanceFieldLayerStyle& layer) {
+	return FormatRichColor(layer.color) + "," + FormatRichFloat(layer.width) + "," +
+		   FormatRichFloat(layer.softness);
+}
+
+} // namespace
+
+std::string EscapeRichText(std::string_view text) {
+	std::string result;
+	result.reserve(text.size());
+	for (char c : text) {
+		if (c == '<' || c == '>' || c == '\\') {
+			result.push_back('\\');
+		}
+		result.push_back(c);
+	}
+	return result;
+}
+
+std::string ExpandRichTextVariables(
+	std::string_view source, const RichTextVariableResolver& resolver
+) {
+	std::string result;
+	result.reserve(source.size());
+
+	for (std::size_t i{ 0 }; i < source.size();) {
+		if (source[i] != '$' || i + 1 >= source.size() || source[i + 1] != '{') {
+			result.push_back(source[i++]);
+			continue;
+		}
+
+		const auto close{ source.find('}', i + 2) };
+		if (close == std::string_view::npos) {
+			result.append(source.substr(i));
+			break;
+		}
+
+		const auto name{ source.substr(i + 2, close - (i + 2)) };
+		if (!name.empty() && resolver) {
+			if (auto value{ resolver(name) }) {
+				result += EscapeRichText(*value);
+				i = close + 1;
+				continue;
+			}
+		}
+
+		result.append(source.substr(i, close - i + 1));
+		i = close + 1;
+	}
+
+	return result;
+}
+
+RichTextParseResult ParseRichText(std::string_view source, const TextRunDefaults& defaults) {
+	RichTextParseResult result;
+	RichTextState state{ .font = defaults.font, .style = defaults.style };
+	std::vector<RichTextStackEntry> stack;
+	std::string buffer;
+
+	for (std::size_t i{ 0 }; i < source.size();) {
+		if (source[i] == '\\' && i + 1 < source.size() &&
+			(source[i + 1] == '<' || source[i + 1] == '>' || source[i + 1] == '\\')) {
+			buffer.push_back(source[i + 1]);
+			i += 2;
+			continue;
+		}
+
+		if (source[i] != '<') {
+			buffer.push_back(source[i++]);
+			continue;
+		}
+
+		const auto close{ source.find('>', i + 1) };
+		if (close == std::string_view::npos) {
+			buffer.append(source.substr(i));
+			result.diagnostics.push_back({ i, "Unterminated rich-text tag." });
+			break;
+		}
+
+		const auto raw_token{ source.substr(i + 1, close - i - 1) };
+		auto token{ TrimRichTextToken(raw_token) };
+		if (token.empty()) {
+			buffer.append(source.substr(i, close - i + 1));
+			result.diagnostics.push_back({ i, "Empty rich-text tag." });
+			i = close + 1;
+			continue;
+		}
+
+		if (token.front() == '/') {
+			token.remove_prefix(1);
+			const std::string tag{ CanonicalRichTag(token) };
+			if (stack.empty() || stack.back().tag != tag) {
+				buffer.append(source.substr(i, close - i + 1));
+				result.diagnostics.push_back({ i, "Mismatched closing tag </" + tag + ">." });
+				i = close + 1;
+				continue;
+			}
+
+			EmitRichTextRun(result.text, buffer, state);
+			state = stack.back().previous;
+			stack.pop_back();
+			i = close + 1;
+			continue;
+		}
+
+		const auto equals{ token.find('=') };
+		const auto name{ equals == std::string_view::npos ? token : token.substr(0, equals) };
+		const std::optional<std::string_view> argument{
+			equals == std::string_view::npos
+				? std::nullopt
+				: std::optional<std::string_view>{ token.substr(equals + 1) }
+		};
+
+		RichTextState next{ state };
+		std::string canonical_tag;
+		std::string error;
+		if (!ApplyRichTextOpenTag(name, argument, next, canonical_tag, error)) {
+			buffer.append(source.substr(i, close - i + 1));
+			result.diagnostics.push_back({ i, std::move(error) });
+			i = close + 1;
+			continue;
+		}
+
+		if (!HasMatchingRichTextClose(source, close + 1, canonical_tag)) {
+			buffer.append(source.substr(i, close - i + 1));
+			result.diagnostics.push_back({
+				i, "Unclosed rich-text tag <" + canonical_tag + ">; rendered literally."
+			});
+			i = close + 1;
+			continue;
+		}
+
+		EmitRichTextRun(result.text, buffer, state);
+		stack.push_back({ .tag = canonical_tag, .previous = state, .position = i });
+		state = std::move(next);
+		i = close + 1;
+	}
+
+	EmitRichTextRun(result.text, buffer, state);
+
+	for (auto it{ stack.rbegin() }; it != stack.rend(); ++it) {
+		result.diagnostics.push_back({ it->position, "Unclosed rich-text tag <" + it->tag + ">." });
+	}
+
+	if (result.text.runs.empty()) {
+		result.text.runs.emplace_back(TextRun{ .font = defaults.font, .style = defaults.style });
+	}
+
+	return result;
+}
+
+RichTextParseResult ParseRichText(const RichText& rich_text) {
+	return ParseRichText(rich_text.source, rich_text.defaults);
+}
+
+std::string SerializeStyledTextToRichText(
+	const StyledText& styled_text, const TextRunDefaults& defaults
+) {
+	std::string result;
+
+	for (const auto& run : styled_text.runs) {
+		std::vector<std::pair<std::string, std::string>> wrappers;
+
+		if (run.font != defaults.font) {
+			AddRichWrapper(wrappers, "<font=" + run.font.value + ">", "</font>");
+		}
+		if (!NearlyEqual(run.style.size, defaults.style.size)) {
+			AddRichWrapper(wrappers, "<size=" + FormatRichFloat(run.style.size) + ">", "</size>");
+		}
+		if (run.style.color != defaults.style.color) {
+			AddRichWrapper(wrappers, "<c=" + FormatRichColor(run.style.color) + ">", "</c>");
+		}
+
+		auto add_flag = [&](FontStyle flag, std::string_view tag) {
+			const bool enabled{ HasFontFlag(run.style.flags, flag) };
+			const bool default_enabled{ HasFontFlag(defaults.style.flags, flag) };
+			if (enabled == default_enabled) return;
+			AddRichWrapper(
+				wrappers,
+				enabled ? "<" + std::string{ tag } + ">"
+						: "<" + std::string{ tag } + "=off>",
+				"</" + std::string{ tag } + ">"
+			);
+		};
+
+		const bool bold{ HasFontFlag(run.style.flags, FontStyle::Bold) };
+		const bool default_bold{ HasFontFlag(defaults.style.flags, FontStyle::Bold) };
+		if (bold != default_bold || (bold && !NearlyEqual(run.style.bold_weight, defaults.style.bold_weight))) {
+			AddRichWrapper(
+				wrappers,
+				bold ? "<b=" + FormatRichFloat(run.style.bold_weight) + ">" : "<b=off>",
+				"</b>"
+			);
+		}
+		add_flag(FontStyle::Italic, "i");
+		add_flag(FontStyle::Underline, "u");
+		add_flag(FontStyle::Strikethrough, "s");
+
+		if (!NearlyEqual(run.style.kerning, defaults.style.kerning)) {
+			AddRichWrapper(wrappers, "<kern=" + FormatRichFloat(run.style.kerning) + ">", "</kern>");
+		}
+		if (!NearlyEqual(run.style.tracking, defaults.style.tracking)) {
+			AddRichWrapper(wrappers, "<track=" + FormatRichFloat(run.style.tracking) + ">", "</track>");
+		}
+		if (!NearlyEqual(run.style.line_spacing, defaults.style.line_spacing)) {
+			AddRichWrapper(wrappers, "<line=" + FormatRichFloat(run.style.line_spacing) + ">", "</line>");
+		}
+
+		auto add_layer = [&](const DistanceFieldLayerStyle& layer,
+							 const DistanceFieldLayerStyle& default_layer, std::string_view tag) {
+			if (layer == default_layer) return;
+			const bool disabled{ layer == DistanceFieldLayerStyle{} };
+			AddRichWrapper(
+				wrappers,
+				"<" + std::string{ tag } + "=" + (disabled ? std::string{ "none" } : LayerArgument(layer)) + ">",
+				"</" + std::string{ tag } + ">"
+			);
+		};
+
+		add_layer(run.style.sdf.outline, defaults.style.sdf.outline, "outline");
+		if (run.style.sdf.shadow != defaults.style.sdf.shadow ||
+			run.style.sdf.shadow_offset != defaults.style.sdf.shadow_offset) {
+			const bool disabled{ run.style.sdf.shadow == DistanceFieldLayerStyle{} &&
+				run.style.sdf.shadow_offset.IsZero() };
+			std::string value{ "none" };
+			if (!disabled) {
+				value = FormatRichColor(run.style.sdf.shadow.color) + "," +
+						FormatRichFloat(run.style.sdf.shadow_offset.x) + "," +
+						FormatRichFloat(run.style.sdf.shadow_offset.y) + "," +
+						FormatRichFloat(run.style.sdf.shadow.width) + "," +
+						FormatRichFloat(run.style.sdf.shadow.softness);
+			}
+			AddRichWrapper(wrappers, "<shadow=" + value + ">", "</shadow>");
+		}
+		add_layer(run.style.sdf.outer_glow, defaults.style.sdf.outer_glow, "outerglow");
+		add_layer(run.style.sdf.inner_glow, defaults.style.sdf.inner_glow, "innerglow");
+
+		if (run.style.effect != defaults.style.effect) {
+			const auto& effect{ run.style.effect };
+			const std::string value{
+				GlyphEffectName(effect.type) + "," + FormatRichFloat(effect.amplitude) + "," +
+				FormatRichFloat(effect.frequency) + "," + FormatRichFloat(effect.speed) + "," +
+				FormatRichFloat(effect.phase)
+			};
+			AddRichWrapper(wrappers, "<fx=" + value + ">", "</fx>");
+		}
+
+		for (const auto& [open, close] : wrappers) {
+			(void)close;
+			result += open;
+		}
+		result += EscapeRichText(run.text);
+		for (auto it{ wrappers.rbegin() }; it != wrappers.rend(); ++it) {
+			result += it->second;
+		}
+	}
+
+	return result;
+}
 
 namespace impl {
 
@@ -164,7 +881,6 @@ Text& Text::Clear() {
 	auto& data{ Get<impl::TextData>() };
 
 	bool changed{ data.text.HasContent() };
-
 	data.text.runs.clear();
 	data.text.runs.emplace_back();
 
@@ -245,6 +961,14 @@ Text& Text::Select(std::size_t index) {
 	data.current_run_index = std::min(index, data.text.runs.size() - 1);
 
 	return *this;
+}
+
+Text& Text::SetRichText(std::string_view source, const TextRunDefaults& defaults) {
+	return Content(ParseRichText(source, defaults).text);
+}
+
+Text& Text::SetRichText(const RichText& rich_text) {
+	return Content(ParseRichText(rich_text).text);
 }
 
 Text& Text::Box(Rect text_rect) {

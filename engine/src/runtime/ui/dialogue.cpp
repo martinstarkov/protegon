@@ -95,17 +95,16 @@ constexpr std::string_view kDialogueScrollChannel{ "dialogue.scroll" };
 	const Scene& scene, std::string_view content, const DialoguePageProperties& properties,
 	std::string_view split_end, std::string_view split_begin
 ) {
-	StyledText styled_text;
+	const TextRunDefaults defaults{
+		.font = properties.font,
+		.style = properties.ToTextRunStyle(),
+	};
 
-	styled_text.runs.emplace_back(
-		TextRun{
-			.text  = std::string{ content },
-			.font  = properties.font,
-			.style = properties.ToTextRunStyle(),
-		}
-	);
-
-	return PaginateDialogueText(scene, styled_text, properties, split_end, split_begin);
+	// Compile markup before pagination so tags do not count as glyphs and styled spans survive
+	// page boundaries as ordinary TextRun data. Unresolved ${variables} remain literal for a future
+	// dialogue context resolver.
+	auto parsed{ ParseRichText(content, defaults) };
+	return PaginateDialogueText(scene, parsed.text, properties, split_end, split_begin);
 }
 
 } // namespace

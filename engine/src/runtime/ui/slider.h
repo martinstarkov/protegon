@@ -12,6 +12,7 @@
 #include "core/math/transform.h"
 #include "core/math/vector2.h"
 #include "runtime/ecs/entity.h"
+#include "runtime/graphics/text/text.h"
 #include "runtime/scripting/script.h"
 #include "runtime/ui/button.h"
 #include "serialization/serialize.h"
@@ -33,8 +34,10 @@ struct SliderChange;
 /// only control how that normalized value is presented to the user.
 struct SliderValueTextConfig {
 	V2_float offset{ 0.0f, -50.0f };
-	std::string prefix{};
-	std::string suffix{};
+
+	/// @brief Rich text template. ${value} expands to the formatted display value.
+	RichText text{ .source = "${value}" };
+
 	float display_min{ 0.0f };
 	float display_max{ 1.0f };
 	std::uint32_t decimal_places{ 2 };
@@ -42,19 +45,14 @@ struct SliderValueTextConfig {
 	constexpr bool operator==(const SliderValueTextConfig&) const = default;
 
 	PTGN_REFLECT(
-		SliderValueTextConfig,
-		offset,
-		prefix,
-		suffix,
-		display_min,
-		display_max,
-		decimal_places
+		SliderValueTextConfig, offset, text, display_min, display_max, decimal_places
 	)
 };
 
 namespace impl {
 
 struct SliderData {
+	/// @brief Slider segment in Track Transform local space.
 	Line line{};
 	float value{ 0.0f };
 
@@ -64,11 +62,6 @@ struct SliderData {
 
 	/// @brief Configuration for the optional automatically updated value text.
 	std::optional<SliderValueTextConfig> value_text{};
-
-	// Runtime synchronization state. These values are intentionally not reflected or serialized.
-	bool value_text_synchronized{ false };
-	std::optional<SliderValueTextConfig> synchronized_value_text{};
-	Transform synchronized_value_text_transform{};
 
 	PTGN_REFLECT(SliderData, line, value, discrete_positions, value_text)
 };
@@ -80,32 +73,56 @@ enum class SliderTrackKind : std::uint8_t {
 };
 PTGN_REFLECT_ENUM(SliderTrackKind);
 
+/// @brief Marker for the managed draggable thumb owned by a slider.
+struct SliderThumbData {
+	PTGN_REFLECT_EMPTY(SliderThumbData)
+};
+
 /// @brief Marker and runtime synchronization data for a slider track.
 struct SliderTrackData {
-	SliderTrackKind kind{ SliderTrackKind::Line };
+	SliderTrackKind kind{ SliderTrackKind::AutoShape };
 
-	// Runtime synchronization state. These values are intentionally not reflected or serialized.
-	bool synchronized{ false };
-	Line synchronized_line{};
-	std::optional<Line> synchronized_track_line{};
+	/// @brief Whether the optional Track Transform is enabled.
+	bool transform_enabled{ false };
 
-	PTGN_REFLECT_VALUE(SliderTrackData, kind)
+	/// @brief Whether the optional Track Visual is enabled.
+	bool visual_enabled{ false };
+
+	PTGN_REFLECT(SliderTrackData, kind, transform_enabled, visual_enabled)
+};
+
+/// @brief Marker for the managed background visual owned by a slider track.
+struct SliderTrackBackgroundData {
+	PTGN_REFLECT_EMPTY(SliderTrackBackgroundData)
+};
+
+/// @brief Marker for the managed border visual owned by a slider track.
+struct SliderTrackBorderData {
+	PTGN_REFLECT_EMPTY(SliderTrackBorderData)
+};
+
+/// @brief Marker for the managed sprite visual owned by a slider track.
+struct SliderTrackSpriteData {
+	PTGN_REFLECT_EMPTY(SliderTrackSpriteData)
 };
 
 /// @brief Marker for the text child owned by SliderValueTextConfig.
 struct SliderValueTextData {
-	PTGN_REFLECT_EMPTY(SliderValueTextData)
+	/// @brief Whether the optional Value Text Transform is enabled.
+	bool transform_enabled{ false };
+
+	PTGN_REFLECT_VALUE(SliderValueTextData, transform_enabled)
 };
 
 struct SliderSystem {
-	/// @brief Makes SliderData entities ordinary draggable buttons automatically.
+	/// @brief Ensures SliderData entities have their managed thumb, track, and value text parts.
 	static void Prepare(Scene& scene);
 
 	/// @brief Constrains actively dragged slider thumbs to their tracks and updates values.
 	/// Must run immediately after InteractionSystem::Update.
 	static void Update(Scene& scene);
 
-	/// @brief Synchronizes a slider root or one of its track or value text children.
+	/// @brief Synchronizes a slider root or one of its thumb, track, or value text children.
 	/// Editor component edits and gizmos can call this after changing an entity.
 	static void SynchronizeEntity(Entity entity);
 };
@@ -119,6 +136,7 @@ public:
 	/// @return Normalized slider value in the range [0, 1].
 	[[nodiscard]] float GetValue() const;
 
+	/// @return World space slider segment after applying the slider and Track Transform.
 	[[nodiscard]] Line GetLine() const;
 
 	/// @return True when the slider snaps to discrete positions.
@@ -130,11 +148,24 @@ public:
 	/// @return True when the slider has automatically updated value text configured.
 	[[nodiscard]] bool HasValueText() const;
 
+	/// @return Managed draggable thumb button, or a null button if it does not exist.
+	[[nodiscard]] Button GetThumb() const;
+
+	/// @return Slider track entity, or a null entity if no track exists.
+	[[nodiscard]] Entity GetTrack() const;
+
+	/// @return Slider value text entity, or a null entity if no value text exists.
+	[[nodiscard]] Entity GetValueTextEntity() const;
+
+	/// @brief Ensures the non rendering Track container exists.
+	Entity EnsureTrack();
+
 	/// @brief Sets the normalized slider value, clamped to [0, 1].
 	/// Discrete sliders additionally snap to the nearest configured position.
 	Slider& SetValue(float value);
 
 	/// @brief Changes the slider segment while preserving its normalized value.
+	/// The segment is stored in Track Transform local space.
 	Slider& SetLine(Line line);
 
 	/// @brief Snaps the slider to a fixed number of positions including both endpoints.
@@ -149,6 +180,27 @@ public:
 
 	/// @brief Changes the circular thumb radius.
 	Slider& Size(float radius);
+
+	/// @brief Accesses the thumb background appearance.
+	ButtonBackground Background(ButtonVisualState state = ButtonVisualState::Idle);
+
+	/// @brief Accesses the thumb border appearance.
+	ButtonBorder Border(ButtonVisualState state = ButtonVisualState::Idle);
+
+	/// @brief Accesses the thumb button text appearance.
+	ButtonText Text(ButtonVisualState state = ButtonVisualState::Idle);
+
+	/// @brief Accesses the thumb sprite appearance.
+	ButtonSprite Sprite(ButtonVisualState state = ButtonVisualState::Idle);
+
+	/// @brief Accesses the thumb animation appearance.
+	ButtonAnimation Animation(ButtonVisualState state = ButtonVisualState::Idle);
+
+	/// @brief Changes the thumb sound for a visual state.
+	Slider& Sound(std::optional<AudioKey> sound_key, ButtonVisualState state);
+
+	/// @brief Enables or disables exclusive thumb audio playback.
+	Slider& ExclusiveAudio(bool enabled = true);
 
 	/// @brief Creates a line extending exactly from the slider line start to end.
 	Slider& TrackLine(Color color = color::Gray);
@@ -167,34 +219,32 @@ public:
 	/// @brief Removes the slider track. The thumb remains fully functional.
 	Slider& RemoveTrack();
 
-	/// @return Slider track entity, or a null entity if no track exists.
-	[[nodiscard]] Entity GetTrack() const;
-
-	/// @brief Adds automatically updated text initially placed at the thumb position plus config.offset.
-	/// The text ignores parent position by default, so moving the slider does not move the label.
-	/// Disable IgnoreParentPosition on the text child to make it follow the slider.
-	/// @return The existing ButtonText API so the label can be styled directly.
+	/// @brief Adds automatically updated text initially placed at config.offset relative to the
+	/// slider. The value text is separate from the thumb's ButtonText and has its own optional
+	/// Transform. Ignore parent Transform settings can make it independent of the slider transform.
+	/// @return The managed Text entity. Configure persistent styling through config.text.defaults or
+	/// the rich text source itself.
 	///
 	/// Example:
-	/// slider.ValueText({ .prefix = "Value: " }).Color(color::White).Size(24.0f);
-	ButtonText ValueText(SliderValueTextConfig config = {});
+	/// slider.ValueText({
+	/// 	.text = {
+	/// 		.source = "Value: <c=blue>${value}</c>",
+	/// 		.defaults = { .style = { .color = color::White, .size = 24.0f } },
+	/// 	},
+	/// });
+	ptgn::Text ValueText(SliderValueTextConfig config = {});
 
-	/// @brief Convenience value text mapping [0, 1] to [0, 100] with a '%' suffix.
-	ButtonText ValueTextPercent(
-		std::string prefix = {},
-		std::uint32_t decimal_places = 0,
+	/// @brief Convenience value text mapping [0, 1] to [0, 100].
+	ptgn::Text ValueTextPercent(
+		std::string source = "${value}%", std::uint32_t decimal_places = 0,
 		V2_float offset = { 0.0f, -50.0f }
 	);
 
 	/// @brief Convenience value text mapping [0, 1] to a display range.
 	/// The display range does not change slider behavior; it is presentation only.
-	ButtonText ValueTextRange(
-		float display_min,
-		float display_max,
-		std::string prefix = {},
-		std::string suffix = {},
-		std::uint32_t decimal_places = 0,
-		V2_float offset = { 0.0f, -50.0f }
+	ptgn::Text ValueTextRange(
+		float display_min, float display_max, std::string source = "${value}",
+		std::uint32_t decimal_places = 0, V2_float offset = { 0.0f, -50.0f }
 	);
 
 	/// @brief Removes the slider's automatically updated value text.
@@ -203,8 +253,7 @@ public:
 	template <EventCallbackInvocable<event::SliderChange> F>
 	Slider& OnChange(F&& callback) {
 		AddScript<impl::EventScript<event::SliderChange>>(
-			*this,
-			impl::MakeEventCallback<event::SliderChange>(std::forward<F>(callback))
+			*this, impl::MakeEventCallback<event::SliderChange>(std::forward<F>(callback))
 		);
 		return *this;
 	}
@@ -214,21 +263,16 @@ public:
 private:
 	friend struct impl::SliderSystem;
 
+	[[nodiscard]] Button EnsureThumb();
+	[[nodiscard]] Entity EnsureTrackBackground(Color color = color::Gray);
+	[[nodiscard]] Entity EnsureTrackSprite(TextureKey texture = {});
+
 	void ApplyValuePosition() const;
 
-	void SynchronizeTrack();
-	void SynchronizeValueText();
-	void SynchronizeFromTrack(Entity track);
-	void SynchronizeValueTextOffset(Entity text);
-
 	void RefreshTrack();
-	void RefreshValueText();
+	void SynchronizeValueText();
 	void RefreshValueTextContent();
 
-	void SetTrack(Entity track, impl::SliderTrackKind kind);
-
-	[[nodiscard]] Entity GetValueTextEntity() const;
-	[[nodiscard]] std::optional<Line> GetLineFromTrack(Entity track) const;
 	[[nodiscard]] float SnapValue(float value) const;
 	[[nodiscard]] float GetValueForPosition(V2_float position) const;
 };
@@ -252,19 +296,12 @@ struct SliderChange {
 } // namespace event
 
 Slider CreateSlider(
-	Scene& scene,
-	Line line,
-	V2_float button_size,
-	Origin origin = Origin::Center,
+	Scene& scene, Line line, V2_float button_size, Origin origin = Origin::Center,
 	float value = 0.0f
 );
 
 Slider CreateSlider(
-	Scene& scene,
-	Line line,
-	float button_radius,
-	Origin origin = Origin::Center,
-	float value = 0.0f
+	Scene& scene, Line line, float button_radius, Origin origin = Origin::Center, float value = 0.0f
 );
 
 } // namespace ptgn

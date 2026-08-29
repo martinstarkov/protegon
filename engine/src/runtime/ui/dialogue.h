@@ -19,10 +19,10 @@
 #include "renderer/text/text_layout.h"
 #include "renderer/text/text_style.h"
 #include "runtime/ecs/entity.h"
+#include "runtime/ui/button_config.h"
 #include "runtime/graphics/sprite.h"
 #include "runtime/graphics/text/text.h"
 #include "runtime/scripting/script.h"
-#include "runtime/ui/button_config.h"
 #include "serialization/json/json.h"
 #include "serialization/serialize.h"
 
@@ -86,8 +86,8 @@ struct DialoguePageProperties {
 	FontKey font{ kDefaultFont };
 	float font_size{ kDefaultFontSize };
 
-	V2_float box_size;
-	Padding padding;
+	V2_float box_size{};
+	Padding padding{};
 
 	milliseconds scroll_duration{ 1000 };
 
@@ -103,7 +103,7 @@ struct DialoguePage {
 
 	DialoguePage() = default;
 
-	DialoguePage(StyledText styled, const DialoguePageProperties& dialogue_properties);
+	DialoguePage(StyledText styled_text, const DialoguePageProperties& properties);
 };
 
 struct DialogueLine {

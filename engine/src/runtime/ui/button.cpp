@@ -8,6 +8,7 @@
 #include <span>
 #include <string>
 #include <string_view>
+#include <type_traits>
 #include <utility>
 #include <variant>
 #include <vector>
@@ -436,23 +437,22 @@ void ApplyButtonTextConfig(ButtonTextVisuals& visuals, const ButtonTextConfig& c
 	auto apply_text_state = [&config, &visuals](ButtonVisualState state, Color color) {
 		auto& visual{ visuals.states[std::to_underlying(state)] };
 
-		TextRun run;
-
-		run.text		= config.content.value_or(std::string{});
-		run.font		= config.font;
-		run.style.color = color;
-		run.style.size	= config.font_size;
+		TextRunDefaults defaults{
+			.font = config.font,
+		};
+		defaults.style.color = color;
+		defaults.style.size = config.font_size;
 
 		if (config.outline_width.has_value()) {
-			run.style.sdf.outline = DistanceFieldLayerStyle{
+			defaults.style.sdf.outline = DistanceFieldLayerStyle{
 				.color	  = config.outline_color,
 				.width	  = config.outline_width.value(),
 				.softness = 1.0f,
 			};
 		}
 
-		visual.defined	   = true;
-		visual.styled_text = { run };
+		visual.defined = true;
+		visual.styled_text = ParseRichText(config.content.value(), defaults).text;
 		visual.box		   = config.box;
 		visual.origin	   = config.origin;
 		visual.anchor	   = config.anchor;
@@ -1046,6 +1046,14 @@ impl::InternalButtonState Button::GetInternalState() const {
 	return Get<impl::ButtonData>().state;
 }
 
+Button& Button::PreviewVisualState(std::optional<ButtonVisualState> state) {
+	if (state.has_value()) {
+		return LockVisualState(state.value());
+	}
+
+	return UnlockVisualState();
+}
+
 std::variant<V2_float, float> Button::GetSize() const {
 	if (auto rect{ TryGet<Rect>() }) {
 		return rect->GetSize();
@@ -1533,16 +1541,11 @@ ButtonSpriteVisual& Button::SpriteVisual(ButtonVisualState state) {
 StyledText Button::GetTextFallback(ButtonVisualState state) const {
 	auto entity{ FindPart(impl::ButtonPart::Text) };
 
-	if (!entity) {
-		StyledText styled_text;
-		styled_text.runs.emplace_back();
-		return styled_text;
-	}
-
-	const auto& visuals{ entity.Get<ButtonTextVisuals>() };
-
-	if (auto value{ ResolveProperty(visuals.states, state, &ButtonTextVisual::styled_text) }) {
-		return *value;
+	if (entity) {
+		const auto& visuals{ entity.Get<ButtonTextVisuals>() };
+		if (auto value{ ResolveProperty(visuals.states, state, &ButtonTextVisual::styled_text) }) {
+			return *value;
+		}
 	}
 
 	StyledText styled_text;
@@ -1574,6 +1577,18 @@ void Button::ApplyShapeVisual(impl::ButtonPart part) const {
 
 	if (auto value{ ResolveProperty(visuals.states, visual_state, &ButtonShapeVisual::size) }) {
 		size = *value;
+	} else if (part == impl::ButtonPart::Border) {
+		// An unset border size follows the effective background size. If the background also
+		// leaves its size unset, `size` remains the button/interactable size initialized above.
+		if (Entity background{ FindPart(impl::ButtonPart::Background) };
+			background && background.Has<ButtonBackgroundVisuals>()) {
+			const auto& background_visuals{ background.Get<ButtonBackgroundVisuals>() };
+			if (auto background_size{ ResolveProperty(
+					background_visuals.states, visual_state, &ButtonShapeVisual::size
+				) }) {
+				size = *background_size;
+			}
+		}
 	}
 	if (auto value{ ResolveProperty(visuals.states, visual_state, &ButtonShapeVisual::origin) }) {
 		origin = *value;
@@ -1581,16 +1596,19 @@ void Button::ApplyShapeVisual(impl::ButtonPart part) const {
 	if (auto value{ ResolveProperty(visuals.states, visual_state, &ButtonShapeVisual::anchor) }) {
 		anchor = *value;
 	}
-	if (auto value{
-			ResolveProperty(visuals.states, visual_state, &ButtonShapeVisual::transform) }) {
-		Transform transform{ *value };
+	const auto* resolved_transform{
+		ResolveProperty(visuals.states, visual_state, &ButtonShapeVisual::transform)
+	};
+	Transform transform{ resolved_transform ? *resolved_transform : Transform{} };
 
-		auto button_rect{ GetButtonLocalRect(*this) };
-		transform.position += button_rect.GetOriginPoint(anchor);
+	auto button_rect{ GetButtonLocalRect(*this) };
+	transform.position += button_rect.GetOriginPoint(anchor);
 
-		entity.Add<Transform>(transform);
-		entity.Add<Origin>(origin);
-	}
+	// Always write the resolved transform. If this state does not provide a transform override,
+	// the part must return to its inherited/default transform instead of retaining the transform
+	// that happened to be applied by the previously active visual state.
+	entity.Add<Transform>(transform);
+	entity.Add<Origin>(origin);
 
 	std::visit(
 		[entity]<typename T>(const T& value) mutable {
@@ -1614,7 +1632,28 @@ void Button::ApplyShapeVisual(impl::ButtonPart part) const {
 	}
 	if (auto value{
 			ResolveProperty(visuals.states, visual_state, &ButtonShapeVisual::fill_style) }) {
-		entity.Add<FillStyle>(*value);
+		FillStyle fill{ *value };
+		if (part == impl::ButtonPart::Border) {
+			if (const auto line_width{ fill.GetLineWidth() }) {
+				const float maximum_width{ std::visit(
+					[](const auto& resolved_size) -> float {
+						using T = std::remove_cvref_t<decltype(resolved_size)>;
+						if constexpr (std::same_as<T, V2_float>) {
+							return std::max(
+								1.0f,
+								std::min(std::abs(resolved_size.x), std::abs(resolved_size.y)) *
+									0.5f
+							);
+						} else {
+							return std::max(1.0f, std::abs(resolved_size));
+						}
+					},
+					size
+				) };
+				fill = FillStyle{ std::min(*line_width, maximum_width) };
+			}
+		}
+		entity.Add<FillStyle>(fill);
 	}
 }
 
@@ -1633,7 +1672,7 @@ void Button::ApplyTextVisual() const {
 		return;
 	}
 
-	auto styled_text{
+	const StyledText* styled_text{
 		ResolveProperty(visuals.states, visual_state, &ButtonTextVisual::styled_text)
 	};
 
@@ -1666,11 +1705,15 @@ void Button::ApplyTextVisual() const {
 	auto button_rect{ GetButtonLocalRect(*this) };
 	auto anchor_position{ button_rect.GetOriginPoint(anchor) };
 
-	if (auto value{ ResolveProperty(visuals.states, visual_state, &ButtonTextVisual::transform) }) {
-		Transform transform{ *value };
-		transform.position += anchor_position;
-		entity.Add<Transform>(transform);
-	}
+	const auto* resolved_transform{
+		ResolveProperty(visuals.states, visual_state, &ButtonTextVisual::transform)
+	};
+	Transform transform{ resolved_transform ? *resolved_transform : Transform{} };
+	transform.position += anchor_position;
+
+	// Always apply the resolved transform so removing an override immediately restores the
+	// inherited/default transform rather than leaving stale state on the managed text entity.
+	entity.Add<Transform>(transform);
 	if (auto value{ ResolveProperty(visuals.states, visual_state, &ButtonTextVisual::auto_box) }) {
 		auto_box = *value;
 	}
@@ -1753,11 +1796,15 @@ void Button::ApplySpriteVisual(ButtonVisualState state) const {
 	if (auto value{ ResolveProperty(visuals.states, state, &ButtonSpriteVisual::anchor) }) {
 		anchor = *value;
 	}
-	if (auto value{ ResolveProperty(visuals.states, state, &ButtonSpriteVisual::transform) }) {
-		Transform transform{ *value };
-		transform.position += GetButtonLocalRect(*this).GetOriginPoint(anchor);
-		sprite.Add<Transform>(transform);
-	}
+	const auto* resolved_transform{
+		ResolveProperty(visuals.states, state, &ButtonSpriteVisual::transform)
+	};
+	Transform transform{ resolved_transform ? *resolved_transform : Transform{} };
+	transform.position += GetButtonLocalRect(*this).GetOriginPoint(anchor);
+
+	// As with shape and text parts, a missing override means inherited/default transform, not
+	// "leave the previously applied transform untouched".
+	sprite.Add<Transform>(transform);
 	if (auto value{ ResolveProperty(visuals.states, state, &ButtonSpriteVisual::size) }) {
 		size = *value;
 	}
@@ -1781,9 +1828,19 @@ void Button::ApplySpriteVisual(ButtonVisualState state) const {
 		}
 	}
 
-	if (texture.has_value()) {
+	const bool has_texture{
+		texture.has_value() && !texture->value.empty()
+	};
+
+	if (has_texture) {
 		sprite.Add<TextureKey>(texture.value());
+	} else {
+		sprite.Remove<TextureKey>();
 	}
+
+	// A defined sprite appearance with no texture is a valid editor state. Keep the managed
+	// sprite entity, but do not submit it for rendering until a texture has been configured.
+	SetVisible(entity, button_visible && visible && has_texture);
 
 	sprite.Add<Tint>(tint);
 	sprite.Add<Origin>(origin);
@@ -1794,7 +1851,7 @@ void Button::ApplySpriteVisual(ButtonVisualState state) const {
 		sprite.Remove<impl::TextureSize>();
 	}
 
-	bool has_animation{ animation && animation_state.has_value() };
+	bool has_animation{ animation && animation_state.has_value() && has_texture };
 
 	if (!has_animation) {
 		if (sprite.Has<impl::AnimationData>()) {
@@ -2197,6 +2254,23 @@ ButtonText& ButtonText::Content(StyledText styled_text) {
 	return *this;
 }
 
+ButtonText& ButtonText::SetRichText(std::string_view source) {
+	auto& visual{ button_.TextVisual(state_) };
+	auto fallback{ button_.GetTextFallback(state_) };
+
+	TextRunDefaults defaults{};
+	if (!fallback.runs.empty()) {
+		defaults.font = fallback.runs.front().font;
+		defaults.style = fallback.runs.front().style;
+	}
+
+	visual.defined = true;
+	visual.styled_text = ParseRichText(source, defaults).text;
+
+	MarkTextDirty();
+	return *this;
+}
+
 ButtonText& ButtonText::ClearContent() {
 	auto& visual{ button_.TextVisual(state_) };
 
@@ -2205,7 +2279,6 @@ ButtonText& ButtonText::ClearContent() {
 	}
 
 	visual.styled_text.reset();
-
 	MarkTextDirty();
 
 	return *this;

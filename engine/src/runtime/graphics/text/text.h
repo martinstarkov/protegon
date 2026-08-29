@@ -1,7 +1,11 @@
 #pragma once
 
+#include <cstddef>
+#include <functional>
 #include <optional>
+#include <string>
 #include <string_view>
+#include <vector>
 
 #include "core/graphics/color.h"
 #include "core/math/geometry/origin.h"
@@ -15,13 +19,15 @@
 #include "runtime/ecs/entity.h"
 #include "runtime/graphics/drawable.h"
 #include "serialization/serialize.h"
+#include "runtime/asset/asset_key.h"
 #include "runtime/graphics/text/font_system.h"
 
 namespace ptgn {
 
+class AssetManager;
 class DrawContext;
 class Scene;
-class AssetManager;
+class Text;
 
 struct TextRun {
 	std::string text{};
@@ -38,7 +44,11 @@ struct StyledText {
 
 	constexpr StyledText() = default;
 
-	constexpr StyledText(std::initializer_list<TextRun> text_runs) : runs{ text_runs } {}
+	constexpr StyledText(std::initializer_list<TextRun> text_runs) :
+		runs{ text_runs } {}
+
+	constexpr explicit StyledText(const TextRun& run) :
+		runs{ run } {}
 
 	constexpr bool operator==(const StyledText&) const = default;
 
@@ -49,21 +59,79 @@ struct StyledText {
 	PTGN_REFLECT_VALUE(StyledText, runs)
 };
 
+struct TextRunDefaults {
+	FontKey font{ kDefaultFont };
+	TextRunStyle style{};
+
+	constexpr bool operator==(const TextRunDefaults&) const = default;
+
+	PTGN_REFLECT(TextRunDefaults, font, style)
+};
+
+struct RichText {
+	std::string source{};
+	TextRunDefaults defaults{};
+
+	constexpr bool operator==(const RichText&) const = default;
+
+	PTGN_REFLECT(RichText, source, defaults)
+};
+
+struct RichTextDiagnostic {
+	std::size_t position{ 0 };
+	std::string message{};
+
+	constexpr bool operator==(const RichTextDiagnostic&) const = default;
+};
+
+struct RichTextParseResult {
+	StyledText text{};
+	std::vector<RichTextDiagnostic> diagnostics{};
+
+	constexpr bool operator==(const RichTextParseResult&) const = default;
+};
+
+using RichTextVariableResolver =
+	std::function<std::optional<std::string>(std::string_view variable)>;
+
+/// @brief Escapes characters that have special meaning in rich text source.
+/// Use this for user/runtime values before inserting them into markup.
+[[nodiscard]] std::string EscapeRichText(std::string_view text);
+
+/// @brief Expands ${variable} expressions. Resolved values are escaped so they cannot inject markup.
+/// Unresolved variables are preserved verbatim.
+[[nodiscard]] std::string ExpandRichTextVariables(
+	std::string_view source, const RichTextVariableResolver& resolver
+);
+
+/// @brief Compiles rich text source into ordinary StyledText runs.
+/// Malformed or unknown tags are kept as literal text and reported in diagnostics.
+[[nodiscard]] RichTextParseResult ParseRichText(
+	std::string_view source, const TextRunDefaults& defaults = {}
+);
+
+[[nodiscard]] RichTextParseResult ParseRichText(const RichText& rich_text);
+
+/// @brief Converts existing runs to an equivalent rich text source representation.
+/// Useful for editor migration of legacy/manual StyledText.
+[[nodiscard]] std::string SerializeStyledTextToRichText(
+	const StyledText& styled_text, const TextRunDefaults& defaults = {}
+);
+
 namespace impl {
 
 struct TextData {
+	/// @brief StyledText remains the canonical stored/runtime representation.
 	StyledText text{};
 	TextBox box{};
-	
+
 	/// @brief Number of glyphs revealed. Nullopt means all glyphs are revealed.
 	std::optional<std::size_t> glyph_count{};
 
 	std::optional<TextClip> clip{};
 
-	/// @brief Index of the current text run being edited.
+	/// @brief Runtime only cursor used by the builder API.
 	std::size_t current_run_index{ 0 };
-
-	constexpr bool operator==(const TextData&) const = default;
 
 	PTGN_REFLECT(TextData, text, box, glyph_count, clip)
 	PTGN_REFLECT_READONLY(TextData, current_run_index)
@@ -88,31 +156,53 @@ public:
 
 	static void Draw(DrawContext& ctx, Entity entity);
 
-	/// @brief Clears all text content and resets the current run index to 0.
+	/// @brief Clears all text content.
 	Text& Clear();
 
-	/// @brief Selects the text run at the specified index. If the index is out of bounds, it will
-	/// select the last text run.
-	Text& Select(std::size_t index);
-
-	/// @brief Appends and selects the content as the current text run.
+	/// @brief Appends/selects a procedural text run.
 	Text& Content(std::string_view content);
 
-	/// @brief Appends and selects the styled text as the current text run.
+	/// @brief Replaces the current text with the supplied StyledText runs.
 	Text& Content(StyledText styled_text);
+
+	/// @brief Selects the text run to be affected by subsequent style setters.
+	Text& Select(std::size_t index);
+
+	/// @brief Compiles rich text markup and stores the result as StyledText.
+	Text& SetRichText(std::string_view source, const TextRunDefaults& defaults = {});
+	Text& SetRichText(const RichText& rich_text);
 
 	Text& Box(Rect text_rect);
 	Text& Box(const TextBox& text_box);
 
-	Text& Align(Origin origin);
+	/// @brief Sets the number of glyphs to reveal. 
+	/// @param glyph_count If nullopt or greater than the total number of glyphs, all glyphs will be revealed.
+	Text& Reveal(std::optional<std::size_t> glyph_count = std::nullopt);
+
+	Text& Reveal(std::size_t glyph_count) { return Reveal(std::optional<std::size_t>{ glyph_count }); }
+	
+	/// @brief Sets the fraction of the total glyphs to reveal. Clamped to range: [0.0, 1.0]. 0.0 =
+	/// no glyphs revealed, 1.0 = all glyphs revealed.
+	Text& RevealFraction(float fraction);
+
+	Text& RevealAll() { return Reveal(std::nullopt); }
+
 	Text& Align(Alignment alignment);
+	Text& Align(Origin origin);
 	Text& Align(HorizontalAlign horizontal, VerticalAlign vertical);
-	Text& HorizontalAlign(HorizontalAlign align);
-	Text& VerticalAlign(VerticalAlign align);
+	Text& HorizontalAlign(HorizontalAlign horizontal);
+	Text& VerticalAlign(VerticalAlign vertical);
 
 	/// @brief Removes explicit alignment overrides and returns to alignment derived
 	/// from the current draw origin.
 	Text& ClearAlignment();
+
+	/// @return Final logical size of the laid out text.
+	[[nodiscard]] V2_float GetSize() const;
+
+	/// @return Final text content bounds in the entity's local coordinate space,
+	/// after applying the text draw origin.
+	[[nodiscard]] Rect GetBounds() const;
 
 	/// @brief Determines how text is wrapped to the next line when it exceeds the width of the text
 	/// box.
@@ -129,15 +219,9 @@ public:
 	/// the box, but still allow the user to scroll the text outside of the box.
 	/// Rectangle is positioned relative to the text's transform.
 	/// If nullopt, clears any previously set clipping.
-	Text& Clip(std::optional<TextClip> clip = std::nullopt);
+	Text& Clip(std::optional<TextClip> clip);
 
-	/// @brief Sets the number of glyphs to reveal. 
-	/// @param glyph_count If nullopt or greater than the total number of glyphs, all glyphs will be revealed.
-	Text& Reveal(std::optional<std::size_t> glyph_count = std::nullopt);
-
-	/// @brief Sets the fraction of the total glyphs to reveal. Clamped to range: [0.0, 1.0]. 0.0 =
-	/// no glyphs revealed, 1.0 = all glyphs revealed.
-	Text& RevealFraction(float fraction);
+	Text& ClearClip() { return Clip(std::nullopt); }
 
 	/// @brief If true, leading and trailing spaces will be trimmed and consecutive whitespace
 	/// characters will be collapsed into a single space across all text runs. Useful for processing
@@ -149,60 +233,46 @@ public:
 	/// to be a paragraph, such as a single line of text.
 	Text& JustifyLastLine(bool justify = true);
 
+	/// @brief Sets the number of space columns between tab stops.
+	/// A tab advances to the next multiple of this many spaces.
+	/// @param spaces Clamped to be at least one space.
+	Text& TabWidth(std::size_t spaces);
+
+	Text& MaxLines(std::size_t max_lines);
+	Text& ScaleToFit(float min_scale, float max_scale = 1.0f);
+
+	Text& Font(FontKey font_key = {});
+	Text& Color(ptgn::Color color);
+	Text& Size(float font_size);
+	
 	/// @brief Kerning adjusts spacing between specific glyph pairs based on the font's kerning
 	/// data.
 	/// @param multiplier The multiplier for the kerning adjustment.
 	/// 1.0 uses the font's kerning unchanged.
 	/// 0.0 disables kerning.
 	/// Values above 1.0 exaggerate kerning adjustments.
-	Text& Kerning(float multiplier);
+	Text& Kerning(float kerning);
 
 	/// @brief Tracking adds a uniform amount of spacing between all adjacent glyphs.
 	/// The value is measured in rendered text pixels after font scaling.
 	/// Positive values spread glyphs apart; negative values bring glyphs closer.
-	Text& Tracking(float spacing);
-
-	/// @brief Sets the number of space columns between tab stops.
-	/// A tab advances to the next multiple of this many spaces.
-	/// @param spaces Clamped to be at least one space.
-	Text& TabWidth(std::size_t spaces);
-
+	Text& Tracking(float tracking);
+	
 	Text& LineSpacing(float line_spacing);
-
-	Text& MaxLines(std::size_t max_lines);
-
-	Text& ScaleToFit(float min_scale, float max_scale = 1.0f);
-
-	Text& Font(FontKey font_key = {});
-	Text& Color(ptgn::Color color);
-	Text& Size(float font_size);
-
 	Text& Style(FontStyle flags);
 	Text& Bold(bool enabled = true, float weight = kDefaultBoldWeight);
 	Text& Italic(bool enabled = true);
 	Text& Underline(bool enabled = true);
 	Text& Strikethrough(bool enabled = true);
-
 	Text& Outline(ptgn::Color color, float width, float softness = 1.0f);
-
 	Text& Shadow(ptgn::Color color, V2_float offset, float softness = 1.0f);
 	Text& Shadow(ptgn::Color color, V2_float offset, float width, float softness);
-
 	Text& OuterGlow(ptgn::Color color, float width, float softness = 1.0f);
 	Text& InnerGlow(ptgn::Color color, float width, float softness = 1.0f);
-
 	Text& ClearSdfEffects();
-
 	Text& Effect(
 		GlyphEffectType type, float amplitude, float frequency, float speed, float phase = 0.0f
 	);
-
-	/// @return Final logical size of the laid out text.
-	V2_float GetSize() const;
-
-	/// @return Final text content bounds in the entity's local coordinate space,
-	/// after applying the text draw origin.
-	Rect GetBounds() const;
 
 	/// @return The measured size of the text, which may be larger than the box if the text is
 	/// clipped, ellipsized, or truncated.
@@ -210,24 +280,21 @@ public:
 
 	/// @return The number of glyphs that are currently set to be revealed or
 	/// std::size_t::max() if no reveal is active.
-	std::size_t GetRevealGlyphCount() const;
+	[[nodiscard]] std::size_t GetRevealGlyphCount() const;
 
 	/// @return True if all glyphs are currently revealed or no reveal restrictions are set.
-	bool IsFullyRevealed() const;
+	[[nodiscard]] bool IsFullyRevealed() const;
 
-	const StyledText& GetStyledText() const;
-	const TextBox& GetTextBox() const;
+	[[nodiscard]] const StyledText& GetStyledText() const;
+	[[nodiscard]] const TextBox& GetTextBox() const;
 
 	/// @return The text layout for the current styled text and text box. If the layout is not up to
 	/// date, it will be rebuilt before returning.
-	const TextLayout& GetLayout() const;
+	[[nodiscard]] const TextLayout& GetLayout() const;
 
 private:
-	friend class Scene;
-
-	void UpdateLayout() const;
-
 	TextRun& CurrentRun();
+	void UpdateLayout() const;
 	void InvalidateLayout();
 };
 
