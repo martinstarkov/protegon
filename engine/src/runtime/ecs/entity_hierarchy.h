@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstddef>
 #include <optional>
 #include <string_view>
 #include <vector>
@@ -41,6 +42,9 @@ void AddChild(Entity entity, Entity child, std::optional<std::string_view> name 
 
 void RemoveChild(Entity entity, Entity child);
 void RemoveChild(Entity entity, std::string_view name);
+
+/// @brief Moves an existing direct child to a new index in the parent's ordered child list.
+void MoveChild(Entity entity, Entity child, std::size_t index);
 
 /// @return True if the entity has the given child, false otherwise.
 [[nodiscard]] bool HasChild(Entity entity, Entity child);

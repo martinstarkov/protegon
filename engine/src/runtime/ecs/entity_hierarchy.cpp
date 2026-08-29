@@ -1,5 +1,6 @@
 #include "runtime/ecs/entity_hierarchy.h"
 
+#include <algorithm>
 #include <optional>
 #include <string_view>
 #include <vector>
@@ -148,6 +149,28 @@ void ClearChildren(Entity entity) {
 void RemoveChild(Entity entity, Entity child) {
 	PTGN_ASSERT(GetParent(child) == entity);
 	RemoveParent(child);
+}
+
+void MoveChild(Entity entity, Entity child, std::size_t index) {
+	PTGN_ASSERT(entity, "Cannot reorder a child of a null parent");
+	PTGN_ASSERT(child, "Cannot reorder a null child");
+	PTGN_ASSERT(HasParent(child) && GetParent(child) == entity, "Entity is not a direct child");
+	PTGN_ASSERT(entity.Has<impl::Children>(), "Parent has no children");
+
+	auto& children{ entity.Get<impl::Children>().children_ };
+	auto it{ std::ranges::find(children, child) };
+
+	PTGN_ASSERT(it != children.end(), "Child is missing from parent child list");
+
+	const std::size_t old_index{ static_cast<std::size_t>(std::distance(children.begin(), it)) };
+	if (old_index == index || children.size() <= 1) {
+		return;
+	}
+
+	Entity moved{ *it };
+	children.erase(it);
+	index = std::min(index, children.size());
+	children.insert(children.begin() + static_cast<std::ptrdiff_t>(index), moved);
 }
 
 void RemoveChild(Entity entity, std::string_view name) {
