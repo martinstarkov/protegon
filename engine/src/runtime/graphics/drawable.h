@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <concepts>
 #include <optional>
+#include <string>
 #include <string_view>
 #include <vector>
 
@@ -71,15 +72,15 @@ public:
 		std::string type_name{};
 
 		/// @brief Optional name.
-		std::optional<std::string_view> name{};
+		std::optional<std::string> name{};
 
 		/// @brief Optional group.
-		std::optional<std::string_view> group{};
+		std::optional<std::string> group{};
 
 		DrawFunc draw{ nullptr };
 
 		[[nodiscard]] constexpr std::string_view GetDisplayName() const {
-			return name.value_or(type_name);
+			return name.has_value() ? std::string_view{ name.value() } : std::string_view{ type_name };
 		}
 	};
 
@@ -95,11 +96,22 @@ public:
 
 		auto it{ std::ranges::find(drawables, type_hash, &Info::hash) };
 
+		const std::optional<std::string> name{
+			registration.options.name.has_value()
+				? std::optional<std::string>{ std::string{ registration.options.name.value() } }
+				: std::nullopt
+		};
+		const std::optional<std::string> group{
+			registration.options.group.has_value()
+				? std::optional<std::string>{ std::string{ registration.options.group.value() } }
+				: std::nullopt
+		};
+
 		if (it != drawables.end()) {
 			PTGN_ASSERT(
 				it->draw == draw && it->type_name == registration.type_name &&
-					it->name == registration.options.name &&
-					it->group == registration.options.group,
+					it->name == name &&
+					it->group == group,
 				"Drawable hash collision or duplicate drawable registration with different metadata"
 			);
 
@@ -110,8 +122,8 @@ public:
 			Info{
 				.hash	   = type_hash,
 				.type_name = std::string{ registration.type_name },
-				.name	   = registration.options.name,
-				.group	   = registration.options.group,
+				.name	   = name,
+				.group	   = group,
 				.draw	   = draw,
 			}
 		);
