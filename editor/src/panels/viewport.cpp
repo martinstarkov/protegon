@@ -40,6 +40,7 @@
 #include "runtime/scene/scene_context.h"
 #include "runtime/ui/button.h"
 #include "runtime/ui/button_config.h"
+#include "runtime/ui/dropdown.h"
 #include "runtime/ui/slider.h"
 #include "tools/debug/stats.h"
 
@@ -173,6 +174,16 @@ bool ApplyGizmoDeltaToVisualTransforms(
 	}
 
 	return changed;
+}
+
+void SetEditorWorldTransform(Entity entity, Transform transform) {
+	SetWorldTransform(entity, transform);
+	::ptgn::impl::SliderSystem::SynchronizeEntity(entity);
+}
+
+void SetEditorLocalTransform(Entity entity, Transform transform) {
+	SetTransform(entity, transform);
+	::ptgn::impl::SliderSystem::SynchronizeEntity(entity);
 }
 
 void MarkParentButtonDirty(Entity entity, ::ptgn::impl::ButtonDirty dirty) {
@@ -1391,10 +1402,6 @@ void ViewportPanel::DrawSceneCameraOutlines(
 }
 
 void ViewportPanel::DrawViewportToolbar(EditorContext& ctx) {
-	const bool playing{
-		ctx.editor.IsPlaying()
-	};
-
 	const bool paused{
 		ctx.editor.IsPaused()
 	};
@@ -1863,7 +1870,7 @@ void ViewportPanel::DrawSelectedEntityGizmo(
 		editable_transform = editable_transform.InverseRelativeTo(render_target_transform);
 	}
 
-	SetWorldTransform(selected_entity, editable_transform);
+	SetEditorWorldTransform(selected_entity, editable_transform);
 
 	Transform local_transform_after{ GetTransform(selected_entity) };
 
@@ -1873,7 +1880,6 @@ void ViewportPanel::DrawSelectedEntityGizmo(
 		);
 	}
 
-	::ptgn::impl::SliderSystem::SynchronizeEntity(selected_entity);
 	local_transform_after = GetTransform(selected_entity);
 
 	const bool transform_changed{ local_transform_before != local_transform_after };
@@ -1882,8 +1888,7 @@ void ViewportPanel::DrawSelectedEntityGizmo(
 		Editor* editor{ std::addressof(ctx.editor) };
 		auto apply = [editor, reference](Transform value) {
 			if (Entity entity{ reference.Resolve(*editor) }; entity && entity.Has<Transform>()) {
-				entity.Get<Transform>() = value;
-				::ptgn::impl::SliderSystem::SynchronizeEntity(entity);
+				SetEditorLocalTransform(entity, value);
 			}
 		};
 
@@ -1905,6 +1910,39 @@ void ViewportPanel::DrawSelectedEntityGizmo(
 		gizmo_state_.active == GizmoHandle::None) {
 		ctx.undo.CommitActiveEdit();
 	}
+}
+
+[[nodiscard]] bool IsManagedUIPickEntity(Entity entity) {
+	return entity && entity.HasAny<
+		ButtonBackgroundVisuals,
+		ButtonBorderVisuals,
+		ButtonSpriteVisuals,
+		ButtonTextVisuals,
+		::ptgn::impl::SliderThumbData,
+		::ptgn::impl::SliderTrackData,
+		::ptgn::impl::SliderTrackBackgroundData,
+		::ptgn::impl::SliderTrackBorderData,
+		::ptgn::impl::SliderTrackSpriteData,
+		::ptgn::impl::SliderValueTextData
+	>();
+}
+
+[[nodiscard]] Entity ResolveManagedUIPick(Entity entity) {
+	Entity current{ entity };
+
+	while (current && IsManagedUIPickEntity(current) && HasParent(current)) {
+		Entity parent{ GetParent(current) };
+
+		// Dropdown items are semantic controls in their own right. A managed visual child of an
+		// item resolves to that item, rather than continuing up to the parent dropdown header.
+		if (parent && parent.Has<::ptgn::impl::DropdownItem>()) {
+			return parent;
+		}
+
+		current = parent;
+	}
+
+	return current;
 }
 
 void ViewportPanel::HandleEntityPicking(
@@ -1996,6 +2034,10 @@ void ViewportPanel::HandleEntityPicking(
 	auto selected_entity{
 		ResolveRenderTargetPick(*scene, renderer, outer_entity, mouse_world)
 	};
+
+	if (selected_entity && !hierarchy.GetShowManagedUIParts()) {
+		selected_entity = ResolveManagedUIPick(selected_entity);
+	}
 
 	hierarchy.SetSelectedEntity(selected_entity);
 }
