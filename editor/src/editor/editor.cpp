@@ -68,7 +68,7 @@ namespace ptgn::editor {
 
 namespace {
 
-constexpr float kLeftColumnRatio{ 0.25f };
+constexpr float kLeftColumnRatio{ 0.182f };
 constexpr float kRightColumnRatio{ 0.40f };
 
 #if !defined(__EMSCRIPTEN__)
