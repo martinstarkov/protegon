@@ -35,7 +35,7 @@ struct SliderChange;
 struct SliderValueTextConfig {
 	V2_float offset{ 0.0f, -50.0f };
 
-	/// @brief Rich text template. ${value} expands to the formatted display value.
+	/// @brief Rich-text template. ${value} expands to the formatted display value.
 	RichText text{ .source = "${value}" };
 
 	float display_min{ 0.0f };
@@ -91,19 +91,31 @@ struct SliderTrackData {
 	PTGN_REFLECT(SliderTrackData, kind, transform_enabled, visual_enabled)
 };
 
-/// @brief Marker for the managed background visual owned by a slider track.
+/// @brief Managed background visual owned by a slider track.
 struct SliderTrackBackgroundData {
-	PTGN_REFLECT_EMPTY(SliderTrackBackgroundData)
+	/// @brief False for data serialized before per part slider track overrides were introduced.
+	bool initialized{ false };
+	ButtonShapeVisual visual{};
+
+	PTGN_REFLECT(SliderTrackBackgroundData, initialized, visual)
 };
 
-/// @brief Marker for the managed border visual owned by a slider track.
+/// @brief Managed border visual owned by a slider track.
 struct SliderTrackBorderData {
-	PTGN_REFLECT_EMPTY(SliderTrackBorderData)
+	/// @brief False for data serialized before per part slider track overrides were introduced.
+	bool initialized{ false };
+	ButtonShapeVisual visual{};
+
+	PTGN_REFLECT(SliderTrackBorderData, initialized, visual)
 };
 
-/// @brief Marker for the managed sprite visual owned by a slider track.
+/// @brief Managed sprite visual owned by a slider track.
 struct SliderTrackSpriteData {
-	PTGN_REFLECT_EMPTY(SliderTrackSpriteData)
+	/// @brief False for data serialized before per part slider track overrides were introduced.
+	bool initialized{ false };
+	ButtonSpriteVisual visual{};
+
+	PTGN_REFLECT(SliderTrackSpriteData, initialized, visual)
 };
 
 /// @brief Marker for the text child owned by SliderValueTextConfig.

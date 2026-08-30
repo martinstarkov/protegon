@@ -231,6 +231,7 @@ public:
 		return OnEvent<event::ButtonHoverStop>(std::forward<F>(callback));
 	}
 
+	void RefreshVisualState() const;
 protected:
 	void MarkDirty(impl::ButtonDirty dirty);
 	void RefreshDirty();
@@ -256,8 +257,6 @@ private:
 	ButtonVisualState GetVisualState(ButtonState state, bool check_for_visual_lock) const;
 
 	void SetState(impl::InternalButtonState state);
-
-	void RefreshVisualState() const;
 
 	Button& LockVisualState(ButtonVisualState state, bool block_press = false);
 	Button& UnlockVisualState();

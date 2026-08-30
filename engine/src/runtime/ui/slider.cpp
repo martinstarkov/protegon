@@ -2,11 +2,13 @@
 
 #include <algorithm>
 #include <cmath>
+#include <concepts>
 #include <iomanip>
 #include <optional>
 #include <sstream>
 #include <string>
 #include <string_view>
+#include <type_traits>
 #include <utility>
 #include <variant>
 
@@ -19,6 +21,7 @@
 #include "core/math/geometry/rect.h"
 #include "core/math/transform.h"
 #include "core/math/vector2.h"
+#include "runtime/animation/animation.h"
 #include "runtime/ecs/entity.h"
 #include "runtime/ecs/entity_hierarchy.h"
 #include "runtime/ecs/tag.h"
@@ -124,6 +127,242 @@ template <typename Marker>
 	}
 
 	return kDefaultTrackThickness;
+}
+
+[[nodiscard]] V2_float RotateTrackVector(V2_float value, Radians rotation) {
+	const float cosine{ std::cos(rotation.value) };
+	const float sine{ std::sin(rotation.value) };
+	return {
+		value.x * cosine - value.y * sine,
+		value.x * sine + value.y * cosine,
+	};
+}
+
+[[nodiscard]] Transform ResolveTrackPartTransform(
+	const std::optional<Transform>& override_transform,
+	V2_float automatic_size,
+	V2_float center,
+	Radians rotation,
+	Origin anchor
+) {
+	Transform transform{ override_transform.value_or(Transform{}) };
+	const V2_float anchor_offset{ Rect{ automatic_size }.GetOriginPoint(anchor) };
+	transform.position += center + RotateTrackVector(anchor_offset, rotation);
+	transform.rotation = Radians{ transform.rotation.value + rotation.value };
+	return transform;
+}
+
+[[nodiscard]] float TrackBorderMaximumWidth(const std::variant<V2_float, float>& size) {
+	return std::visit(
+		[](const auto& resolved_size) -> float {
+			using T = std::remove_cvref_t<decltype(resolved_size)>;
+			if constexpr (std::same_as<T, V2_float>) {
+				return std::max(
+					1.0f,
+					std::min(std::abs(resolved_size.x), std::abs(resolved_size.y)) * 0.5f
+				);
+			} else {
+				return std::max(1.0f, std::abs(resolved_size));
+			}
+		},
+		size
+	);
+}
+
+void InitializeTrackBackgroundData(Entity background) {
+	auto& data{ background.Get<impl::SliderTrackBackgroundData>() };
+	if (data.initialized) {
+		return;
+	}
+
+	data.visual.defined = true;
+	if (auto color{ background.TryGet<Color>() }) {
+		data.visual.color = *color;
+	}
+	data.initialized = true;
+}
+
+void InitializeTrackBorderData(Entity border) {
+	auto& data{ border.Get<impl::SliderTrackBorderData>() };
+	if (data.initialized) {
+		return;
+	}
+
+	data.visual.defined = true;
+	if (auto color{ border.TryGet<Color>() }) {
+		data.visual.color = *color;
+	}
+	if (auto fill{ border.TryGet<FillStyle>() }) {
+		data.visual.fill_style = *fill;
+	}
+	data.initialized = true;
+}
+
+void InitializeTrackSpriteData(Entity sprite) {
+	auto& data{ sprite.Get<impl::SliderTrackSpriteData>() };
+	if (data.initialized) {
+		return;
+	}
+
+	data.visual.defined = true;
+	if (auto texture{ sprite.TryGet<TextureKey>() }) {
+		data.visual.texture = *texture;
+	}
+	if (auto origin{ sprite.TryGet<Origin>() }) {
+		data.visual.origin = *origin;
+	}
+	if (auto size{ GetDisplaySize(sprite) }) {
+		data.visual.size = *size;
+	}
+	data.visual.tint = GetTint(sprite);
+	if (auto animation{ sprite.TryGet<impl::AnimationData>() }) {
+		data.visual.animation = animation->config;
+	}
+	if (auto options{ sprite.TryGet<impl::ButtonAnimationPart>() }) {
+		data.visual.animation_options = options->options;
+	}
+	data.initialized = true;
+}
+
+void ApplyTrackShapePart(
+	Entity entity,
+	ButtonShapeVisual& visual,
+	V2_float automatic_size,
+	V2_float center,
+	Radians rotation,
+	Color fallback_color,
+	bool border,
+	std::optional<std::variant<V2_float, float>> fallback_size = std::nullopt
+) {
+	visual.defined = true;
+	const std::variant<V2_float, float> size{
+		visual.size.value_or(fallback_size.value_or(std::variant<V2_float, float>{ automatic_size }))
+	};
+	const Origin origin{ visual.origin.value_or(Origin::Center) };
+	const Origin anchor{ visual.anchor.value_or(Origin::Center) };
+
+	SetTransform(
+		entity,
+		ResolveTrackPartTransform(visual.transform, automatic_size, center, rotation, anchor)
+	);
+	entity.Add<Origin>(origin);
+
+	std::visit(
+		[entity]<typename T>(const T& resolved_size) mutable {
+			if constexpr (std::same_as<T, V2_float>) {
+				entity.Remove<Circle>();
+				entity.Add<Rect>(resolved_size);
+				SetDraw<RectDraw>(entity);
+			} else if constexpr (std::same_as<T, float>) {
+				entity.Remove<Rect>();
+				entity.Add<Circle>(resolved_size);
+				SetDraw<CircleDraw>(entity);
+			}
+		},
+		size
+	);
+
+	entity.Add<Color>(visual.color.value_or(fallback_color));
+
+	if (border) {
+		FillStyle fill{ visual.fill_style.value_or(FillStyle{ 1.0f }) };
+		if (const auto width{ fill.GetLineWidth() }) {
+			fill = FillStyle{ std::clamp(*width, 1.0f, TrackBorderMaximumWidth(size)) };
+		}
+		entity.Add<FillStyle>(fill);
+	} else {
+		entity.Remove<FillStyle>();
+	}
+}
+
+void ApplyTrackSpritePart(
+	Entity sprite,
+	ButtonSpriteVisual& visual,
+	V2_float automatic_size,
+	V2_float center,
+	Radians rotation,
+	bool visible
+) {
+	visual.defined = true;
+	const Origin origin{ visual.origin.value_or(Origin::Center) };
+	const Origin anchor{ visual.anchor.value_or(Origin::Center) };
+	Transform transform{
+		ResolveTrackPartTransform(visual.transform, automatic_size, center, rotation, anchor)
+	};
+
+	const bool has_texture{
+		visual.texture.has_value() && !visual.texture->value.empty()
+	};
+	if (has_texture) {
+		sprite.Add<TextureKey>(visual.texture.value());
+	} else {
+		sprite.Remove<TextureKey>();
+	}
+
+	sprite.Add<Origin>(origin);
+	SetTint(sprite, visual.tint.value_or(color::White));
+
+	if (visual.size.has_value()) {
+		sprite.Add<impl::TextureSize>(visual.size.value());
+	} else {
+		sprite.Remove<impl::TextureSize>();
+	}
+
+	// An unset texture size inherits the automatic track length. An explicit size is a real
+	// button-style display-size override and is therefore not stretched back to the track length.
+	if (!visual.size.has_value()) {
+		if (const auto display_size{ GetDisplaySize(sprite) };
+			display_size.has_value() && display_size->x > 0.0f) {
+			transform.scale.x *= automatic_size.x / display_size->x;
+		}
+	}
+	SetTransform(sprite, transform);
+	SetVisible(sprite, visible && has_texture);
+
+	if (!(visual.animation.has_value() && has_texture)) {
+		if (sprite.Has<impl::AnimationData>()) {
+			Animation{ sprite }.Stop();
+		}
+		sprite.Remove<impl::ButtonAnimationPart>();
+		return;
+	}
+
+	bool animation_changed{ true };
+	if (auto animation_data{ sprite.TryGet<impl::AnimationData>() }) {
+		animation_changed = !animation_data->config.IsIdentical(
+			visual.animation.value(), GetTextureSize(sprite)
+		);
+	}
+
+	Animation animation{ sprite };
+	animation.SetConfig(visual.animation.value());
+	const ButtonAnimationOptions options{
+		visual.animation_options.value_or(ButtonAnimationOptions{})
+	};
+	const auto previous_options{ sprite.TryGet<impl::ButtonAnimationPart>() };
+	const bool options_changed{ !previous_options || previous_options->options != options };
+	sprite.Add<impl::ButtonAnimationPart>(options);
+
+	switch (options.playback) {
+		case ButtonAnimationPlayback::StaticFrame:
+			if (animation_changed || options_changed) {
+				animation.Reset();
+				animation.SetCurrentFrame(options.static_frame);
+			}
+			break;
+		case ButtonAnimationPlayback::Play:
+			if (animation_changed || options_changed || !animation.IsPlaying()) {
+				animation.Start(true);
+			}
+			break;
+		case ButtonAnimationPlayback::PlayOnce:
+			// Unlike looping Play, a completed PlayOnce must stay completed when the track is
+			// synchronized again. Restart only when its animation/options actually change.
+			if (animation_changed || options_changed) {
+				animation.Start(true);
+			}
+			break;
+	}
 }
 
 } // namespace
@@ -506,13 +745,18 @@ Entity Slider::EnsureTrackBackground(Color color) {
 	Entity track{ EnsureTrack() };
 
 	if (Entity background{ FindDirectChildWith<impl::SliderTrackBackgroundData>(track) }) {
-		background.Add<Color>(color);
+		auto& part{ background.Get<impl::SliderTrackBackgroundData>() };
+		InitializeTrackBackgroundData(background);
+		part.visual.color = color;
 		return background;
 	}
 
 	Entity background{ CreateRect(GetScene(), {}, {}, color) };
 	background.Add<Tag>("Slider Track Background");
-	background.Add<impl::SliderTrackBackgroundData>();
+	auto& part{ background.Add<impl::SliderTrackBackgroundData>() };
+	part.initialized = true;
+	part.visual.defined = true;
+	part.visual.color = color;
 	background.Add<Origin>(Origin::Center);
 
 	SetParent(background, track);
@@ -525,17 +769,24 @@ Entity Slider::EnsureTrackSprite(TextureKey texture) {
 	Entity track{ EnsureTrack() };
 
 	if (Entity sprite{ FindDirectChildWith<impl::SliderTrackSpriteData>(track) }) {
+		auto& part{ sprite.Get<impl::SliderTrackSpriteData>() };
+		InitializeTrackSpriteData(sprite);
 		if (!texture.value.empty()) {
-			sprite.Add<TextureKey>(std::move(texture));
+			part.visual.texture = std::move(texture);
 		}
-
 		return sprite;
 	}
 
-	Entity sprite{ CreateSprite(GetScene(), {}, std::move(texture), Origin::Center) };
+	Entity sprite{ CreateSprite(GetScene(), {}, texture, Origin::Center) };
 
 	sprite.Add<Tag>("Slider Track Sprite");
-	sprite.Add<impl::SliderTrackSpriteData>();
+	auto& part{ sprite.Add<impl::SliderTrackSpriteData>() };
+	part.initialized = true;
+	part.visual.defined = true;
+	if (!texture.value.empty()) {
+		part.visual.texture = std::move(texture);
+	}
+	part.visual.tint = color::White;
 
 	SetParent(sprite, track);
 	SetUI(sprite, IsUI(*this));
@@ -557,10 +808,6 @@ Slider& Slider::TrackLine(Color color) {
 
 	(void)EnsureTrackBackground(color);
 
-	if (Entity sprite{ FindDirectChildWith<impl::SliderTrackSpriteData>(track) }) {
-		sprite.Destroy();
-	}
-
 	RefreshTrack();
 
 	return *this;
@@ -581,10 +828,6 @@ Slider& Slider::TrackShape(Color color) {
 	// RefreshTrack calculates the real dimensions and transform.
 	(void)EnsureTrackBackground(color);
 
-	if (Entity sprite{ FindDirectChildWith<impl::SliderTrackSpriteData>(track) }) {
-		sprite.Destroy();
-	}
-
 	RefreshTrack();
 
 	return *this;
@@ -603,13 +846,11 @@ Slider& Slider::TrackSprite(TextureKey texture, V2_float size, Color tint) {
 	data.visual_enabled = true;
 
 	Entity sprite{ EnsureTrackSprite(std::move(texture)) };
-
-	SetDisplaySize(sprite, size);
-	SetTint(sprite, tint);
-
-	if (Entity background{ FindDirectChildWith<impl::SliderTrackBackgroundData>(track) }) {
-		background.Destroy();
-	}
+	auto& part{ sprite.Get<impl::SliderTrackSpriteData>() };
+	part.initialized = true;
+	part.visual.defined = true;
+	part.visual.size = size;
+	part.visual.tint = tint;
 
 	RefreshTrack();
 
@@ -803,92 +1044,64 @@ void Slider::RefreshTrack() {
 	}
 
 	auto& track_data{ track.Get<impl::SliderTrackData>() };
+	Entity background{ FindDirectChildWith<impl::SliderTrackBackgroundData>(track) };
+	Entity border{ FindDirectChildWith<impl::SliderTrackBorderData>(track) };
+	Entity sprite{ FindDirectChildWith<impl::SliderTrackSpriteData>(track) };
 
-	const bool has_background{
-		static_cast<bool>(FindDirectChildWith<impl::SliderTrackBackgroundData>(track))
-	};
-	const bool has_border{ static_cast<bool>(FindDirectChildWith<impl::SliderTrackBorderData>(track)) };
-	const bool has_sprite{ static_cast<bool>(FindDirectChildWith<impl::SliderTrackSpriteData>(track)) };
-
-	// Visual enablement is derived from the managed visual children. This keeps undo/redo of those
-	// children from leaving a stale serialized visual_enabled flag that hides a restored part.
-	track_data.visual_enabled = has_background || has_border || has_sprite;
-	if (has_sprite) {
-		track_data.kind = impl::SliderTrackKind::Sprite;
-	} else if (track_data.kind == impl::SliderTrackKind::Sprite) {
-		track_data.kind = impl::SliderTrackKind::AutoShape;
-	}
+	// Visual enablement is derived from the managed children. Background, border, and sprite are
+	// independent parts and may all exist at the same time.
+	track_data.visual_enabled = background || border || sprite;
 
 	if (!track_data.transform_enabled) {
 		SetTransform(track, {});
 	}
 
 	const Line line{ Get<impl::SliderData>().line };
-
 	if (!IsValidSliderLine(line)) {
 		return;
 	}
 
 	const auto direction{ line.GetDirection() };
-	const auto center{ Midpoint(line.start, line.end) };
+	const V2_float center{ Midpoint(line.start, line.end) };
 	const Radians rotation{ direction.Angle().ToRad() };
 	const float length{ Length(direction) };
+	const float thickness{
+		track_data.kind == impl::SliderTrackKind::Line
+			? std::max(1.0f, kDefaultTrackThickness * 0.25f)
+			: TrackThickness(GetThumb(), direction)
+	};
+	const V2_float automatic_size{ length, thickness };
 
-	const float thickness{ track_data.kind == impl::SliderTrackKind::Line
-							   ? std::max(1.0f, kDefaultTrackThickness * 0.25f)
-							   : TrackThickness(GetThumb(), direction) };
+	std::optional<std::variant<V2_float, float>> background_size{};
 
-	if (Entity background{ FindDirectChildWith<impl::SliderTrackBackgroundData>(track) }) {
+	if (background) {
+		InitializeTrackBackgroundData(background);
+		auto& part{ background.Get<impl::SliderTrackBackgroundData>() };
+		ApplyTrackShapePart(
+			background, part.visual, automatic_size, center, rotation, color::Gray, false
+		);
+		background_size = part.visual.size.value_or(
+			std::variant<V2_float, float>{ automatic_size }
+		);
 		SetVisible(background, track_data.visual_enabled);
-
-		background.Add<Rect>(V2_float{ length, thickness });
-		if (!background.Has<Origin>()) {
-			background.Add<Origin>(Origin::Center);
-		}
-
-		Transform child_transform;
-		child_transform.position = center;
-		child_transform.rotation = rotation;
-
-		SetTransform(background, child_transform);
 	}
 
-	if (Entity border{ FindDirectChildWith<impl::SliderTrackBorderData>(track) }) {
+	if (border) {
+		InitializeTrackBorderData(border);
+		auto& part{ border.Get<impl::SliderTrackBorderData>() };
+		ApplyTrackShapePart(
+			border, part.visual, automatic_size, center, rotation, color::White, true,
+			background_size
+		);
 		SetVisible(border, track_data.visual_enabled);
-
-		border.Add<Rect>(V2_float{ length, thickness });
-		if (!border.Has<Origin>()) {
-			border.Add<Origin>(Origin::Center);
-		}
-		if (auto fill{ border.TryGet<FillStyle>() }) {
-			if (const auto line_width{ fill->GetLineWidth() }) {
-				const float maximum_width{ std::max(1.0f, std::min(length, thickness) * 0.5f) };
-				if (*line_width > maximum_width) {
-					border.Add<FillStyle>(FillStyle{ maximum_width });
-				}
-			}
-		}
-
-		Transform child_transform;
-		child_transform.position = center;
-		child_transform.rotation = rotation;
-
-		SetTransform(border, child_transform);
 	}
 
-	if (Entity sprite{ FindDirectChildWith<impl::SliderTrackSpriteData>(track) }) {
-		SetVisible(sprite, track_data.visual_enabled);
-
-		Transform child_transform;
-		child_transform.position = center;
-		child_transform.rotation = rotation;
-
-		if (const auto display_size{ GetDisplaySize(sprite) };
-			display_size.has_value() && display_size->x > 0.0f) {
-			child_transform.scale.x = length / display_size->x;
-		}
-
-		SetTransform(sprite, child_transform);
+	if (sprite) {
+		InitializeTrackSpriteData(sprite);
+		auto& part{ sprite.Get<impl::SliderTrackSpriteData>() };
+		ApplyTrackSpritePart(
+			sprite, part.visual, automatic_size, center, rotation, track_data.visual_enabled
+		);
 	}
 }
 

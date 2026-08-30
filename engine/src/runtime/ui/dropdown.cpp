@@ -96,6 +96,44 @@ void DropdownSystem::OnButtonPress(Entity entity) {
 
 } // namespace impl
 
+namespace {
+
+constexpr V2_float kDefaultDropdownItemSize{ 100.0f, 32.0f };
+
+[[nodiscard]] std::optional<std::variant<V2_float, float>> TryGetButtonShapeSize(Entity entity) {
+	if (!entity) {
+		return std::nullopt;
+	}
+	if (auto rect{ entity.TryGet<Rect>() }) {
+		return rect->GetSize();
+	}
+	if (auto circle{ entity.TryGet<Circle>() }) {
+		return circle->radius;
+	}
+	return std::nullopt;
+}
+
+[[nodiscard]] std::variant<V2_float, float> GetDropdownItemCreationSize(Dropdown dropdown) {
+	const auto& info{ dropdown.Get<impl::DropdownData>() };
+	if (info.button_size.has_value()) {
+		V2_float size{ info.button_size.value() };
+		size.x = std::max(0.0f, size.x);
+		size.y = std::max(0.0f, size.y);
+		return size;
+	}
+	if (auto parent_size{ TryGetButtonShapeSize(dropdown) }) {
+		return parent_size.value();
+	}
+	for (Button item : dropdown.GetButtons()) {
+		if (auto item_size{ TryGetButtonShapeSize(item) }) {
+			return item_size.value();
+		}
+	}
+	return kDefaultDropdownItemSize;
+}
+
+} // namespace
+
 void Dropdown::HideDropdownBranch(Button button) {
 	if (button.Has<impl::DropdownData>()) {
 		Dropdown{ button }.Close(false);
@@ -263,7 +301,13 @@ void Dropdown::RecalculateButtonPositions() {
 		info.button_size->y = std::max(0.0f, info.button_size->y);
 	}
 
-	auto parent_shape{ GetSize() };
+	const auto parent_shape{
+		TryGetButtonShapeSize(*this).value_or(
+			info.button_size.has_value()
+				? std::variant<V2_float, float>{ info.button_size.value() }
+				: GetDropdownItemCreationSize(*this)
+		)
+	};
 
 	auto transform{ GetWorldTransform(*this) };
 
@@ -284,13 +328,16 @@ void Dropdown::RecalculateButtonPositions() {
 
 	auto scaled_parent_size{ get_scaled_size(parent_shape) };
 
-	const auto get_button_size = [parent_shape,
-								  &info](const Button&) -> std::variant<V2_float, float> {
+	const bool parent_has_shape{ TryGetButtonShapeSize(*this).has_value() };
+	const auto get_button_size = [parent_shape, parent_has_shape,
+								  &info](const Button& button) -> std::variant<V2_float, float> {
 		if (info.button_size.has_value()) {
 			return info.button_size.value();
 		}
-
-		return parent_shape;
+		if (parent_has_shape) {
+			return parent_shape;
+		}
+		return TryGetButtonShapeSize(button).value_or(parent_shape);
 	};
 
 	V2_float parent_center{ GetOffset(GetOrDefault<ptgn::Origin>(), scaled_parent_size) };
@@ -361,16 +408,12 @@ Dropdown& Dropdown::AddButton(Button button) {
 }
 
 Button Dropdown::AddItem(std::string_view text) {
-	std::variant<V2_float, float> size;
-
-	if (const auto& info{ Get<impl::DropdownData>() }; info.button_size.has_value()) {
-		V2_float clamped{ info.button_size.value() };
-		clamped.x = std::max(0.0f, clamped.x);
-		clamped.y = std::max(0.0f, clamped.y);
-		size = clamped;
-	} else {
-		size = GetSize();
+	if (!Has<impl::DropdownData>()) {
+		PTGN_WARN("Cannot add item to dropdown with no dropdown data");
+		return {};
 	}
+
+	const std::variant<V2_float, float> size{ GetDropdownItemCreationSize(*this) };
 
 	return std::visit(
 		[&](const auto& s) {

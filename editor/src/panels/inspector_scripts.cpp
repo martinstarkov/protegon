@@ -1,3 +1,7 @@
+#include "panels/inspector_scripts.h"
+#include "panels/inspector_features.h"
+#include "panels/inspector_component_drawers.h"
+
 #include <imgui.h>
 #include <imgui_stdlib.h>
 
@@ -2959,6 +2963,548 @@ bool DrawScriptsComponent(EditorContext& ctx, ::ptgn::impl::Scripts& scripts) {
 	changed |= DrawResidentScripts(context, scripts);
 
 	return changed;
+}
+
+
+namespace {
+
+struct ScriptEntryEditorSnapshot {
+	bool enabled{ true };
+	TypeHashValue type_hash{ 0 };
+	std::string name{};
+	json value	  = json::object();
+	json sequence = json::object();
+	std::function<std::unique_ptr<Script>()> runtime_factory{};
+	std::vector<std::function<std::unique_ptr<Script>()>> step_runtime_factories{};
+	std::vector<std::function<std::unique_ptr<Script>()>> lifecycle_runtime_factories{};
+
+	[[nodiscard]] bool HasSameAuthoredState(const ScriptEntryEditorSnapshot& other) const {
+		return enabled == other.enabled && type_hash == other.type_hash && name == other.name &&
+			   value == other.value && sequence == other.sequence;
+	}
+};
+
+using ScriptEntriesEditorSnapshot = std::vector<ScriptEntryEditorSnapshot>;
+
+[[nodiscard]] ScriptEntriesEditorSnapshot CaptureScriptEntriesEditorSnapshot(
+	const std::vector<ScriptEntry>& entries
+) {
+	ScriptEntriesEditorSnapshot snapshot;
+	snapshot.reserve(entries.size());
+
+	for (const auto& entry : entries) {
+		const ScriptSequence& sequence{ entry.instance ? entry.instance->sequence
+													   : entry.sequence };
+
+		ScriptEntryEditorSnapshot entry_snapshot{
+			.enabled		 = entry.enabled,
+			.type_hash		 = entry.type_hash,
+			.name			 = entry.name,
+			.value			 = entry.value,
+			.sequence		 = sequence,
+			.runtime_factory = entry.runtime_factory,
+		};
+
+		entry_snapshot.step_runtime_factories.reserve(sequence.steps.size());
+		for (const auto& step : sequence.steps) {
+			entry_snapshot.step_runtime_factories.push_back(step.runtime_factory);
+		}
+
+		entry_snapshot.lifecycle_runtime_factories.reserve(sequence.lifecycle_actions.size());
+		for (const auto& lifecycle : sequence.lifecycle_actions) {
+			entry_snapshot.lifecycle_runtime_factories.push_back(lifecycle.action.runtime_factory);
+		}
+
+		snapshot.push_back(std::move(entry_snapshot));
+	}
+
+	return snapshot;
+}
+
+[[nodiscard]] bool HasSameAuthoredState(
+	const ScriptEntriesEditorSnapshot& lhs, const ScriptEntriesEditorSnapshot& rhs
+) {
+	if (lhs.size() != rhs.size()) {
+		return false;
+	}
+
+	for (std::size_t i{ 0 }; i < lhs.size(); ++i) {
+		if (!lhs[i].HasSameAuthoredState(rhs[i])) {
+			return false;
+		}
+	}
+
+	return true;
+}
+
+struct ScriptsEditorSnapshot {
+	ScriptEntriesEditorSnapshot scripts{};
+	ScriptEntriesEditorSnapshot pending_additions{};
+	std::vector<SequenceId> pending_removals{};
+};
+
+[[nodiscard]] ScriptsEditorSnapshot CaptureScriptsEditorSnapshot(
+	const ::ptgn::impl::Scripts& scripts
+) {
+	return ScriptsEditorSnapshot{
+		.scripts		   = CaptureScriptEntriesEditorSnapshot(scripts.scripts),
+		.pending_additions = CaptureScriptEntriesEditorSnapshot(scripts.pending_additions),
+		.pending_removals  = scripts.pending_removals,
+	};
+}
+
+[[nodiscard]] bool HasSameAuthoredState(
+	const ScriptsEditorSnapshot& lhs, const ScriptsEditorSnapshot& rhs
+) {
+	return HasSameAuthoredState(lhs.scripts, rhs.scripts) &&
+		   HasSameAuthoredState(lhs.pending_additions, rhs.pending_additions) &&
+		   lhs.pending_removals == rhs.pending_removals;
+}
+
+[[nodiscard]] std::vector<ScriptEntry> RestoreScriptEntriesEditorSnapshot(
+	const ScriptEntriesEditorSnapshot& snapshot
+) {
+	std::vector<ScriptEntry> entries;
+	entries.reserve(snapshot.size());
+
+	for (const auto& entry_snapshot : snapshot) {
+		ScriptSequence sequence;
+		entry_snapshot.sequence.get_to(sequence);
+
+		for (std::size_t i{ 0 };
+			 i < sequence.steps.size() && i < entry_snapshot.step_runtime_factories.size(); ++i) {
+			sequence.steps[i].runtime_factory = entry_snapshot.step_runtime_factories[i];
+		}
+
+		for (std::size_t i{ 0 }; i < sequence.lifecycle_actions.size() &&
+								 i < entry_snapshot.lifecycle_runtime_factories.size();
+			 ++i) {
+			sequence.lifecycle_actions[i].action.runtime_factory =
+				entry_snapshot.lifecycle_runtime_factories[i];
+		}
+
+		ScriptEntry entry;
+		entry.enabled		  = entry_snapshot.enabled;
+		entry.type_hash		  = entry_snapshot.type_hash;
+		entry.name			  = entry_snapshot.name;
+		entry.value			  = entry_snapshot.value;
+		entry.sequence		  = std::move(sequence);
+		entry.runtime_factory = entry_snapshot.runtime_factory;
+		entries.push_back(std::move(entry));
+	}
+
+	return entries;
+}
+
+void RestoreScriptsEditorSnapshot(Entity entity, const ScriptsEditorSnapshot& snapshot) {
+	if (!entity) {
+		return;
+	}
+
+	auto& scripts{ entity.TryAdd<::ptgn::impl::Scripts>() };
+	scripts.scripts			  = RestoreScriptEntriesEditorSnapshot(snapshot.scripts);
+	scripts.pending_additions = RestoreScriptEntriesEditorSnapshot(snapshot.pending_additions);
+	scripts.pending_removals  = snapshot.pending_removals;
+	scripts.channels.clear();
+	scripts.create_event_dispatched = false;
+	scripts.Attach(entity);
+}
+
+struct SharedScriptSequenceEditorSnapshot {
+	SequenceId id{ 0 };
+	json sequence = json::object();
+	std::vector<std::function<std::unique_ptr<Script>()>> step_runtime_factories{};
+	std::vector<std::function<std::unique_ptr<Script>()>> lifecycle_runtime_factories{};
+
+	[[nodiscard]] bool HasSameAuthoredState(const SharedScriptSequenceEditorSnapshot& other) const {
+		return id == other.id && sequence == other.sequence;
+	}
+};
+
+using SharedScriptSequencesEditorSnapshot = std::vector<SharedScriptSequenceEditorSnapshot>;
+
+[[nodiscard]] SharedScriptSequencesEditorSnapshot CaptureSharedScriptSequencesEditorSnapshot(
+	const SharedScriptSequenceRegistry& registry
+) {
+	SharedScriptSequencesEditorSnapshot snapshot;
+	snapshot.reserve(registry.sequences.size());
+
+	for (const auto& sequence : registry.sequences) {
+		SharedScriptSequenceEditorSnapshot sequence_snapshot{
+			.id		  = sequence.id,
+			.sequence = sequence,
+		};
+
+		sequence_snapshot.step_runtime_factories.reserve(sequence.steps.size());
+		for (const auto& step : sequence.steps) {
+			sequence_snapshot.step_runtime_factories.push_back(step.runtime_factory);
+		}
+
+		sequence_snapshot.lifecycle_runtime_factories.reserve(sequence.lifecycle_actions.size());
+		for (const auto& lifecycle : sequence.lifecycle_actions) {
+			sequence_snapshot.lifecycle_runtime_factories.push_back(
+				lifecycle.action.runtime_factory
+			);
+		}
+
+		snapshot.push_back(std::move(sequence_snapshot));
+	}
+
+	return snapshot;
+}
+
+[[nodiscard]] bool HasSameAuthoredState(
+	const SharedScriptSequencesEditorSnapshot& lhs, const SharedScriptSequencesEditorSnapshot& rhs
+) {
+	if (lhs.size() != rhs.size()) {
+		return false;
+	}
+
+	for (std::size_t i{ 0 }; i < lhs.size(); ++i) {
+		if (!lhs[i].HasSameAuthoredState(rhs[i])) {
+			return false;
+		}
+	}
+
+	return true;
+}
+
+void RestoreSharedScriptSequencesEditorSnapshot(
+	SharedScriptSequenceRegistry& registry, const SharedScriptSequencesEditorSnapshot& snapshot
+) {
+	registry.sequences.clear();
+	registry.sequences.reserve(snapshot.size());
+
+	for (const auto& sequence_snapshot : snapshot) {
+		ScriptSequence sequence;
+		sequence_snapshot.sequence.get_to(sequence);
+		sequence.id = sequence_snapshot.id;
+
+		for (std::size_t i{ 0 };
+			 i < sequence.steps.size() && i < sequence_snapshot.step_runtime_factories.size();
+			 ++i) {
+			sequence.steps[i].runtime_factory = sequence_snapshot.step_runtime_factories[i];
+		}
+
+		for (std::size_t i{ 0 }; i < sequence.lifecycle_actions.size() &&
+								 i < sequence_snapshot.lifecycle_runtime_factories.size();
+			 ++i) {
+			sequence.lifecycle_actions[i].action.runtime_factory =
+				sequence_snapshot.lifecycle_runtime_factories[i];
+		}
+
+		registry.sequences.push_back(std::move(sequence));
+	}
+}
+
+struct EntityScriptsEditorSnapshot {
+	EntityReference reference{};
+	ScriptsEditorSnapshot scripts{};
+};
+
+struct TimerReferenceSceneSnapshotData {
+	std::vector<EntityScriptsEditorSnapshot> entities{};
+	SharedScriptSequencesEditorSnapshot shared_sequences{};
+};
+
+[[nodiscard]] TimerReferenceSceneSnapshotData CaptureTimerReferenceSceneSnapshotData(Scene& scene) {
+	TimerReferenceSceneSnapshotData snapshot{
+		.shared_sequences =
+			CaptureSharedScriptSequencesEditorSnapshot(scene.ctx().shared_script_sequences),
+	};
+
+	for (Entity entity : scene.Entities()) {
+		const auto* scripts{ entity.TryGet<::ptgn::impl::Scripts>() };
+		if (!scripts) {
+			continue;
+		}
+
+		snapshot.entities.push_back(
+			EntityScriptsEditorSnapshot{
+				.reference = MakeEntityReference(entity),
+				.scripts   = CaptureScriptsEditorSnapshot(*scripts),
+			}
+		);
+	}
+
+	return snapshot;
+}
+
+void RestoreTimerReferenceSceneSnapshotData(
+	Editor& editor, const EntityReference& anchor_reference,
+	const TimerReferenceSceneSnapshotData& snapshot
+) {
+	Entity anchor{ anchor_reference.Resolve(editor) };
+	if (!anchor) {
+		return;
+	}
+
+	auto& scene{ anchor.GetScene() };
+	RestoreSharedScriptSequencesEditorSnapshot(
+		scene.ctx().shared_script_sequences, snapshot.shared_sequences
+	);
+
+	for (const auto& entity_snapshot : snapshot.entities) {
+		RestoreScriptsEditorSnapshot(
+			entity_snapshot.reference.Resolve(editor), entity_snapshot.scripts
+		);
+	}
+}
+
+[[nodiscard]] bool RenameTimerJsonReference(
+	json& value, const TimerKey& old_key, const TimerKey& new_key
+) {
+	if (!value.is_object()) {
+		return false;
+	}
+
+	auto timer_it{ value.find("timer") };
+	if (timer_it == value.end()) {
+		return false;
+	}
+
+	TimerKey timer;
+	try {
+		timer_it->get_to(timer);
+	} catch (...) {
+		return false;
+	}
+
+	if (timer != old_key) {
+		return false;
+	}
+
+	value["timer"] = new_key;
+	return true;
+}
+
+[[nodiscard]] bool ScriptStepTargetsEntity(Entity owner, const ScriptStep& step, Entity target) {
+	if (!owner || !target) {
+		return false;
+	}
+
+	if (!step.target) {
+		return owner == target;
+	}
+
+	const auto targets{ ResolveEntityFilter(*step.target, owner.GetScene(), owner) };
+	return std::ranges::contains(targets, target);
+}
+
+bool RenameTimerActionReference(
+	Entity owner, ScriptStep& step, Entity timer_entity, const TimerKey& old_key,
+	const TimerKey& new_key
+) {
+	if (step.type_hash != Hash<TimerActionScript>() ||
+		!ScriptStepTargetsEntity(owner, step, timer_entity)) {
+		return false;
+	}
+
+	if (!RenameTimerJsonReference(step.value, old_key, new_key)) {
+		return false;
+	}
+
+	step.runtime_factory = {};
+	return true;
+}
+
+bool RenameTimerReferencesInSequence(
+	Entity owner, ScriptSequence& sequence, Entity timer_entity, const TimerKey& old_key,
+	const TimerKey& new_key
+) {
+	bool changed{ false };
+
+	if (owner == timer_entity) {
+		auto rename_event = [&](EventCondition& condition) {
+			if (condition.type_hash == Hash<event::TimerElapsed>()) {
+				changed |= RenameTimerJsonReference(condition.value, old_key, new_key);
+			}
+		};
+
+		for (auto& condition : sequence.start_events) {
+			rename_event(condition);
+		}
+		for (auto& condition : sequence.stop_events) {
+			rename_event(condition);
+		}
+	}
+
+	for (auto& step : sequence.steps) {
+		changed |= RenameTimerActionReference(owner, step, timer_entity, old_key, new_key);
+	}
+
+	for (auto& lifecycle : sequence.lifecycle_actions) {
+		changed |=
+			RenameTimerActionReference(owner, lifecycle.action, timer_entity, old_key, new_key);
+	}
+
+	return changed;
+}
+
+bool RenameTimerReferencesImpl(Entity timer_entity, const TimerKey& old_key, const TimerKey& new_key) {
+	if (!timer_entity || old_key == new_key) {
+		return false;
+	}
+
+	auto& scene{ timer_entity.GetScene() };
+	bool changed{ false };
+
+	for (Entity owner : scene.Entities()) {
+		auto* scripts{ owner.TryGet<::ptgn::impl::Scripts>() };
+		if (!scripts) {
+			continue;
+		}
+
+		for (auto& entry : scripts->scripts) {
+			ScriptSequence& binding{ entry.instance ? entry.instance->sequence : entry.sequence };
+
+			ScriptSequence* sequence{ std::addressof(binding) };
+			if (binding.shared_reference) {
+				sequence = scene.ctx().shared_script_sequences.Find(binding.shared_sequence_id);
+			}
+
+			if (!sequence || !RenameTimerReferencesInSequence(
+								 owner, *sequence, timer_entity, old_key, new_key
+							 )) {
+				continue;
+			}
+
+			changed = true;
+
+			if (!binding.shared_reference && entry.instance) {
+				SequenceId sequence_id{ binding.id };
+				entry.sequence		   = binding;
+				entry.sequence.id	   = sequence_id;
+				entry.sequence.runtime = ScriptSequenceRuntime{};
+			}
+		}
+	}
+
+	return changed;
+}
+
+template <typename Target>
+bool DrawScriptsFeatureImpl(Target& target) {
+	if (!HasScriptsFeature(target)) {
+		return false;
+	}
+
+	const auto header{ DrawFeatureHeader(
+		target, InspectorFeature::Scripts, "Scripts", ImGuiTreeNodeFlags_None,
+		ScriptsFeatureComponents{}
+	) };
+
+	if (!header.open) {
+		return header.changed;
+	}
+
+	ScopedIndent feature_indent;
+
+	bool changed{ header.changed };
+
+	if constexpr (std::same_as<std::remove_cvref_t<Target>, EntityInspectorTarget>) {
+		if (!target.entity.template Has<::ptgn::impl::Scripts>()) {
+			return changed;
+		}
+
+		auto& scripts{ target.entity.template Get<::ptgn::impl::Scripts>() };
+		auto& shared_sequences{ target.entity.GetScene().ctx().shared_script_sequences };
+		auto before{ CaptureScriptsEditorSnapshot(scripts) };
+		auto before_shared{ CaptureSharedScriptSequencesEditorSnapshot(shared_sequences) };
+		const bool scripts_changed{ DrawScriptsComponent(target.ctx, scripts) };
+
+		if (!scripts_changed) {
+			return changed;
+		}
+
+		auto after{ CaptureScriptsEditorSnapshot(scripts) };
+		auto after_shared{ CaptureSharedScriptSequencesEditorSnapshot(shared_sequences) };
+
+		if (HasSameAuthoredState(before, after) &&
+			HasSameAuthoredState(before_shared, after_shared)) {
+			return changed;
+		}
+
+		ScopedID target_scope{ target.Id() };
+		ScopedID component_scope{ static_cast<int>(Hash<::ptgn::impl::Scripts>()) };
+		const ImGuiID key{ ImGui::GetID("##ComponentEdit") };
+		Editor* editor{ std::addressof(target.ctx.editor) };
+		const EntityReference reference{ MakeEntityReference(target.entity) };
+
+		TrackUndoableInteraction(
+			target.ctx, key, "Edit Scripts", true,
+			[editor, reference, before = std::move(before),
+			 before_shared = std::move(before_shared)]() {
+				Entity entity{ reference.Resolve(*editor) };
+				if (!entity) {
+					return;
+				}
+
+				RestoreSharedScriptSequencesEditorSnapshot(
+					entity.GetScene().ctx().shared_script_sequences, before_shared
+				);
+				RestoreScriptsEditorSnapshot(entity, before);
+			},
+			[editor, reference, after = std::move(after),
+			 after_shared = std::move(after_shared)]() {
+				Entity entity{ reference.Resolve(*editor) };
+				if (!entity) {
+					return;
+				}
+
+				RestoreSharedScriptSequencesEditorSnapshot(
+					entity.GetScene().ctx().shared_script_sequences, after_shared
+				);
+				RestoreScriptsEditorSnapshot(entity, after);
+			}
+		);
+
+		changed = true;
+	} else {
+		changed |= DrawRequiredComponent<Target, ::ptgn::impl::Scripts>(
+			target, "Scripts", false, [&target](::ptgn::impl::Scripts& value) {
+				return DrawRegisteredComponentContents(
+					target.ctx, Hash<::ptgn::impl::Scripts>(), std::addressof(value)
+				);
+			}
+		);
+	}
+
+	return changed;
+}
+
+
+} // namespace
+
+TimerReferenceSceneSnapshot CaptureTimerReferenceSceneSnapshot(Scene& scene) {
+	auto data{ std::make_shared<TimerReferenceSceneSnapshotData>(
+		CaptureTimerReferenceSceneSnapshotData(scene)
+	) };
+	return TimerReferenceSceneSnapshot{ .data = std::move(data) };
+}
+
+void RestoreTimerReferenceSceneSnapshot(
+	Editor& editor, const EntityReference& anchor_reference,
+	const TimerReferenceSceneSnapshot& snapshot
+) {
+	if (!snapshot.data) {
+		return;
+	}
+
+	auto data{ std::static_pointer_cast<const TimerReferenceSceneSnapshotData>(snapshot.data) };
+	RestoreTimerReferenceSceneSnapshotData(editor, anchor_reference, *data);
+}
+
+bool RenameTimerReferences(Entity timer_entity, const TimerKey& old_key, const TimerKey& new_key) {
+	return RenameTimerReferencesImpl(timer_entity, old_key, new_key);
+}
+
+bool DrawScriptsFeature(EntityInspectorTarget& target) {
+	return DrawScriptsFeatureImpl(target);
+}
+
+bool DrawScriptsFeature(PrefabInspectorTarget& target) {
+	return DrawScriptsFeatureImpl(target);
 }
 
 } // namespace ptgn::editor::inspector

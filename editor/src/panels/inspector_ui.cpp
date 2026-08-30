@@ -129,6 +129,7 @@ bool DrawSliderValueTextConfig(Target& target, ::ptgn::impl::SliderData& data) {
 
 	SliderValueTextConfig config{ data.value_text.value() };
 	bool changed{ false };
+	bool config_changed{ false };
 
 	const float preview_value{
 		config.display_min + std::clamp(data.value, 0.0f, 1.0f) *
@@ -148,18 +149,25 @@ bool DrawSliderValueTextConfig(Target& target, ::ptgn::impl::SliderData& data) {
 		}
 	};
 
-	bool config_changed{ DrawRichTextEditor(
-		target.ctx, config.text.source, config.text.defaults,
-		RichTextEditorOptions{ .variables = variables }
+	const bool text_open{ ImGui::TreeNodeEx(
+		"Text##SliderValueTextText",
+		ImGuiTreeNodeFlags_SpanAvailWidth | ImGuiTreeNodeFlags_FramePadding
 	) };
+	if (text_open) {
+		ScopedIndent indent;
+		config_changed |= DrawRichTextEditor(
+			target.ctx, config.text.source, config.text.defaults,
+			RichTextEditorOptions{ .variables = variables }
+		);
+		ImGui::TreePop();
+	}
 
 	const bool format_open{ ImGui::TreeNodeEx(
-		"Value Formatting##SliderValueTextFormat",
+		"Value Format##SliderValueTextFormat",
 		ImGuiTreeNodeFlags_SpanAvailWidth | ImGuiTreeNodeFlags_FramePadding
 	) };
 	if (format_open) {
 		ScopedIndent indent;
-		config_changed |= DrawValue(target.ctx, "Default Offset", config.offset);
 		config_changed |= DrawValue(target.ctx, "Display Min", config.display_min);
 		config_changed |= DrawValue(target.ctx, "Display Max", config.display_max);
 
@@ -180,92 +188,103 @@ bool DrawSliderValueTextConfig(Target& target, ::ptgn::impl::SliderData& data) {
 		ImGui::TreePop();
 	}
 
-	if (config_changed) {
-		data.value_text = config;
-		changed = true;
+	Entity text_entity{};
+	if constexpr (std::same_as<std::remove_cvref_t<Target>, EntityInspectorTarget>) {
+		text_entity = target.entity ? Slider{ target.entity }.GetValueTextEntity() : Entity{};
 	}
 
-	if constexpr (std::same_as<std::remove_cvref_t<Target>, EntityInspectorTarget>) {
-		Entity text_entity{ target.entity ? Slider{ target.entity }.GetValueTextEntity() : Entity{} };
-		if (!text_entity) {
-			return changed;
-		}
+	const bool transform_open{ ImGui::TreeNodeEx(
+		"Transform##SliderValueTextTransformTree",
+		ImGuiTreeNodeFlags_SpanAvailWidth | ImGuiTreeNodeFlags_FramePadding
+	) };
+	if (transform_open) {
+		ScopedIndent indent;
+		config_changed |= DrawValue(target.ctx, "Default Offset", config.offset);
+		DrawTooltip("Position used while the custom value-text transform is disabled.");
 
-		bool transform_enabled{
-			text_entity.Has<::ptgn::impl::SliderValueTextData>()
-				? text_entity.Get<::ptgn::impl::SliderValueTextData>().transform_enabled
-				: false
-		};
-		ScopedID transform_scope{ "SliderValueTextTransform" };
-		if (ImGui::Checkbox("##Enabled", &transform_enabled)) {
-			auto before{ text_entity.Get<::ptgn::impl::SliderValueTextData>() };
-			auto after{ before };
-			after.transform_enabled = transform_enabled;
-			text_entity.Get<::ptgn::impl::SliderValueTextData>() = after;
-			target.ctx.undo.PushApplied(
-				"Toggle Slider Value Text Transform",
-				[text_entity, before]() mutable {
-					if (text_entity) {
-						text_entity.Get<::ptgn::impl::SliderValueTextData>() = before;
-						::ptgn::impl::SliderSystem::SynchronizeEntity(text_entity);
-					}
-				},
-				[text_entity, after]() mutable {
-					if (text_entity) {
-						text_entity.Get<::ptgn::impl::SliderValueTextData>() = after;
-						::ptgn::impl::SliderSystem::SynchronizeEntity(text_entity);
+		if constexpr (std::same_as<std::remove_cvref_t<Target>, EntityInspectorTarget>) {
+			if (text_entity && text_entity.Has<::ptgn::impl::SliderValueTextData>()) {
+				bool transform_enabled{
+					text_entity.Get<::ptgn::impl::SliderValueTextData>().transform_enabled
+				};
+				if (ImGui::Checkbox("Enabled##SliderValueTextTransformEnabled", &transform_enabled)) {
+					auto before{ text_entity.Get<::ptgn::impl::SliderValueTextData>() };
+					auto after{ before };
+					after.transform_enabled = transform_enabled;
+					text_entity.Get<::ptgn::impl::SliderValueTextData>() = after;
+					target.ctx.undo.PushApplied(
+						"Toggle Slider Value Text Transform",
+						[text_entity, before]() mutable {
+							if (text_entity) {
+								text_entity.Get<::ptgn::impl::SliderValueTextData>() = before;
+								::ptgn::impl::SliderSystem::SynchronizeEntity(text_entity);
+							}
+						},
+						[text_entity, after]() mutable {
+							if (text_entity) {
+								text_entity.Get<::ptgn::impl::SliderValueTextData>() = after;
+								::ptgn::impl::SliderSystem::SynchronizeEntity(text_entity);
+							}
+						}
+					);
+					::ptgn::impl::SliderSystem::SynchronizeEntity(text_entity);
+					changed = true;
+				}
+				DrawTooltip("Use an editable transform instead of the default offset.");
+
+				if (transform_enabled) {
+					EntityInspectorTarget text_target{ .ctx = target.ctx, .entity = text_entity };
+					changed |= DrawTransformFeature(text_target, false, true, false);
+				}
+			} else {
+				ImGui::TextDisabled("Value text entity is not available.");
+			}
+		}
+		ImGui::TreePop();
+	}
+
+	const bool layout_open{ ImGui::TreeNodeEx(
+		"Layout##SliderValueTextLayout",
+		ImGuiTreeNodeFlags_SpanAvailWidth | ImGuiTreeNodeFlags_FramePadding
+	) };
+	if (layout_open) {
+		ScopedIndent indent;
+		if constexpr (std::same_as<std::remove_cvref_t<Target>, EntityInspectorTarget>) {
+			if (text_entity) {
+				EntityInspectorTarget text_target{ .ctx = target.ctx, .entity = text_entity };
+				auto text_before{ text_target.Capture<::ptgn::impl::TextData>() };
+				if (text_before) {
+					auto text_data{ *text_before };
+					bool text_changed{ false };
+					text_changed |= DrawValue(text_target.ctx, "Text Box", text_data.box);
+					text_changed |= DrawValue(
+						text_target.ctx, "Reveal Glyph Count", text_data.glyph_count
+					);
+					text_changed |= DrawValue(text_target.ctx, "Clip", text_data.clip);
+					if (text_changed) {
+						text_target.SetLive<::ptgn::impl::TextData>(
+							text_data, &MarkTextLayoutDirty
+						);
+						auto text_after{ text_target.Capture<::ptgn::impl::TextData>() };
+						TrackComponentState(
+							text_target, "Edit Slider Value Text Layout", std::move(text_before),
+							std::move(text_after), true, &MarkTextLayoutDirty
+						);
+						changed = true;
 					}
 				}
-			);
-			::ptgn::impl::SliderSystem::SynchronizeEntity(text_entity);
-			changed = true;
-		}
-
-		ImGui::SameLine();
-		ImGui::BeginDisabled(!transform_enabled);
-		const bool transform_open{ ImGui::TreeNodeEx(
-			"Transform##SliderValueTextTransformTree",
-			ImGuiTreeNodeFlags_SpanAvailWidth | ImGuiTreeNodeFlags_FramePadding
-		) };
-		ImGui::EndDisabled();
-		if (transform_open) {
-			if (transform_enabled) {
-				EntityInspectorTarget text_target{ .ctx = target.ctx, .entity = text_entity };
-				changed |= DrawTransformFeature(text_target, false, true, false);
+			} else {
+				ImGui::TextDisabled("Value text entity is not available.");
 			}
-			ImGui::TreePop();
+		} else {
+			ImGui::TextDisabled("Layout is generated on the runtime value-text entity.");
 		}
+		ImGui::TreePop();
+	}
 
-		// Source/default styling belongs to SliderValueTextConfig. Only layout/reveal/clip remain on
-		// the generated Text entity so there is a single authority for the displayed rich text.
-		EntityInspectorTarget text_target{ .ctx = target.ctx, .entity = text_entity };
-		auto text_before{ text_target.Capture<::ptgn::impl::TextData>() };
-		if (text_before) {
-			auto text_data{ *text_before };
-			bool text_changed{ false };
-			const bool layout_open{ ImGui::TreeNodeEx(
-				"Layout & Reveal##SliderValueTextLayout",
-				ImGuiTreeNodeFlags_SpanAvailWidth | ImGuiTreeNodeFlags_FramePadding
-			) };
-			if (layout_open) {
-				ScopedIndent indent;
-				text_changed |= DrawValue(text_target.ctx, "Text Box", text_data.box);
-				text_changed |=
-					DrawValue(text_target.ctx, "Reveal Glyph Count", text_data.glyph_count);
-				text_changed |= DrawValue(text_target.ctx, "Clip", text_data.clip);
-				ImGui::TreePop();
-			}
-
-			if (text_changed) {
-				text_target.SetLive<::ptgn::impl::TextData>(text_data, &MarkTextLayoutDirty);
-				auto text_after{ text_target.Capture<::ptgn::impl::TextData>() };
-				TrackComponentState(
-					text_target, "Edit Slider Value Text Layout", std::move(text_before),
-					std::move(text_after), true, &MarkTextLayoutDirty
-				);
-				changed = true;
-			}
-		}
+	if (config_changed) {
+		data.value_text = std::move(config);
+		changed = true;
 	}
 
 	return changed;
@@ -298,36 +317,42 @@ bool DrawSliderData(Target& target, ::ptgn::impl::SliderData& data) {
 	changed |= DrawSliderWorldPosition(target, data, "End", false);
 
 	bool discrete{ data.discrete_positions >= 2 };
+	int positions{ static_cast<int>(
+		std::min<std::uint32_t>(std::max<std::uint32_t>(data.discrete_positions, 2), 1000)
+	) };
 
-	if (DrawValue(target.ctx, "Discrete", discrete)) {
-		data.discrete_positions = discrete ? 2u : 0u;
-		changed					= true;
-	}
-	DrawTooltip("Snap the slider to fixed selectable values.");
+	changed |= DrawPropertyRow("Discrete", [&]() {
+		bool row_changed{ false };
+		if (ImGui::Checkbox("##Discrete", &discrete)) {
+			data.discrete_positions = discrete ? 2u : 0u;
+			positions = discrete ? 2 : positions;
+			row_changed = true;
+		}
+		DrawTooltip("Snap the slider to fixed selectable values.");
 
-	if (discrete) {
-		int positions{ static_cast<int>(
-			std::min<std::uint32_t>(std::max<std::uint32_t>(data.discrete_positions, 2), 1000)
-		) };
+		ImGui::SameLine();
+		if (!discrete) {
+			ImGui::AlignTextToFramePadding();
+			ImGui::TextDisabled("Unset");
+			DrawTooltip("Number of selectable values, including both endpoints.");
+			return row_changed;
+		}
 
-		if (DrawValue(
-				target.ctx, "Positions", positions,
-				FieldOptions{
-					.speed	= 1.0f,
-					.min	= 2.0f,
-					.max	= 1000.0f,
-					.format = "%d",
-					.flags	= ImGuiSliderFlags_AlwaysClamp,
-				}
+		ImGui::SetNextItemWidth(-FLT_MIN);
+		if (ImGui::DragInt(
+				"##Positions", &positions, 1.0f, 2, 1000, "%d",
+				ImGuiSliderFlags_AlwaysClamp
 			)) {
 			data.discrete_positions = static_cast<std::uint32_t>(std::clamp(positions, 2, 1000));
-
-			changed = true;
+			row_changed = true;
 		}
 		DrawTooltip("Number of selectable values, including both endpoints.");
-	} else if (data.discrete_positions != 0) {
+		return row_changed;
+	});
+
+	if (!discrete && data.discrete_positions != 0) {
 		data.discrete_positions = 0;
-		changed					= true;
+		changed = true;
 	}
 
 	return changed;
@@ -403,7 +428,9 @@ template <typename Target>
 bool DrawFocusedButtonAppearance(Target& target, FocusedUIControlType type);
 
 template <typename Target>
-bool DrawFocusedUIControlTypeSelector(Target& target, FocusedUIControlType current);
+bool DrawFocusedUIControlTypeSelector(
+	Target& target, FocusedUIControlType current, bool* type_changed_out = nullptr
+);
 
 template <typename Target>
 bool DrawUIControlConflict(Target& target);
@@ -903,7 +930,7 @@ bool DrawFocusedButtonSounds(Target& target, ButtonVisualState state) {
 
 			changed |= DrawValue(
 				target.ctx,
-				"State Exclusive",
+				"Exclusive",
 				sounds.state_exclusive[index]
 			);
 			DrawTooltip(
@@ -945,17 +972,109 @@ bool DrawFocusedButtonSounds(Target& target, ButtonVisualState state) {
 	}
 }
 
+void RefreshEditedButton(Entity entity) {
+	if (entity && entity.Has<::ptgn::impl::ButtonData>()) {
+		Button{ entity }.RefreshVisualState();
+	}
+}
+
+bool DrawInteractionStateButton(
+	const char* enabled_label, const char* disabled_label, bool& value, float width
+) {
+	if (!ImGui::Button(value ? enabled_label : disabled_label, ImVec2{ width, 0.0f })) {
+		return false;
+	}
+	value = !value;
+	return true;
+}
+
 template <typename Target>
-bool DrawFocusedButtonInteraction(Target& target) {
-	return DrawFocusedComponent<Target, ::ptgn::impl::ButtonData>(
-		target, "Button Interaction", [&](::ptgn::impl::ButtonData& data) {
-			AutoLabelWidthScope labels{ "FocusedButtonInteractionFields" };
-			bool changed{ false };
-			changed |= DrawValue(target.ctx, "Press Enabled", data.press_enabled);
-			changed |= DrawValue(target.ctx, "Hover Enabled", data.hover_enabled);
-			return changed;
+bool DrawFocusedButtonInteraction(Target& target, FocusedUIControlType type) {
+	if constexpr (!Target::template Supports<::ptgn::impl::ButtonData>()) {
+		return false;
+	} else {
+		auto button_before{ target.template Capture<::ptgn::impl::ButtonData>() };
+		if (!button_before) {
+			return false;
 		}
-	);
+
+		auto button{ *button_before };
+		auto toggle_before{ target.template Capture<::ptgn::impl::ToggleButtonData>() };
+		auto dropdown_before{ target.template Capture<::ptgn::impl::DropdownData>() };
+		auto toggle{ toggle_before.value_or(::ptgn::impl::ToggleButtonData{}) };
+		auto dropdown{ dropdown_before.value_or(::ptgn::impl::DropdownData{}) };
+
+		const bool show_toggle{ type == FocusedUIControlType::ToggleButton && toggle_before.has_value() };
+		const bool show_dropdown{ type == FocusedUIControlType::Dropdown && dropdown_before.has_value() };
+		const int count{ (show_toggle || show_dropdown) ? 3 : 2 };
+		const float spacing{ ImGui::GetStyle().ItemSpacing.x };
+		const float width{
+			std::max(1.0f, (ImGui::GetContentRegionAvail().x - spacing * static_cast<float>(count - 1)) /
+				static_cast<float>(count))
+		};
+
+		bool button_changed{ false };
+		bool toggle_changed{ false };
+		bool dropdown_changed{ false };
+
+		ScopedID scope{ "FocusedButtonInteractionButtons" };
+		button_changed |= DrawInteractionStateButton(
+			"Press Enabled", "Press Disabled", button.press_enabled, width
+		);
+		DrawTooltip("Whether this control responds to presses.");
+		ImGui::SameLine(0.0f, spacing);
+		button_changed |= DrawInteractionStateButton(
+			"Hover Enabled", "Hover Disabled", button.hover_enabled, width
+		);
+		DrawTooltip("Whether this control responds to hover.");
+
+		if (show_toggle) {
+			ImGui::SameLine(0.0f, spacing);
+			toggle_changed |= DrawInteractionStateButton(
+				"Toggled", "Untoggled", toggle.toggled, width
+			);
+			DrawTooltip("Initial/current toggle state.");
+		} else if (show_dropdown) {
+			ImGui::SameLine(0.0f, spacing);
+			dropdown_changed |= DrawInteractionStateButton(
+				"Starts Open", "Starts Closed", dropdown.start_open, width
+			);
+			DrawTooltip("Whether the dropdown starts open.");
+		}
+
+		bool changed{ false };
+		if (button_changed) {
+			target.template SetLive<::ptgn::impl::ButtonData>(button, &RefreshEditedButton);
+			auto button_after{ target.template Capture<::ptgn::impl::ButtonData>() };
+			TrackComponentState(
+				target, "Edit Button Interaction", std::move(button_before),
+				std::move(button_after), true, &RefreshEditedButton
+			);
+			changed = true;
+		}
+
+		if (toggle_changed) {
+			target.template SetLive<::ptgn::impl::ToggleButtonData>(toggle, &RefreshEditedButton);
+			auto toggle_after{ target.template Capture<::ptgn::impl::ToggleButtonData>() };
+			TrackComponentState(
+				target, "Toggle Button State", std::move(toggle_before), std::move(toggle_after), true,
+				&RefreshEditedButton
+			);
+			changed = true;
+		}
+
+		if (dropdown_changed) {
+			target.template SetLive<::ptgn::impl::DropdownData>(dropdown);
+			auto dropdown_after{ target.template Capture<::ptgn::impl::DropdownData>() };
+			TrackComponentState(
+				target, "Change Dropdown Start State", std::move(dropdown_before),
+				std::move(dropdown_after), true
+			);
+			changed = true;
+		}
+
+		return changed;
+	}
 }
 
 void ApplyDropdownItemIndex(
@@ -1101,8 +1220,11 @@ bool DrawDropdownItems(EntityInspectorTarget& target) {
 			FocusedUIControlType item_type{ GetFocusedUIControlType(item_target) };
 			if (item_type != FocusedUIControlType::None &&
 				item_type != FocusedUIControlType::Conflict) {
-				if (DrawFocusedUIControlTypeSelector(item_target, item_type)) {
-					changed	  = true;
+				bool item_type_changed{ false };
+				changed |= DrawFocusedUIControlTypeSelector(
+					item_target, item_type, &item_type_changed
+				);
+				if (item_type_changed) {
 					item_type = GetFocusedUIControlType(item_target);
 				}
 			}
@@ -1110,7 +1232,7 @@ bool DrawDropdownItems(EntityInspectorTarget& target) {
 			if (item_type == FocusedUIControlType::Conflict) {
 				changed |= DrawUIControlConflict(item_target);
 			} else if (item_type != FocusedUIControlType::None) {
-				changed |= DrawFocusedButtonInteraction(item_target);
+				changed |= DrawFocusedButtonInteraction(item_target, item_type);
 				changed |= DrawFocusedButtonAppearance(item_target, item_type);
 			}
 		}
@@ -1202,7 +1324,7 @@ bool DrawToggleGroupMembers(EntityInspectorTarget& target) {
 			editor_state.toggle_group_item_index =
 				std::min(editor_state.toggle_group_item_index, buttons.size() - 1);
 			ToggleButton selected_button{ buttons[editor_state.toggle_group_item_index] };
-			ImGui::SeparatorText("Selected Toggle Appearance");
+			ImGui::SeparatorText("Selected Toggle");
 			EntityInspectorTarget item_target{ .ctx = target.ctx, .entity = selected_button };
 			changed |= DrawFocusedButtonAppearance(item_target, FocusedUIControlType::ToggleButton);
 		}
@@ -1538,7 +1660,9 @@ bool ChangeFocusedUIControlType(Target& target, FocusedUIControlType type) {
 }
 
 template <typename Target>
-bool DrawFocusedUIControlTypeSelector(Target& target, FocusedUIControlType current) {
+bool DrawFocusedUIControlTypeSelector(
+	Target& target, FocusedUIControlType current, bool* type_changed_out
+) {
 	if (current == FocusedUIControlType::None || current == FocusedUIControlType::Conflict) {
 		return false;
 	}
@@ -1623,6 +1747,9 @@ bool DrawFocusedUIControlTypeSelector(Target& target, FocusedUIControlType curre
 		);
 	}
 
+	if (type_changed_out) {
+		*type_changed_out = type_changed;
+	}
 	return type_changed || visible_changed;
 }
 
@@ -1741,229 +1868,366 @@ void SynchronizeSliderTrackVisualEnabled(Entity track) {
 	::ptgn::impl::SliderSystem::SynchronizeEntity(track);
 }
 
-template <typename Marker, typename Create, typename Draw>
-bool DrawSliderTrackVisualPart(
-	EntityInspectorTarget& slider_target, Entity track, std::string_view label, Create&& create,
-	Draw&& draw
+void SynchronizeSliderTrackPart(Entity entity) {
+	::ptgn::impl::SliderSystem::SynchronizeEntity(entity);
+}
+
+template <typename Marker, typename Draw>
+bool DrawSliderTrackPartTree(
+	EntityInspectorTarget& slider_target, Entity track, std::string_view label, Draw&& draw
 ) {
 	Entity child{ FindSliderTrackPart<Marker>(track) };
-	bool enabled{ static_cast<bool>(child) };
-	bool changed{ false };
-	ScopedID scope{ label };
-
-	if (ImGui::Checkbox("##Enabled", &enabled)) {
-		if (enabled) {
-			child = std::invoke(std::forward<Create>(create));
-			if (child) {
-				(void)RecordCreatedEntityPreservingSelection(slider_target.ctx, child);
-			}
-		} else if (child) {
-			slider_target.ctx.commands.DeleteEntity(child);
-			child = {};
-		}
-		SynchronizeSliderTrackVisualEnabled(track);
-		changed = true;
-	}
-
-	ImGui::SameLine();
-	const std::string tree_label{ std::string{ label } + "##SliderTrackVisualPart" };
-	ImGui::BeginDisabled(!enabled);
-	const bool open{ ImGui::TreeNodeEx(
-		tree_label.c_str(), ImGuiTreeNodeFlags_SpanAvailWidth | ImGuiTreeNodeFlags_FramePadding
-	) };
-	ImGui::EndDisabled();
-
-	if (open) {
-		if (enabled && child) {
-			EntityInspectorTarget child_target{ .ctx = slider_target.ctx, .entity = child };
-			changed |= std::invoke(std::forward<Draw>(draw), child_target, child);
-		}
-		ImGui::TreePop();
-	}
-
-	return changed;
-}
-
-bool DrawSliderTrackBackgroundFields(EntityInspectorTarget& target) {
-	bool changed{ false };
-
-	if (auto before{ target.Capture<Color>() }) {
-		Color value{ *before };
-		const bool local_changed{ DrawValue(target.ctx, "Color", value) };
-		if (local_changed) {
-			target.SetLive<Color>(value);
-		}
-		auto after{ target.Capture<Color>() };
-		TrackComponentState(
-			target, "Edit Track Background Color", std::move(before), std::move(after), local_changed
-		);
-		changed |= local_changed;
-	}
-
-	if (auto before{ target.Capture<Origin>() }) {
-		Origin value{ *before };
-		const bool local_changed{ DrawValue(target.ctx, "Origin", value) };
-		if (local_changed) {
-			target.SetLive<Origin>(value);
-		}
-		auto after{ target.Capture<Origin>() };
-		TrackComponentState(
-			target, "Edit Track Background Origin", std::move(before), std::move(after), local_changed
-		);
-		changed |= local_changed;
-	}
-
-	return changed;
-}
-
-bool DrawSliderTrackSpriteFields(EntityInspectorTarget& target) {
-	bool changed{ DrawSpritePrimary(target) };
-
-	if (auto before{ target.Capture<Origin>() }) {
-		Origin value{ *before };
-		const bool local_changed{ DrawValue(target.ctx, "Origin", value) };
-		if (local_changed) {
-			target.SetLive<Origin>(value);
-		}
-		auto after{ target.Capture<Origin>() };
-		TrackComponentState(
-			target, "Edit Track Sprite Origin", std::move(before), std::move(after), local_changed
-		);
-		changed |= local_changed;
-	}
-
-	if (auto before{ target.Capture<Tint>() }) {
-		Tint value{ *before };
-		const bool local_changed{ DrawValue(target.ctx, "Tint", value) };
-		if (local_changed) {
-			target.SetLive<Tint>(value);
-		}
-		auto after{ target.Capture<Tint>() };
-		TrackComponentState(
-			target, "Edit Track Sprite Tint", std::move(before), std::move(after), local_changed
-		);
-		changed |= local_changed;
-	}
-
-	return changed;
-}
-
-bool DrawSliderTrackBorderFields(EntityInspectorTarget& target, Entity border) {
-	bool changed{ false };
-
-	if (auto before{ target.Capture<Color>() }) {
-		Color value{ *before };
-		const bool local_changed{ DrawValue(target.ctx, "Color", value) };
-		if (local_changed) {
-			target.SetLive<Color>(value);
-		}
-		auto after{ target.Capture<Color>() };
-		TrackComponentState(
-			target, "Edit Track Border Color", std::move(before), std::move(after), local_changed
-		);
-		changed |= local_changed;
-	}
-
-	if (auto before{ target.Capture<Origin>() }) {
-		Origin value{ *before };
-		const bool local_changed{ DrawValue(target.ctx, "Origin", value) };
-		if (local_changed) {
-			target.SetLive<Origin>(value);
-		}
-		auto after{ target.Capture<Origin>() };
-		TrackComponentState(
-			target, "Edit Track Border Origin", std::move(before), std::move(after), local_changed
-		);
-		changed |= local_changed;
-	}
-
-	auto fill_before{ target.Capture<FillStyle>() };
-	if (fill_before) {
-		FillStyle fill{ *fill_before };
-		float width{ fill.GetLineWidth().value_or(kInspectorMinLineWidth) };
-		float maximum_width{ kInspectorMinLineWidth };
-		if (border.Has<Rect>()) {
-			const auto size{ border.Get<Rect>().GetSize() };
-			maximum_width = std::max(
-				kInspectorMinLineWidth, std::min(std::abs(size.x), std::abs(size.y)) * 0.5f
-			);
-		} else if (border.Has<Circle>()) {
-			maximum_width = std::max(kInspectorMinLineWidth, std::abs(border.Get<Circle>().radius));
-		}
-		width = std::clamp(width, kInspectorMinLineWidth, maximum_width);
-
-		const bool local_changed{ DrawValue(
-			target.ctx, "Line Width", width,
-			FieldOptions{ .speed  = 0.05f,
-						  .min	  = kInspectorMinLineWidth,
-						  .max	  = maximum_width,
-						  .format = "%.2f",
-						  .flags  = ImGuiSliderFlags_AlwaysClamp }
-		) };
-		if (local_changed) {
-			fill = FillStyle{ width };
-			target.SetLive<FillStyle>(fill);
-		}
-		auto fill_after{ target.Capture<FillStyle>() };
-		TrackComponentState(
-			target, "Edit Track Border Width", std::move(fill_before), std::move(fill_after),
-			local_changed
-		);
-		changed |= local_changed;
-	}
-
-	return changed;
-}
-
-bool DrawSliderTrackVisual(EntityInspectorTarget& target, Slider slider, Entity track) {
-	if (!track || !track.Has<::ptgn::impl::SliderTrackData>()) {
+	if (!child) {
 		return false;
 	}
 
 	bool changed{ false };
-	changed |= DrawSliderTrackVisualPart<::ptgn::impl::SliderTrackBackgroundData>(
+	bool remove_requested{ false };
+	ScopedID scope{ label };
+	const std::string tree_label{ std::string{ label } + "##SliderTrackVisualPart" };
+	const bool open{ ImGui::TreeNodeEx(
+		tree_label.c_str(), ImGuiTreeNodeFlags_SpanAvailWidth | ImGuiTreeNodeFlags_FramePadding
+	) };
+
+	if (ImGui::BeginPopupContextItem()) {
+		if (ImGui::MenuItem("Remove")) {
+			remove_requested = true;
+		}
+		ImGui::EndPopup();
+	}
+
+	if (open) {
+		ScopedIndent indent;
+		EntityInspectorTarget child_target{ .ctx = slider_target.ctx, .entity = child };
+		changed |= std::invoke(std::forward<Draw>(draw), child_target, child);
+		ImGui::TreePop();
+	}
+
+	if (remove_requested) {
+		slider_target.ctx.commands.DeleteEntity(child);
+		SynchronizeSliderTrackVisualEnabled(track);
+		changed = true;
+	}
+
+	return changed;
+}
+
+float SliderTrackPartMaximumLineWidth(Entity border) {
+	if (border.Has<Rect>()) {
+		const auto size{ border.Get<Rect>().GetSize() };
+		return std::max(
+			kInspectorMinLineWidth, std::min(std::abs(size.x), std::abs(size.y)) * 0.5f
+		);
+	}
+	if (border.Has<Circle>()) {
+		return std::max(kInspectorMinLineWidth, std::abs(border.Get<Circle>().radius));
+	}
+	return 1000.0f;
+}
+
+bool DrawSliderTrackBorderLineWidth(ButtonShapeVisual& visual, Entity border) {
+	auto& value{ visual.fill_style };
+	const bool was_enabled{ value.has_value() };
+	bool enabled{ was_enabled };
+	const float maximum_width{ SliderTrackPartMaximumLineWidth(border) };
+	float width{
+		std::clamp(
+			value.value_or(FillStyle{ kInspectorMinLineWidth })
+				.GetLineWidth()
+				.value_or(kInspectorMinLineWidth),
+			kInspectorMinLineWidth, maximum_width
+		)
+	};
+	bool field_changed{ false };
+
+	const bool row_changed{ DrawOptionalPropertyRow("Line Width", enabled, false, [&]() {
+		if (!enabled) {
+			ImGui::BeginDisabled();
+			DrawUnsetOptionalInlineValue();
+			ImGui::EndDisabled();
+			return false;
+		}
+		ImGui::SetNextItemWidth(-FLT_MIN);
+		field_changed = ImGui::DragFloat(
+			"##LineWidth", &width, 0.05f, kInspectorMinLineWidth, maximum_width, "%.2f",
+			ImGuiSliderFlags_AlwaysClamp
+		);
+		return field_changed;
+	}) };
+
+	if (!row_changed) {
+		return false;
+	}
+	if (!enabled) {
+		value.reset();
+	} else {
+		value = FillStyle{ width };
+	}
+	return true;
+}
+
+template <typename Marker>
+bool DrawSliderTrackShapeFields(EntityInspectorTarget& target, Entity part, bool border) {
+	auto before{ target.Capture<Marker>() };
+	if (!before) {
+		return false;
+	}
+
+	Marker data{ *before };
+	data.initialized = true;
+	data.visual.defined = true;
+	std::array<ButtonShapeVisual, 1> states{ data.visual };
+	constexpr ButtonVisualState state{ ButtonVisualState::Idle };
+	bool changed{ false };
+
+	changed |= DrawButtonVisualOverrideTree(
+		target.ctx, "Transform", states, state, &ButtonShapeVisual::transform
+	);
+	const bool had_size_override{ states[0].size.has_value() };
+	std::optional<std::variant<V2_float, float>> current_size{};
+	if (auto rect{ part.TryGet<Rect>() }) {
+		current_size = rect->GetSize();
+	} else if (auto circle{ part.TryGet<Circle>() }) {
+		current_size = circle->radius;
+	}
+	const bool size_changed{ DrawButtonVisualOverrideValue(
+		target.ctx, "Size", states, state, &ButtonShapeVisual::size
+	) };
+	if (size_changed && !had_size_override && states[0].size.has_value() && current_size) {
+		states[0].size = current_size;
+	}
+	changed |= size_changed;
+	changed |= DrawButtonVisualOverrideValue(
+		target.ctx, "Origin", states, state, &ButtonShapeVisual::origin
+	);
+	DrawTooltip("Local origin used by this track part.");
+	changed |= DrawButtonVisualOverrideValue(
+		target.ctx, "Anchor", states, state, &ButtonShapeVisual::anchor
+	);
+	DrawTooltip("Point on the automatic track rectangle used as this part's anchor.");
+	changed |= DrawButtonVisualOverrideValue(
+		target.ctx, "Color", states, state, &ButtonShapeVisual::color
+	);
+
+	if (border) {
+		changed |= DrawSliderTrackBorderLineWidth(states[0], part);
+	}
+
+	if (!changed) {
+		return false;
+	}
+
+	data.visual = states[0];
+	target.SetLive<Marker>(data, &SynchronizeSliderTrackPart);
+	auto after{ target.Capture<Marker>() };
+	TrackComponentState(
+		target, border ? "Edit Slider Track Border" : "Edit Slider Track Background",
+		std::move(before), std::move(after), true, &SynchronizeSliderTrackPart
+	);
+	return true;
+}
+
+bool DrawSliderTrackBackgroundFields(EntityInspectorTarget& target, Entity background) {
+	return DrawSliderTrackShapeFields<::ptgn::impl::SliderTrackBackgroundData>(
+		target, background, false
+	);
+}
+
+bool DrawSliderTrackBorderFields(EntityInspectorTarget& target, Entity border) {
+	return DrawSliderTrackShapeFields<::ptgn::impl::SliderTrackBorderData>(target, border, true);
+}
+
+bool DrawSliderTrackSpriteFields(EntityInspectorTarget& target, Entity sprite) {
+	auto before{ target.Capture<::ptgn::impl::SliderTrackSpriteData>() };
+	if (!before) {
+		return false;
+	}
+
+	auto data{ *before };
+	data.initialized = true;
+	data.visual.defined = true;
+	std::array<ButtonSpriteVisual, 1> states{ data.visual };
+	constexpr ButtonVisualState state{ ButtonVisualState::Idle };
+	bool changed{ false };
+
+	changed |= DrawButtonVisualOverrideTree(
+		target.ctx, "Transform", states, state, &ButtonSpriteVisual::transform
+	);
+	changed |= DrawButtonVisualOverrideValue(
+		target.ctx, "Texture Key", states, state, &ButtonSpriteVisual::texture
+	);
+	changed |= DrawButtonVisualOverrideValue(
+		target.ctx, "Origin", states, state, &ButtonSpriteVisual::origin
+	);
+	DrawTooltip("Local origin used by this track sprite.");
+	changed |= DrawButtonVisualOverrideValue(
+		target.ctx, "Anchor", states, state, &ButtonSpriteVisual::anchor
+	);
+	DrawTooltip("Point on the automatic track rectangle used as this sprite's anchor.");
+	const bool had_size_override{ states[0].size.has_value() };
+	const std::optional<V2_float> current_size{ GetDisplaySize(sprite) };
+	const bool size_changed{ DrawButtonVisualOverrideValue(
+		target.ctx, "Texture Size", states, state, &ButtonSpriteVisual::size
+	) };
+	if (size_changed && !had_size_override && states[0].size.has_value() && current_size) {
+		states[0].size = current_size;
+	}
+	changed |= size_changed;
+	changed |= DrawButtonVisualOverrideValue(
+		target.ctx, "Tint", states, state, &ButtonSpriteVisual::tint
+	);
+	changed |= DrawButtonVisualOverrideTree(
+		target.ctx, "Animation", states, state, &ButtonSpriteVisual::animation,
+		[&target](AnimationConfig& animation) {
+			return DrawInspectorValueContents(
+				target.ctx, Hash<AnimationConfig>(), std::addressof(animation)
+			);
+		}
+	);
+	changed |= DrawButtonVisualOverrideTree(
+		target.ctx, "Animation Options", states, state, &ButtonSpriteVisual::animation_options
+	);
+
+	if (!changed) {
+		return false;
+	}
+
+	data.visual = states[0];
+	target.SetLive<::ptgn::impl::SliderTrackSpriteData>(data, &SynchronizeSliderTrackPart);
+	auto after{ target.Capture<::ptgn::impl::SliderTrackSpriteData>() };
+	TrackComponentState(
+		target, "Edit Slider Track Sprite", std::move(before), std::move(after), true,
+		&SynchronizeSliderTrackPart
+	);
+	return true;
+}
+
+Entity CreateSliderTrackBackground(Entity slider_entity, Entity track) {
+	Entity background{
+		CreateRect(slider_entity.GetScene(), {}, V2_float{ 100.0f, 16.0f }, color::Gray)
+	};
+	background.Add<Tag>("Slider Track Background");
+	auto& part{ background.Add<::ptgn::impl::SliderTrackBackgroundData>() };
+	part.initialized = true;
+	part.visual.defined = true;
+	part.visual.color = color::Gray;
+	SetParent(background, track);
+	SetUI(background, IsUI(slider_entity));
+	return background;
+}
+
+Entity CreateSliderTrackBorder(Entity slider_entity, Entity track) {
+	Entity border{
+		CreateRect(slider_entity.GetScene(), {}, V2_float{ 100.0f, 16.0f }, color::White)
+	};
+	border.Add<Tag>("Slider Track Border");
+	auto& part{ border.Add<::ptgn::impl::SliderTrackBorderData>() };
+	part.initialized = true;
+	part.visual.defined = true;
+	part.visual.color = color::White;
+	part.visual.fill_style = FillStyle{ kInspectorMinLineWidth };
+	border.Add<FillStyle>(FillStyle{ kInspectorMinLineWidth });
+	SetParent(border, track);
+	SetUI(border, IsUI(slider_entity));
+	return border;
+}
+
+Entity CreateSliderTrackSprite(Entity slider_entity, Entity track) {
+	Entity sprite{ CreateSprite(slider_entity.GetScene(), {}, {}, Origin::Center) };
+	sprite.Add<Tag>("Slider Track Sprite");
+	auto& part{ sprite.Add<::ptgn::impl::SliderTrackSpriteData>() };
+	part.initialized = true;
+	part.visual.defined = true;
+	part.visual.tint = color::White;
+	SetParent(sprite, track);
+	SetUI(sprite, IsUI(slider_entity));
+	return sprite;
+}
+
+bool DrawSliderTrackVisual(EntityInspectorTarget& target, Slider slider, Entity& track) {
+	const float spacing{ ImGui::GetStyle().ItemSpacing.x };
+	const float width{ std::max(1.0f, (ImGui::GetContentRegionAvail().x - spacing * 2.0f) / 3.0f) };
+
+	bool changed{ false };
+	const bool has_background{
+		track && static_cast<bool>(FindSliderTrackPart<::ptgn::impl::SliderTrackBackgroundData>(track))
+	};
+	const bool has_border{
+		track && static_cast<bool>(FindSliderTrackPart<::ptgn::impl::SliderTrackBorderData>(track))
+	};
+	const bool has_sprite{
+		track && static_cast<bool>(FindSliderTrackPart<::ptgn::impl::SliderTrackSpriteData>(track))
+	};
+
+	auto ensure_track = [&]() -> Entity {
+		if (track) {
+			return track;
+		}
+		track = slider.EnsureTrack();
+		if (track) {
+			(void)RecordCreatedEntityPreservingSelection(target.ctx, track);
+		}
+		return track;
+	};
+
+	ImGui::BeginDisabled(has_background);
+	if (ImGui::Button("+ Add Background", ImVec2{ width, 0.0f })) {
+		if (Entity parent{ ensure_track() }) {
+			Entity child{ CreateSliderTrackBackground(target.entity, parent) };
+			(void)RecordCreatedEntityPreservingSelection(target.ctx, child);
+			SynchronizeSliderTrackVisualEnabled(parent);
+			changed = true;
+		}
+	}
+	ImGui::EndDisabled();
+	DrawTooltip(has_background ? "Background already exists." : "Add a track background.");
+
+	ImGui::SameLine(0.0f, spacing);
+	ImGui::BeginDisabled(has_border);
+	if (ImGui::Button("+ Add Border", ImVec2{ width, 0.0f })) {
+		if (Entity parent{ ensure_track() }) {
+			Entity child{ CreateSliderTrackBorder(target.entity, parent) };
+			(void)RecordCreatedEntityPreservingSelection(target.ctx, child);
+			SynchronizeSliderTrackVisualEnabled(parent);
+			changed = true;
+		}
+	}
+	ImGui::EndDisabled();
+	DrawTooltip(has_border ? "Border already exists." : "Add a track border.");
+
+	ImGui::SameLine(0.0f, spacing);
+	ImGui::BeginDisabled(has_sprite);
+	if (ImGui::Button("+ Add Sprite", ImVec2{ width, 0.0f })) {
+		if (Entity parent{ ensure_track() }) {
+			Entity child{ CreateSliderTrackSprite(target.entity, parent) };
+			(void)RecordCreatedEntityPreservingSelection(target.ctx, child);
+			SynchronizeSliderTrackVisualEnabled(parent);
+			changed = true;
+		}
+	}
+	ImGui::EndDisabled();
+	DrawTooltip(has_sprite ? "Sprite already exists." : "Add a track sprite.");
+
+	if (!track) {
+		return changed;
+	}
+
+	changed |= DrawSliderTrackPartTree<::ptgn::impl::SliderTrackBackgroundData>(
 		target, track, "Background",
-		[&]() {
-			if (Entity sprite{ FindSliderTrackPart<::ptgn::impl::SliderTrackSpriteData>(track) }) {
-				target.ctx.commands.DeleteEntity(sprite);
-			}
-			(void)slider.TrackShape();
-			return FindSliderTrackPart<::ptgn::impl::SliderTrackBackgroundData>(track);
-		},
-		[](EntityInspectorTarget& child_target, Entity) {
-			return DrawSliderTrackBackgroundFields(child_target);
+		[](EntityInspectorTarget& child_target, Entity background) {
+			return DrawSliderTrackBackgroundFields(child_target, background);
 		}
 	);
-
-	changed |= DrawSliderTrackVisualPart<::ptgn::impl::SliderTrackSpriteData>(
-		target, track, "Sprite",
-		[&]() {
-			if (Entity background{
-					FindSliderTrackPart<::ptgn::impl::SliderTrackBackgroundData>(track) }) {
-				target.ctx.commands.DeleteEntity(background);
-			}
-			(void)slider.TrackSprite({}, V2_float{ 100.0f, 16.0f });
-			return FindSliderTrackPart<::ptgn::impl::SliderTrackSpriteData>(track);
-		},
-		[](EntityInspectorTarget& child_target, Entity) {
-			return DrawSliderTrackSpriteFields(child_target);
-		}
-	);
-
-	changed |= DrawSliderTrackVisualPart<::ptgn::impl::SliderTrackBorderData>(
+	changed |= DrawSliderTrackPartTree<::ptgn::impl::SliderTrackBorderData>(
 		target, track, "Border",
-		[&]() {
-			Entity border{
-				CreateRect(target.entity.GetScene(), {}, V2_float{ 100.0f, 16.0f }, color::White)
-			};
-			border.Add<::ptgn::impl::SliderTrackBorderData>();
-			border.Add<FillStyle>(FillStyle{ kInspectorMinLineWidth });
-			SetParent(border, track);
-			SetUI(border, IsUI(target.entity));
-			return border;
-		},
 		[](EntityInspectorTarget& child_target, Entity border) {
 			return DrawSliderTrackBorderFields(child_target, border);
+		}
+	);
+	changed |= DrawSliderTrackPartTree<::ptgn::impl::SliderTrackSpriteData>(
+		target, track, "Sprite",
+		[](EntityInspectorTarget& child_target, Entity sprite) {
+			return DrawSliderTrackSpriteFields(child_target, sprite);
 		}
 	);
 
@@ -1978,14 +2242,7 @@ bool DrawFocusedControlSpecific(Target& target, FocusedUIControlType type) {
 	switch (type) {
 		case FocusedUIControlType::Button: break;
 
-		case FocusedUIControlType::ToggleButton:
-			changed |= DrawFocusedComponent<Target, ::ptgn::impl::ToggleButtonData>(
-				target, "Toggle Button", [&](::ptgn::impl::ToggleButtonData& data) {
-					AutoLabelWidthScope labels{ "FocusedToggleFields" };
-					return DrawValue(target.ctx, "Toggled", data.toggled);
-				}
-			);
-			break;
+		case FocusedUIControlType::ToggleButton: break;
 
 		case FocusedUIControlType::Slider: {
 			if constexpr (std::same_as<std::remove_cvref_t<Target>, EntityInspectorTarget>) {
@@ -1999,7 +2256,7 @@ bool DrawFocusedControlSpecific(Target& target, FocusedUIControlType type) {
 				}
 				if (thumb) {
 					EntityInspectorTarget thumb_target{ .ctx = target.ctx, .entity = thumb };
-					changed |= DrawFocusedButtonInteraction(thumb_target);
+					changed |= DrawFocusedButtonInteraction(thumb_target, FocusedUIControlType::Button);
 				}
 			}
 
@@ -2013,18 +2270,18 @@ bool DrawFocusedControlSpecific(Target& target, FocusedUIControlType type) {
 			if constexpr (std::same_as<std::remove_cvref_t<Target>, EntityInspectorTarget>) {
 				Slider slider{ target.entity };
 
-				// Value Text is an optional managed slider part, using the same checkbox/tree row
-				// pattern as optional button appearance parts.
+				ImGui::SeparatorText("Value Text");
 				{
 					ScopedID value_text_scope{ "SliderValueTextPart" };
 					auto before{ target.template Capture<::ptgn::impl::SliderData>() };
 					bool enabled{ before && before->value_text.has_value() };
-					if (ImGui::Checkbox("##Enabled", &enabled) && before) {
+					if (ImGui::Checkbox("Enabled##SliderValueTextEnabled", &enabled) && before) {
 						auto data{ *before };
 						data.value_text = enabled
 							? std::optional<SliderValueTextConfig>{ SliderValueTextConfig{} }
 							: std::nullopt;
 						target.template SetLive<::ptgn::impl::SliderData>(data);
+						::ptgn::impl::SliderSystem::SynchronizeEntity(target.entity);
 						auto after{ target.template Capture<::ptgn::impl::SliderData>() };
 						TrackComponentState(
 							target, enabled ? "Enable Slider Value Text" : "Disable Slider Value Text",
@@ -2033,68 +2290,33 @@ bool DrawFocusedControlSpecific(Target& target, FocusedUIControlType type) {
 						changed = true;
 					}
 					DrawTooltip(enabled ? "Disable slider value text." : "Enable slider value text.");
-					ImGui::SameLine();
-					ImGui::BeginDisabled(!enabled);
-					const bool open{ ImGui::TreeNodeEx(
-						"Value Text##SliderValueTextPartTree",
-						ImGuiTreeNodeFlags_SpanAvailWidth | ImGuiTreeNodeFlags_FramePadding
-					) };
-					ImGui::EndDisabled();
-					if (open) {
-						if (enabled) {
-							auto data_before{ target.template Capture<::ptgn::impl::SliderData>() };
-							if (data_before && data_before->value_text.has_value()) {
-								auto data{ *data_before };
-								if (DrawSliderValueTextConfig(target, data)) {
-									target.template SetLive<::ptgn::impl::SliderData>(data);
-									auto data_after{
-										target.template Capture<::ptgn::impl::SliderData>()
-									};
-									TrackComponentState(
-										target, "Edit Slider Value Text", std::move(data_before),
-										std::move(data_after), true
-									);
-									changed = true;
-								}
+
+					if (enabled) {
+						auto data_before{ target.template Capture<::ptgn::impl::SliderData>() };
+						if (data_before && data_before->value_text.has_value()) {
+							auto data{ *data_before };
+							if (DrawSliderValueTextConfig(target, data)) {
+								target.template SetLive<::ptgn::impl::SliderData>(data);
+								::ptgn::impl::SliderSystem::SynchronizeEntity(target.entity);
+								auto data_after{ target.template Capture<::ptgn::impl::SliderData>() };
+								TrackComponentState(
+									target, "Edit Slider Value Text", std::move(data_before),
+									std::move(data_after), true
+								);
+								changed = true;
 							}
 						}
-						ImGui::TreePop();
 					}
 				}
 
-				// Track itself is optional. Its transform and visual parts live inside this tree.
+				ImGui::SeparatorText("Track");
 				{
 					ScopedID track_scope{ "SliderTrackPart" };
 					Entity track{ slider.GetTrack() };
-					bool enabled{ static_cast<bool>(track) };
-					if (ImGui::Checkbox("##Enabled", &enabled)) {
-						if (enabled) {
-							track = slider.EnsureTrack();
-							if (track) {
-								(void)RecordCreatedEntityPreservingSelection(target.ctx, track);
-							}
-						} else if (track) {
-							target.ctx.commands.DeleteEntity(track);
-							track = {};
-						}
-						::ptgn::impl::SliderSystem::SynchronizeEntity(target.entity);
-						changed = true;
+					if (track) {
+						changed |= DrawSliderTrackTransform(target, track);
 					}
-					DrawTooltip(enabled ? "Remove the slider track." : "Add a slider track.");
-					ImGui::SameLine();
-					ImGui::BeginDisabled(!enabled);
-					const bool open{ ImGui::TreeNodeEx(
-						"Track##SliderTrackPartTree",
-						ImGuiTreeNodeFlags_SpanAvailWidth | ImGuiTreeNodeFlags_FramePadding
-					) };
-					ImGui::EndDisabled();
-					if (open) {
-						if (enabled && track) {
-							changed |= DrawSliderTrackTransform(target, track);
-							changed |= DrawSliderTrackVisual(target, slider, track);
-						}
-						ImGui::TreePop();
-					}
+					changed |= DrawSliderTrackVisual(target, slider, track);
 				}
 
 				ImGui::SeparatorText("Thumb");
@@ -2113,7 +2335,6 @@ bool DrawFocusedControlSpecific(Target& target, FocusedUIControlType type) {
 					AutoLabelWidthScope labels{ "FocusedDropdownFields" };
 					bool local_changed{ false };
 
-					local_changed |= DrawValue(target.ctx, "Starts Open", data.start_open);
 
 					{
 						ScopedID item_size_scope{ "DropdownItemSize" };
@@ -2157,10 +2378,10 @@ bool DrawFocusedControlSpecific(Target& target, FocusedUIControlType type) {
 							local_changed = true;
 						}
 					}
-					DrawTooltip("Override dropdown item size.");
+					DrawTooltip("Size used by each item. Unset uses the dropdown/header size.");
 
 					local_changed |= DrawValue(target.ctx, "Item Offset", data.button_offset);
-					DrawTooltip("Offset dropdown item positions.");
+					DrawTooltip("Offset added to each item position after automatic layout.");
 
 					local_changed |= DrawValue(target.ctx, "Open Direction", data.direction);
 					DrawTooltip("Direction the item list expands.");
@@ -2294,9 +2515,14 @@ bool DrawUIFeatureImpl(Target& target) {
 	bool changed{ header.changed };
 
 	if (control_type != FocusedUIControlType::None) {
-		if (control_type != FocusedUIControlType::Conflict &&
-			DrawFocusedUIControlTypeSelector(target, control_type)) {
-			return true;
+		bool control_type_changed{ false };
+		if (control_type != FocusedUIControlType::Conflict) {
+			changed |= DrawFocusedUIControlTypeSelector(
+				target, control_type, &control_type_changed
+			);
+			if (control_type_changed) {
+				return true;
+			}
 		}
 		if (control_type != FocusedUIControlType::Conflict) {
 			const bool has_button_base{
@@ -2325,7 +2551,7 @@ bool DrawUIFeatureImpl(Target& target) {
 				if (control_type == FocusedUIControlType::Slider) {
 					changed |= DrawFocusedControlSpecific(target, control_type);
 				} else {
-					changed |= DrawFocusedButtonInteraction(target);
+					changed |= DrawFocusedButtonInteraction(target, control_type);
 
 					if (control_type == FocusedUIControlType::Dropdown) {
 						changed |= DrawFocusedControlSpecific(target, control_type);
@@ -2339,10 +2565,6 @@ bool DrawUIFeatureImpl(Target& target) {
 						}
 					} else {
 						changed |= DrawFocusedControlSpecific(target, control_type);
-						ImGui::SeparatorText(
-							control_type == FocusedUIControlType::Slider ? "Thumb Appearance"
-																		 : "Appearance"
-						);
 						changed |= DrawFocusedButtonAppearance(target, control_type);
 					}
 				}

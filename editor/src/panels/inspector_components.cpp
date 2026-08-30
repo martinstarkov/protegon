@@ -1,4 +1,6 @@
-#include "panels/inspector_internal.h"
+#include "panels/inspector_component_drawers.h"
+#include "panels/inspector_scripts.h"
+#include "panels/rich_text_editor.h"
 
 #include <imgui.h>
 #include <imgui_stdlib.h>

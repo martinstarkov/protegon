@@ -63,7 +63,7 @@ inline constexpr bool kAssetImportCreateMoveEnabled{ false };
 inline constexpr bool kAssetImportCreateMoveEnabled{ true };
 #endif
 
-inline constexpr std::string_view kBuiltinShaderDirectoryName{ "Built-In" };
+inline constexpr std::string_view kBuiltinShaderDirectoryName{ "engine" };
 inline constexpr V2_int kEmbeddedIconSize{ 64, 64 };
 inline constexpr int kMinItemsPerRow{ 1 };
 inline constexpr int kMaxItemsPerRow{ 16 };

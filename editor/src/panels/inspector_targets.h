@@ -22,6 +22,7 @@
 #include "core/util/hash.h"
 #include "panels/inspector_feature_helpers.h"
 #include "panels/inspector_fields.h"
+#include "panels/inspector_component_drawers.h"
 #include "runtime/asset/asset_manager.h"
 #include "runtime/asset/prefab.h"
 #include "runtime/ecs/component_registry.h"
@@ -52,56 +53,6 @@ struct FeatureTargetKey {
 
 	bool operator==(const FeatureTargetKey&) const = default;
 };
-
-bool DrawRegisteredComponentContents(
-	EditorContext& ctx,
-	std::size_t type_id,
-	void* value
-);
-
-// Draw a value using the same custom component drawer used by the ordinary
-// Inspector when one is registered, falling back to reflected component data.
-bool DrawInspectorValueContents(
-	EditorContext& ctx,
-	std::size_t type_id,
-	void* value
-);
-
-struct RichTextVariableOption {
-	std::string_view label{};
-	std::string_view variable{};
-	std::string_view preview{};
-};
-
-struct RichTextEditorOptions {
-	std::span<const RichTextVariableOption> variables{};
-	bool show_preview{ true };
-	int line_count{ 8 };
-};
-
-/// @brief Unified rich-text source editor used by text components and context-specific UI.
-bool DrawRichTextEditor(
-	EditorContext& ctx, std::string& source, TextRunDefaults& defaults,
-	const RichTextEditorOptions& options = {}
-);
-
-bool DrawScriptsComponent(EditorContext& ctx, ::ptgn::impl::Scripts& scripts);
-
-bool DrawRenderTargetDesc(
-	EditorContext& ctx,
-	::ptgn::impl::RenderTargetDesc& target,
-	std::optional<V2_int> framebuffer_size = std::nullopt,
-	bool size_read_only = false
-);
-
-bool DrawLayerMaskValue(std::string_view label, LayerMask& value);
-bool DrawLayerMaskValue(std::string_view label, LayerMask& value, bool& ui_layer);
-
-void MarkTextLayoutDirty(Entity entity);
-void MarkButtonTextDirty(Entity entity);
-void MarkButtonBorderDirty(Entity entity);
-void MarkButtonBackgroundDirty(Entity entity);
-void MarkButtonSpriteDirty(Entity entity);
 
 template <typename T>
 void AssignEntityComponent(Entity entity, ComponentState<T> state) {
@@ -861,10 +812,5 @@ bool DrawName(Target& target) {
 
 	return changed;
 }
-
-bool DrawFeatureInspector(EntityInspectorTarget& target);
-bool DrawFeatureInspector(PrefabInspectorTarget& target);
-
-void DrawScreenEffectInspector(EditorContext& ctx, const ScreenEffectSelection& selection);
 
 } // namespace ptgn::editor::inspector

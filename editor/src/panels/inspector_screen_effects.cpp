@@ -1,3 +1,5 @@
+#include "panels/inspector_screen_effects.h"
+
 #include <imgui.h>
 #include <imgui_stdlib.h>
 
