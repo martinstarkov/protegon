@@ -199,11 +199,17 @@ public:
 	Button& RemoveAnimations();
 	Button& RemoveAnimation(ButtonVisualState state);
 
-	Button& Sound(std::optional<AudioKey> sound_key, ButtonVisualState state);
+	Button& Sound(std::optional<AudioKey> sound_key, ButtonVisualState state = ButtonVisualState::Idle);
 	Button& Sounds(std::optional<AudioKey> hover, std::optional<AudioKey> press);
+
 	Button& RemoveSound(ButtonVisualState state);
 	Button& RemoveSounds();
-	Button& ExclusiveAudio(bool enabled = true);
+
+	/// @brief Stop this state's sound before replaying it.
+	Button& ExclusiveAudio(bool enabled, ButtonVisualState state = ButtonVisualState::Idle);
+
+	/// @brief Stop sounds from other button states before playing a state sound.
+	Button& GlobalExclusiveAudio(bool enabled);
 
 	template <EventCallbackInvocable<event::ButtonPress> F>
 	Button& OnPress(F&& callback) {

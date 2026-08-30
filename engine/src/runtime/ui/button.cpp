@@ -1327,7 +1327,10 @@ Button& Button::Sounds(
 
 Button& Button::RemoveSound(ButtonVisualState state) {
 	if (auto sounds{ TryGet<ButtonSounds>() }) {
-		sounds->states[std::to_underlying(state)].reset();
+		const auto index{ std::to_underlying(state) };
+
+		sounds->states[index].reset();
+		sounds->state_exclusive[index] = false;
 	}
 
 	return *this;
@@ -1336,12 +1339,19 @@ Button& Button::RemoveSound(ButtonVisualState state) {
 Button& Button::RemoveSounds() {
 	if (auto sounds{ TryGet<ButtonSounds>() }) {
 		sounds->states = {};
+		sounds->state_exclusive = {};
 	}
 
 	return *this;
 }
 
-Button& Button::ExclusiveAudio(bool enabled) {
+Button& Button::ExclusiveAudio(bool enabled, ButtonVisualState state) {
+	auto& sounds{ TryAdd<ButtonSounds>() };
+	sounds.state_exclusive[std::to_underlying(state)] = enabled;
+	return *this;
+}
+
+Button& Button::GlobalExclusiveAudio(bool enabled) {
 	TryAdd<ButtonSounds>().exclusive = enabled;
 	return *this;
 }
@@ -1880,31 +1890,33 @@ void Button::PlaySound(ButtonVisualState state) {
 	}
 
 	const auto& sounds{ Get<ButtonSounds>() };
-
-	auto& audio{ GetScene().ctx().audio };
-
-	auto get_sound = [&sounds](auto button_state) -> std::optional<AudioKey> {
-		for (auto fallback : GetVisualStateFallbacks(button_state)) {
-			const auto& sound{ sounds.states[std::to_underlying(fallback)] };
-			if (sound.has_value()) {
-				return sound.value();
-			}
-		}
-		return std::nullopt;
-	};
-
-	auto active_sound{ get_sound(state) };
+	const auto index{ static_cast<std::size_t>(std::to_underlying(state)) };
+	const auto& active_sound{ sounds.states[index] };
 
 	if (!active_sound.has_value()) {
 		return;
 	}
 
+	auto& audio{ GetScene().ctx().audio };
+
+	// Global exclusivity only stops sounds belonging to other states.
 	if (sounds.exclusive) {
-		for (const auto& sound : sounds.states) {
-			if (sound.has_value()) {
-				audio.Stop(sound.value());
+		for (std::size_t i{ 0 }; i < sounds.states.size(); ++i) {
+			if (i == index) {
+				continue;
+			}
+
+			const auto& other_sound{ sounds.states[i] };
+
+			if (other_sound.has_value()) {
+				audio.Stop(other_sound.value());
 			}
 		}
+	}
+
+	// State exclusivity stops this state's own currently playing sound.
+	if (sounds.state_exclusive[index]) {
+		audio.Stop(active_sound.value());
 	}
 
 	audio.Play(active_sound.value());

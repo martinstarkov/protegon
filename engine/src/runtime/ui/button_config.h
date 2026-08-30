@@ -229,10 +229,15 @@ struct ButtonSounds {
 	/// @brief Sound keys per visual state. Each sound must be loaded in the AssetManager.
 	std::array<std::optional<AudioKey>, kButtonVisualStateCount> states{};
 
-	/// @brief If true when one sound plays the others are stopped.
+	/// @brief If true for a state, stop that state's sound before replaying it.
+	std::array<bool, kButtonVisualStateCount> state_exclusive{};
+
+	/// @brief If true, stop sounds from other button states before playing a state sound.
+	/// Kept as "exclusive" internally so existing serialized global-exclusive data keeps
+	/// the same field name and meaning.
 	bool exclusive{ false };
 
-	PTGN_REFLECT(ButtonSounds, states, exclusive)
+	PTGN_REFLECT(ButtonSounds, states, state_exclusive, exclusive)
 };
 
 struct MoveButtonConfig {
