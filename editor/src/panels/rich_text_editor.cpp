@@ -182,13 +182,18 @@ void ClampRichTextSelection(RichTextSelectionState& state, std::size_t size) {
 
 void RequestRichTextSelection(
 	RichTextSelectionState& state, std::size_t cursor, std::size_t selection_start,
-	std::size_t selection_end
+	std::size_t selection_end, bool focus_source = false
 ) {
 	state.cursor = cursor;
 	state.selection_start = selection_start;
 	state.selection_end = selection_end;
 	state.apply_selection = true;
-	state.focus_source = true;
+
+	// Toolbar actions intentionally do not focus the source input. Focusing it in the
+	// same frame as a toolbar click makes ImGui reactivate the multiline editor after
+	// the external string edit, which can overwrite the new markup with its previous
+	// edit buffer. It also causes the blue active-item border to flash.
+	state.focus_source = focus_source;
 }
 
 bool WrapRichTextSelection(
@@ -295,6 +300,46 @@ bool ToggleRichTextSelectionTag(
 	const std::size_t selection_end{ end - open_size };
 	RequestRichTextSelection(state, selection_end, selection_start, selection_end);
 	return true;
+}
+
+// Applies a parameterized rich-text tag without nesting the same tag repeatedly.
+// This is used by Color/Font/Size and effect controls so changing a value while
+// their popup remains open simply replaces the existing opening tag.
+bool SetRichTextSelectionTag(
+	std::string& source, RichTextSelectionState& state, std::string_view tag,
+	std::string_view open, std::string_view close
+) {
+	ClampRichTextSelection(state, source.size());
+
+	std::size_t begin{ std::min(state.selection_start, state.selection_end) };
+	std::size_t end{ std::max(state.selection_start, state.selection_end) };
+	if (begin == end) {
+		begin = state.cursor;
+		end = state.cursor;
+	}
+
+	std::size_t open_begin{};
+	std::size_t close_size{};
+	if (RichTextOpeningTagMatches(source, begin, tag, open_begin) &&
+		RichTextClosingTagMatches(source, end, tag, close_size)) {
+		const std::size_t old_open_size{ begin - open_begin };
+		const std::string_view current_open{ source.data() + open_begin, old_open_size };
+
+		if (current_open == open) {
+			return false;
+		}
+
+		source.replace(open_begin, old_open_size, open);
+
+		const std::size_t selection_start{ open_begin + open.size() };
+		const std::size_t selection_end{ end - old_open_size + open.size() };
+		RequestRichTextSelection(
+			state, selection_end, selection_start, selection_end
+		);
+		return true;
+	}
+
+	return WrapRichTextSelection(source, state, open, close);
 }
 
 bool InsertRichTextToken(
@@ -764,16 +809,25 @@ bool DrawRichTextToolbar(
 	const RichTextEditorOptions& options, RichTextEditorState& state,
 	RichTextSelectionState& selection, bool allow_detached_window
 ) {
-	(void)defaults;
 	bool changed{ false };
 	const float button_height{ ImGui::GetFrameHeight() };
+
+	// The caller owns the actual component/value snapshot undo. Commit any edit that
+	// was active before a distinct toolbar action so each formatter action starts a
+	// fresh undo transaction instead of being merged into preceding source typing.
+	auto begin_text_action = [&]() { ctx.undo.CommitActiveEdit(); };
 
 	auto tag_button = [&](const char* label, std::string_view tag, std::string_view open,
 						  std::string_view close, std::string_view tooltip) {
 		if (ImGui::Button(label, ImVec2{ 0.0f, button_height })) {
+			begin_text_action();
 			changed |= ToggleRichTextSelectionTag(source, selection, tag, open, close);
 		}
 		DrawRichTextToolbarTooltip(tooltip);
+	};
+
+	auto set_tag = [&](std::string_view tag, std::string open, std::string_view close) {
+		changed |= SetRichTextSelectionTag(source, selection, tag, open, close);
 	};
 
 	tag_button("B", "b", "<b>", "</b>", "Bold.\n<b>...</b>\n<b=0.2>...</b>");
@@ -792,6 +846,14 @@ bool DrawRichTextToolbar(
 		"Text color.\n<c=red>...</c>\n<c=#RRGGBB>...</c>\n<c=#RRGGBBAA>...</c>"
 	);
 	if (ImGui::BeginPopup("RichTextColorPopup")) {
+		auto apply_color = [&]() {
+			set_tag(
+				"c",
+				"<c=" + RichTextEditorColorTag(state.color) + ">",
+				"</c>"
+			);
+		};
+
 		const Color current_color{ GetRichTextEditorColor(state.color) };
 		const char* preset_label{ "Custom" };
 		for (const auto& preset : kRichTextColorPresets) {
@@ -806,7 +868,9 @@ bool DrawRichTextToolbar(
 			for (const auto& preset : kRichTextColorPresets) {
 				const bool selected{ preset.color == current_color };
 				if (ImGui::Selectable(preset.name, selected)) {
+					begin_text_action();
 					SetRichTextEditorColor(state.color, preset.color);
+					apply_color();
 				}
 				if (selected) {
 					ImGui::SetItemDefaultFocus();
@@ -815,14 +879,23 @@ bool DrawRichTextToolbar(
 			ImGui::EndCombo();
 		}
 
-		ImGui::ColorEdit4(
+		const bool color_changed{ ImGui::ColorEdit4(
 			"Custom##RichTextColor", state.color.data(), ImGuiColorEditFlags_AlphaBar
-		);
-		if (ImGui::Button("Apply Color", ImVec2{ -FLT_MIN, 0.0f })) {
-			const std::string open{ "<c=" + RichTextEditorColorTag(state.color) + ">" };
-			changed |= WrapRichTextSelection(source, selection, open, "</c>");
-			ImGui::CloseCurrentPopup();
+		) };
+		if (ImGui::IsItemActivated()) {
+			begin_text_action();
 		}
+		if (color_changed) {
+			apply_color();
+		}
+
+		if (ImGui::Button("Reset Color", ImVec2{ -FLT_MIN, 0.0f })) {
+			begin_text_action();
+			SetRichTextEditorColor(state.color, defaults.style.color);
+			apply_color();
+		}
+		DrawRichTextToolbarTooltip("Reset to the rich-text default color and apply it.");
+
 		ImGui::EndPopup();
 	}
 
@@ -832,6 +905,10 @@ bool DrawRichTextToolbar(
 	}
 	DrawRichTextToolbarTooltip("Font key.\n<font=key>...</font>");
 	if (ImGui::BeginPopup("RichTextFontPopup")) {
+		auto apply_font = [&]() {
+			set_tag("font", "<font=" + state.font + ">", "</font>");
+		};
+
 		const auto loaded_fonts{ GetLoadedRichTextFontKeys(ctx) };
 		const char* preview{ state.font.empty() ? "Default" : state.font.c_str() };
 		ImGui::SetNextItemWidth(260.0f);
@@ -840,7 +917,9 @@ bool DrawRichTextToolbar(
 				const bool selected{ state.font == font };
 				const char* label{ font.empty() ? "Default" : font.c_str() };
 				if (ImGui::Selectable(label, selected)) {
+					begin_text_action();
 					state.font = font;
+					apply_font();
 				}
 				if (selected) {
 					ImGui::SetItemDefaultFocus();
@@ -850,13 +929,23 @@ bool DrawRichTextToolbar(
 		}
 
 		ImGui::SetNextItemWidth(260.0f);
-		ImGui::InputTextWithHint("Custom##RichTextFont", "Custom font key", &state.font);
-		if (ImGui::Button("Apply Font", ImVec2{ -FLT_MIN, 0.0f })) {
-			changed |= WrapRichTextSelection(
-				source, selection, "<font=" + state.font + ">", "</font>"
-			);
-			ImGui::CloseCurrentPopup();
+		const bool font_changed{ ImGui::InputTextWithHint(
+			"Custom##RichTextFont", "Custom font key", &state.font
+		) };
+		if (ImGui::IsItemActivated()) {
+			begin_text_action();
 		}
+		if (font_changed) {
+			apply_font();
+		}
+
+		if (ImGui::Button("Reset Font", ImVec2{ -FLT_MIN, 0.0f })) {
+			begin_text_action();
+			state.font = defaults.font.value;
+			apply_font();
+		}
+		DrawRichTextToolbarTooltip("Reset to the rich-text default font and apply it.");
+
 		ImGui::EndPopup();
 	}
 
@@ -866,69 +955,90 @@ bool DrawRichTextToolbar(
 	}
 	DrawRichTextToolbarTooltip("Font size.\n<size=32>...</size>");
 	if (ImGui::BeginPopup("RichTextSizePopup")) {
+		auto apply_size = [&]() {
+			char value[64]{};
+			std::snprintf(value, sizeof(value), "<size=%.3g>", static_cast<double>(state.size));
+			set_tag("size", value, "</size>");
+		};
+
 		const float spacing{ ImGui::GetStyle().ItemInnerSpacing.x };
 		if (ImGui::Button("-##RichTextSize", ImVec2{ button_height, button_height })) {
+			begin_text_action();
 			StepRichTextCommonFontSize(state.size, -1);
+			apply_size();
 		}
 		ImGui::SameLine(0.0f, spacing);
 		ImGui::SetNextItemWidth(120.0f);
-		ImGui::DragFloat("##RichTextSize", &state.size, 0.5f, 1.0f, 1000.0f, "%.1f");
+		const bool size_changed{ ImGui::DragFloat(
+			"##RichTextSize", &state.size, 0.5f, 1.0f, 1000.0f, "%.1f",
+			ImGuiSliderFlags_AlwaysClamp
+		) };
+		if (ImGui::IsItemActivated()) {
+			begin_text_action();
+		}
+		if (size_changed) {
+			apply_size();
+		}
 		ImGui::SameLine(0.0f, spacing);
 		if (ImGui::Button("+##RichTextSize", ImVec2{ button_height, button_height })) {
+			begin_text_action();
 			StepRichTextCommonFontSize(state.size, 1);
+			apply_size();
 		}
 
-		if (ImGui::Button("Apply Size", ImVec2{ -FLT_MIN, 0.0f })) {
-			char value[64]{};
-			std::snprintf(value, sizeof(value), "<size=%.3g>", static_cast<double>(state.size));
-			changed |= WrapRichTextSelection(source, selection, value, "</size>");
-			ImGui::CloseCurrentPopup();
+		if (ImGui::Button("Reset Size", ImVec2{ -FLT_MIN, 0.0f })) {
+			begin_text_action();
+			state.size = defaults.style.size;
+			apply_size();
 		}
+		DrawRichTextToolbarTooltip("Reset to the rich-text default size and apply it.");
+
 		ImGui::EndPopup();
 	}
 
 	ImGui::SameLine();
 	ImGui::SetNextItemWidth(100.0f);
 	if (ImGui::BeginCombo("##RichTextEffects", "Effects")) {
-		auto effect_item = [&](const char* label, std::string_view open, std::string_view close,
-						   std::string_view tooltip) {
+		auto effect_item = [&](const char* label, std::string_view tag, std::string_view open,
+						   std::string_view close, std::string_view tooltip) {
 			if (ImGui::Selectable(label)) {
-				changed |= WrapRichTextSelection(source, selection, open, close);
+				begin_text_action();
+				changed |= SetRichTextSelectionTag(source, selection, tag, open, close);
 			}
 			DrawRichTextToolbarTooltip(tooltip);
 		};
 
 		effect_item(
-			"Outline", "<outline=#000000,2,1>", "</outline>",
+			"Outline", "outline", "<outline=#000000,2,1>", "</outline>",
 			"<outline=color,width[,softness]>"
 		);
 		effect_item(
-			"Shadow", "<shadow=#00000080,3,3,0,1>", "</shadow>",
+			"Shadow", "shadow", "<shadow=#00000080,3,3,0,1>", "</shadow>",
 			"<shadow=color,x,y[,width[,softness]]>"
 		);
 		effect_item(
-			"Outer Glow", "<outerglow=#00FFFF,4,1>", "</outerglow>",
+			"Outer Glow", "outerglow", "<outerglow=#00FFFF,4,1>", "</outerglow>",
 			"<outerglow=color,width[,softness]>"
 		);
 		effect_item(
-			"Inner Glow", "<innerglow=#FFFFFF,2,1>", "</innerglow>",
+			"Inner Glow", "innerglow", "<innerglow=#FFFFFF,2,1>", "</innerglow>",
 			"<innerglow=color,width[,softness]>"
 		);
 		ImGui::Separator();
 		effect_item(
-			"Wave", "<fx=Wave,8,2,1,0>", "</fx>",
+			"Wave", "fx", "<fx=Wave,8,2,1,0>", "</fx>",
 			"<fx=Wave,amplitude,frequency,speed,phase>"
 		);
 		effect_item(
-			"Wobble", "<fx=Wobble,4,2,1,0>", "</fx>",
+			"Wobble", "fx", "<fx=Wobble,4,2,1,0>", "</fx>",
 			"<fx=Wobble,amplitude,frequency,speed,phase>"
 		);
 		effect_item(
-			"Shake", "<fx=Shake,3,20,1,0>", "</fx>",
+			"Shake", "fx", "<fx=Shake,3,20,1,0>", "</fx>",
 			"<fx=Shake,amplitude,frequency,speed,phase>"
 		);
 		effect_item(
-			"Pulse", "<fx=Pulse,0.15,2,1,0>", "</fx>",
+			"Pulse", "fx", "<fx=Pulse,0.15,2,1,0>", "</fx>",
 			"<fx=Pulse,amplitude,frequency,speed,phase>"
 		);
 		ImGui::EndCombo();
@@ -948,7 +1058,7 @@ bool DrawRichTextToolbar(
 			state.window_open = true;
 			state.window_selection = selection;
 			state.window_selection.apply_selection = true;
-			state.window_selection.focus_source = true;
+			state.window_selection.focus_source = false;
 		}
 		DrawRichTextToolbarTooltip("Open a larger rich-text editor.");
 	}
@@ -960,6 +1070,7 @@ bool DrawRichTextToolbar(
 			for (const auto& variable : options.variables) {
 				const std::string expression{ "${" + std::string{ variable.variable } + "}" };
 				if (ImGui::Selectable(std::string{ variable.label }.c_str())) {
+					begin_text_action();
 					changed |= InsertRichTextToken(source, selection, expression);
 				}
 				if (!variable.preview.empty()) {
@@ -991,7 +1102,12 @@ bool DrawRichTextEditorPanel(
 
 	const float editor_height{
 		detached
-			? std::max(300.0f, ImGui::GetContentRegionAvail().y * 0.52f)
+			? std::max(
+				  300.0f,
+				  ImGui::GetTextLineHeightWithSpacing() *
+					  static_cast<float>(std::max(options.line_count, 14)) +
+					  ImGui::GetStyle().FramePadding.y * 2.0f
+			  )
 			: ImGui::GetTextLineHeightWithSpacing() *
 				  static_cast<float>(std::max(options.line_count, 3)) +
 				  ImGui::GetStyle().FramePadding.y * 2.0f
@@ -1031,8 +1147,6 @@ bool DrawRichTextEditorPanel(
 	}
 
 	if (options.show_preview) {
-		ImGui::SeparatorText("Preview");
-
 		const std::string expanded{ ExpandRichTextVariables(
 			source,
 			[&options](std::string_view name) -> std::optional<std::string> {
@@ -1047,6 +1161,17 @@ bool DrawRichTextEditorPanel(
 		const auto parsed{ ParseRichText(expanded, defaults) };
 		const auto source_diagnostics{ ParseRichText(source, defaults).diagnostics };
 
+		// Keep diagnostics above the preview so the preview is the final element in
+		// the detached editor. Combined with auto-resizing, the window bottom now
+		// ends directly after the preview instead of leaving unused vertical space.
+		for (const auto& diagnostic : source_diagnostics) {
+			ImGui::TextColored(
+				ImVec4{ 1.0f, 0.45f, 0.2f, 1.0f }, "Character %zu: %s",
+				RichTextCharacterPosition(source, diagnostic.position), diagnostic.message.c_str()
+			);
+		}
+
+		ImGui::SeparatorText("Preview");
 		ImGui::BeginChild(
 			"##RichTextPreview", ImVec2{ -FLT_MIN, detached ? 180.0f : 120.0f }, true,
 			ImGuiWindowFlags_HorizontalScrollbar
@@ -1056,13 +1181,6 @@ bool DrawRichTextEditorPanel(
 		DrawRichTextToolbarTooltip(
 			"Live preview of size, color, BIUS, spacing, SDF layers and glyph effects."
 		);
-
-		for (const auto& diagnostic : source_diagnostics) {
-			ImGui::TextColored(
-				ImVec4{ 1.0f, 0.45f, 0.2f, 1.0f }, "Character %zu: %s",
-				RichTextCharacterPosition(source, diagnostic.position), diagnostic.message.c_str()
-			);
-		}
 	}
 
 	return changed;
@@ -1104,7 +1222,7 @@ bool DrawRichTextEditor(
 			"Rich Text Editor###RichTextEditorWindow_" + std::to_string(state_id)
 		};
 		ImGui::SetNextWindowSize(ImVec2{ 900.0f, 700.0f }, ImGuiCond_FirstUseEver);
-		if (ImGui::Begin(title.c_str(), &open)) {
+		if (ImGui::Begin(title.c_str(), &open, ImGuiWindowFlags_AlwaysAutoResize)) {
 			ImGui::PushID(static_cast<int>(state_id));
 			changed |= DrawRichTextEditorPanel(
 				ctx, source, defaults, options, state, state.window_selection, true
