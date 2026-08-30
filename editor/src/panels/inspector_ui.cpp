@@ -2,6 +2,8 @@
 #include "panels/inspector_geometry.h"
 #include "panels/rich_text_editor.h"
 
+#include "runtime/ecs/entity_serialization.h"
+
 namespace ptgn::editor::inspector {
 
 namespace {
@@ -1571,6 +1573,179 @@ bool DrawFocusedButtonAppearance(Target& target, FocusedUIControlType type) {
 	return changed;
 }
 
+[[nodiscard]] bool IsButtonManagedVisualChild(Entity child) {
+	return child && child.HasAny<
+		ButtonBackgroundVisuals,
+		ButtonBorderVisuals,
+		ButtonTextVisuals,
+		ButtonSpriteVisuals
+	>();
+}
+
+[[nodiscard]] bool IsSliderManagedChild(Entity child) {
+	return child && child.HasAny<
+		::ptgn::impl::SliderThumbData,
+		::ptgn::impl::SliderTrackData,
+		::ptgn::impl::SliderValueTextData
+	>();
+}
+
+[[nodiscard]] bool IsDropdownManagedChild(Entity child) {
+	return child && child.Has<::ptgn::impl::DropdownItem>();
+}
+
+[[nodiscard]] bool IsManagedChildForUIControl(
+	Entity child,
+	FocusedUIControlType type
+) {
+	switch (type) {
+		case FocusedUIControlType::Button:
+		case FocusedUIControlType::ToggleButton:
+			return IsButtonManagedVisualChild(child);
+
+		case FocusedUIControlType::Slider:
+			// Slider owns its thumb, track and value-text subtrees. Root button visuals
+			// are also managed UI parts and may remain after older control conversions.
+			return IsSliderManagedChild(child) || IsButtonManagedVisualChild(child);
+
+		case FocusedUIControlType::Dropdown:
+			// Dropdown owns its item buttons and the ordinary button visuals used by
+			// the dropdown header.
+			return IsDropdownManagedChild(child) || IsButtonManagedVisualChild(child);
+
+		case FocusedUIControlType::None:
+		case FocusedUIControlType::Conflict:
+			return false;
+	}
+
+	return false;
+}
+
+struct ManagedUIChildSnapshot {
+	std::size_t index{ 0 };
+	SerializedEntity entity{};
+};
+
+[[nodiscard]] std::vector<ManagedUIChildSnapshot> CaptureManagedUIChildren(
+	Entity parent,
+	FocusedUIControlType type
+) {
+	std::vector<ManagedUIChildSnapshot> snapshots;
+
+	if (!parent || !HasChildren(parent)) {
+		return snapshots;
+	}
+
+	const auto children{ GetChildren(parent) };
+
+	for (std::size_t index{ 0 }; index < children.size(); ++index) {
+		Entity child{ children[index] };
+		if (!IsManagedChildForUIControl(child, type)) {
+			continue;
+		}
+
+		snapshots.emplace_back(ManagedUIChildSnapshot{
+			.index = index,
+			.entity = SerializeEntity(child),
+		});
+	}
+
+	return snapshots;
+}
+
+void DestroyEntityTree(Entity entity) {
+	if (!entity) {
+		return;
+	}
+
+	if (HasChildren(entity)) {
+		const auto children{ GetChildren(entity) };
+		for (Entity child : children) {
+			DestroyEntityTree(child);
+		}
+	}
+
+	if (HasParent(entity)) {
+		RemoveParent(entity);
+	}
+
+	entity.Destroy();
+}
+
+void DestroyManagedUIChildren(
+	Entity parent,
+	FocusedUIControlType type
+) {
+	if (!parent || !HasChildren(parent)) {
+		return;
+	}
+
+	// Copy before modifying hierarchy because destroying a managed root removes
+	// that root and its complete managed subtree.
+	const auto children{ GetChildren(parent) };
+	bool destroyed{ false };
+
+	for (Entity child : children) {
+		if (!IsManagedChildForUIControl(child, type)) {
+			continue;
+		}
+
+		DestroyEntityTree(child);
+		destroyed = true;
+	}
+
+	if (destroyed) {
+		parent.GetScene().Refresh();
+	}
+}
+
+[[nodiscard]] Entity RestoreSerializedUIEntityTree(
+	Scene& scene,
+	const SerializedEntity& serialized
+) {
+	Entity entity{
+		scene.CreateEntity(
+			Tag{ serialized.tag },
+			GetSerializedEntityUUID(serialized)
+		)
+	};
+
+	DeserializeEntity(serialized, entity);
+
+	for (const auto& serialized_child : serialized.children) {
+		Entity child{ RestoreSerializedUIEntityTree(scene, serialized_child) };
+		SetParent(child, entity);
+	}
+
+	return entity;
+}
+
+void RestoreManagedUIChildren(
+	Entity parent,
+	const std::vector<ManagedUIChildSnapshot>& snapshots
+) {
+	if (!parent || snapshots.empty()) {
+		return;
+	}
+
+	Scene& scene{ parent.GetScene() };
+
+	for (const auto& snapshot : snapshots) {
+		Entity restored{ RestoreSerializedUIEntityTree(scene, snapshot.entity) };
+		SetParent(restored, parent);
+
+		const auto& children{ GetChildren(parent) };
+		if (!children.empty()) {
+			const std::size_t index{
+				std::min(snapshot.index, children.size() - 1)
+			};
+			MoveChild(parent, restored, index);
+		}
+	}
+
+	scene.Refresh();
+}
+
 template <typename Target>
 bool RepairUIControlConflict(Target& target, FocusedUIControlType keep) {
 	auto before{
@@ -1606,9 +1781,20 @@ bool ChangeFocusedUIControlType(Target& target, FocusedUIControlType type) {
 		return false;
 	}
 
+	const FocusedUIControlType previous_type{ GetFocusedUIControlType(target) };
+	if (previous_type == type) {
+		return false;
+	}
+
 	auto before{
 		CaptureInspectorFeatureState(target, InspectorFeature::UI, UIFeatureComponents{})
 	};
+
+	std::vector<ManagedUIChildSnapshot> previous_managed_children;
+	if constexpr (std::same_as<std::remove_cvref_t<Target>, EntityInspectorTarget>) {
+		previous_managed_children = CaptureManagedUIChildren(target.entity, previous_type);
+		DestroyManagedUIChildren(target.entity, previous_type);
+	}
 
 	RemoveSupportedFeatureComponent<Target, ::ptgn::impl::SliderData>(target);
 	RemoveSupportedFeatureComponent<Target, ::ptgn::impl::ToggleButtonData>(target);
@@ -1652,10 +1838,64 @@ bool ChangeFocusedUIControlType(Target& target, FocusedUIControlType type) {
 	}
 
 	auto after{ CaptureInspectorFeatureState(target, InspectorFeature::UI, UIFeatureComponents{}) };
-	TrackInspectorFeatureState(
-		target, InspectorFeature::UI, "Change UI Control Type", std::move(before), std::move(after),
-		UIFeatureComponents{}
-	);
+
+	if constexpr (std::same_as<std::remove_cvref_t<Target>, EntityInspectorTarget>) {
+		auto apply{
+			MakeInspectorFeatureApply(target, InspectorFeature::UI, UIFeatureComponents{})
+		};
+		Editor* editor{ std::addressof(target.ctx.editor) };
+		const EntityReference reference{ MakeEntityReference(target.entity) };
+
+		target.ctx.undo.PushApplied(
+			"Change UI Control Type",
+			[
+				editor,
+				reference,
+				apply,
+				before,
+				previous_managed_children,
+				previous_type,
+				type
+			]() mutable {
+				Entity entity{ reference.Resolve(*editor) };
+				if (entity) {
+					DestroyManagedUIChildren(entity, type);
+				}
+
+				apply(before);
+
+				entity = reference.Resolve(*editor);
+				if (!entity) {
+					return;
+				}
+
+				// Applying SliderData may recreate default slider children. Remove those
+				// before restoring the exact managed subtree that existed before the switch.
+				DestroyManagedUIChildren(entity, previous_type);
+				RestoreManagedUIChildren(entity, previous_managed_children);
+			},
+			[
+				editor,
+				reference,
+				apply,
+				after,
+				previous_type
+			]() mutable {
+				Entity entity{ reference.Resolve(*editor) };
+				if (entity) {
+					DestroyManagedUIChildren(entity, previous_type);
+				}
+
+				apply(after);
+			}
+		);
+	} else {
+		TrackInspectorFeatureState(
+			target, InspectorFeature::UI, "Change UI Control Type", std::move(before),
+			std::move(after), UIFeatureComponents{}
+		);
+	}
+
 	return true;
 }
 
@@ -1912,6 +2152,59 @@ bool DrawSliderTrackPartTree(
 	return changed;
 }
 
+template <typename Marker>
+bool DrawSliderTrackPartTransform(EntityInspectorTarget& target, std::string_view part_label) {
+	auto before{ target.Capture<Marker>() };
+	if (!before) {
+		return false;
+	}
+
+	Marker marker{ *before };
+	marker.initialized = true;
+	marker.visual.defined = true;
+	bool enabled{ marker.visual.transform.has_value() };
+	bool changed{ false };
+	ScopedID scope{ "SliderTrackPartTransform" };
+
+	if (ImGui::Checkbox("##Enabled", &enabled)) {
+		if (enabled) {
+			marker.visual.transform = Transform{};
+		} else {
+			marker.visual.transform.reset();
+		}
+
+		target.SetLive<Marker>(marker, &SynchronizeSliderTrackPart);
+		auto after{ target.Capture<Marker>() };
+		TrackComponentState(
+			target, std::string{ enabled ? "Enable " : "Disable " } +
+				std::string{ part_label } + " Transform",
+			std::move(before), std::move(after), true, &SynchronizeSliderTrackPart
+		);
+		changed = true;
+	}
+
+	ImGui::SameLine();
+	ImGui::BeginDisabled(!enabled);
+	const bool open{ ImGui::TreeNodeEx(
+		"Transform##SliderTrackPartTransformTree",
+		ImGuiTreeNodeFlags_SpanAvailWidth | ImGuiTreeNodeFlags_FramePadding
+	) };
+	ImGui::EndDisabled();
+	DrawTooltip("Override this track part's transform, or leave it unchecked to use automatic placement.");
+
+	if (open) {
+		if (enabled) {
+			// Use the ordinary Transform component editor so track parts get position picking,
+			// scale-ratio locking, depth, and parent-transform controls. inspector_transform.cpp
+			// mirrors Transform deltas back into this part's relative visual override.
+			changed |= DrawTransformFeature(target, false, false, false);
+		}
+		ImGui::TreePop();
+	}
+
+	return changed;
+}
+
 float SliderTrackPartMaximumLineWidth(Entity border) {
 	if (border.Has<Rect>()) {
 		const auto size{ border.Get<Rect>().GetSize() };
@@ -1973,16 +2266,23 @@ bool DrawSliderTrackShapeFields(EntityInspectorTarget& target, Entity part, bool
 		return false;
 	}
 
+	bool changed{ DrawSliderTrackPartTransform<Marker>(
+		target, border ? "Slider Track Border" : "Slider Track Background"
+	) };
+
+	// Transform editing writes the marker live, so recapture before editing the remaining fields.
+	before = target.Capture<Marker>();
+	if (!before) {
+		return changed;
+	}
+
 	Marker data{ *before };
 	data.initialized = true;
 	data.visual.defined = true;
 	std::array<ButtonShapeVisual, 1> states{ data.visual };
 	constexpr ButtonVisualState state{ ButtonVisualState::Idle };
-	bool changed{ false };
+	bool visual_changed{ false };
 
-	changed |= DrawButtonVisualOverrideTree(
-		target.ctx, "Transform", states, state, &ButtonShapeVisual::transform
-	);
 	const bool had_size_override{ states[0].size.has_value() };
 	std::optional<std::variant<V2_float, float>> current_size{};
 	if (auto rect{ part.TryGet<Rect>() }) {
@@ -1996,25 +2296,25 @@ bool DrawSliderTrackShapeFields(EntityInspectorTarget& target, Entity part, bool
 	if (size_changed && !had_size_override && states[0].size.has_value() && current_size) {
 		states[0].size = current_size;
 	}
-	changed |= size_changed;
-	changed |= DrawButtonVisualOverrideValue(
+	visual_changed |= size_changed;
+	visual_changed |= DrawButtonVisualOverrideValue(
 		target.ctx, "Origin", states, state, &ButtonShapeVisual::origin
 	);
 	DrawTooltip("Local origin used by this track part.");
-	changed |= DrawButtonVisualOverrideValue(
+	visual_changed |= DrawButtonVisualOverrideValue(
 		target.ctx, "Anchor", states, state, &ButtonShapeVisual::anchor
 	);
 	DrawTooltip("Point on the automatic track rectangle used as this part's anchor.");
-	changed |= DrawButtonVisualOverrideValue(
+	visual_changed |= DrawButtonVisualOverrideValue(
 		target.ctx, "Color", states, state, &ButtonShapeVisual::color
 	);
 
 	if (border) {
-		changed |= DrawSliderTrackBorderLineWidth(states[0], part);
+		visual_changed |= DrawSliderTrackBorderLineWidth(states[0], part);
 	}
 
-	if (!changed) {
-		return false;
+	if (!visual_changed) {
+		return changed;
 	}
 
 	data.visual = states[0];
@@ -2043,24 +2343,31 @@ bool DrawSliderTrackSpriteFields(EntityInspectorTarget& target, Entity sprite) {
 		return false;
 	}
 
+	bool changed{ DrawSliderTrackPartTransform<::ptgn::impl::SliderTrackSpriteData>(
+		target, "Slider Track Sprite"
+	) };
+
+	// Transform editing writes the marker live, so recapture before editing the remaining fields.
+	before = target.Capture<::ptgn::impl::SliderTrackSpriteData>();
+	if (!before) {
+		return changed;
+	}
+
 	auto data{ *before };
 	data.initialized = true;
 	data.visual.defined = true;
 	std::array<ButtonSpriteVisual, 1> states{ data.visual };
 	constexpr ButtonVisualState state{ ButtonVisualState::Idle };
-	bool changed{ false };
+	bool visual_changed{ false };
 
-	changed |= DrawButtonVisualOverrideTree(
-		target.ctx, "Transform", states, state, &ButtonSpriteVisual::transform
-	);
-	changed |= DrawButtonVisualOverrideValue(
+	visual_changed |= DrawButtonVisualOverrideValue(
 		target.ctx, "Texture Key", states, state, &ButtonSpriteVisual::texture
 	);
-	changed |= DrawButtonVisualOverrideValue(
+	visual_changed |= DrawButtonVisualOverrideValue(
 		target.ctx, "Origin", states, state, &ButtonSpriteVisual::origin
 	);
 	DrawTooltip("Local origin used by this track sprite.");
-	changed |= DrawButtonVisualOverrideValue(
+	visual_changed |= DrawButtonVisualOverrideValue(
 		target.ctx, "Anchor", states, state, &ButtonSpriteVisual::anchor
 	);
 	DrawTooltip("Point on the automatic track rectangle used as this sprite's anchor.");
@@ -2072,11 +2379,11 @@ bool DrawSliderTrackSpriteFields(EntityInspectorTarget& target, Entity sprite) {
 	if (size_changed && !had_size_override && states[0].size.has_value() && current_size) {
 		states[0].size = current_size;
 	}
-	changed |= size_changed;
-	changed |= DrawButtonVisualOverrideValue(
+	visual_changed |= size_changed;
+	visual_changed |= DrawButtonVisualOverrideValue(
 		target.ctx, "Tint", states, state, &ButtonSpriteVisual::tint
 	);
-	changed |= DrawButtonVisualOverrideTree(
+	visual_changed |= DrawButtonVisualOverrideTree(
 		target.ctx, "Animation", states, state, &ButtonSpriteVisual::animation,
 		[&target](AnimationConfig& animation) {
 			return DrawInspectorValueContents(
@@ -2084,12 +2391,12 @@ bool DrawSliderTrackSpriteFields(EntityInspectorTarget& target, Entity sprite) {
 			);
 		}
 	);
-	changed |= DrawButtonVisualOverrideTree(
+	visual_changed |= DrawButtonVisualOverrideTree(
 		target.ctx, "Animation Options", states, state, &ButtonSpriteVisual::animation_options
 	);
 
-	if (!changed) {
-		return false;
+	if (!visual_changed) {
+		return changed;
 	}
 
 	data.visual = states[0];
