@@ -2188,15 +2188,11 @@ void Editor::DrawMainMenuBar() {
 			);
 		}
 
-		auto& hierarchy{ GetSceneHierarchyPanel() };
 		if (ImGui::MenuItem(
-				"Show Managed UI Parts", nullptr, hierarchy.GetShowManagedUIParts()
+				"Show Managed UI Parts", nullptr, GetSettings().show_managed_ui_parts
 			)) {
-			const bool before{ hierarchy.GetShowManagedUIParts() };
-			const bool after{ !before };
-			PushUndoableValueChange(
-				undo_stack_, "Toggle Show Managed UI Parts", before, after,
-				[this](bool show) { GetSceneHierarchyPanel().SetShowManagedUIParts(show); }, false
+			toggle_editor_setting(
+				"Toggle Show Managed UI Parts", &EditorSettings::show_managed_ui_parts
 			);
 		}
 		if (ImGui::IsItemHovered()) {
@@ -3122,6 +3118,7 @@ void Editor::SetEditorSettings(EditorSettings settings) {
 	auto& current{ context_->local.settings };
 	current.show_read_only_inspector_data	   = settings.show_read_only_inspector_data;
 	current.show_read_only_scene_data		   = settings.show_read_only_scene_data;
+	current.show_managed_ui_parts			   = settings.show_managed_ui_parts;
 	current.show_imgui_metrics				   = settings.show_imgui_metrics;
 	current.preview_screen_effects			   = settings.preview_screen_effects;
 	current.content_browser_items_per_row	   = settings.content_browser_items_per_row;

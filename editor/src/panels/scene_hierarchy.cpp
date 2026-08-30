@@ -1512,7 +1512,7 @@ bool SceneHierarchyPanel::DrawSceneHierarchy(EditorContext& ctx) {
 		DrawSceneHierarchyContents(
 			ctx, *selected_scene, ctx.editor.GetProjectRoot(), selected_entity, selected_prefab,
 			filter_, renaming_entity_, entity_rename_text_, entity_rename_error_,
-			focus_entity_rename_, show_managed_ui_parts_
+			focus_entity_rename_, ctx.editor.GetSettings().show_managed_ui_parts
 		);
 
 		if (selected_entity && !selected_scene->Entities().Contains(selected_entity)) {
@@ -1940,14 +1940,6 @@ void SceneHierarchyPanel::SetActiveTab(SceneHierarchyTab tab) {
 	}
 
 	SetSceneHierarchyTab(*context_, tab);
-}
-
-bool SceneHierarchyPanel::GetShowManagedUIParts() const {
-	return show_managed_ui_parts_;
-}
-
-void SceneHierarchyPanel::SetShowManagedUIParts(bool show) {
-	show_managed_ui_parts_ = show;
 }
 
 } // namespace ptgn::editor

@@ -40,9 +40,6 @@ public:
 	[[nodiscard]] SceneHierarchyTab GetActiveTab() const;
 	void SetActiveTab(SceneHierarchyTab tab);
 
-	[[nodiscard]] bool GetShowManagedUIParts() const;
-	void SetShowManagedUIParts(bool show);
-
 private:
 	[[nodiscard]] bool DrawSceneHierarchy(EditorContext& ctx);
 	[[nodiscard]] bool DrawPrefabs(EditorContext& ctx);
@@ -63,7 +60,6 @@ private:
 	SerializedEntityPath force_open_prefab_entity_path_;
 
 	std::array<char, 256> filter_{};
-	bool show_managed_ui_parts_{ false };
 };
 
 } // namespace ptgn::editor

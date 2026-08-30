@@ -10,6 +10,7 @@ struct EditorSettings {
 	bool gizmo_uses_local_orientation{ false };
 	bool show_read_only_inspector_data{ false };
 	bool show_read_only_scene_data{ false };
+	bool show_managed_ui_parts{ false };
 	bool show_imgui_metrics{ false };
 	bool preview_screen_effects{ true };
 	int content_browser_items_per_row{ 8 };
@@ -24,6 +25,7 @@ struct EditorSettings {
 		gizmo_uses_local_orientation,
 		show_read_only_inspector_data,
 		show_read_only_scene_data,
+		show_managed_ui_parts,
 		show_imgui_metrics,
 		preview_screen_effects,
 		content_browser_items_per_row,

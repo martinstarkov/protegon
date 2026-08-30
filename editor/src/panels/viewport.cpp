@@ -2035,7 +2035,7 @@ void ViewportPanel::HandleEntityPicking(
 		ResolveRenderTargetPick(*scene, renderer, outer_entity, mouse_world)
 	};
 
-	if (selected_entity && !hierarchy.GetShowManagedUIParts()) {
+	if (selected_entity && !ctx.editor.GetSettings().show_managed_ui_parts) {
 		selected_entity = ResolveManagedUIPick(selected_entity);
 	}
 
