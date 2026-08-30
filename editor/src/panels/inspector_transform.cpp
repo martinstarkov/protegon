@@ -12,6 +12,9 @@ struct TransformFeatureState {
 	ComponentState<ButtonBorderVisuals> button_borders{};
 	ComponentState<ButtonTextVisuals> button_texts{};
 	ComponentState<ButtonSpriteVisuals> button_sprites{};
+	ComponentState<::ptgn::impl::SliderTrackBackgroundData> slider_track_background{};
+	ComponentState<::ptgn::impl::SliderTrackBorderData> slider_track_border{};
+	ComponentState<::ptgn::impl::SliderTrackSpriteData> slider_track_sprite{};
 	bool ignore_position{ false };
 	bool ignore_rotation{ false };
 	bool ignore_scale{ false };
@@ -32,6 +35,10 @@ TransformFeatureState<Target> CaptureTransformFeature(const Target& target) {
 		.button_borders		= target.template Capture<ButtonBorderVisuals>(),
 		.button_texts		= target.template Capture<ButtonTextVisuals>(),
 		.button_sprites		= target.template Capture<ButtonSpriteVisuals>(),
+		.slider_track_background =
+			target.template Capture<::ptgn::impl::SliderTrackBackgroundData>(),
+		.slider_track_border = target.template Capture<::ptgn::impl::SliderTrackBorderData>(),
+		.slider_track_sprite = target.template Capture<::ptgn::impl::SliderTrackSpriteData>(),
 		.ignore_position =
 			ignore_transform ||
 			target.template Capture<::ptgn::impl::IgnoreParentPosition>().has_value(),
@@ -61,14 +68,27 @@ auto MakeTransformFeatureApply(Target& target) {
 	auto apply_borders{ target.template MakeApply<ButtonBorderVisuals>(&MarkButtonBorderDirty) };
 	auto apply_texts{ target.template MakeApply<ButtonTextVisuals>(&MarkButtonTextDirty) };
 	auto apply_sprites{ target.template MakeApply<ButtonSpriteVisuals>(&MarkButtonSpriteDirty) };
+	auto apply_slider_track_background{
+		target.template MakeApply<::ptgn::impl::SliderTrackBackgroundData>()
+	};
+	auto apply_slider_track_border{
+		target.template MakeApply<::ptgn::impl::SliderTrackBorderData>()
+	};
+	auto apply_slider_track_sprite{
+		target.template MakeApply<::ptgn::impl::SliderTrackSpriteData>()
+	};
 
 	return [apply_transform, apply_depth, apply_position, apply_rotation, apply_scale,
 			apply_depth_ignore, apply_transform_ignore, apply_backgrounds, apply_borders,
-			apply_texts, apply_sprites](TransformFeatureState<Target> state) mutable {
+			apply_texts, apply_sprites, apply_slider_track_background, apply_slider_track_border,
+			apply_slider_track_sprite](TransformFeatureState<Target> state) mutable {
 		apply_backgrounds(state.button_backgrounds);
 		apply_borders(state.button_borders);
 		apply_texts(state.button_texts);
 		apply_sprites(state.button_sprites);
+		apply_slider_track_background(state.slider_track_background);
+		apply_slider_track_border(state.slider_track_border);
+		apply_slider_track_sprite(state.slider_track_sprite);
 		apply_transform(state.transform);
 		apply_depth(state.depth);
 		apply_transform_ignore(
@@ -112,6 +132,9 @@ void SetTransformFeatureLive(Target& target, const TransformFeatureState<Target>
 	target.template SetLive<ButtonBorderVisuals>(state.button_borders, &MarkButtonBorderDirty);
 	target.template SetLive<ButtonTextVisuals>(state.button_texts, &MarkButtonTextDirty);
 	target.template SetLive<ButtonSpriteVisuals>(state.button_sprites, &MarkButtonSpriteDirty);
+	target.template SetLive<::ptgn::impl::SliderTrackBackgroundData>(state.slider_track_background);
+	target.template SetLive<::ptgn::impl::SliderTrackBorderData>(state.slider_track_border);
+	target.template SetLive<::ptgn::impl::SliderTrackSpriteData>(state.slider_track_sprite);
 	target.template SetLive<Transform>(state.transform);
 	target.template SetLive<Depth>(state.depth);
 	target.template SetLive<::ptgn::impl::IgnoreParentTransform>(
@@ -189,6 +212,47 @@ void ApplyButtonVisualTransformDelta(
 	ApplyButtonVisualTransformDelta(state.button_borders, selected_state, before, state.transform);
 	ApplyButtonVisualTransformDelta(state.button_texts, selected_state, before, state.transform);
 	ApplyButtonVisualTransformDelta(state.button_sprites, selected_state, before, state.transform);
+}
+
+template <typename Marker>
+void ApplySliderTrackVisualTransformDelta(
+	ComponentState<Marker>& marker, const Transform& before, const Transform& after
+) {
+	if (!marker || before == after) {
+		return;
+	}
+
+	marker->initialized = true;
+	marker->visual.defined = true;
+	if (!marker->visual.transform.has_value()) {
+		marker->visual.transform = Transform{};
+	}
+	auto& transform{ marker->visual.transform.value() };
+
+	transform.position += after.position - before.position;
+	transform.rotation =
+		Radians{ transform.rotation.value + after.rotation.value - before.rotation.value };
+
+	constexpr float epsilon{ 0.000001f };
+	if (std::abs(before.scale.x) > epsilon) {
+		transform.scale.x *= after.scale.x / before.scale.x;
+	}
+	if (std::abs(before.scale.y) > epsilon) {
+		transform.scale.y *= after.scale.y / before.scale.y;
+	}
+
+	transform.ClampScale();
+}
+
+template <typename Target>
+void ApplySliderTrackVisualTransformDelta(
+	TransformFeatureState<Target>& state, const Transform& before
+) {
+	ApplySliderTrackVisualTransformDelta(
+		state.slider_track_background, before, state.transform
+	);
+	ApplySliderTrackVisualTransformDelta(state.slider_track_border, before, state.transform);
+	ApplySliderTrackVisualTransformDelta(state.slider_track_sprite, before, state.transform);
 }
 
 template <typename Target>
@@ -329,6 +393,7 @@ bool DrawTransformFeatureFields(
 				const Transform before_transform{ state.transform };
 				state.transform.position = picked;
 				ApplyButtonVisualTransformDelta(state, selected_button_state, before_transform);
+				ApplySliderTrackVisualTransformDelta(state, before_transform);
 				apply_state(state);
 			} },
 		GetTargetWorldReferencePosition(target), ShouldShowTransformRelativePosition(target)
@@ -605,6 +670,7 @@ bool DrawTransformFeatureImpl(
 		state.ignore_transform = false;
 		state.transform.ClampScale();
 		ApplyButtonVisualTransformDelta(state, GetButtonVisualEditState(target), before.transform);
+		ApplySliderTrackVisualTransformDelta(state, before.transform);
 		SetTransformFeatureLive(target, state);
 	}
 
