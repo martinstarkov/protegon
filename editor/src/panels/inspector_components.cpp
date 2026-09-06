@@ -1,4 +1,4 @@
-#include "panels/inspector_component_drawers.h"
+#include "panels/inspector_components.h"
 #include "panels/inspector_scripts.h"
 #include "panels/rich_text_editor.h"
 
@@ -1073,12 +1073,10 @@ struct ComponentDrawer<TextRun> {
 template <>
 struct ComponentDrawer<StyledText> {
 	static bool Draw(EditorContext& ctx, StyledText& text) {
+		// StyledText stores resolved runs, not authoring defaults. Always use the
+		// default-constructed rich-text defaults as the serialization/parsing baseline.
+		// A style covering the whole text is therefore still emitted as an override tag.
 		TextRunDefaults defaults{};
-		if (!text.runs.empty()) {
-			defaults.font = text.runs.front().font;
-			defaults.style = text.runs.front().style;
-		}
-
 		std::string source{ SerializeStyledTextToRichText(text, defaults) };
 
 		if (!DrawRichTextEditor(ctx, source, defaults)) {
@@ -1095,12 +1093,9 @@ struct ComponentDrawer<::ptgn::impl::TextData> {
 	static bool Draw(EditorContext& ctx, ::ptgn::impl::TextData& data) {
 		bool changed{ false };
 
+		// TextData also stores only resolved StyledText. Its rich-text baseline is always
+		// TextRunDefaults{}; never infer defaults from whichever run covers the content.
 		TextRunDefaults defaults{};
-		if (!data.text.runs.empty()) {
-			defaults.font = data.text.runs.front().font;
-			defaults.style = data.text.runs.front().style;
-		}
-
 		std::string source{ SerializeStyledTextToRichText(data.text, defaults) };
 		if (DrawRichTextEditor(ctx, source, defaults)) {
 			data.text = ParseRichText(source, defaults).text;

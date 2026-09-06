@@ -714,12 +714,15 @@ std::string SerializeStyledTextToRichText(
 
 		const bool bold{ HasFontFlag(run.style.flags, FontStyle::Bold) };
 		const bool default_bold{ HasFontFlag(defaults.style.flags, FontStyle::Bold) };
-		if (bold != default_bold || (bold && !NearlyEqual(run.style.bold_weight, defaults.style.bold_weight))) {
-			AddRichWrapper(
-				wrappers,
-				bold ? "<b=" + FormatRichFloat(run.style.bold_weight) + ">" : "<b=off>",
-				"</b>"
-			);
+		if (bold != default_bold ||
+			(bold && !NearlyEqual(run.style.bold_weight, defaults.style.bold_weight))) {
+			std::string open{ "<b=off>" };
+			if (bold) {
+				open = NearlyEqual(run.style.bold_weight, defaults.style.bold_weight)
+					? "<b>"
+					: "<b=" + FormatRichFloat(run.style.bold_weight) + ">";
+			}
+			AddRichWrapper(wrappers, std::move(open), "</b>");
 		}
 		add_flag(FontStyle::Italic, "i");
 		add_flag(FontStyle::Underline, "u");

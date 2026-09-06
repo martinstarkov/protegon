@@ -1017,11 +1017,9 @@ template <typename Target>
 bool DrawTextPrimary(Target& target, ::ptgn::impl::TextData& text_data) {
 	bool changed{ false };
 
+	// TextData stores resolved StyledText only. Rich-text Defaults are not encoded in
+	// the first run, so always use the default-constructed authoring baseline.
 	TextRunDefaults defaults{};
-	if (!text_data.text.runs.empty()) {
-		defaults.font = text_data.text.runs.front().font;
-		defaults.style = text_data.text.runs.front().style;
-	}
 
 	std::string source{ SerializeStyledTextToRichText(text_data.text, defaults) };
 	if (DrawRichTextEditor(target.ctx, source, defaults)) {
