@@ -1093,12 +1093,11 @@ struct ComponentDrawer<::ptgn::impl::TextData> {
 	static bool Draw(EditorContext& ctx, ::ptgn::impl::TextData& data) {
 		bool changed{ false };
 
-		// TextData also stores only resolved StyledText. Its rich-text baseline is always
-		// TextRunDefaults{}; never infer defaults from whichever run covers the content.
-		TextRunDefaults defaults{};
-		std::string source{ SerializeStyledTextToRichText(data.text, defaults) };
-		if (DrawRichTextEditor(ctx, source, defaults)) {
-			data.text = ParseRichText(source, defaults).text;
+		// TextData owns its authoring baseline. Resolved runs are overrides/results and
+		// must never be promoted into Defaults, even when one run spans the whole string.
+		std::string source{ SerializeStyledTextToRichText(data.text, data.defaults) };
+		if (DrawRichTextEditor(ctx, source, data.defaults)) {
+			data.text = ParseRichText(source, data.defaults).text;
 			data.current_run_index = data.text.runs.empty() ? 0 : data.text.runs.size() - 1;
 			changed = true;
 		}

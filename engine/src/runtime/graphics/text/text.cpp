@@ -239,31 +239,49 @@ struct RichTextStackEntry {
 ) {
 	canonical_tag = CanonicalRichTag(raw_name);
 	const auto arg{ argument ? TrimRichTextToken(*argument) : std::string_view{} };
+	const TextRunDefaults engine_defaults{};
 
-	auto require_argument = [&]() {
-		if (!argument || arg.empty()) {
-			error = "Tag <" + canonical_tag + "> requires a value.";
+	// Value-bearing tags require an equals sign. An empty assignment is intentionally
+	// different from a missing assignment: <size=> means the engine default size,
+	// while <size> is invalid.
+	auto require_assignment = [&]() {
+		if (!argument) {
+			error = "Tag <" + canonical_tag + "> requires '=value'.";
 			return false;
 		}
 		return true;
 	};
 
 	if (canonical_tag == "b") {
-		const bool enabled{ !argument || !IsOffRichTextValue(arg) };
-		state.style.flags = SetFontFlag(state.style.flags, FontStyle::Bold, enabled);
-		if (enabled && argument) {
-			float weight{};
-			if (!ParseRichFloat(arg, weight)) {
-				error = "Invalid bold weight.";
-				return false;
-			}
-			state.style.bold_weight = weight;
+		if (!argument || arg.empty()) {
+			state.style.flags = SetFontFlag(state.style.flags, FontStyle::Bold, true);
+			state.style.bold_weight = engine_defaults.style.bold_weight;
+			return true;
 		}
+		if (IsOffRichTextValue(arg)) {
+			state.style.flags = SetFontFlag(state.style.flags, FontStyle::Bold, false);
+			return true;
+		}
+		float weight{};
+		if (!ParseRichFloat(arg, weight)) {
+			error = "Invalid bold weight. Use <b>, <b=>, <b=weight>, or <b=off>.";
+			return false;
+		}
+		state.style.flags = SetFontFlag(state.style.flags, FontStyle::Bold, true);
+		state.style.bold_weight = weight;
 		return true;
 	}
 
 	if (canonical_tag == "i" || canonical_tag == "u" || canonical_tag == "s") {
-		const bool enabled{ !argument || !IsOffRichTextValue(arg) };
+		bool enabled{ true };
+		if (argument && !arg.empty()) {
+			if (!IsOffRichTextValue(arg)) {
+				error = "Tag <" + canonical_tag + "> only accepts '=off' when a value is supplied.";
+				return false;
+			}
+			enabled = false;
+		}
+
 		FontStyle flag{ FontStyle::Italic };
 		if (canonical_tag == "u") flag = FontStyle::Underline;
 		if (canonical_tag == "s") flag = FontStyle::Strikethrough;
@@ -272,7 +290,11 @@ struct RichTextStackEntry {
 	}
 
 	if (canonical_tag == "c") {
-		if (!require_argument()) return false;
+		if (!require_assignment()) return false;
+		if (arg.empty()) {
+			state.style.color = engine_defaults.style.color;
+			return true;
+		}
 		Color parsed{};
 		if (!ParseRichColor(arg, parsed)) {
 			error = "Invalid color. Use a named color, #RRGGBB or #RRGGBBAA.";
@@ -283,13 +305,19 @@ struct RichTextStackEntry {
 	}
 
 	if (canonical_tag == "font") {
-		if (!require_argument()) return false;
-		state.font = FontKey{ std::string{ arg } };
+		if (!require_assignment()) return false;
+		state.font = arg.empty() ? engine_defaults.font : FontKey{ std::string{ arg } };
 		return true;
 	}
 
-	auto parse_single_float = [&](float& destination, std::string_view label) {
-		if (!require_argument()) return false;
+	auto parse_single_float = [&](
+		float& destination, float engine_default, std::string_view label
+	) {
+		if (!require_assignment()) return false;
+		if (arg.empty()) {
+			destination = engine_default;
+			return true;
+		}
 		float parsed{};
 		if (!ParseRichFloat(arg, parsed)) {
 			error = "Invalid " + std::string{ label } + ".";
@@ -299,18 +327,42 @@ struct RichTextStackEntry {
 		return true;
 	};
 
-	if (canonical_tag == "size") return parse_single_float(state.style.size, "font size");
-	if (canonical_tag == "kern") return parse_single_float(state.style.kerning, "kerning");
-	if (canonical_tag == "track") return parse_single_float(state.style.tracking, "tracking");
-	if (canonical_tag == "line") return parse_single_float(state.style.line_spacing, "line spacing");
+	if (canonical_tag == "size") {
+		return parse_single_float(state.style.size, engine_defaults.style.size, "font size");
+	}
+	if (canonical_tag == "kern") {
+		return parse_single_float(state.style.kerning, engine_defaults.style.kerning, "kerning");
+	}
+	if (canonical_tag == "track") {
+		return parse_single_float(state.style.tracking, engine_defaults.style.tracking, "tracking");
+	}
+	if (canonical_tag == "line") {
+		return parse_single_float(
+			state.style.line_spacing, engine_defaults.style.line_spacing, "line spacing"
+		);
+	}
 
 	if (canonical_tag == "outline" || canonical_tag == "outerglow" || canonical_tag == "innerglow") {
-		if (!require_argument()) return false;
+		if (!require_assignment()) return false;
 		DistanceFieldLayerStyle* layer{ nullptr };
-		if (canonical_tag == "outline") layer = &state.style.sdf.outline;
-		if (canonical_tag == "outerglow") layer = &state.style.sdf.outer_glow;
-		if (canonical_tag == "innerglow") layer = &state.style.sdf.inner_glow;
+		const DistanceFieldLayerStyle* engine_layer{ nullptr };
+		if (canonical_tag == "outline") {
+			layer = &state.style.sdf.outline;
+			engine_layer = &engine_defaults.style.sdf.outline;
+		}
+		if (canonical_tag == "outerglow") {
+			layer = &state.style.sdf.outer_glow;
+			engine_layer = &engine_defaults.style.sdf.outer_glow;
+		}
+		if (canonical_tag == "innerglow") {
+			layer = &state.style.sdf.inner_glow;
+			engine_layer = &engine_defaults.style.sdf.inner_glow;
+		}
 
+		if (arg.empty()) {
+			*layer = *engine_layer;
+			return true;
+		}
 		if (IsOffRichTextValue(arg)) {
 			*layer = {};
 			return true;
@@ -334,7 +386,12 @@ struct RichTextStackEntry {
 	}
 
 	if (canonical_tag == "shadow") {
-		if (!require_argument()) return false;
+		if (!require_assignment()) return false;
+		if (arg.empty()) {
+			state.style.sdf.shadow = engine_defaults.style.sdf.shadow;
+			state.style.sdf.shadow_offset = engine_defaults.style.sdf.shadow_offset;
+			return true;
+		}
 		if (IsOffRichTextValue(arg)) {
 			state.style.sdf.shadow = {};
 			state.style.sdf.shadow_offset = {};
@@ -364,7 +421,15 @@ struct RichTextStackEntry {
 	}
 
 	if (canonical_tag == "fx") {
-		if (!require_argument()) return false;
+		if (!require_assignment()) return false;
+		if (arg.empty()) {
+			state.style.effect = engine_defaults.style.effect;
+			return true;
+		}
+		if (IsOffRichTextValue(arg)) {
+			state.style.effect = {};
+			return true;
+		}
 		auto args{ SplitRichTextArguments(arg) };
 		if (args.empty() || args.size() > 5) {
 			error = "Expected type[,amplitude[,frequency[,speed[,phase]]]].";
@@ -686,18 +751,32 @@ std::string SerializeStyledTextToRichText(
 	const StyledText& styled_text, const TextRunDefaults& defaults
 ) {
 	std::string result;
+	const TextRunDefaults engine_defaults{};
 
 	for (const auto& run : styled_text.runs) {
 		std::vector<std::pair<std::string, std::string>> wrappers;
 
 		if (run.font != defaults.font) {
-			AddRichWrapper(wrappers, "<font=" + run.font.value + ">", "</font>");
+			const std::string open{
+				run.font == engine_defaults.font ? "<font=>" : "<font=" + run.font.value + ">"
+			};
+			AddRichWrapper(wrappers, open, "</font>");
 		}
 		if (!NearlyEqual(run.style.size, defaults.style.size)) {
-			AddRichWrapper(wrappers, "<size=" + FormatRichFloat(run.style.size) + ">", "</size>");
+			const std::string value{
+				NearlyEqual(run.style.size, engine_defaults.style.size)
+					? std::string{}
+					: FormatRichFloat(run.style.size)
+			};
+			AddRichWrapper(wrappers, "<size=" + value + ">", "</size>");
 		}
 		if (run.style.color != defaults.style.color) {
-			AddRichWrapper(wrappers, "<c=" + FormatRichColor(run.style.color) + ">", "</c>");
+			const std::string value{
+				run.style.color == engine_defaults.style.color
+					? std::string{}
+					: FormatRichColor(run.style.color)
+			};
+			AddRichWrapper(wrappers, "<c=" + value + ">", "</c>");
 		}
 
 		auto add_flag = [&](FontStyle flag, std::string_view tag) {
@@ -718,7 +797,7 @@ std::string SerializeStyledTextToRichText(
 			(bold && !NearlyEqual(run.style.bold_weight, defaults.style.bold_weight))) {
 			std::string open{ "<b=off>" };
 			if (bold) {
-				open = NearlyEqual(run.style.bold_weight, defaults.style.bold_weight)
+				open = NearlyEqual(run.style.bold_weight, engine_defaults.style.bold_weight)
 					? "<b>"
 					: "<b=" + FormatRichFloat(run.style.bold_weight) + ">";
 			}
@@ -728,34 +807,47 @@ std::string SerializeStyledTextToRichText(
 		add_flag(FontStyle::Underline, "u");
 		add_flag(FontStyle::Strikethrough, "s");
 
-		if (!NearlyEqual(run.style.kerning, defaults.style.kerning)) {
-			AddRichWrapper(wrappers, "<kern=" + FormatRichFloat(run.style.kerning) + ">", "</kern>");
-		}
-		if (!NearlyEqual(run.style.tracking, defaults.style.tracking)) {
-			AddRichWrapper(wrappers, "<track=" + FormatRichFloat(run.style.tracking) + ">", "</track>");
-		}
-		if (!NearlyEqual(run.style.line_spacing, defaults.style.line_spacing)) {
-			AddRichWrapper(wrappers, "<line=" + FormatRichFloat(run.style.line_spacing) + ">", "</line>");
-		}
-
-		auto add_layer = [&](const DistanceFieldLayerStyle& layer,
-							 const DistanceFieldLayerStyle& default_layer, std::string_view tag) {
-			if (layer == default_layer) return;
-			const bool disabled{ layer == DistanceFieldLayerStyle{} };
+		auto add_float = [&](float value, float rich_default, float engine_default, std::string_view tag) {
+			if (NearlyEqual(value, rich_default)) return;
+			const std::string argument{
+				NearlyEqual(value, engine_default) ? std::string{} : FormatRichFloat(value)
+			};
 			AddRichWrapper(
-				wrappers,
-				"<" + std::string{ tag } + "=" + (disabled ? std::string{ "none" } : LayerArgument(layer)) + ">",
+				wrappers, "<" + std::string{ tag } + "=" + argument + ">",
 				"</" + std::string{ tag } + ">"
 			);
 		};
 
-		add_layer(run.style.sdf.outline, defaults.style.sdf.outline, "outline");
+		add_float(run.style.kerning, defaults.style.kerning, engine_defaults.style.kerning, "kern");
+		add_float(run.style.tracking, defaults.style.tracking, engine_defaults.style.tracking, "track");
+		add_float(
+			run.style.line_spacing, defaults.style.line_spacing,
+			engine_defaults.style.line_spacing, "line"
+		);
+
+		auto add_layer = [&](const DistanceFieldLayerStyle& layer,
+							 const DistanceFieldLayerStyle& rich_default,
+							 const DistanceFieldLayerStyle& engine_default,
+							 std::string_view tag) {
+			if (layer == rich_default) return;
+			const std::string value{
+				layer == engine_default ? std::string{} : LayerArgument(layer)
+			};
+			AddRichWrapper(
+				wrappers, "<" + std::string{ tag } + "=" + value + ">",
+				"</" + std::string{ tag } + ">"
+			);
+		};
+
+		add_layer(
+			run.style.sdf.outline, defaults.style.sdf.outline,
+			engine_defaults.style.sdf.outline, "outline"
+		);
 		if (run.style.sdf.shadow != defaults.style.sdf.shadow ||
 			run.style.sdf.shadow_offset != defaults.style.sdf.shadow_offset) {
-			const bool disabled{ run.style.sdf.shadow == DistanceFieldLayerStyle{} &&
-				run.style.sdf.shadow_offset.IsZero() };
-			std::string value{ "none" };
-			if (!disabled) {
+			std::string value;
+			if (run.style.sdf.shadow != engine_defaults.style.sdf.shadow ||
+				run.style.sdf.shadow_offset != engine_defaults.style.sdf.shadow_offset) {
 				value = FormatRichColor(run.style.sdf.shadow.color) + "," +
 						FormatRichFloat(run.style.sdf.shadow_offset.x) + "," +
 						FormatRichFloat(run.style.sdf.shadow_offset.y) + "," +
@@ -764,16 +856,23 @@ std::string SerializeStyledTextToRichText(
 			}
 			AddRichWrapper(wrappers, "<shadow=" + value + ">", "</shadow>");
 		}
-		add_layer(run.style.sdf.outer_glow, defaults.style.sdf.outer_glow, "outerglow");
-		add_layer(run.style.sdf.inner_glow, defaults.style.sdf.inner_glow, "innerglow");
+		add_layer(
+			run.style.sdf.outer_glow, defaults.style.sdf.outer_glow,
+			engine_defaults.style.sdf.outer_glow, "outerglow"
+		);
+		add_layer(
+			run.style.sdf.inner_glow, defaults.style.sdf.inner_glow,
+			engine_defaults.style.sdf.inner_glow, "innerglow"
+		);
 
 		if (run.style.effect != defaults.style.effect) {
-			const auto& effect{ run.style.effect };
-			const std::string value{
-				GlyphEffectName(effect.type) + "," + FormatRichFloat(effect.amplitude) + "," +
-				FormatRichFloat(effect.frequency) + "," + FormatRichFloat(effect.speed) + "," +
-				FormatRichFloat(effect.phase)
-			};
+			std::string value;
+			if (run.style.effect != engine_defaults.style.effect) {
+				const auto& effect{ run.style.effect };
+				value = GlyphEffectName(effect.type) + "," + FormatRichFloat(effect.amplitude) + "," +
+						FormatRichFloat(effect.frequency) + "," + FormatRichFloat(effect.speed) + "," +
+						FormatRichFloat(effect.phase);
+			}
 			AddRichWrapper(wrappers, "<fx=" + value + ">", "</fx>");
 		}
 
@@ -789,6 +888,7 @@ std::string SerializeStyledTextToRichText(
 
 	return result;
 }
+
 
 namespace impl {
 
@@ -885,7 +985,10 @@ Text& Text::Clear() {
 
 	bool changed{ data.text.HasContent() };
 	data.text.runs.clear();
-	data.text.runs.emplace_back();
+	data.text.runs.emplace_back(TextRun{
+		.font = data.defaults.font,
+		.style = data.defaults.style,
+	});
 
 	data.current_run_index = 0;
 
@@ -907,15 +1010,29 @@ Text& Text::Content(std::string_view content) {
 	if (data.text.runs.size() == 1 && data.text.runs.front().text.empty()) {
 		data.current_run_index = 0;
 
-		if (auto& run{ data.text.runs.front() }; run.text != content) {
+		auto& run{ data.text.runs.front() };
+		const TextRun baseline{
+			.font = data.defaults.font,
+			.style = data.defaults.style,
+		};
+		bool changed{ run.font != baseline.font || run.style != baseline.style };
+		run.font = baseline.font;
+		run.style = baseline.style;
+		if (run.text != content) {
 			run.text = std::string{ content };
+			changed = true;
+		}
+		if (changed) {
 			InvalidateLayout();
 		}
 
 		return *this;
 	}
 
-	auto& run{ data.text.runs.emplace_back() };
+	auto& run{ data.text.runs.emplace_back(TextRun{
+		.font = data.defaults.font,
+		.style = data.defaults.style,
+	}) };
 
 	data.current_run_index = data.text.runs.size() - 1;
 
@@ -933,11 +1050,14 @@ Text& Text::Content(StyledText styled_text) {
 		return *this;
 	}
 
-	if (styled_text.runs.empty()) {
-		styled_text.runs.emplace_back();
-	}
-
 	auto& data{ Get<impl::TextData>() };
+
+	if (styled_text.runs.empty()) {
+		styled_text.runs.emplace_back(TextRun{
+			.font = data.defaults.font,
+			.style = data.defaults.style,
+		});
+	}
 
 	if (data.text != styled_text) {
 		data.text = std::move(styled_text);
@@ -958,7 +1078,10 @@ Text& Text::Select(std::size_t index) {
 	auto& data{ Get<impl::TextData>() };
 
 	if (data.text.runs.empty()) {
-		data.text.runs.emplace_back();
+		data.text.runs.emplace_back(TextRun{
+			.font = data.defaults.font,
+			.style = data.defaults.style,
+		});
 	}
 
 	data.current_run_index = std::min(index, data.text.runs.size() - 1);
@@ -966,12 +1089,28 @@ Text& Text::Select(std::size_t index) {
 	return *this;
 }
 
+Text& Text::SetRichText(std::string_view source) {
+	if (!Has<impl::TextData>()) {
+		PTGN_WARN("Cannot set rich text without TextData component");
+		return *this;
+	}
+
+	const auto& defaults{ Get<impl::TextData>().defaults };
+	return Content(ParseRichText(source, defaults).text);
+}
+
 Text& Text::SetRichText(std::string_view source, const TextRunDefaults& defaults) {
+	if (!Has<impl::TextData>()) {
+		PTGN_WARN("Cannot set rich text without TextData component");
+		return *this;
+	}
+
+	Get<impl::TextData>().defaults = defaults;
 	return Content(ParseRichText(source, defaults).text);
 }
 
 Text& Text::SetRichText(const RichText& rich_text) {
-	return Content(ParseRichText(rich_text).text);
+	return SetRichText(rich_text.source, rich_text.defaults);
 }
 
 Text& Text::Box(Rect text_rect) {
@@ -1595,7 +1734,10 @@ TextRun& Text::CurrentRun() {
 	auto& data{ Get<impl::TextData>() };
 
 	if (data.text.runs.empty()) {
-		data.text.runs.emplace_back();
+		data.text.runs.emplace_back(TextRun{
+			.font = data.defaults.font,
+			.style = data.defaults.style,
+		});
 		data.current_run_index = 0;
 	}
 

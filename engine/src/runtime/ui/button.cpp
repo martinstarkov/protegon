@@ -340,8 +340,12 @@ void EnsureDefaultTextVisual(ButtonTextVisual& visual) {
 	}
 
 	visual.defined	   = true;
+	visual.defaults	   = TextRunDefaults{};
 	visual.styled_text = StyledText{};
-	visual.styled_text.value().runs.emplace_back();
+	visual.styled_text.value().runs.emplace_back(TextRun{
+		.font = visual.defaults->font,
+		.style = visual.defaults->style,
+	});
 	visual.anchor	= Origin::Center;
 	visual.origin	= Origin::Center;
 	visual.auto_box = true;
@@ -452,6 +456,7 @@ void ApplyButtonTextConfig(ButtonTextVisuals& visuals, const ButtonTextConfig& c
 		}
 
 		visual.defined = true;
+		visual.defaults = defaults;
 		visual.styled_text = ParseRichText(config.content.value(), defaults).text;
 		visual.box		   = config.box;
 		visual.origin	   = config.origin;
@@ -1550,17 +1555,45 @@ ButtonSpriteVisual& Button::SpriteVisual(ButtonVisualState state) {
 
 StyledText Button::GetTextFallback(ButtonVisualState state) const {
 	auto entity{ FindPart(impl::ButtonPart::Text) };
+	const auto target_defaults{ GetTextDefaultsFallback(state) };
 
 	if (entity) {
 		const auto& visuals{ entity.Get<ButtonTextVisuals>() };
-		if (auto value{ ResolveProperty(visuals.states, state, &ButtonTextVisual::styled_text) }) {
-			return *value;
+		ButtonVisualState source_state{ state };
+		if (auto value{ ResolveProperty(
+				visuals.states, state, &ButtonTextVisual::styled_text, &source_state
+			) }) {
+			// StyledText is resolved data. If content is inherited from a state with a
+			// different Defaults baseline, reconstruct its differential source against the
+			// source state's baseline and compile it against the target state's baseline.
+			const auto source_defaults{ GetTextDefaultsFallback(source_state) };
+			if (source_defaults == target_defaults) {
+				return *value;
+			}
+			const std::string source{ SerializeStyledTextToRichText(*value, source_defaults) };
+			return ParseRichText(source, target_defaults).text;
 		}
 	}
 
 	StyledText styled_text;
-	styled_text.runs.emplace_back();
+	styled_text.runs.emplace_back(TextRun{
+		.font = target_defaults.font,
+		.style = target_defaults.style,
+	});
 	return styled_text;
+}
+
+TextRunDefaults Button::GetTextDefaultsFallback(ButtonVisualState state) const {
+	auto entity{ FindPart(impl::ButtonPart::Text) };
+
+	if (entity) {
+		const auto& visuals{ entity.Get<ButtonTextVisuals>() };
+		if (auto value{ ResolveProperty(visuals.states, state, &ButtonTextVisual::defaults) }) {
+			return *value;
+		}
+	}
+
+	return {};
 }
 
 void Button::ApplyShapeVisual(impl::ButtonPart part) const {
@@ -1682,11 +1715,12 @@ void Button::ApplyTextVisual() const {
 		return;
 	}
 
-	const StyledText* styled_text{
-		ResolveProperty(visuals.states, visual_state, &ButtonTextVisual::styled_text)
+	const StyledText styled_text{ GetTextFallback(visual_state) };
+	const TextRunDefaults* defaults{
+		ResolveProperty(visuals.states, visual_state, &ButtonTextVisual::defaults)
 	};
 
-	if (!styled_text || !styled_text->HasContent()) {
+	if (!styled_text.HasContent()) {
 		SetVisible(entity, false);
 		return;
 	}
@@ -1752,8 +1786,11 @@ void Button::ApplyTextVisual() const {
 
 	ptgn::Text text{ entity };
 
+	// The managed Text entity carries the resolved button-state baseline as real data.
+	// A whole-text override run therefore never becomes an inferred default.
+	entity.Get<impl::TextData>().defaults = defaults ? *defaults : TextRunDefaults{};
 	text.Clear();
-	text.Content(*styled_text);
+	text.Content(styled_text);
 	text.Box(box);
 
 	text.Add<Origin>(origin);
@@ -2233,11 +2270,9 @@ ButtonText& ButtonText::Content(std::string_view content) {
 	if (visual.styled_text.has_value() && !visual.styled_text.value().runs.empty()) {
 		run = visual.styled_text.value().runs.front();
 	} else {
-		auto fallback{ button_.GetTextFallback(state_) };
-
-		if (!fallback.runs.empty()) {
-			run = fallback.runs.front();
-		}
+		const auto defaults{ button_.GetTextDefaultsFallback(state_) };
+		run.font = defaults.font;
+		run.style = defaults.style;
 	}
 
 	run.text = std::string{ content };
@@ -2268,16 +2303,48 @@ ButtonText& ButtonText::Content(StyledText styled_text) {
 
 ButtonText& ButtonText::SetRichText(std::string_view source) {
 	auto& visual{ button_.TextVisual(state_) };
-	auto fallback{ button_.GetTextFallback(state_) };
-
-	TextRunDefaults defaults{};
-	if (!fallback.runs.empty()) {
-		defaults.font = fallback.runs.front().font;
-		defaults.style = fallback.runs.front().style;
-	}
+	const auto defaults{ button_.GetTextDefaultsFallback(state_) };
 
 	visual.defined = true;
 	visual.styled_text = ParseRichText(source, defaults).text;
+
+	MarkTextDirty();
+	return *this;
+}
+
+ButtonText& ButtonText::Defaults(TextRunDefaults defaults) {
+	// Reconstruct source against the old baseline before changing it. This preserves which
+	// values were overrides instead of promoting a resolved whole-text run into Defaults.
+	const auto old_defaults{ button_.GetTextDefaultsFallback(state_) };
+	auto& visual{ button_.TextVisual(state_) };
+	std::optional<std::string> source;
+	if (visual.styled_text.has_value()) {
+		source = SerializeStyledTextToRichText(*visual.styled_text, old_defaults);
+	}
+
+	visual.defined = true;
+	visual.defaults = std::move(defaults);
+	if (source.has_value()) {
+		visual.styled_text = ParseRichText(*source, *visual.defaults).text;
+	}
+
+	MarkTextDirty();
+	return *this;
+}
+
+ButtonText& ButtonText::ClearDefaults() {
+	const auto old_defaults{ button_.GetTextDefaultsFallback(state_) };
+	auto& visual{ button_.TextVisual(state_) };
+	std::optional<std::string> source;
+	if (visual.styled_text.has_value()) {
+		source = SerializeStyledTextToRichText(*visual.styled_text, old_defaults);
+	}
+
+	visual.defaults.reset();
+	const auto inherited_defaults{ button_.GetTextDefaultsFallback(state_) };
+	if (source.has_value()) {
+		visual.styled_text = ParseRichText(*source, inherited_defaults).text;
+	}
 
 	MarkTextDirty();
 	return *this;

@@ -1017,13 +1017,9 @@ template <typename Target>
 bool DrawTextPrimary(Target& target, ::ptgn::impl::TextData& text_data) {
 	bool changed{ false };
 
-	// TextData stores resolved StyledText only. Rich-text Defaults are not encoded in
-	// the first run, so always use the default-constructed authoring baseline.
-	TextRunDefaults defaults{};
-
-	std::string source{ SerializeStyledTextToRichText(text_data.text, defaults) };
-	if (DrawRichTextEditor(target.ctx, source, defaults)) {
-		text_data.text = ParseRichText(source, defaults).text;
+	std::string source{ SerializeStyledTextToRichText(text_data.text, text_data.defaults) };
+	if (DrawRichTextEditor(target.ctx, source, text_data.defaults)) {
+		text_data.text = ParseRichText(source, text_data.defaults).text;
 		text_data.current_run_index =
 			text_data.text.runs.empty() ? 0 : text_data.text.runs.size() - 1;
 		changed = true;
@@ -2557,19 +2553,37 @@ bool DrawButtonChildStateVisualFeatureImpl(
 					bool changed{ false };
 
 					// Draw the managed text using the same TextData component drawer used by ordinary
-					// Text entities. Changes to content/text-box data are copied back into the active
-					// button visual state, while TextData-only properties stay on the managed entity.
+					// Text entities. Content/defaults/text-box data belong to the active button visual
+					// state; runtime-only TextData properties stay on the managed entity.
 					auto text_before{ target.template Capture<::ptgn::impl::TextData>() };
 					::ptgn::impl::TextData text_data{
 						text_before.value_or(::ptgn::impl::TextData{})
 					};
 					const ::ptgn::impl::TextData displayed_before{ text_data };
+					const std::string source_before{ SerializeStyledTextToRichText(
+						displayed_before.text, displayed_before.defaults
+					) };
 					if (DrawInspectorValueContents(
 						target.ctx, Hash<::ptgn::impl::TextData>(), std::addressof(text_data)
 					)) {
-						if (text_data.text != displayed_before.text) {
-						visual.styled_text = text_data.text;
-					}
+						const bool defaults_changed{
+							text_data.defaults != displayed_before.defaults
+						};
+						const std::string source_after{ SerializeStyledTextToRichText(
+							text_data.text, text_data.defaults
+						) };
+						const bool authored_source_changed{ source_after != source_before };
+
+						// Changing only inherited Defaults should not materialize a full text override.
+						// Existing explicit text is rebased, while actual source edits always become
+						// an explicit state text value.
+						if (text_data.text != displayed_before.text &&
+							(visual.styled_text.has_value() || authored_source_changed)) {
+							visual.styled_text = text_data.text;
+						}
+						if (defaults_changed) {
+							visual.defaults = text_data.defaults;
+						}
 						if (text_data.box != displayed_before.box) {
 							visual.box = text_data.box;
 						}

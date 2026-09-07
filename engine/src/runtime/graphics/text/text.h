@@ -121,8 +121,13 @@ using RichTextVariableResolver =
 namespace impl {
 
 struct TextData {
-	/// @brief StyledText remains the canonical stored/runtime representation.
+	/// @brief StyledText remains the canonical resolved/runtime representation.
 	StyledText text{};
+
+	/// @brief Bedrock values used by untagged rich text. Markup may override these values,
+	/// but resolved runs must never be used to infer or replace this authoring baseline.
+	TextRunDefaults defaults{};
+
 	TextBox box{};
 
 	/// @brief Number of glyphs revealed. Nullopt means all glyphs are revealed.
@@ -133,7 +138,7 @@ struct TextData {
 	/// @brief Runtime only cursor used by the builder API.
 	std::size_t current_run_index{ 0 };
 
-	PTGN_REFLECT(TextData, text, box, glyph_count, clip)
+	PTGN_REFLECT(TextData, text, defaults, box, glyph_count, clip)
 	PTGN_REFLECT_READONLY(TextData, current_run_index)
 };
 
@@ -168,8 +173,10 @@ public:
 	/// @brief Selects the text run to be affected by subsequent style setters.
 	Text& Select(std::size_t index);
 
-	/// @brief Compiles rich text markup and stores the result as StyledText.
-	Text& SetRichText(std::string_view source, const TextRunDefaults& defaults = {});
+	/// @brief Compiles rich text markup using this TextData component's persistent Defaults.
+	Text& SetRichText(std::string_view source);
+	/// @brief Replaces the persistent Defaults, then compiles the supplied rich text against them.
+	Text& SetRichText(std::string_view source, const TextRunDefaults& defaults);
 	Text& SetRichText(const RichText& rich_text);
 
 	Text& Box(Rect text_rect);

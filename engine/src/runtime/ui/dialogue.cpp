@@ -689,6 +689,10 @@ void DialogueBox::ApplyCurrentPage() {
 	}
 
 	Text text{ TextPart() };
+	text.Get<impl::TextData>().defaults = TextRunDefaults{
+		.font = page->properties.font,
+		.style = page->properties.ToTextRunStyle(),
+	};
 
 	text.Clear()
 		.Content(page->styled_text)

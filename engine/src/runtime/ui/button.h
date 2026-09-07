@@ -270,6 +270,7 @@ private:
 	ButtonSpriteVisual& SpriteVisual(ButtonVisualState state);
 
 	[[nodiscard]] StyledText GetTextFallback(ButtonVisualState state) const;
+	[[nodiscard]] TextRunDefaults GetTextDefaultsFallback(ButtonVisualState state) const;
 
 	void ApplyShapeVisual(impl::ButtonPart part) const;
 	void ApplyTextVisual() const;
@@ -348,8 +349,13 @@ public:
 	ButtonText& Content(std::string_view content);
 	ButtonText& Content(StyledText styled_text);
 
-	/// @brief Compiles rich-text markup into the StyledText for this visual state.
+	/// @brief Compiles rich-text markup using this visual state's persistent Defaults.
 	ButtonText& SetRichText(std::string_view source);
+
+	/// @brief Sets the bedrock values used by untagged rich text in this visual state.
+	ButtonText& Defaults(TextRunDefaults defaults);
+	/// @brief Removes this state's Defaults override so it inherits from fallback states.
+	ButtonText& ClearDefaults();
 
 	ButtonText& ClearContent();
 
