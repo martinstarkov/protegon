@@ -12,6 +12,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <cstdio>
+#include <filesystem>
 #include <functional>
 #include <magic_enum/magic_enum.hpp>
 #include <memory>
@@ -42,6 +43,7 @@
 #include "panels/inspector_feature_helpers.h"
 #include "panels/inspector_fields.h"
 #include "panels/scene_hierarchy.h"
+#include "panels/scene_list.h"
 #include "renderer/pipeline/blend_mode.h"
 #include "renderer/pipeline/render_state.h"
 #include "renderer/renderer.h"
@@ -145,7 +147,6 @@ struct RichTextEditorState {
 	RichTextSelectionState window_selection{};
 	bool initialized{ false };
 	bool window_open{ false };
-	bool window_recenter_requested{ false };
 	std::string source{};
 	std::array<float, 4> color{ 1.0f, 1.0f, 1.0f, 1.0f };
 	std::string font{};
@@ -722,18 +723,66 @@ void SetRichTextEditorColor(std::array<float, 4>& destination, Color value) {
 	};
 }
 
-[[nodiscard]] bool RichTextEditorColorEquals(const std::array<float, 4>& value, Color color) {
-	auto byte = [](float component) {
-		return static_cast<std::uint8_t>(
-			std::clamp(std::lround(component * 255.0f), 0l, 255l)
-		);
-	};
-	return byte(value[0]) == color.r && byte(value[1]) == color.g &&
-		   byte(value[2]) == color.b && byte(value[3]) == color.a;
+struct RichTextFontAvailability {
+	bool exists{ false };
+	bool loaded{ false };
+	bool project_preloaded{ false };
+	bool selected_scene_dependency{ false };
+
+	[[nodiscard]] bool IsAvailable() const {
+		return exists && (loaded || project_preloaded || selected_scene_dependency);
+	}
+};
+
+[[nodiscard]] RichTextFontAvailability GetRichTextFontAvailability(
+	EditorContext& ctx, const FontKey& font_key
+) {
+	// The empty key is the built-in/default font and is always available.
+	if (font_key.value.empty()) {
+		return RichTextFontAvailability{
+			.exists = true,
+			.loaded = true,
+			.project_preloaded = true,
+			.selected_scene_dependency = true,
+		};
+	}
+
+	RichTextFontAvailability result;
+	::ptgn::impl::AssetAccessor assets{ ctx.editor.GetAssetManager() };
+	const auto records{ assets.GetAssets() };
+	for (const auto& record : records) {
+		if (record.kind != AssetKind::Font || record.key.value != font_key.value) {
+			continue;
+		}
+
+		result.exists = true;
+		result.loaded = result.loaded || record.load_state == AssetLoadState::Loaded;
+		result.project_preloaded = result.project_preloaded || record.globally_pinned;
+	}
+
+	// TryGet is authoritative for resident font objects, including non-cataloged fonts.
+	if (assets.TryGet<Font>(font_key).has_value()) {
+		result.exists = true;
+		result.loaded = true;
+	}
+
+	if (const Scene* selected_scene{ ctx.editor.GetSceneListPanel().GetSelectedScene() }) {
+		result.selected_scene_dependency = selected_scene->HasAssetDependency(font_key);
+	}
+
+	return result;
 }
 
-[[nodiscard]] bool RichTextEditorFloatEquals(float lhs, float rhs) {
-	return std::abs(lhs - rhs) <= 0.0001f;
+[[nodiscard]] const char* RichTextFontAvailabilityTooltip(
+	const RichTextFontAvailability& availability
+) {
+	if (!availability.exists) {
+		return "Font key does not exist.";
+	}
+	if (!availability.IsAvailable()) {
+		return "Font is not loaded or referenced by the project preload / selected scene.";
+	}
+	return nullptr;
 }
 
 [[nodiscard]] std::vector<std::string> GetLoadedRichTextFontKeys(EditorContext& ctx) {
@@ -887,6 +936,7 @@ bool DrawRichTextSourceInput(
 ) {
 	const float available_width{ std::max(1.0f, ImGui::GetContentRegionAvail().x) };
 	const float source_width{ RichTextSourceWidth(source) };
+	const bool needs_horizontal_scroll{ source_width > available_width + 1.0f };
 	const float input_width{ std::max(available_width, source_width) };
 
 	// Formatting is applied from inside ImGui's input callback so the active edit buffer
@@ -903,6 +953,9 @@ bool DrawRichTextSourceInput(
 		RichTextInputCallbackContext callback_context{ .selection = &selection };
 
 		// The rich-text source should never gain a special blue active/nav frame.
+		// Keep its active background identical to the normal background and hide the
+		// navigation cursor every frame. This is independent of whether focus came
+		// from a toolbar action or a normal mouse click.
 		ImGui::PushStyleColor(
 			ImGuiCol_FrameBgActive, ImGui::GetStyleColorVec4(ImGuiCol_FrameBg)
 		);
@@ -919,7 +972,8 @@ bool DrawRichTextSourceInput(
 		const bool input_changed{ ImGui::InputTextMultiline(
 			"##RichTextSource", &source, ImVec2{ width, editor_height },
 			ImGuiInputTextFlags_CallbackAlways | ImGuiInputTextFlags_AllowTabInput |
-				ImGuiInputTextFlags_NoHorizontalScroll,
+				(needs_horizontal_scroll ? ImGuiInputTextFlags_NoHorizontalScroll
+									 : ImGuiInputTextFlags_None),
 			&RichTextInputCallback, &callback_context
 		) };
 
@@ -935,6 +989,9 @@ bool DrawRichTextSourceInput(
 
 		bool changed{ input_changed || callback_context.action_applied };
 		if (selection.pending_action.has_value() && !source_active) {
+			// Popup controls (color picker, size drag, custom font input) need to keep
+			// their own active ID. In that case the source input is inactive, so it is
+			// safe to edit the std::string directly without an ImGui buffer conflict.
 			changed |= ApplyPendingRichTextActionToInactiveSource(source, selection);
 		}
 
@@ -947,9 +1004,10 @@ bool DrawRichTextSourceInput(
 		return changed;
 	};
 
-	// The child is intentionally present before and after overflow. Previously it was created
-	// only when the source became wider than the editor, which changed the active InputText's
-	// parent window/ID context and dropped keyboard focus the moment the scrollbar appeared.
+	if (!needs_horizontal_scroll) {
+		return draw_input(available_width);
+	}
+
 	const float child_height{
 		editor_height + ImGui::GetStyle().ScrollbarSize +
 		ImGui::GetStyle().FramePadding.y * 2.0f + 2.0f
@@ -1161,10 +1219,103 @@ void DrawRichTextPreviewGlyph(
 	}
 }
 
-void DrawRichTextPreview(const StyledText& styled_text) {
+#if IMGUI_VERSION_NUM >= 19200
+struct RichTextPreviewFontCache {
+	ImFontAtlas* atlas{ nullptr };
+	std::unordered_map<std::string, ImFont*> fonts{};
+	std::unordered_map<std::string, std::string> pending{};
+	int scheduled_frame{ -1 };
+};
+
+RichTextPreviewFontCache& GetRichTextPreviewFontCache() {
+	static RichTextPreviewFontCache cache;
+	return cache;
+}
+
+void LoadPendingRichTextPreviewFonts(const ImDrawList*, const ImDrawCmd*) {
+	auto& cache{ GetRichTextPreviewFontCache() };
+	ImGuiIO& io{ ImGui::GetIO() };
+	if (cache.atlas != io.Fonts) {
+		cache.atlas = io.Fonts;
+		cache.fonts.clear();
+	}
+
+	for (const auto& [cache_key, source_path] : cache.pending) {
+		if (cache.fonts.contains(cache_key)) {
+			continue;
+		}
+
+		ImFont* font{ io.Fonts->AddFontFromFileTTF(source_path.c_str()) };
+		cache.fonts.emplace(cache_key, font);
+	}
+
+	cache.pending.clear();
+	cache.scheduled_frame = -1;
+}
+#endif
+
+ImFont* GetRichTextPreviewFont(EditorContext& ctx, const FontKey& font_key, ImDrawList* draw_list) {
+	ImFont* fallback{ ImGui::GetFont() };
+
+#if IMGUI_VERSION_NUM >= 19200
+	ImGuiIO& io{ ImGui::GetIO() };
+	if ((io.BackendFlags & ImGuiBackendFlags_RendererHasTextures) == 0 || !io.Fonts) {
+		return fallback;
+	}
+
+	auto& cache{ GetRichTextPreviewFontCache() };
+	if (cache.atlas != io.Fonts) {
+		cache.atlas = io.Fonts;
+		cache.fonts.clear();
+		cache.pending.clear();
+		cache.scheduled_frame = -1;
+	}
+
+	::ptgn::impl::AssetAccessor assets{ ctx.editor.GetAssetManager() };
+	auto font_asset{ assets.TryGet<Font>(font_key) };
+	if (!font_asset.has_value()) {
+		return fallback;
+	}
+
+	const auto asset_path{ font_asset->GetEntity().TryGet<::ptgn::impl::AssetPath>() };
+	if (!asset_path || asset_path->value.empty()) {
+		return fallback;
+	}
+
+	path source_path{ asset_path->value };
+	if (!source_path.is_absolute()) {
+		source_path = GetAbsolutePath(source_path);
+	}
+
+	std::error_code path_error;
+	if (!std::filesystem::is_regular_file(source_path, path_error) ||
+		!::ptgn::impl::MatchesExtension<Font>(GetExtension(source_path))) {
+		return fallback;
+	}
+
+	const std::string cache_key{ source_path.lexically_normal().generic_string() };
+	if (auto it{ cache.fonts.find(cache_key) }; it != cache.fonts.end()) {
+		return it->second ? it->second : fallback;
+	}
+
+	cache.pending.insert_or_assign(cache_key, source_path.string());
+	const int frame{ ImGui::GetFrameCount() };
+	if (cache.scheduled_frame != frame) {
+		draw_list->AddCallback(LoadPendingRichTextPreviewFonts, nullptr);
+		cache.scheduled_frame = frame;
+	}
+#else
+	(void)ctx;
+	(void)font_key;
+	(void)draw_list;
+#endif
+
+	return fallback;
+}
+
+void DrawRichTextPreview(EditorContext& ctx, const StyledText& styled_text) {
 	constexpr float padding{ 8.0f };
 	ImDrawList* draw_list{ ImGui::GetWindowDrawList() };
-	ImFont* font{ ImGui::GetFont() };
 	const ImVec2 origin{ ImGui::GetCursorScreenPos() };
 	const double time{ ImGui::GetTime() };
 
@@ -1177,6 +1328,7 @@ void DrawRichTextPreview(const StyledText& styled_text) {
 	bool drew_anything{ false };
 
 	for (const auto& run : styled_text.runs) {
+		ImFont* font{ GetRichTextPreviewFont(ctx, run.font, draw_list) };
 		const float font_size{ std::max(1.0f, run.style.size) };
 		const float tracking{ run.style.tracking * font_size };
 		std::string_view remaining{ run.text };
@@ -1255,29 +1407,7 @@ void DrawRichTextPreview(const StyledText& styled_text) {
 }
 
 void DrawRichTextToolbarTooltip(std::string_view text) {
-	if (!ImGui::IsItemHovered()) {
-		return;
-	}
-
-	const ImVec2 item_min{ ImGui::GetItemRectMin() };
-	const ImVec2 item_max{ ImGui::GetItemRectMax() };
-	const ImVec2 position{
-		(item_min.x + item_max.x) * 0.5f,
-		item_min.y - ImGui::GetStyle().ItemSpacing.y,
-	};
-
-	// BeginTooltip() positions from the mouse. A dedicated tooltip window lets us anchor
-	// bottom-center above the hovered control, so toolbar/combo help never covers the source.
-	ImGui::SetNextWindowPos(position, ImGuiCond_Always, ImVec2{ 0.5f, 1.0f });
-	ImGui::Begin(
-		"##RichTextToolbarTooltip", nullptr,
-		ImGuiWindowFlags_Tooltip | ImGuiWindowFlags_AlwaysAutoResize |
-			ImGuiWindowFlags_NoInputs | ImGuiWindowFlags_NoTitleBar |
-			ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoSavedSettings |
-			ImGuiWindowFlags_NoFocusOnAppearing | ImGuiWindowFlags_NoNav
-	);
-	ImGui::TextUnformatted(text.data(), text.data() + text.size());
-	ImGui::End();
+	DrawTooltip(std::string{ text }.c_str());
 }
 
 void DrawRichTextToolbar(
@@ -1286,7 +1416,6 @@ void DrawRichTextToolbar(
 	RichTextSelectionState& selection, bool allow_detached_window
 ) {
 	const float button_height{ ImGui::GetFrameHeight() };
-	const TextRunDefaults engine_defaults{};
 
 	// Toolbar controls operate on the last real source range without forcing keyboard
 	// focus back to the multiline input. This preserves the formatting target while
@@ -1381,32 +1510,13 @@ void DrawRichTextToolbar(
 		DrawRichTextToolbarTooltip(tooltip);
 	};
 
-	const bool default_bold{ HasFontFlag(defaults.style.flags, FontStyle::Bold) };
-	const bool default_italic{ HasFontFlag(defaults.style.flags, FontStyle::Italic) };
-	const bool default_underline{ HasFontFlag(defaults.style.flags, FontStyle::Underline) };
-	const bool default_strikethrough{
-		HasFontFlag(defaults.style.flags, FontStyle::Strikethrough)
-	};
-
-	tag_button(
-		"B", "b", default_bold ? "<b=off>" : "<b>", "</b>",
-		"Bold.\n<b>...</b>\n<b=>...</b> (engine-default weight)\n<b=0.2>...</b>\n<b=off>...</b>"
-	);
+	tag_button("B", "b", "<b>", "</b>", "Bold.\n<b>...</b>\n<b=0.2>...</b>");
 	ImGui::SameLine();
-	tag_button(
-		"I", "i", default_italic ? "<i=off>" : "<i>", "</i>",
-		"Italic.\n<i>...</i>\n<i=off>...</i>"
-	);
+	tag_button("I", "i", "<i>", "</i>", "Italic.\n<i>...</i>");
 	ImGui::SameLine();
-	tag_button(
-		"U", "u", default_underline ? "<u=off>" : "<u>", "</u>",
-		"Underline.\n<u>...</u>\n<u=off>...</u>"
-	);
+	tag_button("U", "u", "<u>", "</u>", "Underline.\n<u>...</u>");
 	ImGui::SameLine();
-	tag_button(
-		"S", "s", default_strikethrough ? "<s=off>" : "<s>", "</s>",
-		"Strikethrough.\n<s>...</s>\n<s=off>...</s>"
-	);
+	tag_button("S", "s", "<s>", "</s>", "Strikethrough.\n<s>...</s>");
 
 	ImGui::SameLine();
 	if (ImGui::Button("Color", ImVec2{ 0.0f, button_height })) {
@@ -1414,27 +1524,21 @@ void DrawRichTextToolbar(
 		ImGui::OpenPopup("RichTextColorPopup");
 	}
 	DrawRichTextToolbarTooltip(
-		"Text color.\n<c=>...</c> uses the engine-default color.\n"
-		"<c=red>...</c>\n<c=#RRGGBB>...</c>\n<c=#RRGGBBAA>...</c>"
+		"Text color.\n<c=red>...</c>\n<c=#RRGGBB>...</c>\n<c=#RRGGBBAA>...</c>"
 	);
 	if (ImGui::BeginPopup("RichTextColorPopup")) {
 		const bool color_changed{ ImGui::ColorPicker4(
 			"##RichTextColorPicker", state.color.data(),
-			ImGuiColorEditFlags_AlphaBar | ImGuiColorEditFlags_DisplayRGB
+			ImGuiColorEditFlags_AlphaBar | ImGuiColorEditFlags_NoInputs |
+				ImGuiColorEditFlags_NoSidePreview
 		) };
 		if (ImGui::IsItemActivated()) {
 			begin_text_action();
 		}
 		if (color_changed) {
-			if (RichTextEditorColorEquals(state.color, defaults.style.color)) {
-				queue_remove_tag("c");
-			} else if (RichTextEditorColorEquals(state.color, engine_defaults.style.color)) {
-				queue_set_tag("c", "<c=>", "</c>");
-			} else {
-				queue_set_tag(
-					"c", "<c=" + RichTextEditorColorTag(state.color) + ">", "</c>"
-				);
-			}
+			queue_set_tag(
+				"c", "<c=" + RichTextEditorColorTag(state.color) + ">", "</c>"
+			);
 		}
 
 		if (ImGui::Button("Reset Color", ImVec2{ -FLT_MIN, 0.0f })) {
@@ -1452,24 +1556,21 @@ void DrawRichTextToolbar(
 		preserve_source_selection();
 		ImGui::OpenPopup("RichTextFontPopup");
 	}
-	DrawRichTextToolbarTooltip("Font key.\n<font=>...</font> uses the engine-default font.\n<font=key>...</font>");
+	DrawRichTextToolbarTooltip("Font key.\n<font=key>...</font>");
 	if (ImGui::BeginPopup("RichTextFontPopup")) {
 		auto apply_font = [&]() {
-			if (state.font == defaults.font.value) {
-				queue_remove_tag("font");
-			} else if (state.font == engine_defaults.font.value) {
-				queue_set_tag("font", "<font=>", "</font>");
-			} else {
-				queue_set_tag("font", "<font=" + state.font + ">", "</font>");
-			}
+			queue_set_tag("font", "<font=" + state.font + ">", "</font>");
 		};
 
 		const auto loaded_fonts{ GetLoadedRichTextFontKeys(ctx) };
-		const char* preview{ state.font.empty() ? "Default" : state.font.c_str() };
+		const bool custom_font_key{ !std::ranges::contains(loaded_fonts, state.font) };
+		const char* preview{
+			custom_font_key ? "Custom" : (state.font.empty() ? "Default" : state.font.c_str())
+		};
 		ImGui::SetNextItemWidth(260.0f);
 		if (ImGui::BeginCombo("Loaded##RichTextFont", preview)) {
 			for (const auto& font : loaded_fonts) {
-				const bool selected{ state.font == font };
+				const bool selected{ !custom_font_key && state.font == font };
 				const char* label{ font.empty() ? "Default" : font.c_str() };
 				if (ImGui::Selectable(label, selected)) {
 					begin_text_action();
@@ -1487,11 +1588,32 @@ void DrawRichTextToolbar(
 		const bool font_changed{ ImGui::InputTextWithHint(
 			"Custom##RichTextFont", "Custom font key", &state.font
 		) };
+		const ImVec2 custom_font_min{ ImGui::GetItemRectMin() };
+		const ImVec2 custom_font_max{ ImGui::GetItemRectMax() };
+		const bool custom_font_hovered{ ImGui::IsItemHovered() };
 		if (ImGui::IsItemActivated()) {
 			begin_text_action();
 		}
 		if (font_changed) {
 			apply_font();
+		}
+
+		const auto availability{ GetRichTextFontAvailability(ctx, FontKey{ state.font }) };
+		const bool invalid_font_key{ !state.font.empty() && !availability.IsAvailable() };
+		if (invalid_font_key) {
+			ImGui::GetWindowDrawList()->AddRect(
+				custom_font_min,
+				custom_font_max,
+				IM_COL32(230, 50, 50, 255),
+				ImGui::GetStyle().FrameRounding,
+				0,
+				1.0f
+			);
+			if (custom_font_hovered) {
+				if (const char* tooltip{ RichTextFontAvailabilityTooltip(availability) }) {
+					ImGui::SetTooltip("%s", tooltip);
+				}
+			}
 		}
 
 		if (ImGui::Button("Reset Font", ImVec2{ -FLT_MIN, 0.0f })) {
@@ -1509,17 +1631,9 @@ void DrawRichTextToolbar(
 		preserve_source_selection();
 		ImGui::OpenPopup("RichTextSizePopup");
 	}
-	DrawRichTextToolbarTooltip("Font size.\n<size=>...</size> uses the engine-default size.\n<size=32>...</size>");
+	DrawRichTextToolbarTooltip("Font size.\n<size=32>...</size>");
 	if (ImGui::BeginPopup("RichTextSizePopup")) {
 		auto apply_size = [&]() {
-			if (RichTextEditorFloatEquals(state.size, defaults.style.size)) {
-				queue_remove_tag("size");
-				return;
-			}
-			if (RichTextEditorFloatEquals(state.size, engine_defaults.style.size)) {
-				queue_set_tag("size", "<size=>", "</size>");
-				return;
-			}
 			char value[64]{};
 			std::snprintf(value, sizeof(value), "<size=%.3g>", static_cast<double>(state.size));
 			queue_set_tag("size", value, "</size>");
@@ -1633,7 +1747,6 @@ void DrawRichTextToolbar(
 		ImGui::SameLine();
 		if (ImGui::Button("Open", ImVec2{ 0.0f, button_height })) {
 			state.window_open = true;
-			state.window_recenter_requested = true;
 			state.window_selection = selection;
 			state.window_selection.apply_selection = true;
 		}
@@ -1680,12 +1793,7 @@ bool DrawRichTextEditorPanel(
 
 	const float editor_height{
 		detached
-			? std::max(
-				  300.0f,
-				  ImGui::GetTextLineHeightWithSpacing() *
-					  static_cast<float>(std::max(options.line_count, 14)) +
-					  ImGui::GetStyle().FramePadding.y * 2.0f
-			  )
+			? std::max(180.0f, ImGui::GetContentRegionAvail().y * 0.45f)
 			: ImGui::GetTextLineHeightWithSpacing() *
 				  static_cast<float>(std::max(options.line_count, 3)) +
 				  ImGui::GetStyle().FramePadding.y * 2.0f
@@ -1696,13 +1804,16 @@ bool DrawRichTextEditorPanel(
 
 	DrawRichTextToolbarTooltip(
 		"Rich-text markup.\n"
-		"<b>Bold</b> / <b=off>not bold</b>\n"
-		"<i>Italic</i> / <i=off>not italic</i>\n"
-		"<u>Underline</u> / <u=off>not underlined</u>\n"
-		"<s>Strike</s> / <s=off>not struck</s>\n"
-		"Empty assignments such as <font=>, <size=> and <c=> use engine defaults.\n"
+		"<b>Bold</b>\n"
+		"<c=red>Red</c>\n"
+		"<font=key>Font</font>\n"
+		"<size=32>Large</size>\n"
 		"Escape: \\<  \\>  \\\\"
 	);
+
+	// The source input already has its own frame/padding. Remove the normal inter-item
+	// gap here so Defaults sits directly beneath it instead of looking detached.
+	ImGui::SetCursorPosY(ImGui::GetCursorPosY() - ImGui::GetStyle().ItemSpacing.y);
 
 	const bool defaults_open{ ImGui::TreeNodeEx(
 		"Defaults##RichTextDefaults",
@@ -1744,8 +1855,8 @@ bool DrawRichTextEditorPanel(
 		const auto parsed{ ParseRichText(expanded, defaults) };
 		const auto source_diagnostics{ ParseRichText(source, defaults).diagnostics };
 
-		// Keep diagnostics above the preview so the preview remains the final section
-		// in both the inline and detached editors.
+		// Keep diagnostics above the preview so the preview can consume the remaining
+		// height in the detached editor and finish exactly at the bottom of the window.
 		for (const auto& diagnostic : source_diagnostics) {
 			ImGui::TextColored(
 				ImVec4{ 1.0f, 0.45f, 0.2f, 1.0f }, "Character %zu: %s",
@@ -1755,10 +1866,10 @@ bool DrawRichTextEditorPanel(
 
 		ImGui::SeparatorText("Preview");
 		ImGui::BeginChild(
-			"##RichTextPreview", ImVec2{ -FLT_MIN, detached ? 180.0f : 120.0f }, true,
+			"##RichTextPreview", ImVec2{ -FLT_MIN, detached ? 0.0f : 120.0f }, true,
 			ImGuiWindowFlags_HorizontalScrollbar
 		);
-		DrawRichTextPreview(parsed.text);
+		DrawRichTextPreview(ctx, parsed.text);
 		ImGui::EndChild();
 		DrawRichTextToolbarTooltip(
 			"Live preview of size, color, BIUS, spacing, SDF layers and glyph effects."
@@ -1832,22 +1943,10 @@ bool DrawRichTextEditor(
 		const std::string title{
 			"Rich Text Editor###RichTextEditorWindow_" + std::to_string(state_id)
 		};
-
-		if (state.window_recenter_requested) {
-			auto* viewport{ ImGui::GetMainViewport() };
-			const ImVec2 size{ viewport->WorkSize.x * 0.60f, viewport->WorkSize.y * 0.70f };
-			const ImVec2 center{
-				viewport->WorkPos.x + viewport->WorkSize.x * 0.5f,
-				viewport->WorkPos.y + viewport->WorkSize.y * 0.5f,
-			};
-
-			ImGui::SetNextWindowDockID(0, ImGuiCond_Always);
-			ImGui::SetNextWindowPos(center, ImGuiCond_Always, ImVec2{ 0.5f, 0.5f });
-			ImGui::SetNextWindowSize(size, ImGuiCond_Always);
-			ImGui::SetNextWindowFocus();
-			state.window_recenter_requested = false;
-		}
-
+		ImGui::SetNextWindowSize(ImVec2{ 900.0f, 700.0f }, ImGuiCond_FirstUseEver);
+		ImGui::SetNextWindowSizeConstraints(
+			ImVec2{ 600.0f, 420.0f }, ImVec2{ FLT_MAX, FLT_MAX }
+		);
 		if (ImGui::Begin(title.c_str(), &open)) {
 			ImGui::PushID(static_cast<int>(state_id));
 			changed |= DrawRichTextEditorPanel(
@@ -1860,16 +1959,7 @@ bool DrawRichTextEditor(
 		state.window_open = open;
 	}
 
-	if (defaults_changed) {
-		// Defaults are authoring data, never inferred from tags. When the user explicitly
-		// changes them, reserialize against the new baseline so now-redundant overrides are
-		// removed (for example <font=> when Defaults already uses the engine font).
-		state.source = SerializeStyledTextToRichText(
-			ParseRichText(state.source, defaults).text, defaults
-		);
-		reset_selection_to_end(state.inline_selection);
-		reset_selection_to_end(state.window_selection);
-	} else {
+	if (!defaults_changed) {
 		defaults = defaults_before;
 	}
 
