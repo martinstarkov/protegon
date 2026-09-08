@@ -34,7 +34,10 @@
 #endif
 #include "app/project.h"
 #include "core/assert.h"
+#include "core/graphics/color.h"
 #include "core/log.h"
+#include "core/math/matrix4.h"
+#include "core/math/transform.h"
 #include "core/math/vector2.h"
 #include "core/util/file.h"
 #include "core/util/hash.h"
@@ -51,12 +54,18 @@
 #include "panels/settings.h"
 #include "panels/viewport.h"
 #include "platform/window.h"
+#include "renderer/pipeline/blend_mode.h"
+#include "renderer/pipeline/render_state.h"
 #include "renderer/pipeline/viewport.h"
 #include "renderer/renderer.h"
+#include "renderer/resources/framebuffer.h"
 #include "renderer/resources/id.h"
+#include "renderer/resources/texture_format.h"
+#include "renderer/text/text_layout.h"
 #include "runtime/asset/asset_manager.h"
 #include "runtime/ecs/uuid.h"
 #include "runtime/graphics/fx/effect_registry.h"
+#include "runtime/graphics/draw.h"
 #include "runtime/graphics/fx/screen_effect_stack.h"
 #include "runtime/graphics/visible.h"
 #include "runtime/scene/scene_file.h"
@@ -3729,6 +3738,90 @@ V2_int Editor::GetPresentationTextureSize() const {
 	::ptgn::impl::RendererAccessor renderer{ ::ptgn::impl::ApplicationAccessor::ctx(app).renderer };
 	auto texture{ renderer.GetPresentationTexture() };
 	return renderer.GetSize(texture).value();
+}
+
+::ptgn::impl::TextureId Editor::RenderTextPreview(
+	std::uint64_t frame_token, V2_int target_size, Color clear_color, Transform transform,
+	const DrawTextRequest& request
+) {
+	PTGN_ASSERT(target_size.IsPositive(), "Text preview target size must be positive");
+
+	::ptgn::impl::RendererAccessor renderer{ GetRenderer() };
+
+	// The preview textures are sampled later by ImGui, so keep every framebuffer generated during
+	// this ImGui frame alive. Release the previous frame's preview resources when the token changes.
+	if (!text_preview_frame_token_.has_value() ||
+		text_preview_frame_token_.value() != frame_token) {
+		renderer.FlushBatch();
+		text_preview_framebuffers_.clear();
+		text_preview_frame_token_ = frame_token;
+	}
+
+	// Match the presentation framebuffer's color format/parameters. The runtime viewport is
+	// rendered into that target and then receives the renderer's final gamma/tone-mapping pass.
+	// Using the same descriptor here keeps HDR and filtering behavior identical.
+	const auto presentation_desc{
+		renderer.GetDesc(renderer.GetPresentationFramebuffer())
+	};
+	PTGN_ASSERT(presentation_desc.has_value(), "Presentation framebuffer must have a color texture");
+
+	TextureDesc preview_desc{ presentation_desc.value() };
+	preview_desc.size = target_size;
+
+	auto framebuffer{ renderer.CreateFramebuffer(preview_desc, std::nullopt) };
+
+	const auto framebuffer_id{ static_cast<::ptgn::impl::FramebufferId>(framebuffer) };
+	const auto texture{ renderer.GetTexture(framebuffer_id) };
+	PTGN_ASSERT(texture, "Text preview framebuffer must have a color texture");
+
+	renderer.FlushBatch();
+
+	const RenderState previous_state{ renderer.GetRenderState() };
+	const MaterialState previous_material{ renderer.GetMaterial() };
+	const auto previous_pipeline{ renderer.GetCurrentPipeline() };
+
+	// The editor is rendered after Renderer::EndFrame(), which intentionally leaves the default
+	// framebuffer bound and current_framebuffer_ == nullptr. Preserve that nullable state instead
+	// of calling GetBoundFramebuffer(), which correctly asserts when no FramebufferObject is bound.
+	auto* previous_framebuffer{ renderer.GetCurrentFramebuffer() };
+
+	renderer.SetFramebuffer(&framebuffer);
+	renderer.Clear(framebuffer_id, clear_color);
+
+	RenderState preview_state{};
+	const Viewport preview_viewport{
+		.position = {},
+		.size = target_size,
+	};
+	preview_state.viewport = preview_viewport;
+	preview_state.view_projection = Matrix4::Orthographic(preview_viewport.size);
+	preview_state.blending = true;
+
+	// Match the blend mode used by Text::Draw for the entity currently being edited. Text::Draw
+	// calls SetBlendMode(GetBlendMode(entity)) immediately before drawing, so the preview should
+	// use the same value instead of hard-coding BlendMode::Blend.
+	BlendMode preview_blend_mode{ BlendMode::Blend };
+	if (const Entity selected_entity{ scene_hierarchy_panel_.GetSelectedEntity() }) {
+		preview_blend_mode = GetBlendMode(selected_entity);
+	}
+	preview_state.blend_mode = preview_blend_mode;
+	renderer.SetRenderState(preview_state);
+
+	renderer.DrawText(transform, request);
+	renderer.FlushBatch();
+
+	// The runtime presentation target receives this exact transform in Renderer::EndFrame().
+	// The editor preview is rendered after EndFrame(), so it must explicitly apply the same
+	// output color pipeline before ImGui samples the texture.
+	renderer.ApplyOutputColorTransform(framebuffer);
+
+	renderer.SetFramebuffer(previous_framebuffer);
+	renderer.SetCurrentPipeline(previous_pipeline);
+	renderer.SetMaterial(previous_material);
+	renderer.SetRenderState(previous_state);
+
+	text_preview_framebuffers_.emplace_back(std::move(framebuffer));
+	return texture;
 }
 
 void Editor::UpdateRuntimeViewportState() {

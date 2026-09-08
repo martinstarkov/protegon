@@ -1226,6 +1226,31 @@ void Renderer::BindTextureSlot(std::uint32_t slot, impl::TextureId texture, bool
 	auto _3{ gl_->Bind(texture, false, force) };
 }
 
+void Renderer::ApplyOutputColorTransform(impl::FramebufferObject& framebuffer) {
+	const auto op{ renderer_settings_.tone_mapping.op };
+
+	PTGN_ASSERT(
+		!impl::RequiresHDRInput(op) || IsHDRFormat(GetFormat(framebuffer).value()),
+		"Framebuffer format must support HDR if tone mapping is enabled"
+	);
+
+	ApplyFramebufferEffect(framebuffer, [this, op](DrawContext& ctx) {
+		ctx.Pass([this, op](auto& pass) -> RenderPassHandle {
+			auto gamma_and_tonemapping_shader{ impl::GetGammaAndToneMappingShader(op) };
+
+			auto result{ pass.Apply(gamma_and_tonemapping_shader) };
+
+			result.Uniform(impl::kGammaUniform, renderer_settings_.gamma);
+
+			if (op == ToneMappingOperator::Exposure || op == ToneMappingOperator::ACES) {
+				result.Uniform(impl::kExposureUniform, renderer_settings_.tone_mapping.exposure);
+			}
+
+			return result;
+		});
+	});
+}
+
 bool Renderer::FramebufferMatches(
 	impl::FramebufferId framebuffer, TextureDesc desc, std::optional<TextureDesc> other_desc
 ) const {
@@ -1369,6 +1394,7 @@ void Renderer::ClearEntityIds(impl::FramebufferId framebuffer) {
 	);
 }
 
+
 namespace impl {
 
 RendererAccessor::RendererAccessor(Renderer& renderer) : renderer_{ renderer } {}
@@ -1399,6 +1425,52 @@ std::optional<V2_int> RendererAccessor::GetSize(TextureId texture) const {
 
 TextureId RendererAccessor::GetTexture(FramebufferId framebuffer) const {
 	return renderer_.GetTexture(framebuffer);
+}
+
+std::optional<TextureDesc> RendererAccessor::GetDesc(FramebufferId framebuffer) const {
+	return renderer_.GetDesc(framebuffer);
+}
+
+RenderState RendererAccessor::GetRenderState() const {
+	return renderer_.GetRenderState();
+}
+
+void RendererAccessor::SetRenderState(const RenderState& state) {
+	renderer_.SetRenderState(state);
+}
+
+MaterialState RendererAccessor::GetMaterial() const {
+	return MaterialState{
+		.shader = renderer_.GetBoundShader(),
+		.uniforms = renderer_.current_uniforms_,
+		.texture_slot_capacity = renderer_.current_texture_slot_capacity_,
+	};
+}
+
+void RendererAccessor::SetMaterial(const MaterialState& material) {
+	renderer_.SetMaterial(material);
+}
+
+PipelineId RendererAccessor::GetCurrentPipeline() const {
+	return renderer_.pipeline_manager_.GetCurrentPipelineId();
+}
+
+void RendererAccessor::SetCurrentPipeline(PipelineId pipeline) {
+	renderer_.SetCurrentPipeline(pipeline);
+}
+
+void RendererAccessor::Clear(FramebufferId framebuffer, Color clear_color) {
+	renderer_.Clear(framebuffer, clear_color);
+}
+
+void RendererAccessor::DrawText(Transform transform, const DrawTextRequest& request) {
+	renderer_.ExecuteEffectCallbacks([&](DrawContext& ctx) {
+		ctx.DrawText(transform, request, {});
+	});
+}
+
+void RendererAccessor::ApplyOutputColorTransform(FramebufferObject& framebuffer) {
+	renderer_.ApplyOutputColorTransform(framebuffer);
 }
 
 void RendererAccessor::FlushBatch() {
@@ -1439,7 +1511,19 @@ void RendererAccessor::SetBlendMode(BlendMode blend_mode, bool force) {
 	renderer_.SetBlendMode(blend_mode, force);
 }
 
+const FramebufferObject* RendererAccessor::GetCurrentFramebuffer() const {
+	return renderer_.current_framebuffer_;
+}
+
+FramebufferObject* RendererAccessor::GetCurrentFramebuffer() {
+	return renderer_.current_framebuffer_;
+}
+
 const FramebufferObject& RendererAccessor::GetBoundFramebuffer() const {
+	return renderer_.GetBoundFramebuffer();
+}
+
+FramebufferObject& RendererAccessor::GetBoundFramebuffer() {
 	return renderer_.GetBoundFramebuffer();
 }
 

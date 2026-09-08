@@ -327,7 +327,7 @@ FindOutputConsoleTargetAtCursor(
 	);
 }
 
-[[nodiscard]] inline bool OpenOutputConsoleTarget(
+inline bool OpenOutputConsoleTarget(
 	const OutputConsoleOpenTarget& target
 ) {
 	auto& platform_io{

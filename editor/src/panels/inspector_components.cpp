@@ -16,6 +16,7 @@
 #include <optional>
 #include <string>
 #include <string_view>
+#include <unordered_map>
 #include <utility>
 #include <vector>
 
@@ -1033,7 +1034,7 @@ template <>
 struct ComponentDrawer<TextRun> {
 	static bool Draw(EditorContext& ctx, TextRun& run) {
 		bool changed{ false };
-		changed |= DrawValue(ctx, "Text", run.text, 
+		changed |= DrawValue(ctx, "Text", run.text,
 		FieldOptions{
 			.multiline	   = true,
 			.line_count	   = 8,
@@ -1070,20 +1071,31 @@ struct ComponentDrawer<TextRun> {
 	}
 };
 
+TextRunDefaults& GetResolvedTextAuthoringDefaults(const char* id) {
+	// StyledText/TextData only store resolved runs, so formatting the entire string can
+	// never be used to infer authoring defaults. Keep the Defaults panel state separate
+	// from the runs; only the explicit Defaults controls may change it.
+	static std::unordered_map<ImGuiID, TextRunDefaults> defaults_by_editor;
+	return defaults_by_editor.try_emplace(ImGui::GetID(id), TextRunDefaults{}).first->second;
+}
+
 template <>
 struct ComponentDrawer<StyledText> {
 	static bool Draw(EditorContext& ctx, StyledText& text) {
-		// StyledText stores resolved runs, not authoring defaults. Always use the
-		// default-constructed rich-text defaults as the serialization/parsing baseline.
-		// A style covering the whole text is therefore still emitted as an override tag.
-		TextRunDefaults defaults{};
+		// The resolved runs describe overrides, not authoring defaults. In particular,
+		// one italic run covering all content must still serialize as <i>...</i>; it must
+		// never make Italic appear in the Defaults panel.
+		auto& defaults{ GetResolvedTextAuthoringDefaults("##StyledTextDefaults") };
 		std::string source{ SerializeStyledTextToRichText(text, defaults) };
 
-		if (!DrawRichTextEditor(ctx, source, defaults)) {
+		(void)DrawRichTextEditor(ctx, source, defaults);
+
+		StyledText parsed{ ParseRichText(source, defaults).text };
+		if (parsed == text) {
 			return false;
 		}
 
-		text = ParseRichText(source, defaults).text;
+		text = std::move(parsed);
 		return true;
 	}
 };
@@ -1093,11 +1105,16 @@ struct ComponentDrawer<::ptgn::impl::TextData> {
 	static bool Draw(EditorContext& ctx, ::ptgn::impl::TextData& data) {
 		bool changed{ false };
 
-		// TextData owns its authoring baseline. Resolved runs are overrides/results and
-		// must never be promoted into Defaults, even when one run spans the whole string.
-		std::string source{ SerializeStyledTextToRichText(data.text, data.defaults) };
-		if (DrawRichTextEditor(ctx, source, data.defaults)) {
-			data.text = ParseRichText(source, data.defaults).text;
+		// TextData also stores resolved runs only. Keep its authoring defaults separate
+		// so whole-text tags remain overrides instead of being promoted to Defaults.
+		auto& defaults{ GetResolvedTextAuthoringDefaults("##TextDataDefaults") };
+		std::string source{ SerializeStyledTextToRichText(data.text, defaults) };
+
+		(void)DrawRichTextEditor(ctx, source, defaults);
+
+		StyledText parsed{ ParseRichText(source, defaults).text };
+		if (parsed != data.text) {
+			data.text = std::move(parsed);
 			data.current_run_index = data.text.runs.empty() ? 0 : data.text.runs.size() - 1;
 			changed = true;
 		}

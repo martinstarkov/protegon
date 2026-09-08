@@ -27,6 +27,7 @@
 #include "panels/screen_effects.h"
 #include "panels/settings.h"
 #include "panels/viewport.h"
+#include "renderer/resources/framebuffer.h"
 #include "renderer/resources/id.h"
 #include "runtime/ecs/entity.h"
 #include "runtime/graphics/fx/screen_effect_stack.h"
@@ -45,6 +46,9 @@ class Renderer;
 class DebugSystem;
 class AssetManager;
 class Window;
+struct Color;
+struct DrawTextRequest;
+struct Transform;
 
 namespace impl {
 
@@ -77,6 +81,12 @@ public:
 
 	::ptgn::impl::TextureId GetPresentationTexture() const;
 	V2_int GetPresentationTextureSize() const;
+
+	/// @brief Render editor text into a retained offscreen framebuffer for ImGui previewing.
+	::ptgn::impl::TextureId RenderTextPreview(
+		std::uint64_t frame_token, V2_int target_size, Color clear_color, Transform transform,
+		const DrawTextRequest& request
+	);
 
 	void SetTimeScale(float time_scale);
 	float GetTimeScale() const;
@@ -234,6 +244,11 @@ private:
 	bool scene_asset_dependencies_dirty_{ true };
 	bool untracked_project_dirty_{ false };
 	bool runtime_was_active_{ false };
+
+	// Editor-owned framebuffer lifetime for text previews. Every preview created during one
+	// ImGui frame remains valid until the next frame token is observed.
+	std::optional<std::uint64_t> text_preview_frame_token_;
+	std::vector<::ptgn::impl::FramebufferObject> text_preview_framebuffers_;
 
 #if !defined(__EMSCRIPTEN__)
 	ExportManager export_manager_;

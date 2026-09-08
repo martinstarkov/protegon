@@ -461,7 +461,7 @@ struct RichTextStackEntry {
 		return true;
 	}
 
-	error = "Unknown rich-text tag <" + canonical_tag + ">.";
+	error = "Unknown rich text tag <" + canonical_tag + ">.";
 	return false;
 }
 
@@ -667,7 +667,7 @@ RichTextParseResult ParseRichText(std::string_view source, const TextRunDefaults
 		const auto close{ source.find('>', i + 1) };
 		if (close == std::string_view::npos) {
 			buffer.append(source.substr(i));
-			result.diagnostics.push_back({ i, "Unterminated rich-text tag." });
+			result.diagnostics.push_back({ i, "Unterminated rich text tag." });
 			break;
 		}
 
@@ -675,7 +675,7 @@ RichTextParseResult ParseRichText(std::string_view source, const TextRunDefaults
 		auto token{ TrimRichTextToken(raw_token) };
 		if (token.empty()) {
 			buffer.append(source.substr(i, close - i + 1));
-			result.diagnostics.push_back({ i, "Empty rich-text tag." });
+			result.diagnostics.push_back({ i, "Empty rich text tag." });
 			i = close + 1;
 			continue;
 		}
@@ -718,7 +718,7 @@ RichTextParseResult ParseRichText(std::string_view source, const TextRunDefaults
 		if (!HasMatchingRichTextClose(source, close + 1, canonical_tag)) {
 			buffer.append(source.substr(i, close - i + 1));
 			result.diagnostics.push_back({
-				i, "Unclosed rich-text tag <" + canonical_tag + ">; rendered literally."
+				i, "Unclosed rich text tag <" + canonical_tag + ">; rendered literally."
 			});
 			i = close + 1;
 			continue;
@@ -733,7 +733,7 @@ RichTextParseResult ParseRichText(std::string_view source, const TextRunDefaults
 	EmitRichTextRun(result.text, buffer, state);
 
 	for (auto it{ stack.rbegin() }; it != stack.rend(); ++it) {
-		result.diagnostics.push_back({ it->position, "Unclosed rich-text tag <" + it->tag + ">." });
+		result.diagnostics.push_back({ it->position, "Unclosed rich text tag <" + it->tag + ">." });
 	}
 
 	if (result.text.runs.empty()) {
@@ -1653,7 +1653,7 @@ TextMeasurement Text::Measure() const {
 		PTGN_WARN("Cannot measure text without TextData component");
 		return {};
 	}
-	
+
 	const auto& layout{ GetLayout() };
 
 	return {

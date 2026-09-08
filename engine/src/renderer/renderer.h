@@ -19,6 +19,7 @@
 #include "core/graphics/color.h"
 #include "core/math/geometry/rect.h"
 #include "core/math/matrix4.h"
+#include "core/math/transform.h"
 #include "core/math/vector2.h"
 #include "core/math/vector3.h"
 #include "core/math/vector4.h"
@@ -363,7 +364,7 @@ private:
 		};
 
 		// The temporary texture is centered at zero, but represents the
-		// original primitive bounds centered at bounds_center. Transform 
+		// original primitive bounds centered at bounds_center. Transform
 		// that local center through the entity / world transform.
 		const Transform composite_transform{
 			request.transform.Apply(bounds_center),
@@ -532,29 +533,7 @@ private:
 			ApplyPresentationEffect(std::forward<F>(presentation_effect_callback));
 		}
 
-		auto op{ renderer_settings_.tone_mapping.op };
-
-		PTGN_ASSERT(
-			!impl::RequiresHDRInput(op) ||
-				IsHDRFormat(GetFormat(presentation_framebuffer_).value()),
-			"Presentation framebuffer format must support HDR if tone mapping is enabled"
-		);
-
-		ApplyPresentationEffect([this, op](DrawContext& ctx) {
-			ctx.Pass([this, op](auto& pass) -> RenderPassHandle {
-				auto gamma_and_tonemapping_shader{ impl::GetGammaAndToneMappingShader(op) };
-
-				auto result{ pass.Apply(gamma_and_tonemapping_shader) };
-
-				result.Uniform(impl::kGammaUniform, renderer_settings_.gamma);
-
-				if (op == ToneMappingOperator::Exposure || op == ToneMappingOperator::ACES) {
-					result.Uniform(impl::kExposureUniform, renderer_settings_.tone_mapping.exposure);
-				}
-
-				return result;
-			});
-		});
+		ApplyOutputColorTransform(presentation_framebuffer_);
 
 		SetFramebuffer(nullptr);
 
@@ -638,6 +617,7 @@ private:
 
 	void DrawRenderPass(const impl::DrawPassRequest& request);
 
+
 	void CopyFramebufferRegion(
 		impl::FramebufferId source, impl::FramebufferId destination, Viewport source_region,
 		V2_int destination_position
@@ -664,21 +644,26 @@ private:
 
 	void ExecuteEffectCallbacks(const std::function<void(DrawContext&)>& effect_callback);
 
+	// Apply the same final gamma/tone-mapping transform used by the presentation framebuffer.
+	// This is framebuffer-generic so editor-owned offscreen targets can be displayed with the
+	// exact same output color pipeline as the runtime viewport.
+	void ApplyOutputColorTransform(impl::FramebufferObject& framebuffer);
+
 	bool FramebufferMatches(
 		impl::FramebufferId framebuffer, TextureDesc desc, std::optional<TextureDesc> other_desc
 	) const;
 
 	template <InvocableR<void, DrawContext&> F>
-	void ApplyPresentationEffect(F&& function) {
+	void ApplyFramebufferEffect(impl::FramebufferObject& framebuffer, F&& function) {
 		FlushBatch();
 
-		PTGN_ASSERT(presentation_framebuffer_, "Presentation framebuffer must be valid");
+		PTGN_ASSERT(framebuffer, "Framebuffer must be valid");
 
-		auto size{ GetSize(presentation_framebuffer_).value() };
+		auto size{ GetSize(framebuffer).value() };
 
-		PTGN_ASSERT(size.IsPositive(), "Presentation framebuffer size must be valid");
+		PTGN_ASSERT(size.IsPositive(), "Framebuffer size must be valid");
 
-		SetFramebuffer(&presentation_framebuffer_);
+		SetFramebuffer(&framebuffer);
 
 		Viewport viewport{
 			.position = {},
@@ -695,6 +680,11 @@ private:
 		std::invoke(std::forward<F>(function), ctx);
 
 		FlushBatch();
+	}
+
+	template <InvocableR<void, DrawContext&> F>
+	void ApplyPresentationEffect(F&& function) {
+		ApplyFramebufferEffect(presentation_framebuffer_, std::forward<F>(function));
 	}
 
 	Window& window_;
@@ -716,6 +706,8 @@ private:
 	impl::FramebufferPool framebuffer_pool_;
 	impl::RenderPipelineManager pipeline_manager_;
 	std::vector<impl::FramebufferObject> temp_framebuffers_;
+
+
 	impl::TextureObject white_texture_;
 
 	RendererSettings renderer_settings_{};
@@ -754,6 +746,26 @@ public:
 
 	TextureId GetTexture(FramebufferId framebuffer) const;
 
+	std::optional<TextureDesc> GetDesc(FramebufferId framebuffer) const;
+
+	RenderState GetRenderState() const;
+
+	void SetRenderState(const RenderState& state);
+
+	MaterialState GetMaterial() const;
+
+	void SetMaterial(const MaterialState& material);
+
+	PipelineId GetCurrentPipeline() const;
+
+	void SetCurrentPipeline(PipelineId pipeline);
+
+	void Clear(FramebufferId framebuffer, Color clear_color);
+
+	void DrawText(Transform transform, const DrawTextRequest& request);
+
+	void ApplyOutputColorTransform(FramebufferObject& framebuffer);
+
 	void FlushBatch();
 
 	void SetupPresentationFramebuffer();
@@ -775,7 +787,13 @@ public:
 		renderer_.Draw(request);
 	}
 
+	// Returns nullptr when rendering is currently targeting the default framebuffer.
+	// Unlike GetBoundFramebuffer(), this is valid between the renderer frame and editor/ImGui pass.
+	const FramebufferObject* GetCurrentFramebuffer() const;
+	FramebufferObject* GetCurrentFramebuffer();
+
 	const FramebufferObject& GetBoundFramebuffer() const;
+	FramebufferObject& GetBoundFramebuffer();
 
 	void ClearEntityIds(FramebufferId framebuffer);
 
