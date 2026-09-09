@@ -242,6 +242,31 @@ void RecordRichTextSourceHistory(
 	editor_state.source_history_index = editor_state.source_history.size() - 1;
 }
 
+// Pending toolbar/popup actions store the exact source selection that existed when the action
+// was requested. Commit that selection to the pre-action history entry before mutating the
+// source, so undo restores both the old markup and the text range the user originally selected.
+void PreserveRichTextHistorySelectionBeforeAction(
+	RichTextEditorState& editor_state, std::string_view source,
+	const RichTextPendingAction& action
+) {
+	RichTextSelectionState selection{
+		.cursor = std::min(action.cursor, source.size()),
+		.selection_start = std::min(action.selection_start, source.size()),
+		.selection_end = std::min(action.selection_end, source.size()),
+	};
+
+	if (editor_state.source_history.empty() ||
+		editor_state.source_history[editor_state.source_history_index].source != source) {
+		RecordRichTextSourceHistory(editor_state, source, selection);
+		return;
+	}
+
+	auto& current{ editor_state.source_history[editor_state.source_history_index] };
+	current.cursor = selection.cursor;
+	current.selection_start = selection.selection_start;
+	current.selection_end = selection.selection_end;
+}
+
 bool ApplyRichTextSourceHistory(
 	ImGuiInputTextCallbackData& data,
 	RichTextEditorState& editor_state,
@@ -953,9 +978,9 @@ bool ToggleRichTextSelectionTag(
 		return false;
 	}
 
-	// BIUS toolbar tags are canonicalized after application so newly neighboring
-	// identical wrappers become one wrapper. Bold/italic may bridge whitespace;
-	// underline/strikethrough require literal adjacency because styled whitespace matters.
+	// Canonicalize neighboring identical wrappers after application. Bold/italic may bridge
+	// whitespace because styling whitespace has no visible effect; every other tag requires
+	// literal adjacency so whitespace-sensitive styling and parameterized values are preserved.
 	MergeRichTextNeighboringTagWrappers(
 		source, state, tag, default_open, close
 	);
@@ -1020,11 +1045,15 @@ bool SetRichTextSelectionTag(
 	}
 
 	if (const auto wrapper{ FindRichTextSurroundingTag(source, begin, end, tag) }) {
-		const std::string_view current_open{
-			source.data() + wrapper->open_begin, wrapper->open_size
+		const std::string current_open{
+			source.substr(wrapper->open_begin, wrapper->open_size)
 		};
 		if (current_open == open) {
-			return false;
+			// The selected range already has this exact value. Still normalize it so legacy or
+			// manually-authored adjacent identical wrappers collapse when the user reapplies it.
+			return MergeRichTextNeighboringTagWrappers(
+				source, state, tag, open, close
+			);
 		}
 
 		const bool selected_wrapper{
@@ -1060,10 +1089,21 @@ bool SetRichTextSelectionTag(
 				state, selection_end, selection_start, selection_end
 			);
 		}
+
+		MergeRichTextNeighboringTagWrappers(
+			source, state, tag, open, close
+		);
 		return true;
 	}
 
-	return WrapRichTextSelection(source, state, open, close);
+	if (!WrapRichTextSelection(source, state, open, close)) {
+		return false;
+	}
+
+	MergeRichTextNeighboringTagWrappers(
+		source, state, tag, open, close
+	);
+	return true;
 }
 
 bool InsertRichTextToken(
@@ -1149,6 +1189,12 @@ int RichTextInputCallback(ImGuiInputTextCallbackData* data) {
 		};
 		std::string edited_source{ data->Buf, static_cast<std::size_t>(data->BufTextLen) };
 
+		if (context->editor_state) {
+			PreserveRichTextHistorySelectionBeforeAction(
+				*context->editor_state, edited_source, action
+			);
+		}
+
 		bool changed{ false };
 		switch (action.type) {
 			case RichTextPendingActionType::ToggleTag:
@@ -1202,7 +1248,7 @@ int RichTextInputCallback(ImGuiInputTextCallbackData* data) {
 }
 
 bool ApplyPendingRichTextActionToInactiveSource(
-	std::string& source, RichTextSelectionState& state
+	std::string& source, RichTextSelectionState& state, RichTextEditorState& editor_state
 ) {
 	if (!state.pending_action.has_value()) {
 		return false;
@@ -1215,6 +1261,8 @@ bool ApplyPendingRichTextActionToInactiveSource(
 		.selection_start = action.selection_start,
 		.selection_end = action.selection_end,
 	};
+
+	PreserveRichTextHistorySelectionBeforeAction(editor_state, source, action);
 
 	bool changed{ false };
 	switch (action.type) {
@@ -2108,7 +2156,15 @@ bool DrawRichTextSourceInput(
 			visible_content_height - ImGui::GetStyle().ScrollbarSize
 		);
 	}
-	const float input_height{ std::max(content_height, visible_content_height) };
+	// The outer resizable child is the sole scroll owner. When content overflows vertically, give
+	// InputTextMultiline a small amount of extra height so its private multiline child never needs
+	// to establish a second vertical scroll range because of padding/rounding differences.
+	const bool vertical_overflow{ content_height > visible_content_height };
+	const float input_height{
+		vertical_overflow
+			? content_height + ImGui::GetStyle().FramePadding.y + 2.0f
+			: visible_content_height
+	};
 
 	if (selection.focus_source) {
 		ImGui::SetKeyboardFocusHere();
@@ -2157,10 +2213,16 @@ bool DrawRichTextSourceInput(
 	++pushed_source_colors;
 #endif
 
+	// InputTextMultiline internally owns a child window with its own vertical scrollbar. The outer
+	// RichTextSourceScroll child already owns scrolling for the syntax overlay, selection and caret,
+	// so suppress the inner scrollbar visually. input_height above is sized to the full text content,
+	// which keeps that private child from needing to scroll during normal editing.
+	ImGui::PushStyleVar(ImGuiStyleVar_ScrollbarSize, 0.0f);
 	const bool input_changed{ ImGui::InputTextMultiline(
 		"##RichTextSource", &source, ImVec2{ input_width, input_height }, input_flags,
 		&RichTextInputCallback, &callback_context
 	) };
+	ImGui::PopStyleVar();
 	const bool source_clicked{ ImGui::IsItemClicked(ImGuiMouseButton_Left) };
 	const bool source_double_clicked{
 		ImGui::IsItemHovered() && ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left)
@@ -2176,7 +2238,9 @@ bool DrawRichTextSourceInput(
 
 	bool changed{ input_changed || callback_context.action_applied };
 	if (selection.pending_action.has_value() && !source_active) {
-		changed |= ApplyPendingRichTextActionToInactiveSource(source, selection);
+		changed |= ApplyPendingRichTextActionToInactiveSource(
+			source, selection, editor_state
+		);
 	}
 
 	if (!editor_state.source_history_applied) {
