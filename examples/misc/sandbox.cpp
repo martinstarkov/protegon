@@ -195,6 +195,7 @@ static float BaseNoise2(NoiseType type, float x, float y, std::uint32_t seed) {
 }
 
 enum class Tool {
+	None,
 	Select,
 	Move,
 	Pencil,
@@ -301,7 +302,6 @@ enum class BrushDistribution {
 enum class BrushOperation {
 	Paint,
 	Replace,
-	Modify,
 	ExclusionMask,
 };
 
@@ -319,6 +319,7 @@ enum class AreaMode {
 
 static const char* ToolName(Tool tool) {
 	switch (tool) {
+			case Tool::None: return "None";
 			case Tool::Select: return "Select";
 		case Tool::Move: return "Move";
 		case Tool::Pencil: return "Pencil";
@@ -335,6 +336,8 @@ static const char* ToolName(Tool tool) {
 
 static const char* ToolTooltip(Tool tool) {
 	switch (tool) {
+		case Tool::None:
+			return "No viewport paint tool is active on procedural noise layers.";
 		case Tool::Select:
 			return "Select (S)\nClick/marquee entities or tiles, or switch to the raster selection brush.";
 		case Tool::Move:
@@ -611,10 +614,6 @@ struct BrushSettings {
 	bool autotile{};
 	bool eraser_current_source_only{};
 
-	float modify_rotation_jitter{ 15.0f };
-	float modify_scale_min{ 0.9f };
-	float modify_scale_max{ 1.1f };
-	float modify_position_jitter{ 4.0f };
 
 	int line_thickness{ 1 };
 	int line_spacing_cells{ 1 };
@@ -739,6 +738,7 @@ struct EditorState {
 	std::vector<Entity> entities;
 
 	Tool tool{ Tool::Select };
+	Tool last_non_noise_tool{ Tool::Select };
 	BrushSettings brush;
 	GridSettings grid;
 	RuntimeState runtime;
@@ -871,6 +871,35 @@ static const SceneLayer* FindLayer(const EditorState& e, int id) {
 		}
 	}
 	return nullptr;
+}
+
+static bool ActiveLayerIsNoise(const EditorState& e) {
+	const SceneLayer* layer{ FindLayer(e, e.active_layer_id) };
+	return layer && layer->kind == LayerKind::Noise;
+}
+
+static void SyncViewportToolToActiveLayer(EditorState& e) {
+	if (ActiveLayerIsNoise(e)) {
+		if (e.tool != Tool::None) {
+			e.last_non_noise_tool = e.tool;
+			e.tool = Tool::None;
+
+			// A procedural noise layer has no paint tool. Cancel any transient
+			// paint/move interaction so changing layers cannot leave a stale
+			// preview or commit work to the previous layer.
+			e.stroke = {};
+			e.move.dragging = false;
+			e.move.changed = false;
+			e.move.before.reset();
+		}
+		return;
+	}
+
+	if (e.tool == Tool::None) {
+		e.tool = e.last_non_noise_tool == Tool::None
+			? Tool::Select
+			: e.last_non_noise_tool;
+	}
 }
 
 static Tilemap* FindTilemap(EditorState& e, int id) {
@@ -2262,10 +2291,6 @@ static void PaintAt(EditorState& e, F2 world) {
 				continue;
 			}
 
-			// Modify is entity-only. The UI does not expose it for Tile layers.
-			if (e.brush.operation == BrushOperation::Modify) {
-				continue;
-			}
 
 			PlaceTile(e, *layer, *map, cell);
 		}
@@ -2277,38 +2302,6 @@ static void PaintAt(EditorState& e, F2 world) {
 		return;
 	}
 
-	if (e.brush.operation == BrushOperation::Modify) {
-		for (auto& entity : e.entities) {
-			if (entity.layer_id != layer->id ||
-				e.stroke.touched_entities.contains(entity.id) ||
-				!RectIntersectsRasterCells(e, world, EntityBounds(entity))) {
-				continue;
-			}
-			e.stroke.touched_entities.insert(entity.id);
-			entity.rotation += RandomRange(
-				e,
-				-e.brush.modify_rotation_jitter,
-				e.brush.modify_rotation_jitter
-			);
-			entity.scale *= RandomRange(
-				e,
-				e.brush.modify_scale_min,
-				e.brush.modify_scale_max
-			);
-			entity.position.x += RandomRange(
-				e,
-				-e.brush.modify_position_jitter,
-				e.brush.modify_position_jitter
-			);
-			entity.position.y += RandomRange(
-				e,
-				-e.brush.modify_position_jitter,
-				e.brush.modify_position_jitter
-			);
-			e.stroke.changed = true;
-		}
-		return;
-	}
 
 	if (e.brush.operation == BrushOperation::Replace) {
 		if (e.prefabs.empty()) {
@@ -3671,6 +3664,8 @@ static void DrawToolIcon(ImDrawList* dl, Tool tool, ImVec2 min, ImU32 color) {
 	const float y{ std::floor(min.y) };
 	auto P = [&](float px, float py) { return ImVec2{ x + px, y + py }; };
 	switch (tool) {
+		case Tool::None:
+			break;
 		case Tool::Select:
 			dl->AddTriangleFilled(P(2, 1), P(2, 14), P(7, 10), color);
 			dl->AddLine(P(6, 9), P(11, 14), color, 2.0f);
@@ -4044,32 +4039,16 @@ static void DrawBrushSettings(EditorState& e) {
 				"Exclusion Mask: paint no-paint mask cells instead of tiles."
 			);
 		} else {
-			const bool allow_modify{ e.tool == Tool::Brush };
-			const char* operations_with_modify[]{ "Paint", "Replace", "Modify" };
-			const char* operations_basic[]{ "Paint", "Replace" };
-			int choice{
-				e.brush.operation == BrushOperation::Replace ? 1 :
-				(allow_modify && e.brush.operation == BrushOperation::Modify ? 2 : 0)
-			};
-			if (!allow_modify && e.brush.operation == BrushOperation::Modify) {
-				e.brush.operation = BrushOperation::Paint;
-				choice = 0;
-			}
+			const char* operations[]{ "Paint", "Replace" };
+			int choice{ e.brush.operation == BrushOperation::Replace ? 1 : 0 };
 			ImGui::SetNextItemWidth(112.0f);
-			if (ImGui::Combo(
-					"Operation##paint_operation",
-					&choice,
-					allow_modify ? operations_with_modify : operations_basic,
-					allow_modify ? 3 : 2
-				)) {
-				e.brush.operation =
-					choice == 1 ? BrushOperation::Replace :
-					choice == 2 ? BrushOperation::Modify :
-					BrushOperation::Paint;
+			if (ImGui::Combo("Operation##paint_operation", &choice, operations, 2)) {
+				e.brush.operation = choice == 1 ? BrushOperation::Replace : BrushOperation::Paint;
 			}
-			ItemTooltip(allow_modify
-				? "Paint: create prefab entities.\nReplace: replace matching prefab entities.\nModify: jitter existing entities without creating new ones."
-				: "Paint: create prefab entities.\nReplace: replace matching prefab entities on the rasterized tool cells.");
+			ItemTooltip(
+				"Paint: create prefab entities.\n"
+				"Replace: replace matching prefab entities on the rasterized tool cells."
+			);
 		}
 	};
 
@@ -4533,31 +4512,6 @@ static void DrawBrushSettings(EditorState& e) {
 		}
 	}
 
-	if (e.brush.operation == BrushOperation::Modify && !tile_layer && e.tool == Tool::Brush) {
-		next_item();
-		if (ImGui::Button("Modify...")) {
-			ImGui::OpenPopup("Modify Brush Settings");
-		}
-		ItemTooltip("Configure random transform changes applied to existing entities.");
-		if (ImGui::BeginPopup("Modify Brush Settings")) {
-			ImGui::DragFloat("Rotation Jitter", &e.brush.modify_rotation_jitter, 0.25f, 0.0f, 360.0f, "%.1f deg");
-			ItemTooltip("Maximum random rotation added/subtracted from each affected entity.");
-			ImGui::DragFloatRange2(
-				"Scale Multiplier",
-				&e.brush.modify_scale_min,
-				&e.brush.modify_scale_max,
-				0.01f,
-				0.01f,
-				4.0f,
-				"%.2f",
-				"%.2f"
-			);
-			ItemTooltip("Random scale multiplier range applied to each affected entity.");
-			ImGui::DragFloat("Position Jitter", &e.brush.modify_position_jitter, 0.25f, 0.0f, 512.0f, "%.1f");
-			ItemTooltip("Maximum random X/Y world-space offset applied to each affected entity.");
-			ImGui::EndPopup();
-		}
-	}
 
 	if (e.tool == Tool::Pencil || e.tool == Tool::Brush ||
 		e.tool == Tool::Line || e.tool == Tool::Area || e.tool == Tool::Erase) {
@@ -4949,19 +4903,20 @@ static NoiseBoundaryEdge HitNoiseBoundaryEdge(
 	const float top{ std::min(a.y, b.y) };
 	const float bottom{ std::max(a.y, b.y) };
 	constexpr float tolerance{ 9.0f };
-	constexpr float corner_radius{ 12.0f };
+	constexpr float corner_extent{ 15.0f };
 
-	auto near_point = [&](float x, float y) {
-		const float dx{ mouse.x - x };
-		const float dy{ mouse.y - y };
-		return dx * dx + dy * dy <= corner_radius * corner_radius;
+	auto in_corner_box = [&](float x, float y) {
+		return std::abs(mouse.x - x) <= corner_extent &&
+			std::abs(mouse.y - y) <= corner_extent;
 	};
 
-	// Corners take priority over edges so diagonal resize handles remain easy to grab.
-	if (near_point(left, top)) return NoiseBoundaryEdge::TopLeft;
-	if (near_point(right, top)) return NoiseBoundaryEdge::TopRight;
-	if (near_point(left, bottom)) return NoiseBoundaryEdge::BottomLeft;
-	if (near_point(right, bottom)) return NoiseBoundaryEdge::BottomRight;
+	// Give corners a larger rectangular hit box than the edge tolerance and test
+	// them first. This ensures every visible corner-handle pixel resolves to a
+	// diagonal resize cursor instead of falling through to ResizeEW/ResizeNS.
+	if (in_corner_box(left, top)) return NoiseBoundaryEdge::TopLeft;
+	if (in_corner_box(right, top)) return NoiseBoundaryEdge::TopRight;
+	if (in_corner_box(left, bottom)) return NoiseBoundaryEdge::BottomLeft;
+	if (in_corner_box(right, bottom)) return NoiseBoundaryEdge::BottomRight;
 
 	if (std::abs(mouse.x - left) <= tolerance && mouse.y >= top && mouse.y <= bottom) {
 		return NoiseBoundaryEdge::Left;
@@ -5376,6 +5331,10 @@ static F2 ConstrainSquareDrag(F2 start, F2 current) {
 
 static void DrawToolPreview(EditorState& e, ImDrawList* dl, F2 mouse_world) {
 	const auto* layer{ FindLayer(e, e.active_layer_id) };
+	if (!layer || layer->kind == LayerKind::Noise || e.tool == Tool::None) {
+		return;
+	}
+
 	const RasterGrid raster{ ActiveRasterGrid(e) };
 	const bool preview_uses_operation{
 		e.tool == Tool::Pencil || e.tool == Tool::Brush ||
@@ -6214,6 +6173,34 @@ static void DrawLayers(EditorState& e) {
 					other.visible = other.id == layer.id;
 				}
 			}
+
+			if (layer.kind == LayerKind::Tile) {
+				auto* map{ FindTilemap(e, layer.tile.tilemap_id) };
+				const bool has_exclusion_mask{ map && !map->exclusion_mask.empty() };
+				const bool can_clear_exclusion_mask{ has_exclusion_mask && !layer.locked };
+
+				ImGui::Separator();
+				ImGui::BeginDisabled(!can_clear_exclusion_mask);
+				if (ImGui::MenuItem("Clear Exclusion Mask")) {
+					auto before{ CaptureScene(e) };
+					map->exclusion_mask.clear();
+					PushHistory(e, "Clear Exclusion Mask", std::move(before));
+				}
+				ImGui::EndDisabled();
+
+				if (ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled)) {
+					if (!map) {
+						ImGui::SetTooltip("This tile layer has no valid tilemap.");
+					} else if (layer.locked) {
+						ImGui::SetTooltip("Unlock this tile layer before clearing its exclusion mask.");
+					} else if (!has_exclusion_mask) {
+						ImGui::SetTooltip("The exclusion mask is already empty.");
+					} else {
+						ImGui::SetTooltip("Clear every excluded cell from this tilemap. This action is undoable.");
+					}
+				}
+			}
+
 			ImGui::Separator();
 			if (ImGui::MenuItem("Duplicate")) {
 				duplicate_id = layer.id;
@@ -7990,7 +7977,16 @@ static void DrawNoiseLayerPalette(EditorState& e, SceneLayer& layer) {
 		auto& field{ layer.noise.fields[static_cast<std::size_t>(field_index)] };
 		ImGui::PushID(field_index);
 
-		const bool editing_name{
+		bool begin_edit{};
+		bool began_edit_this_frame{};
+		bool commit_rename{};
+		bool cancel_rename{};
+		ImVec2 name_input_min{};
+		ImVec2 name_input_max{};
+		bool name_input_drawn{};
+		bool name_input_hovered{};
+
+		const bool editing_before_draw{
 			editing_noise_layer_id == layer.id &&
 			editing_noise_field_index == field_index
 		};
@@ -8008,45 +8004,41 @@ static void DrawNoiseLayerPalette(EditorState& e, SceneLayer& layer) {
 				ImGuiTreeNodeFlags_SpanAvailWidth |
 				ImGuiTreeNodeFlags_OpenOnArrow,
 			"%s",
-			editing_name ? "" : field.name.c_str()
+			editing_before_draw ? "" : field.name.c_str()
 		) };
 
 		if (!field.enabled) {
 			ImGui::PopStyleColor(3);
 		}
 
+		const bool tree_hovered{ ImGui::IsItemHovered() };
 		const ImVec2 tree_min{ ImGui::GetItemRectMin() };
 		const ImVec2 tree_max{ ImGui::GetItemRectMax() };
 		const ImVec2 mouse{ ImGui::GetMousePos() };
-		const float text_start_x{ tree_min.x + ImGui::GetFrameHeight() };
+		const float row_height{ ImGui::GetFrameHeight() };
+		const float text_start_x{ tree_min.x + row_height };
+		const float minimum_name_width{ 48.0f };
 		const float visible_name_width{
-			std::max(48.0f, ImGui::CalcTextSize(field.name.c_str()).x)
+			std::max(minimum_name_width, ImGui::CalcTextSize(field.name.c_str()).x)
 		};
 		const float name_hit_end_x{
 			std::min(tree_max.x, text_start_x + visible_name_width)
 		};
-		const bool name_hovered{
-			ImGui::IsItemHovered() &&
-			mouse.x >= text_start_x &&
-			mouse.x <= name_hit_end_x
+		const bool name_hit_hovered{
+			tree_hovered && mouse.x >= text_start_x && mouse.x <= name_hit_end_x
 		};
 
-		if (!editing_name && name_hovered &&
+		// Match the tile-palette rename interaction exactly: only a double click on
+		// the visible name begins inline editing. The disclosure arrow retains its
+		// normal tree-node behavior and does not start a rename.
+		if (!editing_before_draw && name_hit_hovered &&
 			ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left)) {
-			editing_noise_layer_id = layer.id;
-			editing_noise_field_index = field_index;
-			focus_noise_field_index = field_index;
-			original_noise_field_name = field.name;
-			noise_field_rename_before = CaptureScene(e);
+			begin_edit = true;
 		}
 
 		if (ImGui::BeginPopupContextItem("NoiseFieldContext")) {
 			if (ImGui::MenuItem("Rename")) {
-				editing_noise_layer_id = layer.id;
-				editing_noise_field_index = field_index;
-				focus_noise_field_index = field_index;
-				original_noise_field_name = field.name;
-				noise_field_rename_before = CaptureScene(e);
+				begin_edit = true;
 			}
 			if (ImGui::MenuItem(field.enabled ? "Disable" : "Enable")) {
 				const SceneSnapshot before{ CaptureScene(e) };
@@ -8064,11 +8056,20 @@ static void DrawNoiseLayerPalette(EditorState& e, SceneLayer& layer) {
 			ImGui::EndPopup();
 		}
 
+		if (begin_edit) {
+			editing_noise_layer_id = layer.id;
+			editing_noise_field_index = field_index;
+			focus_noise_field_index = field_index;
+			original_noise_field_name = field.name;
+			noise_field_rename_before = CaptureScene(e);
+			began_edit_this_frame = true;
+		}
+
 		if (editing_noise_layer_id == layer.id &&
 			editing_noise_field_index == field_index) {
 			ImGui::SetCursorScreenPos({ text_start_x, tree_min.y });
 			ImGui::SetNextItemWidth(std::max(
-				48.0f,
+				minimum_name_width,
 				tree_max.x - text_start_x - ImGui::GetStyle().FramePadding.x
 			));
 			if (focus_noise_field_index == field_index) {
@@ -8082,34 +8083,71 @@ static void DrawNoiseLayerPalette(EditorState& e, SceneLayer& layer) {
 				ImGuiInputTextFlags_EnterReturnsTrue |
 					ImGuiInputTextFlags_AutoSelectAll
 			) };
+			name_input_min = ImGui::GetItemRectMin();
+			name_input_max = ImGui::GetItemRectMax();
+			name_input_drawn = true;
+			name_input_hovered = ImGui::IsItemHovered() || ImGui::IsItemActive();
 
 			if (ImGui::IsKeyPressed(ImGuiKey_Escape, false)) {
+				cancel_rename = true;
+			} else if (submitted) {
+				commit_rename = true;
+			}
+		}
+
+		if (tree_hovered &&
+			!(editing_noise_layer_id == layer.id &&
+			  editing_noise_field_index == field_index)) {
+			ImGui::SetTooltip(
+				field.enabled
+					? "Double click the field name to rename. Right click to disable, rename, or remove it."
+					: "Disabled field. Double click the name to rename; right click to enable, rename, or remove it."
+			);
+		}
+
+		if (editing_noise_layer_id == layer.id &&
+			editing_noise_field_index == field_index) {
+			if (cancel_rename) {
 				field.name = original_noise_field_name;
 				editing_noise_layer_id = -1;
 				editing_noise_field_index = -1;
 				focus_noise_field_index = -1;
 				noise_field_rename_before.reset();
-			} else if (submitted || ImGui::IsItemDeactivatedAfterEdit()) {
-				if (field.name.empty()) {
-					field.name = std::string{ NoiseTypeName(field.type) } + " Field";
+			} else {
+				if (name_input_drawn && !began_edit_this_frame) {
+					const bool clicked{
+						ImGui::IsMouseClicked(ImGuiMouseButton_Left) ||
+						ImGui::IsMouseClicked(ImGuiMouseButton_Middle) ||
+						ImGui::IsMouseClicked(ImGuiMouseButton_Right)
+					};
+					const ImVec2 click_mouse{ ImGui::GetMousePos() };
+					const bool inside_input{
+						click_mouse.x >= name_input_min.x && click_mouse.x <= name_input_max.x &&
+						click_mouse.y >= name_input_min.y && click_mouse.y <= name_input_max.y
+					};
+					if (clicked && !inside_input && !name_input_hovered) {
+						commit_rename = true;
+					}
 				}
-				if (noise_field_rename_before &&
-					field.name != original_noise_field_name) {
-					PushHistory(
-						e,
-						"Rename Noise Field",
-						std::move(*noise_field_rename_before)
-					);
+
+				if (commit_rename) {
+					if (field.name.empty()) {
+						field.name = std::string{ NoiseTypeName(field.type) } + " Field";
+					}
+					if (noise_field_rename_before &&
+						field.name != original_noise_field_name) {
+						PushHistory(
+							e,
+							"Rename Noise Field",
+							std::move(*noise_field_rename_before)
+						);
+					}
+					editing_noise_layer_id = -1;
+					editing_noise_field_index = -1;
+					focus_noise_field_index = -1;
+					noise_field_rename_before.reset();
 				}
-				editing_noise_layer_id = -1;
-				editing_noise_field_index = -1;
-				focus_noise_field_index = -1;
-				noise_field_rename_before.reset();
 			}
-		} else {
-			ItemTooltip(field.enabled
-				? "Double click the field name to rename. Right click to disable, rename, or remove it."
-				: "Disabled field. Double click the name to rename; right click to enable, rename, or remove it.");
 		}
 
 		if (open) {
@@ -8237,6 +8275,12 @@ static void DrawNoiseLayerPalette(EditorState& e, SceneLayer& layer) {
 	if (remove_field >= 0) {
 		const SceneSnapshot before{ CaptureScene(e) };
 		layer.noise.fields.erase(layer.noise.fields.begin() + remove_field);
+		if (editing_noise_layer_id == layer.id) {
+			editing_noise_layer_id = -1;
+			editing_noise_field_index = -1;
+			focus_noise_field_index = -1;
+			noise_field_rename_before.reset();
+		}
 		PushHistory(e, "Remove Noise Field", before);
 	}
 
@@ -8540,6 +8584,7 @@ static void DrawDefaultDockspace(EditorState& e) {
 }
 
 static void DrawEditor(EditorState& e) {
+	SyncViewportToolToActiveLayer(e);
 	ImGuiIO& io{ ImGui::GetIO() };
 	if (io.KeyCtrl && ImGui::IsKeyPressed(ImGuiKey_Z, false)) Undo(e);
 	if (io.KeyCtrl && ImGui::IsKeyPressed(ImGuiKey_Y, false)) Redo(e);
@@ -8559,7 +8604,7 @@ static void DrawEditor(EditorState& e) {
 			MoveSelectionByKeyboard(e, move_direction, io.KeyCtrl, io.KeyShift);
 		}
 	}
-	if (!io.WantTextInput && e.canvas_hovered) {
+	if (!io.WantTextInput && e.canvas_hovered && !ActiveLayerIsNoise(e)) {
 		if (ImGui::IsKeyPressed(ImGuiKey_S, false)) e.tool = Tool::Select;
 		if (ImGui::IsKeyPressed(ImGuiKey_M, false)) e.tool = Tool::Move;
 		if (ImGui::IsKeyPressed(ImGuiKey_P, false)) e.tool = Tool::Pencil;
@@ -8576,6 +8621,7 @@ static void DrawEditor(EditorState& e) {
 	DrawViewport(e);
 	DrawSceneHierarchy(e);
 	DrawLayers(e);
+	SyncViewportToolToActiveLayer(e);
 	DrawPaintPalette(e);
 	DrawInspector(e);
 	DrawHistory(e);
