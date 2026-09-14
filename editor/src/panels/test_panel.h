@@ -1,372 +1,249 @@
+#pragma once
+
+#include <imgui.h>
+#include <imgui_stdlib.h>
+
 #include <algorithm>
+#include <cctype>
 #include <cstddef>
+#include <cstdint>
+#include <cfloat>
+#include <iterator>
+#include <optional>
+#include <ranges>
 #include <string>
 #include <string_view>
 #include <utility>
 #include <vector>
 
-#include <imgui.h>
-#include <nlohmann/json.hpp>
-
+#include "editor/editor_context.h"
+#include "panels/inspector_fields.h"
+#include "panels/rich_text_editor.h"
+#include "runtime/graphics/text/text.h"
 #include "runtime/ui/dialogue.h"
 #include "serialization/json/json.h"
 
 namespace ptgn::editor {
 
-namespace {
+namespace dialogue_editor_demo_detail {
 
-using json = nlohmann::json;
+using inspector::DrawRichTextEditor;
+using inspector::RichTextEditorOptions;
+using inspector::RichTextEditorSelection;
 
-constexpr std::string_view kPageBreakToken{ "[[PAGE]]" };
-
-struct DialogueEditorTextCursor {
-	int cursor_pos{ 0 };
-	int requested_cursor_pos{ 0 };
-	bool request_cursor{ false };
+struct DialogueEditorPageDraft {
+	RichText text{};
+	RichTextEditorSelection selection{};
 };
 
 struct DialogueEditorLineDraft {
-	std::string source;
-	DialogueEditorTextCursor cursor;
+	std::vector<DialogueEditorPageDraft> pages{};
 };
 
 struct DialogueEditorEntryDraft {
-	std::string name;
+	std::string name{};
 	int index{ 0 };
 	bool repeatable{ true };
 	DialogueBehavior behavior{ DialogueBehavior::Sequential };
 	bool scroll{ true };
-	std::string next;
+	std::string next{};
 
-	std::vector<DialogueEditorLineDraft> lines;
+	std::vector<DialogueEditorLineDraft> lines{};
 };
 
 struct DialogueEditorDocument {
-	std::string start;
-	std::vector<DialogueEditorEntryDraft> dialogues;
+	Key continue_key{ Key::Enter };
+	std::string start{};
+
+	// Root-level defaults inherited by newly created pages and serialized at the dialogue root.
+	DialoguePageProperties defaults{};
+
+	std::vector<DialogueEditorEntryDraft> dialogues{};
 };
 
 struct DialogueEditorState {
-	DialogueEditorDocument document;
+	DialogueEditorDocument document{};
 
 	std::size_t selected_dialogue{ 0 };
 	std::size_t selected_line{ 0 };
+	std::size_t selected_page{ 0 };
 
-	std::string rename_buffer;
+	std::string rename_buffer{};
 	bool rename_requested{ false };
 
-	std::string generated_json;
 	bool show_json{ false };
+	std::string generated_json{};
 };
 
-struct InputTextContext {
-	std::string* text{ nullptr };
-	DialogueEditorTextCursor* cursor{ nullptr };
+struct OpenRichTag {
+	std::string name{};
+	std::string open_source{};
 };
 
-int InputTextCallback(ImGuiInputTextCallbackData* data) {
-	auto* context{ static_cast<InputTextContext*>(data->UserData) };
-
-	if (data->EventFlag == ImGuiInputTextFlags_CallbackResize) {
-		context->text->resize(static_cast<std::size_t>(data->BufTextLen));
-		data->Buf = context->text->data();
-		return 0;
+[[nodiscard]] inline std::string_view Trim(std::string_view value) {
+	while (!value.empty() && std::isspace(static_cast<unsigned char>(value.front()))) {
+		value.remove_prefix(1);
 	}
-
-	if (data->EventFlag == ImGuiInputTextFlags_CallbackAlways && context->cursor) {
-		if (context->cursor->request_cursor) {
-			auto requested{ std::clamp(
-				context->cursor->requested_cursor_pos,
-				0,
-				data->BufTextLen
-			) };
-
-			data->CursorPos = requested;
-			data->SelectionStart = requested;
-			data->SelectionEnd = requested;
-			context->cursor->request_cursor = false;
-		}
-
-		context->cursor->cursor_pos = data->CursorPos;
+	while (!value.empty() && std::isspace(static_cast<unsigned char>(value.back()))) {
+		value.remove_suffix(1);
 	}
-
-	return 0;
+	return value;
 }
 
-bool InputTextMultiline(
-	const char* label,
-	std::string& value,
-	DialogueEditorTextCursor& cursor,
-	ImVec2 size
-) {
-	if (value.capacity() < 256) {
-		value.reserve(256);
+[[nodiscard]] inline bool IsEscaped(std::string_view source, std::size_t position) {
+	std::size_t backslashes{ 0 };
+
+	while (position > 0 && source[position - 1] == '\\') {
+		--position;
+		++backslashes;
 	}
 
-	InputTextContext context{
-		.text = &value,
-		.cursor = &cursor,
-	};
-
-	auto flags{
-		ImGuiInputTextFlags_CallbackResize |
-		ImGuiInputTextFlags_CallbackAlways |
-		ImGuiInputTextFlags_AllowTabInput
-	};
-
-	return ImGui::InputTextMultiline(
-		label,
-		value.data(),
-		value.capacity() + 1,
-		size,
-		flags,
-		InputTextCallback,
-		&context
-	);
+	return (backslashes % 2) != 0;
 }
 
-std::size_t FindPageBreak(const std::string& source, std::size_t break_index) {
-	std::size_t search_from{ 0 };
+[[nodiscard]] inline std::string RichTagName(std::string_view token) {
+	token = Trim(token);
 
-	for (std::size_t i{ 0 }; i <= break_index; ++i) {
-		auto position{ source.find(kPageBreakToken, search_from) };
-
-		if (position == std::string::npos) {
-			return std::string::npos;
-		}
-
-		if (i == break_index) {
-			return position;
-		}
-
-		search_from = position + kPageBreakToken.size();
+	if (token.starts_with('/')) {
+		token.remove_prefix(1);
+		token = Trim(token);
 	}
 
-	return std::string::npos;
-}
+	auto equals{ token.find('=') };
+	auto name{ Trim(token.substr(0, equals)) };
 
-std::size_t GetPageCount(const std::string& source) {
-	std::size_t count{ 1 };
-	std::size_t search_from{ 0 };
-
-	while (true) {
-		auto position{ source.find(kPageBreakToken, search_from) };
-
-		if (position == std::string::npos) {
-			break;
-		}
-
-		++count;
-		search_from = position + kPageBreakToken.size();
-	}
-
-	return count;
-}
-
-std::size_t GetCurrentPageIndex(const std::string& source, int cursor_pos) {
-	auto cursor{ static_cast<std::size_t>(std::max(cursor_pos, 0)) };
-	std::size_t page{ 0 };
-	std::size_t search_from{ 0 };
-
-	while (true) {
-		auto position{ source.find(kPageBreakToken, search_from) };
-
-		if (position == std::string::npos || position >= cursor) {
-			break;
-		}
-
-		++page;
-		search_from = position + kPageBreakToken.size();
-	}
-
-	return page;
-}
-
-std::size_t GetPageStart(const std::string& source, std::size_t page_index) {
-	if (page_index == 0) {
-		return 0;
-	}
-
-	auto marker{ FindPageBreak(source, page_index - 1) };
-
-	if (marker == std::string::npos) {
-		return source.size();
-	}
-
-	auto start{ marker + kPageBreakToken.size() };
-
-	if (start < source.size() && source[start] == '\n') {
-		++start;
-	}
-
-	return start;
-}
-
-void RequestCursor(DialogueEditorTextCursor& cursor, std::size_t position) {
-	cursor.requested_cursor_pos = static_cast<int>(position);
-	cursor.request_cursor = true;
-}
-
-void InsertPageBreak(
-	std::string& source,
-	DialogueEditorTextCursor& cursor,
-	std::size_t position
-) {
-	position = std::min(position, source.size());
-
-	std::string insertion;
-
-	if (position > 0 && source[position - 1] != '\n') {
-		insertion += '\n';
-	}
-
-	insertion += kPageBreakToken;
-
-	if (position < source.size() && source[position] != '\n') {
-		insertion += '\n';
-	}
-
-	source.insert(position, insertion);
-	RequestCursor(cursor, position + insertion.size());
-}
-
-void RemovePageBreak(
-	std::string& source,
-	DialogueEditorTextCursor& cursor,
-	std::size_t break_index
-) {
-	auto marker{ FindPageBreak(source, break_index) };
-
-	if (marker == std::string::npos) {
-		return;
-	}
-
-	auto erase_begin{ marker };
-	auto erase_end{ marker + kPageBreakToken.size() };
-
-	if (erase_begin > 0 &&
-		source[erase_begin - 1] == '\n' &&
-		erase_end < source.size() &&
-		source[erase_end] == '\n') {
-		++erase_end;
-	}
-
-	source.erase(erase_begin, erase_end - erase_begin);
-	RequestCursor(cursor, erase_begin);
-}
-
-void MovePageBreakToCursor(
-	std::string& source,
-	DialogueEditorTextCursor& cursor,
-	std::size_t break_index
-) {
-	auto marker{ FindPageBreak(source, break_index) };
-
-	if (marker == std::string::npos) {
-		return;
-	}
-
-	auto old_end{ marker + kPageBreakToken.size() };
-	auto destination{ static_cast<std::size_t>(std::max(cursor.cursor_pos, 0)) };
-
-	if (marker > 0 &&
-		source[marker - 1] == '\n' &&
-		old_end < source.size() &&
-		source[old_end] == '\n') {
-		++old_end;
-	}
-
-	if (destination > old_end) {
-		destination -= old_end - marker;
-	} else if (destination >= marker) {
-		destination = marker;
-	}
-
-	source.erase(marker, old_end - marker);
-	destination = std::min(destination, source.size());
-
-	InsertPageBreak(source, cursor, destination);
-}
-
-std::vector<std::string> SplitIntoPages(const std::string& source) {
-	std::vector<std::string> pages;
-	std::size_t begin{ 0 };
-
-	while (true) {
-		auto marker{ source.find(kPageBreakToken, begin) };
-
-		if (marker == std::string::npos) {
-			auto page{ source.substr(begin) };
-
-			if (!page.empty() && page.front() == '\n') {
-				page.erase(page.begin());
-			}
-
-			pages.emplace_back(std::move(page));
-			break;
-		}
-
-		auto page{ source.substr(begin, marker - begin) };
-
-		if (!page.empty() && page.back() == '\n') {
-			page.pop_back();
-		}
-
-		if (!page.empty() && page.front() == '\n') {
-			page.erase(page.begin());
-		}
-
-		pages.emplace_back(std::move(page));
-
-		begin = marker + kPageBreakToken.size();
-
-		if (begin < source.size() && source[begin] == '\n') {
-			++begin;
-		}
-	}
-
-	return pages;
-}
-
-std::string FirstLine(std::string_view text) {
-	auto newline{ text.find('\n') };
-	auto result{ std::string{ text.substr(0, newline) } };
-
-	if (result.size() > 54) {
-		result.resize(51);
-		result += "...";
-	}
-
-	if (result.empty()) {
-		result = "(empty page)";
-	}
-
+	std::string result{ name };
+	std::ranges::transform(result, result.begin(), [](unsigned char c) {
+		return static_cast<char>(std::tolower(c));
+	});
 	return result;
 }
 
-bool DialogueNameExists(
+[[nodiscard]] inline std::optional<std::vector<OpenRichTag>> GetOpenTagsAt(
+	std::string_view source,
+	std::size_t cursor
+) {
+	cursor = std::min(cursor, source.size());
+
+	std::vector<OpenRichTag> stack;
+
+	for (std::size_t i{ 0 }; i < cursor;) {
+		if (source[i] != '<' || IsEscaped(source, i)) {
+			++i;
+			continue;
+		}
+
+		auto close{ source.find('>', i + 1) };
+
+		if (close == std::string_view::npos) {
+			// The cursor is inside malformed/incomplete markup. Do not split here.
+			return std::nullopt;
+		}
+
+		if (cursor <= close) {
+			return std::nullopt;
+		}
+
+		auto token{ Trim(source.substr(i + 1, close - i - 1)) };
+
+		if (token.empty()) {
+			i = close + 1;
+			continue;
+		}
+
+		const bool closing{ token.starts_with('/') };
+		const std::string name{ RichTagName(token) };
+
+		if (name.empty()) {
+			i = close + 1;
+			continue;
+		}
+
+		if (closing) {
+			if (!stack.empty()) {
+				auto it{ std::ranges::find_if(
+					stack.rbegin(),
+					stack.rend(),
+					[&](const OpenRichTag& tag) { return tag.name == name; }
+				) };
+
+				if (it != stack.rend()) {
+					stack.erase(std::next(it).base(), stack.end());
+				}
+			}
+		} else {
+			stack.emplace_back(
+				OpenRichTag{
+					.name = name,
+					.open_source = std::string{ source.substr(i, close - i + 1) },
+				}
+			);
+		}
+
+		i = close + 1;
+	}
+
+	return stack;
+}
+
+[[nodiscard]] inline bool SplitRichTextSource(
+	std::string_view source,
+	std::size_t cursor,
+	std::string& left,
+	std::string& right
+) {
+	cursor = std::min(cursor, source.size());
+
+	if (cursor == 0 || cursor == source.size()) {
+		return false;
+	}
+
+	auto open_tags{ GetOpenTagsAt(source, cursor) };
+
+	if (!open_tags.has_value()) {
+		return false;
+	}
+
+	left = std::string{ source.substr(0, cursor) };
+	right = std::string{ source.substr(cursor) };
+
+	// Preserve active formatting across the page boundary. This turns:
+	// <b>Hello |world</b>
+	// into:
+	// <b>Hello </b>   +   <b>world</b>
+	for (auto it{ open_tags->rbegin() }; it != open_tags->rend(); ++it) {
+		left += "</" + it->name + ">";
+	}
+
+	std::string reopen;
+	for (const auto& tag : open_tags.value()) {
+		reopen += tag.open_source;
+	}
+
+	right.insert(0, reopen);
+	return true;
+}
+
+[[nodiscard]] inline bool DialogueNameExists(
 	const DialogueEditorDocument& document,
 	std::string_view name,
-	std::size_t ignore_index = std::string::npos
+	std::size_t ignore = std::string::npos
 ) {
 	for (std::size_t i{ 0 }; i < document.dialogues.size(); ++i) {
-		if (i != ignore_index && document.dialogues[i].name == name) {
+		if (i != ignore && document.dialogues[i].name == name) {
 			return true;
 		}
 	}
-
 	return false;
 }
 
-std::string MakeUniqueDialogueName(const DialogueEditorDocument& document) {
-	std::string base{ "dialogue" };
-
-	if (!DialogueNameExists(document, base)) {
-		return base;
+[[nodiscard]] inline std::string MakeUniqueDialogueName(const DialogueEditorDocument& document) {
+	if (!DialogueNameExists(document, "dialogue")) {
+		return "dialogue";
 	}
 
-	for (int suffix{ 2 };; ++suffix) {
-		auto candidate{ base + "_" + std::to_string(suffix) };
+	for (std::size_t suffix{ 2 };; ++suffix) {
+		std::string candidate{ "dialogue_" + std::to_string(suffix) };
 
 		if (!DialogueNameExists(document, candidate)) {
 			return candidate;
@@ -374,7 +251,7 @@ std::string MakeUniqueDialogueName(const DialogueEditorDocument& document) {
 	}
 }
 
-void RenameDialogue(
+inline void RenameDialogue(
 	DialogueEditorDocument& document,
 	std::size_t dialogue_index,
 	std::string new_name
@@ -383,7 +260,7 @@ void RenameDialogue(
 		return;
 	}
 
-	auto old_name{ document.dialogues[dialogue_index].name };
+	const std::string old_name{ document.dialogues[dialogue_index].name };
 
 	if (old_name == new_name) {
 		return;
@@ -402,11 +279,62 @@ void RenameDialogue(
 	}
 }
 
-json BuildDialogueJson(const DialogueEditorDocument& document) {
-	json root{
-		{ "start", document.start },
-		{ "dialogues", json::object() },
+inline void AppendRichTextPage(
+	DialogueEditorPageDraft& destination,
+	const DialogueEditorPageDraft& source
+) {
+	// Rebase the appended page onto the destination defaults so joining pages does not
+	// silently change the appearance of spans that relied on the second page's defaults.
+	const StyledText resolved{ ParseRichText(source.text).text };
+	const std::string rebased{
+		SerializeStyledTextToRichText(resolved, destination.text.defaults)
 	};
+
+	if (!destination.text.source.empty() && !rebased.empty()) {
+		destination.text.source += '\n';
+	}
+
+	destination.text.source += rebased;
+	destination.selection = {};
+}
+
+[[nodiscard]] inline DialogueEditorPageDraft MakePage(const DialogueEditorDocument& document) {
+	DialogueEditorPageDraft page;
+	page.text.defaults = document.defaults.text_defaults;
+	return page;
+}
+
+[[nodiscard]] inline DialogueEditorLineDraft MakeLine(const DialogueEditorDocument& document) {
+	DialogueEditorLineDraft line;
+	line.pages.emplace_back(MakePage(document));
+	return line;
+}
+
+[[nodiscard]] inline json SerializePage(
+	const DialogueEditorDocument& document,
+	const DialogueEditorPageDraft& page
+) {
+	if (page.text.defaults == document.defaults.text_defaults) {
+		return page.text.source;
+	}
+
+	return json{
+		{
+			"text",
+			json{
+				{ "source", page.text.source },
+				{ "defaults", page.text.defaults },
+			}
+		},
+	};
+}
+
+[[nodiscard]] inline json BuildDialogueJson(const DialogueEditorDocument& document) {
+	json root = document.defaults;
+
+	root["continue_key"] = document.continue_key;
+	root["start"] = document.start;
+	root["dialogues"] = json::object();
 
 	for (const auto& dialogue : document.dialogues) {
 		json entry{
@@ -419,22 +347,21 @@ json BuildDialogueJson(const DialogueEditorDocument& document) {
 		};
 
 		for (const auto& line : dialogue.lines) {
-			auto pages{ SplitIntoPages(line.source) };
-
-			if (pages.size() == 1) {
-				entry["lines"].push_back(pages.front());
+			if (line.pages.size() == 1 &&
+				line.pages.front().text.defaults == document.defaults.text_defaults) {
+				entry["lines"].push_back(line.pages.front().text.source);
 				continue;
 			}
 
-			json page_array{ json::array() };
+			json pages{ json::array() };
 
-			for (auto& page : pages) {
-				page_array.push_back(std::move(page));
+			for (const auto& page : line.pages) {
+				pages.push_back(SerializePage(document, page));
 			}
 
 			entry["lines"].push_back(
 				json{
-					{ "pages", std::move(page_array) },
+					{ "pages", std::move(pages) },
 				}
 			);
 		}
@@ -445,70 +372,106 @@ json BuildDialogueJson(const DialogueEditorDocument& document) {
 	return root;
 }
 
-DialogueEditorState MakeDemoState() {
+[[nodiscard]] inline DialogueEditorState MakeDemoState() {
 	DialogueEditorState state;
 
 	state.document.start = "intro";
+	state.document.defaults.box_size = { 600.0f, 160.0f };
+	state.document.defaults.text_defaults.style.size = 24.0f;
+
+	DialogueEditorEntryDraft intro{
+		.name = "intro",
+		.index = 0,
+		.repeatable = false,
+		.behavior = DialogueBehavior::Sequential,
+		.scroll = true,
+		.next = "outro",
+	};
+
+	DialogueEditorLineDraft intro_line;
+	intro_line.pages.emplace_back(MakePage(state.document));
+	intro_line.pages.back().text.source =
+		"Hey. <b>You made it.</b>\n\n"
+		"I wasn't sure you'd actually come.";
+
+	intro_line.pages.emplace_back(MakePage(state.document));
+	intro_line.pages.back().text.source =
+		"There's something I need to show you before we leave.\n\n"
+		"<i>Try not to freak out.</i>";
+
+	intro.lines.emplace_back(std::move(intro_line));
+
+	auto alternate{ MakeLine(state.document) };
+	alternate.pages.front().text.source =
+		"Oh, good. You're here.\n\nCome on, we're already late.";
+	intro.lines.emplace_back(std::move(alternate));
+
+	DialogueEditorEntryDraft outro{
+		.name = "outro",
+		.index = 0,
+		.repeatable = true,
+		.behavior = DialogueBehavior::Sequential,
+		.scroll = true,
+		.next = "epilogue",
+	};
+
+	auto outro_line{ MakeLine(state.document) };
+	outro_line.pages.front().text.source = "That's it, then.";
+	outro_line.pages.emplace_back(MakePage(state.document));
+	outro_line.pages.back().text.source =
+		"Whatever happens next, <b>we do it together.</b>";
+	outro.lines.emplace_back(std::move(outro_line));
+
+	DialogueEditorEntryDraft epilogue{
+		.name = "epilogue",
+		.index = 0,
+		.repeatable = true,
+		.behavior = DialogueBehavior::Sequential,
+		.scroll = true,
+		.next = "",
+	};
+
+	auto epilogue_line{ MakeLine(state.document) };
+	epilogue_line.pages.front().text.source = "The end.";
+	epilogue.lines.emplace_back(std::move(epilogue_line));
 
 	state.document.dialogues = {
-		DialogueEditorEntryDraft{
-			.name = "intro",
-			.index = 0,
-			.repeatable = false,
-			.behavior = DialogueBehavior::Sequential,
-			.scroll = true,
-			.next = "outro",
-			.lines = {
-				DialogueEditorLineDraft{
-					.source =
-						"Hey. You made it.\n\n"
-						"I wasn't sure you'd actually come.\n"
-						"[[PAGE]]\n"
-						"There's something I need to show you before we leave.\n\n"
-						"Try not to freak out.",
-				},
-				DialogueEditorLineDraft{
-					.source =
-						"Oh, good. You're here.\n\n"
-						"Come on, we're already late.",
-				},
-			},
-		},
-		DialogueEditorEntryDraft{
-			.name = "outro",
-			.index = 0,
-			.repeatable = true,
-			.behavior = DialogueBehavior::Sequential,
-			.scroll = true,
-			.next = "epilogue",
-			.lines = {
-				DialogueEditorLineDraft{
-					.source =
-						"That's it, then.\n"
-						"[[PAGE]]\n"
-						"Whatever happens next, we do it together.",
-				},
-			},
-		},
-		DialogueEditorEntryDraft{
-			.name = "epilogue",
-			.index = 0,
-			.repeatable = true,
-			.behavior = DialogueBehavior::Sequential,
-			.scroll = true,
-			.next = "",
-			.lines = {
-				DialogueEditorLineDraft{
-					.source = "The end.",
-				},
-			},
-		},
+		std::move(intro),
+		std::move(outro),
+		std::move(epilogue),
 	};
 
 	return state;
 }
 
-void DrawRenamePopup(DialogueEditorState& state) {
+inline void ClampSelection(DialogueEditorState& state) {
+	if (state.document.dialogues.empty()) {
+		return;
+	}
+
+	state.selected_dialogue = std::min(
+		state.selected_dialogue,
+		state.document.dialogues.size() - 1
+	);
+
+	auto& dialogue{ state.document.dialogues[state.selected_dialogue] };
+
+	if (dialogue.lines.empty()) {
+		dialogue.lines.emplace_back(MakeLine(state.document));
+	}
+
+	state.selected_line = std::min(state.selected_line, dialogue.lines.size() - 1);
+
+	auto& line{ dialogue.lines[state.selected_line] };
+
+	if (line.pages.empty()) {
+		line.pages.emplace_back(MakePage(state.document));
+	}
+
+	state.selected_page = std::min(state.selected_page, line.pages.size() - 1);
+}
+
+inline void DrawRenamePopup(DialogueEditorState& state) {
 	if (state.rename_requested) {
 		ImGui::OpenPopup("Rename Dialogue");
 		state.rename_requested = false;
@@ -522,55 +485,48 @@ void DrawRenamePopup(DialogueEditorState& state) {
 		return;
 	}
 
-	static char buffer[256]{};
-
 	if (ImGui::IsWindowAppearing()) {
-		std::fill(std::begin(buffer), std::end(buffer), '\0');
-
-		auto copy_count{
-			std::min(state.rename_buffer.size(), sizeof(buffer) - 1)
-		};
-
-		std::copy_n(state.rename_buffer.data(), copy_count, buffer);
 		ImGui::SetKeyboardFocusHere();
 	}
 
-	ImGui::InputText("##DialogueName", buffer, sizeof(buffer));
+	ImGui::SetNextItemWidth(300.0f);
+	ImGui::InputText("##DialogueName", &state.rename_buffer);
 
-	std::string proposed_name{ buffer };
-
-	auto valid{
-		!proposed_name.empty() &&
+	const bool valid{
+		!state.rename_buffer.empty() &&
 		!DialogueNameExists(
 			state.document,
-			proposed_name,
+			state.rename_buffer,
 			state.selected_dialogue
 		)
 	};
 
 	if (!valid) {
 		ImGui::TextDisabled(
-			proposed_name.empty()
+			state.rename_buffer.empty()
 				? "Name cannot be empty."
 				: "That dialogue name already exists."
 		);
 	}
 
-	if (!valid) {
-		ImGui::BeginDisabled();
-	}
+	{
+		const bool disable{ !valid };
+		if (disable) {
+			ImGui::BeginDisabled();
+		}
 
-	if (ImGui::Button("Rename")) {
-		RenameDialogue(
-			state.document,
-			state.selected_dialogue,
-			std::move(proposed_name)
-		);
-		ImGui::CloseCurrentPopup();
-	}
+		if (ImGui::Button("Rename")) {
+			RenameDialogue(
+				state.document,
+				state.selected_dialogue,
+				state.rename_buffer
+			);
+			ImGui::CloseCurrentPopup();
+		}
 
-	if (!valid) {
-		ImGui::EndDisabled();
+		if (disable) {
+			ImGui::EndDisabled();
+		}
 	}
 
 	ImGui::SameLine();
@@ -582,28 +538,32 @@ void DrawRenamePopup(DialogueEditorState& state) {
 	ImGui::EndPopup();
 }
 
-void DrawDialogueList(DialogueEditorState& state) {
+inline void DrawDialogueList(DialogueEditorState& state) {
 	auto& document{ state.document };
 
-	ImGui::BeginChild("##DialogueList", ImVec2{ 190.0f, 0.0f }, true);
+	ImGui::BeginChild(
+		"##DialogueList",
+		ImVec2{ 190.0f, 0.0f },
+		ImGuiChildFlags_Borders
+	);
 
 	ImGui::TextUnformatted("Dialogues");
 	ImGui::Separator();
 
-	if (ImGui::Button("+ Dialogue", ImVec2{ -1.0f, 0.0f })) {
-		auto name{ MakeUniqueDialogueName(document) };
+	if (ImGui::Button("+ Dialogue", ImVec2{ -FLT_MIN, 0.0f })) {
+		const std::string name{ MakeUniqueDialogueName(document) };
 
-		document.dialogues.emplace_back(
-			DialogueEditorEntryDraft{
-				.name = name,
-				.lines = {
-					DialogueEditorLineDraft{},
-				},
-			}
-		);
+		DialogueEditorEntryDraft dialogue{
+			.name = name,
+			.lines = {
+				MakeLine(document),
+			},
+		};
 
+		document.dialogues.emplace_back(std::move(dialogue));
 		state.selected_dialogue = document.dialogues.size() - 1;
 		state.selected_line = 0;
+		state.selected_page = 0;
 
 		if (document.start.empty()) {
 			document.start = name;
@@ -613,20 +573,20 @@ void DrawDialogueList(DialogueEditorState& state) {
 	ImGui::Spacing();
 
 	for (std::size_t i{ 0 }; i < document.dialogues.size(); ++i) {
-		auto selected{ i == state.selected_dialogue };
+		ImGui::PushID(static_cast<int>(i));
 
-		if (ImGui::Selectable(
-				document.dialogues[i].name.c_str(),
-				selected
-			)) {
+		const bool selected{ i == state.selected_dialogue };
+
+		if (ImGui::Selectable(document.dialogues[i].name.c_str(), selected)) {
 			state.selected_dialogue = i;
 			state.selected_line = 0;
+			state.selected_page = 0;
 		}
 
 		if (ImGui::BeginPopupContextItem()) {
 			if (ImGui::MenuItem("Rename")) {
-				state.rename_buffer = document.dialogues[i].name;
 				state.selected_dialogue = i;
+				state.rename_buffer = document.dialogues[i].name;
 				state.rename_requested = true;
 			}
 
@@ -635,19 +595,27 @@ void DrawDialogueList(DialogueEditorState& state) {
 				duplicate.name = MakeUniqueDialogueName(document);
 
 				document.dialogues.insert(
-					document.dialogues.begin() + static_cast<std::ptrdiff_t>(i + 1),
+					document.dialogues.begin() +
+						static_cast<std::ptrdiff_t>(i + 1),
 					std::move(duplicate)
 				);
 
 				state.selected_dialogue = i + 1;
 				state.selected_line = 0;
+				state.selected_page = 0;
 			}
 
-			if (ImGui::MenuItem("Delete", nullptr, false, document.dialogues.size() > 1)) {
-				auto deleted_name{ document.dialogues[i].name };
+			if (ImGui::MenuItem(
+					"Delete",
+					nullptr,
+					false,
+					document.dialogues.size() > 1
+				)) {
+				const std::string deleted_name{ document.dialogues[i].name };
 
 				document.dialogues.erase(
-					document.dialogues.begin() + static_cast<std::ptrdiff_t>(i)
+					document.dialogues.begin() +
+						static_cast<std::ptrdiff_t>(i)
 				);
 
 				if (document.start == deleted_name) {
@@ -665,40 +633,396 @@ void DrawDialogueList(DialogueEditorState& state) {
 					document.dialogues.size() - 1
 				);
 				state.selected_line = 0;
+				state.selected_page = 0;
 			}
 
 			ImGui::EndPopup();
 		}
+
+		ImGui::PopID();
 	}
 
 	ImGui::EndChild();
 }
 
-void DrawEntryProperties(
+inline void DrawLineTabs(
 	DialogueEditorState& state,
 	DialogueEditorEntryDraft& dialogue
 ) {
-	ImGui::BeginChild("##DialogueProperties", ImVec2{ 250.0f, 0.0f }, true);
+	ImGui::TextUnformatted("Variants");
+	ImGui::SameLine();
 
-	ImGui::TextUnformatted("Properties");
+	if (ImGui::SmallButton("+")) {
+		dialogue.lines.emplace_back(MakeLine(state.document));
+		state.selected_line = dialogue.lines.size() - 1;
+		state.selected_page = 0;
+	}
+
+	ImGui::SameLine();
+
+	if (ImGui::SmallButton("Duplicate")) {
+		dialogue.lines.insert(
+			dialogue.lines.begin() +
+				static_cast<std::ptrdiff_t>(state.selected_line + 1),
+			dialogue.lines[state.selected_line]
+		);
+		++state.selected_line;
+		state.selected_page = 0;
+	}
+
+	ImGui::SameLine();
+
+	const bool can_delete_line{ dialogue.lines.size() > 1 };
+	if (!can_delete_line) {
+		ImGui::BeginDisabled();
+	}
+
+	if (ImGui::SmallButton("Delete")) {
+		dialogue.lines.erase(
+			dialogue.lines.begin() +
+				static_cast<std::ptrdiff_t>(state.selected_line)
+		);
+
+		state.selected_line = std::min(
+			state.selected_line,
+			dialogue.lines.size() - 1
+		);
+		state.selected_page = 0;
+	}
+
+	if (!can_delete_line) {
+		ImGui::EndDisabled();
+	}
+
+	ImGui::Spacing();
+
+	if (ImGui::BeginTabBar(
+			"##DialogueVariants",
+			ImGuiTabBarFlags_AutoSelectNewTabs |
+				ImGuiTabBarFlags_FittingPolicyScroll
+		)) {
+		for (std::size_t i{ 0 }; i < dialogue.lines.size(); ++i) {
+			const std::string label{
+				"Line " + std::to_string(i + 1) + "###DialogueLine_" + std::to_string(i)
+			};
+
+			if (ImGui::BeginTabItem(label.c_str())) {
+				if (state.selected_line != i) {
+					state.selected_line = i;
+					state.selected_page = 0;
+				}
+				ImGui::EndTabItem();
+			}
+		}
+
+		ImGui::EndTabBar();
+	}
+}
+
+inline void DrawPageTabs(
+	DialogueEditorState& state,
+	DialogueEditorLineDraft& line
+) {
+	ImGui::TextUnformatted("Pages");
+	ImGui::SameLine();
+
+	if (ImGui::SmallButton("+ Page")) {
+		auto page{ MakePage(state.document) };
+
+		if (!line.pages.empty()) {
+			page.text.defaults = line.pages[state.selected_page].text.defaults;
+		}
+
+		line.pages.insert(
+			line.pages.begin() +
+				static_cast<std::ptrdiff_t>(state.selected_page + 1),
+			std::move(page)
+		);
+
+		++state.selected_page;
+	}
+
+	ImGui::SameLine();
+
+	if (ImGui::SmallButton("Duplicate Page")) {
+		line.pages.insert(
+			line.pages.begin() +
+				static_cast<std::ptrdiff_t>(state.selected_page + 1),
+			line.pages[state.selected_page]
+		);
+		++state.selected_page;
+	}
+
+	ImGui::SameLine();
+
+	const bool can_move_left{ state.selected_page > 0 };
+	if (!can_move_left) {
+		ImGui::BeginDisabled();
+	}
+
+	if (ImGui::SmallButton("<")) {
+		std::swap(
+			line.pages[state.selected_page],
+			line.pages[state.selected_page - 1]
+		);
+		--state.selected_page;
+	}
+
+	if (!can_move_left) {
+		ImGui::EndDisabled();
+	}
+
+	ImGui::SameLine();
+
+	const bool can_move_right{ state.selected_page + 1 < line.pages.size() };
+	if (!can_move_right) {
+		ImGui::BeginDisabled();
+	}
+
+	if (ImGui::SmallButton(">")) {
+		std::swap(
+			line.pages[state.selected_page],
+			line.pages[state.selected_page + 1]
+		);
+		++state.selected_page;
+	}
+
+	if (!can_move_right) {
+		ImGui::EndDisabled();
+	}
+
+	ImGui::SameLine();
+
+	const bool can_delete_page{ line.pages.size() > 1 };
+	if (!can_delete_page) {
+		ImGui::BeginDisabled();
+	}
+
+	if (ImGui::SmallButton("Delete Page")) {
+		line.pages.erase(
+			line.pages.begin() +
+				static_cast<std::ptrdiff_t>(state.selected_page)
+		);
+
+		state.selected_page = std::min(
+			state.selected_page,
+			line.pages.size() - 1
+		);
+	}
+
+	if (!can_delete_page) {
+		ImGui::EndDisabled();
+	}
+
+	ImGui::SameLine();
+
+	const bool can_join_previous{ state.selected_page > 0 };
+	if (!can_join_previous) {
+		ImGui::BeginDisabled();
+	}
+
+	if (ImGui::SmallButton("Join Previous")) {
+		auto& previous{ line.pages[state.selected_page - 1] };
+		AppendRichTextPage(previous, line.pages[state.selected_page]);
+		line.pages.erase(
+			line.pages.begin() + static_cast<std::ptrdiff_t>(state.selected_page)
+		);
+		--state.selected_page;
+	}
+
+	if (!can_join_previous) {
+		ImGui::EndDisabled();
+	}
+
+	ImGui::SameLine();
+
+	const bool can_join_next{ state.selected_page + 1 < line.pages.size() };
+	if (!can_join_next) {
+		ImGui::BeginDisabled();
+	}
+
+	if (ImGui::SmallButton("Join Next")) {
+		AppendRichTextPage(
+			line.pages[state.selected_page],
+			line.pages[state.selected_page + 1]
+		);
+		line.pages.erase(
+			line.pages.begin() + static_cast<std::ptrdiff_t>(state.selected_page + 1)
+		);
+	}
+
+	if (!can_join_next) {
+		ImGui::EndDisabled();
+	}
+
+	ImGui::Spacing();
+
+	if (ImGui::BeginTabBar(
+			"##DialoguePages",
+			ImGuiTabBarFlags_AutoSelectNewTabs |
+				ImGuiTabBarFlags_FittingPolicyScroll
+		)) {
+		for (std::size_t i{ 0 }; i < line.pages.size(); ++i) {
+			const std::string label{
+				"Page " + std::to_string(i + 1) + "###DialoguePage_" + std::to_string(i)
+			};
+
+			if (ImGui::BeginTabItem(label.c_str())) {
+				state.selected_page = i;
+				ImGui::EndTabItem();
+			}
+		}
+
+		ImGui::EndTabBar();
+	}
+}
+
+inline void DrawCurrentPageEditor(
+	EditorContext& ctx,
+	DialogueEditorState& state,
+	DialogueEditorLineDraft& line
+) {
+	auto& page{ line.pages[state.selected_page] };
+	const TextRunDefaults page_defaults{ page.text.defaults };
+
+	ImGui::PushID(static_cast<int>(state.selected_dialogue));
+	ImGui::PushID(static_cast<int>(state.selected_line));
+	ImGui::PushID(static_cast<int>(state.selected_page));
+
+	DrawRichTextEditor(
+		ctx,
+		page.text.source,
+		page.text.defaults,
+		RichTextEditorOptions{
+			.show_preview = true,
+			.line_count = 10,
+			.selection = &page.selection,
+		}
+	);
+
+	const std::size_t split_position{
+		std::min(page.selection.cursor, page.text.source.size())
+	};
+
+	std::string split_left;
+	std::string split_right;
+	const bool can_split{
+		SplitRichTextSource(
+			page.text.source,
+			split_position,
+			split_left,
+			split_right
+		)
+	};
+
+	if (!can_split) {
+		ImGui::BeginDisabled();
+	}
+
+	if (ImGui::Button("Split Page at Cursor")) {
+		DialogueEditorPageDraft second{ page };
+		page.text.source = std::move(split_left);
+		second.text.source = std::move(split_right);
+		page.selection = {};
+		second.selection = {};
+
+		line.pages.insert(
+			line.pages.begin() +
+				static_cast<std::ptrdiff_t>(state.selected_page + 1),
+			std::move(second)
+		);
+
+		++state.selected_page;
+	}
+
+	if (!can_split) {
+		ImGui::EndDisabled();
+
+		if (ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled)) {
+			ImGui::SetTooltip(
+				"Place the cursor somewhere inside the page source.\n"
+				"Splitting inside an incomplete <tag> is not allowed."
+			);
+		}
+	} else if (ImGui::IsItemHovered()) {
+		ImGui::SetTooltip(
+			"Split this page at the rich-text cursor.\n"
+			"Open formatting tags are automatically closed and reopened across the new page."
+		);
+	}
+
+	ImGui::SameLine();
+
+	if (ImGui::Button("Use Defaults for New Pages")) {
+		state.document.defaults.text_defaults = page_defaults;
+	}
+
+	if (ImGui::IsItemHovered()) {
+		ImGui::SetTooltip(
+			"Make this page's rich-text Defaults the root defaults used by newly created pages."
+		);
+	}
+
+	ImGui::PopID();
+	ImGui::PopID();
+	ImGui::PopID();
+}
+
+inline void DrawEntryProperties(
+	EditorContext& ctx,
+	DialogueEditorState& state,
+	DialogueEditorEntryDraft& dialogue
+) {
+	ImGui::BeginChild(
+		"##DialogueProperties",
+		ImVec2{ 270.0f, 0.0f },
+		ImGuiChildFlags_Borders
+	);
+
+	ImGui::TextUnformatted("Dialogue");
 	ImGui::Separator();
 
-	if (ImGui::Button("Rename", ImVec2{ -1.0f, 0.0f })) {
+	if (ImGui::Button("Rename", ImVec2{ -FLT_MIN, 0.0f })) {
 		state.rename_buffer = dialogue.name;
 		state.rename_requested = true;
 	}
 
 	ImGui::Spacing();
 
-	ImGui::TextUnformatted("Start dialogue");
-	ImGui::SetNextItemWidth(-1.0f);
+	ImGui::TextUnformatted("Start Dialogue");
+	ImGui::SetNextItemWidth(-FLT_MIN);
 
 	if (ImGui::BeginCombo("##StartDialogue", state.document.start.c_str())) {
 		for (const auto& candidate : state.document.dialogues) {
-			auto selected{ state.document.start == candidate.name };
+			const bool selected{ state.document.start == candidate.name };
 
 			if (ImGui::Selectable(candidate.name.c_str(), selected)) {
 				state.document.start = candidate.name;
+			}
+		}
+		ImGui::EndCombo();
+	}
+
+	ImGui::Spacing();
+	ImGui::TextUnformatted("Next Dialogue");
+	ImGui::SetNextItemWidth(-FLT_MIN);
+
+	const char* next_preview{
+		dialogue.next.empty()
+			? "(none)"
+			: dialogue.next.c_str()
+	};
+
+	if (ImGui::BeginCombo("##NextDialogue", next_preview)) {
+		if (ImGui::Selectable("(none)", dialogue.next.empty())) {
+			dialogue.next.clear();
+		}
+
+		for (const auto& candidate : state.document.dialogues) {
+			const bool selected{ dialogue.next == candidate.name };
+
+			if (ImGui::Selectable(candidate.name.c_str(), selected)) {
+				dialogue.next = candidate.name;
 			}
 		}
 
@@ -708,15 +1032,15 @@ void DrawEntryProperties(
 	ImGui::Spacing();
 
 	ImGui::TextUnformatted("Behavior");
-	ImGui::SetNextItemWidth(-1.0f);
+	ImGui::SetNextItemWidth(-FLT_MIN);
 
-	auto behavior_name{
+	const char* behavior_preview{
 		dialogue.behavior == DialogueBehavior::Sequential
 			? "Sequential"
 			: "Random"
 	};
 
-	if (ImGui::BeginCombo("##Behavior", behavior_name)) {
+	if (ImGui::BeginCombo("##DialogueBehavior", behavior_preview)) {
 		if (ImGui::Selectable(
 				"Sequential",
 				dialogue.behavior == DialogueBehavior::Sequential
@@ -735,306 +1059,124 @@ void DrawEntryProperties(
 	}
 
 	ImGui::Checkbox("Repeatable", &dialogue.repeatable);
-	ImGui::Checkbox("Scroll text", &dialogue.scroll);
+	ImGui::Checkbox("Scroll Text", &dialogue.scroll);
 
-	ImGui::Spacing();
-
-	ImGui::TextUnformatted("Initial line index");
-	ImGui::SetNextItemWidth(-1.0f);
-	ImGui::InputInt("##InitialLine", &dialogue.index);
+	ImGui::SetNextItemWidth(-FLT_MIN);
+	ImGui::InputInt("Initial Line", &dialogue.index);
 	dialogue.index = std::max(dialogue.index, 0);
-
-	ImGui::Spacing();
-
-	ImGui::TextUnformatted("Next dialogue");
-	ImGui::SetNextItemWidth(-1.0f);
-
-	auto next_label{
-		dialogue.next.empty()
-			? "(none)"
-			: dialogue.next.c_str()
-	};
-
-	if (ImGui::BeginCombo("##NextDialogue", next_label)) {
-		if (ImGui::Selectable("(none)", dialogue.next.empty())) {
-			dialogue.next.clear();
-		}
-
-		for (const auto& candidate : state.document.dialogues) {
-			auto selected{ dialogue.next == candidate.name };
-
-			if (ImGui::Selectable(candidate.name.c_str(), selected)) {
-				dialogue.next = candidate.name;
-			}
-		}
-
-		ImGui::EndCombo();
-	}
 
 	ImGui::Spacing();
 	ImGui::Separator();
 	ImGui::Spacing();
 
+	if (ImGui::TreeNodeEx(
+			"Root Dialogue Defaults",
+			ImGuiTreeNodeFlags_SpanAvailWidth |
+				ImGuiTreeNodeFlags_FramePadding
+		)) {
+		inspector::DrawValue(ctx, "Continue Key", state.document.continue_key);
+		inspector::DrawValue(ctx, "Box Size", state.document.defaults.box_size);
+		inspector::DrawValue(ctx, "Padding", state.document.defaults.padding);
+		inspector::DrawValue(
+			ctx,
+			"Scroll Duration",
+			state.document.defaults.scroll_duration
+		);
+		inspector::DrawValue(
+			ctx,
+			"Horizontal Align",
+			state.document.defaults.horizontal_align
+		);
+		inspector::DrawValue(
+			ctx,
+			"Vertical Align",
+			state.document.defaults.vertical_align
+		);
+		inspector::DrawValue(
+			ctx,
+			"Wrap Mode",
+			state.document.defaults.wrap_mode
+		);
+		inspector::DrawValue(
+			ctx,
+			"Overflow Mode",
+			state.document.defaults.overflow_mode
+		);
+
+		ImGui::TreePop();
+	}
+
+	ImGui::Spacing();
 	ImGui::TextWrapped(
-		"[[PAGE]] is an editor-only authoring marker. Export converts it "
-		"to the existing JSON pages array."
+		"Each page is authored as RichText. The runtime receives resolved StyledText plus the "
+		"page's TextRunDefaults, matching the normal text component architecture."
 	);
 
 	ImGui::EndChild();
 }
 
-void DrawLineSelector(
-	DialogueEditorState& state,
-	DialogueEditorEntryDraft& dialogue
-) {
-	ImGui::TextUnformatted("Variants");
+inline void DrawDialogueEditorBody(EditorContext& ctx, DialogueEditorState& state) {
+	ClampSelection(state);
+
+	DrawDialogueList(state);
 	ImGui::SameLine();
 
-	if (ImGui::SmallButton("+")) {
-		dialogue.lines.emplace_back();
-		state.selected_line = dialogue.lines.size() - 1;
-	}
+	ImGui::BeginGroup();
 
-	ImGui::SameLine();
-
-	if (ImGui::SmallButton("Duplicate") && !dialogue.lines.empty()) {
-		auto duplicate{ dialogue.lines[state.selected_line] };
-		duplicate.cursor = {};
-
-		dialogue.lines.insert(
-			dialogue.lines.begin() +
-				static_cast<std::ptrdiff_t>(state.selected_line + 1),
-			std::move(duplicate)
-		);
-
-		++state.selected_line;
-	}
-
-	ImGui::SameLine();
-
-	if (dialogue.lines.size() <= 1) {
-		ImGui::BeginDisabled();
-	}
-
-	if (ImGui::SmallButton("Delete")) {
-		dialogue.lines.erase(
-			dialogue.lines.begin() +
-				static_cast<std::ptrdiff_t>(state.selected_line)
-		);
-
-		state.selected_line = std::min(
-			state.selected_line,
-			dialogue.lines.size() - 1
-		);
-	}
-
-	if (dialogue.lines.size() <= 1) {
-		ImGui::EndDisabled();
-	}
-
-	ImGui::Spacing();
-
-	for (std::size_t i{ 0 }; i < dialogue.lines.size(); ++i) {
-		if (i > 0) {
-			ImGui::SameLine();
-		}
-
-		auto label{ "Line " + std::to_string(i + 1) };
-
-		if (ImGui::Selectable(
-				label.c_str(),
-				i == state.selected_line,
-				0,
-				ImVec2{ 72.0f, 0.0f }
-			)) {
-			state.selected_line = i;
-		}
-	}
-}
-
-void DrawPageToolbar(DialogueEditorLineDraft& line) {
-	auto page_count{ GetPageCount(line.source) };
-	auto current_page{
-		std::min(
-			GetCurrentPageIndex(line.source, line.cursor.cursor_pos),
-			page_count - 1
+	const float property_width{ 270.0f };
+	const float editor_width{
+		std::max(
+			360.0f,
+			ImGui::GetContentRegionAvail().x -
+				property_width -
+				ImGui::GetStyle().ItemSpacing.x
 		)
 	};
 
-	if (ImGui::Button("+ Page Break")) {
-		InsertPageBreak(
-			line.source,
-			line.cursor,
-			static_cast<std::size_t>(std::max(line.cursor.cursor_pos, 0))
-		);
-	}
+	ImGui::BeginChild(
+		"##DialogueEditorCenter",
+		ImVec2{ editor_width, 0.0f },
+		ImGuiChildFlags_Borders
+	);
 
-	ImGui::SameLine();
-
-	if (current_page > 0) {
-		if (ImGui::Button("Move Previous Break Here")) {
-			MovePageBreakToCursor(
-				line.source,
-				line.cursor,
-				current_page - 1
-			);
-		}
-	} else {
-		ImGui::BeginDisabled();
-		ImGui::Button("Move Previous Break Here");
-		ImGui::EndDisabled();
-	}
-
-	ImGui::SameLine();
-
-	if (current_page + 1 < page_count) {
-		if (ImGui::Button("Move Next Break Here")) {
-			MovePageBreakToCursor(
-				line.source,
-				line.cursor,
-				current_page
-			);
-		}
-	} else {
-		ImGui::BeginDisabled();
-		ImGui::Button("Move Next Break Here");
-		ImGui::EndDisabled();
-	}
-
-	ImGui::SameLine();
-
-	if (page_count > 1) {
-		if (ImGui::Button("Remove Previous Break")) {
-			auto break_index{
-				current_page > 0
-					? current_page - 1
-					: current_page
-			};
-
-			RemovePageBreak(line.source, line.cursor, break_index);
-		}
-	} else {
-		ImGui::BeginDisabled();
-		ImGui::Button("Remove Previous Break");
-		ImGui::EndDisabled();
-	}
-}
-
-void DrawPageNavigator(DialogueEditorLineDraft& line) {
-	auto pages{ SplitIntoPages(line.source) };
-	auto page_count{ pages.size() };
-	auto current_page{
-		std::min(
-			GetCurrentPageIndex(line.source, line.cursor.cursor_pos),
-			page_count - 1
-		)
+	auto& dialogue{
+		state.document.dialogues[state.selected_dialogue]
 	};
 
-	ImGui::Separator();
-	ImGui::Text(
-		"Page %zu / %zu",
-		current_page + 1,
-		page_count
-	);
-
-	ImGui::SameLine();
-
-	if (current_page == 0) {
-		ImGui::BeginDisabled();
-	}
-
-	if (ImGui::SmallButton("<")) {
-		RequestCursor(line.cursor, GetPageStart(line.source, current_page - 1));
-	}
-
-	if (current_page == 0) {
-		ImGui::EndDisabled();
-	}
-
-	ImGui::SameLine();
-
-	if (current_page + 1 >= page_count) {
-		ImGui::BeginDisabled();
-	}
-
-	if (ImGui::SmallButton(">")) {
-		RequestCursor(line.cursor, GetPageStart(line.source, current_page + 1));
-	}
-
-	if (current_page + 1 >= page_count) {
-		ImGui::EndDisabled();
-	}
-
-	ImGui::SameLine();
-	ImGui::TextDisabled(
-		"%zu chars",
-		pages[current_page].size()
-	);
-
-	ImGui::Spacing();
-
-	for (std::size_t i{ 0 }; i < pages.size(); ++i) {
-		ImGui::PushID(static_cast<int>(i));
-
-		auto selected{ i == current_page };
-		auto page_label{
-			"Page " + std::to_string(i + 1) + "  " + FirstLine(pages[i])
-		};
-
-		if (ImGui::Selectable(page_label.c_str(), selected)) {
-			RequestCursor(line.cursor, GetPageStart(line.source, i));
-		}
-
-		ImGui::PopID();
-	}
-}
-
-void DrawDialogueTextEditor(
-	DialogueEditorState& state,
-	DialogueEditorEntryDraft& dialogue
-) {
-	if (dialogue.lines.empty()) {
-		dialogue.lines.emplace_back();
-	}
-
-	state.selected_line = std::min(
-		state.selected_line,
-		dialogue.lines.size() - 1
-	);
-
-	DrawLineSelector(state, dialogue);
-
-	ImGui::Separator();
-	ImGui::Spacing();
+	DrawLineTabs(state, dialogue);
+	ClampSelection(state);
 
 	auto& line{ dialogue.lines[state.selected_line] };
 
-	DrawPageToolbar(line);
+	ImGui::Separator();
+	DrawPageTabs(state, line);
+	ClampSelection(state);
 
-	ImGui::Spacing();
+	ImGui::SeparatorText("Rich Text");
+	DrawCurrentPageEditor(ctx, state, line);
 
-	auto available{ ImGui::GetContentRegionAvail() };
-	auto navigator_height{ 145.0f };
-	auto editor_height{ std::max(180.0f, available.y - navigator_height) };
+	ImGui::EndChild();
 
-	InputTextMultiline(
-		"##DialogueSource",
-		line.source,
-		line.cursor,
-		ImVec2{ -1.0f, editor_height }
-	);
+	ImGui::SameLine();
 
-	DrawPageNavigator(line);
+	DrawEntryProperties(ctx, state, dialogue);
+
+	ImGui::EndGroup();
+
+	DrawRenamePopup(state);
 }
 
-void DrawJsonPreview(DialogueEditorState& state) {
+inline void DrawJsonPreview(DialogueEditorState& state) {
 	if (!state.show_json) {
 		return;
 	}
 
-	ImGui::SetNextWindowSize(ImVec2{ 650.0f, 520.0f }, ImGuiCond_FirstUseEver);
+	ImGui::SetNextWindowSize(
+		ImVec2{ 720.0f, 600.0f },
+		ImGuiCond_FirstUseEver
+	);
 
-	if (!ImGui::Begin("Dialogue JSON", &state.show_json)) {
+	if (!ImGui::Begin("Dialogue JSON###DialogueJsonPreview", &state.show_json)) {
 		ImGui::End();
 		return;
 	}
@@ -1046,6 +1188,7 @@ void DrawJsonPreview(DialogueEditorState& state) {
 	}
 
 	ImGui::SameLine();
+
 	ImGui::TextDisabled(
 		"%zu bytes",
 		state.generated_json.size()
@@ -1054,98 +1197,69 @@ void DrawJsonPreview(DialogueEditorState& state) {
 	ImGui::Separator();
 
 	ImGui::InputTextMultiline(
-		"##GeneratedDialogueJson",
-		state.generated_json.data(),
-		state.generated_json.size() + 1,
-		ImVec2{ -1.0f, -1.0f },
+		"##DialogueJson",
+		&state.generated_json,
+		ImVec2{ -FLT_MIN, -FLT_MIN },
 		ImGuiInputTextFlags_ReadOnly
 	);
 
 	ImGui::End();
 }
 
-} // namespace
+} // namespace dialogue_editor_demo_detail
 
-void DrawDialogueEditorDemoWindow(bool* open) {
+inline void DrawDialogueEditorDemoWindow(EditorContext& ctx, bool* open = nullptr) {
+	using namespace dialogue_editor_demo_detail;
 	static DialogueEditorState state{ MakeDemoState() };
 
 	if (open && !*open) {
 		return;
 	}
 
-	ImGui::SetNextWindowSize(ImVec2{ 1100.0f, 700.0f }, ImGuiCond_FirstUseEver);
+	ImGui::SetNextWindowSize(
+		ImVec2{ 1280.0f, 780.0f },
+		ImGuiCond_FirstUseEver
+	);
 
 	if (!ImGui::Begin("Dialogue Editor Demo", open)) {
 		ImGui::End();
+		DrawJsonPreview(state);
 		return;
 	}
 
 	if (state.document.dialogues.empty()) {
-		state.document.dialogues.emplace_back(
-			DialogueEditorEntryDraft{
-				.name = "dialogue",
-				.lines = {
-					DialogueEditorLineDraft{},
-				},
-			}
-		);
+		DialogueEditorEntryDraft dialogue{
+			.name = "dialogue",
+			.lines = {
+				MakeLine(state.document),
+			},
+		};
 
+		state.document.dialogues.emplace_back(std::move(dialogue));
 		state.document.start = "dialogue";
 		state.selected_dialogue = 0;
 		state.selected_line = 0;
+		state.selected_page = 0;
 	}
-
-	state.selected_dialogue = std::min(
-		state.selected_dialogue,
-		state.document.dialogues.size() - 1
-	);
 
 	if (ImGui::Button("Preview JSON")) {
 		state.show_json = true;
 	}
 
 	ImGui::SameLine();
+
+	if (ImGui::Button("Reset Demo")) {
+		state = MakeDemoState();
+	}
+
+	ImGui::SameLine();
 	ImGui::TextDisabled(
-		"Author one continuous line; insert [[PAGE]] wherever a hard page break belongs."
+		"Pages are real RichText documents; add, duplicate, reorder, delete, or split at the cursor."
 	);
 
 	ImGui::Separator();
 
-	DrawDialogueList(state);
-
-	ImGui::SameLine();
-
-	ImGui::BeginGroup();
-
-	auto right_panel_width{ 250.0f };
-	auto center_width{
-		std::max(
-			300.0f,
-			ImGui::GetContentRegionAvail().x - right_panel_width - ImGui::GetStyle().ItemSpacing.x
-		)
-	};
-
-	ImGui::BeginChild(
-		"##DialogueCenter",
-		ImVec2{ center_width, 0.0f },
-		true
-	);
-
-	auto& dialogue{
-		state.document.dialogues[state.selected_dialogue]
-	};
-
-	DrawDialogueTextEditor(state, dialogue);
-
-	ImGui::EndChild();
-
-	ImGui::SameLine();
-
-	DrawEntryProperties(state, dialogue);
-
-	ImGui::EndGroup();
-
-	DrawRenamePopup(state);
+	DrawDialogueEditorBody(ctx, state);
 
 	ImGui::End();
 
