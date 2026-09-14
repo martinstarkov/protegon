@@ -95,15 +95,10 @@ constexpr std::string_view kDialogueScrollChannel{ "dialogue.scroll" };
 	const Scene& scene, std::string_view content, const DialoguePageProperties& properties,
 	std::string_view split_end, std::string_view split_begin
 ) {
-	const TextRunDefaults defaults{
-		.font = properties.font,
-		.style = properties.ToTextRunStyle(),
-	};
-
-	// Compile markup before pagination so tags do not count as glyphs and styled spans survive
-	// page boundaries as ordinary TextRun data. Unresolved ${variables} remain literal for a future
-	// dialogue context resolver.
-	auto parsed{ ParseRichText(content, defaults) };
+	// Dialogue source uses the same authoring defaults as every other RichText surface.
+	// Compile before pagination so markup never counts as glyphs and styled spans survive
+	// page boundaries as ordinary resolved TextRun data.
+	auto parsed{ ParseRichText(content, properties.text_defaults) };
 	return PaginateDialogueText(scene, parsed.text, properties, split_end, split_begin);
 }
 
@@ -161,11 +156,22 @@ DialoguePage::DialoguePage(StyledText styled, const DialoguePageProperties& dial
 DialoguePageProperties DialoguePageProperties::InheritProperties(const json& j) const {
 	DialoguePageProperties properties{ *this };
 
-	properties.color		   = j.value("color", properties.color);
+	// New rich-text-aware representation. This mirrors RichText::defaults instead of
+	// duplicating font/color/size as dialogue-specific concepts.
+	if (j.contains("text_defaults")) {
+		properties.text_defaults = j.at("text_defaults").get<TextRunDefaults>();
+	}
+
+	// Backwards compatibility with the old dialogue JSON shape.
+	properties.text_defaults.style.color =
+		j.value("color", properties.text_defaults.style.color);
+	properties.text_defaults.font =
+		j.value("font", properties.text_defaults.font);
+	properties.text_defaults.style.size =
+		j.value("font_size", properties.text_defaults.style.size);
+
 	properties.scroll_duration = j.value("scroll_duration", properties.scroll_duration);
 	properties.box_size		   = j.value("box_size", properties.box_size);
-	properties.font			   = j.value("font", properties.font);
-	properties.font_size	   = j.value("font_size", properties.font_size);
 
 	properties.horizontal_align = j.value("horizontal_align", properties.horizontal_align);
 	properties.vertical_align	= j.value("vertical_align", properties.vertical_align);
@@ -196,21 +202,15 @@ TextBox DialoguePageProperties::ToTextBox() const {
 	return box;
 }
 
-TextRunStyle DialoguePageProperties::ToTextRunStyle() const {
-	TextRunStyle style;
-	style.color = color;
-	style.size	= font_size;
-	return style;
-}
-
 void DialoguePageProperties::ApplyToText(Text text) const {
-	text.Font(font)
-		.Color(color)
-		.Size(font_size)
-		.Box(ToTextBox().rect)
-		.Align(horizontal_align, vertical_align)
-		.Wrap(wrap_mode)
-		.Overflow(overflow_mode);
+	if (!text.Has<impl::TextData>()) {
+		return;
+	}
+
+	// Keep DialoguePage and TextData aligned: StyledText is the resolved runtime
+	// representation, while TextRunDefaults remains the authoring baseline.
+	text.Get<impl::TextData>().defaults = text_defaults;
+	text.Box(ToTextBox());
 }
 
 std::size_t DialogueEntry::PickRandomIndex() const {
@@ -387,16 +387,44 @@ void DialogueData::LoadFromJson(
 							if (page_json.is_string()) {
 								append_pages(line, page_json.get<std::string>(), line_properties);
 							} else if (page_json.is_object()) {
-								PTGN_ASSERT(page_json.contains("content"));
+								PTGN_ASSERT(
+									page_json.contains("text") || page_json.contains("content"),
+									"Dialogue page object requires either 'text' or 'content'"
+								);
 
 								auto page_properties{
 									line_properties.InheritProperties(page_json)
 								};
 
-								append_pages(
-									line, page_json.at("content").get<std::string>(),
-									page_properties
-								);
+								if (page_json.contains("text")) {
+									const auto& text_json{ page_json.at("text") };
+
+									if (text_json.is_string()) {
+										append_pages(
+											line, text_json.get<std::string>(), page_properties
+										);
+									} else {
+										PTGN_ASSERT(
+											text_json.is_object() && text_json.contains("source"),
+											"Dialogue rich text requires a source"
+										);
+
+										page_properties.text_defaults = text_json.value(
+											"defaults", page_properties.text_defaults
+										);
+
+										append_pages(
+											line, text_json.at("source").get<std::string>(),
+											page_properties
+										);
+									}
+								} else {
+									// Legacy page-object shape.
+									append_pages(
+										line, page_json.at("content").get<std::string>(),
+										page_properties
+									);
+								}
 							}
 						}
 					}
@@ -689,17 +717,10 @@ void DialogueBox::ApplyCurrentPage() {
 	}
 
 	Text text{ TextPart() };
-	text.Get<impl::TextData>().defaults = TextRunDefaults{
-		.font = page->properties.font,
-		.style = page->properties.ToTextRunStyle(),
-	};
+	page->properties.ApplyToText(text);
 
 	text.Clear()
 		.Content(page->styled_text)
-		.Box(page->properties.TextAreaRect())
-		.Align(page->properties.horizontal_align, page->properties.vertical_align)
-		.Wrap(page->properties.wrap_mode)
-		.Overflow(page->properties.overflow_mode)
 		.Reveal(0);
 
 	PositionTextForPage(page->properties);
@@ -825,9 +846,7 @@ DialogueBox CreateDialogueBox(Scene& scene, Transform transform, const DialogueD
 
 void to_json(json& j, const DialoguePageProperties& properties) {
 	j = json{
-		{ "color", properties.color },
-		{ "font", properties.font },
-		{ "font_size", properties.font_size },
+		{ "text_defaults", properties.text_defaults },
 		{ "box_size", properties.box_size },
 		{ "padding", properties.padding },
 		{ "scroll_duration", properties.scroll_duration },

@@ -79,12 +79,11 @@ struct DialoguePageProperties {
 	[[nodiscard]] V2_float TextAreaSize() const;
 	[[nodiscard]] Rect TextAreaRect() const;
 	[[nodiscard]] TextBox ToTextBox() const;
-	[[nodiscard]] TextRunStyle ToTextRunStyle() const;
 	void ApplyToText(Text text) const;
 
-	Color color{ color::White };
-	FontKey font{ kDefaultFont };
-	float font_size{ kDefaultFontSize };
+	/// @brief Base rich-text values used by untagged dialogue text.
+	/// Rich-text markup can override these per span without changing the page baseline.
+	TextRunDefaults text_defaults{};
 
 	V2_float box_size{};
 	Padding padding{};
