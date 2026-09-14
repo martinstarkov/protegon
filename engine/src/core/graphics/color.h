@@ -1,9 +1,15 @@
 #pragma once
 
+#include <algorithm>
 #include <array>
 #include <cstdint>
+#include <memory>
 #include <ostream>
+#include <string>
+#include <string_view>
 #include <type_traits>
+#include <utility>
+#include <vector>
 
 #include "core/log.h"
 #include "core/assert.h"
@@ -209,76 +215,165 @@ struct Color {
 				  static_cast<std::uint8_t>(Lerp(lhs.a, rhs.a, t.w)) };
 }
 
-namespace color {
+struct RegisteredColor {
+	std::string key{};
+	Color value{};
 
-inline constexpr Color Transparent{ 0, 0, 0, 0 };
-inline constexpr Color Black{ 0, 0, 0, 255 };
-inline constexpr Color White{ 255, 255, 255, 255 };
+	bool operator==(const RegisteredColor&) const = default;
+};
 
-inline constexpr Color Red{ 255, 0, 0, 255 };
-inline constexpr Color LightRed{ 255, 128, 128, 255 };
-inline constexpr Color DarkRed{ 128, 0, 0, 255 };
-inline constexpr Color BrightRed{ 255, 69, 0, 255 };
-inline constexpr Color DeepRed{ 178, 34, 34, 255 };
+namespace impl {
 
-inline constexpr Color Brown{ 165, 42, 42, 255 };
-inline constexpr Color LightBrown{ 210, 180, 140, 255 };
-inline constexpr Color DarkBrown{ 101, 67, 33, 255 };
+inline std::vector<RegisteredColor>& MutableColorRegistry() {
+	static std::vector<RegisteredColor> registry;
+	return registry;
+}
 
-inline constexpr Color Orange{ 255, 165, 0, 255 };
-inline constexpr Color LightOrange{ 255, 215, 128, 255 };
-inline constexpr Color DarkOrange{ 204, 102, 0, 255 };
+} // namespace impl
 
-inline constexpr Color Yellow{ 255, 255, 0, 255 };
-inline constexpr Color LightYellow{ 255, 255, 128, 255 };
-inline constexpr Color DarkYellow{ 204, 204, 0, 255 };
-inline constexpr Color BrightYellow{ 255, 255, 102, 255 };
-inline constexpr Color Gold{ 255, 215, 0, 255 };
-inline constexpr Color LightGold{ 255, 235, 153, 255 };
-inline constexpr Color DarkGold{ 184, 134, 11, 255 };
+/// @brief Registers a named color. Keys must be unique.
+/// Re-registering the same key/value pair is harmless, which keeps header-defined registrations
+/// safe across translation units.
+inline bool RegisterColor(std::string key, Color value) {
+	PTGN_ASSERT(!key.empty(), "Registered color key cannot be empty");
 
-inline constexpr Color Green{ 0, 255, 0, 255 };
-inline constexpr Color LightGreen{ 144, 238, 144, 255 };
-inline constexpr Color DarkGreen{ 0, 100, 0, 255 };
-inline constexpr Color BrightGreen{ 0, 255, 102, 255 };
-inline constexpr Color LimeGreen{ 191, 255, 0, 255 };
+	auto& registry{ impl::MutableColorRegistry() };
+	const auto it{ std::find_if(
+		registry.begin(),
+		registry.end(),
+		[&key](const RegisteredColor& color) {
+			return color.key == key;
+		}
+	) };
 
-inline constexpr Color Blue{ 0, 0, 255, 255 };
-inline constexpr Color LightBlue{ 173, 216, 230, 255 };
-inline constexpr Color DarkBlue{ 0, 0, 128, 255 };
-inline constexpr Color SkyBlue{ 135, 206, 235, 255 };
-inline constexpr Color DeepBlue{ 0, 70, 128, 255 };
+	if (it != registry.end()) {
+		PTGN_ASSERT(
+			it->value == value,
+			"Registered color key already exists with a different value: ",
+			key
+		);
+		return false;
+	}
 
-inline constexpr Color Cyan{ 0, 255, 255, 255 };
-inline constexpr Color LightCyan{ 224, 255, 255, 255 };
-inline constexpr Color DarkCyan{ 0, 139, 139, 255 };
-inline constexpr Color Teal{ 0, 128, 128, 255 };
-inline constexpr Color LightTeal{ 128, 255, 212, 255 };
-inline constexpr Color DarkTeal{ 0, 80, 80, 255 };
+	registry.push_back(RegisteredColor{
+		.key = std::move(key),
+		.value = value,
+	});
+	return true;
+}
 
-inline constexpr Color Magenta{ 255, 0, 255, 255 };
-inline constexpr Color LightMagenta{ 255, 105, 180, 255 };
-inline constexpr Color DarkMagenta{ 139, 0, 139, 255 };
-inline constexpr Color Purple{ 128, 0, 128, 255 };
-inline constexpr Color LightPurple{ 178, 102, 255, 255 };
-inline constexpr Color DarkPurple{ 75, 0, 130, 255 };
+/// @return Every registered engine/user color in registration order.
+[[nodiscard]] inline const std::vector<RegisteredColor>& GetRegisteredColors() {
+	return impl::MutableColorRegistry();
+}
 
-inline constexpr Color Pink{ 255, 192, 203, 255 };
-inline constexpr Color LightPink{ 255, 182, 193, 255 };
-inline constexpr Color DarkPink{ 197, 137, 123, 255 };
-inline constexpr Color BrightPink{ 255, 0, 127, 255 };
+[[nodiscard]] inline const RegisteredColor* FindRegisteredColor(std::string_view key) {
+	const auto& registry{ GetRegisteredColors() };
+	const auto it{ std::find_if(
+		registry.begin(),
+		registry.end(),
+		[key](const RegisteredColor& color) {
+			return color.key == key;
+		}
+	) };
+	return it == registry.end() ? nullptr : std::addressof(*it);
+}
 
-inline constexpr Color Gray{ 128, 128, 128, 255 };
-inline constexpr Color LightGray{ 192, 192, 192, 255 };
-inline constexpr Color DarkGray{ 64, 64, 64, 255 };
-
-inline constexpr Color Beige{ 245, 245, 220, 255 };
-inline constexpr Color IvoryWhite{ 255, 240, 240, 255 };
-inline constexpr Color KhakiTan{ 240, 230, 140, 255 };
-
-} // namespace color
+[[nodiscard]] inline const RegisteredColor* FindRegisteredColor(Color value) {
+	const auto& registry{ GetRegisteredColors() };
+	const auto it{ std::find_if(
+		registry.begin(),
+		registry.end(),
+		[value](const RegisteredColor& color) {
+			return color.value == value;
+		}
+	) };
+	return it == registry.end() ? nullptr : std::addressof(*it);
+}
 
 } // namespace ptgn
+
+/// @brief Declares ptgn::color::Name as an inline constexpr Color and adds it to the global color
+/// registry under Key. Invoke this macro at global namespace scope.
+#define PTGN_REGISTER_COLOR(Name, Key, Red, Green, Blue, Alpha)                         \
+	namespace ptgn::color {                                                              \
+	inline constexpr ::ptgn::Color Name{                                                  \
+		static_cast<std::uint8_t>(Red),                                                    \
+		static_cast<std::uint8_t>(Green),                                                  \
+		static_cast<std::uint8_t>(Blue),                                                   \
+		static_cast<std::uint8_t>(Alpha)                                                   \
+	};                                                                                    \
+	}                                                                                     \
+	namespace ptgn::impl {                                                               \
+	[[maybe_unused]] inline const bool Name##_registered_color{                                            \
+		::ptgn::RegisterColor((Key), ::ptgn::color::Name)                                  \
+	};                                                                                    \
+	}
+
+PTGN_REGISTER_COLOR(Transparent, "Transparent", 0, 0, 0, 0);
+PTGN_REGISTER_COLOR(Black, "Black", 0, 0, 0, 255);
+PTGN_REGISTER_COLOR(White, "White", 255, 255, 255, 255);
+
+PTGN_REGISTER_COLOR(Red, "Red", 255, 0, 0, 255);
+PTGN_REGISTER_COLOR(LightRed, "Light Red", 255, 128, 128, 255);
+PTGN_REGISTER_COLOR(DarkRed, "Dark Red", 128, 0, 0, 255);
+PTGN_REGISTER_COLOR(BrightRed, "Bright Red", 255, 69, 0, 255);
+PTGN_REGISTER_COLOR(DeepRed, "Deep Red", 178, 34, 34, 255);
+
+PTGN_REGISTER_COLOR(Brown, "Brown", 150, 75, 0, 255);
+PTGN_REGISTER_COLOR(LightBrown, "Light Brown", 210, 180, 140, 255);
+PTGN_REGISTER_COLOR(DarkBrown, "Dark Brown", 101, 67, 33, 255);
+
+PTGN_REGISTER_COLOR(Orange, "Orange", 255, 165, 0, 255);
+PTGN_REGISTER_COLOR(LightOrange, "Light Orange", 255, 215, 128, 255);
+PTGN_REGISTER_COLOR(DarkOrange, "Dark Orange", 204, 102, 0, 255);
+
+PTGN_REGISTER_COLOR(Yellow, "Yellow", 255, 255, 0, 255);
+PTGN_REGISTER_COLOR(LightYellow, "Light Yellow", 255, 255, 128, 255);
+PTGN_REGISTER_COLOR(DarkYellow, "Dark Yellow", 204, 204, 0, 255);
+PTGN_REGISTER_COLOR(BrightYellow, "Bright Yellow", 255, 255, 102, 255);
+PTGN_REGISTER_COLOR(Gold, "Gold", 255, 215, 0, 255);
+PTGN_REGISTER_COLOR(LightGold, "Light Gold", 255, 235, 153, 255);
+PTGN_REGISTER_COLOR(DarkGold, "Dark Gold", 184, 134, 11, 255);
+
+PTGN_REGISTER_COLOR(Green, "Green", 0, 255, 0, 255);
+PTGN_REGISTER_COLOR(LightGreen, "Light Green", 144, 238, 144, 255);
+PTGN_REGISTER_COLOR(DarkGreen, "Dark Green", 0, 100, 0, 255);
+PTGN_REGISTER_COLOR(BrightGreen, "Bright Green", 0, 255, 102, 255);
+PTGN_REGISTER_COLOR(LimeGreen, "Lime Green", 191, 255, 0, 255);
+
+PTGN_REGISTER_COLOR(Blue, "Blue", 0, 0, 255, 255);
+PTGN_REGISTER_COLOR(LightBlue, "Light Blue", 173, 216, 230, 255);
+PTGN_REGISTER_COLOR(DarkBlue, "Dark Blue", 0, 0, 128, 255);
+PTGN_REGISTER_COLOR(SkyBlue, "Sky Blue", 135, 206, 235, 255);
+PTGN_REGISTER_COLOR(DeepBlue, "Deep Blue", 0, 70, 128, 255);
+
+PTGN_REGISTER_COLOR(Cyan, "Cyan", 0, 255, 255, 255);
+PTGN_REGISTER_COLOR(LightCyan, "Light Cyan", 224, 255, 255, 255);
+PTGN_REGISTER_COLOR(DarkCyan, "Dark Cyan", 0, 139, 139, 255);
+PTGN_REGISTER_COLOR(Teal, "Teal", 0, 128, 128, 255);
+PTGN_REGISTER_COLOR(LightTeal, "Light Teal", 128, 255, 212, 255);
+PTGN_REGISTER_COLOR(DarkTeal, "Dark Teal", 0, 80, 80, 255);
+
+PTGN_REGISTER_COLOR(Magenta, "Magenta", 255, 0, 255, 255);
+PTGN_REGISTER_COLOR(LightMagenta, "Light Magenta", 255, 105, 180, 255);
+PTGN_REGISTER_COLOR(DarkMagenta, "Dark Magenta", 139, 0, 139, 255);
+PTGN_REGISTER_COLOR(Purple, "Purple", 128, 0, 128, 255);
+PTGN_REGISTER_COLOR(LightPurple, "Light Purple", 178, 102, 255, 255);
+PTGN_REGISTER_COLOR(DarkPurple, "Dark Purple", 75, 0, 130, 255);
+
+PTGN_REGISTER_COLOR(Pink, "Pink", 255, 192, 203, 255);
+PTGN_REGISTER_COLOR(LightPink, "Light Pink", 255, 182, 193, 255);
+PTGN_REGISTER_COLOR(DarkPink, "Dark Pink", 197, 137, 123, 255);
+PTGN_REGISTER_COLOR(BrightPink, "Bright Pink", 255, 0, 127, 255);
+
+PTGN_REGISTER_COLOR(Gray, "Gray", 128, 128, 128, 255);
+PTGN_REGISTER_COLOR(LightGray, "Light Gray", 192, 192, 192, 255);
+PTGN_REGISTER_COLOR(DarkGray, "Dark Gray", 64, 64, 64, 255);
+
+PTGN_REGISTER_COLOR(Beige, "Beige", 245, 245, 220, 255);
+PTGN_REGISTER_COLOR(IvoryWhite, "Ivory White", 255, 240, 240, 255);
+PTGN_REGISTER_COLOR(KhakiTan, "Khaki Tan", 240, 230, 140, 255);
 
 template <>
 struct std::hash<ptgn::Color> {

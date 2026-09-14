@@ -2367,6 +2367,38 @@ bool ExportManager::Export(
 						return result;
 					}
 
+					// .ptgneditor is shared project data now. It is packaged only when the
+					// exported executable includes the editor. .ptgnlocal remains user/machine
+					// specific and is always excluded by IsExcludedExportFile().
+					bool copied_editor_project_state{ false };
+					if (request.include_editor) {
+						path editor_project_file{ project_file };
+						editor_project_file.replace_extension(".ptgneditor");
+
+						std::error_code editor_state_error;
+						if (fs::is_regular_file(editor_project_file, editor_state_error) &&
+							!editor_state_error) {
+							if (!CopyExportSource(
+									editor_project_file,
+									destination / editor_project_file.filename(),
+									true,
+									false,
+									true,
+									state,
+									0.01f,
+									0.01f
+								)) {
+								result.cancelled = IsCancelled(state);
+								return result;
+							}
+							copied_editor_project_state = true;
+						}
+					}
+
+					if (!copied_editor_project_state) {
+						state->progress.store(0.02f, std::memory_order_relaxed);
+					}
+
 					path project_assets{ request.asset_source_directory };
 					if (project_assets.empty() && request.project_directory) {
 						// Compatibility fallback for existing callers. New callers should
@@ -2389,8 +2421,8 @@ bool ExportManager::Export(
 								true,
 								request.include_editor,
 								state,
-								0.01f,
-								0.09f
+								0.02f,
+								0.08f
 							)) {
 							result.cancelled = IsCancelled(state);
 							return result;

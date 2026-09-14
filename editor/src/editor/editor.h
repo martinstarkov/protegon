@@ -195,6 +195,7 @@ private:
 	void UpdateProjectLocalState();
 	void UpdateRuntimeViewportState();
 	void SaveEditorLocalStateIfChanged();
+	void SaveEditorProjectStateIfChanged();
 	void OnProjectChanged();
 	void RefreshProjectDirtyState();
 	void UpdateWindowTitle();
@@ -235,6 +236,7 @@ private:
 	std::optional<PlaySnapshot> play_snapshot_;
 	std::optional<path> local_state_project_path_;
 	std::optional<std::string> saved_editor_local_state_json_;
+	std::optional<std::string> saved_editor_project_state_json_;
 	std::uint32_t dock_left_column_id_{ 0 };
 	std::uint32_t dock_right_column_id_{ 0 };
 	std::uint8_t dock_resize_frames_remaining_{ 0 };

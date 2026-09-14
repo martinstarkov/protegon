@@ -72,6 +72,7 @@
 #include "runtime/scene/scene_manager.h"
 #include "serialization/json/json.h"
 #include "tools/debug/debug_system.h"
+#include "panels/test_panel.h"
 
 namespace ptgn::editor {
 
@@ -833,6 +834,7 @@ void Editor::OnRender() {
 
 	RefreshProjectDirtyState();
 	SaveEditorLocalStateIfChanged();
+	SaveEditorProjectStateIfChanged();
 }
 
 Project* Editor::GetProject() {
@@ -2900,6 +2902,11 @@ void Editor::DrawPanels() {
 	scene_list_panel_.OnRender(*context_);
 	screen_effects_panel_.OnRender(*context_);
 	inspector_panel_.OnRender(*context_);
+
+	// TODO: Remove. Temporary.
+	static bool dialogue_editor_open{ true };
+	DrawDialogueEditorDemoWindow(*context_, &dialogue_editor_open);
+
 	if (ConsumeAcceptedAssetKeyDrop()) {
 		scene_asset_dependencies_dirty_ = true;
 	}
@@ -3840,6 +3847,7 @@ void Editor::UpdateProjectLocalState() {
 	if (!app_context.project.has_value()) {
 		local_state_project_path_.reset();
 		saved_editor_local_state_json_.reset();
+		saved_editor_project_state_json_.reset();
 		return;
 	}
 
@@ -3881,6 +3889,31 @@ void Editor::SaveEditorLocalStateIfChanged() {
 	saved_editor_local_state_json_ = std::move(serialized);
 }
 
+void Editor::SaveEditorProjectStateIfChanged() {
+#if defined(__EMSCRIPTEN__)
+	return;
+#endif
+
+	PTGN_ASSERT(context_, "Editor context must be initialized");
+
+	auto& app_context{ ::ptgn::impl::ApplicationAccessor::ctx(app) };
+
+	if (!app_context.project.has_value()) {
+		return;
+	}
+
+	json value = context_->project_state;
+	std::string serialized{ value.dump() };
+
+	if (saved_editor_project_state_json_.has_value() &&
+		saved_editor_project_state_json_.value() == serialized) {
+		return;
+	}
+
+	SaveEditorProjectState(app_context.project.value(), context_->project_state);
+	saved_editor_project_state_json_ = std::move(serialized);
+}
+
 void Editor::OnProjectChanged() {
 	PTGN_ASSERT(context_, "Editor context must be initialized");
 
@@ -3897,6 +3930,7 @@ void Editor::OnProjectChanged() {
 	app_context.runtime_project_scenes.clear();
 
 	context_->local = LoadEditorLocalState(app_context.project.value());
+	context_->project_state = LoadEditorProjectState(app_context.project.value());
 
 	context_->local.selection.selected_scene_runtime = false;
 	scene_list_panel_.RefreshSelectedSceneState();
@@ -3908,9 +3942,18 @@ void Editor::OnProjectChanged() {
 
 	context_->local.state.is_paused = false;
 
-	json value = context_->local;
+#if !defined(__EMSCRIPTEN__)
+	// Migrate legacy .ptgneditor local state into .ptgnlocal before replacing
+	// .ptgneditor with the new shared project-state shape. These writes are
+	// intentionally unconditional on project change so old projects migrate safely.
+	SaveEditorLocalState(app_context.project.value(), context_->local);
+	SaveEditorProjectState(app_context.project.value(), context_->project_state);
+#endif
 
-	saved_editor_local_state_json_ = value.dump();
+	json local_value = context_->local;
+	json project_value = context_->project_state;
+	saved_editor_local_state_json_ = local_value.dump();
+	saved_editor_project_state_json_ = project_value.dump();
 
 	app.SetScreenEffects(app_context.project->screen_effects);
 	ApplyEntityPickingSettings();

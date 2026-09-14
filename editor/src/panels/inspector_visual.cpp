@@ -1018,7 +1018,10 @@ bool DrawTextPrimary(Target& target, ::ptgn::impl::TextData& text_data) {
 	bool changed{ false };
 
 	std::string source{ SerializeStyledTextToRichText(text_data.text, text_data.defaults) };
-	if (DrawRichTextEditor(target.ctx, source, text_data.defaults)) {
+	if (DrawRichTextEditor(
+			target.ctx, source, text_data.defaults,
+			RichTextEditorOptions{ .preview_box = &text_data.box }
+		)) {
 		text_data.text = ParseRichText(source, text_data.defaults).text;
 		text_data.current_run_index =
 			text_data.text.runs.empty() ? 0 : text_data.text.runs.size() - 1;

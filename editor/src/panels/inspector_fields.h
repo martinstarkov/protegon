@@ -34,6 +34,7 @@
 #include <variant>
 #include <vector>
 
+#include "editor/color_picker.h"
 #include "editor/editor.h"
 #include "editor/editor_context.h"
 #include "core/graphics/color.h"
@@ -2223,36 +2224,17 @@ inline bool DrawVector(std::string_view label, T& value, const FieldOptions& opt
 	});
 }
 
-inline bool DrawColor(std::string_view label, Color& value) {
+inline bool DrawColor(EditorContext& ctx, std::string_view label, Color& value) {
 	return DrawPropertyRow(label, [&]() {
-		float rgba[4]{
-			static_cast<float>(value.r) / 255.0f,
-			static_cast<float>(value.g) / 255.0f,
-			static_cast<float>(value.b) / 255.0f,
-			static_cast<float>(value.a) / 255.0f,
-		};
-
-		bool changed{ DrawDisabledIf(IsReadOnly(), [&]() {
-			return ImGui::ColorEdit4(
-				"##value", rgba,
+		return DrawDisabledIf(IsReadOnly(), [&]() {
+			return DrawColorEdit(
+				ctx,
+				"##value",
+				value,
 				ImGuiColorEditFlags_Uint8 | ImGuiColorEditFlags_AlphaBar |
 					ImGuiColorEditFlags_AlphaPreviewHalf
 			);
-		}) };
-
-		if (changed) {
-			auto to_byte = [](float channel) {
-				return static_cast<std::uint8_t>(
-					std::lround(std::clamp(channel, 0.0f, 1.0f) * 255.0f)
-				);
-			};
-
-			value.r = to_byte(rgba[0]);
-			value.g = to_byte(rgba[1]);
-			value.b = to_byte(rgba[2]);
-			value.a = to_byte(rgba[3]);
-		}
-		return changed;
+		});
 	});
 }
 
@@ -3301,35 +3283,15 @@ bool DrawOptionalInlineValue(EditorContext& ctx, T& value, const FieldOptions& o
 			return changed;
 		});
 	} else if constexpr (std::same_as<Value, Color>) {
-		float rgba[4]{
-			static_cast<float>(value.r) / 255.0f,
-			static_cast<float>(value.g) / 255.0f,
-			static_cast<float>(value.b) / 255.0f,
-			static_cast<float>(value.a) / 255.0f,
-		};
-
-		bool changed{ DrawDisabledIf(IsReadOnly(options), [&]() {
-			return ImGui::ColorEdit4(
-				"##value", rgba,
+		return DrawDisabledIf(IsReadOnly(options), [&]() {
+			return DrawColorEdit(
+				ctx,
+				"##value",
+				value,
 				ImGuiColorEditFlags_Uint8 | ImGuiColorEditFlags_AlphaBar |
 					ImGuiColorEditFlags_AlphaPreviewHalf
 			);
-		}) };
-
-		if (changed) {
-			auto to_byte = [](float channel) {
-				return static_cast<std::uint8_t>(
-					std::lround(std::clamp(channel, 0.0f, 1.0f) * 255.0f)
-				);
-			};
-
-			value.r = to_byte(rgba[0]);
-			value.g = to_byte(rgba[1]);
-			value.b = to_byte(rgba[2]);
-			value.a = to_byte(rgba[3]);
-		}
-
-		return changed;
+		});
 	} else if constexpr (std::same_as<Value, Degrees>) {
 		return DrawOptionalInlineValue(ctx, value.value, options);
 	} else if constexpr (std::same_as<Value, Radians>) {
@@ -3569,7 +3531,7 @@ bool DrawValue(EditorContext& ctx, std::string_view label, T& value, FieldOption
 	} else if constexpr (std::same_as<Value, std::string>) {
 		return DrawString(label, value, options);
 	} else if constexpr (std::same_as<Value, Color>) {
-		return DrawColor(label, value);
+		return DrawColor(ctx, label, value);
 	} else if constexpr (std::same_as<Value, FillStyle>) {
 		return DrawFillStyle(ctx, label, value);
 	} else if constexpr (kInspectorVectorType<Value>) {

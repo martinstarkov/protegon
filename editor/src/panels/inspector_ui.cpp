@@ -151,6 +151,15 @@ bool DrawSliderValueTextConfig(Target& target, ::ptgn::impl::SliderData& data) {
 		}
 	};
 
+	Entity text_entity{};
+	std::optional<TextBox> preview_box{};
+	if constexpr (std::same_as<std::remove_cvref_t<Target>, EntityInspectorTarget>) {
+		text_entity = target.entity ? Slider{ target.entity }.GetValueTextEntity() : Entity{};
+		if (text_entity && text_entity.Has<::ptgn::impl::TextData>()) {
+			preview_box = text_entity.Get<::ptgn::impl::TextData>().box;
+		}
+	}
+
 	const bool text_open{ ImGui::TreeNodeEx(
 		"Text##SliderValueTextText",
 		ImGuiTreeNodeFlags_SpanAvailWidth | ImGuiTreeNodeFlags_FramePadding
@@ -159,7 +168,10 @@ bool DrawSliderValueTextConfig(Target& target, ::ptgn::impl::SliderData& data) {
 		ScopedIndent indent;
 		config_changed |= DrawRichTextEditor(
 			target.ctx, config.text.source, config.text.defaults,
-			RichTextEditorOptions{ .variables = variables }
+			RichTextEditorOptions{
+				.variables = variables,
+				.preview_box = preview_box ? std::addressof(*preview_box) : nullptr,
+			}
 		);
 		ImGui::TreePop();
 	}
@@ -188,11 +200,6 @@ bool DrawSliderValueTextConfig(Target& target, ::ptgn::impl::SliderData& data) {
 			config_changed = true;
 		}
 		ImGui::TreePop();
-	}
-
-	Entity text_entity{};
-	if constexpr (std::same_as<std::remove_cvref_t<Target>, EntityInspectorTarget>) {
-		text_entity = target.entity ? Slider{ target.entity }.GetValueTextEntity() : Entity{};
 	}
 
 	const bool transform_open{ ImGui::TreeNodeEx(

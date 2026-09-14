@@ -26,6 +26,7 @@
 #include "core/event/mouse_event.h"
 #include "core/input/key.h"
 #include "core/input/mouse.h"
+#include "editor/color_picker.h"
 #include "editor/editor.h"
 #include "editor/editor_context.h"
 #include "panels/content_browser.h"
@@ -1999,26 +2000,25 @@ bool DrawFollowTarget(ScriptEditorContext& context, FollowTargetScript& script) 
 	return changed;
 }
 
-bool DrawTintToInline(ScriptEditorContext&, TintToScript& script) {
-	auto tint{ script.tint.Normalized() };
-
+bool DrawTintToInline(ScriptEditorContext& context, TintToScript& script) {
 	ImGui::SetNextItemWidth(ImGui::GetFrameHeight());
-
-	if (!ImGui::ColorEdit4("##Tint", tint.Data(), ImGuiColorEditFlags_NoInputs)) {
-		return false;
-	}
-
-	script.tint = Color{ tint };
-	return true;
+	return DrawColorEdit(
+		context.ctx,
+		"##Tint",
+		script.tint,
+		ImGuiColorEditFlags_NoInputs | ImGuiColorEditFlags_AlphaBar |
+			ImGuiColorEditFlags_AlphaPreviewHalf
+	);
 }
 
-bool DrawTintTo(ScriptEditorContext&, TintToScript& script) {
-	auto tint{ script.tint.Normalized() };
-	if (!ImGui::ColorEdit4("Tint", tint.Data())) {
-		return false;
-	}
-	script.tint = Color{ tint };
-	return true;
+bool DrawTintTo(ScriptEditorContext& context, TintToScript& script) {
+	return DrawColorEdit(
+		context.ctx,
+		"Tint",
+		script.tint,
+		ImGuiColorEditFlags_Uint8 | ImGuiColorEditFlags_AlphaBar |
+			ImGuiColorEditFlags_AlphaPreviewHalf
+	);
 }
 
 bool DrawBounce(ScriptEditorContext&, BounceScript& script) {

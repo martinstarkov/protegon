@@ -63,16 +63,22 @@ void SaveProjectLocalState(
 	const auto file_path{ GetProjectLocalStatePath(project) };
 
 	EnsureDirectory(file_path.parent_path());
-    json value = state;
+	json value = state;
 	SaveJson(value, file_path);
 }
 
 ProjectLocalState GetProjectLocalState(Application& app) {
 	auto& context{ impl::ApplicationAccessor::ctx(app) };
 
-	return ProjectLocalState{
-		.window = context.window.GetLocalSettings(),
-	};
+	// Preserve editor-owned local state when the application saves window geometry
+	// during shutdown.
+	ProjectLocalState state;
+	if (context.project.has_value()) {
+		state = LoadProjectLocalState(context.project.value());
+	}
+
+	state.window = context.window.GetLocalSettings();
+	return state;
 }
 
 void SetProjectLocalState(

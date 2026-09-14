@@ -1110,7 +1110,10 @@ struct ComponentDrawer<::ptgn::impl::TextData> {
 		auto& defaults{ GetResolvedTextAuthoringDefaults("##TextDataDefaults") };
 		std::string source{ SerializeStyledTextToRichText(data.text, defaults) };
 
-		(void)DrawRichTextEditor(ctx, source, defaults);
+		(void)DrawRichTextEditor(
+			ctx, source, defaults,
+			RichTextEditorOptions{ .preview_box = &data.box }
+		);
 
 		StyledText parsed{ ParseRichText(source, defaults).text };
 		if (parsed != data.text) {
