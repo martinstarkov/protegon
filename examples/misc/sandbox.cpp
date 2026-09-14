@@ -683,6 +683,9 @@ struct PrefabBrushEntityNode {
 	F2 position{};
 	F2 size{ 32.0f, 32.0f };
 	std::vector<PrefabBrushEntityNode> children;
+	float rotation{};
+	float scale{ 1.0f };
+	float depth{};
 };
 
 struct PrefabBrushEntry {
@@ -690,6 +693,10 @@ struct PrefabBrushEntry {
 	std::string group;
 	F2 size{ 32.0f, 32.0f };
 	std::vector<PrefabBrushEntityNode> children;
+	F2 position{};
+	float rotation{};
+	float scale{ 1.0f };
+	float depth{};
 };
 
 struct WeightedPrefabEntry {
@@ -745,10 +752,12 @@ struct SceneSnapshot {
 	std::vector<SceneLayer> layers;
 	std::vector<Entity> entities;
 	std::vector<Tilemap> tilemaps;
+	std::vector<TileDefinition> tiles;
 	std::vector<TilePalette> palettes;
 	std::vector<WeightedTileSet> weighted_tile_sets;
 	std::vector<WeightedPrefabSet> weighted_prefab_sets;
 	std::vector<PrefabBrushEntry> prefabs;
+	std::vector<std::string> prefab_groups;
 	std::vector<AutotileRuleSet> autotile_rulesets;
 	std::vector<PaintGenerator> generators;
 	int active_layer_id{};
@@ -844,12 +853,19 @@ struct GeneratorNoisePreviewCache {
 	std::unordered_map<I2, float, I2Hash> values;
 };
 
+enum class InspectorContext {
+	Scene,
+	Prefab,
+	Tile,
+};
+
 struct EditorState {
 	std::vector<TextureAsset> textures;
 	std::vector<TileDefinition> tiles;
 	std::vector<TilePalette> palettes;
 	std::vector<WeightedTileSet> weighted_tile_sets;
 	std::vector<PrefabBrushEntry> prefabs;
+	std::vector<std::string> prefab_groups;
 	std::vector<WeightedPrefabSet> weighted_prefab_sets;
 	std::vector<AutotileRuleSet> autotile_rulesets;
 	std::vector<PaintGenerator> generators;
@@ -912,9 +928,15 @@ struct EditorState {
 	int active_palette_index{ -1 };
 	int active_tile_id{ -1 };
 	int active_tile_weighted_set_id{ -1 };
+	// Paint-source selection. This is intentionally independent from the Prefabs tab selection.
 	int active_prefab_index{};
-	std::vector<std::size_t> active_prefab_entity_path;
 	int active_prefab_weighted_set_id{ -1 };
+
+	// Asset-browser selections drive Inspector only; they never silently change paint sources.
+	InspectorContext inspector_context{ InspectorContext::Scene };
+	int selected_prefab_index{ -1 };
+	std::vector<std::size_t> selected_prefab_entity_path;
+	int selected_tile_asset_id{ -1 };
 
 	std::vector<int> stamp_tiles;
 	int stamp_width{ 1 };
@@ -954,10 +976,12 @@ static SceneSnapshot CaptureScene(const EditorState& e) {
 		.layers = e.layers,
 		.entities = e.entities,
 		.tilemaps = e.tilemaps,
+		.tiles = e.tiles,
 		.palettes = e.palettes,
 		.weighted_tile_sets = e.weighted_tile_sets,
 		.weighted_prefab_sets = e.weighted_prefab_sets,
 		.prefabs = e.prefabs,
+		.prefab_groups = e.prefab_groups,
 		.autotile_rulesets = e.autotile_rulesets,
 		.generators = e.generators,
 		.active_layer_id = e.active_layer_id,
@@ -976,10 +1000,12 @@ static void RestoreScene(EditorState& e, const SceneSnapshot& s) {
 	e.layers = s.layers;
 	e.entities = s.entities;
 	e.tilemaps = s.tilemaps;
+	e.tiles = s.tiles;
 	e.palettes = s.palettes;
 	e.weighted_tile_sets = s.weighted_tile_sets;
 	e.weighted_prefab_sets = s.weighted_prefab_sets;
 	e.prefabs = s.prefabs;
+	e.prefab_groups = s.prefab_groups;
 	e.autotile_rulesets = s.autotile_rulesets;
 	e.generators = s.generators;
 	e.active_layer_id = s.active_layer_id;
@@ -1320,6 +1346,7 @@ static void SelectGenerator(EditorState& e, int generator_id) {
 	const PaintGenerator* generator{ FindGenerator(e, generator_id) };
 	if (!generator) return;
 	e.selected_generator_id = generator_id;
+	e.inspector_context = InspectorContext::Scene;
 	e.selected_entities.clear();
 	e.primary_entity_id = -1;
 	e.selected_tile_cells.clear();
@@ -4737,6 +4764,7 @@ static void GLFWDropCallback(GLFWwindow*, int count, const char** paths) {
 		return;
 	}
 
+	const SceneSnapshot before{ CaptureScene(*g_editor) };
 	int imported{};
 	std::string first_failed;
 	for (int i{}; i < count; ++i) {
@@ -4756,7 +4784,8 @@ static void GLFWDropCallback(GLFWwindow*, int count, const char** paths) {
 	}
 
 	if (imported > 0) {
-		g_editor->import_status = "Imported " + std::to_string(imported) + " dropped source(s) into the active palette.";
+		g_editor->import_status = "Imported " + std::to_string(imported) + " dropped source(s) into the active tile group.";
+		PushHistory(*g_editor, "Import Dropped Tiles", before);
 	}
 	if (!first_failed.empty()) {
 		g_editor->importer.path = first_failed;
@@ -4768,6 +4797,7 @@ static void AddDefaultScene(EditorState& e) {
 	// Prefabs are edited from the Prefabs tab beside Scene Hierarchy. The demo
 	// keeps the serialized data intentionally small, but mirrors the editor
 	// interactions for create/rename/duplicate/delete and nested prefab entities.
+	e.prefab_groups = { "Foliage", "Furniture", "Monsters" };
 	e.prefabs = {
 		{ "Tree", "Foliage", { 32.0f, 48.0f }, {} },
 		{ "Bush", "Foliage", { 32.0f, 24.0f }, {} },
@@ -4780,9 +4810,10 @@ static void AddDefaultScene(EditorState& e) {
 		{ "Lamp", "", { 16.0f, 40.0f }, {} },
 	};
 
+	e.palettes.push_back({ e.next_palette_id++, "Ungrouped", {} });
 	e.palettes.push_back({ e.next_palette_id++, "Basic Tiles", {} });
 	e.palettes.push_back({ e.next_palette_id++, "Terrain", {} });
-	auto& basic{ e.palettes.front() };
+	auto& basic{ e.palettes[1] };
 	const int grass{ AddGeneratedTile(e, basic, "Grass", 16, 16, { 72, 132, 70, 255 }, { 99, 160, 80, 255 }, 1) };
 	const int dirt{ AddGeneratedTile(e, basic, "Dirt", 16, 16, { 126, 88, 58, 255 }, { 151, 108, 72, 255 }, 0) };
 	const int water{ AddGeneratedTile(e, basic, "Water", 16, 16, { 55, 104, 171, 255 }, { 78, 139, 205, 255 }, 2) };
@@ -4795,13 +4826,13 @@ static void AddDefaultScene(EditorState& e) {
 
 	// A second palette demonstrates that weighted brushes/noise thresholds can
 	// reference tiles from more than one palette.
-	auto& terrain{ e.palettes[1] };
+	auto& terrain{ e.palettes[2] };
 	const int path_light{ AddGeneratedTile(e, terrain, "Path Light", 16, 16, { 146, 111, 72, 255 }, { 171, 134, 88, 255 }, 4) };
 	const int path_dark{ AddGeneratedTile(e, terrain, "Path Dark", 16, 16, { 104, 76, 54, 255 }, { 130, 94, 63, 255 }, 0) };
 	const int pebble{ AddGeneratedTile(e, terrain, "Path Pebble", 16, 16, { 128, 102, 75, 255 }, { 151, 143, 129, 255 }, 3) };
 
 	e.active_tile_id = grass;
-	e.active_palette_index = 0;
+	e.active_palette_index = 1;
 
 	WeightedTileSet dirt_path;
 	dirt_path.id = e.next_tile_weighted_set_id++;
@@ -5072,6 +5103,84 @@ static void DrawViewportToolbar(EditorState& e) {
 	SceneLayer* toolbar_layer{ FindLayer(e, e.active_layer_id) };
 	const bool noise_layer_active{ toolbar_layer && toolbar_layer->kind == LayerKind::Noise };
 	const bool tile_layer_active{ toolbar_layer && toolbar_layer->kind == LayerKind::Tile };
+	const ImGuiStyle& style{ ImGui::GetStyle() };
+
+	auto draw_grid_controls = [&]() {
+		ImGui::Checkbox("Grid", &e.grid.visible);
+		ItemTooltip(noise_layer_active
+			? "Show or hide the active procedural raster grid. Grid lines are drawn over scene content."
+			: tile_layer_active
+				? "Show or hide the active tilemap grid. Grid lines are drawn over scene content."
+				: "Show or hide the editor placement grid. Grid lines are drawn over scene content.");
+
+		if (!tile_layer_active) {
+			if (!noise_layer_active) {
+				ImGui::SameLine();
+				ImGui::Checkbox("Snap", &e.grid.snap);
+				ItemTooltip("Snap entity placement and relevant edit operations to the editor grid.");
+			}
+
+			ImGui::SameLine();
+			ImGui::BeginDisabled(noise_layer_active && toolbar_layer && toolbar_layer->locked);
+			ImGui::SetNextItemWidth(108.0f);
+			F2* size_ptr{ noise_layer_active ? &toolbar_layer->noise.grid_size : &e.grid.size };
+			bool* aspect_locked_ptr{ noise_layer_active ? &toolbar_layer->noise.grid_aspect_locked : &e.grid.aspect_locked };
+			float* aspect_ptr{ noise_layer_active ? &toolbar_layer->noise.grid_locked_aspect : &e.grid.locked_aspect };
+			const F2 old_size{ *size_ptr };
+			float grid[2]{ old_size.x, old_size.y };
+			if (ImGui::DragFloat2("##grid_size", grid, 0.25f, 1.0f, 2048.0f, "%.0f")) {
+				grid[0] = std::max(1.0f, grid[0]);
+				grid[1] = std::max(1.0f, grid[1]);
+				if (*aspect_locked_ptr) {
+					const float ratio{ std::max(0.0001f, *aspect_ptr) };
+					const float dx{ std::abs(grid[0] - old_size.x) / std::max(1.0f, old_size.x) };
+					const float dy{ std::abs(grid[1] - old_size.y) / std::max(1.0f, old_size.y) };
+					if (dx >= dy) grid[1] = std::max(1.0f, grid[0] / ratio);
+					else grid[0] = std::max(1.0f, grid[1] * ratio);
+				}
+				if (noise_layer_active && toolbar_layer) {
+					const auto [old_min, old_max]{ OrderedNoiseBounds(*toolbar_layer) };
+					toolbar_layer->noise.grid_size = { grid[0], grid[1] };
+					if (toolbar_layer->noise.bounded) SnapNoiseBoundsOutwardToGrid(e, *toolbar_layer, old_min, old_max);
+				} else {
+					e.grid.size = { grid[0], grid[1] };
+				}
+			}
+			ItemTooltip(noise_layer_active ? "Procedural raster cell width and height." : "Editor grid cell width and height.");
+
+			ImGui::SameLine();
+			const bool was_locked{ *aspect_locked_ptr };
+			LayerIconButton("##grid_aspect_lock", *aspect_locked_ptr, false);
+			if (!was_locked && *aspect_locked_ptr) *aspect_ptr = size_ptr->x / std::max(1.0f, size_ptr->y);
+			ItemTooltip(*aspect_locked_ptr ? "Grid aspect ratio is locked." : "Grid aspect ratio is unlocked.");
+
+			ImGui::SameLine();
+			if (ImGui::Button("Grid...")) ImGui::OpenPopup("Grid Settings");
+			ItemTooltip("Advanced grid origin, major-line interval, colors, and thicknesses.");
+			if (ImGui::BeginPopup("Grid Settings")) {
+				F2* offset_ptr{ noise_layer_active ? &toolbar_layer->noise.grid_offset : &e.grid.offset };
+				float offset[2]{ offset_ptr->x, offset_ptr->y };
+				if (ImGui::DragFloat2("Offset", offset, 1.0f)) {
+					*offset_ptr = { offset[0], offset[1] };
+					if (noise_layer_active && toolbar_layer && toolbar_layer->noise.bounded) {
+						const auto [bmin, bmax]{ OrderedNoiseBounds(*toolbar_layer) };
+						SnapNoiseBoundsOutwardToGrid(e, *toolbar_layer, bmin, bmax);
+					}
+				}
+				ImGui::DragInt("Major Line Every", &e.grid.major_every, 1.0f, 1, 64);
+				ImGui::SeparatorText("Minor Lines");
+				ImGui::ColorEdit4("Color##minor_grid", &e.grid.minor_color.x, ImGuiColorEditFlags_AlphaBar);
+				ImGui::DragFloat("Thickness##minor_grid", &e.grid.minor_thickness, 0.05f, 0.25f, 8.0f, "%.2f");
+				e.grid.minor_thickness = std::max(0.25f, e.grid.minor_thickness);
+				ImGui::SeparatorText("Major Lines");
+				ImGui::ColorEdit4("Color##major_grid", &e.grid.major_color.x, ImGuiColorEditFlags_AlphaBar);
+				ImGui::DragFloat("Thickness##major_grid", &e.grid.major_thickness, 0.05f, 0.25f, 8.0f, "%.2f");
+				e.grid.major_thickness = std::max(0.25f, e.grid.major_thickness);
+				ImGui::EndPopup();
+			}
+			ImGui::EndDisabled();
+		}
+	};
 
 	if (!noise_layer_active) {
 		ToolButton(e, Tool::Select, "##tool_select"); ImGui::SameLine();
@@ -5083,137 +5192,30 @@ static void DrawViewportToolbar(EditorState& e) {
 		ToolButton(e, Tool::Fill, "##tool_fill"); ImGui::SameLine();
 		ToolButton(e, Tool::Erase, "##tool_erase"); ImGui::SameLine();
 		ToolButton(e, Tool::Eyedropper, "##tool_pick");
-		ImGui::SameLine();
-		ImGui::TextDisabled("|");
-		ImGui::SameLine();
 	}
 
-	ImGui::Checkbox("Grid", &e.grid.visible);
-	ItemTooltip(noise_layer_active
-		? "Show or hide the active noise layer's raster grid. Grid lines are drawn over scene content."
-		: tile_layer_active
-			? "Show or hide the active tilemap grid. Grid lines are drawn over scene content."
-			: "Show or hide the editor placement grid. Grid lines are drawn over scene content.");
-
-	// Tile layers inherit their tilemap grid and therefore expose no redundant
-	// snap/grid-size controls here. Noise layers own an editable raster grid.
-	if (!tile_layer_active) {
-		if (!noise_layer_active) {
-			ImGui::SameLine();
-			ImGui::Checkbox("Snap", &e.grid.snap);
-			ItemTooltip("Snap entity placement to the editor grid.");
-		}
-
-		ImGui::SameLine();
-		ImGui::BeginDisabled(noise_layer_active && toolbar_layer && toolbar_layer->locked);
-		ImGui::SetNextItemWidth(110.0f);
-
-		F2* size_ptr{ noise_layer_active ? &toolbar_layer->noise.grid_size : &e.grid.size };
-		bool* aspect_locked_ptr{ noise_layer_active ? &toolbar_layer->noise.grid_aspect_locked : &e.grid.aspect_locked };
-		float* aspect_ptr{ noise_layer_active ? &toolbar_layer->noise.grid_locked_aspect : &e.grid.locked_aspect };
-		const F2 old_size{ *size_ptr };
-		float grid[2]{ old_size.x, old_size.y };
-		if (ImGui::DragFloat2("##grid_size", grid, 0.25f, 1.0f, 2048.0f, "%.0f")) {
-			grid[0] = std::max(1.0f, grid[0]);
-			grid[1] = std::max(1.0f, grid[1]);
-			if (*aspect_locked_ptr) {
-				const float ratio{ std::max(0.0001f, *aspect_ptr) };
-				const float dx{ std::abs(grid[0] - old_size.x) / std::max(1.0f, old_size.x) };
-				const float dy{ std::abs(grid[1] - old_size.y) / std::max(1.0f, old_size.y) };
-				if (dx >= dy) grid[1] = std::max(1.0f, grid[0] / ratio);
-				else grid[0] = std::max(1.0f, grid[1] * ratio);
-			}
-			if (noise_layer_active && toolbar_layer) {
-				const auto [old_min, old_max]{ OrderedNoiseBounds(*toolbar_layer) };
-				toolbar_layer->noise.grid_size = { grid[0], grid[1] };
-				if (toolbar_layer->noise.bounded) SnapNoiseBoundsOutwardToGrid(e, *toolbar_layer, old_min, old_max);
-			} else {
-				e.grid.size = { grid[0], grid[1] };
-			}
-		}
-		ItemTooltip(noise_layer_active
-			? "Noise raster cell width and height. Generated threshold results evaluate once per cell. Locked noise layers cannot change this."
-			: "Editor grid cell width and height.");
-
-		ImGui::SameLine();
-		const bool was_locked{ *aspect_locked_ptr };
-		LayerIconButton("##grid_aspect_lock", *aspect_locked_ptr, false);
-		if (!was_locked && *aspect_locked_ptr) {
-			*aspect_ptr = size_ptr->x / std::max(1.0f, size_ptr->y);
-		}
-		ItemTooltip(*aspect_locked_ptr
-			? "Grid aspect ratio is locked. Editing either dimension preserves the current ratio."
-			: "Grid aspect ratio is unlocked. Width and height can be edited independently.");
-
-		ImGui::SameLine();
-		if (ImGui::Button("Grid...")) ImGui::OpenPopup("Grid Settings");
-		ItemTooltip(noise_layer_active
-			? "Open the noise grid origin and major-line settings."
-			: "Open advanced grid offset and major-line settings.");
-		if (ImGui::BeginPopup("Grid Settings")) {
-			F2* offset_ptr{ noise_layer_active ? &toolbar_layer->noise.grid_offset : &e.grid.offset };
-			float offset[2]{ offset_ptr->x, offset_ptr->y };
-			if (ImGui::DragFloat2("Offset", offset, 1.0f)) {
-				*offset_ptr = { offset[0], offset[1] };
-				if (noise_layer_active && toolbar_layer && toolbar_layer->noise.bounded) {
-					const auto [bmin, bmax]{ OrderedNoiseBounds(*toolbar_layer) };
-					SnapNoiseBoundsOutwardToGrid(e, *toolbar_layer, bmin, bmax);
-				}
-			}
-			ItemTooltip(noise_layer_active ? "World-space origin of this noise layer's raster grid." : "World-space origin of the editor grid.");
-			ImGui::DragInt("Major Line Every", &e.grid.major_every, 1.0f, 1, 64);
-			ItemTooltip("Draw a major grid line every N cells.");
-
-			ImGui::SeparatorText("Minor Lines");
-			ImGui::ColorEdit4(
-				"Color##minor_grid",
-				&e.grid.minor_color.x,
-				ImGuiColorEditFlags_AlphaBar
-			);
-			ItemTooltip("Color and opacity of ordinary minor grid lines.");
-			ImGui::SetNextItemWidth(120.0f);
-			ImGui::DragFloat(
-				"Thickness##minor_grid",
-				&e.grid.minor_thickness,
-				0.05f,
-				0.25f,
-				8.0f,
-				"%.2f"
-			);
-			e.grid.minor_thickness = std::max(0.25f, e.grid.minor_thickness);
-			ItemTooltip("Screen-space thickness of minor grid lines.");
-
-			ImGui::SeparatorText("Major Lines");
-			ImGui::ColorEdit4(
-				"Color##major_grid",
-				&e.grid.major_color.x,
-				ImGuiColorEditFlags_AlphaBar
-			);
-			ItemTooltip("Color and opacity of major grid lines.");
-			ImGui::SetNextItemWidth(120.0f);
-			ImGui::DragFloat(
-				"Thickness##major_grid",
-				&e.grid.major_thickness,
-				0.05f,
-				0.25f,
-				8.0f,
-				"%.2f"
-			);
-			e.grid.major_thickness = std::max(0.25f, e.grid.major_thickness);
-			ItemTooltip("Screen-space thickness of major grid lines.");
-			ImGui::EndPopup();
-		}
-		ImGui::EndDisabled();
-	}
-
-	// Runtime/view controls remain right aligned regardless of how many editing
-	// controls are visible on the left.
-	const float runtime_width{ 430.0f };
+	const float tools_end_x{ ImGui::GetItemRectMax().x - ImGui::GetWindowPos().x };
 	const float right{ ImGui::GetWindowContentRegionMax().x };
-	const float runtime_x{ right - runtime_width };
+	const float runtime_width{ 365.0f };
+	const float runtime_x{ std::max(0.0f, right - runtime_width) };
+	const float estimated_grid_width{ tile_layer_active ? 70.0f : noise_layer_active ? 285.0f : 350.0f };
+	const bool grid_second_row{ tools_end_x + style.ItemSpacing.x + estimated_grid_width > runtime_x };
+
+	if (!grid_second_row) {
+		ImGui::SameLine();
+		draw_grid_controls();
+	}
+
+	// Runtime/camera controls reserve the right side of the first row. Grid controls
+	// never occupy this region; on narrow viewports they are moved to row two.
 	if (ImGui::GetCursorPosX() < runtime_x) ImGui::SameLine(runtime_x);
 	else ImGui::SameLine();
 	DrawRuntimeToolbar(e);
+
+	if (grid_second_row) {
+		// After the final first-row item ImGui is already positioned for a new row.
+		draw_grid_controls();
+	}
 }
 
 static void ToggleComboChoice(
@@ -5240,16 +5242,36 @@ static bool TileOriginApplicable(const EditorState& e, const SceneLayer& layer);
 static bool EntityOriginApplicable(const EditorState& e);
 static void DrawOriginCombo(const char* label, EntityOrigin& origin);
 
+static bool DrawCompactCombo(
+	const char* id,
+	const char* prefix,
+	int& value,
+	const char* const* items,
+	int count,
+	float width,
+	const char* tooltip
+) {
+	value = std::clamp(value, 0, std::max(0, count - 1));
+	const std::string preview{ std::string{ prefix } + ": " + items[value] };
+	ImGui::SetNextItemWidth(width);
+	bool changed{};
+	if (ImGui::BeginCombo(id, preview.c_str())) {
+		for (int i{}; i < count; ++i) {
+			if (ImGui::Selectable(items[i], i == value)) { value = i; changed = true; }
+		}
+		ImGui::EndCombo();
+	}
+	ItemTooltip(tooltip);
+	return changed;
+}
+
 static void DrawBrushSettings(EditorState& e) {
 	const SceneLayer* active_layer{ FindLayer(e, e.active_layer_id) };
 	if (!active_layer || active_layer->kind == LayerKind::Noise) return;
 	const bool tile_layer{ active_layer->kind == LayerKind::Tile };
 
 	bool row_has_item{};
-	auto next_item = [&]() {
-		if (row_has_item) ImGui::SameLine();
-		row_has_item = true;
-	};
+	auto next_item = [&]() { if (row_has_item) ImGui::SameLine(); row_has_item = true; };
 	auto new_row = [&]() { row_has_item = false; };
 
 	auto draw_operation = [&]() {
@@ -5259,22 +5281,17 @@ static void DrawBrushSettings(EditorState& e) {
 		const char* entity_ops[]{ "Paint", "Replace" };
 		int operation{ static_cast<int>(e.brush.operation) };
 		if (!tile_layer && operation == static_cast<int>(BrushOperation::ExclusionMask)) operation = 0;
-		ImGui::SetNextItemWidth(118.0f);
-		if (ImGui::Combo("Operation##paint", &operation, tile_layer ? tile_ops : entity_ops, tile_layer ? 3 : 2)) {
+		if (DrawCompactCombo("##paint_operation", "Operation", operation, tile_layer ? tile_ops : entity_ops, tile_layer ? 3 : 2, 160.0f,
+			"Paint emits recipe output. Replace swaps existing touched content to the current recipe output. Exclusion Mask marks tile cells as blocked for procedural painting.")) {
 			e.brush.operation = static_cast<BrushOperation>(operation);
 		}
-		ItemTooltip("Paint adds recipe output. Replace changes existing content touched by the tool to the current recipe source. Exclusion Mask is tile-only.");
 	};
 
 	auto draw_diameter = [&]() {
 		const bool selection{ e.tool == Tool::Select };
 		int& diameter{ selection ? e.brush.selection_diameter_cells : e.brush.brush_diameter_tiles };
 		next_item();
-		ImGui::TextUnformatted(
-			selection
-				? "Diameter (cells)"
-				: (tile_layer ? "Diameter (tiles)" : "Diameter (entities)")
-		);
+		ImGui::TextUnformatted(selection ? "Diameter (cells)" : (tile_layer ? "Diameter (tiles)" : "Diameter (entities)"));
 		ImGui::SameLine(0.0f, 3.0f);
 		if (ImGui::SmallButton("-##brush_size")) AdjustBrushDiameter(e, -1);
 		ImGui::SameLine(0.0f, 3.0f);
@@ -5282,57 +5299,47 @@ static void DrawBrushSettings(EditorState& e) {
 		if (ImGui::DragInt("##brush_diameter", &diameter, 0.15f, 1, 128)) diameter = std::clamp(diameter, 1, 128);
 		ImGui::SameLine(0.0f, 3.0f);
 		if (ImGui::SmallButton("+##brush_size")) AdjustBrushDiameter(e, 1);
-		ItemTooltip(selection
-			? "Selection Brush diameter in raster/grid cells."
-			: "Brush diameter in source tile/entity sizes. A diameter of 5 means five current source widths/heights, even when the source spans multiple grid cells.");
+		ItemTooltip(selection ? "Selection Brush diameter in grid cells." : "Brush diameter in current source tile/entity units.");
 	};
 
 	auto draw_shape = [&]() {
 		next_item();
 		const char* shapes[]{ "Circle", "Square" };
 		int shape{ static_cast<int>(e.brush.shape) };
-		ImGui::SetNextItemWidth(96.0f);
-		if (ImGui::Combo("Shape##brush", &shape, shapes, 2)) e.brush.shape = static_cast<BrushShape>(shape);
+		if (DrawCompactCombo("##brush_shape", "Shape", shape, shapes, 2, 130.0f, "Shape of the rasterized Brush/selection footprint.")) e.brush.shape = static_cast<BrushShape>(shape);
 	};
 
-	// Placement belongs beside the active paint tool rather than in a separate
-	// palette window. Controls are omitted entirely when the current recipe/source
-	// makes them irrelevant.
 	auto draw_placement = [&]() {
 		const bool tile_mode_applicable{ TilePaintModeApplicable(e, *active_layer) };
 		const bool tile_origin_applicable{ TileOriginApplicable(e, *active_layer) };
 		const bool entity_origin_applicable{ !tile_layer && EntityOriginApplicable(e) };
-		const bool mask_applicable{ tile_layer && [&] {
-			const auto* map{ FindTilemap(e, active_layer->tile.tilemap_id) };
-			return map && !map->exclusion_mask.empty();
-		}() };
+		const bool mask_applicable{ tile_layer && [&] { const auto* map = FindTilemap(e, active_layer->tile.tilemap_id); return map && !map->exclusion_mask.empty(); }() };
 		const bool random_entity{ !tile_layer && e.recipe.source_kind != PaintSourceKind::Autotile };
 
 		if (tile_mode_applicable) {
 			next_item();
 			const char* modes[]{ "Grid", "Tile" };
 			int mode{ static_cast<int>(e.recipe.tile_paint_mode) };
-			ImGui::SetNextItemWidth(104.0f);
-			if (ImGui::Combo("Placement##paint", &mode, modes, 2)) e.recipe.tile_paint_mode = static_cast<TilePaintMode>(mode);
-			ItemTooltip("Only shown when at least one possible emitted tile is larger than the grid.");
+			if (DrawCompactCombo("##paint_placement", "Placement", mode, modes, 2, 150.0f,
+				"Grid anchors every grid cell. Tile placement advances by the source footprint and is only shown when the chosen source can exceed one grid cell.")) {
+				e.recipe.tile_paint_mode = static_cast<TilePaintMode>(mode);
+			}
 		} else if (tile_layer) {
 			e.recipe.tile_paint_mode = TilePaintMode::Tile;
 		}
-		if (tile_origin_applicable) {
-			next_item();
-			DrawOriginCombo("Tile Origin##paint", e.recipe.tile_origin);
-		}
-		if (entity_origin_applicable) {
-			next_item();
-			DrawOriginCombo("Entity Origin##paint", e.recipe.entity_origin);
-		}
+		if (tile_origin_applicable) { next_item(); DrawOriginCombo("Tile Origin##paint", e.recipe.tile_origin); }
+		if (entity_origin_applicable) { next_item(); DrawOriginCombo("Entity Origin##paint", e.recipe.entity_origin); }
 		if (mask_applicable) {
 			next_item();
 			ImGui::Checkbox("Avoid Mask##paint", &e.recipe.avoid_exclusion_mask);
+			ItemTooltip("Skip cells contained in the tilemap exclusion mask.");
 		}
 		if (random_entity) {
 			next_item();
-			if (ImGui::BeginCombo("Transform##paint", "Random...")) {
+			const bool any_transform{ e.recipe.random_rotation || e.recipe.random_scale };
+			const std::string preview{ std::string{ "Transform: " } + (any_transform ? "Random" : "None") };
+			ImGui::SetNextItemWidth(138.0f);
+			if (ImGui::BeginCombo("##paint_transform", preview.c_str())) {
 				ImGui::Checkbox("Random Rotation", &e.recipe.random_rotation);
 				if (e.recipe.random_rotation) ImGui::DragFloatRange2("Rotation", &e.recipe.rotation_min, &e.recipe.rotation_max, 0.5f, -3600.0f, 3600.0f, "%.0f", "%.0f");
 				ImGui::Checkbox("Random Scale", &e.recipe.random_scale);
@@ -5340,6 +5347,7 @@ static void DrawBrushSettings(EditorState& e) {
 				if (e.recipe.coverage != PaintCoverageKind::Solid) ImGui::DragFloat("Minimum Spacing", &e.recipe.min_spacing, 0.5f, 0.0f, 1024.0f, "%.0f");
 				ImGui::EndCombo();
 			}
+			ItemTooltip("Optional random transform variation applied to newly emitted entities.");
 		}
 	};
 
@@ -5347,58 +5355,43 @@ static void DrawBrushSettings(EditorState& e) {
 		next_item();
 		const char* modes[]{ "Click + Marquee", "Selection Brush" };
 		int mode{ static_cast<int>(e.brush.select_mode) };
-		ImGui::SetNextItemWidth(152.0f);
-		if (ImGui::Combo("Mode##select", &mode, modes, 2)) e.brush.select_mode = static_cast<SelectMode>(mode);
-		ItemTooltip("Paint.NET-style selection: click/marquee replaces selection, Shift adds, Ctrl toggles/removes, right click clears. Selection Brush always selects raster cells.");
-		if (e.brush.select_mode == SelectMode::Brush) {
-			draw_diameter();
-			draw_shape();
-		}
+		if (DrawCompactCombo("##select_mode", "Mode", mode, modes, 2, 185.0f,
+			"Click + Marquee behaves like Paint.NET selection. Selection Brush paints selected grid cells. Right click clears selection.")) e.brush.select_mode = static_cast<SelectMode>(mode);
+		if (e.brush.select_mode == SelectMode::Brush) { draw_diameter(); draw_shape(); }
 		next_item();
 		ImGui::BeginDisabled(!HasSelection(e));
 		if (ImGui::SmallButton("Deselect")) DeselectAll(e);
 		ImGui::EndDisabled();
 		return;
 	}
-
 	if (e.tool == Tool::Move) {
 		next_item();
 		const char* modes[]{ "Grid", "Free" };
 		int mode{ static_cast<int>(e.move.snap_mode) };
-		ImGui::SetNextItemWidth(104.0f);
-		if (ImGui::Combo("Move##mode", &mode, modes, 2)) e.move.snap_mode = static_cast<MoveSnapMode>(mode);
+		if (DrawCompactCombo("##move_mode", "Move", mode, modes, 2, 132.0f, "Grid moves in cell steps; Free uses world-space movement. Ctrl temporarily inverts the mode.")) e.move.snap_mode = static_cast<MoveSnapMode>(mode);
 		next_item();
 		ImGui::BeginDisabled(!HasSelection(e));
 		if (ImGui::Button("Snap to Grid")) SnapSelectionToGrid(e);
 		ImGui::EndDisabled();
-		ItemTooltip("Snap every selected entity/tile to its nearest grid coordinate using that object's origin/anchor.");
+		ItemTooltip("Snap every selected entity/tile/generator to its nearest grid coordinate using its anchor/origin.");
 		return;
 	}
-
 	if (e.tool == Tool::Eyedropper) return;
-	if (e.tool == Tool::Fill) {
-		draw_placement();
-		return;
-	}
-
+	if (e.tool == Tool::Fill) { draw_placement(); return; }
 	if (e.tool == Tool::Erase) {
 		if (tile_layer) {
 			next_item();
 			const char* erase_modes[]{ "Erase Tiles", "Erase Mask" };
 			int choice{ e.brush.operation == BrushOperation::ExclusionMask ? 1 : 0 };
-			ImGui::SetNextItemWidth(116.0f);
-			if (ImGui::Combo("Mode##erase", &choice, erase_modes, 2)) e.brush.operation = choice ? BrushOperation::ExclusionMask : BrushOperation::Paint;
+			if (DrawCompactCombo("##erase_mode", "Mode", choice, erase_modes, 2, 165.0f, "Erase Tiles removes content. Erase Mask removes exclusion-mask cells.")) e.brush.operation = choice ? BrushOperation::ExclusionMask : BrushOperation::Paint;
 		}
-		draw_diameter();
-		draw_shape();
-		return;
+		draw_diameter(); draw_shape(); return;
 	}
 
 	draw_operation();
 	if (e.tool == Tool::Brush) {
 		new_row();
-		draw_diameter();
-		draw_shape();
+		draw_diameter(); draw_shape();
 		if (PendingBrushGeneratorActive(e)) {
 			next_item();
 			if (ImGui::SmallButton("✓##finish_brush_generator")) {
@@ -5406,39 +5399,34 @@ static void DrawBrushSettings(EditorState& e) {
 				e.pending_generator->recipe.commit_mode = PaintCommitMode::KeepGenerator;
 				CommitPendingGenerator(e);
 			}
-			ItemTooltip("Finish/lock in the current multi-stroke brush generator (Enter). The next brush stroke starts a new generator instead of combining with this one.");
+			ItemTooltip("Finish/lock in the current multi-stroke generator (Enter). The next Brush stroke starts a new generator.");
 			next_item();
 			if (ImGui::SmallButton("×##cancel_brush_generator")) CancelPendingGenerator(e);
-			ItemTooltip("Cancel the current multi-stroke brush generator (Escape).");
+			ItemTooltip("Cancel the current multi-stroke generator (Escape).");
 		}
 	}
 	if (e.tool == Tool::Line) {
-		next_item();
-		ImGui::SetNextItemWidth(76.0f);
+		next_item(); ImGui::SetNextItemWidth(76.0f);
 		ImGui::DragInt(tile_layer ? "Thickness (tiles)##line" : "Thickness (entities)##line", &e.brush.line_thickness, 0.15f, 1, 32);
 		e.brush.line_thickness = std::max(1, e.brush.line_thickness);
-		next_item();
-		ImGui::SetNextItemWidth(76.0f);
+		next_item(); ImGui::SetNextItemWidth(76.0f);
 		ImGui::DragInt("Spacing##line", &e.brush.line_spacing_cells, 0.1f, 1, 32);
 		e.brush.line_spacing_cells = std::max(1, e.brush.line_spacing_cells);
-		next_item();
-		ImGui::Checkbox("Align Rotation", &e.brush.line_align_rotation);
+		next_item(); ImGui::Checkbox("Align Rotation", &e.brush.line_align_rotation);
+		ItemTooltip("Rotate emitted entities to follow the line direction.");
 	}
 	if (e.tool == Tool::Rectangle) {
 		next_item();
 		const char* areas[]{ "Fill", "Outline", "Corners", "Random Fill" };
 		int area{ static_cast<int>(e.brush.area_mode) };
-		ImGui::SetNextItemWidth(116.0f);
-		if (ImGui::Combo("Mode##rectangle", &area, areas, 4)) e.brush.area_mode = static_cast<AreaMode>(area);
+		if (DrawCompactCombo("##rectangle_mode", "Mode", area, areas, 4, 158.0f, "Choose whether the rectangle fills its interior, outline, corners, or a random-density subset.")) e.brush.area_mode = static_cast<AreaMode>(area);
 		if (e.brush.area_mode == AreaMode::Outline || e.brush.area_mode == AreaMode::Corners) {
-			next_item();
-			ImGui::SetNextItemWidth(82.0f);
+			next_item(); ImGui::SetNextItemWidth(82.0f);
 			ImGui::DragInt(tile_layer ? "Thickness (tiles)##rectangle" : "Thickness (entities)##rectangle", &e.brush.area_thickness, 0.15f, 1, 32);
 			e.brush.area_thickness = std::max(1, e.brush.area_thickness);
 		}
 		if (e.brush.area_mode == AreaMode::RandomFill) {
-			next_item();
-			ImGui::SetNextItemWidth(82.0f);
+			next_item(); ImGui::SetNextItemWidth(82.0f);
 			ImGui::SliderFloat("Density##rectangle", &e.recipe.density, 0.01f, 1.0f, "%.2f");
 		}
 	}
@@ -7229,73 +7217,7 @@ static void DrawViewport(EditorState& e) {
 	ImGui::End();
 }
 
-static void DrawSceneHierarchy(EditorState& e) {
-	ImGui::Begin("Scene Hierarchy");
-	int delete_generator{ -1 };
-	int bake_generator{ -1 };
-	for (const auto& layer : e.layers) {
-		ImGui::PushID(layer.id);
-		const bool open{ ImGui::TreeNodeEx(layer.name.c_str(), ImGuiTreeNodeFlags_DefaultOpen) };
-		if (ImGui::IsItemClicked()) {
-			e.active_layer_id = layer.id;
-			e.selected_generator_id = -1;
-		}
-		if (open) {
-			bool has_generators{};
-			for (const auto& generator : e.generators) if (generator.layer_id == layer.id) { has_generators = true; break; }
-			if (has_generators && ImGui::TreeNodeEx("Generators", ImGuiTreeNodeFlags_DefaultOpen)) {
-				for (const auto& generator : e.generators) {
-					if (generator.layer_id != layer.id) continue;
-					ImGui::PushID(generator.id);
-					const bool selected{ e.selected_generator_id == generator.id };
-					if (ImGui::Selectable(generator.name.c_str(), selected)) {
-						SelectGenerator(e, generator.id);
-					}
-					if (ImGui::BeginPopupContextItem("GeneratorContext")) {
-						const bool infinite{ generator.geometry == GeneratorGeometryKind::Infinite };
-						ImGui::BeginDisabled(infinite || layer.locked);
-						if (ImGui::MenuItem("Bake Generator")) bake_generator = generator.id;
-						ImGui::EndDisabled();
-						if (infinite && ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled)) ImGui::SetTooltip("Infinite generators cannot be baked globally. Bake a finite authored region instead.");
-						if (ImGui::MenuItem("Delete Generator")) delete_generator = generator.id;
-						ImGui::EndPopup();
-					}
-					ImGui::PopID();
-				}
-				ImGui::TreePop();
-			}
 
-			if (layer.kind == LayerKind::Entity) {
-				for (const auto& entity : e.entities) {
-					if (entity.layer_id != layer.id) continue;
-					const bool selected{ e.selected_entities.contains(entity.id) };
-					ImGui::PushID(entity.id);
-					if (ImGui::Selectable(entity.prefab.c_str(), selected)) {
-						e.selected_generator_id = -1;
-						if (!ImGui::GetIO().KeyCtrl && !ImGui::GetIO().KeyShift) e.selected_entities.clear();
-						if (ImGui::GetIO().KeyCtrl && selected) e.selected_entities.erase(entity.id);
-						else { e.selected_entities.insert(entity.id); e.primary_entity_id = entity.id; }
-					}
-					ImGui::PopID();
-				}
-			} else if (layer.kind == LayerKind::Tile) {
-				ImGui::TextDisabled("Manual tiles are edited in the viewport; persistent generators are listed above.");
-			} else {
-				ImGui::TextDisabled("Legacy Noise layer (compatibility only).");
-			}
-			ImGui::TreePop();
-		}
-		ImGui::PopID();
-	}
-	if (bake_generator >= 0) BakeGenerator(e, bake_generator);
-	if (delete_generator >= 0) {
-		const SceneSnapshot before{ CaptureScene(e) };
-		e.generators.erase(std::remove_if(e.generators.begin(), e.generators.end(), [&](const PaintGenerator& generator) { return generator.id == delete_generator; }), e.generators.end());
-		if (e.selected_generator_id == delete_generator) e.selected_generator_id = -1;
-		PushHistory(e, "Delete Generator", before);
-	}
-	ImGui::End();
-}
 
 static int LayerIndex(const EditorState& e, int id) {
 	for (int i{}; i < static_cast<int>(e.layers.size()); ++i) {
@@ -7414,74 +7336,87 @@ static void MergeLayerDown(EditorState& e, int upper_id, LayerMergeMode mode) {
 	PushHistory(e, "Merge Layer Down", before);
 }
 
+
+
 static bool LayerIconButton(const char* id, bool& value, bool eye_icon) {
-	const ImVec2 size{ 18.0f, 18.0f };
+	// Match the TreeNode/Selectable row height exactly so the controls read as a
+	// single hierarchy row rather than a collection of differently-sized widgets.
+	const float side{ ImGui::GetFrameHeight() };
+	const float scale{ side / 18.0f };
+	const ImVec2 size{ side, side };
 	const ImVec2 p0{ ImGui::GetCursorScreenPos() };
 	ImGui::InvisibleButton(id, size);
 	const bool clicked{ ImGui::IsItemClicked() };
 	if (clicked) value = !value;
 	ImDrawList* dl{ ImGui::GetWindowDrawList() };
 	const ImU32 c{ ImGui::GetColorU32(value ? ImGuiCol_Text : ImGuiCol_TextDisabled) };
+	auto pt = [&](float x, float y) { return ImVec2{ p0.x + x * scale, p0.y + y * scale }; };
 	if (eye_icon) {
-		const ImVec2 center{ p0.x + 9.0f, p0.y + 9.0f };
-		dl->AddLine({ p0.x + 2.0f, p0.y + 9.0f }, { p0.x + 6.0f, p0.y + 5.0f }, c, 1.5f);
-		dl->AddLine({ p0.x + 6.0f, p0.y + 5.0f }, { p0.x + 12.0f, p0.y + 5.0f }, c, 1.5f);
-		dl->AddLine({ p0.x + 12.0f, p0.y + 5.0f }, { p0.x + 16.0f, p0.y + 9.0f }, c, 1.5f);
-		dl->AddLine({ p0.x + 16.0f, p0.y + 9.0f }, { p0.x + 12.0f, p0.y + 13.0f }, c, 1.5f);
-		dl->AddLine({ p0.x + 12.0f, p0.y + 13.0f }, { p0.x + 6.0f, p0.y + 13.0f }, c, 1.5f);
-		dl->AddLine({ p0.x + 6.0f, p0.y + 13.0f }, { p0.x + 2.0f, p0.y + 9.0f }, c, 1.5f);
-		if (value) dl->AddCircleFilled(center, 2.3f, c, 8);
-		else dl->AddLine({ p0.x + 3.0f, p0.y + 15.0f }, { p0.x + 15.0f, p0.y + 3.0f }, c, 1.5f);
+		const ImVec2 center{ pt(9.0f, 9.0f) };
+		dl->AddLine(pt(2.0f, 9.0f), pt(6.0f, 5.0f), c, 1.5f * scale);
+		dl->AddLine(pt(6.0f, 5.0f), pt(12.0f, 5.0f), c, 1.5f * scale);
+		dl->AddLine(pt(12.0f, 5.0f), pt(16.0f, 9.0f), c, 1.5f * scale);
+		dl->AddLine(pt(16.0f, 9.0f), pt(12.0f, 13.0f), c, 1.5f * scale);
+		dl->AddLine(pt(12.0f, 13.0f), pt(6.0f, 13.0f), c, 1.5f * scale);
+		dl->AddLine(pt(6.0f, 13.0f), pt(2.0f, 9.0f), c, 1.5f * scale);
+		if (value) dl->AddCircleFilled(center, 2.3f * scale, c, 8);
+		else dl->AddLine(pt(3.0f, 15.0f), pt(15.0f, 3.0f), c, 1.5f * scale);
 	} else {
 		// Lock icon: closed when true, open when false.
-		dl->AddRect({ p0.x + 5.0f, p0.y + 8.0f }, { p0.x + 14.0f, p0.y + 15.0f }, c, 1.0f, 0, 1.5f);
+		dl->AddRect(pt(5.0f, 8.0f), pt(14.0f, 15.0f), c, 1.0f * scale, 0, 1.5f * scale);
 		if (value) {
-			dl->AddLine({ p0.x + 7.0f, p0.y + 8.0f }, { p0.x + 7.0f, p0.y + 5.0f }, c, 1.5f);
-			dl->AddLine({ p0.x + 7.0f, p0.y + 5.0f }, { p0.x + 12.0f, p0.y + 5.0f }, c, 1.5f);
-			dl->AddLine({ p0.x + 12.0f, p0.y + 5.0f }, { p0.x + 12.0f, p0.y + 8.0f }, c, 1.5f);
+			dl->AddLine(pt(7.0f, 8.0f), pt(7.0f, 5.0f), c, 1.5f * scale);
+			dl->AddLine(pt(7.0f, 5.0f), pt(12.0f, 5.0f), c, 1.5f * scale);
+			dl->AddLine(pt(12.0f, 5.0f), pt(12.0f, 8.0f), c, 1.5f * scale);
 		} else {
-			dl->AddLine({ p0.x + 7.0f, p0.y + 8.0f }, { p0.x + 7.0f, p0.y + 5.0f }, c, 1.5f);
-			dl->AddLine({ p0.x + 7.0f, p0.y + 5.0f }, { p0.x + 11.0f, p0.y + 4.0f }, c, 1.5f);
+			dl->AddLine(pt(7.0f, 8.0f), pt(7.0f, 5.0f), c, 1.5f * scale);
+			dl->AddLine(pt(7.0f, 5.0f), pt(11.0f, 4.0f), c, 1.5f * scale);
 		}
 	}
 	return clicked;
 }
 
 static void DrawLayerKindIcon(LayerKind kind) {
-	const ImVec2 size{ 18.0f, 18.0f };
+	const float side{ ImGui::GetFrameHeight() };
+	const float scale{ side / 18.0f };
+	const ImVec2 size{ side, side };
 	const ImVec2 p0{ ImGui::GetCursorScreenPos() };
 	ImGui::Dummy(size);
 	ImDrawList* dl{ ImGui::GetWindowDrawList() };
 	const ImU32 c{ ImGui::GetColorU32(ImGuiCol_TextDisabled) };
+	auto pt = [&](float x, float y) { return ImVec2{ p0.x + x * scale, p0.y + y * scale }; };
 	if (kind == LayerKind::Tile) {
 		for (int y{}; y < 2; ++y) for (int x{}; x < 2; ++x) {
-			dl->AddRect({ p0.x + 3.0f + x * 6.0f, p0.y + 3.0f + y * 6.0f }, { p0.x + 8.0f + x * 6.0f, p0.y + 8.0f + y * 6.0f }, c);
+			dl->AddRect(pt(3.0f + x * 6.0f, 3.0f + y * 6.0f), pt(8.0f + x * 6.0f, 8.0f + y * 6.0f), c);
 		}
 	} else if (kind == LayerKind::Entity) {
-		dl->AddQuad({ p0.x + 9.0f, p0.y + 2.0f }, { p0.x + 15.0f, p0.y + 6.0f }, { p0.x + 9.0f, p0.y + 10.0f }, { p0.x + 3.0f, p0.y + 6.0f }, c, 1.5f);
-		dl->AddLine({ p0.x + 3.0f, p0.y + 6.0f }, { p0.x + 3.0f, p0.y + 12.0f }, c, 1.5f);
-		dl->AddLine({ p0.x + 15.0f, p0.y + 6.0f }, { p0.x + 15.0f, p0.y + 12.0f }, c, 1.5f);
-		dl->AddLine({ p0.x + 3.0f, p0.y + 12.0f }, { p0.x + 9.0f, p0.y + 16.0f }, c, 1.5f);
-		dl->AddLine({ p0.x + 15.0f, p0.y + 12.0f }, { p0.x + 9.0f, p0.y + 16.0f }, c, 1.5f);
-		dl->AddLine({ p0.x + 9.0f, p0.y + 10.0f }, { p0.x + 9.0f, p0.y + 16.0f }, c, 1.5f);
+		dl->AddQuad(pt(9.0f, 2.0f), pt(15.0f, 6.0f), pt(9.0f, 10.0f), pt(3.0f, 6.0f), c, 1.5f * scale);
+		dl->AddLine(pt(3.0f, 6.0f), pt(3.0f, 12.0f), c, 1.5f * scale);
+		dl->AddLine(pt(15.0f, 6.0f), pt(15.0f, 12.0f), c, 1.5f * scale);
+		dl->AddLine(pt(3.0f, 12.0f), pt(9.0f, 16.0f), c, 1.5f * scale);
+		dl->AddLine(pt(15.0f, 12.0f), pt(9.0f, 16.0f), c, 1.5f * scale);
+		dl->AddLine(pt(9.0f, 10.0f), pt(9.0f, 16.0f), c, 1.5f * scale);
 	} else {
 		for (int i{}; i < 3; ++i) {
-			const float yy{ p0.y + 5.0f + i * 4.0f };
-			dl->AddLine({ p0.x + 2.0f, yy }, { p0.x + 6.0f, yy - 2.0f }, c, 1.2f);
-			dl->AddLine({ p0.x + 6.0f, yy - 2.0f }, { p0.x + 11.0f, yy + 2.0f }, c, 1.2f);
-			dl->AddLine({ p0.x + 11.0f, yy + 2.0f }, { p0.x + 16.0f, yy }, c, 1.2f);
+			const float yy{ 5.0f + i * 4.0f };
+			dl->AddLine(pt(2.0f, yy), pt(6.0f, yy - 2.0f), c, 1.2f * scale);
+			dl->AddLine(pt(6.0f, yy - 2.0f), pt(11.0f, yy + 2.0f), c, 1.2f * scale);
+			dl->AddLine(pt(11.0f, yy + 2.0f), pt(16.0f, yy), c, 1.2f * scale);
 		}
 	}
 	ItemTooltip(kind == LayerKind::Tile ? "Tile layer" : kind == LayerKind::Entity ? "Entity layer" : "Procedural noise layer");
 }
 
-static void DrawLayers(EditorState& e) {
-	ImGui::Begin("Layers");
-	ImGui::TextDisabled("Top renders last. Click a row to make it active. Drag rows to reorder.");
+static void DrawSceneHierarchy(EditorState& e) {
+	ImGui::Begin("Scene Hierarchy");
+	if (ImGui::IsWindowFocused(ImGuiFocusedFlags_RootAndChildWindows)) e.inspector_context = InspectorContext::Scene;
+
 	int move_source_id{ -1 };
 	int move_target_id{ -1 };
-	int delete_id{ -1 };
-	int duplicate_id{ -1 };
+	int delete_layer_id{ -1 };
+	int duplicate_layer_id{ -1 };
+	int delete_generator_id{ -1 };
+	int bake_generator_id{ -1 };
 	static int merge_id{ -1 };
 	static int merge_mode_index{};
 	static bool merge_popup_requested{};
@@ -7490,179 +7425,304 @@ static void DrawLayers(EditorState& e) {
 	static std::string original_layer_name;
 	static std::optional<SceneSnapshot> layer_rename_before;
 
-	for (int i{ static_cast<int>(e.layers.size()) - 1 }; i >= 0; --i) {
-		auto& layer{ e.layers[static_cast<std::size_t>(i)] };
-		ImGui::PushID(layer.id);
-		LayerIconButton("##visible", layer.visible, true);
-		ItemTooltip(layer.visible ? "Layer is visible. Click the eye to hide it." : "Layer is hidden. Click to show it.");
-		ImGui::SameLine();
-		LayerIconButton("##locked", layer.locked, false);
-		ItemTooltip(layer.locked ? "Layer is locked against editing. Click to unlock it." : "Layer is editable. Click to lock it.");
-		ImGui::SameLine();
-		DrawLayerKindIcon(layer.kind);
-		ImGui::SameLine();
+	auto select_layer = [&](int layer_id) {
+		// A layer is a real hierarchy selection. Clear entity/tile/generator
+		// selection so Inspector switches back to the layer's paint recipe instead
+		// of continuing to display the previously selected child entity.
+		DeselectAll(e);
+		e.active_layer_id = layer_id;
+		e.inspector_context = InspectorContext::Scene;
+	};
 
-		bool begin_rename{};
-		bool commit_rename{};
-		bool cancel_rename{};
-		const bool editing{ editing_layer_id == layer.id };
-		if (editing) {
-			ImGui::SetNextItemWidth(-FLT_MIN);
-			if (focus_layer_id == layer.id) {
-				ImGui::SetKeyboardFocusHere();
+	auto add_entity_layer = [&]() {
+		const auto before{ CaptureScene(e) };
+		SceneLayer layer;
+		layer.id = e.next_layer_id++;
+		layer.name = "Entity Layer " + std::to_string(layer.id);
+		layer.kind = LayerKind::Entity;
+		e.layers.push_back(layer);
+		select_layer(layer.id);
+		PushHistory(e, "Add Entity Layer", before);
+	};
+
+	auto add_tile_layer = [&]() {
+		const auto before{ CaptureScene(e) };
+		if (e.tilemaps.empty()) {
+			Tilemap map;
+			map.id = e.next_tilemap_id++;
+			e.tilemaps.push_back(map);
+		}
+		SceneLayer layer;
+		layer.id = e.next_layer_id++;
+		layer.name = "Tile Layer " + std::to_string(layer.id);
+		layer.kind = LayerKind::Tile;
+		layer.tile.tilemap_id = e.tilemaps.front().id;
+		e.layers.push_back(layer);
+		select_layer(layer.id);
+		PushHistory(e, "Add Tile Layer", before);
+	};
+
+	const float row_height{ ImGui::GetFrameHeight() };
+	if (ImGui::BeginTable(
+			"##SceneHierarchyLayers",
+			4,
+			ImGuiTableFlags_SizingStretchProp | ImGuiTableFlags_NoSavedSettings
+		)) {
+		ImGui::TableSetupColumn("##Kind", ImGuiTableColumnFlags_WidthFixed, row_height + 2.0f);
+		ImGui::TableSetupColumn("##Hierarchy", ImGuiTableColumnFlags_WidthStretch);
+		ImGui::TableSetupColumn("##Visible", ImGuiTableColumnFlags_WidthFixed, row_height + 2.0f);
+		ImGui::TableSetupColumn("##Locked", ImGuiTableColumnFlags_WidthFixed, row_height + 2.0f);
+
+		// Match the old Layers panel ordering: the highest/rendered-last layer is
+		// displayed at the top of the hierarchy.
+		for (int i{ static_cast<int>(e.layers.size()) - 1 }; i >= 0; --i) {
+			auto& layer{ e.layers[static_cast<std::size_t>(i)] };
+			ImGui::PushID(layer.id);
+			ImGui::TableNextRow(ImGuiTableRowFlags_None, row_height);
+
+			ImGui::TableSetColumnIndex(0);
+			DrawLayerKindIcon(layer.kind);
+
+			ImGui::TableSetColumnIndex(1);
+			bool begin_rename{};
+			bool commit_rename{};
+			bool cancel_rename{};
+			bool open{};
+			const bool has_generators{ std::ranges::any_of(e.generators, [&](const PaintGenerator& generator) {
+				return generator.layer_id == layer.id;
+			}) };
+			const bool has_entities{ layer.kind == LayerKind::Entity && std::ranges::any_of(e.entities, [&](const Entity& entity) {
+				return entity.layer_id == layer.id;
+			}) };
+			const bool has_layer_children{ has_generators || has_entities };
+			const bool editing{ editing_layer_id == layer.id };
+
+			if (editing) {
+				ImGui::SetNextItemWidth(-FLT_MIN);
+				if (focus_layer_id == layer.id) {
+					ImGui::SetKeyboardFocusHere();
+					focus_layer_id = -1;
+				}
+				const bool submitted{ ImGui::InputText(
+					"##layer_name",
+					&layer.name,
+					ImGuiInputTextFlags_EnterReturnsTrue | ImGuiInputTextFlags_AutoSelectAll
+				) };
+				if (ImGui::IsKeyPressed(ImGuiKey_Escape, false)) cancel_rename = true;
+				else if (submitted || ImGui::IsItemDeactivatedAfterEdit()) commit_rename = true;
+			} else {
+				const bool layer_selected{
+					layer.id == e.active_layer_id &&
+					e.selected_generator_id < 0 &&
+					e.selected_entities.empty() &&
+					e.selected_tile_cells.empty()
+				};
+				ImGuiTreeNodeFlags flags{
+					ImGuiTreeNodeFlags_DefaultOpen |
+					ImGuiTreeNodeFlags_OpenOnArrow |
+					ImGuiTreeNodeFlags_SpanAvailWidth |
+					ImGuiTreeNodeFlags_NoTreePushOnOpen
+				};
+				if (!has_layer_children) flags |= ImGuiTreeNodeFlags_Leaf;
+				if (layer_selected) flags |= ImGuiTreeNodeFlags_Selected;
+				open = ImGui::TreeNodeEx("##LayerNode", flags, "%s", layer.name.c_str());
+				if (ImGui::IsItemClicked(ImGuiMouseButton_Left)) select_layer(layer.id);
+				if (ImGui::IsItemClicked(ImGuiMouseButton_Right)) select_layer(layer.id);
+				ItemTooltip("Select this layer. Drag to reorder; right click for layer options.");
+
+				if (ImGui::BeginDragDropSource(ImGuiDragDropFlags_SourceAllowNullID)) {
+					const int payload_id{ layer.id };
+					ImGui::SetDragDropPayload("SCENE_LAYER_ID", &payload_id, sizeof(payload_id));
+					ImGui::Text("Move %s", layer.name.c_str());
+					ImGui::EndDragDropSource();
+				}
+				if (ImGui::BeginDragDropTarget()) {
+					if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload("SCENE_LAYER_ID")) {
+						if (payload->DataSize == sizeof(int)) {
+							move_source_id = *static_cast<const int*>(payload->Data);
+							move_target_id = layer.id;
+						}
+					}
+					ImGui::EndDragDropTarget();
+				}
+
+				if (ImGui::BeginPopupContextItem("LayerContext")) {
+					const bool noise_properties_locked{ layer.kind == LayerKind::Noise && layer.locked };
+					ImGui::BeginDisabled(noise_properties_locked);
+					if (ImGui::MenuItem("Rename")) begin_rename = true;
+					ImGui::EndDisabled();
+					if (ImGui::MenuItem("Move Up") && i + 1 < static_cast<int>(e.layers.size())) {
+						move_source_id = layer.id;
+						move_target_id = e.layers[static_cast<std::size_t>(i + 1)].id;
+					}
+					if (ImGui::MenuItem("Move Down") && i > 0) {
+						move_source_id = layer.id;
+						move_target_id = e.layers[static_cast<std::size_t>(i - 1)].id;
+					}
+					ImGui::Separator();
+					ImGui::BeginDisabled(noise_properties_locked);
+					ImGui::MenuItem("Selectable", nullptr, &layer.selectable);
+					ImGui::EndDisabled();
+					if (ImGui::MenuItem("Solo")) {
+						for (auto& other : e.layers) other.visible = other.id == layer.id;
+					}
+
+					if (layer.kind == LayerKind::Tile) {
+						auto* map{ FindTilemap(e, layer.tile.tilemap_id) };
+						const bool has_exclusion_mask{ map && !map->exclusion_mask.empty() };
+						const bool can_clear_exclusion_mask{ has_exclusion_mask && !layer.locked };
+						ImGui::Separator();
+						ImGui::BeginDisabled(!can_clear_exclusion_mask);
+						if (ImGui::MenuItem("Clear Exclusion Mask")) {
+							auto before{ CaptureScene(e) };
+							map->exclusion_mask.clear();
+							PushHistory(e, "Clear Exclusion Mask", std::move(before));
+						}
+						ImGui::EndDisabled();
+						if (ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled)) {
+							if (!map) ImGui::SetTooltip("This tile layer has no valid tilemap.");
+							else if (layer.locked) ImGui::SetTooltip("Unlock this tile layer before clearing its exclusion mask.");
+							else if (!has_exclusion_mask) ImGui::SetTooltip("The exclusion mask is already empty.");
+							else ImGui::SetTooltip("Clear every excluded cell from this tilemap. This action is undoable.");
+						}
+					}
+
+					ImGui::Separator();
+					if (ImGui::MenuItem("Duplicate")) duplicate_layer_id = layer.id;
+					const bool merge_enabled{ CanMergeLayerDown(e, layer.id) };
+					ImGui::BeginDisabled(!merge_enabled);
+					if (ImGui::MenuItem("Merge Down...")) {
+						merge_id = layer.id;
+						merge_mode_index = 0;
+						merge_popup_requested = true;
+					}
+					ImGui::EndDisabled();
+					if (!merge_enabled && ImGui::IsItemHovered()) {
+						ImGui::SetTooltip("Merge Down requires an immediately lower compatible layer of the same type/grid.");
+					}
+					ImGui::BeginDisabled(e.layers.size() <= 1);
+					if (ImGui::MenuItem("Delete")) delete_layer_id = layer.id;
+					ImGui::EndDisabled();
+					ImGui::EndPopup();
+				}
+			}
+
+			ImGui::TableSetColumnIndex(2);
+			LayerIconButton("##visible", layer.visible, true);
+			ItemTooltip(layer.visible ? "Layer is visible. Click the eye to hide it." : "Layer is hidden. Click to show it.");
+			ImGui::TableSetColumnIndex(3);
+			LayerIconButton("##locked", layer.locked, false);
+			ItemTooltip(layer.locked ? "Layer is locked against editing. Click to unlock it." : "Layer is editable. Click to lock it.");
+
+			if (begin_rename) {
+				editing_layer_id = layer.id;
+				focus_layer_id = layer.id;
+				original_layer_name = layer.name;
+				layer_rename_before = CaptureScene(e);
+			}
+			if (cancel_rename) {
+				layer.name = original_layer_name;
+				editing_layer_id = -1;
 				focus_layer_id = -1;
-			}
-			const bool submitted{ ImGui::InputText(
-				"##layer_name",
-				&layer.name,
-				ImGuiInputTextFlags_EnterReturnsTrue | ImGuiInputTextFlags_AutoSelectAll
-			) };
-			if (ImGui::IsKeyPressed(ImGuiKey_Escape, false)) {
-				cancel_rename = true;
-			} else if (submitted || ImGui::IsItemDeactivatedAfterEdit()) {
-				commit_rename = true;
-			}
-		} else {
-			const std::string label{ layer.name + "##row" };
-			if (ImGui::Selectable(
-					label.c_str(),
-					layer.id == e.active_layer_id,
-					0,
-					{ 0.0f, ImGui::GetFrameHeight() }
-				)) {
-				e.active_layer_id = layer.id;
-			}
-			ItemTooltip("Make this the active layer. Right click for layer options.");
-		}
-
-		if (!editing && ImGui::BeginDragDropSource(ImGuiDragDropFlags_SourceAllowNullID)) {
-			const int payload_id{ layer.id };
-			ImGui::SetDragDropPayload("SCENE_LAYER_ID", &payload_id, sizeof(payload_id));
-			ImGui::Text("Move %s", layer.name.c_str());
-			ImGui::EndDragDropSource();
-		}
-		if (!editing && ImGui::BeginDragDropTarget()) {
-			if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload("SCENE_LAYER_ID")) {
-				if (payload->DataSize == sizeof(int)) {
-					move_source_id = *static_cast<const int*>(payload->Data);
-					move_target_id = layer.id;
+				layer_rename_before.reset();
+			} else if (commit_rename) {
+				if (layer.name.empty()) layer.name = "Layer";
+				const std::string base{ layer.name };
+				std::string unique{ base };
+				int suffix{ 2 };
+				while (std::ranges::any_of(e.layers, [&](const SceneLayer& candidate) {
+					return candidate.id != layer.id && candidate.name == unique;
+				})) unique = base + " " + std::to_string(suffix++);
+				layer.name = std::move(unique);
+				if (layer_rename_before && layer.name != original_layer_name) {
+					PushHistory(e, "Rename Layer", std::move(*layer_rename_before));
 				}
-			}
-			ImGui::EndDragDropTarget();
-		}
-
-		if (!editing && ImGui::BeginPopupContextItem("LayerContext")) {
-			const bool noise_properties_locked{ layer.kind == LayerKind::Noise && layer.locked };
-			ImGui::BeginDisabled(noise_properties_locked);
-			if (ImGui::MenuItem("Rename")) {
-				begin_rename = true;
-			}
-			ImGui::EndDisabled();
-			if (ImGui::MenuItem("Move Up") && i + 1 < static_cast<int>(e.layers.size())) {
-				move_source_id = layer.id;
-				move_target_id = e.layers[static_cast<std::size_t>(i + 1)].id;
-			}
-			if (ImGui::MenuItem("Move Down") && i > 0) {
-				move_source_id = layer.id;
-				move_target_id = e.layers[static_cast<std::size_t>(i - 1)].id;
-			}
-			ImGui::Separator();
-			ImGui::BeginDisabled(noise_properties_locked);
-			ImGui::MenuItem("Selectable", nullptr, &layer.selectable);
-			ImGui::EndDisabled();
-			if (ImGui::MenuItem("Solo")) {
-				for (auto& other : e.layers) {
-					other.visible = other.id == layer.id;
-				}
+				editing_layer_id = -1;
+				focus_layer_id = -1;
+				layer_rename_before.reset();
 			}
 
-			if (layer.kind == LayerKind::Tile) {
-				auto* map{ FindTilemap(e, layer.tile.tilemap_id) };
-				const bool has_exclusion_mask{ map && !map->exclusion_mask.empty() };
-				const bool can_clear_exclusion_mask{ has_exclusion_mask && !layer.locked };
-
-				ImGui::Separator();
-				ImGui::BeginDisabled(!can_clear_exclusion_mask);
-				if (ImGui::MenuItem("Clear Exclusion Mask")) {
-					auto before{ CaptureScene(e) };
-					map->exclusion_mask.clear();
-					PushHistory(e, "Clear Exclusion Mask", std::move(before));
-				}
-				ImGui::EndDisabled();
-
-				if (ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled)) {
-					if (!map) {
-						ImGui::SetTooltip("This tile layer has no valid tilemap.");
-					} else if (layer.locked) {
-						ImGui::SetTooltip("Unlock this tile layer before clearing its exclusion mask.");
-					} else if (!has_exclusion_mask) {
-						ImGui::SetTooltip("The exclusion mask is already empty.");
-					} else {
-						ImGui::SetTooltip("Clear every excluded cell from this tilemap. This action is undoable.");
+			if (open && !editing && has_layer_children) {
+				// TreeNode uses NoTreePushOnOpen so the visibility/lock columns on the
+				// layer row are not affected by indentation. Apply indentation only to
+				// the child rows below it.
+				ImGui::TreePush("##LayerChildren");
+				if (has_generators) {
+					ImGui::TableNextRow();
+					ImGui::TableSetColumnIndex(1);
+					if (ImGui::TreeNodeEx("Generators", ImGuiTreeNodeFlags_DefaultOpen)) {
+						for (const auto& generator : e.generators) {
+							if (generator.layer_id != layer.id) continue;
+							ImGui::TableNextRow();
+							ImGui::TableSetColumnIndex(1);
+							ImGui::PushID(generator.id);
+							const bool selected{ e.selected_generator_id == generator.id };
+							if (ImGui::Selectable(generator.name.c_str(), selected)) SelectGenerator(e, generator.id);
+							if (ImGui::BeginPopupContextItem("GeneratorContext")) {
+								const bool infinite{ generator.geometry == GeneratorGeometryKind::Infinite };
+								ImGui::BeginDisabled(infinite || layer.locked);
+								if (ImGui::MenuItem("Bake Generator")) bake_generator_id = generator.id;
+								ImGui::EndDisabled();
+								if (infinite && ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled)) {
+									ImGui::SetTooltip("Infinite generators cannot be baked globally. Bake a finite authored region instead.");
+								}
+								if (ImGui::MenuItem("Delete Generator")) delete_generator_id = generator.id;
+								ImGui::EndPopup();
+							}
+							ImGui::PopID();
+						}
+						ImGui::TreePop();
 					}
 				}
+
+				if (layer.kind == LayerKind::Entity) {
+					for (const auto& entity : e.entities) {
+						if (entity.layer_id != layer.id) continue;
+						ImGui::TableNextRow();
+						ImGui::TableSetColumnIndex(1);
+						const bool selected{ e.selected_entities.contains(entity.id) };
+						ImGui::PushID(entity.id);
+						if (ImGui::Selectable(entity.prefab.c_str(), selected)) {
+							e.active_layer_id = layer.id;
+							e.selected_generator_id = -1;
+							if (!ImGui::GetIO().KeyCtrl && !ImGui::GetIO().KeyShift) e.selected_entities.clear();
+							if (ImGui::GetIO().KeyCtrl && selected) e.selected_entities.erase(entity.id);
+							else {
+								e.selected_entities.insert(entity.id);
+								e.primary_entity_id = entity.id;
+							}
+						}
+						ImGui::PopID();
+					}
+				}
+				// Tile layers intentionally have no explanatory child row. Their manual
+				// tile content is edited directly in the viewport.
+				ImGui::TreePop();
 			}
 
-			ImGui::Separator();
-			if (ImGui::MenuItem("Duplicate")) {
-				duplicate_id = layer.id;
-			}
-			const bool merge_enabled{ CanMergeLayerDown(e, layer.id) };
-			ImGui::BeginDisabled(!merge_enabled);
-			if (ImGui::MenuItem("Merge Down...")) {
-				merge_id = layer.id;
-				merge_mode_index = 0;
-				merge_popup_requested = true;
-			}
-			ImGui::EndDisabled();
-			if (!merge_enabled && ImGui::IsItemHovered()) {
-				ImGui::SetTooltip("Merge Down requires an immediately lower compatible layer of the same type/grid.");
-			}
-			if (ImGui::MenuItem("Delete")) {
-				delete_id = layer.id;
-			}
-			ImGui::EndPopup();
+			ImGui::PopID();
 		}
+		ImGui::EndTable();
+	}
 
-		if (begin_rename) {
-			editing_layer_id = layer.id;
-			focus_layer_id = layer.id;
-			original_layer_name = layer.name;
-			layer_rename_before = CaptureScene(e);
+	// Empty hierarchy space owns layer creation. This deliberately uses
+	// NoOpenOverItems so layer/entity/generator context menus always win.
+	if (ImGui::BeginPopupContextWindow(
+			"SceneHierarchyBackgroundContext",
+			ImGuiPopupFlags_MouseButtonRight | ImGuiPopupFlags_NoOpenOverItems
+		)) {
+		if (ImGui::BeginMenu("Create Layer")) {
+			if (ImGui::MenuItem("Entity")) add_entity_layer();
+			if (ImGui::MenuItem("Tile")) add_tile_layer();
+			ImGui::EndMenu();
 		}
-		if (cancel_rename) {
-			layer.name = original_layer_name;
-			editing_layer_id = -1;
-			focus_layer_id = -1;
-			layer_rename_before.reset();
-		} else if (commit_rename) {
-			if (layer.name.empty()) {
-				layer.name = "Layer";
-			}
-			const std::string base{ layer.name };
-			std::string unique{ base };
-			int suffix{ 2 };
-			while (std::ranges::any_of(e.layers, [&](const SceneLayer& candidate) {
-				return candidate.id != layer.id && candidate.name == unique;
-			})) {
-				unique = base + " " + std::to_string(suffix++);
-			}
-			layer.name = std::move(unique);
-			if (layer_rename_before && layer.name != original_layer_name) {
-				PushHistory(e, "Rename Layer", std::move(*layer_rename_before));
-			}
-			editing_layer_id = -1;
-			focus_layer_id = -1;
-			layer_rename_before.reset();
-		}
-		ImGui::PopID();
+		ImGui::EndPopup();
 	}
 
 	if (merge_popup_requested) {
 		ImGui::OpenPopup("Merge Layer Down");
 		merge_popup_requested = false;
 	}
-
 	if (ImGui::BeginPopupModal("Merge Layer Down", nullptr, ImGuiWindowFlags_AlwaysAutoResize)) {
 		const int index{ LayerIndex(e, merge_id) };
 		if (index > 0 && CanMergeLayerDown(e, merge_id)) {
@@ -7689,9 +7749,7 @@ static void DrawLayers(EditorState& e) {
 			}
 		} else {
 			ImGui::TextDisabled("The layers are no longer compatible for merging.");
-			if (ImGui::Button("Close")) {
-				ImGui::CloseCurrentPopup();
-			}
+			if (ImGui::Button("Close")) ImGui::CloseCurrentPopup();
 		}
 		ImGui::EndPopup();
 	}
@@ -7705,17 +7763,14 @@ static void DrawLayers(EditorState& e) {
 			SceneLayer moved{ std::move(*src) };
 			const std::size_t src_index{ static_cast<std::size_t>(std::distance(e.layers.begin(), src)) };
 			e.layers.erase(e.layers.begin() + static_cast<std::ptrdiff_t>(src_index));
-			// Move to the target layer's original index. When moving upward (toward a
-			// higher index), erasing the source shifts the target down by one, so
-			// inserting at dst_index places the moved layer immediately above it.
 			const std::size_t adjusted{ std::min(dst_index, e.layers.size()) };
 			e.layers.insert(e.layers.begin() + static_cast<std::ptrdiff_t>(adjusted), std::move(moved));
 			PushHistory(e, "Reorder Layer", before);
 		}
 	}
 
-	if (duplicate_id >= 0) {
-		if (const SceneLayer* source = FindLayer(e, duplicate_id)) {
+	if (duplicate_layer_id >= 0) {
+		if (const SceneLayer* source = FindLayer(e, duplicate_layer_id)) {
 			const auto before{ CaptureScene(e) };
 			SceneLayer copy{ *source };
 			copy.id = e.next_layer_id++;
@@ -7742,77 +7797,38 @@ static void DrawLayers(EditorState& e) {
 			}
 			e.generators.insert(e.generators.end(), generator_copies.begin(), generator_copies.end());
 			e.layers.push_back(std::move(copy));
-			e.active_layer_id = e.layers.back().id;
+			select_layer(e.layers.back().id);
 			PushHistory(e, "Duplicate Layer", before);
 		}
 	}
 
-	if (delete_id >= 0 && e.layers.size() > 1) {
+	if (delete_layer_id >= 0 && e.layers.size() > 1) {
 		const auto before{ CaptureScene(e) };
-		for (const auto& entity : e.entities) {
-			if (entity.layer_id == delete_id) e.selected_entities.erase(entity.id);
-		}
+		for (const auto& entity : e.entities) if (entity.layer_id == delete_layer_id) e.selected_entities.erase(entity.id);
 		if (!e.selected_entities.contains(e.primary_entity_id)) e.primary_entity_id = -1;
-		if (e.selected_tile_layer_id == delete_id) DeselectAll(e);
+		if (e.selected_tile_layer_id == delete_layer_id) DeselectAll(e);
 		e.entities.erase(std::remove_if(e.entities.begin(), e.entities.end(), [&](const Entity& entity) {
-			return entity.layer_id == delete_id;
+			return entity.layer_id == delete_layer_id;
 		}), e.entities.end());
 		e.generators.erase(std::remove_if(e.generators.begin(), e.generators.end(), [&](const PaintGenerator& generator) {
-			return generator.layer_id == delete_id;
+			return generator.layer_id == delete_layer_id;
 		}), e.generators.end());
 		if (!FindGenerator(e, e.selected_generator_id)) e.selected_generator_id = -1;
 		e.layers.erase(std::remove_if(e.layers.begin(), e.layers.end(), [&](const SceneLayer& layer) {
-			return layer.id == delete_id;
+			return layer.id == delete_layer_id;
 		}), e.layers.end());
-		if (editing_layer_id == delete_id) {
+		if (editing_layer_id == delete_layer_id) {
 			editing_layer_id = -1;
 			focus_layer_id = -1;
 			layer_rename_before.reset();
 		}
-		if (!FindLayer(e, e.active_layer_id) && !e.layers.empty()) e.active_layer_id = e.layers.back().id;
+		if (!FindLayer(e, e.active_layer_id) && !e.layers.empty()) select_layer(e.layers.back().id);
 		PushHistory(e, "Delete Layer", before);
 	}
 
-	ImGui::Separator();
-	if (ImGui::Button("+ Entity")) {
-		const auto before{ CaptureScene(e) };
-		SceneLayer layer;
-		layer.id = e.next_layer_id++;
-		layer.name = "Entity Layer " + std::to_string(layer.id);
-		layer.kind = LayerKind::Entity;
-		e.layers.push_back(layer);
-		e.active_layer_id = layer.id;
-		PushHistory(e, "Add Entity Layer", before);
-	}
-	ItemTooltip("Add an ordinary ECS/prefab entity layer.");
-	ImGui::SameLine();
-	if (ImGui::Button("+ Tile")) {
-		const auto before{ CaptureScene(e) };
-		if (e.tilemaps.empty()) {
-			Tilemap map; map.id = e.next_tilemap_id++; e.tilemaps.push_back(map);
-		}
-		SceneLayer layer;
-		layer.id = e.next_layer_id++;
-		layer.name = "Tile Layer " + std::to_string(layer.id);
-		layer.kind = LayerKind::Tile;
-		layer.tile.tilemap_id = e.tilemaps.front().id;
-		e.layers.push_back(layer);
-		e.active_layer_id = layer.id;
-		PushHistory(e, "Add Tile Layer", before);
-	}
-	ItemTooltip("Add a chunk-backed tile layer using the project's tilemap grid.");
+	if (bake_generator_id >= 0) BakeGenerator(e, bake_generator_id);
+	if (delete_generator_id >= 0) DeleteGenerator(e, delete_generator_id);
 
-	if (SceneLayer* active = FindLayer(e, e.active_layer_id)) {
-		if (active->kind != LayerKind::Noise) {
-			ImGui::Separator();
-			int purpose{ static_cast<int>(active->purpose) };
-			const char* purposes[]{ "Visual", "Collision", "Navigation", "Metadata" };
-			if (ImGui::Combo("Purpose", &purpose, purposes, 4)) {
-				active->purpose = static_cast<LayerPurpose>(purpose);
-			}
-			ItemTooltip("Optional semantic purpose for this layer. Collision/Navigation/Metadata can be interpreted specially by the engine.");
-		}
-	}
 	ImGui::End();
 }
 
@@ -7886,11 +7902,6 @@ static void DrawImportPopup(EditorState& e) {
 			e.importer.use_filename_dimensions,
 			"In Auto mode, infer sprite-sheet tile dimensions from names such as forest_16x16.png."
 		);
-		ToggleComboChoice(
-			"Create/use palette named after source",
-			e.importer.create_palette_from_source,
-			"Create or reuse a named palette derived from the imported source filename."
-		);
 		ImGui::EndCombo();
 	}
 	if (import_options_hovered) {
@@ -7898,10 +7909,6 @@ static void DrawImportPopup(EditorState& e) {
 		bool any{};
 		if (e.importer.use_filename_dimensions) {
 			tip += "\n- Read _WxH / -WxH filename postfix";
-			any = true;
-		}
-		if (e.importer.create_palette_from_source) {
-			tip += "\n- Create/use palette named after source";
 			any = true;
 		}
 		if (!any) tip += "\n- None";
@@ -7926,7 +7933,7 @@ static void DrawImportPopup(EditorState& e) {
 
 	if (!e.palettes.empty()) {
 		e.importer.target_palette = std::clamp(e.importer.target_palette, 0, static_cast<int>(e.palettes.size()) - 1);
-		if (ImGui::BeginCombo("Target Palette", e.palettes[static_cast<std::size_t>(e.importer.target_palette)].name.c_str())) {
+		if (ImGui::BeginCombo("Target Group", e.palettes[static_cast<std::size_t>(e.importer.target_palette)].name.c_str())) {
 			for (int i{}; i < static_cast<int>(e.palettes.size()); ++i) {
 				if (ImGui::Selectable(e.palettes[static_cast<std::size_t>(i)].name.c_str(), i == e.importer.target_palette)) {
 					e.importer.target_palette = i;
@@ -7936,12 +7943,15 @@ static void DrawImportPopup(EditorState& e) {
 		}
 	}
 	if (ImGui::Button("Import")) {
+		const SceneSnapshot before{ CaptureScene(e) };
+		e.importer.create_palette_from_source = false;
 		const bool success{ ImportTiles(e, e.importer) };
 		e.import_status = success
 			? "Imported successfully."
 			: "Import failed. Check the path, image format, or tileset metadata.";
-		if (!e.palettes.empty() && !e.importer.create_palette_from_source) {
+		if (success) {
 			e.active_palette_index = std::clamp(e.importer.target_palette, 0, static_cast<int>(e.palettes.size()) - 1);
+			PushHistory(e, "Import Tiles", before);
 		}
 	}
 	ImGui::SameLine();
@@ -7973,6 +7983,8 @@ static const char* PaintCoverageKindName(PaintCoverageKind kind) {
 	return "Coverage";
 }
 
+static void SortGroupNamesUngroupedFirst(std::vector<std::string>& groups);
+
 static void SyncRecipeSourceSelection(EditorState& e) {
 	e.recipe.tile_id = e.active_tile_id;
 	e.recipe.prefab_index = e.active_prefab_index;
@@ -7984,8 +7996,9 @@ static void DrawSourceMode(EditorState& e) {
 	const SceneLayer* layer{ FindLayer(e, e.active_layer_id) };
 	if (!layer || layer->kind == LayerKind::Noise) return;
 	const bool tile_layer{ layer->kind == LayerKind::Tile };
-	ImGui::SetNextItemWidth(150.0f);
-	if (ImGui::BeginCombo("Source", PaintSourceKindName(e.recipe.source_kind))) {
+	const std::string preview{ std::string{ "Source: " } + PaintSourceKindName(e.recipe.source_kind) };
+	ImGui::SetNextItemWidth(190.0f);
+	if (ImGui::BeginCombo("##paint_recipe_source", preview.c_str())) {
 		for (PaintSourceKind kind : { PaintSourceKind::Single, PaintSourceKind::WeightedSet, PaintSourceKind::Checkerboard, PaintSourceKind::Autotile, PaintSourceKind::Noise }) {
 			if (!tile_layer && kind == PaintSourceKind::Autotile) continue;
 			if (ImGui::Selectable(PaintSourceKindName(kind), e.recipe.source_kind == kind)) {
@@ -8035,7 +8048,7 @@ static bool DrawPrefabSourceComboAll(EditorState& e, const char* id, int& prefab
 			groups.push_back(group);
 		}
 	}
-	std::ranges::sort(groups);
+	SortGroupNamesUngroupedFirst(groups);
 
 	for (const auto& group : groups) {
 		ImGui::SeparatorText(group.c_str());
@@ -8230,7 +8243,7 @@ static void DrawPrefabTreeBrowser(
 		const bool matches{ ContainsCaseInsensitive(prefab.name, search) || ContainsCaseInsensitive(group, search) };
 		if (matches && std::find(groups.begin(), groups.end(), group) == groups.end()) groups.push_back(group);
 	}
-	std::ranges::sort(groups);
+	SortGroupNamesUngroupedFirst(groups);
 	for (const std::string& group : groups) {
 		ImGuiTreeNodeFlags flags{ ImGuiTreeNodeFlags_SpanAvailWidth };
 		if (!search.empty()) flags |= ImGuiTreeNodeFlags_DefaultOpen;
@@ -8257,7 +8270,10 @@ static void DrawPrefabTreeBrowser(
 				ImGui::SameLine();
 			}
 			if (ImGui::Selectable(prefab.name.c_str(), !add_to_set && e.active_prefab_index == i)) {
-				if (!add_to_set) e.active_prefab_index = i;
+				if (!add_to_set) {
+					e.active_prefab_index = i;
+					e.recipe.prefab_index = i;
+				}
 			}
 			ImGui::SameLine();
 			ImGui::TextDisabled("%.0fx%.0f", prefab.size.x, prefab.size.y);
@@ -8267,6 +8283,64 @@ static void DrawPrefabTreeBrowser(
 		ImGui::TreePop();
 	}
 	if (groups.empty()) ImGui::TextDisabled(search.empty() ? "No prefab sources." : "No prefab names/groups match the search.");
+}
+
+static void SortGroupNamesUngroupedFirst(std::vector<std::string>& groups) {
+	std::ranges::sort(groups, [](const std::string& a, const std::string& b) {
+		const bool a_ungrouped{ a == "Ungrouped" };
+		const bool b_ungrouped{ b == "Ungrouped" };
+		if (a_ungrouped != b_ungrouped) return a_ungrouped;
+		return a < b;
+	});
+}
+
+static int FindUngroupedPaletteIndex(const EditorState& e) {
+	for (int i{}; i < static_cast<int>(e.palettes.size()); ++i) {
+		if (e.palettes[static_cast<std::size_t>(i)].name == "Ungrouped") return i;
+	}
+	return -1;
+}
+
+static int EnsureUngroupedPalette(EditorState& e) {
+	if (const int existing{ FindUngroupedPaletteIndex(e) }; existing >= 0) return existing;
+	TilePalette palette;
+	palette.id = e.next_palette_id++;
+	palette.name = "Ungrouped";
+	e.palettes.insert(e.palettes.begin(), std::move(palette));
+	if (e.active_palette_index >= 0) ++e.active_palette_index;
+	return 0;
+}
+
+static std::string UniquePrefabGroupName(const EditorState& e, std::string base = "Group") {
+	if (base.empty()) base = "Group";
+	std::string candidate{ base };
+	int suffix{ 2 };
+	while (std::ranges::contains(e.prefab_groups, candidate)) {
+		candidate = base + " " + std::to_string(suffix++);
+	}
+	return candidate;
+}
+
+static std::string UniqueTileGroupName(const EditorState& e, std::string base = "Group") {
+	if (base.empty()) base = "Group";
+	std::string candidate{ base };
+	int suffix{ 2 };
+	auto exists = [&](std::string_view name) {
+		return std::ranges::any_of(e.palettes, [&](const TilePalette& palette) { return palette.name == name; });
+	};
+	while (exists(candidate) || candidate == "Ungrouped") {
+		candidate = base + " " + std::to_string(suffix++);
+	}
+	return candidate;
+}
+
+static std::string TileGroupName(const EditorState& e, int tile_id) {
+	for (const auto& palette : e.palettes) {
+		if (std::ranges::any_of(palette.entries, [&](const PaletteEntry& entry) { return entry.tile_id == tile_id; })) {
+			return palette.name;
+		}
+	}
+	return "Ungrouped";
 }
 
 static std::string UniquePrefabName(const EditorState& e, std::string base) {
@@ -8307,6 +8381,8 @@ static void DeletePrefabDefinition(EditorState& e, int deleted) {
 	if (e.pending_generator) remap_recipe(e.pending_generator->recipe);
 	RemapPrefabIndexAfterDelete(e.active_prefab_index, deleted);
 	if (e.active_prefab_index < 0 && !e.prefabs.empty()) e.active_prefab_index = 0;
+	RemapPrefabIndexAfterDelete(e.selected_prefab_index, deleted);
+	if (e.selected_prefab_index < 0) e.selected_prefab_entity_path.clear();
 	PushHistory(e, "Delete Prefab", before);
 }
 
@@ -8351,245 +8427,266 @@ static std::vector<PrefabBrushEntityNode>* FindPrefabChildList(
 
 static void DrawPrefabs(EditorState& e) {
 	ImGui::Begin("Prefabs");
+	if (ImGui::IsWindowFocused(ImGuiFocusedFlags_RootAndChildWindows)) {
+		e.inspector_context = InspectorContext::Prefab;
+	}
+
 	static std::string search;
 	static int renaming_prefab{ -1 };
-	static bool focus_rename{};
-	static std::string rename_text;
-	static std::optional<SceneSnapshot> prefab_properties_before;
+	static bool focus_prefab_rename{};
+	static std::string prefab_rename_text;
+	static std::string renaming_group;
+	static std::string group_rename_text;
+	static bool focus_group_rename{};
 
-	enum class PrefabNodeOperationType {
-		AddChild,
-		Duplicate,
-		Delete,
-	};
+	enum class PrefabNodeOperationType { AddChild, Duplicate, Delete };
 	struct PendingPrefabNodeOperation {
 		PrefabNodeOperationType type{};
 		int prefab_index{ -1 };
 		std::vector<std::size_t> path;
 	};
 
-	if (ImGui::Button("+ New Prefab", { -1.0f, 0.0f })) {
+	if (ImGui::Button("+ New Prefab")) {
 		const SceneSnapshot before{ CaptureScene(e) };
 		PrefabBrushEntry prefab;
 		prefab.name = UniquePrefabName(e, "New Prefab");
-		prefab.group = "Ungrouped";
+		prefab.group.clear();
 		e.prefabs.push_back(std::move(prefab));
-		e.active_prefab_index = static_cast<int>(e.prefabs.size()) - 1;
-		e.active_prefab_entity_path.clear();
-		if (const auto* active = FindLayer(e, e.active_layer_id);
-			active && active->kind == LayerKind::Entity && e.recipe.source_kind == PaintSourceKind::Single) {
-			const bool pending_source{ e.pending_generator && e.pending_generator->layer_id == active->id };
-			if (pending_source) PushPendingGeneratorUndo(e);
-			e.recipe.prefab_index = e.active_prefab_index;
-			if (auto* generator = FindGenerator(e, e.selected_generator_id); generator && generator->layer_id == active->id) {
-				SyncGeneratorRecipeFromPalette(e, *generator);
-			}
-			if (pending_source) SyncGeneratorRecipeFromPalette(e, *e.pending_generator);
-		}
+		e.selected_prefab_index = static_cast<int>(e.prefabs.size()) - 1;
+		e.selected_prefab_entity_path.clear();
+		e.inspector_context = InspectorContext::Prefab;
 		PushHistory(e, "Create Prefab", before);
 	}
-	ImGui::Separator();
+	ItemTooltip("Create a new prefab asset. Selecting it affects Inspector only; it does not change the current entity paint source.");
+	ImGui::SameLine();
+	if (ImGui::Button("+ Group")) {
+		const SceneSnapshot before{ CaptureScene(e) };
+		e.prefab_groups.push_back(UniquePrefabGroupName(e));
+		PushHistory(e, "Create Prefab Group", before);
+	}
+	ItemTooltip("Create an empty prefab group. Move prefabs between groups from their right-click menu.");
+
 	ImGui::SetNextItemWidth(-1.0f);
 	ImGui::InputTextWithHint("##prefab_panel_search", "Filter prefab name or group...", &search);
+	ImGui::Separator();
 
-	std::vector<std::string> groups;
+	std::vector<std::string> groups{ "Ungrouped" };
+	for (const auto& group : e.prefab_groups) {
+		if (!group.empty() && group != "Ungrouped" && !std::ranges::contains(groups, group)) groups.push_back(group);
+	}
 	for (const auto& prefab : e.prefabs) {
 		const std::string group{ prefab.group.empty() ? "Ungrouped" : prefab.group };
-		if (!ContainsCaseInsensitive(prefab.name, search) && !ContainsCaseInsensitive(group, search)) continue;
 		if (!std::ranges::contains(groups, group)) groups.push_back(group);
 	}
-	std::ranges::sort(groups);
+	SortGroupNamesUngroupedFirst(groups);
 
 	int duplicate_prefab{ -1 };
 	int delete_prefab{ -1 };
 	int create_instance{ -1 };
 	std::optional<PendingPrefabNodeOperation> node_operation;
+	std::optional<std::string> delete_group;
 	bool prefab_item_clicked{};
 
 	auto select_prefab = [&](int index, std::vector<std::size_t> path) {
-		const bool source_changed{ index != e.active_prefab_index };
-		const auto* active_layer{ FindLayer(e, e.active_layer_id) };
-		const bool prefab_is_paint_source{
-			active_layer && active_layer->kind == LayerKind::Entity &&
-			e.recipe.source_kind == PaintSourceKind::Single
-		};
-		std::optional<SceneSnapshot> generator_before;
-		const bool pending_source_change{
-			source_changed && prefab_is_paint_source && e.pending_generator &&
-			e.pending_generator->layer_id == e.active_layer_id
-		};
-		if (pending_source_change) PushPendingGeneratorUndo(e);
-		if (source_changed && prefab_is_paint_source) {
-			if (auto* generator = FindGenerator(e, e.selected_generator_id); generator && generator->layer_id == e.active_layer_id) {
-				generator_before = CaptureScene(e);
-			}
-		}
-		e.active_prefab_index = index;
-		e.active_prefab_entity_path = std::move(path);
-		if (prefab_is_paint_source) e.recipe.prefab_index = index;
-		if (pending_source_change) SyncGeneratorRecipeFromPalette(e, *e.pending_generator);
-		if (generator_before) {
-			if (auto* generator = FindGenerator(e, e.selected_generator_id)) {
-				SyncGeneratorRecipeFromPalette(e, *generator);
-				PushHistory(e, "Change Generator Prefab", std::move(*generator_before));
-			}
-		}
+		e.selected_prefab_index = index;
+		e.selected_prefab_entity_path = std::move(path);
+		e.inspector_context = InspectorContext::Prefab;
 	};
 
 	for (const std::string& group : groups) {
+		bool group_matches{ ContainsCaseInsensitive(group, search) };
+		bool child_matches{};
+		for (const auto& prefab : e.prefabs) {
+			const std::string prefab_group{ prefab.group.empty() ? "Ungrouped" : prefab.group };
+			if (prefab_group == group && ContainsCaseInsensitive(prefab.name, search)) {
+				child_matches = true;
+				break;
+			}
+		}
+		if (!search.empty() && !group_matches && !child_matches) continue;
+
+		ImGui::PushID(group.c_str());
+		if (renaming_group == group && group != "Ungrouped") {
+			if (focus_group_rename) {
+				ImGui::SetKeyboardFocusHere();
+				focus_group_rename = false;
+			}
+			ImGui::SetNextItemWidth(-FLT_MIN);
+			const bool submitted{ ImGui::InputText("##RenamePrefabGroup", &group_rename_text,
+				ImGuiInputTextFlags_EnterReturnsTrue | ImGuiInputTextFlags_AutoSelectAll) };
+			const bool cancel{ ImGui::IsItemActive() && ImGui::IsKeyPressed(ImGuiKey_Escape) };
+			const bool commit{ submitted || ImGui::IsItemDeactivatedAfterEdit() };
+			if (cancel) {
+				renaming_group.clear();
+				group_rename_text.clear();
+			} else if (commit) {
+				std::string name{ group_rename_text };
+				name.erase(name.begin(), std::find_if(name.begin(), name.end(), [](unsigned char c) { return !std::isspace(c); }));
+				name.erase(std::find_if(name.rbegin(), name.rend(), [](unsigned char c) { return !std::isspace(c); }).base(), name.end());
+				if (!name.empty() && name != group && name != "Ungrouped") {
+					const SceneSnapshot before{ CaptureScene(e) };
+					std::string unique{ name };
+					int suffix{ 2 };
+					while (std::ranges::contains(e.prefab_groups, unique) && unique != group) unique = name + " " + std::to_string(suffix++);
+					for (auto& prefab : e.prefabs) if (prefab.group == group) prefab.group = unique;
+					for (auto& existing : e.prefab_groups) if (existing == group) { existing = unique; break; }
+					PushHistory(e, "Rename Prefab Group", before);
+				}
+				renaming_group.clear();
+				group_rename_text.clear();
+			}
+			ImGui::PopID();
+			continue;
+		}
+
 		ImGuiTreeNodeFlags group_flags{ ImGuiTreeNodeFlags_SpanAvailWidth | ImGuiTreeNodeFlags_OpenOnArrow };
 		if (!search.empty()) group_flags |= ImGuiTreeNodeFlags_DefaultOpen;
-		const bool group_open{ ImGui::TreeNodeEx((group + "##prefab_panel_group").c_str(), group_flags, "%s", group.c_str()) };
-		if (!group_open) continue;
+		const bool group_open{ ImGui::TreeNodeEx("##PrefabGroup", group_flags, "%s", group.c_str()) };
+		if (group != "Ungrouped" && ImGui::BeginPopupContextItem("PrefabGroupContext")) {
+			if (ImGui::MenuItem("Rename Group")) {
+				renaming_group = group;
+				group_rename_text = group;
+				focus_group_rename = true;
+			}
+			if (ImGui::MenuItem("Delete Group")) delete_group = group;
+			ImGui::EndPopup();
+		}
 
-		for (int i{}; i < static_cast<int>(e.prefabs.size()); ++i) {
-			auto& prefab{ e.prefabs[static_cast<std::size_t>(i)] };
-			const std::string prefab_group{ prefab.group.empty() ? "Ungrouped" : prefab.group };
-			if (prefab_group != group) continue;
-			if (!ContainsCaseInsensitive(prefab.name, search) && !ContainsCaseInsensitive(group, search)) continue;
+		if (group_open) {
+			for (int i{}; i < static_cast<int>(e.prefabs.size()); ++i) {
+				auto& prefab{ e.prefabs[static_cast<std::size_t>(i)] };
+				const std::string prefab_group{ prefab.group.empty() ? "Ungrouped" : prefab.group };
+				if (prefab_group != group) continue;
+				if (!search.empty() && !group_matches && !ContainsCaseInsensitive(prefab.name, search)) continue;
 
-			ImGui::PushID(i);
-			if (renaming_prefab == i) {
-				if (focus_rename) {
-					ImGui::SetKeyboardFocusHere();
-					focus_rename = false;
-				}
-				ImGui::SetNextItemWidth(-FLT_MIN);
-				const bool submitted{ ImGui::InputText(
-					"##RenamePrefab",
-					&rename_text,
-					ImGuiInputTextFlags_EnterReturnsTrue | ImGuiInputTextFlags_AutoSelectAll
-				) };
-				const bool cancel{ ImGui::IsItemActive() && ImGui::IsKeyPressed(ImGuiKey_Escape) };
-				const bool commit{ submitted || ImGui::IsItemDeactivatedAfterEdit() };
-				if (cancel) {
-					renaming_prefab = -1;
-					rename_text.clear();
-				} else if (commit) {
-					std::string trimmed{ rename_text };
-					trimmed.erase(trimmed.begin(), std::find_if(trimmed.begin(), trimmed.end(), [](unsigned char c) { return !std::isspace(c); }));
-					trimmed.erase(std::find_if(trimmed.rbegin(), trimmed.rend(), [](unsigned char c) { return !std::isspace(c); }).base(), trimmed.end());
-					if (!trimmed.empty() && trimmed != prefab.name) {
-						const SceneSnapshot before{ CaptureScene(e) };
-						const std::string old_name{ prefab.name };
-						prefab.name = UniquePrefabName(e, trimmed);
-						for (auto& entity : e.entities) {
-							if (entity.prefab == old_name) entity.prefab = prefab.name;
-						}
-						PushHistory(e, "Rename Prefab", before);
+				ImGui::PushID(i);
+				if (renaming_prefab == i) {
+					if (focus_prefab_rename) {
+						ImGui::SetKeyboardFocusHere();
+						focus_prefab_rename = false;
 					}
-					renaming_prefab = -1;
-					rename_text.clear();
+					ImGui::SetNextItemWidth(-FLT_MIN);
+					const bool submitted{ ImGui::InputText("##RenamePrefab", &prefab_rename_text,
+						ImGuiInputTextFlags_EnterReturnsTrue | ImGuiInputTextFlags_AutoSelectAll) };
+					const bool cancel{ ImGui::IsItemActive() && ImGui::IsKeyPressed(ImGuiKey_Escape) };
+					const bool commit{ submitted || ImGui::IsItemDeactivatedAfterEdit() };
+					if (cancel) {
+						renaming_prefab = -1;
+						prefab_rename_text.clear();
+					} else if (commit) {
+						std::string name{ prefab_rename_text };
+						name.erase(name.begin(), std::find_if(name.begin(), name.end(), [](unsigned char c) { return !std::isspace(c); }));
+						name.erase(std::find_if(name.rbegin(), name.rend(), [](unsigned char c) { return !std::isspace(c); }).base(), name.end());
+						if (!name.empty() && name != prefab.name) {
+							const SceneSnapshot before{ CaptureScene(e) };
+							const std::string old_name{ prefab.name };
+							prefab.name = UniquePrefabName(e, name);
+							for (auto& entity : e.entities) if (entity.prefab == old_name) entity.prefab = prefab.name;
+							PushHistory(e, "Rename Prefab", before);
+						}
+						renaming_prefab = -1;
+						prefab_rename_text.clear();
+					}
+					ImGui::PopID();
+					continue;
 				}
-				ImGui::PopID();
-				continue;
-			}
 
-			const bool root_selected{ e.active_prefab_index == i && e.active_prefab_entity_path.empty() };
-			ImGuiTreeNodeFlags root_flags{
-				ImGuiTreeNodeFlags_SpanAvailWidth |
-				ImGuiTreeNodeFlags_OpenOnArrow |
-				ImGuiTreeNodeFlags_DefaultOpen
-			};
-			if (root_selected) root_flags |= ImGuiTreeNodeFlags_Selected;
-			if (prefab.children.empty()) root_flags |= ImGuiTreeNodeFlags_Leaf | ImGuiTreeNodeFlags_NoTreePushOnOpen;
-			const bool root_open{ ImGui::TreeNodeEx("##PrefabRoot", root_flags, "%s", prefab.name.c_str()) };
-			if (ImGui::IsItemClicked(ImGuiMouseButton_Left)) {
-				select_prefab(i, {});
-				prefab_item_clicked = true;
-			}
-			if (ImGui::IsItemClicked(ImGuiMouseButton_Right)) select_prefab(i, {});
-			if (ImGui::IsItemHovered() && ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left)) {
-				renaming_prefab = i;
-				rename_text = prefab.name;
-				focus_rename = true;
-			}
-			if (ImGui::BeginPopupContextItem("PrefabRootContext")) {
-				if (ImGui::MenuItem("Add Child")) node_operation = PendingPrefabNodeOperation{ PrefabNodeOperationType::AddChild, i, {} };
-				ImGui::Separator();
-				if (ImGui::MenuItem("Create Instance")) create_instance = i;
-				if (ImGui::MenuItem("Rename Prefab")) {
-					select_prefab(i, {});
-					renaming_prefab = i;
-					rename_text = prefab.name;
-					focus_rename = true;
-				}
-				if (ImGui::MenuItem("Duplicate Prefab")) duplicate_prefab = i;
-				if (ImGui::MenuItem("Delete Prefab")) delete_prefab = i;
-				ImGui::EndPopup();
-			}
-
-			auto draw_prefab_node = [&](auto&& self, PrefabBrushEntityNode& node, std::vector<std::size_t> path) -> void {
-				std::string id{ "node" };
-				for (const std::size_t value : path) id += "/" + std::to_string(value);
-				ImGui::PushID(id.c_str());
-				const bool selected{ e.active_prefab_index == i && e.active_prefab_entity_path == path };
-				ImGuiTreeNodeFlags flags{
-					ImGuiTreeNodeFlags_SpanAvailWidth |
-					ImGuiTreeNodeFlags_OpenOnArrow |
-					ImGuiTreeNodeFlags_DefaultOpen
-				};
-				if (selected) flags |= ImGuiTreeNodeFlags_Selected;
-				if (node.children.empty()) flags |= ImGuiTreeNodeFlags_Leaf | ImGuiTreeNodeFlags_NoTreePushOnOpen;
-				const bool open{ ImGui::TreeNodeEx("##PrefabEntity", flags, "%s", node.name.c_str()) };
-				if (ImGui::IsItemClicked(ImGuiMouseButton_Left)) {
-					select_prefab(i, path);
-					prefab_item_clicked = true;
-				}
-				if (ImGui::IsItemClicked(ImGuiMouseButton_Right)) select_prefab(i, path);
-				if (ImGui::BeginPopupContextItem("PrefabEntityContext")) {
-					if (ImGui::MenuItem("Add Child")) node_operation = PendingPrefabNodeOperation{ PrefabNodeOperationType::AddChild, i, path };
+				const bool root_selected{ e.selected_prefab_index == i && e.selected_prefab_entity_path.empty() };
+				ImGuiTreeNodeFlags root_flags{ ImGuiTreeNodeFlags_SpanAvailWidth | ImGuiTreeNodeFlags_OpenOnArrow | ImGuiTreeNodeFlags_DefaultOpen };
+				if (root_selected) root_flags |= ImGuiTreeNodeFlags_Selected;
+				if (prefab.children.empty()) root_flags |= ImGuiTreeNodeFlags_Leaf | ImGuiTreeNodeFlags_NoTreePushOnOpen;
+				const bool root_open{ ImGui::TreeNodeEx("##PrefabRoot", root_flags, "%s", prefab.name.c_str()) };
+				if (ImGui::IsItemClicked(ImGuiMouseButton_Left)) { select_prefab(i, {}); prefab_item_clicked = true; }
+				if (ImGui::IsItemClicked(ImGuiMouseButton_Right)) select_prefab(i, {});
+				if (ImGui::BeginPopupContextItem("PrefabRootContext")) {
+					if (ImGui::MenuItem("Add Child")) node_operation = PendingPrefabNodeOperation{ PrefabNodeOperationType::AddChild, i, {} };
 					ImGui::Separator();
-					if (ImGui::MenuItem("Duplicate Entity")) node_operation = PendingPrefabNodeOperation{ PrefabNodeOperationType::Duplicate, i, path };
-					if (ImGui::MenuItem("Delete Entity")) node_operation = PendingPrefabNodeOperation{ PrefabNodeOperationType::Delete, i, path };
+					if (ImGui::MenuItem("Create Instance")) create_instance = i;
+					if (ImGui::MenuItem("Rename Prefab")) {
+						select_prefab(i, {});
+						renaming_prefab = i;
+						prefab_rename_text = prefab.name;
+						focus_prefab_rename = true;
+					}
+					if (ImGui::BeginMenu("Move to Group")) {
+						if (ImGui::MenuItem("Ungrouped", nullptr, prefab.group.empty())) {
+							const SceneSnapshot before{ CaptureScene(e) };
+							prefab.group.clear();
+							PushHistory(e, "Move Prefab to Group", before);
+						}
+						for (const auto& candidate : e.prefab_groups) {
+							if (candidate.empty()) continue;
+							if (ImGui::MenuItem(candidate.c_str(), nullptr, prefab.group == candidate)) {
+								const SceneSnapshot before{ CaptureScene(e) };
+								prefab.group = candidate;
+								PushHistory(e, "Move Prefab to Group", before);
+							}
+						}
+						ImGui::EndMenu();
+					}
+					if (ImGui::MenuItem("Duplicate Prefab")) duplicate_prefab = i;
+					if (ImGui::MenuItem("Delete Prefab")) delete_prefab = i;
 					ImGui::EndPopup();
 				}
-				if (!node.children.empty() && open) {
-					for (std::size_t child{}; child < node.children.size(); ++child) {
-						auto child_path{ path };
-						child_path.push_back(child);
-						self(self, node.children[child], std::move(child_path));
+
+				auto draw_node = [&](auto&& self, PrefabBrushEntityNode& node, std::vector<std::size_t> path) -> void {
+					std::string id{ "node" };
+					for (std::size_t value : path) id += "/" + std::to_string(value);
+					ImGui::PushID(id.c_str());
+					const bool selected{ e.selected_prefab_index == i && e.selected_prefab_entity_path == path };
+					ImGuiTreeNodeFlags flags{ ImGuiTreeNodeFlags_SpanAvailWidth | ImGuiTreeNodeFlags_OpenOnArrow | ImGuiTreeNodeFlags_DefaultOpen };
+					if (selected) flags |= ImGuiTreeNodeFlags_Selected;
+					if (node.children.empty()) flags |= ImGuiTreeNodeFlags_Leaf | ImGuiTreeNodeFlags_NoTreePushOnOpen;
+					const bool open{ ImGui::TreeNodeEx("##PrefabEntity", flags, "%s", node.name.c_str()) };
+					if (ImGui::IsItemClicked(ImGuiMouseButton_Left)) { select_prefab(i, path); prefab_item_clicked = true; }
+					if (ImGui::IsItemClicked(ImGuiMouseButton_Right)) select_prefab(i, path);
+					if (ImGui::BeginPopupContextItem("PrefabEntityContext")) {
+						if (ImGui::MenuItem("Add Child")) node_operation = PendingPrefabNodeOperation{ PrefabNodeOperationType::AddChild, i, path };
+						ImGui::Separator();
+						if (ImGui::MenuItem("Duplicate Entity")) node_operation = PendingPrefabNodeOperation{ PrefabNodeOperationType::Duplicate, i, path };
+						if (ImGui::MenuItem("Delete Entity")) node_operation = PendingPrefabNodeOperation{ PrefabNodeOperationType::Delete, i, path };
+						ImGui::EndPopup();
 					}
+					if (!node.children.empty() && open) {
+						for (std::size_t child{}; child < node.children.size(); ++child) {
+							auto child_path{ path };
+							child_path.push_back(child);
+							self(self, node.children[child], std::move(child_path));
+						}
+						ImGui::TreePop();
+					}
+					ImGui::PopID();
+				};
+
+				if (!prefab.children.empty() && root_open) {
+					for (std::size_t child{}; child < prefab.children.size(); ++child) draw_node(draw_node, prefab.children[child], { child });
 					ImGui::TreePop();
 				}
 				ImGui::PopID();
-			};
-
-			if (!prefab.children.empty() && root_open) {
-				for (std::size_t child{}; child < prefab.children.size(); ++child) {
-					draw_prefab_node(draw_prefab_node, prefab.children[child], { child });
-				}
-				ImGui::TreePop();
 			}
-			ImGui::PopID();
+			ImGui::TreePop();
 		}
-		ImGui::TreePop();
+		ImGui::PopID();
 	}
 
-	if (groups.empty()) ImGui::TextDisabled(search.empty() ? "No prefabs." : "No prefab names/groups match the filter.");
-
+	if (delete_group) {
+		const SceneSnapshot before{ CaptureScene(e) };
+		for (auto& prefab : e.prefabs) if (prefab.group == *delete_group) prefab.group.clear();
+		e.prefab_groups.erase(std::remove(e.prefab_groups.begin(), e.prefab_groups.end(), *delete_group), e.prefab_groups.end());
+		PushHistory(e, "Delete Prefab Group", before);
+	}
 	if (duplicate_prefab >= 0 && duplicate_prefab < static_cast<int>(e.prefabs.size())) {
 		const SceneSnapshot before{ CaptureScene(e) };
 		PrefabBrushEntry copy{ e.prefabs[static_cast<std::size_t>(duplicate_prefab)] };
 		copy.name = UniquePrefabName(e, copy.name + " Copy");
 		e.prefabs.push_back(std::move(copy));
-		e.active_prefab_index = static_cast<int>(e.prefabs.size()) - 1;
-		e.active_prefab_entity_path.clear();
-		if (const auto* active = FindLayer(e, e.active_layer_id);
-			active && active->kind == LayerKind::Entity && e.recipe.source_kind == PaintSourceKind::Single) {
-			const bool pending_source{ e.pending_generator && e.pending_generator->layer_id == active->id };
-			if (pending_source) PushPendingGeneratorUndo(e);
-			e.recipe.prefab_index = e.active_prefab_index;
-			if (auto* generator = FindGenerator(e, e.selected_generator_id); generator && generator->layer_id == active->id) {
-				SyncGeneratorRecipeFromPalette(e, *generator);
-			}
-			if (pending_source) SyncGeneratorRecipeFromPalette(e, *e.pending_generator);
-		}
+		e.selected_prefab_index = static_cast<int>(e.prefabs.size()) - 1;
+		e.selected_prefab_entity_path.clear();
 		PushHistory(e, "Duplicate Prefab", before);
 	}
 	if (delete_prefab >= 0) {
 		DeletePrefabDefinition(e, delete_prefab);
-		e.active_prefab_entity_path.clear();
+		e.selected_prefab_entity_path.clear();
 	}
 	if (create_instance >= 0 && create_instance < static_cast<int>(e.prefabs.size())) {
 		SceneLayer* layer{ FindLayer(e, e.active_layer_id) };
@@ -8601,15 +8698,13 @@ static void DrawPrefabs(EditorState& e) {
 			entity.layer_id = layer->id;
 			entity.prefab = prefab.name;
 			entity.size = prefab.size;
-			entity.position = ScreenToWorld(e, {
-				(e.canvas_screen_min.x + e.canvas_screen_max.x) * 0.5f,
-				(e.canvas_screen_min.y + e.canvas_screen_max.y) * 0.5f
-			});
+			entity.position = ScreenToWorld(e, { (e.canvas_screen_min.x + e.canvas_screen_max.x) * 0.5f, (e.canvas_screen_min.y + e.canvas_screen_max.y) * 0.5f });
 			const int created_id{ entity.id };
 			e.entities.push_back(std::move(entity));
 			DeselectAll(e);
 			e.selected_entities.insert(created_id);
 			e.primary_entity_id = created_id;
+			e.inspector_context = InspectorContext::Scene;
 			PushHistory(e, "Create Prefab Instance", before);
 			ImGui::SetWindowFocus("Scene Hierarchy");
 		}
@@ -8625,9 +8720,9 @@ static void DrawPrefabs(EditorState& e) {
 					PrefabBrushEntityNode child;
 					child.name = "Entity";
 					children->push_back(std::move(child));
-					e.active_prefab_index = node_operation->prefab_index;
-					e.active_prefab_entity_path = node_operation->path;
-					e.active_prefab_entity_path.push_back(children->size() - 1);
+					e.selected_prefab_index = node_operation->prefab_index;
+					e.selected_prefab_entity_path = node_operation->path;
+					e.selected_prefab_entity_path.push_back(children->size() - 1);
 					changed = true;
 				}
 				break;
@@ -8640,11 +8735,10 @@ static void DrawPrefabs(EditorState& e) {
 					if (auto* siblings = FindPrefabChildList(prefab, parent_path); siblings && source_index < siblings->size()) {
 						PrefabBrushEntityNode copy{ (*siblings)[source_index] };
 						copy.name += " Copy";
-						const auto insertion{ siblings->begin() + static_cast<std::ptrdiff_t>(source_index + 1) };
-						siblings->insert(insertion, std::move(copy));
-						e.active_prefab_index = node_operation->prefab_index;
-						e.active_prefab_entity_path = parent_path;
-						e.active_prefab_entity_path.push_back(source_index + 1);
+						siblings->insert(siblings->begin() + static_cast<std::ptrdiff_t>(source_index + 1), std::move(copy));
+						e.selected_prefab_index = node_operation->prefab_index;
+						e.selected_prefab_entity_path = parent_path;
+						e.selected_prefab_entity_path.push_back(source_index + 1);
 						changed = true;
 					}
 				}
@@ -8657,8 +8751,8 @@ static void DrawPrefabs(EditorState& e) {
 					parent_path.pop_back();
 					if (auto* siblings = FindPrefabChildList(prefab, parent_path); siblings && index < siblings->size()) {
 						siblings->erase(siblings->begin() + static_cast<std::ptrdiff_t>(index));
-						e.active_prefab_index = node_operation->prefab_index;
-						e.active_prefab_entity_path = parent_path;
+						e.selected_prefab_index = node_operation->prefab_index;
+						e.selected_prefab_entity_path = parent_path;
 						changed = true;
 					}
 				}
@@ -8668,65 +8762,301 @@ static void DrawPrefabs(EditorState& e) {
 		if (changed) PushHistory(e, "Edit Prefab Hierarchy", before);
 	}
 
-	if (ImGui::IsWindowHovered() && ImGui::IsMouseClicked(ImGuiMouseButton_Left) &&
-		!prefab_item_clicked && !ImGui::IsAnyItemHovered()) {
-		std::optional<SceneSnapshot> source_before;
-		const auto* active{ FindLayer(e, e.active_layer_id) };
-		bool pending_source_change{};
-		if (active && active->kind == LayerKind::Entity && e.recipe.source_kind == PaintSourceKind::Single) {
-			if (auto* generator = FindGenerator(e, e.selected_generator_id); generator && generator->layer_id == active->id) {
-				source_before = CaptureScene(e);
-			}
-			pending_source_change = e.pending_generator && e.pending_generator->layer_id == active->id;
-			if (pending_source_change) PushPendingGeneratorUndo(e);
-			e.recipe.prefab_index = -1;
-		}
-		e.active_prefab_index = -1;
-		e.active_prefab_entity_path.clear();
-		if (pending_source_change) SyncGeneratorRecipeFromPalette(e, *e.pending_generator);
-		if (source_before) {
-			if (auto* generator = FindGenerator(e, e.selected_generator_id)) SyncGeneratorRecipeFromPalette(e, *generator);
-			PushHistory(e, "Clear Generator Prefab", std::move(*source_before));
-		}
+	if (e.selected_prefab_index >= static_cast<int>(e.prefabs.size())) {
+		e.selected_prefab_index = -1;
+		e.selected_prefab_entity_path.clear();
+	}
+	if (e.selected_prefab_index >= 0 && !e.selected_prefab_entity_path.empty()) {
+		if (!FindPrefabEntityNode(e.prefabs[static_cast<std::size_t>(e.selected_prefab_index)], e.selected_prefab_entity_path)) e.selected_prefab_entity_path.clear();
 	}
 
-	if (e.active_prefab_index >= 0 && e.active_prefab_index < static_cast<int>(e.prefabs.size())) {
-		auto& prefab{ e.prefabs[static_cast<std::size_t>(e.active_prefab_index)] };
-		if (!e.active_prefab_entity_path.empty() && !FindPrefabEntityNode(prefab, e.active_prefab_entity_path)) {
-			e.active_prefab_entity_path.clear();
-		}
-		ImGui::SeparatorText(e.active_prefab_entity_path.empty() ? "Prefab Properties" : "Prefab Entity Properties");
+	if (ImGui::IsWindowHovered() && ImGui::IsMouseClicked(ImGuiMouseButton_Left) && !prefab_item_clicked && !ImGui::IsAnyItemHovered()) {
+		e.selected_prefab_index = -1;
+		e.selected_prefab_entity_path.clear();
+		e.inspector_context = InspectorContext::Prefab;
+	}
+	ImGui::End();
+}
+
+static void ClearDeletedTileFromRecipe(PaintRecipe& recipe, int tile_id) {
+	if (recipe.tile_id == tile_id) recipe.tile_id = -1;
+	if (recipe.secondary_tile_id == tile_id) recipe.secondary_tile_id = -1;
+	for (auto& threshold : recipe.noise.thresholds) {
+		if (threshold.tile_id == tile_id) threshold.tile_id = -1;
+	}
+}
+
+static void DeleteTileDefinition(EditorState& e, int tile_id) {
+	if (!FindTile(e, tile_id)) return;
+	const SceneSnapshot before{ CaptureScene(e) };
+
+	e.tiles.erase(std::remove_if(e.tiles.begin(), e.tiles.end(), [&](const TileDefinition& tile) {
+		return tile.id == tile_id;
+	}), e.tiles.end());
+	for (auto& palette : e.palettes) {
+		palette.entries.erase(std::remove_if(palette.entries.begin(), palette.entries.end(), [&](const PaletteEntry& entry) {
+			return entry.tile_id == tile_id;
+		}), palette.entries.end());
+	}
+	for (auto& set : e.weighted_tile_sets) {
+		set.entries.erase(std::remove_if(set.entries.begin(), set.entries.end(), [&](const WeightedTileEntry& entry) {
+			return entry.tile_id == tile_id;
+		}), set.entries.end());
+	}
+	for (auto& rules : e.autotile_rulesets) {
+		for (int& id : rules.tile_ids) if (id == tile_id) id = -1;
+	}
+	ClearDeletedTileFromRecipe(e.recipe, tile_id);
+	for (auto& generator : e.generators) ClearDeletedTileFromRecipe(generator.recipe, tile_id);
+	if (e.pending_generator) ClearDeletedTileFromRecipe(e.pending_generator->recipe, tile_id);
+	e.stamp_tiles.erase(std::remove(e.stamp_tiles.begin(), e.stamp_tiles.end(), tile_id), e.stamp_tiles.end());
+
+	for (auto& layer : e.layers) {
+		if (layer.kind != LayerKind::Tile) continue;
+		auto clear_chunks = [&](auto& chunks) {
+			for (auto& [_, chunk] : chunks) {
+				for (auto& cell : chunk.cells) {
+					if (cell.tile_id == tile_id) {
+						cell.tile_id = -1;
+						cell.terrain = false;
+						cell.offset = {};
+						chunk.dirty = true;
+					}
+				}
+			}
+		};
+		clear_chunks(layer.tile.loaded_chunks);
+		clear_chunks(layer.tile.backing_chunks);
+	}
+
+	if (e.active_tile_id == tile_id) e.active_tile_id = e.tiles.empty() ? -1 : e.tiles.front().id;
+	if (e.selected_tile_asset_id == tile_id) e.selected_tile_asset_id = -1;
+	PushHistory(e, "Delete Tile", before);
+}
+
+static void DrawTiles(EditorState& e) {
+	ImGui::Begin("Tiles");
+	if (ImGui::IsWindowFocused(ImGuiFocusedFlags_RootAndChildWindows)) {
+		e.inspector_context = InspectorContext::Tile;
+	}
+
+	const int ungrouped_index{ EnsureUngroupedPalette(e) };
+	static std::string search;
+	static int renaming_palette_id{ -1 };
+	static bool focus_palette_rename{};
+	static std::string palette_rename_text;
+
+	if (ImGui::Button("+ Group")) {
 		const SceneSnapshot before{ CaptureScene(e) };
-		bool changed{};
-		if (e.active_prefab_entity_path.empty()) {
-			changed |= ImGui::InputText("Group", &prefab.group);
-			float size[2]{ prefab.size.x, prefab.size.y };
-			if (ImGui::DragFloat2("Size", size, 1.0f, 1.0f, 4096.0f, "%.0f")) {
-				prefab.size = { std::max(1.0f, size[0]), std::max(1.0f, size[1]) };
-				changed = true;
-			}
-		} else if (auto* node = FindPrefabEntityNode(prefab, e.active_prefab_entity_path)) {
-			changed |= ImGui::InputText("Name", &node->name);
-			float position[2]{ node->position.x, node->position.y };
-			if (ImGui::DragFloat2("Position", position, 1.0f)) {
-				node->position = { position[0], position[1] };
-				changed = true;
-			}
-			float size[2]{ node->size.x, node->size.y };
-			if (ImGui::DragFloat2("Size", size, 1.0f, 1.0f, 4096.0f, "%.0f")) {
-				node->size = { std::max(1.0f, size[0]), std::max(1.0f, size[1]) };
-				changed = true;
+		TilePalette palette;
+		palette.id = e.next_palette_id++;
+		palette.name = UniqueTileGroupName(e);
+		e.palettes.push_back(std::move(palette));
+		PushHistory(e, "Create Tile Group", before);
+	}
+	ItemTooltip("Create an empty tile group. Groups organize tile assets; Paint Recipe only selects from them.");
+	ImGui::SameLine();
+	if (ImGui::Button("Import to Ungrouped...")) {
+		e.importer.create_palette_from_source = false;
+		e.importer.target_palette = ungrouped_index;
+		e.importer.open_popup = true;
+	}
+	ItemTooltip("Import tiles directly into the Ungrouped tile collection.");
+
+	ImGui::SetNextItemWidth(-1.0f);
+	ImGui::InputTextWithHint("##tiles_panel_search", "Filter tile name or group...", &search);
+	ImGui::Separator();
+
+	std::vector<int> palette_indices;
+	palette_indices.reserve(e.palettes.size());
+	for (int i{}; i < static_cast<int>(e.palettes.size()); ++i) palette_indices.push_back(i);
+	std::ranges::sort(palette_indices, [&](int a, int b) {
+		const auto& pa{ e.palettes[static_cast<std::size_t>(a)] };
+		const auto& pb{ e.palettes[static_cast<std::size_t>(b)] };
+		const bool au{ pa.name == "Ungrouped" };
+		const bool bu{ pb.name == "Ungrouped" };
+		if (au != bu) return au;
+		return pa.name < pb.name;
+	});
+
+	int delete_tile_id{ -1 };
+	int move_tile_id{ -1 };
+	int move_target_palette{ -1 };
+	int delete_palette_id{ -1 };
+	bool tile_item_clicked{};
+
+	for (int palette_index : palette_indices) {
+		if (palette_index < 0 || palette_index >= static_cast<int>(e.palettes.size())) continue;
+		auto& palette{ e.palettes[static_cast<std::size_t>(palette_index)] };
+		const int palette_id{ palette.id };
+		const bool ungrouped{ palette.name == "Ungrouped" };
+		bool group_match{ ContainsCaseInsensitive(palette.name, search) };
+		bool child_match{};
+		for (const auto& entry : palette.entries) {
+			if (const auto* tile = FindTile(e, entry.tile_id); tile && ContainsCaseInsensitive(tile->name, search)) {
+				child_match = true;
+				break;
 			}
 		}
-		if (changed && !prefab_properties_before) {
-			prefab_properties_before = before;
+		if (!search.empty() && !group_match && !child_match) continue;
+
+		ImGui::PushID(palette_id);
+		if (renaming_palette_id == palette_id && !ungrouped) {
+			if (focus_palette_rename) {
+				ImGui::SetKeyboardFocusHere();
+				focus_palette_rename = false;
+			}
+			ImGui::SetNextItemWidth(-FLT_MIN);
+			const bool submitted{ ImGui::InputText("##RenameTileGroup", &palette_rename_text,
+				ImGuiInputTextFlags_EnterReturnsTrue | ImGuiInputTextFlags_AutoSelectAll) };
+			const bool cancel{ ImGui::IsItemActive() && ImGui::IsKeyPressed(ImGuiKey_Escape) };
+			const bool commit{ submitted || ImGui::IsItemDeactivatedAfterEdit() };
+			if (cancel) {
+				renaming_palette_id = -1;
+				palette_rename_text.clear();
+			} else if (commit) {
+				std::string name{ palette_rename_text };
+				name.erase(name.begin(), std::find_if(name.begin(), name.end(), [](unsigned char c) { return !std::isspace(c); }));
+				name.erase(std::find_if(name.rbegin(), name.rend(), [](unsigned char c) { return !std::isspace(c); }).base(), name.end());
+				if (!name.empty() && name != palette.name && name != "Ungrouped") {
+					const SceneSnapshot before{ CaptureScene(e) };
+					const std::string base{ name };
+					int suffix{ 2 };
+					while (std::ranges::any_of(e.palettes, [&](const TilePalette& candidate) {
+						return candidate.id != palette_id && candidate.name == name;
+					})) name = base + " " + std::to_string(suffix++);
+					palette.name = name;
+					PushHistory(e, "Rename Tile Group", before);
+				}
+				renaming_palette_id = -1;
+				palette_rename_text.clear();
+			}
+			ImGui::PopID();
+			continue;
 		}
-		if (prefab_properties_before && !ImGui::IsAnyItemActive()) {
-			PushHistory(e, "Edit Prefab", std::move(*prefab_properties_before));
-			prefab_properties_before.reset();
+
+		ImGuiTreeNodeFlags group_flags{ ImGuiTreeNodeFlags_SpanAvailWidth | ImGuiTreeNodeFlags_OpenOnArrow };
+		if (!search.empty()) group_flags |= ImGuiTreeNodeFlags_DefaultOpen;
+		const bool open{ ImGui::TreeNodeEx("##TileGroup", group_flags, "%s", palette.name.c_str()) };
+		if (ImGui::BeginPopupContextItem("TileGroupContext")) {
+			if (!ungrouped && ImGui::MenuItem("Rename Group")) {
+				renaming_palette_id = palette_id;
+				palette_rename_text = palette.name;
+				focus_palette_rename = true;
+			}
+			if (ImGui::MenuItem("Import Tiles...")) {
+				e.importer.create_palette_from_source = false;
+				e.importer.target_palette = palette_index;
+				e.importer.open_popup = true;
+			}
+			if (!ungrouped) {
+				ImGui::Separator();
+				if (ImGui::MenuItem("Delete Group")) delete_palette_id = palette_id;
+			}
+			ImGui::EndPopup();
+		}
+
+		if (open) {
+			constexpr float thumbnail{ 32.0f };
+			constexpr float gap{ 5.0f };
+			constexpr float cell_width{ thumbnail + gap };
+			const float available{ std::max(cell_width, ImGui::GetContentRegionAvail().x) };
+			const int columns{ std::max(1, static_cast<int>(std::floor((available + gap) / cell_width))) };
+			ImGui::PushStyleVar(ImGuiStyleVar_CellPadding, ImVec2{ gap * 0.5f, gap * 0.5f });
+			if (ImGui::BeginTable("##tile_asset_grid", columns, ImGuiTableFlags_NoSavedSettings | ImGuiTableFlags_SizingFixedFit)) {
+				for (int c{}; c < columns; ++c) ImGui::TableSetupColumn(("##tile_asset_col" + std::to_string(c)).c_str(), ImGuiTableColumnFlags_WidthFixed, cell_width);
+				int column{};
+				for (const auto& entry : palette.entries) {
+					const TileDefinition* tile{ FindTile(e, entry.tile_id) };
+					if (!tile) continue;
+					if (!search.empty() && !group_match && !ContainsCaseInsensitive(tile->name, search)) continue;
+					if (column == 0) ImGui::TableNextRow(ImGuiTableRowFlags_None, thumbnail + gap);
+					ImGui::TableSetColumnIndex(column);
+					ImGui::PushID(tile->id);
+					const ImVec2 p0{ ImGui::GetCursorScreenPos() };
+					ImGui::InvisibleButton("##tile_asset", { thumbnail, thumbnail });
+					const ImVec2 p1{ p0.x + thumbnail, p0.y + thumbnail };
+					ImDrawList* dl{ ImGui::GetWindowDrawList() };
+					if (tile->texture_index >= 0 && tile->texture_index < static_cast<int>(e.textures.size())) {
+						const auto& texture{ e.textures[static_cast<std::size_t>(tile->texture_index)] };
+						dl->AddImage((ImTextureID)(intptr_t)texture.handle, p0, p1, tile->uv0, tile->uv1);
+					} else {
+						dl->AddRectFilled(p0, p1, ImGui::GetColorU32(ImVec4(0.32f, 0.34f, 0.38f, 1.0f)));
+					}
+					const bool selected{ e.selected_tile_asset_id == tile->id && e.inspector_context == InspectorContext::Tile };
+					dl->AddRect(p0, p1, ImGui::GetColorU32(selected ? ImGuiCol_Text : ImGuiCol_Border), 0.0f, 0, selected ? 2.0f : 1.0f);
+					if (ImGui::IsItemClicked(ImGuiMouseButton_Left)) {
+						e.selected_tile_asset_id = tile->id;
+						e.inspector_context = InspectorContext::Tile;
+						tile_item_clicked = true;
+					}
+					if (ImGui::IsItemClicked(ImGuiMouseButton_Right)) {
+						e.selected_tile_asset_id = tile->id;
+						e.inspector_context = InspectorContext::Tile;
+					}
+					if (ImGui::BeginPopupContextItem("TileAssetContext")) {
+						if (ImGui::BeginMenu("Move to Group")) {
+							for (int target{}; target < static_cast<int>(e.palettes.size()); ++target) {
+								const auto& target_palette{ e.palettes[static_cast<std::size_t>(target)] };
+								if (ImGui::MenuItem(target_palette.name.c_str(), nullptr, target == palette_index)) {
+									move_tile_id = tile->id;
+									move_target_palette = target;
+								}
+							}
+							ImGui::EndMenu();
+						}
+						ImGui::Separator();
+						if (ImGui::MenuItem("Delete Tile")) delete_tile_id = tile->id;
+						ImGui::EndPopup();
+					}
+					ItemTooltip((tile->name + "\n" + std::to_string(tile->pixel_w) + "x" + std::to_string(tile->pixel_h) + "\nRight click to move or delete.").c_str());
+					ImGui::PopID();
+					column = (column + 1) % columns;
+				}
+				ImGui::EndTable();
+			}
+			ImGui::PopStyleVar();
+			if (palette.entries.empty()) ImGui::TextDisabled("Empty group. Right click the group to import tiles.");
+			ImGui::TreePop();
+		}
+		ImGui::PopID();
+	}
+
+	if (move_tile_id >= 0 && move_target_palette >= 0 && move_target_palette < static_cast<int>(e.palettes.size())) {
+		const SceneSnapshot before{ CaptureScene(e) };
+		for (auto& palette : e.palettes) {
+			palette.entries.erase(std::remove_if(palette.entries.begin(), palette.entries.end(), [&](const PaletteEntry& entry) { return entry.tile_id == move_tile_id; }), palette.entries.end());
+		}
+		auto& target{ e.palettes[static_cast<std::size_t>(move_target_palette)] };
+		if (!std::ranges::any_of(target.entries, [&](const PaletteEntry& entry) { return entry.tile_id == move_tile_id; })) target.entries.push_back({ move_tile_id, 1.0f });
+		PushHistory(e, "Move Tile to Group", before);
+	}
+	if (delete_tile_id >= 0) DeleteTileDefinition(e, delete_tile_id);
+	if (delete_palette_id >= 0) {
+		const int current_ungrouped{ EnsureUngroupedPalette(e) };
+		const SceneSnapshot before{ CaptureScene(e) };
+		auto doomed = std::ranges::find_if(e.palettes, [&](const TilePalette& palette) { return palette.id == delete_palette_id; });
+		if (doomed != e.palettes.end() && doomed->name != "Ungrouped") {
+			const std::vector<PaletteEntry> moved{ doomed->entries };
+			const int doomed_index{ static_cast<int>(doomed - e.palettes.begin()) };
+			e.palettes.erase(doomed);
+			int target_index{ FindUngroupedPaletteIndex(e) };
+			if (target_index < 0) target_index = std::min(current_ungrouped, static_cast<int>(e.palettes.size()) - 1);
+			if (target_index >= 0) {
+				auto& target{ e.palettes[static_cast<std::size_t>(target_index)] };
+				for (const auto& entry : moved) if (!std::ranges::any_of(target.entries, [&](const PaletteEntry& existing) { return existing.tile_id == entry.tile_id; })) target.entries.push_back(entry);
+			}
+			if (e.active_palette_index == doomed_index) e.active_palette_index = target_index;
+			else if (e.active_palette_index > doomed_index) --e.active_palette_index;
+			PushHistory(e, "Delete Tile Group", before);
 		}
 	}
 
+	if (ImGui::IsWindowHovered() && ImGui::IsMouseClicked(ImGuiMouseButton_Left) && !tile_item_clicked && !ImGui::IsAnyItemHovered()) {
+		e.selected_tile_asset_id = -1;
+		e.inspector_context = InspectorContext::Tile;
+	}
+	DrawImportPopup(e);
 	ImGui::End();
 }
 
@@ -8737,14 +9067,14 @@ static void DrawPrefabSourcePalette(EditorState& e) {
 	ItemTooltip("Filter prefabs by either prefab name or group name. Groups are collapsible below; ungrouped prefabs share the Ungrouped node.");
 
 	if (e.recipe.source_kind == PaintSourceKind::Single) {
-		ImGui::SeparatorText("Prefab Browser");
+		ImGui::SeparatorText("Paint Prefab");
 		const char* selected_prefab{ "<none>" };
 		if (e.active_prefab_index >= 0 &&
 			e.active_prefab_index < static_cast<int>(e.prefabs.size())) {
 			selected_prefab = e.prefabs[static_cast<std::size_t>(e.active_prefab_index)].name.c_str();
 		}
 		ImGui::Text("Selected: %s", selected_prefab);
-		ItemTooltip("Currently selected prefab paint source. It stays visible even when its group is collapsed.");
+		ItemTooltip("Current prefab paint source. It is independent from the prefab selected in the Prefabs asset tab and stays visible even when its group is collapsed.");
 		DrawPrefabTreeBrowser(e, search);
 		return;
 	}
@@ -9311,44 +9641,54 @@ static void DrawAutotileRulesetEditor(EditorState& e) {
 
 static void DrawTileSourcePalette(EditorState& e) {
 	static std::string search;
-	if (ImGui::Button("+ Palette")) {
-		const SceneSnapshot before{ CaptureScene(e) };
-		TilePalette palette;
-		palette.id = e.next_palette_id++;
-		palette.name = "Palette " + std::to_string(palette.id);
-		e.palettes.push_back(std::move(palette));
-		e.active_palette_index = static_cast<int>(e.palettes.size()) - 1;
-		PushHistory(e, "Add Tile Palette", before);
-	}
-	ItemTooltip("Create an empty named tile palette/group. It is valid for the project to have zero palettes.");
-	ImGui::SameLine();
-	if (ImGui::Button("Import...")) {
-		e.importer.target_palette = e.palettes.empty() ? 0 : std::clamp(e.active_palette_index, 0, static_cast<int>(e.palettes.size()) - 1);
-		e.importer.open_popup = true;
-	}
-	ItemTooltip("Import an image/tileset. If no palettes exist, importing automatically creates a Default palette unless source-name grouping is enabled.");
-
-	ImGui::SetNextItemWidth(-FLT_MIN);
-	ImGui::InputTextWithHint("##tile_search", "Search tile name or palette...", &search);
-	ItemTooltip("Filter tiles by either tile name or tile-palette/group name. Matching palette names show all tiles in that group.");
+	ImGui::SetNextItemWidth(-1.0f);
+	ImGui::InputTextWithHint("##paint_tile_search", "Search tile name or group...", &search);
+	ItemTooltip("This browser only selects assets for the paint recipe. Create, import, delete, rename, and regroup tiles from the Tiles tab beside Scene Hierarchy.");
 
 	if (e.recipe.source_kind == PaintSourceKind::Single) {
-		if (!e.stamp_tiles.empty()) {
-			ImGui::SameLine();
-			ImGui::Text("Stamp %d", static_cast<int>(e.stamp_tiles.size()));
-			ImGui::SameLine();
-			ImGui::SetNextItemWidth(70.0f);
-			ImGui::DragInt("Width##stamp", &e.stamp_width, 0.2f, 1, 32);
-			ItemTooltip("Number of tiles per row in the multi-tile stamp pattern.");
-			ImGui::SameLine();
-			if (ImGui::SmallButton("Clear Stamp")) e.stamp_tiles.clear();
+		const TileDefinition* current{ FindTile(e, e.active_tile_id) };
+		ImGui::SeparatorText("Paint Tile");
+		ImGui::Text("Selected: %s", current ? current->name.c_str() : "<none>");
+		ItemTooltip("Current single-tile paint source. This is independent from the tile selected in the Tiles asset tab.");
+
+		std::vector<int> palette_indices;
+		for (int i{}; i < static_cast<int>(e.palettes.size()); ++i) palette_indices.push_back(i);
+		std::ranges::sort(palette_indices, [&](int a, int b) {
+			const auto& pa{ e.palettes[static_cast<std::size_t>(a)] };
+			const auto& pb{ e.palettes[static_cast<std::size_t>(b)] };
+			const bool au{ pa.name == "Ungrouped" };
+			const bool bu{ pb.name == "Ungrouped" };
+			if (au != bu) return au;
+			return pa.name < pb.name;
+		});
+		for (int palette_index : palette_indices) {
+			const auto& palette{ e.palettes[static_cast<std::size_t>(palette_index)] };
+			const bool group_match{ ContainsCaseInsensitive(palette.name, search) };
+			bool any_match{ group_match };
+			for (const auto& entry : palette.entries) {
+				if (const auto* tile = FindTile(e, entry.tile_id); tile && ContainsCaseInsensitive(tile->name, search)) { any_match = true; break; }
+			}
+			if (!search.empty() && !any_match) continue;
+			ImGuiTreeNodeFlags flags{ ImGuiTreeNodeFlags_SpanAvailWidth | ImGuiTreeNodeFlags_OpenOnArrow };
+			if (!search.empty()) flags |= ImGuiTreeNodeFlags_DefaultOpen;
+			if (!ImGui::TreeNodeEx(("##paint_tile_group_" + std::to_string(palette.id)).c_str(), flags, "%s", palette.name.c_str())) continue;
+			for (const auto& entry : palette.entries) {
+				const auto* tile{ FindTile(e, entry.tile_id) };
+				if (!tile) continue;
+				if (!search.empty() && !group_match && !ContainsCaseInsensitive(tile->name, search)) continue;
+				ImGui::PushID(tile->id);
+				DrawInlineTileThumbnail(e, tile->id, 24.0f);
+				ImGui::SameLine();
+				if (ImGui::Selectable(tile->name.c_str(), e.active_tile_id == tile->id, 0, { 0.0f, ImGui::GetFrameHeight() })) {
+					e.active_tile_id = tile->id;
+					e.active_palette_index = palette_index;
+					e.recipe.tile_id = tile->id;
+				}
+				ItemTooltip(("Paint with " + tile->name + " (" + std::to_string(tile->pixel_w) + "x" + std::to_string(tile->pixel_h) + ").").c_str());
+				ImGui::PopID();
+			}
+			ImGui::TreePop();
 		}
-		ImGui::SeparatorText("Tile Palettes");
-		for (int i{}; i < static_cast<int>(e.palettes.size());) {
-			if (!DrawTilePaletteTree(e, e.palettes[static_cast<std::size_t>(i)], true, nullptr, search)) ++i;
-		}
-		if (e.palettes.empty()) ImGui::TextDisabled("No tile palettes. Create one or import a tileset/image.");
-		DrawImportPopup(e);
 		return;
 	}
 
@@ -9357,12 +9697,10 @@ static void DrawTileSourcePalette(EditorState& e) {
 		DrawTileSourceComboAll(e, "Primary", e.recipe.tile_id);
 		DrawTileSourceComboAll(e, "Secondary", e.recipe.secondary_tile_id);
 		ImGui::TextDisabled("Alternates the two tiles by raster-cell parity.");
-		DrawImportPopup(e);
 		return;
 	}
 	if (e.recipe.source_kind == PaintSourceKind::Autotile) {
 		DrawAutotileRulesetEditor(e);
-		DrawImportPopup(e);
 		return;
 	}
 
@@ -9405,7 +9743,6 @@ static void DrawTileSourcePalette(EditorState& e) {
 	WeightedTileSet* active{ FindWeightedTileSet(e, e.active_tile_weighted_set_id) };
 	if (!active) {
 		ImGui::TextDisabled("No weighted tile set selected. Create one with Add Weighted Set.");
-		DrawImportPopup(e);
 		return;
 	}
 	std::string edited_name{ active->name };
@@ -9490,8 +9827,9 @@ static void DrawTileSourcePalette(EditorState& e) {
 		ImGui::EndChild();
 		ImGui::EndPopup();
 	}
-	DrawImportPopup(e);
 }
+
+
 
 static NoiseThresholdRegion MakeNoiseThreshold(EditorState& e, const SceneLayer& layer, float lo, float hi, bool enabled = true) {
 	NoiseThresholdRegion region;
@@ -10367,8 +10705,22 @@ static bool EntityOriginApplicable(const EditorState& e) {
 static void DrawOriginCombo(const char* label, EntityOrigin& origin) {
 	const char* origins[]{ "Top Left", "Top", "Top Right", "Left", "Center", "Right", "Bottom Left", "Bottom", "Bottom Right" };
 	int value{ static_cast<int>(origin) };
-	ImGui::SetNextItemWidth(125.0f);
-	if (ImGui::Combo(label, &value, origins, 9)) origin = static_cast<EntityOrigin>(value);
+	std::string prefix{ label };
+	if (const auto pos = prefix.find("##"); pos != std::string::npos) prefix.resize(pos);
+	const std::string preview{ prefix + ": " + origins[value] };
+	const std::string id{ "##origin_combo_" + std::string{ label } };
+	ImGui::SetNextItemWidth(prefix == "Origin" ? 150.0f : 180.0f);
+	if (ImGui::BeginCombo(id.c_str(), preview.c_str())) {
+		for (int i{}; i < 9; ++i) {
+			if (ImGui::Selectable(origins[i], i == value)) { value = i; origin = static_cast<EntityOrigin>(value); }
+		}
+		ImGui::EndCombo();
+	}
+	ItemTooltip(prefix == "Tile Origin"
+		? "Anchor point used when a tile's native size differs from the grid cell size."
+		: prefix == "Entity Origin"
+			? "Anchor point used to position emitted entities relative to the paint cell."
+			: "Anchor point used to place this noise-threshold source within its generated cell.");
 }
 
 static void EnsureRecipeNoiseThreshold(EditorState& e, const SceneLayer& layer) {
@@ -10844,24 +11196,43 @@ static void DrawPaintRecipeEditor(EditorState& e) {
 		}
 	}
 
-	ImGui::SeparatorText("Paint Recipe");
+	ImGui::SeparatorText("Source");
 	DrawSourceMode(e);
-	ImGui::SameLine();
-	ImGui::SetNextItemWidth(145.0f);
-	if (ImGui::BeginCombo("Coverage", PaintCoverageKindName(e.recipe.coverage))) {
+
+	// Source selection/definition is intentionally separate from asset editing.
+	// Prefabs/Tiles creates and organizes assets; this panel only chooses how
+	// those assets participate in the current paint recipe.
+	if (e.recipe.source_kind == PaintSourceKind::Noise) {
+		DrawRecipeNoiseSettings(e, *layer);
+	} else if (layer->kind == LayerKind::Tile) {
+		DrawTileSourcePalette(e);
+	} else {
+		DrawPrefabSourcePalette(e);
+	}
+
+	ImGui::SeparatorText("Recipe Settings");
+	const std::string coverage_preview{ std::string{ "Coverage: " } + PaintCoverageKindName(e.recipe.coverage) };
+	ImGui::SetNextItemWidth(180.0f);
+	if (ImGui::BeginCombo("##paint_recipe_coverage", coverage_preview.c_str())) {
 		for (PaintCoverageKind coverage : { PaintCoverageKind::Solid, PaintCoverageKind::RandomDensity, PaintCoverageKind::RadialFalloff }) {
 			if (ImGui::Selectable(PaintCoverageKindName(coverage), e.recipe.coverage == coverage)) e.recipe.coverage = coverage;
 		}
 		ImGui::EndCombo();
 	}
+	ItemTooltip("Coverage controls which eligible cells emit the selected source: every cell, a random-density subset, or a radial falloff.");
 
 	const bool finite_generator_tool{ e.tool == Tool::Brush || e.tool == Tool::Line || e.tool == Tool::Rectangle };
 	if (finite_generator_tool && e.brush.operation == BrushOperation::Paint && !selected_generator && !PendingBrushGeneratorActive(e)) {
 		ImGui::SameLine();
-		ImGui::SetNextItemWidth(145.0f);
-		const char* modes[]{ "Bake on Commit", "Keep Generator" };
-		int mode{ static_cast<int>(e.recipe.commit_mode) };
-		if (ImGui::Combo("Result", &mode, modes, 2)) e.recipe.commit_mode = static_cast<PaintCommitMode>(mode);
+		const char* result_name{ e.recipe.commit_mode == PaintCommitMode::BakeOnCommit ? "Bake on Commit" : "Keep Generator" };
+		const std::string result_preview{ std::string{ "Result: " } + result_name };
+		ImGui::SetNextItemWidth(190.0f);
+		if (ImGui::BeginCombo("##paint_recipe_result", result_preview.c_str())) {
+			if (ImGui::Selectable("Bake on Commit", e.recipe.commit_mode == PaintCommitMode::BakeOnCommit)) e.recipe.commit_mode = PaintCommitMode::BakeOnCommit;
+			if (ImGui::Selectable("Keep Generator", e.recipe.commit_mode == PaintCommitMode::KeepGenerator)) e.recipe.commit_mode = PaintCommitMode::KeepGenerator;
+			ImGui::EndCombo();
+		}
+		ItemTooltip("Bake on Commit creates ordinary editable content. Keep Generator retains the geometry and recipe so it can be edited procedurally later.");
 	}
 
 	if (e.recipe.coverage == PaintCoverageKind::RandomDensity) {
@@ -10876,22 +11247,6 @@ static void DrawPaintRecipeEditor(EditorState& e) {
 		ImGui::SetNextItemWidth(120.0f);
 		ImGui::SliderFloat("Outer", &e.recipe.radial_outer, 0.05f, 1.0f, "%.2f");
 		e.recipe.radial_outer = std::max(e.recipe.radial_outer, e.recipe.radial_inner + 0.01f);
-	}
-
-	if (e.recipe.source_kind == PaintSourceKind::Noise) {
-		DrawRecipeNoiseSettings(e, *layer);
-	} else if (layer->kind == LayerKind::Tile) {
-		ImGui::SeparatorText("Tile Sources");
-		DrawTileSourcePalette(e);
-	} else if (e.recipe.source_kind == PaintSourceKind::Single) {
-		ImGui::SeparatorText("Prefab Source");
-		const char* name{ e.active_prefab_index >= 0 && e.active_prefab_index < static_cast<int>(e.prefabs.size())
-			? e.prefabs[static_cast<std::size_t>(e.active_prefab_index)].name.c_str() : "<none>" };
-		ImGui::Text("Selected prefab: %s", name);
-		ImGui::TextDisabled("Choose and edit prefabs in the Prefabs tab beside Scene Hierarchy.");
-	} else {
-		ImGui::SeparatorText("Prefab Recipe Sources");
-		DrawPrefabSourcePalette(e);
 	}
 
 	if (!selected_generator) {
@@ -10910,11 +11265,171 @@ static void DrawPaintRecipeEditor(EditorState& e) {
 
 static void DrawInspector(EditorState& e) {
 	ImGui::Begin("Inspector");
-	PaintGenerator* selected_generator{ FindGenerator(e, e.selected_generator_id) };
+	static std::optional<SceneSnapshot> edit_before;
+	static bool edit_dirty{};
+	static InspectorContext edit_context{ InspectorContext::Scene };
 
-	// Capture the complete scene before an Inspector interaction. When the mouse
-	// interaction ends, compare the selected generator fingerprint and create one
-	// undo step if anything about it changed.
+	if (ImGui::IsWindowHovered(ImGuiHoveredFlags_RootAndChildWindows) && ImGui::IsMouseClicked(ImGuiMouseButton_Left) && !edit_before) {
+		edit_before = CaptureScene(e);
+		edit_dirty = false;
+		edit_context = e.inspector_context;
+	}
+	auto mark_changed = [&](bool changed) { if (changed) edit_dirty = true; return changed; };
+
+	if (e.inspector_context == InspectorContext::Prefab) {
+		if (e.selected_prefab_index < 0 || e.selected_prefab_index >= static_cast<int>(e.prefabs.size())) {
+			ImGui::TextDisabled("Select a prefab or prefab entity in the Prefabs tab.");
+		} else {
+			auto& prefab{ e.prefabs[static_cast<std::size_t>(e.selected_prefab_index)] };
+			PrefabBrushEntityNode* node{ e.selected_prefab_entity_path.empty() ? nullptr : FindPrefabEntityNode(prefab, e.selected_prefab_entity_path) };
+			ImGui::Text("Prefab: %s", prefab.name.c_str());
+			if (node) ImGui::TextDisabled("Entity: %s", node->name.c_str());
+			ImGui::SeparatorText("Components");
+
+			if (node) {
+				if (ImGui::TreeNodeEx("Tag", ImGuiTreeNodeFlags_DefaultOpen)) {
+					mark_changed(ImGui::InputText("Name", &node->name));
+					ImGui::TreePop();
+				}
+				if (ImGui::TreeNodeEx("Transform", ImGuiTreeNodeFlags_DefaultOpen)) {
+					float position[2]{ node->position.x, node->position.y };
+					if (ImGui::DragFloat2("Position", position, 1.0f)) { node->position = { position[0], position[1] }; edit_dirty = true; }
+					float size[2]{ node->size.x, node->size.y };
+					if (ImGui::DragFloat2("Size", size, 1.0f, 1.0f, 4096.0f, "%.0f")) { node->size = { std::max(1.0f, size[0]), std::max(1.0f, size[1]) }; edit_dirty = true; }
+					mark_changed(ImGui::DragFloat("Rotation", &node->rotation, 1.0f));
+					mark_changed(ImGui::DragFloat("Scale", &node->scale, 0.01f, 0.01f, 100.0f));
+					ImGui::TreePop();
+				}
+				if (ImGui::TreeNodeEx("Depth", ImGuiTreeNodeFlags_DefaultOpen)) {
+					mark_changed(ImGui::DragFloat("Value", &node->depth, 0.05f, -1000.0f, 1000.0f, "%.2f"));
+					ImGui::TreePop();
+				}
+			} else {
+				if (ImGui::TreeNodeEx("Transform", ImGuiTreeNodeFlags_DefaultOpen)) {
+					float position[2]{ prefab.position.x, prefab.position.y };
+					if (ImGui::DragFloat2("Position", position, 1.0f)) { prefab.position = { position[0], position[1] }; edit_dirty = true; }
+					float size[2]{ prefab.size.x, prefab.size.y };
+					if (ImGui::DragFloat2("Size", size, 1.0f, 1.0f, 4096.0f, "%.0f")) { prefab.size = { std::max(1.0f, size[0]), std::max(1.0f, size[1]) }; edit_dirty = true; }
+					mark_changed(ImGui::DragFloat("Rotation", &prefab.rotation, 1.0f));
+					mark_changed(ImGui::DragFloat("Scale", &prefab.scale, 0.01f, 0.01f, 100.0f));
+					ImGui::TreePop();
+				}
+				if (ImGui::TreeNodeEx("Depth", ImGuiTreeNodeFlags_DefaultOpen)) {
+					mark_changed(ImGui::DragFloat("Value", &prefab.depth, 0.05f, -1000.0f, 1000.0f, "%.2f"));
+					ImGui::TreePop();
+				}
+			}
+		}
+	} else if (e.inspector_context == InspectorContext::Tile) {
+		TileDefinition* tile{ FindTile(e, e.selected_tile_asset_id) };
+		if (!tile) {
+			ImGui::TextDisabled("Select a tile in the Tiles tab.");
+		} else {
+			ImGui::Text("Tile: %s", tile->name.c_str());
+			ImGui::SeparatorText("Asset");
+			mark_changed(ImGui::InputText("Name", &tile->name));
+			ImGui::Text("Group: %s", TileGroupName(e, tile->id).c_str());
+			ImGui::Text("Native Size: %d x %d", tile->pixel_w, tile->pixel_h);
+			if (tile->texture_index >= 0 && tile->texture_index < static_cast<int>(e.textures.size())) {
+				const auto& texture{ e.textures[static_cast<std::size_t>(tile->texture_index)] };
+				if (!texture.path.empty()) ImGui::TextWrapped("Source: %s", texture.path.c_str());
+			}
+			DrawInlineTileThumbnail(e, tile->id, 64.0f);
+		}
+	} else {
+		PaintGenerator* selected_generator{ FindGenerator(e, e.selected_generator_id) };
+		if (SceneLayer* layer = FindLayer(e, e.active_layer_id)) {
+			ImGui::Text("Layer: %s", layer->name.c_str());
+			ImGui::Text("Kind: %s", LayerKindName(layer->kind));
+			const bool layer_selected{ !selected_generator && e.selected_entities.empty() && e.selected_tile_cells.empty() };
+			if (layer_selected && layer->kind != LayerKind::Noise) {
+				int purpose{ static_cast<int>(layer->purpose) };
+				const char* purposes[]{ "Visual", "Collision", "Navigation", "Metadata" };
+				ImGui::SetNextItemWidth(150.0f);
+				if (ImGui::Combo("Purpose", &purpose, purposes, 4)) { layer->purpose = static_cast<LayerPurpose>(purpose); edit_dirty = true; }
+				ItemTooltip("Optional semantic purpose for this layer. Collision/Navigation/Metadata can be interpreted specially by the engine.");
+			}
+			if (layer->kind == LayerKind::Tile && !selected_generator && e.primary_entity_id < 0) {
+				ImGui::SeparatorText("Tilemap");
+				if (!e.tilemaps.empty()) {
+					const Tilemap* current_map{ FindTilemap(e, layer->tile.tilemap_id) };
+					const char* current_name{ current_map ? current_map->name.c_str() : "<missing>" };
+					if (ImGui::BeginCombo("Tilemap", current_name)) {
+						for (const auto& candidate : e.tilemaps) {
+							if (ImGui::Selectable(candidate.name.c_str(), candidate.id == layer->tile.tilemap_id)) { layer->tile.tilemap_id = candidate.id; edit_dirty = true; }
+						}
+						ImGui::EndCombo();
+					}
+				}
+				if (ImGui::Button("New Tilemap")) {
+					Tilemap created;
+					created.id = e.next_tilemap_id++;
+					created.name = "Tilemap " + std::to_string(created.id);
+					e.tilemaps.push_back(created);
+					layer->tile.tilemap_id = created.id;
+					edit_dirty = true;
+				}
+				if (Tilemap* map = FindTilemap(e, layer->tile.tilemap_id)) {
+					mark_changed(ImGui::InputText("Map Name", &map->name));
+					float origin[2]{ map->origin.x, map->origin.y };
+					if (ImGui::DragFloat2("Origin", origin, 1.0f)) { map->origin = { origin[0], origin[1] }; edit_dirty = true; }
+					const bool has_chunk_data{ !layer->tile.loaded_chunks.empty() || !layer->tile.backing_chunks.empty() };
+					ImGui::BeginDisabled(has_chunk_data);
+					float cell[2]{ map->cell_size.x, map->cell_size.y };
+					if (ImGui::DragFloat2("Cell Size", cell, 1.0f, 1.0f, 512.0f, "%.0f")) { map->cell_size = { std::max(1.0f, cell[0]), std::max(1.0f, cell[1]) }; edit_dirty = true; }
+					int chunk[2]{ map->chunk_size.x, map->chunk_size.y };
+					if (ImGui::DragInt2("Chunk Size", chunk, 1.0f, 1, 256)) { map->chunk_size = { std::max(1, chunk[0]), std::max(1, chunk[1]) }; edit_dirty = true; }
+					ImGui::EndDisabled();
+					mark_changed(ImGui::Checkbox("Streaming", &map->streaming.enabled));
+					mark_changed(ImGui::DragInt("Preload Margin", &map->streaming.preload_margin, 1.0f, 0, 16));
+					mark_changed(ImGui::DragInt("Keep Alive Margin", &map->streaming.keep_alive_margin, 1.0f, 0, 32));
+					map->streaming.keep_alive_margin = std::max(map->streaming.keep_alive_margin, map->streaming.preload_margin);
+					mark_changed(ImGui::DragInt("Max Loaded Chunks", &map->streaming.max_loaded_chunks, 1.0f, 1, 4096));
+					ImGui::Text("Exclusion cells: %d", static_cast<int>(map->exclusion_mask.size()));
+				}
+			}
+			if (selected_generator) {
+				ImGui::SeparatorText("Selection");
+				ImGui::Text("Generator: %s", selected_generator->name.c_str());
+				ImGui::TextDisabled("Generator geometry and paint recipe are edited in the Paint Recipe panel below.");
+			}
+		}
+
+		if (e.primary_entity_id >= 0 && !selected_generator) {
+			for (auto& entity : e.entities) {
+				if (entity.id != e.primary_entity_id) continue;
+				ImGui::SeparatorText("Components");
+				ImGui::Text("%s #%d", entity.prefab.c_str(), entity.id);
+				float pos[2]{ entity.position.x, entity.position.y };
+				if (ImGui::DragFloat2("Position", pos, 1.0f)) { entity.position = { pos[0], pos[1] }; edit_dirty = true; }
+				float size[2]{ entity.size.x, entity.size.y };
+				if (ImGui::DragFloat2("Size", size, 1.0f, 1.0f, 2048.0f, "%.0f")) { entity.size = { std::max(1.0f, size[0]), std::max(1.0f, size[1]) }; edit_dirty = true; }
+				int origin{ static_cast<int>(entity.origin) };
+				const char* origins[]{ "Top Left", "Top", "Top Right", "Left", "Center", "Right", "Bottom Left", "Bottom", "Bottom Right" };
+				if (ImGui::Combo("Origin", &origin, origins, 9)) { entity.origin = static_cast<EntityOrigin>(origin); edit_dirty = true; }
+				mark_changed(ImGui::DragFloat("Rotation", &entity.rotation, 1.0f));
+				mark_changed(ImGui::DragFloat("Scale", &entity.scale, 0.01f, 0.01f, 100.0f));
+				mark_changed(ImGui::DragFloat("Depth", &entity.depth, 0.05f, -1000.0f, 1000.0f));
+				break;
+			}
+		}
+	}
+
+	const bool popup_open{ ImGui::IsPopupOpen(nullptr, ImGuiPopupFlags_AnyPopupId) };
+	if (edit_before && !ImGui::IsMouseDown(ImGuiMouseButton_Left) && !ImGui::IsAnyItemActive() && !popup_open) {
+		if (edit_dirty) {
+			const char* label{ edit_context == InspectorContext::Prefab ? "Edit Prefab" : edit_context == InspectorContext::Tile ? "Edit Tile" : "Edit Inspector Selection" };
+			PushHistory(e, label, std::move(*edit_before));
+		}
+		edit_before.reset();
+		edit_dirty = false;
+	}
+	ImGui::End();
+}
+
+static void DrawPaintRecipeWindow(EditorState& e) {
+	ImGui::Begin("Paint Recipe");
+	PaintGenerator* selected_generator{ FindGenerator(e, e.selected_generator_id) };
 	if (selected_generator && ImGui::IsWindowHovered(ImGuiHoveredFlags_RootAndChildWindows) && ImGui::IsMouseClicked(ImGuiMouseButton_Left)) {
 		if (!e.generator_ui_edit_before) {
 			e.generator_ui_edit_before = CaptureScene(e);
@@ -10922,93 +11437,22 @@ static void DrawInspector(EditorState& e) {
 			e.generator_ui_edit_id = selected_generator->id;
 		}
 	}
-	if (!selected_generator && e.pending_generator &&
-		ImGui::IsWindowHovered(ImGuiHoveredFlags_RootAndChildWindows) &&
+	if (!selected_generator && e.pending_generator && ImGui::IsWindowHovered(ImGuiHoveredFlags_RootAndChildWindows) &&
 		ImGui::IsMouseClicked(ImGuiMouseButton_Left) && !e.pending_generator_ui_edit_before) {
 		e.pending_generator_ui_edit_before = e.pending_generator;
 		e.pending_generator_ui_edit_hash = HashGeneratorForUndo(*e.pending_generator);
 	}
 
-	if (SceneLayer* layer = FindLayer(e, e.active_layer_id)) {
-		ImGui::Text("Layer: %s", layer->name.c_str());
-		ImGui::Text("Kind: %s", LayerKindName(layer->kind));
-		ImGui::Text("Purpose: %s", PurposeName(layer->purpose));
-		if (layer->kind == LayerKind::Tile && !selected_generator) {
-			ImGui::SeparatorText("Tilemap");
-			if (!e.tilemaps.empty()) {
-				const Tilemap* current_map{ FindTilemap(e, layer->tile.tilemap_id) };
-				const char* current_name{ current_map ? current_map->name.c_str() : "<missing>" };
-				if (ImGui::BeginCombo("Tilemap", current_name)) {
-					for (const auto& candidate : e.tilemaps) if (ImGui::Selectable(candidate.name.c_str(), candidate.id == layer->tile.tilemap_id)) layer->tile.tilemap_id = candidate.id;
-					ImGui::EndCombo();
-				}
-			}
-			if (ImGui::Button("New Tilemap")) {
-				Tilemap created;
-				created.id = e.next_tilemap_id++;
-				created.name = "Tilemap " + std::to_string(created.id);
-				e.tilemaps.push_back(created);
-				layer->tile.tilemap_id = created.id;
-			}
-			if (Tilemap* map = FindTilemap(e, layer->tile.tilemap_id)) {
-				char map_name[128]{};
-				std::snprintf(map_name, sizeof(map_name), "%s", map->name.c_str());
-				if (ImGui::InputText("Map Name", map_name, sizeof(map_name))) map->name = map_name;
-				float origin[2]{ map->origin.x, map->origin.y };
-				if (ImGui::DragFloat2("Origin", origin, 1.0f)) map->origin = { origin[0], origin[1] };
-				const bool has_chunk_data{ !layer->tile.loaded_chunks.empty() || !layer->tile.backing_chunks.empty() };
-				ImGui::BeginDisabled(has_chunk_data);
-				float cell[2]{ map->cell_size.x, map->cell_size.y };
-				if (ImGui::DragFloat2("Cell Size", cell, 1.0f, 1.0f, 512.0f, "%.0f")) map->cell_size = { std::max(1.0f, cell[0]), std::max(1.0f, cell[1]) };
-				int chunk[2]{ map->chunk_size.x, map->chunk_size.y };
-				if (ImGui::DragInt2("Chunk Size", chunk, 1.0f, 1, 256)) map->chunk_size = { std::max(1, chunk[0]), std::max(1, chunk[1]) };
-				ImGui::EndDisabled();
-				ImGui::Checkbox("Streaming", &map->streaming.enabled);
-				ImGui::DragInt("Preload Margin", &map->streaming.preload_margin, 1.0f, 0, 16);
-				ImGui::DragInt("Keep Alive Margin", &map->streaming.keep_alive_margin, 1.0f, 0, 32);
-				map->streaming.keep_alive_margin = std::max(map->streaming.keep_alive_margin, map->streaming.preload_margin);
-				ImGui::DragInt("Max Loaded Chunks", &map->streaming.max_loaded_chunks, 1.0f, 1, 4096);
-				ImGui::Text("Exclusion cells: %d", static_cast<int>(map->exclusion_mask.size()));
-			}
-		}
+	DrawPaintRecipeEditor(e);
 
-		// Tilemap painting and selected generators now share the Inspector as the
-		// single recipe/procedural editing surface.
-		if (layer->kind != LayerKind::Noise && (e.primary_entity_id < 0 || selected_generator)) {
-			DrawPaintRecipeEditor(e);
-		}
-	}
-
-	if (e.primary_entity_id >= 0 && !selected_generator) {
-		for (auto& entity : e.entities) {
-			if (entity.id != e.primary_entity_id) continue;
-			ImGui::SeparatorText("Primary Selection");
-			ImGui::Text("%s #%d", entity.prefab.c_str(), entity.id);
-			float pos[2]{ entity.position.x, entity.position.y };
-			if (ImGui::DragFloat2("Position", pos, 1.0f)) entity.position = { pos[0], pos[1] };
-			float size[2]{ entity.size.x, entity.size.y };
-			if (ImGui::DragFloat2("Size", size, 1.0f, 1.0f, 2048.0f, "%.0f")) entity.size = { std::max(1.0f, size[0]), std::max(1.0f, size[1]) };
-			int origin{ static_cast<int>(entity.origin) };
-			const char* origins[]{ "Top Left", "Top", "Top Right", "Left", "Center", "Right", "Bottom Left", "Bottom", "Bottom Right" };
-			if (ImGui::Combo("Origin", &origin, origins, 9)) entity.origin = static_cast<EntityOrigin>(origin);
-			ImGui::DragFloat("Rotation", &entity.rotation, 1.0f);
-			ImGui::DragFloat("Scale", &entity.scale, 0.01f, 0.01f, 100.0f);
-			ImGui::DragFloat("Depth", &entity.depth, 0.05f, -1000.0f, 1000.0f);
-			break;
-		}
-	}
-
-	const bool inspector_popup_open{ ImGui::IsPopupOpen(nullptr, ImGuiPopupFlags_AnyPopupId) };
-	if (e.generator_ui_edit_before && !ImGui::IsMouseDown(ImGuiMouseButton_Left) && !ImGui::IsAnyItemActive() && !inspector_popup_open) {
+	const bool popup_open{ ImGui::IsPopupOpen(nullptr, ImGuiPopupFlags_AnyPopupId) };
+	if (e.generator_ui_edit_before && !ImGui::IsMouseDown(ImGuiMouseButton_Left) && !ImGui::IsAnyItemActive() && !popup_open) {
 		PaintGenerator* current{ FindGenerator(e, e.generator_ui_edit_id) };
-		if (current && HashGeneratorForUndo(*current) != e.generator_ui_edit_hash) {
-			PushHistory(e, "Modify Generator", std::move(*e.generator_ui_edit_before));
-		}
+		if (current && HashGeneratorForUndo(*current) != e.generator_ui_edit_hash) PushHistory(e, "Modify Generator", std::move(*e.generator_ui_edit_before));
 		e.generator_ui_edit_before.reset();
 		e.generator_ui_edit_id = -1;
 	}
-	if (e.pending_generator_ui_edit_before && !ImGui::IsMouseDown(ImGuiMouseButton_Left) &&
-		!ImGui::IsAnyItemActive() && !inspector_popup_open) {
+	if (e.pending_generator_ui_edit_before && !ImGui::IsMouseDown(ImGuiMouseButton_Left) && !ImGui::IsAnyItemActive() && !popup_open) {
 		if (e.pending_generator && HashGeneratorForUndo(*e.pending_generator) != e.pending_generator_ui_edit_hash) {
 			e.pending_generator_undo.push_back(e.pending_generator_ui_edit_before);
 			e.pending_generator_redo.clear();
@@ -11102,23 +11546,24 @@ static void DrawDefaultDockspace(EditorState& e) {
 		ImGuiID center{ dockspace_id };
 		ImGuiID left{};
 		ImGuiID right{};
-		left = ImGui::DockBuilderSplitNode(center, ImGuiDir_Left, 0.182f, nullptr, &center);
-		right = ImGui::DockBuilderSplitNode(center, ImGuiDir_Right, 0.27f, nullptr, &center);
+		left = ImGui::DockBuilderSplitNode(center, ImGuiDir_Left, 0.205f, nullptr, &center);
+		right = ImGui::DockBuilderSplitNode(center, ImGuiDir_Right, 0.29f, nullptr, &center);
 
 		ImGuiID left_top{ left };
 		ImGuiID left_bottom{};
-		left_bottom = ImGui::DockBuilderSplitNode(left_top, ImGuiDir_Down, 0.34f, nullptr, &left_top);
+		left_bottom = ImGui::DockBuilderSplitNode(left_top, ImGuiDir_Down, 0.28f, nullptr, &left_top);
 
 		ImGuiID right_top{ right };
 		ImGuiID right_bottom{};
-		right_bottom = ImGui::DockBuilderSplitNode(right_top, ImGuiDir_Down, 0.27f, nullptr, &right_top);
+		right_bottom = ImGui::DockBuilderSplitNode(right_top, ImGuiDir_Down, 0.56f, nullptr, &right_top);
 
 		ImGui::DockBuilderDockWindow("Viewport", center);
 		ImGui::DockBuilderDockWindow("Scene Hierarchy", left_top);
 		ImGui::DockBuilderDockWindow("Prefabs", left_top);
-		ImGui::DockBuilderDockWindow("Layers", left_bottom);
+		ImGui::DockBuilderDockWindow("Tiles", left_top);
+		ImGui::DockBuilderDockWindow("Undo History", left_bottom);
 		ImGui::DockBuilderDockWindow("Inspector", right_top);
-		ImGui::DockBuilderDockWindow("Undo History", right_bottom);
+		ImGui::DockBuilderDockWindow("Paint Recipe", right_bottom);
 		ImGui::DockBuilderFinish(dockspace_id);
 	}
 
@@ -11170,9 +11615,10 @@ static void DrawEditor(EditorState& e) {
 	DrawViewport(e);
 	DrawSceneHierarchy(e);
 	DrawPrefabs(e);
-	DrawLayers(e);
+	DrawTiles(e);
 	SyncViewportToolToActiveLayer(e);
 	DrawInspector(e);
+	DrawPaintRecipeWindow(e);
 	DrawHistory(e);
 }
 
