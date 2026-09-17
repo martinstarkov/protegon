@@ -1,10 +1,15 @@
 #include "editor/editor_context.h"
 
 #include <optional>
+#include <ranges>
 #include <utility>
 
 #include "app/project.h"
 #include "app/project_settings.h"
+#if !defined(__EMSCRIPTEN__)
+#include "editor/editor.h"
+#include "platform/window.h"
+#endif
 #include "serialization/json/json.h"
 #include "serialization/json/json_file.h"
 
@@ -33,7 +38,7 @@ namespace {
 	}
 }
 
-[[nodiscard]] std::optional<Color> ReadPaletteColor(const json& value) {
+[[nodiscard]] std::optional<Color> ReadPaletteColorValue(const json& value) {
 	if (!value.is_array() || (value.size() != 3 && value.size() != 4)) {
 		return std::nullopt;
 	}
@@ -52,12 +57,35 @@ namespace {
 	return Color{ *red, *green, *blue, *alpha };
 }
 
+[[nodiscard]] std::string DefaultPaletteColorName(std::size_t index) {
+	return "Color " + std::to_string(index + 1);
+}
+
+[[nodiscard]] bool PaletteContainsColor(
+	const EditorColorPalette& palette,
+	Color color
+) {
+	return std::ranges::any_of(
+		palette.colors,
+		[color](const EditorPaletteColor& entry) {
+			return entry.color == color;
+		}
+	);
+}
+
 } // namespace
 
 void to_json(json& value, const EditorColorPalette& palette) {
 	value = json::object();
 	value["name"] = palette.name;
-	value["colors"] = palette.colors;
+	value["colors"] = json::array();
+
+	for (const auto& palette_color : palette.colors) {
+		json serialized = json::object();
+		serialized["name"] = palette_color.name;
+		serialized["color"] = palette_color.color;
+		value["colors"].push_back(std::move(serialized));
+	}
 }
 
 void from_json(const json& value, EditorColorPalette& palette) {
@@ -79,8 +107,37 @@ void from_json(const json& value, EditorColorPalette& palette) {
 
 	palette.colors.reserve(colors->size());
 	for (const auto& serialized_color : *colors) {
-		if (const auto color{ ReadPaletteColor(serialized_color) }) {
-			palette.colors.push_back(*color);
+		EditorPaletteColor palette_color;
+		palette_color.name = DefaultPaletteColorName(palette.colors.size());
+
+		// Legacy .ptgneditor files stored palette colors directly as [r,g,b,a].
+		if (serialized_color.is_array()) {
+			if (const auto color{ ReadPaletteColorValue(serialized_color) };
+				color && !PaletteContainsColor(palette, *color)) {
+				palette_color.color = *color;
+				palette.colors.push_back(std::move(palette_color));
+			}
+			continue;
+		}
+
+		if (!serialized_color.is_object()) {
+			continue;
+		}
+
+		if (const auto name{ serialized_color.find("name") };
+			name != serialized_color.end() && name->is_string() && !name->get_ref<const std::string&>().empty()) {
+			palette_color.name = name->get<std::string>();
+		}
+
+		const auto color_value{ serialized_color.find("color") };
+		if (color_value == serialized_color.end()) {
+			continue;
+		}
+
+		if (const auto color{ ReadPaletteColorValue(*color_value) };
+			color && !PaletteContainsColor(palette, *color)) {
+			palette_color.color = *color;
+			palette.colors.push_back(std::move(palette_color));
 		}
 	}
 }
@@ -112,6 +169,22 @@ void from_json(const json& value, EditorProjectState& state) {
 		from_json(serialized_palette, palette);
 		state.color_palettes.emplace_back(std::move(palette));
 	}
+}
+
+std::expected<std::optional<path>, std::string> OpenPaletteFileDialog(
+	EditorContext& ctx
+) {
+#if defined(__EMSCRIPTEN__)
+	return std::unexpected<std::string>{
+		"Native palette file dialogs are unavailable in web builds."
+	};
+#else
+	FileDialog::Options options;
+	options.filters = {
+		FileDialog::Filter{ .name = "Palette Files", .spec = "pal" },
+	};
+	return ctx.editor.GetWindow().file.OpenFile(std::move(options));
+#endif
 }
 
 path GetEditorProjectStatePath(const Project& project) {

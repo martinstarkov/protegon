@@ -1,5 +1,7 @@
 #pragma once
 
+#include <expected>
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -22,16 +24,22 @@ namespace editor {
 
 class Editor;
 
+struct EditorPaletteColor {
+	std::string name{ "Color" };
+	Color color{};
+
+	bool operator==(const EditorPaletteColor&) const = default;
+};
+
 struct EditorColorPalette {
 	std::string name{ "Palette" };
-	std::vector<Color> colors{};
+	std::vector<EditorPaletteColor> colors{};
 
 	bool operator==(const EditorColorPalette&) const = default;
 };
 
 /// @brief Explicit JSON serialization keeps palette files tolerant of empty palettes and malformed
-/// individual color entries instead of routing Color's array representation through reflected
-/// object deserialization.
+/// individual color entries. The loader also accepts the legacy array-only color representation.
 void to_json(json& value, const EditorColorPalette& palette);
 void from_json(const json& value, EditorColorPalette& palette);
 
@@ -67,6 +75,12 @@ public:
 	EditorLocalState local{};
 	EditorProjectState project_state{};
 };
+
+/// @brief Opens the editor's native file picker filtered to .pal palette files.
+/// The outer expected reports dialog errors; the inner optional is empty when the user cancels.
+[[nodiscard]] std::expected<std::optional<path>, std::string> OpenPaletteFileDialog(
+	EditorContext& ctx
+);
 
 /// @return Path of the shared editor project-state file stored beside the project manifest.
 path GetEditorProjectStatePath(const Project& project);
