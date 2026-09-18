@@ -99,6 +99,24 @@ void UndoStack::TrackInteraction(
 	}
 
 	if (!any_item_active) {
+		// Some ImGui controls can report their final changed value on the same frame
+		// that they become inactive. If this is the release frame of an interaction
+		// we are already tracking, fold that final value into the existing command
+		// instead of committing the drag and then pushing a second command.
+		if (active_edit_ && active_edit_->key == key) {
+			active_edit_->redo = std::move(redo);
+			active_edit_->affects_project_serialization |=
+				affects_project_serialization;
+			active_edit_->allow_when_disabled |= allow_when_disabled;
+			active_edit_->transient |= transient;
+			CommitActiveEdit();
+			return;
+		}
+
+		if (active_edit_) {
+			CommitActiveEdit();
+		}
+
 		PushApplied(
 			std::move(label),
 			std::move(undo),
