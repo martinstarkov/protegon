@@ -99,6 +99,7 @@
 #include "runtime/ui/slider.h"
 #include "runtime/ui/toggle_button.h"
 #include "runtime/ui/tooltip.h"
+#include "tools/debug/debug_system.h"
 
 namespace ptgn::editor::inspector {
 
@@ -110,6 +111,7 @@ enum class RichTextPendingActionType : std::uint8_t {
 	RemoveTag,
 	RemoveEffects,
 	InsertToken,
+	ToggleStandaloneLineToken,
 };
 
 enum class RichTextEffectEditorKind : std::uint8_t {
@@ -190,8 +192,9 @@ struct RichTextEditorState {
 	std::size_t source_history_index{ 0 };
 	bool source_history_applied{ false };
 
-	// Editor-only display preference. This never modifies the authored rich text source.
+	// Editor-only display preferences. These never modify the authored rich text source.
 	bool word_wrap{ true };
+	bool show_page_numbers{ false };
 
 	// Source/preview heights are editor-only UI state. Keep detached and inline editors independent.
 	float inline_source_height{ 0.0f };
@@ -1684,34 +1687,16 @@ bool ToggleRichTextSelectionTag(
 	};
 
 	// Mixed selection follows conventional rich-text behavior: clicking the toggle
-	// makes the entire range active. A uniformly active selection removes that style
-	// from the selected range/caret by splitting surrounding wrappers as necessary.
+	// makes the entire selected range active. A uniformly active target removes the
+	// surrounding tag. Adding a new style always requires a non-empty selection;
+	// a collapsed caret is only allowed to remove a tag it is already inside.
 	const bool desired_active{ !active.has_value() || !active.value() };
 	if (!desired_active) {
 		return RemoveRichTextSelectionTag(source, state, tag);
 	}
 
-	// Reuse an empty typing-style wrapper when possible. This also upgrades legacy
-	// manually-authored <tag=off></tag> wrappers without generating new '=off' tags.
 	if (!has_range) {
-		const std::size_t cursor{ std::min(state.cursor, source.size()) };
-		if (const auto wrapper{ FindRichTextSurroundingTag(source, cursor, cursor, tag) };
-			wrapper && wrapper->open_begin + wrapper->open_size == cursor &&
-			wrapper->close_begin == cursor) {
-			if (source.substr(wrapper->open_begin, wrapper->open_size) == default_open) {
-				return false;
-			}
-			source.replace(wrapper->open_begin, wrapper->open_size, default_open);
-			const std::ptrdiff_t delta{
-				static_cast<std::ptrdiff_t>(default_open.size()) -
-				static_cast<std::ptrdiff_t>(wrapper->open_size)
-			};
-			const std::size_t new_cursor{ static_cast<std::size_t>(
-				static_cast<std::ptrdiff_t>(cursor) + delta
-			) };
-			RequestRichTextSelection(state, new_cursor, new_cursor, new_cursor);
-			return true;
-		}
+		return false;
 	}
 
 	if (has_range) {
@@ -1746,30 +1731,37 @@ bool SetRichTextSelectionTag(
 	const bool has_range{ begin < end };
 	if (!has_range) {
 		const std::size_t cursor{ std::min(state.cursor, source.size()) };
-		if (const auto wrapper{ FindRichTextSurroundingTag(source, cursor, cursor, tag) };
-			wrapper &&
-			wrapper->open_begin + wrapper->open_size == cursor &&
-			wrapper->close_begin == cursor) {
-			const std::string current_open{
-				source.substr(wrapper->open_begin, wrapper->open_size)
-			};
-			if (current_open == open) {
-				return false;
-			}
-			source.replace(wrapper->open_begin, wrapper->open_size, open);
-			const std::ptrdiff_t delta{
-				static_cast<std::ptrdiff_t>(open.size()) -
-				static_cast<std::ptrdiff_t>(wrapper->open_size)
-			};
-			const std::size_t new_cursor{
-				static_cast<std::size_t>(
-					static_cast<std::ptrdiff_t>(cursor) + delta
-				)
-			};
-			RequestRichTextSelection(state, new_cursor, new_cursor, new_cursor);
-			return true;
+		const auto wrapper{
+			FindRichTextSurroundingTag(source, cursor, cursor, tag)
+		};
+		if (!wrapper) {
+			// Never create an empty formatting/effect wrapper at a caret. A selection
+			// is required to add a new tag; a caret may only edit an existing wrapper.
+			return false;
 		}
-		return WrapRichTextSelection(source, state, open, close);
+
+		const std::string current_open{
+			source.substr(wrapper->open_begin, wrapper->open_size)
+		};
+		if (current_open == open) {
+			return false;
+		}
+
+		source.replace(wrapper->open_begin, wrapper->open_size, open);
+		const std::ptrdiff_t delta{
+			static_cast<std::ptrdiff_t>(open.size()) -
+			static_cast<std::ptrdiff_t>(wrapper->open_size)
+		};
+
+		// The opening tag is before the caret, so keep the caret on the same visible
+		// character after changing the tag's source length.
+		const std::size_t new_cursor{
+			static_cast<std::size_t>(
+				static_cast<std::ptrdiff_t>(cursor) + delta
+			)
+		};
+		RequestRichTextSelection(state, new_cursor, new_cursor, new_cursor);
+		return true;
 	}
 
 	RemoveRichTextContainedTagWrappers(source, state, tag);
@@ -1837,9 +1829,23 @@ bool RemoveRichTextSelectionTag(
 
 	std::size_t begin{ std::min(state.selection_start, state.selection_end) };
 	std::size_t end{ std::max(state.selection_start, state.selection_end) };
-	if (begin < end) {
-		changed |= RemoveRichTextContainedTagWrappers(source, state, tag);
+
+	// With a collapsed caret, removal targets the complete innermost wrapper that
+	// contains the caret. This is what lets <b>Hello</b> show Bold as active anywhere
+	// inside "Hello" and lets one click remove that authored tag without a selection.
+	if (begin == end) {
+		const std::size_t cursor{ std::min(state.cursor, source.size()) };
+		if (const auto wrapper{
+				FindRichTextSurroundingTag(source, cursor, cursor, tag)
+			}) {
+			return RemoveRichTextLocatedTag(
+				source, state, *wrapper, cursor, cursor
+			);
+		}
+		return false;
 	}
+
+	changed |= RemoveRichTextContainedTagWrappers(source, state, tag);
 
 	// Remove every same-kind wrapper affecting the target. If the target is only a
 	// subset of a wrapper, split that wrapper into styled left/right segments and
@@ -1905,6 +1911,148 @@ bool InsertRichTextToken(
 
 	source.replace(begin, end - begin, token);
 	const std::size_t cursor{ begin + token.size() };
+	RequestRichTextSelection(state, cursor, cursor, cursor);
+	return true;
+}
+
+[[nodiscard]] std::string_view TrimRichTextStandaloneLine(std::string_view line) {
+	while (!line.empty() && std::isspace(static_cast<unsigned char>(line.front()))) {
+		line.remove_prefix(1);
+	}
+	while (!line.empty() && std::isspace(static_cast<unsigned char>(line.back()))) {
+		line.remove_suffix(1);
+	}
+	return line;
+}
+
+[[nodiscard]] std::pair<std::size_t, std::size_t> RichTextLogicalLineBounds(
+	std::string_view source, std::size_t position
+) {
+	position = std::min(position, source.size());
+	const std::size_t begin_search{ position == 0 ? 0 : position - 1 };
+	const std::size_t previous{ position == 0 ? std::string_view::npos : source.rfind('\n', begin_search) };
+	const std::size_t begin{ previous == std::string_view::npos ? 0 : previous + 1 };
+	const std::size_t next{ source.find('\n', position) };
+	return {
+		begin,
+		next == std::string_view::npos ? source.size() : next
+	};
+}
+
+[[nodiscard]] bool RichTextLineEqualsToken(
+	std::string_view source, std::size_t begin, std::size_t end, std::string_view token
+) {
+	if (begin > end || end > source.size()) {
+		return false;
+	}
+	return TrimRichTextStandaloneLine(source.substr(begin, end - begin)) == token;
+}
+
+bool ToggleRichTextStandaloneLineToken(
+	std::string& source, RichTextSelectionState& state, std::string_view token
+) {
+	if (token.empty()) {
+		return false;
+	}
+
+	ClampRichTextSelection(state, source.size());
+	const std::size_t selection_begin{
+		std::min(state.selection_start, state.selection_end)
+	};
+	const std::size_t anchor{
+		state.selection_start != state.selection_end
+			? selection_begin
+			: state.cursor
+	};
+	const auto [line_begin, line_end]{
+		RichTextLogicalLineBounds(source, anchor)
+	};
+	const std::string_view line{
+		std::string_view{ source }.substr(line_begin, line_end - line_begin)
+	};
+	const std::string_view trimmed{ TrimRichTextStandaloneLine(line) };
+
+	if (trimmed == token) {
+		std::size_t erase_end{ line_end };
+		if (line_begin == 0 && erase_end < source.size() &&
+			source[erase_end] == '\n') {
+			++erase_end;
+		}
+		source.erase(line_begin, erase_end - line_begin);
+		RequestRichTextSelection(state, line_begin, line_begin, line_begin);
+		return true;
+	}
+
+	if (trimmed.empty()) {
+		source.replace(line_begin, line_end - line_begin, token);
+		const std::size_t cursor{ line_begin + token.size() };
+		RequestRichTextSelection(state, cursor, cursor, cursor);
+		return true;
+	}
+
+	// For text selection/caret, resolve the beginning of the surrounding authored paragraph.
+	// A paragraph is bounded by a blank line or an existing standalone control line.
+	std::size_t paragraph_begin{ line_begin };
+	while (paragraph_begin > 0) {
+		const std::size_t previous_newline{ paragraph_begin - 1 };
+		const std::size_t previous_line_end{ previous_newline };
+		const std::size_t before_previous{
+			previous_line_end == 0
+				? std::string_view::npos
+				: std::string_view{ source }.rfind('\n', previous_line_end - 1)
+		};
+		const std::size_t previous_line_begin{
+			before_previous == std::string_view::npos ? 0 : before_previous + 1
+		};
+		const std::string_view previous_line{
+			std::string_view{ source }.substr(
+				previous_line_begin,
+				previous_line_end - previous_line_begin
+			)
+		};
+		const std::string_view previous_trimmed{
+			TrimRichTextStandaloneLine(previous_line)
+		};
+		if (previous_trimmed.empty() || previous_trimmed == token) {
+			break;
+		}
+		paragraph_begin = previous_line_begin;
+	}
+
+	// If this paragraph already has the control immediately above it, toggle it off.
+	if (paragraph_begin > 0) {
+		const std::size_t previous_line_end{ paragraph_begin - 1 };
+		const std::size_t before_previous{
+			previous_line_end == 0
+				? std::string_view::npos
+				: std::string_view{ source }.rfind('\n', previous_line_end - 1)
+		};
+		const std::size_t previous_line_begin{
+			before_previous == std::string_view::npos ? 0 : before_previous + 1
+		};
+		if (RichTextLineEqualsToken(
+				source, previous_line_begin, previous_line_end, token
+			)) {
+			std::size_t erase_end{ previous_line_end };
+			if (previous_line_begin == 0 && erase_end < source.size() &&
+				source[erase_end] == '\n') {
+				++erase_end;
+			}
+			const std::size_t erased_size{ erase_end - previous_line_begin };
+			source.erase(previous_line_begin, erased_size);
+			const std::size_t adjusted{
+				anchor >= erase_end
+					? anchor - erased_size
+					: previous_line_begin
+			};
+			RequestRichTextSelection(state, adjusted, adjusted, adjusted);
+			return true;
+		}
+	}
+
+	const std::string insertion{ std::string{ token } + "\n" };
+	source.insert(paragraph_begin, insertion);
+	const std::size_t cursor{ anchor + insertion.size() };
 	RequestRichTextSelection(state, cursor, cursor, cursor);
 	return true;
 }
@@ -2009,6 +2157,12 @@ int RichTextInputCallback(ImGuiInputTextCallbackData* data) {
 			case RichTextPendingActionType::InsertToken:
 				changed = InsertRichTextToken(edited_source, action_selection, action.token);
 				break;
+
+			case RichTextPendingActionType::ToggleStandaloneLineToken:
+				changed = ToggleRichTextStandaloneLineToken(
+					edited_source, action_selection, action.token
+				);
+				break;
 		}
 
 		if (changed) {
@@ -2076,6 +2230,12 @@ bool ApplyPendingRichTextActionToInactiveSource(
 
 		case RichTextPendingActionType::InsertToken:
 			changed = InsertRichTextToken(source, action_selection, action.token);
+			break;
+
+		case RichTextPendingActionType::ToggleStandaloneLineToken:
+			changed = ToggleRichTextStandaloneLineToken(
+				source, action_selection, action.token
+			);
 			break;
 	}
 
@@ -3234,7 +3394,19 @@ bool DrawRichTextSourceInput(
 	float maximum_editor_height
 ) {
 	const bool word_wrap{ editor_state.word_wrap };
-	const float source_width{ RichTextSourceWidth(source) };
+	const bool page_preview_mode{
+		options.show_page_numbers_button && editor_state.show_page_numbers
+	};
+	std::string page_preview_source;
+	if (page_preview_mode) {
+		page_preview_source = options.page_number_preview_source.empty()
+			? source
+			: std::string{ options.page_number_preview_source };
+	}
+	std::string& displayed_source{
+		page_preview_mode ? page_preview_source : source
+	};
+	const float source_width{ RichTextSourceWidth(displayed_source) };
 	const float minimum_editor_height{
 		ImGui::GetTextLineHeightWithSpacing() * 3.0f +
 		ImGui::GetStyle().FramePadding.y * 2.0f
@@ -3251,11 +3423,13 @@ bool DrawRichTextSourceInput(
 	// Formatting and local history are applied from inside ImGui's input callback so the
 	// active edit buffer and the std::string can never diverge. Reserve enough room for
 	// both tag insertion and restoring the largest currently reachable undo state.
-	std::size_t history_capacity{ source.size() };
-	for (const auto& entry : editor_state.source_history) {
-		history_capacity = std::max(history_capacity, entry.source.size());
+	if (!page_preview_mode) {
+		std::size_t history_capacity{ source.size() };
+		for (const auto& entry : editor_state.source_history) {
+			history_capacity = std::max(history_capacity, entry.source.size());
+		}
+		source.reserve(history_capacity + 4096);
 	}
-	source.reserve(history_capacity + 4096);
 
 	ImGuiWindowFlags child_window_flags{ ImGuiWindowFlags_None };
 	if (!word_wrap) {
@@ -3281,12 +3455,37 @@ bool DrawRichTextSourceInput(
 	ImGui::PopStyleColor();
 
 	const float inner_width{ std::max(1.0f, ImGui::GetContentRegionAvail().x) };
-	const bool horizontal_overflow{ !word_wrap && source_width > inner_width };
-	const float input_width{ word_wrap ? inner_width : std::max(inner_width, source_width) };
+	const bool show_page_numbers{
+		page_preview_mode && !options.line_page_numbers.empty()
+	};
+	std::size_t maximum_page_number{ 0 };
+	for (const std::size_t page : options.line_page_numbers) {
+		maximum_page_number = std::max(maximum_page_number, page);
+	}
+	const std::string widest_page_label{
+		"[" + std::to_string(std::max<std::size_t>(maximum_page_number, 1)) + "]"
+	};
+	const float page_number_gutter{
+		show_page_numbers
+			? ImGui::CalcTextSize(widest_page_label.c_str()).x +
+				ImGui::GetStyle().ItemInnerSpacing.x * 2.0f
+			: 0.0f
+	};
+	const float source_view_width{
+		std::max(1.0f, inner_width - page_number_gutter)
+	};
+	const bool horizontal_overflow{
+		!word_wrap && source_width > source_view_width
+	};
+	const float input_width{
+		word_wrap
+			? source_view_width
+			: std::max(source_view_width, source_width)
+	};
 	const float text_width{
 		std::max(1.0f, input_width - ImGui::GetStyle().FramePadding.x * 2.0f)
 	};
-	const auto visual_lines{ BuildRichTextSourceVisualLines(source, word_wrap, text_width) };
+	const auto visual_lines{ BuildRichTextSourceVisualLines(displayed_source, word_wrap, text_width) };
 	const float content_height{
 		static_cast<float>(visual_lines.size()) * ImGui::GetTextLineHeight() +
 		ImGui::GetStyle().FramePadding.y * 2.0f + 2.0f
@@ -3312,8 +3511,10 @@ bool DrawRichTextSourceInput(
 			: visible_content_height
 	};
 
-	if (selection.focus_source) {
+	if (selection.focus_source && !page_preview_mode) {
 		ImGui::SetKeyboardFocusHere();
+		selection.focus_source = false;
+	} else if (page_preview_mode) {
 		selection.focus_source = false;
 	}
 
@@ -3327,9 +3528,14 @@ bool DrawRichTextSourceInput(
 
 	constexpr ImGuiInputTextFlags kHistoryFlags{ ImGuiInputTextFlags_NoUndoRedo };
 	ImGuiInputTextFlags input_flags{
-		ImGuiInputTextFlags_CallbackAlways | ImGuiInputTextFlags_AllowTabInput |
+		ImGuiInputTextFlags_AllowTabInput |
 		kHistoryFlags | ImGuiInputTextFlags_NoHorizontalScroll
 	};
+	if (page_preview_mode) {
+		input_flags |= ImGuiInputTextFlags_ReadOnly;
+	} else {
+		input_flags |= ImGuiInputTextFlags_CallbackAlways;
+	}
 #if IMGUI_VERSION_NUM >= 19230
 	if (word_wrap) {
 		input_flags |= ImGuiInputTextFlags_WordWrap;
@@ -3364,10 +3570,23 @@ bool DrawRichTextSourceInput(
 	// RichTextSourceScroll child already owns scrolling for the syntax overlay, selection and caret,
 	// so suppress the inner scrollbar visually. input_height above is sized to the full text content,
 	// which keeps that private child from needing to scroll during normal editing.
+	if (show_page_numbers) {
+		ImGui::SetCursorPosX(ImGui::GetCursorPosX() + page_number_gutter);
+	}
+
 	ImGui::PushStyleVar(ImGuiStyleVar_ScrollbarSize, 0.0f);
+	const char* source_input_id{
+		page_preview_mode
+			? "##RichTextPagePreview"
+			: "##RichTextSource"
+	};
 	const bool input_changed{ ImGui::InputTextMultiline(
-		"##RichTextSource", &source, ImVec2{ input_width, input_height }, input_flags,
-		&RichTextInputCallback, &callback_context
+		source_input_id,
+		&displayed_source,
+		ImVec2{ input_width, input_height },
+		input_flags,
+		page_preview_mode ? nullptr : &RichTextInputCallback,
+		page_preview_mode ? nullptr : &callback_context
 	) };
 	ImGui::PopStyleVar();
 	const bool source_clicked{ ImGui::IsItemClicked(ImGuiMouseButton_Left) };
@@ -3375,15 +3594,16 @@ bool DrawRichTextSourceInput(
 		ImGui::IsItemHovered() && ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left)
 	};
 	const bool source_active{ ImGui::IsItemActive() };
+	const bool editable_source_active{ source_active && !page_preview_mode };
 	const ImVec2 source_min{ ImGui::GetItemRectMin() };
 	const ImVec2 source_max{ ImGui::GetItemRectMax() };
 	ImGui::PopStyleColor(pushed_source_colors);
 
-	if (source_clicked) {
+	if (source_clicked && !page_preview_mode) {
 		selection.keep_selection_highlight = false;
 	}
 
-	if (source_active && !selection.pending_action.has_value()) {
+	if (editable_source_active && !selection.pending_action.has_value()) {
 		const auto& io{ ImGui::GetIO() };
 		const bool command_modifier{ io.KeyCtrl || io.KeySuper };
 		std::optional<std::tuple<std::string_view, std::string_view, std::string_view>> shortcut;
@@ -3400,33 +3620,57 @@ bool DrawRichTextSourceInput(
 				editor_state.selection_warning = *error;
 				editor_state.selection_warning_until = ImGui::GetTime() + 4.0;
 			} else {
-				ctx.undo.CommitActiveEdit();
 				const auto [tag, open, close]{ *shortcut };
-				selection.pending_action = RichTextPendingAction{
-					.type = RichTextPendingActionType::ToggleTag,
-					.cursor = selection.cursor,
-					.selection_start = selection.selection_start,
-					.selection_end = selection.selection_end,
-					.tag = std::string{ tag },
-					.open = std::string{ open },
-					.close = std::string{ close },
+				const bool has_range{
+					RichTextSelectionHasRange(source, selection)
 				};
-				selection.apply_selection = true;
-				selection.keep_selection_highlight = true;
-				editor_state.selection_warning.clear();
-				editor_state.selection_warning_until = 0.0;
+				const std::size_t cursor{
+					std::min(selection.cursor, source.size())
+				};
+				const bool inside_existing_tag{
+					FindRichTextSurroundingTag(
+						source, cursor, cursor, tag
+					).has_value()
+				};
+
+				if (!has_range && !inside_existing_tag) {
+					editor_state.selection_warning =
+						"Select text before applying this style.";
+					editor_state.selection_warning_until =
+						ImGui::GetTime() + 4.0;
+				} else {
+					ctx.undo.CommitActiveEdit();
+					selection.pending_action = RichTextPendingAction{
+						.type = RichTextPendingActionType::ToggleTag,
+						.cursor = selection.cursor,
+						.selection_start = selection.selection_start,
+						.selection_end = selection.selection_end,
+						.tag = std::string{ tag },
+						.open = std::string{ open },
+						.close = std::string{ close },
+					};
+					selection.apply_selection = true;
+					selection.keep_selection_highlight = true;
+					editor_state.selection_warning.clear();
+					editor_state.selection_warning_until = 0.0;
+				}
 			}
 		}
 	}
 
-	bool changed{ input_changed || callback_context.action_applied };
-	if (selection.pending_action.has_value() && !source_active) {
+	bool changed{
+		!page_preview_mode &&
+		(input_changed || callback_context.action_applied)
+	};
+	if (!page_preview_mode &&
+		selection.pending_action.has_value() &&
+		!editable_source_active) {
 		changed |= ApplyPendingRichTextActionToInactiveSource(
 			source, selection, editor_state, defaults
 		);
 	}
 
-	if (!editor_state.source_history_applied) {
+	if (!page_preview_mode && !editor_state.source_history_applied) {
 		if (changed) {
 			RecordRichTextSourceHistory(editor_state, source, selection);
 		} else if (!editor_state.source_history.empty()) {
@@ -3441,9 +3685,9 @@ bool DrawRichTextSourceInput(
 	editor_state.source_history_applied = false;
 
 	const auto editor_diagnostics{
-		BuildRichTextEditorDiagnostics(ctx, source, defaults, options)
+		BuildRichTextEditorDiagnostics(ctx, displayed_source, defaults, options)
 	};
-	const auto display_lines{ BuildRichTextSourceVisualLines(source, word_wrap, text_width) };
+	const auto display_lines{ BuildRichTextSourceVisualLines(displayed_source, word_wrap, text_width) };
 	const ImVec2 text_origin{
 		source_min.x + ImGui::GetStyle().FramePadding.x,
 		source_min.y + ImGui::GetStyle().FramePadding.y,
@@ -3451,10 +3695,10 @@ bool DrawRichTextSourceInput(
 
 	const auto& io{ ImGui::GetIO() };
 	const std::size_t mouse_source_position{ RichTextSourcePositionFromMouse(
-		source, display_lines, text_origin, io.MousePos
+		displayed_source, display_lines, text_origin, io.MousePos
 	) };
 
-	if (source_double_clicked) {
+	if (!page_preview_mode && source_double_clicked) {
 		selection.drag_selection_anchor.reset();
 		SelectRichTextSourceWordAt(source, mouse_source_position, selection);
 		selection.drag_word_selection = std::pair{
@@ -3462,7 +3706,7 @@ bool DrawRichTextSourceInput(
 			std::max(selection.selection_start, selection.selection_end),
 		};
 	} else {
-		if (source_clicked && !io.KeyShift) {
+		if (!page_preview_mode && source_clicked && !io.KeyShift) {
 			selection.drag_word_selection.reset();
 			selection.drag_selection_anchor = mouse_source_position;
 			RequestRichTextSelection(
@@ -3474,7 +3718,7 @@ bool DrawRichTextSourceInput(
 		// differ from our tag-aware layout, so always derive drag endpoints from the same
 		// visual map used by our highlight. A double-click drag is word-anchored: dragging
 		// left keeps the word's right edge, while dragging right keeps its left edge.
-		if (source_active && ImGui::IsMouseDown(ImGuiMouseButton_Left)) {
+		if (editable_source_active && ImGui::IsMouseDown(ImGuiMouseButton_Left)) {
 			if (selection.drag_word_selection.has_value()) {
 				const auto [word_begin, word_end]{ *selection.drag_word_selection };
 				if (mouse_source_position < word_begin) {
@@ -3502,22 +3746,76 @@ bool DrawRichTextSourceInput(
 		selection.drag_word_selection.reset();
 	}
 
-	if ((source_active || selection.keep_selection_highlight) &&
+	if (!page_preview_mode &&
+		(editable_source_active || selection.keep_selection_highlight) &&
 		selection.selection_start != selection.selection_end) {
 		DrawRichTextSourceSelectionHighlight(
 			source, selection, display_lines, text_origin, source_min, source_max
 		);
 	}
 	DrawRichTextSourceSyntax(
-		source, defaults, display_lines, text_origin, source_min, source_max
+		displayed_source, defaults, display_lines, text_origin, source_min, source_max
 	);
 	DrawRichTextSourceDiagnostics(
-		source, editor_diagnostics, display_lines, text_origin, source_min, source_max
+		displayed_source, editor_diagnostics, display_lines, text_origin, source_min, source_max
 	);
-	if (source_active) {
+	if (editable_source_active) {
 		DrawRichTextSourceCaret(
 			source, selection, display_lines, text_origin, source_min, source_max
 		);
+	}
+
+	if (show_page_numbers) {
+		ImDrawList* draw_list{ ImGui::GetWindowDrawList() };
+		draw_list->PushClipRect(
+			ImVec2{ source_min.x - page_number_gutter, source_min.y },
+			source_max,
+			true
+		);
+
+		std::size_t logical_line{ 0 };
+		std::size_t scan_position{ 0 };
+		std::optional<std::size_t> previous_drawn_line;
+		for (std::size_t visual_index{ 0 }; visual_index < display_lines.size(); ++visual_index) {
+			const auto& line{ display_lines[visual_index] };
+			while (scan_position < line.begin && scan_position < displayed_source.size()) {
+				if (displayed_source[scan_position] == '\n') {
+					++logical_line;
+				}
+				++scan_position;
+			}
+
+			if (previous_drawn_line == logical_line) {
+				continue;
+			}
+			previous_drawn_line = logical_line;
+
+			if (logical_line >= options.line_page_numbers.size()) {
+				continue;
+			}
+			const std::size_t page_number{
+				options.line_page_numbers[logical_line]
+			};
+			if (page_number == 0) {
+				continue;
+			}
+
+			const std::string label{
+				"[" + std::to_string(page_number) + "]"
+			};
+			const float label_width{ ImGui::CalcTextSize(label.c_str()).x };
+			const ImVec2 position{
+				text_origin.x - ImGui::GetStyle().ItemInnerSpacing.x - label_width,
+				text_origin.y +
+					static_cast<float>(visual_index) * ImGui::GetTextLineHeight(),
+			};
+			draw_list->AddText(
+				position,
+				ImGui::GetColorU32(ImGuiCol_TextDisabled),
+				label.c_str()
+			);
+		}
+		draw_list->PopClipRect();
 	}
 
 	ImGui::EndChild();
@@ -3576,7 +3874,7 @@ bool DrawRichTextSourceInput(
 	return std::nullopt;
 }
 
-void DrawRichTextPreview(
+void DrawRichTextPreviewImpl(
 	EditorContext& ctx,
 	const StyledText& styled_text,
 	const TextBox* preview_box
@@ -3709,7 +4007,8 @@ void DrawRichTextPreview(
 		ImVec2{ 1.0f, 0.0f }
 	);
 
-	if (preview_box && box.HasArea()) {
+	const auto& text_debug{ ctx.editor.GetDebugSystem().settings.text };
+	if (preview_box && box.HasArea() && text_debug.draw_enabled) {
 		const ImVec2 image_min{ ImGui::GetItemRectMin() };
 		const V2_float box_relative_min{
 			box.rect.min.x - origin_point.x,
@@ -3723,16 +4022,22 @@ void DrawRichTextPreview(
 			border_min.x + box_size.x,
 			border_min.y + box_size.y,
 		};
+		const ImU32 debug_color{
+			IM_COL32(
+				text_debug.draw_color.r,
+				text_debug.draw_color.g,
+				text_debug.draw_color.b,
+				text_debug.draw_color.a
+			)
+		};
 		ImGui::GetWindowDrawList()->AddRect(
-			border_min, border_max, ImGui::GetColorU32(ImGuiCol_Border)
+			border_min,
+			border_max,
+			debug_color,
+			0.0f,
+			0,
+			text_debug.draw_line_width
 		);
-		if (ImGui::IsItemHovered(ImGuiHoveredFlags_DelayNormal)) {
-			ImGui::SetTooltip(
-				"Preview uses the target TextBox (%.0f x %.0f).",
-				static_cast<double>(box_size.x),
-				static_cast<double>(box_size.y)
-			);
-		}
 	}
 }
 
@@ -3759,6 +4064,138 @@ void DrawRichTextToolbarTooltip(std::string_view text) {
 	DrawRichTextTooltipAboveRect(
 		text, ImGui::GetItemRectMin(), ImGui::GetItemRectMax()
 	);
+}
+
+void SetNextRichTextPopupSizeConstraints() {
+	const ImGuiViewport* viewport{ ImGui::GetMainViewport() };
+	constexpr float margin{ 12.0f };
+	const ImVec2 maximum_size{
+		std::max(120.0f, viewport->WorkSize.x - margin * 2.0f),
+		std::max(120.0f, viewport->WorkSize.y - margin * 2.0f),
+	};
+	ImGui::SetNextWindowSizeConstraints(
+		ImVec2{ 0.0f, 0.0f },
+		maximum_size
+	);
+}
+
+void SetNextRichTextColorPickerPopupAbove(
+	ImVec2 item_min,
+	ImVec2 item_max,
+	bool align_right = false
+) {
+	// Only cap the picker to the usable viewport itself. A lack of room directly
+	// above the button should reposition the popup, not make it scrollable.
+	const ImGuiViewport* viewport{ ImGui::GetWindowViewport() };
+	constexpr float margin{ 12.0f };
+	const ImVec2 maximum_size{
+		std::max(120.0f, viewport->WorkSize.x - margin * 2.0f),
+		std::max(120.0f, viewport->WorkSize.y - margin * 2.0f),
+	};
+	ImGui::SetNextWindowSizeConstraints(ImVec2{ 0.0f, 0.0f }, maximum_size);
+
+	const float spacing{ ImGui::GetStyle().ItemSpacing.y };
+	if (align_right) {
+		ImGui::SetNextWindowPos(
+			ImVec2{ item_max.x, item_min.y - spacing },
+			ImGuiCond_Appearing,
+			ImVec2{ 1.0f, 1.0f }
+		);
+	} else {
+		ImGui::SetNextWindowPos(
+			ImVec2{ item_min.x, item_min.y - spacing },
+			ImGuiCond_Appearing,
+			ImVec2{ 0.0f, 1.0f }
+		);
+	}
+}
+
+void FitCurrentRichTextColorPickerPopupToWorkArea(
+	ImVec2 item_min,
+	ImVec2 item_max,
+	bool align_right = false
+) {
+	const ImGuiViewport* viewport{ ImGui::GetWindowViewport() };
+	constexpr float margin{ 12.0f };
+	const float spacing{ ImGui::GetStyle().ItemSpacing.y };
+
+	const ImVec2 work_min{
+		viewport->WorkPos.x + margin,
+		viewport->WorkPos.y + margin,
+	};
+	const ImVec2 work_max{
+		viewport->WorkPos.x + viewport->WorkSize.x - margin,
+		viewport->WorkPos.y + viewport->WorkSize.y - margin,
+	};
+	const ImVec2 window_size{ ImGui::GetWindowSize() };
+
+	const float minimum_x{ work_min.x };
+	const float maximum_x{ std::max(work_min.x, work_max.x - window_size.x) };
+	const float desired_x{
+		align_right ? item_max.x - window_size.x : item_min.x
+	};
+
+	const float minimum_y{ work_min.y };
+	const float maximum_y{ std::max(work_min.y, work_max.y - window_size.y) };
+	const float above_y{ item_min.y - spacing - window_size.y };
+	const float below_y{ item_max.y + spacing };
+
+	float desired_y{ above_y };
+	if (above_y < minimum_y && below_y + window_size.y <= work_max.y) {
+		desired_y = below_y;
+	}
+
+	const ImVec2 fitted_pos{
+		std::clamp(desired_x, minimum_x, maximum_x),
+		std::clamp(desired_y, minimum_y, maximum_y),
+	};
+	ImGui::SetWindowPos(fitted_pos, ImGuiCond_Always);
+}
+
+void SetNextRichTextPopupAbove(
+	ImVec2 item_min,
+	ImVec2 item_max,
+	bool align_right = false,
+	ImGuiCond condition = ImGuiCond_Appearing
+) {
+	const ImGuiViewport* viewport{ ImGui::GetMainViewport() };
+	const float spacing{ ImGui::GetStyle().ItemSpacing.y };
+	constexpr float margin{ 12.0f };
+
+	// Constrain the popup to the actual space above its control. When the contents
+	// are taller/wider than that available work area, ImGui can expose scrollbars
+	// instead of letting the popup disappear beyond a monitor edge.
+	const float available_width{
+		align_right
+			? item_max.x - viewport->WorkPos.x - margin
+			: viewport->WorkPos.x + viewport->WorkSize.x -
+				item_min.x - margin
+	};
+	const float available_height{
+		item_min.y - viewport->WorkPos.y - spacing - margin
+	};
+	const ImVec2 maximum_size{
+		std::max(1.0f, available_width),
+		std::max(1.0f, available_height),
+	};
+	ImGui::SetNextWindowSizeConstraints(
+		ImVec2{ 0.0f, 0.0f },
+		maximum_size
+	);
+
+	if (align_right) {
+		ImGui::SetNextWindowPos(
+			ImVec2{ item_max.x, item_min.y - spacing },
+			condition,
+			ImVec2{ 1.0f, 1.0f }
+		);
+	} else {
+		ImGui::SetNextWindowPos(
+			ImVec2{ item_min.x, item_min.y - spacing },
+			condition,
+			ImVec2{ 0.0f, 1.0f }
+		);
+	}
 }
 
 void DrawRichTextPreviewSeparator() {
@@ -3819,6 +4256,9 @@ void DrawRichTextToolbar(
 	const auto format{
 		ResolveRichTextEditorSelectionFormat(state.source, selection, defaults)
 	};
+	const bool page_preview_read_only{
+		options.show_page_numbers_button && state.show_page_numbers
+	};
 
 	auto begin_text_action = [&]() { ctx.undo.CommitActiveEdit(); };
 	auto preserve_source_selection = [&]() {
@@ -3853,10 +4293,38 @@ void DrawRichTextToolbar(
 		return true;
 	};
 
+	auto selection_has_range = [&]() {
+		return RichTextSelectionHasRange(state.source, selection);
+	};
+
+	auto caret_inside_tag = [&](std::string_view tag) {
+		if (selection_has_range()) {
+			return false;
+		}
+		const std::size_t cursor{ std::min(selection.cursor, state.source.size()) };
+		return FindRichTextSurroundingTag(
+			state.source, cursor, cursor, tag
+		).has_value();
+	};
+
+	auto can_edit_or_add_tag = [&](std::string_view tag, std::string_view description) {
+		if (!validate_format_selection()) {
+			return false;
+		}
+		if (selection_has_range() || caret_inside_tag(tag)) {
+			return true;
+		}
+
+		set_selection_warning(
+			"Select text before applying " + std::string{ description } + "."
+		);
+		return false;
+	};
+
 	auto queue_toggle_tag = [&](
 		std::string_view tag, std::string_view open, std::string_view close
 	) {
-		if (!validate_format_selection()) {
+		if (page_preview_read_only || !validate_format_selection()) {
 			return false;
 		}
 		selection.pending_action = RichTextPendingAction{
@@ -3877,7 +4345,7 @@ void DrawRichTextToolbar(
 	auto queue_set_tag = [&](
 		std::string_view tag, std::string open, std::string_view close
 	) {
-		if (!validate_format_selection()) {
+		if (page_preview_read_only || !validate_format_selection()) {
 			return false;
 		}
 		selection.pending_action = RichTextPendingAction{
@@ -3895,7 +4363,7 @@ void DrawRichTextToolbar(
 	};
 
 	auto queue_remove_tag = [&](std::string_view tag) {
-		if (!validate_format_selection()) {
+		if (page_preview_read_only || !validate_format_selection()) {
 			return false;
 		}
 		selection.pending_action = RichTextPendingAction{
@@ -3911,7 +4379,7 @@ void DrawRichTextToolbar(
 	};
 
 	auto queue_remove_effects = [&]() {
-		if (!validate_format_selection()) {
+		if (page_preview_read_only || !validate_format_selection()) {
 			return false;
 		}
 		selection.pending_action = RichTextPendingAction{
@@ -3926,7 +4394,7 @@ void DrawRichTextToolbar(
 	};
 
 	auto queue_insert_token = [&](std::string token) {
-		if (!validate_insert_selection()) {
+		if (page_preview_read_only || !validate_insert_selection()) {
 			return false;
 		}
 		selection.pending_action = RichTextPendingAction{
@@ -3938,6 +4406,23 @@ void DrawRichTextToolbar(
 		};
 		selection.apply_selection = true;
 		selection.keep_selection_highlight = true;
+		return true;
+	};
+
+	auto queue_toggle_standalone_line_token = [&](std::string token) {
+		if (page_preview_read_only) {
+			return false;
+		}
+		selection.pending_action = RichTextPendingAction{
+			.type = RichTextPendingActionType::ToggleStandaloneLineToken,
+			.cursor = selection.cursor,
+			.selection_start = selection.selection_start,
+			.selection_end = selection.selection_end,
+			.token = std::move(token),
+		};
+		selection.apply_selection = true;
+		selection.keep_selection_highlight = true;
+		selection.focus_source = true;
 		return true;
 	};
 
@@ -3958,8 +4443,12 @@ void DrawRichTextToolbar(
 		}
 
 		if (ImGui::Button(label, ImVec2{ 0.0f, button_height })) {
-			begin_text_action();
-			queue_toggle_tag(tag, open, close);
+			if (selection_has_range() || caret_inside_tag(tag)) {
+				begin_text_action();
+				queue_toggle_tag(tag, open, close);
+			} else {
+				set_selection_warning("Select text before applying this style.");
+			}
 		}
 		if (active == true || mixed) {
 			ImGui::PopStyleColor();
@@ -3969,13 +4458,6 @@ void DrawRichTextToolbar(
 		if (!shortcut.empty()) {
 			full_tooltip += "\nShortcut: ";
 			full_tooltip += shortcut;
-		}
-		if (mixed) {
-			full_tooltip += "\nCurrent selection: Mixed";
-		} else if (active.has_value()) {
-			full_tooltip += active.value()
-				? "\nCurrent selection: On"
-				: "\nCurrent selection: Off";
 		}
 		DrawRichTextToolbarTooltip(full_tooltip);
 	};
@@ -4006,24 +4488,38 @@ void DrawRichTextToolbar(
 	SetRichTextEditorColor(
 		toolbar_color, selection_color.value_or(defaults.style.color)
 	);
+	const float color_button_size{ button_height };
 	if (ImGui::ColorButton(
 			"##RichTextColor",
 			ImVec4{ toolbar_color[0], toolbar_color[1], toolbar_color[2], toolbar_color[3] },
 			ImGuiColorEditFlags_AlphaPreviewHalf | ImGuiColorEditFlags_NoTooltip,
-			ImVec2{ button_height, button_height }
+			ImVec2{ color_button_size, color_button_size }
 		)) {
-		if (validate_format_selection()) {
+		if (can_edit_or_add_tag("c", "a text color")) {
 			state.color = toolbar_color;
 			preserve_source_selection();
 			ImGui::OpenPopup("RichTextColorPopup");
 		}
 	}
+	const ImVec2 color_button_min{ ImGui::GetItemRectMin() };
+	const ImVec2 color_button_max{ ImGui::GetItemRectMax() };
 	DrawRichTextToolbarTooltip(
 		selection_color.has_value()
 			? "Text color.\n<c=red>...</c>\n<c=#RRGGBB>...</c>\n<c=#RRGGBBAA>...</c>"
 			: "Text color: Mixed.\nChoose a color to apply it to the full selection."
 	);
-	if (ImGui::BeginPopup("RichTextColorPopup")) {
+	if (ImGui::IsPopupOpen("RichTextColorPopup")) {
+		SetNextRichTextColorPickerPopupAbove(color_button_min, color_button_max);
+	}
+	if (ImGui::BeginPopup(
+			"RichTextColorPopup",
+			ImGuiWindowFlags_HorizontalScrollbar
+		)) {
+		FitCurrentRichTextColorPickerPopupToWorkArea(
+			color_button_min,
+			color_button_max
+		);
+
 		Color selected_color{ V4_float{
 			state.color[0],
 			state.color[1],
@@ -4075,18 +4571,26 @@ void DrawRichTextToolbar(
 	ImGui::SameLine();
 	const std::string font_button{ "Font: " + font_display + "##RichTextFontButton" };
 	if (ImGui::Button(font_button.c_str(), ImVec2{ 0.0f, button_height })) {
-		if (validate_format_selection()) {
+		if (can_edit_or_add_tag("font", "a font")) {
 			state.font = selection_font.value_or(defaults.font).value;
 			preserve_source_selection();
 			ImGui::OpenPopup("RichTextFontPopup");
 		}
 	}
+	const ImVec2 font_button_min{ ImGui::GetItemRectMin() };
+	const ImVec2 font_button_max{ ImGui::GetItemRectMax() };
 	DrawRichTextToolbarTooltip(
 		selection_font.has_value()
 			? "Font key.\n<font=key>...</font>"
 			: "Font: Mixed.\nChoose a font to apply it to the full selection."
 	);
-	if (ImGui::BeginPopup("RichTextFontPopup")) {
+	if (ImGui::IsPopupOpen("RichTextFontPopup")) {
+		SetNextRichTextPopupAbove(font_button_min, font_button_max);
+	}
+	if (ImGui::BeginPopup(
+			"RichTextFontPopup",
+			ImGuiWindowFlags_HorizontalScrollbar
+		)) {
 		auto apply_font = [&]() {
 			if (FontKey{ state.font } == defaults.font) {
 				queue_remove_tag("font");
@@ -4100,8 +4604,21 @@ void DrawRichTextToolbar(
 		const char* preview{
 			custom_font_key ? "Custom" : (state.font.empty() ? "Default" : state.font.c_str())
 		};
+		const ImVec2 loaded_font_combo_min{ ImGui::GetCursorScreenPos() };
+		const ImVec2 loaded_font_combo_max{
+			loaded_font_combo_min.x + 260.0f,
+			loaded_font_combo_min.y + ImGui::GetFrameHeight(),
+		};
 		ImGui::SetNextItemWidth(260.0f);
-		if (ImGui::BeginCombo("Loaded##RichTextFont", preview)) {
+		SetNextRichTextPopupAbove(
+			loaded_font_combo_min,
+			loaded_font_combo_max
+		);
+		if (ImGui::BeginCombo(
+				"Loaded##RichTextFont",
+				preview,
+				ImGuiComboFlags_HeightLarge
+			)) {
 			for (const auto& font : loaded_fonts) {
 				const bool selected{ !custom_font_key && state.font == font };
 				const char* label{ font.empty() ? "Default" : font.c_str() };
@@ -4169,18 +4686,26 @@ void DrawRichTextToolbar(
 	ImGui::SameLine();
 	const std::string size_button{ "Size: " + size_display + "##RichTextSizeButton" };
 	if (ImGui::Button(size_button.c_str(), ImVec2{ 0.0f, button_height })) {
-		if (validate_format_selection()) {
+		if (can_edit_or_add_tag("size", "a font size")) {
 			state.size = selection_size.value_or(defaults.style.size);
 			preserve_source_selection();
 			ImGui::OpenPopup("RichTextSizePopup");
 		}
 	}
+	const ImVec2 size_button_min{ ImGui::GetItemRectMin() };
+	const ImVec2 size_button_max{ ImGui::GetItemRectMax() };
 	DrawRichTextToolbarTooltip(
 		selection_size.has_value()
 			? "Font size.\n<size=32>...</size>"
 			: "Font size: Mixed.\nChoose a size to apply it to the full selection."
 	);
-	if (ImGui::BeginPopup("RichTextSizePopup")) {
+	if (ImGui::IsPopupOpen("RichTextSizePopup")) {
+		SetNextRichTextPopupAbove(size_button_min, size_button_max);
+	}
+	if (ImGui::BeginPopup(
+			"RichTextSizePopup",
+			ImGuiWindowFlags_HorizontalScrollbar
+		)) {
 		auto apply_size = [&]() {
 			if (std::abs(state.size - defaults.style.size) <= 0.0001f) {
 				queue_remove_tag("size");
@@ -4260,8 +4785,25 @@ void DrawRichTextToolbar(
 		effects_preview = "Effects: " + std::to_string(active_effects.size());
 	}
 
+	auto effect_kind_tag = [](RichTextEffectEditorKind kind) -> std::string_view {
+		switch (kind) {
+			case RichTextEffectEditorKind::Glyph: return "fx";
+			case RichTextEffectEditorKind::Outline: return "outline";
+			case RichTextEffectEditorKind::Shadow: return "shadow";
+			case RichTextEffectEditorKind::OuterGlow: return "outerglow";
+			case RichTextEffectEditorKind::InnerGlow: return "innerglow";
+		}
+		return {};
+	};
+
 	auto effect_kind_is_active = [&](RichTextEffectEditorKind kind) {
 		if (!effects_resolved) {
+			return false;
+		}
+
+		// A collapsed caret only exposes Edit Effect for an explicitly authored
+		// wrapper that contains that caret. Default effects do not create an edit target.
+		if (!selection_has_range() && !caret_inside_tag(effect_kind_tag(kind))) {
 			return false;
 		}
 		switch (kind) {
@@ -4300,7 +4842,7 @@ void DrawRichTextToolbar(
 
 	bool open_effect_popup{ false };
 	bool effects_cleared_this_frame{ false };
-	std::optional<ImVec2> effect_popup_anchor;
+	std::optional<std::pair<ImVec2, ImVec2>> effect_popup_anchor;
 
 	auto load_preset = [&](std::string_view open, std::string_view close) -> TextRunStyle {
 		const std::string sample{ std::string{ open } + "x" + std::string{ close } };
@@ -4352,7 +4894,11 @@ void DrawRichTextToolbar(
 		RichTextEffectEditorKind kind, std::string_view tag,
 		std::string_view open, std::string_view close
 	) {
-		if (!validate_format_selection()) {
+		if (page_preview_read_only || !validate_format_selection()) {
+			return;
+		}
+		if (!selection_has_range()) {
+			set_selection_warning("Select text before applying an effect.");
 			return;
 		}
 
@@ -4365,7 +4911,8 @@ void DrawRichTextToolbar(
 	};
 
 	auto edit_existing_effect = [&](RichTextEffectEditorKind kind) {
-		if (!validate_format_selection() || !effect_kind_is_active(kind)) {
+		if (page_preview_read_only ||
+			!validate_format_selection() || !effect_kind_is_active(kind)) {
 			return;
 		}
 		preserve_source_selection();
@@ -4374,9 +4921,19 @@ void DrawRichTextToolbar(
 	};
 
 	ImGui::SameLine();
+	const ImVec2 effects_combo_min{ ImGui::GetCursorScreenPos() };
+	const ImVec2 effects_combo_max{
+		effects_combo_min.x + 120.0f,
+		effects_combo_min.y + ImGui::GetFrameHeight(),
+	};
 	ImGui::SetNextItemWidth(120.0f);
+	SetNextRichTextPopupAbove(effects_combo_min, effects_combo_max);
 	const bool effects_open{
-		ImGui::BeginCombo("##RichTextEffects", effects_preview.c_str())
+		ImGui::BeginCombo(
+			"##RichTextEffects",
+			effects_preview.c_str(),
+			ImGuiComboFlags_HeightLargest
+		)
 	};
 	if (ImGui::IsItemActivated()) {
 		preserve_source_selection();
@@ -4450,6 +5007,32 @@ void DrawRichTextToolbar(
 		"Effect tags. Selecting an effect opens its live parameter editor."
 	);
 
+	if (!options.standalone_line_tag.empty()) {
+		ImGui::SameLine();
+		const std::string label{
+			options.standalone_line_button_label.empty()
+				? std::string{ "Line Tag" }
+				: std::string{ options.standalone_line_button_label }
+		};
+		ImGui::BeginDisabled(
+			options.show_page_numbers_button && state.show_page_numbers
+		);
+		if (ImGui::Button(label.c_str(), ImVec2{ 0.0f, button_height })) {
+			begin_text_action();
+			queue_toggle_standalone_line_token(
+				std::string{ options.standalone_line_tag }
+			);
+		}
+		ImGui::EndDisabled();
+		DrawRichTextToolbarTooltip(
+			options.standalone_line_tooltip.empty()
+				? std::string_view{
+					"Toggle this control on the selected blank line or above the selected paragraph."
+				}
+				: options.standalone_line_tooltip
+		);
+	}
+
 	const bool effect_popup_open{
 		ImGui::IsPopupOpen("RichTextEffectEditorPopup")
 	};
@@ -4468,28 +5051,35 @@ void DrawRichTextToolbar(
 		const ImVec2 edit_max{ ImGui::GetItemRectMax() };
 		DrawRichTextToolbarTooltip("Edit the currently selected effect parameters.");
 
-		effect_popup_anchor = ImVec2{
-			edit_max.x,
-			edit_min.y - ImGui::GetStyle().ItemSpacing.y,
-		};
+		effect_popup_anchor = std::pair{ edit_min, edit_max };
 	}
 
-	if (effect_popup_anchor.has_value()) {
-		// Keep the popup immediately above the Edit Effect button. A bottom-right
-		// pivot aligns the popup's right edge with the button's right edge and makes
-		// the popup grow upward instead of appearing near the mouse cursor.
-		ImGui::SetNextWindowPos(
-			*effect_popup_anchor, ImGuiCond_Always, ImVec2{ 1.0f, 1.0f }
-		);
-	}
 	if (open_effect_popup) {
 		ImGui::OpenPopup("RichTextEffectEditorPopup");
 	}
-	if (ImGui::BeginPopup("RichTextEffectEditorPopup")) {
+	if (ImGui::IsPopupOpen("RichTextEffectEditorPopup")) {
+		if (effect_popup_anchor.has_value()) {
+			// Keep the popup immediately above the Edit Effect button. Its right edge
+			// stays aligned with the button, and its maximum height is limited to the
+			// available space above so oversized content becomes scrollable.
+			SetNextRichTextPopupAbove(
+				effect_popup_anchor->first,
+				effect_popup_anchor->second,
+				true,
+				ImGuiCond_Always
+			);
+		} else {
+			SetNextRichTextPopupSizeConstraints();
+		}
+	}
+	if (ImGui::BeginPopup(
+			"RichTextEffectEditorPopup",
+			ImGuiWindowFlags_HorizontalScrollbar
+		)) {
 		if (!state.effect_editor_kind.has_value()) {
 			ImGui::TextDisabled("No effect selected.");
 		} else if (*state.effect_editor_kind == RichTextEffectEditorKind::Glyph) {
-			bool changed{ false };
+			bool commit{ false };
 			ImGui::SetNextItemWidth(180.0f);
 			const std::string_view current_name{
 				RichTextEditorGlyphEffectName(state.effect_type)
@@ -4501,7 +5091,7 @@ void DrawRichTextToolbar(
 					if (ImGui::Selectable(name.c_str(), selected)) {
 						begin_text_action();
 						state.effect_type = type;
-						changed = true;
+						commit = true;
 					}
 					if (selected) ImGui::SetItemDefaultFocus();
 				}
@@ -4510,18 +5100,20 @@ void DrawRichTextToolbar(
 
 			auto drag = [&](const char* label, float& value, float speed) {
 				ImGui::SetNextItemWidth(180.0f);
-				const bool local_changed{
-					ImGui::DragFloat(label, &value, speed, 0.0f, 0.0f, "%.3f")
-				};
-				if (ImGui::IsItemActivated()) begin_text_action();
-				return local_changed;
+				ImGui::DragFloat(label, &value, speed, 0.0f, 0.0f, "%.3f");
+				if (ImGui::IsItemActivated()) {
+					begin_text_action();
+				}
+				if (ImGui::IsItemDeactivatedAfterEdit()) {
+					commit = true;
+				}
 			};
-			changed |= drag("Amplitude", state.effect_amplitude, 0.05f);
-			changed |= drag("Frequency", state.effect_frequency, 0.05f);
-			changed |= drag("Speed", state.effect_speed, 0.05f);
-			changed |= drag("Phase", state.effect_phase, 0.05f);
+			drag("Amplitude", state.effect_amplitude, 0.05f);
+			drag("Frequency", state.effect_frequency, 0.05f);
+			drag("Speed", state.effect_speed, 0.05f);
+			drag("Phase", state.effect_phase, 0.05f);
 
-			if (changed) {
+			if (commit) {
 				if (state.effect_type == GlyphEffectType::None) {
 					queue_remove_tag("fx");
 					state.effect_editor_kind.reset();
@@ -4540,7 +5132,7 @@ void DrawRichTextToolbar(
 			}
 
 			if (state.effect_editor_kind.has_value() &&
-				ImGui::Button("Disable Effect", ImVec2{ -FLT_MIN, 0.0f })) {
+				ImGui::Button("Remove Effect", ImVec2{ -FLT_MIN, 0.0f })) {
 				begin_text_action();
 				queue_remove_tag("fx");
 				state.effect_editor_kind.reset();
@@ -4563,39 +5155,104 @@ void DrawRichTextToolbar(
 				state.effect_color[2],
 				state.effect_color[3],
 			} };
+
+			// Keep the large palette-capable picker in its own popup instead of
+			// flattening it into the effect editor. This is especially important on
+			// smaller macOS work areas where the full picker would otherwise overflow.
 			ImGui::PushID(static_cast<int>(kind));
-			const auto effect_color_result{ DrawColorPickerContents(
-				ctx,
-				"RichTextEffectColorPicker",
-				selected_effect_color
-			) };
+			ImGui::TextUnformatted("Color");
+			ImGui::SameLine();
+			const float effect_color_button_size{
+				std::max(12.0f, button_height - 5.0f)
+			};
+			if (ImGui::ColorButton(
+					"##RichTextEffectColorButton",
+					ImVec4{
+						state.effect_color[0],
+						state.effect_color[1],
+						state.effect_color[2],
+						state.effect_color[3],
+					},
+					ImGuiColorEditFlags_AlphaPreviewHalf |
+						ImGuiColorEditFlags_NoTooltip,
+					ImVec2{
+						effect_color_button_size,
+						effect_color_button_size,
+					}
+				)) {
+				ImGui::OpenPopup("RichTextEffectColorPopup");
+			}
+			const ImVec2 effect_color_button_min{ ImGui::GetItemRectMin() };
+			const ImVec2 effect_color_button_max{ ImGui::GetItemRectMax() };
+
+			if (ImGui::IsPopupOpen("RichTextEffectColorPopup")) {
+				SetNextRichTextColorPickerPopupAbove(
+					effect_color_button_min,
+					effect_color_button_max,
+					true
+				);
+			}
+			if (ImGui::BeginPopup(
+					"RichTextEffectColorPopup",
+					ImGuiWindowFlags_HorizontalScrollbar
+				)) {
+				FitCurrentRichTextColorPickerPopupToWorkArea(
+					effect_color_button_min,
+					effect_color_button_max,
+					true
+				);
+
+				const auto effect_color_result{ DrawColorPickerContents(
+					ctx,
+					"RichTextEffectColorPicker",
+					selected_effect_color
+				) };
+				if (effect_color_result.interaction_started) {
+					begin_text_action();
+				}
+				if (effect_color_result.changed) {
+					SetRichTextEditorColor(
+						state.effect_color,
+						selected_effect_color
+					);
+					changed = true;
+				}
+				ImGui::EndPopup();
+			}
 			ImGui::PopID();
-			if (effect_color_result.interaction_started) {
-				begin_text_action();
-			}
-			if (effect_color_result.changed) {
-				SetRichTextEditorColor(state.effect_color, selected_effect_color);
-				changed = true;
-			}
+
+			bool parameter_commit{ false };
+			auto drag_parameter = [&](auto&& draw) {
+				std::invoke(std::forward<decltype(draw)>(draw));
+				if (ImGui::IsItemActivated()) {
+					begin_text_action();
+				}
+				if (ImGui::IsItemDeactivatedAfterEdit()) {
+					parameter_commit = true;
+				}
+			};
 
 			ImGui::SetNextItemWidth(180.0f);
-			changed |= ImGui::DragFloat(
-				"Width", &state.effect_width, 0.1f, 0.0f, 0.0f, "%.2f"
-			);
-			if (ImGui::IsItemActivated()) begin_text_action();
+			drag_parameter([&]() {
+				ImGui::DragFloat(
+					"Width", &state.effect_width, 0.1f, 0.0f, 0.0f, "%.2f"
+				);
+			});
 
 			ImGui::SetNextItemWidth(180.0f);
-			changed |= ImGui::DragFloat(
-				"Softness", &state.effect_softness, 0.05f, 0.0f, 0.0f, "%.2f"
-			);
-			if (ImGui::IsItemActivated()) begin_text_action();
+			drag_parameter([&]() {
+				ImGui::DragFloat(
+					"Softness", &state.effect_softness, 0.05f, 0.0f, 0.0f, "%.2f"
+				);
+			});
 
 			if (kind == RichTextEffectEditorKind::Shadow) {
 				ImGui::SetNextItemWidth(180.0f);
-				changed |= ImGui::DragFloat2(
-					"Offset", &state.effect_shadow_offset.x, 0.1f, 0.0f, 0.0f, "%.2f"
-				);
-				if (ImGui::IsItemActivated()) begin_text_action();
+				drag_parameter([&]() {
+					ImGui::DragFloat2(
+						"Offset", &state.effect_shadow_offset.x, 0.1f, 0.0f, 0.0f, "%.2f"
+					);
+				});
 			}
 
 			std::string_view tag;
@@ -4621,7 +5278,7 @@ void DrawRichTextToolbar(
 					break;
 			}
 
-			if (changed) {
+			if (changed || parameter_commit) {
 				std::string open{
 					"<" + std::string{ tag } + "=" +
 					RichTextEditorColorTag(state.effect_color) + ","
@@ -4635,7 +5292,7 @@ void DrawRichTextToolbar(
 				queue_set_tag(tag, std::move(open), close);
 			}
 
-			if (ImGui::Button("Disable Effect", ImVec2{ -FLT_MIN, 0.0f })) {
+			if (ImGui::Button("Remove Effect", ImVec2{ -FLT_MIN, 0.0f })) {
 				begin_text_action();
 				queue_remove_tag(tag);
 				state.effect_editor_kind.reset();
@@ -4661,6 +5318,35 @@ void DrawRichTextToolbar(
 			? "Disable word wrapping in the text input."
 			: "Enable word wrapping in the text input."
 	);
+
+	if (options.show_page_numbers_button) {
+		ImGui::SameLine();
+		const bool active{ state.show_page_numbers };
+		if (active) {
+			ImGui::PushStyleColor(
+				ImGuiCol_Button,
+				ImGui::GetStyleColorVec4(ImGuiCol_ButtonActive)
+			);
+		}
+		if (ImGui::Button("[#]", ImVec2{ 0.0f, button_height })) {
+			state.show_page_numbers = !state.show_page_numbers;
+			if (state.show_page_numbers) {
+				selection.pending_action.reset();
+				selection.focus_source = false;
+				selection.keep_selection_highlight = false;
+				state.selection_warning.clear();
+				state.selection_warning_until = 0.0;
+			}
+		}
+		if (active) {
+			ImGui::PopStyleColor();
+		}
+		DrawRichTextToolbarTooltip(
+			state.show_page_numbers
+				? "Hide dialogue page numbers beside source lines."
+				: "Show dialogue page numbers beside source lines."
+		);
+	}
 
 	if (allow_detached_window) {
 		ImGui::SameLine();
@@ -4742,31 +5428,33 @@ bool DrawRichTextEditorPanel(
 		changed = true;
 	}
 
-	// Keep the normal vertical item spacing here, matching the gap between the rich text
-	// toolbar and the source input above.
-	const bool defaults_open{ ImGui::TreeNodeEx(
-		"Defaults##RichTextDefaults",
-		ImGuiTreeNodeFlags_SpanAvailWidth | ImGuiTreeNodeFlags_FramePadding
-	) };
-	DrawRichTextToolbarTooltip(
-		"Base style used outside tags.\nTags temporarily override these values."
-	);
-	if (defaults_open) {
-		ScopedIndent indent;
-		bool local_defaults_changed{ false };
-		local_defaults_changed |= DrawValue(ctx, "Font", defaults.font);
-		local_defaults_changed |= DrawValue(ctx, "Color", defaults.style.color);
-		local_defaults_changed |= DrawValue(ctx, "Size", defaults.style.size);
-		local_defaults_changed |= DrawValue(ctx, "Bold Weight", defaults.style.bold_weight);
-		local_defaults_changed |= DrawValue(ctx, "Kerning", defaults.style.kerning);
-		local_defaults_changed |= DrawValue(ctx, "Tracking", defaults.style.tracking);
-		local_defaults_changed |= DrawValue(ctx, "Line Spacing", defaults.style.line_spacing);
-		local_defaults_changed |= DrawValue(ctx, "Flags", defaults.style.flags);
-		local_defaults_changed |= DrawValue(ctx, "Distance Field", defaults.style.sdf);
-		local_defaults_changed |= DrawValue(ctx, "Effect", defaults.style.effect);
-		defaults_changed |= local_defaults_changed;
-		changed |= local_defaults_changed;
-		ImGui::TreePop();
+	if (options.show_defaults) {
+		// Keep the normal vertical item spacing here, matching the gap between the rich text
+		// toolbar and the source input above.
+		const bool defaults_open{ ImGui::TreeNodeEx(
+			"Defaults##RichTextDefaults",
+			ImGuiTreeNodeFlags_SpanAvailWidth | ImGuiTreeNodeFlags_FramePadding
+		) };
+		DrawRichTextToolbarTooltip(
+			"Base style used outside tags.\nTags temporarily override these values."
+		);
+		if (defaults_open) {
+			ScopedIndent indent;
+			bool local_defaults_changed{ false };
+			local_defaults_changed |= DrawValue(ctx, "Font", defaults.font);
+			local_defaults_changed |= DrawValue(ctx, "Color", defaults.style.color);
+			local_defaults_changed |= DrawValue(ctx, "Size", defaults.style.size);
+			local_defaults_changed |= DrawValue(ctx, "Bold Weight", defaults.style.bold_weight);
+			local_defaults_changed |= DrawValue(ctx, "Kerning", defaults.style.kerning);
+			local_defaults_changed |= DrawValue(ctx, "Tracking", defaults.style.tracking);
+			local_defaults_changed |= DrawValue(ctx, "Line Spacing", defaults.style.line_spacing);
+			local_defaults_changed |= DrawValue(ctx, "Flags", defaults.style.flags);
+			local_defaults_changed |= DrawValue(ctx, "Distance Field", defaults.style.sdf);
+			local_defaults_changed |= DrawValue(ctx, "Effect", defaults.style.effect);
+			defaults_changed |= local_defaults_changed;
+			changed |= local_defaults_changed;
+			ImGui::TreePop();
+		}
 	}
 
 	const auto source_diagnostics{
@@ -4832,12 +5520,49 @@ bool DrawRichTextEditorPanel(
 			ImVec2{ 0.0f, minimum_preview_height },
 			ImVec2{ FLT_MAX, maximum_editor_height }
 		);
+
+		TextBox preview_measure_box{
+			options.preview_box ? *options.preview_box : TextBox{}
+		};
+		const TextLayout preview_measure_layout{
+			::ptgn::impl::BuildTextLayout(
+				ctx.editor.GetAssetManager(),
+				parsed.text,
+				preview_measure_box
+			)
+		};
+		constexpr float preview_padding{ 32.0f };
+		const float preview_available_width{
+			std::max(1.0f, ImGui::GetContentRegionAvail().x)
+		};
+		const float preview_available_height{
+			std::max(
+				1.0f,
+				preview_height - ImGui::GetStyle().WindowPadding.y * 2.0f
+			)
+		};
+		const bool preview_horizontal_overflow{
+			preview_measure_layout.size.x + preview_padding >
+				preview_available_width
+		};
+		const bool preview_vertical_overflow{
+			preview_measure_layout.size.y + preview_padding >
+				preview_available_height
+		};
+		ImGuiWindowFlags preview_flags{ ImGuiWindowFlags_None };
+		if (!preview_horizontal_overflow && !preview_vertical_overflow) {
+			preview_flags |=
+				ImGuiWindowFlags_NoScrollbar |
+				ImGuiWindowFlags_NoScrollWithMouse;
+		} else if (preview_horizontal_overflow) {
+			preview_flags |= ImGuiWindowFlags_HorizontalScrollbar;
+		}
 		ImGui::BeginChild(
 			"##RichTextPreview", ImVec2{ -FLT_MIN, preview_height },
 			ImGuiChildFlags_Borders | ImGuiChildFlags_ResizeY,
-			ImGuiWindowFlags_HorizontalScrollbar
+			preview_flags
 		);
-		DrawRichTextPreview(ctx, parsed.text, options.preview_box);
+		DrawRichTextPreviewImpl(ctx, parsed.text, options.preview_box);
 		ImGui::EndChild();
 
 		const ImVec2 preview_min{ ImGui::GetItemRectMin() };
@@ -4854,6 +5579,12 @@ bool DrawRichTextEditorPanel(
 
 
 } // namespace
+
+void DrawRichTextPreview(
+	EditorContext& ctx, const StyledText& styled_text, const TextBox* preview_box
+) {
+	DrawRichTextPreviewImpl(ctx, styled_text, preview_box);
+}
 
 bool DrawRichTextEditor(
 	EditorContext& ctx, std::string& source, TextRunDefaults& defaults,

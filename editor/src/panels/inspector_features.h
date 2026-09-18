@@ -153,6 +153,7 @@ using UIFeatureComponents = FeatureComponents<
 	ButtonBorderVisuals, ButtonSpriteVisuals, ButtonTextVisuals, ButtonSounds,
 	::ptgn::impl::SliderData, ::ptgn::impl::ToggleButtonData, ::ptgn::impl::ToggleButtonGroupData,
 	::ptgn::impl::ToggleButtonGroupItem, ::ptgn::impl::DropdownData, ::ptgn::impl::DropdownItem,
+	DialogueData, ::ptgn::impl::DialoguePart,
 	::ptgn::impl::TooltipData, ::ptgn::impl::TooltipHoverData, ::ptgn::impl::TooltipBackgroundPart,
 	::ptgn::impl::TooltipTextPart>;
 
@@ -172,6 +173,14 @@ struct ManualFeatureState {
 	std::optional<ButtonVisualState> button_visual_state{};
 	std::size_t dropdown_item_index{ 0 };
 	std::size_t toggle_group_item_index{ 0 };
+
+	std::string dialogue_key{};
+	std::size_t dialogue_variant_index{ 0 };
+	std::size_t dialogue_preview_page{ 0 };
+	std::optional<std::string> dialogue_rename_key{};
+	std::string dialogue_rename_buffer{};
+	bool dialogue_rename_requested{ false };
+
 	EntityFilterEditorState grounding_filter_state{};
 };
 

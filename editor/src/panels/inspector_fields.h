@@ -607,6 +607,263 @@ inline bool DrawKeyCombo(Key& value, const char* id = "##value") {
 	return changed;
 }
 
+[[nodiscard]] inline std::string_view TrimKeyExpressionToken(std::string_view value) {
+	while (!value.empty() && std::isspace(static_cast<unsigned char>(value.front()))) {
+		value.remove_prefix(1);
+	}
+	while (!value.empty() && std::isspace(static_cast<unsigned char>(value.back()))) {
+		value.remove_suffix(1);
+	}
+	return value;
+}
+
+[[nodiscard]] inline std::string NormalizeKeyExpressionAlias(std::string normalized) {
+	if (normalized.size() == 1 && std::isdigit(static_cast<unsigned char>(normalized.front()))) {
+		normalized.insert(normalized.begin(), 'k');
+	}
+
+	if (normalized == "shift" || normalized == "lshift") {
+		return "leftshift";
+	}
+	if (normalized == "rshift") {
+		return "rightshift";
+	}
+	if (normalized == "ctrl" || normalized == "control" || normalized == "lctrl" ||
+		normalized == "leftcontrol") {
+		return "leftctrl";
+	}
+	if (normalized == "rctrl" || normalized == "rightcontrol") {
+		return "rightctrl";
+	}
+	if (normalized == "alt" || normalized == "option" || normalized == "lalt") {
+		return "leftalt";
+	}
+	if (normalized == "ralt") {
+		return "rightalt";
+	}
+	if (normalized == "super" || normalized == "cmd" || normalized == "command") {
+		return "leftsuper";
+	}
+
+	return normalized;
+}
+
+[[nodiscard]] inline bool IsKnownKeyExpressionToken(std::string_view token) {
+	token = TrimKeyExpressionToken(token);
+	if (token.empty()) {
+		return false;
+	}
+
+	const std::string normalized{
+		NormalizeKeyExpressionAlias(NormalizeKeySearchText(token))
+	};
+
+	if (normalized.size() == 1 &&
+		normalized.front() >= 'a' && normalized.front() <= 'z') {
+		return true;
+	}
+
+	if (normalized.size() == 2 &&
+		normalized.front() == 'k' &&
+		std::isdigit(static_cast<unsigned char>(normalized[1]))) {
+		return true;
+	}
+
+	if (normalized.size() >= 2 && normalized.front() == 'f') {
+		int number{};
+		bool valid{ true };
+		for (std::size_t i{ 1 }; i < normalized.size(); ++i) {
+			if (!std::isdigit(static_cast<unsigned char>(normalized[i]))) {
+				valid = false;
+				break;
+			}
+			number = number * 10 + static_cast<int>(normalized[i] - '0');
+		}
+		if (valid && number >= 1 && number <= 25) {
+			return true;
+		}
+	}
+
+	if (normalized.size() == 3 &&
+		normalized[0] == 'k' && normalized[1] == 'p' &&
+		std::isdigit(static_cast<unsigned char>(normalized[2]))) {
+		return true;
+	}
+
+	static constexpr std::array<std::string_view, 49> kNamedKeys{
+		"space",
+		"apostrophe",
+		"comma",
+		"minus",
+		"period",
+		"slash",
+		"semicolon",
+		"equal",
+		"leftbracket",
+		"backslash",
+		"rightbracket",
+		"graveaccent",
+		"world1",
+		"world2",
+		"escape",
+		"enter",
+		"tab",
+		"backspace",
+		"insert",
+		"delete",
+		"right",
+		"left",
+		"down",
+		"up",
+		"pageup",
+		"pagedown",
+		"home",
+		"end",
+		"capslock",
+		"scrolllock",
+		"numlock",
+		"printscreen",
+		"pause",
+		"kpdecimal",
+		"kpdivide",
+		"kpmultiply",
+		"kpsubtract",
+		"kpadd",
+		"kpenter",
+		"kpequal",
+		"leftshift",
+		"leftctrl",
+		"leftalt",
+		"leftsuper",
+		"rightshift",
+		"rightctrl",
+		"rightalt",
+		"rightsuper",
+		"menu",
+	};
+
+	return std::ranges::find(kNamedKeys, normalized) != kNamedKeys.end();
+}
+
+[[nodiscard]] inline std::optional<std::string> KeyExpressionError(
+	std::string_view input
+) {
+	const std::string_view expression{ TrimKeyExpressionToken(input) };
+	if (expression.empty()) {
+		return "Enter at least one key.";
+	}
+
+	std::size_t group_begin{ 0 };
+	while (group_begin <= expression.size()) {
+		const std::size_t comma{ expression.find(',', group_begin) };
+		const std::size_t group_end{
+			comma == std::string_view::npos ? expression.size() : comma
+		};
+		const std::string_view group{
+			TrimKeyExpressionToken(
+				expression.substr(group_begin, group_end - group_begin)
+			)
+		};
+
+		if (group.empty()) {
+			return "Missing a key near ','.";
+		}
+
+		std::size_t token_begin{ 0 };
+		while (token_begin <= group.size()) {
+			const std::size_t plus{ group.find('+', token_begin) };
+			const std::size_t token_end{
+				plus == std::string_view::npos ? group.size() : plus
+			};
+			const std::string_view token{
+				TrimKeyExpressionToken(
+					group.substr(token_begin, token_end - token_begin)
+				)
+			};
+
+			if (token.empty()) {
+				return plus == std::string_view::npos
+					? std::optional<std::string>{ "Missing a key after '+'." }
+					: std::optional<std::string>{ "Missing a key near '+'." };
+			}
+
+			if (!IsKnownKeyExpressionToken(token)) {
+				return "Unknown key: " + std::string{ token } + ".";
+			}
+
+			if (plus == std::string_view::npos) {
+				break;
+			}
+			token_begin = plus + 1;
+		}
+
+		if (comma == std::string_view::npos) {
+			break;
+		}
+
+		group_begin = comma + 1;
+		if (group_begin >= expression.size()) {
+			return "Missing a key after ','.";
+		}
+	}
+
+	return std::nullopt;
+}
+
+inline void DrawInvalidKeyExpressionBorder(
+	const std::optional<std::string>& error
+) {
+	if (!error) {
+		return;
+	}
+
+	const ImVec2 minimum{ ImGui::GetItemRectMin() };
+	const ImVec2 maximum{ ImGui::GetItemRectMax() };
+	ImGui::GetWindowDrawList()->AddRect(
+		minimum,
+		maximum,
+		ImGui::GetColorU32(ImVec4{ 1.0f, 0.2f, 0.2f, 1.0f }),
+		ImGui::GetStyle().FrameRounding,
+		0,
+		1.5f
+	);
+
+	if (ImGui::IsItemHovered()) {
+		ImGui::SetTooltip("%s", error->c_str());
+	}
+}
+
+/// @brief Draw the shared editor key-expression field.
+/// `+` joins keys that must be held together and `,` separates alternatives.
+inline bool DrawKeyExpression(
+	std::string& expression,
+	const char* id = "##Keys",
+	std::string_view hint = "W + X, W + Left Shift",
+	float width = -FLT_MIN
+) {
+	ImGui::SetNextItemWidth(width);
+	const std::string hint_string{ hint };
+	const bool changed{
+		ImGui::InputTextWithHint(
+			id,
+			hint_string.c_str(),
+			&expression
+		)
+	};
+
+	const auto error{ KeyExpressionError(expression) };
+	if (error) {
+		DrawInvalidKeyExpressionBorder(error);
+	} else if (ImGui::IsItemHovered()) {
+		ImGui::SetTooltip(
+			"Use + for AND and comma for OR. Key names are case insensitive."
+		);
+	}
+
+	return changed;
+}
+
+
 template <typename T>
 std::string TypeLabel() {
 	if constexpr (std::is_enum_v<T>) {

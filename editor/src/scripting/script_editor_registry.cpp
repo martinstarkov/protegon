@@ -394,214 +394,6 @@ std::string KeyExpressionValue(const json& value) {
 	return inspector::KeyDisplayLabel(JsonValueOr<Key>(value, "key", Key::W));
 }
 
-[[nodiscard]] bool IsKeyExpressionWhitespace(char c) {
-	switch (c) {
-		case ' ':  [[fallthrough]];
-		case '	': [[fallthrough]];
-		case '\n': [[fallthrough]];
-		case '\r': [[fallthrough]];
-		case '\f': [[fallthrough]];
-		case '\v': return true;
-		default:   return false;
-	}
-}
-
-[[nodiscard]] std::string StripKeyExpressionWhitespace(const std::string& token) {
-	std::size_t first{ 0 };
-	while (first < token.size() && IsKeyExpressionWhitespace(token[first])) {
-		++first;
-	}
-
-	std::size_t last{ token.size() };
-	while (last > first && IsKeyExpressionWhitespace(token[last - 1])) {
-		--last;
-	}
-
-	return token.substr(first, last - first);
-}
-
-[[nodiscard]] bool IsAsciiAlphaNumeric(char c) {
-	return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9');
-}
-
-[[nodiscard]] char ToAsciiLower(char c) {
-	return c >= 'A' && c <= 'Z' ? static_cast<char>(c - 'A' + 'a') : c;
-}
-
-[[nodiscard]] std::string NormalizeKeyExpressionToken(const std::string& token) {
-	std::string normalized;
-	normalized.reserve(token.size());
-
-	for (char c : token) {
-		if (IsAsciiAlphaNumeric(c)) {
-			normalized.push_back(ToAsciiLower(c));
-		}
-	}
-
-	return normalized;
-}
-
-[[nodiscard]] std::string NormalizeKeyAlias(std::string normalized) {
-	if (normalized.size() == 1 && normalized.front() >= '0' && normalized.front() <= '9') {
-		normalized.insert(normalized.begin(), 'k');
-	}
-
-	if (normalized == "shift" || normalized == "lshift") {
-		return "leftshift";
-	}
-	if (normalized == "rshift") {
-		return "rightshift";
-	}
-	if (normalized == "ctrl" || normalized == "control" || normalized == "lctrl" ||
-		normalized == "leftcontrol") {
-		return "leftctrl";
-	}
-	if (normalized == "rctrl" || normalized == "rightcontrol") {
-		return "rightctrl";
-	}
-	if (normalized == "alt" || normalized == "option" || normalized == "lalt") {
-		return "leftalt";
-	}
-	if (normalized == "ralt") {
-		return "rightalt";
-	}
-	if (normalized == "super" || normalized == "cmd" || normalized == "command") {
-		return "leftsuper";
-	}
-
-	return normalized;
-}
-
-[[nodiscard]] bool IsDecimalNumberInRange(std::string_view value, int minimum, int maximum) {
-	if (value.empty()) {
-		return false;
-	}
-
-	int number{ 0 };
-	for (char c : value) {
-		if (c < '0' || c > '9') {
-			return false;
-		}
-
-		number = number * 10 + c - '0';
-		if (number > maximum) {
-			return false;
-		}
-	}
-
-	return number >= minimum && number <= maximum;
-}
-
-[[nodiscard]] bool IsKnownKeyExpressionToken(const std::string& token) {
-	const std::string normalized{ NormalizeKeyAlias(NormalizeKeyExpressionToken(token)) };
-
-	if (normalized.empty()) {
-		return false;
-	}
-
-	if (normalized.size() == 1 && normalized.front() >= 'a' && normalized.front() <= 'z') {
-		return true;
-	}
-
-	if (normalized.size() == 2 && normalized.front() == 'k' && normalized[1] >= '0' &&
-		normalized[1] <= '9') {
-		return true;
-	}
-
-	if (normalized.size() > 1 && normalized.front() == 'f' &&
-		IsDecimalNumberInRange(std::string_view{ normalized }.substr(1), 1, 25)) {
-		return true;
-	}
-
-	if (normalized.size() == 3 && normalized.starts_with("kp") && normalized[2] >= '0' &&
-		normalized[2] <= '9') {
-		return true;
-	}
-
-	static constexpr std::array<std::string_view, 48> kNamedKeys{
-		"space",	  "apostrophe",	 "comma",		"minus",	 "period",		 "slash",
-		"semicolon",  "equal",		 "leftbracket", "backslash", "rightbracket", "graveaccent",
-		"world1",	  "world2",		 "escape",		"enter",	 "tab",			 "backspace",
-		"insert",	  "delete",		 "right",		"left",		 "down",		 "up",
-		"pageup",	  "pagedown",	 "home",		"end",		 "capslock",	 "scrolllock",
-		"numlock",	  "printscreen", "pause",		"kpdecimal", "kpdivide",	 "kpmultiply",
-		"kpsubtract", "kpadd",		 "kpenter",		"kpequal",	 "leftshift",	 "leftctrl",
-		"leftalt",	  "leftsuper",	 "rightshift",	"rightctrl", "rightalt",	 "rightsuper",
-	};
-
-	return std::ranges::find(kNamedKeys, normalized) != kNamedKeys.end() || normalized == "menu";
-}
-
-[[nodiscard]] std::optional<std::string> KeyExpressionError(const std::string& input) {
-	const std::string expression{ StripKeyExpressionWhitespace(input) };
-	if (expression.empty()) {
-		return "Enter at least one key.";
-	}
-
-	std::size_t group_begin{ 0 };
-	while (group_begin <= expression.size()) {
-		const std::size_t comma{ expression.find(',', group_begin) };
-		const std::size_t group_end{ comma == std::string::npos ? expression.size() : comma };
-		const std::string group{
-			StripKeyExpressionWhitespace(expression.substr(group_begin, group_end - group_begin))
-		};
-
-		if (group.empty()) {
-			return "Missing a key near ','.";
-		}
-
-		std::size_t token_begin{ 0 };
-		while (token_begin <= group.size()) {
-			const std::size_t plus{ group.find('+', token_begin) };
-			const std::size_t token_end{ plus == std::string::npos ? group.size() : plus };
-			const std::string token{
-				StripKeyExpressionWhitespace(group.substr(token_begin, token_end - token_begin))
-			};
-
-			if (token.empty()) {
-				return plus == std::string::npos ? "Missing a key after '+'."
-												 : "Missing a key near '+'.";
-			}
-
-			if (!IsKnownKeyExpressionToken(token)) {
-				return "Unknown key: " + token + ".";
-			}
-
-			if (plus == std::string::npos) {
-				break;
-			}
-			token_begin = plus + 1;
-		}
-
-		if (comma == std::string::npos) {
-			break;
-		}
-		group_begin = comma + 1;
-		if (group_begin >= expression.size()) {
-			return "Missing a key after ','.";
-		}
-	}
-
-	return std::nullopt;
-}
-
-void DrawInvalidKeyExpressionBorder(const std::optional<std::string>& error) {
-	if (!error) {
-		return;
-	}
-
-	const ImVec2 min{ ImGui::GetItemRectMin() };
-	const ImVec2 max{ ImGui::GetItemRectMax() };
-	ImGui::GetWindowDrawList()->AddRect(
-		min, max, ImGui::GetColorU32(ImVec4{ 1.0f, 0.2f, 0.2f, 1.0f }),
-		ImGui::GetStyle().FrameRounding, 0, 1.5f
-	);
-
-	if (ImGui::IsItemHovered()) {
-		ImGui::SetTooltip("%s", error->c_str());
-	}
-}
-
 bool DrawHeldDurationToggle(bool& require_duration) {
 	const bool changed{ ImGui::Checkbox("##RequireHeldDuration", &require_duration) };
 	DrawItemTooltip("Checked: require the minimum held duration. Unchecked: match any held state.");
@@ -622,15 +414,9 @@ bool DrawKeyExpression(json& value, bool with_duration) {
 												  )
 												: -FLT_MIN };
 
-	ImGui::SetNextItemWidth(expression_width);
-	bool changed{ ImGui::InputTextWithHint("##Keys", "W + X, W + Left Shift", &expression) };
-
-	const auto expression_error{ KeyExpressionError(expression) };
-	if (expression_error) {
-		DrawInvalidKeyExpressionBorder(expression_error);
-	} else {
-		DrawItemTooltip("Use + for AND and comma for OR. Key names are case insensitive.");
-	}
+	bool changed{ inspector::DrawKeyExpression(
+		expression, "##Keys", "W + X, W + Left Shift", expression_width
+	) };
 
 	if (with_duration) {
 		ImGui::SameLine(0.0f, spacing);
@@ -2003,9 +1789,7 @@ bool DrawFollowTarget(ScriptEditorContext& context, FollowTargetScript& script) 
 bool DrawTintToInline(ScriptEditorContext& context, TintToScript& script) {
 	ImGui::SetNextItemWidth(ImGui::GetFrameHeight());
 	return DrawColorEdit(
-		context.ctx,
-		"##Tint",
-		script.tint,
+		context.ctx, "##Tint", script.tint,
 		ImGuiColorEditFlags_NoInputs | ImGuiColorEditFlags_AlphaBar |
 			ImGuiColorEditFlags_AlphaPreviewHalf
 	);
@@ -2013,9 +1797,7 @@ bool DrawTintToInline(ScriptEditorContext& context, TintToScript& script) {
 
 bool DrawTintTo(ScriptEditorContext& context, TintToScript& script) {
 	return DrawColorEdit(
-		context.ctx,
-		"Tint",
-		script.tint,
+		context.ctx, "Tint", script.tint,
 		ImGuiColorEditFlags_Uint8 | ImGuiColorEditFlags_AlphaBar |
 			ImGuiColorEditFlags_AlphaPreviewHalf
 	);

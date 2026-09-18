@@ -2,6 +2,8 @@
 #include "panels/inspector_geometry.h"
 #include "panels/rich_text_editor.h"
 
+#include <imgui_internal.h>
+
 #include "runtime/ecs/entity_serialization.h"
 
 namespace ptgn::editor::inspector {
@@ -430,6 +432,7 @@ enum class FocusedUIControlType : std::uint8_t {
 	ToggleButton,
 	Slider,
 	Dropdown,
+	Dialogue,
 	Conflict,
 };
 
@@ -458,11 +461,20 @@ template <typename Target>
 	const bool slider{ HasTargetComponent<Target, ::ptgn::impl::SliderData>(target) };
 	const bool toggle{ HasTargetComponent<Target, ::ptgn::impl::ToggleButtonData>(target) };
 	const bool dropdown{ HasTargetComponent<Target, ::ptgn::impl::DropdownData>(target) };
-	const int specialized_count{ static_cast<int>(slider) + static_cast<int>(toggle) +
-								 static_cast<int>(dropdown) };
+	const bool dialogue{ HasTargetComponent<Target, DialogueData>(target) };
+	const bool button{ HasTargetComponent<Target, ::ptgn::impl::ButtonData>(target) };
 
-	if (specialized_count > 1) {
+	const int specialized_count{
+		static_cast<int>(slider) +
+		static_cast<int>(toggle) +
+		static_cast<int>(dropdown)
+	};
+
+	if (specialized_count > 1 || (dialogue && (button || specialized_count > 0))) {
 		return FocusedUIControlType::Conflict;
+	}
+	if (dialogue) {
+		return FocusedUIControlType::Dialogue;
 	}
 	if (slider) {
 		return FocusedUIControlType::Slider;
@@ -473,7 +485,7 @@ template <typename Target>
 	if (dropdown) {
 		return FocusedUIControlType::Dropdown;
 	}
-	if (HasTargetComponent<Target, ::ptgn::impl::ButtonData>(target)) {
+	if (button) {
 		return FocusedUIControlType::Button;
 	}
 	return FocusedUIControlType::None;
@@ -485,6 +497,7 @@ template <typename Target>
 		case FocusedUIControlType::ToggleButton: return "Toggle Button";
 		case FocusedUIControlType::Slider:		 return "Slider";
 		case FocusedUIControlType::Dropdown:	 return "Dropdown";
+		case FocusedUIControlType::Dialogue:	 return "Dialogue";
 		case FocusedUIControlType::Conflict:	 return "Invalid UI Control";
 		case FocusedUIControlType::None:		 return "UI";
 	}
@@ -1620,6 +1633,9 @@ bool DrawFocusedButtonAppearance(Target& target, FocusedUIControlType type) {
 			// the dropdown header.
 			return IsDropdownManagedChild(child) || IsButtonManagedVisualChild(child);
 
+		case FocusedUIControlType::Dialogue:
+			return child && child.Has<::ptgn::impl::DialoguePart>();
+
 		case FocusedUIControlType::None:
 		case FocusedUIControlType::Conflict:
 			return false;
@@ -1768,7 +1784,13 @@ bool RepairUIControlConflict(Target& target, FocusedUIControlType keep) {
 	if (keep != FocusedUIControlType::Dropdown) {
 		RemoveSupportedFeatureComponent<Target, ::ptgn::impl::DropdownData>(target);
 	}
-	if constexpr (Target::template Supports<::ptgn::impl::ButtonData>()) {
+	if (keep != FocusedUIControlType::Dialogue) {
+		RemoveSupportedFeatureComponent<Target, DialogueData>(target);
+	}
+
+	if (keep == FocusedUIControlType::Dialogue) {
+		RemoveSupportedFeatureComponent<Target, ::ptgn::impl::ButtonData>(target);
+	} else if constexpr (Target::template Supports<::ptgn::impl::ButtonData>()) {
 		if (!target.template Capture<::ptgn::impl::ButtonData>()) {
 			target.template SetLive<::ptgn::impl::ButtonData>(::ptgn::impl::ButtonData{});
 		}
@@ -1806,8 +1828,11 @@ bool ChangeFocusedUIControlType(Target& target, FocusedUIControlType type) {
 	RemoveSupportedFeatureComponent<Target, ::ptgn::impl::SliderData>(target);
 	RemoveSupportedFeatureComponent<Target, ::ptgn::impl::ToggleButtonData>(target);
 	RemoveSupportedFeatureComponent<Target, ::ptgn::impl::DropdownData>(target);
+	RemoveSupportedFeatureComponent<Target, DialogueData>(target);
 
-	if constexpr (Target::template Supports<::ptgn::impl::ButtonData>()) {
+	if (type == FocusedUIControlType::Dialogue) {
+		RemoveSupportedFeatureComponent<Target, ::ptgn::impl::ButtonData>(target);
+	} else if constexpr (Target::template Supports<::ptgn::impl::ButtonData>()) {
 		if (!target.template Capture<::ptgn::impl::ButtonData>()) {
 			target.template SetLive<::ptgn::impl::ButtonData>(::ptgn::impl::ButtonData{});
 		}
@@ -1837,6 +1862,14 @@ bool ChangeFocusedUIControlType(Target& target, FocusedUIControlType type) {
 		case FocusedUIControlType::Dropdown:
 			if constexpr (Target::template Supports<::ptgn::impl::DropdownData>()) {
 				target.template SetLive<::ptgn::impl::DropdownData>(::ptgn::impl::DropdownData{});
+			}
+			break;
+
+		case FocusedUIControlType::Dialogue:
+			if constexpr (Target::template Supports<DialogueData>()) {
+				DialogueData data;
+				data.SetDefinition(DialogueData::MakeDefaultDefinition());
+				target.template SetLive<DialogueData>(data);
 			}
 			break;
 
@@ -1944,10 +1977,16 @@ bool DrawFocusedUIControlTypeSelector(
 		if (ImGui::BeginCombo("##FocusedUIControlType", preview.c_str())) {
 			for (const FocusedUIControlType candidate :
 				 { FocusedUIControlType::Button, FocusedUIControlType::ToggleButton,
-				   FocusedUIControlType::Slider, FocusedUIControlType::Dropdown }) {
+				   FocusedUIControlType::Slider, FocusedUIControlType::Dropdown,
+				   FocusedUIControlType::Dialogue }) {
+				const bool unsupported_dialogue{
+					candidate == FocusedUIControlType::Dialogue &&
+					!Target::template Supports<DialogueData>()
+				};
 				const bool disabled{
-					locked_to_toggle &&
-					candidate != FocusedUIControlType::ToggleButton
+					unsupported_dialogue ||
+					(locked_to_toggle &&
+					candidate != FocusedUIControlType::ToggleButton)
 				};
 				ScopedDisabled disabled_scope{ disabled };
 				const bool selected{ candidate == current };
@@ -2007,8 +2046,8 @@ bool DrawUIControlConflict(Target& target) {
 		"This entity has multiple mutually-exclusive UI control types."
 	);
 	DrawDisabledWrappedText(
-		"Keep exactly one specialized control type. ButtonData is the shared selectable base and "
-		"is not a conflict."
+		"Keep exactly one UI control type. Dialogue is standalone; ButtonData is the shared base "
+		"for Button, Toggle Button, Slider and Dropdown."
 	);
 
 	bool changed{ false };
@@ -2030,6 +2069,14 @@ bool DrawUIControlConflict(Target& target) {
 		}
 		if (ImGui::Button("Keep Dropdown")) {
 			changed |= RepairUIControlConflict(target, FocusedUIControlType::Dropdown);
+		}
+	}
+	if (HasTargetComponent<Target, DialogueData>(target)) {
+		if (changed) {
+			ImGui::SameLine();
+		}
+		if (ImGui::Button("Keep Dialogue")) {
+			changed |= RepairUIControlConflict(target, FocusedUIControlType::Dialogue);
 		}
 	}
 	return changed;
@@ -2549,6 +2596,1423 @@ bool DrawSliderTrackVisual(EntityInspectorTarget& target, Slider slider, Entity&
 	return changed;
 }
 
+
+struct DialogueEditorVariantDraft {
+	std::string source{};
+};
+
+struct DialogueEditorEntryDraft {
+	std::string name{};
+	std::size_t initial_variant{ 0 };
+	bool repeatable{ true };
+	DialogueBehavior behavior{ DialogueBehavior::Sequential };
+	std::string next{};
+	std::vector<DialogueEditorVariantDraft> variants{};
+};
+
+struct DialogueEditorDocument {
+	std::string continue_keys{ "Enter" };
+	std::string start{};
+	bool typewriter{ true };
+	DialoguePageProperties defaults{};
+	std::vector<DialogueEditorEntryDraft> dialogues{};
+};
+
+void NormalizeDialogueEditorEntry(DialogueEditorEntryDraft& entry) {
+	if (entry.variants.empty()) {
+		entry.variants.emplace_back();
+	}
+	entry.initial_variant = std::min(
+		entry.initial_variant,
+		entry.variants.size() - 1
+	);
+}
+
+void NormalizeDialogueEditorDocument(DialogueEditorDocument& document) {
+	if (document.dialogues.empty()) {
+		document.dialogues.emplace_back(DialogueEditorEntryDraft{
+			.name = "dialogue",
+			.variants = { DialogueEditorVariantDraft{} },
+		});
+	}
+
+	for (auto& entry : document.dialogues) {
+		NormalizeDialogueEditorEntry(entry);
+	}
+
+	const auto start_it{ std::ranges::find_if(
+		document.dialogues,
+		[&](const DialogueEditorEntryDraft& entry) {
+			return entry.name == document.start;
+		}
+	) };
+	if (start_it == document.dialogues.end()) {
+		document.start = document.dialogues.front().name;
+	}
+}
+
+[[nodiscard]] std::string DialogueSourceFromJson(
+	const json& value,
+	const DialoguePageProperties& root_defaults
+) {
+	if (value.is_string()) {
+		return value.get<std::string>();
+	}
+
+	if (!value.is_object()) {
+		return {};
+	}
+
+	if (value.contains("source") && value.at("source").is_string()) {
+		return value.at("source").get<std::string>();
+	}
+
+	if (value.contains("text")) {
+		const auto& text{ value.at("text") };
+		if (text.is_string()) {
+			return text.get<std::string>();
+		}
+		if (text.is_object() && text.contains("source")) {
+			return text.at("source").get<std::string>();
+		}
+	}
+
+	if (value.contains("content") && value.at("content").is_string()) {
+		return value.at("content").get<std::string>();
+	}
+
+	if (!value.contains("pages")) {
+		return {};
+	}
+
+	std::string source;
+	const auto append_page = [&](const json& page_json, std::string& destination) {
+		const bool instant{
+			page_json.is_object() && page_json.value("instant", false)
+		};
+		if (!destination.empty()) {
+			destination += instant
+				? "\n" + std::string{ ::ptgn::impl::kDialogueInstantPageTag } + "\n"
+				: "\n\n";
+		} else if (instant) {
+			destination += std::string{ ::ptgn::impl::kDialogueInstantPageTag };
+			destination.push_back('\n');
+		}
+
+		if (page_json.is_string()) {
+			destination += page_json.get<std::string>();
+			return;
+		}
+
+		if (!page_json.is_object()) {
+			return;
+		}
+
+		if (page_json.contains("text")) {
+			const auto& text{ page_json.at("text") };
+			if (text.is_string()) {
+				destination += text.get<std::string>();
+				return;
+			}
+			if (text.is_object() && text.contains("source")) {
+				destination += text.at("source").get<std::string>();
+				return;
+			}
+		}
+
+		if (page_json.contains("content") && page_json.at("content").is_string()) {
+			destination += page_json.at("content").get<std::string>();
+			return;
+		}
+
+		if (page_json.contains("styled_text")) {
+			DialoguePageProperties page_defaults{ root_defaults };
+			if (page_json.contains("properties")) {
+				page_defaults = page_defaults.InheritProperties(page_json.at("properties"));
+			}
+			destination += SerializeStyledTextToRichText(
+				page_json.at("styled_text").get<StyledText>(),
+				page_defaults.text_defaults
+			);
+		}
+	};
+
+	const auto& pages{ value.at("pages") };
+	if (pages.is_array()) {
+		for (const auto& page_json : pages) {
+			append_page(page_json, source);
+		}
+	} else {
+		append_page(pages, source);
+	}
+	return source;
+}
+
+[[nodiscard]] DialogueEditorDocument ParseDialogueEditorDocument(
+	const DialogueData& data
+) {
+	const json root =
+		data.Definition().is_object() && !data.Definition().empty()
+			? data.Definition()
+			: DialogueData::MakeDefaultDefinition();
+
+	DialogueEditorDocument document;
+	document.defaults = DialoguePageProperties{}.InheritProperties(root);
+
+	if (root.contains("continue_key")) {
+		const auto& continue_json{ root.at("continue_key") };
+		document.continue_keys = continue_json.is_string()
+			? continue_json.get<std::string>()
+			: ::ptgn::impl::DialogueKeyName(continue_json.get<Key>());
+	}
+
+	document.start = root.value("start", std::string{});
+	document.typewriter = root.value("scroll", true);
+	bool typewriter_resolved{ root.contains("scroll") };
+
+	if (root.contains("dialogues") && root.at("dialogues").is_object()) {
+		for (const auto& [name, value] : root.at("dialogues").items()) {
+			if (!value.is_object()) {
+				continue;
+			}
+
+			DialogueEditorEntryDraft entry;
+			entry.name = name;
+			entry.initial_variant = value.value(
+				"initial_variant",
+				value.value("index", 0uz)
+			);
+			entry.repeatable = value.value("repeatable", true);
+			entry.behavior = value.value(
+				"behavior",
+				DialogueBehavior::Sequential
+			);
+			if (!typewriter_resolved && value.contains("scroll")) {
+				document.typewriter = value.value("scroll", true);
+				typewriter_resolved = true;
+			}
+			entry.next = value.value("next", std::string{});
+
+			const json* variants{ nullptr };
+			if (value.contains("variants")) {
+				variants = std::addressof(value.at("variants"));
+			} else if (value.contains("lines")) {
+				variants = std::addressof(value.at("lines"));
+			}
+
+			if (variants) {
+				if (variants->is_array()) {
+					for (const auto& variant_json : *variants) {
+						entry.variants.emplace_back(DialogueEditorVariantDraft{
+							.source = DialogueSourceFromJson(
+								variant_json,
+								document.defaults
+							),
+						});
+					}
+				} else {
+					entry.variants.emplace_back(DialogueEditorVariantDraft{
+						.source = DialogueSourceFromJson(
+							*variants,
+							document.defaults
+						),
+					});
+				}
+			}
+
+			NormalizeDialogueEditorEntry(entry);
+			document.dialogues.emplace_back(std::move(entry));
+		}
+	}
+
+	NormalizeDialogueEditorDocument(document);
+	return document;
+}
+
+[[nodiscard]] json BuildDialogueEditorDefinition(
+	const DialogueEditorDocument& document
+) {
+	json root = document.defaults;
+	root["continue_key"] = document.continue_keys;
+	root["start"] = document.start;
+	root["scroll"] = document.typewriter;
+	root["dialogues"] = json::object();
+
+	for (const auto& entry : document.dialogues) {
+		json value{
+			{ "repeatable", entry.repeatable },
+			{ "next", entry.next },
+			{ "behavior", entry.behavior },
+			{ "initial_variant", entry.initial_variant },
+			{ "variants", json::array() },
+		};
+
+		for (const auto& variant : entry.variants) {
+			value["variants"].push_back(variant.source);
+		}
+
+		root["dialogues"][entry.name] = std::move(value);
+	}
+
+	return root;
+}
+
+[[nodiscard]] bool DialogueEditorNameExists(
+	const DialogueEditorDocument& document,
+	std::string_view name,
+	std::optional<std::size_t> ignore = std::nullopt
+) {
+	for (std::size_t i{ 0 }; i < document.dialogues.size(); ++i) {
+		if (ignore == i) {
+			continue;
+		}
+		if (document.dialogues[i].name == name) {
+			return true;
+		}
+	}
+	return false;
+}
+
+[[nodiscard]] std::string MakeUniqueDialogueEditorName(
+	const DialogueEditorDocument& document,
+	std::string_view base = "dialogue"
+) {
+	if (!DialogueEditorNameExists(document, base)) {
+		return std::string{ base };
+	}
+
+	for (std::size_t suffix{ 2 };; ++suffix) {
+		const std::string candidate{
+			std::string{ base } + "_" + std::to_string(suffix)
+		};
+		if (!DialogueEditorNameExists(document, candidate)) {
+			return candidate;
+		}
+	}
+}
+
+void RenameDialogueEditorEntry(
+	DialogueEditorDocument& document,
+	std::size_t index,
+	std::string_view new_name
+) {
+	if (index >= document.dialogues.size() || new_name.empty()) {
+		return;
+	}
+
+	const std::string old_name{ document.dialogues[index].name };
+	if (old_name == new_name) {
+		return;
+	}
+
+	document.dialogues[index].name = std::string{ new_name };
+
+	if (document.start == old_name) {
+		document.start = std::string{ new_name };
+	}
+
+	for (auto& entry : document.dialogues) {
+		if (entry.next == old_name) {
+			entry.next = std::string{ new_name };
+		}
+	}
+}
+
+[[nodiscard]] std::size_t DialogueEditorSelectedIndex(
+	DialogueEditorDocument& document,
+	ManualFeatureState& state
+) {
+	NormalizeDialogueEditorDocument(document);
+
+	const auto it{ std::ranges::find_if(
+		document.dialogues,
+		[&](const DialogueEditorEntryDraft& entry) {
+			return entry.name == state.dialogue_key;
+		}
+	) };
+
+	if (it != document.dialogues.end()) {
+		return static_cast<std::size_t>(
+			std::distance(document.dialogues.begin(), it)
+		);
+	}
+
+	const auto start_it{ std::ranges::find_if(
+		document.dialogues,
+		[&](const DialogueEditorEntryDraft& entry) {
+			return entry.name == document.start;
+		}
+	) };
+
+	const std::size_t index{
+		start_it != document.dialogues.end()
+			? static_cast<std::size_t>(
+				std::distance(document.dialogues.begin(), start_it)
+			)
+			: 0
+	};
+	state.dialogue_key = document.dialogues[index].name;
+	state.dialogue_variant_index = 0;
+	state.dialogue_preview_page = 0;
+	return index;
+}
+
+struct DialoguePageNumberPreview {
+	std::string source{};
+	std::vector<std::size_t> line_page_numbers{};
+};
+
+void AppendDialoguePagePreviewLine(
+	DialoguePageNumberPreview& preview,
+	std::string_view line,
+	std::size_t page_number
+) {
+	if (!preview.line_page_numbers.empty()) {
+		preview.source.push_back('\n');
+	}
+
+	preview.source.append(line);
+	const bool blank{
+		std::ranges::all_of(
+			line,
+			[](unsigned char c) {
+				return std::isspace(c) != 0;
+			}
+		)
+	};
+	preview.line_page_numbers.emplace_back(blank ? 0 : page_number);
+}
+
+[[nodiscard]] DialoguePageNumberPreview BuildDialoguePageNumberPreview(
+	EditorContext& ctx,
+	std::string_view source,
+	const DialoguePageProperties& properties
+) {
+	DialoguePageNumberPreview preview;
+	auto pages{ ::ptgn::impl::PaginateDialogueSource(
+		ctx.editor.GetAssetManager(),
+		source,
+		properties
+	) };
+
+	for (std::size_t page_index{ 0 }; page_index < pages.size(); ++page_index) {
+		if (page_index > 0) {
+			AppendDialoguePagePreviewLine(preview, {}, 0);
+		}
+
+		const std::string page_source{
+			SerializeStyledTextToRichText(
+				pages[page_index].styled_text,
+				pages[page_index].properties.text_defaults
+			)
+		};
+
+		if (page_source.empty()) {
+			AppendDialoguePagePreviewLine(preview, {}, 0);
+			continue;
+		}
+
+		std::size_t line_begin{ 0 };
+		while (line_begin <= page_source.size()) {
+			const std::size_t newline{
+				page_source.find('\n', line_begin)
+			};
+			const std::size_t line_end{
+				newline == std::string::npos
+					? page_source.size()
+					: newline
+			};
+			AppendDialoguePagePreviewLine(
+				preview,
+				std::string_view{ page_source }.substr(
+					line_begin,
+					line_end - line_begin
+				),
+				page_index + 1
+			);
+
+			if (newline == std::string::npos) {
+				break;
+			}
+			line_begin = newline + 1;
+		}
+	}
+
+	return preview;
+}
+
+void DrawDialoguePreviewNavigation(
+	ManualFeatureState& state,
+	std::size_t page_count
+) {
+	if (page_count == 0) {
+		state.dialogue_preview_page = 0;
+		return;
+	}
+
+	state.dialogue_preview_page = std::min(
+		state.dialogue_preview_page,
+		page_count - 1
+	);
+
+	const bool has_previous{ state.dialogue_preview_page > 0 };
+	const bool has_next{ state.dialogue_preview_page + 1 < page_count };
+
+	ImGui::BeginDisabled(!has_previous);
+	if (ImGui::Button("<##PreviousDialoguePage")) {
+		--state.dialogue_preview_page;
+	}
+	ImGui::EndDisabled();
+
+	const std::size_t range_begin{
+		state.dialogue_preview_page > 2
+			? state.dialogue_preview_page - 2
+			: 0
+	};
+	const std::size_t range_end{
+		std::min(page_count, state.dialogue_preview_page + 3)
+	};
+
+	for (std::size_t i{ range_begin }; i < range_end; ++i) {
+		ImGui::SameLine();
+		const bool selected{ i == state.dialogue_preview_page };
+		if (selected) {
+			ImGui::PushStyleColor(
+				ImGuiCol_Button,
+				ImGui::GetStyleColorVec4(ImGuiCol_ButtonActive)
+			);
+		}
+
+		const std::string label{
+			std::to_string(i + 1) + "##DialoguePreviewPage"
+		};
+		if (ImGui::Button(label.c_str())) {
+			state.dialogue_preview_page = i;
+		}
+
+		if (selected) {
+			ImGui::PopStyleColor();
+		}
+	}
+
+	ImGui::SameLine();
+	ImGui::BeginDisabled(!has_next);
+	if (ImGui::Button(">##NextDialoguePage")) {
+		++state.dialogue_preview_page;
+	}
+	ImGui::EndDisabled();
+
+	ImGui::SameLine();
+	const float page_input_width{
+		ImGui::CalcTextSize("000").x +
+		ImGui::GetStyle().FramePadding.x * 2.0f +
+		4.0f
+	};
+	ImGui::SetNextItemWidth(page_input_width);
+	int requested_page{
+		static_cast<int>(state.dialogue_preview_page + 1)
+	};
+	if (ImGui::InputInt(
+			"##DialoguePreviewPageNumber",
+			&requested_page,
+			0,
+			0,
+			ImGuiInputTextFlags_CharsDecimal
+		)) {
+		requested_page = std::clamp(
+			requested_page,
+			1,
+			static_cast<int>(page_count)
+		);
+		state.dialogue_preview_page =
+			static_cast<std::size_t>(requested_page - 1);
+	}
+
+	ImGui::SameLine();
+	ImGui::TextDisabled("of %zu", page_count);
+}
+
+void DrawDialogueTabStripBegin(const char* id) {
+	ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2{ 0.0f, 0.0f });
+	ImGui::BeginChild(
+		id,
+		ImVec2{
+			std::max(1.0f, ImGui::GetContentRegionAvail().x),
+			ImGui::GetFrameHeight() + 1.0f
+		},
+		ImGuiChildFlags_None,
+		ImGuiWindowFlags_NoScrollbar |
+			ImGuiWindowFlags_NoScrollWithMouse
+	);
+}
+
+void ApplyDialogueTabBarHorizontalWheel() {
+	ImGuiTabBar* tab_bar{ ImGui::GetCurrentTabBar() };
+	if (!tab_bar ||
+		!ImGui::IsWindowHovered(ImGuiHoveredFlags_AllowWhenBlockedByActiveItem)) {
+		return;
+	}
+
+	const ImGuiIO& io{ ImGui::GetIO() };
+	float wheel{ io.MouseWheelH };
+	if (wheel == 0.0f && io.KeyShift) {
+		wheel = io.MouseWheel;
+	}
+	if (wheel == 0.0f) {
+		return;
+	}
+
+	const float scrolling_width{
+		std::max(
+			0.0f,
+			tab_bar->ScrollingRectMaxX - tab_bar->ScrollingRectMinX
+		)
+	};
+	const float maximum_scroll{
+		std::max(0.0f, tab_bar->WidthAllTabs - scrolling_width)
+	};
+	const float step{ ImGui::GetFontSize() * 5.0f };
+	tab_bar->ScrollingTarget = std::clamp(
+		tab_bar->ScrollingTarget - wheel * step,
+		0.0f,
+		maximum_scroll
+	);
+	tab_bar->ScrollingAnim = tab_bar->ScrollingTarget;
+	tab_bar->ScrollingTargetDistToVisibility = 0.0f;
+}
+
+void DrawDialogueTabStripEnd() {
+	ImGui::EndChild();
+	ImGui::PopStyleVar();
+}
+
+template <typename Target>
+bool DrawFocusedDialogueControl(Target& target) {
+	if constexpr (!Target::template Supports<DialogueData>()) {
+		return false;
+	} else {
+		auto before{ target.template Capture<DialogueData>() };
+		if (!before) {
+			return false;
+		}
+
+		DialogueEditorDocument document{
+			ParseDialogueEditorDocument(*before)
+		};
+		NormalizeDialogueEditorDocument(document);
+
+		auto& state{
+			GetManualFeatureState(target.GetFeatureTargetKey())
+		};
+
+		std::size_t selected_index{
+			DialogueEditorSelectedIndex(document, state)
+		};
+
+		bool changed{ false };
+		std::string reason{ "Edit Dialogue" };
+
+		auto mark_changed = [&](std::string_view label) {
+			changed = true;
+			reason = std::string{ label };
+		};
+
+		changed |= DrawPropertyRow("Start Dialogue", [&]() {
+			bool local_changed{ false };
+			ImGui::SetNextItemWidth(-FLT_MIN);
+			if (ImGui::BeginCombo(
+					"##DialogueStart",
+					document.start.c_str()
+				)) {
+				for (const auto& candidate : document.dialogues) {
+					const bool selected{
+						document.start == candidate.name
+					};
+					if (ImGui::Selectable(
+							candidate.name.c_str(),
+							selected
+						)) {
+						document.start = candidate.name;
+						local_changed = true;
+						reason = "Change Start Dialogue";
+					}
+					if (selected) {
+						ImGui::SetItemDefaultFocus();
+					}
+				}
+				ImGui::EndCombo();
+			}
+			DrawTooltip(
+				"Dialogue key opened when this dialogue control starts without an explicit key."
+			);
+			return local_changed;
+		});
+
+		changed |= DrawPropertyRow("Continue Key", [&]() {
+			const bool local_changed{
+				DrawKeyExpression(
+					document.continue_keys,
+					"##DialogueContinueKey",
+					"Enter, Space or Left Ctrl + Enter"
+				)
+			};
+			if (local_changed) {
+				reason = "Edit Dialogue Continue Key";
+			}
+			return local_changed;
+		});
+
+		changed |= DrawPropertyRow("Typewriter Text", [&]() {
+			bool local_changed{ false };
+			bool typewriter{ document.typewriter };
+			if (ImGui::Checkbox("##DialogueTypewriter", &typewriter)) {
+				document.typewriter = typewriter;
+				local_changed = true;
+				reason = "Toggle Dialogue Typewriter Text";
+			}
+			DrawTooltip(
+				"Reveal dialogue text over time. Pages marked Instant still appear immediately."
+			);
+
+			ImGui::SameLine();
+			ImGui::TextDisabled("Duration");
+			ImGui::SameLine();
+			const float duration_width{
+				std::max(1.0f, ImGui::GetContentRegionAvail().x)
+			};
+			if (DrawDurationTextInput(
+					"##DialogueTypewriterDuration",
+					document.defaults.scroll_duration,
+					duration_width,
+					!document.typewriter,
+					"Duration used to reveal a typewriter page."
+				)) {
+				local_changed = true;
+				reason = "Edit Dialogue Typewriter Duration";
+			}
+			return local_changed;
+		});
+
+		if (ImGui::TreeNodeEx(
+				"Layout##DialogueLayout",
+				ImGuiTreeNodeFlags_SpanAvailWidth |
+					ImGuiTreeNodeFlags_FramePadding
+			)) {
+			AutoLabelWidthScope labels{ "DialogueLayoutFields" };
+			auto draw_root = [&](std::string_view label, auto& value) {
+				if (DrawValue(target.ctx, label, value)) {
+					mark_changed("Edit Dialogue Layout");
+				}
+			};
+			draw_root("Box Size", document.defaults.box_size);
+			draw_root("Padding", document.defaults.padding);
+			draw_root(
+				"Horizontal Align",
+				document.defaults.horizontal_align
+			);
+			draw_root(
+				"Vertical Align",
+				document.defaults.vertical_align
+			);
+			draw_root("Wrap Mode", document.defaults.wrap_mode);
+			draw_root(
+				"Overflow Mode",
+				document.defaults.overflow_mode
+			);
+			ImGui::TreePop();
+		}
+
+		if (ImGui::TreeNodeEx(
+				"Text Defaults##DialogueTextDefaults",
+				ImGuiTreeNodeFlags_SpanAvailWidth |
+					ImGuiTreeNodeFlags_FramePadding
+			)) {
+			AutoLabelWidthScope labels{ "DialogueTextDefaultFields" };
+			auto& defaults{ document.defaults.text_defaults };
+			auto draw_default = [&](std::string_view label, auto& value) {
+				if (DrawValue(target.ctx, label, value)) {
+					mark_changed("Edit Dialogue Text Defaults");
+				}
+			};
+			draw_default("Font", defaults.font);
+			draw_default("Color", defaults.style.color);
+			draw_default("Size", defaults.style.size);
+			draw_default(
+				"Bold Weight",
+				defaults.style.bold_weight
+			);
+			draw_default("Kerning", defaults.style.kerning);
+			draw_default("Tracking", defaults.style.tracking);
+			draw_default(
+				"Line Spacing",
+				defaults.style.line_spacing
+			);
+			draw_default("Flags", defaults.style.flags);
+			draw_default("Distance Field", defaults.style.sdf);
+			draw_default("Effect", defaults.style.effect);
+			ImGui::TreePop();
+		}
+
+		ImGui::Spacing();
+
+		std::optional<std::size_t> rename_dialogue;
+		std::optional<std::size_t> duplicate_dialogue;
+		std::optional<std::size_t> delete_dialogue;
+		bool add_dialogue{ false };
+
+		DrawDialogueTabStripBegin("##DialogueKeyTabStrip");
+		if (ImGui::BeginTabBar(
+				"##DialogueKeys",
+				ImGuiTabBarFlags_AutoSelectNewTabs |
+					ImGuiTabBarFlags_FittingPolicyScroll |
+					ImGuiTabBarFlags_NoTabListScrollingButtons
+			)) {
+			for (std::size_t i{ 0 };
+				 i < document.dialogues.size();
+				 ++i) {
+				ImGui::PushID(static_cast<int>(i));
+				const bool active{
+					ImGui::BeginTabItem(
+						document.dialogues[i].name.c_str()
+					)
+				};
+
+				if (ImGui::BeginPopupContextItem(
+						"##DialogueTabContext"
+					)) {
+					if (ImGui::MenuItem("Rename")) {
+						rename_dialogue = i;
+					}
+					if (ImGui::MenuItem("Duplicate")) {
+						duplicate_dialogue = i;
+					}
+					ImGui::BeginDisabled(
+						document.dialogues.size() <= 1
+					);
+					if (ImGui::MenuItem("Delete")) {
+						delete_dialogue = i;
+					}
+					ImGui::EndDisabled();
+					ImGui::EndPopup();
+				}
+
+				if (active) {
+					if (state.dialogue_key !=
+						document.dialogues[i].name) {
+						state.dialogue_key =
+							document.dialogues[i].name;
+						state.dialogue_variant_index = 0;
+						state.dialogue_preview_page = 0;
+					}
+					selected_index = i;
+					ImGui::EndTabItem();
+				}
+				ImGui::PopID();
+			}
+
+			if (ImGui::TabItemButton(
+					"+##AddDialogueKey",
+					ImGuiTabItemFlags_Trailing |
+						ImGuiTabItemFlags_NoTooltip
+				)) {
+				add_dialogue = true;
+			}
+			ApplyDialogueTabBarHorizontalWheel();
+			ImGui::EndTabBar();
+		}
+		DrawDialogueTabStripEnd();
+
+		if (add_dialogue) {
+			const std::string name{
+				MakeUniqueDialogueEditorName(document)
+			};
+			document.dialogues.emplace_back(
+				DialogueEditorEntryDraft{
+					.name = name,
+					.variants = {
+						DialogueEditorVariantDraft{}
+					},
+				}
+			);
+			state.dialogue_key = name;
+			state.dialogue_variant_index = 0;
+			state.dialogue_preview_page = 0;
+			selected_index = document.dialogues.size() - 1;
+			mark_changed("Add Dialogue Key");
+		}
+
+		if (rename_dialogue.has_value()) {
+			const std::size_t index{ *rename_dialogue };
+			state.dialogue_rename_key =
+				document.dialogues[index].name;
+			state.dialogue_rename_buffer =
+				document.dialogues[index].name;
+			state.dialogue_rename_requested = true;
+		}
+
+		if (duplicate_dialogue.has_value()) {
+			const std::size_t index{ *duplicate_dialogue };
+			auto duplicate{ document.dialogues[index] };
+			duplicate.name = MakeUniqueDialogueEditorName(
+				document,
+				duplicate.name + "_copy"
+			);
+			document.dialogues.insert(
+				document.dialogues.begin() +
+					static_cast<std::ptrdiff_t>(index + 1),
+				std::move(duplicate)
+			);
+			state.dialogue_key =
+				document.dialogues[index + 1].name;
+			state.dialogue_variant_index = 0;
+			state.dialogue_preview_page = 0;
+			selected_index = index + 1;
+			mark_changed("Duplicate Dialogue Key");
+		}
+
+		if (delete_dialogue.has_value() &&
+			document.dialogues.size() > 1) {
+			const std::size_t index{ *delete_dialogue };
+			const std::string deleted{
+				document.dialogues[index].name
+			};
+			document.dialogues.erase(
+				document.dialogues.begin() +
+					static_cast<std::ptrdiff_t>(index)
+			);
+
+			if (document.start == deleted) {
+				document.start =
+					document.dialogues.front().name;
+			}
+			for (auto& entry : document.dialogues) {
+				if (entry.next == deleted) {
+					entry.next.clear();
+				}
+			}
+
+			selected_index = std::min(
+				index,
+				document.dialogues.size() - 1
+			);
+			state.dialogue_key =
+				document.dialogues[selected_index].name;
+			state.dialogue_variant_index = 0;
+			state.dialogue_preview_page = 0;
+			mark_changed("Delete Dialogue Key");
+		}
+
+		if (state.dialogue_rename_requested) {
+			ImGui::OpenPopup("Rename Dialogue Key");
+			state.dialogue_rename_requested = false;
+		}
+
+		if (ImGui::BeginPopupModal(
+				"Rename Dialogue Key",
+				nullptr,
+				ImGuiWindowFlags_AlwaysAutoResize
+			)) {
+			if (ImGui::IsWindowAppearing()) {
+				ImGui::SetKeyboardFocusHere();
+			}
+
+			ImGui::SetNextItemWidth(300.0f);
+			ImGui::InputText(
+				"##DialogueRename",
+				&state.dialogue_rename_buffer
+			);
+
+			const auto rename_it{ std::ranges::find_if(
+				document.dialogues,
+				[&](const DialogueEditorEntryDraft& entry) {
+					return state.dialogue_rename_key.has_value() &&
+						entry.name ==
+							state.dialogue_rename_key.value();
+				}
+			) };
+			const std::size_t rename_index{
+				rename_it != document.dialogues.end()
+					? static_cast<std::size_t>(
+						std::distance(
+							document.dialogues.begin(),
+							rename_it
+						)
+					)
+					: std::string::npos
+			};
+			const bool rename_valid{
+				rename_index < document.dialogues.size() &&
+				!state.dialogue_rename_buffer.empty() &&
+				!DialogueEditorNameExists(
+					document,
+					state.dialogue_rename_buffer,
+					rename_index
+				)
+			};
+
+			ImGui::BeginDisabled(!rename_valid);
+			if (ImGui::Button("Rename")) {
+				const std::string renamed{
+					state.dialogue_rename_buffer
+				};
+				RenameDialogueEditorEntry(
+					document,
+					rename_index,
+					renamed
+				);
+				state.dialogue_key = renamed;
+				state.dialogue_rename_key.reset();
+				mark_changed("Rename Dialogue Key");
+				ImGui::CloseCurrentPopup();
+			}
+			ImGui::EndDisabled();
+
+			ImGui::SameLine();
+			if (ImGui::Button("Cancel")) {
+				state.dialogue_rename_key.reset();
+				ImGui::CloseCurrentPopup();
+			}
+
+			ImGui::EndPopup();
+		}
+
+		NormalizeDialogueEditorDocument(document);
+		selected_index = DialogueEditorSelectedIndex(
+			document,
+			state
+		);
+		auto& entry{ document.dialogues[selected_index] };
+
+		changed |= DrawPropertyRow("Next Dialogue", [&]() {
+			const float spacing{ ImGui::GetStyle().ItemSpacing.x };
+			const float repeat_width{
+				ImGui::GetFrameHeight() +
+				ImGui::GetStyle().ItemInnerSpacing.x +
+				ImGui::CalcTextSize("Repeatable").x
+			};
+			const float combo_width{
+				std::max(
+					120.0f,
+					ImGui::GetContentRegionAvail().x -
+						repeat_width -
+						spacing
+				)
+			};
+
+			bool local_changed{ false };
+			const std::string preview{
+				entry.next.empty()
+					? std::string{ "(none)" }
+					: entry.next
+			};
+			ImGui::SetNextItemWidth(combo_width);
+			if (ImGui::BeginCombo(
+					"##DialogueNext",
+					preview.c_str()
+				)) {
+				if (ImGui::Selectable(
+						"(none)",
+						entry.next.empty()
+					)) {
+					entry.next.clear();
+					local_changed = true;
+					reason = "Clear Next Dialogue";
+				}
+
+				for (const auto& candidate : document.dialogues) {
+					const bool selected{
+						entry.next == candidate.name
+					};
+					if (ImGui::Selectable(
+							candidate.name.c_str(),
+							selected
+						)) {
+						entry.next = candidate.name;
+						local_changed = true;
+						reason = "Change Next Dialogue";
+					}
+				}
+				ImGui::EndCombo();
+			}
+			DrawTooltip(
+				"Optional key selected by SetNextDialogue() for this dialogue key."
+			);
+
+			ImGui::SameLine();
+			bool repeatable{ entry.repeatable };
+			if (ImGui::Checkbox("Repeatable", &repeatable)) {
+				entry.repeatable = repeatable;
+				local_changed = true;
+				reason = "Toggle Dialogue Repeatable";
+			}
+			DrawTooltip(
+				"If disabled, this dialogue key can only open once. Stored variants are preserved but hidden."
+			);
+			return local_changed;
+		});
+
+		NormalizeDialogueEditorEntry(entry);
+		state.dialogue_variant_index = std::min(
+			state.dialogue_variant_index,
+			entry.variants.size() - 1
+		);
+
+		if (entry.repeatable) {
+			if (ImGui::BeginTable(
+					"##DialogueBehaviorRow",
+					4,
+					ImGuiTableFlags_SizingStretchProp
+				)) {
+				ImGui::TableSetupColumn(
+					"BehaviorLabel",
+					ImGuiTableColumnFlags_WidthFixed,
+					ImGui::CalcTextSize("Behavior").x +
+						ImGui::GetStyle().ItemInnerSpacing.x
+				);
+				ImGui::TableSetupColumn(
+					"BehaviorCombo",
+					ImGuiTableColumnFlags_WidthStretch,
+					1.0f
+				);
+				ImGui::TableSetupColumn(
+					"InitialVariantLabel",
+					ImGuiTableColumnFlags_WidthFixed,
+					ImGui::CalcTextSize("Initial Variant").x +
+						ImGui::GetStyle().ItemInnerSpacing.x
+				);
+				ImGui::TableSetupColumn(
+					"InitialVariantCombo",
+					ImGuiTableColumnFlags_WidthStretch,
+					1.0f
+				);
+				ImGui::TableNextRow();
+
+				ImGui::TableSetColumnIndex(0);
+				ImGui::AlignTextToFramePadding();
+				ImGui::TextUnformatted("Behavior");
+
+				ImGui::TableSetColumnIndex(1);
+				const char* behavior_preview{
+					entry.behavior == DialogueBehavior::Sequential
+						? "Sequential"
+						: "Random"
+				};
+				ImGui::SetNextItemWidth(-FLT_MIN);
+				if (ImGui::BeginCombo(
+						"##DialogueBehavior",
+						behavior_preview
+					)) {
+					for (const DialogueBehavior behavior :
+						 { DialogueBehavior::Sequential,
+						   DialogueBehavior::Random }) {
+						const bool selected{
+							entry.behavior == behavior
+						};
+						const char* label{
+							behavior == DialogueBehavior::Sequential
+								? "Sequential"
+								: "Random"
+						};
+						if (ImGui::Selectable(label, selected)) {
+							entry.behavior = behavior;
+							mark_changed(
+								"Change Dialogue Variant Behavior"
+							);
+						}
+					}
+					ImGui::EndCombo();
+				}
+				DrawTooltip(
+					"Random still uses Initial Variant deterministically on the first open."
+				);
+
+				ImGui::TableSetColumnIndex(2);
+				ImGui::AlignTextToFramePadding();
+				ImGui::TextUnformatted("Initial Variant");
+
+				ImGui::TableSetColumnIndex(3);
+				const std::string initial_preview{
+					"Variant " + std::to_string(entry.initial_variant + 1)
+				};
+				ImGui::SetNextItemWidth(-FLT_MIN);
+				if (ImGui::BeginCombo(
+						"##DialogueInitialVariant",
+						initial_preview.c_str()
+					)) {
+					for (std::size_t i{ 0 };
+						 i < entry.variants.size();
+						 ++i) {
+						const std::string label{
+							"Variant " + std::to_string(i + 1)
+						};
+						if (ImGui::Selectable(
+								label.c_str(),
+								entry.initial_variant == i
+							)) {
+							entry.initial_variant = i;
+							mark_changed(
+								"Change Initial Dialogue Variant"
+							);
+						}
+					}
+					ImGui::EndCombo();
+				}
+				ImGui::EndTable();
+			}
+
+			std::optional<std::size_t> duplicate_variant;
+			std::optional<std::size_t> delete_variant;
+			bool add_variant{ false };
+
+			DrawDialogueTabStripBegin(
+				"##DialogueVariantTabStrip"
+			);
+			if (ImGui::BeginTabBar(
+					"##DialogueVariants",
+					ImGuiTabBarFlags_AutoSelectNewTabs |
+						ImGuiTabBarFlags_FittingPolicyScroll |
+						ImGuiTabBarFlags_NoTabListScrollingButtons
+				)) {
+				for (std::size_t i{ 0 };
+					 i < entry.variants.size();
+					 ++i) {
+					ImGui::PushID(static_cast<int>(i));
+					const std::string label{
+						"Variant " + std::to_string(i + 1)
+					};
+					const bool active{
+						ImGui::BeginTabItem(label.c_str())
+					};
+
+					if (ImGui::BeginPopupContextItem(
+							"##VariantTabContext"
+						)) {
+						if (ImGui::MenuItem("Duplicate")) {
+							duplicate_variant = i;
+						}
+						ImGui::BeginDisabled(
+							entry.variants.size() <= 1
+						);
+						if (ImGui::MenuItem("Delete")) {
+							delete_variant = i;
+						}
+						ImGui::EndDisabled();
+						ImGui::EndPopup();
+					}
+
+					if (active) {
+						if (state.dialogue_variant_index != i) {
+							state.dialogue_variant_index = i;
+							state.dialogue_preview_page = 0;
+						}
+						ImGui::EndTabItem();
+					}
+					ImGui::PopID();
+				}
+
+				if (ImGui::TabItemButton(
+						"+##AddDialogueVariant",
+						ImGuiTabItemFlags_Trailing |
+							ImGuiTabItemFlags_NoTooltip
+					)) {
+					add_variant = true;
+				}
+				ApplyDialogueTabBarHorizontalWheel();
+				ImGui::EndTabBar();
+			}
+			DrawDialogueTabStripEnd();
+
+			if (add_variant) {
+				entry.variants.emplace_back();
+				state.dialogue_variant_index =
+					entry.variants.size() - 1;
+				state.dialogue_preview_page = 0;
+				mark_changed("Add Dialogue Variant");
+			}
+
+			if (duplicate_variant.has_value()) {
+				const std::size_t index{ *duplicate_variant };
+				entry.variants.insert(
+					entry.variants.begin() +
+						static_cast<std::ptrdiff_t>(index + 1),
+					entry.variants[index]
+				);
+				state.dialogue_variant_index = index + 1;
+				state.dialogue_preview_page = 0;
+				mark_changed("Duplicate Dialogue Variant");
+			}
+
+			if (delete_variant.has_value() &&
+				entry.variants.size() > 1) {
+				const std::size_t index{ *delete_variant };
+				entry.variants.erase(
+					entry.variants.begin() +
+						static_cast<std::ptrdiff_t>(index)
+				);
+				NormalizeDialogueEditorEntry(entry);
+				state.dialogue_variant_index = std::min(
+					state.dialogue_variant_index,
+					entry.variants.size() - 1
+				);
+				state.dialogue_preview_page = 0;
+				mark_changed("Delete Dialogue Variant");
+			}
+		} else {
+			state.dialogue_variant_index = 0;
+		}
+
+		NormalizeDialogueEditorEntry(entry);
+		const std::size_t variant_index{
+			std::min(
+				state.dialogue_variant_index,
+				entry.variants.size() - 1
+			)
+		};
+		auto& variant{ entry.variants[variant_index] };
+
+		const DialoguePageNumberPreview page_number_preview{
+			BuildDialoguePageNumberPreview(
+				target.ctx,
+				variant.source,
+				document.defaults
+			)
+		};
+
+		ImGui::PushID(static_cast<int>(selected_index));
+		ImGui::PushID(static_cast<int>(variant_index));
+		if (DrawRichTextEditor(
+				target.ctx,
+				variant.source,
+				document.defaults.text_defaults,
+				RichTextEditorOptions{
+					.show_preview = false,
+					.line_count = 8,
+					.show_defaults = false,
+					.show_page_numbers_button = true,
+					.line_page_numbers = std::span<const std::size_t>{
+						page_number_preview.line_page_numbers
+					},
+					.page_number_preview_source =
+						page_number_preview.source,
+					.standalone_line_tag =
+						::ptgn::impl::kDialogueInstantPageTag,
+					.standalone_line_button_label = "Instant",
+					.standalone_line_tooltip =
+						"Toggle [[instant]] on a blank page divider. With text selected, place it above that paragraph so the following page skips the typewriter reveal.",
+				}
+			)) {
+			mark_changed("Edit Dialogue Variant");
+		}
+
+		auto pages{ ::ptgn::impl::PaginateDialogueSource(
+			target.ctx.editor.GetAssetManager(),
+			variant.source,
+			document.defaults
+		) };
+
+		if (pages.empty()) {
+			state.dialogue_preview_page = 0;
+			ImGui::TextDisabled("No preview page.");
+		} else {
+			state.dialogue_preview_page = std::min(
+				state.dialogue_preview_page,
+				pages.size() - 1
+			);
+
+			ImGui::SeparatorText("Preview");
+
+			TextBox preview_box{
+				pages[state.dialogue_preview_page]
+					.properties
+					.ToTextBox()
+			};
+			const TextLayout preview_layout{
+				::ptgn::impl::BuildTextLayout(
+					target.ctx.editor.GetAssetManager(),
+					pages[state.dialogue_preview_page]
+						.styled_text,
+					preview_box
+				)
+			};
+			constexpr float preview_height{ 190.0f };
+			const float preview_padding{ 24.0f };
+			const float preview_available_width{
+				std::max(
+					1.0f,
+					ImGui::GetContentRegionAvail().x
+				)
+			};
+			const float preview_available_height{
+				std::max(
+					1.0f,
+					preview_height -
+						ImGui::GetStyle().WindowPadding.y * 2.0f
+				)
+			};
+			const bool horizontal_overflow{
+				preview_layout.size.x + preview_padding >
+				preview_available_width
+			};
+			const bool vertical_overflow{
+				preview_layout.size.y + preview_padding >
+				preview_available_height
+			};
+			ImGuiWindowFlags preview_flags{ ImGuiWindowFlags_None };
+			if (!horizontal_overflow && !vertical_overflow) {
+				preview_flags |=
+					ImGuiWindowFlags_NoScrollbar |
+					ImGuiWindowFlags_NoScrollWithMouse;
+			} else if (horizontal_overflow) {
+				preview_flags |= ImGuiWindowFlags_HorizontalScrollbar;
+			}
+
+			ImGui::BeginChild(
+				"##DialoguePagePreview",
+				ImVec2{ -FLT_MIN, preview_height },
+				ImGuiChildFlags_Borders |
+					ImGuiChildFlags_ResizeY,
+				preview_flags
+			);
+			DrawRichTextPreview(
+				target.ctx,
+				pages[state.dialogue_preview_page]
+					.styled_text,
+				&preview_box
+			);
+			ImGui::EndChild();
+
+			DrawDialoguePreviewNavigation(
+				state,
+				pages.size()
+			);
+		}
+
+		ImGui::PopID();
+		ImGui::PopID();
+
+		if (!changed) {
+			return false;
+		}
+
+		NormalizeDialogueEditorDocument(document);
+		DialogueData updated{ *before };
+		updated.SetDefinition(
+			BuildDialogueEditorDefinition(document)
+		);
+		target.template SetLive<DialogueData>(updated);
+
+		auto after{ target.template Capture<DialogueData>() };
+		TrackComponentState(
+			target,
+			reason,
+			std::move(before),
+			std::move(after),
+			true
+		);
+		return true;
+	}
+}
+
 template <typename Target>
 bool DrawFocusedControlSpecific(Target& target, FocusedUIControlType type) {
 	bool changed{ false };
@@ -2717,6 +4181,10 @@ bool DrawFocusedControlSpecific(Target& target, FocusedUIControlType type) {
 			}
 			break;
 
+		case FocusedUIControlType::Dialogue:
+			changed |= DrawFocusedDialogueControl(target);
+			break;
+
 		case FocusedUIControlType::Conflict: changed |= DrawUIControlConflict(target); break;
 
 		case FocusedUIControlType::None:	 break;
@@ -2777,15 +4245,6 @@ bool DrawManagedVisualChild(EditorContext& ctx, Entity child, std::string_view l
 }
 
 template <typename Target>
-[[nodiscard]] bool HasDialogueControl(const Target& target) {
-	if constexpr (requires { target.entity; }) {
-		return target.entity && target.entity.template Has<DialogueData>();
-	} else {
-		return false;
-	}
-}
-
-template <typename Target>
 bool DrawUIFeatureImpl(Target& target) {
 	if (!HasUIFeature(target)) {
 		return false;
@@ -2814,7 +4273,6 @@ bool DrawUIFeatureImpl(Target& target) {
 	const bool has_tooltip_hover{
 		HasTargetComponent<Target, ::ptgn::impl::TooltipHoverData>(target)
 	};
-	const bool has_dialogue{ HasDialogueControl(target) };
 
 	const auto header{ DrawFeatureHeader(
 		target, InspectorFeature::UI, "UI", ImGuiTreeNodeFlags_DefaultOpen, UIFeatureComponents{},
@@ -2838,7 +4296,22 @@ bool DrawUIFeatureImpl(Target& target) {
 				return true;
 			}
 		}
-		if (control_type != FocusedUIControlType::Conflict) {
+		if (control_type == FocusedUIControlType::Dialogue) {
+			changed |= DrawFocusedControlSpecific(target, control_type);
+
+			if constexpr (std::same_as<std::remove_cvref_t<Target>, EntityInspectorTarget>) {
+				changed |= DrawManagedVisualChild(
+					target.ctx,
+					FindDialogueManagedPart(target.entity, DialoguePartRole::Text),
+					"Text"
+				);
+				changed |= DrawManagedVisualChild(
+					target.ctx,
+					FindDialogueManagedPart(target.entity, DialoguePartRole::Background),
+					"Background"
+				);
+			}
+		} else if (control_type != FocusedUIControlType::Conflict) {
 			const bool has_button_base{
 				HasTargetComponent<Target, ::ptgn::impl::ButtonData>(target)
 			};
@@ -2945,33 +4418,7 @@ bool DrawUIFeatureImpl(Target& target) {
 		}
 	}
 
-	if (has_dialogue) {
-		ImGui::SeparatorText("Dialogue");
-		if constexpr (requires { target.entity; }) {
-			EntityInspectorTarget& dialogue_target{ target };
-			changed |= DrawFocusedComponent<EntityInspectorTarget, DialogueData>(
-				dialogue_target, "Dialogue", [&](DialogueData& data) {
-					AutoLabelWidthScope labels{ "FocusedDialogueFields" };
-					const bool local_changed{
-						DrawValue(target.ctx, "Continue Key", data.continue_key)
-					};
-					ImGui::TextDisabled("Current Dialogue: %s", data.current_dialogue.c_str());
-					ImGui::TextDisabled(
-						"Runtime: line %zu, page %zu, %s", data.current_line, data.current_page,
-						data.open ? "open" : "closed"
-					);
-					return local_changed;
-				}
-			);
-			changed |= DrawManagedVisualChild(
-				target.ctx, FindDialogueManagedPart(target.entity, DialoguePartRole::Text), "Text"
-			);
-			changed |= DrawManagedVisualChild(
-				target.ctx, FindDialogueManagedPart(target.entity, DialoguePartRole::Background),
-				"Background"
-			);
-		}
-	}
+
 
 	return changed;
 }

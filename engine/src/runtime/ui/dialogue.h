@@ -2,6 +2,7 @@
 
 #include <cstdint>
 #include <optional>
+#include <span>
 #include <string>
 #include <string_view>
 #include <unordered_map>
@@ -19,15 +20,16 @@
 #include "renderer/text/text_layout.h"
 #include "renderer/text/text_style.h"
 #include "runtime/ecs/entity.h"
-#include "runtime/ui/button_config.h"
 #include "runtime/graphics/sprite.h"
 #include "runtime/graphics/text/text.h"
 #include "runtime/scripting/script.h"
+#include "runtime/ui/button_config.h"
 #include "serialization/json/json.h"
 #include "serialization/serialize.h"
 
 namespace ptgn {
 
+class AssetManager;
 class DialogueBox;
 class Scene;
 
@@ -57,7 +59,10 @@ struct DialogueWaitScript final : Script {
 	PTGN_REFLECT_EMPTY(DialogueWaitScript)
 
 private:
-	void OnKeyPressed(Key key) const;
+	void OnKeyPressed(Key key);
+	void OnKeyReleased(Key key);
+
+	std::vector<Key> held_keys_{};
 };
 
 struct DialogueScrollScript final : Script {
@@ -81,8 +86,6 @@ struct DialoguePageProperties {
 	[[nodiscard]] TextBox ToTextBox() const;
 	void ApplyToText(Text text) const;
 
-	/// @brief Base rich-text values used by untagged dialogue text.
-	/// Rich-text markup can override these per span without changing the page baseline.
 	TextRunDefaults text_defaults{};
 
 	V2_float box_size{};
@@ -100,37 +103,67 @@ struct DialoguePage {
 	StyledText styled_text{};
 	DialoguePageProperties properties{};
 
-	DialoguePage() = default;
+	/// @brief If true, this page skips the typewriter reveal and appears immediately.
+	bool instant{ false };
 
+	DialoguePage() = default;
 	DialoguePage(StyledText styled_text, const DialoguePageProperties& properties);
 };
 
-struct DialogueLine {
+namespace impl {
+
+/// @brief Dialogue-only divider control. Put this on its own line between pages to make the
+/// following page appear immediately even when Typewriter Text is enabled.
+inline constexpr std::string_view kDialogueInstantPageTag{ "[[instant]]" };
+
+/// @brief Dialogue-specific authoring pagination. A blank source line (two or more real
+/// newlines) creates a manual page break. A single real newline and the two-character
+/// sequence \\n are in-page line breaks before ordinary text pagination.
+[[nodiscard]] std::vector<DialoguePage> PaginateDialogueSource(
+	AssetManager& asset_manager, std::string_view source,
+	const DialoguePageProperties& properties, std::string_view split_end = "...",
+	std::string_view split_begin = {}
+);
+
+[[nodiscard]] std::string DialogueKeyName(Key key);
+[[nodiscard]] bool ValidateDialogueKeyExpression(
+	std::string_view expression, std::string* error = nullptr
+);
+[[nodiscard]] bool DialogueKeyExpressionMatches(
+	std::string_view expression, std::span<const Key> held_keys
+);
+
+} // namespace impl
+
+struct DialogueVariant {
 	std::vector<DialoguePage> pages{};
 };
 
 struct DialogueEntry {
-	std::size_t index{ 0 };
+	std::size_t initial_variant{ 0 };
 	bool repeatable{ true };
 	DialogueBehavior behavior{ DialogueBehavior::Sequential };
 	bool scroll{ true };
 	std::string next_dialogue{};
 
-	std::vector<DialogueLine> lines{};
-	std::vector<std::size_t> used_line_indices{};
+	std::vector<DialogueVariant> variants{};
 
-	[[nodiscard]] std::size_t PickRandomIndex() const;
-	const DialogueLine* GetCurrentDialogueLine() const;
+	std::size_t variant_cursor{ 0 };
+	std::vector<std::size_t> used_variant_indices{};
+	bool opened{ false };
 
-	std::optional<std::size_t> GetNewDialogueLine();
+	void ResetRuntimeState();
+	[[nodiscard]] std::size_t PickRandomVariantIndex() const;
+	const DialogueVariant* GetCurrentDialogueVariant() const;
+	std::optional<std::size_t> GetNewDialogueVariant();
 };
 
 using DialogueMap = std::unordered_map<std::string, DialogueEntry, StringHash, std::equal_to<>>;
 
 struct DialogueData {
-	Key continue_key{ Key::Enter };
+	std::string continue_keys{ "Enter" };
 
-	std::size_t current_line{ 0 };
+	std::size_t current_variant{ 0 };
 	std::size_t current_page{ 0 };
 	std::string current_dialogue{};
 
@@ -138,7 +171,22 @@ struct DialogueData {
 
 	DialogueMap dialogues{};
 
+	/// @brief Canonical authoring definition serialized by the component.
+	/// Runtime pages are rebuilt from this JSON and are never written back into scene files.
+	json definition = json::object();
+
+	/// @brief Runtime-only invalidation flag. Editor changes update Definition and mark compiled
+	/// variants dirty; gameplay recompiles them before the dialogue is opened.
+	bool runtime_dirty{ true };
+
+	[[nodiscard]] static json MakeDefaultDefinition();
+
+	[[nodiscard]] const json& Definition() const;
+	void SetDefinition(json value);
+	void MarkRuntimeDirty();
+
 	void ClearRuntimeState();
+	void RebuildRuntime(const Scene& scene);
 	void LoadFromJson(
 		const Scene& scene, const json& root, const DialoguePageProperties& default_properties
 	);
@@ -167,6 +215,10 @@ public:
 	[[nodiscard]] DialogueData& Data();
 	[[nodiscard]] const DialogueData& Data() const;
 
+	[[nodiscard]] std::string_view GetContinueKeys() const;
+	DialogueBox& SetContinueKeys(std::string_view continue_keys);
+
+	// Convenience compatibility for single-key callers.
 	Key GetContinueKey() const;
 	DialogueBox& SetContinueKey(Key continue_key);
 
@@ -182,7 +234,7 @@ public:
 	DialogueBox& SetNextDialogue();
 
 	DialogueEntry* GetCurrentDialogue();
-	DialogueLine* GetCurrentDialogueLine();
+	DialogueVariant* GetCurrentDialogueVariant();
 	DialoguePage* GetCurrentDialoguePage();
 
 	Text TextPart();
@@ -198,6 +250,7 @@ private:
 	[[nodiscard]] std::optional<Entity> TryPart(DialoguePartRole role) const;
 	Entity Part(DialoguePartRole role);
 
+	void EnsureRuntimeData();
 	void ApplyCurrentPage();
 	void StartCurrentPageScroll();
 	void StopCurrentPageScroll();
@@ -212,8 +265,8 @@ void from_json(const json& j, DialoguePageProperties& properties);
 void to_json(json& j, const DialoguePage& page);
 void from_json(const json& j, DialoguePage& page);
 
-void to_json(json& j, const DialogueLine& line);
-void from_json(const json& j, DialogueLine& line);
+void to_json(json& j, const DialogueVariant& variant);
+void from_json(const json& j, DialogueVariant& variant);
 
 void to_json(json& j, const DialogueEntry& dialogue);
 void from_json(const json& j, DialogueEntry& dialogue);

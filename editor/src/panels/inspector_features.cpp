@@ -56,8 +56,7 @@ bool DrawAddFeatureMenu(Target& target) {
 		PhysicsFeatureComponents{}
 	);
 	item_with_default.template operator()<::ptgn::impl::ButtonData>(
-		InspectorFeature::UI, "UI", HasFeatureComponent<Target, ::ptgn::impl::ButtonData>(target),
-		UIFeatureComponents{}
+		InspectorFeature::UI, "UI", HasUIFeature(target), UIFeatureComponents{}
 	);
 	if (!primary_render_target && !visual_exists) {
 		item_with_default.template operator()<::ptgn::impl::CameraData>(
