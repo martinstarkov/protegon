@@ -298,8 +298,10 @@ struct PaletteFileResult {
 	const std::vector<std::uint8_t>& bytes,
 	std::size_t offset
 ) {
-	return static_cast<std::uint16_t>(bytes[offset]) |
-		(static_cast<std::uint16_t>(bytes[offset + 1]) << 8u);
+	return static_cast<std::uint16_t>(
+		static_cast<std::uint32_t>(bytes[offset]) |
+		(static_cast<std::uint32_t>(bytes[offset + 1]) << 8u)
+	);
 }
 
 [[nodiscard]] inline std::uint32_t ReadLe32(
