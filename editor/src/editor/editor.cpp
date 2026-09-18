@@ -72,7 +72,6 @@
 #include "runtime/scene/scene_manager.h"
 #include "serialization/json/json.h"
 #include "tools/debug/debug_system.h"
-#include "panels/test_panel.h"
 
 namespace ptgn::editor {
 
@@ -2902,11 +2901,7 @@ void Editor::DrawPanels() {
 	scene_list_panel_.OnRender(*context_);
 	screen_effects_panel_.OnRender(*context_);
 	inspector_panel_.OnRender(*context_);
-
-	// TODO: Remove. Temporary.
-	static bool dialogue_editor_open{ true };
-	DrawDialogueEditorDemoWindow(*context_, &dialogue_editor_open);
-
+	
 	if (ConsumeAcceptedAssetKeyDrop()) {
 		scene_asset_dependencies_dirty_ = true;
 	}
