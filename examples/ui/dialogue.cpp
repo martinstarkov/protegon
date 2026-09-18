@@ -9,7 +9,6 @@
 #include "core/log.h"
 #include "core/math/geometry/origin.h"
 #include "core/util/file.h"
-#include "nlohmann/json.hpp"
 #include "runtime/asset/asset_manager.h"
 #include "runtime/ecs/entity.h"
 #include "runtime/ecs/entity_hierarchy.h"

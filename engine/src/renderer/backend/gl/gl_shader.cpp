@@ -5,7 +5,6 @@
 #include <filesystem>
 #include <iterator>
 #include <list>
-#include <nlohmann/json.hpp>
 #include <ostream>
 #include <ranges>
 #include <span>
@@ -31,7 +30,7 @@
 #include "renderer/resources/shader.h"
 #include "renderer/pipeline/shader_preprocessor.h"
 #include "runtime/asset/engine_shader_library.h"
-#include "serialization/json/fwd.h"
+#include "serialization/json/json.h"
 
 namespace ptgn::impl::gl {
 

@@ -29,7 +29,6 @@
 #include <functional>
 #include <list>
 #include <mutex>
-#include <nlohmann/json.hpp>
 #include <optional>
 #include <ranges>
 #include <string>
@@ -67,7 +66,7 @@
 #include "runtime/audio/audio_system.h"
 #include "runtime/graphics/text/font.h"
 #include "runtime/graphics/text/font_system.h"
-#include "serialization/json/fwd.h"
+#include "serialization/json/json.h"
 #include "serialization/json/json_file.h"
 
 namespace ptgn {

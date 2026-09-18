@@ -3,7 +3,6 @@
 #include <algorithm>
 #include <functional>
 #include <list>
-#include <nlohmann/json.hpp>
 #include <string>
 #include <unordered_map>
 #include <utility>
@@ -22,7 +21,7 @@
 #include "runtime/scene/scene_context.h"
 #include "runtime/scene/scene_manager.h"
 #include "runtime/ui/button.h"
-#include "serialization/json/fwd.h"
+#include "serialization/json/json.h"
 
 namespace ptgn {
 

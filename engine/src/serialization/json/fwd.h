@@ -1,5 +1,6 @@
 #pragma once
 
+#define JSON_BRACE_INIT_COPY_SEMANTICS 1
 #include <nlohmann/json_fwd.hpp>
 
 namespace ptgn {

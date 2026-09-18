@@ -1,7 +1,5 @@
 #include "runtime/scene/scene.h"
 
-#include <nlohmann/json.hpp>
-
 #include "app/application.h"
 #include "app/editor.h"
 #include "runtime/asset/asset_manager.h"

@@ -1,7 +1,6 @@
 #pragma once
 
 #include <concepts>
-#include <nlohmann/json.hpp>
 #include <vector>
 
 #include "core/util/type_info.h"

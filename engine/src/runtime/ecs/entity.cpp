@@ -4,7 +4,6 @@
 
 #include <cstdint>
 #include <memory>
-#include <nlohmann/json.hpp>
 #include <optional>
 #include <string>
 #include <string_view>
@@ -26,7 +25,7 @@
 #include "runtime/scene/scene_camera.h"
 #include "runtime/scripting/script.h"
 #include "serialization/json/archiver.h"
-#include "serialization/json/fwd.h"
+#include "serialization/json/json.h"
 
 namespace ptgn {
 
