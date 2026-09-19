@@ -5,6 +5,8 @@
 #include <string>
 #include <string_view>
 
+#include "core/util/time.h"
+
 namespace ptgn {
 
 struct StyledText;
@@ -23,6 +25,18 @@ struct RichTextVariableOption {
 	std::string_view label{};
 	std::string_view variable{};
 	std::string_view preview{};
+};
+
+struct RichTextPortraitExpressionOption {
+	std::string_view key{};
+	std::string_view label{};
+};
+
+struct RichTextPortraitSpeakerOption {
+	std::string_view key{};
+	std::string_view label{};
+	std::string_view default_expression{};
+	std::span<const RichTextPortraitExpressionOption> expressions{};
 };
 
 struct RichTextEditorSelection {
@@ -60,11 +74,24 @@ struct RichTextEditorOptions {
 	/// the authored source.
 	std::string_view page_number_preview_source{};
 
-	/// @brief Optional standalone source-line control exposed immediately after the Effects combo.
-	/// The control is toggled on the selected blank divider, or inserted above the selected paragraph.
+	/// @brief Optional generic standalone source-line control exposed immediately after Effects.
 	std::string_view standalone_line_tag{};
 	std::string_view standalone_line_button_label{};
 	std::string_view standalone_line_tooltip{};
+
+	/// @brief Dialogue page-duration authoring control. When enabled, a single Duration button
+	/// manages either an instant marker or a timed [[duration=...]] marker for the selected page.
+	bool show_page_duration_button{ false };
+	std::string_view page_instant_tag{};
+	std::string_view page_duration_tag_prefix{};
+	std::string_view page_duration_tag_suffix{};
+	milliseconds page_duration_default{ 1000 };
+
+	/// @brief Dialogue portrait page control. Portrait metadata is authored as standalone lines.
+	bool show_portrait_button{ false };
+	std::span<const RichTextPortraitSpeakerOption> portrait_speakers{};
+	std::string_view portrait_tag_prefix{};
+	std::string_view portrait_tag_suffix{};
 };
 
 /// @brief Unified rich-text source editor used by text components and context-specific UI.
