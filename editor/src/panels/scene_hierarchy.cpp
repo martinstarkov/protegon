@@ -25,6 +25,7 @@
 #include "core/util/file.h"
 #include "editor/editor.h"
 #include "editor/editor_context.h"
+#include "editor/renamable_item.h"
 #include "panels/scene_list.h"
 #include "runtime/animation/animation.h"
 #include "runtime/asset/asset_manager.h"
@@ -1129,14 +1130,16 @@ void DrawSceneHierarchyContents(
 	Entity entity_to_delete;
 	PendingHierarchyDrop pending_drop;
 
+	RenameEditStateRef entity_rename_state{
+		focus_entity_rename, entity_rename_text, entity_rename_error
+	};
+
 	if (renaming_entity.has_value() && (renaming_entity->scene_key != scene.GetTag() ||
 										renaming_entity->runtime != scene.IsRuntime() ||
 										!renaming_entity->entity_uuid.has_value() ||
 										!scene.GetEntity(renaming_entity->entity_uuid.value()))) {
 		renaming_entity.reset();
-		entity_rename_text.clear();
-		entity_rename_error.clear();
-		focus_entity_rename = false;
+		CancelRename(entity_rename_state);
 	}
 
 	ImGui::SetNextItemWidth(-1.0f);
@@ -1215,60 +1218,12 @@ void DrawSceneHierarchyContents(
 		const UUID entity_uuid{ entity.Get<UUID>() };
 		ImGui::PushID(entity_uuid);
 
-		if (renaming_entity.has_value() && renaming_entity->scene_key == scene.GetTag() &&
+		const bool renaming{
+			renaming_entity.has_value() &&
+			renaming_entity->scene_key == scene.GetTag() &&
 			renaming_entity->runtime == scene.IsRuntime() &&
-			renaming_entity->entity_uuid == entity_uuid) {
-			if (focus_entity_rename) {
-				ImGui::SetKeyboardFocusHere();
-				focus_entity_rename = false;
-			}
-
-			ImGui::SetNextItemWidth(-FLT_MIN);
-
-			const bool submitted{ ImGui::InputText(
-				"##RenameEntity", &entity_rename_text,
-				ImGuiInputTextFlags_EnterReturnsTrue | ImGuiInputTextFlags_AutoSelectAll
-			) };
-
-			if (ImGui::IsItemClicked(ImGuiMouseButton_Left)) {
-				entity_left_clicked_this_frame = true;
-			}
-
-			const bool cancel{ ImGui::IsItemActive() && ImGui::IsKeyPressed(ImGuiKey_Escape) };
-
-			const bool commit{ submitted || ImGui::IsItemDeactivated() };
-
-			if (cancel) {
-				renaming_entity.reset();
-				entity_rename_text.clear();
-				entity_rename_error.clear();
-				focus_entity_rename = false;
-			} else if (commit) {
-				auto name{ TrimWhitespace(entity_rename_text) };
-
-				if (name.empty()) {
-					entity_rename_error = "Entity name cannot be empty.";
-					focus_entity_rename = true;
-				} else {
-					if (name != entity.Get<Tag>().value) {
-						entity_to_rename   = entity;
-						entity_rename_name = std::move(name);
-					}
-
-					renaming_entity.reset();
-					entity_rename_text.clear();
-					entity_rename_error.clear();
-					focus_entity_rename = false;
-				}
-			}
-
-			if (!entity_rename_error.empty()) {
-				ImGui::TextDisabled("%s", entity_rename_error.c_str());
-			}
-
-			ImGui::PopID();
-			return;
-		}
+			renaming_entity->entity_uuid == entity_uuid
+		};
 
 		ImGuiTreeNodeFlags flags{ ImGuiTreeNodeFlags_OpenOnArrow |
 								  ImGuiTreeNodeFlags_OpenOnDoubleClick |
@@ -1286,10 +1241,11 @@ void DrawSceneHierarchyContents(
 		}
 
 		Entity dragged{ GetDraggedEntity(scene) };
-
 		bool hierarchy_drag_active{ static_cast<bool>(dragged) };
 		bool can_drop_on_entity{ hierarchy_drag_active && CanReparent(dragged, entity) };
-		bool invalid_entity_drop_target{ hierarchy_drag_active && !can_drop_on_entity };
+		bool invalid_entity_drop_target{
+			!renaming && hierarchy_drag_active && !can_drop_on_entity
+		};
 
 		if (invalid_entity_drop_target) {
 			constexpr ImVec4 kTransparent{ 0.0f, 0.0f, 0.0f, 0.0f };
@@ -1300,18 +1256,56 @@ void DrawSceneHierarchyContents(
 		}
 
 		auto label{ entity.Get<Tag>() };
-		bool open{ ImGui::TreeNodeEx("##Entity", flags, "%s", label.value.c_str()) };
+		const auto node{ DrawRenamableTreeNode(
+			renaming,
+			entity_rename_state,
+			"##Entity",
+			label.value,
+			flags,
+			[&](std::string_view candidate) {
+				auto name{ TrimWhitespace(std::string{ candidate }) };
+				return name.empty() ? std::string{ "Entity name cannot be empty." }
+								: std::string{};
+			},
+			[&](std::string_view candidate) {
+				auto name{ TrimWhitespace(std::string{ candidate }) };
+				if (name != entity.Get<Tag>().value) {
+					entity_to_rename = entity;
+					entity_rename_name = std::move(name);
+				}
+			},
+			RenamableTreeNodeOptions{
+				.rename_width = -FLT_MIN,
+				.rename_input_id = "##RenameEntity",
+			}
+		) };
 
 		if (invalid_entity_drop_target) {
 			ImGui::PopStyleColor(3);
 		}
 
-		if (ImGui::IsItemClicked(ImGuiMouseButton_Left)) {
-			selected_entity				   = entity;
+		if (renaming) {
+			if (node.left_clicked) {
+				entity_left_clicked_this_frame = true;
+			}
+
+			if (node.rename_result != RenameResult::None) {
+				renaming_entity.reset();
+				CancelRename(entity_rename_state);
+			}
+
+			ImGui::PopID();
+			return;
+		}
+
+		bool open{ node.open };
+
+		if (node.left_clicked) {
+			selected_entity = entity;
 			entity_left_clicked_this_frame = true;
 		}
 
-		if (ImGui::IsItemClicked(ImGuiMouseButton_Right)) {
+		if (node.right_clicked) {
 			selected_entity = entity;
 		}
 
@@ -1339,81 +1333,84 @@ void DrawSceneHierarchyContents(
 			ImGui::EndDragDropTarget();
 		}
 
-		if (ImGui::BeginPopupContextItem()) {
-			DrawCreateEntityMenu(ctx, scene, entity, selected_entity);
-
-			if (ImGui::MenuItem("Rename")) {
+		DrawRenamableContextMenu(
+			node,
+			"EntityContext",
+			label.value,
+			[&](std::string_view current_name) {
 				renaming_entity = SceneEntitySelection{
-					.scene_key	 = scene.GetTag(),
-					.runtime	 = scene.IsRuntime(),
+					.scene_key = scene.GetTag(),
+					.runtime = scene.IsRuntime(),
 					.entity_uuid = entity_uuid,
 				};
-				entity_rename_text = entity.Get<Tag>().value;
-				entity_rename_error.clear();
-				focus_entity_rename = true;
-			}
+				BeginRename(entity_rename_state, current_name);
+			},
+			[&]() {
+				DrawCreateEntityMenu(ctx, scene, entity, selected_entity);
+			},
+			[&]() {
+				ImGui::BeginDisabled(duplication_lock_reason.has_value());
 
-			ImGui::BeginDisabled(duplication_lock_reason.has_value());
-
-			if (ImGui::MenuItem("Duplicate")) {
-				entity_to_duplicate = entity;
-			}
-
-			ImGui::EndDisabled();
-
-			ImGui::BeginDisabled(!project_root.has_value());
-
-			if (ImGui::MenuItem("Save As Prefab")) {
-				const PrefabKey created_key{ ctx.commands.CreatePrefabAsset(
-					CreatePrefabFromEntity(scene.ctx().asset, project_root.value(), entity)
-				) };
-
-				if (!created_key.value.empty()) {
-					selected_prefab = created_key;
-
-					ImGui::SetWindowFocus("Prefabs###PrefabsWindow");
-				}
-			}
-
-			ImGui::EndDisabled();
-
-			ImGui::Separator();
-
-			if (ptgn::HasParent(entity)) {
-				bool can_move_to_root{ CanReparent(entity, {}) };
-
-				ImGui::BeginDisabled(!can_move_to_root);
-
-				if (ImGui::MenuItem("Move To Root")) {
-					pending_drop = PendingHierarchyDrop{
-						.entity{ entity },
-						.parent{},
-					};
+				if (ImGui::MenuItem("Duplicate")) {
+					entity_to_duplicate = entity;
 				}
 
 				ImGui::EndDisabled();
-			}
 
-			ImGui::BeginDisabled(deletion_lock_reason.has_value());
+				ImGui::BeginDisabled(!project_root.has_value());
 
-			if (ImGui::MenuItem("Delete")) {
-				entity_to_delete = entity;
-			}
+				if (ImGui::MenuItem("Save As Prefab")) {
+					const PrefabKey created_key{ ctx.commands.CreatePrefabAsset(
+						CreatePrefabFromEntity(scene.ctx().asset, project_root.value(), entity)
+					) };
 
-			ImGui::EndDisabled();
+					if (!created_key.value.empty()) {
+						selected_prefab = created_key;
 
-			DrawRestrictionReasons(
-				{
-					child_acceptance_reason,
-					hierarchy_restriction_reason,
-					duplication_lock_reason,
-					deletion_lock_reason,
+						ImGui::SetWindowFocus("Prefabs###PrefabsWindow");
+					}
 				}
-			);
 
-			ImGui::EndPopup();
-		}
+				ImGui::EndDisabled();
 
+				ImGui::Separator();
+
+				if (ptgn::HasParent(entity)) {
+					bool can_move_to_root{ CanReparent(entity, {}) };
+
+					ImGui::BeginDisabled(!can_move_to_root);
+
+					if (ImGui::MenuItem("Move To Root")) {
+						pending_drop = PendingHierarchyDrop{
+							.entity{ entity },
+							.parent{},
+						};
+					}
+
+					ImGui::EndDisabled();
+				}
+
+				ImGui::BeginDisabled(deletion_lock_reason.has_value());
+
+				if (ImGui::MenuItem("Delete")) {
+					entity_to_delete = entity;
+				}
+
+				ImGui::EndDisabled();
+
+				DrawRestrictionReasons(
+					{
+						child_acceptance_reason,
+						hierarchy_restriction_reason,
+						duplication_lock_reason,
+						deletion_lock_reason,
+					}
+				);
+			},
+			RenamableContextMenuOptions{
+				.rename_placement = RenameMenuPlacement::Middle,
+			}
+		);
 		if (has_visible_children && open) {
 			for (Entity child : children) {
 				self(self, child, recursion_depth + 1);
