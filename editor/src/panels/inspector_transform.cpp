@@ -170,9 +170,10 @@ void SetTransformFeatureLive(Target& target, const TransformFeatureState<Target>
 template <typename Visuals>
 void ApplyButtonVisualTransformDelta(
 	ComponentState<Visuals>& visuals, std::optional<ButtonVisualState> selected_state,
-	const Transform& before, const Transform& after
+	const Transform& before, const Transform& after, const Depth& depth,
+	bool ignore_position, bool ignore_rotation, bool ignore_scale, bool ignore_depth
 ) {
-	if (!visuals || !selected_state || before == after) {
+	if (!visuals || !selected_state) {
 		return;
 	}
 
@@ -183,22 +184,27 @@ void ApplyButtonVisualTransformDelta(
 		return;
 	}
 
-	auto& transform{ *visual.transform };
-	transform.position += after.position - before.position;
-	transform.rotation =
-		Radians{ transform.rotation.value + after.rotation.value - before.rotation.value };
+	if (before != after) {
+		auto& transform{ *visual.transform };
+		transform.position += after.position - before.position;
+		transform.rotation =
+			Radians{ transform.rotation.value + after.rotation.value - before.rotation.value };
 
-	constexpr float epsilon{ 0.000001f };
-
-	if (std::abs(before.scale.x) > epsilon) {
-		transform.scale.x *= after.scale.x / before.scale.x;
+		constexpr float epsilon{ 0.000001f };
+		if (std::abs(before.scale.x) > epsilon) {
+			transform.scale.x *= after.scale.x / before.scale.x;
+		}
+		if (std::abs(before.scale.y) > epsilon) {
+			transform.scale.y *= after.scale.y / before.scale.y;
+		}
+		transform.ClampScale();
 	}
 
-	if (std::abs(before.scale.y) > epsilon) {
-		transform.scale.y *= after.scale.y / before.scale.y;
-	}
-
-	transform.ClampScale();
+	visual.depth = depth.value;
+	visual.inherit_position = !ignore_position;
+	visual.inherit_rotation = !ignore_rotation;
+	visual.inherit_scale = !ignore_scale;
+	visual.inherit_depth = !ignore_depth;
 }
 
 template <typename Target>
@@ -206,19 +212,25 @@ void ApplyButtonVisualTransformDelta(
 	TransformFeatureState<Target>& state, std::optional<ButtonVisualState> selected_state,
 	const Transform& before
 ) {
-	ApplyButtonVisualTransformDelta(
-		state.button_backgrounds, selected_state, before, state.transform
-	);
-	ApplyButtonVisualTransformDelta(state.button_borders, selected_state, before, state.transform);
-	ApplyButtonVisualTransformDelta(state.button_texts, selected_state, before, state.transform);
-	ApplyButtonVisualTransformDelta(state.button_sprites, selected_state, before, state.transform);
+	auto apply = [&](auto& visuals) {
+		ApplyButtonVisualTransformDelta(
+			visuals, selected_state, before, state.transform, state.depth,
+			state.ignore_position, state.ignore_rotation, state.ignore_scale, state.ignore_depth
+		);
+	};
+	apply(state.button_backgrounds);
+	apply(state.button_borders);
+	apply(state.button_texts);
+	apply(state.button_sprites);
 }
 
 template <typename Marker>
 void ApplySliderTrackVisualTransformDelta(
-	ComponentState<Marker>& marker, const Transform& before, const Transform& after
+	ComponentState<Marker>& marker, const Transform& before, const Transform& after,
+	const Depth& depth, bool ignore_position, bool ignore_rotation, bool ignore_scale,
+	bool ignore_depth
 ) {
-	if (!marker || before == after) {
+	if (!marker) {
 		return;
 	}
 
@@ -227,32 +239,40 @@ void ApplySliderTrackVisualTransformDelta(
 	if (!marker->visual.transform.has_value()) {
 		marker->visual.transform = Transform{};
 	}
-	auto& transform{ marker->visual.transform.value() };
-
-	transform.position += after.position - before.position;
-	transform.rotation =
-		Radians{ transform.rotation.value + after.rotation.value - before.rotation.value };
-
-	constexpr float epsilon{ 0.000001f };
-	if (std::abs(before.scale.x) > epsilon) {
-		transform.scale.x *= after.scale.x / before.scale.x;
+	if (before != after) {
+		auto& transform{ marker->visual.transform.value() };
+		transform.position += after.position - before.position;
+		transform.rotation =
+			Radians{ transform.rotation.value + after.rotation.value - before.rotation.value };
+		constexpr float epsilon{ 0.000001f };
+		if (std::abs(before.scale.x) > epsilon) {
+			transform.scale.x *= after.scale.x / before.scale.x;
+		}
+		if (std::abs(before.scale.y) > epsilon) {
+			transform.scale.y *= after.scale.y / before.scale.y;
+		}
+		transform.ClampScale();
 	}
-	if (std::abs(before.scale.y) > epsilon) {
-		transform.scale.y *= after.scale.y / before.scale.y;
-	}
-
-	transform.ClampScale();
+	marker->visual.depth = depth.value;
+	marker->visual.inherit_position = !ignore_position;
+	marker->visual.inherit_rotation = !ignore_rotation;
+	marker->visual.inherit_scale = !ignore_scale;
+	marker->visual.inherit_depth = !ignore_depth;
 }
 
 template <typename Target>
 void ApplySliderTrackVisualTransformDelta(
 	TransformFeatureState<Target>& state, const Transform& before
 ) {
-	ApplySliderTrackVisualTransformDelta(
-		state.slider_track_background, before, state.transform
-	);
-	ApplySliderTrackVisualTransformDelta(state.slider_track_border, before, state.transform);
-	ApplySliderTrackVisualTransformDelta(state.slider_track_sprite, before, state.transform);
+	auto apply = [&](auto& marker) {
+		ApplySliderTrackVisualTransformDelta(
+			marker, before, state.transform, state.depth, state.ignore_position,
+			state.ignore_rotation, state.ignore_scale, state.ignore_depth
+		);
+	};
+	apply(state.slider_track_background);
+	apply(state.slider_track_border);
+	apply(state.slider_track_sprite);
 }
 
 template <typename Target>
@@ -545,8 +565,22 @@ bool DrawButtonChildStateTransformComponent(
 		if (ImGui::Checkbox("##SetTransform", &enabled)) {
 			if (enabled) {
 				visual.transform = resolved_transform;
+				visual.depth = target.template Capture<Depth>().value_or(Depth{}).value;
+				visual.inherit_position =
+					!target.template Capture<::ptgn::impl::IgnoreParentPosition>().has_value();
+				visual.inherit_rotation =
+					!target.template Capture<::ptgn::impl::IgnoreParentRotation>().has_value();
+				visual.inherit_scale =
+					!target.template Capture<::ptgn::impl::IgnoreParentScale>().has_value();
+				visual.inherit_depth =
+					!target.template Capture<::ptgn::impl::IgnoreParentDepth>().has_value();
 			} else {
 				visual.transform.reset();
+				visual.depth.reset();
+				visual.inherit_position.reset();
+				visual.inherit_rotation.reset();
+				visual.inherit_scale.reset();
+				visual.inherit_depth.reset();
 			}
 			// Transform is only an optional property of an enabled part. Toggling it must not
 			// toggle the part itself.
