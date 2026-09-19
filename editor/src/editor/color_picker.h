@@ -22,6 +22,7 @@
 
 #include "core/graphics/color.h"
 #include "editor/editor_context.h"
+#include "editor/renamable_item.h"
 
 namespace ptgn::editor {
 
@@ -44,12 +45,10 @@ struct ColorPickerUiState {
 	std::vector<bool> palette_open{};
 	std::optional<std::size_t> selected_palette{};
 	std::optional<std::size_t> renaming_palette{};
-	std::string rename_buffer{};
-	bool rename_focus_requested{ false };
+	InlineRenameState palette_rename{};
 
 	std::optional<std::pair<std::size_t, std::size_t>> renaming_color{};
-	std::string color_rename_buffer{};
-	bool color_rename_focus_requested{ false };
+	RenameModalState color_rename{};
 	std::string palette_import_error{};
 };
 
@@ -114,12 +113,8 @@ inline std::unordered_map<ImGuiID, ColorPickerUiState>& PickerStates() {
 }
 
 [[nodiscard]] inline std::string ColorDescription(Color value) {
-	if (const auto* registered{ FindRegisteredColor(value) }) {
-		return registered->key + " (" + std::to_string(value.r) + ", " +
-			std::to_string(value.g) + ", " + std::to_string(value.b) + ", " +
-			std::to_string(value.a) + ")";
-	}
-
+	// Palette entry names are palette-local and independently renameable. Do not replace the
+	// value description with a globally registered color key just because the RGBA value matches.
 	return "RGBA (" + std::to_string(value.r) + ", " + std::to_string(value.g) + ", " +
 		std::to_string(value.b) + ", " + std::to_string(value.a) + ")";
 }
@@ -149,14 +144,34 @@ inline void RecordPaletteChange(
 
 [[nodiscard]] inline bool PaletteNameExists(
 	const EditorProjectState& state,
-	std::string_view name
+	std::string_view name,
+	std::optional<std::size_t> ignore = std::nullopt
 ) {
-	return std::ranges::any_of(
-		state.color_palettes,
-		[name](const EditorColorPalette& palette) {
-			return palette.name == name;
+	for (std::size_t index{ 0 }; index < state.color_palettes.size(); ++index) {
+		if (ignore == index) {
+			continue;
 		}
-	);
+		if (state.color_palettes[index].name == name) {
+			return true;
+		}
+	}
+	return false;
+}
+
+[[nodiscard]] inline bool PaletteColorNameExists(
+	const EditorColorPalette& palette,
+	std::string_view name,
+	std::optional<std::size_t> ignore = std::nullopt
+) {
+	for (std::size_t index{ 0 }; index < palette.colors.size(); ++index) {
+		if (ignore == index) {
+			continue;
+		}
+		if (palette.colors[index].name == name) {
+			return true;
+		}
+	}
+	return false;
 }
 
 [[nodiscard]] inline std::string MakeUniquePaletteName(const EditorProjectState& state) {
@@ -543,18 +558,6 @@ struct PaletteFileResult {
 	);
 }
 
-[[nodiscard]] inline bool PaletteColorNameExists(
-	const EditorColorPalette& palette,
-	std::string_view name
-) {
-	return std::ranges::any_of(
-		palette.colors,
-		[name](const EditorPaletteColor& entry) {
-			return entry.name == name;
-		}
-	);
-}
-
 [[nodiscard]] inline std::string MakePaletteColorName(
 	const EditorColorPalette& palette,
 	Color color
@@ -613,10 +616,14 @@ inline std::size_t AppendUniqueColors(
 	return read_result.colors;
 }
 
+inline void CancelPaletteRename(ColorPickerUiState& state) {
+	state.renaming_palette.reset();
+	state.palette_rename.Cancel();
+}
+
 inline void CancelColorRename(ColorPickerUiState& state) {
 	state.renaming_color.reset();
-	state.color_rename_buffer.clear();
-	state.color_rename_focus_requested = false;
+	state.color_rename.Cancel();
 }
 
 inline void BeginColorRename(
@@ -625,11 +632,11 @@ inline void BeginColorRename(
 	std::size_t color_index,
 	std::string_view current_name
 ) {
-	// Starting a different rename always abandons the previous uncommitted edit.
+	// Only one rename interaction is active in a picker at a time.
+	CancelPaletteRename(state);
 	CancelColorRename(state);
 	state.renaming_color = std::pair{ palette_index, color_index };
-	state.color_rename_buffer = std::string{ current_name };
-	state.color_rename_focus_requested = true;
+	state.color_rename.Begin(current_name);
 }
 
 inline void AdjustColorRenameAfterDelete(
@@ -654,9 +661,10 @@ inline void BeginPaletteRename(
 	std::size_t palette_index,
 	std::string_view current_name
 ) {
+	CancelColorRename(state);
+	CancelPaletteRename(state);
 	state.renaming_palette = palette_index;
-	state.rename_buffer = std::string{ current_name };
-	state.rename_focus_requested = true;
+	state.palette_rename.Begin(current_name);
 }
 
 inline void AdjustPaletteUiStateAfterDelete(
@@ -679,9 +687,7 @@ inline void AdjustPaletteUiStateAfterDelete(
 
 	if (state.renaming_palette.has_value()) {
 		if (*state.renaming_palette == deleted_index) {
-			state.renaming_palette.reset();
-			state.rename_buffer.clear();
-			state.rename_focus_requested = false;
+			CancelPaletteRename(state);
 		} else if (*state.renaming_palette > deleted_index) {
 			--*state.renaming_palette;
 		}
@@ -734,9 +740,7 @@ inline ColorPickerResult DrawColorPickerContents(
 	}
 	if (ui_state.renaming_palette.has_value() &&
 		*ui_state.renaming_palette >= palettes.size()) {
-		ui_state.renaming_palette.reset();
-		ui_state.rename_buffer.clear();
-		ui_state.rename_focus_requested = false;
+		color_picker_detail::CancelPaletteRename(ui_state);
 	}
 	if (ui_state.renaming_color.has_value()) {
 		const auto [palette_index, color_index]{ *ui_state.renaming_color };
@@ -1076,17 +1080,13 @@ inline ColorPickerResult DrawColorPickerContents(
 
 	const ImGuiViewport* viewport{ ImGui::GetWindowViewport() };
 	const float resize_grip_height{ 7.0f };
-	const float color_rename_reserved_height{
-		ui_state.renaming_color.has_value() ? ImGui::GetFrameHeightWithSpacing() : 0.0f
-	};
 	const float viewport_bottom{ viewport
 		? viewport->WorkPos.y + viewport->WorkSize.y
 		: ImGui::GetCursorScreenPos().y + 260.0f };
 	const float available_to_bottom{ std::max(
 		1.0f,
 		viewport_bottom - ImGui::GetCursorScreenPos().y -
-			ImGui::GetStyle().WindowPadding.y * 2.0f - resize_grip_height -
-			color_rename_reserved_height
+			ImGui::GetStyle().WindowPadding.y * 2.0f - resize_grip_height
 	) };
 	const float minimum_palette_height{ std::min(140.0f, available_to_bottom) };
 	const float natural_palette_height{ std::max(
@@ -1123,127 +1123,108 @@ inline ColorPickerResult DrawColorPickerContents(
 			bool open{ ui_state.palette_open[palette_index] };
 			const bool renaming{
 				ui_state.renaming_palette.has_value() &&
-				*ui_state.renaming_palette == palette_index
+					*ui_state.renaming_palette == palette_index
 			};
 
-			bool commit_rename{ false };
-			bool cancel_rename{ false };
-
-			if (renaming) {
-				// Draw the rename editor as a normal in-flow item. Do not overlay it by
-				// rewinding the cursor over a TreeNode row: recent ImGui versions assert
-				// when SetCursorPos()/SetCursorScreenPos() extends child boundaries that way.
-				if (ui_state.rename_focus_requested) {
-					ImGui::SetKeyboardFocusHere();
-					ui_state.rename_focus_requested = false;
-				}
-
-				ImGui::SetNextItemWidth(-FLT_MIN);
-				const bool submitted{ ImGui::InputText(
-					"##PaletteRename",
-					&ui_state.rename_buffer,
-					ImGuiInputTextFlags_EnterReturnsTrue |
-						ImGuiInputTextFlags_AutoSelectAll
-				) };
-				const bool rename_hovered{ ImGui::IsItemHovered() };
-
-				if (ImGui::IsKeyPressed(ImGuiKey_Escape, false)) {
-					cancel_rename = true;
-				} else if (submitted) {
-					commit_rename = true;
-				} else {
-					const bool clicked_elsewhere{
-						(ImGui::IsMouseClicked(ImGuiMouseButton_Left) ||
-						 ImGui::IsMouseClicked(ImGuiMouseButton_Middle) ||
-						 ImGui::IsMouseClicked(ImGuiMouseButton_Right)) &&
-						!rename_hovered
-					};
-					commit_rename = clicked_elsewhere;
-				}
-			} else {
-				ImGui::SetNextItemOpen(open, ImGuiCond_Always);
-
-				ImGuiTreeNodeFlags node_flags{
-					ImGuiTreeNodeFlags_FramePadding |
+			ImGuiTreeNodeFlags node_flags{
+				ImGuiTreeNodeFlags_FramePadding |
 					ImGuiTreeNodeFlags_SpanAvailWidth |
 					ImGuiTreeNodeFlags_NoTreePushOnOpen |
 					ImGuiTreeNodeFlags_AllowOverlap
-				};
-				if (ui_state.selected_palette == palette_index) {
-					node_flags |= ImGuiTreeNodeFlags_Selected;
-				}
+			};
+			if (ui_state.selected_palette == palette_index) {
+				node_flags |= ImGuiTreeNodeFlags_Selected;
+			}
+			if (!renaming) {
+				ImGui::SetNextItemOpen(open, ImGuiCond_Always);
+			}
 
-				open = ImGui::TreeNodeEx(
-					"##PaletteNode",
-					node_flags,
-					"%s",
-					palette.name.c_str()
-				);
+			const auto palette_node{ DrawRenamableTreeNode(
+				renaming,
+				BindRenameState(ui_state.palette_rename),
+				"##PaletteNode",
+				palette.name,
+				node_flags,
+				[&](std::string_view candidate) {
+					if (candidate.empty()) {
+						return std::string{ "Palette name cannot be empty." };
+					}
+					if (color_picker_detail::PaletteNameExists(
+							ctx.project_state, candidate, palette_index
+						)) {
+						return std::string{ "A palette with this name already exists." };
+					}
+					return std::string{};
+				},
+				[&](std::string_view candidate) {
+					if (candidate != palette.name) {
+						auto before{ palettes };
+						palette.name = std::string{ candidate };
+						color_picker_detail::RecordPaletteChange(
+							ctx, "Rename Color Palette", std::move(before)
+						);
+					}
+				},
+				RenamableTreeNodeOptions{
+					.rename_width = -FLT_MIN,
+					.rename_input_id = "##PaletteRename",
+				}
+			) };
+
+			if (renaming) {
+				if (palette_node.rename_result != RenameResult::None) {
+					color_picker_detail::CancelPaletteRename(ui_state);
+				}
+			} else {
+				open = palette_node.open;
 				ui_state.palette_open[palette_index] = open;
 
-				if (ImGui::IsItemClicked(ImGuiMouseButton_Left)) {
+				if (palette_node.left_clicked) {
 					// With SpanAvailWidth and no OpenOnArrow restriction, the entire
 					// palette row selects and toggles the tree node in one click.
 					ui_state.selected_palette = palette_index;
 				}
 
-				if (ImGui::IsItemHovered() &&
-					ImGui::IsMouseClicked(ImGuiMouseButton_Right)) {
+				if (palette_node.right_clicked) {
 					ui_state.selected_palette = palette_index;
 				}
 
-				if (ImGui::BeginPopupContextItem("PaletteContext")) {
-					if (ImGui::MenuItem("Rename")) {
+				DrawRenamableContextMenu(
+					palette_node,
+					"PaletteContext",
+					palette.name,
+					[&](std::string_view current_name) {
 						color_picker_detail::BeginPaletteRename(
 							ui_state,
 							palette_index,
-							palette.name
+							current_name
 						);
-					}
-					if (ImGui::MenuItem("Import from PAL file")) {
-						if (const auto imported_colors{
-								color_picker_detail::ChoosePaletteFileColors(ctx, ui_state)
-							}) {
-							auto before{ palettes };
-							color_picker_detail::AppendUniqueColors(
-								palette,
-								*imported_colors
-							);
-							ui_state.selected_palette = palette_index;
-							ui_state.palette_open[palette_index] = true;
-							open = true;
-							color_picker_detail::RecordPaletteChange(
-								ctx,
-								"Import Palette Colors",
-								std::move(before)
-							);
+					},
+					[&]() {
+						if (ImGui::MenuItem("Import from PAL file")) {
+							if (const auto imported_colors{
+									color_picker_detail::ChoosePaletteFileColors(ctx, ui_state)
+								}) {
+								auto before{ palettes };
+								color_picker_detail::AppendUniqueColors(
+									palette,
+									*imported_colors
+								);
+								ui_state.selected_palette = palette_index;
+								ui_state.palette_open[palette_index] = true;
+								open = true;
+								color_picker_detail::RecordPaletteChange(
+									ctx,
+									"Import Palette Colors",
+									std::move(before)
+								);
+							}
+						}
+						if (ImGui::MenuItem("Delete")) {
+							palette_to_delete = palette_index;
 						}
 					}
-					if (ImGui::MenuItem("Delete")) {
-						palette_to_delete = palette_index;
-					}
-					ImGui::EndPopup();
-				}
-			}
-
-			if (cancel_rename) {
-				ui_state.renaming_palette.reset();
-				ui_state.rename_buffer.clear();
-				ui_state.rename_focus_requested = false;
-			} else if (commit_rename) {
-				if (!ui_state.rename_buffer.empty() &&
-					ui_state.rename_buffer != palette.name) {
-					auto before{ palettes };
-					palette.name = ui_state.rename_buffer;
-					color_picker_detail::RecordPaletteChange(
-						ctx,
-						"Rename Color Palette",
-						std::move(before)
-					);
-				}
-				ui_state.renaming_palette.reset();
-				ui_state.rename_buffer.clear();
-				ui_state.rename_focus_requested = false;
+				);
 			}
 
 			if (open) {
@@ -1268,43 +1249,107 @@ inline ColorPickerResult DrawColorPickerContents(
 					 color_index < palette.colors.size();
 					 ++color_index) {
 					ImGui::PushID(static_cast<int>(color_index));
-					const auto& palette_entry{ palette.colors[color_index] };
+					auto& palette_entry{ palette.colors[color_index] };
 					const Color palette_color{ palette_entry.color };
-					if (ImGui::ColorButton(
-							"##Color",
-							color_picker_detail::ToImVec4(palette_color),
-							ImGuiColorEditFlags_AlphaPreviewHalf |
-								ImGuiColorEditFlags_NoTooltip,
-							ImVec2{ swatch_size, swatch_size }
-						)) {
-						result.interaction_started = true;
-						ui_state.selected_palette = palette_index;
-						if (value != palette_color) {
-							value = palette_color;
-							result.changed = true;
+
+					const auto color_item{ DrawRenamableItem([&]() {
+						if (ImGui::ColorButton(
+								"##Color",
+								color_picker_detail::ToImVec4(palette_color),
+								ImGuiColorEditFlags_AlphaPreviewHalf |
+									ImGuiColorEditFlags_NoTooltip,
+								ImVec2{ swatch_size, swatch_size }
+							)) {
+							result.interaction_started = true;
+							ui_state.selected_palette = palette_index;
+							if (value != palette_color) {
+								value = palette_color;
+								result.changed = true;
+							}
 						}
-					}
-					if (ImGui::IsItemHovered()) {
+					}) };
+
+					if (color_item.hovered) {
 						const std::string description{
 							palette_entry.name + "\n" +
 							color_picker_detail::ColorDescription(palette_color)
 						};
 						ImGui::SetTooltip("%s", description.c_str());
 					}
-					if (ImGui::BeginPopupContextItem("ColorContext")) {
-						if (ImGui::MenuItem("Rename")) {
+
+					DrawRenamableContextMenu(
+						color_item,
+						"ColorContext",
+						palette_entry.name,
+						[&](std::string_view current_name) {
 							color_picker_detail::BeginColorRename(
 								ui_state,
 								palette_index,
 								color_index,
-								palette_entry.name
+								current_name
 							);
+						},
+						[&]() {
+							if (ImGui::MenuItem("Delete")) {
+								color_to_delete = color_index;
+							}
 						}
-						if (ImGui::MenuItem("Delete")) {
-							color_to_delete = color_index;
+					);
+
+					const bool renaming_this_color{
+						ui_state.renaming_color.has_value() &&
+						ui_state.renaming_color->first == palette_index &&
+						ui_state.renaming_color->second == color_index
+					};
+					if (renaming_this_color) {
+						const RenameResult rename_result{ DrawRenameModal(
+							ui_state.color_rename,
+							"Rename Color##RenameColorModal",
+							"##Name",
+							[&](std::string_view candidate) {
+								if (candidate.empty()) {
+									return std::string{ "Color name cannot be empty." };
+								}
+								if (color_picker_detail::PaletteColorNameExists(
+										palette, candidate, color_index
+									)) {
+									return std::string{
+										"This palette already contains a color with that name."
+									};
+								}
+								return std::string{};
+							},
+							[&](std::string_view candidate) {
+								if (candidate != palette_entry.name) {
+									auto before{ palettes };
+									palette_entry.name = std::string{ candidate };
+									color_picker_detail::RecordPaletteChange(
+										ctx, "Rename Palette Color", std::move(before)
+									);
+								}
+							},
+							RenameModalOptions{
+								.width = 320.0f,
+								.title = nullptr,
+								.draw_input_prefix = [palette_color]() {
+									const float thumbnail_size{ ImGui::GetFrameHeight() };
+									ImGui::ColorButton(
+										"##RenameColorPreview",
+										color_picker_detail::ToImVec4(palette_color),
+										ImGuiColorEditFlags_AlphaPreviewHalf |
+											ImGuiColorEditFlags_NoTooltip |
+											ImGuiColorEditFlags_NoDragDrop,
+										ImVec2{ thumbnail_size, thumbnail_size }
+									);
+									ImGui::SameLine();
+								},
+							}
+						) };
+						if (rename_result != RenameResult::None) {
+							color_picker_detail::CancelColorRename(ui_state);
 						}
-						ImGui::EndPopup();
 					}
+
 					if ((color_index + 1) % columns != 0 &&
 						color_index + 1 < palette.colors.size()) {
 						ImGui::SameLine(0.0f, swatch_spacing);
@@ -1354,83 +1399,6 @@ inline ColorPickerResult DrawColorPickerContents(
 	}
 	ImGui::EndChild();
 
-	if (ui_state.renaming_color.has_value()) {
-		const auto [palette_index, color_index]{ *ui_state.renaming_color };
-		if (palette_index < palettes.size() &&
-			color_index < palettes[palette_index].colors.size()) {
-			auto& palette_entry{ palettes[palette_index].colors[color_index] };
-			const float row_width{ ImGui::GetContentRegionAvail().x };
-			const float row_height{ ImGui::GetFrameHeight() };
-			const float row_spacing{ ImGui::GetStyle().ItemSpacing.x };
-			const float left_width{ row_width * 0.60f };
-			const float thumbnail_width{ row_height };
-			const float input_width{ std::max(
-				1.0f,
-				left_width - thumbnail_width - row_spacing
-			) };
-			const float actions_width{ std::max(
-				1.0f,
-				row_width - left_width - row_spacing
-			) };
-			const float action_width{ std::max(
-				1.0f,
-				(actions_width - row_spacing) * 0.5f
-			) };
-
-			ImGui::PushID("PaletteColorRenameRow");
-			ImGui::ColorButton(
-				"##Preview",
-				color_picker_detail::ToImVec4(palette_entry.color),
-				ImGuiColorEditFlags_AlphaPreviewHalf | ImGuiColorEditFlags_NoTooltip,
-				ImVec2{ thumbnail_width, row_height }
-			);
-			ImGui::SameLine(0.0f, row_spacing);
-
-			if (ui_state.color_rename_focus_requested) {
-				ImGui::SetKeyboardFocusHere();
-				ui_state.color_rename_focus_requested = false;
-			}
-			ImGui::SetNextItemWidth(input_width);
-			ImGui::InputText(
-				"##Name",
-				&ui_state.color_rename_buffer,
-				ImGuiInputTextFlags_AutoSelectAll
-			);
-
-			ImGui::SameLine(0.0f, row_spacing);
-			const bool cancel{ ImGui::Button(
-				"Cancel",
-				ImVec2{ action_width, row_height }
-			) };
-
-			ImGui::SameLine(0.0f, row_spacing);
-			const bool can_save{ !ui_state.color_rename_buffer.empty() };
-			ImGui::BeginDisabled(!can_save);
-			const bool save{ ImGui::Button(
-				"Save",
-				ImVec2{ action_width, row_height }
-			) };
-			ImGui::EndDisabled();
-
-			if (cancel) {
-				color_picker_detail::CancelColorRename(ui_state);
-			} else if (save && can_save) {
-				if (ui_state.color_rename_buffer != palette_entry.name) {
-					auto before{ palettes };
-					palette_entry.name = ui_state.color_rename_buffer;
-					color_picker_detail::RecordPaletteChange(
-						ctx,
-						"Rename Palette Color",
-						std::move(before)
-					);
-				}
-				color_picker_detail::CancelColorRename(ui_state);
-			}
-			ImGui::PopID();
-		} else {
-			color_picker_detail::CancelColorRename(ui_state);
-		}
-	}
 
 	ImGui::PushStyleColor(ImGuiCol_Button, ImVec4{ 0.0f, 0.0f, 0.0f, 0.0f });
 	ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4{ 0.0f, 0.0f, 0.0f, 0.0f });
