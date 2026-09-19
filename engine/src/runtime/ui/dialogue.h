@@ -1,5 +1,6 @@
 #pragma once
 
+#include <array>
 #include <cstdint>
 #include <optional>
 #include <span>
@@ -40,10 +41,24 @@ enum class DialogueBehavior {
 PTGN_REFLECT_ENUM(DialogueBehavior);
 
 enum class DialoguePartRole : std::uint8_t {
+	// Keep the first two values stable for existing serialized scenes.
 	Background,
-	Text
+	Text,
+	BackgroundOverride,
+	Border,
+	Sprite,
+	PortraitLeft,
+	PortraitCenter,
+	PortraitRight
 };
 PTGN_REFLECT_ENUM(DialoguePartRole);
+
+enum class DialoguePortraitSlot : std::uint8_t {
+	Left,
+	Center,
+	Right
+};
+PTGN_REFLECT_ENUM(DialoguePortraitSlot);
 
 namespace impl {
 
@@ -70,6 +85,9 @@ struct DialogueScrollScript final : Script {
 	void OnComplete() override;
 
 	PTGN_REFLECT_EMPTY(DialogueScrollScript)
+
+private:
+	std::size_t revealed_character_count_{ 0 };
 };
 
 } // namespace impl
@@ -99,12 +117,27 @@ struct DialoguePageProperties {
 	OverflowMode overflow_mode{ OverflowMode::Clip };
 };
 
+struct DialoguePortraitCue {
+	DialoguePortraitSlot slot{ DialoguePortraitSlot::Left };
+	/// Empty speaker hides this slot.
+	std::string speaker{};
+	/// Empty expression resolves to the speaker's default expression.
+	std::string expression{};
+
+	bool operator==(const DialoguePortraitCue&) const = default;
+};
+
 struct DialoguePage {
 	StyledText styled_text{};
 	DialoguePageProperties properties{};
 
 	/// @brief If true, this page skips the typewriter reveal and appears immediately.
 	bool instant{ false };
+
+	/// @brief Stateful portrait changes applied when this page becomes current.
+	std::vector<DialoguePortraitCue> portrait_cues{};
+	/// @brief Last authored non-hidden portrait cue on this page. If absent, the previous speaker stays active.
+	std::optional<DialoguePortraitSlot> speaking_slot{};
 
 	DialoguePage() = default;
 	DialoguePage(StyledText styled_text, const DialoguePageProperties& properties);
@@ -116,9 +149,15 @@ namespace impl {
 /// following page appear immediately even when Typewriter Text is enabled.
 inline constexpr std::string_view kDialogueInstantPageTag{ "[[instant]]" };
 
+/// @brief Prefix/suffix for a standalone page-duration override, e.g. [[duration=750ms]].
+inline constexpr std::string_view kDialogueDurationPageTagPrefix{ "[[duration=" };
+inline constexpr std::string_view kDialogueDurationPageTagSuffix{ "]]" };
+inline constexpr std::string_view kDialoguePortraitPageTagPrefix{ "[[portrait=" };
+inline constexpr std::string_view kDialoguePortraitPageTagSuffix{ "]]" };
+
 /// @brief Dialogue-specific authoring pagination. A blank source line (two or more real
 /// newlines) creates a manual page break. A single real newline and the two-character
-/// sequence \\n are in-page line breaks before ordinary text pagination.
+/// sequence `\\n` are in-page line breaks before ordinary text pagination.
 [[nodiscard]] std::vector<DialoguePage> PaginateDialogueSource(
 	AssetManager& asset_manager, std::string_view source,
 	const DialoguePageProperties& properties, std::string_view split_end = "...",
@@ -135,6 +174,53 @@ inline constexpr std::string_view kDialogueInstantPageTag{ "[[instant]]" };
 
 } // namespace impl
 
+
+struct DialoguePortraitExpression {
+	std::string display_name{};
+	ButtonSpriteVisual idle{};
+	std::optional<ButtonSpriteVisual> talking{};
+};
+
+struct DialoguePortraitActor {
+	std::string display_name{};
+	std::string default_expression{};
+	std::unordered_map<
+		std::string, DialoguePortraitExpression, StringHash, std::equal_to<>
+	> expressions{};
+};
+
+using DialoguePortraitActorMap = std::unordered_map<
+	std::string, DialoguePortraitActor, StringHash, std::equal_to<>
+>;
+
+struct DialoguePortraitRuntimeState {
+	std::string speaker{};
+	std::string expression{};
+};
+
+/// @brief Dialogue-key appearance/audio overrides. Empty optionals inherit the dialogue entity's
+/// ordinary background and have no extra border/sprite/audio behavior.
+struct DialogueSounds {
+	std::optional<AudioKey> open{};
+	std::optional<AudioKey> typewriter{};
+
+	PTGN_REFLECT(DialogueSounds, open, typewriter)
+};
+
+struct DialogueAppearance {
+	std::optional<ButtonShapeVisual> background{};
+	std::optional<ButtonShapeVisual> border{};
+	std::optional<ButtonSpriteVisual> sprite{};
+	std::optional<DialogueSounds> audio{};
+
+	[[nodiscard]] bool Empty() const {
+		return !background.has_value() && !border.has_value() &&
+			!sprite.has_value() && !audio.has_value();
+	}
+
+	PTGN_REFLECT(DialogueAppearance, background, border, sprite, audio)
+};
+
 struct DialogueVariant {
 	std::vector<DialoguePage> pages{};
 };
@@ -145,6 +231,7 @@ struct DialogueEntry {
 	DialogueBehavior behavior{ DialogueBehavior::Sequential };
 	bool scroll{ true };
 	std::string next_dialogue{};
+	DialogueAppearance appearance{};
 
 	std::vector<DialogueVariant> variants{};
 
@@ -170,6 +257,11 @@ struct DialogueData {
 	bool open{ false };
 
 	DialogueMap dialogues{};
+	DialoguePortraitActorMap portrait_actors{};
+
+	/// @brief Runtime-only portrait state. Authored page cues update these slots incrementally.
+	std::array<std::optional<DialoguePortraitRuntimeState>, 3> portrait_states{};
+	std::optional<DialoguePortraitSlot> current_speaking_slot{};
 
 	/// @brief Canonical authoring definition serialized by the component.
 	/// Runtime pages are rebuilt from this JSON and are never written back into scene files.
@@ -218,7 +310,6 @@ public:
 	[[nodiscard]] std::string_view GetContinueKeys() const;
 	DialogueBox& SetContinueKeys(std::string_view continue_keys);
 
-	// Convenience compatibility for single-key callers.
 	Key GetContinueKey() const;
 	DialogueBox& SetContinueKey(Key continue_key);
 
@@ -252,6 +343,14 @@ private:
 
 	void EnsureRuntimeData();
 	void ApplyCurrentPage();
+	void ApplyCurrentAppearance(const DialoguePageProperties& properties);
+	void ApplyCurrentPortraitCues();
+	void RefreshPortraits(const DialoguePageProperties& properties, bool talking);
+	void HidePortraits();
+	void FinishPortraitTalking();
+	void HideAppearanceOverrides();
+	void PlayOpenSound();
+	void PlayTypewriterSound();
 	void StartCurrentPageScroll();
 	void StopCurrentPageScroll();
 	void PositionTextForPage(const DialoguePageProperties& properties);
@@ -262,11 +361,23 @@ DialogueBox CreateDialogueBox(Scene& scene, Transform transform, const DialogueD
 void to_json(json& j, const DialoguePageProperties& properties);
 void from_json(const json& j, DialoguePageProperties& properties);
 
+void to_json(json& j, const DialoguePortraitCue& cue);
+void from_json(const json& j, DialoguePortraitCue& cue);
 void to_json(json& j, const DialoguePage& page);
 void from_json(const json& j, DialoguePage& page);
 
+void to_json(json& j, const DialoguePortraitExpression& expression);
+void from_json(const json& j, DialoguePortraitExpression& expression);
+void to_json(json& j, const DialoguePortraitActor& actor);
+void from_json(const json& j, DialoguePortraitActor& actor);
+
 void to_json(json& j, const DialogueVariant& variant);
 void from_json(const json& j, DialogueVariant& variant);
+
+void to_json(json& j, const DialogueSounds& sounds);
+void from_json(const json& j, DialogueSounds& sounds);
+void to_json(json& j, const DialogueAppearance& appearance);
+void from_json(const json& j, DialogueAppearance& appearance);
 
 void to_json(json& j, const DialogueEntry& dialogue);
 void from_json(const json& j, DialogueEntry& dialogue);
