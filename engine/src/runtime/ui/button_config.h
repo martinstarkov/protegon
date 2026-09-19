@@ -133,12 +133,24 @@ struct ButtonShapeVisual {
 	/// @brief Transform relative to the selected button anchor.
 	std::optional<Transform> transform{};
 
+	/// @brief Depth relative to the owning control when parent depth is inherited.
+	std::optional<float> depth{};
+
+	/// @brief Per-channel parent inheritance for the authored part transform.
+	std::optional<bool> inherit_position{};
+	std::optional<bool> inherit_rotation{};
+	std::optional<bool> inherit_scale{};
+	std::optional<bool> inherit_depth{};
+
 	std::optional<Color> color{};
 
 	/// @brief Only applicable for borders.
 	std::optional<FillStyle> fill_style{};
 
-	PTGN_REFLECT(ButtonShapeVisual, defined, size, origin, anchor, transform, color, fill_style)
+	PTGN_REFLECT(
+		ButtonShapeVisual, defined, size, origin, anchor, transform, depth, inherit_position,
+		inherit_rotation, inherit_scale, inherit_depth, color, fill_style
+	)
 };
 
 struct ButtonShapeVisuals {
@@ -177,6 +189,15 @@ struct ButtonTextVisual {
 	/// @brief Transform relative to the selected button anchor.
 	std::optional<Transform> transform{};
 
+	/// @brief Depth relative to the owning control when parent depth is inherited.
+	std::optional<float> depth{};
+
+	/// @brief Per-channel parent inheritance for the authored part transform.
+	std::optional<bool> inherit_position{};
+	std::optional<bool> inherit_rotation{};
+	std::optional<bool> inherit_scale{};
+	std::optional<bool> inherit_depth{};
+
 	/// @brief If true, the button may update the text box from the button size.
 	std::optional<bool> auto_box{};
 
@@ -184,8 +205,8 @@ struct ButtonTextVisual {
 	std::optional<Padding> padding{};
 
 	PTGN_REFLECT(
-		ButtonTextVisual, defined, styled_text, defaults, box, origin, anchor, transform, auto_box,
-		padding
+		ButtonTextVisual, defined, styled_text, defaults, box, origin, anchor, transform, depth,
+		inherit_position, inherit_rotation, inherit_scale, inherit_depth, auto_box, padding
 	)
 };
 
@@ -210,6 +231,15 @@ struct ButtonSpriteVisual {
 	/// @brief Transform relative to the selected button anchor.
 	std::optional<Transform> transform{};
 
+	/// @brief Depth relative to the owning control when parent depth is inherited.
+	std::optional<float> depth{};
+
+	/// @brief Per-channel parent inheritance for the authored part transform.
+	std::optional<bool> inherit_position{};
+	std::optional<bool> inherit_rotation{};
+	std::optional<bool> inherit_scale{};
+	std::optional<bool> inherit_depth{};
+
 	/// @brief Optional fixed display size for the sprite. If not set, the sprite uses texture size.
 	std::optional<V2_float> size{};
 
@@ -219,8 +249,8 @@ struct ButtonSpriteVisual {
 	std::optional<ButtonAnimationOptions> animation_options{};
 
 	PTGN_REFLECT(
-		ButtonSpriteVisual, defined, texture, origin, anchor, transform, size, tint, animation,
-		animation_options
+		ButtonSpriteVisual, defined, texture, origin, anchor, transform, depth, inherit_position,
+		inherit_rotation, inherit_scale, inherit_depth, size, tint, animation, animation_options
 	)
 };
 
@@ -304,8 +334,7 @@ struct ButtonShapeConfig {
 	std::optional<FillStyle> fill_style{};
 
 	PTGN_REFLECT(
-		ButtonShapeConfig, size, origin, anchor, transform, color, color_hover, color_press,
-		fill_style
+		ButtonShapeConfig, size, origin, anchor, transform, color, color_hover, color_press, fill_style
 	)
 };
 

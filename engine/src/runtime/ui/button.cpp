@@ -38,6 +38,7 @@
 #include "runtime/ecs/entity_hierarchy.h"
 #include "runtime/ecs/tag.h"
 #include "runtime/graphics/draw.h"
+#include "runtime/graphics/drawable.h"
 #include "runtime/graphics/shape.h"
 #include "runtime/graphics/sprite.h"
 #include "runtime/graphics/text/text.h"
@@ -67,6 +68,8 @@ constexpr Color kDefaultHoverButtonBorderColor{ color::LightGray };
 constexpr Color kDefaultPressButtonBorderColor{ color::Gray };
 
 constexpr float kDefaultButtonBorderWidth{ 2.0f };
+
+
 
 constexpr ButtonVisualState NormalVisualState(ButtonState state) {
 	switch (state) {
@@ -324,6 +327,56 @@ const T* ResolveProperty(
 	return nullptr;
 }
 
+template <typename Visual, std::size_t N>
+void ApplyVisualTransform(
+	Entity part, Entity owner, const std::array<Visual, N>& states, ButtonVisualState state,
+	Transform relative_transform
+) {
+	const bool inherit_position{
+		ResolveProperty(states, state, &Visual::inherit_position)
+			? *ResolveProperty(states, state, &Visual::inherit_position)
+			: true
+	};
+	const bool inherit_rotation{
+		ResolveProperty(states, state, &Visual::inherit_rotation)
+			? *ResolveProperty(states, state, &Visual::inherit_rotation)
+			: true
+	};
+	const bool inherit_scale{
+		ResolveProperty(states, state, &Visual::inherit_scale)
+			? *ResolveProperty(states, state, &Visual::inherit_scale)
+			: true
+	};
+	const bool inherit_depth{
+		ResolveProperty(states, state, &Visual::inherit_depth)
+			? *ResolveProperty(states, state, &Visual::inherit_depth)
+			: true
+	};
+	const float relative_depth{
+		ResolveProperty(states, state, &Visual::depth)
+			? *ResolveProperty(states, state, &Visual::depth)
+			: 0.0f
+	};
+
+	const Transform owner_world{ GetWorldTransform(owner) };
+	const Transform world_transform{ relative_transform.InverseRelativeTo(owner_world) };
+	Transform applied{ relative_transform };
+	if (!inherit_position) applied.position = world_transform.position;
+	if (!inherit_rotation) applied.rotation = world_transform.rotation;
+	if (!inherit_scale) applied.scale = world_transform.scale;
+	part.Add<Transform>(applied);
+	part.Add<Depth>(Depth{ inherit_depth ? relative_depth : GetDepth(owner) + relative_depth });
+
+	auto set_ignore = [part](auto tag, bool ignore) mutable {
+		using T = decltype(tag);
+		if (ignore) part.Add<T>();
+		else part.Remove<T>();
+	};
+	set_ignore(::ptgn::impl::IgnoreParentPosition{}, !inherit_position);
+	set_ignore(::ptgn::impl::IgnoreParentRotation{}, !inherit_rotation);
+	set_ignore(::ptgn::impl::IgnoreParentScale{}, !inherit_scale);
+	set_ignore(::ptgn::impl::IgnoreParentDepth{}, !inherit_depth);
+}
 void EnsureDefaultShapeVisual(impl::ButtonPart part, ButtonShapeVisual& visual) {
 	if (visual.defined) {
 		return;
@@ -1647,10 +1700,8 @@ void Button::ApplyShapeVisual(impl::ButtonPart part) const {
 	auto button_rect{ GetButtonLocalRect(*this) };
 	transform.position += button_rect.GetOriginPoint(anchor);
 
-	// Always write the resolved transform. If this state does not provide a transform override,
-	// the part must return to its inherited/default transform instead of retaining the transform
-	// that happened to be applied by the previously active visual state.
-	entity.Add<Transform>(transform);
+	// Apply the authored transform/depth and per-channel parent inheritance relative to the button.
+	ApplyVisualTransform(entity, *this, visuals.states, visual_state, transform);
 	entity.Add<Origin>(origin);
 
 	std::visit(
@@ -1755,9 +1806,7 @@ void Button::ApplyTextVisual() const {
 	Transform transform{ resolved_transform ? *resolved_transform : Transform{} };
 	transform.position += anchor_position;
 
-	// Always apply the resolved transform so removing an override immediately restores the
-	// inherited/default transform rather than leaving stale state on the managed text entity.
-	entity.Add<Transform>(transform);
+	ApplyVisualTransform(entity, *this, visuals.states, visual_state, transform);
 	if (auto value{ ResolveProperty(visuals.states, visual_state, &ButtonTextVisual::auto_box) }) {
 		auto_box = *value;
 	}
@@ -1849,9 +1898,7 @@ void Button::ApplySpriteVisual(ButtonVisualState state) const {
 	Transform transform{ resolved_transform ? *resolved_transform : Transform{} };
 	transform.position += GetButtonLocalRect(*this).GetOriginPoint(anchor);
 
-	// As with shape and text parts, a missing override means inherited/default transform, not
-	// "leave the previously applied transform untouched".
-	sprite.Add<Transform>(transform);
+	ApplyVisualTransform(entity, *this, visuals.states, state, transform);
 	if (auto value{ ResolveProperty(visuals.states, state, &ButtonSpriteVisual::size) }) {
 		size = *value;
 	}
