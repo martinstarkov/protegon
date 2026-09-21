@@ -48,19 +48,23 @@ TextureId GetTexture(Entity entity) {
 
 void TextureCrop::Update(const AnimationData& anim, std::optional<V2_int> texture_size) {
 	position = anim.GetCurrentFramePosition(texture_size);
-	size     = anim.config.frame_size;
+
+	V2_int frame_size{ anim.GetFrameSize(texture_size) };
+	size = V2_float{ frame_size };
 }
 
 TextureDrawParams GetTextureDrawParams(
 	Entity entity, V2_float size, bool flip_y, Color additional_tint
 ) {
-	return { .depth{ GetDepth(entity) },
-			 .size{ size },
-			 .origin = entity.GetOrDefault<Origin>(),
-			 .tint{ Color::Multiply(GetTint(entity), additional_tint) },
-			 .texture_coordinates{ GetTextureCoordinates(entity, flip_y) },
-			 .effects{ impl::GetEffectParams(entity) },
-			 .entity_id = entity.Get<UUID>() };
+	return TextureDrawParams{
+		.depth{ GetDepth(entity) },
+		.size{ size },
+		.origin = entity.GetOrDefault<Origin>(),
+		.tint{ Color::Multiply(GetTint(entity), additional_tint) },
+		.texture_coordinates{ GetTextureCoordinates(entity, flip_y) },
+		.effects{ GetEffectParams(entity) },
+		.entity_id{ entity.Get<UUID>() },
+	};
 }
 
 } // namespace impl
@@ -72,11 +76,8 @@ void Sprite::Draw(
 	Color additional_tint
 ) {
 	const auto texture_key{ entity.TryGet<TextureKey>() };
-	const bool has_texture_source{
-		entity.Has<impl::TextureId>() ||
-		entity.Has<Texture>() ||
-		(texture_key && !texture_key->value.empty())
-	};
+	const bool has_texture_source{ entity.Has<impl::TextureId>() || entity.Has<Texture>() ||
+								   (texture_key && !texture_key->value.empty()) };
 
 	// A sprite may intentionally have no texture configured. The editor uses this state for
 	// optional Texture Key fields, so it should simply render nothing rather than warn.
@@ -102,12 +103,15 @@ void Sprite::Draw(
 	auto texture_size{ GetDisplaySize(entity) };
 
 	if (!texture_size.has_value()) {
-		PTGN_WARN("Sprite texture (", std::invoke([&entity, &texture] -> std::string {
-			if (const auto key{ entity.TryGet<TextureKey>() }; key && !key->value.empty()) {
-				return ": " + key->value;
-			}
-			return ToString(texture);
-		}), ") does not have a valid texture size");
+		PTGN_WARN(
+			"Sprite texture (", std::invoke([&entity, &texture] -> std::string {
+				if (const auto key{ entity.TryGet<TextureKey>() }; key && !key->value.empty()) {
+					return ": " + key->value;
+				}
+				return ToString(texture);
+			}),
+			") does not have a valid texture size"
+		);
 		return;
 	}
 
@@ -199,21 +203,26 @@ std::optional<V2_float> GetDisplaySize(Entity entity) {
 }
 
 std::array<V2_float, 4> GetTextureCoordinates(Entity entity, bool flip_vertically) {
-	if (!entity) {
-		return impl::GetDefaultTextureCoordinates(flip_vertically);
+	const auto texture_size{ GetTextureSize(entity) };
+
+	if (!texture_size.has_value() || !texture_size->IsPositive()) {
+		return flip_vertically ? impl::GetDefaultTextureCoordinates<true>()
+							   : impl::GetDefaultTextureCoordinates<false>();
 	}
-	auto texture_size{ GetTextureSize(entity) };
-	if (!texture_size.has_value()) {
-		return impl::GetDefaultTextureCoordinates(flip_vertically);
+
+	V2_float source_position{};
+	V2_float source_size{ *texture_size };
+
+	if (const auto crop{ entity.TryGet<impl::TextureCrop>() }) {
+		source_position = crop->position;
+
+		if (crop->size.has_value()) {
+			source_size = *crop->size;
+		}
 	}
-	if (auto crop{ entity.TryGet<impl::TextureCrop>() }) {
-		auto crop_size{ crop->size.value_or(texture_size.value()) };
-		return impl::GetTextureCoordinates(
-			crop->position, crop_size, texture_size.value(), flip_vertically, true
-		);
-	}
+
 	return impl::GetTextureCoordinates(
-		{}, texture_size.value(), texture_size.value(), flip_vertically, true
+		source_position, source_size, *texture_size, flip_vertically, true
 	);
 }
 

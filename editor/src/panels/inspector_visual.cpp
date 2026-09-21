@@ -47,6 +47,30 @@ bool DrawRequiredInlineVisualComponentWithDefault(
 	return changed;
 }
 
+template <typename Target, typename T, typename Draw, typename Callback = std::nullptr_t>
+bool DrawImplicitDefaultVisualComponent(
+	Target& target, std::string_view label, const T& default_value, Draw&& draw,
+	Callback callback = nullptr
+) {
+	ScopedID target_scope{ target.Id() };
+	ScopedID component_scope{ static_cast<int>(Hash<T>()) };
+
+	auto before{ target.template Capture<T>() };
+	T value{ before.value_or(default_value) };
+	const bool changed{ std::invoke(std::forward<Draw>(draw), value) };
+
+	if (changed) {
+		target.template SetLive<T>(ComponentState<T>{ value }, callback);
+	}
+
+	auto after{ target.template Capture<T>() };
+	TrackComponentState(
+		target, std::string{ "Edit " } + std::string{ label }, std::move(before), std::move(after),
+		changed, callback
+	);
+	return changed;
+}
+
 template <typename Target, typename T>
 bool DrawOptionalVisualComponent(
 	Target& target, std::string_view label, bool tree = false, bool contents_read_only = false,
@@ -282,37 +306,17 @@ struct RendererRowResult {
 };
 
 template <typename Target>
-RendererRowResult DrawRendererRow(Target& target) {
+RendererRowResult DrawRendererRow(Target& target, bool allow_renderer_change = true) {
 	using Drawable = ::ptgn::impl::IDrawable;
 
 	const bool primary_scene_target{ IsPrimarySceneRenderTarget(target) };
+	allow_renderer_change &= !primary_scene_target;
 
 	auto drawable{ target.template Capture<Drawable>() };
-	auto before_visible{ target.template Capture<Visible>() };
-
-	bool visible{ before_visible ? before_visible->visible : true };
 
 	const auto* info{ drawable ? Drawable::FindInfo(drawable->hash) : nullptr };
-
 	const std::string preview{ primary_scene_target ? "Render Target"
-							   : info				? GetDrawableInspectorLabel(*info)
-													: "None" };
-
-	const float start_x{ ImGui::GetCursorPosX() };
-	const float checkbox_slot{ ImGui::GetFrameHeight() + ImGui::GetStyle().ItemSpacing.x };
-
-	ImGui::AlignTextToFramePadding();
-	ImGui::TextUnformatted("Renderer");
-	MeasurePropertyLabel("Renderer", start_x + checkbox_slot);
-	ImGui::SameLine();
-	ImGui::SetCursorPosX(GetPropertyValueX(start_x));
-
-	const float spacing{ ImGui::GetStyle().ItemSpacing.x };
-	const float visible_width{ ImGui::GetFrameHeight() + ImGui::GetStyle().ItemInnerSpacing.x +
-							   ImGui::CalcTextSize("Visible").x };
-	const float combo_width{
-		std::max(80.0f, ImGui::GetContentRegionAvail().x - visible_width - spacing)
-	};
+							   : info ? GetDrawableInspectorLabel(*info) : "None" };
 
 	bool renderer_changed{ false };
 	auto before_renderer{
@@ -321,148 +325,100 @@ RendererRowResult DrawRendererRow(Target& target) {
 
 	auto choose_renderer = [&](ComponentState<Drawable> selected) {
 		const bool same_renderer{ selected.has_value() == drawable.has_value() &&
-								  (!selected || selected->hash == drawable->hash) };
-
+			(!selected || selected->hash == drawable->hash) };
 		if (same_renderer) {
 			return;
 		}
 
 		ApplyRendererSelection(target, selected);
-
 		if (!selected) {
 			SetFeatureManuallyAdded(target.GetFeatureTargetKey(), InspectorFeature::Visual, true);
 		}
-
-		drawable		 = target.template Capture<Drawable>();
+		drawable = target.template Capture<Drawable>();
 		renderer_changed = true;
 	};
 
-	std::size_t renderer_popup_items{ 3 };
-	for (const auto& candidate : Drawable::data()) {
-		const std::string visual{ NormalizeFeatureName(GetDrawableInspectorLabel(candidate)) };
-		if (!IsShapeRenderer(visual) && !IsEffectRenderer(visual)) {
-			++renderer_popup_items;
-		}
-	}
-
-	const float renderer_popup_height{ ImGui::GetStyle().WindowPadding.y * 2.0f +
-									   static_cast<float>(renderer_popup_items) *
-										   ImGui::GetTextLineHeightWithSpacing() -
-									   ImGui::GetStyle().ItemSpacing.y };
-
-	ImGui::SetNextItemWidth(combo_width);
-
-	ImGui::BeginDisabled(primary_scene_target);
-
-	ImGui::SetNextWindowSizeConstraints(
-		ImVec2{ 0.0f, renderer_popup_height }, ImVec2{ FLT_MAX, renderer_popup_height }
-	);
-
-	if (ImGui::BeginCombo("##RendererSelector", preview.c_str())) {
-		if (!primary_scene_target) {
-			if (ImGui::Selectable("None", !drawable.has_value())) {
-				choose_renderer(std::nullopt);
+	if (allow_renderer_change) {
+	DrawPropertyRow("Renderer", [&]() {
+		std::size_t renderer_popup_items{ 3 };
+		for (const auto& candidate : Drawable::data()) {
+			const std::string visual{ NormalizeFeatureName(GetDrawableInspectorLabel(candidate)) };
+			if (!IsShapeRenderer(visual) && !IsEffectRenderer(visual)) {
+				++renderer_popup_items;
 			}
+		}
+		const float renderer_popup_height{ ImGui::GetStyle().WindowPadding.y * 2.0f +
+			static_cast<float>(renderer_popup_items) * ImGui::GetTextLineHeightWithSpacing() -
+			ImGui::GetStyle().ItemSpacing.y };
+		ImGui::SetNextWindowSizeConstraints(
+			ImVec2{ 0.0f, renderer_popup_height }, ImVec2{ FLT_MAX, renderer_popup_height }
+		);
+		ImGui::SetNextItemWidth(-FLT_MIN);
+		if (!ImGui::BeginCombo("##RendererSelector", preview.c_str())) {
+			return false;
+		}
 
-			auto draw_candidate = [&](const auto& candidate) {
-				ScopedID candidate_scope{ static_cast<const void*>(std::addressof(candidate)) };
-				const std::string label{ GetDrawableInspectorLabel(candidate) };
-				const bool selected{ drawable && drawable->hash == candidate.hash };
+		if (ImGui::Selectable("None", !drawable.has_value())) {
+			choose_renderer(std::nullopt);
+		}
 
-				if (ImGui::Selectable(label.c_str(), selected)) {
-					choose_renderer(Drawable{ candidate.hash });
-				}
+		auto draw_candidate = [&](const auto& candidate) {
+			ScopedID candidate_scope{ static_cast<const void*>(std::addressof(candidate)) };
+			const std::string label{ GetDrawableInspectorLabel(candidate) };
+			const bool selected{ drawable && drawable->hash == candidate.hash };
+			if (ImGui::Selectable(label.c_str(), selected)) {
+				choose_renderer(Drawable{ candidate.hash });
+			}
+			if (selected) {
+				ImGui::SetItemDefaultFocus();
+			}
+		};
 
-				if (selected) {
-					ImGui::SetItemDefaultFocus();
-				}
-			};
-
+		for (const auto& candidate : Drawable::data()) {
+			const std::string visual{ NormalizeFeatureName(GetDrawableInspectorLabel(candidate)) };
+			if (!IsShapeRenderer(visual) && !IsEffectRenderer(visual)) {
+				draw_candidate(candidate);
+			}
+		}
+		if (ImGui::BeginMenu("Shapes")) {
 			for (const auto& candidate : Drawable::data()) {
-				const std::string visual{
-					NormalizeFeatureName(GetDrawableInspectorLabel(candidate))
-				};
-
-				if (!IsShapeRenderer(visual) && !IsEffectRenderer(visual)) {
+				const std::string visual{ NormalizeFeatureName(GetDrawableInspectorLabel(candidate)) };
+				if (IsShapeRenderer(visual)) {
 					draw_candidate(candidate);
 				}
 			}
-
-			if (ImGui::BeginMenu("Shapes")) {
-				for (const auto& candidate : Drawable::data()) {
-					const std::string visual{
-						NormalizeFeatureName(GetDrawableInspectorLabel(candidate))
-					};
-
-					if (IsShapeRenderer(visual)) {
-						draw_candidate(candidate);
-					}
-				}
-
-				ImGui::EndMenu();
-			}
-
-			if (ImGui::BeginMenu("Effects")) {
-				for (const auto& candidate : Drawable::data()) {
-					const std::string visual{
-						NormalizeFeatureName(GetDrawableInspectorLabel(candidate))
-					};
-
-					if (IsEffectRenderer(visual)) {
-						draw_candidate(candidate);
-					}
-				}
-
-				ImGui::EndMenu();
-			}
+			ImGui::EndMenu();
 		}
-
+		if (ImGui::BeginMenu("Effects")) {
+			for (const auto& candidate : Drawable::data()) {
+				const std::string visual{ NormalizeFeatureName(GetDrawableInspectorLabel(candidate)) };
+				if (IsEffectRenderer(visual)) {
+					draw_candidate(candidate);
+				}
+			}
+			ImGui::EndMenu();
+		}
 		ImGui::EndCombo();
-	}
-
-	ImGui::EndDisabled();
-
-	if (primary_scene_target && ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled)) {
-		ImGui::SetTooltip("The scene render target renderer cannot be changed.");
+		return renderer_changed;
+	});
 	}
 
 	if (renderer_changed) {
-		auto after_renderer{ CaptureInspectorFeatureState(
-			target, InspectorFeature::Visual, VisualFeatureComponents{}
-		) };
-
+		auto after_renderer{
+			CaptureInspectorFeatureState(target, InspectorFeature::Visual, VisualFeatureComponents{})
+		};
 		TrackInspectorFeatureState(
 			target, InspectorFeature::Visual, "Change Renderer", std::move(before_renderer),
 			std::move(after_renderer), VisualFeatureComponents{}
 		);
 	}
 
-	bool visible_changed{ false };
-
-	if (drawable || primary_scene_target) {
-		ImGui::SameLine(0.0f, spacing);
-		visible_changed = ImGui::Checkbox("Visible##RendererVisible", &visible);
-	}
-
-	if (visible_changed) {
-		Visible updated{ before_visible.value_or(Visible{}) };
-		updated.visible = visible;
-		target.template SetLive<Visible>(ComponentState<Visible>{ updated });
-	}
-
-	auto after_visible{ target.template Capture<Visible>() };
-
-	TrackComponentState(
-		target, "Toggle Visibility", std::move(before_visible), std::move(after_visible),
-		visible_changed
-	);
 
 	const auto* selected_info{ drawable ? Drawable::FindInfo(drawable->hash) : nullptr };
-
 	return RendererRowResult{
-		.visual	 = primary_scene_target ? "rendertarget"
-				 : selected_info ? NormalizeFeatureName(GetDrawableInspectorLabel(*selected_info))
-								 : std::string{},
+		.visual = primary_scene_target ? "rendertarget"
+			: selected_info ? NormalizeFeatureName(GetDrawableInspectorLabel(*selected_info))
+								: std::string{},
 		.changed = renderer_changed,
 	};
 }
@@ -886,7 +842,21 @@ bool DrawTextBoxMember(Target& target, TextData& text_data, auto& box) {
 
 	ScopedID box_scope{ "TextBox" };
 
-	if (ImGui::Checkbox("##Enabled", &enabled)) {
+	bool open{ false };
+	const bool toggle_changed{ DrawInspectorCustomPropertyRow(
+		"Text Box",
+		[&]() {
+			open = ImGui::TreeNodeEx(
+				"Text Box##Tree",
+				ImGuiTreeNodeFlags_SpanAvailWidth |
+					ImGuiTreeNodeFlags_FramePadding |
+					ImGuiTreeNodeFlags_NoTreePushOnOpen
+			);
+		},
+		[&]() { return ImGui::Checkbox("##Enabled", &enabled); }
+	) };
+
+	if (toggle_changed) {
 		editor_state.text_box_enabled = enabled;
 
 		if (!enabled) {
@@ -895,10 +865,6 @@ bool DrawTextBoxMember(Target& target, TextData& text_data, auto& box) {
 
 		changed = true;
 	}
-
-	ImGui::SameLine();
-
-	const bool open{ ImGui::TreeNodeEx("Text Box##Tree", ImGuiTreeNodeFlags_SpanAvailWidth) };
 
 	if (!open) {
 		return changed;
@@ -975,7 +941,6 @@ bool DrawTextBoxMember(Target& target, TextData& text_data, auto& box) {
 
 	std::apply([&](auto&&... box_member) { (draw_box_member(box_member), ...); }, box_members);
 
-	ImGui::TreePop();
 	return changed;
 }
 
@@ -1235,54 +1200,24 @@ bool DrawLineWidthVisual(Target& target) {
 	if constexpr (!Target::template Supports<FillStyle>()) {
 		return false;
 	} else {
-		ScopedID target_scope{ target.Id() };
-		ScopedID component_scope{ static_cast<int>(Hash<FillStyle>()) };
-
-		auto before{ target.template Capture<FillStyle>() };
-		bool enabled{ before.has_value() };
-		bool changed{ false };
-
-		if (ImGui::Checkbox("##Enabled", &enabled)) {
-			target.template SetLive<FillStyle>(
-				enabled ? ComponentState<FillStyle>{ FillStyle{ kInspectorMinLineWidth } }
-						: std::nullopt
-			);
-			changed = true;
-		}
-
-		ImGui::SameLine();
-
-		const float checkbox_offset{ ImGui::GetFrameHeight() + ImGui::GetStyle().ItemSpacing.x };
-		ScopedPropertyLabelOffset label_offset{ checkbox_offset };
-
-		float line_width{ kInspectorMinLineWidth };
-		if (const auto current{ target.template Capture<FillStyle>() }) {
-			line_width = current->GetLineWidth().value_or(kInspectorMinLineWidth);
-		}
-
-		{
-			ScopedDisabled disabled{ !enabled };
-			if (DrawValue(
-					target.ctx, "Line Width", line_width,
-					FieldOptions{
-						.speed	= kInspectorScalarDragSpeed,
-						.min	= kInspectorMinLineWidth,
-						.max	= 1000.0f,
-						.format = "%.2f",
-						.flags	= ImGuiSliderFlags_AlwaysClamp,
+		return DrawRequiredInlineVisualComponentWithDefault<Target, FillStyle>(
+			target, "Line Width", FillStyle{ kInspectorMinLineWidth },
+			[](FillStyle& style) {
+				return DrawPropertyRow("Line Width", [&]() {
+					float line_width{ style.GetLineWidth().value_or(kInspectorMinLineWidth) };
+					ImGui::SetNextItemWidth(-FLT_MIN);
+					if (!ImGui::DragFloat(
+							"##LineWidth", &line_width, kInspectorScalarDragSpeed,
+							kInspectorMinLineWidth, 1000.0f, "%.2f",
+							ImGuiSliderFlags_AlwaysClamp
+						)) {
+						return false;
 					}
-				)) {
-				target.template SetLive<FillStyle>(FillStyle{ line_width });
-				changed = true;
+					style = FillStyle{ line_width };
+					return true;
+				});
 			}
-		}
-
-		auto after{ target.template Capture<FillStyle>() };
-		TrackComponentState(
-			target, "Edit Line Width", std::move(before), std::move(after), changed
 		);
-
-		return changed;
 	}
 }
 
@@ -1472,8 +1407,8 @@ bool DrawShapeFillStyle(Target& target) {
 		const float scaled_line_width_limit{ GetShapeLineWidthLimit(shape, transform) };
 		const float line_width_scale{ scaled_line_width_limit / unscaled_line_width_limit };
 
-		return DrawOptionalComponent<Target, FillStyle>(
-			target, "Style", false,
+		return DrawRequiredInlineVisualComponentWithDefault<Target, FillStyle>(
+			target, "Style", FillStyle{ Solid{} },
 			[&target, unscaled_line_width_limit, scaled_line_width_limit,
 			 line_width_scale](FillStyle& style) {
 				FillStyle displayed_style{ style };
@@ -1536,7 +1471,11 @@ bool DrawShapeVisual(Target& target, std::string_view visual) {
 		draw_shape.template operator()<Arc>();
 	}
 
-	changed |= DrawOptionalVisualComponent<Target, Color>(target, "Color");
+	changed |= DrawRequiredInlineVisualComponentWithDefault<Target, Color>(
+		target, "Color", Color{ color::White }, [&target](Color& value) {
+			return DrawRegisteredComponentContents(target.ctx, Hash<Color>(), std::addressof(value));
+		}
+	);
 	if (visual == "line") {
 		changed |= DrawLineWidthVisual(target);
 	} else if (visual == "rect") {
@@ -1552,7 +1491,11 @@ bool DrawShapeVisual(Target& target, std::string_view visual) {
 	} else if (visual == "arc") {
 		changed |= DrawShapeFillStyle<Target, Arc>(target);
 	} else {
-		changed |= DrawOptionalVisualComponent<Target, FillStyle>(target, "Style");
+		changed |= DrawRequiredInlineVisualComponentWithDefault<Target, FillStyle>(
+			target, "Style", FillStyle{ Solid{} }, [&target](FillStyle& value) {
+				return DrawFillStyle(target.ctx, "Style", value);
+			}
+		);
 	}
 
 	return changed;
@@ -1560,69 +1503,116 @@ bool DrawShapeVisual(Target& target, std::string_view visual) {
 
 bool DrawAnimationDataFlattened(
 	EditorContext& ctx, ::ptgn::impl::AnimationData& animation,
-	std::optional<std::size_t> detected_frame_count, std::optional<V2_int> texture_size
+	std::optional<::ptgn::impl::AnimationTextureLayout> detected_layout,
+	std::optional<V2_int> texture_size
 ) {
 	const auto initial_frame_size{ animation.config.frame_size };
 	const V2_int initial_start_pixel{ animation.config.start_pixel };
-
+	const std::size_t initial_automatic_row_count{ animation.GetAutomaticRowCount() };
 	bool changed{ false };
-	auto members{ ReflectMembers(animation) };
 
-	auto draw_member = [&](auto&& member) {
-		const std::string normalized{ NormalizeFeatureName(member.name) };
+	if (detected_layout.has_value()) {
+		changed |= animation.config.frame_count != detected_layout->frame_count;
+		changed |= animation.config.frame_size.has_value();
+		changed |= initial_automatic_row_count != detected_layout->row_count;
+		animation.config.frame_count = detected_layout->frame_count;
+		animation.config.frame_size.reset();
+		animation.SetAutomaticRowCount(detected_layout->row_count);
+	} else {
+		changed |= initial_automatic_row_count != 1;
+		animation.SetAutomaticRowCount(1);
+	}
+	{
+		ScopedDisabled disabled{ detected_layout.has_value() };
+		changed |= DrawValue(ctx, "Frame Count", animation.config.frame_count);
+	}
+	if (detected_layout.has_value()) {
+		DrawTooltip(
+			"Frame count is automatically detected from _framesN or _framesNxM in the "
+			"animation texture filename. _framesNxM contains N * M total frames."
+		);
+	}
 
-		using Member = std::remove_cvref_t<decltype(member.value)>;
+	changed |= DrawValue(ctx, "Duration", animation.config.duration);
 
-		if (normalized == "config") {
-			if constexpr (ReflectedMembers<Member>) {
-				auto config_members{ ReflectMembers(member.value) };
+	const auto automatic_frame_size{
+		detected_layout.has_value()
+			? ::ptgn::impl::GetFrameSize(
+				  texture_size, detected_layout->frame_count, detected_layout->row_count
+			  )
+			: std::nullopt
+	};
+	if (detected_layout.has_value()) {
+		V2_int displayed{ automatic_frame_size.value_or(V2_int{ 1, 1 }) };
+		(void)DrawWHValue(
+			"Frame Size", displayed, 1.0f, 1, 4096, ImGuiSliderFlags_None, true
+		);
+		DrawTooltip(
+			automatic_frame_size.has_value()
+				? "Frame size is derived from the texture pixel size and animation suffix. "
+				  "_framesN uses one row; _framesNxM uses M rows."
+				: "Frame size is automatic but cannot be resolved until the texture pixel size "
+				  "is available."
+		);
+	} else {
+		V2_int displayed{
+			animation.config.frame_size.value_or(animation.GetFrameSize(texture_size))
+		};
+		if (!displayed.IsPositive()) {
+			displayed = V2_int{ 1, 1 };
+		}
+		if (DrawWHValue("Frame Size", displayed, 1.0f, 1, 4096)) {
+			animation.config.frame_size = displayed;
+			changed = true;
+		}
+	}
 
-				std::apply(
-					[&](auto&&... config_member) {
-						auto draw_config_member = [&](auto&& mem) {
-							const std::string normalized_name{ NormalizeFeatureName(mem.name) };
+	changed |= DrawPropertyRow("Play Count", [&]() {
+		bool local_changed{ false };
+		bool finite{ animation.config.play_count.has_value() };
+		const bool toggle_changed{ ImGui::Checkbox("##PlayCountFinite", &finite) };
+		local_changed |= toggle_changed;
+		ImGui::SameLine(0.0f, ImGui::GetStyle().ItemInnerSpacing.x);
 
-							using Value = std::remove_cvref_t<decltype(mem.value)>;
+		const float remaining{ std::max(1.0f, ImGui::GetContentRegionAvail().x) };
+		ImGui::SetNextItemWidth(remaining);
 
-							if constexpr (std::same_as<Value, std::size_t>) {
-								if (normalized_name == "framecount") {
-									if (detected_frame_count) {
-										mem.value = *detected_frame_count;
-									}
-
-									{
-										ScopedDisabled disabled{ detected_frame_count.has_value() };
-
-										changed |= DrawValue(ctx, PrettyName(mem.name), mem.value);
-									}
-
-									if (detected_frame_count) {
-										DrawTooltip(
-											"Frame count is automatically detected from the "
-											"texture asset file name."
-										);
-									}
-
-									return;
-								}
-							}
-
-							changed |= DrawValue(ctx, PrettyName(mem.name), mem.value);
-						};
-
-						(draw_config_member(config_member), ...);
-					},
-					config_members
-				);
-
-				return;
+		if (finite) {
+			std::uint64_t count{ static_cast<std::uint64_t>(
+				toggle_changed && !animation.config.play_count.has_value()
+					? std::size_t{ 1 }
+					: animation.config.play_count.value_or(std::size_t{ 1 })
+			) };
+			if (toggle_changed && !animation.config.play_count.has_value()) {
+				animation.config.play_count = 1;
 			}
+			constexpr std::uint64_t minimum{ 1 };
+			if (ImGui::DragScalar(
+					"##PlayCountValue", ImGuiDataType_U64, &count, 1.0f, &minimum, nullptr, "%llu"
+				)) {
+				animation.config.play_count = std::max<std::size_t>(
+					1, static_cast<std::size_t>(count)
+				);
+				local_changed = true;
+			}
+		} else {
+			if (toggle_changed) {
+				animation.config.play_count.reset();
+			}
+			char infinite[]{ "Infinite" };
+			ImGui::BeginDisabled();
+			ImGui::InputText(
+				"##PlayCountInfinite", infinite, sizeof(infinite), ImGuiInputTextFlags_ReadOnly
+			);
+			ImGui::EndDisabled();
 		}
 
-		changed |= DrawValue(ctx, PrettyName(member.name), member.value);
-	};
+		return local_changed;
+	});
 
-	std::apply([&](auto&&... member) { (draw_member(member), ...); }, members);
+	changed |= DrawValue(ctx, "Start Pixel", animation.config.start_pixel);
+	changed |= DrawValue(ctx, "Reset On Complete", animation.config.reset_on_complete);
+	changed |= DrawValue(ctx, "Current Frame", animation.current_frame);
 
 	{
 		auto& start_pixel{ animation.config.start_pixel };
@@ -1661,22 +1651,42 @@ bool DrawAnimationDataFlattened(
 					start_pixel.y = std::min(start_pixel.y, size.y - frame_size.y);
 				}
 
-				frame_size.x  = std::min(frame_size.x, size.x - start_pixel.x);
-				frame_size.y  = std::min(frame_size.y, size.y - start_pixel.y);
+				frame_size.x = std::min(frame_size.x, size.x - start_pixel.x);
+				frame_size.y = std::min(frame_size.y, size.y - start_pixel.y);
 				start_pixel.x = std::min(start_pixel.x, size.x - frame_size.x);
 				start_pixel.y = std::min(start_pixel.y, size.y - frame_size.y);
 
-				available_frame_count =
-					static_cast<std::size_t>((size.x - start_pixel.x) / frame_size.x);
+				const std::size_t available_columns{
+					static_cast<std::size_t>((size.x - start_pixel.x) / frame_size.x)
+				};
+				const std::size_t available_rows{
+					static_cast<std::size_t>((size.y - start_pixel.y) / frame_size.y)
+				};
+				const std::size_t requested_rows{
+					std::max<std::size_t>(1, animation.GetAutomaticRowCount())
+				};
+				available_frame_count = available_columns * std::min(available_rows, requested_rows);
 			} else if (
 				const auto frame_size{
-					::ptgn::impl::GetFrameSize(texture_size, animation.config.frame_count) };
+					::ptgn::impl::GetFrameSize(
+						texture_size, animation.config.frame_count,
+						animation.GetAutomaticRowCount()
+					) };
 				frame_size && frame_size->IsPositive()
 			) {
 				start_pixel.x = std::min(start_pixel.x, size.x - frame_size->x);
 				start_pixel.y = std::min(start_pixel.y, size.y - frame_size->y);
-				available_frame_count =
-					static_cast<std::size_t>((size.x - start_pixel.x) / frame_size->x);
+
+				const std::size_t available_columns{
+					static_cast<std::size_t>((size.x - start_pixel.x) / frame_size->x)
+				};
+				const std::size_t available_rows{
+					static_cast<std::size_t>((size.y - start_pixel.y) / frame_size->y)
+				};
+				const std::size_t requested_rows{
+					std::max<std::size_t>(1, animation.GetAutomaticRowCount())
+				};
+				available_frame_count = available_columns * std::min(available_rows, requested_rows);
 			} else {
 				available_frame_count = 0;
 			}
@@ -1685,7 +1695,6 @@ bool DrawAnimationDataFlattened(
 		const std::size_t usable_frame_count{
 			std::min(animation.config.frame_count, available_frame_count)
 		};
-
 		animation.current_frame =
 			usable_frame_count == 0 ? 0 : std::min(animation.current_frame, usable_frame_count - 1);
 
@@ -1698,7 +1707,6 @@ bool DrawAnimationDataFlattened(
 		[&]<typename T>(T& value) {
 			if constexpr (ReflectedReadOnlyMembers<T>) {
 				auto read_only_members{ ReflectReadOnlyMembers(value) };
-
 				std::apply(
 					[&](auto&&... member) {
 						(DrawReadOnlyValue(ctx, PrettyName(member.name), member.value), ...);
@@ -1795,7 +1803,8 @@ bool SetTextureSizeFromPixels(Value& value, V2_float pixels) {
 }
 
 template <typename Target>
-[[nodiscard]] std::optional<std::size_t> ResolveDetectedAnimationFrameCount(const Target& target) {
+[[nodiscard]] std::optional<::ptgn::impl::AnimationTextureLayout>
+ResolveDetectedAnimationTextureLayout(const Target& target) {
 	if constexpr (!Target::template Supports<TextureKey>()) {
 		return std::nullopt;
 	} else {
@@ -1805,7 +1814,7 @@ template <typename Target>
 			return std::nullopt;
 		}
 
-		return ::ptgn::impl::DetectAnimationFrameCount(
+		return ::ptgn::impl::DetectAnimationTextureLayout(
 			target.ctx.editor.GetAssetManager(), *texture_key
 		);
 	}
@@ -1848,16 +1857,15 @@ bool SynchronizeAnimationFrameData(Target& target, std::string_view reason) {
 
 		AnimationData animation{ *before_animation };
 
-		if (const auto detected{ ResolveDetectedAnimationFrameCount(target) }) {
-			animation.config.frame_count = *detected;
+		if (const auto layout{ ResolveDetectedAnimationTextureLayout(target) }) {
+			animation.config.frame_count = layout->frame_count;
+			animation.config.frame_size.reset();
+			animation.SetAutomaticRowCount(layout->row_count);
+		} else {
+			animation.SetAutomaticRowCount(1);
 		}
 
 		const auto texture_size{ ResolveAnimationTextureSize(target) };
-
-		if (!animation.config.frame_size.has_value()) {
-			animation.config.frame_size =
-				::ptgn::impl::GetFrameSize(texture_size, animation.config.frame_count);
-		}
 
 		if (animation.config.frame_count == 0) {
 			animation.current_frame = 0;
@@ -1887,54 +1895,95 @@ bool SynchronizeAnimationFrameData(Target& target, std::string_view reason) {
 }
 
 template <typename Target>
-bool SynchronizeAnimationTextureCrop(Target& target) {
-	using AnimationData = ::ptgn::impl::AnimationData;
-	using TextureCrop	= ::ptgn::impl::TextureCrop;
+bool ApplyDetectedAnimationLayout(Target& target, ::ptgn::impl::AnimationData& animation) {
+	bool changed{ false };
 
-	if constexpr (
-		!Target::template Supports<AnimationData>() || !Target::template Supports<TextureCrop>()
-	) {
-		return false;
+	if (const auto layout{ ResolveDetectedAnimationTextureLayout(target) }) {
+		changed |= animation.config.frame_count != layout->frame_count;
+		changed |= animation.config.frame_size.has_value();
+		changed |= animation.GetAutomaticRowCount() != layout->row_count;
+		animation.config.frame_count = layout->frame_count;
+		animation.config.frame_size.reset();
+		animation.SetAutomaticRowCount(layout->row_count);
 	} else {
-		const auto animation{ target.template Capture<AnimationData>() };
-
-		if (!animation) {
-			return false;
-		}
-
-		auto before_crop{ target.template Capture<TextureCrop>() };
-		TextureCrop crop{ before_crop.value_or(TextureCrop{}) };
-		crop.Update(*animation, ResolveAnimationTextureSize(target));
-		target.template SetLive<TextureCrop>(crop);
-		auto after_crop{ target.template Capture<TextureCrop>() };
-		TrackComponentState(
-			target, "Update Animation Texture Crop", std::move(before_crop), std::move(after_crop),
-			true
-		);
-		return true;
+		changed |= animation.GetAutomaticRowCount() != 1;
+		animation.SetAutomaticRowCount(1);
 	}
+
+	const std::size_t resolved_frame{
+		animation.config.frame_count == 0 ? 0 : animation.current_frame % animation.config.frame_count
+	};
+	changed |= animation.current_frame != resolved_frame;
+	animation.current_frame = resolved_frame;
+	return changed;
 }
 
 template <typename Target>
-bool DisableAnimationTextureCrop(Target& target) {
+bool UpdateAnimationTextureCrop(Target& target, const ::ptgn::impl::AnimationData& animation) {
 	using TextureCrop = ::ptgn::impl::TextureCrop;
 
 	if constexpr (!Target::template Supports<TextureCrop>()) {
 		return false;
 	} else {
-		auto before_crop{ target.template Capture<TextureCrop>() };
-
-		if (!before_crop) {
+		const auto texture_size{ ResolveAnimationTextureSize(target) };
+		if (!texture_size) {
 			return false;
 		}
 
-		target.template SetLive<TextureCrop>(std::nullopt);
-		auto after_crop{ target.template Capture<TextureCrop>() };
-		TrackComponentState(
-			target, "Disable Texture Crop", std::move(before_crop), std::move(after_crop), true
-		);
+		TextureCrop crop{};
+		crop.Update(animation, texture_size);
+
+		const auto before_crop{ target.template Capture<TextureCrop>() };
+		if (before_crop && *before_crop == crop) {
+			return false;
+		}
+
+		target.template SetLive<TextureCrop>(crop);
 		return true;
 	}
+}
+
+template <typename Target>
+bool SynchronizeSpriteAnimationDerivedState(Target& target) {
+	using AnimationData = ::ptgn::impl::AnimationData;
+
+	if constexpr (!Target::template Supports<AnimationData>()) {
+		return false;
+	} else {
+		if (const auto stored_animation{ target.template Capture<AnimationData>() }) {
+			AnimationData animation{ *stored_animation };
+			const bool animation_changed{ ApplyDetectedAnimationLayout(target, animation) };
+			if (animation_changed) {
+				animation.frame_dirty = true;
+				target.template SetLive<AnimationData>(animation);
+			}
+			return UpdateAnimationTextureCrop(target, animation) || animation_changed;
+		}
+
+		// A spritesheet remains a correctly cropped static sprite while animation is disabled.
+		// The filename layout gives us enough information to show frame 0 without materializing
+		// AnimationData just because the checkbox is off.
+		const auto layout{ ResolveDetectedAnimationTextureLayout(target) };
+		if (!layout) {
+			return false;
+		}
+
+		AnimationData fallback{};
+		fallback.config.frame_count = layout->frame_count;
+		fallback.config.frame_size.reset();
+		fallback.SetAutomaticRowCount(layout->row_count);
+		fallback.current_frame = 0;
+		return UpdateAnimationTextureCrop(target, fallback);
+	}
+}
+
+template <typename Target>
+bool SetDisabledAnimationFallbackCrop(
+	Target& target, ::ptgn::impl::AnimationData animation
+) {
+	ApplyDetectedAnimationLayout(target, animation);
+	animation.current_frame = 0;
+	return UpdateAnimationTextureCrop(target, animation);
 }
 
 bool DrawSpriteStackData(
@@ -1992,7 +2041,10 @@ template <typename Target>
 bool DrawSpriteStackPrimary(Target& target) {
 	bool changed{ false };
 
-	changed |= DrawOptionalAssetComponent<Target, TextureKey>(target, "Texture Key");
+	changed |= DrawRequiredComponent<Target, TextureKey>(
+		target, "Texture Key", false,
+		[&target](TextureKey& value) { return DrawValue(target.ctx, "Texture Key", value); }
+	);
 
 	const auto texture_key{ target.template Capture<TextureKey>() };
 
@@ -2013,34 +2065,125 @@ bool DrawSpriteStackPrimary(Target& target) {
 }
 
 template <typename Target>
+bool DrawSpriteAnimationInline(Target& target) {
+	using AnimationData = ::ptgn::impl::AnimationData;
+	using TextureCrop = ::ptgn::impl::TextureCrop;
+	using Components = FeatureComponents<AnimationData, TextureCrop>;
+	constexpr Components components{};
+
+	if constexpr (!Target::template Supports<AnimationData>()) {
+		return false;
+	} else {
+		auto before{ CaptureInspectorFeatureState(target, InspectorFeature::Visual, components) };
+		const auto before_animation{ target.template Capture<AnimationData>() };
+		bool enabled{ before_animation.has_value() };
+		bool open{ false };
+
+		const bool toggle_changed{ ImGui::Checkbox("##AnimationEnabled", &enabled) };
+		ImGui::SameLine(0.0f, ImGui::GetStyle().ItemInnerSpacing.x);
+		open = ImGui::TreeNodeEx(
+			"Animation##SpriteAnimation",
+			ImGuiTreeNodeFlags_SpanAvailWidth | ImGuiTreeNodeFlags_FramePadding |
+				ImGuiTreeNodeFlags_NoTreePushOnOpen
+		);
+
+		bool changed{ toggle_changed };
+		if (toggle_changed) {
+			if (enabled) {
+				AnimationData animation{};
+				ApplyDetectedAnimationLayout(target, animation);
+				animation.frame_dirty = true;
+				target.template SetLive<AnimationData>(animation);
+				(void)UpdateAnimationTextureCrop(target, animation);
+			} else {
+				// Preserve a valid static frame when animation is disabled instead of exposing the
+				// entire spritesheet. Prefer the detected layout, but the existing authored
+				// animation configuration is also enough to calculate a frame-0 crop.
+				if (before_animation) {
+					(void)SetDisabledAnimationFallbackCrop(target, *before_animation);
+				}
+				target.template SetLive<AnimationData>(std::nullopt);
+			}
+		}
+
+		AnimationData animation{ target.template Capture<AnimationData>().value_or(AnimationData{}) };
+		if (open) {
+			ScopedIndent indent;
+			ScopedDisabled disabled{ !enabled };
+			const std::size_t previous_frame_count{ animation.config.frame_count };
+			const auto detected_layout{ ResolveDetectedAnimationTextureLayout(target) };
+			const auto texture_size{ ResolveAnimationTextureSize(target) };
+			const bool contents_changed{ DrawAnimationDataFlattened(
+				target.ctx, animation, detected_layout, texture_size
+			) };
+			if (enabled && contents_changed) {
+				if (previous_frame_count != animation.config.frame_count) {
+					animation.current_frame = animation.config.frame_count == 0
+						? 0
+						: animation.current_frame % animation.config.frame_count;
+				}
+				animation.frame_dirty = true;
+				target.template SetLive<AnimationData>(animation);
+				(void)UpdateAnimationTextureCrop(target, animation);
+				changed = true;
+			}
+		}
+
+		if (!changed) {
+			return false;
+		}
+		auto after{ CaptureInspectorFeatureState(target, InspectorFeature::Visual, components) };
+		TrackInspectorFeatureState(
+			target, InspectorFeature::Visual,
+			toggle_changed ? (enabled ? "Enable Animation" : "Disable Animation") : "Edit Animation",
+			std::move(before), std::move(after), components
+		);
+		return true;
+	}
+}
+
+template <typename Target>
 bool DrawSpritePrimaryImpl(Target& target) {
 	using AnimationData = ::ptgn::impl::AnimationData;
 
-	bool changed{ false };
+	bool changed{ SynchronizeSpriteAnimationDerivedState(target) };
 	const auto before_texture{ target.template Capture<TextureKey>() };
 	const auto before_animation{ target.template Capture<AnimationData>() };
 	const auto before_texture_size{ target.template Capture<::ptgn::impl::TextureSize>() };
 
 	std::optional<V2_float> texture_size_default;
 
-	if (!before_texture_size && before_animation && before_animation->config.frame_size) {
-		V2_float scale{ 1.0f };
-
-		if constexpr (Target::template Supports<Transform>()) {
-			if (const auto transform{ target.template Capture<Transform>() }) {
-				scale = V2_float{ std::abs(transform->scale.x), std::abs(transform->scale.y) };
-			}
+	if (!before_texture_size && before_animation) {
+		AnimationData resolved_animation{ *before_animation };
+		if (const auto layout{ ResolveDetectedAnimationTextureLayout(target) }) {
+			resolved_animation.config.frame_count = layout->frame_count;
+			resolved_animation.config.frame_size.reset();
+			resolved_animation.SetAutomaticRowCount(layout->row_count);
 		}
 
-		const auto frame_size{ *before_animation->config.frame_size };
+		const V2_int frame_size{
+			resolved_animation.GetFrameSize(ResolveAnimationTextureSize(target))
+		};
+		if (frame_size.IsPositive()) {
+			V2_float scale{ 1.0f };
 
-		texture_size_default = V2_float{ static_cast<float>(frame_size.x) * scale.x,
-										 static_cast<float>(frame_size.y) * scale.y };
+			if constexpr (Target::template Supports<Transform>()) {
+				if (const auto transform{ target.template Capture<Transform>() }) {
+					scale = V2_float{ std::abs(transform->scale.x), std::abs(transform->scale.y) };
+				}
+			}
+
+			texture_size_default = V2_float{
+				static_cast<float>(frame_size.x) * scale.x,
+				static_cast<float>(frame_size.y) * scale.y
+			};
+		}
 	}
 
-	changed |= DrawOptionalAssetComponent<Target, TextureKey>(target, "Texture Key");
-
-	const auto detected_frame_count{ ResolveDetectedAnimationFrameCount(target) };
+	changed |= DrawRequiredComponent<Target, TextureKey>(
+		target, "Texture Key", false,
+		[&target](TextureKey& value) { return DrawValue(target.ctx, "Texture Key", value); }
+	);
 
 	changed |= DrawOptionalComponent<Target, ::ptgn::impl::TextureSize>(
 		target, "Texture Size", false,
@@ -2055,55 +2198,19 @@ bool DrawSpritePrimaryImpl(Target& target) {
 		}
 	);
 
-	const auto animation_texture_size{ ResolveAnimationTextureSize(target) };
-
-	changed |= DrawOptionalComponent<Target, AnimationData>(
-		target, "Animation", true,
-		[&target, detected_frame_count, animation_texture_size](AnimationData& value) {
-			const std::size_t before_frame_count{ value.config.frame_count };
-
-			const bool local_changed{ DrawAnimationDataFlattened(
-				target.ctx, value, detected_frame_count, animation_texture_size
-			) };
-
-			const bool frame_count_changed{ before_frame_count != value.config.frame_count };
-
-			if (frame_count_changed) {
-				if (!value.config.frame_size.has_value()) {
-					value.config.frame_size = ::ptgn::impl::GetFrameSize(
-						animation_texture_size, value.config.frame_count
-					);
-				}
-
-				value.current_frame = value.config.frame_count == 0
-										? 0
-										: value.current_frame % value.config.frame_count;
-
-				value.frame_dirty = true;
-			}
-
-			return local_changed || frame_count_changed;
-		}
-	);
-
 	const auto after_texture{ target.template Capture<TextureKey>() };
-	const auto after_animation{ target.template Capture<AnimationData>() };
 	const bool texture_changed{ before_texture != after_texture };
-	const bool animation_enabled{ after_animation.has_value() };
-	const bool animation_was_enabled{ before_animation.has_value() };
-	const bool frame_count_changed{ before_animation && after_animation &&
-									before_animation->config.frame_count !=
-										after_animation->config.frame_count };
-
-	if (!animation_enabled && animation_was_enabled) {
-		changed |= DisableAnimationTextureCrop(target);
-	} else if (animation_enabled && texture_changed) {
-		changed |=
-			SynchronizeAnimationFrameData(target, "Recalculate Animation Frame Size From Texture");
-	} else if (animation_enabled && (!animation_was_enabled || frame_count_changed)) {
-		changed |= SynchronizeAnimationTextureCrop(target);
+	if (texture_changed) {
+		if (before_animation) {
+			changed |= SynchronizeAnimationFrameData(
+				target, "Recalculate Animation Frame Size From Texture"
+			);
+		} else {
+			changed |= SynchronizeSpriteAnimationDerivedState(target);
+		}
 	}
 
+	changed |= DrawSpriteAnimationInline(target);
 	return changed;
 }
 
@@ -2255,23 +2362,19 @@ bool DrawCustomShaderPrimary(Target& target) {
 }
 
 template <typename Target>
-bool DrawSpriteAdditional(Target& target) {
-	bool changed{ false };
-	const bool animated{ target.template Capture<::ptgn::impl::AnimationData>().has_value() };
-
-	changed |= DrawOptionalVisualComponent<Target, ::ptgn::impl::Offsets>(target, "Offsets", true);
-
-	if (animated) {
-		changed |= DrawReadOnlyExistingReflected<Target, ::ptgn::impl::TextureCrop>(
-			target, "Texture Crop", true
-		);
-	} else {
-		changed |= DrawOptionalVisualComponent<Target, ::ptgn::impl::TextureCrop>(
-			target, "Texture Crop", true
+bool DrawSpriteTextureCrop(Target& target) {
+	const bool managed_crop{
+		target.template Capture<::ptgn::impl::AnimationData>().has_value() ||
+		ResolveDetectedAnimationTextureLayout(target).has_value()
+	};
+	if (managed_crop) {
+		return DrawOptionalReflected<Target, ::ptgn::impl::TextureCrop>(
+			target, "Texture Crop", true, true, true
 		);
 	}
-
-	return changed;
+	return DrawOptionalVisualComponent<Target, ::ptgn::impl::TextureCrop>(
+		target, "Texture Crop", true
+	);
 }
 
 template <typename Target, typename T>
@@ -2397,61 +2500,85 @@ bool DrawVisualLayers(Target& target) {
 }
 
 template <typename Target>
-bool DrawVisualAdditionalOptions(Target& target, std::string_view visual, bool draw_tint) {
+bool DrawVisualAdditionalOptions(Target& target, std::string_view visual) {
+	if (!visual.contains("text")) {
+		return false;
+	}
+
 	const bool open{
 		ImGui::TreeNodeEx("Additional Options##Visual", ImGuiTreeNodeFlags_SpanAvailWidth)
 	};
-
 	if (!open) {
 		return false;
 	}
 
-	bool changed{ false };
+	ScopedUnindent align_with_additional_options;
+	ScopedID text_additional_scope{ "TextAdditional" };
+	const bool changed{ DrawRequiredComponent<Target, ::ptgn::impl::TextData>(
+		target, "Text Additional Options", false,
+		[&target](::ptgn::impl::TextData& value) {
+			return DrawTextAdditional(target, value);
+		},
+		&MarkTextLayoutDirty
+	) };
+	ImGui::TreePop();
+	return changed;
+}
 
-	{
-		ScopedUnindent align_with_additional_options;
-
-		if (visual.contains("sprite")) {
-			changed |= DrawSpriteAdditional(target);
-		}
-
-		if (visual == "rect" || visual == "circle" || visual == "sprite") {
-			changed |= DrawOptionalVisualComponent<Target, ::ptgn::impl::ShadowCaster>(
-				target, "Shadow Caster", true
-			);
-		}
-
-		if (visual.contains("text")) {
-			ScopedID text_additional_scope{ "TextAdditional" };
-			changed |= DrawRequiredComponent<Target, ::ptgn::impl::TextData>(
-				target, "Text Additional Options", false,
-				[&target](::ptgn::impl::TextData& value) {
-					return DrawTextAdditional(target, value);
-				},
-				&MarkTextLayoutDirty
-			);
-		}
-
-		changed |= DrawOptionalVisualComponent<Target, BlendMode>(target, "Blend Mode");
-
-		if (draw_tint) {
-			changed |= DrawOptionalVisualComponent<Target, Tint>(target, "Tint");
-
-			changed |= DrawOptionalVisualComponent<Target, ::ptgn::impl::IgnoreParentTint>(
-				target, "Ignore Parent Tint"
-			);
-		}
-
-		if (!IsPrimarySceneRenderTarget(target)) {
-			changed |= DrawOptionalVisualComponent<Target, ::ptgn::impl::IgnoreParentVisibility>(
-				target, "Ignore Parent Visibility"
-			);
-
-			changed |= DrawVisualLayers(target);
-		}
+template <typename Target>
+bool DrawRenderingOptions(Target& target, bool draw_tint) {
+	const auto header{ DrawInspectorSectionHeader(
+		"Rendering", "VisualRendering",
+		InspectorSectionOptions{ .default_open = true }
+	) };
+	if (!header.open) {
+		return false;
 	}
 
-	ImGui::TreePop();
+	bool changed{ false };
+	ScopedIndent indent;
+
+	auto before_visible{ target.template Capture<Visible>() };
+	bool visible{ before_visible ? before_visible->visible : true };
+	const bool visible_changed{ DrawPropertyRow("Visible", [&]() {
+		return ImGui::Checkbox("##RendererVisible", &visible);
+	}) };
+	if (visible_changed) {
+		Visible updated{ before_visible.value_or(Visible{}) };
+		updated.visible = visible;
+		target.template SetLive<Visible>(ComponentState<Visible>{ updated });
+	}
+	auto after_visible{ target.template Capture<Visible>() };
+	TrackComponentState(
+		target, "Toggle Visibility", std::move(before_visible), std::move(after_visible),
+		visible_changed
+	);
+	changed |= visible_changed;
+
+	changed |= DrawImplicitDefaultVisualComponent<Target, BlendMode>(
+		target, "Blend Mode", BlendMode{},
+		[&target](BlendMode& value) {
+			return DrawValue(target.ctx, "Blend Mode", value);
+		}
+	);
+	if (draw_tint) {
+		changed |= DrawImplicitDefaultVisualComponent<Target, Tint>(
+			target, "Tint", Tint{},
+			[&target](Tint& value) {
+				return DrawValue(target.ctx, "Tint", value);
+			}
+		);
+		changed |= DrawOptionalVisualComponent<Target, ::ptgn::impl::IgnoreParentTint>(
+			target, "Ignore Parent Tint"
+		);
+	}
+	if (!IsPrimarySceneRenderTarget(target)) {
+		changed |= DrawOptionalVisualComponent<Target, ::ptgn::impl::IgnoreParentVisibility>(
+			target, "Ignore Parent Visibility"
+		);
+		changed |= DrawVisualLayers(target);
+	}
+
 	return changed;
 }
 
@@ -2466,7 +2593,6 @@ bool DrawButtonChildStateVisualComponent(
 		if (draw_visual_separator) {
 			ImGui::SeparatorText("Visual");
 		}
-		AutoLabelWidthScope label_width{ "ButtonVisualStateVisualFields" };
 		ScopedID target_scope{ target.Id() };
 		ScopedID component_scope{ static_cast<int>(Hash<Visuals>()) };
 
@@ -2674,7 +2800,135 @@ bool DrawButtonChildStateVisualFeatureImpl(
 }
 
 template <typename Target>
-bool DrawVisualFeatureImpl(Target& target, bool draw_header = true) {
+bool AddSpriteAnimationFeatureImpl(Target& target) {
+	using AnimationData = ::ptgn::impl::AnimationData;
+	using TextureCrop = ::ptgn::impl::TextureCrop;
+	using Components = FeatureComponents<AnimationData, TextureCrop>;
+	constexpr Components components{};
+
+	if constexpr (!Target::template Supports<AnimationData>()) {
+		return false;
+	} else {
+		if (target.template Capture<AnimationData>()) {
+			return false;
+		}
+
+		auto before{ CaptureInspectorFeatureState(target, InspectorFeature::Visual, components) };
+		AnimationData animation{};
+		if (const auto layout{ ResolveDetectedAnimationTextureLayout(target) }) {
+			animation.config.frame_count = layout->frame_count;
+			animation.config.frame_size.reset();
+			animation.SetAutomaticRowCount(layout->row_count);
+		}
+		const auto texture_size{ ResolveAnimationTextureSize(target) };
+		animation.frame_dirty = true;
+		target.template SetLive<AnimationData>(animation);
+
+		if constexpr (Target::template Supports<TextureCrop>()) {
+			TextureCrop crop{};
+			crop.Update(animation, texture_size);
+			target.template SetLive<TextureCrop>(crop);
+		}
+
+		auto after{ CaptureInspectorFeatureState(target, InspectorFeature::Visual, components) };
+		TrackInspectorFeatureState(
+			target, InspectorFeature::Visual, "Add Animation", std::move(before),
+			std::move(after), components
+		);
+		return true;
+	}
+}
+
+template <typename Target>
+bool DrawSpriteAnimationFeatureImpl(Target& target) {
+	using AnimationData = ::ptgn::impl::AnimationData;
+	using TextureCrop = ::ptgn::impl::TextureCrop;
+	using Components = FeatureComponents<AnimationData, TextureCrop>;
+	constexpr Components components{};
+
+	if constexpr (!Target::template Supports<AnimationData>()) {
+		return false;
+	} else {
+		const auto before_animation{ target.template Capture<AnimationData>() };
+		if (!before_animation) {
+			return false;
+		}
+
+		const auto header{ DrawInspectorSectionHeader(
+			"Animation", "SpriteAnimationFeature",
+			InspectorSectionOptions{
+				.default_open = false,
+				.removable = true,
+				.resettable = true,
+			}
+		) };
+
+		auto before{ CaptureInspectorFeatureState(target, InspectorFeature::Visual, components) };
+		bool changed{ false };
+
+		if (header.remove_requested) {
+			(void)SetDisabledAnimationFallbackCrop(target, *before_animation);
+			target.template SetLive<AnimationData>(std::nullopt);
+			changed = true;
+		} else {
+			AnimationData animation{ *before_animation };
+			if (header.reset_requested) {
+				animation = AnimationData{};
+				if (const auto layout{ ResolveDetectedAnimationTextureLayout(target) }) {
+					animation.config.frame_count = layout->frame_count;
+					animation.config.frame_size.reset();
+					animation.SetAutomaticRowCount(layout->row_count);
+				}
+				animation.frame_dirty = true;
+				changed = true;
+			} else if (header.open) {
+				ScopedIndent indent;
+				const std::size_t previous_frame_count{ animation.config.frame_count };
+				const auto detected_layout{ ResolveDetectedAnimationTextureLayout(target) };
+				const auto texture_size{ ResolveAnimationTextureSize(target) };
+				changed |= DrawAnimationDataFlattened(
+					target.ctx, animation, detected_layout, texture_size
+				);
+				if (previous_frame_count != animation.config.frame_count) {
+					animation.current_frame = animation.config.frame_count == 0
+						? 0
+						: animation.current_frame % animation.config.frame_count;
+					animation.frame_dirty = true;
+					changed = true;
+				}
+			}
+
+			if (changed) {
+				const auto texture_size{ ResolveAnimationTextureSize(target) };
+				target.template SetLive<AnimationData>(animation);
+				if constexpr (Target::template Supports<TextureCrop>()) {
+					TextureCrop crop{ target.template Capture<TextureCrop>().value_or(TextureCrop{}) };
+					crop.Update(animation, texture_size);
+					target.template SetLive<TextureCrop>(crop);
+				}
+			}
+		}
+
+		if (!changed) {
+			return false;
+		}
+
+		auto after{ CaptureInspectorFeatureState(target, InspectorFeature::Visual, components) };
+		TrackInspectorFeatureState(
+			target, InspectorFeature::Visual,
+			header.remove_requested ? "Remove Animation"
+				: header.reset_requested ? "Reset Animation" : "Edit Animation",
+			std::move(before), std::move(after), components
+		);
+		return true;
+	}
+}
+
+template <typename Target>
+bool DrawVisualFeatureImpl(
+	Target& target, bool draw_header = true, bool allow_renderer_change = true,
+	std::string_view header_label = "Visual"
+) {
 	if (const auto child_info{ GetButtonChildInfo(target) }) {
 		if (const auto state{ GetButtonVisualEditState(target) }) {
 			return DrawButtonChildStateVisualFeatureImpl(target, *child_info, *state);
@@ -2686,142 +2940,169 @@ bool DrawVisualFeatureImpl(Target& target, bool draw_header = true) {
 	}
 
 	const bool primary_scene_target{ IsPrimarySceneRenderTarget(target) };
-
-	FeatureHeaderResult header{
-		.open	 = true,
-		.changed = false,
-	};
+	FeatureHeaderResult header{ .open = true, .changed = false };
 
 	if (draw_header) {
 		header = DrawFeatureHeader(
-			target, InspectorFeature::Visual, "Visual", ImGuiTreeNodeFlags_DefaultOpen,
-			VisualFeatureComponents{}, !primary_scene_target
+			target, InspectorFeature::Visual, header_label, ImGuiTreeNodeFlags_DefaultOpen,
+			VisualFeatureComponents{}, false
 		);
-
-		if (!header.open) {
-			return header.changed;
-		}
 	} else {
-		ImGui::SeparatorText("Visual");
+		ImGui::SeparatorText(header_label.data());
 	}
-
-	std::optional<ScopedIndent> feature_indent;
-	if (draw_header) {
-		feature_indent.emplace();
-	}
-	AutoLabelWidthScope visual_label_width{ "VisualFeatureFields" };
 
 	bool changed{ header.changed };
-	const RendererRowResult renderer{ DrawRendererRow(target) };
+	const RendererRowResult renderer{ DrawRendererRow(target, allow_renderer_change && header.open) };
 	const std::string& visual{ renderer.visual };
 	changed |= renderer.changed;
-
 	if (renderer.changed) {
 		return true;
 	}
 
-	if (visual.empty()) {
-		ImGui::TextDisabled("Choose a renderer to expose its relevant components.");
-		return changed;
+	const bool draw_tint{
+		visual == "spritestack" || visual.contains("sprite") || visual.contains("text")
+	};
+
+	std::optional<ScopedIndent> feature_indent;
+	if (draw_header && header.open) {
+		feature_indent.emplace();
 	}
 
-	changed |= DrawVisualEffects(target, visual);
-
-	bool draw_tint{ false };
-	const bool shape{ visual == "rect" || visual == "circle" || visual == "roundedrect" ||
-					  visual == "polygon" || visual == "ellipse" || visual == "triangle" ||
-					  visual == "line" || visual == "capsule" || visual == "arc" };
-
-	if (shape) {
-		changed |= DrawShapeVisual(target, visual);
-	} else if (visual == "spritestack") {
-		changed	  |= DrawSpriteStackPrimary(target);
-		draw_tint  = true;
-	} else if (visual.contains("sprite")) {
-		changed	  |= DrawSpritePrimaryImpl(target);
-		draw_tint  = true;
-	} else if (visual.contains("text")) {
-		ScopedID text_primary_scope{ "TextPrimary" };
-		changed |= DrawRequiredInlineVisualComponent<Target, ::ptgn::impl::TextData>(
-			target, "Text",
-			[&target](::ptgn::impl::TextData& value) { return DrawTextPrimary(target, value); },
-			&MarkTextLayoutDirty
-		);
-		draw_tint = true;
-	} else if (visual.contains("particle")) {
-		changed |= DrawRequiredInlineVisualComponent<Target, ::ptgn::impl::ParticleEmitterData>(
-			target, "Particle Emitter", [&target](::ptgn::impl::ParticleEmitterData& value) {
-				return DrawFlattenedConfig(target.ctx, value);
-			}
-		);
-	} else if (visual.contains("light")) {
-		changed |= DrawRequiredInlineVisualComponent<Target, LightData>(
-			target, "Light", [&target](LightData& value) {
-				return DrawRegisteredComponentContents(
-					target.ctx, Hash<LightData>(), std::addressof(value)
-				);
-			}
-		);
-	} else if (visual.contains("customshader")) {
-		changed |= DrawCustomShaderPrimary(target);
-	} else if (visual.contains("graphics")) {
-		if constexpr (std::same_as<std::remove_cvref_t<Target>, EntityInspectorTarget>) {
-			auto before{ target.template Capture<::ptgn::impl::GraphicsData>() };
-			bool graphics_changed{ false };
-
-			if (!before) {
-				target.template SetLive<::ptgn::impl::GraphicsData>(::ptgn::impl::GraphicsData{});
-				graphics_changed = true;
-			}
-
-			{
-				ScopedID target_scope{ target.Id() };
-				ScopedID component_scope{ static_cast<int>(Hash<::ptgn::impl::GraphicsData>()) };
-				auto& value{ target.entity.template Get<::ptgn::impl::GraphicsData>() };
-				graphics_changed |= DrawRegisteredComponentContents(
-					target.ctx, Hash<::ptgn::impl::GraphicsData>(), std::addressof(value)
-				);
-			}
-
-			auto after{ target.template Capture<::ptgn::impl::GraphicsData>() };
-			TrackComponentState(
-				target, "Edit Graphics", std::move(before), std::move(after), graphics_changed
-			);
-			changed |= graphics_changed;
+	if (header.open) {
+		if (visual.empty()) {
+			ImGui::TextDisabled("Choose a renderer to expose its relevant components.");
 		} else {
-			changed |= DrawRequiredInlineVisualComponent<Target, ::ptgn::impl::GraphicsData>(
-				target, "Graphics", [&target](::ptgn::impl::GraphicsData& value) {
-					return DrawRegisteredComponentContents(
-						target.ctx, Hash<::ptgn::impl::GraphicsData>(), std::addressof(value)
+			changed |= DrawVisualEffects(target, visual);
+
+			const bool shape{
+				visual == "rect" || visual == "circle" || visual == "roundedrect" ||
+				visual == "polygon" || visual == "ellipse" || visual == "triangle" ||
+				visual == "line" || visual == "capsule" || visual == "arc"
+			};
+
+			if (shape) {
+				changed |= DrawShapeVisual(target, visual);
+			} else if (visual == "spritestack") {
+				changed |= DrawSpriteStackPrimary(target);
+			} else if (visual.contains("sprite")) {
+				changed |= DrawSpritePrimaryImpl(target);
+			} else if (visual.contains("text")) {
+				ScopedID text_primary_scope{ "TextPrimary" };
+				changed |= DrawRequiredInlineVisualComponent<Target, ::ptgn::impl::TextData>(
+					target, "Text",
+					[&target](::ptgn::impl::TextData& value) { return DrawTextPrimary(target, value); },
+					&MarkTextLayoutDirty
+				);
+			} else if (visual.contains("particle")) {
+				changed |= DrawRequiredInlineVisualComponent<Target, ::ptgn::impl::ParticleEmitterData>(
+					target, "Particle Emitter", [&target](::ptgn::impl::ParticleEmitterData& value) {
+						return DrawFlattenedConfig(target.ctx, value);
+					}
+				);
+			} else if (visual.contains("light")) {
+				changed |= DrawRequiredInlineVisualComponent<Target, LightData>(
+					target, "Light", [&target](LightData& value) {
+						return DrawRegisteredComponentContents(
+							target.ctx, Hash<LightData>(), std::addressof(value)
+						);
+					}
+				);
+			} else if (visual.contains("customshader")) {
+				changed |= DrawCustomShaderPrimary(target);
+			} else if (visual.contains("graphics")) {
+				if constexpr (std::same_as<std::remove_cvref_t<Target>, EntityInspectorTarget>) {
+					auto before{ target.template Capture<::ptgn::impl::GraphicsData>() };
+					bool graphics_changed{ false };
+					if (!before) {
+						target.template SetLive<::ptgn::impl::GraphicsData>(::ptgn::impl::GraphicsData{});
+						graphics_changed = true;
+					}
+					{
+						ScopedID target_scope{ target.Id() };
+						ScopedID component_scope{ static_cast<int>(Hash<::ptgn::impl::GraphicsData>()) };
+						auto& value{ target.entity.template Get<::ptgn::impl::GraphicsData>() };
+						graphics_changed |= DrawRegisteredComponentContents(
+							target.ctx, Hash<::ptgn::impl::GraphicsData>(), std::addressof(value)
+						);
+					}
+					auto after{ target.template Capture<::ptgn::impl::GraphicsData>() };
+					TrackComponentState(
+						target, "Edit Graphics", std::move(before), std::move(after), graphics_changed
+					);
+					changed |= graphics_changed;
+				} else {
+					changed |= DrawRequiredInlineVisualComponent<Target, ::ptgn::impl::GraphicsData>(
+						target, "Graphics", [&target](::ptgn::impl::GraphicsData& value) {
+							return DrawRegisteredComponentContents(
+								target.ctx, Hash<::ptgn::impl::GraphicsData>(), std::addressof(value)
+							);
+						}
 					);
 				}
-			);
+			} else if (visual.contains("rendertarget")) {
+				changed |= DrawRenderTargetPrimary(target);
+			}
+
+			const bool uses_origin{
+				!shape || visual == "rect" || visual == "roundedrect"
+			};
+			if (uses_origin) {
+				if (primary_scene_target) {
+					const Origin origin{ target.template Capture<Origin>().value_or(Origin::Center) };
+					DrawReadOnlyValue(target.ctx, "Origin", origin);
+				} else {
+					changed |= DrawImplicitDefaultVisualComponent<Target, Origin>(
+						target, "Origin", Origin::Center,
+						[&target](Origin& value) {
+							return DrawValue(target.ctx, "Origin", value);
+						}
+					);
+				}
+			}
+			if (visual.contains("sprite")) {
+				changed |= DrawSpriteTextureCrop(target);
+			}
+			changed |= DrawVisualAdditionalOptions(target, visual);
 		}
-	} else if (visual.contains("rendertarget")) {
-		changed |= DrawRenderTargetPrimary(target);
 	}
 
-	if (primary_scene_target) {
-		const Origin origin{ target.template Capture<Origin>().value_or(Origin::Center) };
-
-		DrawReadOnlyValue(target.ctx, "Origin", origin);
-	} else {
-		changed |= DrawOptionalVisualComponent<Target, Origin>(target, "Origin");
-	}
-	changed |= DrawVisualAdditionalOptions(target, visual, draw_tint);
-
+	// Rendering is a sibling authoring section, not part of the archetype's own tree node.
+	feature_indent.reset();
+	changed |= DrawRenderingOptions(target, draw_tint);
 	return changed;
 }
 
 
 } // namespace
 
-bool DrawVisualFeature(EntityInspectorTarget& target, bool draw_header) {
-	return DrawVisualFeatureImpl(target, draw_header);
+bool AddSpriteAnimationFeature(EntityInspectorTarget& target) {
+	return AddSpriteAnimationFeatureImpl(target);
 }
 
-bool DrawVisualFeature(PrefabInspectorTarget& target, bool draw_header) {
-	return DrawVisualFeatureImpl(target, draw_header);
+bool AddSpriteAnimationFeature(PrefabInspectorTarget& target) {
+	return AddSpriteAnimationFeatureImpl(target);
+}
+
+bool DrawSpriteAnimationFeature(EntityInspectorTarget& target) {
+	return DrawSpriteAnimationFeatureImpl(target);
+}
+
+bool DrawSpriteAnimationFeature(PrefabInspectorTarget& target) {
+	return DrawSpriteAnimationFeatureImpl(target);
+}
+
+bool DrawVisualFeature(
+	EntityInspectorTarget& target, bool draw_header, bool allow_renderer_change,
+	std::string_view header_label
+) {
+	return DrawVisualFeatureImpl(target, draw_header, allow_renderer_change, header_label);
+}
+
+bool DrawVisualFeature(
+	PrefabInspectorTarget& target, bool draw_header, bool allow_renderer_change,
+	std::string_view header_label
+) {
+	return DrawVisualFeatureImpl(target, draw_header, allow_renderer_change, header_label);
 }
 
 bool DrawButtonChildStateVisualFeature(
