@@ -2,6 +2,7 @@
 
 #include <array>
 #include <cstdlib>
+#include <algorithm>
 
 #include "core/math/geometry/line.h"
 #include "core/math/transform.h"
@@ -24,7 +25,15 @@ public:
 	constexpr std::array<V2_float, 4> GetWorldQuadVertices(
 		Transform transform, V2_float* out_size = nullptr
 	) const {
-		return line.GetWorldQuadVertices(transform, 2.0f * GetRadius(transform), out_size);
+		float diameter{
+			std::max(1.0f, 2.0f * GetRadius(transform))
+		};
+
+		return line.GetWorldQuadVertices(
+			transform,
+			diameter,
+			out_size
+		);
 	}
 
 	constexpr float GetRadius() const {
