@@ -8,13 +8,17 @@
 
 namespace ptgn::impl {
 
+// Effect registration metadata is static registration metadata. Keep it as string_view so
+// DrawableRegistrationData can safely reference the same compile-time string literals. The old
+// std::string version returned a temporary EffectRegistrationData from Get(); the drawable
+// registration then stored string_views into those destroyed strings, producing corrupted labels.
 struct EffectRegistrationOptions {
-	std::optional<std::string> name{};
+	std::optional<std::string_view> name{};
 	bool hdr{ false };
 };
 
 struct EffectRegistrationData {
-	std::string type_name{};
+	std::string_view type_name{};
 	EffectRegistrationOptions options{};
 };
 
@@ -22,7 +26,7 @@ constexpr EffectRegistrationData MakeEffectRegistration(
 	std::string_view type_name, EffectRegistrationOptions options = {}
 ) {
 	return {
-		.type_name = std::string{ type_name },
+		.type_name = type_name,
 		.options   = options,
 	};
 }
@@ -51,7 +55,7 @@ struct EffectRegistration {
 	template <>                                                                           \
 	struct ptgn::impl::DrawableRegistration<Type> {                                     \
 		static constexpr ptgn::impl::DrawableRegistrationData Get() {                   \
-			auto registration{ ptgn::impl::EffectRegistration<Type>::Get() }; \
+			constexpr auto registration{ ptgn::impl::EffectRegistration<Type>::Get() };  \
                                                                                           \
 			return ptgn::impl::MakeDrawableRegistration(                                \
 				registration.type_name,                                                   \
