@@ -815,7 +815,7 @@ void TimerActionScript::OnStart() {
 
 void DialogueActionScript::OnStart() {
 	Entity target{ Target() };
-	if (!target || !target.Has<DialogueData>()) {
+	if (!target || !target.Has<impl::DialogueData>()) {
 		PTGN_WARN("Dialogue action requires DialogueData on the target entity");
 		return;
 	}
@@ -826,7 +826,7 @@ void DialogueActionScript::OnStart() {
 			PTGN_WARN(action_name, " requires a dialogue key");
 			return false;
 		}
-		if (!box.Data().dialogues.contains(dialogue)) {
+		if (!box.Get<impl::DialogueData>().dialogues.contains(dialogue)) {
 			PTGN_WARN(action_name, " could not find dialogue: ", dialogue);
 			return false;
 		}

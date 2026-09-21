@@ -461,7 +461,7 @@ template <typename TEvent>
 }
 
 [[nodiscard]] bool HasDialogueData(Entity entity) {
-	return entity && entity.Has<DialogueData>();
+	return entity && entity.Has<impl::DialogueData>();
 }
 
 [[nodiscard]] bool MatchDialogueKey(const json& value, std::string_view key) {
