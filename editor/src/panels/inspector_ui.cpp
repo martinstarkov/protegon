@@ -1521,12 +1521,30 @@ bool ApplyButtonSnapshotStateOperation(
 	}
 
 	const auto destination_index{ static_cast<std::size_t>(std::to_underlying(destination)) };
-	if (source) {
-		visuals->states[destination_index] =
-			visuals->states[static_cast<std::size_t>(std::to_underlying(*source))];
-	} else {
+	if (!source) {
 		visuals->states[destination_index] = {};
+		return true;
 	}
+
+	// Copy what this part actually resolves to. A source state may have no authored visual of its
+	// own and instead inherit the whole part from an earlier state (for example Hover -> Idle).
+	// Copying the raw undefined source slot would incorrectly erase a defined destination such as
+	// Idle, causing the managed child to disappear even though the source looked identical.
+	for (const ButtonVisualState fallback : GetVisualStateFallbacks(*source)) {
+		const auto& source_visual{
+			visuals->states[static_cast<std::size_t>(std::to_underlying(fallback))]
+		};
+		if (!source_visual.defined) {
+			continue;
+		}
+
+		visuals->states[destination_index] = source_visual;
+		return true;
+	}
+
+	// There is no visual anywhere in this part's fallback chain, so the resolved source really is
+	// undefined. Preserve that result rather than accidentally retaining the destination override.
+	visuals->states[destination_index] = {};
 	return true;
 }
 
@@ -1681,7 +1699,8 @@ bool DrawButtonStateActions(
 		ImGui::EndCombo();
 	}
 	DrawTooltip(
-		"Copy every configured part override from another appearance state into this state."
+		"Copy each part from another appearance state. If that part is inherited in the source "
+		"state, its resolved fallback visual is copied instead."
 	);
 	return changed;
 }

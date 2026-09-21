@@ -188,6 +188,8 @@ ButtonVisualState PressVisualState(Button button) {
 	return ButtonVisualState::Press;
 }
 
+} // namespace
+
 std::span<const ButtonVisualState> GetVisualStateFallbacks(ButtonVisualState state) {
 	using enum ButtonVisualState;
 
@@ -219,6 +221,8 @@ std::span<const ButtonVisualState> GetVisualStateFallbacks(ButtonVisualState sta
 		default:			PTGN_ERROR("Unknown ButtonVisualState: ", std::to_underlying(state));
 	}
 }
+
+namespace {
 
 Rect GetButtonLocalRect(Button button) {
 	if (!button.HasAny<Rect, Circle>()) {

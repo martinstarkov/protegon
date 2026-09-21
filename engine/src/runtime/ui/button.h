@@ -2,6 +2,7 @@
 
 #include <cstdint>
 #include <optional>
+#include <span>
 #include <string_view>
 #include <utility>
 #include <variant>
@@ -37,6 +38,12 @@ class Dropdown;
 class Scene;
 
 Button CreateButton(Scene& scene, Transform transform, const ButtonDesc& desc);
+
+/// @brief Ordered visual state fallback chain used when resolving button appearance.
+/// The requested state is first, followed by progressively more general fallbacks.
+[[nodiscard]] std::span<const ButtonVisualState> GetVisualStateFallbacks(
+	ButtonVisualState state
+);
 
 namespace event {
 
