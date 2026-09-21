@@ -123,7 +123,16 @@ bool IsManagedButtonVisual(Entity entity) {
 		return true;
 	}
 
+	if (entity.Has<::ptgn::impl::DialoguePart>() && parent.Has<::ptgn::impl::DialogueData>()) {
+		return true;
+	}
+
 	return false;
+}
+
+
+bool IsManagedInteractiveShape(Entity entity) {
+	return entity && entity.Has<::ptgn::impl::InteractiveTag>();
 }
 
 bool IsCameraEntity(Entity entity) {
@@ -160,6 +169,11 @@ constexpr std::array kDeletionRules{
 
 /// @brief Restrictions on which parent an entity may be assigned to.
 constexpr std::array kParentAssignmentRules{
+	ParentAssignmentRule{
+		.condition = IsManagedInteractiveShape,
+		.policy    = ParentAssignmentPolicy::SameParentOnly,
+		.reason{ "Interactive hit area cannot be reparented" },
+	},
 	ParentAssignmentRule{
 		.condition = IsManagedButtonVisual,
 		.policy	   = ParentAssignmentPolicy::SameParentOnly,
@@ -222,6 +236,9 @@ std::optional<std::string_view> GetDuplicationLockReason(Entity entity) {
 		return reason;
 	}
 
+	if (IsManagedInteractiveShape(entity)) {
+		return "Interactive hit area cannot be duplicated independently";
+	}
 	if (IsManagedButtonVisual(entity)) {
 		return "Button part cannot be duplicated independently";
 	}
@@ -371,6 +388,11 @@ bool EntityOrDescendantMatchesFilter(
 		"Maximum parent depth exceeded while filtering entities. "
 		"This likely indicates a cycle in the entity hierarchy"
 	);
+
+	// Interactive hit areas are always managed through the Interaction inspector.
+	if (IsManagedInteractiveShape(entity)) {
+		return false;
+	}
 
 	// Managed UI parts are implementation details of their owning control. When they are hidden,
 	// exclude the entire managed branch from both hierarchy drawing and filter matching.
@@ -754,6 +776,18 @@ Entity CreateDefaultUIToggleGroup(Scene& scene) {
 	return group;
 }
 
+Entity CreateDefaultUISlider(Scene& scene) {
+	auto slider{ CreateSlider(
+		scene,
+		Line{ {}, V2_float{ 200.0f, 0.0f } },
+		V2_float{ 24.0f, 24.0f },
+		Origin::Center,
+		0.5f
+	) };
+	SetCreatedEntityTag(slider, "Slider");
+	return slider;
+}
+
 Entity CreateDefaultUIDropdown(Scene& scene) {
 	auto dropdown{ CreateDropdown(scene, {}, kDefaultUIButtonSize) };
 	ConfigureDefaultButton(dropdown, "Dropdown");
@@ -941,6 +975,7 @@ void DrawUICreateMenu(CreateMenuContext& context) {
 	DrawCreateMenuItem(context, "Animated Button", CreateDefaultUIAnimatedButton);
 	DrawCreateMenuItem(context, "Toggle Button", CreateDefaultUIToggleButton);
 	DrawCreateMenuItem(context, "Toggle Group", CreateDefaultUIToggleGroup);
+	DrawCreateMenuItem(context, "Slider", CreateDefaultUISlider);
 	DrawCreateMenuItem(context, "Dropdown", CreateDefaultUIDropdown);
 	DrawCreateMenuItem(context, "Text", CreateDefaultUIText);
 	DrawCreateMenuItem(context, "Panel", CreateDefaultUIPanel);
@@ -1586,6 +1621,11 @@ bool SceneHierarchyPanel::DrawPrefabs(EditorContext& ctx) {
 
 		auto draw_prefab_entity = [&](auto&& self, SerializedEntity& entity,
 									  SerializedEntityPath entity_path, bool root) -> void {
+			if (!root && std::ranges::any_of(entity.tags, [](const std::string& tag) {
+					return tag.ends_with("InteractiveTag");
+				})) {
+				return;
+			}
 			std::string entity_id{ "root" };
 			for (const std::size_t index : entity_path) {
 				entity_id += "/" + std::to_string(index);
