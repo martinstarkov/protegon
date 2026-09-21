@@ -1,6 +1,7 @@
 #pragma once
 
 #include <array>
+#include <cstddef>
 #include <cstdint>
 #include <optional>
 #include <span>
@@ -23,7 +24,6 @@
 #include "runtime/ecs/entity.h"
 #include "runtime/graphics/sprite.h"
 #include "runtime/graphics/text/text.h"
-#include "runtime/scripting/script.h"
 #include "runtime/ui/button_config.h"
 #include "serialization/json/json.h"
 #include "serialization/serialize.h"
@@ -68,26 +68,16 @@ struct DialoguePart {
 	PTGN_REFLECT(DialoguePart, role)
 };
 
-struct DialogueWaitScript final : Script {
-	void OnEvent(Event event) override;
+struct DialogueSystem {
+	/// @brief Handles the dialogue continue key expression for every DialogueData entity.
+	static void OnEvent(Scene& scene, Event event);
 
-	PTGN_REFLECT_EMPTY(DialogueWaitScript)
-
-private:
-	void OnKeyPressed(Key key);
-	void OnKeyReleased(Key key);
-
-	std::vector<Key> held_keys_{};
-};
-
-struct DialogueScrollScript final : Script {
-	[[nodiscard]] ScriptStatus OnUpdate() override;
-	void OnComplete() override;
-
-	PTGN_REFLECT_EMPTY(DialogueScrollScript)
+	/// @brief Advances active typewriter reveals without using the scripting runtime.
+	static void Update(Scene& scene, secondsf delta_time);
 
 private:
-	std::size_t revealed_character_count_{ 0 };
+	static void OnKeyPressed(Scene& scene, Key key);
+	static void OnKeyReleased(Scene& scene, Key key);
 };
 
 } // namespace impl
@@ -136,7 +126,7 @@ struct DialoguePage {
 
 	/// @brief Stateful portrait changes applied when this page becomes current.
 	std::vector<DialoguePortraitCue> portrait_cues{};
-	/// @brief Last authored non-hidden portrait cue on this page. If absent, the previous speaker stays active.
+	/// @brief Last authored non hidden portrait cue on this page. If absent, the previous speaker stays active.
 	std::optional<DialoguePortraitSlot> speaking_slot{};
 
 	DialoguePage() = default;
@@ -145,19 +135,19 @@ struct DialoguePage {
 
 namespace impl {
 
-/// @brief Dialogue-only divider control. Put this on its own line between pages to make the
+/// @brief Dialogue only divider control. Put this on its own line between pages to make the
 /// following page appear immediately even when Typewriter Text is enabled.
 inline constexpr std::string_view kDialogueInstantPageTag{ "[[instant]]" };
 
-/// @brief Prefix/suffix for a standalone page-duration override, e.g. [[duration=750ms]].
+/// @brief Prefix/suffix for a standalone page duration override, e.g. [[duration=750ms]].
 inline constexpr std::string_view kDialogueDurationPageTagPrefix{ "[[duration=" };
 inline constexpr std::string_view kDialogueDurationPageTagSuffix{ "]]" };
 inline constexpr std::string_view kDialoguePortraitPageTagPrefix{ "[[portrait=" };
 inline constexpr std::string_view kDialoguePortraitPageTagSuffix{ "]]" };
 
-/// @brief Dialogue-specific authoring pagination. A blank source line (two or more real
-/// newlines) creates a manual page break. A single real newline and the two-character
-/// sequence `\\n` are in-page line breaks before ordinary text pagination.
+/// @brief Dialogue specific authoring pagination. A blank source line (two or more real
+/// newlines) creates a manual page break. A single real newline and the two character
+/// sequence `\\n` are in page line breaks before ordinary text pagination.
 [[nodiscard]] std::vector<DialoguePage> PaginateDialogueSource(
 	AssetManager& asset_manager, std::string_view source,
 	const DialoguePageProperties& properties, std::string_view split_end = "...",
@@ -198,7 +188,7 @@ struct DialoguePortraitRuntimeState {
 	std::string expression{};
 };
 
-/// @brief Dialogue-key appearance/audio overrides. Empty optionals inherit the dialogue entity's
+/// @brief Dialogue key appearance/audio overrides. Empty optionals inherit the dialogue entity's
 /// ordinary background and have no extra border/sprite/audio behavior.
 struct DialogueSounds {
 	std::optional<AudioKey> open{};
@@ -256,10 +246,17 @@ struct DialogueData {
 
 	bool open{ false };
 
+	/// @brief Runtime only state owned by DialogueSystem.
+	std::vector<Key> held_continue_keys{};
+	bool scrolling{ false };
+	float scroll_elapsed_ms{ 0.0f };
+	std::size_t revealed_character_count{ 0 };
+	bool page_complete{ false };
+
 	DialogueMap dialogues{};
 	DialoguePortraitActorMap portrait_actors{};
 
-	/// @brief Runtime-only portrait state. Authored page cues update these slots incrementally.
+	/// @brief Runtime only portrait state. Authored page cues update these slots incrementally.
 	std::array<std::optional<DialoguePortraitRuntimeState>, 3> portrait_states{};
 	std::optional<DialoguePortraitSlot> current_speaking_slot{};
 
@@ -267,7 +264,7 @@ struct DialogueData {
 	/// Runtime pages are rebuilt from this JSON and are never written back into scene files.
 	json definition = json::object();
 
-	/// @brief Runtime-only invalidation flag. Editor changes update Definition and mark compiled
+	/// @brief Runtime only invalidation flag. Editor changes update Definition and mark compiled
 	/// variants dirty; gameplay recompiles them before the dialogue is opened.
 	bool runtime_dirty{ true };
 
@@ -318,6 +315,8 @@ public:
 	DialogueBox& Open(std::string_view dialogue_name = {});
 	DialogueBox& Close();
 
+	/// @brief Completes the current typewriter reveal, or advances when already complete.
+	DialogueBox& Advance();
 	DialogueBox& NextPage();
 	DialogueBox& CompletePage();
 
@@ -335,8 +334,7 @@ public:
 	[[nodiscard]] std::optional<Entity> TryBackgroundEntity() const;
 
 private:
-	friend struct impl::DialogueWaitScript;
-	friend struct impl::DialogueScrollScript;
+	friend struct impl::DialogueSystem;
 
 	[[nodiscard]] std::optional<Entity> TryPart(DialoguePartRole role) const;
 	Entity Part(DialoguePartRole role);
@@ -355,6 +353,71 @@ private:
 	void StopCurrentPageScroll();
 	void PositionTextForPage(const DialoguePageProperties& properties);
 };
+
+namespace event {
+
+struct DialogueOpened {
+	operator DialogueBox() const { // NOSONAR
+		return dialogue;
+	}
+
+	DialogueBox dialogue{};
+	std::string key{};
+	std::size_t variant{ 0 };
+};
+
+struct DialogueClosed {
+	operator DialogueBox() const { // NOSONAR
+		return dialogue;
+	}
+
+	DialogueBox dialogue{};
+	std::string key{};
+};
+
+struct DialogueChanged {
+	operator DialogueBox() const { // NOSONAR
+		return dialogue;
+	}
+
+	DialogueBox dialogue{};
+	std::string previous{};
+	std::string current{};
+};
+
+struct DialoguePageChanged {
+	operator DialogueBox() const { // NOSONAR
+		return dialogue;
+	}
+
+	DialogueBox dialogue{};
+	std::string key{};
+	std::size_t variant{ 0 };
+	std::size_t page{ 0 };
+};
+
+struct DialoguePageCompleted {
+	operator DialogueBox() const { // NOSONAR
+		return dialogue;
+	}
+
+	DialogueBox dialogue{};
+	std::string key{};
+	std::size_t variant{ 0 };
+	std::size_t page{ 0 };
+};
+
+struct DialogueFinished {
+	operator DialogueBox() const { // NOSONAR
+		return dialogue;
+	}
+
+	DialogueBox dialogue{};
+	std::string key{};
+	std::size_t variant{ 0 };
+};
+
+} // namespace event
 
 DialogueBox CreateDialogueBox(Scene& scene, Transform transform, const DialogueDesc& desc);
 

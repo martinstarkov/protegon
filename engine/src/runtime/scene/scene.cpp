@@ -62,6 +62,7 @@
 #include "runtime/scripting/script.h"
 #include "runtime/timer/timer.h"
 #include "runtime/ui/button.h"
+#include "runtime/ui/dialogue.h"
 #include "runtime/ui/dropdown.h"
 #include "runtime/ui/slider.h"
 #include "runtime/ui/toggle_button.h"
@@ -686,6 +687,9 @@ void Scene::InternalOnEvent(Event event) {
 		return;
 	}
 
+	// Built in global component behavior runs before user authored scripts and sequence triggers.
+	impl::DialogueSystem::OnEvent(*this, event);
+
 	// Global event, dispatched to all scripted entities and sequence triggers in the scene.
 	script_runtime::DispatchGlobalEvent(*this, event);
 
@@ -711,7 +715,7 @@ void Scene::InternalOnEvent() {
 		if (entity_event.entity) {
 			Entity entity{ entity_event.entity };
 
-			// Built-in component behavior runs before user-authored scripts and sequence triggers.
+			// Built in component behavior runs before user authored scripts and sequence triggers.
 			impl::ButtonSystem::OnEvent(entity, event);
 			impl::ToggleButtonSystem::OnEvent(entity, event);
 			impl::DropdownSystem::OnEvent(entity, event);
@@ -988,6 +992,7 @@ void Scene::InternalUpdate() {
 	if (data_.runtime) {
 		auto dt{ ctx().dt() };
 		script_runtime::Update(*this, dt);
+		impl::DialogueSystem::Update(*this, dt);
 
 		OnUpdate();
 

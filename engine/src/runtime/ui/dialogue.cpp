@@ -51,15 +51,24 @@
 #include "runtime/scene/scene.h"
 #include "runtime/scene/scene_camera.h"
 #include "runtime/scene/scene_context.h"
-#include "runtime/scripting/script.h"
+#include "runtime/scene/scene_event.h"
 #include "serialization/json/json.h"
 
 namespace ptgn {
 
 namespace {
 
-constexpr std::string_view kDialogueScrollChannel{ "dialogue.scroll" };
-
+[[nodiscard]] std::size_t CountDialogueCharacters(const DialoguePage& page) {
+	std::size_t character_count{ 0 };
+	for (const auto& run : page.styled_text.runs) {
+		for (const char c : run.text) {
+			const auto byte{ static_cast<unsigned char>(c) };
+			// Count UTF-8 leading bytes so multi byte code points do not trigger several sounds.
+			character_count += static_cast<std::size_t>((byte & 0xC0u) != 0x80u);
+		}
+	}
+	return character_count;
+}
 
 void ApplyDialogueVisualTransform(
 	Entity part, Entity dialogue, const ButtonSpriteVisual& visual, Transform relative_transform
@@ -436,7 +445,7 @@ struct PreparedDialogueSource {
 			}
 
 			// Standalone dialogue controls are authoring metadata. Replace them with a blank
-			// page divider before passing the source to the rich-text parser.
+			// page divider before passing the source to the rich text parser.
 			prepared.source.push_back('\n');
 			if (newline != std::string_view::npos) {
 				prepared.source.push_back('\n');
@@ -865,78 +874,105 @@ bool DialogueKeyExpressionMatches(
 	});
 }
 
-void DialogueWaitScript::OnEvent(Event event) {
-	event.Dispatch<event::KeyPressed>(&DialogueWaitScript::OnKeyPressed, this);
-	event.Dispatch<event::KeyReleased>(&DialogueWaitScript::OnKeyReleased, this);
+void DialogueSystem::OnEvent(Scene& scene, Event event) {
+	using namespace ptgn::event;
+
+	event.Dispatch<KeyPressed>([&scene](Key key) {
+		OnKeyPressed(scene, key);
+	});
+	event.Dispatch<KeyReleased>([&scene](Key key) {
+		OnKeyReleased(scene, key);
+	});
 }
 
-void DialogueWaitScript::OnKeyPressed(Key key) {
-	if (std::ranges::contains(held_keys_, key)) {
-		return;
+void DialogueSystem::OnKeyPressed(Scene& scene, Key key) {
+	const auto entities{ scene.EntitiesWith<DialogueData>().GetVector() };
+
+	for (Entity entity : entities) {
+		if (!entity) {
+			continue;
+		}
+
+		auto& data{ entity.Get<DialogueData>() };
+		if (std::ranges::contains(data.held_continue_keys, key)) {
+			continue;
+		}
+
+		DialogueBox dialogue{ entity };
+		const bool matched_before{
+			data.open &&
+			DialogueKeyExpressionMatches(data.continue_keys, data.held_continue_keys)
+		};
+
+		data.held_continue_keys.emplace_back(key);
+
+		if (!data.open || matched_before ||
+			!DialogueKeyExpressionMatches(data.continue_keys, data.held_continue_keys)) {
+			continue;
+		}
+
+		dialogue.Advance();
 	}
-
-	DialogueBox dialogue{ Target() };
-	const bool matched_before{
-		dialogue.IsOpen() &&
-		DialogueKeyExpressionMatches(dialogue.GetContinueKeys(), held_keys_)
-	};
-	held_keys_.emplace_back(key);
-
-	if (!dialogue.IsOpen() || matched_before ||
-		!DialogueKeyExpressionMatches(dialogue.GetContinueKeys(), held_keys_)) {
-		return;
-	}
-
-	if (Text text{ dialogue.TextPart() }; !text.IsFullyRevealed()) {
-		dialogue.CompletePage();
-		return;
-	}
-
-	dialogue.NextPage();
 }
 
-void DialogueWaitScript::OnKeyReleased(Key key) {
-	std::erase(held_keys_, key);
-}
+void DialogueSystem::OnKeyReleased(Scene& scene, Key key) {
+	const auto entities{ scene.EntitiesWith<DialogueData>().GetVector() };
 
-ScriptStatus DialogueScrollScript::OnUpdate() {
-	DialogueBox dialogue{ Owner() };
-	if (!dialogue.IsOpen()) {
-		return ScriptStatus::Complete;
-	}
-
-	const auto* page{ dialogue.GetCurrentDialoguePage() };
-	if (!page) {
-		return ScriptStatus::Complete;
-	}
-
-	std::size_t character_count{ 0 };
-	for (const auto& run : page->styled_text.runs) {
-		for (const char c : run.text) {
-			const auto byte{ static_cast<unsigned char>(c) };
-			// Count UTF-8 leading bytes so multi-byte code points do not trigger several sounds.
-			character_count += static_cast<std::size_t>((byte & 0xC0u) != 0x80u);
+	for (Entity entity : entities) {
+		if (entity) {
+			std::erase(entity.Get<DialogueData>().held_continue_keys, key);
 		}
 	}
-
-	const float progress{ std::clamp(Progress(), 0.0f, 1.0f) };
-	const std::size_t revealed{ static_cast<std::size_t>(
-		std::floor(progress * static_cast<float>(character_count))
-	) };
-	if (revealed > revealed_character_count_) {
-		dialogue.PlayTypewriterSound();
-		revealed_character_count_ = revealed;
-	}
-
-	dialogue.TextPart().RevealFraction(progress);
-	return ScriptStatus::Running;
 }
 
-void DialogueScrollScript::OnComplete() {
-	DialogueBox dialogue{ Owner() };
-	if (dialogue.IsOpen()) {
-		dialogue.TextPart().Reveal();
-		dialogue.FinishPortraitTalking();
+void DialogueSystem::Update(Scene& scene, secondsf delta_time) {
+	const float delta_ms{ std::max(0.0f, delta_time.count()) * 1000.0f };
+	const auto entities{ scene.EntitiesWith<DialogueData>().GetVector() };
+
+	for (Entity entity : entities) {
+		if (!entity) {
+			continue;
+		}
+
+		DialogueBox dialogue{ entity };
+		auto& data{ dialogue.Data() };
+		if (!data.open || !data.scrolling) {
+			continue;
+		}
+
+		const auto* page{ dialogue.GetCurrentDialoguePage() };
+		const auto* entry{ dialogue.GetCurrentDialogue() };
+		if (!page || !entry) {
+			dialogue.Close();
+			continue;
+		}
+
+		const float duration_ms{
+			static_cast<float>(page->properties.scroll_duration.count())
+		};
+		if (page->instant || !entry->scroll || duration_ms <= 0.0f) {
+			dialogue.CompletePage();
+			continue;
+		}
+
+		data.scroll_elapsed_ms += delta_ms;
+		const float progress{
+			std::clamp(data.scroll_elapsed_ms / duration_ms, 0.0f, 1.0f)
+		};
+		const std::size_t revealed{ static_cast<std::size_t>(
+			std::floor(progress * static_cast<float>(CountDialogueCharacters(*page)))
+		) };
+
+		if (revealed > data.revealed_character_count) {
+			dialogue.PlayTypewriterSound();
+			data.revealed_character_count = revealed;
+		}
+
+		if (progress >= 1.0f) {
+			dialogue.CompletePage();
+		} else {
+			dialogue.TextPart().RevealFraction(progress);
+		}
 	}
 }
 
@@ -1146,6 +1182,11 @@ void DialogueData::ClearRuntimeState() {
 	current_variant = 0;
 	current_page = 0;
 	open = false;
+	held_continue_keys.clear();
+	scrolling = false;
+	scroll_elapsed_ms = 0.0f;
+	revealed_character_count = 0;
+	page_complete = false;
 	portrait_states = {};
 	current_speaking_slot.reset();
 	for (auto& [_, dialogue] : dialogues) {
@@ -1393,10 +1434,6 @@ void DialogueBox::EnsureRuntimeData() {
 	if (data.runtime_dirty) {
 		data.RebuildRuntime(GetScene());
 	}
-
-	if (!HasScript<impl::DialogueWaitScript>(*this)) {
-		AddScript<impl::DialogueWaitScript>(*this);
-	}
 }
 
 DialogueBox& DialogueBox::Open(std::string_view dialogue_name) {
@@ -1408,7 +1445,10 @@ DialogueBox& DialogueBox::Open(std::string_view dialogue_name) {
 		if (dialogue_name == data.current_dialogue && data.open) {
 			return *this;
 		}
-		data.current_dialogue = dialogue_name;
+		if (!data.dialogues.contains(dialogue_name)) {
+			return *this;
+		}
+		SetDialogue(dialogue_name);
 	} else if (data.open) {
 		return *this;
 	}
@@ -1434,17 +1474,26 @@ DialogueBox& DialogueBox::Open(std::string_view dialogue_name) {
 	data.current_speaking_slot.reset();
 	HidePortraits();
 	PlayOpenSound();
+
+	PushEvent<event::DialogueOpened>(
+		*this, *this, data.current_dialogue, data.current_variant
+	);
+
 	ApplyCurrentPage();
 	StartCurrentPageScroll();
 	return *this;
 }
 
 DialogueBox& DialogueBox::Close() {
-	StopCurrentPageScroll();
 	auto& data{ Data() };
+	const bool was_open{ data.open };
+	const std::string closed_dialogue{ data.current_dialogue };
+
+	StopCurrentPageScroll();
 	data.open = false;
 	data.current_variant = 0;
 	data.current_page = 0;
+	data.page_complete = false;
 
 	if (auto text{ TryTextPart() }) {
 		Hide(text.value());
@@ -1456,26 +1505,70 @@ DialogueBox& DialogueBox::Close() {
 	HidePortraits();
 	data.portrait_states = {};
 	data.current_speaking_slot.reset();
+
+	if (was_open) {
+		PushEvent<event::DialogueClosed>(*this, *this, closed_dialogue);
+	}
+
 	return *this;
+}
+
+DialogueBox& DialogueBox::Advance() {
+	if (!IsOpen()) {
+		return *this;
+	}
+
+	auto& data{ Data() };
+	if (!data.page_complete) {
+		if (!TextPart().IsFullyRevealed()) {
+			return CompletePage();
+		}
+		CompletePage();
+	}
+
+	return NextPage();
 }
 
 DialogueBox& DialogueBox::NextPage() {
 	auto& data{ Data() };
+	if (!data.open) {
+		return *this;
+	}
+
+	StopCurrentPageScroll();
+
+	const std::string finished_dialogue{ data.current_dialogue };
+	const std::size_t finished_variant{ data.current_variant };
+
 	++data.current_page;
 	if (!GetCurrentDialoguePage()) {
+		PushEvent<event::DialogueFinished>(
+			*this, *this, finished_dialogue, finished_variant
+		);
 		Close();
 		SetNextDialogue();
 		return *this;
 	}
+
 	ApplyCurrentPage();
 	StartCurrentPageScroll();
 	return *this;
 }
 
 DialogueBox& DialogueBox::CompletePage() {
+	auto& data{ Data() };
+	if (!data.open || data.page_complete) {
+		return *this;
+	}
+
 	StopCurrentPageScroll();
 	TextPart().Reveal();
 	FinishPortraitTalking();
+	data.page_complete = true;
+
+	PushEvent<event::DialoguePageCompleted>(
+		*this, *this, data.current_dialogue, data.current_variant, data.current_page
+	);
 	return *this;
 }
 
@@ -1483,26 +1576,38 @@ DialogueBox& DialogueBox::SetDialogue(std::string_view name) {
 	EnsureRuntimeData();
 	auto& data{ Data() };
 	PTGN_ASSERT(name.empty() || data.dialogues.contains(name));
+
+	const std::string previous{ data.current_dialogue };
 	data.current_dialogue = std::string{ name };
 	data.current_variant = 0;
 	data.current_page = 0;
+	data.page_complete = false;
+
+	if (previous != data.current_dialogue) {
+		PushEvent<event::DialogueChanged>(
+			*this, *this, previous, data.current_dialogue
+		);
+	}
+
 	return *this;
 }
 
 DialogueBox& DialogueBox::SetNextDialogue() {
 	auto& data{ Data() };
 	const auto* dialogue{ GetCurrentDialogue() };
-	data.current_variant = 0;
-	data.current_page = 0;
 
 	if (!dialogue || dialogue->next_dialogue.empty()) {
+		data.current_variant = 0;
+		data.current_page = 0;
+		data.page_complete = false;
 		return *this;
 	}
 
-	PTGN_ASSERT(data.dialogues.contains(dialogue->next_dialogue));
-	data.current_dialogue = dialogue->next_dialogue;
-	return *this;
+	const std::string next{ dialogue->next_dialogue };
+	PTGN_ASSERT(data.dialogues.contains(next));
+	return SetDialogue(next);
 }
+
 
 DialogueEntry* DialogueBox::GetCurrentDialogue() {
 	auto& data{ Data() };
@@ -1632,6 +1737,9 @@ void DialogueBox::ApplyCurrentPage() {
 		return;
 	}
 
+	auto& data{ Data() };
+	data.page_complete = false;
+
 	Text text{ TextPart() };
 	page->properties.ApplyToText(text);
 	text.Clear().Content(page->styled_text).Reveal(0);
@@ -1640,6 +1748,10 @@ void DialogueBox::ApplyCurrentPage() {
 	ApplyCurrentAppearance(page->properties);
 	ApplyCurrentPortraitCues();
 	RefreshPortraits(page->properties, false);
+
+	PushEvent<event::DialoguePageChanged>(
+		*this, *this, data.current_dialogue, data.current_variant, data.current_page
+	);
 }
 
 void DialogueBox::ApplyCurrentPortraitCues() {
@@ -1968,30 +2080,29 @@ void DialogueBox::StartCurrentPageScroll() {
 	}
 
 	StopCurrentPageScroll();
+
 	if (page->instant || !dialogue->scroll || page->properties.scroll_duration <= 0ms) {
-		TextPart().Reveal();
 		RefreshPortraits(page->properties, false);
+		CompletePage();
 		return;
 	}
 
+	auto& data{ Data() };
+	data.scrolling = true;
+	data.scroll_elapsed_ms = 0.0f;
+	data.revealed_character_count = 0;
 	RefreshPortraits(page->properties, true);
-	ScriptSequence sequence{ "Dialogue Text Reveal" };
-	sequence.Transient().During(
-		static_cast<float>(page->properties.scroll_duration.count()),
-		impl::DialogueScrollScript{}
-	);
-	script_runtime::RunInChannel(
-		*this, SequenceChannelKey{ kDialogueScrollChannel }, std::move(sequence), ReentryMode::Restart
-	);
 }
 
 void DialogueBox::StopCurrentPageScroll() {
 	if (!*this) {
 		return;
 	}
-	script_runtime::StopChannel(
-		*this, SequenceChannelKey{ kDialogueScrollChannel }, SequenceStopMode::All
-	);
+
+	auto& data{ Data() };
+	data.scrolling = false;
+	data.scroll_elapsed_ms = 0.0f;
+	data.revealed_character_count = 0;
 }
 
 void DialogueBox::PositionTextForPage(const DialoguePageProperties& properties) {
@@ -2063,9 +2174,6 @@ DialogueBox CreateDialogueBox(Scene& scene, Transform transform, const DialogueD
 
 	dialogue.TextPart();
 	dialogue.Data().LoadFromJson(scene, definition, default_properties);
-	if (!HasScript<impl::DialogueWaitScript>(dialogue)) {
-		AddScript<impl::DialogueWaitScript>(dialogue);
-	}
 	dialogue.Close();
 	return dialogue;
 }

@@ -38,6 +38,7 @@
 #include "runtime/timer/timer.h"
 #include "runtime/timer/timer_event.h"
 #include "runtime/ui/button.h"
+#include "runtime/ui/dialogue.h"
 #include "runtime/ui/dropdown.h"
 #include "runtime/ui/toggle_button.h"
 
@@ -459,6 +460,29 @@ template <typename TEvent>
 		entity.Has<impl::DropdownData>();
 }
 
+[[nodiscard]] bool HasDialogueData(Entity entity) {
+	return entity && entity.Has<DialogueData>();
+}
+
+[[nodiscard]] bool MatchDialogueKey(const json& value, std::string_view key) {
+	const std::string expected{
+		JsonValueOr<std::string>(value, "dialogue", "")
+	};
+	return expected.empty() || expected == key;
+}
+
+[[nodiscard]] bool MatchDialoguePage(
+	const json& value, std::string_view key, std::size_t page
+) {
+	if (!MatchDialogueKey(value, key)) {
+		return false;
+	}
+
+	const int expected_page{ JsonValueOr<int>(value, "page", -1) };
+	return expected_page < 0 ||
+		static_cast<std::size_t>(expected_page) == page;
+}
+
 [[nodiscard]] bool HasTimers(Entity entity) {
 	return entity && entity.Has<impl::Timers>();
 }
@@ -619,6 +643,13 @@ PTGN_REGISTER_SCRIPT(
 
 PTGN_REGISTER_SCRIPT(
 	TimerActionScript,
+	{
+		.completion = ScriptCompletion::Instant
+	}
+);
+
+PTGN_REGISTER_SCRIPT(
+	DialogueActionScript,
 	{
 		.completion = ScriptCompletion::Instant
 	}
@@ -808,6 +839,90 @@ PTGN_REGISTER_EVENT(
 	event::ButtonHoverStop,
 	{
 		.available = &HasButtonData
+	}
+);
+
+PTGN_REGISTER_EVENT(
+	event::DialogueOpened,
+	{
+		.default_value = MakeEventDefault("dialogue", std::string{}),
+		.matches = [](
+			Entity, const json& value, const event::DialogueOpened& event
+		) {
+			return MatchDialogueKey(value, event.key);
+		},
+		.available = &HasDialogueData
+	}
+);
+
+PTGN_REGISTER_EVENT(
+	event::DialogueClosed,
+	{
+		.default_value = MakeEventDefault("dialogue", std::string{}),
+		.matches = [](
+			Entity, const json& value, const event::DialogueClosed& event
+		) {
+			return MatchDialogueKey(value, event.key);
+		},
+		.available = &HasDialogueData
+	}
+);
+
+PTGN_REGISTER_EVENT(
+	event::DialogueChanged,
+	{
+		.default_value = MakeEventDefault("dialogue", std::string{}),
+		.matches = [](
+			Entity, const json& value, const event::DialogueChanged& event
+		) {
+			return MatchDialogueKey(value, event.current);
+		},
+		.available = &HasDialogueData
+	}
+);
+
+PTGN_REGISTER_EVENT(
+	event::DialoguePageChanged,
+	{
+		.default_value = json{
+			{ "dialogue", std::string{} },
+			{ "page", -1 },
+		},
+		.matches = [](
+			Entity, const json& value, const event::DialoguePageChanged& event
+		) {
+			return MatchDialoguePage(value, event.key, event.page);
+		},
+		.available = &HasDialogueData
+	}
+);
+
+PTGN_REGISTER_EVENT(
+	event::DialoguePageCompleted,
+	{
+		.default_value = json{
+			{ "dialogue", std::string{} },
+			{ "page", -1 },
+		},
+		.matches = [](
+			Entity, const json& value, const event::DialoguePageCompleted& event
+		) {
+			return MatchDialoguePage(value, event.key, event.page);
+		},
+		.available = &HasDialogueData
+	}
+);
+
+PTGN_REGISTER_EVENT(
+	event::DialogueFinished,
+	{
+		.default_value = MakeEventDefault("dialogue", std::string{}),
+		.matches = [](
+			Entity, const json& value, const event::DialogueFinished& event
+		) {
+			return MatchDialogueKey(value, event.key);
+		},
+		.available = &HasDialogueData
 	}
 );
 

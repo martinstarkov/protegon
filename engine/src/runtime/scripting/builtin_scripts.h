@@ -405,6 +405,29 @@ struct TimerActionScript : public Script {
 	PTGN_REFLECT(TimerActionScript, timer, action, amount)
 };
 
+enum class DialogueAction : std::uint8_t {
+	Open,
+	Close,
+	Advance,
+	NextPage,
+	CompletePage,
+	ChangeDialogue,
+	SelectDialogue,
+	NextDialogue,
+	OpenNextDialogue
+};
+PTGN_REFLECT_ENUM(DialogueAction);
+
+/// @brief Controls a DialogueBox on the script target entity.
+struct DialogueActionScript : public Script {
+	DialogueAction action{ DialogueAction::Advance };
+	std::string dialogue{};
+
+	void OnStart() override;
+
+	PTGN_REFLECT(DialogueActionScript, action, dialogue)
+};
+
 /// @brief Assigns a TextureKey to the owning entity.
 struct SetTextureScript : public Script {
 	TextureKey texture_key{};

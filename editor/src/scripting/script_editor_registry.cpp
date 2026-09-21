@@ -1,3 +1,4 @@
+// script_editor_registry.cpp
 #include "scripting/script_editor_registry.h"
 
 #include <imgui.h>
@@ -49,6 +50,7 @@
 #include "runtime/timer/timer.h"
 #include "runtime/timer/timer_event.h"
 #include "runtime/ui/button.h"
+#include "runtime/ui/dialogue.h"
 #include "runtime/ui/dropdown.h"
 #include "runtime/ui/toggle_button.h"
 #include "scripting/script_registration_editor.h"
@@ -541,6 +543,52 @@ bool DrawSignalEvent(json& value) {
 	return changed;
 }
 
+bool DrawDialogueEventFilter(json& value, bool with_page) {
+	if (!value.is_object()) {
+		value = json::object();
+	}
+
+	std::string dialogue{ JsonValueOr<std::string>(value, "dialogue", "") };
+	int page{ JsonValueOr<int>(value, "page", -1) };
+	bool changed{ false };
+
+	if (with_page) {
+		const float spacing{ ImGui::GetStyle().ItemSpacing.x };
+		const float page_width{ 72.0f };
+		ImGui::SetNextItemWidth(
+			std::max(1.0f, ImGui::GetContentRegionAvail().x - page_width - spacing)
+		);
+		changed |= ImGui::InputTextWithHint("##DialogueKey", "Any dialogue", &dialogue);
+		DrawItemTooltip("Dialogue key to match. Empty matches any dialogue.");
+		SameLineControl();
+		ImGui::SetNextItemWidth(page_width);
+		changed |= ImGui::InputInt("##DialoguePage", &page, 0, 0);
+		DrawItemTooltip("Zero-based page index. -1 matches any page.");
+		page = std::max(-1, page);
+	} else {
+		ImGui::SetNextItemWidth(-FLT_MIN);
+		changed |= ImGui::InputTextWithHint("##DialogueKey", "Any dialogue", &dialogue);
+		DrawItemTooltip("Dialogue key to match. Empty matches any dialogue.");
+	}
+
+	if (changed) {
+		value["dialogue"] = std::move(dialogue);
+		if (with_page) {
+			value["page"] = page;
+		}
+	}
+
+	return changed;
+}
+
+bool DrawDialogueEvent(json& value) {
+	return DrawDialogueEventFilter(value, false);
+}
+
+bool DrawDialoguePageEvent(json& value) {
+	return DrawDialogueEventFilter(value, true);
+}
+
 template <typename T>
 bool DrawNothing(ScriptEditorContext&, T&) {
 	return false;
@@ -786,6 +834,18 @@ inline constexpr std::array kTimerActions{
 	std::pair{ TimerAction::RemoveDuration, "Remove Duration" },
 };
 
+inline constexpr std::array kDialogueActions{
+	std::pair{ DialogueAction::Open, "Open" },
+	std::pair{ DialogueAction::Close, "Close" },
+	std::pair{ DialogueAction::Advance, "Advance" },
+	std::pair{ DialogueAction::NextPage, "Next Page" },
+	std::pair{ DialogueAction::CompletePage, "Complete Page" },
+	std::pair{ DialogueAction::ChangeDialogue, "Change Dialogue" },
+	std::pair{ DialogueAction::SelectDialogue, "Select Dialogue" },
+	std::pair{ DialogueAction::NextDialogue, "Next Dialogue" },
+	std::pair{ DialogueAction::OpenNextDialogue, "Open Next Dialogue" },
+};
+
 inline constexpr std::array kSceneActions{
 	std::pair{ SceneChangeAction::Enter, "Enter" },
 	std::pair{ SceneChangeAction::Exit, "Exit" },
@@ -837,6 +897,18 @@ inline constexpr std::array kSceneTransitions{
 		return entry.first == action;
 	}) };
 	return it != kTimerActions.end() ? it->second : "Timer";
+}
+
+[[nodiscard]] const char* DialogueActionLabel(DialogueAction action) {
+	const auto it{ std::ranges::find_if(kDialogueActions, [action](const auto& entry) {
+		return entry.first == action;
+	}) };
+	return it != kDialogueActions.end() ? it->second : "Dialogue";
+}
+
+[[nodiscard]] bool DialogueActionUsesKey(DialogueAction action) {
+	return action == DialogueAction::ChangeDialogue ||
+		action == DialogueAction::SelectDialogue;
 }
 
 [[nodiscard]] bool TimerActionUsesAmount(TimerAction action) {
@@ -977,6 +1049,39 @@ bool DrawTimerActionInline(ScriptEditorContext& context, TimerActionScript& scri
 			"##TimerAmount", script.amount, amount_width, false,
 			"Time amount used by this timer operation."
 		);
+	}
+
+	return changed;
+}
+
+bool DrawDialogueActionInline(ScriptEditorContext&, DialogueActionScript& script) {
+	const float available{ ImGui::GetContentRegionAvail().x };
+	const float spacing{ ImGui::GetStyle().ItemSpacing.x };
+	const bool uses_key{ DialogueActionUsesKey(script.action) };
+	const float action_width{
+		uses_key ? std::min(155.0f, std::max(110.0f, available * 0.46f)) : available
+	};
+
+	bool changed{ false };
+	ImGui::SetNextItemWidth(std::max(1.0f, action_width));
+	if (ImGui::BeginCombo("##DialogueAction", DialogueActionLabel(script.action))) {
+		for (const auto& [candidate, label] : kDialogueActions) {
+			if (ImGui::Selectable(label, candidate == script.action)) {
+				script.action = candidate;
+				changed = true;
+			}
+		}
+		ImGui::EndCombo();
+	}
+	DrawItemTooltip("Dialogue operation to perform on the action target.");
+
+	if (DialogueActionUsesKey(script.action)) {
+		SameLineControl();
+		ImGui::SetNextItemWidth(std::max(1.0f, available - action_width - spacing));
+		changed |= ImGui::InputTextWithHint(
+			"##DialogueActionKey", "Dialogue key", &script.dialogue
+		);
+		DrawItemTooltip("Authored dialogue key on the target DialogueBox.");
 	}
 
 	return changed;
@@ -2087,6 +2192,18 @@ PTGN_REGISTER_SCRIPT(
 					   }
 );
 
+PTGN_REGISTER_SCRIPT(
+	DialogueActionScript,
+	{
+		.label = "Dialogue Action",
+		.group = "Dialogue",
+		.description = "Open, close, advance, or change a dialogue on the action target.",
+		.type = ScriptType::Sequence,
+		.menu_order = 1,
+		.draw_inline = &DrawDialogueActionInline,
+	}
+);
+
 namespace {
 
 [[maybe_unused]] const bool kTimerActionRuntimeRegistered{
@@ -2332,6 +2449,72 @@ PTGN_REGISTER_EVENT(
 
 	}
 
+);
+
+PTGN_REGISTER_EVENT(
+	event::DialogueOpened,
+	{
+		.label = "On Dialogue Open",
+		.group = "Dialogue",
+		.description = "Matches when the owner dialogue opens.",
+		.inline_fields = 1,
+		.draw = &DrawDialogueEvent,
+	}
+);
+
+PTGN_REGISTER_EVENT(
+	event::DialogueClosed,
+	{
+		.label = "On Dialogue Close",
+		.group = "Dialogue",
+		.description = "Matches when the owner dialogue closes.",
+		.inline_fields = 1,
+		.draw = &DrawDialogueEvent,
+	}
+);
+
+PTGN_REGISTER_EVENT(
+	event::DialogueChanged,
+	{
+		.label = "On Dialogue Change",
+		.group = "Dialogue",
+		.description = "Matches when the selected dialogue key changes.",
+		.inline_fields = 1,
+		.draw = &DrawDialogueEvent,
+	}
+);
+
+PTGN_REGISTER_EVENT(
+	event::DialoguePageChanged,
+	{
+		.label = "On Dialogue Page Change",
+		.group = "Dialogue",
+		.description = "Matches when the current dialogue page changes.",
+		.inline_fields = 2,
+		.draw = &DrawDialoguePageEvent,
+	}
+);
+
+PTGN_REGISTER_EVENT(
+	event::DialoguePageCompleted,
+	{
+		.label = "On Dialogue Page Complete",
+		.group = "Dialogue",
+		.description = "Matches when the current page is fully revealed.",
+		.inline_fields = 2,
+		.draw = &DrawDialoguePageEvent,
+	}
+);
+
+PTGN_REGISTER_EVENT(
+	event::DialogueFinished,
+	{
+		.label = "On Dialogue Finish",
+		.group = "Dialogue",
+		.description = "Matches after advancing past the final page of a dialogue.",
+		.inline_fields = 1,
+		.draw = &DrawDialogueEvent,
+	}
 );
 
 PTGN_REGISTER_EVENT(

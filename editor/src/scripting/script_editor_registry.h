@@ -1,3 +1,4 @@
+// script_editor_registry.h
 #pragma once
 
 #include <algorithm>

@@ -30,6 +30,7 @@
 #include "runtime/scene/scene.h"
 #include "runtime/scene/scene_context.h"
 #include "runtime/scene/scene_file.h"
+#include "runtime/ui/dialogue.h"
 
 namespace ptgn {
 
@@ -809,6 +810,70 @@ void TimerActionScript::OnStart() {
 		case TimerAction::RemoveDuration:
 			handle.RemoveDuration(amount);
 			break;
+	}
+}
+
+void DialogueActionScript::OnStart() {
+	Entity target{ Target() };
+	if (!target || !target.Has<DialogueData>()) {
+		PTGN_WARN("Dialogue action requires DialogueData on the target entity");
+		return;
+	}
+
+	DialogueBox box{ target };
+	auto require_dialogue = [&box, this](std::string_view action_name) {
+		if (dialogue.empty()) {
+			PTGN_WARN(action_name, " requires a dialogue key");
+			return false;
+		}
+		if (!box.Data().dialogues.contains(dialogue)) {
+			PTGN_WARN(action_name, " could not find dialogue: ", dialogue);
+			return false;
+		}
+		return true;
+	};
+
+	switch (action) {
+		case DialogueAction::Open:
+			box.Open();
+			break;
+		case DialogueAction::Close:
+			box.Close();
+			break;
+		case DialogueAction::Advance:
+			box.Advance();
+			break;
+		case DialogueAction::NextPage:
+			box.NextPage();
+			break;
+		case DialogueAction::CompletePage:
+			box.CompletePage();
+			break;
+		case DialogueAction::ChangeDialogue:
+			if (!require_dialogue("Change Dialogue")) {
+				return;
+			}
+			box.Open(dialogue);
+			break;
+		case DialogueAction::SelectDialogue:
+			if (!require_dialogue("Select Dialogue")) {
+				return;
+			}
+			box.SetDialogue(dialogue);
+			break;
+		case DialogueAction::NextDialogue:
+			box.SetNextDialogue();
+			break;
+		case DialogueAction::OpenNextDialogue: {
+			const auto* current{ box.GetCurrentDialogue() };
+			if (!current || current->next_dialogue.empty()) {
+				PTGN_WARN("Open Next Dialogue requires a configured next dialogue");
+				return;
+			}
+			const std::string next{ current->next_dialogue };
+			box.Open(next);
+			break;
+		}
 	}
 }
 
