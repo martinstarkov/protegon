@@ -4,7 +4,6 @@
 
 namespace ptgn::editor::inspector {
 
-
 template <typename Target>
 [[nodiscard]] std::optional<V2_float> GetGeometryTargetWorldReferencePosition(
 	const Target& target, V2_float local_position
@@ -57,10 +56,13 @@ bool DrawPickableLocalPosition(
 								ImGui::GetStyle().FramePadding.x * 2.0f };
 		const float remove_width{ remove_requested ? ImGui::GetFrameHeight() : 0.0f };
 		const float remove_spacing{ remove_requested ? spacing : 0.0f };
-		const float available{ ImGui::GetContentRegionAvail().x };
-		const float field_width{ std::max(
-			36.0f, (available - pick_width - remove_width - remove_spacing - spacing * 2.0f) * 0.5f
-		) };
+		const float available{ std::max(1.0f, ImGui::GetContentRegionAvail().x) };
+		const float actions_width{ pick_width + remove_width + remove_spacing };
+		const bool actions_inline{ available >= actions_width + spacing * 2.0f + 96.0f };
+		const float fields_width{
+			actions_inline ? std::max(1.0f, available - actions_width - spacing) : available
+		};
+		const float field_width{ InspectorSplitWidth(2, fields_width, spacing) };
 
 		bool local_changed{ false };
 
@@ -75,7 +77,9 @@ bool DrawPickableLocalPosition(
 			"##Y", &position.y, kInspectorPositionDragSpeed, 0.0f, 0.0f, "Y: %.2f"
 		);
 
-		ImGui::SameLine(0.0f, spacing);
+		if (actions_inline) {
+			ImGui::SameLine(0.0f, spacing);
+		}
 
 		{
 			ScopedDisabled disabled{ !CanPickLocalPosition<Target>() };
@@ -98,7 +102,9 @@ bool DrawPickableLocalPosition(
 		}
 
 		if (remove_requested) {
-			ImGui::SameLine(0.0f, spacing);
+			if (actions_inline || ImGui::GetContentRegionAvail().x >= remove_width + spacing) {
+				ImGui::SameLine(0.0f, spacing);
+			}
 			if (ImGui::Button("-", ImVec2{ ImGui::GetFrameHeight(), ImGui::GetFrameHeight() })) {
 				*remove_requested = true;
 			}
@@ -271,9 +277,11 @@ bool DrawColliderMaskList(std::vector<Mask>& masks) {
 			bool local_changed{ false };
 			const float spacing{ ImGui::GetStyle().ItemInnerSpacing.x };
 			const float button_width{ ImGui::GetFrameHeight() };
-			const float actions_width{ button_width * 3.0f + spacing * 3.0f };
+			const float available{ std::max(1.0f, ImGui::GetContentRegionAvail().x) };
+			const float actions_width{ button_width * 3.0f + spacing * 2.0f };
+			const bool actions_inline{ available >= actions_width + spacing + 48.0f };
 			const float field_width{
-				std::max(36.0f, ImGui::GetContentRegionAvail().x - actions_width)
+				actions_inline ? std::max(1.0f, available - actions_width - spacing) : available
 			};
 
 			ImGui::SetNextItemWidth(field_width);
@@ -284,7 +292,9 @@ bool DrawColliderMaskList(std::vector<Mask>& masks) {
 				local_changed = true;
 			}
 
-			ImGui::SameLine(0.0f, spacing);
+			if (actions_inline) {
+				ImGui::SameLine(0.0f, spacing);
+			}
 			{
 				ScopedDisabled disabled{ index == 0 };
 				if (ImGui::ArrowButton("##up", ImGuiDir_Up)) {
@@ -333,7 +343,15 @@ bool DrawGeometryValue(
 	if constexpr (std::same_as<Type, V2_float>) {
 		const std::string normalized{ NormalizeFeatureName(label) };
 		if constexpr (std::same_as<std::remove_cvref_t<Component>, Ellipse>) {
-			return DrawWHValue(label, value, kInspectorSizeDragSpeed, 0.0f, 0.0f, "%.3f");
+			return DrawWHValue(
+				label, value, kInspectorSizeDragSpeed, 0.0f, FLT_MAX, "%.3f",
+				ImGuiSliderFlags_AlwaysClamp
+			);
+		} else if (normalized.contains("radius") || normalized.contains("radii")) {
+			return DrawWHValue(
+				label, value, kInspectorSizeDragSpeed, 0.0f, FLT_MAX, "%.3f",
+				ImGuiSliderFlags_AlwaysClamp
+			);
 		} else if (normalized == "size" || normalized == "dimensions") {
 			return DrawWHValue(label, value, kInspectorSizeDragSpeed, 0.0f, 0.0f, "%.3f");
 		} else {
@@ -458,7 +476,10 @@ bool DrawGeometryValue(
 	} else if constexpr (std::same_as<Type, float>) {
 		const std::string normalized{ NormalizeFeatureName(label) };
 		if (normalized.contains("radius") || normalized.contains("radii")) {
-			return DrawRValue(label, value, 0.1f, 0.0f, 0.0f, "%.3f");
+			return DrawRValue(
+				label, value, 0.1f, 0.0f, FLT_MAX, "%.3f",
+				ImGuiSliderFlags_AlwaysClamp
+			);
 		}
 		return DrawValue(target.ctx, label, value);
 	} else if constexpr (ReflectedValue<Type>) {
@@ -492,6 +513,5 @@ bool DrawGeometryComponent(Target& target, Component& component, Callback callba
 		target, component, component, TypeLabel<Component>(), root_locator, callback
 	);
 }
-
 
 } // namespace ptgn::editor::inspector

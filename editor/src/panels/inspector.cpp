@@ -10,8 +10,8 @@
 #include "editor/editor_selection.h"
 #include "panels/inspector_feature_helpers.h"
 #include "panels/inspector_features.h"
-#include "panels/inspector_screen_effects.h"
 #include "panels/inspector_targets.h"
+#include "panels/inspector_screen_effects.h"
 #include "panels/scene_hierarchy.h"
 #include "runtime/asset/asset_manager.h"
 #include "runtime/asset/prefab.h"
@@ -27,7 +27,6 @@ bool DrawInspectorContents(EditorContext& ctx, Target& target) {
 	CommitInactiveInspectorEdit(ctx);
 
 	bool changed{ DrawName(target) };
-	ImGui::Separator();
 	changed |= DrawFeatureInspector(target);
 	return changed;
 }

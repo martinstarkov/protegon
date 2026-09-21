@@ -41,6 +41,9 @@
 #include "editor/renamable_item.h"
 #include "panels/entity_filter_editor.h"
 #include "panels/inspector_feature_helpers.h"
+#include "panels/inspector_archetypes.h"
+#include "panels/inspector_layout.h"
+#include "panels/inspector_tabs.h"
 #include "panels/inspector_fields.h"
 #include "panels/inspector_targets.h"
 #include "panels/inspector_component_drawers.h"
@@ -154,7 +157,7 @@ using UIFeatureComponents = FeatureComponents<
 	ButtonBorderVisuals, ButtonSpriteVisuals, ButtonTextVisuals, ButtonSounds,
 	::ptgn::impl::SliderData, ::ptgn::impl::ToggleButtonData, ::ptgn::impl::ToggleButtonGroupData,
 	::ptgn::impl::ToggleButtonGroupItem, ::ptgn::impl::DropdownData, ::ptgn::impl::DropdownItem,
-	DialogueData, ::ptgn::impl::DialoguePart,
+	::ptgn::impl::DialogueData, ::ptgn::impl::DialoguePart,
 	::ptgn::impl::TooltipData, ::ptgn::impl::TooltipHoverData, ::ptgn::impl::TooltipBackgroundPart,
 	::ptgn::impl::TooltipTextPart>;
 
@@ -179,9 +182,9 @@ struct ManualFeatureState {
 	std::size_t dialogue_variant_index{ 0 };
 	std::size_t dialogue_preview_page{ 0 };
 	std::optional<std::string> dialogue_rename_key{};
-	InlineRenameState dialogue_rename{};
+	RenameModalState dialogue_rename{};
 	std::optional<std::size_t> dialogue_variant_rename_index{};
-	InlineRenameState dialogue_variant_rename{};
+	RenameModalState dialogue_variant_rename{};
 	std::string dialogue_portrait_actor{};
 	std::string dialogue_portrait_expression{};
 
@@ -471,8 +474,19 @@ bool DrawButtonVisualOverrideValue(
 			ResolveButtonVisualProperty(states, state, &Visual::inherit_depth).value_or(true)
 		) };
 		bool changed{ false };
-
-		if (ImGui::Checkbox("##Enabled", &enabled)) {
+		bool open{ false };
+		const bool toggle_changed{ DrawInspectorCustomPropertyRow(
+			label,
+			[&]() {
+				open = ImGui::TreeNodeEx(
+					"Transform##ButtonVisualRelativeTransform",
+					ImGuiTreeNodeFlags_SpanAvailWidth | ImGuiTreeNodeFlags_FramePadding |
+						ImGuiTreeNodeFlags_NoTreePushOnOpen
+				);
+			},
+			[&]() { return ImGui::Checkbox("##Enabled", &enabled); }
+		) };
+		if (toggle_changed) {
 			if (enabled) {
 				value = displayed;
 				visual.depth = depth;
@@ -491,83 +505,59 @@ bool DrawButtonVisualOverrideValue(
 			changed = true;
 		}
 
-		ImGui::SameLine();
-		if (!enabled) {
-			ImGui::SetNextItemOpen(false, ImGuiCond_Always);
-		}
-		ImGui::BeginDisabled(!enabled);
-		const bool open{ ImGui::TreeNodeEx(
-			"Transform##ButtonVisualRelativeTransform",
-			ImGuiTreeNodeFlags_SpanAvailWidth | ImGuiTreeNodeFlags_FramePadding
-		) };
-		ImGui::EndDisabled();
-
 		if (open) {
 			ScopedIndent indent;
 			ScopedDisabled disabled{ !enabled };
+			bool fields_changed{ false };
 
-			constexpr ImGuiTableFlags flags{
-				ImGuiTableFlags_SizingStretchProp |
-					ImGuiTableFlags_NoSavedSettings |
-					ImGuiTableFlags_NoPadOuterX
+			auto draw_ignore = [&](bool& inherit, const char* tooltip) {
+				bool ignore{ !inherit };
+				const bool local_changed{ ImGui::Checkbox("##IgnoreParent", &ignore) };
+				if (local_changed) {
+					inherit = !ignore;
+				}
+				DrawTooltip(tooltip);
+				return local_changed;
 			};
 
-			if (ImGui::BeginTable("##RelativeTransformFields", 5, flags)) {
-				const float compact_width{ ImGui::GetFrameHeight() };
+			fields_changed |= DrawPropertyRow("Position", [&]() {
+				const float spacing{ ImGui::GetStyle().ItemInnerSpacing.x };
+				const float available{ std::max(1.0f, ImGui::GetContentRegionAvail().x) };
 				const float pick_width{ ImGui::CalcTextSize("Pick").x +
 					ImGui::GetStyle().FramePadding.x * 2.0f };
-				ImGui::TableSetupColumn("Property", ImGuiTableColumnFlags_WidthFixed, 76.0f);
-				ImGui::TableSetupColumn("Lock", ImGuiTableColumnFlags_WidthFixed, compact_width);
-				ImGui::TableSetupColumn("Value", ImGuiTableColumnFlags_WidthStretch, 1.0f);
-				ImGui::TableSetupColumn("Action", ImGuiTableColumnFlags_WidthFixed, pick_width);
-				ImGui::TableSetupColumn("Inherit", ImGuiTableColumnFlags_WidthFixed, compact_width);
-
-				auto begin_row = [](const char* id, const char* row_label) {
-					ImGui::TableNextRow(ImGuiTableRowFlags_None, ImGui::GetFrameHeight());
-					ImGui::PushID(id);
-					ImGui::TableSetColumnIndex(0);
-					ImGui::AlignTextToFramePadding();
-					ImGui::TextUnformatted(row_label);
+				const float inherit_width{ ImGui::GetFrameHeight() };
+				const float actions_width{ pick_width + inherit_width + spacing };
+				const bool actions_inline{ available >= actions_width + spacing + 104.0f };
+				const float fields_width{
+					actions_inline ? std::max(1.0f, available - actions_width - spacing) : available
 				};
-				auto draw_ignore = [](bool& inherit, const char* tooltip) {
-					ImGui::TableSetColumnIndex(4);
-					bool ignore{ !inherit };
-					const bool local_changed{ ImGui::Checkbox("##IgnoreParent", &ignore) };
-					if (local_changed) inherit = !ignore;
-					DrawTooltip(tooltip);
-					return local_changed;
-				};
+				const float field_width{ InspectorSplitWidth(2, fields_width, spacing) };
+				bool local_changed{ false };
 
-				bool fields_changed{ false };
+				ImGui::SetNextItemWidth(field_width);
+				local_changed |= ImGui::DragFloat(
+					"##X", &displayed.position.x, 1.0f, 0.0f, 0.0f, "X: %.0f"
+				);
+				ImGui::SameLine(0.0f, spacing);
+				ImGui::SetNextItemWidth(field_width);
+				local_changed |= ImGui::DragFloat(
+					"##Y", &displayed.position.y, 1.0f, 0.0f, 0.0f, "Y: %.0f"
+				);
 
-				begin_row("Position", "Position");
-				ImGui::TableSetColumnIndex(2);
-				{
-					const float spacing{ ImGui::GetStyle().ItemInnerSpacing.x };
-					const float available{ ImGui::GetContentRegionAvail().x };
-					const float field_width{ std::max(36.0f, (available - spacing) * 0.5f) };
-					ImGui::SetNextItemWidth(field_width);
-					fields_changed |= ImGui::DragFloat(
-						"##X", &displayed.position.x, 1.0f, 0.0f, 0.0f, "X: %.0f"
-					);
+				if (actions_inline) {
 					ImGui::SameLine(0.0f, spacing);
-					ImGui::SetNextItemWidth(field_width);
-					fields_changed |= ImGui::DragFloat(
-						"##Y", &displayed.position.y, 1.0f, 0.0f, 0.0f, "Y: %.0f"
-					);
 				}
-				ImGui::TableSetColumnIndex(3);
-				if (relative_to) {
-					const ImGuiID pick_id{ ImGui::GetID("##RelativeVisualPositionPick") };
-					static std::unordered_map<ImGuiID, V2_float> picked_positions;
-					if (const auto it{ picked_positions.find(pick_id) }; it != picked_positions.end()) {
-						if (displayed.position != it->second) {
-							displayed.position = it->second;
-							fields_changed = true;
-						} else if (!IsPositionPickingActive(ctx)) {
-							picked_positions.erase(it);
-						}
+				const ImGuiID pick_id{ ImGui::GetID("##RelativeVisualPositionPick") };
+				static std::unordered_map<ImGuiID, V2_float> picked_positions;
+				if (const auto it{ picked_positions.find(pick_id) }; it != picked_positions.end()) {
+					if (displayed.position != it->second) {
+						displayed.position = it->second;
+						local_changed = true;
+					} else if (!IsPositionPickingActive(ctx)) {
+						picked_positions.erase(it);
 					}
+				}
+				if (relative_to) {
 					const Transform basis{ GetDrawTransform(relative_to) };
 					DrawPositionPickButton(
 						ctx, "RelativeVisualPosition", displayed.position,
@@ -582,85 +572,107 @@ bool DrawButtonVisualOverrideValue(
 					ScopedDisabled no_basis{ true };
 					ImGui::Button("Pick");
 				}
-				fields_changed |= draw_ignore(inherit_position, "Ignore parent position.");
-				ImGui::PopID();
+				ImGui::SameLine(0.0f, spacing);
+				local_changed |= draw_ignore(inherit_position, "Ignore parent position.");
+				return local_changed;
+			});
 
-				begin_row("Depth", "Depth");
-				ImGui::TableSetColumnIndex(2);
-				ImGui::SetNextItemWidth(-FLT_MIN);
-				fields_changed |= ImGui::DragFloat("##Value", &depth, 1.0f, 0.0f, 0.0f, "%.0f");
-				fields_changed |= draw_ignore(inherit_depth, "Ignore parent depth.");
-				ImGui::PopID();
+			fields_changed |= DrawPropertyRow("Depth", [&]() {
+				const float spacing{ ImGui::GetStyle().ItemInnerSpacing.x };
+				const float available{ std::max(1.0f, ImGui::GetContentRegionAvail().x) };
+				const float checkbox_width{ ImGui::GetFrameHeight() };
+				const bool inline_ignore{ available >= checkbox_width + spacing + 72.0f };
+				ImGui::SetNextItemWidth(
+					inline_ignore ? std::max(1.0f, available - checkbox_width - spacing) : -FLT_MIN
+				);
+				bool local_changed{ ImGui::DragFloat("##Value", &depth, 1.0f, 0.0f, 0.0f, "%.0f") };
+				if (inline_ignore) ImGui::SameLine(0.0f, spacing);
+				local_changed |= draw_ignore(inherit_depth, "Ignore parent depth.");
+				return local_changed;
+			});
 
-				begin_row("Rotation", "Rotation");
-				ImGui::TableSetColumnIndex(2);
-				ImGui::SetNextItemWidth(-FLT_MIN);
+			fields_changed |= DrawPropertyRow("Rotation", [&]() {
+				const float spacing{ ImGui::GetStyle().ItemInnerSpacing.x };
+				const float available{ std::max(1.0f, ImGui::GetContentRegionAvail().x) };
+				const float checkbox_width{ ImGui::GetFrameHeight() };
+				const bool inline_ignore{ available >= checkbox_width + spacing + 72.0f };
+				ImGui::SetNextItemWidth(
+					inline_ignore ? std::max(1.0f, available - checkbox_width - spacing) : -FLT_MIN
+				);
 				Degrees rotation{ displayed.rotation };
 				float degrees{ rotation.value };
-				if (ImGui::DragFloat("##Value", &degrees, 1.0f, 0.0f, 360.0f, "%.1f deg",
-						ImGuiSliderFlags_AlwaysClamp)) {
+				bool local_changed{ false };
+				if (ImGui::DragFloat(
+						"##Value", &degrees, 1.0f, 0.0f, 360.0f, "%.1f deg",
+						ImGuiSliderFlags_AlwaysClamp
+					)) {
 					displayed.rotation = Radians{ Degrees{ degrees } };
-					fields_changed = true;
+					local_changed = true;
 				}
-				fields_changed |= draw_ignore(inherit_rotation, "Ignore parent rotation.");
-				ImGui::PopID();
+				if (inline_ignore) ImGui::SameLine(0.0f, spacing);
+				local_changed |= draw_ignore(inherit_rotation, "Ignore parent rotation.");
+				return local_changed;
+			});
 
-				begin_row("Scale", "Scale");
-				ImGui::TableSetColumnIndex(1);
+			fields_changed |= DrawPropertyRow("Scale", [&]() {
+				constexpr float minimum{ 0.001f };
+				constexpr float epsilon{ 0.000001f };
+				const V2_float before_scale{ displayed.scale };
+				const float spacing{ ImGui::GetStyle().ItemInnerSpacing.x };
+				const float available{ std::max(1.0f, ImGui::GetContentRegionAvail().x) };
+				const float action_width{ ImGui::GetFrameHeight() * 2.0f + spacing };
+				const bool actions_inline{ available >= action_width + spacing + 104.0f };
+				const float fields_width{
+					actions_inline ? std::max(1.0f, available - action_width - spacing) : available
+				};
+				const float field_width{ InspectorSplitWidth(2, fields_width, spacing) };
+				ImGui::SetNextItemWidth(field_width);
+				const bool x_changed{ ImGui::DragFloat(
+					"##X", &displayed.scale.x, 0.01f, -1000.0f, 1000.0f, "X: %.2f"
+				) };
+				ImGui::SameLine(0.0f, spacing);
+				ImGui::SetNextItemWidth(field_width);
+				const bool y_changed{ ImGui::DragFloat(
+					"##Y", &displayed.scale.y, 0.01f, -1000.0f, 1000.0f, "Y: %.2f"
+				) };
+				auto clamp_axis = [](float current, float previous) {
+					if (std::abs(current) >= minimum) return current;
+					return (current < 0.0f || (current == 0.0f && previous < 0.0f))
+						? -minimum : minimum;
+				};
+				displayed.scale.x = clamp_axis(displayed.scale.x, before_scale.x);
+				displayed.scale.y = clamp_axis(displayed.scale.y, before_scale.y);
+
 				const ImGuiID lock_id{ ImGui::GetID("##RelativeVisualScaleLock") };
 				static std::unordered_map<ImGuiID, bool> scale_locks;
 				bool& lock_ratio{ scale_locks.try_emplace(lock_id, true).first->second };
+				if (lock_ratio) {
+					if (x_changed && !y_changed && std::abs(before_scale.x) > epsilon) {
+						displayed.scale.y = before_scale.y * (displayed.scale.x / before_scale.x);
+					} else if (y_changed && !x_changed && std::abs(before_scale.y) > epsilon) {
+						displayed.scale.x = before_scale.x * (displayed.scale.y / before_scale.y);
+					}
+				}
+
+				if (actions_inline) ImGui::SameLine(0.0f, spacing);
 				ImGui::Checkbox("##LockRatio", &lock_ratio);
 				DrawTooltip("Lock the scale ratio.");
-				ImGui::TableSetColumnIndex(2);
-				{
-					constexpr float minimum{ 0.001f };
-					constexpr float epsilon{ 0.000001f };
-					const V2_float before_scale{ displayed.scale };
-					const float spacing{ ImGui::GetStyle().ItemInnerSpacing.x };
-					const float available{ ImGui::GetContentRegionAvail().x };
-					const float field_width{ std::max(36.0f, (available - spacing) * 0.5f) };
-					ImGui::SetNextItemWidth(field_width);
-					const bool x_changed{ ImGui::DragFloat(
-						"##X", &displayed.scale.x, 0.01f, -1000.0f, 1000.0f, "X: %.2f"
-					) };
-					ImGui::SameLine(0.0f, spacing);
-					ImGui::SetNextItemWidth(field_width);
-					const bool y_changed{ ImGui::DragFloat(
-						"##Y", &displayed.scale.y, 0.01f, -1000.0f, 1000.0f, "Y: %.2f"
-					) };
-					auto clamp_axis = [minimum](float current, float previous) {
-						if (std::abs(current) >= minimum) return current;
-						return (current < 0.0f || (current == 0.0f && previous < 0.0f))
-							? -minimum : minimum;
-					};
-					displayed.scale.x = clamp_axis(displayed.scale.x, before_scale.x);
-					displayed.scale.y = clamp_axis(displayed.scale.y, before_scale.y);
-					if (lock_ratio) {
-						if (x_changed && !y_changed && std::abs(before_scale.x) > epsilon) {
-							displayed.scale.y = before_scale.y * (displayed.scale.x / before_scale.x);
-						} else if (y_changed && !x_changed && std::abs(before_scale.y) > epsilon) {
-							displayed.scale.x = before_scale.x * (displayed.scale.y / before_scale.y);
-						}
-					}
-					fields_changed |= x_changed || y_changed;
-				}
-				fields_changed |= draw_ignore(inherit_scale, "Ignore parent scale.");
-				ImGui::PopID();
+				ImGui::SameLine(0.0f, spacing);
+				bool local_changed{ x_changed || y_changed };
+				local_changed |= draw_ignore(inherit_scale, "Ignore parent scale.");
+				return local_changed;
+			});
 
-				ImGui::EndTable();
-
-				if (enabled && fields_changed) {
-					value = displayed;
-					visual.depth = depth;
-					visual.inherit_position = inherit_position;
-					visual.inherit_rotation = inherit_rotation;
-					visual.inherit_scale = inherit_scale;
-					visual.inherit_depth = inherit_depth;
-					changed = true;
-				}
+			if (enabled && fields_changed) {
+				value = displayed;
+				visual.depth = depth;
+				visual.inherit_position = inherit_position;
+				visual.inherit_rotation = inherit_rotation;
+				visual.inherit_scale = inherit_scale;
+				visual.inherit_depth = inherit_depth;
+				changed = true;
 			}
-			ImGui::TreePop();
+
 		}
 		return changed;
 	}
@@ -768,36 +780,44 @@ bool DrawButtonVisualOverrideValue(
 
 			bool changed{ DrawOptionalPropertyRow(label, enabled, false, [&]() {
 				ScopedDisabled disabled{ !enabled };
-				std::array<int, 4> channels{
-					static_cast<int>(displayed.r), static_cast<int>(displayed.g),
-					static_cast<int>(displayed.b), static_cast<int>(displayed.a)
-				};
 				const float spacing{ ImGui::GetStyle().ItemInnerSpacing.x };
 				const float swatch_width{ ImGui::GetFrameHeight() };
-				const float available{ ImGui::GetContentRegionAvail().x };
-				const float channel_width{
-					std::max(36.0f, (available - swatch_width - spacing * 4.0f) * 0.25f)
+				const float available{ std::max(1.0f, ImGui::GetContentRegionAvail().x) };
+				const bool show_channels{
+					available >= swatch_width + spacing * 4.0f + 4.0f * 44.0f
 				};
-				static constexpr std::array<const char*, 4> ids{ "##R", "##G", "##B", "##A" };
-				static constexpr std::array<const char*, 4> formats{
-					"R: %d", "G: %d", "B: %d", "A: %d"
-				};
-				for (std::size_t i{ 0 }; i < channels.size(); ++i) {
-					if (i != 0) ImGui::SameLine(0.0f, spacing);
-					ImGui::SetNextItemWidth(channel_width);
-					field_changed |= ImGui::DragInt(
-						ids[i], &channels[i], 1.0f, 0, 255, formats[i],
-						ImGuiSliderFlags_AlwaysClamp
-					);
+
+				if (show_channels) {
+					std::array<int, 4> channels{
+						static_cast<int>(displayed.r), static_cast<int>(displayed.g),
+						static_cast<int>(displayed.b), static_cast<int>(displayed.a)
+					};
+					const float channel_area{
+						std::max(1.0f, available - swatch_width - spacing)
+					};
+					const float channel_width{ InspectorSplitWidth(4, channel_area, spacing) };
+					static constexpr std::array<const char*, 4> ids{ "##R", "##G", "##B", "##A" };
+					static constexpr std::array<const char*, 4> formats{
+						"R: %d", "G: %d", "B: %d", "A: %d"
+					};
+					for (std::size_t i{ 0 }; i < channels.size(); ++i) {
+						if (i != 0) ImGui::SameLine(0.0f, spacing);
+						ImGui::SetNextItemWidth(channel_width);
+						field_changed |= ImGui::DragInt(
+							ids[i], &channels[i], 1.0f, 0, 255, formats[i],
+							ImGuiSliderFlags_AlwaysClamp
+						);
+					}
+					displayed = Color{
+						static_cast<std::uint8_t>(std::clamp(channels[0], 0, 255)),
+						static_cast<std::uint8_t>(std::clamp(channels[1], 0, 255)),
+						static_cast<std::uint8_t>(std::clamp(channels[2], 0, 255)),
+						static_cast<std::uint8_t>(std::clamp(channels[3], 0, 255))
+					};
+					ImGui::SameLine(0.0f, spacing);
 				}
-				displayed = Color{
-					static_cast<std::uint8_t>(std::clamp(channels[0], 0, 255)),
-					static_cast<std::uint8_t>(std::clamp(channels[1], 0, 255)),
-					static_cast<std::uint8_t>(std::clamp(channels[2], 0, 255)),
-					static_cast<std::uint8_t>(std::clamp(channels[3], 0, 255))
-				};
-				ImGui::SameLine(0.0f, spacing);
-				ImGui::SetNextItemWidth(swatch_width);
+
+				ImGui::SetNextItemWidth(show_channels ? swatch_width : -FLT_MIN);
 				field_changed |= DrawColorEdit(
 					ctx, "##TintPicker", displayed,
 					ImGuiColorEditFlags_NoInputs | ImGuiColorEditFlags_Uint8 |
@@ -889,10 +909,21 @@ bool DrawButtonVisualOverrideTree(
 	bool enabled{ was_enabled };
 	T displayed{ value.value_or(inherited.value_or(T{})) };
 	bool changed{ false };
+	bool open{ false };
 
 	ScopedID value_scope{ std::addressof(value) };
+	// Keep optional tree toggles consistent with the Sprite archetype: the checkbox is
+	// immediately to the left of the tree node and the tree node consumes the rest of the row.
+	const bool toggle_changed{ ImGui::Checkbox("##Enabled", &enabled) };
+	ImGui::SameLine(0.0f, ImGui::GetStyle().ItemInnerSpacing.x);
+	const std::string tree_label{ std::string{ label } + "##ButtonVisualOverrideTree" };
+	open = ImGui::TreeNodeEx(
+		tree_label.c_str(),
+		ImGuiTreeNodeFlags_SpanAvailWidth | ImGuiTreeNodeFlags_FramePadding |
+			ImGuiTreeNodeFlags_NoTreePushOnOpen
+	);
 
-	if (ImGui::Checkbox("##Enabled", &enabled)) {
+	if (toggle_changed) {
 		if (enabled) {
 			value = displayed;
 		} else {
@@ -901,26 +932,16 @@ bool DrawButtonVisualOverrideTree(
 		changed = true;
 	}
 
-	ImGui::SameLine();
-	const std::string tree_label{ std::string{ label } + "##ButtonVisualOverrideTree" };
-	const bool open{ ImGui::TreeNodeEx(
-		tree_label.c_str(), ImGuiTreeNodeFlags_SpanAvailWidth | ImGuiTreeNodeFlags_FramePadding
-	) };
-
 	if (open) {
 		ScopedIndent indent;
 		ScopedPropertyLabelOffset label_offset{ ImGui::GetStyle().IndentSpacing };
 		ScopedDisabled disabled{ !enabled };
-
-		T edited{ enabled ? value.value() : displayed };
+		T edited{ enabled && value ? value.value() : displayed };
 		const bool contents_changed{ std::invoke(std::forward<Draw>(draw), edited) };
-
 		if (enabled && contents_changed) {
-			value	= std::move(edited);
+			value = std::move(edited);
 			changed = true;
 		}
-
-		ImGui::TreePop();
 	}
 
 	return changed;
@@ -991,10 +1012,6 @@ bool DrawButtonBorderLineWidth(
 
 	bool field_changed{ false };
 	const bool row_changed{ DrawOptionalPropertyRow("Line Width", enabled, false, [&]() {
-		if (!enabled) {
-			DrawUnsetOptionalInlineValue();
-			return false;
-		}
 		ImGui::SetNextItemWidth(-FLT_MIN);
 		field_changed = ImGui::DragFloat(
 			"##Value", &line_width, kInspectorScalarDragSpeed, kInspectorMinLineWidth,
@@ -1028,7 +1045,6 @@ bool DrawButtonShapeVisualFields(
 	bool draw_transform = true
 ) {
 	bool changed{ false };
-	AutoLabelWidthScope labels{ border ? "ButtonBorderVisualFields" : "ButtonBackgroundVisualFields" };
 
 	if (draw_transform) {
 		changed |= DrawButtonVisualOverrideValue(
@@ -1067,7 +1083,6 @@ bool DrawButtonSpriteVisualFields(
 	Entity relative_to = {}, bool draw_transform = true
 ) {
 	bool changed{ false };
-	AutoLabelWidthScope labels{ "ButtonSpriteVisualFields" };
 
 	if (draw_transform) {
 		changed |= DrawButtonVisualOverrideValue(
@@ -1283,22 +1298,20 @@ FeatureHeaderResult DrawFeatureHeader(
 	FeatureComponents<T...> components, bool allow_delete = true
 ) {
 	ScopedID feature_scope{ static_cast<int>(feature) };
-
-	const std::string header_label{ std::string{ label } + "##FeatureHeader" };
-
-	FeatureHeaderResult result{
-		.open = ImGui::CollapsingHeader(header_label.c_str(), flags),
-	};
-
-	if (allow_delete && ImGui::BeginPopupContextItem("##FeatureContext")) {
-		if (ImGui::MenuItem("Delete Feature")) {
-			result.changed = DeleteInspectorFeature(target, feature, label, components);
-			result.open	   = false;
+	const auto section{ DrawInspectorSectionHeader(
+		label,
+		"##FeatureHeader",
+		InspectorSectionOptions{
+			.default_open = (flags & ImGuiTreeNodeFlags_DefaultOpen) != 0,
+			.removable = allow_delete,
 		}
+	) };
 
-		ImGui::EndPopup();
+	FeatureHeaderResult result{ .open = section.open };
+	if (section.remove_requested) {
+		result.changed = DeleteInspectorFeature(target, feature, label, components);
+		result.open = false;
 	}
-
 	return result;
 }
 
@@ -1352,6 +1365,9 @@ template <typename Target, typename... T>
 
 template <typename Target>
 [[nodiscard]] bool HasTransformFeature(const Target& target) {
+	if (ArchetypeRequiresTransform(ResolveInspectorArchetype(target))) {
+		return true;
+	}
 	return HasInspectorFeature(target, InspectorFeature::Transform, TransformFeatureComponents{});
 }
 
@@ -1439,7 +1455,7 @@ template <typename Target>
 template <typename Target>
 [[nodiscard]] bool HasUIFeature(const Target& target) {
 	if constexpr (requires { target.entity; }) {
-		if (target.entity && target.entity.template Has<DialogueData>()) {
+		if (target.entity && target.entity.template Has<::ptgn::impl::DialogueData>()) {
 			return true;
 		}
 	}
@@ -1477,8 +1493,19 @@ bool DrawTransformFeature(
 	bool draw_inline_separator = true
 );
 
-bool DrawVisualFeature(EntityInspectorTarget& target, bool draw_header = true);
-bool DrawVisualFeature(PrefabInspectorTarget& target, bool draw_header = true);
+bool AddSpriteAnimationFeature(EntityInspectorTarget& target);
+bool AddSpriteAnimationFeature(PrefabInspectorTarget& target);
+bool DrawSpriteAnimationFeature(EntityInspectorTarget& target);
+bool DrawSpriteAnimationFeature(PrefabInspectorTarget& target);
+
+bool DrawVisualFeature(
+	EntityInspectorTarget& target, bool draw_header = true, bool allow_renderer_change = true,
+	std::string_view header_label = "Visual"
+);
+bool DrawVisualFeature(
+	PrefabInspectorTarget& target, bool draw_header = true, bool allow_renderer_change = true,
+	std::string_view header_label = "Visual"
+);
 
 bool DrawButtonChildStateTransformFeature(
 	EntityInspectorTarget& target, const ButtonChildInfo& child_info, ButtonVisualState state

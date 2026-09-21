@@ -353,138 +353,132 @@ template <typename Target, typename Apply>
 bool DrawTransformFeatureFields(
 	Target& target, TransformFeatureState<Target>& state, Apply apply_state
 ) {
-	constexpr ImGuiTableFlags flags{ ImGuiTableFlags_SizingStretchProp |
-									 ImGuiTableFlags_NoSavedSettings |
-									 ImGuiTableFlags_NoPadOuterX };
-
-	if (!ImGui::BeginTable("##TransformFields", 5, flags)) {
-		return false;
-	}
-
-	const float compact_width{ ImGui::GetFrameHeight() };
-	const float pick_width{ ImGui::CalcTextSize("Pick").x +
-							ImGui::GetStyle().FramePadding.x * 2.0f };
-
-	ImGui::TableSetupColumn("Property", ImGuiTableColumnFlags_WidthFixed, 76.0f);
-	ImGui::TableSetupColumn("Lock", ImGuiTableColumnFlags_WidthFixed, compact_width);
-	ImGui::TableSetupColumn("Value", ImGuiTableColumnFlags_WidthStretch, 1.0f);
-	ImGui::TableSetupColumn("Action", ImGuiTableColumnFlags_WidthFixed, pick_width);
-	ImGui::TableSetupColumn("Inheritance", ImGuiTableColumnFlags_WidthFixed, compact_width);
-
 	bool changed{ false };
 	auto& editor_state{ GetManualFeatureState(target.GetFeatureTargetKey()) };
+	const auto selected_button_state{ GetButtonVisualEditState(target) };
 
-	auto begin_row = [](const char* id, const char* label) {
-		ImGui::TableNextRow(ImGuiTableRowFlags_None, ImGui::GetFrameHeight());
-		ImGui::PushID(id);
-		ImGui::TableSetColumnIndex(0);
-		ImGui::AlignTextToFramePadding();
-		ImGui::TextUnformatted(label);
-	};
-
-	auto draw_ignore = [](bool& value, const char* tooltip) {
-		ImGui::TableSetColumnIndex(4);
+	auto draw_ignore = [&](bool& value, const char* tooltip) {
 		const bool local_changed{ ImGui::Checkbox("##IgnoreParent", &value) };
 		DrawTooltip(tooltip);
 		return local_changed;
 	};
 
-	begin_row("Position", "Position");
-	ImGui::TableSetColumnIndex(2);
-	{
+	changed |= DrawPropertyRow("Position", [&]() {
 		const float spacing{ ImGui::GetStyle().ItemInnerSpacing.x };
-		const float available{ ImGui::GetContentRegionAvail().x };
-		const float field_width{ std::max(36.0f, (available - spacing) * 0.5f) };
+		const float available{ std::max(1.0f, ImGui::GetContentRegionAvail().x) };
+		const float pick_width{ ImGui::CalcTextSize("Pick").x +
+			ImGui::GetStyle().FramePadding.x * 2.0f };
+		const float checkbox_width{ ImGui::GetFrameHeight() };
+		const float actions_width{ pick_width + checkbox_width + spacing };
+		const bool actions_inline{ available >= actions_width + spacing + 104.0f };
+		const float fields_width{
+			actions_inline ? std::max(1.0f, available - actions_width - spacing) : available
+		};
+		const float field_width{ InspectorSplitWidth(2, fields_width, spacing) };
+		bool local_changed{ false };
 
 		ImGui::SetNextItemWidth(field_width);
-		changed |=
-			ImGui::DragFloat("##X", &state.transform.position.x, 1.0f, 0.0f, 0.0f, "X: %.0f");
+		local_changed |= ImGui::DragFloat(
+			"##X", &state.transform.position.x, 1.0f, 0.0f, 0.0f, "X: %.0f"
+		);
 		ImGui::SameLine(0.0f, spacing);
 		ImGui::SetNextItemWidth(field_width);
-		changed |=
-			ImGui::DragFloat("##Y", &state.transform.position.y, 1.0f, 0.0f, 0.0f, "Y: %.0f");
-	}
-	ImGui::TableSetColumnIndex(3);
-	const auto selected_button_state{ GetButtonVisualEditState(target) };
-	DrawPositionPickButton(
-		target.ctx, "Position", state.transform.position, MakeTransformPositionConverter(target),
-		PositionPicker::Apply{
-			[apply_state, state, selected_button_state](V2_float picked) mutable {
-				const Transform before_transform{ state.transform };
-				state.transform.position = picked;
-				ApplyButtonVisualTransformDelta(state, selected_button_state, before_transform);
-				ApplySliderTrackVisualTransformDelta(state, before_transform);
-				apply_state(state);
-			} },
-		GetTargetWorldReferencePosition(target), ShouldShowTransformRelativePosition(target)
-	);
-	changed |= draw_ignore(state.ignore_position, "Ignore parent position.");
-	ImGui::PopID();
+		local_changed |= ImGui::DragFloat(
+			"##Y", &state.transform.position.y, 1.0f, 0.0f, 0.0f, "Y: %.0f"
+		);
 
-	begin_row("Depth", "Depth");
-	ImGui::TableSetColumnIndex(2);
-	ImGui::SetNextItemWidth(-FLT_MIN);
-	changed |= ImGui::DragFloat(
-		"##Value", &state.depth.value, 0.05f, -1000.0f, 1000.0f, "%.2f",
-		ImGuiSliderFlags_AlwaysClamp
-	);
-	changed |= draw_ignore(state.ignore_depth, "Ignore parent depth.");
-	ImGui::PopID();
+		if (actions_inline) {
+			ImGui::SameLine(0.0f, spacing);
+		}
+		DrawPositionPickButton(
+			target.ctx, "Position", state.transform.position, MakeTransformPositionConverter(target),
+			PositionPicker::Apply{
+				[apply_state, state, selected_button_state](V2_float picked) mutable {
+					const Transform before_transform{ state.transform };
+					state.transform.position = picked;
+					ApplyButtonVisualTransformDelta(state, selected_button_state, before_transform);
+					ApplySliderTrackVisualTransformDelta(state, before_transform);
+					apply_state(state);
+				} },
+			GetTargetWorldReferencePosition(target), ShouldShowTransformRelativePosition(target)
+		);
+		ImGui::SameLine(0.0f, spacing);
+		local_changed |= draw_ignore(state.ignore_position, "Ignore parent position.");
+		return local_changed;
+	});
 
-	begin_row("Rotation", "Rotation");
-	ImGui::TableSetColumnIndex(2);
-	ImGui::SetNextItemWidth(-FLT_MIN);
+	changed |= DrawPropertyRow("Depth", [&]() {
+		const float spacing{ ImGui::GetStyle().ItemInnerSpacing.x };
+		const float available{ std::max(1.0f, ImGui::GetContentRegionAvail().x) };
+		const float checkbox_width{ ImGui::GetFrameHeight() };
+		const bool inline_ignore{ available >= checkbox_width + spacing + 72.0f };
+		ImGui::SetNextItemWidth(
+			inline_ignore ? std::max(1.0f, available - checkbox_width - spacing) : -FLT_MIN
+		);
+		bool local_changed{ ImGui::DragFloat(
+			"##Value", &state.depth.value, 0.05f, -1000.0f, 1000.0f, "%.2f",
+			ImGuiSliderFlags_AlwaysClamp
+		) };
+		if (inline_ignore) {
+			ImGui::SameLine(0.0f, spacing);
+		}
+		local_changed |= draw_ignore(state.ignore_depth, "Ignore parent depth.");
+		return local_changed;
+	});
 
-	Degrees rotation{ state.transform.rotation };
-	float degrees{ rotation.value };
+	changed |= DrawPropertyRow("Rotation", [&]() {
+		const float spacing{ ImGui::GetStyle().ItemInnerSpacing.x };
+		const float available{ std::max(1.0f, ImGui::GetContentRegionAvail().x) };
+		const float checkbox_width{ ImGui::GetFrameHeight() };
+		const bool inline_ignore{ available >= checkbox_width + spacing + 72.0f };
+		ImGui::SetNextItemWidth(
+			inline_ignore ? std::max(1.0f, available - checkbox_width - spacing) : -FLT_MIN
+		);
 
-	if (ImGui::DragFloat(
-			"##Value", &degrees, 1.0f, 0.0f, 360.0f, "%.1f deg", ImGuiSliderFlags_AlwaysClamp
-		)) {
-		state.transform.rotation = Radians{ Degrees{ degrees } };
-		changed					 = true;
-	}
+		Degrees rotation{ state.transform.rotation };
+		float degrees{ rotation.value };
+		bool local_changed{ false };
+		if (ImGui::DragFloat(
+				"##Value", &degrees, 1.0f, 0.0f, 360.0f, "%.1f deg",
+				ImGuiSliderFlags_AlwaysClamp
+			)) {
+			state.transform.rotation = Radians{ Degrees{ degrees } };
+			local_changed = true;
+		}
+		if (inline_ignore) {
+			ImGui::SameLine(0.0f, spacing);
+		}
+		local_changed |= draw_ignore(state.ignore_rotation, "Ignore parent rotation.");
+		return local_changed;
+	});
 
-	changed |= draw_ignore(state.ignore_rotation, "Ignore parent rotation.");
-
-	ImGui::PopID();
-
-	begin_row("Scale", "Scale");
-	ImGui::TableSetColumnIndex(1);
-	ImGui::Checkbox("##LockRatio", &editor_state.scale_ratio_locked);
-	DrawTooltip(
-		"Lock the scale ratio. Editing either axis changes the other by the same proportional "
-		"factor."
-	);
-
-	ImGui::TableSetColumnIndex(2);
-	{
+	changed |= DrawPropertyRow("Scale", [&]() {
 		constexpr float kMinScaleMagnitude{ 0.001f };
 		constexpr float kScaleRatioEpsilon{ 0.000001f };
-
 		const V2_float before_scale{ state.transform.scale };
-
 		const auto clamp_scale{ [](float value, float previous) {
 			if (std::abs(value) >= kMinScaleMagnitude) {
 				return value;
 			}
-
 			const float sign{ value < 0.0f || (value == 0.0f && previous < 0.0f) ? -1.0f : 1.0f };
 			return sign * kMinScaleMagnitude;
 		} };
 
 		const float spacing{ ImGui::GetStyle().ItemInnerSpacing.x };
-		const float available{ ImGui::GetContentRegionAvail().x };
-		const float field_width{ std::max(36.0f, (available - spacing) * 0.5f) };
+		const float available{ std::max(1.0f, ImGui::GetContentRegionAvail().x) };
+		const float action_width{ ImGui::GetFrameHeight() * 2.0f + spacing };
+		const bool actions_inline{ available >= action_width + spacing + 104.0f };
+		const float fields_width{
+			actions_inline ? std::max(1.0f, available - action_width - spacing) : available
+		};
+		const float field_width{ InspectorSplitWidth(2, fields_width, spacing) };
 
 		ImGui::SetNextItemWidth(field_width);
 		const bool x_changed{ ImGui::DragFloat(
 			"##X", &state.transform.scale.x, 0.01f, -1000.0f, 1000.0f, "X: %.2f",
 			ImGuiSliderFlags_AlwaysClamp
 		) };
-
 		ImGui::SameLine(0.0f, spacing);
-
 		ImGui::SetNextItemWidth(field_width);
 		const bool y_changed{ ImGui::DragFloat(
 			"##Y", &state.transform.scale.y, 0.01f, -1000.0f, 1000.0f, "Y: %.2f",
@@ -519,12 +513,20 @@ bool DrawTransformFeatureFields(
 		state.transform.scale.x = clamp_scale(state.transform.scale.x, before_scale.x);
 		state.transform.scale.y = clamp_scale(state.transform.scale.y, before_scale.y);
 
-		changed |= x_changed || y_changed;
-	}
-	changed |= draw_ignore(state.ignore_scale, "Ignore parent scale.");
-	ImGui::PopID();
+		if (actions_inline) {
+			ImGui::SameLine(0.0f, spacing);
+		}
+		ImGui::Checkbox("##LockRatio", &editor_state.scale_ratio_locked);
+		DrawTooltip(
+			"Lock the scale ratio. Editing either axis changes the other by the same proportional "
+			"factor."
+		);
+		ImGui::SameLine(0.0f, spacing);
+		bool local_changed{ x_changed || y_changed };
+		local_changed |= draw_ignore(state.ignore_scale, "Ignore parent scale.");
+		return local_changed;
+	});
 
-	ImGui::EndTable();
 	return changed;
 }
 
@@ -676,9 +678,12 @@ bool DrawTransformFeatureImpl(
 	};
 
 	if (draw_header) {
+		const bool required_by_archetype{
+			ArchetypeRequiresTransform(ResolveInspectorArchetype(target))
+		};
 		header = DrawFeatureHeader(
 			target, InspectorFeature::Transform, "Transform", ImGuiTreeNodeFlags_DefaultOpen,
-			TransformFeatureComponents{}
+			TransformFeatureComponents{}, !required_by_archetype
 		);
 
 		if (!header.open) {

@@ -165,6 +165,31 @@ inline void CancelPositionPicking(EditorContext& ctx) {
 
 [[nodiscard]] PositionPicker::Finish PreparePositionPickSession(EditorContext& ctx);
 
+inline bool BeginPositionPick(
+	EditorContext& ctx,
+	V2_float current,
+	PositionPicker::Convert convert,
+	PositionPicker::Apply apply,
+	std::optional<V2_float> reference_world = std::nullopt,
+	bool show_relative = false
+) {
+	if (IsPositionPickingActive(ctx)) {
+		return false;
+	}
+
+	auto finish{ PreparePositionPickSession(ctx) };
+	GetPositionPicker(ctx).Begin(
+		"Pick Position",
+		current,
+		std::move(convert),
+		std::move(apply),
+		reference_world,
+		show_relative,
+		std::move(finish)
+	);
+	return true;
+}
+
 inline bool DrawPositionPickButton(
 	EditorContext& ctx,
 	std::string_view id,
@@ -181,19 +206,9 @@ inline bool DrawPositionPickButton(
 	const bool pressed{ ImGui::Button("Pick") };
 
 	if (!picking_active && pressed) {
-		auto finish{ PreparePositionPickSession(ctx) };
-
-		GetPositionPicker(ctx).Begin(
-			"Pick Position",
-			current,
-			std::move(convert),
-			std::move(apply),
-			reference_world,
-			show_relative,
-			std::move(finish)
+		return BeginPositionPick(
+			ctx, current, std::move(convert), std::move(apply), reference_world, show_relative
 		);
-
-		return true;
 	}
 
 	if (ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled)) {

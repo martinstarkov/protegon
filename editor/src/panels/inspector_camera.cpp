@@ -162,8 +162,8 @@ bool DrawCameraFeatureImpl(Target& target) {
 	}
 
 	const auto header{ DrawFeatureHeader(
-		target, InspectorFeature::Camera, "Camera", ImGuiTreeNodeFlags_None,
-		CameraFeatureComponents{}
+		target, InspectorFeature::Camera, "Camera", ImGuiTreeNodeFlags_DefaultOpen,
+		CameraFeatureComponents{}, false
 	) };
 
 	if (!header.open) {
@@ -171,7 +171,6 @@ bool DrawCameraFeatureImpl(Target& target) {
 	}
 
 	ScopedIndent feature_indent;
-	AutoLabelWidthScope camera_label_width{ "CameraFeatureFields" };
 
 	bool changed{ header.changed };
 	changed |= DrawCameraParentRenderTarget(target);

@@ -58,10 +58,12 @@ bool DrawSliderWorldPosition(
 		const float spacing{ ImGui::GetStyle().ItemInnerSpacing.x };
 		const float pick_width{ ImGui::CalcTextSize("Pick").x +
 								ImGui::GetStyle().FramePadding.x * 2.0f };
-		const float available{ ImGui::GetContentRegionAvail().x };
-		const float field_width{
-			std::max(36.0f, (available - pick_width - spacing * 2.0f) * 0.5f)
+		const float available{ std::max(1.0f, ImGui::GetContentRegionAvail().x) };
+		const bool pick_inline{ available >= pick_width + spacing * 2.0f + 96.0f };
+		const float fields_width{
+			pick_inline ? std::max(1.0f, available - pick_width - spacing) : available
 		};
+		const float field_width{ InspectorSplitWidth(2, fields_width, spacing) };
 		bool local_changed{ false };
 
 		ImGui::SetNextItemWidth(field_width);
@@ -69,7 +71,9 @@ bool DrawSliderWorldPosition(
 		ImGui::SameLine(0.0f, spacing);
 		ImGui::SetNextItemWidth(field_width);
 		local_changed |= ImGui::DragFloat("##Y", &position.y, 0.01f, 0.0f, 0.0f, "Y: %.2f");
-		ImGui::SameLine(0.0f, spacing);
+		if (pick_inline) {
+			ImGui::SameLine(0.0f, spacing);
+		}
 
 		ScopedDisabled disabled{ !CanPickLocalPosition<Target>() };
 		auto apply{ target.template MakeApply<::ptgn::impl::SliderData>() };
@@ -200,9 +204,6 @@ bool DrawSliderValueTextConfig(Target& target, ::ptgn::impl::SliderData& data) {
 		ImGui::TreePop();
 	}
 
-	config_changed |= DrawValue(target.ctx, "Default Offset", config.offset);
-	DrawTooltip("Position used while the custom value-text transform is disabled.");
-
 	if constexpr (std::same_as<std::remove_cvref_t<Target>, EntityInspectorTarget>) {
 		if (text_entity && text_entity.Has<::ptgn::impl::SliderValueTextData>()) {
 			bool transform_enabled{
@@ -210,7 +211,12 @@ bool DrawSliderValueTextConfig(Target& target, ::ptgn::impl::SliderData& data) {
 			};
 
 			ScopedID transform_scope{ "SliderValueTextTransform" };
-			if (ImGui::Checkbox("##Enabled", &transform_enabled)) {
+			const auto transform_header{ DrawInspectorTreeToggleRow(
+				"Transform", "##SliderValueTextTransformTree", transform_enabled
+			) };
+			const bool transform_open{ transform_header.open };
+			const bool transform_toggle_changed{ transform_header.toggle_changed };
+			if (transform_toggle_changed) {
 				auto before{ text_entity.Get<::ptgn::impl::SliderValueTextData>() };
 				auto after{ before };
 				after.transform_enabled = transform_enabled;
@@ -233,26 +239,13 @@ bool DrawSliderValueTextConfig(Target& target, ::ptgn::impl::SliderData& data) {
 				::ptgn::impl::SliderSystem::SynchronizeEntity(text_entity);
 				changed = true;
 			}
-			DrawTooltip("Use an editable transform instead of the default offset.");
-
-			ImGui::SameLine();
-			if (!transform_enabled) {
-				ImGui::SetNextItemOpen(false, ImGuiCond_Always);
-			}
-			ImGui::BeginDisabled(!transform_enabled);
-			const bool transform_open{ ImGui::TreeNodeEx(
-				"Transform##SliderValueTextTransformTree",
-				ImGuiTreeNodeFlags_SpanAvailWidth | ImGuiTreeNodeFlags_FramePadding
-			) };
-			ImGui::EndDisabled();
+			DrawTooltip("Use an editable transform for the value text.");
 
 			if (transform_open) {
-				if (transform_enabled) {
-					ScopedIndent indent;
-					EntityInspectorTarget text_target{ .ctx = target.ctx, .entity = text_entity };
-					changed |= DrawTransformFeature(text_target, false, true, false);
-				}
-				ImGui::TreePop();
+				ScopedIndent indent;
+				ScopedDisabled disabled{ !transform_enabled };
+				EntityInspectorTarget text_target{ .ctx = target.ctx, .entity = text_entity };
+				changed |= DrawTransformFeature(text_target, false, true, false);
 			}
 		} else {
 			ImGui::TextDisabled("Value text entity is not available.");
@@ -279,7 +272,9 @@ bool DrawSliderValueTextConfig(Target& target, ::ptgn::impl::SliderData& data) {
 					) };
 					if (rectangle_open) {
 						ScopedIndent rectangle_indent;
-						text_changed |= DrawValue(text_target.ctx, "Rectangle", text_data.box.rect);
+						text_changed |= DrawInspectorValueContents(
+							text_target.ctx, Hash<Rect>(), std::addressof(text_data.box.rect)
+						);
 						ImGui::TreePop();
 					}
 
@@ -289,14 +284,51 @@ bool DrawSliderValueTextConfig(Target& target, ::ptgn::impl::SliderData& data) {
 					) };
 					if (style_open) {
 						ScopedIndent style_indent;
-						text_changed |= DrawValue(text_target.ctx, "Style", text_data.box.style);
+						text_changed |= DrawDefaultContents(
+							text_target.ctx, text_data.box.style
+						);
 						ImGui::TreePop();
 					}
 
 					text_changed |= DrawValue(
 						text_target.ctx, "Reveal Glyph Count", text_data.glyph_count
 					);
-					text_changed |= DrawValue(text_target.ctx, "Clip", text_data.clip);
+
+					{
+						ScopedID clip_scope{ "SliderValueTextClip" };
+						bool clip_enabled{ text_data.clip.has_value() };
+						const auto clip_header{ DrawInspectorTreeToggleRow(
+							"Clip", "##SliderValueTextClipTree", clip_enabled, false,
+							InspectorTreeToggleSide::Left
+						) };
+						const bool clip_open{ clip_header.open };
+						const bool clip_toggle_changed{ clip_header.toggle_changed };
+
+						if (clip_toggle_changed) {
+							text_data.clip = clip_enabled
+								? std::optional<TextClip>{ TextClip{} }
+								: std::nullopt;
+							text_changed = true;
+						}
+
+						if (clip_open) {
+							ScopedIndent clip_indent;
+							TextClip clip{ text_data.clip.value_or(TextClip{}) };
+							bool clip_changed{ false };
+							{
+								ScopedDisabled disabled{ !clip_enabled };
+								clip_changed |= DrawValue(text_target.ctx, "Mode", clip.mode);
+								clip_changed |= DrawInspectorValueContents(
+									text_target.ctx, Hash<Rect>(), std::addressof(clip.rect)
+								);
+							}
+							if (clip_enabled && clip_changed) {
+								text_data.clip = clip;
+								text_changed = true;
+							}
+						}
+					}
+
 					if (text_changed) {
 						text_target.SetLive<::ptgn::impl::TextData>(
 							text_data, &MarkTextLayoutDirty
@@ -366,15 +398,9 @@ bool DrawSliderData(Target& target, ::ptgn::impl::SliderData& data) {
 		}
 		DrawTooltip("Snap the slider to fixed selectable values.");
 
-		ImGui::SameLine();
-		if (!discrete) {
-			ImGui::AlignTextToFramePadding();
-			ImGui::TextDisabled("Unset");
-			DrawTooltip("Number of selectable values, including both endpoints.");
-			return row_changed;
-		}
-
+		ImGui::SameLine(0.0f, ImGui::GetStyle().ItemInnerSpacing.x);
 		ImGui::SetNextItemWidth(-FLT_MIN);
+		ImGui::BeginDisabled(!discrete);
 		if (ImGui::DragInt(
 				"##Positions", &positions, 1.0f, 2, 1000, "%d",
 				ImGuiSliderFlags_AlwaysClamp
@@ -382,6 +408,7 @@ bool DrawSliderData(Target& target, ::ptgn::impl::SliderData& data) {
 			data.discrete_positions = static_cast<std::uint32_t>(std::clamp(positions, 2, 1000));
 			row_changed = true;
 		}
+		ImGui::EndDisabled();
 		DrawTooltip("Number of selectable values, including both endpoints.");
 		return row_changed;
 	});
@@ -390,63 +417,6 @@ bool DrawSliderData(Target& target, ::ptgn::impl::SliderData& data) {
 		data.discrete_positions = 0;
 		changed = true;
 	}
-
-	return changed;
-}
-
-template <typename Target>
-bool DrawOptionalSlider(Target& target) {
-	using SliderData = ::ptgn::impl::SliderData;
-
-	if (!Target::template Supports<SliderData>()) {
-		return false;
-	}
-
-	ScopedID target_scope{ target.Id() };
-	ScopedID component_scope{ static_cast<int>(Hash<SliderData>()) };
-
-	auto before{ target.template Capture<SliderData>() };
-	bool enabled{ before.has_value() };
-	bool changed{ false };
-
-	if (ImGui::Checkbox("##Enabled", &enabled)) {
-		if (enabled) {
-			SliderData data;
-			// SliderData::line is local to the Track Transform.
-			data.line = Line{ V2_float{}, V2_float{ 100.0f, 0.0f } };
-			target.template SetLive<SliderData>(data);
-		} else {
-			target.template SetLive<SliderData>(std::nullopt);
-		}
-
-		changed = true;
-	}
-
-	ImGui::SameLine();
-
-	SliderData data{ target.template Capture<SliderData>().value_or(SliderData{}) };
-	const bool open{ ImGui::TreeNodeEx("Slider##Tree", ImGuiTreeNodeFlags_SpanAvailWidth) };
-
-	if (open) {
-		ScopedIndent indent;
-		ScopedDisabled disabled{ !enabled };
-
-		const bool contents_changed{ DrawSliderData(target, data) };
-
-		if (enabled && contents_changed) {
-			target.template SetLive<SliderData>(data);
-			changed = true;
-		}
-
-		ImGui::TreePop();
-	}
-
-	auto after{ target.template Capture<SliderData>() };
-
-	TrackComponentState(
-		target, enabled ? "Edit Slider" : "Disable Slider", std::move(before), std::move(after),
-		changed
-	);
 
 	return changed;
 }
@@ -486,7 +456,7 @@ template <typename Target>
 	const bool slider{ HasTargetComponent<Target, ::ptgn::impl::SliderData>(target) };
 	const bool toggle{ HasTargetComponent<Target, ::ptgn::impl::ToggleButtonData>(target) };
 	const bool dropdown{ HasTargetComponent<Target, ::ptgn::impl::DropdownData>(target) };
-	const bool dialogue{ HasTargetComponent<Target, DialogueData>(target) };
+	const bool dialogue{ HasTargetComponent<Target, ::ptgn::impl::DialogueData>(target) };
 	const bool button{ HasTargetComponent<Target, ::ptgn::impl::ButtonData>(target) };
 
 	const int specialized_count{
@@ -533,29 +503,12 @@ template <typename Target, typename T, typename Draw, typename Callback = std::n
 bool DrawFocusedComponent(
 	Target& target, std::string_view label, Draw&& draw, Callback callback = nullptr
 ) {
-	if constexpr (!Target::template Supports<T>()) {
-		return false;
-	} else {
-		auto before{ target.template Capture<T>() };
-		if (!before) {
-			return false;
-		}
-
-		T value{ *before };
-		const bool changed{ std::invoke(std::forward<Draw>(draw), value) };
-		if (!changed) {
-			return false;
-		}
-
-		target.template SetLive<T>(value, callback);
-		auto after{ target.template Capture<T>() };
-		TrackComponentState(
-			target, std::string{ "Edit " } + std::string{ label }, std::move(before),
-			std::move(after), true, callback
-		);
-		return true;
-	}
+	return EditComponent<Target, T>(
+		target, std::string{ "Edit " } + std::string{ label },
+		std::forward<Draw>(draw), callback
+	);
 }
+
 
 [[nodiscard]] ButtonVisualState ComposeButtonVisualState(int mode, ButtonState pointer_state) {
 	using enum ButtonVisualState;
@@ -649,43 +602,47 @@ bool DrawFocusedButtonStateSelector(
 	const std::optional<ButtonVisualState> before{ selected_state };
 	bool changed{ false };
 	changed |= DrawPropertyRow("Mode", [&]() {
-		bool local_changed{ false };
-		if (ImGui::RadioButton("Normal", mode == 0)) {
-			mode		  = 0;
-			local_changed = true;
-		}
+		std::vector<InspectorChoice> choices;
+		choices.reserve(allow_toggled ? 3 : 2);
+		choices.push_back(InspectorChoice{
+			.label = "Normal",
+			.selected = mode == 0,
+			.invoke = [&]() { mode = 0; },
+		});
 		if (allow_toggled) {
-			ImGui::SameLine();
-			if (ImGui::RadioButton("Toggled", mode == 1)) {
-				mode		  = 1;
-				local_changed = true;
-			}
+			choices.push_back(InspectorChoice{
+				.label = "Toggled",
+				.selected = mode == 1,
+				.invoke = [&]() { mode = 1; },
+			});
 		}
-		ImGui::SameLine();
-		if (ImGui::RadioButton("Disabled", mode == 2)) {
-			mode		  = 2;
-			local_changed = true;
-		}
-		return local_changed;
+		choices.push_back(InspectorChoice{
+			.label = "Disabled",
+			.selected = mode == 2,
+			.invoke = [&]() { mode = 2; },
+		});
+		return DrawInspectorChoiceBar(choices, "##ButtonPreviewMode");
 	});
 
 	changed |= DrawPropertyRow("Pointer", [&]() {
-		bool local_changed{ false };
-		if (ImGui::RadioButton("Idle", pointer_state == ButtonState::Idle)) {
-			pointer_state = ButtonState::Idle;
-			local_changed = true;
-		}
-		ImGui::SameLine();
-		if (ImGui::RadioButton("Hover", pointer_state == ButtonState::Hover)) {
-			pointer_state = ButtonState::Hover;
-			local_changed = true;
-		}
-		ImGui::SameLine();
-		if (ImGui::RadioButton("Pressed", pointer_state == ButtonState::Press)) {
-			pointer_state = ButtonState::Press;
-			local_changed = true;
-		}
-		return local_changed;
+		const std::array choices{
+			InspectorChoice{
+				.label = "Idle",
+				.selected = pointer_state == ButtonState::Idle,
+				.invoke = [&]() { pointer_state = ButtonState::Idle; },
+			},
+			InspectorChoice{
+				.label = "Hover",
+				.selected = pointer_state == ButtonState::Hover,
+				.invoke = [&]() { pointer_state = ButtonState::Hover; },
+			},
+			InspectorChoice{
+				.label = "Pressed",
+				.selected = pointer_state == ButtonState::Press,
+				.invoke = [&]() { pointer_state = ButtonState::Press; },
+			},
+		};
+		return DrawInspectorChoiceBar(choices, "##ButtonPointerState");
 	});
 
 	if (!changed) {
@@ -771,102 +728,65 @@ Entity CreateButtonPartForInspector(
 	return recorded;
 }
 
-bool DrawFocusedButtonAddParts(EditorContext& ctx, Entity button_entity, ButtonVisualState state) {
-	const std::array real_parts{
-		ButtonChildPart::Background,
-		ButtonChildPart::Border,
-		ButtonChildPart::Text,
-		ButtonChildPart::Sprite,
-	};
-
+[[maybe_unused]] bool DrawFocusedButtonAddParts(EditorContext& ctx, Entity button_entity, ButtonVisualState state) {
 	const auto state_index{
 		static_cast<std::size_t>(std::to_underlying(state))
 	};
 
-	std::array<bool, 4> missing_real{};
-	std::size_t missing_count{ 0 };
+	std::vector<InspectorAction> actions;
+	actions.reserve(5);
+	bool changed{ false };
 
-	for (std::size_t i{ 0 }; i < real_parts.size(); ++i) {
-		missing_real[i] = !FindButtonPart(button_entity, real_parts[i]);
-		missing_count += static_cast<std::size_t>(missing_real[i]);
-	}
+	auto add_part_action = [&](ButtonChildPart part, std::string_view label) {
+		if (FindButtonPart(button_entity, part)) {
+			return;
+		}
+		actions.push_back(InspectorAction{
+			.label = label,
+			.invoke = [&, part]() {
+				changed |= static_cast<bool>(
+					CreateButtonPartForInspector(ctx, button_entity, part, state)
+				);
+			},
+		});
+	};
+
+	add_part_action(ButtonChildPart::Background, "+ Background");
+	add_part_action(ButtonChildPart::Border, "+ Border");
+	add_part_action(ButtonChildPart::Text, "+ Text");
+	add_part_action(ButtonChildPart::Sprite, "+ Sprite");
 
 	bool audio_missing{ true };
 	if (button_entity && button_entity.Has<ButtonSounds>()) {
 		audio_missing = !button_entity.Get<ButtonSounds>().states[state_index].has_value();
 	}
-	missing_count += static_cast<std::size_t>(audio_missing);
+	if (audio_missing) {
+		actions.push_back(InspectorAction{
+			.label = "+ Audio",
+			.invoke = [&]() {
+				EntityInspectorTarget button_target{
+					.ctx = ctx,
+					.entity = button_entity,
+				};
+				auto before{ button_target.Capture<ButtonSounds>() };
+				ButtonSounds sounds{ before.value_or(ButtonSounds{}) };
+				sounds.states[state_index].emplace(AudioKey{});
+				button_target.SetLive<ButtonSounds>(sounds);
+				auto after{ button_target.Capture<ButtonSounds>() };
+				TrackComponentState(
+					button_target, "Add Button Audio", std::move(before), std::move(after), true
+				);
+				ButtonAudioCloseOnNextDraw() = true;
+				changed = true;
+			},
+		});
+	}
 
-	if (missing_count == 0) {
+	if (actions.empty()) {
 		return false;
 	}
 
-	bool changed{ false };
-	const float spacing{ ImGui::GetStyle().ItemSpacing.x };
-	const float available{ ImGui::GetContentRegionAvail().x };
-	const float total_spacing{
-		spacing * static_cast<float>(missing_count > 0 ? missing_count - 1 : 0)
-	};
-	const float button_width{
-		std::max(
-			1.0f,
-			(available - total_spacing) / static_cast<float>(missing_count)
-		)
-	};
-
-	std::size_t drawn{ 0 };
-	auto same_line_if_needed = [&]() {
-		++drawn;
-		if (drawn < missing_count) {
-			ImGui::SameLine(0.0f, spacing);
-		}
-	};
-
-	for (std::size_t i{ 0 }; i < real_parts.size(); ++i) {
-		if (!missing_real[i]) {
-			continue;
-		}
-
-		const ButtonChildPart part{ real_parts[i] };
-		std::string button_label{ "+ Add " };
-		button_label += ButtonPartLabel(part);
-		button_label += "##FocusedButtonAddPart";
-		button_label += std::to_string(std::to_underlying(part));
-
-		if (ImGui::Button(button_label.c_str(), ImVec2{ button_width, 0.0f })) {
-			changed |= static_cast<bool>(
-				CreateButtonPartForInspector(ctx, button_entity, part, state)
-			);
-		}
-		same_line_if_needed();
-	}
-
-	if (audio_missing) {
-		if (ImGui::Button(
-				"+ Add Audio##FocusedButtonAddAudio",
-				ImVec2{ button_width, 0.0f }
-			)) {
-			EntityInspectorTarget button_target{
-				.ctx = ctx,
-				.entity = button_entity,
-			};
-
-			auto before{ button_target.Capture<ButtonSounds>() };
-			ButtonSounds sounds{ before.value_or(ButtonSounds{}) };
-			sounds.states[state_index].emplace(AudioKey{});
-			button_target.SetLive<ButtonSounds>(sounds);
-			auto after{ button_target.Capture<ButtonSounds>() };
-
-			TrackComponentState(
-				button_target, "Add Button Audio",
-				std::move(before), std::move(after), true
-			);
-			ButtonAudioCloseOnNextDraw() = true;
-			changed = true;
-		}
-		same_line_if_needed();
-	}
-
+	DrawInspectorActionBar(actions, { .id = "ButtonAddParts" });
 	ImGui::Spacing();
 	return changed;
 }
@@ -886,7 +806,7 @@ void SynchronizeFocusedButtonVisualPart(Entity child) {
 
 template <typename Visuals, typename Draw>
 bool DrawFocusedButtonVisualComponent(
-	EditorContext& ctx, Entity button_entity, Entity child, std::string_view action, Draw&& draw
+	EditorContext& ctx, Entity, Entity child, std::string_view action, Draw&& draw
 ) {
 	EntityInspectorTarget child_target{
 		.ctx = ctx,
@@ -911,121 +831,148 @@ bool DrawFocusedButtonVisualComponent(
 	return true;
 }
 
-bool DrawFocusedButtonPart(
+bool DrawFocusedButtonPartContents(
 	EditorContext& ctx, Entity button_entity, ButtonChildPart part, ButtonVisualState state
 ) {
-	const std::string_view label{ ButtonPartLabel(part) };
 	Entity child{ FindButtonPart(button_entity, part) };
-
 	if (!child) {
 		return false;
 	}
 
 	bool changed{ false };
-	bool remove_requested{ false };
-	const std::string tree_label{ std::string{ label } + "##FocusedButtonPart" };
-
-	auto& close_on_next_draw{ ButtonPartCloseOnNextDraw() };
-	if (close_on_next_draw.has_value() && close_on_next_draw.value() == child) {
-		ImGui::SetNextItemOpen(false, ImGuiCond_Always);
-		close_on_next_draw.reset();
-	}
-
-	const bool open{ ImGui::TreeNodeEx(
-		tree_label.c_str(),
-		ImGuiTreeNodeFlags_SpanAvailWidth | ImGuiTreeNodeFlags_FramePadding
-	) };
-
-	if (ImGui::BeginPopupContextItem()) {
-		if (ImGui::MenuItem("Remove")) {
-			remove_requested = true;
+	switch (part) {
+		case ButtonChildPart::Background: {
+			EntityInspectorTarget child_target{ .ctx = ctx, .entity = child };
+			const ButtonChildInfo info{ .child = child, .button = button_entity, .part = part };
+			changed |= DrawButtonChildStateTransformFeature(child_target, info, state);
+			changed |= DrawFocusedButtonVisualComponent<ButtonBackgroundVisuals>(
+				ctx, button_entity, child, "Edit Button Background",
+				[&](auto& states) {
+					return DrawButtonShapeVisualFields(
+						ctx, button_entity, states, state, false, std::nullopt, false
+					);
+				}
+			);
+			break;
 		}
+		case ButtonChildPart::Border: {
+			EntityInspectorTarget child_target{ .ctx = ctx, .entity = child };
+			const ButtonChildInfo info{ .child = child, .button = button_entity, .part = part };
+			changed |= DrawButtonChildStateTransformFeature(child_target, info, state);
+			changed |= DrawFocusedButtonVisualComponent<ButtonBorderVisuals>(
+				ctx, button_entity, child, "Edit Button Border",
+				[&](auto& states) {
+					return DrawButtonShapeVisualFields(
+						ctx, button_entity, states, state, true, std::nullopt, false
+					);
+				}
+			);
+			break;
+		}
+		case ButtonChildPart::Sprite: {
+			EntityInspectorTarget child_target{ .ctx = ctx, .entity = child };
+			const ButtonChildInfo info{ .child = child, .button = button_entity, .part = part };
+			changed |= DrawButtonChildStateTransformFeature(child_target, info, state);
+			changed |= DrawFocusedButtonVisualComponent<ButtonSpriteVisuals>(
+				ctx, button_entity, child, "Edit Button Sprite",
+				[&](auto& states) {
+					return DrawButtonSpriteVisualFields(ctx, states, state, button_entity, false);
+				}
+			);
+			break;
+		}
+		case ButtonChildPart::Text: {
+			EntityInspectorTarget child_target{ .ctx = ctx, .entity = child };
+			const ButtonChildInfo info{ .child = child, .button = button_entity, .part = part };
+			changed |= DrawButtonChildStateTransformFeature(child_target, info, state);
+			changed |= DrawButtonChildStateVisualFeature(child_target, info, state);
+			break;
+		}
+	}
+	return changed;
+}
+
+bool DrawFocusedButtonPartsTabs(
+	EditorContext& ctx, Entity button_entity, ButtonVisualState state
+) {
+	bool changed{ false };
+	Entity remove_after_tabs{};
+
+	constexpr std::array parts{
+		ButtonChildPart::Background,
+		ButtonChildPart::Border,
+		ButtonChildPart::Text,
+		ButtonChildPart::Sprite,
+	};
+
+	auto part_count = [&]() {
+		return static_cast<std::size_t>(std::ranges::count_if(parts, [&](ButtonChildPart part) {
+			return static_cast<bool>(FindButtonPart(button_entity, part));
+		}));
+	};
+
+	auto draw_add_popup = [&]() {
+		if (!ImGui::BeginPopup("##AddButtonPartPopup")) {
+			return;
+		}
+		auto add_part = [&](ButtonChildPart part, const char* label) {
+			if (!FindButtonPart(button_entity, part) && ImGui::MenuItem(label)) {
+				changed |= static_cast<bool>(CreateButtonPartForInspector(ctx, button_entity, part, state));
+			}
+		};
+		add_part(ButtonChildPart::Background, "Background");
+		add_part(ButtonChildPart::Border, "Border");
+		add_part(ButtonChildPart::Text, "Text");
+		add_part(ButtonChildPart::Sprite, "Sprite");
 		ImGui::EndPopup();
+	};
+
+	const std::size_t existing_count{ part_count() };
+	if (existing_count == 0) {
+		if (ImGui::Button("Add Button Part", ImVec2{ -FLT_MIN, 0.0f })) {
+			ImGui::OpenPopup("##AddButtonPartPopup");
+		}
+		draw_add_popup();
+		return changed;
 	}
 
-	if (open) {
-		ScopedIndent indent;
-
-		switch (part) {
-			case ButtonChildPart::Background: {
-				EntityInspectorTarget child_target{ .ctx = ctx, .entity = child };
-				const ButtonChildInfo info{
-					.child = child,
-					.button = button_entity,
-					.part = part,
-				};
-				changed |= DrawButtonChildStateTransformFeature(child_target, info, state);
-				changed |= DrawFocusedButtonVisualComponent<ButtonBackgroundVisuals>(
-					ctx, button_entity, child, "Edit Button Background",
-					[&](auto& states) {
-						return DrawButtonShapeVisualFields(
-							ctx, button_entity, states, state, false, std::nullopt, false
-						);
-					}
-				);
-				break;
+	InspectorTabStripScope strip{ "##ButtonPartsTabStrip" };
+	if (ImGui::BeginTabBar("##ButtonParts", InspectorTabBarFlags())) {
+		for (const ButtonChildPart part : parts) {
+			Entity child{ FindButtonPart(button_entity, part) };
+			if (!child) {
+				continue;
 			}
-
-			case ButtonChildPart::Border: {
-				EntityInspectorTarget child_target{ .ctx = ctx, .entity = child };
-				const ButtonChildInfo info{
-					.child = child,
-					.button = button_entity,
-					.part = part,
-				};
-				changed |= DrawButtonChildStateTransformFeature(child_target, info, state);
-				changed |= DrawFocusedButtonVisualComponent<ButtonBorderVisuals>(
-					ctx, button_entity, child, "Edit Button Border",
-					[&](auto& states) {
-						return DrawButtonShapeVisualFields(
-							ctx, button_entity, states, state, true, std::nullopt, false
-						);
-					}
-				);
-				break;
+			ScopedID part_scope{ static_cast<int>(part) };
+			const std::string label{ ButtonPartLabel(part) };
+			const bool selected{ ImGui::BeginTabItem(label.c_str()) };
+			const auto context{ DrawInspectorTabContextMenu(
+				"##ButtonPartContext", false, false, true, "Remove Part"
+			) };
+			if (context.remove_requested) {
+				remove_after_tabs = child;
 			}
-
-			case ButtonChildPart::Sprite: {
-				EntityInspectorTarget child_target{ .ctx = ctx, .entity = child };
-				const ButtonChildInfo info{
-					.child = child,
-					.button = button_entity,
-					.part = part,
-				};
-				changed |= DrawButtonChildStateTransformFeature(child_target, info, state);
-				changed |= DrawFocusedButtonVisualComponent<ButtonSpriteVisuals>(
-					ctx, button_entity, child, "Edit Button Sprite",
-					[&](auto& states) {
-						return DrawButtonSpriteVisualFields(ctx, states, state, button_entity, false);
-					}
-				);
-				break;
-			}
-
-			case ButtonChildPart::Text: {
-				EntityInspectorTarget child_target{
-					.ctx = ctx,
-					.entity = child,
-				};
-				const ButtonChildInfo info{
-					.child = child,
-					.button = button_entity,
-					.part = part,
-				};
-				changed |= DrawButtonChildStateTransformFeature(child_target, info, state);
-				changed |= DrawButtonChildStateVisualFeature(child_target, info, state);
-				break;
+			if (selected && child && child != remove_after_tabs) {
+				changed |= DrawFocusedButtonPartContents(ctx, button_entity, part, state);
+				ImGui::EndTabItem();
+			} else if (selected) {
+				ImGui::EndTabItem();
 			}
 		}
 
-		ImGui::TreePop();
+		const bool has_all_parts{ part_count() == parts.size() };
+		if (!has_all_parts && DrawInspectorAddTabButton("+##AddButtonPart", "Add button part")) {
+			ImGui::OpenPopup("##AddButtonPartPopup");
+		}
+		draw_add_popup();
+		ApplyInspectorTabBarHorizontalWheel();
+		ImGui::EndTabBar();
 	}
 
-	if (remove_requested) {
-		ctx.commands.DeleteEntity(child);
+	if (remove_after_tabs) {
+		ctx.commands.DeleteEntity(remove_after_tabs);
 		changed = true;
 	}
-
 	return changed;
 }
 
@@ -1070,7 +1017,6 @@ bool DrawFocusedButtonSounds(Target& target, ButtonVisualState state) {
 
 		if (open) {
 			ScopedIndent indent;
-			AutoLabelWidthScope labels{ "FocusedButtonAudioFields" };
 
 			changed |= DrawValue(target.ctx, "Sound Key", sound.value());
 
@@ -1124,16 +1070,6 @@ void RefreshEditedButton(Entity entity) {
 	}
 }
 
-bool DrawInteractionStateButton(
-	const char* enabled_label, const char* disabled_label, bool& value, float width
-) {
-	if (!ImGui::Button(value ? enabled_label : disabled_label, ImVec2{ width, 0.0f })) {
-		return false;
-	}
-	value = !value;
-	return true;
-}
-
 template <typename Target>
 bool DrawFocusedButtonInteraction(Target& target, FocusedUIControlType type) {
 	if constexpr (!Target::template Supports<::ptgn::impl::ButtonData>()) {
@@ -1152,41 +1088,65 @@ bool DrawFocusedButtonInteraction(Target& target, FocusedUIControlType type) {
 
 		const bool show_toggle{ type == FocusedUIControlType::ToggleButton && toggle_before.has_value() };
 		const bool show_dropdown{ type == FocusedUIControlType::Dropdown && dropdown_before.has_value() };
-		const int count{ (show_toggle || show_dropdown) ? 3 : 2 };
-		const float spacing{ ImGui::GetStyle().ItemSpacing.x };
-		const float width{
-			std::max(1.0f, (ImGui::GetContentRegionAvail().x - spacing * static_cast<float>(count - 1)) /
-				static_cast<float>(count))
-		};
 
 		bool button_changed{ false };
 		bool toggle_changed{ false };
 		bool dropdown_changed{ false };
 
-		ScopedID scope{ "FocusedButtonInteractionButtons" };
-		button_changed |= DrawInteractionStateButton(
-			"Press Enabled", "Press Disabled", button.press_enabled, width
-		);
-		DrawTooltip("Whether this control responds to presses.");
-		ImGui::SameLine(0.0f, spacing);
-		button_changed |= DrawInteractionStateButton(
-			"Hover Enabled", "Hover Disabled", button.hover_enabled, width
-		);
-		DrawTooltip("Whether this control responds to hover.");
+		const std::string press_label{ button.press_enabled ? "Press Enabled" : "Press Disabled" };
+		const std::string hover_label{ button.hover_enabled ? "Hover Enabled" : "Hover Disabled" };
+		const std::string state_label{
+			show_toggle ? (toggle.toggled ? "Toggled" : "Untoggled")
+				: show_dropdown ? (dropdown.start_open ? "Starts Open" : "Starts Closed")
+								: std::string{}
+		};
 
+		std::vector<InspectorAction> actions;
+		actions.reserve((show_toggle || show_dropdown) ? 3u : 2u);
+		actions.push_back(InspectorAction{
+			.label = press_label,
+			.tooltip = "Whether this control responds to presses.",
+			.invoke = [&]() {
+				button.press_enabled = !button.press_enabled;
+				button_changed = true;
+			},
+		});
+		actions.push_back(InspectorAction{
+			.label = hover_label,
+			.tooltip = "Whether this control responds to hover.",
+			.invoke = [&]() {
+				button.hover_enabled = !button.hover_enabled;
+				button_changed = true;
+			},
+		});
 		if (show_toggle) {
-			ImGui::SameLine(0.0f, spacing);
-			toggle_changed |= DrawInteractionStateButton(
-				"Toggled", "Untoggled", toggle.toggled, width
-			);
-			DrawTooltip("Initial/current toggle state.");
+			actions.push_back(InspectorAction{
+				.label = state_label,
+				.tooltip = "Initial/current toggle state.",
+				.invoke = [&]() {
+					toggle.toggled = !toggle.toggled;
+					toggle_changed = true;
+				},
+			});
 		} else if (show_dropdown) {
-			ImGui::SameLine(0.0f, spacing);
-			dropdown_changed |= DrawInteractionStateButton(
-				"Starts Open", "Starts Closed", dropdown.start_open, width
-			);
-			DrawTooltip("Whether the dropdown starts open.");
+			actions.push_back(InspectorAction{
+				.label = state_label,
+				.tooltip = "Whether the dropdown starts open.",
+				.invoke = [&]() {
+					dropdown.start_open = !dropdown.start_open;
+					dropdown_changed = true;
+				},
+			});
 		}
+
+		ScopedID scope{ "FocusedButtonInteractionButtons" };
+		DrawInspectorActionBar(
+			actions,
+			InspectorActionBarOptions{
+				.id = "FocusedButtonInteraction",
+				.equal_width = true,
+			}
+		);
 
 		bool changed{ false };
 		if (button_changed) {
@@ -1363,17 +1323,9 @@ bool DrawDropdownItems(EntityInspectorTarget& target) {
 			// the transform is relative to the dropdown header.
 			changed |= DrawTransformFeature(item_target, false);
 
+			// Dropdown items keep their authored identity. Structural type conversion is an explicit
+			// Convert To... operation rather than an ordinary inspector field.
 			FocusedUIControlType item_type{ GetFocusedUIControlType(item_target) };
-			if (item_type != FocusedUIControlType::None &&
-				item_type != FocusedUIControlType::Conflict) {
-				bool item_type_changed{ false };
-				changed |= DrawFocusedUIControlTypeSelector(
-					item_target, item_type, &item_type_changed
-				);
-				if (item_type_changed) {
-					item_type = GetFocusedUIControlType(item_target);
-				}
-			}
 
 			if (item_type == FocusedUIControlType::Conflict) {
 				changed |= DrawUIControlConflict(item_target);
@@ -1551,7 +1503,12 @@ void ApplyButtonAppearanceSnapshot(
 		AssignEntityComponent<ButtonSounds>(button, snapshot.sounds);
 	}
 
-	Button{ button }.PreviewVisualState(preview_state);
+	// Snapshot application replaces the authored per-state visual arrays wholesale. Rebuild the
+	// currently previewed state after every replacement so inherited visibility, transforms, text
+	// data, and other resolved child state are immediately reconstructed from the new fallbacks.
+	Button preview_button{ button };
+	preview_button.PreviewVisualState(preview_state);
+	preview_button.RefreshVisualState();
 }
 
 template <typename Visuals>
@@ -1578,6 +1535,13 @@ bool ApplyButtonStateOperation(
 	std::optional<ButtonVisualState> source
 ) {
 	if (!button) {
+		return false;
+	}
+
+	// Normal/Idle is the root appearance state. It has no fallback state, so clearing it would
+	// undefine managed visuals entirely until some later edit defines them again. Copying another
+	// state into Idle is still valid; only resetting Idle is forbidden.
+	if (!source && destination == ButtonVisualState::Idle) {
 		return false;
 	}
 
@@ -1639,16 +1603,64 @@ bool DrawButtonStateActions(
 	EditorContext& ctx, Entity button, ButtonVisualState state, bool allow_toggled
 ) {
 	bool changed{ false };
-	const float spacing{ ImGui::GetStyle().ItemSpacing.x };
-	const float available{ ImGui::GetContentRegionAvail().x };
-	const float half_width{ std::max(1.0f, (available - spacing) * 0.5f) };
+	const float available{ std::max(1.0f, ImGui::GetContentRegionAvail().x) };
+	const bool compact{ available < 260.0f };
+	const bool can_reset_overrides{ state != ButtonVisualState::Idle };
 
-	if (ImGui::Button("Reset State Overrides", ImVec2{ half_width, 0.0f })) {
-		changed |= ApplyButtonStateOperation(ctx, button, state, std::nullopt);
+	auto draw_copy_items = [&]() {
+		for (const ButtonVisualState candidate : magic_enum::enum_values<ButtonVisualState>()) {
+			int mode{ 0 };
+			ButtonState pointer{ ButtonState::Idle };
+			DecomposeButtonVisualState(candidate, mode, pointer);
+			if ((!allow_toggled && mode == 1) || candidate == state) {
+				continue;
+			}
+
+			const std::string label{ PrettyName(magic_enum::enum_name(candidate)) };
+			if (ImGui::MenuItem(label.c_str())) {
+				changed |= ApplyButtonStateOperation(ctx, button, state, candidate);
+			}
+		}
+	};
+
+	if (compact) {
+		if (ImGui::Button("...##ButtonStateActions", ImVec2{ -FLT_MIN, 0.0f })) {
+			ImGui::OpenPopup("##ButtonStateActionsPopup");
+		}
+		DrawTooltip("State actions");
+		if (ImGui::BeginPopup("##ButtonStateActionsPopup")) {
+			if (ImGui::MenuItem(
+					"Reset State Overrides", nullptr, false, can_reset_overrides
+				)) {
+				changed |= ApplyButtonStateOperation(ctx, button, state, std::nullopt);
+			}
+			if (!can_reset_overrides && ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled)) {
+				ImGui::SetTooltip(
+					"Normal / Idle is the base appearance state and has no fallback state."
+				);
+			}
+			if (ImGui::BeginMenu("Copy From")) {
+				draw_copy_items();
+				ImGui::EndMenu();
+			}
+			ImGui::EndPopup();
+		}
+		return changed;
+	}
+
+	const float spacing{ ImGui::GetStyle().ItemSpacing.x };
+	const float half_width{ std::max(1.0f, (available - spacing) * 0.5f) };
+	{
+		ScopedDisabled disabled{ !can_reset_overrides };
+		if (ImGui::Button("Reset State Overrides", ImVec2{ half_width, 0.0f })) {
+			changed |= ApplyButtonStateOperation(ctx, button, state, std::nullopt);
+		}
 	}
 	DrawTooltip(
-		"Remove all overrides for this appearance state so each part falls back to inherited "
-		"values."
+		can_reset_overrides
+			? "Remove all overrides for this appearance state so each part falls back to inherited "
+			  "values."
+			: "Normal / Idle is the base appearance state and has no fallback state."
 	);
 
 	ImGui::SameLine();
@@ -1661,7 +1673,6 @@ bool DrawButtonStateActions(
 			if ((!allow_toggled && mode == 1) || candidate == state) {
 				continue;
 			}
-
 			const std::string label{ PrettyName(magic_enum::enum_name(candidate)) };
 			if (ImGui::Selectable(label.c_str())) {
 				changed |= ApplyButtonStateOperation(ctx, button, state, candidate);
@@ -1672,7 +1683,6 @@ bool DrawButtonStateActions(
 	DrawTooltip(
 		"Copy every configured part override from another appearance state into this state."
 	);
-
 	return changed;
 }
 
@@ -1694,13 +1704,7 @@ bool DrawFocusedButtonAppearance(Target& target, FocusedUIControlType type) {
 	if constexpr (requires { target.entity; }) {
 		ApplyButtonPreview(target.entity, state, target.ctx);
 
-		changed |= DrawFocusedButtonAddParts(target.ctx, target.entity, state);
-
-		changed |=
-			DrawFocusedButtonPart(target.ctx, target.entity, ButtonChildPart::Background, state);
-		changed |= DrawFocusedButtonPart(target.ctx, target.entity, ButtonChildPart::Border, state);
-		changed |= DrawFocusedButtonPart(target.ctx, target.entity, ButtonChildPart::Text, state);
-		changed |= DrawFocusedButtonPart(target.ctx, target.entity, ButtonChildPart::Sprite, state);
+		changed |= DrawFocusedButtonPartsTabs(target.ctx, target.entity, state);
 
 		changed |= DrawFocusedButtonSounds(target, state);
 
@@ -1773,7 +1777,7 @@ struct ManagedUIChildSnapshot {
 	SerializedEntity entity{};
 };
 
-[[nodiscard]] std::vector<ManagedUIChildSnapshot> CaptureManagedUIChildren(
+[[maybe_unused, nodiscard]] std::vector<ManagedUIChildSnapshot> CaptureManagedUIChildren(
 	Entity parent,
 	FocusedUIControlType type
 ) {
@@ -1819,7 +1823,7 @@ void DestroyEntityTree(Entity entity) {
 	entity.Destroy();
 }
 
-void DestroyManagedUIChildren(
+[[maybe_unused]] void DestroyManagedUIChildren(
 	Entity parent,
 	FocusedUIControlType type
 ) {
@@ -1867,7 +1871,7 @@ void DestroyManagedUIChildren(
 	return entity;
 }
 
-void RestoreManagedUIChildren(
+[[maybe_unused]] void RestoreManagedUIChildren(
 	Entity parent,
 	const std::vector<ManagedUIChildSnapshot>& snapshots
 ) {
@@ -1909,7 +1913,7 @@ bool RepairUIControlConflict(Target& target, FocusedUIControlType keep) {
 		RemoveSupportedFeatureComponent<Target, ::ptgn::impl::DropdownData>(target);
 	}
 	if (keep != FocusedUIControlType::Dialogue) {
-		RemoveSupportedFeatureComponent<Target, DialogueData>(target);
+		RemoveSupportedFeatureComponent<Target, ::ptgn::impl::DialogueData>(target);
 	}
 
 	if (keep == FocusedUIControlType::Dialogue) {
@@ -1952,7 +1956,7 @@ bool ChangeFocusedUIControlType(Target& target, FocusedUIControlType type) {
 	RemoveSupportedFeatureComponent<Target, ::ptgn::impl::SliderData>(target);
 	RemoveSupportedFeatureComponent<Target, ::ptgn::impl::ToggleButtonData>(target);
 	RemoveSupportedFeatureComponent<Target, ::ptgn::impl::DropdownData>(target);
-	RemoveSupportedFeatureComponent<Target, DialogueData>(target);
+	RemoveSupportedFeatureComponent<Target, ::ptgn::impl::DialogueData>(target);
 
 	if (type == FocusedUIControlType::Dialogue) {
 		RemoveSupportedFeatureComponent<Target, ::ptgn::impl::ButtonData>(target);
@@ -1990,10 +1994,10 @@ bool ChangeFocusedUIControlType(Target& target, FocusedUIControlType type) {
 			break;
 
 		case FocusedUIControlType::Dialogue:
-			if constexpr (Target::template Supports<DialogueData>()) {
-				DialogueData data;
-				data.SetDefinition(DialogueData::MakeDefaultDefinition());
-				target.template SetLive<DialogueData>(data);
+			if constexpr (Target::template Supports<::ptgn::impl::DialogueData>()) {
+				::ptgn::impl::DialogueData data;
+				data.SetDefinition(::ptgn::impl::DialogueData::MakeDefaultDefinition());
+				target.template SetLive<::ptgn::impl::DialogueData>(data);
 			}
 			break;
 
@@ -2090,7 +2094,7 @@ bool DrawFocusedUIControlTypeSelector(
 		};
 		const float combo_width{
 			std::max(
-				80.0f,
+				1.0f,
 				ImGui::GetContentRegionAvail().x - visible_width - spacing
 			)
 		};
@@ -2105,7 +2109,7 @@ bool DrawFocusedUIControlTypeSelector(
 				   FocusedUIControlType::Dialogue }) {
 				const bool unsupported_dialogue{
 					candidate == FocusedUIControlType::Dialogue &&
-					!Target::template Supports<DialogueData>()
+					!Target::template Supports<::ptgn::impl::DialogueData>()
 				};
 				const bool disabled{
 					unsupported_dialogue ||
@@ -2195,7 +2199,7 @@ bool DrawUIControlConflict(Target& target) {
 			changed |= RepairUIControlConflict(target, FocusedUIControlType::Dropdown);
 		}
 	}
-	if (HasTargetComponent<Target, DialogueData>(target)) {
+	if (HasTargetComponent<Target, ::ptgn::impl::DialogueData>(target)) {
 		if (changed) {
 			ImGui::SameLine();
 		}
@@ -2228,10 +2232,14 @@ bool DrawSliderTrackTransform(EntityInspectorTarget& slider_target, Entity track
 	bool enabled{ before.transform_enabled };
 	bool changed{ false };
 	ScopedID scope{ "SliderTrackTransform" };
-
-	if (ImGui::Checkbox("##Enabled", &enabled)) {
+	const auto header{ DrawInspectorTreeToggleRow(
+		"Track Transform", "##SliderTrackTransformTree", enabled
+	) };
+	const bool open{ header.open };
+	const bool toggle_changed{ header.toggle_changed };
+	if (toggle_changed) {
 		auto after{ before };
-		after.transform_enabled					   = enabled;
+		after.transform_enabled = enabled;
 		track.Get<::ptgn::impl::SliderTrackData>() = after;
 		slider_target.ctx.undo.PushApplied(
 			"Toggle Track Transform",
@@ -2251,21 +2259,10 @@ bool DrawSliderTrackTransform(EntityInspectorTarget& slider_target, Entity track
 		::ptgn::impl::SliderSystem::SynchronizeEntity(track);
 		changed = true;
 	}
-
-	ImGui::SameLine();
-	ImGui::BeginDisabled(!enabled);
-	const bool open{ ImGui::TreeNodeEx(
-		"Track Transform##SliderTrackTransformTree",
-		ImGuiTreeNodeFlags_SpanAvailWidth | ImGuiTreeNodeFlags_FramePadding
-	) };
-	ImGui::EndDisabled();
-
 	if (open) {
-		if (enabled) {
-			EntityInspectorTarget track_target{ .ctx = slider_target.ctx, .entity = track };
-			changed |= DrawTransformFeature(track_target, false, true, false);
-		}
-		ImGui::TreePop();
+		ScopedDisabled disabled{ !enabled };
+		EntityInspectorTarget track_target{ .ctx = slider_target.ctx, .entity = track };
+		changed |= DrawTransformFeature(track_target, false, true, false);
 	}
 
 	return changed;
@@ -2291,7 +2288,7 @@ void SynchronizeSliderTrackPart(Entity entity) {
 }
 
 template <typename Marker, typename Draw>
-bool DrawSliderTrackPartTree(
+[[maybe_unused]] bool DrawSliderTrackPartTree(
 	EntityInspectorTarget& slider_target, Entity track, std::string_view label, Draw&& draw
 ) {
 	Entity child{ FindSliderTrackPart<Marker>(track) };
@@ -2343,19 +2340,19 @@ bool DrawSliderTrackPartTransform(EntityInspectorTarget& target, std::string_vie
 	bool enabled{ marker.visual.transform.has_value() };
 	bool changed{ false };
 	ScopedID scope{ "SliderTrackPartTransform" };
-
-	if (ImGui::Checkbox("##Enabled", &enabled)) {
+	const auto header{ DrawInspectorTreeToggleRow(
+		"Transform", "##SliderTrackPartTransformTree", enabled
+	) };
+	const bool open{ header.open };
+	const bool toggle_changed{ header.toggle_changed };
+	if (toggle_changed) {
 		if (enabled) {
 			marker.visual.transform = target.Capture<Transform>().value_or(Transform{});
 			marker.visual.depth = target.Capture<Depth>().value_or(Depth{}).value;
-			marker.visual.inherit_position =
-				!target.Capture<::ptgn::impl::IgnoreParentPosition>().has_value();
-			marker.visual.inherit_rotation =
-				!target.Capture<::ptgn::impl::IgnoreParentRotation>().has_value();
-			marker.visual.inherit_scale =
-				!target.Capture<::ptgn::impl::IgnoreParentScale>().has_value();
-			marker.visual.inherit_depth =
-				!target.Capture<::ptgn::impl::IgnoreParentDepth>().has_value();
+			marker.visual.inherit_position = !target.Capture<::ptgn::impl::IgnoreParentPosition>().has_value();
+			marker.visual.inherit_rotation = !target.Capture<::ptgn::impl::IgnoreParentRotation>().has_value();
+			marker.visual.inherit_scale = !target.Capture<::ptgn::impl::IgnoreParentScale>().has_value();
+			marker.visual.inherit_depth = !target.Capture<::ptgn::impl::IgnoreParentDepth>().has_value();
 		} else {
 			marker.visual.transform.reset();
 			marker.visual.depth.reset();
@@ -2364,34 +2361,18 @@ bool DrawSliderTrackPartTransform(EntityInspectorTarget& target, std::string_vie
 			marker.visual.inherit_scale.reset();
 			marker.visual.inherit_depth.reset();
 		}
-
 		target.SetLive<Marker>(marker, &SynchronizeSliderTrackPart);
 		auto after{ target.Capture<Marker>() };
 		TrackComponentState(
-			target, std::string{ enabled ? "Enable " : "Disable " } +
-				std::string{ part_label } + " Transform",
+			target, std::string{ enabled ? "Enable " : "Disable " } + std::string{ part_label } + " Transform",
 			std::move(before), std::move(after), true, &SynchronizeSliderTrackPart
 		);
 		changed = true;
 	}
-
-	ImGui::SameLine();
-	ImGui::BeginDisabled(!enabled);
-	const bool open{ ImGui::TreeNodeEx(
-		"Transform##SliderTrackPartTransformTree",
-		ImGuiTreeNodeFlags_SpanAvailWidth | ImGuiTreeNodeFlags_FramePadding
-	) };
-	ImGui::EndDisabled();
 	DrawTooltip("Override this track part's transform, or leave it unchecked to use automatic placement.");
-
 	if (open) {
-		if (enabled) {
-			// Use the ordinary Transform component editor so track parts get position picking,
-			// scale-ratio locking, depth, and parent-transform controls. inspector_transform.cpp
-			// mirrors Transform deltas back into this part's relative visual override.
-			changed |= DrawTransformFeature(target, false, false, false);
-		}
-		ImGui::TreePop();
+		ScopedDisabled disabled{ !enabled };
+		changed |= DrawTransformFeature(target, false, false, false);
 	}
 
 	return changed;
@@ -2426,12 +2407,6 @@ bool DrawSliderTrackBorderLineWidth(ButtonShapeVisual& visual, Entity border) {
 	bool field_changed{ false };
 
 	const bool row_changed{ DrawOptionalPropertyRow("Line Width", enabled, false, [&]() {
-		if (!enabled) {
-			ImGui::BeginDisabled();
-			DrawUnsetOptionalInlineValue();
-			ImGui::EndDisabled();
-			return false;
-		}
 		ImGui::SetNextItemWidth(-FLT_MIN);
 		field_changed = ImGui::DragFloat(
 			"##LineWidth", &width, 0.05f, kInspectorMinLineWidth, maximum_width, "%.2f",
@@ -2645,20 +2620,8 @@ Entity CreateSliderTrackSprite(Entity slider_entity, Entity track) {
 }
 
 bool DrawSliderTrackVisual(EntityInspectorTarget& target, Slider slider, Entity& track) {
-	const float spacing{ ImGui::GetStyle().ItemSpacing.x };
-	const float width{ std::max(1.0f, (ImGui::GetContentRegionAvail().x - spacing * 2.0f) / 3.0f) };
-
 	bool changed{ false };
-	const bool has_background{
-		track && static_cast<bool>(FindSliderTrackPart<::ptgn::impl::SliderTrackBackgroundData>(track))
-	};
-	const bool has_border{
-		track && static_cast<bool>(FindSliderTrackPart<::ptgn::impl::SliderTrackBorderData>(track))
-	};
-	const bool has_sprite{
-		track && static_cast<bool>(FindSliderTrackPart<::ptgn::impl::SliderTrackSpriteData>(track))
-	};
-
+	Entity remove_after_tabs{};
 	auto ensure_track = [&]() -> Entity {
 		if (track) {
 			return track;
@@ -2670,68 +2633,110 @@ bool DrawSliderTrackVisual(EntityInspectorTarget& target, Slider slider, Entity&
 		return track;
 	};
 
-	ImGui::BeginDisabled(has_background);
-	if (ImGui::Button("+ Add Background", ImVec2{ width, 0.0f })) {
-		if (Entity parent{ ensure_track() }) {
-			Entity child{ CreateSliderTrackBackground(target.entity, parent) };
-			(void)RecordCreatedEntityPreservingSelection(target.ctx, child);
-			SynchronizeSliderTrackVisualEnabled(parent);
-			changed = true;
+	auto add_popup = [&]() {
+		if (!ImGui::BeginPopup("##AddSliderTrackPartPopup")) {
+			return;
 		}
-	}
-	ImGui::EndDisabled();
-	DrawTooltip(has_background ? "Background already exists." : "Add a track background.");
-
-	ImGui::SameLine(0.0f, spacing);
-	ImGui::BeginDisabled(has_border);
-	if (ImGui::Button("+ Add Border", ImVec2{ width, 0.0f })) {
-		if (Entity parent{ ensure_track() }) {
-			Entity child{ CreateSliderTrackBorder(target.entity, parent) };
-			(void)RecordCreatedEntityPreservingSelection(target.ctx, child);
+		Entity parent{ ensure_track() };
+		if (parent) {
+			if (!FindSliderTrackPart<::ptgn::impl::SliderTrackBackgroundData>(parent) &&
+				ImGui::MenuItem("Background")) {
+				Entity child{ CreateSliderTrackBackground(target.entity, parent) };
+				(void)RecordCreatedEntityPreservingSelection(target.ctx, child);
+				changed = true;
+			}
+			if (!FindSliderTrackPart<::ptgn::impl::SliderTrackBorderData>(parent) &&
+				ImGui::MenuItem("Border")) {
+				Entity child{ CreateSliderTrackBorder(target.entity, parent) };
+				(void)RecordCreatedEntityPreservingSelection(target.ctx, child);
+				changed = true;
+			}
+			if (!FindSliderTrackPart<::ptgn::impl::SliderTrackSpriteData>(parent) &&
+				ImGui::MenuItem("Sprite")) {
+				Entity child{ CreateSliderTrackSprite(target.entity, parent) };
+				(void)RecordCreatedEntityPreservingSelection(target.ctx, child);
+				changed = true;
+			}
 			SynchronizeSliderTrackVisualEnabled(parent);
-			changed = true;
 		}
-	}
-	ImGui::EndDisabled();
-	DrawTooltip(has_border ? "Border already exists." : "Add a track border.");
+		ImGui::EndPopup();
+	};
 
-	ImGui::SameLine(0.0f, spacing);
-	ImGui::BeginDisabled(has_sprite);
-	if (ImGui::Button("+ Add Sprite", ImVec2{ width, 0.0f })) {
-		if (Entity parent{ ensure_track() }) {
-			Entity child{ CreateSliderTrackSprite(target.entity, parent) };
-			(void)RecordCreatedEntityPreservingSelection(target.ctx, child);
-			SynchronizeSliderTrackVisualEnabled(parent);
-			changed = true;
+	const bool has_any_track_part{ track && HasSliderTrackVisualParts(track) };
+	if (!has_any_track_part) {
+		if (ImGui::Button("Add Track Part", ImVec2{ -FLT_MIN, 0.0f })) {
+			ImGui::OpenPopup("##AddSliderTrackPartPopup");
 		}
-	}
-	ImGui::EndDisabled();
-	DrawTooltip(has_sprite ? "Sprite already exists." : "Add a track sprite.");
-
-	if (!track) {
+		add_popup();
 		return changed;
 	}
 
-	changed |= DrawSliderTrackPartTree<::ptgn::impl::SliderTrackBackgroundData>(
-		target, track, "Background",
-		[](EntityInspectorTarget& child_target, Entity background) {
-			return DrawSliderTrackBackgroundFields(child_target, background);
-		}
-	);
-	changed |= DrawSliderTrackPartTree<::ptgn::impl::SliderTrackBorderData>(
-		target, track, "Border",
-		[](EntityInspectorTarget& child_target, Entity border) {
-			return DrawSliderTrackBorderFields(child_target, border);
-		}
-	);
-	changed |= DrawSliderTrackPartTree<::ptgn::impl::SliderTrackSpriteData>(
-		target, track, "Sprite",
-		[](EntityInspectorTarget& child_target, Entity sprite) {
-			return DrawSliderTrackSpriteFields(child_target, sprite);
-		}
-	);
+	InspectorTabStripScope strip{ "##SliderTrackPartStrip" };
+	if (ImGui::BeginTabBar("##SliderTrackParts", InspectorTabBarFlags())) {
+		auto draw_part = [&](Entity child, std::string_view fallback, auto&& draw) {
+			if (!child) {
+				return;
+			}
+			ScopedID part_scope{ fallback };
+			const std::string label{ fallback };
+			const bool selected{ ImGui::BeginTabItem(label.c_str()) };
+			const auto context{ DrawInspectorTabContextMenu(
+				"##SliderTrackPartContext", false, false, true, "Remove Part"
+			) };
+			if (context.remove_requested) {
+				remove_after_tabs = child;
+			}
+			if (selected && child && child != remove_after_tabs) {
+				EntityInspectorTarget child_target{ .ctx = target.ctx, .entity = child };
+				changed |= std::invoke(draw, child_target, child);
+				ImGui::EndTabItem();
+			} else if (selected) {
+				ImGui::EndTabItem();
+			}
+		};
 
-	SynchronizeSliderTrackVisualEnabled(track);
+		draw_part(
+			FindSliderTrackPart<::ptgn::impl::SliderTrackBackgroundData>(track), "Background",
+			[](EntityInspectorTarget& child_target, Entity child) {
+				return DrawSliderTrackBackgroundFields(child_target, child);
+			}
+		);
+		draw_part(
+			FindSliderTrackPart<::ptgn::impl::SliderTrackBorderData>(track), "Border",
+			[](EntityInspectorTarget& child_target, Entity child) {
+				return DrawSliderTrackBorderFields(child_target, child);
+			}
+		);
+		draw_part(
+			FindSliderTrackPart<::ptgn::impl::SliderTrackSpriteData>(track), "Sprite",
+			[](EntityInspectorTarget& child_target, Entity child) {
+				return DrawSliderTrackSpriteFields(child_target, child);
+			}
+		);
+
+		const bool all_track_parts{
+			track && FindSliderTrackPart<::ptgn::impl::SliderTrackBackgroundData>(track) &&
+			FindSliderTrackPart<::ptgn::impl::SliderTrackBorderData>(track) &&
+			FindSliderTrackPart<::ptgn::impl::SliderTrackSpriteData>(track)
+		};
+		if (!all_track_parts && DrawInspectorAddTabButton("+##AddSliderTrackPart", "Add track visual part")) {
+			ImGui::OpenPopup("##AddSliderTrackPartPopup");
+		}
+		add_popup();
+		ApplyInspectorTabBarHorizontalWheel();
+		ImGui::EndTabBar();
+	}
+
+	if (remove_after_tabs) {
+		target.ctx.commands.DeleteEntity(remove_after_tabs);
+		if (track) {
+			SynchronizeSliderTrackVisualEnabled(track);
+		}
+		changed = true;
+	}
+	if (track) {
+		SynchronizeSliderTrackVisualEnabled(track);
+	}
 	return changed;
 }
 
@@ -2957,12 +2962,12 @@ void NormalizeDialogueEditorDocument(DialogueEditorDocument& document) {
 }
 
 [[nodiscard]] DialogueEditorDocument ParseDialogueEditorDocument(
-	const DialogueData& data
+	const ::ptgn::impl::DialogueData& data
 ) {
 	const json root =
 		data.Definition().is_object() && !data.Definition().empty()
 			? data.Definition()
-			: DialogueData::MakeDefaultDefinition();
+			: ::ptgn::impl::DialogueData::MakeDefaultDefinition();
 
 	DialogueEditorDocument document;
 	document.defaults = DialoguePageProperties{}.InheritProperties(root);
@@ -3489,7 +3494,6 @@ bool DrawDialoguePortraitDefinitions(
 	}
 
 	ScopedIndent indent;
-	AutoLabelWidthScope labels{ "DialoguePortraitDefinitionFields" };
 
 	if (document.portrait_actors.empty()) {
 		if (ImGui::Button("Add Speaker", ImVec2{ -FLT_MIN, 0.0f })) {
@@ -3550,33 +3554,43 @@ bool DrawDialoguePortraitDefinitions(
 	});
 
 	{
-		const float spacing{ ImGui::GetStyle().ItemSpacing.x };
-		const float width{ std::max(1.0f, (ImGui::GetContentRegionAvail().x - spacing) * 0.5f) };
-		if (ImGui::Button("Add Speaker", ImVec2{ width, 0.0f })) {
-			const std::string key{ MakeUniqueDialoguePortraitActorKey(document.portrait_actors) };
-			DialoguePortraitActor new_actor;
-			new_actor.display_name = "Speaker " + std::to_string(document.portrait_actors.size() + 1);
-			const std::string expression_key{ MakeUniqueDialoguePortraitExpressionKey(new_actor) };
-			new_actor.default_expression = expression_key;
-			new_actor.expressions.emplace(
-				expression_key,
-				DialoguePortraitExpression{ .display_name = "Neutral" }
-			);
-			document.portrait_actors.emplace(key, std::move(new_actor));
-			state.dialogue_portrait_actor = key;
-			state.dialogue_portrait_expression = expression_key;
-			changed = true;
-			reason = "Add Dialogue Portrait Speaker";
-		}
-		ImGui::SameLine(0.0f, spacing);
-		if (ImGui::Button("Remove Speaker", ImVec2{ width, 0.0f })) {
-			document.portrait_actors.erase(state.dialogue_portrait_actor);
-			const auto remaining{ SortedDialoguePortraitActorKeys(document.portrait_actors) };
-			state.dialogue_portrait_actor = remaining.empty() ? std::string{} : remaining.front();
-			state.dialogue_portrait_expression.clear();
-			changed = true;
-			reason = "Remove Dialogue Portrait Speaker";
-		}
+		const std::array actions{
+			InspectorAction{
+				.label = "Add Speaker",
+				.invoke = [&]() {
+					const std::string key{ MakeUniqueDialoguePortraitActorKey(document.portrait_actors) };
+					DialoguePortraitActor new_actor;
+					new_actor.display_name =
+						"Speaker " + std::to_string(document.portrait_actors.size() + 1);
+					const std::string expression_key{
+						MakeUniqueDialoguePortraitExpressionKey(new_actor)
+					};
+					new_actor.default_expression = expression_key;
+					new_actor.expressions.emplace(
+						expression_key, DialoguePortraitExpression{ .display_name = "Neutral" }
+					);
+					document.portrait_actors.emplace(key, std::move(new_actor));
+					state.dialogue_portrait_actor = key;
+					state.dialogue_portrait_expression = expression_key;
+					changed = true;
+					reason = "Add Dialogue Portrait Speaker";
+				},
+			},
+			InspectorAction{
+				.label = "Remove Speaker",
+				.enabled = document.portrait_actors.size() > 1,
+				.invoke = [&]() {
+					document.portrait_actors.erase(state.dialogue_portrait_actor);
+					const auto remaining{ SortedDialoguePortraitActorKeys(document.portrait_actors) };
+					state.dialogue_portrait_actor =
+						remaining.empty() ? std::string{} : remaining.front();
+					state.dialogue_portrait_expression.clear();
+					changed = true;
+					reason = "Remove Dialogue Portrait Speaker";
+				},
+			},
+		};
+		DrawInspectorActionBar(actions, { .id = "DialogueSpeakerActions" });
 	}
 
 	if (!document.portrait_actors.contains(state.dialogue_portrait_actor)) {
@@ -3686,39 +3700,46 @@ bool DrawDialoguePortraitDefinitions(
 	});
 
 	{
-		const float spacing{ ImGui::GetStyle().ItemSpacing.x };
-		const float width{ std::max(1.0f, (ImGui::GetContentRegionAvail().x - spacing) * 0.5f) };
-		if (ImGui::Button("Add Expression", ImVec2{ width, 0.0f })) {
-			const std::string key{ MakeUniqueDialoguePortraitExpressionKey(selected_actor) };
-			selected_actor.expressions.emplace(
-				key,
-				DialoguePortraitExpression{
-					.display_name = "Expression " +
-						std::to_string(selected_actor.expressions.size() + 1)
-				}
-			);
-			state.dialogue_portrait_expression = key;
-			changed = true;
-			reason = "Add Dialogue Portrait Expression";
-		}
-		ImGui::SameLine(0.0f, spacing);
-		if (ImGui::Button("Remove Expression", ImVec2{ width, 0.0f })) {
-			const std::string removed{ state.dialogue_portrait_expression };
-			selected_actor.expressions.erase(removed);
-			const auto remaining{ SortedDialoguePortraitExpressionKeys(selected_actor) };
-			if (remaining.empty()) {
-				state.dialogue_portrait_expression.clear();
-				selected_actor.default_expression.clear();
-			} else {
-				state.dialogue_portrait_expression = remaining.front();
-				if (selected_actor.default_expression == removed ||
-					!selected_actor.expressions.contains(selected_actor.default_expression)) {
-					selected_actor.default_expression = state.dialogue_portrait_expression;
-				}
-			}
-			changed = true;
-			reason = "Remove Dialogue Portrait Expression";
-		}
+		const std::array actions{
+			InspectorAction{
+				.label = "Add Expression",
+				.invoke = [&]() {
+					const std::string key{ MakeUniqueDialoguePortraitExpressionKey(selected_actor) };
+					selected_actor.expressions.emplace(
+						key,
+						DialoguePortraitExpression{
+							.display_name = "Expression " +
+								std::to_string(selected_actor.expressions.size() + 1)
+						}
+					);
+					state.dialogue_portrait_expression = key;
+					changed = true;
+					reason = "Add Dialogue Portrait Expression";
+				},
+			},
+			InspectorAction{
+				.label = "Remove Expression",
+				.enabled = !selected_actor.expressions.empty(),
+				.invoke = [&]() {
+					const std::string removed{ state.dialogue_portrait_expression };
+					selected_actor.expressions.erase(removed);
+					const auto remaining{ SortedDialoguePortraitExpressionKeys(selected_actor) };
+					if (remaining.empty()) {
+						state.dialogue_portrait_expression.clear();
+						selected_actor.default_expression.clear();
+					} else {
+						state.dialogue_portrait_expression = remaining.front();
+						if (selected_actor.default_expression == removed ||
+							!selected_actor.expressions.contains(selected_actor.default_expression)) {
+							selected_actor.default_expression = state.dialogue_portrait_expression;
+						}
+					}
+					changed = true;
+					reason = "Remove Dialogue Portrait Expression";
+				},
+			},
+		};
+		DrawInspectorActionBar(actions, { .id = "DialogueExpressionActions" });
 	}
 
 	if (selected_actor.expressions.empty() ||
@@ -3744,8 +3765,15 @@ bool DrawDialoguePortraitDefinitions(
 	{
 		ScopedID talking_scope{ "DialoguePortraitTalkingVisual" };
 		bool enabled{ expression.talking.has_value() };
+		bool talking_open{ false };
 
-		if (ImGui::Checkbox("##Enabled", &enabled)) {
+		const auto talking_header{ DrawInspectorTreeToggleRow(
+			"Talking Visual", "##DialoguePortraitTalking", enabled
+		) };
+		talking_open = talking_header.open;
+		const bool toggle_changed{ talking_header.toggle_changed };
+
+		if (toggle_changed) {
 			if (enabled) {
 				expression.talking.emplace(expression.idle);
 			} else {
@@ -3755,119 +3783,23 @@ bool DrawDialoguePortraitDefinitions(
 			reason = "Toggle Dialogue Portrait Talking Visual";
 		}
 
-		ImGui::SameLine();
-		if (!enabled) {
-			ImGui::SetNextItemOpen(false, ImGuiCond_Always);
-		}
-		ImGui::BeginDisabled(!enabled);
-		const bool talking_open{ ImGui::TreeNodeEx(
-			"Talking Visual##DialoguePortraitTalking",
-			ImGuiTreeNodeFlags_SpanAvailWidth | ImGuiTreeNodeFlags_FramePadding
-		) };
-		ImGui::EndDisabled();
-
 		if (talking_open) {
-			if (enabled && expression.talking.has_value()) {
-				ScopedIndent talking_indent;
-				if (DrawDialoguePortraitSpriteVisual(ctx, relative_to, *expression.talking)) {
-					changed = true;
-					reason = "Edit Dialogue Portrait Talking Visual";
-				}
+			ScopedIndent talking_indent;
+			auto displayed{ expression.talking.value_or(expression.idle) };
+			ScopedDisabled disabled{ !enabled };
+			const bool visual_changed{
+				DrawDialoguePortraitSpriteVisual(ctx, relative_to, displayed)
+			};
+			if (enabled && visual_changed) {
+				expression.talking = std::move(displayed);
+				changed = true;
+				reason = "Edit Dialogue Portrait Talking Visual";
 			}
-			ImGui::TreePop();
 		}
 	}
 
 	ImGui::TreePop();
 	return changed;
-}
-
-void DrawDialogueTabStripBegin(const char* id) {
-	ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2{ 0.0f, 0.0f });
-	ImGui::BeginChild(
-		id,
-		ImVec2{
-			std::max(1.0f, ImGui::GetContentRegionAvail().x),
-			ImGui::GetFrameHeight() + 1.0f
-		},
-		ImGuiChildFlags_None,
-		ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse
-	);
-	// The tab bar owns scrolling inside this strip. Never allow the child window itself to
-	// accumulate horizontal/vertical scroll, which would move the trailing + button too.
-	ImGui::SetScrollX(0.0f);
-	ImGui::SetScrollY(0.0f);
-}
-
-bool DrawDialogueAddTabButton(const char* id) {
-	ImGui::PushStyleVar(ImGuiStyleVar_FrameRounding, ImGui::GetStyle().TabRounding);
-	const bool pressed{ ImGui::TabItemButton(
-		id, ImGuiTabItemFlags_Trailing | ImGuiTabItemFlags_NoTooltip
-	) };
-	ImGui::PopStyleVar();
-	return pressed;
-}
-
-template <typename Validate, typename Commit>
-RenameResult DrawDialogueTabRename(
-	InlineRenameState& state, const char* id, ImVec2 tab_min, ImVec2 tab_max,
-	Validate&& validate, Commit&& commit
-) {
-	const ImVec2 restore_cursor{ ImGui::GetCursorScreenPos() };
-	ImGui::SetCursorScreenPos(tab_min);
-	ImGui::PushStyleVar(ImGuiStyleVar_FrameRounding, ImGui::GetStyle().TabRounding);
-	const auto result{ DrawInlineRename(
-		state,
-		id,
-		std::max(1.0f, tab_max.x - tab_min.x),
-		std::forward<Validate>(validate),
-		std::forward<Commit>(commit)
-	) };
-	ImGui::PopStyleVar();
-	ImGui::SetCursorScreenPos(restore_cursor);
-	return result;
-}
-
-void ApplyDialogueTabBarHorizontalWheel() {
-	ImGuiTabBar* tab_bar{ ImGui::GetCurrentTabBar() };
-	if (!tab_bar ||
-		!ImGui::IsWindowHovered(ImGuiHoveredFlags_AllowWhenBlockedByActiveItem)) {
-		return;
-	}
-
-	const ImGuiIO& io{ ImGui::GetIO() };
-	// While the pointer is over the tab-strip child, both wheel axes are dedicated to
-	// navigating the tab bar. The child itself has scrolling disabled, so neither axis can
-	// move the whole strip or bubble through to the enclosing inspector.
-	const float wheel{
-		io.MouseWheelH != 0.0f ? io.MouseWheelH : io.MouseWheel
-	};
-	if (wheel == 0.0f) {
-		return;
-	}
-
-	const float scrolling_width{
-		std::max(
-			0.0f,
-			tab_bar->ScrollingRectMaxX - tab_bar->ScrollingRectMinX
-		)
-	};
-	const float maximum_scroll{
-		std::max(0.0f, tab_bar->WidthAllTabs - scrolling_width)
-	};
-	const float step{ ImGui::GetFontSize() * 5.0f };
-	tab_bar->ScrollingTarget = std::clamp(
-		tab_bar->ScrollingTarget - wheel * step,
-		0.0f,
-		maximum_scroll
-	);
-	tab_bar->ScrollingAnim = tab_bar->ScrollingTarget;
-	tab_bar->ScrollingTargetDistToVisibility = 0.0f;
-}
-
-void DrawDialogueTabStripEnd() {
-	ImGui::EndChild();
-	ImGui::PopStyleVar();
 }
 
 bool DrawDialogueAppearanceControls(
@@ -3884,175 +3816,157 @@ bool DrawDialogueAppearanceControls(
 	auto& entry{ document.dialogues[selected_index] };
 	auto& appearance{ entry.appearance };
 	bool changed{ false };
-	const float spacing{ ImGui::GetStyle().ItemSpacing.x };
-	const float available{ ImGui::GetContentRegionAvail().x };
-	const float button_width{ std::max(1.0f, (available - spacing * 3.0f) * 0.25f) };
 
-	auto add_button = [&](const char* label, bool exists, auto&& add, std::string_view action) {
-		ImGui::BeginDisabled(exists);
-		if (ImGui::Button(label, ImVec2{ button_width, 0.0f })) {
-			add();
-			changed = true;
-			reason = std::string{ action };
-		}
-		ImGui::EndDisabled();
-	};
-
-	add_button("Add Background", appearance.background.has_value(), [&]() {
-		ButtonShapeVisual visual;
-		visual.defined = true;
-		visual.color = color::Black.WithAlpha(180);
-		visual.fill_style = FillStyle{ Solid{} };
-		appearance.background = std::move(visual);
-	}, "Add Dialogue Background Override");
-	ImGui::SameLine(0.0f, spacing);
-	add_button("Add Border", appearance.border.has_value(), [&]() {
-		ButtonShapeVisual visual;
-		visual.defined = true;
-		visual.color = color::White;
-		visual.fill_style = FillStyle{ 2.0f };
-		appearance.border = std::move(visual);
-	}, "Add Dialogue Border Override");
-	ImGui::SameLine(0.0f, spacing);
-	add_button("Add Sprite", appearance.sprite.has_value(), [&]() {
-		ButtonSpriteVisual visual;
-		visual.defined = true;
-		visual.tint = color::White;
-		appearance.sprite = std::move(visual);
-	}, "Add Dialogue Sprite Override");
-	ImGui::SameLine(0.0f, spacing);
-	add_button("Add Audio", appearance.audio.has_value(), [&]() {
-		appearance.audio = DialogueSounds{};
-	}, "Add Dialogue Audio Override");
-
-
-	auto draw_shape = [&](
-		const char* label, const char* id, std::optional<ButtonShapeVisual>& value, bool border
-	) {
-		if (!value.has_value()) {
-			return;
-		}
-
-		bool remove{ false };
-		const std::string tree_label{ std::string{ label } + "##" + id };
-		const bool open{ ImGui::TreeNodeEx(
-			tree_label.c_str(),
-			ImGuiTreeNodeFlags_SpanAvailWidth | ImGuiTreeNodeFlags_FramePadding
-		) };
-		if (ImGui::BeginPopupContextItem()) {
-			if (ImGui::MenuItem("Remove")) {
-				remove = true;
-			}
-			ImGui::EndPopup();
-		}
-
-		if (open) {
-			ScopedIndent indent;
-			std::array<ButtonShapeVisual, 1> states{ *value };
-			const bool local{ DrawButtonShapeVisualFields(
-				ctx, relative_to, states, ButtonVisualState::Idle, border,
-				std::variant<V2_float, float>{ document.defaults.box_size }
-			) };
-			if (local) {
-				*value = states[0];
-				changed = true;
-				reason = border
-					? "Edit Dialogue Border Override"
-					: "Edit Dialogue Background Override";
-			}
-			ImGui::TreePop();
-		}
-
-		if (remove) {
+	auto remove_context = [&](const char* id, auto& value, std::string_view action) {
+		const auto context{ DrawInspectorTabContextMenu(id, false, false, true, "Remove Part") };
+		if (context.remove_requested) {
 			value.reset();
 			changed = true;
-			reason = border
-				? "Remove Dialogue Border Override"
-				: "Remove Dialogue Background Override";
+			reason = std::string{ action };
+			return true;
 		}
+		return false;
 	};
 
-	draw_shape("Background", "DialogueBackgroundOverride", appearance.background, false);
-	draw_shape("Border", "DialogueBorderOverride", appearance.border, true);
+	InspectorTabStripScope strip{ "##DialogueAppearanceTabStrip" };
+	if (ImGui::BeginTabBar("##DialogueAppearanceTabs", InspectorTabBarFlags())) {
+		if (appearance.background.has_value()) {
+			if (ImGui::BeginTabItem("Background")) {
+				const bool removed{ remove_context(
+					"##DialogueBackgroundContext", appearance.background,
+					"Remove Dialogue Background Override"
+				) };
+				if (!removed && appearance.background.has_value()) {
+					std::array<ButtonShapeVisual, 1> states{ *appearance.background };
+					if (DrawButtonShapeVisualFields(
+							ctx, relative_to, states, ButtonVisualState::Idle, false,
+							std::variant<V2_float, float>{ document.defaults.box_size }
+						)) {
+						*appearance.background = states[0];
+						changed = true;
+						reason = "Edit Dialogue Background Override";
+					}
+				}
+				ImGui::EndTabItem();
+			}
+		}
 
-	if (appearance.sprite.has_value()) {
-		bool remove{ false };
-		const bool open{ ImGui::TreeNodeEx(
-			"Sprite##DialogueSpriteOverride",
-			ImGuiTreeNodeFlags_SpanAvailWidth | ImGuiTreeNodeFlags_FramePadding
-		) };
-		if (ImGui::BeginPopupContextItem()) {
-			if (ImGui::MenuItem("Remove")) {
-				remove = true;
+		if (appearance.border.has_value()) {
+			if (ImGui::BeginTabItem("Border")) {
+				const bool removed{ remove_context(
+					"##DialogueBorderContext", appearance.border,
+					"Remove Dialogue Border Override"
+				) };
+				if (!removed && appearance.border.has_value()) {
+					std::array<ButtonShapeVisual, 1> states{ *appearance.border };
+					if (DrawButtonShapeVisualFields(
+							ctx, relative_to, states, ButtonVisualState::Idle, true,
+							std::variant<V2_float, float>{ document.defaults.box_size }
+						)) {
+						*appearance.border = states[0];
+						changed = true;
+						reason = "Edit Dialogue Border Override";
+					}
+				}
+				ImGui::EndTabItem();
+			}
+		}
+
+		if (appearance.sprite.has_value()) {
+			if (ImGui::BeginTabItem("Sprite")) {
+				const bool removed{ remove_context(
+					"##DialogueSpriteContext", appearance.sprite,
+					"Remove Dialogue Sprite Override"
+				) };
+				if (!removed && appearance.sprite.has_value()) {
+					std::array<ButtonSpriteVisual, 1> states{ *appearance.sprite };
+					if (DrawButtonSpriteVisualFields(ctx, states, ButtonVisualState::Idle, relative_to)) {
+						*appearance.sprite = states[0];
+						changed = true;
+						reason = "Edit Dialogue Sprite Override";
+					}
+				}
+				ImGui::EndTabItem();
+			}
+		}
+
+		if (appearance.audio.has_value()) {
+			if (ImGui::BeginTabItem("Audio")) {
+				const bool removed{ remove_context(
+					"##DialogueAudioContext", appearance.audio,
+					"Remove Dialogue Audio Override"
+				) };
+				if (!removed && appearance.audio.has_value()) {
+					AudioKey open_sound{ appearance.audio->open.value_or(AudioKey{}) };
+					if (DrawValue(ctx, "Open Sound", open_sound)) {
+						if (open_sound.value.empty()) appearance.audio->open.reset();
+						else appearance.audio->open = open_sound;
+						changed = true;
+						reason = "Edit Dialogue Open Sound";
+					}
+
+					AudioKey typewriter_sound{ appearance.audio->typewriter.value_or(AudioKey{}) };
+					const bool effective_typewriter{ entry.typewriter.value_or(document.typewriter) };
+					ImGui::BeginDisabled(!effective_typewriter);
+					if (DrawValue(ctx, "Typewriter Sound", typewriter_sound)) {
+						if (typewriter_sound.value.empty()) appearance.audio->typewriter.reset();
+						else appearance.audio->typewriter = typewriter_sound;
+						changed = true;
+						reason = "Edit Dialogue Typewriter Sound";
+					}
+					ImGui::EndDisabled();
+					DrawTooltip(effective_typewriter
+						? "Played while typewriter text is being revealed."
+						: "Enable typewriter text for this dialogue key (or through inheritance) to use this sound.");
+				}
+				ImGui::EndTabItem();
+			}
+		}
+
+		const bool all_present{
+			appearance.background.has_value() && appearance.border.has_value() &&
+			appearance.sprite.has_value() && appearance.audio.has_value()
+		};
+		if (!all_present && DrawInspectorAddTabButton("+##AddDialogueAppearancePart", "Add dialogue part")) {
+			ImGui::OpenPopup("##AddDialogueAppearancePartPopup");
+		}
+		if (!all_present && ImGui::BeginPopup("##AddDialogueAppearancePartPopup")) {
+			if (!appearance.background.has_value() && ImGui::MenuItem("Background")) {
+				ButtonShapeVisual visual;
+				visual.defined = true;
+				visual.color = color::Black.WithAlpha(180);
+				visual.fill_style = FillStyle{ Solid{} };
+				appearance.background = std::move(visual);
+				changed = true;
+				reason = "Add Dialogue Background Override";
+			}
+			if (!appearance.border.has_value() && ImGui::MenuItem("Border")) {
+				ButtonShapeVisual visual;
+				visual.defined = true;
+				visual.color = color::White;
+				visual.fill_style = FillStyle{ 2.0f };
+				appearance.border = std::move(visual);
+				changed = true;
+				reason = "Add Dialogue Border Override";
+			}
+			if (!appearance.sprite.has_value() && ImGui::MenuItem("Sprite")) {
+				ButtonSpriteVisual visual;
+				visual.defined = true;
+				visual.tint = color::White;
+				appearance.sprite = std::move(visual);
+				changed = true;
+				reason = "Add Dialogue Sprite Override";
+			}
+			if (!appearance.audio.has_value() && ImGui::MenuItem("Audio")) {
+				appearance.audio = DialogueSounds{};
+				changed = true;
+				reason = "Add Dialogue Audio Override";
 			}
 			ImGui::EndPopup();
 		}
 
-		if (open) {
-			ScopedIndent indent;
-			std::array<ButtonSpriteVisual, 1> states{ *appearance.sprite };
-			if (DrawButtonSpriteVisualFields(
-					ctx, states, ButtonVisualState::Idle, relative_to
-				)) {
-				*appearance.sprite = states[0];
-				changed = true;
-				reason = "Edit Dialogue Sprite Override";
-			}
-			ImGui::TreePop();
-		}
-
-		if (remove) {
-			appearance.sprite.reset();
-			changed = true;
-			reason = "Remove Dialogue Sprite Override";
-		}
-	}
-
-	if (appearance.audio.has_value()) {
-		bool remove{ false };
-		const bool open{ ImGui::TreeNodeEx("Audio##DialogueAudioOverride", ImGuiTreeNodeFlags_SpanAvailWidth | ImGuiTreeNodeFlags_FramePadding) };
-		if (ImGui::BeginPopupContextItem()) {
-			if (ImGui::MenuItem("Remove")) remove = true;
-			ImGui::EndPopup();
-		}
-		if (open) {
-			ScopedIndent indent;
-			AutoLabelWidthScope labels{ "DialogueAudioFields" };
-
-			AudioKey open_sound{ appearance.audio->open.value_or(AudioKey{}) };
-			if (DrawValue(ctx, "Open Sound", open_sound)) {
-				if (open_sound.value.empty()) {
-					appearance.audio->open.reset();
-				} else {
-					appearance.audio->open = open_sound;
-				}
-				changed = true;
-				reason = "Edit Dialogue Open Sound";
-			}
-
-			AudioKey typewriter_sound{ appearance.audio->typewriter.value_or(AudioKey{}) };
-			const bool effective_typewriter{ entry.typewriter.value_or(document.typewriter) };
-			ImGui::BeginDisabled(!effective_typewriter);
-			if (DrawValue(ctx, "Typewriter Sound", typewriter_sound)) {
-				if (typewriter_sound.value.empty()) {
-					appearance.audio->typewriter.reset();
-				} else {
-					appearance.audio->typewriter = typewriter_sound;
-				}
-				changed = true;
-				reason = "Edit Dialogue Typewriter Sound";
-			}
-			ImGui::EndDisabled();
-			DrawTooltip(effective_typewriter
-				? "Played while typewriter text is being revealed."
-				: "Enable typewriter text for this dialogue key (or through inheritance) to use this sound.");
-			ImGui::TreePop();
-		}
-		if (remove) {
-			appearance.audio.reset();
-			changed = true;
-			reason = "Remove Dialogue Audio Override";
-		}
+		ApplyInspectorTabBarHorizontalWheel();
+		ImGui::EndTabBar();
 	}
 
 	return changed;
@@ -4060,10 +3974,10 @@ bool DrawDialogueAppearanceControls(
 
 template <typename Target>
 bool DrawFocusedDialogueControl(Target& target) {
-	if constexpr (!Target::template Supports<DialogueData>()) {
+	if constexpr (!Target::template Supports<::ptgn::impl::DialogueData>()) {
 		return false;
 	} else {
-		auto before{ target.template Capture<DialogueData>() };
+		auto before{ target.template Capture<::ptgn::impl::DialogueData>() };
 		if (!before) {
 			return false;
 		}
@@ -4095,7 +4009,6 @@ bool DrawFocusedDialogueControl(Target& target) {
 		};
 
 		{
-			AutoLabelWidthScope labels{ "DialogueEntityFields" };
 
 			changed |= DrawPropertyRow("Start Dialogue", [&]() {
 			bool local_changed{ false };
@@ -4177,7 +4090,6 @@ bool DrawFocusedDialogueControl(Target& target) {
 				ImGuiTreeNodeFlags_SpanAvailWidth |
 					ImGuiTreeNodeFlags_FramePadding
 			)) {
-			AutoLabelWidthScope labels{ "DialogueLayoutFields" };
 			auto draw_root = [&](std::string_view label, auto& value) {
 				if (DrawValue(target.ctx, label, value)) {
 					mark_changed("Edit Dialogue Layout");
@@ -4206,7 +4118,6 @@ bool DrawFocusedDialogueControl(Target& target) {
 				ImGuiTreeNodeFlags_SpanAvailWidth |
 					ImGuiTreeNodeFlags_FramePadding
 			)) {
-			AutoLabelWidthScope labels{ "DialogueTextDefaultFields" };
 			auto& defaults{ document.defaults.text_defaults };
 			auto draw_default = [&](std::string_view label, auto& value) {
 				if (DrawValue(target.ctx, label, value)) {
@@ -4241,63 +4152,49 @@ bool DrawFocusedDialogueControl(Target& target) {
 		std::optional<std::size_t> rename_dialogue;
 		std::optional<std::size_t> duplicate_dialogue;
 		std::optional<std::size_t> delete_dialogue;
-		std::optional<std::pair<ImVec2, ImVec2>> dialogue_rename_rect;
 		bool add_dialogue{ false };
 
-		DrawDialogueTabStripBegin("##DialogueKeyTabStrip");
-		if (ImGui::BeginTabBar(
-				"##DialogueKeys",
-				ImGuiTabBarFlags_AutoSelectNewTabs |
-					ImGuiTabBarFlags_FittingPolicyScroll |
-					ImGuiTabBarFlags_NoTabListScrollingButtons
-			)) {
-			for (std::size_t i{ 0 }; i < document.dialogues.size(); ++i) {
-				ImGui::PushID(static_cast<int>(i));
-				const bool active{ ImGui::BeginTabItem(document.dialogues[i].name.c_str()) };
-				const ImVec2 tab_min{ ImGui::GetItemRectMin() };
-				const ImVec2 tab_max{ ImGui::GetItemRectMax() };
-
-				if (ImGui::BeginPopupContextItem("##DialogueTabContext")) {
-					if (ImGui::MenuItem("Rename")) {
+		{
+			InspectorTabStripScope strip{ "##DialogueKeyTabStrip" };
+			if (ImGui::BeginTabBar("##DialogueKeys", InspectorTabBarFlags())) {
+				for (std::size_t i{ 0 }; i < document.dialogues.size(); ++i) {
+					ImGui::PushID(static_cast<int>(i));
+					const bool active{ ImGui::BeginTabItem(document.dialogues[i].name.c_str()) };
+					const auto context{ DrawInspectorTabContextMenu(
+						"##DialogueTabContext",
+						true,
+						true,
+						document.dialogues.size() > 1,
+						"Delete"
+					) };
+					if (context.rename_requested) {
 						rename_dialogue = i;
 					}
-					if (ImGui::MenuItem("Duplicate")) {
+					if (context.duplicate_requested) {
 						duplicate_dialogue = i;
 					}
-					ImGui::BeginDisabled(document.dialogues.size() <= 1);
-					if (ImGui::MenuItem("Delete")) {
+					if (context.remove_requested) {
 						delete_dialogue = i;
 					}
-					ImGui::EndDisabled();
-					ImGui::EndPopup();
-				}
 
-				const bool rename_target{
-					(rename_dialogue.has_value() && *rename_dialogue == i) ||
-					(state.dialogue_rename.active && state.dialogue_rename_key.has_value() &&
-					 state.dialogue_rename_key.value() == document.dialogues[i].name)
-				};
-				if (rename_target) {
-					dialogue_rename_rect = std::pair{ tab_min, tab_max };
-				}
-
-				if (active) {
-					if (state.dialogue_key != document.dialogues[i].name) {
-						state.dialogue_key = document.dialogues[i].name;
-						state.dialogue_variant_index = 0;
-						state.dialogue_preview_page = 0;
+					if (active) {
+						if (state.dialogue_key != document.dialogues[i].name) {
+							state.dialogue_key = document.dialogues[i].name;
+							state.dialogue_variant_index = 0;
+							state.dialogue_preview_page = 0;
+						}
+						selected_index = i;
+						ImGui::EndTabItem();
 					}
-					selected_index = i;
-					ImGui::EndTabItem();
+					ImGui::PopID();
 				}
-				ImGui::PopID();
-			}
 
-			if (DrawDialogueAddTabButton("+##AddDialogueKey")) {
-				add_dialogue = true;
+				if (DrawInspectorAddTabButton("+##AddDialogueKey", "Add dialogue key")) {
+					add_dialogue = true;
+				}
+				ApplyInspectorTabBarHorizontalWheel();
+				ImGui::EndTabBar();
 			}
-			ApplyDialogueTabBarHorizontalWheel();
-			ImGui::EndTabBar();
 		}
 
 		if (rename_dialogue.has_value()) {
@@ -4314,19 +4211,17 @@ bool DrawFocusedDialogueControl(Target& target) {
 				}
 			) };
 
-			if (rename_it == document.dialogues.end() || !dialogue_rename_rect.has_value()) {
+			if (rename_it == document.dialogues.end()) {
 				state.dialogue_rename.Cancel();
 				state.dialogue_rename_key.reset();
 			} else {
 				const std::size_t rename_index{ static_cast<std::size_t>(
 					std::distance(document.dialogues.begin(), rename_it)
 				) };
-				const auto [tab_min, tab_max]{ *dialogue_rename_rect };
-				const auto result{ DrawDialogueTabRename(
+				const auto result{ DrawInspectorTabRenameModal(
 					state.dialogue_rename,
-					"##DialogueKeyInlineRename",
-					tab_min,
-					tab_max,
+					"Rename Dialogue Key",
+					"##RenameDialogueKey",
 					[&](std::string_view value) -> std::string {
 						if (value.empty()) {
 							return "Dialogue key cannot be empty.";
@@ -4341,14 +4236,14 @@ bool DrawFocusedDialogueControl(Target& target) {
 						RenameDialogueEditorEntry(document, rename_index, renamed);
 						state.dialogue_key = renamed;
 						mark_changed("Rename Dialogue Key");
-					}
+					},
+					"Rename Dialogue Key"
 				) };
 				if (result != RenameResult::None) {
 					state.dialogue_rename_key.reset();
 				}
 			}
 		}
-		DrawDialogueTabStripEnd();
 
 		if (add_dialogue) {
 			const std::string name{
@@ -4418,7 +4313,6 @@ bool DrawFocusedDialogueControl(Target& target) {
 		auto& entry{ document.dialogues[selected_index] };
 
 		{
-			AutoLabelWidthScope labels{ "DialogueKeyFields" };
 
 			changed |= DrawPropertyRow("Next Dialogue", [&]() {
 				bool local_changed{ false };
@@ -4613,62 +4507,47 @@ bool DrawFocusedDialogueControl(Target& target) {
 			std::optional<std::size_t> rename_variant;
 			std::optional<std::size_t> duplicate_variant;
 			std::optional<std::size_t> delete_variant;
-			std::optional<std::pair<ImVec2, ImVec2>> variant_rename_rect;
 			bool add_variant{ false };
 
-			DrawDialogueTabStripBegin("##DialogueVariantTabStrip");
-			if (ImGui::BeginTabBar(
-					"##DialogueVariants",
-					ImGuiTabBarFlags_AutoSelectNewTabs |
-						ImGuiTabBarFlags_FittingPolicyScroll |
-						ImGuiTabBarFlags_NoTabListScrollingButtons
-				)) {
-				for (std::size_t i{ 0 }; i < entry.variants.size(); ++i) {
-					ImGui::PushID(static_cast<int>(i));
-					const bool active{ ImGui::BeginTabItem(entry.variants[i].name.c_str()) };
-					const ImVec2 tab_min{ ImGui::GetItemRectMin() };
-					const ImVec2 tab_max{ ImGui::GetItemRectMax() };
-
-					if (ImGui::BeginPopupContextItem("##VariantTabContext")) {
-						if (ImGui::MenuItem("Rename")) {
+			{
+				InspectorTabStripScope strip{ "##DialogueVariantTabStrip" };
+				if (ImGui::BeginTabBar("##DialogueVariants", InspectorTabBarFlags())) {
+					for (std::size_t i{ 0 }; i < entry.variants.size(); ++i) {
+						ImGui::PushID(static_cast<int>(i));
+						const bool active{ ImGui::BeginTabItem(entry.variants[i].name.c_str()) };
+						const auto context{ DrawInspectorTabContextMenu(
+							"##VariantTabContext",
+							true,
+							true,
+							entry.variants.size() > 1,
+							"Delete"
+						) };
+						if (context.rename_requested) {
 							rename_variant = i;
 						}
-						if (ImGui::MenuItem("Duplicate")) {
+						if (context.duplicate_requested) {
 							duplicate_variant = i;
 						}
-						ImGui::BeginDisabled(entry.variants.size() <= 1);
-						if (ImGui::MenuItem("Delete")) {
+						if (context.remove_requested) {
 							delete_variant = i;
 						}
-						ImGui::EndDisabled();
-						ImGui::EndPopup();
-					}
 
-					const bool rename_target{
-						(rename_variant.has_value() && *rename_variant == i) ||
-						(state.dialogue_variant_rename.active &&
-						 state.dialogue_variant_rename_index.has_value() &&
-						 *state.dialogue_variant_rename_index == i)
-					};
-					if (rename_target) {
-						variant_rename_rect = std::pair{ tab_min, tab_max };
-					}
-
-					if (active) {
-						if (state.dialogue_variant_index != i) {
-							state.dialogue_variant_index = i;
-							state.dialogue_preview_page = 0;
+						if (active) {
+							if (state.dialogue_variant_index != i) {
+								state.dialogue_variant_index = i;
+								state.dialogue_preview_page = 0;
+							}
+							ImGui::EndTabItem();
 						}
-						ImGui::EndTabItem();
+						ImGui::PopID();
 					}
-					ImGui::PopID();
-				}
 
-				if (DrawDialogueAddTabButton("+##AddDialogueVariant")) {
-					add_variant = true;
+					if (DrawInspectorAddTabButton("+##AddDialogueVariant", "Add dialogue variant")) {
+						add_variant = true;
+					}
+					ApplyInspectorTabBarHorizontalWheel();
+					ImGui::EndTabBar();
 				}
-				ApplyDialogueTabBarHorizontalWheel();
-				ImGui::EndTabBar();
 			}
 
 			if (rename_variant.has_value()) {
@@ -4679,16 +4558,14 @@ bool DrawFocusedDialogueControl(Target& target) {
 			if (state.dialogue_variant_rename.active &&
 				state.dialogue_variant_rename_index.has_value()) {
 				const std::size_t rename_index{ *state.dialogue_variant_rename_index };
-				if (rename_index >= entry.variants.size() || !variant_rename_rect.has_value()) {
+				if (rename_index >= entry.variants.size()) {
 					state.dialogue_variant_rename.Cancel();
 					state.dialogue_variant_rename_index.reset();
 				} else {
-					const auto [tab_min, tab_max]{ *variant_rename_rect };
-					const auto result{ DrawDialogueTabRename(
+					const auto result{ DrawInspectorTabRenameModal(
 						state.dialogue_variant_rename,
-						"##DialogueVariantInlineRename",
-						tab_min,
-						tab_max,
+						"Rename Dialogue Variant",
+						"##RenameDialogueVariant",
 						[&](std::string_view value) -> std::string {
 							if (value.empty()) {
 								return "Variant name cannot be empty.";
@@ -4701,14 +4578,14 @@ bool DrawFocusedDialogueControl(Target& target) {
 						[&](std::string_view value) {
 							entry.variants[rename_index].name = std::string{ value };
 							mark_changed("Rename Dialogue Variant");
-						}
+						},
+						"Rename Dialogue Variant"
 					) };
 					if (result != RenameResult::None) {
 						state.dialogue_variant_rename_index.reset();
 					}
 				}
 			}
-			DrawDialogueTabStripEnd();
 
 			if (add_variant) {
 				entry.variants.emplace_back(DialogueEditorVariantDraft{
@@ -4922,6 +4799,7 @@ bool DrawFocusedDialogueControl(Target& target) {
 			target.ctx, dialogue_entity, document, selected_index, reason
 		);
 
+
 		ImGui::PopID();
 		ImGui::PopID();
 
@@ -4930,13 +4808,13 @@ bool DrawFocusedDialogueControl(Target& target) {
 		}
 
 		NormalizeDialogueEditorDocument(document);
-		DialogueData updated{ *before };
+		::ptgn::impl::DialogueData updated{ *before };
 		updated.SetDefinition(
 			BuildDialogueEditorDefinition(document)
 		);
-		target.template SetLive<DialogueData>(updated);
+		target.template SetLive<::ptgn::impl::DialogueData>(updated);
 
-		auto after{ target.template Capture<DialogueData>() };
+		auto after{ target.template Capture<::ptgn::impl::DialogueData>() };
 		TrackComponentState(
 			target,
 			reason,
@@ -4946,6 +4824,223 @@ bool DrawFocusedDialogueControl(Target& target) {
 		);
 		return true;
 	}
+}
+
+
+bool SetSliderValueTextPartEnabled(EntityInspectorTarget& target, bool enabled) {
+	auto before{ target.template Capture<::ptgn::impl::SliderData>() };
+	if (!before || before->value_text.has_value() == enabled) {
+		return false;
+	}
+
+	auto data{ *before };
+	data.value_text = enabled
+		? std::optional<SliderValueTextConfig>{ SliderValueTextConfig{} }
+		: std::nullopt;
+	target.template SetLive<::ptgn::impl::SliderData>(data);
+	::ptgn::impl::SliderSystem::SynchronizeEntity(target.entity);
+	auto after{ target.template Capture<::ptgn::impl::SliderData>() };
+	TrackComponentState(
+		target,
+		enabled ? "Add Slider Value Text" : "Remove Slider Value Text",
+		std::move(before),
+		std::move(after),
+		true
+	);
+	return true;
+}
+
+bool DrawSliderPartsTabs(EntityInspectorTarget& target, Slider slider) {
+	bool changed{ false };
+
+	Entity track{ slider.GetTrack() };
+	Button thumb{ slider.GetThumb() };
+	const auto slider_data{ target.template Capture<::ptgn::impl::SliderData>() };
+	const bool has_value_text{ slider_data && slider_data->value_text.has_value() };
+	const bool has_any_part{ static_cast<bool>(track) || static_cast<bool>(thumb) || has_value_text };
+
+	enum class RemovePart {
+		None,
+		Track,
+		Thumb,
+		ValueText,
+	};
+	RemovePart remove_after_tabs{ RemovePart::None };
+
+	auto draw_add_popup = [&]() {
+		if (!ImGui::BeginPopup("##AddSliderPartPopup")) {
+			return;
+		}
+
+		if (!track && ImGui::MenuItem("Track")) {
+			Entity created{ slider.EnsureTrack() };
+			if (created) {
+				(void)RecordCreatedEntityPreservingSelection(target.ctx, created);
+				changed = true;
+			}
+		}
+		if (!thumb && ImGui::MenuItem("Thumb")) {
+			Button created{ slider.EnsureThumb() };
+			if (created) {
+				(void)RecordCreatedEntityPreservingSelection(target.ctx, created);
+				::ptgn::impl::SliderSystem::SynchronizeEntity(created);
+				changed = true;
+			}
+		}
+		if (!has_value_text && ImGui::MenuItem("Value Text")) {
+			changed |= SetSliderValueTextPartEnabled(target, true);
+		}
+
+		ImGui::EndPopup();
+	};
+
+	if (!has_any_part) {
+		if (ImGui::Button("Add Slider Part", ImVec2{ -FLT_MIN, 0.0f })) {
+			ImGui::OpenPopup("##AddSliderPartPopup");
+		}
+		draw_add_popup();
+		return changed;
+	}
+
+	InspectorTabStripScope strip{ "##SliderPartsTabStrip" };
+	if (ImGui::BeginTabBar("##SliderParts", InspectorTabBarFlags())) {
+		if (track) {
+			ScopedID scope{ "TrackPartTab" };
+			const bool selected{ ImGui::BeginTabItem("Track") };
+			const auto context{ DrawInspectorTabContextMenu(
+				"##SliderTrackContext", false, false, true, "Remove Part"
+			) };
+			if (context.remove_requested) {
+				remove_after_tabs = RemovePart::Track;
+			}
+			if (selected) {
+				if (remove_after_tabs != RemovePart::Track) {
+					changed |= DrawSliderTrackTransform(target, track);
+					changed |= DrawSliderTrackVisual(target, slider, track);
+				}
+				ImGui::EndTabItem();
+			}
+		}
+
+		if (thumb) {
+			ScopedID scope{ "ThumbPartTab" };
+			const bool selected{ ImGui::BeginTabItem("Thumb") };
+			const auto context{ DrawInspectorTabContextMenu(
+				"##SliderThumbContext", false, false, true, "Remove Part"
+			) };
+			if (context.remove_requested) {
+				remove_after_tabs = RemovePart::Thumb;
+			}
+			if (selected) {
+				if (remove_after_tabs != RemovePart::Thumb) {
+					EntityInspectorTarget thumb_target{ .ctx = target.ctx, .entity = thumb };
+					changed |= DrawFocusedButtonInteraction(
+						thumb_target, FocusedUIControlType::Button
+					);
+					if (ImGui::TreeNodeEx(
+							"Transform##SliderThumbTransform",
+							ImGuiTreeNodeFlags_SpanAvailWidth | ImGuiTreeNodeFlags_FramePadding
+						)) {
+						ScopedIndent thumb_transform_indent;
+						auto slider_before{
+							target.template Capture<::ptgn::impl::SliderData>()
+						};
+						const bool transform_changed{
+							DrawTransformFeature(thumb_target, false, true, false)
+						};
+						if (transform_changed) {
+							// The thumb Transform is local to the slider. Convert an authored
+							// position back into the slider value before re-constraining it.
+							::ptgn::impl::SliderSystem::SynchronizeEntity(thumb);
+							auto slider_after{
+								target.template Capture<::ptgn::impl::SliderData>()
+							};
+							TrackComponentState(
+								target, "Move Slider Thumb", std::move(slider_before),
+								std::move(slider_after), true
+							);
+							changed = true;
+						}
+						ImGui::TreePop();
+					}
+					changed |= DrawFocusedButtonAppearance(
+						thumb_target, FocusedUIControlType::Button
+					);
+				}
+				ImGui::EndTabItem();
+			}
+		}
+
+		if (has_value_text) {
+			ScopedID scope{ "ValueTextPartTab" };
+			const bool selected{ ImGui::BeginTabItem("Value Text") };
+			const auto context{ DrawInspectorTabContextMenu(
+				"##SliderValueTextContext", false, false, true, "Remove Part"
+			) };
+			if (context.remove_requested) {
+				remove_after_tabs = RemovePart::ValueText;
+			}
+			if (selected) {
+				if (remove_after_tabs != RemovePart::ValueText) {
+					auto before{ target.template Capture<::ptgn::impl::SliderData>() };
+					if (before) {
+						auto data{ *before };
+						if (!data.value_text.has_value()) {
+							data.value_text = SliderValueTextConfig{};
+						}
+						if (DrawSliderValueTextConfig(target, data)) {
+							target.template SetLive<::ptgn::impl::SliderData>(data);
+							::ptgn::impl::SliderSystem::SynchronizeEntity(target.entity);
+							auto after{ target.template Capture<::ptgn::impl::SliderData>() };
+							TrackComponentState(
+								target,
+								"Edit Slider Value Text",
+								std::move(before),
+								std::move(after),
+								true
+							);
+							changed = true;
+						}
+					}
+				}
+				ImGui::EndTabItem();
+			}
+		}
+
+		const bool has_all_parts{ track && thumb && has_value_text };
+		if (!has_all_parts &&
+			DrawInspectorAddTabButton("+##AddSliderPart", "Add slider part")) {
+			ImGui::OpenPopup("##AddSliderPartPopup");
+		}
+		if (!has_all_parts) {
+			draw_add_popup();
+		}
+
+		ApplyInspectorTabBarHorizontalWheel();
+		ImGui::EndTabBar();
+	}
+
+	switch (remove_after_tabs) {
+		case RemovePart::Track:
+			if (track) {
+				target.ctx.commands.DeleteEntity(track);
+				changed = true;
+			}
+			break;
+		case RemovePart::Thumb:
+			if (thumb) {
+				target.ctx.commands.DeleteEntity(thumb);
+				changed = true;
+			}
+			break;
+		case RemovePart::ValueText:
+			changed |= SetSliderValueTextPartEnabled(target, false);
+			break;
+		case RemovePart::None:
+			break;
+	}
+
+	return changed;
 }
 
 template <typename Target>
@@ -4958,111 +5053,15 @@ bool DrawFocusedControlSpecific(Target& target, FocusedUIControlType type) {
 		case FocusedUIControlType::ToggleButton: break;
 
 		case FocusedUIControlType::Slider: {
-			if constexpr (std::same_as<std::remove_cvref_t<Target>, EntityInspectorTarget>) {
-				Slider slider{ target.entity };
-				Button thumb{ slider.GetThumb() };
-				if (!thumb) {
-					// SliderSystem owns creation/migration of the mandatory thumb. Ensure it exists so
-					// the editor always exposes the same controls as an ordinary button.
-					::ptgn::impl::SliderSystem::Prepare(target.entity.GetScene());
-					thumb = slider.GetThumb();
-				}
-				if (thumb) {
-					EntityInspectorTarget thumb_target{ .ctx = target.ctx, .entity = thumb };
-					changed |= DrawFocusedButtonInteraction(thumb_target, FocusedUIControlType::Button);
-				}
-			}
-
 			changed |= DrawFocusedComponent<Target, ::ptgn::impl::SliderData>(
 				target, "Slider", [&](::ptgn::impl::SliderData& data) {
-					AutoLabelWidthScope labels{ "FocusedSliderFields" };
 					return DrawSliderData(target, data);
 				}
 			);
 
 			if constexpr (std::same_as<std::remove_cvref_t<Target>, EntityInspectorTarget>) {
 				Slider slider{ target.entity };
-
-
-				{
-					ScopedID value_text_scope{ "SliderValueTextPart" };
-					auto before{ target.template Capture<::ptgn::impl::SliderData>() };
-					bool enabled{ before && before->value_text.has_value() };
-
-					if (ImGui::Checkbox("##Enabled", &enabled) && before) {
-						auto data{ *before };
-						data.value_text = enabled
-							? std::optional<SliderValueTextConfig>{ SliderValueTextConfig{} }
-							: std::nullopt;
-						target.template SetLive<::ptgn::impl::SliderData>(data);
-						::ptgn::impl::SliderSystem::SynchronizeEntity(target.entity);
-						auto after{ target.template Capture<::ptgn::impl::SliderData>() };
-						TrackComponentState(
-							target, enabled ? "Enable Slider Value Text" : "Disable Slider Value Text",
-							std::move(before), std::move(after), true
-						);
-						changed = true;
-					}
-					DrawTooltip(enabled ? "Disable slider value text." : "Enable slider value text.");
-
-					ImGui::SameLine();
-					if (!enabled) {
-						ImGui::SetNextItemOpen(false, ImGuiCond_Always);
-					}
-					ImGui::BeginDisabled(!enabled);
-					const bool value_text_open{ ImGui::TreeNodeEx(
-						"Value Text##SliderValueTextTree",
-						ImGuiTreeNodeFlags_SpanAvailWidth | ImGuiTreeNodeFlags_FramePadding
-					) };
-					ImGui::EndDisabled();
-
-					if (value_text_open) {
-						if (enabled) {
-							ScopedIndent value_text_indent;
-							auto data_before{ target.template Capture<::ptgn::impl::SliderData>() };
-							if (data_before && data_before->value_text.has_value()) {
-								auto data{ *data_before };
-								if (DrawSliderValueTextConfig(target, data)) {
-									target.template SetLive<::ptgn::impl::SliderData>(data);
-									::ptgn::impl::SliderSystem::SynchronizeEntity(target.entity);
-									auto data_after{
-										target.template Capture<::ptgn::impl::SliderData>()
-									};
-									TrackComponentState(
-										target, "Edit Slider Value Text", std::move(data_before),
-										std::move(data_after), true
-									);
-									changed = true;
-								}
-							}
-						}
-						ImGui::TreePop();
-					}
-				}
-
-				ImGui::SeparatorText("Track");
-				{
-					ScopedID track_scope{ "SliderTrackPart" };
-					Entity track{ slider.GetTrack() };
-					if (track) {
-						changed |= DrawSliderTrackTransform(target, track);
-					}
-					changed |= DrawSliderTrackVisual(target, slider, track);
-				}
-
-				ImGui::SeparatorText("Thumb");
-				if (Button thumb{ slider.GetThumb() }) {
-					EntityInspectorTarget thumb_target{ .ctx = target.ctx, .entity = thumb };
-					if (ImGui::TreeNodeEx(
-							"Transform##SliderThumbTransform",
-							ImGuiTreeNodeFlags_SpanAvailWidth | ImGuiTreeNodeFlags_FramePadding
-						)) {
-						ScopedIndent thumb_transform_indent;
-						changed |= DrawTransformFeature(thumb_target, false, true, false);
-						ImGui::TreePop();
-					}
-					changed |= DrawFocusedButtonAppearance(thumb_target, FocusedUIControlType::Button);
-				}
+				changed |= DrawSliderPartsTabs(target, slider);
 			}
 			break;
 		}
@@ -5071,7 +5070,6 @@ bool DrawFocusedControlSpecific(Target& target, FocusedUIControlType type) {
 			changed |= DrawFocusedComponent<Target, ::ptgn::impl::DropdownData>(
 				target, "Dropdown",
 				[&](::ptgn::impl::DropdownData& data) {
-					AutoLabelWidthScope labels{ "FocusedDropdownFields" };
 					bool local_changed{ false };
 
 
@@ -5082,13 +5080,6 @@ bool DrawFocusedControlSpecific(Target& target, FocusedUIControlType type) {
 						bool fields_changed{ false };
 						const bool row_changed{ DrawOptionalPropertyRow(
 							"Item Size", enabled, false, [&]() {
-								if (!enabled) {
-									ImGui::BeginDisabled();
-									DrawUnsetOptionalInlineValue();
-									ImGui::EndDisabled();
-									return false;
-								}
-
 								const float spacing{ ImGui::GetStyle().ItemInnerSpacing.x };
 								const float width{
 									std::max(1.0f, (ImGui::GetContentRegionAvail().x - spacing) * 0.5f)
@@ -5117,7 +5108,7 @@ bool DrawFocusedControlSpecific(Target& target, FocusedUIControlType type) {
 							local_changed = true;
 						}
 					}
-					DrawTooltip("Size used by each item. Unset uses the dropdown/header size.");
+					DrawTooltip("Size used by each item. When disabled, uses the dropdown/header size.");
 
 					local_changed |= DrawValue(target.ctx, "Item Offset", data.button_offset);
 					DrawTooltip("Offset added to each item position after automatic layout.");
@@ -5154,29 +5145,105 @@ bool DrawFocusedControlSpecific(Target& target, FocusedUIControlType type) {
 	return changed;
 }
 
-bool DrawManagedVisualChild(EditorContext& ctx, Entity child, std::string_view label) {
+bool DrawManagedVisualChildContents(EditorContext& ctx, Entity child) {
 	if (!child) {
-		ImGui::TextDisabled(
-			"%.*s part is not present.", static_cast<int>(label.size()), label.data()
-		);
 		return false;
 	}
-
-	const std::string tree_label{ std::string{ label } + "##ManagedVisualChild" };
-	if (!ImGui::TreeNodeEx(
-			tree_label.c_str(), ImGuiTreeNodeFlags_SpanAvailWidth | ImGuiTreeNodeFlags_DefaultOpen
-		)) {
-		return false;
-	}
-
 	EntityInspectorTarget child_target{ .ctx = ctx, .entity = child };
+	bool changed{ DrawVisualFeature(child_target) };
+	changed |= DrawTransformFeature(child_target);
+	return changed;
+}
+
+bool DrawManagedVisualPartsTabs(
+	EditorContext& ctx,
+	std::span<const std::pair<std::string_view, Entity>> parts,
+	const char* id,
+	std::span<const InspectorAction> add_actions = {}
+) {
 	bool changed{ false };
-	{
-		ScopedIndent indent;
-		changed |= DrawVisualFeature(child_target);
-		changed |= DrawTransformFeature(child_target);
+	Entity remove_after_tabs{};
+
+	const bool has_any_part{
+		std::ranges::any_of(parts, [](const auto& part) {
+			return static_cast<bool>(part.second);
+		})
+	};
+
+	auto draw_add_popup = [&]() {
+		if (!ImGui::BeginPopup("##AddManagedVisualPartPopup")) {
+			return;
+		}
+		for (std::size_t action_index{ 0 }; action_index < add_actions.size(); ++action_index) {
+			const auto& action{ add_actions[action_index] };
+			ImGui::PushID(static_cast<int>(action_index));
+			ImGui::BeginDisabled(!action.enabled);
+			const std::string action_label{ action.label };
+			if (ImGui::MenuItem(action_label.c_str()) && action.invoke) {
+				action.invoke();
+				changed = true;
+			}
+			ImGui::EndDisabled();
+			if (!action.tooltip.empty() &&
+				ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled)) {
+				ImGui::SetTooltip(
+					"%.*s", static_cast<int>(action.tooltip.size()), action.tooltip.data()
+				);
+			}
+			ImGui::PopID();
+		}
+		ImGui::EndPopup();
+	};
+
+	if (!has_any_part && !add_actions.empty()) {
+		if (ImGui::Button("Add UI Part", ImVec2{ -FLT_MIN, 0.0f })) {
+			ImGui::OpenPopup("##AddManagedVisualPartPopup");
+		}
+		draw_add_popup();
+		return changed;
 	}
-	ImGui::TreePop();
+
+	InspectorTabStripScope strip{ id };
+	if (ImGui::BeginTabBar("##ManagedVisualParts", InspectorTabBarFlags())) {
+		for (std::size_t index{ 0 }; index < parts.size(); ++index) {
+			const auto& [fallback, child]{ parts[index] };
+			if (!child) {
+				continue;
+			}
+			ImGui::PushID(static_cast<int>(index));
+			const std::string label{ fallback };
+			const bool selected{ ImGui::BeginTabItem(label.c_str()) };
+			const auto context{ DrawInspectorTabContextMenu(
+				"##ManagedVisualPartContext", false, false, true, "Remove Part"
+			) };
+			if (context.remove_requested) {
+				remove_after_tabs = child;
+			}
+			if (selected) {
+				if (child != remove_after_tabs) {
+					changed |= DrawManagedVisualChildContents(ctx, child);
+				}
+				ImGui::EndTabItem();
+			}
+			ImGui::PopID();
+		}
+
+		if (!add_actions.empty()) {
+			if (DrawInspectorAddTabButton("+##AddManagedVisualPart", "Add UI part")) {
+				ImGui::OpenPopup("##AddManagedVisualPartPopup");
+			}
+			draw_add_popup();
+		}
+
+		ApplyInspectorTabBarHorizontalWheel();
+		ImGui::EndTabBar();
+	}
+
+	if (remove_after_tabs) {
+		ctx.commands.DeleteEntity(remove_after_tabs);
+		changed = true;
+	}
+
 	return changed;
 }
 
@@ -5193,16 +5260,29 @@ bool DrawManagedVisualChild(EditorContext& ctx, Entity child, std::string_view l
 	return {};
 }
 
-[[nodiscard]] Entity FindDialogueManagedPart(Entity dialogue, DialoguePartRole role) {
-	if (!dialogue || !HasChildren(dialogue)) {
+Entity CreateTooltipPartForInspector(EditorContext& ctx, Entity tooltip, bool text) {
+	if (!tooltip) {
 		return {};
 	}
-	for (Entity child : GetChildren(dialogue)) {
-		if (auto part{ child.TryGet<::ptgn::impl::DialoguePart>() }; part && part->role == role) {
-			return child;
-		}
+
+	Entity created;
+	if (text) {
+		Text text_entity{ CreateText(tooltip.GetScene()) };
+		text_entity.Add<Tag>("Tooltip Text");
+		text_entity.Add<::ptgn::impl::TooltipTextPart>();
+		text_entity.Add<Tint>(color::Transparent);
+		SetParent(text_entity, tooltip);
+		created = text_entity;
+	} else {
+		Entity background{ CreateSprite(tooltip.GetScene(), {}, {}, Origin::Center) };
+		background.Add<Tag>("Tooltip Sprite");
+		background.Add<::ptgn::impl::TooltipBackgroundPart>();
+		background.Add<Tint>(color::Transparent);
+		SetParent(background, tooltip);
+		created = background;
 	}
-	return {};
+
+	return RecordCreatedEntityPreservingSelection(ctx, created);
 }
 
 template <typename Target>
@@ -5231,12 +5311,17 @@ bool DrawUIFeatureImpl(Target& target) {
 		HasTargetComponent<Target, ::ptgn::impl::ToggleButtonGroupData>(target)
 	};
 	const bool has_tooltip{ HasTargetComponent<Target, ::ptgn::impl::TooltipData>(target) };
-	const bool has_tooltip_hover{
-		HasTargetComponent<Target, ::ptgn::impl::TooltipHoverData>(target)
-	};
+	std::string ui_label{ "UI" };
+	if (control_type != FocusedUIControlType::None && control_type != FocusedUIControlType::Conflict) {
+		ui_label = std::string{ FocusedUIControlLabel(control_type) };
+	} else if (has_toggle_group) {
+		ui_label = "Toggle Group";
+	} else if (has_tooltip) {
+		ui_label = "Tooltip";
+	}
 
 	const auto header{ DrawFeatureHeader(
-		target, InspectorFeature::UI, "UI", ImGuiTreeNodeFlags_DefaultOpen, UIFeatureComponents{},
+		target, InspectorFeature::UI, ui_label, ImGuiTreeNodeFlags_DefaultOpen, UIFeatureComponents{},
 		false
 	) };
 
@@ -5248,26 +5333,10 @@ bool DrawUIFeatureImpl(Target& target) {
 	bool changed{ header.changed };
 
 	if (control_type != FocusedUIControlType::None) {
-		bool control_type_changed{ false };
-		if (control_type != FocusedUIControlType::Conflict) {
-			changed |= DrawFocusedUIControlTypeSelector(
-				target, control_type, &control_type_changed
-			);
-			if (control_type_changed) {
-				return true;
-			}
-		}
+		// Identity is intentionally not editable through a combo. The existing structural
+		// conversion helpers remain available for an explicit undoable Convert To... command.
 		if (control_type == FocusedUIControlType::Dialogue) {
 			changed |= DrawFocusedControlSpecific(target, control_type);
-
-			if constexpr (std::same_as<std::remove_cvref_t<Target>, EntityInspectorTarget>) {
-				if (Entity text{ FindDialogueManagedPart(target.entity, DialoguePartRole::Text) }) {
-					changed |= DrawManagedVisualChild(target.ctx, text, "Text");
-				}
-				if (Entity background{ FindDialogueManagedPart(target.entity, DialoguePartRole::Background) }) {
-					changed |= DrawManagedVisualChild(target.ctx, background, "Background");
-				}
-			}
 		} else if (control_type != FocusedUIControlType::Conflict) {
 			const bool has_button_base{
 				HasTargetComponent<Target, ::ptgn::impl::ButtonData>(target)
@@ -5319,10 +5388,11 @@ bool DrawUIFeatureImpl(Target& target) {
 	}
 
 	if (has_toggle_group) {
-		ImGui::SeparatorText("Toggle Group");
+		if (ui_label != "Toggle Group") {
+			ImGui::SeparatorText("Toggle Group");
+		}
 		changed |= DrawFocusedComponent<Target, ::ptgn::impl::ToggleButtonGroupData>(
 			target, "Toggle Group", [&](::ptgn::impl::ToggleButtonGroupData& data) {
-				AutoLabelWidthScope labels{ "FocusedToggleGroupFields" };
 				bool local_changed{ false };
 				local_changed |= DrawValue(target.ctx, "Always One Active", data.always_active);
 				local_changed |= DrawValue(target.ctx, "Active Key", data.active);
@@ -5343,12 +5413,13 @@ bool DrawUIFeatureImpl(Target& target) {
 		);
 	}
 
-	if (has_tooltip || has_tooltip_hover) {
-		ImGui::SeparatorText("Tooltip");
-		if (has_tooltip) {
+	if (has_tooltip) {
+		if (ui_label != "Tooltip") {
+			ImGui::SeparatorText("Tooltip");
+		}
+		{
 			changed |= DrawFocusedComponent<Target, ::ptgn::impl::TooltipData>(
 				target, "Tooltip", [&](::ptgn::impl::TooltipData& data) {
-					AutoLabelWidthScope labels{ "FocusedTooltipFields" };
 					bool local_changed{ false };
 					local_changed |=
 						DrawValue(target.ctx, "Fade In Duration", data.fade_in_duration);
@@ -5360,18 +5431,35 @@ bool DrawUIFeatureImpl(Target& target) {
 				}
 			);
 			if constexpr (requires { target.entity; }) {
-				changed |= DrawManagedVisualChild(
-					target.ctx, FindTooltipManagedPart(target.entity, true), "Text"
-				);
-				changed |= DrawManagedVisualChild(
-					target.ctx, FindTooltipManagedPart(target.entity, false), "Background"
+				const Entity text_part{ FindTooltipManagedPart(target.entity, true) };
+				const Entity background_part{ FindTooltipManagedPart(target.entity, false) };
+				const std::array tooltip_parts{
+					std::pair<std::string_view, Entity>{ "Text", text_part },
+					std::pair<std::string_view, Entity>{ "Background", background_part },
+				};
+				std::vector<InspectorAction> add_actions;
+				if (!text_part) {
+					add_actions.push_back(InspectorAction{
+						.label = "Text",
+						.tooltip = "Add the tooltip text part.",
+						.invoke = [&]() {
+							(void)CreateTooltipPartForInspector(target.ctx, target.entity, true);
+						},
+					});
+				}
+				if (!background_part) {
+					add_actions.push_back(InspectorAction{
+						.label = "Background",
+						.tooltip = "Add the tooltip background part.",
+						.invoke = [&]() {
+							(void)CreateTooltipPartForInspector(target.ctx, target.entity, false);
+						},
+					});
+				}
+				changed |= DrawManagedVisualPartsTabs(
+					target.ctx, tooltip_parts, "##TooltipPartTabs", add_actions
 				);
 			}
-		}
-		if (has_tooltip_hover) {
-			changed |= DrawOptionalReflected<Target, ::ptgn::impl::TooltipHoverData>(
-				target, "Show Tooltip On Hover", true
-			);
 		}
 	}
 

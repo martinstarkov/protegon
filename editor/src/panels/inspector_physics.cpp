@@ -6,38 +6,74 @@ namespace ptgn::editor::inspector {
 namespace {
 
 template <typename Target>
-bool DrawRigidBodyWithInheritance(Target& target) {
-	bool inheritance_changed{ false };
+bool DrawRigidBodySection(Target& target) {
+	if constexpr (!Target::template Supports<RigidBody>()) {
+		return false;
+	}
 
-	const bool changed{ DrawOptionalComponent<Target, RigidBody>(
-		target, "Rigid Body", true, [&](RigidBody& value) {
-			const bool rigid_body_changed{ DrawRegisteredComponentContents(
-				target.ctx, Hash<RigidBody>(), std::addressof(value)
-			) };
+	auto rigid_body_before{ target.template Capture<RigidBody>() };
+	if (!rigid_body_before) {
+		return false;
+	}
 
-			inheritance_changed |=
-				DrawOptionalReflected<Target, ::ptgn::impl::IgnoreParentImmovable>(
-					target, "Ignore Parent Immovable", false
-				);
-
-			return rigid_body_changed;
+	const auto header{ DrawInspectorSectionHeader(
+		"Rigid Body",
+		"RigidBodyFeature",
+		InspectorSectionOptions{
+			.default_open = true,
+			.removable = true,
+			.resettable = true,
 		}
 	) };
 
-	if (!target.template Capture<RigidBody>() &&
-		target.template Capture<::ptgn::impl::IgnoreParentImmovable>()) {
-		auto before{ target.template Capture<::ptgn::impl::IgnoreParentImmovable>() };
+	using Components = FeatureComponents<RigidBody, ::ptgn::impl::IgnoreParentImmovable>;
+	constexpr Components components{};
+	bool changed{ false };
+
+	if (header.remove_requested) {
+		auto before{ CaptureInspectorFeatureState(target, InspectorFeature::Physics, components) };
+		target.template SetLive<RigidBody>(std::nullopt);
 		target.template SetLive<::ptgn::impl::IgnoreParentImmovable>(std::nullopt);
-		auto after{ target.template Capture<::ptgn::impl::IgnoreParentImmovable>() };
-
-		TrackComponentState(
-			target, "Remove Ignore Parent Immovable", std::move(before), std::move(after), true
+		auto after{ CaptureInspectorFeatureState(target, InspectorFeature::Physics, components) };
+		TrackInspectorFeatureState(
+			target, InspectorFeature::Physics, "Remove Rigid Body", std::move(before),
+			std::move(after), components
 		);
-
-		inheritance_changed = true;
+		return true;
 	}
 
-	return changed || inheritance_changed;
+	if (header.reset_requested) {
+		target.template SetLive<RigidBody>(RigidBody{});
+		auto after{ target.template Capture<RigidBody>() };
+		TrackComponentState(
+			target, "Reset Rigid Body", std::move(rigid_body_before), std::move(after), true
+		);
+		rigid_body_before = target.template Capture<RigidBody>();
+		changed = true;
+	}
+
+	if (!header.open || !rigid_body_before) {
+		return changed;
+	}
+
+	ScopedIndent indent;
+	RigidBody value{ *rigid_body_before };
+	if (DrawRegisteredComponentContents(target.ctx, Hash<RigidBody>(), std::addressof(value))) {
+		target.template SetLive<RigidBody>(value);
+		auto after{ target.template Capture<RigidBody>() };
+		TrackComponentState(
+			target, "Edit Rigid Body", std::move(rigid_body_before), std::move(after), true
+		);
+		changed = true;
+	}
+
+	// This is an inheritance override owned by the rigid-body feature, but its state is tracked
+	// independently so editing it never produces a redundant RigidBody command.
+	changed |= DrawOptionalReflected<Target, ::ptgn::impl::IgnoreParentImmovable>(
+		target, "Ignore Parent Immovable", false
+	);
+
+	return changed;
 }
 
 template <typename Enum>
@@ -83,12 +119,16 @@ bool DrawColliderMasks(std::vector<ColliderMask>& masks) {
 		ImGui::PushID(static_cast<int>(i));
 		const float remove_width{ ImGui::GetFrameHeight() };
 		const float spacing{ ImGui::GetStyle().ItemSpacing.x };
+		const float available{ ImGui::GetContentRegionAvail().x };
+		const bool inline_remove{ available >= 96.0f + remove_width + spacing };
 		ImGui::SetNextItemWidth(
-			std::max(60.0f, ImGui::GetContentRegionAvail().x - remove_width - spacing)
+			inline_remove ? std::max(1.0f, available - remove_width - spacing) : -FLT_MIN
 		);
 		changed |= ImGui::InputScalar("##Mask", ImGuiDataType_S64, std::addressof(masks[i]));
-		ImGui::SameLine();
-		if (ImGui::Button("X", ImVec2{ remove_width, remove_width })) {
+		if (inline_remove) {
+			ImGui::SameLine(0.0f, spacing);
+		}
+		if (ImGui::Button("X", ImVec2{ inline_remove ? remove_width : -FLT_MIN, remove_width })) {
 			remove_index = i;
 		}
 		ImGui::PopID();
@@ -99,7 +139,7 @@ bool DrawColliderMasks(std::vector<ColliderMask>& masks) {
 		changed = true;
 	}
 
-	if (ImGui::Button("+ Mask")) {
+	if (ImGui::Button("+ Mask", ImVec2{ -FLT_MIN, 0.0f })) {
 		masks.emplace_back(0);
 		changed = true;
 	}
@@ -193,267 +233,202 @@ bool DrawPhysicsFeatureImpl(Target& target) {
 	if (Entity live_entity{ GetInspectorTargetEntity(target) }) {
 		SyncPlatformerJumpController(live_entity);
 	}
-
 	if (!HasPhysicsFeature(target)) {
 		return false;
 	}
 
-	const auto header{ DrawFeatureHeader(
-		target, InspectorFeature::Physics, "Physics & Movement", ImGuiTreeNodeFlags_None,
-		PhysicsFeatureComponents{}
-	) };
+	bool changed{ false };
 
-	if (!header.open) {
-		return header.changed;
-	}
-
-	ScopedIndent feature_indent;
-
-	bool changed{ header.changed };
-
-	changed |= DrawOptionalComponent<Target, Collider>(
-		target, "Collider", true,
+	changed |= DrawComponentSection<Target, Collider>(
+		target, "Collider",
 		[&target](Collider& value) { return DrawGeometryComponent(target, value); }
 	);
-	changed |= DrawRigidBodyWithInheritance(target);
-	changed |= DrawOptionalReflected<Target, BoundaryBehavior>(target, "Boundary Behavior", false);
 
-	enum class MovementKind {
-		TopDown,
-		Platformer,
-	};
+	changed |= DrawRigidBodySection(target);
 
-	using MovementComponents =
-		FeatureComponents<TopDownMovement, PlatformerMovement, PlatformerJump>;
+	changed |= DrawComponentSection<Target, BoundaryBehavior>(
+		target, "Boundary Behavior",
+		[&target](BoundaryBehavior& value) {
+			return DrawRegisteredComponentContents(
+				target.ctx, Hash<BoundaryBehavior>(), std::addressof(value)
+			);
+		}
+	);
 
+	enum class MovementKind { TopDown, Platformer };
+	using MovementComponents = FeatureComponents<TopDownMovement, PlatformerMovement, PlatformerJump>;
 	const bool has_top_down{ target.template Capture<TopDownMovement>().has_value() };
 	const bool has_platformer{ target.template Capture<PlatformerMovement>().has_value() };
-	bool movement_enabled{ has_top_down || has_platformer };
-	MovementKind movement{ has_platformer ? MovementKind::Platformer : MovementKind::TopDown };
+	if (!has_top_down && !has_platformer) {
+		return changed;
+	}
 
-	auto apply_movement_change = [&](auto&& mutate) {
+	MovementKind movement{ has_platformer ? MovementKind::Platformer : MovementKind::TopDown };
+	auto apply_movement_change = [&](std::string_view label, auto&& mutate) {
 		constexpr MovementComponents components{};
 		auto before{ CaptureInspectorFeatureState(target, InspectorFeature::Physics, components) };
-
 		std::invoke(std::forward<decltype(mutate)>(mutate));
 
 		Entity live_entity{ GetInspectorTargetEntity(target) };
 		if (live_entity) {
 			SyncPlatformerJumpController(live_entity);
 		}
-
 		auto after{ CaptureInspectorFeatureState(target, InspectorFeature::Physics, components) };
-
 		auto apply{ MakeInspectorFeatureApply(target, InspectorFeature::Physics, components) };
 		auto sync = [live_entity]() {
 			if (live_entity) {
 				SyncPlatformerJumpController(live_entity);
 			}
 		};
-
 		target.ctx.undo.PushApplied(
-			"Change Movement",
-			[apply, before, sync]() mutable {
-				apply(before);
-				sync();
-			},
-			[apply, after, sync]() mutable {
-				apply(after);
-				sync();
-			}
+			std::string{ label },
+			[apply, before, sync]() mutable { apply(before); sync(); },
+			[apply, after, sync]() mutable { apply(after); sync(); }
 		);
-
 		changed = true;
 	};
 
-	ScopedID movement_scope{ "Movement" };
-
-	if (ImGui::Checkbox("##Enabled", &movement_enabled)) {
-		apply_movement_change([&]() {
-			if (movement_enabled) {
-				target.template SetLive<TopDownMovement>(TopDownMovement{});
-				target.template SetLive<PlatformerMovement>(std::nullopt);
-			} else {
-				SetFeatureManuallyAdded(
-					target.GetFeatureTargetKey(), InspectorFeature::Physics, true
-				);
-				target.template SetLive<TopDownMovement>(std::nullopt);
-				target.template SetLive<PlatformerMovement>(std::nullopt);
-				target.template SetLive<PlatformerJump>(std::nullopt);
-			}
+	const auto movement_header{ DrawInspectorSectionHeader(
+		"Movement", "MovementFeature",
+		InspectorSectionOptions{ .default_open = true, .removable = true, .resettable = false }
+	) };
+	if (movement_header.remove_requested) {
+		apply_movement_change("Remove Movement", [&]() {
+			target.template SetLive<TopDownMovement>(std::nullopt);
+			target.template SetLive<PlatformerMovement>(std::nullopt);
+			target.template SetLive<PlatformerJump>(std::nullopt);
 		});
-
-		movement = MovementKind::TopDown;
+		return true;
+	}
+	if (!movement_header.open) {
+		return changed;
 	}
 
-	ImGui::SameLine();
+	ScopedIndent movement_indent;
+	const char* preview{ movement == MovementKind::Platformer ? "Platformer" : "Top Down" };
+	changed |= DrawPropertyRow("Type", [&]() {
+		bool local_changed{ false };
+		ImGui::SetNextItemWidth(-FLT_MIN);
+		if (!ImGui::BeginCombo("##MovementType", preview)) {
+			return false;
+		}
+		auto choose = [&](MovementKind candidate, const char* label) {
+			if (!ImGui::Selectable(label, movement == candidate)) {
+				return;
+			}
+			apply_movement_change("Change Movement Type", [&]() {
+				if (candidate == MovementKind::TopDown) {
+					target.template SetLive<TopDownMovement>(TopDownMovement{});
+					target.template SetLive<PlatformerMovement>(std::nullopt);
+					target.template SetLive<PlatformerJump>(std::nullopt);
+				} else {
+					target.template SetLive<PlatformerMovement>(PlatformerMovement{});
+					target.template SetLive<TopDownMovement>(std::nullopt);
+				}
+			});
+			movement = candidate;
+			local_changed = true;
+		};
+		choose(MovementKind::TopDown, "Top Down");
+		choose(MovementKind::Platformer, "Platformer");
+		ImGui::EndCombo();
+		return local_changed;
+	});
 
-	const bool movement_open{
-		ImGui::TreeNodeEx("Movement##Tree", ImGuiTreeNodeFlags_SpanAvailWidth)
-	};
+	if (target.template Capture<TopDownMovement>()) {
+		changed |= DrawRequiredComponent<Target, TopDownMovement>(
+			target, "Top Down Controller", false,
+			[&target](TopDownMovement& value) { return DrawDefaultContents(target.ctx, value); }
+		);
+	}
 
-	if (movement_open) {
-		ScopedIndent movement_indent;
-		ScopedPropertyLabelOffset movement_label_offset{ ImGui::GetStyle().IndentSpacing };
-		AutoLabelWidthScope movement_label_width{ "MovementFields" };
-		ScopedDisabled movement_disabled{ !movement_enabled };
+	if (target.template Capture<PlatformerMovement>()) {
+		changed |= DrawRequiredComponent<Target, PlatformerMovement>(
+			target, "Platformer Controller", false,
+			[&target](PlatformerMovement& value) { return DrawPlatformerMovementContents(target, value); }
+		);
 
-		const char* preview{ movement == MovementKind::Platformer ? "Platformer" : "Top Down" };
+		if (ImGui::TreeNodeEx(
+				"Jump", ImGuiTreeNodeFlags_DefaultOpen | ImGuiTreeNodeFlags_SpanAvailWidth
+			)) {
+			auto platformer{ target.template Capture<PlatformerMovement>().value() };
+			std::string selected_key{ platformer.jump_controller };
+			const auto* selected_controller{ PlatformerJumpControllerRegistry::Find(selected_key) };
+			const std::string jump_preview{ selected_controller ? selected_controller->label : "None" };
 
-		DrawPropertyRow("Type", [&]() {
-			bool local_changed{ false };
-
-			if (ImGui::BeginCombo("##MovementType", preview)) {
-				auto choose = [&](MovementKind candidate, const char* label) {
-					if (!ImGui::Selectable(label, movement == candidate)) {
+			changed |= DrawPropertyRow("Controller", [&]() {
+				bool local_changed{ false };
+				ImGui::SetNextItemWidth(-FLT_MIN);
+				if (!ImGui::BeginCombo("##JumpController", jump_preview.c_str())) {
+					return false;
+				}
+				auto choose = [&](std::string_view key, const char* label) {
+					const bool selected{ selected_key == key };
+					if (!ImGui::Selectable(label, selected)) {
 						return;
 					}
-
-					apply_movement_change([&]() {
-						if (candidate == MovementKind::TopDown) {
-							target.template SetLive<TopDownMovement>(TopDownMovement{});
-							target.template SetLive<PlatformerMovement>(std::nullopt);
-							target.template SetLive<PlatformerJump>(std::nullopt);
-						} else {
-							target.template SetLive<PlatformerMovement>(PlatformerMovement{});
-							target.template SetLive<TopDownMovement>(std::nullopt);
+					apply_movement_change("Change Jump Controller", [&]() {
+						auto value{ target.template Capture<PlatformerMovement>().value() };
+						value.jump_controller = key;
+						target.template SetLive<PlatformerMovement>(value);
+						if (key == "standard" && !target.template Capture<PlatformerJump>()) {
+							target.template SetLive<PlatformerJump>(PlatformerJump{});
 						}
 					});
-
-					movement	  = candidate;
+					selected_key = key;
 					local_changed = true;
 				};
-
-				choose(MovementKind::TopDown, "Top Down");
-				choose(MovementKind::Platformer, "Platformer");
-
-				ImGui::EndCombo();
-			}
-
-			return local_changed;
-		});
-
-		if (movement_enabled && target.template Capture<TopDownMovement>()) {
-			changed |= DrawRequiredComponent<Target, TopDownMovement>(
-				target, "Top Down Controller", false,
-				[&target](TopDownMovement& value) { return DrawDefaultContents(target.ctx, value); }
-			);
-		}
-
-		if (movement_enabled && target.template Capture<PlatformerMovement>()) {
-			changed |= DrawRequiredComponent<Target, PlatformerMovement>(
-				target, "Platformer Controller", false, [&target](PlatformerMovement& value) {
-					return DrawPlatformerMovementContents(target, value);
-				}
-			);
-
-			if (ImGui::TreeNodeEx(
-					"Jump", ImGuiTreeNodeFlags_DefaultOpen | ImGuiTreeNodeFlags_SpanAvailWidth
-				)) {
-				auto platformer{ target.template Capture<PlatformerMovement>().value() };
-				std::string selected_key{ platformer.jump_controller };
-
-				const auto* selected_controller{
-					PlatformerJumpControllerRegistry::Find(selected_key)
-				};
-				const std::string jump_preview{ selected_controller ? selected_controller->label
-																	: "None" };
-
-				DrawPropertyRow("Controller", [&]() {
-					bool local_changed{ false };
-					ImGui::SetNextItemWidth(-FLT_MIN);
-					if (!ImGui::BeginCombo("##JumpController", jump_preview.c_str())) {
-						return false;
-					}
-
-					auto choose = [&](std::string_view key, const char* label) {
-						const bool selected{ selected_key == key };
-						if (!ImGui::Selectable(label, selected)) {
-							return;
-						}
-
-						apply_movement_change([&]() {
-							auto value{ target.template Capture<PlatformerMovement>().value() };
-							value.jump_controller = key;
-							target.template SetLive<PlatformerMovement>(value);
-
-							if (key == "standard" && !target.template Capture<PlatformerJump>()) {
-								target.template SetLive<PlatformerJump>(PlatformerJump{});
-							}
-						});
-
-						selected_key  = key;
-						local_changed = true;
-					};
-
-					choose({}, "None");
-					ImGui::Separator();
-
-					auto controllers{ PlatformerJumpControllerRegistry::Controllers() };
-					std::ranges::sort(controllers, [](const auto& lhs, const auto& rhs) {
-						if (lhs.group != rhs.group) {
-							return lhs.group < rhs.group;
-						}
-						return lhs.label < rhs.label;
-					});
-
-					std::string current_group;
-					for (const auto& controller : controllers) {
-						if (controller.group != current_group) {
-							if (!current_group.empty()) {
-								ImGui::Separator();
-							}
-							current_group = controller.group;
-							if (!current_group.empty()) {
-								ImGui::TextDisabled("%s", current_group.c_str());
-							}
-						}
-						choose(controller.key, controller.label.c_str());
-					}
-
-					ImGui::EndCombo();
-					return local_changed;
+				choose({}, "None");
+				ImGui::Separator();
+				auto controllers{ PlatformerJumpControllerRegistry::Controllers() };
+				std::ranges::sort(controllers, [](const auto& lhs, const auto& rhs) {
+					if (lhs.group != rhs.group) return lhs.group < rhs.group;
+					return lhs.label < rhs.label;
 				});
+				std::string current_group;
+				for (const auto& controller : controllers) {
+					if (controller.group != current_group) {
+						if (!current_group.empty()) ImGui::Separator();
+						current_group = controller.group;
+						if (!current_group.empty()) ImGui::TextDisabled("%s", current_group.c_str());
+					}
+					choose(controller.key, controller.label.c_str());
+				}
+				ImGui::EndCombo();
+				return local_changed;
+			});
 
-				if (selected_key == "standard" && target.template Capture<PlatformerJump>()) {
-					changed |= DrawRequiredComponent<Target, PlatformerJump>(
-						target, "Standard Jump", false, [&target](PlatformerJump& value) {
-							return DrawDefaultContents(target.ctx, value);
-						}
-					);
-				} else if (!selected_key.empty()) {
-					Entity entity{ GetInspectorTargetEntity(target) };
-					const auto* controller{ PlatformerJumpControllerRegistry::Find(selected_key) };
-					if (entity && controller && controller->has(entity)) {
-						if (void* data{ controller->get(entity) }) {
-							changed |= DrawRegisteredComponentContents(
-								target.ctx, controller->component_hash, data
-							);
-						}
+			if (selected_key == "standard" && target.template Capture<PlatformerJump>()) {
+				changed |= DrawRequiredComponent<Target, PlatformerJump>(
+					target, "Standard Jump", false,
+					[&target](PlatformerJump& value) { return DrawDefaultContents(target.ctx, value); }
+				);
+			} else if (!selected_key.empty()) {
+				Entity entity{ GetInspectorTargetEntity(target) };
+				const auto* controller{ PlatformerJumpControllerRegistry::Find(selected_key) };
+				if (entity && controller && controller->has(entity)) {
+					if (void* data{ controller->get(entity) }) {
+						changed |= DrawRegisteredComponentContents(
+							target.ctx, controller->component_hash, data
+						);
 					}
 				}
-
-				ImGui::TreePop();
 			}
-
-			if (Entity owner{ GetInspectorTargetEntity(target) };
-				owner && owner.Has<PlatformerMovement>()) {
-				const auto& live{ owner.Get<PlatformerMovement>() };
-				ImGui::SeparatorText("Runtime");
-				ImGui::TextDisabled("Grounded: %s", live.IsGrounded() ? "Yes" : "No");
-				if (Entity ground{ live.GetGroundEntity() }) {
-					const std::string ground_name{ ground.Has<Tag>() &&
-														   !ground.Get<Tag>().value.empty()
-													   ? ground.Get<Tag>().value
-													   : "Entity" };
-					const V2_float normal{ live.GetGroundNormal() };
-					ImGui::TextDisabled("Ground Entity: %s", ground_name.c_str());
-					ImGui::TextDisabled("Ground Normal: %.2f, %.2f", normal.x, normal.y);
-				}
-			}
+			ImGui::TreePop();
 		}
 
-		ImGui::TreePop();
+		if (Entity owner{ GetInspectorTargetEntity(target) }; owner && owner.Has<PlatformerMovement>()) {
+			const auto& live{ owner.Get<PlatformerMovement>() };
+			ImGui::SeparatorText("Runtime");
+			ImGui::TextDisabled("Grounded: %s", live.IsGrounded() ? "Yes" : "No");
+			if (Entity ground{ live.GetGroundEntity() }) {
+				const std::string ground_name{ ground.Has<Tag>() && !ground.Get<Tag>().value.empty()
+					? ground.Get<Tag>().value : "Entity" };
+				const V2_float normal{ live.GetGroundNormal() };
+				ImGui::TextDisabled("Ground Entity: %s", ground_name.c_str());
+				ImGui::TextDisabled("Ground Normal: %.2f, %.2f", normal.x, normal.y);
+			}
+		}
 	}
 
 	return changed;

@@ -103,61 +103,52 @@ void DrawTimerRuntimeControls(Entity entity, const TimerKey& live_key, TimerEntr
 	);
 
 	bool runtime_changed{ false };
-	if (ImGui::Button("Start")) {
-		runtime_changed |= timer.Start();
-	}
-	ImGui::SameLine();
-	if (ImGui::Button("Restart")) {
-		runtime_changed |= timer.Restart();
-	}
-	ImGui::SameLine();
+	std::vector<InspectorAction> runtime_actions;
+	runtime_actions.push_back(InspectorAction{
+		.label = "Start",
+		.invoke = [&]() { runtime_changed |= timer.Start(); },
+	});
+	runtime_actions.push_back(InspectorAction{
+		.label = "Restart",
+		.invoke = [&]() { runtime_changed |= timer.Restart(); },
+	});
+	runtime_actions.push_back(InspectorAction{
+		.label = timer.IsPaused() ? "Resume" : "Pause",
+		.enabled = timer.IsPaused() || timer.IsRunning(),
+		.invoke = [&]() {
+			runtime_changed |= timer.IsPaused() ? timer.Resume() : timer.Pause();
+		},
+	});
+	runtime_actions.push_back(InspectorAction{
+		.label = "Stop",
+		.invoke = [&]() { runtime_changed |= timer.Stop(); },
+	});
+	runtime_actions.push_back(InspectorAction{
+		.label = "Reset",
+		.invoke = [&]() { runtime_changed |= timer.Reset(); },
+	});
+	DrawInspectorActionBar(runtime_actions, { .id = "TimerRuntimeActions" });
 
-	if (timer.IsPaused()) {
-		if (ImGui::Button("Resume")) {
-			runtime_changed |= timer.Resume();
-		}
-	} else {
-		ImGui::BeginDisabled(!timer.IsRunning());
-		if (ImGui::Button("Pause")) {
-			runtime_changed |= timer.Pause();
-		}
-		ImGui::EndDisabled();
-	}
-
-	ImGui::SameLine();
-	if (ImGui::Button("Stop")) {
-		runtime_changed |= timer.Stop();
-	}
-	ImGui::SameLine();
-	if (ImGui::Button("Reset")) {
-		runtime_changed |= timer.Reset();
-	}
-
-	float spacing{ ImGui::GetStyle().ItemSpacing.x };
-	float advance_width{ ImGui::CalcTextSize("Advance").x +
-						 ImGui::GetStyle().FramePadding.x * 2.0f };
-	float rewind_width{ ImGui::CalcTextSize("Rewind").x + ImGui::GetStyle().FramePadding.x * 2.0f };
-	float adjustment_width{ std::max(
-		60.0f, ImGui::GetContentRegionAvail().x - advance_width - rewind_width - spacing * 2.0f
-	) };
-
-	if (DrawDurationTextInput(
-			"##TimerRuntimeAdjustment", timer_runtime_adjustment, adjustment_width, false,
+	DrawPropertyRow("Adjustment", [&]() {
+		return DrawDurationTextInput(
+			"##TimerRuntimeAdjustment", timer_runtime_adjustment, -FLT_MIN, false,
 			"Positive duration to advance or rewind."
-		)) {
-		timer_runtime_adjustment =
-			millisecondsf{ std::max(0.001f, timer_runtime_adjustment.count()) };
-	}
+		);
+	});
+	timer_runtime_adjustment =
+		millisecondsf{ std::max(0.001f, timer_runtime_adjustment.count()) };
 
-	ImGui::SameLine(0.0f, spacing);
-	if (ImGui::Button("Advance", ImVec2{ advance_width, 0.0f })) {
-		runtime_changed |= timer.Advance(timer_runtime_adjustment);
-	}
-
-	ImGui::SameLine(0.0f, spacing);
-	if (ImGui::Button("Rewind", ImVec2{ rewind_width, 0.0f })) {
-		runtime_changed |= timer.Rewind(timer_runtime_adjustment);
-	}
+	const std::array adjustment_actions{
+		InspectorAction{
+			.label = "Advance",
+			.invoke = [&]() { runtime_changed |= timer.Advance(timer_runtime_adjustment); },
+		},
+		InspectorAction{
+			.label = "Rewind",
+			.invoke = [&]() { runtime_changed |= timer.Rewind(timer_runtime_adjustment); },
+		},
+	};
+	DrawInspectorActionBar(adjustment_actions, { .id = "TimerAdjustmentActions" });
 
 	if (runtime_changed) {
 		SyncTimerRuntimeSnapshot(entity, live_key, edited_entry);
@@ -336,10 +327,13 @@ bool DrawGroupContents(Group& group) {
 		std::string label{ "Group " + std::to_string(index + 1) };
 
 		changed |= DrawPropertyRow(label, [&]() {
-			float remove_width{ ImGui::GetFrameHeight() };
-			float spacing{ ImGui::GetStyle().ItemSpacing.x };
-			float available{ ImGui::GetContentRegionAvail().x };
-			float field_width{ std::max(60.0f, available - remove_width - spacing) };
+			const float remove_width{ ImGui::GetFrameHeight() };
+			const float spacing{ ImGui::GetStyle().ItemSpacing.x };
+			const float available{ std::max(1.0f, ImGui::GetContentRegionAvail().x) };
+			const bool remove_inline{ available >= remove_width + spacing + 80.0f };
+			const float field_width{
+				remove_inline ? std::max(1.0f, available - remove_width - spacing) : available
+			};
 
 			ImGui::SetNextItemWidth(field_width);
 			bool row_changed{ ImGui::InputText("##Value", &group.groups[index]) };
@@ -370,7 +364,9 @@ bool DrawGroupContents(Group& group) {
 				}
 			}
 
-			ImGui::SameLine(0.0f, spacing);
+			if (remove_inline) {
+				ImGui::SameLine(0.0f, spacing);
+			}
 
 			if (ImGui::Button("X", ImVec2{ remove_width, remove_width })) {
 				remove_index = index;
@@ -394,50 +390,42 @@ bool DrawTimersComponent(Target& target) {
 
 	ScopedID target_scope{ target.Id() };
 	ScopedID component_scope{ static_cast<int>(Hash<Timers>()) };
-
 	auto before{ target.template Capture<Timers>() };
-	bool enabled{ before.has_value() };
-	bool changed{ false };
+	if (!before) {
+		return false;
+	}
+
+	const auto header{ DrawInspectorSectionHeader(
+		"Timers", "TimersFeature",
+		InspectorSectionOptions{ .default_open = true, .removable = true, .resettable = true }
+	) };
+	if (header.remove_requested || header.reset_requested) {
+		target.template SetLive<Timers>(
+			header.remove_requested ? std::nullopt : ComponentState<Timers>{ Timers{} }
+		);
+		auto after{ target.template Capture<Timers>() };
+		TrackComponentState(
+			target, header.remove_requested ? "Remove Timers" : "Reset Timers",
+			std::move(before), std::move(after), true
+		);
+		return true;
+	}
+	if (!header.open) {
+		return false;
+	}
+
+	ScopedIndent indent;
+	Timers value{ *before };
+	std::vector<TimerRename> renames;
 	std::string undo_label{ "Edit Timers" };
 	std::optional<ImGuiID> undo_key;
-
-	if (ImGui::Checkbox("##Enabled", &enabled)) {
-		target.template SetLive<Timers>(
-			enabled ? ComponentState<Timers>{ Timers{} } : std::nullopt
-		);
-		changed	   = true;
-		undo_label = enabled ? "Enable Timers" : "Disable Timers";
-		undo_key   = ImGui::GetID("##TimersEnabledEdit");
-	}
-
-	ImGui::SameLine();
-
-	Timers value{ target.template Capture<Timers>().value_or(Timers{}) };
-	std::vector<TimerRename> renames;
-
-	bool open{ ImGui::TreeNodeEx("Timers##Tree", ImGuiTreeNodeFlags_SpanAvailWidth) };
-
-	if (open) {
-		ScopedIndent indent;
-		ScopedDisabled disabled{ !enabled };
-
-		bool contents_changed{
-			DrawTimersContents(target, value, &renames, &undo_label, &undo_key)
-		};
-
-		if (enabled && contents_changed) {
-			target.template SetLive<Timers>(value);
-			changed = true;
-		}
-
-		ImGui::TreePop();
-	}
-
-	auto after{ target.template Capture<Timers>() };
+	const bool changed{ DrawTimersContents(target, value, &renames, &undo_label, &undo_key) };
 	if (!changed) {
 		return false;
 	}
 
+	target.template SetLive<Timers>(value);
+	auto after{ target.template Capture<Timers>() };
 	if (!undo_key) {
 		undo_key = ImGui::GetID("##TimersComponentEdit");
 	}
@@ -446,15 +434,11 @@ bool DrawTimersComponent(Target& target) {
 		bool references_changed{ false };
 		std::optional<TimerReferenceSceneSnapshot> before_references;
 		std::optional<TimerReferenceSceneSnapshot> after_references;
-
 		if (target.entity && !renames.empty()) {
 			before_references = CaptureTimerReferenceSceneSnapshot(target.entity.GetScene());
-
 			for (const auto& rename : renames) {
-				references_changed |=
-					RenameTimerReferences(target.entity, rename.old_key, rename.new_key);
+				references_changed |= RenameTimerReferences(target.entity, rename.old_key, rename.new_key);
 			}
-
 			if (references_changed) {
 				after_references = CaptureTimerReferenceSceneSnapshot(target.entity.GetScene());
 			}
@@ -464,7 +448,6 @@ bool DrawTimersComponent(Target& target) {
 			Editor* editor{ std::addressof(target.ctx.editor) };
 			EntityReference reference{ MakeEntityReference(target.entity) };
 			auto apply_timers{ target.template MakeApply<Timers>() };
-
 			TrackUndoableInteraction(
 				target.ctx, *undo_key, undo_label, true,
 				[editor, reference, apply_timers, before = std::move(before),
@@ -478,21 +461,19 @@ bool DrawTimersComponent(Target& target) {
 					RestoreTimerReferenceSceneSnapshot(*editor, reference, after_references);
 				}
 			);
-
 			return true;
 		}
 	}
 
 	auto apply{ target.template MakeApply<Timers>() };
-
 	TrackUndoableInteraction(
 		target.ctx, *undo_key, undo_label, true,
 		[apply, before = std::move(before)]() mutable { apply(before); },
 		[apply, after = std::move(after)]() mutable { apply(after); }
 	);
-
 	return true;
 }
+
 
 template <typename Target>
 bool DrawUtilitiesFeatureImpl(Target& target) {
@@ -500,26 +481,18 @@ bool DrawUtilitiesFeatureImpl(Target& target) {
 		return false;
 	}
 
-	const auto header{ DrawFeatureHeader(
-		target, InspectorFeature::Utilities, "Utilities", ImGuiTreeNodeFlags_None,
-		UtilitiesFeatureComponents{}
-	) };
-
-	if (!header.open) {
-		return header.changed;
-	}
-
-	ScopedIndent feature_indent;
-
-	bool changed{ header.changed };
-
+	bool changed{ false };
 	changed |= DrawTimersComponent(target);
-
-	changed |= DrawOptionalComponent<Target, Group>(target, "Groups", true, [](Group& value) {
-		return DrawGroupContents(value);
-	});
-	changed |= DrawOptionalReflected<Target, Lifetime>(target, "Lifetime", true);
-
+	changed |= DrawComponentSection<Target, Group>(
+		target, "Groups", [](Group& value) { return DrawGroupContents(value); }
+	);
+	changed |= DrawComponentSection<Target, Lifetime>(
+		target, "Lifetime", [&target](Lifetime& value) {
+			return DrawRegisteredComponentContents(
+				target.ctx, Hash<Lifetime>(), std::addressof(value)
+			);
+		}
+	);
 	return changed;
 }
 

@@ -26,10 +26,12 @@
 
 #include "editor/editor.h"
 #include "editor/editor_context.h"
+#include "editor/renamable_item.h"
 #include "core/util/hash.h"
 #include "panels/entity_filter_editor.h"
 #include "panels/inspector_fields.h"
 #include "panels/inspector_feature_helpers.h"
+#include "panels/inspector_tabs.h"
 #include "panels/scene_hierarchy.h"
 #include "runtime/animation/animation.h"
 #include "runtime/animation/animation_event.h"
@@ -2453,7 +2455,7 @@ bool DrawEvents(ScriptEditorContext& context, ScriptSequence& sequence) {
 }
 
 
-bool DrawSequence(
+[[maybe_unused]] bool DrawSequence(
 	ScriptEditorContext& context, ScriptSequence& binding, bool& changed, int resident_index
 ) {
 	ScriptSequence* sequence{ ResolveEditorSequence(context, binding) };
@@ -2668,6 +2670,163 @@ bool DrawSequence(
 	return remove;
 }
 
+bool DrawSequenceTabContents(
+	ScriptEditorContext& context, ScriptSequence& binding, int resident_index
+) {
+	ScriptSequence* sequence{ ResolveEditorSequence(context, binding) };
+	if (!sequence) {
+		ImGui::TextDisabled("Missing shared Script Sequence");
+		return false;
+	}
+
+	bool changed{ DrawSequenceToolbar(context, binding, sequence, resident_index) };
+	sequence = ResolveEditorSequence(context, binding);
+	if (!sequence) {
+		return changed;
+	}
+
+	if (sequence->channel) {
+		changed |= DrawPropertyRow("Channel", [&]() {
+			ImGui::SetNextItemWidth(-FLT_MIN);
+			const bool local{ ImGui::InputText("##SequenceChannel", &sequence->channel->value) };
+			DrawTooltip("Only one binding owns a channel at a time. Restart replaces it; Queue waits.");
+			return local;
+		});
+	}
+
+	changed |= DrawEvents(context, *sequence);
+	changed |= DrawActions(context, *sequence, binding, resident_index);
+	return changed;
+}
+
+std::optional<int> DrawSequenceTabs(
+	ScriptEditorContext& context, ::ptgn::impl::Scripts& scripts, bool& changed
+) {
+	std::vector<int> sequence_indices;
+	for (int i{ 0 }; i < static_cast<int>(scripts.scripts.size()); ++i) {
+		if (scripts.scripts[static_cast<std::size_t>(i)].type_hash == Hash<Script>()) {
+			sequence_indices.push_back(i);
+		}
+	}
+	static RenameModalState rename_state{};
+	static std::optional<int> rename_index{};
+	std::optional<int> remove{};
+
+	if (sequence_indices.empty()) {
+		if (ImGui::Button(
+				"Add Script Sequence##AddScriptSequence",
+				ImVec2{ -FLT_MIN, ImGui::GetFrameHeight() }
+			)) {
+			if (const auto* registration{ ScriptRegistry::Find(Hash<Script>()) }) {
+				AddEditorScriptEntry(context, scripts, MakeRootEntry(registration->type_hash));
+				changed = true;
+			}
+		}
+		DrawTooltip("Add local script sequence");
+	} else {
+		InspectorTabStripScope strip{ "##ScriptSequenceTabStrip" };
+		if (ImGui::BeginTabBar("##ScriptSequenceTabs", InspectorTabBarFlags())) {
+			for (const int i : sequence_indices) {
+				auto& script{ scripts.scripts[static_cast<std::size_t>(i)] };
+				ScriptSequence* editable_sequence{ std::addressof(script.sequence) };
+				const auto* registration{ ScriptRegistry::Find(script.type_hash) };
+
+				if (context.owner) {
+					if (!script.instance && registration) {
+						script_runtime::AttachEntry(context.owner, script);
+					}
+					auto* sequence_script{ script.instance.get() };
+					if (!sequence_script) {
+						continue;
+					}
+					editable_sequence = std::addressof(sequence_script->sequence);
+				}
+
+				editable_sequence->enabled = script.enabled;
+				ImGui::PushID(i);
+				std::string tab_label{ editable_sequence->name.empty() ? "Sequence" : editable_sequence->name };
+				if (!script.enabled) {
+					tab_label += " (Disabled)";
+				}
+				const bool selected{ ImGui::BeginTabItem(tab_label.c_str()) };
+				if (ImGui::BeginPopupContextItem("##SequenceTabContext")) {
+					if (ImGui::MenuItem("Rename")) {
+						rename_index = i;
+						rename_state.Begin(editable_sequence->name);
+					}
+					if (ImGui::MenuItem(script.enabled ? "Disable" : "Enable")) {
+						script.enabled = !script.enabled;
+						editable_sequence->enabled = script.enabled;
+						changed = true;
+					}
+					ImGui::Separator();
+					if (ImGui::MenuItem("Delete Sequence")) {
+						remove = i;
+					}
+					ImGui::EndPopup();
+				}
+				if (selected) {
+					// BeginTabItem() returning true must always be paired with EndTabItem(), even
+					// when the context menu requested deletion this frame. The actual erase is
+					// deferred until after EndTabBar(), so it is safe to close the tab item here.
+					if (!remove.has_value() &&
+						DrawSequenceTabContents(context, *editable_sequence, i)) {
+						changed = true;
+					}
+					ImGui::EndTabItem();
+				}
+				script.enabled = editable_sequence->enabled;
+				if (context.owner) {
+					const SequenceId sequence_id{ editable_sequence->id };
+					script.sequence = *editable_sequence;
+					script.sequence.id = sequence_id;
+					script.sequence.runtime = ScriptSequenceRuntime{};
+				}
+				ImGui::PopID();
+			}
+
+			if (DrawInspectorAddTabButton("+##AddScriptSequence", "Add local script sequence")) {
+				if (const auto* registration{ ScriptRegistry::Find(Hash<Script>()) }) {
+					AddEditorScriptEntry(context, scripts, MakeRootEntry(registration->type_hash));
+					changed = true;
+				}
+			}
+
+			ApplyInspectorTabBarHorizontalWheel();
+			ImGui::EndTabBar();
+		}
+	}
+
+	if (rename_state.active && rename_index.has_value()) {
+		const int index{ *rename_index };
+		(void)DrawInspectorTabRenameModal(
+			rename_state, "Rename Script Sequence", "##RenameScriptSequence",
+			[](std::string_view name) {
+				return name.empty() ? std::string{ "Sequence name cannot be empty." } : std::string{};
+			},
+			[&](std::string_view name) {
+				if (index < 0 || index >= static_cast<int>(scripts.scripts.size())) {
+					return;
+				}
+				auto& script{ scripts.scripts[static_cast<std::size_t>(index)] };
+				ScriptSequence* sequence{ std::addressof(script.sequence) };
+				if (context.owner && script.instance) {
+					sequence = std::addressof(script.instance->sequence);
+				}
+				sequence->name = std::string{ name };
+				script.sequence.name = sequence->name;
+				changed = true;
+			},
+			"Rename Script Sequence"
+		);
+		if (!rename_state.active) {
+			rename_index.reset();
+		}
+	}
+	return remove;
+}
+
+
 bool DrawAddRootScriptPopup(ScriptEditorContext& context, ::ptgn::impl::Scripts& scripts) {
 	if (!ImGui::BeginPopup("AddScript")) {
 		return false;
@@ -2687,26 +2846,6 @@ bool DrawAddRootScriptPopup(ScriptEditorContext& context, ::ptgn::impl::Scripts&
 		DrawTooltip(editor->options.description.c_str());
 	};
 
-	const auto* sequence_registration{ ScriptRegistry::Find(Hash<Script>()) };
-	if (sequence_registration) {
-		add_registered(*sequence_registration);
-		ImGui::Separator();
-	}
-
-	if (!context.shared_sequences.sequences.empty() && ImGui::BeginMenu("Global")) {
-		for (const auto& shared : context.shared_sequences.sequences) {
-			if (ImGui::MenuItem(shared.name.c_str())) {
-				Script script;
-				script.sequence.name			   = shared.name;
-				script.sequence.shared_reference   = true;
-				script.sequence.shared_sequence_id = shared.id;
-				AddEditorScriptEntry(context, scripts, MakeRootEntry(std::move(script)));
-				changed = true;
-			}
-			DrawTooltip("Add a reference to this global editor authored script.");
-		}
-		ImGui::EndMenu();
-	}
 
 	std::vector<std::string> groups;
 	for (const auto& registration : ScriptRegistry::Entries()) {
@@ -2783,38 +2922,6 @@ bool DrawResidentScripts(ScriptEditorContext& context, ::ptgn::impl::Scripts& sc
 		};
 
 		if (script.type_hash == Hash<Script>()) {
-			ScriptSequence* editable_sequence{ std::addressof(script.sequence) };
-
-			if (context.owner) {
-				if (!script.instance && registration) {
-					script_runtime::AttachEntry(context.owner, script);
-				}
-
-				auto* sequence_script{ script.instance.get() };
-
-				if (!sequence_script) {
-					continue;
-				}
-
-				editable_sequence = std::addressof(sequence_script->sequence);
-			}
-
-			editable_sequence->enabled = script.enabled;
-
-			if (DrawSequence(context, *editable_sequence, changed, i)) {
-				remove = i;
-			}
-
-			script.enabled = editable_sequence->enabled;
-
-			if (context.owner) {
-				SequenceId sequence_id{ editable_sequence->id };
-
-				script.sequence			= *editable_sequence;
-				script.sequence.id		= sequence_id;
-				script.sequence.runtime = ScriptSequenceRuntime{};
-			}
-
 			continue;
 		}
 
@@ -2914,6 +3021,10 @@ bool DrawResidentScripts(ScriptEditorContext& context, ::ptgn::impl::Scripts& sc
 		}
 
 		ImGui::PopID();
+	}
+
+	if (const auto sequence_remove{ DrawSequenceTabs(context, scripts, changed) }) {
+		remove = *sequence_remove;
 	}
 
 	if (remove >= 0) {

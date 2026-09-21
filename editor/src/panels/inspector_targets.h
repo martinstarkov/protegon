@@ -497,6 +497,140 @@ void TrackComponentState(
 	TrackComponentState(target, label, std::move(before), std::move(after), changed, nullptr);
 }
 
+
+/// Edit an existing component with one capture/apply/undo path. Specialized archetype drawers can
+/// focus on the actual UI and avoid repeating the standard before/value/SetLive/after sequence.
+template <typename Target, typename T, typename Edit, typename Callback = std::nullptr_t>
+bool EditComponent(
+	Target& target, std::string_view label, Edit&& edit, Callback callback = nullptr
+) {
+	if constexpr (!Target::template Supports<T>()) {
+		return false;
+	} else {
+		ScopedID target_scope{ target.Id() };
+		ScopedID component_scope{ static_cast<int>(Hash<T>()) };
+		auto before{ target.template Capture<T>() };
+		if (!before) {
+			return false;
+		}
+
+		T value{ *before };
+		if (!std::invoke(std::forward<Edit>(edit), value)) {
+			return false;
+		}
+
+		target.template SetLive<T>(std::move(value), callback);
+		auto after{ target.template Capture<T>() };
+		TrackComponentState(
+			target, std::string{ label }, std::move(before), std::move(after), true, callback
+		);
+		return true;
+	}
+}
+
+/// Apply a structural component-state change as one undoable action. This is the common backend for
+/// add/remove/reset helpers where there is no active ImGui drag to coalesce.
+template <typename Target, typename T, typename Callback = std::nullptr_t>
+bool SetComponentStateUndoable(
+	Target& target, std::string_view label, ComponentState<T> state, Callback callback = nullptr
+) {
+	if constexpr (!Target::template Supports<T>()) {
+		return false;
+	} else {
+		auto before{ target.template Capture<T>() };
+		target.template SetLive<T>(std::move(state), callback);
+		auto after{ target.template Capture<T>() };
+		TrackComponentState(
+			target, label, std::move(before), std::move(after), true, callback
+		);
+		return true;
+	}
+}
+
+/// Draw an already-present component as a semantic inspector section. Presence is represented by
+/// the section itself rather than an enable checkbox; reset/remove live in the section menu and are
+/// recorded as one undoable component-state change.
+template <typename Target, typename T, typename Draw, typename Callback = std::nullptr_t>
+bool DrawComponentSection(
+	Target& target,
+	std::string_view label,
+	Draw&& draw,
+	bool default_open = true,
+	bool removable = true,
+	bool resettable = true,
+	Callback callback = nullptr
+) {
+	if constexpr (!Target::template Supports<T>()) {
+		return false;
+	}
+
+	ScopedID target_scope{ target.Id() };
+	ScopedID component_scope{ static_cast<int>(Hash<T>()) };
+	auto before{ target.template Capture<T>() };
+	if (!before) {
+		return false;
+	}
+
+	const auto header{ DrawInspectorSectionHeader(
+		label,
+		"##ComponentSection",
+		InspectorSectionOptions{
+			.default_open = default_open,
+			.removable = removable,
+			.resettable = resettable,
+		}
+	) };
+
+	bool changed{ false };
+	if (header.remove_requested) {
+		target.template SetLive<T>(std::nullopt, callback);
+		changed = true;
+	} else if (header.reset_requested) {
+		target.template SetLive<T>(T{}, callback);
+		changed = true;
+	} else if (header.open) {
+		T value{ *before };
+		ScopedIndent indent;
+		if (std::invoke(std::forward<Draw>(draw), value)) {
+			target.template SetLive<T>(std::move(value), callback);
+			changed = true;
+		}
+	}
+
+	if (changed) {
+		auto after{ target.template Capture<T>() };
+		TrackComponentState(
+			target,
+			header.remove_requested ? std::string{ "Remove " } + std::string{ label }
+				: header.reset_requested ? std::string{ "Reset " } + std::string{ label }
+					: std::string{ "Edit " } + std::string{ label },
+			std::move(before), std::move(after), true, callback
+		);
+	}
+	return changed;
+}
+
+/// Low-boilerplate common case for one reflected/member value stored inside an existing component.
+/// The helper owns capture/live apply/undo coalescing so archetype implementations only name the
+/// field they intend to expose.
+template <typename Target, typename Component, typename Member, typename Callback = std::nullptr_t>
+bool DrawComponentField(
+	Target& target,
+	std::string_view label,
+	Member Component::* member,
+	FieldOptions options = kDefaultFieldOptions<std::remove_cvref_t<Member>>,
+	Callback callback = nullptr
+) {
+	return EditComponent<Target, Component>(
+		target, std::string{ "Edit " } + std::string{ label },
+		[&](Component& value) {
+			return DrawValue(target.ctx, label, value.*member, options);
+		},
+		callback
+	);
+}
+
+
 template <typename Target, typename T, typename Draw, typename Callback = std::nullptr_t>
 bool DrawRequiredComponent(
 	Target& target, std::string_view label, bool tree, Draw&& draw, Callback callback = nullptr
@@ -562,147 +696,81 @@ bool DrawOptionalComponent(
 	auto before{ target.template Capture<T>() };
 	bool enabled{ before.has_value() };
 	bool changed{ false };
+	bool open{ !tree };
 
-	{
-		ScopedDisabled disabled{ toggle_read_only };
-
-		if (ImGui::Checkbox("##Enabled", &enabled)) {
-			if (enabled) {
-				target.template SetLive<T>(enabled_default, callback);
-			} else {
-				target.template SetLive<T>(std::nullopt, callback);
+	if (tree) {
+		// Optional sections keep their enable toggle immediately to the left of the tree node.
+		changed |= DrawDisabledIf(toggle_read_only, [&]() {
+			return ImGui::Checkbox("##Enabled", &enabled);
+		});
+		ImGui::SameLine(0.0f, ImGui::GetStyle().ItemInnerSpacing.x);
+		const std::string node_label{ std::string{ label } + "##Tree" };
+		open = ImGui::TreeNodeEx(
+			node_label.c_str(),
+			ImGuiTreeNodeFlags_SpanAvailWidth |
+				ImGuiTreeNodeFlags_FramePadding |
+				ImGuiTreeNodeFlags_NoTreePushOnOpen
+		);
+	} else if constexpr (std::is_empty_v<T>) {
+		changed |= DrawInspectorPropertyRow(label, [&]() {
+			return DrawDisabledIf(toggle_read_only, [&]() {
+				return ImGui::Checkbox("##Enabled", &enabled);
+			});
+		});
+	} else {
+		// Ordinary optional values are a single row: Label | [enable] [value...]. Nested field
+		// drawers are put into inline-value mode so they reuse this value cell instead of emitting
+		// another property row.
+		changed |= DrawInspectorPropertyRow(label, [&]() {
+			const bool toggle_changed{ DrawDisabledIf(toggle_read_only, [&]() {
+				return ImGui::Checkbox("##Enabled", &enabled);
+			}) };
+			bool local_changed{ toggle_changed };
+			if (toggle_changed) {
+				target.template SetLive<T>(enabled ? ComponentState<T>{ enabled_default } : std::nullopt, callback);
 			}
+			ImGui::SameLine(0.0f, ImGui::GetStyle().ItemInnerSpacing.x);
 
-			changed = true;
-		}
+			T displayed{ target.template Capture<T>().value_or(enabled_default) };
+			ScopedDisabled disabled{ !enabled || contents_read_only };
+			ScopedInspectorInlineValue inline_value;
+			const bool contents_changed{ std::invoke(std::forward<Draw>(draw), displayed) };
+			if (enabled && !contents_read_only && contents_changed) {
+				target.template SetLive<T>(std::move(displayed), callback);
+				local_changed = true;
+			}
+			return local_changed;
+		});
 	}
 
-	ImGui::SameLine();
+	if ((tree || std::is_empty_v<T>) && enabled != before.has_value()) {
+		if (enabled) {
+			target.template SetLive<T>(enabled_default, callback);
+		} else {
+			target.template SetLive<T>(std::nullopt, callback);
+		}
+		changed = true;
+	}
 
-	T value{ target.template Capture<T>().value_or(T{}) };
-	const float checkbox_offset{
-		ImGui::GetFrameHeight() +
-		ImGui::GetStyle().ItemSpacing.x
-	};
-
-	if constexpr (std::is_empty_v<T>) {
-		ImGui::AlignTextToFramePadding();
-		ImGui::TextUnformatted(label.data(), label.data() + label.size());
-	} else if (tree) {
-		const std::string node_label{ std::string{ label } + "##Tree" };
-
-		const bool open{ ImGui::TreeNodeEx(node_label.c_str(), ImGuiTreeNodeFlags_SpanAvailWidth) };
-
-		if (open) {
+	if constexpr (!std::is_empty_v<T>) {
+		if (tree && open) {
 			ScopedIndent indent;
-			ScopedPropertyLabelOffset label_offset{
-				ImGui::GetStyle().IndentSpacing
-			};
 			ScopedDisabled disabled{ !enabled || contents_read_only };
-
+			T value{ target.template Capture<T>().value_or(enabled_default) };
 			const bool contents_changed{ std::invoke(std::forward<Draw>(draw), value) };
-
 			if (enabled && !contents_read_only && contents_changed) {
 				target.template SetLive<T>(std::move(value), callback);
 				changed = true;
 			}
-
-			ImGui::TreePop();
-		}
-	} else {
-		ScopedPropertyLabelOffset label_offset{ checkbox_offset };
-		ScopedDisabled disabled{ !enabled || contents_read_only };
-
-		ImGui::BeginGroup();
-		const bool contents_changed{ std::invoke(std::forward<Draw>(draw), value) };
-		ImGui::EndGroup();
-
-		if (enabled && !contents_read_only && contents_changed) {
-			target.template SetLive<T>(std::move(value), callback);
-			changed = true;
 		}
 	}
 
 	auto after{ target.template Capture<T>() };
-
 	TrackComponentState(
-		target, std::string{ enabled ? "Edit " : "Disable " } + std::string{ label },
-		std::move(before), std::move(after), changed, callback
+		target, std::string{ "Edit " } + std::string{ label }, std::move(before), std::move(after),
+		changed, callback
 	);
-
 	return changed;
-}
-
-template <typename Target, typename T, typename Draw>
-bool DrawReadOnlyExistingComponent(
-	Target& target,
-	std::string_view label,
-	bool tree,
-	Draw&& draw
-) {
-	if (
-		!Target::template Supports<T>() ||
-		!target.ctx.local.settings.show_read_only_inspector_data
-	) {
-		return false;
-	}
-
-	auto state{ target.template Capture<T>() };
-
-	if (!state) {
-		return false;
-	}
-
-	ScopedID target_scope{ target.Id() };
-	ScopedID component_scope{ static_cast<int>(Hash<T>()) };
-
-	if (tree) {
-		const std::string node_label{ std::string{ label } + "##ReadOnlyTree" };
-
-		if (ImGui::TreeNodeEx(
-				node_label.c_str(),
-				ImGuiTreeNodeFlags_SpanAvailWidth
-			)) {
-			ScopedIndent indent;
-			ScopedPropertyLabelOffset label_offset{
-				ImGui::GetStyle().IndentSpacing
-			};
-			ScopedDisabled disabled{ true };
-			std::invoke(
-				std::forward<Draw>(draw),
-				*state
-			);
-			ImGui::TreePop();
-		}
-	} else {
-		ScopedDisabled disabled{ true };
-		std::invoke(
-			std::forward<Draw>(draw),
-			*state
-		);
-	}
-
-	return false;
-}
-
-template <typename Target, typename T>
-bool DrawReadOnlyExistingReflected(
-	Target& target,
-	std::string_view label,
-	bool tree = true
-) {
-	return DrawReadOnlyExistingComponent<Target, T>(
-		target,
-		label,
-		tree,
-		[&target](T& value) {
-			return DrawRegisteredComponentContents(
-				target.ctx,
-				Hash<T>(),
-				std::addressof(value)
-			);
-		}
-	);
 }
 
 template <typename Target, typename T>
@@ -734,23 +802,14 @@ bool DrawOptionalValue(Target& target, std::string_view label, FieldOptions opti
 	});
 }
 
-template <typename Target, typename T>
+template <typename T, typename Target>
 bool AddFeature(Target& target, std::string_view label) {
-	auto before{ target.template Capture<T>() };
-
-	if (before) {
+	if (target.template Capture<T>()) {
 		return false;
 	}
-
-	target.template SetLive<T>(T{});
-	auto after{ target.template Capture<T>() };
-
-	TrackComponentState(
-		target, std::string{ "Add " } + std::string{ label }, std::move(before), std::move(after),
-		true
+	return SetComponentStateUndoable<Target, T>(
+		target, std::string{ "Add " } + std::string{ label }, ComponentState<T>{ T{} }
 	);
-
-	return true;
 }
 
 

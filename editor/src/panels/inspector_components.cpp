@@ -974,21 +974,6 @@ bool DrawRectContents(
 ) {
 	bool changed{ false };
 
-	auto size{ rect.max - rect.min };
-
-	if (DrawWHValue("Size", size, kInspectorSizeDragSpeed, 0.0f, 0.0f, "%.3f")) {
-		size.x = std::max(size.x, 0.0f);
-		size.y = std::max(size.y, 0.0f);
-
-		auto center{ rect.GetCenter() };
-		auto half_size{ size * 0.5f };
-
-		rect.min = center - half_size;
-		rect.max = center + half_size;
-
-		changed = true;
-	}
-
 	changed |= DrawPickablePosition(
 		ctx,
 		"Min",
@@ -1003,6 +988,16 @@ bool DrawRectContents(
 		convert,
 		std::move(max_apply)
 	);
+
+	auto size{ rect.max - rect.min };
+	if (DrawWHValue("Size", size, kInspectorSizeDragSpeed, 0.0f, FLT_MAX, "%.3f")) {
+		size.x = std::max(size.x, 0.0f);
+		size.y = std::max(size.y, 0.0f);
+
+		// Size edits preserve Min and move Max, matching the usual Min/Max/Size rect semantics.
+		rect.max = rect.min + size;
+		changed = true;
+	}
 
 	return changed;
 }

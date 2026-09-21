@@ -48,6 +48,7 @@
 #include "core/util/time.h"
 #include "core/util/type_info.h"
 #include "panels/content_browser.h"
+#include "panels/inspector_layout.h"
 #include "platform/platform.h"
 #include "renderer/text/font_style.h"
 #include "runtime/asset/asset_manager.h"
@@ -56,6 +57,7 @@
 namespace ptgn {
 
 struct ComponentReflectionVisitor;
+struct TextClip;
 
 } // namespace ptgn
 
@@ -80,114 +82,22 @@ bool DrawReflectedContents(
 	ReflectedValueVisitCallback visit
 );
 
-struct AutoLabelWidthData {
-	float start_x{ 0.0f };
-	float width{ kDefaultLabelWidth };
-	float measured_width{ kDefaultLabelWidth };
-};
-
-inline std::unordered_map<ImGuiID, AutoLabelWidthData>& AutoLabelWidths() {
-	static std::unordered_map<ImGuiID, AutoLabelWidthData> widths;
-	return widths;
-}
-
-inline std::vector<AutoLabelWidthData*>& AutoLabelWidthStack() {
-	static std::vector<AutoLabelWidthData*> stack;
-	return stack;
-}
-
-inline float& PropertyLabelOffsetCompensation() {
-	static float offset{ 0.0f };
-	return offset;
-}
-
+/// Compatibility shim for old inspector implementations. Property rows now size themselves from
+/// the current inspector width, so an outer measurement scope is no longer required.
 class ScopedPropertyLabelOffset {
 public:
-	explicit ScopedPropertyLabelOffset(float offset) : offset_{ offset } {
-		PropertyLabelOffsetCompensation() += offset_;
-	}
-
-	~ScopedPropertyLabelOffset() {
-		PropertyLabelOffsetCompensation() -= offset_;
-	}
-
-	ScopedPropertyLabelOffset(const ScopedPropertyLabelOffset&) = delete;
-	ScopedPropertyLabelOffset& operator=(const ScopedPropertyLabelOffset&) = delete;
-
-private:
-	float offset_{ 0.0f };
+	explicit ScopedPropertyLabelOffset(float) {}
 };
 
-inline float GetPropertyLabelWidth() {
-	auto& stack{ AutoLabelWidthStack() };
-
-	if (stack.empty()) {
-		return kDefaultLabelWidth;
-	}
-
-	return stack.back()->width;
+[[nodiscard]] inline float GetPropertyLabelWidth() {
+	return GetInspectorLabelColumnWidth(std::max(1.0f, ImGui::GetContentRegionAvail().x));
 }
 
-inline void MeasurePropertyLabel(
-	std::string_view label,
-	float label_x,
-	float leading_width = 0.0f
-) {
-	auto& stack{ AutoLabelWidthStack() };
-
-	if (stack.empty()) {
-		return;
-	}
-
-	auto& data{ *stack.back() };
-
-	(void)label_x;
-	auto text_width{ ImGui::CalcTextSize(label.data(), label.data() + label.size()).x };
-	auto width{
-		leading_width +
-		text_width +
-		ImGui::GetStyle().FramePadding.x * 2.0f +
-		kLabelValueSpacing
-	};
-
-	data.measured_width = std::max(data.measured_width, width);
-}
+inline void MeasurePropertyLabel(std::string_view, float, float = 0.0f) {}
 
 class AutoLabelWidthScope {
 public:
-	explicit AutoLabelWidthScope(std::string_view label) {
-		ImGui::PushID(label.data(), label.data() + label.size());
-		id_ = ImGui::GetID("##auto_label_width");
-
-		auto& data{ AutoLabelWidths()[id_] };
-		data.start_x =
-			ImGui::GetCursorPosX() -
-			PropertyLabelOffsetCompensation();
-		data.measured_width = kDefaultLabelWidth;
-
-		AutoLabelWidthStack().push_back(&data);
-	}
-
-	~AutoLabelWidthScope() {
-		auto& stack{ AutoLabelWidthStack() };
-
-		if (!stack.empty()) {
-			auto& data{ *stack.back() };
-			data.width = data.measured_width;
-			stack.pop_back();
-		}
-
-		ImGui::PopID();
-	}
-
-	AutoLabelWidthScope(const AutoLabelWidthScope&)			   = delete;
-	AutoLabelWidthScope& operator=(const AutoLabelWidthScope&) = delete;
-
-	AutoLabelWidthScope(AutoLabelWidthScope&&)			  = delete;
-	AutoLabelWidthScope& operator=(AutoLabelWidthScope&&) = delete;
-
-private:
-	ImGuiID id_{ 0 };
+	explicit AutoLabelWidthScope(std::string_view) {}
 };
 
 struct FieldOptions {
@@ -919,13 +829,7 @@ inline bool HasBounds(const FieldOptions& options) {
 }
 
 inline float GetPropertyValueX(float fallback_start_x) {
-	auto& stack{ AutoLabelWidthStack() };
-
-	if (stack.empty()) {
-		return fallback_start_x - PropertyLabelOffsetCompensation() + kDefaultLabelWidth;
-	}
-
-	return stack.back()->start_x + stack.back()->width;
+	return fallback_start_x + GetPropertyLabelWidth();
 }
 
 inline ImVec2 GetResizableMultilineSize(
@@ -964,20 +868,7 @@ inline ImVec2 GetResizableMultilineSize(
 
 template <typename F>
 bool DrawPropertyRow(std::string_view label, F&& draw) {
-	auto id{ std::string{ label } };
-	float start_x{ ImGui::GetCursorPosX() };
-
-	ImGui::PushID(id.c_str());
-	ImGui::AlignTextToFramePadding();
-	ImGui::TextUnformatted(label.data(), label.data() + label.size());
-	ImGui::SameLine();
-	MeasurePropertyLabel(label, start_x);
-	ImGui::SetCursorPosX(GetPropertyValueX(start_x));
-	ImGui::SetNextItemWidth(-FLT_MIN);
-	bool changed{ std::invoke(std::forward<F>(draw)) };
-	ImGui::PopID();
-
-	return changed;
+	return DrawInspectorPropertyRow(label, std::forward<F>(draw));
 }
 
 template <typename T>
@@ -1390,62 +1281,22 @@ inline bool DrawString(
 				)
 			};
 
+			const float value_available{ std::max(1.0f, ImGui::GetContentRegionAvail().x) };
+			const float large_button_size{ ImGui::GetFrameHeight() };
+			const float large_button_spacing{ ImGui::GetStyle().ItemInnerSpacing.x };
+			const bool show_large_button{
+				options.large_editor &&
+				value_available >= large_button_size + large_button_spacing + 96.0f
+			};
+
 			ImVec2 input_size{
-				-FLT_MIN,
+				show_large_button
+					? std::max(1.0f, value_available - large_button_size - large_button_spacing)
+					: -FLT_MIN,
 				default_height
 			};
 
 			bool open_large_editor{ false };
-
-			// DrawPropertyRow() has already placed the cursor at the
-			// normal beginning of the value column.
-			const ImVec2 input_position{
-				ImGui::GetCursorScreenPos()
-			};
-
-			if (options.large_editor) {
-				const float button_size{
-					ImGui::GetFrameHeight()
-				};
-
-				const float spacing{
-					ImGui::GetStyle().ItemInnerSpacing.x
-				};
-
-				// Draw the button immediately before the value column
-				// without shifting the multiline input.
-				ImGui::SetCursorScreenPos(
-					ImVec2{
-						input_position.x -
-							button_size -
-							spacing,
-						input_position.y
-					}
-				);
-
-				if (
-					ImGui::Button(
-						"...##OpenLargeEditor",
-						ImVec2{
-							button_size,
-							button_size
-						}
-					)
-				) {
-					open_large_editor = true;
-				}
-
-				if (ImGui::IsItemHovered()) {
-					ImGui::SetTooltip(
-						"Open the large text editor."
-					);
-				}
-
-				// Restore the regular value column position.
-				ImGui::SetCursorScreenPos(
-					input_position
-				);
-			}
 
 			if (options.resizable_y) {
 				input_size = GetResizableMultilineSize(
@@ -1496,6 +1347,19 @@ inline bool DrawString(
 				}
 
 				ImGui::EndPopup();
+			}
+
+			if (show_large_button) {
+				ImGui::SameLine(0.0f, large_button_spacing);
+				if (ImGui::Button(
+					"...##OpenLargeEditor",
+					ImVec2{ large_button_size, large_button_size }
+				)) {
+					open_large_editor = true;
+				}
+				if (ImGui::IsItemHovered()) {
+					ImGui::SetTooltip("Open the large text editor.");
+				}
 			}
 
 			// Both the button and context menu reach this path.
@@ -1684,17 +1548,18 @@ bool DrawAssetKeyInline(
 	}
 
 	float shader_button_width{ 0.0f };
+	bool show_shader_button{ false };
 	if constexpr (shader_key) {
 		shader_button_width =
 			ImGui::CalcTextSize("[..]").x + ImGui::GetStyle().FramePadding.x * 2.0f;
-		const float input_width{
-			std::max(
-				1.0f,
-				ImGui::GetContentRegionAvail().x - shader_button_width -
-					ImGui::GetStyle().ItemInnerSpacing.x
-			)
-		};
-		ImGui::SetNextItemWidth(input_width);
+		const float available{ ImGui::GetContentRegionAvail().x };
+		const float spacing{ ImGui::GetStyle().ItemInnerSpacing.x };
+		// Preserve a useful text field first. At narrow widths the dedicated open button disappears;
+		// right-clicking the field still opens a valid shader in the editor.
+		show_shader_button = available >= shader_button_width + spacing + 72.0f;
+		ImGui::SetNextItemWidth(
+			show_shader_button ? std::max(1.0f, available - shader_button_width - spacing) : -FLT_MIN
+		);
 	}
 
 	bool input_changed{ DrawDisabledIf(input_disabled, [&]() {
@@ -1759,18 +1624,20 @@ bool DrawAssetKeyInline(
 			ptgn::editor::RequestShaderEditorOpen(value);
 		}
 
-		ImGui::SameLine(0.0f, ImGui::GetStyle().ItemInnerSpacing.x);
-		ImGui::BeginDisabled(!shader_exists);
-		if (ImGui::Button("[..]##OpenShaderEditor", ImVec2{ shader_button_width, 0.0f })) {
-			ptgn::editor::RequestShaderEditorOpen(value);
-		}
-		ImGui::EndDisabled();
-		if (ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled)) {
-			ImGui::SetTooltip(
-				shader_exists
-					? "Open this shader in the shader editor."
-					: "The shader asset does not exist."
-			);
+		if (show_shader_button) {
+			ImGui::SameLine(0.0f, ImGui::GetStyle().ItemInnerSpacing.x);
+			ImGui::BeginDisabled(!shader_exists);
+			if (ImGui::Button("[..]##OpenShaderEditor", ImVec2{ shader_button_width, 0.0f })) {
+				ptgn::editor::RequestShaderEditorOpen(value);
+			}
+			ImGui::EndDisabled();
+			if (ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled)) {
+				ImGui::SetTooltip(
+					shader_exists
+						? "Open this shader in the shader editor."
+						: "The shader asset does not exist."
+				);
+			}
 		}
 	}
 
@@ -2418,22 +2285,20 @@ inline bool DrawVector(std::string_view label, T& value, const FieldOptions& opt
 
 		const float spacing{ ImGui::GetStyle().ItemInnerSpacing.x };
 		const float available{ ImGui::GetContentRegionAvail().x };
-		const float width{
-			std::max(
-				1.0f,
-				(
-					available -
-					spacing * static_cast<float>(component_count - 1)
-				) /
-					static_cast<float>(component_count)
-			)
+		// Keep compound numeric controls usable rather than compressing 3-4 inputs into a few pixels.
+		// At narrow widths they wrap within the value cell; the outer property table expands the row.
+		const int components_per_line{
+			available >= static_cast<float>(component_count) * 56.0f
+				? component_count
+				: std::min(component_count, 2)
 		};
+		const float width{ InspectorSplitWidth(components_per_line, available, spacing) };
 
 		bool changed{ false };
 
 		DrawDisabledIf(IsReadOnly(options), [&]() {
 			for (int i{ 0 }; i < component_count; ++i) {
-				if (i > 0) {
+				if (i > 0 && (i % components_per_line) != 0) {
 					ImGui::SameLine(0.0f, spacing);
 				}
 
@@ -2484,13 +2349,19 @@ inline bool DrawVector(std::string_view label, T& value, const FieldOptions& opt
 inline bool DrawColor(EditorContext& ctx, std::string_view label, Color& value) {
 	return DrawPropertyRow(label, [&]() {
 		return DrawDisabledIf(IsReadOnly(), [&]() {
-			return DrawColorEdit(
-				ctx,
-				"##value",
-				value,
+			ImGuiColorEditFlags flags{
 				ImGuiColorEditFlags_Uint8 | ImGuiColorEditFlags_AlphaBar |
-					ImGuiColorEditFlags_AlphaPreviewHalf
-			);
+				ImGuiColorEditFlags_AlphaPreviewHalf
+			};
+
+			// RGBA numeric inputs are useful while there is room. At narrow inspector widths they
+			// make every sub-control unreadable, so collapse to the color button/picker instead.
+			if (InspectorValueColumnIsCompact()) {
+				flags |= ImGuiColorEditFlags_NoInputs;
+			}
+
+			ImGui::SetNextItemWidth(-FLT_MIN);
+			return DrawColorEdit(ctx, "##value", value, flags);
 		});
 	});
 }
@@ -3178,34 +3049,11 @@ inline bool DrawOptionalLabelRow(
 	bool& enabled,
 	bool read_only
 ) {
-	const float start_x{ ImGui::GetCursorPosX() };
-
-	const bool changed{
-		DrawDisabledIf(
-			read_only,
-			[&]() {
-				return ImGui::Checkbox(
-					"##enabled",
-					&enabled
-				);
-			}
-		)
-	};
-
-	ImGui::SameLine();
-	ImGui::AlignTextToFramePadding();
-	ImGui::TextUnformatted(
-		label.data(),
-		label.data() + label.size()
-	);
-	MeasurePropertyLabel(
-		label,
-		start_x,
-		ImGui::GetFrameHeight() +
-			ImGui::GetStyle().ItemSpacing.x
-	);
-
-	return changed;
+	return DrawInspectorPropertyRow(label, [&]() {
+		return DrawDisabledIf(read_only, [&]() {
+			return ImGui::Checkbox("##enabled", &enabled);
+		});
+	});
 }
 
 template <typename Draw>
@@ -3215,43 +3063,18 @@ bool DrawOptionalPropertyRow(
 	bool read_only,
 	Draw&& draw_value
 ) {
-	const float start_x{ ImGui::GetCursorPosX() };
+	return DrawInspectorPropertyRow(label, [&]() {
+		bool changed{ DrawDisabledIf(read_only, [&]() {
+			return ImGui::Checkbox("##enabled", &enabled);
+		}) };
 
-	bool changed{
-		DrawDisabledIf(
-			read_only,
-			[&]() {
-				return ImGui::Checkbox(
-					"##enabled",
-					&enabled
-				);
-			}
-		)
-	};
-
-	ImGui::SameLine();
-	ImGui::AlignTextToFramePadding();
-	ImGui::TextUnformatted(
-		label.data(),
-		label.data() + label.size()
-	);
-	MeasurePropertyLabel(
-		label,
-		start_x,
-		ImGui::GetFrameHeight() +
-			ImGui::GetStyle().ItemSpacing.x
-	);
-	ImGui::SameLine();
-	ImGui::SetCursorPosX(
-		GetPropertyValueX(start_x)
-	);
-	ImGui::SetNextItemWidth(-FLT_MIN);
-
-	changed |= std::invoke(
-		std::forward<Draw>(draw_value)
-	);
-
-	return changed;
+		ImGui::SameLine(0.0f, ImGui::GetStyle().ItemInnerSpacing.x);
+		ImGui::SetNextItemWidth(-FLT_MIN);
+		ImGui::BeginDisabled(!enabled || read_only);
+		changed |= std::invoke(std::forward<Draw>(draw_value));
+		ImGui::EndDisabled();
+		return changed;
+	});
 }
 
 inline bool DrawOptionalBool(std::string_view label, std::optional<bool>& value) {
@@ -3384,11 +3207,6 @@ bool CanDrawOptionalInlineValue(const FieldOptions& options) {
 	} else {
 		return kCanDrawOptionalInlineValue<Value>;
 	}
-}
-
-inline void DrawUnsetOptionalInlineValue() {
-	ImGui::AlignTextToFramePadding();
-	ImGui::TextDisabled("Unset");
 }
 
 template <typename Rep, typename Period>
@@ -3541,13 +3359,14 @@ bool DrawOptionalInlineValue(EditorContext& ctx, T& value, const FieldOptions& o
 		});
 	} else if constexpr (std::same_as<Value, Color>) {
 		return DrawDisabledIf(IsReadOnly(options), [&]() {
-			return DrawColorEdit(
-				ctx,
-				"##value",
-				value,
+			ImGuiColorEditFlags flags{
 				ImGuiColorEditFlags_Uint8 | ImGuiColorEditFlags_AlphaBar |
-					ImGuiColorEditFlags_AlphaPreviewHalf
-			);
+				ImGuiColorEditFlags_AlphaPreviewHalf
+			};
+			if (InspectorValueColumnIsCompact()) {
+				flags |= ImGuiColorEditFlags_NoInputs;
+			}
+			return DrawColorEdit(ctx, "##value", value, flags);
 		});
 	} else if constexpr (std::same_as<Value, Degrees>) {
 		return DrawOptionalInlineValue(ctx, value.value, options);
@@ -3640,25 +3459,7 @@ bool DrawOptionalInline(
 			label,
 			enabled,
 			read_only,
-			[&]() {
-				if (!enabled) {
-					ImGui::BeginDisabled();
-					DrawUnsetOptionalInlineValue();
-					ImGui::EndDisabled();
-					return false;
-				}
-
-				return DrawDisabledIf(
-					read_only,
-					[&]() {
-						return DrawOptionalInlineValue(
-							ctx,
-							displayed,
-							options
-						);
-					}
-				);
-			}
+			[&]() { return DrawOptionalInlineValue(ctx, displayed, options); }
 		)
 	};
 
@@ -3694,14 +3495,16 @@ bool DrawOptional(EditorContext& ctx, std::string_view label, std::optional<T>& 
 		ImGui::PushID(&value);
 
 		bool enabled{ value.has_value() };
-
-		bool changed{
-			DrawOptionalLabelRow(
-				label,
-				enabled,
-				IsReadOnly(options)
-			)
+		constexpr InspectorTreeToggleSide toggle_side{
+			std::same_as<Value, TextClip>
+				? InspectorTreeToggleSide::Left
+				: InspectorTreeToggleSide::Right
 		};
+		const auto header{ DrawInspectorTreeToggleRow(
+			label, "##OptionalTree", enabled, IsReadOnly(options), toggle_side,
+			options.default_open
+		) };
+		bool changed{ header.toggle_changed };
 
 		if (enabled != value.has_value()) {
 			if (enabled) {
@@ -3713,12 +3516,37 @@ bool DrawOptional(EditorContext& ctx, std::string_view label, std::optional<T>& 
 			changed = true;
 		}
 
-		if (value.has_value()) {
-			ImGui::Indent();
-			ScopedPropertyLabelOffset label_offset{
-				ImGui::GetStyle().IndentSpacing
-			};
+		if (!header.open) {
+			ImGui::PopID();
+			return changed;
+		}
 
+		if constexpr (std::default_initializable<Value>) {
+			Value displayed{ value.value_or(Value{}) };
+			ImGui::Indent();
+			ScopedPropertyLabelOffset label_offset{ ImGui::GetStyle().IndentSpacing };
+			ImGui::BeginDisabled(!enabled || IsReadOnly(options));
+			bool contents_changed{ false };
+			if constexpr (kIsVariant<Value>) {
+				contents_changed |= DrawVariant(ctx, "Variant", displayed, "Value", options);
+			} else if constexpr (
+				ReflectedValue<Value> || ReflectedMembers<Value> ||
+				ReflectedReadOnlyMembers<Value>
+			) {
+				contents_changed |= DrawDefaultContents(ctx, displayed);
+			} else {
+				contents_changed |= DrawValue(ctx, "Value", displayed, options);
+			}
+			ImGui::EndDisabled();
+			ImGui::Unindent();
+			if (enabled && !IsReadOnly(options) && contents_changed) {
+				value = std::move(displayed);
+				changed = true;
+			}
+		} else if (value.has_value()) {
+			ImGui::Indent();
+			ScopedPropertyLabelOffset label_offset{ ImGui::GetStyle().IndentSpacing };
+			ImGui::BeginDisabled(IsReadOnly(options));
 			if constexpr (kIsVariant<Value>) {
 				changed |= DrawVariant(ctx, "Variant", value.value(), "Value", options);
 			} else if constexpr (
@@ -3729,7 +3557,7 @@ bool DrawOptional(EditorContext& ctx, std::string_view label, std::optional<T>& 
 			} else {
 				changed |= DrawValue(ctx, "Value", value.value(), options);
 			}
-
+			ImGui::EndDisabled();
 			ImGui::Unindent();
 		}
 
