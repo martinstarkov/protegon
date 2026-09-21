@@ -272,10 +272,11 @@ public:
 
 	Slider& SetValue(float value, bool emit_event);
 
+	// TODO: Move to private.
+	[[nodiscard]] Button EnsureThumb();
 private:
 	friend struct impl::SliderSystem;
 
-	[[nodiscard]] Button EnsureThumb();
 	[[nodiscard]] Entity EnsureTrackBackground(Color color = color::Gray);
 	[[nodiscard]] Entity EnsureTrackSprite(TextureKey texture = {});
 

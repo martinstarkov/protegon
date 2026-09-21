@@ -40,6 +40,15 @@ enum class DialogueBehavior {
 };
 PTGN_REFLECT_ENUM(DialogueBehavior);
 
+enum class DialoguePortraitSlot : std::uint8_t {
+	Left,
+	Center,
+	Right
+};
+PTGN_REFLECT_ENUM(DialoguePortraitSlot);
+
+namespace impl {
+
 enum class DialoguePartRole : std::uint8_t {
 	// Keep the first two values stable for existing serialized scenes.
 	Background,
@@ -52,15 +61,6 @@ enum class DialoguePartRole : std::uint8_t {
 	PortraitRight
 };
 PTGN_REFLECT_ENUM(DialoguePartRole);
-
-enum class DialoguePortraitSlot : std::uint8_t {
-	Left,
-	Center,
-	Right
-};
-PTGN_REFLECT_ENUM(DialoguePortraitSlot);
-
-namespace impl {
 
 struct DialoguePart {
 	DialoguePartRole role{ DialoguePartRole::Text };
@@ -183,11 +183,6 @@ using DialoguePortraitActorMap = std::unordered_map<
 	std::string, DialoguePortraitActor, StringHash, std::equal_to<>
 >;
 
-struct DialoguePortraitRuntimeState {
-	std::string speaker{};
-	std::string expression{};
-};
-
 /// @brief Dialogue key appearance/audio overrides. Empty optionals inherit the dialogue entity's
 /// ordinary background and have no extra border/sprite/audio behavior.
 struct DialogueSounds {
@@ -233,6 +228,13 @@ struct DialogueEntry {
 	[[nodiscard]] std::size_t PickRandomVariantIndex() const;
 	const DialogueVariant* GetCurrentDialogueVariant() const;
 	std::optional<std::size_t> GetNewDialogueVariant();
+};
+
+namespace impl {
+
+struct DialoguePortraitRuntimeState {
+	std::string speaker{};
+	std::string expression{};
 };
 
 using DialogueMap = std::unordered_map<std::string, DialogueEntry, StringHash, std::equal_to<>>;
@@ -281,6 +283,8 @@ struct DialogueData {
 	);
 };
 
+} // namespace impl
+
 struct DialogueDesc {
 	Origin origin{ Origin::Center };
 
@@ -300,9 +304,6 @@ class DialogueBox : public Entity {
 public:
 	DialogueBox() = default;
 	explicit DialogueBox(Entity entity);
-
-	[[nodiscard]] DialogueData& Data();
-	[[nodiscard]] const DialogueData& Data() const;
 
 	[[nodiscard]] std::string_view GetContinueKeys() const;
 	DialogueBox& SetContinueKeys(std::string_view continue_keys);
@@ -336,8 +337,11 @@ public:
 private:
 	friend struct impl::DialogueSystem;
 
-	[[nodiscard]] std::optional<Entity> TryPart(DialoguePartRole role) const;
-	Entity Part(DialoguePartRole role);
+	[[nodiscard]] impl::DialogueData& Data();
+	[[nodiscard]] const impl::DialogueData& Data() const;
+
+	[[nodiscard]] std::optional<Entity> TryPart(impl::DialoguePartRole role) const;
+	Entity Part(impl::DialoguePartRole role);
 
 	void EnsureRuntimeData();
 	void ApplyCurrentPage();
@@ -445,7 +449,11 @@ void from_json(const json& j, DialogueAppearance& appearance);
 void to_json(json& j, const DialogueEntry& dialogue);
 void from_json(const json& j, DialogueEntry& dialogue);
 
+namespace impl {
+
 void to_json(json& j, const DialogueData& data);
 void from_json(const json& j, DialogueData& data);
+
+} // namespace impl
 
 } // namespace ptgn

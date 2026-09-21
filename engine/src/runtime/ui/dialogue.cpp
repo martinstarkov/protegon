@@ -120,17 +120,17 @@ void ApplyDialogueVisualTransform(
 	return static_cast<std::size_t>(std::to_underlying(slot));
 }
 
-[[nodiscard]] DialoguePartRole DialoguePortraitPartRole(DialoguePortraitSlot slot) {
+[[nodiscard]] ::ptgn::impl::DialoguePartRole DialoguePortraitPartRole(DialoguePortraitSlot slot) {
 	switch (slot) {
-		case DialoguePortraitSlot::Left: return DialoguePartRole::PortraitLeft;
-		case DialoguePortraitSlot::Center: return DialoguePartRole::PortraitCenter;
-		case DialoguePortraitSlot::Right: return DialoguePartRole::PortraitRight;
+		case DialoguePortraitSlot::Left: return ::ptgn::impl::DialoguePartRole::PortraitLeft;
+		case DialoguePortraitSlot::Center: return ::ptgn::impl::DialoguePartRole::PortraitCenter;
+		case DialoguePortraitSlot::Right: return ::ptgn::impl::DialoguePartRole::PortraitRight;
 	}
 	PTGN_ERROR("Unknown dialogue portrait slot: ", std::to_underlying(slot));
-	return DialoguePartRole::PortraitLeft;
+	return ::ptgn::impl::DialoguePartRole::PortraitLeft;
 }
 
-[[nodiscard]] std::optional<Entity> FindDialoguePart(Entity dialogue, DialoguePartRole role) {
+[[nodiscard]] std::optional<Entity> FindDialoguePart(Entity dialogue, ::ptgn::impl::DialoguePartRole role) {
 	if (!HasChildren(dialogue)) {
 		return std::nullopt;
 	}
@@ -1112,7 +1112,7 @@ std::optional<std::size_t> DialogueEntry::GetNewDialogueVariant() {
 		: std::optional<std::size_t>{ chosen_index };
 }
 
-json DialogueData::MakeDefaultDefinition() {
+json impl::DialogueData::MakeDefaultDefinition() {
 	DialoguePageProperties properties;
 	properties.box_size = V2_float{ 600.0f, 160.0f };
 
@@ -1132,11 +1132,11 @@ json DialogueData::MakeDefaultDefinition() {
 	return root;
 }
 
-const json& DialogueData::Definition() const {
+const json& impl::DialogueData::Definition() const {
 	return definition;
 }
 
-void DialogueData::SetDefinition(json value) {
+void impl::DialogueData::SetDefinition(json value) {
 	if (!value.is_object() || value.empty() ||
 		!value.contains("dialogues") || !value.at("dialogues").is_object()) {
 		value = MakeDefaultDefinition();
@@ -1159,11 +1159,11 @@ void DialogueData::SetDefinition(json value) {
 	ClearRuntimeState();
 }
 
-void DialogueData::MarkRuntimeDirty() {
+void impl::DialogueData::MarkRuntimeDirty() {
 	runtime_dirty = true;
 }
 
-void DialogueData::RebuildRuntime(const Scene& scene) {
+void impl::DialogueData::RebuildRuntime(const Scene& scene) {
 	const bool valid_definition{
 		definition.is_object() && !definition.empty() &&
 		definition.contains("dialogues") &&
@@ -1178,7 +1178,7 @@ void DialogueData::RebuildRuntime(const Scene& scene) {
 	LoadFromJson(scene, authored, defaults);
 }
 
-void DialogueData::ClearRuntimeState() {
+void impl::DialogueData::ClearRuntimeState() {
 	current_variant = 0;
 	current_page = 0;
 	open = false;
@@ -1194,7 +1194,7 @@ void DialogueData::ClearRuntimeState() {
 	}
 }
 
-void DialogueData::LoadFromJson(
+void impl::DialogueData::LoadFromJson(
 	const Scene& scene, const json& root, const DialoguePageProperties& default_properties
 ) {
 	dialogues.clear();
@@ -1389,12 +1389,12 @@ void DialogueData::LoadFromJson(
 
 DialogueBox::DialogueBox(Entity entity) : Entity{ entity } {}
 
-DialogueData& DialogueBox::Data() {
-	return Get<DialogueData>();
+impl::DialogueData& DialogueBox::Data() {
+	return Get<impl::DialogueData>();
 }
 
-const DialogueData& DialogueBox::Data() const {
-	return Get<DialogueData>();
+const impl::DialogueData& DialogueBox::Data() const {
+	return Get<impl::DialogueData>();
 }
 
 std::string_view DialogueBox::GetContinueKeys() const {
@@ -1406,7 +1406,7 @@ DialogueBox& DialogueBox::SetContinueKeys(std::string_view continue_keys) {
 	auto& data{ Data() };
 	data.continue_keys = std::string{ continue_keys };
 	if (!data.definition.is_object() || data.definition.empty()) {
-		data.definition = DialogueData::MakeDefaultDefinition();
+		data.definition = impl::DialogueData::MakeDefaultDefinition();
 	}
 	data.definition["continue_key"] = data.continue_keys;
 	data.MarkRuntimeDirty();
@@ -1637,54 +1637,54 @@ DialoguePage* DialogueBox::GetCurrentDialoguePage() {
 	return &variant->pages[data.current_page];
 }
 
-std::optional<Entity> DialogueBox::TryPart(DialoguePartRole role) const {
+std::optional<Entity> DialogueBox::TryPart(::ptgn::impl::DialoguePartRole role) const {
 	return FindDialoguePart(*this, role);
 }
 
-Entity DialogueBox::Part(DialoguePartRole role) {
+Entity DialogueBox::Part(::ptgn::impl::DialoguePartRole role) {
 	if (auto part{ TryPart(role) }) {
 		return part.value();
 	}
 
 	Entity entity;
 	switch (role) {
-		case DialoguePartRole::Text: {
+		case ::ptgn::impl::DialoguePartRole::Text: {
 			Text text{ CreateText(GetScene(), {}, {}, Origin::TopLeft) };
 			entity = text;
 			entity.Add<Tag>("Dialogue Text");
 			break;
 		}
-		case DialoguePartRole::Background: {
+		case ::ptgn::impl::DialoguePartRole::Background: {
 			entity = CreateRect(GetScene(), {}, V2_float{}, color::Black.WithAlpha(180));
 			entity.Add<Tag>("Dialogue Background");
 			break;
 		}
-		case DialoguePartRole::BackgroundOverride: {
+		case ::ptgn::impl::DialoguePartRole::BackgroundOverride: {
 			entity = CreateRect(GetScene(), {}, V2_float{}, color::Black.WithAlpha(180));
 			entity.Add<Tag>("Dialogue Background Override");
 			break;
 		}
-		case DialoguePartRole::Border: {
+		case ::ptgn::impl::DialoguePartRole::Border: {
 			entity = CreateRect(GetScene(), {}, V2_float{}, color::White);
 			entity.Add<Tag>("Dialogue Border");
 			break;
 		}
-		case DialoguePartRole::Sprite: {
+		case ::ptgn::impl::DialoguePartRole::Sprite: {
 			entity = CreateSprite(GetScene(), {}, {}, Origin::Center);
 			entity.Add<Tag>("Dialogue Sprite Override");
 			break;
 		}
-		case DialoguePartRole::PortraitLeft: {
+		case ::ptgn::impl::DialoguePartRole::PortraitLeft: {
 			entity = CreateSprite(GetScene(), {}, {}, Origin::Center);
 			entity.Add<Tag>("Dialogue Portrait Left");
 			break;
 		}
-		case DialoguePartRole::PortraitCenter: {
+		case ::ptgn::impl::DialoguePartRole::PortraitCenter: {
 			entity = CreateSprite(GetScene(), {}, {}, Origin::Center);
 			entity.Add<Tag>("Dialogue Portrait Center");
 			break;
 		}
-		case DialoguePartRole::PortraitRight: {
+		case ::ptgn::impl::DialoguePartRole::PortraitRight: {
 			entity = CreateSprite(GetScene(), {}, {}, Origin::Center);
 			entity.Add<Tag>("Dialogue Portrait Right");
 			break;
@@ -1706,7 +1706,7 @@ Text DialogueBox::TextPart() {
 
 	Text text{ CreateText(GetScene(), {}, {}, Origin::TopLeft) };
 	text.Add<Tag>("Dialogue Text");
-	text.Add<impl::DialoguePart>(DialoguePartRole::Text);
+	text.Add<impl::DialoguePart>(::ptgn::impl::DialoguePartRole::Text);
 	SetParent(text, *this);
 	SetUI(text, IsUI(*this));
 	Hide(text);
@@ -1714,12 +1714,12 @@ Text DialogueBox::TextPart() {
 }
 
 std::optional<Text> DialogueBox::TryTextPart() const {
-	auto part{ TryPart(DialoguePartRole::Text) };
+	auto part{ TryPart(::ptgn::impl::DialoguePartRole::Text) };
 	return part.has_value() ? std::optional<Text>{ Text{ part.value() } } : std::nullopt;
 }
 
 std::optional<Sprite> DialogueBox::TryBackground() const {
-	auto part{ TryPart(DialoguePartRole::Background) };
+	auto part{ TryPart(::ptgn::impl::DialoguePartRole::Background) };
 	if (!part.has_value() || !part.value().HasAny<Texture, TextureKey>()) {
 		return std::nullopt;
 	}
@@ -1727,7 +1727,7 @@ std::optional<Sprite> DialogueBox::TryBackground() const {
 }
 
 std::optional<Entity> DialogueBox::TryBackgroundEntity() const {
-	return TryPart(DialoguePartRole::Background);
+	return TryPart(::ptgn::impl::DialoguePartRole::Background);
 }
 
 void DialogueBox::ApplyCurrentPage() {
@@ -1771,7 +1771,7 @@ void DialogueBox::ApplyCurrentPortraitCues() {
 			continue;
 		}
 
-		data.portrait_states[index] = DialoguePortraitRuntimeState{
+		data.portrait_states[index] = impl::DialoguePortraitRuntimeState{
 			.speaker = cue.speaker,
 			.expression = cue.expression,
 		};
@@ -1812,7 +1812,7 @@ void DialogueBox::RefreshPortraits(
 	}) {
 		const std::size_t index{ DialoguePortraitSlotIndex(slot) };
 		const auto& state{ data.portrait_states[index] };
-		const DialoguePartRole role{ DialoguePortraitPartRole(slot) };
+		const ::ptgn::impl::DialoguePartRole role{ DialoguePortraitPartRole(slot) };
 
 		if (!state.has_value()) {
 			if (auto part{ TryPart(role) }) {
@@ -1922,7 +1922,7 @@ void DialogueBox::FinishPortraitTalking() {
 
 void DialogueBox::HideAppearanceOverrides() {
 	for (const auto role : {
-		DialoguePartRole::BackgroundOverride, DialoguePartRole::Border, DialoguePartRole::Sprite
+		::ptgn::impl::DialoguePartRole::BackgroundOverride, ::ptgn::impl::DialoguePartRole::Border, ::ptgn::impl::DialoguePartRole::Sprite
 	}) {
 		if (auto part{ TryPart(role) }) {
 			Hide(part.value());
@@ -1939,7 +1939,7 @@ void DialogueBox::ApplyCurrentAppearance(const DialoguePageProperties& propertie
 	const auto& appearance{ dialogue->appearance };
 	const Rect dialogue_rect{ properties.box_size, GetOrDefault<Origin>() };
 
-	auto apply_shape = [&](DialoguePartRole role, const ButtonShapeVisual& visual, bool border) {
+	auto apply_shape = [&](::ptgn::impl::DialoguePartRole role, const ButtonShapeVisual& visual, bool border) {
 		Entity entity{ Part(role) };
 		auto size{ visual.size.value_or(std::variant<V2_float, float>{ properties.box_size }) };
 		const Origin origin{ visual.origin.value_or(Origin::Center) };
@@ -2002,9 +2002,9 @@ void DialogueBox::ApplyCurrentAppearance(const DialoguePageProperties& propertie
 		if (auto base{ TryBackgroundEntity() }) {
 			Hide(base.value());
 		}
-		apply_shape(DialoguePartRole::BackgroundOverride, *appearance.background, false);
+		apply_shape(::ptgn::impl::DialoguePartRole::BackgroundOverride, *appearance.background, false);
 	} else {
-		if (auto part{ TryPart(DialoguePartRole::BackgroundOverride) }) {
+		if (auto part{ TryPart(::ptgn::impl::DialoguePartRole::BackgroundOverride) }) {
 			Hide(part.value());
 		}
 		if (auto base{ TryBackgroundEntity() }) {
@@ -2013,14 +2013,14 @@ void DialogueBox::ApplyCurrentAppearance(const DialoguePageProperties& propertie
 	}
 
 	if (appearance.border.has_value()) {
-		apply_shape(DialoguePartRole::Border, *appearance.border, true);
-	} else if (auto border{ TryPart(DialoguePartRole::Border) }) {
+		apply_shape(::ptgn::impl::DialoguePartRole::Border, *appearance.border, true);
+	} else if (auto border{ TryPart(::ptgn::impl::DialoguePartRole::Border) }) {
 		Hide(border.value());
 	}
 
 	if (appearance.sprite.has_value()) {
 		const auto& visual{ *appearance.sprite };
-		Entity entity{ Part(DialoguePartRole::Sprite) };
+		Entity entity{ Part(::ptgn::impl::DialoguePartRole::Sprite) };
 		Sprite sprite{ entity };
 		const Origin origin{ visual.origin.value_or(Origin::Center) };
 		const Origin anchor{ visual.anchor.value_or(GetOrDefault<Origin>()) };
@@ -2045,7 +2045,7 @@ void DialogueBox::ApplyCurrentAppearance(const DialoguePageProperties& propertie
 			sprite.Remove<TextureKey>();
 			Hide(sprite);
 		}
-	} else if (auto sprite{ TryPart(DialoguePartRole::Sprite) }) {
+	} else if (auto sprite{ TryPart(::ptgn::impl::DialoguePartRole::Sprite) }) {
 		Hide(sprite.value());
 	}
 }
@@ -2124,7 +2124,7 @@ DialogueBox CreateDialogueBox(Scene& scene, Transform transform, const DialogueD
 	};
 	json definition = has_authored_definition
 		? desc.data
-		: DialogueData::MakeDefaultDefinition();
+		: impl::DialogueData::MakeDefaultDefinition();
 
 	if (!has_authored_definition && desc.box_size.IsPositive()) {
 		definition["box_size"] = desc.box_size;
@@ -2136,7 +2136,7 @@ DialogueBox CreateDialogueBox(Scene& scene, Transform transform, const DialogueD
 
 	DialogueBox dialogue{ scene.CreateEntity() };
 	dialogue.Add<Tag>("Dialogue Box");
-	dialogue.Add<DialogueData>();
+	dialogue.Add<impl::DialogueData>();
 	dialogue.Add<Transform>(transform);
 	dialogue.Add<Origin>(desc.origin);
 
@@ -2147,7 +2147,7 @@ DialogueBox CreateDialogueBox(Scene& scene, Transform transform, const DialogueD
 	if (desc.background_texture.has_value()) {
 		Sprite background{ CreateSprite(scene, {}, desc.background_texture.value(), Origin::Center) };
 		background.Add<Tag>("Dialogue Sprite");
-		background.Add<impl::DialoguePart>(DialoguePartRole::Background);
+		background.Add<impl::DialoguePart>(::ptgn::impl::DialoguePartRole::Background);
 		SetParent(background, dialogue);
 
 		if (auto size{ GetDisplaySize(background) }; size.has_value() && size.value().IsPositive()) {
@@ -2163,7 +2163,7 @@ DialogueBox CreateDialogueBox(Scene& scene, Transform transform, const DialogueD
 		Entity background{ scene.CreateEntity() };
 		background.Add<Tag>("Dialogue Background");
 		background.Add<Rect>(Rect{ default_properties.box_size });
-		background.Add<impl::DialoguePart>(DialoguePartRole::Background);
+		background.Add<impl::DialoguePart>(::ptgn::impl::DialoguePartRole::Background);
 		background.Add<Color>(desc.background_color);
 		background.Add<Origin>(Origin::Center);
 		SetDraw<RectDraw>(background);
@@ -2173,7 +2173,7 @@ DialogueBox CreateDialogueBox(Scene& scene, Transform transform, const DialogueD
 	}
 
 	dialogue.TextPart();
-	dialogue.Data().LoadFromJson(scene, definition, default_properties);
+	dialogue.Get<impl::DialogueData>().LoadFromJson(scene, definition, default_properties);
 	dialogue.Close();
 	return dialogue;
 }
@@ -2384,15 +2384,15 @@ void from_json(const json& j, DialogueEntry& dialogue) {
 	dialogue.ResetRuntimeState();
 }
 
-void to_json(json& j, const DialogueData& data) {
+void impl::to_json(json& j, const impl::DialogueData& data) {
 	j = data.definition.is_object() && !data.definition.empty()
 		? data.definition
-		: DialogueData::MakeDefaultDefinition();
+		: impl::DialogueData::MakeDefaultDefinition();
 }
 
-void from_json(const json& j, DialogueData& data) {
+void impl::from_json(const json& j, impl::DialogueData& data) {
 	if (!j.is_object()) {
-		data.SetDefinition(DialogueData::MakeDefaultDefinition());
+		data.SetDefinition(impl::DialogueData::MakeDefaultDefinition());
 		return;
 	}
 
@@ -2410,7 +2410,7 @@ void from_json(const json& j, DialogueData& data) {
 		return;
 	}
 
-	json definition = DialogueData::MakeDefaultDefinition();
+	json definition = impl::DialogueData::MakeDefaultDefinition();
 	definition["continue_key"] = j.value(
 		"continue_key",
 		json("Enter")
