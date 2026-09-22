@@ -32,7 +32,7 @@
 #include "core/math/vector2.h"
 #include "core/math/vector3.h"
 #include "core/math/vector4.h"
-#include "panels/inspector_feature_helpers.h"
+#include "panels/inspector_helpers.h"
 #include "panels/inspector_fields.h"
 #include "panels/scene_hierarchy.h"
 #include "renderer/pipeline/blend_mode.h"

@@ -1,5 +1,5 @@
 #include "panels/inspector_scripts.h"
-#include "panels/inspector_features.h"
+#include "panels/inspector_archetype_inspector.h"
 #include "panels/inspector_component_drawers.h"
 
 #include <imgui.h>
@@ -30,7 +30,7 @@
 #include "core/util/hash.h"
 #include "panels/entity_filter_editor.h"
 #include "panels/inspector_fields.h"
-#include "panels/inspector_feature_helpers.h"
+#include "panels/inspector_helpers.h"
 #include "panels/inspector_tabs.h"
 #include "panels/scene_hierarchy.h"
 #include "runtime/animation/animation.h"
@@ -2712,20 +2712,16 @@ std::optional<int> DrawSequenceTabs(
 	static std::optional<int> rename_index{};
 	std::optional<int> remove{};
 
-	if (sequence_indices.empty()) {
-		if (ImGui::Button(
-				"Add Script Sequence##AddScriptSequence",
-				ImVec2{ -FLT_MIN, ImGui::GetFrameHeight() }
-			)) {
-			if (const auto* registration{ ScriptRegistry::Find(Hash<Script>()) }) {
-				AddEditorScriptEntry(context, scripts, MakeRootEntry(registration->type_hash));
-				changed = true;
-			}
-		}
-		DrawTooltip("Add local script sequence");
-	} else {
-		InspectorTabStripScope strip{ "##ScriptSequenceTabStrip" };
-		if (ImGui::BeginTabBar("##ScriptSequenceTabs", InspectorTabBarFlags())) {
+	const bool add_requested{ DrawInspectorTabCollection(
+		sequence_indices.empty(),
+		InspectorTabCollectionOptions{
+			.scope_id = "##ScriptSequenceTabStrip",
+			.tab_bar_id = "##ScriptSequenceTabs",
+			.add_tab_id = "+##AddScriptSequence",
+			.empty_add_label = "Add Script Sequence",
+			.add_tooltip = "Add local script sequence",
+		},
+		[&]() {
 			for (const int i : sequence_indices) {
 				auto& script{ scripts.scripts[static_cast<std::size_t>(i)] };
 				ScriptSequence* editable_sequence{ std::addressof(script.sequence) };
@@ -2743,8 +2739,10 @@ std::optional<int> DrawSequenceTabs(
 				}
 
 				editable_sequence->enabled = script.enabled;
-				ImGui::PushID(i);
-				std::string tab_label{ editable_sequence->name.empty() ? "Sequence" : editable_sequence->name };
+				ScopedID tab_scope{ i };
+				std::string tab_label{
+					editable_sequence->name.empty() ? "Sequence" : editable_sequence->name
+				};
 				if (!script.enabled) {
 					tab_label += " (Disabled)";
 				}
@@ -2766,9 +2764,6 @@ std::optional<int> DrawSequenceTabs(
 					ImGui::EndPopup();
 				}
 				if (selected) {
-					// BeginTabItem() returning true must always be paired with EndTabItem(), even
-					// when the context menu requested deletion this frame. The actual erase is
-					// deferred until after EndTabBar(), so it is safe to close the tab item here.
 					if (!remove.has_value() &&
 						DrawSequenceTabContents(context, *editable_sequence, i)) {
 						changed = true;
@@ -2782,18 +2777,14 @@ std::optional<int> DrawSequenceTabs(
 					script.sequence.id = sequence_id;
 					script.sequence.runtime = ScriptSequenceRuntime{};
 				}
-				ImGui::PopID();
 			}
+		}
+	) };
 
-			if (DrawInspectorAddTabButton("+##AddScriptSequence", "Add local script sequence")) {
-				if (const auto* registration{ ScriptRegistry::Find(Hash<Script>()) }) {
-					AddEditorScriptEntry(context, scripts, MakeRootEntry(registration->type_hash));
-					changed = true;
-				}
-			}
-
-			ApplyInspectorTabBarHorizontalWheel();
-			ImGui::EndTabBar();
+	if (add_requested) {
+		if (const auto* registration{ ScriptRegistry::Find(Hash<Script>()) }) {
+			AddEditorScriptEntry(context, scripts, MakeRootEntry(registration->type_hash));
+			changed = true;
 		}
 	}
 
@@ -3495,23 +3486,32 @@ bool RenameTimerReferencesImpl(Entity timer_entity, const TimerKey& old_key, con
 }
 
 template <typename Target>
-bool DrawScriptsFeatureImpl(Target& target) {
-	if (!HasScriptsFeature(target)) {
+bool DrawScriptsSectionImpl(Target& target) {
+	if (!HasScriptsSection(target)) {
 		return false;
 	}
 
-	const auto header{ DrawFeatureHeader(
-		target, InspectorFeature::Scripts, "Scripts", ImGuiTreeNodeFlags_None,
-		ScriptsFeatureComponents{}
+	const auto header{ DrawInspectorSectionHeader(
+		"Scripts",
+		"ScriptsSection",
+		InspectorSectionOptions{
+			.removable = true,
+		}
 	) };
 
-	if (!header.open) {
-		return header.changed;
+	if (header.remove_requested) {
+		return RemoveComponentSet(
+			target, "Scripts", ComponentSet<::ptgn::impl::Scripts>{}
+		);
 	}
 
-	ScopedIndent feature_indent;
+	if (!header.open) {
+		return false;
+	}
 
-	bool changed{ header.changed };
+	ScopedIndent section_indent;
+
+	bool changed{ false };
 
 	if constexpr (std::same_as<std::remove_cvref_t<Target>, EntityInspectorTarget>) {
 		if (!target.entity.template Has<::ptgn::impl::Scripts>()) {
@@ -3610,12 +3610,12 @@ bool RenameTimerReferences(Entity timer_entity, const TimerKey& old_key, const T
 	return RenameTimerReferencesImpl(timer_entity, old_key, new_key);
 }
 
-bool DrawScriptsFeature(EntityInspectorTarget& target) {
-	return DrawScriptsFeatureImpl(target);
+bool DrawScriptsSection(EntityInspectorTarget& target) {
+	return DrawScriptsSectionImpl(target);
 }
 
-bool DrawScriptsFeature(PrefabInspectorTarget& target) {
-	return DrawScriptsFeatureImpl(target);
+bool DrawScriptsSection(PrefabInspectorTarget& target) {
+	return DrawScriptsSectionImpl(target);
 }
 
 } // namespace ptgn::editor::inspector

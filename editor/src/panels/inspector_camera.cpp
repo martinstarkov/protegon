@@ -1,4 +1,4 @@
-#include "panels/inspector_features.h"
+#include "panels/inspector_archetype_inspector.h"
 
 namespace ptgn::editor::inspector {
 
@@ -156,23 +156,32 @@ bool DrawCameraParentRenderTarget(Target& target) {
 }
 
 template <typename Target>
-bool DrawCameraFeatureImpl(Target& target) {
-	if (!HasCameraFeature(target)) {
+bool DrawCameraSectionImpl(Target& target) {
+	if (!HasCameraSection(target)) {
 		return false;
 	}
 
-	const auto header{ DrawFeatureHeader(
-		target, InspectorFeature::Camera, "Camera", ImGuiTreeNodeFlags_DefaultOpen,
-		CameraFeatureComponents{}, false
+	const bool archetype_owned{ ArchetypeOwnsCamera(ResolveInspectorArchetype(target)) };
+	const auto header{ DrawInspectorSectionHeader(
+		"Camera",
+		"CameraSection",
+		InspectorSectionOptions{
+			.default_open = true,
+			.removable = !archetype_owned,
+		}
 	) };
 
-	if (!header.open) {
-		return header.changed;
+	if (header.remove_requested) {
+		return RemoveComponentSet(target, "Camera", CameraSectionComponents{});
 	}
 
-	ScopedIndent feature_indent;
+	if (!header.open) {
+		return false;
+	}
 
-	bool changed{ header.changed };
+	ScopedIndent section_indent;
+
+	bool changed{ false };
 	changed |= DrawCameraParentRenderTarget(target);
 	changed |= DrawRequiredComponent<Target, ::ptgn::impl::CameraData>(
 		target, "Camera", false, [&target](::ptgn::impl::CameraData& value) {
@@ -195,12 +204,12 @@ bool DrawCameraFeatureImpl(Target& target) {
 
 } // namespace
 
-bool DrawCameraFeature(EntityInspectorTarget& target) {
-	return DrawCameraFeatureImpl(target);
+bool DrawCameraSection(EntityInspectorTarget& target) {
+	return DrawCameraSectionImpl(target);
 }
 
-bool DrawCameraFeature(PrefabInspectorTarget& target) {
-	return DrawCameraFeatureImpl(target);
+bool DrawCameraSection(PrefabInspectorTarget& target) {
+	return DrawCameraSectionImpl(target);
 }
 
 } // namespace ptgn::editor::inspector

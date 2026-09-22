@@ -32,8 +32,6 @@ public:
 			content_right_x_ = cursor.x + std::max(0.0f, ImGui::GetContentRegionAvail().x);
 		}
 
-		// Inspector tab strips already sit directly above their contents. The stock tab-bar
-		// baseline reads as an extra-wide blue rule here, so suppress it only for these strips.
 		ImGui::GetStyle().TabBarBorderSize = 0.0f;
 	}
 
@@ -44,10 +42,6 @@ public:
 			return;
 		}
 
-		// TabBarLayout() calls ItemSize(WidthAllTabs, ...), which otherwise grows the parent
-		// content width to the total width of every tab. Clamp this scope's horizontal layout
-		// contribution to the visible inspector width, while preserving anything that had
-		// already made the inspector wider before the tab strip began.
 		window_->DC.CursorMaxPos.x = std::max(
 			cursor_max_x_before_,
 			std::min(window_->DC.CursorMaxPos.x, content_right_x_)
@@ -57,9 +51,6 @@ public:
 			std::min(window_->DC.IdealMaxPos.x, content_right_x_)
 		);
 
-		// If an earlier frame already produced a horizontal scroll range from the tab bar,
-		// snap the inspector back to its normal X position. The clamped content size above
-		// removes that range on the following layout pass.
 		window_->Scroll.x = 0.0f;
 		ImGui::SetScrollX(window_, 0.0f);
 	}
@@ -105,22 +96,13 @@ inline void ApplyInspectorTabBarHorizontalWheel() {
 	}
 
 	ImGuiIO& io{ ImGui::GetIO() };
-
-	// Claim both wheel axes while hovering the strip. Dear ImGui already does this for its
-	// native horizontal tab scrolling; claiming Y as well keeps a vertical gesture associated
-	// with the tab strip instead of the parent inspector while the pointer remains here.
 	ImGui::SetKeyOwner(ImGuiKey_MouseWheelX, tab_bar->ID);
 	ImGui::SetKeyOwner(ImGuiKey_MouseWheelY, tab_bar->ID);
 
-	// On platforms where Dear ImGui is already swapping vertical wheel input onto X, its native
-	// tab-bar path has handled the gesture. Avoid applying it a second time.
 	if (io.MouseWheelRequestAxisSwap) {
 		return;
 	}
 
-	// Only translate the vertical axis here. Dear ImGui already handles MouseWheelH for a
-	// scrolling tab bar. Handling H again would double-apply real horizontal gestures, and
-	// tiny trackpad X noise is what caused the old end-of-strip left/right oscillation.
 	const float wheel{ io.MouseWheel };
 	if (wheel == 0.0f) {
 		return;
@@ -141,8 +123,6 @@ inline void ApplyInspectorTabBarHorizontalWheel() {
 	};
 	constexpr float edge_epsilon{ 0.5f };
 
-	// Once the requested direction is already against an edge, keep the bar exactly there.
-	// This also kills any residual animation/momentum instead of repeatedly nudging the target.
 	if ((wheel > 0.0f && current <= edge_epsilon) ||
 		(wheel < 0.0f && current >= maximum_scroll - edge_epsilon)) {
 		const float edge{ wheel > 0.0f ? 0.0f : maximum_scroll };
@@ -163,11 +143,63 @@ inline void ApplyInspectorTabBarHorizontalWheel() {
 	tab_bar->ScrollingSpeed = 0.0f;
 	tab_bar->ScrollingTargetDistToVisibility = 0.0f;
 
-	// The parent inspector must never horizontally follow the tab gesture.
 	if (ImGuiWindow* window{ ImGui::GetCurrentWindow() }) {
 		window->Scroll.x = 0.0f;
 		ImGui::SetScrollX(window, 0.0f);
 	}
+}
+
+/// Shared empty-state/tab-strip shell used by all inspector-owned tab collections.
+///
+/// With no items it renders a full-width add button. Once at least one item exists it renders the
+/// supplied tabs plus the trailing + tab. The caller owns the actual add operation/menu so this can
+/// be reused by direct-add collections (script sequences) and popup-add collections (UI parts,
+/// interaction hit areas, etc.).
+struct InspectorTabCollectionOptions {
+	const char* scope_id{ "##InspectorTabCollectionScope" };
+	const char* tab_bar_id{ "##InspectorTabCollection" };
+	const char* add_tab_id{ "+##InspectorTabCollectionAdd" };
+	std::string_view empty_add_label{ "Add Item" };
+	std::string_view add_tooltip{ "Add item" };
+	bool show_add{ true };
+};
+
+template <typename DrawTabs>
+[[nodiscard]] bool DrawInspectorTabCollection(
+	bool empty,
+	const InspectorTabCollectionOptions& options,
+	DrawTabs&& draw_tabs
+) {
+	if (empty) {
+		if (!options.show_add) {
+			return false;
+		}
+
+		const std::string label{ options.empty_add_label };
+		const bool pressed{
+			ImGui::Button(label.c_str(), ImVec2{ -FLT_MIN, ImGui::GetFrameHeight() })
+		};
+		if (!options.add_tooltip.empty() && ImGui::IsItemHovered()) {
+			ImGui::SetTooltip(
+				"%.*s", static_cast<int>(options.add_tooltip.size()), options.add_tooltip.data()
+			);
+		}
+		return pressed;
+	}
+
+	bool add_requested{ false };
+	InspectorTabStripScope strip{ options.scope_id };
+	if (ImGui::BeginTabBar(options.tab_bar_id, InspectorTabBarFlags())) {
+		std::forward<DrawTabs>(draw_tabs)();
+
+		if (options.show_add) {
+			add_requested = DrawInspectorAddTabButton(options.add_tab_id, options.add_tooltip);
+		}
+
+		ApplyInspectorTabBarHorizontalWheel();
+		ImGui::EndTabBar();
+	}
+	return add_requested;
 }
 
 struct InspectorTabContextResult {

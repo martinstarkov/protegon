@@ -1,4 +1,4 @@
-#include "panels/inspector_features.h"
+#include "panels/inspector_archetype_inspector.h"
 #include "panels/inspector_geometry.h"
 #include "panels/rich_text_editor.h"
 
@@ -175,7 +175,7 @@ template <typename T>
 	return T{};
 }
 
-using RendererOwnedComponents = FeatureComponents<
+using RendererOwnedComponents = ComponentSet<
 	Rect, Circle, RoundedRect, Polygon, Ellipse, Triangle, Line, Capsule, Arc, Color, FillStyle,
 	TextureKey, ::ptgn::SpriteStackData, ::ptgn::impl::TextureSize, ::ptgn::impl::TextureCrop,
 	::ptgn::impl::AnimationData, ::ptgn::impl::Offsets, ::ptgn::impl::TextData,
@@ -192,7 +192,7 @@ void ClearRendererOwnedComponent(Target& target) {
 }
 
 template <typename Target, typename... T>
-void ClearRendererOwnedComponents(Target& target, FeatureComponents<T...>) {
+void ClearRendererOwnedComponents(Target& target, ComponentSet<T...>) {
 	(ClearRendererOwnedComponent<Target, T>(target), ...);
 }
 
@@ -296,7 +296,7 @@ void ApplyRendererSelection(Target& target, ComponentState<::ptgn::impl::IDrawab
 	}
 
 	InitializeRendererOwnedComponents(
-		target, NormalizeFeatureName(GetDrawableInspectorLabel(*info))
+		target, NormalizeInspectorName(GetDrawableInspectorLabel(*info))
 	);
 }
 
@@ -320,7 +320,7 @@ RendererRowResult DrawRendererRow(Target& target, bool allow_renderer_change = t
 
 	bool renderer_changed{ false };
 	auto before_renderer{
-		CaptureInspectorFeatureState(target, InspectorFeature::Visual, VisualFeatureComponents{})
+		CaptureComponentSetState(target, VisualSectionComponents{})
 	};
 
 	auto choose_renderer = [&](ComponentState<Drawable> selected) {
@@ -331,9 +331,6 @@ RendererRowResult DrawRendererRow(Target& target, bool allow_renderer_change = t
 		}
 
 		ApplyRendererSelection(target, selected);
-		if (!selected) {
-			SetFeatureManuallyAdded(target.GetFeatureTargetKey(), InspectorFeature::Visual, true);
-		}
 		drawable = target.template Capture<Drawable>();
 		renderer_changed = true;
 	};
@@ -342,7 +339,7 @@ RendererRowResult DrawRendererRow(Target& target, bool allow_renderer_change = t
 	DrawPropertyRow("Renderer", [&]() {
 		std::size_t renderer_popup_items{ 3 };
 		for (const auto& candidate : Drawable::data()) {
-			const std::string visual{ NormalizeFeatureName(GetDrawableInspectorLabel(candidate)) };
+			const std::string visual{ NormalizeInspectorName(GetDrawableInspectorLabel(candidate)) };
 			if (!IsShapeRenderer(visual) && !IsEffectRenderer(visual)) {
 				++renderer_popup_items;
 			}
@@ -375,14 +372,14 @@ RendererRowResult DrawRendererRow(Target& target, bool allow_renderer_change = t
 		};
 
 		for (const auto& candidate : Drawable::data()) {
-			const std::string visual{ NormalizeFeatureName(GetDrawableInspectorLabel(candidate)) };
+			const std::string visual{ NormalizeInspectorName(GetDrawableInspectorLabel(candidate)) };
 			if (!IsShapeRenderer(visual) && !IsEffectRenderer(visual)) {
 				draw_candidate(candidate);
 			}
 		}
 		if (ImGui::BeginMenu("Shapes")) {
 			for (const auto& candidate : Drawable::data()) {
-				const std::string visual{ NormalizeFeatureName(GetDrawableInspectorLabel(candidate)) };
+				const std::string visual{ NormalizeInspectorName(GetDrawableInspectorLabel(candidate)) };
 				if (IsShapeRenderer(visual)) {
 					draw_candidate(candidate);
 				}
@@ -391,7 +388,7 @@ RendererRowResult DrawRendererRow(Target& target, bool allow_renderer_change = t
 		}
 		if (ImGui::BeginMenu("Effects")) {
 			for (const auto& candidate : Drawable::data()) {
-				const std::string visual{ NormalizeFeatureName(GetDrawableInspectorLabel(candidate)) };
+				const std::string visual{ NormalizeInspectorName(GetDrawableInspectorLabel(candidate)) };
 				if (IsEffectRenderer(visual)) {
 					draw_candidate(candidate);
 				}
@@ -405,11 +402,11 @@ RendererRowResult DrawRendererRow(Target& target, bool allow_renderer_change = t
 
 	if (renderer_changed) {
 		auto after_renderer{
-			CaptureInspectorFeatureState(target, InspectorFeature::Visual, VisualFeatureComponents{})
+			CaptureComponentSetState(target, VisualSectionComponents{})
 		};
-		TrackInspectorFeatureState(
-			target, InspectorFeature::Visual, "Change Renderer", std::move(before_renderer),
-			std::move(after_renderer), VisualFeatureComponents{}
+		TrackComponentSetState(
+			target, "Change Renderer", std::move(before_renderer), std::move(after_renderer),
+			VisualSectionComponents{}
 		);
 	}
 
@@ -417,7 +414,7 @@ RendererRowResult DrawRendererRow(Target& target, bool allow_renderer_change = t
 	const auto* selected_info{ drawable ? Drawable::FindInfo(drawable->hash) : nullptr };
 	return RendererRowResult{
 		.visual = primary_scene_target ? "rendertarget"
-			: selected_info ? NormalizeFeatureName(GetDrawableInspectorLabel(*selected_info))
+			: selected_info ? NormalizeInspectorName(GetDrawableInspectorLabel(*selected_info))
 								: std::string{},
 		.changed = renderer_changed,
 	};
@@ -554,7 +551,7 @@ void ForEachTextWrapMode(T& value, bool plain_mode_name, F&& fn) {
 		auto members{ ReflectMembers(value) };
 		auto visit = [&](auto&& member) {
 			using Member = std::remove_cvref_t<decltype(member.value)>;
-			const std::string normalized{ NormalizeFeatureName(member.name) };
+			const std::string normalized{ NormalizeInspectorName(member.name) };
 
 			if constexpr (std::is_enum_v<Member>) {
 				if (normalized == "wrapmode" || (plain_mode_name && normalized == "mode")) {
@@ -595,7 +592,7 @@ void ForEachTextWrapSetting(T& value, bool inside_wrap, F&& fn) {
 		auto members{ ReflectMembers(value) };
 		auto visit = [&](auto&& member) {
 			using Member = std::remove_cvref_t<decltype(member.value)>;
-			const std::string normalized{ NormalizeFeatureName(member.name) };
+			const std::string normalized{ NormalizeInspectorName(member.name) };
 
 			if constexpr (std::same_as<Member, bool>) {
 				if (IsTextWrapSettingName(normalized)) {
@@ -665,7 +662,7 @@ bool DrawTextAlignment(EditorContext& ctx, Alignment& alignment) {
 		auto members{ ReflectMembers(alignment) };
 
 		auto draw_member = [&](auto&& member) {
-			const std::string normalized{ NormalizeFeatureName(member.name) };
+			const std::string normalized{ NormalizeInspectorName(member.name) };
 
 			if (normalized.contains("horizontal")) {
 				changed |= DrawValue(ctx, "Horizontal Align", member.value);
@@ -695,7 +692,7 @@ bool DrawTextShrinkScale(EditorContext& ctx, Shrink& shrink) {
 			using Member = std::remove_cvref_t<decltype(member.value)>;
 
 			if constexpr (std::same_as<Member, float>) {
-				const std::string normalized{ NormalizeFeatureName(member.name) };
+				const std::string normalized{ NormalizeInspectorName(member.name) };
 
 				if (normalized == "min") {
 					minimum = std::addressof(member.value);
@@ -758,7 +755,7 @@ bool DrawTextBoxAdditionalStyle(EditorContext& ctx, Style& style) {
 		auto members{ ReflectMembers(style) };
 
 		auto draw_member = [&](auto&& member) {
-			const std::string normalized{ NormalizeFeatureName(member.name) };
+			const std::string normalized{ NormalizeInspectorName(member.name) };
 
 			if (normalized == "alignment") {
 				changed |= DrawTextAlignment(ctx, member.value);
@@ -821,7 +818,7 @@ template <std::size_t I, typename Target, typename TextData>
 bool DrawTextBoxMember(Target& target, TextData& text_data, auto& box) {
 	using Box = std::remove_cvref_t<decltype(box)>;
 	bool changed{ false };
-	auto& editor_state{ GetManualFeatureState(target.GetFeatureTargetKey()) };
+	auto& editor_state{ GetInspectorUiState(target.GetInspectorTargetKey()) };
 
 	bool box_has_non_default_data{ false };
 
@@ -876,7 +873,7 @@ bool DrawTextBoxMember(Target& target, TextData& text_data, auto& box) {
 	auto box_members{ ReflectMembers(box) };
 
 	auto draw_box_member = [&](auto&& box_member) {
-		const std::string box_name{ NormalizeFeatureName(box_member.name) };
+		const std::string box_name{ NormalizeInspectorName(box_member.name) };
 
 		if (box_name == "rect") {
 			using BoxMember = std::remove_cvref_t<decltype(box_member.value)>;
@@ -901,7 +898,7 @@ bool DrawTextBoxMember(Target& target, TextData& text_data, auto& box) {
 									std::same_as<
 										std::remove_cvref_t<decltype(candidate.value)>, Rect>
 								) {
-									if (NormalizeFeatureName(candidate.name) == "rect") {
+									if (NormalizeInspectorName(candidate.name) == "rect") {
 										result = std::addressof(candidate.value);
 									}
 								}
@@ -948,7 +945,7 @@ template <std::size_t I, typename Target, typename TextData>
 bool DrawTextPrimaryMember(Target& target, TextData& text_data) {
 	auto members{ ReflectMembers(text_data) };
 	auto& member{ std::get<I>(members) };
-	const std::string normalized{ NormalizeFeatureName(member.name) };
+	const std::string normalized{ NormalizeInspectorName(member.name) };
 
 	if (normalized == "text" || normalized == "content" || normalized == "defaults" ||
 		normalized.contains("richtextsource")) {
@@ -1005,7 +1002,7 @@ bool DrawTextClipMember(Target& target, ::ptgn::impl::TextData& text_data, Clip&
 	auto members{ ReflectMembers(clip) };
 	auto& member{ std::get<InnerIndex>(members) };
 	using Member = std::remove_cvref_t<decltype(member.value)>;
-	const std::string normalized{ NormalizeFeatureName(member.name) };
+	const std::string normalized{ NormalizeInspectorName(member.name) };
 
 	if constexpr (std::same_as<Member, Rect>) {
 		if (normalized.contains("rect")) {
@@ -1045,7 +1042,7 @@ template <std::size_t I, typename Target>
 bool DrawTextAdditionalMember(Target& target, ::ptgn::impl::TextData& text_data) {
 	auto members{ ReflectMembers(text_data) };
 	auto& member{ std::get<I>(members) };
-	const std::string normalized{ NormalizeFeatureName(member.name) };
+	const std::string normalized{ NormalizeInspectorName(member.name) };
 
 	if (!normalized.contains("glyph") && !normalized.contains("clip")) {
 		return false;
@@ -1174,7 +1171,7 @@ bool DrawFlattenedConfig(EditorContext& ctx, T& value) {
 		auto draw_member = [&](auto&& member) {
 			ScopedID member_scope{ static_cast<const void*>(std::addressof(member.value)) };
 			using Member = std::remove_cvref_t<decltype(member.value)>;
-			const std::string normalized{ NormalizeFeatureName(member.name) };
+			const std::string normalized{ NormalizeInspectorName(member.name) };
 
 			if (normalized == "config" || normalized == "data") {
 				if constexpr (
@@ -1243,7 +1240,7 @@ float GetShapeRadiusLimit(const T& value) {
 
 		auto inspect_member = [&](auto&& member) {
 			using Member = std::remove_cvref_t<decltype(member.value)>;
-			const std::string normalized{ NormalizeFeatureName(member.name) };
+			const std::string normalized{ NormalizeInspectorName(member.name) };
 
 			if (normalized.contains("radius") || normalized.contains("radii")) {
 				if constexpr (
@@ -1281,7 +1278,7 @@ float GetShapeSizeLimit(const T& value) {
 
 		auto inspect_member = [&](auto&& member) {
 			using Member = std::remove_cvref_t<decltype(member.value)>;
-			const std::string normalized{ NormalizeFeatureName(member.name) };
+			const std::string normalized{ NormalizeInspectorName(member.name) };
 
 			if constexpr (std::same_as<Member, Rect>) {
 				limit = std::max(limit, GetShapeSizeLimit(member.value));
@@ -1324,7 +1321,7 @@ float GetEllipseLineWidthLimit(const T& value) {
 
 		auto inspect = [&](auto&& member) {
 			using Member = std::remove_cvref_t<decltype(member.value)>;
-			const std::string normalized{ NormalizeFeatureName(member.name) };
+			const std::string normalized{ NormalizeInspectorName(member.name) };
 
 			if constexpr (std::same_as<Member, V2_float>) {
 				if (normalized.contains("radius") || normalized.contains("radii")) {
@@ -2068,13 +2065,13 @@ template <typename Target>
 bool DrawSpriteAnimationInline(Target& target) {
 	using AnimationData = ::ptgn::impl::AnimationData;
 	using TextureCrop = ::ptgn::impl::TextureCrop;
-	using Components = FeatureComponents<AnimationData, TextureCrop>;
+	using Components = ComponentSet<AnimationData, TextureCrop>;
 	constexpr Components components{};
 
 	if constexpr (!Target::template Supports<AnimationData>()) {
 		return false;
 	} else {
-		auto before{ CaptureInspectorFeatureState(target, InspectorFeature::Visual, components) };
+		auto before{ CaptureComponentSetState(target, components) };
 		const auto before_animation{ target.template Capture<AnimationData>() };
 		bool enabled{ before_animation.has_value() };
 		bool open{ false };
@@ -2132,9 +2129,9 @@ bool DrawSpriteAnimationInline(Target& target) {
 		if (!changed) {
 			return false;
 		}
-		auto after{ CaptureInspectorFeatureState(target, InspectorFeature::Visual, components) };
-		TrackInspectorFeatureState(
-			target, InspectorFeature::Visual,
+		auto after{ CaptureComponentSetState(target, components) };
+		TrackComponentSetState(
+			target,
 			toggle_changed ? (enabled ? "Enable Animation" : "Disable Animation") : "Edit Animation",
 			std::move(before), std::move(after), components
 		);
@@ -2622,7 +2619,7 @@ bool DrawButtonChildStateVisualComponent(
 
 
 template <typename Target>
-bool DrawButtonChildStateVisualFeatureImpl(
+bool DrawButtonChildStateVisualSectionImpl(
 	Target& target, const ButtonChildInfo& child_info, ButtonVisualState state
 ) {
 	switch (child_info.part) {
@@ -2800,158 +2797,40 @@ bool DrawButtonChildStateVisualFeatureImpl(
 }
 
 template <typename Target>
-bool AddSpriteAnimationFeatureImpl(Target& target) {
-	using AnimationData = ::ptgn::impl::AnimationData;
-	using TextureCrop = ::ptgn::impl::TextureCrop;
-	using Components = FeatureComponents<AnimationData, TextureCrop>;
-	constexpr Components components{};
-
-	if constexpr (!Target::template Supports<AnimationData>()) {
-		return false;
-	} else {
-		if (target.template Capture<AnimationData>()) {
-			return false;
-		}
-
-		auto before{ CaptureInspectorFeatureState(target, InspectorFeature::Visual, components) };
-		AnimationData animation{};
-		if (const auto layout{ ResolveDetectedAnimationTextureLayout(target) }) {
-			animation.config.frame_count = layout->frame_count;
-			animation.config.frame_size.reset();
-			animation.SetAutomaticRowCount(layout->row_count);
-		}
-		const auto texture_size{ ResolveAnimationTextureSize(target) };
-		animation.frame_dirty = true;
-		target.template SetLive<AnimationData>(animation);
-
-		if constexpr (Target::template Supports<TextureCrop>()) {
-			TextureCrop crop{};
-			crop.Update(animation, texture_size);
-			target.template SetLive<TextureCrop>(crop);
-		}
-
-		auto after{ CaptureInspectorFeatureState(target, InspectorFeature::Visual, components) };
-		TrackInspectorFeatureState(
-			target, InspectorFeature::Visual, "Add Animation", std::move(before),
-			std::move(after), components
-		);
-		return true;
-	}
-}
-
-template <typename Target>
-bool DrawSpriteAnimationFeatureImpl(Target& target) {
-	using AnimationData = ::ptgn::impl::AnimationData;
-	using TextureCrop = ::ptgn::impl::TextureCrop;
-	using Components = FeatureComponents<AnimationData, TextureCrop>;
-	constexpr Components components{};
-
-	if constexpr (!Target::template Supports<AnimationData>()) {
-		return false;
-	} else {
-		const auto before_animation{ target.template Capture<AnimationData>() };
-		if (!before_animation) {
-			return false;
-		}
-
-		const auto header{ DrawInspectorSectionHeader(
-			"Animation", "SpriteAnimationFeature",
-			InspectorSectionOptions{
-				.default_open = false,
-				.removable = true,
-				.resettable = true,
-			}
-		) };
-
-		auto before{ CaptureInspectorFeatureState(target, InspectorFeature::Visual, components) };
-		bool changed{ false };
-
-		if (header.remove_requested) {
-			(void)SetDisabledAnimationFallbackCrop(target, *before_animation);
-			target.template SetLive<AnimationData>(std::nullopt);
-			changed = true;
-		} else {
-			AnimationData animation{ *before_animation };
-			if (header.reset_requested) {
-				animation = AnimationData{};
-				if (const auto layout{ ResolveDetectedAnimationTextureLayout(target) }) {
-					animation.config.frame_count = layout->frame_count;
-					animation.config.frame_size.reset();
-					animation.SetAutomaticRowCount(layout->row_count);
-				}
-				animation.frame_dirty = true;
-				changed = true;
-			} else if (header.open) {
-				ScopedIndent indent;
-				const std::size_t previous_frame_count{ animation.config.frame_count };
-				const auto detected_layout{ ResolveDetectedAnimationTextureLayout(target) };
-				const auto texture_size{ ResolveAnimationTextureSize(target) };
-				changed |= DrawAnimationDataFlattened(
-					target.ctx, animation, detected_layout, texture_size
-				);
-				if (previous_frame_count != animation.config.frame_count) {
-					animation.current_frame = animation.config.frame_count == 0
-						? 0
-						: animation.current_frame % animation.config.frame_count;
-					animation.frame_dirty = true;
-					changed = true;
-				}
-			}
-
-			if (changed) {
-				const auto texture_size{ ResolveAnimationTextureSize(target) };
-				target.template SetLive<AnimationData>(animation);
-				if constexpr (Target::template Supports<TextureCrop>()) {
-					TextureCrop crop{ target.template Capture<TextureCrop>().value_or(TextureCrop{}) };
-					crop.Update(animation, texture_size);
-					target.template SetLive<TextureCrop>(crop);
-				}
-			}
-		}
-
-		if (!changed) {
-			return false;
-		}
-
-		auto after{ CaptureInspectorFeatureState(target, InspectorFeature::Visual, components) };
-		TrackInspectorFeatureState(
-			target, InspectorFeature::Visual,
-			header.remove_requested ? "Remove Animation"
-				: header.reset_requested ? "Reset Animation" : "Edit Animation",
-			std::move(before), std::move(after), components
-		);
-		return true;
-	}
-}
-
-template <typename Target>
-bool DrawVisualFeatureImpl(
+bool DrawVisualSectionImpl(
 	Target& target, bool draw_header = true, bool allow_renderer_change = true,
 	std::string_view header_label = "Visual"
 ) {
 	if (const auto child_info{ GetButtonChildInfo(target) }) {
 		if (const auto state{ GetButtonVisualEditState(target) }) {
-			return DrawButtonChildStateVisualFeatureImpl(target, *child_info, *state);
+			return DrawButtonChildStateVisualSectionImpl(target, *child_info, *state);
 		}
 	}
 
-	if (!HasVisualFeature(target)) {
+	if (!HasVisualSection(target)) {
 		return false;
 	}
 
 	const bool primary_scene_target{ IsPrimarySceneRenderTarget(target) };
-	FeatureHeaderResult header{ .open = true, .changed = false };
+	const bool owned_by_archetype{ ArchetypeOwnsVisual(ResolveInspectorArchetype(target)) };
+	InspectorSectionResult header{ .open = true };
 
 	if (draw_header) {
-		header = DrawFeatureHeader(
-			target, InspectorFeature::Visual, header_label, ImGuiTreeNodeFlags_DefaultOpen,
-			VisualFeatureComponents{}, false
+		header = DrawInspectorSectionHeader(
+			header_label, "VisualSection",
+			InspectorSectionOptions{
+				.default_open = true,
+				.removable = !primary_scene_target && !owned_by_archetype,
+			}
 		);
+		if (header.remove_requested) {
+			return RemoveComponentSet(target, header_label, VisualSectionComponents{});
+		}
 	} else {
 		ImGui::SeparatorText(header_label.data());
 	}
 
-	bool changed{ header.changed };
+	bool changed{ false };
 	const RendererRowResult renderer{ DrawRendererRow(target, allow_renderer_change && header.open) };
 	const std::string& visual{ renderer.visual };
 	changed |= renderer.changed;
@@ -2963,9 +2842,9 @@ bool DrawVisualFeatureImpl(
 		visual == "spritestack" || visual.contains("sprite") || visual.contains("text")
 	};
 
-	std::optional<ScopedIndent> feature_indent;
+	std::optional<ScopedIndent> section_indent;
 	if (draw_header && header.open) {
-		feature_indent.emplace();
+		section_indent.emplace();
 	}
 
 	if (header.open) {
@@ -3067,7 +2946,7 @@ bool DrawVisualFeatureImpl(
 	}
 
 	// Rendering is a sibling authoring section, not part of the archetype's own tree node.
-	feature_indent.reset();
+	section_indent.reset();
 	changed |= DrawRenderingOptions(target, draw_tint);
 	return changed;
 }
@@ -3075,40 +2954,26 @@ bool DrawVisualFeatureImpl(
 
 } // namespace
 
-bool AddSpriteAnimationFeature(EntityInspectorTarget& target) {
-	return AddSpriteAnimationFeatureImpl(target);
-}
 
-bool AddSpriteAnimationFeature(PrefabInspectorTarget& target) {
-	return AddSpriteAnimationFeatureImpl(target);
-}
 
-bool DrawSpriteAnimationFeature(EntityInspectorTarget& target) {
-	return DrawSpriteAnimationFeatureImpl(target);
-}
-
-bool DrawSpriteAnimationFeature(PrefabInspectorTarget& target) {
-	return DrawSpriteAnimationFeatureImpl(target);
-}
-
-bool DrawVisualFeature(
+bool DrawVisualSection(
 	EntityInspectorTarget& target, bool draw_header, bool allow_renderer_change,
 	std::string_view header_label
 ) {
-	return DrawVisualFeatureImpl(target, draw_header, allow_renderer_change, header_label);
+	return DrawVisualSectionImpl(target, draw_header, allow_renderer_change, header_label);
 }
 
-bool DrawVisualFeature(
+bool DrawVisualSection(
 	PrefabInspectorTarget& target, bool draw_header, bool allow_renderer_change,
 	std::string_view header_label
 ) {
-	return DrawVisualFeatureImpl(target, draw_header, allow_renderer_change, header_label);
+	return DrawVisualSectionImpl(target, draw_header, allow_renderer_change, header_label);
 }
 
-bool DrawButtonChildStateVisualFeature(
+bool DrawButtonChildStateVisualSection(
 	EntityInspectorTarget& target, const ButtonChildInfo& child_info, ButtonVisualState state
 ) {
-	return DrawButtonChildStateVisualFeatureImpl(target, child_info, state);
+	return DrawButtonChildStateVisualSectionImpl(target, child_info, state);
 }
 
 bool DrawSpritePrimary(EntityInspectorTarget& target) {

@@ -1,4 +1,4 @@
-#include "panels/inspector_features.h"
+#include "panels/inspector_archetype_inspector.h"
 
 #include <algorithm>
 #include <string>
@@ -114,13 +114,13 @@ bool SetInteractionMode(Target& target, InteractionMode mode) {
 		return false;
 	}
 
-	using Components = FeatureComponents<
+	using Components = ComponentSet<
 		::ptgn::impl::Interactive,
 		::ptgn::impl::Draggable,
 		::ptgn::impl::Dropzone
 	>;
 	constexpr Components components{};
-	auto before{ CaptureInspectorFeatureState(target, InspectorFeature::Interaction, components) };
+	auto before{ CaptureComponentSetState(target, components) };
 
 	if (!target.template Capture<::ptgn::impl::Interactive>()) {
 		target.template SetLive<::ptgn::impl::Interactive>(::ptgn::impl::Interactive{});
@@ -133,26 +133,21 @@ bool SetInteractionMode(Target& target, InteractionMode mode) {
 	} else if (mode == InteractionMode::Dropzone) {
 		target.template SetLive<::ptgn::impl::Dropzone>(::ptgn::impl::Dropzone{});
 	}
-	SetFeatureManuallyAdded(target.GetFeatureTargetKey(), InspectorFeature::Interaction, true);
-
-	auto after{ CaptureInspectorFeatureState(target, InspectorFeature::Interaction, components) };
-	TrackInspectorFeatureState(
-		target, InspectorFeature::Interaction, "Change Interaction Mode", std::move(before),
-		std::move(after), components
+		auto after{ CaptureComponentSetState(target, components) };
+	TrackComponentSetState(
+		target, "Change Interaction Mode", std::move(before), std::move(after), components
 	);
 	return true;
 }
 
 template <typename Target>
-bool RemoveInteractionFeature(Target& target) {
-	using Components = FeatureComponents<
+bool RemoveInteractionSection(Target& target) {
+	using Components = ComponentSet<
 		::ptgn::impl::Interactive,
 		::ptgn::impl::Draggable,
 		::ptgn::impl::Dropzone
 	>;
-	return DeleteInspectorFeature(
-		target, InspectorFeature::Interaction, "Interaction", Components{}
-	);
+	return RemoveComponentSet(target, "Interaction", Components{});
 }
 
 template <typename T>
@@ -235,80 +230,106 @@ bool DrawManagedInteractiveShapes(EntityInspectorTarget& target) {
 	auto shapes{ GetInteractiveShapes(target.entity) };
 	static RenameModalState rename_state{};
 	static Entity rename_entity{};
+	Entity remove_after_tabs{};
 
 	ImGui::SeparatorText("Hit Areas");
-	InspectorTabStripScope strip{ "##InteractionHitAreaStrip" };
-	if (ImGui::BeginTabBar("##InteractionHitAreas", InspectorTabBarFlags())) {
-		for (std::size_t index{ 0 }; index < shapes.size(); ++index) {
-			Entity shape{ shapes[index] };
-			if (!shape) {
-				continue;
+
+	const bool add_requested{ DrawInspectorTabCollection(
+		shapes.empty(),
+		InspectorTabCollectionOptions{
+			.scope_id = "##InteractionHitAreaStrip",
+			.tab_bar_id = "##InteractionHitAreas",
+			.add_tab_id = "+##AddInteractionHitArea",
+			.empty_add_label = "Add Hit Area",
+			.add_tooltip = "Add hit area",
+		},
+		[&]() {
+			for (std::size_t index{ 0 }; index < shapes.size(); ++index) {
+				Entity shape{ shapes[index] };
+				if (!shape) {
+					continue;
+				}
+
+				ScopedID shape_scope{ static_cast<int>(index) };
+				const std::string label{ InteractiveShapeLabel(shape, index) };
+				const bool open{ ImGui::BeginTabItem(label.c_str()) };
+				const auto context{ DrawInspectorTabContextMenu(
+					"##HitAreaContext", true, false, true, "Remove Hit Area"
+				) };
+
+				if (context.rename_requested) {
+					rename_entity = shape;
+					rename_state.Begin(label);
+				}
+				if (context.remove_requested) {
+					// Never destroy the entity while its tab item is open. Doing so can invalidate
+					// `shape` before EndTabItem(), leaving Dear ImGui's tab/ID stacks unbalanced.
+					remove_after_tabs = shape;
+				}
+
+				if (open) {
+					if (shape && shape != remove_after_tabs) {
+						EntityInspectorTarget child_target{ .ctx = target.ctx, .entity = shape };
+						if (shape.Has<Rect>()) {
+							changed |= EditComponent<EntityInspectorTarget, Rect>(
+								child_target, "Edit Interactive Rectangle", [&target](Rect& value) {
+									return DrawRegisteredComponentContents(
+										target.ctx, Hash<Rect>(), std::addressof(value)
+									);
+								}
+							);
+						} else if (shape.Has<Circle>()) {
+							changed |= EditComponent<EntityInspectorTarget, Circle>(
+								child_target, "Edit Interactive Circle", [&target](Circle& value) {
+									return DrawRegisteredComponentContents(
+										target.ctx, Hash<Circle>(), std::addressof(value)
+									);
+								}
+							);
+						}
+						changed |= DrawTransformSection(child_target, false, false, false);
+					}
+
+					// BeginTabItem() returning true must always be paired with EndTabItem(), even
+					// when the context menu requested removal this frame.
+					ImGui::EndTabItem();
+				}
 			}
-			ImGui::PushID(static_cast<int>(index));
-			const std::string label{ InteractiveShapeLabel(shape, index) };
-			const bool open{ ImGui::BeginTabItem(label.c_str()) };
-			const auto context{ DrawInspectorTabContextMenu(
-				"##HitAreaContext", true, false, true, "Remove Hit Area"
-			) };
-			if (context.rename_requested) {
-				rename_entity = shape;
-				rename_state.Begin(label);
-			}
-			if (context.remove_requested) {
-				target.ctx.commands.DeleteEntity(shape);
+		}
+	) };
+
+	if (add_requested) {
+		ImGui::OpenPopup("##AddInteractionHitAreaPopup");
+	}
+	if (ImGui::BeginPopup("##AddInteractionHitAreaPopup")) {
+		if (ImGui::MenuItem("Rectangle")) {
+			const EditorSelection before_selection{ target.ctx.local.selection };
+			Entity created{ CreateManagedInteractiveShape(target.entity, false) };
+			if (created) {
+				(void)target.ctx.commands.RecordCreatedEntity(created, before_selection);
+				target.ctx.local.selection = before_selection;
 				changed = true;
 			}
-			if (open && shape) {
-				EntityInspectorTarget child_target{ .ctx = target.ctx, .entity = shape };
-				if (shape.Has<Rect>()) {
-					changed |= EditComponent<EntityInspectorTarget, Rect>(
-						child_target, "Edit Interactive Rectangle", [&target](Rect& value) {
-							return DrawRegisteredComponentContents(
-								target.ctx, Hash<Rect>(), std::addressof(value)
-							);
-						}
-					);
-				} else if (shape.Has<Circle>()) {
-					changed |= EditComponent<EntityInspectorTarget, Circle>(
-						child_target, "Edit Interactive Circle", [&target](Circle& value) {
-							return DrawRegisteredComponentContents(
-								target.ctx, Hash<Circle>(), std::addressof(value)
-							);
-						}
-					);
-				}
-				changed |= DrawTransformFeature(child_target, false, false, false);
-				ImGui::EndTabItem();
-			}
-			ImGui::PopID();
 		}
+		if (ImGui::MenuItem("Circle")) {
+			const EditorSelection before_selection{ target.ctx.local.selection };
+			Entity created{ CreateManagedInteractiveShape(target.entity, true) };
+			if (created) {
+				(void)target.ctx.commands.RecordCreatedEntity(created, before_selection);
+				target.ctx.local.selection = before_selection;
+				changed = true;
+			}
+		}
+		ImGui::EndPopup();
+	}
 
-		if (DrawInspectorAddTabButton("+##AddInteractionHitArea", "Add hit area")) {
-			ImGui::OpenPopup("##AddInteractionHitAreaPopup");
+	if (remove_after_tabs) {
+		if (rename_entity == remove_after_tabs) {
+			rename_entity = {};
+			rename_state.Cancel();
 		}
-		if (ImGui::BeginPopup("##AddInteractionHitAreaPopup")) {
-			if (ImGui::MenuItem("Rectangle")) {
-				const EditorSelection before_selection{ target.ctx.local.selection };
-				Entity created{ CreateManagedInteractiveShape(target.entity, false) };
-				if (created) {
-					(void)target.ctx.commands.RecordCreatedEntity(created, before_selection);
-					target.ctx.local.selection = before_selection;
-					changed = true;
-				}
-			}
-			if (ImGui::MenuItem("Circle")) {
-				const EditorSelection before_selection{ target.ctx.local.selection };
-				Entity created{ CreateManagedInteractiveShape(target.entity, true) };
-				if (created) {
-					(void)target.ctx.commands.RecordCreatedEntity(created, before_selection);
-					target.ctx.local.selection = before_selection;
-					changed = true;
-				}
-			}
-			ImGui::EndPopup();
-		}
-		ApplyInspectorTabBarHorizontalWheel();
-		ImGui::EndTabBar();
+		target.ctx.commands.DeleteEntity(remove_after_tabs);
+		changed = true;
 	}
 
 	if (rename_state.active) {
@@ -333,14 +354,14 @@ bool DrawManagedInteractiveShapes(EntityInspectorTarget& target) {
 }
 
 template <typename Target>
-bool DrawInteractionFeatureImpl(Target& target) {
-	if (!HasInteractionFeature(target)) {
+bool DrawInteractionSectionImpl(Target& target) {
+	if (!HasInteractionSection(target)) {
 		return false;
 	}
 
 	const auto header{ DrawInspectorSectionHeader(
 		"Interaction",
-		"InteractionFeature",
+		"InteractionSection",
 		InspectorSectionOptions{
 			.default_open = true,
 			.removable = true,
@@ -350,13 +371,13 @@ bool DrawInteractionFeatureImpl(Target& target) {
 
 	bool changed{ false };
 	if (header.remove_requested) {
-		return RemoveInteractionFeature(target);
+		return RemoveInteractionSection(target);
 	}
 	if (!header.open) {
 		return false;
 	}
 
-	ScopedIndent feature_indent;
+	ScopedIndent section_indent;
 	InteractionMode mode{ GetInteractionMode(target) };
 	if (mode == InteractionMode::Conflict) {
 		ImGui::TextColored(
@@ -440,12 +461,12 @@ bool DrawInteractionFeatureImpl(Target& target) {
 
 } // namespace
 
-bool DrawInteractionFeature(EntityInspectorTarget& target) {
-	return DrawInteractionFeatureImpl(target);
+bool DrawInteractionSection(EntityInspectorTarget& target) {
+	return DrawInteractionSectionImpl(target);
 }
 
-bool DrawInteractionFeature(PrefabInspectorTarget& target) {
-	return DrawInteractionFeatureImpl(target);
+bool DrawInteractionSection(PrefabInspectorTarget& target) {
+	return DrawInteractionSectionImpl(target);
 }
 
 } // namespace ptgn::editor::inspector

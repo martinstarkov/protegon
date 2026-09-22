@@ -20,7 +20,7 @@
 #include "editor/editor_context.h"
 #include "editor/editor_selection.h"
 #include "core/util/hash.h"
-#include "panels/inspector_feature_helpers.h"
+#include "panels/inspector_helpers.h"
 #include "panels/inspector_fields.h"
 #include "panels/inspector_component_drawers.h"
 #include "runtime/asset/asset_manager.h"
@@ -45,13 +45,13 @@ namespace ptgn::editor::inspector {
 template <typename T>
 using ComponentState = std::optional<T>;
 
-struct FeatureTargetKey {
+struct InspectorTargetKey {
 	const Scene* scene{ nullptr };
 	std::optional<UUID> entity{};
 	std::optional<PrefabKey> prefab{};
 	SerializedEntityPath prefab_entity_path{};
 
-	bool operator==(const FeatureTargetKey&) const = default;
+	bool operator==(const InspectorTargetKey&) const = default;
 };
 
 template <typename T>
@@ -229,8 +229,8 @@ struct EntityInspectorTarget {
 		return std::addressof(entity.Get<UUID>());
 	}
 
-	[[nodiscard]] FeatureTargetKey GetFeatureTargetKey() const {
-		return FeatureTargetKey{
+	[[nodiscard]] InspectorTargetKey GetInspectorTargetKey() const {
+		return InspectorTargetKey{
 			.scene	= std::addressof(entity.GetScene()),
 			.entity = entity.Get<UUID>(),
 		};
@@ -360,8 +360,8 @@ struct PrefabInspectorTarget {
 		return std::addressof(prefab);
 	}
 
-	[[nodiscard]] FeatureTargetKey GetFeatureTargetKey() const {
-		return FeatureTargetKey{
+	[[nodiscard]] InspectorTargetKey GetInspectorTargetKey() const {
+		return InspectorTargetKey{
 			.prefab = key,
 			.prefab_entity_path = entity_path,
 		};
@@ -801,17 +801,6 @@ bool DrawOptionalValue(Target& target, std::string_view label, FieldOptions opti
 		return DrawValue(target.ctx, label, value, options);
 	});
 }
-
-template <typename T, typename Target>
-bool AddFeature(Target& target, std::string_view label) {
-	if (target.template Capture<T>()) {
-		return false;
-	}
-	return SetComponentStateUndoable<Target, T>(
-		target, std::string{ "Add " } + std::string{ label }, ComponentState<T>{ T{} }
-	);
-}
-
 
 template <typename Target>
 bool DrawName(Target& target) {

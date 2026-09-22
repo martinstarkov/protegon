@@ -1,6 +1,6 @@
 #pragma once
 
-#include "panels/inspector_features.h"
+#include "panels/inspector_archetype_inspector.h"
 
 namespace ptgn::editor::inspector {
 
@@ -341,7 +341,7 @@ bool DrawGeometryValue(
 	using Type = std::remove_cvref_t<Value>;
 
 	if constexpr (std::same_as<Type, V2_float>) {
-		const std::string normalized{ NormalizeFeatureName(label) };
+		const std::string normalized{ NormalizeInspectorName(label) };
 		if constexpr (std::same_as<std::remove_cvref_t<Component>, Ellipse>) {
 			return DrawWHValue(
 				label, value, kInspectorSizeDragSpeed, 0.0f, FLT_MAX, "%.3f",
@@ -388,7 +388,7 @@ bool DrawGeometryValue(
 			std::same_as<std::remove_cvref_t<Component>, Collider> &&
 			std::integral<typename Type::value_type>
 		) {
-			const std::string normalized{ NormalizeFeatureName(label) };
+			const std::string normalized{ NormalizeInspectorName(label) };
 
 			if (normalized.contains("collideswith")) {
 				return DrawColliderMaskList(value);
@@ -456,7 +456,7 @@ bool DrawGeometryValue(
 			std::make_index_sequence<std::variant_size_v<Type>>{}
 		);
 	} else if constexpr (std::integral<Type>) {
-		const std::string normalized{ NormalizeFeatureName(label) };
+		const std::string normalized{ NormalizeInspectorName(label) };
 
 		if constexpr (std::same_as<std::remove_cvref_t<Component>, Collider>) {
 			if (normalized == "mask") {
@@ -474,7 +474,7 @@ bool DrawGeometryValue(
 
 		return DrawValue(target.ctx, label, value);
 	} else if constexpr (std::same_as<Type, float>) {
-		const std::string normalized{ NormalizeFeatureName(label) };
+		const std::string normalized{ NormalizeInspectorName(label) };
 		if (normalized.contains("radius") || normalized.contains("radii")) {
 			return DrawRValue(
 				label, value, 0.1f, 0.0f, FLT_MAX, "%.3f",

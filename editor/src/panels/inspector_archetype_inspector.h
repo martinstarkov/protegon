@@ -40,7 +40,7 @@
 #include "editor/editor_context.h"
 #include "editor/renamable_item.h"
 #include "panels/entity_filter_editor.h"
-#include "panels/inspector_feature_helpers.h"
+#include "panels/inspector_helpers.h"
 #include "panels/inspector_archetypes.h"
 #include "panels/inspector_layout.h"
 #include "panels/inspector_tabs.h"
@@ -113,64 +113,8 @@ inline void DrawDisabledWrappedText(std::string_view text) {
 	ImGui::PopTextWrapPos();
 	ImGui::PopStyleColor();
 }
-enum class InspectorFeature : std::uint8_t {
-	Transform,
-	Visual,
-	Interaction,
-	Physics,
-	UI,
-	Camera,
-	Scripts,
-	Utilities,
-	Count,
-};
-
-template <typename... T>
-struct FeatureComponents {};
-
-using TransformFeatureComponents = FeatureComponents<
-	Transform, Depth, ::ptgn::impl::IgnoreParentTransform, ::ptgn::impl::IgnoreParentPosition,
-	::ptgn::impl::IgnoreParentRotation, ::ptgn::impl::IgnoreParentScale,
-	::ptgn::impl::IgnoreParentDepth>;
-
-using VisualFeatureComponents = FeatureComponents<
-	::ptgn::impl::IDrawable, Visible, ::ptgn::impl::IgnoreParentVisibility, Origin, BlendMode, Rect,
-	Circle, RoundedRect, Polygon, Ellipse, Triangle, Line, Capsule, Arc, Color, FillStyle,
-	TextureKey, ::ptgn::impl::TextureSize, ::ptgn::impl::TextureCrop, ::ptgn::impl::AnimationData,
-	::ptgn::SpriteStackData, ::ptgn::impl::Offsets, Tint, ::ptgn::impl::IgnoreParentTint,
-	::ptgn::impl::TextData, ::ptgn::impl::ParticleEmitterData, LightData,
-	::ptgn::impl::ShadowCaster, ::ptgn::impl::GraphicsData, ::ptgn::Material, ShaderKey,
-	::ptgn::impl::RenderTargetDesc, ::ptgn::impl::RenderMask, ::ptgn::impl::UILayer,
-	::ptgn::impl::EffectTag, ::ptgn::impl::HDREffectTag, EffectMargin, Bloom, Blur, GaussianBlur,
-	::ptgn::impl::ClearColor, ::ptgn::impl::ClearDepth, ::ptgn::impl::ClearStencil>;
-
-using InteractionFeatureComponents = FeatureComponents<
-	::ptgn::impl::Interactive, ::ptgn::impl::Draggable, ::ptgn::impl::Dropzone, InteractionLock,
-	::ptgn::impl::InteractiveTag>;
-
-using PhysicsFeatureComponents = FeatureComponents<
-	Collider, RigidBody, ::ptgn::impl::IgnoreParentImmovable, BoundaryBehavior, TopDownMovement,
-	PlatformerMovement, PlatformerJump>;
-
-using UIFeatureComponents = FeatureComponents<
-	::ptgn::impl::ButtonData, ::ptgn::impl::ButtonAnimationPart, ButtonBackgroundVisuals,
-	ButtonBorderVisuals, ButtonSpriteVisuals, ButtonTextVisuals, ButtonSounds,
-	::ptgn::impl::SliderData, ::ptgn::impl::ToggleButtonData, ::ptgn::impl::ToggleButtonGroupData,
-	::ptgn::impl::ToggleButtonGroupItem, ::ptgn::impl::DropdownData, ::ptgn::impl::DropdownItem,
-	::ptgn::impl::DialogueData, ::ptgn::impl::DialoguePart,
-	::ptgn::impl::TooltipData, ::ptgn::impl::TooltipHoverData, ::ptgn::impl::TooltipBackgroundPart,
-	::ptgn::impl::TooltipTextPart>;
-
-using CameraFeatureComponents = FeatureComponents<
-	::ptgn::impl::CameraData, ::ptgn::impl::CameraMask, ::ptgn::impl::ParentRenderTarget>;
-
-using ScriptsFeatureComponents = FeatureComponents<::ptgn::impl::Scripts>;
-
-using UtilitiesFeatureComponents = FeatureComponents<::ptgn::impl::Timers, Lifetime, Group>;
-
-struct ManualFeatureState {
-	FeatureTargetKey target{};
-	std::array<bool, static_cast<std::size_t>(InspectorFeature::Count)> features{};
+struct InspectorUiState {
+	InspectorTargetKey target{};
 	bool text_box_state_initialized{ false };
 	bool text_box_enabled{ false };
 	bool scale_ratio_locked{ true };
@@ -191,13 +135,13 @@ struct ManualFeatureState {
 	EntityFilterEditorState grounding_filter_state{};
 };
 
-inline std::vector<ManualFeatureState>& ManualFeatureStates() {
-	static std::vector<ManualFeatureState> states;
+inline std::vector<InspectorUiState>& InspectorUiStates() {
+	static std::vector<InspectorUiState> states;
 	return states;
 }
 
-[[nodiscard]] inline bool SameManualFeatureTarget(
-	const FeatureTargetKey& lhs, const FeatureTargetKey& rhs
+[[nodiscard]] inline bool SameInspectorTarget(
+	const InspectorTargetKey& lhs, const InspectorTargetKey& rhs
 ) {
 	if (lhs.entity && rhs.entity) {
 		return lhs.entity == rhs.entity;
@@ -210,17 +154,17 @@ inline std::vector<ManualFeatureState>& ManualFeatureStates() {
 	return lhs == rhs;
 }
 
-inline ManualFeatureState& GetManualFeatureState(const FeatureTargetKey& target) {
-	auto& states{ ManualFeatureStates() };
-	const auto it{ std::ranges::find_if(states, [&target](const ManualFeatureState& state) {
-		return SameManualFeatureTarget(state.target, target);
+inline InspectorUiState& GetInspectorUiState(const InspectorTargetKey& target) {
+	auto& states{ InspectorUiStates() };
+	const auto it{ std::ranges::find_if(states, [&target](const InspectorUiState& state) {
+		return SameInspectorTarget(state.target, target);
 	}) };
 
 	if (it != states.end()) {
 		return *it;
 	}
 
-	states.push_back(ManualFeatureState{ .target = target });
+	states.push_back(InspectorUiState{ .target = target });
 	return states.back();
 }
 
@@ -358,7 +302,7 @@ template <typename Target>
 		return std::nullopt;
 	}
 
-	return GetManualFeatureState(target.GetFeatureTargetKey()).button_visual_state;
+	return GetInspectorUiState(target.GetInspectorTargetKey()).button_visual_state;
 }
 
 [[nodiscard]] inline std::span<const ButtonVisualState> GetButtonVisualStateFallbacks(
@@ -415,7 +359,7 @@ template <typename Visual, typename T, std::size_t N>
 	return std::nullopt;
 }
 
-inline std::string NormalizeFeatureName(std::string_view input) {
+inline std::string NormalizeInspectorName(std::string_view input) {
 	std::string result;
 	result.reserve(input.size());
 
@@ -451,7 +395,7 @@ bool DrawButtonVisualOverrideValue(
 
 	// Size overrides use a label-side checkbox. Keeping the checkbox in the label
 	// column prevents the controls from jumping when the override is enabled.
-	const std::string normalized_label{ NormalizeFeatureName(label) };
+	const std::string normalized_label{ NormalizeInspectorName(label) };
 
 	if constexpr (std::same_as<T, Transform>) {
 		ScopedID value_scope{ std::addressof(value) };
@@ -1117,34 +1061,12 @@ bool DrawButtonSpriteVisualFields(
 }
 
 
-[[nodiscard]] inline bool IsFeatureManuallyAdded(
-	const FeatureTargetKey& target, InspectorFeature feature
-) {
-	const auto& states{ ManualFeatureStates() };
-	const auto it{ std::ranges::find_if(states, [&target](const ManualFeatureState& state) {
-		return SameManualFeatureTarget(state.target, target);
-	}) };
 
-	if (it == states.end()) {
-		return false;
-	}
-
-	return it->features[static_cast<std::size_t>(feature)];
-}
-
-inline void SetFeatureManuallyAdded(const FeatureTargetKey& target, InspectorFeature feature, bool added) {
-	auto& state{ GetManualFeatureState(target) };
-	state.features[static_cast<std::size_t>(feature)] = added;
-
-	if (!std::ranges::any_of(state.features, std::identity{})) {
-		std::erase_if(ManualFeatureStates(), [&target](const ManualFeatureState& candidate) {
-			return SameManualFeatureTarget(candidate.target, target);
-		});
-	}
-}
+template <typename... T>
+struct ComponentSet {};
 
 template <typename Target, typename T>
-[[nodiscard]] ComponentState<T> CaptureSupportedFeatureComponent(const Target& target) {
+[[nodiscard]] ComponentState<T> CaptureSupportedComponent(const Target& target) {
 	if constexpr (Target::template Supports<T>()) {
 		return target.template Capture<T>();
 	} else {
@@ -1153,196 +1075,78 @@ template <typename Target, typename T>
 }
 
 template <typename... T>
-struct InspectorFeatureState {
-	bool manually_added{ false };
+struct ComponentSetState {
 	std::tuple<ComponentState<T>...> components;
 };
 
 template <typename Target, typename... T>
-[[nodiscard]] InspectorFeatureState<T...> CaptureInspectorFeatureState(
-	const Target& target, InspectorFeature feature, FeatureComponents<T...>
+[[nodiscard]] ComponentSetState<T...> CaptureComponentSetState(
+	const Target& target, ComponentSet<T...>
 ) {
-	return InspectorFeatureState<T...>{
-		.manually_added = IsFeatureManuallyAdded(target.GetFeatureTargetKey(), feature),
-		.components		= std::tuple{ CaptureSupportedFeatureComponent<Target, T>(target)... },
+	return ComponentSetState<T...>{
+		.components = std::tuple{ CaptureSupportedComponent<Target, T>(target)... },
 	};
 }
 
 template <typename Target, typename T>
-auto MakeSupportedFeatureComponentApply(Target& target) {
+auto MakeSupportedComponentApply(Target& target) {
 	if constexpr (Target::template Supports<T>()) {
 		return target.template MakeApply<T>();
 	} else {
-		return [](ComponentState<T>) {
-		};
+		return [](ComponentState<T>) {};
 	}
 }
 
 template <typename ApplyTuple, typename StateTuple, std::size_t... I>
-void ApplyFeatureComponentStates(ApplyTuple& apply, StateTuple&& state, std::index_sequence<I...>) {
+void ApplyComponentStates(ApplyTuple& apply, StateTuple&& state, std::index_sequence<I...>) {
 	(std::invoke(std::get<I>(apply), std::get<I>(std::forward<StateTuple>(state))), ...);
 }
 
 template <typename Target, typename... T>
-auto MakeInspectorFeatureApply(Target& target, InspectorFeature feature, FeatureComponents<T...>) {
-	const FeatureTargetKey target_key{ target.GetFeatureTargetKey() };
-	auto component_apply{ std::tuple{ MakeSupportedFeatureComponentApply<Target, T>(target)... } };
-
-	return
-		[target_key, feature,
-		 component_apply = std::move(component_apply)](InspectorFeatureState<T...> state) mutable {
-			SetFeatureManuallyAdded(target_key, feature, state.manually_added);
-
-			ApplyFeatureComponentStates(
-				component_apply, std::move(state.components), std::index_sequence_for<T...>{}
-			);
-		};
-}
-
-template <typename Target, typename T>
-void RemoveSupportedFeatureComponent(Target& target) {
-	if constexpr (Target::template Supports<T>()) {
-		target.template SetLive<T>(std::nullopt);
-	}
+auto MakeComponentSetApply(Target& target, ComponentSet<T...>) {
+	auto component_apply{ std::tuple{ MakeSupportedComponentApply<Target, T>(target)... } };
+	return [component_apply = std::move(component_apply)](ComponentSetState<T...> state) mutable {
+		ApplyComponentStates(
+			component_apply, std::move(state.components), std::index_sequence_for<T...>{}
+		);
+	};
 }
 
 template <typename Target, typename... T>
-void TrackInspectorFeatureState(
-	Target& target, InspectorFeature feature, std::string label, InspectorFeatureState<T...> before,
-	InspectorFeatureState<T...> after, FeatureComponents<T...> components
+void TrackComponentSetState(
+	Target& target, std::string label, ComponentSetState<T...> before,
+	ComponentSetState<T...> after, ComponentSet<T...> components
 ) {
-	auto apply{ MakeInspectorFeatureApply(target, feature, components) };
-
+	auto apply{ MakeComponentSetApply(target, components) };
 	target.ctx.undo.PushApplied(
 		std::move(label), [apply, before]() mutable { apply(before); },
 		[apply, after]() mutable { apply(after); }
 	);
 }
 
-template <typename Target, typename... T>
-bool AddInspectorFeature(
-	Target& target, InspectorFeature feature, std::string_view label,
-	FeatureComponents<T...> components
-) {
-	auto before{ CaptureInspectorFeatureState(target, feature, components) };
-
-	if (before.manually_added) {
-		return false;
+template <typename Target, typename T>
+void RemoveSupportedComponent(Target& target) {
+	if constexpr (Target::template Supports<T>()) {
+		target.template SetLive<T>(std::nullopt);
 	}
-
-	SetFeatureManuallyAdded(target.GetFeatureTargetKey(), feature, true);
-
-	auto after{ CaptureInspectorFeatureState(target, feature, components) };
-
-	TrackInspectorFeatureState(
-		target, feature, std::string{ "Add " } + std::string{ label } + " Feature",
-		std::move(before), std::move(after), components
-	);
-
-	return true;
-}
-
-template <typename Default, typename Target, typename... T>
-bool AddInspectorFeatureWithDefault(
-	Target& target, InspectorFeature feature, std::string_view label,
-	FeatureComponents<T...> components
-) {
-	auto before{ CaptureInspectorFeatureState(target, feature, components) };
-
-	SetFeatureManuallyAdded(target.GetFeatureTargetKey(), feature, true);
-
-	if constexpr (Target::template Supports<Default>()) {
-		if (!target.template Capture<Default>()) {
-			target.template SetLive<Default>(Default{});
-		}
-	}
-
-	auto after{ CaptureInspectorFeatureState(target, feature, components) };
-
-	TrackInspectorFeatureState(
-		target, feature, std::string{ "Add " } + std::string{ label } + " Feature",
-		std::move(before), std::move(after), components
-	);
-
-	return true;
 }
 
 template <typename Target, typename... T>
-bool DeleteInspectorFeature(
-	Target& target, InspectorFeature feature, std::string_view label,
-	FeatureComponents<T...> components
+bool RemoveComponentSet(
+	Target& target, std::string_view label, ComponentSet<T...> components
 ) {
-	auto before{ CaptureInspectorFeatureState(target, feature, components) };
-
-	SetFeatureManuallyAdded(target.GetFeatureTargetKey(), feature, false);
-	(RemoveSupportedFeatureComponent<Target, T>(target), ...);
-
-	auto after{ CaptureInspectorFeatureState(target, feature, components) };
-
-	TrackInspectorFeatureState(
-		target, feature, std::string{ "Delete " } + std::string{ label } + " Feature",
-		std::move(before), std::move(after), components
+	auto before{ CaptureComponentSetState(target, components) };
+	(RemoveSupportedComponent<Target, T>(target), ...);
+	auto after{ CaptureComponentSetState(target, components) };
+	TrackComponentSetState(
+		target, std::string{ "Remove " } + std::string{ label }, std::move(before),
+		std::move(after), components
 	);
-
 	return true;
-}
-
-struct FeatureHeaderResult {
-	bool open{ false };
-	bool changed{ false };
-};
-
-template <typename Target, typename... T>
-FeatureHeaderResult DrawFeatureHeader(
-	Target& target, InspectorFeature feature, std::string_view label, ImGuiTreeNodeFlags flags,
-	FeatureComponents<T...> components, bool allow_delete = true
-) {
-	ScopedID feature_scope{ static_cast<int>(feature) };
-	const auto section{ DrawInspectorSectionHeader(
-		label,
-		"##FeatureHeader",
-		InspectorSectionOptions{
-			.default_open = (flags & ImGuiTreeNodeFlags_DefaultOpen) != 0,
-			.removable = allow_delete,
-		}
-	) };
-
-	FeatureHeaderResult result{ .open = section.open };
-	if (section.remove_requested) {
-		result.changed = DeleteInspectorFeature(target, feature, label, components);
-		result.open = false;
-	}
-	return result;
 }
 
 template <typename Target, typename T>
-bool DrawIgnoreCheckbox(Target& target, std::string_view tooltip) {
-	auto before{ target.template Capture<T>() };
-	bool enabled{ before.has_value() };
-
-	if (!ImGui::Checkbox("##IgnoreParent", &enabled)) {
-		return false;
-	}
-
-	target.template SetLive<T>(enabled ? ComponentState<T>{ T{} } : std::nullopt);
-
-	auto after{ target.template Capture<T>() };
-
-	TrackComponentState(
-		target, enabled ? "Ignore Parent" : "Inherit From Parent", std::move(before),
-		std::move(after), true
-	);
-
-	if (ImGui::IsItemHovered()) {
-		ImGui::SetTooltip("%.*s", static_cast<int>(tooltip.size()), tooltip.data());
-	}
-
-	return true;
-}
-
-
-template <typename Target, typename T>
-[[nodiscard]] bool HasFeatureComponent(const Target& target) {
+[[nodiscard]] bool HasInspectorComponent(const Target& target) {
 	if constexpr (!Target::template Supports<T>()) {
 		return false;
 	} else {
@@ -1351,24 +1155,65 @@ template <typename Target, typename T>
 }
 
 template <typename Target, typename... T>
-[[nodiscard]] bool HasAnyFeatureComponent(const Target& target, FeatureComponents<T...>) {
-	return (HasFeatureComponent<Target, T>(target) || ...);
+[[nodiscard]] bool HasAnyInspectorComponent(const Target& target, ComponentSet<T...>) {
+	return (HasInspectorComponent<Target, T>(target) || ...);
 }
 
-template <typename Target, typename... T>
-[[nodiscard]] bool HasInspectorFeature(
-	const Target& target, InspectorFeature feature, FeatureComponents<T...> components
-) {
-	return IsFeatureManuallyAdded(target.GetFeatureTargetKey(), feature) ||
-		   HasAnyFeatureComponent(target, components);
-}
+using TransformSectionComponents = ComponentSet<
+	Transform, Depth, ::ptgn::impl::IgnoreParentTransform, ::ptgn::impl::IgnoreParentPosition,
+	::ptgn::impl::IgnoreParentRotation, ::ptgn::impl::IgnoreParentScale,
+	::ptgn::impl::IgnoreParentDepth>;
 
-template <typename Target>
-[[nodiscard]] bool HasTransformFeature(const Target& target) {
-	if (ArchetypeRequiresTransform(ResolveInspectorArchetype(target))) {
-		return true;
+using VisualSectionComponents = ComponentSet<
+	::ptgn::impl::IDrawable, Visible, ::ptgn::impl::IgnoreParentVisibility, Origin, BlendMode, Rect,
+	Circle, RoundedRect, Polygon, Ellipse, Triangle, Line, Capsule, Arc, Color, FillStyle,
+	TextureKey, ::ptgn::impl::TextureSize, ::ptgn::impl::TextureCrop, ::ptgn::impl::AnimationData,
+	::ptgn::SpriteStackData, ::ptgn::impl::Offsets, Tint, ::ptgn::impl::IgnoreParentTint,
+	::ptgn::impl::TextData, ::ptgn::impl::ParticleEmitterData, LightData,
+	::ptgn::impl::ShadowCaster, ::ptgn::impl::GraphicsData, ::ptgn::Material, ShaderKey,
+	::ptgn::impl::RenderTargetDesc, ::ptgn::impl::RenderMask, ::ptgn::impl::UILayer,
+	::ptgn::impl::EffectTag, ::ptgn::impl::HDREffectTag, EffectMargin, Bloom, Blur, GaussianBlur,
+	::ptgn::impl::ClearColor, ::ptgn::impl::ClearDepth, ::ptgn::impl::ClearStencil>;
+
+using InteractionSectionComponents = ComponentSet<
+	::ptgn::impl::Interactive, ::ptgn::impl::Draggable, ::ptgn::impl::Dropzone, InteractionLock,
+	::ptgn::impl::InteractiveTag>;
+
+using PhysicsSectionComponents = ComponentSet<
+	Collider, RigidBody, ::ptgn::impl::IgnoreParentImmovable, BoundaryBehavior, TopDownMovement,
+	PlatformerMovement, PlatformerJump>;
+
+using UISectionComponents = ComponentSet<
+	::ptgn::impl::ButtonData, ::ptgn::impl::ButtonAnimationPart, ButtonBackgroundVisuals,
+	ButtonBorderVisuals, ButtonSpriteVisuals, ButtonTextVisuals, ButtonSounds,
+	::ptgn::impl::SliderData, ::ptgn::impl::ToggleButtonData, ::ptgn::impl::ToggleButtonGroupData,
+	::ptgn::impl::ToggleButtonGroupItem, ::ptgn::impl::DropdownData, ::ptgn::impl::DropdownItem,
+	::ptgn::impl::DialogueData, ::ptgn::impl::DialoguePart,
+	::ptgn::impl::TooltipData, ::ptgn::impl::TooltipHoverData, ::ptgn::impl::TooltipBackgroundPart,
+	::ptgn::impl::TooltipTextPart>;
+
+using CameraSectionComponents = ComponentSet<
+	::ptgn::impl::CameraData, ::ptgn::impl::CameraMask, ::ptgn::impl::ParentRenderTarget>;
+using UtilitySectionComponents = ComponentSet<::ptgn::impl::Timers, Lifetime, Group>;
+
+
+template <typename Target, typename T>
+bool DrawIgnoreCheckbox(Target& target, std::string_view tooltip) {
+	auto before{ target.template Capture<T>() };
+	bool enabled{ before.has_value() };
+	if (!ImGui::Checkbox("##IgnoreParent", &enabled)) {
+		return false;
 	}
-	return HasInspectorFeature(target, InspectorFeature::Transform, TransformFeatureComponents{});
+	target.template SetLive<T>(enabled ? ComponentState<T>{ T{} } : std::nullopt);
+	auto after{ target.template Capture<T>() };
+	TrackComponentState(
+		target, enabled ? "Ignore Parent" : "Inherit From Parent", std::move(before),
+		std::move(after), true
+	);
+	if (ImGui::IsItemHovered()) {
+		ImGui::SetTooltip("%.*s", static_cast<int>(tooltip.size()), tooltip.data());
+	}
+	return true;
 }
 
 template <typename Target>
@@ -1376,9 +1221,8 @@ template <typename Target>
 	if constexpr (requires { target.entity; }) {
 		Entity entity{ target.entity };
 		return entity && entity == entity.GetScene().GetRenderTarget();
-	} else {
-		return false;
 	}
+	return false;
 }
 
 template <typename Target>
@@ -1386,154 +1230,124 @@ template <typename Target>
 	if constexpr (requires { target.entity; }) {
 		Entity entity{ target.entity };
 		return entity && entity == entity.GetScene().GetFixedCamera();
-	} else {
-		return false;
 	}
+	return false;
 }
 
 template <typename Target>
-[[nodiscard]] bool HasVisualFeature(const Target& target) {
+[[nodiscard]] bool HasTransformSection(const Target& target) {
+	return ArchetypeRequiresTransform(ResolveInspectorArchetype(target)) ||
+		HasAnyInspectorComponent(target, TransformSectionComponents{});
+}
+
+template <typename Target>
+[[nodiscard]] bool HasVisualSection(const Target& target) {
 	if (IsReservedFixedCamera(target)) {
 		return false;
 	}
-
 	if (IsPrimarySceneRenderTarget(target)) {
 		return true;
 	}
-
-	if (IsFeatureManuallyAdded(target.GetFeatureTargetKey(), InspectorFeature::Visual)) {
-		return true;
-	}
-
-	return HasFeatureComponent<Target, ::ptgn::impl::IDrawable>(target);
+	return ArchetypeOwnsVisual(ResolveInspectorArchetype(target)) ||
+		HasInspectorComponent<Target, ::ptgn::impl::IDrawable>(target);
 }
 
 template <typename Target>
-[[nodiscard]] bool HasInteractionFeature(const Target& target) {
-	if (IsFeatureManuallyAdded(target.GetFeatureTargetKey(), InspectorFeature::Interaction)) {
-		return true;
-	}
-
-	const bool button_control{ HasFeatureComponent<Target, ::ptgn::impl::ButtonData>(target) };
-	const bool slider_control{ HasFeatureComponent<Target, ::ptgn::impl::SliderData>(target) };
-	const bool draggable{ HasFeatureComponent<Target, ::ptgn::impl::Draggable>(target) };
-	const bool dropzone{ HasFeatureComponent<Target, ::ptgn::impl::Dropzone>(target) };
-	const bool interactive_tag{ HasFeatureComponent<Target, ::ptgn::impl::InteractiveTag>(target) };
-
-	// ButtonData owns ordinary interaction, and SliderData owns its draggable behavior. Keep the
-	// generic Interaction feature hidden unless the user attached an additional interaction role.
+[[nodiscard]] bool HasInteractionSection(const Target& target) {
+	const bool button_control{ HasInspectorComponent<Target, ::ptgn::impl::ButtonData>(target) };
+	const bool slider_control{ HasInspectorComponent<Target, ::ptgn::impl::SliderData>(target) };
+	const bool draggable{ HasInspectorComponent<Target, ::ptgn::impl::Draggable>(target) };
+	const bool dropzone{ HasInspectorComponent<Target, ::ptgn::impl::Dropzone>(target) };
+	const bool interactive_tag{ HasInspectorComponent<Target, ::ptgn::impl::InteractiveTag>(target) };
 	if (button_control && !dropzone && !interactive_tag && (!draggable || slider_control)) {
 		return false;
 	}
-
-	const bool has_editable_component{
-		HasFeatureComponent<Target, ::ptgn::impl::Interactive>(target) || draggable || dropzone ||
+	const bool editable{
+		HasInspectorComponent<Target, ::ptgn::impl::Interactive>(target) || draggable || dropzone ||
 		interactive_tag
 	};
-
-	const bool has_visible_read_only_component{
-		target.ctx.local.settings.show_read_only_inspector_data &&
-		[&]() {
+	const bool read_only{
+		target.ctx.local.settings.show_read_only_inspector_data && [&]() {
 			if constexpr (std::same_as<std::remove_cvref_t<Target>, EntityInspectorTarget>) {
 				return target.entity.template Has<InteractionLock>();
 			} else if constexpr (Target::template Supports<InteractionLock>()) {
 				return target.template Capture<InteractionLock>().has_value();
-			} else {
-				return false;
 			}
+			return false;
 		}()
 	};
-
-	return has_editable_component || has_visible_read_only_component;
+	return editable || read_only;
 }
 
 template <typename Target>
-[[nodiscard]] bool HasPhysicsFeature(const Target& target) {
-	return HasInspectorFeature(target, InspectorFeature::Physics, PhysicsFeatureComponents{});
+[[nodiscard]] bool HasPhysicsSection(const Target& target) {
+	return HasAnyInspectorComponent(target, PhysicsSectionComponents{});
 }
 
 template <typename Target>
-[[nodiscard]] bool HasUIFeature(const Target& target) {
-	if constexpr (requires { target.entity; }) {
-		if (target.entity && target.entity.template Has<::ptgn::impl::DialogueData>()) {
-			return true;
-		}
-	}
-	return HasInspectorFeature(target, InspectorFeature::UI, UIFeatureComponents{});
+[[nodiscard]] bool HasUISection(const Target& target) {
+	return ArchetypeOwnsUI(ResolveInspectorArchetype(target)) ||
+		HasAnyInspectorComponent(target, UISectionComponents{});
 }
 
 template <typename Target>
-[[nodiscard]] bool HasCameraFeature(const Target& target) {
+[[nodiscard]] bool HasCameraSection(const Target& target) {
 	if (IsPrimarySceneRenderTarget(target)) {
 		return false;
 	}
-
-	return HasInspectorFeature(target, InspectorFeature::Camera, CameraFeatureComponents{});
+	return ArchetypeOwnsCamera(ResolveInspectorArchetype(target));
 }
 
 template <typename Target>
-[[nodiscard]] bool HasScriptsFeature(const Target& target) {
-	return HasInspectorFeature(target, InspectorFeature::Scripts, ScriptsFeatureComponents{});
+[[nodiscard]] bool HasScriptsSection(const Target& target) {
+	return HasInspectorComponent<Target, ::ptgn::impl::Scripts>(target);
 }
 
 template <typename Target>
-[[nodiscard]] bool HasUtilitiesFeature(const Target& target) {
-	return HasInspectorFeature(target, InspectorFeature::Utilities, UtilitiesFeatureComponents{});
+[[nodiscard]] bool HasUtilitiesSection(const Target& target) {
+	return HasAnyInspectorComponent(target, UtilitySectionComponents{});
 }
 
-
-
-// Non-template feature entry points. The implementations stay in their feature-specific .cpp files.
-bool DrawTransformFeature(
+bool DrawTransformSection(
 	EntityInspectorTarget& target, bool draw_header = true, bool redirect_button_part = true,
 	bool draw_inline_separator = true
 );
-bool DrawTransformFeature(
+bool DrawTransformSection(
 	PrefabInspectorTarget& target, bool draw_header = true, bool redirect_button_part = true,
 	bool draw_inline_separator = true
 );
 
-bool AddSpriteAnimationFeature(EntityInspectorTarget& target);
-bool AddSpriteAnimationFeature(PrefabInspectorTarget& target);
-bool DrawSpriteAnimationFeature(EntityInspectorTarget& target);
-bool DrawSpriteAnimationFeature(PrefabInspectorTarget& target);
-
-bool DrawVisualFeature(
+bool DrawVisualSection(
 	EntityInspectorTarget& target, bool draw_header = true, bool allow_renderer_change = true,
 	std::string_view header_label = "Visual"
 );
-bool DrawVisualFeature(
+bool DrawVisualSection(
 	PrefabInspectorTarget& target, bool draw_header = true, bool allow_renderer_change = true,
 	std::string_view header_label = "Visual"
 );
 
-bool DrawButtonChildStateTransformFeature(
+bool DrawButtonChildStateTransformSection(
 	EntityInspectorTarget& target, const ButtonChildInfo& child_info, ButtonVisualState state
 );
-bool DrawButtonChildStateVisualFeature(
+bool DrawButtonChildStateVisualSection(
 	EntityInspectorTarget& target, const ButtonChildInfo& child_info, ButtonVisualState state
 );
 bool DrawSpritePrimary(EntityInspectorTarget& target);
 
-bool DrawInteractionFeature(EntityInspectorTarget& target);
-bool DrawInteractionFeature(PrefabInspectorTarget& target);
+bool DrawInteractionSection(EntityInspectorTarget& target);
+bool DrawInteractionSection(PrefabInspectorTarget& target);
+bool DrawPhysicsSection(EntityInspectorTarget& target);
+bool DrawPhysicsSection(PrefabInspectorTarget& target);
+bool DrawUISection(EntityInspectorTarget& target);
+bool DrawUISection(PrefabInspectorTarget& target);
+bool DrawCameraSection(EntityInspectorTarget& target);
+bool DrawCameraSection(PrefabInspectorTarget& target);
+bool DrawScriptsSection(EntityInspectorTarget& target);
+bool DrawScriptsSection(PrefabInspectorTarget& target);
+bool DrawUtilitiesSection(EntityInspectorTarget& target);
+bool DrawUtilitiesSection(PrefabInspectorTarget& target);
 
-bool DrawPhysicsFeature(EntityInspectorTarget& target);
-bool DrawPhysicsFeature(PrefabInspectorTarget& target);
-
-bool DrawUIFeature(EntityInspectorTarget& target);
-bool DrawUIFeature(PrefabInspectorTarget& target);
-
-bool DrawCameraFeature(EntityInspectorTarget& target);
-bool DrawCameraFeature(PrefabInspectorTarget& target);
-
-bool DrawScriptsFeature(EntityInspectorTarget& target);
-bool DrawScriptsFeature(PrefabInspectorTarget& target);
-
-bool DrawUtilitiesFeature(EntityInspectorTarget& target);
-bool DrawUtilitiesFeature(PrefabInspectorTarget& target);
-
-bool DrawFeatureInspector(EntityInspectorTarget& target);
-bool DrawFeatureInspector(PrefabInspectorTarget& target);
+bool DrawArchetypeInspector(EntityInspectorTarget& target);
+bool DrawArchetypeInspector(PrefabInspectorTarget& target);
 
 } // namespace ptgn::editor::inspector

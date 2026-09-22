@@ -1,11 +1,11 @@
-#include "panels/inspector_features.h"
+#include "panels/inspector_archetype_inspector.h"
 
 namespace ptgn::editor::inspector {
 
 namespace {
 
 template <typename Target>
-struct TransformFeatureState {
+struct TransformSectionState {
 	Transform transform{};
 	Depth depth{};
 	ComponentState<ButtonBackgroundVisuals> button_backgrounds{};
@@ -23,12 +23,12 @@ struct TransformFeatureState {
 };
 
 template <typename Target>
-TransformFeatureState<Target> CaptureTransformFeature(const Target& target) {
+TransformSectionState<Target> CaptureTransformSection(const Target& target) {
 	const bool ignore_transform{
 		target.template Capture<::ptgn::impl::IgnoreParentTransform>().has_value()
 	};
 
-	return TransformFeatureState<Target>{
+	return TransformSectionState<Target>{
 		.transform			= target.template Capture<Transform>().value_or(Transform{}),
 		.depth				= target.template Capture<Depth>().value_or(Depth{}),
 		.button_backgrounds = target.template Capture<ButtonBackgroundVisuals>(),
@@ -54,7 +54,7 @@ TransformFeatureState<Target> CaptureTransformFeature(const Target& target) {
 }
 
 template <typename Target>
-auto MakeTransformFeatureApply(Target& target) {
+auto MakeTransformSectionApply(Target& target) {
 	auto apply_transform{ target.template MakeApply<Transform>() };
 	auto apply_depth{ target.template MakeApply<Depth>() };
 	auto apply_position{ target.template MakeApply<::ptgn::impl::IgnoreParentPosition>() };
@@ -81,7 +81,7 @@ auto MakeTransformFeatureApply(Target& target) {
 	return [apply_transform, apply_depth, apply_position, apply_rotation, apply_scale,
 			apply_depth_ignore, apply_transform_ignore, apply_backgrounds, apply_borders,
 			apply_texts, apply_sprites, apply_slider_track_background, apply_slider_track_border,
-			apply_slider_track_sprite](TransformFeatureState<Target> state) mutable {
+			apply_slider_track_sprite](TransformSectionState<Target> state) mutable {
 		apply_backgrounds(state.button_backgrounds);
 		apply_borders(state.button_borders);
 		apply_texts(state.button_texts);
@@ -125,7 +125,7 @@ auto MakeTransformFeatureApply(Target& target) {
 }
 
 template <typename Target>
-void SetTransformFeatureLive(Target& target, const TransformFeatureState<Target>& state) {
+void SetTransformSectionLive(Target& target, const TransformSectionState<Target>& state) {
 	target.template SetLive<ButtonBackgroundVisuals>(
 		state.button_backgrounds, &MarkButtonBackgroundDirty
 	);
@@ -209,7 +209,7 @@ void ApplyButtonVisualTransformDelta(
 
 template <typename Target>
 void ApplyButtonVisualTransformDelta(
-	TransformFeatureState<Target>& state, std::optional<ButtonVisualState> selected_state,
+	TransformSectionState<Target>& state, std::optional<ButtonVisualState> selected_state,
 	const Transform& before
 ) {
 	auto apply = [&](auto& visuals) {
@@ -262,7 +262,7 @@ void ApplySliderTrackVisualTransformDelta(
 
 template <typename Target>
 void ApplySliderTrackVisualTransformDelta(
-	TransformFeatureState<Target>& state, const Transform& before
+	TransformSectionState<Target>& state, const Transform& before
 ) {
 	auto apply = [&](auto& marker) {
 		ApplySliderTrackVisualTransformDelta(
@@ -350,11 +350,11 @@ template <typename Target>
 }
 
 template <typename Target, typename Apply>
-bool DrawTransformFeatureFields(
-	Target& target, TransformFeatureState<Target>& state, Apply apply_state
+bool DrawTransformSectionFields(
+	Target& target, TransformSectionState<Target>& state, Apply apply_state
 ) {
 	bool changed{ false };
-	auto& editor_state{ GetManualFeatureState(target.GetFeatureTargetKey()) };
+	auto& editor_state{ GetInspectorUiState(target.GetInspectorTargetKey()) };
 	const auto selected_button_state{ GetButtonVisualEditState(target) };
 
 	auto draw_ignore = [&](bool& value, const char* tooltip) {
@@ -532,7 +532,7 @@ bool DrawTransformFeatureFields(
 
 
 template <typename Target>
-bool DrawTransformFeatureImpl(
+bool DrawTransformSectionImpl(
 	Target& target, bool draw_header = true, bool redirect_button_part = true,
 	bool draw_inline_separator = true
 );
@@ -608,12 +608,12 @@ bool DrawButtonChildStateTransformComponent(
 
 		if (open) {
 			if (enabled) {
-				// Reuse the ordinary Transform feature so managed button parts get the exact same
+				// Reuse the ordinary Transform section so managed button parts get the exact same
 				// position picker, scale-ratio lock, depth, and ignore-parent controls as entities.
-				auto& editor_state{ GetManualFeatureState(target.GetFeatureTargetKey()) };
+				auto& editor_state{ GetInspectorUiState(target.GetInspectorTargetKey()) };
 				const auto previous_state{ editor_state.button_visual_state };
 				editor_state.button_visual_state = state;
-				changed |= DrawTransformFeatureImpl(target, false, false, false);
+				changed |= DrawTransformSectionImpl(target, false, false, false);
 				editor_state.button_visual_state = previous_state;
 			}
 			ImGui::TreePop();
@@ -624,7 +624,7 @@ bool DrawButtonChildStateTransformComponent(
 }
 
 template <typename Target>
-bool DrawButtonChildStateTransformFeatureImpl(
+bool DrawButtonChildStateTransformSectionImpl(
 	Target& target, const ButtonChildInfo& child_info, ButtonVisualState state
 ) {
 	switch (child_info.part) {
@@ -657,65 +657,67 @@ bool DrawButtonChildStateTransformFeatureImpl(
 }
 
 template <typename Target>
-bool DrawTransformFeatureImpl(
+bool DrawTransformSectionImpl(
 	Target& target, bool draw_header, bool redirect_button_part, bool draw_inline_separator
 ) {
 	if (redirect_button_part) {
 		if (const auto child_info{ GetButtonChildInfo(target) }) {
 			if (const auto state{ GetButtonVisualEditState(target) }) {
-				return DrawButtonChildStateTransformFeatureImpl(target, *child_info, *state);
+				return DrawButtonChildStateTransformSectionImpl(target, *child_info, *state);
 			}
 		}
 	}
 
-	if (!HasTransformFeature(target)) {
+	if (!HasTransformSection(target)) {
 		return false;
 	}
 
-	FeatureHeaderResult header{
-		.open	 = true,
-		.changed = false,
-	};
+	InspectorSectionResult header{ .open = true };
 
 	if (draw_header) {
 		const bool required_by_archetype{
 			ArchetypeRequiresTransform(ResolveInspectorArchetype(target))
 		};
-		header = DrawFeatureHeader(
-			target, InspectorFeature::Transform, "Transform", ImGuiTreeNodeFlags_DefaultOpen,
-			TransformFeatureComponents{}, !required_by_archetype
+		header = DrawInspectorSectionHeader(
+			"Transform", "TransformSection",
+			InspectorSectionOptions{
+				.default_open = true,
+				.removable = !required_by_archetype,
+			}
 		);
-
+		if (header.remove_requested) {
+			return RemoveComponentSet(target, "Transform", TransformSectionComponents{});
+		}
 		if (!header.open) {
-			return header.changed;
+			return false;
 		}
 	} else if (draw_inline_separator) {
 		ImGui::SeparatorText("Transform");
 	}
 
-	std::optional<ScopedIndent> feature_indent;
+	std::optional<ScopedIndent> section_indent;
 	if (draw_header) {
-		feature_indent.emplace();
+		section_indent.emplace();
 	}
 
-	const auto before{ CaptureTransformFeature(target) };
+	const auto before{ CaptureTransformSection(target) };
 	auto state{ before };
-	auto apply{ MakeTransformFeatureApply(target) };
-	bool changed{ header.changed };
+	auto apply{ MakeTransformSectionApply(target) };
+	bool changed{ false };
 
-	changed |= DrawTransformFeatureFields(target, state, apply);
+	changed |= DrawTransformSectionFields(target, state, apply);
 
 	if (changed) {
 		state.ignore_transform = false;
 		state.transform.ClampScale();
 		ApplyButtonVisualTransformDelta(state, GetButtonVisualEditState(target), before.transform);
 		ApplySliderTrackVisualTransformDelta(state, before.transform);
-		SetTransformFeatureLive(target, state);
+		SetTransformSectionLive(target, state);
 	}
 
 	if (changed) {
 		ScopedID target_scope{ target.Id() };
-		const ImGuiID key{ ImGui::GetID("##TransformFeature") };
+		const ImGuiID key{ ImGui::GetID("##TransformSection") };
 
 		TrackUndoableInteraction(
 			target.ctx, key, "Edit Transform", true, [apply, before]() mutable { apply(before); },
@@ -729,29 +731,29 @@ bool DrawTransformFeatureImpl(
 
 } // namespace
 
-bool DrawTransformFeature(
+bool DrawTransformSection(
 	EntityInspectorTarget& target, bool draw_header, bool redirect_button_part,
 	bool draw_inline_separator
 ) {
-	return DrawTransformFeatureImpl(
+	return DrawTransformSectionImpl(
 		target, draw_header, redirect_button_part, draw_inline_separator
 	);
 }
 
-bool DrawTransformFeature(
+bool DrawTransformSection(
 	PrefabInspectorTarget& target, bool draw_header, bool redirect_button_part,
 	bool draw_inline_separator
 ) {
-	return DrawTransformFeatureImpl(
+	return DrawTransformSectionImpl(
 		target, draw_header, redirect_button_part, draw_inline_separator
 	);
 }
 
 
-bool DrawButtonChildStateTransformFeature(
+bool DrawButtonChildStateTransformSection(
 	EntityInspectorTarget& target, const ButtonChildInfo& child_info, ButtonVisualState state
 ) {
-	return DrawButtonChildStateTransformFeatureImpl(target, child_info, state);
+	return DrawButtonChildStateTransformSectionImpl(target, child_info, state);
 }
 
 } // namespace ptgn::editor::inspector

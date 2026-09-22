@@ -1,9 +1,101 @@
-#include "panels/inspector_features.h"
+#include "panels/inspector_archetype_inspector.h"
 #include "panels/inspector_geometry.h"
 
 namespace ptgn::editor::inspector {
 
 namespace {
+
+template <typename Target>
+bool DrawColliderSection(Target& target) {
+	if constexpr (!Target::template Supports<Collider>()) {
+		return false;
+	}
+
+	auto collider_before{ target.template Capture<Collider>() };
+	auto boundary_before{ target.template Capture<BoundaryBehavior>() };
+	if (!collider_before && !boundary_before) {
+		return false;
+	}
+
+	const auto header{ DrawInspectorSectionHeader(
+		"Collider",
+		"ColliderSection",
+		InspectorSectionOptions{
+			.default_open = true,
+			.removable = true,
+			.resettable = true,
+		}
+	) };
+
+	using Components = ComponentSet<Collider, BoundaryBehavior>;
+	constexpr Components components{};
+	bool changed{ false };
+
+	if (header.remove_requested) {
+		auto before{ CaptureComponentSetState(target, components) };
+		target.template SetLive<Collider>(std::nullopt);
+		target.template SetLive<BoundaryBehavior>(std::nullopt);
+		auto after{ CaptureComponentSetState(target, components) };
+		TrackComponentSetState(
+			target, "Remove Collider", std::move(before), std::move(after), components
+		);
+		return true;
+	}
+
+	if (header.reset_requested) {
+		auto before{ CaptureComponentSetState(target, components) };
+		target.template SetLive<Collider>(Collider{});
+		if (boundary_before) {
+			target.template SetLive<BoundaryBehavior>(BoundaryBehavior{});
+		}
+		auto after{ CaptureComponentSetState(target, components) };
+		TrackComponentSetState(
+			target, "Reset Collider", std::move(before), std::move(after), components
+		);
+		collider_before = target.template Capture<Collider>();
+		boundary_before = target.template Capture<BoundaryBehavior>();
+		changed = true;
+	}
+
+	if (!header.open) {
+		return changed;
+	}
+
+	ScopedIndent indent;
+	if (!collider_before) {
+		ImGui::TextColored(
+			ImVec4{ 1.0f, 0.45f, 0.2f, 1.0f },
+			"Boundary Behavior requires a Collider."
+		);
+		if (ImGui::Button("Repair Collider", ImVec2{ -FLT_MIN, 0.0f })) {
+			changed |= SetComponentStateUndoable<Target, Collider>(
+				target, "Repair Collider", ComponentState<Collider>{ Collider{} }
+			);
+			collider_before = target.template Capture<Collider>();
+		}
+	}
+
+	if (collider_before) {
+		Collider value{ *collider_before };
+		if (DrawGeometryComponent(target, value)) {
+			target.template SetLive<Collider>(value);
+			auto after{ target.template Capture<Collider>() };
+			TrackComponentState(
+				target, "Edit Collider", std::move(collider_before), std::move(after), true
+			);
+			collider_before = target.template Capture<Collider>();
+			changed = true;
+		}
+	}
+
+	// Boundary behavior only has meaning for collision resolution, so author it as an optional
+	// subsection of Collider instead of a peer physics section.
+	changed |= DrawOptionalReflected<Target, BoundaryBehavior>(
+		target, "Boundary Behavior", true
+	);
+
+	return changed;
+}
 
 template <typename Target>
 bool DrawRigidBodySection(Target& target) {
@@ -18,7 +110,7 @@ bool DrawRigidBodySection(Target& target) {
 
 	const auto header{ DrawInspectorSectionHeader(
 		"Rigid Body",
-		"RigidBodyFeature",
+		"RigidBodySection",
 		InspectorSectionOptions{
 			.default_open = true,
 			.removable = true,
@@ -26,18 +118,17 @@ bool DrawRigidBodySection(Target& target) {
 		}
 	) };
 
-	using Components = FeatureComponents<RigidBody, ::ptgn::impl::IgnoreParentImmovable>;
+	using Components = ComponentSet<RigidBody, ::ptgn::impl::IgnoreParentImmovable>;
 	constexpr Components components{};
 	bool changed{ false };
 
 	if (header.remove_requested) {
-		auto before{ CaptureInspectorFeatureState(target, InspectorFeature::Physics, components) };
+		auto before{ CaptureComponentSetState(target, components) };
 		target.template SetLive<RigidBody>(std::nullopt);
 		target.template SetLive<::ptgn::impl::IgnoreParentImmovable>(std::nullopt);
-		auto after{ CaptureInspectorFeatureState(target, InspectorFeature::Physics, components) };
-		TrackInspectorFeatureState(
-			target, InspectorFeature::Physics, "Remove Rigid Body", std::move(before),
-			std::move(after), components
+		auto after{ CaptureComponentSetState(target, components) };
+		TrackComponentSetState(
+			target, "Remove Rigid Body", std::move(before), std::move(after), components
 		);
 		return true;
 	}
@@ -67,7 +158,7 @@ bool DrawRigidBodySection(Target& target) {
 		changed = true;
 	}
 
-	// This is an inheritance override owned by the rigid-body feature, but its state is tracked
+	// This is an inheritance override owned by the rigid-body section, but its state is tracked
 	// independently so editing it never produces a redundant RigidBody command.
 	changed |= DrawOptionalReflected<Target, ::ptgn::impl::IgnoreParentImmovable>(
 		target, "Ignore Parent Immovable", false
@@ -213,7 +304,7 @@ bool DrawPlatformerMovementContents(Target& target, PlatformerMovement& value) {
 
 		Entity owner{ GetInspectorTargetEntity(target) };
 		changed |= DrawPropertyRow("Ground Entities", [&]() {
-			auto& state{ GetManualFeatureState(target.GetFeatureTargetKey()) };
+			auto& state{ GetInspectorUiState(target.GetInspectorTargetKey()) };
 			Scene* scene{ owner ? std::addressof(owner.GetScene()) : nullptr };
 			return DrawEntityFilterButton(
 				scene, owner, grounding.entities, state.grounding_filter_state
@@ -227,36 +318,23 @@ bool DrawPlatformerMovementContents(Target& target, PlatformerMovement& value) {
 }
 
 template <typename Target>
-bool DrawPhysicsFeatureImpl(Target& target) {
+bool DrawPhysicsSectionImpl(Target& target) {
 	RegisterBuiltInPlatformerJumpControllers();
 
 	if (Entity live_entity{ GetInspectorTargetEntity(target) }) {
 		SyncPlatformerJumpController(live_entity);
 	}
-	if (!HasPhysicsFeature(target)) {
+	if (!HasPhysicsSection(target)) {
 		return false;
 	}
 
 	bool changed{ false };
 
-	changed |= DrawComponentSection<Target, Collider>(
-		target, "Collider",
-		[&target](Collider& value) { return DrawGeometryComponent(target, value); }
-	);
-
+	changed |= DrawColliderSection(target);
 	changed |= DrawRigidBodySection(target);
 
-	changed |= DrawComponentSection<Target, BoundaryBehavior>(
-		target, "Boundary Behavior",
-		[&target](BoundaryBehavior& value) {
-			return DrawRegisteredComponentContents(
-				target.ctx, Hash<BoundaryBehavior>(), std::addressof(value)
-			);
-		}
-	);
-
 	enum class MovementKind { TopDown, Platformer };
-	using MovementComponents = FeatureComponents<TopDownMovement, PlatformerMovement, PlatformerJump>;
+	using MovementComponents = ComponentSet<TopDownMovement, PlatformerMovement, PlatformerJump>;
 	const bool has_top_down{ target.template Capture<TopDownMovement>().has_value() };
 	const bool has_platformer{ target.template Capture<PlatformerMovement>().has_value() };
 	if (!has_top_down && !has_platformer) {
@@ -266,15 +344,15 @@ bool DrawPhysicsFeatureImpl(Target& target) {
 	MovementKind movement{ has_platformer ? MovementKind::Platformer : MovementKind::TopDown };
 	auto apply_movement_change = [&](std::string_view label, auto&& mutate) {
 		constexpr MovementComponents components{};
-		auto before{ CaptureInspectorFeatureState(target, InspectorFeature::Physics, components) };
+		auto before{ CaptureComponentSetState(target, components) };
 		std::invoke(std::forward<decltype(mutate)>(mutate));
 
 		Entity live_entity{ GetInspectorTargetEntity(target) };
 		if (live_entity) {
 			SyncPlatformerJumpController(live_entity);
 		}
-		auto after{ CaptureInspectorFeatureState(target, InspectorFeature::Physics, components) };
-		auto apply{ MakeInspectorFeatureApply(target, InspectorFeature::Physics, components) };
+		auto after{ CaptureComponentSetState(target, components) };
+		auto apply{ MakeComponentSetApply(target, components) };
 		auto sync = [live_entity]() {
 			if (live_entity) {
 				SyncPlatformerJumpController(live_entity);
@@ -289,7 +367,7 @@ bool DrawPhysicsFeatureImpl(Target& target) {
 	};
 
 	const auto movement_header{ DrawInspectorSectionHeader(
-		"Movement", "MovementFeature",
+		"Movement", "MovementSection",
 		InspectorSectionOptions{ .default_open = true, .removable = true, .resettable = false }
 	) };
 	if (movement_header.remove_requested) {
@@ -437,12 +515,12 @@ bool DrawPhysicsFeatureImpl(Target& target) {
 
 } // namespace
 
-bool DrawPhysicsFeature(EntityInspectorTarget& target) {
-	return DrawPhysicsFeatureImpl(target);
+bool DrawPhysicsSection(EntityInspectorTarget& target) {
+	return DrawPhysicsSectionImpl(target);
 }
 
-bool DrawPhysicsFeature(PrefabInspectorTarget& target) {
-	return DrawPhysicsFeatureImpl(target);
+bool DrawPhysicsSection(PrefabInspectorTarget& target) {
+	return DrawPhysicsSectionImpl(target);
 }
 
 } // namespace ptgn::editor::inspector

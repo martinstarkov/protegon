@@ -1,4 +1,4 @@
-#include "panels/inspector_features.h"
+#include "panels/inspector_archetype_inspector.h"
 #include "panels/inspector_scripts.h"
 
 namespace ptgn::editor::inspector {
@@ -396,7 +396,7 @@ bool DrawTimersComponent(Target& target) {
 	}
 
 	const auto header{ DrawInspectorSectionHeader(
-		"Timers", "TimersFeature",
+		"Timers", "TimersSection",
 		InspectorSectionOptions{ .default_open = true, .removable = true, .resettable = true }
 	) };
 	if (header.remove_requested || header.reset_requested) {
@@ -476,8 +476,8 @@ bool DrawTimersComponent(Target& target) {
 
 
 template <typename Target>
-bool DrawUtilitiesFeatureImpl(Target& target) {
-	if (!HasUtilitiesFeature(target)) {
+bool DrawUtilitiesSectionImpl(Target& target) {
+	if (!HasUtilitiesSection(target)) {
 		return false;
 	}
 
@@ -499,12 +499,12 @@ bool DrawUtilitiesFeatureImpl(Target& target) {
 
 } // namespace
 
-bool DrawUtilitiesFeature(EntityInspectorTarget& target) {
-	return DrawUtilitiesFeatureImpl(target);
+bool DrawUtilitiesSection(EntityInspectorTarget& target) {
+	return DrawUtilitiesSectionImpl(target);
 }
 
-bool DrawUtilitiesFeature(PrefabInspectorTarget& target) {
-	return DrawUtilitiesFeatureImpl(target);
+bool DrawUtilitiesSection(PrefabInspectorTarget& target) {
+	return DrawUtilitiesSectionImpl(target);
 }
 
 } // namespace ptgn::editor::inspector

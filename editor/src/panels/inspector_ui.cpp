@@ -1,11 +1,10 @@
-#include "panels/inspector_features.h"
+#include "panels/inspector_archetype_inspector.h"
 #include "panels/inspector_geometry.h"
 #include "panels/rich_text_editor.h"
 #include "editor/renamable_item.h"
 
 #include <imgui_internal.h>
 
-#include "runtime/ecs/entity_serialization.h"
 
 namespace ptgn::editor::inspector {
 
@@ -245,7 +244,7 @@ bool DrawSliderValueTextConfig(Target& target, ::ptgn::impl::SliderData& data) {
 				ScopedIndent indent;
 				ScopedDisabled disabled{ !transform_enabled };
 				EntityInspectorTarget text_target{ .ctx = target.ctx, .entity = text_entity };
-				changed |= DrawTransformFeature(text_target, false, true, false);
+				changed |= DrawTransformSection(text_target, false, true, false);
 			}
 		} else {
 			ImGui::TextDisabled("Value text entity is not available.");
@@ -435,11 +434,6 @@ template <typename Target>
 bool DrawFocusedButtonAppearance(Target& target, FocusedUIControlType type);
 
 template <typename Target>
-bool DrawFocusedUIControlTypeSelector(
-	Target& target, FocusedUIControlType current, bool* type_changed_out = nullptr
-);
-
-template <typename Target>
 bool DrawUIControlConflict(Target& target);
 
 template <typename Target, typename T>
@@ -582,7 +576,7 @@ void DecomposeButtonVisualState(ButtonVisualState state, int& mode, ButtonState&
 }
 
 bool DrawFocusedButtonStateSelector(
-	EditorContext& ctx, const FeatureTargetKey& target_key,
+	EditorContext& ctx, const InspectorTargetKey& target_key,
 	std::optional<ButtonVisualState>& selected_state, bool allow_toggled
 ) {
 	if (!selected_state.has_value()) {
@@ -655,8 +649,8 @@ bool DrawFocusedButtonStateSelector(
 
 	ctx.undo.PushApplied(
 		"Select UI Appearance",
-		[target_key, before]() { GetManualFeatureState(target_key).button_visual_state = before; },
-		[target_key, after]() { GetManualFeatureState(target_key).button_visual_state = after; },
+		[target_key, before]() { GetInspectorUiState(target_key).button_visual_state = before; },
+		[target_key, after]() { GetInspectorUiState(target_key).button_visual_state = after; },
 		false
 	);
 
@@ -844,7 +838,7 @@ bool DrawFocusedButtonPartContents(
 		case ButtonChildPart::Background: {
 			EntityInspectorTarget child_target{ .ctx = ctx, .entity = child };
 			const ButtonChildInfo info{ .child = child, .button = button_entity, .part = part };
-			changed |= DrawButtonChildStateTransformFeature(child_target, info, state);
+			changed |= DrawButtonChildStateTransformSection(child_target, info, state);
 			changed |= DrawFocusedButtonVisualComponent<ButtonBackgroundVisuals>(
 				ctx, button_entity, child, "Edit Button Background",
 				[&](auto& states) {
@@ -858,7 +852,7 @@ bool DrawFocusedButtonPartContents(
 		case ButtonChildPart::Border: {
 			EntityInspectorTarget child_target{ .ctx = ctx, .entity = child };
 			const ButtonChildInfo info{ .child = child, .button = button_entity, .part = part };
-			changed |= DrawButtonChildStateTransformFeature(child_target, info, state);
+			changed |= DrawButtonChildStateTransformSection(child_target, info, state);
 			changed |= DrawFocusedButtonVisualComponent<ButtonBorderVisuals>(
 				ctx, button_entity, child, "Edit Button Border",
 				[&](auto& states) {
@@ -872,7 +866,7 @@ bool DrawFocusedButtonPartContents(
 		case ButtonChildPart::Sprite: {
 			EntityInspectorTarget child_target{ .ctx = ctx, .entity = child };
 			const ButtonChildInfo info{ .child = child, .button = button_entity, .part = part };
-			changed |= DrawButtonChildStateTransformFeature(child_target, info, state);
+			changed |= DrawButtonChildStateTransformSection(child_target, info, state);
 			changed |= DrawFocusedButtonVisualComponent<ButtonSpriteVisuals>(
 				ctx, button_entity, child, "Edit Button Sprite",
 				[&](auto& states) {
@@ -884,8 +878,8 @@ bool DrawFocusedButtonPartContents(
 		case ButtonChildPart::Text: {
 			EntityInspectorTarget child_target{ .ctx = ctx, .entity = child };
 			const ButtonChildInfo info{ .child = child, .button = button_entity, .part = part };
-			changed |= DrawButtonChildStateTransformFeature(child_target, info, state);
-			changed |= DrawButtonChildStateVisualFeature(child_target, info, state);
+			changed |= DrawButtonChildStateTransformSection(child_target, info, state);
+			changed |= DrawButtonChildStateVisualSection(child_target, info, state);
 			break;
 		}
 	}
@@ -928,46 +922,46 @@ bool DrawFocusedButtonPartsTabs(
 	};
 
 	const std::size_t existing_count{ part_count() };
-	if (existing_count == 0) {
-		if (ImGui::Button("Add Button Part", ImVec2{ -FLT_MIN, 0.0f })) {
-			ImGui::OpenPopup("##AddButtonPartPopup");
+	const bool has_all_parts{ existing_count == parts.size() };
+	const bool add_requested{ DrawInspectorTabCollection(
+		existing_count == 0,
+		InspectorTabCollectionOptions{
+			.scope_id = "##ButtonPartsTabStrip",
+			.tab_bar_id = "##ButtonParts",
+			.add_tab_id = "+##AddButtonPart",
+			.empty_add_label = "Add Button Part",
+			.add_tooltip = "Add button part",
+			.show_add = !has_all_parts,
+		},
+		[&]() {
+			for (const ButtonChildPart part : parts) {
+				Entity child{ FindButtonPart(button_entity, part) };
+				if (!child) {
+					continue;
+				}
+				ScopedID part_scope{ static_cast<int>(part) };
+				const std::string label{ ButtonPartLabel(part) };
+				const bool selected{ ImGui::BeginTabItem(label.c_str()) };
+				const auto context{ DrawInspectorTabContextMenu(
+					"##ButtonPartContext", false, false, true, "Remove Part"
+				) };
+				if (context.remove_requested) {
+					remove_after_tabs = child;
+				}
+				if (selected) {
+					if (child && child != remove_after_tabs) {
+						changed |= DrawFocusedButtonPartContents(ctx, button_entity, part, state);
+					}
+					ImGui::EndTabItem();
+				}
+			}
 		}
-		draw_add_popup();
-		return changed;
-	}
+	) };
 
-	InspectorTabStripScope strip{ "##ButtonPartsTabStrip" };
-	if (ImGui::BeginTabBar("##ButtonParts", InspectorTabBarFlags())) {
-		for (const ButtonChildPart part : parts) {
-			Entity child{ FindButtonPart(button_entity, part) };
-			if (!child) {
-				continue;
-			}
-			ScopedID part_scope{ static_cast<int>(part) };
-			const std::string label{ ButtonPartLabel(part) };
-			const bool selected{ ImGui::BeginTabItem(label.c_str()) };
-			const auto context{ DrawInspectorTabContextMenu(
-				"##ButtonPartContext", false, false, true, "Remove Part"
-			) };
-			if (context.remove_requested) {
-				remove_after_tabs = child;
-			}
-			if (selected && child && child != remove_after_tabs) {
-				changed |= DrawFocusedButtonPartContents(ctx, button_entity, part, state);
-				ImGui::EndTabItem();
-			} else if (selected) {
-				ImGui::EndTabItem();
-			}
-		}
-
-		const bool has_all_parts{ part_count() == parts.size() };
-		if (!has_all_parts && DrawInspectorAddTabButton("+##AddButtonPart", "Add button part")) {
-			ImGui::OpenPopup("##AddButtonPartPopup");
-		}
-		draw_add_popup();
-		ApplyInspectorTabBarHorizontalWheel();
-		ImGui::EndTabBar();
+	if (add_requested) {
+		ImGui::OpenPopup("##AddButtonPartPopup");
 	}
+	draw_add_popup();
 
 	if (remove_after_tabs) {
 		ctx.commands.DeleteEntity(remove_after_tabs);
@@ -1321,7 +1315,7 @@ bool DrawDropdownItems(EntityInspectorTarget& target) {
 			// Dropdown item transforms are ordinary local transforms. The dropdown layout system
 			// preserves the user's delta while the normal ignore-parent components control whether
 			// the transform is relative to the dropdown header.
-			changed |= DrawTransformFeature(item_target, false);
+			changed |= DrawTransformSection(item_target, false);
 
 			// Dropdown items keep their authored identity. Structural type conversion is an explicit
 			// Convert To... operation rather than an ordinary inspector field.
@@ -1355,7 +1349,7 @@ bool DrawDropdownItems(EntityInspectorTarget& target) {
 bool DrawToggleGroupMembers(EntityInspectorTarget& target) {
 	ToggleButtonGroup group{ target.entity };
 	auto buttons{ group.GetButtons() };
-	auto& editor_state{ GetManualFeatureState(target.GetFeatureTargetKey()) };
+	auto& editor_state{ GetInspectorUiState(target.GetInspectorTargetKey()) };
 	if (!buttons.empty()) {
 		editor_state.toggle_group_item_index =
 			std::min(editor_state.toggle_group_item_index, buttons.size() - 1);
@@ -1707,11 +1701,11 @@ bool DrawButtonStateActions(
 
 template <typename Target>
 bool DrawFocusedButtonAppearance(Target& target, FocusedUIControlType type) {
-	auto& editor_state{ GetManualFeatureState(target.GetFeatureTargetKey()) };
+	auto& editor_state{ GetInspectorUiState(target.GetInspectorTargetKey()) };
 	const bool allow_toggled{ type == FocusedUIControlType::ToggleButton };
 
 	DrawFocusedButtonStateSelector(
-		target.ctx, target.GetFeatureTargetKey(), editor_state.button_visual_state, allow_toggled
+		target.ctx, target.GetInspectorTargetKey(), editor_state.button_visual_state, allow_toggled
 	);
 
 	const ButtonVisualState state{
@@ -1740,450 +1734,39 @@ bool DrawFocusedButtonAppearance(Target& target, FocusedUIControlType type) {
 	return changed;
 }
 
-[[nodiscard]] bool IsButtonManagedVisualChild(Entity child) {
-	return child && child.HasAny<
-		ButtonBackgroundVisuals,
-		ButtonBorderVisuals,
-		ButtonTextVisuals,
-		ButtonSpriteVisuals
-	>();
-}
-
-[[nodiscard]] bool IsSliderManagedChild(Entity child) {
-	return child && child.HasAny<
-		::ptgn::impl::SliderThumbData,
-		::ptgn::impl::SliderTrackData,
-		::ptgn::impl::SliderValueTextData
-	>();
-}
-
-[[nodiscard]] bool IsDropdownManagedChild(Entity child) {
-	return child && child.Has<::ptgn::impl::DropdownItem>();
-}
-
-[[nodiscard]] bool IsManagedChildForUIControl(
-	Entity child,
-	FocusedUIControlType type
-) {
-	switch (type) {
-		case FocusedUIControlType::Button:
-		case FocusedUIControlType::ToggleButton:
-			return IsButtonManagedVisualChild(child);
-
-		case FocusedUIControlType::Slider:
-			// Slider owns its thumb, track and value-text subtrees. Root button visuals
-			// are also managed UI parts and may remain after older control conversions.
-			return IsSliderManagedChild(child) || IsButtonManagedVisualChild(child);
-
-		case FocusedUIControlType::Dropdown:
-			// Dropdown owns its item buttons and the ordinary button visuals used by
-			// the dropdown header.
-			return IsDropdownManagedChild(child) || IsButtonManagedVisualChild(child);
-
-		case FocusedUIControlType::Dialogue:
-			return child && child.Has<::ptgn::impl::DialoguePart>();
-
-		case FocusedUIControlType::None:
-		case FocusedUIControlType::Conflict:
-			return false;
-	}
-
-	return false;
-}
-
-struct ManagedUIChildSnapshot {
-	std::size_t index{ 0 };
-	SerializedEntity entity{};
-};
-
-[[maybe_unused, nodiscard]] std::vector<ManagedUIChildSnapshot> CaptureManagedUIChildren(
-	Entity parent,
-	FocusedUIControlType type
-) {
-	std::vector<ManagedUIChildSnapshot> snapshots;
-
-	if (!parent || !HasChildren(parent)) {
-		return snapshots;
-	}
-
-	const auto children{ GetChildren(parent) };
-
-	for (std::size_t index{ 0 }; index < children.size(); ++index) {
-		Entity child{ children[index] };
-		if (!IsManagedChildForUIControl(child, type)) {
-			continue;
-		}
-
-		snapshots.emplace_back(ManagedUIChildSnapshot{
-			.index = index,
-			.entity = SerializeEntity(child),
-		});
-	}
-
-	return snapshots;
-}
-
-void DestroyEntityTree(Entity entity) {
-	if (!entity) {
-		return;
-	}
-
-	if (HasChildren(entity)) {
-		const auto children{ GetChildren(entity) };
-		for (Entity child : children) {
-			DestroyEntityTree(child);
-		}
-	}
-
-	if (HasParent(entity)) {
-		RemoveParent(entity);
-	}
-
-	entity.Destroy();
-}
-
-[[maybe_unused]] void DestroyManagedUIChildren(
-	Entity parent,
-	FocusedUIControlType type
-) {
-	if (!parent || !HasChildren(parent)) {
-		return;
-	}
-
-	// Copy before modifying hierarchy because destroying a managed root removes
-	// that root and its complete managed subtree.
-	const auto children{ GetChildren(parent) };
-	bool destroyed{ false };
-
-	for (Entity child : children) {
-		if (!IsManagedChildForUIControl(child, type)) {
-			continue;
-		}
-
-		DestroyEntityTree(child);
-		destroyed = true;
-	}
-
-	if (destroyed) {
-		parent.GetScene().Refresh();
-	}
-}
-
-[[nodiscard]] Entity RestoreSerializedUIEntityTree(
-	Scene& scene,
-	const SerializedEntity& serialized
-) {
-	Entity entity{
-		scene.CreateEntity(
-			Tag{ serialized.tag },
-			GetSerializedEntityUUID(serialized)
-		)
-	};
-
-	DeserializeEntity(serialized, entity);
-
-	for (const auto& serialized_child : serialized.children) {
-		Entity child{ RestoreSerializedUIEntityTree(scene, serialized_child) };
-		SetParent(child, entity);
-	}
-
-	return entity;
-}
-
-[[maybe_unused]] void RestoreManagedUIChildren(
-	Entity parent,
-	const std::vector<ManagedUIChildSnapshot>& snapshots
-) {
-	if (!parent || snapshots.empty()) {
-		return;
-	}
-
-	Scene& scene{ parent.GetScene() };
-
-	for (const auto& snapshot : snapshots) {
-		Entity restored{ RestoreSerializedUIEntityTree(scene, snapshot.entity) };
-		SetParent(restored, parent);
-
-		const auto& children{ GetChildren(parent) };
-		if (!children.empty()) {
-			const std::size_t index{
-				std::min(snapshot.index, children.size() - 1)
-			};
-			MoveChild(parent, restored, index);
-		}
-	}
-
-	scene.Refresh();
-}
-
 template <typename Target>
 bool RepairUIControlConflict(Target& target, FocusedUIControlType keep) {
 	auto before{
-		CaptureInspectorFeatureState(target, InspectorFeature::UI, UIFeatureComponents{})
+		CaptureComponentSetState(target, UISectionComponents{})
 	};
 
 	if (keep != FocusedUIControlType::Slider) {
-		RemoveSupportedFeatureComponent<Target, ::ptgn::impl::SliderData>(target);
+		RemoveSupportedComponent<Target, ::ptgn::impl::SliderData>(target);
 	}
 	if (keep != FocusedUIControlType::ToggleButton) {
-		RemoveSupportedFeatureComponent<Target, ::ptgn::impl::ToggleButtonData>(target);
+		RemoveSupportedComponent<Target, ::ptgn::impl::ToggleButtonData>(target);
 	}
 	if (keep != FocusedUIControlType::Dropdown) {
-		RemoveSupportedFeatureComponent<Target, ::ptgn::impl::DropdownData>(target);
+		RemoveSupportedComponent<Target, ::ptgn::impl::DropdownData>(target);
 	}
 	if (keep != FocusedUIControlType::Dialogue) {
-		RemoveSupportedFeatureComponent<Target, ::ptgn::impl::DialogueData>(target);
+		RemoveSupportedComponent<Target, ::ptgn::impl::DialogueData>(target);
 	}
 
 	if (keep == FocusedUIControlType::Dialogue) {
-		RemoveSupportedFeatureComponent<Target, ::ptgn::impl::ButtonData>(target);
+		RemoveSupportedComponent<Target, ::ptgn::impl::ButtonData>(target);
 	} else if constexpr (Target::template Supports<::ptgn::impl::ButtonData>()) {
 		if (!target.template Capture<::ptgn::impl::ButtonData>()) {
 			target.template SetLive<::ptgn::impl::ButtonData>(::ptgn::impl::ButtonData{});
 		}
 	}
 
-	auto after{ CaptureInspectorFeatureState(target, InspectorFeature::UI, UIFeatureComponents{}) };
-	TrackInspectorFeatureState(
-		target, InspectorFeature::UI, "Repair UI Control Type", std::move(before), std::move(after),
-		UIFeatureComponents{}
+	auto after{ CaptureComponentSetState(target, UISectionComponents{}) };
+	TrackComponentSetState(
+		target, "Repair UI Control Type", std::move(before), std::move(after),
+		UISectionComponents{}
 	);
 	return true;
-}
-
-template <typename Target>
-bool ChangeFocusedUIControlType(Target& target, FocusedUIControlType type) {
-	if (type == FocusedUIControlType::None || type == FocusedUIControlType::Conflict) {
-		return false;
-	}
-
-	const FocusedUIControlType previous_type{ GetFocusedUIControlType(target) };
-	if (previous_type == type) {
-		return false;
-	}
-
-	auto before{
-		CaptureInspectorFeatureState(target, InspectorFeature::UI, UIFeatureComponents{})
-	};
-
-	std::vector<ManagedUIChildSnapshot> previous_managed_children;
-	if constexpr (std::same_as<std::remove_cvref_t<Target>, EntityInspectorTarget>) {
-		previous_managed_children = CaptureManagedUIChildren(target.entity, previous_type);
-		DestroyManagedUIChildren(target.entity, previous_type);
-	}
-
-	RemoveSupportedFeatureComponent<Target, ::ptgn::impl::SliderData>(target);
-	RemoveSupportedFeatureComponent<Target, ::ptgn::impl::ToggleButtonData>(target);
-	RemoveSupportedFeatureComponent<Target, ::ptgn::impl::DropdownData>(target);
-	RemoveSupportedFeatureComponent<Target, ::ptgn::impl::DialogueData>(target);
-
-	if (type == FocusedUIControlType::Dialogue) {
-		RemoveSupportedFeatureComponent<Target, ::ptgn::impl::ButtonData>(target);
-	} else if constexpr (Target::template Supports<::ptgn::impl::ButtonData>()) {
-		if (!target.template Capture<::ptgn::impl::ButtonData>()) {
-			target.template SetLive<::ptgn::impl::ButtonData>(::ptgn::impl::ButtonData{});
-		}
-	}
-
-	switch (type) {
-		case FocusedUIControlType::Button: break;
-
-		case FocusedUIControlType::ToggleButton:
-			if constexpr (Target::template Supports<::ptgn::impl::ToggleButtonData>()) {
-				target.template SetLive<::ptgn::impl::ToggleButtonData>(
-					::ptgn::impl::ToggleButtonData{}
-				);
-			}
-			break;
-
-		case FocusedUIControlType::Slider:
-			if constexpr (Target::template Supports<::ptgn::impl::SliderData>()) {
-				::ptgn::impl::SliderData data;
-				// SliderData::line is stored in slider-local space unless an enabled Track Transform
-				// supplies the basis. Converting an existing button must not bake in world position.
-				data.line = Line{ {}, V2_float{ 100.0f, 0.0f } };
-				target.template SetLive<::ptgn::impl::SliderData>(data);
-			}
-			break;
-
-		case FocusedUIControlType::Dropdown:
-			if constexpr (Target::template Supports<::ptgn::impl::DropdownData>()) {
-				target.template SetLive<::ptgn::impl::DropdownData>(::ptgn::impl::DropdownData{});
-			}
-			break;
-
-		case FocusedUIControlType::Dialogue:
-			if constexpr (Target::template Supports<::ptgn::impl::DialogueData>()) {
-				::ptgn::impl::DialogueData data;
-				data.SetDefinition(::ptgn::impl::DialogueData::MakeDefaultDefinition());
-				target.template SetLive<::ptgn::impl::DialogueData>(data);
-			}
-			break;
-
-		case FocusedUIControlType::None:
-		case FocusedUIControlType::Conflict: break;
-	}
-
-	auto after{ CaptureInspectorFeatureState(target, InspectorFeature::UI, UIFeatureComponents{}) };
-
-	if constexpr (std::same_as<std::remove_cvref_t<Target>, EntityInspectorTarget>) {
-		auto apply{
-			MakeInspectorFeatureApply(target, InspectorFeature::UI, UIFeatureComponents{})
-		};
-		Editor* editor{ std::addressof(target.ctx.editor) };
-		const EntityReference reference{ MakeEntityReference(target.entity) };
-
-		target.ctx.undo.PushApplied(
-			"Change UI Control Type",
-			[
-				editor,
-				reference,
-				apply,
-				before,
-				previous_managed_children,
-				previous_type,
-				type
-			]() mutable {
-				Entity entity{ reference.Resolve(*editor) };
-				if (entity) {
-					DestroyManagedUIChildren(entity, type);
-				}
-
-				apply(before);
-
-				entity = reference.Resolve(*editor);
-				if (!entity) {
-					return;
-				}
-
-				// Applying SliderData may recreate default slider children. Remove those
-				// before restoring the exact managed subtree that existed before the switch.
-				DestroyManagedUIChildren(entity, previous_type);
-				RestoreManagedUIChildren(entity, previous_managed_children);
-			},
-			[
-				editor,
-				reference,
-				apply,
-				after,
-				previous_type
-			]() mutable {
-				Entity entity{ reference.Resolve(*editor) };
-				if (entity) {
-					DestroyManagedUIChildren(entity, previous_type);
-				}
-
-				apply(after);
-			}
-		);
-	} else {
-		TrackInspectorFeatureState(
-			target, InspectorFeature::UI, "Change UI Control Type", std::move(before),
-			std::move(after), UIFeatureComponents{}
-		);
-	}
-
-	return true;
-}
-
-template <typename Target>
-bool DrawFocusedUIControlTypeSelector(
-	Target& target, FocusedUIControlType current, bool* type_changed_out
-) {
-	if (current == FocusedUIControlType::None || current == FocusedUIControlType::Conflict) {
-		return false;
-	}
-
-	const bool locked_to_toggle{
-		HasTargetComponent<Target, ::ptgn::impl::ToggleButtonGroupItem>(target)
-	};
-
-	auto before_visible{ target.template Capture<Visible>() };
-	bool visible{ before_visible ? before_visible->visible : true };
-
-	bool type_changed{ false };
-	bool visible_changed{ false };
-
-	DrawPropertyRow("Control Type", [&]() {
-		const float spacing{ ImGui::GetStyle().ItemSpacing.x };
-		const float visible_width{
-			ImGui::GetFrameHeight() +
-			ImGui::GetStyle().ItemInnerSpacing.x +
-			ImGui::CalcTextSize("Visible").x
-		};
-		const float combo_width{
-			std::max(
-				1.0f,
-				ImGui::GetContentRegionAvail().x - visible_width - spacing
-			)
-		};
-
-		const std::string preview{ FocusedUIControlLabel(current) };
-
-		ImGui::SetNextItemWidth(combo_width);
-		if (ImGui::BeginCombo("##FocusedUIControlType", preview.c_str())) {
-			for (const FocusedUIControlType candidate :
-				 { FocusedUIControlType::Button, FocusedUIControlType::ToggleButton,
-				   FocusedUIControlType::Slider, FocusedUIControlType::Dropdown,
-				   FocusedUIControlType::Dialogue }) {
-				const bool unsupported_dialogue{
-					candidate == FocusedUIControlType::Dialogue &&
-					!Target::template Supports<::ptgn::impl::DialogueData>()
-				};
-				const bool disabled{
-					unsupported_dialogue ||
-					(locked_to_toggle &&
-					candidate != FocusedUIControlType::ToggleButton)
-				};
-				ScopedDisabled disabled_scope{ disabled };
-				const bool selected{ candidate == current };
-
-				if (ImGui::Selectable(
-						std::string{ FocusedUIControlLabel(candidate) }.c_str(),
-						selected
-					) &&
-					!disabled && !selected) {
-					type_changed = ChangeFocusedUIControlType(target, candidate);
-				}
-
-				if (selected) {
-					ImGui::SetItemDefaultFocus();
-				}
-			}
-
-			ImGui::EndCombo();
-		}
-
-		ImGui::SameLine(0.0f, spacing);
-		visible_changed = ImGui::Checkbox("Visible##UIControlVisible", &visible);
-
-		return type_changed || visible_changed;
-	});
-
-	if (visible_changed) {
-		Visible updated{ before_visible.value_or(Visible{}) };
-		updated.visible = visible;
-		target.template SetLive<Visible>(ComponentState<Visible>{ updated });
-	}
-
-	auto after_visible{ target.template Capture<Visible>() };
-
-	TrackComponentState(
-		target, "Toggle UI Control Visibility",
-		std::move(before_visible), std::move(after_visible), visible_changed
-	);
-
-	if (locked_to_toggle) {
-		DrawDisabledWrappedText(
-			"Toggle-group members must remain Toggle Buttons. Remove the group membership first to "
-			"change type."
-		);
-	}
-
-	if (type_changed_out) {
-		*type_changed_out = type_changed;
-	}
-	return type_changed || visible_changed;
 }
 
 template <typename Target>
@@ -2281,7 +1864,7 @@ bool DrawSliderTrackTransform(EntityInspectorTarget& slider_target, Entity track
 	if (open) {
 		ScopedDisabled disabled{ !enabled };
 		EntityInspectorTarget track_target{ .ctx = slider_target.ctx, .entity = track };
-		changed |= DrawTransformFeature(track_target, false, true, false);
+		changed |= DrawTransformSection(track_target, false, true, false);
 	}
 
 	return changed;
@@ -2391,7 +1974,7 @@ bool DrawSliderTrackPartTransform(EntityInspectorTarget& target, std::string_vie
 	DrawTooltip("Override this track part's transform, or leave it unchecked to use automatic placement.");
 	if (open) {
 		ScopedDisabled disabled{ !enabled };
-		changed |= DrawTransformFeature(target, false, false, false);
+		changed |= DrawTransformSection(target, false, false, false);
 	}
 
 	return changed;
@@ -2682,69 +2265,70 @@ bool DrawSliderTrackVisual(EntityInspectorTarget& target, Slider slider, Entity&
 	};
 
 	const bool has_any_track_part{ track && HasSliderTrackVisualParts(track) };
-	if (!has_any_track_part) {
-		if (ImGui::Button("Add Track Part", ImVec2{ -FLT_MIN, 0.0f })) {
-			ImGui::OpenPopup("##AddSliderTrackPartPopup");
+	const bool all_track_parts{
+		track && FindSliderTrackPart<::ptgn::impl::SliderTrackBackgroundData>(track) &&
+		FindSliderTrackPart<::ptgn::impl::SliderTrackBorderData>(track) &&
+		FindSliderTrackPart<::ptgn::impl::SliderTrackSpriteData>(track)
+	};
+
+	const bool add_requested{ DrawInspectorTabCollection(
+		!has_any_track_part,
+		InspectorTabCollectionOptions{
+			.scope_id = "##SliderTrackPartStrip",
+			.tab_bar_id = "##SliderTrackParts",
+			.add_tab_id = "+##AddSliderTrackPart",
+			.empty_add_label = "Add Track Part",
+			.add_tooltip = "Add track visual part",
+			.show_add = !all_track_parts,
+		},
+		[&]() {
+			auto draw_part = [&](Entity child, std::string_view fallback, auto&& draw) {
+				if (!child) {
+					return;
+				}
+				ScopedID part_scope{ fallback };
+				const std::string label{ fallback };
+				const bool selected{ ImGui::BeginTabItem(label.c_str()) };
+				const auto context{ DrawInspectorTabContextMenu(
+					"##SliderTrackPartContext", false, false, true, "Remove Part"
+				) };
+				if (context.remove_requested) {
+					remove_after_tabs = child;
+				}
+				if (selected) {
+					if (child && child != remove_after_tabs) {
+						EntityInspectorTarget child_target{ .ctx = target.ctx, .entity = child };
+						changed |= std::invoke(draw, child_target, child);
+					}
+					ImGui::EndTabItem();
+				}
+			};
+
+			draw_part(
+				FindSliderTrackPart<::ptgn::impl::SliderTrackBackgroundData>(track), "Background",
+				[](EntityInspectorTarget& child_target, Entity child) {
+					return DrawSliderTrackBackgroundFields(child_target, child);
+				}
+			);
+			draw_part(
+				FindSliderTrackPart<::ptgn::impl::SliderTrackBorderData>(track), "Border",
+				[](EntityInspectorTarget& child_target, Entity child) {
+					return DrawSliderTrackBorderFields(child_target, child);
+				}
+			);
+			draw_part(
+				FindSliderTrackPart<::ptgn::impl::SliderTrackSpriteData>(track), "Sprite",
+				[](EntityInspectorTarget& child_target, Entity child) {
+					return DrawSliderTrackSpriteFields(child_target, child);
+				}
+			);
 		}
-		add_popup();
-		return changed;
+	) };
+
+	if (add_requested) {
+		ImGui::OpenPopup("##AddSliderTrackPartPopup");
 	}
-
-	InspectorTabStripScope strip{ "##SliderTrackPartStrip" };
-	if (ImGui::BeginTabBar("##SliderTrackParts", InspectorTabBarFlags())) {
-		auto draw_part = [&](Entity child, std::string_view fallback, auto&& draw) {
-			if (!child) {
-				return;
-			}
-			ScopedID part_scope{ fallback };
-			const std::string label{ fallback };
-			const bool selected{ ImGui::BeginTabItem(label.c_str()) };
-			const auto context{ DrawInspectorTabContextMenu(
-				"##SliderTrackPartContext", false, false, true, "Remove Part"
-			) };
-			if (context.remove_requested) {
-				remove_after_tabs = child;
-			}
-			if (selected && child && child != remove_after_tabs) {
-				EntityInspectorTarget child_target{ .ctx = target.ctx, .entity = child };
-				changed |= std::invoke(draw, child_target, child);
-				ImGui::EndTabItem();
-			} else if (selected) {
-				ImGui::EndTabItem();
-			}
-		};
-
-		draw_part(
-			FindSliderTrackPart<::ptgn::impl::SliderTrackBackgroundData>(track), "Background",
-			[](EntityInspectorTarget& child_target, Entity child) {
-				return DrawSliderTrackBackgroundFields(child_target, child);
-			}
-		);
-		draw_part(
-			FindSliderTrackPart<::ptgn::impl::SliderTrackBorderData>(track), "Border",
-			[](EntityInspectorTarget& child_target, Entity child) {
-				return DrawSliderTrackBorderFields(child_target, child);
-			}
-		);
-		draw_part(
-			FindSliderTrackPart<::ptgn::impl::SliderTrackSpriteData>(track), "Sprite",
-			[](EntityInspectorTarget& child_target, Entity child) {
-				return DrawSliderTrackSpriteFields(child_target, child);
-			}
-		);
-
-		const bool all_track_parts{
-			track && FindSliderTrackPart<::ptgn::impl::SliderTrackBackgroundData>(track) &&
-			FindSliderTrackPart<::ptgn::impl::SliderTrackBorderData>(track) &&
-			FindSliderTrackPart<::ptgn::impl::SliderTrackSpriteData>(track)
-		};
-		if (!all_track_parts && DrawInspectorAddTabButton("+##AddSliderTrackPart", "Add track visual part")) {
-			ImGui::OpenPopup("##AddSliderTrackPartPopup");
-		}
-		add_popup();
-		ApplyInspectorTabBarHorizontalWheel();
-		ImGui::EndTabBar();
-	}
+	add_popup();
 
 	if (remove_after_tabs) {
 		target.ctx.commands.DeleteEntity(remove_after_tabs);
@@ -3209,7 +2793,7 @@ void RenameDialogueEditorEntry(
 
 [[nodiscard]] std::size_t DialogueEditorSelectedIndex(
 	DialogueEditorDocument& document,
-	ManualFeatureState& state
+	InspectorUiState& state
 ) {
 	NormalizeDialogueEditorDocument(document);
 
@@ -3331,7 +2915,7 @@ void AppendDialoguePagePreviewLine(
 }
 
 void DrawDialoguePreviewNavigation(
-	ManualFeatureState& state,
+	InspectorUiState& state,
 	std::size_t page_count
 ) {
 	if (page_count == 0) {
@@ -3500,7 +3084,7 @@ bool DrawDialoguePortraitDefinitions(
 	EditorContext& ctx,
 	Entity relative_to,
 	DialogueEditorDocument& document,
-	ManualFeatureState& state,
+	InspectorUiState& state,
 	std::string& reason
 ) {
 	bool changed{ false };
@@ -4007,7 +3591,7 @@ bool DrawFocusedDialogueControl(Target& target) {
 		NormalizeDialogueEditorDocument(document);
 
 		auto& state{
-			GetManualFeatureState(target.GetFeatureTargetKey())
+			GetInspectorUiState(target.GetInspectorTargetKey())
 		};
 
 		Entity dialogue_entity{};
@@ -4877,6 +4461,7 @@ bool DrawSliderPartsTabs(EntityInspectorTarget& target, Slider slider) {
 	const auto slider_data{ target.template Capture<::ptgn::impl::SliderData>() };
 	const bool has_value_text{ slider_data && slider_data->value_text.has_value() };
 	const bool has_any_part{ static_cast<bool>(track) || static_cast<bool>(thumb) || has_value_text };
+	const bool has_all_parts{ track && thumb && has_value_text };
 
 	enum class RemovePart {
 		None,
@@ -4913,131 +4498,124 @@ bool DrawSliderPartsTabs(EntityInspectorTarget& target, Slider slider) {
 		ImGui::EndPopup();
 	};
 
-	if (!has_any_part) {
-		if (ImGui::Button("Add Slider Part", ImVec2{ -FLT_MIN, 0.0f })) {
-			ImGui::OpenPopup("##AddSliderPartPopup");
-		}
-		draw_add_popup();
-		return changed;
-	}
-
-	InspectorTabStripScope strip{ "##SliderPartsTabStrip" };
-	if (ImGui::BeginTabBar("##SliderParts", InspectorTabBarFlags())) {
-		if (track) {
-			ScopedID scope{ "TrackPartTab" };
-			const bool selected{ ImGui::BeginTabItem("Track") };
-			const auto context{ DrawInspectorTabContextMenu(
-				"##SliderTrackContext", false, false, true, "Remove Part"
-			) };
-			if (context.remove_requested) {
-				remove_after_tabs = RemovePart::Track;
-			}
-			if (selected) {
-				if (remove_after_tabs != RemovePart::Track) {
-					changed |= DrawSliderTrackTransform(target, track);
-					changed |= DrawSliderTrackVisual(target, slider, track);
+	const bool add_requested{ DrawInspectorTabCollection(
+		!has_any_part,
+		InspectorTabCollectionOptions{
+			.scope_id = "##SliderPartsTabStrip",
+			.tab_bar_id = "##SliderParts",
+			.add_tab_id = "+##AddSliderPart",
+			.empty_add_label = "Add Slider Part",
+			.add_tooltip = "Add slider part",
+			.show_add = !has_all_parts,
+		},
+		[&]() {
+			if (track) {
+				ScopedID scope{ "TrackPartTab" };
+				const bool selected{ ImGui::BeginTabItem("Track") };
+				const auto context{ DrawInspectorTabContextMenu(
+					"##SliderTrackContext", false, false, true, "Remove Part"
+				) };
+				if (context.remove_requested) {
+					remove_after_tabs = RemovePart::Track;
 				}
-				ImGui::EndTabItem();
+				if (selected) {
+					if (remove_after_tabs != RemovePart::Track) {
+						changed |= DrawSliderTrackTransform(target, track);
+						changed |= DrawSliderTrackVisual(target, slider, track);
+					}
+					ImGui::EndTabItem();
+				}
 			}
-		}
 
-		if (thumb) {
-			ScopedID scope{ "ThumbPartTab" };
-			const bool selected{ ImGui::BeginTabItem("Thumb") };
-			const auto context{ DrawInspectorTabContextMenu(
-				"##SliderThumbContext", false, false, true, "Remove Part"
-			) };
-			if (context.remove_requested) {
-				remove_after_tabs = RemovePart::Thumb;
-			}
-			if (selected) {
-				if (remove_after_tabs != RemovePart::Thumb) {
-					EntityInspectorTarget thumb_target{ .ctx = target.ctx, .entity = thumb };
-					changed |= DrawFocusedButtonInteraction(
-						thumb_target, FocusedUIControlType::Button
-					);
-					if (ImGui::TreeNodeEx(
-							"Transform##SliderThumbTransform",
-							ImGuiTreeNodeFlags_SpanAvailWidth | ImGuiTreeNodeFlags_FramePadding
-						)) {
-						ScopedIndent thumb_transform_indent;
-						auto slider_before{
-							target.template Capture<::ptgn::impl::SliderData>()
-						};
-						const bool transform_changed{
-							DrawTransformFeature(thumb_target, false, true, false)
-						};
-						if (transform_changed) {
-							// The thumb Transform is local to the slider. Convert an authored
-							// position back into the slider value before re-constraining it.
-							::ptgn::impl::SliderSystem::SynchronizeEntity(thumb);
-							auto slider_after{
+			if (thumb) {
+				ScopedID scope{ "ThumbPartTab" };
+				const bool selected{ ImGui::BeginTabItem("Thumb") };
+				const auto context{ DrawInspectorTabContextMenu(
+					"##SliderThumbContext", false, false, true, "Remove Part"
+				) };
+				if (context.remove_requested) {
+					remove_after_tabs = RemovePart::Thumb;
+				}
+				if (selected) {
+					if (remove_after_tabs != RemovePart::Thumb) {
+						EntityInspectorTarget thumb_target{ .ctx = target.ctx, .entity = thumb };
+						changed |= DrawFocusedButtonInteraction(
+							thumb_target, FocusedUIControlType::Button
+						);
+						if (ImGui::TreeNodeEx(
+								"Transform##SliderThumbTransform",
+								ImGuiTreeNodeFlags_SpanAvailWidth | ImGuiTreeNodeFlags_FramePadding
+							)) {
+							ScopedIndent thumb_transform_indent;
+							auto slider_before{
 								target.template Capture<::ptgn::impl::SliderData>()
 							};
-							TrackComponentState(
-								target, "Move Slider Thumb", std::move(slider_before),
-								std::move(slider_after), true
-							);
-							changed = true;
+							const bool transform_changed{
+								DrawTransformSection(thumb_target, false, true, false)
+							};
+							if (transform_changed) {
+								::ptgn::impl::SliderSystem::SynchronizeEntity(thumb);
+								auto slider_after{
+									target.template Capture<::ptgn::impl::SliderData>()
+								};
+								TrackComponentState(
+									target, "Move Slider Thumb", std::move(slider_before),
+									std::move(slider_after), true
+								);
+								changed = true;
+							}
+							ImGui::TreePop();
 						}
-						ImGui::TreePop();
+						changed |= DrawFocusedButtonAppearance(
+							thumb_target, FocusedUIControlType::Button
+						);
 					}
-					changed |= DrawFocusedButtonAppearance(
-						thumb_target, FocusedUIControlType::Button
-					);
+					ImGui::EndTabItem();
 				}
-				ImGui::EndTabItem();
 			}
-		}
 
-		if (has_value_text) {
-			ScopedID scope{ "ValueTextPartTab" };
-			const bool selected{ ImGui::BeginTabItem("Value Text") };
-			const auto context{ DrawInspectorTabContextMenu(
-				"##SliderValueTextContext", false, false, true, "Remove Part"
-			) };
-			if (context.remove_requested) {
-				remove_after_tabs = RemovePart::ValueText;
-			}
-			if (selected) {
-				if (remove_after_tabs != RemovePart::ValueText) {
-					auto before{ target.template Capture<::ptgn::impl::SliderData>() };
-					if (before) {
-						auto data{ *before };
-						if (!data.value_text.has_value()) {
-							data.value_text = SliderValueTextConfig{};
-						}
-						if (DrawSliderValueTextConfig(target, data)) {
-							target.template SetLive<::ptgn::impl::SliderData>(data);
-							::ptgn::impl::SliderSystem::SynchronizeEntity(target.entity);
-							auto after{ target.template Capture<::ptgn::impl::SliderData>() };
-							TrackComponentState(
-								target,
-								"Edit Slider Value Text",
-								std::move(before),
-								std::move(after),
-								true
-							);
-							changed = true;
+			if (has_value_text) {
+				ScopedID scope{ "ValueTextPartTab" };
+				const bool selected{ ImGui::BeginTabItem("Value Text") };
+				const auto context{ DrawInspectorTabContextMenu(
+					"##SliderValueTextContext", false, false, true, "Remove Part"
+				) };
+				if (context.remove_requested) {
+					remove_after_tabs = RemovePart::ValueText;
+				}
+				if (selected) {
+					if (remove_after_tabs != RemovePart::ValueText) {
+						auto before{ target.template Capture<::ptgn::impl::SliderData>() };
+						if (before) {
+							auto data{ *before };
+							if (!data.value_text.has_value()) {
+								data.value_text = SliderValueTextConfig{};
+							}
+							if (DrawSliderValueTextConfig(target, data)) {
+								target.template SetLive<::ptgn::impl::SliderData>(data);
+								::ptgn::impl::SliderSystem::SynchronizeEntity(target.entity);
+								auto after{ target.template Capture<::ptgn::impl::SliderData>() };
+								TrackComponentState(
+									target,
+									"Edit Slider Value Text",
+									std::move(before),
+									std::move(after),
+									true
+								);
+								changed = true;
+							}
 						}
 					}
+					ImGui::EndTabItem();
 				}
-				ImGui::EndTabItem();
 			}
 		}
+	) };
 
-		const bool has_all_parts{ track && thumb && has_value_text };
-		if (!has_all_parts &&
-			DrawInspectorAddTabButton("+##AddSliderPart", "Add slider part")) {
-			ImGui::OpenPopup("##AddSliderPartPopup");
-		}
-		if (!has_all_parts) {
-			draw_add_popup();
-		}
-
-		ApplyInspectorTabBarHorizontalWheel();
-		ImGui::EndTabBar();
+	if (add_requested) {
+		ImGui::OpenPopup("##AddSliderPartPopup");
 	}
+	draw_add_popup();
 
 	switch (remove_after_tabs) {
 		case RemovePart::Track:
@@ -5169,8 +4747,8 @@ bool DrawManagedVisualChildContents(EditorContext& ctx, Entity child) {
 		return false;
 	}
 	EntityInspectorTarget child_target{ .ctx = ctx, .entity = child };
-	bool changed{ DrawVisualFeature(child_target) };
-	changed |= DrawTransformFeature(child_target);
+	bool changed{ DrawVisualSection(child_target) };
+	changed |= DrawTransformSection(child_target);
 	return changed;
 }
 
@@ -5195,7 +4773,7 @@ bool DrawManagedVisualPartsTabs(
 		}
 		for (std::size_t action_index{ 0 }; action_index < add_actions.size(); ++action_index) {
 			const auto& action{ add_actions[action_index] };
-			ImGui::PushID(static_cast<int>(action_index));
+			ScopedID action_scope{ static_cast<int>(action_index) };
 			ImGui::BeginDisabled(!action.enabled);
 			const std::string action_label{ action.label };
 			if (ImGui::MenuItem(action_label.c_str()) && action.invoke) {
@@ -5209,54 +4787,49 @@ bool DrawManagedVisualPartsTabs(
 					"%.*s", static_cast<int>(action.tooltip.size()), action.tooltip.data()
 				);
 			}
-			ImGui::PopID();
 		}
 		ImGui::EndPopup();
 	};
 
-	if (!has_any_part && !add_actions.empty()) {
-		if (ImGui::Button("Add UI Part", ImVec2{ -FLT_MIN, 0.0f })) {
-			ImGui::OpenPopup("##AddManagedVisualPartPopup");
-		}
-		draw_add_popup();
-		return changed;
-	}
-
-	InspectorTabStripScope strip{ id };
-	if (ImGui::BeginTabBar("##ManagedVisualParts", InspectorTabBarFlags())) {
-		for (std::size_t index{ 0 }; index < parts.size(); ++index) {
-			const auto& [fallback, child]{ parts[index] };
-			if (!child) {
-				continue;
-			}
-			ImGui::PushID(static_cast<int>(index));
-			const std::string label{ fallback };
-			const bool selected{ ImGui::BeginTabItem(label.c_str()) };
-			const auto context{ DrawInspectorTabContextMenu(
-				"##ManagedVisualPartContext", false, false, true, "Remove Part"
-			) };
-			if (context.remove_requested) {
-				remove_after_tabs = child;
-			}
-			if (selected) {
-				if (child != remove_after_tabs) {
-					changed |= DrawManagedVisualChildContents(ctx, child);
+	const bool add_requested{ DrawInspectorTabCollection(
+		!has_any_part,
+		InspectorTabCollectionOptions{
+			.scope_id = id,
+			.tab_bar_id = "##ManagedVisualParts",
+			.add_tab_id = "+##AddManagedVisualPart",
+			.empty_add_label = "Add UI Part",
+			.add_tooltip = "Add UI part",
+			.show_add = !add_actions.empty(),
+		},
+		[&]() {
+			for (std::size_t index{ 0 }; index < parts.size(); ++index) {
+				const auto& [fallback, child]{ parts[index] };
+				if (!child) {
+					continue;
 				}
-				ImGui::EndTabItem();
+				ScopedID part_scope{ static_cast<int>(index) };
+				const std::string label{ fallback };
+				const bool selected{ ImGui::BeginTabItem(label.c_str()) };
+				const auto context{ DrawInspectorTabContextMenu(
+					"##ManagedVisualPartContext", false, false, true, "Remove Part"
+				) };
+				if (context.remove_requested) {
+					remove_after_tabs = child;
+				}
+				if (selected) {
+					if (child != remove_after_tabs) {
+						changed |= DrawManagedVisualChildContents(ctx, child);
+					}
+					ImGui::EndTabItem();
+				}
 			}
-			ImGui::PopID();
 		}
+	) };
 
-		if (!add_actions.empty()) {
-			if (DrawInspectorAddTabButton("+##AddManagedVisualPart", "Add UI part")) {
-				ImGui::OpenPopup("##AddManagedVisualPartPopup");
-			}
-			draw_add_popup();
-		}
-
-		ApplyInspectorTabBarHorizontalWheel();
-		ImGui::EndTabBar();
+	if (add_requested) {
+		ImGui::OpenPopup("##AddManagedVisualPartPopup");
 	}
+	draw_add_popup();
 
 	if (remove_after_tabs) {
 		ctx.commands.DeleteEntity(remove_after_tabs);
@@ -5305,8 +4878,8 @@ Entity CreateTooltipPartForInspector(EditorContext& ctx, Entity tooltip, bool te
 }
 
 template <typename Target>
-bool DrawUIFeatureImpl(Target& target) {
-	if (!HasUIFeature(target)) {
+bool DrawUISectionImpl(Target& target) {
+	if (!HasUISection(target)) {
 		return false;
 	}
 
@@ -5319,8 +4892,8 @@ bool DrawUIFeatureImpl(Target& target) {
 			return false;
 		}
 
-		ScopedIndent feature_indent;
-		auto& editor_state{ GetManualFeatureState(target.GetFeatureTargetKey()) };
+		ScopedIndent section_indent;
+		auto& editor_state{ GetInspectorUiState(target.GetInspectorTargetKey()) };
 		DrawButtonVisualStateSelector(editor_state.button_visual_state);
 		return false;
 	}
@@ -5339,21 +4912,29 @@ bool DrawUIFeatureImpl(Target& target) {
 		ui_label = "Tooltip";
 	}
 
-	const auto header{ DrawFeatureHeader(
-		target, InspectorFeature::UI, ui_label, ImGuiTreeNodeFlags_DefaultOpen, UIFeatureComponents{},
-		false
+	const bool archetype_owned{ ArchetypeOwnsUI(ResolveInspectorArchetype(target)) };
+	const auto header{ DrawInspectorSectionHeader(
+		ui_label,
+		"UISection",
+		InspectorSectionOptions{
+			.default_open = true,
+			.removable = !archetype_owned,
+		}
 	) };
 
-	if (!header.open) {
-		return header.changed;
+	if (header.remove_requested) {
+		return RemoveComponentSet(target, ui_label, UISectionComponents{});
 	}
 
-	ScopedIndent feature_indent;
-	bool changed{ header.changed };
+	if (!header.open) {
+		return false;
+	}
+
+	ScopedIndent section_indent;
+	bool changed{ false };
 
 	if (control_type != FocusedUIControlType::None) {
-		// Identity is intentionally not editable through a combo. The existing structural
-		// conversion helpers remain available for an explicit undoable Convert To... command.
+		// UI control identity is owned by the entity archetype and is not editable here.
 		if (control_type == FocusedUIControlType::Dialogue) {
 			changed |= DrawFocusedControlSpecific(target, control_type);
 		} else if (control_type != FocusedUIControlType::Conflict) {
@@ -5490,12 +5071,12 @@ bool DrawUIFeatureImpl(Target& target) {
 
 } // namespace
 
-bool DrawUIFeature(EntityInspectorTarget& target) {
-	return DrawUIFeatureImpl(target);
+bool DrawUISection(EntityInspectorTarget& target) {
+	return DrawUISectionImpl(target);
 }
 
-bool DrawUIFeature(PrefabInspectorTarget& target) {
-	return DrawUIFeatureImpl(target);
+bool DrawUISection(PrefabInspectorTarget& target) {
+	return DrawUISectionImpl(target);
 }
 
 } // namespace ptgn::editor::inspector
