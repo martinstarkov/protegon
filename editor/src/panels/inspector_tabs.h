@@ -5,6 +5,7 @@
 
 #include <algorithm>
 #include <cfloat>
+#include <cstddef>
 #include <cmath>
 #include <string>
 #include <string_view>
@@ -22,8 +23,7 @@ namespace ptgn::editor::inspector {
 class InspectorTabStripScope {
 public:
 	explicit InspectorTabStripScope(const char*) :
-		window_{ ImGui::GetCurrentWindow() },
-		previous_tab_bar_border_size_{ ImGui::GetStyle().TabBarBorderSize } {
+		window_{ ImGui::GetCurrentWindow() } {
 		if (window_) {
 			cursor_max_x_before_ = window_->DC.CursorMaxPos.x;
 			ideal_max_x_before_ = window_->DC.IdealMaxPos.x;
@@ -31,13 +31,9 @@ public:
 			const ImVec2 cursor{ ImGui::GetCursorScreenPos() };
 			content_right_x_ = cursor.x + std::max(0.0f, ImGui::GetContentRegionAvail().x);
 		}
-
-		ImGui::GetStyle().TabBarBorderSize = 0.0f;
 	}
 
 	~InspectorTabStripScope() {
-		ImGui::GetStyle().TabBarBorderSize = previous_tab_bar_border_size_;
-
 		if (!window_ || window_ != ImGui::GetCurrentWindow()) {
 			return;
 		}
@@ -60,7 +56,6 @@ public:
 
 private:
 	ImGuiWindow* window_{ nullptr };
-	float previous_tab_bar_border_size_{ 0.0f };
 	float cursor_max_x_before_{ 0.0f };
 	float ideal_max_x_before_{ 0.0f };
 	float content_right_x_{ 0.0f };
@@ -162,7 +157,41 @@ struct InspectorTabCollectionOptions {
 	std::string_view empty_add_label{ "Add Item" };
 	std::string_view add_tooltip{ "Add item" };
 	bool show_add{ true };
+
+	/// For bounded collections such as UI parts, distribute the available tab-strip width evenly
+	/// between all visible tabs. The trailing + retains its normal fixed width when present.
+	bool equal_width_tabs{ false };
+	std::size_t tab_count{ 0 };
 };
+
+[[nodiscard]] inline float GetInspectorEqualTabWidth(
+	const InspectorTabCollectionOptions& options
+) {
+	if (!options.equal_width_tabs || options.tab_count == 0) {
+		return 0.0f;
+	}
+
+	const ImGuiStyle& style{ ImGui::GetStyle() };
+	const float available{ std::max(1.0f, ImGui::GetContentRegionAvail().x) };
+	const std::size_t item_count{ options.tab_count + (options.show_add ? 1uz : 0uz) };
+	const float spacing{
+		item_count > 1 ? style.ItemInnerSpacing.x * static_cast<float>(item_count - 1) : 0.0f
+	};
+	const float add_width{ options.show_add
+		? ImGui::CalcTextSize("+").x + style.FramePadding.x * 2.0f
+		: 0.0f };
+	const float tab_space{ std::max(1.0f, available - spacing - add_width) };
+	return tab_space / static_cast<float>(options.tab_count);
+}
+
+inline bool BeginInspectorTabItem(
+	const char* label, float requested_width = 0.0f, ImGuiTabItemFlags flags = 0
+) {
+	if (requested_width > 0.0f) {
+		ImGui::SetNextItemWidth(requested_width);
+	}
+	return ImGui::BeginTabItem(label, nullptr, flags);
+}
 
 template <typename DrawTabs>
 [[nodiscard]] bool DrawInspectorTabCollection(
@@ -190,7 +219,12 @@ template <typename DrawTabs>
 	bool add_requested{ false };
 	InspectorTabStripScope strip{ options.scope_id };
 	if (ImGui::BeginTabBar(options.tab_bar_id, InspectorTabBarFlags())) {
-		std::forward<DrawTabs>(draw_tabs)();
+		const float tab_width{ GetInspectorEqualTabWidth(options) };
+		if constexpr (requires { std::forward<DrawTabs>(draw_tabs)(tab_width); }) {
+			std::forward<DrawTabs>(draw_tabs)(tab_width);
+		} else {
+			std::forward<DrawTabs>(draw_tabs)();
+		}
 
 		if (options.show_add) {
 			add_requested = DrawInspectorAddTabButton(options.add_tab_id, options.add_tooltip);

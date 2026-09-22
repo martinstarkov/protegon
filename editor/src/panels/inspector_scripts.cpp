@@ -2699,6 +2699,26 @@ bool DrawSequenceTabContents(
 	return changed;
 }
 
+[[nodiscard]] std::string MakeNextScriptSequenceName(
+	const ::ptgn::impl::Scripts& scripts
+) {
+	for (std::size_t number{ 1 }; ; ++number) {
+		const std::string candidate{ "Sequence " + std::to_string(number) };
+		const bool exists{ std::ranges::any_of(scripts.scripts, [&](const ScriptEntry& entry) {
+			if (entry.type_hash != Hash<Script>()) {
+				return false;
+			}
+			const ScriptSequence& sequence{
+				entry.instance ? entry.instance->sequence : entry.sequence
+			};
+			return sequence.name == candidate;
+		}) };
+		if (!exists) {
+			return candidate;
+		}
+	}
+}
+
 std::optional<int> DrawSequenceTabs(
 	ScriptEditorContext& context, ::ptgn::impl::Scripts& scripts, bool& changed
 ) {
@@ -2783,7 +2803,9 @@ std::optional<int> DrawSequenceTabs(
 
 	if (add_requested) {
 		if (const auto* registration{ ScriptRegistry::Find(Hash<Script>()) }) {
-			AddEditorScriptEntry(context, scripts, MakeRootEntry(registration->type_hash));
+			ScriptEntry entry{ MakeRootEntry(registration->type_hash) };
+			entry.sequence.name = MakeNextScriptSequenceName(scripts);
+			AddEditorScriptEntry(context, scripts, std::move(entry));
 			changed = true;
 		}
 	}

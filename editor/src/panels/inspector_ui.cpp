@@ -1,5 +1,6 @@
 #include "panels/inspector_archetype_inspector.h"
 #include "panels/inspector_geometry.h"
+#include "panels/inspector_parts.h"
 #include "panels/rich_text_editor.h"
 #include "editor/renamable_item.h"
 
@@ -161,6 +162,49 @@ bool DrawSliderValueTextConfig(Target& target, ::ptgn::impl::SliderData& data) {
 		}
 	}
 
+	if constexpr (std::same_as<std::remove_cvref_t<Target>, EntityInspectorTarget>) {
+		if (text_entity && text_entity.Has<::ptgn::impl::SliderValueTextData>()) {
+			bool transform_enabled{
+				text_entity.Get<::ptgn::impl::SliderValueTextData>().transform_enabled
+			};
+
+			changed |= DrawOptionalTransformTree(
+				"SliderValueTextTransform", transform_enabled,
+				[&](bool enabled) {
+					auto before{ text_entity.Get<::ptgn::impl::SliderValueTextData>() };
+					auto after{ before };
+					after.transform_enabled = enabled;
+					text_entity.Get<::ptgn::impl::SliderValueTextData>() = after;
+					target.ctx.undo.PushApplied(
+						"Toggle Slider Value Text Transform",
+						[text_entity, before]() mutable {
+							if (text_entity) {
+								text_entity.Get<::ptgn::impl::SliderValueTextData>() = before;
+								::ptgn::impl::SliderSystem::SynchronizeEntity(text_entity);
+							}
+						},
+						[text_entity, after]() mutable {
+							if (text_entity) {
+								text_entity.Get<::ptgn::impl::SliderValueTextData>() = after;
+								::ptgn::impl::SliderSystem::SynchronizeEntity(text_entity);
+							}
+						}
+					);
+					::ptgn::impl::SliderSystem::SynchronizeEntity(text_entity);
+					return true;
+				},
+				[&]() {
+					EntityInspectorTarget text_target{ .ctx = target.ctx, .entity = text_entity };
+					return DrawTransformSection(text_target, false, true, false);
+				},
+				"Use an editable transform for the value text."
+			);
+		} else {
+			ImGui::TextDisabled("Value text entity is not available.");
+		}
+	}
+
+
 	const bool text_open{ ImGui::TreeNodeEx(
 		"Text##SliderValueTextText",
 		ImGuiTreeNodeFlags_SpanAvailWidth | ImGuiTreeNodeFlags_FramePadding
@@ -203,53 +247,6 @@ bool DrawSliderValueTextConfig(Target& target, ::ptgn::impl::SliderData& data) {
 		ImGui::TreePop();
 	}
 
-	if constexpr (std::same_as<std::remove_cvref_t<Target>, EntityInspectorTarget>) {
-		if (text_entity && text_entity.Has<::ptgn::impl::SliderValueTextData>()) {
-			bool transform_enabled{
-				text_entity.Get<::ptgn::impl::SliderValueTextData>().transform_enabled
-			};
-
-			ScopedID transform_scope{ "SliderValueTextTransform" };
-			const auto transform_header{ DrawInspectorTreeToggleRow(
-				"Transform", "##SliderValueTextTransformTree", transform_enabled
-			) };
-			const bool transform_open{ transform_header.open };
-			const bool transform_toggle_changed{ transform_header.toggle_changed };
-			if (transform_toggle_changed) {
-				auto before{ text_entity.Get<::ptgn::impl::SliderValueTextData>() };
-				auto after{ before };
-				after.transform_enabled = transform_enabled;
-				text_entity.Get<::ptgn::impl::SliderValueTextData>() = after;
-				target.ctx.undo.PushApplied(
-					"Toggle Slider Value Text Transform",
-					[text_entity, before]() mutable {
-						if (text_entity) {
-							text_entity.Get<::ptgn::impl::SliderValueTextData>() = before;
-							::ptgn::impl::SliderSystem::SynchronizeEntity(text_entity);
-						}
-					},
-					[text_entity, after]() mutable {
-						if (text_entity) {
-							text_entity.Get<::ptgn::impl::SliderValueTextData>() = after;
-							::ptgn::impl::SliderSystem::SynchronizeEntity(text_entity);
-						}
-					}
-				);
-				::ptgn::impl::SliderSystem::SynchronizeEntity(text_entity);
-				changed = true;
-			}
-			DrawTooltip("Use an editable transform for the value text.");
-
-			if (transform_open) {
-				ScopedIndent indent;
-				ScopedDisabled disabled{ !transform_enabled };
-				EntityInspectorTarget text_target{ .ctx = target.ctx, .entity = text_entity };
-				changed |= DrawTransformSection(text_target, false, true, false);
-			}
-		} else {
-			ImGui::TextDisabled("Value text entity is not available.");
-		}
-	}
 
 	const bool layout_open{ ImGui::TreeNodeEx(
 		"Layout##SliderValueTextLayout",
@@ -843,7 +840,7 @@ bool DrawFocusedButtonPartContents(
 				ctx, button_entity, child, "Edit Button Background",
 				[&](auto& states) {
 					return DrawButtonShapeVisualFields(
-						ctx, button_entity, states, state, false, std::nullopt, false
+						ctx, button_entity, states, state, false, std::nullopt, false, false
 					);
 				}
 			);
@@ -857,7 +854,7 @@ bool DrawFocusedButtonPartContents(
 				ctx, button_entity, child, "Edit Button Border",
 				[&](auto& states) {
 					return DrawButtonShapeVisualFields(
-						ctx, button_entity, states, state, true, std::nullopt, false
+						ctx, button_entity, states, state, true, std::nullopt, false, false
 					);
 				}
 			);
@@ -870,7 +867,9 @@ bool DrawFocusedButtonPartContents(
 			changed |= DrawFocusedButtonVisualComponent<ButtonSpriteVisuals>(
 				ctx, button_entity, child, "Edit Button Sprite",
 				[&](auto& states) {
-					return DrawButtonSpriteVisualFields(ctx, states, state, button_entity, false);
+					return DrawButtonSpriteVisualFields(
+						ctx, states, state, button_entity, false, false
+					);
 				}
 			);
 			break;
@@ -886,11 +885,11 @@ bool DrawFocusedButtonPartContents(
 	return changed;
 }
 
-bool DrawFocusedButtonPartsTabs(
+bool DrawFocusedButtonPartsTrees(
 	EditorContext& ctx, Entity button_entity, ButtonVisualState state
 ) {
 	bool changed{ false };
-	Entity remove_after_tabs{};
+	Entity remove_after_trees{};
 
 	constexpr std::array parts{
 		ButtonChildPart::Background,
@@ -911,7 +910,9 @@ bool DrawFocusedButtonPartsTabs(
 		}
 		auto add_part = [&](ButtonChildPart part, const char* label) {
 			if (!FindButtonPart(button_entity, part) && ImGui::MenuItem(label)) {
-				changed |= static_cast<bool>(CreateButtonPartForInspector(ctx, button_entity, part, state));
+				changed |= static_cast<bool>(
+					CreateButtonPartForInspector(ctx, button_entity, part, state)
+				);
 			}
 		};
 		add_part(ButtonChildPart::Background, "Background");
@@ -923,48 +924,37 @@ bool DrawFocusedButtonPartsTabs(
 
 	const std::size_t existing_count{ part_count() };
 	const bool has_all_parts{ existing_count == parts.size() };
-	const bool add_requested{ DrawInspectorTabCollection(
-		existing_count == 0,
-		InspectorTabCollectionOptions{
-			.scope_id = "##ButtonPartsTabStrip",
-			.tab_bar_id = "##ButtonParts",
-			.add_tab_id = "+##AddButtonPart",
-			.empty_add_label = "Add Button Part",
-			.add_tooltip = "Add button part",
-			.show_add = !has_all_parts,
-		},
-		[&]() {
-			for (const ButtonChildPart part : parts) {
-				Entity child{ FindButtonPart(button_entity, part) };
-				if (!child) {
-					continue;
-				}
-				ScopedID part_scope{ static_cast<int>(part) };
-				const std::string label{ ButtonPartLabel(part) };
-				const bool selected{ ImGui::BeginTabItem(label.c_str()) };
-				const auto context{ DrawInspectorTabContextMenu(
-					"##ButtonPartContext", false, false, true, "Remove Part"
-				) };
-				if (context.remove_requested) {
-					remove_after_tabs = child;
-				}
-				if (selected) {
-					if (child && child != remove_after_tabs) {
-						changed |= DrawFocusedButtonPartContents(ctx, button_entity, part, state);
-					}
-					ImGui::EndTabItem();
-				}
-			}
-		}
-	) };
-
-	if (add_requested) {
+	if (DrawInspectorAddPartsButton(
+			!has_all_parts, "Add Button Part", "Add a button visual part."
+		)) {
 		ImGui::OpenPopup("##AddButtonPartPopup");
 	}
 	draw_add_popup();
 
-	if (remove_after_tabs) {
-		ctx.commands.DeleteEntity(remove_after_tabs);
+	for (const ButtonChildPart part : parts) {
+		Entity child{ FindButtonPart(button_entity, part) };
+		if (!child) {
+			continue;
+		}
+
+		ScopedID part_scope{ static_cast<int>(part) };
+		const std::string label{ ButtonPartLabel(part) };
+		const auto tree{ DrawInspectorPartTreeNode(
+			label, "ButtonPart", true, false, "Remove Part"
+		) };
+		if (tree.remove_requested) {
+			remove_after_trees = child;
+		}
+		if (tree.open) {
+			if (child != remove_after_trees) {
+				changed |= DrawFocusedButtonPartContents(ctx, button_entity, part, state);
+			}
+			ImGui::TreePop();
+		}
+	}
+
+	if (remove_after_trees) {
+		ctx.commands.DeleteEntity(remove_after_trees);
 		changed = true;
 	}
 	return changed;
@@ -1717,7 +1707,7 @@ bool DrawFocusedButtonAppearance(Target& target, FocusedUIControlType type) {
 	if constexpr (requires { target.entity; }) {
 		ApplyButtonPreview(target.entity, state, target.ctx);
 
-		changed |= DrawFocusedButtonPartsTabs(target.ctx, target.entity, state);
+		changed |= DrawFocusedButtonPartsTrees(target.ctx, target.entity, state);
 
 		changed |= DrawFocusedButtonSounds(target, state);
 
@@ -1832,42 +1822,36 @@ bool DrawSliderTrackTransform(EntityInspectorTarget& slider_target, Entity track
 
 	auto before{ track.Get<::ptgn::impl::SliderTrackData>() };
 	bool enabled{ before.transform_enabled };
-	bool changed{ false };
-	ScopedID scope{ "SliderTrackTransform" };
-	const auto header{ DrawInspectorTreeToggleRow(
-		"Track Transform", "##SliderTrackTransformTree", enabled
-	) };
-	const bool open{ header.open };
-	const bool toggle_changed{ header.toggle_changed };
-	if (toggle_changed) {
-		auto after{ before };
-		after.transform_enabled = enabled;
-		track.Get<::ptgn::impl::SliderTrackData>() = after;
-		slider_target.ctx.undo.PushApplied(
-			"Toggle Track Transform",
-			[track, before]() mutable {
-				if (track) {
-					track.Get<::ptgn::impl::SliderTrackData>() = before;
-					::ptgn::impl::SliderSystem::SynchronizeEntity(track);
+	return DrawOptionalTransformTree(
+		"SliderTrackTransform", enabled,
+		[&](bool transform_enabled) {
+			auto after{ before };
+			after.transform_enabled = transform_enabled;
+			track.Get<::ptgn::impl::SliderTrackData>() = after;
+			slider_target.ctx.undo.PushApplied(
+				"Toggle Track Transform",
+				[track, before]() mutable {
+					if (track) {
+						track.Get<::ptgn::impl::SliderTrackData>() = before;
+						::ptgn::impl::SliderSystem::SynchronizeEntity(track);
+					}
+				},
+				[track, after]() mutable {
+					if (track) {
+						track.Get<::ptgn::impl::SliderTrackData>() = after;
+						::ptgn::impl::SliderSystem::SynchronizeEntity(track);
+					}
 				}
-			},
-			[track, after]() mutable {
-				if (track) {
-					track.Get<::ptgn::impl::SliderTrackData>() = after;
-					::ptgn::impl::SliderSystem::SynchronizeEntity(track);
-				}
-			}
-		);
-		::ptgn::impl::SliderSystem::SynchronizeEntity(track);
-		changed = true;
-	}
-	if (open) {
-		ScopedDisabled disabled{ !enabled };
-		EntityInspectorTarget track_target{ .ctx = slider_target.ctx, .entity = track };
-		changed |= DrawTransformSection(track_target, false, true, false);
-	}
-
-	return changed;
+			);
+			::ptgn::impl::SliderSystem::SynchronizeEntity(track);
+			return true;
+		},
+		[&]() {
+			EntityInspectorTarget track_target{ .ctx = slider_target.ctx, .entity = track };
+			return DrawTransformSection(track_target, false, true, false);
+		},
+		"Use an authored transform for the slider track instead of automatic placement."
+	);
 }
 
 [[nodiscard]] bool HasSliderTrackVisualParts(Entity track) {
@@ -1940,44 +1924,41 @@ bool DrawSliderTrackPartTransform(EntityInspectorTarget& target, std::string_vie
 	marker.initialized = true;
 	marker.visual.defined = true;
 	bool enabled{ marker.visual.transform.has_value() };
-	bool changed{ false };
-	ScopedID scope{ "SliderTrackPartTransform" };
-	const auto header{ DrawInspectorTreeToggleRow(
-		"Transform", "##SliderTrackPartTransformTree", enabled
-	) };
-	const bool open{ header.open };
-	const bool toggle_changed{ header.toggle_changed };
-	if (toggle_changed) {
-		if (enabled) {
-			marker.visual.transform = target.Capture<Transform>().value_or(Transform{});
-			marker.visual.depth = target.Capture<Depth>().value_or(Depth{}).value;
-			marker.visual.inherit_position = !target.Capture<::ptgn::impl::IgnoreParentPosition>().has_value();
-			marker.visual.inherit_rotation = !target.Capture<::ptgn::impl::IgnoreParentRotation>().has_value();
-			marker.visual.inherit_scale = !target.Capture<::ptgn::impl::IgnoreParentScale>().has_value();
-			marker.visual.inherit_depth = !target.Capture<::ptgn::impl::IgnoreParentDepth>().has_value();
-		} else {
-			marker.visual.transform.reset();
-			marker.visual.depth.reset();
-			marker.visual.inherit_position.reset();
-			marker.visual.inherit_rotation.reset();
-			marker.visual.inherit_scale.reset();
-			marker.visual.inherit_depth.reset();
-		}
-		target.SetLive<Marker>(marker, &SynchronizeSliderTrackPart);
-		auto after{ target.Capture<Marker>() };
-		TrackComponentState(
-			target, std::string{ enabled ? "Enable " : "Disable " } + std::string{ part_label } + " Transform",
-			std::move(before), std::move(after), true, &SynchronizeSliderTrackPart
-		);
-		changed = true;
-	}
-	DrawTooltip("Override this track part's transform, or leave it unchecked to use automatic placement.");
-	if (open) {
-		ScopedDisabled disabled{ !enabled };
-		changed |= DrawTransformSection(target, false, false, false);
-	}
-
-	return changed;
+	return DrawOptionalTransformTree(
+		"SliderTrackPartTransform", enabled,
+		[&](bool transform_enabled) {
+			if (transform_enabled) {
+				marker.visual.transform = target.Capture<Transform>().value_or(Transform{});
+				marker.visual.depth = target.Capture<Depth>().value_or(Depth{}).value;
+				marker.visual.inherit_position =
+					!target.Capture<::ptgn::impl::IgnoreParentPosition>().has_value();
+				marker.visual.inherit_rotation =
+					!target.Capture<::ptgn::impl::IgnoreParentRotation>().has_value();
+				marker.visual.inherit_scale =
+					!target.Capture<::ptgn::impl::IgnoreParentScale>().has_value();
+				marker.visual.inherit_depth =
+					!target.Capture<::ptgn::impl::IgnoreParentDepth>().has_value();
+			} else {
+				marker.visual.transform.reset();
+				marker.visual.depth.reset();
+				marker.visual.inherit_position.reset();
+				marker.visual.inherit_rotation.reset();
+				marker.visual.inherit_scale.reset();
+				marker.visual.inherit_depth.reset();
+			}
+			target.SetLive<Marker>(marker, &SynchronizeSliderTrackPart);
+			auto after{ target.Capture<Marker>() };
+			TrackComponentState(
+				target,
+				std::string{ transform_enabled ? "Enable " : "Disable " } +
+					std::string{ part_label } + " Transform",
+				std::move(before), std::move(after), true, &SynchronizeSliderTrackPart
+			);
+			return true;
+		},
+		[&]() { return DrawTransformSection(target, false, false, false); },
+		"Override this track part's transform, or leave it unchecked to use automatic placement."
+	);
 }
 
 float SliderTrackPartMaximumLineWidth(Entity border) {
@@ -2223,7 +2204,8 @@ Entity CreateSliderTrackSprite(Entity slider_entity, Entity track) {
 
 bool DrawSliderTrackVisual(EntityInspectorTarget& target, Slider slider, Entity& track) {
 	bool changed{ false };
-	Entity remove_after_tabs{};
+	Entity remove_after_trees{};
+
 	auto ensure_track = [&]() -> Entity {
 		if (track) {
 			return track;
@@ -2264,80 +2246,61 @@ bool DrawSliderTrackVisual(EntityInspectorTarget& target, Slider slider, Entity&
 		ImGui::EndPopup();
 	};
 
-	const bool has_any_track_part{ track && HasSliderTrackVisualParts(track) };
 	const bool all_track_parts{
 		track && FindSliderTrackPart<::ptgn::impl::SliderTrackBackgroundData>(track) &&
 		FindSliderTrackPart<::ptgn::impl::SliderTrackBorderData>(track) &&
 		FindSliderTrackPart<::ptgn::impl::SliderTrackSpriteData>(track)
 	};
 
-	const bool add_requested{ DrawInspectorTabCollection(
-		!has_any_track_part,
-		InspectorTabCollectionOptions{
-			.scope_id = "##SliderTrackPartStrip",
-			.tab_bar_id = "##SliderTrackParts",
-			.add_tab_id = "+##AddSliderTrackPart",
-			.empty_add_label = "Add Track Part",
-			.add_tooltip = "Add track visual part",
-			.show_add = !all_track_parts,
-		},
-		[&]() {
-			auto draw_part = [&](Entity child, std::string_view fallback, auto&& draw) {
-				if (!child) {
-					return;
-				}
-				ScopedID part_scope{ fallback };
-				const std::string label{ fallback };
-				const bool selected{ ImGui::BeginTabItem(label.c_str()) };
-				const auto context{ DrawInspectorTabContextMenu(
-					"##SliderTrackPartContext", false, false, true, "Remove Part"
-				) };
-				if (context.remove_requested) {
-					remove_after_tabs = child;
-				}
-				if (selected) {
-					if (child && child != remove_after_tabs) {
-						EntityInspectorTarget child_target{ .ctx = target.ctx, .entity = child };
-						changed |= std::invoke(draw, child_target, child);
-					}
-					ImGui::EndTabItem();
-				}
-			};
-
-			draw_part(
-				FindSliderTrackPart<::ptgn::impl::SliderTrackBackgroundData>(track), "Background",
-				[](EntityInspectorTarget& child_target, Entity child) {
-					return DrawSliderTrackBackgroundFields(child_target, child);
-				}
-			);
-			draw_part(
-				FindSliderTrackPart<::ptgn::impl::SliderTrackBorderData>(track), "Border",
-				[](EntityInspectorTarget& child_target, Entity child) {
-					return DrawSliderTrackBorderFields(child_target, child);
-				}
-			);
-			draw_part(
-				FindSliderTrackPart<::ptgn::impl::SliderTrackSpriteData>(track), "Sprite",
-				[](EntityInspectorTarget& child_target, Entity child) {
-					return DrawSliderTrackSpriteFields(child_target, child);
-				}
-			);
-		}
-	) };
-
-	if (add_requested) {
+	if (DrawInspectorAddPartsButton(
+			!all_track_parts, "Add Track Part", "Add a track visual part."
+		)) {
 		ImGui::OpenPopup("##AddSliderTrackPartPopup");
 	}
 	add_popup();
 
-	if (remove_after_tabs) {
-		target.ctx.commands.DeleteEntity(remove_after_tabs);
-		if (track) {
-			SynchronizeSliderTrackVisualEnabled(track);
+	auto draw_part = [&](Entity child, std::string_view label, auto&& draw) {
+		if (!child) {
+			return;
 		}
+		ScopedID part_scope{ label };
+		const auto tree{ DrawInspectorPartTreeNode(
+			label, "SliderTrackPart", true, false, "Remove Part"
+		) };
+		if (tree.remove_requested) {
+			remove_after_trees = child;
+		}
+		if (tree.open) {
+			if (child != remove_after_trees) {
+				EntityInspectorTarget child_target{ .ctx = target.ctx, .entity = child };
+				changed |= std::invoke(draw, child_target, child);
+			}
+			ImGui::TreePop();
+		}
+	};
+
+	draw_part(
+		FindSliderTrackPart<::ptgn::impl::SliderTrackBackgroundData>(track), "Background",
+		[](EntityInspectorTarget& child_target, Entity child) {
+			return DrawSliderTrackBackgroundFields(child_target, child);
+		}
+	);
+	draw_part(
+		FindSliderTrackPart<::ptgn::impl::SliderTrackBorderData>(track), "Border",
+		[](EntityInspectorTarget& child_target, Entity child) {
+			return DrawSliderTrackBorderFields(child_target, child);
+		}
+	);
+	draw_part(
+		FindSliderTrackPart<::ptgn::impl::SliderTrackSpriteData>(track), "Sprite",
+		[](EntityInspectorTarget& child_target, Entity child) {
+			return DrawSliderTrackSpriteFields(child_target, child);
+		}
+	);
+
+	if (remove_after_trees) {
+		target.ctx.commands.DeleteEntity(remove_after_trees);
 		changed = true;
-	}
-	if (track) {
 		SynchronizeSliderTrackVisualEnabled(track);
 	}
 	return changed;
@@ -3420,156 +3383,163 @@ bool DrawDialogueAppearanceControls(
 	auto& appearance{ entry.appearance };
 	bool changed{ false };
 
-	auto remove_context = [&](const char* id, auto& value, std::string_view action) {
-		const auto context{ DrawInspectorTabContextMenu(id, false, false, true, "Remove Part") };
-		if (context.remove_requested) {
-			value.reset();
-			changed = true;
-			reason = std::string{ action };
-			return true;
-		}
-		return false;
+	const std::size_t part_count{
+		static_cast<std::size_t>(appearance.background.has_value()) +
+		static_cast<std::size_t>(appearance.border.has_value()) +
+		static_cast<std::size_t>(appearance.sprite.has_value()) +
+		static_cast<std::size_t>(appearance.audio.has_value())
 	};
+	const bool all_present{ part_count == 4 };
 
-	InspectorTabStripScope strip{ "##DialogueAppearanceTabStrip" };
-	if (ImGui::BeginTabBar("##DialogueAppearanceTabs", InspectorTabBarFlags())) {
-		if (appearance.background.has_value()) {
-			if (ImGui::BeginTabItem("Background")) {
-				const bool removed{ remove_context(
-					"##DialogueBackgroundContext", appearance.background,
-					"Remove Dialogue Background Override"
-				) };
-				if (!removed && appearance.background.has_value()) {
-					std::array<ButtonShapeVisual, 1> states{ *appearance.background };
-					if (DrawButtonShapeVisualFields(
-							ctx, relative_to, states, ButtonVisualState::Idle, false,
-							std::variant<V2_float, float>{ document.defaults.box_size }
-						)) {
-						*appearance.background = states[0];
-						changed = true;
-						reason = "Edit Dialogue Background Override";
-					}
+	if (DrawInspectorAddPartsButton(
+			!all_present, "Add Dialogue Part", "Add a dialogue appearance part."
+		)) {
+		ImGui::OpenPopup("##AddDialogueAppearancePartPopup");
+	}
+	if (!all_present && ImGui::BeginPopup("##AddDialogueAppearancePartPopup")) {
+		if (!appearance.background.has_value() && ImGui::MenuItem("Background")) {
+			ButtonShapeVisual visual;
+			visual.defined = true;
+			visual.color = color::Black.WithAlpha(180);
+			visual.fill_style = FillStyle{ Solid{} };
+			appearance.background = std::move(visual);
+			changed = true;
+			reason = "Add Dialogue Background Override";
+		}
+		if (!appearance.border.has_value() && ImGui::MenuItem("Border")) {
+			ButtonShapeVisual visual;
+			visual.defined = true;
+			visual.color = color::White;
+			visual.fill_style = FillStyle{ 2.0f };
+			appearance.border = std::move(visual);
+			changed = true;
+			reason = "Add Dialogue Border Override";
+		}
+		if (!appearance.sprite.has_value() && ImGui::MenuItem("Sprite")) {
+			ButtonSpriteVisual visual;
+			visual.defined = true;
+			visual.tint = color::White;
+			appearance.sprite = std::move(visual);
+			changed = true;
+			reason = "Add Dialogue Sprite Override";
+		}
+		if (!appearance.audio.has_value() && ImGui::MenuItem("Audio")) {
+			appearance.audio = DialogueSounds{};
+			changed = true;
+			reason = "Add Dialogue Audio Override";
+		}
+		ImGui::EndPopup();
+	}
+
+	if (appearance.background.has_value()) {
+		const auto tree{ DrawInspectorPartTreeNode(
+			"Background", "DialogueBackgroundPart", true, false, "Remove Part"
+		) };
+		if (tree.remove_requested) {
+			appearance.background.reset();
+			changed = true;
+			reason = "Remove Dialogue Background Override";
+		}
+		if (tree.open) {
+			if (appearance.background.has_value()) {
+				std::array<ButtonShapeVisual, 1> states{ *appearance.background };
+				if (DrawButtonShapeVisualFields(
+						ctx, relative_to, states, ButtonVisualState::Idle, false,
+						std::variant<V2_float, float>{ document.defaults.box_size }
+					)) {
+					*appearance.background = states[0];
+					changed = true;
+					reason = "Edit Dialogue Background Override";
 				}
-				ImGui::EndTabItem();
 			}
+			ImGui::TreePop();
 		}
+	}
 
-		if (appearance.border.has_value()) {
-			if (ImGui::BeginTabItem("Border")) {
-				const bool removed{ remove_context(
-					"##DialogueBorderContext", appearance.border,
-					"Remove Dialogue Border Override"
-				) };
-				if (!removed && appearance.border.has_value()) {
-					std::array<ButtonShapeVisual, 1> states{ *appearance.border };
-					if (DrawButtonShapeVisualFields(
-							ctx, relative_to, states, ButtonVisualState::Idle, true,
-							std::variant<V2_float, float>{ document.defaults.box_size }
-						)) {
-						*appearance.border = states[0];
-						changed = true;
-						reason = "Edit Dialogue Border Override";
-					}
+	if (appearance.border.has_value()) {
+		const auto tree{ DrawInspectorPartTreeNode(
+			"Border", "DialogueBorderPart", true, false, "Remove Part"
+		) };
+		if (tree.remove_requested) {
+			appearance.border.reset();
+			changed = true;
+			reason = "Remove Dialogue Border Override";
+		}
+		if (tree.open) {
+			if (appearance.border.has_value()) {
+				std::array<ButtonShapeVisual, 1> states{ *appearance.border };
+				if (DrawButtonShapeVisualFields(
+						ctx, relative_to, states, ButtonVisualState::Idle, true,
+						std::variant<V2_float, float>{ document.defaults.box_size }
+					)) {
+					*appearance.border = states[0];
+					changed = true;
+					reason = "Edit Dialogue Border Override";
 				}
-				ImGui::EndTabItem();
 			}
+			ImGui::TreePop();
 		}
+	}
 
-		if (appearance.sprite.has_value()) {
-			if (ImGui::BeginTabItem("Sprite")) {
-				const bool removed{ remove_context(
-					"##DialogueSpriteContext", appearance.sprite,
-					"Remove Dialogue Sprite Override"
-				) };
-				if (!removed && appearance.sprite.has_value()) {
-					std::array<ButtonSpriteVisual, 1> states{ *appearance.sprite };
-					if (DrawButtonSpriteVisualFields(ctx, states, ButtonVisualState::Idle, relative_to)) {
-						*appearance.sprite = states[0];
-						changed = true;
-						reason = "Edit Dialogue Sprite Override";
-					}
+	if (appearance.sprite.has_value()) {
+		const auto tree{ DrawInspectorPartTreeNode(
+			"Sprite", "DialogueSpritePart", true, false, "Remove Part"
+		) };
+		if (tree.remove_requested) {
+			appearance.sprite.reset();
+			changed = true;
+			reason = "Remove Dialogue Sprite Override";
+		}
+		if (tree.open) {
+			if (appearance.sprite.has_value()) {
+				std::array<ButtonSpriteVisual, 1> states{ *appearance.sprite };
+				if (DrawButtonSpriteVisualFields(
+						ctx, states, ButtonVisualState::Idle, relative_to
+					)) {
+					*appearance.sprite = states[0];
+					changed = true;
+					reason = "Edit Dialogue Sprite Override";
 				}
-				ImGui::EndTabItem();
 			}
+			ImGui::TreePop();
 		}
+	}
 
-		if (appearance.audio.has_value()) {
-			if (ImGui::BeginTabItem("Audio")) {
-				const bool removed{ remove_context(
-					"##DialogueAudioContext", appearance.audio,
-					"Remove Dialogue Audio Override"
-				) };
-				if (!removed && appearance.audio.has_value()) {
-					AudioKey open_sound{ appearance.audio->open.value_or(AudioKey{}) };
-					if (DrawValue(ctx, "Open Sound", open_sound)) {
-						if (open_sound.value.empty()) appearance.audio->open.reset();
-						else appearance.audio->open = open_sound;
-						changed = true;
-						reason = "Edit Dialogue Open Sound";
-					}
-
-					AudioKey typewriter_sound{ appearance.audio->typewriter.value_or(AudioKey{}) };
-					const bool effective_typewriter{ entry.typewriter.value_or(document.typewriter) };
-					ImGui::BeginDisabled(!effective_typewriter);
-					if (DrawValue(ctx, "Typewriter Sound", typewriter_sound)) {
-						if (typewriter_sound.value.empty()) appearance.audio->typewriter.reset();
-						else appearance.audio->typewriter = typewriter_sound;
-						changed = true;
-						reason = "Edit Dialogue Typewriter Sound";
-					}
-					ImGui::EndDisabled();
-					DrawTooltip(effective_typewriter
-						? "Played while typewriter text is being revealed."
-						: "Enable typewriter text for this dialogue key (or through inheritance) to use this sound.");
+	if (appearance.audio.has_value()) {
+		const auto tree{ DrawInspectorPartTreeNode(
+			"Audio", "DialogueAudioPart", true, false, "Remove Part"
+		) };
+		if (tree.remove_requested) {
+			appearance.audio.reset();
+			changed = true;
+			reason = "Remove Dialogue Audio Override";
+		}
+		if (tree.open) {
+			if (appearance.audio.has_value()) {
+				AudioKey open_sound{ appearance.audio->open.value_or(AudioKey{}) };
+				if (DrawValue(ctx, "Open Sound", open_sound)) {
+					if (open_sound.value.empty()) appearance.audio->open.reset();
+					else appearance.audio->open = open_sound;
+					changed = true;
+					reason = "Edit Dialogue Open Sound";
 				}
-				ImGui::EndTabItem();
-			}
-		}
 
-		const bool all_present{
-			appearance.background.has_value() && appearance.border.has_value() &&
-			appearance.sprite.has_value() && appearance.audio.has_value()
-		};
-		if (!all_present && DrawInspectorAddTabButton("+##AddDialogueAppearancePart", "Add dialogue part")) {
-			ImGui::OpenPopup("##AddDialogueAppearancePartPopup");
+				AudioKey typewriter_sound{ appearance.audio->typewriter.value_or(AudioKey{}) };
+				const bool effective_typewriter{ entry.typewriter.value_or(document.typewriter) };
+				ImGui::BeginDisabled(!effective_typewriter);
+				if (DrawValue(ctx, "Typewriter Sound", typewriter_sound)) {
+					if (typewriter_sound.value.empty()) appearance.audio->typewriter.reset();
+					else appearance.audio->typewriter = typewriter_sound;
+					changed = true;
+					reason = "Edit Dialogue Typewriter Sound";
+				}
+				ImGui::EndDisabled();
+				DrawTooltip(effective_typewriter
+					? "Played while typewriter text is being revealed."
+					: "Enable typewriter text for this dialogue key (or through inheritance) to use this sound.");
+			}
+			ImGui::TreePop();
 		}
-		if (!all_present && ImGui::BeginPopup("##AddDialogueAppearancePartPopup")) {
-			if (!appearance.background.has_value() && ImGui::MenuItem("Background")) {
-				ButtonShapeVisual visual;
-				visual.defined = true;
-				visual.color = color::Black.WithAlpha(180);
-				visual.fill_style = FillStyle{ Solid{} };
-				appearance.background = std::move(visual);
-				changed = true;
-				reason = "Add Dialogue Background Override";
-			}
-			if (!appearance.border.has_value() && ImGui::MenuItem("Border")) {
-				ButtonShapeVisual visual;
-				visual.defined = true;
-				visual.color = color::White;
-				visual.fill_style = FillStyle{ 2.0f };
-				appearance.border = std::move(visual);
-				changed = true;
-				reason = "Add Dialogue Border Override";
-			}
-			if (!appearance.sprite.has_value() && ImGui::MenuItem("Sprite")) {
-				ButtonSpriteVisual visual;
-				visual.defined = true;
-				visual.tint = color::White;
-				appearance.sprite = std::move(visual);
-				changed = true;
-				reason = "Add Dialogue Sprite Override";
-			}
-			if (!appearance.audio.has_value() && ImGui::MenuItem("Audio")) {
-				appearance.audio = DialogueSounds{};
-				changed = true;
-				reason = "Add Dialogue Audio Override";
-			}
-			ImGui::EndPopup();
-		}
-
-		ApplyInspectorTabBarHorizontalWheel();
-		ImGui::EndTabBar();
 	}
 
 	return changed;
@@ -4453,14 +4423,13 @@ bool SetSliderValueTextPartEnabled(EntityInspectorTarget& target, bool enabled) 
 	return true;
 }
 
-bool DrawSliderPartsTabs(EntityInspectorTarget& target, Slider slider) {
+bool DrawSliderPartsTrees(EntityInspectorTarget& target, Slider slider) {
 	bool changed{ false };
 
 	Entity track{ slider.GetTrack() };
 	Button thumb{ slider.GetThumb() };
 	const auto slider_data{ target.template Capture<::ptgn::impl::SliderData>() };
 	const bool has_value_text{ slider_data && slider_data->value_text.has_value() };
-	const bool has_any_part{ static_cast<bool>(track) || static_cast<bool>(thumb) || has_value_text };
 	const bool has_all_parts{ track && thumb && has_value_text };
 
 	enum class RemovePart {
@@ -4469,7 +4438,7 @@ bool DrawSliderPartsTabs(EntityInspectorTarget& target, Slider slider) {
 		Thumb,
 		ValueText,
 	};
-	RemovePart remove_after_tabs{ RemovePart::None };
+	RemovePart remove_after_trees{ RemovePart::None };
 
 	auto draw_add_popup = [&]() {
 		if (!ImGui::BeginPopup("##AddSliderPartPopup")) {
@@ -4498,126 +4467,107 @@ bool DrawSliderPartsTabs(EntityInspectorTarget& target, Slider slider) {
 		ImGui::EndPopup();
 	};
 
-	const bool add_requested{ DrawInspectorTabCollection(
-		!has_any_part,
-		InspectorTabCollectionOptions{
-			.scope_id = "##SliderPartsTabStrip",
-			.tab_bar_id = "##SliderParts",
-			.add_tab_id = "+##AddSliderPart",
-			.empty_add_label = "Add Slider Part",
-			.add_tooltip = "Add slider part",
-			.show_add = !has_all_parts,
-		},
-		[&]() {
-			if (track) {
-				ScopedID scope{ "TrackPartTab" };
-				const bool selected{ ImGui::BeginTabItem("Track") };
-				const auto context{ DrawInspectorTabContextMenu(
-					"##SliderTrackContext", false, false, true, "Remove Part"
-				) };
-				if (context.remove_requested) {
-					remove_after_tabs = RemovePart::Track;
-				}
-				if (selected) {
-					if (remove_after_tabs != RemovePart::Track) {
-						changed |= DrawSliderTrackTransform(target, track);
-						changed |= DrawSliderTrackVisual(target, slider, track);
-					}
-					ImGui::EndTabItem();
-				}
-			}
-
-			if (thumb) {
-				ScopedID scope{ "ThumbPartTab" };
-				const bool selected{ ImGui::BeginTabItem("Thumb") };
-				const auto context{ DrawInspectorTabContextMenu(
-					"##SliderThumbContext", false, false, true, "Remove Part"
-				) };
-				if (context.remove_requested) {
-					remove_after_tabs = RemovePart::Thumb;
-				}
-				if (selected) {
-					if (remove_after_tabs != RemovePart::Thumb) {
-						EntityInspectorTarget thumb_target{ .ctx = target.ctx, .entity = thumb };
-						changed |= DrawFocusedButtonInteraction(
-							thumb_target, FocusedUIControlType::Button
-						);
-						if (ImGui::TreeNodeEx(
-								"Transform##SliderThumbTransform",
-								ImGuiTreeNodeFlags_SpanAvailWidth | ImGuiTreeNodeFlags_FramePadding
-							)) {
-							ScopedIndent thumb_transform_indent;
-							auto slider_before{
-								target.template Capture<::ptgn::impl::SliderData>()
-							};
-							const bool transform_changed{
-								DrawTransformSection(thumb_target, false, true, false)
-							};
-							if (transform_changed) {
-								::ptgn::impl::SliderSystem::SynchronizeEntity(thumb);
-								auto slider_after{
-									target.template Capture<::ptgn::impl::SliderData>()
-								};
-								TrackComponentState(
-									target, "Move Slider Thumb", std::move(slider_before),
-									std::move(slider_after), true
-								);
-								changed = true;
-							}
-							ImGui::TreePop();
-						}
-						changed |= DrawFocusedButtonAppearance(
-							thumb_target, FocusedUIControlType::Button
-						);
-					}
-					ImGui::EndTabItem();
-				}
-			}
-
-			if (has_value_text) {
-				ScopedID scope{ "ValueTextPartTab" };
-				const bool selected{ ImGui::BeginTabItem("Value Text") };
-				const auto context{ DrawInspectorTabContextMenu(
-					"##SliderValueTextContext", false, false, true, "Remove Part"
-				) };
-				if (context.remove_requested) {
-					remove_after_tabs = RemovePart::ValueText;
-				}
-				if (selected) {
-					if (remove_after_tabs != RemovePart::ValueText) {
-						auto before{ target.template Capture<::ptgn::impl::SliderData>() };
-						if (before) {
-							auto data{ *before };
-							if (!data.value_text.has_value()) {
-								data.value_text = SliderValueTextConfig{};
-							}
-							if (DrawSliderValueTextConfig(target, data)) {
-								target.template SetLive<::ptgn::impl::SliderData>(data);
-								::ptgn::impl::SliderSystem::SynchronizeEntity(target.entity);
-								auto after{ target.template Capture<::ptgn::impl::SliderData>() };
-								TrackComponentState(
-									target,
-									"Edit Slider Value Text",
-									std::move(before),
-									std::move(after),
-									true
-								);
-								changed = true;
-							}
-						}
-					}
-					ImGui::EndTabItem();
-				}
-			}
-		}
-	) };
-
-	if (add_requested) {
+	if (DrawInspectorAddPartsButton(
+			!has_all_parts, "Add Slider Part", "Add a slider part."
+		)) {
 		ImGui::OpenPopup("##AddSliderPartPopup");
 	}
 	draw_add_popup();
 
-	switch (remove_after_tabs) {
+	if (track) {
+		ScopedID scope{ "TrackPartTree" };
+		const auto tree{ DrawInspectorPartTreeNode(
+			"Track", "SliderTrack", true, false, "Remove Part"
+		) };
+		if (tree.remove_requested) {
+			remove_after_trees = RemovePart::Track;
+		}
+		if (tree.open) {
+			if (remove_after_trees != RemovePart::Track) {
+				changed |= DrawSliderTrackTransform(target, track);
+				changed |= DrawSliderTrackVisual(target, slider, track);
+			}
+			ImGui::TreePop();
+		}
+	}
+
+	if (thumb) {
+		ScopedID scope{ "ThumbPartTree" };
+		const auto tree{ DrawInspectorPartTreeNode(
+			"Thumb", "SliderThumb", true, false, "Remove Part"
+		) };
+		if (tree.remove_requested) {
+			remove_after_trees = RemovePart::Thumb;
+		}
+		if (tree.open) {
+			if (remove_after_trees != RemovePart::Thumb) {
+				EntityInspectorTarget thumb_target{ .ctx = target.ctx, .entity = thumb };
+				changed |= DrawFocusedButtonInteraction(
+					thumb_target, FocusedUIControlType::Button
+				);
+				if (ImGui::TreeNodeEx(
+						"Transform##SliderThumbTransform",
+						ImGuiTreeNodeFlags_SpanAvailWidth | ImGuiTreeNodeFlags_FramePadding
+					)) {
+					auto slider_before{ target.template Capture<::ptgn::impl::SliderData>() };
+					const bool transform_changed{
+						DrawTransformSection(thumb_target, false, true, false)
+					};
+					if (transform_changed) {
+						::ptgn::impl::SliderSystem::SynchronizeEntity(thumb);
+						auto slider_after{ target.template Capture<::ptgn::impl::SliderData>() };
+						TrackComponentState(
+							target, "Move Slider Thumb", std::move(slider_before),
+							std::move(slider_after), true
+						);
+						changed = true;
+					}
+					ImGui::TreePop();
+				}
+				changed |= DrawFocusedButtonAppearance(
+					thumb_target, FocusedUIControlType::Button
+				);
+			}
+			ImGui::TreePop();
+		}
+	}
+
+	if (has_value_text) {
+		ScopedID scope{ "ValueTextPartTree" };
+		const auto tree{ DrawInspectorPartTreeNode(
+			"Value Text", "SliderValueText", true, false, "Remove Part"
+		) };
+		if (tree.remove_requested) {
+			remove_after_trees = RemovePart::ValueText;
+		}
+		if (tree.open) {
+			if (remove_after_trees != RemovePart::ValueText) {
+				auto before{ target.template Capture<::ptgn::impl::SliderData>() };
+				if (before) {
+					auto data{ *before };
+					if (!data.value_text.has_value()) {
+						data.value_text = SliderValueTextConfig{};
+					}
+					if (DrawSliderValueTextConfig(target, data)) {
+						target.template SetLive<::ptgn::impl::SliderData>(data);
+						::ptgn::impl::SliderSystem::SynchronizeEntity(target.entity);
+						auto after{ target.template Capture<::ptgn::impl::SliderData>() };
+						TrackComponentState(
+							target,
+							"Edit Slider Value Text",
+							std::move(before),
+							std::move(after),
+							true
+						);
+						changed = true;
+					}
+				}
+			}
+			ImGui::TreePop();
+		}
+	}
+
+	switch (remove_after_trees) {
 		case RemovePart::Track:
 			if (track) {
 				target.ctx.commands.DeleteEntity(track);
@@ -4658,7 +4608,7 @@ bool DrawFocusedControlSpecific(Target& target, FocusedUIControlType type) {
 
 			if constexpr (std::same_as<std::remove_cvref_t<Target>, EntityInspectorTarget>) {
 				Slider slider{ target.entity };
-				changed |= DrawSliderPartsTabs(target, slider);
+				changed |= DrawSliderPartsTrees(target, slider);
 			}
 			break;
 		}
@@ -4752,20 +4702,15 @@ bool DrawManagedVisualChildContents(EditorContext& ctx, Entity child) {
 	return changed;
 }
 
-bool DrawManagedVisualPartsTabs(
+bool DrawManagedVisualPartsTrees(
 	EditorContext& ctx,
 	std::span<const std::pair<std::string_view, Entity>> parts,
 	const char* id,
 	std::span<const InspectorAction> add_actions = {}
 ) {
 	bool changed{ false };
-	Entity remove_after_tabs{};
-
-	const bool has_any_part{
-		std::ranges::any_of(parts, [](const auto& part) {
-			return static_cast<bool>(part.second);
-		})
-	};
+	Entity remove_after_trees{};
+	ScopedID collection_scope{ id };
 
 	auto draw_add_popup = [&]() {
 		if (!ImGui::BeginPopup("##AddManagedVisualPartPopup")) {
@@ -4791,48 +4736,36 @@ bool DrawManagedVisualPartsTabs(
 		ImGui::EndPopup();
 	};
 
-	const bool add_requested{ DrawInspectorTabCollection(
-		!has_any_part,
-		InspectorTabCollectionOptions{
-			.scope_id = id,
-			.tab_bar_id = "##ManagedVisualParts",
-			.add_tab_id = "+##AddManagedVisualPart",
-			.empty_add_label = "Add UI Part",
-			.add_tooltip = "Add UI part",
-			.show_add = !add_actions.empty(),
-		},
-		[&]() {
-			for (std::size_t index{ 0 }; index < parts.size(); ++index) {
-				const auto& [fallback, child]{ parts[index] };
-				if (!child) {
-					continue;
-				}
-				ScopedID part_scope{ static_cast<int>(index) };
-				const std::string label{ fallback };
-				const bool selected{ ImGui::BeginTabItem(label.c_str()) };
-				const auto context{ DrawInspectorTabContextMenu(
-					"##ManagedVisualPartContext", false, false, true, "Remove Part"
-				) };
-				if (context.remove_requested) {
-					remove_after_tabs = child;
-				}
-				if (selected) {
-					if (child != remove_after_tabs) {
-						changed |= DrawManagedVisualChildContents(ctx, child);
-					}
-					ImGui::EndTabItem();
-				}
-			}
-		}
-	) };
-
-	if (add_requested) {
+	if (DrawInspectorAddPartsButton(
+			!add_actions.empty(), "Add UI Part", "Add a UI part."
+		)) {
 		ImGui::OpenPopup("##AddManagedVisualPartPopup");
 	}
 	draw_add_popup();
 
-	if (remove_after_tabs) {
-		ctx.commands.DeleteEntity(remove_after_tabs);
+	for (std::size_t index{ 0 }; index < parts.size(); ++index) {
+		const auto& [label, child]{ parts[index] };
+		if (!child) {
+			continue;
+		}
+
+		ScopedID part_scope{ static_cast<int>(index) };
+		const auto tree{ DrawInspectorPartTreeNode(
+			label, "ManagedVisualPart", true, false, "Remove Part"
+		) };
+		if (tree.remove_requested) {
+			remove_after_trees = child;
+		}
+		if (tree.open) {
+			if (child != remove_after_trees) {
+				changed |= DrawManagedVisualChildContents(ctx, child);
+			}
+			ImGui::TreePop();
+		}
+	}
+
+	if (remove_after_trees) {
+		ctx.commands.DeleteEntity(remove_after_trees);
 		changed = true;
 	}
 
@@ -5056,7 +4989,7 @@ bool DrawUISectionImpl(Target& target) {
 						},
 					});
 				}
-				changed |= DrawManagedVisualPartsTabs(
+				changed |= DrawManagedVisualPartsTrees(
 					target.ctx, tooltip_parts, "##TooltipPartTabs", add_actions
 				);
 			}

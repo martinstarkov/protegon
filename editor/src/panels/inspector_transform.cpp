@@ -560,66 +560,56 @@ bool DrawButtonChildStateTransformComponent(
 				.value_or(Transform{})
 		};
 
-		const bool was_enabled{ visual.transform.has_value() };
-		bool enabled{ was_enabled };
-		bool changed{ false };
+		bool enabled{ visual.transform.has_value() };
+		return DrawOptionalTransformTree(
+			"ButtonVisualStateTransform", enabled,
+			[&](bool transform_enabled) {
+				if (transform_enabled) {
+					visual.transform = resolved_transform;
+					visual.depth = target.template Capture<Depth>().value_or(Depth{}).value;
+					visual.inherit_position =
+						!target.template Capture<::ptgn::impl::IgnoreParentPosition>().has_value();
+					visual.inherit_rotation =
+						!target.template Capture<::ptgn::impl::IgnoreParentRotation>().has_value();
+					visual.inherit_scale =
+						!target.template Capture<::ptgn::impl::IgnoreParentScale>().has_value();
+					visual.inherit_depth =
+						!target.template Capture<::ptgn::impl::IgnoreParentDepth>().has_value();
+				} else {
+					visual.transform.reset();
+					visual.depth.reset();
+					visual.inherit_position.reset();
+					visual.inherit_rotation.reset();
+					visual.inherit_scale.reset();
+					visual.inherit_depth.reset();
+				}
 
-		if (ImGui::Checkbox("##SetTransform", &enabled)) {
-			if (enabled) {
-				visual.transform = resolved_transform;
-				visual.depth = target.template Capture<Depth>().value_or(Depth{}).value;
-				visual.inherit_position =
-					!target.template Capture<::ptgn::impl::IgnoreParentPosition>().has_value();
-				visual.inherit_rotation =
-					!target.template Capture<::ptgn::impl::IgnoreParentRotation>().has_value();
-				visual.inherit_scale =
-					!target.template Capture<::ptgn::impl::IgnoreParentScale>().has_value();
-				visual.inherit_depth =
-					!target.template Capture<::ptgn::impl::IgnoreParentDepth>().has_value();
-			} else {
-				visual.transform.reset();
-				visual.depth.reset();
-				visual.inherit_position.reset();
-				visual.inherit_rotation.reset();
-				visual.inherit_scale.reset();
-				visual.inherit_depth.reset();
-			}
-			// Transform is only an optional property of an enabled part. Toggling it must not
-			// toggle the part itself.
-			visual.defined = true;
-			target.template SetLive<Visuals>(ComponentState<Visuals>{ visuals }, callback);
-			auto after{ target.template Capture<Visuals>() };
-			TrackComponentState(
-				target, std::string{ enabled ? "Enable " : "Disable " } +
-					std::string{ part_label } + " Transform",
-				std::move(before), std::move(after), true, callback
-			);
-			changed = true;
-		}
-
-		ImGui::SameLine();
-		ImGui::BeginDisabled(!enabled);
-		const bool open{ ImGui::TreeNodeEx(
-			"Transform##ButtonVisualStateTransform",
-			ImGuiTreeNodeFlags_SpanAvailWidth | ImGuiTreeNodeFlags_FramePadding
-		) };
-		ImGui::EndDisabled();
-		DrawTooltip("Override this state's transform, or leave it unchecked to inherit.");
-
-		if (open) {
-			if (enabled) {
+				// Transform is only an optional property of an enabled part. Toggling it must not
+				// toggle the part itself.
+				visual.defined = true;
+				target.template SetLive<Visuals>(ComponentState<Visuals>{ visuals }, callback);
+				auto after{ target.template Capture<Visuals>() };
+				TrackComponentState(
+					target, std::string{ transform_enabled ? "Enable " : "Disable " } +
+						std::string{ part_label } + " Transform",
+					std::move(before), std::move(after), true, callback
+				);
+				return true;
+			},
+			[&]() {
 				// Reuse the ordinary Transform section so managed button parts get the exact same
 				// position picker, scale-ratio lock, depth, and ignore-parent controls as entities.
 				auto& editor_state{ GetInspectorUiState(target.GetInspectorTargetKey()) };
 				const auto previous_state{ editor_state.button_visual_state };
 				editor_state.button_visual_state = state;
-				changed |= DrawTransformSectionImpl(target, false, false, false);
+				const bool transform_changed{
+					DrawTransformSectionImpl(target, false, false, false)
+				};
 				editor_state.button_visual_state = previous_state;
-			}
-			ImGui::TreePop();
-		}
-
-		return changed;
+				return transform_changed;
+			},
+			"Override this state's transform, or leave it unchecked to inherit."
+		);
 	}
 }
 

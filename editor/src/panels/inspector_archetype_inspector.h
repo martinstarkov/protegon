@@ -978,6 +978,38 @@ bool DrawButtonBorderLineWidth(
 	return changed;
 }
 
+/// @brief Shared optional Transform tree used by UI-owned parts.
+///
+/// The checkbox is always placed to the left of the tree node. Because the underlying
+/// DrawInspectorTreeToggleRow intentionally uses NoTreePushOnOpen, this helper owns the
+/// one level of indentation for the Transform contents. Disabled transforms remain visible
+/// but cannot be edited.
+template <typename Toggle, typename Draw>
+bool DrawOptionalTransformTree(
+	std::string_view id, bool& enabled, Toggle&& on_toggle, Draw&& draw,
+	std::string_view tooltip =
+		"Override this part's transform, or leave it unchecked to use automatic/inherited placement."
+) {
+	ScopedID scope{ id };
+	const auto header{ DrawInspectorTreeToggleRow(
+		"Transform", "##OptionalTransformTree", enabled, false, InspectorTreeToggleSide::Left
+	) };
+
+	bool changed{ false };
+	if (header.toggle_changed) {
+		changed |= std::invoke(std::forward<Toggle>(on_toggle), enabled);
+	}
+	DrawTooltip(tooltip);
+
+	if (header.open) {
+		ScopedIndent indent;
+		ScopedDisabled disabled{ !enabled };
+		changed |= std::invoke(std::forward<Draw>(draw));
+	}
+
+	return changed;
+}
+
 /// @brief Shared shape-visual fields used by button-managed shape parts and UI controls
 /// that intentionally expose the same appearance model (for example dialogue overrides).
 /// Backgrounds are always solid; borders expose a line-width override.
@@ -986,7 +1018,7 @@ bool DrawButtonShapeVisualFields(
 	EditorContext& ctx, Entity button_entity, std::array<ButtonShapeVisual, N>& states,
 	ButtonVisualState state, bool border,
 	std::optional<std::variant<V2_float, float>> fallback_size = std::nullopt,
-	bool draw_transform = true
+	bool draw_transform = true, bool draw_visual_separator = true
 ) {
 	bool changed{ false };
 
@@ -996,7 +1028,9 @@ bool DrawButtonShapeVisualFields(
 		);
 	}
 
-	ImGui::SeparatorText("Visual");
+	if (draw_visual_separator) {
+		ImGui::SeparatorText("Visual");
+	}
 	changed |= DrawButtonVisualOverrideValue(
 		ctx, "Size", states, state, &ButtonShapeVisual::size
 	);
@@ -1024,7 +1058,7 @@ bool DrawButtonShapeVisualFields(
 template <std::size_t N>
 bool DrawButtonSpriteVisualFields(
 	EditorContext& ctx, std::array<ButtonSpriteVisual, N>& states, ButtonVisualState state,
-	Entity relative_to = {}, bool draw_transform = true
+	Entity relative_to = {}, bool draw_transform = true, bool draw_visual_separator = true
 ) {
 	bool changed{ false };
 
@@ -1034,7 +1068,9 @@ bool DrawButtonSpriteVisualFields(
 		);
 	}
 
-	ImGui::SeparatorText("Visual");
+	if (draw_visual_separator) {
+		ImGui::SeparatorText("Visual");
+	}
 	changed |= DrawButtonVisualOverrideValue(
 		ctx, "Texture Key", states, state, &ButtonSpriteVisual::texture
 	);
