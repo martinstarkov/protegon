@@ -46,6 +46,8 @@
 #include "runtime/ui/slider.h"
 #include "runtime/ui/toggle_button.h"
 #include "runtime/ui/tooltip.h"
+#include "runtime/world/paint_generator.h"
+#include "runtime/world/tilemap.h"
 
 namespace ptgn {
 
@@ -154,6 +156,9 @@ PTGN_REGISTER_COMPONENT(impl::TextureCrop);
 PTGN_REGISTER_COMPONENT(impl::AnimationData);
 PTGN_REGISTER_COMPONENT(SpriteStackData);
 PTGN_REGISTER_COMPONENT(impl::Offsets);
+
+PTGN_REGISTER_COMPONENT(::ptgn::impl::TilemapData);
+PTGN_REGISTER_COMPONENT(impl::PaintGeneratorData);
 
 namespace impl {
 

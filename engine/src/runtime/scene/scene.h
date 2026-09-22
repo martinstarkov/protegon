@@ -22,6 +22,7 @@
 #include "runtime/ecs/tag.h"
 #include "runtime/ecs/uuid.h"
 #include "runtime/graphics/render_target.h"
+#include "runtime/world/entity_layer.h"
 #include "runtime/scene/scene_camera.h"
 #include "runtime/scene/scene_common.h"
 #include "runtime/scene/scene_transition.h"
@@ -147,6 +148,10 @@ public:
 	void SetBackgroundColor(Color background_color);
 	Color GetBackgroundColor() const;
 
+	/// @brief Scene-owned authoring/runtime layer model.
+	[[nodiscard]] const SceneLayers& GetLayers() const;
+	[[nodiscard]] SceneLayers& GetLayers();
+
 	Entity GetEntity(UUID uuid) const;
 	Entity GetEntity(const Tag& tag) const;
 
@@ -160,12 +165,25 @@ public:
 		auto entity{ manager_.CopyEntity<Ts...>(from.entity_) };
 		entity.template Add<Tag>(std::move(tag));
 		entity.template Add<UUID>(uuid);
-		return Entity{ entity, this };
+
+		Entity copied{ entity, this };
+		layers_.RegisterEntity(copied);
+
+		if (const auto source_layer{ layers_.GetLayerId(from) }; source_layer.has_value()) {
+			// Copying an entity should preserve its scene-layer placement when the copied
+			// component set is still valid for that layer. Otherwise it safely remains in
+			// the default Entity layer.
+			layers_.Assign(copied, source_layer.value(), false);
+		}
+		return copied;
 	}
 
 	template <typename... Ts>
 	void CopyEntity(const Entity& from, Entity& to) {
 		manager_.CopyEntity<Ts...>(from.entity_, to.entity_);
+		if (const auto source_layer{ layers_.GetLayerId(from) }; source_layer.has_value()) {
+			layers_.Assign(to, source_layer.value(), false);
+		}
 	}
 
 	auto Entities() {
@@ -323,6 +341,7 @@ private:
 
 	std::unique_ptr<SceneContext> ctx_;
 	Manager manager_;
+	SceneLayers layers_;
 	impl::SceneData data_;
 	std::vector<AssetKey> asset_dependencies_;
 	std::vector<AssetKey> explicit_asset_dependencies_;

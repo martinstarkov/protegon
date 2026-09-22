@@ -411,7 +411,7 @@ std::vector<UniformWrite> GetUniforms(const LightData& light, Color tint) {
 
 	auto ambient_light_n{ light.ambient_color.Normalized() };
 	V3_float ambient_color{ ambient_light_n.xyz() };
-	constexpr V3_float light_attenuation{ 1.0f, 0.0f, 0.1f };
+	// constexpr V3_float light_attenuation{ 1.0f, 0.0f, 0.1f };
 
 	return { UniformWrite{ "u_LightIntensity", light.intensity },
 			 UniformWrite{ "u_LightRadius", 0.5f },

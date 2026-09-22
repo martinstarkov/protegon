@@ -67,6 +67,7 @@
 #include "runtime/ui/slider.h"
 #include "runtime/ui/toggle_button.h"
 #include "runtime/ui/tooltip.h"
+#include "runtime/world/entity_layer.h"
 #include "tools/debug/debug_system.h"
 
 namespace ptgn {
@@ -423,6 +424,7 @@ void RestoreSerializedChildren(Scene& scene, const SerializedEntity& serialized)
 Scene::Scene(Scene&& other) noexcept :
 	ctx_{ std::exchange(other.ctx_, nullptr) },
 	manager_{ std::exchange(other.manager_, {}) },
+	layers_{ std::move(other.layers_) },
 	data_{ std::exchange(other.data_, {}) },
 	asset_dependencies_{ std::exchange(other.asset_dependencies_, {}) },
 	explicit_asset_dependencies_{ std::exchange(other.explicit_asset_dependencies_, {}) },
@@ -438,6 +440,7 @@ Scene& Scene::operator=(Scene&& other) noexcept {
 
 		ctx_ = std::exchange(other.ctx_, nullptr);
 		manager_ = std::exchange(other.manager_, {});
+		layers_ = std::move(other.layers_);
 		data_ = std::exchange(other.data_, {});
 		asset_dependencies_ = std::exchange(other.asset_dependencies_, {});
 		explicit_asset_dependencies_ =
@@ -459,6 +462,7 @@ Scene::~Scene() {
 
 void Scene::InitBase(Application& app, impl::SceneData&& scene_data) {
 	data_ = std::move(scene_data);
+	layers_.Reset();
 	ctx_  = std::make_unique<SceneContext>(app, *this);
 }
 
@@ -564,9 +568,12 @@ json Scene::SerializeContent() const {
 	primary_entities["camera"] = GetCamera().Get<UUID>();
 	primary_entities["fixed_camera"] = GetFixedCamera().Get<UUID>();
 
+	PTGN_ASSERT(layers_.Validate(*this), "Cannot serialize a scene with invalid layer membership");
+
 	json content;
 	content["primary_entities"] = std::move(primary_entities);
 	content["entities"] = std::move(serialized_entities);
+	content["layers"] = layers_.Serialize(*this);
 
 	content["settings"]["physics"] = ctx_->physics;
 	content["settings"]["interaction"] = ctx_->interaction;
@@ -576,6 +583,10 @@ json Scene::SerializeContent() const {
 
 void Scene::DeserializeContent(const json& serialized_content) {
 	PTGN_ASSERT(serialized_content.is_object(), "Serialized scene content must be a JSON object");
+
+	SerializedSceneLayers serialized_layers;
+	serialized_content.at("layers").get_to(serialized_layers);
+	layers_.Deserialize(serialized_layers);
 
 	const auto& primary_entities{ serialized_content.at("primary_entities") };
 
@@ -675,6 +686,8 @@ void Scene::DeserializeContent(const json& serialized_content) {
 	}
 
 	Refresh();
+	layers_.Prune(*this);
+	PTGN_ASSERT(layers_.Validate(*this), "Serialized scene contains invalid layer membership");
 
 	UpdateRenderTargetSizes(*this);
 
@@ -831,8 +844,8 @@ void Scene::DrawCameras(DrawContext& draw_context, const std::vector<Entity>& ca
 		auto effect_params{ impl::GetEffectParams(camera) };
 		auto cam{ camera.operator Camera() };
 		auto clear_color{ camera.GetClearColor() };
-		auto filter = [camera](auto entity) {
-			return !camera.CanSee(entity) || !IsVisible(entity);
+		auto filter = [this, camera](auto entity) {
+			return !camera.CanSee(entity) || !IsVisible(entity) || !layers_.IsVisible(entity);
 		};
 
 		auto& commands{ ctx().render_queue.GetRenderCommands(camera, false) };
@@ -913,7 +926,7 @@ void Scene::InternalDraw(DrawContext& draw_context) {
 
 			bool in_exclude{ (entity_mask & exclude) != 0 };
 
-			return !((in_include && !in_exclude) || IsUI(entity)) || !IsVisible(entity);
+			return !((in_include && !in_exclude) || IsUI(entity)) || !IsVisible(entity) || !layers_.IsVisible(entity);
 		};
 
 		auto& commands{ ctx().render_queue.GetRenderCommands(camera, false) };
@@ -1062,7 +1075,10 @@ Entity Scene::CreateEntity(Tag tag, UUID uuid) {
 	auto entity{ manager_.CreateEntity() };
 	entity.Add<Tag>(std::move(tag));
 	entity.Add<UUID>(uuid);
-	return Entity{ entity, this };
+
+	Entity created{ entity, this };
+	layers_.RegisterEntity(created);
+	return created;
 }
 
 Entity Scene::CreatePrefab(std::string_view prefab_key) {
@@ -1086,6 +1102,14 @@ void Scene::SetBackgroundColor(Color background_color) {
 
 Color Scene::GetBackgroundColor() const {
 	return ctx_->render_target_.GetClearColor().value_or(impl::ClearColor{}.color);
+}
+
+const SceneLayers& Scene::GetLayers() const {
+	return layers_;
+}
+
+SceneLayers& Scene::GetLayers() {
+	return layers_;
 }
 
 std::size_t Scene::GetTagHash() const {
@@ -1219,6 +1243,7 @@ void Scene::ReleaseLoadedAssetDependencies() noexcept {
 
 void Scene::Refresh() {
 	manager_.Refresh();
+	layers_.Prune(*this);
 }
 
 std::size_t Scene::GetEntityCount() const {
