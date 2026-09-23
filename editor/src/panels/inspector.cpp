@@ -8,6 +8,7 @@
 #include "editor/editor.h"
 #include "editor/editor_context.h"
 #include "editor/editor_selection.h"
+#include "editor/paint/paint_editor.h"
 #include "panels/inspector_archetype_inspector.h"
 #include "panels/inspector_helpers.h"
 #include "panels/inspector_screen_effects.h"
@@ -33,77 +34,38 @@ bool DrawInspectorContents(EditorContext& ctx, Target& target) {
 
 } // namespace
 
-PositionPicker::Finish PreparePositionPickSession(
-	EditorContext& ctx
-) {
-	Editor* editor{
-		&ctx.editor
-	};
-
-	const bool should_resume{
-		editor->CanPause() &&
-		!editor->IsPaused()
-	};
+PositionPicker::Finish PreparePositionPickSession(EditorContext& ctx) {
+	Editor* editor{ &ctx.editor };
+	const bool should_resume{ editor->CanPause() && !editor->IsPaused() };
 
 	if (should_resume) {
 		editor->TogglePause();
 	}
 
-	return [
-		editor,
-		should_resume
-	]() {
-		if (!should_resume) {
-			return;
-		}
-
-		// Only resume if this picker owns the pause and the
-		// application is still paused.
-		if (
-			editor->CanPause() &&
-			editor->IsPaused()
-		) {
+	return [editor, should_resume]() {
+		if (should_resume && editor->CanPause() && editor->IsPaused()) {
 			editor->TogglePause();
 		}
 	};
 }
 
 void DrawEntityInspector(EditorContext& ctx, Entity entity) {
-	EntityInspectorTarget target{
-		.ctx	= ctx,
-		.entity = entity,
-	};
-
+	EntityInspectorTarget target{ .ctx = ctx, .entity = entity };
 	DrawInspectorContents(ctx, target);
 }
 
 void DrawPrefabInspector(EditorContext& ctx, const PrefabKey& key) {
 	auto& assets{ ctx.editor.GetAssetManager() };
-
 	if (!assets.Has(key)) {
 		ImGui::TextDisabled("Prefab is not currently loaded.");
 		return;
 	}
 
-	auto prefab_asset{
-		::ptgn::impl::AssetAccessor{ assets }.Get<Prefab>(key)
-	};
-
-	const SerializedEntityPath entity_path{
-		ctx.local.selection.selected_prefab_entity_path
-	};
-
-	auto* selected_entity{
-		ResolveSerializedEntity(
-			prefab_asset.get().root,
-			entity_path
-		)
-	};
-
+	auto prefab_asset{ ::ptgn::impl::AssetAccessor{ assets }.Get<Prefab>(key) };
+	const SerializedEntityPath entity_path{ ctx.local.selection.selected_prefab_entity_path };
+	auto* selected_entity{ ResolveSerializedEntity(prefab_asset.get().root, entity_path) };
 	if (!selected_entity) {
-		ImGui::TextDisabled(
-			"The selected prefab entity no longer exists."
-		);
+		ImGui::TextDisabled("The selected prefab entity no longer exists.");
 		return;
 	}
 
@@ -126,28 +88,42 @@ void DrawPrefabInspector(EditorContext& ctx, const PrefabKey& key) {
 
 void InspectorPanel::OnRender(EditorContext& ctx) {
 	auto& hierarchy{ ctx.editor.GetSceneHierarchyPanel() };
-	const bool prefab_tab_active{
-		hierarchy.GetActiveTab() == SceneHierarchyTab::Prefabs
-	};
+	const SceneHierarchyTab active_tab{ hierarchy.GetActiveTab() };
 
-	const bool inspector_visible{
-		ImGui::Begin(
-			prefab_tab_active
-				? "Prefab Inspector###Inspector"
+	const char* title{
+		active_tab == SceneHierarchyTab::Prefabs
+			? "Prefab Inspector###Inspector"
+			: active_tab == SceneHierarchyTab::Tiles
+				? "Tile Inspector###Inspector"
 				: "Entity Inspector###Inspector"
-		)
 	};
 
+	const bool inspector_visible{ ImGui::Begin(title) };
 	const ImGuiID inspector_dock_id{ ImGui::GetWindowDockID() };
 
 	if (inspector_visible) {
-		if (prefab_tab_active) {
-			if (const auto& selected_prefab{ hierarchy.GetSelectedPrefab() };
-				selected_prefab.has_value()) {
-				inspector::DrawPrefabInspector(ctx, selected_prefab.value());
-			}
-		} else if (auto entity{ hierarchy.GetSelectedEntity() }) {
-			inspector::DrawEntityInspector(ctx, entity);
+		switch (active_tab) {
+			case SceneHierarchyTab::Prefabs:
+				if (const auto& selected_prefab{ hierarchy.GetSelectedPrefab() };
+					selected_prefab.has_value()) {
+					inspector::DrawPrefabInspector(ctx, selected_prefab.value());
+				} else {
+					ImGui::TextDisabled("Select a prefab to inspect it.");
+				}
+				break;
+
+			case SceneHierarchyTab::Tiles:
+				ctx.editor.GetPaintEditor().DrawTileInspector(ctx);
+				break;
+
+			case SceneHierarchyTab::SceneHierarchy:
+			default:
+				if (auto entity{ hierarchy.GetSelectedEntity() }) {
+					inspector::DrawEntityInspector(ctx, entity);
+				} else {
+					ImGui::TextDisabled("Select an entity to inspect it.");
+				}
+				break;
 		}
 	}
 
@@ -159,17 +135,10 @@ void InspectorPanel::OnRender(EditorContext& ctx) {
 		return;
 	}
 
-	const bool selection_changed{
-		previous_screen_effect_selection_ != selection
-	};
-
+	const bool selection_changed{ previous_screen_effect_selection_ != selection };
 	if (inspector_dock_id != 0) {
-		ImGui::SetNextWindowDockID(
-			inspector_dock_id,
-			ImGuiCond_Appearing
-		);
+		ImGui::SetNextWindowDockID(inspector_dock_id, ImGuiCond_Appearing);
 	}
-
 	if (selection_changed) {
 		ImGui::SetNextWindowFocus();
 	}
@@ -186,7 +155,6 @@ void InspectorPanel::OnRender(EditorContext& ctx) {
 	if (screen_effect_inspector_visible) {
 		inspector::DrawScreenEffectInspector(ctx, selection.value());
 	}
-
 	ImGui::End();
 
 	if (!screen_effect_inspector_open) {
@@ -196,10 +164,8 @@ void InspectorPanel::OnRender(EditorContext& ctx) {
 	}
 
 	const bool shared_dock{
-		inspector_dock_id != 0 &&
-		inspector_dock_id == screen_effect_inspector_dock_id
+		inspector_dock_id != 0 && inspector_dock_id == screen_effect_inspector_dock_id
 	};
-
 	if (!selection_changed && shared_dock) {
 		if (screen_effect_inspector_visible &&
 			ctx.local.selection.inspector_tab != InspectorTab::ScreenEffect) {

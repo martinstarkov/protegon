@@ -8,6 +8,7 @@
 #include "runtime/asset/asset_key.h"
 #include "runtime/ecs/entity.h"
 #include "runtime/ecs/entity_serialization.h"
+#include "runtime/world/entity_layer.h"
 
 namespace ptgn::editor {
 
@@ -26,11 +27,7 @@ public:
 	[[nodiscard]] std::optional<PrefabKey> GetSelectedPrefab() const;
 	[[nodiscard]] const SerializedEntityPath& GetSelectedPrefabEntityPath() const;
 
-	void SetSelectedPrefab(
-		std::optional<PrefabKey> prefab,
-		bool undoable = true
-	);
-
+	void SetSelectedPrefab(std::optional<PrefabKey> prefab, bool undoable = true);
 	void SetSelectedPrefab(
 		std::optional<PrefabKey> prefab,
 		SerializedEntityPath entity_path,
@@ -43,6 +40,7 @@ public:
 private:
 	[[nodiscard]] bool DrawSceneHierarchy(EditorContext& ctx);
 	[[nodiscard]] bool DrawPrefabs(EditorContext& ctx);
+	[[nodiscard]] bool DrawTiles(EditorContext& ctx);
 
 	EditorContext* context_{ nullptr };
 
@@ -50,6 +48,10 @@ private:
 	std::string entity_rename_text_;
 	std::string entity_rename_error_;
 	bool focus_entity_rename_{ false };
+
+	std::optional<SceneLayerId> renaming_layer_;
+	std::string layer_rename_text_;
+	bool focus_layer_rename_{ false };
 
 	std::optional<PrefabKey> renaming_prefab_;
 	std::string prefab_rename_text_;
