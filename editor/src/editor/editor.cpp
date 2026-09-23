@@ -3311,8 +3311,6 @@ void Editor::StopDirectRuntime() {
 		return;
 	}
 
-	auto& app_context{ ::ptgn::impl::ApplicationAccessor::ctx(app) };
-
 	auto& manager{ GetSceneManager() };
 
 	// Prefer returning to whichever project scene is currently selected.
