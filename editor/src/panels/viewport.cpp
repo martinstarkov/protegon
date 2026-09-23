@@ -17,6 +17,7 @@
 #include "editor/editor.h"
 #include "editor/editor_context.h"
 #include "editor/editor_state.h"
+#include "editor/paint/paint_editor.h"
 #include "core/graphics/color.h"
 #include "core/math/geometry/origin.h"
 #include "core/math/geometry/rect.h"
@@ -1402,96 +1403,86 @@ void ViewportPanel::DrawSceneCameraOutlines(
 }
 
 void ViewportPanel::DrawViewportToolbar(EditorContext& ctx) {
-	const bool paused{
-		ctx.editor.IsPaused()
+	auto& paint{ ctx.editor.GetPaintEditor() };
+	paint.DrawViewportToolButtons(ctx);
+
+	const bool paused{ ctx.editor.IsPaused() };
+	const bool can_play{ ctx.editor.CanPlay() };
+	const bool can_stop{ ctx.editor.CanStop() };
+	const bool can_pause{ ctx.editor.CanPause() };
+	const bool direct_runtime{ ctx.editor.IsDirectRuntime() };
+	const char* primary_label{ can_stop ? "Stop" : direct_runtime ? "Runtime" : "Play" };
+	const char* pause_label{ paused ? "Resume" : "Pause" };
+	const char* camera_label{
+		use_editor_camera_ ? "Use Scene Cameras" : "Use Editor Camera"
 	};
 
-	const bool can_play{
-		ctx.editor.CanPlay()
+	const auto& style{ ImGui::GetStyle() };
+	auto button_width = [&](const char* label) {
+		return ImGui::CalcTextSize(label).x + style.FramePadding.x * 2.0f;
+	};
+	const float speed_label_width{ ImGui::CalcTextSize("Speed").x };
+	const float speed_width{ 78.0f };
+	const float runtime_width{
+		button_width(primary_label) + button_width(pause_label) + button_width("Step") +
+		speed_label_width + speed_width + button_width(camera_label) +
+		style.ItemSpacing.x * 6.0f + style.ItemInnerSpacing.x
+	};
+	const float right_x{
+		ImGui::GetWindowContentRegionMax().x - runtime_width
 	};
 
-	const bool can_stop{
-		ctx.editor.CanStop()
-	};
-
-	const bool can_pause{
-		ctx.editor.CanPause()
-	};
-
-	const bool direct_runtime{
-		ctx.editor.IsDirectRuntime()
-	};
+	ImGui::SameLine();
+	if (right_x > ImGui::GetCursorPosX()) {
+		ImGui::SetCursorPosX(right_x);
+	}
 
 	if (can_stop) {
-		if (ImGui::Button("Stop")) {
-			ctx.editor.Stop();
-		}
+		if (ImGui::Button("Stop")) ctx.editor.Stop();
 	} else if (direct_runtime) {
-		// Runtime without an editable project has nowhere to stop to.
 		ImGui::BeginDisabled();
 		ImGui::Button("Runtime");
 		ImGui::EndDisabled();
 	} else {
-		ImGui::BeginDisabled(
-			!can_play
-		);
-
-		if (ImGui::Button("Play")) {
-			ctx.editor.Play();
-		}
-
+		ImGui::BeginDisabled(!can_play);
+		if (ImGui::Button("Play")) ctx.editor.Play();
 		ImGui::EndDisabled();
 	}
 
 	ImGui::SameLine();
 	ImGui::BeginDisabled(!can_pause);
-
-	if (ImGui::Button(paused ? "Resume" : "Pause")) {
-		ctx.editor.TogglePause();
-	}
-
+	if (ImGui::Button(pause_label)) ctx.editor.TogglePause();
 	ImGui::EndDisabled();
 
 	ImGui::SameLine();
 	ImGui::BeginDisabled(!can_pause || !paused);
 	ImGui::PushButtonRepeat(true);
-
-	if (ImGui::Button("Step")) {
-		ctx.editor.RequestStep();
-	}
-
+	if (ImGui::Button("Step")) ctx.editor.RequestStep();
 	ImGui::PopButtonRepeat();
 	ImGui::EndDisabled();
 
 	ImGui::SameLine();
-
+	ImGui::AlignTextToFramePadding();
+	ImGui::TextDisabled("Speed");
+	ImGui::SameLine(0.0f, style.ItemInnerSpacing.x);
 	float speed{ ctx.editor.GetTimeScale() };
-
-	ImGui::SetNextItemWidth(120.0f);
-
+	ImGui::SetNextItemWidth(speed_width);
 	if (ImGui::DragFloat(
-			"Speed",
-			&speed,
-			0.05f,
-			0.0f,
-			100.0f,
-			"%.2fx",
+			"##RuntimeSpeed", &speed, 0.05f, 0.0f, 100.0f, "%.2fx",
 			ImGuiSliderFlags_AlwaysClamp
 		)) {
 		ctx.editor.SetTimeScale(speed);
 	}
 
 	ImGui::SameLine();
-
-	if (ImGui::Button(
-			use_editor_camera_
-				? "Use Scene Cameras"
-				: "Use Editor Camera"
-		)) {
-		SetUseEditorCamera(
-			!use_editor_camera_
-		);
+	if (ImGui::Button(camera_label)) {
+		SetUseEditorCamera(!use_editor_camera_);
 	}
+
+	// Paint/grid/context settings are intentionally all on row two. This keeps the paint tools
+	// and editor runtime/camera controls together on the top row without sacrificing controls.
+	ImGui::NewLine();
+	paint.DrawViewportOptionsToolbar(ctx);
 }
 
 void SetImageBlendMode(const ImDrawList*, const ImDrawCmd* cmd) {
@@ -1773,16 +1764,17 @@ void ViewportPanel::OnRender(EditorContext& ctx) {
 				inspector::UpdatePickedPositionDrag(ctx, world_position);
 				inspector::CompletePickedPosition(ctx);
 			}
-		} else if (!position_pick_was_active) {
-			if (use_editor_camera_) {
-				DrawSelectedEntityGizmo(ctx, presentation_viewport, frame);
+		} else if (!position_pick_was_active && use_editor_camera_) {
+			auto& paint{ ctx.editor.GetPaintEditor() };
+			const bool consumed{ paint.DrawViewportAndHandleInput(
+				ctx, *scene, viewport, presentation_viewport, frame
+			) };
 
+			// Paint Select intentionally delegates entity click resolution to the existing
+			// renderer ID buffer. The old transform gizmo path is no longer invoked.
+			if (!consumed && paint.WantsEntityPicking(*scene)) {
 				HandleEntityPicking(
-					ctx,
-					viewport,
-					presentation_size,
-					presentation_viewport,
-					frame
+					ctx, viewport, presentation_size, presentation_viewport, frame
 				);
 			}
 		}
@@ -1981,10 +1973,6 @@ void ViewportPanel::HandleEntityPicking(
 		return;
 	}
 
-	if (gizmo_state_.hot != GizmoHandle::None || gizmo_state_.active != GizmoHandle::None) {
-		return;
-	}
-
 	V2_float mouse_position{
 		ImGui::GetIO().MousePos.x,
 		ImGui::GetIO().MousePos.y,
@@ -2011,6 +1999,8 @@ void ViewportPanel::HandleEntityPicking(
 
 	if (!outer_id.has_value() || outer_id.value() == ::ptgn::impl::kNoEntityId) {
 		hierarchy.SetSelectedEntity({});
+		ctx.editor.GetPaintEditor().ClearSelection();
+		ctx.editor.GetPaintEditor().OnEntityPicked(ctx, {});
 		return;
 	}
 
@@ -2039,7 +2029,18 @@ void ViewportPanel::HandleEntityPicking(
 		selected_entity = ResolveManagedUIPick(selected_entity);
 	}
 
-	hierarchy.SetSelectedEntity(selected_entity);
+	if (selected_entity &&
+		(!scene->GetLayers().IsSelectable(selected_entity) || scene->GetLayers().IsLocked(selected_entity))) {
+		return;
+	}
+
+	if (selected_entity) {
+		ctx.editor.GetPaintEditor().OnEntityPicked(ctx, selected_entity);
+	} else {
+		hierarchy.SetSelectedEntity({});
+		ctx.editor.GetPaintEditor().ClearSelection();
+		ctx.editor.GetPaintEditor().OnEntityPicked(ctx, {});
+	}
 }
 
 } // namespace ptgn::editor
