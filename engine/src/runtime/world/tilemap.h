@@ -1,6 +1,7 @@
 #pragma once
 
 #include <array>
+#include <cstdint>
 #include <optional>
 #include <vector>
 
@@ -31,18 +32,34 @@ struct TilemapTile {
 		V2_float{ 1.0f, 1.0f },
 		V2_float{ 0.0f, 1.0f },
 	};
+	/// Native visual size in world/pixel units. A zero/invalid size falls back to the Tilemap cell size.
+	V2_int pixel_size{ 32, 32 };
 	Origin origin{ Origin::TopLeft };
 	V2_float offset{};
 	Color tint{ color::White };
+	/// Stable editor-authored terrain ruleset id when this is a derived autotile display cell.
+	std::optional<std::uint64_t> terrain_ruleset_id{};
 
 	PTGN_REFLECT(
 		TilemapTile,
 		coordinate,
 		texture,
 		texture_coordinates,
+		pixel_size,
+		origin,
 		offset,
-		tint
+		tint,
+		terrain_ruleset_id
 	)
+};
+
+/// Logical terrain ownership is stored separately from the derived display tile.
+/// This is required by Dual Grid, whose display cells are offset by half a cell.
+struct TilemapTerrainCell {
+	V2_int coordinate{};
+	std::uint64_t ruleset_id{};
+
+	PTGN_REFLECT(TilemapTerrainCell, coordinate, ruleset_id)
 };
 
 struct TilemapStreamingSettings {
@@ -72,6 +89,7 @@ struct TilemapData {
 	V2_int chunk_size{ 16, 16 };
 	TilemapStreamingSettings streaming{};
 	std::vector<TilemapTile> tiles{};
+	std::vector<TilemapTerrainCell> terrain{};
 	std::vector<V2_int> exclusion_mask{};
 
 	PTGN_REFLECT(
@@ -80,6 +98,7 @@ struct TilemapData {
 		chunk_size,
 		streaming,
 		tiles,
+		terrain,
 		exclusion_mask
 	)
 };
@@ -91,8 +110,8 @@ public:
 	Tilemap() = default;
 	explicit Tilemap(Entity entity);
 
-	[[nodiscard]] const ::ptgn::impl::TilemapData& GetData() const;
-	[[nodiscard]] ::ptgn::impl::TilemapData& GetData();
+	[[nodiscard]] const impl::TilemapData& GetData() const;
+	[[nodiscard]] impl::TilemapData& GetData();
 
 	Tilemap& SetCellSize(V2_float cell_size);
 	Tilemap& SetChunkSize(V2_int chunk_size);
@@ -109,6 +128,10 @@ public:
 	Tilemap& SetTile(TilemapTile tile);
 	bool EraseTile(V2_int coordinate);
 	void ClearTiles();
+
+	[[nodiscard]] std::optional<std::uint64_t> GetTerrainRuleset(V2_int coordinate) const;
+	bool SetTerrainRuleset(V2_int coordinate, std::optional<std::uint64_t> ruleset_id);
+	void ClearTerrain();
 
 	[[nodiscard]] bool IsExcluded(V2_int coordinate) const;
 	bool SetExcluded(V2_int coordinate, bool excluded = true);

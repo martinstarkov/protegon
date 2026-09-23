@@ -12,16 +12,16 @@
 namespace ptgn {
 
 Tilemap::Tilemap(Entity entity) : Entity{ entity } {
-	PTGN_ASSERT(!entity || entity.Has<::ptgn::impl::TilemapData>(), "Entity is not a Tilemap");
+	PTGN_ASSERT(!entity || entity.Has<impl::TilemapData>(), "Entity is not a Tilemap");
 }
 
-const ::ptgn::impl::TilemapData& Tilemap::GetData() const {
+const impl::TilemapData& Tilemap::GetData() const {
 	PTGN_ASSERT(*this, "Cannot access a null Tilemap");
-	return Get<::ptgn::impl::TilemapData>();
+	return Get<impl::TilemapData>();
 }
 
-::ptgn::impl::TilemapData& Tilemap::GetData() {
-	return const_cast<::ptgn::impl::TilemapData&>(std::as_const(*this).GetData());
+impl::TilemapData& Tilemap::GetData() {
+	return const_cast<impl::TilemapData&>(std::as_const(*this).GetData());
 }
 
 Tilemap& Tilemap::SetCellSize(V2_float cell_size) {
@@ -96,6 +96,33 @@ void Tilemap::ClearTiles() {
 	GetData().tiles.clear();
 }
 
+std::optional<std::uint64_t> Tilemap::GetTerrainRuleset(V2_int coordinate) const {
+	const auto& terrain{ GetData().terrain };
+	const auto it{ std::ranges::find(terrain, coordinate, &TilemapTerrainCell::coordinate) };
+	return it == terrain.end() ? std::nullopt : std::optional<std::uint64_t>{ it->ruleset_id };
+}
+
+bool Tilemap::SetTerrainRuleset(V2_int coordinate, std::optional<std::uint64_t> ruleset_id) {
+	auto& terrain{ GetData().terrain };
+	const auto it{ std::ranges::find(terrain, coordinate, &TilemapTerrainCell::coordinate) };
+	if (!ruleset_id.has_value()) {
+		if (it == terrain.end()) return false;
+		terrain.erase(it);
+		return true;
+	}
+	if (it != terrain.end()) {
+		if (it->ruleset_id == *ruleset_id) return false;
+		it->ruleset_id = *ruleset_id;
+		return true;
+	}
+	terrain.push_back(TilemapTerrainCell{ .coordinate = coordinate, .ruleset_id = *ruleset_id });
+	return true;
+}
+
+void Tilemap::ClearTerrain() {
+	GetData().terrain.clear();
+}
+
 bool Tilemap::IsExcluded(V2_int coordinate) const {
 	return std::ranges::contains(GetData().exclusion_mask, coordinate);
 }
@@ -122,7 +149,7 @@ void Tilemap::ClearExclusionMask() {
 }
 
 bool IsTilemap(Entity entity) {
-	return entity && entity.Has<::ptgn::impl::TilemapData>();
+	return entity && entity.Has<impl::TilemapData>();
 }
 
 Tilemap CreateTilemap(Scene& scene, SceneLayerId layer, Tag tag) {
@@ -133,7 +160,7 @@ Tilemap CreateTilemap(Scene& scene, SceneLayerId layer, Tag tag) {
 
 	Entity entity{ scene.CreateEntity(std::move(tag)) };
 	entity.TryAdd<Transform>();
-	entity.Add<::ptgn::impl::TilemapData>();
+	entity.Add<impl::TilemapData>();
 
 	if (!scene.GetLayers().Assign(entity, layer, false)) {
 		entity.Destroy();
