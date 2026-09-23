@@ -16,6 +16,7 @@
 #include "commands/undo_stack.h"
 #include "editor/editor_context.h"
 #include "editor/editor_settings.h"
+#include "editor/paint/paint_editor.h"
 #include "core/math/vector2.h"
 #include "core/util/file.h"
 #include "panels/console.h"
@@ -102,6 +103,8 @@ public:
 
 	SceneHierarchyPanel& GetSceneHierarchyPanel();
 	SceneListPanel& GetSceneListPanel();
+	PaintEditor& GetPaintEditor();
+	const PaintEditor& GetPaintEditor() const;
 
 	void EnableRendering(bool enable = true);
 	void OnSelectedSceneChanged(Scene* previous_scene, Scene* selected_scene);
@@ -150,6 +153,10 @@ public:
 	);
 
 	void MarkProjectDirty();
+	/// @brief Requests a fresh dependency scan of the selected serialized scene without forcing
+	/// an untracked project-dirty state. Editor commands whose serialized component data changes
+	/// AssetKey references should call this after apply/undo/redo.
+	void MarkSceneAssetDependenciesDirty();
 	void RequestQuit();
 
 	bool CreateProjectScene(std::string_view scene_type);
@@ -224,6 +231,7 @@ private:
 	UndoStack undo_stack_;
 	EditorCommands commands_;
 	ViewportPanel viewport_panel_;
+	PaintEditor paint_editor_;
 	ContentBrowserPanel content_browser_panel_;
 	ConsolePanel console_panel_;
 	SettingsWindow settings_window_;

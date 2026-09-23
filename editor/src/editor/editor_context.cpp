@@ -145,6 +145,7 @@ void from_json(const json& value, EditorColorPalette& palette) {
 void to_json(json& value, const EditorProjectState& state) {
 	value = json::object();
 	value["color_palettes"] = state.color_palettes;
+	value["paint"] = state.paint;
 }
 
 void from_json(const json& value, EditorProjectState& state) {
@@ -154,20 +155,22 @@ void from_json(const json& value, EditorProjectState& state) {
 		return;
 	}
 
-	const auto palettes{ value.find("color_palettes") };
-	if (palettes == value.end() || !palettes->is_array()) {
-		return;
+	if (const auto palettes{ value.find("color_palettes") };
+		palettes != value.end() && palettes->is_array()) {
+		state.color_palettes.reserve(palettes->size());
+		for (const auto& serialized_palette : *palettes) {
+			if (!serialized_palette.is_object()) {
+				continue;
+			}
+
+			EditorColorPalette palette;
+			from_json(serialized_palette, palette);
+			state.color_palettes.emplace_back(std::move(palette));
+		}
 	}
 
-	state.color_palettes.reserve(palettes->size());
-	for (const auto& serialized_palette : *palettes) {
-		if (!serialized_palette.is_object()) {
-			continue;
-		}
-
-		EditorColorPalette palette;
-		from_json(serialized_palette, palette);
-		state.color_palettes.emplace_back(std::move(palette));
+	if (const auto paint{ value.find("paint") }; paint != value.end()) {
+		paint->get_to(state.paint);
 	}
 }
 
@@ -260,3 +263,4 @@ void SaveEditorLocalState(
 }
 
 } // namespace ptgn::editor
+

@@ -217,6 +217,8 @@ namespace {
 			return "Scene Hierarchy###SceneHierarchyWindow";
 		case EditorSelectionMode::Prefabs:
 			return "Prefabs###PrefabsWindow";
+		case EditorSelectionMode::Tiles:
+			return "Tiles###TilesWindow";
 	}
 	return nullptr;
 }
@@ -250,9 +252,13 @@ void RequestSceneListTabFocus(EditorContext& ctx, SceneListTab tab) {
 		return "Screen Effect Inspector###ScreenEffectInspector";
 	}
 
-	return mode == EditorSelectionMode::Prefabs
-		? "Prefab Inspector###Inspector"
-		: "Entity Inspector###Inspector";
+	if (mode == EditorSelectionMode::Prefabs) {
+		return "Prefab Inspector###Inspector";
+	}
+	if (mode == EditorSelectionMode::Tiles) {
+		return "Tile Inspector###Inspector";
+	}
+	return "Entity Inspector###Inspector";
 }
 
 void ApplyEditorSelectionAndFocus(
@@ -281,11 +287,14 @@ bool SetSceneHierarchyTab(EditorContext& ctx, EditorSelectionMode tab) {
 	EditorContext* context{ std::addressof(ctx) };
 	const auto before_tab{ before.mode };
 
+	const char* label{
+		tab == EditorSelectionMode::SceneHierarchy ? "Select Scene Hierarchy Tab" :
+		tab == EditorSelectionMode::Prefabs ? "Select Prefabs Tab" : "Select Tiles Tab"
+	};
+
 	ctx.undo.Execute(
 		std::make_unique<ActionEditorCommand>(
-			tab == EditorSelectionMode::SceneHierarchy
-				? "Select Scene Hierarchy Tab"
-				: "Select Prefabs Tab",
+			label,
 			[context, before, before_tab]() mutable {
 				ApplyEditorSelectionAndFocus(
 					*context,

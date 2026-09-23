@@ -8,6 +8,7 @@
 #include "commands/editor_commands.h"
 #include "commands/undo_stack.h"
 #include "editor/editor_position_picker.h"
+#include "editor/paint/paint_persistence.h"
 #include "editor/editor_selection.h"
 #include "editor/editor_settings.h"
 #include "editor/editor_state.h"
@@ -47,6 +48,7 @@ void from_json(const json& value, EditorColorPalette& palette);
 /// Stored beside the project manifest in the tracked .ptgneditor file.
 struct EditorProjectState {
 	std::vector<EditorColorPalette> color_palettes{};
+	PaintProjectState paint{};
 
 	bool operator==(const EditorProjectState&) const = default;
 };
@@ -59,11 +61,12 @@ struct EditorLocalState {
 	EditorSettings settings{};
 	EditorState state{};
 	EditorSelection selection{};
+	std::optional<PaintLocalState> paint{};
 
 	/// @brief Runtime editor state. This is intentionally not serialized.
 	PositionPicker position_picker{};
 
-	PTGN_REFLECT(EditorLocalState, settings, state, selection)
+	PTGN_REFLECT(EditorLocalState, settings, state, selection, paint)
 };
 
 class EditorContext {

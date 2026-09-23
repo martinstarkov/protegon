@@ -2901,6 +2901,7 @@ void Editor::DrawPanels() {
 	scene_list_panel_.OnRender(*context_);
 	screen_effects_panel_.OnRender(*context_);
 	inspector_panel_.OnRender(*context_);
+	paint_editor_.DrawRecipePanel(*context_);
 	
 	if (ConsumeAcceptedAssetKeyDrop()) {
 		scene_asset_dependencies_dirty_ = true;
@@ -2960,9 +2961,23 @@ SceneListPanel& Editor::GetSceneListPanel() {
 	return scene_list_panel_;
 }
 
+PaintEditor& Editor::GetPaintEditor() {
+	return paint_editor_;
+}
+
+const PaintEditor& Editor::GetPaintEditor() const {
+	return paint_editor_;
+}
+
 bool Editor::ShouldEnableEntityPicking() const {
 	PTGN_ASSERT(context_, "Editor context must be initialized");
-	return context_->local.settings.entity_picking && render_enabled_;
+	// Paint Select and Move reuse the renderer's ID buffer for accurate entity picking;
+	// the legacy viewport gizmo/manipulation path remains disabled.
+	return render_enabled_ && (
+		context_->local.settings.entity_picking ||
+		(paint_editor_.GetTool() == PaintTool::Select ||
+		 paint_editor_.GetTool() == PaintTool::Move)
+	);
 }
 
 ::ptgn::impl::FramebufferId Editor::GetSceneFramebuffer(Scene& scene) const {
@@ -4003,9 +4018,10 @@ void Editor::BuildDefaultDockLayout(std::uint32_t dockspace_id) {
 	);
 
 	ImGuiID dock_right{};
-
-	// ImGuiID dock_right_bottom{};
-	ImGui::DockBuilderSplitNode(dock_right_column_id_, ImGuiDir_Down, 0.35f, nullptr, &dock_right);
+	ImGuiID dock_right_bottom{};
+	ImGui::DockBuilderSplitNode(
+		dock_right_column_id_, ImGuiDir_Down, 0.38f, &dock_right_bottom, &dock_right
+	);
 
 	ImGuiID dock_center_bottom{};
 
@@ -4013,11 +4029,13 @@ void Editor::BuildDefaultDockLayout(std::uint32_t dockspace_id) {
 
 	ImGui::DockBuilderDockWindow("Scene Hierarchy###SceneHierarchyWindow", dock_left);
 	ImGui::DockBuilderDockWindow("Prefabs###PrefabsWindow", dock_left);
+	ImGui::DockBuilderDockWindow("Tiles###TilesWindow", dock_left);
 	ImGui::DockBuilderDockWindow("Settings###SceneSettingsWindow", dock_left);
 	ImGui::DockBuilderDockWindow("Scenes", dock_left_bottom);
 	ImGui::DockBuilderDockWindow("Screen Effects", dock_left_bottom);
 
 	ImGui::DockBuilderDockWindow("Inspector", dock_right);
+	ImGui::DockBuilderDockWindow("Paint Recipe", dock_right_bottom);
 
 	ImGui::DockBuilderDockWindow("Viewport", dock_main);
 

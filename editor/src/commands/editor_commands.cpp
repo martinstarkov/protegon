@@ -37,6 +37,57 @@ namespace ptgn::editor {
 
 namespace {
 
+class SceneLayerEntityCommand final : public EditorCommand {
+public:
+	SceneLayerEntityCommand(
+		std::unique_ptr<EditorCommand> command, Editor& editor, EntityReference reference,
+		SceneLayerId layer, bool restore_layer_after_redo
+	) :
+		command_{ std::move(command) }, editor_{ &editor }, reference_{ std::move(reference) },
+		layer_{ layer }, restore_layer_after_redo_{ restore_layer_after_redo } {}
+
+	void Undo() override {
+		command_->Undo();
+		if (!restore_layer_after_redo_) {
+			RestoreLayer();
+		}
+	}
+
+	void Redo() override {
+		command_->Redo();
+		if (restore_layer_after_redo_) {
+			RestoreLayer();
+		}
+	}
+
+	[[nodiscard]] std::string_view Label() const override {
+		return command_->Label();
+	}
+
+private:
+	void RestoreLayer() {
+		if (!editor_ || !layer_) {
+			return;
+		}
+
+		Entity entity{ reference_.Resolve(*editor_) };
+		if (!entity) {
+			return;
+		}
+
+		auto& layers{ entity.GetScene().GetLayers() };
+		if (layers.Find(layer_) && layers.CanAssign(entity, layer_)) {
+			layers.Assign(entity, layer_, true);
+		}
+	}
+
+	std::unique_ptr<EditorCommand> command_;
+	Editor* editor_{ nullptr };
+	EntityReference reference_{};
+	SceneLayerId layer_{};
+	bool restore_layer_after_redo_{ false };
+};
+
 struct PrefabAssetState {
 	PrefabKey key{};
 	std::optional<Prefab> prefab{};
@@ -342,15 +393,23 @@ Entity EditorCommands::RecordCreatedEntity(
 	auto reference{ MakeEntityReference(entity) };
 	auto snapshot{ CaptureEntitySnapshot(entity) };
 	auto after_selection{ SelectEntity(before_selection, entity) };
+	const SceneLayerId layer{
+		entity.GetScene().GetLayers().GetLayerId(entity).value_or(
+			entity.GetScene().GetLayers().GetDefaultEntityLayer()
+		)
+	};
 
 	ApplyEditorSelection(*context_, after_selection);
 
-	context_->undo.PushApplied(std::make_unique<CreateEntityCommand>(
+	auto create_command{ std::make_unique<CreateEntityCommand>(
 		*context_,
 		reference,
 		std::move(snapshot),
 		std::move(before_selection),
 		std::move(after_selection)
+	) };
+	context_->undo.PushApplied(std::make_unique<SceneLayerEntityCommand>(
+		std::move(create_command), context_->editor, reference, layer, true
 	));
 
 	return reference.Resolve(context_->editor);
@@ -399,12 +458,20 @@ void EditorCommands::DeleteEntity(Entity entity) {
 		after.SetEntityUUID(reference.scene_key, reference.runtime, std::nullopt);
 	}
 
-	context_->undo.Execute(std::make_unique<DeleteEntityCommand>(
+	const SceneLayerId layer{
+		entity.GetScene().GetLayers().GetLayerId(entity).value_or(
+			entity.GetScene().GetLayers().GetDefaultEntityLayer()
+		)
+	};
+	auto delete_command{ std::make_unique<DeleteEntityCommand>(
 		*context_,
-		std::move(reference),
+		reference,
 		std::move(snapshot),
 		before,
 		std::move(after)
+	) };
+	context_->undo.Execute(std::make_unique<SceneLayerEntityCommand>(
+		std::move(delete_command), context_->editor, std::move(reference), layer, false
 	));
 }
 
