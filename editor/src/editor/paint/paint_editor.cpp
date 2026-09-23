@@ -36,10 +36,10 @@
 #include "runtime/ecs/tag.h"
 #include "runtime/graphics/frame_context.h"
 #include "runtime/scene/scene.h"
+#include "runtime/scene/scene_context.h"
 #include "runtime/world/paint_generator.h"
 #include "runtime/world/tilemap.h"
 #include "serialization/json/json.h"
-#include "runtime/scene/scene_context.h"
 
 namespace ptgn::editor {
 
@@ -453,7 +453,7 @@ struct TiledTilesetInfo {
 	};
 }
 
-[[nodiscard]] bool DrawOriginCombo(const char* id, Origin& origin) {
+bool DrawOriginCombo(const char* id, Origin& origin) {
 	struct Entry { Origin value; const char* label; };
 	static constexpr std::array entries{
 		Entry{ Origin::TopLeft, "Top Left" }, Entry{ Origin::CenterTop, "Top" }, Entry{ Origin::TopRight, "Top Right" },
@@ -3458,7 +3458,22 @@ void PaintEditor::ApplyEntityAt(EditorContext& ctx, Scene& scene, V2_float world
 		}
 	}
 	if (!source) return;
-	if (!ctx.editor.GetAssetManager().Has(source)) return;
+
+	// Prefab source browsers enumerate the project catalog, but Scene::CreatePrefab() requires
+	// the prefab object to be resident. A prefab can therefore be selectable after reopening a
+	// project without having been loaded yet. Resolve that catalog entry synchronously before
+	// instantiation so painting works independently of scene preload dependencies.
+	auto& assets{ ctx.editor.GetAssetManager() };
+	if (!::ptgn::impl::AssetAccessor{ assets }.Has<Prefab>(source)) {
+		const auto catalog{ assets.GetCatalogAsset(source, AssetKind::Prefab) };
+		if (!catalog.has_value()) {
+			return;
+		}
+		assets.Load(source, catalog->source_path);
+	}
+	if (!::ptgn::impl::AssetAccessor{ assets }.Has<Prefab>(source)) {
+		return;
+	}
 
 	std::vector<Entity> occupied;
 	for (Entity root : scene.GetLayers().GetRootEntities(scene, layer->id)) {
@@ -4100,7 +4115,7 @@ Entity PaintEditor::FindGeneratorAtWorld(Scene& scene, V2_float world) const {
 	return {};
 }
 
-void PaintEditor::HandleShortcuts(EditorContext&, Scene& scene) {
+void PaintEditor::HandleShortcuts(EditorContext&, Scene&) {
 	const auto& io{ ImGui::GetIO() };
 	if (io.WantTextInput || io.KeyCtrl || io.KeyAlt || io.KeySuper) return;
 	if (ImGui::IsKeyPressed(ImGuiKey_S, false)) SetTool(PaintTool::Select);

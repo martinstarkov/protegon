@@ -46,37 +46,51 @@ void LoadAssets(Scene& scene) {
 
 bool HasPrefab(const AssetManager& assets, const PrefabKey& key) {
 	const auto keys{ assets.GetPrefabKeys() };
-
 	return std::ranges::find(keys, key) != keys.end();
 }
 
-bool SavePrefabAsset(Scene& scene, Entity source, const PrefabKey& key) {
+bool EnsurePrefabResident(AssetManager& assets, const PrefabKey& key) {
+	if (::ptgn::impl::AssetAccessor{ assets }.Has<Prefab>(key)) {
+		return true;
+	}
+
+	const auto catalog{ assets.GetCatalogAsset(key, AssetKind::Prefab) };
+	if (!catalog.has_value()) {
+		return false;
+	}
+
+	assets.Load(key, catalog->source_path);
+	return ::ptgn::impl::AssetAccessor{ assets }.Has<Prefab>(key);
+}
+
+PrefabKey SavePrefabAsset(Scene& scene, Entity source, const PrefabKey& key) {
 	auto& assets{ scene.ctx().asset };
 	const auto project_root{ assets.GetProjectRoot() };
 
 	if (!project_root.has_value()) {
 		source.Destroy();
-		return false;
+		return {};
 	}
 
 	const path source_path{ GetPrefabSourcePath(key) };
-
-	assets.SavePrefab(
+	Prefab& saved{ assets.SavePrefab(
 		CapturePrefab(source, key, true),
 		project_root.value() / source_path,
 		source_path
-	);
+	) };
+	const PrefabKey saved_key{ saved.key };
 
 	source.Destroy();
-	return true;
+	return saved_key;
 }
 
-void EnsureHumanPrefab(Scene& scene) {
+PrefabKey EnsureHumanPrefab(Scene& scene) {
 	auto& assets{ scene.ctx().asset };
 	const PrefabKey key{ MakePrefabKey(kHumanPrefabName) };
 
 	if (HasPrefab(assets, key)) {
-		return;
+		(void)EnsurePrefabResident(assets, key);
+		return key;
 	}
 
 	Animation human{
@@ -96,19 +110,18 @@ void EnsureHumanPrefab(Scene& scene) {
 	};
 
 	human.Add<Tag>(std::string{ kHumanPrefabName });
-
-	// 16x32 source frames become a convenient 32x64 paintable character.
 	SetScale(human, 2.0f);
 
-	(void)SavePrefabAsset(scene, human, key);
+	return SavePrefabAsset(scene, human, key);
 }
 
-void EnsureSmilePrefab(Scene& scene) {
+PrefabKey EnsureSmilePrefab(Scene& scene) {
 	auto& assets{ scene.ctx().asset };
 	const PrefabKey key{ MakePrefabKey(kSmilePrefabName) };
 
 	if (HasPrefab(assets, key)) {
-		return;
+		(void)EnsurePrefabResident(assets, key);
+		return key;
 	}
 
 	Sprite smile{
@@ -121,17 +134,24 @@ void EnsureSmilePrefab(Scene& scene) {
 	};
 
 	smile.Add<Tag>(std::string{ kSmilePrefabName });
-
-	(void)SavePrefabAsset(scene, smile, key);
+	return SavePrefabAsset(scene, smile, key);
 }
 
-void EnsureDemoPrefabs(Scene& scene) {
-	EnsureHumanPrefab(scene);
-	EnsureSmilePrefab(scene);
+struct DemoPrefabKeys {
+	PrefabKey human{};
+	PrefabKey smile{};
+};
+
+DemoPrefabKeys EnsureDemoPrefabs(Scene& scene) {
+	DemoPrefabKeys keys{
+		.human = EnsureHumanPrefab(scene),
+		.smile = EnsureSmilePrefab(scene),
+	};
 
 	// The temporary source entities used for CapturePrefab() were destroyed.
 	// Flush them before creating visible demo instances.
 	scene.Refresh();
+	return keys;
 }
 
 TilemapTile MakeTile(
@@ -150,18 +170,14 @@ TilemapTile MakeTile(
 }
 
 void SeedGroundTiles(Tilemap& tilemap) {
-	// Row 0: the three actual project texture assets.
 	tilemap.SetTile(MakeTile({ 0, 0 }, kBlueTileTexture));
 	tilemap.SetTile(MakeTile({ 1, 0 }, kRedTileTexture));
 	tilemap.SetTile(MakeTile({ 2, 0 }, kGreenTileTexture));
 
-	// Row 1: an in-code checker-style arrangement using the same paintable assets.
 	tilemap.SetTile(MakeTile({ 0, 1 }, kGreenTileTexture));
 	tilemap.SetTile(MakeTile({ 1, 1 }, kBlueTileTexture));
 	tilemap.SetTile(MakeTile({ 2, 1 }, kRedTileTexture));
 
-	// Row 2: code-authored tile variants. These demonstrate that TilemapTile
-	// itself can carry authored tint data independently of the texture asset.
 	tilemap.SetTile(MakeTile(
 		{ 0, 2 },
 		kBlueTileTexture,
@@ -179,10 +195,9 @@ void SeedGroundTiles(Tilemap& tilemap) {
 	));
 }
 
-void CreateDemoLayers(Scene& scene) {
+void CreateDemoLayers(Scene& scene, const DemoPrefabKeys& prefabs) {
 	auto& layers{ scene.GetLayers() };
 
-	// "Entities" already exists automatically as the scene's default Entity layer.
 	const SceneLayerId decorations{
 		layers.Create(SceneLayerKind::Entity, "Decorations")
 	};
@@ -203,8 +218,6 @@ void CreateDemoLayers(Scene& scene) {
 	SetPosition(ground_tilemap, { -48.0f, -80.0f });
 	SeedGroundTiles(ground_tilemap);
 
-	// Keep a second empty tilemap around so switching Tile layers immediately
-	// demonstrates that each Tilemap owns its own authored tile set.
 	Tilemap foreground_tilemap{
 		CreateTilemap(scene, foreground, Tag{ "Foreground Tilemap" })
 	};
@@ -212,24 +225,19 @@ void CreateDemoLayers(Scene& scene) {
 	foreground_tilemap.SetCellSize({ 32.0f, 32.0f });
 	SetPosition(foreground_tilemap, { -48.0f, -80.0f });
 
-	// One prefab instance stays in the automatic/default Entity layer.
-	Entity human{
-		scene.CreatePrefab(MakePrefabKey(kHumanPrefabName))
-	};
-
-	if (human) {
-		SetPosition(human, { -100.0f, 100.0f });
+	if (prefabs.human) {
+		Entity human{ scene.CreatePrefab(prefabs.human) };
+		if (human) {
+			SetPosition(human, { -100.0f, 100.0f });
+		}
 	}
 
-	// Put the second prefab instance in another Entity layer so the demo also
-	// exercises entity-layer switching, visibility and locking.
-	Entity smile{
-		scene.CreatePrefab(MakePrefabKey(kSmilePrefabName))
-	};
-
-	if (smile) {
-		SetPosition(smile, { 100.0f, 100.0f });
-		(void)layers.Assign(smile, decorations, true);
+	if (prefabs.smile) {
+		Entity smile{ scene.CreatePrefab(prefabs.smile) };
+		if (smile) {
+			SetPosition(smile, { 100.0f, 100.0f });
+			(void)layers.Assign(smile, decorations, true);
+		}
 	}
 }
 
@@ -242,18 +250,19 @@ public:
 
 		SetBackgroundColor(Color{ 28, 30, 36, 255 });
 
-		EnsureDemoPrefabs(*this);
-		CreateDemoLayers(*this);
+		const DemoPrefabKeys prefabs{ EnsureDemoPrefabs(*this) };
+		CreateDemoLayers(*this, prefabs);
 	}
 
 	void OnLoad() override {
 		LoadAssets(*this);
+
+		// Project prefab entries are catalogued independently from residency. Make the two demo
+		// prefabs resident again so Paint Recipe can instantiate them immediately after reopening.
+		(void)EnsureDemoPrefabs(*this);
 	}
 
 	void OnEnter() override {
-		// Prefab capture stores the animation configuration, not a transient
-		// "currently playing" runtime state. Start every painted animation when
-		// the scene enters runtime so every Animated Human instance loops.
 		for (auto [entity, _animation] : EntitiesWith<impl::AnimationData>()) {
 			Animation{ entity }.Start(true);
 		}
