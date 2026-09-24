@@ -16,6 +16,7 @@
 #include "panels/scene_hierarchy.h"
 #include "runtime/asset/asset_manager.h"
 #include "runtime/asset/prefab.h"
+#include "runtime/scene/scene_manager.h"
 
 namespace ptgn::editor {
 
@@ -30,6 +31,30 @@ bool DrawInspectorContents(EditorContext& ctx, Target& target) {
 	bool changed{ DrawName(target) };
 	changed |= DrawArchetypeInspector(target);
 	return changed;
+}
+
+[[nodiscard]] bool EnsurePrefabResident(EditorContext& ctx, const PrefabKey& key) {
+	auto& assets{ ctx.editor.GetAssetManager() };
+	if (::ptgn::impl::AssetAccessor{ assets }.Has<Prefab>(key)) {
+		return true;
+	}
+
+	const auto catalog{ assets.GetCatalogAsset(key, AssetKind::Prefab) };
+	if (!catalog.has_value()) {
+		return false;
+	}
+
+	assets.Load(key, catalog->source_path);
+	return ::ptgn::impl::AssetAccessor{ assets }.Has<Prefab>(key);
+}
+
+void SyncEditedPrefabInstances(EditorContext& ctx, const PrefabKey& key) {
+	for (const auto& scene : ctx.editor.GetSceneManager().GetScenes()) {
+		if (!scene || scene->IsRuntime()) {
+			continue;
+		}
+		(void)SyncPrefabInstances(*scene, key);
+	}
 }
 
 } // namespace
@@ -54,16 +79,24 @@ void DrawEntityInspector(EditorContext& ctx, Entity entity) {
 	DrawInspectorContents(ctx, target);
 }
 
-void DrawPrefabInspector(EditorContext& ctx, const PrefabKey& key) {
+void DrawPrefabInspector(
+	EditorContext& ctx,
+	const PrefabKey& key,
+	SerializedEntityPath entity_path
+) {
 	auto& assets{ ctx.editor.GetAssetManager() };
-	if (!assets.Has(key)) {
-		ImGui::TextDisabled("Prefab is not currently loaded.");
+	if (!EnsurePrefabResident(ctx, key)) {
+		ImGui::TextDisabled("Prefab is not currently available.");
 		return;
 	}
 
 	auto prefab_asset{ ::ptgn::impl::AssetAccessor{ assets }.Get<Prefab>(key) };
-	const SerializedEntityPath entity_path{ ctx.local.selection.selected_prefab_entity_path };
-	auto* selected_entity{ ResolveSerializedEntity(prefab_asset.get().root, entity_path) };
+	auto* selected_entity{
+		ResolveSerializedEntity(
+			prefab_asset.get().root,
+			entity_path
+		)
+	};
 	if (!selected_entity) {
 		ImGui::TextDisabled("The selected prefab entity no longer exists.");
 		return;
@@ -81,7 +114,16 @@ void DrawPrefabInspector(EditorContext& ctx, const PrefabKey& key) {
 	}
 
 	assets.SavePrefab(key);
+	SyncEditedPrefabInstances(ctx, key);
 	ctx.local.state.is_dirty = true;
+}
+
+void DrawPrefabInspector(EditorContext& ctx, const PrefabKey& key) {
+	DrawPrefabInspector(
+		ctx,
+		key,
+		ctx.local.selection.selected_prefab_entity_path
+	);
 }
 
 } // namespace inspector
@@ -90,8 +132,22 @@ void InspectorPanel::OnRender(EditorContext& ctx) {
 	auto& hierarchy{ ctx.editor.GetSceneHierarchyPanel() };
 	const SceneHierarchyTab active_tab{ hierarchy.GetActiveTab() };
 
+	Entity selected_scene_entity{
+		active_tab == SceneHierarchyTab::SceneHierarchy
+			? hierarchy.GetSelectedEntity()
+			: Entity{}
+	};
+	const PrefabInstance* linked_instance{
+		selected_scene_entity
+			? GetPrefabInstance(selected_scene_entity)
+			: nullptr
+	};
+	const bool inspect_linked_prefab{
+		linked_instance != nullptr
+	};
+
 	const char* title{
-		active_tab == SceneHierarchyTab::Prefabs
+		active_tab == SceneHierarchyTab::Prefabs || inspect_linked_prefab
 			? "Prefab Inspector###Inspector"
 			: active_tab == SceneHierarchyTab::Tiles
 				? "Tile Inspector###Inspector"
@@ -102,28 +158,56 @@ void InspectorPanel::OnRender(EditorContext& ctx) {
 	const ImGuiID inspector_dock_id{ ImGui::GetWindowDockID() };
 
 	if (inspector_visible) {
-		switch (active_tab) {
-			case SceneHierarchyTab::Prefabs:
-				if (const auto& selected_prefab{ hierarchy.GetSelectedPrefab() };
-					selected_prefab.has_value()) {
-					inspector::DrawPrefabInspector(ctx, selected_prefab.value());
-				} else {
-					ImGui::TextDisabled("Select a prefab to inspect it.");
-				}
-				break;
+		if (inspect_linked_prefab) {
+			ImGui::TextDisabled(
+				"Linked prefab instance"
+			);
+			ImGui::SameLine();
 
-			case SceneHierarchyTab::Tiles:
-				ctx.editor.GetPaintEditor().DrawTileInspector(ctx);
-				break;
+			Entity instance_root{
+				GetPrefabInstanceRoot(selected_scene_entity)
+			};
+			ImGui::BeginDisabled(!instance_root);
+			if (ImGui::SmallButton("Convert to Entity") && instance_root) {
+				ctx.commands.ConvertPrefabInstanceToEntity(instance_root);
+			}
+			ImGui::EndDisabled();
+			if (ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled)) {
+				ImGui::SetTooltip(
+					"Stop syncing this instance to its prefab."
+				);
+			}
+			ImGui::Separator();
 
-			case SceneHierarchyTab::SceneHierarchy:
-			default:
-				if (auto entity{ hierarchy.GetSelectedEntity() }) {
-					inspector::DrawEntityInspector(ctx, entity);
-				} else {
-					ImGui::TextDisabled("Select an entity to inspect it.");
-				}
-				break;
+			inspector::DrawPrefabInspector(
+				ctx,
+				linked_instance->prefab,
+				linked_instance->entity_path
+			);
+		} else {
+			switch (active_tab) {
+				case SceneHierarchyTab::Prefabs:
+					if (const auto& selected_prefab{ hierarchy.GetSelectedPrefab() };
+						selected_prefab.has_value()) {
+						inspector::DrawPrefabInspector(ctx, selected_prefab.value());
+					} else {
+						ImGui::TextDisabled("Select a prefab to inspect it.");
+					}
+					break;
+
+				case SceneHierarchyTab::Tiles:
+					ctx.editor.GetPaintEditor().DrawTileInspector(ctx);
+					break;
+
+				case SceneHierarchyTab::SceneHierarchy:
+				default:
+					if (auto entity{ hierarchy.GetSelectedEntity() }) {
+						inspector::DrawEntityInspector(ctx, entity);
+					} else {
+						ImGui::TextDisabled("Select an entity to inspect it.");
+					}
+					break;
+			}
 		}
 	}
 

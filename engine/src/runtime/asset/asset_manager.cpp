@@ -85,6 +85,13 @@ inline constexpr std::array<std::uint8_t, 4> kMissingTexturePixel{ 176, 48, 224,
 	return impl::AssetStorageKey{ Hash(key), kind };
 }
 
+[[nodiscard]] AssetKey CanonicalAssetKey(AssetKey key, AssetKind kind) {
+	if (kind == AssetKind::Prefab && !key.value.empty()) {
+		key.value = MakePrefabKey(key.value).value;
+	}
+	return key;
+}
+
 AssetKind GetAssetKindFromEntity(ecs::Entity asset, const path& source_path) {
 	using enum AssetKind;
 
@@ -1861,6 +1868,7 @@ bool AssetManager::RegisterCatalog(
 		);
 
 		SerializedAsset asset{ source_asset };
+		asset.key = CanonicalAssetKey(std::move(asset.key), asset.kind);
 
 		if (asset.kind != AssetKind::Scene) {
 			if (auto localized{
@@ -1890,7 +1898,18 @@ bool AssetManager::RegisterCatalog(
 	}
 
 	RefreshCatalogFromDisk();
-	SetProjectAssetDependencies(project.preload_assets);
+	std::vector<AssetKey> normalized_preload_assets;
+	normalized_preload_assets.reserve(project.preload_assets.size());
+	for (AssetKey key : project.preload_assets) {
+		if (!HasCatalogAsset(key)) {
+			const AssetKey canonical_prefab{ CanonicalAssetKey(key, AssetKind::Prefab) };
+			if (HasCatalogAsset(canonical_prefab, AssetKind::Prefab)) {
+				key = canonical_prefab;
+			}
+		}
+		normalized_preload_assets.emplace_back(std::move(key));
+	}
+	SetProjectAssetDependencies(normalized_preload_assets);
 	auto current_catalog{ GetCatalog() };
 	return CatalogDiffersFrom(serialized_catalog, current_catalog);
 }
@@ -2068,7 +2087,8 @@ std::optional<SerializedAsset> AssetManager::GetCatalogAsset(
 	const AssetKey& key,
 	AssetKind kind
 ) const {
-	const auto it{ catalog_.find(MakeAssetStorageKey(key, kind)) };
+	const AssetKey canonical{ CanonicalAssetKey(key, kind) };
+	const auto it{ catalog_.find(MakeAssetStorageKey(canonical, kind)) };
 	return it == catalog_.end() ? std::nullopt : std::optional<SerializedAsset>{ it->second };
 }
 
@@ -2156,7 +2176,8 @@ bool AssetManager::HasCatalogAsset(const AssetKey& key) const {
 }
 
 bool AssetManager::HasCatalogAsset(const AssetKey& key, AssetKind kind) const {
-	return catalog_.contains(MakeAssetStorageKey(key, kind));
+	const AssetKey canonical{ CanonicalAssetKey(key, kind) };
+	return catalog_.contains(MakeAssetStorageKey(canonical, kind));
 }
 
 path AssetManager::ResolvePathBackedAssetSource(
@@ -2432,10 +2453,18 @@ impl::AssetMetadata AssetManager::ProbeMetadata(const SerializedAsset& asset) co
 AssetKey AssetManager::MakeUniqueAssetKey(AssetKind kind, const path& source_path) const {
 	std::string sanitized{ SanitizeKeySegment(source_path.stem().string()) };
 	std::string base{ StripGeneratedAssetMetadataSuffix(sanitized) };
-	AssetKey key{ base.empty() ? std::string{ "asset" } : base };
+	if (base.empty()) {
+		base = "asset";
+	}
 
+	auto make_key = [&](std::string value) {
+		AssetKey key{ std::move(value) };
+		return CanonicalAssetKey(std::move(key), kind);
+	};
+
+	AssetKey key{ make_key(base) };
 	for (std::size_t suffix{ 2 }; HasCatalogAsset(key, kind); ++suffix) {
-		key = (base.empty() ? std::string{ "asset" } : base) + "_" + std::to_string(suffix);
+		key = make_key(base + "_" + std::to_string(suffix));
 	}
 
 	return key;
@@ -2941,6 +2970,7 @@ bool AssetManager::RegisterAsset(AssetKey key, const path& asset_path) {
 		return false;
 	}
 
+	key = CanonicalAssetKey(std::move(key), kind);
 	auto storage_key{ MakeAssetStorageKey(key, kind) };
 	auto& state{ runtime_states_[storage_key] };
 	if (state.load_state == AssetLoadState::Loaded ||
@@ -3287,6 +3317,7 @@ Prefab& AssetManager::LoadPrefab(
 	const path& file_path,
 	const path& source_path
 ) {
+	key = MakePrefabKey(key.value);
 	path resolved_source_path{ ResolvePathBackedAssetSource(source_path) };
 
 	if (project_root_ && asset_directory_) {
@@ -3336,6 +3367,7 @@ Prefab& AssetManager::SavePrefab(
 	const path& file_path,
 	const path& source_path
 ) {
+	prefab.key = MakePrefabKey(prefab.key.value);
 	SavePrefabFile(file_path, prefab);
 	auto key{ prefab.key };
 
@@ -3563,6 +3595,8 @@ void AssetManager::Load(
 		project_asset_kind = AssetKind::Font;
 	}
 
+	key = CanonicalAssetKey(std::move(key), project_asset_kind);
+
 	if (project_root_ &&
 		asset_directory_ &&
 		kind != AssetKind::Scene &&
@@ -3771,7 +3805,8 @@ std::optional<ConstAsset<T>> AssetManager::TryGet(const AssetKey& key) const {
 			? std::nullopt
 			: std::optional<ConstAsset<T>>{ std::cref(it->second.value) };
 	} else if constexpr (std::is_same_v<std::remove_cvref_t<T>, Prefab>) {
-		auto it{ prefabs_.find(Hash(key)) };
+		const PrefabKey canonical{ MakePrefabKey(key.value) };
+		auto it{ prefabs_.find(Hash(canonical)) };
 		return it == prefabs_.end()
 			? std::nullopt
 			: std::optional<ConstAsset<T>>{ std::cref(it->second.value) };
@@ -3786,7 +3821,8 @@ std::optional<Asset<T>> AssetManager::TryGet(const AssetKey& key) {
 		auto it{ jsons_.find(Hash(key)) };
 		return it == jsons_.end() ? std::nullopt : std::optional<Asset<T>>{ std::ref(it->second.value) };
 	} else if constexpr (std::is_same_v<std::remove_cvref_t<T>, Prefab>) {
-		auto it{ prefabs_.find(Hash(key)) };
+		const PrefabKey canonical{ MakePrefabKey(key.value) };
+		auto it{ prefabs_.find(Hash(canonical)) };
 		return it == prefabs_.end()
 			? std::nullopt
 			: std::optional<Asset<T>>{ std::ref(it->second.value) };
@@ -3873,7 +3909,7 @@ bool AssetManager::Has(const AssetKey& key) const {
 	if constexpr (std::is_same_v<std::remove_cvref_t<T>, json>) {
 		return jsons_.contains(Hash(key));
 	} else if constexpr (std::is_same_v<std::remove_cvref_t<T>, Prefab>) {
-		return prefabs_.contains(Hash(key));
+		return prefabs_.contains(Hash(MakePrefabKey(key.value)));
 	} else {
 		return HasAssetImpl<T>(manager_, key);
 	}

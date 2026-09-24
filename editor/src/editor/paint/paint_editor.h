@@ -244,6 +244,7 @@ struct PaintRecipeState {
 	float radial_outer{ 1.0f };
 	float min_spacing{};
 	bool avoid_exclusion_mask{ true };
+	bool link_prefab_instances{ true };
 	bool random_rotation{};
 	float rotation_min{};
 	float rotation_max{ 360.0f };
@@ -276,6 +277,7 @@ struct PaintRecipeState {
 		radial_outer,
 		min_spacing,
 		avoid_exclusion_mask,
+		link_prefab_instances,
 		random_rotation,
 		rotation_min,
 		rotation_max,
@@ -293,12 +295,12 @@ struct PaintRecipeState {
 /// project paint-asset organization.
 class PaintEditor {
 public:
-	/// @brief Top viewport row: paint tool buttons only. ViewportPanel owns the right-aligned
-	/// runtime/camera controls on this same row.
+	/// @brief Top viewport row: paint-tool buttons followed by the grid/settings button.
+	/// ViewportPanel owns the right-aligned runtime/camera controls on this same row.
 	void DrawViewportToolButtons(EditorContext& ctx);
 
-	/// @brief Second viewport row: grid and context-sensitive paint-tool settings.
-	void DrawViewportOptionsToolbar(EditorContext& ctx);
+	/// @brief Second viewport row: context-sensitive settings for the active paint tool.
+	bool DrawViewportOptionsToolbar(EditorContext& ctx);
 
 	void DrawRecipePanel(EditorContext& ctx);
 
@@ -481,6 +483,7 @@ private:
 	void CreateGeneratorForStroke(EditorContext& ctx, Scene& scene, PaintGeneratorGeometry geometry);
 	void CreateInfiniteGenerator(EditorContext& ctx, Scene& scene);
 
+	void SnapSelectionToGrid(EditorContext& ctx, Scene& scene);
 	void BeginMove(EditorContext& ctx, Scene& scene, V2_float world);
 	void UpdateMove(EditorContext& ctx, Scene& scene, V2_float world);
 	void EndMove(EditorContext& ctx, Scene& scene);

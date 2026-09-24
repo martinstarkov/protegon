@@ -64,6 +64,323 @@ constexpr float kGizmoAxisHitThicknessPixels{ 6.0f };
 constexpr float kScaleDragPixels{ 100.0f };
 constexpr float kMinimumScale{ 0.01f };
 
+
+enum class ViewportToolbarIcon : std::uint8_t {
+	Play,
+	Stop,
+	Pause,
+	Step,
+	Camera,
+};
+
+void DrawViewportToolbarIcon(
+	ImDrawList* draw,
+	ViewportToolbarIcon icon,
+	ImVec2 min,
+	float extent,
+	ImU32 color
+) {
+	const float scale{ extent / 16.0f };
+	auto point = [&](float x, float y) {
+		return ImVec2{
+			min.x + x * scale,
+			min.y + y * scale,
+		};
+	};
+
+	switch (icon) {
+		case ViewportToolbarIcon::Play:
+			draw->AddTriangleFilled(
+				point(4.0f, 2.0f),
+				point(4.0f, 14.0f),
+				point(13.0f, 8.0f),
+				color
+			);
+			break;
+
+		case ViewportToolbarIcon::Stop:
+			draw->AddRectFilled(
+				point(3.0f, 3.0f),
+				point(13.0f, 13.0f),
+				color,
+				1.0f
+			);
+			break;
+
+		case ViewportToolbarIcon::Pause:
+			draw->AddRectFilled(
+				point(3.0f, 2.5f),
+				point(6.5f, 13.5f),
+				color,
+				0.75f
+			);
+			draw->AddRectFilled(
+				point(9.5f, 2.5f),
+				point(13.0f, 13.5f),
+				color,
+				0.75f
+			);
+			break;
+
+		case ViewportToolbarIcon::Step:
+			draw->AddTriangleFilled(
+				point(2.5f, 2.5f),
+				point(2.5f, 13.5f),
+				point(10.5f, 8.0f),
+				color
+			);
+			draw->AddRectFilled(
+				point(11.5f, 2.5f),
+				point(13.5f, 13.5f),
+				color
+			);
+			break;
+
+		case ViewportToolbarIcon::Camera:
+			// View-cone/frustum symbol rather than a literal camera body.
+			draw->AddCircleFilled(
+				point(3.0f, 8.0f),
+				1.35f * scale,
+				color,
+				10
+			);
+			draw->AddLine(
+				point(4.2f, 7.2f),
+				point(13.2f, 2.8f),
+				color,
+				std::max(1.0f, 1.5f * scale)
+			);
+			draw->AddLine(
+				point(4.2f, 8.8f),
+				point(13.2f, 13.2f),
+				color,
+				std::max(1.0f, 1.5f * scale)
+			);
+			draw->AddLine(
+				point(13.2f, 2.8f),
+				point(13.2f, 13.2f),
+				color,
+				std::max(1.0f, 1.5f * scale)
+			);
+			break;
+	}
+}
+
+bool DrawViewportIconButton(
+	const char* id,
+	ViewportToolbarIcon icon,
+	const char* tooltip
+) {
+	const auto& style{ ImGui::GetStyle() };
+	const float side{ ImGui::GetFrameHeight() };
+	const ImVec2 p0{ ImGui::GetCursorScreenPos() };
+
+	ImGui::InvisibleButton(id, { side, side });
+
+	const bool hovered{ ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled) };
+	const bool active{ ImGui::IsItemActive() };
+	const bool pressed{ ImGui::IsItemClicked(ImGuiMouseButton_Left) };
+
+	const ImVec4 background{
+		active
+			? style.Colors[ImGuiCol_ButtonActive]
+			: hovered
+				? style.Colors[ImGuiCol_ButtonHovered]
+				: style.Colors[ImGuiCol_Button]
+	};
+
+	auto* draw{ ImGui::GetWindowDrawList() };
+	draw->AddRectFilled(
+		p0,
+		{ p0.x + side, p0.y + side },
+		ImGui::GetColorU32(background),
+		style.FrameRounding
+	);
+
+	const float icon_extent{
+		std::clamp(side - 10.0f, 12.0f, 16.0f)
+	};
+	DrawViewportToolbarIcon(
+		draw,
+		icon,
+		{
+			p0.x + (side - icon_extent) * 0.5f,
+			p0.y + (side - icon_extent) * 0.5f,
+		},
+		icon_extent,
+		ImGui::GetColorU32(ImGuiCol_Text)
+	);
+
+	if (hovered && tooltip && *tooltip != '\0') {
+		ImGui::SetTooltip("%s", tooltip);
+	}
+
+	return pressed;
+}
+
+float ViewportCameraButtonWidth() {
+	const auto& style{ ImGui::GetStyle() };
+	const float icon_extent{ 16.0f };
+	const float label_width{
+		std::max(
+			ImGui::CalcTextSize("Editor").x,
+			ImGui::CalcTextSize("Scene").x
+		)
+	};
+	return
+		style.FramePadding.x * 2.0f +
+		label_width +
+		style.ItemInnerSpacing.x +
+		icon_extent;
+}
+
+bool DrawViewportCameraButton(
+	const char* id,
+	const char* label,
+	const char* tooltip
+) {
+	const auto& style{ ImGui::GetStyle() };
+	const float height{ ImGui::GetFrameHeight() };
+	const float width{ ViewportCameraButtonWidth() };
+	const ImVec2 p0{ ImGui::GetCursorScreenPos() };
+
+	ImGui::InvisibleButton(id, { width, height });
+
+	const bool hovered{ ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled) };
+	const bool active{ ImGui::IsItemActive() };
+	const bool pressed{ ImGui::IsItemClicked(ImGuiMouseButton_Left) };
+
+	const ImVec4 background{
+		active
+			? style.Colors[ImGuiCol_ButtonActive]
+			: hovered
+				? style.Colors[ImGuiCol_ButtonHovered]
+				: style.Colors[ImGuiCol_Button]
+	};
+
+	auto* draw{ ImGui::GetWindowDrawList() };
+	draw->AddRectFilled(
+		p0,
+		{ p0.x + width, p0.y + height },
+		ImGui::GetColorU32(background),
+		style.FrameRounding
+	);
+
+	const ImVec2 text_size{ ImGui::CalcTextSize(label) };
+	const ImVec2 text_pos{
+		p0.x + style.FramePadding.x,
+		p0.y + (height - text_size.y) * 0.5f,
+	};
+	draw->AddText(
+		text_pos,
+		ImGui::GetColorU32(ImGuiCol_Text),
+		label
+	);
+
+	const float icon_extent{
+		std::clamp(height - 10.0f, 12.0f, 16.0f)
+	};
+	const ImVec2 icon_min{
+		p0.x + width - style.FramePadding.x - icon_extent,
+		p0.y + (height - icon_extent) * 0.5f,
+	};
+	DrawViewportToolbarIcon(
+		draw,
+		ViewportToolbarIcon::Camera,
+		icon_min,
+		icon_extent,
+		ImGui::GetColorU32(ImGuiCol_Text)
+	);
+
+	if (hovered && tooltip && *tooltip != '\0') {
+		ImGui::SetTooltip("%s", tooltip);
+	}
+
+	return pressed;
+}
+
+void DrawRuntimeSpeedControl(EditorContext& ctx, float width) {
+	float speed{
+		std::clamp(ctx.editor.GetTimeScale(), 0.0f, 1000.0f)
+	};
+	if (speed != ctx.editor.GetTimeScale()) {
+		ctx.editor.SetTimeScale(speed);
+	}
+
+	char preview[32]{};
+	std::snprintf(
+		preview,
+		sizeof(preview),
+		"%.3gx",
+		static_cast<double>(speed)
+	);
+
+	ImGui::SetNextItemWidth(width);
+
+	if (ImGui::BeginCombo("##RuntimeSpeed", preview)) {
+		static constexpr std::array common_speeds{
+			0.0f,
+			0.25f,
+			0.5f,
+			0.75f,
+			1.0f,
+			1.5f,
+			2.0f,
+			3.0f,
+			4.0f,
+			5.0f,
+			10.0f,
+		};
+
+		for (float preset : common_speeds) {
+			char label[24]{};
+			std::snprintf(
+				label,
+				sizeof(label),
+				"%.3gx",
+				static_cast<double>(preset)
+			);
+
+			const bool selected{
+				std::abs(speed - preset) <= 0.0001f
+			};
+			if (ImGui::Selectable(label, selected)) {
+				speed = preset;
+				ctx.editor.SetTimeScale(speed);
+			}
+			if (selected) {
+				ImGui::SetItemDefaultFocus();
+			}
+		}
+
+		ImGui::Separator();
+		ImGui::TextDisabled("Custom");
+		ImGui::SetNextItemWidth(120.0f);
+
+		float custom{ speed };
+		if (ImGui::InputFloat(
+				"##RuntimeSpeedCustom",
+				&custom,
+				0.0f,
+				0.0f,
+				"%.3f"
+			)) {
+			speed = std::clamp(custom, 0.0f, 1000.0f);
+			ctx.editor.SetTimeScale(speed);
+		}
+		if (ImGui::IsItemDeactivatedAfterEdit()) {
+			speed = std::clamp(speed, 0.0f, 1000.0f);
+			ctx.editor.SetTimeScale(speed);
+		}
+
+		ImGui::EndCombo();
+	}
+
+	if (ImGui::IsItemHovered()) {
+		ImGui::SetTooltip("Runtime speed (0x to 1000x)");
+	}
+}
+
 struct EntityRenderPath {
 	GizmoOccurrenceId id{};
 	std::vector<Entity> cameras{};
@@ -1402,6 +1719,7 @@ void ViewportPanel::DrawSceneCameraOutlines(
 	}
 }
 
+
 void ViewportPanel::DrawViewportToolbar(EditorContext& ctx) {
 	auto& paint{ ctx.editor.GetPaintEditor() };
 	paint.DrawViewportToolButtons(ctx);
@@ -1411,22 +1729,22 @@ void ViewportPanel::DrawViewportToolbar(EditorContext& ctx) {
 	const bool can_stop{ ctx.editor.CanStop() };
 	const bool can_pause{ ctx.editor.CanPause() };
 	const bool direct_runtime{ ctx.editor.IsDirectRuntime() };
-	const char* primary_label{ can_stop ? "Stop" : direct_runtime ? "Runtime" : "Play" };
-	const char* pause_label{ paused ? "Resume" : "Pause" };
-	const char* camera_label{
-		use_editor_camera_ ? "Use Scene Cameras" : "Use Editor Camera"
-	};
 
 	const auto& style{ ImGui::GetStyle() };
-	auto button_width = [&](const char* label) {
-		return ImGui::CalcTextSize(label).x + style.FramePadding.x * 2.0f;
+	const float icon_side{ ImGui::GetFrameHeight() };
+	const float speed_width{ 66.0f };
+	const char* camera_label{
+		use_editor_camera_ ? "Editor" : "Scene"
 	};
-	const float speed_label_width{ ImGui::CalcTextSize("Speed").x };
-	const float speed_width{ 78.0f };
+	const float camera_width{
+		ViewportCameraButtonWidth()
+	};
+
 	const float runtime_width{
-		button_width(primary_label) + button_width(pause_label) + button_width("Step") +
-		speed_label_width + speed_width + button_width(camera_label) +
-		style.ItemSpacing.x * 6.0f + style.ItemInnerSpacing.x
+		icon_side * 3.0f +
+		speed_width +
+		camera_width +
+		style.ItemSpacing.x * 4.0f
 	};
 	const float right_x{
 		ImGui::GetWindowContentRegionMax().x - runtime_width
@@ -1438,51 +1756,93 @@ void ViewportPanel::DrawViewportToolbar(EditorContext& ctx) {
 	}
 
 	if (can_stop) {
-		if (ImGui::Button("Stop")) ctx.editor.Stop();
+		if (DrawViewportIconButton(
+				"##StopRuntime",
+				ViewportToolbarIcon::Stop,
+				"Stop"
+			)) {
+			ctx.editor.Stop();
+		}
 	} else if (direct_runtime) {
 		ImGui::BeginDisabled();
-		ImGui::Button("Runtime");
+		DrawViewportIconButton(
+			"##DirectRuntime",
+			ViewportToolbarIcon::Stop,
+			"Direct runtime is active"
+		);
 		ImGui::EndDisabled();
 	} else {
 		ImGui::BeginDisabled(!can_play);
-		if (ImGui::Button("Play")) ctx.editor.Play();
+		if (DrawViewportIconButton(
+				"##PlayRuntime",
+				ViewportToolbarIcon::Play,
+				"Play"
+			)) {
+			ctx.editor.Play();
+		}
 		ImGui::EndDisabled();
 	}
 
 	ImGui::SameLine();
 	ImGui::BeginDisabled(!can_pause);
-	if (ImGui::Button(pause_label)) ctx.editor.TogglePause();
+	if (DrawViewportIconButton(
+			"##PauseRuntime",
+			paused
+				? ViewportToolbarIcon::Play
+				: ViewportToolbarIcon::Pause,
+			paused ? "Resume" : "Pause"
+		)) {
+		ctx.editor.TogglePause();
+	}
 	ImGui::EndDisabled();
 
 	ImGui::SameLine();
 	ImGui::BeginDisabled(!can_pause || !paused);
 	ImGui::PushButtonRepeat(true);
-	if (ImGui::Button("Step")) ctx.editor.RequestStep();
+	if (DrawViewportIconButton(
+			"##StepRuntime",
+			ViewportToolbarIcon::Step,
+			(!can_pause || !paused)
+				? "Step is available only while paused."
+				: "Step one frame"
+		)) {
+		ctx.editor.RequestStep();
+	}
 	ImGui::PopButtonRepeat();
 	ImGui::EndDisabled();
 
 	ImGui::SameLine();
-	ImGui::AlignTextToFramePadding();
-	ImGui::TextDisabled("Speed");
-	ImGui::SameLine(0.0f, style.ItemInnerSpacing.x);
-	float speed{ ctx.editor.GetTimeScale() };
-	ImGui::SetNextItemWidth(speed_width);
-	if (ImGui::DragFloat(
-			"##RuntimeSpeed", &speed, 0.05f, 0.0f, 100.0f, "%.2fx",
-			ImGuiSliderFlags_AlwaysClamp
-		)) {
-		ctx.editor.SetTimeScale(speed);
-	}
+	DrawRuntimeSpeedControl(ctx, speed_width);
 
 	ImGui::SameLine();
-	if (ImGui::Button(camera_label)) {
+	if (DrawViewportCameraButton(
+			"##ViewportCameraMode",
+			camera_label,
+			use_editor_camera_
+				? "Using the editor camera. Click to use scene cameras."
+				: "Using scene cameras. Click to use the editor camera."
+		)) {
 		SetUseEditorCamera(!use_editor_camera_);
 	}
 
-	// Paint/grid/context settings are intentionally all on row two. This keeps the paint tools
-	// and editor runtime/camera controls together on the top row without sacrificing controls.
-	ImGui::NewLine();
-	paint.DrawViewportOptionsToolbar(ctx);
+	const float first_row_bottom{
+		ImGui::GetItemRectMax().y
+	};
+	const ImVec2 options_start{
+		ImGui::GetWindowPos().x +
+			ImGui::GetWindowContentRegionMin().x,
+		first_row_bottom + style.ItemSpacing.y,
+	};
+
+	ImGui::SetCursorScreenPos(options_start);
+	if (!paint.DrawViewportOptionsToolbar(ctx)) {
+		ImGui::SetCursorScreenPos(
+			{
+				options_start.x,
+				first_row_bottom,
+			}
+		);
+	}
 }
 
 void SetImageBlendMode(const ImDrawList*, const ImDrawCmd* cmd) {
@@ -1512,13 +1872,9 @@ void ViewportPanel::OnRender(EditorContext& ctx) {
 		viewport_window->DockNode->LocalFlags |= ImGuiDockNodeFlags_HiddenTabBar;
 	}
 
-	ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2{ 8.0f, 0.0f });
 	ImGui::Indent(8.0f);
 	DrawViewportToolbar(ctx);
 	ImGui::Unindent(8.0f);
-	ImGui::PopStyleVar();
-
-	ImGui::SetCursorPosY(ImGui::GetCursorPosY() - ImGui::GetStyle().ItemSpacing.y);
 
 	ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2{ 0.0f, 0.0f });
 	ImGui::Separator();

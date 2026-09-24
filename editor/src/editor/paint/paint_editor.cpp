@@ -26,6 +26,7 @@
 #include "core/math/geometry/rect.h"
 #include "editor/editor.h"
 #include "editor/editor_context.h"
+#include "editor/color_picker.h"
 #include "panels/scene_hierarchy.h"
 #include "panels/scene_list.h"
 #include "platform/file_dialog.h"
@@ -49,6 +50,17 @@ constexpr ImU32 kSelection{ IM_COL32(78, 190, 255, 235) };
 constexpr ImU32 kPreview{ IM_COL32(255, 208, 70, 220) };
 constexpr ImU32 kLockedPreview{ IM_COL32(255, 92, 92, 180) };
 constexpr std::size_t kMaxFloodCells{ 50000 };
+constexpr const char* kTileLibraryEntryDragDropPayload{ "PTGN_TILE_LIBRARY_ENTRY" };
+
+template <typename Range>
+[[nodiscard]] std::string NextDefaultGroupName(const Range& groups) {
+	for (std::size_t index{ 1 };; ++index) {
+		std::string candidate{ "Group " + std::to_string(index) };
+		if (!std::ranges::contains(groups, candidate)) {
+			return candidate;
+		}
+	}
+}
 
 [[nodiscard]] ImVec2 ToImGui(V2_float value) {
 	return { value.x, value.y };
@@ -295,56 +307,110 @@ void SortGroupsUngroupedFirst(std::vector<std::string>& groups) {
 	return std::clamp(mask, 0, 15);
 }
 
-void DrawToolIcon(ImDrawList* draw, PaintTool tool, ImVec2 min, ImU32 color, float scale = 1.0f) {
+void DrawToolIcon(
+	ImDrawList* draw,
+	PaintTool tool,
+	ImVec2 min,
+	ImU32 color,
+	float scale = 1.0f
+) {
 	const float x{ std::floor(min.x) };
 	const float y{ std::floor(min.y) };
-	auto point = [&](float px, float py) { return ImVec2{ x + px * scale, y + py * scale }; };
+	auto point = [&](float px, float py) {
+		return ImVec2{ x + px * scale, y + py * scale };
+	};
+	const float line{ std::max(1.0f, 1.6f * scale) };
 
 	switch (tool) {
 		case PaintTool::Select:
-			draw->AddTriangleFilled(point(2, 1), point(2, 14), point(7, 10), color);
-			draw->AddLine(point(6, 9), point(11, 14), color, 2.0f);
+			draw->AddTriangleFilled(
+				point(2.0f, 1.5f),
+				point(2.0f, 13.5f),
+				point(6.3f, 9.7f),
+				color
+			);
+			draw->AddLine(point(6.0f, 9.2f), point(10.5f, 14.0f), color, line);
 			break;
+
 		case PaintTool::Move:
-			draw->AddLine(point(8, 1), point(8, 15), color, 2.0f);
-			draw->AddLine(point(1, 8), point(15, 8), color, 2.0f);
-			draw->AddTriangleFilled(point(8, 0), point(5, 4), point(11, 4), color);
-			draw->AddTriangleFilled(point(8, 16), point(5, 12), point(11, 12), color);
-			draw->AddTriangleFilled(point(0, 8), point(4, 5), point(4, 11), color);
-			draw->AddTriangleFilled(point(16, 8), point(12, 5), point(12, 11), color);
+			draw->AddLine(point(8.0f, 2.0f), point(8.0f, 14.0f), color, line);
+			draw->AddLine(point(2.0f, 8.0f), point(14.0f, 8.0f), color, line);
+			draw->AddTriangleFilled(point(8.0f, 0.5f), point(5.4f, 4.0f), point(10.6f, 4.0f), color);
+			draw->AddTriangleFilled(point(8.0f, 15.5f), point(5.4f, 12.0f), point(10.6f, 12.0f), color);
+			draw->AddTriangleFilled(point(0.5f, 8.0f), point(4.0f, 5.4f), point(4.0f, 10.6f), color);
+			draw->AddTriangleFilled(point(15.5f, 8.0f), point(12.0f, 5.4f), point(12.0f, 10.6f), color);
 			break;
+
 		case PaintTool::Pencil:
-			draw->AddLine(point(3, 13), point(12, 4), color, 3.0f);
-			draw->AddTriangleFilled(point(2, 14), point(4, 10), point(6, 12), color);
-			draw->AddLine(point(10, 3), point(13, 6), color, 2.0f);
+			draw->AddLine(point(3.0f, 12.7f), point(11.7f, 4.0f), color, 2.5f * scale);
+			draw->AddQuadFilled(
+				point(2.0f, 14.0f),
+				point(3.1f, 10.8f),
+				point(5.2f, 12.9f),
+				point(2.0f, 14.8f),
+				color
+			);
+			draw->AddLine(point(10.8f, 3.2f), point(13.0f, 5.4f), color, line);
 			break;
+
 		case PaintTool::Brush:
-			draw->AddLine(point(11, 2), point(6, 9), color, 3.0f);
-			draw->AddQuadFilled(point(3, 8), point(7, 9), point(6, 14), point(2, 14), color);
-			draw->AddLine(point(2, 14), point(7, 14), color, 1.0f);
+			draw->AddLine(point(11.8f, 2.2f), point(7.0f, 8.6f), color, 2.5f * scale);
+			draw->AddBezierCubic(
+				point(6.8f, 8.2f),
+				point(7.0f, 11.2f),
+				point(4.5f, 14.2f),
+				point(1.8f, 13.2f),
+				color,
+				line
+			);
+			draw->AddBezierCubic(
+				point(1.8f, 13.2f),
+				point(4.1f, 12.4f),
+				point(2.8f, 9.3f),
+				point(6.8f, 8.2f),
+				color,
+				line
+			);
 			break;
+
 		case PaintTool::Line:
-			draw->AddCircleFilled(point(3, 13), 1.5f, color, 8);
-			draw->AddLine(point(4, 12), point(12, 4), color, 2.0f);
-			draw->AddCircleFilled(point(13, 3), 1.5f, color, 8);
+			draw->AddLine(point(2.5f, 13.5f), point(13.5f, 2.5f), color, 2.0f * scale);
+			draw->AddCircleFilled(point(2.5f, 13.5f), 1.35f * scale, color, 10);
+			draw->AddCircleFilled(point(13.5f, 2.5f), 1.35f * scale, color, 10);
 			break;
+
 		case PaintTool::Rectangle:
-			draw->AddRect(point(2, 3), point(14, 13), color, 0.0f, 0, 2.0f);
-			draw->AddRectFilled(point(1, 2), point(4, 5), color);
-			draw->AddRectFilled(point(12, 11), point(15, 14), color);
+			draw->AddRect(point(2.0f, 3.0f), point(14.0f, 13.0f), color, 0.5f, 0, line);
 			break;
+
 		case PaintTool::Fill:
-			draw->AddQuad(point(4, 4), point(10, 7), point(7, 13), point(1, 10), color, 2.0f);
-			draw->AddLine(point(5, 2), point(11, 8), color, 2.0f);
-			draw->AddCircleFilled(point(12, 12), 2.0f, color, 8);
+			draw->AddQuad(
+				point(4.0f, 3.0f),
+				point(11.5f, 6.5f),
+				point(7.5f, 13.5f),
+				point(1.5f, 10.0f),
+				color,
+				line
+			);
+			draw->AddLine(point(5.2f, 2.0f), point(12.0f, 8.8f), color, line);
+			draw->AddCircleFilled(point(12.8f, 12.5f), 1.7f * scale, color, 10);
 			break;
+
 		case PaintTool::Erase:
-			draw->AddQuadFilled(point(4, 4), point(12, 7), point(8, 13), point(1, 10), color);
+			draw->AddQuadFilled(
+				point(4.0f, 3.3f),
+				point(13.3f, 8.0f),
+				point(8.2f, 14.0f),
+				point(1.2f, 10.3f),
+				color
+			);
+			draw->AddLine(point(4.1f, 11.8f), point(10.0f, 6.2f), ImGui::GetColorU32(ImGuiCol_Button), line);
 			break;
+
 		case PaintTool::Eyedropper:
-			draw->AddLine(point(4, 12), point(11, 5), color, 3.0f);
-			draw->AddCircle(point(12, 4), 2.5f, color, 8, 2.0f);
-			draw->AddLine(point(2, 14), point(5, 11), color, 2.0f);
+			draw->AddLine(point(4.0f, 12.5f), point(11.2f, 5.3f), color, 2.5f * scale);
+			draw->AddCircle(point(12.1f, 4.1f), 2.4f * scale, color, 12, line);
+			draw->AddLine(point(2.0f, 14.0f), point(5.2f, 10.8f), color, line);
 			break;
 	}
 }
@@ -453,52 +519,285 @@ struct TiledTilesetInfo {
 	};
 }
 
+
+constexpr float kRecipeLabelWidth{ 116.0f };
+constexpr float kRecipeControlWidth{ 190.0f };
+
+void BeginRecipeField(const char* label, float control_width = kRecipeControlWidth) {
+	const float start_x{ ImGui::GetCursorPosX() };
+
+	ImGui::AlignTextToFramePadding();
+	ImGui::TextUnformatted(label);
+	ImGui::SameLine();
+
+	ImGui::SetCursorPosX(std::max(ImGui::GetCursorPosX(), start_x + kRecipeLabelWidth));
+	ImGui::SetNextItemWidth(
+		std::min(control_width, std::max(1.0f, ImGui::GetContentRegionAvail().x))
+	);
+}
+
 bool DrawOriginCombo(const char* id, Origin& origin) {
-	struct Entry { Origin value; const char* label; };
-	static constexpr std::array entries{
-		Entry{ Origin::TopLeft, "Top Left" }, Entry{ Origin::CenterTop, "Top" }, Entry{ Origin::TopRight, "Top Right" },
-		Entry{ Origin::CenterLeft, "Left" }, Entry{ Origin::Center, "Center" }, Entry{ Origin::CenterRight, "Right" },
-		Entry{ Origin::BottomLeft, "Bottom Left" }, Entry{ Origin::CenterBottom, "Bottom" }, Entry{ Origin::BottomRight, "Bottom Right" },
+	struct Entry {
+		Origin value;
+		const char* label;
 	};
+
+	static constexpr std::array entries{
+		Entry{ Origin::TopLeft, "Top Left" },
+		Entry{ Origin::CenterTop, "Top" },
+		Entry{ Origin::TopRight, "Top Right" },
+		Entry{ Origin::CenterLeft, "Left" },
+		Entry{ Origin::Center, "Center" },
+		Entry{ Origin::CenterRight, "Right" },
+		Entry{ Origin::BottomLeft, "Bottom Left" },
+		Entry{ Origin::CenterBottom, "Bottom" },
+		Entry{ Origin::BottomRight, "Bottom Right" },
+	};
+
 	const char* selected_label{ "Center" };
-	for (const auto& e : entries) if (e.value == origin) selected_label = e.label;
-	std::string preview{ "Origin: " }; preview += selected_label;
+	for (const auto& entry : entries) {
+		if (entry.value == origin) {
+			selected_label = entry.label;
+			break;
+		}
+	}
+
 	bool changed{};
-	if (ImGui::BeginCombo(id, preview.c_str())) {
-		for (const auto& e : entries) {
-			if (ImGui::Selectable(e.label, e.value == origin)) { origin = e.value; changed = true; }
+	if (ImGui::BeginCombo(id, selected_label)) {
+		for (const auto& entry : entries) {
+			const bool selected{ entry.value == origin };
+			if (ImGui::Selectable(entry.label, selected)) {
+				origin = entry.value;
+				changed = true;
+			}
+			if (selected) {
+				ImGui::SetItemDefaultFocus();
+			}
 		}
 		ImGui::EndCombo();
 	}
 	return changed;
 }
 
-void DrawToolButton(PaintTool tool, PaintTool& selected) {
+struct PaintSquareButtonResult {
+	bool pressed{};
+	bool hovered{};
+	ImVec2 min{};
+	float side{};
+};
+
+PaintSquareButtonResult DrawPaintSquareButton(
+	const char* id,
+	bool selected,
+	std::string_view tooltip
+) {
+	const auto& style{ ImGui::GetStyle() };
 	const float side{ ImGui::GetFrameHeight() };
-	const ImVec2 size{ side, side };
 	const ImVec2 p0{ ImGui::GetCursorScreenPos() };
+
 	ImGui::PushItemFlag(ImGuiItemFlags_NoNav, true);
-	std::string id{ "##PaintTool" + std::to_string(static_cast<int>(tool)) };
-	ImGui::InvisibleButton(id.c_str(), size);
+	ImGui::InvisibleButton(id, { side, side });
 	ImGui::PopItemFlag();
 
-	const bool hovered{ ImGui::IsItemHovered() };
+	const bool hovered{ ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled) };
+	const bool active{ ImGui::IsItemActive() };
 	const bool pressed{ ImGui::IsItemClicked(ImGuiMouseButton_Left) };
-	const bool active{ tool == selected };
-	const ImVec4 background{
-		active ? ImGui::GetStyleColorVec4(ImGuiCol_ButtonActive) :
-		hovered ? ImGui::GetStyleColorVec4(ImGuiCol_ButtonHovered) :
-		ImGui::GetStyleColorVec4(ImGuiCol_Button)
-	};
-	auto* draw{ ImGui::GetWindowDrawList() };
-	draw->AddRectFilled(p0, ImVec2{ p0.x + side, p0.y + side }, ImGui::GetColorU32(background), 3.0f);
-	if (active) draw->AddRect(p0, ImVec2{ p0.x + side, p0.y + side }, ImGui::GetColorU32(ImGuiCol_Text), 3.0f, 0, 1.0f);
-	const float icon_scale{ std::clamp((side - 8.0f) / 16.0f, 0.65f, 0.95f) };
-	const float icon_extent{ 16.0f * icon_scale };
-	DrawToolIcon(draw, tool, ImVec2{ p0.x + (side - icon_extent) * 0.5f, p0.y + (side - icon_extent) * 0.5f }, ImGui::GetColorU32(ImGuiCol_Text), icon_scale);
 
-	if (pressed) selected = tool;
-	if (hovered) ImGui::SetTooltip("%s (%s)", ToolName(tool), ToolShortcut(tool));
+	const ImVec4 background{
+		selected
+			? style.Colors[ImGuiCol_ButtonActive]
+			: active
+				? style.Colors[ImGuiCol_ButtonActive]
+				: hovered
+					? style.Colors[ImGuiCol_ButtonHovered]
+					: style.Colors[ImGuiCol_Button]
+	};
+
+	auto* draw{ ImGui::GetWindowDrawList() };
+	draw->AddRectFilled(
+		p0,
+		{ p0.x + side, p0.y + side },
+		ImGui::GetColorU32(background),
+		style.FrameRounding
+	);
+	if (selected) {
+		draw->AddRect(
+			p0,
+			{ p0.x + side, p0.y + side },
+			ImGui::GetColorU32(ImGuiCol_Text),
+			style.FrameRounding,
+			0,
+			1.0f
+		);
+	}
+
+	if (hovered && !tooltip.empty()) {
+		ImGui::SetTooltip(
+			"%.*s",
+			static_cast<int>(tooltip.size()),
+			tooltip.data()
+		);
+	}
+
+	return PaintSquareButtonResult{
+		.pressed = pressed,
+		.hovered = hovered,
+		.min = p0,
+		.side = side,
+	};
+}
+
+bool DrawLockToggleButton(const char* id, bool& locked) {
+	const auto button{
+		DrawPaintSquareButton(
+			id,
+			locked,
+			locked ? "Unlock grid aspect ratio" : "Lock grid aspect ratio"
+		)
+	};
+
+	auto* draw{ ImGui::GetWindowDrawList() };
+	const ImU32 color{ ImGui::GetColorU32(ImGuiCol_Text) };
+	const float s{ button.side };
+	const float cx{ button.min.x + s * 0.5f };
+	const float top{ button.min.y + s * 0.26f };
+	const float body_top{ button.min.y + s * 0.48f };
+	const float body_bottom{ button.min.y + s * 0.76f };
+	const float half_w{ s * 0.18f };
+
+	draw->AddRect(
+		{ cx - half_w, body_top },
+		{ cx + half_w, body_bottom },
+		color,
+		1.5f,
+		0,
+		1.4f
+	);
+	draw->AddBezierCubic(
+		{ cx - half_w * 0.72f, body_top },
+		{ cx - half_w * 0.72f, top },
+		{ cx + half_w * 0.72f, top },
+		{ cx + half_w * 0.72f, body_top },
+		color,
+		1.4f
+	);
+
+	if (button.pressed) {
+		locked = !locked;
+	}
+	return button.pressed;
+}
+
+Color GridArrayToColor(const std::array<float, 4>& value) {
+	auto byte = [](float channel) {
+		return static_cast<std::uint8_t>(
+			std::lround(std::clamp(channel, 0.0f, 1.0f) * 255.0f)
+		);
+	};
+	return Color{
+		byte(value[0]),
+		byte(value[1]),
+		byte(value[2]),
+		byte(value[3]),
+	};
+}
+
+void ColorToGridArray(Color value, std::array<float, 4>& output) {
+	output = {
+		static_cast<float>(value.r) / 255.0f,
+		static_cast<float>(value.g) / 255.0f,
+		static_cast<float>(value.b) / 255.0f,
+		static_cast<float>(value.a) / 255.0f,
+	};
+}
+
+void DrawTileThumbnail(
+	EditorContext& ctx,
+	const PaintTileSource& source,
+	float side
+) {
+	const ImVec2 min{ ImGui::GetCursorScreenPos() };
+	ImGui::Dummy({ side, side });
+	const ImVec2 max{ min.x + side, min.y + side };
+
+	auto records{
+		::ptgn::impl::AssetAccessor{
+			ctx.editor.GetAssetManager()
+		}.GetAssets()
+	};
+	const auto record{
+		std::ranges::find_if(
+			records,
+			[&](const auto& candidate) {
+				return candidate.kind == AssetKind::Texture &&
+					candidate.key == static_cast<const AssetKey&>(source.texture);
+			}
+		)
+	};
+
+	auto* draw{ ImGui::GetWindowDrawList() };
+	draw->AddRectFilled(
+		min,
+		max,
+		ImGui::GetColorU32(ImGuiCol_FrameBg),
+		ImGui::GetStyle().FrameRounding
+	);
+
+	if (record != records.end() && record->preview.has_value()) {
+		const auto& uv{ source.texture_coordinates };
+		draw->AddImageQuad(
+			static_cast<ImTextureID>(record->preview->texture),
+			min,
+			{ max.x, min.y },
+			max,
+			{ min.x, max.y },
+			ToImGui(uv[0]),
+			ToImGui(uv[1]),
+			ToImGui(uv[2]),
+			ToImGui(uv[3])
+		);
+	}
+
+	draw->AddRect(
+		min,
+		max,
+		ImGui::GetColorU32(ImGuiCol_Border),
+		ImGui::GetStyle().FrameRounding
+	);
+}
+
+void DrawToolButton(PaintTool tool, PaintTool& selected) {
+	std::string tooltip{ ToolName(tool) };
+	tooltip += " (";
+	tooltip += ToolShortcut(tool);
+	tooltip += ")";
+
+	const auto button{
+		DrawPaintSquareButton(
+			("##PaintTool" + std::to_string(static_cast<int>(tool))).c_str(),
+			tool == selected,
+			tooltip
+		)
+	};
+
+	const float icon_scale{
+		std::clamp((button.side - 8.0f) / 16.0f, 0.65f, 0.95f)
+	};
+	const float extent{ 16.0f * icon_scale };
+	DrawToolIcon(
+		ImGui::GetWindowDrawList(),
+		tool,
+		{
+			button.min.x + (button.side - extent) * 0.5f,
+			button.min.y + (button.side - extent) * 0.5f,
+		},
+		ImGui::GetColorU32(ImGuiCol_Text),
+		icon_scale
+	);
+
+	if (button.pressed) {
+		selected = tool;
+	}
 }
 
 } // namespace
@@ -645,6 +944,7 @@ void PaintEditor::OnEntityPicked(EditorContext& ctx, Entity entity) {
 	pending_entity_move_world_.reset();
 }
 
+
 void PaintEditor::DrawViewportToolButtons(EditorContext& ctx) {
 	EnsureLocalState(ctx);
 
@@ -653,14 +953,21 @@ void PaintEditor::DrawViewportToolButtons(EditorContext& ctx) {
 		return;
 	}
 	ValidateSceneState(*scene);
+
 	SceneLayer* layer{ ResolveActiveLayer(*scene) };
 	if (!layer) {
 		return;
 	}
 
 	static constexpr std::array tools{
-		PaintTool::Select, PaintTool::Move, PaintTool::Pencil, PaintTool::Brush,
-		PaintTool::Line, PaintTool::Rectangle, PaintTool::Fill, PaintTool::Erase,
+		PaintTool::Select,
+		PaintTool::Move,
+		PaintTool::Pencil,
+		PaintTool::Brush,
+		PaintTool::Line,
+		PaintTool::Rectangle,
+		PaintTool::Fill,
+		PaintTool::Erase,
 		PaintTool::Eyedropper,
 	};
 
@@ -668,6 +975,7 @@ void PaintEditor::DrawViewportToolButtons(EditorContext& ctx) {
 		if (i != 0) {
 			ImGui::SameLine();
 		}
+
 		ImGui::BeginDisabled(layer->locked);
 		PaintTool next{ tool_ };
 		DrawToolButton(tools[i], next);
@@ -677,204 +985,676 @@ void PaintEditor::DrawViewportToolButtons(EditorContext& ctx) {
 		ImGui::EndDisabled();
 	}
 
-	StoreLocalState(ctx);
-}
+	ImGui::SameLine();
+	ImGui::PushID("PaintGridToolbar");
 
-void PaintEditor::DrawViewportOptionsToolbar(EditorContext& ctx) {
-	EnsureLocalState(ctx);
-	auto* scene{ ctx.editor.GetSceneListPanel().GetSelectedScene() };
-	if (!scene) return;
-	ValidateSceneState(*scene);
-	SceneLayer* layer{ ResolveActiveLayer(*scene) };
-	if (!layer) return;
+	const auto grid_button{
+		DrawPaintSquareButton(
+			"##Grid",
+			grid_visible_,
+			"Grid settings"
+		)
+	};
 
-	ImGui::PushID("PaintViewportOptions");
-	const float side{ ImGui::GetFrameHeight() };
-	const ImVec2 p0{ ImGui::GetCursorScreenPos() };
-	ImGui::InvisibleButton("##PaintGridMenuButton", { side, side });
-	const bool grid_hovered{ ImGui::IsItemHovered() };
-	const bool grid_pressed{ ImGui::IsItemClicked(ImGuiMouseButton_Left) };
-	const ImVec4 bg{ grid_visible_ ? ImGui::GetStyleColorVec4(ImGuiCol_ButtonActive) :
-		grid_hovered ? ImGui::GetStyleColorVec4(ImGuiCol_ButtonHovered) : ImGui::GetStyleColorVec4(ImGuiCol_Button) };
-	auto* dl{ ImGui::GetWindowDrawList() };
-	dl->AddRectFilled(p0, { p0.x + side, p0.y + side }, ImGui::GetColorU32(bg), 3.0f);
-	const ImU32 fg{ ImGui::GetColorU32(ImGuiCol_Text) };
-	const float pad{ std::max(4.0f, side * 0.25f) };
-	const float x0{ p0.x + pad }, x1{ p0.x + side - pad }, y0{ p0.y + pad }, y1{ p0.y + side - pad };
+	const ImU32 foreground{ ImGui::GetColorU32(ImGuiCol_Text) };
+	const float padding{ std::max(4.0f, grid_button.side * 0.25f) };
+	const float x0{ grid_button.min.x + padding };
+	const float x1{ grid_button.min.x + grid_button.side - padding };
+	const float y0{ grid_button.min.y + padding };
+	const float y1{ grid_button.min.y + grid_button.side - padding };
+
+	auto* draw{ ImGui::GetWindowDrawList() };
 	for (int i{ 1 }; i <= 2; ++i) {
 		const float t{ static_cast<float>(i) / 3.0f };
-		dl->AddLine({ x0 + (x1-x0)*t, y0 }, { x0 + (x1-x0)*t, y1 }, fg, 1.0f);
-		dl->AddLine({ x0, y0 + (y1-y0)*t }, { x1, y0 + (y1-y0)*t }, fg, 1.0f);
+		draw->AddLine(
+			{ x0 + (x1 - x0) * t, y0 },
+			{ x0 + (x1 - x0) * t, y1 },
+			foreground,
+			1.0f
+		);
+		draw->AddLine(
+			{ x0, y0 + (y1 - y0) * t },
+			{ x1, y0 + (y1 - y0) * t },
+			foreground,
+			1.0f
+		);
 	}
-	if (grid_pressed) ImGui::OpenPopup("PaintGridSettingsPopup");
-	if (grid_hovered) ImGui::SetTooltip("Grid settings");
+
+	if (grid_button.pressed) {
+		ImGui::OpenPopup("PaintGridSettingsPopup");
+	}
+
 	if (ImGui::BeginPopup("PaintGridSettingsPopup")) {
-		ImGui::Checkbox("Show Grid", &grid_visible_);
+		ImGui::SeparatorText("Grid");
+
+		BeginRecipeField("Visible", 190.0f);
+		ImGui::Checkbox("##GridVisible", &grid_visible_);
+
 		if (layer->kind == SceneLayerKind::Entity) {
-			float size[2]{ entity_grid_size_.x, entity_grid_size_.y };
-			if (ImGui::DragFloat2("Cell Size", size, 0.25f, 1.0f, 4096.0f, "%.0f")) {
-				if (grid_aspect_locked_) {
-					if (std::abs(size[0] - entity_grid_size_.x) > std::abs(size[1] - entity_grid_size_.y)) size[1] = size[0] / std::max(0.001f, grid_locked_aspect_);
-					else size[0] = size[1] * grid_locked_aspect_;
-				}
-				entity_grid_size_ = { std::max(1.0f,size[0]), std::max(1.0f,size[1]) };
+			const float spacing{ ImGui::GetStyle().ItemInnerSpacing.x };
+			const float lock_width{ ImGui::GetFrameHeight() };
+			const float value_width{ 190.0f };
+			const float pair_width{
+				std::max(1.0f, value_width - lock_width - spacing)
+			};
+			const float field_width{
+				std::max(1.0f, (pair_width - spacing) * 0.5f)
+			};
+
+			const float start_x{ ImGui::GetCursorPosX() };
+			ImGui::AlignTextToFramePadding();
+			ImGui::TextUnformatted("Cell Size");
+			ImGui::SameLine();
+			ImGui::SetCursorPosX(
+				std::max(
+					ImGui::GetCursorPosX(),
+					start_x + kRecipeLabelWidth
+				)
+			);
+
+			float width{ entity_grid_size_.x };
+			float height{ entity_grid_size_.y };
+
+			ImGui::SetNextItemWidth(field_width);
+			const bool width_changed{
+				ImGui::DragFloat(
+					"##GridWidth",
+					&width,
+					0.25f,
+					1.0f,
+					4096.0f,
+					"W: %.0f"
+				)
+			};
+
+			ImGui::SameLine(0.0f, spacing);
+			ImGui::SetNextItemWidth(field_width);
+			const bool height_changed{
+				ImGui::DragFloat(
+					"##GridHeight",
+					&height,
+					0.25f,
+					1.0f,
+					4096.0f,
+					"H: %.0f"
+				)
+			};
+
+			ImGui::SameLine(0.0f, spacing);
+			if (DrawLockToggleButton("##GridAspectLock", grid_aspect_locked_) &&
+				grid_aspect_locked_) {
+				grid_locked_aspect_ =
+					entity_grid_size_.x /
+					std::max(1.0f, entity_grid_size_.y);
 			}
-			if (ImGui::Checkbox("Lock Aspect Ratio", &grid_aspect_locked_) && grid_aspect_locked_) grid_locked_aspect_ = entity_grid_size_.x / std::max(1.0f, entity_grid_size_.y);
-			float offset[2]{ entity_grid_offset_.x, entity_grid_offset_.y };
-			if (ImGui::DragFloat2("Offset##PaintGridOffset", offset, 0.25f)) entity_grid_offset_ = { offset[0], offset[1] };
+
+			if (width_changed || height_changed) {
+				if (grid_aspect_locked_) {
+					if (width_changed && !height_changed) {
+						height =
+							width /
+							std::max(0.001f, grid_locked_aspect_);
+					} else {
+						width =
+							height *
+							grid_locked_aspect_;
+					}
+				}
+
+				entity_grid_size_ = {
+					std::max(1.0f, width),
+					std::max(1.0f, height),
+				};
+			}
+
+			float offset[2]{
+				entity_grid_offset_.x,
+				entity_grid_offset_.y,
+			};
+			BeginRecipeField("Offset", 190.0f);
+			if (ImGui::DragFloat2(
+					"##PaintGridOffset",
+					offset,
+					0.25f
+				)) {
+				entity_grid_offset_ = {
+					offset[0],
+					offset[1],
+				};
+			}
 		}
-		ImGui::DragInt("Major Line Every", &grid_major_every_, 0.2f, 1, 128);
+
+		ImGui::SeparatorText("Minor Lines");
+		{
+			Color color{ GridArrayToColor(grid_minor_color_) };
+			BeginRecipeField("Color", 190.0f);
+			if (DrawColorEdit(
+					ctx,
+					"##GridMinorColor",
+					color
+				)) {
+				ColorToGridArray(color, grid_minor_color_);
+			}
+		}
+		BeginRecipeField("Thickness", 190.0f);
+		ImGui::DragFloat(
+			"##GridMinorThickness",
+			&grid_minor_thickness_,
+			0.05f,
+			0.25f,
+			8.0f,
+			"%.2f"
+		);
+
+		ImGui::SeparatorText("Major Lines");
+		BeginRecipeField("Every", 190.0f);
+		ImGui::DragInt(
+			"##GridMajorEvery",
+			&grid_major_every_,
+			0.2f,
+			1,
+			128
+		);
 		grid_major_every_ = std::max(1, grid_major_every_);
-		ImGui::ColorEdit4("Minor Line Color", grid_minor_color_.data(), ImGuiColorEditFlags_AlphaBar);
-		ImGui::DragFloat("Minor Line Thickness", &grid_minor_thickness_, 0.05f, 0.25f, 8.0f, "%.2f");
-		ImGui::ColorEdit4("Major Line Color", grid_major_color_.data(), ImGuiColorEditFlags_AlphaBar);
-		ImGui::DragFloat("Major Line Thickness", &grid_major_thickness_, 0.05f, 0.25f, 8.0f, "%.2f");
+
+		{
+			Color color{ GridArrayToColor(grid_major_color_) };
+			BeginRecipeField("Color", 190.0f);
+			if (DrawColorEdit(
+					ctx,
+					"##GridMajorColor",
+					color
+				)) {
+				ColorToGridArray(color, grid_major_color_);
+			}
+		}
+		BeginRecipeField("Thickness", 190.0f);
+		ImGui::DragFloat(
+			"##GridMajorThickness",
+			&grid_major_thickness_,
+			0.05f,
+			0.25f,
+			8.0f,
+			"%.2f"
+		);
+
 		ImGui::EndPopup();
 	}
-	ImGui::SameLine();
-	ImGui::SeparatorEx(ImGuiSeparatorFlags_Vertical);
-	ImGui::SameLine();
-	DrawBrushSettingsToolbar(ctx, *scene, *layer);
+
 	ImGui::PopID();
 	StoreLocalState(ctx);
 }
 
+
+bool PaintEditor::DrawViewportOptionsToolbar(EditorContext& ctx) {
+	EnsureLocalState(ctx);
+
+	auto* scene{ ctx.editor.GetSceneListPanel().GetSelectedScene() };
+	if (!scene) {
+		return false;
+	}
+	ValidateSceneState(*scene);
+
+	SceneLayer* layer{ ResolveActiveLayer(*scene) };
+	if (!layer || tool_ == PaintTool::Eyedropper) {
+		return false;
+	}
+
+	DrawBrushSettingsToolbar(ctx, *scene, *layer);
+	StoreLocalState(ctx);
+	return true;
+}
+
+
 void PaintEditor::DrawBrushSettingsToolbar(
 	EditorContext& ctx,
-	Scene&,
+	Scene& scene,
 	SceneLayer& layer
 ) {
 	ImGui::PushID("PaintToolOptions");
-	auto same = [] { ImGui::SameLine(0.0f, ImGui::GetStyle().ItemInnerSpacing.x); };
-	auto item_at = [](const char* items, int index) {
-		const char* p{ items };
-		for (int i{}; i < index && *p; ++i) p += std::strlen(p) + 1;
-		return p;
+
+	auto same = [] {
+		ImGui::SameLine(0.0f, ImGui::GetStyle().ItemSpacing.x);
 	};
-	auto combo = [&](const char* id, const char* label, int& value, const char* items, int count, float width) {
-		std::string preview{ label }; preview += ": "; preview += item_at(items, value);
+
+	auto item_at = [](const char* items, int index) {
+		const char* item{ items };
+		for (int i{}; i < index && *item; ++i) {
+			item += std::strlen(item) + 1;
+		}
+		return item;
+	};
+
+	auto combo = [&](const char* id, const char* label, int& value, const char* items,
+					 int count, float width) {
+		std::string preview{ label };
+		preview += ": ";
+		preview += item_at(items, value);
+
 		ImGui::SetNextItemWidth(width);
+
 		bool changed{};
 		if (ImGui::BeginCombo(id, preview.c_str())) {
 			for (int i{}; i < count; ++i) {
 				const bool selected{ i == value };
-				if (ImGui::Selectable(item_at(items, i), selected)) { value = i; changed = true; }
-				if (selected) ImGui::SetItemDefaultFocus();
+				if (ImGui::Selectable(item_at(items, i), selected)) {
+					value = i;
+					changed = true;
+				}
+				if (selected) {
+					ImGui::SetItemDefaultFocus();
+				}
 			}
 			ImGui::EndCombo();
 		}
 		return changed;
 	};
 
-	ImGui::TextDisabled("%s", ToolName(tool_)); same();
+	const float control_height{ ImGui::GetFrameHeight() };
+
 	if (tool_ == PaintTool::Select) {
 		int mode{ static_cast<int>(select_mode_) };
-		ImGui::BeginDisabled(layer.kind == SceneLayerKind::Entity);
-		if (combo("##SelectMode", "Mode", mode, "Click + Marquee\0Selection Brush\0", 2, 150.0f)) select_mode_ = static_cast<PaintSelectMode>(mode);
-		ImGui::EndDisabled();
-		if (layer.kind == SceneLayerKind::Entity) select_mode_ = PaintSelectMode::ClickMarquee;
-		if (select_mode_ == PaintSelectMode::Brush) {
-			same(); ImGui::SetNextItemWidth(96.0f); ImGui::DragInt("##SelectionDiameter", &selection_diameter_, 0.2f, 1, 128, "Diameter: %d"); selection_diameter_ = std::clamp(selection_diameter_, 1, 128);
-			same(); int shape{ static_cast<int>(selection_brush_shape_) }; if (combo("##SelectionShape", "Shape", shape, "Circle\0Square\0", 2, 108.0f)) selection_brush_shape_ = static_cast<PaintBrushShape>(shape);
+		if (combo(
+				"##SelectMode",
+				"Mode",
+				mode,
+				"Click + Marquee\0Selection Brush\0",
+				2,
+				150.0f
+			)) {
+			select_mode_ = static_cast<PaintSelectMode>(mode);
 		}
+
+		if (select_mode_ == PaintSelectMode::Brush) {
+			same();
+			ImGui::SetNextItemWidth(96.0f);
+			ImGui::DragInt(
+				"##SelectionDiameter",
+				&selection_diameter_,
+				0.2f,
+				1,
+				128,
+				"Diameter: %d"
+			);
+			selection_diameter_ =
+				std::clamp(selection_diameter_, 1, 128);
+
+			same();
+			int shape{ static_cast<int>(selection_brush_shape_) };
+			if (combo(
+					"##SelectionShape",
+					"Shape",
+					shape,
+					"Circle\0Square\0",
+					2,
+					108.0f
+				)) {
+				selection_brush_shape_ =
+					static_cast<PaintBrushShape>(shape);
+			}
+		}
+
 		same();
-		const bool has_selection{ !selected_tile_cells_.empty() || static_cast<bool>(ctx.editor.GetSceneHierarchyPanel().GetSelectedEntity()) };
+		const bool has_selection{
+			!selected_tile_cells_.empty() ||
+			static_cast<bool>(
+				ctx.editor.GetSceneHierarchyPanel().GetSelectedEntity()
+			)
+		};
+
 		ImGui::BeginDisabled(!has_selection);
-		if (ImGui::SmallButton("Deselect")) { ClearSelection(); ctx.editor.GetSceneHierarchyPanel().SetSelectedEntity({}, false); }
+		if (ImGui::Button(
+				"Deselect",
+				{ 0.0f, control_height }
+			)) {
+			ClearSelection();
+			ctx.editor.GetSceneHierarchyPanel().SetSelectedEntity(
+				{},
+				false
+			);
+		}
 		ImGui::EndDisabled();
-		ImGui::PopID(); return;
+
+		ImGui::PopID();
+		return;
 	}
+
 	if (tool_ == PaintTool::Move) {
 		int snap{ static_cast<int>(move_snap_) };
-		if (combo("##MoveMode", "Move", snap, "Grid\0Free\0", 2, 105.0f)) move_snap_ = static_cast<PaintMoveSnapMode>(snap);
-		if (ImGui::IsItemHovered()) ImGui::SetTooltip("Ctrl/Cmd temporarily inverts Grid/Free movement while dragging.");
-		ImGui::PopID(); return;
+		if (combo(
+				"##MoveMode",
+				"Move",
+				snap,
+				"Grid\0Free\0",
+				2,
+				105.0f
+			)) {
+			move_snap_ = static_cast<PaintMoveSnapMode>(snap);
+		}
+		if (ImGui::IsItemHovered()) {
+			ImGui::SetTooltip(
+				"Ctrl/Cmd temporarily inverts Grid/Free movement while dragging."
+			);
+		}
+
+		same();
+		const bool has_selection{
+			!selected_tile_cells_.empty() ||
+			static_cast<bool>(
+				ctx.editor.GetSceneHierarchyPanel().GetSelectedEntity()
+			)
+		};
+		ImGui::BeginDisabled(!has_selection);
+		if (ImGui::Button(
+				"Snap to Grid",
+				{ 0.0f, control_height }
+			)) {
+			SnapSelectionToGrid(ctx, scene);
+		}
+		ImGui::EndDisabled();
+		if (ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled)) {
+			ImGui::SetTooltip(
+				"Snap the selected entity, generator, or tiles to the nearest grid coordinates."
+			);
+		}
+
+		ImGui::PopID();
+		return;
 	}
-	if (tool_ == PaintTool::Eyedropper) { ImGui::TextDisabled("Hold left mouse and move to pick continuously."); ImGui::PopID(); return; }
+
+	if (tool_ == PaintTool::Eyedropper) {
+		ImGui::PopID();
+		return;
+	}
+
+	bool has_previous_control{ false };
 
 	if (tool_ == PaintTool::Erase) {
-		if (layer.kind == SceneLayerKind::Tile) { int erase_mode{ recipe_.operation == PaintBrushOperation::ExclusionMask ? 1 : 0 }; if (combo("##EraseOperation", "Mode", erase_mode, "Erase Tiles\0Erase Mask\0", 2, 132.0f)) recipe_.operation = erase_mode ? PaintBrushOperation::ExclusionMask : PaintBrushOperation::Paint; same(); }
-	} else if (tool_ == PaintTool::Pencil || tool_ == PaintTool::Brush || tool_ == PaintTool::Line ||
-		tool_ == PaintTool::Rectangle || tool_ == PaintTool::Fill) {
+		int erase_mode{
+			recipe_.operation == PaintBrushOperation::ExclusionMask
+				? 1
+				: 0
+		};
+
+		const bool tile_layer{
+			layer.kind == SceneLayerKind::Tile
+		};
+		if (!tile_layer && erase_mode != 0) {
+			erase_mode = 0;
+			recipe_.operation = PaintBrushOperation::Paint;
+		}
+
+		if (combo(
+				"##EraseOperation",
+				"Mode",
+				erase_mode,
+				tile_layer
+					? "Erase Tiles\0Erase Mask\0"
+					: "Erase Entities\0",
+				tile_layer ? 2 : 1,
+				142.0f
+			)) {
+			recipe_.operation =
+				erase_mode == 1
+					? PaintBrushOperation::ExclusionMask
+					: PaintBrushOperation::Paint;
+		}
+		has_previous_control = true;
+	} else if (
+		tool_ == PaintTool::Pencil ||
+		tool_ == PaintTool::Brush ||
+		tool_ == PaintTool::Line ||
+		tool_ == PaintTool::Rectangle ||
+		tool_ == PaintTool::Fill
+	) {
 		int operation{ static_cast<int>(recipe_.operation) };
-		const bool allow_mask{ layer.kind == SceneLayerKind::Tile && tool_ != PaintTool::Fill };
-		const char* operations{ allow_mask ? "Paint\0Replace\0Exclusion Mask\0" : "Paint\0Replace\0" };
+		const bool allow_mask{
+			layer.kind == SceneLayerKind::Tile &&
+			tool_ != PaintTool::Fill
+		};
+		const char* operations{
+			allow_mask
+				? "Paint\0Replace\0Exclusion Mask\0"
+				: "Paint\0Replace\0"
+		};
 		const int count{ allow_mask ? 3 : 2 };
-		if (operation >= count) { operation = 0; recipe_.operation = PaintBrushOperation::Paint; }
-		if (combo("##PaintOperation", "Operation", operation, operations, count, 150.0f)) recipe_.operation = static_cast<PaintBrushOperation>(operation);
-		same();
+
+		if (operation >= count) {
+			operation = 0;
+			recipe_.operation = PaintBrushOperation::Paint;
+		}
+
+		if (combo(
+				"##PaintOperation",
+				"Operation",
+				operation,
+				operations,
+				count,
+				150.0f
+			)) {
+			recipe_.operation =
+				static_cast<PaintBrushOperation>(operation);
+		}
+		has_previous_control = true;
 	}
+
 	if (tool_ == PaintTool::Brush || tool_ == PaintTool::Erase) {
-		if (ImGui::SmallButton("-##PaintDiameter")) brush_diameter_ = std::max(1, brush_diameter_ - 1); same();
-		ImGui::SetNextItemWidth(98.0f); ImGui::DragInt("##PaintDiameterValue", &brush_diameter_, 0.2f, 1, 128, "Diameter: %d"); brush_diameter_ = std::clamp(brush_diameter_, 1, 128); same();
-		if (ImGui::SmallButton("+##PaintDiameter")) brush_diameter_ = std::min(128, brush_diameter_ + 1); same();
-		int shape{ static_cast<int>(brush_shape_) }; if (combo("##BrushShape", "Shape", shape, "Circle\0Square\0", 2, 108.0f)) brush_shape_ = static_cast<PaintBrushShape>(shape);
-		if (tool_ == PaintTool::Erase) { ImGui::PopID(); return; } same();
-	}
-	if (tool_ == PaintTool::Line) {
-		ImGui::SetNextItemWidth(108.0f); ImGui::DragInt("##LineThickness", &line_thickness_, 0.2f, 1, 32, "Thickness: %d"); line_thickness_ = std::max(1, line_thickness_); same();
-		ImGui::SetNextItemWidth(100.0f); ImGui::DragInt("##LineSpacing", &line_spacing_, 0.2f, 1, 32, "Spacing: %d"); line_spacing_ = std::max(1, line_spacing_); same(); ImGui::Checkbox("Align", &line_align_rotation_); if (ImGui::IsItemHovered()) ImGui::SetTooltip("Rotate newly placed Entity-layer prefabs to match the authored line direction."); same();
-	}
-	if (tool_ == PaintTool::Rectangle) {
-		int mode{ static_cast<int>(area_mode_) }; if (combo("##AreaMode", "Area", mode, "Fill\0Outline\0Corners\0Random Fill\0", 4, 132.0f)) area_mode_ = static_cast<PaintAreaMode>(mode);
-		if (area_mode_ == PaintAreaMode::Outline || area_mode_ == PaintAreaMode::Corners) { same(); ImGui::SetNextItemWidth(108.0f); ImGui::DragInt("##AreaThickness", &area_thickness_, 0.2f, 1, 32, "Thickness: %d"); area_thickness_ = std::max(1, area_thickness_); }
-		else if (area_mode_ == PaintAreaMode::RandomFill) { same(); ImGui::SetNextItemWidth(108.0f); ImGui::SliderFloat("##AreaDensity", &recipe_.density, 0.0f, 1.0f, "Density: %.2f"); }
+		if (has_previous_control) {
+			same();
+		}
+
+		if (ImGui::Button(
+				"-##PaintDiameter",
+				{ control_height, control_height }
+			)) {
+			brush_diameter_ =
+				std::max(1, brush_diameter_ - 1);
+		}
+
 		same();
-	}
-	if (layer.kind == SceneLayerKind::Tile) {
-		ImGui::SetNextItemWidth(122.0f); DrawOriginCombo("##TileOrigin", recipe_.tile_origin); same(); ImGui::Checkbox("Avoid Mask", &recipe_.avoid_exclusion_mask);
-	} else {
-		ImGui::SetNextItemWidth(122.0f); DrawOriginCombo("##EntityOrigin", recipe_.entity_origin); same();
-		ImGui::SetNextItemWidth(108.0f);
-		if (ImGui::BeginCombo("##TransformVariation", "Transform...")) {
-			ImGui::Checkbox("Random Rotation", &recipe_.random_rotation);
-			if (recipe_.random_rotation) ImGui::DragFloatRange2("Rotation", &recipe_.rotation_min, &recipe_.rotation_max, 0.5f, -3600.0f, 3600.0f, "%.0f", "%.0f");
-			ImGui::Checkbox("Random Scale", &recipe_.random_scale);
-			if (recipe_.random_scale) ImGui::DragFloatRange2("Scale", &recipe_.scale_min, &recipe_.scale_max, 0.01f, 0.01f, 100.0f, "%.2f", "%.2f");
-			if (recipe_.coverage != PaintCoverageMode::Solid) {
-				ImGui::DragFloat("Minimum Spacing", &recipe_.min_spacing, 0.25f, 0.0f, 4096.0f, "%.1f");
-			}
-			ImGui::EndCombo();
+		ImGui::SetNextItemWidth(98.0f);
+		ImGui::DragInt(
+			"##PaintDiameterValue",
+			&brush_diameter_,
+			0.2f,
+			1,
+			128,
+			"Diameter: %d"
+		);
+		brush_diameter_ =
+			std::clamp(brush_diameter_, 1, 128);
+
+		same();
+		if (ImGui::Button(
+				"+##PaintDiameter",
+				{ control_height, control_height }
+			)) {
+			brush_diameter_ =
+				std::min(128, brush_diameter_ + 1);
+		}
+
+		same();
+		int shape{ static_cast<int>(brush_shape_) };
+		if (combo(
+				"##BrushShape",
+				"Shape",
+				shape,
+				"Circle\0Square\0",
+				2,
+				108.0f
+			)) {
+			brush_shape_ =
+				static_cast<PaintBrushShape>(shape);
+		}
+
+		if (tool_ == PaintTool::Erase) {
+			ImGui::PopID();
+			return;
 		}
 	}
+
+	if (tool_ == PaintTool::Line) {
+		if (has_previous_control) {
+			same();
+		}
+
+		ImGui::SetNextItemWidth(108.0f);
+		ImGui::DragInt(
+			"##LineThickness",
+			&line_thickness_,
+			0.2f,
+			1,
+			32,
+			"Thickness: %d"
+		);
+		line_thickness_ = std::max(1, line_thickness_);
+
+		same();
+		ImGui::SetNextItemWidth(100.0f);
+		ImGui::DragInt(
+			"##LineSpacing",
+			&line_spacing_,
+			0.2f,
+			1,
+			32,
+			"Spacing: %d"
+		);
+		line_spacing_ = std::max(1, line_spacing_);
+
+		same();
+		ImGui::Checkbox("Align", &line_align_rotation_);
+		if (ImGui::IsItemHovered()) {
+			ImGui::SetTooltip(
+				"Rotate newly placed Entity-layer prefabs to match the authored line direction."
+			);
+		}
+	}
+
+	if (tool_ == PaintTool::Rectangle) {
+		if (has_previous_control) {
+			same();
+		}
+
+		int mode{ static_cast<int>(area_mode_) };
+		if (combo(
+				"##AreaMode",
+				"Area",
+				mode,
+				"Fill\0Outline\0Corners\0Random Fill\0",
+				4,
+				132.0f
+			)) {
+			area_mode_ = static_cast<PaintAreaMode>(mode);
+		}
+
+		if (
+			area_mode_ == PaintAreaMode::Outline ||
+			area_mode_ == PaintAreaMode::Corners
+		) {
+			same();
+			ImGui::SetNextItemWidth(108.0f);
+			ImGui::DragInt(
+				"##AreaThickness",
+				&area_thickness_,
+				0.2f,
+				1,
+				32,
+				"Thickness: %d"
+			);
+			area_thickness_ =
+				std::max(1, area_thickness_);
+		} else if (area_mode_ == PaintAreaMode::RandomFill) {
+			same();
+			ImGui::SetNextItemWidth(108.0f);
+			ImGui::SliderFloat(
+				"##AreaDensity",
+				&recipe_.density,
+				0.0f,
+				1.0f,
+				"Density: %.2f"
+			);
+		}
+	}
+
 	ImGui::PopID();
 }
+
 
 void PaintEditor::DrawRecipePanel(EditorContext& ctx) {
 	EnsureLocalState(ctx);
 	EnsureProjectLibrary(ctx);
-	if (!ImGui::Begin("Paint Recipe")) { ImGui::End(); return; }
+
+	if (!ImGui::Begin("Paint Recipe")) {
+		ImGui::End();
+		return;
+	}
 
 	auto* scene{ ctx.editor.GetSceneListPanel().GetSelectedScene() };
-	if (!scene) { ImGui::TextDisabled("Select a scene to edit its paint recipe."); ImGui::End(); return; }
+	if (!scene) {
+		ImGui::TextDisabled("Select a scene to edit its paint recipe.");
+		ImGui::End();
+		return;
+	}
 	ValidateSceneState(*scene);
-	SceneLayer* layer{ ResolveActiveLayer(*scene) };
-	if (!layer) { ImGui::TextDisabled("Select a Tile or Entity layer to edit its paint recipe."); ImGui::End(); return; }
 
-	ImGui::TextDisabled("%s  |  %s layer", layer->name.c_str(), layer->kind == SceneLayerKind::Tile ? "Tile" : "Entity");
-	if (layer->locked) { ImGui::SameLine(); ImGui::TextDisabled("(locked)"); }
+	SceneLayer* layer{ ResolveActiveLayer(*scene) };
+	if (!layer) {
+		ImGui::TextDisabled("Select a Tile or Entity layer to edit its paint recipe.");
+		ImGui::End();
+		return;
+	}
+
+	ImGui::TextDisabled(
+		"%s  |  %s layer",
+		layer->name.c_str(),
+		layer->kind == SceneLayerKind::Tile ? "Tile" : "Entity"
+	);
+	if (layer->locked) {
+		ImGui::SameLine();
+		ImGui::TextDisabled("(locked)");
+	}
 
 	ImGui::SeparatorText("Source");
+
 	int source_kind{ static_cast<int>(recipe_.source_kind) };
-	ImGui::SetNextItemWidth(190.0f);
+	BeginRecipeField("Source");
 	if (layer->kind == SceneLayerKind::Tile) {
-		if (ImGui::Combo("Source##PaintRecipe", &source_kind, "Single\0Weighted Set\0Checkerboard\0Autotile / Terrain\0Noise\0")) {
+		if (ImGui::Combo(
+				"##PaintRecipeSource",
+				&source_kind,
+				"Single\0Weighted Set\0Checkerboard\0Autotile / Terrain\0Noise\0"
+			)) {
 			recipe_.source_kind = static_cast<PaintSourceKind>(source_kind);
 		}
 	} else {
-		if (recipe_.source_kind == PaintSourceKind::Autotile) recipe_.source_kind = PaintSourceKind::Single;
+		if (recipe_.source_kind == PaintSourceKind::Autotile) {
+			recipe_.source_kind = PaintSourceKind::Single;
+		}
+
 		int entity_source{
-			recipe_.source_kind == PaintSourceKind::Noise ? 3 : static_cast<int>(recipe_.source_kind)
+			recipe_.source_kind == PaintSourceKind::Noise
+				? 3
+				: static_cast<int>(recipe_.source_kind)
 		};
-		if (entity_source > 3) entity_source = 0;
-		if (ImGui::Combo("Source##PaintRecipe", &entity_source, "Single\0Weighted Set\0Checkerboard\0Noise\0")) {
+		if (entity_source > 3) {
+			entity_source = 0;
+		}
+
+		if (ImGui::Combo(
+				"##PaintRecipeSource",
+				&entity_source,
+				"Single\0Weighted Set\0Checkerboard\0Noise\0"
+			)) {
 			recipe_.source_kind = entity_source == 3
 				? PaintSourceKind::Noise
 				: static_cast<PaintSourceKind>(entity_source);
 		}
 	}
 	if (ImGui::IsItemHovered()) {
-		ImGui::SetTooltip("Choose what the paint tools emit. Source selection is independent from the Tiles and Prefabs asset tabs.");
+		ImGui::SetTooltip(
+			"Choose what the paint tools emit. Source selection is independent from the "
+			"Tiles and Prefabs asset tabs."
+		);
 	}
 
 	if (recipe_.source_kind == PaintSourceKind::Single) {
@@ -890,99 +1670,324 @@ void PaintEditor::DrawRecipePanel(EditorContext& ctx) {
 	}
 
 	ImGui::SeparatorText("Recipe Settings");
+
+	if (layer->kind == SceneLayerKind::Entity) {
+		BeginRecipeField("Linked Prefabs");
+		ImGui::Checkbox(
+			"##PaintLinkedPrefabInstances",
+			&recipe_.link_prefab_instances
+		);
+		if (ImGui::IsItemHovered()) {
+			ImGui::SetTooltip(
+				"Keep painted prefabs linked to their prefab asset until runtime. "
+				"Disable to create ordinary entities immediately."
+			);
+		}
+	}
+
 	int coverage{ static_cast<int>(recipe_.coverage) };
-	ImGui::SetNextItemWidth(180.0f);
-	if (ImGui::Combo("Coverage##PaintRecipe", &coverage, "Solid\0Random Density\0Radial Falloff\0")) {
+	BeginRecipeField("Coverage");
+	if (ImGui::Combo(
+			"##PaintRecipeCoverage",
+			&coverage,
+			"Solid\0Random Density\0Radial Falloff\0"
+		)) {
 		recipe_.coverage = static_cast<PaintCoverageMode>(coverage);
 	}
 	if (ImGui::IsItemHovered()) {
-		ImGui::SetTooltip("Coverage decides which otherwise-eligible raster cells emit the selected source.");
-	}
-	if (recipe_.coverage == PaintCoverageMode::RandomDensity) {
-		ImGui::SetNextItemWidth(160.0f);
-		ImGui::SliderFloat("Density", &recipe_.density, 0.0f, 1.0f, "%.2f");
-	} else if (recipe_.coverage == PaintCoverageMode::RadialFalloff) {
-		ImGui::SetNextItemWidth(150.0f);
-		ImGui::SliderFloat("Center Density", &recipe_.density, 0.0f, 1.0f, "%.2f");
-		ImGui::SetNextItemWidth(120.0f);
-		ImGui::SliderFloat("Inner", &recipe_.radial_inner, 0.0f, 0.95f, "%.2f");
-		ImGui::SameLine();
-		ImGui::SetNextItemWidth(120.0f);
-		ImGui::SliderFloat("Outer", &recipe_.radial_outer, 0.05f, 1.0f, "%.2f");
-		recipe_.radial_outer = std::max(recipe_.radial_outer, recipe_.radial_inner + 0.01f);
+		ImGui::SetTooltip(
+			"Coverage decides which otherwise-eligible raster cells emit the selected source."
+		);
 	}
 
-	if (layer->kind == SceneLayerKind::Tile && recipe_.source_kind != PaintSourceKind::Autotile) {
+	if (recipe_.coverage == PaintCoverageMode::RandomDensity) {
+		BeginRecipeField("Density");
+		ImGui::SliderFloat(
+			"##PaintRecipeDensity",
+			&recipe_.density,
+			0.0f,
+			1.0f,
+			"%.2f"
+		);
+	} else if (recipe_.coverage == PaintCoverageMode::RadialFalloff) {
+		BeginRecipeField("Center Density");
+		ImGui::SliderFloat(
+			"##PaintRecipeCenterDensity",
+			&recipe_.density,
+			0.0f,
+			1.0f,
+			"%.2f"
+		);
+
+		BeginRecipeField("Inner");
+		ImGui::SliderFloat(
+			"##PaintRecipeRadialInner",
+			&recipe_.radial_inner,
+			0.0f,
+			0.95f,
+			"%.2f"
+		);
+
+		BeginRecipeField("Outer");
+		ImGui::SliderFloat(
+			"##PaintRecipeRadialOuter",
+			&recipe_.radial_outer,
+			0.05f,
+			1.0f,
+			"%.2f"
+		);
+		recipe_.radial_outer =
+			std::max(recipe_.radial_outer, recipe_.radial_inner + 0.01f);
+	}
+
+	if (
+		layer->kind == SceneLayerKind::Tile &&
+		recipe_.source_kind != PaintSourceKind::Autotile
+	) {
 		Tilemap target{ ResolveTargetTilemap(*scene) };
-		const V2_float cell_size{ target ? target.GetData().cell_size : ActiveGridSize(*scene) };
-		bool large_source{};
-		auto test_source = [&](const PaintTileSource& source) {
-			if (!source) return;
-			large_source |= static_cast<float>(source.pixel_size.x) > cell_size.x + 0.01f ||
-				static_cast<float>(source.pixel_size.y) > cell_size.y + 0.01f;
+		const V2_float cell_size{
+			target ? target.GetData().cell_size : ActiveGridSize(*scene)
 		};
-		if (recipe_.source_kind == PaintSourceKind::Single) test_source(tile_source_);
-		else if (recipe_.source_kind == PaintSourceKind::Checkerboard) { test_source(tile_source_); if (recipe_.checker_tile) test_source(*recipe_.checker_tile); }
-		else if (recipe_.source_kind == PaintSourceKind::WeightedSet) {
-			if (const auto* set{ FindWeightedTileSet(recipe_.weighted_tile_set_name) }) for (const auto& entry : set->entries) test_source(entry.source);
+
+		bool source_size_differs{};
+		auto test_source = [&](const PaintTileSource& source) {
+			if (!source) {
+				return;
+			}
+
+			source_size_differs |=
+				std::abs(
+					static_cast<float>(source.pixel_size.x) -
+					cell_size.x
+				) > 0.01f ||
+				std::abs(
+					static_cast<float>(source.pixel_size.y) -
+					cell_size.y
+				) > 0.01f;
+		};
+
+		if (recipe_.source_kind == PaintSourceKind::Single) {
+			test_source(tile_source_);
+		} else if (recipe_.source_kind == PaintSourceKind::Checkerboard) {
+			test_source(tile_source_);
+			if (recipe_.checker_tile) {
+				test_source(*recipe_.checker_tile);
+			}
+		} else if (recipe_.source_kind == PaintSourceKind::WeightedSet) {
+			if (const auto* set{ FindWeightedTileSet(recipe_.weighted_tile_set_name) }) {
+				for (const auto& entry : set->entries) {
+					test_source(entry.source);
+				}
+			}
 		} else if (recipe_.source_kind == PaintSourceKind::Noise) {
 			for (const auto& region : recipe_.noise.thresholds) {
-				if (region.source_kind == PaintSourceKind::Single && region.tile) test_source(*region.tile);
-				if (region.source_kind == PaintSourceKind::WeightedSet) if (const auto* set{ FindWeightedTileSet(region.weighted_tile_set_name) }) for (const auto& entry : set->entries) test_source(entry.source);
+				if (
+					region.source_kind == PaintSourceKind::Single &&
+					region.tile
+				) {
+					test_source(*region.tile);
+				}
+
+				if (region.source_kind == PaintSourceKind::WeightedSet) {
+					if (const auto* set{
+							FindWeightedTileSet(region.weighted_tile_set_name)
+						}) {
+						for (const auto& entry : set->entries) {
+							test_source(entry.source);
+						}
+					}
+				}
 			}
 		}
-		if (large_source) {
+
+		if (source_size_differs) {
 			int placement{ static_cast<int>(recipe_.tile_placement) };
-			ImGui::SetNextItemWidth(150.0f);
-			if (ImGui::Combo("Placement##PaintTile", &placement, "Grid\0Tile\0")) recipe_.tile_placement = static_cast<PaintTilePlacementMode>(placement);
-			ImGui::SetNextItemWidth(150.0f);
+
+			BeginRecipeField("Placement");
+			if (ImGui::Combo(
+					"##PaintTilePlacement",
+					&placement,
+					"Grid\0Tile\0"
+				)) {
+				recipe_.tile_placement =
+					static_cast<PaintTilePlacementMode>(placement);
+			}
+
+			BeginRecipeField("Origin");
 			DrawOriginCombo("##RecipeTileOrigin", recipe_.tile_origin);
 		} else {
 			recipe_.tile_placement = PaintTilePlacementMode::Tile;
 		}
+
 		if (target && !target.GetData().exclusion_mask.empty()) {
-			ImGui::Checkbox("Avoid Mask", &recipe_.avoid_exclusion_mask);
-			if (ImGui::IsItemHovered()) ImGui::SetTooltip("Skip ordinary paint/generator output on cells in the Tilemap exclusion mask.");
+			BeginRecipeField("Avoid Mask");
+			ImGui::Checkbox("##PaintRecipeAvoidMask", &recipe_.avoid_exclusion_mask);
+			if (ImGui::IsItemHovered()) {
+				ImGui::SetTooltip(
+					"Skip ordinary paint/generator output on cells in the Tilemap exclusion mask."
+				);
+			}
 		}
 	} else if (layer->kind == SceneLayerKind::Entity) {
-		ImGui::SetNextItemWidth(150.0f);
-		DrawOriginCombo("##RecipeEntityOrigin", recipe_.entity_origin);
-		const bool random{ recipe_.random_rotation || recipe_.random_scale };
-		ImGui::SetNextItemWidth(150.0f);
-		if (ImGui::BeginCombo("##RecipeTransform", random ? "Transform: Random" : "Transform: None")) {
+		bool source_matches_grid{ false };
+		if (prefab_source_) {
+			auto& assets{ ctx.editor.GetAssetManager() };
+			if (!::ptgn::impl::AssetAccessor{ assets }.Has<Prefab>(prefab_source_)) {
+				if (const auto catalog{
+						assets.GetCatalogAsset(
+							prefab_source_,
+							AssetKind::Prefab
+						)
+					}) {
+					assets.Load(
+						prefab_source_,
+						catalog->source_path
+					);
+				}
+			}
+
+			if (::ptgn::impl::AssetAccessor{ assets }.Has<Prefab>(prefab_source_)) {
+				const auto prefab{
+					::ptgn::impl::AssetAccessor{ assets }.Get<Prefab>(
+						prefab_source_
+					)
+				};
+
+				// Protegon prefabs currently do not persist a dedicated authoring footprint.
+				// If the root has no explicit Size-like reflected component, the paint system's
+				// natural footprint is one grid cell, so Origin has no distinct placement effect.
+				const json root_json{ prefab.get().root };
+				bool explicit_size{};
+				if (
+					root_json.contains("components") &&
+					root_json["components"].is_object()
+				) {
+					for (
+						auto it{
+							root_json["components"].begin()
+						};
+						it != root_json["components"].end();
+						++it
+					) {
+						const std::string key{
+							ToLower(it.key())
+						};
+						if (
+							key.contains("size") ||
+							key.contains("rect") ||
+							key.contains("sprite") ||
+							key.contains("text") ||
+							key.contains("shape")
+						) {
+							explicit_size = true;
+							break;
+						}
+					}
+				}
+				source_matches_grid = !explicit_size;
+			}
+		}
+
+		if (!source_matches_grid) {
+			BeginRecipeField("Origin");
+			DrawOriginCombo(
+				"##RecipeEntityOrigin",
+				recipe_.entity_origin
+			);
+		} else {
+			recipe_.entity_origin = Origin::Center;
+		}
+
+		const bool random{
+			recipe_.random_rotation || recipe_.random_scale
+		};
+
+		BeginRecipeField("Transform");
+		ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2{ 8.0f, 8.0f });
+		ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2{ 8.0f, 6.0f });
+		if (ImGui::BeginCombo(
+				"##RecipeTransform",
+				random ? "Random" : "None"
+			)) {
 			ImGui::Checkbox("Random Rotation", &recipe_.random_rotation);
 			if (recipe_.random_rotation) {
-				ImGui::SetNextItemWidth(260.0f);
-				ImGui::DragFloatRange2("Rotation", &recipe_.rotation_min, &recipe_.rotation_max, 0.5f, -3600.0f, 3600.0f, "%.0f", "%.0f");
+				BeginRecipeField("Rotation", 190.0f);
+				ImGui::DragFloatRange2(
+					"##RecipeRotationRange",
+					&recipe_.rotation_min,
+					&recipe_.rotation_max,
+					0.5f,
+					-3600.0f,
+					3600.0f,
+					"%.0f",
+					"%.0f"
+				);
 			}
+
 			ImGui::Checkbox("Random Scale", &recipe_.random_scale);
 			if (recipe_.random_scale) {
-				ImGui::SetNextItemWidth(260.0f);
-				ImGui::DragFloatRange2("Scale", &recipe_.scale_min, &recipe_.scale_max, 0.01f, 0.01f, 8.0f, "%.2f", "%.2f");
+				BeginRecipeField("Scale", 190.0f);
+				ImGui::DragFloatRange2(
+					"##RecipeScaleRange",
+					&recipe_.scale_min,
+					&recipe_.scale_max,
+					0.01f,
+					0.01f,
+					8.0f,
+					"%.2f",
+					"%.2f"
+				);
 			}
+
 			if (recipe_.coverage != PaintCoverageMode::Solid) {
-				ImGui::SetNextItemWidth(160.0f);
-				ImGui::DragFloat("Minimum Spacing", &recipe_.min_spacing, 0.25f, 0.0f, 4096.0f, "%.1f");
+				BeginRecipeField("Minimum Spacing", 190.0f);
+				ImGui::DragFloat(
+					"##RecipeMinimumSpacing",
+					&recipe_.min_spacing,
+					0.25f,
+					0.0f,
+					4096.0f,
+					"%.1f"
+				);
 			}
+
 			ImGui::EndCombo();
 		}
+		ImGui::PopStyleVar(2);
 	}
 
 	const bool finite_generator_tool{
-		tool_ == PaintTool::Brush || tool_ == PaintTool::Line || tool_ == PaintTool::Rectangle
+		tool_ == PaintTool::Brush ||
+		tool_ == PaintTool::Line ||
+		tool_ == PaintTool::Rectangle
 	};
-	if (finite_generator_tool && recipe_.operation == PaintBrushOperation::Paint) {
+	if (
+		finite_generator_tool &&
+		recipe_.operation == PaintBrushOperation::Paint
+	) {
 		int result{ static_cast<int>(recipe_.commit_mode) };
-		ImGui::SetNextItemWidth(190.0f);
-		if (ImGui::Combo("Result##PaintRecipe", &result, "Bake on Commit\0Keep Generator\0")) {
+
+		BeginRecipeField("Result");
+		if (ImGui::Combo(
+				"##PaintRecipeResult",
+				&result,
+				"Bake on Commit\0Keep Generator\0"
+			)) {
 			recipe_.commit_mode = static_cast<PaintCommitMode>(result);
 		}
-		if (ImGui::IsItemHovered()) ImGui::SetTooltip("Bake creates ordinary editable content. Keep Generator stores geometry plus a captured recipe.");
+		if (ImGui::IsItemHovered()) {
+			ImGui::SetTooltip(
+				"Bake creates ordinary editable content. Keep Generator stores geometry plus "
+				"a captured recipe."
+			);
+		}
 	}
 
 	ImGui::SeparatorText("Procedural");
 	ImGui::BeginDisabled(layer->locked);
-	if (ImGui::Button("Create Infinite Generator")) CreateInfiniteGenerator(ctx, *scene);
+	if (ImGui::Button("Create Infinite Generator")) {
+		CreateInfiniteGenerator(ctx, *scene);
+	}
 	ImGui::EndDisabled();
 
 	StoreLocalState(ctx);
@@ -1204,118 +2209,324 @@ void PaintEditor::DrawNoiseThresholdGradient(EditorContext&, SceneLayer& layer) 
 	}
 }
 
+
 void PaintEditor::DrawExtendedSourceRecipe(EditorContext& ctx, Scene&, SceneLayer& layer) {
 	if (recipe_.source_kind == PaintSourceKind::WeightedSet) {
-		if (layer.kind == SceneLayerKind::Tile) DrawWeightedTileSetEditor(ctx);
-		else DrawWeightedPrefabSetEditor(ctx);
+		if (layer.kind == SceneLayerKind::Tile) {
+			DrawWeightedTileSetEditor(ctx);
+		} else {
+			DrawWeightedPrefabSetEditor(ctx);
+		}
 		return;
 	}
 
 	if (recipe_.source_kind == PaintSourceKind::Checkerboard) {
 		ImGui::SeparatorText("Checkerboard Sources");
+
 		if (layer.kind == SceneLayerKind::Tile) {
-			std::optional<PaintTileSource> primary{ tile_source_ ? std::optional<PaintTileSource>{ tile_source_ } : std::nullopt };
-			ImGui::SetNextItemWidth(260.0f);
-			if (DrawTileSourceCombo(ctx, "Primary##CheckerTile", primary)) tile_source_ = primary.value_or(PaintTileSource{});
-			ImGui::SetNextItemWidth(260.0f);
-			DrawTileSourceCombo(ctx, "Secondary##CheckerTile", recipe_.checker_tile);
+			std::optional<PaintTileSource> primary{
+				tile_source_
+					? std::optional<PaintTileSource>{ tile_source_ }
+					: std::nullopt
+			};
+
+			BeginRecipeField("Primary", 260.0f);
+			if (DrawTileSourceCombo(ctx, "##PrimaryCheckerTile", primary)) {
+				tile_source_ = primary.value_or(PaintTileSource{});
+			}
+
+			BeginRecipeField("Secondary", 260.0f);
+			DrawTileSourceCombo(
+				ctx,
+				"##SecondaryCheckerTile",
+				recipe_.checker_tile
+			);
 		} else {
-			std::optional<PrefabKey> primary{ prefab_source_ ? std::optional<PrefabKey>{ prefab_source_ } : std::nullopt };
-			ImGui::SetNextItemWidth(260.0f);
-			if (DrawPrefabSourceCombo(ctx, "Primary##CheckerPrefab", primary)) prefab_source_ = primary.value_or(PrefabKey{});
-			ImGui::SetNextItemWidth(260.0f);
-			DrawPrefabSourceCombo(ctx, "Secondary##CheckerPrefab", recipe_.checker_prefab);
+			std::optional<PrefabKey> primary{
+				prefab_source_
+					? std::optional<PrefabKey>{ prefab_source_ }
+					: std::nullopt
+			};
+
+			BeginRecipeField("Primary", 260.0f);
+			if (DrawPrefabSourceCombo(ctx, "##PrimaryCheckerPrefab", primary)) {
+				prefab_source_ = primary.value_or(PrefabKey{});
+			}
+
+			BeginRecipeField("Secondary", 260.0f);
+			DrawPrefabSourceCombo(
+				ctx,
+				"##SecondaryCheckerPrefab",
+				recipe_.checker_prefab
+			);
 		}
-		ImGui::TextDisabled("Checkerboard alternates Primary and Secondary by raster-cell parity; Coverage is applied separately.");
+
+		ImGui::TextDisabled(
+			"Checkerboard alternates Primary and Secondary by raster-cell parity; "
+			"Coverage is applied separately."
+		);
 		return;
 	}
 
-	if (recipe_.source_kind == PaintSourceKind::Autotile && layer.kind == SceneLayerKind::Tile) {
+	if (
+		recipe_.source_kind == PaintSourceKind::Autotile &&
+		layer.kind == SceneLayerKind::Tile
+	) {
 		DrawAutotileRuleSetEditor(ctx);
 	}
 }
+
 
 void PaintEditor::DrawNoiseRecipe(EditorContext& ctx, Scene&, SceneLayer& layer) {
 	ImGui::PushID("PaintNoiseSettings");
 	ImGui::SeparatorText("Noise Source");
 
 	int type_index{};
-	if (recipe_.noise.type == NoiseType::Simplex) type_index = 1;
-	else if (recipe_.noise.type == NoiseType::Value) type_index = 2;
-	ImGui::SetNextItemWidth(110.0f);
-	if (ImGui::Combo("Type##PaintNoiseType", &type_index, "Perlin\0Simplex\0Value\0")) {
-		recipe_.noise.type = type_index == 0 ? NoiseType::Perlin : type_index == 1 ? NoiseType::Simplex : NoiseType::Value;
+	if (recipe_.noise.type == NoiseType::Simplex) {
+		type_index = 1;
+	} else if (recipe_.noise.type == NoiseType::Value) {
+		type_index = 2;
 	}
-	ImGui::SameLine(); ImGui::SetNextItemWidth(90.0f); ImGui::DragInt("Seed##PaintNoiseSeed", &recipe_.noise.seed, 1.0f);
-	ImGui::SetNextItemWidth(110.0f); ImGui::DragFloat("Frequency##PaintNoiseFrequency", &recipe_.noise.frequency, 0.001f, 0.0001f, 1.0f, "%.4f", ImGuiSliderFlags_AlwaysClamp);
-	ImGui::SameLine(); ImGui::SetNextItemWidth(80.0f); ImGui::DragInt("Octaves##PaintNoiseOctaves", &recipe_.noise.octaves, 0.2f, 1, 12);
-	ImGui::SameLine(); ImGui::SetNextItemWidth(90.0f); ImGui::DragFloat("Lacunarity##PaintNoiseLacunarity", &recipe_.noise.lacunarity, 0.02f, 1.0f, 8.0f, "%.2f", ImGuiSliderFlags_AlwaysClamp);
-	ImGui::SameLine(); ImGui::SetNextItemWidth(90.0f); ImGui::SliderFloat("Persistence##PaintNoisePersistence", &recipe_.noise.persistence, 0.0f, 1.0f, "%.2f");
-	float offset[2]{ recipe_.noise.offset.x, recipe_.noise.offset.y };
-	ImGui::SetNextItemWidth(170.0f);
-	if (ImGui::DragFloat2("Noise Offset##PaintNoiseOffset", offset, 0.25f)) recipe_.noise.offset = { offset[0], offset[1] };
 
-	ImGui::Checkbox("Noise Preview", &recipe_.show_noise_preview);
-	if (ImGui::IsItemHovered()) ImGui::SetTooltip("Overlay the raw grayscale noise only inside generator/paint geometry.");
-	if (recipe_.show_noise_preview) {
-		ImGui::SameLine(); ImGui::SetNextItemWidth(120.0f);
-		ImGui::SliderFloat("Opacity##PaintNoisePreview", &recipe_.noise_preview_alpha, 0.0f, 1.0f, "%.2f");
+	BeginRecipeField("Type");
+	if (ImGui::Combo(
+			"##PaintNoiseType",
+			&type_index,
+			"Perlin\0Simplex\0Value\0"
+		)) {
+		recipe_.noise.type =
+			type_index == 0
+				? NoiseType::Perlin
+				: type_index == 1
+					? NoiseType::Simplex
+					: NoiseType::Value;
 	}
-	ImGui::SameLine();
-	ImGui::Checkbox(layer.kind == SceneLayerKind::Tile ? "Tile Preview" : "Entity Preview", &recipe_.show_generated_preview);
-	if (ImGui::IsItemHovered()) ImGui::SetTooltip("Preview threshold-resolved output on top of the raw noise overlay.");
+
+	BeginRecipeField("Seed");
+	ImGui::DragInt("##PaintNoiseSeed", &recipe_.noise.seed, 1.0f);
+
+	BeginRecipeField("Frequency");
+	ImGui::DragFloat(
+		"##PaintNoiseFrequency",
+		&recipe_.noise.frequency,
+		0.001f,
+		0.0001f,
+		1.0f,
+		"%.4f",
+		ImGuiSliderFlags_AlwaysClamp
+	);
+
+	BeginRecipeField("Octaves");
+	ImGui::DragInt(
+		"##PaintNoiseOctaves",
+		&recipe_.noise.octaves,
+		0.2f,
+		1,
+		12
+	);
+
+	BeginRecipeField("Lacunarity");
+	ImGui::DragFloat(
+		"##PaintNoiseLacunarity",
+		&recipe_.noise.lacunarity,
+		0.02f,
+		1.0f,
+		8.0f,
+		"%.2f",
+		ImGuiSliderFlags_AlwaysClamp
+	);
+
+	BeginRecipeField("Persistence");
+	ImGui::SliderFloat(
+		"##PaintNoisePersistence",
+		&recipe_.noise.persistence,
+		0.0f,
+		1.0f,
+		"%.2f"
+	);
+
+	float offset[2]{
+		recipe_.noise.offset.x,
+		recipe_.noise.offset.y,
+	};
+	BeginRecipeField("Noise Offset");
+	if (ImGui::DragFloat2("##PaintNoiseOffset", offset, 0.25f)) {
+		recipe_.noise.offset = { offset[0], offset[1] };
+	}
+
+	BeginRecipeField("Noise Preview");
+	ImGui::Checkbox("##PaintNoisePreviewEnabled", &recipe_.show_noise_preview);
+	if (ImGui::IsItemHovered()) {
+		ImGui::SetTooltip(
+			"Overlay the raw grayscale noise only inside generator/paint geometry."
+		);
+	}
+
+	if (recipe_.show_noise_preview) {
+		BeginRecipeField("Preview Opacity");
+		ImGui::SliderFloat(
+			"##PaintNoisePreviewOpacity",
+			&recipe_.noise_preview_alpha,
+			0.0f,
+			1.0f,
+			"%.2f"
+		);
+	}
+
+	BeginRecipeField(
+		layer.kind == SceneLayerKind::Tile ? "Tile Preview" : "Entity Preview"
+	);
+	ImGui::Checkbox(
+		"##PaintGeneratedPreviewEnabled",
+		&recipe_.show_generated_preview
+	);
+	if (ImGui::IsItemHovered()) {
+		ImGui::SetTooltip(
+			"Preview threshold-resolved output on top of the raw noise overlay."
+		);
+	}
 
 	ImGui::SeparatorText("Noise Thresholds");
 	DrawNoiseThresholdGradient(ctx, layer);
 
 	int remove_region{ -1 };
-	for (int i{}; i < static_cast<int>(recipe_.noise.thresholds.size()); ++i) {
-		auto& region{ recipe_.noise.thresholds[static_cast<std::size_t>(i)] };
+	for (
+		int i{};
+		i < static_cast<int>(recipe_.noise.thresholds.size());
+		++i
+	) {
+		auto& region{
+			recipe_.noise.thresholds[static_cast<std::size_t>(i)]
+		};
+
 		ImGui::PushID(i);
 		ImGui::Checkbox("##NoiseRangeEnabled", &region.enabled);
-		if (ImGui::IsItemHovered()) ImGui::SetTooltip("Enable or disable output from this noise range.");
-		ImGui::SameLine(); ImGui::TextDisabled("%.3f - %.3f", region.minimum, region.maximum);
-		ImGui::SameLine();
-		int kind{ !region.enabled ? 0 : region.source_kind == PaintSourceKind::WeightedSet ? 2 : 1 };
-		ImGui::SetNextItemWidth(112.0f);
-		if (ImGui::Combo("##NoiseRangeKind", &kind, "None\0Single\0Weighted Set\0")) {
-			region.enabled = kind != 0;
-			region.source_kind = kind == 2 ? PaintSourceKind::WeightedSet : PaintSourceKind::Single;
+		if (ImGui::IsItemHovered()) {
+			ImGui::SetTooltip("Enable or disable output from this noise range.");
 		}
+
+		ImGui::SameLine();
+		ImGui::TextDisabled("%.3f - %.3f", region.minimum, region.maximum);
+
+		ImGui::SameLine();
+		int kind{
+			!region.enabled
+				? 0
+				: region.source_kind == PaintSourceKind::WeightedSet
+					? 2
+					: 1
+		};
+		ImGui::SetNextItemWidth(112.0f);
+		if (ImGui::Combo(
+				"##NoiseRangeKind",
+				&kind,
+				"None\0Single\0Weighted Set\0"
+			)) {
+			region.enabled = kind != 0;
+			region.source_kind =
+				kind == 2
+					? PaintSourceKind::WeightedSet
+					: PaintSourceKind::Single;
+		}
+
 		if (region.enabled) {
-			ImGui::SameLine(); ImGui::SetNextItemWidth(220.0f);
+			ImGui::SameLine();
+			ImGui::SetNextItemWidth(220.0f);
+
 			if (layer.kind == SceneLayerKind::Tile) {
 				if (region.source_kind == PaintSourceKind::Single) {
 					DrawTileSourceCombo(ctx, "##NoiseRangeTile", region.tile);
 				} else {
-					const auto* set{ FindWeightedTileSet(region.weighted_tile_set_name) };
-					if (ImGui::BeginCombo("##NoiseRangeTileSet", set ? set->name.c_str() : "<none>")) {
-						for (const auto& candidate : weighted_tile_sets_) if (ImGui::Selectable(candidate.name.c_str(), candidate.name == region.weighted_tile_set_name)) region.weighted_tile_set_name = candidate.name;
+					const auto* set{
+						FindWeightedTileSet(region.weighted_tile_set_name)
+					};
+					if (ImGui::BeginCombo(
+							"##NoiseRangeTileSet",
+							set ? set->name.c_str() : "<none>"
+						)) {
+						for (const auto& candidate : weighted_tile_sets_) {
+							if (ImGui::Selectable(
+									candidate.name.c_str(),
+									candidate.name ==
+										region.weighted_tile_set_name
+								)) {
+								region.weighted_tile_set_name =
+									candidate.name;
+							}
+						}
 						ImGui::EndCombo();
 					}
 				}
 			} else {
 				if (region.source_kind == PaintSourceKind::Single) {
-					DrawPrefabSourceCombo(ctx, "##NoiseRangePrefab", region.prefab);
+					DrawPrefabSourceCombo(
+						ctx,
+						"##NoiseRangePrefab",
+						region.prefab
+					);
 				} else {
-					const auto* set{ FindWeightedPrefabSet(region.weighted_prefab_set_name) };
-					if (ImGui::BeginCombo("##NoiseRangePrefabSet", set ? set->name.c_str() : "<none>")) {
-						for (const auto& candidate : weighted_prefab_sets_) if (ImGui::Selectable(candidate.name.c_str(), candidate.name == region.weighted_prefab_set_name)) region.weighted_prefab_set_name = candidate.name;
+					const auto* set{
+						FindWeightedPrefabSet(
+							region.weighted_prefab_set_name
+						)
+					};
+					if (ImGui::BeginCombo(
+							"##NoiseRangePrefabSet",
+							set ? set->name.c_str() : "<none>"
+						)) {
+						for (const auto& candidate : weighted_prefab_sets_) {
+							if (ImGui::Selectable(
+									candidate.name.c_str(),
+									candidate.name ==
+										region.weighted_prefab_set_name
+								)) {
+								region.weighted_prefab_set_name =
+									candidate.name;
+							}
+						}
 						ImGui::EndCombo();
 					}
 				}
 			}
-			ImGui::SameLine(); ImGui::SetNextItemWidth(110.0f); DrawOriginCombo("##NoiseRangeOrigin", region.origin);
+
+			ImGui::SameLine();
+			ImGui::TextDisabled("Origin");
+			ImGui::SameLine();
+			ImGui::SetNextItemWidth(100.0f);
+			DrawOriginCombo("##NoiseRangeOrigin", region.origin);
 		}
-		if (recipe_.noise.thresholds.size() > 1) { ImGui::SameLine(); if (ImGui::SmallButton("x")) remove_region = i; }
+
+		if (recipe_.noise.thresholds.size() > 1) {
+			ImGui::SameLine();
+			if (ImGui::SmallButton("x")) {
+				remove_region = i;
+			}
+		}
 		ImGui::PopID();
 	}
+
 	if (remove_region >= 0 && recipe_.noise.thresholds.size() > 1) {
-		const int boundary{ std::clamp(remove_region, 0, static_cast<int>(recipe_.noise.thresholds.size()) - 2) };
-		recipe_.noise.thresholds[static_cast<std::size_t>(boundary)].maximum = recipe_.noise.thresholds[static_cast<std::size_t>(boundary + 1)].maximum;
-		recipe_.noise.thresholds.erase(recipe_.noise.thresholds.begin() + boundary + 1);
+		const int boundary{
+			std::clamp(
+				remove_region,
+				0,
+				static_cast<int>(recipe_.noise.thresholds.size()) - 2
+			)
+		};
+
+		recipe_.noise.thresholds[static_cast<std::size_t>(boundary)].maximum =
+			recipe_.noise.thresholds[
+				static_cast<std::size_t>(boundary + 1)
+			].maximum;
+
+		recipe_.noise.thresholds.erase(
+			recipe_.noise.thresholds.begin() + boundary + 1
+		);
 	}
-	ImGui::TextDisabled("Gradient ranges output None, Single, or a reusable Weighted Set.");
+
+	ImGui::TextDisabled(
+		"Gradient ranges output None, Single, or a reusable Weighted Set."
+	);
 	ImGui::PopID();
 }
 
@@ -1545,182 +2756,526 @@ void PaintEditor::RecomputeAutotileAround(
 	}
 }
 
+
 void PaintEditor::DrawTileSourceBrowser(EditorContext& ctx, PaintTileSource& source) {
 	EnsureProjectLibrary(ctx);
+
 	ImGui::SetNextItemWidth(-FLT_MIN);
 	ImGui::InputTextWithHint(
-		"##PaintTileSourceSearch", "Search tile name or group...", &tile_source_search_
+		"##PaintTileSourceSearch",
+		"Search tile name or group...",
+		&tile_source_search_
 	);
 	if (ImGui::IsItemHovered()) {
-		ImGui::SetTooltip("Filter paint sources by tile name or tile group. This does not change the Tiles asset selection.");
+		ImGui::SetTooltip(
+			"Filter paint sources by tile name or tile group. "
+			"This does not change the Tiles asset selection."
+		);
 	}
 
 	const TileLibraryEntry* selected_entry{};
 	for (const auto& entry : tile_library_) {
-		const PaintTileSource candidate{ MakeTileSource(ctx, entry.texture, entry.slice) };
+		const PaintTileSource candidate{
+			MakeTileSource(ctx, entry.texture, entry.slice)
+		};
 		if (candidate && source && candidate == source) {
 			selected_entry = &entry;
 			break;
 		}
 	}
+
 	ImGui::TextDisabled(
 		"Selected: %s",
-		selected_entry ? selected_entry->name.c_str() : (source ? source.texture.value.c_str() : "<none>")
+		selected_entry
+			? selected_entry->name.c_str()
+			: source
+				? source.texture.value.c_str()
+				: "<none>"
 	);
 
-	auto records{ ::ptgn::impl::AssetAccessor{ ctx.editor.GetAssetManager() }.GetAssets() };
+	auto records{
+		::ptgn::impl::AssetAccessor{
+			ctx.editor.GetAssetManager()
+		}.GetAssets()
+	};
 	auto record_for = [&](const TextureKey& texture) {
-		return std::ranges::find_if(records, [&](const auto& record) {
-			return record.kind == AssetKind::Texture &&
-				record.key == static_cast<const AssetKey&>(texture);
-		});
+		return std::ranges::find_if(
+			records,
+			[&](const auto& record) {
+				return record.kind == AssetKind::Texture &&
+					record.key == static_cast<const AssetKey&>(texture);
+			}
+		);
 	};
 
 	std::vector<std::string> groups{ TileGroupNames() };
 	SortGroupsUngroupedFirst(groups);
-	for (const std::string& group : groups) {
-		const bool group_match{ ContainsInsensitive(group, tile_source_search_) };
-		const bool any_match{ std::ranges::any_of(tile_library_, [&](const TileLibraryEntry& entry) {
-			return entry.group == group &&
-				(group_match || ContainsInsensitive(entry.name, tile_source_search_) ||
-				 ContainsInsensitive(entry.texture.value, tile_source_search_));
-		}) };
-		if (!any_match) continue;
 
-		ImGuiTreeNodeFlags flags{ ImGuiTreeNodeFlags_SpanAvailWidth | ImGuiTreeNodeFlags_OpenOnArrow };
-		if (!tile_source_search_.empty()) flags |= ImGuiTreeNodeFlags_DefaultOpen;
+	for (const std::string& group : groups) {
+		const bool group_match{
+			ContainsInsensitive(group, tile_source_search_)
+		};
+		const bool any_match{
+			std::ranges::any_of(
+				tile_library_,
+				[&](const TileLibraryEntry& entry) {
+					return entry.group == group &&
+						(
+							group_match ||
+							ContainsInsensitive(
+								entry.name,
+								tile_source_search_
+							) ||
+							ContainsInsensitive(
+								entry.texture.value,
+								tile_source_search_
+							)
+						);
+				}
+			)
+		};
+		if (!any_match) {
+			continue;
+		}
+
+		ImGuiTreeNodeFlags flags{
+			ImGuiTreeNodeFlags_SpanAvailWidth |
+			ImGuiTreeNodeFlags_OpenOnArrow
+		};
+		if (!tile_source_search_.empty()) {
+			flags |= ImGuiTreeNodeFlags_DefaultOpen;
+		}
+
 		ImGui::PushID(group.c_str());
-		const bool open{ ImGui::TreeNodeEx("##PaintTileSourceGroup", flags, "%s", group.c_str()) };
+		const bool open{
+			ImGui::TreeNodeEx(
+				"##PaintTileSourceGroup",
+				flags,
+				"%s",
+				group.c_str()
+			)
+		};
+
 		if (open) {
-			const float cell_width{ 82.0f };
-			const float image_side{ 48.0f };
-			const float available{ std::max(cell_width, ImGui::GetContentRegionAvail().x) };
-			const int columns{ std::max(1, static_cast<int>(available / cell_width)) };
-			int column{};
+			constexpr float image_side{ 40.0f };
+			const float row_right{
+				ImGui::GetWindowPos().x +
+				ImGui::GetWindowContentRegionMax().x
+			};
+			bool first_on_row{ true };
+
 			for (const auto& entry : tile_library_) {
-				if (entry.group != group) continue;
-				if (!group_match && !ContainsInsensitive(entry.name, tile_source_search_) &&
-					!ContainsInsensitive(entry.texture.value, tile_source_search_)) continue;
-				const PaintTileSource candidate{ MakeTileSource(ctx, entry.texture, entry.slice) };
-				if (!candidate) continue;
-				if (column != 0) ImGui::SameLine();
-				ImGui::BeginGroup();
+				if (entry.group != group) {
+					continue;
+				}
+				if (
+					!group_match &&
+					!ContainsInsensitive(
+						entry.name,
+						tile_source_search_
+					) &&
+					!ContainsInsensitive(
+						entry.texture.value,
+						tile_source_search_
+					)
+				) {
+					continue;
+				}
+
+				const PaintTileSource candidate{
+					MakeTileSource(ctx, entry.texture, entry.slice)
+				};
+				if (!candidate) {
+					continue;
+				}
+
+				if (!first_on_row) {
+					const float next_right{
+						ImGui::GetItemRectMax().x +
+						ImGui::GetStyle().ItemSpacing.x +
+						image_side
+					};
+					if (next_right <= row_right) {
+						ImGui::SameLine();
+					}
+				}
+
 				ImGui::PushID(entry.id.c_str());
+
 				const ImVec2 p0{ ImGui::GetCursorScreenPos() };
-				ImGui::InvisibleButton("##PaintTileSource", { image_side, image_side });
+				ImGui::InvisibleButton(
+					"##PaintTileSource",
+					{ image_side, image_side }
+				);
+
 				const bool selected{ source && source == candidate };
 				const bool hovered{ ImGui::IsItemHovered() };
 				auto* draw{ ImGui::GetWindowDrawList() };
 				const auto record{ record_for(entry.texture) };
-				if (record != records.end() && record->preview.has_value()) {
+
+				if (
+					record != records.end() &&
+					record->preview.has_value()
+				) {
 					const auto& uv{ candidate.texture_coordinates };
-					const ImVec2 p1{ p0.x + image_side, p0.y + image_side };
+					const ImVec2 p1{
+						p0.x + image_side,
+						p0.y + image_side
+					};
+
 					draw->AddImageQuad(
-						static_cast<ImTextureID>(record->preview->texture),
-						p0, { p1.x, p0.y }, p1, { p0.x, p1.y },
-						ToImGui(uv[0]), ToImGui(uv[1]), ToImGui(uv[2]), ToImGui(uv[3])
+						static_cast<ImTextureID>(
+							record->preview->texture
+						),
+						p0,
+						{ p1.x, p0.y },
+						p1,
+						{ p0.x, p1.y },
+						ToImGui(uv[0]),
+						ToImGui(uv[1]),
+						ToImGui(uv[2]),
+						ToImGui(uv[3])
 					);
 				} else {
-					draw->AddRectFilled(p0, { p0.x + image_side, p0.y + image_side }, ImGui::GetColorU32(ImGuiCol_FrameBg));
+					draw->AddRectFilled(
+						p0,
+						{ p0.x + image_side, p0.y + image_side },
+						ImGui::GetColorU32(ImGuiCol_FrameBg)
+					);
 				}
+
 				draw->AddRect(
-					p0, { p0.x + image_side, p0.y + image_side },
-					selected ? kPreview : ImGui::GetColorU32(hovered ? ImGuiCol_BorderShadow : ImGuiCol_Border),
-					2.0f, 0, selected ? 2.0f : 1.0f
+					p0,
+					{ p0.x + image_side, p0.y + image_side },
+					selected
+						? kPreview
+						: ImGui::GetColorU32(
+							hovered
+								? ImGuiCol_BorderShadow
+								: ImGuiCol_Border
+						),
+					2.0f,
+					0,
+					selected ? 2.0f : 1.0f
 				);
+
 				if (ImGui::IsItemClicked(ImGuiMouseButton_Left)) {
 					source = candidate;
 				}
-				if (hovered) ImGui::SetTooltip("%s / %s", group.c_str(), entry.name.c_str());
-				ImGui::SetNextItemWidth(cell_width - 4.0f);
-				ImGui::TextWrapped("%s", entry.name.c_str());
+				if (hovered) {
+					ImGui::SetTooltip("%s", entry.name.c_str());
+				}
+
 				ImGui::PopID();
-				ImGui::EndGroup();
-				column = (column + 1) % columns;
+				first_on_row = false;
 			}
+
 			ImGui::TreePop();
 		}
+
 		ImGui::PopID();
 	}
-	if (tile_library_.empty()) ImGui::TextDisabled("No tiles are available. Import tiles from the Tiles tab.");
+
+	if (tile_library_.empty()) {
+		ImGui::TextDisabled(
+			"No tiles are available. Import tiles from the Tiles tab."
+		);
+	}
 }
 
+
 bool PaintEditor::DrawTileSourceCombo(
-	EditorContext& ctx, const char* id, std::optional<PaintTileSource>& source
+	EditorContext& ctx,
+	const char* id,
+	std::optional<PaintTileSource>& source
 ) {
 	EnsureProjectLibrary(ctx);
+
 	std::string preview{ "<none>" };
 	if (source.has_value()) {
-		if (const auto it{ std::ranges::find_if(tile_library_, [&](const TileLibraryEntry& entry) {
-			const PaintTileSource candidate{ MakeTileSource(ctx, entry.texture, entry.slice) };
-			return candidate && candidate == *source;
-		}) }; it != tile_library_.end()) preview = it->name;
-		else preview = source->texture.value;
+		if (const auto it{
+				std::ranges::find_if(
+					tile_library_,
+					[&](const TileLibraryEntry& entry) {
+						const PaintTileSource candidate{
+							MakeTileSource(
+								ctx,
+								entry.texture,
+								entry.slice
+							)
+						};
+						return
+							candidate &&
+							candidate == *source;
+					}
+				)
+			};
+			it != tile_library_.end()) {
+			preview = it->name;
+		} else {
+			preview = source->texture.value;
+		}
 	}
-	bool changed{};
-	if (!ImGui::BeginCombo(id, preview.c_str())) return false;
-	ImGui::SetNextItemWidth(320.0f);
-	ImGui::InputTextWithHint("##TileSourceComboSearch", "Search tile name or group...", &tile_source_search_);
-	if (ImGui::Selectable("<none>", !source.has_value())) { source.reset(); changed = true; }
 
-	auto records{ ::ptgn::impl::AssetAccessor{ ctx.editor.GetAssetManager() }.GetAssets() };
-	auto preview_for = [&](const TextureKey& texture) {
-		return std::ranges::find_if(records, [&](const auto& record) {
-			return record.kind == AssetKind::Texture && record.key == static_cast<const AssetKey&>(texture);
-		});
+	const float requested_width{
+		ImGui::CalcItemWidth()
+	};
+	const float thumbnail_side{
+		ImGui::GetFrameHeight()
+	};
+	const float spacing{
+		ImGui::GetStyle().ItemInnerSpacing.x
+	};
+
+	if (source.has_value() && *source) {
+		DrawTileThumbnail(ctx, *source, thumbnail_side);
+	} else {
+		const ImVec2 p0{ ImGui::GetCursorScreenPos() };
+		ImGui::Dummy({ thumbnail_side, thumbnail_side });
+		ImGui::GetWindowDrawList()->AddRectFilled(
+			p0,
+			{
+				p0.x + thumbnail_side,
+				p0.y + thumbnail_side,
+			},
+			ImGui::GetColorU32(ImGuiCol_FrameBg),
+			ImGui::GetStyle().FrameRounding
+		);
+		ImGui::GetWindowDrawList()->AddRect(
+			p0,
+			{
+				p0.x + thumbnail_side,
+				p0.y + thumbnail_side,
+			},
+			ImGui::GetColorU32(ImGuiCol_Border),
+			ImGui::GetStyle().FrameRounding
+		);
+	}
+
+	ImGui::SameLine(0.0f, spacing);
+	ImGui::SetNextItemWidth(
+		std::max(
+			1.0f,
+			requested_width -
+				thumbnail_side -
+				spacing
+		)
+	);
+
+	bool changed{};
+	if (!ImGui::BeginCombo(id, preview.c_str())) {
+		return false;
+	}
+
+	ImGui::SetNextItemWidth(320.0f);
+	ImGui::InputTextWithHint(
+		"##TileSourceComboSearch",
+		"Search tile name or group...",
+		&tile_source_search_
+	);
+
+	if (ImGui::Selectable(
+			"<none>",
+			!source.has_value()
+		)) {
+		source.reset();
+		changed = true;
+	}
+
+	auto records{
+		::ptgn::impl::AssetAccessor{
+			ctx.editor.GetAssetManager()
+		}.GetAssets()
 	};
 
 	std::vector<std::string> groups{ TileGroupNames() };
 	SortGroupsUngroupedFirst(groups);
+
 	for (const std::string& group : groups) {
-		const bool group_match{ ContainsInsensitive(group, tile_source_search_) };
+		const bool group_match{
+			ContainsInsensitive(
+				group,
+				tile_source_search_
+			)
+		};
 		bool any{};
+
 		for (const auto& entry : tile_library_) {
-			if (entry.group == group && (group_match || ContainsInsensitive(entry.name, tile_source_search_))) { any = true; break; }
+			if (
+				entry.group == group &&
+				(
+					group_match ||
+					ContainsInsensitive(
+						entry.name,
+						tile_source_search_
+					)
+				)
+			) {
+				any = true;
+				break;
+			}
 		}
-		if (!any) continue;
+		if (!any) {
+			continue;
+		}
+
 		ImGui::SeparatorText(group.c_str());
-		int column{};
-		constexpr float image_side{ 34.0f };
-		constexpr float item_width{ 108.0f };
-		const int columns{ std::max(1, static_cast<int>(std::max(item_width, ImGui::GetContentRegionAvail().x) / item_width)) };
+
+		constexpr float image_side{ 30.0f };
+		const float row_right{
+			ImGui::GetWindowPos().x +
+			ImGui::GetWindowContentRegionMax().x
+		};
+		bool first_on_row{ true };
+
 		for (const auto& entry : tile_library_) {
-			if (entry.group != group || (!group_match && !ContainsInsensitive(entry.name, tile_source_search_))) continue;
-			PaintTileSource candidate{ MakeTileSource(ctx, entry.texture, entry.slice) };
-			if (!candidate) continue;
-			if (column != 0) ImGui::SameLine();
+			if (
+				entry.group != group ||
+				(
+					!group_match &&
+					!ContainsInsensitive(
+						entry.name,
+						tile_source_search_
+					)
+				)
+			) {
+				continue;
+			}
+
+			PaintTileSource candidate{
+				MakeTileSource(
+					ctx,
+					entry.texture,
+					entry.slice
+				)
+			};
+			if (!candidate) {
+				continue;
+			}
+
+			if (!first_on_row) {
+				const float next_right{
+					ImGui::GetItemRectMax().x +
+					ImGui::GetStyle().ItemSpacing.x +
+					image_side
+				};
+				if (next_right <= row_right) {
+					ImGui::SameLine();
+				}
+			}
+
 			ImGui::PushID(entry.id.c_str());
-			ImGui::BeginGroup();
-			const ImVec2 p0{ ImGui::GetCursorScreenPos() };
-			ImGui::InvisibleButton("##TileSourceThumb", { image_side, image_side });
-			const bool selected{ source.has_value() && *source == candidate };
-			const bool hovered{ ImGui::IsItemHovered() };
-			auto* draw{ ImGui::GetWindowDrawList() };
-			const auto record{ preview_for(entry.texture) };
-			if (record != records.end() && record->preview.has_value()) {
-				const auto& uv{ candidate.texture_coordinates };
-				const ImVec2 p1{ p0.x + image_side, p0.y + image_side };
+			const ImVec2 p0{
+				ImGui::GetCursorScreenPos()
+			};
+			ImGui::InvisibleButton(
+				"##TileSourceThumb",
+				{ image_side, image_side }
+			);
+
+			const bool selected{
+				source.has_value() &&
+				*source == candidate
+			};
+			const bool hovered{
+				ImGui::IsItemHovered()
+			};
+			auto* draw{
+				ImGui::GetWindowDrawList()
+			};
+
+			const auto record{
+				std::ranges::find_if(
+					records,
+					[&](const auto& asset) {
+						return
+							asset.kind ==
+								AssetKind::Texture &&
+							asset.key ==
+								static_cast<
+									const AssetKey&
+								>(
+									entry.texture
+								);
+					}
+				)
+			};
+
+			if (
+				record != records.end() &&
+				record->preview.has_value()
+			) {
+				const auto& uv{
+					candidate.texture_coordinates
+				};
+				const ImVec2 p1{
+					p0.x + image_side,
+					p0.y + image_side
+				};
+
 				draw->AddImageQuad(
-					static_cast<ImTextureID>(record->preview->texture), p0, { p1.x, p0.y }, p1, { p0.x, p1.y },
-					ToImGui(uv[0]), ToImGui(uv[1]), ToImGui(uv[2]), ToImGui(uv[3])
+					static_cast<ImTextureID>(
+						record->preview->texture
+					),
+					p0,
+					{ p1.x, p0.y },
+					p1,
+					{ p0.x, p1.y },
+					ToImGui(uv[0]),
+					ToImGui(uv[1]),
+					ToImGui(uv[2]),
+					ToImGui(uv[3])
 				);
 			} else {
-				draw->AddRectFilled(p0, { p0.x + image_side, p0.y + image_side }, ImGui::GetColorU32(ImGuiCol_FrameBg));
+				draw->AddRectFilled(
+					p0,
+					{
+						p0.x + image_side,
+						p0.y + image_side,
+					},
+					ImGui::GetColorU32(
+						ImGuiCol_FrameBg
+					)
+				);
 			}
+
 			draw->AddRect(
-				p0, { p0.x + image_side, p0.y + image_side },
-				selected ? kPreview : ImGui::GetColorU32(hovered ? ImGuiCol_HeaderHovered : ImGuiCol_Border),
-				1.0f, 0, selected ? 2.0f : 1.0f
+				p0,
+				{
+					p0.x + image_side,
+					p0.y + image_side,
+				},
+				selected
+					? kPreview
+					: ImGui::GetColorU32(
+						hovered
+							? ImGuiCol_HeaderHovered
+							: ImGuiCol_Border
+					),
+				1.0f,
+				0,
+				selected ? 2.0f : 1.0f
 			);
-			if (ImGui::IsItemClicked(ImGuiMouseButton_Left)) { source = candidate; changed = true; ImGui::CloseCurrentPopup(); }
-			if (hovered) ImGui::SetTooltip("%s / %s", group.c_str(), entry.name.c_str());
-			ImGui::SameLine(0.0f, 4.0f);
-			ImGui::TextWrapped("%s", entry.name.c_str());
-			ImGui::EndGroup();
+
+			if (ImGui::IsItemClicked(
+					ImGuiMouseButton_Left
+				)) {
+				source = candidate;
+				changed = true;
+				ImGui::CloseCurrentPopup();
+			}
+			if (hovered) {
+				ImGui::SetTooltip(
+					"%s",
+					entry.name.c_str()
+				);
+			}
+
 			ImGui::PopID();
-			column = (column + 1) % columns;
+			first_on_row = false;
 		}
 	}
+
 	ImGui::EndCombo();
 	return changed;
 }
@@ -1794,124 +3349,642 @@ bool PaintEditor::DrawPrefabSourceCombo(
 	return changed;
 }
 
+
 void PaintEditor::DrawWeightedTileSetEditor(EditorContext& ctx) {
 	EnsureProjectLibrary(ctx);
-	PaintWeightedTileSet* active{ FindWeightedTileSet(recipe_.weighted_tile_set_name) };
-	ImGui::SetNextItemWidth(190.0f);
-	if (ImGui::BeginCombo("Weighted Set##PaintRecipe", active ? active->name.c_str() : "<none>")) {
+
+	PaintWeightedTileSet* active{
+		FindWeightedTileSet(recipe_.weighted_tile_set_name)
+	};
+
+	BeginRecipeField("Weighted Set");
+	if (ImGui::BeginCombo(
+			"##PaintRecipeWeightedTileSet",
+			active ? active->name.c_str() : "<none>"
+		)) {
 		for (const auto& set : weighted_tile_sets_) {
-			if (ImGui::Selectable(set.name.c_str(), active && set.name == active->name)) recipe_.weighted_tile_set_name = set.name;
+			if (ImGui::Selectable(
+					set.name.c_str(),
+					active && set.name == active->name
+				)) {
+				recipe_.weighted_tile_set_name = set.name;
+			}
 		}
 		ImGui::EndCombo();
 	}
+
 	ImGui::SameLine();
 	if (ImGui::Button("Add Weighted Set##Tile")) {
-		PaintWeightedTileSet set{ .name = UniqueWeightedTileSetName() };
+		PaintWeightedTileSet set{
+			.name = UniqueWeightedTileSetName()
+		};
 		recipe_.weighted_tile_set_name = set.name;
 		weighted_tile_sets_.push_back(std::move(set));
 		SaveProjectLibrary(ctx);
 		active = FindWeightedTileSet(recipe_.weighted_tile_set_name);
 	}
+
 	ImGui::SameLine();
 	ImGui::BeginDisabled(!active);
 	if (ImGui::Button("Delete Set##Tile") && active) {
 		const std::string name{ active->name };
-		std::erase_if(weighted_tile_sets_, [&](const PaintWeightedTileSet& set) { return set.name == name; });
-		recipe_.weighted_tile_set_name = weighted_tile_sets_.empty() ? std::string{} : weighted_tile_sets_.front().name;
+		std::erase_if(
+			weighted_tile_sets_,
+			[&](const PaintWeightedTileSet& set) {
+				return set.name == name;
+			}
+		);
+		recipe_.weighted_tile_set_name =
+			weighted_tile_sets_.empty()
+				? std::string{}
+				: weighted_tile_sets_.front().name;
 		SaveProjectLibrary(ctx);
 		active = FindWeightedTileSet(recipe_.weighted_tile_set_name);
 	}
 	ImGui::EndDisabled();
-	if (!active) { ImGui::TextDisabled("No weighted tile set selected."); return; }
+
+	if (!active) {
+		ImGui::TextDisabled("No weighted tile set selected.");
+		return;
+	}
 
 	std::string name{ active->name };
-	ImGui::SetNextItemWidth(240.0f);
-	if (ImGui::InputText("Set Name##WeightedTile", &name) && !name.empty() && name != active->name && !FindWeightedTileSet(name)) {
-		const std::string old{ active->name }; active->name = name; recipe_.weighted_tile_set_name = name;
-		for (auto& threshold : recipe_.noise.thresholds) if (threshold.weighted_tile_set_name == old) threshold.weighted_tile_set_name = name;
+	BeginRecipeField("Set Name", 240.0f);
+	if (
+		ImGui::InputText("##WeightedTileSetName", &name) &&
+		!name.empty() &&
+		name != active->name &&
+		!FindWeightedTileSet(name)
+	) {
+		const std::string old{ active->name };
+		active->name = name;
+		recipe_.weighted_tile_set_name = name;
+
+		for (auto& threshold : recipe_.noise.thresholds) {
+			if (threshold.weighted_tile_set_name == old) {
+				threshold.weighted_tile_set_name = name;
+			}
+		}
 		SaveProjectLibrary(ctx);
 	}
 
-	if (ImGui::BeginTable("##WeightedTileMembers", 3, ImGuiTableFlags_RowBg | ImGuiTableFlags_BordersInnerV | ImGuiTableFlags_SizingStretchProp)) {
-		ImGui::TableSetupColumn("Tile", ImGuiTableColumnFlags_WidthStretch);
-		ImGui::TableSetupColumn("Weight", ImGuiTableColumnFlags_WidthFixed, 130.0f);
-		ImGui::TableSetupColumn("", ImGuiTableColumnFlags_WidthFixed, 28.0f);
+	if (ImGui::BeginTable(
+			"##WeightedTileMembers",
+			3,
+			ImGuiTableFlags_RowBg |
+				ImGuiTableFlags_BordersInnerV |
+				ImGuiTableFlags_SizingStretchProp
+		)) {
+		ImGui::TableSetupColumn(
+			"Tile",
+			ImGuiTableColumnFlags_WidthStretch
+		);
+		ImGui::TableSetupColumn(
+			"Weight",
+			ImGuiTableColumnFlags_WidthFixed,
+			130.0f
+		);
+		ImGui::TableSetupColumn(
+			"",
+			ImGuiTableColumnFlags_WidthFixed,
+			28.0f
+		);
 		ImGui::TableHeadersRow();
+
 		int remove{ -1 };
-		for (int i{}; i < static_cast<int>(active->entries.size()); ++i) {
-			auto& entry{ active->entries[static_cast<std::size_t>(i)] };
-			ImGui::PushID(i); ImGui::TableNextRow(); ImGui::TableSetColumnIndex(0);
-			ImGui::TextUnformatted(entry.source.texture.value.c_str());
-			ImGui::TableSetColumnIndex(1); ImGui::SetNextItemWidth(-FLT_MIN);
-			if (ImGui::DragFloat("##Weight", &entry.weight, 0.05f, 0.0f, 100.0f, "%.2f")) { entry.weight = std::max(0.0f, entry.weight); SaveProjectLibrary(ctx); }
-			ImGui::TableSetColumnIndex(2); if (ImGui::SmallButton("x")) remove = i; ImGui::PopID();
+		for (
+			int i{};
+			i < static_cast<int>(active->entries.size());
+			++i
+		) {
+			auto& entry{
+				active->entries[static_cast<std::size_t>(i)]
+			};
+
+			ImGui::PushID(i);
+			ImGui::TableNextRow();
+			ImGui::TableSetColumnIndex(0);
+			{
+				std::string display{ entry.source.texture.value };
+				if (const auto it{
+						std::ranges::find_if(
+							tile_library_,
+							[&](const TileLibraryEntry& candidate) {
+								const PaintTileSource resolved{
+									MakeTileSource(
+										ctx,
+										candidate.texture,
+										candidate.slice
+									)
+								};
+								return resolved && resolved == entry.source;
+							}
+						)
+					};
+					it != tile_library_.end()) {
+					display = it->name;
+				}
+
+				DrawTileThumbnail(
+					ctx,
+					entry.source,
+					ImGui::GetFrameHeight()
+				);
+				ImGui::SameLine();
+				ImGui::AlignTextToFramePadding();
+				ImGui::TextUnformatted(display.c_str());
+			}
+
+			ImGui::TableSetColumnIndex(1);
+			ImGui::SetNextItemWidth(-FLT_MIN);
+			if (ImGui::DragFloat(
+					"##Weight",
+					&entry.weight,
+					0.05f,
+					0.0f,
+					100.0f,
+					"%.2f"
+				)) {
+				entry.weight = std::max(0.0f, entry.weight);
+				SaveProjectLibrary(ctx);
+			}
+
+			ImGui::TableSetColumnIndex(2);
+			if (ImGui::SmallButton("x")) {
+				remove = i;
+			}
+			ImGui::PopID();
 		}
-		if (remove >= 0) { active->entries.erase(active->entries.begin() + remove); SaveProjectLibrary(ctx); }
+
+		if (remove >= 0) {
+			active->entries.erase(active->entries.begin() + remove);
+			SaveProjectLibrary(ctx);
+		}
 		ImGui::EndTable();
 	}
-	if (ImGui::Button("Add Tile Sources...")) ImGui::OpenPopup("AddWeightedTileSources");
+
+	if (ImGui::Button("Add Tile Sources...")) {
+		ImGui::OpenPopup("AddWeightedTileSources");
+	}
 	if (ImGui::BeginPopup("AddWeightedTileSources")) {
-		ImGui::SetNextItemWidth(340.0f); ImGui::InputTextWithHint("##AddWeightedTileSearch", "Search tile name or group...", &tile_source_search_);
+		ImGui::SetNextItemWidth(340.0f);
+		ImGui::InputTextWithHint(
+			"##AddWeightedTileSearch",
+			"Search tile name or group...",
+			&tile_source_search_
+		);
+
 		for (const std::string& group : TileGroupNames()) {
-			const bool group_match{ ContainsInsensitive(group, tile_source_search_) };
-			if (!ImGui::TreeNode(group.c_str())) continue;
-			for (const auto& tile : tile_library_) {
-				if (tile.group != group || (!group_match && !ContainsInsensitive(tile.name, tile_source_search_))) continue;
-				PaintTileSource candidate{ MakeTileSource(ctx, tile.texture, tile.slice) };
-				if (!candidate) continue;
-				const bool exists{ std::ranges::any_of(active->entries, [&](const PaintWeightedTileEntry& entry) { return entry.source == candidate; }) };
-				ImGui::BeginDisabled(exists); ImGui::PushID(tile.id.c_str());
-				if (ImGui::SmallButton("+")) { active->entries.push_back({ candidate, 1.0f }); SaveProjectLibrary(ctx); }
-				ImGui::SameLine(); ImGui::TextUnformatted(tile.name.c_str()); ImGui::PopID(); ImGui::EndDisabled();
+			const bool group_match{
+				ContainsInsensitive(group, tile_source_search_)
+			};
+			if (!ImGui::TreeNode(group.c_str())) {
+				continue;
 			}
+
+			for (const auto& tile : tile_library_) {
+				if (
+					tile.group != group ||
+					(
+						!group_match &&
+						!ContainsInsensitive(
+							tile.name,
+							tile_source_search_
+						)
+					)
+				) {
+					continue;
+				}
+
+				PaintTileSource candidate{
+					MakeTileSource(ctx, tile.texture, tile.slice)
+				};
+				if (!candidate) {
+					continue;
+				}
+
+				const bool exists{
+					std::ranges::any_of(
+						active->entries,
+						[&](const PaintWeightedTileEntry& entry) {
+							return entry.source == candidate;
+						}
+					)
+				};
+
+				ImGui::BeginDisabled(exists);
+				ImGui::PushID(tile.id.c_str());
+				DrawTileThumbnail(
+					ctx,
+					candidate,
+					ImGui::GetFrameHeight()
+				);
+				ImGui::SameLine();
+				if (ImGui::Button(
+						"+",
+						{
+							ImGui::GetFrameHeight(),
+							ImGui::GetFrameHeight(),
+						}
+					)) {
+					active->entries.push_back({ candidate, 1.0f });
+					SaveProjectLibrary(ctx);
+				}
+				ImGui::SameLine();
+				ImGui::AlignTextToFramePadding();
+				ImGui::TextUnformatted(tile.name.c_str());
+				ImGui::PopID();
+				ImGui::EndDisabled();
+			}
+
 			ImGui::TreePop();
 		}
+
 		ImGui::EndPopup();
 	}
 }
 
+
 void PaintEditor::DrawWeightedPrefabSetEditor(EditorContext& ctx) {
 	EnsureProjectLibrary(ctx);
-	PaintWeightedPrefabSet* active{ FindWeightedPrefabSet(recipe_.weighted_prefab_set_name) };
-	ImGui::SetNextItemWidth(190.0f);
-	if (ImGui::BeginCombo("Weighted Set##PaintRecipe", active ? active->name.c_str() : "<none>")) {
-		for (const auto& set : weighted_prefab_sets_) if (ImGui::Selectable(set.name.c_str(), active && set.name == active->name)) recipe_.weighted_prefab_set_name = set.name;
+
+	PaintWeightedPrefabSet* active{
+		FindWeightedPrefabSet(recipe_.weighted_prefab_set_name)
+	};
+
+	BeginRecipeField("Weighted Set");
+	if (ImGui::BeginCombo(
+			"##PaintRecipeWeightedPrefabSet",
+			active ? active->name.c_str() : "<none>"
+		)) {
+		for (const auto& set : weighted_prefab_sets_) {
+			if (ImGui::Selectable(
+					set.name.c_str(),
+					active && set.name == active->name
+				)) {
+				recipe_.weighted_prefab_set_name = set.name;
+			}
+		}
 		ImGui::EndCombo();
 	}
+
 	ImGui::SameLine();
-	if (ImGui::Button("Add Weighted Set##Prefab")) { PaintWeightedPrefabSet set{ .name=UniqueWeightedPrefabSetName() }; recipe_.weighted_prefab_set_name=set.name; weighted_prefab_sets_.push_back(std::move(set)); SaveProjectLibrary(ctx); active=FindWeightedPrefabSet(recipe_.weighted_prefab_set_name); }
-	ImGui::SameLine(); ImGui::BeginDisabled(!active);
-	if (ImGui::Button("Delete Set##Prefab") && active) { const std::string name{active->name}; std::erase_if(weighted_prefab_sets_, [&](const auto& set){return set.name==name;}); recipe_.weighted_prefab_set_name=weighted_prefab_sets_.empty()?std::string{}:weighted_prefab_sets_.front().name; SaveProjectLibrary(ctx); active=FindWeightedPrefabSet(recipe_.weighted_prefab_set_name); }
-	ImGui::EndDisabled();
-	if (!active) { ImGui::TextDisabled("No weighted prefab set selected."); return; }
-	std::string name{active->name}; ImGui::SetNextItemWidth(240.0f);
-	if (ImGui::InputText("Set Name##WeightedPrefab", &name) && !name.empty() && name!=active->name && !FindWeightedPrefabSet(name)) { const std::string old{active->name}; active->name=name; recipe_.weighted_prefab_set_name=name; for(auto& threshold:recipe_.noise.thresholds) if(threshold.weighted_prefab_set_name==old) threshold.weighted_prefab_set_name=name; SaveProjectLibrary(ctx); }
-	if (ImGui::BeginTable("##WeightedPrefabMembers",3,ImGuiTableFlags_RowBg|ImGuiTableFlags_BordersInnerV|ImGuiTableFlags_SizingStretchProp)) {
-		ImGui::TableSetupColumn("Prefab",ImGuiTableColumnFlags_WidthStretch); ImGui::TableSetupColumn("Weight",ImGuiTableColumnFlags_WidthFixed,130.0f); ImGui::TableSetupColumn("",ImGuiTableColumnFlags_WidthFixed,28.0f); ImGui::TableHeadersRow(); int remove{-1};
-		for(int i{};i<static_cast<int>(active->entries.size());++i){auto& entry{active->entries[static_cast<std::size_t>(i)]}; ImGui::PushID(i); ImGui::TableNextRow(); ImGui::TableSetColumnIndex(0); ImGui::TextUnformatted(PrefabDisplayName(entry.prefab).c_str()); ImGui::TableSetColumnIndex(1); ImGui::SetNextItemWidth(-FLT_MIN); if(ImGui::DragFloat("##Weight",&entry.weight,0.05f,0.0f,100.0f,"%.2f")){entry.weight=std::max(0.0f,entry.weight);SaveProjectLibrary(ctx);} ImGui::TableSetColumnIndex(2); if(ImGui::SmallButton("x"))remove=i; ImGui::PopID();}
-		if(remove>=0){active->entries.erase(active->entries.begin()+remove);SaveProjectLibrary(ctx);} ImGui::EndTable();
+	if (ImGui::Button("Add Weighted Set##Prefab")) {
+		PaintWeightedPrefabSet set{
+			.name = UniqueWeightedPrefabSetName()
+		};
+		recipe_.weighted_prefab_set_name = set.name;
+		weighted_prefab_sets_.push_back(std::move(set));
+		SaveProjectLibrary(ctx);
+		active = FindWeightedPrefabSet(
+			recipe_.weighted_prefab_set_name
+		);
 	}
-	if(ImGui::Button("Add Prefab Sources..."))ImGui::OpenPopup("AddWeightedPrefabSources");
-	if(ImGui::BeginPopup("AddWeightedPrefabSources")){ImGui::SetNextItemWidth(340.0f);ImGui::InputTextWithHint("##AddWeightedPrefabSearch","Search prefab name or group...",&prefab_source_search_); auto keys{ctx.editor.GetAssetManager().GetPrefabKeys()}; std::vector<std::string> groups; for(const auto& key:keys){const std::string group{GetPrefabGroup(ctx,key)}; if(ContainsInsensitive(PrefabDisplayName(key),prefab_source_search_)||ContainsInsensitive(group,prefab_source_search_))groups.push_back(group);} SortGroupsUngroupedFirst(groups); for(const auto& group:groups){if(!ImGui::TreeNode(group.c_str()))continue;for(const auto& key:keys){if(GetPrefabGroup(ctx,key)!=group)continue;const std::string display{PrefabDisplayName(key)};if(!ContainsInsensitive(display,prefab_source_search_)&&!ContainsInsensitive(group,prefab_source_search_))continue;const bool exists{std::ranges::any_of(active->entries,[&](const auto& entry){return entry.prefab==key;})};ImGui::BeginDisabled(exists);ImGui::PushID(key.value.c_str());if(ImGui::SmallButton("+")){active->entries.push_back({key,1.0f});SaveProjectLibrary(ctx);}ImGui::SameLine();ImGui::TextUnformatted(display.c_str());ImGui::PopID();ImGui::EndDisabled();}ImGui::TreePop();}ImGui::EndPopup();}
+
+	ImGui::SameLine();
+	ImGui::BeginDisabled(!active);
+	if (ImGui::Button("Delete Set##Prefab") && active) {
+		const std::string name{ active->name };
+		std::erase_if(
+			weighted_prefab_sets_,
+			[&](const auto& set) {
+				return set.name == name;
+			}
+		);
+		recipe_.weighted_prefab_set_name =
+			weighted_prefab_sets_.empty()
+				? std::string{}
+				: weighted_prefab_sets_.front().name;
+		SaveProjectLibrary(ctx);
+		active = FindWeightedPrefabSet(
+			recipe_.weighted_prefab_set_name
+		);
+	}
+	ImGui::EndDisabled();
+
+	if (!active) {
+		ImGui::TextDisabled("No weighted prefab set selected.");
+		return;
+	}
+
+	std::string name{ active->name };
+	BeginRecipeField("Set Name", 240.0f);
+	if (
+		ImGui::InputText("##WeightedPrefabSetName", &name) &&
+		!name.empty() &&
+		name != active->name &&
+		!FindWeightedPrefabSet(name)
+	) {
+		const std::string old{ active->name };
+		active->name = name;
+		recipe_.weighted_prefab_set_name = name;
+
+		for (auto& threshold : recipe_.noise.thresholds) {
+			if (threshold.weighted_prefab_set_name == old) {
+				threshold.weighted_prefab_set_name = name;
+			}
+		}
+		SaveProjectLibrary(ctx);
+	}
+
+	if (ImGui::BeginTable(
+			"##WeightedPrefabMembers",
+			3,
+			ImGuiTableFlags_RowBg |
+				ImGuiTableFlags_BordersInnerV |
+				ImGuiTableFlags_SizingStretchProp
+		)) {
+		ImGui::TableSetupColumn(
+			"Prefab",
+			ImGuiTableColumnFlags_WidthStretch
+		);
+		ImGui::TableSetupColumn(
+			"Weight",
+			ImGuiTableColumnFlags_WidthFixed,
+			130.0f
+		);
+		ImGui::TableSetupColumn(
+			"",
+			ImGuiTableColumnFlags_WidthFixed,
+			28.0f
+		);
+		ImGui::TableHeadersRow();
+
+		int remove{ -1 };
+		for (
+			int i{};
+			i < static_cast<int>(active->entries.size());
+			++i
+		) {
+			auto& entry{
+				active->entries[static_cast<std::size_t>(i)]
+			};
+
+			ImGui::PushID(i);
+			ImGui::TableNextRow();
+			ImGui::TableSetColumnIndex(0);
+			ImGui::TextUnformatted(
+				PrefabDisplayName(entry.prefab).c_str()
+			);
+
+			ImGui::TableSetColumnIndex(1);
+			ImGui::SetNextItemWidth(-FLT_MIN);
+			if (ImGui::DragFloat(
+					"##Weight",
+					&entry.weight,
+					0.05f,
+					0.0f,
+					100.0f,
+					"%.2f"
+				)) {
+				entry.weight = std::max(0.0f, entry.weight);
+				SaveProjectLibrary(ctx);
+			}
+
+			ImGui::TableSetColumnIndex(2);
+			if (ImGui::SmallButton("x")) {
+				remove = i;
+			}
+			ImGui::PopID();
+		}
+
+		if (remove >= 0) {
+			active->entries.erase(active->entries.begin() + remove);
+			SaveProjectLibrary(ctx);
+		}
+		ImGui::EndTable();
+	}
+
+	if (ImGui::Button("Add Prefab Sources...")) {
+		ImGui::OpenPopup("AddWeightedPrefabSources");
+	}
+
+	if (ImGui::BeginPopup("AddWeightedPrefabSources")) {
+		ImGui::SetNextItemWidth(340.0f);
+		ImGui::InputTextWithHint(
+			"##AddWeightedPrefabSearch",
+			"Search prefab name or group...",
+			&prefab_source_search_
+		);
+
+		auto keys{ ctx.editor.GetAssetManager().GetPrefabKeys() };
+		std::vector<std::string> groups;
+		for (const auto& key : keys) {
+			const std::string group{ GetPrefabGroup(ctx, key) };
+			if (
+				ContainsInsensitive(
+					PrefabDisplayName(key),
+					prefab_source_search_
+				) ||
+				ContainsInsensitive(group, prefab_source_search_)
+			) {
+				groups.push_back(group);
+			}
+		}
+		SortGroupsUngroupedFirst(groups);
+
+		for (const auto& group : groups) {
+			if (!ImGui::TreeNode(group.c_str())) {
+				continue;
+			}
+
+			for (const auto& key : keys) {
+				if (GetPrefabGroup(ctx, key) != group) {
+					continue;
+				}
+
+				const std::string display{
+					PrefabDisplayName(key)
+				};
+				if (
+					!ContainsInsensitive(
+						display,
+						prefab_source_search_
+					) &&
+					!ContainsInsensitive(
+						group,
+						prefab_source_search_
+					)
+				) {
+					continue;
+				}
+
+				const bool exists{
+					std::ranges::any_of(
+						active->entries,
+						[&](const auto& entry) {
+							return entry.prefab == key;
+						}
+					)
+				};
+
+				ImGui::BeginDisabled(exists);
+				ImGui::PushID(key.value.c_str());
+				if (ImGui::SmallButton("+")) {
+					active->entries.push_back({ key, 1.0f });
+					SaveProjectLibrary(ctx);
+				}
+				ImGui::SameLine();
+				ImGui::TextUnformatted(display.c_str());
+				ImGui::PopID();
+				ImGui::EndDisabled();
+			}
+
+			ImGui::TreePop();
+		}
+
+		ImGui::EndPopup();
+	}
 }
+
 
 void PaintEditor::DrawAutotileRuleSetEditor(EditorContext& ctx) {
 	EnsureProjectLibrary(ctx);
-	PaintAutotileRuleSet* active{ FindAutotileRuleSet(recipe_.autotile_ruleset_name) };
-	ImGui::SetNextItemWidth(190.0f);
-	if (ImGui::BeginCombo("Ruleset##PaintAutotile", active ? active->name.c_str() : "<none>")) { for(const auto& set:autotile_rule_sets_) if(ImGui::Selectable(set.name.c_str(), active&&set.name==active->name)) recipe_.autotile_ruleset_name=set.name; ImGui::EndCombo(); }
+
+	PaintAutotileRuleSet* active{
+		FindAutotileRuleSet(recipe_.autotile_ruleset_name)
+	};
+
+	BeginRecipeField("Ruleset");
+	if (ImGui::BeginCombo(
+			"##PaintAutotileRuleset",
+			active ? active->name.c_str() : "<none>"
+		)) {
+		for (const auto& set : autotile_rule_sets_) {
+			if (ImGui::Selectable(
+					set.name.c_str(),
+					active && set.name == active->name
+				)) {
+				recipe_.autotile_ruleset_name = set.name;
+			}
+		}
+		ImGui::EndCombo();
+	}
+
 	ImGui::SameLine();
-	if (ImGui::Button("+ Ruleset")) { PaintAutotileRuleSet set; set.id=NextAutotileRuleSetId(); set.name=UniqueAutotileRuleSetName(); set.tiles.resize(16); recipe_.autotile_ruleset_name=set.name; autotile_rule_sets_.push_back(std::move(set)); SaveProjectLibrary(ctx); active=FindAutotileRuleSet(recipe_.autotile_ruleset_name); }
-	ImGui::SameLine(); ImGui::BeginDisabled(!active);
-	if (ImGui::Button("Delete Ruleset") && active) { const std::string name{active->name}; std::erase_if(autotile_rule_sets_,[&](const auto& set){return set.name==name;}); recipe_.autotile_ruleset_name=autotile_rule_sets_.empty()?std::string{}:autotile_rule_sets_.front().name; SaveProjectLibrary(ctx); active=FindAutotileRuleSet(recipe_.autotile_ruleset_name); }
+	if (ImGui::Button("+ Ruleset")) {
+		PaintAutotileRuleSet set;
+		set.id = NextAutotileRuleSetId();
+		set.name = UniqueAutotileRuleSetName();
+		set.tiles.resize(16);
+
+		recipe_.autotile_ruleset_name = set.name;
+		autotile_rule_sets_.push_back(std::move(set));
+		SaveProjectLibrary(ctx);
+		active = FindAutotileRuleSet(
+			recipe_.autotile_ruleset_name
+		);
+	}
+
+	ImGui::SameLine();
+	ImGui::BeginDisabled(!active);
+	if (ImGui::Button("Delete Ruleset") && active) {
+		const std::string name{ active->name };
+		std::erase_if(
+			autotile_rule_sets_,
+			[&](const auto& set) {
+				return set.name == name;
+			}
+		);
+		recipe_.autotile_ruleset_name =
+			autotile_rule_sets_.empty()
+				? std::string{}
+				: autotile_rule_sets_.front().name;
+		SaveProjectLibrary(ctx);
+		active = FindAutotileRuleSet(
+			recipe_.autotile_ruleset_name
+		);
+	}
 	ImGui::EndDisabled();
-	if (!active) { ImGui::TextDisabled("No autotile ruleset exists. Create one with + Ruleset."); return; }
-	std::string name{active->name}; ImGui::SetNextItemWidth(220.0f); if(ImGui::InputText("Name##Autotile",&name)&&!name.empty()&&name!=active->name&&!FindAutotileRuleSet(name)){active->name=name;recipe_.autotile_ruleset_name=name;SaveProjectLibrary(ctx);}
-	int format{static_cast<int>(active->format)}; ImGui::SetNextItemWidth(220.0f);
-	if(ImGui::Combo("Format##Autotile",&format,"Classic 15\0Blob 47 (8-neighbor)\0" "4-neighbor / Subset 16\0Dual Grid 16\0Wang 16\0")){active->format=static_cast<PaintAutotileFormat>(format);active->tiles.resize(static_cast<std::size_t>(RequiredAutotileTileCount(active->format)));SaveProjectLibrary(ctx);}
-	if(ImGui::Button("Fill from Current Group") && tile_source_){std::string group{"Ungrouped"};for(const auto& entry:tile_library_){PaintTileSource candidate{MakeTileSource(ctx,entry.texture,entry.slice)};if(candidate&&candidate==tile_source_){group=entry.group;break;}}std::size_t slot{};for(const auto& entry:tile_library_){if(entry.group!=group||slot>=active->tiles.size())continue;PaintTileSource candidate{MakeTileSource(ctx,entry.texture,entry.slice)};if(candidate)active->tiles[slot++]=candidate;}SaveProjectLibrary(ctx);}
-	ImGui::TextDisabled("%s — %d variant slots",AutotileFormatName(active->format),static_cast<int>(active->tiles.size()));
-	for(std::size_t i{};i<active->tiles.size();++i){ImGui::PushID(static_cast<int>(i));ImGui::Text("%02d",static_cast<int>(i));ImGui::SameLine();ImGui::SetNextItemWidth(-FLT_MIN);if(DrawTileSourceCombo(ctx,"##AutotileSlot",active->tiles[i]))SaveProjectLibrary(ctx);ImGui::PopID();}
+
+	if (!active) {
+		ImGui::TextDisabled(
+			"No autotile ruleset exists. Create one with + Ruleset."
+		);
+		return;
+	}
+
+	std::string name{ active->name };
+	BeginRecipeField("Name", 220.0f);
+	if (
+		ImGui::InputText("##AutotileName", &name) &&
+		!name.empty() &&
+		name != active->name &&
+		!FindAutotileRuleSet(name)
+	) {
+		active->name = name;
+		recipe_.autotile_ruleset_name = name;
+		SaveProjectLibrary(ctx);
+	}
+
+	int format{ static_cast<int>(active->format) };
+	BeginRecipeField("Format", 220.0f);
+	if (ImGui::Combo(
+			"##AutotileFormat",
+			&format,
+			"Classic 15\0Blob 47 (8-neighbor)\0"
+			"4-neighbor / Subset 16\0Dual Grid 16\0Wang 16\0"
+		)) {
+		active->format = static_cast<PaintAutotileFormat>(format);
+		active->tiles.resize(
+			static_cast<std::size_t>(
+				RequiredAutotileTileCount(active->format)
+			)
+		);
+		SaveProjectLibrary(ctx);
+	}
+
+	if (ImGui::Button("Fill from Current Group") && tile_source_) {
+		std::string group{ "Ungrouped" };
+		for (const auto& entry : tile_library_) {
+			PaintTileSource candidate{
+				MakeTileSource(ctx, entry.texture, entry.slice)
+			};
+			if (candidate && candidate == tile_source_) {
+				group = entry.group;
+				break;
+			}
+		}
+
+		std::size_t slot{};
+		for (const auto& entry : tile_library_) {
+			if (
+				entry.group != group ||
+				slot >= active->tiles.size()
+			) {
+				continue;
+			}
+
+			PaintTileSource candidate{
+				MakeTileSource(ctx, entry.texture, entry.slice)
+			};
+			if (candidate) {
+				active->tiles[slot++] = candidate;
+			}
+		}
+		SaveProjectLibrary(ctx);
+	}
+
+	ImGui::TextDisabled(
+		"%s — %d variant slots",
+		AutotileFormatName(active->format),
+		static_cast<int>(active->tiles.size())
+	);
+
+	for (std::size_t i{}; i < active->tiles.size(); ++i) {
+		ImGui::PushID(static_cast<int>(i));
+		ImGui::Text("%02d", static_cast<int>(i));
+		ImGui::SameLine();
+		ImGui::SetNextItemWidth(-FLT_MIN);
+		if (DrawTileSourceCombo(
+				ctx,
+				"##AutotileSlot",
+				active->tiles[i]
+			)) {
+			SaveProjectLibrary(ctx);
+		}
+		ImGui::PopID();
+	}
 }
 
 void PaintEditor::EnsureLocalState(EditorContext& ctx) {
@@ -2380,27 +4453,37 @@ bool PaintEditor::DrawTilesPanel(EditorContext& ctx) {
 	if (!visible) { ImGui::End(); return false; }
 	EnsureProjectLibrary(ctx);
 
-	if (ImGui::Button("+ Group")) ImGui::OpenPopup("Create Tile Group");
-	ImGui::SameLine(); if (ImGui::Button("Import...")) import_popup_requested_ = true;
+	if (ImGui::Button("+ Group")) {
+		auto groups{ TileGroupNames() };
+		tile_groups_.push_back(NextDefaultGroupName(groups));
+		std::ranges::sort(tile_groups_);
+		SaveProjectLibrary(ctx);
+	}
+	ImGui::SameLine();
+	if (ImGui::Button("Import...")) {
+		import_settings_.target_group = "Ungrouped";
+		import_popup_requested_ = true;
+	}
 	ImGui::SetNextItemWidth(-FLT_MIN); ImGui::InputTextWithHint("##TileSearch", "Filter tile or group...", &tile_search_);
 
-	static std::string create_group;
-	if (ImGui::BeginPopup("Create Tile Group")) {
-		ImGui::InputText("Name", &create_group);
-		if (ImGui::Button("Create")) {
-			std::string name{ Trim(create_group) };
-			if (!name.empty() && name != "Ungrouped" && !std::ranges::contains(tile_groups_, name)) { tile_groups_.push_back(name); std::ranges::sort(tile_groups_); SaveProjectLibrary(ctx); create_group.clear(); ImGui::CloseCurrentPopup(); }
-		}
-		ImGui::EndPopup();
-	}
-
 	auto records{ ::ptgn::impl::AssetAccessor{ ctx.editor.GetAssetManager() }.GetAssets() };
+	std::optional<std::pair<std::string, std::string>> pending_group_move;
 	for (const std::string& group : TileGroupNames()) {
 		const bool group_matches{ ContainsInsensitive(group, tile_search_) };
 		const bool has_matching{ std::ranges::any_of(tile_library_, [&](const TileLibraryEntry& e) { return e.group == group && (group_matches || ContainsInsensitive(e.name, tile_search_) || ContainsInsensitive(e.texture.value, tile_search_)); }) };
 		if (!has_matching && !tile_search_.empty()) continue;
 		ImGui::PushID(group.c_str());
 		const bool open{ ImGui::TreeNodeEx("##TileGroup", ImGuiTreeNodeFlags_DefaultOpen | ImGuiTreeNodeFlags_SpanAvailWidth, "%s", group.c_str()) };
+		if (ImGui::BeginDragDropTarget()) {
+			if (const ImGuiPayload* payload{ ImGui::AcceptDragDropPayload(kTileLibraryEntryDragDropPayload) };
+				payload && payload->Data && payload->DataSize > 1) {
+				pending_group_move = std::pair{
+					std::string{ static_cast<const char*>(payload->Data) },
+					group,
+				};
+			}
+			ImGui::EndDragDropTarget();
+		}
 		static std::string rename_group;
 		if (ImGui::BeginPopupContextItem("TileGroupContext")) {
 			if (group != "Ungrouped") {
@@ -2447,9 +4530,33 @@ bool PaintEditor::DrawTilesPanel(EditorContext& ctx) {
 					dl->AddImageQuad(static_cast<ImTextureID>(record_it->preview->texture), p0, { p1.x, p0.y }, p1, { p0.x, p1.y }, ToImGui(uv[0]), ToImGui(uv[1]), ToImGui(uv[2]), ToImGui(uv[3]));
 				}
 				if (selected_tile_entry_id_ == entry.id) dl->AddRect(p0, p1, kSelection, 3.0f, 0, 2.0f);
-				if (ImGui::IsItemClicked()) { selected_tile_entry_id_ = entry.id; inspected_texture_ = entry.texture; inspected_slice_ = entry.slice; }
-				if (ImGui::IsItemHovered()) ImGui::SetTooltip("%s\n%s [%d,%d]", entry.name.c_str(), entry.texture.value.c_str(), entry.slice.x, entry.slice.y);
-				if (ImGui::BeginPopupContextItem("TileContext")) {
+				const bool tile_clicked{ ImGui::IsItemClicked(ImGuiMouseButton_Left) };
+				const bool tile_hovered{ ImGui::IsItemHovered() };
+				if (tile_clicked) { selected_tile_entry_id_ = entry.id; inspected_texture_ = entry.texture; inspected_slice_ = entry.slice; }
+				if (ImGui::IsItemClicked(ImGuiMouseButton_Right)) ImGui::OpenPopup("TileContext");
+				if (ImGui::BeginDragDropSource()) {
+					ImGui::SetDragDropPayload(
+						kTileLibraryEntryDragDropPayload,
+						entry.id.c_str(),
+						entry.id.size() + 1
+					);
+					ImGui::TextUnformatted(entry.name.c_str());
+					ImGui::EndDragDropSource();
+				}
+				if (tile_hovered) {
+					V2_int dimensions{};
+					if (source) {
+						dimensions = source.pixel_size;
+					} else if (const auto* settings{ FindSliceSettings(entry.texture) }) {
+						dimensions = settings->tile_size;
+					}
+					if (dimensions.IsPositive()) {
+						ImGui::SetTooltip("%s\n%dx%d", entry.name.c_str(), dimensions.x, dimensions.y);
+					} else {
+						ImGui::SetTooltip("%s\nUnknown dimensions", entry.name.c_str());
+					}
+				}
+				if (ImGui::BeginPopup("TileContext")) {
 					if (ImGui::BeginMenu("Move to Group")) { for (const auto& target : TileGroupNames()) if (ImGui::MenuItem(target.c_str(), nullptr, target == entry.group)) { entry.group = target; SaveProjectLibrary(ctx); } ImGui::EndMenu(); }
 					if (ImGui::MenuItem("Remove from Tile Library")) delete_id = entry.id;
 					ImGui::EndPopup();
@@ -2461,6 +4568,13 @@ bool PaintEditor::DrawTilesPanel(EditorContext& ctx) {
 			ImGui::TreePop();
 		}
 		ImGui::PopID();
+	}
+	if (pending_group_move.has_value()) {
+		if (TileLibraryEntry* entry{ FindTileEntry(pending_group_move->first) };
+			entry && entry->group != pending_group_move->second) {
+			entry->group = pending_group_move->second;
+			SaveProjectLibrary(ctx);
+		}
 	}
 	DrawImportPopup(ctx);
 	if (!import_status_.empty()) ImGui::TextDisabled("%s", import_status_.c_str());
@@ -2857,43 +4971,165 @@ void PaintEditor::DrawTilemaps(
 	Viewport presentation_viewport,
 	const FrameContext& frame
 ) const {
-	auto records{ ::ptgn::impl::AssetAccessor{ ctx.editor.GetAssetManager() }.GetAssets() };
+	auto records{
+		::ptgn::impl::AssetAccessor{
+			ctx.editor.GetAssetManager()
+		}.GetAssets()
+	};
 
 	for (const SceneLayer& layer : scene.GetLayers().GetLayers()) {
-		if (layer.kind != SceneLayerKind::Tile || !layer.visible) {
+		if (
+			layer.kind != SceneLayerKind::Tile ||
+			!layer.visible
+		) {
 			continue;
 		}
-		for (Entity entity : scene.GetLayers().GetRootEntities(scene, layer.id)) {
-			if (!IsTilemap(entity)) continue;
+
+		for (
+			Entity entity :
+			scene.GetLayers().GetRootEntities(scene, layer.id)
+		) {
+			if (!IsTilemap(entity)) {
+				continue;
+			}
+
 			Tilemap tilemap{ entity };
 			const auto& data{ tilemap.GetData() };
+
 			for (const TilemapTile& tile : data.tiles) {
-				if (!tile.texture) continue;
-				const auto record_it{ std::ranges::find_if(records, [&](const auto& record) {
-					return record.kind == AssetKind::Texture && record.key == static_cast<const AssetKey&>(tile.texture);
-				}) };
+				if (!tile.texture) {
+					continue;
+				}
+
+				const auto record_it{
+					std::ranges::find_if(
+						records,
+						[&](const auto& record) {
+							return
+								record.kind == AssetKind::Texture &&
+								record.key ==
+									static_cast<const AssetKey&>(
+										tile.texture
+									);
+						}
+					)
+				};
+
 				const V2_float visual_size{
 					tile.pixel_size.IsPositive()
-						? V2_float{ static_cast<float>(tile.pixel_size.x), static_cast<float>(tile.pixel_size.y) }
+						? V2_float{
+							static_cast<float>(tile.pixel_size.x),
+							static_cast<float>(tile.pixel_size.y),
+						}
 						: data.cell_size
 				};
-				const V2_float anchor{ tilemap.CellToWorld(tile.coordinate) + tile.offset };
-				const V2_float center{ anchor + GetOffset(tile.origin, visual_size) };
-				const V2_float mn{ center - visual_size * 0.5f };
-				const V2_float mx{ center + visual_size * 0.5f };
-				const ImVec2 p0{ ToImGui(WorldToScreen(mn, frame, presentation_viewport)) };
-				const ImVec2 p1{ ToImGui(WorldToScreen(mx, frame, presentation_viewport)) };
-				if (record_it != records.end() && record_it->preview.has_value()) {
+
+				const V2_float anchor{
+					tilemap.CellToWorld(tile.coordinate) +
+					tile.offset
+				};
+				const V2_float center{
+					anchor +
+					GetOffset(tile.origin, visual_size)
+				};
+				const V2_float mn{
+					center - visual_size * 0.5f
+				};
+				const V2_float mx{
+					center + visual_size * 0.5f
+				};
+
+				const ImVec2 p0{
+					ToImGui(
+						WorldToScreen(
+							mn,
+							frame,
+							presentation_viewport
+						)
+					)
+				};
+				const ImVec2 p1{
+					ToImGui(
+						WorldToScreen(
+							mx,
+							frame,
+							presentation_viewport
+						)
+					)
+				};
+
+				if (
+					record_it != records.end() &&
+					record_it->preview.has_value()
+				) {
 					const auto& uv{ tile.texture_coordinates };
 					draw->AddImageQuad(
-						static_cast<ImTextureID>(record_it->preview->texture),
-						p0, ImVec2{ p1.x, p0.y }, p1, ImVec2{ p0.x, p1.y },
-						ToImGui(uv[0]), ToImGui(uv[1]), ToImGui(uv[2]), ToImGui(uv[3]),
-						tile.tint.ToUint32(ColorPacking::ABGR)
+						static_cast<ImTextureID>(
+							record_it->preview->texture
+						),
+						p0,
+						{ p1.x, p0.y },
+						p1,
+						{ p0.x, p1.y },
+						ToImGui(uv[0]),
+						ToImGui(uv[1]),
+						ToImGui(uv[2]),
+						ToImGui(uv[3]),
+						tile.tint.ToUint32(
+							ColorPacking::ABGR
+						)
 					);
 				} else {
-					draw->AddRectFilled(p0, p1, IM_COL32(120, 130, 150, 210));
+					draw->AddRectFilled(
+						p0,
+						p1,
+						IM_COL32(120, 130, 150, 210)
+					);
 				}
+			}
+
+			// Exclusion cells are authored paint data, so keep them visible independently of
+			// streaming/debug settings. They use the same translucent-red convention as the
+			// sandbox paint demo.
+			for (const V2_int cell : data.exclusion_mask) {
+				const V2_float mn{
+					tilemap.CellToWorld(cell)
+				};
+				const V2_float mx{
+					mn + data.cell_size
+				};
+				const ImVec2 p0{
+					ToImGui(
+						WorldToScreen(
+							mn,
+							frame,
+							presentation_viewport
+						)
+					)
+				};
+				const ImVec2 p1{
+					ToImGui(
+						WorldToScreen(
+							mx,
+							frame,
+							presentation_viewport
+						)
+					)
+				};
+
+				draw->AddRectFilled(
+					p0,
+					p1,
+					IM_COL32(255, 26, 26, 46)
+				);
+				draw->AddRect(
+					p0,
+					p1,
+					IM_COL32(255, 72, 72, 120),
+					0.0f,
+					0,
+					1.0f
+				);
 			}
 		}
 	}
@@ -3282,29 +5518,113 @@ void PaintEditor::DrawToolPreview(
 	const FrameContext& frame
 ) const {
 	const SceneLayer* layer{ ResolveActiveLayer(scene) };
-	if (!layer) return;
-	const ImU32 color{ layer->locked ? kLockedPreview : kPreview };
+	if (!layer) {
+		return;
+	}
+
+	const bool mask_operation{
+		layer->kind == SceneLayerKind::Tile &&
+		recipe_.operation == PaintBrushOperation::ExclusionMask
+	};
+	const ImU32 color{
+		layer->locked
+			? kLockedPreview
+			: mask_operation
+				? IM_COL32(255, 72, 72, 220)
+				: kPreview
+	};
+
 	const V2_float size{ ActiveGridSize(scene) };
-	const V2_int cell{ WorldToActiveCell(scene, mouse_world) };
+	const V2_int cell{
+		WorldToActiveCell(scene, mouse_world)
+	};
 
 	auto draw_cell = [&](V2_int c) {
 		const V2_float mn{ ActiveCellToWorld(scene, c) };
 		const V2_float mx{ mn + size };
+
+		if (mask_operation) {
+			draw->AddRectFilled(
+				ToImGui(
+					WorldToScreen(
+						mn,
+						frame,
+						presentation_viewport
+					)
+				),
+				ToImGui(
+					WorldToScreen(
+						mx,
+						frame,
+						presentation_viewport
+					)
+				),
+				IM_COL32(255, 32, 32, 42)
+			);
+		}
+
 		draw->AddRect(
-			ToImGui(WorldToScreen(mn, frame, presentation_viewport)),
-			ToImGui(WorldToScreen(mx, frame, presentation_viewport)), color, 0.0f, 0, 1.5f
+			ToImGui(
+				WorldToScreen(
+					mn,
+					frame,
+					presentation_viewport
+				)
+			),
+			ToImGui(
+				WorldToScreen(
+					mx,
+					frame,
+					presentation_viewport
+				)
+			),
+			color,
+			0.0f,
+			0,
+			1.5f
 		);
 	};
 
-	if (tool_ == PaintTool::Select && select_mode_ == PaintSelectMode::Brush && layer->kind == SceneLayerKind::Tile) {
-		for (V2_int c : SelectionBrushCells(cell)) draw_cell(c);
-	} else if (tool_ == PaintTool::Brush || tool_ == PaintTool::Erase) {
-		for (V2_int c : BrushCells(cell)) draw_cell(c);
-	} else if ((tool_ == PaintTool::Line || tool_ == PaintTool::Rectangle) && stroke_.active) {
-		const V2_int start{ WorldToActiveCell(scene, stroke_.start_world) };
-		const auto cells{ tool_ == PaintTool::Line ? LineCells(start, cell) : RectangleCells(start, cell) };
-		for (V2_int c : cells) draw_cell(c);
-	} else if (tool_ != PaintTool::Select && tool_ != PaintTool::Move) {
+	if (
+		tool_ == PaintTool::Select &&
+		select_mode_ == PaintSelectMode::Brush &&
+		layer->kind == SceneLayerKind::Tile
+	) {
+		for (V2_int c : SelectionBrushCells(cell)) {
+			draw_cell(c);
+		}
+	} else if (
+		tool_ == PaintTool::Brush ||
+		tool_ == PaintTool::Erase
+	) {
+		for (V2_int c : BrushCells(cell)) {
+			draw_cell(c);
+		}
+	} else if (
+		(tool_ == PaintTool::Line ||
+		 tool_ == PaintTool::Rectangle) &&
+		stroke_.active
+	) {
+		const V2_int start{
+			WorldToActiveCell(
+				scene,
+				stroke_.start_world
+			)
+		};
+		const auto cells{
+			tool_ == PaintTool::Line
+				? LineCells(start, cell)
+				: RectangleCells(start, cell)
+		};
+
+		for (V2_int c : cells) {
+			draw_cell(c);
+		}
+	} else if (
+		tool_ != PaintTool::Select &&
+		tool_ != PaintTool::Move &&
+		tool_ != PaintTool::Eyedropper
+	) {
 		draw_cell(cell);
 	}
 }
@@ -3502,7 +5822,18 @@ void PaintEditor::ApplyEntityAt(EditorContext& ctx, Scene& scene, V2_float world
 		}
 	}
 
-	Entity entity{ scene.CreatePrefab(source) };
+	auto prefab_asset{
+		::ptgn::impl::AssetAccessor{ assets }.Get<Prefab>(source)
+	};
+	Entity entity{
+		InstantiatePrefab(
+			scene,
+			prefab_asset.get(),
+			recipe_.link_prefab_instances
+				? PrefabInstantiationMode::Linked
+				: PrefabInstantiationMode::Baked
+		)
+	};
 	if (!entity) return;
 	if (!scene.GetLayers().Assign(entity, layer->id, true)) {
 		entity.Destroy();
@@ -3662,23 +5993,83 @@ void PaintEditor::FillAt(EditorContext& ctx, Scene& scene, V2_float world) {
 	}
 }
 
-void PaintEditor::EyedropAt(EditorContext&, Scene& scene, V2_float world) {
+void PaintEditor::EyedropAt(
+	EditorContext&,
+	Scene& scene,
+	V2_float world
+) {
 	const SceneLayer* layer{ ResolveActiveLayer(scene) };
-	if (!layer || layer->kind != SceneLayerKind::Tile) return;
-	Tilemap map{ ResolveTargetTilemap(scene) };
-	if (!map) return;
-	if (const TilemapTile* tile{ map.FindTile(map.WorldToCell(world)) }) {
-		recipe_.source_kind = PaintSourceKind::Single;
-		tile_source_ = PaintTileSource{
-			.texture = tile->texture,
-			.texture_coordinates = tile->texture_coordinates,
-			.pixel_size = tile->pixel_size.IsPositive()
-				? tile->pixel_size
-				: V2_int{
-					static_cast<int>(map.GetData().cell_size.x),
-					static_cast<int>(map.GetData().cell_size.y),
-				},
+	if (!layer || layer->locked || !layer->selectable) {
+		return;
+	}
+
+	if (layer->kind == SceneLayerKind::Tile) {
+		Tilemap map{ ResolveTargetTilemap(scene) };
+		if (!map) {
+			return;
+		}
+
+		if (const TilemapTile* tile{
+				map.FindTile(map.WorldToCell(world))
+			}) {
+			recipe_.source_kind = PaintSourceKind::Single;
+			tile_source_ = PaintTileSource{
+				.texture = tile->texture,
+				.texture_coordinates = tile->texture_coordinates,
+				.pixel_size =
+					tile->pixel_size.IsPositive()
+						? tile->pixel_size
+						: V2_int{
+							static_cast<int>(map.GetData().cell_size.x),
+							static_cast<int>(map.GetData().cell_size.y),
+						},
+			};
+		}
+		return;
+	}
+
+	const V2_int hovered_cell{
+		WorldToActiveCell(scene, world)
+	};
+
+	auto roots{
+		scene.GetLayers().GetRootEntities(
+			scene,
+			layer->id
+		)
+	};
+
+	for (auto it{ roots.rbegin() }; it != roots.rend(); ++it) {
+		Entity candidate{ *it };
+		if (
+			!candidate ||
+			IsProtectedSceneEntity(scene, candidate) ||
+			IsPaintGenerator(candidate) ||
+			IsTilemap(candidate) ||
+			!candidate.Has<Transform>() ||
+			WorldToActiveCell(
+				scene,
+				GetWorldPosition(candidate)
+			) != hovered_cell
+		) {
+			continue;
+		}
+
+		Entity instance_root{
+			GetPrefabInstanceRoot(candidate)
 		};
+		if (!instance_root) {
+			// Ordinary/baked entities intentionally do not retain a prefab source identity.
+			return;
+		}
+
+		const PrefabInstance& link{
+			instance_root.Get<PrefabInstance>()
+		};
+		recipe_.source_kind = PaintSourceKind::Single;
+		recipe_.link_prefab_instances = true;
+		prefab_source_ = link.prefab;
+		return;
 	}
 }
 
@@ -3932,6 +6323,231 @@ void PaintEditor::SelectTileBrush(Scene& scene, V2_float world, bool remove) {
 			selected_tile_cells_.push_back(cell);
 		}
 	}
+}
+
+
+void PaintEditor::SnapSelectionToGrid(
+	EditorContext& ctx,
+	Scene& scene
+) {
+	SceneLayer* layer{ ResolveActiveLayer(scene) };
+	if (!layer || layer->locked) {
+		return;
+	}
+
+	const V2_float grid_size{
+		ActiveGridSize(scene)
+	};
+	const V2_float grid_origin{
+		ActiveGridOrigin(scene)
+	};
+
+	auto snap_axis = [](float value, float origin, float step) {
+		step = std::max(1.0f, step);
+		return
+			origin +
+			std::round((value - origin) / step) *
+				step;
+	};
+
+	Entity selected{
+		ctx.editor.GetSceneHierarchyPanel().GetSelectedEntity()
+	};
+
+	if (
+		selected &&
+		selected.Has<Transform>() &&
+		scene.GetLayers().GetLayerId(selected) == layer->id
+	) {
+		const Transform before{
+			GetWorldTransform(selected)
+		};
+		Transform after{ before };
+
+		if (IsPaintGenerator(selected)) {
+			after.position = {
+				snap_axis(
+					before.position.x,
+					grid_origin.x,
+					grid_size.x
+				),
+				snap_axis(
+					before.position.y,
+					grid_origin.y,
+					grid_size.y
+				),
+			};
+		} else {
+			const Origin origin{
+				selected.GetOrDefault<Origin>()
+			};
+			const V2_float anchor_offset{
+				grid_size * 0.5f -
+				GetOffset(origin, grid_size)
+			};
+
+			after.position = {
+				grid_origin.x +
+					std::round(
+						(
+							before.position.x -
+							grid_origin.x -
+							anchor_offset.x
+						) /
+						std::max(1.0f, grid_size.x)
+					) *
+						std::max(1.0f, grid_size.x) +
+					anchor_offset.x,
+				grid_origin.y +
+					std::round(
+						(
+							before.position.y -
+							grid_origin.y -
+							anchor_offset.y
+						) /
+						std::max(1.0f, grid_size.y)
+					) *
+						std::max(1.0f, grid_size.y) +
+					anchor_offset.y,
+			};
+		}
+
+		if (before != after) {
+			SetWorldTransform(selected, after);
+
+			Scene* scene_ptr{ &scene };
+			const UUID uuid{ selected.Get<UUID>() };
+			ctx.undo.PushApplied(
+				"Snap Selection to Grid",
+				[scene_ptr, uuid, before]() {
+					if (Entity entity{
+							scene_ptr->GetEntity(uuid)
+						}) {
+						SetWorldTransform(entity, before);
+					}
+				},
+				[scene_ptr, uuid, after]() {
+					if (Entity entity{
+							scene_ptr->GetEntity(uuid)
+						}) {
+						SetWorldTransform(entity, after);
+					}
+				}
+			);
+		}
+		return;
+	}
+
+	if (
+		layer->kind != SceneLayerKind::Tile ||
+		selected_tile_cells_.empty()
+	) {
+		return;
+	}
+
+	Tilemap map{ ResolveTargetTilemap(scene) };
+	if (!map) {
+		return;
+	}
+
+	const ::ptgn::impl::TilemapData before{
+		map.GetData()
+	};
+	std::vector<TilemapTile> moved;
+	moved.reserve(selected_tile_cells_.size());
+
+	for (V2_int cell : selected_tile_cells_) {
+		if (const TilemapTile* tile{ map.FindTile(cell) }) {
+			moved.push_back(*tile);
+		}
+	}
+	if (moved.empty()) {
+		return;
+	}
+
+	for (V2_int cell : selected_tile_cells_) {
+		map.EraseTile(cell);
+	}
+
+	selected_tile_cells_.clear();
+
+	for (TilemapTile tile : moved) {
+		const V2_float cell_size{
+			map.GetData().cell_size
+		};
+		const V2_float anchor{
+			map.CellToWorld(tile.coordinate) +
+			tile.offset
+		};
+		const V2_float anchor_offset{
+			cell_size * 0.5f -
+			GetOffset(tile.origin, cell_size)
+		};
+
+		const V2_int target{
+			static_cast<int>(
+				std::lround(
+					(
+						anchor.x -
+						grid_origin.x -
+						anchor_offset.x
+					) /
+					std::max(1.0f, cell_size.x)
+				)
+			),
+			static_cast<int>(
+				std::lround(
+					(
+						anchor.y -
+						grid_origin.y -
+						anchor_offset.y
+					) /
+					std::max(1.0f, cell_size.y)
+				)
+			),
+		};
+
+		tile.coordinate = target;
+		tile.offset = {};
+		map.SetTile(tile);
+		selected_tile_cells_.push_back(target);
+	}
+
+	const ::ptgn::impl::TilemapData after{
+		map.GetData()
+	};
+	json before_json = before;
+	json after_json = after;
+
+	if (before_json == after_json) {
+		return;
+	}
+
+	Scene* scene_ptr{ &scene };
+	const UUID uuid{ map.Get<UUID>() };
+	ctx.undo.PushApplied(
+		"Snap Selection to Grid",
+		[scene_ptr, uuid, before]() {
+			if (Entity entity{
+					scene_ptr->GetEntity(uuid)
+				};
+				entity &&
+				entity.Has<::ptgn::impl::TilemapData>()) {
+				entity.Get<::ptgn::impl::TilemapData>() =
+					before;
+			}
+		},
+		[scene_ptr, uuid, after]() {
+			if (Entity entity{
+					scene_ptr->GetEntity(uuid)
+				};
+				entity &&
+				entity.Has<::ptgn::impl::TilemapData>()) {
+				entity.Get<::ptgn::impl::TilemapData>() =
+					after;
+			}
+		}
+	);
 }
 
 void PaintEditor::BeginMove(EditorContext& ctx, Scene& scene, V2_float world) {
@@ -4226,11 +6842,21 @@ bool PaintEditor::DrawViewportAndHandleInput(
 
 	if (layer->locked) return true;
 
-	if (tool_ == PaintTool::Fill || tool_ == PaintTool::Eyedropper) {
-		if (ImGui::IsMouseClicked(ImGuiMouseButton_Left) && inside) {
+	if (tool_ == PaintTool::Eyedropper) {
+		if (inside && ImGui::IsMouseDown(ImGuiMouseButton_Left)) {
+			EyedropAt(ctx, scene, mouse_world);
+			return true;
+		}
+		return false;
+	}
+
+	if (tool_ == PaintTool::Fill) {
+		if (
+			ImGui::IsMouseClicked(ImGuiMouseButton_Left) &&
+			inside
+		) {
 			BeginStroke(scene, mouse_world);
-			if (tool_ == PaintTool::Fill) FillAt(ctx, scene, mouse_world);
-			else EyedropAt(ctx, scene, mouse_world);
+			FillAt(ctx, scene, mouse_world);
 			EndStroke(ctx, scene, mouse_world);
 			return true;
 		}

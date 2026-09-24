@@ -9,7 +9,7 @@
 #include "commands/component/remove_component.h"
 #include "commands/component/set_component.h"
 #include "commands/undo_stack.h"
-#include "editor/editor_selection.h"
+#include "core/editor_selection.h"
 #include "core/util/file.h"
 #include "runtime/asset/prefab.h"
 #include "runtime/ecs/entity.h"
@@ -84,6 +84,9 @@ public:
 		Scene& scene,
 		const PrefabKey& key
 	);
+
+	/// @brief Removes prefab-link metadata from the complete linked hierarchy as one undoable edit.
+	void ConvertPrefabInstanceToEntity(Entity entity);
 
 	template <std::copy_constructible T>
 	void SetComponentValue(Entity entity, const T& value) {

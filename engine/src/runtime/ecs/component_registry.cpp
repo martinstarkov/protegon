@@ -48,6 +48,7 @@
 #include "runtime/ui/tooltip.h"
 #include "runtime/world/paint_generator.h"
 #include "runtime/world/tilemap.h"
+#include "runtime/asset/prefab.h"
 
 namespace ptgn {
 
@@ -56,6 +57,7 @@ PTGN_REGISTER_COMPONENT(impl::Timers);
 PTGN_REGISTER_COMPONENT(impl::Scripts);
 PTGN_REGISTER_COMPONENT(impl::ParentRenderTarget);
 PTGN_REGISTER_COMPONENT(Group);
+PTGN_REGISTER_COMPONENT(PrefabInstance);
 
 PTGN_REGISTER_COMPONENT(impl::TextData);
 PTGN_REGISTER_COMPONENT(impl::GraphicsData);

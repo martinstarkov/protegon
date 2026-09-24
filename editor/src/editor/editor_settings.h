@@ -1,8 +1,16 @@
 #pragma once
 
+#include <cstdint>
+
 #include "serialization/serialize.h"
 
 namespace ptgn::editor {
+
+enum class PrefabDeleteInstanceBehavior : std::uint8_t {
+	Bake,
+	Delete,
+};
+PTGN_REFLECT_ENUM(PrefabDeleteInstanceBehavior);
 
 struct EditorSettings {
 	bool entity_picking{ true };
@@ -15,6 +23,11 @@ struct EditorSettings {
 	bool preview_screen_effects{ true };
 	int content_browser_items_per_row{ 8 };
 	bool content_browser_search_entire_tree{ false };
+
+	/// @brief What happens to linked scene instances when their source prefab asset is deleted.
+	PrefabDeleteInstanceBehavior prefab_delete_instance_behavior{
+		PrefabDeleteInstanceBehavior::Bake
+	};
 
 	constexpr bool operator==(const EditorSettings&) const = default;
 
@@ -29,7 +42,8 @@ struct EditorSettings {
 		show_imgui_metrics,
 		preview_screen_effects,
 		content_browser_items_per_row,
-		content_browser_search_entire_tree
+		content_browser_search_entire_tree,
+		prefab_delete_instance_behavior
 	)
 };
 

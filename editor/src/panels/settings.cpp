@@ -259,6 +259,7 @@ static_assert(!ContainsDuplicates(kResolutionPresets, &ResolutionPreset::label))
 					"local gizmo orientation transform",
 					"show read only inspector data components members",
 					"show read only scene data diagnostics scene settings",
+					"prefab delete deletion linked instances bake convert entity",
 				}
 			);
 
@@ -785,6 +786,43 @@ bool DrawEditorGeneralSettings(
 
 		ImGui::TextDisabled(
 			"Shows compact read-only scene and system diagnostics in the scene Settings panel."
+		);
+	}
+
+	if (MatchesFilter(
+			filter,
+			{
+				"prefab",
+				"delete prefab",
+				"linked prefab instances",
+				"bake instances",
+				"delete instances",
+			}
+		)) {
+		auto settings{ ctx.editor.GetSettings() };
+		int behavior{
+			static_cast<int>(
+				settings.prefab_delete_instance_behavior
+			)
+		};
+
+		if (DrawPropertyRow("Deleting a Prefab", [&]() {
+				return ImGui::Combo(
+					"##value",
+					&behavior,
+					"Bake Linked Instances\0Delete Linked Instances\0"
+				);
+			})) {
+			settings.prefab_delete_instance_behavior =
+				static_cast<PrefabDeleteInstanceBehavior>(
+					behavior
+				);
+			ctx.editor.SetEditorSettings(settings);
+			changed = true;
+		}
+
+		ImGui::TextDisabled(
+			"Bake keeps linked instances as ordinary entities. Delete removes them with the prefab."
 		);
 	}
 

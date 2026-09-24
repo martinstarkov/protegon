@@ -23,16 +23,15 @@
 #include "runtime/ui/slider.h"
 #include "runtime/ui/toggle_button.h"
 #include "runtime/ui/tooltip.h"
+#include "runtime/world/paint_generator.h"
+#include "runtime/world/tilemap.h"
 
 namespace ptgn::editor::inspector {
 
-/// Semantic authoring identity exposed by the ordinary inspector.
-///
-/// This is deliberately editor-only: the runtime ECS remains the source of data and the identity
-/// is inferred from the components that already exist. If ambiguous authoring intent becomes a real
-/// problem later, this enum can be serialized as editor metadata without changing the inspector API.
 enum class InspectorArchetype : std::uint8_t {
 	Generic,
+	Tilemap,
+	PaintGenerator,
 
 	Rect,
 	Circle,
@@ -69,7 +68,11 @@ enum class InspectorArchetype : std::uint8_t {
 	result.reserve(input.size());
 	for (const char c : input) {
 		if (std::isalnum(static_cast<unsigned char>(c))) {
-			result.push_back(static_cast<char>(std::tolower(static_cast<unsigned char>(c))));
+			result.push_back(
+				static_cast<char>(
+					std::tolower(static_cast<unsigned char>(c))
+				)
+			);
 		}
 	}
 	return result;
@@ -104,8 +107,17 @@ template <typename Target>
 
 template <typename Target>
 [[nodiscard]] InspectorArchetype ResolveInspectorArchetype(const Target& target) {
-	// Specialized UI controls must precede ButtonData because they intentionally share the button
-	// implementation underneath.
+	// Tilemaps and paint generators are scene-authoring identities even though they are not
+	// ordinary IDrawable archetypes. Detect them before generic component/drawable routing.
+	if constexpr (requires { target.entity; }) {
+		if (target.entity && IsTilemap(target.entity)) {
+			return InspectorArchetype::Tilemap;
+		}
+		if (target.entity && IsPaintGenerator(target.entity)) {
+			return InspectorArchetype::PaintGenerator;
+		}
+	}
+
 	if (HasArchetypeComponent<Target, ::ptgn::impl::SliderData>(target)) {
 		return InspectorArchetype::Slider;
 	}
@@ -132,10 +144,10 @@ template <typename Target>
 		return InspectorArchetype::Camera;
 	}
 
-	// Effect identity is registry-driven. Use the effect marker rather than recognizing a closed
-	// list of drawable names so newly registered effects automatically remain Effect archetypes.
-	if (HasArchetypeComponent<Target, ::ptgn::impl::EffectTag>(target) ||
-		HasArchetypeComponent<Target, ::ptgn::impl::HDREffectTag>(target)) {
+	if (
+		HasArchetypeComponent<Target, ::ptgn::impl::EffectTag>(target) ||
+		HasArchetypeComponent<Target, ::ptgn::impl::HDREffectTag>(target)
+	) {
 		return InspectorArchetype::Effect;
 	}
 
@@ -162,18 +174,28 @@ template <typename Target>
 	if (visual.contains("graphics")) return InspectorArchetype::Graphics;
 	if (visual.contains("customshader")) return InspectorArchetype::CustomShader;
 	if (visual.contains("rendertarget")) return InspectorArchetype::RenderTarget;
-	if (visual.contains("bloom") || visual.contains("blur") || visual.contains("effect") ||
-		visual.contains("grayscale") || visual.contains("inverse") || visual.contains("sharpen") ||
-		visual.contains("edge")) {
+	if (
+		visual.contains("bloom") ||
+		visual.contains("blur") ||
+		visual.contains("effect") ||
+		visual.contains("grayscale") ||
+		visual.contains("inverse") ||
+		visual.contains("sharpen") ||
+		visual.contains("edge")
+	) {
 		return InspectorArchetype::Effect;
 	}
 
 	return InspectorArchetype::Generic;
 }
 
-[[nodiscard]] inline std::string_view GetInspectorArchetypeLabel(InspectorArchetype archetype) {
+[[nodiscard]] inline std::string_view GetInspectorArchetypeLabel(
+	InspectorArchetype archetype
+) {
 	switch (archetype) {
 		case InspectorArchetype::Generic: return "Entity";
+		case InspectorArchetype::Tilemap: return "Tilemap";
+		case InspectorArchetype::PaintGenerator: return "Paint Generator";
 		case InspectorArchetype::Rect: return "Rectangle";
 		case InspectorArchetype::Circle: return "Circle";
 		case InspectorArchetype::RoundedRect: return "Rounded Rectangle";
@@ -206,44 +228,73 @@ template <typename Target>
 
 template <typename Target>
 [[nodiscard]] std::string GetInspectorArchetypeLabel(const Target& target) {
-	const InspectorArchetype archetype{ ResolveInspectorArchetype(target) };
+	const InspectorArchetype archetype{
+		ResolveInspectorArchetype(target)
+	};
 	if (archetype == InspectorArchetype::Effect) {
-		const std::string drawable{ GetArchetypeDrawableName(target) };
-		return drawable.empty() ? std::string{ "Effect" } : drawable;
+		const std::string drawable{
+			GetArchetypeDrawableName(target)
+		};
+		return drawable.empty()
+			? std::string{ "Effect" }
+			: drawable;
 	}
-	return std::string{ GetInspectorArchetypeLabel(archetype) };
+	return std::string{
+		GetInspectorArchetypeLabel(archetype)
+	};
 }
 
-[[nodiscard]] inline bool IsVisualArchetype(InspectorArchetype archetype) {
-	return archetype >= InspectorArchetype::Rect && archetype <= InspectorArchetype::Effect &&
+[[nodiscard]] inline bool IsVisualArchetype(
+	InspectorArchetype archetype
+) {
+	return
+		archetype >= InspectorArchetype::Rect &&
+		archetype <= InspectorArchetype::Effect &&
 		archetype != InspectorArchetype::Camera;
 }
 
-[[nodiscard]] inline bool IsUIArchetype(InspectorArchetype archetype) {
-	return archetype >= InspectorArchetype::Button && archetype <= InspectorArchetype::Dialogue;
+[[nodiscard]] inline bool IsUIArchetype(
+	InspectorArchetype archetype
+) {
+	return
+		archetype >= InspectorArchetype::Button &&
+		archetype <= InspectorArchetype::Dialogue;
 }
 
-[[nodiscard]] inline bool ArchetypeRequiresTransform(InspectorArchetype archetype) {
+[[nodiscard]] inline bool ArchetypeRequiresTransform(
+	InspectorArchetype archetype
+) {
 	switch (archetype) {
 		case InspectorArchetype::Generic:
 		case InspectorArchetype::ToggleGroup:
 		case InspectorArchetype::RenderTarget:
 		case InspectorArchetype::Effect:
 			return false;
+
+		case InspectorArchetype::Tilemap:
+		case InspectorArchetype::PaintGenerator:
+			return true;
+
 		default:
 			return true;
 	}
 }
 
-[[nodiscard]] inline bool ArchetypeOwnsVisual(InspectorArchetype archetype) {
+[[nodiscard]] inline bool ArchetypeOwnsVisual(
+	InspectorArchetype archetype
+) {
 	return IsVisualArchetype(archetype);
 }
 
-[[nodiscard]] inline bool ArchetypeOwnsUI(InspectorArchetype archetype) {
+[[nodiscard]] inline bool ArchetypeOwnsUI(
+	InspectorArchetype archetype
+) {
 	return IsUIArchetype(archetype);
 }
 
-[[nodiscard]] inline bool ArchetypeOwnsCamera(InspectorArchetype archetype) {
+[[nodiscard]] inline bool ArchetypeOwnsCamera(
+	InspectorArchetype archetype
+) {
 	return archetype == InspectorArchetype::Camera;
 }
 

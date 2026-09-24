@@ -41,6 +41,7 @@
 #include "renderer/resources/texture_format.h"
 #include "runtime/asset/asset_key.h"
 #include "runtime/asset/asset_manager.h"
+#include "runtime/asset/prefab.h"
 #include "runtime/graphics/text/font_system.h"
 #include "runtime/scene/scene.h"
 #include "runtime/scene/scene_manager.h"
@@ -368,6 +369,23 @@ std::string AssetTypeText(const ::ptgn::impl::AssetRecord& asset) {
 		return "Fragment Shader";
 	}
 	return "Shader";
+}
+
+std::string AssetDisplayName(const ::ptgn::impl::AssetRecord& asset) {
+	if (asset.kind == AssetKind::Font && asset.key.value == kDefaultFont) {
+		return "Default Font";
+	}
+
+	if (asset.engine_asset) {
+		const std::string name{ asset.source_path.stem().string() };
+		return name.empty() ? asset.key.value : name;
+	}
+
+	std::string name{ asset.key.value };
+	if (asset.kind == AssetKind::Prefab && name.starts_with(kPrefabKeyPrefix)) {
+		name.erase(0, kPrefabKeyPrefix.size());
+	}
+	return name;
 }
 
 void DrawMetadata(const ::ptgn::impl::AssetRecord& asset) {
@@ -2036,6 +2054,8 @@ void ContentBrowserPanel::DrawAssetGrid(EditorContext& ctx) {
 				ImGuiPopupFlags_MouseButtonRight
 			);
 
+			const std::string label{ AssetDisplayName(asset) };
+
 			const bool can_drag_asset_key{
 				asset.kind != AssetKind::Scene &&
 				(!asset.engine_asset || asset.kind == AssetKind::Shader)
@@ -2048,9 +2068,7 @@ void ContentBrowserPanel::DrawAssetGrid(EditorContext& ctx) {
 				BeginAssetKeyDragDropSource(
 					asset.key.value,
 					asset.kind,
-					default_font
-						? std::optional<std::string_view>{ "Default Font" }
-						: std::optional<std::string_view>{ asset.key.value },
+					std::optional<std::string_view>{ label },
 					move_assets,
 					!asset.engine_asset
 				);
@@ -2269,13 +2287,6 @@ void ContentBrowserPanel::DrawAssetGrid(EditorContext& ctx) {
 				preview_border
 			);
 
-			const std::string label{
-				default_font
-					? "Default Font"
-					: asset.engine_asset
-						? asset.source_path.stem().string()
-						: asset.key.value
-			};
 			const ImVec2 text_min{
 				item_min.x + padding,
 				item_min.y + padding + preview_size + padding
@@ -2289,7 +2300,10 @@ void ContentBrowserPanel::DrawAssetGrid(EditorContext& ctx) {
 			draw_list->PopClipRect();
 
 			if (hovered) {
-				ImGui::SetTooltip("%s", label.c_str());
+				ImGui::BeginTooltip();
+				ImGui::TextUnformatted(label.c_str());
+				ImGui::TextDisabled("%s", AssetTypeText(asset).c_str());
+				ImGui::EndTooltip();
 			}
 
 			ImGui::PopID();

@@ -21,6 +21,7 @@
 #include "core/assert.h"
 #include "editor/editor.h"
 #include "editor/editor_context.h"
+#include "editor/editor_settings.h"
 #include "panels/scene_list.h"
 #include "runtime/asset/asset_manager.h"
 #include "runtime/asset/prefab.h"
@@ -36,57 +37,6 @@
 namespace ptgn::editor {
 
 namespace {
-
-class SceneLayerEntityCommand final : public EditorCommand {
-public:
-	SceneLayerEntityCommand(
-		std::unique_ptr<EditorCommand> command, Editor& editor, EntityReference reference,
-		SceneLayerId layer, bool restore_layer_after_redo
-	) :
-		command_{ std::move(command) }, editor_{ &editor }, reference_{ std::move(reference) },
-		layer_{ layer }, restore_layer_after_redo_{ restore_layer_after_redo } {}
-
-	void Undo() override {
-		command_->Undo();
-		if (!restore_layer_after_redo_) {
-			RestoreLayer();
-		}
-	}
-
-	void Redo() override {
-		command_->Redo();
-		if (restore_layer_after_redo_) {
-			RestoreLayer();
-		}
-	}
-
-	[[nodiscard]] std::string_view Label() const override {
-		return command_->Label();
-	}
-
-private:
-	void RestoreLayer() {
-		if (!editor_ || !layer_) {
-			return;
-		}
-
-		Entity entity{ reference_.Resolve(*editor_) };
-		if (!entity) {
-			return;
-		}
-
-		auto& layers{ entity.GetScene().GetLayers() };
-		if (layers.Find(layer_) && layers.CanAssign(entity, layer_)) {
-			layers.Assign(entity, layer_, true);
-		}
-	}
-
-	std::unique_ptr<EditorCommand> command_;
-	Editor* editor_{ nullptr };
-	EntityReference reference_{};
-	SceneLayerId layer_{};
-	bool restore_layer_after_redo_{ false };
-};
 
 struct PrefabAssetState {
 	PrefabKey key{};
@@ -158,6 +108,328 @@ void ApplyPrefabAssetStates(
 
 }
 
+
+void SyncPrefabStateInstances(
+	EditorContext& context,
+	const std::vector<PrefabAssetState>& states
+) {
+	for (const auto& scene : context.editor.GetSceneManager().GetScenes()) {
+		if (!scene || scene->IsRuntime()) {
+			continue;
+		}
+		for (const auto& state : states) {
+			if (state.prefab.has_value()) {
+				(void)SyncPrefabInstances(*scene, state.key);
+			}
+		}
+	}
+}
+
+void RetargetPrefabStateInstances(
+	EditorContext& context,
+	const PrefabKey& from,
+	const PrefabKey& to
+) {
+	for (const auto& scene : context.editor.GetSceneManager().GetScenes()) {
+		if (!scene || scene->IsRuntime()) {
+			continue;
+		}
+		(void)RetargetPrefabInstances(*scene, from, to);
+	}
+}
+
+struct LinkedPrefabEntityState {
+	EntityReference reference{};
+	PrefabInstance link{};
+};
+
+void CollectPrefabLinkStates(
+	Entity root,
+	std::vector<LinkedPrefabEntityState>& output
+) {
+	if (!root) {
+		return;
+	}
+
+	if (const auto* link{ root.TryGet<PrefabInstance>() }) {
+		output.push_back(LinkedPrefabEntityState{
+			.reference = MakeEntityReference(root),
+			.link = *link,
+		});
+	}
+
+	if (HasChildren(root)) {
+		for (Entity child : GetChildren(root)) {
+			CollectPrefabLinkStates(child, output);
+		}
+	}
+}
+
+void ApplyPrefabLinkStates(
+	Editor& editor,
+	const std::vector<LinkedPrefabEntityState>& states,
+	bool linked
+) {
+	for (const auto& state : states) {
+		Entity entity{ state.reference.Resolve(editor) };
+		if (!entity) {
+			continue;
+		}
+
+		if (linked) {
+			if (entity.Has<PrefabInstance>()) {
+				entity.Get<PrefabInstance>() = state.link;
+			} else {
+				entity.Add<PrefabInstance>(state.link);
+			}
+		} else if (entity.Has<PrefabInstance>()) {
+			entity.Remove<PrefabInstance>();
+		}
+	}
+
+	// Component removal/addition is deferred by the ECS.
+	for (const auto& state : states) {
+		if (Entity entity{ state.reference.Resolve(editor) }) {
+			entity.GetScene().Refresh();
+			break;
+		}
+	}
+}
+
+class ConvertPrefabInstanceCommand final : public EditorCommand {
+public:
+	ConvertPrefabInstanceCommand(
+		Editor& editor,
+		std::vector<LinkedPrefabEntityState> states
+	) :
+		editor_{ std::addressof(editor) },
+		states_{ std::move(states) } {}
+
+	void Undo() override {
+		ApplyPrefabLinkStates(*editor_, states_, true);
+	}
+
+	void Redo() override {
+		ApplyPrefabLinkStates(*editor_, states_, false);
+	}
+
+	[[nodiscard]] std::string_view Label() const override {
+		return "Convert Prefab Instance to Entity";
+	}
+
+private:
+	Editor* editor_{ nullptr };
+	std::vector<LinkedPrefabEntityState> states_;
+};
+
+struct DeletedPrefabInstanceSnapshot {
+	Scene* scene{ nullptr };
+	SerializedEntity root{};
+	std::optional<UUID> parent{};
+	std::optional<SceneLayerId> layer{};
+};
+
+Entity RestoreSerializedTree(
+	Scene& scene,
+	const SerializedEntity& serialized,
+	Entity parent = {}
+) {
+	PTGN_ASSERT(serialized.uuid.has_value());
+
+	Entity entity{
+		scene.CreateEntity(
+			Tag{ serialized.tag },
+			*serialized.uuid
+		)
+	};
+	DeserializeEntity(serialized, entity);
+
+	if (parent) {
+		SetParent(entity, parent);
+	}
+
+	for (const auto& child : serialized.children) {
+		(void)RestoreSerializedTree(scene, child, entity);
+	}
+	return entity;
+}
+
+void RestoreDeletedPrefabInstance(
+	const DeletedPrefabInstanceSnapshot& snapshot
+) {
+	if (!snapshot.scene || !snapshot.root.uuid.has_value()) {
+		return;
+	}
+
+	Scene& scene{ *snapshot.scene };
+	if (Entity current{ scene.GetEntity(*snapshot.root.uuid) }) {
+		current.Destroy();
+		scene.Refresh();
+	}
+
+	Entity root{
+		RestoreSerializedTree(scene, snapshot.root)
+	};
+	scene.Refresh();
+
+	if (snapshot.parent.has_value()) {
+		if (Entity parent{ scene.GetEntity(*snapshot.parent) }) {
+			SetParent(root, parent);
+		}
+	}
+	if (snapshot.layer.has_value()) {
+		(void)scene.GetLayers().Assign(
+			root,
+			*snapshot.layer,
+			true
+		);
+	}
+	scene.Refresh();
+}
+
+std::vector<DeletedPrefabInstanceSnapshot> CapturePrefabInstanceRoots(
+	EditorContext& context,
+	const PrefabKey& key
+) {
+	std::vector<DeletedPrefabInstanceSnapshot> result;
+
+	for (const auto& scene_ptr : context.editor.GetSceneManager().GetScenes()) {
+		if (!scene_ptr || scene_ptr->IsRuntime()) {
+			continue;
+		}
+
+		Scene& scene{ *scene_ptr };
+		for (Entity entity : scene.Entities()) {
+			const auto* link{ entity.TryGet<PrefabInstance>() };
+			if (
+				!link ||
+				link->prefab != key ||
+				!link->entity_path.empty()
+			) {
+				continue;
+			}
+
+			result.push_back(DeletedPrefabInstanceSnapshot{
+				.scene = std::addressof(scene),
+				.root = SerializeEntity(
+					entity,
+					{
+						.include_uuid = true,
+						.include_children = true,
+					}
+				),
+				.parent =
+					HasParent(entity) && GetParent(entity).Has<UUID>()
+						? std::optional<UUID>{
+							GetParent(entity).Get<UUID>()
+						}
+						: std::nullopt,
+				.layer = scene.GetLayers().GetLayerId(entity),
+			});
+		}
+	}
+	return result;
+}
+
+class DeletePrefabAssetCommand final : public EditorCommand {
+public:
+	DeletePrefabAssetCommand(
+		EditorContext& context,
+		path project_root,
+		Prefab prefab,
+		EditorSelection before_selection,
+		EditorSelection after_selection,
+		PrefabDeleteInstanceBehavior behavior
+	) :
+		context_{ std::addressof(context) },
+		project_root_{ std::move(project_root) },
+		prefab_{ std::move(prefab) },
+		before_selection_{ std::move(before_selection) },
+		after_selection_{ std::move(after_selection) },
+		behavior_{ behavior },
+		instances_{
+			CapturePrefabInstanceRoots(
+				context,
+				prefab_.key
+			)
+		} {}
+
+	void Undo() override {
+		ApplyPrefabAssetStates(
+			*context_,
+			project_root_,
+			{
+				PrefabAssetState{
+					.key = prefab_.key,
+					.prefab = prefab_,
+				},
+			},
+			before_selection_
+		);
+
+		for (const auto& instance : instances_) {
+			RestoreDeletedPrefabInstance(instance);
+		}
+	}
+
+	void Redo() override {
+		for (const auto& snapshot : instances_) {
+			if (
+				!snapshot.scene ||
+				!snapshot.root.uuid.has_value()
+			) {
+				continue;
+			}
+
+			Entity instance{
+				snapshot.scene->GetEntity(
+					*snapshot.root.uuid
+				)
+			};
+			if (!instance) {
+				continue;
+			}
+
+			if (behavior_ == PrefabDeleteInstanceBehavior::Delete) {
+				instance.Destroy();
+				snapshot.scene->Refresh();
+			} else {
+				(void)BakePrefabInstance(
+					instance,
+					prefab_
+				);
+			}
+		}
+
+		ApplyPrefabAssetStates(
+			*context_,
+			project_root_,
+			{
+				PrefabAssetState{
+					.key = prefab_.key,
+					.prefab = std::nullopt,
+				},
+			},
+			after_selection_
+		);
+	}
+
+	[[nodiscard]] std::string_view Label() const override {
+		return "Delete Prefab";
+	}
+
+private:
+	EditorContext* context_{ nullptr };
+	path project_root_;
+	Prefab prefab_;
+	EditorSelection before_selection_;
+	EditorSelection after_selection_;
+	PrefabDeleteInstanceBehavior behavior_{
+		PrefabDeleteInstanceBehavior::Bake
+	};
+	std::vector<DeletedPrefabInstanceSnapshot> instances_;
+};
+
 class PrefabAssetCommand final : public EditorCommand {
 public:
 	PrefabAssetCommand(
@@ -167,7 +439,8 @@ public:
 		std::vector<PrefabAssetState> before,
 		std::vector<PrefabAssetState> after,
 		EditorSelection before_selection,
-		EditorSelection after_selection
+		EditorSelection after_selection,
+		std::optional<std::pair<PrefabKey, PrefabKey>> retarget = std::nullopt
 	) :
 		context_{ std::addressof(context) },
 		project_root_{ std::move(project_root) },
@@ -175,7 +448,8 @@ public:
 		before_{ std::move(before) },
 		after_{ std::move(after) },
 		before_selection_{ std::move(before_selection) },
-		after_selection_{ std::move(after_selection) } {}
+		after_selection_{ std::move(after_selection) },
+		retarget_{ std::move(retarget) } {}
 
 	void Undo() override {
 		ApplyPrefabAssetStates(
@@ -184,6 +458,15 @@ public:
 			before_,
 			before_selection_
 		);
+		if (retarget_.has_value()) {
+			RetargetPrefabStateInstances(
+				*context_,
+				retarget_->second,
+				retarget_->first
+			);
+		} else {
+			SyncPrefabStateInstances(*context_, before_);
+		}
 	}
 
 	void Redo() override {
@@ -193,6 +476,15 @@ public:
 			after_,
 			after_selection_
 		);
+		if (retarget_.has_value()) {
+			RetargetPrefabStateInstances(
+				*context_,
+				retarget_->first,
+				retarget_->second
+			);
+		} else {
+			SyncPrefabStateInstances(*context_, after_);
+		}
 	}
 
 	[[nodiscard]] std::string_view Label() const override {
@@ -207,6 +499,7 @@ private:
 	std::vector<PrefabAssetState> after_;
 	EditorSelection before_selection_;
 	EditorSelection after_selection_;
+	std::optional<std::pair<PrefabKey, PrefabKey>> retarget_;
 };
 
 [[nodiscard]] std::optional<Prefab> CapturePrefabAsset(
@@ -393,23 +686,15 @@ Entity EditorCommands::RecordCreatedEntity(
 	auto reference{ MakeEntityReference(entity) };
 	auto snapshot{ CaptureEntitySnapshot(entity) };
 	auto after_selection{ SelectEntity(before_selection, entity) };
-	const SceneLayerId layer{
-		entity.GetScene().GetLayers().GetLayerId(entity).value_or(
-			entity.GetScene().GetLayers().GetDefaultEntityLayer()
-		)
-	};
 
 	ApplyEditorSelection(*context_, after_selection);
 
-	auto create_command{ std::make_unique<CreateEntityCommand>(
+	context_->undo.PushApplied(std::make_unique<CreateEntityCommand>(
 		*context_,
 		reference,
 		std::move(snapshot),
 		std::move(before_selection),
 		std::move(after_selection)
-	) };
-	context_->undo.PushApplied(std::make_unique<SceneLayerEntityCommand>(
-		std::move(create_command), context_->editor, reference, layer, true
 	));
 
 	return reference.Resolve(context_->editor);
@@ -458,20 +743,12 @@ void EditorCommands::DeleteEntity(Entity entity) {
 		after.SetEntityUUID(reference.scene_key, reference.runtime, std::nullopt);
 	}
 
-	const SceneLayerId layer{
-		entity.GetScene().GetLayers().GetLayerId(entity).value_or(
-			entity.GetScene().GetLayers().GetDefaultEntityLayer()
-		)
-	};
-	auto delete_command{ std::make_unique<DeleteEntityCommand>(
+	context_->undo.Execute(std::make_unique<DeleteEntityCommand>(
 		*context_,
-		reference,
+		std::move(reference),
 		std::move(snapshot),
 		before,
 		std::move(after)
-	) };
-	context_->undo.Execute(std::make_unique<SceneLayerEntityCommand>(
-		std::move(delete_command), context_->editor, std::move(reference), layer, false
 	));
 }
 
@@ -598,7 +875,6 @@ bool EditorCommands::DeletePrefabAsset(
 	const auto project_root{
 		context_->editor.GetProjectRoot()
 	};
-
 	if (!project_root) {
 		return false;
 	}
@@ -606,11 +882,9 @@ bool EditorCommands::DeletePrefabAsset(
 	auto& assets{
 		context_->editor.GetAssetManager()
 	};
-
 	auto prefab{
 		CapturePrefabAsset(assets, key)
 	};
-
 	if (!prefab) {
 		return false;
 	}
@@ -630,24 +904,14 @@ bool EditorCommands::DeletePrefabAsset(
 	}
 
 	context_->undo.Execute(
-		std::make_unique<PrefabAssetCommand>(
+		std::make_unique<DeletePrefabAssetCommand>(
 			*context_,
 			*project_root,
-			"Delete Prefab",
-			std::vector<PrefabAssetState>{
-				PrefabAssetState{
-					.key = key,
-					.prefab = std::move(prefab),
-				},
-			},
-			std::vector<PrefabAssetState>{
-				PrefabAssetState{
-					.key = key,
-					.prefab = std::nullopt,
-				},
-			},
+			std::move(*prefab),
 			before_selection,
-			after_selection
+			after_selection,
+			context_->editor.GetSettings()
+				.prefab_delete_instance_behavior
 		)
 	);
 
@@ -729,7 +993,8 @@ bool EditorCommands::RenamePrefabAsset(
 				},
 			},
 			before_selection,
-			after_selection
+			after_selection,
+			std::pair{ old_key, new_key }
 		)
 	);
 
@@ -1081,6 +1346,29 @@ bool EditorCommands::DeletePrefabEntity(
 	);
 
 	return true;
+}
+
+
+void EditorCommands::ConvertPrefabInstanceToEntity(Entity entity) {
+	PTGN_ASSERT(context_);
+
+	Entity root{ GetPrefabInstanceRoot(entity) };
+	if (!root) {
+		return;
+	}
+
+	std::vector<LinkedPrefabEntityState> states;
+	CollectPrefabLinkStates(root, states);
+	if (states.empty()) {
+		return;
+	}
+
+	context_->undo.Execute(
+		std::make_unique<ConvertPrefabInstanceCommand>(
+			context_->editor,
+			std::move(states)
+		)
+	);
 }
 
 Entity EditorCommands::CreatePrefabInstance(

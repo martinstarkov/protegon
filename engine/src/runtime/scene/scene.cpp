@@ -512,6 +512,17 @@ void Scene::Init(Application& app, impl::SceneData&& scene_data, const json& ser
 	InitBase(app, std::move(scene_data));
 	DeserializeContent(serialized_content);
 	Refresh();
+
+	if (IsRuntime()) {
+		// Runtime receives a freshly synchronized hierarchy but no editor prefab-link metadata.
+		(void)BakePrefabInstances(*this);
+	} else {
+		// Serialized editor scenes are only a cache of the last synchronized prefab state.
+		// Re-resolve the assets on load so external or prior-session prefab edits propagate.
+		(void)SyncPrefabInstances(*this);
+	}
+	Refresh();
+
 	OnLoad();
 	Refresh();
 }
@@ -1093,7 +1104,11 @@ Entity Scene::CreatePrefab(const PrefabKey& prefab_key) {
 	}
 
 	auto prefab{ assets.Get<Prefab>(prefab_key) };
-	return InstantiatePrefab(*this, prefab.get());
+	return InstantiatePrefab(
+		*this,
+		prefab.get(),
+		PrefabInstantiationMode::Auto
+	);
 }
 
 void Scene::SetBackgroundColor(Color background_color) {
