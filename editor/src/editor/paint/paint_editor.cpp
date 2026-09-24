@@ -2863,10 +2863,8 @@ void PaintEditor::DrawTileSourceBrowser(EditorContext& ctx, PaintTileSource& sou
 		}
 
 		ImGuiTreeNodeFlags flags{ ImGuiTreeNodeFlags_SpanAvailWidth |
-								  ImGuiTreeNodeFlags_OpenOnArrow };
-		if (!tile_source_search_.empty()) {
-			flags |= ImGuiTreeNodeFlags_DefaultOpen;
-		}
+								  ImGuiTreeNodeFlags_OpenOnArrow |
+								  ImGuiTreeNodeFlags_DefaultOpen };
 
 		ImGui::PushID(group.c_str());
 		const bool open{ ImGui::TreeNodeEx("##PaintTileSourceGroup", flags, "%s", group.c_str()) };
@@ -3154,10 +3152,8 @@ void PaintEditor::DrawPrefabSourceBrowser(EditorContext& ctx, PrefabKey& source)
 	SortGroupsUngroupedFirst(groups);
 	for (const std::string& group : groups) {
 		ImGuiTreeNodeFlags flags{ ImGuiTreeNodeFlags_SpanAvailWidth |
-								  ImGuiTreeNodeFlags_OpenOnArrow };
-		if (!prefab_source_search_.empty()) {
-			flags |= ImGuiTreeNodeFlags_DefaultOpen;
-		}
+								  ImGuiTreeNodeFlags_OpenOnArrow |
+								  ImGuiTreeNodeFlags_DefaultOpen };
 		ImGui::PushID(group.c_str());
 		if (ImGui::TreeNodeEx("##PaintPrefabSourceGroup", flags, "%s", group.c_str())) {
 			for (const PrefabKey& key : keys) {
@@ -3363,7 +3359,9 @@ void PaintEditor::DrawWeightedTileSetEditor(EditorContext& ctx) {
 
 		for (const std::string& group : TileGroupNames()) {
 			const bool group_match{ ContainsInsensitive(group, tile_source_search_) };
-			if (!ImGui::TreeNode(group.c_str())) {
+			if (!ImGui::TreeNodeEx(
+					group.c_str(), ImGuiTreeNodeFlags_DefaultOpen | ImGuiTreeNodeFlags_OpenOnArrow
+				)) {
 				continue;
 			}
 
@@ -3531,7 +3529,9 @@ void PaintEditor::DrawWeightedPrefabSetEditor(EditorContext& ctx) {
 		SortGroupsUngroupedFirst(groups);
 
 		for (const auto& group : groups) {
-			if (!ImGui::TreeNode(group.c_str())) {
+			if (!ImGui::TreeNodeEx(
+					group.c_str(), ImGuiTreeNodeFlags_DefaultOpen | ImGuiTreeNodeFlags_OpenOnArrow
+				)) {
 				continue;
 			}
 
@@ -5366,6 +5366,7 @@ void PaintEditor::DrawTileInspector(EditorContext& ctx) {
 		ImGui::TextDisabled("Select a tile in the Tiles tab.");
 		return;
 	}
+
 	const TextureKey texture{ *inspected_texture_ };
 	auto& settings{ GetSliceSettings(ctx, texture) };
 	const TileLibraryEntry* selected{ FindTileEntry(selected_tile_entry_id_) };
@@ -5374,25 +5375,78 @@ void PaintEditor::DrawTileInspector(EditorContext& ctx) {
 	}
 	ImGui::TextDisabled("%s", texture.value.c_str());
 	ImGui::Separator();
+
 	int tile_size[2]{ settings.tile_size.x, settings.tile_size.y };
 	int margin[2]{ settings.margin.x, settings.margin.y };
 	int spacing[2]{ settings.spacing.x, settings.spacing.y };
 	bool rebuild{};
-	if (ImGui::DragInt2("Tile Size", tile_size, 1.0f, 1, 8192)) {
-		settings.tile_size = { std::max(1, tile_size[0]), std::max(1, tile_size[1]) };
-		rebuild			   = true;
+
+	if (ImGui::BeginTable(
+			"##TileSliceSettings", 2,
+			ImGuiTableFlags_SizingStretchProp | ImGuiTableFlags_NoSavedSettings
+		)) {
+		ImGui::TableSetupColumn("Label", ImGuiTableColumnFlags_WidthFixed, 72.0f);
+		ImGui::TableSetupColumn("Value", ImGuiTableColumnFlags_WidthStretch);
+
+		auto draw_vec2 = [&](const char* label, const char* id, int values[2], int minimum) {
+			ImGui::TableNextRow();
+			ImGui::TableSetColumnIndex(0);
+			ImGui::AlignTextToFramePadding();
+			ImGui::TextUnformatted(label);
+
+			ImGui::TableSetColumnIndex(1);
+			ImGui::SetNextItemWidth(-FLT_MIN);
+			const bool changed{ ImGui::DragInt2(id, values, 1.0f, minimum, 8192) };
+			const bool finished{ ImGui::IsItemDeactivatedAfterEdit() };
+			return std::pair{ changed, finished };
+		};
+
+		const auto [tile_size_changed, tile_size_finished]{
+			draw_vec2("Tile Size", "##TileSize", tile_size, 1)
+		};
+		if (tile_size_changed) {
+			settings.tile_size = { std::max(1, tile_size[0]), std::max(1, tile_size[1]) };
+		}
+		rebuild |= tile_size_finished;
+
+		const auto [margin_changed, margin_finished]{
+			draw_vec2("Margin", "##Margin", margin, 0)
+		};
+		if (margin_changed) {
+			settings.margin = { std::max(0, margin[0]), std::max(0, margin[1]) };
+		}
+		rebuild |= margin_finished;
+
+		const auto [spacing_changed, spacing_finished]{
+			draw_vec2("Spacing", "##Spacing", spacing, 0)
+		};
+		if (spacing_changed) {
+			settings.spacing = { std::max(0, spacing[0]), std::max(0, spacing[1]) };
+		}
+		rebuild |= spacing_finished;
+
+		ImGui::EndTable();
 	}
-	if (ImGui::DragInt2("Margin", margin, 1.0f, 0, 8192)) {
-		settings.margin = { std::max(0, margin[0]), std::max(0, margin[1]) };
-		rebuild			= true;
-	}
-	if (ImGui::DragInt2("Spacing", spacing, 1.0f, 0, 8192)) {
-		settings.spacing = { std::max(0, spacing[0]), std::max(0, spacing[1]) };
-		rebuild			 = true;
-	}
+
 	if (rebuild) {
-		std::string group{ selected ? selected->group : "Ungrouped" };
-		std::string base_name{ selected ? selected->name : TextureDisplayName(texture) };
+		struct ExistingSlice {
+			V2_int slice{};
+			std::string name{};
+			std::string group{ "Ungrouped" };
+		};
+
+		std::vector<ExistingSlice> existing;
+		for (const auto& entry : tile_library_) {
+			if (entry.texture == texture) {
+				existing.push_back({ entry.slice, entry.name, entry.group });
+			}
+		}
+
+		const std::string fallback_group{
+			selected && selected->texture == texture ? selected->group : "Ungrouped"
+		};
+		const V2_int previously_inspected_slice{ inspected_slice_ };
+
 		V2_int size{};
 		for (const auto& record :
 			 ::ptgn::impl::AssetAccessor{ ctx.editor.GetAssetManager() }.GetAssets()) {
@@ -5403,9 +5457,11 @@ void PaintEditor::DrawTileInspector(EditorContext& ctx) {
 				break;
 			}
 		}
+
 		std::erase_if(tile_library_, [&](const TileLibraryEntry& entry) {
 			return entry.texture == texture;
 		});
+
 		if (size.IsPositive()) {
 			const int columns{ std::max(
 				0, (size.x - settings.margin.x + settings.spacing.x) /
@@ -5415,27 +5471,51 @@ void PaintEditor::DrawTileInspector(EditorContext& ctx) {
 				0, (size.y - settings.margin.y + settings.spacing.y) /
 					   std::max(1, settings.tile_size.y + settings.spacing.y)
 			) };
+
+			const std::string base_name{ TextureDisplayName(texture) };
 			int index{};
 			for (int y{}; y < rows; ++y) {
 				for (int x{}; x < columns; ++x) {
-					V2_int slice{ x, y };
+					const V2_int slice{ x, y };
+					const auto old{ std::ranges::find(existing, slice, &ExistingSlice::slice) };
+
 					tile_library_.push_back(
-						TileLibraryEntry{ .id	   = TileEntryId(texture, slice),
-										  .name	   = base_name + "_" + std::to_string(index++),
-										  .texture = texture,
-										  .slice   = slice,
-										  .group   = group }
+						TileLibraryEntry{
+							.id = TileEntryId(texture, slice),
+							.name = old != existing.end()
+								? old->name
+								: base_name + "_" + std::to_string(index),
+							.texture = texture,
+							.slice = slice,
+							.group = old != existing.end() ? old->group : fallback_group,
+						}
 					);
+					++index;
 				}
 			}
-			if (!tile_library_.empty()) {
-				auto& entry{ tile_library_.back() };
-				selected_tile_entry_id_ = entry.id;
-				inspected_slice_		= entry.slice;
+
+			const std::string previous_id{ TileEntryId(texture, previously_inspected_slice) };
+			if (const TileLibraryEntry* previous{ FindTileEntry(previous_id) }) {
+				selected_tile_entry_id_ = previous->id;
+				inspected_slice_ = previous->slice;
+			} else {
+				const auto first{ std::ranges::find(tile_library_, texture, &TileLibraryEntry::texture) };
+				if (first != tile_library_.end()) {
+					selected_tile_entry_id_ = first->id;
+					inspected_slice_ = first->slice;
+				} else {
+					selected_tile_entry_id_.clear();
+					inspected_slice_ = {};
+				}
 			}
+		} else {
+			selected_tile_entry_id_.clear();
+			inspected_slice_ = {};
 		}
+
 		SaveProjectLibrary(ctx);
 	}
+
 	ImGui::Text("Selected slice: %d, %d", inspected_slice_.x, inspected_slice_.y);
 }
 
