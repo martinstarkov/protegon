@@ -5,11 +5,13 @@
 #include <optional>
 #include <string>
 #include <string_view>
+#include <utility>
 #include <unordered_map>
 #include <unordered_set>
 #include <vector>
 
 #include "core/math/geometry/origin.h"
+#include "editor/editor_selection.h"
 #include "core/math/noise.h"
 #include "core/math/transform.h"
 #include "core/math/vector2.h"
@@ -307,10 +309,11 @@ public:
 	/// Draws the Tiles dock window and returns whether it was the visible dock tab this frame.
 	bool DrawTilesPanel(EditorContext& ctx);
 	void DrawTileInspector(EditorContext& ctx);
+	void DrawGeneratorInspector(EditorContext& ctx, Entity generator);
 
 	/// Draw tilemap/generator/grid/tool overlays and process paint input. Returns true when the paint
-	/// tool consumed the current left-button interaction. Entity Select deliberately returns false on
-	/// click so ViewportPanel can keep using its renderer-backed entity picker.
+	/// tool consumed the current pointer interaction. Selection is handled entirely by PaintEditor so
+	/// click, marquee, brush, generator, entity and tile selection all share one state machine.
 	bool DrawViewportAndHandleInput(
 		EditorContext& ctx,
 		Scene& scene,
@@ -322,8 +325,6 @@ public:
 	[[nodiscard]] PaintTool GetTool() const { return tool_; }
 	void SetTool(PaintTool tool);
 
-	[[nodiscard]] bool WantsEntityPicking(const Scene& scene) const;
-	void OnEntityPicked(EditorContext& ctx, Entity entity);
 
 	[[nodiscard]] SceneLayerId GetActiveLayer(const Scene& scene) const;
 	void SetActiveLayer(Scene& scene, SceneLayerId layer);
@@ -404,8 +405,7 @@ private:
 	struct MoveDrag {
 		bool active{};
 		V2_float start_mouse_world{};
-		std::optional<UUID> entity{};
-		Transform entity_before{};
+		std::vector<std::pair<UUID, Transform>> entity_before{};
 		std::optional<UUID> tilemap{};
 		std::vector<V2_int> tile_cells{};
 		std::optional<::ptgn::impl::TilemapData> tilemap_before{};
@@ -415,6 +415,7 @@ private:
 	[[nodiscard]] const SceneLayer* ResolveActiveLayer(const Scene& scene) const;
 	[[nodiscard]] Tilemap ResolveTargetTilemap(Scene& scene);
 	[[nodiscard]] Tilemap ResolveTargetTilemap(const Scene& scene) const;
+	void SyncHierarchySelection(EditorContext& ctx, Scene& scene);
 
 	void DrawTilemaps(
 		EditorContext& ctx,
@@ -481,6 +482,12 @@ private:
 	void ApplyLine(EditorContext& ctx, Scene& scene, V2_float a, V2_float b);
 	void ApplyRectangle(EditorContext& ctx, Scene& scene, V2_float a, V2_float b);
 	void CreateGeneratorForStroke(EditorContext& ctx, Scene& scene, PaintGeneratorGeometry geometry);
+	void AppendBrushStrokeToGenerator(EditorContext& ctx, Scene& scene);
+	void FinishActiveBrushGenerator(EditorContext& ctx, Scene& scene);
+	void CancelActiveBrushGenerator(EditorContext& ctx, Scene& scene);
+	void UndoActiveBrushStroke(EditorContext& ctx, Scene& scene);
+	void BakeGenerator(EditorContext& ctx, Scene& scene, Entity generator);
+	[[nodiscard]] bool IsActiveBrushGenerator(Entity generator) const;
 	void CreateInfiniteGenerator(EditorContext& ctx, Scene& scene);
 
 	void SnapSelectionToGrid(EditorContext& ctx, Scene& scene);
@@ -489,9 +496,15 @@ private:
 	void EndMove(EditorContext& ctx, Scene& scene);
 	void CancelMove(Scene& scene);
 
-	void SelectTileAt(Scene& scene, V2_float world, bool additive);
-	void SelectTileMarquee(Scene& scene, V2_float a, V2_float b, bool additive);
-	void SelectTileBrush(Scene& scene, V2_float world, bool remove);
+	void SelectClick(
+		EditorContext& ctx, Scene& scene, V2_float world, bool additive, bool toggle
+	);
+	void SelectMarquee(
+		EditorContext& ctx, Scene& scene, V2_float a, V2_float b, bool additive, bool toggle
+	);
+	void SelectBrush(EditorContext& ctx, Scene& scene, V2_float world, bool remove);
+	[[nodiscard]] bool HasSelection() const;
+	[[nodiscard]] bool SelectionHitAtWorld(Scene& scene, V2_float world) const;
 	[[nodiscard]] Entity FindGeneratorAtWorld(Scene& scene, V2_float world) const;
 
 	void CommitTileStroke(EditorContext& ctx, Scene& scene);
@@ -612,14 +625,23 @@ private:
 	bool import_popup_requested_{};
 	std::string import_status_{};
 
+	std::vector<UUID> selected_entities_{};
+	std::optional<UUID> selected_generator_{};
 	std::optional<UUID> selected_tilemap_{};
 	std::vector<V2_int> selected_tile_cells_{};
 	V2_float selection_drag_start_{};
 	bool selection_drag_active_{};
-	std::optional<V2_float> pending_entity_move_world_{};
 
 	Stroke stroke_{};
 	MoveDrag move_{};
+
+	// A Keep Generator Brush remains live across mouse-up events. It is a real scene
+	// generator immediately so hierarchy/viewport selection and highlighting work while
+	// authoring, but it is not pushed to the global undo stack until Finish Generator.
+	std::optional<UUID> active_brush_generator_{};
+	std::optional<EditorSelection> active_generator_before_selection_{};
+	std::uint32_t next_active_brush_stroke_id_{ 1 };
+	std::optional<SerializedEntity> generator_inspector_edit_before_{};
 };
 
 } // namespace ptgn::editor

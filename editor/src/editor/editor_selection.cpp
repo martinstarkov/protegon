@@ -163,7 +163,15 @@ Entity ResolveSelectedEntity(EditorContext& ctx) {
 void ApplyEditorSelection(EditorContext& ctx, EditorSelection selection) {
 	Scene* previous_scene{ ResolveSelectedScene(ctx) };
 
-	ctx.local.position_picker.Cancel();
+	// A number of editor systems re-apply the current selection as part of keeping
+	// paint/layer state synchronized. Those no-op applications must not cancel an
+	// active position pick. A real selection change still cancels the picker, since
+	// its apply callback belongs to the object/property that was being inspected.
+	const bool selection_changed{ ctx.local.selection != selection };
+	if (selection_changed) {
+		ctx.local.position_picker.Cancel();
+	}
+
 	ctx.local.selection = std::move(selection);
 
 	Scene* next_scene{ ResolveSelectedScene(ctx) };

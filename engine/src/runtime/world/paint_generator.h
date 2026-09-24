@@ -75,10 +75,8 @@ PTGN_REFLECT_ENUM(PaintGeneratorAutotileFormat);
 
 struct PaintGeneratorTileSource {
 	TextureKey texture{};
-	std::array<V2_float, 4> texture_coordinates{
-		V2_float{ 0.0f, 0.0f }, V2_float{ 1.0f, 0.0f },
-		V2_float{ 1.0f, 1.0f }, V2_float{ 0.0f, 1.0f }
-	};
+	std::array<V2_float, 4> texture_coordinates{ V2_float{ 0.0f, 0.0f }, V2_float{ 1.0f, 0.0f },
+												 V2_float{ 1.0f, 1.0f }, V2_float{ 0.0f, 1.0f } };
 	V2_int pixel_size{ 32, 32 };
 	Origin origin{ Origin::TopLeft };
 
@@ -113,8 +111,8 @@ struct PaintGeneratorNoiseThreshold {
 	Origin origin{ Origin::Center };
 
 	PTGN_REFLECT(
-		PaintGeneratorNoiseThreshold,
-		minimum, maximum, enabled, source_kind, tile, prefab, weighted_tiles, weighted_prefabs, origin
+		PaintGeneratorNoiseThreshold, minimum, maximum, enabled, source_kind, tile, prefab,
+		weighted_tiles, weighted_prefabs, origin
 	)
 };
 
@@ -129,14 +127,7 @@ struct PaintGeneratorNoise {
 	std::vector<PaintGeneratorNoiseThreshold> thresholds{};
 
 	PTGN_REFLECT(
-		PaintGeneratorNoise,
-		type,
-		seed,
-		frequency,
-		octaves,
-		lacunarity,
-		persistence,
-		offset,
+		PaintGeneratorNoise, type, seed, frequency, octaves, lacunarity, persistence, offset,
 		thresholds
 	)
 };
@@ -162,6 +153,7 @@ struct PaintGeneratorRecipe {
 	float radial_outer{ 1.0f };
 	float min_spacing{};
 	bool avoid_exclusion_mask{ true };
+	bool link_prefab_instances{ true };
 	bool random_rotation{};
 	float rotation_min{};
 	float rotation_max{ 360.0f };
@@ -174,35 +166,11 @@ struct PaintGeneratorRecipe {
 	float noise_preview_alpha{ 0.45f };
 
 	PTGN_REFLECT(
-		PaintGeneratorRecipe,
-		source_kind,
-		coverage,
-		tile,
-		prefab,
-		weighted_tiles,
-		weighted_prefabs,
-		checker_tile,
-		checker_prefab,
-		autotile_format,
-		autotile_tiles,
-		tile_placement,
-		tile_origin,
-		entity_origin,
-		density,
-		radial_inner,
-		radial_outer,
-		min_spacing,
-		avoid_exclusion_mask,
-		random_rotation,
-		rotation_min,
-		rotation_max,
-		random_scale,
-		scale_min,
-		scale_max,
-		noise,
-		show_noise_preview,
-		show_generated_preview,
-		noise_preview_alpha
+		PaintGeneratorRecipe, source_kind, coverage, tile, prefab, weighted_tiles, weighted_prefabs,
+		checker_tile, checker_prefab, autotile_format, autotile_tiles, tile_placement, tile_origin,
+		entity_origin, density, radial_inner, radial_outer, min_spacing, avoid_exclusion_mask,
+		link_prefab_instances, random_rotation, rotation_min, rotation_max, random_scale, scale_min,
+		scale_max, noise, show_noise_preview, show_generated_preview, noise_preview_alpha
 	)
 };
 
@@ -210,7 +178,11 @@ struct PaintGeneratorStrokePoint {
 	V2_float position{};
 	int diameter{ 1 };
 
-	PTGN_REFLECT(PaintGeneratorStrokePoint, position, diameter)
+	// Stable authored brush-stroke identity. Equal diameters do not imply equal strokes.
+	// Zero is reserved for legacy generators serialized before this field existed.
+	std::uint32_t stroke_id{ 0 };
+
+	PTGN_REFLECT(PaintGeneratorStrokePoint, position, diameter, stroke_id)
 };
 
 namespace impl {
@@ -243,23 +215,9 @@ struct PaintGeneratorData {
 	bool enabled{ true };
 
 	PTGN_REFLECT(
-		PaintGeneratorData,
-		geometry,
-		recipe,
-		target_tilemap,
-		grid_size,
-		grid_offset,
-		start,
-		end,
-		brush_shape,
-		line_thickness,
-		line_spacing,
-		area_mode,
-		area_thickness,
-		random_fill_density,
-		stroke_points,
-		suppressed_cells,
-		enabled
+		PaintGeneratorData, geometry, recipe, target_tilemap, grid_size, grid_offset, start, end,
+		brush_shape, line_thickness, line_spacing, area_mode, area_thickness, random_fill_density,
+		stroke_points, suppressed_cells, enabled
 	)
 };
 
@@ -278,7 +236,8 @@ public:
 	PaintGenerator& SetEnabled(bool enabled);
 
 	/// @brief Sets the target tilemap for a generator in a Tile layer.
-	/// @return False if target is from another scene, is not a Tilemap, or is not in the same layer.
+	/// @return False if target is from another scene, is not a Tilemap, or is not in the same
+	/// layer.
 	bool SetTargetTilemap(std::optional<Tilemap> target);
 
 	[[nodiscard]] bool IsSuppressed(V2_int cell) const;
@@ -290,9 +249,7 @@ public:
 
 /// @brief Creates a generator entity in either an Entity or Tile layer.
 [[nodiscard]] PaintGenerator CreatePaintGenerator(
-	Scene& scene,
-	SceneLayerId layer,
-	Tag tag = Tag{ "Generator" }
+	Scene& scene, SceneLayerId layer, Tag tag = Tag{ "Generator" }
 );
 
 } // namespace ptgn

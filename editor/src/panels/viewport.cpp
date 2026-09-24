@@ -1977,7 +1977,7 @@ void ViewportPanel::OnRender(EditorContext& ctx) {
 
 	ctx.editor.GetDebugSystem().stats.Increment("draw_calls");
 
-	const bool position_pick_was_active{
+	const bool position_pick_was_active_at_viewport_start{
 		inspector::IsPositionPickingActive(ctx)
 	};
 	const V2_float mouse_screen{
@@ -1987,7 +1987,7 @@ void ViewportPanel::OnRender(EditorContext& ctx) {
 		ContainsPoint(viewport, mouse_screen)
 	};
 
-	if (position_pick_was_active) {
+	if (position_pick_was_active_at_viewport_start) {
 		ImGui::GetForegroundDrawList()->AddRect(
 			ToImGui(viewport.position),
 			ToImGui(viewport.position + viewport.size),
@@ -1998,7 +1998,7 @@ void ViewportPanel::OnRender(EditorContext& ctx) {
 		);
 	}
 
-	if (position_pick_was_active) {
+	if (position_pick_was_active_at_viewport_start) {
 		const bool cancel_with_escape{
 			ImGui::IsKeyPressed(ImGuiKey_Escape, false)
 		};
@@ -2066,7 +2066,9 @@ void ViewportPanel::OnRender(EditorContext& ctx) {
 
 		DrawSceneCameraOutlines(ctx, presentation_viewport, frame);
 
-		if (position_pick_was_active && inspector::IsPositionPickingActive(ctx)) {
+		if (inspector::IsPositionPickingActive(ctx)) {
+			// Position picking is a modal viewport interaction. It takes priority over
+			// every paint tool and entity-picking path until it completes or is cancelled.
 			DrawPositionPickerPreview(
 				ctx,
 				viewport,
@@ -2075,9 +2077,11 @@ void ViewportPanel::OnRender(EditorContext& ctx) {
 				position_pick_frame
 			);
 
-			const bool can_pick{ !ImGui::GetIO().WantTextInput };
-
-			if (can_pick && mouse_inside_image &&
+			// Do not gate this on io.WantTextInput. The numeric/vector field that launched
+			// the picker can retain keyboard focus for a frame (or longer), which used to
+			// make the viewport ignore the left mouse entirely. Once a PositionPicker is
+			// active, clicking the viewport is an explicit request to pick.
+			if (mouse_inside_image &&
 				!inspector::IsPositionPickDragging(ctx) &&
 				ImGui::IsMouseClicked(ImGuiMouseButton_Left)) {
 				const V2_float world_position{
@@ -2089,10 +2093,10 @@ void ViewportPanel::OnRender(EditorContext& ctx) {
 					)
 				};
 
-				inspector::BeginPickedPositionDrag(ctx, world_position);
+				(void)inspector::BeginPickedPositionDrag(ctx, world_position);
 			}
 
-			if (can_pick && inspector::IsPositionPickDragging(ctx) &&
+			if (inspector::IsPositionPickDragging(ctx) &&
 				ImGui::IsMouseDown(ImGuiMouseButton_Left)) {
 				const V2_float world_position{
 					ScreenToWorld(
@@ -2103,36 +2107,34 @@ void ViewportPanel::OnRender(EditorContext& ctx) {
 					)
 				};
 
-				inspector::UpdatePickedPositionDrag(ctx, world_position);
+				(void)inspector::UpdatePickedPositionDrag(ctx, world_position);
 			}
 
 			if (inspector::IsPositionPickDragging(ctx) &&
 				ImGui::IsMouseReleased(ImGuiMouseButton_Left)) {
-				const V2_float world_position{
-					ScreenToWorld(
-						mouse_screen,
-						frame,
-						presentation_viewport,
-						position_pick_frame
-					)
-				};
+				// Clamp the final sample to the last valid viewport point. This preserves the
+				// live value if the user drags out of the image before releasing instead of
+				// converting an unrelated toolbar/panel coordinate as a world position.
+				if (mouse_inside_image) {
+					const V2_float world_position{
+						ScreenToWorld(
+							mouse_screen,
+							frame,
+							presentation_viewport,
+							position_pick_frame
+						)
+					};
 
-				inspector::UpdatePickedPositionDrag(ctx, world_position);
-				inspector::CompletePickedPosition(ctx);
+					(void)inspector::UpdatePickedPositionDrag(ctx, world_position);
+				}
+
+				(void)inspector::CompletePickedPosition(ctx);
 			}
-		} else if (!position_pick_was_active && use_editor_camera_) {
+		} else if (use_editor_camera_) {
 			auto& paint{ ctx.editor.GetPaintEditor() };
-			const bool consumed{ paint.DrawViewportAndHandleInput(
+			(void)paint.DrawViewportAndHandleInput(
 				ctx, *scene, viewport, presentation_viewport, frame
-			) };
-
-			// Paint Select intentionally delegates entity click resolution to the existing
-			// renderer ID buffer. The old transform gizmo path is no longer invoked.
-			if (!consumed && paint.WantsEntityPicking(*scene)) {
-				HandleEntityPicking(
-					ctx, viewport, presentation_size, presentation_viewport, frame
-				);
-			}
+			);
 		}
 
 		draw_list->PopClipRect();
@@ -2356,7 +2358,6 @@ void ViewportPanel::HandleEntityPicking(
 	if (!outer_id.has_value() || outer_id.value() == ::ptgn::impl::kNoEntityId) {
 		hierarchy.SetSelectedEntity({});
 		ctx.editor.GetPaintEditor().ClearSelection();
-		ctx.editor.GetPaintEditor().OnEntityPicked(ctx, {});
 		return;
 	}
 
@@ -2390,12 +2391,11 @@ void ViewportPanel::HandleEntityPicking(
 		return;
 	}
 
+	ctx.editor.GetPaintEditor().ClearSelection();
 	if (selected_entity) {
-		ctx.editor.GetPaintEditor().OnEntityPicked(ctx, selected_entity);
+		hierarchy.SetSelectedEntity(selected_entity);
 	} else {
 		hierarchy.SetSelectedEntity({});
-		ctx.editor.GetPaintEditor().ClearSelection();
-		ctx.editor.GetPaintEditor().OnEntityPicked(ctx, {});
 	}
 }
 

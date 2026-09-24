@@ -17,6 +17,7 @@
 #include "runtime/asset/asset_manager.h"
 #include "runtime/asset/prefab.h"
 #include "runtime/scene/scene_manager.h"
+#include "runtime/world/paint_generator.h"
 
 namespace ptgn::editor {
 
@@ -145,13 +146,19 @@ void InspectorPanel::OnRender(EditorContext& ctx) {
 	const bool inspect_linked_prefab{
 		linked_instance != nullptr
 	};
+	const bool inspect_generator{
+		selected_scene_entity &&
+		IsPaintGenerator(selected_scene_entity)
+	};
 
 	const char* title{
 		active_tab == SceneHierarchyTab::Prefabs || inspect_linked_prefab
 			? "Prefab Inspector###Inspector"
 			: active_tab == SceneHierarchyTab::Tiles
 				? "Tile Inspector###Inspector"
-				: "Entity Inspector###Inspector"
+				: inspect_generator
+					? "Generator Inspector###Inspector"
+					: "Entity Inspector###Inspector"
 	};
 
 	const bool inspector_visible{ ImGui::Begin(title) };
@@ -183,6 +190,11 @@ void InspectorPanel::OnRender(EditorContext& ctx) {
 				ctx,
 				linked_instance->prefab,
 				linked_instance->entity_path
+			);
+		} else if (inspect_generator) {
+			ctx.editor.GetPaintEditor().DrawGeneratorInspector(
+				ctx,
+				selected_scene_entity
 			);
 		} else {
 			switch (active_tab) {
