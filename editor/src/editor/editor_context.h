@@ -8,7 +8,7 @@
 #include "commands/editor_commands.h"
 #include "commands/undo_stack.h"
 #include "editor/editor_position_picker.h"
-#include "editor/paint/paint_persistence.h"
+#include "editor/paint/paint_settings.h"
 #include "editor/editor_selection.h"
 #include "editor/editor_settings.h"
 #include "editor/editor_state.h"

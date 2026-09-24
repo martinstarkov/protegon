@@ -15,12 +15,10 @@ namespace ptgn::editor {
 struct PaintTileSliceSettingsState {
 	TextureKey texture{};
 	V2_int tile_size{ 32, 32 };
-	V2_int margin{};
-	V2_int spacing{};
 
 	bool operator==(const PaintTileSliceSettingsState&) const = default;
 
-	PTGN_REFLECT(PaintTileSliceSettingsState, texture, tile_size, margin, spacing)
+	PTGN_REFLECT(PaintTileSliceSettingsState, texture, tile_size)
 };
 
 /// @brief One authored tile entry in the shared editor-only paint library.

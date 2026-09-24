@@ -355,8 +355,6 @@ public:
 private:
 	struct TileSliceSettings {
 		V2_int tile_size{ 32, 32 };
-		V2_int margin{};
-		V2_int spacing{};
 	};
 
 	struct TileLibraryEntry {
@@ -372,10 +370,6 @@ private:
 		TileImportMode mode{ TileImportMode::Auto };
 		int tile_width{ 32 };
 		int tile_height{ 32 };
-		int margin_x{};
-		int margin_y{};
-		int spacing_x{};
-		int spacing_y{};
 		bool use_filename_dimensions{ true };
 		bool create_group_from_source{};
 		std::string target_group{ "Ungrouped" };

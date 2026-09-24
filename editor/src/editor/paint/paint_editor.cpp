@@ -837,8 +837,6 @@ void DrawToolIcon(ImDrawList* draw, PaintTool tool, ImVec2 min, ImU32 color, flo
 struct TiledTilesetInfo {
 	int tile_width{};
 	int tile_height{};
-	int margin{};
-	int spacing{};
 	std::vector<std::string> images{};
 };
 
@@ -879,10 +877,6 @@ struct TiledTilesetInfo {
 			RegexInt(text, std::regex{ R"rx(tilewidth\s*=\s*"([0-9]+)")rx", std::regex::icase });
 		info.tile_height =
 			RegexInt(text, std::regex{ R"rx(tileheight\s*=\s*"([0-9]+)")rx", std::regex::icase });
-		info.margin =
-			RegexInt(text, std::regex{ R"rx(margin\s*=\s*"([0-9]+)")rx", std::regex::icase });
-		info.spacing =
-			RegexInt(text, std::regex{ R"rx(spacing\s*=\s*"([0-9]+)")rx", std::regex::icase });
 		const std::regex image{ R"rx(<image[^>]*\bsource\s*=\s*"([^"]+)")rx", std::regex::icase };
 		for (std::sregex_iterator it{ text.begin(), text.end(), image }, end; it != end; ++it) {
 			info.images.push_back((*it)[1].str());
@@ -892,10 +886,6 @@ struct TiledTilesetInfo {
 			RegexInt(text, std::regex{ R"rx("tilewidth"\s*:\s*([0-9]+))rx", std::regex::icase });
 		info.tile_height =
 			RegexInt(text, std::regex{ R"rx("tileheight"\s*:\s*([0-9]+))rx", std::regex::icase });
-		info.margin =
-			RegexInt(text, std::regex{ R"rx("margin"\s*:\s*([0-9]+))rx", std::regex::icase });
-		info.spacing =
-			RegexInt(text, std::regex{ R"rx("spacing"\s*:\s*([0-9]+))rx", std::regex::icase });
 		const std::regex image{ R"rx("image"\s*:\s*"([^"]+)")rx", std::regex::icase };
 		for (std::sregex_iterator it{ text.begin(), text.end(), image }, end; it != end; ++it) {
 			std::string value{ (*it)[1].str() };
@@ -2604,8 +2594,8 @@ PaintTileSource PaintEditor::MakeTileSource(
 	}
 
 	const V2_int pixel_min{
-		settings->margin.x + slice.x * (settings->tile_size.x + settings->spacing.x),
-		settings->margin.y + slice.y * (settings->tile_size.y + settings->spacing.y),
+		slice.x * settings->tile_size.x,
+		slice.y * settings->tile_size.y,
 	};
 	const V2_int pixel_max{ pixel_min + settings->tile_size };
 	if (pixel_min.x < 0 || pixel_min.y < 0 || pixel_max.x > texture_size.x ||
@@ -3780,8 +3770,6 @@ void PaintEditor::EnsureProjectLibrary(EditorContext& ctx) {
 		tile_slice_settings_.insert_or_assign(
 			stored.texture.value, TileSliceSettings{
 									  .tile_size = stored.tile_size,
-									  .margin	 = stored.margin,
-									  .spacing	 = stored.spacing,
 								  }
 		);
 	}
@@ -3820,8 +3808,6 @@ void PaintEditor::SaveProjectLibrary(EditorContext& ctx) const {
 			PaintTileSliceSettingsState{
 				.texture   = TextureKey{ texture },
 				.tile_size = settings.tile_size,
-				.margin	   = settings.margin,
-				.spacing   = settings.spacing,
 			}
 		);
 	}
@@ -4190,25 +4176,17 @@ int PaintEditor::ImportImageTiles(
 		group = "Ungrouped";
 	}
 
-	TileSliceSettings slicing{ .tile_size = slice ? tile_size : texture_size,
-							   .margin	  = slice ? V2_int{ std::max(0, settings.margin_x),
-															std::max(0, settings.margin_y) }
-												  : V2_int{},
-							   .spacing	  = slice ? V2_int{ std::max(0, settings.spacing_x),
-															std::max(0, settings.spacing_y) }
-												  : V2_int{} };
+	TileSliceSettings slicing{ .tile_size = slice ? tile_size : texture_size };
 	tile_slice_settings_.insert_or_assign(texture.value, slicing);
 	std::erase_if(tile_library_, [&](const TileLibraryEntry& entry) {
 		return entry.texture == texture;
 	});
 
-	const int step_x{ std::max(1, slicing.tile_size.x + slicing.spacing.x) };
-	const int step_y{ std::max(1, slicing.tile_size.y + slicing.spacing.y) };
 	const int columns{
-		slice ? std::max(0, (texture_size.x - slicing.margin.x + slicing.spacing.x) / step_x) : 1
+		slice ? std::max(0, texture_size.x / std::max(1, slicing.tile_size.x)) : 1
 	};
 	const int rows{
-		slice ? std::max(0, (texture_size.y - slicing.margin.y + slicing.spacing.y) / step_y) : 1
+		slice ? std::max(0, texture_size.y / std::max(1, slicing.tile_size.y)) : 1
 	};
 	int count{};
 	for (int y{}; y < rows; ++y) {
@@ -4265,8 +4243,6 @@ int PaintEditor::ImportTiles(EditorContext& ctx, const TileImportSettings& setti
 				child.use_filename_dimensions = false;
 				child.tile_width  = info.tile_width > 0 ? info.tile_width : settings.tile_width;
 				child.tile_height = info.tile_height > 0 ? info.tile_height : settings.tile_height;
-				child.margin_x = child.margin_y = info.margin;
-				child.spacing_x = child.spacing_y = info.spacing;
 			}
 			total += ImportImageTiles(
 				ctx, child, image.lexically_normal().string(),
@@ -4303,16 +4279,6 @@ void PaintEditor::DrawImportPopup(EditorContext& ctx) {
 	if (import_settings_.mode != TileImportMode::Individual) {
 		ImGui::DragInt("Tile Width", &import_settings_.tile_width, 1.0f, 1, 8192);
 		ImGui::DragInt("Tile Height", &import_settings_.tile_height, 1.0f, 1, 8192);
-		int margin[2]{ import_settings_.margin_x, import_settings_.margin_y };
-		if (ImGui::DragInt2("Margin", margin, 1.0f, 0, 8192)) {
-			import_settings_.margin_x = margin[0];
-			import_settings_.margin_y = margin[1];
-		}
-		int spacing[2]{ import_settings_.spacing_x, import_settings_.spacing_y };
-		if (ImGui::DragInt2("Spacing", spacing, 1.0f, 0, 8192)) {
-			import_settings_.spacing_x = spacing[0];
-			import_settings_.spacing_y = spacing[1];
-		}
 		ImGui::Checkbox(
 			"Use _32x32 / -32x32 filename dimensions", &import_settings_.use_filename_dimensions
 		);
@@ -5368,18 +5334,13 @@ void PaintEditor::DrawTileInspector(EditorContext& ctx) {
 	}
 
 	const TextureKey texture{ *inspected_texture_ };
-	auto& settings{ GetSliceSettings(ctx, texture) };
+	const auto& settings{ GetSliceSettings(ctx, texture) };
 	const TileLibraryEntry* selected{ FindTileEntry(selected_tile_entry_id_) };
 	if (selected) {
 		ImGui::Text("%s", selected->name.c_str());
 	}
 	ImGui::TextDisabled("%s", texture.value.c_str());
 	ImGui::Separator();
-
-	int tile_size[2]{ settings.tile_size.x, settings.tile_size.y };
-	int margin[2]{ settings.margin.x, settings.margin.y };
-	int spacing[2]{ settings.spacing.x, settings.spacing.y };
-	bool rebuild{};
 
 	if (ImGui::BeginTable(
 			"##TileSliceSettings", 2,
@@ -5388,132 +5349,16 @@ void PaintEditor::DrawTileInspector(EditorContext& ctx) {
 		ImGui::TableSetupColumn("Label", ImGuiTableColumnFlags_WidthFixed, 72.0f);
 		ImGui::TableSetupColumn("Value", ImGuiTableColumnFlags_WidthStretch);
 
-		auto draw_vec2 = [&](const char* label, const char* id, int values[2], int minimum) {
-			ImGui::TableNextRow();
-			ImGui::TableSetColumnIndex(0);
-			ImGui::AlignTextToFramePadding();
-			ImGui::TextUnformatted(label);
+		ImGui::TableNextRow();
+		ImGui::TableSetColumnIndex(0);
+		ImGui::AlignTextToFramePadding();
+		ImGui::TextUnformatted("Tile Size");
 
-			ImGui::TableSetColumnIndex(1);
-			ImGui::SetNextItemWidth(-FLT_MIN);
-			const bool changed{ ImGui::DragInt2(id, values, 1.0f, minimum, 8192) };
-			const bool finished{ ImGui::IsItemDeactivatedAfterEdit() };
-			return std::pair{ changed, finished };
-		};
-
-		const auto [tile_size_changed, tile_size_finished]{
-			draw_vec2("Tile Size", "##TileSize", tile_size, 1)
-		};
-		if (tile_size_changed) {
-			settings.tile_size = { std::max(1, tile_size[0]), std::max(1, tile_size[1]) };
-		}
-		rebuild |= tile_size_finished;
-
-		const auto [margin_changed, margin_finished]{
-			draw_vec2("Margin", "##Margin", margin, 0)
-		};
-		if (margin_changed) {
-			settings.margin = { std::max(0, margin[0]), std::max(0, margin[1]) };
-		}
-		rebuild |= margin_finished;
-
-		const auto [spacing_changed, spacing_finished]{
-			draw_vec2("Spacing", "##Spacing", spacing, 0)
-		};
-		if (spacing_changed) {
-			settings.spacing = { std::max(0, spacing[0]), std::max(0, spacing[1]) };
-		}
-		rebuild |= spacing_finished;
+		ImGui::TableSetColumnIndex(1);
+		ImGui::AlignTextToFramePadding();
+		ImGui::Text("%d x %d", settings.tile_size.x, settings.tile_size.y);
 
 		ImGui::EndTable();
-	}
-
-	if (rebuild) {
-		struct ExistingSlice {
-			V2_int slice{};
-			std::string name{};
-			std::string group{ "Ungrouped" };
-		};
-
-		std::vector<ExistingSlice> existing;
-		for (const auto& entry : tile_library_) {
-			if (entry.texture == texture) {
-				existing.push_back({ entry.slice, entry.name, entry.group });
-			}
-		}
-
-		const std::string fallback_group{
-			selected && selected->texture == texture ? selected->group : "Ungrouped"
-		};
-		const V2_int previously_inspected_slice{ inspected_slice_ };
-
-		V2_int size{};
-		for (const auto& record :
-			 ::ptgn::impl::AssetAccessor{ ctx.editor.GetAssetManager() }.GetAssets()) {
-			if (record.kind == AssetKind::Texture &&
-				record.key == static_cast<const AssetKey&>(texture) &&
-				record.metadata.dimensions.has_value()) {
-				size = *record.metadata.dimensions;
-				break;
-			}
-		}
-
-		std::erase_if(tile_library_, [&](const TileLibraryEntry& entry) {
-			return entry.texture == texture;
-		});
-
-		if (size.IsPositive()) {
-			const int columns{ std::max(
-				0, (size.x - settings.margin.x + settings.spacing.x) /
-					   std::max(1, settings.tile_size.x + settings.spacing.x)
-			) };
-			const int rows{ std::max(
-				0, (size.y - settings.margin.y + settings.spacing.y) /
-					   std::max(1, settings.tile_size.y + settings.spacing.y)
-			) };
-
-			const std::string base_name{ TextureDisplayName(texture) };
-			int index{};
-			for (int y{}; y < rows; ++y) {
-				for (int x{}; x < columns; ++x) {
-					const V2_int slice{ x, y };
-					const auto old{ std::ranges::find(existing, slice, &ExistingSlice::slice) };
-
-					tile_library_.push_back(
-						TileLibraryEntry{
-							.id = TileEntryId(texture, slice),
-							.name = old != existing.end()
-								? old->name
-								: base_name + "_" + std::to_string(index),
-							.texture = texture,
-							.slice = slice,
-							.group = old != existing.end() ? old->group : fallback_group,
-						}
-					);
-					++index;
-				}
-			}
-
-			const std::string previous_id{ TileEntryId(texture, previously_inspected_slice) };
-			if (const TileLibraryEntry* previous{ FindTileEntry(previous_id) }) {
-				selected_tile_entry_id_ = previous->id;
-				inspected_slice_ = previous->slice;
-			} else {
-				const auto first{ std::ranges::find(tile_library_, texture, &TileLibraryEntry::texture) };
-				if (first != tile_library_.end()) {
-					selected_tile_entry_id_ = first->id;
-					inspected_slice_ = first->slice;
-				} else {
-					selected_tile_entry_id_.clear();
-					inspected_slice_ = {};
-				}
-			}
-		} else {
-			selected_tile_entry_id_.clear();
-			inspected_slice_ = {};
-		}
-
-		SaveProjectLibrary(ctx);
 	}
 
 	ImGui::Text("Selected slice: %d, %d", inspected_slice_.x, inspected_slice_.y);
