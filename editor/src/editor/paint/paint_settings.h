@@ -1,3 +1,4 @@
+// paint_settings.h
 #pragma once
 
 #include <array>

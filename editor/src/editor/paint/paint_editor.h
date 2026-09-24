@@ -177,12 +177,14 @@ struct PaintWeightedPrefabSet {
 
 struct PaintAutotileRuleSet {
 	std::uint64_t id{};
+	/// Internal/debug label only. Autotile rulesets are derived from a tilesheet + format.
 	std::string name{};
-	PaintAutotileFormat format{ PaintAutotileFormat::DualGrid16 };
-	std::vector<std::optional<PaintTileSource>> tiles{ 16 };
+	TextureKey texture{};
+	PaintAutotileFormat format{ PaintAutotileFormat::Classic15 };
+	std::vector<std::optional<PaintTileSource>> tiles{};
 
 	bool operator==(const PaintAutotileRuleSet&) const = default;
-	PTGN_REFLECT(PaintAutotileRuleSet, id, name, format, tiles)
+	PTGN_REFLECT(PaintAutotileRuleSet, id, name, texture, format, tiles)
 };
 
 struct PaintNoiseThreshold {
@@ -237,7 +239,8 @@ struct PaintRecipeState {
 	std::string weighted_prefab_set_name{};
 	std::optional<PaintTileSource> checker_tile{};
 	std::optional<PrefabKey> checker_prefab{};
-	std::string autotile_ruleset_name{};
+	PaintAutotileFormat autotile_format{ PaintAutotileFormat::Classic15 };
+	TextureKey autotile_texture{};
 	PaintTilePlacementMode tile_placement{ PaintTilePlacementMode::Tile };
 	Origin tile_origin{ Origin::TopLeft };
 	Origin entity_origin{ Origin::Center };
@@ -270,7 +273,8 @@ struct PaintRecipeState {
 		weighted_prefab_set_name,
 		checker_tile,
 		checker_prefab,
-		autotile_ruleset_name,
+		autotile_format,
+		autotile_texture,
 		tile_placement,
 		tile_origin,
 		entity_origin,
@@ -526,20 +530,27 @@ private:
 	bool DrawPrefabSourceCombo(EditorContext& ctx, const char* id, std::optional<PrefabKey>& source);
 	void DrawWeightedTileSetEditor(EditorContext& ctx);
 	void DrawWeightedPrefabSetEditor(EditorContext& ctx);
-	void DrawAutotileRuleSetEditor(EditorContext& ctx);
+	void DrawAutotileSourceEditor(EditorContext& ctx);
 
 	[[nodiscard]] PaintWeightedTileSet* FindWeightedTileSet(std::string_view name);
 	[[nodiscard]] const PaintWeightedTileSet* FindWeightedTileSet(std::string_view name) const;
 	[[nodiscard]] PaintWeightedPrefabSet* FindWeightedPrefabSet(std::string_view name);
 	[[nodiscard]] const PaintWeightedPrefabSet* FindWeightedPrefabSet(std::string_view name) const;
-	[[nodiscard]] PaintAutotileRuleSet* FindAutotileRuleSet(std::string_view name);
-	[[nodiscard]] const PaintAutotileRuleSet* FindAutotileRuleSet(std::string_view name) const;
+	[[nodiscard]] PaintAutotileRuleSet* FindAutotileRuleSet(
+		const TextureKey& texture,
+		PaintAutotileFormat format
+	);
+	[[nodiscard]] const PaintAutotileRuleSet* FindAutotileRuleSet(
+		const TextureKey& texture,
+		PaintAutotileFormat format
+	) const;
 	[[nodiscard]] PaintAutotileRuleSet* FindAutotileRuleSet(std::uint64_t id);
 	[[nodiscard]] const PaintAutotileRuleSet* FindAutotileRuleSet(std::uint64_t id) const;
 	[[nodiscard]] std::string UniqueWeightedTileSetName() const;
 	[[nodiscard]] std::string UniqueWeightedPrefabSetName() const;
-	[[nodiscard]] std::string UniqueAutotileRuleSetName() const;
 	[[nodiscard]] std::uint64_t NextAutotileRuleSetId() const;
+	[[nodiscard]] PaintAutotileRuleSet* ResolveAutotileRuleSet(EditorContext& ctx);
+	bool RefreshAutotileRuleSet(EditorContext& ctx, PaintAutotileRuleSet& rules);
 	void RecomputeAutotileAround(Tilemap tilemap, V2_int cell, const PaintAutotileRuleSet& rules);
 
 	[[nodiscard]] PaintTileSource MakeTileSource(
