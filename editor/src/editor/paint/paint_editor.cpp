@@ -1480,7 +1480,7 @@ bool PaintEditor::DrawViewportOptionsToolbar(EditorContext& ctx) {
 	SyncHierarchySelection(ctx, *scene);
 
 	SceneLayer* layer{ ResolveActiveLayer(*scene) };
-	if (!layer || tool_ == PaintTool::Eyedropper) {
+	if (!layer) {
 		return false;
 	}
 
@@ -1631,6 +1631,10 @@ void PaintEditor::DrawBrushSettingsToolbar(EditorContext& ctx, Scene& scene, Sce
 	}
 
 	if (tool_ == PaintTool::Eyedropper) {
+		// Eyedropper intentionally has no options, but the options row must keep the
+		// same height as every other paint tool so switching tools does not resize
+		// the viewport.
+		ImGui::Dummy({ 0.0f, control_height });
 		ImGui::PopID();
 		return;
 	}
