@@ -304,7 +304,9 @@ public:
 	/// @brief Second viewport row: context-sensitive settings for the active paint tool.
 	bool DrawViewportOptionsToolbar(EditorContext& ctx);
 
+	/// @brief Paint source, coverage, and infinite-generator authoring panel.
 	void DrawRecipePanel(EditorContext& ctx);
+
 
 	/// Draws the Tiles dock window and returns whether it was the visible dock tab this frame.
 	bool DrawTilesPanel(EditorContext& ctx);
