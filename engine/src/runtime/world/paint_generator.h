@@ -75,8 +75,12 @@ PTGN_REFLECT_ENUM(PaintGeneratorAutotileFormat);
 
 struct PaintGeneratorTileSource {
 	TextureKey texture{};
-	std::array<V2_float, 4> texture_coordinates{ V2_float{ 0.0f, 0.0f }, V2_float{ 1.0f, 0.0f },
-												 V2_float{ 1.0f, 1.0f }, V2_float{ 0.0f, 1.0f } };
+	std::array<V2_float, 4> texture_coordinates{
+		V2_float{ 0.0f, 0.0f },
+		V2_float{ 1.0f, 0.0f },
+		V2_float{ 1.0f, 1.0f },
+		V2_float{ 0.0f, 1.0f },
+	};
 	V2_int pixel_size{ 32, 32 };
 	Origin origin{ Origin::TopLeft };
 
@@ -97,8 +101,6 @@ struct PaintGeneratorWeightedPrefabEntry {
 	PTGN_REFLECT(PaintGeneratorWeightedPrefabEntry, prefab, weight)
 };
 
-/// @brief One output band in a procedural noise source. A Tile-layer generator uses tile, while
-/// an Entity-layer generator uses prefab. Leaving both unset intentionally emits nothing.
 struct PaintGeneratorNoiseThreshold {
 	float minimum{};
 	float maximum{ 1.0f };
@@ -108,7 +110,7 @@ struct PaintGeneratorNoiseThreshold {
 	std::optional<PrefabKey> prefab{};
 	std::vector<PaintGeneratorWeightedTileEntry> weighted_tiles{};
 	std::vector<PaintGeneratorWeightedPrefabEntry> weighted_prefabs{};
-	Origin origin{ Origin::Center };
+	Origin origin{ Origin::TopLeft };
 
 	PTGN_REFLECT(
 		PaintGeneratorNoiseThreshold, minimum, maximum, enabled, source_kind, tile, prefab,
@@ -132,8 +134,6 @@ struct PaintGeneratorNoise {
 	)
 };
 
-/// @brief Captured procedural source state. Persistent generators own a copy so changing the
-/// editor's current Paint Recipe does not silently alter an existing generator.
 struct PaintGeneratorRecipe {
 	PaintGeneratorSourceKind source_kind{ PaintGeneratorSourceKind::Single };
 	PaintGeneratorCoverageMode coverage{ PaintGeneratorCoverageMode::Solid };
@@ -162,7 +162,6 @@ struct PaintGeneratorRecipe {
 	float scale_max{ 1.2f };
 	PaintGeneratorNoise noise{};
 	bool show_noise_preview{};
-	bool show_generated_preview{ true };
 	float noise_preview_alpha{ 0.45f };
 
 	PTGN_REFLECT(
@@ -170,16 +169,13 @@ struct PaintGeneratorRecipe {
 		checker_tile, checker_prefab, autotile_format, autotile_tiles, tile_placement, tile_origin,
 		entity_origin, density, radial_inner, radial_outer, min_spacing, avoid_exclusion_mask,
 		link_prefab_instances, random_rotation, rotation_min, rotation_max, random_scale, scale_min,
-		scale_max, noise, show_noise_preview, show_generated_preview, noise_preview_alpha
+		scale_max, noise, show_noise_preview, noise_preview_alpha
 	)
 };
 
 struct PaintGeneratorStrokePoint {
 	V2_float position{};
 	int diameter{ 1 };
-
-	// Stable authored brush-stroke identity. Equal diameters do not imply equal strokes.
-	// Zero is reserved for legacy generators serialized before this field existed.
 	std::uint32_t stroke_id{ 0 };
 
 	PTGN_REFLECT(PaintGeneratorStrokePoint, position, diameter, stroke_id)
@@ -187,17 +183,16 @@ struct PaintGeneratorStrokePoint {
 
 namespace impl {
 
-/// @brief Persistent component that turns an ECS entity into a procedural PaintGenerator entity.
-/// Geometry is stored in the generator's local world plane and the entity Transform offsets the
-/// entire generator. The recipe is captured at creation time.
 struct PaintGeneratorData {
 	PaintGeneratorGeometry geometry{ PaintGeneratorGeometry::Rectangle };
 	PaintGeneratorRecipe recipe{};
 
-	/// @brief Optional target Tilemap for a generator living in a Tile layer.
-	/// Entity-layer generators leave this unset and emit entity instances instead.
+	/// Compatibility/recovery hint for scenes authored before Tilemap parenting.
+	/// A Tile-layer generator's Tilemap parent is authoritative.
 	std::optional<UUID> target_tilemap{};
 
+	/// Captured authoring raster. These are implementation details rather than ordinary
+	/// Inspector properties; generators retain the lattice they were authored against.
 	V2_float grid_size{ 32.0f, 32.0f };
 	V2_float grid_offset{};
 	V2_float start{};
@@ -235,9 +230,11 @@ public:
 	PaintGenerator& SetGrid(V2_float size, V2_float offset = {});
 	PaintGenerator& SetEnabled(bool enabled);
 
-	/// @brief Sets the target tilemap for a generator in a Tile layer.
-	/// @return False if target is from another scene, is not a Tilemap, or is not in the same
-	/// layer.
+	/// @brief Return the Tilemap parent. A valid legacy UUID is accepted as a migration fallback.
+	[[nodiscard]] Tilemap GetTargetTilemap() const;
+
+	/// @brief Parent this generator to a Tilemap while preserving its world transform.
+	/// Passing null removes a Tilemap parent and clears the compatibility target.
 	bool SetTargetTilemap(std::optional<Tilemap> target);
 
 	[[nodiscard]] bool IsSuppressed(V2_int cell) const;
@@ -247,7 +244,6 @@ public:
 
 [[nodiscard]] bool IsPaintGenerator(Entity entity);
 
-/// @brief Creates a generator entity in either an Entity or Tile layer.
 [[nodiscard]] PaintGenerator CreatePaintGenerator(
 	Scene& scene, SceneLayerId layer, Tag tag = Tag{ "Generator" }
 );

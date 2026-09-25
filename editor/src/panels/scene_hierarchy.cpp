@@ -418,6 +418,10 @@ bool EntityOrDescendantMatchesFilter(
 	Entity entity, std::string_view filter_text, bool show_managed_ui_parts,
 	std::size_t recursion_depth = 0
 ) {
+	if (!entity) {
+		return false;
+	}
+
 	PTGN_ASSERT(
 		recursion_depth <= kMaxParentDepth,
 		"Maximum parent depth exceeded while filtering entities. "
@@ -502,16 +506,6 @@ bool CanReparent(Entity entity, Entity parent) {
 		return false;
 	}
 
-	// Prefab descendants are owned by the prefab hierarchy. The linked root may still be
-	// positioned/reparented as one scene instance, but its authored children cannot be detached,
-	// and linked prefab nodes cannot accept arbitrary scene children that would be discarded on sync.
-	if (IsPrefabInstance(entity) && !IsPrefabInstanceRoot(entity)) {
-		return false;
-	}
-	if (parent && IsPrefabInstance(parent)) {
-		return false;
-	}
-
 	if (parent) {
 		auto& layers{ entity.GetScene().GetLayers() };
 		if (layers.GetLayerId(entity) != layers.GetLayerId(parent)) {
@@ -521,6 +515,16 @@ bool CanReparent(Entity entity, Entity parent) {
 
 	if (parent && IsSameOrDescendant(parent, entity)) {
 		return false;
+	}
+
+	if (IsPaintGenerator(entity)) {
+		const auto layer_id{ entity.GetScene().GetLayers().GetLayerId(entity) };
+		const SceneLayer* layer{
+			layer_id ? entity.GetScene().GetLayers().Find(*layer_id) : nullptr
+		};
+		if (layer && layer->kind == SceneLayerKind::Tile && parent && !IsTilemap(parent)) {
+			return false;
+		}
 	}
 
 	if (GetParentAssignmentLockReason(entity, parent).has_value()) {
@@ -569,6 +573,15 @@ void ApplyHierarchyDrop(EditorContext& ctx, const PendingHierarchyDrop& drop) {
 	}
 
 	ctx.commands.ReparentEntity(drop.entity, drop.parent, true);
+
+	if (IsPaintGenerator(drop.entity)) {
+		auto& data{ PaintGenerator{ drop.entity }.GetData() };
+		if (drop.parent && IsTilemap(drop.parent)) {
+			data.target_tilemap = drop.parent.Get<UUID>();
+		} else {
+			data.target_tilemap.reset();
+		}
+	}
 }
 
 void DrawRestrictionReasons(std::initializer_list<std::optional<std::string_view>> reasons) {
@@ -1336,7 +1349,6 @@ void DrawSceneHierarchyContents(
 	std::string entity_rename_name;
 	Entity entity_to_duplicate;
 	Entity entity_to_delete;
-	Entity prefab_instance_to_convert;
 	PendingHierarchyDrop pending_drop;
 
 	RenameEditStateRef entity_rename_state{
@@ -1392,6 +1404,10 @@ void DrawSceneHierarchyContents(
 	bool entity_left_clicked_this_frame{ false };
 
 	auto draw_entity = [&](auto&& self, Entity entity, std::size_t recursion_depth) -> void {
+		if (!entity || !scene.Entities().Contains(entity)) {
+			return;
+		}
+
 		PTGN_ASSERT(
 			recursion_depth <= kMaxParentDepth,
 			"Maximum parent depth exceeded while sorting entities by depth. "
@@ -1417,9 +1433,10 @@ void DrawSceneHierarchyContents(
 			std::remove_if(
 				children.begin(), children.end(),
 				[&](Entity child) {
-					return !EntityOrDescendantMatchesFilter(
-						child, filter_text, show_managed_ui_parts
-					);
+					return !child || !scene.Entities().Contains(child) ||
+						   !EntityOrDescendantMatchesFilter(
+							   child, filter_text, show_managed_ui_parts
+						   );
 				}
 			),
 			children.end()
@@ -1568,37 +1585,12 @@ void DrawSceneHierarchyContents(
 				BeginRename(entity_rename_state, current_name);
 			},
 			[&]() {
-				ImGui::BeginDisabled(!layer_interactable || IsPrefabInstance(entity));
+				ImGui::BeginDisabled(!layer_interactable);
 				DrawCreateEntityMenu(ctx, scene, entity, selected_entity);
 				ImGui::EndDisabled();
 			},
 			[&]() {
-				const bool linked_prefab_entity{
-					IsPrefabInstance(entity)
-				};
-				const Entity linked_root{
-					linked_prefab_entity
-						? GetPrefabInstanceRoot(entity)
-						: Entity{}
-				};
-
-				if (linked_root) {
-					if (ImGui::MenuItem("Convert Prefab Instance to Entity")) {
-						prefab_instance_to_convert = linked_root;
-					}
-					ImGui::Separator();
-				}
-
-				const bool linked_child{
-					linked_prefab_entity &&
-					!IsPrefabInstanceRoot(entity)
-				};
-
-				ImGui::BeginDisabled(
-					!layer_interactable ||
-					duplication_lock_reason.has_value() ||
-					linked_child
-				);
+				ImGui::BeginDisabled(!layer_interactable || duplication_lock_reason.has_value());
 
 				if (ImGui::MenuItem("Duplicate")) {
 					entity_to_duplicate = entity;
@@ -1606,7 +1598,7 @@ void DrawSceneHierarchyContents(
 
 				ImGui::EndDisabled();
 
-				ImGui::BeginDisabled(!project_root.has_value() || linked_prefab_entity);
+				ImGui::BeginDisabled(!project_root.has_value());
 
 				if (ImGui::MenuItem("Save As Prefab")) {
 					const PrefabKey created_key{ ctx.commands.CreatePrefabAsset(
@@ -1627,11 +1619,7 @@ void DrawSceneHierarchyContents(
 				if (ptgn::HasParent(entity)) {
 					bool can_move_to_root{ CanReparent(entity, {}) };
 
-					ImGui::BeginDisabled(
-						!layer_interactable ||
-						!can_move_to_root ||
-						linked_child
-					);
+					ImGui::BeginDisabled(!layer_interactable || !can_move_to_root);
 
 					if (ImGui::MenuItem("Move To Root")) {
 						pending_drop = PendingHierarchyDrop{
@@ -1643,11 +1631,7 @@ void DrawSceneHierarchyContents(
 					ImGui::EndDisabled();
 				}
 
-				ImGui::BeginDisabled(
-					!layer_interactable ||
-					deletion_lock_reason.has_value() ||
-					linked_child
-				);
+				ImGui::BeginDisabled(!layer_interactable || deletion_lock_reason.has_value());
 
 				if (ImGui::MenuItem("Delete")) {
 					entity_to_delete = entity;
@@ -1666,7 +1650,7 @@ void DrawSceneHierarchyContents(
 				);
 			},
 			RenamableContextMenuOptions{
-				.rename_enabled = layer_interactable && !IsPrefabInstance(entity),
+				.rename_enabled = layer_interactable,
 				.rename_placement = RenameMenuPlacement::Middle,
 			}
 		);
@@ -1808,8 +1792,21 @@ void DrawSceneHierarchyContents(
 					if (ImGui::MenuItem("Create Generator")) {
 						PaintGenerator created{ CreatePaintGenerator(scene, layer->id) };
 						if (created) {
+							if (const auto target_uuid{
+									ctx.editor.GetPaintEditor().GetTargetTilemapUUID()
+								}) {
+								if (Entity target{ scene.GetEntity(*target_uuid) };
+									target && IsTilemap(target) &&
+									scene.GetLayers().GetLayerId(target) ==
+										std::optional<SceneLayerId>{ layer->id }) {
+									static_cast<void>(
+										created.SetTargetTilemap(Tilemap{ target })
+									);
+								}
+							}
 							scene.Refresh();
-							selected_entity = ctx.commands.RecordCreatedEntity(created, ctx.local.selection);
+							selected_entity =
+								ctx.commands.RecordCreatedEntity(created, ctx.local.selection);
 						}
 					}
 					ImGui::EndDisabled();
@@ -1838,6 +1835,9 @@ void DrawSceneHierarchyContents(
 
 		if (!editing_layer && open) {
 			auto roots{ scene_layers.GetRootEntities(scene, layer->id) };
+			std::erase_if(roots, [&](Entity entity) {
+				return !entity || !scene.Entities().Contains(entity);
+			});
 			SortByLocalDepth(roots);
 			for (Entity entity : roots) draw_entity(draw_entity, entity, 0);
 			ImGui::TreePop();
@@ -1881,8 +1881,21 @@ void DrawSceneHierarchyContents(
 			if (ImGui::MenuItem("Create Generator")) {
 				PaintGenerator created{ CreatePaintGenerator(scene, active_layer_id) };
 				if (created) {
+					if (const auto target_uuid{
+							ctx.editor.GetPaintEditor().GetTargetTilemapUUID()
+						}) {
+						if (Entity target{ scene.GetEntity(*target_uuid) };
+							target && IsTilemap(target) &&
+							scene.GetLayers().GetLayerId(target) ==
+								std::optional<SceneLayerId>{ active_layer_id }) {
+							static_cast<void>(
+								created.SetTargetTilemap(Tilemap{ target })
+							);
+						}
+					}
 					scene.Refresh();
-					selected_entity = ctx.commands.RecordCreatedEntity(created, ctx.local.selection);
+					selected_entity =
+						ctx.commands.RecordCreatedEntity(created, ctx.local.selection);
 				}
 			}
 			ImGui::EndDisabled();
@@ -1906,12 +1919,6 @@ void DrawSceneHierarchyContents(
 
 	if (pending_drop) {
 		ApplyHierarchyDrop(ctx, pending_drop);
-	}
-
-	if (prefab_instance_to_convert) {
-		ctx.commands.ConvertPrefabInstanceToEntity(
-			prefab_instance_to_convert
-		);
 	}
 
 	if (entity_to_rename) {
@@ -2252,6 +2259,10 @@ void SceneHierarchyPanel::SetSelectedEntity(Entity entity, bool undoable) {
 		}
 		if (IsTilemap(entity)) {
 			context_->editor.GetPaintEditor().SetTargetTilemap(entity.Get<UUID>());
+		} else if (IsPaintGenerator(entity)) {
+			if (Tilemap target{ PaintGenerator{ entity }.GetTargetTilemap() }) {
+				context_->editor.GetPaintEditor().SetTargetTilemap(target.Get<UUID>());
+			}
 		}
 	} else if (selection.HasSceneSelection()) {
 		selection.SetEntityUUID(

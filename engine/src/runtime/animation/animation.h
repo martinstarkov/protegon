@@ -319,8 +319,8 @@ public:
 	);
 
 	milliseconds GetFrameDuration() const;
-	V2_int GetFrameSize(std::optional<V2_int> texture_size) const;
-	V2_int GetCurrentFramePosition(std::optional<V2_int> texture_size) const;
+	V2_int GetFrameSize(std::optional<V2_int> texture_size = std::nullopt) const;
+	V2_int GetCurrentFramePosition(std::optional<V2_int> texture_size = std::nullopt) const;
 
 	void SetAutomaticRowCount(std::size_t row_count);
 	[[nodiscard]] std::size_t GetAutomaticRowCount() const;

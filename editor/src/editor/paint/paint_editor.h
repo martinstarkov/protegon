@@ -198,7 +198,7 @@ struct PaintNoiseThreshold {
 	std::optional<PrefabKey> prefab{};
 	std::string weighted_tile_set_name{};
 	std::string weighted_prefab_set_name{};
-	Origin origin{ Origin::Center };
+	Origin origin{ Origin::TopLeft };
 
 	bool operator==(const PaintNoiseThreshold&) const = default;
 
@@ -260,7 +260,6 @@ struct PaintRecipeState {
 	float scale_max{ 1.2f };
 	PaintNoiseState noise{};
 	bool show_noise_preview{};
-	bool show_generated_preview{ true };
 	float noise_preview_alpha{ 0.45f };
 
 	bool operator==(const PaintRecipeState&) const = default;
@@ -294,7 +293,6 @@ struct PaintRecipeState {
 		scale_max,
 		noise,
 		show_noise_preview,
-		show_generated_preview,
 		noise_preview_alpha
 	)
 };
@@ -322,6 +320,11 @@ public:
 	void UndoActiveBrushStroke(EditorContext& ctx, Scene& scene);
 	void BakeGenerator(EditorContext& ctx, Scene& scene, Entity generator);
 	[[nodiscard]] bool IsActiveBrushGenerator(Entity generator) const;
+
+	/// Edit an existing generator's captured source. The viewport resolves the recipe every frame.
+	bool DrawGeneratorSourceEditor(
+		EditorContext& ctx, Entity generator, PaintGeneratorRecipe& recipe
+	);
 
 	/// Draw tilemap/generator/grid/tool overlays and process paint input. Returns true when the paint
 	/// tool consumed the current pointer interaction. Selection is handled entirely by PaintEditor so
@@ -404,6 +407,7 @@ private:
 		std::optional<UUID> tilemap{};
 		std::optional<::ptgn::impl::TilemapData> tilemap_before{};
 		EntityStroke entities{};
+		std::vector<std::pair<UUID, ::ptgn::impl::PaintGeneratorData>> generator_before{};
 		std::unordered_set<V2_int> touched_cells{};
 		std::vector<V2_float> generator_points{};
 	};

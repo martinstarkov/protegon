@@ -136,28 +136,31 @@ template <typename Target, typename Component, typename Draw>
 bool DrawArchetypeComponentSection(
 	Target& target,
 	std::string_view label,
+	std::string_view id,
 	Draw&& draw
 ) {
-	const std::string node_label{ std::string{ label } + "##Archetype" };
-	const bool open{ ImGui::TreeNodeEx(
-		node_label.c_str(),
-		ImGuiTreeNodeFlags_DefaultOpen | ImGuiTreeNodeFlags_SpanAvailWidth
-	) };
+	const InspectorSectionResult header{
+		DrawInspectorSectionHeader(
+			label,
+			id,
+			InspectorSectionOptions{
+				.default_open = true,
+				.removable = false,
+			}
+		)
+	};
 
-	if (!open) {
+	if (!header.open) {
 		return false;
 	}
 
-	ImGui::Indent();
-	const bool changed{ DrawRequiredComponent<Target, Component>(
+	ScopedIndent indent;
+	return DrawRequiredComponent<Target, Component>(
 		target,
 		label,
 		false,
 		std::forward<Draw>(draw)
-	) };
-	ImGui::Unindent();
-	ImGui::TreePop();
-	return changed;
+	);
 }
 
 template <typename Target>
@@ -165,6 +168,7 @@ bool DrawTilemapArchetype(Target& target) {
 	return DrawArchetypeComponentSection<Target, ::ptgn::impl::TilemapData>(
 		target,
 		"Tilemap",
+		"TilemapSection",
 		[](::ptgn::impl::TilemapData& data) {
 			bool changed{ false };
 
@@ -247,74 +251,6 @@ bool DrawTilemapArchetype(Target& target) {
 	);
 }
 
-template <typename Target>
-bool DrawGeneratorTargetTilemap(Target& target, ::ptgn::impl::PaintGeneratorData& data) {
-	if constexpr (!requires { target.entity; }) {
-		const char* text{ data.target_tilemap.has_value() ? "Assigned" : "None" };
-		ImGui::Text("Target Tilemap: %s", text);
-		return false;
-	} else {
-		Entity generator{ target.entity };
-		if (!generator) {
-			return false;
-		}
-
-		Scene& scene{ generator.GetScene() };
-		const auto generator_layer{ scene.GetLayers().GetLayerId(generator) };
-
-		std::string preview{ "None" };
-		if (data.target_tilemap.has_value()) {
-			if (Entity current{ scene.GetEntity(*data.target_tilemap) };
-				current && IsTilemap(current)) {
-				preview = current.Has<Tag>()
-					? current.Get<Tag>().value
-					: std::string{ "Tilemap" };
-			} else {
-				preview = "Missing";
-			}
-		}
-
-		bool changed{ false };
-		if (ImGui::BeginCombo("Target Tilemap", preview.c_str())) {
-			const bool none_selected{ !data.target_tilemap.has_value() };
-			if (ImGui::Selectable("None", none_selected)) {
-				data.target_tilemap.reset();
-				changed = true;
-			}
-			if (none_selected) {
-				ImGui::SetItemDefaultFocus();
-			}
-
-			for (Entity candidate : scene.Entities()) {
-				if (!candidate || !IsTilemap(candidate)) {
-					continue;
-				}
-				if (scene.GetLayers().GetLayerId(candidate) != generator_layer) {
-					continue;
-				}
-
-				const UUID uuid{ candidate.Get<UUID>() };
-				const bool selected{
-					data.target_tilemap.has_value() && *data.target_tilemap == uuid
-				};
-				const std::string label{
-					candidate.Has<Tag>() ? candidate.Get<Tag>().value : std::string{ "Tilemap" }
-				};
-
-				if (ImGui::Selectable(label.c_str(), selected)) {
-					data.target_tilemap = uuid;
-					changed = true;
-				}
-				if (selected) {
-					ImGui::SetItemDefaultFocus();
-				}
-			}
-
-			ImGui::EndCombo();
-		}
-		return changed;
-	}
-}
 
 bool DrawGeneratorRecipe(::ptgn::impl::PaintGeneratorData& data) {
 	auto& recipe{ data.recipe };
@@ -326,8 +262,6 @@ bool DrawGeneratorRecipe(::ptgn::impl::PaintGeneratorData& data) {
 		)) {
 		return false;
 	}
-
-	ImGui::Text("Source: %s", GeneratorSourceName(recipe.source_kind));
 
 	int coverage{ static_cast<int>(recipe.coverage) };
 	if (ImGui::Combo("Coverage", &coverage, "Solid\0Random Density\0Radial Falloff\0")) {
@@ -398,7 +332,6 @@ bool DrawGeneratorRecipe(::ptgn::impl::PaintGeneratorData& data) {
 		recipe.scale_max = std::max(recipe.scale_min, recipe.scale_max);
 	}
 
-	changed |= ImGui::Checkbox("Show Generated Preview", &recipe.show_generated_preview);
 
 	ImGui::TreePop();
 	return changed;
@@ -409,28 +342,24 @@ bool DrawPaintGeneratorArchetype(Target& target, bool& stop_after_archetype) {
 	bool changed{ DrawArchetypeComponentSection<Target, ::ptgn::impl::PaintGeneratorData>(
 		target,
 		"Paint Generator",
+		"PaintGeneratorSection",
 		[&target](::ptgn::impl::PaintGeneratorData& data) {
 			bool local_changed{ false };
 
 			local_changed |= ImGui::Checkbox("Enabled", &data.enabled);
 			ImGui::Text("Geometry: %s", GeneratorGeometryName(data.geometry));
 
-			float grid_size[2]{ data.grid_size.x, data.grid_size.y };
-			if (ImGui::DragFloat2("Grid Size", grid_size, 0.25f, 1.0f, 16384.0f, "%.1f")) {
-				data.grid_size = {
-					std::max(1.0f, grid_size[0]),
-					std::max(1.0f, grid_size[1]),
-				};
-				local_changed = true;
+			if constexpr (requires { target.entity; }) {
+				if (target.entity && IsPaintGenerator(target.entity)) {
+					local_changed |= target.ctx.editor.GetPaintEditor().DrawGeneratorSourceEditor(
+						target.ctx,
+						target.entity,
+						data.recipe
+					);
+				}
+			} else {
+				ImGui::Text("Source: %s", GeneratorSourceName(data.recipe.source_kind));
 			}
-
-			float grid_offset[2]{ data.grid_offset.x, data.grid_offset.y };
-			if (ImGui::DragFloat2("Grid Offset", grid_offset, 0.25f)) {
-				data.grid_offset = { grid_offset[0], grid_offset[1] };
-				local_changed = true;
-			}
-
-			local_changed |= DrawGeneratorTargetTilemap(target, data);
 
 			if (
 				data.geometry == PaintGeneratorGeometry::Line ||
@@ -568,13 +497,23 @@ bool DrawPaintGeneratorArchetype(Target& target, bool& stop_after_archetype) {
 				ImGui::TextDisabled("Brush strokes: %zu", strokes.size());
 			}
 
-			ImGui::TextDisabled("Suppressed cells: %zu", data.suppressed_cells.size());
+			ImGui::TextDisabled(
+				"Suppressed generated cells: %zu",
+				data.suppressed_cells.size()
+			);
+			ImGui::SameLine();
 			ImGui::BeginDisabled(data.suppressed_cells.empty());
-			if (ImGui::Button("Clear Suppressions")) {
+			if (ImGui::SmallButton("Clear Overrides")) {
 				data.suppressed_cells.clear();
 				local_changed = true;
 			}
 			ImGui::EndDisabled();
+			if (ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled)) {
+				ImGui::SetTooltip(
+					"Restore manually erased generated output. Regeneration is again allowed "
+					"to emit at these cells."
+				);
+			}
 
 			local_changed |= DrawGeneratorRecipe(data);
 			return local_changed;
@@ -618,20 +557,35 @@ bool DrawPaintGeneratorArchetype(Target& target, bool& stop_after_archetype) {
 		}
 
 		ImGui::Separator();
-		ImGui::BeginDisabled(data.geometry == PaintGeneratorGeometry::Infinite);
+		const auto generator_layer_id{ entity.GetScene().GetLayers().GetLayerId(entity) };
+		const SceneLayer* generator_layer{
+			generator_layer_id
+				? entity.GetScene().GetLayers().Find(*generator_layer_id)
+				: nullptr
+		};
+		const bool missing_tilemap{
+			generator_layer && generator_layer->kind == SceneLayerKind::Tile &&
+			!PaintGenerator{ entity }.GetTargetTilemap()
+		};
+		ImGui::BeginDisabled(
+			data.geometry == PaintGeneratorGeometry::Infinite || missing_tilemap
+		);
 		if (ImGui::Button("Bake Generator")) {
 			paint.BakeGenerator(target.ctx, scene, entity);
 			stop_after_archetype = true;
 		}
 		ImGui::EndDisabled();
 
-		if (
-			ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled) &&
-			data.geometry == PaintGeneratorGeometry::Infinite
-		) {
-			ImGui::SetTooltip(
-				"Infinite generators cannot be baked without a finite region."
-			);
+		if (ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled)) {
+			if (data.geometry == PaintGeneratorGeometry::Infinite) {
+				ImGui::SetTooltip(
+					"Infinite generators cannot be baked without a finite region."
+				);
+			} else if (missing_tilemap) {
+				ImGui::SetTooltip(
+					"Tile generators must be children of a Tilemap before they can be baked."
+				);
+			}
 		}
 	}
 
