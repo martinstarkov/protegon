@@ -17,7 +17,6 @@
 #include "runtime/asset/asset_manager.h"
 #include "runtime/asset/prefab.h"
 #include "runtime/scene/scene_manager.h"
-#include "runtime/world/paint_generator.h"
 
 namespace ptgn::editor {
 
@@ -146,19 +145,13 @@ void InspectorPanel::OnRender(EditorContext& ctx) {
 	const bool inspect_linked_prefab{
 		linked_instance != nullptr
 	};
-	const bool inspect_generator{
-		selected_scene_entity &&
-		IsPaintGenerator(selected_scene_entity)
-	};
 
 	const char* title{
 		active_tab == SceneHierarchyTab::Prefabs || inspect_linked_prefab
 			? "Prefab Inspector###Inspector"
 			: active_tab == SceneHierarchyTab::Tiles
 				? "Tile Inspector###Inspector"
-				: inspect_generator
-					? "Generator Inspector###Inspector"
-					: "Entity Inspector###Inspector"
+				: "Entity Inspector###Inspector"
 	};
 
 	const bool inspector_visible{ ImGui::Begin(title) };
@@ -191,11 +184,6 @@ void InspectorPanel::OnRender(EditorContext& ctx) {
 				linked_instance->prefab,
 				linked_instance->entity_path
 			);
-		} else if (inspect_generator) {
-			ctx.editor.GetPaintEditor().DrawGeneratorInspector(
-				ctx,
-				selected_scene_entity
-			);
 		} else {
 			switch (active_tab) {
 				case SceneHierarchyTab::Prefabs:
@@ -214,6 +202,8 @@ void InspectorPanel::OnRender(EditorContext& ctx) {
 				case SceneHierarchyTab::SceneHierarchy:
 				default:
 					if (auto entity{ hierarchy.GetSelectedEntity() }) {
+						// Tilemap, Paint Generator, Camera and Render Target now all route through
+						// the same archetype inspector as every other scene entity.
 						inspector::DrawEntityInspector(ctx, entity);
 					} else {
 						ImGui::TextDisabled("Select an entity to inspect it.");

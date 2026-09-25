@@ -315,7 +315,13 @@ public:
 	/// Draws the Tiles dock window and returns whether it was the visible dock tab this frame.
 	bool DrawTilesPanel(EditorContext& ctx);
 	void DrawTileInspector(EditorContext& ctx);
-	void DrawGeneratorInspector(EditorContext& ctx, Entity generator);
+
+	/// Generator archetype actions. Generator data itself is edited by the ordinary inspector.
+	void FinishActiveBrushGenerator(EditorContext& ctx, Scene& scene);
+	void CancelActiveBrushGenerator(EditorContext& ctx, Scene& scene);
+	void UndoActiveBrushStroke(EditorContext& ctx, Scene& scene);
+	void BakeGenerator(EditorContext& ctx, Scene& scene, Entity generator);
+	[[nodiscard]] bool IsActiveBrushGenerator(Entity generator) const;
 
 	/// Draw tilemap/generator/grid/tool overlays and process paint input. Returns true when the paint
 	/// tool consumed the current pointer interaction. Selection is handled entirely by PaintEditor so
@@ -483,11 +489,6 @@ private:
 	void ApplyRectangle(EditorContext& ctx, Scene& scene, V2_float a, V2_float b);
 	void CreateGeneratorForStroke(EditorContext& ctx, Scene& scene, PaintGeneratorGeometry geometry);
 	void AppendBrushStrokeToGenerator(EditorContext& ctx, Scene& scene);
-	void FinishActiveBrushGenerator(EditorContext& ctx, Scene& scene);
-	void CancelActiveBrushGenerator(EditorContext& ctx, Scene& scene);
-	void UndoActiveBrushStroke(EditorContext& ctx, Scene& scene);
-	void BakeGenerator(EditorContext& ctx, Scene& scene, Entity generator);
-	[[nodiscard]] bool IsActiveBrushGenerator(Entity generator) const;
 	void CreateInfiniteGenerator(EditorContext& ctx, Scene& scene);
 
 	void SnapSelectionToGrid(EditorContext& ctx, Scene& scene);
@@ -648,7 +649,6 @@ private:
 	std::optional<UUID> active_brush_generator_{};
 	std::optional<EditorSelection> active_generator_before_selection_{};
 	std::uint32_t next_active_brush_stroke_id_{ 1 };
-	std::optional<SerializedEntity> generator_inspector_edit_before_{};
 };
 
 } // namespace ptgn::editor

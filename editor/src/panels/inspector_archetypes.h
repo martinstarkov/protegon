@@ -107,15 +107,20 @@ template <typename Target>
 
 template <typename Target>
 [[nodiscard]] InspectorArchetype ResolveInspectorArchetype(const Target& target) {
-	// Tilemaps and paint generators are scene-authoring identities even though they are not
-	// ordinary IDrawable archetypes. Detect them before generic component/drawable routing.
-	if constexpr (requires { target.entity; }) {
-		if (target.entity && IsTilemap(target.entity)) {
-			return InspectorArchetype::Tilemap;
-		}
-		if (target.entity && IsPaintGenerator(target.entity)) {
-			return InspectorArchetype::PaintGenerator;
-		}
+	// Authoring identities are inferred from the components that own their persistent state.
+	// Keeping this component-based lets scene entities and serializable prefab targets share the
+	// same archetype routing instead of special-casing individual inspector windows.
+	if (HasArchetypeComponent<Target, ::ptgn::impl::TilemapData>(target)) {
+		return InspectorArchetype::Tilemap;
+	}
+	if (HasArchetypeComponent<Target, ::ptgn::impl::PaintGeneratorData>(target)) {
+		return InspectorArchetype::PaintGenerator;
+	}
+	if (HasArchetypeComponent<Target, ::ptgn::impl::CameraData>(target)) {
+		return InspectorArchetype::Camera;
+	}
+	if (HasArchetypeComponent<Target, ::ptgn::impl::RenderTargetDesc>(target)) {
+		return InspectorArchetype::RenderTarget;
 	}
 
 	if (HasArchetypeComponent<Target, ::ptgn::impl::SliderData>(target)) {
@@ -138,10 +143,6 @@ template <typename Target>
 	}
 	if (HasArchetypeComponent<Target, ::ptgn::impl::ButtonData>(target)) {
 		return InspectorArchetype::Button;
-	}
-
-	if (HasArchetypeComponent<Target, ::ptgn::impl::CameraData>(target)) {
-		return InspectorArchetype::Camera;
 	}
 
 	if (
