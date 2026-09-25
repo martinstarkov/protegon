@@ -22,121 +22,31 @@
 #include "runtime/world/tilemap.h"
 
 using namespace ptgn;
-
 namespace {
 
 constexpr std::string_view kTerrainTilesetTexture{ "terrain_tileset" };
+
 constexpr std::string_view kHumanTexture{ "animation" };
+
 constexpr std::string_view kSmileTexture{ "smile" };
 
 constexpr std::string_view kHumanPrefabName{ "Animated Human" };
+
 constexpr std::string_view kSmilePrefabName{ "Smiley Face" };
 
 constexpr int kTilesetWidth{ 80 };
+
 constexpr int kTilesetHeight{ 96 };
+
 constexpr int kTileSize{ 16 };
 
 void LoadAssets(Scene& scene) {
 	auto& assets{ scene.ctx().asset };
-
 	// The _16x16 suffix is consumed by PaintEditor so this atlas is automatically sliced
 	// into 16x16 cells and becomes available in the Autotile / Terrain tilesheet combo.
 	assets.Load(kTerrainTilesetTexture, "assets/terrain_tileset_16x16.png");
 	assets.Load(kHumanTexture, "assets/animation_frames4x3.png");
 	assets.Load(kSmileTexture, "assets/smile.png");
-}
-
-bool HasPrefab(const AssetManager& assets, const PrefabKey& key) {
-	const auto keys{ assets.GetPrefabKeys() };
-	return std::ranges::find(keys, key) != keys.end();
-}
-
-bool EnsurePrefabResident(AssetManager& assets, const PrefabKey& key) {
-	if (::ptgn::impl::AssetAccessor{ assets }.Has<Prefab>(key)) {
-		return true;
-	}
-
-	const auto catalog{ assets.GetCatalogAsset(key, AssetKind::Prefab) };
-	if (!catalog.has_value()) {
-		return false;
-	}
-
-	assets.Load(key, catalog->source_path);
-	return ::ptgn::impl::AssetAccessor{ assets }.Has<Prefab>(key);
-}
-
-PrefabKey SavePrefabAsset(Scene& scene, Entity source, const PrefabKey& key) {
-	auto& assets{ scene.ctx().asset };
-	const auto project_root{ assets.GetProjectRoot() };
-
-	if (!project_root.has_value()) {
-		source.Destroy();
-		return {};
-	}
-
-	const path source_path{ GetPrefabSourcePath(key) };
-	Prefab& saved{ assets.SavePrefab(
-		CapturePrefab(source, key, true),
-		project_root.value() / source_path,
-		source_path
-	) };
-	const PrefabKey saved_key{ saved.key };
-
-	source.Destroy();
-	return saved_key;
-}
-
-PrefabKey EnsureHumanPrefab(Scene& scene) {
-	auto& assets{ scene.ctx().asset };
-	const PrefabKey key{ MakePrefabKey(kHumanPrefabName) };
-
-	if (HasPrefab(assets, key)) {
-		(void)EnsurePrefabResident(assets, key);
-		return key;
-	}
-
-	Animation human{
-		CreateAnimation(
-			scene,
-			{},
-			TextureKey{ std::string{ kHumanTexture } },
-			AnimationConfig{
-				.frame_count = 4,
-				.duration = 500ms,
-				.frame_size = V2_int{ 16, 32 },
-				.play_count = std::nullopt,
-				.start_pixel = V2_int{ 0, 32 },
-			},
-			Origin::Center
-		)
-	};
-
-	human.Add<Tag>(std::string{ kHumanPrefabName });
-	SetScale(human, 2.0f);
-
-	return SavePrefabAsset(scene, human, key);
-}
-
-PrefabKey EnsureSmilePrefab(Scene& scene) {
-	auto& assets{ scene.ctx().asset };
-	const PrefabKey key{ MakePrefabKey(kSmilePrefabName) };
-
-	if (HasPrefab(assets, key)) {
-		(void)EnsurePrefabResident(assets, key);
-		return key;
-	}
-
-	Sprite smile{
-		CreateSprite(
-			scene,
-			{},
-			TextureKey{ std::string{ kSmileTexture } },
-			Origin::Center
-		)
-	};
-
-	smile.Add<Tag>(std::string{ kSmilePrefabName });
-	return SavePrefabAsset(scene, smile, key);
 }
 
 struct DemoPrefabKeys {
@@ -145,15 +55,40 @@ struct DemoPrefabKeys {
 };
 
 DemoPrefabKeys EnsureDemoPrefabs(Scene& scene) {
-	DemoPrefabKeys keys{
-		.human = EnsureHumanPrefab(scene),
-		.smile = EnsureSmilePrefab(scene),
+	return {
+		.human = scene.EnsurePrefabAsset(kHumanPrefabName, [](Scene& authoring_scene) -> Entity {
+			Animation human{
+				CreateAnimation(
+					authoring_scene,
+					{},
+					TextureKey{ std::string{ kHumanTexture } },
+					AnimationConfig{
+						.frame_count = 4,
+						.duration = 500ms,
+						.frame_size = V2_int{ 16, 32 },
+						.play_count = std::nullopt,
+						.start_pixel = V2_int{ 0, 32 },
+					},
+					Origin::Center
+				)
+			};
+			human.Add<Tag>(std::string{ kHumanPrefabName });
+			SetScale(human, 2.0f);
+			return human;
+		}),
+		.smile = scene.EnsurePrefabAsset(kSmilePrefabName, [](Scene& authoring_scene) -> Entity {
+			Sprite smile{
+				CreateSprite(
+					authoring_scene,
+					{},
+					TextureKey{ std::string{ kSmileTexture } },
+					Origin::Center
+				)
+			};
+			smile.Add<Tag>(std::string{ kSmilePrefabName });
+			return smile;
+		}),
 	};
-
-	// The temporary source entities used for CapturePrefab() were destroyed.
-	// Flush them before creating visible demo instances.
-	scene.Refresh();
-	return keys;
 }
 
 std::array<V2_float, 4> TilesetUVs(V2_int slice) {
@@ -169,7 +104,6 @@ std::array<V2_float, 4> TilesetUVs(V2_int slice) {
 	const float bottom{
 		static_cast<float>((slice.y + 1) * kTileSize) / static_cast<float>(kTilesetHeight)
 	};
-
 	return {
 		V2_float{ left, top },
 		V2_float{ right, top },
@@ -184,14 +118,12 @@ TilemapTile MakeTilesetTile(
 	Color tint = color::White
 ) {
 	TilemapTile tile;
-
 	tile.coordinate = coordinate;
 	tile.texture = TextureKey{ std::string{ kTerrainTilesetTexture } };
 	tile.texture_coordinates = TilesetUVs(slice);
 	tile.pixel_size = { kTileSize, kTileSize };
 	tile.origin = Origin::TopLeft;
 	tile.tint = tint;
-
 	return tile;
 }
 
@@ -215,9 +147,7 @@ void SeedBorderedArea(
 			const bool right{ x == size.x - 1 };
 			const bool top{ y == 0 };
 			const bool bottom{ y == size.y - 1 };
-
 			V2_int slice{ center_slice };
-
 			if (top && left) {
 				slice = top_left_slice;
 			} else if (top && right) {
@@ -235,7 +165,6 @@ void SeedBorderedArea(
 			} else if (right) {
 				slice = right_slice;
 			}
-
 			tilemap.SetTile(
 				MakeTilesetTile(top_left + V2_int{ x, y }, slice)
 			);
@@ -264,7 +193,6 @@ void SeedGroundTiles(Tilemap& tilemap) {
 		{ 1, 2 },
 		{ 2, 2 }
 	);
-
 	// A few authored variants from the sheet so the demo immediately shows that
 	// individual atlas slices can be painted/selected independently.
 	tilemap.SetTile(MakeTilesetTile({ 2, 2 }, { 3, 1 }));
@@ -280,42 +208,33 @@ void SeedForegroundTiles(Tilemap& tilemap) {
 
 void CreateDemoLayers(Scene& scene, const DemoPrefabKeys& prefabs) {
 	auto& layers{ scene.GetLayers() };
-
 	const SceneLayerId decorations{
 		layers.Create(SceneLayerKind::Entity, "Decorations")
 	};
-
 	const SceneLayerId ground{
 		layers.Create(SceneLayerKind::Tile, "Ground")
 	};
-
 	const SceneLayerId foreground{
 		layers.Create(SceneLayerKind::Tile, "Foreground")
 	};
-
 	Tilemap ground_tilemap{
 		CreateTilemap(scene, ground, Tag{ "Ground Tilemap" })
 	};
-
 	ground_tilemap.SetCellSize({ 16.0f, 16.0f });
 	SetPosition(ground_tilemap, { -72.0f, -56.0f });
 	SeedGroundTiles(ground_tilemap);
-
 	Tilemap foreground_tilemap{
 		CreateTilemap(scene, foreground, Tag{ "Foreground Tilemap" })
 	};
-
 	foreground_tilemap.SetCellSize({ 16.0f, 16.0f });
 	SetPosition(foreground_tilemap, { -72.0f, -56.0f });
 	SeedForegroundTiles(foreground_tilemap);
-
 	if (prefabs.human) {
 		Entity human{ scene.CreatePrefab(prefabs.human) };
 		if (human) {
 			SetPosition(human, { -100.0f, 100.0f });
 		}
 	}
-
 	if (prefabs.smile) {
 		Entity smile{ scene.CreatePrefab(prefabs.smile) };
 		if (smile) {
@@ -326,26 +245,20 @@ void CreateDemoLayers(Scene& scene, const DemoPrefabKeys& prefabs) {
 }
 
 } // namespace
-
 class PaintToolsScene : public Scene {
 public:
 	void OnNew() override {
 		LoadAssets(*this);
-
 		SetBackgroundColor(Color{ 28, 30, 36, 255 });
-
 		const DemoPrefabKeys prefabs{ EnsureDemoPrefabs(*this) };
 		CreateDemoLayers(*this, prefabs);
 	}
-
 	void OnLoad() override {
 		LoadAssets(*this);
-
-		// Project prefab entries are catalogued independently from residency. Make the two demo
-		// prefabs resident again so Paint Recipe can instantiate them immediately after reopening.
+		// EnsurePrefabAsset is idempotent. Existing assets are reused and CreatePrefab() handles
+		// residency automatically.
 		(void)EnsureDemoPrefabs(*this);
 	}
-
 	void OnEnter() override {
 		for (auto [entity, _animation] : EntitiesWith<impl::AnimationData>()) {
 			Animation{ entity }.Start(true);
@@ -354,12 +267,9 @@ public:
 };
 
 PTGN_REGISTER_SCENE(PaintToolsScene, "Paint Tools Scene");
-
 int main(int, char**) {
 	Application app{ "Paint Tools Demo" };
-
 	PTGN_WITH_EDITOR(app, true);
-
 	app.StartProject<PaintToolsScene>(
 		"PaintToolsProject/PaintTools.ptgnproj"
 	);

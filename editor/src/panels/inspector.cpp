@@ -34,18 +34,7 @@ bool DrawInspectorContents(EditorContext& ctx, Target& target) {
 }
 
 [[nodiscard]] bool EnsurePrefabResident(EditorContext& ctx, const PrefabKey& key) {
-	auto& assets{ ctx.editor.GetAssetManager() };
-	if (::ptgn::impl::AssetAccessor{ assets }.Has<Prefab>(key)) {
-		return true;
-	}
-
-	const auto catalog{ assets.GetCatalogAsset(key, AssetKind::Prefab) };
-	if (!catalog.has_value()) {
-		return false;
-	}
-
-	assets.Load(key, catalog->source_path);
-	return ::ptgn::impl::AssetAccessor{ assets }.Has<Prefab>(key);
+	return ctx.editor.GetAssetManager().EnsurePrefabResident(key);
 }
 
 void SyncEditedPrefabInstances(EditorContext& ctx, const PrefabKey& key) {
@@ -90,13 +79,7 @@ void DrawPrefabInspector(
 		return;
 	}
 
-	auto prefab_asset{ ::ptgn::impl::AssetAccessor{ assets }.Get<Prefab>(key) };
-	auto* selected_entity{
-		ResolveSerializedEntity(
-			prefab_asset.get().root,
-			entity_path
-		)
-	};
+	Entity selected_entity{ assets.GetPrefabEntity(key, entity_path) };
 	if (!selected_entity) {
 		ImGui::TextDisabled("The selected prefab entity no longer exists.");
 		return;
@@ -106,14 +89,16 @@ void DrawPrefabInspector(
 		.ctx = ctx,
 		.key = key,
 		.entity_path = entity_path,
-		.prefab = *selected_entity,
+		.prefab = selected_entity,
 	};
 
 	if (!DrawInspectorContents(ctx, target)) {
 		return;
 	}
 
-	assets.SavePrefab(key);
+	// The Prefabs tab edits the live AssetManager-owned ECS entity. Persistence is a snapshot
+	// of that entity hierarchy, not the editing model itself.
+	assets.SavePrefabEntity(key);
 	SyncEditedPrefabInstances(ctx, key);
 	ctx.local.state.is_dirty = true;
 }
@@ -142,12 +127,12 @@ void InspectorPanel::OnRender(EditorContext& ctx) {
 			? GetPrefabInstance(selected_scene_entity)
 			: nullptr
 	};
-	const bool inspect_linked_prefab{
-		linked_instance != nullptr
-	};
+	const bool inspect_linked_instance{ linked_instance != nullptr };
 
+	// A linked scene instance remains an entity inspection surface. The prefab itself is only
+	// editable after explicitly navigating to the Prefabs tab.
 	const char* title{
-		active_tab == SceneHierarchyTab::Prefabs || inspect_linked_prefab
+		active_tab == SceneHierarchyTab::Prefabs
 			? "Prefab Inspector###Inspector"
 			: active_tab == SceneHierarchyTab::Tiles
 				? "Tile Inspector###Inspector"
@@ -158,32 +143,53 @@ void InspectorPanel::OnRender(EditorContext& ctx) {
 	const ImGuiID inspector_dock_id{ ImGui::GetWindowDockID() };
 
 	if (inspector_visible) {
-		if (inspect_linked_prefab) {
-			ImGui::TextDisabled(
-				"Linked prefab instance"
-			);
+		if (inspect_linked_instance) {
+			const PrefabKey prefab_key{ linked_instance->prefab };
+			const SerializedEntityPath prefab_path{ linked_instance->entity_path };
+
+			ImGui::TextDisabled("Linked prefab instance");
+
+			if (ImGui::SmallButton("Go to Prefab")) {
+				hierarchy.SetSelectedPrefab(prefab_key, prefab_path, false);
+				hierarchy.SetActiveTab(SceneHierarchyTab::Prefabs);
+				ImGui::SetWindowFocus("Prefabs###PrefabsWindow");
+			}
+			if (ImGui::IsItemHovered()) {
+				ImGui::SetTooltip(
+					"Open the source prefab and select the matching prefab entity."
+				);
+			}
+
 			ImGui::SameLine();
 
 			Entity instance_root{
 				GetPrefabInstanceRoot(selected_scene_entity)
 			};
 			ImGui::BeginDisabled(!instance_root);
-			if (ImGui::SmallButton("Convert to Entity") && instance_root) {
-				ctx.commands.ConvertPrefabInstanceToEntity(instance_root);
-			}
+			const bool convert{
+				ImGui::SmallButton("Convert to Entity")
+			};
 			ImGui::EndDisabled();
 			if (ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled)) {
 				ImGui::SetTooltip(
-					"Stop syncing this instance to its prefab."
+					"Stop syncing this instance to its prefab so this scene entity can be edited."
 				);
 			}
-			ImGui::Separator();
 
-			inspector::DrawPrefabInspector(
-				ctx,
-				linked_instance->prefab,
-				linked_instance->entity_path
+			ImGui::Separator();
+			ImGui::TextDisabled(
+				"This linked instance is read-only. Edit the prefab or convert the instance first."
 			);
+
+			if (convert && instance_root) {
+				ctx.commands.ConvertPrefabInstanceToEntity(instance_root);
+			} else {
+				// Read the actual linked scene entity, not the prefab definition. Disabling ImGui
+				// prevents every archetype/component editor from mutating it accidentally.
+				ImGui::BeginDisabled();
+				inspector::DrawEntityInspector(ctx, selected_scene_entity);
+				ImGui::EndDisabled();
+			}
 		} else {
 			switch (active_tab) {
 				case SceneHierarchyTab::Prefabs:
@@ -202,8 +208,6 @@ void InspectorPanel::OnRender(EditorContext& ctx) {
 				case SceneHierarchyTab::SceneHierarchy:
 				default:
 					if (auto entity{ hierarchy.GetSelectedEntity() }) {
-						// Tilemap, Paint Generator, Camera and Render Target now all route through
-						// the same archetype inspector as every other scene entity.
 						inspector::DrawEntityInspector(ctx, entity);
 					} else {
 						ImGui::TextDisabled("Select an entity to inspect it.");

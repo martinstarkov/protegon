@@ -29,17 +29,9 @@ namespace {
 }
 
 void DestroyEntityTree(Entity entity) {
-	if (!entity) {
-		return;
+	if (entity) {
+		entity.Destroy();
 	}
-
-	if (HasChildren(entity)) {
-		const auto children{ GetChildren(entity) };
-		for (Entity child : children) {
-			DestroyEntityTree(child);
-		}
-	}
-	entity.Destroy();
 }
 
 Entity InstantiatePrefabEntity(
@@ -52,18 +44,15 @@ Entity InstantiatePrefabEntity(
 ) {
 	Entity entity{ scene.CreateEntity(Tag{ definition.tag }) };
 	DeserializeEntity(definition, entity);
-
 	if (linked) {
 		entity.Add<PrefabInstance>(PrefabInstance{
 			.prefab = prefab_key,
 			.entity_path = path,
 		});
 	}
-
 	if (parent) {
 		SetParent(entity, parent);
 	}
-
 	for (std::size_t index{}; index < definition.children.size(); ++index) {
 		SerializedEntityPath child_path{ path };
 		child_path.push_back(index);
@@ -76,7 +65,6 @@ Entity InstantiatePrefabEntity(
 			linked
 		);
 	}
-
 	return entity;
 }
 
@@ -98,18 +86,7 @@ void RemovePrefabLinks(Entity root) {
 	Scene& scene,
 	const PrefabKey& key
 ) {
-	auto& assets{ scene.ctx().asset };
-	if (::ptgn::impl::AssetAccessor{ assets }.Has<Prefab>(key)) {
-		return true;
-	}
-
-	const auto catalog{ assets.GetCatalogAsset(key, AssetKind::Prefab) };
-	if (!catalog.has_value()) {
-		return false;
-	}
-
-	assets.Load(key, catalog->source_path);
-	return ::ptgn::impl::AssetAccessor{ assets }.Has<Prefab>(key);
+	return scene.ctx().asset.EnsurePrefabResident(key);
 }
 
 [[nodiscard]] std::optional<Prefab> ResolvePrefab(
@@ -119,7 +96,6 @@ void RemovePrefabLinks(Entity root) {
 	if (!EnsurePrefabResident(scene, key)) {
 		return std::nullopt;
 	}
-
 	auto asset{
 		::ptgn::impl::AssetAccessor{
 			scene.ctx().asset
@@ -136,13 +112,11 @@ void ApplyPrefabDefinition(
 	bool preserve_root_transform
 ) {
 	PTGN_ASSERT(entity);
-
 	const std::optional<Transform> instance_transform{
 		preserve_root_transform && entity.Has<Transform>()
 			? std::optional<Transform>{ entity.Get<Transform>() }
 			: std::nullopt
 	};
-
 	// Remove every prefab-owned component before deserializing so deleted prefab components also
 	// disappear from linked instances. Root Transform is the one intentional per-instance override.
 	for (const auto& component : ComponentRegistry::Components()) {
@@ -156,9 +130,7 @@ void ApplyPrefabDefinition(
 		}
 		(void)component.Remove(entity);
 	}
-
 	DeserializeEntity(definition, entity);
-
 	if (instance_transform.has_value()) {
 		if (entity.Has<Transform>()) {
 			entity.Get<Transform>() = *instance_transform;
@@ -166,7 +138,6 @@ void ApplyPrefabDefinition(
 			entity.Add<Transform>(*instance_transform);
 		}
 	}
-
 	if (entity.Has<PrefabInstance>()) {
 		entity.Get<PrefabInstance>() = PrefabInstance{
 			.prefab = prefab_key,
@@ -178,18 +149,15 @@ void ApplyPrefabDefinition(
 			.entity_path = path,
 		});
 	}
-
 	Scene& scene{ entity.GetScene() };
 	std::vector<Entity> existing_children;
 	if (HasChildren(entity)) {
 		existing_children = GetChildren(entity);
 		SortByLocalDepth(existing_children);
 	}
-
 	const std::size_t shared_count{
 		std::min(existing_children.size(), definition.children.size())
 	};
-
 	for (std::size_t index{}; index < shared_count; ++index) {
 		SerializedEntityPath child_path{ path };
 		child_path.push_back(index);
@@ -201,7 +169,6 @@ void ApplyPrefabDefinition(
 			false
 		);
 	}
-
 	for (std::size_t index{ shared_count }; index < definition.children.size(); ++index) {
 		SerializedEntityPath child_path{ path };
 		child_path.push_back(index);
@@ -214,7 +181,6 @@ void ApplyPrefabDefinition(
 			true
 		);
 	}
-
 	// Destroy from the end so parent/child ordering remains stable while stale nodes are removed.
 	for (std::size_t index{ existing_children.size() }; index > definition.children.size(); --index) {
 		DestroyEntityTree(existing_children[index - 1]);
@@ -232,7 +198,6 @@ void StripPrefabInstanceMetadata(SerializedEntity& definition) {
 }
 
 } // namespace
-
 bool IsPrefabComponentSupported(const RegisteredComponent& component) {
 	if (
 		impl::IsEntityMetadataComponent(component) ||
@@ -240,11 +205,9 @@ bool IsPrefabComponentSupported(const RegisteredComponent& component) {
 	) {
 		return false;
 	}
-
 	if (component.is_empty) {
 		return component.default_constructible;
 	}
-
 	return component.serializable &&
 		   component.deserializable;
 }
@@ -252,7 +215,6 @@ bool IsPrefabComponentSupported(const RegisteredComponent& component) {
 Prefab CapturePrefab(Entity entity, PrefabKey key, bool include_children) {
 	PTGN_ASSERT(entity, "Cannot capture a null entity as a prefab");
 	PTGN_ASSERT(!key.value.empty(), "Prefab key cannot be empty");
-
 	SerializedEntity root{
 		SerializeEntity(
 			entity,
@@ -263,7 +225,6 @@ Prefab CapturePrefab(Entity entity, PrefabKey key, bool include_children) {
 		)
 	};
 	StripPrefabInstanceMetadata(root);
-
 	return Prefab{
 		.key = std::move(key),
 		.root = std::move(root),
@@ -279,7 +240,6 @@ Entity InstantiatePrefab(
 		mode == PrefabInstantiationMode::Linked ||
 		(mode == PrefabInstantiationMode::Auto && !scene.IsRuntime())
 	};
-
 	Entity root{
 		InstantiatePrefabEntity(
 			scene,
@@ -313,10 +273,8 @@ Entity GetPrefabInstanceRoot(Entity entity) {
 	if (!IsPrefabInstance(entity)) {
 		return {};
 	}
-
 	const PrefabKey key{ entity.Get<PrefabInstance>().prefab };
 	Entity current{ entity };
-
 	while (current) {
 		const auto* link{ current.TryGet<PrefabInstance>() };
 		if (!link || link->prefab != key) {
@@ -330,7 +288,6 @@ Entity GetPrefabInstanceRoot(Entity entity) {
 		}
 		current = GetParent(current);
 	}
-
 	return {};
 }
 
@@ -338,7 +295,6 @@ bool SyncPrefabInstance(Entity instance_root, const Prefab& prefab) {
 	if (!instance_root || !IsPrefabInstanceRoot(instance_root)) {
 		return false;
 	}
-
 	ApplyPrefabDefinition(
 		instance_root,
 		prefab.root,
@@ -354,7 +310,6 @@ bool SyncPrefabInstance(Entity instance_root) {
 	if (!IsPrefabInstanceRoot(instance_root)) {
 		return false;
 	}
-
 	Scene& scene{ instance_root.GetScene() };
 	const PrefabKey key{ instance_root.Get<PrefabInstance>().prefab };
 	const auto prefab{ ResolvePrefab(scene, key) };
@@ -368,7 +323,6 @@ std::size_t SyncPrefabInstances(Scene& scene, const PrefabKey& key) {
 	if (!prefab.has_value()) {
 		return 0;
 	}
-
 	std::vector<UUID> roots;
 	for (Entity entity : scene.Entities()) {
 		const auto* link{ entity.TryGet<PrefabInstance>() };
@@ -381,7 +335,6 @@ std::size_t SyncPrefabInstances(Scene& scene, const PrefabKey& key) {
 			roots.push_back(entity.Get<UUID>());
 		}
 	}
-
 	std::size_t count{};
 	for (UUID uuid : roots) {
 		if (Entity root{ scene.GetEntity(uuid) };
@@ -403,7 +356,6 @@ std::size_t SyncPrefabInstances(Scene& scene) {
 			keys.push_back(link->prefab);
 		}
 	}
-
 	std::size_t count{};
 	for (const PrefabKey& key : keys) {
 		count += SyncPrefabInstances(scene, key);
@@ -424,7 +376,6 @@ std::size_t RetargetPrefabInstances(
 			++links;
 		}
 	}
-
 	if (links > 0) {
 		(void)SyncPrefabInstances(scene, new_key);
 	}
@@ -435,7 +386,6 @@ bool BakePrefabInstance(Entity instance_root, const Prefab& prefab) {
 	if (!IsPrefabInstanceRoot(instance_root)) {
 		return false;
 	}
-
 	(void)SyncPrefabInstance(instance_root, prefab);
 	RemovePrefabLinks(instance_root);
 	instance_root.GetScene().Refresh();
@@ -446,14 +396,11 @@ bool BakePrefabInstance(Entity instance_root) {
 	if (!IsPrefabInstanceRoot(instance_root)) {
 		return false;
 	}
-
 	Scene& scene{ instance_root.GetScene() };
 	const PrefabKey key{ instance_root.Get<PrefabInstance>().prefab };
-
 	if (const auto prefab{ ResolvePrefab(scene, key) }) {
 		return BakePrefabInstance(instance_root, *prefab);
 	}
-
 	// A dangling link should never block runtime. Its last serialized synchronized state is still a
 	// valid entity hierarchy, so bake that state even when the source asset has gone missing.
 	RemovePrefabLinks(instance_root);
@@ -471,7 +418,6 @@ std::size_t BakePrefabInstances(Scene& scene) {
 			roots.push_back(entity.Get<UUID>());
 		}
 	}
-
 	std::size_t count{};
 	for (UUID uuid : roots) {
 		if (Entity root{ scene.GetEntity(uuid) };
@@ -498,26 +444,21 @@ std::string MakePrefabSlug(std::string_view value) {
 	std::string output;
 	output.reserve(value.size());
 	bool separator_pending{ false };
-
 	for (char c : value) {
 		const auto character{ static_cast<unsigned char>(c) };
-
 		if (std::isalnum(character)) {
 			if (separator_pending && !output.empty()) {
 				output.push_back('_');
 			}
-
 			separator_pending = false;
 			output.push_back(static_cast<char>(std::tolower(character)));
 		} else {
 			separator_pending = true;
 		}
 	}
-
 	while (!output.empty() && output.back() == '_') {
 		output.pop_back();
 	}
-
 	return output.empty() ? "prefab" : output;
 }
 
@@ -525,7 +466,6 @@ PrefabKey MakePrefabKey(std::string_view value) {
 	if (value.starts_with(kPrefabKeyPrefix)) {
 		value.remove_prefix(kPrefabKeyPrefix.size());
 	}
-
 	return PrefabKey{
 		std::string{ kPrefabKeyPrefix } +
 		MakePrefabSlug(value)
@@ -534,14 +474,12 @@ PrefabKey MakePrefabKey(std::string_view value) {
 
 path GetPrefabSourcePath(const PrefabKey& key) {
 	std::string key_value{ key.value };
-
 	if (key_value.starts_with(kPrefabKeyPrefix)) {
 		key_value.erase(
 			0,
 			kPrefabKeyPrefix.size()
 		);
 	}
-
 	return path{ kPrefabDirectory } /
 		   path{
 			   MakePrefabSlug(key_value) +

@@ -1,7 +1,6 @@
 #pragma once
 
 #include <ecs/ecs.h>
-
 #include <algorithm>
 #include <array>
 #include <cstdint>
@@ -30,6 +29,7 @@
 #include "runtime/asset/prefab.h"
 #include "runtime/audio/audio.h"
 #include "runtime/ecs/key_hash.h"
+#include "runtime/ecs/manager.h"
 #include "runtime/graphics/text/font.h"
 #include "serialization/json/json.h"
 #include "serialization/serialize.h"
@@ -43,30 +43,24 @@ class Renderer;
 class Scene;
 class AssetManager;
 struct Project;
-
 namespace impl {
 
 class Surface;
 class ApplicationContext;
-
 struct AssetPath {
 	explicit AssetPath(const path& asset_path) : value{ asset_path } {}
-
 	path value{};
-
 	PTGN_REFLECT_VALUE(AssetPath, value)
 };
 
 template <typename>
 struct AssetInfo;
-
 template <>
 struct AssetInfo<Texture> {
 	static constexpr AssetKind kind = AssetKind::Texture;
 	using Object = impl::TextureObject;
 	using Get = Texture;
 	using ConstGet = Texture;
-
 	static constexpr std::array extensions{
 		std::string_view{ ".png" },
 		std::string_view{ ".jpg" },
@@ -82,7 +76,6 @@ struct AssetInfo<Audio> {
 	using Object = impl::AudioObject;
 	using Get = Audio;
 	using ConstGet = Audio;
-
 	static constexpr std::array extensions{
 		std::string_view{ ".ogg" },
 		std::string_view{ ".mp3" },
@@ -97,7 +90,6 @@ struct AssetInfo<Font> {
 	using Object = impl::FontAtlas;
 	using Get = Font;
 	using ConstGet = Font;
-
 	static constexpr std::array extensions{
 		std::string_view{ ".ttf" },
 		std::string_view{ ".otf" },
@@ -110,7 +102,6 @@ struct AssetInfo<Shader> {
 	using Object = impl::ShaderObject;
 	using Get = Shader;
 	using ConstGet = Shader;
-
 	static constexpr std::array extensions{
 		std::string_view{ ".glsl" },
 	};
@@ -122,7 +113,6 @@ struct AssetInfo<json> {
 	using Object = json;
 	using Get = std::reference_wrapper<json>;
 	using ConstGet = std::reference_wrapper<const json>;
-
 	static constexpr std::array extensions{
 		std::string_view{ ".json" },
 	};
@@ -134,14 +124,12 @@ struct AssetInfo<Prefab> {
 	using Object = Prefab;
 	using Get = std::reference_wrapper<Prefab>;
 	using ConstGet = std::reference_wrapper<const Prefab>;
-
 	static constexpr std::array extensions{
 		kPrefabExtension,
 	};
 };
 
 } // namespace impl
-
 template <typename T>
 concept AssetType = requires {
 	typename impl::AssetInfo<T>::Object;
@@ -153,10 +141,8 @@ concept AssetType = requires {
 
 template <AssetType T>
 using Asset = typename impl::AssetInfo<T>::Get;
-
 template <AssetType T>
 using ConstAsset = typename impl::AssetInfo<T>::ConstGet;
-
 namespace impl {
 
 template <AssetType T>
@@ -165,9 +151,7 @@ constexpr bool MatchesExtension(std::string_view extension) {
 }
 
 AssetKind GetAssetKind(const path& path);
-
 void AddAssetKey(ecs::Entity asset, AssetKey key, const std::optional<path>& path);
-
 struct AssetPreview {
 	TextureId texture{};
 	V2_int size{};
@@ -183,7 +167,6 @@ struct AssetMetadata {
 struct AssetStorageKey {
 	std::size_t key_hash{ 0 };
 	AssetKind kind{ AssetKind::Unknown };
-
 	bool operator==(const AssetStorageKey&) const = default;
 };
 
@@ -229,11 +212,9 @@ struct AssetLoadProgress {
 	std::uintmax_t total_bytes{ 0 };
 	std::uintmax_t completed_bytes{ 0 };
 	std::string active_asset{};
-
 	[[nodiscard]] bool IsComplete() const {
 		return completed_assets >= total_assets;
 	}
-
 	[[nodiscard]] float Fraction() const {
 		if (total_bytes > 0) {
 			return static_cast<float>(completed_bytes) /
@@ -248,39 +229,30 @@ struct AssetLoadProgress {
 };
 
 struct AssetLoadBatchState;
-
 /// @brief Move-only ownership of a set of loaded asset references.
 /// Destroying the ticket releases the references and permits automatic unloading.
 class AssetLoadTicket {
 public:
 	AssetLoadTicket() = default;
 	~AssetLoadTicket() noexcept;
-
 	AssetLoadTicket(const AssetLoadTicket&) = delete;
 	AssetLoadTicket& operator=(const AssetLoadTicket&) = delete;
-
 	AssetLoadTicket(AssetLoadTicket&& other) noexcept;
 	AssetLoadTicket& operator=(AssetLoadTicket&& other) noexcept;
-
 	[[nodiscard]] explicit operator bool() const;
 	[[nodiscard]] bool IsComplete() const;
 	[[nodiscard]] AssetLoadProgress GetProgress() const;
 	[[nodiscard]] const std::vector<AssetKey>& GetDependencies() const;
-
 	/// @brief Transfers dependency-release responsibility to a Scene.
 	[[nodiscard]] std::vector<AssetKey> ReleaseOwnership();
-
 private:
 	friend class ::ptgn::AssetManager;
-
 	AssetLoadTicket(
 		AssetManager& assets,
 		std::shared_ptr<AssetLoadBatchState> state,
 		std::vector<AssetKey> dependencies
 	);
-
 	void Reset() noexcept;
-
 	AssetManager* assets_{ nullptr };
 	std::shared_ptr<AssetLoadBatchState> state_{};
 	std::vector<AssetKey> dependencies_{};
@@ -298,6 +270,9 @@ struct PrefabAssetData {
 	path file_path{};
 	path source_path{};
 	Prefab value{};
+	/// Live ECS mirror of value.root. Prefab assets therefore expose the same component-bearing
+	/// entity model as scene entities while persistence remains SerializedEntity-based.
+	Entity root{};
 };
 
 class AssetAccessor {
@@ -308,85 +283,64 @@ public:
 	AssetAccessor& operator=(const AssetAccessor&) = delete;
 	AssetAccessor(AssetAccessor&&) noexcept = delete;
 	AssetAccessor& operator=(AssetAccessor&&) noexcept = delete;
-
 	template <AssetType T>
 	ConstAsset<T> Get(const AssetKey& key) const;
-
 	template <AssetType T>
 	Asset<T> Get(const AssetKey& key);
-
 	template <AssetType T>
 	std::optional<ConstAsset<T>> TryGet(const AssetKey& key) const;
-
 	template <AssetType T>
 	std::optional<Asset<T>> TryGet(const AssetKey& key);
-
 	template <AssetType T>
 	[[nodiscard]] bool Has(const AssetKey& key) const;
-
 	[[nodiscard]] std::vector<impl::AssetRecord> GetAssets() const;
 	bool Unload(const AssetKey& key, AssetKind kind);
-
 private:
 	AssetManager& assets;
 };
 
 } // namespace impl
-
 class AssetManager {
 public:
 	/// @brief Advances asynchronous asset preparation and finalizes GPU/main-thread resources.
 	/// Call once per application frame.
 	void Update();
-
 	/// @brief Loads all supported asset files from a directory immediately.
 	void LoadDirectory(const path& directory, bool recursive = true);
-
 	void LoadManifest(const path& asset_manifest_file);
-
 	void Load(
 		const std::vector<std::pair<AssetKey, std::variant<path, ShaderCode, ShaderPair>>>&
 			asset_keys_and_paths
 	);
-
 	/// @brief Registers a path-backed asset without loading it. This is useful for asynchronous
 	/// loading when the asset is not already present in a project catalog.
 	[[nodiscard]] bool RegisterAsset(AssetKey key, const path& asset_path);
-
 	/// @brief Loads and catalogs a path-backed asset. Relative paths may be project-relative or
 	/// relative to the runtime asset root/current working directory.
 	void Load(AssetKey key, const path& asset_path);
 	void Load(ShaderKey key, const ShaderCode& shader_code);
 	void Load(ShaderKey key, const ShaderPair& shader_pair);
 	void Load(const SerializedAsset& asset);
-
 	/// @brief Synchronously loads catalog assets. Prefer AcquireDependenciesAsync for gameplay.
 	void LoadDependencies(std::span<const AssetKey> dependencies);
-
 	/// @brief Starts a non-blocking manual residency load. Unload clears this residency pin.
 	void LoadAssetAsync(const AssetKey& key);
 	void LoadAssetAsync(const AssetKey& key, AssetKind kind);
-
 	/// @brief Starts non-blocking loads and retains the assets until the returned ticket is moved
 	/// into a Scene or destroyed.
 	[[nodiscard]] impl::AssetLoadTicket AcquireDependenciesAsync(
 		std::span<const AssetKey> dependencies
 	);
-
 	/// @return Aggregate progress for all currently active asynchronous load batches.
 	[[nodiscard]] impl::AssetLoadProgress GetActiveLoadProgress() const;
 	[[nodiscard]] bool IsLoading() const;
-
 	/// @brief Loads an asset and pins it as a project-wide startup dependency.
 	void LoadProjectAsset(AssetKey key, const path& asset_path);
-
 	/// @brief Replaces the known project catalog without loading every entry.
 	/// @return True when normalization/discovery changed the serialized catalog.
 	bool RegisterCatalog(std::span<const SerializedAsset> assets, const Project& project);
-
 	/// @brief Adds supported files found under the project Assets directory to the catalog.
 	void RefreshCatalogFromDisk();
-
 	/// @return The complete known path-backed project asset catalog.
 	[[nodiscard]] std::vector<SerializedAsset> GetCatalog() const;
 	[[nodiscard]] std::optional<SerializedAsset> GetCatalogAsset(const AssetKey& key) const;
@@ -394,28 +348,23 @@ public:
 		const AssetKey& key,
 		AssetKind kind
 	) const;
-
 	void AddProjectAssetDependency(AssetKey key);
 	/// @brief Pins and starts a non-blocking load for one project-wide dependency.
 	void PreloadProjectAsset(AssetKey key);
 	void RemoveProjectAssetDependency(const AssetKey& key);
 	void AddProjectAssetDependencies(std::span<const AssetKey> dependencies);
 	void SetProjectAssetDependencies(std::span<const AssetKey> dependencies);
-
 	[[nodiscard]] const std::vector<AssetKey>& GetProjectAssetDependencies() const;
 	[[nodiscard]] bool HasCatalogAsset(const AssetKey& key) const;
 	[[nodiscard]] bool HasCatalogAsset(const AssetKey& key, AssetKind kind) const;
-
 	/// @brief Copies a foreign file into the project folder owned by its detected asset kind.
 	[[nodiscard]] std::optional<AssetKey> ImportAsset(const path& source_file);
-
 	/// @brief Imports into destination_directory only when it belongs to the detected asset kind.
 	/// Otherwise the asset is imported into that kind's base directory.
 	[[nodiscard]] std::optional<AssetKey> ImportAsset(
 		const path& source_file,
 		const path& destination_directory
 	);
-
 	/// @brief Moves an asset into a base or user subdirectory belonging to the same asset kind.
 	/// destination_directory is relative to Assets. The asset key is unchanged.
 	bool MoveAsset(const AssetKey& key, const path& destination_directory = {});
@@ -424,22 +373,17 @@ public:
 		AssetKind kind,
 		const path& destination_directory = {}
 	);
-
 	/// @brief Renames a user-created asset directory and preserves catalog keys/paths. Both paths are
 	/// relative to Assets and must remain inside the same protected type directory.
 	bool MoveAssetDirectory(const path& source_directory, const path& destination_directory);
-
 	/// @brief Renames an unloaded, unreferenced catalog key without moving its source file.
 	bool RenameAssetKey(const AssetKey& key, AssetKey new_key);
 	bool RenameAssetKey(const AssetKey& key, AssetKind kind, AssetKey new_key);
-
 	/// @brief Restores an exact catalog entry after its source file has been restored.
 	bool RestoreCatalogAsset(const SerializedAsset& asset);
-
 	/// @brief Removes a catalog entry and optionally deletes its project file.
 	bool DeleteAsset(const AssetKey& key, bool delete_file = true);
 	bool DeleteAsset(const AssetKey& key, AssetKind kind, bool delete_file = true);
-
 	/// @brief Sets the vertex/fragment source descriptors for a shader program.
 	/// $source selects this shader file, $builtin:<name> selects an embedded engine stage, and a
 	/// project-relative path selects another GLSL file. A missing stage is retained as unconfigured;
@@ -449,7 +393,6 @@ public:
 		std::optional<std::string> vertex_source,
 		std::optional<std::string> fragment_source
 	);
-
 	[[nodiscard]] std::vector<impl::AssetRecord> GetEngineShaderAssets() const;
 	[[nodiscard]] std::optional<std::string> GetEngineShaderSource(const AssetKey& key) const;
 	[[nodiscard]] std::span<const std::string> GetEngineVertexShaderNames() const;
@@ -486,55 +429,57 @@ public:
 		std::string_view reference,
 		ShaderStageMask stage
 	) const;
-
 	[[nodiscard]] std::optional<path> GetProjectRoot() const;
 	[[nodiscard]] std::optional<path> GetAssetDirectory() const;
-
 	/// @brief Finds every catalog key appearing as a JSON string, including transitive prefab refs.
 	[[nodiscard]] std::vector<AssetKey> DiscoverDependencies(
 		const json& value,
 		std::span<const AssetKey> manual_dependencies = {}
 	) const;
-
 	Audio LoadAudio(AudioKey key, const path& audio_path);
-
 	json& LoadJson(const JsonKey& key, const path& json_path);
-
 	Prefab& LoadPrefab(PrefabKey key, const path& file_path, const path& source_path);
 	Prefab& SavePrefab(Prefab prefab, const path& prefab_path);
 	Prefab& SavePrefab(Prefab prefab, const path& file_path, const path& source_path);
 	bool SavePrefab(const PrefabKey& key);
+	/// @brief Captures a normal entity hierarchy as a prefab asset. The source is not modified.
+	Prefab& SavePrefab(Entity source, PrefabKey key);
+	/// @brief Ensures a catalogued prefab is resident and has a live ECS mirror.
+	[[nodiscard]] bool EnsurePrefabResident(const PrefabKey& key);
+	/// @brief Returns the live AssetManager-owned prefab entity at path. Empty path returns root.
+	[[nodiscard]] Entity GetPrefabEntity(
+		const PrefabKey& key,
+		std::span<const std::size_t> entity_path = {}
+	);
+	[[nodiscard]] Entity GetPrefabEntity(
+		const PrefabKey& key,
+		std::span<const std::size_t> entity_path = {}
+	) const;
+	/// @brief Persists changes made directly to a live prefab entity hierarchy.
+	bool SavePrefabEntity(const PrefabKey& key);
 	bool RemovePrefab(const PrefabKey& key, bool remove_file = true);
 	[[nodiscard]] std::vector<PrefabKey> GetPrefabKeys() const;
 	[[nodiscard]] path GetPrefabPath(const PrefabKey& key) const;
-
 	Shader LoadShader(
 		ShaderKey key,
 		const std::variant<ShaderCode, ShaderPath, ShaderPair>& source,
 		std::optional<std::string_view> shader_name = std::nullopt
 	);
-
 	Texture LoadTexture(
 		TextureKey key,
 		const path& texture_path,
 		TextureFormat storage_format = kDefaultTextureStorageFormat,
 		TextureParams params = {}
 	);
-
 	Font LoadFont(FontKey key, const path& font_path);
-
 	template <AssetType T>
 	bool Unload(const AssetKey& key);
-
 	[[nodiscard]] std::size_t Size() const;
-
 	V2_int GetTextureSize(const TextureKey& key) const;
 	V2_int GetFontAtlasSize(const FontKey& key) const;
 	impl::TextureId GetFontAtlasTexture(const FontKey& key) const;
-
 	[[nodiscard]] json CreateJson(const path& json_path) const;
 	[[nodiscard]] bool Has(const AssetKey& key) const;
-
 	template <typename T>
 		requires std::derived_from<std::remove_cvref_t<T>, AssetKey> &&
 				 requires { std::remove_cvref_t<T>::kind; }
@@ -542,7 +487,6 @@ public:
 		using Value = std::remove_cvref_t<T>;
 		return Has(static_cast<const AssetKey&>(key), Value::kind);
 	}
-
 private:
 	friend class impl::AssetAccessor;
 	friend class impl::AssetLoadTicket;
@@ -552,7 +496,6 @@ private:
 	friend class Texture;
 	friend class FontSystem;
 	friend class Text;
-
 	struct RuntimeAssetState {
 		AssetLoadState load_state{ AssetLoadState::Unloaded };
 		std::size_t reference_count{ 0 };
@@ -564,9 +507,7 @@ private:
 		impl::AssetMetadata metadata{};
 		std::vector<std::weak_ptr<impl::AssetLoadBatchState>> waiters{};
 	};
-
 	class AsyncLoader;
-
 	AssetManager() = delete;
 	explicit AssetManager(Renderer& renderer);
 	~AssetManager() noexcept;
@@ -574,42 +515,31 @@ private:
 	AssetManager& operator=(const AssetManager&) = delete;
 	AssetManager(AssetManager&&) noexcept = delete;
 	AssetManager& operator=(AssetManager&&) noexcept = delete;
-
 	template <AssetType T>
 	std::optional<ConstAsset<T>> TryGet(const AssetKey& key) const;
 	template <AssetType T>
 	std::optional<Asset<T>> TryGet(const AssetKey& key);
-
 	template <AssetType T>
 	ConstAsset<T> Get(const AssetKey& key) const;
-
 	template <AssetType T>
 	Asset<T> Get(const AssetKey& key);
-
 	template <AssetType T>
 	[[nodiscard]] bool Has(const AssetKey& key) const;
-
 	bool Has(const AssetKey& key, AssetKind kind) const;
-
 	Audio CreateAudio(const path& audio_path);
-
 	Shader CreateShader(
 		const std::variant<ShaderCode, ShaderPath, ShaderPair>& source,
 		std::string_view shader_name
 	);
-
 	Texture CreateTexture(
 		const path& texture_path,
 		TextureFormat storage_format = kDefaultTextureStorageFormat,
 		TextureParams params = {}
 	);
-
 	Font CreateFont(const path& font_path);
-
 	[[nodiscard]] std::vector<impl::AssetRecord> GetAssets() const;
 	bool Unload(const AssetKey& key, AssetKind kind);
 	bool ForceUnload(const AssetKey& key, AssetKind kind);
-
 	void Load(AssetKey key, const path& asset_path, AssetKind kind);
 	void QueueAssetLoad(
 		const SerializedAsset& asset,
@@ -620,29 +550,24 @@ private:
 		bool success,
 		std::string error = {}
 	);
-
 	void BeginAssetCapture(std::vector<AssetKey>& dependencies);
 	void EndAssetCapture(std::vector<AssetKey>& dependencies);
 	void TrackAssetDependency(const AssetKey& key);
 	void TrackAssetLoad(const AssetKey& key, AssetKind kind, const path& source_path);
-
 	[[nodiscard]] Shader CreateShader(
 		bool persistent,
 		const std::variant<ShaderCode, ShaderPath, ShaderPair>& source,
 		std::string_view shader_name
 	);
-
 	[[nodiscard]] impl::TextureObject CreateTexture(
 		const impl::Surface& surface,
 		TextureFormat storage_format,
 		TextureParams params = {}
 	) const;
-
 	[[nodiscard]] impl::TextureObject CreateTexture(
 		const std::uint8_t* pixel_data,
 		TextureDesc desc
 	) const;
-
 	[[nodiscard]] Audio CreateAudio(bool persistent, const path& asset_path);
 	[[nodiscard]] Texture CreateTexture(
 		bool persistent,
@@ -653,7 +578,6 @@ private:
 	[[nodiscard]] Font CreateFont(bool persistent, const path& asset_path);
 	[[nodiscard]] Font CreateFont(bool persistent, impl::FontAtlasData&& data);
 	[[nodiscard]] static impl::FontAtlasData PrepareFontAsset(const path& asset_path);
-
 	[[nodiscard]] ecs::Entity CreateAsset();
 	[[nodiscard]] path ResolveAssetPath(const SerializedAsset& asset) const;
 	[[nodiscard]] path ResolvePathBackedAssetSource(const path& source_path) const;
@@ -685,13 +609,14 @@ private:
 		std::optional<std::string_view> source_override = std::nullopt,
 		const std::optional<SerializedShaderProgram>& program_override = std::nullopt
 	) const;
-
 	Renderer& renderer_;
 	AudioSystem* audio_{ nullptr };
 	FontSystem* font_{ nullptr };
-
 	ecs::Manager manager_;
-
+	/// Asset records use ecs::Manager (VoidArchiver). Prefab pseudo-entities need the engine
+	/// Entity wrapper, which is backed by BaseEntity<JsonArchiver>, so they live in a separate
+	/// ptgn::Manager.
+	Manager prefab_manager_;
 	std::unordered_map<std::size_t, impl::JsonAssetData> jsons_;
 	std::unordered_map<std::size_t, impl::PrefabAssetData> prefabs_;
 	std::unordered_map<
@@ -713,10 +638,8 @@ private:
 	std::vector<impl::EngineShaderSource> engine_shader_sources_;
 	std::vector<std::string> engine_vertex_shader_names_;
 	std::vector<std::string> engine_fragment_shader_names_;
-
 	std::optional<path> project_root_;
 	std::optional<path> asset_directory_;
-
 	std::unique_ptr<AsyncLoader> async_loader_;
 };
 
@@ -731,7 +654,6 @@ template <AssetType T>
 Asset<T> AssetAccessor::Get(const AssetKey& key) {
 	return assets.Get<T>(key);
 }
-
 
 template <AssetType T>
 std::optional<ConstAsset<T>> AssetAccessor::TryGet(const AssetKey& key) const {

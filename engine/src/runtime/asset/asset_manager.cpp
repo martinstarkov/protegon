@@ -64,6 +64,10 @@
 #include "runtime/asset/engine_shader_library.h"
 #include "runtime/audio/audio.h"
 #include "runtime/audio/audio_system.h"
+#include "runtime/ecs/entity_hierarchy.h"
+#include "runtime/ecs/entity_serialization.h"
+#include "runtime/ecs/tag.h"
+#include "runtime/ecs/uuid.h"
 #include "runtime/graphics/text/font.h"
 #include "runtime/graphics/text/font_system.h"
 #include "serialization/json/json.h"
@@ -90,6 +94,56 @@ inline constexpr std::array<std::uint8_t, 4> kMissingTexturePixel{ 176, 48, 224,
 		key.value = MakePrefabKey(key.value).value;
 	}
 	return key;
+}
+
+Entity CreatePrefabAssetEntity(
+	Manager& manager,
+	const SerializedEntity& definition,
+	Entity parent = {}
+) {
+	Entity entity{ manager.CreateEntity() };
+	entity.Add<Tag>(definition.tag);
+	entity.Add<UUID>(UUID{});
+	DeserializeEntity(definition, entity);
+
+	if (parent) {
+		SetParent(entity, parent);
+	}
+
+	for (const auto& child : definition.children) {
+		(void)CreatePrefabAssetEntity(manager, child, entity);
+	}
+	return entity;
+}
+
+void DestroyPrefabAssetEntity(Entity entity) {
+	if (entity) {
+		entity.Destroy();
+	}
+}
+
+void RebuildPrefabAssetEntity(Manager& manager, impl::PrefabAssetData& asset) {
+	if (asset.root) {
+		DestroyPrefabAssetEntity(asset.root);
+		manager.Refresh();
+	}
+	asset.root = CreatePrefabAssetEntity(manager, asset.value.root);
+	manager.Refresh();
+}
+
+Entity ResolvePrefabAssetEntity(Entity root, std::span<const std::size_t> path) {
+	Entity current{ root };
+	for (const std::size_t index : path) {
+		if (!current || !HasChildren(current)) {
+			return {};
+		}
+		const auto children{ GetChildren(current) };
+		if (index >= children.size()) {
+			return {};
+		}
+		current = children[index];
+	}
+	return current;
 }
 
 AssetKind GetAssetKindFromEntity(ecs::Entity asset, const path& source_path) {
@@ -968,7 +1022,6 @@ AssetManager::AssetManager(Renderer& renderer) :
 	InitializeEngineShaderCatalog();
 }
 
-
 void AssetManager::InitializeEngineShaderCatalog() {
 	engine_shader_sources_.clear();
 	engine_vertex_shader_names_.clear();
@@ -1467,7 +1520,12 @@ void AssetManager::Update() {
 							}
 						);
 					} else if constexpr (std::same_as<Value, AsyncLoader::PreparedPrefab>) {
-						prefabs_.insert_or_assign(
+						if (auto previous{ prefabs_.find(Hash(asset.key)) };
+							previous != prefabs_.end() && previous->second.root) {
+							DestroyPrefabAssetEntity(previous->second.root);
+							prefab_manager_.Refresh();
+						}
+						auto [it, inserted]{ prefabs_.insert_or_assign(
 							Hash(asset.key),
 							impl::PrefabAssetData{
 								.key = PrefabKey{ asset.key },
@@ -1475,7 +1533,9 @@ void AssetManager::Update() {
 								.source_path = asset.source_path,
 								.value = std::move(prepared.value),
 							}
-						);
+						) };
+						(void)inserted;
+						RebuildPrefabAssetEntity(prefab_manager_, it->second);
 					} else if constexpr (std::same_as<Value, AsyncLoader::PreparedShader>) {
 						auto disk_source{ FileToString(absolute_path) };
 						auto validation{ ValidateShaderSource(ShaderKey{ asset.key }, disk_source) };
@@ -1609,7 +1669,13 @@ impl::AssetLoadTicket AssetManager::AcquireDependenciesAsync(
 	std::vector<SerializedAsset> available_assets;
 	std::vector<AssetKey> available_dependencies;
 
-	for (const auto& key : expanded_dependencies) {
+	for (const auto& requested_key : expanded_dependencies) {
+		AssetKey key{ requested_key };
+		const PrefabKey prefab_key{ MakePrefabKey(requested_key.value) };
+		if (!HasCatalogAsset(key) && HasCatalogAsset(prefab_key, AssetKind::Prefab)) {
+			key = prefab_key;
+		}
+
 		bool found{ false };
 		for (const auto& [_, asset] : catalog_) {
 			if (asset.key != key) {
@@ -2586,7 +2652,6 @@ bool AssetManager::MoveAsset(
 		return false;
 	}
 
-
 	path relative_destination{ destination_directory.lexically_normal() };
 	if (relative_destination.empty() || relative_destination == ".") {
 		relative_destination = path{ ProjectAssetFolderName(kind) };
@@ -2897,7 +2962,7 @@ void AssetManager::Load(const SerializedAsset& asset) {
 		Load(load_asset.key, source_path, load_asset.kind);
 		return;
 	}
-	
+
 	auto source{ FileToString(source_path) };
 	auto validation{ ValidateShaderSource(ShaderKey{ load_asset.key }, source) };
 	auto& shader_state{ runtime_states_[MakeAssetStorageKey(load_asset.key, load_asset.kind)] };
@@ -3353,6 +3418,7 @@ Prefab& AssetManager::LoadPrefab(
 		}
 	) };
 	(void)inserted;
+	RebuildPrefabAssetEntity(prefab_manager_, it->second);
 
 	runtime_states_[MakeAssetStorageKey(key, AssetKind::Prefab)].load_state = AssetLoadState::Loaded;
 	return it->second.value;
@@ -3371,6 +3437,12 @@ Prefab& AssetManager::SavePrefab(
 	SavePrefabFile(file_path, prefab);
 	auto key{ prefab.key };
 
+	if (auto previous{ prefabs_.find(Hash(key)) };
+		previous != prefabs_.end() && previous->second.root) {
+		DestroyPrefabAssetEntity(previous->second.root);
+		prefab_manager_.Refresh();
+	}
+
 	auto [it, inserted]{ prefabs_.insert_or_assign(
 		Hash(key),
 		impl::PrefabAssetData{
@@ -3381,6 +3453,7 @@ Prefab& AssetManager::SavePrefab(
 		}
 	) };
 	(void)inserted;
+	RebuildPrefabAssetEntity(prefab_manager_, it->second);
 
 	SerializedAsset serialized{
 		.key = key,
@@ -3394,11 +3467,88 @@ Prefab& AssetManager::SavePrefab(
 	return it->second.value;
 }
 
-bool AssetManager::SavePrefab(const PrefabKey& key) {
+bool AssetManager::SavePrefab(const PrefabKey& input_key) {
+	const PrefabKey key{ MakePrefabKey(input_key.value) };
 	auto it{ prefabs_.find(Hash(key)) };
 	if (it == prefabs_.end()) {
 		return false;
 	}
+	SavePrefabFile(it->second.file_path, it->second.value);
+	RebuildPrefabAssetEntity(prefab_manager_, it->second);
+	return true;
+}
+
+Prefab& AssetManager::SavePrefab(Entity source, PrefabKey key) {
+	PTGN_ASSERT(source, "Cannot save a null entity as a prefab");
+	key = MakePrefabKey(key.value);
+
+	const auto project_root{ GetProjectRoot() };
+	PTGN_ASSERT(project_root.has_value(), "Cannot create a prefab without an active project");
+
+	const path source_path{ GetPrefabSourcePath(key) };
+	return SavePrefab(
+		CapturePrefab(source, key, true),
+		*project_root / source_path,
+		source_path
+	);
+}
+
+bool AssetManager::EnsurePrefabResident(const PrefabKey& input_key) {
+	const PrefabKey key{ MakePrefabKey(input_key.value) };
+	if (Has<Prefab>(key)) {
+		return true;
+	}
+
+	const auto catalog{ GetCatalogAsset(key, AssetKind::Prefab) };
+	if (!catalog.has_value()) {
+		return false;
+	}
+
+	Load(key, catalog->source_path);
+	return Has<Prefab>(key);
+}
+
+Entity AssetManager::GetPrefabEntity(
+	const PrefabKey& input_key,
+	std::span<const std::size_t> entity_path
+) {
+	const PrefabKey key{ MakePrefabKey(input_key.value) };
+	if (!EnsurePrefabResident(key)) {
+		return {};
+	}
+
+	auto it{ prefabs_.find(Hash(key)) };
+	return it == prefabs_.end()
+		? Entity{}
+		: ResolvePrefabAssetEntity(it->second.root, entity_path);
+}
+
+Entity AssetManager::GetPrefabEntity(
+	const PrefabKey& input_key,
+	std::span<const std::size_t> entity_path
+) const {
+	const PrefabKey key{ MakePrefabKey(input_key.value) };
+	auto it{ prefabs_.find(Hash(key)) };
+	return it == prefabs_.end()
+		? Entity{}
+		: ResolvePrefabAssetEntity(it->second.root, entity_path);
+}
+
+bool AssetManager::SavePrefabEntity(const PrefabKey& input_key) {
+	const PrefabKey key{ MakePrefabKey(input_key.value) };
+	auto it{ prefabs_.find(Hash(key)) };
+	if (it == prefabs_.end() || !it->second.root) {
+		return false;
+	}
+
+	it->second.value.key = key;
+	it->second.value.root = SerializeEntity(
+		it->second.root,
+		{
+			.include_uuid = false,
+			.include_children = true,
+		}
+	);
 	SavePrefabFile(it->second.file_path, it->second.value);
 	return true;
 }
@@ -3791,7 +3941,17 @@ bool AssetManager::Unload(const AssetKey& key) {
 	if constexpr (std::is_same_v<std::remove_cvref_t<T>, json>) {
 		return jsons_.erase(Hash(key)) != 0;
 	} else if constexpr (std::is_same_v<std::remove_cvref_t<T>, Prefab>) {
-		return prefabs_.erase(Hash(key)) != 0;
+		const PrefabKey canonical{ MakePrefabKey(key.value) };
+		auto it{ prefabs_.find(Hash(canonical)) };
+		if (it == prefabs_.end()) {
+			return false;
+		}
+		if (it->second.root) {
+			DestroyPrefabAssetEntity(it->second.root);
+			prefab_manager_.Refresh();
+		}
+		prefabs_.erase(it);
+		return true;
 	} else {
 		return UnloadAssetImpl<T>(manager_, key);
 	}
@@ -3916,6 +4076,7 @@ bool AssetManager::Has(const AssetKey& key) const {
 }
 
 std::size_t AssetManager::Size() const {
+	// prefab_manager_ stores the live ECS mirrors only; each prefab still counts as one asset.
 	return manager_.Size() + jsons_.size() + prefabs_.size();
 }
 
@@ -4064,7 +4225,12 @@ std::vector<AssetKey> AssetManager::DiscoverDependencies(
 	std::span<const AssetKey> manual_dependencies
 ) const {
 	std::vector<AssetKey> dependencies;
-	for (const auto& key : manual_dependencies) {
+	for (const auto& requested_key : manual_dependencies) {
+		AssetKey key{ requested_key };
+		const PrefabKey prefab_key{ MakePrefabKey(requested_key.value) };
+		if (!HasCatalogAsset(key) && HasCatalogAsset(prefab_key, AssetKind::Prefab)) {
+			key = prefab_key;
+		}
 		AddUnique(dependencies, key);
 	}
 
@@ -4072,6 +4238,12 @@ std::vector<AssetKey> AssetManager::DiscoverDependencies(
 		std::function<void(const json&)> visit = [&](const json& current) {
 			if (current.is_string()) {
 				AssetKey key{ current.get<std::string>() };
+				if (!HasCatalogAsset(key)) {
+					const PrefabKey prefab_key{ MakePrefabKey(key.value) };
+					if (HasCatalogAsset(prefab_key, AssetKind::Prefab)) {
+						key = prefab_key;
+					}
+				}
 				if (HasCatalogAsset(key)) {
 					AddUnique(dependencies, key);
 				}

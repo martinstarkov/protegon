@@ -105,21 +105,6 @@ template <typename Range>
 		   presentation_viewport.GetCenter();
 }
 
-template <typename T>
-[[nodiscard]] std::optional<T> GetSerializedComponentValue(const SerializedEntity& entity) {
-	const RegisteredComponent* registered{ ComponentRegistry::Find<T>() };
-	if (!registered) {
-		return std::nullopt;
-	}
-
-	const auto it{ entity.components.find(std::string{ registered->name }) };
-	if (it == entity.components.end()) {
-		return std::nullopt;
-	}
-
-	return it->second.get<T>();
-}
-
 struct PrefabGeneratorPreview {
 	TextureKey texture{};
 	::ptgn::impl::TextureId texture_id{};
@@ -130,26 +115,35 @@ struct PrefabGeneratorPreview {
 };
 
 [[nodiscard]] bool FindPrefabGeneratorPreview(
-	const SerializedEntity& entity,
+	Entity entity,
 	std::vector<Transform>& transform_path,
 	PrefabGeneratorPreview& result
 ) {
-	transform_path.push_back(GetSerializedComponentValue<Transform>(entity).value_or(Transform{}));
+	if (!entity) {
+		return false;
+	}
 
-	if (const auto texture{ GetSerializedComponentValue<TextureKey>(entity) };
-		texture.has_value() && *texture) {
+	transform_path.push_back(
+		entity.Has<Transform>() ? entity.Get<Transform>() : Transform{}
+	);
+
+	if (const auto texture{ entity.TryGet<TextureKey>() }; texture && *texture) {
 		result.texture = *texture;
 		result.transform_path = transform_path;
-		result.origin = GetSerializedComponentValue<Origin>(entity).value_or(Origin::Center);
-		result.animation = GetSerializedComponentValue<::ptgn::impl::AnimationData>(entity);
+		result.origin = entity.Has<Origin>() ? entity.Get<Origin>() : Origin::Center;
+		if (const auto animation{ entity.TryGet<::ptgn::impl::AnimationData>() }) {
+			result.animation = *animation;
+		}
 		transform_path.pop_back();
 		return true;
 	}
 
-	for (const SerializedEntity& child : entity.children) {
-		if (FindPrefabGeneratorPreview(child, transform_path, result)) {
-			transform_path.pop_back();
-			return true;
+	if (HasChildren(entity)) {
+		for (Entity child : GetChildren(entity)) {
+			if (FindPrefabGeneratorPreview(child, transform_path, result)) {
+				transform_path.pop_back();
+				return true;
+			}
 		}
 	}
 
@@ -161,29 +155,21 @@ struct PrefabGeneratorPreview {
 	EditorContext& ctx, const PrefabKey& key
 ) {
 	auto& assets{ ctx.editor.GetAssetManager() };
-	::ptgn::impl::AssetAccessor accessor{ assets };
-
-	if (!accessor.Has<Prefab>(key)) {
-		if (const auto catalog{ assets.GetCatalogAsset(key, AssetKind::Prefab) };
-			catalog.has_value()) {
-			assets.Load(key, catalog->source_path);
-		}
-	}
-	if (!accessor.Has<Prefab>(key)) {
+	Entity prefab_root{ assets.GetPrefabEntity(key) };
+	if (!prefab_root) {
 		return std::nullopt;
 	}
-
-	auto prefab_asset{ accessor.Get<Prefab>(key) };
-	const Prefab& prefab{ prefab_asset.get() };
 
 	PrefabGeneratorPreview result;
 	std::vector<Transform> transform_path;
-	if (!FindPrefabGeneratorPreview(prefab.root, transform_path, result) || !result.texture) {
+	if (!FindPrefabGeneratorPreview(prefab_root, transform_path, result) || !result.texture) {
 		return std::nullopt;
 	}
 
-	// Generator previews should be able to display a prefab even if its texture has
-	// not otherwise been needed by the current scene yet.
+	::ptgn::impl::AssetAccessor accessor{ assets };
+
+	// The live prefab entity stores the same TextureKey as a scene instance. Resolve that
+	// dependency through the catalog so preview residency follows ordinary asset rules.
 	if (!accessor.Has<Texture>(result.texture)) {
 		if (const auto catalog{
 				assets.GetCatalogAsset(result.texture, AssetKind::Texture)
@@ -2058,7 +2044,6 @@ void PaintEditor::DrawBrushSettingsToolbar(EditorContext& ctx, Scene& scene, Sce
 		}
 	}
 
-
 	const bool source_applicable{
 		emits_content &&
 		recipe_.operation != PaintBrushOperation::ExclusionMask &&
@@ -2423,14 +2408,7 @@ void PaintEditor::DrawBrushSettingsToolbar(EditorContext& ctx, Scene& scene, Sce
 				bool source_matches_grid{ false };
 				if (prefab_source_) {
 					auto& assets{ ctx.editor.GetAssetManager() };
-					if (!::ptgn::impl::AssetAccessor{ assets }.Has<Prefab>(prefab_source_)) {
-						if (const auto catalog{
-								assets.GetCatalogAsset(prefab_source_, AssetKind::Prefab) }) {
-							assets.Load(prefab_source_, catalog->source_path);
-						}
-					}
-
-					if (::ptgn::impl::AssetAccessor{ assets }.Has<Prefab>(prefab_source_)) {
+					if (assets.EnsurePrefabResident(prefab_source_)) {
 						const auto prefab{
 							::ptgn::impl::AssetAccessor{ assets }.Get<Prefab>(prefab_source_)
 						};
@@ -2504,7 +2482,6 @@ void PaintEditor::DrawBrushSettingsToolbar(EditorContext& ctx, Scene& scene, Sce
 				}
 			}
 
-
 			ImGui::SeparatorText("Procedural");
 			ImGui::BeginDisabled(layer.locked);
 			if (ImGui::Button("Create Infinite Generator")) {
@@ -2523,7 +2500,6 @@ void PaintEditor::DrawBrushSettingsToolbar(EditorContext& ctx, Scene& scene, Sce
 
 	ImGui::PopID();
 }
-
 
 void PaintEditor::DrawNoiseThresholdGradient(EditorContext&, SceneLayer& layer) {
 	auto& field{ recipe_.noise };
@@ -2843,7 +2819,6 @@ void PaintEditor::DrawNoiseRecipe(EditorContext& ctx, Scene&, SceneLayer& layer)
 			"##PaintNoisePreviewOpacity", &recipe_.noise_preview_alpha, 0.0f, 1.0f, "%.2f"
 		);
 	}
-
 
 	ImGui::SeparatorText("Noise Thresholds");
 	DrawNoiseThresholdGradient(ctx, layer);
@@ -4295,7 +4270,6 @@ void PaintEditor::DrawAutotileSourceEditor(EditorContext& ctx) {
 	}
 }
 
-
 void PaintEditor::EnsureLocalState(EditorContext& ctx) {
 	const auto root{ ctx.editor.GetProjectRoot() };
 	const std::string project{ root.has_value() ? root->lexically_normal().generic_string()
@@ -5278,7 +5252,6 @@ bool PaintEditor::DrawTilesPanel(EditorContext& ctx) {
 	ImGui::End();
 	return true;
 }
-
 
 bool PaintEditor::DrawGeneratorSourceEditor(
 	EditorContext& ctx, Entity generator, PaintGeneratorRecipe& recipe
@@ -6362,14 +6335,7 @@ void PaintEditor::BakeGenerator(EditorContext& ctx, Scene& scene, Entity entity)
 				continue;
 			}
 
-			if (!::ptgn::impl::AssetAccessor{ assets }.Has<Prefab>(prefab_key)) {
-				const auto catalog{ assets.GetCatalogAsset(prefab_key, AssetKind::Prefab) };
-				if (!catalog.has_value()) {
-					continue;
-				}
-				assets.Load(prefab_key, catalog->source_path);
-			}
-			if (!::ptgn::impl::AssetAccessor{ assets }.Has<Prefab>(prefab_key)) {
+			if (!assets.EnsurePrefabResident(prefab_key)) {
 				continue;
 			}
 
@@ -8179,19 +8145,10 @@ void PaintEditor::ApplyEntityAt(EditorContext& ctx, Scene& scene, V2_float world
 		return;
 	}
 
-	// Prefab source browsers enumerate the project catalog, but Scene::CreatePrefab() requires
-	// the prefab object to be resident. A prefab can therefore be selectable after reopening a
-	// project without having been loaded yet. Resolve that catalog entry synchronously before
-	// instantiation so painting works independently of scene preload dependencies.
+	// Scene::CreatePrefab() and AssetManager use the same residency path. Paint code does not
+	// need to know how prefab assets are catalogued or loaded.
 	auto& assets{ ctx.editor.GetAssetManager() };
-	if (!::ptgn::impl::AssetAccessor{ assets }.Has<Prefab>(source)) {
-		const auto catalog{ assets.GetCatalogAsset(source, AssetKind::Prefab) };
-		if (!catalog.has_value()) {
-			return;
-		}
-		assets.Load(source, catalog->source_path);
-	}
-	if (!::ptgn::impl::AssetAccessor{ assets }.Has<Prefab>(source)) {
+	if (!assets.EnsurePrefabResident(source)) {
 		return;
 	}
 

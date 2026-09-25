@@ -31,6 +31,7 @@
 #include "runtime/graphics/fx/particle.h"
 #include "runtime/scene/scene.h"
 #include "runtime/scene/scene_camera.h"
+#include "runtime/scene/scene_manager.h"
 #include "runtime/ui/slider.h"
 
 namespace ptgn::impl {
@@ -45,14 +46,16 @@ namespace ptgn::editor::inspector {
 template <typename T>
 using ComponentState = std::optional<T>;
 
-struct InspectorTargetKey {
+struct FeatureTargetKey {
 	const Scene* scene{ nullptr };
 	std::optional<UUID> entity{};
 	std::optional<PrefabKey> prefab{};
 	SerializedEntityPath prefab_entity_path{};
 
-	bool operator==(const InspectorTargetKey&) const = default;
+	bool operator==(const FeatureTargetKey&) const = default;
 };
+
+using InspectorTargetKey = FeatureTargetKey;
 
 template <typename T>
 void AssignEntityComponent(Entity entity, ComponentState<T> state) {
@@ -229,11 +232,15 @@ struct EntityInspectorTarget {
 		return std::addressof(entity.Get<UUID>());
 	}
 
-	[[nodiscard]] InspectorTargetKey GetInspectorTargetKey() const {
-		return InspectorTargetKey{
+	[[nodiscard]] FeatureTargetKey GetFeatureTargetKey() const {
+		return FeatureTargetKey{
 			.scene	= std::addressof(entity.GetScene()),
 			.entity = entity.Get<UUID>(),
 		};
+	}
+
+	[[nodiscard]] InspectorTargetKey GetInspectorTargetKey() const {
+		return GetFeatureTargetKey();
 	}
 
 	template <typename T>
@@ -337,11 +344,19 @@ struct EntityInspectorTarget {
 	}
 };
 
+inline void SyncPrefabTargetInstances(EditorContext& ctx, const PrefabKey& key) {
+	for (const auto& scene : ctx.editor.GetSceneManager().GetScenes()) {
+		if (scene && !scene->IsRuntime()) {
+			(void)SyncPrefabInstances(*scene, key);
+		}
+	}
+}
+
 struct PrefabInspectorTarget {
 	EditorContext& ctx;
 	PrefabKey key{};
 	SerializedEntityPath entity_path{};
-	SerializedEntity& prefab;
+	Entity prefab{};
 
 	template <typename T>
 	[[nodiscard]] static constexpr bool Supports() {
@@ -357,77 +372,97 @@ struct PrefabInspectorTarget {
 	}
 
 	[[nodiscard]] const void* Id() const {
-		return std::addressof(prefab);
+		if (prefab && prefab.Has<UUID>()) {
+			return static_cast<const void*>(std::addressof(prefab.Get<UUID>()));
+		}
+		return static_cast<const void*>(std::addressof(prefab));
 	}
 
-	[[nodiscard]] InspectorTargetKey GetInspectorTargetKey() const {
-		return InspectorTargetKey{
+	[[nodiscard]] FeatureTargetKey GetFeatureTargetKey() const {
+		return FeatureTargetKey{
 			.prefab = key,
 			.prefab_entity_path = entity_path,
 		};
 	}
 
+	[[nodiscard]] InspectorTargetKey GetInspectorTargetKey() const {
+		return GetFeatureTargetKey();
+	}
+
 	template <typename T>
 	[[nodiscard]] ComponentState<T> Capture() const {
-		return CapturePrefabComponent<T>(prefab);
+		if (!prefab || !prefab.Has<T>()) {
+			return std::nullopt;
+		}
+
+		if constexpr (std::is_empty_v<T>) {
+			return T{};
+		} else if constexpr (std::same_as<T, ::ptgn::impl::ParticleEmitterData>) {
+			const auto* registration{ ComponentRegistry::Find<T>() };
+			if (!registration) {
+				return std::nullopt;
+			}
+
+			json serialized;
+			if (!registration->Serialize(serialized, prefab)) {
+				return std::nullopt;
+			}
+
+			T value{};
+			try {
+				serialized.get_to(value);
+			} catch (...) {
+				return std::nullopt;
+			}
+			return ComponentState<T>{ std::move(value) };
+		} else {
+			return prefab.Get<T>();
+		}
 	}
 
 	template <typename T, typename Callback = std::nullptr_t>
-	void SetLive(
-		ComponentState<T> state,
-		Callback = nullptr
-	) {
-		AssignPrefabComponent<T>(prefab, std::move(state));
+	void SetLive(ComponentState<T> state, Callback callback = nullptr) {
+		if (!prefab) {
+			return;
+		}
+
+		AssignEntityInspectorComponent<T>(prefab, std::move(state));
+		InvokeEntityChanged(callback, prefab);
+		::ptgn::impl::SliderSystem::SynchronizeEntity(prefab);
 	}
 
 	template <typename T, typename Callback = std::nullptr_t>
-	auto MakeApply(Callback = nullptr) const {
+	auto MakeApply(Callback callback = nullptr) const {
 		EditorContext* context{ std::addressof(ctx) };
 		PrefabKey prefab_key{ key };
 		SerializedEntityPath path{ entity_path };
 
-		return [
-			context,
-			prefab_key,
-			path = std::move(path)
-		](ComponentState<T> state) mutable {
+		return [context, prefab_key, path = std::move(path), callback](
+				   ComponentState<T> state
+			   ) mutable {
 			auto& assets{ context->editor.GetAssetManager() };
-
-			if (!assets.Has(prefab_key)) {
+			Entity resolved{ assets.GetPrefabEntity(prefab_key, path) };
+			if (!resolved) {
 				return;
 			}
 
-			auto prefab_asset{
-				::ptgn::impl::AssetAccessor{ assets }.Get<Prefab>(prefab_key)
-			};
-
-			auto* serialized{
-				ResolveSerializedEntity(
-					prefab_asset.get().root,
-					path
-				)
-			};
-
-			if (!serialized) {
-				return;
-			}
-
-			AssignPrefabComponent<T>(
-				*serialized,
-				std::move(state)
-			);
-
-			assets.SavePrefab(prefab_key);
+			AssignEntityInspectorComponent<T>(resolved, std::move(state));
+			InvokeEntityChanged(callback, resolved);
+			::ptgn::impl::SliderSystem::SynchronizeEntity(resolved);
+			assets.SavePrefabEntity(prefab_key);
+			SyncPrefabTargetInstances(*context, prefab_key);
 			context->local.state.is_dirty = true;
 		};
 	}
 
 	[[nodiscard]] std::string GetName() const {
-		return prefab.tag;
+		return prefab && prefab.Has<Tag>() ? std::string{ prefab.Get<Tag>() } : std::string{};
 	}
 
 	void SetName(std::string name) {
-		prefab.tag = std::move(name);
+		if (prefab) {
+			prefab.Add<Tag>(std::move(name));
+		}
 	}
 
 	auto MakeNameApply() const {
@@ -435,34 +470,16 @@ struct PrefabInspectorTarget {
 		PrefabKey prefab_key{ key };
 		SerializedEntityPath path{ entity_path };
 
-		return [
-			context,
-			prefab_key,
-			path = std::move(path)
-		](std::string name) {
+		return [context, prefab_key, path = std::move(path)](std::string name) {
 			auto& assets{ context->editor.GetAssetManager() };
-
-			if (!assets.Has(prefab_key)) {
+			Entity resolved{ assets.GetPrefabEntity(prefab_key, path) };
+			if (!resolved) {
 				return;
 			}
 
-			auto prefab_asset{
-				::ptgn::impl::AssetAccessor{ assets }.Get<Prefab>(prefab_key)
-			};
-
-			auto* serialized{
-				ResolveSerializedEntity(
-					prefab_asset.get().root,
-					path
-				)
-			};
-
-			if (!serialized) {
-				return;
-			}
-
-			serialized->tag = std::move(name);
-			assets.SavePrefab(prefab_key);
+			resolved.Add<Tag>(std::move(name));
+			assets.SavePrefabEntity(prefab_key);
+			SyncPrefabTargetInstances(*context, prefab_key);
 			context->local.state.is_dirty = true;
 		};
 	}
@@ -801,6 +818,17 @@ bool DrawOptionalValue(Target& target, std::string_view label, FieldOptions opti
 		return DrawValue(target.ctx, label, value, options);
 	});
 }
+
+template <typename T, typename Target>
+bool AddFeature(Target& target, std::string_view label) {
+	if (target.template Capture<T>()) {
+		return false;
+	}
+	return SetComponentStateUndoable<Target, T>(
+		target, std::string{ "Add " } + std::string{ label }, ComponentState<T>{ T{} }
+	);
+}
+
 
 template <typename Target>
 bool DrawName(Target& target) {
