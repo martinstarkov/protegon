@@ -1735,7 +1735,7 @@ void PaintEditor::DrawBrushSettingsToolbar(EditorContext& ctx, Scene& scene, Sce
 	} else if (emits_content) {
 		int operation{ static_cast<int>(recipe_.operation) };
 		const bool allow_mask{ tile_layer && tool_ != PaintTool::Fill };
-		const char* operations{ allow_mask ? "Paint\0Replace\0Mask\0" : "Paint\0Replace\0" };
+		const char* operations{ allow_mask ? "Paint\0Replace\0Exclude Mask\0" : "Paint\0Replace\0" };
 		const int count{ allow_mask ? 3 : 2 };
 
 		if (operation >= count) {
@@ -1751,6 +1751,135 @@ void PaintEditor::DrawBrushSettingsToolbar(EditorContext& ctx, Scene& scene, Sce
 			ImGui::SetTooltip(
 				"Paint emits content, Replace overwrites eligible content, and Mask authors "
 				"the Tilemap exclusion mask."
+			);
+		}
+	}
+
+
+	const bool source_applicable{
+		emits_content && recipe_.operation != PaintBrushOperation::ExclusionMask
+	};
+
+	if (source_applicable) {
+		if (entity_layer && recipe_.source_kind == PaintSourceKind::Autotile) {
+			recipe_.source_kind = PaintSourceKind::Single;
+		}
+
+		// Single is intentionally not an independently-authored paint source anymore.
+		// It always mirrors the current asset selection in the Tiles/Prefabs window.
+		if (recipe_.source_kind == PaintSourceKind::Single) {
+			if (tile_layer) {
+				if (const TileLibraryEntry* selected{ FindTileEntry(selected_tile_entry_id_) }) {
+					tile_source_ = MakeTileSource(ctx, selected->texture, selected->slice);
+				} else {
+					tile_source_ = {};
+				}
+			} else if (entity_layer) {
+				const auto selected_prefab{
+					ctx.editor.GetSceneHierarchyPanel().GetSelectedPrefab()
+				};
+				prefab_source_ = selected_prefab.value_or(PrefabKey{});
+			}
+		}
+
+		auto source_name = [](PaintSourceKind kind) -> const char* {
+			switch (kind) {
+				case PaintSourceKind::Single:       return "Single";
+				case PaintSourceKind::WeightedSet:  return "Weighted Set";
+				case PaintSourceKind::Checkerboard: return "Checkerboard";
+				case PaintSourceKind::Autotile:     return "Autotile / Terrain";
+				case PaintSourceKind::Noise:        return "Noise";
+			}
+			return "Single";
+		};
+
+		next_control();
+		const std::string source_preview{
+			std::string{ "Source: " } + source_name(recipe_.source_kind)
+		};
+		ImGui::SetNextItemWidth(
+			compact_width("Source: Autotile / Terrain", ImGui::GetFrameHeight() + 2.0f)
+		);
+		ImGui::SetNextWindowSizeConstraints(
+			ImVec2{ 420.0f, 0.0f },
+			ImVec2{ 620.0f, 680.0f }
+		);
+
+		const bool source_open{
+			ImGui::BeginCombo("##PaintSource", source_preview.c_str())
+		};
+		const bool source_hovered{ ImGui::IsItemHovered() };
+
+		if (source_open) {
+			auto source_item = [&](PaintSourceKind kind, const char* label) {
+				const bool selected{ recipe_.source_kind == kind };
+				if (ImGui::Selectable(
+						label,
+						selected,
+						ImGuiSelectableFlags_DontClosePopups
+					)) {
+					recipe_.source_kind = kind;
+				}
+				if (selected) {
+					ImGui::SetItemDefaultFocus();
+				}
+			};
+
+			source_item(PaintSourceKind::Single, "Single");
+			source_item(PaintSourceKind::WeightedSet, "Weighted Set");
+			source_item(PaintSourceKind::Checkerboard, "Checkerboard");
+			if (tile_layer) {
+				source_item(PaintSourceKind::Autotile, "Autotile / Terrain");
+			}
+			source_item(PaintSourceKind::Noise, "Noise");
+
+			if (recipe_.source_kind == PaintSourceKind::Single) {
+				ImGui::Separator();
+				if (tile_layer) {
+					if (const TileLibraryEntry* selected{
+							FindTileEntry(selected_tile_entry_id_)
+						}) {
+						ImGui::TextDisabled(
+							"Using selected tile: %s",
+							selected->name.c_str()
+						);
+					} else {
+						ImGui::TextDisabled(
+							"Select a tile in the Tiles window."
+						);
+					}
+				} else {
+					const auto selected_prefab{
+						ctx.editor.GetSceneHierarchyPanel().GetSelectedPrefab()
+					};
+					if (selected_prefab.has_value()) {
+						ImGui::TextDisabled(
+							"Using selected prefab: %s",
+							PrefabDisplayName(*selected_prefab).c_str()
+						);
+					} else {
+						ImGui::TextDisabled(
+							"Select a prefab in the Prefabs window."
+						);
+					}
+				}
+			} else {
+				ImGui::Separator();
+				if (recipe_.source_kind == PaintSourceKind::Noise) {
+					DrawNoiseRecipe(ctx, scene, layer);
+				} else {
+					DrawExtendedSourceRecipe(ctx, scene, layer);
+				}
+			}
+
+			ImGui::EndCombo();
+		}
+
+		if (source_hovered) {
+			ImGui::SetTooltip(
+				"Single uses the current selection from the %s window. "
+				"Other source types are configured inside this popup.",
+				tile_layer ? "Tiles" : "Prefabs"
 			);
 		}
 	}
@@ -1809,14 +1938,9 @@ void PaintEditor::DrawBrushSettingsToolbar(EditorContext& ctx, Scene& scene, Sce
 		}
 	}
 
-	const bool recipe_applies{
-		emits_content && recipe_.operation != PaintBrushOperation::ExclusionMask
-	};
+	const bool recipe_applies{ source_applicable };
 
 	if (recipe_applies) {
-		if (entity_layer && recipe_.source_kind == PaintSourceKind::Autotile) {
-			recipe_.source_kind = PaintSourceKind::Single;
-		}
 
 		if (entity_layer) {
 			next_control();
@@ -1858,6 +1982,58 @@ void PaintEditor::DrawBrushSettingsToolbar(EditorContext& ctx, Scene& scene, Sce
 			ImVec2{ 460.0f, 520.0f }
 		);
 		if (ImGui::BeginCombo("##PaintMore", "More")) {
+			ImGui::SeparatorText("Coverage");
+
+			int coverage{ static_cast<int>(recipe_.coverage) };
+			BeginRecipeField("Coverage", 190.0f);
+			if (ImGui::Combo(
+					"##PaintCoverage",
+					&coverage,
+					"Solid\0Random Density\0Radial Falloff\0"
+				)) {
+				recipe_.coverage = static_cast<PaintCoverageMode>(coverage);
+			}
+
+			if (recipe_.coverage == PaintCoverageMode::RandomDensity) {
+				BeginRecipeField("Density", 190.0f);
+				ImGui::SliderFloat(
+					"##PaintCoverageDensity",
+					&recipe_.density,
+					0.0f,
+					1.0f,
+					"%.2f"
+				);
+			} else if (recipe_.coverage == PaintCoverageMode::RadialFalloff) {
+				BeginRecipeField("Center Density", 190.0f);
+				ImGui::SliderFloat(
+					"##PaintCoverageCenterDensity",
+					&recipe_.density,
+					0.0f,
+					1.0f,
+					"%.2f"
+				);
+
+				BeginRecipeField("Inner", 190.0f);
+				ImGui::SliderFloat(
+					"##PaintCoverageRadialInner",
+					&recipe_.radial_inner,
+					0.0f,
+					0.95f,
+					"%.2f"
+				);
+
+				BeginRecipeField("Outer", 190.0f);
+				ImGui::SliderFloat(
+					"##PaintCoverageRadialOuter",
+					&recipe_.radial_outer,
+					0.05f,
+					1.0f,
+					"%.2f"
+				);
+				recipe_.radial_outer =
+					std::max(recipe_.radial_outer, recipe_.radial_inner + 0.01f);
+			}
+
 			if (tool_ == PaintTool::Line && entity_layer) {
 				ImGui::Checkbox("Align entities to line", &line_align_rotation_);
 				if (ImGui::IsItemHovered()) {
@@ -2024,6 +2200,18 @@ void PaintEditor::DrawBrushSettingsToolbar(EditorContext& ctx, Scene& scene, Sce
 			}
 
 
+			ImGui::SeparatorText("Procedural");
+			ImGui::BeginDisabled(layer.locked);
+			if (ImGui::Button("Create Infinite Generator")) {
+				CreateInfiniteGenerator(ctx, scene);
+			}
+			ImGui::EndDisabled();
+			if (ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled)) {
+				ImGui::SetTooltip(
+					"Create a persistent infinite generator using the current source and coverage."
+				);
+			}
+
 			ImGui::EndCombo();
 		}
 	}
@@ -2031,169 +2219,6 @@ void PaintEditor::DrawBrushSettingsToolbar(EditorContext& ctx, Scene& scene, Sce
 	ImGui::PopID();
 }
 
-
-void PaintEditor::DrawRecipePanel(EditorContext& ctx) {
-	EnsureLocalState(ctx);
-	EnsureProjectLibrary(ctx);
-
-	if (!ImGui::Begin("Paint Recipe")) {
-		ImGui::End();
-		return;
-	}
-
-	auto* scene{ ctx.editor.GetSceneListPanel().GetSelectedScene() };
-	if (!scene) {
-		ImGui::TextDisabled("Select a scene to edit its paint recipe.");
-		ImGui::End();
-		return;
-	}
-	ValidateSceneState(*scene);
-
-	SceneLayer* layer{ ResolveActiveLayer(*scene) };
-	if (!layer) {
-		ImGui::TextDisabled("Select a Tile or Entity layer to edit its paint recipe.");
-		ImGui::End();
-		return;
-	}
-
-	ImGui::TextDisabled(
-		"%s  |  %s layer",
-		layer->name.c_str(),
-		layer->kind == SceneLayerKind::Tile ? "Tile" : "Entity"
-	);
-	if (layer->locked) {
-		ImGui::SameLine();
-		ImGui::TextDisabled("(locked)");
-	}
-
-	ImGui::SeparatorText("Source");
-
-	int source_kind{ static_cast<int>(recipe_.source_kind) };
-	BeginRecipeField("Source");
-	if (layer->kind == SceneLayerKind::Tile) {
-		if (ImGui::Combo(
-				"##PaintRecipeSource",
-				&source_kind,
-				"Single\0Weighted Set\0Checkerboard\0Autotile / Terrain\0Noise\0"
-			)) {
-			recipe_.source_kind = static_cast<PaintSourceKind>(source_kind);
-		}
-	} else {
-		if (recipe_.source_kind == PaintSourceKind::Autotile) {
-			recipe_.source_kind = PaintSourceKind::Single;
-		}
-
-		int entity_source{
-			recipe_.source_kind == PaintSourceKind::Noise
-				? 3
-				: static_cast<int>(recipe_.source_kind)
-		};
-		if (entity_source > 3) {
-			entity_source = 0;
-		}
-
-		if (ImGui::Combo(
-				"##PaintRecipeSource",
-				&entity_source,
-				"Single\0Weighted Set\0Checkerboard\0Noise\0"
-			)) {
-			recipe_.source_kind = entity_source == 3
-				? PaintSourceKind::Noise
-				: static_cast<PaintSourceKind>(entity_source);
-		}
-	}
-	if (ImGui::IsItemHovered()) {
-		ImGui::SetTooltip(
-			"Choose what the paint tools emit. Source selection is independent from the "
-			"Tiles and Prefabs asset tabs."
-		);
-	}
-
-	if (recipe_.source_kind == PaintSourceKind::Single) {
-		if (layer->kind == SceneLayerKind::Tile) {
-			DrawTileSourceBrowser(ctx, tile_source_);
-		} else {
-			DrawPrefabSourceBrowser(ctx, prefab_source_);
-		}
-	} else if (recipe_.source_kind == PaintSourceKind::Noise) {
-		DrawNoiseRecipe(ctx, *scene, *layer);
-	} else {
-		DrawExtendedSourceRecipe(ctx, *scene, *layer);
-	}
-
-	ImGui::SeparatorText("Coverage");
-
-	int coverage{ static_cast<int>(recipe_.coverage) };
-	BeginRecipeField("Coverage");
-	if (ImGui::Combo(
-			"##PaintRecipeCoverage",
-			&coverage,
-			"Solid\0Random Density\0Radial Falloff\0"
-		)) {
-		recipe_.coverage = static_cast<PaintCoverageMode>(coverage);
-	}
-	if (ImGui::IsItemHovered()) {
-		ImGui::SetTooltip(
-			"Coverage decides which otherwise-eligible raster cells emit the selected source."
-		);
-	}
-
-	if (recipe_.coverage == PaintCoverageMode::RandomDensity) {
-		BeginRecipeField("Density");
-		ImGui::SliderFloat(
-			"##PaintRecipeDensity",
-			&recipe_.density,
-			0.0f,
-			1.0f,
-			"%.2f"
-		);
-	} else if (recipe_.coverage == PaintCoverageMode::RadialFalloff) {
-		BeginRecipeField("Center Density");
-		ImGui::SliderFloat(
-			"##PaintRecipeCenterDensity",
-			&recipe_.density,
-			0.0f,
-			1.0f,
-			"%.2f"
-		);
-
-		BeginRecipeField("Inner");
-		ImGui::SliderFloat(
-			"##PaintRecipeRadialInner",
-			&recipe_.radial_inner,
-			0.0f,
-			0.95f,
-			"%.2f"
-		);
-
-		BeginRecipeField("Outer");
-		ImGui::SliderFloat(
-			"##PaintRecipeRadialOuter",
-			&recipe_.radial_outer,
-			0.05f,
-			1.0f,
-			"%.2f"
-		);
-		recipe_.radial_outer =
-			std::max(recipe_.radial_outer, recipe_.radial_inner + 0.01f);
-	}
-
-	ImGui::SeparatorText("Procedural");
-
-	ImGui::BeginDisabled(layer->locked);
-	if (ImGui::Button("Create Infinite Generator")) {
-		CreateInfiniteGenerator(ctx, *scene);
-	}
-	ImGui::EndDisabled();
-	if (ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled)) {
-		ImGui::SetTooltip(
-			"Create a persistent infinite generator using the current source and coverage."
-		);
-	}
-
-	StoreLocalState(ctx);
-	ImGui::End();
-}
 
 void PaintEditor::DrawNoiseThresholdGradient(EditorContext&, SceneLayer& layer) {
 	auto& field{ recipe_.noise };
@@ -4874,6 +4899,9 @@ bool PaintEditor::DrawTilesPanel(EditorContext& ctx) {
 					selected_tile_entry_id_ = entry.id;
 					inspected_texture_		= entry.texture;
 					inspected_slice_		= entry.slice;
+					if (recipe_.source_kind == PaintSourceKind::Single) {
+						tile_source_ = source;
+					}
 				}
 				if (ImGui::IsItemClicked(ImGuiMouseButton_Right)) {
 					ImGui::OpenPopup("TileContext");
