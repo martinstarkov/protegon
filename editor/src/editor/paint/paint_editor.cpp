@@ -1733,31 +1733,65 @@ void PaintEditor::DrawBrushSettingsToolbar(EditorContext& ctx, Scene& scene, Sce
 				erase_mode == 1 ? PaintBrushOperation::ExclusionMask : PaintBrushOperation::Paint;
 		}
 	} else if (emits_content) {
-		int operation{ static_cast<int>(recipe_.operation) };
-		const bool allow_mask{ tile_layer && tool_ != PaintTool::Fill };
-		const char* operations{ allow_mask ? "Paint\0Replace\0Exclude Mask\0" : "Paint\0Replace\0" };
-		const int count{ allow_mask ? 3 : 2 };
+		if (tool_ == PaintTool::Fill) {
+			if (
+				recipe_.operation != PaintBrushOperation::Paint &&
+				recipe_.operation != PaintBrushOperation::Replace &&
+				recipe_.operation != PaintBrushOperation::Erase
+			) {
+				recipe_.operation = PaintBrushOperation::Paint;
+			}
 
-		if (operation >= count) {
-			operation = 0;
-			recipe_.operation = PaintBrushOperation::Paint;
-		}
+			int fill_mode{
+				recipe_.operation == PaintBrushOperation::Replace ? 1
+				: recipe_.operation == PaintBrushOperation::Erase ? 2
+				: 0
+			};
 
-		next_control();
-		if (combo("##PaintOperation", "Mode", operation, operations, count)) {
-			recipe_.operation = static_cast<PaintBrushOperation>(operation);
-		}
-		if (ImGui::IsItemHovered() && allow_mask) {
-			ImGui::SetTooltip(
-				"Paint emits content, Replace overwrites eligible content, and Mask authors "
-				"the Tilemap exclusion mask."
-			);
+			next_control();
+			if (combo("##PaintOperation", "Mode", fill_mode, "Paint\0Replace\0Erase\0", 3)) {
+				recipe_.operation =
+					fill_mode == 1 ? PaintBrushOperation::Replace
+					: fill_mode == 2 ? PaintBrushOperation::Erase
+					: PaintBrushOperation::Paint;
+			}
+			if (ImGui::IsItemHovered()) {
+				ImGui::SetTooltip(
+					"Paint fills empty content, Replace fills the matching existing region, "
+					"and Erase deletes the matching existing region."
+				);
+			}
+		} else {
+			int operation{ static_cast<int>(recipe_.operation) };
+			const bool allow_mask{ tile_layer };
+			const char* operations{
+				allow_mask ? "Paint\0Replace\0Exclude Mask\0" : "Paint\0Replace\0"
+			};
+			const int count{ allow_mask ? 3 : 2 };
+
+			if (operation >= count) {
+				operation = 0;
+				recipe_.operation = PaintBrushOperation::Paint;
+			}
+
+			next_control();
+			if (combo("##PaintOperation", "Mode", operation, operations, count)) {
+				recipe_.operation = static_cast<PaintBrushOperation>(operation);
+			}
+			if (ImGui::IsItemHovered() && allow_mask) {
+				ImGui::SetTooltip(
+					"Paint emits content, Replace overwrites eligible content, and Exclude Mask "
+					"authors the Tilemap exclusion mask."
+				);
+			}
 		}
 	}
 
 
 	const bool source_applicable{
-		emits_content && recipe_.operation != PaintBrushOperation::ExclusionMask
+		emits_content &&
+		recipe_.operation != PaintBrushOperation::ExclusionMask &&
+		recipe_.operation != PaintBrushOperation::Erase
 	};
 
 	if (source_applicable) {
@@ -7476,6 +7510,67 @@ void PaintEditor::FillAt(EditorContext& ctx, Scene& scene, V2_float world) {
 		const auto match_uv{ start_tile ? std::optional{ start_tile->texture_coordinates }
 										: std::nullopt };
 
+		if (recipe_.operation == PaintBrushOperation::Erase) {
+			// Erase is Replace-with-nothing. Empty space has nothing to replace.
+			if (!start_tile) {
+				return;
+			}
+
+			std::vector<V2_int> queue{ start };
+			std::unordered_set<V2_int> visited;
+			std::vector<V2_int> erase_cells;
+			visited.reserve(1024);
+			erase_cells.reserve(256);
+
+			for (
+				std::size_t head{};
+				head < queue.size() && visited.size() < kMaxFloodCells;
+				++head
+			) {
+				const V2_int cell{ queue[head] };
+				if (!visited.insert(cell).second) {
+					continue;
+				}
+
+				const TilemapTile* current{ map.FindTile(cell) };
+				const bool matches{
+					current &&
+					current->texture == *match_texture &&
+					current->texture_coordinates == *match_uv
+				};
+				if (!matches) {
+					continue;
+				}
+
+				erase_cells.emplace_back(cell);
+				queue.emplace_back(cell + V2_int{ 1, 0 });
+				queue.emplace_back(cell + V2_int{ -1, 0 });
+				queue.emplace_back(cell + V2_int{ 0, 1 });
+				queue.emplace_back(cell + V2_int{ 0, -1 });
+			}
+
+			std::vector<std::pair<V2_int, std::uint64_t>> removed_terrain;
+			removed_terrain.reserve(erase_cells.size());
+
+			for (const V2_int cell : erase_cells) {
+				if (const auto terrain{ map.GetTerrainRuleset(cell) }) {
+					map.SetTerrainRuleset(cell, std::nullopt);
+					removed_terrain.emplace_back(cell, *terrain);
+				} else {
+					map.EraseTile(cell);
+				}
+			}
+
+			// Recompute only after all logical terrain cells have been removed, so
+			// neighboring autotile variants see the final terrain state.
+			for (const auto& [cell, ruleset_id] : removed_terrain) {
+				if (const PaintAutotileRuleSet* rules{ FindAutotileRuleSet(ruleset_id) }) {
+					RecomputeAutotileAround(map, cell, *rules);
+				}
+			}
+			return;
+		}
+
 		std::vector<V2_int> queue{ start };
 		std::unordered_set<V2_int> visited;
 		visited.reserve(1024);
@@ -7525,6 +7620,71 @@ void PaintEditor::FillAt(EditorContext& ctx, Scene& scene, V2_float world) {
 	}
 	const bool start_occupied{ occupied.contains(start) };
 	if (start_occupied && recipe_.operation == PaintBrushOperation::Paint) {
+		return;
+	}
+
+	if (recipe_.operation == PaintBrushOperation::Erase) {
+		if (!start_occupied) {
+			return;
+		}
+
+		std::vector<V2_int> queue{ start };
+		std::unordered_set<V2_int> visited;
+		std::unordered_set<V2_int> erase_cells;
+		visited.reserve(1024);
+		erase_cells.reserve(256);
+
+		for (
+			std::size_t head{};
+			head < queue.size() && visited.size() < kMaxFloodCells;
+			++head
+		) {
+			const V2_int cell{ queue[head] };
+			if (cell.x < min_cell.x || cell.x > max_cell.x || cell.y < min_cell.y ||
+				cell.y > max_cell.y) {
+				continue;
+			}
+			if (!visited.insert(cell).second || !occupied.contains(cell)) {
+				continue;
+			}
+
+			erase_cells.insert(cell);
+			queue.emplace_back(cell + V2_int{ 1, 0 });
+			queue.emplace_back(cell + V2_int{ -1, 0 });
+			queue.emplace_back(cell + V2_int{ 0, 1 });
+			queue.emplace_back(cell + V2_int{ 0, -1 });
+		}
+
+		std::vector<Entity> erase;
+		for (Entity root : scene.GetLayers().GetRootEntities(scene, layer->id)) {
+			if (!root || IsProtectedSceneEntity(scene, root) || IsPaintGenerator(root) ||
+				IsTilemap(root) || !root.Has<Transform>()) {
+				continue;
+			}
+			if (erase_cells.contains(WorldToActiveCell(scene, GetWorldPosition(root)))) {
+				erase.emplace_back(root);
+			}
+		}
+
+		for (Entity entity : erase) {
+			const UUID uuid{ entity.Get<UUID>() };
+			const auto created_it{ std::ranges::find(stroke_.entities.created_roots, uuid) };
+			if (created_it != stroke_.entities.created_roots.end()) {
+				stroke_.entities.created_roots.erase(created_it);
+			} else {
+				stroke_.entities.deleted_roots.push_back(
+					DeletedEntity{
+						.entity = SerializeEntity(entity),
+						.layer = layer->id,
+					}
+				);
+			}
+			entity.Destroy();
+		}
+
+		if (!erase.empty()) {
+			scene.Refresh();
+		}
 		return;
 	}
 

@@ -52,6 +52,8 @@ enum class PaintBrushOperation : std::uint8_t {
 	Paint,
 	Replace,
 	ExclusionMask,
+	/// @brief Fill-only operation: flood-select the Replace region, then delete it.
+	Erase,
 };
 PTGN_REFLECT_ENUM(PaintBrushOperation);
 
