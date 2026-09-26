@@ -701,12 +701,14 @@ bool DrawActionPicker(
 			const bool enabled{
 				action.enabled
 			};
+			auto target{ action.target };
 
 			action = ScriptRegistry::MakeStep(
 				registration.type_hash
 			);
 
 			action.enabled = enabled;
+			action.target = std::move(target);
 
 			if (timed_only) {
 				action.completion =
@@ -801,6 +803,7 @@ bool DrawActionPicker(
 				const bool enabled{
 					action.enabled
 				};
+				auto target{ action.target };
 
 				Script script;
 
@@ -819,6 +822,7 @@ bool DrawActionPicker(
 					);
 
 				action.enabled = enabled;
+				action.target = std::move(target);
 
 				action.completion =
 					ScriptCompletion::ScriptControlled;

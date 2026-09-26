@@ -99,9 +99,8 @@ void DrawCountControl(
 	DrawItemTooltip(tooltip);
 
 	ImGui::SameLine(0.0f, spacing);
-	ImGui::SetCursorScreenPos(
-		ImVec2{ start_x + text_width + spacing, ImGui::GetCursorScreenPos().y }
-	);
+	ImGui::SetCursorScreenPos(ImVec2{ start_x + text_width + spacing,
+									  ImGui::GetCursorScreenPos().y });
 
 	ImGui::BeginDisabled(value >= maximum);
 	if (ImGui::Button("+", ImVec2{ button_width, button_width })) {
@@ -846,6 +845,15 @@ inline constexpr std::array kDialogueActions{
 	std::pair{ DialogueAction::OpenNextDialogue, "Open Next Dialogue" },
 };
 
+inline constexpr std::array kTooltipActions{
+	std::pair{ TooltipAction::Show, "Show" },
+	std::pair{ TooltipAction::Hide, "Hide" },
+	std::pair{ TooltipAction::ToggleVisibility, "Toggle Visibility" },
+	std::pair{ TooltipAction::EnableHover, "Enable Hover" },
+	std::pair{ TooltipAction::DisableHover, "Disable Hover" },
+	std::pair{ TooltipAction::ToggleHover, "Toggle Hover" },
+};
+
 inline constexpr std::array kSceneActions{
 	std::pair{ SceneChangeAction::Enter, "Enter" },
 	std::pair{ SceneChangeAction::Exit, "Exit" },
@@ -907,8 +915,7 @@ inline constexpr std::array kSceneTransitions{
 }
 
 [[nodiscard]] bool DialogueActionUsesKey(DialogueAction action) {
-	return action == DialogueAction::ChangeDialogue ||
-		action == DialogueAction::SelectDialogue;
+	return action == DialogueAction::ChangeDialogue || action == DialogueAction::SelectDialogue;
 }
 
 [[nodiscard]] bool TimerActionUsesAmount(TimerAction action) {
@@ -1010,10 +1017,8 @@ bool DrawTimerKeyInline(
 		ImGui::EndCombo();
 	}
 
-	DrawItemTooltip(
-		"Named timer on the action target. Open the combo to choose an existing timer "
-		"or enter a custom name."
-	);
+	DrawItemTooltip("Named timer on the action target. Open the combo to choose an existing timer "
+					"or enter a custom name.");
 	return changed;
 }
 
@@ -1058,9 +1063,8 @@ bool DrawDialogueActionInline(ScriptEditorContext&, DialogueActionScript& script
 	const float available{ ImGui::GetContentRegionAvail().x };
 	const float spacing{ ImGui::GetStyle().ItemSpacing.x };
 	const bool uses_key{ DialogueActionUsesKey(script.action) };
-	const float action_width{
-		uses_key ? std::min(155.0f, std::max(110.0f, available * 0.46f)) : available
-	};
+	const float action_width{ uses_key ? std::min(155.0f, std::max(110.0f, available * 0.46f))
+									   : available };
 
 	bool changed{ false };
 	ImGui::SetNextItemWidth(std::max(1.0f, action_width));
@@ -1068,7 +1072,7 @@ bool DrawDialogueActionInline(ScriptEditorContext&, DialogueActionScript& script
 		for (const auto& [candidate, label] : kDialogueActions) {
 			if (ImGui::Selectable(label, candidate == script.action)) {
 				script.action = candidate;
-				changed = true;
+				changed		  = true;
 			}
 		}
 		ImGui::EndCombo();
@@ -1078,13 +1082,20 @@ bool DrawDialogueActionInline(ScriptEditorContext&, DialogueActionScript& script
 	if (DialogueActionUsesKey(script.action)) {
 		SameLineControl();
 		ImGui::SetNextItemWidth(std::max(1.0f, available - action_width - spacing));
-		changed |= ImGui::InputTextWithHint(
-			"##DialogueActionKey", "Dialogue key", &script.dialogue
-		);
+		changed |=
+			ImGui::InputTextWithHint("##DialogueActionKey", "Dialogue key", &script.dialogue);
 		DrawItemTooltip("Authored dialogue key on the target DialogueBox.");
 	}
 
 	return changed;
+}
+
+bool DrawTooltipActionInline(ScriptEditorContext&, TooltipActionScript& script) {
+	return DrawNamedEnumCombo(
+		"##TooltipAction", script.action, kTooltipActions,
+		"Show/Hide/Toggle Visibility accepts a Tooltip or hover owner; hover controls require "
+		"TooltipHoverData."
+	);
 }
 
 [[nodiscard]] const char* SceneActionLabel(SceneChangeAction action) {
@@ -1292,12 +1303,10 @@ struct ProjectSceneChoice {
 	choices.reserve(project->scenes.size());
 
 	for (const auto& entry : project->scenes) {
-		choices.emplace_back(
-			ProjectSceneChoice{
-				.key   = entry.key,
-				.label = entry.key + " [" + entry.display_name + "]",
-			}
-		);
+		choices.emplace_back(ProjectSceneChoice{
+			.key   = entry.key,
+			.label = entry.key + " [" + entry.display_name + "]",
+		});
 	}
 
 	return choices;
@@ -1346,9 +1355,8 @@ bool NormalizeSceneChangeSelection(ScriptEditorContext& context, SceneChangeScri
 
 		if (current_scene) {
 			const auto current{ std::ranges::find_if(
-				choices, [&current_scene](const ProjectSceneChoice& choice) {
-					return choice.key == *current_scene;
-				}
+				choices, [&current_scene](const ProjectSceneChoice& choice
+						 ) { return choice.key == *current_scene; }
 			) };
 
 			if (current != choices.end()) {
@@ -1614,8 +1622,7 @@ bool DrawSceneChange(ScriptEditorContext&, SceneChangeScript& script) {
 
 		const bool priority_changed{ ImGui::DragInt("##SceneChangePriority", &priority, 1.0f, 0) };
 
-		DrawItemTooltip(
-			"Used to resolve competing scene changes. Higher priority takes precedence."
+		DrawItemTooltip("Used to resolve competing scene changes. Higher priority takes precedence."
 		);
 
 		if (priority_changed) {
@@ -1667,9 +1674,8 @@ bool DrawAddComponentsInline(ScriptEditorContext&, AddComponentsScript& script) 
 	if (ImGui::BeginCombo("##AddComponents", preview.c_str())) {
 		for (const auto* component : components) {
 			bool selected{ std::ranges::any_of(
-				script.components, [component](const ComponentDefinition& definition) {
-					return definition.type == component->name;
-				}
+				script.components, [component](const ComponentDefinition& definition
+								   ) { return definition.type == component->name; }
 			) };
 
 			const std::string label{ ComponentLabel(*component) };
@@ -1679,9 +1685,8 @@ bool DrawAddComponentsInline(ScriptEditorContext&, AddComponentsScript& script) 
 					script.components.push_back(MakeComponentDefinition(*component));
 				} else {
 					std::erase_if(
-						script.components, [component](const ComponentDefinition& definition) {
-							return definition.type == component->name;
-						}
+						script.components, [component](const ComponentDefinition& definition
+										   ) { return definition.type == component->name; }
 					);
 				}
 
@@ -1813,8 +1818,7 @@ bool DrawMoveTo(ScriptEditorContext&, MoveToScript& script) {
 	return changed;
 }
 
-[[nodiscard]] std::vector<Entity> ResolveFollowPickerExcludedEntities(
-	ScriptEditorContext& context
+[[nodiscard]] std::vector<Entity> ResolveFollowPickerExcludedEntities(ScriptEditorContext& context
 ) {
 	if (!context.owner) {
 		return {};
@@ -1908,6 +1912,14 @@ bool DrawTintTo(ScriptEditorContext& context, TintToScript& script) {
 	);
 }
 
+bool DrawFadeIn(ScriptEditorContext&, FadeInScript& script) {
+	return ImGui::Checkbox("Start Transparent", &script.start_transparent);
+}
+
+bool DrawFadeOut(ScriptEditorContext&, FadeOutScript& script) {
+	return ImGui::Checkbox("Start Opaque", &script.start_opaque);
+}
+
 bool DrawBounce(ScriptEditorContext&, BounceScript& script) {
 	bool changed{ ImGui::DragFloat2("Amplitude", &script.amplitude.x, 0.1f) };
 	changed |= ImGui::DragFloat2("Static Offset", &script.static_offset.x, 0.1f);
@@ -1915,11 +1927,38 @@ bool DrawBounce(ScriptEditorContext&, BounceScript& script) {
 	return changed;
 }
 
+bool DrawStartBounce(ScriptEditorContext& context, StartBounceScript& script) {
+	bool changed{ ImGui::DragFloat2("Amplitude", &script.amplitude.x, 0.1f) };
+	changed |= inspector::DrawDurationTextInput(
+		"Period", script.period, -FLT_MIN, false, "Duration of one complete bounce cycle."
+	);
+	changed |= ImGui::DragFloat2("Static Offset", &script.static_offset.x, 0.1f);
+	changed |= ImGui::Checkbox("Symmetrical", &script.symmetrical);
+	changed |= ImGui::Checkbox("Force", &script.force);
+	changed |= DrawReflectedScriptValue(context.ctx, script.ease);
+	return changed;
+}
+
+bool DrawStopBounce(ScriptEditorContext&, StopBounceScript& script) {
+	return ImGui::Checkbox("Force", &script.force);
+}
+
 bool DrawShake(ScriptEditorContext& context, ShakeScript& script) {
 	bool changed{ ImGui::DragFloat("Intensity", &script.intensity, 0.01f, -1.0f, 1.0f) };
 	changed |= ImGui::Checkbox("Reset On Complete", &script.reset_on_complete);
 	changed |= DrawReflectedScriptValue(context.ctx, script.config);
 	return changed;
+}
+
+bool DrawStartShake(ScriptEditorContext& context, StartShakeScript& script) {
+	bool changed{ ImGui::DragFloat("Intensity", &script.intensity, 0.01f, -1.0f, 1.0f) };
+	changed |= ImGui::Checkbox("Force", &script.force);
+	changed |= DrawReflectedScriptValue(context.ctx, script.config);
+	return changed;
+}
+
+bool DrawStopShake(ScriptEditorContext&, StopShakeScript& script) {
+	return ImGui::Checkbox("Force", &script.force);
 }
 
 bool DrawAddShakeTrauma(ScriptEditorContext& context, AddShakeTraumaScript& script) {
@@ -1937,6 +1976,51 @@ bool DrawFollowEntity(ScriptEditorContext& context, FollowEntityScript& script) 
 
 	bool changed{ DrawFollowEntityPicker(context, script.target, "FollowEntityTarget", state) };
 	changed |= DrawReflectedScriptValue(context.ctx, script.config);
+	return changed;
+}
+
+bool DrawStartFollowEntity(ScriptEditorContext& context, StartFollowEntityScript& script) {
+	static inspector::EntityFilterEditorState state;
+
+	bool changed{
+		DrawFollowEntityPicker(context, script.target, "StartFollowEntityTarget", state)
+	};
+	changed |= ImGui::Checkbox("Force", &script.force);
+	changed |= DrawReflectedScriptValue(context.ctx, script.config);
+	return changed;
+}
+
+bool DrawStartFollowPath(ScriptEditorContext& context, StartFollowPathScript& script) {
+	bool changed{ false };
+	int remove{ -1 };
+	for (int i{ 0 }; i < static_cast<int>(script.waypoints.size()); ++i) {
+		ImGui::PushID(i);
+		ImGui::SetNextItemWidth(-ImGui::GetFrameHeight() - ImGui::GetStyle().ItemSpacing.x);
+		changed |=
+			ImGui::DragFloat2("##Waypoint", &script.waypoints[static_cast<std::size_t>(i)].x, 0.1f);
+		ImGui::SameLine();
+		if (ImGui::Button("x", ImVec2{ ImGui::GetFrameHeight(), ImGui::GetFrameHeight() })) {
+			remove = i;
+		}
+		ImGui::PopID();
+	}
+	if (remove >= 0) {
+		script.waypoints.erase(script.waypoints.begin() + remove);
+		changed = true;
+	}
+	if (ImGui::Button("+ Waypoint", ImVec2{ -FLT_MIN, 0.0f })) {
+		script.waypoints.emplace_back();
+		changed = true;
+	}
+	changed |= ImGui::Checkbox("Force", &script.force);
+	changed |= ImGui::Checkbox("Reset Waypoint Index", &script.reset_waypoint_index);
+	changed |= DrawReflectedScriptValue(context.ctx, script.config);
+	return changed;
+}
+
+bool DrawStopFollow(ScriptEditorContext&, StopFollowScript& script) {
+	bool changed{ ImGui::Checkbox("Force", &script.force) };
+	changed |= ImGui::Checkbox("Reset Previous Waypoints", &script.reset_previous_waypoints);
 	return changed;
 }
 
@@ -2008,166 +2092,281 @@ const std::vector<ScriptEditorRegistration>& ScriptEditorRegistry::Entries() {
 }
 
 PTGN_REGISTER_SCRIPT(
-	Script, {
-				.label		 = "Script Sequence",
-				.group		 = "Sequence",
-				.description = "Editor authored sequence of registered scripts.",
-				.type		 = ScriptType::Both,
-				.draw_inline = &DrawScriptSequenceInline,
-				.draw		 = &DrawNothing<Script>,
-			}
+	Script,
+	{
+		.label		 = "Script Sequence",
+		.group		 = "Sequence",
+		.description = "Editor authored sequence of registered scripts.",
+		.type		 = ScriptType::Both,
+		.draw_inline = &DrawScriptSequenceInline,
+		.draw		 = &DrawNothing<Script>,
+	}
 );
 
 PTGN_REGISTER_SCRIPT(
-	WaitScript, {
-					.label		 = "Delay",
-					.group		 = "Timing",
-					.description = "Wait before continuing.",
-					.type		 = ScriptType::Sequence,
-				}
+	WaitScript,
+	{
+		.label		 = "Delay",
+		.group		 = "Timing",
+		.description = "Wait before continuing.",
+		.type		 = ScriptType::Sequence,
+	}
 );
 
 PTGN_REGISTER_SCRIPT(
-	MoveToScript, {
-					  .label	   = "Move To",
-					  .group	   = "Transform",
-					  .description = "Move the owning entity.",
-					  .type		   = ScriptType::Both,
-					  .draw_inline = &DrawMoveToInline,
-					  .draw		   = &DrawMoveTo,
-				  }
+	MoveToScript,
+	{
+		.label		 = "Move To",
+		.group		 = "Transform",
+		.description = "Move the owning entity.",
+		.type		 = ScriptType::Both,
+		.draw_inline = &DrawMoveToInline,
+		.draw		 = &DrawMoveTo,
+	}
 );
 
 PTGN_REGISTER_SCRIPT(
-	RotateToScript, {
-						.label		 = "Rotate To",
-						.group		 = "Transform",
-						.description = "Rotate the owning entity.",
-						.type		 = ScriptType::Sequence,
-						.draw_inline = &DrawRotateToInline,
-					}
+	RotateToScript,
+	{
+		.label		 = "Rotate To",
+		.group		 = "Transform",
+		.description = "Rotate the owning entity.",
+		.type		 = ScriptType::Sequence,
+		.draw_inline = &DrawRotateToInline,
+	}
 );
 
 PTGN_REGISTER_SCRIPT(
-	ScaleToScript, {
-					   .label		= "Scale To",
-					   .group		= "Transform",
-					   .description = "Scale the owning entity.",
-					   .type		= ScriptType::Sequence,
-					   .draw_inline = &DrawScaleToInline,
-				   }
+	ScaleToScript,
+	{
+		.label		 = "Scale To",
+		.group		 = "Transform",
+		.description = "Scale the owning entity.",
+		.type		 = ScriptType::Sequence,
+		.draw_inline = &DrawScaleToInline,
+	}
 );
 
 PTGN_REGISTER_SCRIPT(
-	TintToScript, {
-					  .label	   = "Tint To",
-					  .group	   = "Animation",
-					  .description = "Animate the target tint to a color.",
-					  .type		   = ScriptType::Sequence,
-					  .draw_inline = &DrawTintToInline,
-					  .draw		   = &DrawTintTo,
-				  }
+	TintToScript,
+	{
+		.label		 = "Tint To",
+		.group		 = "Animation",
+		.description = "Animate the target tint to a color.",
+		.type		 = ScriptType::Sequence,
+		.draw_inline = &DrawTintToInline,
+		.draw		 = &DrawTintTo,
+	}
 );
 
 PTGN_REGISTER_SCRIPT(
-	BounceScript, {
-					  .label	   = "Bounce",
-					  .group	   = "Animation",
-					  .description = "Apply a positional bounce offset.",
-					  .type		   = ScriptType::Sequence,
-					  .draw		   = &DrawBounce,
-				  }
+	FadeInScript,
+	{
+		.label		 = "Fade In",
+		.group		 = "Animation",
+		.description = "Fade the target tint to white over a Tween duration.",
+		.type		 = ScriptType::Sequence,
+		.draw		 = &DrawFadeIn,
+	}
 );
 
 PTGN_REGISTER_SCRIPT(
-	ShakeScript, {
-					 .label		  = "Shake",
-					 .group		  = "Animation",
-					 .description = "Raise or lower persistent shake trauma.",
-					 .type		  = ScriptType::Sequence,
-					 .draw		  = &DrawShake,
-				 }
+	FadeOutScript,
+	{
+		.label		 = "Fade Out",
+		.group		 = "Animation",
+		.description = "Fade the target tint to transparent over a Tween duration.",
+		.type		 = ScriptType::Sequence,
+		.draw		 = &DrawFadeOut,
+	}
 );
 
 PTGN_REGISTER_SCRIPT(
-	AddShakeTraumaScript, {
-							  .label	   = "Add Shake Trauma",
-							  .group	   = "Animation",
-							  .description = "Immediately raise or lower persistent shake trauma.",
-							  .type		   = ScriptType::Sequence,
-							  .draw		   = &DrawAddShakeTrauma,
-						  }
+	BounceScript,
+	{
+		.label		 = "Bounce",
+		.group		 = "Animation",
+		.description = "Apply a positional bounce offset.",
+		.type		 = ScriptType::Sequence,
+		.draw		 = &DrawBounce,
+	}
 );
 
 PTGN_REGISTER_SCRIPT(
-	RecoverShakeScript, {
-							.label		 = "Recover Shake",
-							.group		 = "Animation",
-							.description = "Reduce shake trauma to zero.",
-							.type		 = ScriptType::Sequence,
-							.draw		 = &DrawRecoverShake,
-						}
+	StartBounceScript,
+	{
+		.label		 = "Start Bounce",
+		.group		 = "Animation",
+		.description = "Start an indefinitely repeating channelized bounce.",
+		.type		 = ScriptType::Sequence,
+		.draw		 = &DrawStartBounce,
+	}
 );
 
 PTGN_REGISTER_SCRIPT(
-	ResetShakeScript, {
-						  .label	   = "Reset Shake",
-						  .group	   = "Animation",
-						  .description = "Immediately clear shake trauma and offsets.",
-						  .type		   = ScriptType::Sequence,
-					  }
+	StopBounceScript,
+	{
+		.label		 = "Stop Bounce",
+		.group		 = "Animation",
+		.description = "Stop the channelized bounce on the target.",
+		.type		 = ScriptType::Sequence,
+		.draw		 = &DrawStopBounce,
+	}
 );
 
 PTGN_REGISTER_SCRIPT(
-	FollowTargetScript, {
-							.label		 = "Follow Target",
-							.group		 = "Transform",
-							.description = "Follow an entity until close enough.",
-							.type		 = ScriptType::Both,
-							.draw		 = &DrawFollowTarget,
-						}
+	ShakeScript,
+	{
+		.label		 = "Shake",
+		.group		 = "Animation",
+		.description = "Raise or lower persistent shake trauma.",
+		.type		 = ScriptType::Sequence,
+		.draw		 = &DrawShake,
+	}
 );
 
 PTGN_REGISTER_SCRIPT(
-	FollowEntityScript, {
-							.label		 = "Follow Entity",
-							.group		 = "Transform",
-							.description = "Follow an entity using TargetFollowConfig.",
-							.type		 = ScriptType::Both,
-							.draw		 = &DrawFollowEntity,
-						}
+	AddShakeTraumaScript,
+	{
+		.label		 = "Add Shake Trauma",
+		.group		 = "Animation",
+		.description = "Immediately raise or lower persistent shake trauma.",
+		.type		 = ScriptType::Sequence,
+		.draw		 = &DrawAddShakeTrauma,
+	}
 );
 
 PTGN_REGISTER_SCRIPT(
-	FollowPathScript, {
-						  .label	   = "Follow Path",
-						  .group	   = "Transform",
-						  .description = "Follow a configurable waypoint path.",
-						  .type		   = ScriptType::Both,
-						  .draw		   = &DrawFollowPath,
-					  }
+	RecoverShakeScript,
+	{
+		.label		 = "Recover Shake",
+		.group		 = "Animation",
+		.description = "Reduce shake trauma to zero.",
+		.type		 = ScriptType::Sequence,
+		.draw		 = &DrawRecoverShake,
+	}
 );
 
 PTGN_REGISTER_SCRIPT(
-	SetVisibleScript, {
-						  .label	   = "Set Visibility",
-						  .group	   = "Entity",
-						  .description = "Set owner visibility.",
-						  .type		   = ScriptType::Sequence,
-						  .menu_order  = 3,
-						  .draw_inline = &DrawSetVisibleInline,
-					  }
+	ResetShakeScript,
+	{
+		.label		 = "Reset Shake",
+		.group		 = "Animation",
+		.description = "Immediately clear shake trauma and offsets.",
+		.type		 = ScriptType::Sequence,
+	}
 );
 
 PTGN_REGISTER_SCRIPT(
-	PlaySoundScript, {
-						 .label		  = "Play Sound",
-						 .group		  = "",
-						 .description = "Play an audio asset.",
-						 .type		  = ScriptType::Sequence,
-						 .draw_inline = &DrawPlaySoundInline,
-						 .draw		  = &DrawPlaySound,
-					 }
+	StartShakeScript,
+	{
+		.label		 = "Start Shake",
+		.group		 = "Animation",
+		.description = "Start persistent channelized shake without blocking the sequence.",
+		.type		 = ScriptType::Sequence,
+		.draw		 = &DrawStartShake,
+	}
+);
+
+PTGN_REGISTER_SCRIPT(
+	StopShakeScript,
+	{
+		.label		 = "Stop Shake",
+		.group		 = "Animation",
+		.description = "Stop the channelized shake on the target.",
+		.type		 = ScriptType::Sequence,
+		.draw		 = &DrawStopShake,
+	}
+);
+
+PTGN_REGISTER_SCRIPT(
+	FollowTargetScript,
+	{
+		.label		 = "Follow Target",
+		.group		 = "Transform",
+		.description = "Follow an entity until close enough.",
+		.type		 = ScriptType::Both,
+		.draw		 = &DrawFollowTarget,
+	}
+);
+
+PTGN_REGISTER_SCRIPT(
+	FollowEntityScript,
+	{
+		.label		 = "Follow Entity",
+		.group		 = "Transform",
+		.description = "Follow an entity using TargetFollowConfig.",
+		.type		 = ScriptType::Both,
+		.draw		 = &DrawFollowEntity,
+	}
+);
+
+PTGN_REGISTER_SCRIPT(
+	FollowPathScript,
+	{
+		.label		 = "Follow Path",
+		.group		 = "Transform",
+		.description = "Follow a configurable waypoint path.",
+		.type		 = ScriptType::Both,
+		.draw		 = &DrawFollowPath,
+	}
+);
+
+PTGN_REGISTER_SCRIPT(
+	StartFollowEntityScript,
+	{
+		.label		 = "Start Follow Entity",
+		.group		 = "Transform",
+		.description = "Start channelized entity following without blocking the sequence.",
+		.type		 = ScriptType::Sequence,
+		.draw		 = &DrawStartFollowEntity,
+	}
+);
+
+PTGN_REGISTER_SCRIPT(
+	StartFollowPathScript,
+	{
+		.label		 = "Start Follow Path",
+		.group		 = "Transform",
+		.description = "Start channelized path following without blocking the sequence.",
+		.type		 = ScriptType::Sequence,
+		.draw		 = &DrawStartFollowPath,
+	}
+);
+
+PTGN_REGISTER_SCRIPT(
+	StopFollowScript,
+	{
+		.label		 = "Stop Follow",
+		.group		 = "Transform",
+		.description = "Stop channelized target or path following.",
+		.type		 = ScriptType::Sequence,
+		.draw		 = &DrawStopFollow,
+	}
+);
+
+PTGN_REGISTER_SCRIPT(
+	SetVisibleScript,
+	{
+		.label		 = "Set Visibility",
+		.group		 = "Entity",
+		.description = "Set owner visibility.",
+		.type		 = ScriptType::Sequence,
+		.menu_order	 = 3,
+		.draw_inline = &DrawSetVisibleInline,
+	}
+);
+
+PTGN_REGISTER_SCRIPT(
+	PlaySoundScript,
+	{
+		.label		 = "Play Sound",
+		.group		 = "",
+		.description = "Play an audio asset.",
+		.type		 = ScriptType::Sequence,
+		.draw_inline = &DrawPlaySoundInline,
+		.draw		 = &DrawPlaySound,
+	}
 );
 
 PTGN_REGISTER_SCRIPT(
@@ -2183,24 +2382,39 @@ PTGN_REGISTER_SCRIPT(
 );
 
 PTGN_REGISTER_SCRIPT(
-	TimerActionScript, {
-						   .label		= "Timer Action",
-						   .group		= "",
-						   .description = "Control a named timer on the action target.",
-						   .type		= ScriptType::Sequence,
-						   .draw_inline = &DrawTimerActionInline,
-					   }
+	TimerActionScript,
+	{
+		.label		 = "Timer Action",
+		.group		 = "",
+		.description = "Control a named timer on the action target.",
+		.type		 = ScriptType::Sequence,
+		.draw_inline = &DrawTimerActionInline,
+	}
 );
 
 PTGN_REGISTER_SCRIPT(
 	DialogueActionScript,
 	{
-		.label = "Dialogue Action",
-		.group = "Dialogue",
+		.label		 = "Dialogue Action",
+		.group		 = "Dialogue",
 		.description = "Open, close, advance, or change a dialogue on the action target.",
-		.type = ScriptType::Sequence,
-		.menu_order = 1,
+		.type		 = ScriptType::Sequence,
+		.menu_order	 = 1,
 		.draw_inline = &DrawDialogueActionInline,
+	}
+);
+
+PTGN_REGISTER_SCRIPT(
+	TooltipActionScript,
+	{
+		.label = "Tooltip Action",
+		.group = "UI",
+		.description =
+			"Show, hide, or toggle a Tooltip directly, or control hover tooltip behavior on "
+			"its owner.",
+		.type		 = ScriptType::Sequence,
+		.menu_order	 = 1,
+		.draw_inline = &DrawTooltipActionInline,
 	}
 );
 
@@ -2215,13 +2429,14 @@ namespace {
 } // namespace
 
 PTGN_REGISTER_SCRIPT(
-	SetTextureScript, {
-						  .label	   = "Set Texture",
-						  .group	   = "Animation",
-						  .description = "Assign a texture asset key to the owner.",
-						  .type		   = ScriptType::Sequence,
-						  .draw_inline = &DrawSetTextureInline,
-					  }
+	SetTextureScript,
+	{
+		.label		 = "Set Texture",
+		.group		 = "Animation",
+		.description = "Assign a texture asset key to the owner.",
+		.type		 = ScriptType::Sequence,
+		.draw_inline = &DrawSetTextureInline,
+	}
 );
 
 PTGN_REGISTER_SCRIPT(
@@ -2237,154 +2452,169 @@ PTGN_REGISTER_SCRIPT(
 );
 
 PTGN_REGISTER_SCRIPT(
-	SceneChangeScript, {
-						   .label		= "Change Scene",
-						   .group		= "",
-						   .description = "Enter, exit, or switch a registered scene.",
-						   .type		= ScriptType::Sequence,
-						   .draw_inline = &DrawSceneChangeInline,
-						   .draw		= &DrawSceneChange,
-					   }
+	SceneChangeScript,
+	{
+		.label		 = "Change Scene",
+		.group		 = "",
+		.description = "Enter, exit, or switch a registered scene.",
+		.type		 = ScriptType::Sequence,
+		.draw_inline = &DrawSceneChangeInline,
+		.draw		 = &DrawSceneChange,
+	}
 );
 
 PTGN_REGISTER_SCRIPT(
-	EmitSignalScript, {
-						  .label	   = "Emit Signal",
-						  .group	   = "",
-						  .description = "Emit a global signal.",
-						  .type		   = ScriptType::Sequence,
-						  .draw_inline = &DrawEmitSignalInline,
-					  }
+	EmitSignalScript,
+	{
+		.label		 = "Emit Signal",
+		.group		 = "",
+		.description = "Emit a global signal.",
+		.type		 = ScriptType::Sequence,
+		.draw_inline = &DrawEmitSignalInline,
+	}
 );
 
 PTGN_REGISTER_SCRIPT(
-	AddComponentsScript, {
-							 .label		  = "Add Components",
-							 .group		  = "Entity",
-							 .description = "Add registered components to the owner.",
-							 .type		  = ScriptType::Sequence,
-							 .menu_order  = 1,
-							 .draw_inline = &DrawAddComponentsInline,
-							 .draw		  = &DrawAddComponentsDetails,
-						 }
+	AddComponentsScript,
+	{
+		.label		 = "Add Components",
+		.group		 = "Entity",
+		.description = "Add registered components to the owner.",
+		.type		 = ScriptType::Sequence,
+		.menu_order	 = 1,
+		.draw_inline = &DrawAddComponentsInline,
+		.draw		 = &DrawAddComponentsDetails,
+	}
 );
 
 PTGN_REGISTER_SCRIPT(
-	RemoveComponentsScript, {
-								.label			 = "Remove Components",
-								.group			 = "Entity",
-								.description	 = "Remove registered components from the owner.",
-								.type			 = ScriptType::Sequence,
-								.menu_order		 = 2,
-								.separator_after = true,
-								.draw_inline	 = &DrawRemoveComponentsInline,
-							}
+	RemoveComponentsScript,
+	{
+		.label			 = "Remove Components",
+		.group			 = "Entity",
+		.description	 = "Remove registered components from the owner.",
+		.type			 = ScriptType::Sequence,
+		.menu_order		 = 2,
+		.separator_after = true,
+		.draw_inline	 = &DrawRemoveComponentsInline,
+	}
 );
 
 PTGN_REGISTER_EVENT(
-	event::KeyPressed, {
-						   .label		  = "On Key Pressed",
-						   .group		  = "Key",
-						   .description	  = "Matches a key expression.",
-						   .inline_fields = 1,
-						   .draw		  = &DrawKey,
-					   }
+	event::KeyPressed,
+	{
+		.label		   = "On Key Pressed",
+		.group		   = "Key",
+		.description   = "Matches a key expression.",
+		.inline_fields = 1,
+		.draw		   = &DrawKey,
+	}
 );
 
 PTGN_REGISTER_EVENT(
-	event::KeyHeld, {
-						.label		   = "On Key Held",
-						.group		   = "Key",
-						.description   = "Matches a held key expression.",
-						.inline_fields = 2,
-						.draw		   = &DrawHeldKey,
-					}
+	event::KeyHeld,
+	{
+		.label		   = "On Key Held",
+		.group		   = "Key",
+		.description   = "Matches a held key expression.",
+		.inline_fields = 2,
+		.draw		   = &DrawHeldKey,
+	}
 );
 
 PTGN_REGISTER_EVENT(
-	event::KeyReleased, {
-							.label		   = "On Key Released",
-							.group		   = "Key",
-							.description   = "Matches a key expression.",
-							.inline_fields = 1,
-							.draw		   = &DrawKey,
-						}
+	event::KeyReleased,
+	{
+		.label		   = "On Key Released",
+		.group		   = "Key",
+		.description   = "Matches a key expression.",
+		.inline_fields = 1,
+		.draw		   = &DrawKey,
+	}
 );
 
 PTGN_REGISTER_EVENT(
-	event::MousePressed, {
-							 .label			= "On Mouse Pressed",
-							 .group			= "Mouse",
-							 .description	= "Matches one mouse button.",
-							 .inline_fields = 1,
-							 .draw			= &DrawMouse,
-						 }
+	event::MousePressed,
+	{
+		.label		   = "On Mouse Pressed",
+		.group		   = "Mouse",
+		.description   = "Matches one mouse button.",
+		.inline_fields = 1,
+		.draw		   = &DrawMouse,
+	}
 );
 
 PTGN_REGISTER_EVENT(
-	event::MouseHeld, {
-						  .label		 = "On Mouse Held",
-						  .group		 = "Mouse",
-						  .description	 = "Matches one mouse button.",
-						  .inline_fields = 2,
-						  .draw			 = &DrawHeldMouse,
-					  }
+	event::MouseHeld,
+	{
+		.label		   = "On Mouse Held",
+		.group		   = "Mouse",
+		.description   = "Matches one mouse button.",
+		.inline_fields = 2,
+		.draw		   = &DrawHeldMouse,
+	}
 );
 
 PTGN_REGISTER_EVENT(
-	event::MouseReleased, {
-							  .label		 = "On Mouse Released",
-							  .group		 = "Mouse",
-							  .description	 = "Matches one mouse button.",
-							  .inline_fields = 1,
-							  .draw			 = &DrawMouse,
-						  }
+	event::MouseReleased,
+	{
+		.label		   = "On Mouse Released",
+		.group		   = "Mouse",
+		.description   = "Matches one mouse button.",
+		.inline_fields = 1,
+		.draw		   = &DrawMouse,
+	}
 );
 
 PTGN_REGISTER_EVENT(
-	event::MouseMoveOver, {
-							  .label	   = "On Mouse Enter",
-							  .group	   = "Interaction",
-							  .description = "Matches when the pointer enters the owner.",
-						  }
+	event::MouseMoveOver,
+	{
+		.label		 = "On Mouse Enter",
+		.group		 = "Interaction",
+		.description = "Matches when the pointer enters the owner.",
+	}
 );
 
 PTGN_REGISTER_EVENT(
-	event::MouseMoveOut, {
-							 .label		  = "On Mouse Leave",
-							 .group		  = "Interaction",
-							 .description = "Matches when the pointer leaves the owner.",
-						 }
+	event::MouseMoveOut,
+	{
+		.label		 = "On Mouse Leave",
+		.group		 = "Interaction",
+		.description = "Matches when the pointer leaves the owner.",
+	}
 );
 
 PTGN_REGISTER_EVENT(
-	event::MousePressedOver, {
-								 .label			= "On Mouse Pressed Over",
-								 .group			= "Interaction",
-								 .description	= "Matches one mouse button.",
-								 .inline_fields = 1,
-								 .draw			= &DrawMouse,
-							 }
+	event::MousePressedOver,
+	{
+		.label		   = "On Mouse Pressed Over",
+		.group		   = "Interaction",
+		.description   = "Matches one mouse button.",
+		.inline_fields = 1,
+		.draw		   = &DrawMouse,
+	}
 );
 
 PTGN_REGISTER_EVENT(
-	event::MouseHeldOver, {
-							  .label		 = "On Mouse Held Over",
-							  .group		 = "Interaction",
-							  .description	 = "Matches one mouse button.",
-							  .inline_fields = 2,
-							  .draw			 = &DrawHeldMouse,
-						  }
+	event::MouseHeldOver,
+	{
+		.label		   = "On Mouse Held Over",
+		.group		   = "Interaction",
+		.description   = "Matches one mouse button.",
+		.inline_fields = 2,
+		.draw		   = &DrawHeldMouse,
+	}
 );
 
 PTGN_REGISTER_EVENT(
-	event::MouseReleasedOver, {
-								  .label		 = "On Mouse Released Over",
-								  .group		 = "Interaction",
-								  .description	 = "Matches one mouse button.",
-								  .inline_fields = 1,
-								  .draw			 = &DrawMouse,
-							  }
+	event::MouseReleasedOver,
+	{
+		.label		   = "On Mouse Released Over",
+		.group		   = "Interaction",
+		.description   = "Matches one mouse button.",
+		.inline_fields = 1,
+		.draw		   = &DrawMouse,
+	}
 );
 
 PTGN_REGISTER_EVENT(
@@ -2454,66 +2684,66 @@ PTGN_REGISTER_EVENT(
 PTGN_REGISTER_EVENT(
 	event::DialogueOpened,
 	{
-		.label = "On Dialogue Open",
-		.group = "Dialogue",
-		.description = "Matches when the owner dialogue opens.",
+		.label		   = "On Dialogue Open",
+		.group		   = "Dialogue",
+		.description   = "Matches when the owner dialogue opens.",
 		.inline_fields = 1,
-		.draw = &DrawDialogueEvent,
+		.draw		   = &DrawDialogueEvent,
 	}
 );
 
 PTGN_REGISTER_EVENT(
 	event::DialogueClosed,
 	{
-		.label = "On Dialogue Close",
-		.group = "Dialogue",
-		.description = "Matches when the owner dialogue closes.",
+		.label		   = "On Dialogue Close",
+		.group		   = "Dialogue",
+		.description   = "Matches when the owner dialogue closes.",
 		.inline_fields = 1,
-		.draw = &DrawDialogueEvent,
+		.draw		   = &DrawDialogueEvent,
 	}
 );
 
 PTGN_REGISTER_EVENT(
 	event::DialogueChanged,
 	{
-		.label = "On Dialogue Change",
-		.group = "Dialogue",
-		.description = "Matches when the selected dialogue key changes.",
+		.label		   = "On Dialogue Change",
+		.group		   = "Dialogue",
+		.description   = "Matches when the selected dialogue key changes.",
 		.inline_fields = 1,
-		.draw = &DrawDialogueEvent,
+		.draw		   = &DrawDialogueEvent,
 	}
 );
 
 PTGN_REGISTER_EVENT(
 	event::DialoguePageChanged,
 	{
-		.label = "On Dialogue Page Change",
-		.group = "Dialogue",
-		.description = "Matches when the current dialogue page changes.",
+		.label		   = "On Dialogue Page Change",
+		.group		   = "Dialogue",
+		.description   = "Matches when the current dialogue page changes.",
 		.inline_fields = 2,
-		.draw = &DrawDialoguePageEvent,
+		.draw		   = &DrawDialoguePageEvent,
 	}
 );
 
 PTGN_REGISTER_EVENT(
 	event::DialoguePageCompleted,
 	{
-		.label = "On Dialogue Page Complete",
-		.group = "Dialogue",
-		.description = "Matches when the current page is fully revealed.",
+		.label		   = "On Dialogue Page Complete",
+		.group		   = "Dialogue",
+		.description   = "Matches when the current page is fully revealed.",
 		.inline_fields = 2,
-		.draw = &DrawDialoguePageEvent,
+		.draw		   = &DrawDialoguePageEvent,
 	}
 );
 
 PTGN_REGISTER_EVENT(
 	event::DialogueFinished,
 	{
-		.label = "On Dialogue Finish",
-		.group = "Dialogue",
-		.description = "Matches after advancing past the final page of a dialogue.",
+		.label		   = "On Dialogue Finish",
+		.group		   = "Dialogue",
+		.description   = "Matches after advancing past the final page of a dialogue.",
 		.inline_fields = 1,
-		.draw = &DrawDialogueEvent,
+		.draw		   = &DrawDialogueEvent,
 	}
 );
 
@@ -2598,107 +2828,120 @@ PTGN_REGISTER_EVENT(
 );
 
 PTGN_REGISTER_EVENT(
-	event::DragStart, {
-						  .label	   = "On Drag Start",
-						  .group	   = "Drag",
-						  .description = "Matches drag start.",
-					  }
+	event::DragStart,
+	{
+		.label		 = "On Drag Start",
+		.group		 = "Drag",
+		.description = "Matches drag start.",
+	}
 );
 
 PTGN_REGISTER_EVENT(
-	event::Drag, {
-					 .label		  = "On Drag",
-					 .group		  = "Drag",
-					 .description = "Matches while dragging.",
-				 }
+	event::Drag,
+	{
+		.label		 = "On Drag",
+		.group		 = "Drag",
+		.description = "Matches while dragging.",
+	}
 );
 
 PTGN_REGISTER_EVENT(
-	event::DragStop, {
-						 .label		  = "On Drag Stop",
-						 .group		  = "Drag",
-						 .description = "Matches drag stop.",
-					 }
+	event::DragStop,
+	{
+		.label		 = "On Drag Stop",
+		.group		 = "Drag",
+		.description = "Matches drag stop.",
+	}
 );
 
 PTGN_REGISTER_EVENT(
-	event::OverlapStart, {
-							 .label		  = "On Overlap Start",
-							 .group		  = "Physics",
-							 .description = "Matches overlap start.",
-						 }
+	event::OverlapStart,
+	{
+		.label		 = "On Overlap Start",
+		.group		 = "Physics",
+		.description = "Matches overlap start.",
+	}
 );
 
 PTGN_REGISTER_EVENT(
-	event::Overlap, {
-						.label		 = "On Overlap",
-						.group		 = "Physics",
-						.description = "Matches overlap.",
-					}
+	event::Overlap,
+	{
+		.label		 = "On Overlap",
+		.group		 = "Physics",
+		.description = "Matches overlap.",
+	}
 );
 
 PTGN_REGISTER_EVENT(
-	event::OverlapStop, {
-							.label		 = "On Overlap Stop",
-							.group		 = "Physics",
-							.description = "Matches overlap stop.",
-						}
+	event::OverlapStop,
+	{
+		.label		 = "On Overlap Stop",
+		.group		 = "Physics",
+		.description = "Matches overlap stop.",
+	}
 );
 
 PTGN_REGISTER_EVENT(
-	event::Collision, {
-						  .label	   = "On Collision",
-						  .group	   = "Physics",
-						  .description = "Matches collision.",
-					  }
+	event::Collision,
+	{
+		.label		 = "On Collision",
+		.group		 = "Physics",
+		.description = "Matches collision.",
+	}
 );
 
 PTGN_REGISTER_EVENT(
-	event::AnimationStart, {
-							   .label		= "On Animation Start",
-							   .group		= "Animation",
-							   .description = "Matches when an animation starts.",
-						   }
+	event::AnimationStart,
+	{
+		.label		 = "On Animation Start",
+		.group		 = "Animation",
+		.description = "Matches when an animation starts.",
+	}
 );
 
 PTGN_REGISTER_EVENT(
-	event::AnimationStop, {
-							  .label	   = "On Animation Stop",
-							  .group	   = "Animation",
-							  .description = "Matches when an animation stops or resets.",
-						  }
+	event::AnimationStop,
+	{
+		.label		 = "On Animation Stop",
+		.group		 = "Animation",
+		.description = "Matches when an animation stops or resets.",
+	}
 );
 
 PTGN_REGISTER_EVENT(
-	event::AnimationPause, {
-							   .label		= "On Animation Pause",
-							   .group		= "Animation",
-							   .description = "Matches when an animation is paused.",
-						   }
+	event::AnimationPause,
+	{
+		.label		 = "On Animation Pause",
+		.group		 = "Animation",
+		.description = "Matches when an animation is paused.",
+	}
 );
 
 PTGN_REGISTER_EVENT(
-	event::AnimationResume, {
-								.label		 = "On Animation Resume",
-								.group		 = "Animation",
-								.description = "Matches when an animation is resumed.",
-							}
+	event::AnimationResume,
+	{
+		.label		 = "On Animation Resume",
+		.group		 = "Animation",
+		.description = "Matches when an animation is resumed.",
+	}
 );
 
 PTGN_REGISTER_EVENT(
-	event::AnimationFrameChange, {
-									 .label		  = "On Animation Frame Change",
-									 .group		  = "Animation",
-									 .description = "Matches whenever the animation frame changes.",
-								 }
+	event::AnimationFrameChange,
+	{
+		.label		 = "On Animation Frame Change",
+		.group		 = "Animation",
+		.description = "Matches whenever the animation frame changes.",
+	}
 );
 
 PTGN_REGISTER_EVENT(
-	event::AnimationUpdate, {
-								.label		 = "On Animation Update",
-								.group		 = "Animation",
-								.description = "Matches every frame while an animation is playing.",
-							}
+	event::AnimationUpdate,
+	{
+		.label		 = "On Animation Update",
+		.group		 = "Animation",
+		.description = "Matches every frame while an animation is playing.",
+	}
 );
 
 PTGN_REGISTER_EVENT(
@@ -2711,11 +2954,12 @@ PTGN_REGISTER_EVENT(
 );
 
 PTGN_REGISTER_EVENT(
-	event::AnimationComplete, {
-								  .label	   = "On Animation Complete",
-								  .group	   = "Animation",
-								  .description = "Matches when all animation plays complete.",
-							  }
+	event::AnimationComplete,
+	{
+		.label		 = "On Animation Complete",
+		.group		 = "Animation",
+		.description = "Matches when all animation plays complete.",
+	}
 );
 
 PTGN_REGISTER_EVENT(
@@ -2739,13 +2983,14 @@ PTGN_REGISTER_EVENT(
 );
 
 PTGN_REGISTER_EVENT(
-	Signal, {
-				.label		   = "On Signal",
-				.group		   = "",
-				.description   = "Matches an exact signal name.",
-				.inline_fields = 1,
-				.draw		   = &DrawSignalEvent,
-			}
+	Signal,
+	{
+		.label		   = "On Signal",
+		.group		   = "",
+		.description   = "Matches an exact signal name.",
+		.inline_fields = 1,
+		.draw		   = &DrawSignalEvent,
+	}
 );
 
 PTGN_REGISTER_EVENT(
