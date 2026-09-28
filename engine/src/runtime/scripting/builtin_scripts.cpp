@@ -41,17 +41,17 @@ namespace ptgn {
 namespace impl {
 
 struct ShakeAnimationState {
-	float trauma{ 0.0f };
+    float trauma{ 0.0f };
 
-	float target{ 0.0f };
+    float target{ 0.0f };
 
-	std::int32_t seed{ 0 };
+    std::int32_t seed{ 0 };
 };
 
 struct PathFollowAnimationState {
-	std::size_t current_waypoint{ 0 };
+    std::size_t current_waypoint{ 0 };
 
-	std::vector<V2_float> waypoints{};
+    std::vector<V2_float> waypoints{};
 };
 
 } // namespace impl
@@ -59,1588 +59,1585 @@ struct PathFollowAnimationState {
 namespace {
 
 [[nodiscard]] Animation ResolveAnimation(Entity owner, std::string_view animation_key) {
-	if (owner.Has<impl::AnimationMapData>()) {
-		AnimationMap map{ owner };
+    if (owner.Has<impl::AnimationMapData>()) {
+        AnimationMap map{ owner };
 
-		if (animation_key.empty()) {
-			return map.GetActive().value_or(Animation{});
-		}
+        if (animation_key.empty()) {
+            return map.GetActive().value_or(Animation{});
+        }
 
-		auto animation{ map.GetAnimation(animation_key) };
+        auto animation{ map.GetAnimation(animation_key) };
 
-		if (!animation) {
-			return {};
-		}
+        if (!animation) {
+            return {};
+        }
 
-		map.SetActive(animation_key);
+        map.SetActive(animation_key);
 
-		return animation;
-	}
+        return animation;
+    }
 
-	return owner.Has<impl::AnimationData>() ? Animation{ owner } : Animation{};
+    return owner.Has<impl::AnimationData>() ? Animation{ owner } : Animation{};
 }
 
 [[nodiscard]] milliseconds MillisecondsFromFloat(float value) {
-	using Rep = milliseconds::rep;
+    using Rep = milliseconds::rep;
 
-	return milliseconds{ static_cast<Rep>(std::max(0.0f, value)) };
+    return milliseconds{ static_cast<Rep>(std::max(0.0f, value)) };
 }
 
 struct SceneTransitionPointers {
-	std::unique_ptr<SceneTransition> out{};
+    std::unique_ptr<SceneTransition> out{};
 
-	std::unique_ptr<SceneTransition> in{};
+    std::unique_ptr<SceneTransition> in{};
 };
 
 [[nodiscard]] SceneTransitionPointers MakeSceneTransitions(
 
-	const SceneChangeScript& script,
+    const SceneChangeScript& script,
 
-	bool entering_active_scene
+    bool entering_active_scene
 
 ) {
-	SceneTransitionPointers transitions;
+    SceneTransitionPointers transitions;
 
-	if (script.transition == SceneTransitionStyle::None) {
-		return transitions;
-	}
+    if (script.transition == SceneTransitionStyle::None) {
+        return transitions;
+    }
 
-	const milliseconds duration{ MillisecondsFromFloat(script.duration_ms) };
+    const milliseconds duration{ MillisecondsFromFloat(script.duration_ms) };
 
-	const milliseconds delay{ MillisecondsFromFloat(script.delay_ms) };
+    const milliseconds delay{ MillisecondsFromFloat(script.delay_ms) };
 
-	const V2_float direction{ script.direction.IsZero() ? V2_float{ 1.0f, 0.0f }
-														: script.direction };
+    const V2_float direction{ script.direction.IsZero() ? V2_float{ 1.0f, 0.0f }
+                                                        : script.direction };
 
-	const bool has_out{
+    const bool has_out{
 
-		script.action == SceneChangeAction::Exit ||
+        script.action == SceneChangeAction::Exit ||
 
-		script.action == SceneChangeAction::Switch ||
+        script.action == SceneChangeAction::Switch ||
 
-		(script.action == SceneChangeAction::Enter && entering_active_scene)
+        (script.action == SceneChangeAction::Enter && entering_active_scene)
 
-	};
+    };
 
-	const bool has_in{
+    const bool has_in{
 
-		script.action == SceneChangeAction::Enter ||
+        script.action == SceneChangeAction::Enter ||
 
-		script.action == SceneChangeAction::Switch
+        script.action == SceneChangeAction::Switch
 
-	};
+    };
 
-	switch (script.transition) {
-		case SceneTransitionStyle::None: break;
+    switch (script.transition) {
+        case SceneTransitionStyle::None: break;
 
-		case SceneTransitionStyle::Fade: {
-			if (has_out) {
-				transitions.out =
+        case SceneTransitionStyle::Fade: {
+            if (has_out) {
+                transitions.out =
 
-					std::make_unique<FadeOutTransition>(duration, delay, script.ease);
-			}
+                    std::make_unique<FadeOutTransition>(duration, delay, script.ease);
+            }
 
-			if (has_in) {
-				const milliseconds in_delay{ has_out ? delay + duration : delay };
+            if (has_in) {
+                const milliseconds in_delay{ has_out ? delay + duration : delay };
 
-				transitions.in =
+                transitions.in =
 
-					std::make_unique<FadeInTransition>(duration, in_delay, script.ease);
-			}
+                    std::make_unique<FadeInTransition>(duration, in_delay, script.ease);
+            }
 
-			break;
-		}
+            break;
+        }
 
-		case SceneTransitionStyle::CrossFade:
+        case SceneTransitionStyle::CrossFade:
 
-			if (has_out) {
-				transitions.out =
+            if (has_out) {
+                transitions.out =
 
-					std::make_unique<FadeOutTransition>(duration, delay, script.ease);
-			}
+                    std::make_unique<FadeOutTransition>(duration, delay, script.ease);
+            }
 
-			if (has_in) {
-				transitions.in =
+            if (has_in) {
+                transitions.in =
 
-					std::make_unique<FadeInTransition>(duration, delay, script.ease);
-			}
+                    std::make_unique<FadeInTransition>(duration, delay, script.ease);
+            }
 
-			break;
+            break;
 
-		case SceneTransitionStyle::Slide:
+        case SceneTransitionStyle::Slide:
 
-			if (has_out) {
-				transitions.out = std::make_unique<SlideOutTransition>(
+            if (has_out) {
+                transitions.out = std::make_unique<SlideOutTransition>(
 
-					duration, direction, delay, script.ease
+                    duration, direction, delay, script.ease
 
-				);
-			}
+                );
+            }
 
-			if (has_in) {
-				transitions.in = std::make_unique<SlideInTransition>(
+            if (has_in) {
+                transitions.in = std::make_unique<SlideInTransition>(
 
-					duration, -direction, delay, script.ease
+                    duration, -direction, delay, script.ease
 
-				);
-			}
+                );
+            }
 
-			break;
-	}
+            break;
+    }
 
-	return transitions;
+    return transitions;
 }
 
 [[nodiscard]] float BounceWave(float progress, bool symmetrical) {
-	const float phase{
+    const float phase{
 
-		(symmetrical ? 2.0f : 1.0f) * std::numbers::pi_v<float> *
+        (symmetrical ? 2.0f : 1.0f) * std::numbers::pi_v<float> *
 
-		std::clamp(progress, 0.0f, 1.0f)
+        std::clamp(progress, 0.0f, 1.0f)
 
-	};
+    };
 
-	return std::sin(phase);
+    return std::sin(phase);
 }
 
 void ClearShakeOffset(Entity entity) {
-	if (auto* offsets{ entity.TryGet<impl::Offsets>() }) {
-		offsets->shake = {};
-	}
+    if (auto* offsets{ entity.TryGet<impl::Offsets>() }) {
+        offsets->shake = {};
+    }
 }
 
 void ApplyShake(
 
-	secondsf time, impl::Offsets& offsets, float trauma, const ShakeConfig& config,
+    secondsf time, impl::Offsets& offsets, float trauma, const ShakeConfig& config,
 
-	std::int32_t seed
+    std::int32_t seed
 
 ) {
-	const float shake_value{ std::pow(std::clamp(trauma, 0.0f, 1.0f), config.trauma_exponent) };
+    const float shake_value{ std::pow(std::clamp(trauma, 0.0f, 1.0f), config.trauma_exponent) };
 
-	const float phase{ time.count() * config.frequency };
+    const float phase{ time.count() * 1000.0f * config.frequency };
 
-	const V2_float position_noise{
+    const V2_float position_noise{
+        PerlinNoise::GetValue(phase, 0.0f, seed + 0) * 2.0f - 1.0f,
+        PerlinNoise::GetValue(phase, 0.0f, seed + 1) * 2.0f - 1.0f
+    };
 
-		PerlinNoise::GetValue(phase, 0.0f, seed + 0) * 2.0f - 1.0f,
+    const float rotation_noise{
 
-		PerlinNoise::GetValue(phase, 0.0f, seed + 1) * 2.0f - 1.0f
+        PerlinNoise::GetValue(phase, 0.0f, seed + 3) * 2.0f - 1.0f
 
-	};
+    };
 
-	const float rotation_noise{
+    offsets.shake.position = shake_value * config.maximum_translation * position_noise;
 
-		PerlinNoise::GetValue(phase, 0.0f, seed + 3) * 2.0f - 1.0f
+    offsets.shake.rotation =
 
-	};
-
-	offsets.shake.position = shake_value * config.maximum_translation * position_noise;
-
-	offsets.shake.rotation =
-
-		Radians{ shake_value * config.maximum_rotation * rotation_noise };
+        Radians{ shake_value * config.maximum_rotation * rotation_noise };
 }
 
 [[nodiscard]] V2_float GetFollowPosition(
 
-	secondsf dt, const FollowConfig& config, V2_float position, V2_float target_position
+    secondsf dt, const FollowConfig& config, V2_float position, V2_float target_position
 
 ) {
-	PTGN_ASSERT(config.lerp.x >= 0.0f && config.lerp.x <= 1.0f);
+    PTGN_ASSERT(config.lerp.x >= 0.0f && config.lerp.x <= 1.0f);
 
-	PTGN_ASSERT(config.lerp.y >= 0.0f && config.lerp.y <= 1.0f);
+    PTGN_ASSERT(config.lerp.y >= 0.0f && config.lerp.y <= 1.0f);
 
-	const V2_float lerp{
+    const V2_float lerp{
 
-		1.0f - std::pow(1.0f - config.lerp.x, dt.count()),
+        1.0f - std::pow(1.0f - config.lerp.x, dt.count()),
 
-		1.0f - std::pow(1.0f - config.lerp.y, dt.count())
+        1.0f - std::pow(1.0f - config.lerp.y, dt.count())
 
-	};
+    };
 
-	V2_float new_position{ position };
+    V2_float new_position{ position };
 
-	if (config.deadzone.IsZero()) {
-		new_position = Lerp(position, target_position, lerp);
+    if (config.deadzone.IsZero()) {
+        new_position = Lerp(position, target_position, lerp);
 
-	} else {
-		const V2_float half_deadzone{ config.deadzone * 0.5f };
+    } else {
+        const V2_float half_deadzone{ config.deadzone * 0.5f };
 
-		const V2_float minimum{ target_position - half_deadzone };
+        const V2_float minimum{ target_position - half_deadzone };
 
-		const V2_float maximum{ target_position + half_deadzone };
+        const V2_float maximum{ target_position + half_deadzone };
 
-		if (position.x < minimum.x) {
-			new_position.x =
+        if (position.x < minimum.x) {
+            new_position.x =
 
-				Lerp(position.x, position.x - (minimum.x - target_position.x), lerp.x);
+                Lerp(position.x, position.x - (minimum.x - target_position.x), lerp.x);
 
-		} else if (position.x > maximum.x) {
-			new_position.x =
+        } else if (position.x > maximum.x) {
+            new_position.x =
 
-				Lerp(position.x, position.x + (target_position.x - maximum.x), lerp.x);
-		}
+                Lerp(position.x, position.x + (target_position.x - maximum.x), lerp.x);
+        }
 
-		if (position.y < minimum.y) {
-			new_position.y =
+        if (position.y < minimum.y) {
+            new_position.y =
 
-				Lerp(position.y, position.y - (minimum.y - target_position.y), lerp.y);
+                Lerp(position.y, position.y - (minimum.y - target_position.y), lerp.y);
 
-		} else if (position.y > maximum.y) {
-			new_position.y =
+        } else if (position.y > maximum.y) {
+            new_position.y =
 
-				Lerp(position.y, position.y + (target_position.y - maximum.y), lerp.y);
-		}
-	}
+                Lerp(position.y, position.y + (target_position.y - maximum.y), lerp.y);
+        }
+    }
 
-	if (!config.follow_x) {
-		new_position.x = position.x;
-	}
+    if (!config.follow_x) {
+        new_position.x = position.x;
+    }
 
-	if (!config.follow_y) {
-		new_position.y = position.y;
-	}
+    if (!config.follow_y) {
+        new_position.y = position.y;
+    }
 
-	if (config.snap_distance > 0.0f) {
-		if (config.follow_x &&
+    if (config.snap_distance > 0.0f) {
+        if (config.follow_x &&
 
-			std::abs(target_position.x - new_position.x) <= config.snap_distance) {
-			new_position.x = target_position.x;
-		}
+            std::abs(target_position.x - new_position.x) <= config.snap_distance) {
+            new_position.x = target_position.x;
+        }
 
-		if (config.follow_y &&
+        if (config.follow_y &&
 
-			std::abs(target_position.y - new_position.y) <= config.snap_distance) {
-			new_position.y = target_position.y;
-		}
-	}
+            std::abs(target_position.y - new_position.y) <= config.snap_distance) {
+            new_position.y = target_position.y;
+        }
+    }
 
-	return new_position;
+    return new_position;
 }
 
 void StopFollowMovement(Entity entity) {
-	entity.Remove<TopDownMovement>();
+    entity.Remove<TopDownMovement>();
 
-	entity.Remove<RigidBody>();
+    entity.Remove<RigidBody>();
 }
 
 void StartFollowMovement(Entity entity, const FollowConfig& config) {
-	if (config.move_mode != MoveMode::Velocity) {
-		StopFollowMovement(entity);
+    if (config.move_mode != MoveMode::Velocity) {
+        StopFollowMovement(entity);
 
-		return;
-	}
+        return;
+    }
 
-	entity.TryAdd<RigidBody>();
+    entity.TryAdd<RigidBody>();
 
-	if (!entity.Has<Transform>()) {
-		SetPosition(entity, {});
-	}
+    if (!entity.Has<Transform>()) {
+        SetPosition(entity, {});
+    }
 
-	auto& movement{ entity.TryAdd<TopDownMovement>() };
+    auto& movement{ entity.TryAdd<TopDownMovement>() };
 
-	movement.max_acceleration = config.max_acceleration;
+    movement.max_acceleration = config.max_acceleration;
 
-	movement.max_deceleration = config.max_acceleration;
+    movement.max_deceleration = config.max_acceleration;
 
-	movement.max_speed = config.max_speed;
+    movement.max_speed = config.max_speed;
 
-	movement.keys_enabled = false;
+    movement.keys_enabled = false;
 
-	movement.only_orthogonal_movement = false;
+    movement.only_orthogonal_movement = false;
 }
 
 void MoveUsingVelocity(const FollowConfig& config, Entity entity, V2_float direction) {
-	if (!entity.Has<TopDownMovement>()) {
-		PTGN_WARN("Entity with MoveMode::Velocity should have a TopDownMovement component");
+    if (!entity.Has<TopDownMovement>()) {
+        PTGN_WARN("Entity with MoveMode::Velocity should have a TopDownMovement component");
 
-		return;
-	}
+        return;
+    }
 
-	const float distance_squared{ direction.MagnitudeSquared() };
+    const float distance_squared{ direction.MagnitudeSquared() };
 
-	if (config.stop_distance.has_value() &&
+    if (config.stop_distance.has_value() &&
 
-		config.stop_distance.value() >= kEpsilon<float> &&
+        config.stop_distance.value() >= kEpsilon<float> &&
 
-		distance_squared <
+        distance_squared <
 
-			config.stop_distance.value() * config.stop_distance.value()) {
-		return;
-	}
+            config.stop_distance.value() * config.stop_distance.value()) {
+        return;
+    }
 
-	if (NearlyEqual(distance_squared, 0.0f)) {
-		return;
-	}
+    if (NearlyEqual(distance_squared, 0.0f)) {
+        return;
+    }
 
-	V2_float normalized{ direction / std::sqrt(distance_squared) };
+    V2_float normalized{ direction / std::sqrt(distance_squared) };
 
-	if (!config.follow_x) {
-		normalized = { 0.0f, Sign(normalized.y) };
-	}
+    if (!config.follow_x) {
+        normalized = { 0.0f, Sign(normalized.y) };
+    }
 
-	if (!config.follow_y) {
-		normalized = { Sign(normalized.x), 0.0f };
-	}
+    if (!config.follow_y) {
+        normalized = { Sign(normalized.x), 0.0f };
+    }
 
-	entity.Get<TopDownMovement>().Move(normalized);
+    entity.Get<TopDownMovement>().Move(normalized);
 }
 
 [[nodiscard]] bool ReachedStopDistance(
 
-	const FollowConfig& config, const V2_float& direction
+    const FollowConfig& config, const V2_float& direction
 
 ) {
-	return config.stop_distance.has_value() &&
+    return config.stop_distance.has_value() &&
 
-		   config.stop_distance.value() >= kEpsilon<float> &&
+           config.stop_distance.value() >= kEpsilon<float> &&
 
-		   direction.MagnitudeSquared() <
+           direction.MagnitudeSquared() <
 
-			   config.stop_distance.value() * config.stop_distance.value();
+               config.stop_distance.value() * config.stop_distance.value();
 }
 
 } // namespace
 
 ComponentDefinition MakeComponentDefinition(const RegisteredComponent& component) {
-	auto default_value{ component.MakeDefaultJson() };
+    auto default_value{ component.MakeDefaultJson() };
 
-	if (!default_value) {
-		return {};
-	}
+    if (!default_value) {
+        return {};
+    }
 
-	json value{ std::move(*default_value) };
+    json value{ std::move(*default_value) };
 
-	if (value.is_null()) {
-		value = json::object();
-	}
+    if (value.is_null()) {
+        value = json::object();
+    }
 
-	const std::string component_name{ component.name };
+    const std::string component_name{ component.name };
 
-	return ComponentDefinition{
+    return ComponentDefinition{
 
-		.type_hash = static_cast<TypeHashValue>(component.type_id),
+        .type_hash = static_cast<TypeHashValue>(component.type_id),
 
-		.type = component_name,
+        .type = component_name,
 
-		.value = std::move(value),
+        .value = std::move(value),
 
-		.apply_live =
-			[component_name](Entity entity) {
-				if (const auto* registration{ ComponentRegistry::Find(component_name) };
+        .apply_live =
+            [component_name](Entity entity) {
+                if (const auto* registration{ ComponentRegistry::Find(component_name) };
 
-					registration && registration->default_constructible) {
-					registration->AddDefault(entity);
-				}
-			},
+                    registration && registration->default_constructible) {
+                    registration->AddDefault(entity);
+                }
+            },
 
-	};
+    };
 }
 
 ComponentDefinition MakeComponentDefinition(std::string_view name) {
-	const auto* component{ ComponentRegistry::Find(name) };
+    const auto* component{ ComponentRegistry::Find(name) };
 
-	return component ? MakeComponentDefinition(*component) : ComponentDefinition{};
+    return component ? MakeComponentDefinition(*component) : ComponentDefinition{};
 }
 
 namespace impl {
 
 void ResetBounceAnimationState(Entity entity) {
-	if (auto* offsets{ entity.TryGet<Offsets>() }) {
-		offsets->bounce = {};
-	}
+    if (auto* offsets{ entity.TryGet<Offsets>() }) {
+        offsets->bounce = {};
+    }
 }
 
 void ResetShakeAnimationState(Entity entity) {
-	ClearShakeOffset(entity);
+    ClearShakeOffset(entity);
 
-	if (entity.Has<ShakeAnimationState>()) {
-		entity.Remove<ShakeAnimationState>();
-	}
+    if (entity.Has<ShakeAnimationState>()) {
+        entity.Remove<ShakeAnimationState>();
+    }
 }
 
 void ResetFollowAnimationState(Entity entity, bool reset_waypoints) {
-	StopFollowMovement(entity);
+    StopFollowMovement(entity);
 
-	if (reset_waypoints && entity.Has<PathFollowAnimationState>()) {
-		entity.Remove<PathFollowAnimationState>();
-	}
+    if (reset_waypoints && entity.Has<PathFollowAnimationState>()) {
+        entity.Remove<PathFollowAnimationState>();
+    }
 }
 
 } // namespace impl
 
 void MoveToScript::OnStart() {
-	start_ = Target().Get<Transform>().position;
+    start_ = Target().Get<Transform>().position;
 
-	end_ = relative ? start_ + destination : destination;
+    end_ = relative ? start_ + destination : destination;
 }
 
 ScriptStatus MoveToScript::OnUpdate() {
-	Target().Get<Transform>().position = start_ + (end_ - start_) * Progress();
+    Target().Get<Transform>().position = start_ + (end_ - start_) * Progress();
 
-	return ScriptStatus::Running;
+    return ScriptStatus::Running;
 }
 
 void MoveToScript::OnRepeat() {
-	if (!IsReversed()) {
-		OnStart();
-	}
+    if (!IsReversed()) {
+        OnStart();
+    }
 }
 
 void RotateToScript::OnStart() {
-	start_degrees_ = Target().Get<Transform>().rotation.ToDeg().value;
+    start_degrees_ = Target().Get<Transform>().rotation.ToDeg().value;
 
-	const float end_degrees{ relative ? start_degrees_ + degrees : degrees };
+    const float end_degrees{ relative ? start_degrees_ + degrees : degrees };
 
-	delta_degrees_ = end_degrees - start_degrees_;
+    delta_degrees_ = end_degrees - start_degrees_;
 
-	if (shortest_path) {
-		delta_degrees_ = std::remainder(delta_degrees_, 360.0f);
-	}
+    if (shortest_path) {
+        delta_degrees_ = std::remainder(delta_degrees_, 360.0f);
+    }
 }
 
 ScriptStatus RotateToScript::OnUpdate() {
-	const float value{ start_degrees_ + delta_degrees_ * Progress() };
+    const float value{ start_degrees_ + delta_degrees_ * Progress() };
 
-	Target().Get<Transform>().rotation = Degrees{ value }.ToRad();
+    Target().Get<Transform>().rotation = Degrees{ value }.ToRad();
 
-	return ScriptStatus::Running;
+    return ScriptStatus::Running;
 }
 
 void RotateToScript::OnRepeat() {
-	if (!IsReversed()) {
-		OnStart();
-	}
+    if (!IsReversed()) {
+        OnStart();
+    }
 }
 
 void ScaleToScript::OnStart() {
-	start_ = Target().Get<Transform>().scale;
+    start_ = Target().Get<Transform>().scale;
 
-	end_ = relative ? start_ * scale : scale;
+    end_ = relative ? start_ * scale : scale;
 }
 
 ScriptStatus ScaleToScript::OnUpdate() {
-	Target().Get<Transform>().scale = start_ + (end_ - start_) * Progress();
+    Target().Get<Transform>().scale = start_ + (end_ - start_) * Progress();
 
-	return ScriptStatus::Running;
+    return ScriptStatus::Running;
 }
 
 void ScaleToScript::OnRepeat() {
-	if (!IsReversed()) {
-		OnStart();
-	}
+    if (!IsReversed()) {
+        OnStart();
+    }
 }
 
 void TintToScript::OnStart() {
-	start_ = Target().GetOrDefault<Tint>();
+    start_ = Target().GetOrDefault<Tint>();
 }
 
 ScriptStatus TintToScript::OnUpdate() {
-	Target().Add<Tint>(Lerp(start_, tint, Progress()));
+    Target().Add<Tint>(Lerp(start_, tint, Progress()));
 
-	return ScriptStatus::Running;
+    return ScriptStatus::Running;
 }
 
 void TintToScript::OnRepeat() {
-	if (!IsReversed()) {
-		OnStart();
-	}
+    if (!IsReversed()) {
+        OnStart();
+    }
 }
 
 void FadeInScript::OnStart() {
-	if (start_transparent) {
-		Target().Add<Tint>(color::Transparent);
-	}
+    if (start_transparent) {
+        Target().Add<Tint>(color::Transparent);
+    }
 
-	start_ = Target().GetOrDefault<Tint>();
+    start_ = Target().GetOrDefault<Tint>();
 }
 
 ScriptStatus FadeInScript::OnUpdate() {
-	Target().Add<Tint>(Lerp(start_, color::White, Progress()));
+    Target().Add<Tint>(Lerp(start_, color::White, Progress()));
 
-	return ScriptStatus::Running;
+    return ScriptStatus::Running;
 }
 
 void FadeInScript::OnRepeat() {
-	if (!IsReversed()) {
-		OnStart();
-	}
+    if (!IsReversed()) {
+        OnStart();
+    }
 }
 
 void FadeOutScript::OnStart() {
-	if (start_opaque) {
-		Target().Add<Tint>(color::White);
-	}
+    if (start_opaque) {
+        Target().Add<Tint>(color::White);
+    }
 
-	start_ = Target().GetOrDefault<Tint>();
+    start_ = Target().GetOrDefault<Tint>();
 }
 
 ScriptStatus FadeOutScript::OnUpdate() {
-	Target().Add<Tint>(Lerp(start_, color::Transparent, Progress()));
+    Target().Add<Tint>(Lerp(start_, color::Transparent, Progress()));
 
-	return ScriptStatus::Running;
+    return ScriptStatus::Running;
 }
 
 void FadeOutScript::OnRepeat() {
-	if (!IsReversed()) {
-		OnStart();
-	}
+    if (!IsReversed()) {
+        OnStart();
+    }
 }
 
 void BounceScript::OnStart() {
-	Target().TryAdd<impl::Offsets>();
+    Target().TryAdd<impl::Offsets>();
 
-	impl::ResetBounceAnimationState(Target());
+    impl::ResetBounceAnimationState(Target());
 }
 
 ScriptStatus BounceScript::OnUpdate() {
-	auto& offsets{ Target().TryAdd<impl::Offsets>() };
+    auto& offsets{ Target().TryAdd<impl::Offsets>() };
 
-	offsets.bounce.position =
+    offsets.bounce.position =
 
-		static_offset + amplitude * BounceWave(Progress(), symmetrical);
+        static_offset + amplitude * BounceWave(Progress(), symmetrical);
 
-	return ScriptStatus::Running;
+    return ScriptStatus::Running;
 }
 
 void BounceScript::OnComplete() {
-	impl::ResetBounceAnimationState(Target());
+    impl::ResetBounceAnimationState(Target());
 }
 
 void BounceScript::OnCancel(SequenceCancelReason) {
-	impl::ResetBounceAnimationState(Target());
+    impl::ResetBounceAnimationState(Target());
 }
 
 void StartBounceScript::OnStart() {
-	if (period <= millisecondsf{ 0.0f }) {
-		PTGN_WARN("Start Bounce requires a positive period");
+    if (period <= millisecondsf{ 0.0f }) {
+        PTGN_WARN("Start Bounce requires a positive period");
 
-		return;
-	}
+        return;
+    }
 
-	const milliseconds bounce_period{ MillisecondsFromFloat(period.count()) };
+    const milliseconds bounce_period{ MillisecondsFromFloat(period.count()) };
 
-	if (bounce_period.count() <= 0) {
-		PTGN_WARN("Start Bounce period must be at least one millisecond");
+    if (bounce_period.count() <= 0) {
+        PTGN_WARN("Start Bounce period must be at least one millisecond");
 
-		return;
-	}
+        return;
+    }
 
-	if (symmetrical) {
-		(void)SymmetricalBounce(
+    if (symmetrical) {
+        (void)SymmetricalBounce(
 
-			Target(), amplitude, bounce_period, std::nullopt, ease, static_offset, force
+            Target(), amplitude, bounce_period, std::nullopt, ease, static_offset, force
 
-		);
+        );
 
-	} else {
-		(void)Bounce(
+    } else {
+        (void)Bounce(
 
-			Target(), amplitude, bounce_period, std::nullopt, ease, static_offset, force
+            Target(), amplitude, bounce_period, std::nullopt, ease, static_offset, force
 
-		);
-	}
+        );
+    }
 }
 
 void StopBounceScript::OnStart() {
-	ptgn::StopBounce(Target(), force);
+    ptgn::StopBounce(Target(), force);
 }
 
 void ShakeScript::OnStart() {
-	PTGN_ASSERT(
+    PTGN_ASSERT(
 
-		intensity >= -1.0f && intensity <= 1.0f,
+        intensity >= -1.0f && intensity <= 1.0f,
 
-		"Shake intensity must be in range [-1, 1]"
+        "Shake intensity must be in range [-1, 1]"
 
-	);
+    );
 
-	auto& state{ Target().TryAdd<impl::ShakeAnimationState>() };
+    auto& state{ Target().TryAdd<impl::ShakeAnimationState>() };
 
-	start_trauma_ = Clamp01(state.trauma);
+    start_trauma_ = Clamp01(state.trauma);
 
-	target_trauma_ = Clamp01(state.target + intensity);
+    target_trauma_ = Clamp01(state.target + intensity);
 
-	state.target = target_trauma_;
+    state.target = target_trauma_;
 
-	state.seed = RandomNumber<std::int32_t>();
+    state.seed = RandomNumber<std::int32_t>();
 
-	Target().TryAdd<impl::Offsets>();
+    Target().TryAdd<impl::Offsets>();
 }
 
 ScriptStatus ShakeScript::OnUpdate() {
-	auto& state{ Target().TryAdd<impl::ShakeAnimationState>() };
+    auto& state{ Target().TryAdd<impl::ShakeAnimationState>() };
 
-	const float progress{ LinearProgress() > 0.0f ? Progress() : 1.0f };
+    const float progress{ LinearProgress() > 0.0f ? Progress() : 1.0f };
 
-	state.trauma = Clamp01(Lerp(start_trauma_, target_trauma_, progress));
+    state.trauma = Clamp01(Lerp(start_trauma_, target_trauma_, progress));
 
-	auto& offsets{ Target().TryAdd<impl::Offsets>() };
+    auto& offsets{ Target().TryAdd<impl::Offsets>() };
 
-	ApplyShake(
+    ApplyShake(
 
-		GetScene().ctx().GameTime(), offsets, state.trauma, config, state.seed
+        GetScene().ctx().GameTime(), offsets, state.trauma, config, state.seed
 
-	);
+    );
 
-	return ScriptStatus::Running;
+    return ScriptStatus::Running;
 }
 
 void ShakeScript::OnRepeat() {
-	OnStart();
+    OnStart();
 }
 
 void ShakeScript::OnComplete() {
-	if (reset_on_complete) {
-		impl::ResetShakeAnimationState(Target());
+    if (reset_on_complete) {
+        impl::ResetShakeAnimationState(Target());
 
-	} else {
-		ClearShakeOffset(Target());
-	}
+    } else {
+        ClearShakeOffset(Target());
+    }
 }
 
 void ShakeScript::OnCancel(SequenceCancelReason) {
-	ClearShakeOffset(Target());
+    ClearShakeOffset(Target());
 }
 
 void AddShakeTraumaScript::OnStart() {
-	PTGN_ASSERT(
+    PTGN_ASSERT(
 
-		intensity >= -1.0f && intensity <= 1.0f,
+        intensity >= -1.0f && intensity <= 1.0f,
 
-		"Shake intensity must be in range [-1, 1]"
+        "Shake intensity must be in range [-1, 1]"
 
-	);
+    );
 
-	auto& state{ Target().TryAdd<impl::ShakeAnimationState>() };
+    auto& state{ Target().TryAdd<impl::ShakeAnimationState>() };
 
-	state.target = Clamp01(state.target + intensity);
+    state.target = Clamp01(state.target + intensity);
 
-	state.trauma = state.target;
+    state.trauma = state.target;
 
-	state.seed = RandomNumber<std::int32_t>();
+    state.seed = RandomNumber<std::int32_t>();
 
-	auto& offsets{ Target().TryAdd<impl::Offsets>() };
+    auto& offsets{ Target().TryAdd<impl::Offsets>() };
 
-	ApplyShake(
+    ApplyShake(
 
-		GetScene().ctx().GameTime(), offsets, state.trauma, config, state.seed
+        GetScene().ctx().GameTime(), offsets, state.trauma, config, state.seed
 
-	);
+    );
 }
 
 ScriptStatus RecoverShakeScript::OnUpdate() {
-	auto* state{ Target().TryGet<impl::ShakeAnimationState>() };
+    auto* state{ Target().TryGet<impl::ShakeAnimationState>() };
 
-	if (!state) {
-		return ScriptStatus::Complete;
-	}
+    if (!state) {
+        return ScriptStatus::Complete;
+    }
 
-	state->trauma =
+    state->trauma =
 
-		Clamp01(state->trauma - std::max(0.0f, config.recovery_speed) * DeltaSeconds());
+        Clamp01(state->trauma - std::max(0.0f, config.recovery_speed) * DeltaSeconds());
 
-	state->target = state->trauma;
+    state->target = state->trauma;
 
-	if (state->trauma <= 0.0f) {
-		return ScriptStatus::Complete;
-	}
+    if (state->trauma <= 0.0f) {
+        return ScriptStatus::Complete;
+    }
 
-	auto& offsets{ Target().TryAdd<impl::Offsets>() };
+    auto& offsets{ Target().TryAdd<impl::Offsets>() };
 
-	ApplyShake(
+    ApplyShake(
 
-		GetScene().ctx().GameTime(), offsets, state->trauma, config, state->seed
+        GetScene().ctx().GameTime(), offsets, state->trauma, config, state->seed
 
-	);
+    );
 
-	return ScriptStatus::Running;
+    return ScriptStatus::Running;
 }
 
 void RecoverShakeScript::OnComplete() {
-	impl::ResetShakeAnimationState(Target());
+    impl::ResetShakeAnimationState(Target());
 }
 
 void RecoverShakeScript::OnCancel(SequenceCancelReason) {
-	ClearShakeOffset(Target());
+    ClearShakeOffset(Target());
 }
 
 void ResetShakeScript::OnStart() {
-	impl::ResetShakeAnimationState(Target());
+    impl::ResetShakeAnimationState(Target());
 }
 
 void StartShakeScript::OnStart() {
-	(void)Shake(
+    (void)Shake(
 
-		Target(), intensity, std::nullopt, config, Ease::None, force, false
+        Target(), intensity, std::nullopt, config, Ease::None, force, false
 
-	);
+    );
 }
 
 void StopShakeScript::OnStart() {
-	ptgn::StopShake(Target(), force);
+    ptgn::StopShake(Target(), force);
 }
 
 ScriptStatus FollowTargetScript::OnUpdate() {
-	const auto& scene{ GetScene() };
+    const auto& scene{ GetScene() };
 
-	auto target_entity{ scene.GetEntity(target) };
+    auto target_entity{ scene.GetEntity(target) };
 
-	if (!target_entity || !target_entity.Has<Transform>() || !Target().Has<Transform>()) {
-		return ScriptStatus::Complete;
-	}
+    if (!target_entity || !target_entity.Has<Transform>() || !Target().Has<Transform>()) {
+        return ScriptStatus::Complete;
+    }
 
-	auto& position{ Target().Get<Transform>().position };
+    auto& position{ Target().Get<Transform>().position };
 
-	const V2_float offset{ target_entity.Get<Transform>().position - position };
+    const V2_float offset{ target_entity.Get<Transform>().position - position };
 
-	const float distance{ std::sqrt(offset.x * offset.x + offset.y * offset.y) };
+    const float distance{ std::sqrt(offset.x * offset.x + offset.y * offset.y) };
 
-	if (distance <= std::max(0.0f, stopping_distance)) {
-		return ScriptStatus::Complete;
-	}
+    if (distance <= std::max(0.0f, stopping_distance)) {
+        return ScriptStatus::Complete;
+    }
 
-	const float step{ std::max(0.0f, speed) * std::max(0.0f, DeltaSeconds()) };
+    const float step{ std::max(0.0f, speed) * std::max(0.0f, DeltaSeconds()) };
 
-	if (step >= distance) {
-		position += offset;
+    if (step >= distance) {
+        position += offset;
 
-		return ScriptStatus::Complete;
-	}
+        return ScriptStatus::Complete;
+    }
 
-	position += offset * (step / distance);
+    position += offset * (step / distance);
 
-	return ScriptStatus::Running;
+    return ScriptStatus::Running;
 }
 
 void FollowEntityScript::OnStart() {
-	const auto& scene{ GetScene() };
+    const auto& scene{ GetScene() };
 
-	auto target_entity{ scene.GetEntity(target) };
+    auto target_entity{ scene.GetEntity(target) };
 
-	if (!target_entity || target_entity == Target()) {
-		return;
-	}
+    if (!target_entity || target_entity == Target()) {
+        return;
+    }
 
-	if (config.teleport_on_start) {
-		SetPosition(Target(), GetPosition(target_entity) + config.offset);
-	}
+    if (config.teleport_on_start) {
+        SetPosition(Target(), GetPosition(target_entity) + config.offset);
+    }
 
-	StartFollowMovement(Target(), config);
+    StartFollowMovement(Target(), config);
 }
 
 ScriptStatus FollowEntityScript::OnUpdate() {
-	if (!config.follow_x && !config.follow_y) {
-		return ScriptStatus::Running;
-	}
+    if (!config.follow_x && !config.follow_y) {
+        return ScriptStatus::Running;
+    }
 
-	const auto& scene{ GetScene() };
+    const auto& scene{ GetScene() };
 
-	auto target_entity{ scene.GetEntity(target) };
+    auto target_entity{ scene.GetEntity(target) };
 
-	if (!target_entity || target_entity == Target()) {
-		return ScriptStatus::Complete;
-	}
+    if (!target_entity || target_entity == Target()) {
+        return ScriptStatus::Complete;
+    }
 
-	const V2_float current{ GetWorldPosition(Target()) };
+    const V2_float current{ GetWorldPosition(Target()) };
 
-	const V2_float target_position{ GetWorldPosition(target_entity) + config.offset };
+    const V2_float target_position{ GetWorldPosition(target_entity) + config.offset };
 
-	V2_float direction{ target_position - current };
+    V2_float direction{ target_position - current };
 
-	if (config.move_mode == MoveMode::Velocity) {
-		MoveUsingVelocity(config, Target(), direction);
+    if (config.move_mode == MoveMode::Velocity) {
+        MoveUsingVelocity(config, Target(), direction);
 
-	} else {
-		const V2_float next{
+    } else {
+        const V2_float next{
 
-			GetFollowPosition(secondsf{ DeltaSeconds() }, config, current, target_position)
+            GetFollowPosition(secondsf{ DeltaSeconds() }, config, current, target_position)
 
-		};
+        };
 
-		SetPosition(Target(), next);
+        SetPosition(Target(), next);
 
-		direction = target_position - next;
-	}
+        direction = target_position - next;
+    }
 
-	return ReachedStopDistance(config, direction)
+    return ReachedStopDistance(config, direction)
 
-			 ? ScriptStatus::Complete
+             ? ScriptStatus::Complete
 
-			 : ScriptStatus::Running;
+             : ScriptStatus::Running;
 }
 
 void FollowEntityScript::OnComplete() {
-	StopFollowMovement(Target());
+    StopFollowMovement(Target());
 }
 
 void FollowEntityScript::OnCancel(SequenceCancelReason) {
-	StopFollowMovement(Target());
+    StopFollowMovement(Target());
 }
 
 void FollowPathScript::OnStart() {
-	auto& state{ Target().TryAdd<impl::PathFollowAnimationState>() };
+    auto& state{ Target().TryAdd<impl::PathFollowAnimationState>() };
 
-	const bool path_changed{ !std::ranges::equal(state.waypoints, waypoints) };
+    const bool path_changed{ !std::ranges::equal(state.waypoints, waypoints) };
 
-	state.waypoints = waypoints;
+    state.waypoints = waypoints;
 
-	if (reset_waypoint_index || state.current_waypoint >= waypoints.size() || path_changed) {
-		state.current_waypoint = 0;
-	}
+    if (reset_waypoint_index || state.current_waypoint >= waypoints.size() || path_changed) {
+        state.current_waypoint = 0;
+    }
 
-	if (config.teleport_on_start && !waypoints.empty()) {
-		SetPosition(Target(), waypoints.back() + config.offset);
-	}
+    if (config.teleport_on_start && !waypoints.empty()) {
+        SetPosition(Target(), waypoints.back() + config.offset);
+    }
 
-	StartFollowMovement(Target(), config);
+    StartFollowMovement(Target(), config);
 }
 
 ScriptStatus FollowPathScript::OnUpdate() {
-	if (waypoints.empty()) {
-		return ScriptStatus::Complete;
-	}
+    if (waypoints.empty()) {
+        return ScriptStatus::Complete;
+    }
 
-	if (!config.follow_x && !config.follow_y) {
-		return ScriptStatus::Running;
-	}
+    if (!config.follow_x && !config.follow_y) {
+        return ScriptStatus::Running;
+    }
 
-	if (!config.stop_distance.has_value() ||
+    if (!config.stop_distance.has_value() ||
 
-		config.stop_distance.value() < kEpsilon<float>) {
-		return ScriptStatus::Complete;
-	}
+        config.stop_distance.value() < kEpsilon<float>) {
+        return ScriptStatus::Complete;
+    }
 
-	auto& state{ Target().TryAdd<impl::PathFollowAnimationState>() };
+    auto& state{ Target().TryAdd<impl::PathFollowAnimationState>() };
 
-	state.current_waypoint =
+    state.current_waypoint =
 
-		std::min(state.current_waypoint, waypoints.size() - 1);
+        std::min(state.current_waypoint, waypoints.size() - 1);
 
-	V2_float current{ GetWorldPosition(Target()) };
+    V2_float current{ GetWorldPosition(Target()) };
 
-	V2_float target_position{
+    V2_float target_position{
 
-		waypoints[state.current_waypoint] + config.offset
+        waypoints[state.current_waypoint] + config.offset
 
-	};
+    };
 
-	V2_float direction{ target_position - current };
+    V2_float direction{ target_position - current };
 
-	if (ReachedStopDistance(config, direction)) {
-		if (state.current_waypoint + 1 < waypoints.size()) {
-			++state.current_waypoint;
+    if (ReachedStopDistance(config, direction)) {
+        if (state.current_waypoint + 1 < waypoints.size()) {
+            ++state.current_waypoint;
 
-		} else if (config.loop_path) {
-			state.current_waypoint = 0;
+        } else if (config.loop_path) {
+            state.current_waypoint = 0;
 
-		} else {
-			state.current_waypoint = waypoints.size();
+        } else {
+            state.current_waypoint = waypoints.size();
 
-			return ScriptStatus::Complete;
-		}
+            return ScriptStatus::Complete;
+        }
 
-		target_position = waypoints[state.current_waypoint] + config.offset;
+        target_position = waypoints[state.current_waypoint] + config.offset;
 
-		direction = target_position - current;
-	}
+        direction = target_position - current;
+    }
 
-	if (config.move_mode == MoveMode::Velocity) {
-		MoveUsingVelocity(config, Target(), direction);
+    if (config.move_mode == MoveMode::Velocity) {
+        MoveUsingVelocity(config, Target(), direction);
 
-	} else {
-		SetPosition(
+    } else {
+        SetPosition(
 
-			Target(),
+            Target(),
 
-			GetFollowPosition(
+            GetFollowPosition(
 
-				secondsf{ DeltaSeconds() }, config, current, target_position
+                secondsf{ DeltaSeconds() }, config, current, target_position
 
-			)
+            )
 
-		);
-	}
+        );
+    }
 
-	return ScriptStatus::Running;
+    return ScriptStatus::Running;
 }
 
 void FollowPathScript::OnComplete() {
-	StopFollowMovement(Target());
+    StopFollowMovement(Target());
 }
 
 void FollowPathScript::OnCancel(SequenceCancelReason) {
-	StopFollowMovement(Target());
+    StopFollowMovement(Target());
 }
 
 void StartFollowEntityScript::OnStart() {
-	Entity follow_target{ GetScene().GetEntity(target) };
+    Entity follow_target{ GetScene().GetEntity(target) };
 
-	if (!follow_target || follow_target == Target()) {
-		PTGN_WARN("Start Follow Entity requires a valid target entity different from the owner");
+    if (!follow_target || follow_target == Target()) {
+        PTGN_WARN("Start Follow Entity requires a valid target entity different from the owner");
 
-		return;
-	}
+        return;
+    }
 
-	(void)StartFollow(Target(), follow_target, config, force);
+    (void)StartFollow(Target(), follow_target, config, force);
 }
 
 void StartFollowPathScript::OnStart() {
-	if (waypoints.empty()) {
-		PTGN_WARN("Start Follow Path requires at least one waypoint");
+    if (waypoints.empty()) {
+        PTGN_WARN("Start Follow Path requires at least one waypoint");
 
-		return;
-	}
+        return;
+    }
 
-	(void)StartFollow(
+    (void)StartFollow(
 
-		Target(), std::span<const V2_float>{ waypoints.data(), waypoints.size() }, config, force,
-		reset_waypoint_index
+        Target(), std::span<const V2_float>{ waypoints.data(), waypoints.size() }, config, force,
+        reset_waypoint_index
 
-	);
+    );
 }
 
 void StopFollowScript::OnStart() {
-	ptgn::StopFollow(Target(), force, reset_previous_waypoints);
+    ptgn::StopFollow(Target(), force, reset_previous_waypoints);
 }
 
 void NativeScript::OnStart() {
-	if (callbacks && callbacks->on_start) {
-		callbacks->on_start(*this);
-	}
+    if (callbacks && callbacks->on_start) {
+        callbacks->on_start(*this);
+    }
 }
 
 ScriptStatus NativeScript::OnUpdate() {
-	if (callbacks && callbacks->on_update) {
-		return callbacks->on_update(*this);
-	}
+    if (callbacks && callbacks->on_update) {
+        return callbacks->on_update(*this);
+    }
 
-	return ScriptStatus::Complete;
+    return ScriptStatus::Complete;
 }
 
 void NativeScript::OnComplete() {
-	if (callbacks && callbacks->on_complete) {
-		callbacks->on_complete(*this);
-	}
+    if (callbacks && callbacks->on_complete) {
+        callbacks->on_complete(*this);
+    }
 }
 
 void NativeScript::OnCancel(SequenceCancelReason reason) {
-	if (callbacks && callbacks->on_cancel) {
-		callbacks->on_cancel(*this, reason);
-	}
+    if (callbacks && callbacks->on_cancel) {
+        callbacks->on_cancel(*this, reason);
+    }
 }
 
 void SetVisibleScript::OnStart() {
-	SetVisible(Target(), visible);
+    SetVisible(Target(), visible);
 }
 
 void PlaySoundScript::OnStart() {
-	if (sound.value.empty()) {
-		PTGN_WARN("Play Sound requires a non empty audio asset key");
+    if (sound.value.empty()) {
+        PTGN_WARN("Play Sound requires a non empty audio asset key");
 
-		return;
-	}
+        return;
+    }
 
-	GetScene().ctx().audio.Play(sound, volume, loops);
+    GetScene().ctx().audio.Play(sound, volume, loops);
 }
 
 void AnimationActionScript::OnStart() {
-	auto animation{ ResolveAnimation(Target(), animation_key) };
+    auto animation{ ResolveAnimation(Target(), animation_key) };
 
-	if (!animation) {
-		PTGN_WARN(
+    if (!animation) {
+        PTGN_WARN(
 
-			"Animation action requires an Animation owner or an AnimationMap with an active/keyed "
+            "Animation action requires an Animation owner or an AnimationMap with an active/keyed "
 
-			"animation"
+            "animation"
 
-		);
+        );
 
-		return;
-	}
+        return;
+    }
 
-	switch (action) {
-		case AnimationAction::Start:		 animation.Start(force); break;
+    switch (action) {
+        case AnimationAction::Start:         animation.Start(force); break;
 
-		case AnimationAction::Stop:			 animation.Stop(reset_on_stop); break;
+        case AnimationAction::Stop:          animation.Stop(reset_on_stop); break;
 
-		case AnimationAction::Reset:		 animation.Reset(); break;
+        case AnimationAction::Reset:         animation.Reset(); break;
 
-		case AnimationAction::Pause:		 animation.Pause(); break;
+        case AnimationAction::Pause:         animation.Pause(); break;
 
-		case AnimationAction::Resume:		 animation.Resume(); break;
+        case AnimationAction::Resume:        animation.Resume(); break;
 
-		case AnimationAction::TogglePlaying: animation.Toggle(); break;
+        case AnimationAction::TogglePlaying: animation.Toggle(); break;
 
-		case AnimationAction::SetFrame:		 animation.SetCurrentFrame(frame); break;
+        case AnimationAction::SetFrame:      animation.SetCurrentFrame(frame); break;
 
-		case AnimationAction::NextFrame:	 animation.IncrementFrame(); break;
+        case AnimationAction::NextFrame:     animation.IncrementFrame(); break;
 
-		case AnimationAction::PreviousFrame: {
-			const std::size_t frame_count{ animation.GetFrameCount() };
+        case AnimationAction::PreviousFrame: {
+            const std::size_t frame_count{ animation.GetFrameCount() };
 
-			if (frame_count > 0) {
-				animation.SetCurrentFrame(
+            if (frame_count > 0) {
+                animation.SetCurrentFrame(
 
-					(animation.GetCurrentFrame() + frame_count - 1) % frame_count
+                    (animation.GetCurrentFrame() + frame_count - 1) % frame_count
 
-				);
-			}
+                );
+            }
 
-			break;
-		}
-	}
+            break;
+        }
+    }
 }
 
 void TimerActionScript::OnStart() {
-	TimerHandle handle{ GetTimer(Target(), timer) };
+    TimerHandle handle{ GetTimer(Target(), timer) };
 
-	if (!handle) {
-		PTGN_WARN("Timer action requires an existing timer on the target: ", timer.value);
+    if (!handle) {
+        PTGN_WARN("Timer action requires an existing timer on the target: ", timer.value);
 
-		return;
-	}
+        return;
+    }
 
-	switch (action) {
-		case TimerAction::Start:		  handle.Start(); break;
+    switch (action) {
+        case TimerAction::Start:          handle.Start(); break;
 
-		case TimerAction::Restart:		  handle.Restart(); break;
+        case TimerAction::Restart:        handle.Restart(); break;
 
-		case TimerAction::Stop:			  handle.Stop(); break;
+        case TimerAction::Stop:           handle.Stop(); break;
 
-		case TimerAction::Reset:		  handle.Reset(); break;
+        case TimerAction::Reset:          handle.Reset(); break;
 
-		case TimerAction::Pause:		  handle.Pause(); break;
+        case TimerAction::Pause:          handle.Pause(); break;
 
-		case TimerAction::Resume:		  handle.Resume(); break;
+        case TimerAction::Resume:         handle.Resume(); break;
 
-		case TimerAction::TogglePaused:	  handle.TogglePaused(); break;
+        case TimerAction::TogglePaused:   handle.TogglePaused(); break;
 
-		case TimerAction::Advance:		  handle.Advance(amount); break;
+        case TimerAction::Advance:        handle.Advance(amount); break;
 
-		case TimerAction::Rewind:		  handle.Rewind(amount); break;
+        case TimerAction::Rewind:         handle.Rewind(amount); break;
 
-		case TimerAction::SetDuration:	  handle.SetDuration(amount); break;
+        case TimerAction::SetDuration:    handle.SetDuration(amount); break;
 
-		case TimerAction::AddDuration:	  handle.AddDuration(amount); break;
+        case TimerAction::AddDuration:    handle.AddDuration(amount); break;
 
-		case TimerAction::RemoveDuration: handle.RemoveDuration(amount); break;
-	}
+        case TimerAction::RemoveDuration: handle.RemoveDuration(amount); break;
+    }
 }
 
 void DialogueActionScript::OnStart() {
-	Entity target{ Target() };
+    Entity target{ Target() };
 
-	if (!target || !target.Has<impl::DialogueData>()) {
-		PTGN_WARN("Dialogue action requires DialogueData on the target entity");
+    if (!target || !target.Has<impl::DialogueData>()) {
+        PTGN_WARN("Dialogue action requires DialogueData on the target entity");
 
-		return;
-	}
+        return;
+    }
 
-	DialogueBox box{ target };
+    DialogueBox box{ target };
 
-	auto require_dialogue = [&box, this](std::string_view action_name) {
-		if (dialogue.empty()) {
-			PTGN_WARN(action_name, " requires a dialogue key");
+    auto require_dialogue = [&box, this](std::string_view action_name) {
+        if (dialogue.empty()) {
+            PTGN_WARN(action_name, " requires a dialogue key");
 
-			return false;
-		}
+            return false;
+        }
 
-		if (!box.Get<impl::DialogueData>().dialogues.contains(dialogue)) {
-			PTGN_WARN(action_name, " could not find dialogue: ", dialogue);
+        if (!box.Get<impl::DialogueData>().dialogues.contains(dialogue)) {
+            PTGN_WARN(action_name, " could not find dialogue: ", dialogue);
 
-			return false;
-		}
+            return false;
+        }
 
-		return true;
-	};
+        return true;
+    };
 
-	switch (action) {
-		case DialogueAction::Open:		   box.Open(); break;
+    switch (action) {
+        case DialogueAction::Open:         box.Open(); break;
 
-		case DialogueAction::Close:		   box.Close(); break;
+        case DialogueAction::Close:        box.Close(); break;
 
-		case DialogueAction::Advance:	   box.Advance(); break;
+        case DialogueAction::Advance:      box.Advance(); break;
 
-		case DialogueAction::NextPage:	   box.NextPage(); break;
+        case DialogueAction::NextPage:     box.NextPage(); break;
 
-		case DialogueAction::CompletePage: box.CompletePage(); break;
+        case DialogueAction::CompletePage: box.CompletePage(); break;
 
-		case DialogueAction::ChangeDialogue:
+        case DialogueAction::ChangeDialogue:
 
-			if (!require_dialogue("Change Dialogue")) {
-				return;
-			}
+            if (!require_dialogue("Change Dialogue")) {
+                return;
+            }
 
-			box.Open(dialogue);
+            box.Open(dialogue);
 
-			break;
+            break;
 
-		case DialogueAction::SelectDialogue:
+        case DialogueAction::SelectDialogue:
 
-			if (!require_dialogue("Select Dialogue")) {
-				return;
-			}
+            if (!require_dialogue("Select Dialogue")) {
+                return;
+            }
 
-			box.SetDialogue(dialogue);
+            box.SetDialogue(dialogue);
 
-			break;
+            break;
 
-		case DialogueAction::NextDialogue:	   box.SetNextDialogue(); break;
+        case DialogueAction::NextDialogue:     box.SetNextDialogue(); break;
 
-		case DialogueAction::OpenNextDialogue: {
-			const auto* current{ box.GetCurrentDialogue() };
+        case DialogueAction::OpenNextDialogue: {
+            const auto* current{ box.GetCurrentDialogue() };
 
-			if (!current || current->next_dialogue.empty()) {
-				PTGN_WARN("Open Next Dialogue requires a configured next dialogue");
+            if (!current || current->next_dialogue.empty()) {
+                PTGN_WARN("Open Next Dialogue requires a configured next dialogue");
 
-				return;
-			}
+                return;
+            }
 
-			const std::string next{ current->next_dialogue };
+            const std::string next{ current->next_dialogue };
 
-			box.Open(next);
+            box.Open(next);
 
-			break;
-		}
-	}
+            break;
+        }
+    }
 }
 
 void TooltipActionScript::OnStart() {
-	Entity target{ Target() };
+    Entity target{ Target() };
 
-	if (!target) {
-		PTGN_WARN("Tooltip action requires a valid target entity");
-		return;
-	}
+    if (!target) {
+        PTGN_WARN("Tooltip action requires a valid target entity");
+        return;
+    }
 
-	switch (action) {
-		case TooltipAction::Show:
-		case TooltipAction::Hide:
-		case TooltipAction::ToggleVisibility:
-			if (!target.Has<impl::TooltipData>() && !target.Has<impl::TooltipHoverData>()) {
-				PTGN_WARN(
-					"Tooltip visibility action requires a Tooltip target or an entity with "
-					"TooltipHoverData"
-				);
-				return;
-			}
+    switch (action) {
+        case TooltipAction::Show:
+        case TooltipAction::Hide:
+        case TooltipAction::ToggleVisibility:
+            if (!target.Has<impl::TooltipData>() && !target.Has<impl::TooltipHoverData>()) {
+                PTGN_WARN(
+                    "Tooltip visibility action requires a Tooltip target or an entity with "
+                    "TooltipHoverData"
+                );
+                return;
+            }
 
-			if (action == TooltipAction::Show) {
-				ShowTooltip(target);
-			} else if (action == TooltipAction::Hide) {
-				HideTooltip(target);
-			} else {
-				ToggleTooltip(target);
-			}
-			break;
+            if (action == TooltipAction::Show) {
+                ShowTooltip(target);
+            } else if (action == TooltipAction::Hide) {
+                HideTooltip(target);
+            } else {
+                ToggleTooltip(target);
+            }
+            break;
 
-		case TooltipAction::EnableHover:
-		case TooltipAction::DisableHover:
-		case TooltipAction::ToggleHover:
-			if (!target.Has<impl::TooltipHoverData>()) {
-				PTGN_WARN("Tooltip hover action requires TooltipHoverData on the target entity");
-				return;
-			}
+        case TooltipAction::EnableHover:
+        case TooltipAction::DisableHover:
+        case TooltipAction::ToggleHover:
+            if (!target.Has<impl::TooltipHoverData>()) {
+                PTGN_WARN("Tooltip hover action requires TooltipHoverData on the target entity");
+                return;
+            }
 
-			if (action == TooltipAction::EnableHover) {
-				SetTooltipOnHoverEnabled(target, true);
-			} else if (action == TooltipAction::DisableHover) {
-				SetTooltipOnHoverEnabled(target, false);
-			} else {
-				ToggleTooltipOnHover(target);
-			}
-			break;
-	}
+            if (action == TooltipAction::EnableHover) {
+                SetTooltipOnHoverEnabled(target, true);
+            } else if (action == TooltipAction::DisableHover) {
+                SetTooltipOnHoverEnabled(target, false);
+            } else {
+                ToggleTooltipOnHover(target);
+            }
+            break;
+    }
 }
 
 void SetTextureScript::OnStart() {
-	Sprite{ Target() }.SetTexture(texture_key);
+    Sprite{ Target() }.SetTexture(texture_key);
 }
 
 void SetEnabledScript::OnStart() {
-	const auto* registration{ ComponentRegistry::Find(component) };
+    const auto* registration{ ComponentRegistry::Find(component) };
 
-	if (!registration || !registration->Has(Target())) {
-		PTGN_WARN("Cannot set enabled state for missing component: ", component);
+    if (!registration || !registration->Has(Target())) {
+        PTGN_WARN("Cannot set enabled state for missing component: ", component);
 
-		return;
-	}
+        return;
+    }
 
-	if (!registration->serializable || !registration->deserializable) {
-		PTGN_WARN("Component does not support enabled-state serialization: ", component);
+    if (!registration->serializable || !registration->deserializable) {
+        PTGN_WARN("Component does not support enabled-state serialization: ", component);
 
-		return;
-	}
+        return;
+    }
 
-	json value;
+    json value;
 
-	if (!registration->Serialize(value, Target())) {
-		PTGN_WARN("Failed to serialize component enabled state: ", component);
+    if (!registration->Serialize(value, Target())) {
+        PTGN_WARN("Failed to serialize component enabled state: ", component);
 
-		return;
-	}
+        return;
+    }
 
-	if (value.is_boolean()) {
-		value = enabled;
+    if (value.is_boolean()) {
+        value = enabled;
 
-	} else if (value.is_object()) {
-		auto it{ value.find("enabled") };
+    } else if (value.is_object()) {
+        auto it{ value.find("enabled") };
 
-		if (it == value.end() || !it->is_boolean()) {
-			PTGN_WARN("Component does not expose a bool enabled field: ", component);
+        if (it == value.end() || !it->is_boolean()) {
+            PTGN_WARN("Component does not expose a bool enabled field: ", component);
 
-			return;
-		}
+            return;
+        }
 
-		*it = enabled;
+        *it = enabled;
 
-	} else {
-		PTGN_WARN("Component does not expose a supported enabled value: ", component);
+    } else {
+        PTGN_WARN("Component does not expose a supported enabled value: ", component);
 
-		return;
-	}
+        return;
+    }
 
-	if (!registration->Deserialize(value, Target())) {
-		PTGN_WARN("Failed to deserialize component enabled state: ", component);
-	}
+    if (!registration->Deserialize(value, Target())) {
+        PTGN_WARN("Failed to deserialize component enabled state: ", component);
+    }
 }
 
 void SceneChangeScript::OnStart() {
-	auto& current_scene{ GetScene() };
+    auto& current_scene{ GetScene() };
 
-	auto& scene_manager{
+    auto& scene_manager{
 
-		current_scene.ctx().scene
+        current_scene.ctx().scene
 
-	};
+    };
 
-	auto& app{
+    auto& app{
 
-		impl::SceneContextAccessor::app(
+        impl::SceneContextAccessor::app(
 
-			current_scene.ctx()
+            current_scene.ctx()
 
-		)
+        )
 
-	};
+    };
 
-	auto& app_context{
+    auto& app_context{
 
-		impl::ApplicationAccessor::ctx(app)
+        impl::ApplicationAccessor::ctx(app)
 
-	};
+    };
 
-	if (!app_context.project) {
-		PTGN_WARN(
+    if (!app_context.project) {
+        PTGN_WARN(
 
-			"Scene change requires an active project"
+            "Scene change requires an active project"
 
-		);
+        );
 
-		return;
-	}
+        return;
+    }
 
-	const auto& project{
+    const auto& project{
 
-		app_context.project.value()
+        app_context.project.value()
 
-	};
+    };
 
-	const auto* project_scene{
+    const auto* project_scene{
 
-		FindProjectScene(
+        FindProjectScene(
 
-			project,
+            project,
 
-			scene_key
+            scene_key
 
-		)
+        )
 
-	};
+    };
 
-	if (!project_scene) {
-		PTGN_WARN(
+    if (!project_scene) {
+        PTGN_WARN(
 
-			"Scene key is not part of the active project: ",
+            "Scene key is not part of the active project: ",
 
-			scene_key
+            scene_key
 
-		);
+        );
 
-		return;
-	}
+        return;
+    }
 
-	const bool entering_active_scene{
+    const bool entering_active_scene{
 
-		action == SceneChangeAction::Enter &&
+        action == SceneChangeAction::Enter &&
 
-		scene_manager.HasScene(scene_key)
+        scene_manager.HasScene(scene_key)
 
-	};
+    };
 
-	auto transitions{
+    auto transitions{
 
-		MakeSceneTransitions(
+        MakeSceneTransitions(
 
-			*this,
+            *this,
 
-			entering_active_scene
+            entering_active_scene
 
-		)
+        )
 
-	};
+    };
 
-	const SceneTransitionPriority
+    const SceneTransitionPriority
 
-		transition_priority{ priority };
+        transition_priority{ priority };
 
-	if (action ==
+    if (action ==
 
-		SceneChangeAction::Exit) {
-		scene_manager.Exit(
+        SceneChangeAction::Exit) {
+        scene_manager.Exit(
 
-			scene_key,
+            scene_key,
 
-			std::move(transitions.out),
+            std::move(transitions.out),
 
-			transition_priority
+            transition_priority
 
-		);
+        );
 
-		return;
-	}
+        return;
+    }
 
-	SerializedScene serialized_scene;
+    SerializedScene serialized_scene;
 
-	const auto snapshot{
+    const auto snapshot{
 
-		std::ranges::find_if(
+        std::ranges::find_if(
 
-			app_context.runtime_project_scenes,
+            app_context.runtime_project_scenes,
 
-			[this](
+            [this](
 
-				const impl::RuntimeProjectSceneSnapshot& candidate
+                const impl::RuntimeProjectSceneSnapshot& candidate
 
-			) {
-				return candidate.key ==
+            ) {
+                return candidate.key ==
 
-					   scene_key;
-			}
+                       scene_key;
+            }
 
-		)
+        )
 
-	};
+    };
 
-	if (snapshot !=
+    if (snapshot !=
 
-		app_context.runtime_project_scenes.end()) {
-		serialized_scene = snapshot->scene;
+        app_context.runtime_project_scenes.end()) {
+        serialized_scene = snapshot->scene;
 
-	} else {
-		serialized_scene = LoadSceneFile(
+    } else {
+        serialized_scene = LoadSceneFile(
 
-			GetProjectScenePath(
+            GetProjectScenePath(
 
-				project,
+                project,
 
-				*project_scene
+                *project_scene
 
-			)
+            )
 
-		);
-	}
+        );
+    }
 
-	auto factory{
+    auto factory{
 
-		impl::MakeSceneFactory(
+        impl::MakeSceneFactory(
 
-			std::move(serialized_scene),
+            std::move(serialized_scene),
 
-			true
+            true
 
-		)
+        )
 
-	};
+    };
 
-	switch (action) {
-		case SceneChangeAction::Enter:
+    switch (action) {
+        case SceneChangeAction::Enter:
 
-			scene_manager.EnterFactory(
+            scene_manager.EnterFactory(
 
-				scene_key,
+                scene_key,
 
-				std::move(factory),
+                std::move(factory),
 
-				std::move(transitions.out),
+                std::move(transitions.out),
 
-				std::move(transitions.in),
+                std::move(transitions.in),
 
-				transition_priority
+                transition_priority
 
-			);
+            );
 
-			break;
+            break;
 
-		case SceneChangeAction::Exit: break;
+        case SceneChangeAction::Exit: break;
 
-		case SceneChangeAction::Switch:
+        case SceneChangeAction::Switch:
 
-			scene_manager.TransitionFactory(
+            scene_manager.TransitionFactory(
 
-				current_scene.GetTag(),
+                current_scene.GetTag(),
 
-				scene_key,
+                scene_key,
 
-				std::move(factory),
+                std::move(factory),
 
-				std::move(transitions.out),
+                std::move(transitions.out),
 
-				std::move(transitions.in),
+                std::move(transitions.in),
 
-				transition_priority
+                transition_priority
 
-			);
+            );
 
-			break;
-	}
+            break;
+    }
 }
 
 void EmitSignalScript::OnStart() {
-	script_runtime::DispatchGlobal<Signal>(GetScene(), Signal{ signal });
+    script_runtime::DispatchGlobal<Signal>(GetScene(), Signal{ signal });
 }
 
 void AddComponentsScript::OnStart() {
-	for (const auto& component : components) {
-		if (component.apply_live) {
-			component.apply_live(Target());
+    for (const auto& component : components) {
+        if (component.apply_live) {
+            component.apply_live(Target());
 
-			continue;
-		}
+            continue;
+        }
 
-		const auto* registration{ ComponentRegistry::Find(component.type) };
+        const auto* registration{ ComponentRegistry::Find(component.type) };
 
-		if (!registration) {
-			continue;
-		}
+        if (!registration) {
+            continue;
+        }
 
-		if (registration->is_empty && registration->default_constructible) {
-			registration->AddDefault(Target());
+        if (registration->is_empty && registration->default_constructible) {
+            registration->AddDefault(Target());
 
-		} else if (registration->deserializable && !component.value.is_null()) {
-			registration->Deserialize(component.value, Target());
+        } else if (registration->deserializable && !component.value.is_null()) {
+            registration->Deserialize(component.value, Target());
 
-		} else if (registration->default_constructible) {
-			registration->AddDefault(Target());
-		}
-	}
+        } else if (registration->default_constructible) {
+            registration->AddDefault(Target());
+        }
+    }
 }
 
 void RemoveComponentsScript::OnStart() {
-	for (const auto& name : components) {
-		if (const auto* registration{ ComponentRegistry::Find(name) }) {
-			registration->Remove(Target());
-		}
-	}
+    for (const auto& name : components) {
+        if (const auto* registration{ ComponentRegistry::Find(name) }) {
+            registration->Remove(Target());
+        }
+    }
 }
 
 ScriptSequence& ScriptSequence::EmitSignal(SignalKey signal) {
-	return Then(EmitSignalScript{ std::move(signal) });
+    return Then(EmitSignalScript{ std::move(signal) });
 }
 
 ScriptSequence& EmitSignal(ScriptSequence& sequence, SignalKey signal) {
-	return sequence.EmitSignal(std::move(signal));
+    return sequence.EmitSignal(std::move(signal));
 }
 
 SequenceHandle After(Scene& scene, milliseconds duration, SequenceFunction function) {
-	Entity owner{ scene.CreateEntity("After Script Sequence") };
+    Entity owner{ scene.CreateEntity("After Script Sequence") };
 
-	auto handle_ref{ std::make_shared<SequenceHandle>() };
+    auto handle_ref{ std::make_shared<SequenceHandle>() };
 
-	NativeScript callback{ NativeScriptCallbacks{
+    NativeScript callback{ NativeScriptCallbacks{
 
-		.on_start =
-			[function = std::move(function), handle_ref](Script&) mutable {
-				std::visit(
+        .on_start =
+            [function = std::move(function), handle_ref](Script&) mutable {
+                std::visit(
 
-					[&](auto& fn) {
-						if constexpr (std::is_invocable_v<decltype(fn), SequenceHandle>) {
-							fn(*handle_ref);
+                    [&](auto& fn) {
+                        if constexpr (std::is_invocable_v<decltype(fn), SequenceHandle>) {
+                            fn(*handle_ref);
 
-						} else {
-							fn();
-						}
-					},
+                        } else {
+                            fn();
+                        }
+                    },
 
-					function
+                    function
 
-				);
-			},
+                );
+            },
 
-	} };
+    } };
 
-	ScriptSequence sequence{ "After" };
+    ScriptSequence sequence{ "After" };
 
-	sequence
-		.Wait(static_cast<float>(duration.count()))
+    sequence
+        .Wait(static_cast<float>(duration.count()))
 
-		.Then(std::move(callback))
+        .Then(std::move(callback))
 
-		.Transient()
+        .Transient()
 
-		.DestroyOwnerOnComplete();
+        .DestroyOwnerOnComplete();
 
-	auto handle{ script_runtime::RunSequence(owner, std::move(sequence)) };
+    auto handle{ script_runtime::RunSequence(owner, std::move(sequence)) };
 
-	*handle_ref = handle;
+    *handle_ref = handle;
 
-	handle.Start();
+    handle.Start();
 
-	return handle;
+    return handle;
 }
 
 SequenceHandle During(Scene& scene, milliseconds duration, DuringSequenceFunction function) {
-	Entity owner{ scene.CreateEntity("During Script Sequence") };
+    Entity owner{ scene.CreateEntity("During Script Sequence") };
 
-	NativeScript callback{ NativeScriptCallbacks{
+    NativeScript callback{ NativeScriptCallbacks{
 
-		.on_update =
-			[function = std::move(function)](Script& script) mutable {
-				std::visit(
+        .on_update =
+            [function = std::move(function)](Script& script) mutable {
+                std::visit(
 
-					[&](auto& fn) {
-						if constexpr (std::is_invocable_v<decltype(fn), Entity, float>) {
-							fn(script.Target(), script.Progress());
+                    [&](auto& fn) {
+                        if constexpr (std::is_invocable_v<decltype(fn), Entity, float>) {
+                            fn(script.Target(), script.Progress());
 
-						} else {
-							fn();
-						}
-					},
+                        } else {
+                            fn();
+                        }
+                    },
 
-					function
+                    function
 
-				);
+                );
 
-				return ScriptStatus::Running;
-			},
+                return ScriptStatus::Running;
+            },
 
-	} };
+    } };
 
-	ScriptSequence sequence{ "During" };
+    ScriptSequence sequence{ "During" };
 
-	sequence
-		.During(static_cast<float>(duration.count()), std::move(callback))
+    sequence
+        .During(static_cast<float>(duration.count()), std::move(callback))
 
-		.Transient()
+        .Transient()
 
-		.DestroyOwnerOnComplete();
+        .DestroyOwnerOnComplete();
 
-	auto handle{ script_runtime::RunSequence(owner, std::move(sequence)) };
+    auto handle{ script_runtime::RunSequence(owner, std::move(sequence)) };
 
-	handle.Start();
+    handle.Start();
 
-	return handle;
+    return handle;
 }
 
 } // namespace ptgn
