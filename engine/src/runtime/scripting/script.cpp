@@ -23,6 +23,7 @@ Script& Script::operator=(const Script& other) {
 		delta_seconds_ = 0.0f;
 		linear_progress_ = 0.0f;
 		progress_ = 0.0f;
+		timing_ease_ = Ease::Linear;
 		repeat_ = 0;
 		reversed_ = false;
 		completion_requested_ = false;
@@ -1109,7 +1110,11 @@ void UpdateSequence(
 				? 1.0f - linear
 				: linear
 		};
-		progress = ptgn::ApplyEase(directed, timing.ease);
+		// Ease::None is a step/hold Tween: immediately use the endpoint for the current
+		// direction and keep it there for the entire duration.
+		progress = timing.ease == Ease::None
+			? (runtime.currently_reversed ? 0.0f : 1.0f)
+			: ptgn::ApplyEase(directed, timing.ease);
 	}
 
 	bool all_complete{ true };
@@ -1133,7 +1138,8 @@ void UpdateSequence(
 			linear,
 			progress,
 			runtime.current_repeat,
-			runtime.currently_reversed
+			runtime.currently_reversed,
+			action.timing ? action.timing->ease : Ease::Linear
 		);
 
 		ScriptStatus status{
@@ -1382,9 +1388,7 @@ void ApplyPending(Scene& scene) {
 
 void Update(Scene& scene, secondsf delta_time) {
 	const float delta_seconds{ std::max(0.0f, delta_time.count()) };
-	
 	const auto entities{ scene.EntitiesWith<impl::Scripts>().GetVector() };
-	
 	for (Entity entity : entities) {
 		auto* scripts{ entity.TryGet<impl::Scripts>() };
 		if (!scripts) {

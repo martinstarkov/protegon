@@ -280,6 +280,7 @@ public:
 	[[nodiscard]] float DeltaSeconds() const { return delta_seconds_; }
 	[[nodiscard]] float LinearProgress() const { return linear_progress_; }
 	[[nodiscard]] float Progress() const { return progress_; }
+	[[nodiscard]] Ease TimingEase() const { return timing_ease_; }
 	[[nodiscard]] int RepeatIndex() const { return repeat_; }
 	[[nodiscard]] bool IsReversed() const { return reversed_; }
 
@@ -296,6 +297,7 @@ private:
 	float delta_seconds_{ 0.0f };
 	float linear_progress_{ 0.0f };
 	float progress_{ 0.0f };
+	Ease timing_ease_{ Ease::Linear };
 	int repeat_{ 0 };
 	bool reversed_{ false };
 	bool completion_requested_{ false };
@@ -323,11 +325,12 @@ public:
 
 	static void SetFrame(
 		Script& script, float delta_seconds, float linear_progress, float progress, int repeat,
-		bool reversed
+		bool reversed, Ease timing_ease = Ease::Linear
 	) {
 		script.delta_seconds_ = delta_seconds;
 		script.linear_progress_ = linear_progress;
 		script.progress_ = progress;
+		script.timing_ease_ = timing_ease;
 		script.repeat_ = repeat;
 		script.reversed_ = reversed;
 	}
@@ -734,7 +737,7 @@ public:
 	std::vector<SequenceId> pending_removals{};
 	bool create_event_dispatched{ false };
 
-private: 
+private:
 	friend class ScriptsAccessor;
 
 	Entity owner_{};

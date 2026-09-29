@@ -266,14 +266,6 @@ struct BounceScript : public Script {
 	PTGN_REFLECT(BounceScript, amplitude, static_offset, symmetrical)
 };
 
-/// Raises or lowers the entity's persistent shake trauma.
-
-///
-
-/// When used as a timed step, Progress() ramps to the new trauma target. When used without timing,
-
-/// the new target is applied immediately and the script continues until explicitly stopped.
-
 /// @brief Starts an indefinitely repeating channelized bounce and immediately continues.
 /// Use BounceScript as a Tween when the bounce should occupy a finite timed action.
 struct StartBounceScript : public Script {
@@ -297,23 +289,30 @@ struct StopBounceScript : public Script {
 	PTGN_REFLECT(StopBounceScript, force)
 };
 
+/// @brief Applies shake continuously for a timed Tween step.
+///
+/// Progress() ramps from the current trauma to the requested trauma target while the Tween is
+/// active. Use StartShakeScript for an indefinite shake and ShakeActionScript for an immediate
+/// impulse that recovers in the background.
 struct ShakeScript : public Script {
 	float intensity{ 1.0f };
 
 	ShakeConfig config{};
 
-	bool reset_on_complete{ false };
+	bool reset_on_complete{ true };
 
 	ShakeScript() = default;
 
 	ShakeScript(
-		float shake_intensity, ShakeConfig shake_config = {}, bool reset_shake_on_complete = false
+		float shake_intensity, ShakeConfig shake_config = {}, bool reset_shake_on_complete = true,
+		bool background_recovery_on_complete = true
 	) :
 
 		intensity{ shake_intensity },
 		config{ std::move(shake_config) },
 
-		reset_on_complete{ reset_shake_on_complete } {}
+		reset_on_complete{ reset_shake_on_complete },
+		background_recovery_on_complete_{ background_recovery_on_complete } {}
 
 	void OnStart() override;
 
@@ -331,28 +330,74 @@ private:
 	float start_trauma_{ 0.0f };
 
 	float target_trauma_{ 0.0f };
+
+	bool background_recovery_on_complete_{ true };
 };
 
-/// Immediately changes the persistent shake trauma.
-
-struct AddShakeTraumaScript : public Script {
+/// @brief Applies shake trauma immediately, starts background recovery, and continues at once.
+struct ShakeActionScript : public Script {
 	float intensity{ 1.0f };
-
 	ShakeConfig config{};
-
-	AddShakeTraumaScript() = default;
-
-	AddShakeTraumaScript(float shake_intensity, ShakeConfig shake_config = {}) :
-
-		intensity{ shake_intensity }, config{ std::move(shake_config) } {}
+	bool force{ true };
 
 	void OnStart() override;
 
-	PTGN_REFLECT(AddShakeTraumaScript, intensity, config)
+	PTGN_REFLECT(ShakeActionScript, intensity, config, force)
 };
 
-/// Reduces shake trauma according to ShakeConfig::recovery_speed and completes at zero.
+/// @brief Immediately modifies the trauma of an already-active persistent shake.
+/// The temporary change recovers toward the baseline established by StartShakeScript.
+/// Does nothing when the target has no active shake state.
+struct AddShakeTraumaScript : public Script {
+	float intensity{ 1.0f };
 
+	AddShakeTraumaScript() = default;
+
+	explicit AddShakeTraumaScript(float shake_intensity) : intensity{ shake_intensity } {}
+
+	void OnStart() override;
+
+	PTGN_REFLECT(AddShakeTraumaScript, intensity)
+};
+
+/// @brief Internal instant step used to replace the current shake trauma and recovery baseline.
+struct SetShakeTraumaScript : public Script {
+	float intensity{ 1.0f };
+	float baseline_trauma{ 0.0f };
+	ShakeConfig config{};
+
+	SetShakeTraumaScript() = default;
+
+	SetShakeTraumaScript(float shake_intensity, ShakeConfig shake_config = {}) :
+		SetShakeTraumaScript{ shake_intensity, 0.0f, std::move(shake_config) } {}
+
+	SetShakeTraumaScript(
+		float shake_intensity, float shake_baseline_trauma, ShakeConfig shake_config = {}
+	) :
+		intensity{ shake_intensity },
+		baseline_trauma{ shake_baseline_trauma },
+		config{ std::move(shake_config) } {}
+
+	void OnStart() override;
+
+	PTGN_REFLECT(SetShakeTraumaScript, intensity, baseline_trauma, config)
+};
+
+/// @brief Internal persistent step that applies shake every frame and recovers temporary trauma
+/// toward the persistent baseline.
+struct MaintainShakeScript : public Script {
+	ShakeConfig config{};
+
+	MaintainShakeScript() = default;
+
+	explicit MaintainShakeScript(ShakeConfig shake_config) : config{ std::move(shake_config) } {}
+
+	[[nodiscard]] ScriptStatus OnUpdate() override;
+
+	PTGN_REFLECT(MaintainShakeScript, config)
+};
+
+/// @brief Recovers shake trauma toward its baseline according to ShakeConfig::recovery_speed.
 struct RecoverShakeScript : public Script {
 	ShakeConfig config{};
 
@@ -369,6 +414,7 @@ struct RecoverShakeScript : public Script {
 	PTGN_REFLECT(RecoverShakeScript, config)
 };
 
+/// @brief Internal cleanup step retained for runtime use and legacy serialized sequences.
 struct ResetShakeScript : public Script {
 	void OnStart() override;
 
@@ -376,6 +422,7 @@ struct ResetShakeScript : public Script {
 };
 
 /// @brief Starts a persistent channelized shake and immediately continues.
+/// The shake remains active until StopShakeScript is called on the same target.
 /// Use ShakeScript as a Tween for a finite timed shake.
 struct StartShakeScript : public Script {
 	float intensity{ 1.0f };
@@ -387,6 +434,7 @@ struct StartShakeScript : public Script {
 	PTGN_REFLECT(StartShakeScript, intensity, config, force)
 };
 
+/// @brief Stops the active shake channel and immediately clears shake trauma and offsets.
 struct StopShakeScript : public Script {
 	bool force{ true };
 

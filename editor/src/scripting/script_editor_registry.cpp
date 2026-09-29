@@ -1944,14 +1944,21 @@ bool DrawStopBounce(ScriptEditorContext&, StopBounceScript& script) {
 }
 
 bool DrawShake(ScriptEditorContext& context, ShakeScript& script) {
-	bool changed{ ImGui::DragFloat("Intensity", &script.intensity, 0.01f, -1.0f, 1.0f) };
+	bool changed{ ImGui::DragFloat("Intensity", &script.intensity, 0.01f, 0.0f, 1.0f) };
 	changed |= ImGui::Checkbox("Reset On Complete", &script.reset_on_complete);
 	changed |= DrawReflectedScriptValue(context.ctx, script.config);
 	return changed;
 }
 
+bool DrawShakeAction(ScriptEditorContext& context, ShakeActionScript& script) {
+	bool changed{ ImGui::DragFloat("Intensity", &script.intensity, 0.01f, 0.0f, 1.0f) };
+	changed |= ImGui::Checkbox("Force", &script.force);
+	changed |= DrawReflectedScriptValue(context.ctx, script.config);
+	return changed;
+}
+
 bool DrawStartShake(ScriptEditorContext& context, StartShakeScript& script) {
-	bool changed{ ImGui::DragFloat("Intensity", &script.intensity, 0.01f, -1.0f, 1.0f) };
+	bool changed{ ImGui::DragFloat("Intensity", &script.intensity, 0.01f, 0.0f, 1.0f) };
 	changed |= ImGui::Checkbox("Force", &script.force);
 	changed |= DrawReflectedScriptValue(context.ctx, script.config);
 	return changed;
@@ -1961,10 +1968,8 @@ bool DrawStopShake(ScriptEditorContext&, StopShakeScript& script) {
 	return ImGui::Checkbox("Force", &script.force);
 }
 
-bool DrawAddShakeTrauma(ScriptEditorContext& context, AddShakeTraumaScript& script) {
-	bool changed{ ImGui::DragFloat("Intensity", &script.intensity, 0.01f, -1.0f, 1.0f) };
-	changed |= DrawReflectedScriptValue(context.ctx, script.config);
-	return changed;
+bool DrawAddShakeTrauma(ScriptEditorContext&, AddShakeTraumaScript& script) {
+	return ImGui::DragFloat("Intensity", &script.intensity, 0.01f, -1.0f, 1.0f);
 }
 
 bool DrawRecoverShake(ScriptEditorContext& context, RecoverShakeScript& script) {
@@ -2219,9 +2224,20 @@ PTGN_REGISTER_SCRIPT(
 	{
 		.label		 = "Shake",
 		.group		 = "Animation",
-		.description = "Raise or lower persistent shake trauma.",
+		.description = "Apply continuous shake over the Tween duration.",
 		.type		 = ScriptType::Sequence,
 		.draw		 = &DrawShake,
+	}
+);
+
+PTGN_REGISTER_SCRIPT(
+	ShakeActionScript,
+	{
+		.label		 = "Shake",
+		.group		 = "Animation",
+		.description = "Apply shake trauma instantly and recover in the background.",
+		.type		 = ScriptType::Sequence,
+		.draw		 = &DrawShakeAction,
 	}
 );
 
@@ -2230,7 +2246,8 @@ PTGN_REGISTER_SCRIPT(
 	{
 		.label		 = "Add Shake Trauma",
 		.group		 = "Animation",
-		.description = "Immediately raise or lower persistent shake trauma.",
+		.description =
+			"Temporarily modify a persistent shake; trauma recovers back to its baseline.",
 		.type		 = ScriptType::Sequence,
 		.draw		 = &DrawAddShakeTrauma,
 	}
@@ -2241,8 +2258,9 @@ PTGN_REGISTER_SCRIPT(
 	{
 		.label		 = "Recover Shake",
 		.group		 = "Animation",
-		.description = "Reduce shake trauma to zero.",
+		.description = "Internal recovery step that returns shake trauma to its baseline.",
 		.type		 = ScriptType::Sequence,
+		.hidden		 = true,
 		.draw		 = &DrawRecoverShake,
 	}
 );
@@ -2252,8 +2270,9 @@ PTGN_REGISTER_SCRIPT(
 	{
 		.label		 = "Reset Shake",
 		.group		 = "Animation",
-		.description = "Immediately clear shake trauma and offsets.",
+		.description = "Internal cleanup step that clears shake trauma and offsets.",
 		.type		 = ScriptType::Sequence,
+		.hidden		 = true,
 	}
 );
 
@@ -2262,7 +2281,7 @@ PTGN_REGISTER_SCRIPT(
 	{
 		.label		 = "Start Shake",
 		.group		 = "Animation",
-		.description = "Start persistent channelized shake without blocking the sequence.",
+		.description = "Start persistent shake and continue immediately; it runs until Stop Shake.",
 		.type		 = ScriptType::Sequence,
 		.draw		 = &DrawStartShake,
 	}
@@ -2273,7 +2292,8 @@ PTGN_REGISTER_SCRIPT(
 	{
 		.label		 = "Stop Shake",
 		.group		 = "Animation",
-		.description = "Stop the channelized shake on the target.",
+		.description =
+			"Stop the persistent shake, clear its trauma/offsets, and continue immediately.",
 		.type		 = ScriptType::Sequence,
 		.draw		 = &DrawStopShake,
 	}

@@ -854,17 +854,20 @@ PTGN_REGISTER_SCRIPT(
 );
 
 PTGN_REGISTER_SCRIPT(
-
 	ShakeScript,
-
 	{
-
-		.completion = ScriptCompletion::ScriptControlled,
-
+		.completion		 = ScriptCompletion::Duration,
 		.supports_timing = true,
-
+		.requires_timing = true,
+		.default_timing	 = ScriptTiming{ .duration_ms = 300.0f },
 	}
+);
 
+PTGN_REGISTER_SCRIPT(
+	ShakeActionScript,
+	{
+		.completion = ScriptCompletion::Instant,
+	}
 );
 
 PTGN_REGISTER_SCRIPT(
@@ -877,6 +880,20 @@ PTGN_REGISTER_SCRIPT(
 
 	}
 
+);
+
+PTGN_REGISTER_SCRIPT(
+	SetShakeTraumaScript,
+	{
+		.completion = ScriptCompletion::Instant,
+	}
+);
+
+PTGN_REGISTER_SCRIPT(
+	MaintainShakeScript,
+	{
+		.completion = ScriptCompletion::ScriptControlled,
+	}
 );
 
 PTGN_REGISTER_SCRIPT(
