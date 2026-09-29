@@ -16,6 +16,7 @@
 #include "core/assert.h"
 #include "editor/editor.h"
 #include "editor/editor_context.h"
+#include "editor/editor_icons.h"
 #include "editor/editor_state.h"
 #include "editor/paint/paint_editor.h"
 #include "core/graphics/color.h"
@@ -65,181 +66,16 @@ constexpr float kScaleDragPixels{ 100.0f };
 constexpr float kMinimumScale{ 0.01f };
 constexpr float kEditorCameraPanSpeedPixelsPerSecond{ 600.0f };
 
-
-enum class ViewportToolbarIcon : std::uint8_t {
-	Play,
-	Stop,
-	Pause,
-	Step,
-	Camera,
-};
-
-void DrawViewportToolbarIcon(
-	ImDrawList* draw,
-	ViewportToolbarIcon icon,
-	ImVec2 min,
-	float extent,
-	ImU32 color
-) {
-	const float scale{ extent / 16.0f };
-	auto point = [&](float x, float y) {
-		return ImVec2{
-			min.x + x * scale,
-			min.y + y * scale,
-		};
-	};
-
-	switch (icon) {
-		case ViewportToolbarIcon::Play:
-			draw->AddTriangleFilled(
-				point(4.0f, 2.0f),
-				point(4.0f, 14.0f),
-				point(13.0f, 8.0f),
-				color
-			);
-			break;
-
-		case ViewportToolbarIcon::Stop:
-			draw->AddRectFilled(
-				point(3.0f, 3.0f),
-				point(13.0f, 13.0f),
-				color,
-				1.0f
-			);
-			break;
-
-		case ViewportToolbarIcon::Pause:
-			draw->AddRectFilled(
-				point(3.0f, 2.5f),
-				point(6.5f, 13.5f),
-				color,
-				0.75f
-			);
-			draw->AddRectFilled(
-				point(9.5f, 2.5f),
-				point(13.0f, 13.5f),
-				color,
-				0.75f
-			);
-			break;
-
-		case ViewportToolbarIcon::Step:
-			draw->AddTriangleFilled(
-				point(2.5f, 2.5f),
-				point(2.5f, 13.5f),
-				point(10.5f, 8.0f),
-				color
-			);
-			draw->AddRectFilled(
-				point(11.5f, 2.5f),
-				point(13.5f, 13.5f),
-				color
-			);
-			break;
-
-		case ViewportToolbarIcon::Camera:
-			// View-cone/frustum symbol rather than a literal camera body.
-			draw->AddCircleFilled(
-				point(3.0f, 8.0f),
-				1.35f * scale,
-				color,
-				10
-			);
-			draw->AddLine(
-				point(4.2f, 7.2f),
-				point(13.2f, 2.8f),
-				color,
-				std::max(1.0f, 1.5f * scale)
-			);
-			draw->AddLine(
-				point(4.2f, 8.8f),
-				point(13.2f, 13.2f),
-				color,
-				std::max(1.0f, 1.5f * scale)
-			);
-			draw->AddLine(
-				point(13.2f, 2.8f),
-				point(13.2f, 13.2f),
-				color,
-				std::max(1.0f, 1.5f * scale)
-			);
-			break;
-	}
-}
-
-bool DrawViewportIconButton(
-	const char* id,
-	ViewportToolbarIcon icon,
-	const char* tooltip
-) {
-	const auto& style{ ImGui::GetStyle() };
-	const float side{ ImGui::GetFrameHeight() };
-	const ImVec2 p0{ ImGui::GetCursorScreenPos() };
-
-	ImGui::InvisibleButton(id, { side, side });
-
-	const bool hovered{ ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled) };
-	const bool active{ ImGui::IsItemActive() };
-	const bool pressed{ ImGui::IsItemClicked(ImGuiMouseButton_Left) };
-
-	const ImVec4 background{
-		active
-			? style.Colors[ImGuiCol_ButtonActive]
-			: hovered
-				? style.Colors[ImGuiCol_ButtonHovered]
-				: style.Colors[ImGuiCol_Button]
-	};
-
-	auto* draw{ ImGui::GetWindowDrawList() };
-	draw->AddRectFilled(
-		p0,
-		{ p0.x + side, p0.y + side },
-		ImGui::GetColorU32(background),
-		style.FrameRounding
-	);
-
-	const float icon_extent{
-		std::clamp(side - 10.0f, 12.0f, 16.0f)
-	};
-	DrawViewportToolbarIcon(
-		draw,
-		icon,
-		{
-			p0.x + (side - icon_extent) * 0.5f,
-			p0.y + (side - icon_extent) * 0.5f,
-		},
-		icon_extent,
-		ImGui::GetColorU32(ImGuiCol_Text)
-	);
-
-	if (hovered && tooltip && *tooltip != '\0') {
-		ImGui::SetTooltip("%s", tooltip);
-	}
-
-	return pressed;
-}
-
 float ViewportCameraButtonWidth() {
 	const auto& style{ ImGui::GetStyle() };
 	const float icon_extent{ 16.0f };
 	const float label_width{
-		std::max(
-			ImGui::CalcTextSize("Editor").x,
-			ImGui::CalcTextSize("Scene").x
-		)
+		std::max(ImGui::CalcTextSize("Editor").x, ImGui::CalcTextSize("Scene").x)
 	};
-	return
-		style.FramePadding.x * 2.0f +
-		label_width +
-		style.ItemInnerSpacing.x +
-		icon_extent;
+	return style.FramePadding.x * 2.0f + label_width + style.ItemInnerSpacing.x + icon_extent;
 }
 
-bool DrawViewportCameraButton(
-	const char* id,
-	const char* label,
-	const char* tooltip
-) {
+bool DrawViewportCameraButton(const char* id, const char* label, const char* tooltip) {
 	const auto& style{ ImGui::GetStyle() };
 	const float height{ ImGui::GetFrameHeight() };
 	const float width{ ViewportCameraButtonWidth() };
@@ -251,20 +87,13 @@ bool DrawViewportCameraButton(
 	const bool active{ ImGui::IsItemActive() };
 	const bool pressed{ ImGui::IsItemClicked(ImGuiMouseButton_Left) };
 
-	const ImVec4 background{
-		active
-			? style.Colors[ImGuiCol_ButtonActive]
-			: hovered
-				? style.Colors[ImGuiCol_ButtonHovered]
-				: style.Colors[ImGuiCol_Button]
-	};
+	const ImVec4 background{ active	   ? style.Colors[ImGuiCol_ButtonActive]
+							 : hovered ? style.Colors[ImGuiCol_ButtonHovered]
+									   : style.Colors[ImGuiCol_Button] };
 
 	auto* draw{ ImGui::GetWindowDrawList() };
 	draw->AddRectFilled(
-		p0,
-		{ p0.x + width, p0.y + height },
-		ImGui::GetColorU32(background),
-		style.FrameRounding
+		p0, { p0.x + width, p0.y + height }, ImGui::GetColorU32(background), style.FrameRounding
 	);
 
 	const ImVec2 text_size{ ImGui::CalcTextSize(label) };
@@ -272,25 +101,15 @@ bool DrawViewportCameraButton(
 		p0.x + style.FramePadding.x,
 		p0.y + (height - text_size.y) * 0.5f,
 	};
-	draw->AddText(
-		text_pos,
-		ImGui::GetColorU32(ImGuiCol_Text),
-		label
-	);
+	draw->AddText(text_pos, ImGui::GetColorU32(ImGuiCol_Text), label);
 
-	const float icon_extent{
-		std::clamp(height - 10.0f, 12.0f, 16.0f)
-	};
+	const float icon_extent{ std::clamp(height - 10.0f, 12.0f, 16.0f) };
 	const ImVec2 icon_min{
 		p0.x + width - style.FramePadding.x - icon_extent,
 		p0.y + (height - icon_extent) * 0.5f,
 	};
-	DrawViewportToolbarIcon(
-		draw,
-		ViewportToolbarIcon::Camera,
-		icon_min,
-		icon_extent,
-		ImGui::GetColorU32(ImGuiCol_Text)
+	DrawEditorIcon(
+		draw, EditorIcon::Camera, icon_min, icon_extent, ImGui::GetColorU32(ImGuiCol_Text)
 	);
 
 	if (hovered && tooltip && *tooltip != '\0') {
@@ -301,9 +120,7 @@ bool DrawViewportCameraButton(
 }
 
 void DrawRuntimeSpeedControl(EditorContext& ctx, float width) {
-	float speed{
-		std::clamp(ctx.editor.GetTimeScale(), 0.0f, 1000.0f)
-	};
+	float speed{ std::clamp(ctx.editor.GetTimeScale(), 0.0f, 1000.0f) };
 	if (speed != ctx.editor.GetTimeScale()) {
 		ctx.editor.SetTimeScale(speed);
 	}
@@ -1737,7 +1554,6 @@ void ViewportPanel::DrawSceneCameraOutlines(
 	}
 }
 
-
 void ViewportPanel::DrawViewportToolbar(EditorContext& ctx) {
 	auto& paint{ ctx.editor.GetPaintEditor() };
 	paint.DrawViewportToolButtons(ctx);
@@ -1751,22 +1567,12 @@ void ViewportPanel::DrawViewportToolbar(EditorContext& ctx) {
 	const auto& style{ ImGui::GetStyle() };
 	const float icon_side{ ImGui::GetFrameHeight() };
 	const float speed_width{ 66.0f };
-	const char* camera_label{
-		use_editor_camera_ ? "Editor" : "Scene"
-	};
-	const float camera_width{
-		ViewportCameraButtonWidth()
-	};
+	const char* camera_label{ use_editor_camera_ ? "Editor" : "Scene" };
+	const float camera_width{ ViewportCameraButtonWidth() };
 
-	const float runtime_width{
-		icon_side * 3.0f +
-		speed_width +
-		camera_width +
-		style.ItemSpacing.x * 4.0f
-	};
-	const float right_x{
-		ImGui::GetWindowContentRegionMax().x - runtime_width
-	};
+	const float runtime_width{ icon_side * 3.0f + speed_width + camera_width +
+							   style.ItemSpacing.x * 4.0f };
+	const float right_x{ ImGui::GetWindowContentRegionMax().x - runtime_width };
 
 	ImGui::SameLine();
 	if (right_x > ImGui::GetCursorPosX()) {
@@ -1774,28 +1580,16 @@ void ViewportPanel::DrawViewportToolbar(EditorContext& ctx) {
 	}
 
 	if (can_stop) {
-		if (DrawViewportIconButton(
-				"##StopRuntime",
-				ViewportToolbarIcon::Stop,
-				"Stop"
-			)) {
+		if (DrawEditorIconButton("##StopRuntime", EditorIcon::Stop, "Stop")) {
 			ctx.editor.Stop();
 		}
 	} else if (direct_runtime) {
 		ImGui::BeginDisabled();
-		DrawViewportIconButton(
-			"##DirectRuntime",
-			ViewportToolbarIcon::Stop,
-			"Direct runtime is active"
-		);
+		DrawEditorIconButton("##DirectRuntime", EditorIcon::Stop, "Direct runtime is active");
 		ImGui::EndDisabled();
 	} else {
 		ImGui::BeginDisabled(!can_play);
-		if (DrawViewportIconButton(
-				"##PlayRuntime",
-				ViewportToolbarIcon::Play,
-				"Play"
-			)) {
+		if (DrawEditorIconButton("##PlayRuntime", EditorIcon::Play, "Play")) {
 			ctx.editor.Play();
 		}
 		ImGui::EndDisabled();
@@ -1803,11 +1597,8 @@ void ViewportPanel::DrawViewportToolbar(EditorContext& ctx) {
 
 	ImGui::SameLine();
 	ImGui::BeginDisabled(!can_pause);
-	if (DrawViewportIconButton(
-			"##PauseRuntime",
-			paused
-				? ViewportToolbarIcon::Play
-				: ViewportToolbarIcon::Pause,
+	if (DrawEditorIconButton(
+			"##PauseRuntime", paused ? EditorIcon::Play : EditorIcon::Pause,
 			paused ? "Resume" : "Pause"
 		)) {
 		ctx.editor.TogglePause();
@@ -1817,12 +1608,9 @@ void ViewportPanel::DrawViewportToolbar(EditorContext& ctx) {
 	ImGui::SameLine();
 	ImGui::BeginDisabled(!can_pause || !paused);
 	ImGui::PushButtonRepeat(true);
-	if (DrawViewportIconButton(
-			"##StepRuntime",
-			ViewportToolbarIcon::Step,
-			(!can_pause || !paused)
-				? "Step is available only while paused."
-				: "Step one frame"
+	if (DrawEditorIconButton(
+			"##StepRuntime", EditorIcon::Step,
+			(!can_pause || !paused) ? "Step is available only while paused." : "Step one frame"
 		)) {
 		ctx.editor.RequestStep();
 	}
@@ -1834,32 +1622,25 @@ void ViewportPanel::DrawViewportToolbar(EditorContext& ctx) {
 
 	ImGui::SameLine();
 	if (DrawViewportCameraButton(
-			"##ViewportCameraMode",
-			camera_label,
-			use_editor_camera_
-				? "Using the editor camera. Click to use scene cameras."
-				: "Using scene cameras. Click to use the editor camera."
+			"##ViewportCameraMode", camera_label,
+			use_editor_camera_ ? "Using the editor camera. Click to use scene cameras."
+							   : "Using scene cameras. Click to use the editor camera."
 		)) {
 		SetUseEditorCamera(!use_editor_camera_);
 	}
 
-	const float first_row_bottom{
-		ImGui::GetItemRectMax().y
-	};
+	const float first_row_bottom{ ImGui::GetItemRectMax().y };
 	const ImVec2 options_start{
-		ImGui::GetWindowPos().x +
-			ImGui::GetWindowContentRegionMin().x,
+		ImGui::GetWindowPos().x + ImGui::GetWindowContentRegionMin().x,
 		first_row_bottom + style.ItemSpacing.y,
 	};
 
 	ImGui::SetCursorScreenPos(options_start);
 	if (!paint.DrawViewportOptionsToolbar(ctx)) {
-		ImGui::SetCursorScreenPos(
-			{
-				options_start.x,
-				first_row_bottom,
-			}
-		);
+		ImGui::SetCursorScreenPos({
+			options_start.x,
+			first_row_bottom,
+		});
 	}
 }
 
@@ -1874,12 +1655,9 @@ void SetImageBlendMode(const ImDrawList*, const ImDrawCmd* cmd) {
 void ViewportPanel::OnRender(EditorContext& ctx) {
 	ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2{ 0.0f, 0.0f });
 
-	constexpr ImGuiWindowFlags kFlags{
-		ImGuiWindowFlags_NoScrollbar |
-		ImGuiWindowFlags_NoScrollWithMouse |
-		ImGuiWindowFlags_NoTitleBar |
-		ImGuiWindowFlags_NoCollapse
-	};
+	constexpr ImGuiWindowFlags kFlags{ ImGuiWindowFlags_NoScrollbar |
+									   ImGuiWindowFlags_NoScrollWithMouse |
+									   ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoCollapse };
 
 	ImGui::Begin("Viewport", nullptr, kFlags);
 	ImGui::PopStyleVar();
@@ -1913,10 +1691,7 @@ void ViewportPanel::OnRender(EditorContext& ctx) {
 		return;
 	}
 
-	Viewport presentation_viewport{
-		.position{ min },
-		.size{ size }
-	};
+	Viewport presentation_viewport{ .position{ min }, .size{ size } };
 
 	ctx.local.state.viewport.viewport = presentation_viewport;
 	ctx.local.state.viewport.focused = ImGui::IsWindowFocused();
@@ -1929,9 +1704,7 @@ void ViewportPanel::OnRender(EditorContext& ctx) {
 	auto window_background_color{ window.GetSettings().background_color };
 
 	draw_list->AddRectFilled(
-		ToImGui(content_min),
-		ToImGui(content_max),
-		ToImGui(window_background_color)
+		ToImGui(content_min), ToImGui(content_max), ToImGui(window_background_color)
 	);
 
 	auto display_viewport{ renderer.GetDisplayViewport() };
@@ -1941,117 +1714,75 @@ void ViewportPanel::OnRender(EditorContext& ctx) {
 	if (use_editor_camera_) {
 		UpdateEditorCamera(editor_camera_);
 
-		editor_camera_.camera.raw_viewport = {
-			.position{},
-			.size{ 1.0f, 1.0f }
-		};
+		editor_camera_.camera.raw_viewport = { .position{}, .size{ 1.0f, 1.0f } };
 		editor_camera_.camera.viewport_space = ViewportSpace::Normalized;
 
-		auto logical_viewport{
-			GetLogicalViewport(
-				editor_camera_.camera.raw_viewport,
-				editor_camera_.camera.viewport_space,
-				renderer.GetLogicalSize()
-			)
-		};
+		auto logical_viewport{ GetLogicalViewport(
+			editor_camera_.camera.raw_viewport, editor_camera_.camera.viewport_space,
+			renderer.GetLogicalSize()
+		) };
 
-		editor_camera_.camera.view_projection =
-			GetOrthographicViewProjection(
-				editor_camera_.camera.transform,
-				logical_viewport.size,
-				editor_camera_.pixel_rounding
-			);
+		editor_camera_.camera.view_projection = GetOrthographicViewProjection(
+			editor_camera_.camera.transform, logical_viewport.size, editor_camera_.pixel_rounding
+		);
 
 		renderer.SetPrimaryWorldCamera(editor_camera_.camera);
 	} else {
 		renderer.SetPrimaryWorldCamera(std::nullopt);
 	}
 
-	Viewport viewport{
-		.position{ min + display_viewport.position },
-		.size{ display_viewport.size }
-	};
+	Viewport viewport{ .position{ min + display_viewport.position },
+					   .size{ display_viewport.size } };
 
 	draw_list->AddCallback(SetImageBlendMode, &renderer);
 
 	draw_list->AddImage(
-		static_cast<ImTextureID>(presentation_texture),
-		ToImGui(viewport.position),
-		ToImGui(viewport.position + viewport.size),
-		ImVec2{ 0.0f, 1.0f },
-		ImVec2{ 1.0f, 0.0f }
+		static_cast<ImTextureID>(presentation_texture), ToImGui(viewport.position),
+		ToImGui(viewport.position + viewport.size), ImVec2{ 0.0f, 1.0f }, ImVec2{ 1.0f, 0.0f }
 	);
 
-	draw_list->AddCallback(
-		ImGui::GetPlatformIO().DrawCallback_ResetRenderState,
-		nullptr
-	);
+	draw_list->AddCallback(ImGui::GetPlatformIO().DrawCallback_ResetRenderState, nullptr);
 
 	ctx.editor.GetDebugSystem().stats.Increment("draw_calls");
 
-	const bool position_pick_was_active_at_viewport_start{
-		inspector::IsPositionPickingActive(ctx)
-	};
-	const V2_float mouse_screen{
-		FromImGui(ImGui::GetIO().MousePos)
-	};
-	const bool mouse_inside_image{
-		ContainsPoint(viewport, mouse_screen)
-	};
+	const bool position_pick_was_active_at_viewport_start{ inspector::IsPositionPickingActive(ctx
+	) };
+	const V2_float mouse_screen{ FromImGui(ImGui::GetIO().MousePos) };
+	const bool mouse_inside_image{ ContainsPoint(viewport, mouse_screen) };
 
 	if (position_pick_was_active_at_viewport_start) {
 		ImGui::GetForegroundDrawList()->AddRect(
-			ToImGui(viewport.position),
-			ToImGui(viewport.position + viewport.size),
-			IM_COL32(255, 214, 64, 255),
-			0.0f,
-			0,
-			3.0f
+			ToImGui(viewport.position), ToImGui(viewport.position + viewport.size),
+			IM_COL32(255, 214, 64, 255), 0.0f, 0, 3.0f
 		);
 	}
 
 	if (position_pick_was_active_at_viewport_start) {
-		const bool cancel_with_escape{
-			ImGui::IsKeyPressed(ImGuiKey_Escape, false)
-		};
-		const bool cancel_with_right_click{
-			ImGui::IsMouseClicked(ImGuiMouseButton_Right)
-		};
-		const bool cancel_with_other_panel_click{
-			ImGui::IsMouseClicked(ImGuiMouseButton_Left) &&
-			!mouse_inside_image &&
-			!inspector::IsPositionPickDragging(ctx)
-		};
+		const bool cancel_with_escape{ ImGui::IsKeyPressed(ImGuiKey_Escape, false) };
+		const bool cancel_with_right_click{ ImGui::IsMouseClicked(ImGuiMouseButton_Right) };
+		const bool cancel_with_other_panel_click{ ImGui::IsMouseClicked(ImGuiMouseButton_Left) &&
+												  !mouse_inside_image &&
+												  !inspector::IsPositionPickDragging(ctx) };
 
 		if (cancel_with_escape || cancel_with_right_click || cancel_with_other_panel_click) {
 			inspector::CancelPositionPicking(ctx);
 		}
 	}
 
-	auto* scene{
-		ctx.editor.GetSceneListPanel().GetSelectedScene()
-	};
+	auto* scene{ ctx.editor.GetSceneListPanel().GetSelectedScene() };
 
 	std::optional<FrameContext> frame_context;
 
 	if (scene) {
 		if (use_editor_camera_) {
-			auto camera_display_viewport{
-				GetDisplayViewport(
-					editor_camera_.camera.raw_viewport,
-					editor_camera_.camera.viewport_space,
-					renderer.GetLogicalSize(),
-					presentation_size,
-					true
-				)
-			};
+			auto camera_display_viewport{ GetDisplayViewport(
+				editor_camera_.camera.raw_viewport, editor_camera_.camera.viewport_space,
+				renderer.GetLogicalSize(), presentation_size, true
+			) };
 
 			frame_context.emplace(
-				renderer,
-				GetTransform(scene->GetRenderTarget()),
-				presentation_size,
-				editor_camera_.camera.transform,
-				camera_display_viewport
+				renderer, GetTransform(scene->GetRenderTarget()), presentation_size,
+				editor_camera_.camera.transform, camera_display_viewport
 			);
 		} else {
 			frame_context.emplace(*scene);
@@ -2062,18 +1793,14 @@ void ViewportPanel::OnRender(EditorContext& ctx) {
 		const FrameContext& frame{ frame_context.value() };
 
 		Frame position_pick_frame{ Frame::World };
-		const Entity selected_entity{
-			ctx.editor.GetSceneHierarchyPanel().GetSelectedEntity()
-		};
+		const Entity selected_entity{ ctx.editor.GetSceneHierarchyPanel().GetSelectedEntity() };
 
 		if (selected_entity && selected_entity == scene->GetRenderTarget()) {
 			position_pick_frame = Frame::Display;
 		}
 
 		draw_list->PushClipRect(
-			ToImGui(viewport.position),
-			ToImGui(viewport.position + viewport.size),
-			true
+			ToImGui(viewport.position), ToImGui(viewport.position + viewport.size), true
 		);
 
 		DrawSceneCameraOutlines(ctx, presentation_viewport, frame);
@@ -2082,27 +1809,17 @@ void ViewportPanel::OnRender(EditorContext& ctx) {
 			// Position picking is a modal viewport interaction. It takes priority over
 			// every paint tool and entity-picking path until it completes or is cancelled.
 			DrawPositionPickerPreview(
-				ctx,
-				viewport,
-				presentation_viewport,
-				frame,
-				position_pick_frame
+				ctx, viewport, presentation_viewport, frame, position_pick_frame
 			);
 
 			// Do not gate this on io.WantTextInput. The numeric/vector field that launched
 			// the picker can retain keyboard focus for a frame (or longer), which used to
 			// make the viewport ignore the left mouse entirely. Once a PositionPicker is
 			// active, clicking the viewport is an explicit request to pick.
-			if (mouse_inside_image &&
-				!inspector::IsPositionPickDragging(ctx) &&
+			if (mouse_inside_image && !inspector::IsPositionPickDragging(ctx) &&
 				ImGui::IsMouseClicked(ImGuiMouseButton_Left)) {
 				const V2_float world_position{
-					ScreenToWorld(
-						mouse_screen,
-						frame,
-						presentation_viewport,
-						position_pick_frame
-					)
+					ScreenToWorld(mouse_screen, frame, presentation_viewport, position_pick_frame)
 				};
 
 				(void)inspector::BeginPickedPositionDrag(ctx, world_position);
@@ -2111,12 +1828,7 @@ void ViewportPanel::OnRender(EditorContext& ctx) {
 			if (inspector::IsPositionPickDragging(ctx) &&
 				ImGui::IsMouseDown(ImGuiMouseButton_Left)) {
 				const V2_float world_position{
-					ScreenToWorld(
-						mouse_screen,
-						frame,
-						presentation_viewport,
-						position_pick_frame
-					)
+					ScreenToWorld(mouse_screen, frame, presentation_viewport, position_pick_frame)
 				};
 
 				(void)inspector::UpdatePickedPositionDrag(ctx, world_position);
@@ -2128,14 +1840,9 @@ void ViewportPanel::OnRender(EditorContext& ctx) {
 				// live value if the user drags out of the image before releasing instead of
 				// converting an unrelated toolbar/panel coordinate as a world position.
 				if (mouse_inside_image) {
-					const V2_float world_position{
-						ScreenToWorld(
-							mouse_screen,
-							frame,
-							presentation_viewport,
-							position_pick_frame
-						)
-					};
+					const V2_float world_position{ ScreenToWorld(
+						mouse_screen, frame, presentation_viewport, position_pick_frame
+					) };
 
 					(void)inspector::UpdatePickedPositionDrag(ctx, world_position);
 				}
@@ -2144,9 +1851,8 @@ void ViewportPanel::OnRender(EditorContext& ctx) {
 			}
 		} else if (use_editor_camera_) {
 			auto& paint{ ctx.editor.GetPaintEditor() };
-			(void)paint.DrawViewportAndHandleInput(
-				ctx, *scene, viewport, presentation_viewport, frame
-			);
+			(void
+			)paint.DrawViewportAndHandleInput(ctx, *scene, viewport, presentation_viewport, frame);
 		}
 
 		draw_list->PopClipRect();
@@ -2222,11 +1928,8 @@ void ViewportPanel::DrawSelectedEntityGizmo(
 		ctx.editor.GetSettings().gizmo_uses_local_orientation
 	);
 
-	auto applied_handle{
-		gizmo_state_.active != GizmoHandle::None
-			? gizmo_state_.active
-			: active_handle_before_update
-	};
+	auto applied_handle{ gizmo_state_.active != GizmoHandle::None ? gizmo_state_.active
+																  : active_handle_before_update };
 
 	if (selected_entity.Has<::ptgn::impl::CameraData>()) {
 		editable_transform = editable_transform.InverseRelativeTo(render_target_transform);
@@ -2255,16 +1958,9 @@ void ViewportPanel::DrawSelectedEntityGizmo(
 		};
 
 		ctx.undo.TrackInteraction(
-			selected_uuid,
-			"Edit Transform",
-			true,
-			gizmo_state_.active != GizmoHandle::None,
-			[apply, local_transform_before]() mutable {
-				apply(local_transform_before);
-			},
-			[apply, local_transform_after]() mutable {
-				apply(local_transform_after);
-			}
+			selected_uuid, "Edit Transform", true, gizmo_state_.active != GizmoHandle::None,
+			[apply, local_transform_before]() mutable { apply(local_transform_before); },
+			[apply, local_transform_after]() mutable { apply(local_transform_after); }
 		);
 	}
 
@@ -2275,18 +1971,12 @@ void ViewportPanel::DrawSelectedEntityGizmo(
 }
 
 [[nodiscard]] bool IsManagedUIPickEntity(Entity entity) {
-	return entity && entity.HasAny<
-		ButtonBackgroundVisuals,
-		ButtonBorderVisuals,
-		ButtonSpriteVisuals,
-		ButtonTextVisuals,
-		::ptgn::impl::SliderThumbData,
-		::ptgn::impl::SliderTrackData,
-		::ptgn::impl::SliderTrackBackgroundData,
-		::ptgn::impl::SliderTrackBorderData,
-		::ptgn::impl::SliderTrackSpriteData,
-		::ptgn::impl::SliderValueTextData
-	>();
+	return entity &&
+		   entity.HasAny<
+			   ButtonBackgroundVisuals, ButtonBorderVisuals, ButtonSpriteVisuals, ButtonTextVisuals,
+			   ::ptgn::impl::SliderThumbData, ::ptgn::impl::SliderTrackData,
+			   ::ptgn::impl::SliderTrackBackgroundData, ::ptgn::impl::SliderTrackBorderData,
+			   ::ptgn::impl::SliderTrackSpriteData, ::ptgn::impl::SliderValueTextData>();
 }
 
 [[nodiscard]] Entity ResolveManagedUIPick(Entity entity) {

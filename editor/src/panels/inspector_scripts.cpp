@@ -26,6 +26,7 @@
 
 #include "editor/editor.h"
 #include "editor/editor_context.h"
+#include "editor/editor_icons.h"
 #include "editor/renamable_item.h"
 #include "core/util/hash.h"
 #include "panels/entity_filter_editor.h"
@@ -111,17 +112,6 @@ bool DrawEnableDisableMenuItem(bool& enabled) {
 
 	enabled = !enabled;
 	return true;
-}
-
-bool DrawCenteredTextButton(const char* id, const char* text, ImVec2 size) {
-	bool pressed{ ImGui::Button(id, size) };
-	ImVec2 minimum{ ImGui::GetItemRectMin() };
-	ImVec2 maximum{ ImGui::GetItemRectMax() };
-	ImVec2 text_size{ ImGui::CalcTextSize(text) };
-	ImVec2 text_position{ minimum.x + (maximum.x - minimum.x - text_size.x) * 0.5f,
-								minimum.y + (maximum.y - minimum.y - text_size.y) * 0.5f };
-	ImGui::GetWindowDrawList()->AddText(text_position, ImGui::GetColorU32(ImGuiCol_Text), text);
-	return pressed;
 }
 
 bool DrawToggleButton(const char* label, bool& value, ImVec2 size, const char* tooltip) {
@@ -2321,40 +2311,43 @@ bool DrawSequenceToolbar(
 
 	if (show_runtime_controls) {
 		const ScriptSequenceRuntime& runtime{
-			runtime_binding ? runtime_binding->runtime
-						: (sequence ? GetDisplayedSequenceRuntime(*sequence, binding)
-									: binding.runtime)
+			runtime_binding
+				? runtime_binding->runtime
+				: (sequence ? GetDisplayedSequenceRuntime(*sequence, binding) : binding.runtime)
 		};
 
 		ImGui::SameLine(0.0f, spacing);
 		ImGui::BeginDisabled(!can_control_runtime);
 
-		if (DrawCenteredTextButton("##Play", ">", ImVec2{ button_size, button_size })) {
+		if (DrawEditorIconButton(
+				"##Play", EditorIcon::Play,
+				runtime.running ? "Restart this sequence." : "Start this sequence."
+			)) {
 			(void)script_runtime::Start(runtime_owner, runtime_binding->id, true);
 		}
 
 		ImGui::EndDisabled();
-		DrawTooltip(runtime.running ? "Restart this sequence." : "Start this sequence.");
 
 		ImGui::SameLine(0.0f, spacing);
 		ImGui::BeginDisabled(!can_control_runtime || !runtime.running);
 
-		if (DrawCenteredTextButton("##Pause", "||", ImVec2{ button_size, button_size })) {
+		if (DrawEditorIconButton(
+				"##Pause", runtime.paused ? EditorIcon::Play : EditorIcon::Pause,
+				runtime.paused ? "Resume this sequence." : "Pause this sequence."
+			)) {
 			(void)script_runtime::SetPaused(runtime_owner, runtime_binding->id, !runtime.paused);
 		}
 
 		ImGui::EndDisabled();
-		DrawTooltip(runtime.paused ? "Resume this sequence." : "Pause this sequence.");
 
 		ImGui::SameLine(0.0f, spacing);
 		ImGui::BeginDisabled(!can_control_runtime || !runtime.running);
 
-		if (DrawCenteredTextButton("##Stop", "[]", ImVec2{ button_size, button_size })) {
+		if (DrawEditorIconButton("##Stop", EditorIcon::Stop, "Stop this sequence.")) {
 			(void)script_runtime::Stop(runtime_owner, runtime_binding->id);
 		}
 
 		ImGui::EndDisabled();
-		DrawTooltip("Stop this sequence.");
 	}
 
 	ImGui::EndTable();
