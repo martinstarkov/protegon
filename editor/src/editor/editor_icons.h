@@ -12,6 +12,8 @@ enum class EditorIcon : std::uint8_t {
 	Pause,
 	Step,
 	Camera,
+	Restart,
+	Reset,
 };
 
 void DrawEditorIcon(ImDrawList* draw, EditorIcon icon, ImVec2 min, float extent, ImU32 color);

@@ -49,6 +49,27 @@ void DrawEditorIcon(ImDrawList* draw, EditorIcon icon, ImVec2 min, float extent,
 				point(13.2f, 2.8f), point(13.2f, 13.2f), color, std::max(1.0f, 1.5f * scale)
 			);
 			break;
+
+		case EditorIcon::Restart: {
+			const ImVec2 center{ point(8.0f, 8.0f) };
+			const float radius{ 4.5f * scale };
+			const float thickness{ std::max(1.0f, 1.5f * scale) };
+			constexpr float pi{ 3.14159265358979323846f };
+
+			draw->PathArcTo(center, radius, -0.20f * pi, 1.55f * pi, 18);
+			draw->PathStroke(color, 0, thickness);
+			draw->AddTriangleFilled(
+				point(3.3f, 4.0f), point(7.2f, 3.3f), point(5.6f, 7.0f), color
+			);
+			break;
+		}
+
+		case EditorIcon::Reset:
+			draw->AddRectFilled(point(2.5f, 3.0f), point(4.0f, 13.0f), color, 0.5f);
+			draw->AddTriangleFilled(
+				point(5.0f, 8.0f), point(12.5f, 3.0f), point(12.5f, 13.0f), color
+			);
+			break;
 	}
 }
 
