@@ -8,12 +8,10 @@ if(UNIX AND NOT APPLE AND NOT EMSCRIPTEN)
       "${PTGN_IONICE}" -c 2 -n 7
       "${PTGN_NICE}" -n 10
     )
-
     set(
       CMAKE_C_COMPILER_LAUNCHER
       ${PTGN_COMPILER_LAUNCHER}
     )
-
     set(
       CMAKE_CXX_COMPILER_LAUNCHER
       ${PTGN_COMPILER_LAUNCHER}
@@ -44,7 +42,7 @@ file(
   "${PTGN_SHADER_DIR}/*.glsl")
 
 set(PTGN_FILES ${PTGN_SOURCES} ${PTGN_HEADERS} ${PTGN_SHADERS}
-               "${PTGN_SHADER_DIR}/manifest.json")
+  "${PTGN_SHADER_DIR}/manifest.json")
 
 add_library(protegon STATIC ${PTGN_FILES})
 
@@ -77,9 +75,9 @@ target_precompile_headers(protegon PRIVATE "${PTGN_SRC_DIR}/ptgn_pch.h")
 target_link_libraries(
   protegon
   PUBLIC protegon::shaders ptgn_ecs nlohmann_json::nlohmann_json ptgn_imgui
-         magic_enum::magic_enum
+  magic_enum::magic_enum
   PUBLIC ptgn_glad glfw ptgn_miniaudio ptgn_stb Freetype::Freetype
-          msdf-atlas-gen::msdf-atlas-gen)
+  msdf-atlas-gen::msdf-atlas-gen)
 
 if(NOT EMSCRIPTEN)
   target_link_libraries(protegon PRIVATE nfd)

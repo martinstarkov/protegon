@@ -162,15 +162,15 @@ foreach(_src IN LISTS _example_sources)
   set_target_properties(
     ${_t}
     PROPERTIES
-      OUTPUT_NAME "${_t}"
+    OUTPUT_NAME "${_t}"
   )
 
   if(MSVC)
     set_target_properties(
       ${_t}
       PROPERTIES
-        VS_DEBUGGER_WORKING_DIRECTORY
-          "${CMAKE_CURRENT_BINARY_DIR}/$<CONFIG>"
+      VS_DEBUGGER_WORKING_DIRECTORY
+      "${CMAKE_CURRENT_BINARY_DIR}/$<CONFIG>"
     )
   endif()
 
@@ -186,7 +186,7 @@ foreach(_src IN LISTS _example_sources)
   set_target_properties(
     ${_t}
     PROPERTIES
-      FOLDER "${_folder}"
+    FOLDER "${_folder}"
   )
 
   list(APPEND _built_examples "${_rel_key}")
@@ -253,10 +253,10 @@ if(EMSCRIPTEN AND _built_examples)
       TARGET ${_t}
       POST_BUILD
       COMMAND
-        "${CMAKE_COMMAND}"
-        "-DINPUT_HTML=$<TARGET_FILE:${_t}>"
-        "-DDEST_DIR=${PTGN_DIST_DIR}"
-        -P "${CMAKE_CURRENT_SOURCE_DIR}/../cmake/CopyEmscriptenOutput.cmake"
+      "${CMAKE_COMMAND}"
+      "-DINPUT_HTML=$<TARGET_FILE:${_t}>"
+      "-DDEST_DIR=${PTGN_DIST_DIR}"
+      -P "${CMAKE_CURRENT_SOURCE_DIR}/../cmake/CopyEmscriptenOutput.cmake"
       VERBATIM
     )
   endforeach()

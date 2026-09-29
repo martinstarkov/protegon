@@ -3,8 +3,8 @@ include_guard(GLOBAL)
 set(BUILD_SHARED_LIBS OFF CACHE BOOL "" FORCE)
 
 # native file dialog
-if (NOT EMSCRIPTEN)
-add_subdirectory(nativefiledialog-extended)
+if(NOT EMSCRIPTEN)
+  add_subdirectory(nativefiledialog-extended)
 endif()
 
 # magic_enum
@@ -49,18 +49,18 @@ add_library(ptgn_miniaudio STATIC
 
 target_include_directories(ptgn_miniaudio
   SYSTEM PUBLIC
-    ${CMAKE_CURRENT_SOURCE_DIR}/miniaudio
+  ${CMAKE_CURRENT_SOURCE_DIR}/miniaudio
   SYSTEM PRIVATE
-    ${CMAKE_CURRENT_SOURCE_DIR}/miniaudio/extras/decoders/libvorbis
-    ${CMAKE_CURRENT_SOURCE_DIR}/ogg/include
-    ${CMAKE_CURRENT_SOURCE_DIR}/vorbis/include
+  ${CMAKE_CURRENT_SOURCE_DIR}/miniaudio/extras/decoders/libvorbis
+  ${CMAKE_CURRENT_SOURCE_DIR}/ogg/include
+  ${CMAKE_CURRENT_SOURCE_DIR}/vorbis/include
 )
 
 target_link_libraries(ptgn_miniaudio
   PUBLIC
-    ogg
-    vorbis
-    vorbisfile
+  ogg
+  vorbis
+  vorbisfile
 )
 
 # stb
@@ -89,9 +89,9 @@ add_library(ptgn_imgui STATIC
 
 target_include_directories(ptgn_imgui
   SYSTEM PUBLIC
-    ${CMAKE_CURRENT_SOURCE_DIR}/imgui
-    ${CMAKE_CURRENT_SOURCE_DIR}/imgui/backends
-    ${CMAKE_CURRENT_SOURCE_DIR}/imgui/misc/cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/imgui
+  ${CMAKE_CURRENT_SOURCE_DIR}/imgui/backends
+  ${CMAKE_CURRENT_SOURCE_DIR}/imgui/misc/cpp
 )
 
 target_link_libraries(ptgn_imgui PUBLIC glfw)

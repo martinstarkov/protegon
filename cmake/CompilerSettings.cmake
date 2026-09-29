@@ -10,11 +10,11 @@ function(set_compiler_settings project_name root_dir)
     target_compile_options(
       ${project_name}
       PUBLIC
-        /Zc:preprocessor
-        /bigobj
-        /MP
+      /Zc:preprocessor
+      /bigobj
+      /MP
       PRIVATE
-        /JMC
+      /JMC
     )
   endif()
 

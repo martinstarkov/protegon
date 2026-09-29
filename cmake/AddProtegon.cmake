@@ -286,14 +286,14 @@ function(add_protegon_to target)
       add_custom_target(
         ${target}_ptgn_copy_output
         COMMAND
-          "${CMAKE_COMMAND}"
-          -E make_directory
-          "${PTGN_BUILD_COPY_DIR}"
+        "${CMAKE_COMMAND}"
+        -E make_directory
+        "${PTGN_BUILD_COPY_DIR}"
         COMMAND
-          "${CMAKE_COMMAND}"
-          -E copy_if_different
-          "$<TARGET_FILE:${target}>"
-          "${PTGN_BUILD_COPY_DIR}/$<TARGET_FILE_NAME:${target}>"
+        "${CMAKE_COMMAND}"
+        -E copy_if_different
+        "$<TARGET_FILE:${target}>"
+        "${PTGN_BUILD_COPY_DIR}/$<TARGET_FILE_NAME:${target}>"
         DEPENDS ${target}
         VERBATIM
       )
@@ -317,9 +317,9 @@ function(add_protegon_to target)
     set_target_properties(
       ${target}
       PROPERTIES
-        RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/dist"
-        OUTPUT_NAME "index"
-        SUFFIX ".html"
+      RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/dist"
+      OUTPUT_NAME "index"
+      SUFFIX ".html"
     )
 
     get_filename_component(
@@ -341,19 +341,19 @@ function(add_protegon_to target)
     target_link_options(
       ${target}
       PRIVATE
-        "--shell-file=${PTGN_SHELL_HTML}"
-        "-sALLOW_MEMORY_GROWTH=1"
-        "-sFULL_ES3=1"
-        "-sWARN_ON_UNDEFINED_SYMBOLS=1"
-        "-sNO_EXIT_RUNTIME=1"
-        "-sUSE_ZLIB=1"
+      "--shell-file=${PTGN_SHELL_HTML}"
+      "-sALLOW_MEMORY_GROWTH=1"
+      "-sFULL_ES3=1"
+      "-sWARN_ON_UNDEFINED_SYMBOLS=1"
+      "-sNO_EXIT_RUNTIME=1"
+      "-sUSE_ZLIB=1"
     )
 
     if(_ptgn_preload_app_assets)
       target_link_options(
         ${target}
         PRIVATE
-          "--preload-file=${PTGN_ASSETS_DIR}@/${_ptgn_asset_mount_name}"
+        "--preload-file=${PTGN_ASSETS_DIR}@/${_ptgn_asset_mount_name}"
       )
     endif()
 
@@ -377,7 +377,7 @@ function(add_protegon_to target)
       target_link_options(
         ${target}
         PRIVATE
-          "--preload-file=${PTGN_BUILD_PROJECT_DIR}@${_ptgn_project_mount}"
+        "--preload-file=${PTGN_BUILD_PROJECT_DIR}@${_ptgn_project_mount}"
       )
     endif()
 
@@ -385,56 +385,56 @@ function(add_protegon_to target)
       target_compile_options(
         ${target}
         PRIVATE
-          -O0
-          -g3
-          -fexceptions
-          "-sDISABLE_EXCEPTION_CATCHING=0"
+        -O0
+        -g3
+        -fexceptions
+        "-sDISABLE_EXCEPTION_CATCHING=0"
       )
 
       target_link_options(
         ${target}
         PRIVATE
-          -O0
-          -g3
-          -fexceptions
-          "-sDISABLE_EXCEPTION_CATCHING=0"
-          "-sASSERTIONS=2"
-          "-sSTACK_OVERFLOW_CHECK=2"
-          "-sSAFE_HEAP=1"
+        -O0
+        -g3
+        -fexceptions
+        "-sDISABLE_EXCEPTION_CATCHING=0"
+        "-sASSERTIONS=2"
+        "-sSTACK_OVERFLOW_CHECK=2"
+        "-sSAFE_HEAP=1"
       )
 
       target_compile_definitions(
         ${target}
         PRIVATE
-          JSON_DIAGNOSTICS=1
+        JSON_DIAGNOSTICS=1
       )
     elseif(CMAKE_BUILD_TYPE STREQUAL "RelWithDebInfo")
       target_compile_options(
         ${target}
         PRIVATE
-          -O2
-          -g3
+        -O2
+        -g3
       )
 
       target_link_options(
         ${target}
         PRIVATE
-          -O2
-          -g3
-          "-sASSERTIONS=1"
+        -O2
+        -g3
+        "-sASSERTIONS=1"
       )
     else()
       target_compile_options(
         ${target}
         PRIVATE
-          -O3
+        -O3
       )
 
       target_link_options(
         ${target}
         PRIVATE
-          -O3
-          "-sASSERTIONS=1"
+        -O3
+        "-sASSERTIONS=1"
       )
     endif()
   endif()
