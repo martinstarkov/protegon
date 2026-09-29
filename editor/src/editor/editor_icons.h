@@ -10,6 +10,7 @@ enum class EditorIcon : std::uint8_t {
 	Play,
 	Stop,
 	Pause,
+	Reset,
 	StepForward,
 	StepBackward,
 	Camera

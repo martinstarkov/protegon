@@ -87,15 +87,18 @@ void DrawTimerRuntimeControls(Entity entity, const TimerKey& live_key, TimerEntr
 
     ImGui::SameLine(0.0f, spacing);
 
-    const bool can_pause_or_resume{ timer.IsPaused() || timer.IsRunning() };
-    ImGui::BeginDisabled(!can_pause_or_resume);
-    if (DrawEditorIconButton(
-            "##TimerPauseResume", timer.IsPaused() ? EditorIcon::Play : EditorIcon::Pause,
-            timer.IsPaused() ? "Resume timer" : "Pause timer"
-        )) {
-        runtime_changed |= timer.IsPaused() ? timer.Resume() : timer.Pause();
+    const bool paused{ timer.IsPaused() };
+    const bool running{ timer.IsRunning() };
+    const bool stopped{ !running && !paused };
+    const EditorIcon secondary_icon{
+        stopped ? EditorIcon::Reset : paused ? EditorIcon::Play : EditorIcon::Pause
+    };
+    const char* secondary_tooltip{
+        stopped ? "Reset timer" : paused ? "Resume timer" : "Pause timer"
+    };
+    if (DrawEditorIconButton("##TimerPauseResumeReset", secondary_icon, secondary_tooltip)) {
+        runtime_changed |= stopped ? timer.Reset() : paused ? timer.Resume() : timer.Pause();
     }
-    ImGui::EndDisabled();
 
     ImGui::SameLine(0.0f, spacing);
     if (DrawEditorIconButton("##TimerRewind", EditorIcon::StepBackward, "Rewind timer")) {
