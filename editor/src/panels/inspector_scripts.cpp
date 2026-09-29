@@ -114,6 +114,21 @@ bool DrawEnableDisableMenuItem(bool& enabled) {
 	return true;
 }
 
+bool BeginScriptTabItem(const char* label, bool visually_disabled) {
+	if (visually_disabled) {
+		const ImGuiStyle& style{ ImGui::GetStyle() };
+		ImGui::PushStyleVar(ImGuiStyleVar_Alpha, style.Alpha * style.DisabledAlpha);
+	}
+
+	const bool selected{ BeginInspectorTabItem(label) };
+
+	if (visually_disabled) {
+		ImGui::PopStyleVar();
+	}
+
+	return selected;
+}
+
 bool DrawCenteredTextButton(const char* id, const char* text, ImVec2 size) {
 	bool pressed{ ImGui::Button(id, size) };
 	ImVec2 minimum{ ImGui::GetItemRectMin() };
@@ -2768,10 +2783,9 @@ std::optional<int> DrawSequenceTabs(
 				std::string tab_label{
 					editable_sequence->name.empty() ? "Sequence" : editable_sequence->name
 				};
-				if (!script.enabled) {
-					tab_label += " (Disabled)";
-				}
-				const bool selected{ ImGui::BeginTabItem(tab_label.c_str()) };
+				const bool selected{
+					BeginScriptTabItem(tab_label.c_str(), !script.enabled)
+				};
 				if (ImGui::BeginPopupContextItem("##SequenceTabContext")) {
 					if (ImGui::MenuItem("Rename")) {
 						rename_index = i;
@@ -2860,6 +2874,28 @@ bool DrawAddRootScriptPopup(ScriptEditorContext& context, ::ptgn::impl::Scripts&
 	}
 
 	bool changed{ false };
+
+	const auto already_added = [&](TypeHashValue type_hash) {
+		return std::ranges::any_of(scripts.scripts, [&](const ScriptEntry& entry) {
+			return entry.type_hash == type_hash;
+		});
+	};
+
+	const auto is_resident_candidate = [](const ScriptRegistration& registration) {
+		if (registration.type_hash == Hash<Script>()) {
+			return false;
+		}
+
+		const auto* editor{ ScriptEditorRegistry::Find(registration.type_hash) };
+		return editor && HasScriptType(editor->options.type, ScriptType::Resident) &&
+			!editor->options.hidden;
+	};
+
+	const auto candidate_group = [](const ScriptEditorRegistration& editor) -> std::string_view {
+		return editor.options.group.empty() ? std::string_view{ "Other" }
+										: std::string_view{ editor.options.group };
+	};
+
 	const auto add_registered = [&](const ScriptRegistration& registration) {
 		const auto* editor{ ScriptEditorRegistry::Find(registration.type_hash) };
 		if (!editor || !HasScriptType(editor->options.type, ScriptType::Resident) ||
@@ -2867,63 +2903,71 @@ bool DrawAddRootScriptPopup(ScriptEditorContext& context, ::ptgn::impl::Scripts&
 			return;
 		}
 
-		const bool already_added{
-			std::ranges::any_of(scripts.scripts, [&](const ScriptEntry& entry) {
-				return entry.type_hash == registration.type_hash;
-			})
-		};
-
-		if (ImGui::MenuItem(editor->options.label.c_str(), nullptr, false, !already_added)) {
+		const bool available{ !already_added(registration.type_hash) };
+		if (ImGui::MenuItem(editor->options.label.c_str(), nullptr, false, available)) {
 			AddEditorScriptEntry(context, scripts, MakeRootEntry(registration.type_hash));
 			changed = true;
 		}
 		DrawTooltip(editor->options.description.c_str());
 	};
 
-
 	std::vector<std::string> groups;
 	for (const auto& registration : ScriptRegistry::Entries()) {
-		if (registration.type_hash == Hash<Script>()) {
+		if (!is_resident_candidate(registration)) {
 			continue;
 		}
+
 		const auto* editor{ ScriptEditorRegistry::Find(registration.type_hash) };
-		if (!editor || !HasScriptType(editor->options.type, ScriptType::Resident) ||
-			editor->options.hidden) {
+		if (!editor) {
 			continue;
 		}
-		std::string group{ editor->options.group.empty() ? "Other" : editor->options.group };
+		std::string group{ candidate_group(*editor) };
 		if (!std::ranges::contains(groups, group)) {
-			groups.push_back(group);
+			groups.push_back(std::move(group));
 		}
 	}
 
 	for (const auto& group : groups) {
-		if (!ImGui::BeginMenu(group.c_str())) {
+		const bool can_add_from_group{ std::ranges::any_of(
+			ScriptRegistry::Entries(), [&](const ScriptRegistration& registration) {
+				if (!is_resident_candidate(registration) || already_added(registration.type_hash)) {
+					return false;
+				}
+
+				const auto* editor{ ScriptEditorRegistry::Find(registration.type_hash) };
+				return editor && candidate_group(*editor) == group;
+			}
+		) };
+
+		if (!can_add_from_group) {
+			const ImGuiStyle& style{ ImGui::GetStyle() };
+			ImGui::PushStyleVar(ImGuiStyleVar_Alpha, style.Alpha * style.DisabledAlpha);
+		}
+		const bool group_open{ ImGui::BeginMenu(group.c_str()) };
+		if (!can_add_from_group) {
+			ImGui::PopStyleVar();
+		}
+
+		if (!group_open) {
 			continue;
 		}
+
 		for (const auto& registration : ScriptRegistry::Entries()) {
-			if (registration.type_hash == Hash<Script>()) {
+			if (!is_resident_candidate(registration)) {
 				continue;
 			}
+
 			const auto* editor{ ScriptEditorRegistry::Find(registration.type_hash) };
-			if (!editor || !HasScriptType(editor->options.type, ScriptType::Resident) ||
-				editor->options.hidden) {
-				continue;
-			}
-			std::string_view candidate_group{
-				editor->options.group.empty() ? std::string_view{ "Other" }
-											  : std::string_view{ editor->options.group }
-			};
-			if (candidate_group == group) {
+			if (editor && candidate_group(*editor) == group) {
 				add_registered(registration);
 			}
 		}
 		ImGui::EndMenu();
 	}
+
 	ImGui::EndPopup();
 	return changed;
 }
-
 
 std::optional<int> DrawRegisteredScriptTabs(
 	ScriptEditorContext& context, ::ptgn::impl::Scripts& scripts, bool& changed
@@ -2966,11 +3010,10 @@ std::optional<int> DrawRegisteredScriptTabs(
 					editor ? editor->options.label
 						   : (registration ? registration->name : std::string{ "Missing Script" })
 				};
-				if (!script.enabled) {
-					tab_label += " (Disabled)";
-				}
 
-				const bool selected{ BeginInspectorTabItem(tab_label.c_str()) };
+				const bool selected{
+					BeginScriptTabItem(tab_label.c_str(), !script.enabled)
+				};
 				if (editor) {
 					DrawTooltip(editor->options.description.c_str());
 				}
