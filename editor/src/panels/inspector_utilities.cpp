@@ -72,16 +72,20 @@ void DrawTimerRuntimeControls(Entity entity, const TimerKey& live_key, TimerEntr
     }
 
     bool runtime_changed{ false };
+    const ImGuiStyle& style{ ImGui::GetStyle() };
+    const float spacing{ style.ItemInnerSpacing.x };
 
-    if (DrawEditorIconButton("##TimerStart", EditorIcon::Play, "Start timer")) {
-        runtime_changed |= timer.Start();
+    const bool active{ timer.IsRunning() || timer.IsPaused() };
+    if (DrawEditorIconButton(
+            "##TimerStartStop", active ? EditorIcon::Stop : EditorIcon::Play,
+            active ? "Stop and reset timer" : "Start timer"
+        )) {
+        runtime_changed |= active
+            ? timer.Stop()
+            : (timer.IsCompleted() ? timer.Restart() : timer.Start());
     }
-    ImGui::SameLine();
 
-    if (DrawEditorIconButton("##TimerRestart", EditorIcon::Restart, "Restart timer")) {
-        runtime_changed |= timer.Restart();
-    }
-    ImGui::SameLine();
+    ImGui::SameLine(0.0f, spacing);
 
     const bool can_pause_or_resume{ timer.IsPaused() || timer.IsRunning() };
     ImGui::BeginDisabled(!can_pause_or_resume);
@@ -92,16 +96,33 @@ void DrawTimerRuntimeControls(Entity entity, const TimerKey& live_key, TimerEntr
         runtime_changed |= timer.IsPaused() ? timer.Resume() : timer.Pause();
     }
     ImGui::EndDisabled();
-    ImGui::SameLine();
 
-    if (DrawEditorIconButton("##TimerStop", EditorIcon::Stop, "Stop timer")) {
-        runtime_changed |= timer.Stop();
+    ImGui::SameLine(0.0f, spacing);
+    if (DrawEditorIconButton("##TimerRewind", EditorIcon::StepBackward, "Rewind timer")) {
+        runtime_changed |= timer.Rewind(timer_runtime_adjustment);
     }
-    ImGui::SameLine();
 
-    if (DrawEditorIconButton("##TimerReset", EditorIcon::Reset, "Reset timer")) {
-        runtime_changed |= timer.Reset();
+    ImGui::SameLine(0.0f, spacing);
+    const float adjustment_width{
+        ImGui::CalcTextSize("1000ms").x + style.FramePadding.x * 2.0f
+    };
+    DrawDurationTextInput(
+        "##TimerRuntimeAdjustment", timer_runtime_adjustment, adjustment_width, false,
+        "Amount to rewind or advance."
+    );
+    timer_runtime_adjustment =
+        millisecondsf{ std::max(0.001f, timer_runtime_adjustment.count()) };
+
+    ImGui::SameLine(0.0f, spacing);
+    if (DrawEditorIconButton("##TimerAdvance", EditorIcon::StepForward, "Advance timer")) {
+        runtime_changed |= timer.Advance(timer_runtime_adjustment);
     }
+
+    ImGui::SameLine(0.0f, spacing);
+    ImGui::AlignTextToFramePadding();
+    ImGui::TextDisabled(
+        "Elapsed count: %llu", static_cast<unsigned long long>(timer.ElapsedCount())
+    );
 
     const char* state{ timer.IsPaused()      ? "Paused"
                        : timer.IsRunning()   ? "Running"
@@ -112,50 +133,12 @@ void DrawTimerRuntimeControls(Entity entity, const TimerKey& live_key, TimerEntr
 
     ImGui::Text("%s  %s / %s", state, elapsed.c_str(), duration.c_str());
     ImGui::ProgressBar(timer.Progress(), ImVec2{ -FLT_MIN, 0.0f });
-    ImGui::TextDisabled(
-        "Elapsed count: %llu", static_cast<unsigned long long>(timer.ElapsedCount())
-    );
-
-    DrawPropertyRow("Adjustment", [&]() {
-        const ImGuiStyle& style{ ImGui::GetStyle() };
-        const float rewind_width{
-            ImGui::CalcTextSize("Rewind").x + style.FramePadding.x * 2.0f
-        };
-        const float advance_width{
-            ImGui::CalcTextSize("Advance").x + style.FramePadding.x * 2.0f
-        };
-        const float spacing{ style.ItemSpacing.x };
-        const float input_width{
-            std::max(
-                1.0f,
-                ImGui::GetContentRegionAvail().x - rewind_width - advance_width - spacing * 2.0f
-            )
-        };
-
-        bool changed{ DrawDurationTextInput(
-            "##TimerRuntimeAdjustment", timer_runtime_adjustment, input_width, false,
-            "Positive duration to advance or rewind."
-        ) };
-        timer_runtime_adjustment =
-            millisecondsf{ std::max(0.001f, timer_runtime_adjustment.count()) };
-
-        ImGui::SameLine(0.0f, spacing);
-        if (ImGui::Button("Rewind", ImVec2{ rewind_width, 0.0f })) {
-            runtime_changed |= timer.Rewind(timer_runtime_adjustment);
-        }
-
-        ImGui::SameLine(0.0f, spacing);
-        if (ImGui::Button("Advance", ImVec2{ advance_width, 0.0f })) {
-            runtime_changed |= timer.Advance(timer_runtime_adjustment);
-        }
-
-        return changed;
-    });
 
     if (runtime_changed) {
         SyncTimerRuntimeSnapshot(entity, live_key, edited_entry);
     }
 }
+
 struct TimerRename {
     TimerKey old_key{};
     TimerKey new_key{};
