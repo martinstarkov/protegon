@@ -17,7 +17,7 @@ class Scene;
 
 struct TimerKey : StrongString<TimerKey> {
 	using StrongString::StrongString;
-	
+
 	constexpr TimerKey() = default;
 
 	PTGN_REFLECT_VALUE(TimerKey, value)
@@ -82,9 +82,12 @@ struct TimerHandle {
 
 	[[nodiscard]] explicit operator bool() const;
 
+	/// Functions return true if the timer was successfully modified, false if the timer was not found or could not be modified.
+
 	bool Start() const;
 	bool Restart() const;
 	bool Stop() const;
+	/// @brief Resets the timer to its initial state, including resetting the elapsed count and completed state.
 	bool Reset() const;
 	bool Pause() const;
 	bool Resume() const;

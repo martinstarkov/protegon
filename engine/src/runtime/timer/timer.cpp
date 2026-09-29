@@ -14,7 +14,6 @@
 namespace ptgn {
 
 namespace {
-
 [[nodiscard]] millisecondsf ClampTimerDuration(millisecondsf duration) {
 	return millisecondsf{ std::max(0.0f, duration.count()) };
 }
@@ -47,7 +46,6 @@ void InitializeTimerRuntime(TimerEntry& entry, bool apply_auto_start) {
 	entry.runtime.elapsed_count = 0;
 	entry.runtime.completed = false;
 	entry.runtime.initialized = true;
-
 	if (apply_auto_start && entry.config.start_automatically) {
 		entry.runtime.timer.Start();
 	}
@@ -67,13 +65,11 @@ void InitializeTimerRuntime(TimerEntry& entry, bool apply_auto_start) {
 	millisecondsf amount
 ) {
 	std::vector<event::TimerElapsed> events;
-
 	if (amount <= millisecondsf{ 0.0f }) {
 		return events;
 	}
 
 	InitializeTimerRuntime(entry, false);
-
 	const millisecondsf duration{ ClampTimerDuration(entry.config.duration) };
 	millisecondsf previous_elapsed{
 		entry.runtime.timer.ElapsedDuration<millisecondsf>()
@@ -94,7 +90,6 @@ void InitializeTimerRuntime(TimerEntry& entry, bool apply_auto_start) {
 			entry.runtime.timer.Stop();
 			entry.runtime.completed = true;
 			++entry.runtime.elapsed_count;
-
 			events.push_back(event::TimerElapsed{
 				.timer = key,
 				.previous_elapsed = millisecondsf{ 0.0f },
@@ -107,7 +102,6 @@ void InitializeTimerRuntime(TimerEntry& entry, bool apply_auto_start) {
 		}
 
 		previous_elapsed = std::min(previous_elapsed, duration);
-
 		if (elapsed >= duration) {
 			if (elapsed > duration) {
 				entry.runtime.timer.RemoveElapsed(elapsed - duration);
@@ -116,7 +110,6 @@ void InitializeTimerRuntime(TimerEntry& entry, bool apply_auto_start) {
 			entry.runtime.timer.Stop();
 			entry.runtime.completed = true;
 			++entry.runtime.elapsed_count;
-
 			events.push_back(event::TimerElapsed{
 				.timer = key,
 				.previous_elapsed = previous_elapsed,
@@ -141,11 +134,9 @@ void InitializeTimerRuntime(TimerEntry& entry, bool apply_auto_start) {
 	}
 
 	entry.runtime.completed = false;
-
 	if (duration <= millisecondsf{ 0.0f }) {
 		entry.runtime.timer.RemoveElapsed(elapsed);
 		++entry.runtime.elapsed_count;
-
 		events.push_back(event::TimerElapsed{
 			.timer = key,
 			.previous_elapsed = millisecondsf{ 0.0f },
@@ -163,7 +154,6 @@ void InitializeTimerRuntime(TimerEntry& entry, bool apply_auto_start) {
 	};
 	std::uint64_t first_count{ entry.runtime.elapsed_count + 1 };
 	entry.runtime.elapsed_count += static_cast<std::uint64_t>(fire_count);
-
 	for (std::size_t index{ 0 }; index < fire_count; ++index) {
 		events.push_back(event::TimerElapsed{
 			.timer = key,
@@ -210,11 +200,9 @@ void DispatchTimerEvents(
 } // namespace
 
 namespace impl {
-
 void to_json(json& output, const Timers& timers) {
 	output = json::object();
 	output["timers"] = json::array();
-
 	for (const auto& entry : timers.timers) {
 		output["timers"].push_back(entry.config);
 	}
@@ -222,7 +210,6 @@ void to_json(json& output, const Timers& timers) {
 
 void from_json(const json& input, Timers& timers) {
 	timers.timers.clear();
-
 	const json* entries{ nullptr };
 	if (input.is_array()) {
 		entries = std::addressof(input);
@@ -252,7 +239,6 @@ void from_json(const json& input, Timers& timers) {
 }
 
 } // namespace impl
-
 TimerHandle::operator bool() const {
 	return owner && !key.value.empty() && HasTimer(owner, key);
 }
@@ -281,13 +267,22 @@ bool TimerHandle::Restart() const {
 
 bool TimerHandle::Stop() const {
 	auto* entry{ ResolveHandle(*this) };
-	if (!entry || !entry->runtime.initialized) {
+	if (!entry) {
 		return false;
 	}
 
-	bool active{ entry->runtime.timer.IsRunning() || entry->runtime.timer.IsPaused() };
-	entry->runtime.timer.Stop();
-	return active;
+	const bool changed{
+		!entry->runtime.initialized || entry->runtime.timer.IsRunning() ||
+		entry->runtime.timer.IsPaused() || entry->runtime.timer.HasRun() ||
+		entry->runtime.elapsed_count != 0 || entry->runtime.completed
+	};
+
+	entry->runtime.timer.Reset();
+	// Stopping the timer should not reset the elapsed count.
+	// entry->runtime.elapsed_count = 0;
+	entry->runtime.completed = false;
+	entry->runtime.initialized = true;
+	return changed;
 }
 
 bool TimerHandle::Reset() const {
@@ -509,7 +504,6 @@ bool RemoveTimer(Entity entity, const TimerKey& key) {
 }
 
 namespace timer_runtime {
-
 void Update(Scene& scene, secondsf delta_time) {
 	const millisecondsf dt{
 		duration_cast<millisecondsf>(
@@ -517,7 +511,6 @@ void Update(Scene& scene, secondsf delta_time) {
 		)
 	};
 	const auto entities{ scene.EntitiesWith<impl::Timers>().GetVector() };
-
 	for (Entity entity : entities) {
 		if (!entity) {
 			continue;
@@ -530,7 +523,6 @@ void Update(Scene& scene, secondsf delta_time) {
 
 		std::vector<TimerKey> keys;
 		keys.reserve(timers->timers.size());
-
 		for (const auto& entry : timers->timers) {
 			keys.push_back(entry.config.key);
 		}
@@ -542,7 +534,6 @@ void Update(Scene& scene, secondsf delta_time) {
 			}
 
 			InitializeTimerRuntime(*entry, true);
-
 			if (!entry->runtime.timer.IsRunning()) {
 				continue;
 			}
@@ -554,7 +545,6 @@ void Update(Scene& scene, secondsf delta_time) {
 }
 
 } // namespace timer_runtime
-
 std::ostream& operator<<(std::ostream& os, const TimerConfig& timer) {
 	return os << "{ key: " << timer.key.value << ", duration: " << timer.duration
 			  << ", mode: " << (timer.mode == TimerMode::Repeat ? "repeat" : "once")
