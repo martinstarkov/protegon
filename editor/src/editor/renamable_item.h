@@ -3,6 +3,7 @@
 #include <imgui.h>
 #include <imgui_stdlib.h>
 
+#include <algorithm>
 #include <functional>
 #include <string>
 #include <string_view>
@@ -219,7 +220,7 @@ RenameResult DrawInlineRename(
 struct RenameModalOptions {
 	float width{ 320.0f };
 	float button_width{ 92.0f };
-	const char* title{ "Rename" };
+	const char* title{ nullptr };
 	const char* rename_label{ "Rename" };
 	const char* cancel_label{ "Cancel" };
 	ImGuiWindowFlags window_flags{ ImGuiWindowFlags_AlwaysAutoResize };
@@ -252,12 +253,18 @@ RenameResult DrawRenameModal(
 		return RenameResult::None;
 	}
 
+	const std::string popup_name{
+		options.title && options.title[0] != '\0'
+			? std::string{ options.title } + "###" + popup_id
+			: std::string{ popup_id }
+	};
+
 	if (state.open_requested) {
-		ImGui::OpenPopup(popup_id);
+		ImGui::OpenPopup(popup_name.c_str());
 		state.open_requested = false;
 	}
 
-	if (!ImGui::IsPopupOpen(popup_id)) {
+	if (!ImGui::IsPopupOpen(popup_name.c_str())) {
 		state.Cancel();
 		return RenameResult::Cancelled;
 	}
@@ -271,15 +278,10 @@ RenameResult DrawRenameModal(
 	}
 
 	RenameResult result{ RenameResult::None };
-	if (!ImGui::BeginPopupModal(popup_id, nullptr, options.window_flags)) {
+	if (!ImGui::BeginPopupModal(popup_name.c_str(), nullptr, options.window_flags)) {
 		return result;
 	}
 	const bool window_appearing{ ImGui::IsWindowAppearing() };
-
-	if (options.title && options.title[0] != '\0') {
-		ImGui::TextUnformatted(options.title);
-		ImGui::Separator();
-	}
 
 	if (options.draw_input_prefix) {
 		std::invoke(options.draw_input_prefix);
@@ -318,18 +320,15 @@ RenameResult DrawRenameModal(
 	ImGui::Spacing();
 
 	const float spacing{ ImGui::GetStyle().ItemSpacing.x };
-	const float total_button_width{ options.button_width * 2.0f + spacing };
-	const float available{ ImGui::GetContentRegionAvail().x };
-	if (available > total_button_width) {
-		ImGui::SetCursorPosX(ImGui::GetCursorPosX() + available - total_button_width);
-	}
+	const float available{ std::max(1.0f, ImGui::GetContentRegionAvail().x) };
+	const float button_width{ std::max(1.0f, (available - spacing) * 0.5f) };
 
 	const bool cancel_pressed{
-		ImGui::Button(options.cancel_label, ImVec2{ options.button_width, 0.0f })
+		ImGui::Button(options.cancel_label, ImVec2{ button_width, 0.0f })
 	};
-	ImGui::SameLine();
+	ImGui::SameLine(0.0f, spacing);
 	const bool rename_pressed{
-		ImGui::Button(options.rename_label, ImVec2{ options.button_width, 0.0f })
+		ImGui::Button(options.rename_label, ImVec2{ button_width, 0.0f })
 	};
 
 	const bool escape_pressed{ ImGui::IsKeyPressed(ImGuiKey_Escape, false) };
