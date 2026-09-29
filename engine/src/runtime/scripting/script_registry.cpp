@@ -1,9 +1,7 @@
 // script_registry.cpp
 
 #ifndef MAGIC_ENUM_RANGE_MAX
-
 #define MAGIC_ENUM_RANGE_MAX 512
-
 #endif
 
 #include <algorithm>
@@ -47,47 +45,38 @@
 namespace ptgn {
 
 namespace {
-
 template <typename T>
-
 [[nodiscard]] T JsonValueOr(const json& input, std::string_view key, T fallback) {
 	if (!input.is_object()) {
 		return fallback;
 	}
 
 	const auto it{ input.find(std::string{ key }) };
-
 	if (it == input.end() || it->is_null()) {
 		return fallback;
 	}
 
 	try {
 		return it->template get<T>();
-
 	} catch (...) {
 		return fallback;
 	}
 }
 
 template <typename T>
-
 [[nodiscard]] json MakeEventDefault(std::string_view key, T value) {
 	json result = json::object();
-
 	result[std::string{ key }] = std::move(value);
 
 	return result;
 }
 
 template <typename TEvent>
-
 [[nodiscard]] Mouse EventMouse(const TEvent& event) {
 	if constexpr (requires { event.mouse; }) {
 		return event.mouse;
-
 	} else if constexpr (requires { event.button; }) {
 		return event.button;
-
 	} else {
 		return Mouse::Left;
 	}
@@ -95,7 +84,6 @@ template <typename TEvent>
 
 [[nodiscard]] std::string TrimKeyToken(std::string token) {
 	const auto first{ token.find_first_not_of(" \t\n\r\f\v") };
-
 	if (first == std::string::npos) {
 		return {};
 	}
@@ -107,19 +95,13 @@ template <typename TEvent>
 
 [[nodiscard]] std::string NormalizeKeyToken(std::string_view token) {
 	std::string normalized;
-
 	normalized.reserve(token.size());
-
 	for (char c : token) {
 		if (std::isalnum(static_cast<unsigned char>(c))) {
 			normalized.push_back(
-
 				static_cast<char>(
-
 					std::tolower(static_cast<unsigned char>(c))
-
 				)
-
 			);
 		}
 	}
@@ -129,67 +111,43 @@ template <typename TEvent>
 
 [[nodiscard]] std::optional<Key> ParseKeyToken(std::string_view token) {
 	std::string normalized{ NormalizeKeyToken(token) };
-
 	if (normalized.empty()) {
 		return std::nullopt;
 	}
 
 	if (normalized.size() == 1 &&
-
 		std::isdigit(static_cast<unsigned char>(normalized.front()))) {
 		normalized.insert(normalized.begin(), 'k');
 	}
 
 	if (normalized == "shift" || normalized == "lshift") {
 		normalized = "leftshift";
-
 	} else if (normalized == "rshift") {
 		normalized = "rightshift";
-
 	} else if (
-
 		normalized == "ctrl" ||
-
 		normalized == "control" ||
-
 		normalized == "lctrl" ||
-
 		normalized == "leftcontrol"
-
 	) {
 		normalized = "leftctrl";
-
 	} else if (
-
 		normalized == "rctrl" ||
-
 		normalized == "rightcontrol"
-
 	) {
 		normalized = "rightctrl";
-
 	} else if (
-
 		normalized == "alt" ||
-
 		normalized == "option" ||
-
 		normalized == "lalt"
-
 	) {
 		normalized = "leftalt";
-
 	} else if (normalized == "ralt") {
 		normalized = "rightalt";
-
 	} else if (
-
 		normalized == "super" ||
-
 		normalized == "cmd" ||
-
 		normalized == "command"
-
 	) {
 		normalized = "leftsuper";
 	}
@@ -204,19 +162,13 @@ template <typename TEvent>
 }
 
 [[nodiscard]] std::vector<std::vector<Key>>
-
 ParseKeyExpression(std::string expression) {
 	std::vector<std::vector<Key>> alternatives;
-
 	expression = TrimKeyToken(std::move(expression));
-
 	while (true) {
 		const std::size_t comma{ expression.find(',') };
-
 		std::string group{
-
 			TrimKeyToken(expression.substr(0, comma))
-
 		};
 
 		if (group.empty()) {
@@ -224,18 +176,13 @@ ParseKeyExpression(std::string expression) {
 		}
 
 		std::vector<Key> keys;
-
 		while (true) {
 			const std::size_t plus{ group.find('+') };
-
 			const std::string token{
-
 				TrimKeyToken(group.substr(0, plus))
-
 			};
 
 			const auto key{ ParseKeyToken(token) };
-
 			if (!key) {
 				return {};
 			}
@@ -249,7 +196,6 @@ ParseKeyExpression(std::string expression) {
 			}
 
 			group.erase(0, plus + 1);
-
 			if (TrimKeyToken(group).empty()) {
 				return {};
 			}
@@ -260,13 +206,11 @@ ParseKeyExpression(std::string expression) {
 		}
 
 		alternatives.push_back(std::move(keys));
-
 		if (comma == std::string::npos) {
 			break;
 		}
 
 		expression.erase(0, comma + 1);
-
 		if (TrimKeyToken(expression).empty()) {
 			return {};
 		}
@@ -277,17 +221,11 @@ ParseKeyExpression(std::string expression) {
 
 [[nodiscard]] std::string KeyExpressionOrLegacy(const json& value) {
 	if (const auto expression{
-
 			JsonValueOr<std::string>(
-
 				value,
-
 				"keys",
-
 				""
-
 			)
-
 		};
 
 		!expression.empty()) {
@@ -295,55 +233,36 @@ ParseKeyExpression(std::string expression) {
 	}
 
 	const Key key{
-
 		JsonValueOr<Key>(
-
 			value,
-
 			"key",
-
 			Key::W
-
 		)
-
 	};
 
 	const std::string_view name{
-
 		magic_enum::enum_name(key)
-
 	};
 
 	return name.empty()
-
 			 ? std::string{ "W" }
-
 			 : std::string{ name };
 }
 
 template <typename TEvent>
-
 [[nodiscard]] bool MatchKeyEvent(
-
 	Entity owner,
-
 	const json& value,
-
 	const TEvent& event
-
 ) {
 	if (!owner) {
 		return false;
 	}
 
 	const auto alternatives{
-
 		ParseKeyExpression(
-
 			KeyExpressionOrLegacy(value)
-
 		)
-
 	};
 
 	if (alternatives.empty()) {
@@ -351,61 +270,38 @@ template <typename TEvent>
 	}
 
 	const auto& input{
-
 		owner.GetScene().ctx().input
-
 	};
 
 	constexpr bool held_event{
-
 		std::same_as<TEvent, event::KeyHeld>
-
 	};
 
 	constexpr bool released_event{
-
 		std::same_as<TEvent, event::KeyReleased>
-
 	};
 
 	const bool require_held_duration{
-
 		JsonValueOr<bool>(
-
 			value,
-
 			"require_held_duration",
-
 			true
-
 		)
-
 	};
 
 	const float held_ms{
-
 		std::max(
-
 			0.0f,
-
 			JsonValueOr<float>(
-
 				value,
-
 				"held_duration_ms",
-
 				250.0f
-
 			)
-
 		)
-
 	};
 
 	const milliseconds held_duration{
-
 		static_cast<milliseconds::rep>(held_ms)
-
 	};
 
 	for (const auto& keys : alternatives) {
@@ -414,11 +310,8 @@ template <typename TEvent>
 		}
 
 		const bool complete{
-
 			std::ranges::all_of(
-
 				keys,
-
 				[&](Key key) {
 					if constexpr (released_event) {
 						if (key == event.key) {
@@ -428,9 +321,7 @@ template <typename TEvent>
 
 					if constexpr (held_event) {
 						return require_held_duration
-
 								 ? input.KeyHeld(key, held_duration)
-
 								 : input.KeyHeld(key);
 					}
 
@@ -438,7 +329,6 @@ template <typename TEvent>
 				}
 
 			)
-
 		};
 
 		if (complete) {
@@ -450,28 +340,17 @@ template <typename TEvent>
 }
 
 template <typename TEvent>
-
 [[nodiscard]] bool MatchMouseEvent(
-
 	Entity owner,
-
 	const json& value,
-
 	const TEvent& event
-
 ) {
 	const Mouse button{
-
 		JsonValueOr<Mouse>(
-
 			value,
-
 			"button",
-
 			Mouse::Left
-
 		)
-
 	};
 
 	if (EventMouse(event) != button) {
@@ -479,28 +358,19 @@ template <typename TEvent>
 	}
 
 	if constexpr (
-
 		std::same_as<TEvent, event::MouseHeld> ||
-
 		std::same_as<TEvent, event::MouseHeldOver>
-
 	) {
 		if (!owner) {
 			return false;
 		}
 
 		const bool require_held_duration{
-
 			JsonValueOr<bool>(
-
 				value,
-
 				"require_held_duration",
-
 				true
-
 			)
-
 		};
 
 		if (!require_held_duration) {
@@ -508,37 +378,22 @@ template <typename TEvent>
 		}
 
 		const float held_ms{
-
 			std::max(
-
 				0.0f,
-
 				JsonValueOr<float>(
-
 					value,
-
 					"held_duration_ms",
-
 					250.0f
-
 				)
-
 			)
-
 		};
 
 		return owner.GetScene().ctx().input.MouseHeld(
-
 			button,
-
 			milliseconds{
-
 				static_cast<milliseconds::rep>(
-
 					held_ms
-
 				)
-
 			}
 
 		);
@@ -565,49 +420,41 @@ template <typename TEvent>
 	const auto& collider{ entity.Get<Collider>() };
 
 	return collider.mode == CollisionMode::Discrete ||
-
 		   collider.mode == CollisionMode::Continuous;
 }
 
 [[nodiscard]] bool HasInteractive(Entity entity) {
 	return entity &&
-
 		   entity.Has<impl::Interactive>();
 }
 
 [[nodiscard]] bool HasDraggable(Entity entity) {
 	return HasInteractive(entity) &&
-
 		   entity.Has<impl::Draggable>();
 }
 
 [[nodiscard]] bool HasDropzone(Entity entity) {
 	return HasInteractive(entity) &&
-
 		   entity.Has<impl::Dropzone>();
 }
 
 [[nodiscard]] bool HasAnimationData(Entity entity) {
 	return entity &&
-
 		   entity.Has<impl::AnimationData>();
 }
 
 [[nodiscard]] bool HasButtonData(Entity entity) {
 	return entity &&
-
 		   entity.Has<impl::ButtonData>();
 }
 
 [[nodiscard]] bool HasToggleButtonData(Entity entity) {
 	return entity &&
-
 		   entity.Has<impl::ToggleButtonData>();
 }
 
 [[nodiscard]] bool HasDropdownData(Entity entity) {
 	return entity &&
-
 		   entity.Has<impl::DropdownData>();
 }
 
@@ -617,18 +464,14 @@ template <typename TEvent>
 
 [[nodiscard]] bool MatchDialogueKey(const json& value, std::string_view key) {
 	const std::string expected{
-
 		JsonValueOr<std::string>(value, "dialogue", "")
-
 	};
 
 	return expected.empty() || expected == key;
 }
 
 [[nodiscard]] bool MatchDialoguePage(
-
 	const json& value, std::string_view key, std::size_t page
-
 ) {
 	if (!MatchDialogueKey(value, key)) {
 		return false;
@@ -637,7 +480,6 @@ template <typename TEvent>
 	const int expected_page{ JsonValueOr<int>(value, "page", -1) };
 
 	return expected_page < 0 ||
-
 		   static_cast<std::size_t>(expected_page) == page;
 }
 
@@ -646,1382 +488,804 @@ template <typename TEvent>
 }
 
 } // namespace
-
 PTGN_REGISTER_SCRIPT(Script);
-
 PTGN_REGISTER_SCRIPT(
-
 	WaitScript,
-
 	{
-
 		.completion = ScriptCompletion::Duration,
-
 		.supports_timing = true,
-
 		.requires_timing = true,
-
 		.default_timing =
 			ScriptTiming{
-
 				.duration_ms = 250.0f
-
 			},
-
 	}
 
 );
-
 PTGN_REGISTER_SCRIPT(
-
 	MoveToScript,
-
 	{
-
 		.completion = ScriptCompletion::Instant,
-
 		.supports_timing = true,
-
 		.default_timing =
 			ScriptTiming{
-
 				.duration_ms = 300.0f,
-
 				.ease = Ease::OutCubic,
-
 			},
-
 	}
 
 );
-
 PTGN_REGISTER_SCRIPT(
-
 	RotateToScript,
-
 	{
-
 		.completion = ScriptCompletion::Instant,
-
 		.supports_timing = true,
-
 		.default_timing =
 			ScriptTiming{
-
 				.duration_ms = 300.0f
-
 			},
-
 	}
 
 );
-
 PTGN_REGISTER_SCRIPT(
-
 	ScaleToScript,
-
 	{
-
 		.completion = ScriptCompletion::Instant,
-
 		.supports_timing = true,
-
 		.default_timing =
 			ScriptTiming{
-
 				.duration_ms = 180.0f,
-
 				.ease = Ease::OutBack,
-
 			},
-
 	}
 
 );
-
 PTGN_REGISTER_SCRIPT(
-
 	TintToScript,
-
 	{
-
 		.completion = ScriptCompletion::Instant,
-
 		.supports_timing = true,
-
 		.default_timing =
 			ScriptTiming{
-
 				.duration_ms = 300.0f
-
 			},
-
 	}
 
 );
-
 PTGN_REGISTER_SCRIPT(
-
 	FadeInScript,
-
 	{
-
 		.completion = ScriptCompletion::Duration,
-
 		.supports_timing = true,
-
 		.requires_timing = true,
-
 		.default_timing =
 			ScriptTiming{
-
 				.duration_ms = 300.0f
-
 			},
-
 	}
 
 );
-
 PTGN_REGISTER_SCRIPT(
-
 	FadeOutScript,
-
 	{
-
 		.completion = ScriptCompletion::Duration,
-
 		.supports_timing = true,
-
 		.requires_timing = true,
-
 		.default_timing =
 			ScriptTiming{
-
 				.duration_ms = 300.0f
-
 			},
-
 	}
 
 );
-
 PTGN_REGISTER_SCRIPT(
-
 	BounceScript,
-
 	{
-
 		.completion = ScriptCompletion::Duration,
-
 		.supports_timing = true,
-
 		.requires_timing = true,
-
 		.default_timing =
 			ScriptTiming{
-
 				.duration_ms = 500.0f
-
 			},
-
 	}
 
 );
-
 PTGN_REGISTER_SCRIPT(
-
 	StartBounceScript,
-
 	{
-
 		.completion = ScriptCompletion::Instant
-
 	}
 
 );
-
 PTGN_REGISTER_SCRIPT(
-
 	StopBounceScript,
-
 	{
-
 		.completion = ScriptCompletion::Instant
-
 	}
 
 );
-
 PTGN_REGISTER_SCRIPT(
 	ShakeScript,
 	{
-		.completion		 = ScriptCompletion::Duration,
+		.completion      = ScriptCompletion::Duration,
 		.supports_timing = true,
 		.requires_timing = true,
-		.default_timing	 = ScriptTiming{ .duration_ms = 300.0f },
+		.default_timing  = ScriptTiming{ .duration_ms = 300.0f },
 	}
 );
-
 PTGN_REGISTER_SCRIPT(
 	ShakeActionScript,
 	{
 		.completion = ScriptCompletion::Instant,
 	}
 );
-
 PTGN_REGISTER_SCRIPT(
-
 	AddShakeTraumaScript,
-
 	{
-
 		.completion = ScriptCompletion::Instant
-
 	}
 
 );
-
 PTGN_REGISTER_SCRIPT(
 	SetShakeTraumaScript,
 	{
 		.completion = ScriptCompletion::Instant,
 	}
 );
-
 PTGN_REGISTER_SCRIPT(
 	MaintainShakeScript,
 	{
 		.completion = ScriptCompletion::ScriptControlled,
 	}
 );
-
 PTGN_REGISTER_SCRIPT(
-
 	RecoverShakeScript,
-
 	{
-
 		.completion = ScriptCompletion::ScriptControlled
-
 	}
 
 );
-
 PTGN_REGISTER_SCRIPT(
-
 	ResetShakeScript,
-
 	{
-
 		.completion = ScriptCompletion::Instant
-
 	}
 
 );
-
 PTGN_REGISTER_SCRIPT(
-
 	StartShakeScript,
-
 	{
-
 		.completion = ScriptCompletion::Instant
-
 	}
 
 );
-
 PTGN_REGISTER_SCRIPT(
-
 	StopShakeScript,
-
 	{
-
 		.completion = ScriptCompletion::Instant
-
 	}
 
 );
-
 PTGN_REGISTER_SCRIPT(
-
 	FollowTargetScript,
-
 	{
-
 		.completion = ScriptCompletion::ScriptControlled
-
 	}
 
 );
-
 PTGN_REGISTER_SCRIPT(
-
 	FollowEntityScript,
-
 	{
-
 		.completion = ScriptCompletion::ScriptControlled
-
 	}
 
 );
-
 PTGN_REGISTER_SCRIPT(
-
 	FollowPathScript,
-
 	{
-
 		.completion = ScriptCompletion::ScriptControlled
-
 	}
 
 );
-
 PTGN_REGISTER_SCRIPT(
-
 	StartFollowEntityScript,
-
 	{
-
 		.completion = ScriptCompletion::Instant
-
 	}
 
 );
-
 PTGN_REGISTER_SCRIPT(
-
 	StartFollowPathScript,
-
 	{
-
 		.completion = ScriptCompletion::Instant
-
 	}
 
 );
-
 PTGN_REGISTER_SCRIPT(
-
 	StopFollowScript,
-
 	{
-
 		.completion = ScriptCompletion::Instant
-
 	}
 
 );
-
 PTGN_REGISTER_SCRIPT(
-
 	NativeScript,
-
 	{
-
 		.completion = ScriptCompletion::ScriptControlled,
-
 		.supports_timing = true,
-
 		.serializable = false,
-
 	}
 
 );
-
 PTGN_REGISTER_SCRIPT(
-
 	SetVisibleScript,
-
 	{
-
 		.completion = ScriptCompletion::Instant
-
 	}
 
 );
-
 PTGN_REGISTER_SCRIPT(
-
 	PlaySoundScript,
-
 	{
-
 		.completion = ScriptCompletion::Instant
-
 	}
 
 );
-
 PTGN_REGISTER_SCRIPT(
-
 	AnimationActionScript,
-
 	{
-
 		.completion = ScriptCompletion::Instant
-
 	}
 
 );
-
 PTGN_REGISTER_SCRIPT(
-
 	TimerActionScript,
-
 	{
-
 		.completion = ScriptCompletion::Instant
-
 	}
 
 );
-
 PTGN_REGISTER_SCRIPT(
-
 	DialogueActionScript,
-
 	{
-
 		.completion = ScriptCompletion::Instant
-
 	}
 
 );
-
 PTGN_REGISTER_SCRIPT(
-
 	TooltipActionScript,
-
 	{
-
 		.completion = ScriptCompletion::Instant
-
 	}
 
 );
-
 PTGN_REGISTER_SCRIPT(
-
 	SetTextureScript,
-
 	{
-
 		.completion = ScriptCompletion::Instant
-
 	}
 
 );
-
 PTGN_REGISTER_SCRIPT(
-
 	SetEnabledScript,
-
 	{
-
 		.completion = ScriptCompletion::Instant
-
 	}
 
 );
-
 PTGN_REGISTER_SCRIPT(
-
 	SceneChangeScript,
-
 	{
-
 		.completion = ScriptCompletion::Instant
-
 	}
 
 );
-
 PTGN_REGISTER_SCRIPT(
-
 	EmitSignalScript,
-
 	{
-
 		.completion = ScriptCompletion::Instant
-
 	}
 
 );
-
 PTGN_REGISTER_SCRIPT(
-
 	AddComponentsScript,
-
 	{
-
 		.completion = ScriptCompletion::Instant
-
 	}
 
 );
-
 PTGN_REGISTER_SCRIPT(
-
 	RemoveComponentsScript,
-
 	{
-
 		.completion = ScriptCompletion::Instant
-
 	}
 
 );
-
 PTGN_REGISTER_EVENT(
-
 	event::KeyPressed,
-
 	{
-
 		.default_value =
 			json{
-
 				{ "keys", "W" }
-
 			},
-
 		.matches = &MatchKeyEvent<event::KeyPressed>,
-
 	}
 
 );
-
 PTGN_REGISTER_EVENT(
-
 	event::KeyHeld,
-
 	{
-
 		.default_value =
 			json{
-
 				{ "keys", "W" },
-
 				{ "require_held_duration", true },
-
 				{ "held_duration_ms", 250.0f },
-
 			},
-
 		.matches = &MatchKeyEvent<event::KeyHeld>,
-
 	}
 
 );
-
 PTGN_REGISTER_EVENT(
-
 	event::KeyReleased,
-
 	{
-
 		.default_value =
 			json{
-
 				{ "keys", "W" }
-
 			},
-
 		.matches = &MatchKeyEvent<event::KeyReleased>,
-
 	}
 
 );
-
 PTGN_REGISTER_EVENT(
-
 	event::MousePressed,
-
 	{
-
 		.default_value = MakeEventDefault(
-
 			"button",
-
 			Mouse::Left
-
 		),
-
 		.matches = &MatchMouseEvent<event::MousePressed>,
-
 	}
 
 );
-
 PTGN_REGISTER_EVENT(
-
 	event::MouseHeld,
-
 	{
-
 		.default_value =
 			json{
-
 				{ "button", Mouse::Left },
-
 				{ "require_held_duration", true },
-
 				{ "held_duration_ms", 250.0f },
-
 			},
-
 		.matches = &MatchMouseEvent<event::MouseHeld>,
-
 	}
 
 );
-
 PTGN_REGISTER_EVENT(
-
 	event::MouseReleased,
-
 	{
-
 		.default_value = MakeEventDefault(
-
 			"button",
-
 			Mouse::Left
-
 		),
-
 		.matches = &MatchMouseEvent<event::MouseReleased>,
-
 	}
 
 );
-
 PTGN_REGISTER_EVENT(
-
 	event::MouseMoveOver,
-
 	{
-
 		.available = &HasInteractive,
-
 	}
 
 );
-
 PTGN_REGISTER_EVENT(
-
 	event::MouseMoveOut,
-
 	{
-
 		.available = &HasInteractive,
-
 	}
 
 );
-
 PTGN_REGISTER_EVENT(
-
 	event::MousePressedOver,
-
 	{
-
 		.default_value = MakeEventDefault(
-
 			"button",
-
 			Mouse::Left
-
 		),
-
 		.matches = &MatchMouseEvent<event::MousePressedOver>,
-
 		.available = &HasInteractive,
-
 	}
 
 );
-
 PTGN_REGISTER_EVENT(
-
 	event::MouseHeldOver,
-
 	{
-
 		.default_value =
 			json{
-
 				{ "button", Mouse::Left },
-
 				{ "require_held_duration", true },
-
 				{ "held_duration_ms", 250.0f },
-
 			},
-
 		.matches = &MatchMouseEvent<event::MouseHeldOver>,
-
 		.available = &HasInteractive,
-
 	}
 
 );
-
 PTGN_REGISTER_EVENT(
-
 	event::MouseReleasedOver,
-
 	{
-
 		.default_value = MakeEventDefault(
-
 			"button",
-
 			Mouse::Left
-
 		),
-
 		.matches = &MatchMouseEvent<event::MouseReleasedOver>,
-
 		.available = &HasInteractive,
-
 	}
 
 );
-
 PTGN_REGISTER_EVENT(
-
 	event::ButtonPress,
-
 	{
-
 		.available = &HasButtonData
-
 	}
 
 );
-
 PTGN_REGISTER_EVENT(
-
 	event::ButtonHoverStart,
-
 	{
-
 		.available = &HasButtonData
-
 	}
 
 );
-
 PTGN_REGISTER_EVENT(
-
 	event::ButtonHover,
-
 	{
-
 		.available = &HasButtonData
-
 	}
 
 );
-
 PTGN_REGISTER_EVENT(
-
 	event::ButtonHoverStop,
-
 	{
-
 		.available = &HasButtonData
-
 	}
 
 );
-
 PTGN_REGISTER_EVENT(
-
 	event::DialogueOpened,
-
 	{
-
 		.default_value = MakeEventDefault("dialogue", std::string{}),
-
 		.matches = [](
-
 					   Entity, const json& value, const event::DialogueOpened& event
-
 				   ) { return MatchDialogueKey(value, event.key); },
-
 		.available = &HasDialogueData
-
 	}
 
 );
-
 PTGN_REGISTER_EVENT(
-
 	event::DialogueClosed,
-
 	{
-
 		.default_value = MakeEventDefault("dialogue", std::string{}),
-
 		.matches = [](
-
 					   Entity, const json& value, const event::DialogueClosed& event
-
 				   ) { return MatchDialogueKey(value, event.key); },
-
 		.available = &HasDialogueData
-
 	}
 
 );
-
 PTGN_REGISTER_EVENT(
-
 	event::DialogueChanged,
-
 	{
-
 		.default_value = MakeEventDefault("dialogue", std::string{}),
-
 		.matches = [](
-
 					   Entity, const json& value, const event::DialogueChanged& event
-
 				   ) { return MatchDialogueKey(value, event.current); },
-
 		.available = &HasDialogueData
-
 	}
 
 );
-
 PTGN_REGISTER_EVENT(
-
 	event::DialoguePageChanged,
-
 	{
-
 		.default_value =
 			json{
-
 				{ "dialogue", std::string{} },
-
 				{ "page", -1 },
-
 			},
-
 		.matches = [](
-
 					   Entity, const json& value, const event::DialoguePageChanged& event
-
 				   ) { return MatchDialoguePage(value, event.key, event.page); },
-
 		.available = &HasDialogueData
-
 	}
 
 );
-
 PTGN_REGISTER_EVENT(
-
 	event::DialoguePageCompleted,
-
 	{
-
 		.default_value =
 			json{
-
 				{ "dialogue", std::string{} },
-
 				{ "page", -1 },
-
 			},
-
 		.matches = [](
-
 					   Entity, const json& value, const event::DialoguePageCompleted& event
-
 				   ) { return MatchDialoguePage(value, event.key, event.page); },
-
 		.available = &HasDialogueData
-
 	}
 
 );
-
 PTGN_REGISTER_EVENT(
-
 	event::DialogueFinished,
-
 	{
-
 		.default_value = MakeEventDefault("dialogue", std::string{}),
-
 		.matches = [](
-
 					   Entity, const json& value, const event::DialogueFinished& event
-
 				   ) { return MatchDialogueKey(value, event.key); },
-
 		.available = &HasDialogueData
-
 	}
 
 );
-
 PTGN_REGISTER_EVENT(
-
 	event::ToggleButtonToggle,
-
 	{
-
 		.available = &HasToggleButtonData
-
 	}
 
 );
-
 PTGN_REGISTER_EVENT(
-
 	event::DropdownOpen,
-
 	{
-
 		.available = &HasDropdownData
-
 	}
 
 );
-
 PTGN_REGISTER_EVENT(
-
 	event::DropdownClose,
-
 	{
-
 		.available = &HasDropdownData
-
 	}
 
 );
-
 PTGN_REGISTER_EVENT(
-
 	event::DropdownToggle,
-
 	{
-
 		.available = &HasDropdownData
-
 	}
 
 );
-
 PTGN_REGISTER_EVENT(
-
 	event::DropdownItemPress,
-
 	{
-
 		.available = &HasDropdownData
-
 	}
 
 );
-
 PTGN_REGISTER_EVENT(
-
 	event::DragStart,
-
 	{
-
 		.available = &HasDraggable
-
 	}
 
 );
-
 PTGN_REGISTER_EVENT(
-
 	event::Drag,
-
 	{
-
 		.available = &HasDraggable
-
 	}
 
 );
-
 PTGN_REGISTER_EVENT(
-
 	event::DragStop,
-
 	{
-
 		.available = &HasDraggable
-
 	}
 
 );
-
 PTGN_REGISTER_EVENT(
-
 	event::PickupDraggable,
-
 	{
-
 		.available = &HasDraggable
-
 	}
 
 );
-
 PTGN_REGISTER_EVENT(
-
 	event::DropDraggable,
-
 	{
-
 		.available = &HasDraggable
-
 	}
 
 );
-
 PTGN_REGISTER_EVENT(
-
 	event::DragEnter,
-
 	{
-
 		.available = &HasDraggable
-
 	}
 
 );
-
 PTGN_REGISTER_EVENT(
-
 	event::DragLeave,
-
 	{
-
 		.available = &HasDraggable
-
 	}
 
 );
-
 PTGN_REGISTER_EVENT(
-
 	event::DragOver,
-
 	{
-
 		.available = &HasDraggable
-
 	}
 
 );
-
 PTGN_REGISTER_EVENT(
-
 	event::DragOut,
-
 	{
-
 		.available = &HasDraggable
-
 	}
 
 );
-
 PTGN_REGISTER_EVENT(
-
 	event::PickupFromDropzone,
-
 	{
-
 		.available = &HasDropzone
-
 	}
 
 );
-
 PTGN_REGISTER_EVENT(
-
 	event::DropIntoDropzone,
-
 	{
-
 		.available = &HasDropzone
-
 	}
 
 );
-
 PTGN_REGISTER_EVENT(
-
 	event::EnterDropzone,
-
 	{
-
 		.available = &HasDropzone
-
 	}
 
 );
-
 PTGN_REGISTER_EVENT(
-
 	event::LeaveDropzone,
-
 	{
-
 		.available = &HasDropzone
-
 	}
 
 );
-
 PTGN_REGISTER_EVENT(
-
 	event::MoveOverDropzone,
-
 	{
-
 		.available = &HasDropzone
-
 	}
 
 );
-
 PTGN_REGISTER_EVENT(
-
 	event::MoveOutsideDropzone,
-
 	{
-
 		.available = &HasDropzone
-
 	}
 
 );
-
 PTGN_REGISTER_EVENT(
-
 	event::OverlapStart,
-
 	{
-
 		.available = &HasOverlapCollider
-
 	}
 
 );
-
 PTGN_REGISTER_EVENT(
-
 	event::Overlap,
-
 	{
-
 		.available = &HasOverlapCollider
-
 	}
 
 );
-
 PTGN_REGISTER_EVENT(
-
 	event::OverlapStop,
-
 	{
-
 		.available = &HasOverlapCollider
-
 	}
 
 );
-
 PTGN_REGISTER_EVENT(
-
 	event::Collision,
-
 	{
-
 		.available = &HasCollisionCollider
-
 	}
 
 );
-
 PTGN_REGISTER_EVENT(
-
 	event::AnimationStart,
-
 	{
-
 		.available = &HasAnimationData
-
 	}
 
 );
-
 PTGN_REGISTER_EVENT(
-
 	event::AnimationStop,
-
 	{
-
 		.available = &HasAnimationData
-
 	}
 
 );
-
 PTGN_REGISTER_EVENT(
-
 	event::AnimationPause,
-
 	{
-
 		.available = &HasAnimationData
-
 	}
 
 );
-
 PTGN_REGISTER_EVENT(
-
 	event::AnimationResume,
-
 	{
-
 		.available = &HasAnimationData
-
 	}
 
 );
-
 PTGN_REGISTER_EVENT(
-
 	event::AnimationFrameChange,
-
 	{
-
 		.available = &HasAnimationData
-
 	}
 
 );
-
 PTGN_REGISTER_EVENT(
-
 	event::AnimationUpdate,
-
 	{
-
 		.available = &HasAnimationData
-
 	}
 
 );
-
 PTGN_REGISTER_EVENT(
-
 	event::AnimationFinalFrame,
-
 	{
-
 		.available = &HasAnimationData
-
 	}
 
 );
-
 PTGN_REGISTER_EVENT(
-
 	event::AnimationComplete,
-
 	{
-
 		.available = &HasAnimationData
-
 	}
 
 );
-
 PTGN_REGISTER_EVENT(
-
 	event::AnimationLoopComplete,
-
 	{
-
 		.available = &HasAnimationData
-
 	}
 
 );
-
 PTGN_REGISTER_EVENT(event::SceneEnter);
-
 PTGN_REGISTER_EVENT(event::SceneLeave);
-
 PTGN_REGISTER_EVENT(event::SceneTransitionStart);
-
 PTGN_REGISTER_EVENT(event::SceneTransitionUpdate);
-
 PTGN_REGISTER_EVENT(event::SceneTransitionFinish);
-
 PTGN_REGISTER_EVENT(event::EntityCreated);
-
 PTGN_REGISTER_EVENT(
-
 	event::TimerElapsed,
-
 	{
-
 		.default_value =
 			[] {
 				auto value = MakeEventDefault(
-
 					"timer",
-
 					TimerKey{}
-
 				);
-
 				value["duration"] = nullptr;
 
 				return value;
 			}(),
-
 		.matches =
 			[](
-
 				Entity,
-
 				const json& value,
-
 				const event::TimerElapsed& event
-
 			) {
 				if (event.timer != JsonValueOr<TimerKey>(
-
 									   value,
-
 									   "timer",
-
 									   TimerKey{}
-
 								   )) {
 					return false;
 				}
@@ -2031,16 +1295,13 @@ PTGN_REGISTER_EVENT(
 				}
 
 				const auto duration_it{ value.find("duration") };
-
 				if (duration_it == value.end() || duration_it->is_null()) {
 					return event.completed;
 				}
 
 				millisecondsf duration;
-
 				try {
 					duration_it->get_to(duration);
-
 				} catch (...) {
 					return false;
 				}
@@ -2050,63 +1311,39 @@ PTGN_REGISTER_EVENT(
 				}
 
 				return event.previous_elapsed < duration &&
-
 					   event.elapsed >= duration;
 			},
-
 		.available = &HasTimers,
-
 	}
 
 );
-
 PTGN_REGISTER_EVENT(
-
 	Signal,
-
 	{
-
 		.default_value = MakeEventDefault(
-
 			"signal",
-
 			std::string{}
-
 		),
-
 		.matches =
 			[](
-
 				Entity,
-
 				const json& value,
-
 				const Signal& event
-
 			) {
 				return std::string_view{
-
 					event.key
-
 				} ==
-
 					   JsonValueOr<std::string>(
-
 						   value,
-
 						   "signal",
-
 						   ""
-
 					   );
 			},
-
 	}
 
 );
 
 namespace impl {
-
 void EnsureEngineScriptsRegistered() {
 	// Intentionally empty.
 
@@ -2118,5 +1355,4 @@ void EnsureEngineScriptsRegistered() {
 }
 
 } // namespace impl
-
 } // namespace ptgn
