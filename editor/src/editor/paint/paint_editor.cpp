@@ -581,6 +581,44 @@ void MergeBounds(std::optional<PaintSelectionRect>& target, const PaintSelection
 	return result < 0 ? result + divisor : result;
 }
 
+[[nodiscard]] float BrushCircleCellOffset(int diameter) {
+	return (std::max(1, diameter) % 2) == 0 ? 0.5f : 0.0f;
+}
+
+[[nodiscard]] V2_int ResolveStableBrushCenter(
+	V2_int hovered, int diameter, std::optional<V2_int>& anchor
+) {
+	diameter = std::max(1, diameter);
+	if ((diameter % 2) != 0) {
+		anchor = hovered;
+		return hovered;
+	}
+
+	if (!anchor.has_value()) {
+		anchor = hovered;
+		return hovered;
+	}
+
+	auto resolve_axis = [](int hovered_axis, int anchor_axis) {
+		// Even brushes are centered on the boundary shared by four cells. Keep the brush fixed
+		// while the pointer remains in either center cell on this axis, then shift only after
+		// the pointer leaves that two-cell center band.
+		if (hovered_axis < anchor_axis - 1) {
+			return hovered_axis + 1;
+		}
+		if (hovered_axis > anchor_axis) {
+			return hovered_axis;
+		}
+		return anchor_axis;
+	};
+
+	anchor = V2_int{
+		resolve_axis(hovered.x, anchor->x),
+		resolve_axis(hovered.y, anchor->y),
+	};
+	return *anchor;
+}
+
 [[nodiscard]] V2_int GeneratorCellAtWorld(Entity entity, V2_float world) {
 	PTGN_ASSERT(entity && IsPaintGenerator(entity));
 	const auto& data{ PaintGenerator{ entity }.GetData() };
@@ -696,8 +734,9 @@ void MergeBounds(std::optional<PaintSelectionRect>& target, const PaintSelection
 			continue;
 		}
 		if (data.brush_shape == PaintGeneratorBrushShape::Circle) {
-			const float dx{ static_cast<float>(delta.x) + 0.5f };
-			const float dy{ static_cast<float>(delta.y) + 0.5f };
+			const float offset{ BrushCircleCellOffset(diameter) };
+			const float dx{ static_cast<float>(delta.x) + offset };
+			const float dy{ static_cast<float>(delta.y) + offset };
 			if (std::sqrt(dx * dx + dy * dy) > static_cast<float>(diameter) * 0.5f) {
 				continue;
 			}
@@ -6103,8 +6142,9 @@ void PaintEditor::BakeGenerator(EditorContext& ctx, Scene& scene, Entity entity)
 				for (int y{ low }; y <= high; ++y) {
 					for (int x{ low }; x <= high; ++x) {
 						if (data.brush_shape == PaintGeneratorBrushShape::Circle) {
-							const float dx{ static_cast<float>(x) + 0.5f };
-							const float dy{ static_cast<float>(y) + 0.5f };
+							const float offset{ BrushCircleCellOffset(diameter) };
+							const float dx{ static_cast<float>(x) + offset };
+							const float dy{ static_cast<float>(y) + offset };
 							if (std::sqrt(dx * dx + dy * dy) > radius) {
 								continue;
 							}
@@ -6600,12 +6640,13 @@ std::vector<V2_int> PaintEditor::BrushCells(V2_int center) const {
 	const int low{ -(diameter / 2) };
 	const int high{ low + diameter - 1 };
 	const float radius{ static_cast<float>(diameter) * 0.5f };
+	const float offset{ BrushCircleCellOffset(diameter) };
 
 	for (int y{ low }; y <= high; ++y) {
 		for (int x{ low }; x <= high; ++x) {
 			if (brush_shape_ == PaintBrushShape::Circle) {
-				const float dx{ static_cast<float>(x) + 0.5f };
-				const float dy{ static_cast<float>(y) + 0.5f };
+				const float dx{ static_cast<float>(x) + offset };
+				const float dy{ static_cast<float>(y) + offset };
 				if (std::sqrt(dx * dx + dy * dy) > radius) {
 					continue;
 				}
@@ -6622,11 +6663,12 @@ std::vector<V2_int> PaintEditor::SelectionBrushCells(V2_int center) const {
 	const int low{ -(diameter / 2) };
 	const int high{ low + diameter - 1 };
 	const float radius{ static_cast<float>(diameter) * 0.5f };
+	const float offset{ BrushCircleCellOffset(diameter) };
 	for (int y{ low }; y <= high; ++y) {
 		for (int x{ low }; x <= high; ++x) {
 			if (selection_brush_shape_ == PaintBrushShape::Circle) {
-				const float dx{ static_cast<float>(x) + 0.5f };
-				const float dy{ static_cast<float>(y) + 0.5f };
+				const float dx{ static_cast<float>(x) + offset };
+				const float dy{ static_cast<float>(y) + offset };
 				if (std::sqrt(dx * dx + dy * dy) > radius) {
 					continue;
 				}
@@ -7252,8 +7294,9 @@ void PaintEditor::DrawGenerators(
 					for (int y{ low }; y <= high; ++y) {
 						for (int x{ low }; x <= high; ++x) {
 							if (data.brush_shape == PaintGeneratorBrushShape::Circle) {
-								const float dx{ static_cast<float>(x) + 0.5f },
-									dy{ static_cast<float>(y) + 0.5f };
+								const float offset{ BrushCircleCellOffset(diameter) };
+								const float dx{ static_cast<float>(x) + offset },
+									dy{ static_cast<float>(y) + offset };
 								if (std::sqrt(dx * dx + dy * dy) > radius) {
 									continue;
 								}
@@ -7530,7 +7573,12 @@ void PaintEditor::DrawActiveGeneratorPreview(
 			add_brush_cell(WorldToActiveCell(scene, point));
 		}
 
-		const V2_int current_cell{ WorldToActiveCell(scene, stroke_.current_world) };
+		std::optional<V2_int> anchor{
+			stroke_.has_last_cell ? std::optional<V2_int>{ stroke_.last_cell } : std::nullopt
+		};
+		const V2_int current_cell{ ResolveStableBrushCenter(
+			WorldToActiveCell(scene, stroke_.current_world), brush_diameter_, anchor
+		) };
 		if (!stroke_.generator_points.empty()) {
 			const V2_int previous_cell{ WorldToActiveCell(scene, stroke_.generator_points.back()) };
 			for (V2_int center : LineCells(previous_cell, current_cell)) {
@@ -7899,7 +7947,18 @@ void PaintEditor::DrawToolPreview(
 										: kPreview };
 
 	const V2_float size{ ActiveGridSize(scene) };
-	const V2_int cell{ WorldToActiveCell(scene, mouse_world) };
+	const V2_int hovered_cell{ WorldToActiveCell(scene, mouse_world) };
+	V2_int cell{ hovered_cell };
+	if (tool_ == PaintTool::Select && select_mode_ == PaintSelectMode::Brush) {
+		if (stroke_.has_last_cell) {
+			cell = stroke_.last_cell;
+		}
+	} else if (tool_ == PaintTool::Brush || tool_ == PaintTool::Erase) {
+		std::optional<V2_int> anchor{
+			stroke_.has_last_cell ? std::optional<V2_int>{ stroke_.last_cell } : std::nullopt
+		};
+		cell = ResolveStableBrushCenter(hovered_cell, brush_diameter_, anchor);
+	}
 
 	auto draw_cell = [&](V2_int c) {
 		const V2_float mn{ ActiveCellToWorld(scene, c) };
@@ -7942,14 +8001,27 @@ void PaintEditor::DrawToolPreview(
 }
 
 void PaintEditor::BeginStroke(Scene& scene, V2_float world) {
+	const V2_int hovered_cell{ WorldToActiveCell(scene, world) };
+	std::optional<V2_int> anchor{
+		stroke_.has_last_cell ? std::optional<V2_int>{ stroke_.last_cell } : std::nullopt
+	};
+	const V2_int start_cell{
+		(tool_ == PaintTool::Brush || tool_ == PaintTool::Erase)
+			? ResolveStableBrushCenter(hovered_cell, brush_diameter_, anchor)
+			: hovered_cell
+	};
+	const V2_float anchored_world{
+		ActiveCellToWorld(scene, start_cell) + ActiveGridSize(scene) * 0.5f
+	};
+
 	stroke_				  = {};
 	stroke_.active		  = true;
-	stroke_.start_world	  = world;
-	stroke_.current_world = world;
-	stroke_.last_cell	  = WorldToActiveCell(scene, world);
+	stroke_.start_world	  = tool_ == PaintTool::Brush ? anchored_world : world;
+	stroke_.current_world = tool_ == PaintTool::Brush ? anchored_world : world;
+	stroke_.last_cell	  = start_cell;
 	stroke_.has_last_cell = true;
 	if (tool_ == PaintTool::Brush && recipe_.commit_mode == PaintCommitMode::KeepGenerator) {
-		stroke_.generator_points.push_back(world);
+		stroke_.generator_points.push_back(anchored_world);
 	}
 
 	if (const SceneLayer* layer{ ResolveActiveLayer(scene) };
@@ -8256,7 +8328,14 @@ void PaintEditor::EraseAt(EditorContext&, Scene& scene, V2_float world) {
 	if (!layer || layer->locked) {
 		return;
 	}
-	const V2_int center{ WorldToActiveCell(scene, world) };
+	std::optional<V2_int> anchor{
+		stroke_.has_last_cell ? std::optional<V2_int>{ stroke_.last_cell } : std::nullopt
+	};
+	const V2_int center{
+		ResolveStableBrushCenter(WorldToActiveCell(scene, world), brush_diameter_, anchor)
+	};
+	stroke_.last_cell	  = center;
+	stroke_.has_last_cell = true;
 	const auto cells{ BrushCells(center) };
 
 	std::unordered_set<V2_int> newly_touched;
@@ -8656,7 +8735,15 @@ void PaintEditor::UpdateStroke(EditorContext& ctx, Scene& scene, V2_float world)
 		return;
 	}
 
-	const V2_int current{ WorldToActiveCell(scene, world) };
+	const V2_int hovered_cell{ WorldToActiveCell(scene, world) };
+	std::optional<V2_int> anchor{
+		stroke_.has_last_cell ? std::optional<V2_int>{ stroke_.last_cell } : std::nullopt
+	};
+	const V2_int current{
+		tool_ == PaintTool::Brush
+			? ResolveStableBrushCenter(hovered_cell, brush_diameter_, anchor)
+			: hovered_cell
+	};
 	if (!stroke_.has_last_cell) {
 		stroke_.last_cell	  = current;
 		stroke_.has_last_cell = true;
@@ -9138,7 +9225,13 @@ void PaintEditor::EndStroke(EditorContext& ctx, Scene& scene, V2_float world) {
 										 : PaintGeneratorGeometry::Rectangle
 			);
 		}
+		const V2_int anchor_cell{ stroke_.last_cell };
+		const bool preserve_anchor{ tool_ == PaintTool::Brush };
 		stroke_ = {};
+		if (preserve_anchor) {
+			stroke_.last_cell	  = anchor_cell;
+			stroke_.has_last_cell = true;
+		}
 		return;
 	}
 	if (tool_ == PaintTool::Line) {
@@ -9153,7 +9246,13 @@ void PaintEditor::EndStroke(EditorContext& ctx, Scene& scene, V2_float world) {
 	} else {
 		CommitEntityStroke(ctx, scene);
 	}
+	const V2_int anchor_cell{ stroke_.last_cell };
+	const bool preserve_anchor{ tool_ == PaintTool::Brush || tool_ == PaintTool::Erase };
 	stroke_ = {};
+	if (preserve_anchor) {
+		stroke_.last_cell	  = anchor_cell;
+		stroke_.has_last_cell = true;
+	}
 }
 
 void PaintEditor::CancelStroke(Scene& scene) {
@@ -9181,7 +9280,13 @@ void PaintEditor::CancelStroke(Scene& scene) {
 		static_cast<void>(RestoreEntityTree(scene, deleted.entity, deleted.layer));
 	}
 	scene.Refresh();
+	const V2_int anchor_cell{ stroke_.last_cell };
+	const bool preserve_anchor{ tool_ == PaintTool::Brush || tool_ == PaintTool::Erase };
 	stroke_ = {};
+	if (preserve_anchor) {
+		stroke_.last_cell	  = anchor_cell;
+		stroke_.has_last_cell = true;
+	}
 }
 
 void PaintEditor::SelectClick(
@@ -9567,7 +9672,14 @@ void PaintEditor::SelectBrush(EditorContext& ctx, Scene& scene, V2_float world, 
 		return;
 	}
 
-	const V2_int center{ WorldToActiveCell(scene, world) };
+	std::optional<V2_int> anchor{
+		stroke_.has_last_cell ? std::optional<V2_int>{ stroke_.last_cell } : std::nullopt
+	};
+	const V2_int center{
+		ResolveStableBrushCenter(WorldToActiveCell(scene, world), selection_diameter_, anchor)
+	};
+	stroke_.last_cell	  = center;
+	stroke_.has_last_cell = true;
 	const auto brush_cells{ SelectionBrushCells(center) };
 	const V2_float grid_size{ ActiveGridSize(scene) };
 	auto brush_rect = [&](V2_int cell) {
@@ -10241,6 +10353,21 @@ bool PaintEditor::DrawViewportAndHandleInput(
 	const V2_float mouse_screen{ FromImGui(ImGui::GetIO().MousePos) };
 	const bool inside{ Contains(image_viewport, mouse_screen) };
 	const V2_float mouse_world{ ScreenToWorld(mouse_screen, frame, presentation_viewport) };
+	if (inside && !stroke_.active) {
+		const bool selection_brush{
+			tool_ == PaintTool::Select && select_mode_ == PaintSelectMode::Brush
+		};
+		if (selection_brush || tool_ == PaintTool::Brush || tool_ == PaintTool::Erase) {
+			std::optional<V2_int> anchor{
+				stroke_.has_last_cell ? std::optional<V2_int>{ stroke_.last_cell } : std::nullopt
+			};
+			const int diameter{ selection_brush ? selection_diameter_ : brush_diameter_ };
+			stroke_.last_cell = ResolveStableBrushCenter(
+				WorldToActiveCell(scene, mouse_world), diameter, anchor
+			);
+			stroke_.has_last_cell = true;
+		}
+	}
 	if (stroke_.active && inside) {
 		// Keep the pending generator preview on the current cursor this frame rather than
 		// waiting for the input update below. UpdateStroke will commit the same point later.
