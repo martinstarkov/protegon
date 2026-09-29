@@ -2815,6 +2815,15 @@ std::optional<int> DrawSequenceTabs(
 		}
 	}
 
+	if (remove.has_value() && rename_index.has_value()) {
+		if (*rename_index == *remove) {
+			rename_state.Cancel();
+			rename_index.reset();
+		} else if (*rename_index > *remove) {
+			--*rename_index;
+		}
+	}
+
 	if (rename_state.active && rename_index.has_value()) {
 		const int index{ *rename_index };
 		(void)DrawInspectorTabRenameModal(
@@ -2835,7 +2844,7 @@ std::optional<int> DrawSequenceTabs(
 				script.sequence.name = sequence->name;
 				changed = true;
 			},
-			"Rename Script Sequence"
+			""
 		);
 		if (!rename_state.active) {
 			rename_index.reset();
@@ -2857,7 +2866,14 @@ bool DrawAddRootScriptPopup(ScriptEditorContext& context, ::ptgn::impl::Scripts&
 			editor->options.hidden) {
 			return;
 		}
-		if (ImGui::MenuItem(editor->options.label.c_str())) {
+
+		const bool already_added{
+			std::ranges::any_of(scripts.scripts, [&](const ScriptEntry& entry) {
+				return entry.type_hash == registration.type_hash;
+			})
+		};
+
+		if (ImGui::MenuItem(editor->options.label.c_str(), nullptr, false, !already_added)) {
 			AddEditorScriptEntry(context, scripts, MakeRootEntry(registration.type_hash));
 			changed = true;
 		}
@@ -2909,152 +2925,125 @@ bool DrawAddRootScriptPopup(ScriptEditorContext& context, ::ptgn::impl::Scripts&
 }
 
 
-bool DrawResidentScripts(ScriptEditorContext& context, ::ptgn::impl::Scripts& scripts) {
-	bool changed{ false };
-	int remove{ -1 };
-
-	std::vector<int> display_order;
-	display_order.reserve(scripts.scripts.size());
+std::optional<int> DrawRegisteredScriptTabs(
+	ScriptEditorContext& context, ::ptgn::impl::Scripts& scripts, bool& changed
+) {
+	std::vector<int> script_indices;
+	script_indices.reserve(scripts.scripts.size());
 
 	for (int i{ 0 }; i < static_cast<int>(scripts.scripts.size()); ++i) {
 		if (scripts.scripts[static_cast<std::size_t>(i)].type_hash != Hash<Script>()) {
-			display_order.push_back(i);
+			script_indices.push_back(i);
 		}
 	}
 
-	for (int i{ 0 }; i < static_cast<int>(scripts.scripts.size()); ++i) {
-		if (scripts.scripts[static_cast<std::size_t>(i)].type_hash == Hash<Script>()) {
-			display_order.push_back(i);
-		}
-	}
+	std::optional<int> remove{};
 
-	for (int i : display_order) {
-		auto& script{ scripts.scripts[static_cast<std::size_t>(i)] };
-		const auto* registration{ ScriptRegistry::Find(script.type_hash) };
-		const auto* registered_editor{ ScriptEditorRegistry::Find(script.type_hash) };
-		const auto* editor{
-			registered_editor &&
-					HasScriptType(registered_editor->options.type, ScriptType::Resident)
-				? registered_editor
-				: nullptr
-		};
+	const bool add_requested{ DrawInspectorTabCollection(
+		script_indices.empty(),
+		InspectorTabCollectionOptions{
+			.scope_id = "##RegisteredScriptTabStrip",
+			.tab_bar_id = "##RegisteredScriptTabs",
+			.add_tab_id = "+##AddRegisteredScript",
+			.empty_add_label = "Add Registered Script",
+			.add_tooltip = "Add a registered script",
+		},
+		[&]() {
+			for (const int i : script_indices) {
+				auto& script{ scripts.scripts[static_cast<std::size_t>(i)] };
+				const auto* registration{ ScriptRegistry::Find(script.type_hash) };
+				const auto* registered_editor{ ScriptEditorRegistry::Find(script.type_hash) };
+				const auto* editor{
+					registered_editor &&
+							HasScriptType(registered_editor->options.type, ScriptType::Resident)
+						? registered_editor
+						: nullptr
+				};
 
-		if (script.type_hash == Hash<Script>()) {
-			continue;
-		}
+				ScopedID tab_scope{ i };
 
-		ImGui::PushID(i);
-		bool open{ false };
-		float button_size{ ImGui::GetFrameHeight() };
-
-		if (ImGui::BeginTable(
-				"ScriptRow", 1,
-				ImGuiTableFlags_SizingStretchProp | ImGuiTableFlags_NoSavedSettings
-			)) {
-			ImGui::TableSetupColumn("Script", ImGuiTableColumnFlags_WidthStretch);
-			ImGui::TableNextRow(ImGuiTableRowFlags_None, button_size);
-			ImGui::TableSetColumnIndex(0);
-
-			ImVec2 header_min{ ImGui::GetCursorScreenPos() };
-			ImVec2 header_max{
-				header_min.x + std::max(1.0f, ImGui::GetContentRegionAvail().x),
-				header_min.y + button_size,
-			};
-			ImVec4 header{ script.enabled ? ImVec4{ 0.20f, 0.34f, 0.33f, 1.0f }
-												: ImVec4{ 0.25f, 0.25f, 0.25f, 1.0f } };
-			ImVec4 header_hovered{ script.enabled ? ImVec4{ 0.26f, 0.43f, 0.41f, 1.0f }
-														: ImVec4{ 0.30f, 0.30f, 0.30f, 1.0f } };
-			ImVec4 header_active{ script.enabled ? ImVec4{ 0.31f, 0.49f, 0.47f, 1.0f }
-													   : ImVec4{ 0.34f, 0.34f, 0.34f, 1.0f } };
-			bool header_hovered_before_draw{
-				ImGui::IsWindowHovered() &&
-				ImGui::IsMouseHoveringRect(header_min, header_max)
-			};
-			bool header_active_before_draw{ header_hovered_before_draw &&
-												  ImGui::IsMouseDown(ImGuiMouseButton_Left) };
-			ImVec4 header_color{
-				header_active_before_draw ? header_active
-										  : (header_hovered_before_draw ? header_hovered : header)
-			};
-			ImGui::GetWindowDrawList()->AddRectFilled(
-				header_min, header_max, ImGui::GetColorU32(header_color),
-				ImGui::GetStyle().FrameRounding
-			);
-
-			ImVec4 transparent{};
-			ImGui::PushStyleColor(ImGuiCol_Header, transparent);
-			ImGui::PushStyleColor(ImGuiCol_HeaderHovered, transparent);
-			ImGui::PushStyleColor(ImGuiCol_HeaderActive, transparent);
-
-			bool has_contents{ editor && editor->has_contents };
-			ImGuiTreeNodeFlags flags{ ImGuiTreeNodeFlags_FramePadding |
-									  ImGuiTreeNodeFlags_SpanAvailWidth |
-									  ImGuiTreeNodeFlags_NoTreePushOnOpen };
-
-			if (has_contents) {
-				flags |= ImGuiTreeNodeFlags_DefaultOpen;
-			} else {
-				flags |= ImGuiTreeNodeFlags_Leaf;
-			}
-
-			open = ImGui::TreeNodeEx(
-				"##Script", flags, "%s", editor ? editor->options.label.c_str() : "Missing Script"
-			);
-			ImGui::PopStyleColor(3);
-
-			if (editor) {
-				DrawTooltip(editor->options.description.c_str());
-			}
-
-			if (ImGui::BeginPopupContextItem("ScriptContext")) {
-				if (DrawEnableDisableMenuItem(script.enabled)) {
-					changed = true;
+				std::string tab_label{
+					editor ? editor->options.label
+						   : (registration ? registration->name : std::string{ "Missing Script" })
+				};
+				if (!script.enabled) {
+					tab_label += " (Disabled)";
 				}
 
-				ImGui::Separator();
-
-				if (ImGui::MenuItem("Delete")) {
-					remove = i;
+				const bool selected{ BeginInspectorTabItem(tab_label.c_str()) };
+				if (editor) {
+					DrawTooltip(editor->options.description.c_str());
 				}
 
-				ImGui::EndPopup();
-			}
-
-			ImGui::EndTable();
-		}
-
-		if (open && editor && editor->has_contents && editor->draw) {
-			if (editor->draw(context, script.value)) {
-				changed				   = true;
-				script.runtime_factory = {};
-
-				if (context.owner) {
-					if (!script.instance) {
-						script_runtime::AttachEntry(context.owner, script);
-					} else if (registration && registration->apply) {
-						registration->apply(*script.instance, script.value);
+				if (ImGui::BeginPopupContextItem("##RegisteredScriptTabContext")) {
+					if (DrawEnableDisableMenuItem(script.enabled)) {
+						changed = true;
 					}
+
+					ImGui::Separator();
+
+					if (ImGui::MenuItem("Delete")) {
+						remove = i;
+					}
+
+					ImGui::EndPopup();
+				}
+
+				if (selected) {
+					if (!remove.has_value() && editor && editor->has_contents && editor->draw &&
+						editor->draw(context, script.value)) {
+						changed				   = true;
+						script.runtime_factory = {};
+
+						if (context.owner) {
+							if (!script.instance) {
+								script_runtime::AttachEntry(context.owner, script);
+							} else if (registration && registration->apply) {
+								registration->apply(*script.instance, script.value);
+							}
+						}
+					}
+
+					ImGui::EndTabItem();
 				}
 			}
 		}
+	) };
 
-		ImGui::PopID();
+	if (add_requested) {
+		ImGui::OpenPopup("AddScript");
+	}
+
+	changed |= DrawAddRootScriptPopup(context, scripts);
+
+	return remove;
+}
+
+bool DrawResidentScripts(ScriptEditorContext& context, ::ptgn::impl::Scripts& scripts) {
+	bool changed{ false };
+	std::optional<int> remove{};
+
+	if (const auto registered_remove{ DrawRegisteredScriptTabs(context, scripts, changed) }) {
+		remove = *registered_remove;
 	}
 
 	if (const auto sequence_remove{ DrawSequenceTabs(context, scripts, changed) }) {
 		remove = *sequence_remove;
 	}
 
-	if (remove >= 0) {
-		if (context.owner && IsRuntimeActive(context)) {
-			auto& entry{ scripts.scripts[static_cast<std::size_t>(remove)] };
-			SequenceId id{ entry.instance ? entry.instance->sequence.id : entry.sequence.id };
-			scripts.RemoveDeferred(id);
-		} else {
-			scripts.scripts.erase(scripts.scripts.begin() + remove);
-		}
+	if (remove.has_value()) {
+		const int index{ *remove };
+		if (index >= 0 && index < static_cast<int>(scripts.scripts.size())) {
+			if (context.owner && IsRuntimeActive(context)) {
+				auto& entry{ scripts.scripts[static_cast<std::size_t>(index)] };
+				SequenceId id{ entry.instance ? entry.instance->sequence.id : entry.sequence.id };
+				scripts.RemoveDeferred(id);
+			} else {
+				scripts.scripts.erase(scripts.scripts.begin() + index);
+			}
 
-		changed = true;
+			changed = true;
+		}
 	}
 
 	return changed;
@@ -3074,23 +3063,7 @@ bool DrawScriptsComponent(EditorContext& ctx, ::ptgn::impl::Scripts& scripts) {
 
 	ScriptEditorContext context{ ctx, entity, shared_sequences };
 
-	bool changed{ false };
-
-	ImGui::PushStyleColor(ImGuiCol_Button, ImVec4{ 0.20f, 0.34f, 0.33f, 1.0f });
-	ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4{ 0.26f, 0.43f, 0.41f, 1.0f });
-	ImGui::PushStyleColor(ImGuiCol_ButtonActive, ImVec4{ 0.31f, 0.49f, 0.47f, 1.0f });
-
-	if (ImGui::Button("+ Script", ImVec2{ -FLT_MIN, 0.0f })) {
-		ImGui::OpenPopup("AddScript");
-	}
-
-	ImGui::PopStyleColor(3);
-
-	DrawTooltip("Add a custom script or an editor authored sequence script.");
-
-	changed |= DrawAddRootScriptPopup(context, scripts);
-	changed |= DrawResidentScripts(context, scripts);
-
+	bool changed{ DrawResidentScripts(context, scripts) };
 	return changed;
 }
 
