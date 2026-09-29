@@ -1609,7 +1609,7 @@ void ViewportPanel::DrawViewportToolbar(EditorContext& ctx) {
 	ImGui::BeginDisabled(!can_pause || !paused);
 	ImGui::PushButtonRepeat(true);
 	if (DrawEditorIconButton(
-			"##StepRuntime", EditorIcon::Step,
+			"##StepRuntime", EditorIcon::StepForward,
 			(!can_pause || !paused) ? "Step is available only while paused." : "Step one frame"
 		)) {
 		ctx.editor.RequestStep();

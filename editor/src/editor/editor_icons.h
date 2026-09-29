@@ -10,10 +10,9 @@ enum class EditorIcon : std::uint8_t {
 	Play,
 	Stop,
 	Pause,
-	Step,
-	Camera,
-	Restart,
-	Reset,
+	StepForward,
+	StepBackward,
+	Camera
 };
 
 void DrawEditorIcon(ImDrawList* draw, EditorIcon icon, ImVec2 min, float extent, ImU32 color);

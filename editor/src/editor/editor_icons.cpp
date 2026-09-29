@@ -29,11 +29,18 @@ void DrawEditorIcon(ImDrawList* draw, EditorIcon icon, ImVec2 min, float extent,
 			draw->AddRectFilled(point(9.5f, 2.5f), point(13.0f, 13.5f), color, 0.75f);
 			break;
 
-		case EditorIcon::Step:
+		case EditorIcon::StepForward:
 			draw->AddTriangleFilled(
 				point(2.5f, 2.5f), point(2.5f, 13.5f), point(10.5f, 8.0f), color
 			);
 			draw->AddRectFilled(point(11.5f, 2.5f), point(13.5f, 13.5f), color);
+			break;
+
+		case EditorIcon::StepBackward:
+			draw->AddRectFilled(point(2.5f, 2.5f), point(4.5f, 13.5f), color);
+			draw->AddTriangleFilled(
+				point(13.5f, 2.5f), point(13.5f, 13.5f), point(5.5f, 8.0f), color
+			);
 			break;
 
 		case EditorIcon::Camera:
@@ -50,26 +57,6 @@ void DrawEditorIcon(ImDrawList* draw, EditorIcon icon, ImVec2 min, float extent,
 			);
 			break;
 
-		case EditorIcon::Restart: {
-			const ImVec2 center{ point(8.0f, 8.0f) };
-			const float radius{ 4.5f * scale };
-			const float thickness{ std::max(1.0f, 1.5f * scale) };
-			constexpr float pi{ 3.14159265358979323846f };
-
-			draw->PathArcTo(center, radius, -0.20f * pi, 1.55f * pi, 18);
-			draw->PathStroke(color, 0, thickness);
-			draw->AddTriangleFilled(
-				point(3.3f, 4.0f), point(7.2f, 3.3f), point(5.6f, 7.0f), color
-			);
-			break;
-		}
-
-		case EditorIcon::Reset:
-			draw->AddRectFilled(point(2.5f, 3.0f), point(4.0f, 13.0f), color, 0.5f);
-			draw->AddTriangleFilled(
-				point(5.0f, 8.0f), point(12.5f, 3.0f), point(12.5f, 13.0f), color
-			);
-			break;
 	}
 }
 
