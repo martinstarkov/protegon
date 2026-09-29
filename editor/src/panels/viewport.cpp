@@ -63,6 +63,7 @@ constexpr float kGizmoRotateThicknessPixels{ 8.0f };
 constexpr float kGizmoAxisHitThicknessPixels{ 6.0f };
 constexpr float kScaleDragPixels{ 100.0f };
 constexpr float kMinimumScale{ 0.01f };
+constexpr float kEditorCameraPanSpeedPixelsPerSecond{ 600.0f };
 
 
 enum class ViewportToolbarIcon : std::uint8_t {
@@ -892,20 +893,37 @@ void DrawPositionPickerPreview(
 
 void UpdateEditorCamera(EditorCamera& editor_camera) {
 	const auto& io{ ImGui::GetIO() };
-
-	if (!ImGui::IsWindowHovered()) {
-		return;
-	}
-
 	auto& camera{ editor_camera.camera };
 
 	PTGN_ASSERT(camera.transform.scale.IsPositive());
 
 	auto zoom{ 1.0f / camera.transform.scale };
 
-	if (ImGui::IsMouseDown(ImGuiMouseButton_Middle)) {
-		auto delta{ io.MouseDelta };
-		camera.transform.position = camera.transform.position - FromImGui(delta) / zoom;
+	// ImGui still gets first priority for keyboard input used by active widgets (for example,
+	// moving the caret or selection in an InputText). Only use the arrow keys for camera
+	// movement when ImGui does not currently need the keyboard.
+	if (!io.WantCaptureKeyboard) {
+		V2_float pan_direction{
+			static_cast<float>(ImGui::IsKeyDown(ImGuiKey_RightArrow)) -
+				static_cast<float>(ImGui::IsKeyDown(ImGuiKey_LeftArrow)),
+			static_cast<float>(ImGui::IsKeyDown(ImGuiKey_DownArrow)) -
+				static_cast<float>(ImGui::IsKeyDown(ImGuiKey_UpArrow)),
+		};
+
+		if (Length(pan_direction) > 0.0f) {
+			pan_direction = Normalize(pan_direction);
+
+			V2_float pan_distance{
+				kEditorCameraPanSpeedPixelsPerSecond * io.DeltaTime / zoom
+			};
+			camera.transform.position += pan_direction * pan_distance;
+		}
+	}
+
+	// Mouse-wheel zoom remains local to the viewport, while arrow-key panning is global whenever
+	// the editor camera is active.
+	if (!ImGui::IsWindowHovered()) {
+		return;
 	}
 
 	if (io.MouseWheel != 0.0f) {
@@ -1905,12 +1923,6 @@ void ViewportPanel::OnRender(EditorContext& ctx) {
 	ctx.local.state.viewport.hovered = ImGui::IsWindowHovered();
 
 	renderer.SetPresentationViewport(presentation_viewport);
-
-	if (ImGui::IsWindowHovered()) {
-		if (ImGui::IsMouseDragging(ImGuiMouseButton_Middle)) {
-			// Reserved for editor camera panning.
-		}
-	}
 
 	auto* draw_list{ ImGui::GetWindowDrawList() };
 
