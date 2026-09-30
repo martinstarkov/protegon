@@ -1,5 +1,7 @@
 #include "panels/inspector_archetype_inspector.h"
 
+#include "editor/editor_icons.h"
+
 namespace ptgn::editor::inspector {
 
 namespace {
@@ -27,14 +29,13 @@ TransformSectionState<Target> CaptureTransformSection(const Target& target) {
 	const bool ignore_transform{
 		target.template Capture<::ptgn::impl::IgnoreParentTransform>().has_value()
 	};
-
 	return TransformSectionState<Target>{
-		.transform			= target.template Capture<Transform>().value_or(Transform{}),
-		.depth				= target.template Capture<Depth>().value_or(Depth{}),
+		.transform          = target.template Capture<Transform>().value_or(Transform{}),
+		.depth              = target.template Capture<Depth>().value_or(Depth{}),
 		.button_backgrounds = target.template Capture<ButtonBackgroundVisuals>(),
-		.button_borders		= target.template Capture<ButtonBorderVisuals>(),
-		.button_texts		= target.template Capture<ButtonTextVisuals>(),
-		.button_sprites		= target.template Capture<ButtonSpriteVisuals>(),
+		.button_borders     = target.template Capture<ButtonBorderVisuals>(),
+		.button_texts       = target.template Capture<ButtonTextVisuals>(),
+		.button_sprites     = target.template Capture<ButtonSpriteVisuals>(),
 		.slider_track_background =
 			target.template Capture<::ptgn::impl::SliderTrackBackgroundData>(),
 		.slider_track_border = target.template Capture<::ptgn::impl::SliderTrackBorderData>(),
@@ -45,9 +46,9 @@ TransformSectionState<Target> CaptureTransformSection(const Target& target) {
 		.ignore_rotation =
 			ignore_transform ||
 			target.template Capture<::ptgn::impl::IgnoreParentRotation>().has_value(),
-		.ignore_scale	  = ignore_transform ||
+		.ignore_scale     = ignore_transform ||
 							target.template Capture<::ptgn::impl::IgnoreParentScale>().has_value(),
-		.ignore_depth	  = ignore_transform ||
+		.ignore_depth     = ignore_transform ||
 							target.template Capture<::ptgn::impl::IgnoreParentDepth>().has_value(),
 		.ignore_transform = ignore_transform,
 	};
@@ -77,7 +78,6 @@ auto MakeTransformSectionApply(Target& target) {
 	auto apply_slider_track_sprite{
 		target.template MakeApply<::ptgn::impl::SliderTrackSpriteData>()
 	};
-
 	return [apply_transform, apply_depth, apply_position, apply_rotation, apply_scale,
 			apply_depth_ignore, apply_transform_ignore, apply_backgrounds, apply_borders,
 			apply_texts, apply_sprites, apply_slider_track_background, apply_slider_track_border,
@@ -176,20 +176,16 @@ void ApplyButtonVisualTransformDelta(
 	if (!visuals || !selected_state) {
 		return;
 	}
-
 	const auto index{ static_cast<std::size_t>(std::to_underlying(*selected_state)) };
 	auto& visual{ visuals->states[index] };
-
 	if (!visual.transform) {
 		return;
 	}
-
 	if (before != after) {
 		auto& transform{ *visual.transform };
 		transform.position += after.position - before.position;
 		transform.rotation =
 			Radians{ transform.rotation.value + after.rotation.value - before.rotation.value };
-
 		constexpr float epsilon{ 0.000001f };
 		if (std::abs(before.scale.x) > epsilon) {
 			transform.scale.x *= after.scale.x / before.scale.x;
@@ -199,7 +195,6 @@ void ApplyButtonVisualTransformDelta(
 		}
 		transform.ClampScale();
 	}
-
 	visual.depth = depth.value;
 	visual.inherit_position = !ignore_position;
 	visual.inherit_rotation = !ignore_rotation;
@@ -233,7 +228,6 @@ void ApplySliderTrackVisualTransformDelta(
 	if (!marker) {
 		return;
 	}
-
 	marker->initialized = true;
 	marker->visual.defined = true;
 	if (!marker->visual.transform.has_value()) {
@@ -279,12 +273,10 @@ template <typename Target>
 [[nodiscard]] std::optional<V2_float> GetTargetWorldReferencePosition(const Target& target) {
 	if constexpr (requires { target.entity; }) {
 		Entity entity{ target.entity };
-
 		if (entity && entity.Has<Transform>()) {
 			return GetDrawTransform(entity).position;
 		}
 	}
-
 	return std::nullopt;
 }
 
@@ -294,12 +286,10 @@ template <typename Target>
 ) {
 	if constexpr (requires { target.entity; }) {
 		Entity entity{ target.entity };
-
 		if (entity && entity.Has<Transform>()) {
 			return GetDrawTransform(entity).Apply(local_position);
 		}
 	}
-
 	return std::nullopt;
 }
 
@@ -307,21 +297,16 @@ template <typename Target>
 [[nodiscard]] PositionPicker::Convert MakeTransformPositionConverter(const Target& target) {
 	if constexpr (requires { target.entity; }) {
 		Entity entity{ target.entity };
-
 		return [entity](V2_float world_position) mutable -> std::optional<V2_float> {
 			if (!entity || !entity.Has<Transform>()) {
 				return std::nullopt;
 			}
-
 			const bool ignores_parent_position{ entity.Has<::ptgn::impl::IgnoreParentTransform>() ||
 												entity.Has<::ptgn::impl::IgnoreParentPosition>() };
-
 			Entity parent{ GetParent(entity) };
-
 			if (!parent || ignores_parent_position) {
 				return world_position;
 			}
-
 			return GetDrawTransform(parent).ApplyInverse(world_position);
 		};
 	} else {
@@ -337,14 +322,11 @@ template <typename Target>
 		return false;
 	} else {
 		Entity entity{ target.entity };
-
 		if (!entity) {
 			return false;
 		}
-
 		const bool ignores_parent_position{ entity.Has<::ptgn::impl::IgnoreParentTransform>() ||
 											entity.Has<::ptgn::impl::IgnoreParentPosition>() };
-
 		return !ignores_parent_position && static_cast<bool>(GetParent(entity));
 	}
 }
@@ -356,13 +338,11 @@ bool DrawTransformSectionFields(
 	bool changed{ false };
 	auto& editor_state{ GetInspectorUiState(target.GetInspectorTargetKey()) };
 	const auto selected_button_state{ GetButtonVisualEditState(target) };
-
 	auto draw_ignore = [&](bool& value, const char* tooltip) {
 		const bool local_changed{ ImGui::Checkbox("##IgnoreParent", &value) };
 		DrawTooltip(tooltip);
 		return local_changed;
 	};
-
 	changed |= DrawPropertyRow("Position", [&]() {
 		const float spacing{ ImGui::GetStyle().ItemInnerSpacing.x };
 		const float available{ std::max(1.0f, ImGui::GetContentRegionAvail().x) };
@@ -376,7 +356,6 @@ bool DrawTransformSectionFields(
 		};
 		const float field_width{ InspectorSplitWidth(2, fields_width, spacing) };
 		bool local_changed{ false };
-
 		ImGui::SetNextItemWidth(field_width);
 		local_changed |= ImGui::DragFloat(
 			"##X", &state.transform.position.x, 1.0f, 0.0f, 0.0f, "X: %.0f"
@@ -386,7 +365,6 @@ bool DrawTransformSectionFields(
 		local_changed |= ImGui::DragFloat(
 			"##Y", &state.transform.position.y, 1.0f, 0.0f, 0.0f, "Y: %.0f"
 		);
-
 		if (actions_inline) {
 			ImGui::SameLine(0.0f, spacing);
 		}
@@ -406,7 +384,6 @@ bool DrawTransformSectionFields(
 		local_changed |= draw_ignore(state.ignore_position, "Ignore parent position.");
 		return local_changed;
 	});
-
 	changed |= DrawPropertyRow("Depth", [&]() {
 		const float spacing{ ImGui::GetStyle().ItemInnerSpacing.x };
 		const float available{ std::max(1.0f, ImGui::GetContentRegionAvail().x) };
@@ -425,7 +402,6 @@ bool DrawTransformSectionFields(
 		local_changed |= draw_ignore(state.ignore_depth, "Ignore parent depth.");
 		return local_changed;
 	});
-
 	changed |= DrawPropertyRow("Rotation", [&]() {
 		const float spacing{ ImGui::GetStyle().ItemInnerSpacing.x };
 		const float available{ std::max(1.0f, ImGui::GetContentRegionAvail().x) };
@@ -434,7 +410,6 @@ bool DrawTransformSectionFields(
 		ImGui::SetNextItemWidth(
 			inline_ignore ? std::max(1.0f, available - checkbox_width - spacing) : -FLT_MIN
 		);
-
 		Degrees rotation{ state.transform.rotation };
 		float degrees{ rotation.value };
 		bool local_changed{ false };
@@ -451,7 +426,6 @@ bool DrawTransformSectionFields(
 		local_changed |= draw_ignore(state.ignore_rotation, "Ignore parent rotation.");
 		return local_changed;
 	});
-
 	changed |= DrawPropertyRow("Scale", [&]() {
 		constexpr float kMinScaleMagnitude{ 0.001f };
 		constexpr float kScaleRatioEpsilon{ 0.000001f };
@@ -463,7 +437,6 @@ bool DrawTransformSectionFields(
 			const float sign{ value < 0.0f || (value == 0.0f && previous < 0.0f) ? -1.0f : 1.0f };
 			return sign * kMinScaleMagnitude;
 		} };
-
 		const float spacing{ ImGui::GetStyle().ItemInnerSpacing.x };
 		const float available{ std::max(1.0f, ImGui::GetContentRegionAvail().x) };
 		const float action_width{ ImGui::GetFrameHeight() * 2.0f + spacing };
@@ -472,7 +445,6 @@ bool DrawTransformSectionFields(
 			actions_inline ? std::max(1.0f, available - action_width - spacing) : available
 		};
 		const float field_width{ InspectorSplitWidth(2, fields_width, spacing) };
-
 		ImGui::SetNextItemWidth(field_width);
 		const bool x_changed{ ImGui::DragFloat(
 			"##X", &state.transform.scale.x, 0.01f, -1000.0f, 1000.0f, "X: %.2f",
@@ -484,14 +456,12 @@ bool DrawTransformSectionFields(
 			"##Y", &state.transform.scale.y, 0.01f, -1000.0f, 1000.0f, "Y: %.2f",
 			ImGuiSliderFlags_AlwaysClamp
 		) };
-
 		if (x_changed) {
 			state.transform.scale.x = clamp_scale(state.transform.scale.x, before_scale.x);
 		}
 		if (y_changed) {
 			state.transform.scale.y = clamp_scale(state.transform.scale.y, before_scale.y);
 		}
-
 		if (editor_state.scale_ratio_locked) {
 			if (x_changed && !y_changed) {
 				if (std::abs(before_scale.x) > kScaleRatioEpsilon) {
@@ -509,14 +479,21 @@ bool DrawTransformSectionFields(
 				}
 			}
 		}
-
 		state.transform.scale.x = clamp_scale(state.transform.scale.x, before_scale.x);
 		state.transform.scale.y = clamp_scale(state.transform.scale.y, before_scale.y);
-
 		if (actions_inline) {
 			ImGui::SameLine(0.0f, spacing);
 		}
-		ImGui::Checkbox("##LockRatio", &editor_state.scale_ratio_locked);
+		if (DrawEditorIconButton(
+				"##LockRatio",
+				editor_state.scale_ratio_locked ? EditorIcon::Locked : EditorIcon::Unlocked,
+				EditorIconButtonOptions{
+					.muted = !editor_state.scale_ratio_locked,
+					.icon_extent = ImGui::GetTextLineHeight() + 2.0f,
+				}
+			)) {
+			editor_state.scale_ratio_locked = !editor_state.scale_ratio_locked;
+		}
 		DrawTooltip(
 			"Lock the scale ratio. Editing either axis changes the other by the same proportional "
 			"factor."
@@ -526,17 +503,14 @@ bool DrawTransformSectionFields(
 		local_changed |= draw_ignore(state.ignore_scale, "Ignore parent scale.");
 		return local_changed;
 	});
-
 	return changed;
 }
-
 
 template <typename Target>
 bool DrawTransformSectionImpl(
 	Target& target, bool draw_header = true, bool redirect_button_part = true,
 	bool draw_inline_separator = true
 );
-
 template <typename Target, typename Visuals, typename Visual, typename Callback>
 bool DrawButtonChildStateTransformComponent(
 	Target& target, const ButtonChildInfo& child_info, ButtonVisualState state,
@@ -547,10 +521,8 @@ bool DrawButtonChildStateTransformComponent(
 	} else {
 		(void)child_info;
 		(void)fallback_anchor;
-
 		ScopedID target_scope{ target.Id() };
 		ScopedID component_scope{ static_cast<int>(Hash<Visuals>()) };
-
 		auto before{ target.template Capture<Visuals>() };
 		Visuals visuals{ before.value_or(Visuals{}) };
 		const auto index{ static_cast<std::size_t>(std::to_underlying(state)) };
@@ -559,7 +531,6 @@ bool DrawButtonChildStateTransformComponent(
 			ResolveButtonVisualProperty(visuals.states, state, &Visual::transform)
 				.value_or(Transform{})
 		};
-
 		bool enabled{ visual.transform.has_value() };
 		return DrawOptionalTransformTree(
 			"ButtonVisualStateTransform", enabled,
@@ -583,7 +554,6 @@ bool DrawButtonChildStateTransformComponent(
 					visual.inherit_scale.reset();
 					visual.inherit_depth.reset();
 				}
-
 				// Transform is only an optional property of an enabled part. Toggling it must not
 				// toggle the part itself.
 				visual.defined = true;
@@ -642,7 +612,6 @@ bool DrawButtonChildStateTransformSectionImpl(
 				"Button Sprite", &MarkButtonSpriteDirty
 			);
 	}
-
 	return false;
 }
 
@@ -657,13 +626,10 @@ bool DrawTransformSectionImpl(
 			}
 		}
 	}
-
 	if (!HasTransformSection(target)) {
 		return false;
 	}
-
 	InspectorSectionResult header{ .open = true };
-
 	if (draw_header) {
 		const bool required_by_archetype{
 			ArchetypeRequiresTransform(ResolveInspectorArchetype(target))
@@ -684,19 +650,15 @@ bool DrawTransformSectionImpl(
 	} else if (draw_inline_separator) {
 		ImGui::SeparatorText("Transform");
 	}
-
 	std::optional<ScopedIndent> section_indent;
 	if (draw_header) {
 		section_indent.emplace();
 	}
-
 	const auto before{ CaptureTransformSection(target) };
 	auto state{ before };
 	auto apply{ MakeTransformSectionApply(target) };
 	bool changed{ false };
-
 	changed |= DrawTransformSectionFields(target, state, apply);
-
 	if (changed) {
 		state.ignore_transform = false;
 		state.transform.ClampScale();
@@ -704,23 +666,18 @@ bool DrawTransformSectionImpl(
 		ApplySliderTrackVisualTransformDelta(state, before.transform);
 		SetTransformSectionLive(target, state);
 	}
-
 	if (changed) {
 		ScopedID target_scope{ target.Id() };
 		const ImGuiID key{ ImGui::GetID("##TransformSection") };
-
 		TrackUndoableInteraction(
 			target.ctx, key, "Edit Transform", true, [apply, before]() mutable { apply(before); },
 			[apply, state]() mutable { apply(state); }
 		);
 	}
-
 	return changed;
 }
 
-
 } // namespace
-
 bool DrawTransformSection(
 	EntityInspectorTarget& target, bool draw_header, bool redirect_button_part,
 	bool draw_inline_separator
@@ -738,7 +695,6 @@ bool DrawTransformSection(
 		target, draw_header, redirect_button_part, draw_inline_separator
 	);
 }
-
 
 bool DrawButtonChildStateTransformSection(
 	EntityInspectorTarget& target, const ButtonChildInfo& child_info, ButtonVisualState state

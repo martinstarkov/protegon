@@ -56,6 +56,11 @@ constexpr Color kFixedCameraOutlineColor{ color::Red };
 constexpr GizmoOccurrenceId kDirectOccurrenceId{ 0 };
 constexpr std::size_t kMaximumRenderPathDepth{ 16 };
 
+constexpr float kViewportToolbarSidePadding{ 8.0f };
+constexpr float kViewportPaintToolSpacing{ 8.0f };
+constexpr float kViewportRuntimeControlSpacing{ 8.0f };
+constexpr float kViewportPaintOptionSpacing{ 8.0f };
+
 constexpr V2_float kGizmoAxisLengthPixels{ 70.0f, 70.0f };
 constexpr float kGizmoHandleRadiusPixels{ 8.0f };
 constexpr V2_float kGizmoCenterHalfSizePixels{ 7.0f, 7.0f };
@@ -1556,7 +1561,14 @@ void ViewportPanel::DrawSceneCameraOutlines(
 
 void ViewportPanel::DrawViewportToolbar(EditorContext& ctx) {
 	auto& paint{ ctx.editor.GetPaintEditor() };
+	const float default_item_spacing_y{ ImGui::GetStyle().ItemSpacing.y };
+
+	ImGui::PushStyleVar(
+		ImGuiStyleVar_ItemSpacing,
+		ImVec2{ kViewportPaintToolSpacing, default_item_spacing_y }
+	);
 	paint.DrawViewportToolButtons(ctx);
+	ImGui::PopStyleVar();
 
 	const bool paused{ ctx.editor.IsPaused() };
 	const bool can_play{ ctx.editor.CanPlay() };
@@ -1564,20 +1576,26 @@ void ViewportPanel::DrawViewportToolbar(EditorContext& ctx) {
 	const bool can_pause{ ctx.editor.CanPause() };
 	const bool direct_runtime{ ctx.editor.IsDirectRuntime() };
 
-	const auto& style{ ImGui::GetStyle() };
 	const float icon_side{ ImGui::GetFrameHeight() };
 	const float speed_width{ 66.0f };
 	const char* camera_label{ use_editor_camera_ ? "Editor" : "Scene" };
 	const float camera_width{ ViewportCameraButtonWidth() };
 
 	const float runtime_width{ icon_side * 3.0f + speed_width + camera_width +
-							   style.ItemSpacing.x * 4.0f };
-	const float right_x{ ImGui::GetWindowContentRegionMax().x - runtime_width };
+							   kViewportRuntimeControlSpacing * 4.0f };
+	const float right_x{
+		ImGui::GetWindowContentRegionMax().x - kViewportToolbarSidePadding - runtime_width
+	};
 
-	ImGui::SameLine();
+	ImGui::SameLine(0.0f, kViewportRuntimeControlSpacing);
 	if (right_x > ImGui::GetCursorPosX()) {
 		ImGui::SetCursorPosX(right_x);
 	}
+
+	ImGui::PushStyleVar(
+		ImGuiStyleVar_ItemSpacing,
+		ImVec2{ kViewportRuntimeControlSpacing, default_item_spacing_y }
+	);
 
 	if (can_stop) {
 		if (DrawEditorIconButton("##StopRuntime", EditorIcon::Stop, "Stop")) {
@@ -1595,7 +1613,7 @@ void ViewportPanel::DrawViewportToolbar(EditorContext& ctx) {
 		ImGui::EndDisabled();
 	}
 
-	ImGui::SameLine();
+	ImGui::SameLine(0.0f, kViewportRuntimeControlSpacing);
 	ImGui::BeginDisabled(!can_pause);
 	if (DrawEditorIconButton(
 			"##PauseRuntime", paused ? EditorIcon::Play : EditorIcon::Pause,
@@ -1605,7 +1623,7 @@ void ViewportPanel::DrawViewportToolbar(EditorContext& ctx) {
 	}
 	ImGui::EndDisabled();
 
-	ImGui::SameLine();
+	ImGui::SameLine(0.0f, kViewportRuntimeControlSpacing);
 	ImGui::BeginDisabled(!can_pause || !paused);
 	ImGui::PushButtonRepeat(true);
 	if (DrawEditorIconButton(
@@ -1617,10 +1635,10 @@ void ViewportPanel::DrawViewportToolbar(EditorContext& ctx) {
 	ImGui::PopButtonRepeat();
 	ImGui::EndDisabled();
 
-	ImGui::SameLine();
+	ImGui::SameLine(0.0f, kViewportRuntimeControlSpacing);
 	DrawRuntimeSpeedControl(ctx, speed_width);
 
-	ImGui::SameLine();
+	ImGui::SameLine(0.0f, kViewportRuntimeControlSpacing);
 	if (DrawViewportCameraButton(
 			"##ViewportCameraMode", camera_label,
 			use_editor_camera_ ? "Using the editor camera. Click to use scene cameras."
@@ -1629,14 +1647,29 @@ void ViewportPanel::DrawViewportToolbar(EditorContext& ctx) {
 		SetUseEditorCamera(!use_editor_camera_);
 	}
 
+	ImGui::PopStyleVar();
+
 	const float first_row_bottom{ ImGui::GetItemRectMax().y };
 	const ImVec2 options_start{
-		ImGui::GetWindowPos().x + ImGui::GetWindowContentRegionMin().x,
-		first_row_bottom + style.ItemSpacing.y,
+		ImGui::GetWindowPos().x + ImGui::GetWindowContentRegionMin().x +
+			kViewportToolbarSidePadding,
+		first_row_bottom + kViewportToolbarSidePadding,
 	};
 
 	ImGui::SetCursorScreenPos(options_start);
-	if (!paint.DrawViewportOptionsToolbar(ctx)) {
+	ImGui::PushStyleVar(
+		ImGuiStyleVar_ItemSpacing,
+		ImVec2{ kViewportPaintOptionSpacing, default_item_spacing_y }
+	);
+	const bool drew_options{ paint.DrawViewportOptionsToolbar(ctx) };
+	ImGui::PopStyleVar();
+
+	if (drew_options) {
+		ImGui::SetCursorScreenPos({
+			options_start.x,
+			options_start.y + ImGui::GetFrameHeight(),
+		});
+	} else {
 		ImGui::SetCursorScreenPos({
 			options_start.x,
 			first_row_bottom,
@@ -1668,9 +1701,12 @@ void ViewportPanel::OnRender(EditorContext& ctx) {
 		viewport_window->DockNode->LocalFlags |= ImGuiDockNodeFlags_HiddenTabBar;
 	}
 
-	ImGui::Indent(8.0f);
+	ImGui::SetCursorPosY(ImGui::GetCursorPosY() + kViewportToolbarSidePadding);
+
+	ImGui::Indent(kViewportToolbarSidePadding);
 	DrawViewportToolbar(ctx);
-	ImGui::Unindent(8.0f);
+	ImGui::Unindent(kViewportToolbarSidePadding);
+	ImGui::SetCursorPosY(ImGui::GetCursorPosY() + kViewportToolbarSidePadding);
 
 	ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2{ 0.0f, 0.0f });
 	ImGui::Separator();

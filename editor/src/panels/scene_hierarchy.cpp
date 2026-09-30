@@ -26,6 +26,7 @@
 #include "core/util/file.h"
 #include "editor/editor.h"
 #include "editor/editor_context.h"
+#include "editor/editor_icons.h"
 #include "editor/paint/paint_editor.h"
 #include "editor/renamable_item.h"
 #include "panels/scene_list.h"
@@ -1252,91 +1253,6 @@ void PushSceneLayerEdit(
 	);
 }
 
-enum class LayerRowIcon {
-	Entity,
-	Tile,
-	Visible,
-	Hidden,
-	Locked,
-	Unlocked,
-};
-
-bool DrawLayerRowIcon(const char* id, LayerRowIcon icon, bool interactive = true) {
-	// Keep layer rows compact: icons and tree-node frames intentionally use the
-	// same text-height-based square instead of the taller normal frame height.
-	const float side{ ImGui::GetTextLineHeight() + 2.0f };
-	const float scale{ side / 18.0f };
-	const ImVec2 size{ side, side };
-	const ImVec2 p0{ ImGui::GetCursorScreenPos() };
-	if (interactive) ImGui::InvisibleButton(id, size);
-	else ImGui::Dummy(size);
-
-	const bool clicked{ interactive && ImGui::IsItemClicked(ImGuiMouseButton_Left) };
-	const bool hovered{ interactive && ImGui::IsItemHovered() };
-	auto* draw{ ImGui::GetWindowDrawList() };
-	if (hovered) {
-		draw->AddRectFilled(
-			p0,
-			ImVec2{ p0.x + side, p0.y + side },
-			ImGui::GetColorU32(ImGuiCol_HeaderHovered),
-			3.0f
-		);
-	}
-
-	const bool enabled_icon{ icon == LayerRowIcon::Visible || icon == LayerRowIcon::Locked };
-	const ImU32 color{ ImGui::GetColorU32(enabled_icon ? ImGuiCol_Text : ImGuiCol_TextDisabled) };
-	auto pt = [&](float x, float y) {
-		return ImVec2{ p0.x + x * scale, p0.y + y * scale };
-	};
-
-	switch (icon) {
-		case LayerRowIcon::Entity:
-			draw->AddQuad(pt(9.0f, 2.0f), pt(15.0f, 6.0f), pt(9.0f, 10.0f), pt(3.0f, 6.0f), color, 1.5f * scale);
-			draw->AddLine(pt(3.0f, 6.0f), pt(3.0f, 12.0f), color, 1.5f * scale);
-			draw->AddLine(pt(15.0f, 6.0f), pt(15.0f, 12.0f), color, 1.5f * scale);
-			draw->AddLine(pt(3.0f, 12.0f), pt(9.0f, 16.0f), color, 1.5f * scale);
-			draw->AddLine(pt(15.0f, 12.0f), pt(9.0f, 16.0f), color, 1.5f * scale);
-			draw->AddLine(pt(9.0f, 10.0f), pt(9.0f, 16.0f), color, 1.5f * scale);
-			break;
-		case LayerRowIcon::Tile:
-			for (int y{}; y < 2; ++y) {
-				for (int x{}; x < 2; ++x) {
-					draw->AddRect(
-						pt(3.0f + static_cast<float>(x) * 6.0f, 3.0f + static_cast<float>(y) * 6.0f),
-						pt(8.0f + static_cast<float>(x) * 6.0f, 8.0f + static_cast<float>(y) * 6.0f),
-						color
-					);
-				}
-			}
-			break;
-		case LayerRowIcon::Visible:
-		case LayerRowIcon::Hidden: {
-			draw->AddLine(pt(2.0f, 9.0f), pt(6.0f, 5.0f), color, 1.5f * scale);
-			draw->AddLine(pt(6.0f, 5.0f), pt(12.0f, 5.0f), color, 1.5f * scale);
-			draw->AddLine(pt(12.0f, 5.0f), pt(16.0f, 9.0f), color, 1.5f * scale);
-			draw->AddLine(pt(16.0f, 9.0f), pt(12.0f, 13.0f), color, 1.5f * scale);
-			draw->AddLine(pt(12.0f, 13.0f), pt(6.0f, 13.0f), color, 1.5f * scale);
-			draw->AddLine(pt(6.0f, 13.0f), pt(2.0f, 9.0f), color, 1.5f * scale);
-			if (icon == LayerRowIcon::Visible) draw->AddCircleFilled(pt(9.0f, 9.0f), 2.3f * scale, color, 8);
-			else draw->AddLine(pt(3.0f, 15.0f), pt(15.0f, 3.0f), color, 1.5f * scale);
-			break;
-		}
-		case LayerRowIcon::Locked:
-		case LayerRowIcon::Unlocked:
-			draw->AddRect(pt(5.0f, 8.0f), pt(14.0f, 15.0f), color, 1.0f * scale, 0, 1.5f * scale);
-			if (icon == LayerRowIcon::Locked) {
-				draw->AddLine(pt(7.0f, 8.0f), pt(7.0f, 5.0f), color, 1.5f * scale);
-				draw->AddLine(pt(7.0f, 5.0f), pt(12.0f, 5.0f), color, 1.5f * scale);
-				draw->AddLine(pt(12.0f, 5.0f), pt(12.0f, 8.0f), color, 1.5f * scale);
-			} else {
-				draw->AddLine(pt(7.0f, 8.0f), pt(7.0f, 5.0f), color, 1.5f * scale);
-				draw->AddLine(pt(7.0f, 5.0f), pt(11.0f, 4.0f), color, 1.5f * scale);
-			}
-			break;
-	}
-	return clicked;
-}
-
 void DrawSceneHierarchyContents(
 	EditorContext& ctx, Scene& scene, const std::optional<path>& project_root,
 	Entity& selected_entity, std::optional<PrefabKey>& selected_prefab,
@@ -1676,16 +1592,31 @@ void DrawSceneHierarchyContents(
 		if (!layer) continue;
 
 		ImGui::PushID(static_cast<int>(layer->id.value));
-		DrawLayerRowIcon("##LayerType", layer->kind == SceneLayerKind::Entity ? LayerRowIcon::Entity : LayerRowIcon::Tile, false);
-		if (ImGui::IsItemHovered()) ImGui::SetTooltip("%s layer", layer->kind == SceneLayerKind::Entity ? "Entity" : "Tile");
+		DrawEditorIconButton(
+			"##LayerType",
+			layer->kind == SceneLayerKind::Entity ? EditorIcon::Entity : EditorIcon::Tile,
+			EditorIconButtonOptions{
+				.tooltip = layer->kind == SceneLayerKind::Entity ? "Entity layer" : "Tile layer",
+				.compact = true,
+				.interactive = false,
+				.muted = true,
+			}
+		);
 		ImGui::SameLine(0.0f, 2.0f);
 
-		if (DrawLayerRowIcon("##LayerVisible", layer->visible ? LayerRowIcon::Visible : LayerRowIcon::Hidden)) {
+		if (DrawEditorIconButton(
+				"##LayerVisible", layer->visible ? EditorIcon::Visible : EditorIcon::Hidden,
+				EditorIconButtonOptions{
+					.tooltip = layer->visible ? "Hide layer" : "Show layer",
+					.compact = true,
+					.muted = !layer->visible,
+				}
+			)) {
 			const SerializedSceneLayers before{ scene_layers.Serialize(scene) };
 			scene_layers.SetVisible(layer->id, !layer->visible);
 			PushSceneLayerEdit(ctx, scene, layer->visible ? "Show Layer" : "Hide Layer", before);
 		}
-		if (ImGui::IsItemHovered()) ImGui::SetTooltip(layer->visible ? "Hide layer" : "Show layer");
+
 		ImGui::SameLine(0.0f, 4.0f);
 
 		const bool editing_layer{ renaming_layer == layer->id };

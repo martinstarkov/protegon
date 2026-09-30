@@ -1,4 +1,6 @@
 #include "panels/inspector_archetype_inspector.h"
+
+#include "editor/editor_icons.h"
 #include "panels/inspector_geometry.h"
 #include "panels/rich_text_editor.h"
 
@@ -2538,7 +2540,18 @@ bool DrawRenderingOptions(Target& target, bool draw_tint) {
 	auto before_visible{ target.template Capture<Visible>() };
 	bool visible{ before_visible ? before_visible->visible : true };
 	const bool visible_changed{ DrawPropertyRow("Visible", [&]() {
-		return ImGui::Checkbox("##RendererVisible", &visible);
+		if (DrawEditorIconButton(
+				"##RendererVisible", visible ? EditorIcon::Visible : EditorIcon::Hidden,
+				EditorIconButtonOptions{
+					.tooltip = visible ? "Hide rendering" : "Show rendering",
+					.muted = !visible,
+					.icon_extent = ImGui::GetTextLineHeight() + 2.0f,
+				}
+			)) {
+			visible = !visible;
+			return true;
+		}
+		return false;
 	}) };
 	if (visible_changed) {
 		Visible updated{ before_visible.value_or(Visible{}) };
