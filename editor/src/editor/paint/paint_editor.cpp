@@ -1168,8 +1168,26 @@ struct TiledTilesetInfo {
 	};
 }
 
-constexpr float kRecipeLabelWidth{ 116.0f };
+constexpr float kRecipeMinimumLabelWidth{ 116.0f };
 constexpr float kRecipeControlWidth{ 190.0f };
+
+[[nodiscard]] float RecipeLabelWidth() {
+	static constexpr std::array labels{
+		"Center Density",
+		"Minimum Spacing",
+		"Preview Opacity",
+		"Random Rotation",
+	};
+
+	float width{ kRecipeMinimumLabelWidth };
+	for (const char* label : labels) {
+		width = std::max(
+			width,
+			ImGui::CalcTextSize(label).x + ImGui::GetStyle().ItemSpacing.x
+		);
+	}
+	return std::ceil(width);
+}
 
 void BeginRecipeField(const char* label, float control_width = kRecipeControlWidth) {
 	const float start_x{ ImGui::GetCursorPosX() };
@@ -1178,7 +1196,7 @@ void BeginRecipeField(const char* label, float control_width = kRecipeControlWid
 	ImGui::TextUnformatted(label);
 	ImGui::SameLine();
 
-	ImGui::SetCursorPosX(std::max(ImGui::GetCursorPosX(), start_x + kRecipeLabelWidth));
+	ImGui::SetCursorPosX(std::max(ImGui::GetCursorPosX(), start_x + RecipeLabelWidth()));
 	ImGui::SetNextItemWidth(
 		std::min(control_width, std::max(1.0f, ImGui::GetContentRegionAvail().x))
 	);
@@ -1201,7 +1219,7 @@ void BeginRecipeFillRow(const char* label) {
 	ImGui::AlignTextToFramePadding();
 	ImGui::TextUnformatted(label);
 	ImGui::SameLine();
-	ImGui::SetCursorPosX(std::max(ImGui::GetCursorPosX(), start_x + kRecipeLabelWidth));
+	ImGui::SetCursorPosX(std::max(ImGui::GetCursorPosX(), start_x + RecipeLabelWidth()));
 }
 
 void BeginRecipeFillField(const char* label, float right_inset = 0.0f) {
@@ -2024,9 +2042,42 @@ void PaintEditor::DrawBrushSettingsToolbar(EditorContext& ctx, Scene& scene, Sce
 		ImGui::SetNextItemWidth(source_combo_width);
 
 		const bool noise_source{ recipe_.source_kind == PaintSourceKind::Noise };
+		const bool weighted_source{ recipe_.source_kind == PaintSourceKind::WeightedSet };
+
+		float source_popup_min_width{ noise_source ? 720.0f : 420.0f };
+		float source_popup_max_width{ noise_source ? 900.0f : 620.0f };
+
+		if (weighted_source) {
+			const std::string& selected_name{
+				tile_layer ? recipe_.weighted_tile_set_name : recipe_.weighted_prefab_set_name
+			};
+			const char* preview{ selected_name.empty() ? "<none>" : selected_name.c_str() };
+			const float combo_width{
+				ImGui::CalcTextSize(preview).x + ImGui::GetStyle().FramePadding.x * 2.0f +
+				ImGui::GetFrameHeight()
+			};
+			const float add_width{
+				ImGui::CalcTextSize("Add Weighted Set").x + ImGui::GetStyle().FramePadding.x * 2.0f
+			};
+			const float delete_width{
+				ImGui::CalcTextSize("Delete Set").x + ImGui::GetStyle().FramePadding.x * 2.0f
+			};
+			const float row_spacing{ ImGui::GetStyle().ItemSpacing.x * 2.0f };
+			const float popup_padding{
+				ImGui::GetStyle().WindowPadding.x * 2.0f + ComboPopupSideInset() * 2.0f
+			};
+
+			source_popup_min_width = std::max(
+				560.0f,
+				popup_padding + RecipeLabelWidth() + combo_width + add_width + delete_width +
+					row_spacing
+			);
+			source_popup_max_width = std::max(720.0f, source_popup_min_width);
+		}
+
 		ImGui::SetNextWindowSizeConstraints(
-			ImVec2{ noise_source ? 720.0f : 420.0f, 0.0f },
-			ImVec2{ noise_source ? 900.0f : 620.0f, 680.0f }
+			ImVec2{ source_popup_min_width, 0.0f },
+			ImVec2{ source_popup_max_width, 680.0f }
 		);
 
 		const bool source_open{
@@ -2879,9 +2930,22 @@ void PaintEditor::DrawNoiseRecipe(EditorContext& ctx, Scene&, SceneLayer& layer)
 			}
 
 			ImGui::TableSetColumnIndex(5);
-			if (recipe_.noise.thresholds.size() > 1 &&
-				ImGui::Button("x", ImVec2{ row_height, row_height })) {
-				remove_region = i;
+			if (recipe_.noise.thresholds.size() > 1) {
+				const ImVec2 button_size{ row_height, row_height };
+				if (ImGui::Button("##RemoveNoiseRange", button_size)) {
+					remove_region = i;
+				}
+
+				const ImVec2 button_min{ ImGui::GetItemRectMin() };
+				const ImVec2 button_max{ ImGui::GetItemRectMax() };
+				const ImVec2 text_size{ ImGui::CalcTextSize("X") };
+				const ImVec2 text_position{
+					button_min.x + (button_max.x - button_min.x - text_size.x) * 0.5f,
+					button_min.y + (button_max.y - button_min.y - text_size.y) * 0.5f,
+				};
+				ImGui::GetWindowDrawList()->AddText(
+					text_position, ImGui::GetColorU32(ImGuiCol_Text), "X"
+				);
 			}
 
 			ImGui::PopID();
@@ -2901,7 +2965,6 @@ void PaintEditor::DrawNoiseRecipe(EditorContext& ctx, Scene&, SceneLayer& layer)
 		recipe_.noise.thresholds.erase(recipe_.noise.thresholds.begin() + boundary + 1);
 	}
 
-	ImGui::TextDisabled("Gradient ranges output None, Single, or a reusable Weighted Set.");
 	ImGui::PopID();
 }
 
@@ -3691,15 +3754,18 @@ void PaintEditor::DrawWeightedTileSetEditor(EditorContext& ctx) {
 		ImGui::CalcTextSize("Delete Set").x + ImGui::GetStyle().FramePadding.x * 2.0f
 	};
 	const float row_spacing{ ImGui::GetStyle().ItemSpacing.x };
+	const char* preview{ active ? active->name.c_str() : "<none>" };
+	const float minimum_combo_width{
+		ImGui::CalcTextSize(preview).x + ImGui::GetStyle().FramePadding.x * 2.0f +
+		ImGui::GetFrameHeight()
+	};
 	ImGui::SetNextItemWidth(
 		std::max(
-			1.0f,
+			minimum_combo_width,
 			AvailableContentWidth(source_popup_inset) - add_width - delete_width - row_spacing * 2.0f
 		)
 	);
-	if (ImGui::BeginCombo(
-			"##PaintRecipeWeightedTileSet", active ? active->name.c_str() : "<none>"
-		)) {
+	if (ImGui::BeginCombo("##PaintRecipeWeightedTileSet", preview)) {
 		for (const auto& set : weighted_tile_sets_) {
 			if (ImGui::Selectable(set.name.c_str(), active && set.name == active->name)) {
 				recipe_.weighted_tile_set_name = set.name;
@@ -3884,15 +3950,18 @@ void PaintEditor::DrawWeightedPrefabSetEditor(EditorContext& ctx) {
 		ImGui::CalcTextSize("Delete Set").x + ImGui::GetStyle().FramePadding.x * 2.0f
 	};
 	const float row_spacing{ ImGui::GetStyle().ItemSpacing.x };
+	const char* preview{ active ? active->name.c_str() : "<none>" };
+	const float minimum_combo_width{
+		ImGui::CalcTextSize(preview).x + ImGui::GetStyle().FramePadding.x * 2.0f +
+		ImGui::GetFrameHeight()
+	};
 	ImGui::SetNextItemWidth(
 		std::max(
-			1.0f,
+			minimum_combo_width,
 			AvailableContentWidth(source_popup_inset) - add_width - delete_width - row_spacing * 2.0f
 		)
 	);
-	if (ImGui::BeginCombo(
-			"##PaintRecipeWeightedPrefabSet", active ? active->name.c_str() : "<none>"
-		)) {
+	if (ImGui::BeginCombo("##PaintRecipeWeightedPrefabSet", preview)) {
 		for (const auto& set : weighted_prefab_sets_) {
 			if (ImGui::Selectable(set.name.c_str(), active && set.name == active->name)) {
 				recipe_.weighted_prefab_set_name = set.name;
@@ -3923,7 +3992,6 @@ void PaintEditor::DrawWeightedPrefabSetEditor(EditorContext& ctx) {
 	ImGui::EndDisabled();
 
 	if (!active) {
-		ImGui::TextDisabled("No weighted prefab set selected.");
 		return;
 	}
 
