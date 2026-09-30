@@ -3,6 +3,7 @@
 #include <optional>
 #include <string>
 
+#include "editor/renamable_item.h"
 #include "runtime/ecs/uuid.h"
 #include "serialization/json/json.h"
 
@@ -16,8 +17,6 @@ class EditorContext;
 
 struct SceneEditorState {
 	std::string scene_type{};
-	std::string type_display_name{};
-	std::string scene_key{};
 	json parameters = json::object();
 };
 
@@ -51,14 +50,14 @@ private:
 	};
 
 	void DrawSceneDetails(EditorContext& ctx);
+	void DrawSceneKeyRenameModal(EditorContext& ctx);
 	void RebuildSceneEditorState(Scene* scene);
 
 	EditorContext* context_{ nullptr };
 	std::optional<SceneEditorState> state_;
 	std::optional<PendingSceneSelection> pending_scene_selection_;
-	std::optional<std::string> editing_display_name_scene_key_;
-	std::string display_name_edit_buffer_;
-	std::string key_error_;
+	RenameModalState scene_key_rename_;
+	std::optional<std::string> renaming_scene_key_;
 };
 
 } // namespace editor
