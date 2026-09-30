@@ -295,7 +295,7 @@ private:
 	float speed_{ 0.0f };
 };
 
-PTGN_REGISTER_SCENE(SpriteStackDrivingScene, "Sprite Stack Driving Scene");
+PTGN_REGISTER_SCENE(SpriteStackDrivingScene);
 
 int main(int, char**) {
 	Application app{

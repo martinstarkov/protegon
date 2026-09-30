@@ -17,7 +17,7 @@ class SpriteScene : public Scene {
 	}
 };
 
-PTGN_REGISTER_SCENE(SpriteScene, "Sprite Scene");
+PTGN_REGISTER_SCENE(SpriteScene);
 
 int main(int, char**) {
 	Application app{ "SpriteScene" };

@@ -218,7 +218,7 @@ public:
 	}
 };
 
-PTGN_REGISTER_SCENE(AnimationScriptScene, "Animation Script Scene");
+PTGN_REGISTER_SCENE(AnimationScriptScene);
 
 int main(int, char**) {
 	Application app{ "Animation Built-in Script Sequence Test" };

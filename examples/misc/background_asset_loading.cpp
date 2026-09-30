@@ -155,7 +155,7 @@ private:
 	bool font_switched_{ false };
 };
 
-PTGN_REGISTER_SCENE(BackgroundAssetLoadingScene, "Background Asset Loading Scene");
+PTGN_REGISTER_SCENE(BackgroundAssetLoadingScene);
 
 int main(int, char**) {
 	Application app{ "Background Asset Loading Demo", { 960, 720 } };

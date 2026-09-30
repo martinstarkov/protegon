@@ -22,6 +22,7 @@
 #include "runtime/world/tilemap.h"
 
 using namespace ptgn;
+
 namespace {
 
 constexpr std::string_view kTerrainTilesetTexture{ "terrain_tileset" };
@@ -56,54 +57,45 @@ struct DemoPrefabKeys {
 
 DemoPrefabKeys EnsureDemoPrefabs(Scene& scene) {
 	return {
-		.human = scene.EnsurePrefabAsset(kHumanPrefabName, [](Scene& authoring_scene) -> Entity {
-			Animation human{
-				CreateAnimation(
-					authoring_scene,
-					{},
-					TextureKey{ std::string{ kHumanTexture } },
+		.human = scene.EnsurePrefabAsset(
+			kHumanPrefabName,
+			[](Scene& authoring_scene) -> Entity {
+				Animation human{ CreateAnimation(
+					authoring_scene, {}, TextureKey{ std::string{ kHumanTexture } },
 					AnimationConfig{
 						.frame_count = 4,
-						.duration = 500ms,
-						.frame_size = V2_int{ 16, 32 },
-						.play_count = std::nullopt,
+						.duration	 = 500ms,
+						.frame_size	 = V2_int{ 16, 32 },
+						.play_count	 = std::nullopt,
 						.start_pixel = V2_int{ 0, 32 },
 					},
 					Origin::Center
-				)
-			};
-			human.Add<Tag>(std::string{ kHumanPrefabName });
-			SetScale(human, 2.0f);
-			return human;
-		}),
-		.smile = scene.EnsurePrefabAsset(kSmilePrefabName, [](Scene& authoring_scene) -> Entity {
-			Sprite smile{
-				CreateSprite(
-					authoring_scene,
-					{},
-					TextureKey{ std::string{ kSmileTexture } },
-					Origin::Center
-				)
-			};
-			smile.Add<Tag>(std::string{ kSmilePrefabName });
-			return smile;
-		}),
+				) };
+				human.Add<Tag>(std::string{ kHumanPrefabName });
+				SetScale(human, 2.0f);
+				return human;
+			}
+		),
+		.smile = scene.EnsurePrefabAsset(
+			kSmilePrefabName,
+			[](Scene& authoring_scene) -> Entity {
+				Sprite smile{ CreateSprite(
+					authoring_scene, {}, TextureKey{ std::string{ kSmileTexture } }, Origin::Center
+				) };
+				smile.Add<Tag>(std::string{ kSmilePrefabName });
+				return smile;
+			}
+		),
 	};
 }
 
 std::array<V2_float, 4> TilesetUVs(V2_int slice) {
-	const float left{
-		static_cast<float>(slice.x * kTileSize) / static_cast<float>(kTilesetWidth)
-	};
-	const float top{
-		static_cast<float>(slice.y * kTileSize) / static_cast<float>(kTilesetHeight)
-	};
-	const float right{
-		static_cast<float>((slice.x + 1) * kTileSize) / static_cast<float>(kTilesetWidth)
-	};
-	const float bottom{
-		static_cast<float>((slice.y + 1) * kTileSize) / static_cast<float>(kTilesetHeight)
-	};
+	const float left{ static_cast<float>(slice.x * kTileSize) / static_cast<float>(kTilesetWidth) };
+	const float top{ static_cast<float>(slice.y * kTileSize) / static_cast<float>(kTilesetHeight) };
+	const float right{ static_cast<float>((slice.x + 1) * kTileSize) /
+					   static_cast<float>(kTilesetWidth) };
+	const float bottom{ static_cast<float>((slice.y + 1) * kTileSize) /
+						static_cast<float>(kTilesetHeight) };
 	return {
 		V2_float{ left, top },
 		V2_float{ right, top },
@@ -112,34 +104,21 @@ std::array<V2_float, 4> TilesetUVs(V2_int slice) {
 	};
 }
 
-TilemapTile MakeTilesetTile(
-	V2_int coordinate,
-	V2_int slice,
-	Color tint = color::White
-) {
+TilemapTile MakeTilesetTile(V2_int coordinate, V2_int slice, Color tint = color::White) {
 	TilemapTile tile;
-	tile.coordinate = coordinate;
-	tile.texture = TextureKey{ std::string{ kTerrainTilesetTexture } };
+	tile.coordinate			 = coordinate;
+	tile.texture			 = TextureKey{ std::string{ kTerrainTilesetTexture } };
 	tile.texture_coordinates = TilesetUVs(slice);
-	tile.pixel_size = { kTileSize, kTileSize };
-	tile.origin = Origin::TopLeft;
-	tile.tint = tint;
+	tile.pixel_size			 = { kTileSize, kTileSize };
+	tile.origin				 = Origin::TopLeft;
+	tile.tint				 = tint;
 	return tile;
 }
 
 void SeedBorderedArea(
-	Tilemap& tilemap,
-	V2_int top_left,
-	V2_int size,
-	V2_int top_left_slice,
-	V2_int top_slice,
-	V2_int top_right_slice,
-	V2_int left_slice,
-	V2_int center_slice,
-	V2_int right_slice,
-	V2_int bottom_left_slice,
-	V2_int bottom_slice,
-	V2_int bottom_right_slice
+	Tilemap& tilemap, V2_int top_left, V2_int size, V2_int top_left_slice, V2_int top_slice,
+	V2_int top_right_slice, V2_int left_slice, V2_int center_slice, V2_int right_slice,
+	V2_int bottom_left_slice, V2_int bottom_slice, V2_int bottom_right_slice
 ) {
 	for (int y{}; y < size.y; ++y) {
 		for (int x{}; x < size.x; ++x) {
@@ -165,9 +144,7 @@ void SeedBorderedArea(
 			} else if (right) {
 				slice = right_slice;
 			}
-			tilemap.SetTile(
-				MakeTilesetTile(top_left + V2_int{ x, y }, slice)
-			);
+			tilemap.SetTile(MakeTilesetTile(top_left + V2_int{ x, y }, slice));
 		}
 	}
 }
@@ -180,18 +157,8 @@ void SeedGroundTiles(Tilemap& tilemap) {
 	//   L  = (0,1), C = (1,1), R  = (2,1)
 	//   BL = (0,2), B = (1,2), BR = (2,2)
 	SeedBorderedArea(
-		tilemap,
-		{ 0, 0 },
-		{ 9, 7 },
-		{ 4, 0 },
-		{ 1, 0 },
-		{ 2, 0 },
-		{ 0, 1 },
-		{ 1, 1 },
-		{ 2, 1 },
-		{ 0, 2 },
-		{ 1, 2 },
-		{ 2, 2 }
+		tilemap, { 0, 0 }, { 9, 7 }, { 4, 0 }, { 1, 0 }, { 2, 0 }, { 0, 1 }, { 1, 1 }, { 2, 1 },
+		{ 0, 2 }, { 1, 2 }, { 2, 2 }
 	);
 	// A few authored variants from the sheet so the demo immediately shows that
 	// individual atlas slices can be painted/selected independently.
@@ -208,24 +175,14 @@ void SeedForegroundTiles(Tilemap& tilemap) {
 
 void CreateDemoLayers(Scene& scene, const DemoPrefabKeys& prefabs) {
 	auto& layers{ scene.GetLayers() };
-	const SceneLayerId decorations{
-		layers.Create(SceneLayerKind::Entity, "Decorations")
-	};
-	const SceneLayerId ground{
-		layers.Create(SceneLayerKind::Tile, "Ground")
-	};
-	const SceneLayerId foreground{
-		layers.Create(SceneLayerKind::Tile, "Foreground")
-	};
-	Tilemap ground_tilemap{
-		CreateTilemap(scene, ground, Tag{ "Ground Tilemap" })
-	};
+	const SceneLayerId decorations{ layers.Create(SceneLayerKind::Entity, "Decorations") };
+	const SceneLayerId ground{ layers.Create(SceneLayerKind::Tile, "Ground") };
+	const SceneLayerId foreground{ layers.Create(SceneLayerKind::Tile, "Foreground") };
+	Tilemap ground_tilemap{ CreateTilemap(scene, ground, Tag{ "Ground Tilemap" }) };
 	ground_tilemap.SetCellSize({ 16.0f, 16.0f });
 	SetPosition(ground_tilemap, { -72.0f, -56.0f });
 	SeedGroundTiles(ground_tilemap);
-	Tilemap foreground_tilemap{
-		CreateTilemap(scene, foreground, Tag{ "Foreground Tilemap" })
-	};
+	Tilemap foreground_tilemap{ CreateTilemap(scene, foreground, Tag{ "Foreground Tilemap" }) };
 	foreground_tilemap.SetCellSize({ 16.0f, 16.0f });
 	SetPosition(foreground_tilemap, { -72.0f, -56.0f });
 	SeedForegroundTiles(foreground_tilemap);
@@ -245,6 +202,7 @@ void CreateDemoLayers(Scene& scene, const DemoPrefabKeys& prefabs) {
 }
 
 } // namespace
+
 class PaintToolsScene : public Scene {
 public:
 	void OnNew() override {
@@ -253,12 +211,14 @@ public:
 		const DemoPrefabKeys prefabs{ EnsureDemoPrefabs(*this) };
 		CreateDemoLayers(*this, prefabs);
 	}
+
 	void OnLoad() override {
 		LoadAssets(*this);
 		// EnsurePrefabAsset is idempotent. Existing assets are reused and CreatePrefab() handles
 		// residency automatically.
 		(void)EnsureDemoPrefabs(*this);
 	}
+
 	void OnEnter() override {
 		for (auto [entity, _animation] : EntitiesWith<impl::AnimationData>()) {
 			Animation{ entity }.Start(true);
@@ -266,11 +226,10 @@ public:
 	}
 };
 
-PTGN_REGISTER_SCENE(PaintToolsScene, "Paint Tools Scene");
+PTGN_REGISTER_SCENE(PaintToolsScene);
+
 int main(int, char**) {
 	Application app{ "Paint Tools Demo" };
 	PTGN_WITH_EDITOR(app, true);
-	app.StartProject<PaintToolsScene>(
-		"PaintToolsProject/PaintTools.ptgnproj"
-	);
+	app.StartProject<PaintToolsScene>("PaintToolsProject/PaintTools.ptgnproj");
 }

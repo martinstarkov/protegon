@@ -80,7 +80,7 @@ public:
 	void OnEvent(Event d) override {}
 };
 
-PTGN_REGISTER_SCENE(EditorScene, "Editor Scene Name", level, seed);
+PTGN_REGISTER_SCENE(EditorScene, level, seed);
 
 int main(int, char**) {
 	Application app{ "EditorScene", { 1280, 720 } };

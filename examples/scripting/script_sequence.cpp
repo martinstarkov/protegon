@@ -1,10 +1,12 @@
+#include "runtime/scripting/script_sequence.h"
+
 #include <algorithm>
 #include <iostream>
 #include <string_view>
 
 #include "app/application.h"
-#include "core/assert.h"
 #include "app/editor.h"
+#include "core/assert.h"
 #include "core/graphics/color.h"
 #include "core/math/easing.h"
 #include "core/math/transform.h"
@@ -14,7 +16,6 @@
 #include "runtime/graphics/graphics.h"
 #include "runtime/scene/scene.h"
 #include "runtime/scene/scene_registry.h"
-#include "runtime/scripting/script_sequence.h"
 #include "serialization/serialize.h"
 
 using namespace ptgn;
@@ -41,9 +42,9 @@ void SetEntityTag(Entity entity, std::string_view tag) {
 
 [[nodiscard]] NativeScript LogStep(std::string_view message) {
 	return NativeScript{ NativeScriptCallbacks{
-		.on_start = [text = std::string{ message }](Script&) {
-			std::cout << "[ScriptSequenceSceneDemo] " << text << '\n';
-		},
+		.on_start = [text = std::string{ message }](
+						Script&
+					) { std::cout << "[ScriptSequenceSceneDemo] " << text << '\n'; },
 	} };
 }
 
@@ -61,59 +62,39 @@ public:
 		SetBackgroundColor(Color{ 18, 20, 27, 255 });
 
 		Entity mover{ CreateRect(
-			*this,
-			V2_float{ -390.0f, 185.0f },
-			V2_float{ 72.0f, 72.0f },
-			Color{ 67, 145, 255, 255 }
+			*this, V2_float{ -390.0f, 185.0f }, V2_float{ 72.0f, 72.0f }, Color{ 67, 145, 255, 255 }
 		) };
 		SetEntityTag(mover, kMoverTag);
 
 		Entity spinner{ CreateRect(
-			*this,
-			V2_float{ -105.0f, 185.0f },
-			V2_float{ 82.0f, 82.0f },
-			Color{ 250, 171, 64, 255 }
+			*this, V2_float{ -105.0f, 185.0f }, V2_float{ 82.0f, 82.0f }, Color{ 250, 171, 64, 255 }
 		) };
 		SetEntityTag(spinner, kSpinnerTag);
 
-		Entity pulse{ CreateCircle(
-			*this,
-			V2_float{ 165.0f, 185.0f },
-			42.0f,
-			Color{ 99, 214, 143, 255 }
-		) };
+		Entity pulse{
+			CreateCircle(*this, V2_float{ 165.0f, 185.0f }, 42.0f, Color{ 99, 214, 143, 255 })
+		};
 		SetEntityTag(pulse, kPulseTag);
 
 		Entity visibility{ CreateRect(
-			*this,
-			V2_float{ 390.0f, 185.0f },
-			V2_float{ 78.0f, 78.0f },
-			Color{ 245, 94, 128, 255 }
+			*this, V2_float{ 390.0f, 185.0f }, V2_float{ 78.0f, 78.0f }, Color{ 245, 94, 128, 255 }
 		) };
 		SetEntityTag(visibility, kBlinkTag);
 
 		Entity signal_responder{ CreateRect(
-			*this,
-			V2_float{ -285.0f, -135.0f },
-			V2_float{ 92.0f, 92.0f },
+			*this, V2_float{ -285.0f, -135.0f }, V2_float{ 92.0f, 92.0f },
 			Color{ 173, 112, 255, 255 }
 		) };
 		SetEntityTag(signal_responder, kSignalResponderTag);
 
-		Entity follow_target{ CreateCircle(
-			*this,
-			V2_float{ 195.0f, -135.0f },
-			48.0f,
-			Color{ 79, 210, 218, 255 }
-		) };
+		Entity follow_target{
+			CreateCircle(*this, V2_float{ 195.0f, -135.0f }, 48.0f, Color{ 79, 210, 218, 255 })
+		};
 		SetEntityTag(follow_target, kFollowTargetTag);
 
-		Entity follower{ CreateCircle(
-			*this,
-			V2_float{ -40.0f, -135.0f },
-			29.0f,
-			Color{ 255, 224, 102, 255 }
-		) };
+		Entity follower{
+			CreateCircle(*this, V2_float{ -40.0f, -135.0f }, 29.0f, Color{ 255, 224, 102, 255 })
+		};
 		SetEntityTag(follower, kFollowerTag);
 
 		Entity controller{ CreateEntity("Script Demo Controller") };
@@ -132,11 +113,10 @@ public:
 		AssertDemoEntity(kFollowerTag);
 		AssertDemoEntity(kControllerTag);
 
-		std::cout
-			<< "[ScriptSequenceSceneDemo] OnLoad\n"
-			<< "  mode: " << (IsRuntime() ? "runtime" : "editor") << '\n'
-			<< "  move_duration_ms: " << move_duration_ms_ << '\n'
-			<< "  follower_speed: " << follower_speed_ << '\n';
+		std::cout << "[ScriptSequenceSceneDemo] OnLoad\n"
+				  << "  mode: " << (IsRuntime() ? "runtime" : "editor") << '\n'
+				  << "  move_duration_ms: " << move_duration_ms_ << '\n'
+				  << "  follower_speed: " << follower_speed_ << '\n';
 	}
 
 	void OnEnter() override {
@@ -159,14 +139,13 @@ public:
 
 		Refresh();
 
-		std::cout
-			<< "[ScriptSequenceSceneDemo] OnEnter attached live engine scripts.\n"
-			<< "  Blue: MoveTo + easing + yoyo + repeat\n"
-			<< "  Orange: RotateTo + repeat\n"
-			<< "  Green: ScaleTo + infinite yoyo, stopped by signal\n"
-			<< "  Pink: Wait + SetVisible\n"
-			<< "  Purple: starts when the blue sequence emits a Signal\n"
-			<< "  Yellow: root FollowTargetScript following the cyan target\n";
+		std::cout << "[ScriptSequenceSceneDemo] OnEnter attached live engine scripts.\n"
+				  << "  Blue: MoveTo + easing + yoyo + repeat\n"
+				  << "  Orange: RotateTo + repeat\n"
+				  << "  Green: ScaleTo + infinite yoyo, stopped by signal\n"
+				  << "  Pink: Wait + SetVisible\n"
+				  << "  Purple: starts when the blue sequence emits a Signal\n"
+				  << "  Yellow: root FollowTargetScript following the cyan target\n";
 	}
 
 	void OnExit() override {
@@ -176,13 +155,9 @@ public:
 private:
 	void AddMoverSequence(Entity mover) {
 		ScriptSequence sequence{ "Mover: Move, Yoyo, Wait, Signal" };
-		sequence
-			.Channel(SequenceChannelKey{ "transform" })
+		sequence.Channel(SequenceChannelKey{ "transform" })
 			.Reentry(ReentryMode::Restart)
-			.During(
-				move_duration_ms_,
-				MoveToScript{ V2_float{ 345.0f, 0.0f }, true }
-			)
+			.During(move_duration_ms_, MoveToScript{ V2_float{ 345.0f, 0.0f }, true })
 			.Ease(Ease::InOutQuad)
 			.Yoyo()
 			.Repeat(1)
@@ -195,12 +170,8 @@ private:
 
 	void AddSpinnerSequence(Entity spinner) {
 		ScriptSequence sequence{ "Spinner: Delayed Repeated Rotation" };
-		sequence
-			.Wait(300.0f)
-			.During(
-				spin_duration_ms_,
-				RotateToScript{ 360.0f, false, true }
-			)
+		sequence.Wait(300.0f)
+			.During(spin_duration_ms_, RotateToScript{ 360.0f, false, true })
 			.Ease(Ease::InOutQuad)
 			.Repeat(2)
 			.Then(LogStep("Spinner completed three rotations."));
@@ -209,16 +180,13 @@ private:
 	}
 
 	void AddPulseSequence(Entity pulse) {
-		// This is a resident Script rather than a one off ScriptSequence handle. Its sequence starts
-		// automatically because it has steps and no start trigger. A global signal later stops it.
+		// This is a resident Script rather than a one off ScriptSequence handle. Its sequence
+		// starts automatically because it has steps and no start trigger. A global signal later
+		// stops it.
 		auto& script{ AddScript<Script>(pulse) };
 		script.sequence = ScriptSequence{ "Pulse: Infinite Scale Until Signal" };
-		script.sequence
-			.StopOn<Signal>(json{ { "signal", std::string{ kStopPulseSignal } } })
-			.During(
-				pulse_duration_ms_,
-				ScaleToScript{ V2_float{ 1.65f, 1.65f }, false }
-			)
+		script.sequence.StopOn<Signal>(json{ { "signal", std::string{ kStopPulseSignal } } })
+			.During(pulse_duration_ms_, ScaleToScript{ V2_float{ 1.65f, 1.65f }, false })
 			.Ease(Ease::InOutQuad)
 			.Yoyo()
 			.Infinite();
@@ -227,8 +195,7 @@ private:
 	void AddVisibilitySequence(Entity visibility) {
 		ScriptSequence sequence{ "Visibility: Blink Three Times" };
 		for (int i{ 0 }; i < 3; ++i) {
-			sequence
-				.Wait(500.0f)
+			sequence.Wait(500.0f)
 				.Then(SetVisibleScript{ false })
 				.Wait(260.0f)
 				.Then(SetVisibleScript{ true });
@@ -242,25 +209,13 @@ private:
 		// This resident sequence stays idle until the mover emits the matching global Signal.
 		auto& script{ AddScript<Script>(signal_responder) };
 		script.sequence = ScriptSequence{ "Signal Responder: Start On Mover Complete" };
-		script.sequence
-			.Reentry(ReentryMode::Restart)
-			.StartOn<Signal>(
-				json{ { "signal", std::string{ kMoverCompleteSignal } } }
-			)
-			.During(
-				700.0f,
-				MoveToScript{ V2_float{ 0.0f, 145.0f }, true }
-			)
+		script.sequence.Reentry(ReentryMode::Restart)
+			.StartOn<Signal>(json{ { "signal", std::string{ kMoverCompleteSignal } } })
+			.During(700.0f, MoveToScript{ V2_float{ 0.0f, 145.0f }, true })
 			.Ease(Ease::OutBack)
-			.During(
-				650.0f,
-				RotateToScript{ 180.0f, true, true }
-			)
+			.During(650.0f, RotateToScript{ 180.0f, true, true })
 			.Ease(Ease::InOutQuad)
-			.During(
-				700.0f,
-				MoveToScript{ V2_float{ 0.0f, -145.0f }, true }
-			)
+			.During(700.0f, MoveToScript{ V2_float{ 0.0f, -145.0f }, true })
 			.Ease(Ease::InOutQuad)
 			.EmitSignal(SignalKey{ kResponderCompleteSignal })
 			.Then(LogStep("Signal responder completed its event-triggered sequence."));
@@ -268,12 +223,8 @@ private:
 
 	void AddFollowDemo(Entity follow_target, Entity follower) {
 		ScriptSequence target_sequence{ "Follow Target: Move Away And Return" };
-		target_sequence
-			.Wait(200.0f)
-			.During(
-				follow_target_duration_ms_,
-				MoveToScript{ V2_float{ 300.0f, 0.0f }, true }
-			)
+		target_sequence.Wait(200.0f)
+			.During(follow_target_duration_ms_, MoveToScript{ V2_float{ 300.0f, 0.0f }, true })
 			.Ease(Ease::InOutQuad)
 			.Yoyo()
 			.Repeat(1)
@@ -284,17 +235,13 @@ private:
 		// FollowTargetScript is attached as a root script. It disables itself after reaching the
 		// target within the requested stopping distance.
 		(void)AddScript<FollowTargetScript>(
-			follower,
-			follow_target,
-			std::max(0.0f, follower_speed_),
-			6.0f
+			follower, follow_target, std::max(0.0f, follower_speed_), 6.0f
 		);
 	}
 
 	void AddControllerTimeline(Entity controller) {
 		ScriptSequence sequence{ "Controller: Stop Pulse After Delay" };
-		sequence
-			.Wait(stop_pulse_after_ms_)
+		sequence.Wait(stop_pulse_after_ms_)
 			.EmitSignal(SignalKey{ kStopPulseSignal })
 			.Then(LogStep("Controller emitted script_demo.stop_pulse."))
 			.Wait(500.0f)
@@ -329,20 +276,12 @@ private:
 	SequenceHandle controller_sequence_;
 
 	PTGN_REFLECT(
-		ScriptSequenceSceneDemo,
-		move_duration_ms_,
-		spin_duration_ms_,
-		pulse_duration_ms_,
-		follow_target_duration_ms_,
-		follower_speed_,
-		stop_pulse_after_ms_
+		ScriptSequenceSceneDemo, move_duration_ms_, spin_duration_ms_, pulse_duration_ms_,
+		follow_target_duration_ms_, follower_speed_, stop_pulse_after_ms_
 	)
 };
 
-PTGN_REGISTER_SCENE(
-	ScriptSequenceSceneDemo,
-	"Script Sequence Scene Demo"
-);
+PTGN_REGISTER_SCENE(ScriptSequenceSceneDemo);
 
 int main() {
 	Application app{ "Protegon Script Sequence Scene Demo" };

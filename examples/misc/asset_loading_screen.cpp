@@ -112,7 +112,7 @@ public:
 	}
 };
 
-PTGN_REGISTER_SCENE(LoadedGameScene, "Loaded Game Scene");
+PTGN_REGISTER_SCENE(LoadedGameScene);
 
 class AssetLoadingScreenScene : public Scene {
 public:
@@ -200,7 +200,7 @@ private:
 	bool switched_{ false };
 };
 
-PTGN_REGISTER_SCENE(AssetLoadingScreenScene, "Asset Loading Screen");
+PTGN_REGISTER_SCENE(AssetLoadingScreenScene);
 
 int main(int, char**) {
 	Application app{ "Real Asset Loading Screen Demo", { 960, 720 } };

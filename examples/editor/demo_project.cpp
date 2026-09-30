@@ -8,8 +8,8 @@
 #include <string_view>
 
 #include "app/application.h"
-#include "core/assert.h"
 #include "app/editor.h"
+#include "core/assert.h"
 #include "core/graphics/color.h"
 #include "core/math/transform.h"
 #include "core/math/vector2.h"
@@ -18,9 +18,9 @@
 #include "runtime/ecs/entity.h"
 #include "runtime/ecs/tag.h"
 #include "runtime/graphics/graphics.h"
+#include "runtime/graphics/shape.h"
 #include "runtime/scene/scene.h"
 #include "runtime/scene/scene_registry.h"
-#include "runtime/graphics/shape.h"
 #include "serialization/serialize.h"
 
 using namespace ptgn;
@@ -42,11 +42,7 @@ struct SceneSerializationProbe {
 	std::uint64_t runtime_frames{ 0 };
 
 	PTGN_REFLECT(
-		SceneSerializationProbe,
-		saved_text,
-		saved_counter,
-		saved_value,
-		runtime_mutated,
+		SceneSerializationProbe, saved_text, saved_counter, saved_value, runtime_mutated,
 		runtime_frames
 	)
 };
@@ -59,33 +55,26 @@ public:
 		SetBackgroundColor(Color{ 18, 20, 27, 255 });
 
 		Entity probe{ CreateRect(
-			*this,
-			V2_float{ -220.0f, 0.0f },
-			V2_float{ 180.0f, 120.0f },
-			Color{ 67, 145, 255, 255 }
+			*this, V2_float{ -220.0f, 0.0f }, V2_float{ 180.0f, 120.0f }, Color{ 67, 145, 255, 255 }
 		) };
 		probe.Get<Tag>() = Tag{ kProbeTag };
 		probe.Add<SceneSerializationProbe>(SceneSerializationProbe{
-			.saved_text = "Authored component data",
+			.saved_text	   = "Authored component data",
 			.saved_counter = 7,
-			.saved_value = 1.25f,
+			.saved_value   = 1.25f,
 		});
 
-		Entity companion{ CreateCircle(
-			*this,
-			V2_float{ 180.0f, 0.0f },
-			55.0f,
-			Color{ 99, 214, 143, 255 }
-		) };
+		Entity companion{
+			CreateCircle(*this, V2_float{ 180.0f, 0.0f }, 55.0f, Color{ 99, 214, 143, 255 })
+		};
 		companion.Get<Tag>() = Tag{ kCompanionTag };
 		companion.Add<SceneSerializationProbe>(SceneSerializationProbe{
-			.saved_text = "Second serialized entity",
+			.saved_text	   = "Second serialized entity",
 			.saved_counter = 21,
-			.saved_value = 2.5f,
+			.saved_value   = 2.5f,
 		});
 
-		std::cout
-			<< "[SceneSerializationDemo] OnNew created authored entities.\n";
+		std::cout << "[SceneSerializationDemo] OnNew created authored entities.\n";
 	}
 
 	void OnLoad() override {
@@ -94,28 +83,23 @@ public:
 
 		PTGN_ASSERT(probe, "Serialized probe entity is missing");
 		PTGN_ASSERT(companion, "Serialized companion entity is missing");
+		PTGN_ASSERT(probe.Has<SceneSerializationProbe>(), "Serialized probe component is missing");
 		PTGN_ASSERT(
-			probe.Has<SceneSerializationProbe>(),
-			"Serialized probe component is missing"
-		);
-		PTGN_ASSERT(
-			companion.Has<SceneSerializationProbe>(),
-			"Serialized companion component is missing"
+			companion.Has<SceneSerializationProbe>(), "Serialized companion component is missing"
 		);
 
 		const auto& data{ probe.Get<SceneSerializationProbe>() };
 		const auto& transform{ probe.Get<Transform>() };
 
-		std::cout
-			<< "[SceneSerializationDemo] OnLoad\n"
-			<< "  mode: " << (IsRuntime() ? "runtime" : "editor") << '\n'
-			<< "  scene_name: " << scene_name << '\n'
-			<< "  scene_version: " << scene_version << '\n'
-			<< "  runtime_offset: " << runtime_offset << '\n'
-			<< "  probe_text: " << data.saved_text << '\n'
-			<< "  probe_counter: " << data.saved_counter << '\n'
-			<< "  probe_position: (" << transform.position.x << ", "
-			<< transform.position.y << ")\n";
+		std::cout << "[SceneSerializationDemo] OnLoad\n"
+				  << "  mode: " << (IsRuntime() ? "runtime" : "editor") << '\n'
+				  << "  scene_name: " << scene_name << '\n'
+				  << "  scene_version: " << scene_version << '\n'
+				  << "  runtime_offset: " << runtime_offset << '\n'
+				  << "  probe_text: " << data.saved_text << '\n'
+				  << "  probe_counter: " << data.saved_counter << '\n'
+				  << "  probe_position: (" << transform.position.x << ", " << transform.position.y
+				  << ")\n";
 	}
 
 	void OnEnter() override {
@@ -127,34 +111,30 @@ public:
 
 		// These changes are intentionally made only in the runtime copy. Stop should
 		// restore the exact authored values captured before Play.
-		transform.position.x += runtime_offset;
-		runtime_origin_ = transform.position;
-		runtime_elapsed_seconds_ = 0.0f;
+		transform.position.x	 += runtime_offset;
+		runtime_origin_			  = transform.position;
+		runtime_elapsed_seconds_  = 0.0f;
 
-		data.saved_text = "Runtime mutation - Stop should restore the authored text";
-		data.saved_counter += 1000;
-		data.saved_value *= 10.0f;
-		data.runtime_mutated = true;
-		data.runtime_frames = 0;
+		data.saved_text		  = "Runtime mutation - Stop should restore the authored text";
+		data.saved_counter	 += 1000;
+		data.saved_value	 *= 10.0f;
+		data.runtime_mutated  = true;
+		data.runtime_frames	  = 0;
 
-		Entity runtime_only{ CreateCircle(
-			*this,
-			V2_float{ 0.0f, -185.0f },
-			38.0f,
-			Color{ 245, 94, 94, 255 }
-		) };
+		Entity runtime_only{
+			CreateCircle(*this, V2_float{ 0.0f, -185.0f }, 38.0f, Color{ 245, 94, 94, 255 })
+		};
 		runtime_only.Add<Tag>(kRuntimeOnlyTag);
 		runtime_only.Add<SceneSerializationProbe>(SceneSerializationProbe{
-			.saved_text = "Created in OnEnter; Stop should remove this entity",
-			.saved_counter = 9999,
-			.saved_value = 99.0f,
+			.saved_text		 = "Created in OnEnter; Stop should remove this entity",
+			.saved_counter	 = 9999,
+			.saved_value	 = 99.0f,
 			.runtime_mutated = true,
 		});
 
 		Refresh();
 
-		std::cout
-			<< "[SceneSerializationDemo] OnEnter applied runtime only mutations.\n";
+		std::cout << "[SceneSerializationDemo] OnEnter applied runtime only mutations.\n";
 	}
 
 	void OnUpdate() override {
@@ -166,15 +146,14 @@ public:
 		runtime_elapsed_seconds_ += std::max(0.0f, ImGui::GetIO().DeltaTime);
 
 		auto& transform{ probe.Get<Transform>() };
-		transform.position.y = runtime_origin_.y +
-			std::sin(runtime_elapsed_seconds_ * 2.5f) * 65.0f;
+		transform.position.y =
+			runtime_origin_.y + std::sin(runtime_elapsed_seconds_ * 2.5f) * 65.0f;
 
 		++probe.Get<SceneSerializationProbe>().runtime_frames;
 	}
 
 	void OnExit() override {
-		std::cout
-			<< "[SceneSerializationDemo] OnExit discarded the runtime scene.\n";
+		std::cout << "[SceneSerializationDemo] OnExit discarded the runtime scene.\n";
 	}
 
 private:
@@ -188,26 +167,17 @@ private:
 	V2_float runtime_origin_{};
 	float runtime_elapsed_seconds_{ 0.0f };
 
-	PTGN_REFLECT(
-		SceneSerializationDemo,
-		scene_name,
-		scene_version,
-		runtime_offset
-	)
+	PTGN_REFLECT(SceneSerializationDemo, scene_name, scene_version, runtime_offset)
 };
 
 PTGN_REGISTER_COMPONENT(
-	SceneSerializationProbe,
-	{
-		.label = "Serialization Probe",
-		.group = "Demo",
-	}
+	SceneSerializationProbe, {
+								 .label = "Serialization Probe",
+								 .group = "Demo",
+							 }
 );
 
-PTGN_REGISTER_SCENE(
-	SceneSerializationDemo,
-	"Scene Serialization Demo"
-);
+PTGN_REGISTER_SCENE(SceneSerializationDemo);
 
 int main() {
 	Application app{ "Protegon Scene Serialization Project Demo" };
