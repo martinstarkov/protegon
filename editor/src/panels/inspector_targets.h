@@ -1,5 +1,8 @@
 #pragma once
 
+#include <imgui.h>
+#include <imgui_stdlib.h>
+
 #include <concepts>
 #include <cstddef>
 #include <functional>
@@ -12,17 +15,14 @@
 #include <type_traits>
 #include <utility>
 
-#include <imgui.h>
-#include <imgui_stdlib.h>
-
 #include "commands/entity/entity_reference.h"
+#include "core/util/hash.h"
 #include "editor/editor.h"
 #include "editor/editor_context.h"
 #include "editor/editor_selection.h"
-#include "core/util/hash.h"
-#include "panels/inspector_helpers.h"
-#include "panels/inspector_fields.h"
 #include "panels/inspector_component_drawers.h"
+#include "panels/inspector_fields.h"
+#include "panels/inspector_helpers.h"
 #include "runtime/asset/asset_manager.h"
 #include "runtime/asset/prefab.h"
 #include "runtime/ecs/component_registry.h"
@@ -99,41 +99,26 @@ void AssignEntityComponent(Entity entity, ComponentState<T> state) {
 }
 
 template <typename T>
-ComponentState<T> CapturePrefabComponent(
-	const SerializedEntity& serialized
-) {
-	const auto* registration{
-		ComponentRegistry::Find<T>()
-	};
+ComponentState<T> CapturePrefabComponent(const SerializedEntity& serialized) {
+	const auto* registration{ ComponentRegistry::Find<T>() };
 
 	if (!registration) {
 		return std::nullopt;
 	}
 
-	const std::string name{
-		registration->name
-	};
+	const std::string name{ registration->name };
 
 	if constexpr (std::is_empty_v<T>) {
-		return std::ranges::contains(
-			serialized.tags,
-			name
-		)
-				   ? ComponentState<T>{ T{} }
-				   : std::nullopt;
+		return std::ranges::contains(serialized.tags, name) ? ComponentState<T>{ T{} }
+															: std::nullopt;
 	} else {
-		const auto it{
-			serialized.components.find(name)
-		};
+		const auto it{ serialized.components.find(name) };
 
 		if (it == serialized.components.end()) {
 			return std::nullopt;
 		}
 
-		if constexpr (
-			JsonDeserializable<T> &&
-			std::default_initializable<T>
-		) {
+		if constexpr (JsonDeserializable<T> && std::default_initializable<T>) {
 			T value{};
 
 			try {
@@ -142,9 +127,7 @@ ComponentState<T> CapturePrefabComponent(
 			} catch (...) {
 				return std::nullopt;
 			}
-		} else if constexpr (
-			::ptgn::impl::JsonGettable<T>
-		) {
+		} else if constexpr (::ptgn::impl::JsonGettable<T>) {
 			try {
 				return it->second.template get<T>();
 			} catch (...) {
@@ -157,28 +140,18 @@ ComponentState<T> CapturePrefabComponent(
 }
 
 template <typename T>
-void AssignPrefabComponent(
-	SerializedEntity& serialized,
-	ComponentState<T> state
-) {
-	const auto* registration{
-		ComponentRegistry::Find<T>()
-	};
+void AssignPrefabComponent(SerializedEntity& serialized, ComponentState<T> state) {
+	const auto* registration{ ComponentRegistry::Find<T>() };
 
 	if (!registration) {
 		return;
 	}
 
-	const std::string name{
-		registration->name
-	};
+	const std::string name{ registration->name };
 
 	if (!state) {
 		if constexpr (std::is_empty_v<T>) {
-			std::erase(
-				serialized.tags,
-				name
-			);
+			std::erase(serialized.tags, name);
 		} else {
 			serialized.components.erase(name);
 		}
@@ -187,19 +160,13 @@ void AssignPrefabComponent(
 	}
 
 	if constexpr (std::is_empty_v<T>) {
-		if (!std::ranges::contains(
-				serialized.tags,
-				name
-			)) {
+		if (!std::ranges::contains(serialized.tags, name)) {
 			serialized.tags.emplace_back(name);
 		}
 	} else if constexpr (JsonSerializable<T>) {
 		json value = *state;
 
-		serialized.components.insert_or_assign(
-			name,
-			std::move(value)
-		);
+		serialized.components.insert_or_assign(name, std::move(value));
 	}
 }
 
@@ -361,14 +328,8 @@ struct PrefabInspectorTarget {
 	template <typename T>
 	[[nodiscard]] static constexpr bool Supports() {
 		return std::is_empty_v<T> ||
-			   (
-				   JsonSerializable<T> &&
-				   JsonDeserializable<T> &&
-				   (
-					   std::default_initializable<T> ||
-					   ::ptgn::impl::JsonGettable<T>
-				   )
-			   );
+			   (JsonSerializable<T> && JsonDeserializable<T> &&
+				(std::default_initializable<T> || ::ptgn::impl::JsonGettable<T>));
 	}
 
 	[[nodiscard]] const void* Id() const {
@@ -380,7 +341,7 @@ struct PrefabInspectorTarget {
 
 	[[nodiscard]] FeatureTargetKey GetFeatureTargetKey() const {
 		return FeatureTargetKey{
-			.prefab = key,
+			.prefab				= key,
 			.prefab_entity_path = entity_path,
 		};
 	}
@@ -437,9 +398,8 @@ struct PrefabInspectorTarget {
 		PrefabKey prefab_key{ key };
 		SerializedEntityPath path{ entity_path };
 
-		return [context, prefab_key, path = std::move(path), callback](
-				   ComponentState<T> state
-			   ) mutable {
+		return [context, prefab_key, path = std::move(path),
+				callback](ComponentState<T> state) mutable {
 			auto& assets{ context->editor.GetAssetManager() };
 			Entity resolved{ assets.GetPrefabEntity(prefab_key, path) };
 			if (!resolved) {
@@ -514,7 +474,6 @@ void TrackComponentState(
 	TrackComponentState(target, label, std::move(before), std::move(after), changed, nullptr);
 }
 
-
 /// Edit an existing component with one capture/apply/undo path. Specialized archetype drawers can
 /// focus on the actual UI and avoid repeating the standard before/value/SetLive/after sequence.
 template <typename Target, typename T, typename Edit, typename Callback = std::nullptr_t>
@@ -557,9 +516,7 @@ bool SetComponentStateUndoable(
 		auto before{ target.template Capture<T>() };
 		target.template SetLive<T>(std::move(state), callback);
 		auto after{ target.template Capture<T>() };
-		TrackComponentState(
-			target, label, std::move(before), std::move(after), true, callback
-		);
+		TrackComponentState(target, label, std::move(before), std::move(after), true, callback);
 		return true;
 	}
 }
@@ -569,13 +526,8 @@ bool SetComponentStateUndoable(
 /// recorded as one undoable component-state change.
 template <typename Target, typename T, typename Draw, typename Callback = std::nullptr_t>
 bool DrawComponentSection(
-	Target& target,
-	std::string_view label,
-	Draw&& draw,
-	bool default_open = true,
-	bool removable = true,
-	bool resettable = true,
-	Callback callback = nullptr
+	Target& target, std::string_view label, Draw&& draw, bool default_open = true,
+	bool removable = true, bool resettable = true, Callback callback = nullptr
 ) {
 	if constexpr (!Target::template Supports<T>()) {
 		return false;
@@ -589,12 +541,11 @@ bool DrawComponentSection(
 	}
 
 	const auto header{ DrawInspectorSectionHeader(
-		label,
-		"##ComponentSection",
+		label, "##ComponentSection",
 		InspectorSectionOptions{
 			.default_open = default_open,
-			.removable = removable,
-			.resettable = resettable,
+			.removable	  = removable,
+			.resettable	  = resettable,
 		}
 	) };
 
@@ -618,9 +569,9 @@ bool DrawComponentSection(
 		auto after{ target.template Capture<T>() };
 		TrackComponentState(
 			target,
-			header.remove_requested ? std::string{ "Remove " } + std::string{ label }
-				: header.reset_requested ? std::string{ "Reset " } + std::string{ label }
-					: std::string{ "Edit " } + std::string{ label },
+			header.remove_requested	 ? std::string{ "Remove " } + std::string{ label }
+			: header.reset_requested ? std::string{ "Reset " } + std::string{ label }
+									 : std::string{ "Edit " } + std::string{ label },
 			std::move(before), std::move(after), true, callback
 		);
 	}
@@ -632,21 +583,16 @@ bool DrawComponentSection(
 /// field they intend to expose.
 template <typename Target, typename Component, typename Member, typename Callback = std::nullptr_t>
 bool DrawComponentField(
-	Target& target,
-	std::string_view label,
-	Member Component::* member,
+	Target& target, std::string_view label, Member Component::* member,
 	FieldOptions options = kDefaultFieldOptions<std::remove_cvref_t<Member>>,
-	Callback callback = nullptr
+	Callback callback	 = nullptr
 ) {
 	return EditComponent<Target, Component>(
 		target, std::string{ "Edit " } + std::string{ label },
-		[&](Component& value) {
-			return DrawValue(target.ctx, label, value.*member, options);
-		},
+		[&](Component& value) { return DrawValue(target.ctx, label, value.*member, options); },
 		callback
 	);
 }
-
 
 template <typename Target, typename T, typename Draw, typename Callback = std::nullptr_t>
 bool DrawRequiredComponent(
@@ -700,10 +646,8 @@ bool DrawOptionalComponent(
 		return false;
 	}
 
-	if (
-		(contents_read_only || toggle_read_only) &&
-		!target.ctx.local.settings.show_read_only_inspector_data
-	) {
+	if ((contents_read_only || toggle_read_only) &&
+		!target.ctx.local.settings.show_read_only_inspector_data) {
 		return false;
 	}
 
@@ -723,10 +667,9 @@ bool DrawOptionalComponent(
 		ImGui::SameLine(0.0f, ImGui::GetStyle().ItemInnerSpacing.x);
 		const std::string node_label{ std::string{ label } + "##Tree" };
 		open = ImGui::TreeNodeEx(
-			node_label.c_str(),
-			ImGuiTreeNodeFlags_SpanAvailWidth |
-				ImGuiTreeNodeFlags_FramePadding |
-				ImGuiTreeNodeFlags_NoTreePushOnOpen
+			node_label.c_str(), ImGuiTreeNodeFlags_SpanAvailWidth |
+									ImGuiTreeNodeFlags_FramePadding |
+									ImGuiTreeNodeFlags_NoTreePushOnOpen
 		);
 	} else if constexpr (std::is_empty_v<T>) {
 		changed |= DrawInspectorPropertyRow(label, [&]() {
@@ -739,19 +682,21 @@ bool DrawOptionalComponent(
 		// drawers are put into inline-value mode so they reuse this value cell instead of emitting
 		// another property row.
 		changed |= DrawInspectorPropertyRow(label, [&]() {
-			const bool toggle_changed{ DrawDisabledIf(toggle_read_only, [&]() {
+			bool toggle_changed{ DrawDisabledIf(toggle_read_only, [&]() {
 				return ImGui::Checkbox("##Enabled", &enabled);
 			}) };
 			bool local_changed{ toggle_changed };
 			if (toggle_changed) {
-				target.template SetLive<T>(enabled ? ComponentState<T>{ enabled_default } : std::nullopt, callback);
+				target.template SetLive<T>(
+					enabled ? ComponentState<T>{ enabled_default } : std::nullopt, callback
+				);
 			}
 			ImGui::SameLine(0.0f, ImGui::GetStyle().ItemInnerSpacing.x);
 
 			T displayed{ target.template Capture<T>().value_or(enabled_default) };
 			ScopedDisabled disabled{ !enabled || contents_read_only };
 			ScopedInspectorInlineValue inline_value;
-			const bool contents_changed{ std::invoke(std::forward<Draw>(draw), displayed) };
+			bool contents_changed{ std::invoke(std::forward<Draw>(draw), displayed) };
 			if (enabled && !contents_read_only && contents_changed) {
 				target.template SetLive<T>(std::move(displayed), callback);
 				local_changed = true;
@@ -774,7 +719,7 @@ bool DrawOptionalComponent(
 			ScopedIndent indent;
 			ScopedDisabled disabled{ !enabled || contents_read_only };
 			T value{ target.template Capture<T>().value_or(enabled_default) };
-			const bool contents_changed{ std::invoke(std::forward<Draw>(draw), value) };
+			bool contents_changed{ std::invoke(std::forward<Draw>(draw), value) };
 			if (enabled && !contents_read_only && contents_changed) {
 				target.template SetLive<T>(std::move(value), callback);
 				changed = true;
@@ -829,21 +774,15 @@ bool AddFeature(Target& target, std::string_view label) {
 	);
 }
 
-
 template <typename Target>
 bool DrawName(Target& target) {
 	const std::string before{ target.GetName() };
 	std::string value{ before };
 
-	const bool changed{
-		DrawPropertyRow(
-			"Tag",
-			[&]() {
-				ImGui::SetNextItemWidth(-FLT_MIN);
-				return ImGui::InputText("##Tag", &value);
-			}
-		)
-	};
+	bool changed{ DrawPropertyRow("Tag", [&]() {
+		ImGui::SetNextItemWidth(-FLT_MIN);
+		return ImGui::InputText("##Tag", &value);
+	}) };
 
 	if (changed) {
 		target.SetName(value);
@@ -853,37 +792,22 @@ bool DrawName(Target& target) {
 		auto apply{ target.MakeNameApply() };
 
 		TrackUndoableInteraction(
-			target.ctx,
-			key,
-			"Rename Entity",
-			true,
-			[apply, before]() mutable {
-				apply(before);
-			},
-			[apply, value]() mutable {
-				apply(value);
-			}
+			target.ctx, key, "Rename Entity", true, [apply, before]() mutable { apply(before); },
+			[apply, value]() mutable { apply(value); }
 		);
 	}
 
 	if constexpr (requires { target.GetUUIDText(); }) {
 		const std::string uuid{ target.GetUUIDText() };
 
-		DrawPropertyRow(
-			"UUID",
-			[&]() {
-				ImGui::SetNextItemWidth(-FLT_MIN);
-				std::string displayed{ uuid };
-				ScopedDisabled read_only{ true };
-				ImGui::InputText(
-					"##UUID",
-					&displayed,
-					ImGuiInputTextFlags_ReadOnly
-				);
-				DrawTooltip("Read only entity identifier.");
-				return false;
-			}
-		);
+		DrawPropertyRow("UUID", [&]() {
+			ImGui::SetNextItemWidth(-FLT_MIN);
+			std::string displayed{ uuid };
+			ScopedDisabled read_only{ true };
+			ImGui::InputText("##UUID", &displayed, ImGuiInputTextFlags_ReadOnly);
+			DrawTooltip("Read only entity identifier.");
+			return false;
+		});
 	}
 
 	return changed;

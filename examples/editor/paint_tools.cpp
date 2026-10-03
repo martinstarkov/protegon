@@ -122,10 +122,10 @@ void SeedBorderedArea(
 ) {
 	for (int y{}; y < size.y; ++y) {
 		for (int x{}; x < size.x; ++x) {
-			const bool left{ x == 0 };
-			const bool right{ x == size.x - 1 };
-			const bool top{ y == 0 };
-			const bool bottom{ y == size.y - 1 };
+			bool left{ x == 0 };
+			bool right{ x == size.x - 1 };
+			bool top{ y == 0 };
+			bool bottom{ y == size.y - 1 };
 			V2_int slice{ center_slice };
 			if (top && left) {
 				slice = top_left_slice;

@@ -55,13 +55,10 @@ constexpr float kDefaultTrackThickness{ 8.0f };
 	return stream.str();
 }
 
-[[nodiscard]] std::string ExpandSliderValueText(
-	float value, const SliderValueTextConfig& config
-) {
+[[nodiscard]] std::string ExpandSliderValueText(float value, const SliderValueTextConfig& config) {
 	const std::string formatted{ FormatSliderValue(value, config) };
 	return ExpandRichTextVariables(
-		config.text.source,
-		[&formatted](std::string_view variable) -> std::optional<std::string> {
+		config.text.source, [&formatted](std::string_view variable) -> std::optional<std::string> {
 			if (variable == "value") {
 				return formatted;
 			}
@@ -212,9 +209,8 @@ void SliderSystem::SynchronizeEntity(Entity entity) {
 	// A thumb transform edit authors a position relative to the slider root. Convert that
 	// position back into the normalized value before constraining it to the slider segment.
 	if (entity.Has<SliderThumbData>() && IsValidSliderLine(data.line)) {
-		data.value = slider.SnapValue(
-			slider.GetValueForPosition(GetWorldTransform(entity).position)
-		);
+		data.value =
+			slider.SnapValue(slider.GetValueForPosition(GetWorldTransform(entity).position));
 	} else {
 		data.value = slider.SnapValue(data.value);
 	}
@@ -703,7 +699,6 @@ void Slider::SynchronizeValueText() {
 		created.Add<impl::SliderValueTextData>();
 		created.Add<Origin>(Origin::Center);
 
-
 		SetTransform(created, Transform{ data.value_text->offset });
 
 		SetParent(created, *this);
@@ -805,11 +800,11 @@ void Slider::RefreshTrack() {
 
 	auto& track_data{ track.Get<impl::SliderTrackData>() };
 
-	const bool has_background{
+	bool has_background{
 		static_cast<bool>(FindDirectChildWith<impl::SliderTrackBackgroundData>(track))
 	};
-	const bool has_border{ static_cast<bool>(FindDirectChildWith<impl::SliderTrackBorderData>(track)) };
-	const bool has_sprite{ static_cast<bool>(FindDirectChildWith<impl::SliderTrackSpriteData>(track)) };
+	bool has_border{ static_cast<bool>(FindDirectChildWith<impl::SliderTrackBorderData>(track)) };
+	bool has_sprite{ static_cast<bool>(FindDirectChildWith<impl::SliderTrackSpriteData>(track)) };
 
 	// Visual enablement is derived from the managed visual children. This keeps undo/redo of those
 	// children from leaving a stale serialized visual_enabled flag that hides a restored part.

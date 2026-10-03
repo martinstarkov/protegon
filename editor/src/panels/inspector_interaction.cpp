@@ -1,5 +1,3 @@
-#include "panels/inspector_archetype_inspector.h"
-
 #include <algorithm>
 #include <string>
 
@@ -7,6 +5,7 @@
 #include "core/math/geometry/rect.h"
 #include "core/math/transform.h"
 #include "editor/renamable_item.h"
+#include "panels/inspector_archetype_inspector.h"
 #include "panels/inspector_tabs.h"
 #include "runtime/ecs/entity_hierarchy.h"
 #include "runtime/ecs/tag.h"
@@ -38,8 +37,7 @@ bool DrawReadOnlyInteractionLock(Target& target) {
 			[&]() {
 				open = ImGui::TreeNodeEx(
 					"Interaction Lock##ReadOnlyInteractionLock",
-					ImGuiTreeNodeFlags_SpanAvailWidth |
-						ImGuiTreeNodeFlags_FramePadding |
+					ImGuiTreeNodeFlags_SpanAvailWidth | ImGuiTreeNodeFlags_FramePadding |
 						ImGuiTreeNodeFlags_NoTreePushOnOpen
 				);
 			},
@@ -78,7 +76,6 @@ bool DrawReadOnlyInteractionLock(Target& target) {
 					);
 				}
 			}(value);
-
 		}
 
 		return false;
@@ -94,8 +91,8 @@ enum class InteractionMode : std::uint8_t {
 
 template <typename Target>
 [[nodiscard]] InteractionMode GetInteractionMode(const Target& target) {
-	const bool draggable{ target.template Capture<::ptgn::impl::Draggable>().has_value() };
-	const bool dropzone{ target.template Capture<::ptgn::impl::Dropzone>().has_value() };
+	bool draggable{ target.template Capture<::ptgn::impl::Draggable>().has_value() };
+	bool dropzone{ target.template Capture<::ptgn::impl::Dropzone>().has_value() };
 	if (draggable && dropzone) {
 		return InteractionMode::Conflict;
 	}
@@ -114,11 +111,8 @@ bool SetInteractionMode(Target& target, InteractionMode mode) {
 		return false;
 	}
 
-	using Components = ComponentSet<
-		::ptgn::impl::Interactive,
-		::ptgn::impl::Draggable,
-		::ptgn::impl::Dropzone
-	>;
+	using Components =
+		ComponentSet<::ptgn::impl::Interactive, ::ptgn::impl::Draggable, ::ptgn::impl::Dropzone>;
 	constexpr Components components{};
 	auto before{ CaptureComponentSetState(target, components) };
 
@@ -133,7 +127,7 @@ bool SetInteractionMode(Target& target, InteractionMode mode) {
 	} else if (mode == InteractionMode::Dropzone) {
 		target.template SetLive<::ptgn::impl::Dropzone>(::ptgn::impl::Dropzone{});
 	}
-		auto after{ CaptureComponentSetState(target, components) };
+	auto after{ CaptureComponentSetState(target, components) };
 	TrackComponentSetState(
 		target, "Change Interaction Mode", std::move(before), std::move(after), components
 	);
@@ -142,20 +136,13 @@ bool SetInteractionMode(Target& target, InteractionMode mode) {
 
 template <typename Target>
 bool RemoveInteractionSection(Target& target) {
-	using Components = ComponentSet<
-		::ptgn::impl::Interactive,
-		::ptgn::impl::Draggable,
-		::ptgn::impl::Dropzone
-	>;
+	using Components =
+		ComponentSet<::ptgn::impl::Interactive, ::ptgn::impl::Draggable, ::ptgn::impl::Dropzone>;
 	return RemoveComponentSet(target, "Interaction", Components{});
 }
 
 template <typename T>
-bool DrawInteractionComponentFields(
-	EditorContext& ctx,
-	T& value,
-	std::string_view enabled_label
-) {
+bool DrawInteractionComponentFields(EditorContext& ctx, T& value, std::string_view enabled_label) {
 	bool changed{ false };
 	changed |= DrawPropertyRow(enabled_label, [&]() {
 		return ImGui::Checkbox("##Enabled", &value.enabled);
@@ -234,14 +221,14 @@ bool DrawManagedInteractiveShapes(EntityInspectorTarget& target) {
 
 	ImGui::SeparatorText("Hit Areas");
 
-	const bool add_requested{ DrawInspectorTabCollection(
+	bool add_requested{ DrawInspectorTabCollection(
 		shapes.empty(),
 		InspectorTabCollectionOptions{
-			.scope_id = "##InteractionHitAreaStrip",
-			.tab_bar_id = "##InteractionHitAreas",
-			.add_tab_id = "+##AddInteractionHitArea",
+			.scope_id		 = "##InteractionHitAreaStrip",
+			.tab_bar_id		 = "##InteractionHitAreas",
+			.add_tab_id		 = "+##AddInteractionHitArea",
 			.empty_add_label = "Add Hit Area",
-			.add_tooltip = "Add hit area",
+			.add_tooltip	 = "Add hit area",
 		},
 		[&]() {
 			for (std::size_t index{ 0 }; index < shapes.size(); ++index) {
@@ -252,7 +239,7 @@ bool DrawManagedInteractiveShapes(EntityInspectorTarget& target) {
 
 				ScopedID shape_scope{ static_cast<int>(index) };
 				const std::string label{ InteractiveShapeLabel(shape, index) };
-				const bool open{ ImGui::BeginTabItem(label.c_str()) };
+				bool open{ ImGui::BeginTabItem(label.c_str()) };
 				const auto context{ DrawInspectorTabContextMenu(
 					"##HitAreaContext", true, false, true, "Remove Hit Area"
 				) };
@@ -308,7 +295,7 @@ bool DrawManagedInteractiveShapes(EntityInspectorTarget& target) {
 			if (created) {
 				(void)target.ctx.commands.RecordCreatedEntity(created, before_selection);
 				target.ctx.local.selection = before_selection;
-				changed = true;
+				changed					   = true;
 			}
 		}
 		if (ImGui::MenuItem("Circle")) {
@@ -317,7 +304,7 @@ bool DrawManagedInteractiveShapes(EntityInspectorTarget& target) {
 			if (created) {
 				(void)target.ctx.commands.RecordCreatedEntity(created, before_selection);
 				target.ctx.local.selection = before_selection;
-				changed = true;
+				changed					   = true;
 			}
 		}
 		ImGui::EndPopup();
@@ -334,9 +321,7 @@ bool DrawManagedInteractiveShapes(EntityInspectorTarget& target) {
 
 	if (rename_state.active) {
 		(void)DrawInspectorTabRenameModal(
-			rename_state,
-			"Rename Hit Area##Interaction",
-			"##RenameInteractionHitArea",
+			rename_state, "Rename Hit Area##Interaction", "##RenameInteractionHitArea",
 			[](std::string_view value) {
 				return value.empty() ? std::string{ "Name cannot be empty." } : std::string{};
 			},
@@ -360,12 +345,11 @@ bool DrawInteractionSectionImpl(Target& target) {
 	}
 
 	const auto header{ DrawInspectorSectionHeader(
-		"Interaction",
-		"InteractionSection",
+		"Interaction", "InteractionSection",
 		InspectorSectionOptions{
 			.default_open = true,
-			.removable = true,
-			.resettable = false,
+			.removable	  = true,
+			.resettable	  = false,
 		}
 	) };
 
@@ -381,44 +365,44 @@ bool DrawInteractionSectionImpl(Target& target) {
 	InteractionMode mode{ GetInteractionMode(target) };
 	if (mode == InteractionMode::Conflict) {
 		ImGui::TextColored(
-			ImVec4{ 1.0f, 0.45f, 0.2f, 1.0f },
-			"Draggable and Dropzone are mutually exclusive."
+			ImVec4{ 1.0f, 0.45f, 0.2f, 1.0f }, "Draggable and Dropzone are mutually exclusive."
 		);
 	}
 
 	changed |= DrawPropertyRow("Mode", [&]() {
 		const std::array choices{
 			InspectorChoice{
-				.label = "Basic",
+				.label	  = "Basic",
 				.selected = mode == InteractionMode::Basic,
-				.invoke = [&]() {
-					changed |= SetInteractionMode(target, InteractionMode::Basic);
-					mode = InteractionMode::Basic;
-				},
+				.invoke =
+					[&]() {
+						changed |= SetInteractionMode(target, InteractionMode::Basic);
+						mode	 = InteractionMode::Basic;
+					},
 			},
 			InspectorChoice{
-				.label = "Draggable",
+				.label	  = "Draggable",
 				.selected = mode == InteractionMode::Draggable,
-				.invoke = [&]() {
-					changed |= SetInteractionMode(target, InteractionMode::Draggable);
-					mode = InteractionMode::Draggable;
-				},
+				.invoke =
+					[&]() {
+						changed |= SetInteractionMode(target, InteractionMode::Draggable);
+						mode	 = InteractionMode::Draggable;
+					},
 			},
 			InspectorChoice{
-				.label = "Dropzone",
+				.label	  = "Dropzone",
 				.selected = mode == InteractionMode::Dropzone,
-				.invoke = [&]() {
-					changed |= SetInteractionMode(target, InteractionMode::Dropzone);
-					mode = InteractionMode::Dropzone;
-				},
+				.invoke =
+					[&]() {
+						changed |= SetInteractionMode(target, InteractionMode::Dropzone);
+						mode	 = InteractionMode::Dropzone;
+					},
 			},
 		};
 		return DrawInspectorChoiceBar(choices, "##InteractionMode");
 	});
 
-	const bool has_interactive{
-		target.template Capture<::ptgn::impl::Interactive>().has_value()
-	};
+	bool has_interactive{ target.template Capture<::ptgn::impl::Interactive>().has_value() };
 	if (!has_interactive) {
 		ImGui::TextColored(
 			ImVec4{ 1.0f, 0.45f, 0.2f, 1.0f },
@@ -457,7 +441,6 @@ bool DrawInteractionSectionImpl(Target& target) {
 	changed |= DrawReadOnlyInteractionLock(target);
 	return changed;
 }
-
 
 } // namespace
 

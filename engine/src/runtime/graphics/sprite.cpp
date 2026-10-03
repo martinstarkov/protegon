@@ -76,8 +76,8 @@ void Sprite::Draw(
 	Color additional_tint
 ) {
 	const auto texture_key{ entity.TryGet<TextureKey>() };
-	const bool has_texture_source{ entity.Has<impl::TextureId>() || entity.Has<Texture>() ||
-								   (texture_key && !texture_key->value.empty()) };
+	bool has_texture_source{ entity.Has<impl::TextureId>() || entity.Has<Texture>() ||
+							 (texture_key && !texture_key->value.empty()) };
 
 	// A sprite may intentionally have no texture configured. The editor uses this state for
 	// optional Texture Key fields, so it should simply render nothing rather than warn.

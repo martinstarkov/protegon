@@ -33,11 +33,13 @@ void SceneLayers::Reset() {
 	next_layer_id_ = 1;
 
 	default_entity_layer_ = SceneLayerId{ next_layer_id_++ };
-	layers_.push_back(SceneLayer{
-		.id = default_entity_layer_,
-		.name = std::string{ kDefaultEntityLayerName },
-		.kind = SceneLayerKind::Entity,
-	});
+	layers_.push_back(
+		SceneLayer{
+			.id	  = default_entity_layer_,
+			.name = std::string{ kDefaultEntityLayerName },
+			.kind = SceneLayerKind::Entity,
+		}
+	);
 }
 
 const std::vector<SceneLayer>& SceneLayers::GetLayers() const {
@@ -60,24 +62,21 @@ const SceneLayer* SceneLayers::Find(SceneLayerId id) const {
 SceneLayerId SceneLayers::Create(SceneLayerKind kind, std::string name) {
 	const SceneLayerId id{ next_layer_id_++ };
 	if (name.empty()) {
-		name = kind == SceneLayerKind::Tile
-			? std::string{ kDefaultTileLayerName }
-			: std::string{ kDefaultAdditionalEntityLayerName };
+		name = kind == SceneLayerKind::Tile ? std::string{ kDefaultTileLayerName }
+											: std::string{ kDefaultAdditionalEntityLayerName };
 	}
 
-	layers_.push_back(SceneLayer{
-		.id = id,
-		.name = std::move(name),
-		.kind = kind,
-	});
+	layers_.push_back(
+		SceneLayer{
+			.id	  = id,
+			.name = std::move(name),
+			.kind = kind,
+		}
+	);
 	return id;
 }
 
-bool SceneLayers::Delete(
-	Scene& scene,
-	SceneLayerId id,
-	std::optional<SceneLayerId> replacement
-) {
+bool SceneLayers::Delete(Scene& scene, SceneLayerId id, std::optional<SceneLayerId> replacement) {
 	if (!id || id == default_entity_layer_) {
 		return false;
 	}
@@ -184,9 +183,7 @@ bool SceneLayers::SetSelectable(SceneLayerId id, bool selectable) {
 
 std::optional<SceneLayerId> SceneLayers::GetLayerId(UUID entity) const {
 	const auto it{ memberships_.find(entity) };
-	return it == memberships_.end()
-		? std::nullopt
-		: std::optional<SceneLayerId>{ it->second };
+	return it == memberships_.end() ? std::nullopt : std::optional<SceneLayerId>{ it->second };
 }
 
 std::optional<SceneLayerId> SceneLayers::GetLayerId(Entity entity) const {
@@ -229,8 +226,8 @@ bool SceneLayers::IsAllowed(Entity entity, SceneLayerKind kind) const {
 		return false;
 	}
 
-	const bool tilemap{ IsTilemap(entity) };
-	const bool generator{ IsPaintGenerator(entity) };
+	bool tilemap{ IsTilemap(entity) };
+	bool generator{ IsPaintGenerator(entity) };
 
 	if (kind == SceneLayerKind::Tile) {
 		return tilemap || generator;
@@ -338,9 +335,9 @@ bool SceneLayers::IsSelectable(Entity entity) const {
 
 SerializedSceneLayers SceneLayers::Serialize(const Scene& scene) const {
 	SerializedSceneLayers serialized{
-		.layers = layers_,
+		.layers				  = layers_,
 		.default_entity_layer = default_entity_layer_,
-		.next_layer_id = next_layer_id_,
+		.next_layer_id		  = next_layer_id_,
 	};
 
 	serialized.memberships.reserve(scene.GetEntityCount());
@@ -348,10 +345,12 @@ SerializedSceneLayers SceneLayers::Serialize(const Scene& scene) const {
 		PTGN_ASSERT(entity.Has<UUID>(), "Serialized layered entity must have a UUID");
 		const UUID uuid{ entity.Get<UUID>() };
 		const SceneLayerId layer{ GetLayerId(uuid).value_or(default_entity_layer_) };
-		serialized.memberships.push_back(SerializedSceneLayerMembership{
-			.entity = uuid,
-			.layer = layer,
-		});
+		serialized.memberships.push_back(
+			SerializedSceneLayerMembership{
+				.entity = uuid,
+				.layer	= layer,
+			}
+		);
 	}
 	return serialized;
 }
@@ -360,7 +359,7 @@ void SceneLayers::Deserialize(const SerializedSceneLayers& serialized) {
 	layers_ = serialized.layers;
 	memberships_.clear();
 	default_entity_layer_ = serialized.default_entity_layer;
-	next_layer_id_ = serialized.next_layer_id;
+	next_layer_id_		  = serialized.next_layer_id;
 
 	PTGN_ASSERT(!layers_.empty(), "Serialized scene must contain at least one layer");
 	PTGN_ASSERT(default_entity_layer_, "Serialized scene must identify a default entity layer");

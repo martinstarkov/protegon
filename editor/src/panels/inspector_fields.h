@@ -23,8 +23,8 @@
 #include <magic_enum/magic_enum.hpp>
 #include <memory>
 #include <optional>
-#include <ratio>
 #include <ranges>
+#include <ratio>
 #include <string>
 #include <string_view>
 #include <tuple>
@@ -34,9 +34,6 @@
 #include <variant>
 #include <vector>
 
-#include "editor/color_picker.h"
-#include "editor/editor.h"
-#include "editor/editor_context.h"
 #include "core/graphics/color.h"
 #include "core/graphics/fill_style.h"
 #include "core/input/key.h"
@@ -47,6 +44,9 @@
 #include "core/math/vector4.h"
 #include "core/util/time.h"
 #include "core/util/type_info.h"
+#include "editor/color_picker.h"
+#include "editor/editor.h"
+#include "editor/editor_context.h"
 #include "panels/content_browser.h"
 #include "panels/inspector_layout.h"
 #include "platform/platform.h"
@@ -76,10 +76,7 @@ using ReflectedValueVisitCallback =
 	void (*)(void* value, ::ptgn::ComponentReflectionVisitor visitor);
 
 bool DrawReflectedContents(
-	EditorContext& ctx,
-	std::string_view label,
-	void* value,
-	ReflectedValueVisitCallback visit
+	EditorContext& ctx, std::string_view label, void* value, ReflectedValueVisitCallback visit
 );
 
 /// Compatibility shim for old inspector implementations. Property rows now size themselves from
@@ -235,149 +232,65 @@ inline constexpr bool kIsOptional{ IsOptional<T>::value };
 template <typename T>
 concept AssetKeyType = std::derived_from<std::remove_cvref_t<T>, AssetKey>;
 
-
 template <typename T>
 consteval bool HasDefaultInspectorDrawer();
 
-template <
-	typename TTuple,
-	std::size_t... TIndex
->
-consteval bool ReflectedTupleHasDefaultInspectorDrawer(
-	std::index_sequence<TIndex...>
-) {
+template <typename TTuple, std::size_t... TIndex>
+consteval bool ReflectedTupleHasDefaultInspectorDrawer(std::index_sequence<TIndex...>) {
 	return (
 		HasDefaultInspectorDrawer<
-			std::remove_cvref_t<
-				decltype(
-					std::get<TIndex>(
-						std::declval<TTuple&>()
-					).value
-				)
-			>
-		>() &&
+			std::remove_cvref_t<decltype(std::get<TIndex>(std::declval<TTuple&>()).value)>>() &&
 		...
 	);
 }
 
-template <
-	typename TVariant,
-	std::size_t... TIndex
->
-consteval bool VariantHasDefaultInspectorDrawer(
-	std::index_sequence<TIndex...>
-) {
-	return (
-		HasDefaultInspectorDrawer<
-			std::variant_alternative_t<
-				TIndex,
-				TVariant
-			>
-		>() &&
-		...
-	);
+template <typename TVariant, std::size_t... TIndex>
+consteval bool VariantHasDefaultInspectorDrawer(std::index_sequence<TIndex...>) {
+	return (HasDefaultInspectorDrawer<std::variant_alternative_t<TIndex, TVariant>>() && ...);
 }
 
 template <typename T>
 consteval bool HasDefaultInspectorDrawer() {
-	using Value =
-		std::remove_cvref_t<T>;
+	using Value = std::remove_cvref_t<T>;
 
 	if constexpr (
-		std::integral<Value> ||
-		std::same_as<Value, float> ||
-		DurationType<Value> ||
-		std::same_as<Value, std::string> ||
-		std::same_as<Value, Color> ||
-		std::same_as<Value, FillStyle> ||
-		std::same_as<Value, V2_float> ||
-		std::same_as<Value, V2_int> ||
-		std::same_as<Value, Degrees> ||
-		std::same_as<Value, Radians> ||
-		std::same_as<Value, FontStyle> ||
-		std::same_as<Value, Matrix4> ||
-		std::is_enum_v<Value>
+		std::integral<Value> || std::same_as<Value, float> || DurationType<Value> ||
+		std::same_as<Value, std::string> || std::same_as<Value, Color> ||
+		std::same_as<Value, FillStyle> || std::same_as<Value, V2_float> ||
+		std::same_as<Value, V2_int> || std::same_as<Value, Degrees> ||
+		std::same_as<Value, Radians> || std::same_as<Value, FontStyle> ||
+		std::same_as<Value, Matrix4> || std::is_enum_v<Value>
 	) {
 		return true;
-	} else if constexpr (
-		kIsOptional<Value> ||
-		kIsArray<Value> ||
-		kIsVector<Value>
-	) {
-		return HasDefaultInspectorDrawer<
-			typename Value::value_type
-		>();
-	} else if constexpr (
-		kIsVariant<Value>
-	) {
+	} else if constexpr (kIsOptional<Value> || kIsArray<Value> || kIsVector<Value>) {
+		return HasDefaultInspectorDrawer<typename Value::value_type>();
+	} else if constexpr (kIsVariant<Value>) {
 		return VariantHasDefaultInspectorDrawer<Value>(
-			std::make_index_sequence<
-				std::variant_size_v<Value>
-			>{}
+			std::make_index_sequence<std::variant_size_v<Value>>{}
 		);
-	} else if constexpr (
-		ReflectedValue<Value>
-	) {
-		using Member =
-			decltype(
-				ReflectValue(
-					std::declval<Value&>()
-				)
-			);
-		using MemberValue =
-			std::remove_cvref_t<
-				decltype(
-					std::declval<Member&>().value
-				)
-			>;
+	} else if constexpr (ReflectedValue<Value>) {
+		using Member	  = decltype(ReflectValue(std::declval<Value&>()));
+		using MemberValue = std::remove_cvref_t<decltype(std::declval<Member&>().value)>;
 
-		return HasDefaultInspectorDrawer<
-			MemberValue
-		>();
-	} else if constexpr (
-		ReflectedMembers<Value>
-	) {
-		using Members =
-			decltype(
-				ReflectMembers(
-					std::declval<Value&>()
-				)
-			);
+		return HasDefaultInspectorDrawer<MemberValue>();
+	} else if constexpr (ReflectedMembers<Value>) {
+		using Members = decltype(ReflectMembers(std::declval<Value&>()));
 
-		if constexpr (
-			std::tuple_size_v<Members> == 0
-		) {
+		if constexpr (std::tuple_size_v<Members> == 0) {
 			return false;
 		} else {
-			return ReflectedTupleHasDefaultInspectorDrawer<
-				Members
-			>(
-				std::make_index_sequence<
-					std::tuple_size_v<Members>
-				>{}
+			return ReflectedTupleHasDefaultInspectorDrawer<Members>(
+				std::make_index_sequence<std::tuple_size_v<Members>>{}
 			);
 		}
-	} else if constexpr (
-		ReflectedReadOnlyMembers<Value>
-	) {
-		using Members =
-			decltype(
-				ReflectReadOnlyMembers(
-					std::declval<const Value&>()
-				)
-			);
+	} else if constexpr (ReflectedReadOnlyMembers<Value>) {
+		using Members = decltype(ReflectReadOnlyMembers(std::declval<const Value&>()));
 
-		if constexpr (
-			std::tuple_size_v<Members> == 0
-		) {
+		if constexpr (std::tuple_size_v<Members> == 0) {
 			return false;
 		} else {
-			return ReflectedTupleHasDefaultInspectorDrawer<
-				Members
-			>(
-				std::make_index_sequence<
-					std::tuple_size_v<Members>
-				>{}
+			return ReflectedTupleHasDefaultInspectorDrawer<Members>(
+				std::make_index_sequence<std::tuple_size_v<Members>>{}
 			);
 		}
 	} else {
@@ -386,9 +299,7 @@ consteval bool HasDefaultInspectorDrawer() {
 }
 
 template <typename T>
-inline constexpr bool kHasDefaultInspectorDrawer{
-	HasDefaultInspectorDrawer<T>()
-};
+inline constexpr bool kHasDefaultInspectorDrawer{ HasDefaultInspectorDrawer<T>() };
 
 inline std::string PrettyName(std::string_view name) {
 	while (!name.empty() && (name.back() == '_' || name.back() == ']')) {
@@ -413,13 +324,9 @@ inline std::string PrettyName(std::string_view name) {
 			const char previous{ i > 0 ? name[i - 1] : '\0' };
 			const char next{ i + 1 < name.size() ? name[i + 1] : '\0' };
 
-			const bool previous_is_lower{
-				std::islower(static_cast<unsigned char>(previous)) != 0
-			};
-			const bool acronym_boundary{
-				std::isupper(static_cast<unsigned char>(previous)) != 0 &&
-				std::islower(static_cast<unsigned char>(next)) != 0
-			};
+			bool previous_is_lower{ std::islower(static_cast<unsigned char>(previous)) != 0 };
+			bool acronym_boundary{ std::isupper(static_cast<unsigned char>(previous)) != 0 &&
+								   std::islower(static_cast<unsigned char>(next)) != 0 };
 
 			if (previous_is_lower || acronym_boundary) {
 				result.push_back(' ');
@@ -427,11 +334,7 @@ inline std::string PrettyName(std::string_view name) {
 		}
 
 		if (capitalize) {
-			result.push_back(
-				static_cast<char>(
-					std::toupper(static_cast<unsigned char>(c))
-				)
-			);
+			result.push_back(static_cast<char>(std::toupper(static_cast<unsigned char>(c))));
 			capitalize = false;
 		} else {
 			result.push_back(c);
@@ -451,7 +354,8 @@ std::string EnumLabel(T value) {
 inline std::string KeyDisplayLabel(Key key) {
 	auto name{ magic_enum::enum_name(key) };
 
-	if (name.size() == 3 && name[0] == 'K' && name[1] == '_' && std::isdigit(static_cast<unsigned char>(name[2]))) {
+	if (name.size() == 3 && name[0] == 'K' && name[1] == '_' &&
+		std::isdigit(static_cast<unsigned char>(name[2]))) {
 		return std::string{ 1, name[2] };
 	}
 
@@ -495,14 +399,14 @@ inline bool DrawKeyCombo(Key& value, const char* id = "##value") {
 			const std::string normalized_label{ NormalizeKeySearchText(item_label) };
 
 			if (!normalized_filter.empty() &&
-			normalized_name.find(normalized_filter) == std::string::npos &&
-			normalized_label.find(normalized_filter) == std::string::npos) {
+				normalized_name.find(normalized_filter) == std::string::npos &&
+				normalized_label.find(normalized_filter) == std::string::npos) {
 				continue;
 			}
 
-			const bool selected{ candidate == value };
+			bool selected{ candidate == value };
 			if (ImGui::Selectable(item_label.c_str(), selected)) {
-				value = candidate;
+				value	= candidate;
 				changed = true;
 			}
 
@@ -564,17 +468,13 @@ inline bool DrawKeyCombo(Key& value, const char* id = "##value") {
 		return false;
 	}
 
-	const std::string normalized{
-		NormalizeKeyExpressionAlias(NormalizeKeySearchText(token))
-	};
+	const std::string normalized{ NormalizeKeyExpressionAlias(NormalizeKeySearchText(token)) };
 
-	if (normalized.size() == 1 &&
-		normalized.front() >= 'a' && normalized.front() <= 'z') {
+	if (normalized.size() == 1 && normalized.front() >= 'a' && normalized.front() <= 'z') {
 		return true;
 	}
 
-	if (normalized.size() == 2 &&
-		normalized.front() == 'k' &&
+	if (normalized.size() == 2 && normalized.front() == 'k' &&
 		std::isdigit(static_cast<unsigned char>(normalized[1]))) {
 		return true;
 	}
@@ -594,70 +494,27 @@ inline bool DrawKeyCombo(Key& value, const char* id = "##value") {
 		}
 	}
 
-	if (normalized.size() == 3 &&
-		normalized[0] == 'k' && normalized[1] == 'p' &&
+	if (normalized.size() == 3 && normalized[0] == 'k' && normalized[1] == 'p' &&
 		std::isdigit(static_cast<unsigned char>(normalized[2]))) {
 		return true;
 	}
 
 	static constexpr std::array<std::string_view, 49> kNamedKeys{
-		"space",
-		"apostrophe",
-		"comma",
-		"minus",
-		"period",
-		"slash",
-		"semicolon",
-		"equal",
-		"leftbracket",
-		"backslash",
-		"rightbracket",
-		"graveaccent",
-		"world1",
-		"world2",
-		"escape",
-		"enter",
-		"tab",
-		"backspace",
-		"insert",
-		"delete",
-		"right",
-		"left",
-		"down",
-		"up",
-		"pageup",
-		"pagedown",
-		"home",
-		"end",
-		"capslock",
-		"scrolllock",
-		"numlock",
-		"printscreen",
-		"pause",
-		"kpdecimal",
-		"kpdivide",
-		"kpmultiply",
-		"kpsubtract",
-		"kpadd",
-		"kpenter",
-		"kpequal",
-		"leftshift",
-		"leftctrl",
-		"leftalt",
-		"leftsuper",
-		"rightshift",
-		"rightctrl",
-		"rightalt",
-		"rightsuper",
+		"space",	  "apostrophe",	 "comma",		"minus",	 "period",		 "slash",
+		"semicolon",  "equal",		 "leftbracket", "backslash", "rightbracket", "graveaccent",
+		"world1",	  "world2",		 "escape",		"enter",	 "tab",			 "backspace",
+		"insert",	  "delete",		 "right",		"left",		 "down",		 "up",
+		"pageup",	  "pagedown",	 "home",		"end",		 "capslock",	 "scrolllock",
+		"numlock",	  "printscreen", "pause",		"kpdecimal", "kpdivide",	 "kpmultiply",
+		"kpsubtract", "kpadd",		 "kpenter",		"kpequal",	 "leftshift",	 "leftctrl",
+		"leftalt",	  "leftsuper",	 "rightshift",	"rightctrl", "rightalt",	 "rightsuper",
 		"menu",
 	};
 
 	return std::ranges::find(kNamedKeys, normalized) != kNamedKeys.end();
 }
 
-[[nodiscard]] inline std::optional<std::string> KeyExpressionError(
-	std::string_view input
-) {
+[[nodiscard]] inline std::optional<std::string> KeyExpressionError(std::string_view input) {
 	const std::string_view expression{ TrimKeyExpressionToken(input) };
 	if (expression.empty()) {
 		return "Enter at least one key.";
@@ -666,13 +523,9 @@ inline bool DrawKeyCombo(Key& value, const char* id = "##value") {
 	std::size_t group_begin{ 0 };
 	while (group_begin <= expression.size()) {
 		const std::size_t comma{ expression.find(',', group_begin) };
-		const std::size_t group_end{
-			comma == std::string_view::npos ? expression.size() : comma
-		};
+		const std::size_t group_end{ comma == std::string_view::npos ? expression.size() : comma };
 		const std::string_view group{
-			TrimKeyExpressionToken(
-				expression.substr(group_begin, group_end - group_begin)
-			)
+			TrimKeyExpressionToken(expression.substr(group_begin, group_end - group_begin))
 		};
 
 		if (group.empty()) {
@@ -682,19 +535,15 @@ inline bool DrawKeyCombo(Key& value, const char* id = "##value") {
 		std::size_t token_begin{ 0 };
 		while (token_begin <= group.size()) {
 			const std::size_t plus{ group.find('+', token_begin) };
-			const std::size_t token_end{
-				plus == std::string_view::npos ? group.size() : plus
-			};
+			const std::size_t token_end{ plus == std::string_view::npos ? group.size() : plus };
 			const std::string_view token{
-				TrimKeyExpressionToken(
-					group.substr(token_begin, token_end - token_begin)
-				)
+				TrimKeyExpressionToken(group.substr(token_begin, token_end - token_begin))
 			};
 
 			if (token.empty()) {
 				return plus == std::string_view::npos
-					? std::optional<std::string>{ "Missing a key after '+'." }
-					: std::optional<std::string>{ "Missing a key near '+'." };
+						 ? std::optional<std::string>{ "Missing a key after '+'." }
+						 : std::optional<std::string>{ "Missing a key near '+'." };
 			}
 
 			if (!IsKnownKeyExpressionToken(token)) {
@@ -720,9 +569,7 @@ inline bool DrawKeyCombo(Key& value, const char* id = "##value") {
 	return std::nullopt;
 }
 
-inline void DrawInvalidKeyExpressionBorder(
-	const std::optional<std::string>& error
-) {
+inline void DrawInvalidKeyExpressionBorder(const std::optional<std::string>& error) {
 	if (!error) {
 		return;
 	}
@@ -730,12 +577,8 @@ inline void DrawInvalidKeyExpressionBorder(
 	const ImVec2 minimum{ ImGui::GetItemRectMin() };
 	const ImVec2 maximum{ ImGui::GetItemRectMax() };
 	ImGui::GetWindowDrawList()->AddRect(
-		minimum,
-		maximum,
-		ImGui::GetColorU32(ImVec4{ 1.0f, 0.2f, 0.2f, 1.0f }),
-		ImGui::GetStyle().FrameRounding,
-		0,
-		1.5f
+		minimum, maximum, ImGui::GetColorU32(ImVec4{ 1.0f, 0.2f, 0.2f, 1.0f }),
+		ImGui::GetStyle().FrameRounding, 0, 1.5f
 	);
 
 	if (ImGui::IsItemHovered()) {
@@ -746,33 +589,22 @@ inline void DrawInvalidKeyExpressionBorder(
 /// @brief Draw the shared editor key-expression field.
 /// `+` joins keys that must be held together and `,` separates alternatives.
 inline bool DrawKeyExpression(
-	std::string& expression,
-	const char* id = "##Keys",
-	std::string_view hint = "W + X, W + Left Shift",
-	float width = -FLT_MIN
+	std::string& expression, const char* id = "##Keys",
+	std::string_view hint = "W + X, W + Left Shift", float width = -FLT_MIN
 ) {
 	ImGui::SetNextItemWidth(width);
 	const std::string hint_string{ hint };
-	const bool changed{
-		ImGui::InputTextWithHint(
-			id,
-			hint_string.c_str(),
-			&expression
-		)
-	};
+	bool changed{ ImGui::InputTextWithHint(id, hint_string.c_str(), &expression) };
 
 	const auto error{ KeyExpressionError(expression) };
 	if (error) {
 		DrawInvalidKeyExpressionBorder(error);
 	} else if (ImGui::IsItemHovered()) {
-		ImGui::SetTooltip(
-			"Use + for AND and comma for OR. Key names are case insensitive."
-		);
+		ImGui::SetTooltip("Use + for AND and comma for OR. Key names are case insensitive.");
 	}
 
 	return changed;
 }
-
 
 template <typename T>
 std::string TypeLabel() {
@@ -807,11 +639,8 @@ std::string VariantTypeLabel() {
 		auto members{ ReflectMembers(value) };
 
 		if constexpr (std::tuple_size_v<decltype(members)> == 2) {
-			if (
-				label.find('>') != std::string::npos &&
-				std::get<0>(members).name == "min" &&
-				std::get<1>(members).name == "max"
-			) {
+			if (label.find('>') != std::string::npos && std::get<0>(members).name == "min" &&
+				std::get<1>(members).name == "max") {
 				return "Range";
 			}
 		}
@@ -832,30 +661,17 @@ inline float GetPropertyValueX(float fallback_start_x) {
 	return fallback_start_x + GetPropertyLabelWidth();
 }
 
-inline ImVec2 GetResizableMultilineSize(
-	const char* id,
-	ImVec2 default_size
-) {
-	const ImVec2 cursor_position{
-		ImGui::GetCursorScreenPos()
-	};
+inline ImVec2 GetResizableMultilineSize(const char* id, ImVec2 default_size) {
+	const ImVec2 cursor_position{ ImGui::GetCursorScreenPos() };
 
-	ImGui::PushStyleVar(
-		ImGuiStyleVar_FramePadding,
-		ImVec2{ 0.0f, 0.0f }
-	);
+	ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2{ 0.0f, 0.0f });
 
 	ImGui::BeginChild(
-		id,
-		default_size,
-		ImGuiChildFlags_ResizeY |
-			ImGuiChildFlags_FrameStyle |
-			ImGuiChildFlags_Borders
+		id, default_size,
+		ImGuiChildFlags_ResizeY | ImGuiChildFlags_FrameStyle | ImGuiChildFlags_Borders
 	);
 
-	const ImVec2 actual_size{
-		ImGui::GetWindowSize()
-	};
+	const ImVec2 actual_size{ ImGui::GetWindowSize() };
 
 	ImGui::EndChild();
 	ImGui::PopStyleVar();
@@ -933,64 +749,35 @@ bool DrawDisabledIf(bool disabled, F&& draw) {
 }
 
 inline bool DrawWHValue(
-	std::string_view label,
-	V2_float& value,
-	float speed = 0.1f,
-	float minimum = 0.0f,
-	float maximum = 0.0f,
-	const char* format = "%.3f",
-	ImGuiSliderFlags flags = ImGuiSliderFlags_None,
-	bool disabled = false
+	std::string_view label, V2_float& value, float speed = 0.1f, float minimum = 0.0f,
+	float maximum = 0.0f, const char* format = "%.3f",
+	ImGuiSliderFlags flags = ImGuiSliderFlags_None, bool disabled = false
 ) {
 	ImGui::PushID(&value);
 
-	const bool changed{ DrawPropertyRow(label, [&]() {
+	bool changed{ DrawPropertyRow(label, [&]() {
 		const float spacing{ ImGui::GetStyle().ItemInnerSpacing.x };
-		const float width{
-			std::max(
-				1.0f,
-				(ImGui::GetContentRegionAvail().x - spacing) * 0.5f
-			)
-		};
-		const std::string width_format{
-			std::string{ "W: " } + format
-		};
-		const std::string height_format{
-			std::string{ "H: " } + format
-		};
+		const float width{ std::max(1.0f, (ImGui::GetContentRegionAvail().x - spacing) * 0.5f) };
+		const std::string width_format{ std::string{ "W: " } + format };
+		const std::string height_format{ std::string{ "H: " } + format };
 
-		return DrawDisabledIf(
-			disabled || IsReadOnly(),
-			[&]() {
-				bool local_changed{ false };
+		return DrawDisabledIf(disabled || IsReadOnly(), [&]() {
+			bool local_changed{ false };
 
-				ImGui::SetNextItemWidth(width);
-				local_changed |= ImGui::DragFloat(
-					"##W",
-					&value.x,
-					speed,
-					minimum,
-					maximum,
-					width_format.c_str(),
-					flags
-				);
+			ImGui::SetNextItemWidth(width);
+			local_changed |= ImGui::DragFloat(
+				"##W", &value.x, speed, minimum, maximum, width_format.c_str(), flags
+			);
 
-				ImGui::SameLine(0.0f, spacing);
+			ImGui::SameLine(0.0f, spacing);
 
-				ImGui::SetNextItemWidth(width);
-				local_changed |= ImGui::DragFloat(
-					"##H",
-					&value.y,
-					speed,
-					minimum,
-					maximum,
-					height_format.c_str(),
-					flags
-				);
+			ImGui::SetNextItemWidth(width);
+			local_changed |= ImGui::DragFloat(
+				"##H", &value.y, speed, minimum, maximum, height_format.c_str(), flags
+			);
 
-				return local_changed;
-			}
-		);
+			return local_changed;
+		});
 	}) };
 
 	if (changed && minimum < maximum) {
@@ -1003,57 +790,30 @@ inline bool DrawWHValue(
 }
 
 inline bool DrawWHValue(
-	std::string_view label,
-	V2_int& value,
-	float speed = 1.0f,
-	int minimum = 0,
-	int maximum = 0,
-	ImGuiSliderFlags flags = ImGuiSliderFlags_None,
-	bool disabled = false
+	std::string_view label, V2_int& value, float speed = 1.0f, int minimum = 0, int maximum = 0,
+	ImGuiSliderFlags flags = ImGuiSliderFlags_None, bool disabled = false
 ) {
 	ImGui::PushID(&value);
 
-	const bool changed{ DrawPropertyRow(label, [&]() {
+	bool changed{ DrawPropertyRow(label, [&]() {
 		const float spacing{ ImGui::GetStyle().ItemInnerSpacing.x };
-		const float width{
-			std::max(
-				1.0f,
-				(ImGui::GetContentRegionAvail().x - spacing) * 0.5f
-			)
-		};
+		const float width{ std::max(1.0f, (ImGui::GetContentRegionAvail().x - spacing) * 0.5f) };
 
-		return DrawDisabledIf(
-			disabled || IsReadOnly(),
-			[&]() {
-				bool local_changed{ false };
+		return DrawDisabledIf(disabled || IsReadOnly(), [&]() {
+			bool local_changed{ false };
 
-				ImGui::SetNextItemWidth(width);
-				local_changed |= ImGui::DragInt(
-					"##W",
-					&value.x,
-					speed,
-					minimum,
-					maximum,
-					"W: %d",
-					flags
-				);
+			ImGui::SetNextItemWidth(width);
+			local_changed |=
+				ImGui::DragInt("##W", &value.x, speed, minimum, maximum, "W: %d", flags);
 
-				ImGui::SameLine(0.0f, spacing);
+			ImGui::SameLine(0.0f, spacing);
 
-				ImGui::SetNextItemWidth(width);
-				local_changed |= ImGui::DragInt(
-					"##H",
-					&value.y,
-					speed,
-					minimum,
-					maximum,
-					"H: %d",
-					flags
-				);
+			ImGui::SetNextItemWidth(width);
+			local_changed |=
+				ImGui::DragInt("##H", &value.y, speed, minimum, maximum, "H: %d", flags);
 
-				return local_changed;
-			}
-		);
+			return local_changed;
+		});
 	}) };
 
 	if (changed && minimum < maximum) {
@@ -1066,44 +826,23 @@ inline bool DrawWHValue(
 }
 
 inline bool DrawRValue(
-	std::string_view label,
-	float& value,
-	float speed = 0.1f,
-	float minimum = 0.0f,
-	float maximum = 0.0f,
-	const char* format = "%.3f",
-	ImGuiSliderFlags flags = ImGuiSliderFlags_None,
-	bool disabled = false
+	std::string_view label, float& value, float speed = 0.1f, float minimum = 0.0f,
+	float maximum = 0.0f, const char* format = "%.3f",
+	ImGuiSliderFlags flags = ImGuiSliderFlags_None, bool disabled = false
 ) {
 	ImGui::PushID(&value);
 
-	const std::string radius_format{
-		std::string{ "R: " } + format
-	};
+	const std::string radius_format{ std::string{ "R: " } + format };
 
-	const bool changed{
-		DrawPropertyRow(
-			label,
-			[&]() {
-				return DrawDisabledIf(
-					disabled || IsReadOnly(),
-					[&]() {
-						ImGui::SetNextItemWidth(-FLT_MIN);
+	bool changed{ DrawPropertyRow(label, [&]() {
+		return DrawDisabledIf(disabled || IsReadOnly(), [&]() {
+			ImGui::SetNextItemWidth(-FLT_MIN);
 
-						return ImGui::DragFloat(
-							"##R",
-							&value,
-							speed,
-							minimum,
-							maximum,
-							radius_format.c_str(),
-							flags
-						);
-					}
-				);
-			}
-		)
-	};
+			return ImGui::DragFloat(
+				"##R", &value, speed, minimum, maximum, radius_format.c_str(), flags
+			);
+		});
+	}) };
 
 	if (changed && minimum < maximum) {
 		value = std::clamp(value, minimum, maximum);
@@ -1115,14 +854,9 @@ inline bool DrawRValue(
 }
 
 inline bool DrawOptionalWHValue(
-	std::string_view label,
-	std::optional<V2_float>& value,
-	float speed = 0.1f,
-	float minimum = 0.0f,
-	float maximum = 0.0f,
-	const char* format = "%.3f",
-	ImGuiSliderFlags flags = ImGuiSliderFlags_None,
-	bool disabled = false,
+	std::string_view label, std::optional<V2_float>& value, float speed = 0.1f,
+	float minimum = 0.0f, float maximum = 0.0f, const char* format = "%.3f",
+	ImGuiSliderFlags flags = ImGuiSliderFlags_None, bool disabled = false,
 	std::optional<V2_float> enable_default = std::nullopt
 ) {
 	ImGui::PushID(&value);
@@ -1130,99 +864,45 @@ inline bool DrawOptionalWHValue(
 	bool enabled{ value.has_value() };
 	V2_float displayed{ value.value_or(enable_default.value_or(V2_float{})) };
 
-	const bool changed{
-		DrawPropertyRow(
-			label,
-			[&]() {
-				const bool read_only{
-					disabled || IsReadOnly()
-				};
+	bool changed{ DrawPropertyRow(label, [&]() {
+		bool read_only{ disabled || IsReadOnly() };
 
-				const float spacing{
-					ImGui::GetStyle().ItemInnerSpacing.x
-				};
-				const float checkbox_width{
-					ImGui::GetFrameHeight()
-				};
-				const float field_width{
-					std::max(
-						1.0f,
-						(
-							ImGui::GetContentRegionAvail().x -
-							checkbox_width -
-							spacing * 2.0f
-						) *
-							0.5f
-					)
-				};
+		const float spacing{ ImGui::GetStyle().ItemInnerSpacing.x };
+		const float checkbox_width{ ImGui::GetFrameHeight() };
+		const float field_width{ std::max(
+			1.0f, (ImGui::GetContentRegionAvail().x - checkbox_width - spacing * 2.0f) * 0.5f
+		) };
 
-				bool local_changed{ false };
+		bool local_changed{ false };
 
-				local_changed |= DrawDisabledIf(
-					read_only,
-					[&]() {
-						return ImGui::Checkbox(
-							"##Enabled",
-							&enabled
-						);
-					}
-				);
+		local_changed |=
+			DrawDisabledIf(read_only, [&]() { return ImGui::Checkbox("##Enabled", &enabled); });
 
-				ImGui::SameLine(
-					0.0f,
-					spacing
-				);
+		ImGui::SameLine(0.0f, spacing);
 
-				ImGui::BeginDisabled(
-					!enabled || read_only
-				);
+		ImGui::BeginDisabled(!enabled || read_only);
 
-				const std::string width_format{
-					std::string{ "W: " } + format
-				};
-				const std::string height_format{
-					std::string{ "H: " } + format
-				};
+		const std::string width_format{ std::string{ "W: " } + format };
+		const std::string height_format{ std::string{ "H: " } + format };
 
-				ImGui::SetNextItemWidth(
-					field_width
-				);
+		ImGui::SetNextItemWidth(field_width);
 
-				local_changed |= ImGui::DragFloat(
-					"##W",
-					&displayed.x,
-					speed,
-					minimum,
-					maximum,
-					width_format.c_str(),
-					flags
-				);
+		local_changed |= ImGui::DragFloat(
+			"##W", &displayed.x, speed, minimum, maximum, width_format.c_str(), flags
+		);
 
-				ImGui::SameLine(
-					0.0f,
-					spacing
-				);
+		ImGui::SameLine(0.0f, spacing);
 
-				ImGui::SetNextItemWidth(
-					field_width
-				);
+		ImGui::SetNextItemWidth(field_width);
 
-				local_changed |= ImGui::DragFloat(
-					"##H",
-					&displayed.y,
-					speed,
-					minimum,
-					maximum,
-					height_format.c_str(),
-					flags
-				);
+		local_changed |= ImGui::DragFloat(
+			"##H", &displayed.y, speed, minimum, maximum, height_format.c_str(), flags
+		);
 
-				ImGui::EndDisabled();
+		ImGui::EndDisabled();
 
-				return local_changed;
-			}
-		)
-	};
+		return local_changed;
+	}) };
 
 	if (changed) {
 		if (minimum < maximum) {
@@ -1241,213 +921,121 @@ inline bool DrawOptionalWHValue(
 	return changed;
 }
 
-inline bool DrawString(
-	std::string_view label,
-	std::string& value,
-	const FieldOptions& options
-) {
-	return DrawPropertyRow(
-		label,
-		[&]() {
-			const bool read_only{
-				IsReadOnly(options)
-			};
+inline bool DrawString(std::string_view label, std::string& value, const FieldOptions& options) {
+	return DrawPropertyRow(label, [&]() {
+		bool read_only{ IsReadOnly(options) };
 
-			if (!options.multiline) {
-				return DrawDisabledIf(
-					read_only,
-					[&]() {
-						return ImGui::InputText(
-							"##value",
-							&value
-						);
-					}
-				);
+		if (!options.multiline) {
+			return DrawDisabledIf(read_only, [&]() { return ImGui::InputText("##value", &value); });
+		}
+
+		const std::string popup_name{ std::string{ "Edit " } + std::string{ label } +
+									  "##LargeTextEditor" };
+
+		const float default_height{
+			ImGui::GetTextLineHeightWithSpacing() *
+			static_cast<float>(std::max<std::size_t>(options.line_count, 1))
+		};
+
+		const float value_available{ std::max(1.0f, ImGui::GetContentRegionAvail().x) };
+		const float large_button_size{ ImGui::GetFrameHeight() };
+		const float large_button_spacing{ ImGui::GetStyle().ItemInnerSpacing.x };
+		bool show_large_button{ options.large_editor &&
+								value_available >=
+									large_button_size + large_button_spacing + 96.0f };
+
+		ImVec2 input_size{
+			show_large_button
+				? std::max(1.0f, value_available - large_button_size - large_button_spacing)
+				: -FLT_MIN,
+			default_height
+		};
+
+		bool open_large_editor{ false };
+
+		if (options.resizable_y) {
+			input_size = GetResizableMultilineSize("##resize", input_size);
+		}
+
+		constexpr ImGuiInputTextFlags input_flags{ ImGuiInputTextFlags_AllowTabInput |
+												   ImGuiInputTextFlags_WordWrap };
+
+		// The button or resize child may consume the item width
+		// configured by DrawPropertyRow().
+		ImGui::SetNextItemWidth(-FLT_MIN);
+
+		bool changed{ DrawDisabledIf(read_only, [&]() {
+			return ImGui::InputTextMultiline("##value", &value, input_size, input_flags);
+		}) };
+
+		// This must remain immediately after InputTextMultiline(),
+		// because BeginPopupContextItem() acts on the last item.
+		if (options.large_editor && ImGui::BeginPopupContextItem("##MultilineContext")) {
+			if (ImGui::MenuItem("Edit in Large Window...")) {
+				open_large_editor = true;
 			}
 
-			const std::string popup_name{
-				std::string{ "Edit " } +
-				std::string{ label } +
-				"##LargeTextEditor"
-			};
+			ImGui::EndPopup();
+		}
 
-			const float default_height{
-				ImGui::GetTextLineHeightWithSpacing() *
-				static_cast<float>(
-					std::max<std::size_t>(
-						options.line_count,
-						1
-					)
-				)
-			};
-
-			const float value_available{ std::max(1.0f, ImGui::GetContentRegionAvail().x) };
-			const float large_button_size{ ImGui::GetFrameHeight() };
-			const float large_button_spacing{ ImGui::GetStyle().ItemInnerSpacing.x };
-			const bool show_large_button{
-				options.large_editor &&
-				value_available >= large_button_size + large_button_spacing + 96.0f
-			};
-
-			ImVec2 input_size{
-				show_large_button
-					? std::max(1.0f, value_available - large_button_size - large_button_spacing)
-					: -FLT_MIN,
-				default_height
-			};
-
-			bool open_large_editor{ false };
-
-			if (options.resizable_y) {
-				input_size = GetResizableMultilineSize(
-					"##resize",
-					input_size
-				);
+		if (show_large_button) {
+			ImGui::SameLine(0.0f, large_button_spacing);
+			if (ImGui::Button(
+					"...##OpenLargeEditor", ImVec2{ large_button_size, large_button_size }
+				)) {
+				open_large_editor = true;
 			}
+			if (ImGui::IsItemHovered()) {
+				ImGui::SetTooltip("Open the large text editor.");
+			}
+		}
 
-			constexpr ImGuiInputTextFlags input_flags{
-				ImGuiInputTextFlags_AllowTabInput |
-				ImGuiInputTextFlags_WordWrap
-			};
+		// Both the button and context menu reach this path.
+		if (open_large_editor) {
+			ImGui::OpenPopup(popup_name.c_str());
+		}
 
-			// The button or resize child may consume the item width
-			// configured by DrawPropertyRow().
-			ImGui::SetNextItemWidth(
-				-FLT_MIN
+		if (options.large_editor) {
+			ImGui::SetNextWindowSize(ImVec2{ 700.0f, 500.0f }, ImGuiCond_Appearing);
+
+			ImGui::SetNextWindowSizeConstraints(
+				ImVec2{ 350.0f, 250.0f }, ImVec2{ FLT_MAX, FLT_MAX }
 			);
 
-			bool changed{
-				DrawDisabledIf(
-					read_only,
-					[&]() {
-						return ImGui::InputTextMultiline(
-							"##value",
-							&value,
-							input_size,
-							input_flags
-						);
-					}
-				)
-			};
+			bool popup_open{ true };
 
-			// This must remain immediately after InputTextMultiline(),
-			// because BeginPopupContextItem() acts on the last item.
-			if (
-				options.large_editor &&
-				ImGui::BeginPopupContextItem(
-					"##MultilineContext"
-				)
-			) {
-				if (
-					ImGui::MenuItem(
-						"Edit in Large Window..."
-					)
-				) {
-					open_large_editor = true;
+			if (ImGui::BeginPopupModal(
+					popup_name.c_str(), &popup_open, ImGuiWindowFlags_NoSavedSettings
+				)) {
+				bool close_requested{ !popup_open || ImGui::IsKeyPressed(ImGuiKey_Escape, false) };
+
+				if (close_requested) {
+					ImGui::CloseCurrentPopup();
+				} else {
+					const ImVec2 available{ ImGui::GetContentRegionAvail() };
+
+					const ImVec2 editor_size{ std::max(1.0f, available.x),
+											  std::max(100.0f, available.y) };
+
+					changed |= DrawDisabledIf(read_only, [&]() {
+						return ImGui::InputTextMultiline(
+							"##LargeValue", &value, editor_size, input_flags
+						);
+					});
 				}
 
 				ImGui::EndPopup();
 			}
-
-			if (show_large_button) {
-				ImGui::SameLine(0.0f, large_button_spacing);
-				if (ImGui::Button(
-					"...##OpenLargeEditor",
-					ImVec2{ large_button_size, large_button_size }
-				)) {
-					open_large_editor = true;
-				}
-				if (ImGui::IsItemHovered()) {
-					ImGui::SetTooltip("Open the large text editor.");
-				}
-			}
-
-			// Both the button and context menu reach this path.
-			if (open_large_editor) {
-				ImGui::OpenPopup(
-					popup_name.c_str()
-				);
-			}
-
-			if (options.large_editor) {
-				ImGui::SetNextWindowSize(
-					ImVec2{
-						700.0f,
-						500.0f
-					},
-					ImGuiCond_Appearing
-				);
-
-				ImGui::SetNextWindowSizeConstraints(
-					ImVec2{
-						350.0f,
-						250.0f
-					},
-					ImVec2{
-						FLT_MAX,
-						FLT_MAX
-					}
-				);
-
-				bool popup_open{ true };
-
-				if (
-					ImGui::BeginPopupModal(
-						popup_name.c_str(),
-						&popup_open,
-						ImGuiWindowFlags_NoSavedSettings
-					)
-				) {
-					const bool close_requested{
-						!popup_open ||
-						ImGui::IsKeyPressed(
-							ImGuiKey_Escape,
-							false
-						)
-					};
-
-					if (close_requested) {
-						ImGui::CloseCurrentPopup();
-					} else {
-						const ImVec2 available{
-							ImGui::GetContentRegionAvail()
-						};
-
-						const ImVec2 editor_size{
-							std::max(
-								1.0f,
-								available.x
-							),
-							std::max(
-								100.0f,
-								available.y
-							)
-						};
-
-						changed |= DrawDisabledIf(
-							read_only,
-							[&]() {
-								return ImGui::InputTextMultiline(
-									"##LargeValue",
-									&value,
-									editor_size,
-									input_flags
-								);
-							}
-						);
-					}
-
-					ImGui::EndPopup();
-				}
-			}
-
-			return changed;
 		}
-	);
+
+		return changed;
+	});
 }
 
 template <typename T>
-bool DrawReadOnlyValue(EditorContext& ctx, std::string_view label, const T& value, FieldOptions options) {
+bool DrawReadOnlyValue(
+	EditorContext& ctx, std::string_view label, const T& value, FieldOptions options
+) {
 	using Value = std::remove_cvref_t<T>;
 
 	static_assert(
@@ -1478,12 +1066,7 @@ bool DrawMembers(EditorContext& ctx, T& value) {
 			ImGui::PopID();
 		};
 
-		std::apply(
-			[&](auto&&... member) {
-				(draw_member(member), ...);
-			},
-			members
-		);
+		std::apply([&](auto&&... member) { (draw_member(member), ...); }, members);
 	}
 
 	if constexpr (ReflectedReadOnlyMembers<T>) {
@@ -1496,12 +1079,7 @@ bool DrawMembers(EditorContext& ctx, T& value) {
 				ImGui::PopID();
 			};
 
-			std::apply(
-				[&](auto&&... member) {
-					(draw_member(member), ...);
-				},
-				members
-			);
+			std::apply([&](auto&&... member) { (draw_member(member), ...); }, members);
 		}
 	}
 
@@ -1520,7 +1098,7 @@ bool IsValidAssetKey(EditorContext& ctx, const T& key) {
 		return assets.HasCatalogAsset(key) || assets.Has(key);
 	} else if constexpr (std::same_as<Value, ShaderKey>) {
 		return assets.HasCatalogAsset(key, Value::kind) ||
-			assets.GetEngineShaderSource(key).has_value() || assets.Has(key);
+			   assets.GetEngineShaderSource(key).has_value() || assets.Has(key);
 	} else {
 		return assets.HasCatalogAsset(key, Value::kind) || assets.Has(key);
 	}
@@ -1528,15 +1106,12 @@ bool IsValidAssetKey(EditorContext& ctx, const T& key) {
 
 template <AssetKeyType T>
 bool DrawAssetKeyInline(
-	EditorContext& ctx,
-	T& value,
-	const FieldOptions& options,
-	std::string_view hint = {},
+	EditorContext& ctx, T& value, const FieldOptions& options, std::string_view hint = {},
 	bool input_enabled = true
 ) {
 	using Value = std::remove_cvref_t<T>;
-	const bool read_only{ IsReadOnly(options) };
-	const bool input_disabled{ read_only || !input_enabled };
+	bool read_only{ IsReadOnly(options) };
+	bool input_disabled{ read_only || !input_enabled };
 	constexpr bool shader_key{ std::same_as<Value, ShaderKey> };
 
 	std::string resolved_hint{ hint };
@@ -1554,27 +1129,23 @@ bool DrawAssetKeyInline(
 			ImGui::CalcTextSize("[..]").x + ImGui::GetStyle().FramePadding.x * 2.0f;
 		const float available{ ImGui::GetContentRegionAvail().x };
 		const float spacing{ ImGui::GetStyle().ItemInnerSpacing.x };
-		// Preserve a useful text field first. At narrow widths the dedicated open button disappears;
-		// right-clicking the field still opens a valid shader in the editor.
+		// Preserve a useful text field first. At narrow widths the dedicated open button
+		// disappears; right-clicking the field still opens a valid shader in the editor.
 		show_shader_button = available >= shader_button_width + spacing + 72.0f;
 		ImGui::SetNextItemWidth(
-			show_shader_button ? std::max(1.0f, available - shader_button_width - spacing) : -FLT_MIN
+			show_shader_button ? std::max(1.0f, available - shader_button_width - spacing)
+							   : -FLT_MIN
 		);
 	}
 
 	bool input_changed{ DrawDisabledIf(input_disabled, [&]() {
-		return ImGui::InputTextWithHint(
-			"##value",
-			resolved_hint.c_str(),
-			&displayed_value
-		);
+		return ImGui::InputTextWithHint("##value", resolved_hint.c_str(), &displayed_value);
 	}) };
 
 	if (input_changed) {
 		if constexpr (std::same_as<Value, FontKey>) {
-			value.value = displayed_value == "Default Font"
-				? std::string{ kDefaultFont }
-				: displayed_value;
+			value.value =
+				displayed_value == "Default Font" ? std::string{ kDefaultFont } : displayed_value;
 		} else {
 			value.value = displayed_value;
 		}
@@ -1583,44 +1154,30 @@ bool DrawAssetKeyInline(
 
 	const ImVec2 input_min{ ImGui::GetItemRectMin() };
 	const ImVec2 input_max{ ImGui::GetItemRectMax() };
-	const bool input_hovered{
-		ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled)
-	};
+	bool input_hovered{ ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled) };
 
 	if constexpr (shader_key) {
 		if (input_hovered) {
-			ImGui::SetTooltip(
-				"Built-in engine shader keys start with '$', e.g. $color."
-			);
+			ImGui::SetTooltip("Built-in engine shader keys start with '$', e.g. $color.");
 		}
 	}
 
 	if (!read_only) {
-		if constexpr (
-			!std::same_as<Value, AssetKey> &&
-			requires { Value::kind; }
-		) {
-			changed |= ptgn::editor::AcceptAssetKeyDragDrop(
-				static_cast<AssetKey&>(value),
-				Value::kind
-			);
+		if constexpr (!std::same_as<Value, AssetKey> && requires { Value::kind; }) {
+			changed |=
+				ptgn::editor::AcceptAssetKeyDragDrop(static_cast<AssetKey&>(value), Value::kind);
 		} else {
-			changed |= ptgn::editor::AcceptAssetKeyDragDrop(
-				static_cast<AssetKey&>(value)
-			);
+			changed |= ptgn::editor::AcceptAssetKeyDragDrop(static_cast<AssetKey&>(value));
 		}
 	}
 
 	if constexpr (shader_key) {
 		auto& assets{ ctx.editor.GetAssetManager() };
-		const bool shader_exists{
-			!value.value.empty() &&
-			(assets.HasCatalogAsset(value, AssetKind::Shader) ||
-			 assets.GetEngineShaderSource(value).has_value() ||
-			 assets.Has(value))
-		};
-		if (input_hovered && shader_exists &&
-			ImGui::IsMouseReleased(ImGuiMouseButton_Right)) {
+		bool shader_exists{ !value.value.empty() &&
+							(assets.HasCatalogAsset(value, AssetKind::Shader) ||
+							 assets.GetEngineShaderSource(value).has_value() ||
+							 assets.Has(value)) };
+		if (input_hovered && shader_exists && ImGui::IsMouseReleased(ImGuiMouseButton_Right)) {
 			ptgn::editor::RequestShaderEditorOpen(value);
 		}
 
@@ -1633,9 +1190,8 @@ bool DrawAssetKeyInline(
 			ImGui::EndDisabled();
 			if (ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled)) {
 				ImGui::SetTooltip(
-					shader_exists
-						? "Open this shader in the shader editor."
-						: "The shader asset does not exist."
+					shader_exists ? "Open this shader in the shader editor."
+								  : "The shader asset does not exist."
 				);
 			}
 		}
@@ -1645,31 +1201,19 @@ bool DrawAssetKeyInline(
 		return changed;
 	}
 
-	const ImU32 error_color{
-		ImGui::GetColorU32(
-			ImVec4{ 1.0f, 0.25f, 0.25f, 1.0f }
-		)
-	};
+	const ImU32 error_color{ ImGui::GetColorU32(ImVec4{ 1.0f, 0.25f, 0.25f, 1.0f }) };
 	ImGui::GetWindowDrawList()->AddRect(
-		input_min,
-		input_max,
-		error_color,
-		ImGui::GetStyle().FrameRounding
+		input_min, input_max, error_color, ImGui::GetStyle().FrameRounding
 	);
 
 	if (input_hovered) {
 		if constexpr (std::same_as<Value, AssetKey>) {
-			ImGui::SetTooltip(
-				"No asset exists with key \"%s\".",
-				value.value.c_str()
-			);
+			ImGui::SetTooltip("No asset exists with key \"%s\".", value.value.c_str());
 		} else {
 			const auto kind_name{ magic_enum::enum_name(Value::kind) };
 			ImGui::SetTooltip(
-				"No %.*s asset exists with key \"%s\".",
-				static_cast<int>(kind_name.size()),
-				kind_name.data(),
-				value.value.c_str()
+				"No %.*s asset exists with key \"%s\".", static_cast<int>(kind_name.size()),
+				kind_name.data(), value.value.c_str()
 			);
 		}
 	}
@@ -1678,7 +1222,9 @@ bool DrawAssetKeyInline(
 }
 
 template <AssetKeyType T>
-bool DrawAssetKey(EditorContext& ctx, std::string_view label, T& value, const FieldOptions& options) {
+bool DrawAssetKey(
+	EditorContext& ctx, std::string_view label, T& value, const FieldOptions& options
+) {
 	return DrawPropertyRow(label, [&]() { return DrawAssetKeyInline(ctx, value, options); });
 }
 
@@ -1812,21 +1358,15 @@ template <typename... Aliases>
 ) {
 	const std::string normalized{ NormalizeDurationInputUnit(unit) };
 
-	if (IsDurationInputUnit(
-			normalized, "ns", "nsec", "nsecs", "nanosecond", "nanoseconds"
-		)) {
+	if (IsDurationInputUnit(normalized, "ns", "nsec", "nsecs", "nanosecond", "nanoseconds")) {
 		return DurationInputUnit::Nanoseconds;
 	}
 
-	if (IsDurationInputUnit(
-			normalized, "us", "usec", "usecs", "microsecond", "microseconds"
-		)) {
+	if (IsDurationInputUnit(normalized, "us", "usec", "usecs", "microsecond", "microseconds")) {
 		return DurationInputUnit::Microseconds;
 	}
 
-	if (IsDurationInputUnit(
-			normalized, "ms", "msec", "msecs", "millisecond", "milliseconds"
-		)) {
+	if (IsDurationInputUnit(normalized, "ms", "msec", "msecs", "millisecond", "milliseconds")) {
 		return DurationInputUnit::Milliseconds;
 	}
 
@@ -1855,22 +1395,21 @@ template <typename... Aliases>
 
 [[nodiscard]] constexpr std::string_view DurationInputUnitSuffix(DurationInputUnit unit) {
 	switch (unit) {
-		case DurationInputUnit::Nanoseconds: return "ns";
+		case DurationInputUnit::Nanoseconds:  return "ns";
 		case DurationInputUnit::Microseconds: return "us";
 		case DurationInputUnit::Milliseconds: return "ms";
-		case DurationInputUnit::Seconds: return "s";
-		case DurationInputUnit::Minutes: return "m";
-		case DurationInputUnit::Hours: return "h";
-		case DurationInputUnit::Days: return "d";
-		case DurationInputUnit::Weeks: return "w";
+		case DurationInputUnit::Seconds:	  return "s";
+		case DurationInputUnit::Minutes:	  return "m";
+		case DurationInputUnit::Hours:		  return "h";
+		case DurationInputUnit::Days:		  return "d";
+		case DurationInputUnit::Weeks:		  return "w";
 	}
 
 	return "ms";
 }
 
 [[nodiscard]] inline std::optional<ParsedInspectorDuration> ParseInspectorDuration(
-	std::string_view text,
-	DurationInputUnit default_unit = DurationInputUnit::Milliseconds
+	std::string_view text, DurationInputUnit default_unit = DurationInputUnit::Milliseconds
 ) {
 	const std::string input{ TrimDurationInputText(text) };
 
@@ -1891,7 +1430,7 @@ template <typename... Aliases>
 	const std::string entered_suffix{ TrimDurationInputText(std::string_view{ end }) };
 	const std::optional<DurationInputUnit> unit{
 		entered_suffix.empty() ? std::optional<DurationInputUnit>{ default_unit }
-						   : ParseDurationInputUnit(entered_suffix)
+							   : ParseDurationInputUnit(entered_suffix)
 	};
 
 	if (!unit) {
@@ -1905,19 +1444,15 @@ template <typename... Aliases>
 }
 
 template <DurationType T>
-[[nodiscard]] std::optional<T> ConvertInspectorDuration(
-	const ParsedInspectorDuration& parsed
-) {
-	using Duration         = std::remove_cvref_t<T>;
-	using Rep              = typename Duration::rep;
-	using Period           = typename Duration::period;
+[[nodiscard]] std::optional<T> ConvertInspectorDuration(const ParsedInspectorDuration& parsed) {
+	using Duration		   = std::remove_cvref_t<T>;
+	using Rep			   = typename Duration::rep;
+	using Period		   = typename Duration::period;
 	using FloatingDuration = duration<long double, Period>;
 
 	const auto convert = [&]<typename SourcePeriod>() {
 		using SourceDuration = duration<long double, SourcePeriod>;
-		return std::chrono::duration_cast<FloatingDuration>(
-			SourceDuration{ parsed.count }
-		).count();
+		return std::chrono::duration_cast<FloatingDuration>(SourceDuration{ parsed.count }).count();
 	};
 
 	long double count{ 0.0L };
@@ -1938,15 +1473,9 @@ template <DurationType T>
 		case DurationInputUnit::Minutes:
 			count = convert.template operator()<minutes::period>();
 			break;
-		case DurationInputUnit::Hours:
-			count = convert.template operator()<hours::period>();
-			break;
-		case DurationInputUnit::Days:
-			count = convert.template operator()<days::period>();
-			break;
-		case DurationInputUnit::Weeks:
-			count = convert.template operator()<weeks::period>();
-			break;
+		case DurationInputUnit::Hours: count = convert.template operator()<hours::period>(); break;
+		case DurationInputUnit::Days:  count = convert.template operator()<days::period>(); break;
+		case DurationInputUnit::Weeks: count = convert.template operator()<weeks::period>(); break;
 	}
 
 	if (!std::isfinite(count) ||
@@ -1966,22 +1495,14 @@ template <DurationType T>
 	};
 
 	switch (unit) {
-		case DurationInputUnit::Nanoseconds:
-			return convert.template operator()<nanosecondsf>();
-		case DurationInputUnit::Microseconds:
-			return convert.template operator()<microsecondsf>();
-		case DurationInputUnit::Milliseconds:
-			return convert.template operator()<millisecondsf>();
-		case DurationInputUnit::Seconds:
-			return convert.template operator()<secondsf>();
-		case DurationInputUnit::Minutes:
-			return convert.template operator()<minutesf>();
-		case DurationInputUnit::Hours:
-			return convert.template operator()<hoursf>();
-		case DurationInputUnit::Days:
-			return convert.template operator()<daysf>();
-		case DurationInputUnit::Weeks:
-			return convert.template operator()<weeksf>();
+		case DurationInputUnit::Nanoseconds:  return convert.template operator()<nanosecondsf>();
+		case DurationInputUnit::Microseconds: return convert.template operator()<microsecondsf>();
+		case DurationInputUnit::Milliseconds: return convert.template operator()<millisecondsf>();
+		case DurationInputUnit::Seconds:	  return convert.template operator()<secondsf>();
+		case DurationInputUnit::Minutes:	  return convert.template operator()<minutesf>();
+		case DurationInputUnit::Hours:		  return convert.template operator()<hoursf>();
+		case DurationInputUnit::Days:		  return convert.template operator()<daysf>();
+		case DurationInputUnit::Weeks:		  return convert.template operator()<weeksf>();
 	}
 
 	return 0.0L;
@@ -1998,7 +1519,7 @@ template <DurationType T>
 
 	if (!unit) {
 		displayed_suffix = std::string{ DurationUnit<T>() };
-		unit             = ParseDurationInputUnit(displayed_suffix);
+		unit			 = ParseDurationInputUnit(displayed_suffix);
 	}
 
 	if (!unit) {
@@ -2007,9 +1528,7 @@ template <DurationType T>
 
 	displayed_suffix = DurationInputUnitSuffix(*unit);
 
-	return std::format(
-		"{:.6g}{}", InspectorDurationCount(value, *unit), displayed_suffix
-	);
+	return std::format("{:.6g}{}", InspectorDurationCount(value, *unit), displayed_suffix);
 }
 
 struct DurationTextEditState {
@@ -2030,7 +1549,7 @@ bool DrawDurationTextInput(
 	const FieldOptions* options = nullptr
 ) {
 	using Duration = std::remove_cvref_t<T>;
-	using Rep      = typename Duration::rep;
+	using Rep	   = typename Duration::rep;
 
 	const ImGuiID id{ ImGui::GetID(label) };
 	auto& state{ DurationTextEditStates()[id] };
@@ -2048,11 +1567,11 @@ bool DrawDurationTextInput(
 	}
 
 	ImGui::SetNextItemWidth(width);
-	const bool submitted{ DrawDisabledIf(disabled, [&]() {
+	bool submitted{ DrawDisabledIf(disabled, [&]() {
 		return ImGui::InputText(label, &state.buffer, ImGuiInputTextFlags_EnterReturnsTrue);
 	}) };
-	const bool active{ ImGui::IsItemActive() };
-	const bool commit{ submitted || ImGui::IsItemDeactivatedAfterEdit() };
+	bool active{ ImGui::IsItemActive() };
+	bool commit{ submitted || ImGui::IsItemDeactivatedAfterEdit() };
 	bool changed{ false };
 
 	if (commit) {
@@ -2073,7 +1592,7 @@ bool DrawDurationTextInput(
 				state.display_unit = std::string{ DurationInputUnitSuffix(parsed->unit) };
 
 				if (bounded != value) {
-					value   = bounded;
+					value	= bounded;
 					changed = true;
 				}
 			}
@@ -2084,8 +1603,7 @@ bool DrawDurationTextInput(
 
 	state.was_active = active;
 
-	if (tooltip && *tooltip &&
-		ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled)) {
+	if (tooltip && *tooltip && ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled)) {
 		ImGui::SetTooltip("%s", tooltip);
 	}
 
@@ -2096,9 +1614,7 @@ inline bool DrawDurationInput(
 	const char* label, float& milliseconds, float width, const char* tooltip = nullptr
 ) {
 	millisecondsf duration{ milliseconds };
-	const bool changed{ DrawDurationTextInput(
-		label, duration, width, false, tooltip
-	) };
+	bool changed{ DrawDurationTextInput(label, duration, width, false, tooltip) };
 
 	if (changed) {
 		milliseconds = duration.count();
@@ -2109,13 +1625,11 @@ inline bool DrawDurationInput(
 
 template <typename Rep, typename Period>
 bool DrawDuration(
-	std::string_view label, std::chrono::duration<Rep, Period>& value,
-	const FieldOptions& options
+	std::string_view label, std::chrono::duration<Rep, Period>& value, const FieldOptions& options
 ) {
 	return DrawPropertyRow(label, [&]() {
 		return DrawDurationTextInput(
-			"##value", value, -FLT_MIN, IsReadOnly(options), nullptr,
-			std::addressof(options)
+			"##value", value, -FLT_MIN, IsReadOnly(options), nullptr, std::addressof(options)
 		);
 	});
 }
@@ -2163,9 +1677,11 @@ bool DrawArrayEditor(
 }
 
 template <typename T, std::size_t N>
-bool DrawArrayEditor(EditorContext& ctx, std::string_view label, std::array<T, N>& values, FieldOptions options = {}) {
-	return DrawArrayEditor(ctx,
-		label, values,
+bool DrawArrayEditor(
+	EditorContext& ctx, std::string_view label, std::array<T, N>& values, FieldOptions options = {}
+) {
+	return DrawArrayEditor(
+		ctx, label, values,
 		[&](std::size_t index) {
 			return std::string{ options.array_item_name } + " " + std::to_string(index);
 		},
@@ -2180,8 +1696,8 @@ bool DrawArrayEditor(EditorContext& ctx, std::array<T, N>& values, Label&& get_i
 
 template <typename T, std::size_t N>
 bool DrawArrayEditor(EditorContext& ctx, std::array<T, N>& values, FieldOptions options = {}) {
-	return DrawArrayEditor(ctx,
-		values,
+	return DrawArrayEditor(
+		ctx, values,
 		[&](std::size_t index) {
 			return std::string{ options.array_item_name } + " " + std::to_string(index);
 		},
@@ -2191,8 +1707,8 @@ bool DrawArrayEditor(EditorContext& ctx, std::array<T, N>& values, FieldOptions 
 
 template <typename TEnum, typename T, std::size_t N>
 	requires std::is_enum_v<TEnum>
-bool DrawEnumArrayEditor(EditorContext& ctx,
-	std::string_view label, std::array<T, N>& values, FieldOptions options = {}
+bool DrawEnumArrayEditor(
+	EditorContext& ctx, std::string_view label, std::array<T, N>& values, FieldOptions options = {}
 ) {
 	constexpr auto entries{ magic_enum::enum_entries<TEnum>() };
 
@@ -2203,8 +1719,9 @@ bool DrawEnumArrayEditor(EditorContext& ctx,
 	);
 #endif
 
-	return DrawArrayEditor(ctx,
-		label, values, [&](std::size_t index) { return PrettyName(entries[index].second); }, options
+	return DrawArrayEditor(
+		ctx, label, values, [&](std::size_t index) { return PrettyName(entries[index].second); },
+		options
 	);
 }
 
@@ -2227,12 +1744,8 @@ bool DrawEnumArrayEditor(EditorContext& ctx, std::array<T, N>& values) {
 
 template <typename T>
 inline constexpr bool kInspectorVectorType =
-	std::same_as<T, V2_float> ||
-	std::same_as<T, V3_float> ||
-	std::same_as<T, V4_float> ||
-	std::same_as<T, V2_int> ||
-	std::same_as<T, V3_int> ||
-	std::same_as<T, V4_int>;
+	std::same_as<T, V2_float> || std::same_as<T, V3_float> || std::same_as<T, V4_float> ||
+	std::same_as<T, V2_int> || std::same_as<T, V3_int> || std::same_as<T, V4_int>;
 
 template <typename T>
 	requires kInspectorVectorType<std::remove_cvref_t<T>>
@@ -2240,13 +1753,9 @@ inline bool DrawVector(std::string_view label, T& value, const FieldOptions& opt
 	using Vector = std::remove_cvref_t<T>;
 	using Scalar = std::remove_cvref_t<decltype(value.x)>;
 
-	constexpr int component_count{
-		requires(Vector vector) { vector.w; }
-			? 4
-			: requires(Vector vector) { vector.z; }
-				  ? 3
-				  : 2
-	};
+	constexpr int component_count{ requires(Vector vector) { vector.w; } ? 4
+								   : requires(Vector vector) { vector.z; } ? 3
+																		   : 2 };
 
 	return DrawPropertyRow(label, [&]() {
 		std::array<Scalar, static_cast<std::size_t>(component_count)> values{};
@@ -2265,33 +1774,23 @@ inline bool DrawVector(std::string_view label, T& value, const FieldOptions& opt
 		const void* minimum_value{ HasBounds(options) ? &minimum : nullptr };
 		const void* maximum_value{ HasBounds(options) ? &maximum : nullptr };
 
-		constexpr ImGuiDataType data_type{
-			std::same_as<Scalar, float>
-				? ImGuiDataType_Float
-				: ImGuiDataType_S32
-		};
+		constexpr ImGuiDataType data_type{ std::same_as<Scalar, float> ? ImGuiDataType_Float
+																	   : ImGuiDataType_S32 };
 
-		const char* base_format{
-			options.format
-				? options.format
-				: std::same_as<Scalar, float>
-					  ? "%.3f"
-					  : "%d"
-		};
+		const char* base_format{ options.format				   ? options.format
+								 : std::same_as<Scalar, float> ? "%.3f"
+															   : "%d" };
 
-		constexpr std::array<std::string_view, 4> axes{
-			"X", "Y", "Z", "W"
-		};
+		constexpr std::array<std::string_view, 4> axes{ "X", "Y", "Z", "W" };
 
 		const float spacing{ ImGui::GetStyle().ItemInnerSpacing.x };
 		const float available{ ImGui::GetContentRegionAvail().x };
-		// Keep compound numeric controls usable rather than compressing 3-4 inputs into a few pixels.
-		// At narrow widths they wrap within the value cell; the outer property table expands the row.
-		const int components_per_line{
-			available >= static_cast<float>(component_count) * 56.0f
-				? component_count
-				: std::min(component_count, 2)
-		};
+		// Keep compound numeric controls usable rather than compressing 3-4 inputs into a few
+		// pixels. At narrow widths they wrap within the value cell; the outer property table
+		// expands the row.
+		const int components_per_line{ available >= static_cast<float>(component_count) * 56.0f
+										   ? component_count
+										   : std::min(component_count, 2) };
 		const float width{ InspectorSplitWidth(components_per_line, available, spacing) };
 
 		bool changed{ false };
@@ -2302,26 +1801,15 @@ inline bool DrawVector(std::string_view label, T& value, const FieldOptions& opt
 					ImGui::SameLine(0.0f, spacing);
 				}
 
-				const std::string id{
-					"##" + std::string{ axes[static_cast<std::size_t>(i)] }
-				};
-				const std::string format{
-					std::string{ axes[static_cast<std::size_t>(i)] } +
-					": " +
-					base_format
-				};
+				const std::string id{ "##" + std::string{ axes[static_cast<std::size_t>(i)] } };
+				const std::string format{ std::string{ axes[static_cast<std::size_t>(i)] } + ": " +
+										  base_format };
 
 				ImGui::SetNextItemWidth(width);
 
 				changed |= ImGui::DragScalar(
-					id.c_str(),
-					data_type,
-					std::addressof(values[static_cast<std::size_t>(i)]),
-					options.speed,
-					minimum_value,
-					maximum_value,
-					format.c_str(),
-					options.flags
+					id.c_str(), data_type, std::addressof(values[static_cast<std::size_t>(i)]),
+					options.speed, minimum_value, maximum_value, format.c_str(), options.flags
 				);
 			}
 
@@ -2349,10 +1837,8 @@ inline bool DrawVector(std::string_view label, T& value, const FieldOptions& opt
 inline bool DrawColor(EditorContext& ctx, std::string_view label, Color& value) {
 	return DrawPropertyRow(label, [&]() {
 		return DrawDisabledIf(IsReadOnly(), [&]() {
-			ImGuiColorEditFlags flags{
-				ImGuiColorEditFlags_Uint8 | ImGuiColorEditFlags_AlphaBar |
-				ImGuiColorEditFlags_AlphaPreviewHalf
-			};
+			ImGuiColorEditFlags flags{ ImGuiColorEditFlags_Uint8 | ImGuiColorEditFlags_AlphaBar |
+									   ImGuiColorEditFlags_AlphaPreviewHalf };
 
 			// RGBA numeric inputs are useful while there is room. At narrow inspector widths they
 			// make every sub-control unreadable, so collapse to the color button/picker instead.
@@ -2496,96 +1982,65 @@ inline std::string FontStylePreview(FontStyle style) {
 }
 
 inline bool DrawFillStyle(
-	EditorContext& ctx,
-	std::string_view label,
-	FillStyle& style,
-	float maximum_line_width = 1000.0f
+	EditorContext& ctx, std::string_view label, FillStyle& style, float maximum_line_width = 1000.0f
 ) {
 	bool hollow{ style.GetLineWidth().has_value() };
-	bool changed{
-		DrawPropertyRow(
-			label,
-			[&]() {
-				const char* preview{ hollow ? "Hollow" : "Solid" };
-				bool local_changed{ false };
+	bool changed{ DrawPropertyRow(label, [&]() {
+		const char* preview{ hollow ? "Hollow" : "Solid" };
+		bool local_changed{ false };
 
-				if (ImGui::BeginCombo("##value", preview)) {
-					if (ImGui::Selectable("Solid", !hollow)) {
-						style = FillStyle{ Solid{} };
-						hollow = false;
-						local_changed = true;
-					}
-
-					if (ImGui::Selectable("Hollow", hollow)) {
-						const float width{
-							style.GetLineWidth().value_or(kInspectorMinLineWidth)
-						};
-						style = FillStyle{ width };
-						hollow = true;
-						local_changed = true;
-					}
-
-					ImGui::EndCombo();
-				}
-
-				return local_changed;
+		if (ImGui::BeginCombo("##value", preview)) {
+			if (ImGui::Selectable("Solid", !hollow)) {
+				style		  = FillStyle{ Solid{} };
+				hollow		  = false;
+				local_changed = true;
 			}
-		)
-	};
+
+			if (ImGui::Selectable("Hollow", hollow)) {
+				const float width{ style.GetLineWidth().value_or(kInspectorMinLineWidth) };
+				style		  = FillStyle{ width };
+				hollow		  = true;
+				local_changed = true;
+			}
+
+			ImGui::EndCombo();
+		}
+
+		return local_changed;
+	}) };
 
 	if (!hollow) {
 		return changed;
 	}
 
-	float line_width{
-		style.GetLineWidth().value_or(kInspectorMinLineWidth)
-	};
+	float line_width{ style.GetLineWidth().value_or(kInspectorMinLineWidth) };
 
-	const float line_width_maximum{
-		std::max(
-			kInspectorMinLineWidth,
-			maximum_line_width
-		)
-	};
+	const float line_width_maximum{ std::max(kInspectorMinLineWidth, maximum_line_width) };
 
 	const float clamped_line_width{
-		std::clamp(
-			line_width,
-			kInspectorMinLineWidth,
-			line_width_maximum
-		)
+		std::clamp(line_width, kInspectorMinLineWidth, line_width_maximum)
 	};
 	if (line_width != clamped_line_width) {
 		line_width = clamped_line_width;
-		style = FillStyle{ line_width };
-		changed = true;
+		style	   = FillStyle{ line_width };
+		changed	   = true;
 	}
 
 	ImGui::Indent();
 	{
-		ScopedPropertyLabelOffset label_offset{
-			ImGui::GetStyle().IndentSpacing
-		};
+		ScopedPropertyLabelOffset label_offset{ ImGui::GetStyle().IndentSpacing };
 
 		if (DrawValue(
-				ctx,
-				"Line Width",
-				line_width,
+				ctx, "Line Width", line_width,
 				FieldOptions{
-					.speed = kInspectorScalarDragSpeed,
-					.min = kInspectorMinLineWidth,
-					.max = line_width_maximum,
+					.speed	= kInspectorScalarDragSpeed,
+					.min	= kInspectorMinLineWidth,
+					.max	= line_width_maximum,
 					.format = "%.2f",
-					.flags = ImGuiSliderFlags_AlwaysClamp,
+					.flags	= ImGuiSliderFlags_AlwaysClamp,
 				}
 			)) {
-			style = FillStyle{
-				std::clamp(
-					line_width,
-					kInspectorMinLineWidth,
-					line_width_maximum
-				)
-			};
+			style = FillStyle{ std::clamp(line_width, kInspectorMinLineWidth, line_width_maximum) };
 			changed = true;
 		}
 	}
@@ -2755,11 +2210,9 @@ bool DrawVectorEditorItems(std::vector<T>& values, VectorOptions options, Draw&&
 	bool read_only{ IsReadOnly() };
 
 	auto draw_add = [&](std::string_view prefix) {
-		const std::string add_label{
-			options.add_label.empty()
-				? std::string{ prefix } + options.item_name
-				: options.add_label
-		};
+		const std::string add_label{ options.add_label.empty()
+										 ? std::string{ prefix } + options.item_name
+										 : options.add_label };
 
 		ImGui::BeginDisabled(read_only);
 		if (ImGui::Button(add_label.c_str(), ImVec2{ -FLT_MIN, 0.0f })) {
@@ -2777,9 +2230,7 @@ bool DrawVectorEditorItems(std::vector<T>& values, VectorOptions options, Draw&&
 		draw_add("+ ");
 
 		if (!values.empty()) {
-			ImGui::SetCursorPosY(
-				ImGui::GetCursorPosY() + style.FramePadding.y
-			);
+			ImGui::SetCursorPosY(ImGui::GetCursorPosY() + style.FramePadding.y);
 		}
 	}
 
@@ -2849,23 +2300,14 @@ bool DrawVectorEditorItems(std::vector<T>& values, VectorOptions options, Draw&&
 	if (remove_index.has_value()) {
 		bool reset_last{ false };
 
-		if constexpr (
-			std::default_initializable<T> &&
-			std::assignable_from<T&, T>
-		) {
-			reset_last =
-				options.reset_last_on_remove &&
-				values.size() == 1 &&
-				*remove_index == 0;
+		if constexpr (std::default_initializable<T> && std::assignable_from<T&, T>) {
+			reset_last = options.reset_last_on_remove && values.size() == 1 && *remove_index == 0;
 		}
 
 		if (reset_last) {
 			values.front() = T{};
 		} else {
-			values.erase(
-				values.begin() +
-				static_cast<std::ptrdiff_t>(*remove_index)
-			);
+			values.erase(values.begin() + static_cast<std::ptrdiff_t>(*remove_index));
 		}
 
 		changed = true;
@@ -2873,9 +2315,7 @@ bool DrawVectorEditorItems(std::vector<T>& values, VectorOptions options, Draw&&
 
 	if (!options.add_first) {
 		if (!values.empty()) {
-			ImGui::SetCursorPosY(
-				ImGui::GetCursorPosY() + style.FramePadding.y
-			);
+			ImGui::SetCursorPosY(ImGui::GetCursorPosY() + style.FramePadding.y);
 		}
 
 		draw_add("Add ");
@@ -2915,18 +2355,22 @@ bool DrawVectorEditor(std::vector<T>& values, VectorOptions options, Draw&& draw
 }
 
 template <typename T>
-bool DrawVectorEditor(EditorContext& ctx, std::string_view label, std::vector<T>& values, VectorOptions options = {}) {
+bool DrawVectorEditor(
+	EditorContext& ctx, std::string_view label, std::vector<T>& values, VectorOptions options = {}
+) {
 	return DrawVectorEditor(
-		label, values, std::move(options),
-		[&ctx]<typename TValue>(TValue& value, std::size_t) { return DrawDefaultContents(ctx, value); }
+		label, values, std::move(options), [&ctx]<typename TValue>(TValue& value, std::size_t) {
+			return DrawDefaultContents(ctx, value);
+		}
 	);
 }
 
 template <typename T>
 bool DrawVectorEditor(EditorContext& ctx, std::vector<T>& values, VectorOptions options = {}) {
 	return DrawVectorEditor(
-		values, std::move(options),
-		[&ctx]<typename TValue>(TValue& value, std::size_t) { return DrawDefaultContents(ctx, value); }
+		values, std::move(options), [&ctx]<typename TValue>(TValue& value, std::size_t) {
+			return DrawDefaultContents(ctx, value);
+		}
 	);
 }
 
@@ -2977,8 +2421,8 @@ inline constexpr bool kHasNoReflectedContents = []() {
 
 template <typename... T>
 bool DrawVariant(
-	EditorContext& ctx, std::string_view label, std::variant<T...>& value, std::string_view value_label = {},
-	FieldOptions options = {}
+	EditorContext& ctx, std::string_view label, std::variant<T...>& value,
+	std::string_view value_label = {}, FieldOptions options = {}
 ) {
 	using Variant = std::variant<T...>;
 	static auto names{ VariantNames<Variant>(std::index_sequence_for<T...>{}) };
@@ -3013,10 +2457,7 @@ bool DrawVariant(
 	}) };
 
 	if (requested_index) {
-		EmplaceVariant(
-			value,
-			*requested_index
-		);
+		EmplaceVariant(value, *requested_index);
 		ImGui::PopID();
 		return true;
 	}
@@ -3044,24 +2485,15 @@ bool DrawVariant(
 	return changed;
 }
 
-inline bool DrawOptionalLabelRow(
-	std::string_view label,
-	bool& enabled,
-	bool read_only
-) {
+inline bool DrawOptionalLabelRow(std::string_view label, bool& enabled, bool read_only) {
 	return DrawInspectorPropertyRow(label, [&]() {
-		return DrawDisabledIf(read_only, [&]() {
-			return ImGui::Checkbox("##enabled", &enabled);
-		});
+		return DrawDisabledIf(read_only, [&]() { return ImGui::Checkbox("##enabled", &enabled); });
 	});
 }
 
 template <typename Draw>
 bool DrawOptionalPropertyRow(
-	std::string_view label,
-	bool& enabled,
-	bool read_only,
-	Draw&& draw_value
+	std::string_view label, bool& enabled, bool read_only, Draw&& draw_value
 ) {
 	return DrawInspectorPropertyRow(label, [&]() {
 		bool changed{ DrawDisabledIf(read_only, [&]() {
@@ -3082,30 +2514,17 @@ inline bool DrawOptionalBool(std::string_view label, std::optional<bool>& value)
 
 	bool enabled{ value.has_value() };
 	bool displayed{ value.value_or(false) };
-	const bool read_only{ IsReadOnly() };
+	bool read_only{ IsReadOnly() };
 
-	bool changed{
-		DrawOptionalPropertyRow(
-			label,
-			enabled,
-			read_only,
-			[&]() {
-				return DrawDisabledIf(
-					!enabled || read_only,
-					[&]() {
-						return ImGui::Checkbox(
-							"##value",
-							&displayed
-						);
-					}
-				);
-			}
-		)
-	};
+	bool changed{ DrawOptionalPropertyRow(label, enabled, read_only, [&]() {
+		return DrawDisabledIf(!enabled || read_only, [&]() {
+			return ImGui::Checkbox("##value", &displayed);
+		});
+	}) };
 
 	if (enabled) {
 		if (!value.has_value() || value.value() != displayed) {
-			value = displayed;
+			value	= displayed;
 			changed = true;
 		}
 	} else if (value.has_value()) {
@@ -3123,62 +2542,48 @@ bool DrawOptionalEnum(std::string_view label, std::optional<T>& value) {
 	ImGui::PushID(&value);
 
 	bool enabled{ value.has_value() };
-	const bool read_only{ IsReadOnly() };
+	bool read_only{ IsReadOnly() };
 
 	if (enabled && !value.has_value()) {
 		value = magic_enum::enum_values<T>().front();
 	}
 
-	T displayed{
-		value.value_or(
-			magic_enum::enum_values<T>().front()
-		)
-	};
+	T displayed{ value.value_or(magic_enum::enum_values<T>().front()) };
 
-	bool changed{
-		DrawOptionalPropertyRow(
-			label,
-			enabled,
-			read_only,
-			[&]() {
-				return DrawDisabledIf(
-					!enabled || read_only,
-					[&]() {
-						if constexpr (std::same_as<T, Key>) {
-							return DrawKeyCombo(displayed);
-						}
-
-						bool local_changed{ false };
-						auto preview{ EnumLabel(displayed) };
-
-						if (ImGui::BeginCombo("##value", preview.c_str())) {
-							for (auto candidate : magic_enum::enum_values<T>()) {
-								auto item_label{ EnumLabel(candidate) };
-								const bool selected{ displayed == candidate };
-
-								if (ImGui::Selectable(item_label.c_str(), selected)) {
-									displayed = candidate;
-									local_changed = true;
-								}
-
-								if (selected) {
-									ImGui::SetItemDefaultFocus();
-								}
-							}
-
-							ImGui::EndCombo();
-						}
-
-						return local_changed;
-					}
-				);
+	bool changed{ DrawOptionalPropertyRow(label, enabled, read_only, [&]() {
+		return DrawDisabledIf(!enabled || read_only, [&]() {
+			if constexpr (std::same_as<T, Key>) {
+				return DrawKeyCombo(displayed);
 			}
-		)
-	};
+
+			bool local_changed{ false };
+			auto preview{ EnumLabel(displayed) };
+
+			if (ImGui::BeginCombo("##value", preview.c_str())) {
+				for (auto candidate : magic_enum::enum_values<T>()) {
+					auto item_label{ EnumLabel(candidate) };
+					bool selected{ displayed == candidate };
+
+					if (ImGui::Selectable(item_label.c_str(), selected)) {
+						displayed	  = candidate;
+						local_changed = true;
+					}
+
+					if (selected) {
+						ImGui::SetItemDefaultFocus();
+					}
+				}
+
+				ImGui::EndCombo();
+			}
+
+			return local_changed;
+		});
+	}) };
 
 	if (enabled) {
 		if (!value.has_value() || value.value() != displayed) {
-			value = displayed;
+			value	= displayed;
 			changed = true;
 		}
 	} else if (value.has_value()) {
@@ -3214,8 +2619,7 @@ bool DrawDurationInlineValue(
 	std::chrono::duration<Rep, Period>& value, const FieldOptions& options
 ) {
 	return DrawDurationTextInput(
-		"##value", value, -FLT_MIN, IsReadOnly(options), nullptr,
-		std::addressof(options)
+		"##value", value, -FLT_MIN, IsReadOnly(options), nullptr, std::addressof(options)
 	);
 }
 
@@ -3287,35 +2691,23 @@ bool DrawOptionalInlineValue(EditorContext& ctx, T& value, const FieldOptions& o
 		const float width{ std::max(1.0f, (available - spacing) * 0.5f) };
 		const float minimum{ static_cast<float>(options.min) };
 		const float maximum{ static_cast<float>(options.max) };
-		const std::string x_format{
-			std::string{ "X: " } + (options.format ? options.format : "%.3f")
-		};
-		const std::string y_format{
-			std::string{ "Y: " } + (options.format ? options.format : "%.3f")
-		};
+		const std::string x_format{ std::string{ "X: " } +
+									(options.format ? options.format : "%.3f") };
+		const std::string y_format{ std::string{ "Y: " } +
+									(options.format ? options.format : "%.3f") };
 
 		return DrawDisabledIf(IsReadOnly(options), [&]() {
 			bool changed{ false };
 			ImGui::SetNextItemWidth(width);
 			changed |= ImGui::DragFloat(
-				"##X",
-				&value.x,
-				options.speed,
-				HasBounds(options) ? minimum : 0.0f,
-				HasBounds(options) ? maximum : 0.0f,
-				x_format.c_str(),
-				options.flags
+				"##X", &value.x, options.speed, HasBounds(options) ? minimum : 0.0f,
+				HasBounds(options) ? maximum : 0.0f, x_format.c_str(), options.flags
 			);
 			ImGui::SameLine(0.0f, spacing);
 			ImGui::SetNextItemWidth(width);
 			changed |= ImGui::DragFloat(
-				"##Y",
-				&value.y,
-				options.speed,
-				HasBounds(options) ? minimum : 0.0f,
-				HasBounds(options) ? maximum : 0.0f,
-				y_format.c_str(),
-				options.flags
+				"##Y", &value.y, options.speed, HasBounds(options) ? minimum : 0.0f,
+				HasBounds(options) ? maximum : 0.0f, y_format.c_str(), options.flags
 			);
 			return changed;
 		});
@@ -3325,44 +2717,30 @@ bool DrawOptionalInlineValue(EditorContext& ctx, T& value, const FieldOptions& o
 		const float width{ std::max(1.0f, (available - spacing) * 0.5f) };
 		const int minimum{ static_cast<int>(options.min) };
 		const int maximum{ static_cast<int>(options.max) };
-		const std::string x_format{
-			std::string{ "X: " } + (options.format ? options.format : "%d")
-		};
-		const std::string y_format{
-			std::string{ "Y: " } + (options.format ? options.format : "%d")
-		};
+		const std::string x_format{ std::string{ "X: " } +
+									(options.format ? options.format : "%d") };
+		const std::string y_format{ std::string{ "Y: " } +
+									(options.format ? options.format : "%d") };
 
 		return DrawDisabledIf(IsReadOnly(options), [&]() {
 			bool changed{ false };
 			ImGui::SetNextItemWidth(width);
 			changed |= ImGui::DragInt(
-				"##X",
-				&value.x,
-				options.speed,
-				HasBounds(options) ? minimum : 0,
-				HasBounds(options) ? maximum : 0,
-				x_format.c_str(),
-				options.flags
+				"##X", &value.x, options.speed, HasBounds(options) ? minimum : 0,
+				HasBounds(options) ? maximum : 0, x_format.c_str(), options.flags
 			);
 			ImGui::SameLine(0.0f, spacing);
 			ImGui::SetNextItemWidth(width);
 			changed |= ImGui::DragInt(
-				"##Y",
-				&value.y,
-				options.speed,
-				HasBounds(options) ? minimum : 0,
-				HasBounds(options) ? maximum : 0,
-				y_format.c_str(),
-				options.flags
+				"##Y", &value.y, options.speed, HasBounds(options) ? minimum : 0,
+				HasBounds(options) ? maximum : 0, y_format.c_str(), options.flags
 			);
 			return changed;
 		});
 	} else if constexpr (std::same_as<Value, Color>) {
 		return DrawDisabledIf(IsReadOnly(options), [&]() {
-			ImGuiColorEditFlags flags{
-				ImGuiColorEditFlags_Uint8 | ImGuiColorEditFlags_AlphaBar |
-				ImGuiColorEditFlags_AlphaPreviewHalf
-			};
+			ImGuiColorEditFlags flags{ ImGuiColorEditFlags_Uint8 | ImGuiColorEditFlags_AlphaBar |
+									   ImGuiColorEditFlags_AlphaPreviewHalf };
 			if (InspectorValueColumnIsCompact()) {
 				flags |= ImGuiColorEditFlags_NoInputs;
 			}
@@ -3388,35 +2766,19 @@ bool DrawOptionalInlineValue(EditorContext& ctx, T& value, const FieldOptions& o
 
 template <AssetKeyType T>
 bool DrawOptionalAssetKeyInline(
-	EditorContext& ctx,
-	std::string_view label,
-	std::optional<T>& value,
-	FieldOptions options
+	EditorContext& ctx, std::string_view label, std::optional<T>& value, FieldOptions options
 ) {
 	ImGui::PushID(&value);
 
 	bool enabled{ value.has_value() };
-	const bool read_only{ IsReadOnly(options) };
+	bool read_only{ IsReadOnly(options) };
 	T displayed{ value.value_or(T{}) };
 
 	bool value_changed{ false };
-	bool changed{
-		DrawOptionalPropertyRow(
-			label,
-			enabled,
-			read_only,
-			[&]() {
-				value_changed = DrawAssetKeyInline(
-					ctx,
-					displayed,
-					options,
-					{},
-					enabled
-				);
-				return value_changed;
-			}
-		)
-	};
+	bool changed{ DrawOptionalPropertyRow(label, enabled, read_only, [&]() {
+		value_changed = DrawAssetKeyInline(ctx, displayed, options, {}, enabled);
+		return value_changed;
+	}) };
 
 	if (value_changed && !enabled && !read_only) {
 		enabled = true;
@@ -3425,7 +2787,7 @@ bool DrawOptionalAssetKeyInline(
 
 	if (enabled) {
 		if (!value.has_value() || value.value() != displayed) {
-			value = displayed;
+			value	= displayed;
 			changed = true;
 		}
 	} else if (value.has_value()) {
@@ -3439,10 +2801,7 @@ bool DrawOptionalAssetKeyInline(
 
 template <typename T>
 bool DrawOptionalInline(
-	EditorContext& ctx,
-	std::string_view label,
-	std::optional<T>& value,
-	FieldOptions options
+	EditorContext& ctx, std::string_view label, std::optional<T>& value, FieldOptions options
 ) {
 	if constexpr (AssetKeyType<std::remove_cvref_t<T>>) {
 		return DrawOptionalAssetKeyInline(ctx, label, value, options);
@@ -3451,21 +2810,16 @@ bool DrawOptionalInline(
 	ImGui::PushID(&value);
 
 	bool enabled{ value.has_value() };
-	const bool read_only{ IsReadOnly(options) };
+	bool read_only{ IsReadOnly(options) };
 	T displayed{ value.value_or(T{}) };
 
-	bool changed{
-		DrawOptionalPropertyRow(
-			label,
-			enabled,
-			read_only,
-			[&]() { return DrawOptionalInlineValue(ctx, displayed, options); }
-		)
-	};
+	bool changed{ DrawOptionalPropertyRow(label, enabled, read_only, [&]() {
+		return DrawOptionalInlineValue(ctx, displayed, options);
+	}) };
 
 	if (enabled) {
 		if (!value.has_value() || value.value() != displayed) {
-			value = displayed;
+			value	= displayed;
 			changed = true;
 		}
 	} else if (value.has_value()) {
@@ -3478,7 +2832,9 @@ bool DrawOptionalInline(
 }
 
 template <typename T>
-bool DrawOptional(EditorContext& ctx, std::string_view label, std::optional<T>& value, FieldOptions options) {
+bool DrawOptional(
+	EditorContext& ctx, std::string_view label, std::optional<T>& value, FieldOptions options
+) {
 	if constexpr (std::is_enum_v<T>) {
 		return DrawOptionalEnum(label, value);
 	} else if constexpr (std::same_as<T, bool>) {
@@ -3495,14 +2851,11 @@ bool DrawOptional(EditorContext& ctx, std::string_view label, std::optional<T>& 
 		ImGui::PushID(&value);
 
 		bool enabled{ value.has_value() };
-		constexpr InspectorTreeToggleSide toggle_side{
-			std::same_as<Value, TextClip>
-				? InspectorTreeToggleSide::Left
-				: InspectorTreeToggleSide::Right
-		};
+		constexpr InspectorTreeToggleSide toggle_side{ std::same_as<Value, TextClip>
+														   ? InspectorTreeToggleSide::Left
+														   : InspectorTreeToggleSide::Right };
 		const auto header{ DrawInspectorTreeToggleRow(
-			label, "##OptionalTree", enabled, IsReadOnly(options), toggle_side,
-			options.default_open
+			label, "##OptionalTree", enabled, IsReadOnly(options), toggle_side, options.default_open
 		) };
 		bool changed{ header.toggle_changed };
 
@@ -3530,8 +2883,7 @@ bool DrawOptional(EditorContext& ctx, std::string_view label, std::optional<T>& 
 			if constexpr (kIsVariant<Value>) {
 				contents_changed |= DrawVariant(ctx, "Variant", displayed, "Value", options);
 			} else if constexpr (
-				ReflectedValue<Value> || ReflectedMembers<Value> ||
-				ReflectedReadOnlyMembers<Value>
+				ReflectedValue<Value> || ReflectedMembers<Value> || ReflectedReadOnlyMembers<Value>
 			) {
 				contents_changed |= DrawDefaultContents(ctx, displayed);
 			} else {
@@ -3540,7 +2892,7 @@ bool DrawOptional(EditorContext& ctx, std::string_view label, std::optional<T>& 
 			ImGui::EndDisabled();
 			ImGui::Unindent();
 			if (enabled && !IsReadOnly(options) && contents_changed) {
-				value = std::move(displayed);
+				value	= std::move(displayed);
 				changed = true;
 			}
 		} else if (value.has_value()) {
@@ -3550,8 +2902,7 @@ bool DrawOptional(EditorContext& ctx, std::string_view label, std::optional<T>& 
 			if constexpr (kIsVariant<Value>) {
 				changed |= DrawVariant(ctx, "Variant", value.value(), "Value", options);
 			} else if constexpr (
-				ReflectedValue<Value> || ReflectedMembers<Value> ||
-				ReflectedReadOnlyMembers<Value>
+				ReflectedValue<Value> || ReflectedMembers<Value> || ReflectedReadOnlyMembers<Value>
 			) {
 				changed |= DrawDefaultContents(ctx, value.value());
 			} else {

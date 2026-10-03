@@ -39,14 +39,11 @@ std::string TypeNameWithoutNamespaces(std::string_view type) {
 
 	const auto separator{ type.rfind("::") };
 	return separator == std::string_view::npos ? std::string{ type }
-												 : std::string{ type.substr(separator + 2) };
+											   : std::string{ type.substr(separator + 2) };
 }
 
 void ValidateProject(const Project& project) {
-	PTGN_ASSERT(
-		!project.asset_directory.empty(),
-		"Project asset directory cannot be empty"
-	);
+	PTGN_ASSERT(!project.asset_directory.empty(), "Project asset directory cannot be empty");
 
 	PTGN_ASSERT(
 		!project.asset_directory.is_absolute() &&
@@ -57,20 +54,15 @@ void ValidateProject(const Project& project) {
 
 	if (project.scenes.empty()) {
 		PTGN_ASSERT(
-			project.startup_scene_key.empty(),
-			"Project with no scenes cannot have a startup scene"
+			project.startup_scene_key.empty(), "Project with no scenes cannot have a startup scene"
 		);
 	} else {
 		PTGN_ASSERT(
-			!project.startup_scene_key.empty(),
-			"Project with scenes must have a startup scene"
+			!project.startup_scene_key.empty(), "Project with scenes must have a startup scene"
 		);
 
 		PTGN_ASSERT(
-			FindProjectScene(
-				project,
-				project.startup_scene_key
-			),
+			FindProjectScene(project, project.startup_scene_key),
 			"Project startup scene key is not present in the scene list: ",
 			project.startup_scene_key
 		);
@@ -79,37 +71,20 @@ void ValidateProject(const Project& project) {
 	for (std::size_t i{ 0 }; i < project.scenes.size(); ++i) {
 		const auto& scene{ project.scenes[i] };
 
-		PTGN_ASSERT(
-			!scene.key.empty(),
-			"Project scene key cannot be empty"
-		);
+		PTGN_ASSERT(!scene.key.empty(), "Project scene key cannot be empty");
 
-		PTGN_ASSERT(
-			!scene.display_name.empty(),
-			"Project scene display name cannot be empty"
-		);
+		PTGN_ASSERT(!scene.display_name.empty(), "Project scene display name cannot be empty");
 
-		PTGN_ASSERT(
-			!scene.scene_path.empty(),
-			"Project scene path cannot be empty"
-		);
+		PTGN_ASSERT(!scene.scene_path.empty(), "Project scene path cannot be empty");
 
 		for (std::size_t j{ i + 1 }; j < project.scenes.size(); ++j) {
 			const auto& other{ project.scenes[j] };
 
-			PTGN_ASSERT(
-				scene.key != other.key,
-				"Duplicate project scene key: ",
-				scene.key
-			);
+			PTGN_ASSERT(scene.key != other.key, "Duplicate project scene key: ", scene.key);
 
 			PTGN_ASSERT(
-				!ScenePathsEqual(
-					scene.scene_path,
-					other.scene_path
-				),
-				"Duplicate project scene path: ",
-				scene.scene_path.string()
+				!ScenePathsEqual(scene.scene_path, other.scene_path),
+				"Duplicate project scene path: ", scene.scene_path.string()
 			);
 		}
 	}
@@ -133,8 +108,7 @@ std::string AssetIdentity(AssetKind kind, std::string_view key) {
 }
 
 bool ReplaceAssetKeyStrings(
-	json& value,
-	const std::unordered_map<std::string, std::string>& replacements
+	json& value, const std::unordered_map<std::string, std::string>& replacements
 ) {
 	bool changed{ false };
 
@@ -164,8 +138,7 @@ bool ReplaceAssetKeyStrings(
 }
 
 void RewriteAssetKeyReferencesInJsonFile(
-	const path& file_path,
-	const std::unordered_map<std::string, std::string>& replacements
+	const path& file_path, const std::unordered_map<std::string, std::string>& replacements
 ) {
 	if (!FileExists(file_path)) {
 		return;
@@ -176,8 +149,7 @@ void RewriteAssetKeyReferencesInJsonFile(
 		if (ReplaceAssetKeyStrings(value, replacements)) {
 			SaveJson(value, file_path);
 		}
-	} catch (...) {
-	}
+	} catch (...) {}
 }
 
 bool NormalizeLegacyProjectAssetKeys(Project& project) {
@@ -186,10 +158,8 @@ bool NormalizeLegacyProjectAssetKeys(Project& project) {
 
 	for (std::size_t i{ 0 }; i < project.assets.size(); ++i) {
 		const auto& asset{ project.assets[i] };
-		const bool path_key{
-			asset.key.value.find('/') != std::string::npos ||
-			asset.key.value.find('\\') != std::string::npos
-		};
+		bool path_key{ asset.key.value.find('/') != std::string::npos ||
+					   asset.key.value.find('\\') != std::string::npos };
 		if (path_key) {
 			normalize_indices.emplace_back(i);
 		} else {
@@ -199,7 +169,7 @@ bool NormalizeLegacyProjectAssetKeys(Project& project) {
 
 	std::ranges::sort(normalize_indices, [&](std::size_t lhs, std::size_t rhs) {
 		return project.assets[lhs].source_path.generic_string() <
-			project.assets[rhs].source_path.generic_string();
+			   project.assets[rhs].source_path.generic_string();
 	});
 
 	std::unordered_map<std::string, std::string> replacements;
@@ -296,15 +266,17 @@ bool SaveProjectScenes(Application& app, std::span<const Scene* const> scenes) {
 		const auto* project_scene{ FindProjectScene(project, scene->GetTag()) };
 		PTGN_ASSERT(project_scene, "Scene is not registered in project: ", scene->GetTag());
 
-		writes.emplace_back(PendingSceneWrite{
-			.file_path = GetProjectScenePath(project, *project_scene),
-			.scene = CaptureScene(*scene),
-		});
+		writes.emplace_back(
+			PendingSceneWrite{
+				.file_path = GetProjectScenePath(project, *project_scene),
+				.scene	   = CaptureScene(*scene),
+			}
+		);
 	}
 
-	project.assets = app_context.assets.GetCatalog();
+	project.assets		   = app_context.assets.GetCatalog();
 	project.preload_assets = app_context.assets.GetProjectAssetDependencies();
-	project.settings = GetProjectSettings(app);
+	project.settings	   = GetProjectSettings(app);
 	SaveProject(project);
 
 	for (const auto& write : writes) {
@@ -347,15 +319,13 @@ Project LoadProject(const path& file_path, const ProjectSettings& default_settin
 }
 
 Project CreateProject(
-	const path& file_path,
-	const impl::SceneRegistryEntry* default_scene,
-	ProjectSettings settings
+	const path& file_path, const impl::SceneRegistryEntry* default_scene, ProjectSettings settings
 ) {
 	Project project{
-		.name = file_path.stem().string(),
-		.file_path = file_path,
+		.name			 = file_path.stem().string(),
+		.file_path		 = file_path,
 		.asset_directory = "assets",
-		.settings = std::move(settings),
+		.settings		 = std::move(settings),
 	};
 
 	EnsureProjectAssetDirectories(project);
@@ -365,23 +335,20 @@ Project CreateProject(
 
 		project.scenes.emplace_back(
 			ProjectSceneEntry{
-				.key = "main",
-				.display_name = TypeNameWithoutNamespaces(
-					default_scene->type
-				),
-				.scene_path = path{ "assets" } / "scenes" / "main.ptgnscene",
+				.key		  = "main",
+				.display_name = TypeNameWithoutNamespaces(default_scene->type),
+				.scene_path	  = path{ "assets" } / "scenes" / "main.ptgnscene",
 			}
 		);
 
 		SaveSceneFile(
-			GetStartupScenePath(project),
-			SerializedScene{
-				.type = default_scene->type,
-				.parameters = default_scene->default_parameters(),
-				.assets = {},
-				.preload_assets = {},
-				.content = std::nullopt,
-			}
+			GetStartupScenePath(project), SerializedScene{
+											  .type			  = default_scene->type,
+											  .parameters	  = default_scene->default_parameters(),
+											  .assets		  = {},
+											  .preload_assets = {},
+											  .content		  = std::nullopt,
+										  }
 		);
 	}
 
@@ -435,13 +402,7 @@ void EnsureProjectAssetDirectories(const Project& project) {
 	EnsureDirectory(root);
 
 	constexpr std::array<std::string_view, 7> directories{
-		"audio",
-		"data",
-		"fonts",
-		"prefabs",
-		"scenes",
-		"shaders",
-		"textures",
+		"audio", "data", "fonts", "prefabs", "scenes", "shaders", "textures",
 	};
 
 	for (const auto directory : directories) {

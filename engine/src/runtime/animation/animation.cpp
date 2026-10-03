@@ -1,8 +1,8 @@
 #include "runtime/animation/animation.h"
 
 #include <algorithm>
-#include <chrono>
 #include <charconv>
+#include <chrono>
 #include <optional>
 #include <string>
 #include <string_view>
@@ -16,145 +16,93 @@
 #include "core/math/vector2.h"
 #include "core/util/time.h"
 #include "core/util/timer.h"
-#include "runtime/scripting/builtin_scripts.h"
 #include "runtime/animation/animation_event.h"
+#include "runtime/asset/asset_manager.h"
 #include "runtime/ecs/entity.h"
 #include "runtime/ecs/entity_hierarchy.h"
 #include "runtime/ecs/tag.h"
 #include "runtime/graphics/sprite.h"
 #include "runtime/graphics/visible.h"
-#include "runtime/asset/asset_manager.h"
 #include "runtime/scene/scene.h"
 #include "runtime/scene/scene_context.h"
 #include "runtime/scene/scene_event.h"
+#include "runtime/scripting/builtin_scripts.h"
 
 namespace ptgn {
 
 namespace {
 
-void DispatchFrameChange(
-	Animation animation,
-	impl::AnimationData& data,
-	impl::TextureCrop& crop
-) {
+void DispatchFrameChange(Animation animation, impl::AnimationData& data, impl::TextureCrop& crop) {
 	auto texture_size{ GetTextureSize(animation) };
 	crop.Update(data, texture_size);
 	data.frame_dirty = false;
 
-	PushEvent<event::AnimationFrameChange>(
-		animation,
-		animation
-	);
+	PushEvent<event::AnimationFrameChange>(animation, animation);
 }
 
-[[nodiscard]] bool IsFinalFrameBeforeComplete(
-	const impl::AnimationData& data
-) {
-	if (data.config.frame_count == 0 ||
-		!data.config.play_count.has_value()) {
+[[nodiscard]] bool IsFinalFrameBeforeComplete(const impl::AnimationData& data) {
+	if (data.config.frame_count == 0 || !data.config.play_count.has_value()) {
 		return false;
 	}
 
-	const std::size_t total_frames{
-		data.config.play_count.value() *
-		data.config.frame_count
-	};
+	const std::size_t total_frames{ data.config.play_count.value() * data.config.frame_count };
 
 	if (total_frames == 0) {
 		return false;
 	}
 
-	return data.frames_played ==
-			   total_frames - 1 &&
-		   data.current_frame ==
-			   data.config.frame_count - 1;
+	return data.frames_played == total_frames - 1 &&
+		   data.current_frame == data.config.frame_count - 1;
 }
 
-void DispatchFinalFrameIfNeeded(
-	Animation animation,
-	const impl::AnimationData& data
-) {
+void DispatchFinalFrameIfNeeded(Animation animation, const impl::AnimationData& data) {
 	if (!IsFinalFrameBeforeComplete(data)) {
 		return;
 	}
 
-	PushEvent<event::AnimationFinalFrame>(
-		animation,
-		animation
-	);
+	PushEvent<event::AnimationFinalFrame>(animation, animation);
 }
 
 /// @return Whether the animation completed.
 bool AdvanceAnimationFrame(
-	Animation animation,
-	impl::AnimationData& data,
-	impl::TextureCrop& crop
+	Animation animation, impl::AnimationData& data, impl::TextureCrop& crop
 ) {
 	if (data.config.frame_count == 0) {
 		return false;
 	}
 
-	const std::size_t next_frames_played{
-		data.frames_played + 1
-	};
+	const std::size_t next_frames_played{ data.frames_played + 1 };
 
 	if (data.config.play_count.has_value()) {
-		const std::size_t total_frames{
-			data.config.play_count.value() *
-			data.config.frame_count
-		};
+		const std::size_t total_frames{ data.config.play_count.value() * data.config.frame_count };
 
-		if (next_frames_played >=
-			total_frames) {
-			PushEvent<event::AnimationComplete>(
-				animation,
-				animation
-			);
+		if (next_frames_played >= total_frames) {
+			PushEvent<event::AnimationComplete>(animation, animation);
 
 			if (data.config.reset_on_complete) {
 				data.SetCurrentFrame(0);
 
-				DispatchFrameChange(
-					animation,
-					data,
-					crop
-				);
+				DispatchFrameChange(animation, data, crop);
 			}
 
 			data.frame_timer.Stop();
 
-			PushEvent<event::AnimationStop>(
-				animation,
-				animation
-			);
+			PushEvent<event::AnimationStop>(animation, animation);
 
 			return true;
 		}
 	}
 
-	data.frames_played =
-		next_frames_played;
+	data.frames_played = next_frames_played;
 
 	data.IncrementFrame();
 
-	DispatchFrameChange(
-		animation,
-		data,
-		crop
-	);
+	DispatchFrameChange(animation, data, crop);
 
-	DispatchFinalFrameIfNeeded(
-		animation,
-		data
-	);
+	DispatchFinalFrameIfNeeded(animation, data);
 
-	if (data.frames_played %
-			data.config.frame_count ==
-		0) {
-		PushEvent<event::AnimationLoopComplete>(
-			animation,
-			animation
-		);
+	if (data.frames_played % data.config.frame_count == 0) {
+		PushEvent<event::AnimationLoopComplete>(animation, animation);
 	}
 
 	return false;
@@ -170,11 +118,7 @@ Animation& Animation::SetConfig(AnimationConfig config) {
 
 	if (const auto texture_key{ TryGet<TextureKey>() }) {
 		if (const auto layout{
-				impl::DetectAnimationTextureLayout(
-					GetScene().ctx().asset,
-					*texture_key
-				)
-			}) {
+				impl::DetectAnimationTextureLayout(GetScene().ctx().asset, *texture_key) }) {
 			config.frame_count = layout->frame_count;
 			config.frame_size.reset();
 			automatic_row_count = layout->row_count;
@@ -182,15 +126,14 @@ Animation& Animation::SetConfig(AnimationConfig config) {
 	}
 
 	if (auto anim_data{ TryGet<impl::AnimationData>() };
-		anim_data &&
-		anim_data->config.IsIdentical(config, texture_size, automatic_row_count) &&
+		anim_data && anim_data->config.IsIdentical(config, texture_size, automatic_row_count) &&
 		anim_data->GetAutomaticRowCount() == automatic_row_count) {
 		return *this;
 	}
 
-	const auto& anim{ Add<impl::AnimationData>(
-		std::move(config), texture_size, automatic_row_count
-	) };
+	const auto& anim{
+		Add<impl::AnimationData>(std::move(config), texture_size, automatic_row_count)
+	};
 
 	auto& crop{ TryAdd<impl::TextureCrop>() };
 	crop.Update(anim, texture_size);
@@ -199,41 +142,25 @@ Animation& Animation::SetConfig(AnimationConfig config) {
 }
 
 Animation& Animation::Start(bool force) {
-	if (!Has<
-			impl::AnimationData,
-			impl::TextureCrop
-		>()) {
+	if (!Has<impl::AnimationData, impl::TextureCrop>()) {
 		return *this;
 	}
 
-	auto& anim{
-		Get<impl::AnimationData>()
-	};
+	auto& anim{ Get<impl::AnimationData>() };
 
 	anim.current_frame = 0;
 	anim.frames_played = 0;
 
-	auto& crop{
-		Get<impl::TextureCrop>()
-	};
+	auto& crop{ Get<impl::TextureCrop>() };
 
 	auto texture_size{ GetTextureSize(*this) };
 
 	crop.Update(anim, texture_size);
 
-	if (const bool started{
-			anim.frame_timer.Start(force)
-		};
-		started) {
-		PushEvent<event::AnimationStart>(
-			*this,
-			*this
-		);
+	if (bool started{ anim.frame_timer.Start(force) }; started) {
+		PushEvent<event::AnimationStart>(*this, *this);
 
-		DispatchFinalFrameIfNeeded(
-			*this,
-			anim
-		);
+		DispatchFinalFrameIfNeeded(*this, anim);
 	}
 
 	return *this;
@@ -375,12 +302,7 @@ Animation& Animation::SetTexture(TextureKey texture_key) {
 	data->SetAutomaticRowCount(1);
 
 	if (const auto key{ TryGet<TextureKey>() }) {
-		if (const auto layout{
-				impl::DetectAnimationTextureLayout(
-					GetScene().ctx().asset,
-					*key
-				)
-			}) {
+		if (const auto layout{ impl::DetectAnimationTextureLayout(GetScene().ctx().asset, *key) }) {
 			data->config.frame_count = layout->frame_count;
 			data->config.frame_size.reset();
 			data->SetAutomaticRowCount(layout->row_count);
@@ -405,25 +327,14 @@ Animation& Animation::SetTexture(TextureKey texture_key) {
 }
 
 Animation& Animation::IncrementFrame() {
-	if (!Has<
-			impl::AnimationData,
-			impl::TextureCrop
-		>()) {
+	if (!Has<impl::AnimationData, impl::TextureCrop>()) {
 		return *this;
 	}
 
-	auto& data{
-		Get<impl::AnimationData>()
-	};
-	auto& crop{
-		Get<impl::TextureCrop>()
-	};
+	auto& data{ Get<impl::AnimationData>() };
+	auto& crop{ Get<impl::TextureCrop>() };
 
-	AdvanceAnimationFrame(
-		*this,
-		data,
-		crop
-	);
+	AdvanceAnimationFrame(*this, data, crop);
 
 	return *this;
 }
@@ -493,9 +404,7 @@ namespace {
 	}
 
 	std::size_t value{ 0 };
-	const auto [end, error]{
-		std::from_chars(text.data(), text.data() + text.size(), value)
-	};
+	const auto [end, error]{ std::from_chars(text.data(), text.data() + text.size(), value) };
 
 	if (error != std::errc{} || end != text.data() + text.size() || value == 0) {
 		return std::nullopt;
@@ -513,9 +422,7 @@ namespace {
 		return std::nullopt;
 	}
 
-	const std::string_view suffix{
-		stem.substr(marker_position + marker.size())
-	};
+	const std::string_view suffix{ stem.substr(marker_position + marker.size()) };
 	if (suffix.empty()) {
 		return std::nullopt;
 	}
@@ -523,12 +430,11 @@ namespace {
 	const auto separator{ suffix.find('x') };
 	if (separator == std::string_view::npos) {
 		const auto frame_count{ ParsePositiveSize(suffix) };
-		return frame_count
-			? std::optional<AnimationTextureLayout>{ AnimationTextureLayout{
-				.frame_count = *frame_count,
-				.row_count = 1,
-			} }
-			: std::nullopt;
+		return frame_count ? std::optional<AnimationTextureLayout>{ AnimationTextureLayout{
+								 .frame_count = *frame_count,
+								 .row_count	  = 1,
+							 } }
+						   : std::nullopt;
 	}
 
 	if (suffix.find('x', separator + 1) != std::string_view::npos) {
@@ -543,7 +449,7 @@ namespace {
 
 	return AnimationTextureLayout{
 		.frame_count = *frame_count,
-		.row_count = *row_count,
+		.row_count	 = *row_count,
 	};
 }
 
@@ -562,19 +468,16 @@ std::optional<AnimationTextureLayout> DetectAnimationTextureLayout(
 }
 
 std::optional<std::size_t> DetectAnimationFrameCount(
-	AssetManager& assets,
-	const TextureKey& texture_key
+	AssetManager& assets, const TextureKey& texture_key
 ) {
 	const auto layout{ DetectAnimationTextureLayout(assets, texture_key) };
 	return layout ? std::optional<std::size_t>{ layout->frame_count } : std::nullopt;
 }
 
 AnimationData::AnimationData(
-	AnimationConfig&& anim_config, std::optional<V2_int> texture_size,
-	std::size_t row_count
+	AnimationConfig&& anim_config, std::optional<V2_int> texture_size, std::size_t row_count
 ) :
-	config{ std::move(anim_config) },
-	automatic_row_count{ std::max<std::size_t>(1, row_count) } {
+	config{ std::move(anim_config) }, automatic_row_count{ std::max<std::size_t>(1, row_count) } {
 	(void)texture_size;
 }
 
@@ -587,8 +490,7 @@ milliseconds AnimationData::GetFrameDuration() const {
 
 V2_int AnimationData::GetFrameSize(std::optional<V2_int> texture_size) const {
 	return config.frame_size.value_or(
-		impl::GetFrameSize(texture_size, config.frame_count, automatic_row_count)
-			.value_or(V2_int{})
+		impl::GetFrameSize(texture_size, config.frame_count, automatic_row_count).value_or(V2_int{})
 	);
 }
 
@@ -630,17 +532,11 @@ void AnimationSystem::Prepare(Scene& scene) {
 
 		if (const auto texture_key{ entity.TryGet<TextureKey>() }) {
 			if (const auto layout{
-					DetectAnimationTextureLayout(
-						scene.ctx().asset,
-						*texture_key
-					)
-				}) {
+					DetectAnimationTextureLayout(scene.ctx().asset, *texture_key) }) {
 				layout_detected = true;
-				const bool layout_changed{
-					anim.config.frame_count != layout->frame_count ||
-					anim.GetAutomaticRowCount() != layout->row_count ||
-					anim.config.frame_size.has_value()
-				};
+				bool layout_changed{ anim.config.frame_count != layout->frame_count ||
+									 anim.GetAutomaticRowCount() != layout->row_count ||
+									 anim.config.frame_size.has_value() };
 
 				anim.config.frame_count = layout->frame_count;
 				anim.config.frame_size.reset();
@@ -648,7 +544,7 @@ void AnimationSystem::Prepare(Scene& scene) {
 
 				if (layout_changed) {
 					anim.current_frame %= anim.config.frame_count;
-					anim.frame_dirty = true;
+					anim.frame_dirty	= true;
 				}
 			}
 		}
@@ -662,60 +558,32 @@ void AnimationSystem::Prepare(Scene& scene) {
 	}
 }
 
-void AnimationSystem::Update(
-	Scene& scene,
-	secondsf dt
-) {
-	for (auto [entity, data, crop] :
-		 scene.EntitiesWith<
-			 AnimationData,
-			 TextureCrop
-		 >()) {
+void AnimationSystem::Update(Scene& scene, secondsf dt) {
+	for (auto [entity, data, crop] : scene.EntitiesWith<AnimationData, TextureCrop>()) {
 		data.frame_timer.Update(dt);
 
-		Animation animation{
-			entity
-		};
+		Animation animation{ entity };
 
 		// Handles direct SetCurrentFrame calls that did not go through
 		// IncrementFrame.
 		if (data.frame_dirty) {
-			DispatchFrameChange(
-				animation,
-				data,
-				crop
-			);
+			DispatchFrameChange(animation, data, crop);
 		}
 
-		if (data.config.frame_count == 0 ||
-			data.config.duration <= 0ms ||
-			!data.frame_timer.IsRunning() ||
-			data.frame_timer.IsPaused()) {
+		if (data.config.frame_count == 0 || data.config.duration <= 0ms ||
+			!data.frame_timer.IsRunning() || data.frame_timer.IsPaused()) {
 			continue;
 		}
 
-		PushEvent<event::AnimationUpdate>(
-			animation,
-			animation
-		);
+		PushEvent<event::AnimationUpdate>(animation, animation);
 
-		const auto frame_duration{
-			data.GetFrameDuration()
-		};
+		const auto frame_duration{ data.GetFrameDuration() };
 
-		if (!data.frame_timer.Completed(
-				frame_duration
-			)) {
+		if (!data.frame_timer.Completed(frame_duration)) {
 			continue;
 		}
 
-		const bool completed{
-			AdvanceAnimationFrame(
-				animation,
-				data,
-				crop
-			)
-		};
+		bool completed{ AdvanceAnimationFrame(animation, data, crop) };
 
 		if (!completed) {
 			data.frame_timer.Start(true);
@@ -851,13 +719,9 @@ Animation PlayTemporaryAnimation(
 			return;
 		}
 
-		After(
-			event.animation.GetScene(),
-			destroy_delay,
-			[animation = event.animation]() mutable {
-				animation.Destroy();
-			}
-		);
+		After(event.animation.GetScene(), destroy_delay, [animation = event.animation]() mutable {
+			animation.Destroy();
+		});
 	});
 
 	animation.Start(true);

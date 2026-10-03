@@ -29,7 +29,6 @@ struct InspectorLayoutStyle {
 	float row_spacing{ 3.0f };
 };
 
-
 [[nodiscard]] inline bool& InspectorInlineValueMode() {
 	static thread_local bool active{ false };
 	return active;
@@ -40,7 +39,10 @@ public:
 	ScopedInspectorInlineValue() : previous_{ InspectorInlineValueMode() } {
 		InspectorInlineValueMode() = true;
 	}
-	~ScopedInspectorInlineValue() { InspectorInlineValueMode() = previous_; }
+
+	~ScopedInspectorInlineValue() {
+		InspectorInlineValueMode() = previous_;
+	}
 
 private:
 	bool previous_{ false };
@@ -57,13 +59,10 @@ private:
 	const float maximum_allowed{
 		std::max(1.0f, available_width - layout.minimum_value_width - spacing)
 	};
-	const float preferred{
-		std::clamp(
-			available_width * layout.label_fraction,
-			layout.minimum_label_width,
-			layout.maximum_label_width
-		)
-	};
+	const float preferred{ std::clamp(
+		available_width * layout.label_fraction, layout.minimum_label_width,
+		layout.maximum_label_width
+	) };
 	return std::clamp(preferred, 1.0f, maximum_allowed);
 }
 
@@ -102,7 +101,7 @@ inline void DrawFittedInspectorLabel(std::string_view label) {
 		}
 
 		while (position < label.size() &&
-			(label[position] == ' ' || label[position] == '\t' || label[position] == '\r')) {
+			   (label[position] == ' ' || label[position] == '\t' || label[position] == '\r')) {
 			++position;
 		}
 		if (position >= label.size()) {
@@ -111,7 +110,7 @@ inline void DrawFittedInspectorLabel(std::string_view label) {
 
 		const std::size_t word_begin{ position };
 		while (position < label.size() && label[position] != ' ' && label[position] != '\t' &&
-			label[position] != '\r' && label[position] != '\n') {
+			   label[position] != '\r' && label[position] != '\n') {
 			++position;
 		}
 		const std::string_view word{ label.substr(word_begin, position - word_begin) };
@@ -132,11 +131,11 @@ inline void DrawFittedInspectorLabel(std::string_view label) {
 		std::string candidate{ line };
 		candidate.push_back(' ');
 		candidate.append(word);
-		const float candidate_width{
-			font->CalcTextSizeA(
-				font_size, FLT_MAX, 0.0f, candidate.data(), candidate.data() + candidate.size()
-			).x
-		};
+		const float candidate_width{ font->CalcTextSizeA(
+											 font_size, FLT_MAX, 0.0f, candidate.data(),
+											 candidate.data() + candidate.size()
+		)
+										 .x };
 		if (candidate_width <= available) {
 			line = std::move(candidate);
 			continue;
@@ -173,19 +172,10 @@ inline void DrawFittedInspectorLabel(std::string_view label) {
 
 	for (std::size_t i{ 0 }; i < lines.size(); ++i) {
 		const auto& current{ lines[i] };
-		const ImVec2 position_px{
-			start.x,
-			start.y + static_cast<float>(i) * line_height
-		};
+		const ImVec2 position_px{ start.x, start.y + static_cast<float>(i) * line_height };
 		ImGui::GetWindowDrawList()->AddText(
-			font,
-			font_size,
-			position_px,
-			ImGui::GetColorU32(ImGuiCol_Text),
-			current.data(),
-			current.data() + current.size(),
-			0.0f,
-			&clip_rect
+			font, font_size, position_px, ImGui::GetColorU32(ImGuiCol_Text), current.data(),
+			current.data() + current.size(), 0.0f, &clip_rect
 		);
 	}
 
@@ -206,20 +196,16 @@ bool DrawInspectorCustomPropertyRow(
 
 	const float available{ std::max(1.0f, ImGui::GetContentRegionAvail().x) };
 	const float label_width{ GetInspectorLabelColumnWidth(available) };
-	const ImGuiTableFlags flags{
-		ImGuiTableFlags_SizingStretchProp |
-		ImGuiTableFlags_NoSavedSettings |
-		ImGuiTableFlags_NoPadOuterX |
-		ImGuiTableFlags_NoBordersInBody
-	};
+	const ImGuiTableFlags flags{ ImGuiTableFlags_SizingStretchProp |
+								 ImGuiTableFlags_NoSavedSettings | ImGuiTableFlags_NoPadOuterX |
+								 ImGuiTableFlags_NoBordersInBody };
 
 	bool changed{ false };
 	const ImGuiStyle& style{ ImGui::GetStyle() };
 	const auto& layout{ GetInspectorLayoutStyle() };
 	ImGui::PushStyleVar(ImGuiStyleVar_CellPadding, ImVec2{ style.CellPadding.x, 0.0f });
 	ImGui::PushStyleVar(
-		ImGuiStyleVar_ItemSpacing,
-		ImVec2{ style.ItemSpacing.x, layout.row_spacing }
+		ImGuiStyleVar_ItemSpacing, ImVec2{ style.ItemSpacing.x, layout.row_spacing }
 	);
 	if (ImGui::BeginTable("##InspectorPropertyRow", 2, flags, ImVec2{ available, 0.0f })) {
 		ImGui::TableSetupColumn(
@@ -227,8 +213,7 @@ bool DrawInspectorCustomPropertyRow(
 			label_width
 		);
 		ImGui::TableSetupColumn(
-			"##Value", ImGuiTableColumnFlags_WidthStretch | ImGuiTableColumnFlags_NoResize,
-			1.0f
+			"##Value", ImGuiTableColumnFlags_WidthStretch | ImGuiTableColumnFlags_NoResize, 1.0f
 		);
 		ImGui::TableNextRow();
 		ImGui::TableSetColumnIndex(0);
@@ -270,12 +255,8 @@ struct InspectorTreeToggleResult {
 /// remaining horizontal space instead of being constrained to the ordinary inspector label
 /// column. This is intended for optional/nested inspector sections.
 inline InspectorTreeToggleResult DrawInspectorTreeToggleRow(
-	std::string_view label,
-	std::string_view id,
-	bool& enabled,
-	bool read_only = false,
-	InspectorTreeToggleSide toggle_side = InspectorTreeToggleSide::Right,
-	bool default_open = false
+	std::string_view label, std::string_view id, bool& enabled, bool read_only = false,
+	InspectorTreeToggleSide toggle_side = InspectorTreeToggleSide::Right, bool default_open = false
 ) {
 	ImGui::PushID(id.data(), id.data() + id.size());
 
@@ -283,32 +264,26 @@ inline InspectorTreeToggleResult DrawInspectorTreeToggleRow(
 	const float available{ std::max(1.0f, ImGui::GetContentRegionAvail().x) };
 	const float spacing{ style.ItemInnerSpacing.x };
 	const float toggle_column_width{ ImGui::GetFrameHeight() + spacing };
-	const ImGuiTableFlags table_flags{
-		ImGuiTableFlags_SizingStretchProp |
-		ImGuiTableFlags_NoSavedSettings |
-		ImGuiTableFlags_NoPadOuterX |
-		ImGuiTableFlags_NoBordersInBody
-	};
+	const ImGuiTableFlags table_flags{ ImGuiTableFlags_SizingStretchProp |
+									   ImGuiTableFlags_NoSavedSettings |
+									   ImGuiTableFlags_NoPadOuterX |
+									   ImGuiTableFlags_NoBordersInBody };
 
 	InspectorTreeToggleResult result;
 	ImGui::PushStyleVar(ImGuiStyleVar_CellPadding, ImVec2{ 0.0f, 0.0f });
-	if (ImGui::BeginTable(
-			"##InspectorTreeToggleRow", 2, table_flags, ImVec2{ available, 0.0f }
-		)) {
-		const bool toggle_left{ toggle_side == InspectorTreeToggleSide::Left };
+	if (ImGui::BeginTable("##InspectorTreeToggleRow", 2, table_flags, ImVec2{ available, 0.0f })) {
+		bool toggle_left{ toggle_side == InspectorTreeToggleSide::Left };
 		if (toggle_left) {
 			ImGui::TableSetupColumn(
 				"##Toggle", ImGuiTableColumnFlags_WidthFixed | ImGuiTableColumnFlags_NoResize,
 				toggle_column_width
 			);
 			ImGui::TableSetupColumn(
-				"##Tree", ImGuiTableColumnFlags_WidthStretch | ImGuiTableColumnFlags_NoResize,
-				1.0f
+				"##Tree", ImGuiTableColumnFlags_WidthStretch | ImGuiTableColumnFlags_NoResize, 1.0f
 			);
 		} else {
 			ImGui::TableSetupColumn(
-				"##Tree", ImGuiTableColumnFlags_WidthStretch | ImGuiTableColumnFlags_NoResize,
-				1.0f
+				"##Tree", ImGuiTableColumnFlags_WidthStretch | ImGuiTableColumnFlags_NoResize, 1.0f
 			);
 			ImGui::TableSetupColumn(
 				"##Toggle", ImGuiTableColumnFlags_WidthFixed | ImGuiTableColumnFlags_NoResize,
@@ -327,18 +302,16 @@ inline InspectorTreeToggleResult DrawInspectorTreeToggleRow(
 		};
 
 		auto draw_tree = [&]() {
-			ImGuiTreeNodeFlags flags{
-				ImGuiTreeNodeFlags_SpanAvailWidth |
-				ImGuiTreeNodeFlags_FramePadding |
-				ImGuiTreeNodeFlags_NoTreePushOnOpen
-			};
+			ImGuiTreeNodeFlags flags{ ImGuiTreeNodeFlags_SpanAvailWidth |
+									  ImGuiTreeNodeFlags_FramePadding |
+									  ImGuiTreeNodeFlags_NoTreePushOnOpen };
 			if (default_open) {
 				flags |= ImGuiTreeNodeFlags_DefaultOpen;
 			}
 
 			std::string tree_label{ label };
-			tree_label += "##Tree";
-			result.open = ImGui::TreeNodeEx(tree_label.c_str(), flags);
+			tree_label	+= "##Tree";
+			result.open	 = ImGui::TreeNodeEx(tree_label.c_str(), flags);
 		};
 
 		if (toggle_left) {
@@ -366,9 +339,7 @@ inline InspectorTreeToggleResult DrawInspectorTreeToggleRow(
 }
 
 [[nodiscard]] inline float InspectorSplitWidth(
-	int count,
-	float available_width = -1.0f,
-	float spacing = -1.0f
+	int count, float available_width = -1.0f, float spacing = -1.0f
 ) {
 	if (count <= 0) {
 		return 0.0f;
@@ -381,8 +352,7 @@ inline InspectorTreeToggleResult DrawInspectorTreeToggleRow(
 	}
 	return std::max(
 		1.0f,
-		(available_width - spacing * static_cast<float>(count - 1)) /
-			static_cast<float>(count)
+		(available_width - spacing * static_cast<float>(count - 1)) / static_cast<float>(count)
 	);
 }
 
@@ -405,8 +375,7 @@ struct InspectorActionBarOptions {
 /// Draws as many actions inline as fit. Remaining actions are placed in one overflow menu instead
 /// of extending beyond the inspector edge.
 inline bool DrawInspectorActionBar(
-	std::span<const InspectorAction> actions,
-	InspectorActionBarOptions options = {}
+	std::span<const InspectorAction> actions, InspectorActionBarOptions options = {}
 ) {
 	if (actions.empty()) {
 		return false;
@@ -418,14 +387,12 @@ inline bool DrawInspectorActionBar(
 	const float available{ std::max(1.0f, ImGui::GetContentRegionAvail().x) };
 	auto button_width = [&](std::string_view label) {
 		return ImGui::CalcTextSize(label.data(), label.data() + label.size()).x +
-			style.FramePadding.x * 2.0f;
+			   style.FramePadding.x * 2.0f;
 	};
 
 	const float equal_button_width{
 		options.equal_width
-			? InspectorSplitWidth(
-				  static_cast<int>(actions.size()), available, spacing
-			  )
+			? InspectorSplitWidth(static_cast<int>(actions.size()), available, spacing)
 			: 0.0f
 	};
 
@@ -443,10 +410,7 @@ inline bool DrawInspectorActionBar(
 
 	std::size_t visible_count{ actions.size() };
 	const float overflow_width{
-		std::min(
-			available,
-			std::max(ImGui::GetFrameHeight(), button_width(options.overflow_label))
-		)
+		std::min(available, std::max(ImGui::GetFrameHeight(), button_width(options.overflow_label)))
 	};
 	if (!options.equal_width && full_width > available) {
 		visible_count = 0;
@@ -470,14 +434,15 @@ inline bool DrawInspectorActionBar(
 		ImGui::BeginDisabled(!actions[i].enabled);
 		const std::string action_label{ actions[i].label };
 		if (ImGui::Button(
-				action_label.c_str(),
-				ImVec2{ resolved_button_width(actions[i].label), 0.0f }
-			) && actions[i].invoke) {
+				action_label.c_str(), ImVec2{ resolved_button_width(actions[i].label), 0.0f }
+			) &&
+			actions[i].invoke) {
 			actions[i].invoke();
 			invoked = true;
 		}
 		ImGui::EndDisabled();
-		if (!actions[i].tooltip.empty() && ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled)) {
+		if (!actions[i].tooltip.empty() &&
+			ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled)) {
 			ImGui::SetTooltip(
 				"%.*s", static_cast<int>(actions[i].tooltip.size()), actions[i].tooltip.data()
 			);
@@ -502,9 +467,8 @@ inline bool DrawInspectorActionBar(
 		if (ImGui::BeginPopup("##InspectorActionOverflow")) {
 			for (std::size_t i{ visible_count }; i < actions.size(); ++i) {
 				const std::string action_label{ actions[i].label };
-				if (ImGui::MenuItem(
-					action_label.c_str(), nullptr, false, actions[i].enabled
-				) && actions[i].invoke) {
+				if (ImGui::MenuItem(action_label.c_str(), nullptr, false, actions[i].enabled) &&
+					actions[i].invoke) {
 					actions[i].invoke();
 					invoked = true;
 				}
@@ -523,7 +487,6 @@ inline bool DrawInspectorActionBar(
 	return invoked;
 }
 
-
 struct InspectorChoice {
 	std::string_view label{};
 	std::string_view tooltip{};
@@ -536,8 +499,7 @@ struct InspectorChoice {
 /// This is intended for short mutually-exclusive inspector modes such as interaction mode, button
 /// preview state, movement type, etc.
 inline bool DrawInspectorChoiceBar(
-	std::span<const InspectorChoice> choices,
-	std::string_view combo_id = "##InspectorChoices"
+	std::span<const InspectorChoice> choices, std::string_view combo_id = "##InspectorChoices"
 ) {
 	if (choices.empty()) {
 		return false;
@@ -548,7 +510,7 @@ inline bool DrawInspectorChoiceBar(
 	const float available{ std::max(1.0f, ImGui::GetContentRegionAvail().x) };
 	auto radio_width = [&](std::string_view label) {
 		return ImGui::GetFrameHeight() + style.ItemInnerSpacing.x +
-			ImGui::CalcTextSize(label.data(), label.data() + label.size()).x;
+			   ImGui::CalcTextSize(label.data(), label.data() + label.size()).x;
 	};
 
 	float full_width{};
@@ -568,8 +530,8 @@ inline bool DrawInspectorChoiceBar(
 			ImGui::PushID(static_cast<int>(i));
 			ImGui::BeginDisabled(!choices[i].enabled);
 			const std::string label{ choices[i].label };
-			if (ImGui::RadioButton(label.c_str(), choices[i].selected) &&
-				!choices[i].selected && choices[i].invoke) {
+			if (ImGui::RadioButton(label.c_str(), choices[i].selected) && !choices[i].selected &&
+				choices[i].invoke) {
 				choices[i].invoke();
 				invoked = true;
 			}
@@ -601,7 +563,10 @@ inline bool DrawInspectorChoiceBar(
 	for (std::size_t i{ 0 }; i < choices.size(); ++i) {
 		ImGui::PushID(static_cast<int>(i));
 		const std::string label{ choices[i].label };
-		if (ImGui::Selectable(label.c_str(), choices[i].selected, choices[i].enabled ? 0 : ImGuiSelectableFlags_Disabled) &&
+		if (ImGui::Selectable(
+				label.c_str(), choices[i].selected,
+				choices[i].enabled ? 0 : ImGuiSelectableFlags_Disabled
+			) &&
 			!choices[i].selected && choices[i].enabled && choices[i].invoke) {
 			choices[i].invoke();
 			invoked = true;
@@ -634,9 +599,7 @@ struct InspectorSectionResult {
 /// Consistent top-level section header/context menu. It intentionally only reports structural
 /// requests; the caller owns model-specific undoable rename/reset/remove behavior.
 inline InspectorSectionResult DrawInspectorSectionHeader(
-	std::string_view label,
-	std::string_view id,
-	InspectorSectionOptions options = {}
+	std::string_view label, std::string_view id, InspectorSectionOptions options = {}
 ) {
 	ImGui::PushID(id.data(), id.data() + id.size());
 	ImGuiTreeNodeFlags flags{};
@@ -663,7 +626,7 @@ inline InspectorSectionResult DrawInspectorSectionHeader(
 		}
 		if (options.removable && ImGui::MenuItem("Remove")) {
 			result.remove_requested = true;
-			result.open = false;
+			result.open				= false;
 		}
 		ImGui::EndPopup();
 	}
@@ -672,21 +635,15 @@ inline InspectorSectionResult DrawInspectorSectionHeader(
 	return result;
 }
 
-
 /// Nested counterpart to DrawInspectorSectionHeader. The caller must call ImGui::TreePop() when
 /// result.open is true. Structural requests are intentionally returned rather than executed so the
 /// same helper works for entity components, managed UI parts, timers, scripts and other authored
 /// objects with different undo backends.
 inline InspectorSectionResult DrawInspectorTreeNodeHeader(
-	std::string_view label,
-	std::string_view id,
-	InspectorSectionOptions options = {}
+	std::string_view label, std::string_view id, InspectorSectionOptions options = {}
 ) {
 	ImGui::PushID(id.data(), id.data() + id.size());
-	ImGuiTreeNodeFlags flags{
-		ImGuiTreeNodeFlags_SpanAvailWidth |
-		ImGuiTreeNodeFlags_FramePadding
-	};
+	ImGuiTreeNodeFlags flags{ ImGuiTreeNodeFlags_SpanAvailWidth | ImGuiTreeNodeFlags_FramePadding };
 	if (options.default_open) {
 		flags |= ImGuiTreeNodeFlags_DefaultOpen;
 	}

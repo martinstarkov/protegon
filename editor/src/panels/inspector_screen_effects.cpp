@@ -15,14 +15,14 @@
 #include "panels/inspector_fields.h"
 #include "runtime/graphics/fx/bloom.h"
 #include "runtime/graphics/fx/blur.h"
+#include "runtime/graphics/fx/edge_detection.h"
+#include "runtime/graphics/fx/effect_registration.h"
+#include "runtime/graphics/fx/effect_registry.h"
 #include "runtime/graphics/fx/gaussian_blur.h"
 #include "runtime/graphics/fx/grayscale.h"
 #include "runtime/graphics/fx/inverse_color.h"
-#include "runtime/graphics/fx/sharpen.h"
-#include "runtime/graphics/fx/edge_detection.h"
-#include "runtime/graphics/fx/effect_registry.h"
-#include "runtime/graphics/fx/effect_registration.h"
 #include "runtime/graphics/fx/screen_effect_stack.h"
+#include "runtime/graphics/fx/sharpen.h"
 #include "serialization/json/json.h"
 
 namespace ptgn::editor::inspector {
@@ -35,35 +35,37 @@ bool DrawScreenEffectJsonValue(const char* label, json& value) {
 	if (value.is_boolean()) {
 		bool current{ value.get<bool>() };
 		if (ImGui::Checkbox(label, &current)) {
-			value = current;
+			value	= current;
 			changed = true;
 		}
 	} else if (value.is_number_integer()) {
 		std::int64_t current{ value.get<std::int64_t>() };
 		if (ImGui::InputScalar(label, ImGuiDataType_S64, &current)) {
-			value = current;
+			value	= current;
 			changed = true;
 		}
 	} else if (value.is_number_unsigned()) {
 		std::uint64_t current{ value.get<std::uint64_t>() };
 		if (ImGui::InputScalar(label, ImGuiDataType_U64, &current)) {
-			value = current;
+			value	= current;
 			changed = true;
 		}
 	} else if (value.is_number_float()) {
 		float current{ value.get<float>() };
 		if (ImGui::DragFloat(label, &current, 0.01f)) {
-			value = current;
+			value	= current;
 			changed = true;
 		}
 	} else if (value.is_string()) {
 		std::string current{ value.get<std::string>() };
 		if (ImGui::InputText(label, &current)) {
-			value = std::move(current);
+			value	= std::move(current);
 			changed = true;
 		}
 	} else if (value.is_object()) {
-		if (ImGui::TreeNodeEx(label, ImGuiTreeNodeFlags_DefaultOpen | ImGuiTreeNodeFlags_SpanAvailWidth)) {
+		if (ImGui::TreeNodeEx(
+				label, ImGuiTreeNodeFlags_DefaultOpen | ImGuiTreeNodeFlags_SpanAvailWidth
+			)) {
 			for (auto it{ value.begin() }; it != value.end(); ++it) {
 				ImGui::PushID(it.key().c_str());
 				changed |= DrawScreenEffectJsonValue(it.key().c_str(), it.value());
@@ -72,7 +74,9 @@ bool DrawScreenEffectJsonValue(const char* label, json& value) {
 			ImGui::TreePop();
 		}
 	} else if (value.is_array()) {
-		if (ImGui::TreeNodeEx(label, ImGuiTreeNodeFlags_DefaultOpen | ImGuiTreeNodeFlags_SpanAvailWidth)) {
+		if (ImGui::TreeNodeEx(
+				label, ImGuiTreeNodeFlags_DefaultOpen | ImGuiTreeNodeFlags_SpanAvailWidth
+			)) {
 			for (std::size_t index{ 0 }; index < value.size(); ++index) {
 				ImGui::PushID(static_cast<int>(index));
 				const std::string item{ "[" + std::to_string(index) + "]" };
@@ -88,10 +92,7 @@ bool DrawScreenEffectJsonValue(const char* label, json& value) {
 
 template <typename T>
 bool DrawTypedScreenEffectParameters(
-	EditorContext& ctx,
-	std::string_view type,
-	json& parameters,
-	bool& handled
+	EditorContext& ctx, std::string_view type, json& parameters, bool& handled
 ) {
 	if (type != ::ptgn::impl::EffectRegistration<T>::Get().type_name) {
 		return false;
@@ -118,11 +119,7 @@ bool DrawTypedScreenEffectParameters(
 	}
 }
 
-bool DrawScreenEffectParameters(
-	EditorContext& ctx,
-	std::string_view type,
-	json& parameters
-) {
+bool DrawScreenEffectParameters(EditorContext& ctx, std::string_view type, json& parameters) {
 	bool handled{ false };
 	bool changed{ false };
 
@@ -158,7 +155,7 @@ bool DrawScreenEffectParameters(
 } // namespace
 
 void DrawScreenEffectInspector(EditorContext& ctx, const ScreenEffectSelection& selection) {
-	const bool runtime{ ctx.editor.IsPlaying() || ctx.editor.IsDirectRuntime() || selection.runtime };
+	bool runtime{ ctx.editor.IsPlaying() || ctx.editor.IsDirectRuntime() || selection.runtime };
 	Entity entity{ ctx.editor.ResolveScreenEffect(selection) };
 
 	if (!runtime && !selection.runtime) {
@@ -183,10 +180,7 @@ void DrawScreenEffectInspector(EditorContext& ctx, const ScreenEffectSelection& 
 
 		if (DrawScreenEffectParameters(ctx, updated.type, updated.parameters)) {
 			ctx.editor.UpdateProjectScreenEffect(
-				selection.id,
-				updated,
-				"Change Screen Effect",
-				0x5346580000000000ULL ^ selection.id
+				selection.id, updated, "Change Screen Effect", 0x5346580000000000ULL ^ selection.id
 			);
 		}
 
@@ -221,9 +215,7 @@ void DrawScreenEffectInspector(EditorContext& ctx, const ScreenEffectSelection& 
 		json parameters = registration->serialize(entity);
 		if (DrawScreenEffectParameters(ctx, instance.type, parameters)) {
 			ctx.editor.UpdateRuntimeScreenEffect(
-				instance.runtime_id,
-				parameters,
-				"Change Runtime Screen Effect",
+				instance.runtime_id, parameters, "Change Runtime Screen Effect",
 				0x5253465800000000ULL ^ instance.runtime_id
 			);
 		}

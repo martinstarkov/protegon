@@ -78,8 +78,7 @@ void ToggleButtonSystem::OnButtonPress(Entity entity) {
 	}
 
 	PTGN_ASSERT(
-		HasParent(self),
-		"ToggleButtonGroupItem must be a direct child of a ToggleButtonGroup"
+		HasParent(self), "ToggleButtonGroupItem must be a direct child of a ToggleButtonGroup"
 	);
 
 	Entity parent{ GetParent(self) };
@@ -223,7 +222,7 @@ std::vector<ToggleButton> ToggleButtonGroup::GetButtons() const {
 void ToggleButtonGroup::SetActiveKey(impl::ToggleButtonGroupKey key) {
 	auto& data{ TryAdd<impl::ToggleButtonGroupData>() };
 
-	const bool same_as_current{ data.active.has_value() && data.active.value() == key };
+	bool same_as_current{ data.active.has_value() && data.active.value() == key };
 
 	if (same_as_current && data.always_active) {
 		return;
@@ -238,7 +237,7 @@ void ToggleButtonGroup::SetActiveKey(impl::ToggleButtonGroupKey key) {
 	for (ToggleButton button : GetButtons()) {
 		const auto& item{ button.Get<impl::ToggleButtonGroupItem>() };
 
-		const bool active{ data.active.has_value() && item.key == data.active.value() };
+		bool active{ data.active.has_value() && item.key == data.active.value() };
 		button.SetToggled(active);
 	}
 }

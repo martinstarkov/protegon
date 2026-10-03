@@ -8,8 +8,8 @@
 #include <string_view>
 #include <utility>
 
-#include "editor/editor_context.h"
 #include "core/math/vector2.h"
+#include "editor/editor_context.h"
 
 namespace ptgn::editor::inspector {
 
@@ -27,7 +27,7 @@ public:
 		}
 	}
 
-	ScopedDisabled(const ScopedDisabled&) = delete;
+	ScopedDisabled(const ScopedDisabled&)			 = delete;
 	ScopedDisabled& operator=(const ScopedDisabled&) = delete;
 
 private:
@@ -52,7 +52,7 @@ public:
 		ImGui::PopID();
 	}
 
-	ScopedID(const ScopedID&) = delete;
+	ScopedID(const ScopedID&)			 = delete;
 	ScopedID& operator=(const ScopedID&) = delete;
 };
 
@@ -66,7 +66,7 @@ public:
 		ImGui::Unindent(width_);
 	}
 
-	ScopedIndent(const ScopedIndent&) = delete;
+	ScopedIndent(const ScopedIndent&)			 = delete;
 	ScopedIndent& operator=(const ScopedIndent&) = delete;
 
 private:
@@ -83,7 +83,7 @@ public:
 		ImGui::Indent(width_);
 	}
 
-	ScopedUnindent(const ScopedUnindent&) = delete;
+	ScopedUnindent(const ScopedUnindent&)			 = delete;
 	ScopedUnindent& operator=(const ScopedUnindent&) = delete;
 
 private:
@@ -100,7 +100,7 @@ public:
 		ImGui::PopItemWidth();
 	}
 
-	ScopedItemWidth(const ScopedItemWidth&) = delete;
+	ScopedItemWidth(const ScopedItemWidth&)			   = delete;
 	ScopedItemWidth& operator=(const ScopedItemWidth&) = delete;
 };
 
@@ -115,20 +115,12 @@ inline void CommitInactiveInspectorEdit(EditorContext& ctx) {
 }
 
 inline void TrackUndoableInteraction(
-	EditorContext& ctx,
-	ImGuiID key,
-	std::string label,
-	bool changed,
-	UndoStack::Action undo,
+	EditorContext& ctx, ImGuiID key, std::string label, bool changed, UndoStack::Action undo,
 	UndoStack::Action redo
 ) {
 	ctx.undo.TrackInteraction(
-		static_cast<std::uint64_t>(key),
-		std::move(label),
-		changed,
-		ImGui::IsAnyItemActive(),
-		std::move(undo),
-		std::move(redo)
+		static_cast<std::uint64_t>(key), std::move(label), changed, ImGui::IsAnyItemActive(),
+		std::move(undo), std::move(redo)
 	);
 }
 
@@ -153,8 +145,7 @@ inline PositionPicker& GetPositionPicker(EditorContext& ctx) {
 }
 
 [[nodiscard]] inline std::optional<PositionPicker::PreviewData> PreviewPickedPosition(
-	EditorContext& ctx,
-	V2_float world_position
+	EditorContext& ctx, V2_float world_position
 ) {
 	return GetPositionPicker(ctx).Preview(world_position);
 }
@@ -166,31 +157,22 @@ inline void CancelPositionPicking(EditorContext& ctx) {
 [[nodiscard]] PositionPicker::Finish PreparePositionPickSession(EditorContext& ctx);
 
 inline bool DrawPositionPickButton(
-	EditorContext& ctx,
-	std::string_view id,
-	V2_float current,
-	PositionPicker::Convert convert,
-	PositionPicker::Apply apply,
-	std::optional<V2_float> reference_world = std::nullopt,
+	EditorContext& ctx, std::string_view id, V2_float current, PositionPicker::Convert convert,
+	PositionPicker::Apply apply, std::optional<V2_float> reference_world = std::nullopt,
 	bool show_relative = false
 ) {
 	ScopedID scope{ id };
 
-	const bool picking_active{ IsPositionPickingActive(ctx) };
+	bool picking_active{ IsPositionPickingActive(ctx) };
 	ScopedDisabled disabled{ picking_active };
-	const bool pressed{ ImGui::Button("Pick") };
+	bool pressed{ ImGui::Button("Pick") };
 
 	if (!picking_active && pressed) {
 		auto finish{ PreparePositionPickSession(ctx) };
 
 		GetPositionPicker(ctx).Begin(
-			"Pick Position",
-			current,
-			std::move(convert),
-			std::move(apply),
-			reference_world,
-			show_relative,
-			std::move(finish)
+			"Pick Position", current, std::move(convert), std::move(apply), reference_world,
+			show_relative, std::move(finish)
 		);
 
 		return true;
@@ -198,9 +180,8 @@ inline bool DrawPositionPickButton(
 
 	if (ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled)) {
 		ImGui::SetTooltip(
-			picking_active
-				? "A position pick is already active. Finish or cancel it first."
-				: "Press left click to adjust picked position; release to confirm."
+			picking_active ? "A position pick is already active. Finish or cancel it first."
+						   : "Press left click to adjust picked position; release to confirm."
 		);
 	}
 
@@ -208,21 +189,11 @@ inline bool DrawPositionPickButton(
 }
 
 inline bool DrawPositionPickButton(
-	EditorContext& ctx,
-	std::string_view id,
-	V2_float current,
-	PositionPicker::Apply apply,
-	std::optional<V2_float> reference_world = std::nullopt,
-	bool show_relative = false
+	EditorContext& ctx, std::string_view id, V2_float current, PositionPicker::Apply apply,
+	std::optional<V2_float> reference_world = std::nullopt, bool show_relative = false
 ) {
 	return DrawPositionPickButton(
-		ctx,
-		id,
-		current,
-		{},
-		std::move(apply),
-		reference_world,
-		show_relative
+		ctx, id, current, {}, std::move(apply), reference_world, show_relative
 	);
 }
 

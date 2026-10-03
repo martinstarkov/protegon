@@ -218,12 +218,12 @@ void SetEntityRef(EntityReference& reference, Entity entity) {
 					require_shown = true;
 				}
 			} else {
-				const bool exclude{ token.front() == '-' };
+				bool exclude{ token.front() == '-' };
 
 				auto needle{ TrimWhitespace(exclude ? token.substr(1) : token) };
 
 				if (!needle.empty()) {
-					const bool contains{ name.find(needle) != std::string::npos };
+					bool contains{ name.find(needle) != std::string::npos };
 
 					if (exclude && contains) {
 						return false;
@@ -248,7 +248,7 @@ void SetEntityRef(EntityReference& reference, Entity entity) {
 		return false;
 	}
 
-	const bool visible{ IsVisible(entity) };
+	bool visible{ IsVisible(entity) };
 
 	if (require_hidden && visible) {
 		return false;
@@ -561,7 +561,7 @@ bool DrawComponentPicker(
 
 		any_visible = true;
 
-		const bool is_selected{ component_name == component->name };
+		bool is_selected{ component_name == component->name };
 
 		const std::string selectable_label{ label };
 
@@ -600,7 +600,7 @@ bool DrawComponentPicker(
 		return false;
 	}
 
-	const bool has_component{ component->Has(entity) };
+	bool has_component{ component->Has(entity) };
 
 	return condition.required ? has_component : !has_component;
 }
@@ -808,7 +808,7 @@ void DrawMatchPreview(const std::vector<Entity>& matches) {
 		flags |= ImGuiTreeNodeFlags_Leaf | ImGuiTreeNodeFlags_NoTreePushOnOpen;
 	}
 
-	const bool open{ ImGui::TreeNodeEx("##Matches", flags, "%s", label.c_str()) };
+	bool open{ ImGui::TreeNodeEx("##Matches", flags, "%s", label.c_str()) };
 
 	if (matches.empty() || !open) {
 		return;
@@ -1061,9 +1061,9 @@ bool DrawGroupPicker(Scene* scene, GroupEntityQuery& query, EntityFilterEditorSt
 			}
 		}
 		const std::string custom_group{ TrimWhitespace(state.group_filter) };
-		const bool can_add_custom_group{ !custom_group.empty() &&
-										 !std::ranges::contains(query.groups, custom_group) &&
-										 !groups.contains(custom_group) };
+		bool can_add_custom_group{ !custom_group.empty() &&
+								   !std::ranges::contains(query.groups, custom_group) &&
+								   !groups.contains(custom_group) };
 		if (can_add_custom_group) {
 			if (any_visible) {
 				ImGui::Separator();

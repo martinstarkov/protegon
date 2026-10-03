@@ -14,19 +14,19 @@
 
 #include "commands/entity/entity_reference.h"
 #include "core/assert.h"
-#include "editor/editor.h"
-#include "editor/editor_context.h"
-#include "editor/editor_icons.h"
-#include "editor/editor_state.h"
-#include "editor/paint/paint_editor.h"
 #include "core/graphics/color.h"
 #include "core/math/geometry/origin.h"
 #include "core/math/geometry/rect.h"
 #include "core/math/matrix4.h"
 #include "core/math/vector2.h"
 #include "core/math/vector4.h"
-#include "panels/scene_hierarchy.h"
+#include "editor/editor.h"
+#include "editor/editor_context.h"
+#include "editor/editor_icons.h"
+#include "editor/editor_state.h"
+#include "editor/paint/paint_editor.h"
 #include "panels/inspector_helpers.h"
+#include "panels/scene_hierarchy.h"
 #include "platform/window.h"
 #include "renderer/pipeline/blend_mode.h"
 #include "renderer/pipeline/camera.h"
@@ -88,9 +88,9 @@ bool DrawViewportCameraButton(const char* id, const char* label, const char* too
 
 	ImGui::InvisibleButton(id, { width, height });
 
-	const bool hovered{ ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled) };
-	const bool active{ ImGui::IsItemActive() };
-	const bool pressed{ ImGui::IsItemClicked(ImGuiMouseButton_Left) };
+	bool hovered{ ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled) };
+	bool active{ ImGui::IsItemActive() };
+	bool pressed{ ImGui::IsItemClicked(ImGuiMouseButton_Left) };
 
 	const ImVec4 background{ active	   ? style.Colors[ImGuiCol_ButtonActive]
 							 : hovered ? style.Colors[ImGuiCol_ButtonHovered]
@@ -131,42 +131,20 @@ void DrawRuntimeSpeedControl(EditorContext& ctx, float width) {
 	}
 
 	char preview[32]{};
-	std::snprintf(
-		preview,
-		sizeof(preview),
-		"%.3gx",
-		static_cast<double>(speed)
-	);
+	std::snprintf(preview, sizeof(preview), "%.3gx", static_cast<double>(speed));
 
 	ImGui::SetNextItemWidth(width);
 
 	if (ImGui::BeginCombo("##RuntimeSpeed", preview)) {
 		static constexpr std::array common_speeds{
-			0.0f,
-			0.25f,
-			0.5f,
-			0.75f,
-			1.0f,
-			1.5f,
-			2.0f,
-			3.0f,
-			4.0f,
-			5.0f,
-			10.0f,
+			0.0f, 0.25f, 0.5f, 0.75f, 1.0f, 1.5f, 2.0f, 3.0f, 4.0f, 5.0f, 10.0f,
 		};
 
 		for (float preset : common_speeds) {
 			char label[24]{};
-			std::snprintf(
-				label,
-				sizeof(label),
-				"%.3gx",
-				static_cast<double>(preset)
-			);
+			std::snprintf(label, sizeof(label), "%.3gx", static_cast<double>(preset));
 
-			const bool selected{
-				std::abs(speed - preset) <= 0.0001f
-			};
+			bool selected{ std::abs(speed - preset) <= 0.0001f };
 			if (ImGui::Selectable(label, selected)) {
 				speed = preset;
 				ctx.editor.SetTimeScale(speed);
@@ -181,13 +159,7 @@ void DrawRuntimeSpeedControl(EditorContext& ctx, float width) {
 		ImGui::SetNextItemWidth(120.0f);
 
 		float custom{ speed };
-		if (ImGui::InputFloat(
-				"##RuntimeSpeedCustom",
-				&custom,
-				0.0f,
-				0.0f,
-				"%.3f"
-			)) {
+		if (ImGui::InputFloat("##RuntimeSpeedCustom", &custom, 0.0f, 0.0f, "%.3f")) {
 			speed = std::clamp(custom, 0.0f, 1000.0f);
 			ctx.editor.SetTimeScale(speed);
 		}
@@ -266,7 +238,7 @@ void ApplyGizmoDeltaToTransform(
 	switch (handle) {
 		case GizmoHandle::MoveCenter:
 		case GizmoHandle::MoveX:
-		case GizmoHandle::MoveY: {
+		case GizmoHandle::MoveY:	  {
 			transform.position += after.position - before.position;
 			break;
 		}
@@ -421,8 +393,7 @@ V2_float ScreenToWorld(
 }
 
 std::optional<V2_int> WorldToRenderTargetPixel(
-	Entity render_target_entity,
-	V2_float world_position
+	Entity render_target_entity, V2_float world_position
 ) {
 	if (!render_target_entity.Has<::ptgn::impl::FramebufferObject>()) {
 		return std::nullopt;
@@ -440,37 +411,19 @@ std::optional<V2_int> WorldToRenderTargetPixel(
 	auto draw_transform{ GetDrawTransform(render_target_entity) };
 	auto local_position{ draw_transform.ApplyInverse(world_position) };
 
-	Rect local_rect{
-		draw_size,
-		render_target_entity.GetOrDefault<Origin>()
-	};
+	Rect local_rect{ draw_size, render_target_entity.GetOrDefault<Origin>() };
 
-	if (local_position.x < local_rect.min.x ||
-		local_position.x >= local_rect.max.x ||
-		local_position.y < local_rect.min.y ||
-		local_position.y >= local_rect.max.y) {
+	if (local_position.x < local_rect.min.x || local_position.x >= local_rect.max.x ||
+		local_position.y < local_rect.min.y || local_position.y >= local_rect.max.y) {
 		return std::nullopt;
 	}
 
-	const V2_float uv{
-		(local_position - local_rect.min) /
-		local_rect.GetSize()
-	};
+	const V2_float uv{ (local_position - local_rect.min) / local_rect.GetSize() };
 
-	V2_int pixel{
-		static_cast<int>(
-			uv.x * static_cast<float>(framebuffer_size.x)
-		),
-		static_cast<int>(
-			uv.y * static_cast<float>(framebuffer_size.y)
-		)
-	};
+	V2_int pixel{ static_cast<int>(uv.x * static_cast<float>(framebuffer_size.x)),
+				  static_cast<int>(uv.y * static_cast<float>(framebuffer_size.y)) };
 
-	return Clamp(
-		pixel,
-		V2_int{ 0, 0 },
-		framebuffer_size - V2_int{ 1, 1 }
-	);
+	return Clamp(pixel, V2_int{ 0, 0 }, framebuffer_size - V2_int{ 1, 1 });
 }
 
 std::optional<V2_int> ScreenToFramebufferPixel(
@@ -509,11 +462,9 @@ Entity ResolveRenderTargetPick(
 
 	RenderTarget render_target{ outer_entity };
 
-	auto framebuffer{
-		static_cast<::ptgn::impl::FramebufferId>(
-			render_target.Get<::ptgn::impl::FramebufferObject>()
-		)
-	};
+	auto framebuffer{ static_cast<::ptgn::impl::FramebufferId>(
+		render_target.Get<::ptgn::impl::FramebufferObject>()
+	) };
 
 	if (!renderer.IsEntityPickingEnabled(framebuffer)) {
 		return outer_entity;
@@ -532,9 +483,7 @@ Entity ResolveRenderTargetPick(
 	}
 
 	PTGN_ASSERT(
-		nested_id.value() >= 0,
-		"Render target returned an invalid entity ID: ",
-		nested_id.value()
+		nested_id.value() >= 0, "Render target returned an invalid entity ID: ", nested_id.value()
 	);
 
 	auto nested_entity{ scene.GetEntity(UUID{ nested_id.value() }) };
@@ -551,30 +500,21 @@ Entity ResolveRenderTargetPick(
 }
 
 [[nodiscard]] bool ContainsPoint(Viewport viewport, V2_float point) {
-	return point.x >= viewport.position.x &&
-		   point.y >= viewport.position.y &&
+	return point.x >= viewport.position.x && point.y >= viewport.position.y &&
 		   point.x < viewport.position.x + viewport.size.x &&
 		   point.y < viewport.position.y + viewport.size.y;
 }
 
 void DrawPositionPickerPreview(
-	EditorContext& ctx,
-	Viewport image_viewport,
-	Viewport presentation_viewport,
-	const FrameContext& frame_context,
-	Frame pick_frame
+	EditorContext& ctx, Viewport image_viewport, Viewport presentation_viewport,
+	const FrameContext& frame_context, Frame pick_frame
 ) {
 	auto* draw_list{ ImGui::GetForegroundDrawList() };
 	draw_list->PushClipRectFullScreen();
 
 	if (const auto reference_world{ inspector::GetPositionPickReferenceWorld(ctx) }) {
 		const V2_float reference_screen{
-			WorldToScreen(
-				*reference_world,
-				frame_context,
-				presentation_viewport,
-				pick_frame
-			)
+			WorldToScreen(*reference_world, frame_context, presentation_viewport, pick_frame)
 		};
 
 		if (ContainsPoint(image_viewport, reference_screen)) {
@@ -592,20 +532,10 @@ void DrawPositionPickerPreview(
 	}
 
 	const V2_float world_position{
-		ScreenToWorld(
-			mouse_screen,
-			frame_context,
-			presentation_viewport,
-			pick_frame
-		)
+		ScreenToWorld(mouse_screen, frame_context, presentation_viewport, pick_frame)
 	};
 
-	const auto preview{
-		inspector::PreviewPickedPosition(
-			ctx,
-			world_position
-		)
-	};
+	const auto preview{ inspector::PreviewPickedPosition(ctx, world_position) };
 
 	if (!preview) {
 		draw_list->PopClipRect();
@@ -620,54 +550,37 @@ void DrawPositionPickerPreview(
 
 	draw_list->AddLine(
 		ImVec2{ mouse.x - kCrosshairRadius, mouse.y },
-		ImVec2{ mouse.x + kCrosshairRadius, mouse.y },
-		color,
-		1.5f
+		ImVec2{ mouse.x + kCrosshairRadius, mouse.y }, color, 1.5f
 	);
 	draw_list->AddLine(
 		ImVec2{ mouse.x, mouse.y - kCrosshairRadius },
-		ImVec2{ mouse.x, mouse.y + kCrosshairRadius },
-		color,
-		1.5f
+		ImVec2{ mouse.x, mouse.y + kCrosshairRadius }, color, 1.5f
 	);
 
 	char coordinates[240]{};
 
 	if (preview->relative) {
 		std::snprintf(
-			coordinates,
-			sizeof(coordinates),
+			coordinates, sizeof(coordinates),
 			"Absolute  X %.0f  Y %.0f\nRelative  X %.0f  Y %.0f\nDelta     X %+.0f  Y %+.0f",
-			static_cast<double>(preview->absolute.x),
-			static_cast<double>(preview->absolute.y),
-			static_cast<double>(preview->relative->x),
-			static_cast<double>(preview->relative->y),
-			static_cast<double>(preview->delta.x),
-			static_cast<double>(preview->delta.y)
+			static_cast<double>(preview->absolute.x), static_cast<double>(preview->absolute.y),
+			static_cast<double>(preview->relative->x), static_cast<double>(preview->relative->y),
+			static_cast<double>(preview->delta.x), static_cast<double>(preview->delta.y)
 		);
 	} else {
 		std::snprintf(
-			coordinates,
-			sizeof(coordinates),
+			coordinates, sizeof(coordinates),
 			"Absolute  X %.0f  Y %.0f\nDelta     X %+.0f  Y %+.0f",
-			static_cast<double>(preview->absolute.x),
-			static_cast<double>(preview->absolute.y),
-			static_cast<double>(preview->delta.x),
-			static_cast<double>(preview->delta.y)
+			static_cast<double>(preview->absolute.x), static_cast<double>(preview->absolute.y),
+			static_cast<double>(preview->delta.x), static_cast<double>(preview->delta.y)
 		);
 	}
 
 	const ImVec2 text_size{ ImGui::CalcTextSize(coordinates) };
 	const ImVec2 padding{ 5.0f, 3.0f };
-	const ImVec2 box_size{
-		text_size.x + padding.x * 2.0f,
-		text_size.y + padding.y * 2.0f
-	};
+	const ImVec2 box_size{ text_size.x + padding.x * 2.0f, text_size.y + padding.y * 2.0f };
 
-	ImVec2 box_min{
-		mouse.x + 12.0f,
-		mouse.y + 12.0f
-	};
+	ImVec2 box_min{ mouse.x + 12.0f, mouse.y + 12.0f };
 
 	if (box_min.x + box_size.x > viewport_max.x) {
 		box_min.x = mouse.x - 12.0f - box_size.x;
@@ -678,37 +591,17 @@ void DrawPositionPickerPreview(
 	}
 
 	box_min.x = std::clamp(
-		box_min.x,
-		viewport_min.x,
-		std::max(viewport_min.x, viewport_max.x - box_size.x)
+		box_min.x, viewport_min.x, std::max(viewport_min.x, viewport_max.x - box_size.x)
 	);
 	box_min.y = std::clamp(
-		box_min.y,
-		viewport_min.y,
-		std::max(viewport_min.y, viewport_max.y - box_size.y)
+		box_min.y, viewport_min.y, std::max(viewport_min.y, viewport_max.y - box_size.y)
 	);
 
-	const ImVec2 box_max{
-		box_min.x + box_size.x,
-		box_min.y + box_size.y
-	};
-	const ImVec2 text_position{
-		box_min.x + padding.x,
-		box_min.y + padding.y
-	};
+	const ImVec2 box_max{ box_min.x + box_size.x, box_min.y + box_size.y };
+	const ImVec2 text_position{ box_min.x + padding.x, box_min.y + padding.y };
 
-	draw_list->AddRectFilled(
-		box_min,
-		box_max,
-		ImGui::GetColorU32(ImGuiCol_PopupBg),
-		3.0f
-	);
-	draw_list->AddRect(
-		box_min,
-		box_max,
-		ImGui::GetColorU32(ImGuiCol_Border),
-		3.0f
-	);
+	draw_list->AddRectFilled(box_min, box_max, ImGui::GetColorU32(ImGuiCol_PopupBg), 3.0f);
+	draw_list->AddRect(box_min, box_max, ImGui::GetColorU32(ImGuiCol_Border), 3.0f);
 	draw_list->AddText(text_position, color, coordinates);
 	draw_list->PopClipRect();
 }
@@ -735,9 +628,7 @@ void UpdateEditorCamera(EditorCamera& editor_camera) {
 		if (Length(pan_direction) > 0.0f) {
 			pan_direction = Normalize(pan_direction);
 
-			V2_float pan_distance{
-				kEditorCameraPanSpeedPixelsPerSecond * io.DeltaTime / zoom
-			};
+			V2_float pan_distance{ kEditorCameraPanSpeedPixelsPerSecond * io.DeltaTime / zoom };
 			camera.transform.position += pan_direction * pan_distance;
 		}
 	}
@@ -757,10 +648,7 @@ void UpdateEditorCamera(EditorCamera& editor_camera) {
 	}
 }
 
-std::optional<V2_float> RenderTargetPixelToWorld(
-	Entity render_target_entity,
-	V2_float pixel
-) {
+std::optional<V2_float> RenderTargetPixelToWorld(Entity render_target_entity, V2_float pixel) {
 	if (!render_target_entity.Has<::ptgn::impl::FramebufferObject>()) {
 		return std::nullopt;
 	}
@@ -774,18 +662,11 @@ std::optional<V2_float> RenderTargetPixelToWorld(
 		return std::nullopt;
 	}
 
-	Rect local_rect{
-		draw_size,
-		render_target_entity.GetOrDefault<Origin>()
-	};
+	Rect local_rect{ draw_size, render_target_entity.GetOrDefault<Origin>() };
 
-	const V2_float uv{
-		pixel / V2_float{ framebuffer_size }
-	};
+	const V2_float uv{ pixel / V2_float{ framebuffer_size } };
 
-	const V2_float local_position{
-		local_rect.min + uv * local_rect.GetSize()
-	};
+	const V2_float local_position{ local_rect.min + uv * local_rect.GetSize() };
 
 	return GetDrawTransform(render_target_entity).Apply(local_position);
 }
@@ -1136,14 +1017,14 @@ std::optional<GizmoHit> HitTestGizmo(
 	auto make_hit = [&](GizmoHandle handle, float distance) {
 		return GizmoHit{
 			.occurrence{ instance.id },
-			.handle = handle,
-			.distance = distance,
+			.handle		= handle,
+			.distance	= distance,
 			.draw_order = instance.draw_order,
 		};
 	};
 
 	bool inside_center{ std::abs(mouse_local->x) <= kGizmoCenterHalfSizePixels.x &&
-					std::abs(mouse_local->y) <= kGizmoCenterHalfSizePixels.y };
+						std::abs(mouse_local->y) <= kGizmoCenterHalfSizePixels.y };
 
 	if (tool == GizmoTool::Translate) {
 		if (inside_center) {
@@ -1243,16 +1124,16 @@ void BeginGizmoDrag(
 		return;
 	}
 
-	gizmo.active = gizmo.hot;
-	gizmo.active_occurrence = instance.id;
-	gizmo.drag_start_mouse_world = mouse_world.value();
-	gizmo.drag_start_mouse_screen = mouse_screen;
-	gizmo.drag_start_pivot_screen = geometry.pivot_screen;
-	gizmo.drag_start_position = transform.position;
-	gizmo.drag_start_scale = transform.scale;
-	gizmo.drag_start_rotation = transform.rotation;
-	gizmo.drag_start_axis_x_world = geometry.world_axis_x;
-	gizmo.drag_start_axis_y_world = geometry.world_axis_y;
+	gizmo.active				   = gizmo.hot;
+	gizmo.active_occurrence		   = instance.id;
+	gizmo.drag_start_mouse_world   = mouse_world.value();
+	gizmo.drag_start_mouse_screen  = mouse_screen;
+	gizmo.drag_start_pivot_screen  = geometry.pivot_screen;
+	gizmo.drag_start_position	   = transform.position;
+	gizmo.drag_start_scale		   = transform.scale;
+	gizmo.drag_start_rotation	   = transform.rotation;
+	gizmo.drag_start_axis_x_world  = geometry.world_axis_x;
+	gizmo.drag_start_axis_y_world  = geometry.world_axis_y;
 	gizmo.drag_start_axis_x_screen = geometry.axis_x_screen;
 	gizmo.drag_start_axis_y_screen = geometry.axis_y_screen;
 }
@@ -1294,7 +1175,7 @@ void UpdateActiveGizmo(
 			V2_float current_direction{ current_mouse_world.value() - gizmo.drag_start_position };
 
 			if (Length(start_direction) > 1e-6f && Length(current_direction) > 1e-6f) {
-				start_direction = Normalize(start_direction);
+				start_direction	  = Normalize(start_direction);
 				current_direction = Normalize(current_direction);
 
 				float delta{ SignedAngle(start_direction, current_direction) };
@@ -1329,7 +1210,7 @@ void UpdateActiveGizmo(
 
 		case GizmoHandle::ScaleUniform: {
 			auto uniform_direction{ gizmo.drag_start_axis_x_screen +
-								gizmo.drag_start_axis_y_screen };
+									gizmo.drag_start_axis_y_screen };
 
 			if (Length(uniform_direction) > 1e-6f) {
 				uniform_direction = Normalize(uniform_direction);
@@ -1384,14 +1265,12 @@ void DrawGizmoInstance(
 	if (gizmo.tool == GizmoTool::Translate) {
 		draw_list->AddLine(
 			ToImGui(g.pivot_screen), ToImGui(x_end_screen),
-			is_hot(GizmoHandle::MoveX) || is_active(GizmoHandle::MoveX) ? col_hot : col_x,
-			2.0f
+			is_hot(GizmoHandle::MoveX) || is_active(GizmoHandle::MoveX) ? col_hot : col_x, 2.0f
 		);
 
 		draw_list->AddLine(
 			ToImGui(g.pivot_screen), ToImGui(y_end_screen),
-			is_hot(GizmoHandle::MoveY) || is_active(GizmoHandle::MoveY) ? col_hot : col_y,
-			2.0f
+			is_hot(GizmoHandle::MoveY) || is_active(GizmoHandle::MoveY) ? col_hot : col_y, 2.0f
 		);
 
 		auto h{ kGizmoCenterHalfSizePixels };
@@ -1411,16 +1290,13 @@ void DrawGizmoInstance(
 
 		draw_list->AddQuadFilled(
 			ToImGui(c0), ToImGui(c1), ToImGui(c2), ToImGui(c3),
-			is_hot(GizmoHandle::MoveCenter) || is_active(GizmoHandle::MoveCenter)
-				? col_hot
-				: col_center
+			is_hot(GizmoHandle::MoveCenter) || is_active(GizmoHandle::MoveCenter) ? col_hot
+																				  : col_center
 		);
 	} else if (gizmo.tool == GizmoTool::Rotate) {
 		draw_list->AddCircle(
 			ToImGui(g.pivot_screen), kGizmoRotateRadiusPixels,
-			is_hot(GizmoHandle::Rotate) || is_active(GizmoHandle::Rotate)
-				? col_hot
-				: col_rotate,
+			is_hot(GizmoHandle::Rotate) || is_active(GizmoHandle::Rotate) ? col_hot : col_rotate,
 			64, kGizmoRotateThicknessPixels
 		);
 	} else if (gizmo.tool == GizmoTool::Scale) {
@@ -1439,9 +1315,8 @@ void DrawGizmoInstance(
 
 		draw_list->AddCircleFilled(
 			ToImGui(g.pivot_screen), kGizmoHandleRadiusPixels,
-			is_hot(GizmoHandle::ScaleUniform) || is_active(GizmoHandle::ScaleUniform)
-				? col_hot
-				: col_center
+			is_hot(GizmoHandle::ScaleUniform) || is_active(GizmoHandle::ScaleUniform) ? col_hot
+																					  : col_center
 		);
 	}
 }
@@ -1471,15 +1346,14 @@ void UpdateAndDrawGizmoInstances(
 			) };
 
 			if (hit.has_value()) {
-				gizmo.hot = hit->handle;
+				gizmo.hot			 = hit->handle;
 				gizmo.hot_occurrence = hit->occurrence;
 			}
 		}
 	}
 
-	if (viewport_hovered && gizmo.hot != GizmoHandle::None &&
-		gizmo.active == GizmoHandle::None && gizmo.hot_occurrence.has_value() &&
-		ImGui::IsMouseClicked(ImGuiMouseButton_Left)) {
+	if (viewport_hovered && gizmo.hot != GizmoHandle::None && gizmo.active == GizmoHandle::None &&
+		gizmo.hot_occurrence.has_value() && ImGui::IsMouseClicked(ImGuiMouseButton_Left)) {
 		auto* instance{ FindGizmoInstance(instances, gizmo.hot_occurrence.value()) };
 
 		if (instance) {
@@ -1564,17 +1438,16 @@ void ViewportPanel::DrawViewportToolbar(EditorContext& ctx) {
 	const float default_item_spacing_y{ ImGui::GetStyle().ItemSpacing.y };
 
 	ImGui::PushStyleVar(
-		ImGuiStyleVar_ItemSpacing,
-		ImVec2{ kViewportPaintToolSpacing, default_item_spacing_y }
+		ImGuiStyleVar_ItemSpacing, ImVec2{ kViewportPaintToolSpacing, default_item_spacing_y }
 	);
 	paint.DrawViewportToolButtons(ctx);
 	ImGui::PopStyleVar();
 
-	const bool paused{ ctx.editor.IsPaused() };
-	const bool can_play{ ctx.editor.CanPlay() };
-	const bool can_stop{ ctx.editor.CanStop() };
-	const bool can_pause{ ctx.editor.CanPause() };
-	const bool direct_runtime{ ctx.editor.IsDirectRuntime() };
+	bool paused{ ctx.editor.IsPaused() };
+	bool can_play{ ctx.editor.CanPlay() };
+	bool can_stop{ ctx.editor.CanStop() };
+	bool can_pause{ ctx.editor.CanPause() };
+	bool direct_runtime{ ctx.editor.IsDirectRuntime() };
 
 	const float icon_side{ ImGui::GetFrameHeight() };
 	const float speed_width{ 66.0f };
@@ -1583,9 +1456,8 @@ void ViewportPanel::DrawViewportToolbar(EditorContext& ctx) {
 
 	const float runtime_width{ icon_side * 3.0f + speed_width + camera_width +
 							   kViewportRuntimeControlSpacing * 4.0f };
-	const float right_x{
-		ImGui::GetWindowContentRegionMax().x - kViewportToolbarSidePadding - runtime_width
-	};
+	const float right_x{ ImGui::GetWindowContentRegionMax().x - kViewportToolbarSidePadding -
+						 runtime_width };
 
 	ImGui::SameLine(0.0f, kViewportRuntimeControlSpacing);
 	if (right_x > ImGui::GetCursorPosX()) {
@@ -1593,8 +1465,7 @@ void ViewportPanel::DrawViewportToolbar(EditorContext& ctx) {
 	}
 
 	ImGui::PushStyleVar(
-		ImGuiStyleVar_ItemSpacing,
-		ImVec2{ kViewportRuntimeControlSpacing, default_item_spacing_y }
+		ImGuiStyleVar_ItemSpacing, ImVec2{ kViewportRuntimeControlSpacing, default_item_spacing_y }
 	);
 
 	if (can_stop) {
@@ -1658,22 +1529,25 @@ void ViewportPanel::DrawViewportToolbar(EditorContext& ctx) {
 
 	ImGui::SetCursorScreenPos(options_start);
 	ImGui::PushStyleVar(
-		ImGuiStyleVar_ItemSpacing,
-		ImVec2{ kViewportPaintOptionSpacing, default_item_spacing_y }
+		ImGuiStyleVar_ItemSpacing, ImVec2{ kViewportPaintOptionSpacing, default_item_spacing_y }
 	);
-	const bool drew_options{ paint.DrawViewportOptionsToolbar(ctx) };
+	bool drew_options{ paint.DrawViewportOptionsToolbar(ctx) };
 	ImGui::PopStyleVar();
 
 	if (drew_options) {
-		ImGui::SetCursorScreenPos({
-			options_start.x,
-			options_start.y + ImGui::GetFrameHeight(),
-		});
+		ImGui::SetCursorScreenPos(
+			{
+				options_start.x,
+				options_start.y + ImGui::GetFrameHeight(),
+			}
+		);
 	} else {
-		ImGui::SetCursorScreenPos({
-			options_start.x,
-			first_row_bottom,
-		});
+		ImGui::SetCursorScreenPos(
+			{
+				options_start.x,
+				first_row_bottom,
+			}
+		);
 	}
 }
 
@@ -1730,8 +1604,8 @@ void ViewportPanel::OnRender(EditorContext& ctx) {
 	Viewport presentation_viewport{ .position{ min }, .size{ size } };
 
 	ctx.local.state.viewport.viewport = presentation_viewport;
-	ctx.local.state.viewport.focused = ImGui::IsWindowFocused();
-	ctx.local.state.viewport.hovered = ImGui::IsWindowHovered();
+	ctx.local.state.viewport.focused  = ImGui::IsWindowFocused();
+	ctx.local.state.viewport.hovered  = ImGui::IsWindowHovered();
 
 	renderer.SetPresentationViewport(presentation_viewport);
 
@@ -1750,7 +1624,7 @@ void ViewportPanel::OnRender(EditorContext& ctx) {
 	if (use_editor_camera_) {
 		UpdateEditorCamera(editor_camera_);
 
-		editor_camera_.camera.raw_viewport = { .position{}, .size{ 1.0f, 1.0f } };
+		editor_camera_.camera.raw_viewport	 = { .position{}, .size{ 1.0f, 1.0f } };
 		editor_camera_.camera.viewport_space = ViewportSpace::Normalized;
 
 		auto logical_viewport{ GetLogicalViewport(
@@ -1781,10 +1655,9 @@ void ViewportPanel::OnRender(EditorContext& ctx) {
 
 	ctx.editor.GetDebugSystem().stats.Increment("draw_calls");
 
-	const bool position_pick_was_active_at_viewport_start{ inspector::IsPositionPickingActive(ctx
-	) };
+	bool position_pick_was_active_at_viewport_start{ inspector::IsPositionPickingActive(ctx) };
 	const V2_float mouse_screen{ FromImGui(ImGui::GetIO().MousePos) };
-	const bool mouse_inside_image{ ContainsPoint(viewport, mouse_screen) };
+	bool mouse_inside_image{ ContainsPoint(viewport, mouse_screen) };
 
 	if (position_pick_was_active_at_viewport_start) {
 		ImGui::GetForegroundDrawList()->AddRect(
@@ -1794,11 +1667,11 @@ void ViewportPanel::OnRender(EditorContext& ctx) {
 	}
 
 	if (position_pick_was_active_at_viewport_start) {
-		const bool cancel_with_escape{ ImGui::IsKeyPressed(ImGuiKey_Escape, false) };
-		const bool cancel_with_right_click{ ImGui::IsMouseClicked(ImGuiMouseButton_Right) };
-		const bool cancel_with_other_panel_click{ ImGui::IsMouseClicked(ImGuiMouseButton_Left) &&
-												  !mouse_inside_image &&
-												  !inspector::IsPositionPickDragging(ctx) };
+		bool cancel_with_escape{ ImGui::IsKeyPressed(ImGuiKey_Escape, false) };
+		bool cancel_with_right_click{ ImGui::IsMouseClicked(ImGuiMouseButton_Right) };
+		bool cancel_with_other_panel_click{ ImGui::IsMouseClicked(ImGuiMouseButton_Left) &&
+											!mouse_inside_image &&
+											!inspector::IsPositionPickDragging(ctx) };
 
 		if (cancel_with_escape || cancel_with_right_click || cancel_with_other_panel_click) {
 			inspector::CancelPositionPicking(ctx);
@@ -1887,8 +1760,9 @@ void ViewportPanel::OnRender(EditorContext& ctx) {
 			}
 		} else if (use_editor_camera_) {
 			auto& paint{ ctx.editor.GetPaintEditor() };
-			(void
-			)paint.DrawViewportAndHandleInput(ctx, *scene, viewport, presentation_viewport, frame);
+			(void)paint.DrawViewportAndHandleInput(
+				ctx, *scene, viewport, presentation_viewport, frame
+			);
 		}
 
 		draw_list->PopClipRect();
@@ -1944,7 +1818,7 @@ void ViewportPanel::DrawSelectedEntityGizmo(
 		render_paths.push_back(EntityRenderPath{ .id{ kDirectOccurrenceId } });
 	} else if (selected_entity.Has<::ptgn::impl::CameraData>()) {
 		render_target_transform = GetTransform(SceneCamera{ selected_entity }.GetRenderTarget());
-		editable_transform = editable_transform.RelativeTo(render_target_transform);
+		editable_transform		= editable_transform.RelativeTo(render_target_transform);
 		render_paths.push_back(EntityRenderPath{ .id{ kDirectOccurrenceId } });
 	} else {
 		render_paths = BuildEntityRenderPaths(scene, selected_entity);
@@ -1983,7 +1857,7 @@ void ViewportPanel::DrawSelectedEntityGizmo(
 
 	local_transform_after = GetTransform(selected_entity);
 
-	const bool transform_changed{ local_transform_before != local_transform_after };
+	bool transform_changed{ local_transform_before != local_transform_after };
 	if (transform_changed) {
 		const auto reference{ MakeEntityReference(selected_entity) };
 		Editor* editor{ std::addressof(ctx.editor) };
@@ -2045,11 +1919,9 @@ void ViewportPanel::HandleEntityPicking(
 
 	auto scene_target{ scene->GetRenderTarget() };
 
-	auto scene_framebuffer{
-		static_cast<::ptgn::impl::FramebufferId>(
-			scene_target.Get<::ptgn::impl::FramebufferObject>()
-		)
-	};
+	auto scene_framebuffer{ static_cast<::ptgn::impl::FramebufferId>(
+		scene_target.Get<::ptgn::impl::FramebufferObject>()
+	) };
 
 	::ptgn::impl::RendererAccessor renderer{ ctx.editor.GetRenderer() };
 
@@ -2079,9 +1951,7 @@ void ViewportPanel::HandleEntityPicking(
 	PTGN_ASSERT(scene_target_size.IsPositive());
 	PTGN_ASSERT(presentation_framebuffer_size.IsPositive());
 
-	auto scene_pixel{
-		ScreenToFramebufferPixel(mouse_position, image_viewport, scene_target_size)
-	};
+	auto scene_pixel{ ScreenToFramebufferPixel(mouse_position, image_viewport, scene_target_size) };
 
 	if (!scene_pixel.has_value()) {
 		return;
@@ -2100,9 +1970,7 @@ void ViewportPanel::HandleEntityPicking(
 	}
 
 	PTGN_ASSERT(
-		outer_id.value() >= 0,
-		"Entity picking returned an invalid entity ID: ",
-		outer_id.value()
+		outer_id.value() >= 0, "Entity picking returned an invalid entity ID: ", outer_id.value()
 	);
 
 	auto outer_entity{ scene->GetEntity(UUID{ outer_id.value() }) };
@@ -2116,16 +1984,14 @@ void ViewportPanel::HandleEntityPicking(
 		ScreenToWorld(mouse_position, frame_context, presentation_viewport, Frame::World)
 	};
 
-	auto selected_entity{
-		ResolveRenderTargetPick(*scene, renderer, outer_entity, mouse_world)
-	};
+	auto selected_entity{ ResolveRenderTargetPick(*scene, renderer, outer_entity, mouse_world) };
 
 	if (selected_entity && !ctx.editor.GetSettings().show_managed_ui_parts) {
 		selected_entity = ResolveManagedUIPick(selected_entity);
 	}
 
-	if (selected_entity &&
-		(!scene->GetLayers().IsSelectable(selected_entity) || scene->GetLayers().IsLocked(selected_entity))) {
+	if (selected_entity && (!scene->GetLayers().IsSelectable(selected_entity) ||
+							scene->GetLayers().IsLocked(selected_entity))) {
 		return;
 	}
 

@@ -3,10 +3,10 @@
 #include <ecs/ecs.h>
 
 #include <algorithm>
+#include <cctype>
 #include <charconv>
 #include <chrono>
 #include <cmath>
-#include <cctype>
 #include <cstdint>
 #include <iomanip>
 #include <limits>
@@ -189,20 +189,35 @@ struct RichTextStackEntry {
 	}
 
 	const std::string name{ LowerRichTextToken(value) };
-	if (name == "white") result = color::White;
-	else if (name == "black") result = color::Black;
-	else if (name == "red") result = color::Red;
-	else if (name == "green") result = color::Green;
-	else if (name == "blue") result = color::Blue;
-	else if (name == "yellow") result = color::Yellow;
-	else if (name == "cyan") result = color::Cyan;
-	else if (name == "magenta") result = color::Magenta;
-	else if (name == "gray" || name == "grey") result = color::Gray;
-	else if (name == "orange") result = Color{ 255, 165, 0, 255 };
-	else if (name == "purple") result = Color{ 128, 0, 128, 255 };
-	else if (name == "pink") result = Color{ 255, 105, 180, 255 };
-	else if (name == "transparent") result = color::Transparent;
-	else return false;
+	if (name == "white") {
+		result = color::White;
+	} else if (name == "black") {
+		result = color::Black;
+	} else if (name == "red") {
+		result = color::Red;
+	} else if (name == "green") {
+		result = color::Green;
+	} else if (name == "blue") {
+		result = color::Blue;
+	} else if (name == "yellow") {
+		result = color::Yellow;
+	} else if (name == "cyan") {
+		result = color::Cyan;
+	} else if (name == "magenta") {
+		result = color::Magenta;
+	} else if (name == "gray" || name == "grey") {
+		result = color::Gray;
+	} else if (name == "orange") {
+		result = Color{ 255, 165, 0, 255 };
+	} else if (name == "purple") {
+		result = Color{ 128, 0, 128, 255 };
+	} else if (name == "pink") {
+		result = Color{ 255, 105, 180, 255 };
+	} else if (name == "transparent") {
+		result = color::Transparent;
+	} else {
+		return false;
+	}
 
 	return true;
 }
@@ -214,12 +229,19 @@ struct RichTextStackEntry {
 
 [[nodiscard]] bool ParseGlyphEffectType(std::string_view value, GlyphEffectType& result) {
 	const std::string name{ LowerRichTextToken(TrimRichTextToken(value)) };
-	if (name == "none") result = GlyphEffectType::None;
-	else if (name == "wobble") result = GlyphEffectType::Wobble;
-	else if (name == "wave") result = GlyphEffectType::Wave;
-	else if (name == "shake") result = GlyphEffectType::Shake;
-	else if (name == "pulse") result = GlyphEffectType::Pulse;
-	else return false;
+	if (name == "none") {
+		result = GlyphEffectType::None;
+	} else if (name == "wobble") {
+		result = GlyphEffectType::Wobble;
+	} else if (name == "wave") {
+		result = GlyphEffectType::Wave;
+	} else if (name == "shake") {
+		result = GlyphEffectType::Shake;
+	} else if (name == "pulse") {
+		result = GlyphEffectType::Pulse;
+	} else {
+		return false;
+	}
 	return true;
 }
 
@@ -254,7 +276,7 @@ struct RichTextStackEntry {
 
 	if (canonical_tag == "b") {
 		if (!argument || arg.empty()) {
-			state.style.flags = SetFontFlag(state.style.flags, FontStyle::Bold, true);
+			state.style.flags		= SetFontFlag(state.style.flags, FontStyle::Bold, true);
 			state.style.bold_weight = engine_defaults.style.bold_weight;
 			return true;
 		}
@@ -267,7 +289,7 @@ struct RichTextStackEntry {
 			error = "Invalid bold weight. Use <b>, <b=>, <b=weight>, or <b=off>.";
 			return false;
 		}
-		state.style.flags = SetFontFlag(state.style.flags, FontStyle::Bold, true);
+		state.style.flags		= SetFontFlag(state.style.flags, FontStyle::Bold, true);
 		state.style.bold_weight = weight;
 		return true;
 	}
@@ -283,14 +305,20 @@ struct RichTextStackEntry {
 		}
 
 		FontStyle flag{ FontStyle::Italic };
-		if (canonical_tag == "u") flag = FontStyle::Underline;
-		if (canonical_tag == "s") flag = FontStyle::Strikethrough;
+		if (canonical_tag == "u") {
+			flag = FontStyle::Underline;
+		}
+		if (canonical_tag == "s") {
+			flag = FontStyle::Strikethrough;
+		}
 		state.style.flags = SetFontFlag(state.style.flags, flag, enabled);
 		return true;
 	}
 
 	if (canonical_tag == "c") {
-		if (!require_assignment()) return false;
+		if (!require_assignment()) {
+			return false;
+		}
 		if (arg.empty()) {
 			state.style.color = engine_defaults.style.color;
 			return true;
@@ -305,15 +333,18 @@ struct RichTextStackEntry {
 	}
 
 	if (canonical_tag == "font") {
-		if (!require_assignment()) return false;
+		if (!require_assignment()) {
+			return false;
+		}
 		state.font = arg.empty() ? engine_defaults.font : FontKey{ std::string{ arg } };
 		return true;
 	}
 
-	auto parse_single_float = [&](
-		float& destination, float engine_default, std::string_view label
-	) {
-		if (!require_assignment()) return false;
+	auto parse_single_float = [&](float& destination, float engine_default,
+								  std::string_view label) {
+		if (!require_assignment()) {
+			return false;
+		}
 		if (arg.empty()) {
 			destination = engine_default;
 			return true;
@@ -342,20 +373,23 @@ struct RichTextStackEntry {
 		);
 	}
 
-	if (canonical_tag == "outline" || canonical_tag == "outerglow" || canonical_tag == "innerglow") {
-		if (!require_assignment()) return false;
+	if (canonical_tag == "outline" || canonical_tag == "outerglow" ||
+		canonical_tag == "innerglow") {
+		if (!require_assignment()) {
+			return false;
+		}
 		DistanceFieldLayerStyle* layer{ nullptr };
 		const DistanceFieldLayerStyle* engine_layer{ nullptr };
 		if (canonical_tag == "outline") {
-			layer = &state.style.sdf.outline;
+			layer		 = &state.style.sdf.outline;
 			engine_layer = &engine_defaults.style.sdf.outline;
 		}
 		if (canonical_tag == "outerglow") {
-			layer = &state.style.sdf.outer_glow;
+			layer		 = &state.style.sdf.outer_glow;
 			engine_layer = &engine_defaults.style.sdf.outer_glow;
 		}
 		if (canonical_tag == "innerglow") {
-			layer = &state.style.sdf.inner_glow;
+			layer		 = &state.style.sdf.inner_glow;
 			engine_layer = &engine_defaults.style.sdf.inner_glow;
 		}
 
@@ -381,19 +415,22 @@ struct RichTextStackEntry {
 			error = "Invalid distance-field effect values.";
 			return false;
 		}
-		*layer = DistanceFieldLayerStyle{ .color = parsed_color, .width = width, .softness = softness };
+		*layer =
+			DistanceFieldLayerStyle{ .color = parsed_color, .width = width, .softness = softness };
 		return true;
 	}
 
 	if (canonical_tag == "shadow") {
-		if (!require_assignment()) return false;
+		if (!require_assignment()) {
+			return false;
+		}
 		if (arg.empty()) {
-			state.style.sdf.shadow = engine_defaults.style.sdf.shadow;
+			state.style.sdf.shadow		  = engine_defaults.style.sdf.shadow;
 			state.style.sdf.shadow_offset = engine_defaults.style.sdf.shadow_offset;
 			return true;
 		}
 		if (IsOffRichTextValue(arg)) {
-			state.style.sdf.shadow = {};
+			state.style.sdf.shadow		  = {};
 			state.style.sdf.shadow_offset = {};
 			return true;
 		}
@@ -408,8 +445,7 @@ struct RichTextStackEntry {
 		float width{};
 		float softness{ 1.0f };
 		if (!ParseRichColor(args[0], parsed_color) || !ParseRichFloat(args[1], x) ||
-			!ParseRichFloat(args[2], y) ||
-			(args.size() >= 4 && !ParseRichFloat(args[3], width)) ||
+			!ParseRichFloat(args[2], y) || (args.size() >= 4 && !ParseRichFloat(args[3], width)) ||
 			(args.size() >= 5 && !ParseRichFloat(args[4], softness))) {
 			error = "Invalid shadow values.";
 			return false;
@@ -421,7 +457,9 @@ struct RichTextStackEntry {
 	}
 
 	if (canonical_tag == "fx") {
-		if (!require_assignment()) return false;
+		if (!require_assignment()) {
+			return false;
+		}
 		if (arg.empty()) {
 			state.style.effect = engine_defaults.style.effect;
 			return true;
@@ -498,7 +536,7 @@ struct RichTextStackEntry {
 			continue;
 		}
 
-		const bool closing{ token.front() == '/' };
+		bool closing{ token.front() == '/' };
 		if (closing) {
 			token.remove_prefix(1);
 		}
@@ -542,11 +580,13 @@ void EmitRichTextRun(StyledText& text, std::string& buffer, const RichTextState&
 		text.runs.back().style == state.style) {
 		text.runs.back().text += buffer;
 	} else {
-		text.runs.emplace_back(TextRun{
-			.text = std::move(buffer),
-			.font = state.font,
-			.style = state.style,
-		});
+		text.runs.emplace_back(
+			TextRun{
+				.text  = std::move(buffer),
+				.font  = state.font,
+				.style = state.style,
+			}
+		);
 	}
 	buffer.clear();
 }
@@ -561,7 +601,7 @@ void EmitRichTextRun(StyledText& text, std::string& buffer, const RichTextState&
 	constexpr char digits[]{ "0123456789ABCDEF" };
 	std::string result{ "#000000" };
 	auto write_byte = [&](std::size_t offset, std::uint8_t value) {
-		result[offset] = digits[(value >> 4) & 0x0F];
+		result[offset]	   = digits[(value >> 4) & 0x0F];
 		result[offset + 1] = digits[value & 0x0F];
 	};
 	write_byte(1, color.r);
@@ -576,18 +616,17 @@ void EmitRichTextRun(StyledText& text, std::string& buffer, const RichTextState&
 
 [[nodiscard]] std::string GlyphEffectName(GlyphEffectType type) {
 	switch (type) {
-		case GlyphEffectType::None: return "None";
+		case GlyphEffectType::None:	  return "None";
 		case GlyphEffectType::Wobble: return "Wobble";
-		case GlyphEffectType::Wave: return "Wave";
-		case GlyphEffectType::Shake: return "Shake";
-		case GlyphEffectType::Pulse: return "Pulse";
+		case GlyphEffectType::Wave:	  return "Wave";
+		case GlyphEffectType::Shake:  return "Shake";
+		case GlyphEffectType::Pulse:  return "Pulse";
 	}
 	return "None";
 }
 
 void AddRichWrapper(
-	std::vector<std::pair<std::string, std::string>>& wrappers, std::string open,
-	std::string close
+	std::vector<std::pair<std::string, std::string>>& wrappers, std::string open, std::string close
 ) {
 	wrappers.emplace_back(std::move(open), std::move(close));
 }
@@ -633,7 +672,7 @@ std::string ExpandRichTextVariables(
 		if (!name.empty() && resolver) {
 			if (auto value{ resolver(name) }) {
 				result += EscapeRichText(*value);
-				i = close + 1;
+				i		= close + 1;
 				continue;
 			}
 		}
@@ -699,11 +738,10 @@ RichTextParseResult ParseRichText(std::string_view source, const TextRunDefaults
 
 		const auto equals{ token.find('=') };
 		const auto name{ equals == std::string_view::npos ? token : token.substr(0, equals) };
-		const std::optional<std::string_view> argument{
-			equals == std::string_view::npos
-				? std::nullopt
-				: std::optional<std::string_view>{ token.substr(equals + 1) }
-		};
+		const std::optional<std::string_view> argument{ equals == std::string_view::npos
+															? std::nullopt
+															: std::optional<std::string_view>{
+																  token.substr(equals + 1) } };
 
 		RichTextState next{ state };
 		std::string canonical_tag;
@@ -717,9 +755,9 @@ RichTextParseResult ParseRichText(std::string_view source, const TextRunDefaults
 
 		if (!HasMatchingRichTextClose(source, close + 1, canonical_tag)) {
 			buffer.append(source.substr(i, close - i + 1));
-			result.diagnostics.push_back({
-				i, "Unclosed rich text tag <" + canonical_tag + ">; rendered literally."
-			});
+			result.diagnostics.push_back(
+				{ i, "Unclosed rich text tag <" + canonical_tag + ">; rendered literally." }
+			);
 			i = close + 1;
 			continue;
 		}
@@ -727,7 +765,7 @@ RichTextParseResult ParseRichText(std::string_view source, const TextRunDefaults
 		EmitRichTextRun(result.text, buffer, state);
 		stack.push_back({ .tag = canonical_tag, .previous = state, .position = i });
 		state = std::move(next);
-		i = close + 1;
+		i	  = close + 1;
 	}
 
 	EmitRichTextRun(result.text, buffer, state);
@@ -757,49 +795,46 @@ std::string SerializeStyledTextToRichText(
 		std::vector<std::pair<std::string, std::string>> wrappers;
 
 		if (run.font != defaults.font) {
-			const std::string open{
-				run.font == engine_defaults.font ? "<font=>" : "<font=" + run.font.value + ">"
-			};
+			const std::string open{ run.font == engine_defaults.font
+										? "<font=>"
+										: "<font=" + run.font.value + ">" };
 			AddRichWrapper(wrappers, open, "</font>");
 		}
 		if (!NearlyEqual(run.style.size, defaults.style.size)) {
-			const std::string value{
-				NearlyEqual(run.style.size, engine_defaults.style.size)
-					? std::string{}
-					: FormatRichFloat(run.style.size)
-			};
+			const std::string value{ NearlyEqual(run.style.size, engine_defaults.style.size)
+										 ? std::string{}
+										 : FormatRichFloat(run.style.size) };
 			AddRichWrapper(wrappers, "<size=" + value + ">", "</size>");
 		}
 		if (run.style.color != defaults.style.color) {
-			const std::string value{
-				run.style.color == engine_defaults.style.color
-					? std::string{}
-					: FormatRichColor(run.style.color)
-			};
+			const std::string value{ run.style.color == engine_defaults.style.color
+										 ? std::string{}
+										 : FormatRichColor(run.style.color) };
 			AddRichWrapper(wrappers, "<c=" + value + ">", "</c>");
 		}
 
 		auto add_flag = [&](FontStyle flag, std::string_view tag) {
-			const bool enabled{ HasFontFlag(run.style.flags, flag) };
-			const bool default_enabled{ HasFontFlag(defaults.style.flags, flag) };
-			if (enabled == default_enabled) return;
+			bool enabled{ HasFontFlag(run.style.flags, flag) };
+			bool default_enabled{ HasFontFlag(defaults.style.flags, flag) };
+			if (enabled == default_enabled) {
+				return;
+			}
 			AddRichWrapper(
 				wrappers,
-				enabled ? "<" + std::string{ tag } + ">"
-						: "<" + std::string{ tag } + "=off>",
+				enabled ? "<" + std::string{ tag } + ">" : "<" + std::string{ tag } + "=off>",
 				"</" + std::string{ tag } + ">"
 			);
 		};
 
-		const bool bold{ HasFontFlag(run.style.flags, FontStyle::Bold) };
-		const bool default_bold{ HasFontFlag(defaults.style.flags, FontStyle::Bold) };
+		bool bold{ HasFontFlag(run.style.flags, FontStyle::Bold) };
+		bool default_bold{ HasFontFlag(defaults.style.flags, FontStyle::Bold) };
 		if (bold != default_bold ||
 			(bold && !NearlyEqual(run.style.bold_weight, defaults.style.bold_weight))) {
 			std::string open{ "<b=off>" };
 			if (bold) {
 				open = NearlyEqual(run.style.bold_weight, engine_defaults.style.bold_weight)
-					? "<b>"
-					: "<b=" + FormatRichFloat(run.style.bold_weight) + ">";
+						 ? "<b>"
+						 : "<b=" + FormatRichFloat(run.style.bold_weight) + ">";
 			}
 			AddRichWrapper(wrappers, std::move(open), "</b>");
 		}
@@ -807,11 +842,14 @@ std::string SerializeStyledTextToRichText(
 		add_flag(FontStyle::Underline, "u");
 		add_flag(FontStyle::Strikethrough, "s");
 
-		auto add_float = [&](float value, float rich_default, float engine_default, std::string_view tag) {
-			if (NearlyEqual(value, rich_default)) return;
-			const std::string argument{
-				NearlyEqual(value, engine_default) ? std::string{} : FormatRichFloat(value)
-			};
+		auto add_float = [&](float value, float rich_default, float engine_default,
+							 std::string_view tag) {
+			if (NearlyEqual(value, rich_default)) {
+				return;
+			}
+			const std::string argument{ NearlyEqual(value, engine_default)
+											? std::string{}
+											: FormatRichFloat(value) };
 			AddRichWrapper(
 				wrappers, "<" + std::string{ tag } + "=" + argument + ">",
 				"</" + std::string{ tag } + ">"
@@ -819,20 +857,22 @@ std::string SerializeStyledTextToRichText(
 		};
 
 		add_float(run.style.kerning, defaults.style.kerning, engine_defaults.style.kerning, "kern");
-		add_float(run.style.tracking, defaults.style.tracking, engine_defaults.style.tracking, "track");
 		add_float(
-			run.style.line_spacing, defaults.style.line_spacing,
-			engine_defaults.style.line_spacing, "line"
+			run.style.tracking, defaults.style.tracking, engine_defaults.style.tracking, "track"
+		);
+		add_float(
+			run.style.line_spacing, defaults.style.line_spacing, engine_defaults.style.line_spacing,
+			"line"
 		);
 
 		auto add_layer = [&](const DistanceFieldLayerStyle& layer,
 							 const DistanceFieldLayerStyle& rich_default,
-							 const DistanceFieldLayerStyle& engine_default,
-							 std::string_view tag) {
-			if (layer == rich_default) return;
-			const std::string value{
-				layer == engine_default ? std::string{} : LayerArgument(layer)
-			};
+							 const DistanceFieldLayerStyle& engine_default, std::string_view tag) {
+			if (layer == rich_default) {
+				return;
+			}
+			const std::string value{ layer == engine_default ? std::string{}
+															 : LayerArgument(layer) };
 			AddRichWrapper(
 				wrappers, "<" + std::string{ tag } + "=" + value + ">",
 				"</" + std::string{ tag } + ">"
@@ -840,8 +880,8 @@ std::string SerializeStyledTextToRichText(
 		};
 
 		add_layer(
-			run.style.sdf.outline, defaults.style.sdf.outline,
-			engine_defaults.style.sdf.outline, "outline"
+			run.style.sdf.outline, defaults.style.sdf.outline, engine_defaults.style.sdf.outline,
+			"outline"
 		);
 		if (run.style.sdf.shadow != defaults.style.sdf.shadow ||
 			run.style.sdf.shadow_offset != defaults.style.sdf.shadow_offset) {
@@ -869,9 +909,9 @@ std::string SerializeStyledTextToRichText(
 			std::string value;
 			if (run.style.effect != engine_defaults.style.effect) {
 				const auto& effect{ run.style.effect };
-				value = GlyphEffectName(effect.type) + "," + FormatRichFloat(effect.amplitude) + "," +
-						FormatRichFloat(effect.frequency) + "," + FormatRichFloat(effect.speed) + "," +
-						FormatRichFloat(effect.phase);
+				value = GlyphEffectName(effect.type) + "," + FormatRichFloat(effect.amplitude) +
+						"," + FormatRichFloat(effect.frequency) + "," +
+						FormatRichFloat(effect.speed) + "," + FormatRichFloat(effect.phase);
 			}
 			AddRichWrapper(wrappers, "<fx=" + value + ">", "</fx>");
 		}
@@ -888,7 +928,6 @@ std::string SerializeStyledTextToRichText(
 
 	return result;
 }
-
 
 namespace impl {
 
@@ -985,10 +1024,12 @@ Text& Text::Clear() {
 
 	bool changed{ data.text.HasContent() };
 	data.text.runs.clear();
-	data.text.runs.emplace_back(TextRun{
-		.font = data.defaults.font,
-		.style = data.defaults.style,
-	});
+	data.text.runs.emplace_back(
+		TextRun{
+			.font  = data.defaults.font,
+			.style = data.defaults.style,
+		}
+	);
 
 	data.current_run_index = 0;
 
@@ -1012,15 +1053,15 @@ Text& Text::Content(std::string_view content) {
 
 		auto& run{ data.text.runs.front() };
 		const TextRun baseline{
-			.font = data.defaults.font,
+			.font  = data.defaults.font,
 			.style = data.defaults.style,
 		};
 		bool changed{ run.font != baseline.font || run.style != baseline.style };
-		run.font = baseline.font;
+		run.font  = baseline.font;
 		run.style = baseline.style;
 		if (run.text != content) {
 			run.text = std::string{ content };
-			changed = true;
+			changed	 = true;
 		}
 		if (changed) {
 			InvalidateLayout();
@@ -1029,10 +1070,12 @@ Text& Text::Content(std::string_view content) {
 		return *this;
 	}
 
-	auto& run{ data.text.runs.emplace_back(TextRun{
-		.font = data.defaults.font,
-		.style = data.defaults.style,
-	}) };
+	auto& run{ data.text.runs.emplace_back(
+		TextRun{
+			.font  = data.defaults.font,
+			.style = data.defaults.style,
+		}
+	) };
 
 	data.current_run_index = data.text.runs.size() - 1;
 
@@ -1053,10 +1096,12 @@ Text& Text::Content(StyledText styled_text) {
 	auto& data{ Get<impl::TextData>() };
 
 	if (styled_text.runs.empty()) {
-		styled_text.runs.emplace_back(TextRun{
-			.font = data.defaults.font,
-			.style = data.defaults.style,
-		});
+		styled_text.runs.emplace_back(
+			TextRun{
+				.font  = data.defaults.font,
+				.style = data.defaults.style,
+			}
+		);
 	}
 
 	if (data.text != styled_text) {
@@ -1078,10 +1123,12 @@ Text& Text::Select(std::size_t index) {
 	auto& data{ Get<impl::TextData>() };
 
 	if (data.text.runs.empty()) {
-		data.text.runs.emplace_back(TextRun{
-			.font = data.defaults.font,
-			.style = data.defaults.style,
-		});
+		data.text.runs.emplace_back(
+			TextRun{
+				.font  = data.defaults.font,
+				.style = data.defaults.style,
+			}
+		);
 	}
 
 	data.current_run_index = std::min(index, data.text.runs.size() - 1);
@@ -1186,7 +1233,8 @@ Text& Text::HorizontalAlign(ptgn::HorizontalAlign horizontal) {
 		return *this;
 	}
 
-	if (auto& current{ Get<impl::TextData>().box.style.alignment }; current.horizontal != horizontal) {
+	if (auto& current{ Get<impl::TextData>().box.style.alignment };
+		current.horizontal != horizontal) {
 		current.horizontal = horizontal;
 		InvalidateLayout();
 	}
@@ -1214,7 +1262,8 @@ Text& Text::ClearAlignment() {
 		return *this;
 	}
 
-	if (auto& current{ Get<impl::TextData>().box.style.alignment }; current.vertical.has_value() || current.horizontal.has_value()) {
+	if (auto& current{ Get<impl::TextData>().box.style.alignment };
+		current.vertical.has_value() || current.horizontal.has_value()) {
 		current.vertical.reset();
 		current.horizontal.reset();
 		InvalidateLayout();
@@ -1366,8 +1415,7 @@ Text& Text::ScaleToFit(float min_scale, float max_scale) {
 	}
 
 	PTGN_ASSERT(
-		std::isfinite(min_scale) && std::isfinite(max_scale),
-		"Text scale limits must be finite"
+		std::isfinite(min_scale) && std::isfinite(max_scale), "Text scale limits must be finite"
 	);
 
 	// Order is important.
@@ -1726,23 +1774,21 @@ void Text::UpdateLayout() const {
 }
 
 TextRun& Text::CurrentRun() {
-	PTGN_ASSERT(
-		Has<impl::TextData>(),
-		"Cannot get current text run without TextData component"
-	);
+	PTGN_ASSERT(Has<impl::TextData>(), "Cannot get current text run without TextData component");
 
 	auto& data{ Get<impl::TextData>() };
 
 	if (data.text.runs.empty()) {
-		data.text.runs.emplace_back(TextRun{
-			.font = data.defaults.font,
-			.style = data.defaults.style,
-		});
+		data.text.runs.emplace_back(
+			TextRun{
+				.font  = data.defaults.font,
+				.style = data.defaults.style,
+			}
+		);
 		data.current_run_index = 0;
 	}
 
-	data.current_run_index =
-		std::min(data.current_run_index, data.text.runs.size() - 1);
+	data.current_run_index = std::min(data.current_run_index, data.text.runs.size() - 1);
 
 	return data.text.runs[data.current_run_index];
 }

@@ -48,7 +48,7 @@ void DrawSectionTitle(std::string_view title) {
 	return PhysicsSettingsState{
 		.enabled = physics.IsEnabled(),
 		.gravity = physics.GetGravity(),
-		.bounds = physics.GetBounds(),
+		.bounds	 = physics.GetBounds(),
 	};
 }
 
@@ -71,14 +71,8 @@ void ApplyPhysicsSettings(Physics& physics, const PhysicsSettingsState& settings
 
 template <typename T, typename Apply>
 void TrackSceneSettingsChange(
-	EditorContext& ctx,
-	Scene& scene,
-	std::string_view interaction_id,
-	std::string label,
-	bool changed,
-	T before,
-	T after,
-	Apply apply
+	EditorContext& ctx, Scene& scene, std::string_view interaction_id, std::string label,
+	bool changed, T before, T after, Apply apply
 ) {
 	if (!changed) {
 		return;
@@ -86,20 +80,12 @@ void TrackSceneSettingsChange(
 
 	Editor* editor{ &ctx.editor };
 	const std::string scene_key{ scene.GetTag() };
-	const std::uint64_t interaction_key{
-		static_cast<std::uint64_t>(
-			ImGui::GetID(
-				interaction_id.data(),
-				interaction_id.data() + interaction_id.size()
-			)
-		)
-	};
+	const std::uint64_t interaction_key{ static_cast<std::uint64_t>(
+		ImGui::GetID(interaction_id.data(), interaction_id.data() + interaction_id.size())
+	) };
 
 	ctx.undo.TrackInteraction(
-		interaction_key,
-		std::move(label),
-		true,
-		ImGui::IsAnyItemActive(),
+		interaction_key, std::move(label), true, ImGui::IsAnyItemActive(),
 		[editor, scene_key, apply, before = std::move(before)]() mutable {
 			Scene* target{ ResolveScene(*editor, scene_key) };
 			if (!target) {
@@ -127,33 +113,21 @@ void DrawReadOnlySceneData(const Scene& scene) {
 
 	DrawPropertyRow("Scene State", [&]() {
 		ImGui::TextDisabled(
-			"%zu entities | %s | render %s | transition %s",
-			scene.GetEntityCount(),
-			scene.IsRuntime() ? "runtime" : "editor",
-			scene.IsRenderEnabled() ? "on" : "off",
+			"%zu entities | %s | render %s | transition %s", scene.GetEntityCount(),
+			scene.IsRuntime() ? "runtime" : "editor", scene.IsRenderEnabled() ? "on" : "off",
 			scene.IsTransitioning() ? "active" : "none"
 		);
 		return false;
 	});
 
 	auto render_target_size{ scene.GetRenderTarget().GetSize() };
-	DrawWHValue(
-		"Render Target Size",
-		render_target_size,
-		1.0f,
-		0,
-		0,
-		ImGuiSliderFlags_None,
-		true
-	);
+	DrawWHValue("Render Target Size", render_target_size, 1.0f, 0, 0, ImGuiSliderFlags_None, true);
 
 	const auto interaction_info{ scene.ctx().interaction.GetDebugInfo() };
 	DrawPropertyRow("Interaction State", [&]() {
 		ImGui::TextDisabled(
-			"%zu cameras | %zu dragging | %zu hovered",
-			interaction_info.tracked_cameras,
-			interaction_info.dragging_entities,
-			interaction_info.hovered_entities
+			"%zu cameras | %zu dragging | %zu hovered", interaction_info.tracked_cameras,
+			interaction_info.dragging_entities, interaction_info.hovered_entities
 		);
 		return false;
 	});
@@ -162,7 +136,7 @@ void DrawReadOnlySceneData(const Scene& scene) {
 } // namespace
 
 void SceneSettingsPanel::OnRender(EditorContext& ctx) {
-	const bool visible{ ImGui::Begin("Settings###SceneSettingsWindow") };
+	bool visible{ ImGui::Begin("Settings###SceneSettingsWindow") };
 
 	if (!visible) {
 		ImGui::End();
@@ -185,7 +159,7 @@ void SceneSettingsPanel::OnRender(EditorContext& ctx) {
 		// destroyed before the scene ID is popped below.
 		AutoLabelWidthScope label_width{ "SceneSettings" };
 
-		const bool read_only{ scene->IsRuntime() };
+		bool read_only{ scene->IsRuntime() };
 		if (read_only) {
 			ImGui::TextDisabled("Runtime scene settings are read-only.");
 		}
@@ -197,23 +171,15 @@ void SceneSettingsPanel::OnRender(EditorContext& ctx) {
 		{
 			const Color before{ scene->GetBackgroundColor() };
 			Color after{ before };
-			const bool changed{ DrawValue(ctx, "Background Color", after) };
+			bool changed{ DrawValue(ctx, "Background Color", after) };
 
 			if (changed) {
 				scene->SetBackgroundColor(after);
 			}
 
 			TrackSceneSettingsChange(
-				ctx,
-				*scene,
-				"BackgroundColor",
-				"Change Scene Background Color",
-				changed,
-				before,
-				after,
-				[](Scene& target, const Color& value) {
-					target.SetBackgroundColor(value);
-				}
+				ctx, *scene, "BackgroundColor", "Change Scene Background Color", changed, before,
+				after, [](Scene& target, const Color& value) { target.SetBackgroundColor(value); }
 			);
 		}
 
@@ -222,49 +188,30 @@ void SceneSettingsPanel::OnRender(EditorContext& ctx) {
 		{
 			auto& physics{ scene->ctx().physics };
 
-			const PhysicsSettingsState before{
-				CapturePhysicsSettings(physics)
-			};
+			const PhysicsSettingsState before{ CapturePhysicsSettings(physics) };
 
 			PhysicsSettingsState after{ before };
 			bool changed{ false };
 
-			changed |= DrawValue(
-				ctx,
-				"Enabled",
-				after.enabled
-			);
+			changed |= DrawValue(ctx, "Enabled", after.enabled);
 
-			changed |= DrawValue(
-				ctx,
-				"Gravity",
-				after.gravity
-			);
+			changed |= DrawValue(ctx, "Gravity", after.gravity);
 
 			bool use_bounds{ after.bounds.has_value() };
 
-			if (DrawValue(
-					ctx,
-					"Use Bounds",
-					use_bounds
-				)) {
+			if (DrawValue(ctx, "Use Bounds", use_bounds)) {
 				changed = true;
 
 				if (use_bounds) {
-					V2_float default_size{
-						scene->GetRenderTarget().GetSize()
-					};
+					V2_float default_size{ scene->GetRenderTarget().GetSize() };
 
-					default_size.x =
-						std::max(default_size.x, 1.0f);
-					default_size.y =
-						std::max(default_size.y, 1.0f);
+					default_size.x = std::max(default_size.x, 1.0f);
+					default_size.y = std::max(default_size.y, 1.0f);
 
 					after.bounds = Bounds{
 						.position = {},
-						.size = default_size,
-						.behavior =
-							BoundaryBehavior::SlideVelocity,
+						.size	  = default_size,
+						.behavior = BoundaryBehavior::SlideVelocity,
 					};
 				} else {
 					after.bounds.reset();
@@ -272,62 +219,27 @@ void SceneSettingsPanel::OnRender(EditorContext& ctx) {
 			}
 
 			if (after.bounds.has_value()) {
-				changed |= DrawValue(
-					ctx,
-					"Bounds Position",
-					after.bounds->position
-				);
+				changed |= DrawValue(ctx, "Bounds Position", after.bounds->position);
 
-				if (DrawWHValue(
-						"Bounds Size",
-						after.bounds->size,
-						kInspectorSizeDragSpeed
-					)) {
-					after.bounds->size.x =
-						std::max(
-							after.bounds->size.x,
-							0.001f
-						);
+				if (DrawWHValue("Bounds Size", after.bounds->size, kInspectorSizeDragSpeed)) {
+					after.bounds->size.x = std::max(after.bounds->size.x, 0.001f);
 
-					after.bounds->size.y =
-						std::max(
-							after.bounds->size.y,
-							0.001f
-						);
+					after.bounds->size.y = std::max(after.bounds->size.y, 0.001f);
 
 					changed = true;
 				}
 
-				changed |= DrawValue(
-					ctx,
-					"Bounds Behavior",
-					after.bounds->behavior
-				);
+				changed |= DrawValue(ctx, "Bounds Behavior", after.bounds->behavior);
 			}
 
 			if (changed) {
-				ApplyPhysicsSettings(
-					physics,
-					after
-				);
+				ApplyPhysicsSettings(physics, after);
 			}
 
 			TrackSceneSettingsChange(
-				ctx,
-				*scene,
-				"Physics",
-				"Change Scene Physics Settings",
-				changed,
-				before,
-				after,
-				[](
-					Scene& target,
-					const PhysicsSettingsState& value
-				) {
-					ApplyPhysicsSettings(
-						target.ctx().physics,
-						value
-					);
+				ctx, *scene, "Physics", "Change Scene Physics Settings", changed, before, after,
+				[](Scene& target, const PhysicsSettingsState& value) {
+					ApplyPhysicsSettings(target.ctx().physics, value);
 				}
 			);
 		}
@@ -335,23 +247,13 @@ void SceneSettingsPanel::OnRender(EditorContext& ctx) {
 		DrawSectionTitle("Interaction");
 
 		{
-			auto& interaction{
-				scene->ctx().interaction
-			};
+			auto& interaction{ scene->ctx().interaction };
 
-			const bool before{
-				interaction.IsTopOnly()
-			};
+			bool before{ interaction.IsTopOnly() };
 
 			bool after{ before };
 
-			const bool changed{
-				DrawValue(
-					ctx,
-					"Top Only",
-					after
-				)
-			};
+			bool changed{ DrawValue(ctx, "Top Only", after) };
 
 			if (changed) {
 				interaction.SetTopOnly(after);
@@ -363,28 +265,14 @@ void SceneSettingsPanel::OnRender(EditorContext& ctx) {
 			);
 
 			TrackSceneSettingsChange(
-				ctx,
-				*scene,
-				"Interaction",
-				"Change Scene Interaction Settings",
-				changed,
-				before,
-				after,
-				[](Scene& target, bool value) {
-					target.ctx()
-						.interaction
-						.SetTopOnly(value);
-				}
+				ctx, *scene, "Interaction", "Change Scene Interaction Settings", changed, before,
+				after, [](Scene& target, bool value) { target.ctx().interaction.SetTopOnly(value); }
 			);
 		}
 
 		ImGui::EndDisabled();
 
-		if (
-			ctx.editor
-				.GetSettings()
-				.show_read_only_scene_data
-		) {
+		if (ctx.editor.GetSettings().show_read_only_scene_data) {
 			DrawSectionTitle("Read-Only Data");
 			DrawReadOnlySceneData(*scene);
 		}

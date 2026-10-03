@@ -50,12 +50,9 @@ public:
 		auto& entries{ MutableEntries() };
 		const TypeHashValue type_hash{ Hash<TEvent>() };
 
-		if (std::ranges::any_of(
-				entries,
-				[type_hash](const auto& entry) {
-					return entry.type_hash == type_hash;
-				}
-			)) {
+		if (std::ranges::any_of(entries, [type_hash](const auto& entry) {
+				return entry.type_hash == type_hash;
+			})) {
 			return false;
 		}
 
@@ -66,72 +63,51 @@ public:
 	static bool Register(EventEditorOptions options) {
 		auto& entries{ MutableEntries() };
 		const TypeHashValue type_hash{ Hash<TEvent>() };
-		const bool inserted{
-			std::ranges::none_of(
-				entries,
-				[type_hash](const auto& entry) {
-					return entry.type_hash == type_hash;
-				}
-			)
-		};
+		bool inserted{ std::ranges::none_of(entries, [type_hash](const auto& entry) {
+			return entry.type_hash == type_hash;
+		}) };
 
-		std::erase_if(
-			entries,
-			[type_hash](const auto& entry) {
-				return entry.type_hash == type_hash;
-			}
-		);
+		std::erase_if(entries, [type_hash](const auto& entry) {
+			return entry.type_hash == type_hash;
+		});
 
 		if (options.label.empty()) {
-			options.label =
-				std::string{
-					type_name_without_namespaces<TEvent>()
-				};
+			options.label = std::string{ type_name_without_namespaces<TEvent>() };
 		}
 
-		options.inline_fields =
-			std::max(0, options.inline_fields);
+		options.inline_fields = std::max(0, options.inline_fields);
 
 		if (options.draw) {
 			auto draw{ std::move(options.draw) };
 
-			options.draw =
-				[fn = std::move(draw)](json& value) mutable {
-					if (value.is_null()) {
-						value = json::object();
-					}
+			options.draw = [fn = std::move(draw)](json& value) mutable {
+				if (value.is_null()) {
+					value = json::object();
+				}
 
-					const json previous{ value };
-					const bool changed{
-						std::invoke(fn, value)
-					};
+				const json previous{ value };
+				bool changed{ std::invoke(fn, value) };
 
-					return changed || value != previous;
-				};
+				return changed || value != previous;
+			};
 		}
 
 		entries.push_back(
 			EventEditorRegistration{
 				.type_hash = type_hash,
-				.options = std::move(options),
+				.options   = std::move(options),
 			}
 		);
 
 		return inserted;
 	}
 
-	[[nodiscard]] static const EventEditorRegistration* Find(
-		TypeHashValue type_hash
-	);
+	[[nodiscard]] static const EventEditorRegistration* Find(TypeHashValue type_hash);
 
-	[[nodiscard]] static const std::vector<
-		EventEditorRegistration
-	>& Entries();
+	[[nodiscard]] static const std::vector<EventEditorRegistration>& Entries();
 
 private:
-	[[nodiscard]] static std::vector<
-		EventEditorRegistration
-	>& MutableEntries();
+	[[nodiscard]] static std::vector<EventEditorRegistration>& MutableEntries();
 };
 
 enum class ScriptType : std::uint8_t {
@@ -141,30 +117,15 @@ enum class ScriptType : std::uint8_t {
 	Both	 = (1 << 0) | (1 << 1)
 };
 
-[[nodiscard]] constexpr ScriptType operator|(
-	ScriptType lhs,
-	ScriptType rhs
-) {
-	return static_cast<ScriptType>(
-		static_cast<std::uint8_t>(lhs) |
-		static_cast<std::uint8_t>(rhs)
-	);
+[[nodiscard]] constexpr ScriptType operator|(ScriptType lhs, ScriptType rhs) {
+	return static_cast<ScriptType>(static_cast<std::uint8_t>(lhs) | static_cast<std::uint8_t>(rhs));
 }
 
-[[nodiscard]] constexpr ScriptType operator&(
-	ScriptType lhs,
-	ScriptType rhs
-) {
-	return static_cast<ScriptType>(
-		static_cast<std::uint8_t>(lhs) &
-		static_cast<std::uint8_t>(rhs)
-	);
+[[nodiscard]] constexpr ScriptType operator&(ScriptType lhs, ScriptType rhs) {
+	return static_cast<ScriptType>(static_cast<std::uint8_t>(lhs) & static_cast<std::uint8_t>(rhs));
 }
 
-[[nodiscard]] constexpr bool HasScriptType(
-	ScriptType value,
-	ScriptType type
-) {
+[[nodiscard]] constexpr bool HasScriptType(ScriptType value, ScriptType type) {
 	return (value & type) != ScriptType::None;
 }
 
@@ -214,37 +175,23 @@ struct TypedJsonEditorState {
 };
 
 template <typename T, typename F>
-bool DrawTypedJsonEditor(
-	ScriptEditorContext& context,
-	json& input,
-	F& draw
-) {
+bool DrawTypedJsonEditor(ScriptEditorContext& context, json& input, F& draw) {
 	if constexpr (!std::default_initializable<T>) {
 		return false;
 	} else {
 		T value{};
 
-		if constexpr (
-			requires(const json& json_value, T& typed_value) {
-				json_value.get_to(typed_value);
-			}
-		) {
+		if constexpr (requires(const json& json_value, T& typed_value) {
+						  json_value.get_to(typed_value);
+					  }) {
 			(void)TryReadScriptJson(input, value);
 		}
 
-		bool changed{
-			std::invoke(
-				draw,
-				context,
-				value
-			)
-		};
+		bool changed{ std::invoke(draw, context, value) };
 
-		if constexpr (
-			requires(json& json_value, const T& typed_value) {
-				json_value = typed_value;
-			}
-		) {
+		if constexpr (requires(json& json_value, const T& typed_value) {
+						  json_value = typed_value;
+					  }) {
 			json updated = json::object();
 
 			try {
@@ -273,47 +220,29 @@ public:
 		auto& entries{ MutableEntries() };
 		const TypeHashValue type_hash{ Hash<T>() };
 
-		if (std::ranges::any_of(
-				entries,
-				[type_hash](const auto& entry) {
-					return entry.type_hash == type_hash;
-				}
-			)) {
+		if (std::ranges::any_of(entries, [type_hash](const auto& entry) {
+				return entry.type_hash == type_hash;
+			})) {
 			return false;
 		}
 
-		return Register<T>(
-			ScriptEditorOptions<T>{}
-		);
+		return Register<T>(ScriptEditorOptions<T>{});
 	}
 
 	template <ScriptClass T>
-	static bool Register(
-		ScriptEditorOptions<T> options
-	) {
+	static bool Register(ScriptEditorOptions<T> options) {
 		auto& entries{ MutableEntries() };
 		const TypeHashValue type_hash{ Hash<T>() };
-		const bool inserted{
-			std::ranges::none_of(
-				entries,
-				[type_hash](const auto& entry) {
-					return entry.type_hash == type_hash;
-				}
-			)
-		};
+		bool inserted{ std::ranges::none_of(entries, [type_hash](const auto& entry) {
+			return entry.type_hash == type_hash;
+		}) };
 
-		std::erase_if(
-			entries,
-			[type_hash](const auto& entry) {
-				return entry.type_hash == type_hash;
-			}
-		);
+		std::erase_if(entries, [type_hash](const auto& entry) {
+			return entry.type_hash == type_hash;
+		});
 
 		if (options.label.empty()) {
-			options.label =
-				std::string{
-					type_name_without_namespaces<T>()
-				};
+			options.label = std::string{ type_name_without_namespaces<T>() };
 		}
 
 		ScriptEditorRegistration registration{
@@ -334,71 +263,36 @@ public:
 		};
 
 		if (options.draw_inline) {
-			registration.draw_inline =
-				[
-					fn =
-						std::move(
-							options.draw_inline
-						)
-				](
-					ScriptEditorContext& context,
-					json& input
-				) mutable {
-					return DrawTypedJsonEditor<T>(
-						context,
-						input,
-						fn
-					);
-				};
+			registration.draw_inline = [fn = std::move(options.draw_inline)](
+										   ScriptEditorContext& context, json& input
+									   ) mutable {
+				return DrawTypedJsonEditor<T>(context, input, fn);
+			};
 		}
 
 		if (options.draw) {
 			registration.draw =
-				[
-					fn =
-						std::move(
-							options.draw
-						)
-				](
-					ScriptEditorContext& context,
-					json& input
-				) mutable {
-					return DrawTypedJsonEditor<T>(
-						context,
-						input,
-						fn
-					);
+				[fn = std::move(options.draw)](ScriptEditorContext& context, json& input) mutable {
+					return DrawTypedJsonEditor<T>(context, input, fn);
 				};
 		}
 
-		entries.push_back(
-			std::move(registration)
-		);
+		entries.push_back(std::move(registration));
 
 		return inserted;
 	}
 
-	[[nodiscard]] static const ScriptEditorRegistration* Find(
-		TypeHashValue type_hash
-	);
+	[[nodiscard]] static const ScriptEditorRegistration* Find(TypeHashValue type_hash);
 
-	[[nodiscard]] static const std::vector<
-		ScriptEditorRegistration
-	>& Entries();
+	[[nodiscard]] static const std::vector<ScriptEditorRegistration>& Entries();
 
 private:
-	[[nodiscard]] static std::vector<
-		ScriptEditorRegistration
-	>& MutableEntries();
+	[[nodiscard]] static std::vector<ScriptEditorRegistration>& MutableEntries();
 };
 
 template <ScriptClass T>
-bool RegisterScript(
-	ScriptEditorOptions<T> options = {}
-) {
-	return ScriptEditorRegistry::Register<T>(
-		std::move(options)
-	);
+bool RegisterScript(ScriptEditorOptions<T> options = {}) {
+	return ScriptEditorRegistry::Register<T>(std::move(options));
 }
 
 } // namespace ptgn::editor

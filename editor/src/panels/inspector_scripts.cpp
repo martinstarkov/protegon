@@ -120,7 +120,7 @@ bool BeginScriptTabItem(const char* label, bool visually_disabled) {
 		ImGui::PushStyleVar(ImGuiStyleVar_Alpha, style.Alpha * style.DisabledAlpha);
 	}
 
-	const bool selected{ BeginInspectorTabItem(label) };
+	bool selected{ BeginInspectorTabItem(label) };
 
 	if (visually_disabled) {
 		ImGui::PopStyleVar();
@@ -603,7 +603,7 @@ bool DrawActionPicker(
 		ImVec2{ popup_min_width, 0.0f }, ImVec2{ FLT_MAX, FLT_MAX }
 	);
 
-	const bool open{
+	bool open{
 		ImGui::BeginCombo("##RegisteredAction", current ? current->label.data() : "Missing Action")
 	};
 
@@ -637,7 +637,7 @@ bool DrawActionPicker(
 		if (ImGui::MenuItem(
 				candidate.label.data(), nullptr, registration.type_hash == action.type_hash
 			)) {
-			const bool enabled{ action.enabled };
+			bool enabled{ action.enabled };
 			auto target{ action.target };
 
 			action = ScriptRegistry::MakeStep(registration.type_hash);
@@ -695,7 +695,7 @@ bool DrawActionPicker(
 			}
 
 			if (ImGui::MenuItem(shared.name.c_str(), nullptr, selected)) {
-				const bool enabled{ action.enabled };
+				bool enabled{ action.enabled };
 				auto target{ action.target };
 
 				Script script;
@@ -2453,7 +2453,7 @@ bool DrawSequenceTabContents(
 	if (sequence->channel) {
 		changed |= DrawPropertyRow("Channel", [&]() {
 			ImGui::SetNextItemWidth(-FLT_MIN);
-			const bool local{ ImGui::InputText("##SequenceChannel", &sequence->channel->value) };
+			bool local{ ImGui::InputText("##SequenceChannel", &sequence->channel->value) };
 			DrawTooltip(
 				"Only one binding owns a channel at a time. Restart replaces it; Queue waits."
 			);
@@ -2469,7 +2469,7 @@ bool DrawSequenceTabContents(
 [[nodiscard]] std::string MakeNextScriptSequenceName(const ::ptgn::impl::Scripts& scripts) {
 	for (std::size_t number{ 1 };; ++number) {
 		const std::string candidate{ "Sequence " + std::to_string(number) };
-		const bool exists{ std::ranges::any_of(scripts.scripts, [&](const ScriptEntry& entry) {
+		bool exists{ std::ranges::any_of(scripts.scripts, [&](const ScriptEntry& entry) {
 			if (entry.type_hash != Hash<Script>()) {
 				return false;
 			}
@@ -2496,7 +2496,7 @@ std::optional<int> DrawSequenceTabs(
 	static std::optional<int> rename_index{};
 	std::optional<int> remove{};
 
-	const bool add_requested{ DrawInspectorTabCollection(
+	bool add_requested{ DrawInspectorTabCollection(
 		sequence_indices.empty(),
 		InspectorTabCollectionOptions{
 			.scope_id		 = "##ScriptSequenceTabStrip",
@@ -2526,7 +2526,7 @@ std::optional<int> DrawSequenceTabs(
 				ScopedID tab_scope{ i };
 				std::string tab_label{ editable_sequence->name.empty() ? "Sequence"
 																	   : editable_sequence->name };
-				const bool selected{ BeginScriptTabItem(tab_label.c_str(), !script.enabled) };
+				bool selected{ BeginScriptTabItem(tab_label.c_str(), !script.enabled) };
 				if (ImGui::BeginPopupContextItem("##SequenceTabContext")) {
 					if (ImGui::MenuItem("Rename")) {
 						rename_index = i;
@@ -2644,7 +2644,7 @@ bool DrawAddRootScriptPopup(ScriptEditorContext& context, ::ptgn::impl::Scripts&
 			return;
 		}
 
-		const bool available{ !already_added(registration.type_hash) };
+		bool available{ !already_added(registration.type_hash) };
 		if (ImGui::MenuItem(editor->options.label.c_str(), nullptr, false, available)) {
 			AddEditorScriptEntry(context, scripts, MakeRootEntry(registration.type_hash));
 			changed = true;
@@ -2669,7 +2669,7 @@ bool DrawAddRootScriptPopup(ScriptEditorContext& context, ::ptgn::impl::Scripts&
 	}
 
 	for (const auto& group : groups) {
-		const bool can_add_from_group{ std::ranges::any_of(
+		bool can_add_from_group{ std::ranges::any_of(
 			ScriptRegistry::Entries(), [&](const ScriptRegistration& registration) {
 				if (!is_resident_candidate(registration) || already_added(registration.type_hash)) {
 					return false;
@@ -2684,7 +2684,7 @@ bool DrawAddRootScriptPopup(ScriptEditorContext& context, ::ptgn::impl::Scripts&
 			const ImGuiStyle& style{ ImGui::GetStyle() };
 			ImGui::PushStyleVar(ImGuiStyleVar_Alpha, style.Alpha * style.DisabledAlpha);
 		}
-		const bool group_open{ ImGui::BeginMenu(group.c_str()) };
+		bool group_open{ ImGui::BeginMenu(group.c_str()) };
 		if (!can_add_from_group) {
 			ImGui::PopStyleVar();
 		}
@@ -2724,7 +2724,7 @@ std::optional<int> DrawRegisteredScriptTabs(
 
 	std::optional<int> remove{};
 
-	const bool add_requested{ DrawInspectorTabCollection(
+	bool add_requested{ DrawInspectorTabCollection(
 		script_indices.empty(),
 		InspectorTabCollectionOptions{
 			.scope_id		 = "##RegisteredScriptTabStrip",
@@ -2751,7 +2751,7 @@ std::optional<int> DrawRegisteredScriptTabs(
 											  : (registration ? registration->name
 															  : std::string{ "Missing Script" }) };
 
-				const bool selected{ BeginScriptTabItem(tab_label.c_str(), !script.enabled) };
+				bool selected{ BeginScriptTabItem(tab_label.c_str(), !script.enabled) };
 				if (editor) {
 					DrawTooltip(editor->options.description.c_str());
 				}
@@ -3363,7 +3363,7 @@ bool DrawScriptsSectionImpl(Target& target) {
 			scripts = std::addressof(temporary_scripts);
 		}
 
-		const bool scripts_changed{ DrawScriptsComponent(target.ctx, *scripts) };
+		bool scripts_changed{ DrawScriptsComponent(target.ctx, *scripts) };
 		if (!scripts_changed) {
 			return changed;
 		}

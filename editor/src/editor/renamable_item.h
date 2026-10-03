@@ -39,15 +39,15 @@ struct InlineRenameState {
 	std::string error{};
 
 	void Begin(std::string_view current) {
-		active = true;
+		active			= true;
 		focus_requested = true;
-		original = current;
-		value = current;
+		original		= current;
+		value			= current;
 		error.clear();
 	}
 
 	void Cancel() {
-		active = false;
+		active			= false;
 		focus_requested = false;
 		original.clear();
 		value.clear();
@@ -69,17 +69,17 @@ struct RenameModalState {
 	std::string error{};
 
 	void Begin(std::string_view current) {
-		active = true;
-		open_requested = true;
+		active			= true;
+		open_requested	= true;
 		focus_requested = true;
-		original = current;
-		value = current;
+		original		= current;
+		value			= current;
 		error.clear();
 	}
 
 	void Cancel() {
-		active = false;
-		open_requested = false;
+		active			= false;
+		open_requested	= false;
 		focus_requested = false;
 		original.clear();
 		value.clear();
@@ -100,7 +100,7 @@ using RenamePopupState = RenameModalState;
 
 inline void BeginRename(RenameEditStateRef state, std::string_view current) {
 	state.focus_requested = true;
-	state.value = current;
+	state.value			  = current;
 	state.error.clear();
 }
 
@@ -116,11 +116,8 @@ inline void DrawRenameError(std::string_view error) {
 	}
 
 	ImGui::GetWindowDrawList()->AddRect(
-		ImGui::GetItemRectMin(),
-		ImGui::GetItemRectMax(),
-		ImGui::GetColorU32(ImVec4{ 1.0f, 0.20f, 0.20f, 1.0f }),
-		ImGui::GetStyle().FrameRounding,
-		0,
+		ImGui::GetItemRectMin(), ImGui::GetItemRectMax(),
+		ImGui::GetColorU32(ImVec4{ 1.0f, 0.20f, 0.20f, 1.0f }), ImGui::GetStyle().FrameRounding, 0,
 		1.5f
 	);
 
@@ -136,13 +133,8 @@ inline void DrawRenameError(std::string_view error) {
 /// returns Cancelled, which makes clicking elsewhere safe.
 template <typename Validate, typename Commit>
 RenameResult DrawRenameInput(
-	RenameEditStateRef state,
-	const char* id,
-	float width,
-	Validate&& validate,
-	Commit&& commit,
-	ImGuiInputTextFlags extra_flags = ImGuiInputTextFlags_None,
-	bool cancel_on_deactivate = true
+	RenameEditStateRef state, const char* id, float width, Validate&& validate, Commit&& commit,
+	ImGuiInputTextFlags extra_flags = ImGuiInputTextFlags_None, bool cancel_on_deactivate = true
 ) {
 	if (state.focus_requested) {
 		ImGui::SetKeyboardFocusHere();
@@ -150,14 +142,11 @@ RenameResult DrawRenameInput(
 	}
 
 	ImGui::SetNextItemWidth(width);
-	const bool submitted{ ImGui::InputText(
-		id,
-		&state.value,
-		extra_flags |
-			ImGuiInputTextFlags_EnterReturnsTrue |
-			ImGuiInputTextFlags_AutoSelectAll
+	bool submitted{ ImGui::InputText(
+		id, &state.value,
+		extra_flags | ImGuiInputTextFlags_EnterReturnsTrue | ImGuiInputTextFlags_AutoSelectAll
 	) };
-	const bool edited{ ImGui::IsItemEdited() };
+	bool edited{ ImGui::IsItemEdited() };
 
 	if (edited) {
 		state.error = std::invoke(validate, std::string_view{ state.value });
@@ -191,11 +180,7 @@ RenameResult DrawRenameInput(
 /// @brief Draw a reusable in-place rename field.
 template <typename Validate, typename Commit>
 RenameResult DrawInlineRename(
-	InlineRenameState& state,
-	const char* id,
-	float width,
-	Validate&& validate,
-	Commit&& commit,
+	InlineRenameState& state, const char* id, float width, Validate&& validate, Commit&& commit,
 	ImGuiInputTextFlags extra_flags = ImGuiInputTextFlags_None
 ) {
 	if (!state.active) {
@@ -203,12 +188,8 @@ RenameResult DrawInlineRename(
 	}
 
 	const RenameResult result{ DrawRenameInput(
-		BindRenameState(state),
-		id,
-		width,
-		std::forward<Validate>(validate),
-		std::forward<Commit>(commit),
-		extra_flags
+		BindRenameState(state), id, width, std::forward<Validate>(validate),
+		std::forward<Commit>(commit), extra_flags
 	) };
 
 	if (result != RenameResult::None) {
@@ -242,22 +223,16 @@ struct RenameModalOptions {
 /// route the operation through EditorCommands or UndoStack exactly once.
 template <typename Validate, typename Commit>
 RenameResult DrawRenameModal(
-	RenameModalState& state,
-	const char* popup_id,
-	const char* input_id,
-	Validate&& validate,
-	Commit&& commit,
-	RenameModalOptions options = {}
+	RenameModalState& state, const char* popup_id, const char* input_id, Validate&& validate,
+	Commit&& commit, RenameModalOptions options = {}
 ) {
 	if (!state.active) {
 		return RenameResult::None;
 	}
 
-	const std::string popup_name{
-		options.title && options.title[0] != '\0'
-			? std::string{ options.title } + "###" + popup_id
-			: std::string{ popup_id }
-	};
+	const std::string popup_name{ options.title && options.title[0] != '\0'
+									  ? std::string{ options.title } + "###" + popup_id
+									  : std::string{ popup_id } };
 
 	if (state.open_requested) {
 		ImGui::OpenPopup(popup_name.c_str());
@@ -270,18 +245,14 @@ RenameResult DrawRenameModal(
 	}
 
 	if (const ImGuiViewport* viewport{ ImGui::GetMainViewport() }) {
-		ImGui::SetNextWindowPos(
-			viewport->GetCenter(),
-			ImGuiCond_Appearing,
-			ImVec2{ 0.5f, 0.5f }
-		);
+		ImGui::SetNextWindowPos(viewport->GetCenter(), ImGuiCond_Appearing, ImVec2{ 0.5f, 0.5f });
 	}
 
 	RenameResult result{ RenameResult::None };
 	if (!ImGui::BeginPopupModal(popup_name.c_str(), nullptr, options.window_flags)) {
 		return result;
 	}
-	const bool window_appearing{ ImGui::IsWindowAppearing() };
+	bool window_appearing{ ImGui::IsWindowAppearing() };
 
 	if (options.draw_input_prefix) {
 		std::invoke(options.draw_input_prefix);
@@ -295,14 +266,12 @@ RenameResult DrawRenameModal(
 	}
 
 	ImGui::SetNextItemWidth(options.width);
-	const bool enter_pressed{ ImGui::InputText(
-		input_id,
-		&state.value,
-		options.input_flags |
-			ImGuiInputTextFlags_EnterReturnsTrue |
+	bool enter_pressed{ ImGui::InputText(
+		input_id, &state.value,
+		options.input_flags | ImGuiInputTextFlags_EnterReturnsTrue |
 			ImGuiInputTextFlags_AutoSelectAll
 	) };
-	const bool edited{ ImGui::IsItemEdited() };
+	bool edited{ ImGui::IsItemEdited() };
 
 	if (edited) {
 		state.error = std::invoke(validate, std::string_view{ state.value });
@@ -310,11 +279,7 @@ RenameResult DrawRenameModal(
 	DrawRenameError(state.error);
 
 	if (!state.error.empty()) {
-		ImGui::TextColored(
-			ImVec4{ 1.0f, 0.35f, 0.35f, 1.0f },
-			"%s",
-			state.error.c_str()
-		);
+		ImGui::TextColored(ImVec4{ 1.0f, 0.35f, 0.35f, 1.0f }, "%s", state.error.c_str());
 	}
 
 	ImGui::Spacing();
@@ -323,27 +288,21 @@ RenameResult DrawRenameModal(
 	const float available{ std::max(1.0f, ImGui::GetContentRegionAvail().x) };
 	const float button_width{ std::max(1.0f, (available - spacing) * 0.5f) };
 
-	const bool cancel_pressed{
-		ImGui::Button(options.cancel_label, ImVec2{ button_width, 0.0f })
-	};
+	bool cancel_pressed{ ImGui::Button(options.cancel_label, ImVec2{ button_width, 0.0f }) };
 	ImGui::SameLine(0.0f, spacing);
-	const bool rename_pressed{
-		ImGui::Button(options.rename_label, ImVec2{ button_width, 0.0f })
-	};
+	bool rename_pressed{ ImGui::Button(options.rename_label, ImVec2{ button_width, 0.0f }) };
 
-	const bool escape_pressed{ ImGui::IsKeyPressed(ImGuiKey_Escape, false) };
+	bool escape_pressed{ ImGui::IsKeyPressed(ImGuiKey_Escape, false) };
 
 	bool outside_clicked{ false };
 	if (options.cancel_on_outside_click && !window_appearing &&
 		ImGui::IsMouseClicked(ImGuiMouseButton_Left)) {
 		const ImVec2 mouse{ ImGui::GetIO().MousePos };
 		const ImVec2 window_min{ ImGui::GetWindowPos() };
-		const ImVec2 window_max{
-			window_min.x + ImGui::GetWindowSize().x,
-			window_min.y + ImGui::GetWindowSize().y
-		};
+		const ImVec2 window_max{ window_min.x + ImGui::GetWindowSize().x,
+								 window_min.y + ImGui::GetWindowSize().y };
 		outside_clicked = mouse.x < window_min.x || mouse.y < window_min.y ||
-			mouse.x >= window_max.x || mouse.y >= window_max.y;
+						  mouse.x >= window_max.x || mouse.y >= window_max.y;
 	}
 
 	if (cancel_pressed || escape_pressed || outside_clicked) {
@@ -375,17 +334,11 @@ using RenamePopupOptions = RenameModalOptions;
 
 template <typename Validate, typename Commit>
 RenameResult DrawRenamePopup(
-	RenamePopupState& state,
-	const char* popup_id,
-	const char* input_id,
-	Validate&& validate,
-	Commit&& commit,
-	RenamePopupOptions options = {}
+	RenamePopupState& state, const char* popup_id, const char* input_id, Validate&& validate,
+	Commit&& commit, RenamePopupOptions options = {}
 ) {
 	return DrawRenameModal(
-		state, popup_id, input_id,
-		std::forward<Validate>(validate),
-		std::forward<Commit>(commit),
+		state, popup_id, input_id, std::forward<Validate>(validate), std::forward<Commit>(commit),
 		std::move(options)
 	);
 }
@@ -406,12 +359,11 @@ struct RenamableItemResult {
 
 [[nodiscard]] inline RenamableItemResult CaptureRenamableItemResult() {
 	RenamableItemResult result;
-	result.item_id = ImGui::GetItemID();
-	result.hovered = ImGui::IsItemHovered();
-	result.left_clicked = ImGui::IsItemClicked(ImGuiMouseButton_Left);
-	result.right_clicked = ImGui::IsItemClicked(ImGuiMouseButton_Right);
-	result.context_requested =
-		result.hovered && ImGui::IsMouseReleased(ImGuiMouseButton_Right);
+	result.item_id			 = ImGui::GetItemID();
+	result.hovered			 = ImGui::IsItemHovered();
+	result.left_clicked		 = ImGui::IsItemClicked(ImGuiMouseButton_Left);
+	result.right_clicked	 = ImGui::IsItemClicked(ImGuiMouseButton_Right);
+	result.context_requested = result.hovered && ImGui::IsMouseReleased(ImGuiMouseButton_Right);
 	return result;
 }
 
@@ -438,49 +390,36 @@ struct RenamableTreeNodeOptions {
 /// entity/asset identity for the rename target.
 template <typename Validate, typename Commit>
 RenamableItemResult DrawRenamableTreeNode(
-	bool editing,
-	RenameEditStateRef rename_state,
-	const char* node_id,
-	std::string_view label,
-	ImGuiTreeNodeFlags flags,
-	Validate&& validate,
-	Commit&& commit,
+	bool editing, RenameEditStateRef rename_state, const char* node_id, std::string_view label,
+	ImGuiTreeNodeFlags flags, Validate&& validate, Commit&& commit,
 	RenamableTreeNodeOptions options = {}
 ) {
 	if (editing) {
 		RenamableItemResult result;
-		result.editing = true;
+		result.editing		 = true;
 		result.rename_result = DrawRenameInput(
-			rename_state,
-			options.rename_input_id,
-			options.rename_width,
-			std::forward<Validate>(validate),
-			std::forward<Commit>(commit),
+			rename_state, options.rename_input_id, options.rename_width,
+			std::forward<Validate>(validate), std::forward<Commit>(commit),
 			options.rename_input_flags
 		);
 
 		const RenamableItemResult interaction{ CaptureRenamableItemResult() };
-		result.item_id = interaction.item_id;
-		result.hovered = interaction.hovered;
-		result.left_clicked = interaction.left_clicked;
+		result.item_id		 = interaction.item_id;
+		result.hovered		 = interaction.hovered;
+		result.left_clicked	 = interaction.left_clicked;
 		result.right_clicked = interaction.right_clicked;
 		return result;
 	}
 
 	RenamableItemResult result;
-	result.open = ImGui::TreeNodeEx(
-		node_id,
-		flags,
-		"%.*s",
-		static_cast<int>(label.size()),
-		label.data()
-	);
+	result.open =
+		ImGui::TreeNodeEx(node_id, flags, "%.*s", static_cast<int>(label.size()), label.data());
 
 	const RenamableItemResult interaction{ CaptureRenamableItemResult() };
-	result.item_id = interaction.item_id;
-	result.hovered = interaction.hovered;
-	result.left_clicked = interaction.left_clicked;
-	result.right_clicked = interaction.right_clicked;
+	result.item_id			 = interaction.item_id;
+	result.hovered			 = interaction.hovered;
+	result.left_clicked		 = interaction.left_clicked;
+	result.right_clicked	 = interaction.right_clicked;
 	result.context_requested = interaction.context_requested;
 	return result;
 }
@@ -506,13 +445,9 @@ struct RenamableContextMenuOptions {
 /// menu fully configurable without requiring the caller to reimplement the rename entry.
 template <typename BeginRename, typename DrawBeforeRename, typename DrawAfterRename>
 bool DrawRenamableContextMenu(
-	const RenamableItemResult& item,
-	const char* popup_id,
-	std::string_view current_value,
-	BeginRename&& begin_rename,
-	DrawBeforeRename&& draw_before_rename,
-	DrawAfterRename&& draw_after_rename,
-	RenamableContextMenuOptions options = {}
+	const RenamableItemResult& item, const char* popup_id, std::string_view current_value,
+	BeginRename&& begin_rename, DrawBeforeRename&& draw_before_rename,
+	DrawAfterRename&& draw_after_rename, RenamableContextMenuOptions options = {}
 ) {
 	if (item.context_requested) {
 		ImGui::OpenPopup(popup_id);
@@ -557,21 +492,13 @@ bool DrawRenamableContextMenu(
 /// @brief Convenience overload for the common case where all custom menu items come after Rename.
 template <typename BeginRename, typename DrawExtraMenu>
 bool DrawRenamableContextMenu(
-	const RenamableItemResult& item,
-	const char* popup_id,
-	std::string_view current_value,
-	BeginRename&& begin_rename,
-	DrawExtraMenu&& draw_extra_menu,
+	const RenamableItemResult& item, const char* popup_id, std::string_view current_value,
+	BeginRename&& begin_rename, DrawExtraMenu&& draw_extra_menu,
 	RenamableContextMenuOptions options = {}
 ) {
 	return DrawRenamableContextMenu(
-		item,
-		popup_id,
-		current_value,
-		std::forward<BeginRename>(begin_rename),
-		[]() {},
-		std::forward<DrawExtraMenu>(draw_extra_menu),
-		options
+		item, popup_id, current_value, std::forward<BeginRename>(begin_rename), []() {},
+		std::forward<DrawExtraMenu>(draw_extra_menu), options
 	);
 }
 

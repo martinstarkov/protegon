@@ -43,7 +43,7 @@ void DropdownSystem::Prepare(Scene& scene) {
 		Dropdown dropdown{ entity };
 		dropdown.RecalculateButtonPositions();
 
-		const bool should_open{ data.open || data.start_open };
+		bool should_open{ data.open || data.start_open };
 		data.initialized = true;
 
 		if (should_open) {
@@ -301,13 +301,10 @@ void Dropdown::RecalculateButtonPositions() {
 		info.button_size->y = std::max(0.0f, info.button_size->y);
 	}
 
-	const auto parent_shape{
-		TryGetButtonShapeSize(*this).value_or(
-			info.button_size.has_value()
-				? std::variant<V2_float, float>{ info.button_size.value() }
-				: GetDropdownItemCreationSize(*this)
-		)
-	};
+	const auto parent_shape{ TryGetButtonShapeSize(*this).value_or(
+		info.button_size.has_value() ? std::variant<V2_float, float>{ info.button_size.value() }
+									 : GetDropdownItemCreationSize(*this)
+	) };
 
 	auto transform{ GetWorldTransform(*this) };
 
@@ -328,7 +325,7 @@ void Dropdown::RecalculateButtonPositions() {
 
 	auto scaled_parent_size{ get_scaled_size(parent_shape) };
 
-	const bool parent_has_shape{ TryGetButtonShapeSize(*this).has_value() };
+	bool parent_has_shape{ TryGetButtonShapeSize(*this).has_value() };
 	const auto get_button_size = [parent_shape, parent_has_shape,
 								  &info](const Button& button) -> std::variant<V2_float, float> {
 		if (info.button_size.has_value()) {

@@ -37,8 +37,7 @@ void RemoveInterFontCacheForDemo() {
 #ifndef __EMSCRIPTEN__
 	std::error_code error;
 	std::filesystem::remove(
-		impl::GetBuildInfo().binary_directory / "cache/fonts/Inter-VariableFont.png",
-		error
+		impl::GetBuildInfo().binary_directory / "cache/fonts/Inter-VariableFont.png", error
 	);
 #endif
 }
@@ -74,52 +73,35 @@ public:
 		);
 
 		CreateText(
-			*this,
-			At({ 0.0f, -260.0f }),
-			"Scene is running while assets stream in",
-			color::White,
+			*this, At({ 0.0f, -260.0f }), "Scene is running while assets stream in", color::White,
 			34.0f
 		);
 
 		font_demo_ = CreateText(
-			*this,
-			At({ 0.0f, -170.0f }),
+			*this, At({ 0.0f, -170.0f }),
 			"This requests Inter immediately and falls back to the default font while it loads",
-			color::White,
-			28.0f,
-			Origin::Center,
-			kAsyncFont.value
+			color::White, 28.0f, Origin::Center, kAsyncFont.value
 		);
 
 		texture_status_ = CreateText(
-			*this,
-			At({ 0.0f, 20.0f }),
-			"BMP loading: sprite area is blank until ready",
-			Color{ 235, 80, 220, 255 },
-			24.0f
+			*this, At({ 0.0f, 20.0f }), "BMP loading: sprite area is blank until ready",
+			Color{ 235, 80, 220, 255 }, 24.0f
 		);
 
-		load_status_ = CreateText(
-			*this,
-			At({ 0.0f, 270.0f }),
-			"Loading...",
-			color::White,
-			20.0f
-		);
+		load_status_ = CreateText(*this, At({ 0.0f, 270.0f }), "Loading...", color::White, 20.0f);
 	}
 
 	void OnUpdate() override {
-		const bool texture_loaded{ ctx().asset.Has(kAsyncTexture) };
-		const bool font_loaded{ ctx().asset.Has(kAsyncFont) };
-		const bool audio_loaded{ ctx().asset.Has(kAsyncMusic) };
+		bool texture_loaded{ ctx().asset.Has(kAsyncTexture) };
+		bool font_loaded{ ctx().asset.Has(kAsyncFont) };
+		bool audio_loaded{ ctx().asset.Has(kAsyncMusic) };
 
 		if (texture_loaded && !sprite_created_) {
 			auto sprite{ CreateSprite(*this, { 0.0f, 70.0f }, kAsyncTexture) };
 			SetScale(sprite, 0.30f);
 			sprite_created_ = true;
 
-			texture_status_
-				.Clear()
+			texture_status_.Clear()
 				.Content("BMP ready: the real sprite replaced the blank placeholder")
 				.Color(color::White)
 				.Size(24.0f);
@@ -131,17 +113,15 @@ public:
 		}
 
 		const auto progress{ ticket_.GetProgress() };
-		load_status_
-			.Clear()
-			.Content(std::format(
-				"Overall: {}%  ({}/{})\nTexture: {}   Font: {}   Audio: {}",
-				static_cast<int>(progress.Fraction() * 100.0f),
-				progress.completed_assets,
-				progress.total_assets,
-				StateWord(texture_loaded),
-				StateWord(font_loaded),
-				StateWord(audio_loaded)
-			))
+		load_status_.Clear()
+			.Content(
+				std::format(
+					"Overall: {}%  ({}/{})\nTexture: {}   Font: {}   Audio: {}",
+					static_cast<int>(progress.Fraction() * 100.0f), progress.completed_assets,
+					progress.total_assets, StateWord(texture_loaded), StateWord(font_loaded),
+					StateWord(audio_loaded)
+				)
+			)
 			.Color(color::White)
 			.Size(20.0f);
 	}

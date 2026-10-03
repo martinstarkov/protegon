@@ -12,8 +12,8 @@
 #include <cstdint>
 #include <fstream>
 #include <optional>
-#include <sstream>
 #include <ranges>
+#include <sstream>
 #include <string>
 #include <string_view>
 #include <unordered_map>
@@ -73,9 +73,7 @@ inline std::unordered_map<ImGuiID, ColorPickerUiState>& PickerStates() {
 
 [[nodiscard]] inline Color ToColor(const float* value) {
 	auto to_byte = [](float channel) {
-		return static_cast<std::uint8_t>(
-			std::lround(std::clamp(channel, 0.0f, 1.0f) * 255.0f)
-		);
+		return static_cast<std::uint8_t>(std::lround(std::clamp(channel, 0.0f, 1.0f) * 255.0f));
 	};
 
 	return Color{
@@ -91,22 +89,15 @@ inline std::unordered_map<ImGuiID, ColorPickerUiState>& PickerStates() {
 	return ImVec4{ color[0], color[1], color[2], color[3] };
 }
 
-[[nodiscard]] inline bool ContainsCaseInsensitive(
-	std::string_view text,
-	std::string_view search
-) {
+[[nodiscard]] inline bool ContainsCaseInsensitive(std::string_view text, std::string_view search) {
 	if (search.empty()) {
 		return true;
 	}
 
 	const auto match{ std::search(
-		text.begin(),
-		text.end(),
-		search.begin(),
-		search.end(),
-		[](char lhs, char rhs) {
+		text.begin(), text.end(), search.begin(), search.end(), [](char lhs, char rhs) {
 			return std::tolower(static_cast<unsigned char>(lhs)) ==
-				std::tolower(static_cast<unsigned char>(rhs));
+				   std::tolower(static_cast<unsigned char>(rhs));
 		}
 	) };
 	return match != text.end();
@@ -116,13 +107,11 @@ inline std::unordered_map<ImGuiID, ColorPickerUiState>& PickerStates() {
 	// Palette entry names are palette-local and independently renameable. Do not replace the
 	// value description with a globally registered color key just because the RGBA value matches.
 	return "RGBA (" + std::to_string(value.r) + ", " + std::to_string(value.g) + ", " +
-		std::to_string(value.b) + ", " + std::to_string(value.a) + ")";
+		   std::to_string(value.b) + ", " + std::to_string(value.a) + ")";
 }
 
 inline void RecordPaletteChange(
-	EditorContext& ctx,
-	std::string label,
-	std::vector<EditorColorPalette> before
+	EditorContext& ctx, std::string label, std::vector<EditorColorPalette> before
 ) {
 	const auto after{ ctx.project_state.color_palettes };
 	if (before == after) {
@@ -134,17 +123,12 @@ inline void RecordPaletteChange(
 		[context = &ctx, before = std::move(before)]() {
 			context->project_state.color_palettes = before;
 		},
-		[context = &ctx, after]() {
-			context->project_state.color_palettes = after;
-		},
-		false,
-		true
+		[context = &ctx, after]() { context->project_state.color_palettes = after; }, false, true
 	);
 }
 
 [[nodiscard]] inline bool PaletteNameExists(
-	const EditorProjectState& state,
-	std::string_view name,
+	const EditorProjectState& state, std::string_view name,
 	std::optional<std::size_t> ignore = std::nullopt
 ) {
 	for (std::size_t index{ 0 }; index < state.color_palettes.size(); ++index) {
@@ -159,8 +143,7 @@ inline void RecordPaletteChange(
 }
 
 [[nodiscard]] inline bool PaletteColorNameExists(
-	const EditorColorPalette& palette,
-	std::string_view name,
+	const EditorColorPalette& palette, std::string_view name,
 	std::optional<std::size_t> ignore = std::nullopt
 ) {
 	for (std::size_t index{ 0 }; index < palette.colors.size(); ++index) {
@@ -240,9 +223,7 @@ inline void RecordPaletteChange(
 	};
 
 	auto read_long = [&](std::size_t index) {
-		return static_cast<std::uint8_t>(
-			HexDigit(value[index]) * 16 + HexDigit(value[index + 1])
-		);
+		return static_cast<std::uint8_t>(HexDigit(value[index]) * 16 + HexDigit(value[index + 1]));
 	};
 
 	if (value.size() == 3 || value.size() == 4) {
@@ -270,11 +251,8 @@ inline void DrawInvalidInputBorder(std::string_view error) {
 	}
 
 	ImGui::GetWindowDrawList()->AddRect(
-		ImGui::GetItemRectMin(),
-		ImGui::GetItemRectMax(),
-		ImGui::GetColorU32(ImVec4{ 1.0f, 0.20f, 0.20f, 1.0f }),
-		ImGui::GetStyle().FrameRounding,
-		0,
+		ImGui::GetItemRectMin(), ImGui::GetItemRectMax(),
+		ImGui::GetColorU32(ImVec4{ 1.0f, 0.20f, 0.20f, 1.0f }), ImGui::GetStyle().FrameRounding, 0,
 		1.5f
 	);
 
@@ -289,29 +267,28 @@ struct PaletteFileResult {
 };
 
 [[nodiscard]] inline std::string_view TrimLine(std::string_view line) {
-	while (!line.empty() &&
-		(line.front() == ' ' || line.front() == '\t' || line.front() == '\r' || line.front() == '\n')) {
+	while (!line.empty() && (line.front() == ' ' || line.front() == '\t' || line.front() == '\r' ||
+							 line.front() == '\n')) {
 		line.remove_prefix(1);
 	}
-	while (!line.empty() &&
-		(line.back() == ' ' || line.back() == '\t' || line.back() == '\r' || line.back() == '\n')) {
+	while (!line.empty() && (line.back() == ' ' || line.back() == '\t' || line.back() == '\r' ||
+							 line.back() == '\n')) {
 		line.remove_suffix(1);
 	}
 	return line;
 }
 
 [[nodiscard]] inline bool IsByteSequence(
-	const std::vector<std::uint8_t>& bytes,
-	std::size_t offset,
-	std::string_view value
+	const std::vector<std::uint8_t>& bytes, std::size_t offset, std::string_view value
 ) {
 	return offset + value.size() <= bytes.size() &&
-		std::equal(value.begin(), value.end(), bytes.begin() + static_cast<std::ptrdiff_t>(offset));
+		   std::equal(
+			   value.begin(), value.end(), bytes.begin() + static_cast<std::ptrdiff_t>(offset)
+		   );
 }
 
 [[nodiscard]] inline std::uint16_t ReadLe16(
-	const std::vector<std::uint8_t>& bytes,
-	std::size_t offset
+	const std::vector<std::uint8_t>& bytes, std::size_t offset
 ) {
 	return static_cast<std::uint16_t>(
 		static_cast<std::uint32_t>(bytes[offset]) |
@@ -320,13 +297,12 @@ struct PaletteFileResult {
 }
 
 [[nodiscard]] inline std::uint32_t ReadLe32(
-	const std::vector<std::uint8_t>& bytes,
-	std::size_t offset
+	const std::vector<std::uint8_t>& bytes, std::size_t offset
 ) {
 	return static_cast<std::uint32_t>(bytes[offset]) |
-		(static_cast<std::uint32_t>(bytes[offset + 1]) << 8u) |
-		(static_cast<std::uint32_t>(bytes[offset + 2]) << 16u) |
-		(static_cast<std::uint32_t>(bytes[offset + 3]) << 24u);
+		   (static_cast<std::uint32_t>(bytes[offset + 1]) << 8u) |
+		   (static_cast<std::uint32_t>(bytes[offset + 2]) << 16u) |
+		   (static_cast<std::uint32_t>(bytes[offset + 3]) << 24u);
 }
 
 [[nodiscard]] inline std::optional<Color> ParsePaletteTextColorLine(std::string line) {
@@ -350,8 +326,8 @@ struct PaletteFileResult {
 		alpha = optional_alpha;
 	}
 
-	if (red < 0 || red > 255 || green < 0 || green > 255 ||
-		blue < 0 || blue > 255 || alpha < 0 || alpha > 255) {
+	if (red < 0 || red > 255 || green < 0 || green > 255 || blue < 0 || blue > 255 || alpha < 0 ||
+		alpha > 255) {
 		return std::nullopt;
 	}
 
@@ -363,9 +339,7 @@ struct PaletteFileResult {
 	};
 }
 
-[[nodiscard]] inline PaletteFileResult ParseJascPalette(
-	const std::vector<std::uint8_t>& bytes
-) {
+[[nodiscard]] inline PaletteFileResult ParseJascPalette(const std::vector<std::uint8_t>& bytes) {
 	PaletteFileResult result;
 	const std::string text{ bytes.begin(), bytes.end() };
 	std::istringstream stream{ text };
@@ -425,9 +399,7 @@ struct PaletteFileResult {
 	return result;
 }
 
-[[nodiscard]] inline PaletteFileResult ParseRiffPalette(
-	const std::vector<std::uint8_t>& bytes
-) {
+[[nodiscard]] inline PaletteFileResult ParseRiffPalette(const std::vector<std::uint8_t>& bytes) {
 	PaletteFileResult result;
 	if (bytes.size() < 12 || !IsByteSequence(bytes, 0, "RIFF") ||
 		!IsByteSequence(bytes, 8, "PAL ")) {
@@ -452,9 +424,8 @@ struct PaletteFileResult {
 
 			const std::uint16_t color_count{ ReadLe16(bytes, data_begin + 2) };
 			const std::size_t colors_begin{ data_begin + 4 };
-			const std::size_t required_size{
-				colors_begin + static_cast<std::size_t>(color_count) * 4
-			};
+			const std::size_t required_size{ colors_begin +
+											 static_cast<std::size_t>(color_count) * 4 };
 			if (required_size > data_end) {
 				result.error = "The RIFF PAL file ended before all palette entries were read.";
 				return result;
@@ -464,12 +435,14 @@ struct PaletteFileResult {
 			for (std::size_t index{ 0 }; index < color_count; ++index) {
 				const std::size_t entry{ colors_begin + index * 4 };
 				// The fourth PALETTEENTRY byte contains flags, not alpha.
-				result.colors.push_back(Color{
-					bytes[entry],
-					bytes[entry + 1],
-					bytes[entry + 2],
-					255,
-				});
+				result.colors.push_back(
+					Color{
+						bytes[entry],
+						bytes[entry + 1],
+						bytes[entry + 2],
+						255,
+					}
+				);
 			}
 			return result;
 		}
@@ -526,10 +499,7 @@ struct PaletteFileResult {
 
 	std::vector<std::uint8_t> bytes(static_cast<std::size_t>(size));
 	file.seekg(0, std::ios::beg);
-	if (size > 0 && !file.read(
-			reinterpret_cast<char*>(bytes.data()),
-			size
-		)) {
+	if (size > 0 && !file.read(reinterpret_cast<char*>(bytes.data()), size)) {
 		result.error = "Could not read the selected .PAL file.";
 		return result;
 	}
@@ -546,21 +516,14 @@ struct PaletteFileResult {
 	return ParseSimpleTextPalette(bytes);
 }
 
-[[nodiscard]] inline bool PaletteContainsColor(
-	const EditorColorPalette& palette,
-	Color color
-) {
-	return std::ranges::any_of(
-		palette.colors,
-		[color](const EditorPaletteColor& entry) {
-			return entry.color == color;
-		}
-	);
+[[nodiscard]] inline bool PaletteContainsColor(const EditorColorPalette& palette, Color color) {
+	return std::ranges::any_of(palette.colors, [color](const EditorPaletteColor& entry) {
+		return entry.color == color;
+	});
 }
 
 [[nodiscard]] inline std::string MakePaletteColorName(
-	const EditorColorPalette& palette,
-	Color color
+	const EditorColorPalette& palette, Color color
 ) {
 	if (const auto* registered{ FindRegisteredColor(color) };
 		registered && !PaletteColorNameExists(palette, registered->key)) {
@@ -576,8 +539,7 @@ struct PaletteFileResult {
 }
 
 inline std::size_t AppendUniqueColors(
-	EditorColorPalette& palette,
-	const std::vector<Color>& colors
+	EditorColorPalette& palette, const std::vector<Color>& colors
 ) {
 	std::size_t added{};
 	for (const Color color : colors) {
@@ -585,18 +547,19 @@ inline std::size_t AppendUniqueColors(
 			continue;
 		}
 
-		palette.colors.push_back(EditorPaletteColor{
-			.name = MakePaletteColorName(palette, color),
-			.color = color,
-		});
+		palette.colors.push_back(
+			EditorPaletteColor{
+				.name  = MakePaletteColorName(palette, color),
+				.color = color,
+			}
+		);
 		++added;
 	}
 	return added;
 }
 
 [[nodiscard]] inline std::optional<std::vector<Color>> ChoosePaletteFileColors(
-	EditorContext& ctx,
-	ColorPickerUiState& state
+	EditorContext& ctx, ColorPickerUiState& state
 ) {
 	state.palette_import_error.clear();
 	const auto dialog_result{ OpenPaletteFileDialog(ctx) };
@@ -627,9 +590,7 @@ inline void CancelColorRename(ColorPickerUiState& state) {
 }
 
 inline void BeginColorRename(
-	ColorPickerUiState& state,
-	std::size_t palette_index,
-	std::size_t color_index,
+	ColorPickerUiState& state, std::size_t palette_index, std::size_t color_index,
 	std::string_view current_name
 ) {
 	// Only one rename interaction is active in a picker at a time.
@@ -640,12 +601,9 @@ inline void BeginColorRename(
 }
 
 inline void AdjustColorRenameAfterDelete(
-	ColorPickerUiState& state,
-	std::size_t palette_index,
-	std::size_t deleted_color_index
+	ColorPickerUiState& state, std::size_t palette_index, std::size_t deleted_color_index
 ) {
-	if (!state.renaming_color.has_value() ||
-		state.renaming_color->first != palette_index) {
+	if (!state.renaming_color.has_value() || state.renaming_color->first != palette_index) {
 		return;
 	}
 
@@ -657,9 +615,7 @@ inline void AdjustColorRenameAfterDelete(
 }
 
 inline void BeginPaletteRename(
-	ColorPickerUiState& state,
-	std::size_t palette_index,
-	std::string_view current_name
+	ColorPickerUiState& state, std::size_t palette_index, std::string_view current_name
 ) {
 	CancelColorRename(state);
 	CancelPaletteRename(state);
@@ -667,10 +623,7 @@ inline void BeginPaletteRename(
 	state.palette_rename.Begin(current_name);
 }
 
-inline void AdjustPaletteUiStateAfterDelete(
-	ColorPickerUiState& state,
-	std::size_t deleted_index
-) {
+inline void AdjustPaletteUiStateAfterDelete(ColorPickerUiState& state, std::size_t deleted_index) {
 	if (deleted_index < state.palette_open.size()) {
 		state.palette_open.erase(
 			state.palette_open.begin() + static_cast<std::ptrdiff_t>(deleted_index)
@@ -710,14 +663,11 @@ inline void AdjustPaletteUiStateAfterDelete(
 /// current/previous previews, RGBA/hex editing, and shared project palettes.
 /// Palette mutations are immediately pushed onto the editor undo stack.
 inline ColorPickerResult DrawColorPickerContents(
-	EditorContext& ctx,
-	const char* id,
-	Color& value,
-	ImGuiColorEditFlags flags = ImGuiColorEditFlags_AlphaBar |
-		ImGuiColorEditFlags_AlphaPreviewHalf |
-		ImGuiColorEditFlags_DisplayRGB |
-		ImGuiColorEditFlags_InputRGB |
-		ImGuiColorEditFlags_Uint8,
+	EditorContext& ctx, const char* id, Color& value,
+	ImGuiColorEditFlags flags  = ImGuiColorEditFlags_AlphaBar |
+								 ImGuiColorEditFlags_AlphaPreviewHalf |
+								 ImGuiColorEditFlags_DisplayRGB | ImGuiColorEditFlags_InputRGB |
+								 ImGuiColorEditFlags_Uint8,
 	const Color* default_color = nullptr
 ) {
 	ColorPickerResult result;
@@ -726,20 +676,18 @@ inline ColorPickerResult DrawColorPickerContents(
 	const ImGuiID state_id{ ImGui::GetID("##ColorPickerState") };
 	auto& ui_state{ color_picker_detail::PickerStates()[state_id] };
 	if (!ui_state.initialized || ImGui::IsWindowAppearing()) {
-		ui_state.initialized = true;
-		ui_state.previous = value;
-		ui_state.hex = color_picker_detail::ToHex(value);
-		ui_state.hex_color = value;
+		ui_state.initialized	= true;
+		ui_state.previous		= value;
+		ui_state.hex			= color_picker_detail::ToHex(value);
+		ui_state.hex_color		= value;
 		ui_state.hex_was_active = false;
 	}
 
 	auto& palettes{ ctx.project_state.color_palettes };
-	if (ui_state.selected_palette.has_value() &&
-		*ui_state.selected_palette >= palettes.size()) {
+	if (ui_state.selected_palette.has_value() && *ui_state.selected_palette >= palettes.size()) {
 		ui_state.selected_palette.reset();
 	}
-	if (ui_state.renaming_palette.has_value() &&
-		*ui_state.renaming_palette >= palettes.size()) {
+	if (ui_state.renaming_palette.has_value() && *ui_state.renaming_palette >= palettes.size()) {
 		color_picker_detail::CancelPaletteRename(ui_state);
 	}
 	if (ui_state.renaming_color.has_value()) {
@@ -768,17 +716,14 @@ inline ColorPickerResult DrawColorPickerContents(
 
 		ImGui::SetNextItemWidth(-FLT_MIN);
 		ImGui::InputTextWithHint(
-			"##RegisteredColorSearch",
-			"Search colors...",
-			&ui_state.registered_search
+			"##RegisteredColorSearch", "Search colors...", &ui_state.registered_search
 		);
 		ImGui::Separator();
 
 		bool any_visible{ false };
 		for (const auto& registered : GetRegisteredColors()) {
 			if (!color_picker_detail::ContainsCaseInsensitive(
-					registered.key,
-					ui_state.registered_search
+					registered.key, ui_state.registered_search
 				)) {
 				continue;
 			}
@@ -786,17 +731,16 @@ inline ColorPickerResult DrawColorPickerContents(
 			any_visible = true;
 			ImGui::PushID(registered.key.c_str());
 			ImGui::ColorButton(
-				"##Swatch",
-				color_picker_detail::ToImVec4(registered.value),
+				"##Swatch", color_picker_detail::ToImVec4(registered.value),
 				ImGuiColorEditFlags_AlphaPreviewHalf | ImGuiColorEditFlags_NoTooltip,
 				ImVec2{ ImGui::GetFrameHeight(), ImGui::GetFrameHeight() }
 			);
 			ImGui::SameLine();
-			const bool selected{ value == registered.value };
+			bool selected{ value == registered.value };
 			if (ImGui::Selectable(registered.key.c_str(), selected)) {
 				result.interaction_started = true;
 				if (!selected) {
-					value = registered.value;
+					value		   = registered.value;
 					result.changed = true;
 				}
 			}
@@ -815,9 +759,9 @@ inline ColorPickerResult DrawColorPickerContents(
 	if (default_color) {
 		if (ImGui::Button("Use Default Color", ImVec2{ -FLT_MIN, 0.0f })) {
 			result.interaction_started = true;
-			result.use_default = true;
+			result.use_default		   = true;
 			if (value != *default_color) {
-				value = *default_color;
+				value		   = *default_color;
 				result.changed = true;
 			}
 		}
@@ -826,9 +770,8 @@ inline ColorPickerResult DrawColorPickerContents(
 	ImGui::SeparatorText("Picker");
 
 	auto rgba{ color_picker_detail::ToFloatColor(value) };
-	const ImGuiColorEditFlags picker_flags{
-		flags | ImGuiColorEditFlags_NoSidePreview | ImGuiColorEditFlags_NoInputs
-	};
+	const ImGuiColorEditFlags picker_flags{ flags | ImGuiColorEditFlags_NoSidePreview |
+											ImGuiColorEditFlags_NoInputs };
 
 	const float preview_width{ std::max(72.0f, ImGui::GetFrameHeight() * 3.25f) };
 	const float picker_width{ 300.0f };
@@ -837,7 +780,7 @@ inline ColorPickerResult DrawColorPickerContents(
 	ImGui::BeginGroup();
 	ImGui::SetNextItemWidth(picker_width);
 	if (ImGui::ColorPicker4("##Picker", rgba.data(), picker_flags)) {
-		value = color_picker_detail::ToColor(rgba.data());
+		value		   = color_picker_detail::ToColor(rgba.data());
 		result.changed = true;
 	}
 	result.interaction_started |= ImGui::IsItemActivated();
@@ -847,8 +790,7 @@ inline ColorPickerResult DrawColorPickerContents(
 	ImGui::BeginGroup();
 	ImGui::TextUnformatted("Current");
 	ImGui::ColorButton(
-		"##CurrentColor",
-		color_picker_detail::ToImVec4(value),
+		"##CurrentColor", color_picker_detail::ToImVec4(value),
 		ImGuiColorEditFlags_AlphaPreviewHalf | ImGuiColorEditFlags_NoTooltip,
 		ImVec2{ preview_width, preview_height }
 	);
@@ -856,14 +798,13 @@ inline ColorPickerResult DrawColorPickerContents(
 	ImGui::Spacing();
 	ImGui::TextUnformatted("Previous");
 	if (ImGui::ColorButton(
-			"##PreviousColor",
-			color_picker_detail::ToImVec4(ui_state.previous),
+			"##PreviousColor", color_picker_detail::ToImVec4(ui_state.previous),
 			ImGuiColorEditFlags_AlphaPreviewHalf | ImGuiColorEditFlags_NoTooltip,
 			ImVec2{ preview_width, preview_height }
 		)) {
 		result.interaction_started = true;
 		if (value != ui_state.previous) {
-			value = ui_state.previous;
+			value		   = ui_state.previous;
 			result.changed = true;
 		}
 	}
@@ -878,14 +819,13 @@ inline ColorPickerResult DrawColorPickerContents(
 		static_cast<int>(value.b),
 		static_cast<int>(value.a),
 	};
-	const bool has_alpha{ (flags & ImGuiColorEditFlags_NoAlpha) == 0 };
+	bool has_alpha{ (flags & ImGuiColorEditFlags_NoAlpha) == 0 };
 	const int channel_count{ has_alpha ? 4 : 3 };
 	const float spacing{ ImGui::GetStyle().ItemSpacing.x };
 	const float channels_available{ ImGui::GetContentRegionAvail().x };
 	const float channel_width{ std::max(
-		48.0f,
-		(channels_available - spacing * static_cast<float>(channel_count - 1)) /
-			static_cast<float>(channel_count)
+		48.0f, (channels_available - spacing * static_cast<float>(channel_count - 1)) /
+				   static_cast<float>(channel_count)
 	) };
 	const std::array<const char*, 4> channel_formats{ "R: %d", "G: %d", "B: %d", "A: %d" };
 
@@ -896,13 +836,12 @@ inline ColorPickerResult DrawColorPickerContents(
 		}
 		ImGui::SetNextItemWidth(channel_width);
 		channels_changed |= ImGui::DragInt(
-			(index == 0 ? "##R" : index == 1 ? "##G" : index == 2 ? "##B" : "##A"),
-			&channels[static_cast<std::size_t>(index)],
-			1.0f,
-			0,
-			255,
-			channel_formats[static_cast<std::size_t>(index)],
-			ImGuiSliderFlags_AlwaysClamp
+			(index == 0	  ? "##R"
+			 : index == 1 ? "##G"
+			 : index == 2 ? "##B"
+						  : "##A"),
+			&channels[static_cast<std::size_t>(index)], 1.0f, 0, 255,
+			channel_formats[static_cast<std::size_t>(index)], ImGuiSliderFlags_AlwaysClamp
 		);
 		result.interaction_started |= ImGui::IsItemActivated();
 	}
@@ -918,27 +857,25 @@ inline ColorPickerResult DrawColorPickerContents(
 	}
 
 	if (!ui_state.hex_was_active && ui_state.hex_color != value) {
-		ui_state.hex = color_picker_detail::ToHex(value);
+		ui_state.hex	   = color_picker_detail::ToHex(value);
 		ui_state.hex_color = value;
 	}
 
 	ImGui::TextUnformatted("Hex");
 	ImGui::SameLine();
 	ImGui::SetNextItemWidth(-FLT_MIN);
-	const bool hex_changed{ ImGui::InputTextWithHint(
-		"##HexColor",
-		"#RRGGBB or #RRGGBBAA",
-		&ui_state.hex
-	) };
+	bool hex_changed{
+		ImGui::InputTextWithHint("##HexColor", "#RRGGBB or #RRGGBBAA", &ui_state.hex)
+	};
 	result.interaction_started |= ImGui::IsItemActivated();
-	const bool hex_active{ ImGui::IsItemActive() };
+	bool hex_active{ ImGui::IsItemActive() };
 
 	if (hex_changed) {
 		const auto parsed{ color_picker_detail::ParseHexColor(ui_state.hex) };
 		if (parsed.color.has_value()) {
 			ui_state.hex_color = *parsed.color;
 			if (value != *parsed.color) {
-				value = *parsed.color;
+				value		   = *parsed.color;
 				result.changed = true;
 			}
 		}
@@ -950,38 +887,31 @@ inline ColorPickerResult DrawColorPickerContents(
 	if (!hex_active && ui_state.hex_was_active) {
 		// Leaving the field always resynchronizes it to the selected color. This also
 		// clears an invalid partial value when the user picks a color elsewhere.
-		ui_state.hex = color_picker_detail::ToHex(value);
+		ui_state.hex	   = color_picker_detail::ToHex(value);
 		ui_state.hex_color = value;
 	}
 	ui_state.hex_was_active = hex_active;
 
 	ImGui::SeparatorText("Palettes");
 
-	const bool has_selected_palette{
-		ui_state.selected_palette.has_value() &&
-		*ui_state.selected_palette < palettes.size()
-	};
-	const bool selected_palette_has_color{
+	bool has_selected_palette{ ui_state.selected_palette.has_value() &&
+							   *ui_state.selected_palette < palettes.size() };
+	bool selected_palette_has_color{
 		has_selected_palette &&
-		color_picker_detail::PaletteContainsColor(
-			palettes[*ui_state.selected_palette],
-			value
-		)
+		color_picker_detail::PaletteContainsColor(palettes[*ui_state.selected_palette], value)
 	};
 	const std::string add_color_label{ has_selected_palette
-		? "+ Add Color to " + palettes[*ui_state.selected_palette].name
-		: "+ Add Color" };
+										   ? "+ Add Color to " +
+												 palettes[*ui_state.selected_palette].name
+										   : "+ Add Color" };
 
 	const float button_spacing{ ImGui::GetStyle().ItemSpacing.x };
 	const float button_height{ ImGui::GetFrameHeight() };
-	const float palette_button_width{
-		ImGui::CalcTextSize("+ Palette").x +
-		ImGui::GetStyle().FramePadding.x * 2.0f + 4.0f
+	const float palette_button_width{ ImGui::CalcTextSize("+ Palette").x +
+									  ImGui::GetStyle().FramePadding.x * 2.0f + 4.0f };
+	const float add_color_button_width{
+		std::max(1.0f, ImGui::GetContentRegionAvail().x - palette_button_width - button_spacing)
 	};
-	const float add_color_button_width{ std::max(
-		1.0f,
-		ImGui::GetContentRegionAvail().x - palette_button_width - button_spacing
-	) };
 
 	if (ImGui::Button("+ Palette", ImVec2{ palette_button_width, button_height })) {
 		ImGui::OpenPopup("AddPaletteMenu");
@@ -990,27 +920,24 @@ inline ColorPickerResult DrawColorPickerContents(
 		if (ImGui::MenuItem("Blank Palette")) {
 			auto before{ palettes };
 			const std::size_t new_palette_index{ palettes.size() };
-			palettes.push_back(EditorColorPalette{
-				.name = color_picker_detail::MakeUniquePaletteName(ctx.project_state),
-			});
+			palettes.push_back(
+				EditorColorPalette{
+					.name = color_picker_detail::MakeUniquePaletteName(ctx.project_state),
+				}
+			);
 
 			if (ui_state.palette_open.size() < palettes.size()) {
 				ui_state.palette_open.resize(palettes.size(), false);
 			}
-			ui_state.selected_palette = new_palette_index;
+			ui_state.selected_palette				 = new_palette_index;
 			ui_state.palette_open[new_palette_index] = true;
 
-			color_picker_detail::RecordPaletteChange(
-				ctx,
-				"Add Color Palette",
-				std::move(before)
-			);
+			color_picker_detail::RecordPaletteChange(ctx, "Add Color Palette", std::move(before));
 		}
 
 		if (ImGui::MenuItem("From PAL File")) {
 			if (const auto imported_colors{
-					color_picker_detail::ChoosePaletteFileColors(ctx, ui_state)
-				}) {
+					color_picker_detail::ChoosePaletteFileColors(ctx, ui_state) }) {
 				auto before{ palettes };
 				const std::size_t new_palette_index{ palettes.size() };
 				EditorColorPalette palette{
@@ -1022,13 +949,11 @@ inline ColorPickerResult DrawColorPickerContents(
 				if (ui_state.palette_open.size() < palettes.size()) {
 					ui_state.palette_open.resize(palettes.size(), false);
 				}
-				ui_state.selected_palette = new_palette_index;
+				ui_state.selected_palette				 = new_palette_index;
 				ui_state.palette_open[new_palette_index] = true;
 
 				color_picker_detail::RecordPaletteChange(
-					ctx,
-					"Import Color Palette",
-					std::move(before)
+					ctx, "Import Color Palette", std::move(before)
 				);
 			}
 		}
@@ -1037,23 +962,18 @@ inline ColorPickerResult DrawColorPickerContents(
 
 	ImGui::SameLine(0.0f, button_spacing);
 	ImGui::BeginDisabled(!has_selected_palette || selected_palette_has_color);
-	if (ImGui::Button(
-			add_color_label.c_str(),
-			ImVec2{ add_color_button_width, button_height }
-		)) {
+	if (ImGui::Button(add_color_label.c_str(), ImVec2{ add_color_button_width, button_height })) {
 		const std::size_t palette_index{ *ui_state.selected_palette };
 		auto before{ palettes };
 		auto& palette{ palettes[palette_index] };
-		palette.colors.push_back(EditorPaletteColor{
-			.name = color_picker_detail::MakePaletteColorName(palette, value),
-			.color = value,
-		});
-		ui_state.palette_open[palette_index] = true;
-		color_picker_detail::RecordPaletteChange(
-			ctx,
-			"Add Palette Color",
-			std::move(before)
+		palette.colors.push_back(
+			EditorPaletteColor{
+				.name  = color_picker_detail::MakePaletteColorName(palette, value),
+				.color = value,
+			}
 		);
+		ui_state.palette_open[palette_index] = true;
+		color_picker_detail::RecordPaletteChange(ctx, "Add Palette Color", std::move(before));
 	}
 	ImGui::EndDisabled();
 	if (ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled)) {
@@ -1066,8 +986,7 @@ inline ColorPickerResult DrawColorPickerContents(
 
 	if (!ui_state.palette_import_error.empty()) {
 		ImGui::TextColored(
-			ImVec4{ 1.0f, 0.35f, 0.35f, 1.0f },
-			"PAL import failed: %s",
+			ImVec4{ 1.0f, 0.35f, 0.35f, 1.0f }, "PAL import failed: %s",
 			ui_state.palette_import_error.c_str()
 		);
 	}
@@ -1080,13 +999,11 @@ inline ColorPickerResult DrawColorPickerContents(
 
 	const ImGuiViewport* viewport{ ImGui::GetWindowViewport() };
 	const float resize_grip_height{ 7.0f };
-	const float viewport_bottom{ viewport
-		? viewport->WorkPos.y + viewport->WorkSize.y
-		: ImGui::GetCursorScreenPos().y + 260.0f };
+	const float viewport_bottom{ viewport ? viewport->WorkPos.y + viewport->WorkSize.y
+										  : ImGui::GetCursorScreenPos().y + 260.0f };
 	const float available_to_bottom{ std::max(
-		1.0f,
-		viewport_bottom - ImGui::GetCursorScreenPos().y -
-			ImGui::GetStyle().WindowPadding.y * 2.0f - resize_grip_height
+		1.0f, viewport_bottom - ImGui::GetCursorScreenPos().y -
+				  ImGui::GetStyle().WindowPadding.y * 2.0f - resize_grip_height
 	) };
 	const float minimum_palette_height{ std::min(140.0f, available_to_bottom) };
 	const float natural_palette_height{ std::max(
@@ -1096,22 +1013,15 @@ inline ColorPickerResult DrawColorPickerContents(
 	) };
 
 	if (ui_state.palette_height <= 0.0f) {
-		ui_state.palette_height = std::min(
-			natural_palette_height,
-			std::min(260.0f, available_to_bottom)
-		);
+		ui_state.palette_height =
+			std::min(natural_palette_height, std::min(260.0f, available_to_bottom));
 	}
-	ui_state.palette_height = std::clamp(
-		ui_state.palette_height,
-		minimum_palette_height,
-		available_to_bottom
-	);
+	ui_state.palette_height =
+		std::clamp(ui_state.palette_height, minimum_palette_height, available_to_bottom);
 	const float palette_child_height{ ui_state.palette_height };
 
 	if (ImGui::BeginChild(
-			"##PaletteList",
-			ImVec2{ 0.0f, palette_child_height },
-			ImGuiChildFlags_Borders
+			"##PaletteList", ImVec2{ 0.0f, palette_child_height }, ImGuiChildFlags_Borders
 		)) {
 		std::optional<std::size_t> palette_to_delete;
 
@@ -1121,17 +1031,13 @@ inline ColorPickerResult DrawColorPickerContents(
 
 			const float row_height{ ImGui::GetFrameHeight() };
 			bool open{ ui_state.palette_open[palette_index] };
-			const bool renaming{
-				ui_state.renaming_palette.has_value() &&
-					*ui_state.renaming_palette == palette_index
-			};
+			bool renaming{ ui_state.renaming_palette.has_value() &&
+						   *ui_state.renaming_palette == palette_index };
 
-			ImGuiTreeNodeFlags node_flags{
-				ImGuiTreeNodeFlags_FramePadding |
-					ImGuiTreeNodeFlags_SpanAvailWidth |
-					ImGuiTreeNodeFlags_NoTreePushOnOpen |
-					ImGuiTreeNodeFlags_AllowOverlap
-			};
+			ImGuiTreeNodeFlags node_flags{ ImGuiTreeNodeFlags_FramePadding |
+										   ImGuiTreeNodeFlags_SpanAvailWidth |
+										   ImGuiTreeNodeFlags_NoTreePushOnOpen |
+										   ImGuiTreeNodeFlags_AllowOverlap };
 			if (ui_state.selected_palette == palette_index) {
 				node_flags |= ImGuiTreeNodeFlags_Selected;
 			}
@@ -1140,10 +1046,7 @@ inline ColorPickerResult DrawColorPickerContents(
 			}
 
 			const auto palette_node{ DrawRenamableTreeNode(
-				renaming,
-				BindRenameState(ui_state.palette_rename),
-				"##PaletteNode",
-				palette.name,
+				renaming, BindRenameState(ui_state.palette_rename), "##PaletteNode", palette.name,
 				node_flags,
 				[&](std::string_view candidate) {
 					if (candidate.empty()) {
@@ -1166,7 +1069,7 @@ inline ColorPickerResult DrawColorPickerContents(
 					}
 				},
 				RenamableTreeNodeOptions{
-					.rename_width = -FLT_MIN,
+					.rename_width	 = -FLT_MIN,
 					.rename_input_id = "##PaletteRename",
 				}
 			) };
@@ -1176,7 +1079,7 @@ inline ColorPickerResult DrawColorPickerContents(
 					color_picker_detail::CancelPaletteRename(ui_state);
 				}
 			} else {
-				open = palette_node.open;
+				open								 = palette_node.open;
 				ui_state.palette_open[palette_index] = open;
 
 				if (palette_node.left_clicked) {
@@ -1190,33 +1093,23 @@ inline ColorPickerResult DrawColorPickerContents(
 				}
 
 				DrawRenamableContextMenu(
-					palette_node,
-					"PaletteContext",
-					palette.name,
+					palette_node, "PaletteContext", palette.name,
 					[&](std::string_view current_name) {
 						color_picker_detail::BeginPaletteRename(
-							ui_state,
-							palette_index,
-							current_name
+							ui_state, palette_index, current_name
 						);
 					},
 					[&]() {
 						if (ImGui::MenuItem("Import from PAL file")) {
 							if (const auto imported_colors{
-									color_picker_detail::ChoosePaletteFileColors(ctx, ui_state)
-								}) {
+									color_picker_detail::ChoosePaletteFileColors(ctx, ui_state) }) {
 								auto before{ palettes };
-								color_picker_detail::AppendUniqueColors(
-									palette,
-									*imported_colors
-								);
-								ui_state.selected_palette = palette_index;
+								color_picker_detail::AppendUniqueColors(palette, *imported_colors);
+								ui_state.selected_palette			 = palette_index;
 								ui_state.palette_open[palette_index] = true;
-								open = true;
+								open								 = true;
 								color_picker_detail::RecordPaletteChange(
-									ctx,
-									"Import Palette Colors",
-									std::move(before)
+									ctx, "Import Palette Colors", std::move(before)
 								);
 							}
 						}
@@ -1234,19 +1127,16 @@ inline ColorPickerResult DrawColorPickerContents(
 				const float swatch_spacing{ ImGui::GetStyle().ItemSpacing.x };
 				const float available{ ImGui::GetContentRegionAvail().x };
 				const std::size_t columns{ std::max<std::size_t>(
-					1,
-					static_cast<std::size_t>(
-						(available + swatch_spacing) /
-						(swatch_size + swatch_spacing)
-					)
+					1, static_cast<std::size_t>(
+						   (available + swatch_spacing) / (swatch_size + swatch_spacing)
+					   )
 				) };
 
 				if (palette.colors.empty()) {
 					ImGui::TextDisabled("No colors");
 				}
 
-				for (std::size_t color_index{ 0 };
-					 color_index < palette.colors.size();
+				for (std::size_t color_index{ 0 }; color_index < palette.colors.size();
 					 ++color_index) {
 					ImGui::PushID(static_cast<int>(color_index));
 					auto& palette_entry{ palette.colors[color_index] };
@@ -1254,16 +1144,15 @@ inline ColorPickerResult DrawColorPickerContents(
 
 					const auto color_item{ DrawRenamableItem([&]() {
 						if (ImGui::ColorButton(
-								"##Color",
-								color_picker_detail::ToImVec4(palette_color),
+								"##Color", color_picker_detail::ToImVec4(palette_color),
 								ImGuiColorEditFlags_AlphaPreviewHalf |
 									ImGuiColorEditFlags_NoTooltip,
 								ImVec2{ swatch_size, swatch_size }
 							)) {
 							result.interaction_started = true;
-							ui_state.selected_palette = palette_index;
+							ui_state.selected_palette  = palette_index;
 							if (value != palette_color) {
-								value = palette_color;
+								value		   = palette_color;
 								result.changed = true;
 							}
 						}
@@ -1278,15 +1167,10 @@ inline ColorPickerResult DrawColorPickerContents(
 					}
 
 					DrawRenamableContextMenu(
-						color_item,
-						"ColorContext",
-						palette_entry.name,
+						color_item, "ColorContext", palette_entry.name,
 						[&](std::string_view current_name) {
 							color_picker_detail::BeginColorRename(
-								ui_state,
-								palette_index,
-								color_index,
-								current_name
+								ui_state, palette_index, color_index, current_name
 							);
 						},
 						[&]() {
@@ -1296,16 +1180,12 @@ inline ColorPickerResult DrawColorPickerContents(
 						}
 					);
 
-					const bool renaming_this_color{
-						ui_state.renaming_color.has_value() &&
-						ui_state.renaming_color->first == palette_index &&
-						ui_state.renaming_color->second == color_index
-					};
+					bool renaming_this_color{ ui_state.renaming_color.has_value() &&
+											  ui_state.renaming_color->first == palette_index &&
+											  ui_state.renaming_color->second == color_index };
 					if (renaming_this_color) {
 						const RenameResult rename_result{ DrawRenameModal(
-							ui_state.color_rename,
-							"Rename Color##RenameColorModal",
-							"##Name",
+							ui_state.color_rename, "Rename Color##RenameColorModal", "##Name",
 							[&](std::string_view candidate) {
 								if (candidate.empty()) {
 									return std::string{ "Color name cannot be empty." };
@@ -1331,18 +1211,19 @@ inline ColorPickerResult DrawColorPickerContents(
 							RenameModalOptions{
 								.width = 320.0f,
 								.title = nullptr,
-								.draw_input_prefix = [palette_color]() {
-									const float thumbnail_size{ ImGui::GetFrameHeight() };
-									ImGui::ColorButton(
-										"##RenameColorPreview",
-										color_picker_detail::ToImVec4(palette_color),
-										ImGuiColorEditFlags_AlphaPreviewHalf |
-											ImGuiColorEditFlags_NoTooltip |
-											ImGuiColorEditFlags_NoDragDrop,
-										ImVec2{ thumbnail_size, thumbnail_size }
-									);
-									ImGui::SameLine();
-								},
+								.draw_input_prefix =
+									[palette_color]() {
+										const float thumbnail_size{ ImGui::GetFrameHeight() };
+										ImGui::ColorButton(
+											"##RenameColorPreview",
+											color_picker_detail::ToImVec4(palette_color),
+											ImGuiColorEditFlags_AlphaPreviewHalf |
+												ImGuiColorEditFlags_NoTooltip |
+												ImGuiColorEditFlags_NoDragDrop,
+											ImVec2{ thumbnail_size, thumbnail_size }
+										);
+										ImGui::SameLine();
+									},
 							}
 						) };
 						if (rename_result != RenameResult::None) {
@@ -1360,18 +1241,13 @@ inline ColorPickerResult DrawColorPickerContents(
 				if (color_to_delete.has_value()) {
 					auto before{ palettes };
 					color_picker_detail::AdjustColorRenameAfterDelete(
-						ui_state,
-						palette_index,
-						*color_to_delete
+						ui_state, palette_index, *color_to_delete
 					);
 					palette.colors.erase(
-						palette.colors.begin() +
-							static_cast<std::ptrdiff_t>(*color_to_delete)
+						palette.colors.begin() + static_cast<std::ptrdiff_t>(*color_to_delete)
 					);
 					color_picker_detail::RecordPaletteChange(
-						ctx,
-						"Delete Palette Color",
-						std::move(before)
+						ctx, "Delete Palette Color", std::move(before)
 					);
 				}
 
@@ -1383,22 +1259,14 @@ inline ColorPickerResult DrawColorPickerContents(
 
 		if (palette_to_delete.has_value()) {
 			auto before{ palettes };
-			palettes.erase(
-				palettes.begin() + static_cast<std::ptrdiff_t>(*palette_to_delete)
-			);
-			color_picker_detail::AdjustPaletteUiStateAfterDelete(
-				ui_state,
-				*palette_to_delete
-			);
+			palettes.erase(palettes.begin() + static_cast<std::ptrdiff_t>(*palette_to_delete));
+			color_picker_detail::AdjustPaletteUiStateAfterDelete(ui_state, *palette_to_delete);
 			color_picker_detail::RecordPaletteChange(
-				ctx,
-				"Delete Color Palette",
-				std::move(before)
+				ctx, "Delete Color Palette", std::move(before)
 			);
 		}
 	}
 	ImGui::EndChild();
-
 
 	ImGui::PushStyleColor(ImGuiCol_Button, ImVec4{ 0.0f, 0.0f, 0.0f, 0.0f });
 	ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4{ 0.0f, 0.0f, 0.0f, 0.0f });
@@ -1411,8 +1279,7 @@ inline ColorPickerResult DrawColorPickerContents(
 	}
 	if (ImGui::IsItemActive() && ImGui::GetIO().MouseDelta.y != 0.0f) {
 		ui_state.palette_height = std::clamp(
-			ui_state.palette_height + ImGui::GetIO().MouseDelta.y,
-			minimum_palette_height,
+			ui_state.palette_height + ImGui::GetIO().MouseDelta.y, minimum_palette_height,
 			available_to_bottom
 		);
 	}
@@ -1433,43 +1300,37 @@ inline ColorPickerResult DrawColorPickerContents(
 /// @brief ColorEdit replacement that preserves numeric RGBA editing while routing the swatch to
 /// the extended registered-color/palette picker.
 inline bool DrawColorEdit(
-	EditorContext& ctx,
-	const char* label,
-	Color& value,
-	ImGuiColorEditFlags flags = ImGuiColorEditFlags_Uint8 |
-		ImGuiColorEditFlags_AlphaBar |
-		ImGuiColorEditFlags_AlphaPreviewHalf
+	EditorContext& ctx, const char* label, Color& value,
+	ImGuiColorEditFlags flags = ImGuiColorEditFlags_Uint8 | ImGuiColorEditFlags_AlphaBar |
+								ImGuiColorEditFlags_AlphaPreviewHalf
 ) {
 	ImGui::PushID(label);
 
 	bool changed{ false };
 	auto rgba{ color_picker_detail::ToFloatColor(value) };
-	const bool no_inputs{ (flags & ImGuiColorEditFlags_NoInputs) != 0 };
+	bool no_inputs{ (flags & ImGuiColorEditFlags_NoInputs) != 0 };
 	const float swatch_size{ ImGui::GetFrameHeight() };
 
 	if (!no_inputs) {
 		const float requested_width{ ImGui::CalcItemWidth() };
-		const float input_width{ std::max(
-			1.0f,
-			requested_width - swatch_size - ImGui::GetStyle().ItemInnerSpacing.x
-		) };
+		const float input_width{
+			std::max(1.0f, requested_width - swatch_size - ImGui::GetStyle().ItemInnerSpacing.x)
+		};
 		ImGui::SetNextItemWidth(input_width);
 		if (ImGui::ColorEdit4(
-				"##Channels",
-				rgba.data(),
+				"##Channels", rgba.data(),
 				flags | ImGuiColorEditFlags_NoPicker | ImGuiColorEditFlags_NoSmallPreview
 			)) {
-			value = color_picker_detail::ToColor(rgba.data());
+			value	= color_picker_detail::ToColor(rgba.data());
 			changed = true;
 		}
 		ImGui::SameLine(0.0f, ImGui::GetStyle().ItemInnerSpacing.x);
 	}
 
 	if (ImGui::ColorButton(
-		"##OpenPicker",
-		color_picker_detail::ToImVec4(value),
-		ImGuiColorEditFlags_AlphaPreviewHalf | ImGuiColorEditFlags_NoTooltip,
-		ImVec2{ swatch_size, swatch_size }
+			"##OpenPicker", color_picker_detail::ToImVec4(value),
+			ImGuiColorEditFlags_AlphaPreviewHalf | ImGuiColorEditFlags_NoTooltip,
+			ImVec2{ swatch_size, swatch_size }
 		)) {
 		ImGui::OpenPopup("PickerPopup");
 	}

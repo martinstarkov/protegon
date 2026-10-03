@@ -35,14 +35,8 @@ std::vector<V2_float> GetArcVertices(
 	const float start{ start_angle.value };
 	const float end{ end_angle.value };
 
-	PTGN_ASSERT(
-		start >= 0.0f && start < kTwoPi,
-		"Arc start angle must be in range [0, 2pi)"
-	);
-	PTGN_ASSERT(
-		end >= 0.0f && end < kTwoPi,
-		"Arc end angle must be in range [0, 2pi)"
-	);
+	PTGN_ASSERT(start >= 0.0f && start < kTwoPi, "Arc start angle must be in range [0, 2pi)");
+	PTGN_ASSERT(end >= 0.0f && end < kTwoPi, "Arc end angle must be in range [0, 2pi)");
 
 	// A zero radius arc is a single point regardless of aperture.
 	if (NearlyEqual(radius, 0.0f)) {
@@ -63,9 +57,7 @@ std::vector<V2_float> GetArcVertices(
 
 	// start == end represents a zero length arc.
 	if (NearlyEqual(aperture, 0.0f)) {
-		return {
-			center + radius * V2_float{ start_angle.Cos(), start_angle.Sin() }
-		};
+		return { center + radius * V2_float{ start_angle.Cos(), start_angle.Sin() } };
 	}
 
 	// Number of segments that would be used for an entire circle.
@@ -73,44 +65,27 @@ std::vector<V2_float> GetArcVertices(
 	// Preserve roughly the old quality target, but scale it according to
 	// the fraction of a full circle actually being generated.
 	const auto full_circle_segment_count{
-		std::max(
-			360uz,
-			static_cast<std::size_t>(std::ceil(30.0f * radius))
-		)
+		std::max(360uz, static_cast<std::size_t>(std::ceil(30.0f * radius)))
 	};
 
 	const float aperture_fraction{ aperture / kTwoPi };
 
-	const auto segment_count{
-		std::max(
-			1uz,
-			static_cast<std::size_t>(
-				std::ceil(
-					static_cast<float>(full_circle_segment_count) *
-					aperture_fraction
-				)
-			)
-		)
-	};
+	const auto segment_count{ std::max(
+		1uz, static_cast<std::size_t>(
+				 std::ceil(static_cast<float>(full_circle_segment_count) * aperture_fraction)
+			 )
+	) };
 
 	// N segments require N + 1 vertices so both endpoints are present.
 	std::vector<V2_float> vertices(segment_count + 1);
 	const float direction{ clockwise ? -1.0f : 1.0f };
 
 	for (auto i{ 0uz }; i <= segment_count; ++i) {
-		const float t{
-			static_cast<float>(i) /
-			static_cast<float>(segment_count)
-		};
+		const float t{ static_cast<float>(i) / static_cast<float>(segment_count) };
 
-		const Radians angle{
-			start + direction * aperture * t
-		};
+		const Radians angle{ start + direction * aperture * t };
 
-		vertices[i] = center + radius * V2_float{
-			angle.Cos(),
-			angle.Sin()
-		};
+		vertices[i] = center + radius * V2_float{ angle.Cos(), angle.Sin() };
 	}
 
 	return vertices;
@@ -136,8 +111,7 @@ float TriangulateArea(std::span<const V2_float> vertices) {
 }
 
 bool TriangulateInsideTriangle(V2_float A, V2_float B, V2_float C, V2_float P) {
-	return (C - B).Cross(P - B) >= 0.0f && 
-	       (A - C).Cross(P - C) >= 0.0f &&
+	return (C - B).Cross(P - B) >= 0.0f && (A - C).Cross(P - C) >= 0.0f &&
 		   (B - A).Cross(P - A) >= 0.0f;
 }
 
@@ -610,9 +584,7 @@ bool IsInside(V2_float p, const Line& edge, bool clip_is_counter_clockwise) {
 	return cross <= kEpsilon<float>;
 }
 
-std::optional<V2_float> ComputeIntersection(
-	V2_float a, V2_float b, V2_float c, V2_float d
-) {
+std::optional<V2_float> ComputeIntersection(V2_float a, V2_float b, V2_float c, V2_float d) {
 	const V2_float ab{ b - a };
 	const V2_float cd{ d - c };
 
@@ -635,8 +607,7 @@ std::optional<V2_float> ComputeIntersection(
 } // namespace impl
 
 std::vector<V2_float> ClipPolygons(
-	const std::vector<V2_float>& subject_polygon,
-	const std::vector<V2_float>& clip_polygon
+	const std::vector<V2_float>& subject_polygon, const std::vector<V2_float>& clip_polygon
 ) {
 	if (subject_polygon.empty()) {
 		return {};
@@ -646,18 +617,18 @@ std::vector<V2_float> ClipPolygons(
 		return {};
 	}
 
-	const float clip_area{ impl::TriangulateArea(clip_polygon) };
+	float clip_area{ impl::TriangulateArea(clip_polygon) };
 
 	// A clipping polygon with zero area does not define a valid interior.
 	if (NearlyEqual(clip_area, 0.0f)) {
 		return {};
 	}
 
-	const bool clip_is_counter_clockwise{ clip_area > 0.0f };
+	bool clip_is_counter_clockwise{ clip_area > 0.0f };
 
 	std::vector<V2_float> output_list{ subject_polygon };
 
-	const auto count{ clip_polygon.size() };
+	auto count{ clip_polygon.size() };
 
 	for (auto i{ 0uz }; i < count; ++i) {
 		const V2_float clip_start{ clip_polygon[i] };
@@ -673,22 +644,10 @@ std::vector<V2_float> ClipPolygons(
 		}
 
 		V2_float s{ input_list.back() };
-		bool s_inside{
-			impl::IsInside(
-				s,
-				clip_edge,
-				clip_is_counter_clockwise
-			)
-		};
+		bool s_inside{ impl::IsInside(s, clip_edge, clip_is_counter_clockwise) };
 
 		for (const V2_float e : input_list) {
-			const bool e_inside{
-				impl::IsInside(
-					e,
-					clip_edge,
-					clip_is_counter_clockwise
-				)
-			};
+			bool e_inside{ impl::IsInside(e, clip_edge, clip_is_counter_clockwise) };
 
 			if (e_inside) {
 				// Outside -> inside:
@@ -698,13 +657,7 @@ std::vector<V2_float> ClipPolygons(
 				//          intersection
 				if (!s_inside) {
 					if (auto intersection{
-							impl::ComputeIntersection(
-								s,
-								e,
-								clip_edge.start,
-								clip_edge.end
-							)
-						}) {
+							impl::ComputeIntersection(s, e, clip_edge.start, clip_edge.end) }) {
 						output_list.emplace_back(*intersection);
 					}
 				}
@@ -717,18 +670,12 @@ std::vector<V2_float> ClipPolygons(
 				//            ^
 				//         intersection
 				if (auto intersection{
-						impl::ComputeIntersection(
-							s,
-							e,
-							clip_edge.start,
-							clip_edge.end
-						)
-					}) {
+						impl::ComputeIntersection(s, e, clip_edge.start, clip_edge.end) }) {
 					output_list.emplace_back(*intersection);
 				}
 			}
 
-			s = e;
+			s		 = e;
 			s_inside = e_inside;
 		}
 	}

@@ -1,6 +1,5 @@
-#include "panels/inspector_archetype_inspector.h"
-
 #include "editor/editor_icons.h"
+#include "panels/inspector_archetype_inspector.h"
 #include "panels/inspector_geometry.h"
 #include "panels/rich_text_editor.h"
 
@@ -59,7 +58,7 @@ bool DrawImplicitDefaultVisualComponent(
 
 	auto before{ target.template Capture<T>() };
 	T value{ before.value_or(default_value) };
-	const bool changed{ std::invoke(std::forward<Draw>(draw), value) };
+	bool changed{ std::invoke(std::forward<Draw>(draw), value) };
 
 	if (changed) {
 		target.template SetLive<T>(ComponentState<T>{ value }, callback);
@@ -311,113 +310,118 @@ template <typename Target>
 RendererRowResult DrawRendererRow(Target& target, bool allow_renderer_change = true) {
 	using Drawable = ::ptgn::impl::IDrawable;
 
-	const bool primary_scene_target{ IsPrimarySceneRenderTarget(target) };
+	bool primary_scene_target{ IsPrimarySceneRenderTarget(target) };
 	allow_renderer_change &= !primary_scene_target;
 
 	auto drawable{ target.template Capture<Drawable>() };
 
 	const auto* info{ drawable ? Drawable::FindInfo(drawable->hash) : nullptr };
 	const std::string preview{ primary_scene_target ? "Render Target"
-							   : info ? GetDrawableInspectorLabel(*info) : "None" };
+							   : info				? GetDrawableInspectorLabel(*info)
+													: "None" };
 
 	bool renderer_changed{ false };
-	auto before_renderer{
-		CaptureComponentSetState(target, VisualSectionComponents{})
-	};
+	auto before_renderer{ CaptureComponentSetState(target, VisualSectionComponents{}) };
 
 	auto choose_renderer = [&](ComponentState<Drawable> selected) {
-		const bool same_renderer{ selected.has_value() == drawable.has_value() &&
-			(!selected || selected->hash == drawable->hash) };
+		bool same_renderer{ selected.has_value() == drawable.has_value() &&
+							(!selected || selected->hash == drawable->hash) };
 		if (same_renderer) {
 			return;
 		}
 
 		ApplyRendererSelection(target, selected);
-		drawable = target.template Capture<Drawable>();
+		drawable		 = target.template Capture<Drawable>();
 		renderer_changed = true;
 	};
 
 	if (allow_renderer_change) {
-	DrawPropertyRow("Renderer", [&]() {
-		std::size_t renderer_popup_items{ 3 };
-		for (const auto& candidate : Drawable::data()) {
-			const std::string visual{ NormalizeInspectorName(GetDrawableInspectorLabel(candidate)) };
-			if (!IsShapeRenderer(visual) && !IsEffectRenderer(visual)) {
-				++renderer_popup_items;
-			}
-		}
-		const float renderer_popup_height{ ImGui::GetStyle().WindowPadding.y * 2.0f +
-			static_cast<float>(renderer_popup_items) * ImGui::GetTextLineHeightWithSpacing() -
-			ImGui::GetStyle().ItemSpacing.y };
-		ImGui::SetNextWindowSizeConstraints(
-			ImVec2{ 0.0f, renderer_popup_height }, ImVec2{ FLT_MAX, renderer_popup_height }
-		);
-		ImGui::SetNextItemWidth(-FLT_MIN);
-		if (!ImGui::BeginCombo("##RendererSelector", preview.c_str())) {
-			return false;
-		}
-
-		if (ImGui::Selectable("None", !drawable.has_value())) {
-			choose_renderer(std::nullopt);
-		}
-
-		auto draw_candidate = [&](const auto& candidate) {
-			ScopedID candidate_scope{ static_cast<const void*>(std::addressof(candidate)) };
-			const std::string label{ GetDrawableInspectorLabel(candidate) };
-			const bool selected{ drawable && drawable->hash == candidate.hash };
-			if (ImGui::Selectable(label.c_str(), selected)) {
-				choose_renderer(Drawable{ candidate.hash });
-			}
-			if (selected) {
-				ImGui::SetItemDefaultFocus();
-			}
-		};
-
-		for (const auto& candidate : Drawable::data()) {
-			const std::string visual{ NormalizeInspectorName(GetDrawableInspectorLabel(candidate)) };
-			if (!IsShapeRenderer(visual) && !IsEffectRenderer(visual)) {
-				draw_candidate(candidate);
-			}
-		}
-		if (ImGui::BeginMenu("Shapes")) {
+		DrawPropertyRow("Renderer", [&]() {
+			std::size_t renderer_popup_items{ 3 };
 			for (const auto& candidate : Drawable::data()) {
-				const std::string visual{ NormalizeInspectorName(GetDrawableInspectorLabel(candidate)) };
-				if (IsShapeRenderer(visual)) {
+				const std::string visual{
+					NormalizeInspectorName(GetDrawableInspectorLabel(candidate))
+				};
+				if (!IsShapeRenderer(visual) && !IsEffectRenderer(visual)) {
+					++renderer_popup_items;
+				}
+			}
+			const float renderer_popup_height{ ImGui::GetStyle().WindowPadding.y * 2.0f +
+											   static_cast<float>(renderer_popup_items) *
+												   ImGui::GetTextLineHeightWithSpacing() -
+											   ImGui::GetStyle().ItemSpacing.y };
+			ImGui::SetNextWindowSizeConstraints(
+				ImVec2{ 0.0f, renderer_popup_height }, ImVec2{ FLT_MAX, renderer_popup_height }
+			);
+			ImGui::SetNextItemWidth(-FLT_MIN);
+			if (!ImGui::BeginCombo("##RendererSelector", preview.c_str())) {
+				return false;
+			}
+
+			if (ImGui::Selectable("None", !drawable.has_value())) {
+				choose_renderer(std::nullopt);
+			}
+
+			auto draw_candidate = [&](const auto& candidate) {
+				ScopedID candidate_scope{ static_cast<const void*>(std::addressof(candidate)) };
+				const std::string label{ GetDrawableInspectorLabel(candidate) };
+				bool selected{ drawable && drawable->hash == candidate.hash };
+				if (ImGui::Selectable(label.c_str(), selected)) {
+					choose_renderer(Drawable{ candidate.hash });
+				}
+				if (selected) {
+					ImGui::SetItemDefaultFocus();
+				}
+			};
+
+			for (const auto& candidate : Drawable::data()) {
+				const std::string visual{
+					NormalizeInspectorName(GetDrawableInspectorLabel(candidate))
+				};
+				if (!IsShapeRenderer(visual) && !IsEffectRenderer(visual)) {
 					draw_candidate(candidate);
 				}
 			}
-			ImGui::EndMenu();
-		}
-		if (ImGui::BeginMenu("Effects")) {
-			for (const auto& candidate : Drawable::data()) {
-				const std::string visual{ NormalizeInspectorName(GetDrawableInspectorLabel(candidate)) };
-				if (IsEffectRenderer(visual)) {
-					draw_candidate(candidate);
+			if (ImGui::BeginMenu("Shapes")) {
+				for (const auto& candidate : Drawable::data()) {
+					const std::string visual{
+						NormalizeInspectorName(GetDrawableInspectorLabel(candidate))
+					};
+					if (IsShapeRenderer(visual)) {
+						draw_candidate(candidate);
+					}
 				}
+				ImGui::EndMenu();
 			}
-			ImGui::EndMenu();
-		}
-		ImGui::EndCombo();
-		return renderer_changed;
-	});
+			if (ImGui::BeginMenu("Effects")) {
+				for (const auto& candidate : Drawable::data()) {
+					const std::string visual{
+						NormalizeInspectorName(GetDrawableInspectorLabel(candidate))
+					};
+					if (IsEffectRenderer(visual)) {
+						draw_candidate(candidate);
+					}
+				}
+				ImGui::EndMenu();
+			}
+			ImGui::EndCombo();
+			return renderer_changed;
+		});
 	}
 
 	if (renderer_changed) {
-		auto after_renderer{
-			CaptureComponentSetState(target, VisualSectionComponents{})
-		};
+		auto after_renderer{ CaptureComponentSetState(target, VisualSectionComponents{}) };
 		TrackComponentSetState(
 			target, "Change Renderer", std::move(before_renderer), std::move(after_renderer),
 			VisualSectionComponents{}
 		);
 	}
 
-
 	const auto* selected_info{ drawable ? Drawable::FindInfo(drawable->hash) : nullptr };
 	return RendererRowResult{
-		.visual = primary_scene_target ? "rendertarget"
-			: selected_info ? NormalizeInspectorName(GetDrawableInspectorLabel(*selected_info))
-								: std::string{},
+		.visual	 = primary_scene_target ? "rendertarget"
+				 : selected_info ? NormalizeInspectorName(GetDrawableInspectorLabel(*selected_info))
+								 : std::string{},
 		.changed = renderer_changed,
 	};
 }
@@ -465,13 +469,13 @@ bool DrawEffectMargin(Target& target) {
 		return false;
 	}
 
-	const bool standard_renderer{
-		visual == "rect" || visual == "circle" || visual == "roundedrect" || visual == "polygon" ||
-		visual == "ellipse" || visual == "triangle" || visual == "line" || visual == "capsule" ||
-		visual == "arc" || visual.contains("sprite") || visual.contains("text") ||
-		visual.contains("particle") || visual.contains("light") || visual.contains("graphics") ||
-		visual.contains("customshader") || visual.contains("rendertarget")
-	};
+	bool standard_renderer{ visual == "rect" || visual == "circle" || visual == "roundedrect" ||
+							visual == "polygon" || visual == "ellipse" || visual == "triangle" ||
+							visual == "line" || visual == "capsule" || visual == "arc" ||
+							visual.contains("sprite") || visual.contains("text") ||
+							visual.contains("particle") || visual.contains("light") ||
+							visual.contains("graphics") || visual.contains("customshader") ||
+							visual.contains("rendertarget") };
 
 	return !standard_renderer;
 }
@@ -796,7 +800,7 @@ bool DrawTextBoxAdditionalStyle(EditorContext& ctx, Style& style) {
 				return;
 			}
 			if (normalized == "shrinkscale") {
-				const bool open{ ImGui::TreeNodeEx(
+				bool open{ ImGui::TreeNodeEx(
 					"Shrink to Fit##TextShrinkToFit", ImGuiTreeNodeFlags_SpanAvailWidth
 				) };
 				if (open) {
@@ -842,14 +846,13 @@ bool DrawTextBoxMember(Target& target, TextData& text_data, auto& box) {
 	ScopedID box_scope{ "TextBox" };
 
 	bool open{ false };
-	const bool toggle_changed{ DrawInspectorCustomPropertyRow(
+	bool toggle_changed{ DrawInspectorCustomPropertyRow(
 		"Text Box",
 		[&]() {
 			open = ImGui::TreeNodeEx(
-				"Text Box##Tree",
-				ImGuiTreeNodeFlags_SpanAvailWidth |
-					ImGuiTreeNodeFlags_FramePadding |
-					ImGuiTreeNodeFlags_NoTreePushOnOpen
+				"Text Box##Tree", ImGuiTreeNodeFlags_SpanAvailWidth |
+									  ImGuiTreeNodeFlags_FramePadding |
+									  ImGuiTreeNodeFlags_NoTreePushOnOpen
 			);
 		},
 		[&]() { return ImGui::Checkbox("##Enabled", &enabled); }
@@ -922,7 +925,7 @@ bool DrawTextBoxMember(Target& target, TextData& text_data, auto& box) {
 		}
 
 		if (box_name == "style") {
-			const bool style_open{ ImGui::TreeNodeEx(
+			bool style_open{ ImGui::TreeNodeEx(
 				"Additional Options##TextBoxAdditionalOptions", ImGuiTreeNodeFlags_SpanAvailWidth
 			) };
 
@@ -1200,15 +1203,13 @@ bool DrawLineWidthVisual(Target& target) {
 		return false;
 	} else {
 		return DrawRequiredInlineVisualComponentWithDefault<Target, FillStyle>(
-			target, "Line Width", FillStyle{ kInspectorMinLineWidth },
-			[](FillStyle& style) {
+			target, "Line Width", FillStyle{ kInspectorMinLineWidth }, [](FillStyle& style) {
 				return DrawPropertyRow("Line Width", [&]() {
 					float line_width{ style.GetLineWidth().value_or(kInspectorMinLineWidth) };
 					ImGui::SetNextItemWidth(-FLT_MIN);
 					if (!ImGui::DragFloat(
 							"##LineWidth", &line_width, kInspectorScalarDragSpeed,
-							kInspectorMinLineWidth, 1000.0f, "%.2f",
-							ImGuiSliderFlags_AlwaysClamp
+							kInspectorMinLineWidth, 1000.0f, "%.2f", ImGuiSliderFlags_AlwaysClamp
 						)) {
 						return false;
 					}
@@ -1472,7 +1473,9 @@ bool DrawShapeVisual(Target& target, std::string_view visual) {
 
 	changed |= DrawRequiredInlineVisualComponentWithDefault<Target, Color>(
 		target, "Color", Color{ color::White }, [&target](Color& value) {
-			return DrawRegisteredComponentContents(target.ctx, Hash<Color>(), std::addressof(value));
+			return DrawRegisteredComponentContents(
+				target.ctx, Hash<Color>(), std::addressof(value)
+			);
 		}
 	);
 	if (visual == "line") {
@@ -1491,9 +1494,8 @@ bool DrawShapeVisual(Target& target, std::string_view visual) {
 		changed |= DrawShapeFillStyle<Target, Arc>(target);
 	} else {
 		changed |= DrawRequiredInlineVisualComponentWithDefault<Target, FillStyle>(
-			target, "Style", FillStyle{ Solid{} }, [&target](FillStyle& value) {
-				return DrawFillStyle(target.ctx, "Style", value);
-			}
+			target, "Style", FillStyle{ Solid{} },
+			[&target](FillStyle& value) { return DrawFillStyle(target.ctx, "Style", value); }
 		);
 	}
 
@@ -1534,18 +1536,15 @@ bool DrawAnimationDataFlattened(
 
 	changed |= DrawValue(ctx, "Duration", animation.config.duration);
 
-	const auto automatic_frame_size{
-		detected_layout.has_value()
-			? ::ptgn::impl::GetFrameSize(
-				  texture_size, detected_layout->frame_count, detected_layout->row_count
-			  )
-			: std::nullopt
-	};
+	const auto automatic_frame_size{ detected_layout.has_value()
+										 ? ::ptgn::impl::GetFrameSize(
+											   texture_size, detected_layout->frame_count,
+											   detected_layout->row_count
+										   )
+										 : std::nullopt };
 	if (detected_layout.has_value()) {
 		V2_int displayed{ automatic_frame_size.value_or(V2_int{ 1, 1 }) };
-		(void)DrawWHValue(
-			"Frame Size", displayed, 1.0f, 1, 4096, ImGuiSliderFlags_None, true
-		);
+		(void)DrawWHValue("Frame Size", displayed, 1.0f, 1, 4096, ImGuiSliderFlags_None, true);
 		DrawTooltip(
 			automatic_frame_size.has_value()
 				? "Frame size is derived from the texture pixel size and animation suffix. "
@@ -1562,14 +1561,14 @@ bool DrawAnimationDataFlattened(
 		}
 		if (DrawWHValue("Frame Size", displayed, 1.0f, 1, 4096)) {
 			animation.config.frame_size = displayed;
-			changed = true;
+			changed						= true;
 		}
 	}
 
 	changed |= DrawPropertyRow("Play Count", [&]() {
 		bool local_changed{ false };
 		bool finite{ animation.config.play_count.has_value() };
-		const bool toggle_changed{ ImGui::Checkbox("##PlayCountFinite", &finite) };
+		bool toggle_changed{ ImGui::Checkbox("##PlayCountFinite", &finite) };
 		local_changed |= toggle_changed;
 		ImGui::SameLine(0.0f, ImGui::GetStyle().ItemInnerSpacing.x);
 
@@ -1589,9 +1588,8 @@ bool DrawAnimationDataFlattened(
 			if (ImGui::DragScalar(
 					"##PlayCountValue", ImGuiDataType_U64, &count, 1.0f, &minimum, nullptr, "%llu"
 				)) {
-				animation.config.play_count = std::max<std::size_t>(
-					1, static_cast<std::size_t>(count)
-				);
+				animation.config.play_count =
+					std::max<std::size_t>(1, static_cast<std::size_t>(count));
 				local_changed = true;
 			}
 		} else {
@@ -1618,8 +1616,8 @@ bool DrawAnimationDataFlattened(
 		const V2_int before_start_pixel{ start_pixel };
 		const auto before_frame_size{ animation.config.frame_size };
 		const std::size_t before_current_frame{ animation.current_frame };
-		const bool frame_size_edited{ animation.config.frame_size != initial_frame_size };
-		const bool start_pixel_edited{ start_pixel != initial_start_pixel };
+		bool frame_size_edited{ animation.config.frame_size != initial_frame_size };
+		bool start_pixel_edited{ start_pixel != initial_start_pixel };
 
 		start_pixel.x = std::max(start_pixel.x, 0);
 		start_pixel.y = std::max(start_pixel.y, 0);
@@ -1650,8 +1648,8 @@ bool DrawAnimationDataFlattened(
 					start_pixel.y = std::min(start_pixel.y, size.y - frame_size.y);
 				}
 
-				frame_size.x = std::min(frame_size.x, size.x - start_pixel.x);
-				frame_size.y = std::min(frame_size.y, size.y - start_pixel.y);
+				frame_size.x  = std::min(frame_size.x, size.x - start_pixel.x);
+				frame_size.y  = std::min(frame_size.y, size.y - start_pixel.y);
 				start_pixel.x = std::min(start_pixel.x, size.x - frame_size.x);
 				start_pixel.y = std::min(start_pixel.y, size.y - frame_size.y);
 
@@ -1664,13 +1662,12 @@ bool DrawAnimationDataFlattened(
 				const std::size_t requested_rows{
 					std::max<std::size_t>(1, animation.GetAutomaticRowCount())
 				};
-				available_frame_count = available_columns * std::min(available_rows, requested_rows);
+				available_frame_count =
+					available_columns * std::min(available_rows, requested_rows);
 			} else if (
-				const auto frame_size{
-					::ptgn::impl::GetFrameSize(
-						texture_size, animation.config.frame_count,
-						animation.GetAutomaticRowCount()
-					) };
+				const auto frame_size{ ::ptgn::impl::GetFrameSize(
+					texture_size, animation.config.frame_count, animation.GetAutomaticRowCount()
+				) };
 				frame_size && frame_size->IsPositive()
 			) {
 				start_pixel.x = std::min(start_pixel.x, size.x - frame_size->x);
@@ -1685,7 +1682,8 @@ bool DrawAnimationDataFlattened(
 				const std::size_t requested_rows{
 					std::max<std::size_t>(1, animation.GetAutomaticRowCount())
 				};
-				available_frame_count = available_columns * std::min(available_rows, requested_rows);
+				available_frame_count =
+					available_columns * std::min(available_rows, requested_rows);
 			} else {
 				available_frame_count = 0;
 			}
@@ -1898,10 +1896,10 @@ bool ApplyDetectedAnimationLayout(Target& target, ::ptgn::impl::AnimationData& a
 	bool changed{ false };
 
 	if (const auto layout{ ResolveDetectedAnimationTextureLayout(target) }) {
-		changed |= animation.config.frame_count != layout->frame_count;
-		changed |= animation.config.frame_size.has_value();
-		changed |= animation.GetAutomaticRowCount() != layout->row_count;
-		animation.config.frame_count = layout->frame_count;
+		changed						 |= animation.config.frame_count != layout->frame_count;
+		changed						 |= animation.config.frame_size.has_value();
+		changed						 |= animation.GetAutomaticRowCount() != layout->row_count;
+		animation.config.frame_count  = layout->frame_count;
 		animation.config.frame_size.reset();
 		animation.SetAutomaticRowCount(layout->row_count);
 	} else {
@@ -1909,11 +1907,12 @@ bool ApplyDetectedAnimationLayout(Target& target, ::ptgn::impl::AnimationData& a
 		animation.SetAutomaticRowCount(1);
 	}
 
-	const std::size_t resolved_frame{
-		animation.config.frame_count == 0 ? 0 : animation.current_frame % animation.config.frame_count
-	};
-	changed |= animation.current_frame != resolved_frame;
-	animation.current_frame = resolved_frame;
+	const std::size_t resolved_frame{ animation.config.frame_count == 0
+										  ? 0
+										  : animation.current_frame %
+												animation.config.frame_count };
+	changed					|= animation.current_frame != resolved_frame;
+	animation.current_frame	 = resolved_frame;
 	return changed;
 }
 
@@ -1951,7 +1950,7 @@ bool SynchronizeSpriteAnimationDerivedState(Target& target) {
 	} else {
 		if (const auto stored_animation{ target.template Capture<AnimationData>() }) {
 			AnimationData animation{ *stored_animation };
-			const bool animation_changed{ ApplyDetectedAnimationLayout(target, animation) };
+			bool animation_changed{ ApplyDetectedAnimationLayout(target, animation) };
 			if (animation_changed) {
 				animation.frame_dirty = true;
 				target.template SetLive<AnimationData>(animation);
@@ -1977,9 +1976,7 @@ bool SynchronizeSpriteAnimationDerivedState(Target& target) {
 }
 
 template <typename Target>
-bool SetDisabledAnimationFallbackCrop(
-	Target& target, ::ptgn::impl::AnimationData animation
-) {
+bool SetDisabledAnimationFallbackCrop(Target& target, ::ptgn::impl::AnimationData animation) {
 	ApplyDetectedAnimationLayout(target, animation);
 	animation.current_frame = 0;
 	return UpdateAnimationTextureCrop(target, animation);
@@ -2066,8 +2063,8 @@ bool DrawSpriteStackPrimary(Target& target) {
 template <typename Target>
 bool DrawSpriteAnimationInline(Target& target) {
 	using AnimationData = ::ptgn::impl::AnimationData;
-	using TextureCrop = ::ptgn::impl::TextureCrop;
-	using Components = ComponentSet<AnimationData, TextureCrop>;
+	using TextureCrop	= ::ptgn::impl::TextureCrop;
+	using Components	= ComponentSet<AnimationData, TextureCrop>;
 	constexpr Components components{};
 
 	if constexpr (!Target::template Supports<AnimationData>()) {
@@ -2078,12 +2075,12 @@ bool DrawSpriteAnimationInline(Target& target) {
 		bool enabled{ before_animation.has_value() };
 		bool open{ false };
 
-		const bool toggle_changed{ ImGui::Checkbox("##AnimationEnabled", &enabled) };
+		bool toggle_changed{ ImGui::Checkbox("##AnimationEnabled", &enabled) };
 		ImGui::SameLine(0.0f, ImGui::GetStyle().ItemInnerSpacing.x);
 		open = ImGui::TreeNodeEx(
-			"Animation##SpriteAnimation",
-			ImGuiTreeNodeFlags_SpanAvailWidth | ImGuiTreeNodeFlags_FramePadding |
-				ImGuiTreeNodeFlags_NoTreePushOnOpen
+			"Animation##SpriteAnimation", ImGuiTreeNodeFlags_SpanAvailWidth |
+											  ImGuiTreeNodeFlags_FramePadding |
+											  ImGuiTreeNodeFlags_NoTreePushOnOpen
 		);
 
 		bool changed{ toggle_changed };
@@ -2105,21 +2102,24 @@ bool DrawSpriteAnimationInline(Target& target) {
 			}
 		}
 
-		AnimationData animation{ target.template Capture<AnimationData>().value_or(AnimationData{}) };
+		AnimationData animation{
+			target.template Capture<AnimationData>().value_or(AnimationData{})
+		};
 		if (open) {
 			ScopedIndent indent;
 			ScopedDisabled disabled{ !enabled };
 			const std::size_t previous_frame_count{ animation.config.frame_count };
 			const auto detected_layout{ ResolveDetectedAnimationTextureLayout(target) };
 			const auto texture_size{ ResolveAnimationTextureSize(target) };
-			const bool contents_changed{ DrawAnimationDataFlattened(
-				target.ctx, animation, detected_layout, texture_size
-			) };
+			bool contents_changed{
+				DrawAnimationDataFlattened(target.ctx, animation, detected_layout, texture_size)
+			};
 			if (enabled && contents_changed) {
 				if (previous_frame_count != animation.config.frame_count) {
-					animation.current_frame = animation.config.frame_count == 0
-						? 0
-						: animation.current_frame % animation.config.frame_count;
+					animation.current_frame =
+						animation.config.frame_count == 0
+							? 0
+							: animation.current_frame % animation.config.frame_count;
 				}
 				animation.frame_dirty = true;
 				target.template SetLive<AnimationData>(animation);
@@ -2134,7 +2134,8 @@ bool DrawSpriteAnimationInline(Target& target) {
 		auto after{ CaptureComponentSetState(target, components) };
 		TrackComponentSetState(
 			target,
-			toggle_changed ? (enabled ? "Enable Animation" : "Disable Animation") : "Edit Animation",
+			toggle_changed ? (enabled ? "Enable Animation" : "Disable Animation")
+						   : "Edit Animation",
 			std::move(before), std::move(after), components
 		);
 		return true;
@@ -2172,10 +2173,8 @@ bool DrawSpritePrimaryImpl(Target& target) {
 				}
 			}
 
-			texture_size_default = V2_float{
-				static_cast<float>(frame_size.x) * scale.x,
-				static_cast<float>(frame_size.y) * scale.y
-			};
+			texture_size_default = V2_float{ static_cast<float>(frame_size.x) * scale.x,
+											 static_cast<float>(frame_size.y) * scale.y };
 		}
 	}
 
@@ -2198,7 +2197,7 @@ bool DrawSpritePrimaryImpl(Target& target) {
 	);
 
 	const auto after_texture{ target.template Capture<TextureKey>() };
-	const bool texture_changed{ before_texture != after_texture };
+	bool texture_changed{ before_texture != after_texture };
 	if (texture_changed) {
 		if (before_animation) {
 			changed |= SynchronizeAnimationFrameData(
@@ -2266,7 +2265,7 @@ bool DrawOptionalAssetComponent(Target& target, std::string_view label) {
 		auto before{ target.template Capture<Key>() };
 		std::optional<Key> value{ before };
 
-		const bool changed{ DrawOptionalAssetKeyInline(target.ctx, label, value, FieldOptions{}) };
+		bool changed{ DrawOptionalAssetKeyInline(target.ctx, label, value, FieldOptions{}) };
 
 		if (changed) {
 			target.template SetLive<Key>(value);
@@ -2362,10 +2361,8 @@ bool DrawCustomShaderPrimary(Target& target) {
 
 template <typename Target>
 bool DrawSpriteTextureCrop(Target& target) {
-	const bool managed_crop{
-		target.template Capture<::ptgn::impl::AnimationData>().has_value() ||
-		ResolveDetectedAnimationTextureLayout(target).has_value()
-	};
+	bool managed_crop{ target.template Capture<::ptgn::impl::AnimationData>().has_value() ||
+					   ResolveDetectedAnimationTextureLayout(target).has_value() };
 	if (managed_crop) {
 		return DrawOptionalReflected<Target, ::ptgn::impl::TextureCrop>(
 			target, "Texture Crop", true, true, true
@@ -2403,7 +2400,7 @@ template <typename Target>
 bool DrawRenderTargetPrimary(Target& target) {
 	bool changed{ false };
 
-	const bool primary_scene_target{ IsPrimarySceneRenderTarget(target) };
+	bool primary_scene_target{ IsPrimarySceneRenderTarget(target) };
 
 	std::optional<V2_int> framebuffer_size;
 
@@ -2461,7 +2458,7 @@ bool DrawVisualLayers(Target& target) {
 		ScopedID target_scope{ target.Id() };
 		ScopedID layers_scope{ "VisualLayers" };
 
-		const bool changed{ DrawLayerMaskValue("Layers", mask.layers, ui_layer) };
+		bool changed{ DrawLayerMaskValue("Layers", mask.layers, ui_layer) };
 
 		if (!changed) {
 			return false;
@@ -2504,20 +2501,16 @@ bool DrawVisualAdditionalOptions(Target& target, std::string_view visual) {
 		return false;
 	}
 
-	const bool open{
-		ImGui::TreeNodeEx("Additional Options##Visual", ImGuiTreeNodeFlags_SpanAvailWidth)
-	};
+	bool open{ ImGui::TreeNodeEx("Additional Options##Visual", ImGuiTreeNodeFlags_SpanAvailWidth) };
 	if (!open) {
 		return false;
 	}
 
 	ScopedUnindent align_with_additional_options;
 	ScopedID text_additional_scope{ "TextAdditional" };
-	const bool changed{ DrawRequiredComponent<Target, ::ptgn::impl::TextData>(
+	bool changed{ DrawRequiredComponent<Target, ::ptgn::impl::TextData>(
 		target, "Text Additional Options", false,
-		[&target](::ptgn::impl::TextData& value) {
-			return DrawTextAdditional(target, value);
-		},
+		[&target](::ptgn::impl::TextData& value) { return DrawTextAdditional(target, value); },
 		&MarkTextLayoutDirty
 	) };
 	ImGui::TreePop();
@@ -2527,8 +2520,7 @@ bool DrawVisualAdditionalOptions(Target& target, std::string_view visual) {
 template <typename Target>
 bool DrawRenderingOptions(Target& target, bool draw_tint) {
 	const auto header{ DrawInspectorSectionHeader(
-		"Rendering", "VisualRendering",
-		InspectorSectionOptions{ .default_open = true }
+		"Rendering", "VisualRendering", InspectorSectionOptions{ .default_open = true }
 	) };
 	if (!header.open) {
 		return false;
@@ -2539,12 +2531,12 @@ bool DrawRenderingOptions(Target& target, bool draw_tint) {
 
 	auto before_visible{ target.template Capture<Visible>() };
 	bool visible{ before_visible ? before_visible->visible : true };
-	const bool visible_changed{ DrawPropertyRow("Visible", [&]() {
+	bool visible_changed{ DrawPropertyRow("Visible", [&]() {
 		if (DrawEditorIconButton(
 				"##RendererVisible", visible ? EditorIcon::Visible : EditorIcon::Hidden,
 				EditorIconButtonOptions{
-					.tooltip = visible ? "Hide rendering" : "Show rendering",
-					.muted = !visible,
+					.tooltip	 = visible ? "Hide rendering" : "Show rendering",
+					.muted		 = !visible,
 					.icon_extent = ImGui::GetTextLineHeight() + 2.0f,
 				}
 			)) {
@@ -2567,16 +2559,12 @@ bool DrawRenderingOptions(Target& target, bool draw_tint) {
 
 	changed |= DrawImplicitDefaultVisualComponent<Target, BlendMode>(
 		target, "Blend Mode", BlendMode{},
-		[&target](BlendMode& value) {
-			return DrawValue(target.ctx, "Blend Mode", value);
-		}
+		[&target](BlendMode& value) { return DrawValue(target.ctx, "Blend Mode", value); }
 	);
 	if (draw_tint) {
 		changed |= DrawImplicitDefaultVisualComponent<Target, Tint>(
 			target, "Tint", Tint{},
-			[&target](Tint& value) {
-				return DrawValue(target.ctx, "Tint", value);
-			}
+			[&target](Tint& value) { return DrawValue(target.ctx, "Tint", value); }
 		);
 		changed |= DrawOptionalVisualComponent<Target, ::ptgn::impl::IgnoreParentTint>(
 			target, "Ignore Parent Tint"
@@ -2611,7 +2599,7 @@ bool DrawButtonChildStateVisualComponent(
 		const auto index{ static_cast<std::size_t>(std::to_underlying(state)) };
 		auto& visual{ visuals.states[index] };
 
-		const bool changed{ std::invoke(std::forward<Draw>(draw), visuals, visual) };
+		bool changed{ std::invoke(std::forward<Draw>(draw), visuals, visual) };
 
 		if (changed) {
 			// The part checkbox owns whether this visual state is defined. Editing or clearing an
@@ -2629,7 +2617,6 @@ bool DrawButtonChildStateVisualComponent(
 		return changed;
 	}
 }
-
 
 template <typename Target>
 bool DrawButtonChildStateVisualSectionImpl(
@@ -2691,9 +2678,10 @@ bool DrawButtonChildStateVisualSectionImpl(
 				[&target, state](ButtonTextVisuals& visuals, ButtonTextVisual& visual) {
 					bool changed{ false };
 
-					// Draw the managed text using the same TextData component drawer used by ordinary
-					// Text entities. Content/defaults/text-box data belong to the active button visual
-					// state; runtime-only TextData properties stay on the managed entity.
+					// Draw the managed text using the same TextData component drawer used by
+					// ordinary Text entities. Content/defaults/text-box data belong to the active
+					// button visual state; runtime-only TextData properties stay on the managed
+					// entity.
 					auto text_before{ target.template Capture<::ptgn::impl::TextData>() };
 					::ptgn::impl::TextData text_data{
 						text_before.value_or(::ptgn::impl::TextData{})
@@ -2703,19 +2691,17 @@ bool DrawButtonChildStateVisualSectionImpl(
 						displayed_before.text, displayed_before.defaults
 					) };
 					if (DrawInspectorValueContents(
-						target.ctx, Hash<::ptgn::impl::TextData>(), std::addressof(text_data)
-					)) {
-						const bool defaults_changed{
-							text_data.defaults != displayed_before.defaults
+							target.ctx, Hash<::ptgn::impl::TextData>(), std::addressof(text_data)
+						)) {
+						bool defaults_changed{ text_data.defaults != displayed_before.defaults };
+						const std::string source_after{
+							SerializeStyledTextToRichText(text_data.text, text_data.defaults)
 						};
-						const std::string source_after{ SerializeStyledTextToRichText(
-							text_data.text, text_data.defaults
-						) };
-						const bool authored_source_changed{ source_after != source_before };
+						bool authored_source_changed{ source_after != source_before };
 
-						// Changing only inherited Defaults should not materialize a full text override.
-						// Existing explicit text is rebased, while actual source edits always become
-						// an explicit state text value.
+						// Changing only inherited Defaults should not materialize a full text
+						// override. Existing explicit text is rebased, while actual source edits
+						// always become an explicit state text value.
 						if (text_data.text != displayed_before.text &&
 							(visual.styled_text.has_value() || authored_source_changed)) {
 							visual.styled_text = text_data.text;
@@ -2824,8 +2810,8 @@ bool DrawVisualSectionImpl(
 		return false;
 	}
 
-	const bool primary_scene_target{ IsPrimarySceneRenderTarget(target) };
-	const bool owned_by_archetype{ ArchetypeOwnsVisual(ResolveInspectorArchetype(target)) };
+	bool primary_scene_target{ IsPrimarySceneRenderTarget(target) };
+	bool owned_by_archetype{ ArchetypeOwnsVisual(ResolveInspectorArchetype(target)) };
 	InspectorSectionResult header{ .open = true };
 
 	if (draw_header) {
@@ -2833,7 +2819,7 @@ bool DrawVisualSectionImpl(
 			header_label, "VisualSection",
 			InspectorSectionOptions{
 				.default_open = true,
-				.removable = !primary_scene_target && !owned_by_archetype,
+				.removable	  = !primary_scene_target && !owned_by_archetype,
 			}
 		);
 		if (header.remove_requested) {
@@ -2844,16 +2830,17 @@ bool DrawVisualSectionImpl(
 	}
 
 	bool changed{ false };
-	const RendererRowResult renderer{ DrawRendererRow(target, allow_renderer_change && header.open) };
+	const RendererRowResult renderer{
+		DrawRendererRow(target, allow_renderer_change && header.open)
+	};
 	const std::string& visual{ renderer.visual };
 	changed |= renderer.changed;
 	if (renderer.changed) {
 		return true;
 	}
 
-	const bool draw_tint{
-		visual == "spritestack" || visual.contains("sprite") || visual.contains("text")
-	};
+	bool draw_tint{ visual == "spritestack" || visual.contains("sprite") ||
+					visual.contains("text") };
 
 	std::optional<ScopedIndent> section_indent;
 	if (draw_header && header.open) {
@@ -2866,11 +2853,9 @@ bool DrawVisualSectionImpl(
 		} else {
 			changed |= DrawVisualEffects(target, visual);
 
-			const bool shape{
-				visual == "rect" || visual == "circle" || visual == "roundedrect" ||
-				visual == "polygon" || visual == "ellipse" || visual == "triangle" ||
-				visual == "line" || visual == "capsule" || visual == "arc"
-			};
+			bool shape{ visual == "rect" || visual == "circle" || visual == "roundedrect" ||
+						visual == "polygon" || visual == "ellipse" || visual == "triangle" ||
+						visual == "line" || visual == "capsule" || visual == "arc" };
 
 			if (shape) {
 				changed |= DrawShapeVisual(target, visual);
@@ -2882,15 +2867,19 @@ bool DrawVisualSectionImpl(
 				ScopedID text_primary_scope{ "TextPrimary" };
 				changed |= DrawRequiredInlineVisualComponent<Target, ::ptgn::impl::TextData>(
 					target, "Text",
-					[&target](::ptgn::impl::TextData& value) { return DrawTextPrimary(target, value); },
+					[&target](::ptgn::impl::TextData& value) {
+						return DrawTextPrimary(target, value);
+					},
 					&MarkTextLayoutDirty
 				);
 			} else if (visual.contains("particle")) {
-				changed |= DrawRequiredInlineVisualComponent<Target, ::ptgn::impl::ParticleEmitterData>(
-					target, "Particle Emitter", [&target](::ptgn::impl::ParticleEmitterData& value) {
-						return DrawFlattenedConfig(target.ctx, value);
-					}
-				);
+				changed |=
+					DrawRequiredInlineVisualComponent<Target, ::ptgn::impl::ParticleEmitterData>(
+						target, "Particle Emitter",
+						[&target](::ptgn::impl::ParticleEmitterData& value) {
+							return DrawFlattenedConfig(target.ctx, value);
+						}
+					);
 			} else if (visual.contains("light")) {
 				changed |= DrawRequiredInlineVisualComponent<Target, LightData>(
 					target, "Light", [&target](LightData& value) {
@@ -2906,12 +2895,16 @@ bool DrawVisualSectionImpl(
 					auto before{ target.template Capture<::ptgn::impl::GraphicsData>() };
 					bool graphics_changed{ false };
 					if (!before) {
-						target.template SetLive<::ptgn::impl::GraphicsData>(::ptgn::impl::GraphicsData{});
+						target.template SetLive<::ptgn::impl::GraphicsData>(
+							::ptgn::impl::GraphicsData{}
+						);
 						graphics_changed = true;
 					}
 					{
 						ScopedID target_scope{ target.Id() };
-						ScopedID component_scope{ static_cast<int>(Hash<::ptgn::impl::GraphicsData>()) };
+						ScopedID component_scope{
+							static_cast<int>(Hash<::ptgn::impl::GraphicsData>())
+						};
 						auto& value{ target.entity.template Get<::ptgn::impl::GraphicsData>() };
 						graphics_changed |= DrawRegisteredComponentContents(
 							target.ctx, Hash<::ptgn::impl::GraphicsData>(), std::addressof(value)
@@ -2919,35 +2912,36 @@ bool DrawVisualSectionImpl(
 					}
 					auto after{ target.template Capture<::ptgn::impl::GraphicsData>() };
 					TrackComponentState(
-						target, "Edit Graphics", std::move(before), std::move(after), graphics_changed
+						target, "Edit Graphics", std::move(before), std::move(after),
+						graphics_changed
 					);
 					changed |= graphics_changed;
 				} else {
-					changed |= DrawRequiredInlineVisualComponent<Target, ::ptgn::impl::GraphicsData>(
-						target, "Graphics", [&target](::ptgn::impl::GraphicsData& value) {
-							return DrawRegisteredComponentContents(
-								target.ctx, Hash<::ptgn::impl::GraphicsData>(), std::addressof(value)
-							);
-						}
-					);
+					changed |=
+						DrawRequiredInlineVisualComponent<Target, ::ptgn::impl::GraphicsData>(
+							target, "Graphics", [&target](::ptgn::impl::GraphicsData& value) {
+								return DrawRegisteredComponentContents(
+									target.ctx, Hash<::ptgn::impl::GraphicsData>(),
+									std::addressof(value)
+								);
+							}
+						);
 				}
 			} else if (visual.contains("rendertarget")) {
 				changed |= DrawRenderTargetPrimary(target);
 			}
 
-			const bool uses_origin{
-				!shape || visual == "rect" || visual == "roundedrect"
-			};
+			bool uses_origin{ !shape || visual == "rect" || visual == "roundedrect" };
 			if (uses_origin) {
 				if (primary_scene_target) {
-					const Origin origin{ target.template Capture<Origin>().value_or(Origin::Center) };
+					const Origin origin{
+						target.template Capture<Origin>().value_or(Origin::Center)
+					};
 					DrawReadOnlyValue(target.ctx, "Origin", origin);
 				} else {
 					changed |= DrawImplicitDefaultVisualComponent<Target, Origin>(
 						target, "Origin", Origin::Center,
-						[&target](Origin& value) {
-							return DrawValue(target.ctx, "Origin", value);
-						}
+						[&target](Origin& value) { return DrawValue(target.ctx, "Origin", value); }
 					);
 				}
 			}
@@ -2964,10 +2958,7 @@ bool DrawVisualSectionImpl(
 	return changed;
 }
 
-
 } // namespace
-
-
 
 bool DrawVisualSection(
 	EntityInspectorTarget& target, bool draw_header, bool allow_renderer_change,

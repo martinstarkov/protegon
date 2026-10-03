@@ -1,3 +1,5 @@
+#include "runtime/graphics/sprite_stack.h"
+
 #include <algorithm>
 #include <cmath>
 #include <numbers>
@@ -16,7 +18,6 @@
 #include "runtime/ecs/tag.h"
 #include "runtime/graphics/draw.h"
 #include "runtime/graphics/shape.h"
-#include "runtime/graphics/sprite_stack.h"
 #include "runtime/scene/scene.h"
 #include "runtime/scene/scene_context.h"
 #include "runtime/scene/scene_registry.h"
@@ -34,9 +35,7 @@ constexpr float kReverseAcceleration{ 230.0f };
 constexpr float kBrakingDeceleration{ 480.0f };
 constexpr float kRollingDeceleration{ 400.0f };
 
-constexpr float kSteeringRate{
-	150.0f * std::numbers::pi_v<float> / 180.0f
-};
+constexpr float kSteeringRate{ 150.0f * std::numbers::pi_v<float> / 180.0f };
 
 constexpr float kLowSpeedSteering{ 0.20f };
 
@@ -53,9 +52,7 @@ float MoveToward(float value, float target, float maximum_delta) {
 }
 
 void NormalizeHeading(Radians& heading) {
-	constexpr float kFullRotation{
-		2.0f * std::numbers::pi_v<float>
-	};
+	constexpr float kFullRotation{ 2.0f * std::numbers::pi_v<float> };
 
 	heading.value = std::fmod(heading.value, kFullRotation);
 
@@ -65,37 +62,27 @@ void NormalizeHeading(Radians& heading) {
 }
 
 void CreateTrack(Scene& scene) {
-	Entity asphalt{
-		CreateCircle(scene, { 0.0f, 0.0f }, 330.0f, Color{ 51, 54, 59, 255 })
-	};
+	Entity asphalt{ CreateCircle(scene, { 0.0f, 0.0f }, 330.0f, Color{ 51, 54, 59, 255 }) };
 	SetDepth(asphalt, -20.0f);
 
-	Entity grass_center{
-		CreateCircle(scene, { 0.0f, 0.0f }, 205.0f, Color{ 47, 93, 55, 255 })
-	};
+	Entity grass_center{ CreateCircle(scene, { 0.0f, 0.0f }, 205.0f, Color{ 47, 93, 55, 255 }) };
 	SetDepth(grass_center, -19.0f);
 
 	constexpr int kMarkerCount{ 20 };
 
 	for (int i{ 0 }; i < kMarkerCount; ++i) {
-		const float angle{
-			static_cast<float>(i) / static_cast<float>(kMarkerCount) * 2.0f *
-			std::numbers::pi_v<float>
-		};
+		const float angle{ static_cast<float>(i) / static_cast<float>(kMarkerCount) * 2.0f *
+						   std::numbers::pi_v<float> };
 
 		const V2_float position{
 			std::sin(angle) * 267.0f,
 			-std::cos(angle) * 267.0f,
 		};
 
-		Entity marker{
-			CreateCircle(
-				scene,
-				position,
-				5.0f,
-				i % 2 == 0 ? Color{ 238, 224, 177, 255 } : Color{ 207, 79, 63, 255 }
-			)
-		};
+		Entity marker{ CreateCircle(
+			scene, position, 5.0f,
+			i % 2 == 0 ? Color{ 238, 224, 177, 255 } : Color{ 207, 79, 63, 255 }
+		) };
 		SetDepth(marker, -18.0f);
 	}
 }
@@ -107,7 +94,7 @@ public:
 	void OnLoad() override {
 		ctx().asset.Load({ { "car", "assets/sprite_stack_slices11.png" } });
 
-		car_	= SpriteStack{ GetEntity(Tag{ "Car" }) };
+		car_ = SpriteStack{ GetEntity(Tag{ "Car" }) };
 	}
 
 	void OnNew() override {
@@ -118,12 +105,10 @@ public:
 		Transform car_transform;
 		car_transform.position = { 0.0f, 210.0f };
 		car_transform.rotation = heading_;
-		car_transform.scale	= { 3.0f, 3.0f };
+		car_transform.scale	   = { 3.0f, 3.0f };
 
 		car_ = CreateSpriteStack(
-			*this,
-			car_transform,
-			"car",
+			*this, car_transform, "car",
 			SpriteStackData{
 				.layer_offset = { 0.0f, -1.2f },
 			},
@@ -141,82 +126,44 @@ public:
 
 		const auto& input{ ctx().input };
 
-		const bool forward{
-			input.KeyHeld(Key::W) ||
-			input.KeyHeld(Key::Up)
-		};
+		bool forward{ input.KeyHeld(Key::W) || input.KeyHeld(Key::Up) };
 
-		const bool reverse{
-			input.KeyHeld(Key::S) ||
-			input.KeyHeld(Key::Down)
-		};
+		bool reverse{ input.KeyHeld(Key::S) || input.KeyHeld(Key::Down) };
 
-		const bool left{
-			input.KeyHeld(Key::A) ||
-			input.KeyHeld(Key::Left)
-		};
+		bool left{ input.KeyHeld(Key::A) || input.KeyHeld(Key::Left) };
 
-		const bool right{
-			input.KeyHeld(Key::D) ||
-			input.KeyHeld(Key::Right)
-		};
+		bool right{ input.KeyHeld(Key::D) || input.KeyHeld(Key::Right) };
 
-		const float dt{
-			std::min(
-				ctx().dt().count(),
-				kMaximumPhysicsDeltaTime
-			)
-		};
+		const float dt{ std::min(ctx().dt().count(), kMaximumPhysicsDeltaTime) };
 
-		const float throttle{
-			(forward ? 1.0f : 0.0f) -
-			(reverse ? 1.0f : 0.0f)
-		};
+		const float throttle{ (forward ? 1.0f : 0.0f) - (reverse ? 1.0f : 0.0f) };
 
-		const float steering{
-			(right ? 1.0f : 0.0f) -
-			(left ? 1.0f : 0.0f)
-		};
+		const float steering{ (right ? 1.0f : 0.0f) - (left ? 1.0f : 0.0f) };
 
 		UpdateSpeed(throttle, dt);
 		UpdateSteering(steering, dt);
 		UpdateCar(dt);
 	}
+
 private:
 	void UpdateSpeed(float throttle, float dt) {
 		if (throttle > 0.0f) {
 			if (speed_ < 0.0f) {
-				speed_ = MoveToward(
-					speed_,
-					0.0f,
-					kBrakingDeceleration * dt
-				);
+				speed_ = MoveToward(speed_, 0.0f, kBrakingDeceleration * dt);
 			} else {
 				speed_ += kForwardAcceleration * dt;
 			}
 		} else if (throttle < 0.0f) {
 			if (speed_ > 0.0f) {
-				speed_ = MoveToward(
-					speed_,
-					0.0f,
-					kBrakingDeceleration * dt
-				);
+				speed_ = MoveToward(speed_, 0.0f, kBrakingDeceleration * dt);
 			} else {
 				speed_ -= kReverseAcceleration * dt;
 			}
 		} else {
-			speed_ = MoveToward(
-				speed_,
-				0.0f,
-				kRollingDeceleration * dt
-			);
+			speed_ = MoveToward(speed_, 0.0f, kRollingDeceleration * dt);
 		}
 
-		speed_ = std::clamp(
-			speed_,
-			-kMaximumReverseSpeed,
-			kMaximumForwardSpeed
-		);
+		speed_ = std::clamp(speed_, -kMaximumReverseSpeed, kMaximumForwardSpeed);
 	}
 
 	void UpdateSteering(float steering, float dt) {
@@ -224,32 +171,16 @@ private:
 			return;
 		}
 
-		const float speed_limit{
-			speed_ >= 0.0f ? kMaximumForwardSpeed : kMaximumReverseSpeed
-		};
+		const float speed_limit{ speed_ >= 0.0f ? kMaximumForwardSpeed : kMaximumReverseSpeed };
 
-		const float speed_fraction{
-			std::min(
-				1.0f,
-				std::abs(speed_) / speed_limit
-			)
-		};
+		const float speed_fraction{ std::min(1.0f, std::abs(speed_) / speed_limit) };
 
-		const float steering_strength{
-			kLowSpeedSteering +
-			(1.0f - kLowSpeedSteering) * speed_fraction
-		};
+		const float steering_strength{ kLowSpeedSteering +
+									   (1.0f - kLowSpeedSteering) * speed_fraction };
 
-		const float travel_sign{
-			speed_ >= 0.0f ? 1.0f : -1.0f
-		};
+		const float travel_sign{ speed_ >= 0.0f ? 1.0f : -1.0f };
 
-		heading_.value +=
-			steering *
-			kSteeringRate *
-			steering_strength *
-			travel_sign *
-			dt;
+		heading_.value += steering * kSteeringRate * steering_strength * travel_sign * dt;
 
 		NormalizeHeading(heading_);
 	}
@@ -286,8 +217,6 @@ private:
 			position.y = -kHalfBounds.y;
 		}
 	}
-
-	
 
 	SpriteStack car_;
 

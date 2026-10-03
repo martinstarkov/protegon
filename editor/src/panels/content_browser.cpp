@@ -3,19 +3,19 @@
 #include <imgui.h>
 #include <imgui_internal.h>
 #include <imgui_stdlib.h>
-#include <magic_enum/magic_enum.hpp>
 
 #include <algorithm>
 #include <array>
 #include <cfloat>
 #include <cmath>
-#include <cstring>
 #include <cstdint>
+#include <cstring>
 #include <filesystem>
 #include <format>
 #include <fstream>
 #include <functional>
 #include <iterator>
+#include <magic_enum/magic_enum.hpp>
 #include <memory>
 #include <optional>
 #include <ranges>
@@ -29,11 +29,11 @@
 #include <vector>
 
 #include "content_browser_icons.h"
-#include "editor/editor.h"
-#include "editor/editor_context.h"
 #include "core/graphics/surface.h"
 #include "core/util/hash.h"
 #include "core/util/string.h"
+#include "editor/editor.h"
+#include "editor/editor_context.h"
 #include "platform/file_dialog.h"
 #include "platform/window.h"
 #include "renderer/renderer.h"
@@ -127,11 +127,8 @@ std::string AssetIdentityString(const AssetKey& key, AssetKind kind) {
 }
 
 void BeginAssetKeyDragDropSource(
-	std::string_view key,
-	AssetKind kind,
-	std::optional<std::string_view> key_alias,
-	std::span<const ContentBrowserAssetSelection> move_keys,
-	bool move_allowed = true
+	std::string_view key, AssetKind kind, std::optional<std::string_view> key_alias,
+	std::span<const ContentBrowserAssetSelection> move_keys, bool move_allowed = true
 ) {
 	if (!ImGui::BeginDragDropSource(ImGuiDragDropFlags_SourceAllowNullID)) {
 		return;
@@ -147,7 +144,9 @@ void BeginAssetKeyDragDropSource(
 	dragged_asset_move_allowed = move_allowed;
 	dragged_asset_keys.clear();
 	if (move_keys.empty()) {
-		dragged_asset_keys.emplace_back(ContentBrowserAssetSelection{ AssetKey{ std::string{ key } }, kind });
+		dragged_asset_keys.emplace_back(
+			ContentBrowserAssetSelection{ AssetKey{ std::string{ key } }, kind }
+		);
 	} else {
 		dragged_asset_keys.assign(move_keys.begin(), move_keys.end());
 	}
@@ -178,7 +177,8 @@ std::optional<std::vector<ContentBrowserAssetSelection>> AcceptAssetMovePayload(
 				result = dragged_asset_keys;
 			} else {
 				const auto* asset_payload{ static_cast<const AssetKeyPayload*>(payload->Data) };
-				result = std::vector<ContentBrowserAssetSelection>{ ContentBrowserAssetSelection{ AssetKey{ asset_payload->key }, asset_payload->kind } };
+				result = std::vector<ContentBrowserAssetSelection>{ ContentBrowserAssetSelection{
+					AssetKey{ asset_payload->key }, asset_payload->kind } };
 			}
 		}
 	}
@@ -223,59 +223,54 @@ std::string FormatDuration(double seconds) {
 }
 
 ::ptgn::impl::TextureObject CreateEmbeddedIconTexture(
-	Renderer& renderer,
-	std::span<const std::uint8_t> png
+	Renderer& renderer, std::span<const std::uint8_t> png
 ) {
 	::ptgn::impl::Surface surface{ png, 4 };
 	return ::ptgn::impl::RendererAccessor{ renderer }.CreateTexture(
-		surface.Data(),
-		TextureDesc{
-			.size{ surface.GetSize() },
-			.format = TextureFormat::RGBA8,
-			.params{ TextureMinFilter::Linear, TextureMagFilter::Linear },
-		}
+		surface.Data(), TextureDesc{
+							.size{ surface.GetSize() },
+							.format = TextureFormat::RGBA8,
+							.params{ TextureMinFilter::Linear, TextureMagFilter::Linear },
+						}
 	);
 }
 
 std::optional<TilePreview> GetTilePreview(
-	const ::ptgn::impl::AssetRecord& asset,
-	::ptgn::impl::TextureId audio_icon,
+	const ::ptgn::impl::AssetRecord& asset, ::ptgn::impl::TextureId audio_icon,
 	::ptgn::impl::TextureId document_icon
 ) {
 	if (asset.preview.has_value()) {
 		return TilePreview{
 			.texture = asset.preview->texture,
-			.size = asset.preview->size,
+			.size	 = asset.preview->size,
 		};
 	}
 
 	switch (asset.kind) {
 		case AssetKind::Audio:
 			return TilePreview{
-				.texture = audio_icon,
-				.size = kEmbeddedIconSize,
+				.texture			  = audio_icon,
+				.size				  = kEmbeddedIconSize,
 				.tint_with_text_color = true,
 			};
 		case AssetKind::Shader: [[fallthrough]];
-		case AssetKind::Json: [[fallthrough]];
+		case AssetKind::Json:	[[fallthrough]];
 		case AssetKind::Prefab: [[fallthrough]];
 		case AssetKind::Scene:
 			return TilePreview{
-				.texture = document_icon,
-				.size = kEmbeddedIconSize,
+				.texture			  = document_icon,
+				.size				  = kEmbeddedIconSize,
 				.tint_with_text_color = true,
 			};
 		case AssetKind::Texture: [[fallthrough]];
-		case AssetKind::Font: [[fallthrough]];
+		case AssetKind::Font:	 [[fallthrough]];
 		case AssetKind::Unknown: break;
 	}
 	return std::nullopt;
 }
 
 void DrawPreviewAt(
-	ImVec2 preview_min,
-	float preview_size,
-	const std::optional<TilePreview>& preview,
+	ImVec2 preview_min, float preview_size, const std::optional<TilePreview>& preview,
 	ImU32 border_color
 ) {
 	const ImVec2 preview_max{ preview_min.x + preview_size, preview_min.y + preview_size };
@@ -283,17 +278,10 @@ void DrawPreviewAt(
 	auto* draw_list{ ImGui::GetWindowDrawList() };
 
 	draw_list->AddRectFilled(
-		preview_min,
-		preview_max,
-		ImGui::GetColorU32(ImGuiCol_FrameBg),
-		style.FrameRounding
+		preview_min, preview_max, ImGui::GetColorU32(ImGuiCol_FrameBg), style.FrameRounding
 	);
 	draw_list->AddRect(
-		preview_min,
-		preview_max,
-		border_color,
-		style.FrameRounding,
-		0,
+		preview_min, preview_max, border_color, style.FrameRounding, 0,
 		border_color == ImGui::GetColorU32(ImGuiCol_Border) ? 1.0f : 2.0f
 	);
 
@@ -312,24 +300,16 @@ void DrawPreviewAt(
 		preview_min.y + (preview_size - image_size.y) * 0.5f,
 	};
 	const ImVec2 image_max{ image_min.x + image_size.x, image_min.y + image_size.y };
-	const auto tint{
-		preview->tint_with_text_color
-			? ImGui::GetStyleColorVec4(ImGuiCol_Text)
-			: ImVec4{ 1.0f, 1.0f, 1.0f, 1.0f }
-	};
+	const auto tint{ preview->tint_with_text_color ? ImGui::GetStyleColorVec4(ImGuiCol_Text)
+												   : ImVec4{ 1.0f, 1.0f, 1.0f, 1.0f } };
 	draw_list->AddImage(
-		static_cast<ImTextureID>(preview->texture),
-		image_min,
-		image_max,
-		ImVec2{ 0.0f, 0.0f },
-		ImVec2{ 1.0f, 1.0f },
-		ImGui::GetColorU32(tint)
+		static_cast<ImTextureID>(preview->texture), image_min, image_max, ImVec2{ 0.0f, 0.0f },
+		ImVec2{ 1.0f, 1.0f }, ImGui::GetColorU32(tint)
 	);
 }
 
 bool AssetLess(
-	const ::ptgn::impl::AssetRecord& lhs,
-	const ::ptgn::impl::AssetRecord& rhs,
+	const ::ptgn::impl::AssetRecord& lhs, const ::ptgn::impl::AssetRecord& rhs,
 	ContentBrowserPanel::SortMode mode
 ) {
 	const auto lhs_type{ magic_enum::enum_name(lhs.kind) };
@@ -357,8 +337,8 @@ std::string AssetTypeText(const ::ptgn::impl::AssetRecord& asset) {
 		return std::string{ magic_enum::enum_name(asset.kind) };
 	}
 
-	const bool vertex{ HasShaderStage(asset.metadata.shader_stages, ShaderStageMask::Vertex) };
-	const bool fragment{ HasShaderStage(asset.metadata.shader_stages, ShaderStageMask::Fragment) };
+	bool vertex{ HasShaderStage(asset.metadata.shader_stages, ShaderStageMask::Vertex) };
+	bool fragment{ HasShaderStage(asset.metadata.shader_stages, ShaderStageMask::Fragment) };
 	if (vertex && fragment) {
 		return "Vertex and Fragment Shader";
 	}
@@ -405,9 +385,7 @@ void DrawMetadata(const ::ptgn::impl::AssetRecord& asset) {
 	ImGui::Text("Extension: %s", extension.empty() ? "None" : extension.c_str());
 	ImGui::Text("Size: %s", FormatBytes(asset.metadata.file_size).c_str());
 	ImGui::Text(
-		"State: %s [%zu]",
-		magic_enum::enum_name(asset.load_state).data(),
-		asset.reference_count
+		"State: %s [%zu]", magic_enum::enum_name(asset.load_state).data(), asset.reference_count
 	);
 	if (ImGui::IsItemHovered()) {
 		ImGui::SetTooltip(
@@ -417,9 +395,7 @@ void DrawMetadata(const ::ptgn::impl::AssetRecord& asset) {
 
 	if (asset.metadata.dimensions.has_value()) {
 		ImGui::Text(
-			"Dimensions: %d x %d",
-			asset.metadata.dimensions->x,
-			asset.metadata.dimensions->y
+			"Dimensions: %d x %d", asset.metadata.dimensions->x, asset.metadata.dimensions->y
 		);
 	}
 	if (asset.metadata.duration_seconds.has_value()) {
@@ -465,11 +441,8 @@ std::string ShaderReferenceLabel(std::string_view reference) {
 }
 
 bool DrawShaderSourceCombo(
-	const char* label,
-	std::string& selected,
-	ShaderStageMask requested_stage,
-	const ::ptgn::impl::AssetRecord& owner,
-	AssetManager& assets
+	const char* label, std::string& selected, ShaderStageMask requested_stage,
+	const ::ptgn::impl::AssetRecord& owner, AssetManager& assets
 ) {
 	bool changed{ false };
 	const auto preview{ ShaderReferenceLabel(selected) };
@@ -478,24 +451,22 @@ bool DrawShaderSourceCombo(
 	}
 
 	if (HasShaderStage(owner.metadata.shader_stages, requested_stage)) {
-		const bool active{ selected == kShaderSourceToken };
+		bool active{ selected == kShaderSourceToken };
 		if (ImGui::Selectable("This shader file", active)) {
 			selected = std::string{ kShaderSourceToken };
-			changed = true;
+			changed	 = true;
 		}
 	}
 
-	const auto engine_names{
-		requested_stage == ShaderStageMask::Vertex
-			? assets.GetEngineVertexShaderNames()
-			: assets.GetEngineFragmentShaderNames()
-	};
+	const auto engine_names{ requested_stage == ShaderStageMask::Vertex
+								 ? assets.GetEngineVertexShaderNames()
+								 : assets.GetEngineFragmentShaderNames() };
 	if (ImGui::BeginMenu("Engine")) {
 		for (const auto& name : engine_names) {
 			const std::string value{ std::string{ kBuiltinShaderPrefix } + name };
 			if (ImGui::MenuItem(name.c_str(), nullptr, selected == value)) {
 				selected = value;
-				changed = true;
+				changed	 = true;
 			}
 		}
 		ImGui::EndMenu();
@@ -518,7 +489,7 @@ bool DrawShaderSourceCombo(
 			const std::string value{ serialized->source_path.generic_string() };
 			if (ImGui::MenuItem(candidate.key.value.c_str(), nullptr, selected == value)) {
 				selected = value;
-				changed = true;
+				changed	 = true;
 			}
 		}
 		ImGui::EndMenu();
@@ -561,8 +532,8 @@ bool IsBuiltinShaderDirectory(const path& directory) {
 }
 
 bool IsUserAssetDirectory(const path& directory) {
-	return AssetDirectoryKind(directory).has_value() &&
-		!IsBaseAssetDirectory(directory) && !IsBuiltinShaderDirectory(directory);
+	return AssetDirectoryKind(directory).has_value() && !IsBaseAssetDirectory(directory) &&
+		   !IsBuiltinShaderDirectory(directory);
 }
 
 bool IsShaderDirectory(const path& directory) {
@@ -572,8 +543,8 @@ bool IsShaderDirectory(const path& directory) {
 std::vector<path> GetChildDirectories(const path& directory) {
 	std::vector<path> directories;
 	std::error_code error;
-	for (std::filesystem::directory_iterator it{ directory, error }, end;
-		 !error && it != end; it.increment(error)) {
+	for (std::filesystem::directory_iterator it{ directory, error }, end; !error && it != end;
+		 it.increment(error)) {
 		std::error_code entry_error;
 		if (it->is_directory(entry_error) && !entry_error) {
 			directories.emplace_back(it->path().filename());
@@ -584,24 +555,18 @@ std::vector<path> GetChildDirectories(const path& directory) {
 }
 
 path AssetRelativePath(
-	const ::ptgn::impl::AssetRecord& asset,
-	const path& project_root,
-	const path& assets_root
+	const ::ptgn::impl::AssetRecord& asset, const path& project_root, const path& assets_root
 ) {
 	std::error_code error;
-	const path absolute{
-		asset.source_path.is_absolute() ? asset.source_path : project_root / asset.source_path
-	};
+	const path absolute{ asset.source_path.is_absolute() ? asset.source_path
+														 : project_root / asset.source_path };
 	auto relative{ std::filesystem::relative(absolute, assets_root, error) };
 	return error ? asset.source_path : relative.lexically_normal();
 }
 
 bool AssetVisibleInDirectory(
-	const ::ptgn::impl::AssetRecord& asset,
-	const path& project_root,
-	const path& assets_root,
-	const path& selected_directory,
-	bool recursive
+	const ::ptgn::impl::AssetRecord& asset, const path& project_root, const path& assets_root,
+	const path& selected_directory, bool recursive
 ) {
 	if (asset.engine_asset) {
 		return false;
@@ -609,7 +574,7 @@ bool AssetVisibleInDirectory(
 	if (!asset.cataloged && asset.kind == AssetKind::Font && asset.key.value == kDefaultFont) {
 		const path selected{ selected_directory.lexically_normal() };
 		return selected.empty() || selected == "." ||
-			(IsBaseAssetDirectory(selected) && AssetDirectoryKind(selected) == AssetKind::Font);
+			   (IsBaseAssetDirectory(selected) && AssetDirectoryKind(selected) == AssetKind::Font);
 	}
 	const path relative{ AssetRelativePath(asset, project_root, assets_root) };
 	const path parent{ relative.parent_path().lexically_normal() };
@@ -642,17 +607,12 @@ bool IsPathInsideDirectory(const path& candidate, const path& directory) {
 	return first != relative.end() && *first != "..";
 }
 
-bool ShaderProgramsEqual(
-	const SerializedShaderProgram& lhs,
-	const SerializedShaderProgram& rhs
-) {
+bool ShaderProgramsEqual(const SerializedShaderProgram& lhs, const SerializedShaderProgram& rhs) {
 	return lhs.vertex == rhs.vertex && lhs.fragment == rhs.fragment;
 }
 
 SerializedShaderProgram ResolveShaderProgramForSource(
-	AssetManager& assets,
-	std::string_view source,
-	const SerializedShaderProgram& current
+	AssetManager& assets, std::string_view source, const SerializedShaderProgram& current
 ) {
 	const auto stages{ DetectShaderStages(source) };
 	const auto suggested{ assets.SuggestShaderProgram(source).value_or(SerializedShaderProgram{}) };
@@ -689,7 +649,9 @@ std::optional<std::vector<std::uint8_t>> ReadFileBytes(const path& file_path) {
 	std::vector<std::uint8_t> bytes(static_cast<std::size_t>(end));
 	input.seekg(0, std::ios::beg);
 	if (!bytes.empty()) {
-		input.read(reinterpret_cast<char*>(bytes.data()), static_cast<std::streamsize>(bytes.size()));
+		input.read(
+			reinterpret_cast<char*>(bytes.data()), static_cast<std::streamsize>(bytes.size())
+		);
 	}
 	return input ? std::optional<std::vector<std::uint8_t>>{ std::move(bytes) } : std::nullopt;
 }
@@ -702,8 +664,7 @@ bool WriteFileBytes(const path& file_path, std::span<const std::uint8_t> bytes) 
 	}
 	if (!bytes.empty()) {
 		output.write(
-			reinterpret_cast<const char*>(bytes.data()),
-			static_cast<std::streamsize>(bytes.size())
+			reinterpret_cast<const char*>(bytes.data()), static_cast<std::streamsize>(bytes.size())
 		);
 	}
 	return static_cast<bool>(output);
@@ -711,24 +672,25 @@ bool WriteFileBytes(const path& file_path, std::span<const std::uint8_t> bytes) 
 
 bool IsDeletingAssetAllowed(const ::ptgn::impl::AssetRecord& record) {
 	return record.cataloged && !record.engine_asset && record.kind != AssetKind::Scene &&
-		record.reference_count == 0 && record.load_state != AssetLoadState::Queued &&
-		record.load_state != AssetLoadState::Loading &&
-		record.load_state != AssetLoadState::Finalizing;
+		   record.reference_count == 0 && record.load_state != AssetLoadState::Queued &&
+		   record.load_state != AssetLoadState::Loading &&
+		   record.load_state != AssetLoadState::Finalizing;
 }
 
 std::unordered_map<std::string, ::ptgn::impl::AssetRecord> AssetRecordMap(AssetManager& assets) {
 	std::unordered_map<std::string, ::ptgn::impl::AssetRecord> result;
 	for (auto& record : ::ptgn::impl::AssetAccessor{ assets }.GetAssets()) {
 		if (!record.engine_asset) {
-			result.insert_or_assign(AssetIdentityString(record.key, record.kind), std::move(record));
+			result.insert_or_assign(
+				AssetIdentityString(record.key, record.kind), std::move(record)
+			);
 		}
 	}
 	return result;
 }
 
 std::optional<std::vector<AssetDeleteSnapshot>> CaptureAssetDeleteSnapshots(
-	AssetManager& assets,
-	std::span<const ContentBrowserAssetSelection> keys
+	AssetManager& assets, std::span<const ContentBrowserAssetSelection> keys
 ) {
 	const auto project_root{ assets.GetProjectRoot() };
 	if (!project_root.has_value()) {
@@ -745,21 +707,21 @@ std::optional<std::vector<AssetDeleteSnapshot>> CaptureAssetDeleteSnapshots(
 			!IsDeletingAssetAllowed(record_it->second)) {
 			return std::nullopt;
 		}
-		const path absolute{
-			serialized->source_path.is_absolute()
-				? serialized->source_path
-				: project_root.value() / serialized->source_path
-		};
+		const path absolute{ serialized->source_path.is_absolute()
+								 ? serialized->source_path
+								 : project_root.value() / serialized->source_path };
 		auto bytes{ ReadFileBytes(absolute.lexically_normal()) };
 		if (!bytes.has_value()) {
 			return std::nullopt;
 		}
-		snapshots.emplace_back(AssetDeleteSnapshot{
-			.asset = serialized.value(),
-			.bytes = std::move(bytes.value()),
-			.project_preload = record_it->second.globally_pinned,
-			.manual_pin = record_it->second.manually_pinned,
-		});
+		snapshots.emplace_back(
+			AssetDeleteSnapshot{
+				.asset			 = serialized.value(),
+				.bytes			 = std::move(bytes.value()),
+				.project_preload = record_it->second.globally_pinned,
+				.manual_pin		 = record_it->second.manually_pinned,
+			}
+		);
 	}
 	return snapshots;
 }
@@ -811,11 +773,9 @@ bool RestoreAssetSnapshots(AssetManager& assets, std::span<const AssetDeleteSnap
 		return false;
 	}
 	for (const auto& snapshot : snapshots) {
-		const path absolute{
-			snapshot.asset.source_path.is_absolute()
-				? snapshot.asset.source_path
-				: root.value() / snapshot.asset.source_path
-		};
+		const path absolute{ snapshot.asset.source_path.is_absolute()
+								 ? snapshot.asset.source_path
+								 : root.value() / snapshot.asset.source_path };
 		if (!WriteFileBytes(absolute.lexically_normal(), snapshot.bytes)) {
 			return false;
 		}
@@ -833,8 +793,7 @@ bool RestoreAssetSnapshots(AssetManager& assets, std::span<const AssetDeleteSnap
 }
 
 std::optional<DirectoryDeleteSnapshot> CaptureDirectoryDeleteSnapshot(
-	AssetManager& assets,
-	const path& relative_directory
+	AssetManager& assets, const path& relative_directory
 ) {
 	const auto assets_root{ assets.GetAssetDirectory() };
 	const auto project_root{ assets.GetProjectRoot() };
@@ -854,9 +813,9 @@ std::optional<DirectoryDeleteSnapshot> CaptureDirectoryDeleteSnapshot(
 	const auto records{ AssetRecordMap(assets) };
 	std::unordered_map<std::string, SerializedAsset> catalog_by_path;
 	for (const auto& asset : assets.GetCatalog()) {
-		const path absolute{
-			asset.source_path.is_absolute() ? asset.source_path : project_root.value() / asset.source_path
-		};
+		const path absolute{ asset.source_path.is_absolute()
+								 ? asset.source_path
+								 : project_root.value() / asset.source_path };
 		catalog_by_path.insert_or_assign(absolute.lexically_normal().generic_string(), asset);
 	}
 
@@ -865,7 +824,9 @@ std::optional<DirectoryDeleteSnapshot> CaptureDirectoryDeleteSnapshot(
 		 !error && it != end; it.increment(error)) {
 		std::error_code entry_error;
 		if (it->is_directory(entry_error) && !entry_error) {
-			const auto relative{ std::filesystem::relative(it->path(), assets_root.value(), entry_error) };
+			const auto relative{
+				std::filesystem::relative(it->path(), assets_root.value(), entry_error)
+			};
 			if (!entry_error) {
 				snapshot.directories.emplace_back(relative.lexically_normal());
 			}
@@ -888,17 +849,21 @@ std::optional<DirectoryDeleteSnapshot> CaptureDirectoryDeleteSnapshot(
 
 		DirectoryFileSnapshot file{
 			.relative_to_assets = relative_file.lexically_normal(),
-			.bytes = std::move(bytes.value()),
+			.bytes				= std::move(bytes.value()),
 		};
-		const auto catalog_it{ catalog_by_path.find(it->path().lexically_normal().generic_string()) };
+		const auto catalog_it{
+			catalog_by_path.find(it->path().lexically_normal().generic_string())
+		};
 		if (catalog_it != catalog_by_path.end()) {
-			const auto record_it{ records.find(AssetIdentityString(catalog_it->second.key, catalog_it->second.kind)) };
+			const auto record_it{
+				records.find(AssetIdentityString(catalog_it->second.key, catalog_it->second.kind))
+			};
 			if (record_it == records.end() || !IsDeletingAssetAllowed(record_it->second)) {
 				return std::nullopt;
 			}
-			file.asset = catalog_it->second;
+			file.asset			 = catalog_it->second;
 			file.project_preload = record_it->second.globally_pinned;
-			file.manual_pin = record_it->second.manually_pinned;
+			file.manual_pin		 = record_it->second.manually_pinned;
 		}
 		snapshot.files.emplace_back(std::move(file));
 	}
@@ -911,12 +876,14 @@ bool DeleteDirectorySnapshot(AssetManager& assets, const DirectoryDeleteSnapshot
 		if (!file.asset.has_value()) {
 			continue;
 		}
-		assets_to_delete.emplace_back(AssetDeleteSnapshot{
-			.asset = file.asset.value(),
-			.bytes = file.bytes,
-			.project_preload = file.project_preload,
-			.manual_pin = file.manual_pin,
-		});
+		assets_to_delete.emplace_back(
+			AssetDeleteSnapshot{
+				.asset			 = file.asset.value(),
+				.bytes			 = file.bytes,
+				.project_preload = file.project_preload,
+				.manual_pin		 = file.manual_pin,
+			}
+		);
 	}
 	if (!DeleteAssetSnapshots(assets, assets_to_delete)) {
 		return false;
@@ -978,8 +945,7 @@ bool AssetReferencedByEditor(EditorContext& ctx, const AssetKey& key) {
 }
 
 bool RectsOverlap(ImVec2 a_min, ImVec2 a_max, ImVec2 b_min, ImVec2 b_max) {
-	return a_min.x <= b_max.x && a_max.x >= b_min.x &&
-		a_min.y <= b_max.y && a_max.y >= b_min.y;
+	return a_min.x <= b_max.x && a_max.x >= b_min.x && a_min.y <= b_max.y && a_max.y >= b_min.y;
 }
 
 } // namespace
@@ -996,9 +962,9 @@ bool AcceptAssetKeyDragDrop(AssetKey& value, std::optional<AssetKind> accepted_k
 		const auto* asset_payload{ static_cast<const AssetKeyPayload*>(payload->Data) };
 		if (!accepted_kind.has_value() || accepted_kind.value() == asset_payload->kind) {
 			if (ImGui::AcceptDragDropPayload(kAssetKeyPayloadType)) {
-				value.value = asset_payload->key;
+				value.value				= asset_payload->key;
 				accepted_asset_key_drop = true;
-				changed = true;
+				changed					= true;
 			}
 		}
 	}
@@ -1007,7 +973,7 @@ bool AcceptAssetKeyDragDrop(AssetKey& value, std::optional<AssetKind> accepted_k
 }
 
 bool ConsumeAcceptedAssetKeyDrop() {
-	const bool accepted{ accepted_asset_key_drop };
+	bool accepted{ accepted_asset_key_drop };
 	accepted_asset_key_drop = false;
 	return accepted;
 }
@@ -1050,14 +1016,10 @@ void ContentBrowserPanel::InitializePreviewIcons(EditorContext& ctx) {
 	if (preview_icons_initialized_) {
 		return;
 	}
-	audio_icon_texture_ = CreateEmbeddedIconTexture(
-		ctx.editor.GetRenderer(),
-		std::span{ embedded::kAudioNotePng }
-	);
-	document_icon_texture_ = CreateEmbeddedIconTexture(
-		ctx.editor.GetRenderer(),
-		std::span{ embedded::kDocumentPng }
-	);
+	audio_icon_texture_ =
+		CreateEmbeddedIconTexture(ctx.editor.GetRenderer(), std::span{ embedded::kAudioNotePng });
+	document_icon_texture_ =
+		CreateEmbeddedIconTexture(ctx.editor.GetRenderer(), std::span{ embedded::kDocumentPng });
 	preview_icons_initialized_ = true;
 }
 
@@ -1087,7 +1049,6 @@ void ContentBrowserPanel::DrawContentBrowser(EditorContext& ctx) {
 	DrawToolbar(ctx);
 	ImGui::Separator();
 
-
 	if (ImGui::IsWindowHovered(ImGuiHoveredFlags_RootAndChildWindows)) {
 		auto files{ ConsumeDroppedFiles() };
 		if (!files.empty()) {
@@ -1099,52 +1060,35 @@ void ContentBrowserPanel::DrawContentBrowser(EditorContext& ctx) {
 		}
 	}
 
-	const float footer_height{
-		ImGui::GetTextLineHeight() +
-		ImGui::GetStyle().ItemSpacing.y * 2.0f +
-		2.0f
-	};
+	const float footer_height{ ImGui::GetTextLineHeight() + ImGui::GetStyle().ItemSpacing.y * 2.0f +
+							   2.0f };
 	const ImVec2 available{ ImGui::GetContentRegionAvail() };
-	const float body_height{
-		std::max(1.0f, available.y - footer_height)
-	};
+	const float body_height{ std::max(1.0f, available.y - footer_height) };
 
 	ImGui::BeginChild(
-		"##content_browser_body",
-		ImVec2{ 0.0f, body_height },
-		false,
-		ImGuiWindowFlags_NoScrollbar
+		"##content_browser_body", ImVec2{ 0.0f, body_height }, false, ImGuiWindowFlags_NoScrollbar
 	);
 
 	const ImVec2 body_available{ ImGui::GetContentRegionAvail() };
 	constexpr float splitter_width{ 4.0f };
-	const float max_folder_width{
-		std::max(48.0f, body_available.x - splitter_width - 80.0f)
-	};
+	const float max_folder_width{ std::max(48.0f, body_available.x - splitter_width - 80.0f) };
 	folder_pane_width_ = std::clamp(folder_pane_width_, 48.0f, max_folder_width);
 
-	ImGui::BeginChild(
-		"##content_browser_folders",
-		ImVec2{ folder_pane_width_, body_available.y }
-	);
+	ImGui::BeginChild("##content_browser_folders", ImVec2{ folder_pane_width_, body_available.y });
 	DrawFolderTree(ctx);
 	ImGui::EndChild();
 
 	ImGui::SameLine(0.0f, 0.0f);
 	ImGui::InvisibleButton(
-		"##content_browser_splitter",
-		ImVec2{ splitter_width, std::max(1.0f, body_available.y) }
+		"##content_browser_splitter", ImVec2{ splitter_width, std::max(1.0f, body_available.y) }
 	);
 	if (ImGui::IsItemHovered() || ImGui::IsItemActive()) {
 		ImGui::SetMouseCursor(ImGuiMouseCursor_ResizeEW);
 	}
 	if (ImGui::IsItemActive()) {
 		folder_pane_manual_width_ = true;
-		folder_pane_width_ = std::clamp(
-			folder_pane_width_ + ImGui::GetIO().MouseDelta.x,
-			48.0f,
-			max_folder_width
-		);
+		folder_pane_width_ =
+			std::clamp(folder_pane_width_ + ImGui::GetIO().MouseDelta.x, 48.0f, max_folder_width);
 	}
 	if (ImGui::IsItemHovered() && ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left)) {
 		folder_pane_manual_width_ = false;
@@ -1160,7 +1104,6 @@ void ContentBrowserPanel::DrawContentBrowser(EditorContext& ctx) {
 	ImGui::SameLine(0.0f, 0.0f);
 	DrawAssetGrid(ctx);
 
-
 	ImGui::EndChild();
 
 	ImGui::Separator();
@@ -1171,20 +1114,13 @@ void ContentBrowserPanel::DrawContentBrowser(EditorContext& ctx) {
 
 void ContentBrowserPanel::DrawToolbar(EditorContext& ctx) {
 	auto& settings{ ctx.editor.GetSettings() };
-	settings.content_browser_items_per_row = std::clamp(
-		settings.content_browser_items_per_row,
-		kMinItemsPerRow,
-		kMaxItemsPerRow
-	);
-	const bool can_mutate{ ctx.undo.IsUndoRedoEnabled() };
+	settings.content_browser_items_per_row =
+		std::clamp(settings.content_browser_items_per_row, kMinItemsPerRow, kMaxItemsPerRow);
+	bool can_mutate{ ctx.undo.IsUndoRedoEnabled() };
 
-	const bool built_in_directory{ IsBuiltinShaderDirectory(selected_directory_) };
+	bool built_in_directory{ IsBuiltinShaderDirectory(selected_directory_) };
 
-	const bool can_import{
-		can_mutate &&
-		!built_in_directory &&
-		kAssetImportCreateMoveEnabled
-	};
+	bool can_import{ can_mutate && !built_in_directory && kAssetImportCreateMoveEnabled };
 	ImGui::BeginDisabled(!can_import);
 	if (ImGui::Button("Import...")) {
 		auto result{ ctx.editor.GetWindow().file.OpenFiles(ImportOptions()) };
@@ -1203,12 +1139,8 @@ void ContentBrowserPanel::DrawToolbar(EditorContext& ctx) {
 
 	ImGui::SameLine();
 
-	const bool can_create_folder{
-		can_mutate &&
-		AssetDirectoryKind(selected_directory_).has_value() &&
-		!built_in_directory &&
-		kAssetImportCreateMoveEnabled
-	};
+	bool can_create_folder{ can_mutate && AssetDirectoryKind(selected_directory_).has_value() &&
+							!built_in_directory && kAssetImportCreateMoveEnabled };
 	ImGui::BeginDisabled(!can_create_folder);
 	if (ImGui::Button("New Folder")) {
 		create_folder_parent_ = selected_directory_;
@@ -1243,7 +1175,9 @@ void ContentBrowserPanel::DrawToolbar(EditorContext& ctx) {
 	}
 
 	ImGui::SameLine();
-	if (ImGui::ArrowButton("##asset_sort_direction", sort_ascending_ ? ImGuiDir_Up : ImGuiDir_Down)) {
+	if (ImGui::ArrowButton(
+			"##asset_sort_direction", sort_ascending_ ? ImGuiDir_Up : ImGuiDir_Down
+		)) {
 		sort_ascending_ = !sort_ascending_;
 	}
 
@@ -1255,7 +1189,6 @@ void ContentBrowserPanel::DrawToolbar(EditorContext& ctx) {
 			ClearAssetSelection();
 		}
 	}
-
 
 	const float counter_width{ 58.0f };
 	const float search_width{ std::max(120.0f, ImGui::GetContentRegionAvail().x - counter_width) };
@@ -1270,8 +1203,7 @@ void ContentBrowserPanel::DrawToolbar(EditorContext& ctx) {
 		const float wheel{ ImGui::GetIO().MouseWheel };
 		if (wheel != 0.0f) {
 			settings.content_browser_items_per_row = std::clamp(
-				settings.content_browser_items_per_row + (wheel > 0.0f ? 1 : -1),
-				kMinItemsPerRow,
+				settings.content_browser_items_per_row + (wheel > 0.0f ? 1 : -1), kMinItemsPerRow,
 				kMaxItemsPerRow
 			);
 		}
@@ -1279,9 +1211,7 @@ void ContentBrowserPanel::DrawToolbar(EditorContext& ctx) {
 }
 
 bool ContentBrowserPanel::CreateDirectory(
-	EditorContext& ctx,
-	const path& parent_directory,
-	std::string_view name
+	EditorContext& ctx, const path& parent_directory, std::string_view name
 ) {
 	if constexpr (!kAssetImportCreateMoveEnabled) {
 		status_ = "Creating asset folders is unavailable in the Web editor.";
@@ -1332,9 +1262,7 @@ bool ContentBrowserPanel::CreateDirectory(
 }
 
 bool ContentBrowserPanel::RenameDirectory(
-	EditorContext& ctx,
-	const path& directory,
-	std::string_view new_name
+	EditorContext& ctx, const path& directory, std::string_view new_name
 ) {
 	if (!ctx.undo.IsUndoRedoEnabled() || !IsUserAssetDirectory(directory) || new_name.empty() ||
 		new_name == "." || new_name == ".." ||
@@ -1363,7 +1291,9 @@ bool ContentBrowserPanel::RenameDirectory(
 	return true;
 }
 
-bool ContentBrowserPanel::MoveSelectedAssets(EditorContext& ctx, const path& destination_directory) {
+bool ContentBrowserPanel::MoveSelectedAssets(
+	EditorContext& ctx, const path& destination_directory
+) {
 	if constexpr (!kAssetImportCreateMoveEnabled) {
 		status_ = "Moving assets is unavailable in the Web editor.";
 		return false;
@@ -1395,11 +1325,9 @@ bool ContentBrowserPanel::MoveSelectedAssets(EditorContext& ctx, const path& des
 			return false;
 		}
 
-		const path absolute{
-			asset->source_path.is_absolute()
-				? asset->source_path
-				: project_root.value() / asset->source_path
-		};
+		const path absolute{ asset->source_path.is_absolute()
+								 ? asset->source_path
+								 : project_root.value() / asset->source_path };
 		std::error_code error;
 		const auto relative{ std::filesystem::relative(absolute, assets_root.value(), error) };
 		if (error) {
@@ -1414,7 +1342,8 @@ bool ContentBrowserPanel::MoveSelectedAssets(EditorContext& ctx, const path& des
 			for (std::size_t i{ 0 }; i < moved; ++i) {
 				assets.MoveAsset(before[i].first.key, before[i].first.kind, before[i].second);
 			}
-			status_ = "Could not move the selected assets. A destination filename may already exist or the filesystem move may have failed.";
+			status_ = "Could not move the selected assets. A destination filename may already "
+					  "exist or the filesystem move may have failed.";
 			return false;
 		}
 		++moved;
@@ -1437,17 +1366,14 @@ bool ContentBrowserPanel::MoveSelectedAssets(EditorContext& ctx, const path& des
 	);
 
 	status_ = std::format(
-		"Moved {} asset{} to assets/{}",
-		before.size(),
-		before.size() == 1 ? "" : "s",
+		"Moved {} asset{} to assets/{}", before.size(), before.size() == 1 ? "" : "s",
 		destination.generic_string()
 	);
 	return true;
 }
 
 bool ContentBrowserPanel::DeleteAssets(
-	EditorContext& ctx,
-	const std::vector<ContentBrowserAssetSelection>& selected
+	EditorContext& ctx, const std::vector<ContentBrowserAssetSelection>& selected
 ) {
 	if (!ctx.undo.IsUndoRedoEnabled() || selected.empty()) {
 		return false;
@@ -1477,11 +1403,7 @@ bool ContentBrowserPanel::DeleteAssets(
 	for (const auto& asset : selected) {
 		std::erase(selected_assets_, asset);
 	}
-	status_ = std::format(
-		"Deleted {} asset{}",
-		selected.size(),
-		selected.size() == 1 ? "" : "s"
-	);
+	status_ = std::format("Deleted {} asset{}", selected.size(), selected.size() == 1 ? "" : "s");
 	return true;
 }
 
@@ -1516,14 +1438,13 @@ bool ContentBrowserPanel::DeleteDirectory(EditorContext& ctx, const path& direct
 }
 
 bool ContentBrowserPanel::RenameAssetKey(
-	EditorContext& ctx,
-	ContentBrowserAssetSelection asset,
-	std::string_view new_key
+	EditorContext& ctx, ContentBrowserAssetSelection asset, std::string_view new_key
 ) {
 	if (!ctx.undo.IsUndoRedoEnabled() || new_key.empty() || new_key.contains('\0') ||
 		(asset.kind == AssetKind::Font && asset.key.value == kDefaultFont) ||
 		AssetReferencedByEditor(ctx, asset.key)) {
-		status_ = "Asset keys can only be renamed while they are not referenced by an editor scene or screen effect.";
+		status_ = "Asset keys can only be renamed while they are not referenced by an editor scene "
+				  "or screen effect.";
 		return false;
 	}
 
@@ -1534,7 +1455,8 @@ bool ContentBrowserPanel::RenameAssetKey(
 		return true;
 	}
 	if (!assets.RenameAssetKey(before, asset.kind, after)) {
-		status_ = "Could not rename the asset key. The new key may already exist for this asset type or the asset may be resident/in use.";
+		status_ = "Could not rename the asset key. The new key may already exist for this asset "
+				  "type or the asset may be resident/in use.";
 		return false;
 	}
 
@@ -1609,11 +1531,7 @@ void ContentBrowserPanel::ImportFiles(EditorContext& ctx, const std::vector<path
 		[assets_ptr, snapshots]() { RestoreAssetSnapshots(*assets_ptr, *snapshots); }
 	);
 	selected_assets_ = imported;
-	status_ = std::format(
-		"Imported {} asset{}",
-		imported.size(),
-		imported.size() == 1 ? "" : "s"
-	);
+	status_ = std::format("Imported {} asset{}", imported.size(), imported.size() == 1 ? "" : "s");
 }
 
 void ContentBrowserPanel::DrawFolderTree(EditorContext& ctx) {
@@ -1626,45 +1544,28 @@ void ContentBrowserPanel::DrawFolderTree(EditorContext& ctx) {
 	const auto& style{ ImGui::GetStyle() };
 
 	const float tree_start_x{ ImGui::GetCursorScreenPos().x };
-	const float leading_padding{
-		std::max(0.0f, tree_start_x - ImGui::GetWindowPos().x)
-	};
+	const float leading_padding{ std::max(0.0f, tree_start_x - ImGui::GetWindowPos().x) };
 	const float trailing_padding{ std::max(3.0f, style.FramePadding.x) };
-	float measured_width{
-		leading_padding +
-		ImGui::GetTreeNodeToLabelSpacing() +
-		ImGui::CalcTextSize("assets").x +
-		trailing_padding
-	};
+	float measured_width{ leading_padding + ImGui::GetTreeNodeToLabelSpacing() +
+						  ImGui::CalcTextSize("assets").x + trailing_padding };
 
 	auto measure_node = [&](std::string_view label) {
-		const float indent{
-			std::max(
-				0.0f,
-				ImGui::GetCursorScreenPos().x - tree_start_x
-			)
-		};
+		const float indent{ std::max(0.0f, ImGui::GetCursorScreenPos().x - tree_start_x) };
 		measured_width = std::max(
-			measured_width,
-			leading_padding +
-				indent +
-				ImGui::GetTreeNodeToLabelSpacing() +
-				ImGui::CalcTextSize(label.data(), label.data() + label.size()).x +
-				trailing_padding
+			measured_width, leading_padding + indent + ImGui::GetTreeNodeToLabelSpacing() +
+								ImGui::CalcTextSize(label.data(), label.data() + label.size()).x +
+								trailing_padding
 		);
 	};
 
-	ImGuiTreeNodeFlags root_flags{
-		ImGuiTreeNodeFlags_DefaultOpen |
-		ImGuiTreeNodeFlags_OpenOnArrow |
-		ImGuiTreeNodeFlags_SpanFullWidth
-	};
+	ImGuiTreeNodeFlags root_flags{ ImGuiTreeNodeFlags_DefaultOpen | ImGuiTreeNodeFlags_OpenOnArrow |
+								   ImGuiTreeNodeFlags_SpanFullWidth };
 	if (selected_directory_.empty()) {
 		root_flags |= ImGuiTreeNodeFlags_Selected;
 	}
 
 	measure_node("assets");
-	const bool root_open{ ImGui::TreeNodeEx("assets", root_flags) };
+	bool root_open{ ImGui::TreeNodeEx("assets", root_flags) };
 	if (ImGui::IsItemClicked(ImGuiMouseButton_Left) && !ImGui::IsItemToggledOpen()) {
 		selected_directory_.clear();
 		ClearAssetSelection();
@@ -1675,27 +1576,20 @@ void ContentBrowserPanel::DrawFolderTree(EditorContext& ctx) {
 		const std::string id{ relative.lexically_normal().generic_string() };
 		ImGui::PushID(id.c_str());
 
-		const bool built_in_directory{ IsBuiltinShaderDirectory(relative) };
+		bool built_in_directory{ IsBuiltinShaderDirectory(relative) };
 		const path absolute{ assets_root.value() / relative };
-		auto children{
-			built_in_directory ? std::vector<path>{} : GetChildDirectories(absolute)
-		};
+		auto children{ built_in_directory ? std::vector<path>{} : GetChildDirectories(absolute) };
 		if (IsBaseAssetDirectory(relative) && AssetDirectoryKind(relative) == AssetKind::Shader) {
 			std::erase_if(children, [](const path& child) {
 				return child.filename().string() == kBuiltinShaderDirectoryName;
 			});
 		}
-		const bool has_virtual_builtin{
-			show_engine_shaders_ &&
-			IsBaseAssetDirectory(relative) &&
-			AssetDirectoryKind(relative) == AssetKind::Shader
-		};
-		const bool has_children{ !children.empty() || has_virtual_builtin };
+		bool has_virtual_builtin{ show_engine_shaders_ && IsBaseAssetDirectory(relative) &&
+								  AssetDirectoryKind(relative) == AssetKind::Shader };
+		bool has_children{ !children.empty() || has_virtual_builtin };
 
-		ImGuiTreeNodeFlags flags{
-			ImGuiTreeNodeFlags_SpanFullWidth |
-			ImGuiTreeNodeFlags_OpenOnArrow
-		};
+		ImGuiTreeNodeFlags flags{ ImGuiTreeNodeFlags_SpanFullWidth |
+								  ImGuiTreeNodeFlags_OpenOnArrow };
 		if (!has_children) {
 			flags |= ImGuiTreeNodeFlags_Leaf | ImGuiTreeNodeFlags_NoTreePushOnOpen;
 		}
@@ -1705,7 +1599,7 @@ void ContentBrowserPanel::DrawFolderTree(EditorContext& ctx) {
 
 		const std::string name{ relative.filename().string() };
 		measure_node(name);
-		const bool open{ ImGui::TreeNodeEx("##Directory", flags, "%s", name.c_str()) };
+		bool open{ ImGui::TreeNodeEx("##Directory", flags, "%s", name.c_str()) };
 
 		if (ImGui::IsItemClicked(ImGuiMouseButton_Left) && !ImGui::IsItemToggledOpen()) {
 			selected_directory_ = relative;
@@ -1713,10 +1607,7 @@ void ContentBrowserPanel::DrawFolderTree(EditorContext& ctx) {
 		}
 
 		if (!built_in_directory) {
-			ImGui::OpenPopupOnItemClick(
-				"##DirectoryContext",
-				ImGuiPopupFlags_MouseButtonRight
-			);
+			ImGui::OpenPopupOnItemClick("##DirectoryContext", ImGuiPopupFlags_MouseButtonRight);
 
 			if (const auto move{ AcceptAssetMovePayload() };
 				move.has_value() && ctx.undo.IsUndoRedoEnabled()) {
@@ -1726,8 +1617,7 @@ void ContentBrowserPanel::DrawFolderTree(EditorContext& ctx) {
 
 			if (ImGui::BeginPopup("##DirectoryContext")) {
 				ImGui::BeginDisabled(
-					!ctx.undo.IsUndoRedoEnabled() ||
-					!kAssetImportCreateMoveEnabled
+					!ctx.undo.IsUndoRedoEnabled() || !kAssetImportCreateMoveEnabled
 				);
 				if (ImGui::MenuItem("New Folder")) {
 					create_folder_parent_ = relative;
@@ -1743,7 +1633,7 @@ void ContentBrowserPanel::DrawFolderTree(EditorContext& ctx) {
 				if (IsUserAssetDirectory(relative)) {
 					ImGui::BeginDisabled(!ctx.undo.IsUndoRedoEnabled());
 					if (ImGui::MenuItem("Rename...")) {
-						rename_directory_ = relative;
+						rename_directory_		= relative;
 						rename_directory_value_ = relative.filename().string();
 					}
 					if (ImGui::MenuItem("Delete...")) {
@@ -1794,23 +1684,18 @@ void ContentBrowserPanel::DrawAssetGrid(EditorContext& ctx) {
 		return;
 	}
 
-	const bool built_in_directory{ IsBuiltinShaderDirectory(selected_directory_) };
-	const bool recursive{
-		selected_directory_.empty() ||
-		IsBaseAssetDirectory(selected_directory_)
-	};
+	bool built_in_directory{ IsBuiltinShaderDirectory(selected_directory_) };
+	bool recursive{ selected_directory_.empty() || IsBaseAssetDirectory(selected_directory_) };
 	auto assets{ ::ptgn::impl::AssetAccessor{ assets_manager }.GetAssets() };
 	if (built_in_directory) {
 		assets.clear();
 	} else {
 		std::erase_if(assets, [&](const ::ptgn::impl::AssetRecord& asset) {
 			return !AssetVisibleInDirectory(
-				asset,
-				project_root.value(),
-				assets_root.value(),
-				selected_directory_,
-				recursive
-			) || !MatchesSearch(asset, search_);
+					   asset, project_root.value(), assets_root.value(), selected_directory_,
+					   recursive
+				   ) ||
+				   !MatchesSearch(asset, search_);
 		});
 	}
 
@@ -1825,9 +1710,7 @@ void ContentBrowserPanel::DrawAssetGrid(EditorContext& ctx) {
 	}
 
 	std::ranges::stable_sort(assets, [&](const auto& lhs, const auto& rhs) {
-		return sort_ascending_
-			? AssetLess(lhs, rhs, sort_mode_)
-			: AssetLess(rhs, lhs, sort_mode_);
+		return sort_ascending_ ? AssetLess(lhs, rhs, sort_mode_) : AssetLess(rhs, lhs, sort_mode_);
 	});
 
 	std::vector<path> child_directories;
@@ -1837,8 +1720,7 @@ void ContentBrowserPanel::DrawAssetGrid(EditorContext& ctx) {
 			child_directories = GetChildDirectories(absolute_selected);
 		}
 	}
-	if (show_engine_shaders_ &&
-		IsBaseAssetDirectory(selected_directory_) &&
+	if (show_engine_shaders_ && IsBaseAssetDirectory(selected_directory_) &&
 		AssetDirectoryKind(selected_directory_) == AssetKind::Shader) {
 		std::erase_if(child_directories, [](const path& child) {
 			return child.filename().string() == kBuiltinShaderDirectoryName;
@@ -1847,18 +1729,11 @@ void ContentBrowserPanel::DrawAssetGrid(EditorContext& ctx) {
 	}
 
 	ImGui::BeginChild(
-		"##asset_grid",
-		ImVec2{ 0.0f, 0.0f },
-		false,
-		ImGuiWindowFlags_AlwaysVerticalScrollbar
+		"##asset_grid", ImVec2{ 0.0f, 0.0f }, false, ImGuiWindowFlags_AlwaysVerticalScrollbar
 	);
-	const bool child_hovered{
-		ImGui::IsWindowHovered(ImGuiHoveredFlags_AllowWhenBlockedByPopup)
-	};
+	bool child_hovered{ ImGui::IsWindowHovered(ImGuiHoveredFlags_AllowWhenBlockedByPopup) };
 	const int columns{ std::clamp(
-		ctx.editor.GetSettings().content_browser_items_per_row,
-		kMinItemsPerRow,
-		kMaxItemsPerRow
+		ctx.editor.GetSettings().content_browser_items_per_row, kMinItemsPerRow, kMaxItemsPerRow
 	) };
 	Scene* selected_scene{ ctx.editor.GetSceneListPanel().GetSelectedScene() };
 	std::vector<AssetTileRect> tile_rects;
@@ -1869,8 +1744,7 @@ void ContentBrowserPanel::DrawAssetGrid(EditorContext& ctx) {
 	}
 
 	if (ImGui::BeginTable(
-			"##asset_grid_table",
-			columns,
+			"##asset_grid_table", columns,
 			ImGuiTableFlags_SizingStretchSame | ImGuiTableFlags_PadOuterX
 		)) {
 		for (int column{ 0 }; column < columns; ++column) {
@@ -1879,7 +1753,7 @@ void ContentBrowserPanel::DrawAssetGrid(EditorContext& ctx) {
 
 		for (const auto& child_name : child_directories) {
 			const path relative{ (selected_directory_ / child_name).lexically_normal() };
-			const bool virtual_builtin{ IsBuiltinShaderDirectory(relative) };
+			bool virtual_builtin{ IsBuiltinShaderDirectory(relative) };
 			ImGui::TableNextColumn();
 			ImGui::PushID(relative.generic_string().c_str());
 
@@ -1887,47 +1761,37 @@ void ContentBrowserPanel::DrawAssetGrid(EditorContext& ctx) {
 			const float line_height{ ImGui::GetTextLineHeight() };
 			const float tile_height{ width + line_height + ImGui::GetStyle().ItemSpacing.y * 2.0f };
 			ImGui::InvisibleButton(
-				"##folder_tile",
-				ImVec2{ width, tile_height },
+				"##folder_tile", ImVec2{ width, tile_height },
 				ImGuiButtonFlags_MouseButtonLeft | ImGuiButtonFlags_MouseButtonRight
 			);
 
 			const ImVec2 item_min{ ImGui::GetItemRectMin() };
 			const ImVec2 item_max{ ImGui::GetItemRectMax() };
-			const bool hovered{ ImGui::IsItemHovered() };
+			bool hovered{ ImGui::IsItemHovered() };
 			any_tile_hovered |= hovered;
 
 			auto* draw_list{ ImGui::GetWindowDrawList() };
 			const auto& style{ ImGui::GetStyle() };
 			draw_list->AddRectFilled(
-				item_min,
-				item_max,
-				ImGui::GetColorU32(ImGuiCol_ChildBg),
-				style.ChildRounding
+				item_min, item_max, ImGui::GetColorU32(ImGuiCol_ChildBg), style.ChildRounding
 			);
 			draw_list->AddRect(
-				item_min,
-				item_max,
-				ImGui::GetColorU32(ImGuiCol_Border),
-				style.ChildRounding
+				item_min, item_max, ImGui::GetColorU32(ImGuiCol_Border), style.ChildRounding
 			);
 
 			const std::string folder_text{ "Folder" };
 			const ImVec2 folder_size{ ImGui::CalcTextSize(folder_text.c_str()) };
 			draw_list->AddText(
-				ImVec2{
-					item_min.x + (width - folder_size.x) * 0.5f,
-					item_min.y + std::max(4.0f, width * 0.35f)
-				},
-				ImGui::GetColorU32(ImGuiCol_TextDisabled),
-				folder_text.c_str()
+				ImVec2{ item_min.x + (width - folder_size.x) * 0.5f,
+						item_min.y + std::max(4.0f, width * 0.35f) },
+				ImGui::GetColorU32(ImGuiCol_TextDisabled), folder_text.c_str()
 			);
 			const std::string name{ child_name.string() };
 			draw_list->PushClipRect(item_min, item_max, true);
 			draw_list->AddText(
-				ImVec2{ item_min.x + style.FramePadding.x, item_min.y + width + style.ItemSpacing.y },
-				ImGui::GetColorU32(ImGuiCol_Text),
-				name.c_str()
+				ImVec2{ item_min.x + style.FramePadding.x,
+						item_min.y + width + style.ItemSpacing.y },
+				ImGui::GetColorU32(ImGuiCol_Text), name.c_str()
 			);
 			draw_list->PopClipRect();
 
@@ -1937,10 +1801,7 @@ void ContentBrowserPanel::DrawAssetGrid(EditorContext& ctx) {
 			}
 
 			if (!virtual_builtin) {
-				ImGui::OpenPopupOnItemClick(
-					"##FolderContext",
-					ImGuiPopupFlags_MouseButtonRight
-				);
+				ImGui::OpenPopupOnItemClick("##FolderContext", ImGuiPopupFlags_MouseButtonRight);
 
 				if (const auto move{ AcceptAssetMovePayload() };
 					move.has_value() && ctx.undo.IsUndoRedoEnabled()) {
@@ -1955,8 +1816,7 @@ void ContentBrowserPanel::DrawAssetGrid(EditorContext& ctx) {
 					}
 
 					ImGui::BeginDisabled(
-						!ctx.undo.IsUndoRedoEnabled() ||
-						!kAssetImportCreateMoveEnabled
+						!ctx.undo.IsUndoRedoEnabled() || !kAssetImportCreateMoveEnabled
 					);
 					if (ImGui::MenuItem("New Folder")) {
 						create_folder_parent_ = relative;
@@ -1964,7 +1824,9 @@ void ContentBrowserPanel::DrawAssetGrid(EditorContext& ctx) {
 					}
 #if defined(__EMSCRIPTEN__)
 					if (ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled)) {
-						ImGui::SetTooltip("Creating asset folders is unavailable in the Web editor.");
+						ImGui::SetTooltip(
+							"Creating asset folders is unavailable in the Web editor."
+						);
 					}
 #endif
 					ImGui::EndDisabled();
@@ -1972,7 +1834,7 @@ void ContentBrowserPanel::DrawAssetGrid(EditorContext& ctx) {
 					if (IsUserAssetDirectory(relative)) {
 						ImGui::BeginDisabled(!ctx.undo.IsUndoRedoEnabled());
 						if (ImGui::MenuItem("Rename...")) {
-							rename_directory_ = relative;
+							rename_directory_		= relative;
 							rename_directory_value_ = child_name.string();
 						}
 						if (ImGui::MenuItem("Delete...")) {
@@ -2001,38 +1863,32 @@ void ContentBrowserPanel::DrawAssetGrid(EditorContext& ctx) {
 			const float width{ std::max(32.0f, ImGui::GetContentRegionAvail().x) };
 			const float padding{ std::max(3.0f, style.FramePadding.x) };
 			const float preview_size{ std::max(1.0f, width - padding * 2.0f) };
-			const float tile_height{
-				preview_size + ImGui::GetTextLineHeight() + padding * 3.0f
-			};
-			const bool selected{ !asset.engine_asset && IsAssetSelected(identity) };
-			const bool default_font{
-				asset.kind == AssetKind::Font && asset.key.value == kDefaultFont
-			};
-			const bool is_scene_asset{
-				!asset.engine_asset && selected_scene && selected_scene->HasAssetDependency(asset.key)
-			};
-			const bool is_explicit_scene_asset{
-				!asset.engine_asset && selected_scene &&
-				selected_scene->HasExplicitAssetDependency(asset.key)
-			};
-			const bool is_resident{ asset.load_state == AssetLoadState::Loaded };
+			const float tile_height{ preview_size + ImGui::GetTextLineHeight() + padding * 3.0f };
+			bool selected{ !asset.engine_asset && IsAssetSelected(identity) };
+			bool default_font{ asset.kind == AssetKind::Font && asset.key.value == kDefaultFont };
+			bool is_scene_asset{ !asset.engine_asset && selected_scene &&
+								 selected_scene->HasAssetDependency(asset.key) };
+			bool is_explicit_scene_asset{ !asset.engine_asset && selected_scene &&
+										  selected_scene->HasExplicitAssetDependency(asset.key) };
+			bool is_resident{ asset.load_state == AssetLoadState::Loaded };
 
 			ImGui::InvisibleButton(
-				"##asset_tile",
-				ImVec2{ width, tile_height },
+				"##asset_tile", ImVec2{ width, tile_height },
 				ImGuiButtonFlags_MouseButtonLeft | ImGuiButtonFlags_MouseButtonRight
 			);
 			const ImVec2 item_min{ ImGui::GetItemRectMin() };
 			const ImVec2 item_max{ ImGui::GetItemRectMax() };
-			const bool hovered{ ImGui::IsItemHovered() };
+			bool hovered{ ImGui::IsItemHovered() };
 			any_tile_hovered |= hovered;
 
 			if (!asset.engine_asset) {
-				tile_rects.push_back(AssetTileRect{
-					.asset = identity,
-					.min = item_min,
-					.max = item_max,
-				});
+				tile_rects.push_back(
+					AssetTileRect{
+						.asset = identity,
+						.min   = item_min,
+						.max   = item_max,
+					}
+				);
 			}
 
 			if (!asset.engine_asset && ImGui::IsItemClicked(ImGuiMouseButton_Left)) {
@@ -2044,33 +1900,26 @@ void ContentBrowserPanel::DrawAssetGrid(EditorContext& ctx) {
 				}
 			}
 
-			if (hovered && ImGui::IsMouseClicked(ImGuiMouseButton_Right) &&
-				!asset.engine_asset && !IsAssetSelected(identity)) {
+			if (hovered && ImGui::IsMouseClicked(ImGuiMouseButton_Right) && !asset.engine_asset &&
+				!IsAssetSelected(identity)) {
 				SelectOnly(identity);
 			}
 
-			ImGui::OpenPopupOnItemClick(
-				"##AssetContext",
-				ImGuiPopupFlags_MouseButtonRight
-			);
+			ImGui::OpenPopupOnItemClick("##AssetContext", ImGuiPopupFlags_MouseButtonRight);
 
 			const std::string label{ AssetDisplayName(asset) };
 
-			const bool can_drag_asset_key{
-				asset.kind != AssetKind::Scene &&
-				(!asset.engine_asset || asset.kind == AssetKind::Shader)
-			};
+			bool can_drag_asset_key{ asset.kind != AssetKind::Scene &&
+									 (!asset.engine_asset || asset.kind == AssetKind::Shader) };
 			if (can_drag_asset_key) {
 				std::span<const ContentBrowserAssetSelection> move_assets;
-				if (!asset.engine_asset && IsAssetSelected(identity) && selected_assets_.size() > 1) {
+				if (!asset.engine_asset && IsAssetSelected(identity) &&
+					selected_assets_.size() > 1) {
 					move_assets = selected_assets_;
 				}
 				BeginAssetKeyDragDropSource(
-					asset.key.value,
-					asset.kind,
-					std::optional<std::string_view>{ label },
-					move_assets,
-					!asset.engine_asset
+					asset.key.value, asset.kind, std::optional<std::string_view>{ label },
+					move_assets, !asset.engine_asset
 				);
 			}
 
@@ -2093,24 +1942,22 @@ void ContentBrowserPanel::DrawAssetGrid(EditorContext& ctx) {
 
 					bool shader_ready{ true };
 					if (asset.kind == AssetKind::Shader) {
-						const auto catalog{
-							assets_manager.GetCatalogAsset(asset.key, asset.kind)
-						};
+						const auto catalog{ assets_manager.GetCatalogAsset(asset.key, asset.kind) };
 						shader_ready = catalog.has_value() && catalog->shader.has_value() &&
-							catalog->shader->vertex.has_value() &&
-							catalog->shader->fragment.has_value();
+									   catalog->shader->vertex.has_value() &&
+									   catalog->shader->fragment.has_value();
 					}
-					const bool can_pin{
-						asset.cataloged && asset.kind != AssetKind::Scene && shader_ready &&
-						!asset.key.value.empty()
-					};
-					const bool can_undo_asset_action{ ctx.undo.IsUndoRedoEnabled() };
+					bool can_pin{ asset.cataloged && asset.kind != AssetKind::Scene &&
+								  shader_ready && !asset.key.value.empty() };
+					bool can_undo_asset_action{ ctx.undo.IsUndoRedoEnabled() };
 					auto* assets_ptr{ &assets_manager };
 
 					if (asset.manually_pinned) {
 						ImGui::BeginDisabled(!can_undo_asset_action);
 						if (ImGui::MenuItem("Remove from RAM")) {
-							::ptgn::impl::AssetAccessor{ assets_manager }.Unload(asset.key, asset.kind);
+							::ptgn::impl::AssetAccessor{ assets_manager }.Unload(
+								asset.key, asset.kind
+							);
 							ctx.undo.PushApplied(
 								"Remove Asset RAM Pin",
 								[assets_ptr, key = asset.key, kind = asset.kind]() {
@@ -2147,8 +1994,12 @@ void ContentBrowserPanel::DrawAssetGrid(EditorContext& ctx) {
 							assets_manager.RemoveProjectAssetDependency(asset.key);
 							ctx.undo.PushApplied(
 								"Remove Project Preload Asset",
-								[assets_ptr, key = asset.key]() { assets_ptr->PreloadProjectAsset(key); },
-								[assets_ptr, key = asset.key]() { assets_ptr->RemoveProjectAssetDependency(key); }
+								[assets_ptr, key = asset.key]() {
+									assets_ptr->PreloadProjectAsset(key);
+								},
+								[assets_ptr, key = asset.key]() {
+									assets_ptr->RemoveProjectAssetDependency(key);
+								}
 							);
 						}
 						ImGui::EndDisabled();
@@ -2158,18 +2009,20 @@ void ContentBrowserPanel::DrawAssetGrid(EditorContext& ctx) {
 							assets_manager.PreloadProjectAsset(asset.key);
 							ctx.undo.PushApplied(
 								"Add Project Preload Asset",
-								[assets_ptr, key = asset.key]() { assets_ptr->RemoveProjectAssetDependency(key); },
-								[assets_ptr, key = asset.key]() { assets_ptr->PreloadProjectAsset(key); }
+								[assets_ptr, key = asset.key]() {
+									assets_ptr->RemoveProjectAssetDependency(key);
+								},
+								[assets_ptr, key = asset.key]() {
+									assets_ptr->PreloadProjectAsset(key);
+								}
 							);
 						}
 						ImGui::EndDisabled();
 					}
 
 					if (selected_scene && asset.kind != AssetKind::Scene) {
-						const bool scene_editable{
-							!selected_scene->IsRuntime() && asset.cataloged &&
-							ctx.undo.IsUndoRedoEnabled()
-						};
+						bool scene_editable{ !selected_scene->IsRuntime() && asset.cataloged &&
+											 ctx.undo.IsUndoRedoEnabled() };
 						const std::string scene_key{ selected_scene->GetTag() };
 						auto* editor_ptr{ &ctx.editor };
 						auto apply_dependency = [editor_ptr, scene_key, key = asset.key](bool add) {
@@ -2229,7 +2082,7 @@ void ContentBrowserPanel::DrawAssetGrid(EditorContext& ctx) {
 						default_font || AssetReferencedByEditor(ctx, asset.key)
 					);
 					if (ImGui::MenuItem("Rename Key...")) {
-						rename_asset_key_ = identity;
+						rename_asset_key_		= identity;
 						rename_asset_key_value_ = asset.key.value;
 					}
 					ImGui::EndDisabled();
@@ -2252,20 +2105,11 @@ void ContentBrowserPanel::DrawAssetGrid(EditorContext& ctx) {
 			} else if (is_scene_asset) {
 				tile_background = ImGui::GetColorU32(kSceneAssetBackground);
 			}
-			draw_list->AddRectFilled(
-				item_min,
-				item_max,
-				tile_background,
-				style.ChildRounding
-			);
+			draw_list->AddRectFilled(item_min, item_max, tile_background, style.ChildRounding);
 			if (selected) {
 				draw_list->AddRect(
-					item_min,
-					item_max,
-					ImGui::GetColorU32(kSelectedAssetBorder),
-					style.ChildRounding,
-					0,
-					3.0f
+					item_min, item_max, ImGui::GetColorU32(kSelectedAssetBorder),
+					style.ChildRounding, 0, 3.0f
 				);
 			}
 
@@ -2277,25 +2121,17 @@ void ContentBrowserPanel::DrawAssetGrid(EditorContext& ctx) {
 				preview_border = ImGui::GetColorU32(kShaderErrorBorder);
 			}
 			DrawPreviewAt(
-				ImVec2{ item_min.x + padding, item_min.y + padding },
-				preview_size,
+				ImVec2{ item_min.x + padding, item_min.y + padding }, preview_size,
 				GetTilePreview(
-					asset,
-					static_cast<::ptgn::impl::TextureId>(audio_icon_texture_),
+					asset, static_cast<::ptgn::impl::TextureId>(audio_icon_texture_),
 					static_cast<::ptgn::impl::TextureId>(document_icon_texture_)
 				),
 				preview_border
 			);
 
-			const ImVec2 text_min{
-				item_min.x + padding,
-				item_min.y + padding + preview_size + padding
-			};
-			draw_list->PushClipRect(
-				text_min,
-				ImVec2{ item_max.x - padding, item_max.y },
-				true
-			);
+			const ImVec2 text_min{ item_min.x + padding,
+								   item_min.y + padding + preview_size + padding };
+			draw_list->PushClipRect(text_min, ImVec2{ item_max.x - padding, item_max.y }, true);
 			draw_list->AddText(text_min, ImGui::GetColorU32(ImGuiCol_Text), label.c_str());
 			draw_list->PopClipRect();
 
@@ -2315,12 +2151,11 @@ void ContentBrowserPanel::DrawAssetGrid(EditorContext& ctx) {
 	const auto& io{ ImGui::GetIO() };
 	if (child_hovered && ImGui::IsMouseClicked(ImGuiMouseButton_Left) && !any_tile_hovered) {
 		selection_box_ = SelectionBoxState{
-			.start_x = io.MousePos.x,
-			.start_y = io.MousePos.y,
-			.base_selection =
-				(io.KeyCtrl || io.KeySuper)
-					? selected_assets_
-					: std::vector<ContentBrowserAssetSelection>{},
+			.start_x		= io.MousePos.x,
+			.start_y		= io.MousePos.y,
+			.base_selection = (io.KeyCtrl || io.KeySuper)
+								? selected_assets_
+								: std::vector<ContentBrowserAssetSelection>{},
 		};
 		if (!(io.KeyCtrl || io.KeySuper)) {
 			ClearAssetSelection();
@@ -2340,17 +2175,10 @@ void ContentBrowserPanel::DrawAssetGrid(EditorContext& ctx) {
 			}
 		}
 		ImGui::GetForegroundDrawList()->AddRect(
-			selection_min,
-			selection_max,
-			ImGui::GetColorU32(ImGuiCol_DragDropTarget),
-			0.0f,
-			0,
-			1.5f
+			selection_min, selection_max, ImGui::GetColorU32(ImGuiCol_DragDropTarget), 0.0f, 0, 1.5f
 		);
 		ImGui::GetForegroundDrawList()->AddRectFilled(
-			selection_min,
-			selection_max,
-			ImGui::GetColorU32(ImVec4{ 1.0f, 1.0f, 1.0f, 0.04f })
+			selection_min, selection_max, ImGui::GetColorU32(ImVec4{ 1.0f, 1.0f, 1.0f, 0.04f })
 		);
 		if (ImGui::IsMouseReleased(ImGuiMouseButton_Left)) {
 			selection_box_.reset();
@@ -2364,20 +2192,18 @@ void ContentBrowserPanel::DrawContentBrowserPopups(EditorContext& ctx) {
 	if (create_folder_parent_.has_value()) {
 		ImGui::OpenPopup("Create Asset Folder###ContentBrowserCreateFolder");
 		if (ImGui::BeginPopupModal(
-				"Create Asset Folder###ContentBrowserCreateFolder",
-				nullptr,
+				"Create Asset Folder###ContentBrowserCreateFolder", nullptr,
 				ImGuiWindowFlags_AlwaysAutoResize
 			)) {
 			if (ImGui::IsWindowAppearing()) {
 				ImGui::SetKeyboardFocusHere();
 			}
-			bool submit{ ImGui::InputText(
-				"Name",
-				&new_folder_name_,
-				ImGuiInputTextFlags_EnterReturnsTrue
-			) };
-			const bool valid{ !new_folder_name_.empty() && new_folder_name_ != "." &&
-				new_folder_name_ != ".." && new_folder_name_.find_first_of("/\\") == std::string::npos };
+			bool submit{
+				ImGui::InputText("Name", &new_folder_name_, ImGuiInputTextFlags_EnterReturnsTrue)
+			};
+			bool valid{ !new_folder_name_.empty() && new_folder_name_ != "." &&
+						new_folder_name_ != ".." &&
+						new_folder_name_.find_first_of("/\\") == std::string::npos };
 			ImGui::BeginDisabled(!valid);
 			submit |= ImGui::Button("Create");
 			if (submit && valid) {
@@ -2402,13 +2228,12 @@ void ContentBrowserPanel::DrawContentBrowserPopups(EditorContext& ctx) {
 	if (rename_directory_.has_value()) {
 		ImGui::OpenPopup("Rename Asset Directory###ContentBrowserRenameDirectory");
 		if (ImGui::BeginPopupModal(
-				"Rename Asset Directory###ContentBrowserRenameDirectory",
-				nullptr,
+				"Rename Asset Directory###ContentBrowserRenameDirectory", nullptr,
 				ImGuiWindowFlags_AlwaysAutoResize
 			)) {
 			ImGui::InputText("Name", &rename_directory_value_);
-			const bool valid{ !rename_directory_value_.empty() &&
-				rename_directory_value_.find_first_of("/\\") == std::string::npos };
+			bool valid{ !rename_directory_value_.empty() &&
+						rename_directory_value_.find_first_of("/\\") == std::string::npos };
 			ImGui::BeginDisabled(!valid);
 			if (ImGui::Button("Rename")) {
 				if (RenameDirectory(ctx, rename_directory_.value(), rename_directory_value_)) {
@@ -2429,21 +2254,16 @@ void ContentBrowserPanel::DrawContentBrowserPopups(EditorContext& ctx) {
 	if (rename_asset_key_.has_value()) {
 		ImGui::OpenPopup("Rename Asset Key###ContentBrowserRenameAssetKey");
 		if (ImGui::BeginPopupModal(
-				"Rename Asset Key###ContentBrowserRenameAssetKey",
-				nullptr,
+				"Rename Asset Key###ContentBrowserRenameAssetKey", nullptr,
 				ImGuiWindowFlags_AlwaysAutoResize
 			)) {
 			ImGui::InputText("Key", &rename_asset_key_value_);
-			const bool unchanged{
-				rename_asset_key_value_ == rename_asset_key_->key.value
-			};
-			const bool valid{
-				!rename_asset_key_value_.empty() &&
-				(unchanged || !ctx.editor.GetAssetManager().HasCatalogAsset(
-					AssetKey{ rename_asset_key_value_ },
-					rename_asset_key_->kind
-				))
-			};
+			bool unchanged{ rename_asset_key_value_ == rename_asset_key_->key.value };
+			bool valid{ !rename_asset_key_value_.empty() &&
+						(unchanged ||
+						 !ctx.editor.GetAssetManager().HasCatalogAsset(
+							 AssetKey{ rename_asset_key_value_ }, rename_asset_key_->kind
+						 )) };
 			ImGui::BeginDisabled(!valid);
 			if (ImGui::Button("Rename")) {
 				if (RenameAssetKey(ctx, rename_asset_key_.value(), rename_asset_key_value_)) {
@@ -2483,8 +2303,7 @@ void ContentBrowserPanel::DrawContentBrowserPopups(EditorContext& ctx) {
 		ImGui::OpenPopup("Confirm Content Browser Delete###ContentBrowserDeleteConfirm");
 		ImGui::SetNextWindowSizeConstraints(ImVec2{ 480.0f, 0.0f }, ImVec2{ 760.0f, 620.0f });
 		if (ImGui::BeginPopupModal(
-				"Confirm Content Browser Delete###ContentBrowserDeleteConfirm",
-				nullptr,
+				"Confirm Content Browser Delete###ContentBrowserDeleteConfirm", nullptr,
 				ImGuiWindowFlags_AlwaysAutoResize
 			)) {
 			if (pending.directory.has_value()) {
@@ -2496,7 +2315,15 @@ void ContentBrowserPanel::DrawContentBrowserPopups(EditorContext& ctx) {
 					ImGui::TextDisabled("The directory is empty.");
 				} else {
 					ImGui::SeparatorText("Files that will be deleted");
-					ImGui::BeginChild("##delete_file_list", ImVec2{ 0.0f, std::min(260.0f, ImGui::GetTextLineHeightWithSpacing() * static_cast<float>(pending.listed_files.size() + 1)) }, true);
+					ImGui::BeginChild(
+						"##delete_file_list",
+						ImVec2{ 0.0f,
+								std::min(
+									260.0f, ImGui::GetTextLineHeightWithSpacing() *
+												static_cast<float>(pending.listed_files.size() + 1)
+								) },
+						true
+					);
 					for (const auto& file : pending.listed_files) {
 						ImGui::TextUnformatted(file.generic_string().c_str());
 					}
@@ -2505,19 +2332,16 @@ void ContentBrowserPanel::DrawContentBrowserPopups(EditorContext& ctx) {
 			} else {
 				ImGui::TextWrapped(
 					"Are you sure you want to delete %zu asset%s and their files?",
-					pending.assets.size(),
-					pending.assets.size() == 1 ? "" : "s"
+					pending.assets.size(), pending.assets.size() == 1 ? "" : "s"
 				);
 				ImGui::SeparatorText("Assets that will be deleted");
 				for (const auto& selected : pending.assets) {
-					const auto asset{ ctx.editor.GetAssetManager().GetCatalogAsset(
-						selected.key,
-						selected.kind
-					) };
+					const auto asset{
+						ctx.editor.GetAssetManager().GetCatalogAsset(selected.key, selected.kind)
+					};
 					if (asset.has_value()) {
 						ImGui::Text(
-							"%s  [%s]",
-							selected.key.value.c_str(),
+							"%s  [%s]", selected.key.value.c_str(),
 							asset->source_path.generic_string().c_str()
 						);
 					} else {
@@ -2527,11 +2351,9 @@ void ContentBrowserPanel::DrawContentBrowserPopups(EditorContext& ctx) {
 			}
 			ImGui::Separator();
 			if (ImGui::Button("Delete")) {
-				const bool deleted{
-					pending.directory.has_value()
-						? DeleteDirectory(ctx, pending.directory.value())
-						: DeleteAssets(ctx, pending.assets)
-				};
+				bool deleted{ pending.directory.has_value()
+								  ? DeleteDirectory(ctx, pending.directory.value())
+								  : DeleteAssets(ctx, pending.assets) };
 				if (deleted) {
 					pending_delete_.reset();
 					ImGui::CloseCurrentPopup();
@@ -2546,14 +2368,14 @@ void ContentBrowserPanel::DrawContentBrowserPopups(EditorContext& ctx) {
 		}
 	}
 }
+
 void ContentBrowserPanel::OpenShaderEditor(
-	EditorContext& ctx,
-	const ::ptgn::impl::AssetRecord& asset
+	EditorContext& ctx, const ::ptgn::impl::AssetRecord& asset
 ) {
 	const auto is_dirty = [](const ShaderEditorState& value) {
 		return value.vertex_source != value.saved_vertex_source ||
-			value.fragment_source != value.saved_fragment_source ||
-			!ShaderProgramsEqual(value.program, value.saved_program);
+			   value.fragment_source != value.saved_fragment_source ||
+			   !ShaderProgramsEqual(value.program, value.saved_program);
 	};
 
 	if (shader_editor_.has_value() && shader_editor_->key != ShaderKey{ asset.key } &&
@@ -2586,7 +2408,8 @@ void ContentBrowserPanel::OpenShaderEditor(
 		program = suggested.value();
 	}
 
-	const auto resolve_stage = [&](ShaderStageMask stage, const std::optional<std::string>& reference) {
+	const auto resolve_stage = [&](ShaderStageMask stage,
+								   const std::optional<std::string>& reference) {
 		if (HasShaderStage(stages, stage)) {
 			return StripShaderStageDirective(
 				::ptgn::impl::ExtractShaderStageSource(source.value(), stage)
@@ -2601,25 +2424,25 @@ void ContentBrowserPanel::OpenShaderEditor(
 		);
 	};
 
-	const bool read_only{ asset.read_only || asset.engine_asset };
+	bool read_only{ asset.read_only || asset.engine_asset };
 	const std::string vertex_source{ resolve_stage(ShaderStageMask::Vertex, program.vertex) };
 	const std::string fragment_source{ resolve_stage(ShaderStageMask::Fragment, program.fragment) };
 	shader_editor_ = ShaderEditorState{
-		.key = ShaderKey{ asset.key },
-		.display_name = asset.engine_asset ? asset.source_path.stem().string() : asset.key.value,
-		.vertex_source = vertex_source,
+		.key			 = ShaderKey{ asset.key },
+		.display_name	 = asset.engine_asset ? asset.source_path.stem().string() : asset.key.value,
+		.vertex_source	 = vertex_source,
 		.fragment_source = fragment_source,
-		.saved_vertex_source = vertex_source,
+		.saved_vertex_source   = vertex_source,
 		.saved_fragment_source = fragment_source,
-		.program = program,
-		.saved_program = program,
-		.source_stages = stages,
-		.diagnostics = asset.compile_log,
-		.last_compile_success = !asset.compile_error,
-		.vertex_editable = !read_only && HasShaderStage(stages, ShaderStageMask::Vertex),
-		.fragment_editable = !read_only && HasShaderStage(stages, ShaderStageMask::Fragment),
-		.read_only = read_only,
-		.open = true,
+		.program			   = program,
+		.saved_program		   = program,
+		.source_stages		   = stages,
+		.diagnostics		   = asset.compile_log,
+		.last_compile_success  = !asset.compile_error,
+		.vertex_editable	   = !read_only && HasShaderStage(stages, ShaderStageMask::Vertex),
+		.fragment_editable	   = !read_only && HasShaderStage(stages, ShaderStageMask::Fragment),
+		.read_only			   = read_only,
+		.open				   = true,
 	};
 }
 
@@ -2630,8 +2453,7 @@ void ContentBrowserPanel::OpenShaderEditor(EditorContext& ctx, const ShaderKey& 
 	std::ranges::move(engine_records, std::back_inserter(records));
 
 	const auto it{ std::ranges::find_if(records, [&](const auto& record) {
-		return record.kind == AssetKind::Shader &&
-			record.key == static_cast<const AssetKey&>(key);
+		return record.kind == AssetKind::Shader && record.key == static_cast<const AssetKey&>(key);
 	}) };
 	if (it == records.end()) {
 		status_ = "Could not find shader " + key.value;
@@ -2688,14 +2510,13 @@ void ContentBrowserPanel::DrawShaderEditor(EditorContext& ctx) {
 
 	const auto is_dirty = [&]() {
 		return editor.vertex_source != editor.saved_vertex_source ||
-			editor.fragment_source != editor.saved_fragment_source ||
-			!ShaderProgramsEqual(editor.program, editor.saved_program);
+			   editor.fragment_source != editor.saved_fragment_source ||
+			   !ShaderProgramsEqual(editor.program, editor.saved_program);
 	};
 
 	bool open{ editor.open };
-	std::string title{
-		(editor.read_only ? "Shader Viewer - " : "Shader Editor - ") + editor.display_name
-	};
+	std::string title{ (editor.read_only ? "Shader Viewer - " : "Shader Editor - ") +
+					   editor.display_name };
 	if (!editor.read_only && is_dirty()) {
 		title += " *";
 	}
@@ -2715,14 +2536,12 @@ void ContentBrowserPanel::DrawShaderEditor(EditorContext& ctx) {
 			viewport->WorkPos.x + viewport->WorkSize.x * 0.5f,
 			viewport->WorkPos.y + viewport->WorkSize.y * 0.5f,
 		},
-		ImGuiCond_Appearing,
-		ImVec2{ 0.5f, 0.5f }
+		ImGuiCond_Appearing, ImVec2{ 0.5f, 0.5f }
 	);
 	ImGui::SetNextWindowSize(desired_size, ImGuiCond_Appearing);
 
 	const ImGuiWindowFlags window_flags{
-		ImGuiWindowFlags_NoScrollbar |
-		ImGuiWindowFlags_NoScrollWithMouse |
+		ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse |
 		(editor.read_only ? ImGuiWindowFlags_None : ImGuiWindowFlags_MenuBar)
 	};
 	if (ImGui::Begin(title.c_str(), &open, window_flags)) {
@@ -2737,7 +2556,7 @@ void ContentBrowserPanel::DrawShaderEditor(EditorContext& ctx) {
 				const std::string source{ build_file_source(false) };
 				auto result{ assets.RecompileShaderSource(editor.key, source, editor.program) };
 				editor.last_compile_success = result.success;
-				editor.diagnostics = std::move(result.log);
+				editor.diagnostics			= std::move(result.log);
 			}
 			ImGui::EndMenuBar();
 		}
@@ -2745,7 +2564,7 @@ void ContentBrowserPanel::DrawShaderEditor(EditorContext& ctx) {
 		auto records{ ::ptgn::impl::AssetAccessor{ assets }.GetAssets() };
 		auto owner_it{ std::ranges::find_if(records, [&](const auto& record) {
 			return record.kind == AssetKind::Shader &&
-				record.key == static_cast<const AssetKey&>(editor.key);
+				   record.key == static_cast<const AssetKey&>(editor.key);
 		}) };
 		::ptgn::impl::AssetRecord owner;
 		if (owner_it != records.end()) {
@@ -2761,9 +2580,8 @@ void ContentBrowserPanel::DrawShaderEditor(EditorContext& ctx) {
 		}
 		owner.metadata.shader_stages = editor.source_stages;
 
-		const char* diagnostic_text{
-			editor.diagnostics.empty() ? "No compiler messages." : editor.diagnostics.c_str()
-		};
+		const char* diagnostic_text{ editor.diagnostics.empty() ? "No compiler messages."
+																: editor.diagnostics.c_str() };
 		float diagnostics_height{ 0.0f };
 		float diagnostics_header_height{ 0.0f };
 		if (!editor.read_only) {
@@ -2772,28 +2590,24 @@ void ContentBrowserPanel::DrawShaderEditor(EditorContext& ctx) {
 				ImGui::CalcTextSize(diagnostic_text, nullptr, false, output_width).y
 			};
 			diagnostics_height = std::min(
-				180.0f,
-				std::max(
-					ImGui::GetTextLineHeight() + ImGui::GetStyle().WindowPadding.y * 2.0f,
-					output_text_height + ImGui::GetStyle().WindowPadding.y * 2.0f
-				)
+				180.0f, std::max(
+							ImGui::GetTextLineHeight() + ImGui::GetStyle().WindowPadding.y * 2.0f,
+							output_text_height + ImGui::GetStyle().WindowPadding.y * 2.0f
+						)
 			);
 			diagnostics_header_height =
 				ImGui::GetTextLineHeightWithSpacing() + ImGui::GetStyle().ItemSpacing.y;
 		}
 
 		const float stage_area_height{
-			editor.read_only
-				? std::max(100.0f, ImGui::GetContentRegionAvail().y)
-				: std::max(
-					180.0f,
-					ImGui::GetContentRegionAvail().y - diagnostics_height - diagnostics_header_height
-				)
+			editor.read_only ? std::max(100.0f, ImGui::GetContentRegionAvail().y)
+							 : std::max(
+								   180.0f, ImGui::GetContentRegionAvail().y - diagnostics_height -
+											   diagnostics_header_height
+							   )
 		};
 		ImGui::BeginChild(
-			"##ShaderStages",
-			ImVec2{ -FLT_MIN, stage_area_height },
-			false,
+			"##ShaderStages", ImVec2{ -FLT_MIN, stage_area_height }, false,
 			ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse
 		);
 		if (ImGui::BeginTabBar("##ShaderStageTabs")) {
@@ -2802,7 +2616,7 @@ void ContentBrowserPanel::DrawShaderEditor(EditorContext& ctx) {
 					return;
 				}
 
-				const bool vertex{ stage == ShaderStageMask::Vertex };
+				bool vertex{ stage == ShaderStageMask::Vertex };
 				bool& editable{ vertex ? editor.vertex_editable : editor.fragment_editable };
 				std::string& source{ vertex ? editor.vertex_source : editor.fragment_source };
 				auto& reference{ vertex ? editor.program.vertex : editor.program.fragment };
@@ -2810,19 +2624,17 @@ void ContentBrowserPanel::DrawShaderEditor(EditorContext& ctx) {
 				if (!editable && !editor.read_only) {
 					std::string selected{ reference.value_or(std::string{}) };
 					if (DrawShaderSourceCombo("Source", selected, stage, owner, assets)) {
-						reference = selected.empty()
-							? std::nullopt
-							: std::optional<std::string>{ selected };
+						reference = selected.empty() ? std::nullopt
+													 : std::optional<std::string>{ selected };
 						const std::string owner_source{ build_file_source(false) };
 						source = reference.has_value()
-							? StripShaderStageDirective(
-								assets.ResolveShaderStageSource(
-									owner_source,
-									reference.value(),
-									stage
-								).value_or(std::string{})
-							)
-							: std::string{};
+								   ? StripShaderStageDirective(assets
+																   .ResolveShaderStageSource(
+																	   owner_source,
+																	   reference.value(), stage
+																   )
+																   .value_or(std::string{}))
+								   : std::string{};
 					}
 				}
 
@@ -2831,10 +2643,8 @@ void ContentBrowserPanel::DrawShaderEditor(EditorContext& ctx) {
 					flags |= ImGuiInputTextFlags_ReadOnly;
 				}
 				ImGui::InputTextMultiline(
-					vertex ? "##VertexShaderSource" : "##FragmentShaderSource",
-					&source,
-					ImVec2{ -FLT_MIN, -FLT_MIN },
-					flags
+					vertex ? "##VertexShaderSource" : "##FragmentShaderSource", &source,
+					ImVec2{ -FLT_MIN, -FLT_MIN }, flags
 				);
 				ImGui::EndTabItem();
 			};
@@ -2850,11 +2660,7 @@ void ContentBrowserPanel::DrawShaderEditor(EditorContext& ctx) {
 			if (!editor.last_compile_success) {
 				ImGui::PushStyleColor(ImGuiCol_Text, kShaderErrorBorder);
 			}
-			ImGui::BeginChild(
-				"##ShaderDiagnostics",
-				ImVec2{ -FLT_MIN, diagnostics_height },
-				true
-			);
+			ImGui::BeginChild("##ShaderDiagnostics", ImVec2{ -FLT_MIN, diagnostics_height }, true);
 			ImGui::TextWrapped("%s", diagnostic_text);
 			ImGui::EndChild();
 			if (!editor.last_compile_success) {
@@ -2876,9 +2682,9 @@ void ContentBrowserPanel::DrawShaderEditor(EditorContext& ctx) {
 		const std::string source{ build_file_source(false) };
 		auto validation{ assets.ValidateShaderSource(editor.key, source, editor.program) };
 		editor.last_compile_success = validation.success;
-		editor.diagnostics = validation.log;
+		editor.diagnostics			= validation.log;
 		if (!validation.success && !allow_invalid) {
-			pending_shader_save_action_ = action;
+			pending_shader_save_action_				   = action;
 			pending_shader_compile_error_confirmation_ = true;
 			return;
 		}
@@ -2887,37 +2693,33 @@ void ContentBrowserPanel::DrawShaderEditor(EditorContext& ctx) {
 		const SerializedShaderProgram before_program{ editor.saved_program };
 		const std::string after_source{ source };
 		const SerializedShaderProgram after_program{ editor.program };
-		const bool recompile_runtime{
-			validation.success && action == PendingShaderSaveAction::SaveAndRecompile
-		};
+		bool recompile_runtime{ validation.success &&
+								action == PendingShaderSaveAction::SaveAndRecompile };
 
 		if (!assets.SaveShaderSource(editor.key, after_source, validation)) {
-			editor.last_compile_success = false;
-			editor.diagnostics += "\nCould not write shader file to disk.";
+			editor.last_compile_success	 = false;
+			editor.diagnostics			+= "\nCould not write shader file to disk.";
 			return;
 		}
 		if (!assets.ConfigureShaderProgram(
-			editor.key,
-			after_program.vertex,
-			after_program.fragment
-		)) {
-			editor.last_compile_success = false;
-			editor.diagnostics += "\nCould not save shader program configuration.";
+				editor.key, after_program.vertex, after_program.fragment
+			)) {
+			editor.last_compile_success	 = false;
+			editor.diagnostics			+= "\nCould not save shader program configuration.";
 			return;
 		}
 
-		editor.saved_vertex_source = editor.vertex_source;
+		editor.saved_vertex_source	 = editor.vertex_source;
 		editor.saved_fragment_source = editor.fragment_source;
-		editor.saved_program = after_program;
+		editor.saved_program		 = after_program;
 
-		if (before_source != after_source ||
-			!ShaderProgramsEqual(before_program, after_program)) {
+		if (before_source != after_source || !ShaderProgramsEqual(before_program, after_program)) {
 			auto* assets_ptr{ &assets };
 			const ShaderKey key{ editor.key };
 			auto apply_shader_state = [assets_ptr, key, recompile_runtime](
-				const std::string& state_source,
-				const SerializedShaderProgram& program
-			) {
+										  const std::string& state_source,
+										  const SerializedShaderProgram& program
+									  ) {
 				auto state_validation{
 					assets_ptr->ValidateShaderSource(key, state_source, program)
 				};
@@ -2929,8 +2731,8 @@ void ContentBrowserPanel::DrawShaderEditor(EditorContext& ctx) {
 				}
 				if (recompile_runtime && state_validation.success) {
 					static_cast<void>(
-					assets_ptr->RecompileShaderSource(key, state_source, program)
-				);
+						assets_ptr->RecompileShaderSource(key, state_source, program)
+					);
 				}
 			};
 
@@ -2948,7 +2750,7 @@ void ContentBrowserPanel::DrawShaderEditor(EditorContext& ctx) {
 		if (recompile_runtime) {
 			auto result{ assets.RecompileShaderSource(editor.key, after_source, after_program) };
 			editor.last_compile_success = result.success;
-			editor.diagnostics = std::move(result.log);
+			editor.diagnostics			= std::move(result.log);
 		}
 		if (action == PendingShaderSaveAction::SaveAndClose) {
 			editor.open = false;
@@ -2970,24 +2772,22 @@ void ContentBrowserPanel::DrawShaderEditor(EditorContext& ctx) {
 		ImGui::OpenPopup("Save Shader With Compile Errors?");
 	}
 	if (ImGui::BeginPopupModal(
-		"Save Shader With Compile Errors?",
-		nullptr,
-		ImGuiWindowFlags_AlwaysAutoResize
-	)) {
+			"Save Shader With Compile Errors?", nullptr, ImGuiWindowFlags_AlwaysAutoResize
+		)) {
 		ImGui::TextWrapped(
 			"This shader does not compile. Save it to disk anyway? The currently loaded "
 			"shader will not be replaced."
 		);
 		if (ImGui::Button("Save Anyway")) {
 			const auto action{ pending_shader_save_action_ };
-			pending_shader_save_action_ = PendingShaderSaveAction::None;
+			pending_shader_save_action_				   = PendingShaderSaveAction::None;
 			pending_shader_compile_error_confirmation_ = false;
 			perform_save(action, true);
 			ImGui::CloseCurrentPopup();
 		}
 		ImGui::SameLine();
 		if (ImGui::Button("Cancel")) {
-			pending_shader_save_action_ = PendingShaderSaveAction::None;
+			pending_shader_save_action_				   = PendingShaderSaveAction::None;
 			pending_shader_compile_error_confirmation_ = false;
 			ImGui::CloseCurrentPopup();
 		}
@@ -2998,26 +2798,24 @@ void ContentBrowserPanel::DrawShaderEditor(EditorContext& ctx) {
 		ImGui::OpenPopup("Unsaved Shader Changes");
 	}
 	if (ImGui::BeginPopupModal(
-		"Unsaved Shader Changes",
-		nullptr,
-		ImGuiWindowFlags_AlwaysAutoResize
-	)) {
+			"Unsaved Shader Changes", nullptr, ImGuiWindowFlags_AlwaysAutoResize
+		)) {
 		ImGui::TextWrapped("Save changes before closing this shader editor?");
 		if (ImGui::Button("Save and Close")) {
 			pending_shader_close_confirmation_ = false;
-			pending_shader_save_action_ = PendingShaderSaveAction::SaveAndClose;
+			pending_shader_save_action_		   = PendingShaderSaveAction::SaveAndClose;
 			ImGui::CloseCurrentPopup();
 		}
 		ImGui::SameLine();
 		if (ImGui::Button("Discard")) {
-			editor.open = false;
+			editor.open						   = false;
 			pending_shader_close_confirmation_ = false;
 			ImGui::CloseCurrentPopup();
 		}
 		ImGui::SameLine();
 		if (ImGui::Button("Cancel")) {
 			pending_shader_close_confirmation_ = false;
-			editor.open = true;
+			editor.open						   = true;
 			ImGui::CloseCurrentPopup();
 		}
 		ImGui::EndPopup();
@@ -3027,23 +2825,21 @@ void ContentBrowserPanel::DrawShaderEditor(EditorContext& ctx) {
 		ImGui::OpenPopup("Unsaved Shader Changes Before Exit");
 	}
 	if (ImGui::BeginPopupModal(
-		"Unsaved Shader Changes Before Exit",
-		nullptr,
-		ImGuiWindowFlags_AlwaysAutoResize
-	)) {
+			"Unsaved Shader Changes Before Exit", nullptr, ImGuiWindowFlags_AlwaysAutoResize
+		)) {
 		ImGui::TextWrapped(
 			"The shader editor has unsaved changes. Save before exiting the application?"
 		);
 		if (ImGui::Button("Save and Exit")) {
 			application_close_requested_ = false;
-			pending_shader_save_action_ = PendingShaderSaveAction::SaveAndExit;
+			pending_shader_save_action_	 = PendingShaderSaveAction::SaveAndExit;
 			ImGui::CloseCurrentPopup();
 		}
 		ImGui::SameLine();
 		if (ImGui::Button("Discard and Exit")) {
-			editor.saved_vertex_source = editor.vertex_source;
+			editor.saved_vertex_source	 = editor.vertex_source;
 			editor.saved_fragment_source = editor.fragment_source;
-			editor.saved_program = editor.program;
+			editor.saved_program		 = editor.program;
 			application_close_requested_ = false;
 			ctx.editor.RequestQuit();
 			ImGui::CloseCurrentPopup();
@@ -3060,6 +2856,5 @@ void ContentBrowserPanel::DrawShaderEditor(EditorContext& ctx) {
 		shader_editor_.reset();
 	}
 }
-
 
 } // namespace ptgn::editor

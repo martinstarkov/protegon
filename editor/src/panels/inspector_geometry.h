@@ -75,7 +75,7 @@ bool DrawPickableLocalPosition(
 ) {
 	V2_float& position{ locator(component) };
 
-	const bool changed{ DrawPropertyRow(label, [&]() {
+	bool changed{ DrawPropertyRow(label, [&]() {
 		const float spacing{ ImGui::GetStyle().ItemInnerSpacing.x };
 		const float pick_width{ ImGui::CalcTextSize("Pick").x +
 								ImGui::GetStyle().FramePadding.x * 2.0f };
@@ -83,7 +83,7 @@ bool DrawPickableLocalPosition(
 		const float remove_spacing{ remove_requested ? spacing : 0.0f };
 		const float available{ std::max(1.0f, ImGui::GetContentRegionAvail().x) };
 		const float actions_width{ pick_width + remove_width + remove_spacing };
-		const bool actions_inline{ available >= actions_width + spacing * 2.0f + 96.0f };
+		bool actions_inline{ available >= actions_width + spacing * 2.0f + 96.0f };
 		const float fields_width{ actions_inline
 									  ? std::max(1.0f, available - actions_width - spacing)
 									  : available };
@@ -218,7 +218,7 @@ bool DrawGeometryVariant(
 											  : VariantTypeLabel<Alternative>() };
 
 				if constexpr (std::default_initializable<Alternative>) {
-					const bool selected{ value.index() == Index };
+					bool selected{ value.index() == Index };
 
 					if (ImGui::Selectable(option.c_str(), selected) && !selected) {
 						requested_index = Index;

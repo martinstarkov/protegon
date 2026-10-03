@@ -288,8 +288,8 @@ bool DrawPhysicsSectionImpl(Target& target) {
 		Platformer
 	};
 	using MovementComponents = ComponentSet<TopDownMovement, PlatformerMovement, PlatformerJump>;
-	const bool has_top_down{ target.template Capture<TopDownMovement>().has_value() };
-	const bool has_platformer{ target.template Capture<PlatformerMovement>().has_value() };
+	bool has_top_down{ target.template Capture<TopDownMovement>().has_value() };
+	bool has_platformer{ target.template Capture<PlatformerMovement>().has_value() };
 	if (!has_top_down && !has_platformer) {
 		return changed;
 	}
@@ -402,7 +402,7 @@ bool DrawPhysicsSectionImpl(Target& target) {
 					return false;
 				}
 				auto choose = [&](std::string_view key, const char* label) {
-					const bool selected{ selected_key == key };
+					bool selected{ selected_key == key };
 					if (!ImGui::Selectable(label, selected)) {
 						return;
 					}

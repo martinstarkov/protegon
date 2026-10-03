@@ -25,7 +25,7 @@ bool MatchesComponentCondition(Entity entity, const ComponentQueryCondition& con
 		return false;
 	}
 
-	const bool has_component{ component->Has(entity) };
+	bool has_component{ component->Has(entity) };
 	return condition.required ? has_component : !has_component;
 }
 

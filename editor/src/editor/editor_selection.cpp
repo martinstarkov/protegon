@@ -7,8 +7,8 @@
 #include <ranges>
 #include <string>
 #include <string_view>
-#include <utility>
 #include <unordered_map>
+#include <utility>
 
 #include "commands/editor_command.h"
 #include "editor/editor.h"
@@ -27,14 +27,10 @@ Scene* ResolveScene(Editor& editor, const EditorSelection& selection) {
 	}
 
 	auto& scenes{ editor.GetSceneManager().GetScenes() };
-	const auto it{ std::ranges::find_if(
-		scenes,
-		[&selection](const auto& scene) {
-			return scene &&
-				scene->GetTag() == selection.selected_scene_key &&
-				scene->IsRuntime() == selection.selected_scene_runtime;
-		}
-	) };
+	const auto it{ std::ranges::find_if(scenes, [&selection](const auto& scene) {
+		return scene && scene->GetTag() == selection.selected_scene_key &&
+			   scene->IsRuntime() == selection.selected_scene_runtime;
+	}) };
 
 	return it == scenes.end() ? nullptr : it->get();
 }
@@ -48,33 +44,23 @@ void EditorSelection::Clear() {
 	selected_prefab.reset();
 	selected_prefab_entity_path.clear();
 	selected_screen_effect.reset();
-	mode = EditorSelectionMode::SceneHierarchy;
+	mode		   = EditorSelectionMode::SceneHierarchy;
 	scene_list_tab = SceneListTab::Scenes;
-	inspector_tab = InspectorTab::Primary;
+	inspector_tab  = InspectorTab::Primary;
 }
 
-bool EditorSelection::HasEntitySelection(
-	std::string_view scene_key,
-	bool runtime
-) const {
+bool EditorSelection::HasEntitySelection(std::string_view scene_key, bool runtime) const {
 	return std::ranges::any_of(
-		scene_entities,
-		[scene_key, runtime](const SceneEntitySelection& selection) {
-			return selection.scene_key == scene_key &&
-				selection.runtime == runtime;
+		scene_entities, [scene_key, runtime](const SceneEntitySelection& selection) {
+			return selection.scene_key == scene_key && selection.runtime == runtime;
 		}
 	);
 }
 
-std::optional<UUID> EditorSelection::GetEntityUUID(
-	std::string_view scene_key,
-	bool runtime
-) const {
+std::optional<UUID> EditorSelection::GetEntityUUID(std::string_view scene_key, bool runtime) const {
 	const auto it{ std::ranges::find_if(
-		scene_entities,
-		[scene_key, runtime](const SceneEntitySelection& selection) {
-			return selection.scene_key == scene_key &&
-				selection.runtime == runtime;
+		scene_entities, [scene_key, runtime](const SceneEntitySelection& selection) {
+			return selection.scene_key == scene_key && selection.runtime == runtime;
 		}
 	) };
 
@@ -82,24 +68,22 @@ std::optional<UUID> EditorSelection::GetEntityUUID(
 }
 
 void EditorSelection::SetEntityUUID(
-	std::string scene_key,
-	bool runtime,
-	std::optional<UUID> entity_uuid
+	std::string scene_key, bool runtime, std::optional<UUID> entity_uuid
 ) {
 	const auto it{ std::ranges::find_if(
-		scene_entities,
-		[&scene_key, runtime](const SceneEntitySelection& selection) {
-			return selection.scene_key == scene_key &&
-				selection.runtime == runtime;
+		scene_entities, [&scene_key, runtime](const SceneEntitySelection& selection) {
+			return selection.scene_key == scene_key && selection.runtime == runtime;
 		}
 	) };
 
 	if (it == scene_entities.end()) {
-		scene_entities.push_back(SceneEntitySelection{
-			.scene_key = std::move(scene_key),
-			.runtime = runtime,
-			.entity_uuid = entity_uuid,
-		});
+		scene_entities.push_back(
+			SceneEntitySelection{
+				.scene_key	 = std::move(scene_key),
+				.runtime	 = runtime,
+				.entity_uuid = entity_uuid,
+			}
+		);
 		return;
 	}
 
@@ -107,12 +91,9 @@ void EditorSelection::SetEntityUUID(
 }
 
 void EditorSelection::RemoveScene(std::string_view scene_key) {
-	std::erase_if(
-		scene_entities,
-		[scene_key](const SceneEntitySelection& selection) {
-			return selection.scene_key == scene_key;
-		}
-	);
+	std::erase_if(scene_entities, [scene_key](const SceneEntitySelection& selection) {
+		return selection.scene_key == scene_key;
+	});
 
 	if (selected_scene_key == scene_key) {
 		selected_scene_key.clear();
@@ -120,10 +101,7 @@ void EditorSelection::RemoveScene(std::string_view scene_key) {
 	}
 }
 
-void EditorSelection::RenameScene(
-	std::string_view old_key,
-	std::string_view new_key
-) {
+void EditorSelection::RenameScene(std::string_view old_key, std::string_view new_key) {
 	if (selected_scene_key == old_key) {
 		selected_scene_key = std::string{ new_key };
 	}
@@ -153,9 +131,7 @@ Entity ResolveSelectedEntity(EditorContext& ctx) {
 		return {};
 	}
 
-	const auto uuid{
-		ctx.local.selection.GetEntityUUID(scene->GetTag(), scene->IsRuntime())
-	};
+	const auto uuid{ ctx.local.selection.GetEntityUUID(scene->GetTag(), scene->IsRuntime()) };
 
 	return uuid ? scene->GetEntity(*uuid) : Entity{};
 }
@@ -167,7 +143,7 @@ void ApplyEditorSelection(EditorContext& ctx, EditorSelection selection) {
 	// paint/layer state synchronized. Those no-op applications must not cancel an
 	// active position pick. A real selection change still cancels the picker, since
 	// its apply callback belongs to the object/property that was being inspected.
-	const bool selection_changed{ ctx.local.selection != selection };
+	bool selection_changed{ ctx.local.selection != selection };
 	if (selection_changed) {
 		ctx.local.position_picker.Cancel();
 	}
@@ -183,10 +159,7 @@ void ApplyEditorSelection(EditorContext& ctx, EditorSelection selection) {
 }
 
 bool SetEditorSelection(
-	EditorContext& ctx,
-	EditorSelection selection,
-	std::string label,
-	bool allow_when_undo_disabled,
+	EditorContext& ctx, EditorSelection selection, std::string label, bool allow_when_undo_disabled,
 	bool transient
 ) {
 	ctx.undo.CommitActiveEdit();
@@ -201,39 +174,31 @@ bool SetEditorSelection(
 	ctx.undo.Execute(
 		std::make_unique<ActionEditorCommand>(
 			std::move(label),
-			[context, before]() mutable {
-				ApplyEditorSelection(*context, before);
-			},
+			[context, before]() mutable { ApplyEditorSelection(*context, before); },
 			[context, after = std::move(selection)]() mutable {
 				ApplyEditorSelection(*context, after);
 			}
 		),
-		false,
-		allow_when_undo_disabled,
-		transient
+		false, allow_when_undo_disabled, transient
 	);
 
 	return true;
 }
 
-
 namespace {
 
 [[nodiscard]] const char* GetSceneHierarchyTabWindow(EditorSelectionMode tab) {
 	switch (tab) {
-		case EditorSelectionMode::SceneHierarchy:
-			return "Scene Hierarchy###SceneHierarchyWindow";
-		case EditorSelectionMode::Prefabs:
-			return "Prefabs###PrefabsWindow";
-		case EditorSelectionMode::Tiles:
-			return "Tiles###TilesWindow";
+		case EditorSelectionMode::SceneHierarchy: return "Scene Hierarchy###SceneHierarchyWindow";
+		case EditorSelectionMode::Prefabs:		  return "Prefabs###PrefabsWindow";
+		case EditorSelectionMode::Tiles:		  return "Tiles###TilesWindow";
 	}
 	return nullptr;
 }
 
 [[nodiscard]] const char* GetSceneListTabWindow(SceneListTab tab) {
 	switch (tab) {
-		case SceneListTab::Scenes: return "Scenes";
+		case SceneListTab::Scenes:		  return "Scenes";
 		case SceneListTab::ScreenEffects: return "Screen Effects";
 	}
 	return nullptr;
@@ -252,10 +217,7 @@ void RequestSceneListTabFocus(EditorContext& ctx, SceneListTab tab) {
 	}
 }
 
-[[nodiscard]] const char* GetInspectorTabWindow(
-	InspectorTab tab,
-	EditorSelectionMode mode
-) {
+[[nodiscard]] const char* GetInspectorTabWindow(InspectorTab tab, EditorSelectionMode mode) {
 	if (tab == InspectorTab::ScreenEffect) {
 		return "Screen Effect Inspector###ScreenEffectInspector";
 	}
@@ -270,9 +232,7 @@ void RequestSceneListTabFocus(EditorContext& ctx, SceneListTab tab) {
 }
 
 void ApplyEditorSelectionAndFocus(
-	EditorContext& ctx,
-	EditorSelection selection,
-	const char* window
+	EditorContext& ctx, EditorSelection selection, const char* window
 ) {
 	ApplyEditorSelection(ctx, std::move(selection));
 	if (window) {
@@ -291,36 +251,27 @@ bool SetSceneHierarchyTab(EditorContext& ctx, EditorSelectionMode tab) {
 	EditorSelection after{ before };
 	after.mode = tab;
 
-	const bool runtime{ ctx.editor.IsPlaying() };
+	bool runtime{ ctx.editor.IsPlaying() };
 	EditorContext* context{ std::addressof(ctx) };
 	const auto before_tab{ before.mode };
 
-	const char* label{
-		tab == EditorSelectionMode::SceneHierarchy ? "Select Scene Hierarchy Tab" :
-		tab == EditorSelectionMode::Prefabs ? "Select Prefabs Tab" : "Select Tiles Tab"
-	};
+	const char* label{ tab == EditorSelectionMode::SceneHierarchy ? "Select Scene Hierarchy Tab"
+					   : tab == EditorSelectionMode::Prefabs	  ? "Select Prefabs Tab"
+																  : "Select Tiles Tab" };
 
 	ctx.undo.Execute(
 		std::make_unique<ActionEditorCommand>(
 			label,
 			[context, before, before_tab]() mutable {
 				ApplyEditorSelectionAndFocus(
-					*context,
-					before,
-					GetSceneHierarchyTabWindow(before_tab)
+					*context, before, GetSceneHierarchyTabWindow(before_tab)
 				);
 			},
 			[context, after, tab]() mutable {
-				ApplyEditorSelectionAndFocus(
-					*context,
-					after,
-					GetSceneHierarchyTabWindow(tab)
-				);
+				ApplyEditorSelectionAndFocus(*context, after, GetSceneHierarchyTabWindow(tab));
 			}
 		),
-		false,
-		runtime,
-		runtime
+		false, runtime, runtime
 	);
 
 	return true;
@@ -340,15 +291,13 @@ bool SetSceneListTab(EditorContext& ctx, SceneListTab tab) {
 		after.inspector_tab = InspectorTab::Primary;
 	}
 
-	const bool runtime{ ctx.editor.IsPlaying() };
+	bool runtime{ ctx.editor.IsPlaying() };
 	EditorContext* context{ std::addressof(ctx) };
 	const auto before_tab{ before.scene_list_tab };
 
 	ctx.undo.Execute(
 		std::make_unique<ActionEditorCommand>(
-			tab == SceneListTab::Scenes
-				? "Select Scenes Tab"
-				: "Select Screen Effects Tab",
+			tab == SceneListTab::Scenes ? "Select Scenes Tab" : "Select Screen Effects Tab",
 			[context, before, before_tab]() mutable {
 				ApplyEditorSelection(*context, before);
 				RequestSceneListTabFocus(*context, before_tab);
@@ -358,9 +307,7 @@ bool SetSceneListTab(EditorContext& ctx, SceneListTab tab) {
 				RequestSceneListTabFocus(*context, tab);
 			}
 		),
-		false,
-		runtime,
-		runtime
+		false, runtime, runtime
 	);
 
 	return true;
@@ -384,7 +331,6 @@ bool SyncVisibleSceneListTab(EditorContext& ctx, SceneListTab tab) {
 	return SetSceneListTab(ctx, tab);
 }
 
-
 bool SetInspectorTab(EditorContext& ctx, InspectorTab tab) {
 	if (ctx.local.selection.inspector_tab == tab) {
 		return false;
@@ -399,7 +345,7 @@ bool SetInspectorTab(EditorContext& ctx, InspectorTab tab) {
 	EditorSelection after{ before };
 	after.inspector_tab = tab;
 
-	const bool runtime{ ctx.editor.IsPlaying() };
+	bool runtime{ ctx.editor.IsPlaying() };
 	EditorContext* context{ std::addressof(ctx) };
 	const auto before_tab{ before.inspector_tab };
 	const auto before_mode{ before.mode };
@@ -407,36 +353,26 @@ bool SetInspectorTab(EditorContext& ctx, InspectorTab tab) {
 
 	ctx.undo.Execute(
 		std::make_unique<ActionEditorCommand>(
-			tab == InspectorTab::ScreenEffect
-				? "Select Screen Effect Inspector Tab"
-				: "Select Primary Inspector Tab",
+			tab == InspectorTab::ScreenEffect ? "Select Screen Effect Inspector Tab"
+											  : "Select Primary Inspector Tab",
 			[context, before, before_tab, before_mode]() mutable {
 				ApplyEditorSelectionAndFocus(
-					*context,
-					before,
-					GetInspectorTabWindow(before_tab, before_mode)
+					*context, before, GetInspectorTabWindow(before_tab, before_mode)
 				);
 			},
 			[context, after, tab, after_mode]() mutable {
 				ApplyEditorSelectionAndFocus(
-					*context,
-					after,
-					GetInspectorTabWindow(tab, after_mode)
+					*context, after, GetInspectorTabWindow(tab, after_mode)
 				);
 			}
 		),
-		false,
-		runtime,
-		runtime
+		false, runtime, runtime
 	);
 
 	return true;
 }
 
-bool ClearSelectedScreenEffect(
-	EditorContext& ctx,
-	std::string label
-) {
+bool ClearSelectedScreenEffect(EditorContext& ctx, std::string label) {
 	if (!ctx.local.selection.selected_screen_effect.has_value()) {
 		return false;
 	}
@@ -446,11 +382,7 @@ bool ClearSelectedScreenEffect(
 	selection.inspector_tab = InspectorTab::Primary;
 
 	return SetEditorSelection(
-		ctx,
-		std::move(selection),
-		std::move(label),
-		true,
-		ctx.editor.IsPlaying()
+		ctx, std::move(selection), std::move(label), true, ctx.editor.IsPlaying()
 	);
 }
 

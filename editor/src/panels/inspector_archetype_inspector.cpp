@@ -95,20 +95,20 @@ bool DrawAddComponentMenu(Target& target) {
 		return false;
 	}
 
-	const bool button_control{ HasInspectorComponent<Target, ::ptgn::impl::ButtonData>(target) };
+	bool button_control{ HasInspectorComponent<Target, ::ptgn::impl::ButtonData>(target) };
 
 	changed |= DrawAddComponentItem<Transform>(target, "Transform");
 	changed |=
 		DrawAddComponentItem<::ptgn::impl::Interactive>(target, "Interaction", button_control);
 
-	const bool can_add_physics_movement{ CanAddComponentItem<Collider>(target) ||
-										 CanAddComponentItem<RigidBody>(target) ||
-										 CanAddMovementItem(target) };
+	bool can_add_physics_movement{ CanAddComponentItem<Collider>(target) ||
+								   CanAddComponentItem<RigidBody>(target) ||
+								   CanAddMovementItem(target) };
 	if (!can_add_physics_movement) {
 		const auto& style{ ImGui::GetStyle() };
 		ImGui::PushStyleVar(ImGuiStyleVar_Alpha, style.Alpha * style.DisabledAlpha);
 	}
-	const bool physics_movement_open{ ImGui::BeginMenu("Physics & Movement") };
+	bool physics_movement_open{ ImGui::BeginMenu("Physics & Movement") };
 	if (!can_add_physics_movement) {
 		ImGui::PopStyleVar();
 	}
@@ -119,14 +119,14 @@ bool DrawAddComponentMenu(Target& target) {
 		ImGui::EndMenu();
 	}
 
-	const bool can_add_utility{ CanAddComponentItem<::ptgn::impl::Timers>(target) ||
-								CanAddComponentItem<Group>(target) ||
-								CanAddComponentItem<Lifetime>(target) };
+	bool can_add_utility{ CanAddComponentItem<::ptgn::impl::Timers>(target) ||
+						  CanAddComponentItem<Group>(target) ||
+						  CanAddComponentItem<Lifetime>(target) };
 	if (!can_add_utility) {
 		const auto& style{ ImGui::GetStyle() };
 		ImGui::PushStyleVar(ImGuiStyleVar_Alpha, style.Alpha * style.DisabledAlpha);
 	}
-	const bool utilities_open{ ImGui::BeginMenu("Utilities") };
+	bool utilities_open{ ImGui::BeginMenu("Utilities") };
 	if (!can_add_utility) {
 		ImGui::PopStyleVar();
 	}
@@ -505,9 +505,8 @@ bool DrawPaintGeneratorArchetype(Target& target, bool& stop_after_archetype) {
 		const SceneLayer* generator_layer{
 			generator_layer_id ? entity.GetScene().GetLayers().Find(*generator_layer_id) : nullptr
 		};
-		const bool missing_tilemap{ generator_layer &&
-									generator_layer->kind == SceneLayerKind::Tile &&
-									!PaintGenerator{ entity }.GetTargetTilemap() };
+		bool missing_tilemap{ generator_layer && generator_layer->kind == SceneLayerKind::Tile &&
+							  !PaintGenerator{ entity }.GetTargetTilemap() };
 		ImGui::BeginDisabled(data.geometry == PaintGeneratorGeometry::Infinite || missing_tilemap);
 		if (ImGui::Button("Bake Generator")) {
 			paint.BakeGenerator(target.ctx, scene, entity);

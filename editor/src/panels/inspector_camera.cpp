@@ -42,8 +42,8 @@ bool DrawCameraParentRenderTarget(Target& target) {
 		const Entity scene_target{ scene.GetRenderTarget() };
 		const Entity main_camera{ scene.GetCamera() };
 		const Entity fixed_camera{ scene.GetFixedCamera() };
-		const bool parent_target_read_only{ camera_entity == main_camera ||
-											camera_entity == fixed_camera };
+		bool parent_target_read_only{ camera_entity == main_camera ||
+									  camera_entity == fixed_camera };
 
 		std::string scene_target_label{ "Scene Target" };
 		if (scene_target && scene_target.Has<Tag>()) {
@@ -102,7 +102,7 @@ bool DrawCameraParentRenderTarget(Target& target) {
 			ImGui::BeginDisabled(parent_target_read_only);
 			ImGui::SetNextItemWidth(-FLT_MIN);
 			if (ImGui::BeginCombo("##RenderTarget", preview)) {
-				const bool scene_selected{ !value.has_value() };
+				bool scene_selected{ !value.has_value() };
 				if (ImGui::Selectable(scene_target_label.c_str(), scene_selected)) {
 					value.reset();
 					row_changed = true;
@@ -117,7 +117,7 @@ bool DrawCameraParentRenderTarget(Target& target) {
 				}
 
 				for (const auto& option : render_targets) {
-					const bool selected{ value && value->render_target == option.uuid };
+					bool selected{ value && value->render_target == option.uuid };
 
 					if (ImGui::Selectable(option.label.c_str(), selected)) {
 						value = ::ptgn::impl::ParentRenderTarget{
@@ -161,13 +161,12 @@ bool DrawCameraSectionImpl(Target& target) {
 		return false;
 	}
 
-	const bool archetype_owned{ ArchetypeOwnsCamera(ResolveInspectorArchetype(target)) };
+	bool archetype_owned{ ArchetypeOwnsCamera(ResolveInspectorArchetype(target)) };
 	const auto header{ DrawInspectorSectionHeader(
-		"Camera",
-		"CameraSection",
+		"Camera", "CameraSection",
 		InspectorSectionOptions{
 			.default_open = true,
-			.removable = !archetype_owned,
+			.removable	  = !archetype_owned,
 		}
 	) };
 
@@ -200,7 +199,6 @@ bool DrawCameraSectionImpl(Target& target) {
 
 	return changed;
 }
-
 
 } // namespace
 

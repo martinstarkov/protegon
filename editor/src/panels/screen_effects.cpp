@@ -30,23 +30,15 @@ struct ScreenEffectDragPayload {
 	bool runtime{ false };
 };
 
-void SelectScreenEffect(
-	EditorContext& ctx,
-	ScreenEffectSelection selection,
-	bool undoable = true
-) {
+void SelectScreenEffect(EditorContext& ctx, ScreenEffectSelection selection, bool undoable = true) {
 	EditorSelection editor_selection{ ctx.local.selection };
-	editor_selection.scene_list_tab = SceneListTab::ScreenEffects;
-	editor_selection.inspector_tab = InspectorTab::ScreenEffect;
+	editor_selection.scene_list_tab			= SceneListTab::ScreenEffects;
+	editor_selection.inspector_tab			= InspectorTab::ScreenEffect;
 	editor_selection.selected_screen_effect = selection;
 
 	if (undoable) {
 		SetEditorSelection(
-			ctx,
-			std::move(editor_selection),
-			"Select Screen Effect",
-			true,
-			ctx.editor.IsPlaying()
+			ctx, std::move(editor_selection), "Select Screen Effect", true, ctx.editor.IsPlaying()
 		);
 	} else {
 		ApplyEditorSelection(ctx, std::move(editor_selection));
@@ -55,32 +47,21 @@ void SelectScreenEffect(
 	ImGui::SetWindowFocus("Screen Effect Inspector###ScreenEffectInspector");
 }
 
-[[nodiscard]] bool IsSelected(
-	const EditorContext& ctx,
-	ScreenEffectSelection selection
-) {
+[[nodiscard]] bool IsSelected(const EditorContext& ctx, ScreenEffectSelection selection) {
 	return ctx.local.selection.selected_screen_effect == selection;
 }
 
-void DrawDragSource(
-	std::size_t index,
-	bool runtime,
-	std::string_view label
-) {
+void DrawDragSource(std::size_t index, bool runtime, std::string_view label) {
 	if (!ImGui::BeginDragDropSource()) {
 		return;
 	}
 
 	const ScreenEffectDragPayload payload{
-		.index = index,
+		.index	 = index,
 		.runtime = runtime,
 	};
 
-	ImGui::SetDragDropPayload(
-		"PTGN_SCREEN_EFFECT_ORDER",
-		&payload,
-		sizeof(payload)
-	);
+	ImGui::SetDragDropPayload("PTGN_SCREEN_EFFECT_ORDER", &payload, sizeof(payload));
 	ImGui::TextUnformatted(label.data(), label.data() + label.size());
 	ImGui::EndDragDropSource();
 }
@@ -97,9 +78,7 @@ void DrawAddEffectPopup(EditorContext& ctx, bool runtime) {
 		effects.emplace_back(&effect);
 	}
 
-	std::ranges::sort(effects, {}, [](const auto* effect) {
-		return effect->display_name;
-	});
+	std::ranges::sort(effects, {}, [](const auto* effect) { return effect->display_name; });
 
 	bool has_creatable_effect{ false };
 
@@ -139,7 +118,7 @@ bool DrawProjectEffects(EditorContext& ctx) {
 	}
 
 	bool effect_left_clicked{ false };
-	const bool empty{ settings->effects.empty() };
+	bool empty{ settings->effects.empty() };
 	std::optional<std::pair<std::size_t, std::size_t>> pending_move;
 	std::optional<std::pair<ScreenEffectId, bool>> pending_enabled;
 	std::optional<ScreenEffectId> pending_duplicate;
@@ -148,11 +127,10 @@ bool DrawProjectEffects(EditorContext& ctx) {
 	for (std::size_t index{ 0 }; index < settings->effects.size(); ++index) {
 		const auto& effect{ settings->effects[index] };
 		const auto* registration{ ::ptgn::impl::EffectRegistry::Find(effect.type) };
-		const std::string label{
-			registration ? registration->display_name : effect.type + " [Missing]"
-		};
+		const std::string label{ registration ? registration->display_name
+											  : effect.type + " [Missing]" };
 		const ScreenEffectSelection selection{
-			.id = effect.id,
+			.id		 = effect.id,
 			.runtime = false,
 		};
 
@@ -169,9 +147,8 @@ bool DrawProjectEffects(EditorContext& ctx) {
 
 		ImGui::SameLine();
 		std::string selectable_label{ label + "##ScreenEffect" };
-		const bool effect_selected{ ImGui::Selectable(
-			selectable_label.c_str(),
-			IsSelected(ctx, selection),
+		bool effect_selected{ ImGui::Selectable(
+			selectable_label.c_str(), IsSelected(ctx, selection),
 			ImGuiSelectableFlags_SpanAvailWidth
 		) };
 		effect_left_clicked |= ImGui::IsItemClicked(ImGuiMouseButton_Left);
@@ -196,12 +173,8 @@ bool DrawProjectEffects(EditorContext& ctx) {
 		DrawDragSource(index, false, label);
 
 		if (ImGui::BeginDragDropTarget()) {
-			if (const auto* payload{
-					ImGui::AcceptDragDropPayload("PTGN_SCREEN_EFFECT_ORDER")
-				}) {
-				const auto drag{
-					*static_cast<const ScreenEffectDragPayload*>(payload->Data)
-				};
+			if (const auto* payload{ ImGui::AcceptDragDropPayload("PTGN_SCREEN_EFFECT_ORDER") }) {
+				const auto drag{ *static_cast<const ScreenEffectDragPayload*>(payload->Data) };
 				if (!drag.runtime && drag.index != index) {
 					pending_move = std::pair{ drag.index, index };
 				}
@@ -252,23 +225,18 @@ bool DrawRuntimeEffects(EditorContext& ctx) {
 		}
 
 		const auto* instance{ entity.TryGet<::ptgn::impl::ScreenEffectInstance>() };
-		const auto* registration{
-			instance ? ::ptgn::impl::EffectRegistry::Find(instance->type) : nullptr
-		};
-		const std::string label{
-			registration
-				? registration->display_name
-				: instance
-					? instance->type + " [Missing]"
-					: std::string{ "Runtime Effect" }
-		};
+		const auto* registration{ instance ? ::ptgn::impl::EffectRegistry::Find(instance->type)
+										   : nullptr };
+		const std::string label{ registration ? registration->display_name
+								 : instance	  ? instance->type + " [Missing]"
+											  : std::string{ "Runtime Effect" } };
 
 		ScreenEffectSelection selection;
 		if (instance && instance->source_id != 0) {
-			selection.id = instance->source_id;
+			selection.id	  = instance->source_id;
 			selection.runtime = false;
 		} else if (instance) {
-			selection.id = instance->runtime_id;
+			selection.id	  = instance->runtime_id;
 			selection.runtime = true;
 		}
 
@@ -282,9 +250,8 @@ bool DrawRuntimeEffects(EditorContext& ctx) {
 
 		ImGui::SameLine();
 		std::string selectable_label{ label + "##RuntimeScreenEffect" };
-		const bool effect_selected{ ImGui::Selectable(
-			selectable_label.c_str(),
-			instance && IsSelected(ctx, selection),
+		bool effect_selected{ ImGui::Selectable(
+			selectable_label.c_str(), instance && IsSelected(ctx, selection),
 			ImGuiSelectableFlags_SpanAvailWidth
 		) };
 		effect_left_clicked |= ImGui::IsItemClicked(ImGuiMouseButton_Left);
@@ -309,12 +276,8 @@ bool DrawRuntimeEffects(EditorContext& ctx) {
 		DrawDragSource(index, true, label);
 
 		if (ImGui::BeginDragDropTarget()) {
-			if (const auto* payload{
-					ImGui::AcceptDragDropPayload("PTGN_SCREEN_EFFECT_ORDER")
-				}) {
-				const auto drag{
-					*static_cast<const ScreenEffectDragPayload*>(payload->Data)
-				};
+			if (const auto* payload{ ImGui::AcceptDragDropPayload("PTGN_SCREEN_EFFECT_ORDER") }) {
+				const auto drag{ *static_cast<const ScreenEffectDragPayload*>(payload->Data) };
 				if (drag.runtime && drag.index != index) {
 					pending_move = std::pair{ drag.index, index };
 				}
@@ -351,7 +314,7 @@ bool DrawRuntimeEffects(EditorContext& ctx) {
 } // namespace
 
 void ScreenEffectsPanel::OnRender(EditorContext& ctx) {
-	const bool visible{ ImGui::Begin("Screen Effects") };
+	bool visible{ ImGui::Begin("Screen Effects") };
 
 	if (!visible) {
 		ImGui::End();
@@ -360,7 +323,7 @@ void ScreenEffectsPanel::OnRender(EditorContext& ctx) {
 
 	SyncVisibleSceneListTab(ctx, SceneListTab::ScreenEffects);
 
-	const bool runtime{ ctx.editor.IsPlaying() || ctx.editor.IsDirectRuntime() };
+	bool runtime{ ctx.editor.IsPlaying() || ctx.editor.IsDirectRuntime() };
 	bool preview{ ctx.editor.GetSettings().preview_screen_effects };
 
 	if (ImGui::Checkbox("Preview", &preview)) {
@@ -368,18 +331,14 @@ void ScreenEffectsPanel::OnRender(EditorContext& ctx) {
 	}
 	if (ImGui::IsItemHovered()) {
 		ImGui::SetTooltip(
-			runtime
-				? "Enable or disable screen effects during runtime."
-				: "Preview project screen effects in the editor viewport."
+			runtime ? "Enable or disable screen effects during runtime."
+					: "Preview project screen effects in the editor viewport."
 		);
 	}
 
 	ImGui::SameLine();
 	ImGui::SetCursorPosX(
-		std::max(
-			ImGui::GetCursorPosX(),
-			ImGui::GetWindowContentRegionMax().x - 105.0f
-		)
+		std::max(ImGui::GetCursorPosX(), ImGui::GetWindowContentRegionMax().x - 105.0f)
 	);
 
 	if (ImGui::Button("+ Add Effect", ImVec2{ -FLT_MIN, 0.0f })) {
@@ -389,16 +348,10 @@ void ScreenEffectsPanel::OnRender(EditorContext& ctx) {
 
 	ImGui::Separator();
 
-	const bool effect_left_clicked{
-		runtime
-			? DrawRuntimeEffects(ctx)
-			: DrawProjectEffects(ctx)
-	};
+	bool effect_left_clicked{ runtime ? DrawRuntimeEffects(ctx) : DrawProjectEffects(ctx) };
 
-	if (ctx.local.selection.selected_screen_effect.has_value() &&
-		ImGui::IsWindowHovered() &&
-		ImGui::IsMouseClicked(ImGuiMouseButton_Left) &&
-		!effect_left_clicked) {
+	if (ctx.local.selection.selected_screen_effect.has_value() && ImGui::IsWindowHovered() &&
+		ImGui::IsMouseClicked(ImGuiMouseButton_Left) && !effect_left_clicked) {
 		ClearSelectedScreenEffect(ctx);
 	}
 

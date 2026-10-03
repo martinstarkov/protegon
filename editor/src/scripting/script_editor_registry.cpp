@@ -122,11 +122,11 @@ void DrawCountControl(
 }
 
 bool DrawToggleButton(const char* label, bool& value, ImVec2 size, const char* tooltip) {
-	const bool dimmed{ !value };
+	bool dimmed{ !value };
 	if (dimmed) {
 		ImGui::PushStyleVar(ImGuiStyleVar_Alpha, ImGui::GetStyle().Alpha * 0.45f);
 	}
-	const bool pressed{ ImGui::Button(label, size) };
+	bool pressed{ ImGui::Button(label, size) };
 	if (dimmed) {
 		ImGui::PopStyleVar();
 	}
@@ -268,7 +268,7 @@ bool DrawJsonValue(std::string_view label, json& value, const json* defaults) {
 
 	if (value.is_boolean()) {
 		bool temporary{ value.get<bool>() };
-		const bool changed{ inspector::DrawPropertyRow(label, [&]() {
+		bool changed{ inspector::DrawPropertyRow(label, [&]() {
 			return ImGui::Checkbox("##Value", &temporary);
 		}) };
 
@@ -280,7 +280,7 @@ bool DrawJsonValue(std::string_view label, json& value, const json* defaults) {
 
 	if (value.is_number_unsigned()) {
 		std::uint64_t temporary{ value.get<std::uint64_t>() };
-		const bool changed{ inspector::DrawPropertyRow(label, [&]() {
+		bool changed{ inspector::DrawPropertyRow(label, [&]() {
 			return ImGui::DragScalar("##Value", ImGuiDataType_U64, &temporary, 1.0f);
 		}) };
 
@@ -292,7 +292,7 @@ bool DrawJsonValue(std::string_view label, json& value, const json* defaults) {
 
 	if (value.is_number_integer()) {
 		std::int64_t temporary{ value.get<std::int64_t>() };
-		const bool changed{ inspector::DrawPropertyRow(label, [&]() {
+		bool changed{ inspector::DrawPropertyRow(label, [&]() {
 			return ImGui::DragScalar("##Value", ImGuiDataType_S64, &temporary, 1.0f);
 		}) };
 
@@ -304,7 +304,7 @@ bool DrawJsonValue(std::string_view label, json& value, const json* defaults) {
 
 	if (value.is_number_float()) {
 		double temporary{ value.get<double>() };
-		const bool changed{ inspector::DrawPropertyRow(label, [&]() {
+		bool changed{ inspector::DrawPropertyRow(label, [&]() {
 			return ImGui::DragScalar(
 				"##Value", ImGuiDataType_Double, &temporary, 0.1f, nullptr, nullptr, "%.6g"
 			);
@@ -318,7 +318,7 @@ bool DrawJsonValue(std::string_view label, json& value, const json* defaults) {
 
 	if (value.is_string()) {
 		std::string temporary{ value.get<std::string>() };
-		const bool changed{ inspector::DrawPropertyRow(label, [&]() {
+		bool changed{ inspector::DrawPropertyRow(label, [&]() {
 			return ImGui::InputText("##Value", &temporary);
 		}) };
 
@@ -334,7 +334,7 @@ bool DrawJsonValue(std::string_view label, json& value, const json* defaults) {
 			return false;
 		}
 
-		const bool changed{ DrawJsonObject(value, defaults) };
+		bool changed{ DrawJsonObject(value, defaults) };
 		ImGui::TreePop();
 		return changed;
 	}
@@ -397,7 +397,7 @@ std::string KeyExpressionValue(const json& value) {
 }
 
 bool DrawHeldDurationToggle(bool& require_duration) {
-	const bool changed{ ImGui::Checkbox("##RequireHeldDuration", &require_duration) };
+	bool changed{ ImGui::Checkbox("##RequireHeldDuration", &require_duration) };
 	DrawItemTooltip("Checked: require the minimum held duration. Unchecked: match any held state.");
 	return changed;
 }
@@ -486,7 +486,7 @@ bool DrawMouseTrigger(json& value, bool with_duration) {
 	ImGui::SetNextItemWidth(mouse_width);
 	if (ImGui::BeginCombo("##Button", MouseTriggerLabel(mouse))) {
 		for (const Mouse candidate : { Mouse::Left, Mouse::Right, Mouse::Middle }) {
-			const bool selected{ candidate == mouse };
+			bool selected{ candidate == mouse };
 			if (ImGui::Selectable(MouseTriggerLabel(candidate), selected)) {
 				mouse	= candidate;
 				changed = true;
@@ -535,7 +535,7 @@ bool DrawHeldMouse(json& value) {
 bool DrawSignalEvent(json& value) {
 	std::string signal{ JsonValueOr<std::string>(value, "signal", "") };
 	ImGui::SetNextItemWidth(-FLT_MIN);
-	const bool changed{ ImGui::InputTextWithHint("##Signal", "Signal name", &signal) };
+	bool changed{ ImGui::InputTextWithHint("##Signal", "Signal name", &signal) };
 	DrawItemTooltip("Signal name matched exactly.");
 	if (changed) {
 		value["signal"] = std::move(signal);
@@ -603,8 +603,8 @@ bool DrawScriptSequenceInline(ScriptEditorContext& context, Script& script) {
 	ImGui::SetNextItemWidth(-FLT_MIN);
 	if (ImGui::BeginCombo("##GlobalScriptSequence", preview)) {
 		for (const auto& shared : context.shared_sequences.sequences) {
-			const bool is_selected{ script.sequence.shared_reference &&
-									script.sequence.shared_sequence_id == shared.id };
+			bool is_selected{ script.sequence.shared_reference &&
+							  script.sequence.shared_sequence_id == shared.id };
 			if (ImGui::Selectable(shared.name.c_str(), is_selected)) {
 				script.sequence.name			   = shared.name;
 				script.sequence.shared_reference   = true;
@@ -759,7 +759,7 @@ bool DrawPlaySound(ScriptEditorContext&, PlaySoundScript& script) {
 
 	changed |= inspector::DrawPropertyRow("Loops", [&]() {
 		ImGui::SetNextItemWidth(-FLT_MIN);
-		const bool row_changed{ ImGui::DragInt(
+		bool row_changed{ ImGui::DragInt(
 			"##Loops", &script.loops, 1.0f, 0, kMaxAudioPlayLoops, "%d",
 			ImGuiSliderFlags_AlwaysClamp
 		) };
@@ -1052,7 +1052,7 @@ bool DrawTimerActionInline(ScriptEditorContext& context, TimerActionScript& scri
 bool DrawDialogueActionInline(ScriptEditorContext&, DialogueActionScript& script) {
 	const float available{ ImGui::GetContentRegionAvail().x };
 	const float spacing{ ImGui::GetStyle().ItemSpacing.x };
-	const bool uses_key{ DialogueActionUsesKey(script.action) };
+	bool uses_key{ DialogueActionUsesKey(script.action) };
 	const float action_width{ uses_key ? std::min(155.0f, std::max(110.0f, available * 0.46f))
 									   : available };
 
@@ -1118,13 +1118,13 @@ bool DrawAnimationActionInline(ScriptEditorContext& context, AnimationActionScri
 
 	const float spacing{ ImGui::GetStyle().ItemSpacing.x };
 
-	const bool shows_force{ script.action == AnimationAction::Start };
+	bool shows_force{ script.action == AnimationAction::Start };
 
-	const bool shows_reset{ script.action == AnimationAction::Stop };
+	bool shows_reset{ script.action == AnimationAction::Stop };
 
-	const bool shows_frame{ script.action == AnimationAction::SetFrame };
+	bool shows_frame{ script.action == AnimationAction::SetFrame };
 
-	const bool has_inline_value{ shows_force || shows_reset || shows_frame };
+	bool has_inline_value{ shows_force || shows_reset || shows_frame };
 
 	float value_width{ 0.0f };
 
@@ -1431,19 +1431,19 @@ bool DrawProjectSceneCombo(
 
 	const auto current_scene{ GetCurrentProjectSceneKey(context) };
 
-	const bool excludes_current_scene{ script.action == SceneChangeAction::Switch };
+	bool excludes_current_scene{ script.action == SceneChangeAction::Switch };
 
 	const auto is_available = [&](const ProjectSceneChoice& choice) {
 		return !excludes_current_scene || !current_scene || choice.key != *current_scene;
 	};
 
-	const bool has_available_choices{ std::ranges::any_of(choices, is_available) };
+	bool has_available_choices{ std::ranges::any_of(choices, is_available) };
 
 	const std::string preview{ script.scene_key.empty() ? "Select Scene" : script.scene_key };
 
 	bool changed{ false };
 
-	const bool open{ ImGui::BeginCombo(label, preview.c_str()) };
+	bool open{ ImGui::BeginCombo(label, preview.c_str()) };
 
 	const std::string tooltip{ SceneSelectionTooltip(context, script) };
 
@@ -1466,7 +1466,7 @@ bool DrawProjectSceneCombo(
 			continue;
 		}
 
-		const bool selected{ script.scene_key == choice.key };
+		bool selected{ script.scene_key == choice.key };
 
 		if (ImGui::Selectable(choice.label.c_str(), selected)) {
 			script.scene_key = choice.key;
@@ -1487,7 +1487,7 @@ bool DrawProjectSceneCombo(
 bool DrawSceneChangeActionAndKey(ScriptEditorContext& context, SceneChangeScript& script) {
 	bool changed{ NormalizeSceneChangeSelection(context, script) };
 
-	const bool has_other_scene{ HasOtherProjectScene(context) };
+	bool has_other_scene{ HasOtherProjectScene(context) };
 
 	const float available{ ImGui::GetContentRegionAvail().x };
 
@@ -1499,13 +1499,13 @@ bool DrawSceneChangeActionAndKey(ScriptEditorContext& context, SceneChangeScript
 
 	if (ImGui::BeginCombo("##SceneAction", SceneActionLabel(script.action))) {
 		for (const auto& [candidate, label] : kSceneActions) {
-			const bool requires_other_scene{ candidate == SceneChangeAction::Switch };
+			bool requires_other_scene{ candidate == SceneChangeAction::Switch };
 
 			if (requires_other_scene && !has_other_scene) {
 				continue;
 			}
 
-			const bool selected{ candidate == script.action };
+			bool selected{ candidate == script.action };
 
 			if (ImGui::Selectable(label, selected)) {
 				script.action = candidate;
@@ -1593,7 +1593,7 @@ bool DrawSceneChange(ScriptEditorContext&, SceneChangeScript& script) {
 			changed |= inspector::DrawPropertyRow("Exit Direction", [&]() {
 				ImGui::SetNextItemWidth(-FLT_MIN);
 
-				const bool direction_changed{ ImGui::DragFloat2(
+				bool direction_changed{ ImGui::DragFloat2(
 					"##SceneExitDirection", &script.direction.x, 0.05f, -1.0f, 1.0f, "%.2f",
 					ImGuiSliderFlags_AlwaysClamp
 				) };
@@ -1613,7 +1613,7 @@ bool DrawSceneChange(ScriptEditorContext&, SceneChangeScript& script) {
 
 		ImGui::SetNextItemWidth(-FLT_MIN);
 
-		const bool priority_changed{ ImGui::DragInt("##SceneChangePriority", &priority, 1.0f, 0) };
+		bool priority_changed{ ImGui::DragInt("##SceneChangePriority", &priority, 1.0f, 0) };
 
 		DrawItemTooltip(
 			"Used to resolve competing scene changes. Higher priority takes precedence."
@@ -1631,9 +1631,7 @@ bool DrawSceneChange(ScriptEditorContext&, SceneChangeScript& script) {
 
 bool DrawEmitSignalInline(ScriptEditorContext&, EmitSignalScript& script) {
 	ImGui::SetNextItemWidth(-FLT_MIN);
-	const bool changed{
-		ImGui::InputTextWithHint("##SignalName", "Signal name", &script.signal.value)
-	};
+	bool changed{ ImGui::InputTextWithHint("##SignalName", "Signal name", &script.signal.value) };
 	DrawItemTooltip("Signal name to broadcast.");
 	return changed;
 }

@@ -14,12 +14,12 @@
 #include <utility>
 
 #include "commands/undo_stack.h"
-#include "editor/editor.h"
-#include "editor/editor_context.h"
 #include "core/graphics/color.h"
 #include "core/graphics/fill_style.h"
 #include "core/math/vector2.h"
 #include "core/util/span.h"
+#include "editor/editor.h"
+#include "editor/editor_context.h"
 #include "panels/inspector_fields.h"
 #include "platform/window.h"
 #include "renderer/pipeline/scaling_mode.h"
@@ -44,31 +44,17 @@ constexpr std::uint64_t kDebugVisibilitySettingsUndoKey{ 0x5345540007ULL };
 
 template <typename T, typename Apply>
 void TrackSettingsChange(
-	EditorContext& ctx,
-	std::uint64_t key,
-	std::string label,
-	bool changed,
-	T before,
-	T after,
-	Apply apply,
-	bool affects_project_serialization = true
+	EditorContext& ctx, std::uint64_t key, std::string label, bool changed, T before, T after,
+	Apply apply, bool affects_project_serialization = true
 ) {
 	if (!changed) {
 		return;
 	}
 
 	ctx.undo.TrackInteraction(
-		key,
-		std::move(label),
-		true,
-		ImGui::IsAnyItemActive(),
-		[apply, before = std::move(before)]() mutable {
-			apply(before);
-		},
-		[apply, after = std::move(after)]() mutable {
-			apply(after);
-		},
-		affects_project_serialization
+		key, std::move(label), true, ImGui::IsAnyItemActive(),
+		[apply, before = std::move(before)]() mutable { apply(before); },
+		[apply, after = std::move(after)]() mutable { apply(after); }, affects_project_serialization
 	);
 }
 
@@ -98,32 +84,21 @@ constexpr std::array<ResolutionPreset, 12> kResolutionPresets{
 };
 
 constexpr std::array kSettingsPages{
-	SettingsPage::ProjectDisplay,
-	SettingsPage::ProjectRendering,
-	SettingsPage::EditorGeneral,
-	SettingsPage::DebugInteraction,
-	SettingsPage::DebugCollision,
-	SettingsPage::DebugText,
+	SettingsPage::ProjectDisplay,	SettingsPage::ProjectRendering, SettingsPage::EditorGeneral,
+	SettingsPage::DebugInteraction, SettingsPage::DebugCollision,	SettingsPage::DebugText,
 	SettingsPage::DebugVisibility,
 };
 
 static_assert(!ContainsDuplicates(kResolutionPresets, &ResolutionPreset::size));
 static_assert(!ContainsDuplicates(kResolutionPresets, &ResolutionPreset::label));
 
-[[nodiscard]] bool ContainsInsensitive(
-	std::string_view text,
-	std::string_view query
-) {
+[[nodiscard]] bool ContainsInsensitive(std::string_view text, std::string_view query) {
 	if (query.empty()) {
 		return true;
 	}
 
 	const auto result{ std::search(
-		text.begin(),
-		text.end(),
-		query.begin(),
-		query.end(),
-		[](char lhs, char rhs) {
+		text.begin(), text.end(), query.begin(), query.end(), [](char lhs, char rhs) {
 			return std::tolower(static_cast<unsigned char>(lhs)) ==
 				   std::tolower(static_cast<unsigned char>(rhs));
 		}
@@ -138,38 +113,24 @@ static_assert(!ContainsDuplicates(kResolutionPresets, &ResolutionPreset::label))
 
 [[nodiscard]] bool IsNavigationSearchTerm(std::string_view term) {
 	constexpr std::array navigation_terms{
-		std::string_view{ "project" },
-		std::string_view{ "editor" },
-		std::string_view{ "debug" },
-		std::string_view{ "setting" },
-		std::string_view{ "settings" },
-		std::string_view{ "display" },
-		std::string_view{ "rendering" },
-		std::string_view{ "general" },
-		std::string_view{ "interaction" },
-		std::string_view{ "interactions" },
-		std::string_view{ "collision" },
-		std::string_view{ "collisions" },
-		std::string_view{ "text" },
-		std::string_view{ "box" },
-		std::string_view{ "boxes" },
-		std::string_view{ "visibility" },
-		std::string_view{ "polygon" },
-		std::string_view{ "polygons" },
+		std::string_view{ "project" },	   std::string_view{ "editor" },
+		std::string_view{ "debug" },	   std::string_view{ "setting" },
+		std::string_view{ "settings" },	   std::string_view{ "display" },
+		std::string_view{ "rendering" },   std::string_view{ "general" },
+		std::string_view{ "interaction" }, std::string_view{ "interactions" },
+		std::string_view{ "collision" },   std::string_view{ "collisions" },
+		std::string_view{ "text" },		   std::string_view{ "box" },
+		std::string_view{ "boxes" },	   std::string_view{ "visibility" },
+		std::string_view{ "polygon" },	   std::string_view{ "polygons" },
 	};
 
-	return std::ranges::any_of(
-		navigation_terms,
-		[term](std::string_view candidate) {
-			return candidate.size() == term.size() &&
-				   ContainsInsensitive(candidate, term);
-		}
-	);
+	return std::ranges::any_of(navigation_terms, [term](std::string_view candidate) {
+		return candidate.size() == term.size() && ContainsInsensitive(candidate, term);
+	});
 }
 
 [[nodiscard]] bool MatchesSearchTerms(
-	std::string_view filter,
-	std::initializer_list<std::string_view> values,
+	std::string_view filter, std::initializer_list<std::string_view> values,
 	bool ignore_navigation_terms
 ) {
 	if (filter.empty()) {
@@ -199,7 +160,6 @@ static_assert(!ContainsDuplicates(kResolutionPresets, &ResolutionPreset::label))
 			continue;
 		}
 
-
 		if (!std::ranges::any_of(values, [term](std::string_view value) {
 				return ContainsInsensitive(value, term);
 			})) {
@@ -211,90 +171,78 @@ static_assert(!ContainsDuplicates(kResolutionPresets, &ResolutionPreset::label))
 }
 
 [[nodiscard]] bool MatchesFilter(
-	std::string_view filter,
-	std::initializer_list<std::string_view> values
+	std::string_view filter, std::initializer_list<std::string_view> values
 ) {
 	return MatchesSearchTerms(filter, values, true);
 }
 
 [[nodiscard]] bool MatchesPageFilter(
-	std::string_view filter,
-	std::initializer_list<std::string_view> values
+	std::string_view filter, std::initializer_list<std::string_view> values
 ) {
 	return MatchesSearchTerms(filter, values, false);
 }
 
-[[nodiscard]] bool PageMatchesFilter(
-	SettingsPage page,
-	std::string_view filter
-) {
+[[nodiscard]] bool PageMatchesFilter(SettingsPage page, std::string_view filter) {
 	switch (page) {
 		case SettingsPage::ProjectDisplay:
 			return MatchesPageFilter(
-				filter,
-				{
-					"project display resolution source preset logical size scaling mode",
-					"window title window size current window size default window size "
-					"canvas css size resizable start maximized",
-					"window background renderer background presentation background "
-					"backbuffer framebuffer size current backbuffer size",
-				}
+				filter, {
+							"project display resolution source preset logical size scaling mode",
+							"window title window size current window size default window size "
+							"canvas css size resizable start maximized",
+							"window background renderer background presentation background "
+							"backbuffer framebuffer size current backbuffer size",
+						}
 			);
 
 		case SettingsPage::ProjectRendering:
 			return MatchesPageFilter(
-				filter,
-				{
-					"project rendering tone mapping exposure gamma",
-					"color correction hdr",
-				}
+				filter, {
+							"project rendering tone mapping exposure gamma",
+							"color correction hdr",
+						}
 			);
 
 		case SettingsPage::EditorGeneral:
 			return MatchesPageFilter(
-				filter,
-				{
-					"editor general entity picking",
-					"render only selected scene",
-					"local gizmo orientation transform",
-					"show read only inspector data components members",
-					"show read only scene data diagnostics scene settings",
-					"prefab delete deletion linked instances bake convert entity",
-				}
+				filter, {
+							"editor general entity picking",
+							"render only selected scene",
+							"local gizmo orientation transform",
+							"show read only inspector data components members",
+							"show read only scene data diagnostics scene settings",
+							"prefab delete deletion linked instances bake convert entity",
+						}
 			);
 
 		case SettingsPage::DebugInteraction:
 			return MatchesPageFilter(
-				filter,
-				{
-					"debug interaction interactions draw enabled color line width",
-				}
+				filter, {
+							"debug interaction interactions draw enabled color line width",
+						}
 			);
 
 		case SettingsPage::DebugCollision:
 			return MatchesPageFilter(
-				filter,
-				{
-					"debug collision collisions draw enabled color fill style ccd",
-					"continuous collision detection",
-				}
+				filter, {
+							"debug collision collisions draw enabled color fill style ccd",
+							"continuous collision detection",
+						}
 			);
 
 		case SettingsPage::DebugText:
 			return MatchesPageFilter(
-				filter,
-				{
-					"debug text text boxes bounds draw enabled color line width clip color",
-				}
+				filter, {
+							"debug text text boxes bounds draw enabled color line width clip color",
+						}
 			);
 
 		case SettingsPage::DebugVisibility:
 			return MatchesPageFilter(
-				filter,
-				{
-					"debug visibility polygons lighting draw enabled interiors",
-					"polygon color masks inside does not mask inside fill style",
-				}
+				filter, {
+							"debug visibility polygons lighting draw enabled interiors",
+							"polygon color masks inside does not mask inside fill style",
+						}
 			);
 	}
 
@@ -368,12 +316,7 @@ bool DrawResolutionMode(EditorContext& ctx) {
 	int mode{ renderer.GetSettings().logical_size.has_value() ? 1 : 0 };
 
 	bool changed{ DrawPropertyRow("Resolution Source", [&]() {
-		return ImGui::Combo(
-			"##value",
-			&mode,
-			names.data(),
-			static_cast<int>(names.size())
-		);
+		return ImGui::Combo("##value", &mode, names.data(), static_cast<int>(names.size()));
 	}) };
 
 	if (!changed) {
@@ -394,12 +337,9 @@ bool DrawResolutionPreset(EditorContext& ctx) {
 
 	auto logical_size{ renderer.GetLogicalSize() };
 
-	auto selected{ std::ranges::find_if(
-		kResolutionPresets,
-		[&](const ResolutionPreset& preset) {
-			return preset.size == logical_size;
-		}
-	) };
+	auto selected{ std::ranges::find_if(kResolutionPresets, [&](const ResolutionPreset& preset) {
+		return preset.size == logical_size;
+	}) };
 
 	auto preview{ selected != kResolutionPresets.end() ? selected->label : "Custom" };
 
@@ -427,30 +367,24 @@ bool DrawResolutionPreset(EditorContext& ctx) {
 	});
 }
 
-bool DrawProjectDisplaySettings(
-	EditorContext& ctx,
-	std::string_view filter
-) {
+bool DrawProjectDisplaySettings(EditorContext& ctx, std::string_view filter) {
 	bool changed{ false };
 	auto& renderer{ ctx.editor.GetRenderer() };
 	auto& window{ ctx.editor.GetWindow() };
 	const ProjectDisplaySettingsState before{
 		.renderer = renderer.GetSettings(),
-		.window = window.GetSettings(),
+		.window	  = window.GetSettings(),
 	};
 
-	const bool show_resolution{
-		MatchesFilter(
-			filter,
-			{
-				"resolution source",
-				"preset",
-				"logical size",
-				"window size",
-				"scaling mode",
-			}
-		)
-	};
+	bool show_resolution{ MatchesFilter(
+		filter, {
+					"resolution source",
+					"preset",
+					"logical size",
+					"window size",
+					"scaling mode",
+				}
+	) };
 
 	if (show_resolution) {
 		DrawSectionTitle("Resolution");
@@ -468,12 +402,7 @@ bool DrawProjectDisplaySettings(
 				auto logical_size{ renderer.GetLogicalSize() };
 
 				if (DrawWHValue(
-						"Logical Size",
-						logical_size,
-						1.0f,
-						1,
-						4096,
-						ImGuiSliderFlags_AlwaysClamp
+						"Logical Size", logical_size, 1.0f, 1, 4096, ImGuiSliderFlags_AlwaysClamp
 					)) {
 					renderer.SetLogicalSize(logical_size);
 					changed = true;
@@ -491,20 +420,17 @@ bool DrawProjectDisplaySettings(
 		}
 	}
 
-	const bool show_window{
-		MatchesFilter(
-			filter,
-			{
-				"window title",
-				"current window size",
-				"canvas css size",
-				"default window size",
-				"resizable",
-				"start maximized",
-				"window background",
-			}
-		)
-	};
+	bool show_window{ MatchesFilter(
+		filter, {
+					"window title",
+					"current window size",
+					"canvas css size",
+					"default window size",
+					"resizable",
+					"start maximized",
+					"window background",
+				}
+	) };
 
 	if (show_window) {
 		DrawSectionTitle("Window");
@@ -513,36 +439,20 @@ bool DrawProjectDisplaySettings(
 		bool window_changed{ false };
 
 		if (MatchesFilter(filter, { "window title", "title" })) {
-			window_changed |= DrawValue(
-				ctx,
-				"Window Title",
-				window_settings.title
-			);
+			window_changed |= DrawValue(ctx, "Window Title", window_settings.title);
 		}
 
 		if (MatchesFilter(filter, { "current window size", "window size", "canvas css size" })) {
 			auto current_window_size{ GetCurrentWindowSize(window) };
 
 			DrawWHValue(
-				"Current Window Size",
-				current_window_size,
-				1.0f,
-				0,
-				0,
-				ImGuiSliderFlags_None,
-				true
+				"Current Window Size", current_window_size, 1.0f, 0, 0, ImGuiSliderFlags_None, true
 			);
 		}
 
 		if (MatchesFilter(filter, { "default window size", "window size" })) {
 			DrawWHValue(
-				"Default Window Size",
-				window_settings.size,
-				1.0f,
-				0,
-				0,
-				ImGuiSliderFlags_None,
-				true
+				"Default Window Size", window_settings.size, 1.0f, 0, 0, ImGuiSliderFlags_None, true
 			);
 		}
 
@@ -555,11 +465,7 @@ bool DrawProjectDisplaySettings(
 		}
 
 		if (MatchesFilter(filter, { "window background", "background" })) {
-			window_changed |= DrawValue(
-				ctx,
-				"Window Background",
-				window_settings.background_color
-			);
+			window_changed |= DrawValue(ctx, "Window Background", window_settings.background_color);
 		}
 
 		if (window_changed) {
@@ -568,36 +474,26 @@ bool DrawProjectDisplaySettings(
 		}
 	}
 
-	const bool show_presentation{
-		MatchesFilter(
-			filter,
-			{
-				"renderer background",
-				"presentation background",
-				"backbuffer size",
-				"current backbuffer size",
-				"framebuffer size",
-			}
-		)
-	};
+	bool show_presentation{ MatchesFilter(
+		filter, {
+					"renderer background",
+					"presentation background",
+					"backbuffer size",
+					"current backbuffer size",
+					"framebuffer size",
+				}
+	) };
 
 	if (show_presentation) {
 		DrawSectionTitle("Presentation");
 
 		if (MatchesFilter(
-				filter,
-				{ "backbuffer size", "current backbuffer size", "framebuffer size" }
+				filter, { "backbuffer size", "current backbuffer size", "framebuffer size" }
 			)) {
 			auto backbuffer_size{ GetCurrentBackbufferSize(renderer) };
 
 			DrawWHValue(
-				"Current Backbuffer Size",
-				backbuffer_size,
-				1.0f,
-				0,
-				0,
-				ImGuiSliderFlags_None,
-				true
+				"Current Backbuffer Size", backbuffer_size, 1.0f, 0, 0, ImGuiSliderFlags_None, true
 			);
 		}
 
@@ -612,17 +508,12 @@ bool DrawProjectDisplaySettings(
 
 	const ProjectDisplaySettingsState after{
 		.renderer = renderer.GetSettings(),
-		.window = window.GetSettings(),
+		.window	  = window.GetSettings(),
 	};
 
 	TrackSettingsChange(
-		ctx,
-		kProjectDisplaySettingsUndoKey,
-		"Change Project Display Settings",
-		changed,
-		before,
-		after,
-		[editor = &ctx.editor](const ProjectDisplaySettingsState& state) {
+		ctx, kProjectDisplaySettingsUndoKey, "Change Project Display Settings", changed, before,
+		after, [editor = &ctx.editor](const ProjectDisplaySettingsState& state) {
 			editor->GetRenderer().SetSettings(state.renderer);
 			editor->GetWindow().SetSettings(state.window);
 		}
@@ -631,10 +522,7 @@ bool DrawProjectDisplaySettings(
 	return changed;
 }
 
-bool DrawProjectRenderingSettings(
-	EditorContext& ctx,
-	std::string_view filter
-) {
+bool DrawProjectRenderingSettings(EditorContext& ctx, std::string_view filter) {
 	auto& renderer{ ctx.editor.GetRenderer() };
 	const RendererSettings before{ renderer.GetSettings() };
 	auto settings{ before };
@@ -650,30 +538,26 @@ bool DrawProjectRenderingSettings(
 		 settings.tone_mapping.op == ToneMappingOperator::ACES) &&
 		MatchesFilter(filter, { "exposure", "brightness", "tone mapping" })) {
 		changed |= DrawValue(
-			ctx,
-			"Exposure",
-			settings.tone_mapping.exposure,
+			ctx, "Exposure", settings.tone_mapping.exposure,
 			FieldOptions{
-				.speed = 0.05f,
-				.min = 0.0,
-				.max = 20.0,
+				.speed	= 0.05f,
+				.min	= 0.0,
+				.max	= 20.0,
 				.format = "%.2f",
-				.flags = ImGuiSliderFlags_AlwaysClamp,
+				.flags	= ImGuiSliderFlags_AlwaysClamp,
 			}
 		);
 	}
 
 	if (MatchesFilter(filter, { "gamma", "color correction", "srgb" })) {
 		changed |= DrawValue(
-			ctx,
-			"Gamma",
-			settings.gamma,
+			ctx, "Gamma", settings.gamma,
 			FieldOptions{
-				.speed = 0.05f,
-				.min = 0.01f,
-				.max = 5.0,
+				.speed	= 0.05f,
+				.min	= 0.01f,
+				.max	= 5.0,
 				.format = "%.2f",
-				.flags = ImGuiSliderFlags_AlwaysClamp,
+				.flags	= ImGuiSliderFlags_AlwaysClamp,
 			}
 		);
 	}
@@ -683,13 +567,8 @@ bool DrawProjectRenderingSettings(
 	}
 
 	TrackSettingsChange(
-		ctx,
-		kProjectRenderingSettingsUndoKey,
-		"Change Project Rendering Settings",
-		changed,
-		before,
-		renderer.GetSettings(),
-		[editor = &ctx.editor](const RendererSettings& value) {
+		ctx, kProjectRenderingSettingsUndoKey, "Change Project Rendering Settings", changed, before,
+		renderer.GetSettings(), [editor = &ctx.editor](const RendererSettings& value) {
 			editor->GetRenderer().SetSettings(value);
 		}
 	);
@@ -697,10 +576,7 @@ bool DrawProjectRenderingSettings(
 	return changed;
 }
 
-bool DrawEditorGeneralSettings(
-	EditorContext& ctx,
-	std::string_view filter
-) {
+bool DrawEditorGeneralSettings(EditorContext& ctx, std::string_view filter) {
 	DrawSectionTitle("General");
 
 	const EditorSettings before{ ctx.editor.GetSettings() };
@@ -716,32 +592,20 @@ bool DrawEditorGeneralSettings(
 	}
 
 	if (MatchesFilter(filter, { "render only selected scene", "selected scene" })) {
-		auto render_only_selected_scene{
-			ctx.editor.GetSettings().render_only_selected_scene
-		};
+		auto render_only_selected_scene{ ctx.editor.GetSettings().render_only_selected_scene };
 
-		if (ImGui::Checkbox(
-				"Render Only Selected Scene",
-				&render_only_selected_scene
-			)) {
+		if (ImGui::Checkbox("Render Only Selected Scene", &render_only_selected_scene)) {
 			ctx.editor.SetRenderOnlySelectedScene(render_only_selected_scene);
 			changed = true;
 		}
 
-		ImGui::TextDisabled(
-			"Excludes unselected scenes from the editor presentation."
-		);
+		ImGui::TextDisabled("Excludes unselected scenes from the editor presentation.");
 	}
 
 	if (MatchesFilter(filter, { "local gizmo orientation", "gizmo", "transform orientation" })) {
-		auto gizmo_uses_local_orientation{
-			ctx.editor.GetSettings().gizmo_uses_local_orientation
-		};
+		auto gizmo_uses_local_orientation{ ctx.editor.GetSettings().gizmo_uses_local_orientation };
 
-		if (ImGui::Checkbox(
-				"Local Gizmo Orientation",
-				&gizmo_uses_local_orientation
-			)) {
+		if (ImGui::Checkbox("Local Gizmo Orientation", &gizmo_uses_local_orientation)) {
 			ctx.editor.SetGizmoUsesLocalOrientation(gizmo_uses_local_orientation);
 			changed = true;
 		}
@@ -753,10 +617,7 @@ bool DrawEditorGeneralSettings(
 
 	if (MatchesFilter(filter, { "show read only data", "read only inspector", "inspector data" })) {
 		auto settings{ ctx.editor.GetSettings() };
-		if (ImGui::Checkbox(
-				"Show Read-Only Data",
-				&settings.show_read_only_inspector_data
-			)) {
+		if (ImGui::Checkbox("Show Read-Only Data", &settings.show_read_only_inspector_data)) {
 			ctx.editor.SetEditorSettings(settings);
 			changed = true;
 		}
@@ -767,19 +628,15 @@ bool DrawEditorGeneralSettings(
 	}
 
 	if (MatchesFilter(
-			filter,
-			{
-				"show read only scene data",
-				"read only scene",
-				"scene diagnostics",
-				"scene settings",
-			}
+			filter, {
+						"show read only scene data",
+						"read only scene",
+						"scene diagnostics",
+						"scene settings",
+					}
 		)) {
 		auto settings{ ctx.editor.GetSettings() };
-		if (ImGui::Checkbox(
-				"Show Read-Only Scene Data",
-				&settings.show_read_only_scene_data
-			)) {
+		if (ImGui::Checkbox("Show Read-Only Scene Data", &settings.show_read_only_scene_data)) {
 			ctx.editor.SetEditorSettings(settings);
 			changed = true;
 		}
@@ -790,33 +647,24 @@ bool DrawEditorGeneralSettings(
 	}
 
 	if (MatchesFilter(
-			filter,
-			{
-				"prefab",
-				"delete prefab",
-				"linked prefab instances",
-				"bake instances",
-				"delete instances",
-			}
+			filter, {
+						"prefab",
+						"delete prefab",
+						"linked prefab instances",
+						"bake instances",
+						"delete instances",
+					}
 		)) {
 		auto settings{ ctx.editor.GetSettings() };
-		int behavior{
-			static_cast<int>(
-				settings.prefab_delete_instance_behavior
-			)
-		};
+		int behavior{ static_cast<int>(settings.prefab_delete_instance_behavior) };
 
 		if (DrawPropertyRow("Deleting a Prefab", [&]() {
 				return ImGui::Combo(
-					"##value",
-					&behavior,
-					"Bake Linked Instances\0Delete Linked Instances\0"
+					"##value", &behavior, "Bake Linked Instances\0Delete Linked Instances\0"
 				);
 			})) {
 			settings.prefab_delete_instance_behavior =
-				static_cast<PrefabDeleteInstanceBehavior>(
-					behavior
-				);
+				static_cast<PrefabDeleteInstanceBehavior>(behavior);
 			ctx.editor.SetEditorSettings(settings);
 			changed = true;
 		}
@@ -830,13 +678,8 @@ bool DrawEditorGeneralSettings(
 		auto settings{ ctx.editor.GetSettings() };
 
 		if (ImGui::DragInt(
-				"Content Browser Items Per Row",
-				&settings.content_browser_items_per_row,
-				1.0f,
-				1,
-				16,
-				"%d",
-				ImGuiSliderFlags_AlwaysClamp
+				"Content Browser Items Per Row", &settings.content_browser_items_per_row, 1.0f, 1,
+				16, "%d", ImGuiSliderFlags_AlwaysClamp
 			)) {
 			ctx.editor.SetEditorSettings(settings);
 			changed = true;
@@ -844,8 +687,7 @@ bool DrawEditorGeneralSettings(
 
 		settings = ctx.editor.GetSettings();
 		if (ImGui::Checkbox(
-				"Search All Asset Folders",
-				&settings.content_browser_search_entire_tree
+				"Search All Asset Folders", &settings.content_browser_search_entire_tree
 			)) {
 			ctx.editor.SetEditorSettings(settings);
 			changed = true;
@@ -857,11 +699,7 @@ bool DrawEditorGeneralSettings(
 	}
 
 	TrackSettingsChange(
-		ctx,
-		kEditorGeneralSettingsUndoKey,
-		"Change Editor Settings",
-		changed,
-		before,
+		ctx, kEditorGeneralSettingsUndoKey, "Change Editor Settings", changed, before,
 		ctx.editor.GetSettings(),
 		[editor = &ctx.editor](const EditorSettings& settings) {
 			editor->SetEditorSettings(settings);
@@ -872,10 +710,7 @@ bool DrawEditorGeneralSettings(
 	return changed;
 }
 
-bool DrawDebugInteractionSettings(
-	EditorContext& ctx,
-	std::string_view filter
-) {
+bool DrawDebugInteractionSettings(EditorContext& ctx, std::string_view filter) {
 	DrawSectionTitle("Interaction");
 
 	const auto before{ ctx.editor.GetDebugSystem().settings.interaction };
@@ -892,15 +727,13 @@ bool DrawDebugInteractionSettings(
 
 	if (MatchesFilter(filter, { "draw line width", "line width", "interactions" })) {
 		changed |= DrawValue(
-			ctx,
-			"Draw Line Width",
-			settings.draw_line_width,
+			ctx, "Draw Line Width", settings.draw_line_width,
 			FieldOptions{
-				.speed = 0.1f,
-				.min = kMinLineWidth,
-				.max = 100.0,
+				.speed	= 0.1f,
+				.min	= kMinLineWidth,
+				.max	= 100.0,
 				.format = "%.2f",
-				.flags = ImGuiSliderFlags_AlwaysClamp,
+				.flags	= ImGuiSliderFlags_AlwaysClamp,
 			}
 		);
 	}
@@ -910,11 +743,7 @@ bool DrawDebugInteractionSettings(
 	}
 
 	TrackSettingsChange(
-		ctx,
-		kDebugInteractionSettingsUndoKey,
-		"Change Debug Interaction Settings",
-		changed,
-		before,
+		ctx, kDebugInteractionSettingsUndoKey, "Change Debug Interaction Settings", changed, before,
 		ctx.editor.GetDebugSystem().settings.interaction,
 		[editor = &ctx.editor](const auto& value) {
 			editor->GetDebugSystem().settings.interaction = value;
@@ -924,10 +753,7 @@ bool DrawDebugInteractionSettings(
 	return changed;
 }
 
-bool DrawDebugCollisionSettings(
-	EditorContext& ctx,
-	std::string_view filter
-) {
+bool DrawDebugCollisionSettings(EditorContext& ctx, std::string_view filter) {
 	DrawSectionTitle("Collision");
 
 	const auto before{ ctx.editor.GetDebugSystem().settings.collision };
@@ -955,13 +781,8 @@ bool DrawDebugCollisionSettings(
 	}
 
 	TrackSettingsChange(
-		ctx,
-		kDebugCollisionSettingsUndoKey,
-		"Change Debug Collision Settings",
-		changed,
-		before,
-		ctx.editor.GetDebugSystem().settings.collision,
-		[editor = &ctx.editor](const auto& value) {
+		ctx, kDebugCollisionSettingsUndoKey, "Change Debug Collision Settings", changed, before,
+		ctx.editor.GetDebugSystem().settings.collision, [editor = &ctx.editor](const auto& value) {
 			editor->GetDebugSystem().settings.collision = value;
 		}
 	);
@@ -969,10 +790,7 @@ bool DrawDebugCollisionSettings(
 	return changed;
 }
 
-bool DrawDebugTextSettings(
-	EditorContext& ctx,
-	std::string_view filter
-) {
+bool DrawDebugTextSettings(EditorContext& ctx, std::string_view filter) {
 	DrawSectionTitle("Text");
 
 	const auto before{ ctx.editor.GetDebugSystem().settings.text };
@@ -989,15 +807,13 @@ bool DrawDebugTextSettings(
 
 	if (MatchesFilter(filter, { "draw line width", "line width", "text boxes" })) {
 		changed |= DrawValue(
-			ctx,
-			"Draw Line Width",
-			settings.draw_line_width,
+			ctx, "Draw Line Width", settings.draw_line_width,
 			FieldOptions{
-				.speed = 0.1f,
-				.min = kMinLineWidth,
-				.max = 100.0,
+				.speed	= 0.1f,
+				.min	= kMinLineWidth,
+				.max	= 100.0,
 				.format = "%.2f",
-				.flags = ImGuiSliderFlags_AlwaysClamp,
+				.flags	= ImGuiSliderFlags_AlwaysClamp,
 			}
 		);
 	}
@@ -1011,13 +827,8 @@ bool DrawDebugTextSettings(
 	}
 
 	TrackSettingsChange(
-		ctx,
-		kDebugTextSettingsUndoKey,
-		"Change Debug Text Settings",
-		changed,
-		before,
-		ctx.editor.GetDebugSystem().settings.text,
-		[editor = &ctx.editor](const auto& value) {
+		ctx, kDebugTextSettingsUndoKey, "Change Debug Text Settings", changed, before,
+		ctx.editor.GetDebugSystem().settings.text, [editor = &ctx.editor](const auto& value) {
 			editor->GetDebugSystem().settings.text = value;
 		}
 	);
@@ -1025,10 +836,7 @@ bool DrawDebugTextSettings(
 	return changed;
 }
 
-bool DrawDebugVisibilitySettings(
-	EditorContext& ctx,
-	std::string_view filter
-) {
+bool DrawDebugVisibilitySettings(EditorContext& ctx, std::string_view filter) {
 	DrawSectionTitle("Visibility");
 
 	const auto before{ ctx.editor.GetDebugSystem().settings.light };
@@ -1052,11 +860,8 @@ bool DrawDebugVisibilitySettings(
 	}
 
 	if (MatchesFilter(filter, { "does not mask inside color", "non mask color" })) {
-		changed |= DrawValue(
-			ctx,
-			"Does Not Mask Inside Color",
-			settings.does_not_mask_inside_color
-		);
+		changed |=
+			DrawValue(ctx, "Does Not Mask Inside Color", settings.does_not_mask_inside_color);
 	}
 
 	if (MatchesFilter(filter, { "draw fill style", "fill style" })) {
@@ -1068,13 +873,8 @@ bool DrawDebugVisibilitySettings(
 	}
 
 	TrackSettingsChange(
-		ctx,
-		kDebugVisibilitySettingsUndoKey,
-		"Change Debug Visibility Settings",
-		changed,
-		before,
-		ctx.editor.GetDebugSystem().settings.light,
-		[editor = &ctx.editor](const auto& value) {
+		ctx, kDebugVisibilitySettingsUndoKey, "Change Debug Visibility Settings", changed, before,
+		ctx.editor.GetDebugSystem().settings.light, [editor = &ctx.editor](const auto& value) {
 			editor->GetDebugSystem().settings.light = value;
 		}
 	);
@@ -1083,10 +883,7 @@ bool DrawDebugVisibilitySettings(
 }
 
 void DrawPageNavigationItem(
-	const char* label,
-	SettingsPage page,
-	SettingsPage& selected_page,
-	std::string_view filter
+	const char* label, SettingsPage page, SettingsPage& selected_page, std::string_view filter
 ) {
 	if (!PageMatchesFilter(page, filter)) {
 		return;
@@ -1101,25 +898,16 @@ void DrawPageNavigationItem(
 	ImGui::PopID();
 }
 
-void DrawSettingsNavigation(
-	SettingsPage& selected_page,
-	std::string_view filter
-) {
-	const bool project_visible{
-		PageMatchesFilter(SettingsPage::ProjectDisplay, filter) ||
-		PageMatchesFilter(SettingsPage::ProjectRendering, filter)
-	};
+void DrawSettingsNavigation(SettingsPage& selected_page, std::string_view filter) {
+	bool project_visible{ PageMatchesFilter(SettingsPage::ProjectDisplay, filter) ||
+						  PageMatchesFilter(SettingsPage::ProjectRendering, filter) };
 
-	const bool editor_visible{
-		PageMatchesFilter(SettingsPage::EditorGeneral, filter)
-	};
+	bool editor_visible{ PageMatchesFilter(SettingsPage::EditorGeneral, filter) };
 
-	const bool debug_visible{
-		PageMatchesFilter(SettingsPage::DebugInteraction, filter) ||
-		PageMatchesFilter(SettingsPage::DebugCollision, filter) ||
-		PageMatchesFilter(SettingsPage::DebugText, filter) ||
-		PageMatchesFilter(SettingsPage::DebugVisibility, filter)
-	};
+	bool debug_visible{ PageMatchesFilter(SettingsPage::DebugInteraction, filter) ||
+						PageMatchesFilter(SettingsPage::DebugCollision, filter) ||
+						PageMatchesFilter(SettingsPage::DebugText, filter) ||
+						PageMatchesFilter(SettingsPage::DebugVisibility, filter) };
 
 	if (project_visible) {
 		if (!filter.empty()) {
@@ -1127,20 +915,11 @@ void DrawSettingsNavigation(
 		}
 
 		if (ImGui::TreeNodeEx(
-				"Project",
-				ImGuiTreeNodeFlags_DefaultOpen | ImGuiTreeNodeFlags_SpanAvailWidth
+				"Project", ImGuiTreeNodeFlags_DefaultOpen | ImGuiTreeNodeFlags_SpanAvailWidth
 			)) {
+			DrawPageNavigationItem("Display", SettingsPage::ProjectDisplay, selected_page, filter);
 			DrawPageNavigationItem(
-				"Display",
-				SettingsPage::ProjectDisplay,
-				selected_page,
-				filter
-			);
-			DrawPageNavigationItem(
-				"Rendering",
-				SettingsPage::ProjectRendering,
-				selected_page,
-				filter
+				"Rendering", SettingsPage::ProjectRendering, selected_page, filter
 			);
 			ImGui::TreePop();
 		}
@@ -1152,15 +931,9 @@ void DrawSettingsNavigation(
 		}
 
 		if (ImGui::TreeNodeEx(
-				"Editor",
-				ImGuiTreeNodeFlags_DefaultOpen | ImGuiTreeNodeFlags_SpanAvailWidth
+				"Editor", ImGuiTreeNodeFlags_DefaultOpen | ImGuiTreeNodeFlags_SpanAvailWidth
 			)) {
-			DrawPageNavigationItem(
-				"General",
-				SettingsPage::EditorGeneral,
-				selected_page,
-				filter
-			);
+			DrawPageNavigationItem("General", SettingsPage::EditorGeneral, selected_page, filter);
 			ImGui::TreePop();
 		}
 	}
@@ -1171,55 +944,32 @@ void DrawSettingsNavigation(
 		}
 
 		if (ImGui::TreeNodeEx(
-				"Debug",
-				ImGuiTreeNodeFlags_DefaultOpen | ImGuiTreeNodeFlags_SpanAvailWidth
+				"Debug", ImGuiTreeNodeFlags_DefaultOpen | ImGuiTreeNodeFlags_SpanAvailWidth
 			)) {
 			DrawPageNavigationItem(
-				"Interactions",
-				SettingsPage::DebugInteraction,
-				selected_page,
-				filter
+				"Interactions", SettingsPage::DebugInteraction, selected_page, filter
 			);
 			DrawPageNavigationItem(
-				"Collisions",
-				SettingsPage::DebugCollision,
-				selected_page,
-				filter
+				"Collisions", SettingsPage::DebugCollision, selected_page, filter
 			);
+			DrawPageNavigationItem("Text Boxes", SettingsPage::DebugText, selected_page, filter);
 			DrawPageNavigationItem(
-				"Text Boxes",
-				SettingsPage::DebugText,
-				selected_page,
-				filter
-			);
-			DrawPageNavigationItem(
-				"Visibility Polygons",
-				SettingsPage::DebugVisibility,
-				selected_page,
-				filter
+				"Visibility Polygons", SettingsPage::DebugVisibility, selected_page, filter
 			);
 			ImGui::TreePop();
 		}
 	}
 }
 
-[[nodiscard]] std::optional<SettingsPage> FirstMatchingPage(
-	std::string_view filter
-) {
+[[nodiscard]] std::optional<SettingsPage> FirstMatchingPage(std::string_view filter) {
 	const auto it{ std::ranges::find_if(kSettingsPages, [filter](SettingsPage page) {
 		return PageMatchesFilter(page, filter);
 	}) };
 
-	return it == kSettingsPages.end()
-		? std::nullopt
-		: std::optional<SettingsPage>{ *it };
+	return it == kSettingsPages.end() ? std::nullopt : std::optional<SettingsPage>{ *it };
 }
 
-bool DrawSelectedSettingsPage(
-	EditorContext& ctx,
-	SettingsPage page,
-	std::string_view filter
-) {
+bool DrawSelectedSettingsPage(EditorContext& ctx, SettingsPage page, std::string_view filter) {
 	// ImGui::TextUnformatted(PageTitle(page));
 	// ImGui::TextDisabled("%s", PageDescription(page));
 	// ImGui::Separator();
@@ -1227,26 +977,19 @@ bool DrawSelectedSettingsPage(
 	AutoLabelWidthScope label_width{ "SettingsWindowContent" };
 
 	switch (page) {
-		case SettingsPage::ProjectDisplay:
-			return DrawProjectDisplaySettings(ctx, filter);
+		case SettingsPage::ProjectDisplay:	 return DrawProjectDisplaySettings(ctx, filter);
 
-		case SettingsPage::ProjectRendering:
-			return DrawProjectRenderingSettings(ctx, filter);
+		case SettingsPage::ProjectRendering: return DrawProjectRenderingSettings(ctx, filter);
 
-		case SettingsPage::EditorGeneral:
-			return DrawEditorGeneralSettings(ctx, filter);
+		case SettingsPage::EditorGeneral:	 return DrawEditorGeneralSettings(ctx, filter);
 
-		case SettingsPage::DebugInteraction:
-			return DrawDebugInteractionSettings(ctx, filter);
+		case SettingsPage::DebugInteraction: return DrawDebugInteractionSettings(ctx, filter);
 
-		case SettingsPage::DebugCollision:
-			return DrawDebugCollisionSettings(ctx, filter);
+		case SettingsPage::DebugCollision:	 return DrawDebugCollisionSettings(ctx, filter);
 
-		case SettingsPage::DebugText:
-			return DrawDebugTextSettings(ctx, filter);
+		case SettingsPage::DebugText:		 return DrawDebugTextSettings(ctx, filter);
 
-		case SettingsPage::DebugVisibility:
-			return DrawDebugVisibilitySettings(ctx, filter);
+		case SettingsPage::DebugVisibility:	 return DrawDebugVisibilitySettings(ctx, filter);
 	}
 
 	return false;
@@ -1262,8 +1005,8 @@ void DrawHistorySectionTitle(const char* title) {
 void SettingsWindow::Open(SettingsPage page) {
 	selected_page_ = page;
 	search_.fill('\0');
-	open_ = true;
-	focus_requested_ = true;
+	open_				= true;
+	focus_requested_	= true;
 	recenter_requested_ = true;
 }
 
@@ -1274,25 +1017,13 @@ void SettingsWindow::OnRender(EditorContext& ctx) {
 
 	if (recenter_requested_) {
 		auto* viewport{ ImGui::GetMainViewport() };
-		const ImVec2 size{
-			viewport->WorkSize.x * 0.60f,
-			viewport->WorkSize.y * 0.70f
-		};
-		const ImVec2 center{
-			viewport->WorkPos.x + viewport->WorkSize.x * 0.5f,
-			viewport->WorkPos.y + viewport->WorkSize.y * 0.5f
-		};
+		const ImVec2 size{ viewport->WorkSize.x * 0.60f, viewport->WorkSize.y * 0.70f };
+		const ImVec2 center{ viewport->WorkPos.x + viewport->WorkSize.x * 0.5f,
+							 viewport->WorkPos.y + viewport->WorkSize.y * 0.5f };
 
 		ImGui::SetNextWindowDockID(0, ImGuiCond_Always);
-		ImGui::SetNextWindowPos(
-			center,
-			ImGuiCond_Always,
-			ImVec2{ 0.5f, 0.5f }
-		);
-		ImGui::SetNextWindowSize(
-			size,
-			ImGuiCond_Always
-		);
+		ImGui::SetNextWindowPos(center, ImGuiCond_Always, ImVec2{ 0.5f, 0.5f });
+		ImGui::SetNextWindowSize(size, ImGuiCond_Always);
 		recenter_requested_ = false;
 	}
 
@@ -1301,10 +1032,7 @@ void SettingsWindow::OnRender(EditorContext& ctx) {
 		focus_requested_ = false;
 	}
 
-	if (!ImGui::Begin(
-			"Settings",
-			&open_
-		)) {
+	if (!ImGui::Begin("Settings", &open_)) {
 		if (undo_interaction_pending_ && !ImGui::IsAnyItemActive()) {
 			ctx.undo.CommitActiveEdit();
 			undo_interaction_pending_ = false;
@@ -1322,12 +1050,7 @@ void SettingsWindow::OnRender(EditorContext& ctx) {
 	// ImGui::Separator();
 
 	ImGui::SetNextItemWidth(-1.0f);
-	ImGui::InputTextWithHint(
-		"##SettingsSearch",
-		"Search settings",
-		search_.data(),
-		search_.size()
-	);
+	ImGui::InputTextWithHint("##SettingsSearch", "Search settings", search_.data(), search_.size());
 
 	ImGui::Spacing();
 
@@ -1341,9 +1064,7 @@ void SettingsWindow::OnRender(EditorContext& ctx) {
 	constexpr float navigation_width{ 230.0f };
 
 	if (ImGui::BeginChild(
-			"SettingsNavigation",
-			ImVec2{ navigation_width, 0.0f },
-			ImGuiChildFlags_Borders
+			"SettingsNavigation", ImVec2{ navigation_width, 0.0f }, ImGuiChildFlags_Borders
 		)) {
 		DrawSettingsNavigation(selected_page_, filter);
 	}
@@ -1354,16 +1075,13 @@ void SettingsWindow::OnRender(EditorContext& ctx) {
 	bool settings_changed{ false };
 
 	if (ImGui::BeginChild(
-			"SettingsContent",
-			ImVec2{ 0.0f, 0.0f },
-			ImGuiChildFlags_Borders,
+			"SettingsContent", ImVec2{ 0.0f, 0.0f }, ImGuiChildFlags_Borders,
 			ImGuiWindowFlags_AlwaysVerticalScrollbar
 		)) {
 		if (!first_matching_page) {
 			ImGui::TextDisabled("No settings match \"%s\".", search_.data());
 		} else {
-			settings_changed =
-				DrawSelectedSettingsPage(ctx, selected_page_, filter);
+			settings_changed = DrawSelectedSettingsPage(ctx, selected_page_, filter);
 		}
 	}
 	ImGui::EndChild();
@@ -1381,14 +1099,11 @@ void SettingsWindow::OnRender(EditorContext& ctx) {
 }
 
 void UndoHistoryWindow::Open() {
-	open_ = true;
+	open_			 = true;
 	focus_requested_ = true;
 }
 
-void UndoHistoryWindow::OnRender(
-	EditorContext& ctx,
-	UndoStack& undo_stack
-) {
+void UndoHistoryWindow::OnRender(EditorContext& ctx, UndoStack& undo_stack) {
 	if (!open_) {
 		return;
 	}
@@ -1401,9 +1116,7 @@ void UndoHistoryWindow::OnRender(
 	}
 
 	if (!ImGui::Begin(
-			"Undo History",
-			&open_,
-			ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoDocking
+			"Undo History", &open_, ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoDocking
 		)) {
 		ImGui::End();
 		return;

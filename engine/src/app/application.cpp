@@ -35,8 +35,8 @@
 #include "core/math/vector2.h"
 #include "core/util/hash.h"
 #include "core/util/time.h"
-#include "platform/window.h"
 #include "platform/executable.h"
+#include "platform/window.h"
 #include "renderer/draw_context.h"
 #include "renderer/renderer.h"
 #include "renderer/resources/texture_format.h"
@@ -58,13 +58,10 @@ namespace {
 constexpr std::string_view kProjectExtension{ ".ptgnproj" };
 
 impl::AssetLoadTicket LoadStartupDependencies(
-	Application& app,
-	const impl::SceneFactory& scene_factory
+	Application& app, const impl::SceneFactory& scene_factory
 ) {
 	auto& assets{ impl::ApplicationAccessor::ctx(app).assets };
-	auto ticket{ assets.AcquireDependenciesAsync(
-		scene_factory.GetPreloadDependencies(app)
-	) };
+	auto ticket{ assets.AcquireDependenciesAsync(scene_factory.GetPreloadDependencies(app)) };
 
 	while (!ticket.IsComplete()) {
 		assets.Update();
@@ -76,9 +73,8 @@ impl::AssetLoadTicket LoadStartupDependencies(
 	const auto progress{ ticket.GetProgress() };
 	if (progress.failed_assets > 0) {
 		PTGN_WARN(
-			"Failed to load ",
-			progress.failed_assets,
-				" startup asset(s); continuing with available assets"
+			"Failed to load ", progress.failed_assets,
+			" startup asset(s); continuing with available assets"
 		);
 	}
 
@@ -103,112 +99,63 @@ void LoadProjectPreloads(Application& app) {
 	const auto progress{ ticket.GetProgress() };
 	if (progress.failed_assets > 0) {
 		PTGN_WARN(
-			"Failed to load ",
-			progress.failed_assets,
-				" project preload asset(s); continuing with available assets"
+			"Failed to load ", progress.failed_assets,
+			" project preload asset(s); continuing with available assets"
 		);
 	}
 }
 
-[[nodiscard]] std::vector<path> FindProjectFiles(
-	const path& directory
-) {
+[[nodiscard]] std::vector<path> FindProjectFiles(const path& directory) {
 	std::vector<path> projects;
 
 	std::error_code error;
 
-	if (
-		!fs::is_directory(directory, error) ||
-		error
-	) {
+	if (!fs::is_directory(directory, error) || error) {
 		return projects;
 	}
 
-	for (
-		fs::directory_iterator it{
-			directory,
-			fs::directory_options::skip_permission_denied,
-			error
-		},
-		end;
-		!error && it != end;
-		it.increment(error)
-	) {
+	for (fs::directory_iterator
+			 it{ directory, fs::directory_options::skip_permission_denied, error },
+		 end;
+		 !error && it != end; it.increment(error)) {
 		std::error_code entry_error;
 
-		if (
-			!it->is_regular_file(entry_error) ||
-			entry_error
-		) {
+		if (!it->is_regular_file(entry_error) || entry_error) {
 			continue;
 		}
 
-		if (
-			GetExtension(it->path()) !=
-			kProjectExtension
-		) {
+		if (GetExtension(it->path()) != kProjectExtension) {
 			continue;
 		}
 
-		projects.emplace_back(
-			it->path().lexically_normal()
-		);
+		projects.emplace_back(it->path().lexically_normal());
 	}
 
-	std::ranges::sort(
-		projects,
-		{},
-		[](const path& project) {
-			return project.generic_string();
-		}
-	);
+	std::ranges::sort(projects, {}, [](const path& project) { return project.generic_string(); });
 
 	return projects;
 }
 
-[[nodiscard]] path ResolveStartupProjectPath(
-	const path& project_path
-) {
-	const auto& build_info{
-		impl::GetBuildInfo()
-	};
+[[nodiscard]] path ResolveStartupProjectPath(const path& project_path) {
+	const auto& build_info{ impl::GetBuildInfo() };
 
-	PTGN_ASSERT(
-		!build_info.project_name.empty(),
-		"CMake project name is empty"
-	);
+	PTGN_ASSERT(!build_info.project_name.empty(), "CMake project name is empty");
 
-	path requested_path{
-		project_path.empty()
-			? path{ "." }
-			: project_path
-	};
+	path requested_path{ project_path.empty() ? path{ "." } : project_path };
 
-	path resolved_path{
-		requested_path.is_absolute()
-			? requested_path.lexically_normal()
-			: (
-				GetRuntimeRoot() /
-				requested_path
-			).lexically_normal()
-	};
+	path resolved_path{ requested_path.is_absolute()
+							? requested_path.lexically_normal()
+							: (GetRuntimeRoot() / requested_path).lexically_normal() };
 
 	// An explicit .ptgnproj path always refers to that exact file,
 	// whether or not the file exists yet.
-	if (
-		GetExtension(resolved_path) ==
-		kProjectExtension
-	) {
+	if (GetExtension(resolved_path) == kProjectExtension) {
 		return resolved_path;
 	}
 
 	// An existing regular file must be a project file.
 	if (FileExists(resolved_path)) {
-		PTGN_ASSERT(
-			false,
-			"Expected a .ptgnproj file: ",
-			resolved_path.string()
-		);
+		PTGN_ASSERT(false, "Expected a .ptgnproj file: ", resolved_path.string());
 	}
 
 	// Anything other than an explicit .ptgnproj file is treated
@@ -216,22 +163,15 @@ void LoadProjectPreloads(Application& app) {
 	//
 	// Prefer:
 	//   <directory>/<CMake project name>.ptgnproj
-	path preferred_project{
-		resolved_path /
-		(
-			build_info.project_name +
-			std::string{ kProjectExtension }
-		)
-	};
+	path preferred_project{ resolved_path /
+							(build_info.project_name + std::string{ kProjectExtension }) };
 
 	if (FileExists(preferred_project)) {
 		return preferred_project;
 	}
 
 	// Otherwise use the lexicographically first project file.
-	auto projects{
-		FindProjectFiles(resolved_path)
-	};
+	auto projects{ FindProjectFiles(resolved_path) };
 
 	if (!projects.empty()) {
 		return projects.front();
@@ -261,15 +201,9 @@ Application::~Application() noexcept {
 	}
 
 	try {
-		SaveProjectLocalState(
-			ctx_.project.value(),
-			GetProjectLocalState(*this)
-		);
+		SaveProjectLocalState(ctx_.project.value(), GetProjectLocalState(*this));
 	} catch (const std::exception& exception) {
-		PTGN_ERROR(
-			"Failed to save project local state: ",
-			exception.what()
-		);
+		PTGN_ERROR("Failed to save project local state: ", exception.what());
 	} catch (...) {
 		PTGN_ERROR("Failed to save project local state");
 	}
@@ -280,37 +214,24 @@ void Application::StartProject(const path& project_path) {
 }
 
 void Application::StartProjectImpl(
-	const path& project_path,
-	const impl::SceneRegistryEntry* default_scene
+	const path& project_path, const impl::SceneRegistryEntry* default_scene
 ) {
-	const path resolved_project_path{
-		ResolveStartupProjectPath(project_path)
-	};
+	const path resolved_project_path{ ResolveStartupProjectPath(project_path) };
 
-	const auto application_defaults{
-		GetProjectSettings(*this)
-	};
+	const auto application_defaults{ GetProjectSettings(*this) };
 
 	Project project;
 
 	if (FileExists(resolved_project_path)) {
-		project = LoadProject(
-			resolved_project_path,
-			application_defaults
-		);
+		project = LoadProject(resolved_project_path, application_defaults);
 	} else {
 #if defined(__EMSCRIPTEN__)
 		PTGN_ASSERT(
 			false,
-			"Project does not exist in the Web runtime filesystem: ",
-			resolved_project_path.string()
+			"Project does not exist in the Web runtime filesystem: ", resolved_project_path.string()
 		);
 #else
-		project = CreateProject(
-			resolved_project_path,
-			default_scene,
-			application_defaults
-		);
+		project = CreateProject(resolved_project_path, default_scene, application_defaults);
 #endif
 	}
 
@@ -320,15 +241,9 @@ void Application::StartProjectImpl(
 
 	// Tracked project defaults are applied first. The ignored .ptgnlocal file then
 	// restores this user's window geometry without mutating the tracked defaults.
-	SetProjectSettings(
-		*this,
-		loaded_project.settings
-	);
+	SetProjectSettings(*this, loaded_project.settings);
 	SetScreenEffects(loaded_project.screen_effects);
-	SetProjectLocalState(
-		*this,
-		LoadProjectLocalState(loaded_project)
-	);
+	SetProjectLocalState(*this, LoadProjectLocalState(loaded_project));
 
 	if (ctx_.assets.RegisterCatalog(loaded_project.assets, loaded_project)) {
 		loaded_project.assets = ctx_.assets.GetCatalog();
@@ -339,39 +254,18 @@ void Application::StartProjectImpl(
 	LoadProjectPreloads(*this);
 
 	if (ctx_.start_project_runtime) {
-		const auto& startup{
-			GetStartupProjectScene(loaded_project)
-		};
+		const auto& startup{ GetStartupProjectScene(loaded_project) };
 
-		auto serialized_scene{
-			LoadSceneFile(
-				GetProjectScenePath(
-					loaded_project,
-					startup
-				)
-			)
-		};
+		auto serialized_scene{ LoadSceneFile(GetProjectScenePath(loaded_project, startup)) };
 
-		auto scene_factory{
-			impl::MakeSceneFactory(
-				std::move(serialized_scene),
-				true
-			)
-		};
+		auto scene_factory{ impl::MakeSceneFactory(std::move(serialized_scene), true) };
 
-		StartWithFactory(
-			startup.key,
-			std::move(scene_factory)
-		);
+		StartWithFactory(startup.key, std::move(scene_factory));
 
 		return;
 	}
 
-	PTGN_ASSERT(
-		ctx_.scene_manager.scenes_.empty(),
-		"Application has already been started"
-	);
-
+	PTGN_ASSERT(ctx_.scene_manager.scenes_.empty(), "Application has already been started");
 
 	struct BootstrapScene {
 		const ProjectSceneEntry* entry{ nullptr };
@@ -380,57 +274,34 @@ void Application::StartProjectImpl(
 
 	std::vector<BootstrapScene> bootstrap_scenes;
 
-	for (std::size_t i{ 0 };
-		 i < loaded_project.scenes.size();
-		 ++i) {
+	for (std::size_t i{ 0 }; i < loaded_project.scenes.size(); ++i) {
 		const auto& entry{ loaded_project.scenes[i] };
 
-		auto serialized_scene{
-			LoadSceneFile(
-				GetProjectScenePath(
-					loaded_project,
-					entry
-				)
-			)
-		};
+		auto serialized_scene{ LoadSceneFile(GetProjectScenePath(loaded_project, entry)) };
 
-		bool requires_bootstrap_save{
-			!serialized_scene.content.has_value()
-		};
+		bool requires_bootstrap_save{ !serialized_scene.content.has_value() };
 
-		auto scene_factory{
-			impl::MakeSceneFactory(
-				std::move(serialized_scene),
-				false
-			)
-		};
+		auto scene_factory{ impl::MakeSceneFactory(std::move(serialized_scene), false) };
 
 		auto asset_ticket{ LoadStartupDependencies(*this, scene_factory) };
 
 		auto scene{ scene_factory(
-			*this,
-			impl::SceneData{
-				.tag = entry.key,
-				.tag_hash = Hash(entry.key),
-				.state = impl::SceneState::Active,
-				.runtime = false,
-				.first_scene = i == 0,
-			}
+			*this, impl::SceneData{
+					   .tag			= entry.key,
+					   .tag_hash	= Hash(entry.key),
+					   .state		= impl::SceneState::Active,
+					   .runtime		= false,
+					   .first_scene = i == 0,
+				   }
 		) };
 
-		PTGN_ASSERT(
-			scene,
-			"Project scene factory returned null: ",
-			entry.key
-		);
+		PTGN_ASSERT(scene, "Project scene factory returned null: ", entry.key);
 
 		scene->AdoptLoadedAssetDependencies(asset_ticket.ReleaseOwnership());
 
 		auto* scene_ptr{ scene.get() };
 
-		ctx_.scene_manager.scenes_.emplace_back(
-			std::move(scene)
-		);
+		ctx_.scene_manager.scenes_.emplace_back(std::move(scene));
 
 		if (requires_bootstrap_save) {
 			bootstrap_scenes.emplace_back(
@@ -443,33 +314,21 @@ void Application::StartProjectImpl(
 	}
 
 	if (!bootstrap_scenes.empty()) {
-		loaded_project.assets =
-			ctx_.assets.GetCatalog();
+		loaded_project.assets = ctx_.assets.GetCatalog();
 
-		loaded_project.preload_assets =
-			ctx_.assets.GetProjectAssetDependencies();
+		loaded_project.preload_assets = ctx_.assets.GetProjectAssetDependencies();
 
-		loaded_project.settings =
-			GetProjectSettings(*this);
+		loaded_project.settings = GetProjectSettings(*this);
 
 		// Save catalog entries and settings before scene dependency keys.
 		SaveProject(loaded_project);
 
-		for (const auto& bootstrap :
-			 bootstrap_scenes) {
-			PTGN_ASSERT(
-				bootstrap.entry &&
-					bootstrap.scene
-			);
+		for (const auto& bootstrap : bootstrap_scenes) {
+			PTGN_ASSERT(bootstrap.entry && bootstrap.scene);
 
 			SaveSceneFile(
-				GetProjectScenePath(
-					loaded_project,
-					*bootstrap.entry
-				),
-				CaptureScene(
-					*bootstrap.scene
-				)
+				GetProjectScenePath(loaded_project, *bootstrap.entry),
+				CaptureScene(*bootstrap.scene)
 			);
 		}
 	}
@@ -479,22 +338,18 @@ void Application::StartProjectImpl(
 	EnterMainLoop();
 }
 
-void Application::StartWithFactory(
-	std::string_view scene_tag,
-	impl::SceneFactory scene_factory
-) {
+void Application::StartWithFactory(std::string_view scene_tag, impl::SceneFactory scene_factory) {
 	PTGN_ASSERT(scene_factory, "Cannot start application with a null scene factory");
 	PTGN_ASSERT(ctx_.scene_manager.scenes_.empty(), "Application has already been started");
 
 	auto asset_ticket{ LoadStartupDependencies(*this, scene_factory) };
 	auto first_scene{ scene_factory(
-		*this,
-		impl::SceneData{
-			.tag{ scene_tag },
-			.tag_hash = Hash(scene_tag),
-			.state = impl::SceneState::Active,
-			.first_scene = true,
-		}
+		*this, impl::SceneData{
+				   .tag{ scene_tag },
+				   .tag_hash	= Hash(scene_tag),
+				   .state		= impl::SceneState::Active,
+				   .first_scene = true,
+			   }
 	) };
 
 	PTGN_ASSERT(first_scene, "Startup scene factory returned null");
@@ -509,9 +364,7 @@ void Application::StartWithFactory(
 
 void Application::EnterMainLoop() {
 	// Only show window after initialization has completed.
-	ctx_.window.SetSetting(
-		WindowSetting::Shown
-	);
+	ctx_.window.SetSetting(WindowSetting::Shown);
 
 	ctx_.running = true;
 
@@ -519,25 +372,15 @@ void Application::EnterMainLoop() {
 	// The canvas layout is authoritative on the web. Reread it after
 	// initialization and after showing the window so the first rendered
 	// frame uses the actual browser viewport dimensions.
-	const V2_int canvas_size{
-		ctx_.window.GetCanvasCssSize()
-	};
+	const V2_int canvas_size{ ctx_.window.GetCanvasCssSize() };
 
-	if (
-		canvas_size.IsPositive() &&
-		ctx_.window.GetSize() != canvas_size
-	) {
-		ctx_.window.SetSize(
-			canvas_size,
-			false
-		);
+	if (canvas_size.IsPositive() && ctx_.window.GetSize() != canvas_size) {
+		ctx_.window.SetSize(canvas_size, false);
 	}
 
 	// Force the renderer to reconsider its presentation/display viewport
 	// before the first frame.
-	ctx_.renderer.OnOutputResize(
-		ctx_.window.GetSize()
-	);
+	ctx_.renderer.OnOutputResize(ctx_.window.GetSize());
 #endif
 
 	ctx_.renderer.UpdateDisplayViewport(true);
@@ -545,11 +388,7 @@ void Application::EnterMainLoop() {
 #ifdef __EMSCRIPTEN__
 	emscripten_set_main_loop_arg(
 		[](void* application) {
-			auto& app{
-				*static_cast<Application*>(
-					application
-				)
-			};
+			auto& app{ *static_cast<Application*>(application) };
 
 			app.Update();
 
@@ -678,7 +517,7 @@ void Application::Update() {
 
 	ctx_.dt = unscaled_dt * ctx_.time_scale;
 
-	const bool window_running{ ctx_.window.Update() };
+	bool window_running{ ctx_.window.Update() };
 	if (!window_running && close_guard_ && !close_guard_()) {
 		ctx_.window.CancelQuit();
 		ctx_.running = true;
@@ -721,7 +560,7 @@ void Application::Update() {
 		ctx_.scene_manager.Update(*this, ctx_.dt);
 
 		ctx_.unscaled_game_time += unscaled_dt;
-		ctx_.game_time += ctx_.dt;
+		ctx_.game_time			+= ctx_.dt;
 	}
 
 	for (const auto& layer : ctx_.layers) {

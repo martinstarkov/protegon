@@ -13,16 +13,14 @@ namespace ptgn::editor::inspector {
 /// Unlike script/dialogue collections, UI parts have a finite set of possible children. While at
 /// least one part is missing, show one full-width Add Parts button above the existing part trees.
 inline bool DrawInspectorAddPartsButton(
-	bool show,
-	std::string_view label = "Add Parts",
-	std::string_view tooltip = {}
+	bool show, std::string_view label = "Add Parts", std::string_view tooltip = {}
 ) {
 	if (!show) {
 		return false;
 	}
 
 	const std::string button_label{ label };
-	const bool pressed{
+	bool pressed{
 		ImGui::Button(button_label.c_str(), ImVec2{ -FLT_MIN, ImGui::GetFrameHeight() })
 	};
 	if (!tooltip.empty() && ImGui::IsItemHovered()) {
@@ -40,20 +38,14 @@ struct InspectorPartTreeResult {
 /// indentation level for its contents; callers should draw fields directly and call TreePop()
 /// when `open` is true rather than adding another ScopedIndent.
 inline InspectorPartTreeResult DrawInspectorPartTreeNode(
-	std::string_view label,
-	std::string_view id,
-	bool allow_remove = true,
-	bool default_open = false,
-	std::string_view remove_label = "Remove Part"
+	std::string_view label, std::string_view id, bool allow_remove = true,
+	bool default_open = false, std::string_view remove_label = "Remove Part"
 ) {
 	std::string tree_label{ label };
 	tree_label += "###";
 	tree_label.append(id.data(), id.size());
 
-	ImGuiTreeNodeFlags flags{
-		ImGuiTreeNodeFlags_SpanAvailWidth |
-		ImGuiTreeNodeFlags_FramePadding
-	};
+	ImGuiTreeNodeFlags flags{ ImGuiTreeNodeFlags_SpanAvailWidth | ImGuiTreeNodeFlags_FramePadding };
 	if (default_open) {
 		flags |= ImGuiTreeNodeFlags_DefaultOpen;
 	}

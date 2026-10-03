@@ -5,8 +5,8 @@
 
 #include <algorithm>
 #include <cfloat>
-#include <cstddef>
 #include <cmath>
+#include <cstddef>
 #include <string>
 #include <string_view>
 #include <utility>
@@ -22,11 +22,10 @@ namespace ptgn::editor::inspector {
 /// horizontal contribution while leaving the selected tab contents in the normal inspector flow.
 class InspectorTabStripScope {
 public:
-	explicit InspectorTabStripScope(const char*) :
-		window_{ ImGui::GetCurrentWindow() } {
+	explicit InspectorTabStripScope(const char*) : window_{ ImGui::GetCurrentWindow() } {
 		if (window_) {
 			cursor_max_x_before_ = window_->DC.CursorMaxPos.x;
-			ideal_max_x_before_ = window_->DC.IdealMaxPos.x;
+			ideal_max_x_before_	 = window_->DC.IdealMaxPos.x;
 
 			const ImVec2 cursor{ ImGui::GetCursorScreenPos() };
 			content_right_x_ = cursor.x + std::max(0.0f, ImGui::GetContentRegionAvail().x);
@@ -38,20 +37,16 @@ public:
 			return;
 		}
 
-		window_->DC.CursorMaxPos.x = std::max(
-			cursor_max_x_before_,
-			std::min(window_->DC.CursorMaxPos.x, content_right_x_)
-		);
-		window_->DC.IdealMaxPos.x = std::max(
-			ideal_max_x_before_,
-			std::min(window_->DC.IdealMaxPos.x, content_right_x_)
-		);
+		window_->DC.CursorMaxPos.x =
+			std::max(cursor_max_x_before_, std::min(window_->DC.CursorMaxPos.x, content_right_x_));
+		window_->DC.IdealMaxPos.x =
+			std::max(ideal_max_x_before_, std::min(window_->DC.IdealMaxPos.x, content_right_x_));
 
 		window_->Scroll.x = 0.0f;
 		ImGui::SetScrollX(window_, 0.0f);
 	}
 
-	InspectorTabStripScope(const InspectorTabStripScope&) = delete;
+	InspectorTabStripScope(const InspectorTabStripScope&)			 = delete;
 	InspectorTabStripScope& operator=(const InspectorTabStripScope&) = delete;
 
 private:
@@ -62,14 +57,13 @@ private:
 };
 
 [[nodiscard]] inline ImGuiTabBarFlags InspectorTabBarFlags() {
-	return ImGuiTabBarFlags_AutoSelectNewTabs |
-		ImGuiTabBarFlags_FittingPolicyScroll |
-		ImGuiTabBarFlags_NoTabListScrollingButtons;
+	return ImGuiTabBarFlags_AutoSelectNewTabs | ImGuiTabBarFlags_FittingPolicyScroll |
+		   ImGuiTabBarFlags_NoTabListScrollingButtons;
 }
 
 inline bool DrawInspectorAddTabButton(const char* id, std::string_view tooltip = {}) {
 	ImGui::PushStyleVar(ImGuiStyleVar_FrameRounding, ImGui::GetStyle().TabRounding);
-	const bool pressed{
+	bool pressed{
 		ImGui::TabItemButton(id, ImGuiTabItemFlags_Trailing | ImGuiTabItemFlags_NoTooltip)
 	};
 	ImGui::PopStyleVar();
@@ -108,37 +102,33 @@ inline void ApplyInspectorTabBarHorizontalWheel() {
 	};
 	if (maximum_scroll <= 0.0f) {
 		tab_bar->ScrollingTarget = 0.0f;
-		tab_bar->ScrollingAnim = 0.0f;
-		tab_bar->ScrollingSpeed = 0.0f;
+		tab_bar->ScrollingAnim	 = 0.0f;
+		tab_bar->ScrollingSpeed	 = 0.0f;
 		return;
 	}
 
-	const float current{
-		std::clamp(tab_bar->ScrollingTarget, 0.0f, maximum_scroll)
-	};
+	const float current{ std::clamp(tab_bar->ScrollingTarget, 0.0f, maximum_scroll) };
 	constexpr float edge_epsilon{ 0.5f };
 
 	if ((wheel > 0.0f && current <= edge_epsilon) ||
 		(wheel < 0.0f && current >= maximum_scroll - edge_epsilon)) {
 		const float edge{ wheel > 0.0f ? 0.0f : maximum_scroll };
-		tab_bar->ScrollingTarget = edge;
-		tab_bar->ScrollingAnim = edge;
-		tab_bar->ScrollingSpeed = 0.0f;
+		tab_bar->ScrollingTarget				 = edge;
+		tab_bar->ScrollingAnim					 = edge;
+		tab_bar->ScrollingSpeed					 = 0.0f;
 		tab_bar->ScrollingTargetDistToVisibility = 0.0f;
 		return;
 	}
 
 	const float step{ ImGui::GetFontSize() * 5.0f };
-	const float target{
-		std::clamp(current - wheel * step, 0.0f, maximum_scroll)
-	};
+	const float target{ std::clamp(current - wheel * step, 0.0f, maximum_scroll) };
 
-	tab_bar->ScrollingTarget = target;
-	tab_bar->ScrollingAnim = target;
-	tab_bar->ScrollingSpeed = 0.0f;
+	tab_bar->ScrollingTarget				 = target;
+	tab_bar->ScrollingAnim					 = target;
+	tab_bar->ScrollingSpeed					 = 0.0f;
 	tab_bar->ScrollingTargetDistToVisibility = 0.0f;
 
-	if (ImGuiWindow* window{ ImGui::GetCurrentWindow() }) {
+	if (ImGuiWindow * window{ ImGui::GetCurrentWindow() }) {
 		window->Scroll.x = 0.0f;
 		ImGui::SetScrollX(window, 0.0f);
 	}
@@ -164,9 +154,7 @@ struct InspectorTabCollectionOptions {
 	std::size_t tab_count{ 0 };
 };
 
-[[nodiscard]] inline float GetInspectorEqualTabWidth(
-	const InspectorTabCollectionOptions& options
-) {
+[[nodiscard]] inline float GetInspectorEqualTabWidth(const InspectorTabCollectionOptions& options) {
 	if (!options.equal_width_tabs || options.tab_count == 0) {
 		return 0.0f;
 	}
@@ -174,12 +162,12 @@ struct InspectorTabCollectionOptions {
 	const ImGuiStyle& style{ ImGui::GetStyle() };
 	const float available{ std::max(1.0f, ImGui::GetContentRegionAvail().x) };
 	const std::size_t item_count{ options.tab_count + (options.show_add ? 1uz : 0uz) };
-	const float spacing{
-		item_count > 1 ? style.ItemInnerSpacing.x * static_cast<float>(item_count - 1) : 0.0f
-	};
+	const float spacing{ item_count > 1
+							 ? style.ItemInnerSpacing.x * static_cast<float>(item_count - 1)
+							 : 0.0f };
 	const float add_width{ options.show_add
-		? ImGui::CalcTextSize("+").x + style.FramePadding.x * 2.0f
-		: 0.0f };
+							   ? ImGui::CalcTextSize("+").x + style.FramePadding.x * 2.0f
+							   : 0.0f };
 	const float tab_space{ std::max(1.0f, available - spacing - add_width) };
 	return tab_space / static_cast<float>(options.tab_count);
 }
@@ -195,9 +183,7 @@ inline bool BeginInspectorTabItem(
 
 template <typename DrawTabs>
 [[nodiscard]] bool DrawInspectorTabCollection(
-	bool empty,
-	const InspectorTabCollectionOptions& options,
-	DrawTabs&& draw_tabs
+	bool empty, const InspectorTabCollectionOptions& options, DrawTabs&& draw_tabs
 ) {
 	if (empty) {
 		if (!options.show_add) {
@@ -205,9 +191,7 @@ template <typename DrawTabs>
 		}
 
 		const std::string label{ options.empty_add_label };
-		const bool pressed{
-			ImGui::Button(label.c_str(), ImVec2{ -FLT_MIN, ImGui::GetFrameHeight() })
-		};
+		bool pressed{ ImGui::Button(label.c_str(), ImVec2{ -FLT_MIN, ImGui::GetFrameHeight() }) };
 		if (!options.add_tooltip.empty() && ImGui::IsItemHovered()) {
 			ImGui::SetTooltip(
 				"%.*s", static_cast<int>(options.add_tooltip.size()), options.add_tooltip.data()
@@ -243,11 +227,8 @@ struct InspectorTabContextResult {
 };
 
 inline InspectorTabContextResult DrawInspectorTabContextMenu(
-	const char* popup_id,
-	bool allow_rename = true,
-	bool allow_duplicate = false,
-	bool allow_remove = true,
-	std::string_view remove_label = "Remove"
+	const char* popup_id, bool allow_rename = true, bool allow_duplicate = false,
+	bool allow_remove = true, std::string_view remove_label = "Remove"
 ) {
 	InspectorTabContextResult result;
 	ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImGui::GetStyle().WindowPadding);
@@ -278,21 +259,13 @@ inline InspectorTabContextResult DrawInspectorTabContextMenu(
 
 template <typename Validate, typename Commit>
 RenameResult DrawInspectorTabRenameModal(
-	RenameModalState& state,
-	const char* popup_id,
-	const char* input_id,
-	Validate&& validate,
-	Commit&& commit,
-	std::string_view title = "Rename Tab"
+	RenameModalState& state, const char* popup_id, const char* input_id, Validate&& validate,
+	Commit&& commit, std::string_view title = "Rename Tab"
 ) {
 	std::string title_string{ title };
 	ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImGui::GetStyle().WindowPadding);
 	const RenameResult result{ DrawRenameModal(
-		state,
-		popup_id,
-		input_id,
-		std::forward<Validate>(validate),
-		std::forward<Commit>(commit),
+		state, popup_id, input_id, std::forward<Validate>(validate), std::forward<Commit>(commit),
 		RenameModalOptions{ .title = title_string.c_str() }
 	) };
 	ImGui::PopStyleVar();

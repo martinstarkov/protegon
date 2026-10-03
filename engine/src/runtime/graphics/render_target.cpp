@@ -115,9 +115,7 @@ void RenderTarget::ClearDepthStencil(std::optional<DepthStencil> depth_stencil) 
 		return;
 	}
 
-	Get<impl::FramebufferObject>().Clear(
-		GetClearDepthStencil().value_or(DepthStencil{})
-	);
+	Get<impl::FramebufferObject>().Clear(GetClearDepthStencil().value_or(DepthStencil{}));
 }
 
 void RenderTarget::SetClearColor(Color clear_color) {
@@ -294,9 +292,8 @@ bool RenderTarget::UpdateSize(V2_int display_size) {
 		desired_size = target.size;
 	}
 
-	const bool recreate_framebuffer{ !Has<impl::FramebufferObject>() ||
-									 Get<impl::FramebufferObject>().GetDesc().format !=
-										 target.format };
+	bool recreate_framebuffer{ !Has<impl::FramebufferObject>() ||
+							   Get<impl::FramebufferObject>().GetDesc().format != target.format };
 
 	if (recreate_framebuffer) {
 		auto& scene{ GetScene() };
@@ -360,7 +357,7 @@ RenderTarget CreateRenderTarget(
 ) {
 	PTGN_ASSERT(!size.HasNegative(), "Render target size cannot be negative");
 
-	const bool follow_display_size{ size.IsZero() };
+	bool follow_display_size{ size.IsZero() };
 
 	if (follow_display_size) {
 		size = scene.ctx().renderer.GetLogicalSize();
