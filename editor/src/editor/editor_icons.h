@@ -29,6 +29,7 @@ enum class EditorIcon : std::uint8_t {
 	Fill,
 	Erase,
 	Eyedropper,
+	Target,
 	Grid
 };
 
