@@ -30,15 +30,15 @@
 
 namespace ptgn::editor::inspector {
 
-using EntityReference = ::ptgn::EntityReference;
-using ComponentQueryCondition = ::ptgn::ComponentQueryCondition;
-using ComponentQueryGroup = ::ptgn::ComponentQueryGroup;
-using ComponentEntityQuery = ::ptgn::ComponentEntityQuery;
-using GroupEntityQuery = ::ptgn::GroupEntityQuery;
+using EntityReference				 = ::ptgn::EntityReference;
+using ComponentQueryCondition		 = ::ptgn::ComponentQueryCondition;
+using ComponentQueryGroup			 = ::ptgn::ComponentQueryGroup;
+using ComponentEntityQuery			 = ::ptgn::ComponentEntityQuery;
+using GroupEntityQuery				 = ::ptgn::GroupEntityQuery;
 using RegisteredEntityQueryReference = ::ptgn::RegisteredEntityQueryReference;
-using EntityQueryContext = ::ptgn::EntityQueryContext;
-using RegisteredEntityQuery = ::ptgn::RegisteredEntityQuery;
-using EntityQueryRegistry = ::ptgn::EntityQueryRegistry;
+using EntityQueryContext			 = ::ptgn::EntityQueryContext;
+using RegisteredEntityQuery			 = ::ptgn::RegisteredEntityQuery;
+using EntityQueryRegistry			 = ::ptgn::EntityQueryRegistry;
 
 namespace {
 
@@ -69,39 +69,22 @@ constexpr float kComponentRowExtraHeight{ 4.0f };
 }
 
 [[nodiscard]] std::string TrimWhitespace(std::string value) {
-	const auto first{
-		std::ranges::find_if(
-			value,
-			[](char c) {
-				return !std::isspace(
-					static_cast<unsigned char>(c)
-				);
-			}
-		)
-	};
+	const auto first{ std::ranges::find_if(value, [](char c) {
+		return !std::isspace(static_cast<unsigned char>(c));
+	}) };
 
 	if (first == value.end()) {
 		return {};
 	}
 
-	const auto last{
-		std::ranges::find_if(
-			value | std::views::reverse,
-			[](char c) {
-				return !std::isspace(
-					static_cast<unsigned char>(c)
-				);
-			}
-		).base()
-	};
+	const auto last{ std::ranges::find_if(value | std::views::reverse, [](char c) {
+						 return !std::isspace(static_cast<unsigned char>(c));
+					 }).base() };
 
 	return std::string{ first, last };
 }
 
-[[nodiscard]] bool ContainsCaseInsensitive(
-	std::string_view text,
-	std::string_view filter
-) {
+[[nodiscard]] bool ContainsCaseInsensitive(std::string_view text, std::string_view filter) {
 	if (filter.empty()) {
 		return true;
 	}
@@ -110,16 +93,11 @@ constexpr float kComponentRowExtraHeight{ 4.0f };
 		return false;
 	}
 
-	for (std::size_t i{ 0 };
-		 i + filter.size() <= text.size();
-		 ++i) {
+	for (std::size_t i{ 0 }; i + filter.size() <= text.size(); ++i) {
 		bool matches{ true };
 
-		for (std::size_t j{ 0 };
-			 j < filter.size();
-			 ++j) {
-			if (LowerAscii(text[i + j]) !=
-				LowerAscii(filter[j])) {
+		for (std::size_t j{ 0 }; j < filter.size(); ++j) {
+			if (LowerAscii(text[i + j]) != LowerAscii(filter[j])) {
 				matches = false;
 				break;
 			}
@@ -133,42 +111,32 @@ constexpr float kComponentRowExtraHeight{ 4.0f };
 	return false;
 }
 
-[[nodiscard]] std::string_view ComponentDisplayName(
-	const RegisteredComponent& component
-) {
+[[nodiscard]] std::string_view ComponentDisplayName(const RegisteredComponent& component) {
 	std::string_view name{ component.name };
 
-	if (const auto separator{ name.rfind("::") };
-		separator != std::string_view::npos) {
+	if (const auto separator{ name.rfind("::") }; separator != std::string_view::npos) {
 		name.remove_prefix(separator + 2);
 	}
 
 	return name;
 }
 
-[[nodiscard]] std::string EntityDisplayName(
-	Entity entity
-) {
+[[nodiscard]] std::string EntityDisplayName(Entity entity) {
 	if (!entity) {
 		return "Missing Entity";
 	}
 
 	const auto& tag{ entity.Get<Tag>().value };
 
-	return tag.empty()
-		? "Entity"
-		: tag;
+	return tag.empty() ? "Entity" : tag;
 }
 
-[[nodiscard]] std::string UUIDDisplayName(
-	Entity entity
-) {
+[[nodiscard]] std::string UUIDDisplayName(Entity entity) {
 	if (!entity) {
 		return {};
 	}
 
-	json value =
-		entity.Get<UUID>();
+	json value = entity.Get<UUID>();
 
 	if (value.is_string()) {
 		return value.get<std::string>();
@@ -177,30 +145,23 @@ constexpr float kComponentRowExtraHeight{ 4.0f };
 	return value.dump();
 }
 
-void SetEntityRef(
-	EntityReference& reference,
-	Entity entity
-) {
+void SetEntityRef(EntityReference& reference, Entity entity) {
 	if (!entity) {
 		reference = {};
 		return;
 	}
 
 	reference.uuid = entity.Get<UUID>();
-	reference.tag = entity.Get<Tag>().value;
+	reference.tag  = entity.Get<Tag>().value;
 }
 
-[[nodiscard]] Entity ResolveEntity(
-	Scene& scene,
-	const EntityReference& reference
-) {
+[[nodiscard]] Entity ResolveEntity(Scene& scene, const EntityReference& reference) {
 	if (!reference.uuid.has_value()) {
 		return {};
 	}
 
 	for (Entity entity : scene.Entities()) {
-		if (entity.Get<UUID>() ==
-			reference.uuid.value()) {
+		if (entity.Get<UUID>() == reference.uuid.value()) {
 			return entity;
 		}
 	}
@@ -208,45 +169,28 @@ void SetEntityRef(
 	return {};
 }
 
-[[nodiscard]] std::vector<const RegisteredComponent*>
-GetRegisteredComponents() {
+[[nodiscard]] std::vector<const RegisteredComponent*> GetRegisteredComponents() {
 	std::vector<const RegisteredComponent*> components;
 
-	for (const auto& component :
-		 ComponentRegistry::Components()) {
-		components.push_back(
-			std::addressof(component)
-		);
+	for (const auto& component : ComponentRegistry::Components()) {
+		components.push_back(std::addressof(component));
 	}
 
-	std::ranges::sort(
-		components,
-		[](const auto* lhs, const auto* rhs) {
-			return ComponentDisplayName(*lhs) <
-				   ComponentDisplayName(*rhs);
-		}
-	);
+	std::ranges::sort(components, [](const auto* lhs, const auto* rhs) {
+		return ComponentDisplayName(*lhs) < ComponentDisplayName(*rhs);
+	});
 
 	return components;
 }
 
-[[nodiscard]] bool EntityMatchesFilter(
-	Entity entity,
-	std::string_view filter_text
-) {
+[[nodiscard]] bool EntityMatchesFilter(Entity entity, std::string_view filter_text) {
 	if (filter_text.empty()) {
 		return true;
 	}
 
-	auto name{
-		ToLower(
-			entity.Get<Tag>().value
-		)
-	};
+	auto name{ ToLower(entity.Get<Tag>().value) };
 
-	auto filter{
-		std::string{ filter_text }
-	};
+	auto filter{ std::string{ filter_text } };
 
 	bool has_name_include{ false };
 	bool matched_name_include{ false };
@@ -257,70 +201,37 @@ GetRegisteredComponents() {
 	std::size_t start{ 0 };
 
 	while (start <= filter.size()) {
-		const auto comma{
-			filter.find(
-				',',
-				start
-			)
-		};
+		const auto comma{ filter.find(',', start) };
 
-		auto token{
-			comma == std::string::npos
-				? filter.substr(start)
-				: filter.substr(
-					  start,
-					  comma - start
-				  )
-		};
+		auto token{ comma == std::string::npos ? filter.substr(start)
+											   : filter.substr(start, comma - start) };
 
-		token = ToLower(
-			TrimWhitespace(
-				std::move(token)
-			)
-		);
+		token = ToLower(TrimWhitespace(std::move(token)));
 
 		if (!token.empty()) {
 			if (token.front() == '*') {
-				auto filter_name{
-					TrimWhitespace(
-						token.substr(1)
-					)
-				};
+				auto filter_name{ TrimWhitespace(token.substr(1)) };
 
 				if (filter_name == "hidden") {
 					require_hidden = true;
-				} else if (
-					filter_name == "shown") {
+				} else if (filter_name == "shown") {
 					require_shown = true;
 				}
 			} else {
-				const bool exclude{
-					token.front() == '-'
-				};
+				const bool exclude{ token.front() == '-' };
 
-				auto needle{
-					TrimWhitespace(
-						exclude
-							? token.substr(1)
-							: token
-					)
-				};
+				auto needle{ TrimWhitespace(exclude ? token.substr(1) : token) };
 
 				if (!needle.empty()) {
-					const bool contains{
-						name.find(needle) !=
-						std::string::npos
-					};
+					const bool contains{ name.find(needle) != std::string::npos };
 
-					if (exclude &&
-						contains) {
+					if (exclude && contains) {
 						return false;
 					}
 
 					if (!exclude) {
-						has_name_include = true;
-						matched_name_include |=
-							contains;
+						has_name_include	  = true;
+						matched_name_include |= contains;
 					}
 				}
 			}
@@ -333,43 +244,31 @@ GetRegisteredComponents() {
 		start = comma + 1;
 	}
 
-	if (require_hidden &&
-		require_shown) {
+	if (require_hidden && require_shown) {
 		return false;
 	}
 
-	const bool visible{
-		IsVisible(entity)
-	};
+	const bool visible{ IsVisible(entity) };
 
-	if (require_hidden &&
-		visible) {
+	if (require_hidden && visible) {
 		return false;
 	}
 
-	if (require_shown &&
-		!visible) {
+	if (require_shown && !visible) {
 		return false;
 	}
 
-	return !has_name_include ||
-		   matched_name_include;
+	return !has_name_include || matched_name_include;
 }
 
 [[nodiscard]] bool EntityOrDescendantMatchesFilter(
-	Entity entity,
-	std::string_view filter_text,
-	std::size_t depth = 0
+	Entity entity, std::string_view filter_text, std::size_t depth = 0
 ) {
-	if (!entity ||
-		depth >= kMaxHierarchyDepth) {
+	if (!entity || depth >= kMaxHierarchyDepth) {
 		return false;
 	}
 
-	if (EntityMatchesFilter(
-			entity,
-			filter_text
-		)) {
+	if (EntityMatchesFilter(entity, filter_text)) {
 		return true;
 	}
 
@@ -377,13 +276,8 @@ GetRegisteredComponents() {
 		return false;
 	}
 
-	for (Entity child :
-		 GetChildren(entity)) {
-		if (EntityOrDescendantMatchesFilter(
-				child,
-				filter_text,
-				depth + 1
-			)) {
+	for (Entity child : GetChildren(entity)) {
+		if (EntityOrDescendantMatchesFilter(child, filter_text, depth + 1)) {
 			return true;
 		}
 	}
@@ -391,8 +285,7 @@ GetRegisteredComponents() {
 	return false;
 }
 
-[[nodiscard]] std::vector<Entity>
-GetRootEntities(Scene& scene) {
+[[nodiscard]] std::vector<Entity> GetRootEntities(Scene& scene) {
 	std::vector<Entity> roots;
 
 	for (Entity entity : scene.Entities()) {
@@ -412,65 +305,44 @@ void DrawHierarchyFilterTooltip() {
 
 	ImGui::BeginTooltip();
 
-	ImGui::TextUnformatted(
-		"Hierarchy filter syntax:"
-	);
+	ImGui::TextUnformatted("Hierarchy filter syntax:");
 
 	ImGui::Separator();
 
 	ImGui::TextUnformatted("player");
 	ImGui::SameLine();
-	ImGui::TextDisabled(
-		"Name contains \"player\""
-	);
+	ImGui::TextDisabled("Name contains \"player\"");
 
 	ImGui::TextUnformatted("-enemy");
 	ImGui::SameLine();
-	ImGui::TextDisabled(
-		"Name does not contain \"enemy\""
-	);
+	ImGui::TextDisabled("Name does not contain \"enemy\"");
 
 	ImGui::TextUnformatted("*shown");
 	ImGui::SameLine();
-	ImGui::TextDisabled(
-		"Entity is visible"
-	);
+	ImGui::TextDisabled("Entity is visible");
 
 	ImGui::TextUnformatted("*hidden");
 	ImGui::SameLine();
-	ImGui::TextDisabled(
-		"Entity is hidden"
-	);
+	ImGui::TextDisabled("Entity is hidden");
 
 	ImGui::Spacing();
 
-	ImGui::TextDisabled(
-		"Separate filters with commas."
-	);
+	ImGui::TextDisabled("Separate filters with commas.");
 
-	ImGui::TextDisabled(
-		"Positive name filters use OR; all other filters must match."
-	);
+	ImGui::TextDisabled("Positive name filters use OR; all other filters must match.");
 
 	ImGui::EndTooltip();
 }
 
 [[nodiscard]] bool IsHierarchyEntityExcluded(
-	Entity entity,
-	Entity excluded_entity,
-	std::span<const Entity> excluded_entities
+	Entity entity, Entity excluded_entity, std::span<const Entity> excluded_entities
 ) {
-	return entity == excluded_entity ||
-		std::ranges::contains(excluded_entities, entity);
+	return entity == excluded_entity || std::ranges::contains(excluded_entities, entity);
 }
 
 void DrawEntityHierarchyNode(
-	Entity entity,
-	const EntityReference& current,
-	std::string_view filter,
-	Entity& picked_entity,
-	Entity excluded_entity = {},
-	std::span<const Entity> excluded_entities = {},
+	Entity entity, const EntityReference& current, std::string_view filter, Entity& picked_entity,
+	Entity excluded_entity = {}, std::span<const Entity> excluded_entities = {},
 	std::size_t depth = 0
 ) {
 	if (!entity || depth >= kMaxHierarchyDepth) {
@@ -484,13 +356,7 @@ void DrawEntityHierarchyNode(
 
 			for (Entity child : children) {
 				DrawEntityHierarchyNode(
-					child,
-					current,
-					filter,
-					picked_entity,
-					excluded_entity,
-					excluded_entities,
-					depth
+					child, current, filter, picked_entity, excluded_entity, excluded_entities, depth
 				);
 			}
 		}
@@ -527,42 +393,27 @@ void DrawEntityHierarchyNode(
 	collect_children(collect_children, entity);
 
 	bool has_visible_children{ !children.empty() };
-	bool selected{
-		current.uuid.has_value() &&
-		entity.Get<UUID>() == current.uuid.value()
-	};
+	bool selected{ current.uuid.has_value() && entity.Get<UUID>() == current.uuid.value() };
 
 	ImGui::PushID(entity.Get<UUID>());
 
-	ImGuiTreeNodeFlags flags{
-		ImGuiTreeNodeFlags_OpenOnArrow |
-		ImGuiTreeNodeFlags_OpenOnDoubleClick |
-		ImGuiTreeNodeFlags_SpanAvailWidth |
-		ImGuiTreeNodeFlags_DefaultOpen
-	};
+	ImGuiTreeNodeFlags flags{ ImGuiTreeNodeFlags_OpenOnArrow |
+							  ImGuiTreeNodeFlags_OpenOnDoubleClick |
+							  ImGuiTreeNodeFlags_SpanAvailWidth | ImGuiTreeNodeFlags_DefaultOpen };
 
 	if (selected) {
 		flags |= ImGuiTreeNodeFlags_Selected;
 	}
 
 	if (!has_visible_children) {
-		flags |=
-			ImGuiTreeNodeFlags_Leaf |
-			ImGuiTreeNodeFlags_NoTreePushOnOpen;
+		flags |= ImGuiTreeNodeFlags_Leaf | ImGuiTreeNodeFlags_NoTreePushOnOpen;
 	} else if (!filter.empty()) {
 		ImGui::SetNextItemOpen(true, ImGuiCond_Always);
 	}
 
 	std::string label{ EntityDisplayName(entity) };
 
-	bool open{
-		ImGui::TreeNodeEx(
-			"##EntityFilter",
-			flags,
-			"%s",
-			label.c_str()
-		)
-	};
+	bool open{ ImGui::TreeNodeEx("##EntityFilter", flags, "%s", label.c_str()) };
 
 	if (ImGui::IsItemClicked(ImGuiMouseButton_Left)) {
 		picked_entity = entity;
@@ -576,13 +427,7 @@ void DrawEntityHierarchyNode(
 	if (has_visible_children && open) {
 		for (Entity child : children) {
 			DrawEntityHierarchyNode(
-				child,
-				current,
-				filter,
-				picked_entity,
-				excluded_entity,
-				excluded_entities,
-				depth + 1
+				child, current, filter, picked_entity, excluded_entity, excluded_entities, depth + 1
 			);
 		}
 
@@ -593,12 +438,8 @@ void DrawEntityHierarchyNode(
 }
 
 bool DrawMiniHierarchy(
-	Scene& scene,
-	Entity owner,
-	EntityReference& reference,
-	EntityFilterEditorState& state,
-	bool allow_select_owner = true,
-	Entity excluded_entity = {},
+	Scene& scene, Entity owner, EntityReference& reference, EntityFilterEditorState& state,
+	bool allow_select_owner = true, Entity excluded_entity = {},
 	std::span<const Entity> excluded_entities = {}
 ) {
 	bool changed{ false };
@@ -615,10 +456,8 @@ bool DrawMiniHierarchy(
 	Entity selected{ ResolveEntity(scene, reference) };
 
 	if (selected) {
-		std::string selected_label{
-			EntityDisplayName(selected) +
-			" [" + UUIDDisplayName(selected) + "]"
-		};
+		std::string selected_label{ EntityDisplayName(selected) + " [" + UUIDDisplayName(selected) +
+									"]" };
 		ImGui::TextDisabled("%s", selected_label.c_str());
 	} else {
 		ImGui::TextDisabled("No entity selected");
@@ -627,28 +466,20 @@ bool DrawMiniHierarchy(
 	ImGui::SetNextItemWidth(-FLT_MIN);
 
 	ImGui::InputTextWithHint(
-		"##HierarchyFilter",
-		"Filter: player, -enemy, *hidden, *shown",
-		&state.hierarchy_filter
+		"##HierarchyFilter", "Filter: player, -enemy, *hidden, *shown", &state.hierarchy_filter
 	);
 
 	DrawHierarchyFilterTooltip();
 
 	ImGui::BeginChild(
-		"##EntityHierarchy",
-		ImVec2{ 0.0f, kEntityHierarchyHeight },
-		ImGuiChildFlags_Borders
+		"##EntityHierarchy", ImVec2{ 0.0f, kEntityHierarchyHeight }, ImGuiChildFlags_Borders
 	);
 
 	Entity picked_entity;
 
 	for (Entity root : GetRootEntities(scene)) {
 		DrawEntityHierarchyNode(
-			root,
-			reference,
-			state.hierarchy_filter,
-			picked_entity,
-			excluded_entity,
+			root, reference, state.hierarchy_filter, picked_entity, excluded_entity,
 			excluded_entities
 		);
 	}
@@ -662,18 +493,11 @@ bool DrawMiniHierarchy(
 	return changed;
 }
 
-[[nodiscard]] bool IsOwnerReference(
-	Entity owner,
-	const EntityReference& reference
-) {
-	return owner &&
-		reference.uuid.has_value() &&
-		owner.Get<UUID>() == reference.uuid.value();
+[[nodiscard]] bool IsOwnerReference(Entity owner, const EntityReference& reference) {
+	return owner && reference.uuid.has_value() && owner.Get<UUID>() == reference.uuid.value();
 }
 
-[[nodiscard]] float GetPopupWidth(
-	const EntityFilterEditorOptions& options
-) {
+[[nodiscard]] float GetPopupWidth(const EntityFilterEditorOptions& options) {
 	float width{ 0.0f };
 
 	if (options.show_entity) {
@@ -693,137 +517,68 @@ bool DrawMiniHierarchy(
 }
 
 bool DrawComponentPicker(
-	const char* id,
-	std::string& component_name,
-	EntityFilterEditorState& state
+	const char* id, std::string& component_name, EntityFilterEditorState& state
 ) {
-	const auto* selected{
-		component_name.empty()
-			? nullptr
-			: ComponentRegistry::Find(
-				  std::string_view{
-					  component_name
-				  }
-			  )
-	};
+	const auto* selected{ component_name.empty()
+							  ? nullptr
+							  : ComponentRegistry::Find(std::string_view{ component_name }) };
 
-	const std::string preview{
-		selected
-			? std::string{
-				  ComponentDisplayName(
-					  *selected
-				  )
-			  }
-			: component_name.empty()
-				? "Select Component"
-				: component_name +
-					  " (Missing)"
-	};
+	const std::string preview{ selected ? std::string{ ComponentDisplayName(*selected) }
+							   : component_name.empty() ? "Select Component"
+														: component_name + " (Missing)" };
 
 	bool changed{ false };
 
 	if (ImGui::Button(
-			preview.c_str(),
-			ImVec2{
-				ImGui::GetContentRegionAvail().x,
-				ImGui::GetFrameHeight()
-			}
+			preview.c_str(), ImVec2{ ImGui::GetContentRegionAvail().x, ImGui::GetFrameHeight() }
 		)) {
 		state.component_filter.clear();
 
 		ImGui::OpenPopup(id);
 	}
 
-	ImGui::SetNextWindowSizeConstraints(
-		ImVec2{
-			320.0f,
-			0.0f
-		},
-		ImVec2{
-			440.0f,
-			420.0f
-		}
-	);
+	ImGui::SetNextWindowSizeConstraints(ImVec2{ 320.0f, 0.0f }, ImVec2{ 440.0f, 420.0f });
 
 	if (!ImGui::BeginPopup(id)) {
 		return changed;
 	}
 
-	ImGui::SetNextItemWidth(
-		-FLT_MIN
-	);
+	ImGui::SetNextItemWidth(-FLT_MIN);
 
-	ImGui::InputTextWithHint(
-		"##ComponentSearch",
-		"Search components...",
-		&state.component_filter
-	);
+	ImGui::InputTextWithHint("##ComponentSearch", "Search components...", &state.component_filter);
 
-	ImGui::BeginChild(
-		"##ComponentList",
-		ImVec2{
-			0.0f,
-			260.0f
-		},
-		false
-	);
+	ImGui::BeginChild("##ComponentList", ImVec2{ 0.0f, 260.0f }, false);
 
 	bool any_visible{ false };
 
-	for (const auto* component :
-		 GetRegisteredComponents()) {
-		const std::string_view label{
-			ComponentDisplayName(
-				*component
-			)
-		};
+	for (const auto* component : GetRegisteredComponents()) {
+		const std::string_view label{ ComponentDisplayName(*component) };
 
-		if (!ContainsCaseInsensitive(
-				label,
-				state.component_filter
-			) &&
-			!ContainsCaseInsensitive(
-				component->name,
-				state.component_filter
-			)) {
+		if (!ContainsCaseInsensitive(label, state.component_filter) &&
+			!ContainsCaseInsensitive(component->name, state.component_filter)) {
 			continue;
 		}
 
 		any_visible = true;
 
-		const bool is_selected{
-			component_name ==
-				component->name
-		};
+		const bool is_selected{ component_name == component->name };
 
-		const std::string selectable_label{
-			label
-		};
+		const std::string selectable_label{ label };
 
-		if (ImGui::Selectable(
-				selectable_label.c_str(),
-				is_selected
-			)) {
-			component_name =
-				component->name;
+		if (ImGui::Selectable(selectable_label.c_str(), is_selected)) {
+			component_name = component->name;
 
 			changed = true;
 			ImGui::CloseCurrentPopup();
 		}
 
-		if (ImGui::IsItemHovered() &&
-			label != component->name) {
-			ImGui::SetTooltip(
-				"%s",
-				component->name.c_str()
-			);
+		if (ImGui::IsItemHovered() && label != component->name) {
+			ImGui::SetTooltip("%s", component->name.c_str());
 		}
 	}
 
 	if (!any_visible) {
-		ImGui::TextDisabled(
-			"No matching components."
-		);
+		ImGui::TextDisabled("No matching components.");
 	}
 
 	ImGui::EndChild();
@@ -833,103 +588,60 @@ bool DrawComponentPicker(
 }
 
 [[nodiscard]] bool ComponentQueryConditionMatches(
-	Entity entity,
-	const ComponentQueryCondition& condition
+	Entity entity, const ComponentQueryCondition& condition
 ) {
 	if (condition.component.empty()) {
 		return false;
 	}
 
-	const auto* component{
-		ComponentRegistry::Find(
-			std::string_view{
-				condition.component
-			}
-		)
-	};
+	const auto* component{ ComponentRegistry::Find(std::string_view{ condition.component }) };
 
 	if (!component) {
 		return false;
 	}
 
-	const bool has_component{
-		component->Has(entity)
-	};
+	const bool has_component{ component->Has(entity) };
 
-	return condition.required
-		? has_component
-		: !has_component;
+	return condition.required ? has_component : !has_component;
 }
 
-[[nodiscard]] bool ComponentQueryGroupMatches(
-	Entity entity,
-	const ComponentQueryGroup& group
-) {
+[[nodiscard]] bool ComponentQueryGroupMatches(Entity entity, const ComponentQueryGroup& group) {
 	if (group.conditions.empty()) {
 		return false;
 	}
 
 	return std::ranges::all_of(
-		group.conditions,
-		[entity](
-			const ComponentQueryCondition& condition
-		) {
-			return ComponentQueryConditionMatches(
-				entity,
-				condition
-			);
+		group.conditions, [entity](const ComponentQueryCondition& condition) {
+			return ComponentQueryConditionMatches(entity, condition);
 		}
 	);
 }
 
-[[nodiscard]] bool ComponentQueryMatches(
-	Entity entity,
-	const ComponentEntityQuery& query
-) {
+[[nodiscard]] bool ComponentQueryMatches(Entity entity, const ComponentEntityQuery& query) {
 	if (query.groups.empty()) {
 		return false;
 	}
 
-	return std::ranges::any_of(
-		query.groups,
-		[entity](
-			const ComponentQueryGroup& group
-		) {
-			return ComponentQueryGroupMatches(
-				entity,
-				group
-			);
-		}
-	);
+	return std::ranges::any_of(query.groups, [entity](const ComponentQueryGroup& group) {
+		return ComponentQueryGroupMatches(entity, group);
+	});
 }
 
-[[nodiscard]] std::vector<Entity>
-ResolveComponentQuery(
-	Scene& scene,
-	const ComponentEntityQuery& query
+[[nodiscard]] std::vector<Entity> ResolveComponentQuery(
+	Scene& scene, const ComponentEntityQuery& query
 ) {
 	std::vector<Entity> matches;
 
-	for (Entity entity :
-		 scene.Entities()) {
-		if (ComponentQueryMatches(
-				entity,
-				query
-			)) {
-			matches.push_back(
-				entity
-			);
+	for (Entity entity : scene.Entities()) {
+		if (ComponentQueryMatches(entity, query)) {
+			matches.push_back(entity);
 		}
 	}
 
 	return matches;
 }
 
-[[nodiscard]] std::vector<Entity>
-ResolveGroupQuery(
-	Scene& scene,
-	const GroupEntityQuery& query
-) {
+[[nodiscard]] std::vector<Entity> ResolveGroupQuery(Scene& scene, const GroupEntityQuery& query) {
 	std::vector<Entity> matches;
 
 	for (Entity entity : scene.Entities()) {
@@ -939,15 +651,11 @@ ResolveGroupQuery(
 			continue;
 		}
 
-		bool matches_group{
-			std::ranges::any_of(
-				query.groups,
-				[&membership](const std::string& group) {
-					return !group.empty() &&
-						std::ranges::contains(membership->groups, group);
-				}
-			)
-		};
+		bool matches_group{ std::ranges::any_of(
+			query.groups, [&membership](const std::string& group) {
+				return !group.empty() && std::ranges::contains(membership->groups, group);
+			}
+		) };
 
 		if (matches_group) {
 			matches.push_back(entity);
@@ -957,92 +665,57 @@ ResolveGroupQuery(
 	return matches;
 }
 
-[[nodiscard]] std::vector<Entity>
-ResolveRegisteredQuery(
-	Scene& scene,
-	Entity owner,
-	const RegisteredEntityQueryReference& query
+[[nodiscard]] std::vector<Entity> ResolveRegisteredQuery(
+	Scene& scene, Entity owner, const RegisteredEntityQueryReference& query
 ) {
 	std::vector<Entity> matches;
 
-	const auto* registration{
-		EntityQueryRegistry::Find(
-			query.key
-		)
-	};
+	const auto* registration{ EntityQueryRegistry::Find(query.key) };
 
-	if (!registration ||
-		!registration->evaluate) {
+	if (!registration || !registration->evaluate) {
 		return matches;
 	}
 
-	for (Entity target :
-		 scene.Entities()) {
+	for (Entity target : scene.Entities()) {
 		if (registration->evaluate(
 				EntityQueryContext{
-					.scene = scene,
-					.owner = owner,
+					.scene	= scene,
+					.owner	= owner,
 					.target = target,
 				}
 			)) {
-			matches.push_back(
-				target
-			);
+			matches.push_back(target);
 		}
 	}
 
 	return matches;
 }
 
-[[nodiscard]] std::string ComponentConditionSummary(
-	const ComponentQueryCondition& condition
-) {
-	const auto* component{
-		condition.component.empty()
-			? nullptr
-			: ComponentRegistry::Find(
-				  std::string_view{
-					  condition.component
-				  }
-			  )
-	};
+[[nodiscard]] std::string ComponentConditionSummary(const ComponentQueryCondition& condition) {
+	const auto* component{ condition.component.empty()
+							   ? nullptr
+							   : ComponentRegistry::Find(std::string_view{ condition.component }) };
 
-	const std::string label{
-		component
-			? std::string{
-				  ComponentDisplayName(
-					  *component
-				  )
-			  }
-			: condition.component.empty()
-				? "<component>"
-				: condition.component
-	};
+	const std::string label{ component ? std::string{ ComponentDisplayName(*component) }
+							 : condition.component.empty() ? "<component>"
+														   : condition.component };
 
-	return condition.required
-		? "Has " + label
-		: "Doesn't Have " + label;
+	return condition.required ? "Has " + label : "Doesn't Have " + label;
 }
 
-[[nodiscard]] std::string ComponentQuerySummary(
-	const ComponentEntityQuery& query
-) {
+[[nodiscard]] std::string ComponentQuerySummary(const ComponentEntityQuery& query) {
 	if (query.groups.empty()) {
 		return "No component query";
 	}
 
 	std::string output;
 
-	for (std::size_t group_index{ 0 };
-		 group_index < query.groups.size();
-		 ++group_index) {
+	for (std::size_t group_index{ 0 }; group_index < query.groups.size(); ++group_index) {
 		if (group_index > 0) {
 			output += " OR ";
 		}
 
-		const auto& group{
-			query.groups[group_index]
-		};
+		const auto& group{ query.groups[group_index] };
 
 		if (query.groups.size() > 1) {
 			output += "(";
@@ -1051,20 +724,13 @@ ResolveRegisteredQuery(
 		if (group.conditions.empty()) {
 			output += "<empty>";
 		} else {
-			for (std::size_t condition_index{ 0 };
-				 condition_index <
-				 group.conditions.size();
+			for (std::size_t condition_index{ 0 }; condition_index < group.conditions.size();
 				 ++condition_index) {
 				if (condition_index > 0) {
 					output += " AND ";
 				}
 
-				output +=
-					ComponentConditionSummary(
-						group.conditions[
-							condition_index
-						]
-					);
+				output += ComponentConditionSummary(group.conditions[condition_index]);
 			}
 		}
 
@@ -1077,19 +743,17 @@ ResolveRegisteredQuery(
 }
 
 [[nodiscard]] std::string FilterSummary(
-	Scene* scene,
-	[[maybe_unused]] Entity owner,
-	const EntityFilter& target
+	Scene* scene, [[maybe_unused]] Entity owner, const EntityFilter& target
 ) {
 	switch (target.type) {
-		case EntityFilterType::Any:
-			return "Any Entity";
+		case EntityFilterType::None:   return "No Entities";
+		case EntityFilterType::Any:	   return "Any Entity";
 
 		case EntityFilterType::Entity: {
 			if (!scene) {
 				return target.entity.uuid.has_value()
-					? (target.entity.tag.empty() ? "Selected Entity" : target.entity.tag)
-					: "Select Entity";
+						 ? (target.entity.tag.empty() ? "Selected Entity" : target.entity.tag)
+						 : "Select Entity";
 			}
 
 			Entity entity{ ResolveEntity(*scene, target.entity) };
@@ -1097,11 +761,7 @@ ResolveRegisteredQuery(
 		}
 
 		case EntityFilterType::Components: {
-			const std::string summary{
-				ComponentQuerySummary(
-					target.components
-				)
-			};
+			const std::string summary{ ComponentQuerySummary(target.components) };
 
 			if (summary.size() <= 52) {
 				return summary;
@@ -1109,20 +769,12 @@ ResolveRegisteredQuery(
 
 			std::size_t condition_count{ 0 };
 
-			for (const auto& group :
-				 target.components.groups) {
-				condition_count +=
-					group.conditions.size();
+			for (const auto& group : target.components.groups) {
+				condition_count += group.conditions.size();
 			}
 
-			return std::to_string(
-					   condition_count
-				   ) +
-				   (
-					   condition_count == 1
-						   ? " component condition"
-						   : " component conditions"
-				   );
+			return std::to_string(condition_count) +
+				   (condition_count == 1 ? " component condition" : " component conditions");
 		}
 
 		case EntityFilterType::Group:
@@ -1137,104 +789,56 @@ ResolveRegisteredQuery(
 			return std::to_string(target.group.groups.size()) + " groups";
 
 		case EntityFilterType::Query: {
-			const auto* query{
-				EntityQueryRegistry::Find(
-					target.query.key
-				)
-			};
+			const auto* query{ EntityQueryRegistry::Find(target.query.key) };
 
-			return query
-				? query->label
-				: "Select Query";
+			return query ? query->label : "Select Query";
 		}
 	}
 
 	return "Target";
 }
 
-void DrawMatchPreview(
-	const std::vector<Entity>& matches
-) {
-	const std::string label{
-		std::to_string(matches.size()) +
-		(matches.size() == 1
-			? " match"
-			: " matches")
-	};
+void DrawMatchPreview(const std::vector<Entity>& matches) {
+	const std::string label{ std::to_string(matches.size()) +
+							 (matches.size() == 1 ? " match" : " matches") };
 
-	ImGuiTreeNodeFlags flags{
-		ImGuiTreeNodeFlags_SpanAvailWidth
-	};
+	ImGuiTreeNodeFlags flags{ ImGuiTreeNodeFlags_SpanAvailWidth };
 
 	if (matches.empty()) {
-		flags |=
-			ImGuiTreeNodeFlags_Leaf |
-			ImGuiTreeNodeFlags_NoTreePushOnOpen;
+		flags |= ImGuiTreeNodeFlags_Leaf | ImGuiTreeNodeFlags_NoTreePushOnOpen;
 	}
 
-	const bool open{
-		ImGui::TreeNodeEx(
-			"##Matches",
-			flags,
-			"%s",
-			label.c_str()
-		)
-	};
+	const bool open{ ImGui::TreeNodeEx("##Matches", flags, "%s", label.c_str()) };
 
 	if (matches.empty() || !open) {
 		return;
 	}
 
 	for (Entity entity : matches) {
-		const std::string row{
-			EntityDisplayName(entity) +
-			" [" +
-			UUIDDisplayName(entity) +
-			"]"
-		};
+		const std::string row{ EntityDisplayName(entity) + " [" + UUIDDisplayName(entity) + "]" };
 
-		ImGui::BulletText(
-			"%s",
-			row.c_str()
-		);
+		ImGui::BulletText("%s", row.c_str());
 	}
 
 	ImGui::TreePop();
 }
 
-bool DrawConditionType(
-	ComponentQueryCondition& condition
-) {
-	const char* preview{
-		condition.required
-			? "Has"
-			: "Doesn't Have"
-	};
+bool DrawConditionType(ComponentQueryCondition& condition) {
+	const char* preview{ condition.required ? "Has" : "Doesn't Have" };
 
 	bool changed{ false };
 
-	ImGui::SetNextItemWidth(
-		-FLT_MIN
-	);
+	ImGui::SetNextItemWidth(-FLT_MIN);
 
-	if (ImGui::BeginCombo(
-			"##ConditionType",
-			preview
-		)) {
-		if (ImGui::Selectable(
-				"Has",
-				condition.required
-			)) {
+	if (ImGui::BeginCombo("##ConditionType", preview)) {
+		if (ImGui::Selectable("Has", condition.required)) {
 			condition.required = true;
-			changed = true;
+			changed			   = true;
 		}
 
-		if (ImGui::Selectable(
-				"Doesn't Have",
-				!condition.required
-			)) {
+		if (ImGui::Selectable("Doesn't Have", !condition.required)) {
 			condition.required = false;
-			changed = true;
+			changed			   = true;
 		}
 
 		ImGui::EndCombo();
@@ -1244,87 +848,44 @@ bool DrawConditionType(
 }
 
 bool DrawComponentQueryEditor(
-	Scene* scene,
-	ComponentEntityQuery& query,
-	EntityFilterEditorState& state
+	Scene* scene, ComponentEntityQuery& query, EntityFilterEditorState& state
 ) {
 	bool changed{ false };
 	std::optional<std::size_t> group_to_remove;
 
-	for (std::size_t group_index{ 0 };
-		 group_index < query.groups.size();
-		 ++group_index) {
-		auto& group{
-			query.groups[group_index]
-		};
+	for (std::size_t group_index{ 0 }; group_index < query.groups.size(); ++group_index) {
+		auto& group{ query.groups[group_index] };
 
 		if (group_index > 0) {
 			ImGui::TextDisabled("OR");
 		}
 
-		ImGui::PushID(
-			static_cast<int>(
-				group_index
-			)
-		);
+		ImGui::PushID(static_cast<int>(group_index));
 
 		std::optional<std::size_t> condition_to_remove;
 
 		ImGui::PushStyleVar(
-			ImGuiStyleVar_CellPadding,
-			ImVec2{
-				ImGui::GetStyle().ItemSpacing.x * 0.5f,
-				0.0f
-			}
+			ImGuiStyleVar_CellPadding, ImVec2{ ImGui::GetStyle().ItemSpacing.x * 0.5f, 0.0f }
 		);
 
-		if (ImGui::BeginTable(
-				"##ComponentQueryGroup",
-				4,
-				ImGuiTableFlags_SizingStretchProp
-			)) {
-			ImGui::TableSetupColumn(
-				"Join",
-				ImGuiTableColumnFlags_WidthFixed,
-				34.0f
-			);
+		if (ImGui::BeginTable("##ComponentQueryGroup", 4, ImGuiTableFlags_SizingStretchProp)) {
+			ImGui::TableSetupColumn("Join", ImGuiTableColumnFlags_WidthFixed, 34.0f);
+
+			ImGui::TableSetupColumn("Type", ImGuiTableColumnFlags_WidthFixed, 118.0f);
+
+			ImGui::TableSetupColumn("Component", ImGuiTableColumnFlags_WidthStretch);
 
 			ImGui::TableSetupColumn(
-				"Type",
-				ImGuiTableColumnFlags_WidthFixed,
-				118.0f
+				"Remove", ImGuiTableColumnFlags_WidthFixed, ImGui::GetFrameHeight()
 			);
 
-			ImGui::TableSetupColumn(
-				"Component",
-				ImGuiTableColumnFlags_WidthStretch
-			);
-
-			ImGui::TableSetupColumn(
-				"Remove",
-				ImGuiTableColumnFlags_WidthFixed,
-				ImGui::GetFrameHeight()
-			);
-
-			for (std::size_t condition_index{ 0 };
-				 condition_index < group.conditions.size();
+			for (std::size_t condition_index{ 0 }; condition_index < group.conditions.size();
 				 ++condition_index) {
-				auto& condition{
-					group.conditions[
-						condition_index
-					]
-				};
+				auto& condition{ group.conditions[condition_index] };
 
-				ImGui::PushID(
-					static_cast<int>(
-						condition_index
-					)
-				);
+				ImGui::PushID(static_cast<int>(condition_index));
 
-				ImGui::TableNextRow(
-					0,
-					ImGui::GetFrameHeight() + kComponentRowExtraHeight
-				);
+				ImGui::TableNextRow(0, ImGui::GetFrameHeight() + kComponentRowExtraHeight);
 
 				ImGui::TableSetColumnIndex(0);
 				ImGui::AlignTextToFramePadding();
@@ -1335,41 +896,27 @@ bool DrawComponentQueryEditor(
 
 				ImGui::TableSetColumnIndex(1);
 
-				changed |=
-					DrawConditionType(
-						condition
-					);
+				changed |= DrawConditionType(condition);
 
 				ImGui::TableSetColumnIndex(2);
 
-				changed |=
-					DrawComponentPicker(
-						"##ComponentPicker",
-						condition.component,
-						state
-					);
+				changed |= DrawComponentPicker("##ComponentPicker", condition.component, state);
 
 				ImGui::TableSetColumnIndex(3);
 
 				if (ImGui::Button(
-						"X",
-						ImVec2{
-							ImGui::GetFrameHeight(),
-							ImGui::GetFrameHeight()
-						}
+						"X", ImVec2{ ImGui::GetFrameHeight(), ImGui::GetFrameHeight() }
 					)) {
 					if (group.conditions.size() == 1) {
 						group_to_remove = group_index;
 					} else {
-						condition_to_remove =
-							condition_index;
+						condition_to_remove = condition_index;
 					}
 				}
 
 				ImGui::PopID();
 
-				if (group_to_remove.has_value() ||
-					condition_to_remove.has_value()) {
+				if (group_to_remove.has_value() || condition_to_remove.has_value()) {
 					break;
 				}
 			}
@@ -1386,48 +933,25 @@ bool DrawComponentQueryEditor(
 
 		if (condition_to_remove.has_value()) {
 			group.conditions.erase(
-				group.conditions.begin() +
-				static_cast<std::ptrdiff_t>(
-					condition_to_remove.value()
-				)
+				group.conditions.begin() + static_cast<std::ptrdiff_t>(condition_to_remove.value())
 			);
 
 			changed = true;
 		}
 
-		const float row_height{
-			ImGui::GetFrameHeight()
-		};
+		const float row_height{ ImGui::GetFrameHeight() };
 
-		if (ImGui::Button(
-				"+ AND",
-				ImVec2{
-					0.0f,
-					row_height
-				}
-			)) {
-			group.conditions.push_back(
-				ComponentQueryCondition{}
-			);
+		if (ImGui::Button("+ AND", ImVec2{ 0.0f, row_height })) {
+			group.conditions.push_back(ComponentQueryCondition{});
 
 			changed = true;
 		}
 
 		if (query.groups.size() > 1) {
-			ImGui::SameLine(
-				0.0f,
-				ImGui::GetStyle().ItemSpacing.x
-			);
+			ImGui::SameLine(0.0f, ImGui::GetStyle().ItemSpacing.x);
 
-			if (ImGui::Button(
-					"Remove Group",
-					ImVec2{
-						0.0f,
-						row_height
-					}
-				)) {
-				group_to_remove =
-					group_index;
+			if (ImGui::Button("Remove Group", ImVec2{ 0.0f, row_height })) {
+				group_to_remove = group_index;
 			}
 		}
 
@@ -1440,22 +964,13 @@ bool DrawComponentQueryEditor(
 
 	if (group_to_remove.has_value()) {
 		query.groups.erase(
-			query.groups.begin() +
-			static_cast<std::ptrdiff_t>(
-				group_to_remove.value()
-			)
+			query.groups.begin() + static_cast<std::ptrdiff_t>(group_to_remove.value())
 		);
 
 		changed = true;
 	}
 
-	if (ImGui::Button(
-			"+ OR Group",
-			ImVec2{
-				0.0f,
-				ImGui::GetFrameHeight()
-			}
-		)) {
+	if (ImGui::Button("+ OR Group", ImVec2{ 0.0f, ImGui::GetFrameHeight() })) {
 		query.groups.push_back(
 			ComponentQueryGroup{
 				.conditions{
@@ -1498,11 +1013,7 @@ bool DrawComponentQueryEditor(
 	return groups;
 }
 
-bool DrawGroupPicker(
-	Scene* scene,
-	GroupEntityQuery& query,
-	EntityFilterEditorState& state
-) {
+bool DrawGroupPicker(Scene* scene, GroupEntityQuery& query, EntityFilterEditorState& state) {
 	std::string preview{ "Select Groups" };
 
 	if (!query.groups.empty()) {
@@ -1521,39 +1032,25 @@ bool DrawGroupPicker(
 
 	ImGui::BeginGroup();
 	ImGui::SetNextItemWidth(-FLT_MIN);
-	bool open{ ImGui::BeginCombo(
-		"##GroupPicker",
-		preview.c_str()
-	) };
+	bool open{ ImGui::BeginCombo("##GroupPicker", preview.c_str()) };
 
 	if (open) {
 		ImGui::SetNextItemWidth(-FLT_MIN);
 
-		ImGui::InputTextWithHint(
-			"##GroupSearch",
-			"Search groups...",
-			&state.group_filter
-		);
+		ImGui::InputTextWithHint("##GroupSearch", "Search groups...", &state.group_filter);
 
 		auto groups{ GetSceneGroups(scene) };
 		bool any_visible{ false };
 
 		for (const auto& group : groups) {
-			if (!ContainsCaseInsensitive(
-					group,
-					state.group_filter
-				)) {
+			if (!ContainsCaseInsensitive(group, state.group_filter)) {
 				continue;
 			}
 
 			any_visible = true;
 			bool selected{ std::ranges::contains(query.groups, group) };
 
-			if (ImGui::Selectable(
-					group.c_str(),
-					selected,
-					ImGuiSelectableFlags_DontClosePopups
-				)) {
+			if (ImGui::Selectable(group.c_str(), selected, ImGuiSelectableFlags_DontClosePopups)) {
 				if (selected) {
 					std::erase(query.groups, group);
 				} else {
@@ -1563,12 +1060,24 @@ bool DrawGroupPicker(
 				changed = true;
 			}
 		}
-
-		if (!any_visible) {
+		const std::string custom_group{ TrimWhitespace(state.group_filter) };
+		const bool can_add_custom_group{ !custom_group.empty() &&
+										 !std::ranges::contains(query.groups, custom_group) &&
+										 !groups.contains(custom_group) };
+		if (can_add_custom_group) {
+			if (any_visible) {
+				ImGui::Separator();
+			}
+			const std::string add_label{ "+ Add \"" + custom_group + "\"" };
+			if (ImGui::Selectable(add_label.c_str())) {
+				query.groups.push_back(custom_group);
+				state.group_filter.clear();
+				changed = true;
+			}
+		} else if (!any_visible) {
 			ImGui::TextDisabled(
-				scene
-					? "No matching groups."
-					: "Group choices require a scene instance."
+				scene ? "No matching groups. Type a new group name to add it."
+					  : "Type a group name to add it."
 			);
 		}
 
@@ -1584,8 +1093,7 @@ bool DrawGroupPicker(
 			);
 		} else {
 			ImGui::SetTooltip(
-				"%s\nMatches entities that belong to any selected group.",
-				preview.c_str()
+				"%s\nMatches entities that belong to any selected group.", preview.c_str()
 			);
 		}
 	}
@@ -1593,18 +1101,8 @@ bool DrawGroupPicker(
 	return changed;
 }
 
-bool DrawGroupQueryEditor(
-	Scene* scene,
-	GroupEntityQuery& query,
-	EntityFilterEditorState& state
-) {
-	bool changed{
-		DrawGroupPicker(
-			scene,
-			query,
-			state
-		)
-	};
+bool DrawGroupQueryEditor(Scene* scene, GroupEntityQuery& query, EntityFilterEditorState& state) {
+	bool changed{ DrawGroupPicker(scene, query, state) };
 
 	if (scene) {
 		DrawMatchPreview(ResolveGroupQuery(*scene, query));
@@ -1614,76 +1112,41 @@ bool DrawGroupQueryEditor(
 }
 
 bool DrawRegisteredQueryPicker(
-	RegisteredEntityQueryReference& query,
-	EntityFilterEditorState& state
+	RegisteredEntityQueryReference& query, EntityFilterEditorState& state
 ) {
-	const auto* selected{
-		EntityQueryRegistry::Find(
-			query.key
-		)
-	};
+	const auto* selected{ EntityQueryRegistry::Find(query.key) };
 
-	const std::string preview{
-		selected
-			? selected->label
-			: "Select Query"
-	};
+	const std::string preview{ selected ? selected->label : "Select Query" };
 
 	bool changed{ false };
 
-	ImGui::SetNextItemWidth(
-		-FLT_MIN
-	);
+	ImGui::SetNextItemWidth(-FLT_MIN);
 
-	if (!ImGui::BeginCombo(
-			"##QueryPicker",
-			preview.c_str()
-		)) {
+	if (!ImGui::BeginCombo("##QueryPicker", preview.c_str())) {
 		return false;
 	}
 
-	ImGui::SetNextItemWidth(
-		-FLT_MIN
-	);
+	ImGui::SetNextItemWidth(-FLT_MIN);
 
-	ImGui::InputTextWithHint(
-		"##QuerySearch",
-		"Search queries...",
-		&state.query_filter
-	);
+	ImGui::InputTextWithHint("##QuerySearch", "Search queries...", &state.query_filter);
 
-	auto queries{
-		EntityQueryRegistry::Queries()
-	};
+	auto queries{ EntityQueryRegistry::Queries() };
 
-	std::ranges::sort(
-		queries,
-		[](const auto& lhs, const auto& rhs) {
-			if (lhs.group != rhs.group) {
-				return lhs.group < rhs.group;
-			}
-
-			return lhs.label < rhs.label;
+	std::ranges::sort(queries, [](const auto& lhs, const auto& rhs) {
+		if (lhs.group != rhs.group) {
+			return lhs.group < rhs.group;
 		}
-	);
+
+		return lhs.label < rhs.label;
+	});
 
 	std::vector<std::string> visible_groups;
 	bool has_ungrouped{ false };
 
 	auto visible = [&](const RegisteredEntityQuery& registration) {
-		return
-			ContainsCaseInsensitive(
-				registration.label,
-				state.query_filter
-			) ||
-			ContainsCaseInsensitive(
-				registration.group,
-				state.query_filter
-			) ||
-			ContainsCaseInsensitive(
-				registration.description,
-				state.query_filter
-			);
+		return ContainsCaseInsensitive(registration.label, state.query_filter) ||
+			   ContainsCaseInsensitive(registration.group, state.query_filter) ||
+			   ContainsCaseInsensitive(registration.description, state.query_filter);
 	};
 
 	for (const auto& registration : queries) {
@@ -1696,72 +1159,47 @@ bool DrawRegisteredQueryPicker(
 			continue;
 		}
 
-		if (!std::ranges::contains(
-				visible_groups,
-				registration.group
-			)) {
-			visible_groups.push_back(
-				registration.group
-			);
+		if (!std::ranges::contains(visible_groups, registration.group)) {
+			visible_groups.push_back(registration.group);
 		}
 	}
 
-	bool any_visible{
-		has_ungrouped ||
-		!visible_groups.empty()
-	};
+	bool any_visible{ has_ungrouped || !visible_groups.empty() };
 
 	for (const auto& registration : queries) {
-		if (!registration.group.empty() ||
-			!visible(registration)) {
+		if (!registration.group.empty() || !visible(registration)) {
 			continue;
 		}
 
-		if (ImGui::Selectable(
-				registration.label.c_str(),
-				query.key == registration.key
-			)) {
+		if (ImGui::Selectable(registration.label.c_str(), query.key == registration.key)) {
 			query.key = registration.key;
-			changed = true;
+			changed	  = true;
 		}
 
-		if (ImGui::IsItemHovered() &&
-			!registration.description.empty()) {
-			ImGui::SetTooltip(
-				"%s",
-				registration.description.c_str()
-			);
+		if (ImGui::IsItemHovered() && !registration.description.empty()) {
+			ImGui::SetTooltip("%s", registration.description.c_str());
 		}
 	}
 
 	for (const auto& group : visible_groups) {
-		if (!ImGui::BeginMenu(
-				group.c_str()
-			)) {
+		if (!ImGui::BeginMenu(group.c_str())) {
 			continue;
 		}
 
 		for (const auto& registration : queries) {
-			if (registration.group != group ||
-				!visible(registration)) {
+			if (registration.group != group || !visible(registration)) {
 				continue;
 			}
 
 			if (ImGui::MenuItem(
-					registration.label.c_str(),
-					nullptr,
-					query.key == registration.key
+					registration.label.c_str(), nullptr, query.key == registration.key
 				)) {
 				query.key = registration.key;
-				changed = true;
+				changed	  = true;
 			}
 
-			if (ImGui::IsItemHovered() &&
-				!registration.description.empty()) {
-				ImGui::SetTooltip(
-					"%s",
-					registration.description.c_str()
-				);
+			if (ImGui::IsItemHovered() && !registration.description.empty()) {
+				ImGui::SetTooltip("%s", registration.description.c_str());
 			}
 		}
 
@@ -1769,9 +1207,7 @@ bool DrawRegisteredQueryPicker(
 	}
 
 	if (!any_visible) {
-		ImGui::TextDisabled(
-			"No matching queries."
-		);
+		ImGui::TextDisabled("No matching queries.");
 	}
 
 	ImGui::EndCombo();
@@ -1779,30 +1215,15 @@ bool DrawRegisteredQueryPicker(
 }
 
 bool DrawRegisteredQueryEditor(
-	Scene* scene,
-	Entity owner,
-	RegisteredEntityQueryReference& query,
+	Scene* scene, Entity owner, RegisteredEntityQueryReference& query,
 	EntityFilterEditorState& state
 ) {
-	bool changed{
-		DrawRegisteredQueryPicker(
-			query,
-			state
-		)
-	};
+	bool changed{ DrawRegisteredQueryPicker(query, state) };
 
-	const auto* selected{
-		EntityQueryRegistry::Find(
-			query.key
-		)
-	};
+	const auto* selected{ EntityQueryRegistry::Find(query.key) };
 
-	if (selected &&
-		!selected->description.empty()) {
-		ImGui::TextDisabled(
-			"%s",
-			selected->description.c_str()
-		);
+	if (selected && !selected->description.empty()) {
+		ImGui::TextDisabled("%s", selected->description.c_str());
 	}
 
 	if (scene) {
@@ -1813,21 +1234,19 @@ bool DrawRegisteredQueryEditor(
 }
 
 bool DrawEntityFilterEditor(
-	Scene* scene,
-	Entity owner,
-	EntityFilter& target,
-	EntityFilterEditorState& state,
+	Scene* scene, Entity owner, EntityFilter& target, EntityFilterEditorState& state,
 	const EntityFilterEditorOptions& options
 ) {
 	bool changed{ false };
 
 	auto mode_visible = [&](EntityFilterType type) {
 		switch (type) {
-			case EntityFilterType::Any: return options.show_any;
-			case EntityFilterType::Entity: return options.show_entity;
+			case EntityFilterType::None:	   return options.show_none;
+			case EntityFilterType::Any:		   return options.show_any;
+			case EntityFilterType::Entity:	   return options.show_entity;
 			case EntityFilterType::Components: return options.show_components;
-			case EntityFilterType::Group: return options.show_groups;
-			case EntityFilterType::Query: return options.show_queries;
+			case EntityFilterType::Group:	   return options.show_groups;
+			case EntityFilterType::Query:	   return options.show_queries;
 		}
 
 		return false;
@@ -1844,33 +1263,27 @@ bool DrawEntityFilterEditor(
 			target.type = EntityFilterType::Group;
 		} else if (options.show_queries) {
 			target.type = EntityFilterType::Query;
+		} else if (options.show_none) {
+			target.type = EntityFilterType::None;
 		}
 	}
 
-	std::size_t mode_count{
-		static_cast<std::size_t>(options.show_any) +
-		static_cast<std::size_t>(options.show_entity) +
-		static_cast<std::size_t>(options.show_components) +
-		static_cast<std::size_t>(options.show_groups) +
-		static_cast<std::size_t>(options.show_queries)
-	};
+	std::size_t mode_count{ static_cast<std::size_t>(options.show_none) +
+							static_cast<std::size_t>(options.show_any) +
+							static_cast<std::size_t>(options.show_entity) +
+							static_cast<std::size_t>(options.show_components) +
+							static_cast<std::size_t>(options.show_groups) +
+							static_cast<std::size_t>(options.show_queries) };
 
 	float close_width{ ImGui::GetFrameHeight() };
 	float spacing{ ImGui::GetStyle().ItemSpacing.x };
 
 	if (mode_count > 1) {
 		float available{ ImGui::GetContentRegionAvail().x };
-		float mode_width{
-			std::max(
-				64.0f,
-				(
-					available -
-					close_width -
-					spacing * static_cast<float>(mode_count)
-				) /
-				static_cast<float>(mode_count)
-			)
-		};
+		float mode_width{ std::max(
+			64.0f, (available - close_width - spacing * static_cast<float>(mode_count)) /
+					   static_cast<float>(mode_count)
+		) };
 
 		bool first{ true };
 
@@ -1890,18 +1303,17 @@ bool DrawEntityFilterEditor(
 			}
 
 			if (ImGui::Selectable(
-					label,
-					target.type == type,
-					ImGuiSelectableFlags_DontClosePopups,
+					label, target.type == type, ImGuiSelectableFlags_DontClosePopups,
 					ImVec2{ mode_width, close_width }
 				)) {
 				target.type = type;
 
-				if (type == EntityFilterType::Components &&
-					target.components.groups.empty()) {
-					target.components.groups.push_back(ComponentQueryGroup{
-						.conditions{ ComponentQueryCondition{} },
-					});
+				if (type == EntityFilterType::Components && target.components.groups.empty()) {
+					target.components.groups.push_back(
+						ComponentQueryGroup{
+							.conditions{ ComponentQueryCondition{} },
+						}
+					);
 				}
 
 				changed = true;
@@ -1912,11 +1324,8 @@ bool DrawEntityFilterEditor(
 			}
 		};
 
-		ImGui::PushStyleVar(
-			ImGuiStyleVar_SelectableTextAlign,
-			ImVec2{ 0.5f, 0.5f }
-		);
-
+		ImGui::PushStyleVar(ImGuiStyleVar_SelectableTextAlign, ImVec2{ 0.5f, 0.5f });
+		draw_mode("None", EntityFilterType::None, options.show_none);
 		draw_mode("Any", EntityFilterType::Any, options.show_any);
 		draw_mode("Entity", EntityFilterType::Entity, options.show_entity);
 		draw_mode("Components", EntityFilterType::Components, options.show_components);
@@ -1928,9 +1337,7 @@ bool DrawEntityFilterEditor(
 		ImGui::SameLine();
 	} else {
 		ImGui::SetCursorPosX(
-			ImGui::GetCursorPosX() +
-			ImGui::GetContentRegionAvail().x -
-			close_width
+			ImGui::GetCursorPosX() + ImGui::GetContentRegionAvail().x - close_width
 		);
 	}
 
@@ -1942,20 +1349,14 @@ bool DrawEntityFilterEditor(
 	ImGui::Separator();
 
 	switch (target.type) {
-		case EntityFilterType::Any:
-			ImGui::TextDisabled("All entities match this filter.");
-			break;
+		case EntityFilterType::None: ImGui::TextDisabled("No entities match this filter."); break;
+		case EntityFilterType::Any:	 ImGui::TextDisabled("All entities match this filter."); break;
 
 		case EntityFilterType::Entity:
 			if (scene) {
 				changed |= DrawMiniHierarchy(
-					*scene,
-					owner,
-					target.entity,
-					state,
-					options.allow_select_owner,
-					options.exclude_owner ? owner : Entity{},
-					options.excluded_entities
+					*scene, owner, target.entity, state, options.allow_select_owner,
+					options.exclude_owner ? owner : Entity{}, options.excluded_entities
 				);
 			} else {
 				ImGui::TextDisabled("Exact entity selection requires a scene instance.");
@@ -1963,38 +1364,22 @@ bool DrawEntityFilterEditor(
 			break;
 
 		case EntityFilterType::Components:
-			changed |= DrawComponentQueryEditor(
-				scene,
-				target.components,
-				state
-			);
+			changed |= DrawComponentQueryEditor(scene, target.components, state);
 			break;
 
 		case EntityFilterType::Group:
-			changed |= DrawGroupQueryEditor(
-				scene,
-				target.group,
-				state
-			);
+			changed |= DrawGroupQueryEditor(scene, target.group, state);
 			break;
 
 		case EntityFilterType::Query:
-			changed |= DrawRegisteredQueryEditor(
-				scene,
-				owner,
-				target.query,
-				state
-			);
+			changed |= DrawRegisteredQueryEditor(scene, owner, target.query, state);
 			break;
 	}
 
 	return changed;
 }
 
-void DrawFilterButtonTooltip(
-	Scene* scene,
-	const EntityFilter& target
-) {
+void DrawFilterButtonTooltip(Scene* scene, const EntityFilter& target) {
 	if (!ImGui::IsItemHovered()) {
 		return;
 	}
@@ -2011,20 +1396,15 @@ void DrawFilterButtonTooltip(
 					}
 				} else {
 					json uuid = target.entity.uuid.value();
-					std::string uuid_text{
-						uuid.is_string()
-							? uuid.get<std::string>()
-							: uuid.dump()
-					};
+					std::string uuid_text{ uuid.is_string() ? uuid.get<std::string>()
+															: uuid.dump() };
 					ImGui::SetTooltip("uuid: %s", uuid_text.c_str());
 				}
 			}
 			break;
 
 		case EntityFilterType::Components: {
-			std::string full_summary{
-				ComponentQuerySummary(target.components)
-			};
+			std::string full_summary{ ComponentQuerySummary(target.components) };
 			ImGui::SetTooltip("%s", full_summary.c_str());
 			break;
 		}
@@ -2045,31 +1425,23 @@ void DrawFilterButtonTooltip(
 			}
 			break;
 
-		default:
-			break;
+		default: break;
 	}
 }
 
-void ApplyPopupConstraints(
-	const EntityFilterEditorOptions& options
-) {
+void ApplyPopupConstraints(const EntityFilterEditorOptions& options) {
 	float popup_width{ GetPopupWidth(options) };
 	float popup_max_height{ FLT_MAX };
 
 	if (auto* viewport{ ImGui::GetWindowViewport() }) {
 		popup_width = std::min(
-			popup_width,
-			std::max(1.0f, viewport->WorkSize.x - kTargetPopupScreenMargin * 2.0f)
+			popup_width, std::max(1.0f, viewport->WorkSize.x - kTargetPopupScreenMargin * 2.0f)
 		);
-		popup_max_height = std::max(
-			1.0f,
-			viewport->WorkSize.y - kTargetPopupScreenMargin * 2.0f
-		);
+		popup_max_height = std::max(1.0f, viewport->WorkSize.y - kTargetPopupScreenMargin * 2.0f);
 	}
 
 	ImGui::SetNextWindowSizeConstraints(
-		ImVec2{ popup_width, 0.0f },
-		ImVec2{ popup_width, popup_max_height }
+		ImVec2{ popup_width, 0.0f }, ImVec2{ popup_width, popup_max_height }
 	);
 }
 
@@ -2084,45 +1456,29 @@ void ClampCurrentPopupToViewport() {
 
 	float min_x{ viewport->WorkPos.x + kTargetPopupScreenMargin };
 	float min_y{ viewport->WorkPos.y + kTargetPopupScreenMargin };
-	float max_x{
-		viewport->WorkPos.x + viewport->WorkSize.x -
-		popup_size.x - kTargetPopupScreenMargin
-	};
-	float max_y{
-		viewport->WorkPos.y + viewport->WorkSize.y -
-		popup_size.y - kTargetPopupScreenMargin
-	};
+	float max_x{ viewport->WorkPos.x + viewport->WorkSize.x - popup_size.x -
+				 kTargetPopupScreenMargin };
+	float max_y{ viewport->WorkPos.y + viewport->WorkSize.y - popup_size.y -
+				 kTargetPopupScreenMargin };
 
 	max_x = std::max(max_x, min_x);
 	max_y = std::max(max_y, min_y);
 
-	ImVec2 clamped_position{
-		std::clamp(popup_position.x, min_x, max_x),
-		std::clamp(popup_position.y, min_y, max_y)
-	};
+	ImVec2 clamped_position{ std::clamp(popup_position.x, min_x, max_x),
+							 std::clamp(popup_position.y, min_y, max_y) };
 
-	if (clamped_position.x != popup_position.x ||
-		clamped_position.y != popup_position.y) {
+	if (clamped_position.x != popup_position.x || clamped_position.y != popup_position.y) {
 		ImGui::SetWindowPos(clamped_position, ImGuiCond_Always);
 	}
 }
 
-bool BeginEntityFilterPopup(
-	const EntityFilterEditorOptions& options
-) {
+bool BeginEntityFilterPopup(const EntityFilterEditorOptions& options) {
 	ApplyPopupConstraints(options);
 
-	ImGui::PushStyleColor(
-		ImGuiCol_ModalWindowDimBg,
-		ImVec4{ 0.0f, 0.0f, 0.0f, 0.0f }
-	);
+	ImGui::PushStyleColor(ImGuiCol_ModalWindowDimBg, ImVec4{ 0.0f, 0.0f, 0.0f, 0.0f });
 
 	bool open{
-		ImGui::BeginPopupModal(
-			"##EntityFilterPopup",
-			nullptr,
-			ImGuiWindowFlags_AlwaysAutoResize
-		)
+		ImGui::BeginPopupModal("##EntityFilterPopup", nullptr, ImGuiWindowFlags_AlwaysAutoResize)
 	};
 
 	ImGui::PopStyleColor();
@@ -2130,37 +1486,23 @@ bool BeginEntityFilterPopup(
 }
 
 bool DrawEntityFilterButtonImpl(
-	Scene* scene,
-	Entity owner,
-	EntityFilter& target,
-	EntityFilterEditorState& state,
+	Scene* scene, Entity owner, EntityFilter& target, EntityFilterEditorState& state,
 	const EntityFilterEditorOptions& options
 ) {
 	ImGui::PushID(std::addressof(target));
 
-	std::string summary{
-		FilterSummary(scene, owner, target)
-	};
+	std::string summary{ FilterSummary(scene, owner, target) };
 
 	bool changed{ false };
 
-	if (ImGui::Button(
-			summary.c_str(),
-			ImVec2{ ImGui::GetContentRegionAvail().x, 0.0f }
-		)) {
+	if (ImGui::Button(summary.c_str(), ImVec2{ ImGui::GetContentRegionAvail().x, 0.0f })) {
 		ImGui::OpenPopup("##EntityFilterPopup");
 	}
 
 	DrawFilterButtonTooltip(scene, target);
 
 	if (BeginEntityFilterPopup(options)) {
-		changed |= DrawEntityFilterEditor(
-			scene,
-			owner,
-			target,
-			state,
-			options
-		);
+		changed |= DrawEntityFilterEditor(scene, owner, target, state, options);
 
 		ClampCurrentPopupToViewport();
 		ImGui::EndPopup();
@@ -2171,34 +1513,19 @@ bool DrawEntityFilterButtonImpl(
 }
 
 bool DrawEntityFilterButtonImpl(
-	Scene* scene,
-	Entity owner,
-	std::optional<EntityFilter>& target,
-	EntityFilterEditorState& state,
+	Scene* scene, Entity owner, std::optional<EntityFilter>& target, EntityFilterEditorState& state,
 	const EntityFilterEditorOptions& options
 ) {
 	ImGui::PushID(std::addressof(target));
 
-	bool owner_target{
-		!target ||
-		(
-			target->type == EntityFilterType::Entity &&
-			IsOwnerReference(owner, target->entity)
-		)
-	};
+	bool owner_target{ !target || (target->type == EntityFilterType::Entity &&
+								   IsOwnerReference(owner, target->entity)) };
 
-	std::string summary{
-		owner_target
-			? "Owner"
-			: FilterSummary(scene, owner, *target)
-	};
+	std::string summary{ owner_target ? "Owner" : FilterSummary(scene, owner, *target) };
 
 	bool changed{ false };
 
-	if (ImGui::Button(
-			summary.c_str(),
-			ImVec2{ ImGui::GetContentRegionAvail().x, 0.0f }
-		)) {
+	if (ImGui::Button(summary.c_str(), ImVec2{ ImGui::GetContentRegionAvail().x, 0.0f })) {
 		ImGui::OpenPopup("##EntityFilterPopup");
 	}
 
@@ -2211,32 +1538,21 @@ bool DrawEntityFilterButtonImpl(
 	}
 
 	if (BeginEntityFilterPopup(options)) {
-		EntityFilter edited{
-			target.value_or(
-				EntityFilter{
-					.type = EntityFilterType::Entity,
-				}
-			)
-		};
+		EntityFilter edited{ target.value_or(
+			EntityFilter{
+				.type = EntityFilterType::Entity,
+			}
+		) };
 
 		if (!target && owner) {
 			edited.type = EntityFilterType::Entity;
 			SetEntityRef(edited.entity, owner);
 		}
 
-		bool local_changed{
-			DrawEntityFilterEditor(
-				scene,
-				owner,
-				edited,
-				state,
-				options
-			)
-		};
+		bool local_changed{ DrawEntityFilterEditor(scene, owner, edited, state, options) };
 
 		if (local_changed) {
-			if (edited.type == EntityFilterType::Entity &&
-				IsOwnerReference(owner, edited.entity)) {
+			if (edited.type == EntityFilterType::Entity && IsOwnerReference(owner, edited.entity)) {
 				target.reset();
 			} else {
 				target = std::move(edited);
@@ -2256,20 +1572,14 @@ bool DrawEntityFilterButtonImpl(
 } // namespace
 
 bool DrawEntityFilterButton(
-	Scene* scene,
-	Entity owner,
-	EntityFilter& filter,
-	EntityFilterEditorState& state,
+	Scene* scene, Entity owner, EntityFilter& filter, EntityFilterEditorState& state,
 	const EntityFilterEditorOptions& options
 ) {
 	return DrawEntityFilterButtonImpl(scene, owner, filter, state, options);
 }
 
 bool DrawEntityFilterButton(
-	Scene* scene,
-	Entity owner,
-	std::optional<EntityFilter>& filter,
-	EntityFilterEditorState& state,
+	Scene* scene, Entity owner, std::optional<EntityFilter>& filter, EntityFilterEditorState& state,
 	const EntityFilterEditorOptions& options
 ) {
 	return DrawEntityFilterButtonImpl(scene, owner, filter, state, options);

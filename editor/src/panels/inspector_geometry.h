@@ -1,5 +1,8 @@
 #pragma once
 
+#include <memory>
+
+#include "panels/entity_filter_editor.h"
 #include "panels/inspector_archetype_inspector.h"
 
 namespace ptgn::editor::inspector {
@@ -43,6 +46,28 @@ template <typename Target>
 	return requires(Target target) { target.entity; };
 }
 
+template <typename Target>
+bool DrawEntityFilterValue(Target& target, EntityFilter& filter, std::string_view label) {
+	Scene* scene{ nullptr };
+	Entity owner{};
+	if constexpr (requires { target.entity; }) {
+		owner = target.entity;
+		if (owner) {
+			scene = std::addressof(owner.GetScene());
+		}
+	}
+	static EntityFilterEditorState state;
+	return DrawPropertyRow(label, [&]() {
+		return DrawEntityFilterButton(
+			scene, owner, filter, state,
+			EntityFilterEditorOptions{
+				.allow_select_owner = false,
+				.exclude_owner		= true,
+			}
+		);
+	});
+}
+
 template <typename Target, typename Component, typename Locator, typename Callback>
 bool DrawPickableLocalPosition(
 	Target& target, Component& component, std::string_view label, Locator locator,
@@ -59,9 +84,9 @@ bool DrawPickableLocalPosition(
 		const float available{ std::max(1.0f, ImGui::GetContentRegionAvail().x) };
 		const float actions_width{ pick_width + remove_width + remove_spacing };
 		const bool actions_inline{ available >= actions_width + spacing * 2.0f + 96.0f };
-		const float fields_width{
-			actions_inline ? std::max(1.0f, available - actions_width - spacing) : available
-		};
+		const float fields_width{ actions_inline
+									  ? std::max(1.0f, available - actions_width - spacing)
+									  : available };
 		const float field_width{ InspectorSplitWidth(2, fields_width, spacing) };
 
 		bool local_changed{ false };
@@ -243,104 +268,15 @@ bool DrawGeometryVariant(
 	return changed;
 }
 
-template <typename Mask>
-	requires std::integral<Mask>
-bool DrawColliderMaskList(std::vector<Mask>& masks) {
-	bool changed{ false };
-	std::optional<std::size_t> remove_index;
-	std::optional<std::pair<std::size_t, std::size_t>> move;
-
-	ImGui::SeparatorText("Collides with Masks");
-
-	if (ImGui::Button("+ Mask", ImVec2{ -FLT_MIN, 0.0f })) {
-		masks.emplace_back();
-		changed = true;
-	}
-
-	for (std::size_t index{ 0 }; index < masks.size(); ++index) {
-		ScopedID item_scope{ static_cast<int>(index) };
-
-		int displayed{ 0 };
-		if constexpr (std::signed_integral<Mask>) {
-			displayed = static_cast<int>(
-				std::clamp<long long>(static_cast<long long>(masks[index]), 0, 64)
-			);
-		} else {
-			displayed = static_cast<int>(
-				std::min<std::uint64_t>(static_cast<std::uint64_t>(masks[index]), 64)
-			);
-		}
-
-		const std::string label{ "Mask " + std::to_string(index + 1) };
-
-		changed |= DrawPropertyRow(label, [&]() {
-			bool local_changed{ false };
-			const float spacing{ ImGui::GetStyle().ItemInnerSpacing.x };
-			const float button_width{ ImGui::GetFrameHeight() };
-			const float available{ std::max(1.0f, ImGui::GetContentRegionAvail().x) };
-			const float actions_width{ button_width * 3.0f + spacing * 2.0f };
-			const bool actions_inline{ available >= actions_width + spacing + 48.0f };
-			const float field_width{
-				actions_inline ? std::max(1.0f, available - actions_width - spacing) : available
-			};
-
-			ImGui::SetNextItemWidth(field_width);
-			if (ImGui::DragInt(
-					"##value", &displayed, 1.0f, 0, 64, "%d", ImGuiSliderFlags_AlwaysClamp
-				)) {
-				masks[index]  = static_cast<Mask>(std::clamp(displayed, 0, 64));
-				local_changed = true;
-			}
-
-			if (actions_inline) {
-				ImGui::SameLine(0.0f, spacing);
-			}
-			{
-				ScopedDisabled disabled{ index == 0 };
-				if (ImGui::ArrowButton("##up", ImGuiDir_Up)) {
-					move = std::pair{ index, index - 1 };
-				}
-			}
-
-			ImGui::SameLine(0.0f, spacing);
-			{
-				ScopedDisabled disabled{ index + 1 >= masks.size() };
-				if (ImGui::ArrowButton("##down", ImGuiDir_Down)) {
-					move = std::pair{ index, index + 1 };
-				}
-			}
-
-			ImGui::SameLine(0.0f, spacing);
-			if (ImGui::Button("X##remove", ImVec2{ button_width, button_width })) {
-				remove_index = index;
-			}
-
-			return local_changed;
-		});
-	}
-
-	if (move) {
-		std::ranges::iter_swap(
-			masks.begin() + static_cast<std::ptrdiff_t>(move->first),
-			masks.begin() + static_cast<std::ptrdiff_t>(move->second)
-		);
-		changed = true;
-	} else if (remove_index) {
-		masks.erase(masks.begin() + static_cast<std::ptrdiff_t>(*remove_index));
-		changed = true;
-	}
-
-	return changed;
-}
-
 template <typename Target, typename Component, typename Value, typename Locator, typename Callback>
 bool DrawGeometryValue(
 	Target& target, Component& component, Value& value, std::string_view label, Locator locator,
 	Callback callback
 ) {
 	using Type = std::remove_cvref_t<Value>;
-
-	if constexpr (std::same_as<Type, V2_float>) {
+	if constexpr (std::same_as<Type, EntityFilter>) {
+		return DrawEntityFilterValue(target, value, label);
+	} else if constexpr (std::same_as<Type, V2_float>) {
 		const std::string normalized{ NormalizeInspectorName(label) };
 		if constexpr (std::same_as<std::remove_cvref_t<Component>, Ellipse>) {
 			return DrawWHValue(
@@ -384,18 +320,7 @@ bool DrawGeometryValue(
 
 		return changed;
 	} else if constexpr (kIsVector<Type>) {
-		if constexpr (
-			std::same_as<std::remove_cvref_t<Component>, Collider> &&
-			std::integral<typename Type::value_type>
-		) {
-			const std::string normalized{ NormalizeInspectorName(label) };
-
-			if (normalized.contains("collideswith")) {
-				return DrawColliderMaskList(value);
-			}
-
-			return DrawValue(target.ctx, label, value);
-		} else if constexpr (std::same_as<typename Type::value_type, V2_float>) {
+		if constexpr (std::same_as<typename Type::value_type, V2_float>) {
 			bool changed{ false };
 			std::optional<std::size_t> remove;
 
@@ -456,31 +381,15 @@ bool DrawGeometryValue(
 			std::make_index_sequence<std::variant_size_v<Type>>{}
 		);
 	} else if constexpr (std::integral<Type>) {
-		const std::string normalized{ NormalizeInspectorName(label) };
-
-		if constexpr (std::same_as<std::remove_cvref_t<Component>, Collider>) {
-			if (normalized == "mask") {
-				return DrawValue(
-					target.ctx, label, value,
-					FieldOptions{
-						.speed = 1.0f,
-						.min   = 0.0f,
-						.max   = 64.0f,
-						.flags = ImGuiSliderFlags_AlwaysClamp,
-					}
-				);
-			}
-		}
-
 		return DrawValue(target.ctx, label, value);
 	} else if constexpr (std::same_as<Type, float>) {
 		const std::string normalized{ NormalizeInspectorName(label) };
 		if (normalized.contains("radius") || normalized.contains("radii")) {
 			return DrawRValue(
-				label, value, 0.1f, 0.0f, FLT_MAX, "%.3f",
-				ImGuiSliderFlags_AlwaysClamp
+				label, value, 0.1f, 0.0f, FLT_MAX, "%.3f", ImGuiSliderFlags_AlwaysClamp
 			);
 		}
+
 		return DrawValue(target.ctx, label, value);
 	} else if constexpr (ReflectedValue<Type>) {
 		auto reflected{ ReflectValue(value) };

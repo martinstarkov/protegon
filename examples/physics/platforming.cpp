@@ -6,6 +6,8 @@
 #include "core/math/geometry/rect.h"
 #include "core/math/vector2.h"
 #include "runtime/ecs/entity.h"
+#include "runtime/ecs/entity_filter.h"
+#include "runtime/ecs/entity_group.h"
 #include "runtime/graphics/shape.h"
 #include "runtime/physics/collider.h"
 #include "runtime/physics/movement.h"
@@ -19,13 +21,12 @@
 using namespace ptgn;
 
 constexpr V2_int logical_size{ 960, 540 };
-constexpr ColliderMask ground_mask{ 1 };
 
 class PlatformingScene : public Scene {
 	Entity CreatePlatform(const V2_float& position, const V2_float& size, Origin origin) {
 		auto entity = CreateRect(*this, position, size, color::Purple, Solid{}, origin);
-		auto& box = entity.Add<Collider>(Rect{ size });
-		box.SetMask(ground_mask);
+		entity.Add<Collider>(Rect{ size });
+		entity.Add<Group>().groups.emplace_back("Ground");
 		return entity;
 	}
 
@@ -39,8 +40,9 @@ class PlatformingScene : public Scene {
 		collider.SetCollisionMode(CollisionMode::Continuous);
 
 		auto& movement{ entity.Add<PlatformerMovement>() };
-		movement.grounding.direction = GroundingDirection::AgainstGravity;
-		movement.grounding.masks = { ground_mask };
+		movement.grounding.direction			 = GroundingDirection::AgainstGravity;
+		movement.grounding.entities.type		 = EntityFilterType::Group;
+		movement.grounding.entities.group.groups = { "Ground" };
 
 		SetPlatformerJumpController(entity, "standard");
 		return entity;

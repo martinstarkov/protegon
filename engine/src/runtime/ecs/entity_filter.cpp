@@ -85,36 +85,35 @@ bool Matches(const EntityFilter& filter, Scene& scene, Entity owner, Entity targ
 	}
 
 	switch (filter.type) {
-		case EntityFilterType::Any:
-			return true;
-		case EntityFilterType::Entity: {
-			const Entity resolved{ ResolveEntityReference(scene, filter.entity) };
-			return resolved && resolved == target;
-		}
-		case EntityFilterType::Components:
-			return MatchesComponentQuery(target, filter.components);
-		case EntityFilterType::Group: {
+		case EntityFilterType::Any: return true;
+		case EntityFilterType::Entity:
+			return filter.entity.uuid.has_value() &&
+				   target.Get<UUID>() == filter.entity.uuid.value();
+		case EntityFilterType::Components: return MatchesComponentQuery(target, filter.components);
+		case EntityFilterType::Group:	   {
 			auto* membership{ target.TryGet<Group>() };
 			if (!membership) {
 				return false;
 			}
 
 			return std::ranges::any_of(
-				filter.group.groups,
-				[&membership](const std::string& group) {
-					return !group.empty() &&
-						std::ranges::contains(membership->groups, group);
+				filter.group.groups, [&membership](const std::string& group) {
+					return !group.empty() && std::ranges::contains(membership->groups, group);
 				}
 			);
 		}
 		case EntityFilterType::Query: {
 			const auto* query{ EntityQueryRegistry::Find(filter.query.key) };
-			return query && query->evaluate && query->evaluate(EntityQueryContext{
-				.scene = scene,
-				.owner = owner,
-				.target = target,
-			});
+			return query && query->evaluate &&
+				   query->evaluate(
+					   EntityQueryContext{
+						   .scene  = scene,
+						   .owner  = owner,
+						   .target = target,
+					   }
+				   );
 		}
+		case EntityFilterType::None: return false;
 	}
 
 	return false;

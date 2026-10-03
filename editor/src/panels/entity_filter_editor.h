@@ -21,6 +21,7 @@ struct EntityFilterEditorState {
 };
 
 struct EntityFilterEditorOptions {
+	bool show_none{ true };
 	bool show_any{ true };
 	bool show_entity{ true };
 	bool show_components{ true };
@@ -32,18 +33,12 @@ struct EntityFilterEditorOptions {
 };
 
 bool DrawEntityFilterButton(
-	Scene* scene,
-	Entity owner,
-	EntityFilter& filter,
-	EntityFilterEditorState& state,
+	Scene* scene, Entity owner, EntityFilter& filter, EntityFilterEditorState& state,
 	const EntityFilterEditorOptions& options = {}
 );
 
 bool DrawEntityFilterButton(
-	Scene* scene,
-	Entity owner,
-	std::optional<EntityFilter>& filter,
-	EntityFilterEditorState& state,
+	Scene* scene, Entity owner, std::optional<EntityFilter>& filter, EntityFilterEditorState& state,
 	const EntityFilterEditorOptions& options = {}
 );
 

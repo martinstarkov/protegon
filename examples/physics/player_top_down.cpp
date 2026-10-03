@@ -22,7 +22,6 @@
 using namespace ptgn;
 
 constexpr V2_int logical_size{ 960, 540 };
-constexpr ColliderMask ground_mask{ 1 };
 
 struct TopDownScript1 : public Script {
 	void OnEvent(Event d) override {
@@ -55,22 +54,14 @@ struct TopDownScript1 : public Script {
 class TopDownMovementScene : public Scene {
 	Entity CreateWall(const V2_float& position, const V2_float& size, Origin origin) {
 		Entity entity{ CreateRect(*this, position, size, color::Purple, Solid{}, origin) };
-		auto& collider{ entity.Add<Collider>(Rect{ size }) };
+		entity.Add<Collider>(Rect{ size });
 		entity.Add<Origin>(origin);
-		collider.SetMask(ground_mask);
 		return entity;
 	}
 
 	Entity CreatePlayer() {
 		Entity entity{
-			CreateRect(
-				*this,
-				{ 100, 100 },
-				{ 20, 40 },
-				color::DarkGreen,
-				Solid{},
-				Origin::Center
-			)
+			CreateRect(*this, { 100, 100 }, { 20, 40 }, color::DarkGreen, Solid{}, Origin::Center)
 		};
 
 		AddScript<TopDownScript1>(entity);
@@ -93,8 +84,7 @@ class TopDownMovementScene : public Scene {
 		CreateWall(-ws * 0.5f + V2_float{ 0, ws.y / 2.0f }, { 200, 10 }, Origin::TopLeft);
 		CreateWall(-ws * 0.5f + V2_float{ ws.x, ws.y / 2.0f }, { 200, 10 }, Origin::TopRight);
 		CreateWall(
-			-ws * 0.5f + V2_float{ ws.x - 200, ws.y / 2.0f + 140 },
-			{ ws.x - 400, 10 },
+			-ws * 0.5f + V2_float{ ws.x - 200, ws.y / 2.0f + 140 }, { ws.x - 400, 10 },
 			Origin::TopRight
 		);
 	}

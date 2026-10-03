@@ -116,22 +116,18 @@ struct PrefabGeneratorPreview {
 };
 
 [[nodiscard]] bool FindPrefabGeneratorPreview(
-	Entity entity,
-	std::vector<Transform>& transform_path,
-	PrefabGeneratorPreview& result
+	Entity entity, std::vector<Transform>& transform_path, PrefabGeneratorPreview& result
 ) {
 	if (!entity) {
 		return false;
 	}
 
-	transform_path.push_back(
-		entity.Has<Transform>() ? entity.Get<Transform>() : Transform{}
-	);
+	transform_path.push_back(entity.Has<Transform>() ? entity.Get<Transform>() : Transform{});
 
 	if (const auto texture{ entity.TryGet<TextureKey>() }; texture && *texture) {
-		result.texture = *texture;
+		result.texture		  = *texture;
 		result.transform_path = transform_path;
-		result.origin = entity.Has<Origin>() ? entity.Get<Origin>() : Origin::Center;
+		result.origin		  = entity.Has<Origin>() ? entity.Get<Origin>() : Origin::Center;
 		if (const auto animation{ entity.TryGet<::ptgn::impl::AnimationData>() }) {
 			result.animation = *animation;
 		}
@@ -172,9 +168,7 @@ struct PrefabGeneratorPreview {
 	// The live prefab entity stores the same TextureKey as a scene instance. Resolve that
 	// dependency through the catalog so preview residency follows ordinary asset rules.
 	if (!accessor.Has<Texture>(result.texture)) {
-		if (const auto catalog{
-				assets.GetCatalogAsset(result.texture, AssetKind::Texture)
-			};
+		if (const auto catalog{ assets.GetCatalogAsset(result.texture, AssetKind::Texture) };
 			catalog.has_value()) {
 			assets.Load(result.texture, catalog->source_path);
 		}
@@ -190,19 +184,15 @@ struct PrefabGeneratorPreview {
 		return std::nullopt;
 	}
 
-	result.texture_id = record->preview->texture;
+	result.texture_id	= record->preview->texture;
 	result.texture_size = record->preview->size;
 	return result;
 }
 
 [[nodiscard]] bool DrawPrefabGeneratorPreview(
-	ImDrawList* draw,
-	const PrefabGeneratorPreview& preview,
-	V2_float placement,
-	std::optional<float> rotation_degrees,
-	std::optional<float> uniform_scale,
-	const FrameContext& frame,
-	Viewport presentation_viewport
+	ImDrawList* draw, const PrefabGeneratorPreview& preview, V2_float placement,
+	std::optional<float> rotation_degrees, std::optional<float> uniform_scale,
+	const FrameContext& frame, Viewport presentation_viewport
 ) {
 	if (!draw || !preview.texture_id || !preview.texture_size.IsPositive() ||
 		preview.transform_path.empty()) {
@@ -229,19 +219,15 @@ struct PrefabGeneratorPreview {
 		const V2_int frame_size{ preview.animation->GetFrameSize(texture_size) };
 		if (frame_size.IsPositive()) {
 			source_size = frame_size;
-			if constexpr (requires(
-					const ::ptgn::impl::AnimationData& animation,
-					std::optional<V2_int> size
-				) {
-				animation.GetCurrentFramePosition(size);
-			}) {
-				source_position =
-					preview.animation->GetCurrentFramePosition(texture_size);
-			} else if constexpr (requires(
-					const ::ptgn::impl::AnimationData& animation
-				) {
-				animation.GetCurrentFramePosition();
-			}) {
+			if constexpr (
+				requires(const ::ptgn::impl::AnimationData& animation, std::optional<V2_int> size) {
+					animation.GetCurrentFramePosition(size);
+				}
+			) {
+				source_position = preview.animation->GetCurrentFramePosition(texture_size);
+			} else if constexpr (requires(const ::ptgn::impl::AnimationData& animation) {
+									 animation.GetCurrentFramePosition();
+								 }) {
 				source_position = preview.animation->GetCurrentFramePosition();
 			}
 		}
@@ -257,35 +243,24 @@ struct PrefabGeneratorPreview {
 	const float u1{ static_cast<float>(source_position.x + source_size.x) / texture_width };
 	const float v1{ static_cast<float>(source_position.y + source_size.y) / texture_height };
 
-	const auto vertices{
-		Rect{ V2_float{ source_size } }.GetWorldVertices(world, preview.origin)
-	};
+	const auto vertices{ Rect{ V2_float{ source_size } }.GetWorldVertices(world, preview.origin) };
 
 	draw->AddImageQuad(
 		static_cast<ImTextureID>(preview.texture_id),
 		ToImGui(WorldToScreen(vertices[0], frame, presentation_viewport)),
 		ToImGui(WorldToScreen(vertices[1], frame, presentation_viewport)),
 		ToImGui(WorldToScreen(vertices[2], frame, presentation_viewport)),
-		ToImGui(WorldToScreen(vertices[3], frame, presentation_viewport)),
-		ImVec2{ u0, v0 },
-		ImVec2{ u1, v0 },
-		ImVec2{ u1, v1 },
-		ImVec2{ u0, v1 },
-		IM_COL32(255, 255, 255, 210)
+		ToImGui(WorldToScreen(vertices[3], frame, presentation_viewport)), ImVec2{ u0, v0 },
+		ImVec2{ u1, v0 }, ImVec2{ u1, v1 }, ImVec2{ u0, v1 }, IM_COL32(255, 255, 255, 210)
 	);
 	return true;
 }
 
 [[nodiscard]] bool DrawPrefabGeneratorPreview(
 	EditorContext& ctx,
-	std::unordered_map<std::string, std::optional<PrefabGeneratorPreview>>& cache,
-	ImDrawList* draw,
-	const PrefabKey& key,
-	V2_float placement,
-	std::optional<float> rotation_degrees,
-	std::optional<float> uniform_scale,
-	const FrameContext& frame,
-	Viewport presentation_viewport
+	std::unordered_map<std::string, std::optional<PrefabGeneratorPreview>>& cache, ImDrawList* draw,
+	const PrefabKey& key, V2_float placement, std::optional<float> rotation_degrees,
+	std::optional<float> uniform_scale, const FrameContext& frame, Viewport presentation_viewport
 ) {
 	auto [it, inserted]{ cache.try_emplace(key.value) };
 	if (inserted) {
@@ -296,13 +271,7 @@ struct PrefabGeneratorPreview {
 	}
 
 	return DrawPrefabGeneratorPreview(
-		draw,
-		*it->second,
-		placement,
-		rotation_degrees,
-		uniform_scale,
-		frame,
-		presentation_viewport
+		draw, *it->second, placement, rotation_degrees, uniform_scale, frame, presentation_viewport
 	);
 }
 
@@ -312,13 +281,12 @@ struct PaintSelectionRect {
 };
 
 [[nodiscard]] bool Contains(const PaintSelectionRect& rect, V2_float point) {
-	return point.x >= rect.min.x && point.x <= rect.max.x &&
-		point.y >= rect.min.y && point.y <= rect.max.y;
+	return point.x >= rect.min.x && point.x <= rect.max.x && point.y >= rect.min.y &&
+		   point.y <= rect.max.y;
 }
 
 [[nodiscard]] bool Overlaps(const PaintSelectionRect& a, const PaintSelectionRect& b) {
-	return a.min.x <= b.max.x && a.max.x >= b.min.x &&
-		a.min.y <= b.max.y && a.max.y >= b.min.y;
+	return a.min.x <= b.max.x && a.max.x >= b.min.x && a.min.y <= b.max.y && a.max.y >= b.min.y;
 }
 
 [[nodiscard]] PaintSelectionRect MakeSelectionRect(V2_float a, V2_float b) {
@@ -414,9 +382,8 @@ void MergeBounds(std::optional<PaintSelectionRect>& target, const PaintSelection
 
 [[nodiscard]] PaintSelectionRect TileSelectionBounds(Tilemap map, const TilemapTile& tile) {
 	const auto& data{ map.GetData() };
-	const V2_float visual_size{
-		tile.pixel_size.IsPositive() ? V2_float{ tile.pixel_size } : data.cell_size
-	};
+	const V2_float visual_size{ tile.pixel_size.IsPositive() ? V2_float{ tile.pixel_size }
+															 : data.cell_size };
 	const V2_float anchor{ map.CellToWorld(tile.coordinate) + tile.offset };
 	const V2_float center{ anchor + GetOffset(tile.origin, visual_size) };
 	return {
@@ -470,8 +437,8 @@ void MergeBounds(std::optional<PaintSelectionRect>& target, const PaintSelection
 		}
 		first->x = std::min(first->x, cell.x);
 		first->y = std::min(first->y, cell.y);
-		last->x = std::max(last->x, cell.x);
-		last->y = std::max(last->y, cell.y);
+		last->x	 = std::max(last->x, cell.x);
+		last->y	 = std::max(last->y, cell.y);
 	};
 
 	if (data.geometry == PaintGeneratorGeometry::Rectangle) {
@@ -497,11 +464,11 @@ void MergeBounds(std::optional<PaintSelectionRect>& target, const PaintSelection
 			const int e2{ 2 * error };
 			if (e2 >= dy) {
 				error += dy;
-				a.x += sx;
+				a.x	  += sx;
 			}
 			if (e2 <= dx) {
 				error += dx;
-				a.y += sy;
+				a.y	  += sy;
 			}
 		}
 	} else {
@@ -519,8 +486,12 @@ void MergeBounds(std::optional<PaintSelectionRect>& target, const PaintSelection
 		return std::nullopt;
 	}
 	return PaintSelectionRect{
-		.min = grid_origin + V2_float{ static_cast<float>(first->x), static_cast<float>(first->y) } * data.grid_size,
-		.max = grid_origin + V2_float{ static_cast<float>(last->x + 1), static_cast<float>(last->y + 1) } * data.grid_size,
+		.min =
+			grid_origin +
+			V2_float{ static_cast<float>(first->x), static_cast<float>(first->y) } * data.grid_size,
+		.max = grid_origin +
+			   V2_float{ static_cast<float>(last->x + 1), static_cast<float>(last->y + 1) } *
+				   data.grid_size,
 	};
 }
 
@@ -682,11 +653,11 @@ void MergeBounds(std::optional<PaintSelectionRect>& target, const PaintSelection
 				return Hash01(target) <= data.random_fill_density;
 			case PaintGeneratorAreaMode::Outline:
 				return l < data.area_thickness || r < data.area_thickness ||
-					t < data.area_thickness || bottom < data.area_thickness;
+					   t < data.area_thickness || bottom < data.area_thickness;
 			case PaintGeneratorAreaMode::Corners: {
 				const int q{ std::max(1, data.area_thickness) };
-				return (l < q && t < q) || (r < q && t < q) ||
-					(l < q && bottom < q) || (r < q && bottom < q);
+				return (l < q && t < q) || (r < q && t < q) || (l < q && bottom < q) ||
+					   (r < q && bottom < q);
 			}
 		}
 	}
@@ -703,8 +674,8 @@ void MergeBounds(std::optional<PaintSelectionRect>& target, const PaintSelection
 		for (;;) {
 			if (step % std::max(1, data.line_spacing) == 0) {
 				const int half{ std::max(1, data.line_thickness) / 2 };
-				if (target.x >= a.x - half && target.x <= a.x + half &&
-					target.y >= a.y - half && target.y <= a.y + half) {
+				if (target.x >= a.x - half && target.x <= a.x + half && target.y >= a.y - half &&
+					target.y <= a.y + half) {
 					return true;
 				}
 			}
@@ -714,11 +685,11 @@ void MergeBounds(std::optional<PaintSelectionRect>& target, const PaintSelection
 			const int e2{ 2 * error };
 			if (e2 >= dy) {
 				error += dy;
-				a.x += sx;
+				a.x	  += sx;
 			}
 			if (e2 <= dx) {
 				error += dx;
-				a.y += sy;
+				a.y	  += sy;
 			}
 			++step;
 		}
@@ -870,20 +841,19 @@ struct AutotileAtlasLayout {
 };
 
 [[nodiscard]] bool FitsAutotileBlock(V2_int sheet_size, V2_int block_size) {
-	return sheet_size.IsPositive() && block_size.IsPositive() &&
-		   sheet_size.x >= block_size.x && sheet_size.y >= block_size.y;
+	return sheet_size.IsPositive() && block_size.IsPositive() && sheet_size.x >= block_size.x &&
+		   sheet_size.y >= block_size.y;
 }
 
 [[nodiscard]] std::optional<AutotileAtlasLayout> ResolveAutotileAtlasLayout(
-	PaintAutotileFormat format,
-	V2_int sheet_size
+	PaintAutotileFormat format, V2_int sheet_size
 ) {
 	auto layout = [&](V2_int block_size, int source_count) -> std::optional<AutotileAtlasLayout> {
 		if (!FitsAutotileBlock(sheet_size, block_size)) {
 			return std::nullopt;
 		}
 		return AutotileAtlasLayout{
-			.block_size = block_size,
+			.block_size	  = block_size,
 			.source_count = source_count,
 		};
 	};
@@ -923,20 +893,14 @@ struct AutotileAtlasLayout {
 	return std::nullopt;
 }
 
-[[nodiscard]] V2_int AutotileSourceSlice(
-	const AutotileAtlasLayout& layout,
-	int source_index
-) {
+[[nodiscard]] V2_int AutotileSourceSlice(const AutotileAtlasLayout& layout, int source_index) {
 	return {
 		source_index % layout.block_size.x,
 		source_index / layout.block_size.x,
 	};
 }
 
-[[nodiscard]] int AutotileBlockCount(
-	V2_int sheet_size,
-	const AutotileAtlasLayout& layout
-) {
+[[nodiscard]] int AutotileBlockCount(V2_int sheet_size, const AutotileAtlasLayout& layout) {
 	if (!FitsAutotileBlock(sheet_size, layout.block_size)) {
 		return 0;
 	}
@@ -1024,14 +988,14 @@ struct AutotileAtlasLayout {
 
 [[nodiscard]] EditorIcon PaintToolIcon(PaintTool tool) {
 	switch (tool) {
-		case PaintTool::Select: return EditorIcon::Select;
-		case PaintTool::Move: return EditorIcon::Move;
-		case PaintTool::Pencil: return EditorIcon::Pencil;
-		case PaintTool::Brush: return EditorIcon::Brush;
-		case PaintTool::Line: return EditorIcon::Line;
-		case PaintTool::Rectangle: return EditorIcon::Rectangle;
-		case PaintTool::Fill: return EditorIcon::Fill;
-		case PaintTool::Erase: return EditorIcon::Erase;
+		case PaintTool::Select:		return EditorIcon::Select;
+		case PaintTool::Move:		return EditorIcon::Move;
+		case PaintTool::Pencil:		return EditorIcon::Pencil;
+		case PaintTool::Brush:		return EditorIcon::Brush;
+		case PaintTool::Line:		return EditorIcon::Line;
+		case PaintTool::Rectangle:	return EditorIcon::Rectangle;
+		case PaintTool::Fill:		return EditorIcon::Fill;
+		case PaintTool::Erase:		return EditorIcon::Erase;
 		case PaintTool::Eyedropper: return EditorIcon::Eyedropper;
 	}
 	return EditorIcon::Select;
@@ -1181,10 +1145,7 @@ constexpr float kRecipeControlWidth{ 190.0f };
 
 	float width{ kRecipeMinimumLabelWidth };
 	for (const char* label : labels) {
-		width = std::max(
-			width,
-			ImGui::CalcTextSize(label).x + ImGui::GetStyle().ItemSpacing.x
-		);
+		width = std::max(width, ImGui::CalcTextSize(label).x + ImGui::GetStyle().ItemSpacing.x);
 	}
 	return std::ceil(width);
 }
@@ -1203,10 +1164,7 @@ void BeginRecipeField(const char* label, float control_width = kRecipeControlWid
 }
 
 [[nodiscard]] float ComboPopupSideInset() {
-	return std::max(
-		0.0f,
-		ImGui::GetStyle().WindowPadding.x - ImGui::GetStyle().FramePadding.x
-	);
+	return std::max(0.0f, ImGui::GetStyle().WindowPadding.x - ImGui::GetStyle().FramePadding.x);
 }
 
 [[nodiscard]] float AvailableContentWidth(float right_inset = 0.0f) {
@@ -1328,8 +1286,8 @@ void DrawToolButton(PaintTool tool, PaintTool& selected) {
 	if (DrawEditorIconButton(
 			id.c_str(), PaintToolIcon(tool),
 			EditorIconButtonOptions{
-				.tooltip = tooltip.c_str(),
-				.selected = tool == selected,
+				.tooltip	   = tooltip.c_str(),
+				.selected	   = tool == selected,
 				.no_navigation = true,
 			}
 		)) {
@@ -1343,10 +1301,10 @@ void PaintEditor::SetTool(PaintTool tool) {
 	if (tool_ == tool) {
 		return;
 	}
-	tool_ = tool;
-	stroke_ = {};
-	move_ = {};
-	selection_drag_start_ = {};
+	tool_				   = tool;
+	stroke_				   = {};
+	move_				   = {};
+	selection_drag_start_  = {};
 	selection_drag_active_ = false;
 }
 
@@ -1381,12 +1339,12 @@ void PaintEditor::SetActiveLayer(Scene& scene, SceneLayerId layer) {
 }
 
 void PaintEditor::SetTargetTilemap(std::optional<UUID> uuid) {
-	target_tilemap_ = uuid;
+	target_tilemap_	  = uuid;
 	selected_tilemap_ = uuid;
 	selected_tile_cells_.clear();
 	selected_entities_.clear();
 	selected_generator_.reset();
-	selection_drag_start_ = {};
+	selection_drag_start_  = {};
 	selection_drag_active_ = false;
 }
 
@@ -1441,10 +1399,9 @@ void PaintEditor::SyncHierarchySelection(EditorContext& ctx, Scene& scene) {
 	}
 
 	const UUID uuid{ selected.Get<UUID>() };
-	const bool already_selected{
-		(IsPaintGenerator(selected) && selected_generator_ == uuid) ||
-		(!IsPaintGenerator(selected) && std::ranges::contains(selected_entities_, uuid))
-	};
+	const bool already_selected{ (IsPaintGenerator(selected) && selected_generator_ == uuid) ||
+								 (!IsPaintGenerator(selected) &&
+								  std::ranges::contains(selected_entities_, uuid)) };
 	if (already_selected) {
 		return;
 	}
@@ -1453,7 +1410,7 @@ void PaintEditor::SyncHierarchySelection(EditorContext& ctx, Scene& scene) {
 	selected_generator_.reset();
 	selected_tilemap_.reset();
 	selected_tile_cells_.clear();
-	selection_drag_start_ = {};
+	selection_drag_start_  = {};
 	selection_drag_active_ = false;
 
 	if (IsPaintGenerator(selected)) {
@@ -1492,10 +1449,7 @@ void PaintEditor::ValidateSceneState(Scene& scene) {
 
 		if (HasParent(entity)) {
 			Entity parent{ GetParent(entity) };
-			if (
-				parent && IsTilemap(parent) &&
-				scene.GetLayers().GetLayerId(parent) == layer_id
-			) {
+			if (parent && IsTilemap(parent) && scene.GetLayers().GetLayerId(parent) == layer_id) {
 				data.target_tilemap = parent.Get<UUID>();
 			} else {
 				data.target_tilemap.reset();
@@ -1508,10 +1462,8 @@ void PaintEditor::ValidateSceneState(Scene& scene) {
 		}
 
 		Entity legacy_target{ scene.GetEntity(*data.target_tilemap) };
-		if (
-			legacy_target && IsTilemap(legacy_target) &&
-			scene.GetLayers().GetLayerId(legacy_target) == layer_id
-		) {
+		if (legacy_target && IsTilemap(legacy_target) &&
+			scene.GetLayers().GetLayerId(legacy_target) == layer_id) {
 			static_cast<void>(generator.SetTargetTilemap(Tilemap{ legacy_target }));
 		} else {
 			data.target_tilemap.reset();
@@ -1549,13 +1501,13 @@ void PaintEditor::ClearSelection() {
 	selected_generator_.reset();
 	selected_tilemap_.reset();
 	selected_tile_cells_.clear();
-	selection_drag_start_ = {};
+	selection_drag_start_  = {};
 	selection_drag_active_ = false;
 }
 
 bool PaintEditor::HasSelection() const {
 	return selected_generator_.has_value() || !selected_entities_.empty() ||
-		!selected_tile_cells_.empty();
+		   !selected_tile_cells_.empty();
 }
 
 void PaintEditor::DrawViewportToolButtons(EditorContext& ctx) {
@@ -1599,18 +1551,15 @@ void PaintEditor::DrawViewportToolButtons(EditorContext& ctx) {
 	if (DrawEditorIconButton(
 			"##Grid", EditorIcon::Grid,
 			EditorIconButtonOptions{
-				.tooltip = "Grid settings",
-				.selected = grid_visible_,
+				.tooltip	   = "Grid settings",
+				.selected	   = grid_visible_,
 				.no_navigation = true,
 			}
 		)) {
 		ImGui::OpenPopup("PaintGridSettingsPopup");
 	}
 
-	ImGui::SetNextWindowSizeConstraints(
-		ImVec2{ 360.0f, 0.0f },
-		ImVec2{ FLT_MAX, FLT_MAX }
-	);
+	ImGui::SetNextWindowSizeConstraints(ImVec2{ 360.0f, 0.0f }, ImVec2{ FLT_MAX, FLT_MAX });
 
 	if (ImGui::BeginPopup("PaintGridSettingsPopup")) {
 		ImGui::SeparatorText("Grid");
@@ -1619,10 +1568,10 @@ void PaintEditor::DrawViewportToolButtons(EditorContext& ctx) {
 		if (DrawEditorIconButton(
 				"##GridVisible", grid_visible_ ? EditorIcon::Visible : EditorIcon::Hidden,
 				EditorIconButtonOptions{
-					.tooltip = grid_visible_ ? "Hide grid" : "Show grid",
-					.muted = !grid_visible_,
+					.tooltip	   = grid_visible_ ? "Hide grid" : "Show grid",
+					.muted		   = !grid_visible_,
 					.no_navigation = true,
-					.icon_extent = ImGui::GetTextLineHeight() + 2.0f,
+					.icon_extent   = ImGui::GetTextLineHeight() + 2.0f,
 				}
 			)) {
 			grid_visible_ = !grid_visible_;
@@ -1635,9 +1584,7 @@ void PaintEditor::DrawViewportToolButtons(EditorContext& ctx) {
 			BeginRecipeFillRow("Cell Size");
 
 			const float value_width{ std::max(1.0f, ImGui::GetContentRegionAvail().x) };
-			const float pair_width{
-				std::max(1.0f, value_width - lock_width - spacing * 2.0f)
-			};
+			const float pair_width{ std::max(1.0f, value_width - lock_width - spacing * 2.0f) };
 			const float field_width{ std::max(1.0f, pair_width * 0.5f) };
 
 			float width{ entity_grid_size_.x };
@@ -1655,23 +1602,21 @@ void PaintEditor::DrawViewportToolButtons(EditorContext& ctx) {
 			};
 
 			ImGui::SameLine(0.0f, spacing);
-			const char* aspect_lock_tooltip{
-				grid_aspect_locked_ ? "Unlock grid aspect ratio" : "Lock grid aspect ratio"
-			};
+			const char* aspect_lock_tooltip{ grid_aspect_locked_ ? "Unlock grid aspect ratio"
+																 : "Lock grid aspect ratio" };
 			if (DrawEditorIconButton(
 					"##GridAspectLock",
 					grid_aspect_locked_ ? EditorIcon::Locked : EditorIcon::Unlocked,
 					EditorIconButtonOptions{
-						.tooltip = aspect_lock_tooltip,
-						.muted = !grid_aspect_locked_,
+						.tooltip	   = aspect_lock_tooltip,
+						.muted		   = !grid_aspect_locked_,
 						.no_navigation = true,
-						.icon_extent = ImGui::GetTextLineHeight() + 2.0f,
+						.icon_extent   = ImGui::GetTextLineHeight() + 2.0f,
 					}
 				)) {
 				grid_aspect_locked_ = !grid_aspect_locked_;
 				if (grid_aspect_locked_) {
-					grid_locked_aspect_ =
-						entity_grid_size_.x / std::max(1.0f, entity_grid_size_.y);
+					grid_locked_aspect_ = entity_grid_size_.x / std::max(1.0f, entity_grid_size_.y);
 				}
 			}
 
@@ -1791,18 +1736,13 @@ void PaintEditor::DrawBrushSettingsToolbar(EditorContext& ctx, Scene& scene, Sce
 				preview += ": ";
 			}
 			preview += item_at(items, i);
-			width = std::max(
-				width,
-				compact_width(preview, ImGui::GetFrameHeight() + 2.0f)
-			);
+			width	 = std::max(width, compact_width(preview, ImGui::GetFrameHeight() + 2.0f));
 		}
 		return width;
 	};
 
-	auto combo = [&](
-		const char* id, const char* label, int& value, const char* items, int count,
-		float width = 0.0f
-	) {
+	auto combo = [&](const char* id, const char* label, int& value, const char* items, int count,
+					 float width = 0.0f) {
 		std::string preview{ label };
 		if (!preview.empty()) {
 			preview += ": ";
@@ -1816,7 +1756,7 @@ void PaintEditor::DrawBrushSettingsToolbar(EditorContext& ctx, Scene& scene, Sce
 			for (int i{}; i < count; ++i) {
 				const bool selected{ i == value };
 				if (ImGui::Selectable(item_at(items, i), selected)) {
-					value = i;
+					value	= i;
 					changed = true;
 				}
 				if (selected) {
@@ -1846,8 +1786,8 @@ void PaintEditor::DrawBrushSettingsToolbar(EditorContext& ctx, Scene& scene, Sce
 		int mode{ static_cast<int>(select_mode_) };
 		next_control();
 		if (combo("##SelectMode", "Mode", mode, "Click + Marquee\0Selection Brush\0", 2)) {
-			select_mode_ = static_cast<PaintSelectMode>(mode);
-			selection_drag_start_ = {};
+			select_mode_		   = static_cast<PaintSelectMode>(mode);
+			selection_drag_start_  = {};
 			selection_drag_active_ = false;
 		}
 
@@ -1868,7 +1808,8 @@ void PaintEditor::DrawBrushSettingsToolbar(EditorContext& ctx, Scene& scene, Sce
 
 		next_control();
 		const bool has_selection{
-			HasSelection() || static_cast<bool>(ctx.editor.GetSceneHierarchyPanel().GetSelectedEntity())
+			HasSelection() ||
+			static_cast<bool>(ctx.editor.GetSceneHierarchyPanel().GetSelectedEntity())
 		};
 
 		ImGui::BeginDisabled(!has_selection);
@@ -1920,49 +1861,42 @@ void PaintEditor::DrawBrushSettingsToolbar(EditorContext& ctx, Scene& scene, Sce
 
 	const bool tile_layer{ layer.kind == SceneLayerKind::Tile };
 	const bool entity_layer{ layer.kind == SceneLayerKind::Entity };
-	const bool emits_content{
-		tool_ == PaintTool::Pencil || tool_ == PaintTool::Brush || tool_ == PaintTool::Line ||
-		tool_ == PaintTool::Rectangle || tool_ == PaintTool::Fill
-	};
+	const bool emits_content{ tool_ == PaintTool::Pencil || tool_ == PaintTool::Brush ||
+							  tool_ == PaintTool::Line || tool_ == PaintTool::Rectangle ||
+							  tool_ == PaintTool::Fill };
 
 	if (tool_ == PaintTool::Erase) {
 		int erase_mode{ recipe_.operation == PaintBrushOperation::ExclusionMask ? 1 : 0 };
 		if (!tile_layer && erase_mode != 0) {
-			erase_mode = 0;
+			erase_mode		  = 0;
 			recipe_.operation = PaintBrushOperation::Paint;
 		}
 
 		next_control();
 		if (combo(
 				"##EraseOperation", "Mode", erase_mode,
-				tile_layer ? "Erase Tiles\0Erase Mask\0" : "Erase Entities\0",
-				tile_layer ? 2 : 1
+				tile_layer ? "Erase Tiles\0Erase Mask\0" : "Erase Entities\0", tile_layer ? 2 : 1
 			)) {
 			recipe_.operation =
 				erase_mode == 1 ? PaintBrushOperation::ExclusionMask : PaintBrushOperation::Paint;
 		}
 	} else if (emits_content) {
 		if (tool_ == PaintTool::Fill) {
-			if (
-				recipe_.operation != PaintBrushOperation::Paint &&
+			if (recipe_.operation != PaintBrushOperation::Paint &&
 				recipe_.operation != PaintBrushOperation::Replace &&
-				recipe_.operation != PaintBrushOperation::Erase
-			) {
+				recipe_.operation != PaintBrushOperation::Erase) {
 				recipe_.operation = PaintBrushOperation::Paint;
 			}
 
-			int fill_mode{
-				recipe_.operation == PaintBrushOperation::Replace ? 1
-				: recipe_.operation == PaintBrushOperation::Erase ? 2
-				: 0
-			};
+			int fill_mode{ recipe_.operation == PaintBrushOperation::Replace ? 1
+						   : recipe_.operation == PaintBrushOperation::Erase ? 2
+																			 : 0 };
 
 			next_control();
 			if (combo("##PaintOperation", "Mode", fill_mode, "Paint\0Replace\0Erase\0", 3)) {
-				recipe_.operation =
-					fill_mode == 1 ? PaintBrushOperation::Replace
-					: fill_mode == 2 ? PaintBrushOperation::Erase
-					: PaintBrushOperation::Paint;
+				recipe_.operation = fill_mode == 1 ? PaintBrushOperation::Replace
+								  : fill_mode == 2 ? PaintBrushOperation::Erase
+												   : PaintBrushOperation::Paint;
 			}
 			if (ImGui::IsItemHovered()) {
 				ImGui::SetTooltip(
@@ -1973,13 +1907,12 @@ void PaintEditor::DrawBrushSettingsToolbar(EditorContext& ctx, Scene& scene, Sce
 		} else {
 			int operation{ static_cast<int>(recipe_.operation) };
 			const bool allow_mask{ tile_layer };
-			const char* operations{
-				allow_mask ? "Paint\0Replace\0Exclude Mask\0" : "Paint\0Replace\0"
-			};
+			const char* operations{ allow_mask ? "Paint\0Replace\0Exclude Mask\0"
+											   : "Paint\0Replace\0" };
 			const int count{ allow_mask ? 3 : 2 };
 
 			if (operation >= count) {
-				operation = 0;
+				operation		  = 0;
 				recipe_.operation = PaintBrushOperation::Paint;
 			}
 
@@ -1996,11 +1929,9 @@ void PaintEditor::DrawBrushSettingsToolbar(EditorContext& ctx, Scene& scene, Sce
 		}
 	}
 
-	const bool source_applicable{
-		emits_content &&
-		recipe_.operation != PaintBrushOperation::ExclusionMask &&
-		recipe_.operation != PaintBrushOperation::Erase
-	};
+	const bool source_applicable{ emits_content &&
+								  recipe_.operation != PaintBrushOperation::ExclusionMask &&
+								  recipe_.operation != PaintBrushOperation::Erase };
 
 	if (source_applicable) {
 		if (entity_layer && recipe_.source_kind == PaintSourceKind::Autotile) {
@@ -2026,19 +1957,18 @@ void PaintEditor::DrawBrushSettingsToolbar(EditorContext& ctx, Scene& scene, Sce
 
 		auto source_name = [](PaintSourceKind kind) -> const char* {
 			switch (kind) {
-				case PaintSourceKind::Single:       return "Single";
-				case PaintSourceKind::WeightedSet:  return "Weighted Set";
+				case PaintSourceKind::Single:		return "Single";
+				case PaintSourceKind::WeightedSet:	return "Weighted Set";
 				case PaintSourceKind::Checkerboard: return "Checkerboard";
-				case PaintSourceKind::Autotile:     return "Autotile / Terrain";
-				case PaintSourceKind::Noise:        return "Noise";
+				case PaintSourceKind::Autotile:		return "Autotile / Terrain";
+				case PaintSourceKind::Noise:		return "Noise";
 			}
 			return "Single";
 		};
 
 		next_control();
-		const std::string source_preview{
-			std::string{ "Source: " } + source_name(recipe_.source_kind)
-		};
+		const std::string source_preview{ std::string{ "Source: " } +
+										  source_name(recipe_.source_kind) };
 		ImGui::SetNextItemWidth(source_combo_width);
 
 		const bool noise_source{ recipe_.source_kind == PaintSourceKind::Noise };
@@ -2048,41 +1978,32 @@ void PaintEditor::DrawBrushSettingsToolbar(EditorContext& ctx, Scene& scene, Sce
 		float source_popup_max_width{ noise_source ? 900.0f : 620.0f };
 
 		if (weighted_source) {
-			const std::string& selected_name{
-				tile_layer ? recipe_.weighted_tile_set_name : recipe_.weighted_prefab_set_name
-			};
+			const std::string& selected_name{ tile_layer ? recipe_.weighted_tile_set_name
+														 : recipe_.weighted_prefab_set_name };
 			const char* preview{ selected_name.empty() ? "<none>" : selected_name.c_str() };
-			const float combo_width{
-				ImGui::CalcTextSize(preview).x + ImGui::GetStyle().FramePadding.x * 2.0f +
-				ImGui::GetFrameHeight()
-			};
-			const float add_width{
-				ImGui::CalcTextSize("Add Weighted Set").x + ImGui::GetStyle().FramePadding.x * 2.0f
-			};
-			const float delete_width{
-				ImGui::CalcTextSize("Delete Set").x + ImGui::GetStyle().FramePadding.x * 2.0f
-			};
+			const float combo_width{ ImGui::CalcTextSize(preview).x +
+									 ImGui::GetStyle().FramePadding.x * 2.0f +
+									 ImGui::GetFrameHeight() };
+			const float add_width{ ImGui::CalcTextSize("Add Weighted Set").x +
+								   ImGui::GetStyle().FramePadding.x * 2.0f };
+			const float delete_width{ ImGui::CalcTextSize("Delete Set").x +
+									  ImGui::GetStyle().FramePadding.x * 2.0f };
 			const float row_spacing{ ImGui::GetStyle().ItemSpacing.x * 2.0f };
-			const float popup_padding{
-				ImGui::GetStyle().WindowPadding.x * 2.0f + ComboPopupSideInset() * 2.0f
-			};
+			const float popup_padding{ ImGui::GetStyle().WindowPadding.x * 2.0f +
+									   ComboPopupSideInset() * 2.0f };
 
 			source_popup_min_width = std::max(
-				560.0f,
-				popup_padding + RecipeLabelWidth() + combo_width + add_width + delete_width +
-					row_spacing
+				560.0f, popup_padding + RecipeLabelWidth() + combo_width + add_width +
+							delete_width + row_spacing
 			);
 			source_popup_max_width = std::max(720.0f, source_popup_min_width);
 		}
 
 		ImGui::SetNextWindowSizeConstraints(
-			ImVec2{ source_popup_min_width, 0.0f },
-			ImVec2{ source_popup_max_width, 680.0f }
+			ImVec2{ source_popup_min_width, 0.0f }, ImVec2{ source_popup_max_width, 680.0f }
 		);
 
-		const bool source_open{
-			ImGui::BeginCombo("##PaintSource", source_preview.c_str())
-		};
+		const bool source_open{ ImGui::BeginCombo("##PaintSource", source_preview.c_str()) };
 		const bool source_hovered{ ImGui::IsItemHovered() };
 
 		if (source_open) {
@@ -2092,9 +2013,7 @@ void PaintEditor::DrawBrushSettingsToolbar(EditorContext& ctx, Scene& scene, Sce
 			auto source_item = [&](PaintSourceKind kind, const char* label) {
 				const bool selected{ recipe_.source_kind == kind };
 				if (ImGui::Selectable(
-						label,
-						selected,
-						ImGuiSelectableFlags_DontClosePopups,
+						label, selected, ImGuiSelectableFlags_DontClosePopups,
 						ImVec2{ AvailableContentWidth(source_popup_inset), 0.0f }
 					)) {
 					recipe_.source_kind = kind;
@@ -2116,16 +2035,10 @@ void PaintEditor::DrawBrushSettingsToolbar(EditorContext& ctx, Scene& scene, Sce
 				ImGui::Separator();
 				if (tile_layer) {
 					if (const TileLibraryEntry* selected{
-							FindTileEntry(selected_tile_entry_id_)
-						}) {
-						ImGui::TextDisabled(
-							"Using selected tile: %s",
-							selected->name.c_str()
-						);
+							FindTileEntry(selected_tile_entry_id_) }) {
+						ImGui::TextDisabled("Using selected tile: %s", selected->name.c_str());
 					} else {
-						ImGui::TextDisabled(
-							"Select a tile in the Tiles window."
-						);
+						ImGui::TextDisabled("Select a tile in the Tiles window.");
 					}
 				} else {
 					const auto selected_prefab{
@@ -2133,13 +2046,10 @@ void PaintEditor::DrawBrushSettingsToolbar(EditorContext& ctx, Scene& scene, Sce
 					};
 					if (selected_prefab.has_value()) {
 						ImGui::TextDisabled(
-							"Using selected prefab: %s",
-							PrefabDisplayName(*selected_prefab).c_str()
+							"Using selected prefab: %s", PrefabDisplayName(*selected_prefab).c_str()
 						);
 					} else {
-						ImGui::TextDisabled(
-							"Select a prefab in the Prefabs window."
-						);
+						ImGui::TextDisabled("Select a prefab in the Prefabs window.");
 					}
 				}
 			} else {
@@ -2203,8 +2113,7 @@ void PaintEditor::DrawBrushSettingsToolbar(EditorContext& ctx, Scene& scene, Sce
 		next_control();
 		int mode{ static_cast<int>(area_mode_) };
 		if (combo(
-				"##AreaMode", "Area", mode, "Fill\0Outline\0Corners\0Random\0", 4,
-				area_combo_width
+				"##AreaMode", "Area", mode, "Fill\0Outline\0Corners\0Random\0", 4, area_combo_width
 			)) {
 			area_mode_ = static_cast<PaintAreaMode>(mode);
 		}
@@ -2224,7 +2133,6 @@ void PaintEditor::DrawBrushSettingsToolbar(EditorContext& ctx, Scene& scene, Sce
 	const bool recipe_applies{ source_applicable };
 
 	if (recipe_applies) {
-
 		if (entity_layer) {
 			next_control();
 			ImGui::AlignTextToFramePadding();
@@ -2240,16 +2148,13 @@ void PaintEditor::DrawBrushSettingsToolbar(EditorContext& ctx, Scene& scene, Sce
 			}
 		}
 
-		const bool finite_generator_tool{
-			tool_ == PaintTool::Brush || tool_ == PaintTool::Line ||
-			tool_ == PaintTool::Rectangle
-		};
+		const bool finite_generator_tool{ tool_ == PaintTool::Brush || tool_ == PaintTool::Line ||
+										  tool_ == PaintTool::Rectangle };
 		if (finite_generator_tool && recipe_.operation == PaintBrushOperation::Paint) {
 			int result{ static_cast<int>(recipe_.commit_mode) };
 			next_control();
 			if (combo(
-					"##PaintResult", "Result", result, "Bake\0Generator\0", 2,
-					result_combo_width
+					"##PaintResult", "Result", result, "Bake\0Generator\0", 2, result_combo_width
 				)) {
 				recipe_.commit_mode = static_cast<PaintCommitMode>(result);
 			}
@@ -2263,10 +2168,7 @@ void PaintEditor::DrawBrushSettingsToolbar(EditorContext& ctx, Scene& scene, Sce
 
 		next_control();
 		ImGui::SetNextItemWidth(compact_width("More", ImGui::GetFrameHeight() + 2.0f));
-		ImGui::SetNextWindowSizeConstraints(
-			ImVec2{ 330.0f, 0.0f },
-			ImVec2{ 460.0f, 520.0f }
-		);
+		ImGui::SetNextWindowSizeConstraints(ImVec2{ 330.0f, 0.0f }, ImVec2{ 460.0f, 520.0f });
 		if (ImGui::BeginCombo("##PaintMore", "More")) {
 			const float more_popup_inset{ ComboPopupSideInset() };
 			ImGui::Indent(more_popup_inset);
@@ -2276,51 +2178,30 @@ void PaintEditor::DrawBrushSettingsToolbar(EditorContext& ctx, Scene& scene, Sce
 			int coverage{ static_cast<int>(recipe_.coverage) };
 			BeginRecipeFillField("Coverage", more_popup_inset);
 			if (ImGui::Combo(
-					"##PaintCoverage",
-					&coverage,
-					"Solid\0Random Density\0Radial Falloff\0"
+					"##PaintCoverage", &coverage, "Solid\0Random Density\0Radial Falloff\0"
 				)) {
 				recipe_.coverage = static_cast<PaintCoverageMode>(coverage);
 			}
 
 			if (recipe_.coverage == PaintCoverageMode::RandomDensity) {
 				BeginRecipeFillField("Density", more_popup_inset);
-				ImGui::SliderFloat(
-					"##PaintCoverageDensity",
-					&recipe_.density,
-					0.0f,
-					1.0f,
-					"%.2f"
-				);
+				ImGui::SliderFloat("##PaintCoverageDensity", &recipe_.density, 0.0f, 1.0f, "%.2f");
 			} else if (recipe_.coverage == PaintCoverageMode::RadialFalloff) {
 				BeginRecipeFillField("Center Density", more_popup_inset);
 				ImGui::SliderFloat(
-					"##PaintCoverageCenterDensity",
-					&recipe_.density,
-					0.0f,
-					1.0f,
-					"%.2f"
+					"##PaintCoverageCenterDensity", &recipe_.density, 0.0f, 1.0f, "%.2f"
 				);
 
 				BeginRecipeFillField("Inner", more_popup_inset);
 				ImGui::SliderFloat(
-					"##PaintCoverageRadialInner",
-					&recipe_.radial_inner,
-					0.0f,
-					0.95f,
-					"%.2f"
+					"##PaintCoverageRadialInner", &recipe_.radial_inner, 0.0f, 0.95f, "%.2f"
 				);
 
 				BeginRecipeFillField("Outer", more_popup_inset);
 				ImGui::SliderFloat(
-					"##PaintCoverageRadialOuter",
-					&recipe_.radial_outer,
-					0.05f,
-					1.0f,
-					"%.2f"
+					"##PaintCoverageRadialOuter", &recipe_.radial_outer, 0.05f, 1.0f, "%.2f"
 				);
-				recipe_.radial_outer =
-					std::max(recipe_.radial_outer, recipe_.radial_inner + 0.01f);
+				recipe_.radial_outer = std::max(recipe_.radial_outer, recipe_.radial_inner + 0.01f);
 			}
 
 			if (tool_ == PaintTool::Line && entity_layer) {
@@ -2335,9 +2216,8 @@ void PaintEditor::DrawBrushSettingsToolbar(EditorContext& ctx, Scene& scene, Sce
 
 			if (tile_layer && recipe_.source_kind != PaintSourceKind::Autotile) {
 				Tilemap target{ ResolveTargetTilemap(scene) };
-				const V2_float cell_size{
-					target ? target.GetData().cell_size : ActiveGridSize(scene)
-				};
+				const V2_float cell_size{ target ? target.GetData().cell_size
+												 : ActiveGridSize(scene) };
 
 				bool source_size_differs{};
 				auto test_source = [&](const PaintTileSource& source) {
@@ -2384,8 +2264,7 @@ void PaintEditor::DrawBrushSettingsToolbar(EditorContext& ctx, Scene& scene, Sce
 					int placement{ static_cast<int>(recipe_.tile_placement) };
 					BeginRecipeFillField("Placement", more_popup_inset);
 					if (ImGui::Combo("##PaintTilePlacement", &placement, "Grid\0Tile\0")) {
-						recipe_.tile_placement =
-							static_cast<PaintTilePlacementMode>(placement);
+						recipe_.tile_placement = static_cast<PaintTilePlacementMode>(placement);
 					}
 
 					BeginRecipeFillField("Origin", more_popup_inset);
@@ -2445,14 +2324,8 @@ void PaintEditor::DrawBrushSettingsToolbar(EditorContext& ctx, Scene& scene, Sce
 				if (recipe_.random_rotation) {
 					BeginRecipeFillField("Rotation", more_popup_inset);
 					ImGui::DragFloatRange2(
-						"Rotation##PaintRotationRange",
-						&recipe_.rotation_min,
-						&recipe_.rotation_max,
-						0.5f,
-						-3600.0f,
-						3600.0f,
-						"%.0f",
-						"%.0f"
+						"Rotation##PaintRotationRange", &recipe_.rotation_min,
+						&recipe_.rotation_max, 0.5f, -3600.0f, 3600.0f, "%.0f", "%.0f"
 					);
 				}
 
@@ -2461,26 +2334,15 @@ void PaintEditor::DrawBrushSettingsToolbar(EditorContext& ctx, Scene& scene, Sce
 				if (recipe_.random_scale) {
 					BeginRecipeFillField("Scale", more_popup_inset);
 					ImGui::DragFloatRange2(
-						"Scale##PaintScaleRange",
-						&recipe_.scale_min,
-						&recipe_.scale_max,
-						0.01f,
-						0.01f,
-						8.0f,
-						"%.2f",
-						"%.2f"
+						"Scale##PaintScaleRange", &recipe_.scale_min, &recipe_.scale_max, 0.01f,
+						0.01f, 8.0f, "%.2f", "%.2f"
 					);
 				}
 
 				if (recipe_.coverage != PaintCoverageMode::Solid) {
 					BeginRecipeFillField("Minimum Spacing", more_popup_inset);
 					ImGui::DragFloat(
-						"##PaintMinimumSpacing",
-						&recipe_.min_spacing,
-						0.25f,
-						0.0f,
-						4096.0f,
-						"%.1f"
+						"##PaintMinimumSpacing", &recipe_.min_spacing, 0.25f, 0.0f, 4096.0f, "%.1f"
 					);
 				}
 			}
@@ -2490,10 +2352,7 @@ void PaintEditor::DrawBrushSettingsToolbar(EditorContext& ctx, Scene& scene, Sce
 			if (ImGui::Button(
 					"Create Infinite Generator",
 					ImVec2{
-						std::max(
-							1.0f,
-							ImGui::GetContentRegionAvail().x - more_popup_inset
-						),
+						std::max(1.0f, ImGui::GetContentRegionAvail().x - more_popup_inset),
 						0.0f,
 					}
 				)) {
@@ -2841,8 +2700,7 @@ void PaintEditor::DrawNoiseRecipe(EditorContext& ctx, Scene&, SceneLayer& layer)
 
 	int remove_region{ -1 };
 	if (ImGui::BeginTable(
-			"##NoiseRanges", 6,
-			ImGuiTableFlags_SizingStretchProp | ImGuiTableFlags_NoSavedSettings,
+			"##NoiseRanges", 6, ImGuiTableFlags_SizingStretchProp | ImGuiTableFlags_NoSavedSettings,
 			ImVec2{ table_width, 0.0f }
 		)) {
 		ImGui::TableSetupColumn("Enabled", ImGuiTableColumnFlags_WidthFixed, row_height);
@@ -2869,9 +2727,9 @@ void PaintEditor::DrawNoiseRecipe(EditorContext& ctx, Scene&, SceneLayer& layer)
 			ImGui::TextDisabled("%.3f - %.3f", region.minimum, region.maximum);
 
 			ImGui::TableSetColumnIndex(2);
-			int kind{ !region.enabled ? 0
+			int kind{ !region.enabled									   ? 0
 					  : region.source_kind == PaintSourceKind::WeightedSet ? 2
-																		  : 1 };
+																		   : 1 };
 			ImGui::SetNextItemWidth(-FLT_MIN);
 			if (ImGui::Combo("##NoiseRangeKind", &kind, "None\0Single\0Weighted Set\0")) {
 				region.enabled = kind != 0;
@@ -3077,12 +2935,10 @@ const PaintWeightedPrefabSet* PaintEditor::FindWeightedPrefabSet(std::string_vie
 }
 
 PaintAutotileRuleSet* PaintEditor::FindAutotileRuleSet(
-	const TextureKey& texture,
-	PaintAutotileFormat format
+	const TextureKey& texture, PaintAutotileFormat format
 ) {
 	const auto it{ std::ranges::find_if(
-		autotile_rule_sets_,
-		[&](const PaintAutotileRuleSet& rules) {
+		autotile_rule_sets_, [&](const PaintAutotileRuleSet& rules) {
 			return rules.texture == texture && rules.format == format;
 		}
 	) };
@@ -3090,12 +2946,10 @@ PaintAutotileRuleSet* PaintEditor::FindAutotileRuleSet(
 }
 
 const PaintAutotileRuleSet* PaintEditor::FindAutotileRuleSet(
-	const TextureKey& texture,
-	PaintAutotileFormat format
+	const TextureKey& texture, PaintAutotileFormat format
 ) const {
 	const auto it{ std::ranges::find_if(
-		autotile_rule_sets_,
-		[&](const PaintAutotileRuleSet& rules) {
+		autotile_rule_sets_, [&](const PaintAutotileRuleSet& rules) {
 			return rules.texture == texture && rules.format == format;
 		}
 	) };
@@ -3138,10 +2992,7 @@ std::uint64_t PaintEditor::NextAutotileRuleSetId() const {
 	return next;
 }
 
-bool PaintEditor::RefreshAutotileRuleSet(
-	EditorContext& ctx,
-	PaintAutotileRuleSet& rules
-) {
+bool PaintEditor::RefreshAutotileRuleSet(EditorContext& ctx, PaintAutotileRuleSet& rules) {
 	if (!rules.texture) {
 		rules.tiles.clear();
 		return false;
@@ -3165,8 +3016,7 @@ bool PaintEditor::RefreshAutotileRuleSet(
 	if (!texture_size.IsPositive() && ctx.editor.GetAssetManager().Has(rules.texture)) {
 		texture_size = ctx.editor.GetAssetManager().GetTextureSize(rules.texture);
 	}
-	if (!texture_size.IsPositive() ||
-		texture_size.x % slicing->tile_size.x != 0 ||
+	if (!texture_size.IsPositive() || texture_size.x % slicing->tile_size.x != 0 ||
 		texture_size.y % slicing->tile_size.y != 0) {
 		rules.tiles.clear();
 		return false;
@@ -3207,16 +3057,14 @@ PaintAutotileRuleSet* PaintEditor::ResolveAutotileRuleSet(EditorContext& ctx) {
 		return nullptr;
 	}
 
-	if (auto* existing{
-			FindAutotileRuleSet(recipe_.autotile_texture, recipe_.autotile_format)
-		}) {
+	if (auto* existing{ FindAutotileRuleSet(recipe_.autotile_texture, recipe_.autotile_format) }) {
 		return RefreshAutotileRuleSet(ctx, *existing) ? existing : nullptr;
 	}
 
 	PaintAutotileRuleSet rules;
-	rules.id = NextAutotileRuleSetId();
+	rules.id	  = NextAutotileRuleSetId();
 	rules.texture = recipe_.autotile_texture;
-	rules.format = recipe_.autotile_format;
+	rules.format  = recipe_.autotile_format;
 	if (!RefreshAutotileRuleSet(ctx, rules)) {
 		return nullptr;
 	}
@@ -3375,8 +3223,7 @@ void PaintEditor::DrawTileSourceBrowser(EditorContext& ctx, PaintTileSource& sou
 		}
 
 		ImGuiTreeNodeFlags flags{ ImGuiTreeNodeFlags_SpanAvailWidth |
-								  ImGuiTreeNodeFlags_OpenOnArrow |
-								  ImGuiTreeNodeFlags_DefaultOpen };
+								  ImGuiTreeNodeFlags_OpenOnArrow | ImGuiTreeNodeFlags_DefaultOpen };
 
 		ImGui::PushID(group.c_str());
 		const bool open{ ImGui::TreeNodeEx("##PaintTileSourceGroup", flags, "%s", group.c_str()) };
@@ -3664,8 +3511,7 @@ void PaintEditor::DrawPrefabSourceBrowser(EditorContext& ctx, PrefabKey& source)
 	SortGroupsUngroupedFirst(groups);
 	for (const std::string& group : groups) {
 		ImGuiTreeNodeFlags flags{ ImGuiTreeNodeFlags_SpanAvailWidth |
-								  ImGuiTreeNodeFlags_OpenOnArrow |
-								  ImGuiTreeNodeFlags_DefaultOpen };
+								  ImGuiTreeNodeFlags_OpenOnArrow | ImGuiTreeNodeFlags_DefaultOpen };
 		ImGui::PushID(group.c_str());
 		if (ImGui::TreeNodeEx("##PaintPrefabSourceGroup", flags, "%s", group.c_str())) {
 			for (const PrefabKey& key : keys) {
@@ -3747,22 +3593,19 @@ void PaintEditor::DrawWeightedTileSetEditor(EditorContext& ctx) {
 	PaintWeightedTileSet* active{ FindWeightedTileSet(recipe_.weighted_tile_set_name) };
 
 	BeginRecipeFillRow("Weighted Set");
-	const float add_width{
-		ImGui::CalcTextSize("Add Weighted Set").x + ImGui::GetStyle().FramePadding.x * 2.0f
-	};
-	const float delete_width{
-		ImGui::CalcTextSize("Delete Set").x + ImGui::GetStyle().FramePadding.x * 2.0f
-	};
+	const float add_width{ ImGui::CalcTextSize("Add Weighted Set").x +
+						   ImGui::GetStyle().FramePadding.x * 2.0f };
+	const float delete_width{ ImGui::CalcTextSize("Delete Set").x +
+							  ImGui::GetStyle().FramePadding.x * 2.0f };
 	const float row_spacing{ ImGui::GetStyle().ItemSpacing.x };
 	const char* preview{ active ? active->name.c_str() : "<none>" };
-	const float minimum_combo_width{
-		ImGui::CalcTextSize(preview).x + ImGui::GetStyle().FramePadding.x * 2.0f +
-		ImGui::GetFrameHeight()
-	};
+	const float minimum_combo_width{ ImGui::CalcTextSize(preview).x +
+									 ImGui::GetStyle().FramePadding.x * 2.0f +
+									 ImGui::GetFrameHeight() };
 	ImGui::SetNextItemWidth(
 		std::max(
-			minimum_combo_width,
-			AvailableContentWidth(source_popup_inset) - add_width - delete_width - row_spacing * 2.0f
+			minimum_combo_width, AvailableContentWidth(source_popup_inset) - add_width -
+									 delete_width - row_spacing * 2.0f
 		)
 	);
 	if (ImGui::BeginCombo("##PaintRecipeWeightedTileSet", preview)) {
@@ -3943,22 +3786,19 @@ void PaintEditor::DrawWeightedPrefabSetEditor(EditorContext& ctx) {
 	PaintWeightedPrefabSet* active{ FindWeightedPrefabSet(recipe_.weighted_prefab_set_name) };
 
 	BeginRecipeFillRow("Weighted Set");
-	const float add_width{
-		ImGui::CalcTextSize("Add Weighted Set").x + ImGui::GetStyle().FramePadding.x * 2.0f
-	};
-	const float delete_width{
-		ImGui::CalcTextSize("Delete Set").x + ImGui::GetStyle().FramePadding.x * 2.0f
-	};
+	const float add_width{ ImGui::CalcTextSize("Add Weighted Set").x +
+						   ImGui::GetStyle().FramePadding.x * 2.0f };
+	const float delete_width{ ImGui::CalcTextSize("Delete Set").x +
+							  ImGui::GetStyle().FramePadding.x * 2.0f };
 	const float row_spacing{ ImGui::GetStyle().ItemSpacing.x };
 	const char* preview{ active ? active->name.c_str() : "<none>" };
-	const float minimum_combo_width{
-		ImGui::CalcTextSize(preview).x + ImGui::GetStyle().FramePadding.x * 2.0f +
-		ImGui::GetFrameHeight()
-	};
+	const float minimum_combo_width{ ImGui::CalcTextSize(preview).x +
+									 ImGui::GetStyle().FramePadding.x * 2.0f +
+									 ImGui::GetFrameHeight() };
 	ImGui::SetNextItemWidth(
 		std::max(
-			minimum_combo_width,
-			AvailableContentWidth(source_popup_inset) - add_width - delete_width - row_spacing * 2.0f
+			minimum_combo_width, AvailableContentWidth(source_popup_inset) - add_width -
+									 delete_width - row_spacing * 2.0f
 		)
 	);
 	if (ImGui::BeginCombo("##PaintRecipeWeightedPrefabSet", preview)) {
@@ -4152,16 +3992,15 @@ void PaintEditor::DrawAutotileSourceEditor(EditorContext& ctx) {
 		return size;
 	};
 
-	auto sheet_layout_for = [&](const TextureKey& texture)
-		-> std::optional<std::pair<V2_int, AutotileAtlasLayout>> {
+	auto sheet_layout_for =
+		[&](const TextureKey& texture) -> std::optional<std::pair<V2_int, AutotileAtlasLayout>> {
 		const TileSliceSettings* slicing{ FindSliceSettings(texture) };
 		if (!slicing || !slicing->tile_size.IsPositive()) {
 			return std::nullopt;
 		}
 
 		const V2_int texture_size{ texture_size_for(texture) };
-		if (!texture_size.IsPositive() ||
-			texture_size.x % slicing->tile_size.x != 0 ||
+		if (!texture_size.IsPositive() || texture_size.x % slicing->tile_size.x != 0 ||
 			texture_size.y % slicing->tile_size.y != 0) {
 			return std::nullopt;
 		}
@@ -4170,9 +4009,7 @@ void PaintEditor::DrawAutotileSourceEditor(EditorContext& ctx) {
 			texture_size.x / slicing->tile_size.x,
 			texture_size.y / slicing->tile_size.y,
 		};
-		const auto layout{
-			ResolveAutotileAtlasLayout(recipe_.autotile_format, sheet_size)
-		};
+		const auto layout{ ResolveAutotileAtlasLayout(recipe_.autotile_format, sheet_size) };
 		if (!layout.has_value()) {
 			return std::nullopt;
 		}
@@ -4186,8 +4023,7 @@ void PaintEditor::DrawAutotileSourceEditor(EditorContext& ctx) {
 
 		auto* draw{ ImGui::GetWindowDrawList() };
 		draw->AddRectFilled(
-			p0, { p0.x + side, p0.y + side },
-			ImGui::GetColorU32(ImGuiCol_FrameBg),
+			p0, { p0.x + side, p0.y + side }, ImGui::GetColorU32(ImGuiCol_FrameBg),
 			ImGui::GetStyle().FrameRounding
 		);
 
@@ -4196,12 +4032,10 @@ void PaintEditor::DrawAutotileSourceEditor(EditorContext& ctx) {
 			if (!image_size.IsPositive()) {
 				image_size = { 1, 1 };
 			}
-			const float scale{
-				std::min(
-					side / static_cast<float>(std::max(1, image_size.x)),
-					side / static_cast<float>(std::max(1, image_size.y))
-				)
-			};
+			const float scale{ std::min(
+				side / static_cast<float>(std::max(1, image_size.x)),
+				side / static_cast<float>(std::max(1, image_size.y))
+			) };
 			const ImVec2 image_extent{
 				std::max(1.0f, static_cast<float>(image_size.x) * scale),
 				std::max(1.0f, static_cast<float>(image_size.y) * scale),
@@ -4215,15 +4049,12 @@ void PaintEditor::DrawAutotileSourceEditor(EditorContext& ctx) {
 				image_min.y + image_extent.y,
 			};
 			draw->AddImage(
-				static_cast<ImTextureID>(record->preview->texture),
-				image_min,
-				image_max
+				static_cast<ImTextureID>(record->preview->texture), image_min, image_max
 			);
 		}
 
 		draw->AddRect(
-			p0, { p0.x + side, p0.y + side },
-			ImGui::GetColorU32(ImGuiCol_Border),
+			p0, { p0.x + side, p0.y + side }, ImGui::GetColorU32(ImGuiCol_Border),
 			ImGui::GetStyle().FrameRounding
 		);
 	};
@@ -4242,13 +4073,11 @@ void PaintEditor::DrawAutotileSourceEditor(EditorContext& ctx) {
 		auto* draw{ ImGui::GetWindowDrawList() };
 		draw->AddRectFilled(
 			p0, { p0.x + thumbnail_side, p0.y + thumbnail_side },
-			ImGui::GetColorU32(ImGuiCol_FrameBg),
-			ImGui::GetStyle().FrameRounding
+			ImGui::GetColorU32(ImGuiCol_FrameBg), ImGui::GetStyle().FrameRounding
 		);
 		draw->AddRect(
 			p0, { p0.x + thumbnail_side, p0.y + thumbnail_side },
-			ImGui::GetColorU32(ImGuiCol_Border),
-			ImGui::GetStyle().FrameRounding
+			ImGui::GetColorU32(ImGuiCol_Border), ImGui::GetStyle().FrameRounding
 		);
 	}
 
@@ -4334,19 +4163,13 @@ void PaintEditor::DrawAutotileSourceEditor(EditorContext& ctx) {
 
 	ImGui::TextDisabled(
 		"%dx%d tiles, %dx%d sheet; %s uses the top-left %dx%d block automatically.",
-		slicing->tile_size.x,
-		slicing->tile_size.y,
-		sheet_size.x,
-		sheet_size.y,
-		AutotileFormatName(recipe_.autotile_format),
-		layout.block_size.x,
-		layout.block_size.y
+		slicing->tile_size.x, slicing->tile_size.y, sheet_size.x, sheet_size.y,
+		AutotileFormatName(recipe_.autotile_format), layout.block_size.x, layout.block_size.y
 	);
 
 	if (block_count > 1) {
 		ImGui::TextDisabled(
-			"%d compatible blocks detected; no slot setup is required.",
-			block_count
+			"%d compatible blocks detected; no slot setup is required.", block_count
 		);
 	}
 }
@@ -4569,21 +4392,15 @@ void PaintEditor::ReconcileProjectLibrary(EditorContext& ctx) {
 			}
 		}
 
-		const bool only_unsliced_entry{
-			texture_entries.size() == 1 &&
-			texture_entries.front()->slice == V2_int{} &&
-			texture_size.IsPositive() &&
-			settings_it->second.tile_size == texture_size
-		};
+		const bool only_unsliced_entry{ texture_entries.size() == 1 &&
+										texture_entries.front()->slice == V2_int{} &&
+										texture_size.IsPositive() &&
+										settings_it->second.tile_size == texture_size };
 
-		if (
-			filename_tile_size.has_value() &&
-			filename_tile_size->IsPositive() &&
-			texture_size.IsPositive() &&
-			texture_size.x % filename_tile_size->x == 0 &&
+		if (filename_tile_size.has_value() && filename_tile_size->IsPositive() &&
+			texture_size.IsPositive() && texture_size.x % filename_tile_size->x == 0 &&
 			texture_size.y % filename_tile_size->y == 0 &&
-			(texture_entries.empty() || only_unsliced_entry)
-		) {
+			(texture_entries.empty() || only_unsliced_entry)) {
 			settings_it->second.tile_size = *filename_tile_size;
 
 			std::erase_if(tile_library_, [&](const TileLibraryEntry& entry) {
@@ -4606,11 +4423,11 @@ void PaintEditor::ReconcileProjectLibrary(EditorContext& ctx) {
 					const V2_int slice{ x, y };
 					tile_library_.push_back(
 						TileLibraryEntry{
-							.id = TileEntryId(texture, slice),
-							.name = source_path.stem().string() + "_" + std::to_string(index++),
+							.id		 = TileEntryId(texture, slice),
+							.name	 = source_path.stem().string() + "_" + std::to_string(index++),
 							.texture = texture,
-							.slice = slice,
-							.group = group,
+							.slice	 = slice,
+							.group	 = group,
 						}
 					);
 				}
@@ -4618,16 +4435,12 @@ void PaintEditor::ReconcileProjectLibrary(EditorContext& ctx) {
 			project_library_changed = true;
 		}
 
-		const int columns{
-			texture_size.IsPositive() && settings_it->second.tile_size.IsPositive()
-				? texture_size.x / settings_it->second.tile_size.x
-				: 0
-		};
-		const int rows{
-			texture_size.IsPositive() && settings_it->second.tile_size.IsPositive()
-				? texture_size.y / settings_it->second.tile_size.y
-				: 0
-		};
+		const int columns{ texture_size.IsPositive() && settings_it->second.tile_size.IsPositive()
+							   ? texture_size.x / settings_it->second.tile_size.x
+							   : 0 };
+		const int rows{ texture_size.IsPositive() && settings_it->second.tile_size.IsPositive()
+							? texture_size.y / settings_it->second.tile_size.y
+							: 0 };
 
 		const bool any_entry{ std::ranges::any_of(
 			tile_library_, [&](const TileLibraryEntry& entry) { return entry.texture == texture; }
@@ -4635,11 +4448,11 @@ void PaintEditor::ReconcileProjectLibrary(EditorContext& ctx) {
 		if (!any_entry) {
 			tile_library_.push_back(
 				TileLibraryEntry{
-					.id = TileEntryId(texture, {}),
-					.name = TextureDisplayName(texture),
+					.id		 = TileEntryId(texture, {}),
+					.name	 = TextureDisplayName(texture),
 					.texture = texture,
-					.slice = {},
-					.group = "Ungrouped",
+					.slice	 = {},
+					.group	 = "Ungrouped",
 				}
 			);
 			project_library_changed = true;
@@ -4680,7 +4493,8 @@ void PaintEditor::ReconcileProjectLibrary(EditorContext& ctx) {
 		}
 
 		// New rulesets are keyed by tilesheet + format and their source slots are always derived.
-		// Legacy rulesets without a texture are retained so existing terrain cells can still resolve.
+		// Legacy rulesets without a texture are retained so existing terrain cells can still
+		// resolve.
 		if (rules.texture) {
 			if (!texture_keys.contains(rules.texture.value)) {
 				rules.tiles.clear();
@@ -4705,8 +4519,7 @@ void PaintEditor::ReconcileProjectLibrary(EditorContext& ctx) {
 		!FindWeightedPrefabSet(recipe_.weighted_prefab_set_name)) {
 		recipe_.weighted_prefab_set_name.clear();
 	}
-	if (recipe_.autotile_texture &&
-		!texture_keys.contains(recipe_.autotile_texture.value)) {
+	if (recipe_.autotile_texture && !texture_keys.contains(recipe_.autotile_texture.value)) {
 		recipe_.autotile_texture = {};
 	}
 
@@ -4959,12 +4772,8 @@ int PaintEditor::ImportImageTiles(
 		return entry.texture == texture;
 	});
 
-	const int columns{
-		slice ? std::max(0, texture_size.x / std::max(1, slicing.tile_size.x)) : 1
-	};
-	const int rows{
-		slice ? std::max(0, texture_size.y / std::max(1, slicing.tile_size.y)) : 1
-	};
+	const int columns{ slice ? std::max(0, texture_size.x / std::max(1, slicing.tile_size.x)) : 1 };
+	const int rows{ slice ? std::max(0, texture_size.y / std::max(1, slicing.tile_size.y)) : 1 };
 	int count{};
 	for (int y{}; y < rows; ++y) {
 		for (int x{}; x < columns; ++x) {
@@ -5017,7 +4826,7 @@ int PaintEditor::ImportTiles(EditorContext& ctx, const TileImportSettings& setti
 			if (info.images.size() > 1) {
 				child.mode = TileImportMode::Individual;
 			} else {
-				child.mode = TileImportMode::Tileset;
+				child.mode					  = TileImportMode::Tileset;
 				child.use_filename_dimensions = false;
 				child.tile_width  = info.tile_width > 0 ? info.tile_width : settings.tile_width;
 				child.tile_height = info.tile_height > 0 ? info.tile_height : settings.tile_height;
@@ -5353,27 +5162,28 @@ bool PaintEditor::DrawGeneratorSourceEditor(
 	const bool tile_layer{ layer->kind == SceneLayerKind::Tile };
 	bool changed{ false };
 
-	auto to_editor = [](const std::optional<PaintGeneratorTileSource>& source)
-		-> std::optional<PaintTileSource> {
+	auto to_editor = [](
+						 const std::optional<PaintGeneratorTileSource>& source
+					 ) -> std::optional<PaintTileSource> {
 		if (!source || !source->texture) {
 			return std::nullopt;
 		}
 		return PaintTileSource{
-			.texture = source->texture,
+			.texture			 = source->texture,
 			.texture_coordinates = source->texture_coordinates,
-			.pixel_size = source->pixel_size,
+			.pixel_size			 = source->pixel_size,
 		};
 	};
-	auto to_generator = [](const std::optional<PaintTileSource>& source, Origin origin)
-		-> std::optional<PaintGeneratorTileSource> {
+	auto to_generator = [](const std::optional<PaintTileSource>& source,
+						   Origin origin) -> std::optional<PaintGeneratorTileSource> {
 		if (!source || !*source) {
 			return std::nullopt;
 		}
 		return PaintGeneratorTileSource{
-			.texture = source->texture,
+			.texture			 = source->texture,
 			.texture_coordinates = source->texture_coordinates,
-			.pixel_size = source->pixel_size,
-			.origin = origin,
+			.pixel_size			 = source->pixel_size,
+			.origin				 = origin,
 		};
 	};
 
@@ -5383,22 +5193,22 @@ bool PaintEditor::DrawGeneratorSourceEditor(
 		}
 
 		PaintGeneratorNoiseThreshold initial{
-			.minimum = 0.0f,
-			.maximum = 1.0f,
-			.enabled = true,
+			.minimum	 = 0.0f,
+			.maximum	 = 1.0f,
+			.enabled	 = true,
 			.source_kind = PaintGeneratorSourceKind::Single,
-			.origin = tile_layer ? recipe.tile_origin : recipe.entity_origin,
+			.origin		 = tile_layer ? recipe.tile_origin : recipe.entity_origin,
 		};
 
 		if (previous_source == PaintGeneratorSourceKind::WeightedSet) {
 			if (tile_layer && !recipe.weighted_tiles.empty()) {
-				initial.source_kind = PaintGeneratorSourceKind::WeightedSet;
+				initial.source_kind	   = PaintGeneratorSourceKind::WeightedSet;
 				initial.weighted_tiles = recipe.weighted_tiles;
 				for (auto& entry : initial.weighted_tiles) {
 					entry.source.origin = initial.origin;
 				}
 			} else if (!tile_layer && !recipe.weighted_prefabs.empty()) {
-				initial.source_kind = PaintGeneratorSourceKind::WeightedSet;
+				initial.source_kind		 = PaintGeneratorSourceKind::WeightedSet;
 				initial.weighted_prefabs = recipe.weighted_prefabs;
 			}
 		}
@@ -5409,8 +5219,7 @@ bool PaintEditor::DrawGeneratorSourceEditor(
 				if (!initial.tile.has_value() &&
 					previous_source == PaintGeneratorSourceKind::Autotile) {
 					const auto slot{ std::ranges::find_if(
-						recipe.autotile_tiles,
-						[](const auto& value) { return value.has_value(); }
+						recipe.autotile_tiles, [](const auto& value) { return value.has_value(); }
 					) };
 					if (slot != recipe.autotile_tiles.end()) {
 						initial.tile = *slot;
@@ -5428,25 +5237,19 @@ bool PaintEditor::DrawGeneratorSourceEditor(
 		return true;
 	};
 
-	int displayed_source{
-		tile_layer
-			? static_cast<int>(recipe.source_kind)
-			: recipe.source_kind == PaintGeneratorSourceKind::Noise
-				? 3
-				: std::min(static_cast<int>(recipe.source_kind), 2)
-	};
-	const char* items{
-		tile_layer
-			? "Single\0Weighted Set\0Checkerboard\0Autotile / Terrain\0Noise\0"
-			: "Single\0Weighted Set\0Checkerboard\0Noise\0"
-	};
+	int displayed_source{ tile_layer ? static_cast<int>(recipe.source_kind)
+						  : recipe.source_kind == PaintGeneratorSourceKind::Noise
+							  ? 3
+							  : std::min(static_cast<int>(recipe.source_kind), 2) };
+	const char* items{ tile_layer
+						   ? "Single\0Weighted Set\0Checkerboard\0Autotile / Terrain\0Noise\0"
+						   : "Single\0Weighted Set\0Checkerboard\0Noise\0" };
 	if (ImGui::Combo("Source", &displayed_source, items, tile_layer ? 5 : 4)) {
 		const PaintGeneratorSourceKind previous_source{ recipe.source_kind };
-		recipe.source_kind = tile_layer
-			? static_cast<PaintGeneratorSourceKind>(displayed_source)
-			: displayed_source == 3
-				? PaintGeneratorSourceKind::Noise
-				: static_cast<PaintGeneratorSourceKind>(displayed_source);
+		recipe.source_kind = tile_layer ? static_cast<PaintGeneratorSourceKind>(displayed_source)
+						   : displayed_source == 3
+							   ? PaintGeneratorSourceKind::Noise
+							   : static_cast<PaintGeneratorSourceKind>(displayed_source);
 
 		if (recipe.source_kind == PaintGeneratorSourceKind::Noise) {
 			if (previous_source != PaintGeneratorSourceKind::Noise) {
@@ -5465,13 +5268,13 @@ bool PaintEditor::DrawGeneratorSourceEditor(
 				auto source{ to_editor(recipe.tile) };
 				if (DrawTileSourceCombo(ctx, "##GeneratorSourceTile", source)) {
 					recipe.tile = to_generator(source, recipe.tile_origin);
-					changed = true;
+					changed		= true;
 				}
 			} else {
 				auto source{ recipe.prefab };
 				if (DrawPrefabSourceCombo(ctx, "##GeneratorSourcePrefab", source)) {
 					recipe.prefab = std::move(source);
-					changed = true;
+					changed		  = true;
 				}
 			}
 			break;
@@ -5482,22 +5285,22 @@ bool PaintEditor::DrawGeneratorSourceEditor(
 				auto second{ to_editor(recipe.checker_tile) };
 				if (DrawTileSourceCombo(ctx, "##GeneratorCheckerFirst", first)) {
 					recipe.tile = to_generator(first, recipe.tile_origin);
-					changed = true;
+					changed		= true;
 				}
 				if (DrawTileSourceCombo(ctx, "##GeneratorCheckerSecond", second)) {
 					recipe.checker_tile = to_generator(second, recipe.tile_origin);
-					changed = true;
+					changed				= true;
 				}
 			} else {
 				auto first{ recipe.prefab };
 				auto second{ recipe.checker_prefab };
 				if (DrawPrefabSourceCombo(ctx, "##GeneratorCheckerFirstPrefab", first)) {
 					recipe.prefab = std::move(first);
-					changed = true;
+					changed		  = true;
 				}
 				if (DrawPrefabSourceCombo(ctx, "##GeneratorCheckerSecondPrefab", second)) {
 					recipe.checker_prefab = std::move(second);
-					changed = true;
+					changed				  = true;
 				}
 			}
 			break;
@@ -5506,12 +5309,10 @@ bool PaintEditor::DrawGeneratorSourceEditor(
 			if (tile_layer) {
 				int format{ static_cast<int>(recipe.autotile_format) };
 				if (ImGui::Combo(
-						"Format",
-						&format,
-						"Classic 15\0Blob 47\0Subset 16\0Dual Grid 16\0Wang 16\0"
+						"Format", &format, "Classic 15\0Blob 47\0Subset 16\0Dual Grid 16\0Wang 16\0"
 					)) {
 					recipe.autotile_format = static_cast<PaintGeneratorAutotileFormat>(format);
-					changed = true;
+					changed				   = true;
 				}
 
 				TextureKey current{};
@@ -5536,8 +5337,7 @@ bool PaintEditor::DrawGeneratorSourceEditor(
 						const bool selected{ texture == current };
 						if (ImGui::Selectable(texture.value.c_str(), selected)) {
 							const auto* rules{ FindAutotileRuleSet(
-								texture,
-								static_cast<PaintAutotileFormat>(recipe.autotile_format)
+								texture, static_cast<PaintAutotileFormat>(recipe.autotile_format)
 							) };
 							if (rules) {
 								recipe.autotile_tiles.assign(rules->tiles.size(), std::nullopt);
@@ -5546,11 +5346,10 @@ bool PaintEditor::DrawGeneratorSourceEditor(
 										continue;
 									}
 									recipe.autotile_tiles[i] = PaintGeneratorTileSource{
-										.texture = rules->tiles[i]->texture,
-										.texture_coordinates =
-											rules->tiles[i]->texture_coordinates,
-										.pixel_size = rules->tiles[i]->pixel_size,
-										.origin = Origin::TopLeft,
+										.texture			 = rules->tiles[i]->texture,
+										.texture_coordinates = rules->tiles[i]->texture_coordinates,
+										.pixel_size			 = rules->tiles[i]->pixel_size,
+										.origin				 = Origin::TopLeft,
 									};
 								}
 								changed = true;
@@ -5589,48 +5388,33 @@ bool PaintEditor::DrawGeneratorSourceEditor(
 			}
 			if (ImGui::Combo("Type", &type_index, "Perlin\0Simplex\0Value\0")) {
 				recipe.noise.type = type_index == 0 ? NoiseType::Perlin
-									: type_index == 1 ? NoiseType::Simplex
-													  : NoiseType::Value;
-				changed = true;
+								  : type_index == 1 ? NoiseType::Simplex
+													: NoiseType::Value;
+				changed			  = true;
 			}
 			changed |= ImGui::DragInt("Seed", &recipe.noise.seed, 1.0f);
 			changed |= ImGui::DragFloat(
-				"Frequency",
-				&recipe.noise.frequency,
-				0.001f,
-				0.0001f,
-				1.0f,
-				"%.4f",
+				"Frequency", &recipe.noise.frequency, 0.001f, 0.0001f, 1.0f, "%.4f",
 				ImGuiSliderFlags_AlwaysClamp
 			);
 			changed |= ImGui::DragInt("Octaves", &recipe.noise.octaves, 0.2f, 1, 12);
 			changed |= ImGui::DragFloat(
-				"Lacunarity",
-				&recipe.noise.lacunarity,
-				0.02f,
-				1.0f,
-				8.0f,
-				"%.2f",
+				"Lacunarity", &recipe.noise.lacunarity, 0.02f, 1.0f, 8.0f, "%.2f",
 				ImGuiSliderFlags_AlwaysClamp
 			);
-			changed |= ImGui::SliderFloat(
-				"Persistence", &recipe.noise.persistence, 0.0f, 1.0f, "%.2f"
-			);
+			changed |=
+				ImGui::SliderFloat("Persistence", &recipe.noise.persistence, 0.0f, 1.0f, "%.2f");
 
 			float offset[2]{ recipe.noise.offset.x, recipe.noise.offset.y };
 			if (ImGui::DragFloat2("Noise Offset", offset, 0.25f)) {
 				recipe.noise.offset = { offset[0], offset[1] };
-				changed = true;
+				changed				= true;
 			}
 
 			changed |= ImGui::Checkbox("Show Noise Preview", &recipe.show_noise_preview);
 			if (recipe.show_noise_preview) {
 				changed |= ImGui::SliderFloat(
-					"Noise Preview Opacity",
-					&recipe.noise_preview_alpha,
-					0.0f,
-					1.0f,
-					"%.2f"
+					"Noise Preview Opacity", &recipe.noise_preview_alpha, 0.0f, 1.0f, "%.2f"
 				);
 			}
 
@@ -5638,11 +5422,9 @@ bool PaintEditor::DrawGeneratorSourceEditor(
 			auto& thresholds{ recipe.noise.thresholds };
 
 			auto normalize = [&] {
-				std::ranges::sort(
-					thresholds,
-					{},
-					[](const PaintGeneratorNoiseThreshold& region) { return region.minimum; }
-				);
+				std::ranges::sort(thresholds, {}, [](const PaintGeneratorNoiseThreshold& region) {
+					return region.minimum;
+				});
 				thresholds.front().minimum = 0.0f;
 				for (std::size_t i{}; i < thresholds.size(); ++i) {
 					auto& region{ thresholds[i] };
@@ -5659,17 +5441,15 @@ bool PaintEditor::DrawGeneratorSourceEditor(
 				normalize();
 				for (std::size_t i{}; i < thresholds.size(); ++i) {
 					auto& region{ thresholds[i] };
-					if (value <= region.minimum + 0.002f ||
-						value >= region.maximum - 0.002f) {
+					if (value <= region.minimum + 0.002f || value >= region.maximum - 0.002f) {
 						continue;
 					}
 					PaintGeneratorNoiseThreshold right{ region };
-					right.enabled = true;
-					right.minimum = value;
+					right.enabled  = true;
+					right.minimum  = value;
 					region.maximum = value;
 					thresholds.insert(
-						thresholds.begin() + static_cast<std::ptrdiff_t>(i + 1),
-						std::move(right)
+						thresholds.begin() + static_cast<std::ptrdiff_t>(i + 1), std::move(right)
 					);
 					changed = true;
 					return;
@@ -5690,15 +5470,14 @@ bool PaintEditor::DrawGeneratorSourceEditor(
 					return std::string{ "None" };
 				}
 				if (region.source_kind == PaintGeneratorSourceKind::WeightedSet) {
-					const std::size_t count{
-						tile_layer ? region.weighted_tiles.size() : region.weighted_prefabs.size()
-					};
+					const std::size_t count{ tile_layer ? region.weighted_tiles.size()
+														: region.weighted_prefabs.size() };
 					return std::string{ "Weighted (" } + std::to_string(count) + ")";
 				}
 				if (tile_layer) {
 					return region.tile.has_value() && region.tile->texture
-						? region.tile->texture.value
-						: std::string{ "None" };
+							 ? region.tile->texture.value
+							 : std::string{ "None" };
 				}
 				return region.prefab.has_value() ? PrefabDisplayName(*region.prefab)
 												 : std::string{ "None" };
@@ -5711,10 +5490,7 @@ bool PaintEditor::DrawGeneratorSourceEditor(
 				if (static_cast<int>(label.size()) <= maximum) {
 					return label;
 				}
-				return label.substr(
-						   0, static_cast<std::size_t>(std::max(1, maximum - 3))
-					   ) +
-					   "...";
+				return label.substr(0, static_cast<std::size_t>(std::max(1, maximum - 3))) + "...";
 			};
 
 			normalize();
@@ -5722,8 +5498,7 @@ bool PaintEditor::DrawGeneratorSourceEditor(
 			const float height{ 76.0f };
 			const ImVec2 p0{ ImGui::GetCursorScreenPos() };
 			ImGui::InvisibleButton(
-				"##generator_noise_threshold_gradient",
-				{ width, height },
+				"##generator_noise_threshold_gradient", { width, height },
 				ImGuiButtonFlags_MouseButtonLeft | ImGuiButtonFlags_MouseButtonRight
 			);
 			const ImVec2 mouse{ ImGui::GetIO().MousePos };
@@ -5736,15 +5511,12 @@ bool PaintEditor::DrawGeneratorSourceEditor(
 				const float b{ static_cast<float>(i + 1) / 96.0f };
 				const float value{ (a + b) * 0.5f };
 				draw->AddRectFilled(
-					{ p0.x + a * width, bar_y0 },
-					{ p0.x + b * width + 1.0f, bar_y1 },
+					{ p0.x + a * width, bar_y0 }, { p0.x + b * width + 1.0f, bar_y1 },
 					ImGui::GetColorU32(ImVec4(value, value, value, 1.0f))
 				);
 			}
 			draw->AddRect(
-				{ p0.x, bar_y0 },
-				{ p0.x + width, bar_y1 },
-				ImGui::GetColorU32(ImGuiCol_Border)
+				{ p0.x, bar_y0 }, { p0.x + width, bar_y1 }, ImGui::GetColorU32(ImGuiCol_Border)
 			);
 
 			for (std::size_t i{}; i < thresholds.size(); ++i) {
@@ -5753,12 +5525,8 @@ bool PaintEditor::DrawGeneratorSourceEditor(
 				const float x1{ p0.x + region.maximum * width };
 				if (region.enabled) {
 					draw->AddRect(
-						{ x0 + 1.0f, bar_y0 + 1.0f },
-						{ x1 - 1.0f, bar_y1 - 1.0f },
-						ImGui::GetColorU32(ImVec4(0.95f, 0.78f, 0.26f, 0.95f)),
-						0.0f,
-						0,
-						2.0f
+						{ x0 + 1.0f, bar_y0 + 1.0f }, { x1 - 1.0f, bar_y1 - 1.0f },
+						ImGui::GetColorU32(ImVec4(0.95f, 0.78f, 0.26f, 0.95f)), 0.0f, 0, 2.0f
 					);
 				}
 				const std::string label{
@@ -5767,35 +5535,25 @@ bool PaintEditor::DrawGeneratorSourceEditor(
 				if (!label.empty()) {
 					const ImVec2 size{ ImGui::CalcTextSize(label.c_str()) };
 					const float x{
-						std::clamp(
-							(x0 + x1 - size.x) * 0.5f, p0.x, p0.x + width - size.x
-						)
+						std::clamp((x0 + x1 - size.x) * 0.5f, p0.x, p0.x + width - size.x)
 					};
 					const float y{ (i % 2 == 0) ? p0.y + 3.0f : bar_y1 + 6.0f };
 					draw->AddText(
 						{ x, y },
-						ImGui::GetColorU32(
-							region.enabled ? ImGuiCol_Text : ImGuiCol_TextDisabled
-						),
+						ImGui::GetColorU32(region.enabled ? ImGuiCol_Text : ImGuiCol_TextDisabled),
 						label.c_str()
 					);
 				}
 			}
 
 			for (int i{}; i + 1 < static_cast<int>(thresholds.size()); ++i) {
-				const float x{
-					p0.x + thresholds[static_cast<std::size_t>(i)].maximum * width
-				};
+				const float x{ p0.x + thresholds[static_cast<std::size_t>(i)].maximum * width };
 				draw->AddLine(
-					{ x, bar_y0 - 5.0f },
-					{ x, bar_y1 + 5.0f },
-					ImGui::GetColorU32(ImVec4(1.0f, 0.78f, 0.20f, 1.0f)),
-					2.0f
+					{ x, bar_y0 - 5.0f }, { x, bar_y1 + 5.0f },
+					ImGui::GetColorU32(ImVec4(1.0f, 0.78f, 0.20f, 1.0f)), 2.0f
 				);
 				draw->AddTriangleFilled(
-					{ x - 4.0f, bar_y0 - 6.0f },
-					{ x + 4.0f, bar_y0 - 6.0f },
-					{ x, bar_y0 - 1.0f },
+					{ x - 4.0f, bar_y0 - 6.0f }, { x + 4.0f, bar_y0 - 6.0f }, { x, bar_y0 - 1.0f },
 					ImGui::GetColorU32(ImVec4(1.0f, 0.78f, 0.20f, 1.0f))
 				);
 			}
@@ -5807,12 +5565,10 @@ bool PaintEditor::DrawGeneratorSourceEditor(
 				int nearest{ -1 };
 				float best{ 9.0f };
 				for (int i{}; i + 1 < static_cast<int>(thresholds.size()); ++i) {
-					const float x{
-						p0.x + thresholds[static_cast<std::size_t>(i)].maximum * width
-					};
+					const float x{ p0.x + thresholds[static_cast<std::size_t>(i)].maximum * width };
 					const float distance{ std::abs(mouse.x - x) };
 					if (distance < best) {
-						best = distance;
+						best	= distance;
 						nearest = i;
 					}
 				}
@@ -5822,7 +5578,7 @@ bool PaintEditor::DrawGeneratorSourceEditor(
 			if (ImGui::IsItemHovered() && ImGui::IsMouseClicked(ImGuiMouseButton_Left)) {
 				const int nearest{ nearest_boundary() };
 				if (nearest >= 0) {
-					dragging_id = widget_id;
+					dragging_id		  = widget_id;
 					dragging_boundary = nearest;
 				} else {
 					split(std::clamp((mouse.x - p0.x) / width, 0.01f, 0.99f));
@@ -5830,12 +5586,9 @@ bool PaintEditor::DrawGeneratorSourceEditor(
 			}
 			if (dragging_id == widget_id && dragging_boundary >= 0 &&
 				ImGui::IsMouseDown(ImGuiMouseButton_Left)) {
-				const float value{
-					std::clamp((mouse.x - p0.x) / width, 0.0f, 1.0f)
-				};
-				const float low{
-					thresholds[static_cast<std::size_t>(dragging_boundary)].minimum + 0.005f
-				};
+				const float value{ std::clamp((mouse.x - p0.x) / width, 0.0f, 1.0f) };
+				const float low{ thresholds[static_cast<std::size_t>(dragging_boundary)].minimum +
+								 0.005f };
 				const float high{
 					thresholds[static_cast<std::size_t>(dragging_boundary + 1)].maximum - 0.005f
 				};
@@ -5843,14 +5596,13 @@ bool PaintEditor::DrawGeneratorSourceEditor(
 				auto& left{ thresholds[static_cast<std::size_t>(dragging_boundary)] };
 				auto& right{ thresholds[static_cast<std::size_t>(dragging_boundary + 1)] };
 				if (left.maximum != boundary || right.minimum != boundary) {
-					left.maximum = boundary;
+					left.maximum  = boundary;
 					right.minimum = boundary;
-					changed = true;
+					changed		  = true;
 				}
 			}
-			if (dragging_id == widget_id &&
-				ImGui::IsMouseReleased(ImGuiMouseButton_Left)) {
-				dragging_id = 0;
+			if (dragging_id == widget_id && ImGui::IsMouseReleased(ImGuiMouseButton_Left)) {
+				dragging_id		  = 0;
 				dragging_boundary = -1;
 			}
 			if (ImGui::IsItemHovered() && ImGui::IsMouseClicked(ImGuiMouseButton_Right)) {
@@ -5875,26 +5627,23 @@ bool PaintEditor::DrawGeneratorSourceEditor(
 				bool enabled{ region.enabled };
 				if (ImGui::Checkbox("##GeneratorNoiseRangeEnabled", &enabled)) {
 					region.enabled = enabled;
-					changed = true;
+					changed		   = true;
 				}
 				ImGui::SameLine();
 				ImGui::TextDisabled("%.3f - %.3f", region.minimum, region.maximum);
 
 				ImGui::SameLine();
-				int kind{ !region.enabled ? 0
+				int kind{ !region.enabled												? 0
 						  : region.source_kind == PaintGeneratorSourceKind::WeightedSet ? 2
 																						: 1 };
 				ImGui::SetNextItemWidth(112.0f);
 				if (ImGui::Combo(
-						"##GeneratorNoiseRangeKind",
-						&kind,
-						"None\0Single\0Weighted Set\0"
+						"##GeneratorNoiseRangeKind", &kind, "None\0Single\0Weighted Set\0"
 					)) {
-					region.enabled = kind != 0;
-					region.source_kind = kind == 2
-						? PaintGeneratorSourceKind::WeightedSet
-						: PaintGeneratorSourceKind::Single;
-					changed = true;
+					region.enabled	   = kind != 0;
+					region.source_kind = kind == 2 ? PaintGeneratorSourceKind::WeightedSet
+												   : PaintGeneratorSourceKind::Single;
+					changed			   = true;
 				}
 
 				if (region.enabled) {
@@ -5904,19 +5653,16 @@ bool PaintEditor::DrawGeneratorSourceEditor(
 					if (tile_layer) {
 						if (region.source_kind == PaintGeneratorSourceKind::Single) {
 							auto source{ to_editor(region.tile) };
-							if (DrawTileSourceCombo(
-									ctx, "##GeneratorNoiseRangeTile", source
-								)) {
+							if (DrawTileSourceCombo(ctx, "##GeneratorNoiseRangeTile", source)) {
 								region.tile = to_generator(source, region.origin);
-								changed = true;
+								changed		= true;
 							}
 						} else {
 							const std::string preview{
 								region.weighted_tiles.empty()
 									? std::string{ "<none>" }
 									: std::string{ "Captured (" } +
-										  std::to_string(region.weighted_tiles.size()) +
-										  " tiles)"
+										  std::to_string(region.weighted_tiles.size()) + " tiles)"
 							};
 							if (ImGui::BeginCombo(
 									"##GeneratorNoiseRangeTileSet", preview.c_str()
@@ -5930,13 +5676,14 @@ bool PaintEditor::DrawGeneratorSourceEditor(
 											}
 											region.weighted_tiles.push_back(
 												PaintGeneratorWeightedTileEntry{
-													.source = PaintGeneratorTileSource{
-														.texture = entry.source.texture,
-														.texture_coordinates =
-															entry.source.texture_coordinates,
-														.pixel_size = entry.source.pixel_size,
-														.origin = region.origin,
-													},
+													.source =
+														PaintGeneratorTileSource{
+															.texture = entry.source.texture,
+															.texture_coordinates =
+																entry.source.texture_coordinates,
+															.pixel_size = entry.source.pixel_size,
+															.origin		= region.origin,
+														},
 													.weight = entry.weight,
 												}
 											);
@@ -5950,11 +5697,9 @@ bool PaintEditor::DrawGeneratorSourceEditor(
 					} else {
 						if (region.source_kind == PaintGeneratorSourceKind::Single) {
 							auto source{ region.prefab };
-							if (DrawPrefabSourceCombo(
-									ctx, "##GeneratorNoiseRangePrefab", source
-								)) {
+							if (DrawPrefabSourceCombo(ctx, "##GeneratorNoiseRangePrefab", source)) {
 								region.prefab = std::move(source);
-								changed = true;
+								changed		  = true;
 							}
 						} else {
 							const std::string preview{
@@ -6018,11 +5763,7 @@ bool PaintEditor::DrawGeneratorSourceEditor(
 
 			if (remove_region >= 0 && thresholds.size() > 1) {
 				const int boundary{
-					std::clamp(
-						remove_region,
-						0,
-						static_cast<int>(thresholds.size()) - 2
-					)
+					std::clamp(remove_region, 0, static_cast<int>(thresholds.size()) - 2)
 				};
 				thresholds[static_cast<std::size_t>(boundary)].maximum =
 					thresholds[static_cast<std::size_t>(boundary + 1)].maximum;
@@ -6064,7 +5805,8 @@ void PaintEditor::BakeGenerator(EditorContext& ctx, Scene& scene, Entity entity)
 		HasParent(entity) ? std::optional<UUID>{ GetParent(entity).Get<UUID>() } : std::nullopt
 	};
 	const std::optional<Transform> generator_world_transform{
-		entity.Has<Transform>() ? std::optional<Transform>{ GetWorldTransform(entity) } : std::nullopt
+		entity.Has<Transform>() ? std::optional<Transform>{ GetWorldTransform(entity) }
+								: std::nullopt
 	};
 	const V2_float entity_offset{ GetWorldPosition(generator) };
 	const V2_float origin{ data.grid_offset + entity_offset };
@@ -6487,11 +6229,9 @@ void PaintEditor::BakeGenerator(EditorContext& ctx, Scene& scene, Entity entity)
 		}
 	}
 
-	const bool baked_anything{
-		(tilemap_before.has_value() && tilemap_after.has_value() &&
-		 json{ *tilemap_before } != json{ *tilemap_after }) ||
-		!created_entities.empty()
-	};
+	const bool baked_anything{ (tilemap_before.has_value() && tilemap_after.has_value() &&
+								json{ *tilemap_before } != json{ *tilemap_after }) ||
+							   !created_entities.empty() };
 	if (!baked_anything) {
 		return;
 	}
@@ -6511,13 +6251,8 @@ void PaintEditor::BakeGenerator(EditorContext& ctx, Scene& scene, Entity entity)
 	Scene* scene_ptr{ &scene };
 	const SceneLayerId baked_layer{ *layer_id };
 
-	auto restore_generator = [
-		scene_ptr,
-		generator_snapshot,
-		generator_parent,
-		generator_world_transform,
-		baked_layer
-	]() {
+	auto restore_generator = [scene_ptr, generator_snapshot, generator_parent,
+							  generator_world_transform, baked_layer]() {
 		if (generator_snapshot.uuid.has_value() && scene_ptr->GetEntity(*generator_snapshot.uuid)) {
 			return;
 		}
@@ -7013,7 +6748,8 @@ PaintGeneratorRecipe PaintEditor::CaptureGeneratorRecipe(const SceneLayer& layer
 									  .origin	  = recipe_.tile_origin };
 	}
 	result.checker_prefab = recipe_.checker_prefab;
-	if (const auto* rules{ FindAutotileRuleSet(recipe_.autotile_texture, recipe_.autotile_format) }) {
+	if (const auto* rules{
+			FindAutotileRuleSet(recipe_.autotile_texture, recipe_.autotile_format) }) {
 		result.autotile_format = static_cast<PaintGeneratorAutotileFormat>(rules->format);
 		result.autotile_tiles.resize(rules->tiles.size());
 		for (std::size_t i{}; i < rules->tiles.size(); ++i) {
@@ -7034,23 +6770,23 @@ PaintGeneratorRecipe PaintEditor::CaptureGeneratorRecipe(const SceneLayer& layer
 	result.radial_inner	  = recipe_.radial_inner;
 	result.radial_outer	  = recipe_.radial_outer;
 	result.min_spacing	  = recipe_.min_spacing;
-	result.avoid_exclusion_mask	  = recipe_.avoid_exclusion_mask;
-	result.link_prefab_instances  = recipe_.link_prefab_instances;
-	result.random_rotation		  = recipe_.random_rotation;
-	result.rotation_min			  = recipe_.rotation_min;
-	result.rotation_max			  = recipe_.rotation_max;
-	result.random_scale			  = recipe_.random_scale;
-	result.scale_min			  = recipe_.scale_min;
-	result.scale_max			  = recipe_.scale_max;
-	result.show_noise_preview	  = recipe_.show_noise_preview;
-	result.noise_preview_alpha	  = recipe_.noise_preview_alpha;
-	result.noise.type			  = recipe_.noise.type;
-	result.noise.seed			  = recipe_.noise.seed;
-	result.noise.frequency		  = recipe_.noise.frequency;
-	result.noise.octaves		  = recipe_.noise.octaves;
-	result.noise.lacunarity		  = recipe_.noise.lacunarity;
-	result.noise.persistence	  = recipe_.noise.persistence;
-	result.noise.offset			  = recipe_.noise.offset;
+	result.avoid_exclusion_mask	 = recipe_.avoid_exclusion_mask;
+	result.link_prefab_instances = recipe_.link_prefab_instances;
+	result.random_rotation		 = recipe_.random_rotation;
+	result.rotation_min			 = recipe_.rotation_min;
+	result.rotation_max			 = recipe_.rotation_max;
+	result.random_scale			 = recipe_.random_scale;
+	result.scale_min			 = recipe_.scale_min;
+	result.scale_max			 = recipe_.scale_max;
+	result.show_noise_preview	 = recipe_.show_noise_preview;
+	result.noise_preview_alpha	 = recipe_.noise_preview_alpha;
+	result.noise.type			 = recipe_.noise.type;
+	result.noise.seed			 = recipe_.noise.seed;
+	result.noise.frequency		 = recipe_.noise.frequency;
+	result.noise.octaves		 = recipe_.noise.octaves;
+	result.noise.lacunarity		 = recipe_.noise.lacunarity;
+	result.noise.persistence	 = recipe_.noise.persistence;
+	result.noise.offset			 = recipe_.noise.offset;
 	if (recipe_.source_kind == PaintSourceKind::Noise) {
 		for (const auto& region : recipe_.noise.thresholds) {
 			PaintGeneratorNoiseThreshold captured{
@@ -7178,9 +6914,9 @@ void PaintEditor::DrawGenerators(
 ) const {
 	auto records{ ::ptgn::impl::AssetAccessor{ ctx.editor.GetAssetManager() }.GetAssets() };
 	std::unordered_map<std::string, std::optional<PrefabGeneratorPreview>> prefab_preview_cache;
-	Entity selected_generator{
-		selected_generator_.has_value() ? scene.GetEntity(*selected_generator_) : Entity{}
-	};
+	Entity selected_generator{ selected_generator_.has_value()
+								   ? scene.GetEntity(*selected_generator_)
+								   : Entity{} };
 	if (!selected_generator) {
 		Entity hierarchy_selected{ ctx.editor.GetSceneHierarchyPanel().GetSelectedEntity() };
 		if (hierarchy_selected && IsPaintGenerator(hierarchy_selected)) {
@@ -7235,10 +6971,8 @@ void PaintEditor::DrawGenerators(
 			continue;
 		}
 		for (Entity entity : scene.Entities()) {
-			if (
-				!IsPaintGenerator(entity) ||
-				scene.GetLayers().GetLayerId(entity) != std::optional<SceneLayerId>{ layer.id }
-			) {
+			if (!IsPaintGenerator(entity) ||
+				scene.GetLayers().GetLayerId(entity) != std::optional<SceneLayerId>{ layer.id }) {
 				continue;
 			}
 			PaintGenerator generator{ entity };
@@ -7350,10 +7084,8 @@ void PaintEditor::DrawGenerators(
 				if (generator.IsSuppressed(cell)) {
 					continue;
 				}
-				if (
-					generator_target && data.recipe.avoid_exclusion_mask &&
-					generator_target.IsExcluded(cell)
-				) {
+				if (generator_target && data.recipe.avoid_exclusion_mask &&
+					generator_target.IsExcluded(cell)) {
 					continue;
 				}
 				if (data.recipe.coverage == PaintGeneratorCoverageMode::RandomDensity &&
@@ -7520,50 +7252,33 @@ void PaintEditor::DrawGenerators(
 					const float selector{ Hash01(cell) };
 					const std::optional<float> preview_rotation{
 						data.recipe.random_rotation
-							? std::optional<float>{
-								  data.recipe.rotation_min +
-								  (data.recipe.rotation_max - data.recipe.rotation_min) * selector
-							  }
+							? std::optional<float>{ data.recipe.rotation_min +
+													(data.recipe.rotation_max -
+													 data.recipe.rotation_min) *
+														selector }
 							: std::nullopt
 					};
 					const std::optional<float> preview_scale{
-						data.recipe.random_scale
-							? std::optional<float>{
-								  data.recipe.scale_min +
-								  (data.recipe.scale_max - data.recipe.scale_min) * selector
-							  }
-							: std::nullopt
+						data.recipe.random_scale ? std::optional<float>{ data.recipe.scale_min +
+																		 (data.recipe.scale_max -
+																		  data.recipe.scale_min) *
+																			 selector }
+												 : std::nullopt
 					};
-					const V2_float placement{
-						mn + GetOffset(entity_origin, data.grid_size)
-					};
+					const V2_float placement{ mn + GetOffset(entity_origin, data.grid_size) };
 					if (!DrawPrefabGeneratorPreview(
-							ctx,
-							prefab_preview_cache,
-							draw,
-							*prefab,
-							placement,
-							preview_rotation,
-							preview_scale,
-							frame,
-							presentation_viewport
+							ctx, prefab_preview_cache, draw, *prefab, placement, preview_rotation,
+							preview_scale, frame, presentation_viewport
 						)) {
 						// A prefab without a drawable texture still gets a useful fallback.
-						const ImVec2 p0{
-							ToImGui(WorldToScreen(mn, frame, presentation_viewport))
-						};
-						const ImVec2 p1{
-							ToImGui(WorldToScreen(mx, frame, presentation_viewport))
-						};
+						const ImVec2 p0{ ToImGui(WorldToScreen(mn, frame, presentation_viewport)) };
+						const ImVec2 p1{ ToImGui(WorldToScreen(mx, frame, presentation_viewport)) };
 						draw->AddRectFilled(p0, p1, IM_COL32(96, 214, 122, 42));
-						draw->AddRect(
-							p0, p1, IM_COL32(104, 234, 132, 210), 0.0f, 0, 1.2f
-						);
+						draw->AddRect(p0, p1, IM_COL32(104, 234, 132, 210), 0.0f, 0, 1.2f);
 						const std::string name{ PrefabDisplayName(*prefab) };
 						if (!name.empty() && p1.x - p0.x > 24.0f && p1.y - p0.y > 16.0f) {
 							draw->AddText(
-								{ p0.x + 3.0f, p0.y + 2.0f },
-								IM_COL32(218, 255, 225, 220),
+								{ p0.x + 3.0f, p0.y + 2.0f }, IM_COL32(218, 255, 225, 220),
 								name.c_str()
 							);
 						}
@@ -7612,9 +7327,9 @@ void PaintEditor::DrawActiveGeneratorPreview(
 			add_brush_cell(WorldToActiveCell(scene, point));
 		}
 
-		std::optional<V2_int> anchor{
-			stroke_.has_last_cell ? std::optional<V2_int>{ stroke_.last_cell } : std::nullopt
-		};
+		std::optional<V2_int> anchor{ stroke_.has_last_cell
+										  ? std::optional<V2_int>{ stroke_.last_cell }
+										  : std::nullopt };
 		const V2_int current_cell{ ResolveStableBrushCenter(
 			WorldToActiveCell(scene, stroke_.current_world), brush_diameter_, anchor
 		) };
@@ -7719,7 +7434,8 @@ void PaintEditor::DrawActiveGeneratorPreview(
 				}
 				break;
 			case PaintSourceKind::Autotile: {
-				if (const auto* rules{ FindAutotileRuleSet(recipe_.autotile_texture, recipe_.autotile_format) }) {
+				if (const auto* rules{
+						FindAutotileRuleSet(recipe_.autotile_texture, recipe_.autotile_format) }) {
 					const int index{ AutotileIndex(
 						rules->format, [&](V2_int c) { return cells.contains(c); }, cell
 					) };
@@ -7803,48 +7519,30 @@ void PaintEditor::DrawActiveGeneratorPreview(
 			const float selector{ Hash01(cell) };
 			const std::optional<float> preview_rotation{
 				recipe_.random_rotation
-					? std::optional<float>{
-						  recipe_.rotation_min +
-						  (recipe_.rotation_max - recipe_.rotation_min) * selector
-					  }
+					? std::optional<float>{ recipe_.rotation_min +
+											(recipe_.rotation_max - recipe_.rotation_min) *
+												selector }
 					: std::nullopt
 			};
 			const std::optional<float> preview_scale{
 				recipe_.random_scale
-					? std::optional<float>{
-						  recipe_.scale_min +
-						  (recipe_.scale_max - recipe_.scale_min) * selector
-					  }
+					? std::optional<float>{ recipe_.scale_min +
+											(recipe_.scale_max - recipe_.scale_min) * selector }
 					: std::nullopt
 			};
 			const V2_float placement{ cell_min + GetOffset(origin, grid) };
 			if (!DrawPrefabGeneratorPreview(
-					ctx,
-					prefab_preview_cache,
-					draw,
-					*prefab,
-					placement,
-					preview_rotation,
-					preview_scale,
-					frame,
-					presentation_viewport
+					ctx, prefab_preview_cache, draw, *prefab, placement, preview_rotation,
+					preview_scale, frame, presentation_viewport
 				)) {
-				const ImVec2 p0{
-					ToImGui(WorldToScreen(cell_min, frame, presentation_viewport))
-				};
-				const ImVec2 p1{
-					ToImGui(WorldToScreen(cell_max, frame, presentation_viewport))
-				};
+				const ImVec2 p0{ ToImGui(WorldToScreen(cell_min, frame, presentation_viewport)) };
+				const ImVec2 p1{ ToImGui(WorldToScreen(cell_max, frame, presentation_viewport)) };
 				draw->AddRectFilled(p0, p1, IM_COL32(96, 214, 122, 42));
-				draw->AddRect(
-					p0, p1, IM_COL32(104, 234, 132, 210), 0.0f, 0, 1.2f
-				);
+				draw->AddRect(p0, p1, IM_COL32(104, 234, 132, 210), 0.0f, 0, 1.2f);
 				const std::string name{ PrefabDisplayName(*prefab) };
 				if (!name.empty() && p1.x - p0.x > 24.0f && p1.y - p0.y > 16.0f) {
 					draw->AddText(
-						{ p0.x + 3.0f, p0.y + 2.0f },
-						IM_COL32(218, 255, 225, 220),
-						name.c_str()
+						{ p0.x + 3.0f, p0.y + 2.0f }, IM_COL32(218, 255, 225, 220), name.c_str()
 					);
 				}
 			}
@@ -7955,7 +7653,9 @@ void PaintEditor::DrawSelectionOverlay(
 		current = ConstrainSquareDrag(selection_drag_start_, current);
 	}
 
-	const V2_float start_screen{ WorldToScreen(selection_drag_start_, frame, presentation_viewport) };
+	const V2_float start_screen{
+		WorldToScreen(selection_drag_start_, frame, presentation_viewport)
+	};
 	const V2_float current_screen{ WorldToScreen(current, frame, presentation_viewport) };
 	const V2_float screen_delta{ current_screen - start_screen };
 	if (std::sqrt(screen_delta.x * screen_delta.x + screen_delta.y * screen_delta.y) < 4.0f) {
@@ -7993,9 +7693,9 @@ void PaintEditor::DrawToolPreview(
 			cell = stroke_.last_cell;
 		}
 	} else if (tool_ == PaintTool::Brush || tool_ == PaintTool::Erase) {
-		std::optional<V2_int> anchor{
-			stroke_.has_last_cell ? std::optional<V2_int>{ stroke_.last_cell } : std::nullopt
-		};
+		std::optional<V2_int> anchor{ stroke_.has_last_cell
+										  ? std::optional<V2_int>{ stroke_.last_cell }
+										  : std::nullopt };
 		cell = ResolveStableBrushCenter(hovered_cell, brush_diameter_, anchor);
 	}
 
@@ -8041,17 +7741,13 @@ void PaintEditor::DrawToolPreview(
 
 void PaintEditor::BeginStroke(Scene& scene, V2_float world) {
 	const V2_int hovered_cell{ WorldToActiveCell(scene, world) };
-	std::optional<V2_int> anchor{
-		stroke_.has_last_cell ? std::optional<V2_int>{ stroke_.last_cell } : std::nullopt
-	};
-	const V2_int start_cell{
-		(tool_ == PaintTool::Brush || tool_ == PaintTool::Erase)
-			? ResolveStableBrushCenter(hovered_cell, brush_diameter_, anchor)
-			: hovered_cell
-	};
-	const V2_float anchored_world{
-		ActiveCellToWorld(scene, start_cell) + ActiveGridSize(scene) * 0.5f
-	};
+	std::optional<V2_int> anchor{ stroke_.has_last_cell ? std::optional<V2_int>{ stroke_.last_cell }
+														: std::nullopt };
+	const V2_int start_cell{ (tool_ == PaintTool::Brush || tool_ == PaintTool::Erase)
+								 ? ResolveStableBrushCenter(hovered_cell, brush_diameter_, anchor)
+								 : hovered_cell };
+	const V2_float anchored_world{ ActiveCellToWorld(scene, start_cell) +
+								   ActiveGridSize(scene) * 0.5f };
 
 	stroke_				  = {};
 	stroke_.active		  = true;
@@ -8367,9 +8063,8 @@ void PaintEditor::EraseAt(EditorContext&, Scene& scene, V2_float world) {
 	if (!layer || layer->locked) {
 		return;
 	}
-	std::optional<V2_int> anchor{
-		stroke_.has_last_cell ? std::optional<V2_int>{ stroke_.last_cell } : std::nullopt
-	};
+	std::optional<V2_int> anchor{ stroke_.has_last_cell ? std::optional<V2_int>{ stroke_.last_cell }
+														: std::nullopt };
 	const V2_int center{
 		ResolveStableBrushCenter(WorldToActiveCell(scene, world), brush_diameter_, anchor)
 	};
@@ -8395,15 +8090,12 @@ void PaintEditor::EraseAt(EditorContext&, Scene& scene, V2_float world) {
 		}
 	};
 
-	Tilemap active_tilemap{
-		layer->kind == SceneLayerKind::Tile ? ResolveTargetTilemap(scene) : Tilemap{}
-	};
+	Tilemap active_tilemap{ layer->kind == SceneLayerKind::Tile ? ResolveTargetTilemap(scene)
+																: Tilemap{} };
 
 	for (Entity entity : scene.Entities()) {
-		if (
-			!IsPaintGenerator(entity) ||
-			scene.GetLayers().GetLayerId(entity) != std::optional<SceneLayerId>{ layer->id }
-		) {
+		if (!IsPaintGenerator(entity) ||
+			scene.GetLayers().GetLayerId(entity) != std::optional<SceneLayerId>{ layer->id }) {
 			continue;
 		}
 
@@ -8411,24 +8103,19 @@ void PaintEditor::EraseAt(EditorContext&, Scene& scene, V2_float world) {
 		if (!generator.GetData().enabled) {
 			continue;
 		}
-		if (
-			layer->kind == SceneLayerKind::Tile &&
-			(!active_tilemap || generator.GetTargetTilemap() != active_tilemap)
-		) {
+		if (layer->kind == SceneLayerKind::Tile &&
+			(!active_tilemap || generator.GetTargetTilemap() != active_tilemap)) {
 			continue;
 		}
 
 		for (V2_int brush_cell : newly_touched) {
-			const V2_float sample{
-				ActiveCellToWorld(scene, brush_cell) + ActiveGridSize(scene) * 0.5f
-			};
+			const V2_float sample{ ActiveCellToWorld(scene, brush_cell) +
+								   ActiveGridSize(scene) * 0.5f };
 			if (!GeneratorContainsWorld(entity, sample)) {
 				continue;
 			}
 			capture_generator_before(entity);
-			static_cast<void>(
-				generator.SetSuppressed(GeneratorCellAtWorld(entity, sample), true)
-			);
+			static_cast<void>(generator.SetSuppressed(GeneratorCellAtWorld(entity, sample), true));
 		}
 	}
 
@@ -8516,22 +8203,16 @@ void PaintEditor::FillAt(EditorContext& ctx, Scene& scene, V2_float world) {
 			visited.reserve(1024);
 			erase_cells.reserve(256);
 
-			for (
-				std::size_t head{};
-				head < queue.size() && visited.size() < kMaxFloodCells;
-				++head
-			) {
+			for (std::size_t head{}; head < queue.size() && visited.size() < kMaxFloodCells;
+				 ++head) {
 				const V2_int cell{ queue[head] };
 				if (!visited.insert(cell).second) {
 					continue;
 				}
 
 				const TilemapTile* current{ map.FindTile(cell) };
-				const bool matches{
-					current &&
-					current->texture == *match_texture &&
-					current->texture_coordinates == *match_uv
-				};
+				const bool matches{ current && current->texture == *match_texture &&
+									current->texture_coordinates == *match_uv };
 				if (!matches) {
 					continue;
 				}
@@ -8628,11 +8309,7 @@ void PaintEditor::FillAt(EditorContext& ctx, Scene& scene, V2_float world) {
 		visited.reserve(1024);
 		erase_cells.reserve(256);
 
-		for (
-			std::size_t head{};
-			head < queue.size() && visited.size() < kMaxFloodCells;
-			++head
-		) {
+		for (std::size_t head{}; head < queue.size() && visited.size() < kMaxFloodCells; ++head) {
 			const V2_int cell{ queue[head] };
 			if (cell.x < min_cell.x || cell.x > max_cell.x || cell.y < min_cell.y ||
 				cell.y > max_cell.y) {
@@ -8669,7 +8346,7 @@ void PaintEditor::FillAt(EditorContext& ctx, Scene& scene, V2_float world) {
 				stroke_.entities.deleted_roots.push_back(
 					DeletedEntity{
 						.entity = SerializeEntity(entity),
-						.layer = layer->id,
+						.layer	= layer->id,
 					}
 				);
 			}
@@ -8775,14 +8452,11 @@ void PaintEditor::UpdateStroke(EditorContext& ctx, Scene& scene, V2_float world)
 	}
 
 	const V2_int hovered_cell{ WorldToActiveCell(scene, world) };
-	std::optional<V2_int> anchor{
-		stroke_.has_last_cell ? std::optional<V2_int>{ stroke_.last_cell } : std::nullopt
-	};
-	const V2_int current{
-		tool_ == PaintTool::Brush
-			? ResolveStableBrushCenter(hovered_cell, brush_diameter_, anchor)
-			: hovered_cell
-	};
+	std::optional<V2_int> anchor{ stroke_.has_last_cell ? std::optional<V2_int>{ stroke_.last_cell }
+														: std::nullopt };
+	const V2_int current{ tool_ == PaintTool::Brush
+							  ? ResolveStableBrushCenter(hovered_cell, brush_diameter_, anchor)
+							  : hovered_cell };
 	if (!stroke_.has_last_cell) {
 		stroke_.last_cell	  = current;
 		stroke_.has_last_cell = true;
@@ -9007,10 +8681,9 @@ void PaintEditor::FinishActiveBrushGenerator(EditorContext& ctx, Scene& scene) {
 	};
 	const EditorSelection current_selection{ ctx.local.selection };
 	const auto& hierarchy{ ctx.editor.GetSceneHierarchyPanel() };
-	const bool generator_is_still_selected{
-		hierarchy.GetActiveTab() == SceneHierarchyTab::SceneHierarchy &&
-		hierarchy.GetSelectedEntity() == generator
-	};
+	const bool generator_is_still_selected{ hierarchy.GetActiveTab() ==
+												SceneHierarchyTab::SceneHierarchy &&
+											hierarchy.GetSelectedEntity() == generator };
 
 	Entity recorded{ ctx.commands.RecordCreatedEntity(generator, before) };
 	if (generator_is_still_selected) {
@@ -9118,11 +8791,11 @@ void PaintEditor::CommitTileStroke(EditorContext& ctx, Scene& scene) {
 			entity && entity.Has<::ptgn::impl::TilemapData>()) {
 			const auto after{ entity.Get<::ptgn::impl::TilemapData>() };
 			json before_json = *stroke_.tilemap_before;
-			json after_json = after;
+			json after_json	 = after;
 			if (before_json != after_json) {
-				map_uuid = *stroke_.tilemap;
+				map_uuid   = *stroke_.tilemap;
 				map_before = *stroke_.tilemap_before;
-				map_after = after;
+				map_after  = after;
 			}
 		}
 	}
@@ -9131,9 +8804,7 @@ void PaintEditor::CommitTileStroke(EditorContext& ctx, Scene& scene) {
 	std::vector<std::pair<UUID, ::ptgn::impl::PaintGeneratorData>> generator_after;
 	for (const auto& [uuid, _before] : generator_before) {
 		if (Entity entity{ scene.GetEntity(uuid) }; entity && IsPaintGenerator(entity)) {
-			generator_after.emplace_back(
-				uuid, entity.Get<::ptgn::impl::PaintGeneratorData>()
-			);
+			generator_after.emplace_back(uuid, entity.Get<::ptgn::impl::PaintGeneratorData>());
 		}
 	}
 
@@ -9142,15 +8813,15 @@ void PaintEditor::CommitTileStroke(EditorContext& ctx, Scene& scene) {
 	}
 
 	Scene* scene_ptr{ &scene };
-	auto apply_generators = [scene_ptr](
-		const std::vector<std::pair<UUID, ::ptgn::impl::PaintGeneratorData>>& states
-	) {
-		for (const auto& [uuid, data] : states) {
-			if (Entity entity{ scene_ptr->GetEntity(uuid) }; entity && IsPaintGenerator(entity)) {
-				entity.Get<::ptgn::impl::PaintGeneratorData>() = data;
+	auto apply_generators =
+		[scene_ptr](const std::vector<std::pair<UUID, ::ptgn::impl::PaintGeneratorData>>& states) {
+			for (const auto& [uuid, data] : states) {
+				if (Entity entity{ scene_ptr->GetEntity(uuid) };
+					entity && IsPaintGenerator(entity)) {
+					entity.Get<::ptgn::impl::PaintGeneratorData>() = data;
+				}
 			}
-		}
-	};
+		};
 
 	ctx.undo.PushApplied(
 		tool_ == PaintTool::Erase ? "Erase Paint" : "Paint Tiles",
@@ -9191,9 +8862,7 @@ void PaintEditor::CommitEntityStroke(EditorContext& ctx, Scene& scene) {
 	std::vector<std::pair<UUID, ::ptgn::impl::PaintGeneratorData>> generator_after;
 	for (const auto& [uuid, _before] : generator_before) {
 		if (Entity entity{ scene.GetEntity(uuid) }; entity && IsPaintGenerator(entity)) {
-			generator_after.emplace_back(
-				uuid, entity.Get<::ptgn::impl::PaintGeneratorData>()
-			);
+			generator_after.emplace_back(uuid, entity.Get<::ptgn::impl::PaintGeneratorData>());
 		}
 	}
 
@@ -9222,15 +8891,15 @@ void PaintEditor::CommitEntityStroke(EditorContext& ctx, Scene& scene) {
 		scene_ptr->Refresh();
 	};
 
-	auto apply_generators = [scene_ptr](
-		const std::vector<std::pair<UUID, ::ptgn::impl::PaintGeneratorData>>& states
-	) {
-		for (const auto& [uuid, data] : states) {
-			if (Entity entity{ scene_ptr->GetEntity(uuid) }; entity && IsPaintGenerator(entity)) {
-				entity.Get<::ptgn::impl::PaintGeneratorData>() = data;
+	auto apply_generators =
+		[scene_ptr](const std::vector<std::pair<UUID, ::ptgn::impl::PaintGeneratorData>>& states) {
+			for (const auto& [uuid, data] : states) {
+				if (Entity entity{ scene_ptr->GetEntity(uuid) };
+					entity && IsPaintGenerator(entity)) {
+					entity.Get<::ptgn::impl::PaintGeneratorData>() = data;
+				}
 			}
-		}
-	};
+		};
 
 	ctx.undo.PushApplied(
 		tool_ == PaintTool::Erase ? "Erase Paint" : "Paint Entities",
@@ -9353,8 +9022,7 @@ void PaintEditor::SelectClick(
 	Hit hit{};
 	const auto& layers{ scene.GetLayers().GetLayers() };
 
-	for (auto layer_it{ layers.rbegin() };
-		 layer_it != layers.rend() && hit.kind == Hit::Kind::None;
+	for (auto layer_it{ layers.rbegin() }; layer_it != layers.rend() && hit.kind == Hit::Kind::None;
 		 ++layer_it) {
 		const SceneLayer& layer{ *layer_it };
 		if (!layer.visible || layer.locked || !layer.selectable) {
@@ -9376,7 +9044,7 @@ void PaintEditor::SelectClick(
 
 				const auto bounds{ EntitySelectionBounds(root) };
 				if (bounds.has_value() && Contains(*bounds, world)) {
-					hit.kind = Hit::Kind::Entity;
+					hit.kind   = Hit::Kind::Entity;
 					hit.entity = root;
 					break;
 				}
@@ -9386,8 +9054,7 @@ void PaintEditor::SelectClick(
 			// and their authored tiles back-to-front so overlapping visual bounds
 			// pick the visually upper tile.
 			for (auto root_it{ roots.rbegin() };
-				 root_it != roots.rend() && hit.kind == Hit::Kind::None;
-				 ++root_it) {
+				 root_it != roots.rend() && hit.kind == Hit::Kind::None; ++root_it) {
 				Entity root{ *root_it };
 				if (!root || !IsTilemap(root)) {
 					continue;
@@ -9400,8 +9067,8 @@ void PaintEditor::SelectClick(
 						continue;
 					}
 
-					hit.kind = Hit::Kind::Tile;
-					hit.tilemap = map;
+					hit.kind	  = Hit::Kind::Tile;
+					hit.tilemap	  = map;
 					hit.tile_cell = tile_it->coordinate;
 					break;
 				}
@@ -9418,11 +9085,8 @@ void PaintEditor::SelectClick(
 		// are intentionally discovered from the scene instead of the layer roots.
 		std::vector<Entity> generators;
 		for (Entity generator : scene.Entities()) {
-			if (
-				IsPaintGenerator(generator) &&
-				scene.GetLayers().GetLayerId(generator) ==
-					std::optional<SceneLayerId>{ layer.id }
-			) {
+			if (IsPaintGenerator(generator) && scene.GetLayers().GetLayerId(generator) ==
+												   std::optional<SceneLayerId>{ layer.id }) {
 				generators.emplace_back(generator);
 			}
 		}
@@ -9433,7 +9097,7 @@ void PaintEditor::SelectClick(
 		});
 		for (auto it{ generators.rbegin() }; it != generators.rend(); ++it) {
 			if (GeneratorContainsWorld(*it, world)) {
-				hit.kind = Hit::Kind::Generator;
+				hit.kind   = Hit::Kind::Generator;
 				hit.entity = *it;
 				break;
 			}
@@ -9473,9 +9137,7 @@ void PaintEditor::SelectClick(
 			ctx.editor.GetSceneHierarchyPanel().SetSelectedEntity({}, false);
 			selected_tilemap_ = map_uuid;
 
-			const auto it{
-				std::ranges::find(selected_tile_cells_, hit.tile_cell)
-			};
+			const auto it{ std::ranges::find(selected_tile_cells_, hit.tile_cell) };
 			if (toggle && it != selected_tile_cells_.end()) {
 				selected_tile_cells_.erase(it);
 			} else if (it == selected_tile_cells_.end()) {
@@ -9501,14 +9163,11 @@ void PaintEditor::SelectClick(
 			if (toggle && it != selected_entities_.end()) {
 				selected_entities_.erase(it);
 
-				Entity primary{
-					ctx.editor.GetSceneHierarchyPanel().GetSelectedEntity()
-				};
+				Entity primary{ ctx.editor.GetSceneHierarchyPanel().GetSelectedEntity() };
 				if (primary && primary.Get<UUID>() == uuid) {
 					if (!selected_entities_.empty()) {
 						ctx.editor.GetSceneHierarchyPanel().SetSelectedEntity(
-							scene.GetEntity(selected_entities_.back()),
-							false
+							scene.GetEntity(selected_entities_.back()), false
 						);
 					} else {
 						ctx.editor.GetSceneHierarchyPanel().SetSelectedEntity({}, false);
@@ -9606,8 +9265,8 @@ void PaintEditor::SelectMarquee(
 
 			if (!cells.empty()) {
 				tile_hit = TileMarqueeHit{
-					.map = map,
-					.cells = std::move(cells),
+					.map		 = map,
+					.cells		 = std::move(cells),
 					.layer_index = layer_index,
 				};
 				break;
@@ -9619,10 +9278,9 @@ void PaintEditor::SelectMarquee(
 	// intersecting tiles from that Tilemap even when some completely different layer is active.
 	// An intersecting entity on a visually higher layer blocks the tile layer, matching the
 	// click-through rule used by SelectClick().
-	const bool select_tiles{
-		tile_hit.has_value() &&
-		(!top_entity_hit_layer.has_value() || tile_hit->layer_index > *top_entity_hit_layer)
-	};
+	const bool select_tiles{ tile_hit.has_value() &&
+							 (!top_entity_hit_layer.has_value() ||
+							  tile_hit->layer_index > *top_entity_hit_layer) };
 
 	if (select_tiles) {
 		const UUID map_uuid{ tile_hit->map.Get<UUID>() };
@@ -9705,15 +9363,15 @@ void PaintEditor::SelectMarquee(
 		ctx.editor.GetSceneHierarchyPanel().SetSelectedEntity({}, false);
 	}
 }
+
 void PaintEditor::SelectBrush(EditorContext& ctx, Scene& scene, V2_float world, bool remove) {
 	SceneLayer* active_layer{ ResolveActiveLayer(scene) };
 	if (!active_layer || active_layer->locked || !active_layer->selectable) {
 		return;
 	}
 
-	std::optional<V2_int> anchor{
-		stroke_.has_last_cell ? std::optional<V2_int>{ stroke_.last_cell } : std::nullopt
-	};
+	std::optional<V2_int> anchor{ stroke_.has_last_cell ? std::optional<V2_int>{ stroke_.last_cell }
+														: std::nullopt };
 	const V2_int center{
 		ResolveStableBrushCenter(WorldToActiveCell(scene, world), selection_diameter_, anchor)
 	};
@@ -9874,7 +9532,7 @@ void PaintEditor::SnapSelectionToGrid(EditorContext& ctx, Scene& scene) {
 				if (layer->kind == SceneLayerKind::Tile) {
 					Tilemap grid_map{ PaintGenerator{ entity }.GetTargetTilemap() };
 					if (grid_map) {
-						size = grid_map.GetData().cell_size;
+						size   = grid_map.GetData().cell_size;
 						origin = GetWorldPosition(grid_map);
 					}
 				}
@@ -9914,12 +9572,16 @@ void PaintEditor::SnapSelectionToGrid(EditorContext& ctx, Scene& scene) {
 			const Origin draw_origin{ entity.GetOrDefault<Origin>() };
 			const V2_float anchor_offset{ size * 0.5f - GetOffset(draw_origin, size) };
 			after.position = {
-				origin.x + std::round(
-					(before.position.x - origin.x - anchor_offset.x) / std::max(1.0f, size.x)
-				) * std::max(1.0f, size.x) + anchor_offset.x,
-				origin.y + std::round(
-					(before.position.y - origin.y - anchor_offset.y) / std::max(1.0f, size.y)
-				) * std::max(1.0f, size.y) + anchor_offset.y,
+				origin.x +
+					std::round(
+						(before.position.x - origin.x - anchor_offset.x) / std::max(1.0f, size.x)
+					) * std::max(1.0f, size.x) +
+					anchor_offset.x,
+				origin.y +
+					std::round(
+						(before.position.y - origin.y - anchor_offset.y) / std::max(1.0f, size.y)
+					) * std::max(1.0f, size.y) +
+					anchor_offset.y,
 			};
 			if (before != after) {
 				entity_before.emplace_back(uuid, before);
@@ -9934,7 +9596,7 @@ void PaintEditor::SnapSelectionToGrid(EditorContext& ctx, Scene& scene) {
 			const SceneLayer* layer{ layer_id ? scene.GetLayers().Find(*layer_id) : nullptr };
 			if (layer && !layer->locked) {
 				Tilemap map{ entity };
-				tilemap_uuid = map.Get<UUID>();
+				tilemap_uuid   = map.Get<UUID>();
 				tilemap_before = map.GetData();
 				std::vector<TilemapTile> moved;
 				for (V2_int cell : selected_tile_cells_) {
@@ -9951,21 +9613,21 @@ void PaintEditor::SnapSelectionToGrid(EditorContext& ctx, Scene& scene) {
 				for (TilemapTile tile : moved) {
 					const V2_float anchor{ map.CellToWorld(tile.coordinate) + tile.offset };
 					const V2_int target{
-						static_cast<int>(std::lround(
-							(anchor.x - map_origin.x) / std::max(1.0f, cell_size.x)
-						)),
-						static_cast<int>(std::lround(
-							(anchor.y - map_origin.y) / std::max(1.0f, cell_size.y)
-						)),
+						static_cast<int>(
+							std::lround((anchor.x - map_origin.x) / std::max(1.0f, cell_size.x))
+						),
+						static_cast<int>(
+							std::lround((anchor.y - map_origin.y) / std::max(1.0f, cell_size.y))
+						),
 					};
 					tile.coordinate = target;
-					tile.offset = {};
+					tile.offset		= {};
 					map.SetTile(std::move(tile));
 					if (!std::ranges::contains(selected_tile_cells_, target)) {
 						selected_tile_cells_.push_back(target);
 					}
 				}
-				tilemap_after = map.GetData();
+				tilemap_after		 = map.GetData();
 				selected_cells_after = selected_tile_cells_;
 			}
 		}
@@ -9974,8 +9636,8 @@ void PaintEditor::SnapSelectionToGrid(EditorContext& ctx, Scene& scene) {
 	bool changed{ !entity_before.empty() };
 	if (tilemap_before.has_value() && tilemap_after.has_value()) {
 		json before_json = *tilemap_before;
-		json after_json = *tilemap_after;
-		changed = changed || before_json != after_json;
+		json after_json	 = *tilemap_after;
+		changed			 = changed || before_json != after_json;
 	}
 	if (!changed) {
 		return;
@@ -9995,7 +9657,7 @@ void PaintEditor::SnapSelectionToGrid(EditorContext& ctx, Scene& scene) {
 				if (Entity entity{ scene_ptr->GetEntity(*tilemap_uuid) };
 					entity && entity.Has<::ptgn::impl::TilemapData>()) {
 					entity.Get<::ptgn::impl::TilemapData>() = *tilemap_before;
-					paint->selected_tile_cells_ = selected_cells_before;
+					paint->selected_tile_cells_				= selected_cells_before;
 				}
 			}
 		},
@@ -10009,7 +9671,7 @@ void PaintEditor::SnapSelectionToGrid(EditorContext& ctx, Scene& scene) {
 				if (Entity entity{ scene_ptr->GetEntity(*tilemap_uuid) };
 					entity && entity.Has<::ptgn::impl::TilemapData>()) {
 					entity.Get<::ptgn::impl::TilemapData>() = *tilemap_after;
-					paint->selected_tile_cells_ = selected_cells_after;
+					paint->selected_tile_cells_				= selected_cells_after;
 				}
 			}
 		}
@@ -10021,7 +9683,7 @@ void PaintEditor::BeginMove(EditorContext&, Scene& scene, V2_float world) {
 		return;
 	}
 
-	move_ = {};
+	move_					= {};
 	move_.start_mouse_world = world;
 
 	if (selected_generator_.has_value()) {
@@ -10070,10 +9732,10 @@ void PaintEditor::BeginMove(EditorContext&, Scene& scene, V2_float world) {
 		return;
 	}
 	Tilemap map{ entity };
-	move_.tilemap = map.Get<UUID>();
-	move_.tile_cells = selected_tile_cells_;
+	move_.tilemap		 = map.Get<UUID>();
+	move_.tile_cells	 = selected_tile_cells_;
 	move_.tilemap_before = map.GetData();
-	move_.active = true;
+	move_.active		 = true;
 }
 
 void PaintEditor::UpdateMove(EditorContext&, Scene& scene, V2_float world) {
@@ -10084,12 +9746,13 @@ void PaintEditor::UpdateMove(EditorContext&, Scene& scene, V2_float world) {
 	PaintMoveSnapMode effective{ move_snap_ };
 	if (CtrlDown()) {
 		effective = effective == PaintMoveSnapMode::Grid ? PaintMoveSnapMode::Free
-												 : PaintMoveSnapMode::Grid;
+														 : PaintMoveSnapMode::Grid;
 	}
 
 	V2_float unit{ entity_grid_size_ };
 	if (selected_generator_.has_value()) {
-		if (Entity entity{ scene.GetEntity(*selected_generator_) }; entity && IsPaintGenerator(entity)) {
+		if (Entity entity{ scene.GetEntity(*selected_generator_) };
+			entity && IsPaintGenerator(entity)) {
 			unit = PaintGenerator{ entity }.GetData().grid_size;
 		}
 	} else if (move_.tilemap.has_value()) {
@@ -10221,14 +9884,14 @@ void PaintEditor::CommitMove(EditorContext& ctx, Scene& scene) {
 						if (Entity e{ scene_ptr->GetEntity(uuid) };
 							e && e.Has<::ptgn::impl::TilemapData>()) {
 							e.Get<::ptgn::impl::TilemapData>() = before;
-							paint->selected_tile_cells_ = before_cells;
+							paint->selected_tile_cells_		   = before_cells;
 						}
 					},
 					[scene_ptr, paint, uuid, after, after_cells]() {
 						if (Entity e{ scene_ptr->GetEntity(uuid) };
 							e && e.Has<::ptgn::impl::TilemapData>()) {
 							e.Get<::ptgn::impl::TilemapData>() = after;
-							paint->selected_tile_cells_ = after_cells;
+							paint->selected_tile_cells_		   = after_cells;
 						}
 					}
 				);
@@ -10258,7 +9921,7 @@ void PaintEditor::CancelMove(Scene& scene) {
 		}
 	}
 	selected_tile_cells_ = move_.tile_cells;
-	move_ = {};
+	move_				 = {};
 }
 
 Entity PaintEditor::FindGeneratorAtWorld(Scene& scene, V2_float world) const {
@@ -10303,11 +9966,8 @@ Entity PaintEditor::FindGeneratorAtWorld(Scene& scene, V2_float world) const {
 
 		std::vector<Entity> generators;
 		for (Entity entity : scene.Entities()) {
-			if (
-				IsPaintGenerator(entity) &&
-				scene.GetLayers().GetLayerId(entity) ==
-					std::optional<SceneLayerId>{ layer.id }
-			) {
+			if (IsPaintGenerator(entity) &&
+				scene.GetLayers().GetLayerId(entity) == std::optional<SceneLayerId>{ layer.id }) {
 				generators.emplace_back(entity);
 			}
 		}
@@ -10374,10 +10034,9 @@ bool PaintEditor::DrawViewportAndHandleInput(
 	if (active_brush_generator_.has_value()) {
 		Entity active{ scene.GetEntity(*active_brush_generator_) };
 		const auto& hierarchy{ ctx.editor.GetSceneHierarchyPanel() };
-		const bool active_is_selected{
-			hierarchy.GetActiveTab() == SceneHierarchyTab::SceneHierarchy &&
-			hierarchy.GetSelectedEntity() == active
-		};
+		const bool active_is_selected{ hierarchy.GetActiveTab() ==
+										   SceneHierarchyTab::SceneHierarchy &&
+									   hierarchy.GetSelectedEntity() == active };
 		const bool still_compatible{ active && IsPaintGenerator(active) && active_is_selected &&
 									 tool_ == PaintTool::Brush &&
 									 recipe_.commit_mode == PaintCommitMode::KeepGenerator &&
@@ -10393,17 +10052,15 @@ bool PaintEditor::DrawViewportAndHandleInput(
 	const bool inside{ Contains(image_viewport, mouse_screen) };
 	const V2_float mouse_world{ ScreenToWorld(mouse_screen, frame, presentation_viewport) };
 	if (inside && !stroke_.active) {
-		const bool selection_brush{
-			tool_ == PaintTool::Select && select_mode_ == PaintSelectMode::Brush
-		};
+		const bool selection_brush{ tool_ == PaintTool::Select &&
+									select_mode_ == PaintSelectMode::Brush };
 		if (selection_brush || tool_ == PaintTool::Brush || tool_ == PaintTool::Erase) {
-			std::optional<V2_int> anchor{
-				stroke_.has_last_cell ? std::optional<V2_int>{ stroke_.last_cell } : std::nullopt
-			};
+			std::optional<V2_int> anchor{ stroke_.has_last_cell
+											  ? std::optional<V2_int>{ stroke_.last_cell }
+											  : std::nullopt };
 			const int diameter{ selection_brush ? selection_diameter_ : brush_diameter_ };
-			stroke_.last_cell = ResolveStableBrushCenter(
-				WorldToActiveCell(scene, mouse_world), diameter, anchor
-			);
+			stroke_.last_cell =
+				ResolveStableBrushCenter(WorldToActiveCell(scene, mouse_world), diameter, anchor);
 			stroke_.has_last_cell = true;
 		}
 	}
@@ -10424,7 +10081,8 @@ bool PaintEditor::DrawViewportAndHandleInput(
 		DrawToolPreview(scene, draw, mouse_world, presentation_viewport, frame);
 	}
 	const bool pointer_operation_active{ stroke_.active || move_.active || selection_drag_active_ };
-	if ((!ctx.local.state.viewport.hovered && !pointer_operation_active) || ImGui::GetIO().WantTextInput) {
+	if ((!ctx.local.state.viewport.hovered && !pointer_operation_active) ||
+		ImGui::GetIO().WantTextInput) {
 		return false;
 	}
 
@@ -10443,7 +10101,7 @@ bool PaintEditor::DrawViewportAndHandleInput(
 	}
 
 	if (tool_ == PaintTool::Select && ImGui::IsMouseClicked(ImGuiMouseButton_Right)) {
-		selection_drag_start_ = {};
+		selection_drag_start_  = {};
 		selection_drag_active_ = false;
 		ClearSelection();
 		ctx.editor.GetSceneHierarchyPanel().SetSelectedEntity({}, false);
@@ -10464,7 +10122,7 @@ bool PaintEditor::DrawViewportAndHandleInput(
 		if (move_.active) {
 			CancelMove(scene);
 		}
-		selection_drag_start_ = {};
+		selection_drag_start_  = {};
 		selection_drag_active_ = false;
 		if (!had_active_operation && tool_ == PaintTool::Select) {
 			ClearSelection();
@@ -10501,7 +10159,7 @@ bool PaintEditor::DrawViewportAndHandleInput(
 
 	if (tool_ == PaintTool::Select) {
 		if (select_mode_ == PaintSelectMode::Brush) {
-			selection_drag_start_ = {};
+			selection_drag_start_  = {};
 			selection_drag_active_ = false;
 			if (inside && ImGui::IsMouseDown(ImGuiMouseButton_Left)) {
 				SelectBrush(ctx, scene, mouse_world, CtrlDown());
@@ -10511,7 +10169,7 @@ bool PaintEditor::DrawViewportAndHandleInput(
 		}
 
 		if (inside && ImGui::IsMouseClicked(ImGuiMouseButton_Left)) {
-			selection_drag_start_ = mouse_world;
+			selection_drag_start_  = mouse_world;
 			selection_drag_active_ = true;
 			return true;
 		}
@@ -10536,12 +10194,10 @@ bool PaintEditor::DrawViewportAndHandleInput(
 				if (additive) {
 					selection_end = ConstrainSquareDrag(selection_drag_start_, mouse_world);
 				}
-				SelectMarquee(
-					ctx, scene, selection_drag_start_, selection_end, additive, toggle
-				);
+				SelectMarquee(ctx, scene, selection_drag_start_, selection_end, additive, toggle);
 			}
 
-			selection_drag_start_ = {};
+			selection_drag_start_  = {};
 			selection_drag_active_ = false;
 			return true;
 		}

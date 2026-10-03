@@ -19,6 +19,7 @@ enum class EntityFilterType : std::uint8_t {
 	Components,
 	Group,
 	Query,
+	None,
 };
 PTGN_REFLECT_ENUM(EntityFilterType);
 
@@ -76,9 +77,7 @@ void SetEntityReference(EntityReference& reference, Entity entity);
 
 [[nodiscard]] bool MatchesComponentQuery(Entity entity, const ComponentEntityQuery& query);
 
-[[nodiscard]] bool Matches(
-	const EntityFilter& filter, Scene& scene, Entity owner, Entity target
-);
+[[nodiscard]] bool Matches(const EntityFilter& filter, Scene& scene, Entity owner, Entity target);
 
 [[nodiscard]] std::vector<Entity> ResolveEntityFilter(
 	const EntityFilter& filter, Scene& scene, Entity owner

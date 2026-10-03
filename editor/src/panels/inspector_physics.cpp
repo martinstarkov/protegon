@@ -18,12 +18,11 @@ bool DrawColliderSection(Target& target) {
 	}
 
 	const auto header{ DrawInspectorSectionHeader(
-		"Collider",
-		"ColliderSection",
+		"Collider", "ColliderSection",
 		InspectorSectionOptions{
 			.default_open = true,
-			.removable = true,
-			.resettable = true,
+			.removable	  = true,
+			.resettable	  = true,
 		}
 	) };
 
@@ -54,7 +53,7 @@ bool DrawColliderSection(Target& target) {
 		);
 		collider_before = target.template Capture<Collider>();
 		boundary_before = target.template Capture<BoundaryBehavior>();
-		changed = true;
+		changed			= true;
 	}
 
 	if (!header.open) {
@@ -64,8 +63,7 @@ bool DrawColliderSection(Target& target) {
 	ScopedIndent indent;
 	if (!collider_before) {
 		ImGui::TextColored(
-			ImVec4{ 1.0f, 0.45f, 0.2f, 1.0f },
-			"Boundary Behavior requires a Collider."
+			ImVec4{ 1.0f, 0.45f, 0.2f, 1.0f }, "Boundary Behavior requires a Collider."
 		);
 		if (ImGui::Button("Repair Collider", ImVec2{ -FLT_MIN, 0.0f })) {
 			changed |= SetComponentStateUndoable<Target, Collider>(
@@ -84,15 +82,13 @@ bool DrawColliderSection(Target& target) {
 				target, "Edit Collider", std::move(collider_before), std::move(after), true
 			);
 			collider_before = target.template Capture<Collider>();
-			changed = true;
+			changed			= true;
 		}
 	}
 
 	// Boundary behavior only has meaning for collision resolution, so author it as an optional
 	// subsection of Collider instead of a peer physics section.
-	changed |= DrawOptionalReflected<Target, BoundaryBehavior>(
-		target, "Boundary Behavior", true
-	);
+	changed |= DrawOptionalReflected<Target, BoundaryBehavior>(target, "Boundary Behavior", true);
 
 	return changed;
 }
@@ -109,12 +105,11 @@ bool DrawRigidBodySection(Target& target) {
 	}
 
 	const auto header{ DrawInspectorSectionHeader(
-		"Rigid Body",
-		"RigidBodySection",
+		"Rigid Body", "RigidBodySection",
 		InspectorSectionOptions{
 			.default_open = true,
-			.removable = true,
-			.resettable = true,
+			.removable	  = true,
+			.resettable	  = true,
 		}
 	) };
 
@@ -140,7 +135,7 @@ bool DrawRigidBodySection(Target& target) {
 			target, "Reset Rigid Body", std::move(rigid_body_before), std::move(after), true
 		);
 		rigid_body_before = target.template Capture<RigidBody>();
-		changed = true;
+		changed			  = true;
 	}
 
 	if (!header.open || !rigid_body_before) {
@@ -196,46 +191,6 @@ Entity GetInspectorTargetEntity(Target& target) {
 	} else {
 		return {};
 	}
-}
-
-bool DrawColliderMasks(std::vector<ColliderMask>& masks) {
-	bool changed{ false };
-	std::optional<std::size_t> remove_index;
-
-	if (masks.empty()) {
-		ImGui::TextDisabled("Any collision mask");
-	}
-
-	for (std::size_t i{ 0 }; i < masks.size(); ++i) {
-		ImGui::PushID(static_cast<int>(i));
-		const float remove_width{ ImGui::GetFrameHeight() };
-		const float spacing{ ImGui::GetStyle().ItemSpacing.x };
-		const float available{ ImGui::GetContentRegionAvail().x };
-		const bool inline_remove{ available >= 96.0f + remove_width + spacing };
-		ImGui::SetNextItemWidth(
-			inline_remove ? std::max(1.0f, available - remove_width - spacing) : -FLT_MIN
-		);
-		changed |= ImGui::InputScalar("##Mask", ImGuiDataType_S64, std::addressof(masks[i]));
-		if (inline_remove) {
-			ImGui::SameLine(0.0f, spacing);
-		}
-		if (ImGui::Button("X", ImVec2{ inline_remove ? remove_width : -FLT_MIN, remove_width })) {
-			remove_index = i;
-		}
-		ImGui::PopID();
-	}
-
-	if (remove_index.has_value()) {
-		masks.erase(masks.begin() + static_cast<std::ptrdiff_t>(remove_index.value()));
-		changed = true;
-	}
-
-	if (ImGui::Button("+ Mask", ImVec2{ -FLT_MIN, 0.0f })) {
-		masks.emplace_back(0);
-		changed = true;
-	}
-
-	return changed;
 }
 
 template <typename Target>
@@ -297,11 +252,6 @@ bool DrawPlatformerMovementContents(Target& target, PlatformerMovement& value) {
 			return DrawPlatformerEnumCombo("##Value", grounding.entity_scope);
 		});
 
-		if (ImGui::TreeNodeEx("Collision Masks", ImGuiTreeNodeFlags_SpanAvailWidth)) {
-			changed |= DrawColliderMasks(grounding.masks);
-			ImGui::TreePop();
-		}
-
 		Entity owner{ GetInspectorTargetEntity(target) };
 		changed |= DrawPropertyRow("Ground Entities", [&]() {
 			auto& state{ GetInspectorUiState(target.GetInspectorTargetKey()) };
@@ -333,7 +283,10 @@ bool DrawPhysicsSectionImpl(Target& target) {
 	changed |= DrawColliderSection(target);
 	changed |= DrawRigidBodySection(target);
 
-	enum class MovementKind { TopDown, Platformer };
+	enum class MovementKind {
+		TopDown,
+		Platformer
+	};
 	using MovementComponents = ComponentSet<TopDownMovement, PlatformerMovement, PlatformerJump>;
 	const bool has_top_down{ target.template Capture<TopDownMovement>().has_value() };
 	const bool has_platformer{ target.template Capture<PlatformerMovement>().has_value() };
@@ -360,8 +313,14 @@ bool DrawPhysicsSectionImpl(Target& target) {
 		};
 		target.ctx.undo.PushApplied(
 			std::string{ label },
-			[apply, before, sync]() mutable { apply(before); sync(); },
-			[apply, after, sync]() mutable { apply(after); sync(); }
+			[apply, before, sync]() mutable {
+				apply(before);
+				sync();
+			},
+			[apply, after, sync]() mutable {
+				apply(after);
+				sync();
+			}
 		);
 		changed = true;
 	};
@@ -404,7 +363,7 @@ bool DrawPhysicsSectionImpl(Target& target) {
 					target.template SetLive<TopDownMovement>(std::nullopt);
 				}
 			});
-			movement = candidate;
+			movement	  = candidate;
 			local_changed = true;
 		};
 		choose(MovementKind::TopDown, "Top Down");
@@ -422,8 +381,9 @@ bool DrawPhysicsSectionImpl(Target& target) {
 
 	if (target.template Capture<PlatformerMovement>()) {
 		changed |= DrawRequiredComponent<Target, PlatformerMovement>(
-			target, "Platformer Controller", false,
-			[&target](PlatformerMovement& value) { return DrawPlatformerMovementContents(target, value); }
+			target, "Platformer Controller", false, [&target](PlatformerMovement& value) {
+				return DrawPlatformerMovementContents(target, value);
+			}
 		);
 
 		if (ImGui::TreeNodeEx(
@@ -432,7 +392,8 @@ bool DrawPhysicsSectionImpl(Target& target) {
 			auto platformer{ target.template Capture<PlatformerMovement>().value() };
 			std::string selected_key{ platformer.jump_controller };
 			const auto* selected_controller{ PlatformerJumpControllerRegistry::Find(selected_key) };
-			const std::string jump_preview{ selected_controller ? selected_controller->label : "None" };
+			const std::string jump_preview{ selected_controller ? selected_controller->label
+																: "None" };
 
 			changed |= DrawPropertyRow("Controller", [&]() {
 				bool local_changed{ false };
@@ -453,22 +414,28 @@ bool DrawPhysicsSectionImpl(Target& target) {
 							target.template SetLive<PlatformerJump>(PlatformerJump{});
 						}
 					});
-					selected_key = key;
+					selected_key  = key;
 					local_changed = true;
 				};
 				choose({}, "None");
 				ImGui::Separator();
 				auto controllers{ PlatformerJumpControllerRegistry::Controllers() };
 				std::ranges::sort(controllers, [](const auto& lhs, const auto& rhs) {
-					if (lhs.group != rhs.group) return lhs.group < rhs.group;
+					if (lhs.group != rhs.group) {
+						return lhs.group < rhs.group;
+					}
 					return lhs.label < rhs.label;
 				});
 				std::string current_group;
 				for (const auto& controller : controllers) {
 					if (controller.group != current_group) {
-						if (!current_group.empty()) ImGui::Separator();
+						if (!current_group.empty()) {
+							ImGui::Separator();
+						}
 						current_group = controller.group;
-						if (!current_group.empty()) ImGui::TextDisabled("%s", current_group.c_str());
+						if (!current_group.empty()) {
+							ImGui::TextDisabled("%s", current_group.c_str());
+						}
 					}
 					choose(controller.key, controller.label.c_str());
 				}
@@ -478,8 +445,9 @@ bool DrawPhysicsSectionImpl(Target& target) {
 
 			if (selected_key == "standard" && target.template Capture<PlatformerJump>()) {
 				changed |= DrawRequiredComponent<Target, PlatformerJump>(
-					target, "Standard Jump", false,
-					[&target](PlatformerJump& value) { return DrawDefaultContents(target.ctx, value); }
+					target, "Standard Jump", false, [&target](PlatformerJump& value) {
+						return DrawDefaultContents(target.ctx, value);
+					}
 				);
 			} else if (!selected_key.empty()) {
 				Entity entity{ GetInspectorTargetEntity(target) };
@@ -495,13 +463,15 @@ bool DrawPhysicsSectionImpl(Target& target) {
 			ImGui::TreePop();
 		}
 
-		if (Entity owner{ GetInspectorTargetEntity(target) }; owner && owner.Has<PlatformerMovement>()) {
+		if (Entity owner{ GetInspectorTargetEntity(target) };
+			owner && owner.Has<PlatformerMovement>()) {
 			const auto& live{ owner.Get<PlatformerMovement>() };
 			ImGui::SeparatorText("Runtime");
 			ImGui::TextDisabled("Grounded: %s", live.IsGrounded() ? "Yes" : "No");
 			if (Entity ground{ live.GetGroundEntity() }) {
 				const std::string ground_name{ ground.Has<Tag>() && !ground.Get<Tag>().value.empty()
-					? ground.Get<Tag>().value : "Entity" };
+												   ? ground.Get<Tag>().value
+												   : "Entity" };
 				const V2_float normal{ live.GetGroundNormal() };
 				ImGui::TextDisabled("Ground Entity: %s", ground_name.c_str());
 				ImGui::TextDisabled("Ground Normal: %.2f, %.2f", normal.x, normal.y);
@@ -511,7 +481,6 @@ bool DrawPhysicsSectionImpl(Target& target) {
 
 	return changed;
 }
-
 
 } // namespace
 

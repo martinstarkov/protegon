@@ -4,7 +4,6 @@
 #include <span>
 #include <vector>
 
-#include "core/assert.h"
 #include "core/math/geometry/shape.h"
 #include "runtime/ecs/entity.h"
 #include "runtime/physics/collision.h"
@@ -31,55 +30,6 @@ Collider& Collider::SetOverlapMode() {
 
 Collider& Collider::SetCollisionMode(CollisionMode new_mode) {
 	mode = new_mode;
-	return *this;
-}
-
-ColliderMask Collider::GetMask() const {
-	return mask_;
-}
-
-Collider& Collider::SetMask(ColliderMask mask) {
-	mask_ = mask;
-	return *this;
-}
-
-Collider& Collider::ResetMask() {
-	mask_ = 0;
-	return *this;
-}
-
-Collider& Collider::ResetCollidesWith() {
-	collides_with_masks_ = {};
-	return *this;
-}
-
-bool Collider::CanCollideWith(ColliderMask mask) const {
-	return collides_with_masks_.empty() || std::ranges::contains(collides_with_masks_, mask);
-}
-
-bool Collider::IsMask(ColliderMask mask) const {
-	return mask_ == mask;
-}
-
-Collider& Collider::AddCollidesWith(ColliderMask mask) {
-	PTGN_ASSERT(
-		!std::ranges::contains(collides_with_masks_, mask),
-		"Cannot add the same collision mask to a collider more than once"
-	);
-	collides_with_masks_.emplace_back(mask);
-	return *this;
-}
-
-Collider& Collider::RemoveCollidesWith(ColliderMask mask) {
-	std::erase(collides_with_masks_, mask);
-	return *this;
-}
-
-Collider& Collider::SetCollidesWith(const std::vector<ColliderMask>& masks) {
-	collides_with_masks_.reserve(collides_with_masks_.size() + masks.size());
-	for (auto mask : masks) {
-		AddCollidesWith(mask);
-	}
 	return *this;
 }
 

@@ -18,6 +18,7 @@
 #include "core/util/span.h"
 #include "core/util/time.h"
 #include "runtime/ecs/entity.h"
+#include "runtime/ecs/entity_filter.h"
 #include "runtime/ecs/entity_hierarchy.h"
 #include "runtime/graphics/render_queue.h"
 #include "runtime/graphics/shape.h"
@@ -36,13 +37,13 @@
 namespace ptgn {
 
 bool CanCollide(
-	Entity entity1, const Collider& collider1, Entity entity2, const Collider& collider2
+	Scene& scene, Entity entity1, const Collider& collider1, Entity entity2,
+	const Collider& collider2
 ) {
 	if (collider2.mode == CollisionMode::None) {
 		return false;
 	}
-	// Entity collision categories / masks do not match.
-	if (!collider1.CanCollideWith(collider2.GetMask())) {
+	if (!Matches(collider1.collides_with, scene, entity1, entity2)) {
 		return false;
 	}
 	const Entity root1{ GetRootEntity(entity1) };
@@ -58,7 +59,9 @@ bool CanCollide(
 }
 
 template <auto EarlyExit, bool kPreOverlapCheck>
-std::vector<Entity> GetDiscreteCollideables(Entity entity1, const impl::KDTree& tree) {
+std::vector<Entity> GetDiscreteCollideables(
+	Scene& scene, Entity entity1, const impl::KDTree& tree
+) {
 	const auto& collider{ entity1.Get<Collider>() };
 
 	Transform transform{ GetWorldTransform(entity1) };
@@ -90,8 +93,7 @@ std::vector<Entity> GetDiscreteCollideables(Entity entity1, const impl::KDTree& 
 		if (EarlyExit(entity1, collider1, entity2, collider2)) {
 			continue;
 		}
-
-		if (!CanCollide(entity1, collider1, entity2, collider2)) {
+		if (!CanCollide(scene, entity1, collider1, entity2, collider2)) {
 			continue;
 		}
 
@@ -132,7 +134,7 @@ void CollisionHandler::UpdateKDTree(Entity entity, secondsf dt) {
 	}
 }
 
-void CollisionHandler::Overlap(Entity entity1) const {
+void CollisionHandler::Overlap(Scene& scene, Entity entity1) const {
 	PTGN_ASSERT(entity1.Has<Collider>());
 	PTGN_ASSERT(entity1.Get<Collider>().mode == CollisionMode::Overlap);
 
@@ -140,8 +142,7 @@ void CollisionHandler::Overlap(Entity entity1) const {
 		[]([[maybe_unused]] Entity e1, const Collider& c1, Entity e2, const Collider& c2) {
 			return c2.mode == CollisionMode::None || c1.OverlappedWith(e2);
 		},
-		true>(entity1, static_tree_) };
-
+		true>(scene, entity1, static_tree_) };
 	for (const auto& entity2 : collideables) {
 		auto& collider1{ entity1.Get<Collider>() };
 		auto& collider2{ entity2.Get<Collider>() };
@@ -161,7 +162,7 @@ void CollisionHandler::Overlap(Entity entity1) const {
 	}
 }
 
-void CollisionHandler::Intersect(Entity entity1, secondsf dt) {
+void CollisionHandler::Intersect(Scene& scene, Entity entity1, secondsf dt) {
 	PTGN_ASSERT(entity1.Has<Collider>());
 
 	auto collideables{ GetDiscreteCollideables<
@@ -170,8 +171,7 @@ void CollisionHandler::Intersect(Entity entity1, secondsf dt) {
 			return c2.mode == CollisionMode::Overlap ||
 				   c2.mode == CollisionMode::None; //|| c1.IntersectedWith(e2);
 		},
-		false>(entity1, static_tree_) };
-
+		false>(scene, entity1, static_tree_) };
 	std::vector<Entity> moved_entities;
 
 	for (auto& entity2 : collideables) {
@@ -229,7 +229,7 @@ void CollisionHandler::Intersect(Entity entity1, secondsf dt) {
 }
 
 std::vector<Entity> CollisionHandler::GetSweepCandidates(
-	Entity entity1, V2_float velocity, const impl::KDTree& tree
+	Scene& scene, Entity entity1, V2_float velocity, const impl::KDTree& tree
 ) {
 	const auto& collider{ entity1.Get<Collider>() };
 
@@ -265,8 +265,7 @@ std::vector<Entity> CollisionHandler::GetSweepCandidates(
 		/*if (collider1.SweptWith(entity2)) {
 			continue;
 		}*/
-
-		if (!CanCollide(entity1, collider1, entity2, collider2)) {
+		if (!CanCollide(scene, entity1, collider1, entity2, collider2)) {
 			continue;
 		}
 
@@ -287,11 +286,10 @@ std::vector<Entity> CollisionHandler::GetSweepCandidates(
 }
 
 std::vector<impl::SweepCollision> CollisionHandler::GetSortedCollisions(
-	Entity entity1, V2_float offset, V2_float velocity1, secondsf dt
+	Scene& scene, Entity entity1, V2_float offset, V2_float velocity1, secondsf dt
 ) const {
-	auto static_collideables{ GetSweepCandidates(entity1, velocity1, static_tree_) };
-	auto dynamic_collideables{ GetSweepCandidates(entity1, velocity1, dynamic_tree_) };
-
+	auto static_collideables{ GetSweepCandidates(scene, entity1, velocity1, static_tree_) };
+	auto dynamic_collideables{ GetSweepCandidates(scene, entity1, velocity1, dynamic_tree_) };
 	auto collideables{ VectorConcat(static_collideables, dynamic_collideables) };
 
 	VectorRemoveDuplicates(collideables);
@@ -356,9 +354,7 @@ void CollisionHandler::Sweep(Scene& scene, Entity entity, secondsf dt) {
 		if (velocity.IsZero()) {
 			break;
 		}
-
-		auto collisions{ GetSortedCollisions(entity, offset, velocity, dt) };
-
+		auto collisions{ GetSortedCollisions(scene, entity, offset, velocity, dt) };
 		if (collisions.empty()) {
 			break;
 		}
@@ -386,9 +382,7 @@ void CollisionHandler::Sweep(Scene& scene, Entity entity, secondsf dt) {
 		}
 
 		offset += velocity * earliest.t;
-
-		auto collisions2{ GetSortedCollisions(entity, offset, new_velocity, dt) };
-
+		auto collisions2{ GetSortedCollisions(scene, entity, offset, new_velocity, dt) };
 		PTGN_ASSERT(dt > 0s);
 
 		if (collisions2.empty()) {
@@ -568,11 +562,11 @@ void CollisionHandler::Update(Scene& scene, secondsf dt) {
 		const auto& collider{ object.entity.Get<Collider>() };
 		switch (collider.mode) {
 			case CollisionMode::Discrete: {
-				Intersect(object.entity, dt);
+				Intersect(scene, object.entity, dt);
 				break;
 			}
 			case CollisionMode::Overlap: {
-				Overlap(object.entity);
+				Overlap(scene, object.entity);
 				break;
 			}
 			case CollisionMode::Continuous: {
@@ -581,7 +575,7 @@ void CollisionHandler::Update(Scene& scene, secondsf dt) {
 				}
 				// Ensure the collider does not start within an object (at least most of
 				// the time).
-				Intersect(object.entity, dt);
+				Intersect(scene, object.entity, dt);
 				Sweep(scene, object.entity, dt);
 				break;
 			}
