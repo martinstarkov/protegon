@@ -420,28 +420,29 @@ void DrawEditorIcon(ImDrawList* draw, EditorIcon icon, ImVec2 min, float extent,
 			ImDrawListFlags previous_flags{ draw->Flags };
 			draw->Flags &= ~(ImDrawListFlags_AntiAliasedFill | ImDrawListFlags_AntiAliasedLines);
 
-			ImVec2 a{ point(1.0f, 5.0f) };
-			ImVec2 b{ point(15.0f, 5.0f) };
-			ImVec2 c{ point(15.0f, 11.0f) };
-			ImVec2 d{ point(1.0f, 11.0f) };
+			auto rotate = [&](float x, float y) {
+				ImVec2 p{ point(x, y) };
+				float dx{ p.x - center.x };
+				float dy{ p.y - center.y };
 
-			a = { center.x + (a.x - center.x) * 0.70710678f - (a.y - center.y) * 0.70710678f,
-				  center.y + (a.x - center.x) * 0.70710678f + (a.y - center.y) * 0.70710678f };
-			b = { center.x + (b.x - center.x) * 0.70710678f - (b.y - center.y) * 0.70710678f,
-				  center.y + (b.x - center.x) * 0.70710678f + (b.y - center.y) * 0.70710678f };
-			c = { center.x + (c.x - center.x) * 0.70710678f - (c.y - center.y) * 0.70710678f,
-				  center.y + (c.x - center.x) * 0.70710678f + (c.y - center.y) * 0.70710678f };
-			d = { center.x + (d.x - center.x) * 0.70710678f - (d.y - center.y) * 0.70710678f,
-				  center.y + (d.x - center.x) * 0.70710678f + (d.y - center.y) * 0.70710678f };
+				return ImVec2{
+					center.x + (dx - dy) * 0.70710678f,
+					center.y + (dx + dy) * 0.70710678f,
+				};
+			};
 
+			ImVec2 a{ rotate(1.0f, 5.0f) };
+			ImVec2 b{ rotate(15.0f, 5.0f) };
+			ImVec2 c{ rotate(15.0f, 11.0f) };
+			ImVec2 d{ rotate(1.0f, 11.0f) };
+			ImVec2 top_mid{ rotate(8.0f, 5.0f) };
+			ImVec2 bottom_mid{ rotate(8.0f, 11.0f) };
+
+			draw->AddQuadFilled(top_mid, b, c, bottom_mid, color);
 			draw->AddQuad(a, b, c, d, color, line);
-			draw->AddLine(
-				{ center.x - 2.5f * scale, center.y + 2.5f * scale },
-				{ center.x + 2.5f * scale, center.y - 2.5f * scale }, color, line
-			);
+			draw->AddLine(top_mid, bottom_mid, color, line);
 
 			draw->Flags = previous_flags;
-
 			break;
 		}
 
