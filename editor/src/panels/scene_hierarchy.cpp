@@ -162,7 +162,6 @@ bool IsManagedButtonVisual(Entity entity) {
 	return false;
 }
 
-
 bool IsManagedInteractiveShape(Entity entity) {
 	return entity && entity.Has<::ptgn::impl::InteractiveTag>();
 }
@@ -203,7 +202,7 @@ constexpr std::array kDeletionRules{
 constexpr std::array kParentAssignmentRules{
 	ParentAssignmentRule{
 		.condition = IsManagedInteractiveShape,
-		.policy    = ParentAssignmentPolicy::SameParentOnly,
+		.policy	   = ParentAssignmentPolicy::SameParentOnly,
 		.reason{ "Interactive hit area cannot be reparented" },
 	},
 	ParentAssignmentRule{
@@ -520,9 +519,8 @@ bool CanReparent(Entity entity, Entity parent) {
 
 	if (IsPaintGenerator(entity)) {
 		const auto layer_id{ entity.GetScene().GetLayers().GetLayerId(entity) };
-		const SceneLayer* layer{
-			layer_id ? entity.GetScene().GetLayers().Find(*layer_id) : nullptr
-		};
+		const SceneLayer* layer{ layer_id ? entity.GetScene().GetLayers().Find(*layer_id)
+										  : nullptr };
 		if (layer && layer->kind == SceneLayerKind::Tile && parent && !IsTilemap(parent)) {
 			return false;
 		}
@@ -852,11 +850,7 @@ Entity CreateDefaultUIToggleGroup(Scene& scene) {
 
 Entity CreateDefaultUISlider(Scene& scene) {
 	auto slider{ CreateSlider(
-		scene,
-		Line{ {}, V2_float{ 200.0f, 0.0f } },
-		V2_float{ 24.0f, 24.0f },
-		Origin::Center,
-		0.5f
+		scene, Line{ {}, V2_float{ 200.0f, 0.0f } }, V2_float{ 24.0f, 24.0f }, Origin::Center, 0.5f
 	) };
 	SetCreatedEntityTag(slider, "Slider");
 	return slider;
@@ -1182,11 +1176,10 @@ void DrawPrefabCreateMenu(CreateMenuContext& context) {
 void DrawCreateEntityMenu(
 	EditorContext& ctx, Scene& scene, Entity parent, Entity& selected_entity
 ) {
-	const SceneLayerId target_layer{
-		parent
-			? scene.GetLayers().GetLayerId(parent).value_or(scene.GetLayers().GetDefaultEntityLayer())
-			: ctx.editor.GetPaintEditor().GetActiveLayer(scene)
-	};
+	const SceneLayerId target_layer{ parent ? scene.GetLayers().GetLayerId(parent).value_or(
+												  scene.GetLayers().GetDefaultEntityLayer()
+											  )
+											: ctx.editor.GetPaintEditor().GetActiveLayer(scene) };
 	CreateMenuContext context{
 		.ctx{ ctx },
 		.scene{ scene },
@@ -1232,23 +1225,18 @@ void DrawCreateEntityMenu(
 	ImGui::EndMenu();
 }
 
-
 void ApplySceneLayerSnapshot(Scene& scene, const SerializedSceneLayers& snapshot) {
 	scene.GetLayers().Deserialize(snapshot);
 	scene.GetLayers().Prune(scene);
 }
 
 void PushSceneLayerEdit(
-	EditorContext& ctx,
-	Scene& scene,
-	std::string label,
-	SerializedSceneLayers before
+	EditorContext& ctx, Scene& scene, std::string label, SerializedSceneLayers before
 ) {
 	const SerializedSceneLayers after{ scene.GetLayers().Serialize(scene) };
 	Scene* scene_ptr{ &scene };
 	ctx.undo.PushApplied(
-		std::move(label),
-		[scene_ptr, before]() { ApplySceneLayerSnapshot(*scene_ptr, before); },
+		std::move(label), [scene_ptr, before]() { ApplySceneLayerSnapshot(*scene_ptr, before); },
 		[scene_ptr, after]() { ApplySceneLayerSnapshot(*scene_ptr, after); }
 	);
 }
@@ -1267,9 +1255,8 @@ void DrawSceneHierarchyContents(
 	Entity entity_to_delete;
 	PendingHierarchyDrop pending_drop;
 
-	RenameEditStateRef entity_rename_state{
-		focus_entity_rename, entity_rename_text, entity_rename_error
-	};
+	RenameEditStateRef entity_rename_state{ focus_entity_rename, entity_rename_text,
+											entity_rename_error };
 
 	if (renaming_entity.has_value() && (renaming_entity->scene_key != scene.GetTag() ||
 										renaming_entity->runtime != scene.IsRuntime() ||
@@ -1336,9 +1323,8 @@ void DrawSceneHierarchyContents(
 
 		bool selected{ entity == selected_entity };
 		const SceneLayer* entity_layer{ scene.GetLayers().GetLayer(entity) };
-		const bool layer_interactable{
-			!entity_layer || (!entity_layer->locked && entity_layer->selectable)
-		};
+		bool layer_interactable{ !entity_layer ||
+								 (!entity_layer->locked && entity_layer->selectable) };
 		std::vector<Entity> children;
 
 		if (HasChildren(entity)) {
@@ -1364,12 +1350,10 @@ void DrawSceneHierarchyContents(
 		const UUID entity_uuid{ entity.Get<UUID>() };
 		ImGui::PushID(entity_uuid);
 
-		const bool renaming{
-			renaming_entity.has_value() &&
-			renaming_entity->scene_key == scene.GetTag() &&
-			renaming_entity->runtime == scene.IsRuntime() &&
-			renaming_entity->entity_uuid == entity_uuid
-		};
+		bool renaming{ renaming_entity.has_value() &&
+					   renaming_entity->scene_key == scene.GetTag() &&
+					   renaming_entity->runtime == scene.IsRuntime() &&
+					   renaming_entity->entity_uuid == entity_uuid };
 
 		ImGuiTreeNodeFlags flags{ ImGuiTreeNodeFlags_OpenOnArrow |
 								  ImGuiTreeNodeFlags_OpenOnDoubleClick |
@@ -1389,9 +1373,8 @@ void DrawSceneHierarchyContents(
 		Entity dragged{ GetDraggedEntity(scene) };
 		bool hierarchy_drag_active{ static_cast<bool>(dragged) };
 		bool can_drop_on_entity{ hierarchy_drag_active && CanReparent(dragged, entity) };
-		bool invalid_entity_drop_target{
-			!renaming && hierarchy_drag_active && !can_drop_on_entity
-		};
+		bool invalid_entity_drop_target{ !renaming && hierarchy_drag_active &&
+										 !can_drop_on_entity };
 
 		if (invalid_entity_drop_target) {
 			constexpr ImVec4 kTransparent{ 0.0f, 0.0f, 0.0f, 0.0f };
@@ -1403,25 +1386,20 @@ void DrawSceneHierarchyContents(
 
 		auto label{ entity.Get<Tag>() };
 		const auto node{ DrawRenamableTreeNode(
-			renaming,
-			entity_rename_state,
-			"##Entity",
-			label.value,
-			flags,
+			renaming, entity_rename_state, "##Entity", label.value, flags,
 			[&](std::string_view candidate) {
 				auto name{ TrimWhitespace(std::string{ candidate }) };
-				return name.empty() ? std::string{ "Entity name cannot be empty." }
-								: std::string{};
+				return name.empty() ? std::string{ "Entity name cannot be empty." } : std::string{};
 			},
 			[&](std::string_view candidate) {
 				auto name{ TrimWhitespace(std::string{ candidate }) };
 				if (name != entity.Get<Tag>().value) {
-					entity_to_rename = entity;
+					entity_to_rename   = entity;
 					entity_rename_name = std::move(name);
 				}
 			},
 			RenamableTreeNodeOptions{
-				.rename_width = -FLT_MIN,
+				.rename_width	 = -FLT_MIN,
 				.rename_input_id = "##RenameEntity",
 			}
 		) };
@@ -1447,7 +1425,7 @@ void DrawSceneHierarchyContents(
 		bool open{ node.open };
 
 		if (node.left_clicked && layer_interactable) {
-			selected_entity = entity;
+			selected_entity				   = entity;
 			entity_left_clicked_this_frame = true;
 		}
 
@@ -1456,15 +1434,13 @@ void DrawSceneHierarchyContents(
 		}
 
 		auto hierarchy_restriction_reason{ GetHierarchyRestrictionReason(entity) };
-		const std::optional<std::string_view> layer_restriction_reason{
-			layer_interactable
-				? std::nullopt
-				: std::optional<std::string_view>{
-					entity_layer && entity_layer->locked
-						? "The containing layer is locked."
-						: "The containing layer is not selectable."
-				}
-		};
+		const std::optional<std::string_view>
+			layer_restriction_reason{ layer_interactable
+										  ? std::nullopt
+										  : std::optional<std::string_view>{
+												entity_layer && entity_layer->locked
+													? "The containing layer is locked."
+													: "The containing layer is not selectable." } };
 		auto duplication_lock_reason{ GetDuplicationLockReason(entity) };
 		auto deletion_lock_reason{ GetDeletionLockReason(entity) };
 		auto child_acceptance_reason{ GetChildAcceptanceLockReason(entity) };
@@ -1489,13 +1465,11 @@ void DrawSceneHierarchyContents(
 		}
 
 		DrawRenamableContextMenu(
-			node,
-			"EntityContext",
-			label.value,
+			node, "EntityContext", label.value,
 			[&](std::string_view current_name) {
 				renaming_entity = SceneEntitySelection{
-					.scene_key = scene.GetTag(),
-					.runtime = scene.IsRuntime(),
+					.scene_key	 = scene.GetTag(),
+					.runtime	 = scene.IsRuntime(),
 					.entity_uuid = entity_uuid,
 				};
 				BeginRename(entity_rename_state, current_name);
@@ -1566,7 +1540,7 @@ void DrawSceneHierarchyContents(
 				);
 			},
 			RenamableContextMenuOptions{
-				.rename_enabled = layer_interactable,
+				.rename_enabled	  = layer_interactable,
 				.rename_placement = RenameMenuPlacement::Middle,
 			}
 		);
@@ -1589,7 +1563,9 @@ void DrawSceneHierarchyContents(
 	for (std::size_t layer_index{}; layer_index < scene_layers.GetLayers().size(); ++layer_index) {
 		const SceneLayerId current_layer_id{ scene_layers.GetLayers()[layer_index].id };
 		SceneLayer* layer{ scene_layers.Find(current_layer_id) };
-		if (!layer) continue;
+		if (!layer) {
+			continue;
+		}
 
 		ImGui::PushID(static_cast<int>(layer->id.value));
 		DrawEditorIconButton(
@@ -1599,7 +1575,7 @@ void DrawSceneHierarchyContents(
 				.tooltip = layer->kind == SceneLayerKind::Entity ? "Entity layer" : "Tile layer",
 				.compact = true,
 				.interactive = false,
-				.muted = true,
+				.muted		 = true,
 			}
 		);
 		ImGui::SameLine(0.0f, 2.0f);
@@ -1609,7 +1585,7 @@ void DrawSceneHierarchyContents(
 				EditorIconButtonOptions{
 					.tooltip = layer->visible ? "Hide layer" : "Show layer",
 					.compact = true,
-					.muted = !layer->visible,
+					.muted	 = !layer->visible,
 				}
 			)) {
 			const SerializedSceneLayers before{ scene_layers.Serialize(scene) };
@@ -1619,13 +1595,20 @@ void DrawSceneHierarchyContents(
 
 		ImGui::SameLine(0.0f, 4.0f);
 
-		const bool editing_layer{ renaming_layer == layer->id };
+		bool editing_layer{ renaming_layer == layer->id };
 		bool open{};
 		if (editing_layer) {
-			if (focus_layer_rename) { ImGui::SetKeyboardFocusHere(); focus_layer_rename = false; }
+			if (focus_layer_rename) {
+				ImGui::SetKeyboardFocusHere();
+				focus_layer_rename = false;
+			}
 			ImGui::SetNextItemWidth(-FLT_MIN);
-			const bool submit{ ImGui::InputText("##LayerRename", &layer_rename_text, ImGuiInputTextFlags_EnterReturnsTrue | ImGuiInputTextFlags_AutoSelectAll) };
-			const bool cancel{ ImGui::IsKeyPressed(ImGuiKey_Escape, false) || ImGui::IsItemDeactivated() };
+			bool submit{ ImGui::InputText(
+				"##LayerRename", &layer_rename_text,
+				ImGuiInputTextFlags_EnterReturnsTrue | ImGuiInputTextFlags_AutoSelectAll
+			) };
+			bool cancel{ ImGui::IsKeyPressed(ImGuiKey_Escape, false) ||
+						 ImGui::IsItemDeactivated() };
 			if (submit) {
 				auto name{ TrimWhitespace(layer_rename_text) };
 				if (!name.empty() && name != layer->name) {
@@ -1640,35 +1623,44 @@ void DrawSceneHierarchyContents(
 				layer_rename_text.clear();
 			}
 		} else {
-			ImGuiTreeNodeFlags layer_flags{ ImGuiTreeNodeFlags_OpenOnArrow | ImGuiTreeNodeFlags_SpanAvailWidth | ImGuiTreeNodeFlags_DefaultOpen | ImGuiTreeNodeFlags_FramePadding };
-			if (ctx.editor.GetPaintEditor().GetActiveLayer(scene) == layer->id) layer_flags |= ImGuiTreeNodeFlags_Selected;
+			ImGuiTreeNodeFlags layer_flags{ ImGuiTreeNodeFlags_OpenOnArrow |
+											ImGuiTreeNodeFlags_SpanAvailWidth |
+											ImGuiTreeNodeFlags_DefaultOpen |
+											ImGuiTreeNodeFlags_FramePadding };
+			if (ctx.editor.GetPaintEditor().GetActiveLayer(scene) == layer->id) {
+				layer_flags |= ImGuiTreeNodeFlags_Selected;
+			}
 			const ImVec2 previous_frame_padding{ ImGui::GetStyle().FramePadding };
-			ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2{ previous_frame_padding.x, 1.0f });
+			ImGui::PushStyleVar(
+				ImGuiStyleVar_FramePadding, ImVec2{ previous_frame_padding.x, 1.0f }
+			);
 			open = ImGui::TreeNodeEx("##Layer", layer_flags, "%s", layer->name.c_str());
 			ImGui::PopStyleVar();
 			if (ImGui::IsItemClicked(ImGuiMouseButton_Left)) {
 				ctx.editor.GetPaintEditor().SetActiveLayer(scene, layer->id);
-				selected_entity = {};
+				selected_entity				   = {};
 				entity_left_clicked_this_frame = true;
 			}
 			if (ImGui::IsItemHovered() && ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left)) {
-				renaming_layer = layer->id;
-				layer_rename_text = layer->name;
+				renaming_layer	   = layer->id;
+				layer_rename_text  = layer->name;
 				focus_layer_rename = true;
 			}
 
 			if (ImGui::BeginDragDropSource(ImGuiDragDropFlags_SourceAllowNullID)) {
 				const SceneLayerId dragged_layer{ layer->id };
-				ImGui::SetDragDropPayload(kLayerDragDropPayload, &dragged_layer, sizeof(dragged_layer));
+				ImGui::SetDragDropPayload(
+					kLayerDragDropPayload, &dragged_layer, sizeof(dragged_layer)
+				);
 				ImGui::TextUnformatted(layer->name.c_str());
 				ImGui::EndDragDropSource();
 			}
 			Entity dragged{ GetDraggedEntity(scene) };
-			const bool can_drop_entity{
-				dragged && !HasParent(dragged) && scene_layers.CanAssign(dragged, layer->id)
-			};
+			bool can_drop_entity{ dragged && !HasParent(dragged) &&
+								  scene_layers.CanAssign(dragged, layer->id) };
 			if (ImGui::BeginDragDropTarget()) {
-				if (const ImGuiPayload* payload{ ImGui::AcceptDragDropPayload(kLayerDragDropPayload) };
+				if (const ImGuiPayload* payload{
+						ImGui::AcceptDragDropPayload(kLayerDragDropPayload) };
 					payload && payload->DataSize == sizeof(SceneLayerId)) {
 					const SceneLayerId dragged_layer{
 						*static_cast<const SceneLayerId*>(payload->Data)
@@ -1680,7 +1672,8 @@ void DrawSceneHierarchyContents(
 
 				if (can_drop_entity) {
 					if (Entity dropped{ AcceptDraggedEntity(scene) };
-						dropped && !HasParent(dropped) && scene_layers.CanAssign(dropped, layer->id)) {
+						dropped && !HasParent(dropped) &&
+						scene_layers.CanAssign(dropped, layer->id)) {
 						const SerializedSceneLayers before{ scene_layers.Serialize(scene) };
 						scene_layers.Assign(dropped, layer->id, true);
 						PushSceneLayerEdit(ctx, scene, "Move Entity To Layer", before);
@@ -1694,20 +1687,26 @@ void DrawSceneHierarchyContents(
 			if (ImGui::BeginPopupContextItem("LayerContext")) {
 				ctx.editor.GetPaintEditor().SetActiveLayer(scene, layer->id);
 				if (ImGui::MenuItem("Rename")) {
-					renaming_layer = layer->id;
-					layer_rename_text = layer->name;
+					renaming_layer	   = layer->id;
+					layer_rename_text  = layer->name;
 					focus_layer_rename = true;
 				}
 				if (ImGui::MenuItem(layer->locked ? "Unlock Layer" : "Lock Layer")) {
 					const SerializedSceneLayers before{ scene_layers.Serialize(scene) };
 					scene_layers.SetLocked(layer->id, !layer->locked);
-					PushSceneLayerEdit(ctx, scene, layer->locked ? "Lock Layer" : "Unlock Layer", before);
+					PushSceneLayerEdit(
+						ctx, scene, layer->locked ? "Lock Layer" : "Unlock Layer", before
+					);
 				}
 				ImGui::BeginDisabled(layer_index == 0);
-				if (ImGui::MenuItem("Move Up")) layer_to_move = std::pair{ layer->id, layer_index - 1 };
+				if (ImGui::MenuItem("Move Up")) {
+					layer_to_move = std::pair{ layer->id, layer_index - 1 };
+				}
 				ImGui::EndDisabled();
 				ImGui::BeginDisabled(layer_index + 1 >= scene_layers.GetLayers().size());
-				if (ImGui::MenuItem("Move Down")) layer_to_move = std::pair{ layer->id, layer_index + 1 };
+				if (ImGui::MenuItem("Move Down")) {
+					layer_to_move = std::pair{ layer->id, layer_index + 1 };
+				}
 				ImGui::EndDisabled();
 				ImGui::Separator();
 				if (layer->kind == SceneLayerKind::Tile) {
@@ -1716,23 +1715,23 @@ void DrawSceneHierarchyContents(
 						Tilemap created{ CreateTilemap(scene, layer->id) };
 						if (created) {
 							scene.Refresh();
-							selected_entity = ctx.commands.RecordCreatedEntity(created, ctx.local.selection);
-							ctx.editor.GetPaintEditor().SetTargetTilemap(selected_entity.Get<UUID>());
+							selected_entity =
+								ctx.commands.RecordCreatedEntity(created, ctx.local.selection);
+							ctx.editor.GetPaintEditor().SetTargetTilemap(
+								selected_entity.Get<UUID>()
+							);
 						}
 					}
 					if (ImGui::MenuItem("Create Generator")) {
 						PaintGenerator created{ CreatePaintGenerator(scene, layer->id) };
 						if (created) {
 							if (const auto target_uuid{
-									ctx.editor.GetPaintEditor().GetTargetTilemapUUID()
-								}) {
+									ctx.editor.GetPaintEditor().GetTargetTilemapUUID() }) {
 								if (Entity target{ scene.GetEntity(*target_uuid) };
 									target && IsTilemap(target) &&
 									scene.GetLayers().GetLayerId(target) ==
 										std::optional<SceneLayerId>{ layer->id }) {
-									static_cast<void>(
-										created.SetTargetTilemap(Tilemap{ target })
-									);
+									static_cast<void>(created.SetTargetTilemap(Tilemap{ target }));
 								}
 							}
 							scene.Refresh();
@@ -1748,18 +1747,23 @@ void DrawSceneHierarchyContents(
 						PaintGenerator created{ CreatePaintGenerator(scene, layer->id) };
 						if (created) {
 							scene.Refresh();
-							selected_entity = ctx.commands.RecordCreatedEntity(created, ctx.local.selection);
+							selected_entity =
+								ctx.commands.RecordCreatedEntity(created, ctx.local.selection);
 						}
 					}
 					ImGui::EndDisabled();
 				}
 				ImGui::Separator();
-				const bool is_default{ layer->id == scene_layers.GetDefaultEntityLayer() };
-				const bool has_entities{ !scene_layers.GetRootEntities(scene, layer->id).empty() };
+				bool is_default{ layer->id == scene_layers.GetDefaultEntityLayer() };
+				bool has_entities{ !scene_layers.GetRootEntities(scene, layer->id).empty() };
 				ImGui::BeginDisabled(is_default || has_entities);
-				if (ImGui::MenuItem("Delete Layer")) layer_to_delete = layer->id;
+				if (ImGui::MenuItem("Delete Layer")) {
+					layer_to_delete = layer->id;
+				}
 				ImGui::EndDisabled();
-				if (has_entities && ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled)) ImGui::SetTooltip("Move or delete the layer contents first.");
+				if (has_entities && ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled)) {
+					ImGui::SetTooltip("Move or delete the layer contents first.");
+				}
 				ImGui::EndPopup();
 			}
 		}
@@ -1770,7 +1774,9 @@ void DrawSceneHierarchyContents(
 				return !entity || !scene.Entities().Contains(entity);
 			});
 			SortByLocalDepth(roots);
-			for (Entity entity : roots) draw_entity(draw_entity, entity, 0);
+			for (Entity entity : roots) {
+				draw_entity(draw_entity, entity, 0);
+			}
 			ImGui::TreePop();
 		}
 		ImGui::PopID();
@@ -1778,7 +1784,9 @@ void DrawSceneHierarchyContents(
 
 	if (layer_to_move.has_value()) {
 		const SerializedSceneLayers before{ scene_layers.Serialize(scene) };
-		if (scene_layers.Move(layer_to_move->first, layer_to_move->second)) PushSceneLayerEdit(ctx, scene, "Reorder Layer", before);
+		if (scene_layers.Move(layer_to_move->first, layer_to_move->second)) {
+			PushSceneLayerEdit(ctx, scene, "Reorder Layer", before);
+		}
 	}
 	if (layer_to_delete) {
 		const SerializedSceneLayers before{ scene_layers.Serialize(scene) };
@@ -1793,8 +1801,12 @@ void DrawSceneHierarchyContents(
 			ImGuiPopupFlags_MouseButtonRight | ImGuiPopupFlags_NoOpenOverItems
 		)) {
 		selected_entity = {};
-		if (ImGui::MenuItem("Create Entity Layer")) layer_to_create = SceneLayerKind::Entity;
-		if (ImGui::MenuItem("Create Tile Layer")) layer_to_create = SceneLayerKind::Tile;
+		if (ImGui::MenuItem("Create Entity Layer")) {
+			layer_to_create = SceneLayerKind::Entity;
+		}
+		if (ImGui::MenuItem("Create Tile Layer")) {
+			layer_to_create = SceneLayerKind::Tile;
+		}
 		ImGui::Separator();
 
 		const SceneLayerId active_layer_id{ ctx.editor.GetPaintEditor().GetActiveLayer(scene) };
@@ -1805,7 +1817,8 @@ void DrawSceneHierarchyContents(
 				Tilemap created{ CreateTilemap(scene, active_layer_id) };
 				if (created) {
 					scene.Refresh();
-					selected_entity = ctx.commands.RecordCreatedEntity(created, ctx.local.selection);
+					selected_entity =
+						ctx.commands.RecordCreatedEntity(created, ctx.local.selection);
 					ctx.editor.GetPaintEditor().SetTargetTilemap(selected_entity.Get<UUID>());
 				}
 			}
@@ -1813,15 +1826,12 @@ void DrawSceneHierarchyContents(
 				PaintGenerator created{ CreatePaintGenerator(scene, active_layer_id) };
 				if (created) {
 					if (const auto target_uuid{
-							ctx.editor.GetPaintEditor().GetTargetTilemapUUID()
-						}) {
+							ctx.editor.GetPaintEditor().GetTargetTilemapUUID() }) {
 						if (Entity target{ scene.GetEntity(*target_uuid) };
 							target && IsTilemap(target) &&
 							scene.GetLayers().GetLayerId(target) ==
 								std::optional<SceneLayerId>{ active_layer_id }) {
-							static_cast<void>(
-								created.SetTargetTilemap(Tilemap{ target })
-							);
+							static_cast<void>(created.SetTargetTilemap(Tilemap{ target }));
 						}
 					}
 					scene.Refresh();
@@ -1840,7 +1850,11 @@ void DrawSceneHierarchyContents(
 		const SerializedSceneLayers before{ scene_layers.Serialize(scene) };
 		const SceneLayerId created{ scene_layers.Create(*layer_to_create) };
 		ctx.editor.GetPaintEditor().SetActiveLayer(scene, created);
-		PushSceneLayerEdit(ctx, scene, *layer_to_create == SceneLayerKind::Tile ? "Create Tile Layer" : "Create Entity Layer", before);
+		PushSceneLayerEdit(
+			ctx, scene,
+			*layer_to_create == SceneLayerKind::Tile ? "Create Tile Layer" : "Create Entity Layer",
+			before
+		);
 	}
 
 	if (ImGui::IsWindowHovered() && ImGui::IsMouseClicked(ImGuiMouseButton_Left) &&
@@ -1872,7 +1886,7 @@ void DrawSceneHierarchyContents(
 } // namespace
 
 bool SceneHierarchyPanel::DrawSceneHierarchy(EditorContext& ctx) {
-	const bool visible{ ImGui::Begin("Scene Hierarchy###SceneHierarchyWindow") };
+	bool visible{ ImGui::Begin("Scene Hierarchy###SceneHierarchyWindow") };
 
 	if (visible && ImGui::IsWindowFocused(ImGuiFocusedFlags_RootAndChildWindows)) {
 		SetActiveTab(SceneHierarchyTab::SceneHierarchy);
@@ -1916,8 +1930,10 @@ bool SceneHierarchyPanel::DrawSceneHierarchy(EditorContext& ctx) {
 }
 
 bool SceneHierarchyPanel::DrawPrefabs(EditorContext& ctx) {
-	const bool visible{ ImGui::Begin("Prefabs###PrefabsWindow") };
-	if (visible && ImGui::IsWindowFocused(ImGuiFocusedFlags_RootAndChildWindows)) SetActiveTab(SceneHierarchyTab::Prefabs);
+	bool visible{ ImGui::Begin("Prefabs###PrefabsWindow") };
+	if (visible && ImGui::IsWindowFocused(ImGuiFocusedFlags_RootAndChildWindows)) {
+		SetActiveTab(SceneHierarchyTab::Prefabs);
+	}
 
 	auto& assets{ ctx.editor.GetAssetManager() };
 	auto& paint{ ctx.editor.GetPaintEditor() };
@@ -1927,7 +1943,9 @@ bool SceneHierarchyPanel::DrawPrefabs(EditorContext& ctx) {
 
 	const float available{ ImGui::GetContentRegionAvail().x };
 	ImGui::BeginDisabled(!project_root.has_value());
-	if (ImGui::Button("+ New Prefab", ImVec2{ std::max(1.0f, available * 0.58f), 0.0f })) (void)ctx.commands.CreatePrefabAsset(CreateBlankPrefab(assets, project_root.value()));
+	if (ImGui::Button("+ New Prefab", ImVec2{ std::max(1.0f, available * 0.58f), 0.0f })) {
+		(void)ctx.commands.CreatePrefabAsset(CreateBlankPrefab(assets, project_root.value()));
+	}
 	ImGui::EndDisabled();
 	ImGui::SameLine();
 	if (ImGui::Button("+ Group", ImVec2{ -1.0f, 0.0f })) {
@@ -1937,11 +1955,23 @@ bool SceneHierarchyPanel::DrawPrefabs(EditorContext& ctx) {
 
 	static std::string prefab_filter;
 	ImGui::SetNextItemWidth(-FLT_MIN);
-	ImGui::InputTextWithHint("##PrefabGroupFilter", "Filter prefab name or group...", &prefab_filter);
+	ImGui::InputTextWithHint(
+		"##PrefabGroupFilter", "Filter prefab name or group...", &prefab_filter
+	);
 	ImGui::Separator();
 
-	enum class PrefabEntityOperationType { AddChild, Duplicate, Delete };
-	struct PendingPrefabEntityOperation { PrefabEntityOperationType type{}; PrefabKey key{}; SerializedEntityPath path{}; };
+	enum class PrefabEntityOperationType {
+		AddChild,
+		Duplicate,
+		Delete
+	};
+
+	struct PendingPrefabEntityOperation {
+		PrefabEntityOperationType type{};
+		PrefabKey key{};
+		SerializedEntityPath path{};
+	};
+
 	std::optional<PrefabKey> prefab_to_delete{};
 	std::optional<PrefabKey> prefab_to_duplicate{};
 	std::optional<std::pair<PrefabKey, PrefabKey>> prefab_to_rename{};
@@ -1959,7 +1989,8 @@ bool SceneHierarchyPanel::DrawPrefabs(EditorContext& ctx) {
 	auto draw_prefab = [&](const PrefabKey& key) {
 		ImGui::PushID(key.value.c_str());
 		if (!::ptgn::impl::AssetAccessor{ assets }.Has<Prefab>(key)) {
-			if (const auto catalog{ assets.GetCatalogAsset(key, AssetKind::Prefab) }; catalog.has_value()) {
+			if (const auto catalog{ assets.GetCatalogAsset(key, AssetKind::Prefab) };
+				catalog.has_value()) {
 				assets.Load(key, catalog->source_path);
 			}
 		}
@@ -1971,80 +2002,171 @@ bool SceneHierarchyPanel::DrawPrefabs(EditorContext& ctx) {
 		auto prefab_asset{ ::ptgn::impl::AssetAccessor{ assets }.Get<Prefab>(key) };
 		auto& prefab{ prefab_asset.get() };
 
-		auto draw_prefab_entity = [&](auto&& self, SerializedEntity& entity, SerializedEntityPath entity_path, bool root) -> void {
-			if (!root && std::ranges::any_of(entity.tags, [](const std::string& tag) { return tag.ends_with("InteractiveTag"); })) return;
+		auto draw_prefab_entity = [&](auto&& self, SerializedEntity& entity,
+									  SerializedEntityPath entity_path, bool root) -> void {
+			if (!root && std::ranges::any_of(entity.tags, [](const std::string& tag) {
+					return tag.ends_with("InteractiveTag");
+				})) {
+				return;
+			}
 			std::string entity_id{ "root" };
-			for (const std::size_t index : entity_path) entity_id += "/" + std::to_string(index);
+			for (const std::size_t index : entity_path) {
+				entity_id += "/" + std::to_string(index);
+			}
 			ImGui::PushID(entity_id.c_str());
 
-			const bool selected{ GetSelectedPrefab() == key && GetSelectedPrefabEntityPath() == entity_path };
-			const bool has_children{ !entity.children.empty() };
+			bool selected{ GetSelectedPrefab() == key &&
+						   GetSelectedPrefabEntityPath() == entity_path };
+			bool has_children{ !entity.children.empty() };
 			if (root && renaming_prefab_ == key) {
-				if (focus_prefab_rename_) { ImGui::SetKeyboardFocusHere(); focus_prefab_rename_ = false; }
+				if (focus_prefab_rename_) {
+					ImGui::SetKeyboardFocusHere();
+					focus_prefab_rename_ = false;
+				}
 				ImGui::SetNextItemWidth(-FLT_MIN);
-				const bool submitted{ ImGui::InputText("##RenamePrefab", &prefab_rename_text_, ImGuiInputTextFlags_EnterReturnsTrue | ImGuiInputTextFlags_AutoSelectAll) };
-				const bool cancel{ ImGui::IsItemActive() && ImGui::IsKeyPressed(ImGuiKey_Escape) };
-				const bool commit{ submitted || ImGui::IsItemDeactivatedAfterEdit() };
-				if (cancel) { renaming_prefab_.reset(); prefab_rename_text_.clear(); prefab_rename_error_.clear(); }
-				else if (commit) {
+				bool submitted{ ImGui::InputText(
+					"##RenamePrefab", &prefab_rename_text_,
+					ImGuiInputTextFlags_EnterReturnsTrue | ImGuiInputTextFlags_AutoSelectAll
+				) };
+				bool cancel{ ImGui::IsItemActive() && ImGui::IsKeyPressed(ImGuiKey_Escape) };
+				bool commit{ submitted || ImGui::IsItemDeactivatedAfterEdit() };
+				if (cancel) {
+					renaming_prefab_.reset();
+					prefab_rename_text_.clear();
+					prefab_rename_error_.clear();
+				} else if (commit) {
 					auto display_name{ TrimWhitespace(prefab_rename_text_) };
-					if (display_name.empty()) prefab_rename_error_ = "Prefab name cannot be empty.";
-					else {
+					if (display_name.empty()) {
+						prefab_rename_error_ = "Prefab name cannot be empty.";
+					} else {
 						PrefabKey new_key{ MakePrefabKey(display_name) };
-						if (!project_root.has_value()) prefab_rename_error_ = "No project path is available.";
-						else if (!IsPrefabKeyAvailable(assets, project_root.value(), key, new_key)) prefab_rename_error_ = "A prefab with that key already exists.";
-						else { if (new_key != key) prefab_to_rename = std::pair{ key, std::move(new_key) }; renaming_prefab_.reset(); prefab_rename_text_.clear(); prefab_rename_error_.clear(); }
+						if (!project_root.has_value()) {
+							prefab_rename_error_ = "No project path is available.";
+						} else if (!IsPrefabKeyAvailable(
+									   assets, project_root.value(), key, new_key
+								   )) {
+							prefab_rename_error_ = "A prefab with that key already exists.";
+						} else {
+							if (new_key != key) {
+								prefab_to_rename = std::pair{ key, std::move(new_key) };
+							}
+							renaming_prefab_.reset();
+							prefab_rename_text_.clear();
+							prefab_rename_error_.clear();
+						}
 					}
 				}
-				if (!prefab_rename_error_.empty()) ImGui::TextDisabled("%s", prefab_rename_error_.c_str());
-				ImGui::PopID(); return;
+				if (!prefab_rename_error_.empty()) {
+					ImGui::TextDisabled("%s", prefab_rename_error_.c_str());
+				}
+				ImGui::PopID();
+				return;
 			}
 
-			ImGuiTreeNodeFlags flags{ ImGuiTreeNodeFlags_OpenOnArrow | ImGuiTreeNodeFlags_OpenOnDoubleClick | ImGuiTreeNodeFlags_SpanAvailWidth | ImGuiTreeNodeFlags_DefaultOpen };
-			if (selected) flags |= ImGuiTreeNodeFlags_Selected;
-			if (!has_children) flags |= ImGuiTreeNodeFlags_Leaf | ImGuiTreeNodeFlags_NoTreePushOnOpen;
+			ImGuiTreeNodeFlags flags{ ImGuiTreeNodeFlags_OpenOnArrow |
+									  ImGuiTreeNodeFlags_OpenOnDoubleClick |
+									  ImGuiTreeNodeFlags_SpanAvailWidth |
+									  ImGuiTreeNodeFlags_DefaultOpen };
+			if (selected) {
+				flags |= ImGuiTreeNodeFlags_Selected;
+			}
+			if (!has_children) {
+				flags |= ImGuiTreeNodeFlags_Leaf | ImGuiTreeNodeFlags_NoTreePushOnOpen;
+			}
 			const std::string label{ root ? GetPrefabDisplayName(key) : entity.tag };
-			if (force_open_prefab_ == key && force_open_prefab_entity_path_ == entity_path) { ImGui::SetNextItemOpen(true, ImGuiCond_Always); force_open_prefab_.reset(); force_open_prefab_entity_path_.clear(); }
-			const bool open{ ImGui::TreeNodeEx("##PrefabEntity", flags, "%s", label.c_str()) };
-			const bool prefab_hovered{ ImGui::IsItemHovered() };
-			if (ImGui::IsItemClicked(ImGuiMouseButton_Left)) { SetSelectedPrefab(key, entity_path); prefab_left_clicked_this_frame = true; }
-			if (ImGui::IsItemClicked(ImGuiMouseButton_Right)) { SetSelectedPrefab(key, entity_path, false); ImGui::OpenPopup("PrefabEntityContextMenu"); }
-			if (root && selected_scene && prefab_hovered && ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left)) { (void)ctx.commands.CreatePrefabInstance(*selected_scene, key); ImGui::SetWindowFocus("Scene Hierarchy###SceneHierarchyWindow"); }
+			if (force_open_prefab_ == key && force_open_prefab_entity_path_ == entity_path) {
+				ImGui::SetNextItemOpen(true, ImGuiCond_Always);
+				force_open_prefab_.reset();
+				force_open_prefab_entity_path_.clear();
+			}
+			bool open{ ImGui::TreeNodeEx("##PrefabEntity", flags, "%s", label.c_str()) };
+			bool prefab_hovered{ ImGui::IsItemHovered() };
+			if (ImGui::IsItemClicked(ImGuiMouseButton_Left)) {
+				SetSelectedPrefab(key, entity_path);
+				prefab_left_clicked_this_frame = true;
+			}
+			if (ImGui::IsItemClicked(ImGuiMouseButton_Right)) {
+				SetSelectedPrefab(key, entity_path, false);
+				ImGui::OpenPopup("PrefabEntityContextMenu");
+			}
+			if (root && selected_scene && prefab_hovered &&
+				ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left)) {
+				(void)ctx.commands.CreatePrefabInstance(*selected_scene, key);
+				ImGui::SetWindowFocus("Scene Hierarchy###SceneHierarchyWindow");
+			}
 			if (root && ImGui::BeginDragDropSource()) {
 				ImGui::SetDragDropPayload(
-					kPrefabAssetDragDropPayload,
-					key.value.c_str(),
-					key.value.size() + 1
+					kPrefabAssetDragDropPayload, key.value.c_str(), key.value.size() + 1
 				);
 				ImGui::TextUnformatted(label.c_str());
 				ImGui::EndDragDropSource();
 			}
 
 			if (ImGui::BeginPopup("PrefabEntityContextMenu")) {
-				if (ImGui::MenuItem("Add Child")) entity_operation = PendingPrefabEntityOperation{ .type = PrefabEntityOperationType::AddChild, .key = key, .path = entity_path };
+				if (ImGui::MenuItem("Add Child")) {
+					entity_operation = PendingPrefabEntityOperation{
+						.type = PrefabEntityOperationType::AddChild, .key = key, .path = entity_path
+					};
+				}
 				if (root) {
-					ImGui::Separator(); ImGui::BeginDisabled(!selected_scene);
-					if (ImGui::MenuItem("Create Instance")) { (void)ctx.commands.CreatePrefabInstance(*selected_scene, key); ImGui::SetWindowFocus("Scene Hierarchy###SceneHierarchyWindow"); }
+					ImGui::Separator();
+					ImGui::BeginDisabled(!selected_scene);
+					if (ImGui::MenuItem("Create Instance")) {
+						(void)ctx.commands.CreatePrefabInstance(*selected_scene, key);
+						ImGui::SetWindowFocus("Scene Hierarchy###SceneHierarchyWindow");
+					}
 					ImGui::EndDisabled();
 					if (ImGui::BeginMenu("Move to Group")) {
 						const std::string current{ paint.GetPrefabGroup(ctx, key) };
-						for (const auto& group : paint.GetPrefabGroups(ctx)) if (ImGui::MenuItem(group.c_str(), nullptr, group == current)) paint.MovePrefabToGroup(ctx, key, group);
+						for (const auto& group : paint.GetPrefabGroups(ctx)) {
+							if (ImGui::MenuItem(group.c_str(), nullptr, group == current)) {
+								paint.MovePrefabToGroup(ctx, key, group);
+							}
+						}
 						ImGui::EndMenu();
 					}
 					ImGui::BeginDisabled(!project_root.has_value());
-					if (ImGui::MenuItem("Rename Prefab")) { SetSelectedPrefab(key, {}, false); renaming_prefab_ = key; prefab_rename_text_ = label; prefab_rename_error_.clear(); focus_prefab_rename_ = true; }
-					if (ImGui::MenuItem("Duplicate Prefab")) prefab_to_duplicate = key;
+					if (ImGui::MenuItem("Rename Prefab")) {
+						SetSelectedPrefab(key, {}, false);
+						renaming_prefab_	= key;
+						prefab_rename_text_ = label;
+						prefab_rename_error_.clear();
+						focus_prefab_rename_ = true;
+					}
+					if (ImGui::MenuItem("Duplicate Prefab")) {
+						prefab_to_duplicate = key;
+					}
 					ImGui::EndDisabled();
-					if (ImGui::MenuItem("Delete Prefab")) prefab_to_delete = key;
+					if (ImGui::MenuItem("Delete Prefab")) {
+						prefab_to_delete = key;
+					}
 				} else {
 					ImGui::Separator();
-					if (ImGui::MenuItem("Duplicate Entity")) entity_operation = PendingPrefabEntityOperation{ .type = PrefabEntityOperationType::Duplicate, .key = key, .path = entity_path };
-					if (ImGui::MenuItem("Delete Entity")) entity_operation = PendingPrefabEntityOperation{ .type = PrefabEntityOperationType::Delete, .key = key, .path = entity_path };
+					if (ImGui::MenuItem("Duplicate Entity")) {
+						entity_operation =
+							PendingPrefabEntityOperation{ .type =
+															  PrefabEntityOperationType::Duplicate,
+														  .key	= key,
+														  .path = entity_path };
+					}
+					if (ImGui::MenuItem("Delete Entity")) {
+						entity_operation =
+							PendingPrefabEntityOperation{ .type = PrefabEntityOperationType::Delete,
+														  .key	= key,
+														  .path = entity_path };
+					}
 				}
 				ImGui::EndPopup();
 			}
 
-			if (has_children && open) { for (std::size_t i{}; i < entity.children.size(); ++i) { auto child_path{ entity_path }; child_path.emplace_back(i); self(self, entity.children[i], std::move(child_path), false); } ImGui::TreePop(); }
+			if (has_children && open) {
+				for (std::size_t i{}; i < entity.children.size(); ++i) {
+					auto child_path{ entity_path };
+					child_path.emplace_back(i);
+					self(self, entity.children[i], std::move(child_path), false);
+				}
+				ImGui::TreePop();
+			}
 			ImGui::PopID();
 		};
 
@@ -2053,13 +2175,23 @@ bool SceneHierarchyPanel::DrawPrefabs(EditorContext& ctx) {
 	};
 
 	for (const std::string& group : groups) {
-		const bool group_match{ ContainsInsensitive(group, prefab_filter) };
-		const bool has_match{ std::ranges::any_of(all_keys, [&](const PrefabKey& key) { return paint.GetPrefabGroup(ctx, key) == group && (group_match || ContainsInsensitive(GetPrefabDisplayName(key), prefab_filter) || ContainsInsensitive(key.value, prefab_filter)); }) };
-		if (!has_match && !prefab_filter.empty()) continue;
+		bool group_match{ ContainsInsensitive(group, prefab_filter) };
+		bool has_match{ std::ranges::any_of(all_keys, [&](const PrefabKey& key) {
+			return paint.GetPrefabGroup(ctx, key) == group &&
+				   (group_match || ContainsInsensitive(GetPrefabDisplayName(key), prefab_filter) ||
+					ContainsInsensitive(key.value, prefab_filter));
+		}) };
+		if (!has_match && !prefab_filter.empty()) {
+			continue;
+		}
 		ImGui::PushID(group.c_str());
-		const bool open{ ImGui::TreeNodeEx("##PrefabGroup", ImGuiTreeNodeFlags_DefaultOpen | ImGuiTreeNodeFlags_SpanAvailWidth, "%s", group.c_str()) };
+		bool open{ ImGui::TreeNodeEx(
+			"##PrefabGroup", ImGuiTreeNodeFlags_DefaultOpen | ImGuiTreeNodeFlags_SpanAvailWidth,
+			"%s", group.c_str()
+		) };
 		if (ImGui::BeginDragDropTarget()) {
-			if (const ImGuiPayload* payload{ ImGui::AcceptDragDropPayload(kPrefabAssetDragDropPayload) };
+			if (const ImGuiPayload* payload{
+					ImGui::AcceptDragDropPayload(kPrefabAssetDragDropPayload) };
 				payload && payload->Data && payload->DataSize > 1) {
 				prefab_group_move = std::pair{
 					PrefabKey{ std::string{ static_cast<const char*>(payload->Data) } },
@@ -2070,19 +2202,33 @@ bool SceneHierarchyPanel::DrawPrefabs(EditorContext& ctx) {
 		}
 		if (ImGui::BeginPopupContextItem("PrefabGroupContext")) {
 			if (group != "Ungrouped") {
-				if (ImGui::MenuItem("Rename Group")) { group_to_rename = group; group_rename_text = group; }
-				if (ImGui::MenuItem("Delete Group")) (void)paint.DeletePrefabGroup(ctx, group);
+				if (ImGui::MenuItem("Rename Group")) {
+					group_to_rename	  = group;
+					group_rename_text = group;
+				}
+				if (ImGui::MenuItem("Delete Group")) {
+					(void)paint.DeletePrefabGroup(ctx, group);
+				}
 			}
 			ImGui::EndPopup();
 		}
 		if (open) {
 			int count{};
 			for (const auto& key : all_keys) {
-				if (paint.GetPrefabGroup(ctx, key) != group) continue;
-				if (!group_match && !ContainsInsensitive(GetPrefabDisplayName(key), prefab_filter) && !ContainsInsensitive(key.value, prefab_filter)) continue;
-				draw_prefab(key); ++count;
+				if (paint.GetPrefabGroup(ctx, key) != group) {
+					continue;
+				}
+				if (!group_match &&
+					!ContainsInsensitive(GetPrefabDisplayName(key), prefab_filter) &&
+					!ContainsInsensitive(key.value, prefab_filter)) {
+					continue;
+				}
+				draw_prefab(key);
+				++count;
 			}
-			if (count == 0) ImGui::TextDisabled("Empty group. Right click a prefab to move it here.");
+			if (count == 0) {
+				ImGui::TextDisabled("Empty group. Right click a prefab to move it here.");
+			}
 			ImGui::TreePop();
 		}
 		ImGui::PopID();
@@ -2095,20 +2241,38 @@ bool SceneHierarchyPanel::DrawPrefabs(EditorContext& ctx) {
 		}
 	}
 
-	if (group_to_rename.has_value()) ImGui::OpenPopup("Rename Prefab Group");
+	if (group_to_rename.has_value()) {
+		ImGui::OpenPopup("Rename Prefab Group");
+	}
 	if (ImGui::BeginPopupModal("Rename Prefab Group", nullptr, ImGuiWindowFlags_AlwaysAutoResize)) {
 		ImGui::InputText("Name", &group_rename_text);
 		if (ImGui::Button("Rename")) {
-			if (group_to_rename.has_value() && paint.RenamePrefabGroup(ctx, *group_to_rename, group_rename_text)) { group_to_rename.reset(); group_rename_text.clear(); ImGui::CloseCurrentPopup(); }
+			if (group_to_rename.has_value() &&
+				paint.RenamePrefabGroup(ctx, *group_to_rename, group_rename_text)) {
+				group_to_rename.reset();
+				group_rename_text.clear();
+				ImGui::CloseCurrentPopup();
+			}
 		}
-		ImGui::SameLine(); if (ImGui::Button("Cancel")) { group_to_rename.reset(); group_rename_text.clear(); ImGui::CloseCurrentPopup(); }
+		ImGui::SameLine();
+		if (ImGui::Button("Cancel")) {
+			group_to_rename.reset();
+			group_rename_text.clear();
+			ImGui::CloseCurrentPopup();
+		}
 		ImGui::EndPopup();
 	}
 
 	if (prefab_to_rename.has_value()) {
 		const auto& [old_key, new_key]{ *prefab_to_rename };
-		if (!ctx.commands.RenamePrefabAsset(old_key, new_key)) { renaming_prefab_ = old_key; prefab_rename_text_ = GetPrefabDisplayName(new_key); prefab_rename_error_ = "Failed to rename prefab."; focus_prefab_rename_ = true; }
-		else paint.OnPrefabRenamed(ctx, old_key, new_key);
+		if (!ctx.commands.RenamePrefabAsset(old_key, new_key)) {
+			renaming_prefab_	 = old_key;
+			prefab_rename_text_	 = GetPrefabDisplayName(new_key);
+			prefab_rename_error_ = "Failed to rename prefab.";
+			focus_prefab_rename_ = true;
+		} else {
+			paint.OnPrefabRenamed(ctx, old_key, new_key);
+		}
 	}
 
 	if (prefab_to_duplicate.has_value() && project_root.has_value()) {
@@ -2127,23 +2291,45 @@ bool SceneHierarchyPanel::DrawPrefabs(EditorContext& ctx) {
 	if (entity_operation.has_value()) {
 		switch (entity_operation->type) {
 			case PrefabEntityOperationType::AddChild: {
-				SerializedEntity child; child.tag = "Entity"; AddDefaultPrefabSpatialComponents(child);
-				if (ctx.commands.AddPrefabChild(entity_operation->key, entity_operation->path, std::move(child))) { force_open_prefab_ = entity_operation->key; force_open_prefab_entity_path_ = entity_operation->path; }
+				SerializedEntity child;
+				child.tag = "Entity";
+				AddDefaultPrefabSpatialComponents(child);
+				if (ctx.commands.AddPrefabChild(
+						entity_operation->key, entity_operation->path, std::move(child)
+					)) {
+					force_open_prefab_			   = entity_operation->key;
+					force_open_prefab_entity_path_ = entity_operation->path;
+				}
 				break;
 			}
-			case PrefabEntityOperationType::Duplicate: (void)ctx.commands.DuplicatePrefabEntity(entity_operation->key, entity_operation->path); break;
-			case PrefabEntityOperationType::Delete: (void)ctx.commands.DeletePrefabEntity(entity_operation->key, entity_operation->path); break;
+			case PrefabEntityOperationType::Duplicate:
+				(void)ctx.commands.DuplicatePrefabEntity(
+					entity_operation->key, entity_operation->path
+				);
+				break;
+			case PrefabEntityOperationType::Delete:
+				(void)ctx.commands.DeletePrefabEntity(
+					entity_operation->key, entity_operation->path
+				);
+				break;
 		}
 	}
 
 	if (prefab_to_delete.has_value()) {
 		if (ctx.commands.DeletePrefabAsset(*prefab_to_delete)) {
 			paint.OnPrefabDeleted(ctx, *prefab_to_delete);
-			if (renaming_prefab_ == prefab_to_delete) { renaming_prefab_.reset(); prefab_rename_text_.clear(); prefab_rename_error_.clear(); }
+			if (renaming_prefab_ == prefab_to_delete) {
+				renaming_prefab_.reset();
+				prefab_rename_text_.clear();
+				prefab_rename_error_.clear();
+			}
 		}
 	}
 
-	if (ImGui::IsWindowHovered() && ImGui::IsMouseClicked(ImGuiMouseButton_Left) && !prefab_left_clicked_this_frame && !ImGui::IsAnyItemHovered()) SetSelectedPrefab(std::nullopt);
+	if (ImGui::IsWindowHovered() && ImGui::IsMouseClicked(ImGuiMouseButton_Left) &&
+		!prefab_left_clicked_this_frame && !ImGui::IsAnyItemHovered()) {
+		SetSelectedPrefab(std::nullopt);
+	}
 	ImGui::End();
 	return visible;
 }
@@ -2153,17 +2339,9 @@ bool SceneHierarchyPanel::DrawTiles(EditorContext& ctx) {
 }
 
 void SceneHierarchyPanel::OnRender(EditorContext& ctx) {
-	const bool scene_hierarchy_visible{ DrawSceneHierarchy(ctx) };
-	const bool prefabs_visible{ DrawPrefabs(ctx) };
-	const bool tiles_visible{ DrawTiles(ctx) };
-
-	const int visible_count{ static_cast<int>(scene_hierarchy_visible) + static_cast<int>(prefabs_visible) + static_cast<int>(tiles_visible) };
-	if (visible_count == 1) {
-		SetActiveTab(
-			scene_hierarchy_visible ? SceneHierarchyTab::SceneHierarchy :
-			prefabs_visible ? SceneHierarchyTab::Prefabs : SceneHierarchyTab::Tiles
-		);
-	}
+	static_cast<void>(DrawSceneHierarchy(ctx));
+	static_cast<void>(DrawPrefabs(ctx));
+	static_cast<void>(DrawTiles(ctx));
 }
 
 void SceneHierarchyPanel::Bind(EditorContext& ctx) {

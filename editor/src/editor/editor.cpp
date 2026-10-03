@@ -64,8 +64,8 @@
 #include "renderer/text/text_layout.h"
 #include "runtime/asset/asset_manager.h"
 #include "runtime/ecs/uuid.h"
-#include "runtime/graphics/fx/effect_registry.h"
 #include "runtime/graphics/draw.h"
+#include "runtime/graphics/fx/effect_registry.h"
 #include "runtime/graphics/fx/screen_effect_stack.h"
 #include "runtime/graphics/visible.h"
 #include "runtime/scene/scene_file.h"
@@ -79,6 +79,7 @@ namespace {
 
 constexpr float kLeftColumnRatio{ 0.182f };
 constexpr float kRightColumnRatio{ 0.40f };
+constexpr float kBottomDockRatio{ 0.25f };
 
 #if !defined(__EMSCRIPTEN__)
 [[nodiscard]] std::tm LocalTime(std::time_t value) {
@@ -133,7 +134,7 @@ constexpr float kRightColumnRatio{ 0.40f };
 	std::size_t start{ 0 };
 	while (start < output.size()) {
 		const auto newline{ output.find('\n', start) };
-		const bool has_newline{ newline != std::string_view::npos };
+		bool has_newline{ newline != std::string_view::npos };
 		const auto end{ has_newline ? newline : output.size() };
 		const std::string_view line{ output.substr(start, end - start) };
 
@@ -369,7 +370,7 @@ private:
 	const std::string base{ SanitizeSceneFileName(preferred_name) };
 
 	auto is_available = [&project](const path& candidate) {
-		const bool used_by_project{ std::ranges::any_of(
+		bool used_by_project{ std::ranges::any_of(
 			project.scenes, [&candidate](const ProjectSceneEntry& scene) {
 				return scene.scene_path.lexically_normal().generic_string() ==
 					   candidate.lexically_normal().generic_string();
@@ -538,7 +539,7 @@ private:
 
 	std::size_t component_start{};
 	for (std::size_t i{}; i <= value.size(); ++i) {
-		const bool separator{ i == value.size() || value[i] == '/' || value[i] == '\\' };
+		bool separator{ i == value.size() || value[i] == '/' || value[i] == '\\' };
 		if (!separator) {
 			continue;
 		}
@@ -587,7 +588,7 @@ bool DrawDirectoryField(
 		value	= buffer.data();
 		changed = true;
 	}
-	const bool path_hovered{ ImGui::IsItemHovered(ImGuiHoveredFlags_Stationary) };
+	bool path_hovered{ ImGui::IsItemHovered(ImGuiHoveredFlags_Stationary) };
 
 	if (validation_error.has_value()) {
 		ImGui::PopStyleVar();
@@ -734,7 +735,7 @@ void Editor::RequestQuit() {
 void Editor::RefreshProjectDirtyState() {
 	PTGN_ASSERT(context_);
 
-	const bool dirty{ untracked_project_dirty_ || undo_stack_.IsProjectDirty() };
+	bool dirty{ untracked_project_dirty_ || undo_stack_.IsProjectDirty() };
 
 	if (context_->local.state.is_dirty != dirty) {
 		context_->local.state.is_dirty = dirty;
@@ -774,12 +775,10 @@ void Editor::UpdateDockLayout(std::uint32_t dockspace_id, float width) {
 		return;
 	}
 
-	ImGui::DockBuilderSetNodeSize(
-		dockspace_id, ImVec2{
-						  ImGui::GetMainViewport()->WorkSize.x,
-						  ImGui::GetMainViewport()->WorkSize.y,
-					  }
-	);
+	// Use the actual EditorRootDockspace content size. MainViewport::WorkSize still includes the
+	// vertical space occupied by our ImGui menu bar, so sizing the dock tree from it causes the
+	// independently split left and center columns to redistribute that height differently.
+	ImGui::DockBuilderSetNodeSize(dockspace_id, ImGui::GetContentRegionAvail());
 
 	if (auto* left{ ImGui::DockBuilderGetNode(dock_left_column_id_) }) {
 		left->SizeRef.x = width * kLeftColumnRatio;
@@ -867,7 +866,7 @@ void Editor::ApplyScreenEffectPreview(bool enabled) {
 void Editor::SetScreenEffectPreview(bool enabled) {
 	PTGN_ASSERT(context_, "Editor context must be initialized");
 
-	const bool before{ context_->local.settings.preview_screen_effects };
+	bool before{ context_->local.settings.preview_screen_effects };
 	if (before == enabled) {
 		return;
 	}
@@ -1284,9 +1283,9 @@ bool Editor::DeleteRuntimeScreenEffect(std::uint64_t runtime_id) {
 	EditorSelection after_selection{ before_selection };
 	if (after_selection.selected_screen_effect.has_value()) {
 		const auto selected{ after_selection.selected_screen_effect.value() };
-		const bool deleting_selection{ (selected.runtime && selected.id == runtime_id) ||
-									   (!selected.runtime && snapshot->source_id != 0 &&
-										selected.id == snapshot->source_id) };
+		bool deleting_selection{ (selected.runtime && selected.id == runtime_id) ||
+								 (!selected.runtime && snapshot->source_id != 0 &&
+								  selected.id == snapshot->source_id) };
 		if (deleting_selection) {
 			after_selection.selected_screen_effect.reset();
 			after_selection.inspector_tab = InspectorTab::Primary;
@@ -1550,7 +1549,7 @@ bool Editor::CreateProjectScene(std::string_view scene_type) {
 			return false;
 		}
 
-		const bool was_startup{ current_project->startup_scene_key == entry.key };
+		bool was_startup{ current_project->startup_scene_key == entry.key };
 
 		current_project->scenes.erase(it);
 
@@ -1786,8 +1785,8 @@ bool Editor::DeleteProjectScene(std::string_view scene_key) {
 
 	EditorSelection after_selection{ before_selection };
 
-	const bool deleted_scene_selected{ after_selection.selected_scene_key == entry.key &&
-									   !after_selection.selected_scene_runtime };
+	bool deleted_scene_selected{ after_selection.selected_scene_key == entry.key &&
+								 !after_selection.selected_scene_runtime };
 
 	after_selection.RemoveScene(entry.key);
 
@@ -1869,8 +1868,8 @@ bool Editor::DeleteProjectScene(std::string_view scene_key) {
 
 		SyncProjectSceneOrder();
 
-		const bool select_restored_scene{ selection.selected_scene_key == entry.key &&
-										  !selection.selected_scene_runtime };
+		bool select_restored_scene{ selection.selected_scene_key == entry.key &&
+									!selection.selected_scene_runtime };
 
 		const auto selected_uuid{ selection.GetEntityUUID(entry.key, false) };
 
@@ -1922,7 +1921,7 @@ bool Editor::RenameProjectSceneKey(std::string_view current_key, std::string_vie
 
 		const std::string old_key{ entry->key };
 
-		const bool was_startup{ project->startup_scene_key == old_key };
+		bool was_startup{ project->startup_scene_key == old_key };
 
 		entry->key = std::string{ to };
 
@@ -2207,7 +2206,8 @@ void Editor::DrawMainMenuBar() {
 		}
 		if (ImGui::IsItemHovered()) {
 			ImGui::SetTooltip(
-				"Show implementation children owned by UI controls, such as visuals and slider tracks."
+				"Show implementation children owned by UI controls, such as visuals and slider "
+				"tracks."
 			);
 		}
 
@@ -2380,9 +2380,9 @@ void Editor::DrawExportWindow() {
 	}
 
 	bool window_open{ true };
-	const bool visible{ ImGui::Begin("Export###ExportWindow", &window_open) };
+	bool visible{ ImGui::Begin("Export###ExportWindow", &window_open) };
 
-	const bool busy{ export_manager_.IsBusy() };
+	bool busy{ export_manager_.IsBusy() };
 	const auto& desktop_availability{
 		export_manager_.GetTargetAvailability(ExportTarget::Desktop)
 	};
@@ -2408,7 +2408,7 @@ void Editor::DrawExportWindow() {
 			const auto& selected_platform_availability{
 				export_manager_.GetTargetAvailability(export_target_)
 			};
-			const bool platform_warning{ !selected_platform_availability.available };
+			bool platform_warning{ !selected_platform_availability.available };
 
 			if (platform_warning) {
 				ImGui::PushStyleColor(ImGuiCol_Border, ImVec4{ 0.90f, 0.20f, 0.20f, 1.0f });
@@ -2418,10 +2418,8 @@ void Editor::DrawExportWindow() {
 			ImGui::SetNextItemWidth(-FLT_MIN);
 			const char* platform_preview{ export_target_ == ExportTarget::Desktop ? "Desktop"
 																				  : "Web" };
-			const bool platform_combo_open{
-				ImGui::BeginCombo("##ExportPlatform", platform_preview)
-			};
-			const bool platform_combo_hovered{ ImGui::IsItemHovered(
+			bool platform_combo_open{ ImGui::BeginCombo("##ExportPlatform", platform_preview) };
+			bool platform_combo_hovered{ ImGui::IsItemHovered(
 				ImGuiHoveredFlags_AllowWhenDisabled | ImGuiHoveredFlags_Stationary
 			) };
 
@@ -2433,7 +2431,7 @@ void Editor::DrawExportWindow() {
 			if (platform_combo_open) {
 				auto draw_platform = [&](ExportTarget target, const char* label,
 										 const ExportTargetAvailability& availability) {
-					const bool selected{ export_target_ == target };
+					bool selected{ export_target_ == target };
 
 					if (ImGui::Selectable(label, selected)) {
 						export_target_ = target;
@@ -2543,8 +2541,8 @@ void Editor::DrawExportWindow() {
 		const path build_directory{
 			export_manager_.GetBuildDirectory(export_target_, export_configuration_)
 		};
-		const bool build_cache_has_content{ DirectoryHasContent(build_directory) };
-		const bool can_clean{ !busy && build_cache_has_content };
+		bool build_cache_has_content{ DirectoryHasContent(build_directory) };
+		bool can_clean{ !busy && build_cache_has_content };
 
 		ImGui::Separator();
 
@@ -2570,7 +2568,7 @@ void Editor::DrawExportWindow() {
 		ImGui::SameLine();
 
 		if (busy) {
-			const bool can_cancel{ export_manager_.CanCancel() };
+			bool can_cancel{ export_manager_.CanCancel() };
 			ImGui::BeginDisabled(!can_cancel);
 			if (ImGui::Button("Cancel Task")) {
 				export_manager_.Cancel();
@@ -2584,7 +2582,7 @@ void Editor::DrawExportWindow() {
 				ImGui::SetTooltip("The current export task cannot be cancelled.");
 			}
 		} else {
-			const bool can_start_export{ !current_output_path_error.has_value() };
+			bool can_start_export{ !current_output_path_error.has_value() };
 
 			ImGui::BeginDisabled(!can_start_export);
 			if (ImGui::Button("Start Export")) {
@@ -2615,11 +2613,11 @@ void Editor::DrawExportWindow() {
 			ImGui::SeparatorText("Web Distribution");
 
 			const path web_output_directory{ web_export_directory_ };
-			const bool web_files_exist{ export_manager_.HasWebOutput(web_output_directory) };
-			const bool server_running{ export_manager_.IsWebServerRunning() };
-			const bool can_run_server{ export_manager_.CanRunWebServer(web_output_directory) };
+			bool web_files_exist{ export_manager_.HasWebOutput(web_output_directory) };
+			bool server_running{ export_manager_.IsWebServerRunning() };
+			bool can_run_server{ export_manager_.CanRunWebServer(web_output_directory) };
 			const auto& server_availability{ export_manager_.GetWebServerAvailability() };
-			const bool server_prerequisite_warning{ !server_availability.available };
+			bool server_prerequisite_warning{ !server_availability.available };
 
 			const char* server_button_label{
 				server_running ? (can_run_server ? "Restart Web Server" : "Web Server Running")
@@ -2637,7 +2635,7 @@ void Editor::DrawExportWindow() {
 			}
 			ImGui::EndDisabled();
 
-			const bool server_button_hovered{ ImGui::IsItemHovered(
+			bool server_button_hovered{ ImGui::IsItemHovered(
 				ImGuiHoveredFlags_AllowWhenDisabled | ImGuiHoveredFlags_Stationary
 			) };
 
@@ -2691,8 +2689,8 @@ void Editor::DrawExportWindow() {
 			ImGui::SameLine();
 
 			const path web_zip_path{ export_manager_.GetWebZipPath(web_output_directory) };
-			const bool web_zip_current{ export_manager_.IsWebZipCurrent(web_output_directory) };
-			const bool can_zip_web{ !busy && web_files_exist && !web_zip_current };
+			bool web_zip_current{ export_manager_.IsWebZipCurrent(web_output_directory) };
+			bool can_zip_web{ !busy && web_files_exist && !web_zip_current };
 
 			ImGui::BeginDisabled(!can_zip_web);
 			if (ImGui::Button("Zip Web Release")) {
@@ -2901,7 +2899,7 @@ void Editor::DrawPanels() {
 	scene_list_panel_.OnRender(*context_);
 	screen_effects_panel_.OnRender(*context_);
 	inspector_panel_.OnRender(*context_);
-	
+
 	if (ConsumeAcceptedAssetKeyDrop()) {
 		scene_asset_dependencies_dirty_ = true;
 	}
@@ -2972,11 +2970,9 @@ bool Editor::ShouldEnableEntityPicking() const {
 	PTGN_ASSERT(context_, "Editor context must be initialized");
 	// Paint Select and Move reuse the renderer's ID buffer for accurate entity picking;
 	// the legacy viewport gizmo/manipulation path remains disabled.
-	return render_enabled_ && (
-		context_->local.settings.entity_picking ||
-		(paint_editor_.GetTool() == PaintTool::Select ||
-		 paint_editor_.GetTool() == PaintTool::Move)
-	);
+	return render_enabled_ && (context_->local.settings.entity_picking ||
+							   (paint_editor_.GetTool() == PaintTool::Select ||
+								paint_editor_.GetTool() == PaintTool::Move));
 }
 
 ::ptgn::impl::FramebufferId Editor::GetSceneFramebuffer(Scene& scene) const {
@@ -3271,7 +3267,7 @@ void Editor::Play() {
 	if (!manager.EnterFactory(
 			selected_key, ::ptgn::impl::MakeSceneFactory(snapshot_it->scene, true)
 		)) {
-		const bool preview_before_play{ play_snapshot_->screen_effect_preview_before_play };
+		bool preview_before_play{ play_snapshot_->screen_effect_preview_before_play };
 		undo_stack_.SetUndoRedoEnabled(true);
 		app_context.runtime_project_scenes.clear();
 		play_snapshot_.reset();
@@ -3381,12 +3377,7 @@ void Editor::StopDirectRuntime() {
 	for (const auto& snapshot : editor_scenes) {
 		auto factory{ ::ptgn::impl::MakeSceneFactory(snapshot.scene, false) };
 
-		const bool accepted{
-			manager.EnterFactory(
-				snapshot.key,
-				std::move(factory)
-			)
-		};
+		bool accepted{ manager.EnterFactory(snapshot.key, std::move(factory)) };
 
 		PTGN_ASSERT(
 			accepted, "Failed to restore project scene after direct runtime: ", snapshot.key
@@ -3468,12 +3459,7 @@ void Editor::Stop() {
 	for (const auto& snapshot : app_context.runtime_project_scenes) {
 		auto factory{ ::ptgn::impl::MakeSceneFactory(snapshot.scene, false) };
 
-		const bool accepted{
-			manager.EnterFactory(
-				snapshot.key,
-				std::move(factory)
-			)
-		};
+		bool accepted{ manager.EnterFactory(snapshot.key, std::move(factory)) };
 
 		PTGN_ASSERT(accepted, "Failed to restore project scene after editor play: ", snapshot.key);
 	}
@@ -3491,9 +3477,8 @@ void Editor::Stop() {
 		app.SetScreenEffects(project->screen_effects);
 	}
 
-	const bool runtime_preview{ context_->local.settings.preview_screen_effects };
-	const bool restored_preview{ runtime_preview &&
-								 play_snapshot_->screen_effect_preview_before_play };
+	bool runtime_preview{ context_->local.settings.preview_screen_effects };
+	bool restored_preview{ runtime_preview && play_snapshot_->screen_effect_preview_before_play };
 	ApplyScreenEffectPreview(restored_preview);
 
 	if (context_->local.selection.selected_screen_effect.has_value() &&
@@ -3534,16 +3519,16 @@ void Editor::ApplySceneRenderSettings() {
 		return scene && scene.get() == selected_scene;
 	}) };
 
-	const bool has_valid_selection{ selected_it != scenes.end() };
+	bool has_valid_selection{ selected_it != scenes.end() };
 
 	// Render every scene while the editor UI is hidden. This preserves
 	// the normal game presentation when F10 switches out of editor view.
 	//
 	// Also render all scenes during a scene transition so incoming and
 	// outgoing scenes can both participate in the transition.
-	const bool render_only_selected{ render_enabled_ &&
-									 context_->local.settings.render_only_selected_scene &&
-									 has_valid_selection && !(*selected_it)->IsTransitioning() };
+	bool render_only_selected{ render_enabled_ &&
+							   context_->local.settings.render_only_selected_scene &&
+							   has_valid_selection && !(*selected_it)->IsTransitioning() };
 
 	for (auto& scene : scenes) {
 		if (!scene) {
@@ -3763,7 +3748,8 @@ V2_int Editor::GetPresentationTextureSize() const {
 	::ptgn::impl::RendererAccessor renderer{ GetRenderer() };
 
 	// The preview textures are sampled later by ImGui, so keep every framebuffer generated during
-	// this ImGui frame alive. Release the previous frame's preview resources when the token changes.
+	// this ImGui frame alive. Release the previous frame's preview resources when the token
+	// changes.
 	if (!text_preview_frame_token_.has_value() ||
 		text_preview_frame_token_.value() != frame_token) {
 		renderer.FlushBatch();
@@ -3774,10 +3760,10 @@ V2_int Editor::GetPresentationTextureSize() const {
 	// Match the presentation framebuffer's color format/parameters. The runtime viewport is
 	// rendered into that target and then receives the renderer's final gamma/tone-mapping pass.
 	// Using the same descriptor here keeps HDR and filtering behavior identical.
-	const auto presentation_desc{
-		renderer.GetDesc(renderer.GetPresentationFramebuffer())
-	};
-	PTGN_ASSERT(presentation_desc.has_value(), "Presentation framebuffer must have a color texture");
+	const auto presentation_desc{ renderer.GetDesc(renderer.GetPresentationFramebuffer()) };
+	PTGN_ASSERT(
+		presentation_desc.has_value(), "Presentation framebuffer must have a color texture"
+	);
 
 	TextureDesc preview_desc{ presentation_desc.value() };
 	preview_desc.size = target_size;
@@ -3805,11 +3791,11 @@ V2_int Editor::GetPresentationTextureSize() const {
 	RenderState preview_state{};
 	const Viewport preview_viewport{
 		.position = {},
-		.size = target_size,
+		.size	  = target_size,
 	};
-	preview_state.viewport = preview_viewport;
+	preview_state.viewport		  = preview_viewport;
 	preview_state.view_projection = Matrix4::Orthographic(preview_viewport.size);
-	preview_state.blending = true;
+	preview_state.blending		  = true;
 
 	// Match the blend mode used by Text::Draw for the entity currently being edited. Text::Draw
 	// calls SetBlendMode(GetBlendMode(entity)) immediately before drawing, so the preview should
@@ -3936,7 +3922,7 @@ void Editor::OnProjectChanged() {
 	play_snapshot_.reset();
 	app_context.runtime_project_scenes.clear();
 
-	context_->local = LoadEditorLocalState(app_context.project.value());
+	context_->local			= LoadEditorLocalState(app_context.project.value());
 	context_->project_state = LoadEditorProjectState(app_context.project.value());
 
 	context_->local.selection.selected_scene_runtime = false;
@@ -3957,9 +3943,9 @@ void Editor::OnProjectChanged() {
 	SaveEditorProjectState(app_context.project.value(), context_->project_state);
 #endif
 
-	json local_value = context_->local;
-	json project_value = context_->project_state;
-	saved_editor_local_state_json_ = local_value.dump();
+	json local_value				 = context_->local;
+	json project_value				 = context_->project_state;
+	saved_editor_local_state_json_	 = local_value.dump();
 	saved_editor_project_state_json_ = project_value.dump();
 
 	app.SetScreenEffects(app_context.project->screen_effects);
@@ -3986,12 +3972,13 @@ void Editor::BuildDefaultDockLayout(std::uint32_t dockspace_id) {
 
 	dock_layout_built_ = true;
 
-	auto* viewport{ ImGui::GetMainViewport() };
-	auto work_size{ viewport->WorkSize };
+	// This is the exact size passed to ImGui::DockSpace() by OnRender(). Using the main viewport
+	// work size here is slightly too tall because EditorRootDockspace has its own menu bar.
+	const ImVec2 dockspace_size{ ImGui::GetContentRegionAvail() };
 
 	ImGui::DockBuilderRemoveNode(dockspace_id);
 	ImGui::DockBuilderAddNode(dockspace_id, ImGuiDockNodeFlags_DockSpace);
-	ImGui::DockBuilderSetNodeSize(dockspace_id, work_size);
+	ImGui::DockBuilderSetNodeSize(dockspace_id, dockspace_size);
 
 	ImGuiID dock_main{ dockspace_id };
 
@@ -3999,29 +3986,54 @@ void Editor::BuildDefaultDockLayout(std::uint32_t dockspace_id) {
 		dock_main, ImGuiDir_Left, kLeftColumnRatio, nullptr, &dock_main
 	);
 
-	// The right split ratio is relative to the space remaining after
-	// removing the left column.
+	// The right split ratio is relative to the space remaining after removing the left column.
 	float right_split_ratio{ kRightColumnRatio / (1.0f - kLeftColumnRatio) };
-
 	dock_right_column_id_ = ImGui::DockBuilderSplitNode(
 		dock_main, ImGuiDir_Right, right_split_ratio, nullptr, &dock_main
 	);
 
-	ImGuiID dock_left{};
-	ImGuiID dock_left_bottom{};
-
+	// Keep the Content Browser and Scenes on independent splitters, but create both bottom regions
+	// from parents with the same exact height and copy the complete vertical SizeRef pair. This
+	// gives them the same initial split line without coupling later resizing.
+	ImGuiID dock_center_bottom{};
 	ImGui::DockBuilderSplitNode(
-		dock_left_column_id_, ImGuiDir_Down, 0.35f, &dock_left_bottom, &dock_left
+		dock_main, ImGuiDir_Down, kBottomDockRatio, &dock_center_bottom, &dock_main
 	);
 
-	ImGuiID dock_center_bottom{};
+	ImGuiID dock_left_upper{};
+	ImGuiID dock_left_bottom{};
+	ImGui::DockBuilderSplitNode(
+		dock_left_column_id_, ImGuiDir_Down, kBottomDockRatio, &dock_left_bottom, &dock_left_upper
+	);
 
-	ImGui::DockBuilderSplitNode(dock_main, ImGuiDir_Down, 0.25f, &dock_center_bottom, &dock_main);
+	float middle_split_ratio{ kBottomDockRatio / (1.0f - kBottomDockRatio) };
+	if (auto* center_bottom{ ImGui::DockBuilderGetNode(dock_center_bottom) }; center_bottom) {
+		if (auto* center_upper{ ImGui::DockBuilderGetNode(dock_main) }; center_upper) {
+			if (auto* left_bottom{ ImGui::DockBuilderGetNode(dock_left_bottom) }; left_bottom) {
+				if (auto* left_upper{ ImGui::DockBuilderGetNode(dock_left_upper) }; left_upper) {
+					left_bottom->SizeRef.y = center_bottom->SizeRef.y;
+					left_upper->SizeRef.y  = center_upper->SizeRef.y;
 
-	ImGui::DockBuilderDockWindow("Scene Hierarchy###SceneHierarchyWindow", dock_left);
-	ImGui::DockBuilderDockWindow("Prefabs###PrefabsWindow", dock_left);
-	ImGui::DockBuilderDockWindow("Tiles###TilesWindow", dock_left);
-	ImGui::DockBuilderDockWindow("Settings###SceneSettingsWindow", dock_left);
+					if (left_upper->SizeRef.y > 0.0f) {
+						middle_split_ratio = std::clamp(
+							left_bottom->SizeRef.y / left_upper->SizeRef.y, 0.05f, 0.95f
+						);
+					}
+				}
+			}
+		}
+	}
+
+	ImGuiID dock_left_top{};
+	ImGuiID dock_left_middle{};
+	ImGui::DockBuilderSplitNode(
+		dock_left_upper, ImGuiDir_Down, middle_split_ratio, &dock_left_middle, &dock_left_top
+	);
+
+	ImGui::DockBuilderDockWindow("Scene Hierarchy###SceneHierarchyWindow", dock_left_top);
+	ImGui::DockBuilderDockWindow("Settings###SceneSettingsWindow", dock_left_top);
+	ImGui::DockBuilderDockWindow("Prefabs###PrefabsWindow", dock_left_middle);
+	ImGui::DockBuilderDockWindow("Tiles###TilesWindow", dock_left_middle);
 	ImGui::DockBuilderDockWindow("Scenes", dock_left_bottom);
 	ImGui::DockBuilderDockWindow("Screen Effects", dock_left_bottom);
 
