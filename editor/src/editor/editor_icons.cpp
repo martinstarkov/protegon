@@ -7,54 +7,148 @@
 
 namespace ptgn::editor {
 
-void DrawEditorIcon(ImDrawList* draw, EditorIcon icon, ImVec2 min, float extent, ImU32 color) {
-	const float scale{ extent / 16.0f };
-	const float x{ std::floor(min.x) };
-	const float y{ std::floor(min.y) };
-	const auto point = [&](float px, float py) {
-		return ImVec2{
-			x + px * scale,
-			y + py * scale,
-		};
-	};
-	const float line{ std::max(1.0f, 1.6f * scale) };
+namespace {
 
-	// The hierarchy icons were originally authored in an 18x18 square. Keep that
-	// geometry so moving them here does not subtly change their appearance.
-	const float hierarchy_scale{ extent / 18.0f };
-	const auto hierarchy_point = [&](float px, float py) {
+[[nodiscard]] float SnapStrokeCenter(float value, int thickness) {
+	return (thickness % 2) == 0 ? std::round(value) : std::round(value - 0.5f) + 0.5f;
+}
+
+} // namespace
+
+void DrawEditorIcon(ImDrawList* draw, EditorIcon icon, ImVec2 min, float extent, ImU32 color) {
+	int extent_pixels{ std::max(1, static_cast<int>(std::lround(extent))) };
+	bool even_extent{ (extent_pixels % 2) == 0 };
+	int line_pixels{ even_extent ? 2 : 1 };
+	float line{ static_cast<float>(line_pixels) };
+
+	ImVec2 requested_center{
+		min.x + extent * 0.5f,
+		min.y + extent * 0.5f,
+	};
+
+	ImVec2 center{
+		SnapStrokeCenter(requested_center.x, extent_pixels),
+		SnapStrokeCenter(requested_center.y, extent_pixels),
+	};
+
+	float pixel_extent{ static_cast<float>(extent_pixels) };
+
+	ImVec2 origin{
+		center.x - pixel_extent * 0.5f,
+		center.y - pixel_extent * 0.5f,
+	};
+
+	float scale{ pixel_extent / 16.0f };
+
+	auto point = [&](float px, float py) {
 		return ImVec2{
-			x + px * hierarchy_scale,
-			y + py * hierarchy_scale,
+			origin.x + px * scale,
+			origin.y + py * scale,
 		};
 	};
-	const float hierarchy_line{ std::max(1.0f, 1.5f * hierarchy_scale) };
+
+	auto draw_vertical_band = [&](float cx, float y0, float y1, int thickness) {
+		cx = SnapStrokeCenter(cx, thickness);
+		y0 = std::round(y0);
+		y1 = std::round(y1);
+		if (y1 < y0) {
+			std::swap(y0, y1);
+		}
+		float half{ static_cast<float>(thickness) * 0.5f };
+		draw->AddRectFilled({ cx - half, y0 }, { cx + half, y1 }, color);
+	};
+
+	auto draw_horizontal_band = [&](float cy, float x0, float x1, int thickness) {
+		cy = SnapStrokeCenter(cy, thickness);
+		x0 = std::round(x0);
+		x1 = std::round(x1);
+		if (x1 < x0) {
+			std::swap(x0, x1);
+		}
+		float half{ static_cast<float>(thickness) * 0.5f };
+		draw->AddRectFilled({ x0, cy - half }, { x1, cy + half }, color);
+	};
+
+	auto draw_rect_outline = [&](ImVec2 a, ImVec2 b, int thickness) {
+		float left{ std::min(a.x, b.x) };
+		float right{ std::max(a.x, b.x) };
+		float top{ std::min(a.y, b.y) };
+		float bottom{ std::max(a.y, b.y) };
+
+		left   = SnapStrokeCenter(left, thickness);
+		right  = SnapStrokeCenter(right, thickness);
+		top	   = SnapStrokeCenter(top, thickness);
+		bottom = SnapStrokeCenter(bottom, thickness);
+
+		draw_horizontal_band(top, left, right, thickness);
+		draw_horizontal_band(bottom, left, right, thickness);
+		draw_vertical_band(left, top, bottom, thickness);
+		draw_vertical_band(right, top, bottom, thickness);
+	};
+
+	float hierarchy_scale{ pixel_extent / 18.0f };
+
+	auto hierarchy_point = [&](float px, float py) {
+		return ImVec2{
+			origin.x + px * hierarchy_scale,
+			origin.y + py * hierarchy_scale,
+		};
+	};
+
+	auto hierarchy_line_point = [&](float px, float py) {
+		ImVec2 p{ hierarchy_point(px, py) };
+		return ImVec2{
+			SnapStrokeCenter(p.x, line_pixels),
+			SnapStrokeCenter(p.y, line_pixels),
+		};
+	};
+
+	bool runtime_icon{ icon == EditorIcon::Play || icon == EditorIcon::Stop ||
+					   icon == EditorIcon::Pause || icon == EditorIcon::Reset ||
+					   icon == EditorIcon::StepForward || icon == EditorIcon::StepBackward ||
+					   icon == EditorIcon::Camera };
+
+	ImDrawListFlags prev_flags{ draw->Flags };
+
+	if (runtime_icon) {
+		draw->Flags &= ~(ImDrawListFlags_AntiAliasedFill | ImDrawListFlags_AntiAliasedLines);
+	}
 
 	switch (icon) {
 		case EditorIcon::Play:
 			draw->AddTriangleFilled(
-				point(4.0f, 2.0f), point(4.0f, 14.0f), point(13.0f, 8.0f), color
+				point(3.0f, 1.0f), point(3.0f, 15.0f), point(14.0f, 8.0f), color
 			);
 			break;
 
-		case EditorIcon::Stop:
-			draw->AddRectFilled(point(3.0f, 3.0f), point(13.0f, 13.0f), color, 1.0f);
+		case EditorIcon::Stop: {
+			float half_side{ std::round(5.0f * scale) };
+			float left{ center.x - half_side };
+			float right{ center.x + half_side };
+			float top{ center.y - half_side };
+			float bottom{ center.y + half_side };
+			draw->AddRectFilled({ left, top }, { right, bottom }, color);
 			break;
+		}
 
-		case EditorIcon::Pause:
-			draw->AddRectFilled(point(3.0f, 2.5f), point(6.5f, 13.5f), color, 0.75f);
-			draw->AddRectFilled(point(9.5f, 2.5f), point(13.0f, 13.5f), color, 0.75f);
+		case EditorIcon::Pause: {
+			float left_outer{ std::round(point(3.0f, 8.0f).x) };
+			float left_inner{ std::round(point(6.5f, 8.0f).x) };
+			float right_inner{ center.x * 2.0f - left_inner };
+			float right_outer{ center.x * 2.0f - left_outer };
+			float top{ std::round(point(8.0f, 2.5f).y) };
+			float bottom{ center.y * 2.0f - top };
+
+			draw->AddRectFilled({ left_outer, top }, { left_inner, bottom }, color, 0.75f);
+			draw->AddRectFilled({ right_inner, top }, { right_outer, bottom }, color, 0.75f);
 			break;
+		}
 
 		case EditorIcon::Reset: {
-			const ImVec2 center{ point(8.0f, 8.0f) };
-			const float radius{ 5.0f * scale };
-			const float thickness{ std::max(1.0f, 1.5f * scale) };
+			float radius{ 5.0f * scale };
 			draw->PathArcTo(center, radius, -0.15f * IM_PI, 1.55f * IM_PI, 20);
-			draw->PathStroke(color, 0, thickness);
-			draw->AddTriangleFilled(
-				point(3.1f, 2.7f), point(7.0f, 2.9f), point(4.4f, 6.0f), color
-			);
+			draw->PathStroke(color, 0, line);
+			draw->AddTriangleFilled(point(3.1f, 2.7f), point(7.0f, 2.9f), point(4.4f, 6.0f), color);
 			break;
 		}
 
@@ -72,222 +166,344 @@ void DrawEditorIcon(ImDrawList* draw, EditorIcon icon, ImVec2 min, float extent,
 			);
 			break;
 
-		case EditorIcon::Camera:
-			draw->AddCircleFilled(point(3.0f, 8.0f), 1.35f * scale, color, 10);
-			draw->AddLine(point(4.2f, 7.2f), point(13.2f, 2.8f), color, line);
-			draw->AddLine(point(4.2f, 8.8f), point(13.2f, 13.2f), color, line);
-			draw->AddLine(point(13.2f, 2.8f), point(13.2f, 13.2f), color, line);
+		case EditorIcon::Camera: {
+			float bar_offset{ 6.0f * scale };
+			float bar_top{ SnapStrokeCenter(center.y - bar_offset, line_pixels) };
+			float bar_bottom{ center.y * 2.0f - bar_top };
+			float bar_left{ center.x - 5.0f * scale };
+			float bar_right{ center.x + 5.0f * scale };
+			draw_horizontal_band(bar_top, bar_left, bar_right, line_pixels);
+			draw_horizontal_band(bar_bottom, bar_left, bar_right, line_pixels);
+
+			ImDrawListFlags previous_flags{ draw->Flags };
+			draw->Flags &= ~ImDrawListFlags_AntiAliasedLines;
+			draw->AddCircle(center, 3.0f * scale, color, 28, line);
+			draw->Flags = previous_flags;
+
+			float tab_width{ std::max(2.0f, std::round(2.0f * scale)) };
+			float tab_height{ std::max(2.0f, std::round(3.0f * scale)) + 1.0f };
+			float tab_right{ std::round(bar_right - 1.0f * scale) };
+			float tab_left{ tab_right - tab_width };
+			float tab_bottom{ bar_top + line * 0.5f };
+			float tab_top{ tab_bottom - tab_height };
+			draw->AddRectFilled({ tab_left, tab_top }, { tab_right, tab_bottom }, color);
 			break;
+		}
 
 		case EditorIcon::Entity:
 			draw->AddQuad(
-				hierarchy_point(9.0f, 2.0f), hierarchy_point(15.0f, 6.0f),
-				hierarchy_point(9.0f, 10.0f), hierarchy_point(3.0f, 6.0f), color,
-				hierarchy_line
+				hierarchy_line_point(9.0f, 2.0f), hierarchy_line_point(15.0f, 6.0f),
+				hierarchy_line_point(9.0f, 10.0f), hierarchy_line_point(3.0f, 6.0f), color, line
 			);
 			draw->AddLine(
-				hierarchy_point(3.0f, 6.0f), hierarchy_point(3.0f, 12.0f), color,
-				hierarchy_line
+				hierarchy_line_point(3.0f, 6.0f), hierarchy_line_point(3.0f, 12.0f), color, line
 			);
 			draw->AddLine(
-				hierarchy_point(15.0f, 6.0f), hierarchy_point(15.0f, 12.0f), color,
-				hierarchy_line
+				hierarchy_line_point(15.0f, 6.0f), hierarchy_line_point(15.0f, 12.0f), color, line
 			);
 			draw->AddLine(
-				hierarchy_point(3.0f, 12.0f), hierarchy_point(9.0f, 16.0f), color,
-				hierarchy_line
+				hierarchy_line_point(3.0f, 12.0f), hierarchy_line_point(9.0f, 16.0f), color, line
 			);
 			draw->AddLine(
-				hierarchy_point(15.0f, 12.0f), hierarchy_point(9.0f, 16.0f), color,
-				hierarchy_line
+				hierarchy_line_point(15.0f, 12.0f), hierarchy_line_point(9.0f, 16.0f), color, line
 			);
 			draw->AddLine(
-				hierarchy_point(9.0f, 10.0f), hierarchy_point(9.0f, 16.0f), color,
-				hierarchy_line
+				hierarchy_line_point(9.0f, 10.0f), hierarchy_line_point(9.0f, 16.0f), color, line
 			);
 			break;
 
 		case EditorIcon::Tile:
 			for (int row{}; row < 2; ++row) {
 				for (int column{}; column < 2; ++column) {
-					draw->AddRect(
-						hierarchy_point(
-							3.0f + static_cast<float>(column) * 6.0f,
-							3.0f + static_cast<float>(row) * 6.0f
-						),
-						hierarchy_point(
-							8.0f + static_cast<float>(column) * 6.0f,
-							8.0f + static_cast<float>(row) * 6.0f
-						),
-						color
+					float x0{ 3.0f + static_cast<float>(column) * 6.0f };
+					float y0{ 3.0f + static_cast<float>(row) * 6.0f };
+					float x1{ 8.0f + static_cast<float>(column) * 6.0f };
+					float y1{ 8.0f + static_cast<float>(row) * 6.0f };
+					draw_rect_outline(
+						hierarchy_point(x0, y0), hierarchy_point(x1, y1), line_pixels
 					);
 				}
 			}
 			break;
 
 		case EditorIcon::Visible:
-		case EditorIcon::Hidden:
-			draw->AddLine(
-				hierarchy_point(2.0f, 9.0f), hierarchy_point(6.0f, 5.0f), color,
-				hierarchy_line
-			);
-			draw->AddLine(
-				hierarchy_point(6.0f, 5.0f), hierarchy_point(12.0f, 5.0f), color,
-				hierarchy_line
-			);
-			draw->AddLine(
-				hierarchy_point(12.0f, 5.0f), hierarchy_point(16.0f, 9.0f), color,
-				hierarchy_line
-			);
-			draw->AddLine(
-				hierarchy_point(16.0f, 9.0f), hierarchy_point(12.0f, 13.0f), color,
-				hierarchy_line
-			);
-			draw->AddLine(
-				hierarchy_point(12.0f, 13.0f), hierarchy_point(6.0f, 13.0f), color,
-				hierarchy_line
-			);
-			draw->AddLine(
-				hierarchy_point(6.0f, 13.0f), hierarchy_point(2.0f, 9.0f), color,
-				hierarchy_line
-			);
+		case EditorIcon::Hidden:  {
+			ImVec2 eye_outline[]{
+				hierarchy_line_point(2.0f, 9.0f),	hierarchy_line_point(6.0f, 5.0f),
+				hierarchy_line_point(12.0f, 5.0f),	hierarchy_line_point(16.0f, 9.0f),
+				hierarchy_line_point(12.0f, 13.0f), hierarchy_line_point(6.0f, 13.0f),
+			};
+
+			draw->AddPolyline(eye_outline, 6, color, ImDrawFlags_Closed, line);
+
 			if (icon == EditorIcon::Visible) {
-				draw->AddCircleFilled(
-					hierarchy_point(9.0f, 9.0f), 2.3f * hierarchy_scale, color, 8
-				);
+				draw->AddCircleFilled(center, 2.3f * hierarchy_scale, color, 8);
 			} else {
-				draw->AddLine(
-					hierarchy_point(3.0f, 15.0f), hierarchy_point(15.0f, 3.0f), color,
-					hierarchy_line
-				);
-			}
-			break;
+				float slash_offset{ 6.0f * hierarchy_scale };
+				float half_width{ line * 0.5f };
+				float normal_offset{ half_width * 0.70710678f };
 
-		case EditorIcon::Locked:
-		case EditorIcon::Unlocked:
-			draw->AddRect(
-				hierarchy_point(5.0f, 8.0f), hierarchy_point(14.0f, 15.0f), color,
-				1.0f * hierarchy_scale, 0, hierarchy_line
-			);
-			draw->AddLine(
-				hierarchy_point(7.0f, 8.0f), hierarchy_point(7.0f, 5.0f), color,
-				hierarchy_line
-			);
-			if (icon == EditorIcon::Locked) {
-				draw->AddLine(
-					hierarchy_point(7.0f, 5.0f), hierarchy_point(12.0f, 5.0f), color,
-					hierarchy_line
-				);
-				draw->AddLine(
-					hierarchy_point(12.0f, 5.0f), hierarchy_point(12.0f, 8.0f), color,
-					hierarchy_line
-				);
-			} else {
-				draw->AddLine(
-					hierarchy_point(7.0f, 5.0f), hierarchy_point(11.0f, 4.0f), color,
-					hierarchy_line
-				);
-			}
-			break;
+				ImVec2 start{
+					center.x - slash_offset,
+					center.y + slash_offset,
+				};
+				ImVec2 end{
+					center.x + slash_offset,
+					center.y - slash_offset,
+				};
 
-		case EditorIcon::Select:
-			draw->AddTriangleFilled(
-				point(2.0f, 1.5f), point(2.0f, 13.5f), point(6.3f, 9.7f), color
-			);
-			draw->AddLine(point(6.0f, 9.2f), point(10.5f, 14.0f), color, line);
-			break;
+				ImVec2 normal{ normal_offset, normal_offset };
 
-		case EditorIcon::Move:
-			draw->AddLine(point(8.0f, 2.0f), point(8.0f, 14.0f), color, line);
-			draw->AddLine(point(2.0f, 8.0f), point(14.0f, 8.0f), color, line);
-			draw->AddTriangleFilled(
-				point(8.0f, 0.5f), point(5.4f, 4.0f), point(10.6f, 4.0f), color
-			);
-			draw->AddTriangleFilled(
-				point(8.0f, 15.5f), point(5.4f, 12.0f), point(10.6f, 12.0f), color
-			);
-			draw->AddTriangleFilled(
-				point(0.5f, 8.0f), point(4.0f, 5.4f), point(4.0f, 10.6f), color
-			);
-			draw->AddTriangleFilled(
-				point(15.5f, 8.0f), point(12.0f, 5.4f), point(12.0f, 10.6f), color
-			);
-			break;
-
-		case EditorIcon::Pencil:
-			draw->AddLine(point(3.0f, 12.7f), point(11.7f, 4.0f), color, 2.5f * scale);
-			draw->AddQuadFilled(
-				point(2.0f, 14.0f), point(3.1f, 10.8f), point(5.2f, 12.9f),
-				point(2.0f, 14.8f), color
-			);
-			draw->AddLine(point(10.8f, 3.2f), point(13.0f, 5.4f), color, line);
-			break;
-
-		case EditorIcon::Brush:
-			draw->AddLine(point(11.8f, 2.2f), point(7.0f, 8.6f), color, 2.5f * scale);
-			draw->AddBezierCubic(
-				point(6.8f, 8.2f), point(7.0f, 11.2f), point(4.5f, 14.2f),
-				point(1.8f, 13.2f), color, line
-			);
-			draw->AddBezierCubic(
-				point(1.8f, 13.2f), point(4.1f, 12.4f), point(2.8f, 9.3f),
-				point(6.8f, 8.2f), color, line
-			);
-			break;
-
-		case EditorIcon::Line:
-			draw->AddLine(point(2.5f, 13.5f), point(13.5f, 2.5f), color, 2.0f * scale);
-			draw->AddCircleFilled(point(2.5f, 13.5f), 1.35f * scale, color, 10);
-			draw->AddCircleFilled(point(13.5f, 2.5f), 1.35f * scale, color, 10);
-			break;
-
-		case EditorIcon::Rectangle:
-			draw->AddRect(point(2.0f, 3.0f), point(14.0f, 13.0f), color, 0.5f, 0, line);
-			break;
-
-		case EditorIcon::Fill:
-			draw->AddQuad(
-				point(4.0f, 3.0f), point(11.5f, 6.5f), point(7.5f, 13.5f),
-				point(1.5f, 10.0f), color, line
-			);
-			draw->AddLine(point(5.2f, 2.0f), point(12.0f, 8.8f), color, line);
-			draw->AddCircleFilled(point(12.8f, 12.5f), 1.7f * scale, color, 10);
-			break;
-
-		case EditorIcon::Erase:
-			draw->AddQuadFilled(
-				point(4.0f, 3.3f), point(13.3f, 8.0f), point(8.2f, 14.0f),
-				point(1.2f, 10.3f), color
-			);
-			draw->AddLine(
-				point(4.1f, 11.8f), point(10.0f, 6.2f), ImGui::GetColorU32(ImGuiCol_Button), line
-			);
-			break;
-
-		case EditorIcon::Eyedropper:
-			draw->AddLine(point(4.0f, 12.5f), point(11.2f, 5.3f), color, 2.5f * scale);
-			draw->AddCircle(point(12.1f, 4.1f), 2.4f * scale, color, 12, line);
-			draw->AddLine(point(2.0f, 14.0f), point(5.2f, 10.8f), color, line);
-			break;
-
-		case EditorIcon::Grid: {
-			const float x0{ point(3.0f, 3.0f).x };
-			const float x1{ point(13.0f, 13.0f).x };
-			const float y0{ point(3.0f, 3.0f).y };
-			const float y1{ point(13.0f, 13.0f).y };
-			for (int i{ 1 }; i <= 2; ++i) {
-				const float t{ static_cast<float>(i) / 3.0f };
-				draw->AddLine(
-					{ x0 + (x1 - x0) * t, y0 }, { x0 + (x1 - x0) * t, y1 }, color,
-					std::max(1.0f, scale)
-				);
-				draw->AddLine(
-					{ x0, y0 + (y1 - y0) * t }, { x1, y0 + (y1 - y0) * t }, color,
-					std::max(1.0f, scale)
+				draw->AddQuadFilled(
+					{ start.x - normal.x, start.y - normal.y },
+					{ end.x - normal.x, end.y - normal.y }, { end.x + normal.x, end.y + normal.y },
+					{ start.x + normal.x, start.y + normal.y }, color
 				);
 			}
 			break;
 		}
+
+		case EditorIcon::Locked:
+		case EditorIcon::Unlocked: {
+			float body_half_width{ 4.5f * hierarchy_scale };
+			float body_top{ origin.y + 8.0f * hierarchy_scale };
+			float body_bottom{ origin.y + 15.0f * hierarchy_scale };
+			float body_left{ SnapStrokeCenter(center.x - body_half_width, line_pixels) };
+			float body_right{ center.x * 2.0f - body_left };
+
+			draw_rect_outline({ body_left, body_top }, { body_right, body_bottom }, line_pixels);
+
+			float shackle_half_width{ 2.5f * hierarchy_scale };
+			float shackle_left{ SnapStrokeCenter(center.x - shackle_half_width, line_pixels) };
+			float shackle_right{ center.x * 2.0f - shackle_left };
+			float shackle_top{ SnapStrokeCenter(origin.y + 5.0f * hierarchy_scale, line_pixels) };
+			float shackle_bottom{ SnapStrokeCenter(body_top, line_pixels) };
+
+			draw_vertical_band(shackle_left, shackle_top, shackle_bottom, line_pixels);
+
+			if (icon == EditorIcon::Locked) {
+				draw_vertical_band(shackle_right, shackle_top, shackle_bottom, line_pixels);
+				draw_horizontal_band(shackle_top, shackle_left, shackle_right, line_pixels);
+			} else {
+				draw->AddLine(
+					{ shackle_left, shackle_top },
+					{ center.x + 2.0f * hierarchy_scale, shackle_top - 1.0f * hierarchy_scale },
+					color, line
+				);
+			}
+			break;
+		}
+
+		case EditorIcon::Select: {
+			draw->AddTriangleFilled(
+				point(2.0f, 2.0f), point(4.5f, 12.0f), point(12.0f, 4.5f), color
+			);
+
+			ImDrawListFlags previous_flags{ draw->Flags };
+
+			draw->Flags &= ~ImDrawListFlags_AntiAliasedFill;
+			draw->AddQuadFilled(
+				point(6.8f, 8.6f), point(8.6f, 6.8f), point(14.0f, 12.0f), point(12.0f, 14.0f),
+				color
+			);
+			draw->Flags = previous_flags;
+
+			break;
+		}
+
+		case EditorIcon::Move: {
+			float arm_offset{ std::max(1.0f, std::round(6.0f * scale) + 1.0f) };
+			float cap_offset{ std::max(1.0f, arm_offset - 2.0f) };
+			float cap_half_extent{ std::max(1.0f, std::round(2.5f * scale)) };
+
+			float top{ SnapStrokeCenter(center.y - arm_offset, line_pixels) };
+			float bottom{ center.y * 2.0f - top };
+			float left{ SnapStrokeCenter(center.x - arm_offset, line_pixels) };
+			float right{ center.x * 2.0f - left };
+
+			float cap_top{ SnapStrokeCenter(center.y - cap_offset, line_pixels) };
+			float cap_bottom{ center.y * 2.0f - cap_top };
+			float cap_left{ SnapStrokeCenter(center.x - cap_offset, line_pixels) };
+			float cap_right{ center.x * 2.0f - cap_left };
+
+			draw_vertical_band(center.x, top, bottom, line_pixels);
+			draw_horizontal_band(center.y, left, right, line_pixels);
+			draw_horizontal_band(
+				cap_top, center.x - cap_half_extent, center.x + cap_half_extent, line_pixels
+			);
+			draw_horizontal_band(
+				cap_bottom, center.x - cap_half_extent, center.x + cap_half_extent, line_pixels
+			);
+			draw_vertical_band(
+				cap_left, center.y - cap_half_extent, center.y + cap_half_extent, line_pixels
+			);
+			draw_vertical_band(
+				cap_right, center.y - cap_half_extent, center.y + cap_half_extent, line_pixels
+			);
+			break;
+		}
+
+		case EditorIcon::Pencil: {
+			float half_side{ std::max(2.0f, std::round(3.0f * scale)) };
+			float left{ std::round(center.x - half_side) };
+			float right{ center.x * 2.0f - left };
+			float top{ std::round(center.y - half_side) };
+			float bottom{ center.y * 2.0f - top };
+
+			draw->AddRectFilled({ left, top }, { right, bottom }, color);
+
+			break;
+		}
+
+		case EditorIcon::Brush: {
+			float radius{ std::max(2.0f, std::round(5.0f * scale)) };
+
+			ImDrawListFlags previous_flags{ draw->Flags };
+
+			draw->Flags &= ~ImDrawListFlags_AntiAliasedFill;
+			draw->AddCircleFilled(center, radius, color, 16);
+			draw->Flags = previous_flags;
+
+			break;
+		}
+
+		case EditorIcon::Line: {
+			float offset{ 6.0f * scale };
+			float half_normal{ line * 0.35355339f };
+
+			ImVec2 start{ center.x - offset, center.y + offset };
+			ImVec2 end{ center.x + offset, center.y - offset };
+			ImVec2 normal{ half_normal, half_normal };
+
+			ImDrawListFlags previous_flags{ draw->Flags };
+
+			draw->Flags &= ~ImDrawListFlags_AntiAliasedFill;
+			draw->AddQuadFilled(
+				{ start.x - normal.x, start.y - normal.y }, { end.x - normal.x, end.y - normal.y },
+				{ end.x + normal.x, end.y + normal.y }, { start.x + normal.x, start.y + normal.y },
+				color
+			);
+			draw->Flags = previous_flags;
+
+			break;
+		}
+
+		case EditorIcon::Rectangle:
+			draw_rect_outline(point(2.0f, 3.0f), point(14.0f, 13.0f), line_pixels);
+			break;
+
+		case EditorIcon::Fill: {
+			ImDrawListFlags previous_flags{ draw->Flags };
+			draw->Flags &= ~(ImDrawListFlags_AntiAliasedFill | ImDrawListFlags_AntiAliasedLines);
+
+			ImVec2 square_center{ point(5.25f, 5.25f) };
+			float half_extent{ std::max(2.0f, std::round(5.0f * scale)) };
+
+			draw->AddQuadFilled(
+				{ square_center.x, square_center.y - half_extent },
+				{ square_center.x + half_extent, square_center.y },
+				{ square_center.x, square_center.y + half_extent },
+				{ square_center.x - half_extent, square_center.y }, color
+			);
+
+			ImVec2 drop_center{ point(11.75f, 11.75f) };
+			float drop_radius{ std::max(1.0f, std::round(3.0f * scale)) };
+
+			draw->AddCircleFilled(drop_center, drop_radius, color, 12);
+
+			draw->Flags = previous_flags;
+
+			break;
+		}
+
+		case EditorIcon::Erase: {
+			ImDrawListFlags previous_flags{ draw->Flags };
+			draw->Flags &= ~(ImDrawListFlags_AntiAliasedFill | ImDrawListFlags_AntiAliasedLines);
+
+			ImVec2 a{ point(1.0f, 5.0f) };
+			ImVec2 b{ point(15.0f, 5.0f) };
+			ImVec2 c{ point(15.0f, 11.0f) };
+			ImVec2 d{ point(1.0f, 11.0f) };
+
+			a = { center.x + (a.x - center.x) * 0.70710678f - (a.y - center.y) * 0.70710678f,
+				  center.y + (a.x - center.x) * 0.70710678f + (a.y - center.y) * 0.70710678f };
+			b = { center.x + (b.x - center.x) * 0.70710678f - (b.y - center.y) * 0.70710678f,
+				  center.y + (b.x - center.x) * 0.70710678f + (b.y - center.y) * 0.70710678f };
+			c = { center.x + (c.x - center.x) * 0.70710678f - (c.y - center.y) * 0.70710678f,
+				  center.y + (c.x - center.x) * 0.70710678f + (c.y - center.y) * 0.70710678f };
+			d = { center.x + (d.x - center.x) * 0.70710678f - (d.y - center.y) * 0.70710678f,
+				  center.y + (d.x - center.x) * 0.70710678f + (d.y - center.y) * 0.70710678f };
+
+			draw->AddQuad(a, b, c, d, color, line);
+			draw->AddLine(
+				{ center.x - 2.5f * scale, center.y + 2.5f * scale },
+				{ center.x + 2.5f * scale, center.y - 2.5f * scale }, color, line
+			);
+
+			draw->Flags = previous_flags;
+
+			break;
+		}
+
+		case EditorIcon::Eyedropper: {
+			ImDrawListFlags previous_flags{ draw->Flags };
+			draw->Flags &= ~(ImDrawListFlags_AntiAliasedFill | ImDrawListFlags_AntiAliasedLines);
+
+			float offset{ 6.0f * scale };
+			float half_normal{ line * 0.35355339f };
+
+			ImVec2 start{ center.x - offset, center.y + offset };
+			ImVec2 end{ center.x + offset + 1.0f, center.y - offset - 1.0f };
+			ImVec2 normal{ half_normal, half_normal };
+
+			draw->AddQuadFilled(
+				{ start.x - normal.x, start.y - normal.y }, { end.x - normal.x, end.y - normal.y },
+				{ end.x + normal.x, end.y + normal.y }, { start.x + normal.x, start.y + normal.y },
+				color
+			);
+
+			ImVec2 bulb_center{
+				center.x + 3.5f * scale - 1.0f,
+				center.y - 3.5f * scale + 1.0f,
+			};
+			float bulb_radius{ std::max(2.0f, std::round(4.0f * scale)) };
+
+			draw->AddCircleFilled(bulb_center, bulb_radius, color, 20);
+
+			draw->Flags = previous_flags;
+			break;
+		}
+
+		case EditorIcon::Target: {
+			float radius{ 4.5f * scale };
+			draw_vertical_band(center.x, origin.y, origin.y + pixel_extent, line_pixels);
+			draw_horizontal_band(center.y, origin.x, origin.x + pixel_extent, line_pixels);
+			draw->AddCircle(center, radius, color, 24, line);
+			break;
+		}
+
+		case EditorIcon::Grid: {
+			float offset{ 3.0f * scale };
+			float v0{ SnapStrokeCenter(center.x - offset, line_pixels) };
+			float v1{ center.x * 2.0f - v0 };
+			float h0{ SnapStrokeCenter(center.y - offset, line_pixels) };
+			float h1{ center.y * 2.0f - h0 };
+
+			float left{ std::round(origin.x + 1.0f * scale) };
+			float right{ center.x * 2.0f - left };
+			float top{ std::round(origin.y + 1.0f * scale) };
+			float bottom{ center.y * 2.0f - top };
+
+			draw_vertical_band(v0, top, bottom, line_pixels);
+			draw_vertical_band(v1, top, bottom, line_pixels);
+			draw_horizontal_band(h0, left, right, line_pixels);
+			draw_horizontal_band(h1, left, right, line_pixels);
+			break;
+		}
+	}
+
+	if (runtime_icon) {
+		draw->Flags = prev_flags;
 	}
 }
 
@@ -302,8 +518,8 @@ bool DrawEditorIconButton(const char* id, EditorIcon icon, const char* tooltip) 
 
 bool DrawEditorIconButton(const char* id, EditorIcon icon, EditorIconButtonOptions options) {
 	const auto& style{ ImGui::GetStyle() };
-	const float side{ options.compact ? ImGui::GetTextLineHeight() + 2.0f : ImGui::GetFrameHeight() };
-	const ImVec2 p0{ ImGui::GetCursorScreenPos() };
+	float side{ options.compact ? ImGui::GetTextLineHeight() + 2.0f : ImGui::GetFrameHeight() };
+	ImVec2 p0{ ImGui::GetCursorScreenPos() };
 
 	if (options.interactive) {
 		if (options.no_navigation) {
@@ -317,10 +533,10 @@ bool DrawEditorIconButton(const char* id, EditorIcon icon, EditorIconButtonOptio
 		ImGui::Dummy({ side, side });
 	}
 
-	const bool item_hovered{ ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled) };
-	const bool hovered{ options.interactive && item_hovered };
-	const bool active{ options.interactive && ImGui::IsItemActive() };
-	const bool pressed{ options.interactive && ImGui::IsItemClicked(ImGuiMouseButton_Left) };
+	bool item_hovered{ ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled) };
+	bool hovered{ options.interactive && item_hovered };
+	bool active{ options.interactive && ImGui::IsItemActive() };
+	bool pressed{ options.interactive && ImGui::IsItemClicked(ImGuiMouseButton_Left) };
 
 	auto* draw{ ImGui::GetWindowDrawList() };
 	if (options.compact) {
@@ -330,23 +546,22 @@ bool DrawEditorIconButton(const char* id, EditorIcon icon, EditorIconButtonOptio
 			);
 		}
 	} else {
-		const bool toggle_icon{
-			icon == EditorIcon::Visible || icon == EditorIcon::Hidden ||
-			icon == EditorIcon::Locked || icon == EditorIcon::Unlocked
-		};
+		bool toggle_icon{ icon == EditorIcon::Visible || icon == EditorIcon::Hidden ||
+						  icon == EditorIcon::Locked || icon == EditorIcon::Unlocked };
 
-		const ImVec4 background{
-			toggle_icon
-				? style.Colors[active ? ImGuiCol_FrameBgActive
-									: hovered ? ImGuiCol_FrameBgHovered : ImGuiCol_FrameBg]
-				: style.Colors[options.selected ? ImGuiCol_ButtonActive
-									: active  ? ImGuiCol_ButtonActive
-									: hovered ? ImGuiCol_ButtonHovered
-											  : ImGuiCol_Button]
-		};
+		ImVec4 background{ toggle_icon ? style.Colors
+											 [active	? ImGuiCol_FrameBgActive
+											  : hovered ? ImGuiCol_FrameBgHovered
+														: ImGuiCol_FrameBg]
+									   : style.Colors
+											 [options.selected ? ImGuiCol_ButtonActive
+											  : active		   ? ImGuiCol_ButtonActive
+											  : hovered		   ? ImGuiCol_ButtonHovered
+															   : ImGuiCol_Button] };
 		draw->AddRectFilled(
 			p0, { p0.x + side, p0.y + side }, ImGui::GetColorU32(background), style.FrameRounding
 		);
+
 		if (options.selected) {
 			draw->AddRect(
 				p0, { p0.x + side, p0.y + side }, ImGui::GetColorU32(ImGuiCol_Text),
@@ -355,21 +570,16 @@ bool DrawEditorIconButton(const char* id, EditorIcon icon, EditorIconButtonOptio
 		}
 	}
 
-	const float default_icon_extent{
-		options.compact ? side : std::clamp(side - 10.0f, 12.0f, 16.0f)
-	};
+	float default_icon_extent{ options.compact ? side : std::clamp(side - 10.0f, 12.0f, 16.0f) };
+	float icon_extent{ options.icon_extent > 0.0f ? options.icon_extent : default_icon_extent };
 
-	const float icon_extent{
-		options.icon_extent > 0.0f ? options.icon_extent : default_icon_extent
-	};
 	DrawEditorIcon(
 		draw, icon,
 		{
 			p0.x + (side - icon_extent) * 0.5f,
 			p0.y + (side - icon_extent) * 0.5f,
 		},
-		icon_extent,
-		ImGui::GetColorU32(options.muted ? ImGuiCol_TextDisabled : ImGuiCol_Text)
+		icon_extent, ImGui::GetColorU32(options.muted ? ImGuiCol_TextDisabled : ImGuiCol_Text)
 	);
 
 	if (item_hovered && options.tooltip && *options.tooltip != '\0') {
