@@ -487,7 +487,7 @@ inline bool DrawKeyCombo(Key& value, const char* id = "##value") {
 				valid = false;
 				break;
 			}
-			number = number * 10 + static_cast<int>(normalized[i] - '0');
+			number = number * 10 + normalized[i] - '0';
 		}
 		if (valid && number >= 1 && number <= 25) {
 			return true;

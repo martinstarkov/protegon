@@ -593,7 +593,8 @@ void MergeBounds(std::optional<PaintSelectionRect>& target, const PaintSelection
 
 [[nodiscard]] V2_int GeneratorCellAtWorld(Entity entity, V2_float world) {
 	PTGN_ASSERT(entity && IsPaintGenerator(entity));
-	const auto& data{ PaintGenerator{ entity }.GetData() };
+	PaintGenerator generator{ entity };
+	const auto& data{ generator.GetData() };
 	V2_float origin{ data.grid_offset + GetWorldPosition(entity) };
 	return {
 		static_cast<int>(std::floor((world.x - origin.x) / std::max(1.0f, data.grid_size.x))),
@@ -811,17 +812,6 @@ void SortGroupsUngroupedFirst(std::vector<std::string>& groups) {
 		return a < b;
 	});
 	groups.erase(std::unique(groups.begin(), groups.end()), groups.end());
-}
-
-[[nodiscard]] int RequiredAutotileTileCount(PaintAutotileFormat format) {
-	switch (format) {
-		case PaintAutotileFormat::Classic15:  return 15;
-		case PaintAutotileFormat::Blob47:	  return 47;
-		case PaintAutotileFormat::Subset16:
-		case PaintAutotileFormat::DualGrid16:
-		case PaintAutotileFormat::Wang16:	  return 16;
-	}
-	return 16;
 }
 
 [[nodiscard]] const char* AutotileFormatName(PaintAutotileFormat format) {
@@ -1148,19 +1138,6 @@ constexpr float kRecipeControlWidth{ 190.0f };
 		width = std::max(width, ImGui::CalcTextSize(label).x + ImGui::GetStyle().ItemSpacing.x);
 	}
 	return std::ceil(width);
-}
-
-void BeginRecipeField(const char* label, float control_width = kRecipeControlWidth) {
-	const float start_x{ ImGui::GetCursorPosX() };
-
-	ImGui::AlignTextToFramePadding();
-	ImGui::TextUnformatted(label);
-	ImGui::SameLine();
-
-	ImGui::SetCursorPosX(std::max(ImGui::GetCursorPosX(), start_x + RecipeLabelWidth()));
-	ImGui::SetNextItemWidth(
-		std::min(control_width, std::max(1.0f, ImGui::GetContentRegionAvail().x))
-	);
 }
 
 [[nodiscard]] float ComboPopupSideInset() {
@@ -1981,9 +1958,9 @@ void PaintEditor::DrawBrushSettingsToolbar(EditorContext& ctx, Scene& scene, Sce
 			const std::string& selected_name{ tile_layer ? recipe_.weighted_tile_set_name
 														 : recipe_.weighted_prefab_set_name };
 			const char* preview{ selected_name.empty() ? "<none>" : selected_name.c_str() };
-			const float combo_width{ ImGui::CalcTextSize(preview).x +
-									 ImGui::GetStyle().FramePadding.x * 2.0f +
-									 ImGui::GetFrameHeight() };
+			const float preview_combo_width{ ImGui::CalcTextSize(preview).x +
+											 ImGui::GetStyle().FramePadding.x * 2.0f +
+											 ImGui::GetFrameHeight() };
 			const float add_width{ ImGui::CalcTextSize("Add Weighted Set").x +
 								   ImGui::GetStyle().FramePadding.x * 2.0f };
 			const float delete_width{ ImGui::CalcTextSize("Delete Set").x +
@@ -1993,7 +1970,7 @@ void PaintEditor::DrawBrushSettingsToolbar(EditorContext& ctx, Scene& scene, Sce
 									   ComboPopupSideInset() * 2.0f };
 
 			source_popup_min_width = std::max(
-				560.0f, popup_padding + RecipeLabelWidth() + combo_width + add_width +
+				560.0f, popup_padding + RecipeLabelWidth() + preview_combo_width + add_width +
 							delete_width + row_spacing
 			);
 			source_popup_max_width = std::max(720.0f, source_popup_min_width);
@@ -4432,13 +4409,6 @@ void PaintEditor::ReconcileProjectLibrary(EditorContext& ctx) {
 			project_library_changed = true;
 		}
 
-		const int columns{ texture_size.IsPositive() && settings_it->second.tile_size.IsPositive()
-							   ? texture_size.x / settings_it->second.tile_size.x
-							   : 0 };
-		const int rows{ texture_size.IsPositive() && settings_it->second.tile_size.IsPositive()
-							? texture_size.y / settings_it->second.tile_size.y
-							: 0 };
-
 		bool any_entry{ std::ranges::any_of(tile_library_, [&](const TileLibraryEntry& entry) {
 			return entry.texture == texture;
 		}) };
@@ -6267,8 +6237,8 @@ void PaintEditor::BakeGenerator(EditorContext& ctx, Scene& scene, Entity entity)
 	};
 
 	auto remove_generator = [scene_ptr, generator_uuid]() {
-		if (Entity generator{ scene_ptr->GetEntity(generator_uuid) }) {
-			generator.Destroy();
+		if (Entity gen{ scene_ptr->GetEntity(generator_uuid) }) {
+			gen.Destroy();
 			scene_ptr->Refresh();
 		}
 	};
