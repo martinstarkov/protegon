@@ -7,6 +7,7 @@
 
 #include "runtime/ecs/entity.h"
 #include "runtime/ecs/uuid.h"
+#include "runtime/world/entity_layer.h"
 #include "serialization/serialize.h"
 
 namespace ptgn {
@@ -20,6 +21,7 @@ enum class EntityFilterType : std::uint8_t {
 	Group,
 	Query,
 	None,
+	Layer,
 };
 PTGN_REFLECT_ENUM(EntityFilterType);
 
@@ -28,6 +30,13 @@ struct EntityReference {
 	std::string tag{};
 
 	PTGN_REFLECT(EntityReference, uuid, tag)
+};
+
+struct SceneLayerReference {
+	SceneLayerId id{};
+	std::string name{};
+
+	PTGN_REFLECT(SceneLayerReference, id, name)
 };
 
 struct ComponentQueryCondition {
@@ -64,11 +73,12 @@ struct RegisteredEntityQueryReference {
 struct EntityFilter {
 	EntityFilterType type{ EntityFilterType::Any };
 	EntityReference entity{};
+	SceneLayerReference layer{};
 	ComponentEntityQuery components{};
 	GroupEntityQuery group{};
 	RegisteredEntityQueryReference query{};
 
-	PTGN_REFLECT(EntityFilter, type, entity, components, group, query)
+	PTGN_REFLECT(EntityFilter, type, entity, layer, components, group, query)
 };
 
 void SetEntityReference(EntityReference& reference, Entity entity);

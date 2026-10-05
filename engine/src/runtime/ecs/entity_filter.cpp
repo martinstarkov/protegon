@@ -89,6 +89,14 @@ bool Matches(const EntityFilter& filter, Scene& scene, Entity owner, Entity targ
 		case EntityFilterType::Entity:
 			return filter.entity.uuid.has_value() &&
 				   target.Get<UUID>() == filter.entity.uuid.value();
+		case EntityFilterType::Layer: {
+			if (!filter.layer.id) {
+				return false;
+			}
+
+			auto layer{ scene.GetLayers().GetLayerId(target) };
+			return layer.has_value() && layer.value() == filter.layer.id;
+		}
 		case EntityFilterType::Components: return MatchesComponentQuery(target, filter.components);
 		case EntityFilterType::Group:	   {
 			auto* membership{ target.TryGet<Group>() };
