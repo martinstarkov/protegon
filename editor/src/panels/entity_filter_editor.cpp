@@ -47,7 +47,7 @@ namespace {
 constexpr std::size_t kMaxHierarchyDepth{ 256 };
 constexpr float kEntityHierarchyHeight{ 300.0f };
 constexpr float kEntityModeMinWidth{ 420.0f };
-constexpr float kComponentsModeMinWidth{ 640.0f };
+constexpr float kComponentsModeMinWidth{ 720.0f };
 constexpr float kGroupsModeMinWidth{ 360.0f };
 constexpr float kQueriesModeMinWidth{ 400.0f };
 constexpr float kTargetPopupWidth{ kComponentsModeMinWidth };
@@ -63,7 +63,7 @@ constexpr float kComponentRowExtraHeight{ 4.0f };
 }
 
 [[nodiscard]] std::string TrimWhitespace(std::string value) {
-	const auto first{ std::ranges::find_if(value, [](char c) {
+	auto first{ std::ranges::find_if(value, [](char c) {
 		return !std::isspace(static_cast<unsigned char>(c));
 	}) };
 
@@ -71,9 +71,9 @@ constexpr float kComponentRowExtraHeight{ 4.0f };
 		return {};
 	}
 
-	const auto last{ std::ranges::find_if(value | std::views::reverse, [](char c) {
-						 return !std::isspace(static_cast<unsigned char>(c));
-					 }).base() };
+	auto last{ std::ranges::find_if(value | std::views::reverse, [](char c) {
+				   return !std::isspace(static_cast<unsigned char>(c));
+			   }).base() };
 	return std::string{ first, last };
 }
 
@@ -107,7 +107,7 @@ constexpr float kComponentRowExtraHeight{ 4.0f };
 [[nodiscard]] std::string_view ComponentDisplayName(const RegisteredComponent& component) {
 	std::string_view name{ component.name };
 
-	if (const auto separator{ name.rfind("::") }; separator != std::string_view::npos) {
+	if (auto separator{ name.rfind("::") }; separator != std::string_view::npos) {
 		name.remove_prefix(separator + 2);
 	}
 
@@ -216,6 +216,122 @@ void SetLayerRef(SceneLayerReference& reference, const SceneLayer& layer) {
 	return reference.id ? scene.GetLayers().Find(reference.id) : nullptr;
 }
 
+void EnsureLayerRef(Scene& scene, Entity owner, SceneLayerReference& reference) {
+	if (ResolveLayer(scene, reference)) {
+		return;
+	}
+
+	auto& layers{ scene.GetLayers() };
+
+	if (owner) {
+		if (const SceneLayer* owner_layer{ layers.GetLayer(owner) }) {
+			SetLayerRef(reference, *owner_layer);
+			return;
+		}
+	}
+
+	if (const SceneLayer* default_layer{ layers.Find(layers.GetDefaultEntityLayer()) }) {
+		SetLayerRef(reference, *default_layer);
+	}
+}
+
+[[nodiscard]] bool MatchesLayerFilter(const SceneLayer& layer, std::string_view filter_text) {
+	if (filter_text.empty()) {
+		return true;
+	}
+
+	std::string name{ layer.name };
+	std::ranges::transform(name, name.begin(), LowerAscii);
+
+	std::string filter{ filter_text };
+	bool has_name_include{ false };
+	bool matched_name_include{ false };
+	bool has_kind_include{ false };
+	bool matched_kind_include{ false };
+	std::size_t start{ 0 };
+
+	while (start <= filter.size()) {
+		std::size_t comma{ filter.find(',', start) };
+		std::string token{ comma == std::string::npos ? filter.substr(start)
+													  : filter.substr(start, comma - start) };
+		token = TrimWhitespace(std::move(token));
+		std::ranges::transform(token, token.begin(), LowerAscii);
+
+		if (!token.empty()) {
+			bool exclude{ token.front() == '-' };
+			std::string criterion{ TrimWhitespace(exclude ? token.substr(1) : token) };
+
+			if (!criterion.empty()) {
+				bool is_kind_filter{ criterion.front() == '*' };
+				std::string kind{ is_kind_filter ? TrimWhitespace(criterion.substr(1))
+												 : std::string{} };
+
+				is_kind_filter &= kind == "entity" || kind == "tile";
+
+				if (is_kind_filter) {
+					bool kind_matches{ (kind == "entity" && layer.kind == SceneLayerKind::Entity) ||
+									   (kind == "tile" && layer.kind == SceneLayerKind::Tile) };
+
+					if (exclude && kind_matches) {
+						return false;
+					}
+
+					if (!exclude) {
+						has_kind_include	  = true;
+						matched_kind_include |= kind_matches;
+					}
+				} else {
+					bool contains{ name.find(criterion) != std::string::npos };
+
+					if (exclude && contains) {
+						return false;
+					}
+
+					if (!exclude) {
+						has_name_include	  = true;
+						matched_name_include |= contains;
+					}
+				}
+			}
+		}
+
+		if (comma == std::string::npos) {
+			break;
+		}
+
+		start = comma + 1;
+	}
+
+	return (!has_name_include || matched_name_include) &&
+		   (!has_kind_include || matched_kind_include);
+}
+
+void DrawLayerFilterTooltip() {
+	if (!ImGui::IsItemHovered()) {
+		return;
+	}
+
+	ImGui::BeginTooltip();
+	ImGui::TextUnformatted("Layer filter syntax:");
+	ImGui::Separator();
+	ImGui::TextUnformatted("background");
+	ImGui::SameLine();
+	ImGui::TextDisabled("Name contains \"background\"");
+	ImGui::TextUnformatted("-debug");
+	ImGui::SameLine();
+	ImGui::TextDisabled("Name does not contain \"debug\"");
+	ImGui::TextUnformatted("*entity");
+	ImGui::SameLine();
+	ImGui::TextDisabled("Entity layers only");
+	ImGui::TextUnformatted("*tile");
+	ImGui::SameLine();
+	ImGui::TextDisabled("Tile layers only");
+	ImGui::Spacing();
+	ImGui::TextDisabled("Separate filters with commas.");
+	ImGui::TextDisabled("Positive names use OR; layer type and name filters must both match.");
+	ImGui::EndTooltip();
+}
+
 void DrawEntityHierarchyNode(
 	Entity entity, const EntityReference* current, std::string_view filter, Entity* picked_entity,
 	Entity excluded_entity = {}, std::span<const Entity> excluded_entities = {},
@@ -314,31 +430,84 @@ bool DrawMiniHierarchy(
 	std::span<const Entity> excluded_entities = {}
 ) {
 	bool changed{ false };
+	auto& layers{ scene.GetLayers() };
 
-	if (entity_reference) {
-		Entity selected{ ResolveEntity(scene, *entity_reference) };
+	if (layer_reference) {
+		EnsureLayerRef(scene, owner, *layer_reference);
 
-		if (selected) {
-			std::string selected_label{ "Selected Entity: " + EntityDisplayName(selected) +
-										" [uuid: " + UUIDDisplayName(selected) + "]" };
-			ImGui::TextUnformatted(selected_label.c_str());
-		} else {
-			ImGui::TextUnformatted("Selected Entity: None");
-		}
-
-		if (allow_select_owner && owner && ImGui::Button("Select Owner")) {
-			SetEntityRef(*entity_reference, owner);
-			changed = true;
-		}
-	} else if (layer_reference) {
 		const SceneLayer* selected{ ResolveLayer(scene, *layer_reference) };
 
-		if (selected) {
-			std::string selected_label{ "Selected Layer: " + selected->name };
-			ImGui::TextUnformatted(selected_label.c_str());
-		} else {
-			ImGui::TextUnformatted("Selected Layer: None");
+		std::string selected_label{ "Selected Layer: " + selected->name };
+		ImGui::TextUnformatted(selected_label.c_str());
+
+		if (allow_select_owner && owner) {
+			if (const SceneLayer* owner_layer{ layers.GetLayer(owner) };
+				owner_layer && ImGui::Button("Select Owner Layer")) {
+				SetLayerRef(*layer_reference, *owner_layer);
+				changed = true;
+			}
 		}
+
+		ImGui::SetNextItemWidth(-FLT_MIN);
+		ImGui::InputTextWithHint(
+			"##LayerFilter", "Filter: background, -debug, *entity, *tile", &state.layer_filter
+		);
+		DrawLayerFilterTooltip();
+
+		ImGui::BeginChild(
+			"##LayerList", ImVec2{ 0.0f, kEntityHierarchyHeight }, ImGuiChildFlags_Borders
+		);
+
+		bool any_visible{ false };
+
+		for (const SceneLayer& layer : layers.GetLayers()) {
+			if (!MatchesLayerFilter(layer, state.layer_filter)) {
+				continue;
+			}
+
+			any_visible = true;
+			ImGui::PushID(static_cast<int>(layer.id.value));
+			hierarchy::DrawLayerControls(
+				layer, hierarchy::LayerControlsOptions{
+						   .show_visibility		   = false,
+						   .visibility_interactive = false,
+					   }
+			);
+
+			bool selected_layer{ layer_reference->id == layer.id };
+
+			ImGui::SetCursorPosX(ImGui::GetCursorPosX() + ImGui::GetStyle().ItemSpacing.x * 0.5f);
+
+			if (ImGui::Selectable(layer.name.c_str(), selected_layer)) {
+				SetLayerRef(*layer_reference, layer);
+				changed = true;
+			}
+
+			ImGui::PopID();
+		}
+
+		if (!any_visible) {
+			ImGui::TextDisabled("No matching layers.");
+		}
+
+		ImGui::EndChild();
+
+		return changed;
+	}
+
+	Entity selected{ ResolveEntity(scene, *entity_reference) };
+
+	if (selected) {
+		std::string selected_label{ "Selected Entity: " + EntityDisplayName(selected) +
+									" [uuid: " + UUIDDisplayName(selected) + "]" };
+		ImGui::TextUnformatted(selected_label.c_str());
+	} else {
+		ImGui::TextUnformatted("Selected Entity: None");
+	}
+
+	if (allow_select_owner && owner && ImGui::Button("Select Owner")) {
+		SetEntityRef(*entity_reference, owner);
+		changed = true;
 	}
 
 	ImGui::SetNextItemWidth(-FLT_MIN);
@@ -346,11 +515,12 @@ bool DrawMiniHierarchy(
 		"##HierarchyFilter", "Filter: player, -enemy, *hidden, *shown", &state.hierarchy_filter
 	);
 	hierarchy::DrawFilterTooltip();
+
 	ImGui::BeginChild(
 		"##EntityHierarchy", ImVec2{ 0.0f, kEntityHierarchyHeight }, ImGuiChildFlags_Borders
 	);
+
 	Entity picked_entity;
-	auto& layers{ scene.GetLayers() };
 
 	for (const SceneLayer& layer : layers.GetLayers()) {
 		ImGui::PushID(static_cast<int>(layer.id.value));
@@ -362,18 +532,10 @@ bool DrawMiniHierarchy(
                     .show_visibility = false,
                     .visibility_interactive = false,
                 },
-                .selected = layer_reference && layer_reference->id == layer.id,
             }
         ) };
 
-		if (layer_reference && row.left_clicked) {
-			SetLayerRef(*layer_reference, layer);
-			changed = true;
-		}
-
-		bool open{ row.open };
-
-		if (open) {
+		if (row.open) {
 			auto roots{ layers.GetRootEntities(scene, layer.id) };
 			std::erase_if(roots, [&](Entity entity) {
 				return !entity || !scene.Entities().Contains(entity);
@@ -382,9 +544,8 @@ bool DrawMiniHierarchy(
 
 			for (Entity root : roots) {
 				DrawEntityHierarchyNode(
-					root, entity_reference, state.hierarchy_filter,
-					entity_reference ? std::addressof(picked_entity) : nullptr, excluded_entity,
-					excluded_entities
+					root, entity_reference, state.hierarchy_filter, std::addressof(picked_entity),
+					excluded_entity, excluded_entities
 				);
 			}
 
@@ -394,7 +555,7 @@ bool DrawMiniHierarchy(
 		ImGui::PopID();
 	}
 
-	if (entity_reference && picked_entity) {
+	if (picked_entity) {
 		SetEntityRef(*entity_reference, picked_entity);
 		changed = true;
 	}
@@ -436,9 +597,9 @@ bool DrawComponentPicker(
 	const auto* selected{ component_name.empty()
 							  ? nullptr
 							  : ComponentRegistry::Find(std::string_view{ component_name }) };
-	const std::string preview{ selected ? std::string{ ComponentDisplayName(*selected) }
-							   : component_name.empty() ? "Select Component"
-														: component_name + " (Missing)" };
+	std::string preview{ selected				  ? std::string{ ComponentDisplayName(*selected) }
+						 : component_name.empty() ? "Select Component"
+												  : component_name + " (Missing)" };
 	bool changed{ false };
 
 	if (ImGui::Button(
@@ -460,7 +621,7 @@ bool DrawComponentPicker(
 	bool any_visible{ false };
 
 	for (const auto* component : GetRegisteredComponents()) {
-		const std::string_view label{ ComponentDisplayName(*component) };
+		std::string_view label{ ComponentDisplayName(*component) };
 
 		if (!ContainsCaseInsensitive(label, state.component_filter) &&
 			!ContainsCaseInsensitive(component->name, state.component_filter)) {
@@ -469,7 +630,7 @@ bool DrawComponentPicker(
 
 		any_visible = true;
 		bool is_selected{ component_name == component->name };
-		const std::string selectable_label{ label };
+		std::string selectable_label{ label };
 
 		if (ImGui::Selectable(selectable_label.c_str(), is_selected)) {
 			component_name = component->name;
@@ -599,9 +760,9 @@ bool DrawComponentPicker(
 	const auto* component{ condition.component.empty()
 							   ? nullptr
 							   : ComponentRegistry::Find(std::string_view{ condition.component }) };
-	const std::string label{ component ? std::string{ ComponentDisplayName(*component) }
-							 : condition.component.empty() ? "<component>"
-														   : condition.component };
+	std::string label{ component ? std::string{ ComponentDisplayName(*component) }
+					   : condition.component.empty() ? "<component>"
+													 : condition.component };
 	return condition.required ? "Has " + label : "Doesn't Have " + label;
 }
 
@@ -644,40 +805,54 @@ bool DrawComponentPicker(
 	return output;
 }
 
+[[nodiscard]] bool HasValidComponentCondition(const ComponentEntityQuery& query) {
+	for (const auto& group : query.groups) {
+		for (const auto& condition : group.conditions) {
+			if (!condition.component.empty() &&
+				ComponentRegistry::Find(std::string_view{ condition.component })) {
+				return true;
+			}
+		}
+	}
+
+	return false;
+}
+
 [[nodiscard]] std::string FilterSummary(
 	Scene* scene, [[maybe_unused]] Entity owner, const EntityFilter& target
 ) {
 	switch (target.type) {
 		case EntityFilterType::None:   return "No Entities";
-		case EntityFilterType::Any:	   return "Any Entity";
+		case EntityFilterType::Any:	   return "All Entities";
+
 		case EntityFilterType::Entity: {
 			if (!scene) {
 				return target.entity.uuid.has_value()
 						 ? (target.entity.tag.empty() ? "Selected Entity" : target.entity.tag)
-						 : "Select Entity";
+						 : "Entity: None";
 			}
 
 			Entity entity{ ResolveEntity(*scene, target.entity) };
 
-			return entity ? EntityDisplayName(entity) : "Select Entity";
+			return entity ? EntityDisplayName(entity) : "Entity: None";
 		}
 
 		case EntityFilterType::Layer: {
 			if (!scene) {
-				if (target.layer.name.empty()) {
-					return "Select Layer";
-				}
-
-				return "Layer: " + target.layer.name;
+				return target.layer.id ? "Layer: " + target.layer.name : "Layer: None";
 			}
 
 			const SceneLayer* layer{ ResolveLayer(*scene, target.layer) };
 
-			return layer ? std::string{ "Layer: " } + layer->name : "Select Layer";
+			return layer ? "Layer: " + layer->name : "Layer: None";
 		}
 
 		case EntityFilterType::Components: {
-			const std::string summary{ ComponentQuerySummary(target.components) };
+			if (!HasValidComponentCondition(target.components)) {
+				return "Components: None";
+			}
+
+			std::string summary{ ComponentQuerySummary(target.components) };
 
 			if (summary.size() <= 52) {
 				return summary;
@@ -695,7 +870,7 @@ bool DrawComponentPicker(
 
 		case EntityFilterType::Group:
 			if (target.group.groups.empty()) {
-				return "Select Groups";
+				return "Group: None";
 			}
 
 			if (target.group.groups.size() == 1) {
@@ -703,10 +878,11 @@ bool DrawComponentPicker(
 			}
 
 			return std::to_string(target.group.groups.size()) + " groups";
+
 		case EntityFilterType::Query: {
 			const auto* query{ EntityQueryRegistry::Find(target.query.key) };
 
-			return query ? query->label : "Select Query";
+			return query ? query->label : "Query: None";
 		}
 	}
 
@@ -714,8 +890,8 @@ bool DrawComponentPicker(
 }
 
 void DrawMatchPreview(const std::vector<Entity>& matches) {
-	const std::string label{ std::to_string(matches.size()) +
-							 (matches.size() == 1 ? " match" : " matches") };
+	std::string label{ std::to_string(matches.size()) +
+					   (matches.size() == 1 ? " match" : " matches") };
 	ImGuiTreeNodeFlags flags{ ImGuiTreeNodeFlags_SpanAvailWidth };
 
 	if (matches.empty()) {
@@ -729,7 +905,7 @@ void DrawMatchPreview(const std::vector<Entity>& matches) {
 	}
 
 	for (Entity entity : matches) {
-		const std::string row{ EntityDisplayName(entity) + " [" + UUIDDisplayName(entity) + "]" };
+		std::string row{ EntityDisplayName(entity) + " [" + UUIDDisplayName(entity) + "]" };
 		ImGui::BulletText("%s", row.c_str());
 	}
 
@@ -830,7 +1006,7 @@ bool DrawComponentQueryEditor(
 			changed = true;
 		}
 
-		const float row_height{ ImGui::GetFrameHeight() };
+		float row_height{ ImGui::GetFrameHeight() };
 
 		if (ImGui::Button("+ AND", ImVec2{ 0.0f, row_height })) {
 			group.conditions.push_back(ComponentQueryCondition{});
@@ -946,7 +1122,7 @@ bool DrawGroupPicker(Scene* scene, GroupEntityQuery& query, EntityFilterEditorSt
 			}
 		}
 
-		const std::string custom_group{ TrimWhitespace(state.group_filter) };
+		std::string custom_group{ TrimWhitespace(state.group_filter) };
 		bool can_add_custom_group{ !custom_group.empty() &&
 								   !std::ranges::contains(query.groups, custom_group) &&
 								   !groups.contains(custom_group) };
@@ -955,7 +1131,7 @@ bool DrawGroupPicker(Scene* scene, GroupEntityQuery& query, EntityFilterEditorSt
 				ImGui::Separator();
 			}
 
-			const std::string add_label{ "+ Add \"" + custom_group + "\"" };
+			std::string add_label{ "+ Add \"" + custom_group + "\"" };
 
 			if (ImGui::Selectable(add_label.c_str())) {
 				query.groups.push_back(custom_group);
@@ -1003,7 +1179,7 @@ bool DrawRegisteredQueryPicker(
 	RegisteredEntityQueryReference& query, EntityFilterEditorState& state
 ) {
 	const auto* selected{ EntityQueryRegistry::Find(query.key) };
-	const std::string preview{ selected ? selected->label : "Select Query" };
+	std::string preview{ selected ? selected->label : "Select Query" };
 	bool changed{ false };
 	ImGui::SetNextItemWidth(-FLT_MIN);
 
@@ -1118,6 +1294,7 @@ bool DrawEntityFilterEditor(
 	const EntityFilterEditorOptions& options
 ) {
 	bool changed{ false };
+
 	auto mode_visible = [&](EntityFilterType type) {
 		switch (type) {
 			case EntityFilterType::None:	   return options.show_none;
@@ -1137,6 +1314,10 @@ bool DrawEntityFilterEditor(
 			target.type = EntityFilterType::Entity;
 		} else if (options.show_layer) {
 			target.type = EntityFilterType::Layer;
+
+			if (scene) {
+				EnsureLayerRef(*scene, owner, target.layer);
+			}
 		} else if (options.show_any) {
 			target.type = EntityFilterType::Any;
 		} else if (options.show_components) {
@@ -1210,7 +1391,7 @@ bool DrawEntityFilterEditor(
 		};
 		ImGui::PushStyleVar(ImGuiStyleVar_SelectableTextAlign, ImVec2{ 0.5f, 0.5f });
 		draw_mode("None", EntityFilterType::None, options.show_none);
-		draw_mode("Any", EntityFilterType::Any, options.show_any);
+		draw_mode("All", EntityFilterType::Any, options.show_any);
 		draw_mode("Entity", EntityFilterType::Entity, options.show_entity);
 		draw_mode("Layer", EntityFilterType::Layer, options.show_layer);
 		draw_mode("Components", EntityFilterType::Components, options.show_components);
@@ -1241,7 +1422,8 @@ bool DrawEntityFilterEditor(
 		case EntityFilterType::Layer:
 			if (scene) {
 				changed |= DrawMiniHierarchy(
-					*scene, owner, nullptr, std::addressof(target.layer), state, false
+					*scene, owner, nullptr, std::addressof(target.layer), state,
+					options.allow_select_owner
 				);
 			} else {
 				ImGui::TextDisabled("Scene layer selection requires a scene instance.");
@@ -1277,6 +1459,7 @@ void DrawFilterButtonTooltip(Scene* scene, const EntityFilter& target) {
 						std::string name{ EntityDisplayName(entity) };
 						std::string uuid{ UUIDDisplayName(entity) };
 						ImGui::SetTooltip("%s\nuuid: %s", name.c_str(), uuid.c_str());
+						return;
 					}
 				} else {
 					json uuid = target.entity.uuid.value();
@@ -1290,24 +1473,32 @@ void DrawFilterButtonTooltip(Scene* scene, const EntityFilter& target) {
 					} else {
 						ImGui::SetTooltip("uuid: %s", uuid_text.c_str());
 					}
+
+					return;
 				}
 			}
-
 			break;
+
 		case EntityFilterType::Layer:
 			if (scene) {
 				if (const SceneLayer* layer{ ResolveLayer(*scene, target.layer) }) {
 					ImGui::SetTooltip("Layer: %s", layer->name.c_str());
+					return;
 				}
 			} else if (!target.layer.name.empty()) {
 				ImGui::SetTooltip("Layer: %s", target.layer.name.c_str());
+				return;
+			}
+			break;
+
+		case EntityFilterType::Components: {
+			if (!HasValidComponentCondition(target.components)) {
+				break;
 			}
 
-			break;
-		case EntityFilterType::Components: {
 			std::string full_summary{ ComponentQuerySummary(target.components) };
 			ImGui::SetTooltip("%s", full_summary.c_str());
-			break;
+			return;
 		}
 
 		case EntityFilterType::Group:
@@ -1323,11 +1514,15 @@ void DrawFilterButtonTooltip(Scene* scene, const EntityFilter& target) {
 				}
 
 				ImGui::SetTooltip("%s", groups.c_str());
+				return;
 			}
-
 			break;
+
 		default: break;
 	}
+
+	std::string summary{ FilterSummary(scene, {}, target) };
+	ImGui::SetTooltip("%s", summary.c_str());
 }
 
 void ApplyPopupConstraints(const EntityFilterEditorOptions& options) {
