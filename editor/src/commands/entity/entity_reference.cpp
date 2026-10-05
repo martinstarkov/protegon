@@ -10,14 +10,9 @@ namespace ptgn::editor {
 
 Scene* EntityReference::ResolveScene(Editor& editor) const {
 	auto& scenes{ editor.GetSceneManager().GetScenes() };
-	const auto it{ std::ranges::find_if(
-		scenes,
-		[this](const auto& scene) {
-			return scene &&
-				scene->GetTag() == scene_key &&
-				scene->IsRuntime() == runtime;
-		}
-	) };
+	auto it{ std::ranges::find_if(scenes, [this](const auto& scene) {
+		return scene && scene->GetTag() == scene_key && scene->IsRuntime() == runtime;
+	}) };
 
 	return it == scenes.end() ? nullptr : it->get();
 }
@@ -34,8 +29,8 @@ EntityReference MakeEntityReference(Entity entity) {
 
 	auto& scene{ entity.GetScene() };
 	return EntityReference{
-		.scene_key = scene.GetTag(),
-		.runtime = scene.IsRuntime(),
+		.scene_key	 = scene.GetTag(),
+		.runtime	 = scene.IsRuntime(),
 		.entity_uuid = entity.Get<UUID>(),
 	};
 }

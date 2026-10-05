@@ -71,10 +71,10 @@ void CreateTrack(Scene& scene) {
 	constexpr int kMarkerCount{ 20 };
 
 	for (int i{ 0 }; i < kMarkerCount; ++i) {
-		const float angle{ static_cast<float>(i) / static_cast<float>(kMarkerCount) * 2.0f *
-						   std::numbers::pi_v<float> };
+		float angle{ static_cast<float>(i) / static_cast<float>(kMarkerCount) * 2.0f *
+					 std::numbers::pi_v<float> };
 
-		const V2_float position{
+		V2_float position{
 			std::sin(angle) * 267.0f,
 			-std::cos(angle) * 267.0f,
 		};
@@ -134,11 +134,11 @@ public:
 
 		bool right{ input.KeyHeld(Key::D) || input.KeyHeld(Key::Right) };
 
-		const float dt{ std::min(ctx().dt().count(), kMaximumPhysicsDeltaTime) };
+		float dt{ std::min(ctx().dt().count(), kMaximumPhysicsDeltaTime) };
 
-		const float throttle{ (forward ? 1.0f : 0.0f) - (reverse ? 1.0f : 0.0f) };
+		float throttle{ (forward ? 1.0f : 0.0f) - (reverse ? 1.0f : 0.0f) };
 
-		const float steering{ (right ? 1.0f : 0.0f) - (left ? 1.0f : 0.0f) };
+		float steering{ (right ? 1.0f : 0.0f) - (left ? 1.0f : 0.0f) };
 
 		UpdateSpeed(throttle, dt);
 		UpdateSteering(steering, dt);
@@ -171,14 +171,13 @@ private:
 			return;
 		}
 
-		const float speed_limit{ speed_ >= 0.0f ? kMaximumForwardSpeed : kMaximumReverseSpeed };
+		float speed_limit{ speed_ >= 0.0f ? kMaximumForwardSpeed : kMaximumReverseSpeed };
 
-		const float speed_fraction{ std::min(1.0f, std::abs(speed_) / speed_limit) };
+		float speed_fraction{ std::min(1.0f, std::abs(speed_) / speed_limit) };
 
-		const float steering_strength{ kLowSpeedSteering +
-									   (1.0f - kLowSpeedSteering) * speed_fraction };
+		float steering_strength{ kLowSpeedSteering + (1.0f - kLowSpeedSteering) * speed_fraction };
 
-		const float travel_sign{ speed_ >= 0.0f ? 1.0f : -1.0f };
+		float travel_sign{ speed_ >= 0.0f ? 1.0f : -1.0f };
 
 		heading_.value += steering * kSteeringRate * steering_strength * travel_sign * dt;
 
@@ -192,7 +191,7 @@ private:
 
 		// This sprite-stack source faces right at rotation 0, so +X is the
 		// vehicle's forward direction.
-		const V2_float forward{
+		V2_float forward{
 			std::cos(heading_.value),
 			std::sin(heading_.value),
 		};

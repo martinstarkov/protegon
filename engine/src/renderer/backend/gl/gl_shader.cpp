@@ -26,9 +26,9 @@
 #include "core/util/id_map.h"
 #include "renderer/backend/gl/gl.h"
 #include "renderer/backend/gl/gl_context.h"
+#include "renderer/pipeline/shader_preprocessor.h"
 #include "renderer/resources/id.h"
 #include "renderer/resources/shader.h"
-#include "renderer/pipeline/shader_preprocessor.h"
 #include "runtime/asset/engine_shader_library.h"
 #include "serialization/json/json.h"
 
@@ -61,13 +61,13 @@ ShaderType ToShaderType(ShaderStageMask stage) {
 std::string_view GetShaderName(ShaderType type) {
 	switch (type) {
 		using enum ShaderType;
-		case Vertex:         return "vertex";
-		case Fragment:       return "fragment";
-		case Geometry:       return "geometry";
-		case TessControl:    return "tess_control";
+		case Vertex:		 return "vertex";
+		case Fragment:		 return "fragment";
+		case Geometry:		 return "geometry";
+		case TessControl:	 return "tess_control";
 		case TessEvaluation: return "tess_evaluation";
-		case Compute:        return "compute";
-		default:             PTGN_ERROR("Unknown shader type: ", std::to_underlying(type));
+		case Compute:		 return "compute";
+		default:			 PTGN_ERROR("Unknown shader type: ", std::to_underlying(type));
 	}
 }
 
@@ -204,11 +204,13 @@ std::vector<ShaderSpec> Shaders::ParseShaderSourceFile(
 		ShaderCode code;
 		code.content = std::move(stage.source);
 
-		result.push_back(ShaderSpec{
-			.type = ToShaderType(stage.stage),
-			.code = std::move(code),
-			.name = std::string{ name },
-		});
+		result.push_back(
+			ShaderSpec{
+				.type = ToShaderType(stage.stage),
+				.code = std::move(code),
+				.name = std::string{ name },
+			}
+		);
 	}
 
 	return result;
@@ -330,7 +332,7 @@ Shaders::Shaders(GLContext& gl, std::size_t max_texture_slots) :
 }
 
 Shaders::~Shaders() noexcept {
-	const auto delete_shaders = [](const auto& container, auto type) {
+	auto delete_shaders = [](const auto& container, auto type) {
 		for (const auto& [hash, id] : container) {
 			if (id) {
 				DeleteShaderId(id, type);
@@ -394,9 +396,7 @@ ShaderInfo Shaders::GetShaderInfo(
 	const ShaderPathOrName& path_or_name, ShaderType type, std::string_view shader_name // NOSONAR
 ) const {
 	if (IsFilePath(path_or_name)) {
-		const path file_path{
-			GetAbsolutePath(path{ path_or_name })
-		};
+		path file_path{ GetAbsolutePath(path{ path_or_name }) };
 
 		PTGN_ASSERT(
 			FileExists(file_path),

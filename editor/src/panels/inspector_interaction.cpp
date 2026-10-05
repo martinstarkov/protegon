@@ -24,9 +24,9 @@ bool DrawReadOnlyInteractionLock(Target& target) {
 	if constexpr (!Target::template Supports<InteractionLock>()) {
 		return false;
 	} else {
-		const auto state{ target.template Capture<InteractionLock>() };
+		auto state{ target.template Capture<InteractionLock>() };
 		bool enabled{ state.has_value() };
-		const InteractionLock value{ state.value_or(InteractionLock{}) };
+		InteractionLock value{ state.value_or(InteractionLock{}) };
 
 		ScopedID target_scope{ target.Id() };
 		ScopedID component_scope{ static_cast<int>(Hash<InteractionLock>()) };
@@ -238,9 +238,9 @@ bool DrawManagedInteractiveShapes(EntityInspectorTarget& target) {
 				}
 
 				ScopedID shape_scope{ static_cast<int>(index) };
-				const std::string label{ InteractiveShapeLabel(shape, index) };
+				std::string label{ InteractiveShapeLabel(shape, index) };
 				bool open{ ImGui::BeginTabItem(label.c_str()) };
-				const auto context{ DrawInspectorTabContextMenu(
+				auto context{ DrawInspectorTabContextMenu(
 					"##HitAreaContext", true, false, true, "Remove Hit Area"
 				) };
 
@@ -290,19 +290,19 @@ bool DrawManagedInteractiveShapes(EntityInspectorTarget& target) {
 	}
 	if (ImGui::BeginPopup("##AddInteractionHitAreaPopup")) {
 		if (ImGui::MenuItem("Rectangle")) {
-			const EditorSelection before_selection{ target.ctx.local.selection };
+			EditorSelection before_selection{ target.ctx.local.selection };
 			Entity created{ CreateManagedInteractiveShape(target.entity, false) };
 			if (created) {
-				(void)target.ctx.commands.RecordCreatedEntity(created, before_selection);
+				target.ctx.commands.RecordCreatedEntity(created, before_selection);
 				target.ctx.local.selection = before_selection;
 				changed					   = true;
 			}
 		}
 		if (ImGui::MenuItem("Circle")) {
-			const EditorSelection before_selection{ target.ctx.local.selection };
+			EditorSelection before_selection{ target.ctx.local.selection };
 			Entity created{ CreateManagedInteractiveShape(target.entity, true) };
 			if (created) {
-				(void)target.ctx.commands.RecordCreatedEntity(created, before_selection);
+				target.ctx.commands.RecordCreatedEntity(created, before_selection);
 				target.ctx.local.selection = before_selection;
 				changed					   = true;
 			}
@@ -320,7 +320,7 @@ bool DrawManagedInteractiveShapes(EntityInspectorTarget& target) {
 	}
 
 	if (rename_state.active) {
-		(void)DrawInspectorTabRenameModal(
+		DrawInspectorTabRenameModal(
 			rename_state, "Rename Hit Area##Interaction", "##RenameInteractionHitArea",
 			[](std::string_view value) {
 				return value.empty() ? std::string{ "Name cannot be empty." } : std::string{};
@@ -344,7 +344,7 @@ bool DrawInteractionSectionImpl(Target& target) {
 		return false;
 	}
 
-	const auto header{ DrawInspectorSectionHeader(
+	auto header{ DrawInspectorSectionHeader(
 		"Interaction", "InteractionSection",
 		InspectorSectionOptions{
 			.default_open = true,
@@ -370,7 +370,7 @@ bool DrawInteractionSectionImpl(Target& target) {
 	}
 
 	changed |= DrawPropertyRow("Mode", [&]() {
-		const std::array choices{
+		std::array choices{
 			InspectorChoice{
 				.label	  = "Basic",
 				.selected = mode == InteractionMode::Basic,
@@ -399,6 +399,7 @@ bool DrawInteractionSectionImpl(Target& target) {
 					},
 			},
 		};
+
 		return DrawInspectorChoiceBar(choices, "##InteractionMode");
 	});
 

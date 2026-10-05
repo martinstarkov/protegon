@@ -170,11 +170,11 @@ struct ButtonBorderVisuals : ButtonShapeVisuals {
 struct ButtonTextVisual {
 	bool defined{ false };
 
-	/// @brief Styled text stored for this visual state. Rich-text markup is compiled into this.
+	/// @brief Styled text stored for this visual state. Rich text markup is compiled into this.
 	std::optional<StyledText> styled_text{};
 
-	/// @brief Bedrock rich-text values for this visual state. If unset, the value inherits
-	/// through the normal button visual-state fallback chain.
+	/// @brief Bedrock rich text values for this visual state. If unset, the value inherits
+	/// through the normal button visual state fallback chain.
 	std::optional<TextRunDefaults> defaults{};
 
 	/// @brief Optional text box. If auto_box is true, the rect may be overwritten from button size.
@@ -334,7 +334,8 @@ struct ButtonShapeConfig {
 	std::optional<FillStyle> fill_style{};
 
 	PTGN_REFLECT(
-		ButtonShapeConfig, size, origin, anchor, transform, color, color_hover, color_press, fill_style
+		ButtonShapeConfig, size, origin, anchor, transform, color, color_hover, color_press,
+		fill_style
 	)
 };
 

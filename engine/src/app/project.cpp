@@ -37,7 +37,7 @@ std::string TypeNameWithoutNamespaces(std::string_view type) {
 		return "Scene";
 	}
 
-	const auto separator{ type.rfind("::") };
+	auto separator{ type.rfind("::") };
 	return separator == std::string_view::npos ? std::string{ type }
 											   : std::string{ type.substr(separator + 2) };
 }
@@ -93,7 +93,7 @@ void ValidateProject(const Project& project) {
 std::string SanitizeAssetKeyBase(const path& source_path) {
 	std::string value{ source_path.stem().string() };
 	for (char& c : value) {
-		const auto byte{ static_cast<unsigned char>(c) };
+		auto byte{ static_cast<unsigned char>(c) };
 		if (std::isalnum(byte) == 0 && c != '_' && c != '-') {
 			c = '_';
 		} else {
@@ -113,8 +113,8 @@ bool ReplaceAssetKeyStrings(
 	bool changed{ false };
 
 	if (value.is_string()) {
-		const auto current{ value.template get<std::string>() };
-		if (const auto it{ replacements.find(current) }; it != replacements.end()) {
+		auto current{ value.template get<std::string>() };
+		if (auto it{ replacements.find(current) }; it != replacements.end()) {
 			value = it->second;
 			return true;
 		}
@@ -173,10 +173,10 @@ bool NormalizeLegacyProjectAssetKeys(Project& project) {
 	});
 
 	std::unordered_map<std::string, std::string> replacements;
-	for (const auto index : normalize_indices) {
+	for (auto index : normalize_indices) {
 		auto& asset{ project.assets[index] };
-		const std::string old_key{ asset.key.value };
-		const std::string base{ SanitizeAssetKeyBase(asset.source_path) };
+		std::string old_key{ asset.key.value };
+		std::string base{ SanitizeAssetKeyBase(asset.source_path) };
 		std::string key{ base };
 
 		for (std::size_t suffix{ 2 }; used.contains(AssetIdentity(asset.kind, key)); ++suffix) {
@@ -195,7 +195,7 @@ bool NormalizeLegacyProjectAssetKeys(Project& project) {
 	}
 
 	for (auto& key : project.preload_assets) {
-		if (const auto it{ replacements.find(key.value) }; it != replacements.end()) {
+		if (auto it{ replacements.find(key.value) }; it != replacements.end()) {
 			key = AssetKey{ it->second };
 		}
 	}
@@ -205,15 +205,15 @@ bool NormalizeLegacyProjectAssetKeys(Project& project) {
 		screen_effects.get_to(project.screen_effects);
 	}
 
-	const path project_root{ project.file_path.parent_path() };
+	path project_root{ project.file_path.parent_path() };
 	std::unordered_set<std::string> rewritten_files;
 	for (const auto& scene : project.scenes) {
-		const path scene_path{ (project_root / scene.scene_path).lexically_normal() };
+		path scene_path{ (project_root / scene.scene_path).lexically_normal() };
 		rewritten_files.emplace(scene_path.generic_string());
 		RewriteAssetKeyReferencesInJsonFile(scene_path, replacements);
 	}
 
-	const path assets_root{ (project_root / project.asset_directory).lexically_normal() };
+	path assets_root{ (project_root / project.asset_directory).lexically_normal() };
 	std::error_code error;
 	for (std::filesystem::recursive_directory_iterator it{ assets_root, error }, end;
 		 !error && it != end; it.increment(error)) {
@@ -222,12 +222,12 @@ bool NormalizeLegacyProjectAssetKeys(Project& project) {
 			continue;
 		}
 
-		const path file_path{ it->path().lexically_normal() };
+		path file_path{ it->path().lexically_normal() };
 		if (rewritten_files.contains(file_path.generic_string())) {
 			continue;
 		}
 
-		const auto extension{ file_path.extension().string() };
+		auto extension{ file_path.extension().string() };
 		if (extension != ".json" && extension != ".ptgnprefab" && extension != ".ptgnscene") {
 			continue;
 		}
@@ -398,14 +398,14 @@ path GetProjectAssetDirectory(const Project& project) {
 }
 
 void EnsureProjectAssetDirectories(const Project& project) {
-	const auto root{ GetProjectAssetDirectory(project) };
+	auto root{ GetProjectAssetDirectory(project) };
 	EnsureDirectory(root);
 
 	constexpr std::array<std::string_view, 7> directories{
 		"audio", "data", "fonts", "prefabs", "scenes", "shaders", "textures",
 	};
 
-	for (const auto directory : directories) {
+	for (auto directory : directories) {
 		EnsureDirectory(root / directory);
 	}
 }

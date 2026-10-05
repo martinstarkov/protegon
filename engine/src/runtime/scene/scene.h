@@ -1,6 +1,7 @@
 #pragma once
 
 #include <ecs/ecs.h>
+
 #include <algorithm>
 #include <concepts>
 #include <cstdint>
@@ -23,11 +24,11 @@
 #include "runtime/ecs/tag.h"
 #include "runtime/ecs/uuid.h"
 #include "runtime/graphics/render_target.h"
-#include "runtime/world/entity_layer.h"
 #include "runtime/scene/scene_camera.h"
 #include "runtime/scene/scene_common.h"
 #include "runtime/scene/scene_transition.h"
 #include "runtime/scene/scene_view.h"
+#include "runtime/world/entity_layer.h"
 #include "serialization/json/archiver.h"
 #include "serialization/json/json.h"
 
@@ -39,6 +40,7 @@ class EventHandler;
 class LocalEventHandler;
 class SceneContext;
 class DrawContext;
+
 /// @brief Dependency builder used before a scene is constructed and initialized.
 /// Add assets that may be needed by entities created later at runtime and therefore
 /// cannot be discovered from the serialized ECS content.
@@ -49,14 +51,17 @@ public:
 			dependencies_.emplace_back(std::move(key));
 		}
 	}
+
 	template <typename T>
 		requires std::derived_from<std::remove_cvref_t<T>, AssetKey>
 	void Add(T key) {
 		Add(AssetKey{ std::move(key.value) });
 	}
+
 	[[nodiscard]] const std::vector<AssetKey>& GetDependencies() const {
 		return dependencies_;
 	}
+
 private:
 	std::vector<AssetKey> dependencies_;
 };
@@ -85,6 +90,7 @@ template <SceneType TScene>
 void InitScene(TScene& scene, Application& app, SceneData&& scene_data);
 
 } // namespace impl
+
 template <typename TComponent>
 struct SceneHook {
 	Scene& scene;
@@ -98,38 +104,47 @@ public:
 	Scene() = default;
 	Scene(Scene&&) noexcept;
 	Scene& operator=(Scene&&) noexcept;
-	Scene(const Scene&) = delete;
+	Scene(const Scene&)			   = delete;
 	Scene& operator=(const Scene&) = delete;
 	virtual ~Scene();
+
 	/// @brief Called on a temporary, uninitialized scene before asynchronous loading begins.
 	/// Keep constructors and this method free of renderer/window access.
 	virtual void OnPreload(AssetPreloadContext&) const {
 		/* User implementation */
 	}
+
 	virtual void OnNew() {
 		/* User implementation */
 	}
+
 	virtual void OnLoad() {
 		/* User implementation */
 	}
+
 	virtual void OnEnter() {
 		/* User implementation */
 	}
+
 	virtual void OnUpdate() {
 		/* User implementation */
 	}
+
 	virtual void OnRender() {
 		/* User implementation */
 	}
+
 	virtual void OnExit() {
 		/* User implementation */
 	}
+
 	virtual void OnEvent(Event) {
 		/* User implementation */
 	}
+
 	void SetBackgroundColor(Color background_color);
 	Color GetBackgroundColor() const;
-	/// @brief Scene-owned authoring/runtime layer model.
+	/// @brief Scene owned authoring/runtime layer model.
 	[[nodiscard]] const SceneLayers& GetLayers() const;
 	[[nodiscard]] SceneLayers& GetLayers();
 	Entity GetEntity(UUID uuid) const;
@@ -138,50 +153,42 @@ public:
 	Entity CreatePrefab(std::string_view prefab_key);
 	Entity CreatePrefab(const PrefabKey& prefab_key);
 	/// @brief Captures a normal scene entity hierarchy as a prefab asset.
-	/// The source is destroyed by default, making this convenient for code-authored prefabs.
+	/// The source is destroyed by default, making this convenient for code authored prefabs.
 	[[nodiscard]] PrefabKey CreatePrefabAsset(
-		Entity source,
-		std::string_view prefab_name,
-		bool destroy_source = true
+		Entity source, std::string_view prefab_name, bool destroy_source = true
 	);
 	[[nodiscard]] bool HasPrefabAsset(std::string_view prefab_name) const;
-	/// @brief Returns the live AssetManager-owned authoring entity for a prefab asset.
+	/// @brief Returns the live AssetManager owned authoring entity for a prefab asset.
 	/// This entity has the same component API as scene entities but is not placed in a scene.
 	[[nodiscard]] Entity GetPrefabAsset(std::string_view prefab_name);
 	[[nodiscard]] Entity GetPrefabAsset(const PrefabKey& prefab_key);
+
 	/// @brief Authors/overwrites a prefab with the same CreateX(Scene&, ...) helpers used by
 	/// ordinary scene entities.
 	template <typename Factory>
 		requires std::invocable<Factory&, Scene&> &&
 				 std::convertible_to<std::invoke_result_t<Factory&, Scene&>, Entity>
-	[[nodiscard]] PrefabKey CreatePrefabAsset(
-		std::string_view prefab_name,
-		Factory&& factory
-	) {
+	[[nodiscard]] PrefabKey CreatePrefabAsset(std::string_view prefab_name, Factory&& factory) {
 		Entity source{ std::invoke(factory, *this) };
 		if (!source) {
 			return {};
 		}
 		return CreatePrefabAsset(source, prefab_name, true);
 	}
+
 	/// @brief Creates a prefab asset using the same CreateX(Scene&, ...) helpers used for entities.
 	/// The factory is only invoked when the prefab does not already exist.
 	template <typename Factory>
 		requires std::invocable<Factory&, Scene&> &&
 				 std::convertible_to<std::invoke_result_t<Factory&, Scene&>, Entity>
-	[[nodiscard]] PrefabKey EnsurePrefabAsset(
-		std::string_view prefab_name,
-		Factory&& factory
-	) {
-		const PrefabKey key{ MakePrefabKey(prefab_name) };
+	[[nodiscard]] PrefabKey EnsurePrefabAsset(std::string_view prefab_name, Factory&& factory) {
+		PrefabKey key{ MakePrefabKey(prefab_name) };
 		if (HasPrefabAsset(prefab_name)) {
 			return key;
 		}
-		return CreatePrefabAsset(
-			prefab_name,
-			std::forward<Factory>(factory)
-		);
+		return CreatePrefabAsset(prefab_name, std::forward<Factory>(factory));
 	}
+
 	template <typename... Ts>
 	Entity CopyEntity(Entity from, Tag tag = {}, UUID uuid = {}) {
 		auto entity{ manager_.CopyEntity<Ts...>(from.entity_) };
@@ -189,29 +196,33 @@ public:
 		entity.template Add<UUID>(uuid);
 		Entity copied{ entity, this };
 		layers_.RegisterEntity(copied);
-		if (const auto source_layer{ layers_.GetLayerId(from) }; source_layer.has_value()) {
-			// Copying an entity should preserve its scene-layer placement when the copied
+		if (auto source_layer{ layers_.GetLayerId(from) }; source_layer.has_value()) {
+			// Copying an entity should preserve its scene layer placement when the copied
 			// component set is still valid for that layer. Otherwise it safely remains in
 			// the default Entity layer.
 			layers_.Assign(copied, source_layer.value(), false);
 		}
 		return copied;
 	}
+
 	template <typename... Ts>
 	void CopyEntity(const Entity& from, Entity& to) {
 		manager_.CopyEntity<Ts...>(from.entity_, to.entity_);
-		if (const auto source_layer{ layers_.GetLayerId(from) }; source_layer.has_value()) {
+		if (auto source_layer{ layers_.GetLayerId(from) }; source_layer.has_value()) {
 			layers_.Assign(to, source_layer.value(), false);
 		}
 	}
+
 	auto Entities() {
 		using EcsView = decltype(manager_.Entities());
 		return SceneEntityRange<Scene, EcsView>{ this, manager_.Entities() };
 	}
+
 	auto Entities() const {
 		using EcsView = decltype(manager_.Entities());
 		return SceneEntityRange<const Scene, EcsView>{ this, manager_.Entities() };
 	}
+
 	template <typename... TComponents>
 	auto EntitiesWith() {
 		using EcsView = decltype(manager_.template EntitiesWith<TComponents...>());
@@ -219,6 +230,7 @@ public:
 			this, manager_.template EntitiesWith<TComponents...>()
 		};
 	}
+
 	template <typename... TComponents>
 	auto EntitiesWith() const {
 		using EcsView = decltype(manager_.template EntitiesWith<TComponents...>());
@@ -226,6 +238,7 @@ public:
 			this, manager_.template EntitiesWith<TComponents...>()
 		};
 	}
+
 	template <typename... TComponents>
 	auto EntitiesWithout() {
 		using EcsView = decltype(manager_.template EntitiesWithout<TComponents...>());
@@ -233,6 +246,7 @@ public:
 			this, manager_.template EntitiesWithout<TComponents...>()
 		};
 	}
+
 	template <typename... TComponents>
 	auto EntitiesWithout() const {
 		using EcsView = decltype(manager_.template EntitiesWithout<TComponents...>());
@@ -240,33 +254,41 @@ public:
 			this, manager_.template EntitiesWithout<TComponents...>()
 		};
 	}
+
 	template <typename TComponent>
 	auto OnConstruct() {
 		return SceneHook<TComponent>{ *this, manager_.template OnConstruct<TComponent>() };
 	}
+
 	template <typename TComponent>
 	auto OnDestruct() {
 		return SceneHook<TComponent>{ *this, manager_.template OnDestruct<TComponent>() };
 	}
+
 	template <typename TComponent>
 	auto OnUpdate() {
 		return SceneHook<TComponent>{ *this, manager_.template OnUpdate<TComponent>() };
 	}
-	/// @brief Adds a persistent preload-only dependency that serialized-content discovery cannot see.
+
+	/// @brief Adds a persistent preload only dependency that serialized-content discovery cannot
+	/// see.
 	bool AddAssetDependency(AssetKey key);
-	/// @brief Removes a persistent preload-only scene dependency. Automatically discovered references
-	/// remain part of the scene until the serialized field referencing them is changed.
+	/// @brief Removes a persistent preload only scene dependency. Automatically discovered
+	/// references remain part of the scene until the serialized field referencing them is changed.
 	bool RemoveAssetDependency(const AssetKey& key);
-	/// @return True when the asset is either explicitly preloaded or referenced by serialized scene data.
+	/// @return True when the asset is either explicitly preloaded or referenced by serialized scene
+	/// data.
 	[[nodiscard]] bool HasAssetDependency(const AssetKey& key) const;
 	/// @return True only for dependencies explicitly added through code or the editor context menu.
 	[[nodiscard]] bool HasExplicitAssetDependency(const AssetKey& key) const;
 	/// @return The effective dependency set used for scene residency and scene-file preloading.
 	[[nodiscard]] const std::vector<AssetKey>& GetAssetDependencies() const;
-	/// @return Explicit preload-only dependencies. CaptureScene combines these with serialized refs.
+	/// @return Explicit preload only dependencies. CaptureScene combines these with serialized
+	/// refs.
 	[[nodiscard]] const std::vector<AssetKey>& GetExplicitAssetDependencies() const;
 	/// @brief Rebuilds effective dependencies from the current serialized parameters/content plus
-	/// explicit preload-only dependencies. Added assets are acquired and removed assets are released.
+	/// explicit preload only dependencies. Added assets are acquired and removed assets are
+	/// released.
 	/// @return True when the effective dependency set changed.
 	bool SyncAssetDependenciesFromSerialization();
 	/// @brief Reacquires the current effective dependency set for an already-live scene.
@@ -286,6 +308,7 @@ public:
 	[[nodiscard]] bool IsTransitioning() const;
 	[[nodiscard]] std::string_view GetRegisteredType() const;
 	[[nodiscard]] json SerializeContent() const;
+
 private:
 	friend class impl::SceneManager;
 	friend class impl::SceneFileAccess;
@@ -303,10 +326,12 @@ private:
 	void InitBase(Application& app, impl::SceneData&& scene_data);
 	void CreateDefaultSceneEntities();
 	void DeserializeContent(const json& serialized_content);
+
 	template <typename TScene, auto Member>
 	void HookThunk(ecs::impl::BaseEntity<JsonArchiver> handle) {
 		(static_cast<TScene*>(this)->*Member)(Entity{ handle, this });
 	}
+
 	void InternalEnter();
 	void InternalExit();
 	void InternalOnEvent(Event event);
@@ -319,8 +344,7 @@ private:
 	void DrawSceneTarget(DrawContext& draw_context) const;
 	[[nodiscard]] bool IsAwaitingTransitionDelay() const;
 	void SetAssetDependencies(
-		std::vector<AssetKey> dependencies,
-		std::vector<AssetKey> explicit_dependencies
+		std::vector<AssetKey> dependencies, std::vector<AssetKey> explicit_dependencies
 	);
 	void AdoptLoadedAssetDependencies(std::vector<AssetKey> dependencies);
 	void ReleaseLoadedAssetDependencies() noexcept;
@@ -337,6 +361,7 @@ namespace impl {
 
 template <typename T>
 struct MemberPointerClass;
+
 template <typename C, typename R, typename... Args>
 struct MemberPointerClass<R (C::*)(Args...)> {
 	using type = C;
@@ -353,6 +378,7 @@ void InitScene(TScene& scene, Application& app, SceneData&& scene_data) {
 }
 
 } // namespace impl
+
 template <typename TComponent>
 template <auto Member>
 void SceneHook<TComponent>::Connect() {

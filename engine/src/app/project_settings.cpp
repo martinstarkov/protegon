@@ -15,16 +15,13 @@ ProjectSettings GetProjectSettings(Application& app) {
 	auto& context{ impl::ApplicationAccessor::ctx(app) };
 
 	return ProjectSettings{
-		.window = context.window.GetSettings(),
+		.window	  = context.window.GetSettings(),
 		.renderer = context.renderer.GetSettings(),
-		.debug = context.debug.GetSettings(),
+		.debug	  = context.debug.GetSettings(),
 	};
 }
 
-void SetProjectSettings(
-	Application& app,
-	const ProjectSettings& settings
-) {
+void SetProjectSettings(Application& app, const ProjectSettings& settings) {
 	auto& context{ impl::ApplicationAccessor::ctx(app) };
 
 	if (context.project.has_value()) {
@@ -44,7 +41,7 @@ path GetProjectLocalStatePath(const Project& project) {
 }
 
 ProjectLocalState LoadProjectLocalState(const Project& project) {
-	const auto file_path{ GetProjectLocalStatePath(project) };
+	auto file_path{ GetProjectLocalStatePath(project) };
 
 	ProjectLocalState state;
 
@@ -56,11 +53,8 @@ ProjectLocalState LoadProjectLocalState(const Project& project) {
 	return state;
 }
 
-void SaveProjectLocalState(
-	const Project& project,
-	const ProjectLocalState& state
-) {
-	const auto file_path{ GetProjectLocalStatePath(project) };
+void SaveProjectLocalState(const Project& project, const ProjectLocalState& state) {
+	auto file_path{ GetProjectLocalStatePath(project) };
 
 	EnsureDirectory(file_path.parent_path());
 	json value = state;
@@ -70,7 +64,7 @@ void SaveProjectLocalState(
 ProjectLocalState GetProjectLocalState(Application& app) {
 	auto& context{ impl::ApplicationAccessor::ctx(app) };
 
-	// Preserve editor-owned local state when the application saves window geometry
+	// Preserve editor owned local state when the application saves window geometry
 	// during shutdown.
 	ProjectLocalState state;
 	if (context.project.has_value()) {
@@ -81,10 +75,7 @@ ProjectLocalState GetProjectLocalState(Application& app) {
 	return state;
 }
 
-void SetProjectLocalState(
-	Application& app,
-	const ProjectLocalState& state
-) {
+void SetProjectLocalState(Application& app, const ProjectLocalState& state) {
 	auto& context{ impl::ApplicationAccessor::ctx(app) };
 	context.window.SetLocalSettings(state.window);
 }

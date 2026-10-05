@@ -338,7 +338,7 @@ Particle::Particle(const ParticleConfig& config) {
 		lifetime = std::get<ParticleRate>(config.rate_or_burst).duration;
 	}
 
-	const auto optional_range_or = [](const auto& range, const auto& constant) {
+	auto optional_range_or = [](const auto& range, const auto& constant) {
 		if (range.has_value()) {
 			return range.value().Evaluate();
 		} else {
@@ -460,18 +460,15 @@ ParticleEmitter& ParticleEmitter::Reset() {
 }
 
 bool ParticleEmitter::IsPlaying() const {
-	return Get<impl::ParticleEmitterData>().playback.state ==
-		   impl::ParticleEmitterState::Playing;
+	return Get<impl::ParticleEmitterData>().playback.state == impl::ParticleEmitterState::Playing;
 }
 
 bool ParticleEmitter::IsPaused() const {
-	return Get<impl::ParticleEmitterData>().playback.state ==
-		   impl::ParticleEmitterState::Paused;
+	return Get<impl::ParticleEmitterData>().playback.state == impl::ParticleEmitterState::Paused;
 }
 
 bool ParticleEmitter::IsStopped() const {
-	return Get<impl::ParticleEmitterData>().playback.state ==
-		   impl::ParticleEmitterState::Stopped;
+	return Get<impl::ParticleEmitterData>().playback.state == impl::ParticleEmitterState::Stopped;
 }
 
 void ParticleEmitter::Draw(DrawContext& ctx, Entity entity) {
@@ -488,7 +485,7 @@ void ParticleEmitter::Draw(DrawContext& ctx, Entity entity) {
 	auto& scene{ entity.GetScene() };
 	auto& assets{ scene.ctx().asset };
 
-	const Transform base_transform{ GetDrawTransform(entity) };
+	Transform base_transform{ GetDrawTransform(entity) };
 
 	for (const auto& [particle_entity, particle] :
 		 std::as_const(emitter.manager).EntitiesWith<Particle>()) {

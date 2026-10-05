@@ -53,7 +53,7 @@ void SyncTimerRuntimeSnapshot(Entity entity, const TimerKey& live_key, TimerEntr
 		return;
 	}
 
-	const auto it{ std::ranges::find_if(live_timers->timers, [&live_key](const TimerEntry& entry) {
+	auto it{ std::ranges::find_if(live_timers->timers, [&live_key](const TimerEntry& entry) {
 		return entry.config.key == live_key;
 	}) };
 	if (it != live_timers->timers.end()) {
@@ -72,7 +72,7 @@ void DrawTimerRuntimeControls(Entity entity, const TimerKey& live_key, TimerEntr
 
 	bool runtime_changed{ false };
 	const ImGuiStyle& style{ ImGui::GetStyle() };
-	const float spacing{ style.ItemInnerSpacing.x };
+	float spacing{ style.ItemInnerSpacing.x };
 
 	bool active{ timer.IsRunning() || timer.IsPaused() };
 	if (DrawEditorIconButton(
@@ -88,9 +88,9 @@ void DrawTimerRuntimeControls(Entity entity, const TimerKey& live_key, TimerEntr
 	bool paused{ timer.IsPaused() };
 	bool running{ timer.IsRunning() };
 	bool stopped{ !running && !paused };
-	const EditorIcon secondary_icon{ stopped  ? EditorIcon::Reset
-									 : paused ? EditorIcon::Play
-											  : EditorIcon::Pause };
+	EditorIcon secondary_icon{ stopped	? EditorIcon::Reset
+							   : paused ? EditorIcon::Play
+										: EditorIcon::Pause };
 	const char* secondary_tooltip{ stopped	? "Reset timer"
 								   : paused ? "Resume timer"
 											: "Pause timer" };
@@ -104,7 +104,7 @@ void DrawTimerRuntimeControls(Entity entity, const TimerKey& live_key, TimerEntr
 	}
 
 	ImGui::SameLine(0.0f, spacing);
-	const float adjustment_width{ ImGui::CalcTextSize("1000ms").x + style.FramePadding.x * 2.0f };
+	float adjustment_width{ ImGui::CalcTextSize("1000ms").x + style.FramePadding.x * 2.0f };
 	DrawDurationTextInput(
 		"##TimerRuntimeAdjustment", timer_runtime_adjustment, adjustment_width, false,
 		"Amount to rewind or advance."
@@ -126,8 +126,8 @@ void DrawTimerRuntimeControls(Entity entity, const TimerKey& live_key, TimerEntr
 					   : timer.IsRunning()	 ? "Running"
 					   : timer.IsCompleted() ? "Complete"
 											 : "Stopped" };
-	const std::string elapsed{ FormatTimerRuntimeDuration(timer.Elapsed()) };
-	const std::string duration{ FormatTimerRuntimeDuration(timer.Duration()) };
+	std::string elapsed{ FormatTimerRuntimeDuration(timer.Elapsed()) };
+	std::string duration{ FormatTimerRuntimeDuration(timer.Duration()) };
 
 	ImGui::Text("%s  %s / %s", state, elapsed.c_str(), duration.c_str());
 	ImGui::ProgressBar(timer.Progress(), ImVec2{ -FLT_MIN, 0.0f });
@@ -176,13 +176,13 @@ bool DrawTimersContents(
 				ScopedID timer_scope{ static_cast<int>(index) };
 
 				auto& entry{ timers.timers[index] };
-				const TimerKey live_key{ entry.config.key };
+				TimerKey live_key{ entry.config.key };
 
 				std::string label{ entry.config.key.value.empty()
 									   ? std::string{ "Timer " } + std::to_string(index + 1)
 									   : entry.config.key.value };
 				bool selected{ BeginInspectorTabItem(label.c_str()) };
-				const InspectorTabContextResult context_menu{
+				InspectorTabContextResult context_menu{
 					DrawInspectorTabContextMenu("##TimerTabContext", true, false, true, "Delete")
 				};
 
@@ -243,7 +243,7 @@ bool DrawTimersContents(
 	}
 
 	if (remove_index.has_value()) {
-		const std::size_t index{ *remove_index };
+		std::size_t index{ *remove_index };
 		if (index < timers.timers.size()) {
 			timers.timers.erase(timers.timers.begin() + static_cast<std::ptrdiff_t>(index));
 			changed = true;
@@ -260,12 +260,12 @@ bool DrawTimersContents(
 	}
 
 	if (rename_state.active && rename_index.has_value()) {
-		const std::size_t index{ *rename_index };
+		std::size_t index{ *rename_index };
 		if (index >= timers.timers.size()) {
 			rename_state.Cancel();
 			rename_index.reset();
 		} else {
-			(void)DrawInspectorTabRenameModal(
+			DrawInspectorTabRenameModal(
 				rename_state, "Rename Timer", "##RenameTimer",
 				[&](std::string_view name) {
 					if (name.empty()) {
@@ -286,8 +286,8 @@ bool DrawTimersContents(
 					}
 
 					auto& entry{ timers.timers[index] };
-					const TimerKey old_key{ entry.config.key };
-					const TimerKey new_key{ std::string{ name } };
+					TimerKey old_key{ entry.config.key };
+					TimerKey new_key{ std::string{ name } };
 
 					if (old_key == new_key) {
 						return;
@@ -333,13 +333,12 @@ bool DrawGroupContents(Group& group) {
 		std::string label{ "Group " + std::to_string(index + 1) };
 
 		changed |= DrawPropertyRow(label, [&]() {
-			const float remove_width{ ImGui::GetFrameHeight() };
-			const float spacing{ ImGui::GetStyle().ItemSpacing.x };
-			const float available{ std::max(1.0f, ImGui::GetContentRegionAvail().x) };
+			float remove_width{ ImGui::GetFrameHeight() };
+			float spacing{ ImGui::GetStyle().ItemSpacing.x };
+			float available{ std::max(1.0f, ImGui::GetContentRegionAvail().x) };
 			bool remove_inline{ available >= remove_width + spacing + 80.0f };
-			const float field_width{ remove_inline
-										 ? std::max(1.0f, available - remove_width - spacing)
-										 : available };
+			float field_width{ remove_inline ? std::max(1.0f, available - remove_width - spacing)
+											 : available };
 
 			ImGui::SetNextItemWidth(field_width);
 			bool row_changed{ ImGui::InputText("##Value", &group.groups[index]) };
@@ -401,7 +400,7 @@ bool DrawTimersComponent(Target& target) {
 		return false;
 	}
 
-	const auto header{ DrawInspectorSectionHeader(
+	auto header{ DrawInspectorSectionHeader(
 		"Timers", "TimersSection",
 		InspectorSectionOptions{ .default_open = true, .removable = true, .resettable = true }
 	) };

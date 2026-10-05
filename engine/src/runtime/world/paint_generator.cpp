@@ -14,7 +14,9 @@
 namespace ptgn {
 
 PaintGenerator::PaintGenerator(Entity entity) : Entity{ entity } {
-	PTGN_ASSERT(!entity || entity.Has<impl::PaintGeneratorData>(), "Entity is not a PaintGenerator");
+	PTGN_ASSERT(
+		!entity || entity.Has<impl::PaintGeneratorData>(), "Entity is not a PaintGenerator"
+	);
 }
 
 const impl::PaintGeneratorData& PaintGenerator::GetData() const {
@@ -33,7 +35,7 @@ PaintGenerator& PaintGenerator::SetGeometry(PaintGeneratorGeometry geometry) {
 
 PaintGenerator& PaintGenerator::SetGrid(V2_float size, V2_float offset) {
 	PTGN_ASSERT(size.IsPositive(), "Generator grid size must be positive");
-	GetData().grid_size = size;
+	GetData().grid_size	  = size;
 	GetData().grid_offset = offset;
 	return *this;
 }
@@ -48,17 +50,15 @@ Tilemap PaintGenerator::GetTargetTilemap() const {
 		return {};
 	}
 
-	const auto generator_layer{ GetScene().GetLayers().GetLayerId(*this) };
+	auto generator_layer{ GetScene().GetLayers().GetLayerId(*this) };
 	if (!generator_layer.has_value()) {
 		return {};
 	}
 
 	if (HasParent(*this)) {
 		Entity parent{ GetParent(*this) };
-		if (
-			parent && IsTilemap(parent) &&
-			GetScene().GetLayers().GetLayerId(parent) == generator_layer
-		) {
+		if (parent && IsTilemap(parent) &&
+			GetScene().GetLayers().GetLayerId(parent) == generator_layer) {
 			return Tilemap{ parent };
 		}
 		return {};
@@ -67,10 +67,8 @@ Tilemap PaintGenerator::GetTargetTilemap() const {
 	// Legacy/recovery path. ValidateSceneState migrates this into the hierarchy.
 	if (GetData().target_tilemap.has_value()) {
 		Entity target{ GetScene().GetEntity(*GetData().target_tilemap) };
-		if (
-			target && IsTilemap(target) &&
-			GetScene().GetLayers().GetLayerId(target) == generator_layer
-		) {
+		if (target && IsTilemap(target) &&
+			GetScene().GetLayers().GetLayerId(target) == generator_layer) {
 			return Tilemap{ target };
 		}
 	}
@@ -83,7 +81,7 @@ bool PaintGenerator::SetTargetTilemap(std::optional<Tilemap> target) {
 		return false;
 	}
 
-	const auto generator_layer_id{ GetScene().GetLayers().GetLayerId(*this) };
+	auto generator_layer_id{ GetScene().GetLayers().GetLayerId(*this) };
 	if (!generator_layer_id.has_value()) {
 		return false;
 	}
@@ -92,7 +90,7 @@ bool PaintGenerator::SetTargetTilemap(std::optional<Tilemap> target) {
 		return false;
 	}
 
-	const std::optional<Transform> world_transform{
+	std::optional<Transform> world_transform{
 		Has<Transform>() ? std::optional<Transform>{ GetWorldTransform(*this) } : std::nullopt
 	};
 
@@ -114,7 +112,7 @@ bool PaintGenerator::SetTargetTilemap(std::optional<Tilemap> target) {
 		return false;
 	}
 
-	const auto target_layer{ GetScene().GetLayers().GetLayerId(*target) };
+	auto target_layer{ GetScene().GetLayers().GetLayerId(*target) };
 	if (!target_layer.has_value() || *target_layer != *generator_layer_id) {
 		return false;
 	}
@@ -135,7 +133,7 @@ bool PaintGenerator::IsSuppressed(V2_int cell) const {
 
 bool PaintGenerator::SetSuppressed(V2_int cell, bool suppressed) {
 	auto& cells{ GetData().suppressed_cells };
-	const auto it{ std::ranges::find(cells, cell) };
+	auto it{ std::ranges::find(cells, cell) };
 	if (suppressed) {
 		if (it != cells.end()) {
 			return false;

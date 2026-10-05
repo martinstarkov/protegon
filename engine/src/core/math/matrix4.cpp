@@ -286,8 +286,8 @@ Matrix4 Matrix4::Translate(const Matrix4& m, V3_float axes) {
 }
 
 Matrix4 Matrix4::Rotate(const Matrix4& matrix, Radians rotation, V3_float axes) {
-	const float c{ rotation.Cos() };
-	const float s{ rotation.Sin() };
+	float c{ rotation.Cos() };
+	float s{ rotation.Sin() };
 
 	float magnitude{ axes.Dot(axes) };
 

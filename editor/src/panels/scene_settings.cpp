@@ -60,7 +60,7 @@ void ApplyPhysicsSettings(Physics& physics, const PhysicsSettingsState& settings
 
 [[nodiscard]] Scene* ResolveScene(Editor& editor, std::string_view scene_key) {
 	auto& manager{ editor.GetSceneManager() };
-	const auto scene_hash{ Hash(scene_key) };
+	auto scene_hash{ Hash(scene_key) };
 
 	if (!manager.HasScene(scene_hash)) {
 		return nullptr;
@@ -79,8 +79,8 @@ void TrackSceneSettingsChange(
 	}
 
 	Editor* editor{ &ctx.editor };
-	const std::string scene_key{ scene.GetTag() };
-	const std::uint64_t interaction_key{ static_cast<std::uint64_t>(
+	std::string scene_key{ scene.GetTag() };
+	std::uint64_t interaction_key{ static_cast<std::uint64_t>(
 		ImGui::GetID(interaction_id.data(), interaction_id.data() + interaction_id.size())
 	) };
 
@@ -105,7 +105,7 @@ void TrackSceneSettingsChange(
 }
 
 void DrawReadOnlySceneData(const Scene& scene) {
-	const std::string registered_type{ scene.GetRegisteredType() };
+	std::string registered_type{ scene.GetRegisteredType() };
 	DrawPropertyRow("Registered Type", [&]() {
 		ImGui::TextDisabled("%s", registered_type.c_str());
 		return false;
@@ -123,7 +123,7 @@ void DrawReadOnlySceneData(const Scene& scene) {
 	auto render_target_size{ scene.GetRenderTarget().GetSize() };
 	DrawWHValue("Render Target Size", render_target_size, 1.0f, 0, 0, ImGuiSliderFlags_None, true);
 
-	const auto interaction_info{ scene.ctx().interaction.GetDebugInfo() };
+	auto interaction_info{ scene.ctx().interaction.GetDebugInfo() };
 	DrawPropertyRow("Interaction State", [&]() {
 		ImGui::TextDisabled(
 			"%zu cameras | %zu dragging | %zu hovered", interaction_info.tracked_cameras,
@@ -151,7 +151,7 @@ void SceneSettingsPanel::OnRender(EditorContext& ctx) {
 		return;
 	}
 
-	const std::string scene_key{ scene->GetTag() };
+	std::string scene_key{ scene->GetTag() };
 	ImGui::PushID(scene_key.c_str());
 
 	{
@@ -161,7 +161,7 @@ void SceneSettingsPanel::OnRender(EditorContext& ctx) {
 
 		bool read_only{ scene->IsRuntime() };
 		if (read_only) {
-			ImGui::TextDisabled("Runtime scene settings are read-only.");
+			ImGui::TextDisabled("Runtime scene settings are read only.");
 		}
 
 		ImGui::BeginDisabled(read_only);
@@ -169,7 +169,7 @@ void SceneSettingsPanel::OnRender(EditorContext& ctx) {
 		DrawSectionTitle("Rendering");
 
 		{
-			const Color before{ scene->GetBackgroundColor() };
+			Color before{ scene->GetBackgroundColor() };
 			Color after{ before };
 			bool changed{ DrawValue(ctx, "Background Color", after) };
 
@@ -188,7 +188,7 @@ void SceneSettingsPanel::OnRender(EditorContext& ctx) {
 		{
 			auto& physics{ scene->ctx().physics };
 
-			const PhysicsSettingsState before{ CapturePhysicsSettings(physics) };
+			PhysicsSettingsState before{ CapturePhysicsSettings(physics) };
 
 			PhysicsSettingsState after{ before };
 			bool changed{ false };

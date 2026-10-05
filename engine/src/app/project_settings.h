@@ -18,25 +18,20 @@ struct ProjectSettings {
 	RendererSettings renderer{};
 	DebugSettings debug{};
 
-	PTGN_REFLECT(
-		ProjectSettings,
-		window,
-		renderer,
-		debug
-	)
+	PTGN_REFLECT(ProjectSettings, window, renderer, debug)
 };
 
 /// @brief Machine/user specific engine state stored beside the project in .ptgnlocal.
 struct ProjectLocalState {
 	WindowLocalSettings window{};
 
-	/// @brief Opaque editor-owned user state. Keeping this as JSON avoids making the core app
+	/// @brief Opaque editor owned user state. Keeping this as JSON avoids making the core app
 	/// depend on the optional editor library while still storing editor local state under one
 	/// top-level editor object in .ptgnlocal.
 	json editor{ json::object() };
 
 	friend void to_json(json& value, const ProjectLocalState& state) {
-		value = json::object();
+		value			= json::object();
 		value["window"] = state.window;
 		value["editor"] = state.editor;
 	}
@@ -46,11 +41,11 @@ struct ProjectLocalState {
 			return;
 		}
 
-		if (const auto it{ value.find("window") }; it != value.end() && !it->is_null()) {
+		if (auto it{ value.find("window") }; it != value.end() && !it->is_null()) {
 			it->get_to(state.window);
 		}
 
-		if (const auto it{ value.find("editor") }; it != value.end() && it->is_object()) {
+		if (auto it{ value.find("editor") }; it != value.end() && it->is_object()) {
 			state.editor = *it;
 		}
 	}
@@ -60,10 +55,7 @@ struct ProjectLocalState {
 ProjectSettings GetProjectSettings(Application& app);
 
 /// @brief Applies project owned defaults to the active application systems.
-void SetProjectSettings(
-	Application& app,
-	const ProjectSettings& settings
-);
+void SetProjectSettings(Application& app, const ProjectSettings& settings);
 
 /// @return Path of the local engine state file stored beside the project manifest.
 path GetProjectLocalStatePath(const Project& project);
@@ -72,18 +64,12 @@ path GetProjectLocalStatePath(const Project& project);
 [[nodiscard]] ProjectLocalState LoadProjectLocalState(const Project& project);
 
 /// @brief Writes machine/user specific engine state to the project .ptgnlocal file.
-void SaveProjectLocalState(
-	const Project& project,
-	const ProjectLocalState& state
-);
+void SaveProjectLocalState(const Project& project, const ProjectLocalState& state);
 
 /// @return Current machine/user specific engine state. Existing opaque local fields are preserved.
 ProjectLocalState GetProjectLocalState(Application& app);
 
 /// @brief Applies machine/user specific overrides after project settings have been applied.
-void SetProjectLocalState(
-	Application& app,
-	const ProjectLocalState& state
-);
+void SetProjectLocalState(Application& app, const ProjectLocalState& state);
 
 } // namespace ptgn

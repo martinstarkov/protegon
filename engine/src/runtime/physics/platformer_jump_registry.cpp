@@ -26,7 +26,7 @@ void PlatformerJumpControllerRegistry::Register(RegisteredPlatformerJumpControll
 	}
 
 	auto& controllers{ Storage() };
-	const auto it{
+	auto it{
 		std::ranges::find(controllers, controller.key, &RegisteredPlatformerJumpController::key)
 	};
 
@@ -42,9 +42,7 @@ const RegisteredPlatformerJumpController* PlatformerJumpControllerRegistry::Find
 	std::string_view key
 ) {
 	const auto& controllers{ Storage() };
-	const auto it{
-		std::ranges::find(controllers, key, &RegisteredPlatformerJumpController::key)
-	};
+	auto it{ std::ranges::find(controllers, key, &RegisteredPlatformerJumpController::key) };
 	return it == controllers.end() ? nullptr : std::addressof(*it);
 }
 

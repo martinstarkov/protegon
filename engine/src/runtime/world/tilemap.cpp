@@ -37,16 +37,16 @@ Tilemap& Tilemap::SetChunkSize(V2_int chunk_size) {
 }
 
 Tilemap& Tilemap::SetStreaming(TilemapStreamingSettings settings) {
-	settings.preload_radius = std::max(0, settings.preload_radius);
+	settings.preload_radius	   = std::max(0, settings.preload_radius);
 	settings.keep_alive_radius = std::max(settings.preload_radius, settings.keep_alive_radius);
 	settings.max_loaded_chunks = std::max(1, settings.max_loaded_chunks);
-	GetData().streaming = settings;
+	GetData().streaming		   = settings;
 	return *this;
 }
 
 V2_int Tilemap::WorldToCell(V2_float world) const {
 	const auto& data{ GetData() };
-	const V2_float origin{ GetWorldPosition(*this) };
+	V2_float origin{ GetWorldPosition(*this) };
 	return {
 		static_cast<int>(std::floor((world.x - origin.x) / data.cell_size.x)),
 		static_cast<int>(std::floor((world.y - origin.y) / data.cell_size.y)),
@@ -55,12 +55,14 @@ V2_int Tilemap::WorldToCell(V2_float world) const {
 
 V2_float Tilemap::CellToWorld(V2_int coordinate) const {
 	const auto& data{ GetData() };
-	return GetWorldPosition(*this) + V2_float{ static_cast<float>(coordinate.x), static_cast<float>(coordinate.y) } * data.cell_size;
+	return GetWorldPosition(*this) +
+		   V2_float{ static_cast<float>(coordinate.x), static_cast<float>(coordinate.y) } *
+			   data.cell_size;
 }
 
 std::optional<std::size_t> Tilemap::FindTileIndex(V2_int coordinate) const {
 	const auto& tiles{ GetData().tiles };
-	const auto it{ std::ranges::find(tiles, coordinate, &TilemapTile::coordinate) };
+	auto it{ std::ranges::find(tiles, coordinate, &TilemapTile::coordinate) };
 	if (it == tiles.end()) {
 		return std::nullopt;
 	}
@@ -68,7 +70,7 @@ std::optional<std::size_t> Tilemap::FindTileIndex(V2_int coordinate) const {
 }
 
 const TilemapTile* Tilemap::FindTile(V2_int coordinate) const {
-	const auto index{ FindTileIndex(coordinate) };
+	auto index{ FindTileIndex(coordinate) };
 	return index ? &GetData().tiles[*index] : nullptr;
 }
 
@@ -88,8 +90,8 @@ Tilemap& Tilemap::SetTile(TilemapTile tile) {
 bool Tilemap::EraseTile(V2_int coordinate) {
 	auto& tiles{ GetData().tiles };
 	return std::erase_if(tiles, [coordinate](const TilemapTile& tile) {
-		return tile.coordinate == coordinate;
-	}) > 0;
+			   return tile.coordinate == coordinate;
+		   }) > 0;
 }
 
 void Tilemap::ClearTiles() {
@@ -98,20 +100,24 @@ void Tilemap::ClearTiles() {
 
 std::optional<std::uint64_t> Tilemap::GetTerrainRuleset(V2_int coordinate) const {
 	const auto& terrain{ GetData().terrain };
-	const auto it{ std::ranges::find(terrain, coordinate, &TilemapTerrainCell::coordinate) };
+	auto it{ std::ranges::find(terrain, coordinate, &TilemapTerrainCell::coordinate) };
 	return it == terrain.end() ? std::nullopt : std::optional<std::uint64_t>{ it->ruleset_id };
 }
 
 bool Tilemap::SetTerrainRuleset(V2_int coordinate, std::optional<std::uint64_t> ruleset_id) {
 	auto& terrain{ GetData().terrain };
-	const auto it{ std::ranges::find(terrain, coordinate, &TilemapTerrainCell::coordinate) };
+	auto it{ std::ranges::find(terrain, coordinate, &TilemapTerrainCell::coordinate) };
 	if (!ruleset_id.has_value()) {
-		if (it == terrain.end()) return false;
+		if (it == terrain.end()) {
+			return false;
+		}
 		terrain.erase(it);
 		return true;
 	}
 	if (it != terrain.end()) {
-		if (it->ruleset_id == *ruleset_id) return false;
+		if (it->ruleset_id == *ruleset_id) {
+			return false;
+		}
 		it->ruleset_id = *ruleset_id;
 		return true;
 	}
@@ -129,7 +135,7 @@ bool Tilemap::IsExcluded(V2_int coordinate) const {
 
 bool Tilemap::SetExcluded(V2_int coordinate, bool excluded) {
 	auto& mask{ GetData().exclusion_mask };
-	const auto it{ std::ranges::find(mask, coordinate) };
+	auto it{ std::ranges::find(mask, coordinate) };
 	if (excluded) {
 		if (it != mask.end()) {
 			return false;

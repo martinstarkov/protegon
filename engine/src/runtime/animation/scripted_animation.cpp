@@ -176,7 +176,7 @@ SequenceHandle Shake(
 	);
 
 	// A new shake takes ownership of the current shake state. Cancel any recovery that may have
-	// been started by an editor-authored Tween which ended without Reset On Complete.
+	// been started by an editor authored Tween which ended without Reset On Complete.
 	script_runtime::StopChannel(entity, kShakeRecoveryChannel, SequenceStopMode::All);
 
 	ScriptSequence sequence{ "Shake" };
@@ -257,8 +257,10 @@ SequenceHandle StartFollow(
 	);
 
 	ScriptSequence sequence{ "Follow Path" };
-	sequence.UntilComplete(FollowPathScript{ std::ranges::to<std::vector<V2_float>>(waypoints),
-											 config, reset_waypoint_index });
+	sequence.UntilComplete(
+		FollowPathScript{ std::ranges::to<std::vector<V2_float>>(waypoints), config,
+						  reset_waypoint_index }
+	);
 	return RunAnimation(entity, animation_channel::Follow, std::move(sequence), force);
 }
 

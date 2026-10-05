@@ -53,8 +53,7 @@ public:
 		signed_area *= 0.5f;
 
 		PTGN_ASSERT(
-			!NearlyEqual(signed_area, 0.0f),
-			"Cannot calculate centroid of a zero area polygon"
+			!NearlyEqual(signed_area, 0.0f), "Cannot calculate centroid of a zero area polygon"
 		);
 
 		if (NearlyEqual(signed_area, 0.0f)) {
@@ -73,25 +72,25 @@ public:
 	/// @return True if the polygon is non degenerate and has no reflex vertices.
 	/// Collinear consecutive vertices are allowed.
 	constexpr bool IsConvex() const {
-		const auto count{ vertices.size() };
+		auto count{ vertices.size() };
 
 		PTGN_ASSERT(count >= 3, "At least three vertices are required for a polygon");
 
 		int winding_sign{ 0 };
 
 		for (auto i{ 0uz }; i < count; ++i) {
-			const auto& a{ vertices[i] };
-			const auto& b{ vertices[(i + 1) % count] };
-			const auto& c{ vertices[(i + 2) % count] };
+			auto a{ vertices[i] };
+			auto b{ vertices[(i + 1) % count] };
+			auto c{ vertices[(i + 2) % count] };
 
-			const float cross{ (b - a).Cross(c - b) };
+			float cross{ (b - a).Cross(c - b) };
 
 			// A 180 degree turn does not make a polygon concave.
 			if (NearlyEqual(cross, 0.0f)) {
 				continue;
 			}
 
-			const int current_sign{ cross > 0.0f ? 1 : -1 };
+			int current_sign{ cross > 0.0f ? 1 : -1 };
 
 			if (winding_sign == 0) {
 				winding_sign = current_sign;
@@ -111,24 +110,24 @@ public:
 	/// @return True if the polygon contains at least one reflex vertex.
 	/// Degenerate/entirely collinear polygons are not considered concave.
 	constexpr bool IsConcave() const {
-		const auto count{ vertices.size() };
+		auto count{ vertices.size() };
 
 		PTGN_ASSERT(count >= 3, "At least three vertices are required for a polygon");
 
 		int winding_sign{ 0 };
 
 		for (auto i{ 0uz }; i < count; ++i) {
-			const auto& a{ vertices[i] };
-			const auto& b{ vertices[(i + 1) % count] };
-			const auto& c{ vertices[(i + 2) % count] };
+			auto a{ vertices[i] };
+			auto b{ vertices[(i + 1) % count] };
+			auto c{ vertices[(i + 2) % count] };
 
-			const float cross{ (b - a).Cross(c - b) };
+			float cross{ (b - a).Cross(c - b) };
 
 			if (NearlyEqual(cross, 0.0f)) {
 				continue;
 			}
 
-			const int current_sign{ cross > 0.0f ? 1 : -1 };
+			int current_sign{ cross > 0.0f ? 1 : -1 };
 
 			if (winding_sign == 0) {
 				winding_sign = current_sign;

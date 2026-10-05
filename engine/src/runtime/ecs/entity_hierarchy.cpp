@@ -162,7 +162,7 @@ void MoveChild(Entity entity, Entity child, std::size_t index) {
 
 	PTGN_ASSERT(it != children.end(), "Child is missing from parent child list");
 
-	const std::size_t old_index{ static_cast<std::size_t>(std::distance(children.begin(), it)) };
+	std::size_t old_index{ static_cast<std::size_t>(std::distance(children.begin(), it)) };
 	if (old_index == index || children.size() <= 1) {
 		return;
 	}

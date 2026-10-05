@@ -48,7 +48,7 @@ void SetEntityReference(EntityReference& reference, Entity entity) {
 	}
 
 	reference.uuid = entity.Get<UUID>();
-	if (const auto tag{ entity.TryGet<Tag>() }) {
+	if (const auto* tag{ entity.TryGet<Tag>() }) {
 		reference.tag = tag->value;
 	} else {
 		reference.tag.clear();
@@ -74,6 +74,26 @@ bool MatchesComponentQuery(Entity entity, const ComponentEntityQuery& query) {
 		return false;
 	}
 
+	bool has_valid_condition{ false };
+
+	for (const auto& group : query.groups) {
+		for (const auto& condition : group.conditions) {
+			if (!condition.component.empty() &&
+				ComponentRegistry::Find(std::string_view{ condition.component })) {
+				has_valid_condition = true;
+				break;
+			}
+		}
+
+		if (has_valid_condition) {
+			break;
+		}
+	}
+
+	if (!has_valid_condition) {
+		return false;
+	}
+
 	return std::ranges::any_of(query.groups, [entity](const auto& group) {
 		return MatchesComponentGroup(entity, group);
 	});
@@ -95,23 +115,39 @@ bool Matches(const EntityFilter& filter, Scene& scene, Entity owner, Entity targ
 			}
 
 			auto layer{ scene.GetLayers().GetLayerId(target) };
+
 			return layer.has_value() && layer.value() == filter.layer.id;
 		}
-		case EntityFilterType::Components: return MatchesComponentQuery(target, filter.components);
-		case EntityFilterType::Group:	   {
-			auto* membership{ target.TryGet<Group>() };
-			if (!membership) {
+
+		case EntityFilterType::Components:
+			if (filter.components.groups.empty()) {
 				return false;
 			}
 
-			return std::ranges::any_of(
-				filter.group.groups, [&membership](const std::string& group) {
-					return !group.empty() && std::ranges::contains(membership->groups, group);
-				}
-			);
-		}
+			return MatchesComponentQuery(target, filter.components);
+
+		case EntityFilterType::Group:
+			if (filter.group.groups.empty()) {
+				return false;
+			}
+
+			if (auto* membership{ target.TryGet<Group>() }) {
+				return std::ranges::any_of(
+					filter.group.groups, [&membership](const std::string& group) {
+						return !group.empty() && std::ranges::contains(membership->groups, group);
+					}
+				);
+			}
+
+			return false;
+
 		case EntityFilterType::Query: {
+			if (filter.query.key.empty()) {
+				return false;
+			}
+
 			const auto* query{ EntityQueryRegistry::Find(filter.query.key) };
+
 			return query && query->evaluate &&
 				   query->evaluate(
 					   EntityQueryContext{

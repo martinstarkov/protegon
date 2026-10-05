@@ -22,7 +22,7 @@ void EntityQueryRegistry::Register(RegisteredEntityQuery query) {
 	}
 
 	auto& queries{ Storage() };
-	const auto it{ std::ranges::find(queries, query.key, &RegisteredEntityQuery::key) };
+	auto it{ std::ranges::find(queries, query.key, &RegisteredEntityQuery::key) };
 
 	if (it != queries.end()) {
 		*it = std::move(query);
@@ -34,7 +34,7 @@ void EntityQueryRegistry::Register(RegisteredEntityQuery query) {
 
 const RegisteredEntityQuery* EntityQueryRegistry::Find(std::string_view key) {
 	const auto& queries{ Storage() };
-	const auto it{ std::ranges::find(queries, key, &RegisteredEntityQuery::key) };
+	auto it{ std::ranges::find(queries, key, &RegisteredEntityQuery::key) };
 	return it == queries.end() ? nullptr : std::addressof(*it);
 }
 

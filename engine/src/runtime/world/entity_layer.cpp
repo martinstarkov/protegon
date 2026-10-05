@@ -55,12 +55,12 @@ SceneLayer* SceneLayers::Find(SceneLayerId id) {
 }
 
 const SceneLayer* SceneLayers::Find(SceneLayerId id) const {
-	const auto it{ std::ranges::find(layers_, id, &SceneLayer::id) };
+	auto it{ std::ranges::find(layers_, id, &SceneLayer::id) };
 	return it == layers_.end() ? nullptr : std::addressof(*it);
 }
 
 SceneLayerId SceneLayers::Create(SceneLayerKind kind, std::string name) {
-	const SceneLayerId id{ next_layer_id_++ };
+	SceneLayerId id{ next_layer_id_++ };
 	if (name.empty()) {
 		name = kind == SceneLayerKind::Tile ? std::string{ kDefaultTileLayerName }
 											: std::string{ kDefaultAdditionalEntityLayerName };
@@ -81,7 +81,7 @@ bool SceneLayers::Delete(Scene& scene, SceneLayerId id, std::optional<SceneLayer
 		return false;
 	}
 
-	const auto layer_it{ std::ranges::find(layers_, id, &SceneLayer::id) };
+	auto layer_it{ std::ranges::find(layers_, id, &SceneLayer::id) };
 	if (layer_it == layers_.end()) {
 		return false;
 	}
@@ -125,13 +125,13 @@ bool SceneLayers::Delete(Scene& scene, SceneLayerId id, std::optional<SceneLayer
 }
 
 bool SceneLayers::Move(SceneLayerId id, std::size_t new_index) {
-	const auto it{ std::ranges::find(layers_, id, &SceneLayer::id) };
+	auto it{ std::ranges::find(layers_, id, &SceneLayer::id) };
 	if (it == layers_.end() || layers_.empty()) {
 		return false;
 	}
 
 	new_index = std::min(new_index, layers_.size() - 1);
-	const std::size_t old_index{ static_cast<std::size_t>(std::distance(layers_.begin(), it)) };
+	std::size_t old_index{ static_cast<std::size_t>(std::distance(layers_.begin(), it)) };
 	if (old_index == new_index) {
 		return false;
 	}
@@ -182,7 +182,7 @@ bool SceneLayers::SetSelectable(SceneLayerId id, bool selectable) {
 }
 
 std::optional<SceneLayerId> SceneLayers::GetLayerId(UUID entity) const {
-	const auto it{ memberships_.find(entity) };
+	auto it{ memberships_.find(entity) };
 	return it == memberships_.end() ? std::nullopt : std::optional<SceneLayerId>{ it->second };
 }
 
@@ -194,12 +194,12 @@ std::optional<SceneLayerId> SceneLayers::GetLayerId(Entity entity) const {
 }
 
 SceneLayer* SceneLayers::GetLayer(Entity entity) {
-	const auto id{ GetLayerId(entity) };
+	auto id{ GetLayerId(entity) };
 	return id ? Find(*id) : nullptr;
 }
 
 const SceneLayer* SceneLayers::GetLayer(Entity entity) const {
-	const auto id{ GetLayerId(entity) };
+	auto id{ GetLayerId(entity) };
 	return id ? Find(*id) : nullptr;
 }
 
@@ -213,7 +213,7 @@ std::vector<Entity> SceneLayers::GetRootEntities(const Scene& scene, SceneLayerI
 		if (HasParent(entity)) {
 			continue;
 		}
-		const auto entity_layer{ GetLayerId(entity) };
+		auto entity_layer{ GetLayerId(entity) };
 		if (entity_layer.has_value() && entity_layer.value() == layer) {
 			output.emplace_back(entity);
 		}
@@ -304,7 +304,7 @@ void SceneLayers::Prune(Scene& scene) {
 		if (!entity.Has<UUID>()) {
 			continue;
 		}
-		const UUID uuid{ entity.Get<UUID>() };
+		UUID uuid{ entity.Get<UUID>() };
 		live_entities.insert(uuid);
 		memberships_.try_emplace(uuid, default_entity_layer_);
 	}
@@ -343,8 +343,8 @@ SerializedSceneLayers SceneLayers::Serialize(const Scene& scene) const {
 	serialized.memberships.reserve(scene.GetEntityCount());
 	for (Entity entity : scene.Entities()) {
 		PTGN_ASSERT(entity.Has<UUID>(), "Serialized layered entity must have a UUID");
-		const UUID uuid{ entity.Get<UUID>() };
-		const SceneLayerId layer{ GetLayerId(uuid).value_or(default_entity_layer_) };
+		UUID uuid{ entity.Get<UUID>() };
+		SceneLayerId layer{ GetLayerId(uuid).value_or(default_entity_layer_) };
 		serialized.memberships.push_back(
 			SerializedSceneLayerMembership{
 				.entity = uuid,
@@ -405,7 +405,7 @@ bool SceneLayers::Validate(const Scene& scene) const {
 	}
 
 	for (Entity entity : scene.Entities()) {
-		const auto layer_id{ GetLayerId(entity) };
+		auto layer_id{ GetLayerId(entity) };
 		if (!layer_id.has_value()) {
 			return false;
 		}
@@ -420,7 +420,7 @@ bool SceneLayers::Validate(const Scene& scene) const {
 				if (layer->kind != SceneLayerKind::Tile) {
 					return false;
 				}
-				const Entity target{ scene.GetEntity(generator.target_tilemap.value()) };
+				Entity target{ scene.GetEntity(generator.target_tilemap.value()) };
 				if (!target || !IsTilemap(target) || GetLayerId(target) != layer_id) {
 					return false;
 				}

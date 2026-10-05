@@ -19,11 +19,7 @@ namespace ptgn::impl {
 
 // Try to set the value of type T into the variant data if it fails, do nothing
 template <std::size_t I = 0, typename... Ts>
-void variant_from_json(
-	const json& input,
-	std::size_t index,
-	std::variant<Ts...>& data
-) {
+void variant_from_json(const json& input, std::size_t index, std::variant<Ts...>& data) {
 	if constexpr (I == sizeof...(Ts)) {
 		throw std::out_of_range("Variant index is out of range");
 	} else {
@@ -44,15 +40,10 @@ NLOHMANN_JSON_NAMESPACE_BEGIN
 template <typename... Ts>
 struct adl_serializer<std::variant<Ts...>> {
 	static void to_json(json& j, const std::variant<Ts...>& data) {
-		j = json::object();
+		j		   = json::object();
 		j["index"] = data.index();
 
-		std::visit(
-			[&j](const auto& value) {
-				j["value"] = value;
-			},
-			data
-		);
+		std::visit([&j](const auto& value) { j["value"] = value; }, data);
 	}
 
 	static void from_json(const json& j, std::variant<Ts...>& data) {
@@ -60,17 +51,13 @@ struct adl_serializer<std::variant<Ts...>> {
 			throw std::invalid_argument("Variant JSON must be an object");
 		}
 
-		const std::size_t index{ j.at("index").get<std::size_t>() };
+		std::size_t index{ j.at("index").get<std::size_t>() };
 
 		if (index >= sizeof...(Ts)) {
 			throw std::out_of_range("Variant index is out of range");
 		}
 
-		::ptgn::impl::variant_from_json(
-			j.at("value"),
-			index,
-			data
-		);
+		::ptgn::impl::variant_from_json(j.at("value"), index, data);
 	}
 };
 
@@ -87,7 +74,7 @@ void optional_to_json(json& j, std::string_view name, const std::optional<T>& va
 
 template <class T>
 void optional_from_json(const json& j, std::string_view name, std::optional<T>& value) {
-	const auto it{ j.find(name) };
+	auto it{ j.find(name) };
 	if (it != j.end()) {
 		value = it->get<T>();
 	} else {
@@ -121,72 +108,44 @@ template <typename T>
 inline constexpr bool is_json{ std::same_as<std::remove_cvref_t<T>, json> };
 
 template <typename T>
-void extended_to_json(
-	std::string_view key,
-	json& output,
-	const T& value
-) {
+void extended_to_json(std::string_view key, json& output, const T& value) {
 	if constexpr (is_json<T>) {
 		output[key] = value;
 	} else if constexpr (is_optional<T>) {
-		optional_to_json(
-			output,
-			key,
-			value
-		);
+		optional_to_json(output, key, value);
 	} else if constexpr (JsonSerializable<T>) {
 		output[key] = value;
 	}
 }
 
 template <typename T>
-void extended_from_json(
-	std::string_view key,
-	const json& input,
-	T& value
-) {
+void extended_from_json(std::string_view key, const json& input, T& value) {
 	if constexpr (is_json<T>) {
 		value = input.at(key);
 	} else if constexpr (is_optional<T>) {
-		optional_from_json(
-			input,
-			key,
-			value
-		);
+		optional_from_json(input, key, value);
 	} else if constexpr (JsonDeserializable<T>) {
 		input.at(key).get_to(value);
 	}
 }
 
 template <typename T>
-void extended_to_json(
-	json& output,
-	const T& value
-) {
+void extended_to_json(json& output, const T& value) {
 	if constexpr (is_json<T>) {
 		output = value;
 	} else if constexpr (is_optional<T>) {
-		optional_to_json(
-			output,
-			value
-		);
+		optional_to_json(output, value);
 	} else if constexpr (JsonSerializable<T>) {
 		output = value;
 	}
 }
 
 template <typename T>
-void extended_from_json(
-	const json& input,
-	T& value
-) {
+void extended_from_json(const json& input, T& value) {
 	if constexpr (is_json<T>) {
 		value = input;
 	} else if constexpr (is_optional<T>) {
-		optional_from_json(
-			input,
-			value
-		);
+		optional_from_json(input, value);
 	} else if constexpr (JsonDeserializable<T>) {
 		input.get_to(value);
 	}
@@ -201,7 +160,7 @@ template <EnumType T>
 		return false;
 	}
 
-	if (const auto parsed{ ::magic_enum::enum_cast<T>(j.get<std::string>()) }; parsed.has_value()) {
+	if (auto parsed{ ::magic_enum::enum_cast<T>(j.get<std::string>()) }; parsed.has_value()) {
 		v = parsed.value();
 		return true;
 	}
@@ -211,7 +170,7 @@ template <EnumType T>
 
 template <EnumType T>
 [[nodiscard]] bool try_enum_to_json(json& j, T v) {
-	if (const auto name{ ::magic_enum::enum_name(v) }; !name.empty()) {
+	if (auto name{ ::magic_enum::enum_name(v) }; !name.empty()) {
 		j = name;
 		return true;
 	}
@@ -280,7 +239,7 @@ inline void reflected_empty_to_json(json& j, std::string_view expected_name) {
 }
 
 inline void reflected_empty_from_json(const json& j, std::string_view expected_name) {
-	const auto name{ j.get<std::string>() };
+	auto name{ j.get<std::string>() };
 	if (name != expected_name) {
 		throw std::runtime_error(
 			"Invalid struct name found in JSON: " + name +

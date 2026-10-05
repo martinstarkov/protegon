@@ -1,8 +1,9 @@
 #include "runtime/ui/tooltip.h"
 
+#include <ecs/ecs.h>
+
 #include <algorithm>
 #include <chrono>
-#include <ecs/ecs.h>
 #include <optional>
 #include <string_view>
 #include <utility>
@@ -55,7 +56,7 @@ void Tooltip::Show() {
 
 	bool fade_in_force{ true };
 
-	const auto fade_in = [=](auto& entity) {
+	auto fade_in = [=](auto& entity) {
 		FadeIn(entity, fade_in_duration, fade_in_ease, fade_in_force, true);
 	};
 
@@ -90,7 +91,7 @@ void Tooltip::Hide() {
 
 	bool fade_out_force{ true };
 
-	const auto fade_out = [=](auto& entity) {
+	auto fade_out = [=](auto& entity) {
 		FadeOut(entity, fade_out_duration, fade_out_ease, fade_out_force);
 	};
 

@@ -75,7 +75,7 @@ void Sprite::Draw(
 	DrawContext& ctx, Entity entity, Origin offset_origin, V2_float offset_size,
 	Color additional_tint
 ) {
-	const auto texture_key{ entity.TryGet<TextureKey>() };
+	const auto* texture_key{ entity.TryGet<TextureKey>() };
 	bool has_texture_source{ entity.Has<impl::TextureId>() || entity.Has<Texture>() ||
 							 (texture_key && !texture_key->value.empty()) };
 
@@ -91,7 +91,7 @@ void Sprite::Draw(
 		PTGN_WARN(
 			"Sprite does not have a valid texture or texture key",
 			std::invoke([&entity] -> std::string {
-				if (const auto key{ entity.TryGet<TextureKey>() }; key && !key->value.empty()) {
+				if (const auto* key{ entity.TryGet<TextureKey>() }; key && !key->value.empty()) {
 					return ": " + key->value;
 				}
 				return "";
@@ -105,7 +105,7 @@ void Sprite::Draw(
 	if (!texture_size.has_value()) {
 		PTGN_WARN(
 			"Sprite texture (", std::invoke([&entity, &texture] -> std::string {
-				if (const auto key{ entity.TryGet<TextureKey>() }; key && !key->value.empty()) {
+				if (const auto* key{ entity.TryGet<TextureKey>() }; key && !key->value.empty()) {
 					return ": " + key->value;
 				}
 				return ToString(texture);
@@ -203,7 +203,7 @@ std::optional<V2_float> GetDisplaySize(Entity entity) {
 }
 
 std::array<V2_float, 4> GetTextureCoordinates(Entity entity, bool flip_vertically) {
-	const auto texture_size{ GetTextureSize(entity) };
+	auto texture_size{ GetTextureSize(entity) };
 
 	if (!texture_size.has_value() || !texture_size->IsPositive()) {
 		return flip_vertically ? impl::GetDefaultTextureCoordinates<true>()
@@ -213,7 +213,7 @@ std::array<V2_float, 4> GetTextureCoordinates(Entity entity, bool flip_verticall
 	V2_float source_position{};
 	V2_float source_size{ *texture_size };
 
-	if (const auto crop{ entity.TryGet<impl::TextureCrop>() }) {
+	if (const auto* crop{ entity.TryGet<impl::TextureCrop>() }) {
 		source_position = crop->position;
 
 		if (crop->size.has_value()) {

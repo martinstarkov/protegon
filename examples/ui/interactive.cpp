@@ -135,6 +135,9 @@ struct DraggableScript : public Script {
 };
 
 struct InteractiveScene : public Scene {
+	const float rotation_speed{ 1.0f };
+	const float zoom_speed{ 0.4f };
+
 	Entity CreateInteractiveCircle(float radius) {
 		auto entity = CreateEntity();
 		entity.Add<Circle>(radius);
@@ -214,9 +217,6 @@ struct InteractiveScene : public Scene {
 
 		PTGN_LOG("Disabled circle drag: ", c4);
 	}
-
-	const float rotation_speed{ 1.0f };
-	const float zoom_speed{ 0.4f };
 
 	void OnUpdate() override {
 		if (ctx().input.KeyPressed(Key::T)) {

@@ -275,7 +275,7 @@ void DrawSelectedItemsTooltip(std::span<const std::string> items) {
 [[nodiscard]] TimerKey GetDefaultTimerKey(
 	Entity owner, const std::optional<EntityFilter>& target_filter
 ) {
-	const auto choices{ GetTimerChoices(owner, target_filter) };
+	auto choices{ GetTimerChoices(owner, target_filter) };
 	return choices.empty() ? TimerKey{} : choices.front();
 }
 
@@ -354,7 +354,7 @@ void ApplyContextualTimerElapsedDefault(ScriptEditorContext& context, EventCondi
 }
 
 [[nodiscard]] std::string TrimMenuText(std::string_view text) {
-	const auto is_space = [](unsigned char c) {
+	auto is_space = [](unsigned char c) {
 		return std::isspace(c) != 0;
 	};
 
@@ -570,7 +570,7 @@ bool DrawActionPicker(
 		bool separator_after{ false };
 	};
 
-	const auto resolve_candidate =
+	auto resolve_candidate =
 		[](const ScriptRegistration& registration) -> std::optional<Candidate> {
 		const auto* editor{ ScriptEditorRegistry::Find(registration.type_hash) };
 
@@ -591,13 +591,13 @@ bool DrawActionPicker(
 
 	const auto* current_registration{ ScriptRegistry::Find(action.type_hash) };
 
-	const std::optional<Candidate> current{ current_registration
-												? resolve_candidate(*current_registration)
-												: std::nullopt };
+	std::optional<Candidate> current{ current_registration
+										  ? resolve_candidate(*current_registration)
+										  : std::nullopt };
 
 	ImGui::SetNextItemWidth(width);
 
-	const float popup_min_width{ ImGui::CalcItemWidth() };
+	float popup_min_width{ ImGui::CalcItemWidth() };
 
 	ImGui::SetNextWindowSizeConstraints(
 		ImVec2{ popup_min_width, 0.0f }, ImVec2{ FLT_MAX, FLT_MAX }
@@ -622,7 +622,7 @@ bool DrawActionPicker(
 
 	bool changed{ false };
 
-	const auto is_available = [&](const Candidate& candidate) {
+	auto is_available = [&](const Candidate& candidate) {
 		const auto& registration{ *candidate.runtime };
 
 		return registration.serializable && registration.type_hash != Hash<Script>() &&
@@ -631,7 +631,7 @@ bool DrawActionPicker(
 			   (timed_only || !registration.requires_timing);
 	};
 
-	const auto select_candidate = [&](const Candidate& candidate) {
+	auto select_candidate = [&](const Candidate& candidate) {
 		const auto& registration{ *candidate.runtime };
 
 		if (ImGui::MenuItem(
@@ -670,7 +670,7 @@ bool DrawActionPicker(
 		}
 	}
 
-	const auto emit_signal_it{ std::ranges::find_if(candidates, [](const Candidate& candidate) {
+	auto emit_signal_it{ std::ranges::find_if(candidates, [](const Candidate& candidate) {
 		return candidate.runtime->type_hash == Hash<EmitSignalScript>();
 	}) };
 
@@ -718,7 +718,7 @@ bool DrawActionPicker(
 				changed = true;
 			}
 
-			DrawTooltip("Run this global editor-authored Script as the sequence step.");
+			DrawTooltip("Run this global editor authored Script as the sequence step.");
 		}
 
 		ImGui::EndMenu();
@@ -738,7 +738,7 @@ bool DrawActionPicker(
 		}
 	}
 
-	for (const auto group : groups) {
+	for (auto group : groups) {
 		if (!ImGui::BeginMenu(group.data())) {
 			continue;
 		}
@@ -1466,7 +1466,7 @@ bool DrawTimerElapsedTrigger(ScriptEditorContext& context, json& value) {
 	std::optional<millisecondsf> duration_override;
 
 	if (value.is_object()) {
-		const auto timer_it{ value.find("timer") };
+		auto timer_it{ value.find("timer") };
 		if (timer_it != value.end()) {
 			try {
 				timer_it->get_to(timer);
@@ -1475,7 +1475,7 @@ bool DrawTimerElapsedTrigger(ScriptEditorContext& context, json& value) {
 			}
 		}
 
-		const auto duration_it{ value.find("duration") };
+		auto duration_it{ value.find("duration") };
 		if (duration_it != value.end() && !duration_it->is_null()) {
 			try {
 				millisecondsf duration;
@@ -1491,7 +1491,7 @@ bool DrawTimerElapsedTrigger(ScriptEditorContext& context, json& value) {
 	}
 
 	Entity owner{ ResolveInspectedEntity(context) };
-	const auto choices{ GetTimerChoices(owner, std::nullopt) };
+	auto choices{ GetTimerChoices(owner, std::nullopt) };
 
 	float available{ ImGui::GetContentRegionAvail().x };
 	float spacing{ ImGui::GetStyle().ItemSpacing.x };
@@ -1556,7 +1556,7 @@ bool DrawTimerElapsedTrigger(ScriptEditorContext& context, json& value) {
 
 	if (owner) {
 		if (const auto* timers{ owner.TryGet<::ptgn::impl::Timers>() }) {
-			const auto it{ std::ranges::find_if(timers->timers, [&timer](const TimerEntry& entry) {
+			auto it{ std::ranges::find_if(timers->timers, [&timer](const TimerEntry& entry) {
 				return entry.config.key == timer;
 			}) };
 
@@ -2096,7 +2096,7 @@ bool DrawSequenceToolbar(
 		ImGui::BeginDisabled(!can_control_runtime);
 
 		if (DrawCenteredTextButton("##Play", ">", ImVec2{ button_size, button_size })) {
-			(void)script_runtime::Start(runtime_owner, runtime_binding->id, true);
+			script_runtime::Start(runtime_owner, runtime_binding->id, true);
 		}
 
 		ImGui::EndDisabled();
@@ -2106,7 +2106,7 @@ bool DrawSequenceToolbar(
 		ImGui::BeginDisabled(!can_control_runtime || !runtime.running);
 
 		if (DrawCenteredTextButton("##Pause", "||", ImVec2{ button_size, button_size })) {
-			(void)script_runtime::SetPaused(runtime_owner, runtime_binding->id, !runtime.paused);
+			script_runtime::SetPaused(runtime_owner, runtime_binding->id, !runtime.paused);
 		}
 
 		ImGui::EndDisabled();
@@ -2116,7 +2116,7 @@ bool DrawSequenceToolbar(
 		ImGui::BeginDisabled(!can_control_runtime || !runtime.running);
 
 		if (DrawCenteredTextButton("##Stop", "[]", ImVec2{ button_size, button_size })) {
-			(void)script_runtime::Stop(runtime_owner, runtime_binding->id);
+			script_runtime::Stop(runtime_owner, runtime_binding->id);
 		}
 
 		ImGui::EndDisabled();
@@ -2468,7 +2468,7 @@ bool DrawSequenceTabContents(
 
 [[nodiscard]] std::string MakeNextScriptSequenceName(const ::ptgn::impl::Scripts& scripts) {
 	for (std::size_t number{ 1 };; ++number) {
-		const std::string candidate{ "Sequence " + std::to_string(number) };
+		std::string candidate{ "Sequence " + std::to_string(number) };
 		bool exists{ std::ranges::any_of(scripts.scripts, [&](const ScriptEntry& entry) {
 			if (entry.type_hash != Hash<Script>()) {
 				return false;
@@ -2506,7 +2506,7 @@ std::optional<int> DrawSequenceTabs(
 			.add_tooltip	 = "Add local script sequence",
 		},
 		[&]() {
-			for (const int i : sequence_indices) {
+			for (int i : sequence_indices) {
 				auto& script{ scripts.scripts[static_cast<std::size_t>(i)] };
 				ScriptSequence* editable_sequence{ std::addressof(script.sequence) };
 				const auto* registration{ ScriptRegistry::Find(script.type_hash) };
@@ -2552,7 +2552,7 @@ std::optional<int> DrawSequenceTabs(
 				}
 				script.enabled = editable_sequence->enabled;
 				if (context.owner) {
-					const SequenceId sequence_id{ editable_sequence->id };
+					SequenceId sequence_id{ editable_sequence->id };
 					script.sequence			= *editable_sequence;
 					script.sequence.id		= sequence_id;
 					script.sequence.runtime = ScriptSequenceRuntime{};
@@ -2580,8 +2580,8 @@ std::optional<int> DrawSequenceTabs(
 	}
 
 	if (rename_state.active && rename_index.has_value()) {
-		const int index{ *rename_index };
-		(void)DrawInspectorTabRenameModal(
+		int index{ *rename_index };
+		DrawInspectorTabRenameModal(
 			rename_state, "Rename Script Sequence", "##RenameScriptSequence",
 			[](std::string_view name) {
 				return name.empty() ? std::string{ "Sequence name cannot be empty." }
@@ -2616,13 +2616,13 @@ bool DrawAddRootScriptPopup(ScriptEditorContext& context, ::ptgn::impl::Scripts&
 
 	bool changed{ false };
 
-	const auto already_added = [&](TypeHashValue type_hash) {
+	auto already_added = [&](TypeHashValue type_hash) {
 		return std::ranges::any_of(scripts.scripts, [&](const ScriptEntry& entry) {
 			return entry.type_hash == type_hash;
 		});
 	};
 
-	const auto is_resident_candidate = [](const ScriptRegistration& registration) {
+	auto is_resident_candidate = [](const ScriptRegistration& registration) {
 		if (registration.type_hash == Hash<Script>()) {
 			return false;
 		}
@@ -2632,12 +2632,12 @@ bool DrawAddRootScriptPopup(ScriptEditorContext& context, ::ptgn::impl::Scripts&
 			   !editor->options.hidden;
 	};
 
-	const auto candidate_group = [](const ScriptEditorRegistration& editor) -> std::string_view {
+	auto candidate_group = [](const ScriptEditorRegistration& editor) -> std::string_view {
 		return editor.options.group.empty() ? std::string_view{ "Other" }
 											: std::string_view{ editor.options.group };
 	};
 
-	const auto add_registered = [&](const ScriptRegistration& registration) {
+	auto add_registered = [&](const ScriptRegistration& registration) {
 		const auto* editor{ ScriptEditorRegistry::Find(registration.type_hash) };
 		if (!editor || !HasScriptType(editor->options.type, ScriptType::Resident) ||
 			editor->options.hidden) {
@@ -2734,7 +2734,7 @@ std::optional<int> DrawRegisteredScriptTabs(
 			.add_tooltip	 = "Add a registered script",
 		},
 		[&]() {
-			for (const int i : script_indices) {
+			for (int i : script_indices) {
 				auto& script{ scripts.scripts[static_cast<std::size_t>(i)] };
 				const auto* registration{ ScriptRegistry::Find(script.type_hash) };
 				const auto* registered_editor{ ScriptEditorRegistry::Find(script.type_hash) };
@@ -2804,16 +2804,17 @@ bool DrawResidentScripts(ScriptEditorContext& context, ::ptgn::impl::Scripts& sc
 	bool changed{ false };
 	std::optional<int> remove{};
 
-	if (const auto registered_remove{ DrawRegisteredScriptTabs(context, scripts, changed) }) {
+	if (auto registered_remove{ DrawRegisteredScriptTabs(context, scripts, changed) }) {
 		remove = *registered_remove;
 	}
 
-	if (const auto sequence_remove{ DrawSequenceTabs(context, scripts, changed) }) {
+	if (auto sequence_remove{ DrawSequenceTabs(context, scripts, changed) }) {
 		remove = *sequence_remove;
 	}
 
 	if (remove.has_value()) {
-		const int index{ *remove };
+		int index{ *remove };
+
 		if (index >= 0 && index < static_cast<int>(scripts.scripts.size())) {
 			if (context.owner && IsRuntimeActive(context)) {
 				auto& entry{ scripts.scripts[static_cast<std::size_t>(index)] };
@@ -3221,7 +3222,7 @@ void RestoreTimerReferenceSceneSnapshotData(
 		return owner == target;
 	}
 
-	const auto targets{ ResolveEntityFilter(*step.target, owner.GetScene(), owner) };
+	auto targets{ ResolveEntityFilter(*step.target, owner.GetScene(), owner) };
 	return std::ranges::contains(targets, target);
 }
 
@@ -3339,7 +3340,7 @@ bool DrawScriptsSectionImpl(Target& target) {
 		}
 	}
 
-	const auto header{ DrawInspectorSectionHeader(
+	auto header{ DrawInspectorSectionHeader(
 		"Scripts", "ScriptsSection",
 		InspectorSectionOptions{
 			.removable = false,
@@ -3396,9 +3397,9 @@ bool DrawScriptsSectionImpl(Target& target) {
 
 		ScopedID target_scope{ target.Id() };
 		ScopedID component_scope{ static_cast<int>(Hash<::ptgn::impl::Scripts>()) };
-		const ImGuiID key{ ImGui::GetID("##ComponentEdit") };
+		ImGuiID key{ ImGui::GetID("##ComponentEdit") };
 		Editor* editor{ std::addressof(target.ctx.editor) };
-		const EntityReference reference{ MakeEntityReference(target.entity) };
+		EntityReference reference{ MakeEntityReference(target.entity) };
 
 		TrackUndoableInteraction(
 			target.ctx, key, "Edit Scripts", true,

@@ -53,6 +53,7 @@ struct PathFollowAnimationState {
 } // namespace impl
 
 namespace {
+
 const SequenceChannelKey kShakeRecoveryChannel{ "transform.shake.recovery" };
 
 [[nodiscard]] Animation ResolveAnimation(Entity owner, std::string_view animation_key) {
@@ -94,10 +95,9 @@ struct SceneTransitionPointers {
 		return transitions;
 	}
 
-	const milliseconds duration{ MillisecondsFromFloat(script.duration_ms) };
-	const milliseconds delay{ MillisecondsFromFloat(script.delay_ms) };
-	const V2_float direction{ script.direction.IsZero() ? V2_float{ 1.0f, 0.0f }
-														: script.direction };
+	milliseconds duration{ MillisecondsFromFloat(script.duration_ms) };
+	milliseconds delay{ MillisecondsFromFloat(script.delay_ms) };
+	V2_float direction{ script.direction.IsZero() ? V2_float{ 1.0f, 0.0f } : script.direction };
 	bool has_out{ script.action == SceneChangeAction::Exit ||
 				  script.action == SceneChangeAction::Switch ||
 				  (script.action == SceneChangeAction::Enter && entering_active_scene) };
@@ -113,7 +113,7 @@ struct SceneTransitionPointers {
 			}
 
 			if (has_in) {
-				const milliseconds in_delay{ has_out ? delay + duration : delay };
+				milliseconds in_delay{ has_out ? delay + duration : delay };
 				transitions.in =
 					std::make_unique<FadeInTransition>(duration, in_delay, script.ease);
 			}
@@ -149,8 +149,8 @@ struct SceneTransitionPointers {
 }
 
 [[nodiscard]] float BounceWave(float progress, bool symmetrical) {
-	const float phase{ (symmetrical ? 2.0f : 1.0f) * std::numbers::pi_v<float> *
-					   std::clamp(progress, 0.0f, 1.0f) };
+	float phase{ (symmetrical ? 2.0f : 1.0f) * std::numbers::pi_v<float> *
+				 std::clamp(progress, 0.0f, 1.0f) };
 
 	return std::sin(phase);
 }
@@ -177,7 +177,7 @@ void StartBackgroundShakeRecovery(Entity entity, const ShakeConfig& config) {
 	ScriptSequence sequence{ "Shake Recovery" };
 	sequence.UntilComplete(RecoverShakeScript{ config });
 	sequence.Transient();
-	(void)script_runtime::RunInChannel(
+	script_runtime::RunInChannel(
 		entity, kShakeRecoveryChannel, std::move(sequence), ReentryMode::Restart
 	);
 }
@@ -185,7 +185,7 @@ void StartBackgroundShakeRecovery(Entity entity, const ShakeConfig& config) {
 void RecoverShakeTrauma(
 	impl::ShakeAnimationState& state, const ShakeConfig& config, float delta_seconds
 ) {
-	const float recovery{ std::max(0.0f, config.recovery_speed) * std::max(0.0f, delta_seconds) };
+	float recovery{ std::max(0.0f, config.recovery_speed) * std::max(0.0f, delta_seconds) };
 	if (state.trauma > state.baseline_trauma) {
 		state.trauma = std::max(state.baseline_trauma, state.trauma - recovery);
 	} else if (state.trauma < state.baseline_trauma) {
@@ -197,11 +197,11 @@ void ApplyShake(
 	secondsf time, impl::Offsets& offsets, float trauma, const ShakeConfig& config,
 	std::int32_t seed
 ) {
-	const float shake_value{ std::pow(std::clamp(trauma, 0.0f, 1.0f), config.trauma_exponent) };
-	const float phase{ time.count() * 1000.0f * config.frequency };
-	const V2_float position_noise{ PerlinNoise::GetValue(phase, 0.0f, seed + 0) * 2.0f - 1.0f,
-								   PerlinNoise::GetValue(phase, 0.0f, seed + 1) * 2.0f - 1.0f };
-	const float rotation_noise{ PerlinNoise::GetValue(phase, 0.0f, seed + 3) * 2.0f - 1.0f };
+	float shake_value{ std::pow(std::clamp(trauma, 0.0f, 1.0f), config.trauma_exponent) };
+	float phase{ time.count() * 1000.0f * config.frequency };
+	V2_float position_noise{ PerlinNoise::GetValue(phase, 0.0f, seed + 0) * 2.0f - 1.0f,
+							 PerlinNoise::GetValue(phase, 0.0f, seed + 1) * 2.0f - 1.0f };
+	float rotation_noise{ PerlinNoise::GetValue(phase, 0.0f, seed + 3) * 2.0f - 1.0f };
 
 	offsets.shake.position = shake_value * config.maximum_translation * position_noise;
 	offsets.shake.rotation = Radians{ shake_value * config.maximum_rotation * rotation_noise };
@@ -212,16 +212,16 @@ void ApplyShake(
 ) {
 	PTGN_ASSERT(config.lerp.x >= 0.0f && config.lerp.x <= 1.0f);
 	PTGN_ASSERT(config.lerp.y >= 0.0f && config.lerp.y <= 1.0f);
-	const V2_float lerp{ 1.0f - std::pow(1.0f - config.lerp.x, dt.count()),
-						 1.0f - std::pow(1.0f - config.lerp.y, dt.count()) };
+	V2_float lerp{ 1.0f - std::pow(1.0f - config.lerp.x, dt.count()),
+				   1.0f - std::pow(1.0f - config.lerp.y, dt.count()) };
 
 	V2_float new_position{ position };
 	if (config.deadzone.IsZero()) {
 		new_position = Lerp(position, target_position, lerp);
 	} else {
-		const V2_float half_deadzone{ config.deadzone * 0.5f };
-		const V2_float minimum{ target_position - half_deadzone };
-		const V2_float maximum{ target_position + half_deadzone };
+		V2_float half_deadzone{ config.deadzone * 0.5f };
+		V2_float minimum{ target_position - half_deadzone };
+		V2_float maximum{ target_position + half_deadzone };
 		if (position.x < minimum.x) {
 			new_position.x = Lerp(position.x, position.x - (minimum.x - target_position.x), lerp.x);
 		} else if (position.x > maximum.x) {
@@ -290,7 +290,7 @@ void MoveUsingVelocity(const FollowConfig& config, Entity entity, V2_float direc
 		return;
 	}
 
-	const float distance_squared{ direction.MagnitudeSquared() };
+	float distance_squared{ direction.MagnitudeSquared() };
 	if (config.stop_distance.has_value() && config.stop_distance.value() >= kEpsilon<float> &&
 		distance_squared < config.stop_distance.value() * config.stop_distance.value()) {
 		return;
@@ -331,7 +331,7 @@ ComponentDefinition MakeComponentDefinition(const RegisteredComponent& component
 		value = json::object();
 	}
 
-	const std::string component_name{ component.name };
+	std::string component_name{ component.name };
 
 	return ComponentDefinition{
 		.type_hash = static_cast<TypeHashValue>(component.type_id),
@@ -395,7 +395,7 @@ void MoveToScript::OnRepeat() {
 
 void RotateToScript::OnStart() {
 	start_degrees_ = Target().Get<Transform>().rotation.ToDeg().value;
-	const float end_degrees{ relative ? start_degrees_ + degrees : degrees };
+	float end_degrees{ relative ? start_degrees_ + degrees : degrees };
 	delta_degrees_ = end_degrees - start_degrees_;
 	if (shortest_path) {
 		delta_degrees_ = std::remainder(delta_degrees_, 360.0f);
@@ -403,7 +403,7 @@ void RotateToScript::OnStart() {
 }
 
 ScriptStatus RotateToScript::OnUpdate() {
-	const float value{ start_degrees_ + delta_degrees_ * Progress() };
+	float value{ start_degrees_ + delta_degrees_ * Progress() };
 	Target().Get<Transform>().rotation = Degrees{ value }.ToRad();
 
 	return ScriptStatus::Running;
@@ -495,8 +495,7 @@ void BounceScript::OnStart() {
 
 ScriptStatus BounceScript::OnUpdate() {
 	auto& offsets{ Target().TryAdd<impl::Offsets>() };
-	const float bounce_value{ TimingEase() == Ease::None ? 1.0f
-														 : BounceWave(Progress(), symmetrical) };
+	float bounce_value{ TimingEase() == Ease::None ? 1.0f : BounceWave(Progress(), symmetrical) };
 	offsets.bounce.position = static_offset + amplitude * bounce_value;
 
 	return ScriptStatus::Running;
@@ -517,7 +516,7 @@ void StartBounceScript::OnStart() {
 		return;
 	}
 
-	const milliseconds bounce_period{ MillisecondsFromFloat(period.count()) };
+	milliseconds bounce_period{ MillisecondsFromFloat(period.count()) };
 	if (bounce_period.count() <= 0) {
 		PTGN_WARN("Start Bounce period must be at least one millisecond");
 
@@ -525,11 +524,11 @@ void StartBounceScript::OnStart() {
 	}
 
 	if (symmetrical) {
-		(void)SymmetricalBounce(
+		SymmetricalBounce(
 			Target(), amplitude, bounce_period, std::nullopt, ease, static_offset, force
 		);
 	} else {
-		(void)Bounce(Target(), amplitude, bounce_period, std::nullopt, ease, static_offset, force);
+		Bounce(Target(), amplitude, bounce_period, std::nullopt, ease, static_offset, force);
 	}
 }
 
@@ -553,15 +552,15 @@ void ShakeScript::OnStart() {
 ScriptStatus ShakeScript::OnUpdate() {
 	auto& state{ Target().TryAdd<impl::ShakeAnimationState>() };
 
-	// Legacy editor-authored Shake actions may have been serialized before Shake became Tween-only.
+	// Legacy editor authored Shake actions may have been serialized before Shake became Tween only.
 	// Treat an untimed invocation as the new instant impulse behavior instead of blocking forever.
 	bool untimed_action{ LinearProgress() <= 0.0f && Progress() <= 0.0f && DeltaSeconds() > 0.0f };
-	const float progress{ untimed_action ? 1.0f : Progress() };
+	float progress{ untimed_action ? 1.0f : Progress() };
 	state.trauma = Clamp01(Lerp(start_trauma_, target_trauma_, progress));
 	auto& offsets{ Target().TryAdd<impl::Offsets>() };
 	ApplyShake(GetScene().ctx().GameTime(), offsets, state.trauma, config, state.seed);
 	if (untimed_action) {
-		(void)Shake(Target(), state.trauma, config, true);
+		Shake(Target(), state.trauma, config, true);
 		return ScriptStatus::Complete;
 	}
 
@@ -591,7 +590,7 @@ void ShakeScript::OnCancel(SequenceCancelReason) {
 }
 
 void ShakeActionScript::OnStart() {
-	(void)Shake(Target(), intensity, config, force);
+	Shake(Target(), intensity, config, force);
 	MoveOn();
 }
 
@@ -660,7 +659,7 @@ void ResetShakeScript::OnStart() {
 }
 
 void StartShakeScript::OnStart() {
-	(void)Shake(Target(), intensity, std::nullopt, config, Ease::None, force, false);
+	Shake(Target(), intensity, std::nullopt, config, Ease::None, force, false);
 	MoveOn();
 }
 
@@ -677,13 +676,13 @@ ScriptStatus FollowTargetScript::OnUpdate() {
 	}
 
 	auto& position{ Target().Get<Transform>().position };
-	const V2_float offset{ target_entity.Get<Transform>().position - position };
-	const float distance{ std::sqrt(offset.x * offset.x + offset.y * offset.y) };
+	V2_float offset{ target_entity.Get<Transform>().position - position };
+	float distance{ std::sqrt(offset.x * offset.x + offset.y * offset.y) };
 	if (distance <= std::max(0.0f, stopping_distance)) {
 		return ScriptStatus::Complete;
 	}
 
-	const float step{ std::max(0.0f, speed) * std::max(0.0f, DeltaSeconds()) };
+	float step{ std::max(0.0f, speed) * std::max(0.0f, DeltaSeconds()) };
 	if (step >= distance) {
 		position += offset;
 
@@ -720,13 +719,13 @@ ScriptStatus FollowEntityScript::OnUpdate() {
 		return ScriptStatus::Complete;
 	}
 
-	const V2_float current{ GetWorldPosition(Target()) };
-	const V2_float target_position{ GetWorldPosition(target_entity) + config.offset };
+	V2_float current{ GetWorldPosition(Target()) };
+	V2_float target_position{ GetWorldPosition(target_entity) + config.offset };
 	V2_float direction{ target_position - current };
 	if (config.move_mode == MoveMode::Velocity) {
 		MoveUsingVelocity(config, Target(), direction);
 	} else {
-		const V2_float next{
+		V2_float next{
 			GetFollowPosition(secondsf{ DeltaSeconds() }, config, current, target_position)
 		};
 
@@ -822,7 +821,7 @@ void StartFollowEntityScript::OnStart() {
 		return;
 	}
 
-	(void)StartFollow(Target(), follow_target, config, force);
+	StartFollow(Target(), follow_target, config, force);
 }
 
 void StartFollowPathScript::OnStart() {
@@ -832,7 +831,7 @@ void StartFollowPathScript::OnStart() {
 		return;
 	}
 
-	(void)StartFollow(
+	StartFollow(
 		Target(), std::span<const V2_float>{ waypoints.data(), waypoints.size() }, config, force,
 		reset_waypoint_index
 	);
@@ -903,7 +902,7 @@ void AnimationActionScript::OnStart() {
 		case AnimationAction::SetFrame:		 animation.SetCurrentFrame(frame); break;
 		case AnimationAction::NextFrame:	 animation.IncrementFrame(); break;
 		case AnimationAction::PreviousFrame: {
-			const std::size_t frame_count{ animation.GetFrameCount() };
+			std::size_t frame_count{ animation.GetFrameCount() };
 			if (frame_count > 0) {
 				animation.SetCurrentFrame(
 					(animation.GetCurrentFrame() + frame_count - 1) % frame_count
@@ -940,7 +939,6 @@ void TimerActionScript::OnStart() {
 }
 
 void DialogueActionScript::OnStart() {
-	Entity target{ Target() };
 	if (!target || !target.Has<impl::DialogueData>()) {
 		PTGN_WARN("Dialogue action requires DialogueData on the target entity");
 
@@ -993,7 +991,7 @@ void DialogueActionScript::OnStart() {
 				return;
 			}
 
-			const std::string next{ current->next_dialogue };
+			std::string next{ current->next_dialogue };
 			box.Open(next);
 			break;
 		}
@@ -1001,7 +999,6 @@ void DialogueActionScript::OnStart() {
 }
 
 void TooltipActionScript::OnStart() {
-	Entity target{ Target() };
 	if (!target) {
 		PTGN_WARN("Tooltip action requires a valid target entity");
 		return;
@@ -1059,7 +1056,7 @@ void SetEnabledScript::OnStart() {
 	}
 
 	if (!registration->serializable || !registration->deserializable) {
-		PTGN_WARN("Component does not support enabled-state serialization: ", component);
+		PTGN_WARN("Component does not support enabled state serialization: ", component);
 
 		return;
 	}
@@ -1122,7 +1119,7 @@ void SceneChangeScript::OnStart() {
 
 	auto transitions{ MakeSceneTransitions(*this, entering_active_scene) };
 
-	const SceneTransitionPriority transition_priority{ priority };
+	SceneTransitionPriority transition_priority{ priority };
 	if (action == SceneChangeAction::Exit) {
 		scene_manager.Exit(scene_key, std::move(transitions.out), transition_priority);
 
@@ -1130,7 +1127,7 @@ void SceneChangeScript::OnStart() {
 	}
 
 	SerializedScene serialized_scene;
-	const auto snapshot{ std::ranges::find_if(
+	auto snapshot{ std::ranges::find_if(
 		app_context.runtime_project_scenes,
 		[this](const impl::RuntimeProjectSceneSnapshot& candidate) {
 			return candidate.key == scene_key;

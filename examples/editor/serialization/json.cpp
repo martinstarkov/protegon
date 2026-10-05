@@ -108,7 +108,7 @@ int main(int, char**) {
 		PTGN_LOG("Successfully deserialized all entity components");
 	}
 
-	const auto test_manager_serialization = [](const std::string& manager_name,
+	auto test_manager_serialization = [](const std::string& manager_name,
 											   auto& resource_manager, const path& resource1_path,
 											   const path& resource2_path, bool is_music = false) {
 		ctx().asset.Load(manager_name + "1", resource1_path, is_music);

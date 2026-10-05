@@ -157,7 +157,7 @@ inline std::vector<InspectorUiState>& InspectorUiStates() {
 
 inline InspectorUiState& GetInspectorUiState(const InspectorTargetKey& target) {
 	auto& states{ InspectorUiStates() };
-	const auto it{ std::ranges::find_if(states, [&target](const InspectorUiState& state) {
+	auto it{ std::ranges::find_if(states, [&target](const InspectorUiState& state) {
 		return SameInspectorTarget(state.target, target);
 	}) };
 
@@ -343,7 +343,7 @@ template <typename Visual, typename T, std::size_t N>
 	const std::array<Visual, N>& states, ButtonVisualState state,
 	const std::optional<T> Visual::* member
 ) {
-	for (const ButtonVisualState fallback : GetButtonVisualStateFallbacks(state)) {
+	for (ButtonVisualState fallback : GetButtonVisualStateFallbacks(state)) {
 		const auto& visual{ states[static_cast<std::size_t>(std::to_underlying(fallback))] };
 
 		if (!visual.defined) {
@@ -364,7 +364,7 @@ inline std::string NormalizeInspectorName(std::string_view input) {
 	std::string result;
 	result.reserve(input.size());
 
-	for (const char c : input) {
+	for (char c : input) {
 		if (std::isalnum(static_cast<unsigned char>(c))) {
 			result.push_back(static_cast<char>(std::tolower(static_cast<unsigned char>(c))));
 		}
@@ -377,7 +377,7 @@ template <typename Info>
 [[nodiscard]] std::string GetDrawableInspectorLabel(const Info& info) {
 	std::string name{ info.GetDisplayName() };
 
-	if (const auto separator{ name.rfind("::") }; separator != std::string::npos) {
+	if (auto separator{ name.rfind("::") }; separator != std::string::npos) {
 		name.erase(0, separator + 2);
 	}
 
@@ -392,11 +392,12 @@ bool DrawButtonVisualOverrideValue(
 	auto& visual{ states[static_cast<std::size_t>(std::to_underlying(state))] };
 	auto& value{ visual.*member };
 	bool had_override{ value.has_value() };
-	const std::optional<T> inherited{ ResolveButtonVisualProperty(states, state, member) };
 
-	// Size overrides use a label-side checkbox. Keeping the checkbox in the label
+	std::optional<T> inherited{ ResolveButtonVisualProperty(states, state, member) };
+
+	// Size overrides use a label side checkbox. Keeping the checkbox in the label
 	// column prevents the controls from jumping when the override is enabled.
-	const std::string normalized_label{ NormalizeInspectorName(label) };
+	std::string normalized_label{ NormalizeInspectorName(label) };
 
 	if constexpr (std::same_as<T, Transform>) {
 		ScopedID value_scope{ std::addressof(value) };
@@ -466,17 +467,17 @@ bool DrawButtonVisualOverrideValue(
 			};
 
 			fields_changed |= DrawPropertyRow("Position", [&]() {
-				const float spacing{ ImGui::GetStyle().ItemInnerSpacing.x };
-				const float available{ std::max(1.0f, ImGui::GetContentRegionAvail().x) };
-				const float pick_width{ ImGui::CalcTextSize("Pick").x +
-										ImGui::GetStyle().FramePadding.x * 2.0f };
-				const float inherit_width{ ImGui::GetFrameHeight() };
-				const float actions_width{ pick_width + inherit_width + spacing };
+				float spacing{ ImGui::GetStyle().ItemInnerSpacing.x };
+				float available{ std::max(1.0f, ImGui::GetContentRegionAvail().x) };
+				float pick_width{ ImGui::CalcTextSize("Pick").x +
+								  ImGui::GetStyle().FramePadding.x * 2.0f };
+				float inherit_width{ ImGui::GetFrameHeight() };
+				float actions_width{ pick_width + inherit_width + spacing };
 				bool actions_inline{ available >= actions_width + spacing + 104.0f };
-				const float fields_width{ actions_inline
-											  ? std::max(1.0f, available - actions_width - spacing)
-											  : available };
-				const float field_width{ InspectorSplitWidth(2, fields_width, spacing) };
+				float fields_width{ actions_inline
+										? std::max(1.0f, available - actions_width - spacing)
+										: available };
+				float field_width{ InspectorSplitWidth(2, fields_width, spacing) };
 				bool local_changed{ false };
 
 				ImGui::SetNextItemWidth(field_width);
@@ -490,9 +491,9 @@ bool DrawButtonVisualOverrideValue(
 				if (actions_inline) {
 					ImGui::SameLine(0.0f, spacing);
 				}
-				const ImGuiID pick_id{ ImGui::GetID("##RelativeVisualPositionPick") };
+				ImGuiID pick_id{ ImGui::GetID("##RelativeVisualPositionPick") };
 				static std::unordered_map<ImGuiID, V2_float> picked_positions;
-				if (const auto it{ picked_positions.find(pick_id) }; it != picked_positions.end()) {
+				if (auto it{ picked_positions.find(pick_id) }; it != picked_positions.end()) {
 					if (displayed.position != it->second) {
 						displayed.position = it->second;
 						local_changed	   = true;
@@ -501,7 +502,7 @@ bool DrawButtonVisualOverrideValue(
 					}
 				}
 				if (relative_to) {
-					const Transform basis{ GetDrawTransform(relative_to) };
+					Transform basis{ GetDrawTransform(relative_to) };
 					DrawPositionPickButton(
 						ctx, "RelativeVisualPosition", displayed.position,
 						[relative_to](V2_float world) -> std::optional<V2_float> {
@@ -523,9 +524,9 @@ bool DrawButtonVisualOverrideValue(
 			});
 
 			fields_changed |= DrawPropertyRow("Depth", [&]() {
-				const float spacing{ ImGui::GetStyle().ItemInnerSpacing.x };
-				const float available{ std::max(1.0f, ImGui::GetContentRegionAvail().x) };
-				const float checkbox_width{ ImGui::GetFrameHeight() };
+				float spacing{ ImGui::GetStyle().ItemInnerSpacing.x };
+				float available{ std::max(1.0f, ImGui::GetContentRegionAvail().x) };
+				float checkbox_width{ ImGui::GetFrameHeight() };
 				bool inline_ignore{ available >= checkbox_width + spacing + 72.0f };
 				ImGui::SetNextItemWidth(
 					inline_ignore ? std::max(1.0f, available - checkbox_width - spacing) : -FLT_MIN
@@ -539,9 +540,9 @@ bool DrawButtonVisualOverrideValue(
 			});
 
 			fields_changed |= DrawPropertyRow("Rotation", [&]() {
-				const float spacing{ ImGui::GetStyle().ItemInnerSpacing.x };
-				const float available{ std::max(1.0f, ImGui::GetContentRegionAvail().x) };
-				const float checkbox_width{ ImGui::GetFrameHeight() };
+				float spacing{ ImGui::GetStyle().ItemInnerSpacing.x };
+				float available{ std::max(1.0f, ImGui::GetContentRegionAvail().x) };
+				float checkbox_width{ ImGui::GetFrameHeight() };
 				bool inline_ignore{ available >= checkbox_width + spacing + 72.0f };
 				ImGui::SetNextItemWidth(
 					inline_ignore ? std::max(1.0f, available - checkbox_width - spacing) : -FLT_MIN
@@ -566,15 +567,15 @@ bool DrawButtonVisualOverrideValue(
 			fields_changed |= DrawPropertyRow("Scale", [&]() {
 				constexpr float minimum{ 0.001f };
 				constexpr float epsilon{ 0.000001f };
-				const V2_float before_scale{ displayed.scale };
-				const float spacing{ ImGui::GetStyle().ItemInnerSpacing.x };
-				const float available{ std::max(1.0f, ImGui::GetContentRegionAvail().x) };
-				const float action_width{ ImGui::GetFrameHeight() * 2.0f + spacing };
+				V2_float before_scale{ displayed.scale };
+				float spacing{ ImGui::GetStyle().ItemInnerSpacing.x };
+				float available{ std::max(1.0f, ImGui::GetContentRegionAvail().x) };
+				float action_width{ ImGui::GetFrameHeight() * 2.0f + spacing };
 				bool actions_inline{ available >= action_width + spacing + 104.0f };
-				const float fields_width{ actions_inline
-											  ? std::max(1.0f, available - action_width - spacing)
-											  : available };
-				const float field_width{ InspectorSplitWidth(2, fields_width, spacing) };
+				float fields_width{ actions_inline
+										? std::max(1.0f, available - action_width - spacing)
+										: available };
+				float field_width{ InspectorSplitWidth(2, fields_width, spacing) };
 				ImGui::SetNextItemWidth(field_width);
 				bool x_changed{
 					ImGui::DragFloat("##X", &displayed.scale.x, 0.01f, -1000.0f, 1000.0f, "X: %.2f")
@@ -594,7 +595,7 @@ bool DrawButtonVisualOverrideValue(
 				displayed.scale.x = clamp_axis(displayed.scale.x, before_scale.x);
 				displayed.scale.y = clamp_axis(displayed.scale.y, before_scale.y);
 
-				const ImGuiID lock_id{ ImGui::GetID("##RelativeVisualScaleLock") };
+				ImGuiID lock_id{ ImGui::GetID("##RelativeVisualScaleLock") };
 				static std::unordered_map<ImGuiID, bool> scale_locks;
 				bool& lock_ratio{ scale_locks.try_emplace(lock_id, true).first->second };
 				if (lock_ratio) {
@@ -639,10 +640,8 @@ bool DrawButtonVisualOverrideValue(
 			bool changed{ DrawOptionalPropertyRow(label, enabled, false, [&]() {
 				ScopedDisabled disabled{ !enabled };
 
-				const float spacing{ ImGui::GetStyle().ItemInnerSpacing.x };
-				const float width{
-					std::max(1.0f, (ImGui::GetContentRegionAvail().x - spacing) * 0.5f)
-				};
+				float spacing{ ImGui::GetStyle().ItemInnerSpacing.x };
+				float width{ std::max(1.0f, (ImGui::GetContentRegionAvail().x - spacing) * 0.5f) };
 				ImGui::SetNextItemWidth(width);
 				field_changed |= ImGui::DragFloat(
 					"##W", &displayed.x, kInspectorSizeDragSpeed, 0.0f, 0.0f, "W: %.3f"
@@ -681,8 +680,8 @@ bool DrawButtonVisualOverrideValue(
 
 				if (std::holds_alternative<V2_float>(displayed)) {
 					auto& size{ std::get<V2_float>(displayed) };
-					const float spacing{ ImGui::GetStyle().ItemInnerSpacing.x };
-					const float width{
+					float spacing{ ImGui::GetStyle().ItemInnerSpacing.x };
+					float width{
 						std::max(1.0f, (ImGui::GetContentRegionAvail().x - spacing) * 0.5f)
 					};
 					ImGui::SetNextItemWidth(width);
@@ -732,9 +731,9 @@ bool DrawButtonVisualOverrideValue(
 
 			bool changed{ DrawOptionalPropertyRow(label, enabled, false, [&]() {
 				ScopedDisabled disabled{ !enabled };
-				const float spacing{ ImGui::GetStyle().ItemInnerSpacing.x };
-				const float swatch_width{ ImGui::GetFrameHeight() };
-				const float available{ std::max(1.0f, ImGui::GetContentRegionAvail().x) };
+				float spacing{ ImGui::GetStyle().ItemInnerSpacing.x };
+				float swatch_width{ ImGui::GetFrameHeight() };
+				float available{ std::max(1.0f, ImGui::GetContentRegionAvail().x) };
 				bool show_channels{ available >= swatch_width + spacing * 4.0f + 4.0f * 44.0f };
 
 				if (show_channels) {
@@ -742,8 +741,8 @@ bool DrawButtonVisualOverrideValue(
 												 static_cast<int>(displayed.g),
 												 static_cast<int>(displayed.b),
 												 static_cast<int>(displayed.a) };
-					const float channel_area{ std::max(1.0f, available - swatch_width - spacing) };
-					const float channel_width{ InspectorSplitWidth(4, channel_area, spacing) };
+					float channel_area{ std::max(1.0f, available - swatch_width - spacing) };
+					float channel_width{ InspectorSplitWidth(4, channel_area, spacing) };
 					static constexpr std::array<const char*, 4> ids{ "##R", "##G", "##B", "##A" };
 					static constexpr std::array<const char*, 4> formats{ "R: %d", "G: %d", "B: %d",
 																		 "A: %d" };
@@ -798,15 +797,14 @@ bool DrawButtonVisualOverrideValue(
 
 template <typename Visual, std::size_t N>
 bool DrawButtonVisualTriStateBoolOverrideValue(
-	EditorContext& ctx, std::string_view label, std::array<Visual, N>& states,
-	ButtonVisualState state, std::optional<bool> Visual::* member
+	EditorContext&, std::string_view label, std::array<Visual, N>& states, ButtonVisualState state,
+	std::optional<bool> Visual::* member
 ) {
-	(void)ctx;
 	auto& visual{ states[static_cast<std::size_t>(std::to_underlying(state))] };
 	auto& value{ visual.*member };
 
 	int mode{ value.has_value() ? (*value ? 1 : 2) : 0 };
-	const int before_mode{ mode };
+	int before_mode{ mode };
 	const char* preview{ mode == 0 ? "Inherit" : mode == 1 ? "Enabled" : "Disabled" };
 
 	bool changed{ DrawPropertyRow(label, [&]() {
@@ -848,13 +846,12 @@ bool DrawButtonVisualTriStateBoolOverrideValue(
 
 template <typename Visual, typename T, std::size_t N, typename Draw>
 bool DrawButtonVisualOverrideTree(
-	EditorContext& ctx, std::string_view label, std::array<Visual, N>& states,
-	ButtonVisualState state, std::optional<T> Visual::* member, Draw&& draw
+	EditorContext&, std::string_view label, std::array<Visual, N>& states, ButtonVisualState state,
+	std::optional<T> Visual::* member, Draw&& draw
 ) {
-	(void)ctx;
 	auto& visual{ states[static_cast<std::size_t>(std::to_underlying(state))] };
 	auto& value{ visual.*member };
-	const std::optional<T> inherited{ ResolveButtonVisualProperty(states, state, member) };
+	std::optional<T> inherited{ ResolveButtonVisualProperty(states, state, member) };
 	bool was_enabled{ value.has_value() };
 	bool enabled{ was_enabled };
 	T displayed{ value.value_or(inherited.value_or(T{})) };
@@ -866,7 +863,9 @@ bool DrawButtonVisualOverrideTree(
 	// immediately to the left of the tree node and the tree node consumes the rest of the row.
 	bool toggle_changed{ ImGui::Checkbox("##Enabled", &enabled) };
 	ImGui::SameLine(0.0f, ImGui::GetStyle().ItemInnerSpacing.x);
-	const std::string tree_label{ std::string{ label } + "##ButtonVisualOverrideTree" };
+
+	std::string tree_label{ std::string{ label } + "##ButtonVisualOverrideTree" };
+
 	open = ImGui::TreeNodeEx(
 		tree_label.c_str(), ImGuiTreeNodeFlags_SpanAvailWidth | ImGuiTreeNodeFlags_FramePadding |
 								ImGuiTreeNodeFlags_NoTreePushOnOpen
@@ -913,7 +912,7 @@ bool DrawButtonBorderLineWidth(
 ) {
 	auto& visual{ states[static_cast<std::size_t>(std::to_underlying(state))] };
 	auto& value{ visual.fill_style };
-	const std::optional<FillStyle> inherited{
+	std::optional<FillStyle> inherited{
 		ResolveButtonVisualProperty(states, state, &ButtonShapeVisual::fill_style)
 	};
 
@@ -952,9 +951,7 @@ bool DrawButtonBorderLineWidth(
 
 	bool was_enabled{ value.has_value() };
 	bool enabled{ was_enabled };
-	const FillStyle resolved{
-		value.value_or(inherited.value_or(FillStyle{ kInspectorMinLineWidth }))
-	};
+	FillStyle resolved{ value.value_or(inherited.value_or(FillStyle{ kInspectorMinLineWidth })) };
 	float line_width{ resolved.GetLineWidth().value_or(kInspectorMinLineWidth) };
 	line_width = std::clamp(line_width, kInspectorMinLineWidth, maximum_width);
 
@@ -982,7 +979,7 @@ bool DrawButtonBorderLineWidth(
 	return changed;
 }
 
-/// @brief Shared optional Transform tree used by UI-owned parts.
+/// @brief Shared optional Transform tree used by UI owned parts.
 ///
 /// The checkbox is always placed to the left of the tree node. Because the underlying
 /// DrawInspectorTreeToggleRow intentionally uses NoTreePushOnOpen, this helper owns the
@@ -995,7 +992,7 @@ bool DrawOptionalTransformTree(
 							   "automatic/inherited placement."
 ) {
 	ScopedID scope{ id };
-	const auto header{ DrawInspectorTreeToggleRow(
+	auto header{ DrawInspectorTreeToggleRow(
 		"Transform", "##OptionalTransformTree", enabled, false, InspectorTreeToggleSide::Left
 	) };
 

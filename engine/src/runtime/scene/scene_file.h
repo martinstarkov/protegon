@@ -25,8 +25,8 @@ struct SerializedScene {
 	/// @brief Complete effective dependency set used for preloading before scene construction.
 	std::vector<AssetKey> assets{};
 
-	/// @brief Explicit preload only dependencies added through Scene::AddAssetDependency or the editor.
-	/// These remain distinct from assets discovered in serialized fields.
+	/// @brief Explicit preload only dependencies added through Scene::AddAssetDependency or the
+	/// editor. These remain distinct from assets discovered in serialized fields.
 	std::vector<AssetKey> preload_assets{};
 
 	std::optional<json> content{};
@@ -39,10 +39,9 @@ void SaveSceneFile(const path& file_path, const SerializedScene& scene);
 namespace impl {
 
 /// @brief Finds catalog assets referenced by serialized scene parameters/content, then merges
-/// explicit preload-only dependencies.
+/// explicit preload only dependencies.
 [[nodiscard]] std::vector<AssetKey> DiscoverSceneAssetDependencies(
-	const Scene& scene,
-	std::span<const AssetKey> explicit_dependencies = {}
+	const Scene& scene, std::span<const AssetKey> explicit_dependencies = {}
 );
 
 [[nodiscard]] SceneFactory MakeSceneFactory(SerializedScene scene, bool runtime);

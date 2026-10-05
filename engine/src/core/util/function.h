@@ -27,16 +27,16 @@ namespace ptgn::impl {
 
 // Returns the name of the function with the return type and function parameter list trimmed away.
 [[nodiscard]] constexpr std::string_view TrimFunctionSignature(std::string_view signature) {
-	const std::string_view begin{ "__cdecl" }; // trim return type
-	const std::string_view end{ "(" };		   // trim function parameter list
+	std::string_view begin{ "__cdecl" }; // trim return type
+	std::string_view end{ "(" };		 // trim function parameter list
 
 	// Trim the return type
-	if (const auto position = signature.find(begin); position != std::string_view::npos) {
+	if (auto position{ signature.find(begin) }; position != std::string_view::npos) {
 		signature = signature.substr(position + begin.length());
 	}
 
 	// Trim the function parameters
-	if (const auto position = signature.find(end); position != std::string_view::npos) {
+	if (auto position{ signature.find(end) }; position != std::string_view::npos) {
 		signature = signature.substr(0, position);
 	}
 

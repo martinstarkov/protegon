@@ -97,7 +97,7 @@ static_assert(!ContainsDuplicates(kResolutionPresets, &ResolutionPreset::label))
 		return true;
 	}
 
-	const auto result{ std::search(
+	auto result{ std::search(
 		text.begin(), text.end(), query.begin(), query.end(), [](char lhs, char rhs) {
 			return std::tolower(static_cast<unsigned char>(lhs)) ==
 				   std::tolower(static_cast<unsigned char>(rhs));
@@ -144,7 +144,7 @@ static_assert(!ContainsDuplicates(kResolutionPresets, &ResolutionPreset::label))
 			++position;
 		}
 
-		const std::size_t start{ position };
+		std::size_t start{ position };
 
 		while (position < filter.size() && !IsSearchSeparator(filter[position])) {
 			++position;
@@ -154,7 +154,7 @@ static_assert(!ContainsDuplicates(kResolutionPresets, &ResolutionPreset::label))
 			continue;
 		}
 
-		const std::string_view term{ filter.substr(start, position - start) };
+		std::string_view term{ filter.substr(start, position - start) };
 
 		if (ignore_navigation_terms && IsNavigationSearchTerm(term)) {
 			continue;
@@ -269,7 +269,7 @@ static_assert(!ContainsDuplicates(kResolutionPresets, &ResolutionPreset::label))
 // 		case SettingsPage::ProjectRendering:
 // 			return "Configure tone mapping and output color correction.";
 // 		case SettingsPage::EditorGeneral:
-// 			return "Configure editor-only selection, rendering, gizmo, and inspector behavior.";
+// 			return "Configure editor only selection, rendering, gizmo, and inspector behavior.";
 // 		case SettingsPage::DebugInteraction:
 // 			return "Configure how interactive regions are drawn for debugging.";
 // 		case SettingsPage::DebugCollision:
@@ -301,7 +301,7 @@ void DrawSectionTitle(std::string_view title) {
 
 [[nodiscard]] V2_int GetCurrentBackbufferSize(const Renderer& renderer) {
 	// The presentation framebuffer is resized to the display viewport size. Keep this in
-	// presentation/window coordinates rather than using the DPI-scaled native framebuffer size.
+	// presentation/window coordinates rather than using the DPI scaled native framebuffer size.
 	return Ceil(renderer.GetDisplayViewport().size);
 }
 
@@ -371,7 +371,7 @@ bool DrawProjectDisplaySettings(EditorContext& ctx, std::string_view filter) {
 	bool changed{ false };
 	auto& renderer{ ctx.editor.GetRenderer() };
 	auto& window{ ctx.editor.GetWindow() };
-	const ProjectDisplaySettingsState before{
+	ProjectDisplaySettingsState before{
 		.renderer = renderer.GetSettings(),
 		.window	  = window.GetSettings(),
 	};
@@ -506,7 +506,7 @@ bool DrawProjectDisplaySettings(EditorContext& ctx, std::string_view filter) {
 		}
 	}
 
-	const ProjectDisplaySettingsState after{
+	ProjectDisplaySettingsState after{
 		.renderer = renderer.GetSettings(),
 		.window	  = window.GetSettings(),
 	};
@@ -524,7 +524,7 @@ bool DrawProjectDisplaySettings(EditorContext& ctx, std::string_view filter) {
 
 bool DrawProjectRenderingSettings(EditorContext& ctx, std::string_view filter) {
 	auto& renderer{ ctx.editor.GetRenderer() };
-	const RendererSettings before{ renderer.GetSettings() };
+	RendererSettings before{ renderer.GetSettings() };
 	auto settings{ before };
 	bool changed{ false };
 
@@ -579,7 +579,7 @@ bool DrawProjectRenderingSettings(EditorContext& ctx, std::string_view filter) {
 bool DrawEditorGeneralSettings(EditorContext& ctx, std::string_view filter) {
 	DrawSectionTitle("General");
 
-	const EditorSettings before{ ctx.editor.GetSettings() };
+	EditorSettings before{ ctx.editor.GetSettings() };
 	bool changed{ false };
 
 	if (MatchesFilter(filter, { "entity picking", "picking", "selection" })) {
@@ -623,7 +623,7 @@ bool DrawEditorGeneralSettings(EditorContext& ctx, std::string_view filter) {
 		}
 
 		ImGui::TextDisabled(
-			"Shows read-only components and reflected read-only component members."
+			"Shows read only components and reflected read only component members."
 		);
 	}
 
@@ -642,7 +642,7 @@ bool DrawEditorGeneralSettings(EditorContext& ctx, std::string_view filter) {
 		}
 
 		ImGui::TextDisabled(
-			"Shows compact read-only scene and system diagnostics in the scene Settings panel."
+			"Shows compact read only scene and system diagnostics in the scene Settings panel."
 		);
 	}
 
@@ -713,7 +713,7 @@ bool DrawEditorGeneralSettings(EditorContext& ctx, std::string_view filter) {
 bool DrawDebugInteractionSettings(EditorContext& ctx, std::string_view filter) {
 	DrawSectionTitle("Interaction");
 
-	const auto before{ ctx.editor.GetDebugSystem().settings.interaction };
+	auto before{ ctx.editor.GetDebugSystem().settings.interaction };
 	auto settings{ before };
 	bool changed{ false };
 
@@ -756,7 +756,7 @@ bool DrawDebugInteractionSettings(EditorContext& ctx, std::string_view filter) {
 bool DrawDebugCollisionSettings(EditorContext& ctx, std::string_view filter) {
 	DrawSectionTitle("Collision");
 
-	const auto before{ ctx.editor.GetDebugSystem().settings.collision };
+	auto before{ ctx.editor.GetDebugSystem().settings.collision };
 	auto settings{ before };
 	bool changed{ false };
 
@@ -793,7 +793,7 @@ bool DrawDebugCollisionSettings(EditorContext& ctx, std::string_view filter) {
 bool DrawDebugTextSettings(EditorContext& ctx, std::string_view filter) {
 	DrawSectionTitle("Text");
 
-	const auto before{ ctx.editor.GetDebugSystem().settings.text };
+	auto before{ ctx.editor.GetDebugSystem().settings.text };
 	auto settings{ before };
 	bool changed{ false };
 
@@ -839,7 +839,7 @@ bool DrawDebugTextSettings(EditorContext& ctx, std::string_view filter) {
 bool DrawDebugVisibilitySettings(EditorContext& ctx, std::string_view filter) {
 	DrawSectionTitle("Visibility");
 
-	const auto before{ ctx.editor.GetDebugSystem().settings.light };
+	auto before{ ctx.editor.GetDebugSystem().settings.light };
 	auto settings{ before };
 	bool changed{ false };
 
@@ -962,7 +962,7 @@ void DrawSettingsNavigation(SettingsPage& selected_page, std::string_view filter
 }
 
 [[nodiscard]] std::optional<SettingsPage> FirstMatchingPage(std::string_view filter) {
-	const auto it{ std::ranges::find_if(kSettingsPages, [filter](SettingsPage page) {
+	auto it{ std::ranges::find_if(kSettingsPages, [filter](SettingsPage page) {
 		return PageMatchesFilter(page, filter);
 	}) };
 
@@ -1017,9 +1017,9 @@ void SettingsWindow::OnRender(EditorContext& ctx) {
 
 	if (recenter_requested_) {
 		auto* viewport{ ImGui::GetMainViewport() };
-		const ImVec2 size{ viewport->WorkSize.x * 0.60f, viewport->WorkSize.y * 0.70f };
-		const ImVec2 center{ viewport->WorkPos.x + viewport->WorkSize.x * 0.5f,
-							 viewport->WorkPos.y + viewport->WorkSize.y * 0.5f };
+		ImVec2 size{ viewport->WorkSize.x * 0.60f, viewport->WorkSize.y * 0.70f };
+		ImVec2 center{ viewport->WorkPos.x + viewport->WorkSize.x * 0.5f,
+					   viewport->WorkPos.y + viewport->WorkSize.y * 0.5f };
 
 		ImGui::SetNextWindowDockID(0, ImGuiCond_Always);
 		ImGui::SetNextWindowPos(center, ImGuiCond_Always, ImVec2{ 0.5f, 0.5f });
@@ -1054,8 +1054,8 @@ void SettingsWindow::OnRender(EditorContext& ctx) {
 
 	ImGui::Spacing();
 
-	const std::string_view filter{ search_.data() };
-	const auto first_matching_page{ FirstMatchingPage(filter) };
+	std::string_view filter{ search_.data() };
+	auto first_matching_page{ FirstMatchingPage(filter) };
 
 	if (!PageMatchesFilter(selected_page_, filter) && first_matching_page) {
 		selected_page_ = *first_matching_page;
@@ -1143,8 +1143,8 @@ void UndoHistoryWindow::OnRender(EditorContext& ctx, UndoStack& undo_stack) {
 	}
 	ImGui::EndDisabled();
 
-	const auto history{ undo_stack.History() };
-	const std::size_t cursor{ undo_stack.Cursor() };
+	auto history{ undo_stack.History() };
+	std::size_t cursor{ undo_stack.Cursor() };
 
 	ImGui::SameLine();
 	ImGui::TextDisabled("%zu / %zu applied", cursor, history.size());

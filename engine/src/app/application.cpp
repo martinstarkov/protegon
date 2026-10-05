@@ -70,7 +70,7 @@ impl::AssetLoadTicket LoadStartupDependencies(
 #endif
 	}
 
-	const auto progress{ ticket.GetProgress() };
+	auto progress{ ticket.GetProgress() };
 	if (progress.failed_assets > 0) {
 		PTGN_WARN(
 			"Failed to load ", progress.failed_assets,
@@ -96,7 +96,7 @@ void LoadProjectPreloads(Application& app) {
 #endif
 	}
 
-	const auto progress{ ticket.GetProgress() };
+	auto progress{ ticket.GetProgress() };
 	if (progress.failed_assets > 0) {
 		PTGN_WARN(
 			"Failed to load ", progress.failed_assets,
@@ -216,9 +216,9 @@ void Application::StartProject(const path& project_path) {
 void Application::StartProjectImpl(
 	const path& project_path, const impl::SceneRegistryEntry* default_scene
 ) {
-	const path resolved_project_path{ ResolveStartupProjectPath(project_path) };
+	path resolved_project_path{ ResolveStartupProjectPath(project_path) };
 
-	const auto application_defaults{ GetProjectSettings(*this) };
+	auto application_defaults{ GetProjectSettings(*this) };
 
 	Project project;
 
@@ -372,7 +372,7 @@ void Application::EnterMainLoop() {
 	// The canvas layout is authoritative on the web. Reread it after
 	// initialization and after showing the window so the first rendered
 	// frame uses the actual browser viewport dimensions.
-	const V2_int canvas_size{ ctx_.window.GetCanvasCssSize() };
+	V2_int canvas_size{ ctx_.window.GetCanvasCssSize() };
 
 	if (canvas_size.IsPositive() && ctx_.window.GetSize() != canvas_size) {
 		ctx_.window.SetSize(canvas_size, false);

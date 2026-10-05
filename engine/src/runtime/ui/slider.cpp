@@ -46,8 +46,7 @@ constexpr float kDefaultTrackThickness{ 8.0f };
 }
 
 [[nodiscard]] std::string FormatSliderValue(float value, const SliderValueTextConfig& config) {
-	const float display_value{ config.display_min +
-							   value * (config.display_max - config.display_min) };
+	float display_value{ config.display_min + value * (config.display_max - config.display_min) };
 
 	std::ostringstream stream;
 	stream << std::fixed << std::setprecision(static_cast<int>(config.decimal_places))
@@ -56,7 +55,8 @@ constexpr float kDefaultTrackThickness{ 8.0f };
 }
 
 [[nodiscard]] std::string ExpandSliderValueText(float value, const SliderValueTextConfig& config) {
-	const std::string formatted{ FormatSliderValue(value, config) };
+	std::string formatted{ FormatSliderValue(value, config) };
+
 	return ExpandRichTextVariables(
 		config.text.source, [&formatted](std::string_view variable) -> std::optional<std::string> {
 			if (variable == "value") {
@@ -102,11 +102,11 @@ template <typename Marker>
 
 [[nodiscard]] float TrackThickness(Button thumb, V2_float direction) {
 	if (thumb && thumb.Has<Rect>()) {
-		const auto size{ thumb.Get<Rect>().GetSize() };
+		auto size{ thumb.Get<Rect>().GetSize() };
 
 		if (!direction.IsZero()) {
-			const auto unit{ Normalize(direction) };
-			const auto normal{ unit.Skewed() };
+			auto unit{ Normalize(direction) };
+			auto normal{ unit.Skewed() };
 
 			// Project the axis aligned thumb dimensions onto the track direction and
 			// its perpendicular so the track contains the thumb at both endpoints.
@@ -175,7 +175,7 @@ void SliderSystem::Update(Scene& scene) {
 			continue;
 		}
 
-		const Line world_line{ slider.GetLine() };
+		Line world_line{ slider.GetLine() };
 
 		if (!IsValidSliderLine(world_line)) {
 			continue;
@@ -184,8 +184,8 @@ void SliderSystem::Update(Scene& scene) {
 		// InteractionSystem has already moved this entity toward the mouse. Convert that
 		// attempted world space position into a normalized value along the slider line.
 		// In the managed slider layout, the interacted entity is the thumb rather than the root.
-		const auto attempted_position{ GetWorldTransform(thumb).position };
-		const float value{ slider.GetValueForPosition(attempted_position) };
+		auto attempted_position{ GetWorldTransform(thumb).position };
+		float value{ slider.GetValueForPosition(attempted_position) };
 
 		// SetValue snaps discrete sliders and reapplies the exact constrained position.
 		slider.SetValue(value);
@@ -266,8 +266,8 @@ Line Slider::GetLine() const {
 		return {};
 	}
 
-	const Line local{ Get<impl::SliderData>().line };
-	const Transform transform{ GetWorldTransform(*this) };
+	Line local{ Get<impl::SliderData>().line };
+	Transform transform{ GetWorldTransform(*this) };
 
 	return {
 		transform.Apply(local.start),
@@ -315,7 +315,7 @@ Slider& Slider::SetValue(float value, bool emit_event) {
 	}
 
 	auto& data{ Get<impl::SliderData>() };
-	const float previous{ data.value };
+	float previous{ data.value };
 
 	data.value = SnapValue(value);
 
@@ -430,7 +430,7 @@ Entity Slider::EnsureTrack() {
 	SetUI(track, IsUI(*this));
 
 	// The track belongs to the slider hierarchy but must not follow the moving thumb.
-	// The stable slider root now makes the track and thumb siblings, so no ignore-parent
+	// The stable slider root now makes the track and thumb siblings, so no ignore parent
 	// transform is required for this behavior.
 
 	// Child depth is relative to the slider, placing the track behind the thumb.
@@ -552,7 +552,7 @@ Slider& Slider::TrackLine(Color color) {
 	data.kind			= impl::SliderTrackKind::Line;
 	data.visual_enabled = true;
 
-	(void)EnsureTrackBackground(color);
+	EnsureTrackBackground(color);
 
 	if (Entity sprite{ FindDirectChildWith<impl::SliderTrackSpriteData>(track) }) {
 		sprite.Destroy();
@@ -576,7 +576,7 @@ Slider& Slider::TrackShape(Color color) {
 	data.visual_enabled = true;
 
 	// RefreshTrack calculates the real dimensions and transform.
-	(void)EnsureTrackBackground(color);
+	EnsureTrackBackground(color);
 
 	if (Entity sprite{ FindDirectChildWith<impl::SliderTrackSpriteData>(track) }) {
 		sprite.Destroy();
@@ -737,19 +737,19 @@ void Slider::RefreshValueTextContent() {
 }
 
 float Slider::SnapValue(float value) const {
-	const float normalized{ std::clamp(value, 0.0f, 1.0f) };
+	float normalized{ std::clamp(value, 0.0f, 1.0f) };
 
 	if (!Has<impl::SliderData>()) {
 		return normalized;
 	}
 
-	const auto position_count{ Get<impl::SliderData>().discrete_positions };
+	auto position_count{ Get<impl::SliderData>().discrete_positions };
 
 	if (position_count < 2) {
 		return normalized;
 	}
 
-	const float interval_count{ static_cast<float>(position_count - 1) };
+	float interval_count{ static_cast<float>(position_count - 1) };
 
 	return std::round(normalized * interval_count) / interval_count;
 }
@@ -761,7 +761,7 @@ void Slider::ApplyValuePosition() const {
 		return;
 	}
 
-	const Line world_line{ GetLine() };
+	Line world_line{ GetLine() };
 
 	if (!IsValidSliderLine(world_line)) {
 		return;
@@ -774,9 +774,9 @@ void Slider::ApplyValuePosition() const {
 }
 
 float Slider::GetValueForPosition(V2_float position) const {
-	const Line line{ GetLine() };
-	const auto direction{ line.GetDirection() };
-	const float length_squared{ direction.MagnitudeSquared() };
+	Line line{ GetLine() };
+	auto direction{ line.GetDirection() };
+	float length_squared{ direction.MagnitudeSquared() };
 
 	if (length_squared <= 0.0f) {
 		return GetValue();
@@ -819,20 +819,20 @@ void Slider::RefreshTrack() {
 		SetTransform(track, {});
 	}
 
-	const Line line{ Get<impl::SliderData>().line };
+	Line line{ Get<impl::SliderData>().line };
 
 	if (!IsValidSliderLine(line)) {
 		return;
 	}
 
-	const auto direction{ line.GetDirection() };
-	const auto center{ Midpoint(line.start, line.end) };
-	const Radians rotation{ direction.Angle().ToRad() };
-	const float length{ Length(direction) };
+	auto direction{ line.GetDirection() };
+	auto center{ Midpoint(line.start, line.end) };
+	Radians rotation{ direction.Angle().ToRad() };
+	float length{ Length(direction) };
 
-	const float thickness{ track_data.kind == impl::SliderTrackKind::Line
-							   ? std::max(1.0f, kDefaultTrackThickness * 0.25f)
-							   : TrackThickness(GetThumb(), direction) };
+	float thickness{ track_data.kind == impl::SliderTrackKind::Line
+						 ? std::max(1.0f, kDefaultTrackThickness * 0.25f)
+						 : TrackThickness(GetThumb(), direction) };
 
 	if (Entity background{ FindDirectChildWith<impl::SliderTrackBackgroundData>(track) }) {
 		SetVisible(background, track_data.visual_enabled);
@@ -857,8 +857,8 @@ void Slider::RefreshTrack() {
 			border.Add<Origin>(Origin::Center);
 		}
 		if (auto fill{ border.TryGet<FillStyle>() }) {
-			if (const auto line_width{ fill->GetLineWidth() }) {
-				const float maximum_width{ std::max(1.0f, std::min(length, thickness) * 0.5f) };
+			if (auto line_width{ fill->GetLineWidth() }) {
+				float maximum_width{ std::max(1.0f, std::min(length, thickness) * 0.5f) };
 				if (*line_width > maximum_width) {
 					border.Add<FillStyle>(FillStyle{ maximum_width });
 				}
@@ -879,7 +879,7 @@ void Slider::RefreshTrack() {
 		child_transform.position = center;
 		child_transform.rotation = rotation;
 
-		if (const auto display_size{ GetDisplaySize(sprite) };
+		if (auto display_size{ GetDisplaySize(sprite) };
 			display_size.has_value() && display_size->x > 0.0f) {
 			child_transform.scale.x = length / display_size->x;
 		}

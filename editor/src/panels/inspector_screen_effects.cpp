@@ -79,7 +79,7 @@ bool DrawScreenEffectJsonValue(const char* label, json& value) {
 			)) {
 			for (std::size_t index{ 0 }; index < value.size(); ++index) {
 				ImGui::PushID(static_cast<int>(index));
-				const std::string item{ "[" + std::to_string(index) + "]" };
+				std::string item{ "[" + std::to_string(index) + "]" };
 				changed |= DrawScreenEffectJsonValue(item.c_str(), value[index]);
 				ImGui::PopID();
 			}

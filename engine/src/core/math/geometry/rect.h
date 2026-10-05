@@ -93,16 +93,16 @@ public:
 
 	/// @return New transform offset by the origin.
 	[[nodiscard]] constexpr Transform Offset(Transform transform, Origin origin) const {
-		const auto local_offset{ GetOffset(origin, GetSize()) };
+		auto local_offset{ GetOffset(origin, GetSize()) };
 
 		if (local_offset.IsZero()) {
 			return transform;
 		}
 
 		// Transform the offset as a vector: apply scale + rotation, but remove translation.
-		const auto world_zero{ transform.Apply(V2_float{}) };
-		const auto world_offset_point{ transform.Apply(local_offset) };
-		const auto world_offset{ world_offset_point - world_zero };
+		auto world_zero{ transform.Apply(V2_float{}) };
+		auto world_offset_point{ transform.Apply(local_offset) };
+		auto world_offset{ world_offset_point - world_zero };
 
 		transform.position += world_offset;
 
@@ -120,14 +120,12 @@ public:
 		return { min, V2_float{ max.x, min.y }, max, V2_float{ min.x, max.y } };
 	}
 
-	constexpr std::array<V2_float, 4> GetWorldVertices(
-		Transform transform, Origin origin
-	) const {
+	constexpr std::array<V2_float, 4> GetWorldVertices(Transform transform, Origin origin) const {
 		auto offset_transform{ Offset(transform, origin) };
 		return GetWorldVertices(offset_transform);
 	}
 
-	/// @return A Rect that bounds the given points, where the min and max are axis-aligned with the
+	/// @return A Rect that bounds the given points, where the min and max are axis aligned with the
 	/// world axes.
 	template <std::ranges::input_range TRange>
 		requires std::convertible_to<std::ranges::range_reference_t<TRange>, V2_float>

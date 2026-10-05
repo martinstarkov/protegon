@@ -45,15 +45,15 @@ void LogFileDialogResult(const char* label, const FileDialog::Result<T>& result)
 
 class FileDialogDemoScene : public Scene {
 public:
+	const Origin button_origin{ Origin::Center };
+	const V2_int button_size{ 360, 72 };
+
 	void OnEnter() override {
 		ctx().debug.settings.interaction.draw_enabled = true;
 
-		const Origin button_origin{ Origin::Center };
-		const V2_int button_size{ 360, 72 };
-
 		CreateButton(*this, V2_float{ 0, -220 }, button_size, button_origin)
 			.OnPress([](auto e) {
-				const auto result =
+				auto result =
 						e.button.GetScene().ctx().window.file.OpenFile({
 							.filters =
 								{
@@ -72,7 +72,7 @@ public:
 
 		CreateButton(*this, V2_float{ 0, -110 }, button_size, button_origin)
 			.OnPress([](auto e) {
-				const auto result =
+				auto result =
 						e.button.GetScene().ctx().window.file.OpenFiles({
 							.filters =
 								{
@@ -90,7 +90,7 @@ public:
 
 		CreateButton(*this, V2_float{ 0, 0 }, button_size, button_origin)
 			.OnPress([](auto e) {
-				const auto result =
+				auto result =
 						e.button.GetScene().ctx().window.file.SaveFile({
 							.filters =
 								{
@@ -109,7 +109,7 @@ public:
 
 		CreateButton(*this, V2_float{ 0, 110 }, button_size, button_origin)
 			.OnPress([](auto e) {
-				const auto result = e.button.GetScene().ctx().window.file.OpenFolder(
+				auto result = e.button.GetScene().ctx().window.file.OpenFolder(
 					{
 						.default_path = "assets",
 					}
@@ -123,7 +123,7 @@ public:
 
 		CreateButton(*this, V2_float{ 0, 220 }, button_size, button_origin)
 			.OnPress([](auto e) {
-				const auto result = e.button.GetScene().ctx().window.file.OpenFolders(
+				auto result = e.button.GetScene().ctx().window.file.OpenFolders(
 					{
 						.default_path = "default_path",
 					}

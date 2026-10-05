@@ -29,18 +29,16 @@ public:
 
 	void SetSelectedPrefab(std::optional<PrefabKey> prefab, bool undoable = true);
 	void SetSelectedPrefab(
-		std::optional<PrefabKey> prefab,
-		SerializedEntityPath entity_path,
-		bool undoable = true
+		std::optional<PrefabKey> prefab, SerializedEntityPath entity_path, bool undoable = true
 	);
 
 	[[nodiscard]] SceneHierarchyTab GetActiveTab() const;
 	void SetActiveTab(SceneHierarchyTab tab);
 
 private:
-	[[nodiscard]] bool DrawSceneHierarchy(EditorContext& ctx);
-	[[nodiscard]] bool DrawPrefabs(EditorContext& ctx);
-	[[nodiscard]] bool DrawTiles(EditorContext& ctx);
+	bool DrawSceneHierarchy(EditorContext& ctx);
+	bool DrawPrefabs(EditorContext& ctx);
+	bool DrawTiles(EditorContext& ctx);
 
 	EditorContext* context_{ nullptr };
 

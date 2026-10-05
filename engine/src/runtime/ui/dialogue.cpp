@@ -61,8 +61,8 @@ namespace {
 [[nodiscard]] std::size_t CountDialogueCharacters(const DialoguePage& page) {
 	std::size_t character_count{ 0 };
 	for (const auto& run : page.styled_text.runs) {
-		for (const char c : run.text) {
-			const auto byte{ static_cast<unsigned char>(c) };
+		for (char c : run.text) {
+			auto byte{ static_cast<unsigned char>(c) };
 			// Count UTF-8 leading bytes so multi byte code points do not trigger several sounds.
 			character_count += static_cast<std::size_t>((byte & 0xC0u) != 0x80u);
 		}
@@ -77,10 +77,8 @@ void ApplyDialogueVisualTransform(
 	bool inherit_rotation{ visual.inherit_rotation.value_or(true) };
 	bool inherit_scale{ visual.inherit_scale.value_or(true) };
 	bool inherit_depth{ visual.inherit_depth.value_or(true) };
-	const float relative_depth{ visual.depth.value_or(0.0f) };
-	const Transform world_transform{
-		relative_transform.InverseRelativeTo(GetWorldTransform(dialogue))
-	};
+	float relative_depth{ visual.depth.value_or(0.0f) };
+	Transform world_transform{ relative_transform.InverseRelativeTo(GetWorldTransform(dialogue)) };
 	Transform applied{ relative_transform };
 	if (!inherit_position) {
 		applied.position = world_transform.position;
@@ -122,10 +120,8 @@ void ApplyDialogueVisualTransform(
 	bool inherit_rotation{ visual.inherit_rotation.value_or(true) };
 	bool inherit_scale{ visual.inherit_scale.value_or(true) };
 	bool inherit_depth{ visual.inherit_depth.value_or(true) };
-	const float relative_depth{ visual.depth.value_or(0.0f) };
-	const Transform world_transform{
-		relative_transform.InverseRelativeTo(GetWorldTransform(dialogue))
-	};
+	float relative_depth{ visual.depth.value_or(0.0f) };
+	Transform world_transform{ relative_transform.InverseRelativeTo(GetWorldTransform(dialogue)) };
 	Transform applied{ relative_transform };
 	if (!inherit_position) {
 		applied.position = world_transform.position;
@@ -241,7 +237,7 @@ void AppendStyledRun(StyledText& text, const TextRun& source, std::string_view c
 		std::size_t chunk_begin{ 0 };
 
 		while (position < run.text.size()) {
-			const char c{ run.text[position] };
+			char c{ run.text[position] };
 			if (c != '\n' && c != '\r') {
 				++position;
 				continue;
@@ -379,13 +375,13 @@ struct PreparedDialogueSource {
 	double value{ 0.0 };
 	const char* begin{ line.data() };
 	const char* end{ line.data() + line.size() };
-	const auto [parsed_end, error]{ std::from_chars(begin, end, value) };
+	auto [parsed_end, error]{ std::from_chars(begin, end, value) };
 	if (error != std::errc{} || parsed_end != end || !std::isfinite(value) || value < 0.0) {
 		return std::nullopt;
 	}
 
 	using Count = decltype(milliseconds{}.count());
-	const double milliseconds_value{ value * multiplier };
+	double milliseconds_value{ value * multiplier };
 	if (milliseconds_value > static_cast<double>(std::numeric_limits<Count>::max())) {
 		return std::nullopt;
 	}
@@ -407,14 +403,14 @@ struct PreparedDialogueSource {
 	line.remove_suffix(impl::kDialoguePortraitPageTagSuffix.size());
 	line = TrimDialogueControlLine(line);
 
-	const std::size_t first_separator{ line.find(';') };
+	std::size_t first_separator{ line.find(';') };
 	if (first_separator == std::string_view::npos) {
 		return std::nullopt;
 	}
 
 	std::string_view slot_token{ TrimDialogueControlLine(line.substr(0, first_separator)) };
 	std::string_view remainder{ line.substr(first_separator + 1) };
-	const std::size_t second_separator{ remainder.find(';') };
+	std::size_t second_separator{ remainder.find(';') };
 	std::string_view speaker_token{ TrimDialogueControlLine(
 		second_separator == std::string_view::npos ? remainder
 												   : remainder.substr(0, second_separator)
@@ -448,15 +444,15 @@ struct PreparedDialogueSource {
 
 	std::size_t line_begin{ 0 };
 	while (line_begin <= source.size()) {
-		const std::size_t newline{ source.find('\n', line_begin) };
-		const std::size_t line_end{ newline == std::string_view::npos ? source.size() : newline };
+		std::size_t newline{ source.find('\n', line_begin) };
+		std::size_t line_end{ newline == std::string_view::npos ? source.size() : newline };
 		std::string_view line{ source.substr(line_begin, line_end - line_begin) };
 		if (!line.empty() && line.back() == '\r') {
 			line.remove_suffix(1);
 		}
 
-		const auto page_override{ ParseDialoguePageOverrideLine(line) };
-		const auto portrait_cue{ ParseDialoguePortraitCueLine(line) };
+		auto page_override{ ParseDialoguePageOverrideLine(line) };
+		auto portrait_cue{ ParseDialoguePortraitCueLine(line) };
 		if (page_override.has_value() || portrait_cue.has_value()) {
 			std::size_t prefix_end{ prepared.source.size() };
 			while (prefix_end > 0 && (prepared.source[prefix_end - 1] == '\n' ||
@@ -506,7 +502,7 @@ struct PreparedDialogueSource {
 	AssetManager& asset_manager, std::string_view source, const DialoguePageProperties& properties,
 	std::string_view split_end, std::string_view split_begin
 ) {
-	const auto parsed{ ParseRichText(source, properties.text_defaults) };
+	auto parsed{ ParseRichText(source, properties.text_defaults) };
 	auto paragraphs{ SplitDialogueParagraphs(parsed.text) };
 
 	std::vector<DialoguePage> pages;
@@ -524,13 +520,13 @@ struct PreparedDialogueSource {
 	AssetManager& asset_manager, std::string_view source, const DialoguePageProperties& properties,
 	std::string_view split_end, std::string_view split_begin
 ) {
-	const PreparedDialogueSource prepared{ PrepareDialogueSource(source) };
+	PreparedDialogueSource prepared{ PrepareDialogueSource(source) };
 	auto pages{ PaginateDialogueSourceCore(
 		asset_manager, prepared.source, properties, split_end, split_begin
 	) };
 
 	auto page_index_after_prefix = [&](std::size_t prefix_end) -> std::optional<std::size_t> {
-		const std::size_t clamped_end{ std::min(prefix_end, prepared.source.size()) };
+		std::size_t clamped_end{ std::min(prefix_end, prepared.source.size()) };
 		std::size_t preceding_page_count{ 0 };
 		if (clamped_end > 0) {
 			auto preceding_pages{ PaginateDialogueSourceCore(
@@ -546,7 +542,7 @@ struct PreparedDialogueSource {
 	};
 
 	for (const auto& page_override : prepared.page_overrides) {
-		const auto page_index{ page_index_after_prefix(page_override.prefix_end) };
+		auto page_index{ page_index_after_prefix(page_override.prefix_end) };
 		if (!page_index.has_value()) {
 			continue;
 		}
@@ -561,7 +557,7 @@ struct PreparedDialogueSource {
 	}
 
 	for (const auto& portrait : prepared.portrait_cues) {
-		const auto page_index{ page_index_after_prefix(portrait.prefix_end) };
+		auto page_index{ page_index_after_prefix(portrait.prefix_end) };
 		if (!page_index.has_value()) {
 			continue;
 		}
@@ -588,7 +584,7 @@ struct PreparedDialogueSource {
 [[nodiscard]] std::string NormalizeKeyToken(std::string_view value) {
 	std::string result;
 	result.reserve(value.size());
-	for (const char c : value) {
+	for (char c : value) {
 		if (std::isalnum(static_cast<unsigned char>(c))) {
 			result.push_back(static_cast<char>(std::tolower(static_cast<unsigned char>(c))));
 		}
@@ -665,15 +661,15 @@ inline constexpr std::array kDialogueNamedKeys{
 		return std::nullopt;
 	}
 
-	const std::string normalized{ NormalizeDialogueKeyAlias(NormalizeKeyToken(token)) };
+	std::string normalized{ NormalizeDialogueKeyAlias(NormalizeKeyToken(token)) };
 
 	if (normalized.size() == 1 && normalized.front() >= 'a' && normalized.front() <= 'z') {
-		return static_cast<Key>(static_cast<int>('A') + static_cast<int>(normalized.front() - 'a'));
+		return static_cast<Key>(static_cast<int>('A') + normalized.front() - 'a');
 	}
 
 	if (normalized.size() == 2 && normalized.front() == 'k' &&
 		std::isdigit(static_cast<unsigned char>(normalized[1]))) {
-		return static_cast<Key>(static_cast<int>('0') + static_cast<int>(normalized[1] - '0'));
+		return static_cast<Key>(static_cast<int>('0') + normalized[1] - '0');
 	}
 
 	if (normalized.size() >= 2 && normalized.front() == 'f') {
@@ -684,7 +680,7 @@ inline constexpr std::array kDialogueNamedKeys{
 				valid = false;
 				break;
 			}
-			number = number * 10 + static_cast<int>(normalized[i] - '0');
+			number = number * 10 + normalized[i] - '0';
 		}
 		if (valid && number >= 1 && number <= 25) {
 			return static_cast<Key>(289 + number);
@@ -693,10 +689,10 @@ inline constexpr std::array kDialogueNamedKeys{
 
 	if (normalized.size() == 3 && normalized[0] == 'k' && normalized[1] == 'p' &&
 		std::isdigit(static_cast<unsigned char>(normalized[2]))) {
-		return static_cast<Key>(320 + static_cast<int>(normalized[2] - '0'));
+		return static_cast<Key>(320 + normalized[2] - '0');
 	}
 
-	const auto it{ std::ranges::find(kDialogueNamedKeys, normalized, &DialogueNamedKey::name) };
+	auto it{ std::ranges::find(kDialogueNamedKeys, normalized, &DialogueNamedKey::name) };
 	if (it != kDialogueNamedKeys.end()) {
 		return static_cast<Key>(it->value);
 	}
@@ -705,7 +701,7 @@ inline constexpr std::array kDialogueNamedKeys{
 }
 
 [[nodiscard]] std::string DialogueKeyDisplayName(Key key) {
-	const int value{ static_cast<int>(key) };
+	auto value{ static_cast<int>(key) };
 
 	if (value >= static_cast<int>('0') && value <= static_cast<int>('9')) {
 		return std::string{ 1, static_cast<char>(value) };
@@ -720,12 +716,12 @@ inline constexpr std::array kDialogueNamedKeys{
 		return "KP" + std::to_string(value - 320);
 	}
 
-	const auto it{ std::ranges::find(kDialogueNamedKeys, value, &DialogueNamedKey::value) };
+	auto it{ std::ranges::find(kDialogueNamedKeys, value, &DialogueNamedKey::value) };
 	if (it == kDialogueNamedKeys.end()) {
 		return "Enter";
 	}
 
-	const std::string_view name{ it->name };
+	std::string_view name{ it->name };
 	if (name == "leftctrl") {
 		return "LeftCtrl";
 	}
@@ -832,10 +828,9 @@ using DialogueKeyChord = std::vector<Key>;
 	std::vector<DialogueKeyChord> alternatives;
 	std::size_t alternative_begin{ 0 };
 	while (alternative_begin <= expression.size()) {
-		const std::size_t comma{ expression.find(',', alternative_begin) };
-		const std::size_t alternative_end{ comma == std::string_view::npos ? expression.size()
-																		   : comma };
-		const std::string_view alternative{
+		std::size_t comma{ expression.find(',', alternative_begin) };
+		std::size_t alternative_end{ comma == std::string_view::npos ? expression.size() : comma };
+		std::string_view alternative{
 			TrimKeyToken(expression.substr(alternative_begin, alternative_end - alternative_begin))
 		};
 		if (alternative.empty()) {
@@ -845,16 +840,16 @@ using DialogueKeyChord = std::vector<Key>;
 		DialogueKeyChord chord;
 		std::size_t key_begin{ 0 };
 		while (key_begin <= alternative.size()) {
-			const std::size_t plus{ alternative.find('+', key_begin) };
-			const std::size_t key_end{ plus == std::string_view::npos ? alternative.size() : plus };
-			const std::string_view token{
+			std::size_t plus{ alternative.find('+', key_begin) };
+			std::size_t key_end{ plus == std::string_view::npos ? alternative.size() : plus };
+			std::string_view token{
 				TrimKeyToken(alternative.substr(key_begin, key_end - key_begin))
 			};
 			if (token.empty()) {
 				return fail("Empty key in chord. Use + only between key names.");
 			}
 
-			const auto key{ ParseDialogueKey(token) };
+			auto key{ ParseDialogueKey(token) };
 			if (!key.has_value()) {
 				return fail("Unknown key: " + std::string{ token });
 			}
@@ -906,7 +901,7 @@ bool ValidateDialogueKeyExpression(std::string_view expression, std::string* err
 }
 
 bool DialogueKeyExpressionMatches(std::string_view expression, std::span<const Key> held_keys) {
-	const auto alternatives{ ParseDialogueKeyExpression(expression, nullptr) };
+	auto alternatives{ ParseDialogueKeyExpression(expression, nullptr) };
 	if (!alternatives.has_value()) {
 		return false;
 	}
@@ -926,7 +921,7 @@ void DialogueSystem::OnEvent(Scene& scene, Event event) {
 }
 
 void DialogueSystem::OnKeyPressed(Scene& scene, Key key) {
-	const auto entities{ scene.EntitiesWith<DialogueData>().GetVector() };
+	auto entities{ scene.EntitiesWith<DialogueData>().GetVector() };
 
 	for (Entity entity : entities) {
 		if (!entity) {
@@ -955,7 +950,7 @@ void DialogueSystem::OnKeyPressed(Scene& scene, Key key) {
 }
 
 void DialogueSystem::OnKeyReleased(Scene& scene, Key key) {
-	const auto entities{ scene.EntitiesWith<DialogueData>().GetVector() };
+	auto entities{ scene.EntitiesWith<DialogueData>().GetVector() };
 
 	for (Entity entity : entities) {
 		if (entity) {
@@ -965,8 +960,8 @@ void DialogueSystem::OnKeyReleased(Scene& scene, Key key) {
 }
 
 void DialogueSystem::Update(Scene& scene, secondsf delta_time) {
-	const float delta_ms{ std::max(0.0f, delta_time.count()) * 1000.0f };
-	const auto entities{ scene.EntitiesWith<DialogueData>().GetVector() };
+	float delta_ms{ std::max(0.0f, delta_time.count()) * 1000.0f };
+	auto entities{ scene.EntitiesWith<DialogueData>().GetVector() };
 
 	for (Entity entity : entities) {
 		if (!entity) {
@@ -986,15 +981,15 @@ void DialogueSystem::Update(Scene& scene, secondsf delta_time) {
 			continue;
 		}
 
-		const float duration_ms{ static_cast<float>(page->properties.scroll_duration.count()) };
+		float duration_ms{ static_cast<float>(page->properties.scroll_duration.count()) };
 		if (page->instant || !entry->scroll || duration_ms <= 0.0f) {
 			dialogue.CompletePage();
 			continue;
 		}
 
 		data.scroll_elapsed_ms += delta_ms;
-		const float progress{ std::clamp(data.scroll_elapsed_ms / duration_ms, 0.0f, 1.0f) };
-		const std::size_t revealed{ static_cast<std::size_t>(
+		float progress{ std::clamp(data.scroll_elapsed_ms / duration_ms, 0.0f, 1.0f) };
+		std::size_t revealed{ static_cast<std::size_t>(
 			std::floor(progress * static_cast<float>(CountDialogueCharacters(*page)))
 		) };
 
@@ -1092,7 +1087,7 @@ const DialogueVariant* DialogueEntry::GetCurrentDialogueVariant() const {
 		return nullptr;
 	}
 
-	const std::size_t current_index{ used_variant_indices.back() };
+	std::size_t current_index{ used_variant_indices.back() };
 	PTGN_ASSERT(current_index < variants.size());
 	return &variants[current_index];
 }
@@ -1116,7 +1111,7 @@ std::optional<std::size_t> DialogueEntry::GetNewDialogueVariant() {
 	// Random behavior only takes over after the authored Initial Variant has been shown.
 	if (!opened) {
 		opened = true;
-		const std::size_t chosen_index{ std::min(initial_variant, variants.size() - 1) };
+		std::size_t chosen_index{ std::min(initial_variant, variants.size() - 1) };
 		used_variant_indices = { chosen_index };
 		variant_cursor		 = Mod(chosen_index + 1, variants.size());
 		return variants[chosen_index].pages.empty() ? std::nullopt
@@ -1130,7 +1125,7 @@ std::optional<std::size_t> DialogueEntry::GetNewDialogueVariant() {
 		used_variant_indices = { chosen_index };
 	} else {
 		if (used_variant_indices.size() == variants.size()) {
-			const std::size_t previous{ used_variant_indices.back() };
+			std::size_t previous{ used_variant_indices.back() };
 			used_variant_indices.clear();
 			if (variants.size() > 1) {
 				used_variant_indices.emplace_back(previous);
@@ -1199,7 +1194,7 @@ void impl::DialogueData::RebuildRuntime(const Scene& scene) {
 	bool valid_definition{ definition.is_object() && !definition.empty() &&
 						   definition.contains("dialogues") &&
 						   definition.at("dialogues").is_object() };
-	const json authored = valid_definition ? definition : MakeDefaultDefinition();
+	json authored = valid_definition ? definition : MakeDefaultDefinition();
 
 	DialoguePageProperties defaults;
 	defaults = defaults.InheritProperties(authored);
@@ -1229,7 +1224,7 @@ void impl::DialogueData::LoadFromJson(
 
 	bool valid_root{ root.is_object() && !root.empty() && root.contains("dialogues") &&
 					 root.at("dialogues").is_object() };
-	const json authored = valid_root ? root : MakeDefaultDefinition();
+	json authored = valid_root ? root : MakeDefaultDefinition();
 	auto root_properties{ default_properties.InheritProperties(authored) };
 
 	definition				 = authored;
@@ -1241,21 +1236,17 @@ void impl::DialogueData::LoadFromJson(
 		"Dialogue requires either a sprite background or a non-zero box size"
 	);
 
-	const std::string split_end{ authored.value("split_end", "...") };
-	const std::string split_begin{ authored.value("split_begin", "") };
-	const int default_initial_variant{
-		authored.value("initial_variant", authored.value("index", 0))
-	};
+	std::string split_end{ authored.value("split_end", "...") };
+	std::string split_begin{ authored.value("split_begin", "") };
+	int default_initial_variant{ authored.value("initial_variant", authored.value("index", 0)) };
 	PTGN_ASSERT(
 		default_initial_variant >= 0, "Initial variant must be greater than or equal to zero"
 	);
 
-	const DialogueBehavior default_behavior{
-		authored.value("behavior", DialogueBehavior::Sequential)
-	};
+	DialogueBehavior default_behavior{ authored.value("behavior", DialogueBehavior::Sequential) };
 	bool default_repeatable{ authored.value("repeatable", true) };
 	bool default_scroll{ authored.value("scroll", true) };
-	const std::string default_next{ authored.value("next", "") };
+	std::string default_next{ authored.value("next", "") };
 	portrait_actors = authored.value("portrait_actors", DialoguePortraitActorMap{});
 
 	if (authored.contains("continue_key")) {
@@ -1283,7 +1274,7 @@ void impl::DialogueData::LoadFromJson(
 
 	for (const auto& [dialogue_name, dialogue_json] : dialogues_json.items()) {
 		DialogueEntry dialogue;
-		const json dialogue_settings = dialogue_json.is_object() ? dialogue_json : json::object();
+		json dialogue_settings = dialogue_json.is_object() ? dialogue_json : json::object();
 		auto dialogue_properties{ InheritDialogueLayout(root_properties, dialogue_settings) };
 
 		int initial_variant{ dialogue_settings.value(
@@ -1365,7 +1356,7 @@ void impl::DialogueData::LoadFromJson(
 								};
 								if (page_json.contains("text")) {
 									const auto& text_json{ page_json.at("text") };
-									const std::string source{
+									std::string source{
 										text_json.is_string()
 											? text_json.get<std::string>()
 											: text_json.at("source").get<std::string>()
@@ -1433,7 +1424,7 @@ DialogueBox& DialogueBox::SetContinueKeys(std::string_view continue_keys) {
 }
 
 Key DialogueBox::GetContinueKey() const {
-	const auto expression{ ParseDialogueKeyExpression(Data().continue_keys, nullptr) };
+	auto expression{ ParseDialogueKeyExpression(Data().continue_keys, nullptr) };
 	if (!expression.has_value() || expression->empty() || expression->front().empty()) {
 		return Key::Enter;
 	}
@@ -1481,7 +1472,7 @@ DialogueBox& DialogueBox::Open(std::string_view dialogue_name) {
 		return *this;
 	}
 
-	const auto variant_index{ dialogue->GetNewDialogueVariant() };
+	auto variant_index{ dialogue->GetNewDialogueVariant() };
 	if (!variant_index.has_value()) {
 		return *this;
 	}
@@ -1504,7 +1495,7 @@ DialogueBox& DialogueBox::Open(std::string_view dialogue_name) {
 DialogueBox& DialogueBox::Close() {
 	auto& data{ Data() };
 	bool was_open{ data.open };
-	const std::string closed_dialogue{ data.current_dialogue };
+	std::string closed_dialogue{ data.current_dialogue };
 
 	StopCurrentPageScroll();
 	data.open			 = false;
@@ -1554,8 +1545,8 @@ DialogueBox& DialogueBox::NextPage() {
 
 	StopCurrentPageScroll();
 
-	const std::string finished_dialogue{ data.current_dialogue };
-	const std::size_t finished_variant{ data.current_variant };
+	std::string finished_dialogue{ data.current_dialogue };
+	std::size_t finished_variant{ data.current_variant };
 
 	++data.current_page;
 	if (!GetCurrentDialoguePage()) {
@@ -1592,7 +1583,7 @@ DialogueBox& DialogueBox::SetDialogue(std::string_view name) {
 	auto& data{ Data() };
 	PTGN_ASSERT(name.empty() || data.dialogues.contains(name));
 
-	const std::string previous{ data.current_dialogue };
+	std::string previous{ data.current_dialogue };
 	data.current_dialogue = std::string{ name };
 	data.current_variant  = 0;
 	data.current_page	  = 0;
@@ -1616,7 +1607,7 @@ DialogueBox& DialogueBox::SetNextDialogue() {
 		return *this;
 	}
 
-	const std::string next{ dialogue->next_dialogue };
+	std::string next{ dialogue->next_dialogue };
 	PTGN_ASSERT(data.dialogues.contains(next));
 	return SetDialogue(next);
 }
@@ -1774,7 +1765,7 @@ void DialogueBox::ApplyCurrentPortraitCues() {
 
 	auto& data{ Data() };
 	for (const auto& cue : page->portrait_cues) {
-		const std::size_t index{ DialoguePortraitSlotIndex(cue.slot) };
+		std::size_t index{ DialoguePortraitSlotIndex(cue.slot) };
 		if (cue.speaker.empty()) {
 			data.portrait_states[index].reset();
 			if (data.current_speaking_slot == cue.slot) {
@@ -1795,7 +1786,7 @@ void DialogueBox::ApplyCurrentPortraitCues() {
 }
 
 void DialogueBox::HidePortraits() {
-	for (const DialoguePortraitSlot slot : {
+	for (DialoguePortraitSlot slot : {
 			 DialoguePortraitSlot::Left,
 			 DialoguePortraitSlot::Center,
 			 DialoguePortraitSlot::Right,
@@ -1811,15 +1802,15 @@ void DialogueBox::HidePortraits() {
 
 void DialogueBox::RefreshPortraits(const DialoguePageProperties& properties, bool talking) {
 	auto& data{ Data() };
-	const Rect dialogue_rect{ properties.box_size, GetOrDefault<Origin>() };
-	const V2_float center{ dialogue_rect.GetOriginPoint(Origin::Center) };
+	Rect dialogue_rect{ properties.box_size, GetOrDefault<Origin>() };
+	V2_float center{ dialogue_rect.GetOriginPoint(Origin::Center) };
 
-	for (const DialoguePortraitSlot slot : {
+	for (DialoguePortraitSlot slot : {
 			 DialoguePortraitSlot::Left,
 			 DialoguePortraitSlot::Center,
 			 DialoguePortraitSlot::Right,
 		 }) {
-		const std::size_t index{ DialoguePortraitSlotIndex(slot) };
+		std::size_t index{ DialoguePortraitSlotIndex(slot) };
 		const auto& state{ data.portrait_states[index] };
 		const ::ptgn::impl::DialoguePartRole role{ DialoguePortraitPartRole(slot) };
 
@@ -1833,7 +1824,7 @@ void DialogueBox::RefreshPortraits(const DialoguePageProperties& properties, boo
 			continue;
 		}
 
-		const auto actor_it{ data.portrait_actors.find(state->speaker) };
+		auto actor_it{ data.portrait_actors.find(state->speaker) };
 		if (actor_it == data.portrait_actors.end() || actor_it->second.expressions.empty()) {
 			if (auto part{ TryPart(role) }) {
 				Hide(*part);
@@ -1873,9 +1864,9 @@ void DialogueBox::RefreshPortraits(const DialoguePageProperties& properties, boo
 		} else if (slot == DialoguePortraitSlot::Right) {
 			slot_point.x = dialogue_rect.max.x;
 		}
-		const V2_float anchor_point{ visual.anchor.has_value()
-										 ? dialogue_rect.GetOriginPoint(*visual.anchor)
-										 : slot_point };
+		V2_float anchor_point{ visual.anchor.has_value()
+								   ? dialogue_rect.GetOriginPoint(*visual.anchor)
+								   : slot_point };
 
 		Transform transform{ visual.transform.value_or(Transform{}) };
 		transform.position += anchor_point;
@@ -1897,7 +1888,7 @@ void DialogueBox::RefreshPortraits(const DialoguePageProperties& properties, boo
 			);
 			Animation animation{ sprite };
 			animation.SetConfig(*visual.animation);
-			const ButtonAnimationOptions options{
+			ButtonAnimationOptions options{
 				visual.animation_options.value_or(ButtonAnimationOptions{})
 			};
 			if (options.playback == ButtonAnimationPlayback::StaticFrame) {
@@ -1923,7 +1914,7 @@ void DialogueBox::FinishPortraitTalking() {
 }
 
 void DialogueBox::HideAppearanceOverrides() {
-	for (const auto role :
+	for (auto role :
 		 { ::ptgn::impl::DialoguePartRole::BackgroundOverride,
 		   ::ptgn::impl::DialoguePartRole::Border, ::ptgn::impl::DialoguePartRole::Sprite }) {
 		if (auto part{ TryPart(role) }) {
@@ -1939,14 +1930,14 @@ void DialogueBox::ApplyCurrentAppearance(const DialoguePageProperties& propertie
 	}
 
 	const auto& appearance{ dialogue->appearance };
-	const Rect dialogue_rect{ properties.box_size, GetOrDefault<Origin>() };
+	Rect dialogue_rect{ properties.box_size, GetOrDefault<Origin>() };
 
 	auto apply_shape = [&](::ptgn::impl::DialoguePartRole role, const ButtonShapeVisual& visual,
 						   bool border) {
 		Entity entity{ Part(role) };
 		auto size{ visual.size.value_or(std::variant<V2_float, float>{ properties.box_size }) };
-		const Origin origin{ visual.origin.value_or(Origin::Center) };
-		const Origin anchor{ visual.anchor.value_or(GetOrDefault<Origin>()) };
+		Origin origin{ visual.origin.value_or(Origin::Center) };
+		Origin anchor{ visual.anchor.value_or(GetOrDefault<Origin>()) };
 		Transform transform{ visual.transform.value_or(Transform{}) };
 		transform.position += dialogue_rect.GetOriginPoint(anchor);
 
@@ -1973,8 +1964,8 @@ void DialogueBox::ApplyCurrentAppearance(const DialoguePageProperties& propertie
 		FillStyle fill{ border ? visual.fill_style.value_or(FillStyle{ 2.0f })
 							   : FillStyle{ Solid{} } };
 		if (border) {
-			if (const auto line_width{ fill.GetLineWidth() }) {
-				const float maximum_width{ std::visit(
+			if (auto line_width{ fill.GetLineWidth() }) {
+				float maximum_width{ std::visit(
 					[](const auto& resolved_size) -> float {
 						using T = std::remove_cvref_t<decltype(resolved_size)>;
 						if constexpr (std::same_as<T, V2_float>) {
@@ -2022,8 +2013,8 @@ void DialogueBox::ApplyCurrentAppearance(const DialoguePageProperties& propertie
 		const auto& visual{ *appearance.sprite };
 		Entity entity{ Part(::ptgn::impl::DialoguePartRole::Sprite) };
 		Sprite sprite{ entity };
-		const Origin origin{ visual.origin.value_or(Origin::Center) };
-		const Origin anchor{ visual.anchor.value_or(GetOrDefault<Origin>()) };
+		Origin origin{ visual.origin.value_or(Origin::Center) };
+		Origin anchor{ visual.anchor.value_or(GetOrDefault<Origin>()) };
 		Transform transform{ visual.transform.value_or(Transform{}) };
 		transform.position += dialogue_rect.GetOriginPoint(anchor);
 		ApplyDialogueVisualTransform(entity, *this, visual, transform);

@@ -143,7 +143,6 @@ public:
 
 	impl::ShaderId GetShader(std::string_view name) const;
 
-
 private:
 	friend class Application;
 	friend class impl::ApplicationContext;
@@ -214,21 +213,17 @@ private:
 	void DrawWithEffect(const impl::DrawRequest<T>& request) {
 		PTGN_ASSERT(!request.primitives.empty());
 
-		using TVertex =
-			typename impl::RenderPrimitiveInfo<std::remove_cvref_t<T>>::Vertex;
+		using TVertex = typename impl::RenderPrimitiveInfo<std::remove_cvref_t<T>>::Vertex;
 
 		PTGN_ASSERT(
 			impl::HaveUniformDepthAndEntityId(request.primitives),
 			"Batched effect vertices must have uniform depth and entity ID"
 		);
 
-		const Rect bounds{ Rect::FromPoints(
-			request.primitives |
-			std::views::join |
+		Rect bounds{ Rect::FromPoints(
+			request.primitives | std::views::join |
 			std::views::transform([](const TVertex& vertex) {
-				const auto& pos{
-					impl::PositionAccessor<TVertex>::Get(vertex)
-				};
+				const auto& pos{ impl::PositionAccessor<TVertex>::Get(vertex) };
 
 				return V2_float{
 					pos[0],
@@ -237,46 +232,32 @@ private:
 			})
 		) };
 
-		const V2_float bounds_center{ bounds.GetCenter() };
+		V2_float bounds_center{ bounds.GetCenter() };
 
-		V2_float size{
-			bounds.GetSize() +
-			V2_float{ request.effect_params.margin * 2 }
-		};
+		V2_float size{ bounds.GetSize() + V2_float{ request.effect_params.margin * 2 } };
 
-		PTGN_ASSERT(
-			size.IsPositive(),
-			"Effect bounds size must be positive"
-		);
+		PTGN_ASSERT(size.IsPositive(), "Effect bounds size must be positive");
 
 		size = Max(V2_int{ Ceil(size) }, V2_int{ 1, 1 });
 
 		TextureDesc desc{
-			.size = size,
-			.format = impl::GetEffectTextureFormat(
-				request.effect_params.hdr
-			),
+			.size	= size,
+			.format = impl::GetEffectTextureFormat(request.effect_params.hdr),
 		};
 
 		if (request.texture) {
 			desc.params = GetParams(request.texture).value();
 		}
 
-		auto expanded_framebuffer{
-			CreateFramebuffer(desc, std::nullopt)
-		};
+		auto expanded_framebuffer{ CreateFramebuffer(desc, std::nullopt) };
 
-		auto* previous_framebuffer{
-			current_framebuffer_
-		};
+		auto* previous_framebuffer{ current_framebuffer_ };
 
 		SetFramebuffer(&expanded_framebuffer);
 
-		const auto previous_state{
-			GetRenderState()
-		};
+		auto previous_state{ GetRenderState() };
 
-		const Viewport viewport{
+		Viewport viewport{
 			.position{},
 			.size{ size },
 		};
@@ -292,16 +273,11 @@ private:
 		// translate their bounds center to zero before rendering.
 		// Do not transform request.primitives directly because DrawNormally
 		// mutates vertex positions in place.
-		std::vector<T> local_primitives{
-			request.primitives.begin(),
-			request.primitives.end()
-		};
+		std::vector<T> local_primitives{ request.primitives.begin(), request.primitives.end() };
 
 		impl::DrawRequest<T> local_request{
-			.texture = request.texture,
-			.transform = Transform{
-				-bounds_center
-			},
+			.texture	= request.texture,
+			.transform	= Transform{ -bounds_center },
 			.primitives = local_primitives,
 		};
 
@@ -309,80 +285,56 @@ private:
 
 		FlushBatch();
 
-		ExecuteEffectCallbacks(
-			request.effect_params.draw_callback
-		);
+		ExecuteEffectCallbacks(request.effect_params.draw_callback);
 
 		FlushBatch();
 
 		SetCurrentPipeline("texture");
 		SetFramebuffer(previous_framebuffer);
 
-		SetMaterial({
-			.shader = GetShader("texture"),
-			.texture_slot_capacity = GetMaxTextureSlots(),
-		});
+		SetMaterial(
+			{
+				.shader				   = GetShader("texture"),
+				.texture_slot_capacity = GetMaxTextureSlots(),
+			}
+		);
 
 		SetRenderState(previous_state);
 
-		auto positions{
-			Rect{ size }.GetLocalVertices()
-		};
+		auto positions{ Rect{ size }.GetLocalVertices() };
 
-		const auto& first_vertex{
-			request.primitives.front().front()
-		};
+		const auto& first_vertex{ request.primitives.front().front() };
 
-		const auto depth{
-			impl::PositionAccessor<TVertex>::Get(
-				first_vertex
-			)[2]
-		};
+		auto depth{ impl::PositionAccessor<TVertex>::Get(first_vertex)[2] };
 
-		constexpr auto color_n{
-			color::White.Normalized()
-		};
+		constexpr auto color_n{ color::White.Normalized() };
 
-		constexpr auto tex_coords{
-			impl::GetDefaultTextureCoordinates<true>()
-		};
+		constexpr auto tex_coords{ impl::GetDefaultTextureCoordinates<true>() };
 
-		const auto entity_id{
-			impl::EntityIdAccessor<TVertex>::Get(
-				first_vertex
-			)
-		};
+		auto entity_id{ impl::EntityIdAccessor<TVertex>::Get(first_vertex) };
 
 		auto local_quad{
-			impl::CreateTextureQuad(
-				positions,
-				depth,
-				color_n,
-				tex_coords,
-				entity_id
-			)
+			impl::CreateTextureQuad(positions, depth, color_n, tex_coords, entity_id)
 		};
 
 		// The temporary texture is centered at zero, but represents the
 		// original primitive bounds centered at bounds_center. Transform
 		// that local center through the entity / world transform.
-		const Transform composite_transform{
+		Transform composite_transform{
 			request.transform.Apply(bounds_center),
 			request.transform.rotation,
 			request.transform.scale,
 		};
 
 		impl::DrawTextureRequest new_request{
-			.texture = GetTexture(expanded_framebuffer),
-			.transform = composite_transform,
+			.texture	= GetTexture(expanded_framebuffer),
+			.transform	= composite_transform,
 			.primitives = { &local_quad, 1 },
 		};
 
 		DrawNormally(new_request);
 
-		temp_framebuffers_.emplace_back(
-			std::move(expanded_framebuffer)
-		);
+		temp_framebuffers_.emplace_back(std::move(expanded_framebuffer));
 	}
 
 	template <impl::RenderPrimitive T>
@@ -465,9 +417,7 @@ private:
 	void Clear(impl::FramebufferId framebuffer, Color clear_color);
 	void Clear(impl::FramebufferId framebuffer, Depth clear_depth);
 	void Clear(impl::FramebufferId framebuffer, Stencil clear_stencil);
-	void Clear(
-		impl::FramebufferId framebuffer, DepthStencil clear_depth_stencil
-	);
+	void Clear(impl::FramebufferId framebuffer, DepthStencil clear_depth_stencil);
 	void BindPresentationFramebuffer();
 
 	impl::FramebufferId GetPresentationFramebuffer() const;
@@ -617,7 +567,6 @@ private:
 
 	void DrawRenderPass(const impl::DrawPassRequest& request);
 
-
 	void CopyFramebufferRegion(
 		impl::FramebufferId source, impl::FramebufferId destination, Viewport source_region,
 		V2_int destination_position
@@ -645,7 +594,7 @@ private:
 	void ExecuteEffectCallbacks(const std::function<void(DrawContext&)>& effect_callback);
 
 	// Apply the same final gamma/tone-mapping transform used by the presentation framebuffer.
-	// This is framebuffer-generic so editor-owned offscreen targets can be displayed with the
+	// This is framebuffer-generic so editor owned offscreen targets can be displayed with the
 	// exact same output color pipeline as the runtime viewport.
 	void ApplyOutputColorTransform(impl::FramebufferObject& framebuffer);
 
@@ -706,7 +655,6 @@ private:
 	impl::FramebufferPool framebuffer_pool_;
 	impl::RenderPipelineManager pipeline_manager_;
 	std::vector<impl::FramebufferObject> temp_framebuffers_;
-
 
 	impl::TextureObject white_texture_;
 
@@ -801,9 +749,7 @@ public:
 
 	void SetEntityPickingEnabled(impl::FramebufferId framebuffer, bool enabled);
 
-	std::optional<std::int32_t> ReadEntityId(
-		FramebufferId framebuffer, V2_int pixel
-	) const;
+	std::optional<std::int32_t> ReadEntityId(FramebufferId framebuffer, V2_int pixel) const;
 
 	bool IsEntityPickingEnabled(FramebufferId framebuffer) const;
 

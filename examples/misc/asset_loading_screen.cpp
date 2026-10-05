@@ -36,8 +36,7 @@ void RemoveInterFontCacheForDemo() {
 #ifndef __EMSCRIPTEN__
 	std::error_code error;
 	std::filesystem::remove(
-		impl::GetBuildInfo().binary_directory / "cache/fonts/Inter-VariableFont.png",
-		error
+		impl::GetBuildInfo().binary_directory / "cache/fonts/Inter-VariableFont.png", error
 	);
 #endif
 }
@@ -76,7 +75,7 @@ std::vector<AssetSpec> GetGlobalAssets() {
 
 std::string MakeProgressBar(float fraction, std::size_t width = 36) {
 	fraction = std::clamp(fraction, 0.0f, 1.0f);
-	const auto filled{ static_cast<std::size_t>(fraction * static_cast<float>(width)) };
+	auto filled{ static_cast<std::size_t>(fraction * static_cast<float>(width)) };
 	return "[" + std::string(filled, '#') + std::string(width - filled, '-') + "]";
 }
 
@@ -88,26 +87,19 @@ public:
 		SetBackgroundColor(Color{ 22, 26, 34, 255 });
 
 		CreateText(
-			*this,
-			At({ 0.0f, -230.0f }),
-			"Game scene started after all global assets finished loading",
-			color::White,
-			30.0f,
-			Origin::Center,
-			kGameFont.value
+			*this, At({ 0.0f, -230.0f }),
+			"Game scene started after all global assets finished loading", color::White, 30.0f,
+			Origin::Center, kGameFont.value
 		);
 
 		auto sprite{ CreateSprite(*this, { 0.0f, 20.0f }, kGameTexture) };
 		SetScale(sprite, 0.35f);
 
 		CreateText(
-			*this,
-			At({ 0.0f, 260.0f }),
-			ctx().asset.Has(kGameMusic)
-				? "music2.ogg is resident and ready to use"
-				: "music2.ogg failed to load",
-			color::White,
-			22.0f
+			*this, At({ 0.0f, 260.0f }),
+			ctx().asset.Has(kGameMusic) ? "music2.ogg is resident and ready to use"
+										: "music2.ogg failed to load",
+			color::White, 22.0f
 		);
 	}
 };
@@ -121,23 +113,11 @@ public:
 
 		RemoveInterFontCacheForDemo();
 
-		CreateText(
-			*this,
-			At({ 0.0f, -90.0f }),
-			"Loading project assets...",
-			color::White,
-			40.0f
-		);
+		CreateText(*this, At({ 0.0f, -90.0f }), "Loading project assets...", color::White, 40.0f);
 
-		status_ = CreateText(
-			*this,
-			At({ 0.0f, 20.0f }),
-			"Starting load...",
-			color::White,
-			22.0f
-		);
+		status_ = CreateText(*this, At({ 0.0f, 20.0f }), "Starting load...", color::White, 22.0f);
 
-		const auto specs{ GetGlobalAssets() };
+		auto specs{ GetGlobalAssets() };
 		dependencies_.reserve(specs.size());
 
 		for (const auto& spec : specs) {
@@ -157,23 +137,20 @@ public:
 	}
 
 	void OnUpdate() override {
-		const auto progress{ ticket_.GetProgress() };
-		const int percent{ static_cast<int>(progress.Fraction() * 100.0f) };
+		auto progress{ ticket_.GetProgress() };
+		int percent{ static_cast<int>(progress.Fraction() * 100.0f) };
 
-		std::string active{
-			progress.active_asset.empty() ? "preparing workers" : progress.active_asset
-		};
+		std::string active{ progress.active_asset.empty() ? "preparing workers"
+														  : progress.active_asset };
 
-		status_
-			.Clear()
-			.Content(std::format(
-				"{}  {}%\n{}/{} assets complete\nCurrent: {}",
-				MakeProgressBar(progress.Fraction()),
-				percent,
-				progress.completed_assets,
-				progress.total_assets,
-				active
-			))
+		status_.Clear()
+			.Content(
+				std::format(
+					"{}  {}%\n{}/{} assets complete\nCurrent: {}",
+					MakeProgressBar(progress.Fraction()), percent, progress.completed_assets,
+					progress.total_assets, active
+				)
+			)
 			.Color(color::White)
 			.Size(22.0f);
 
@@ -182,8 +159,7 @@ public:
 		}
 
 		if (progress.failed_assets > 0) {
-			status_
-				.Clear()
+			status_.Clear()
 				.Content(std::format("Loading failed: {} asset(s)", progress.failed_assets))
 				.Color(color::Red)
 				.Size(24.0f);

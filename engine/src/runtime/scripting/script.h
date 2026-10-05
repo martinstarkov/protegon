@@ -22,8 +22,8 @@
 #include "core/util/hash.h"
 #include "core/util/reflection.h"
 #include "core/util/strong_string.h"
-#include "core/util/type_info.h"
 #include "core/util/time.h"
+#include "core/util/type_info.h"
 #include "runtime/ecs/entity.h"
 #include "runtime/ecs/entity_filter.h"
 #include "serialization/json/json.h"
@@ -42,7 +42,7 @@ class ScriptsAccessor;
 
 } // namespace impl
 
-using SequenceId = std::uint64_t;
+using SequenceId	= std::uint64_t;
 using TypeHashValue = std::size_t;
 
 enum class ReentryMode {
@@ -133,7 +133,6 @@ struct ScriptStep {
 	// the registry JSON construction path instead.
 	std::function<std::unique_ptr<Script>()> runtime_factory{};
 
-
 	PTGN_REFLECT(ScriptStep, enabled, type_hash, name, value, target, completion, timing)
 };
 
@@ -171,7 +170,7 @@ struct ScriptSequenceRuntime {
 	~ScriptSequenceRuntime();
 	ScriptSequenceRuntime(ScriptSequenceRuntime&&) noexcept;
 	ScriptSequenceRuntime& operator=(ScriptSequenceRuntime&&) noexcept;
-	ScriptSequenceRuntime(const ScriptSequenceRuntime&) = delete;
+	ScriptSequenceRuntime(const ScriptSequenceRuntime&)			   = delete;
 	ScriptSequenceRuntime& operator=(const ScriptSequenceRuntime&) = delete;
 
 	void ClearActiveScript();
@@ -199,8 +198,10 @@ public:
 	ScriptSequenceRuntime runtime{};
 
 	ScriptSequence() = default;
+
 	explicit ScriptSequence(std::string sequence_name) : name{ std::move(sequence_name) } {}
-	ScriptSequence(ScriptSequence&&) noexcept = default;
+
+	ScriptSequence(ScriptSequence&&) noexcept			 = default;
 	ScriptSequence& operator=(ScriptSequence&&) noexcept = default;
 
 	ScriptSequence(const ScriptSequence& other);
@@ -254,42 +255,86 @@ private:
 /// transient children. A Script may implement custom callbacks, use its internal sequence, or both.
 class Script {
 public:
-	Script() = default;
+	Script()		  = default;
 	virtual ~Script() = default;
+
 	Script(const Script& other) : sequence{ other.sequence } {}
+
 	Script& operator=(const Script& other);
-	Script(Script&&) noexcept = default;
+	Script(Script&&) noexcept			 = default;
 	Script& operator=(Script&&) noexcept = default;
 
 	virtual void OnCreate() { /* User implementation */ }
+
 	virtual void OnStart() { /* User implementation */ }
-	[[nodiscard]] virtual ScriptStatus OnUpdate() { return ScriptStatus::Running; }
+
+	[[nodiscard]] virtual ScriptStatus OnUpdate() {
+		return ScriptStatus::Running;
+	}
+
 	virtual void OnEvent(Event) { /* User implementation */ }
+
 	virtual void OnRepeat() { /* User implementation */ }
+
 	virtual void OnComplete() { /* User implementation */ }
+
 	virtual void OnCancel(SequenceCancelReason) { /* User implementation */ }
 
 	ScriptSequence sequence;
 
 	PTGN_REFLECT(Script, sequence)
 
-	[[nodiscard]] Entity Owner() const { return owner; }
-	[[nodiscard]] Entity Target() const { return target; }
-	[[nodiscard]] Scene& GetScene() { return owner.GetScene(); }
-	[[nodiscard]] const Scene& GetScene() const { return owner.GetScene(); }
-	[[nodiscard]] float DeltaSeconds() const { return delta_seconds_; }
-	[[nodiscard]] float LinearProgress() const { return linear_progress_; }
-	[[nodiscard]] float Progress() const { return progress_; }
-	[[nodiscard]] Ease TimingEase() const { return timing_ease_; }
-	[[nodiscard]] int RepeatIndex() const { return repeat_; }
-	[[nodiscard]] bool IsReversed() const { return reversed_; }
+	[[nodiscard]] Entity Owner() const {
+		return owner;
+	}
+
+	[[nodiscard]] Entity Target() const {
+		return target;
+	}
+
+	[[nodiscard]] Scene& GetScene() {
+		return owner.GetScene();
+	}
+
+	[[nodiscard]] const Scene& GetScene() const {
+		return owner.GetScene();
+	}
+
+	[[nodiscard]] float DeltaSeconds() const {
+		return delta_seconds_;
+	}
+
+	[[nodiscard]] float LinearProgress() const {
+		return linear_progress_;
+	}
+
+	[[nodiscard]] float Progress() const {
+		return progress_;
+	}
+
+	[[nodiscard]] Ease TimingEase() const {
+		return timing_ease_;
+	}
+
+	[[nodiscard]] int RepeatIndex() const {
+		return repeat_;
+	}
+
+	[[nodiscard]] bool IsReversed() const {
+		return reversed_;
+	}
 
 protected:
 	Entity owner{};
 	Entity target{};
 
-	void Complete() { completion_requested_ = true; }
-	void MoveOn() { Complete(); }
+	void Complete() {
+		completion_requested_ = true;
+	}
+
+	void MoveOn() {
+		Complete();
+	}
 
 private:
 	friend class impl::ScriptAccessor;
@@ -319,7 +364,7 @@ public:
 	}
 
 	static void Attach(Script& script, Entity owner, Entity target) {
-		script.owner = owner;
+		script.owner  = owner;
 		script.target = target ? target : owner;
 	}
 
@@ -327,13 +372,14 @@ public:
 		Script& script, float delta_seconds, float linear_progress, float progress, int repeat,
 		bool reversed, Ease timing_ease = Ease::Linear
 	) {
-		script.delta_seconds_ = delta_seconds;
+		script.delta_seconds_	= delta_seconds;
 		script.linear_progress_ = linear_progress;
-		script.progress_ = progress;
-		script.timing_ease_ = timing_ease;
-		script.repeat_ = repeat;
-		script.reversed_ = reversed;
+		script.progress_		= progress;
+		script.timing_ease_		= timing_ease;
+		script.repeat_			= repeat;
+		script.reversed_		= reversed;
 	}
+
 	static bool TakeCompletionRequest(Script& script) {
 		return std::exchange(script.completion_requested_, false);
 	}
@@ -360,7 +406,8 @@ bool TryReadScriptJson(const json& input, T& output) {
 
 namespace impl {
 
-/// @brief Ensures the translation unit containing the built-in script/event registrations is linked.
+/// @brief Ensures the translation unit containing the built-in script/event registrations is
+/// linked.
 void EnsureEngineScriptsRegistered();
 
 } // namespace impl
@@ -395,56 +442,62 @@ public:
 	template <ScriptClass T>
 	static bool Register() {
 		auto& entries{ MutableEntries() };
-		const TypeHashValue type_hash{ Hash<T>() };
+
+		TypeHashValue type_hash{ Hash<T>() };
+
 		if (std::ranges::any_of(entries, [type_hash](const auto& entry) {
-			return entry.type_hash == type_hash;
-		})) {
+				return entry.type_hash == type_hash;
+			})) {
 			return false;
 		}
+
 		return Register<T>(ScriptRegistrationOptions{});
 	}
 
 	template <ScriptClass T>
 	static bool Register(ScriptRegistrationOptions options) {
 		auto& entries{ MutableEntries() };
-		const TypeHashValue type_hash{ Hash<T>() };
+
+		TypeHashValue type_hash{ Hash<T>() };
 
 		if (options.requires_timing && options.completion == ScriptCompletion::Instant) {
 			options.completion = ScriptCompletion::Duration;
 		}
 
 		ScriptRegistration registration{
-			.type_hash = type_hash,
-			.name = std::string{ type_name_without_namespaces<T>() },
-			.type = std::string{ type_name_without_namespaces<T>() },
-			.schema_version = options.schema_version,
-			.completion = options.completion,
+			.type_hash		 = type_hash,
+			.name			 = std::string{ type_name_without_namespaces<T>() },
+			.type			 = std::string{ type_name_without_namespaces<T>() },
+			.schema_version	 = options.schema_version,
+			.completion		 = options.completion,
 			.supports_timing = options.supports_timing,
 			.requires_timing = options.requires_timing,
-			.serializable = options.serializable,
-			.default_timing = std::move(options.default_timing),
-			.make_default = [] {
-				json output = json::object();
-				if constexpr (std::default_initializable<T>) {
-					T value{};
-					if constexpr (requires(json& j, const T& v) { j = v; }) {
-						try {
-							output = value;
-						} catch (...) {
-							output = json::object();
+			.serializable	 = options.serializable,
+			.default_timing	 = std::move(options.default_timing),
+			.make_default =
+				[] {
+					json output = json::object();
+					if constexpr (std::default_initializable<T>) {
+						T value{};
+						if constexpr (requires(json& j, const T& v) { j = v; }) {
+							try {
+								output = value;
+							} catch (...) {
+								output = json::object();
+							}
 						}
 					}
-				}
-				return output;
-			},
-			.make_default_sequence = [] {
-				if constexpr (std::default_initializable<T>) {
-					T value{};
-					return value.sequence;
-				} else {
-					return ScriptSequence{};
-				}
-			},
+					return output;
+				},
+			.make_default_sequence =
+				[] {
+					if constexpr (std::default_initializable<T>) {
+						T value{};
+						return value.sequence;
+					} else {
+						return ScriptSequence{};
+					}
+				},
 			.instantiate = [](const json& input) -> std::unique_ptr<Script> {
 				if constexpr (std::default_initializable<T>) {
 					auto script{ std::make_unique<T>() };
@@ -456,14 +509,15 @@ public:
 					return nullptr;
 				}
 			},
-			.apply = []([[maybe_unused]] Script& script, [[maybe_unused]] const json& input) {
-				if constexpr (requires(const json& j, T& v) { j.get_to(v); }) {
-					TryReadScriptJson(input, static_cast<T&>(script));
-				}
-			},
+			.apply =
+				[]([[maybe_unused]] Script& script, [[maybe_unused]] const json& input) {
+					if constexpr (requires(const json& j, T& v) { j.get_to(v); }) {
+						TryReadScriptJson(input, static_cast<T&>(script));
+					}
+				},
 		};
 
-		const auto existing{ std::ranges::find_if(entries, [type_hash](const auto& entry) {
+		auto existing{ std::ranges::find_if(entries, [type_hash](const auto& entry) {
 			return entry.type_hash == type_hash;
 		}) };
 		if (existing != entries.end()) {
@@ -473,22 +527,6 @@ public:
 
 		entries.push_back(std::move(registration));
 		return true;
-	}
-
-	/// @brief Compatibility overload for direct registrations that have not migrated to options.
-	template <ScriptClass T>
-	static bool Register(
-		bool supports_timing, bool requires_timing = false,
-		std::optional<ScriptTiming> default_timing = std::nullopt,
-		ScriptCompletion completion = ScriptCompletion::ScriptControlled, bool serializable = true
-	) {
-		return Register<T>(ScriptRegistrationOptions{
-			.completion = completion,
-			.supports_timing = supports_timing,
-			.requires_timing = requires_timing,
-			.serializable = serializable,
-			.default_timing = std::move(default_timing),
-		});
 	}
 
 	template <ScriptClass T>
@@ -526,9 +564,10 @@ struct ScriptEntry {
 	std::function<std::unique_ptr<Script>()> runtime_factory{};
 	bool initialized{ false };
 
-	ScriptEntry() = default;
-	ScriptEntry(ScriptEntry&&) noexcept = default;
+	ScriptEntry()								   = default;
+	ScriptEntry(ScriptEntry&&) noexcept			   = default;
 	ScriptEntry& operator=(ScriptEntry&&) noexcept = default;
+
 	ScriptEntry(const ScriptEntry& other) :
 		enabled{ other.enabled },
 		type_hash{ other.type_hash },
@@ -590,62 +629,72 @@ public:
 	template <typename TEvent>
 	static bool Register() {
 		auto& entries{ MutableEntries() };
-		const TypeHashValue type_hash{ Hash<TEvent>() };
+
+		TypeHashValue type_hash{ Hash<TEvent>() };
+
 		if (std::ranges::any_of(entries, [type_hash](const auto& entry) {
-			return entry.type_hash == type_hash;
-		})) {
+				return entry.type_hash == type_hash;
+			})) {
 			return false;
 		}
+
 		return Register<TEvent>(SequenceEventRegistrationOptions<TEvent>{});
 	}
 
 	template <typename TEvent>
 	static bool Register(SequenceEventRegistrationOptions<TEvent> options) {
 		auto& entries{ MutableEntries() };
-		const TypeHashValue type_hash{ Hash<TEvent>() };
+
+		TypeHashValue type_hash{ Hash<TEvent>() };
 
 		if (options.default_value.is_null()) {
 			options.default_value = json::object();
 		}
+
 		if (!options.matches) {
 			options.matches = [](Entity, const json&, const TEvent&) {
 				return true;
 			};
 		}
+
 		if (!options.available) {
-			options.available = [](Entity) { return true; };
+			options.available = [](Entity) {
+				return true;
+			};
 		}
 
 		SequenceEventRegistration registration{
-			.type_hash = type_hash,
-			.name = std::string{ type_name_without_namespaces<TEvent>() },
+			.type_hash		= type_hash,
+			.name			= std::string{ type_name_without_namespaces<TEvent>() },
 			.schema_version = options.schema_version,
-			.set_defaults = [value = std::move(options.default_value)](EventCondition& output) {
-				output.value = value;
-			},
-			.matches = [fn = std::move(options.matches)](
-				Entity owner, Event event, const EventCondition& input, bool consume
-			) mutable {
-				bool matched{ false };
-				if constexpr (std::is_empty_v<TEvent>) {
-					event.Dispatch<TEvent>([&]() -> bool {
-						matched = std::invoke(fn, owner, input.value, TEvent{});
-						return matched && consume;
-					});
-				} else {
-					event.Dispatch<TEvent>([&](const TEvent& payload) -> bool {
-						matched = std::invoke(fn, owner, input.value, payload);
-						return matched && consume;
-					});
-				}
-				return matched;
-			},
+			.set_defaults	= [value = std::move(options.default_value)](
+								  EventCondition& output
+							  ) { output.value = value; },
+			.matches =
+				[fn = std::move(options.matches)](
+					Entity owner, Event event, const EventCondition& input, bool consume
+				) mutable {
+					bool matched{ false };
+					if constexpr (std::is_empty_v<TEvent>) {
+						event.Dispatch<TEvent>([&]() -> bool {
+							matched = std::invoke(fn, owner, input.value, TEvent{});
+							return matched && consume;
+						});
+					} else {
+						event.Dispatch<TEvent>([&](const TEvent& payload) -> bool {
+							matched = std::invoke(fn, owner, input.value, payload);
+							return matched && consume;
+						});
+					}
+					return matched;
+				},
 			.available = std::move(options.available),
 		};
 
-		const auto existing{ std::ranges::find_if(entries, [type_hash](const auto& entry) {
+		auto existing{ std::ranges::find_if(entries, [type_hash](const auto& entry) {
 			return entry.type_hash == type_hash;
 		}) };
+
 		if (existing != entries.end()) {
 			*existing = std::move(registration);
 			return false;
@@ -659,8 +708,8 @@ public:
 	static bool Register(json default_value, FMatch&& matches, FAvailable&& available) {
 		return Register<TEvent>(SequenceEventRegistrationOptions<TEvent>{
 			.default_value = std::move(default_value),
-			.matches = std::forward<FMatch>(matches),
-			.available = std::forward<FAvailable>(available),
+			.matches	   = std::forward<FMatch>(matches),
+			.available	   = std::forward<FAvailable>(available),
 		});
 	}
 
@@ -668,7 +717,7 @@ public:
 	static bool Register(json default_value, FMatch&& matches) {
 		return Register<TEvent>(SequenceEventRegistrationOptions<TEvent>{
 			.default_value = std::move(default_value),
-			.matches = std::forward<FMatch>(matches),
+			.matches	   = std::forward<FMatch>(matches),
 		});
 	}
 
@@ -692,9 +741,11 @@ namespace impl {
 
 class Scripts {
 public:
-	Scripts() = default;
+	Scripts()			= default;
 	~Scripts() noexcept = default;
+
 	Scripts(const Scripts& other) : scripts{ other.scripts } {}
+
 	Scripts& operator=(const Scripts& other) {
 		if (this != &other) {
 			Scripts copy{ other };
@@ -702,9 +753,9 @@ public:
 		}
 		return *this;
 	}
-	Scripts(Scripts&&) noexcept = default;
-	Scripts& operator=(Scripts&&) noexcept = default;
 
+	Scripts(Scripts&&) noexcept			   = default;
+	Scripts& operator=(Scripts&&) noexcept = default;
 
 	template <ScriptClass T, typename... TArgs>
 		requires BraceConstructible<T, TArgs...>
@@ -722,7 +773,10 @@ public:
 	void ApplyPending();
 	void CancelAll(SequenceCancelReason reason = SequenceCancelReason::OwnerDestroyed);
 	void OnEvent(Event event);
-	void OnEvent(Event event) const { const_cast<Scripts*>(this)->OnEvent(event); }
+
+	void OnEvent(Event event) const {
+		const_cast<Scripts*>(this)->OnEvent(event);
+	}
 
 	PTGN_REFLECT_VALUE(Scripts, scripts)
 
@@ -759,7 +813,9 @@ struct SequenceHandle {
 	Entity owner{};
 	SequenceId binding_id{ 0 };
 
-	[[nodiscard]] explicit operator bool() const { return owner && binding_id != 0; }
+	[[nodiscard]] explicit operator bool() const {
+		return owner && binding_id != 0;
+	}
 
 	bool Start(bool force = false) const;
 	bool Stop() const;
@@ -809,9 +865,7 @@ SequenceHandle RunInChannel(
 );
 bool Start(Entity owner, SequenceId id, bool force = false);
 void StopChannel(Entity owner, SequenceChannelKey channel, SequenceStopMode mode);
-bool Stop(
-	Entity owner, SequenceId id, SequenceCancelReason reason = SequenceCancelReason::Stopped
-);
+bool Stop(Entity owner, SequenceId id, SequenceCancelReason reason = SequenceCancelReason::Stopped);
 bool Reset(Entity owner, SequenceId id);
 bool Clear(Entity owner, SequenceId id);
 bool Skip(Entity owner, SequenceId id);
@@ -867,11 +921,11 @@ ScriptStep ScriptRegistry::MakeStep(T value) {
 
 	auto prototype{ std::make_shared<T>(std::move(value)) };
 	return ScriptStep{
-		.enabled = true,
-		.type_hash = registration->type_hash,
-		.name = registration->name,
-		.value = std::move(script_json),
-		.timing = registration->default_timing,
+		.enabled		 = true,
+		.type_hash		 = registration->type_hash,
+		.name			 = registration->name,
+		.value			 = std::move(script_json),
+		.timing			 = registration->default_timing,
 		.runtime_factory = [prototype] { return std::make_unique<T>(*prototype); },
 	};
 }
@@ -923,8 +977,8 @@ template <typename TScript>
 ScriptSequence& ScriptSequence::During(float duration_ms, TScript script) {
 	static_assert(ScriptClass<TScript>);
 	auto step{ ScriptRegistry::MakeStep<TScript>(std::move(script)) };
-	step.completion = ScriptCompletion::Duration;
-	step.timing = step.timing.value_or(ScriptTiming{});
+	step.completion			 = ScriptCompletion::Duration;
+	step.timing				 = step.timing.value_or(ScriptTiming{});
 	step.timing->duration_ms = std::max(0.0f, duration_ms);
 	steps.push_back(std::move(step));
 	return *this;
@@ -952,32 +1006,38 @@ T& impl::Scripts::Add(Entity owner, TArgs&&... constructor_args) {
 
 	ScriptEntry entry;
 	entry.type_hash = Hash<T>();
-	entry.name = std::string{ type_name_without_namespaces<T>() },
-	entry.value = std::move(snapshot);
-	const SequenceId sequence_id{ instance->sequence.id };
-	entry.sequence = instance->sequence;
+	entry.name		= std::string{ type_name_without_namespaces<T>() },
+	entry.value		= std::move(snapshot);
+
+	SequenceId sequence_id{ instance->sequence.id };
+	entry.sequence	  = instance->sequence;
 	entry.sequence.id = sequence_id;
+
 	if constexpr (std::copy_constructible<T>) {
 		auto prototype{ std::make_shared<T>(*instance) };
-		entry.runtime_factory = [prototype] { return std::make_unique<T>(*prototype); };
+		entry.runtime_factory = [prototype] {
+			return std::make_unique<T>(*prototype);
+		};
 	}
-	entry.instance = std::move(instance);
+
+	entry.instance	  = std::move(instance);
 	entry.initialized = false;
+
 	if (registration && registration->default_timing && entry.sequence.steps.empty()) {
 		// Registration metadata applies to sequence steps, not root scripts. Intentionally empty.
 	}
+
 	pending_additions.push_back(std::move(entry));
+
 	return *raw;
 }
 
 template <ScriptClass T>
 void impl::Scripts::Remove() {
-	const auto hash{ Hash<T>() };
-	const auto queue = [&](const auto& entries) {
+	auto hash{ Hash<T>() };
+	auto queue = [&](const auto& entries) {
 		for (const auto& entry : entries) {
-			const SequenceId id{
-				entry.instance ? entry.instance->sequence.id : entry.sequence.id
-			};
+			SequenceId id{ entry.instance ? entry.instance->sequence.id : entry.sequence.id };
 			if (entry.type_hash == hash && !std::ranges::contains(pending_removals, id)) {
 				pending_removals.push_back(id);
 			}
@@ -989,11 +1049,11 @@ void impl::Scripts::Remove() {
 
 template <ScriptClass T>
 [[nodiscard]] bool impl::Scripts::Has() const {
-	const auto hash{ Hash<T>() };
-	const auto contains = [&](const auto& entries) {
+	auto hash{ Hash<T>() };
+	auto contains = [&](const auto& entries) {
 		return std::ranges::any_of(entries, [&](const auto& entry) {
 			return entry.type_hash == hash &&
-				!std::ranges::contains(pending_removals, entry.sequence.id);
+				   !std::ranges::contains(pending_removals, entry.sequence.id);
 		});
 	};
 	return contains(scripts) || contains(pending_additions);
@@ -1014,8 +1074,7 @@ template <typename TEvent>
 struct EventScript : public Script {
 	EventScript() = default;
 
-	explicit EventScript(EventCallback<TEvent> callback) :
-		callback_{ std::move(callback) } {}
+	explicit EventScript(EventCallback<TEvent> callback) : callback_{ std::move(callback) } {}
 
 	void OnEvent(Event event) override {
 		event.DispatchVariant<TEvent>(callback_);

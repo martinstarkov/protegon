@@ -27,7 +27,7 @@ public:
 			cursor_max_x_before_ = window_->DC.CursorMaxPos.x;
 			ideal_max_x_before_	 = window_->DC.IdealMaxPos.x;
 
-			const ImVec2 cursor{ ImGui::GetCursorScreenPos() };
+			ImVec2 cursor{ ImGui::GetCursorScreenPos() };
 			content_right_x_ = cursor.x + std::max(0.0f, ImGui::GetContentRegionAvail().x);
 		}
 	}
@@ -92,14 +92,12 @@ inline void ApplyInspectorTabBarHorizontalWheel() {
 		return;
 	}
 
-	const float wheel{ io.MouseWheel };
+	float wheel{ io.MouseWheel };
 	if (wheel == 0.0f) {
 		return;
 	}
 
-	const float maximum_scroll{
-		std::max(0.0f, tab_bar->WidthAllTabs - tab_bar->BarRect.GetWidth())
-	};
+	float maximum_scroll{ std::max(0.0f, tab_bar->WidthAllTabs - tab_bar->BarRect.GetWidth()) };
 	if (maximum_scroll <= 0.0f) {
 		tab_bar->ScrollingTarget = 0.0f;
 		tab_bar->ScrollingAnim	 = 0.0f;
@@ -107,12 +105,12 @@ inline void ApplyInspectorTabBarHorizontalWheel() {
 		return;
 	}
 
-	const float current{ std::clamp(tab_bar->ScrollingTarget, 0.0f, maximum_scroll) };
+	float current{ std::clamp(tab_bar->ScrollingTarget, 0.0f, maximum_scroll) };
 	constexpr float edge_epsilon{ 0.5f };
 
 	if ((wheel > 0.0f && current <= edge_epsilon) ||
 		(wheel < 0.0f && current >= maximum_scroll - edge_epsilon)) {
-		const float edge{ wheel > 0.0f ? 0.0f : maximum_scroll };
+		float edge{ wheel > 0.0f ? 0.0f : maximum_scroll };
 		tab_bar->ScrollingTarget				 = edge;
 		tab_bar->ScrollingAnim					 = edge;
 		tab_bar->ScrollingSpeed					 = 0.0f;
@@ -120,8 +118,8 @@ inline void ApplyInspectorTabBarHorizontalWheel() {
 		return;
 	}
 
-	const float step{ ImGui::GetFontSize() * 5.0f };
-	const float target{ std::clamp(current - wheel * step, 0.0f, maximum_scroll) };
+	float step{ ImGui::GetFontSize() * 5.0f };
+	float target{ std::clamp(current - wheel * step, 0.0f, maximum_scroll) };
 
 	tab_bar->ScrollingTarget				 = target;
 	tab_bar->ScrollingAnim					 = target;
@@ -134,11 +132,11 @@ inline void ApplyInspectorTabBarHorizontalWheel() {
 	}
 }
 
-/// Shared empty-state/tab-strip shell used by all inspector-owned tab collections.
+/// Shared empty state / tab strip shell used by all inspector owned tab collections.
 ///
-/// With no items it renders a full-width add button. Once at least one item exists it renders the
+/// With no items it renders a full width add button. Once at least one item exists it renders the
 /// supplied tabs plus the trailing + tab. The caller owns the actual add operation/menu so this can
-/// be reused by direct-add collections (script sequences) and popup-add collections (UI parts,
+/// be reused by direct add collections (script sequences) and popup add collections (UI parts,
 /// interaction hit areas, etc.).
 struct InspectorTabCollectionOptions {
 	const char* scope_id{ "##InspectorTabCollectionScope" };
@@ -160,15 +158,13 @@ struct InspectorTabCollectionOptions {
 	}
 
 	const ImGuiStyle& style{ ImGui::GetStyle() };
-	const float available{ std::max(1.0f, ImGui::GetContentRegionAvail().x) };
-	const std::size_t item_count{ options.tab_count + (options.show_add ? 1uz : 0uz) };
-	const float spacing{ item_count > 1
-							 ? style.ItemInnerSpacing.x * static_cast<float>(item_count - 1)
-							 : 0.0f };
-	const float add_width{ options.show_add
-							   ? ImGui::CalcTextSize("+").x + style.FramePadding.x * 2.0f
-							   : 0.0f };
-	const float tab_space{ std::max(1.0f, available - spacing - add_width) };
+	float available{ std::max(1.0f, ImGui::GetContentRegionAvail().x) };
+	std::size_t item_count{ options.tab_count + (options.show_add ? 1uz : 0uz) };
+	float spacing{ item_count > 1 ? style.ItemInnerSpacing.x * static_cast<float>(item_count - 1)
+								  : 0.0f };
+	float add_width{ options.show_add ? ImGui::CalcTextSize("+").x + style.FramePadding.x * 2.0f
+									  : 0.0f };
+	float tab_space{ std::max(1.0f, available - spacing - add_width) };
 	return tab_space / static_cast<float>(options.tab_count);
 }
 
@@ -190,7 +186,7 @@ template <typename DrawTabs>
 			return false;
 		}
 
-		const std::string label{ options.empty_add_label };
+		std::string label{ options.empty_add_label };
 		bool pressed{ ImGui::Button(label.c_str(), ImVec2{ -FLT_MIN, ImGui::GetFrameHeight() }) };
 		if (!options.add_tooltip.empty() && ImGui::IsItemHovered()) {
 			ImGui::SetTooltip(
@@ -203,7 +199,7 @@ template <typename DrawTabs>
 	bool add_requested{ false };
 	InspectorTabStripScope strip{ options.scope_id };
 	if (ImGui::BeginTabBar(options.tab_bar_id, InspectorTabBarFlags())) {
-		const float tab_width{ GetInspectorEqualTabWidth(options) };
+		float tab_width{ GetInspectorEqualTabWidth(options) };
 		if constexpr (requires { std::forward<DrawTabs>(draw_tabs)(tab_width); }) {
 			std::forward<DrawTabs>(draw_tabs)(tab_width);
 		} else {
@@ -247,7 +243,7 @@ inline InspectorTabContextResult DrawInspectorTabContextMenu(
 		ImGui::Separator();
 	}
 	if (allow_remove) {
-		const std::string label{ remove_label };
+		std::string label{ remove_label };
 		if (ImGui::MenuItem(label.c_str())) {
 			result.remove_requested = true;
 		}
@@ -263,12 +259,16 @@ RenameResult DrawInspectorTabRenameModal(
 	Commit&& commit, std::string_view title = "Rename Tab"
 ) {
 	std::string title_string{ title };
+
 	ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImGui::GetStyle().WindowPadding);
-	const RenameResult result{ DrawRenameModal(
+
+	RenameResult result{ DrawRenameModal(
 		state, popup_id, input_id, std::forward<Validate>(validate), std::forward<Commit>(commit),
 		RenameModalOptions{ .title = title_string.c_str() }
 	) };
+
 	ImGui::PopStyleVar();
+
 	return result;
 }
 

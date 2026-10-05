@@ -49,8 +49,8 @@ RenderTarget CreateRenderTargetImpl(
 
 	auto& renderer{ scene.ctx().renderer };
 
-	const V2_int framebuffer_size{ target.follow_display_size ? GetInitialDisplaySize(renderer)
-															  : target.size };
+	V2_int framebuffer_size{ target.follow_display_size ? GetInitialDisplaySize(renderer)
+														: target.size };
 
 	render_target.Add<Tag>("Render Target");
 	render_target.Add<Visible>(true);
@@ -376,7 +376,7 @@ RenderTarget CreateRenderTarget(
 RenderTarget CreateRenderTarget(
 	Scene& scene, Transform transform, Color clear_color, TextureFormat texture_format
 ) {
-	const V2_int logical_size{ scene.ctx().renderer.GetLogicalSize() };
+	V2_int logical_size{ scene.ctx().renderer.GetLogicalSize() };
 
 	PTGN_ASSERT(logical_size.IsPositive(), "Renderer logical size cannot be zero or negative");
 

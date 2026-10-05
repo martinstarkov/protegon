@@ -44,7 +44,7 @@ public:
 
 		float step{ 80 };
 
-		const auto create_light = [&](const Color& color) {
+		auto create_light = [&](const Color& color) {
 			static float i = 1.0f;
 			CreateLight(
 				*this, V2_float{ -ctx().renderer.GetLogicalSize() * 0.5f } + V2_float{ i * step },
@@ -91,9 +91,13 @@ public:
 		auto scroll{ ctx().input.GetMouseScroll() };
 
 		if (scroll.y > 0.0f) {
-			mouse_directional_light.ConeAngle(*mouse_directional_light.GetConfig().cone_angle + 5.0f);
+			mouse_directional_light.ConeAngle(
+				*mouse_directional_light.GetConfig().cone_angle + 5.0f
+			);
 		} else if (scroll.y < 0.0f) {
-			mouse_directional_light.ConeAngle(*mouse_directional_light.GetConfig().cone_angle - 5.0f);
+			mouse_directional_light.ConeAngle(
+				*mouse_directional_light.GetConfig().cone_angle - 5.0f
+			);
 		}
 	}
 };

@@ -34,7 +34,6 @@
 #include "renderer/backend/gl/gl_vertex_array.h"
 #include "renderer/draw_context.h"
 #include "renderer/pipeline/blend_mode.h"
-#include "renderer/pipeline/shader_preprocessor.h"
 #include "renderer/pipeline/camera.h"
 #include "renderer/pipeline/framebuffer_pool.h"
 #include "renderer/pipeline/primitive_mode.h"
@@ -45,6 +44,7 @@
 #include "renderer/pipeline/render_request.h"
 #include "renderer/pipeline/render_state.h"
 #include "renderer/pipeline/scaling_mode.h"
+#include "renderer/pipeline/shader_preprocessor.h"
 #include "renderer/pipeline/vertex.h"
 #include "renderer/pipeline/viewport.h"
 #include "renderer/renderer_settings.h"
@@ -235,18 +235,14 @@ void Renderer::Clear(impl::FramebufferId framebuffer, Depth clear_depth) {
 	gl_->framebuffers.Clear(framebuffer, clear_depth);
 }
 
-void Renderer::Clear(
-	impl::FramebufferId framebuffer, Stencil clear_stencil
-) {
+void Renderer::Clear(impl::FramebufferId framebuffer, Stencil clear_stencil) {
 	FlushBatch();
 
 	auto bind_guard = gl_->Bind(framebuffer, true);
 	gl_->framebuffers.Clear(framebuffer, clear_stencil);
 }
 
-void Renderer::Clear(
-	impl::FramebufferId framebuffer, DepthStencil clear_depth_stencil
-) {
+void Renderer::Clear(impl::FramebufferId framebuffer, DepthStencil clear_depth_stencil) {
 	FlushBatch();
 
 	auto bind_guard = gl_->Bind(framebuffer, true);
@@ -473,7 +469,8 @@ void Renderer::SetLogicalSize(
 	}
 
 	PTGN_ASSERT(
-		!logical_size.has_value() || (logical_size.has_value() && logical_size.value().IsPositive()),
+		!logical_size.has_value() ||
+			(logical_size.has_value() && logical_size.value().IsPositive()),
 		"Logical size cannot be set to negative value or zero"
 	);
 
@@ -606,7 +603,7 @@ void Renderer::UpdateDisplayViewport(bool emit_events) {
 }
 
 Renderer::DisplayResizeInfo Renderer::RecalculateDisplayViewport() const {
-	const auto presentation{ GetPresentationViewport() };
+	auto presentation{ GetPresentationViewport() };
 
 	PTGN_ASSERT(presentation.size.IsPositive());
 
@@ -618,7 +615,8 @@ Renderer::DisplayResizeInfo Renderer::RecalculateDisplayViewport() const {
 
 	auto compute_aspect_fit = [&viewport, logical_size, presentation](bool letterbox_mode) {
 		float presentation_aspect{ presentation.size.x / presentation.size.y };
-		float logical_aspect{ static_cast<float>(logical_size.x) / static_cast<float>(logical_size.y) };
+		float logical_aspect{ static_cast<float>(logical_size.x) /
+							  static_cast<float>(logical_size.y) };
 
 		// In letterbox mode require presentation_aspect > logical_aspect to fit
 		// height, and in overscan require presentation_aspect > logical_aspect to fit
@@ -936,7 +934,6 @@ std::size_t Renderer::GetMaxTextureSlots() const {
 	return gl_->GetMaxTextureSlots();
 }
 
-
 void Renderer::UploadVertices(
 	const impl::RenderPipeline& pipeline, std::span<const std::byte> vertices,
 	std::uint32_t vertex_size
@@ -979,17 +976,16 @@ void Renderer::SetMaterial(const MaterialState& material) {
 		current_material_valid_ = false;
 		current_uniforms_.clear();
 		current_texture_slot_capacity_ = 1;
-		PTGN_WARN("Cannot use material with invalid shader program; draw calls using it will be skipped");
+		PTGN_WARN(
+			"Cannot use material with invalid shader program; draw calls using it will be skipped"
+		);
 		return;
 	}
 
 	current_material_valid_ = true;
-	const auto resolved_texture_slot_capacity{
-		material.texture_slot_capacity.value_or(1)
-	};
+	auto resolved_texture_slot_capacity{ material.texture_slot_capacity.value_or(1) };
 
-	if (GetBoundShader() == material.shader &&
-		current_uniforms_ == material.uniforms &&
+	if (GetBoundShader() == material.shader && current_uniforms_ == material.uniforms &&
 		current_texture_slot_capacity_ == resolved_texture_slot_capacity) {
 		return;
 	}
@@ -998,7 +994,7 @@ void Renderer::SetMaterial(const MaterialState& material) {
 
 	auto _ = gl_->Bind(material.shader, false);
 
-	current_uniforms_ = material.uniforms;
+	current_uniforms_			   = material.uniforms;
 	current_texture_slot_capacity_ = resolved_texture_slot_capacity;
 }
 
@@ -1066,10 +1062,7 @@ void Renderer::DrawRenderPass(const impl::DrawPassRequest& request) {
 
 			auto input_size{ GetSize(input.framebuffer) };
 
-			PTGN_ASSERT(
-				input_size.value().IsPositive(),
-				"Render pass input size must be non-zero"
-			);
+			PTGN_ASSERT(input_size.value().IsPositive(), "Render pass input size must be non-zero");
 
 			PTGN_ASSERT(
 				input_size == V2_int{ Floor(request.viewport.size) },
@@ -1227,7 +1220,7 @@ void Renderer::BindTextureSlot(std::uint32_t slot, impl::TextureId texture, bool
 }
 
 void Renderer::ApplyOutputColorTransform(impl::FramebufferObject& framebuffer) {
-	const auto op{ renderer_settings_.tone_mapping.op };
+	auto op{ renderer_settings_.tone_mapping.op };
 
 	PTGN_ASSERT(
 		!impl::RequiresHDRInput(op) || IsHDRFormat(GetFormat(framebuffer).value()),
@@ -1389,11 +1382,8 @@ void Renderer::ClearEntityIds(impl::FramebufferId framebuffer) {
 
 	auto bind_guard{ gl_->Bind(framebuffer, true) };
 
-	gl_->framebuffers.ClearInt<impl::gl::Attachment::Color1>(
-		framebuffer, impl::kNoEntityId
-	);
+	gl_->framebuffers.ClearInt<impl::gl::Attachment::Color1>(framebuffer, impl::kNoEntityId);
 }
-
 
 namespace impl {
 
@@ -1441,8 +1431,8 @@ void RendererAccessor::SetRenderState(const RenderState& state) {
 
 MaterialState RendererAccessor::GetMaterial() const {
 	return MaterialState{
-		.shader = renderer_.GetBoundShader(),
-		.uniforms = renderer_.current_uniforms_,
+		.shader				   = renderer_.GetBoundShader(),
+		.uniforms			   = renderer_.current_uniforms_,
 		.texture_slot_capacity = renderer_.current_texture_slot_capacity_,
 	};
 }

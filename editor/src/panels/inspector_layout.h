@@ -55,11 +55,9 @@ private:
 
 [[nodiscard]] inline float GetInspectorLabelColumnWidth(float available_width) {
 	const auto& layout{ GetInspectorLayoutStyle() };
-	const float spacing{ ImGui::GetStyle().ItemSpacing.x };
-	const float maximum_allowed{
-		std::max(1.0f, available_width - layout.minimum_value_width - spacing)
-	};
-	const float preferred{ std::clamp(
+	float spacing{ ImGui::GetStyle().ItemSpacing.x };
+	float maximum_allowed{ std::max(1.0f, available_width - layout.minimum_value_width - spacing) };
+	float preferred{ std::clamp(
 		available_width * layout.label_fraction, layout.minimum_label_width,
 		layout.maximum_label_width
 	) };
@@ -72,10 +70,10 @@ private:
 /// clipped at the column boundary, which keeps it out of the value column while preserving the
 /// requested fixed font size.
 inline void DrawFittedInspectorLabel(std::string_view label) {
-	const float available{ std::max(1.0f, ImGui::GetContentRegionAvail().x) };
+	float available{ std::max(1.0f, ImGui::GetContentRegionAvail().x) };
 	ImFont* font{ ImGui::GetFont() };
-	const float font_size{ ImGui::GetFontSize() };
-	const float line_height{ ImGui::GetTextLineHeight() };
+	float font_size{ ImGui::GetFontSize() };
+	float line_height{ ImGui::GetTextLineHeight() };
 
 	std::vector<std::string> lines;
 	lines.reserve(2);
@@ -108,13 +106,13 @@ inline void DrawFittedInspectorLabel(std::string_view label) {
 			break;
 		}
 
-		const std::size_t word_begin{ position };
+		std::size_t word_begin{ position };
 		while (position < label.size() && label[position] != ' ' && label[position] != '\t' &&
 			   label[position] != '\r' && label[position] != '\n') {
 			++position;
 		}
-		const std::string_view word{ label.substr(word_begin, position - word_begin) };
-		const float word_width{
+		std::string_view word{ label.substr(word_begin, position - word_begin) };
+		float word_width{
 			font->CalcTextSizeA(font_size, FLT_MAX, 0.0f, word.data(), word.data() + word.size()).x
 		};
 
@@ -131,11 +129,11 @@ inline void DrawFittedInspectorLabel(std::string_view label) {
 		std::string candidate{ line };
 		candidate.push_back(' ');
 		candidate.append(word);
-		const float candidate_width{ font->CalcTextSizeA(
-											 font_size, FLT_MAX, 0.0f, candidate.data(),
-											 candidate.data() + candidate.size()
+		float candidate_width{ font->CalcTextSizeA(
+									   font_size, FLT_MAX, 0.0f, candidate.data(),
+									   candidate.data() + candidate.size()
 		)
-										 .x };
+								   .x };
 		if (candidate_width <= available) {
 			line = std::move(candidate);
 			continue;
@@ -155,15 +153,13 @@ inline void DrawFittedInspectorLabel(std::string_view label) {
 	}
 
 	const ImGuiStyle& style{ ImGui::GetStyle() };
-	const float vertical_padding{ style.FramePadding.y };
-	const float text_height{ line_height * static_cast<float>(lines.size()) };
-	const float row_height{
-		std::max(ImGui::GetFrameHeight(), text_height + vertical_padding * 2.0f)
-	};
+	float vertical_padding{ style.FramePadding.y };
+	float text_height{ line_height * static_cast<float>(lines.size()) };
+	float row_height{ std::max(ImGui::GetFrameHeight(), text_height + vertical_padding * 2.0f) };
 
-	const ImVec2 cursor_start{ ImGui::GetCursorScreenPos() };
-	const ImVec2 start{ cursor_start.x, cursor_start.y + vertical_padding };
-	const ImVec4 clip_rect{
+	ImVec2 cursor_start{ ImGui::GetCursorScreenPos() };
+	ImVec2 start{ cursor_start.x, cursor_start.y + vertical_padding };
+	ImVec4 clip_rect{
 		start.x,
 		cursor_start.y,
 		start.x + available,
@@ -172,7 +168,7 @@ inline void DrawFittedInspectorLabel(std::string_view label) {
 
 	for (std::size_t i{ 0 }; i < lines.size(); ++i) {
 		const auto& current{ lines[i] };
-		const ImVec2 position_px{ start.x, start.y + static_cast<float>(i) * line_height };
+		ImVec2 position_px{ start.x, start.y + static_cast<float>(i) * line_height };
 		ImGui::GetWindowDrawList()->AddText(
 			font, font_size, position_px, ImGui::GetColorU32(ImGuiCol_Text), current.data(),
 			current.data() + current.size(), 0.0f, &clip_rect
@@ -194,11 +190,10 @@ bool DrawInspectorCustomPropertyRow(
 ) {
 	ImGui::PushID(id.data(), id.data() + id.size());
 
-	const float available{ std::max(1.0f, ImGui::GetContentRegionAvail().x) };
-	const float label_width{ GetInspectorLabelColumnWidth(available) };
-	const ImGuiTableFlags flags{ ImGuiTableFlags_SizingStretchProp |
-								 ImGuiTableFlags_NoSavedSettings | ImGuiTableFlags_NoPadOuterX |
-								 ImGuiTableFlags_NoBordersInBody };
+	float available{ std::max(1.0f, ImGui::GetContentRegionAvail().x) };
+	float label_width{ GetInspectorLabelColumnWidth(available) };
+	ImGuiTableFlags flags{ ImGuiTableFlags_SizingStretchProp | ImGuiTableFlags_NoSavedSettings |
+						   ImGuiTableFlags_NoPadOuterX | ImGuiTableFlags_NoBordersInBody };
 
 	bool changed{ false };
 	const ImGuiStyle& style{ ImGui::GetStyle() };
@@ -229,7 +224,7 @@ bool DrawInspectorCustomPropertyRow(
 	return changed;
 }
 
-/// Standard fitted-text label/value row.
+/// Standard fitted text label/value row.
 template <typename Draw>
 bool DrawInspectorPropertyRow(std::string_view label, Draw&& draw) {
 	if (InspectorInlineValueMode()) {
@@ -261,13 +256,12 @@ inline InspectorTreeToggleResult DrawInspectorTreeToggleRow(
 	ImGui::PushID(id.data(), id.data() + id.size());
 
 	const ImGuiStyle& style{ ImGui::GetStyle() };
-	const float available{ std::max(1.0f, ImGui::GetContentRegionAvail().x) };
-	const float spacing{ style.ItemInnerSpacing.x };
-	const float toggle_column_width{ ImGui::GetFrameHeight() + spacing };
-	const ImGuiTableFlags table_flags{ ImGuiTableFlags_SizingStretchProp |
-									   ImGuiTableFlags_NoSavedSettings |
-									   ImGuiTableFlags_NoPadOuterX |
-									   ImGuiTableFlags_NoBordersInBody };
+	float available{ std::max(1.0f, ImGui::GetContentRegionAvail().x) };
+	float spacing{ style.ItemInnerSpacing.x };
+	float toggle_column_width{ ImGui::GetFrameHeight() + spacing };
+	ImGuiTableFlags table_flags{ ImGuiTableFlags_SizingStretchProp |
+								 ImGuiTableFlags_NoSavedSettings | ImGuiTableFlags_NoPadOuterX |
+								 ImGuiTableFlags_NoBordersInBody };
 
 	InspectorTreeToggleResult result;
 	ImGui::PushStyleVar(ImGuiStyleVar_CellPadding, ImVec2{ 0.0f, 0.0f });
@@ -383,14 +377,14 @@ inline bool DrawInspectorActionBar(
 
 	ImGui::PushID(options.id.data(), options.id.data() + options.id.size());
 	const auto& style{ ImGui::GetStyle() };
-	const float spacing{ style.ItemSpacing.x };
-	const float available{ std::max(1.0f, ImGui::GetContentRegionAvail().x) };
+	float spacing{ style.ItemSpacing.x };
+	float available{ std::max(1.0f, ImGui::GetContentRegionAvail().x) };
 	auto button_width = [&](std::string_view label) {
 		return ImGui::CalcTextSize(label.data(), label.data() + label.size()).x +
 			   style.FramePadding.x * 2.0f;
 	};
 
-	const float equal_button_width{
+	float equal_button_width{
 		options.equal_width
 			? InspectorSplitWidth(static_cast<int>(actions.size()), available, spacing)
 			: 0.0f
@@ -409,14 +403,14 @@ inline bool DrawInspectorActionBar(
 	}
 
 	std::size_t visible_count{ actions.size() };
-	const float overflow_width{
+	float overflow_width{
 		std::min(available, std::max(ImGui::GetFrameHeight(), button_width(options.overflow_label)))
 	};
 	if (!options.equal_width && full_width > available) {
 		visible_count = 0;
 		float used{ overflow_width };
 		for (std::size_t i{ 0 }; i < actions.size(); ++i) {
-			const float candidate{ resolved_button_width(actions[i].label) + spacing };
+			float candidate{ resolved_button_width(actions[i].label) + spacing };
 			if (used + candidate > available) {
 				break;
 			}
@@ -432,7 +426,7 @@ inline bool DrawInspectorActionBar(
 		}
 		ImGui::PushID(static_cast<int>(i));
 		ImGui::BeginDisabled(!actions[i].enabled);
-		const std::string action_label{ actions[i].label };
+		std::string action_label{ actions[i].label };
 		if (ImGui::Button(
 				action_label.c_str(), ImVec2{ resolved_button_width(actions[i].label), 0.0f }
 			) &&
@@ -454,7 +448,7 @@ inline bool DrawInspectorActionBar(
 		if (visible_count > 0) {
 			ImGui::SameLine(0.0f, spacing);
 		}
-		const std::string overflow_label{ options.overflow_label };
+		std::string overflow_label{ options.overflow_label };
 		if (ImGui::Button(overflow_label.c_str(), ImVec2{ overflow_width, 0.0f })) {
 			ImGui::OpenPopup("##InspectorActionOverflow");
 		}
@@ -466,7 +460,7 @@ inline bool DrawInspectorActionBar(
 		}
 		if (ImGui::BeginPopup("##InspectorActionOverflow")) {
 			for (std::size_t i{ visible_count }; i < actions.size(); ++i) {
-				const std::string action_label{ actions[i].label };
+				std::string action_label{ actions[i].label };
 				if (ImGui::MenuItem(action_label.c_str(), nullptr, false, actions[i].enabled) &&
 					actions[i].invoke) {
 					actions[i].invoke();
@@ -495,7 +489,7 @@ struct InspectorChoice {
 	std::function<void()> invoke{};
 };
 
-/// Draw a radio-style choice row while there is room, then collapse to a combo at narrow widths.
+/// Draw a radio style choice row while there is room, then collapse to a combo at narrow widths.
 /// This is intended for short mutually-exclusive inspector modes such as interaction mode, button
 /// preview state, movement type, etc.
 inline bool DrawInspectorChoiceBar(
@@ -506,8 +500,8 @@ inline bool DrawInspectorChoiceBar(
 	}
 
 	const auto& style{ ImGui::GetStyle() };
-	const float spacing{ style.ItemSpacing.x };
-	const float available{ std::max(1.0f, ImGui::GetContentRegionAvail().x) };
+	float spacing{ style.ItemSpacing.x };
+	float available{ std::max(1.0f, ImGui::GetContentRegionAvail().x) };
 	auto radio_width = [&](std::string_view label) {
 		return ImGui::GetFrameHeight() + style.ItemInnerSpacing.x +
 			   ImGui::CalcTextSize(label.data(), label.data() + label.size()).x;
@@ -529,7 +523,7 @@ inline bool DrawInspectorChoiceBar(
 			}
 			ImGui::PushID(static_cast<int>(i));
 			ImGui::BeginDisabled(!choices[i].enabled);
-			const std::string label{ choices[i].label };
+			std::string label{ choices[i].label };
 			if (ImGui::RadioButton(label.c_str(), choices[i].selected) && !choices[i].selected &&
 				choices[i].invoke) {
 				choices[i].invoke();
@@ -555,14 +549,14 @@ inline bool DrawInspectorChoiceBar(
 		}
 	}
 
-	const std::string combo_name{ combo_id };
+	std::string combo_name{ combo_id };
 	ImGui::SetNextItemWidth(-FLT_MIN);
 	if (!ImGui::BeginCombo(combo_name.c_str(), preview.c_str())) {
 		return false;
 	}
 	for (std::size_t i{ 0 }; i < choices.size(); ++i) {
 		ImGui::PushID(static_cast<int>(i));
-		const std::string label{ choices[i].label };
+		std::string label{ choices[i].label };
 		if (ImGui::Selectable(
 				label.c_str(), choices[i].selected,
 				choices[i].enabled ? 0 : ImGuiSelectableFlags_Disabled

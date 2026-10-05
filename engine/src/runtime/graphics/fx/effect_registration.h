@@ -9,7 +9,7 @@
 namespace ptgn::impl {
 
 // Effect registration metadata is static registration metadata. Keep it as string_view so
-// DrawableRegistrationData can safely reference the same compile-time string literals. The old
+// DrawableRegistrationData can safely reference the same compile time string literals. The old
 // std::string version returned a temporary EffectRegistrationData from Get(); the drawable
 // registration then stored string_views into those destroyed strings, producing corrupted labels.
 struct EffectRegistrationOptions {
@@ -41,37 +41,36 @@ struct EffectRegistration {
 } // namespace ptgn::impl
 
 #define PTGN_DETAIL_EFFECT_CONCAT_IMPL(a, b) a##b
-#define PTGN_DETAIL_EFFECT_CONCAT(a, b) PTGN_DETAIL_EFFECT_CONCAT_IMPL(a, b)
+#define PTGN_DETAIL_EFFECT_CONCAT(a, b)		 PTGN_DETAIL_EFFECT_CONCAT_IMPL(a, b)
 
-#define PTGN_REGISTER_EFFECT(Type, ...)                                                   \
-	template <>                                                                           \
-	struct ptgn::impl::EffectRegistration<Type> {                                       \
-		static constexpr ptgn::impl::EffectRegistrationData Get() {                     \
-			return ptgn::impl::MakeEffectRegistration(                                  \
-				#Type __VA_OPT__(, ptgn::impl::EffectRegistrationOptions __VA_ARGS__)   \
-			);                                                                            \
-		}                                                                                 \
-	};                                                                                    \
-	template <>                                                                           \
-	struct ptgn::impl::DrawableRegistration<Type> {                                     \
-		static constexpr ptgn::impl::DrawableRegistrationData Get() {                   \
-			constexpr auto registration{ ptgn::impl::EffectRegistration<Type>::Get() };  \
-                                                                                          \
-			return ptgn::impl::MakeDrawableRegistration(                                \
-				registration.type_name,                                                   \
-				{                                                                         \
-					.name  = registration.options.name,                                   \
-					.group = "Effects",                                                   \
-				}                                                                         \
-			);                                                                            \
-		}                                                                                 \
-	};                                                                                    \
-	template class ptgn::impl::DrawableRegistrar<Type>;                                 \
-	namespace {                                                                           \
-	[[maybe_unused]] const bool PTGN_DETAIL_EFFECT_CONCAT(                                 \
-		ptgn_registered_effect_, __COUNTER__                                               \
-	){ ptgn::impl::EffectRegistry::Register<                                             \
-		Type,                                                                               \
-		ptgn::impl::EffectRegistration<Type>::Get().options.hdr                          \
-	>(ptgn::impl::EffectRegistration<Type>::Get()) };                                   \
+#define PTGN_REGISTER_EFFECT(Type, ...)                                                          \
+	template <>                                                                                  \
+	struct ptgn::impl::EffectRegistration<Type> {                                                \
+		static constexpr ptgn::impl::EffectRegistrationData Get() {                              \
+			return ptgn::impl::MakeEffectRegistration(                                           \
+				#Type __VA_OPT__(, ptgn::impl::EffectRegistrationOptions __VA_ARGS__)            \
+			);                                                                                   \
+		}                                                                                        \
+	};                                                                                           \
+	template <>                                                                                  \
+	struct ptgn::impl::DrawableRegistration<Type> {                                              \
+		static constexpr ptgn::impl::DrawableRegistrationData Get() {                            \
+			constexpr auto registration{ ptgn::impl::EffectRegistration<Type>::Get() };          \
+                                                                                                 \
+			return ptgn::impl::MakeDrawableRegistration(                                         \
+				registration.type_name, {                                                        \
+											.name  = registration.options.name,                  \
+											.group = "Effects",                                  \
+										}                                                        \
+			);                                                                                   \
+		}                                                                                        \
+	};                                                                                           \
+	template class ptgn::impl::DrawableRegistrar<Type>;                                          \
+	namespace {                                                                                  \
+	[[maybe_unused]] const bool PTGN_DETAIL_EFFECT_CONCAT(ptgn_registered_effect_, __COUNTER__){ \
+		ptgn::impl::EffectRegistry::Register<                                                    \
+			Type, ptgn::impl::EffectRegistration<Type>::Get().options.hdr>(                      \
+			ptgn::impl::EffectRegistration<Type>::Get()                                          \
+		)                                                                                        \
+	};                                                                                           \
 	}

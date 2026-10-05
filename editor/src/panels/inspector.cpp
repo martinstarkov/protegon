@@ -42,7 +42,7 @@ void SyncEditedPrefabInstances(EditorContext& ctx, const PrefabKey& key) {
 		if (!scene || scene->IsRuntime()) {
 			continue;
 		}
-		(void)SyncPrefabInstances(*scene, key);
+		SyncPrefabInstances(*scene, key);
 	}
 }
 
@@ -94,7 +94,7 @@ void DrawPrefabInspector(
 		return;
 	}
 
-	// The Prefabs tab edits the live AssetManager-owned ECS entity. Persistence is a snapshot
+	// The Prefabs tab edits the live AssetManager owned ECS entity. Persistence is a snapshot
 	// of that entity hierarchy, not the editing model itself.
 	assets.SavePrefabEntity(key);
 	SyncEditedPrefabInstances(ctx, key);
@@ -109,7 +109,7 @@ void DrawPrefabInspector(EditorContext& ctx, const PrefabKey& key) {
 
 void InspectorPanel::OnRender(EditorContext& ctx) {
 	auto& hierarchy{ ctx.editor.GetSceneHierarchyPanel() };
-	const SceneHierarchyTab active_tab{ hierarchy.GetActiveTab() };
+	SceneHierarchyTab active_tab{ hierarchy.GetActiveTab() };
 
 	Entity selected_scene_entity{ active_tab == SceneHierarchyTab::SceneHierarchy
 									  ? hierarchy.GetSelectedEntity()
@@ -126,12 +126,12 @@ void InspectorPanel::OnRender(EditorContext& ctx) {
 																: "Entity Inspector###Inspector" };
 
 	bool inspector_visible{ ImGui::Begin(title) };
-	const ImGuiID inspector_dock_id{ ImGui::GetWindowDockID() };
+	ImGuiID inspector_dock_id{ ImGui::GetWindowDockID() };
 
 	if (inspector_visible) {
 		if (inspect_linked_instance) {
-			const PrefabKey prefab_key{ linked_instance->prefab };
-			const SerializedEntityPath prefab_path{ linked_instance->entity_path };
+			PrefabKey prefab_key{ linked_instance->prefab };
+			SerializedEntityPath prefab_path{ linked_instance->entity_path };
 
 			ImGui::TextDisabled("Linked prefab instance");
 
@@ -158,7 +158,7 @@ void InspectorPanel::OnRender(EditorContext& ctx) {
 
 			ImGui::Separator();
 			ImGui::TextDisabled(
-				"This linked instance is read-only. Edit the prefab or convert the instance first."
+				"This linked instance is read only. Edit the prefab or convert the instance first."
 			);
 
 			if (convert && instance_root) {
@@ -199,7 +199,7 @@ void InspectorPanel::OnRender(EditorContext& ctx) {
 
 	ImGui::End();
 
-	const auto selection{ ctx.local.selection.selected_screen_effect };
+	auto selection{ ctx.local.selection.selected_screen_effect };
 	if (!selection.has_value()) {
 		previous_screen_effect_selection_.reset();
 		return;
@@ -217,7 +217,7 @@ void InspectorPanel::OnRender(EditorContext& ctx) {
 	bool screen_effect_inspector_visible{ ImGui::Begin(
 		"Screen Effect Inspector###ScreenEffectInspector", &screen_effect_inspector_open
 	) };
-	const ImGuiID screen_effect_inspector_dock_id{ ImGui::GetWindowDockID() };
+	ImGuiID screen_effect_inspector_dock_id{ ImGui::GetWindowDockID() };
 
 	if (screen_effect_inspector_visible) {
 		inspector::DrawScreenEffectInspector(ctx, selection.value());

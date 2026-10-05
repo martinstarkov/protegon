@@ -25,11 +25,14 @@ namespace impl {
 
 struct SceneFactory {
 	using Construct = std::function<std::unique_ptr<Scene>(Application&, SceneData&&)>;
-	using Preload = std::function<std::vector<AssetKey>(Application&)>;
+	using Preload	= std::function<std::vector<AssetKey>(Application&)>;
 
 	SceneFactory() = default;
+
 	SceneFactory(std::nullptr_t) {}
+
 	SceneFactory(Construct scene_construct) : construct{ std::move(scene_construct) } {} // NOSONAR
+
 	SceneFactory(Construct scene_construct, Preload scene_preload) :
 		construct{ std::move(scene_construct) }, preload{ std::move(scene_preload) } {}
 
@@ -62,7 +65,8 @@ struct SceneRegistryEntry {
 };
 
 inline auto& GetSceneRegistry() {
-	static std::unordered_map<std::string, SceneRegistryEntry, StringHash, std::equal_to<>> registry;
+	static std::unordered_map<std::string, SceneRegistryEntry, StringHash, std::equal_to<>>
+		registry;
 	return registry;
 }
 
@@ -86,8 +90,7 @@ void DeserializeSceneParameters(const json& parameters, TScene& scene) {
 	if constexpr (JsonDeserializable<TScene>) {
 		PTGN_ASSERT(
 			parameters.is_object(),
-			"Scene parameters must be a JSON object for scene type: ",
-			type_name<TScene>()
+			"Scene parameters must be a JSON object for scene type: ", type_name<TScene>()
 		);
 
 		json complete_parameters = SerializeSceneParameters(scene);
@@ -103,33 +106,25 @@ void DeserializeSceneParameters(const json& parameters, TScene& scene) {
 			complete_parameters.get_to(scene);
 		} catch (const json::exception& error) {
 			PTGN_ERROR(
-				"Failed to deserialize parameters for scene type ",
-				type_name<TScene>(),
-				": ",
-				error.what(),
-				"\nParameters: ",
-				complete_parameters.dump(4)
+				"Failed to deserialize parameters for scene type ", type_name<TScene>(), ": ",
+				error.what(), "\nParameters: ", complete_parameters.dump(4)
 			);
 		}
 	} else {
 		PTGN_ASSERT(
-			parameters.empty(),
-			"A scene without PTGN_REFLECT cannot have serialized parameters"
+			parameters.empty(), "A scene without PTGN_REFLECT cannot have serialized parameters"
 		);
 	}
 }
 
 template <typename TScene, typename Serialize, typename Deserialize>
 void DeserializeSceneParameters(
-	const json& parameters,
-	TScene& scene,
-	const Serialize& serialize,
+	const json& parameters, TScene& scene, const Serialize& serialize,
 	const Deserialize& deserialize
 ) {
 	PTGN_ASSERT(
 		parameters.is_object(),
-		"Scene parameters must be a JSON object for scene type: ",
-		type_name<TScene>()
+		"Scene parameters must be a JSON object for scene type: ", type_name<TScene>()
 	);
 
 	json complete_parameters{ std::invoke(serialize, std::as_const(scene)) };
@@ -145,12 +140,8 @@ void DeserializeSceneParameters(
 		std::invoke(deserialize, complete_parameters, scene);
 	} catch (const json::exception& error) {
 		PTGN_ERROR(
-			"Failed to deserialize parameters for scene type ",
-			type_name<TScene>(),
-			": ",
-			error.what(),
-			"\nParameters: ",
-			complete_parameters.dump(4)
+			"Failed to deserialize parameters for scene type ", type_name<TScene>(), ": ",
+			error.what(), "\nParameters: ", complete_parameters.dump(4)
 		);
 	}
 }
@@ -165,42 +156,45 @@ bool RegisterSceneWithSerialization(Serialize serialize, Deserialize deserialize
 	if (auto existing{ registry.find(type) }; existing != registry.end()) {
 		PTGN_ASSERT(
 			existing->second.type_id == type_id,
-			"Scene registration key is already used by another C++ type: ",
-			type
+			"Scene registration key is already used by another C++ type: ", type
 		);
 		return false;
 	}
 
 	SceneRegistryEntry entry{
-		.type = std::string{ type },
+		.type	 = std::string{ type },
 		.type_id = type_id,
-		.default_parameters = [serialize] {
-			TScene scene;
-			return std::invoke(serialize, std::as_const(scene));
-		},
+		.default_parameters =
+			[serialize] {
+				TScene scene;
+				return std::invoke(serialize, std::as_const(scene));
+			},
 		.construct = [serialize, deserialize](const json& parameters) -> std::unique_ptr<Scene> {
 			auto scene{ std::make_unique<TScene>() };
 			DeserializeSceneParameters(parameters, *scene, serialize, deserialize);
 			return scene;
 		},
-		.serialize_parameters = [serialize](const Scene& scene) {
-			return std::invoke(serialize, static_cast<const TScene&>(scene));
-		},
-		.deserialize_parameters = [serialize, deserialize](const json& parameters, Scene& scene) {
-			DeserializeSceneParameters(
-				parameters, static_cast<TScene&>(scene), serialize, deserialize
-			);
-		},
-		.preload_dependencies = [serialize, deserialize](const json& parameters) {
-			TScene scene;
-			DeserializeSceneParameters(parameters, scene, serialize, deserialize);
-			AssetPreloadContext preload;
-			scene.OnPreload(preload);
-			for (const auto& key : scene.GetExplicitAssetDependencies()) {
-				preload.Add(key);
-			}
-			return preload.GetDependencies();
-		},
+		.serialize_parameters =
+			[serialize](const Scene& scene) {
+				return std::invoke(serialize, static_cast<const TScene&>(scene));
+			},
+		.deserialize_parameters =
+			[serialize, deserialize](const json& parameters, Scene& scene) {
+				DeserializeSceneParameters(
+					parameters, static_cast<TScene&>(scene), serialize, deserialize
+				);
+			},
+		.preload_dependencies =
+			[serialize, deserialize](const json& parameters) {
+				TScene scene;
+				DeserializeSceneParameters(parameters, scene, serialize, deserialize);
+				AssetPreloadContext preload;
+				scene.OnPreload(preload);
+				for (const auto& key : scene.GetExplicitAssetDependencies()) {
+					preload.Add(key);
+				}
+				return preload.GetDependencies();
+			},
 	};
 
 	auto [it, inserted]{ registry.emplace(entry.type, std::move(entry)) };
@@ -214,9 +208,7 @@ template <SceneType TScene>
 bool RegisterScene() {
 	return RegisterSceneWithSerialization<TScene>(
 		[](const TScene& scene) { return SerializeSceneParameters(scene); },
-		[](const json& parameters, TScene& scene) {
-			DeserializeSceneParameters(parameters, scene);
-		}
+		[](const json& parameters, TScene& scene) { DeserializeSceneParameters(parameters, scene); }
 	);
 }
 
@@ -247,7 +239,7 @@ template <SceneType TScene>
 [[nodiscard]] std::string GetRegisteredSceneType() {
 	constexpr auto type_id{ Hash<TScene>() };
 
-	const auto it{ GetSceneCppTypeRegistry().find(type_id) };
+	auto it{ GetSceneCppTypeRegistry().find(type_id) };
 	return it == GetSceneCppTypeRegistry().end() ? std::string{} : it->second;
 }
 
@@ -256,16 +248,16 @@ template <SceneType TScene>
 } // namespace ptgn
 
 #define PTGN_IMPL_SCENE_CONCAT_INNER(a, b) a##b
-#define PTGN_IMPL_SCENE_CONCAT(a, b) PTGN_IMPL_SCENE_CONCAT_INNER(a, b)
+#define PTGN_IMPL_SCENE_CONCAT(a, b)	   PTGN_IMPL_SCENE_CONCAT_INNER(a, b)
 
-#define PTGN_IMPL_SCENE_JSON_TO(member)                                                   \
-	::ptgn::impl::extended_to_json(                                                       \
-		::ptgn::impl::StripTrailingUnderscore(#member), parameters, scene.member          \
+#define PTGN_IMPL_SCENE_JSON_TO(member)                                          \
+	::ptgn::impl::extended_to_json(                                              \
+		::ptgn::impl::StripTrailingUnderscore(#member), parameters, scene.member \
 	);
 
-#define PTGN_IMPL_SCENE_JSON_FROM(member)                                                 \
-	::ptgn::impl::extended_from_json(                                                     \
-		::ptgn::impl::StripTrailingUnderscore(#member), parameters, scene.member          \
+#define PTGN_IMPL_SCENE_JSON_FROM(member)                                        \
+	::ptgn::impl::extended_from_json(                                            \
+		::ptgn::impl::StripTrailingUnderscore(#member), parameters, scene.member \
 	);
 
 /// @brief Registers a scene using its C++ type name as the registry key.
@@ -274,23 +266,17 @@ template <SceneType TScene>
 /// PTGN_REGISTER_SCENE(MyScene, level, seed);
 ///
 /// With no member names, the scene's normal JSON serialization is used when available.
-#define PTGN_REGISTER_SCENE(SceneTypeName, ...)                                           \
-	namespace {                                                                            \
-	[[maybe_unused]] const bool PTGN_IMPL_SCENE_CONCAT(_ptgn_registered_scene_, __COUNTER__) = \
-		::ptgn::impl::RegisterScene<SceneTypeName>(                                        \
-			__VA_OPT__(                                                                     \
-				[](const SceneTypeName& scene) {                                             \
-					::ptgn::json parameters{ ::ptgn::json::object() };                       \
-					NLOHMANN_JSON_EXPAND(                                                    \
-						NLOHMANN_JSON_PASTE(PTGN_IMPL_SCENE_JSON_TO, __VA_ARGS__)           \
-					)                                                                          \
-					return parameters;                                                        \
-				},                                                                             \
-				[](const ::ptgn::json& parameters, SceneTypeName& scene) {                    \
-					NLOHMANN_JSON_EXPAND(                                                    \
-						NLOHMANN_JSON_PASTE(PTGN_IMPL_SCENE_JSON_FROM, __VA_ARGS__)         \
-					)                                                                          \
-				}                                                                              \
-			)                                                                                \
-		);                                                                                  \
+#define PTGN_REGISTER_SCENE(SceneTypeName, ...)                                                   \
+	namespace {                                                                                   \
+	[[maybe_unused]] const bool PTGN_IMPL_SCENE_CONCAT(_ptgn_registered_scene_, __COUNTER__) =    \
+		::ptgn::impl::RegisterScene<SceneTypeName>(__VA_OPT__(                                    \
+			[](const SceneTypeName& scene) {                                                      \
+				::ptgn::json parameters{ ::ptgn::json::object() };                                \
+				NLOHMANN_JSON_EXPAND(NLOHMANN_JSON_PASTE(PTGN_IMPL_SCENE_JSON_TO, __VA_ARGS__))   \
+				return parameters;                                                                \
+			},                                                                                    \
+			[](const ::ptgn::json& parameters, SceneTypeName& scene) {                            \
+				NLOHMANN_JSON_EXPAND(NLOHMANN_JSON_PASTE(PTGN_IMPL_SCENE_JSON_FROM, __VA_ARGS__)) \
+			}                                                                                     \
+		));                                                                                       \
 	}

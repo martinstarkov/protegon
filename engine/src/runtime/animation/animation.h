@@ -10,8 +10,8 @@
 #include "core/math/geometry/origin.h"
 #include "core/math/transform.h"
 #include "core/math/vector2.h"
-#include "core/util/time.h"
 #include "core/util/strong_string.h"
+#include "core/util/time.h"
 #include "core/util/timer.h"
 #include "runtime/asset/asset_key.h"
 #include "runtime/ecs/entity.h"
@@ -43,12 +43,8 @@ constexpr std::optional<V2_int> GetFrameSize(
 
 	PTGN_ASSERT(texture_size.value().IsPositive(), "Texture size must be positive");
 
-	const auto width{
-		static_cast<std::size_t>(texture_size.value().x) / frame_count
-	};
-	const auto height{
-		static_cast<std::size_t>(texture_size.value().y) / row_count
-	};
+	auto width{ static_cast<std::size_t>(texture_size.value().x) / frame_count };
+	auto height{ static_cast<std::size_t>(texture_size.value().y) / row_count };
 
 	if (width == 0 || height == 0) {
 		return std::nullopt;
@@ -313,10 +309,7 @@ class AnimationData {
 public:
 	AnimationData() = default;
 
-	AnimationData(
-		AnimationConfig&& config, std::optional<V2_int> texture_size,
-		std::size_t automatic_row_count = 1
-	);
+	AnimationData(AnimationConfig&& config, std::size_t automatic_row_count = 1);
 
 	milliseconds GetFrameDuration() const;
 	V2_int GetFrameSize(std::optional<V2_int> texture_size = std::nullopt) const;

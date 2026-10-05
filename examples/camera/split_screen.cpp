@@ -39,7 +39,7 @@ struct RectDragScript : public Script {
 	}
 
 	void OnDrag(V2_float pos) const {
-		SetPosition(entity, pos);
+		SetPosition(target, pos);
 		PTGN_LOG("Position: ", pos);
 	}
 };
@@ -50,12 +50,15 @@ struct CircleDragScript : public Script {
 	}
 
 	void OnDrag(V2_float pos) const {
-		SetPosition(entity, pos);
+		SetPosition(target, pos);
 	}
 };
 
 struct SplitScreenScene : public Scene {
 	SceneCamera second_camera;
+
+	const float rotation_speed{ 100.0f };
+	const float zoom_speed{ 0.4f };
 
 	void OnEnter() override {
 		ctx().renderer.SetLogicalSize(V2_int{ 320, 180 });
@@ -78,7 +81,7 @@ struct SplitScreenScene : public Scene {
 		ctx().camera.SetClearColor(color::LightGold.WithAlpha(0.5f));
 		second_camera.SetClearColor(color::LightPink.WithAlpha(0.5f));
 
-		ctx().debug.settings.interaction.draw_enabled	= true;
+		ctx().debug.settings.interaction.draw_enabled	 = true;
 		ctx().debug.settings.interaction.draw_line_width = 10.0f;
 
 		V2_int rect_size{ 100, 100 };
@@ -102,9 +105,6 @@ struct SplitScreenScene : public Scene {
 		SetDraggable(light);
 		AddScript<CircleDragScript>(light);
 	}
-
-	const float rotation_speed{ 100.0f };
-	const float zoom_speed{ 0.4f };
 
 	void OnUpdate() override {
 		constexpr V2_float speed{ 300.0f, 300.0f };

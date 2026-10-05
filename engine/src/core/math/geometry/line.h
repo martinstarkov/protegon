@@ -26,14 +26,14 @@ public:
 	) const {
 		PTGN_ASSERT(line_width >= 1.0f);
 
-		const auto world_start{ transform.Apply(start) };
-		const auto world_end{ transform.Apply(end) };
-		const auto dir{ world_end - world_start };
-		const float length{ dir.Magnitude() };
+		auto world_start{ transform.Apply(start) };
+		auto world_end{ transform.Apply(end) };
+		auto dir{ world_end - world_start };
+		float length{ dir.Magnitude() };
 
 		Rect rect{ V2_float{ length + line_width, line_width } };
 
-		const Transform line_transform{
+		Transform line_transform{
 			world_start + dir * 0.5f,
 			dir.Angle(),
 			V2_float{ 1.0f },

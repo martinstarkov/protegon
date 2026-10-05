@@ -7,8 +7,8 @@
 #include <vector>
 
 #include "app/application.h"
-#include "core/assert.h"
 #include "app/editor.h"
+#include "core/assert.h"
 #include "core/event/event.h"
 #include "core/graphics/color.h"
 #include "core/input/key.h"
@@ -125,7 +125,7 @@ public:
 	Entity sweep_circle;
 
 	// Total number.
-	const int move_entities{ 6 };
+	int move_entities{ 6 };
 	// Current move entity.
 	int move_entity{ 5 };
 	V2_float speed{ 300.0f };
@@ -395,7 +395,7 @@ public:
 		V2_float c0{ p1 };
 		c0.Draw(color::Green, 1.0f);
 
-		const auto overlap = [](auto s1, auto s2) {
+		auto overlap = [](auto s1, auto s2) {
 			if (s2.Overlaps(s1)) {
 				s1.Draw(color::Red, 1.0f);
 				if constexpr (std::is_same_v<decltype(s2), Line>) {
@@ -435,7 +435,7 @@ public:
 		Line c0{ p0, p1 };
 		c0.Draw(color::Green);
 
-		const auto overlap = [](auto s1, auto s2) {
+		auto overlap = [](auto s1, auto s2) {
 			if (s2.Overlaps(s1)) {
 				s1.Draw(color::Red);
 				if constexpr (std::is_same_v<decltype(s2), Line>) {
@@ -475,7 +475,7 @@ public:
 		Circle c0{ p1, circle_radius };
 		c0.Draw(color::Green, Solid{});
 
-		const auto overlap = [](auto s1, auto s2) {
+		auto overlap = [](auto s1, auto s2) {
 			if (s2.Overlaps(s1)) {
 				s1.Draw(color::Red, Solid{});
 				if constexpr (std::is_same_v<decltype(s2), Line>) {
@@ -515,7 +515,7 @@ public:
 		Rect c0{ p1, rect_size, Origin::Center, 0.0f };
 		c0.Draw(color::Green, Solid{});
 
-		const auto overlap = [](auto s1, auto s2) {
+		auto overlap = [](auto s1, auto s2) {
 			if (s2.Overlaps(s1)) {
 				s1.Draw(color::Red, Solid{});
 				if constexpr (std::is_same_v<decltype(s2), Line>) {
@@ -555,7 +555,7 @@ public:
 		Capsule c0{ p0, p1, capsule_radius };
 		c0.Draw(color::Green, Solid{});
 
-		const auto overlap = [](auto s1, auto s2) {
+		auto overlap = [](auto s1, auto s2) {
 			if (s2.Overlaps(s1)) {
 				s1.Draw(color::Red, Solid{});
 				if constexpr (std::is_same_v<decltype(s2), Line>) {
@@ -597,7 +597,7 @@ public:
 		Rect c0{ p0, rect_size };
 		c0.Draw(color::Green, Solid{});
 
-		const auto sweep = [&](auto s1, auto s2) {
+		auto sweep = [&](auto s1, auto s2) {
 			Raycast raycast{ s1.Raycast(vel, s2) };
 			if (raycast.Occurred()) {
 				Rect c1{ p0 + vel * raycast.t, rect_size };
@@ -639,7 +639,7 @@ public:
 	int option{ 4 };
 	int type{ 2 };
 
-	const float line_thickness{ 3.0f };
+	float line_thickness{ 3.0f };
 
 	// rotation of rectangles.
 	Degrees rot_1{ 45.0f };
@@ -767,7 +767,7 @@ public:
 			}
 		} else if (type == 1) { // intersect
 			options = 4;
-			const float slop{ 0.005f };
+			float slop{ 0.005f };
 			Intersection c;
 			if (option == 0) {
 				// circle2.center = circle1.center;
@@ -907,7 +907,7 @@ public:
 				V2_float pos = position4;
 				V2_float vel{ mouse - pos };
 				Line l{ pos, pos + vel };
-				const float point_radius{ 5.0f };
+				float point_radius{ 5.0f };
 				Circle c2{ pos + vel, point_radius };
 				c2.Draw(color::Gray, line_thickness);
 				l.Draw(color::Gray);
@@ -944,7 +944,7 @@ public:
 				V2_float pos = position4;
 				V2_float vel{ mouse - pos };
 				Line l{ pos, pos + vel };
-				const float point_radius{ 5.0f };
+				float point_radius{ 5.0f };
 				Circle c1{ pos + vel, point_radius };
 				c1.Draw(color::Gray, line_thickness);
 				l.Draw(color::Gray);
@@ -1397,11 +1397,11 @@ struct SweepTest : public CollisionTest {
 			transform.Translate(rb.velocity * game.dt());
 		}
 
-		const auto edge_exclusive_overlap = [](const Rect& a, const Rect& b) {
-			const V2_float a_max{ a.Max() };
-			const V2_float a_min{ a.Min() };
-			const V2_float b_max{ b.Max() };
-			const V2_float b_min{ b.Min() };
+		auto edge_exclusive_overlap = [](const Rect& a, const Rect& b) {
+			V2_float a_max{ a.Max() };
+			V2_float a_min{ a.Min() };
+			V2_float b_max{ b.Max() };
+			V2_float b_min{ b.Min() };
 
 			if (a_max.x <= b_min.x || a_min.x >= b_max.x) {
 				return false;

@@ -62,7 +62,7 @@ struct RichTextEditorOptions {
 	/// Formatting toolbar tags remain available and continue to override the supplied defaults.
 	bool show_defaults{ true };
 
-	/// @brief Show the dialogue-only page-number overlay toggle in the toolbar.
+	/// @brief Show the dialogue only page-number overlay toggle in the toolbar.
 	bool show_page_numbers_button{ false };
 
 	/// @brief One-based dialogue page number for each logical displayed line. Zero suppresses
@@ -70,7 +70,7 @@ struct RichTextEditorOptions {
 	std::span<const std::size_t> line_page_numbers{};
 
 	/// @brief Optional compiled source shown while page-number mode is enabled. The editor becomes
-	/// read-only in that mode; this text may therefore expose automatic pagination without changing
+	/// read only in that mode; this text may therefore expose automatic pagination without changing
 	/// the authored source.
 	std::string_view page_number_preview_source{};
 
@@ -94,13 +94,13 @@ struct RichTextEditorOptions {
 	std::string_view portrait_tag_suffix{};
 };
 
-/// @brief Unified rich-text source editor used by text components and context-specific UI.
+/// @brief Unified rich text source editor used by text components and context-specific UI.
 bool DrawRichTextEditor(
 	EditorContext& ctx, std::string& source, TextRunDefaults& defaults,
 	const RichTextEditorOptions& options = {}
 );
 
-/// @brief Draw only the renderer-backed rich-text preview surface.
+/// @brief Draw only the renderer-backed rich text preview surface.
 /// Context-specific editors can use this when they need custom pagination/navigation.
 void DrawRichTextPreview(
 	EditorContext& ctx, const StyledText& styled_text, const TextBox* preview_box = nullptr

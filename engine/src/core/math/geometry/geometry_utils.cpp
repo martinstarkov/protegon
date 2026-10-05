@@ -32,8 +32,8 @@ std::vector<V2_float> GetArcVertices(
 		return {};
 	}
 
-	const float start{ start_angle.value };
-	const float end{ end_angle.value };
+	float start{ start_angle.value };
+	float end{ end_angle.value };
 
 	PTGN_ASSERT(start >= 0.0f && start < kTwoPi, "Arc start angle must be in range [0, 2pi)");
 	PTGN_ASSERT(end >= 0.0f && end < kTwoPi, "Arc end angle must be in range [0, 2pi)");
@@ -64,13 +64,13 @@ std::vector<V2_float> GetArcVertices(
 	//
 	// Preserve roughly the old quality target, but scale it according to
 	// the fraction of a full circle actually being generated.
-	const auto full_circle_segment_count{
+	auto full_circle_segment_count{
 		std::max(360uz, static_cast<std::size_t>(std::ceil(30.0f * radius)))
 	};
 
-	const float aperture_fraction{ aperture / kTwoPi };
+	float aperture_fraction{ aperture / kTwoPi };
 
-	const auto segment_count{ std::max(
+	auto segment_count{ std::max(
 		1uz, static_cast<std::size_t>(
 				 std::ceil(static_cast<float>(full_circle_segment_count) * aperture_fraction)
 			 )
@@ -78,12 +78,12 @@ std::vector<V2_float> GetArcVertices(
 
 	// N segments require N + 1 vertices so both endpoints are present.
 	std::vector<V2_float> vertices(segment_count + 1);
-	const float direction{ clockwise ? -1.0f : 1.0f };
+	float direction{ clockwise ? -1.0f : 1.0f };
 
 	for (auto i{ 0uz }; i <= segment_count; ++i) {
-		const float t{ static_cast<float>(i) / static_cast<float>(segment_count) };
+		float t{ static_cast<float>(i) / static_cast<float>(segment_count) };
 
-		const Radians angle{ start + direction * aperture * t };
+		Radians angle{ start + direction * aperture * t };
 
 		vertices[i] = center + radius * V2_float{ angle.Cos(), angle.Sin() };
 	}
@@ -125,12 +125,12 @@ bool TriangulateSnip(
 	PTGN_ASSERT(w < n);
 	PTGN_ASSERT(n <= V.size());
 
-	const V2_float A{ contour[V[u]] };
-	const V2_float B{ contour[V[v]] };
-	const V2_float C{ contour[V[w]] };
+	V2_float A{ contour[V[u]] };
+	V2_float B{ contour[V[v]] };
+	V2_float C{ contour[V[w]] };
 
-	const V2_float AB{ B - A };
-	const V2_float AC{ C - A };
+	V2_float AB{ B - A };
+	V2_float AC{ C - A };
 
 	// Triangulate() normalizes the working vertex order to counter clockwise.
 	// Therefore an ear must be a strictly convex / left turn vertex.
@@ -138,7 +138,7 @@ bool TriangulateSnip(
 	// Reject both:
 	//   cross < 0  -> reflex vertex
 	//   cross ~= 0 -> degenerate/collinear triangle
-	const float cross{ AB.Cross(AC) };
+	float cross{ AB.Cross(AC) };
 
 	if (cross <= kEpsilon<float>) {
 		return false;
@@ -151,7 +151,7 @@ bool TriangulateSnip(
 			continue;
 		}
 
-		const V2_float P{ contour[V[i]] };
+		V2_float P{ contour[V[i]] };
 
 		if (TriangulateInsideTriangle(A, B, C, P)) {
 			return false;
@@ -287,11 +287,11 @@ bool VisibilityRayIntersects(
 } // namespace impl
 
 std::vector<V2_float> GetVisibilityPolygon(V2_float point, std::span<const Line> shadow_segments) {
-	const auto same_segment = [](const Line& x, const Line& y) {
+	auto same_segment = [](const Line& x, const Line& y) {
 		return (x.start == y.start && x.end == y.end) || (x.start == y.end && x.end == y.start);
 	};
 
-	const auto point_less = [](V2_float a, V2_float b) {
+	auto point_less = [](V2_float a, V2_float b) {
 		if (a.x < b.x) {
 			return true;
 		}
@@ -301,7 +301,7 @@ std::vector<V2_float> GetVisibilityPolygon(V2_float point, std::span<const Line>
 		return a.y < b.y;
 	};
 
-	const auto line_less = [&](const Line& x, const Line& y) {
+	auto line_less = [&](const Line& x, const Line& y) {
 		auto [a, b] = x.GetLocalVertices();
 		auto [c, d] = y.GetLocalVertices();
 
@@ -333,7 +333,7 @@ std::vector<V2_float> GetVisibilityPolygon(V2_float point, std::span<const Line>
 	// @param y Line segment: Right hand side of the comparison operator.
 	// @return True if x < y (x is closer than y).
 	//
-	const auto closer = [origin = point](const Line& x, const Line& y) {
+	auto closer = [origin = point](const Line& x, const Line& y) {
 		auto [a, b] = x.GetLocalVertices();
 		auto [c, d] = y.GetLocalVertices();
 
@@ -380,7 +380,7 @@ std::vector<V2_float> GetVisibilityPolygon(V2_float point, std::span<const Line>
 		}
 	};
 
-	const auto cmp_dist = [&](const Line& x, const Line& y) {
+	auto cmp_dist = [&](const Line& x, const Line& y) {
 		if (same_segment(x, y)) {
 			return false;
 		}
@@ -434,7 +434,7 @@ std::vector<V2_float> GetVisibilityPolygon(V2_float point, std::span<const Line>
 	}
 
 	// compare angles clockwise starting at the positive y axis
-	const auto angle_comparer = [point](V2_float a, V2_float b) {
+	auto angle_comparer = [point](V2_float a, V2_float b) {
 		auto is_a_left{ StrictlyLess(a.x, point.x) };
 		auto is_b_left{ StrictlyLess(b.x, point.x) };
 
@@ -568,10 +568,10 @@ std::vector<Line> PointsToLines(std::span<const V2_float> points, bool connect_l
 namespace impl {
 
 bool IsInside(V2_float p, const Line& edge, bool clip_is_counter_clockwise) {
-	const V2_float edge_vec{ edge.GetDirection() };
-	const V2_float point_vec{ p - edge.start };
+	V2_float edge_vec{ edge.GetDirection() };
+	V2_float point_vec{ p - edge.start };
 
-	const float cross{ edge_vec.Cross(point_vec) };
+	float cross{ edge_vec.Cross(point_vec) };
 
 	// For a CCW polygon, its interior lies to the left of each edge.
 	// For a CW polygon, its interior lies to the right.
@@ -585,17 +585,17 @@ bool IsInside(V2_float p, const Line& edge, bool clip_is_counter_clockwise) {
 }
 
 std::optional<V2_float> ComputeIntersection(V2_float a, V2_float b, V2_float c, V2_float d) {
-	const V2_float ab{ b - a };
-	const V2_float cd{ d - c };
+	V2_float ab{ b - a };
+	V2_float cd{ d - c };
 
-	const float denominator{ ab.Cross(cd) };
+	float denominator{ ab.Cross(cd) };
 
 	if (std::abs(denominator) < kEpsilon<float>) {
 		return std::nullopt;
 	}
 
 	// Intersection of segment AB with the infinite line through CD.
-	const float t{ (c - a).Cross(cd) / denominator };
+	float t{ (c - a).Cross(cd) / denominator };
 
 	if (t < 0.0f || t > 1.0f) {
 		return std::nullopt;
@@ -631,10 +631,10 @@ std::vector<V2_float> ClipPolygons(
 	auto count{ clip_polygon.size() };
 
 	for (auto i{ 0uz }; i < count; ++i) {
-		const V2_float clip_start{ clip_polygon[i] };
-		const V2_float clip_end{ clip_polygon[(i + 1) % count] };
+		V2_float clip_start{ clip_polygon[i] };
+		V2_float clip_end{ clip_polygon[(i + 1) % count] };
 
-		const Line clip_edge{ clip_start, clip_end };
+		Line clip_edge{ clip_start, clip_end };
 
 		auto input_list{ std::move(output_list) };
 		output_list.clear();
@@ -646,7 +646,7 @@ std::vector<V2_float> ClipPolygons(
 		V2_float s{ input_list.back() };
 		bool s_inside{ impl::IsInside(s, clip_edge, clip_is_counter_clockwise) };
 
-		for (const V2_float e : input_list) {
+		for (V2_float e : input_list) {
 			bool e_inside{ impl::IsInside(e, clip_edge, clip_is_counter_clockwise) };
 
 			if (e_inside) {
@@ -777,7 +777,7 @@ float SquareDistancePointLine(V2_float point, V2_float start, V2_float end) {
 float SquareDistancePointRect(V2_float point, V2_float rect_min, V2_float rect_max) {
 	float dist2{ 0.0f };
 	for (auto i{ 0uz }; i < 2; ++i) {
-		const float v{ point[i] };
+		float v{ point[i] };
 		if (v < rect_min[i]) {
 			dist2 += (rect_min[i] - v) * (rect_min[i] - v);
 		}

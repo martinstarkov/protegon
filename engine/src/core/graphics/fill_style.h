@@ -131,7 +131,7 @@ inline void to_json(json& value, const FillStyle& fill_style) {
 		if constexpr (std::is_same_v<T, Solid>) {
 			value["type"] = "Solid";
 		} else if constexpr (std::is_same_v<T, Hollow>) {
-			value["type"]       = "Hollow";
+			value["type"]		= "Hollow";
 			value["line_width"] = style.line_width;
 		} else {
 			static_assert(false, "Incomplete visitor");
@@ -140,14 +140,9 @@ inline void to_json(json& value, const FillStyle& fill_style) {
 }
 
 inline void from_json(const json& value, FillStyle& fill_style) {
-	PTGN_ASSERT(
-		value.is_object(),
-		"FillStyle must be a JSON object"
-	);
+	PTGN_ASSERT(value.is_object(), "FillStyle must be a JSON object");
 
-	const auto type{
-		value.at("type").get<std::string>()
-	};
+	auto type{ value.at("type").get<std::string>() };
 
 	if (type == "Solid") {
 		fill_style = FillStyle{ Solid{} };
@@ -155,16 +150,11 @@ inline void from_json(const json& value, FillStyle& fill_style) {
 	}
 
 	if (type == "Hollow") {
-		const auto line_width{
-			value.at("line_width").get<float>()
-		};
+		auto line_width{ value.at("line_width").get<float>() };
 
 		PTGN_ASSERT(
-			line_width >= kMinLineWidth,
-			"FillStyle line width must be at least ",
-			kMinLineWidth,
-			", got ",
-			line_width
+			line_width >= kMinLineWidth, "FillStyle line width must be at least ", kMinLineWidth,
+			", got ", line_width
 		);
 
 		fill_style = FillStyle{ line_width };

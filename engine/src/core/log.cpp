@@ -37,17 +37,17 @@ struct ConsoleLine {
 }
 
 [[nodiscard]] std::string FormatTimestamp(Clock::time_point timestamp) {
-	const auto time{ Clock::to_time_t(timestamp) };
-	const auto local_time{ LocalTime(time) };
-	const auto milliseconds{
-		std::chrono::duration_cast<std::chrono::milliseconds>(
-			timestamp.time_since_epoch()
-		).count() % 1000
+	auto time{ Clock::to_time_t(timestamp) };
+	auto local_time{ LocalTime(time) };
+	auto milliseconds{
+		std::chrono::duration_cast<std::chrono::milliseconds>(timestamp.time_since_epoch())
+			.count() %
+		1000
 	};
 
 	std::ostringstream output;
-	output << std::put_time(&local_time, "%Y-%m-%d %H:%M:%S")
-		   << '.' << std::setfill('0') << std::setw(3) << milliseconds;
+	output << std::put_time(&local_time, "%Y-%m-%d %H:%M:%S") << '.' << std::setfill('0')
+		   << std::setw(3) << milliseconds;
 	return output.str();
 }
 
@@ -58,7 +58,7 @@ public:
 			return;
 		}
 
-		const auto timestamp{ Clock::now() };
+		auto timestamp{ Clock::now() };
 		std::scoped_lock lock{ mutex_ };
 
 		output_.append(value);
@@ -69,10 +69,12 @@ public:
 			}
 
 			if (c == '\n') {
-				lines_.emplace_back(ConsoleLine{
-					.timestamp = pending_line_timestamp_.value(),
-					.text = std::move(pending_line_),
-				});
+				lines_.emplace_back(
+					ConsoleLine{
+						.timestamp = pending_line_timestamp_.value(),
+						.text	   = std::move(pending_line_),
+					}
+				);
 				pending_line_.clear();
 				pending_line_timestamp_.reset();
 				continue;
@@ -92,7 +94,7 @@ public:
 		std::scoped_lock lock{ mutex_ };
 		return ConsoleOutputSnapshot{
 			.revision = revision_.load(std::memory_order_relaxed),
-			.output = output_,
+			.output	  = output_,
 		};
 	}
 
@@ -112,13 +114,13 @@ public:
 
 		{
 			std::scoped_lock lock{ mutex_ };
-			lines = lines_;
-			pending_line = pending_line_;
+			lines				   = lines_;
+			pending_line		   = pending_line_;
 			pending_line_timestamp = pending_line_timestamp_;
 		}
 
 		std::error_code error;
-		const std::filesystem::path parent{ output_path.parent_path() };
+		std::filesystem::path parent{ output_path.parent_path() };
 		if (!parent.empty()) {
 			std::filesystem::create_directories(parent, error);
 			if (error) {
@@ -135,8 +137,7 @@ public:
 		output << "Saved: " << FormatTimestamp(Clock::now()) << "\n\n";
 
 		for (const auto& line : lines) {
-			output << '[' << FormatTimestamp(line.timestamp) << "] "
-				   << line.text << '\n';
+			output << '[' << FormatTimestamp(line.timestamp) << "] " << line.text << '\n';
 		}
 
 		if (pending_line_timestamp.has_value()) {
@@ -167,8 +168,8 @@ protected:
 			return traits_type::not_eof(value);
 		}
 
-		const char character{ traits_type::to_char_type(value) };
-		const auto result{ destination_->sputc(character) };
+		char character{ traits_type::to_char_type(value) };
+		auto result{ destination_->sputc(character) };
 		if (traits_type::eq_int_type(result, traits_type::eof())) {
 			return traits_type::eof();
 		}
@@ -178,12 +179,14 @@ protected:
 	}
 
 	std::streamsize xsputn(const char* value, std::streamsize count) override {
-		const auto written{ destination_->sputn(value, count) };
+		auto written{ destination_->sputn(value, count) };
 		if (written > 0) {
-			capture_.Append(std::string_view{
-				value,
-				static_cast<std::size_t>(written),
-			});
+			capture_.Append(
+				std::string_view{
+					value,
+					static_cast<std::size_t>(written),
+				}
+			);
 		}
 		return written;
 	}
@@ -210,7 +213,7 @@ public:
 		std::cerr.rdbuf(original_cerr_);
 	}
 
-	ConsoleCapture(const ConsoleCapture&) = delete;
+	ConsoleCapture(const ConsoleCapture&)			 = delete;
 	ConsoleCapture& operator=(const ConsoleCapture&) = delete;
 
 	[[nodiscard]] ConsoleCaptureStore& Store() {
@@ -238,7 +241,7 @@ std::string Basename(std::string_view path) {
 } // namespace
 
 void DebugPrint(std::string_view prefix, std::string_view message, std::source_location where) {
-	const auto file{ Basename(where.file_name()) };
+	auto file{ Basename(where.file_name()) };
 	if (!message.empty()) {
 		PrintLine(prefix, file, ':', where.line(), " in ", where.function_name(), ": ", message);
 	} else {

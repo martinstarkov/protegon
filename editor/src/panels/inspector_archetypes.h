@@ -9,8 +9,8 @@
 #include "core/math/geometry/circle.h"
 #include "core/math/geometry/rect.h"
 #include "runtime/graphics/drawable.h"
-#include "runtime/graphics/fx/light.h"
 #include "runtime/graphics/fx/effects.h"
+#include "runtime/graphics/fx/light.h"
 #include "runtime/graphics/fx/particle.h"
 #include "runtime/graphics/graphics.h"
 #include "runtime/graphics/render_target.h"
@@ -65,16 +65,15 @@ enum class InspectorArchetype : std::uint8_t {
 
 [[nodiscard]] inline std::string NormalizeArchetypeName(std::string_view input) {
 	std::string result;
+
 	result.reserve(input.size());
-	for (const char c : input) {
+
+	for (char c : input) {
 		if (std::isalnum(static_cast<unsigned char>(c))) {
-			result.push_back(
-				static_cast<char>(
-					std::tolower(static_cast<unsigned char>(c))
-				)
-			);
+			result.push_back(static_cast<char>(std::tolower(static_cast<unsigned char>(c))));
 		}
 	}
+
 	return result;
 }
 
@@ -93,7 +92,7 @@ template <typename Target>
 	if constexpr (!Target::template Supports<Drawable>()) {
 		return {};
 	} else {
-		const auto drawable{ target.template Capture<Drawable>() };
+		auto drawable{ target.template Capture<Drawable>() };
 		if (!drawable) {
 			return {};
 		}
@@ -145,157 +144,156 @@ template <typename Target>
 		return InspectorArchetype::Button;
 	}
 
-	if (
-		HasArchetypeComponent<Target, ::ptgn::impl::EffectTag>(target) ||
-		HasArchetypeComponent<Target, ::ptgn::impl::HDREffectTag>(target)
-	) {
+	if (HasArchetypeComponent<Target, ::ptgn::impl::EffectTag>(target) ||
+		HasArchetypeComponent<Target, ::ptgn::impl::HDREffectTag>(target)) {
 		return InspectorArchetype::Effect;
 	}
 
-	const std::string drawable_name{ GetArchetypeDrawableName(target) };
-	const std::string visual{ NormalizeArchetypeName(drawable_name) };
+	std::string drawable_name{ GetArchetypeDrawableName(target) };
+	std::string visual{ NormalizeArchetypeName(drawable_name) };
 	if (visual.empty()) {
 		return InspectorArchetype::Generic;
 	}
 
-	if (visual == "rect") return InspectorArchetype::Rect;
-	if (visual == "circle") return InspectorArchetype::Circle;
-	if (visual == "roundedrect") return InspectorArchetype::RoundedRect;
-	if (visual == "polygon") return InspectorArchetype::Polygon;
-	if (visual == "ellipse") return InspectorArchetype::Ellipse;
-	if (visual == "triangle") return InspectorArchetype::Triangle;
-	if (visual == "line") return InspectorArchetype::Line;
-	if (visual == "capsule") return InspectorArchetype::Capsule;
-	if (visual == "arc") return InspectorArchetype::Arc;
-	if (visual == "spritestack") return InspectorArchetype::SpriteStack;
-	if (visual.contains("sprite")) return InspectorArchetype::Sprite;
-	if (visual.contains("text")) return InspectorArchetype::Text;
-	if (visual.contains("particle")) return InspectorArchetype::ParticleEmitter;
-	if (visual.contains("light")) return InspectorArchetype::Light;
-	if (visual.contains("graphics")) return InspectorArchetype::Graphics;
-	if (visual.contains("customshader")) return InspectorArchetype::CustomShader;
-	if (visual.contains("rendertarget")) return InspectorArchetype::RenderTarget;
-	if (
-		visual.contains("bloom") ||
-		visual.contains("blur") ||
-		visual.contains("effect") ||
-		visual.contains("grayscale") ||
-		visual.contains("inverse") ||
-		visual.contains("sharpen") ||
-		visual.contains("edge")
-	) {
+	if (visual == "rect") {
+		return InspectorArchetype::Rect;
+	}
+	if (visual == "circle") {
+		return InspectorArchetype::Circle;
+	}
+	if (visual == "roundedrect") {
+		return InspectorArchetype::RoundedRect;
+	}
+	if (visual == "polygon") {
+		return InspectorArchetype::Polygon;
+	}
+	if (visual == "ellipse") {
+		return InspectorArchetype::Ellipse;
+	}
+	if (visual == "triangle") {
+		return InspectorArchetype::Triangle;
+	}
+	if (visual == "line") {
+		return InspectorArchetype::Line;
+	}
+	if (visual == "capsule") {
+		return InspectorArchetype::Capsule;
+	}
+	if (visual == "arc") {
+		return InspectorArchetype::Arc;
+	}
+	if (visual == "spritestack") {
+		return InspectorArchetype::SpriteStack;
+	}
+	if (visual.contains("sprite")) {
+		return InspectorArchetype::Sprite;
+	}
+	if (visual.contains("text")) {
+		return InspectorArchetype::Text;
+	}
+	if (visual.contains("particle")) {
+		return InspectorArchetype::ParticleEmitter;
+	}
+	if (visual.contains("light")) {
+		return InspectorArchetype::Light;
+	}
+	if (visual.contains("graphics")) {
+		return InspectorArchetype::Graphics;
+	}
+	if (visual.contains("customshader")) {
+		return InspectorArchetype::CustomShader;
+	}
+	if (visual.contains("rendertarget")) {
+		return InspectorArchetype::RenderTarget;
+	}
+	if (visual.contains("bloom") || visual.contains("blur") || visual.contains("effect") ||
+		visual.contains("grayscale") || visual.contains("inverse") || visual.contains("sharpen") ||
+		visual.contains("edge")) {
 		return InspectorArchetype::Effect;
 	}
 
 	return InspectorArchetype::Generic;
 }
 
-[[nodiscard]] inline std::string_view GetInspectorArchetypeLabel(
-	InspectorArchetype archetype
-) {
+[[nodiscard]] inline std::string_view GetInspectorArchetypeLabel(InspectorArchetype archetype) {
 	switch (archetype) {
-		case InspectorArchetype::Generic: return "Entity";
-		case InspectorArchetype::Tilemap: return "Tilemap";
-		case InspectorArchetype::PaintGenerator: return "Paint Generator";
-		case InspectorArchetype::Rect: return "Rectangle";
-		case InspectorArchetype::Circle: return "Circle";
-		case InspectorArchetype::RoundedRect: return "Rounded Rectangle";
-		case InspectorArchetype::Polygon: return "Polygon";
-		case InspectorArchetype::Ellipse: return "Ellipse";
-		case InspectorArchetype::Triangle: return "Triangle";
-		case InspectorArchetype::Line: return "Line";
-		case InspectorArchetype::Capsule: return "Capsule";
-		case InspectorArchetype::Arc: return "Arc";
-		case InspectorArchetype::Sprite: return "Sprite";
-		case InspectorArchetype::SpriteStack: return "Sprite Stack";
-		case InspectorArchetype::Text: return "Text";
+		case InspectorArchetype::Generic:		  return "Entity";
+		case InspectorArchetype::Tilemap:		  return "Tilemap";
+		case InspectorArchetype::PaintGenerator:  return "Paint Generator";
+		case InspectorArchetype::Rect:			  return "Rectangle";
+		case InspectorArchetype::Circle:		  return "Circle";
+		case InspectorArchetype::RoundedRect:	  return "Rounded Rectangle";
+		case InspectorArchetype::Polygon:		  return "Polygon";
+		case InspectorArchetype::Ellipse:		  return "Ellipse";
+		case InspectorArchetype::Triangle:		  return "Triangle";
+		case InspectorArchetype::Line:			  return "Line";
+		case InspectorArchetype::Capsule:		  return "Capsule";
+		case InspectorArchetype::Arc:			  return "Arc";
+		case InspectorArchetype::Sprite:		  return "Sprite";
+		case InspectorArchetype::SpriteStack:	  return "Sprite Stack";
+		case InspectorArchetype::Text:			  return "Text";
 		case InspectorArchetype::ParticleEmitter: return "Particle Emitter";
-		case InspectorArchetype::Light: return "Light";
-		case InspectorArchetype::Graphics: return "Graphics";
-		case InspectorArchetype::CustomShader: return "Custom Shader";
-		case InspectorArchetype::RenderTarget: return "Render Target";
-		case InspectorArchetype::Camera: return "Camera";
-		case InspectorArchetype::Effect: return "Effect";
-		case InspectorArchetype::Button: return "Button";
-		case InspectorArchetype::ToggleButton: return "Toggle Button";
-		case InspectorArchetype::Slider: return "Slider";
-		case InspectorArchetype::Dropdown: return "Dropdown";
-		case InspectorArchetype::ToggleGroup: return "Toggle Group";
-		case InspectorArchetype::Tooltip: return "Tooltip";
-		case InspectorArchetype::Dialogue: return "Dialogue Box";
+		case InspectorArchetype::Light:			  return "Light";
+		case InspectorArchetype::Graphics:		  return "Graphics";
+		case InspectorArchetype::CustomShader:	  return "Custom Shader";
+		case InspectorArchetype::RenderTarget:	  return "Render Target";
+		case InspectorArchetype::Camera:		  return "Camera";
+		case InspectorArchetype::Effect:		  return "Effect";
+		case InspectorArchetype::Button:		  return "Button";
+		case InspectorArchetype::ToggleButton:	  return "Toggle Button";
+		case InspectorArchetype::Slider:		  return "Slider";
+		case InspectorArchetype::Dropdown:		  return "Dropdown";
+		case InspectorArchetype::ToggleGroup:	  return "Toggle Group";
+		case InspectorArchetype::Tooltip:		  return "Tooltip";
+		case InspectorArchetype::Dialogue:		  return "Dialogue Box";
 	}
 	return "Entity";
 }
 
 template <typename Target>
 [[nodiscard]] std::string GetInspectorArchetypeLabel(const Target& target) {
-	const InspectorArchetype archetype{
-		ResolveInspectorArchetype(target)
-	};
+	InspectorArchetype archetype{ ResolveInspectorArchetype(target) };
+
 	if (archetype == InspectorArchetype::Effect) {
-		const std::string drawable{
-			GetArchetypeDrawableName(target)
-		};
-		return drawable.empty()
-			? std::string{ "Effect" }
-			: drawable;
+		std::string drawable{ GetArchetypeDrawableName(target) };
+		return drawable.empty() ? std::string{ "Effect" } : drawable;
 	}
-	return std::string{
-		GetInspectorArchetypeLabel(archetype)
-	};
+
+	return std::string{ GetInspectorArchetypeLabel(archetype) };
 }
 
-[[nodiscard]] inline bool IsVisualArchetype(
-	InspectorArchetype archetype
-) {
-	return
-		archetype >= InspectorArchetype::Rect &&
-		archetype <= InspectorArchetype::Effect &&
-		archetype != InspectorArchetype::Camera;
+[[nodiscard]] inline bool IsVisualArchetype(InspectorArchetype archetype) {
+	return archetype >= InspectorArchetype::Rect && archetype <= InspectorArchetype::Effect &&
+		   archetype != InspectorArchetype::Camera;
 }
 
-[[nodiscard]] inline bool IsUIArchetype(
-	InspectorArchetype archetype
-) {
-	return
-		archetype >= InspectorArchetype::Button &&
-		archetype <= InspectorArchetype::Dialogue;
+[[nodiscard]] inline bool IsUIArchetype(InspectorArchetype archetype) {
+	return archetype >= InspectorArchetype::Button && archetype <= InspectorArchetype::Dialogue;
 }
 
-[[nodiscard]] inline bool ArchetypeRequiresTransform(
-	InspectorArchetype archetype
-) {
+[[nodiscard]] inline bool ArchetypeRequiresTransform(InspectorArchetype archetype) {
 	switch (archetype) {
 		case InspectorArchetype::Generic:
 		case InspectorArchetype::ToggleGroup:
 		case InspectorArchetype::RenderTarget:
-		case InspectorArchetype::Effect:
-			return false;
+		case InspectorArchetype::Effect:		 return false;
 
 		case InspectorArchetype::Tilemap:
-		case InspectorArchetype::PaintGenerator:
-			return true;
+		case InspectorArchetype::PaintGenerator: return true;
 
-		default:
-			return true;
+		default:								 return true;
 	}
 }
 
-[[nodiscard]] inline bool ArchetypeOwnsVisual(
-	InspectorArchetype archetype
-) {
+[[nodiscard]] inline bool ArchetypeOwnsVisual(InspectorArchetype archetype) {
 	return IsVisualArchetype(archetype);
 }
 
-[[nodiscard]] inline bool ArchetypeOwnsUI(
-	InspectorArchetype archetype
-) {
+[[nodiscard]] inline bool ArchetypeOwnsUI(InspectorArchetype archetype) {
 	return IsUIArchetype(archetype);
 }
 
-[[nodiscard]] inline bool ArchetypeOwnsCamera(
-	InspectorArchetype archetype
-) {
+[[nodiscard]] inline bool ArchetypeOwnsCamera(InspectorArchetype archetype) {
 	return archetype == InspectorArchetype::Camera;
 }
 

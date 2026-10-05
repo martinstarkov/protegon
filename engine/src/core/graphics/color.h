@@ -11,8 +11,8 @@
 #include <utility>
 #include <vector>
 
-#include "core/log.h"
 #include "core/assert.h"
+#include "core/log.h"
 #include "core/math/math_utils.h"
 #include "core/math/rng.h"
 #include "core/math/vector4.h"
@@ -82,14 +82,12 @@ struct Color {
 		switch (packing) {
 			case ColorPacking::RGBA:
 				return (static_cast<std::uint32_t>(r) << 24u) |
-					(static_cast<std::uint32_t>(g) << 16u) |
-					(static_cast<std::uint32_t>(b) << 8u) |
-					static_cast<std::uint32_t>(a);
+					   (static_cast<std::uint32_t>(g) << 16u) |
+					   (static_cast<std::uint32_t>(b) << 8u) | static_cast<std::uint32_t>(a);
 			case ColorPacking::ABGR:
 				return (static_cast<std::uint32_t>(a) << 24u) |
-					(static_cast<std::uint32_t>(b) << 16u) |
-					(static_cast<std::uint32_t>(g) << 8u) |
-					static_cast<std::uint32_t>(r);
+					   (static_cast<std::uint32_t>(b) << 16u) |
+					   (static_cast<std::uint32_t>(g) << 8u) | static_cast<std::uint32_t>(r);
 			default: PTGN_ERROR("Unknown ColorPacking: ", std::to_underlying(packing));
 		}
 	}
@@ -238,27 +236,23 @@ inline bool RegisterColor(std::string key, Color value) {
 	PTGN_ASSERT(!key.empty(), "Registered color key cannot be empty");
 
 	auto& registry{ impl::MutableColorRegistry() };
-	const auto it{ std::find_if(
-		registry.begin(),
-		registry.end(),
-		[&key](const RegisteredColor& color) {
-			return color.key == key;
-		}
-	) };
+	auto it{ std::find_if(registry.begin(), registry.end(), [&key](const RegisteredColor& color) {
+		return color.key == key;
+	}) };
 
 	if (it != registry.end()) {
 		PTGN_ASSERT(
-			it->value == value,
-			"Registered color key already exists with a different value: ",
-			key
+			it->value == value, "Registered color key already exists with a different value: ", key
 		);
 		return false;
 	}
 
-	registry.push_back(RegisteredColor{
-		.key = std::move(key),
-		.value = value,
-	});
+	registry.push_back(
+		RegisteredColor{
+			.key   = std::move(key),
+			.value = value,
+		}
+	);
 	return true;
 }
 
@@ -269,25 +263,17 @@ inline bool RegisterColor(std::string key, Color value) {
 
 [[nodiscard]] inline const RegisteredColor* FindRegisteredColor(std::string_view key) {
 	const auto& registry{ GetRegisteredColors() };
-	const auto it{ std::find_if(
-		registry.begin(),
-		registry.end(),
-		[key](const RegisteredColor& color) {
-			return color.key == key;
-		}
-	) };
+	auto it{ std::find_if(registry.begin(), registry.end(), [key](const RegisteredColor& color) {
+		return color.key == key;
+	}) };
 	return it == registry.end() ? nullptr : std::addressof(*it);
 }
 
 [[nodiscard]] inline const RegisteredColor* FindRegisteredColor(Color value) {
 	const auto& registry{ GetRegisteredColors() };
-	const auto it{ std::find_if(
-		registry.begin(),
-		registry.end(),
-		[value](const RegisteredColor& color) {
-			return color.value == value;
-		}
-	) };
+	auto it{ std::find_if(registry.begin(), registry.end(), [value](const RegisteredColor& color) {
+		return color.value == value;
+	}) };
 	return it == registry.end() ? nullptr : std::addressof(*it);
 }
 
@@ -295,19 +281,17 @@ inline bool RegisterColor(std::string key, Color value) {
 
 /// @brief Declares ptgn::color::Name as an inline constexpr Color and adds it to the global color
 /// registry under Key. Invoke this macro at global namespace scope.
-#define PTGN_REGISTER_COLOR(Name, Key, Red, Green, Blue, Alpha)                         \
-	namespace ptgn::color {                                                              \
-	inline constexpr ::ptgn::Color Name{                                                  \
-		static_cast<std::uint8_t>(Red),                                                    \
-		static_cast<std::uint8_t>(Green),                                                  \
-		static_cast<std::uint8_t>(Blue),                                                   \
-		static_cast<std::uint8_t>(Alpha)                                                   \
-	};                                                                                    \
-	}                                                                                     \
-	namespace ptgn::impl {                                                               \
-	[[maybe_unused]] inline const bool Name##_registered_color{                                            \
-		::ptgn::RegisterColor((Key), ::ptgn::color::Name)                                  \
-	};                                                                                    \
+#define PTGN_REGISTER_COLOR(Name, Key, Red, Green, Blue, Alpha)              \
+	namespace ptgn::color {                                                  \
+	inline constexpr ::ptgn::Color Name{ static_cast<std::uint8_t>(Red),     \
+										 static_cast<std::uint8_t>(Green),   \
+										 static_cast<std::uint8_t>(Blue),    \
+										 static_cast<std::uint8_t>(Alpha) }; \
+	}                                                                        \
+	namespace ptgn::impl {                                                   \
+	[[maybe_unused]] inline const bool Name##_registered_color{              \
+		::ptgn::RegisterColor((Key), ::ptgn::color::Name)                    \
+	};                                                                       \
 	}
 
 PTGN_REGISTER_COLOR(Transparent, "Transparent", 0, 0, 0, 0);

@@ -12,7 +12,7 @@
 
 namespace ptgn::editor {
 
-/// @brief One texture's slicing metadata in the shared editor-only paint library.
+/// @brief One texture's slicing metadata in the shared editor only paint library.
 struct PaintTileSliceSettingsState {
 	TextureKey texture{};
 	V2_int tile_size{ 32, 32 };
@@ -22,7 +22,7 @@ struct PaintTileSliceSettingsState {
 	PTGN_REFLECT(PaintTileSliceSettingsState, texture, tile_size)
 };
 
-/// @brief One authored tile entry in the shared editor-only paint library.
+/// @brief One authored tile entry in the shared editor only paint library.
 struct PaintTileLibraryEntryState {
 	std::string id{};
 	std::string name{};
@@ -44,7 +44,7 @@ struct PaintPrefabGroupAssignmentState {
 	PTGN_REFLECT(PaintPrefabGroupAssignmentState, prefab, group)
 };
 
-/// @brief Shared editor-only paint organization stored in the tracked .ptgneditor file.
+/// @brief Shared editor only paint organization stored in the tracked .ptgneditor file.
 /// This deliberately contains no scene/runtime state.
 struct PaintProjectState {
 	std::vector<std::string> tile_groups{};
@@ -59,20 +59,14 @@ struct PaintProjectState {
 	bool operator==(const PaintProjectState&) const = default;
 
 	PTGN_REFLECT(
-		PaintProjectState,
-		tile_groups,
-		prefab_groups,
-		tile_slice_settings,
-		tiles,
-		prefab_group_assignments,
-		weighted_tile_sets,
-		weighted_prefab_sets,
-		autotile_rule_sets
+		PaintProjectState, tile_groups, prefab_groups, tile_slice_settings, tiles,
+		prefab_group_assignments, weighted_tile_sets, weighted_prefab_sets, autotile_rule_sets
 	)
 };
 
-/// @brief User/machine-specific paint-authoring selection stored in .ptgnlocal.
-/// These values are analogous to editor selection/tool state and are not shared through source control.
+/// @brief User/machine-specific paint authoring selection stored in .ptgnlocal.
+/// These values are analogous to editor selection/tool state and are not shared through source
+/// control.
 struct PaintLocalState {
 	PaintTool tool{ PaintTool::Select };
 	PaintRecipeState recipe{};
@@ -104,32 +98,11 @@ struct PaintLocalState {
 	bool operator==(const PaintLocalState&) const = default;
 
 	PTGN_REFLECT(
-		PaintLocalState,
-		tool,
-		recipe,
-		brush_shape,
-		selection_brush_shape,
-		select_mode,
-		area_mode,
-		move_snap,
-		brush_diameter,
-		selection_diameter,
-		line_thickness,
-		line_spacing,
-		area_thickness,
-		line_align_rotation,
-		grid_visible,
-		entity_grid_size,
-		entity_grid_offset,
-		grid_aspect_locked,
-		grid_locked_aspect,
-		grid_major_every,
-		grid_minor_color,
-		grid_major_color,
-		grid_minor_thickness,
-		grid_major_thickness,
-		selected_tile_entry_id,
-		tile_source,
+		PaintLocalState, tool, recipe, brush_shape, selection_brush_shape, select_mode, area_mode,
+		move_snap, brush_diameter, selection_diameter, line_thickness, line_spacing, area_thickness,
+		line_align_rotation, grid_visible, entity_grid_size, entity_grid_offset, grid_aspect_locked,
+		grid_locked_aspect, grid_major_every, grid_minor_color, grid_major_color,
+		grid_minor_thickness, grid_major_thickness, selected_tile_entry_id, tile_source,
 		prefab_source
 	)
 };

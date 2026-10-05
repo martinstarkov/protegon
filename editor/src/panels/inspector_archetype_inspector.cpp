@@ -166,7 +166,7 @@ template <typename Target, typename Component, typename Draw>
 bool DrawArchetypeComponentSection(
 	Target& target, std::string_view label, std::string_view id, Draw&& draw
 ) {
-	const InspectorSectionResult header{ DrawInspectorSectionHeader(
+	InspectorSectionResult header{ DrawInspectorSectionHeader(
 		label, id,
 		InspectorSectionOptions{
 			.default_open = true,
@@ -389,7 +389,7 @@ bool DrawPaintGeneratorArchetype(Target& target, bool& stop_after_archetype) {
 
 				std::vector<StrokeRow> strokes;
 				for (const auto& point : data.stroke_points) {
-					const auto it{ std::ranges::find(strokes, point.stroke_id, &StrokeRow::id) };
+					auto it{ std::ranges::find(strokes, point.stroke_id, &StrokeRow::id) };
 					if (it == strokes.end()) {
 						strokes.push_back(
 							StrokeRow{
@@ -416,7 +416,7 @@ bool DrawPaintGeneratorArchetype(Target& target, bool& stop_after_archetype) {
 						ImGui::TableHeadersRow();
 
 						for (std::size_t index{}; index < strokes.size(); ++index) {
-							const StrokeRow row{ strokes[index] };
+							StrokeRow row{ strokes[index] };
 							ImGui::PushID(static_cast<int>(row.id));
 							ImGui::TableNextRow();
 
@@ -501,7 +501,7 @@ bool DrawPaintGeneratorArchetype(Target& target, bool& stop_after_archetype) {
 		}
 
 		ImGui::Separator();
-		const auto generator_layer_id{ entity.GetScene().GetLayers().GetLayerId(entity) };
+		auto generator_layer_id{ entity.GetScene().GetLayers().GetLayerId(entity) };
 		const SceneLayer* generator_layer{
 			generator_layer_id ? entity.GetScene().GetLayers().Find(*generator_layer_id) : nullptr
 		};
@@ -546,7 +546,7 @@ bool DrawCoreArchetypeSections(
 		changed |= DrawTransformSection(target);
 	}
 
-	// Tilemaps and generators are first-class archetypes. Their identity-owning components are
+	// Tilemaps and generators are first-class archetypes. Their identity owning components are
 	// edited here rather than being routed to a separate PaintEditor inspector.
 	if (archetype == InspectorArchetype::Tilemap) {
 		changed |= DrawTilemapArchetype(target);
@@ -590,7 +590,7 @@ bool DrawArchetypeInspectorImpl(Target& target) {
 		ClearButtonPreviewIfDifferent(target.ctx);
 	}
 
-	const InspectorArchetype archetype{ ResolveInspectorArchetype(target) };
+	InspectorArchetype archetype{ ResolveInspectorArchetype(target) };
 	bool stop_after_archetype{ false };
 	bool changed{ DrawCoreArchetypeSections(target, archetype, stop_after_archetype) };
 

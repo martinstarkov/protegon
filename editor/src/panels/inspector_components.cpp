@@ -224,7 +224,7 @@ bool DrawTextureFormatCombo(const char* label, TextureFormat& format, bool color
 	ImGui::PushID(&format);
 
 	bool changed{ DrawPropertyRow(label, [&]() {
-		const std::string_view preview{ magic_enum::enum_name(format) };
+		std::string_view preview{ magic_enum::enum_name(format) };
 
 		bool local_changed{ false };
 
@@ -233,12 +233,12 @@ bool DrawTextureFormatCombo(const char* label, TextureFormat& format, bool color
 		if (ImGui::BeginCombo(
 				"##TextureFormat", preview.empty() ? ToString(format).data() : preview.data()
 			)) {
-			for (const TextureFormat candidate : magic_enum::enum_values<TextureFormat>()) {
+			for (TextureFormat candidate : magic_enum::enum_values<TextureFormat>()) {
 				if (color_only && !IsColorFormat(candidate)) {
 					continue;
 				}
 
-				const std::string_view name{ magic_enum::enum_name(candidate) };
+				std::string_view name{ magic_enum::enum_name(candidate) };
 
 				bool selected{ candidate == format };
 
@@ -361,8 +361,8 @@ bool DrawOptionalBoundingBox(
 			size.x = std::max(size.x, 0.0f);
 			size.y = std::max(size.y, 0.0f);
 
-			const V2_float center{ rect.GetCenter() };
-			const V2_float half_size{ size * 0.5f };
+			V2_float center{ rect.GetCenter() };
+			V2_float half_size{ size * 0.5f };
 
 			rect.min		 = center - half_size;
 			rect.max		 = center + half_size;
@@ -486,11 +486,11 @@ bool DrawLayerMaskValueImpl(std::string_view label, LayerMask& value, bool* ui_l
 					ImGuiChildFlags_Borders
 				)) {
 				for (int index{ 0 }; index < 64; ++index) {
-					const LayerMask layer{ GetLayer(index) };
+					LayerMask layer{ GetLayer(index) };
 					bool selected{ regular_layers_active && (value & layer) != 0 };
-					const std::string layer_label{ index == 0 ? "Layer 0 (Default)"
-															  : std::string{ "Layer " } +
-																	std::to_string(index) };
+					std::string layer_label{ index == 0 ? "Layer 0 (Default)"
+														: std::string{ "Layer " } +
+															  std::to_string(index) };
 
 					ImGui::PushID(index);
 
@@ -697,13 +697,12 @@ bool DrawPickablePosition(
 	bool* remove_requested = nullptr
 ) {
 	return DrawPropertyRow(label, [&]() {
-		const float spacing{ ImGui::GetStyle().ItemInnerSpacing.x };
-		const float pick_width{ ImGui::CalcTextSize("Pick").x +
-								ImGui::GetStyle().FramePadding.x * 2.0f };
-		const float remove_width{ remove_requested ? ImGui::GetFrameHeight() : 0.0f };
-		const float remove_spacing{ remove_requested ? spacing : 0.0f };
-		const float available{ ImGui::GetContentRegionAvail().x };
-		const float field_width{ std::max(
+		float spacing{ ImGui::GetStyle().ItemInnerSpacing.x };
+		float pick_width{ ImGui::CalcTextSize("Pick").x + ImGui::GetStyle().FramePadding.x * 2.0f };
+		float remove_width{ remove_requested ? ImGui::GetFrameHeight() : 0.0f };
+		float remove_spacing{ remove_requested ? spacing : 0.0f };
+		float available{ ImGui::GetContentRegionAvail().x };
+		float field_width{ std::max(
 			36.0f, (available - pick_width - remove_width - remove_spacing - spacing * 2.0f) * 0.5f
 		) };
 
@@ -730,9 +729,7 @@ bool DrawPickablePosition(
 			} };
 		}
 
-		(void)DrawPositionPickButton(
-			ctx, label, position, PositionPicker::Convert{ convert }, apply
-		);
+		DrawPositionPickButton(ctx, label, position, PositionPicker::Convert{ convert }, apply);
 
 		if (remove_requested) {
 			ImGui::SameLine(0.0f, spacing);
@@ -840,7 +837,7 @@ struct ComponentDrawer<StyledText> {
 		auto& defaults{ GetResolvedTextAuthoringDefaults("##StyledTextDefaults") };
 		std::string source{ SerializeStyledTextToRichText(text, defaults) };
 
-		(void)DrawRichTextEditor(ctx, source, defaults);
+		DrawRichTextEditor(ctx, source, defaults);
 
 		StyledText parsed{ ParseRichText(source, defaults).text };
 		if (parsed == text) {
@@ -858,11 +855,11 @@ struct ComponentDrawer<::ptgn::impl::TextData> {
 		bool changed{ false };
 
 		// TextData also stores resolved runs only. Keep its authoring defaults separate
-		// so whole-text tags remain overrides instead of being promoted to Defaults.
+		// so whole text tags remain overrides instead of being promoted to Defaults.
 		auto& defaults{ GetResolvedTextAuthoringDefaults("##TextDataDefaults") };
 		std::string source{ SerializeStyledTextToRichText(data.text, defaults) };
 
-		(void)DrawRichTextEditor(
+		DrawRichTextEditor(
 			ctx, source, defaults, RichTextEditorOptions{ .preview_box = &data.box }
 		);
 
@@ -1077,14 +1074,13 @@ bool DrawGraphicsShape(
 	EditorContext& ctx, std::variant<T...>& shape, const PositionPicker::Convert& convert,
 	std::size_t command_index
 ) {
-	static const auto names{ std::array<std::string, sizeof...(T)>{
-		GraphicsShapeTypeLabel<T>()... } };
+	static auto names{ std::array<std::string, sizeof...(T)>{ GraphicsShapeTypeLabel<T>()... } };
 
 	ScopedID shape_scope{ "GraphicsShape" };
 	std::optional<std::size_t> requested_index;
 
 	bool changed{ DrawPropertyRow("Shape", [&]() {
-		const std::size_t index{ shape.index() };
+		std::size_t index{ shape.index() };
 		if (ImGui::BeginCombo("##Type", names[index].c_str())) {
 			for (std::size_t i{ 0 }; i < names.size(); ++i) {
 				bool selected{ i == index };
@@ -1174,7 +1170,7 @@ bool DrawGraphicsCommand(
 	bool changed{ false };
 
 	changed |= DrawMembers(ctx, command.transform);
-	const PositionPicker::Convert convert{ MakeInspectorPositionConverter(ctx, command.transform) };
+	PositionPicker::Convert convert{ MakeInspectorPositionConverter(ctx, command.transform) };
 
 	changed |= DrawGraphicsShape(ctx, command.shape, convert, command_index);
 	changed |= ForceGraphicsLineStyleHollow(command);
@@ -1494,7 +1490,7 @@ bool DrawGenericScalar(ReflectionDrawState& state, const ReflectedComponentMembe
 		return false;
 	}
 
-	const std::string label{ ReflectionLabel(member.name) };
+	std::string label{ ReflectionLabel(member.name) };
 
 	if (auto drawer{ FindKnownValueDrawer(member.type_id) }) {
 		return drawer(state.ctx, label, member);
@@ -1550,16 +1546,16 @@ bool DrawGenericScalar(ReflectionDrawState& state, const ReflectedComponentMembe
 			);
 		}
 		case ComponentReflectionValueKind::Enum: {
-			const std::size_t selected{ member.enum_index };
-			const std::string_view preview{ member.enum_name && member.enum_count > 0
-												? member.enum_name(selected)
-												: std::string_view{ "Unknown" } };
+			std::size_t selected{ member.enum_index };
+			std::string_view preview{ member.enum_name && member.enum_count > 0
+										  ? member.enum_name(selected)
+										  : std::string_view{ "Unknown" } };
 			bool changed{ false };
 			DrawPropertyRow(label, [&]() {
 				ScopedDisabled scope{ disabled };
 				if (ImGui::BeginCombo("##value", preview.data())) {
 					for (std::size_t index{ 0 }; index < member.enum_count; ++index) {
-						const auto name{ member.enum_name(index) };
+						auto name{ member.enum_name(index) };
 						if (ImGui::Selectable(name.data(), index == selected)) {
 							changed =
 								member.enum_set && member.enum_set(member.mutable_value, index);
@@ -1638,7 +1634,7 @@ void DrawReflectionNode(void* user_data, const ReflectedComponentMember& member)
 						member.read_only
 					);
 				} else {
-					const std::string label{ ReflectionLabel(member.name) };
+					std::string label{ ReflectionLabel(member.name) };
 					frame.tree_open =
 						ImGui::TreeNodeEx(label.c_str(), ImGuiTreeNodeFlags_SpanAvailWidth);
 					if (frame.tree_open) {
@@ -1659,7 +1655,7 @@ void DrawReflectionNode(void* user_data, const ReflectedComponentMember& member)
 			}
 
 			if (!root) {
-				const std::string label{ ReflectionLabel(member.name) };
+				std::string label{ ReflectionLabel(member.name) };
 				frame.tree_open =
 					ImGui::TreeNodeEx(label.c_str(), ImGuiTreeNodeFlags_SpanAvailWidth);
 				frame.visit_children = frame.tree_open;
@@ -1737,8 +1733,8 @@ void DrawReflectionNode(void* user_data, const ReflectedComponentMember& member)
 				break;
 			}
 
-			const std::string header{ ReflectionLabel(member.name) + " (" +
-									  std::to_string(member.sequence_size) + ")" };
+			std::string header{ ReflectionLabel(member.name) + " (" +
+								std::to_string(member.sequence_size) + ")" };
 			frame.tree_open = ImGui::TreeNodeEx(
 				header.c_str(), ImGuiTreeNodeFlags_SpanAvailWidth | ImGuiTreeNodeFlags_DefaultOpen
 			);
@@ -1793,14 +1789,14 @@ void DrawReflectionNode(void* user_data, const ReflectedComponentMember& member)
 				break;
 			}
 
-			const std::size_t index{ member.sequence_index };
-			const float spacing{ ImGui::GetStyle().ItemInnerSpacing.x };
-			const ImVec2 button_size{ ImGui::GetFrameHeight(), ImGui::GetFrameHeight() };
-			const float actions_width{ button_size.x * 3.0f + spacing * 2.0f };
-			const float header_width{
+			std::size_t index{ member.sequence_index };
+			float spacing{ ImGui::GetStyle().ItemInnerSpacing.x };
+			ImVec2 button_size{ ImGui::GetFrameHeight(), ImGui::GetFrameHeight() };
+			float actions_width{ button_size.x * 3.0f + spacing * 2.0f };
+			float header_width{
 				std::max(1.0f, ImGui::GetContentRegionAvail().x - actions_width - spacing)
 			};
-			const std::string label{ "Item " + std::to_string(index + 1) };
+			std::string label{ "Item " + std::to_string(index + 1) };
 			frame.tree_open		 = DrawFixedWidthCollapsingHeader(label, header_width, true);
 			frame.visit_children = frame.tree_open;
 
@@ -1856,16 +1852,16 @@ void DrawReflectionNode(void* user_data, const ReflectedComponentMember& member)
 				break;
 			}
 
-			const std::string_view preview{ member.variant_name
-												? member.variant_name(member.variant_index)
-												: std::string_view{ "Unknown" } };
+			std::string_view preview{ member.variant_name
+										  ? member.variant_name(member.variant_index)
+										  : std::string_view{ "Unknown" } };
 			bool variant_changed{ false };
 			DrawPropertyRow(ReflectionLabel(member.name), [&]() {
 				ScopedDisabled disabled{ member.read_only || !member.mutable_value ||
 										 !member.variant_set };
 				if (ImGui::BeginCombo("##value", preview.data())) {
 					for (std::size_t index{ 0 }; index < member.variant_count; ++index) {
-						const auto name{ member.variant_name(index) };
+						auto name{ member.variant_name(index) };
 						if (ImGui::Selectable(name.data(), index == member.variant_index) &&
 							index != member.variant_index) {
 							variant_changed	 = member.variant_set(member.mutable_value, index);

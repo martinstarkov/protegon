@@ -8,7 +8,7 @@
 
 namespace ptgn::editor::inspector {
 
-/// Shared presentation for bounded UI-owned parts.
+/// Shared presentation for bounded UI owned parts.
 ///
 /// Unlike script/dialogue collections, UI parts have a finite set of possible children. While at
 /// least one part is missing, show one full-width Add Parts button above the existing part trees.
@@ -19,7 +19,7 @@ inline bool DrawInspectorAddPartsButton(
 		return false;
 	}
 
-	const std::string button_label{ label };
+	std::string button_label{ label };
 	bool pressed{
 		ImGui::Button(button_label.c_str(), ImVec2{ -FLT_MIN, ImGui::GetFrameHeight() })
 	};
@@ -34,7 +34,7 @@ struct InspectorPartTreeResult {
 	bool remove_requested{ false };
 };
 
-/// Draw one UI-owned part as a normal inspector tree node. The tree node itself owns the single
+/// Draw one UI owned part as a normal inspector tree node. The tree node itself owns the single
 /// indentation level for its contents; callers should draw fields directly and call TreePop()
 /// when `open` is true rather than adding another ScopedIndent.
 inline InspectorPartTreeResult DrawInspectorPartTreeNode(
@@ -55,7 +55,7 @@ inline InspectorPartTreeResult DrawInspectorPartTreeNode(
 	};
 
 	if (allow_remove && ImGui::BeginPopupContextItem()) {
-		const std::string menu_label{ remove_label };
+		std::string menu_label{ remove_label };
 		if (ImGui::MenuItem(menu_label.c_str())) {
 			result.remove_requested = true;
 		}

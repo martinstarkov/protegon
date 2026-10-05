@@ -76,18 +76,16 @@ bool DrawPickableLocalPosition(
 	V2_float& position{ locator(component) };
 
 	bool changed{ DrawPropertyRow(label, [&]() {
-		const float spacing{ ImGui::GetStyle().ItemInnerSpacing.x };
-		const float pick_width{ ImGui::CalcTextSize("Pick").x +
-								ImGui::GetStyle().FramePadding.x * 2.0f };
-		const float remove_width{ remove_requested ? ImGui::GetFrameHeight() : 0.0f };
-		const float remove_spacing{ remove_requested ? spacing : 0.0f };
-		const float available{ std::max(1.0f, ImGui::GetContentRegionAvail().x) };
-		const float actions_width{ pick_width + remove_width + remove_spacing };
+		float spacing{ ImGui::GetStyle().ItemInnerSpacing.x };
+		float pick_width{ ImGui::CalcTextSize("Pick").x + ImGui::GetStyle().FramePadding.x * 2.0f };
+		float remove_width{ remove_requested ? ImGui::GetFrameHeight() : 0.0f };
+		float remove_spacing{ remove_requested ? spacing : 0.0f };
+		float available{ std::max(1.0f, ImGui::GetContentRegionAvail().x) };
+		float actions_width{ pick_width + remove_width + remove_spacing };
 		bool actions_inline{ available >= actions_width + spacing * 2.0f + 96.0f };
-		const float fields_width{ actions_inline
-									  ? std::max(1.0f, available - actions_width - spacing)
-									  : available };
-		const float field_width{ InspectorSplitWidth(2, fields_width, spacing) };
+		float fields_width{ actions_inline ? std::max(1.0f, available - actions_width - spacing)
+										   : available };
+		float field_width{ InspectorSplitWidth(2, fields_width, spacing) };
 
 		bool local_changed{ false };
 
@@ -213,9 +211,9 @@ bool DrawGeometryVariant(
 			auto draw_option = [&]<std::size_t Index>() {
 				using Alternative = std::variant_alternative_t<Index, Variant>;
 
-				const std::string option{ std::same_as<Alternative, std::monostate>
-											  ? "None"
-											  : VariantTypeLabel<Alternative>() };
+				std::string option{ std::same_as<Alternative, std::monostate>
+										? "None"
+										: VariantTypeLabel<Alternative>() };
 
 				if constexpr (std::default_initializable<Alternative>) {
 					bool selected{ value.index() == Index };
@@ -277,7 +275,7 @@ bool DrawGeometryValue(
 	if constexpr (std::same_as<Type, EntityFilter>) {
 		return DrawEntityFilterValue(target, value, label);
 	} else if constexpr (std::same_as<Type, V2_float>) {
-		const std::string normalized{ NormalizeInspectorName(label) };
+		std::string normalized{ NormalizeInspectorName(label) };
 		if constexpr (std::same_as<std::remove_cvref_t<Component>, Ellipse>) {
 			return DrawWHValue(
 				label, value, kInspectorSizeDragSpeed, 0.0f, FLT_MAX, "%.3f",
@@ -301,11 +299,13 @@ bool DrawGeometryValue(
 			size.x = std::max(size.x, 0.0f);
 			size.y = std::max(size.y, 0.0f);
 
-			const V2_float center{ value.GetCenter() };
-			const V2_float half_size{ size * 0.5f };
+			V2_float center{ value.GetCenter() };
+			V2_float half_size{ size * 0.5f };
+
 			value.min = center - half_size;
 			value.max = center + half_size;
-			changed	  = true;
+
+			changed = true;
 		}
 
 		auto min_locator = [locator](Component& root) -> V2_float& {
@@ -383,7 +383,7 @@ bool DrawGeometryValue(
 	} else if constexpr (std::integral<Type>) {
 		return DrawValue(target.ctx, label, value);
 	} else if constexpr (std::same_as<Type, float>) {
-		const std::string normalized{ NormalizeInspectorName(label) };
+		std::string normalized{ NormalizeInspectorName(label) };
 		if (normalized.contains("radius") || normalized.contains("radii")) {
 			return DrawRValue(
 				label, value, 0.1f, 0.0f, FLT_MAX, "%.3f", ImGuiSliderFlags_AlwaysClamp

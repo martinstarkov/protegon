@@ -65,7 +65,7 @@ namespace impl {
 
 constexpr TextureFormat kFontAtlasFormat{ TextureFormat::RGBA8 };
 constexpr TextureParams kFontAtlasTextureParams{ TextureMinFilter::Linear,
-											 TextureMagFilter::Linear };
+												 TextureMagFilter::Linear };
 constexpr int kFontAtlasChannelCount{ GetChannelCount(kFontAtlasFormat) };
 
 /// @brief Measurements for a single glyph.
@@ -93,7 +93,7 @@ struct FontMetrics {
 	/// @brief Distance from the baseline to the font's furthest lower extent. Typically negative.
 	float descender{ 0.0f };
 
-	/// @brief Recommended baseline-to-baseline distance between adjacent lines. Not necessarily
+	/// @brief Recommended baseline to baseline distance between adjacent lines. Not necessarily
 	/// equal to ascender - descender because the font may include additional line gap.
 	float line_height{ 0.0f };
 
@@ -101,7 +101,7 @@ struct FontMetrics {
 	/// text size.
 	float em_size{ 0.0f };
 
-	/// @brief Distance-field range represented in atlas texels. This tells the shader how encoded
+	/// @brief Distance field range represented in atlas texels. This tells the shader how encoded
 	/// texture values correspond to actual signed distance.
 	float pixel_range{ 0.0f };
 };
@@ -133,12 +133,13 @@ struct FontBinary {
 		buffer{ std::span{ reinterpret_cast<const std::uint8_t*>(font_buffer.data()), // NOSONAR
 						   font_buffer.size() } } {}
 
-	constexpr explicit FontBinary(std::span<const std::uint8_t> font_buffer) : buffer{ font_buffer } {}
+	constexpr explicit FontBinary(std::span<const std::uint8_t> font_buffer) :
+		buffer{ font_buffer } {}
 
 	std::span<const std::uint8_t> buffer{};
 };
 
-/// @brief CPU-side atlas data, produced either by generation or cache loading.
+/// @brief CPU side atlas data, produced either by generation or cache loading.
 struct FontAtlasData {
 	Surface surface;
 	FontData font;
@@ -160,7 +161,7 @@ public:
 	/// @brief Load built-in font from generated header binary.
 	FontAtlas(Renderer& renderer, FontBinary font_png);
 
-	/// @brief Finalizes already prepared CPU-side atlas data into the renderer texture.
+	/// @brief Finalizes already prepared CPU side atlas data into the renderer texture.
 	FontAtlas(Renderer& renderer, FontAtlasData&& data);
 
 	/// @brief Generates atlas pixels and metrics and writes the cache without accessing Renderer.
@@ -168,10 +169,10 @@ public:
 		path font_path, const path& cache_png_path, const FontAtlasInfo& atlas_info = {}
 	);
 
-	/// @brief Loads CPU-side atlas data from a cached PNG without accessing Renderer.
+	/// @brief Loads CPU side atlas data from a cached PNG without accessing Renderer.
 	[[nodiscard]] static FontAtlasData PrepareCached(path cache_png_path);
 
-	/// @brief Loads CPU-side atlas data from an embedded cache without accessing Renderer.
+	/// @brief Loads CPU side atlas data from an embedded cache without accessing Renderer.
 	[[nodiscard]] static FontAtlasData PrepareCached(FontBinary font_png);
 
 	/// @return std::nullopt if the requested codepoint is not present in the font atlas.

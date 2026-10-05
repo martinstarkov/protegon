@@ -35,8 +35,7 @@ namespace ptgn {
 namespace impl {
 
 std::optional<std::size_t> DetectSpriteStackSliceCount(
-	AssetManager& assets,
-	const TextureKey& texture_key
+	AssetManager& assets, const TextureKey& texture_key
 ) {
 	return DetectTexturePathCount(assets, texture_key, "_slices");
 }
@@ -44,13 +43,13 @@ std::optional<std::size_t> DetectSpriteStackSliceCount(
 std::size_t GetSpriteStackSliceCount(Entity entity) {
 	PTGN_ASSERT(entity, "Cannot get slice count from an invalid entity");
 
-	const auto data{ entity.TryGet<SpriteStackData>() };
+	const auto* data{ entity.TryGet<SpriteStackData>() };
 
 	if (!data) {
 		return 0;
 	}
 
-	if (const auto texture_key{ entity.TryGet<TextureKey>() }) {
+	if (const auto* texture_key{ entity.TryGet<TextureKey>() }) {
 		auto& assets{ entity.GetScene().ctx().asset };
 
 		if (auto detected{ DetectSpriteStackSliceCount(assets, *texture_key) }) {
@@ -124,10 +123,7 @@ void SpriteStack::Draw(DrawContext& ctx, Entity entity) {
 
 	if (slice_count > static_cast<std::size_t>(texture_size->y)) {
 		PTGN_WARN(
-			"Sprite stack slice count ",
-			slice_count,
-			" exceeds texture height ",
-			texture_size->y
+			"Sprite stack slice count ", slice_count, " exceeds texture height ", texture_size->y
 		);
 		return;
 	}
@@ -136,11 +132,8 @@ void SpriteStack::Draw(DrawContext& ctx, Entity entity) {
 
 	if (texture_size->y % slice_count_int != 0) {
 		PTGN_WARN(
-			"Sprite stack texture height ",
-			texture_size->y,
-			" is not evenly divisible by ",
-			slice_count,
-			" slices"
+			"Sprite stack texture height ", texture_size->y, " is not evenly divisible by ",
+			slice_count, " slices"
 		);
 		return;
 	}
@@ -172,11 +165,9 @@ void SpriteStack::Draw(DrawContext& ctx, Entity entity) {
 	for (int draw_layer{ 0 }; draw_layer < slice_count_int; ++draw_layer) {
 		// Draw bottom -> top. slice_order only determines where that layer is stored in the source
 		// vertical strip.
-		int source_layer{
-			data.slice_order == SpriteStackSliceOrder::BottomToTop
-				? draw_layer
-				: slice_count_int - draw_layer - 1
-		};
+		int source_layer{ data.slice_order == SpriteStackSliceOrder::BottomToTop
+							  ? draw_layer
+							  : slice_count_int - draw_layer - 1 };
 
 		V2_int source_position{
 			0,
@@ -199,11 +190,7 @@ void SpriteStack::Draw(DrawContext& ctx, Entity entity) {
 			.origin = origin,
 			.tint{ tint },
 			.texture_coordinates{ impl::GetTextureCoordinates(
-				source_position,
-				slice_size,
-				*texture_size,
-				false,
-				true
+				source_position, slice_size, *texture_size, false, true
 			) },
 			.effects{ effects },
 			.entity_id = entity_id,

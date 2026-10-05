@@ -71,56 +71,6 @@ void SameLineControl() {
 	ImGui::SameLine(0.0f, ImGui::GetStyle().ItemSpacing.x);
 }
 
-float GetCountControlWidth(const char* label) {
-	const float button_width{ ImGui::GetFrameHeight() };
-	const float spacing{ ImGui::GetStyle().ItemSpacing.x };
-	const std::string widest{ std::string{ label } + ": 100" };
-
-	return ImGui::CalcTextSize(widest.c_str()).x + button_width * 2.0f + spacing * 2.0f;
-}
-
-void DrawCountControl(
-	const char* label, int& value, int minimum, int maximum = 100, bool disabled = false,
-	const char* tooltip = nullptr
-) {
-	value = std::clamp(value, minimum, maximum);
-
-	const float button_width{ ImGui::GetFrameHeight() };
-	const float spacing{ ImGui::GetStyle().ItemSpacing.x };
-	const std::string widest{ std::string{ label } + ": 100" };
-	const float text_width{ ImGui::CalcTextSize(widest.c_str()).x };
-	const float start_x{ ImGui::GetCursorScreenPos().x };
-
-	ImGui::PushID(label);
-	ImGui::BeginDisabled(disabled);
-
-	ImGui::AlignTextToFramePadding();
-	ImGui::Text("%s: %d", label, value);
-	DrawItemTooltip(tooltip);
-
-	ImGui::SameLine(0.0f, spacing);
-	ImGui::SetCursorScreenPos(
-		ImVec2{ start_x + text_width + spacing, ImGui::GetCursorScreenPos().y }
-	);
-
-	ImGui::BeginDisabled(value >= maximum);
-	if (ImGui::Button("+", ImVec2{ button_width, button_width })) {
-		++value;
-	}
-	ImGui::EndDisabled();
-
-	SameLineControl();
-
-	ImGui::BeginDisabled(value <= minimum);
-	if (ImGui::Button("-", ImVec2{ button_width, button_width })) {
-		--value;
-	}
-	ImGui::EndDisabled();
-
-	ImGui::EndDisabled();
-	ImGui::PopID();
-}
-
 bool DrawToggleButton(const char* label, bool& value, ImVec2 size, const char* tooltip) {
 	bool dimmed{ !value };
 	if (dimmed) {
@@ -166,7 +116,7 @@ bool DrawReflectedScriptValue(EditorContext& ctx, T& value) {
 
 [[nodiscard]] std::string ComponentLabel(const RegisteredComponent& component) {
 	std::string_view name{ component.name };
-	const auto separator{ name.rfind("::") };
+	auto separator{ name.rfind("::") };
 
 	if (separator != std::string_view::npos) {
 		name.remove_prefix(separator + 2);
@@ -197,7 +147,7 @@ template <typename Predicate>
 }
 
 bool NormalizeJsonAgainstDefaults(json& value, const json& defaults) {
-	const json previous = value;
+	json previous = value;
 
 	if (value.is_null()) {
 		value = defaults;
@@ -219,7 +169,7 @@ bool DrawJsonObject(json& value, const json* defaults) {
 		const json* member_defaults{ nullptr };
 
 		if (defaults && defaults->is_object()) {
-			const auto default_it{ defaults->find(it.key()) };
+			auto default_it{ defaults->find(it.key()) };
 			if (default_it != defaults->end()) {
 				member_defaults = std::addressof(*default_it);
 			}
@@ -232,7 +182,7 @@ bool DrawJsonObject(json& value, const json* defaults) {
 }
 
 bool DrawJsonArray(std::string_view label, json& value, const json* defaults) {
-	const std::string title{ std::string{ label } + " [" + std::to_string(value.size()) + "]" };
+	std::string title{ std::string{ label } + " [" + std::to_string(value.size()) + "]" };
 
 	if (!ImGui::TreeNodeEx(title.c_str(), ImGuiTreeNodeFlags_SpanAvailWidth)) {
 		return false;
@@ -329,7 +279,7 @@ bool DrawJsonValue(std::string_view label, json& value, const json* defaults) {
 	}
 
 	if (value.is_object()) {
-		const std::string title{ label };
+		std::string title{ label };
 		if (!ImGui::TreeNodeEx(title.c_str(), ImGuiTreeNodeFlags_SpanAvailWidth)) {
 			return false;
 		}
@@ -377,7 +327,7 @@ template <typename T>
 	if (!input.is_object()) {
 		return fallback;
 	}
-	const auto it{ input.find(std::string{ key }) };
+	auto it{ input.find(std::string{ key }) };
 	if (it == input.end() || it->is_null()) {
 		return fallback;
 	}
@@ -389,7 +339,7 @@ template <typename T>
 }
 
 std::string KeyExpressionValue(const json& value) {
-	if (const auto expression{ JsonValueOr<std::string>(value, "keys", "") }; !expression.empty()) {
+	if (auto expression{ JsonValueOr<std::string>(value, "keys", "") }; !expression.empty()) {
 		return expression;
 	}
 
@@ -406,15 +356,15 @@ bool DrawKeyExpression(json& value, bool with_duration) {
 	std::string expression{ KeyExpressionValue(value) };
 	bool require_duration{ JsonValueOr<bool>(value, "require_held_duration", true) };
 	float held_duration_ms{ std::max(0.0f, JsonValueOr<float>(value, "held_duration_ms", 250.0f)) };
-	const float spacing{ ImGui::GetStyle().ItemSpacing.x };
-	const float duration_width{ 112.0f };
-	const float checkbox_width{ ImGui::GetFrameHeight() };
-	const float expression_width{ with_duration ? std::max(
-													  1.0f, ImGui::GetContentRegionAvail().x -
-																duration_width - checkbox_width -
-																spacing * 2.0f
-												  )
-												: -FLT_MIN };
+	float spacing{ ImGui::GetStyle().ItemSpacing.x };
+	float duration_width{ 112.0f };
+	float checkbox_width{ ImGui::GetFrameHeight() };
+	float expression_width{ with_duration
+								? std::max(
+									  1.0f, ImGui::GetContentRegionAvail().x - duration_width -
+												checkbox_width - spacing * 2.0f
+								  )
+								: -FLT_MIN };
 
 	bool changed{ inspector::DrawKeyExpression(
 		expression, "##Keys", "W + X, W + Left Shift", expression_width
@@ -473,19 +423,18 @@ bool DrawMouseTrigger(json& value, bool with_duration) {
 
 	bool require_duration{ JsonValueOr<bool>(value, "require_held_duration", true) };
 	float held_duration_ms{ std::max(0.0f, JsonValueOr<float>(value, "held_duration_ms", 250.0f)) };
-	const float spacing{ ImGui::GetStyle().ItemSpacing.x };
-	const float duration_width{ 112.0f };
-	const float checkbox_width{ ImGui::GetFrameHeight() };
-	const float mouse_width{ with_duration
-								 ? std::max(
-									   1.0f, ImGui::GetContentRegionAvail().x - duration_width -
-												 checkbox_width - spacing * 2.0f
-								   )
-								 : -FLT_MIN };
+	float spacing{ ImGui::GetStyle().ItemSpacing.x };
+	float duration_width{ 112.0f };
+	float checkbox_width{ ImGui::GetFrameHeight() };
+	float mouse_width{ with_duration ? std::max(
+										   1.0f, ImGui::GetContentRegionAvail().x - duration_width -
+													 checkbox_width - spacing * 2.0f
+									   )
+									 : -FLT_MIN };
 
 	ImGui::SetNextItemWidth(mouse_width);
 	if (ImGui::BeginCombo("##Button", MouseTriggerLabel(mouse))) {
-		for (const Mouse candidate : { Mouse::Left, Mouse::Right, Mouse::Middle }) {
+		for (Mouse candidate : { Mouse::Left, Mouse::Right, Mouse::Middle }) {
 			bool selected{ candidate == mouse };
 			if (ImGui::Selectable(MouseTriggerLabel(candidate), selected)) {
 				mouse	= candidate;
@@ -553,8 +502,8 @@ bool DrawDialogueEventFilter(json& value, bool with_page) {
 	bool changed{ false };
 
 	if (with_page) {
-		const float spacing{ ImGui::GetStyle().ItemSpacing.x };
-		const float page_width{ 72.0f };
+		float spacing{ ImGui::GetStyle().ItemSpacing.x };
+		float page_width{ 72.0f };
 		ImGui::SetNextItemWidth(
 			std::max(1.0f, ImGui::GetContentRegionAvail().x - page_width - spacing)
 		);
@@ -621,13 +570,13 @@ bool DrawScriptSequenceInline(ScriptEditorContext& context, Script& script) {
 
 bool DrawMoveToInline(ScriptEditorContext&, MoveToScript& script) {
 	bool changed{ false };
-	const float available{ ImGui::GetContentRegionAvail().x };
-	const float spacing{ ImGui::GetStyle().ItemSpacing.x };
-	const float mode_width{
+	float available{ ImGui::GetContentRegionAvail().x };
+	float spacing{ ImGui::GetStyle().ItemSpacing.x };
+	float mode_width{
 		std::max(ImGui::CalcTextSize("Relative").x, ImGui::CalcTextSize("Absolute").x) +
 		ImGui::GetStyle().FramePadding.x * 2.0f
 	};
-	const float field_width{ std::max(36.0f, (available - mode_width - spacing * 2.0f) * 0.5f) };
+	float field_width{ std::max(36.0f, (available - mode_width - spacing * 2.0f) * 0.5f) };
 	ImGui::SetNextItemWidth(field_width);
 	changed |=
 		ImGui::DragFloat("##X", &script.destination.x, 1.0f, -100000.0f, 100000.0f, "X: %.0f");
@@ -650,13 +599,13 @@ bool DrawMoveToInline(ScriptEditorContext&, MoveToScript& script) {
 }
 
 bool DrawRotateToInline(ScriptEditorContext&, RotateToScript& script) {
-	const float available{ ImGui::GetContentRegionAvail().x };
-	const float spacing{ ImGui::GetStyle().ItemSpacing.x };
-	const float shortest_width{ ImGui::CalcTextSize("Shortest").x +
-								ImGui::GetStyle().FramePadding.x * 2.0f };
-	const float relative_width{ ImGui::CalcTextSize("Relative").x +
-								ImGui::GetStyle().FramePadding.x * 2.0f };
-	const float degrees_width{
+	float available{ ImGui::GetContentRegionAvail().x };
+	float spacing{ ImGui::GetStyle().ItemSpacing.x };
+	float shortest_width{ ImGui::CalcTextSize("Shortest").x +
+						  ImGui::GetStyle().FramePadding.x * 2.0f };
+	float relative_width{ ImGui::CalcTextSize("Relative").x +
+						  ImGui::GetStyle().FramePadding.x * 2.0f };
+	float degrees_width{
 		std::max(48.0f, available - shortest_width - relative_width - spacing * 2.0f)
 	};
 	bool changed{ false };
@@ -676,13 +625,13 @@ bool DrawRotateToInline(ScriptEditorContext&, RotateToScript& script) {
 }
 
 bool DrawScaleToInline(ScriptEditorContext&, ScaleToScript& script) {
-	const float available{ ImGui::GetContentRegionAvail().x };
-	const float spacing{ ImGui::GetStyle().ItemSpacing.x };
-	const float mode_width{
+	float available{ ImGui::GetContentRegionAvail().x };
+	float spacing{ ImGui::GetStyle().ItemSpacing.x };
+	float mode_width{
 		std::max(ImGui::CalcTextSize("Relative").x, ImGui::CalcTextSize("Absolute").x) +
 		ImGui::GetStyle().FramePadding.x * 2.0f
 	};
-	const float field_width{ std::max(36.0f, (available - mode_width - spacing * 2.0f) * 0.5f) };
+	float field_width{ std::max(36.0f, (available - mode_width - spacing * 2.0f) * 0.5f) };
 	bool changed{ false };
 	ImGui::SetNextItemWidth(field_width);
 	changed |= ImGui::DragFloat("##ScaleX", &script.scale.x, 0.01f, -100.0f, 100.0f, "X: %.2f");
@@ -775,7 +724,7 @@ bool DrawNamedEnumCombo(
 	const char* id, T& value, const std::array<std::pair<T, const char*>, N>& entries,
 	const char* tooltip = nullptr
 ) {
-	const auto selected{ std::ranges::find_if(entries, [value](const auto& entry) {
+	auto selected{ std::ranges::find_if(entries, [value](const auto& entry) {
 		return entry.first == value;
 	}) };
 	const char* preview{ selected != entries.end() ? selected->second : "Unknown" };
@@ -877,26 +826,26 @@ inline constexpr std::array kSceneTransitions{
 	if (!value.is_object()) {
 		return false;
 	}
-	const auto it{ value.find("enabled") };
+	auto it{ value.find("enabled") };
 	return it != value.end() && it->is_boolean();
 }
 
 [[nodiscard]] const char* AnimationActionLabel(AnimationAction action) {
-	const auto it{ std::ranges::find_if(kAnimationActions, [action](const auto& entry) {
+	auto it{ std::ranges::find_if(kAnimationActions, [action](const auto& entry) {
 		return entry.first == action;
 	}) };
 	return it != kAnimationActions.end() ? it->second : "Animation";
 }
 
 [[nodiscard]] const char* TimerActionLabel(TimerAction action) {
-	const auto it{ std::ranges::find_if(kTimerActions, [action](const auto& entry) {
+	auto it{ std::ranges::find_if(kTimerActions, [action](const auto& entry) {
 		return entry.first == action;
 	}) };
 	return it != kTimerActions.end() ? it->second : "Timer";
 }
 
 [[nodiscard]] const char* DialogueActionLabel(DialogueAction action) {
-	const auto it{ std::ranges::find_if(kDialogueActions, [action](const auto& entry) {
+	auto it{ std::ranges::find_if(kDialogueActions, [action](const auto& entry) {
 		return entry.first == action;
 	}) };
 	return it != kDialogueActions.end() ? it->second : "Dialogue";
@@ -1013,7 +962,7 @@ bool DrawTimerKeyInline(
 }
 
 bool DrawTimerActionInline(ScriptEditorContext& context, TimerActionScript& script) {
-	const auto choices{ GetTimerActionChoices(context) };
+	auto choices{ GetTimerActionChoices(context) };
 	float available{ ImGui::GetContentRegionAvail().x };
 	float spacing{ ImGui::GetStyle().ItemSpacing.x };
 	bool uses_amount{ TimerActionUsesAmount(script.action) };
@@ -1050,11 +999,11 @@ bool DrawTimerActionInline(ScriptEditorContext& context, TimerActionScript& scri
 }
 
 bool DrawDialogueActionInline(ScriptEditorContext&, DialogueActionScript& script) {
-	const float available{ ImGui::GetContentRegionAvail().x };
-	const float spacing{ ImGui::GetStyle().ItemSpacing.x };
+	float available{ ImGui::GetContentRegionAvail().x };
+	float spacing{ ImGui::GetStyle().ItemSpacing.x };
 	bool uses_key{ DialogueActionUsesKey(script.action) };
-	const float action_width{ uses_key ? std::min(155.0f, std::max(110.0f, available * 0.46f))
-									   : available };
+	float action_width{ uses_key ? std::min(155.0f, std::max(110.0f, available * 0.46f))
+								 : available };
 
 	bool changed{ false };
 	ImGui::SetNextItemWidth(std::max(1.0f, action_width));
@@ -1089,7 +1038,7 @@ bool DrawTooltipActionInline(ScriptEditorContext&, TooltipActionScript& script) 
 }
 
 [[nodiscard]] const char* SceneActionLabel(SceneChangeAction action) {
-	const auto it{ std::ranges::find_if(kSceneActions, [action](const auto& entry) {
+	auto it{ std::ranges::find_if(kSceneActions, [action](const auto& entry) {
 		return entry.first == action;
 	}) };
 	return it != kSceneActions.end() ? it->second : "Scene";
@@ -1108,15 +1057,15 @@ bool DrawTooltipActionInline(ScriptEditorContext&, TooltipActionScript& script) 
 		return 0;
 	}
 
-	const auto active{ AnimationMap{ context.owner }.GetActive() };
+	auto active{ AnimationMap{ context.owner }.GetActive() };
 
 	return active.has_value() ? active->GetFrameCount() : 0;
 }
 
 bool DrawAnimationActionInline(ScriptEditorContext& context, AnimationActionScript& script) {
-	const float available{ ImGui::GetContentRegionAvail().x };
+	float available{ ImGui::GetContentRegionAvail().x };
 
-	const float spacing{ ImGui::GetStyle().ItemSpacing.x };
+	float spacing{ ImGui::GetStyle().ItemSpacing.x };
 
 	bool shows_force{ script.action == AnimationAction::Start };
 
@@ -1138,8 +1087,8 @@ bool DrawAnimationActionInline(ScriptEditorContext& context, AnimationActionScri
 		value_width = std::min(110.0f, available * 0.4f);
 	}
 
-	const float action_width{ has_inline_value ? std::max(100.0f, available - value_width - spacing)
-											   : available };
+	float action_width{ has_inline_value ? std::max(100.0f, available - value_width - spacing)
+										 : available };
 
 	bool changed{ false };
 
@@ -1181,18 +1130,16 @@ bool DrawAnimationActionInline(ScriptEditorContext& context, AnimationActionScri
 		return changed;
 	}
 
-	const std::size_t frame_count{ GetAnimationActionFrameCount(context) };
+	std::size_t frame_count{ GetAnimationActionFrameCount(context) };
 
-	const int maximum_frame{ frame_count > 0
-								 ? static_cast<int>(std::min<std::size_t>(
-									   frame_count - 1,
-									   static_cast<std::size_t>(std::numeric_limits<int>::max())
-								   ))
-								 : 0 };
+	int maximum_frame{ frame_count > 0
+						   ? static_cast<int>(std::min<std::size_t>(
+								 frame_count - 1,
+								 static_cast<std::size_t>(std::numeric_limits<int>::max())
+							 ))
+						   : 0 };
 
-	const std::size_t clamped_frame{
-		std::min(script.frame, static_cast<std::size_t>(maximum_frame))
-	};
+	std::size_t clamped_frame{ std::min(script.frame, static_cast<std::size_t>(maximum_frame)) };
 
 	if (script.frame != clamped_frame) {
 		script.frame = clamped_frame;
@@ -1238,20 +1185,20 @@ bool DrawSetEnabledInline(ScriptEditorContext&, SetEnabledScript& script) {
 		return IsEnabledComponent(component);
 	}) };
 
-	const float available{ ImGui::GetContentRegionAvail().x };
-	const float spacing{ ImGui::GetStyle().ItemSpacing.x };
-	const float value_width{ ImGui::CalcTextSize("Disabled").x +
-							 ImGui::GetStyle().FramePadding.x * 2.0f };
+	float available{ ImGui::GetContentRegionAvail().x };
+	float spacing{ ImGui::GetStyle().ItemSpacing.x };
+	float value_width{ ImGui::CalcTextSize("Disabled").x +
+					   ImGui::GetStyle().FramePadding.x * 2.0f };
 
 	bool changed{ false };
 	ImGui::SetNextItemWidth(std::max(1.0f, available - value_width - spacing));
 
 	const auto* selected{ ComponentRegistry::Find(script.component) };
-	const std::string preview{ selected ? ComponentLabel(*selected) : script.component };
+	std::string preview{ selected ? ComponentLabel(*selected) : script.component };
 
 	if (ImGui::BeginCombo("##EnabledComponent", preview.empty() ? "Component" : preview.c_str())) {
 		for (const auto* component : components) {
-			const std::string label{ ComponentLabel(*component) };
+			std::string label{ ComponentLabel(*component) };
 
 			if (ImGui::Selectable(label.c_str(), script.component == component->name)) {
 				script.component = component->name;
@@ -1313,13 +1260,13 @@ struct ProjectSceneChoice {
 }
 
 [[nodiscard]] bool HasOtherProjectScene(ScriptEditorContext& context) {
-	const auto choices{ GetProjectSceneChoices(context) };
+	auto choices{ GetProjectSceneChoices(context) };
 
 	if (choices.empty()) {
 		return false;
 	}
 
-	const auto current_scene{ GetCurrentProjectSceneKey(context) };
+	auto current_scene{ GetCurrentProjectSceneKey(context) };
 
 	if (!current_scene) {
 		return true;
@@ -1331,22 +1278,21 @@ struct ProjectSceneChoice {
 }
 
 bool NormalizeSceneChangeSelection(ScriptEditorContext& context, SceneChangeScript& script) {
-	const auto choices{ GetProjectSceneChoices(context) };
+	auto choices{ GetProjectSceneChoices(context) };
 
-	const auto current_scene{ GetCurrentProjectSceneKey(context) };
+	auto current_scene{ GetCurrentProjectSceneKey(context) };
 
 	if (script.action == SceneChangeAction::Enter) {
-		const auto selected{ std::ranges::find_if(
-			choices,
-			[&script](const ProjectSceneChoice& choice) { return choice.key == script.scene_key; }
-		) };
+		auto selected{ std::ranges::find_if(choices, [&script](const ProjectSceneChoice& choice) {
+			return choice.key == script.scene_key;
+		}) };
 
 		if (selected != choices.end() || choices.empty()) {
 			return false;
 		}
 
 		if (current_scene) {
-			const auto current{ std::ranges::find_if(
+			auto current{ std::ranges::find_if(
 				choices, [&current_scene](const ProjectSceneChoice& choice) {
 					return choice.key == *current_scene;
 				}
@@ -1366,11 +1312,11 @@ bool NormalizeSceneChangeSelection(ScriptEditorContext& context, SceneChangeScri
 		return false;
 	}
 
-	const auto is_valid_destination = [&current_scene](const ProjectSceneChoice& choice) {
+	auto is_valid_destination = [&current_scene](const ProjectSceneChoice& choice) {
 		return !current_scene || choice.key != *current_scene;
 	};
 
-	const auto selected{ std::ranges::find_if(choices, [&](const ProjectSceneChoice& choice) {
+	auto selected{ std::ranges::find_if(choices, [&](const ProjectSceneChoice& choice) {
 		return choice.key == script.scene_key && is_valid_destination(choice);
 	}) };
 
@@ -1378,7 +1324,7 @@ bool NormalizeSceneChangeSelection(ScriptEditorContext& context, SceneChangeScri
 		return false;
 	}
 
-	const auto replacement{ std::ranges::find_if(choices, is_valid_destination) };
+	auto replacement{ std::ranges::find_if(choices, is_valid_destination) };
 
 	if (replacement != choices.end()) {
 		script.scene_key = replacement->key;
@@ -1402,10 +1348,9 @@ bool NormalizeSceneChangeSelection(ScriptEditorContext& context, SceneChangeScri
 [[nodiscard]] std::string SceneSelectionTooltip(
 	ScriptEditorContext& context, const SceneChangeScript& script
 ) {
-	const std::string current_scene{ GetCurrentProjectSceneKey(context).value_or("Current Scene") };
+	std::string current_scene{ GetCurrentProjectSceneKey(context).value_or("Current Scene") };
 
-	const std::string selected_scene{ script.scene_key.empty() ? "Selected Scene"
-															   : script.scene_key };
+	std::string selected_scene{ script.scene_key.empty() ? "Selected Scene" : script.scene_key };
 
 	switch (script.action) {
 		case SceneChangeAction::Enter:
@@ -1427,25 +1372,25 @@ bool NormalizeSceneChangeSelection(ScriptEditorContext& context, SceneChangeScri
 bool DrawProjectSceneCombo(
 	const char* label, ScriptEditorContext& context, SceneChangeScript& script
 ) {
-	const auto choices{ GetProjectSceneChoices(context) };
+	auto choices{ GetProjectSceneChoices(context) };
 
-	const auto current_scene{ GetCurrentProjectSceneKey(context) };
+	auto current_scene{ GetCurrentProjectSceneKey(context) };
 
 	bool excludes_current_scene{ script.action == SceneChangeAction::Switch };
 
-	const auto is_available = [&](const ProjectSceneChoice& choice) {
+	auto is_available = [&](const ProjectSceneChoice& choice) {
 		return !excludes_current_scene || !current_scene || choice.key != *current_scene;
 	};
 
 	bool has_available_choices{ std::ranges::any_of(choices, is_available) };
 
-	const std::string preview{ script.scene_key.empty() ? "Select Scene" : script.scene_key };
+	std::string preview{ script.scene_key.empty() ? "Select Scene" : script.scene_key };
 
 	bool changed{ false };
 
 	bool open{ ImGui::BeginCombo(label, preview.c_str()) };
 
-	const std::string tooltip{ SceneSelectionTooltip(context, script) };
+	std::string tooltip{ SceneSelectionTooltip(context, script) };
 
 	DrawItemTooltip(tooltip.c_str());
 
@@ -1489,11 +1434,11 @@ bool DrawSceneChangeActionAndKey(ScriptEditorContext& context, SceneChangeScript
 
 	bool has_other_scene{ HasOtherProjectScene(context) };
 
-	const float available{ ImGui::GetContentRegionAvail().x };
+	float available{ ImGui::GetContentRegionAvail().x };
 
-	const float spacing{ ImGui::GetStyle().ItemSpacing.x };
+	float spacing{ ImGui::GetStyle().ItemSpacing.x };
 
-	const float action_width{ std::max(90.0f, available * 0.35f) };
+	float action_width{ std::max(90.0f, available * 0.35f) };
 
 	ImGui::SetNextItemWidth(action_width);
 
@@ -1564,13 +1509,13 @@ bool DrawSceneChange(ScriptEditorContext&, SceneChangeScript& script) {
 		changed |= inspector::DrawPropertyRow("Ease", [&]() {
 			ImGui::SetNextItemWidth(-FLT_MIN);
 
-			const std::string preview{ magic_enum::enum_name(script.ease) };
+			std::string preview{ magic_enum::enum_name(script.ease) };
 
 			bool ease_changed{ false };
 
 			if (ImGui::BeginCombo("##SceneTransitionEase", preview.c_str())) {
-				for (const auto candidate : magic_enum::enum_values<Ease>()) {
-					const std::string label{ magic_enum::enum_name(candidate) };
+				for (auto candidate : magic_enum::enum_values<Ease>()) {
+					std::string label{ magic_enum::enum_name(candidate) };
 
 					if (ImGui::Selectable(label.c_str(), candidate == script.ease)) {
 						script.ease = candidate;
@@ -1642,7 +1587,7 @@ bool DrawAddComponentsInline(ScriptEditorContext&, AddComponentsScript& script) 
 
 	for (const auto& definition : script.components) {
 		const auto* component{ ComponentRegistry::Find(definition.type) };
-		const std::string label{ component ? ComponentLabel(*component) : definition.type };
+		std::string label{ component ? ComponentLabel(*component) : definition.type };
 
 		selected_labels.push_back(label);
 
@@ -1671,7 +1616,7 @@ bool DrawAddComponentsInline(ScriptEditorContext&, AddComponentsScript& script) 
 				}
 			) };
 
-			const std::string label{ ComponentLabel(*component) };
+			std::string label{ ComponentLabel(*component) };
 
 			if (ImGui::Checkbox(label.c_str(), &selected)) {
 				if (selected) {
@@ -1710,7 +1655,7 @@ bool DrawAddComponentsDetails(ScriptEditorContext&, AddComponentsScript& script)
 	for (int i{ 0 }; i < static_cast<int>(script.components.size()); ++i) {
 		auto& definition{ script.components[static_cast<std::size_t>(i)] };
 		const auto* component{ ComponentRegistry::Find(definition.type) };
-		const std::string label{ component ? ComponentLabel(*component) : definition.type };
+		std::string label{ component ? ComponentLabel(*component) : definition.type };
 
 		ImGui::PushID(i);
 
@@ -1759,7 +1704,7 @@ bool DrawRemoveComponentsInline(ScriptEditorContext&, RemoveComponentsScript& sc
 
 	for (const auto& name : script.components) {
 		const auto* component{ ComponentRegistry::Find(name) };
-		const std::string label{ component ? ComponentLabel(*component) : name };
+		std::string label{ component ? ComponentLabel(*component) : name };
 
 		selected_labels.push_back(label);
 
@@ -1782,7 +1727,7 @@ bool DrawRemoveComponentsInline(ScriptEditorContext&, RemoveComponentsScript& sc
 		for (const auto* component : components) {
 			bool selected{ std::ranges::contains(script.components, component->name) };
 
-			const std::string label{ ComponentLabel(*component) };
+			std::string label{ ComponentLabel(*component) };
 
 			if (ImGui::Checkbox(label.c_str(), &selected)) {
 				if (selected) {
@@ -2062,7 +2007,7 @@ bool DrawWaypointRows(std::vector<V2_float>& waypoints) {
 
 	for (int i{ 0 }; i < static_cast<int>(waypoints.size()); ++i) {
 		ImGui::PushID(i);
-		const std::string label{ "Waypoint " + std::to_string(i + 1) };
+		std::string label{ "Waypoint " + std::to_string(i + 1) };
 		changed |= inspector::DrawPropertyRow(label, [&]() {
 			ImGui::SetNextItemWidth(-ImGui::GetFrameHeight() - ImGui::GetStyle().ItemSpacing.x);
 			bool row_changed{

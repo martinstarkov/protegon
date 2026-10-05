@@ -23,7 +23,7 @@ enum class SceneLayerKind : std::uint8_t {
 };
 PTGN_REFLECT_ENUM(SceneLayerKind);
 
-/// @brief Stable scene-local identity for an authoring layer.
+/// @brief Stable scene local identity for an authoring layer.
 ///
 /// Layer ids are deliberately independent from ECS entity ids/UUIDs: a layer is scene metadata,
 /// not an entity. This keeps layer membership out of prefab captures while allowing Tilemap and
@@ -71,27 +71,21 @@ struct SerializedSceneLayerMembership {
 /// @brief Persistent representation of the scene's layer model.
 ///
 /// Membership is serialized separately from entity components on purpose. Scene layers are
-/// scene-local organization, so prefab captures must not carry a source scene's layer id.
+/// scene local organization, so prefab captures must not carry a source scene's layer id.
 struct SerializedSceneLayers {
 	std::vector<SceneLayer> layers{};
 	std::vector<SerializedSceneLayerMembership> memberships{};
 	SceneLayerId default_entity_layer{};
 	std::uint64_t next_layer_id{ 1 };
 
-	PTGN_REFLECT(
-		SerializedSceneLayers,
-		layers,
-		memberships,
-		default_entity_layer,
-		next_layer_id
-	)
+	PTGN_REFLECT(SerializedSceneLayers, layers, memberships, default_entity_layer, next_layer_id)
 };
 
-/// @brief Scene-owned layer registry and entity-to-layer membership table.
+/// @brief Scene owned layer registry and entity to layer membership table.
 ///
 /// Rules:
 /// - Every live entity belongs to exactly one layer.
-/// - New generic entities begin in the automatically-created default Entity layer.
+/// - New generic entities begin in the automatically created default Entity layer.
 /// - Entity layers may contain any entity except Tilemap entities.
 /// - Tile layers may contain only Tilemap and PaintGenerator entities.
 /// - PaintGenerator entities are valid in either layer kind.
@@ -110,19 +104,14 @@ public:
 	[[nodiscard]] SceneLayer* Find(SceneLayerId id);
 	[[nodiscard]] const SceneLayer* Find(SceneLayerId id) const;
 
-	[[nodiscard]] SceneLayerId Create(
-		SceneLayerKind kind,
-		std::string name = {}
-	);
+	[[nodiscard]] SceneLayerId Create(SceneLayerKind kind, std::string name = {});
 
 	/// @brief Deletes a non-default layer.
 	///
 	/// If the layer contains entities, replacement must identify another layer capable of
 	/// containing every member. Empty layers can be deleted without a replacement.
 	bool Delete(
-		Scene& scene,
-		SceneLayerId id,
-		std::optional<SceneLayerId> replacement = std::nullopt
+		Scene& scene, SceneLayerId id, std::optional<SceneLayerId> replacement = std::nullopt
 	);
 
 	bool Move(SceneLayerId id, std::size_t new_index);

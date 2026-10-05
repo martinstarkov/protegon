@@ -68,11 +68,11 @@ struct OutputConsoleOpenTarget {
 		"file://",
 	};
 
-	for (const auto scheme : schemes) {
+	for (auto scheme : schemes) {
 		std::size_t search_offset{};
 
 		while (search_offset < line.size()) {
-			const auto begin{ line.find(scheme, search_offset) };
+			auto begin{ line.find(scheme, search_offset) };
 
 			if (begin == std::string_view::npos) {
 				break;
@@ -88,8 +88,8 @@ struct OutputConsoleOpenTarget {
 				--end;
 			}
 
-			const std::size_t absolute_begin{ line_offset + begin };
-			const std::size_t absolute_end{ line_offset + end };
+			std::size_t absolute_begin{ line_offset + begin };
+			std::size_t absolute_end{ line_offset + end };
 
 			if (cursor >= absolute_begin && cursor < absolute_end) {
 				return OutputConsoleOpenTarget{
@@ -121,9 +121,9 @@ struct OutputConsoleOpenTarget {
 		++leading_whitespace;
 	}
 
-	const std::string_view trimmed_line{ line.substr(leading_whitespace) };
+	std::string_view trimmed_line{ line.substr(leading_whitespace) };
 
-	for (const auto prefix : prefixes) {
+	for (auto prefix : prefixes) {
 		if (!trimmed_line.starts_with(prefix)) {
 			continue;
 		}
@@ -146,21 +146,21 @@ struct OutputConsoleOpenTarget {
 			--end;
 		}
 
-		const std::size_t absolute_begin{ line_offset + begin };
-		const std::size_t absolute_end{ line_offset + end };
+		std::size_t absolute_begin{ line_offset + begin };
+		std::size_t absolute_end{ line_offset + end };
 
 		if (cursor < absolute_begin || cursor >= absolute_end) {
 			continue;
 		}
 
-		const std::string_view path_text{ TrimOutputConsoleValue(line.substr(begin, end - begin)) };
+		std::string_view path_text{ TrimOutputConsoleValue(line.substr(begin, end - begin)) };
 
 		if (path_text.empty()) {
 			return std::nullopt;
 		}
 
 		std::error_code error;
-		const std::filesystem::path target_path{ std::string{ path_text } };
+		path target_path{ std::string{ path_text } };
 
 		if (!std::filesystem::exists(target_path, error) || error) {
 			return std::nullopt;
@@ -184,19 +184,15 @@ struct OutputConsoleOpenTarget {
 
 	cursor = std::min(cursor, output.size() - 1);
 
-	const auto previous_newline{ cursor == 0 ? std::string_view::npos
-											 : output.rfind('\n', cursor - 1) };
+	auto previous_newline{ cursor == 0 ? std::string_view::npos : output.rfind('\n', cursor - 1) };
 
-	const std::size_t line_begin{ previous_newline == std::string_view::npos
-									  ? 0
-									  : previous_newline + 1 };
+	std::size_t line_begin{ previous_newline == std::string_view::npos ? 0 : previous_newline + 1 };
 
-	const auto next_newline{ output.find('\n', cursor) };
+	auto next_newline{ output.find('\n', cursor) };
 
-	const std::size_t line_end{ next_newline == std::string_view::npos ? output.size()
-																	   : next_newline };
+	std::size_t line_end{ next_newline == std::string_view::npos ? output.size() : next_newline };
 
-	const std::string_view line{ output.substr(line_begin, line_end - line_begin) };
+	std::string_view line{ output.substr(line_begin, line_end - line_begin) };
 
 	if (auto url{ FindOutputConsoleUrlAtCursor(line, line_begin, cursor) }) {
 		return url;
@@ -300,7 +296,7 @@ struct OutputConsoleActions {
 
 	ImGuiWindow* parent_window{ ImGui::GetCurrentWindow() };
 
-	const ImGuiID output_id{ parent_window->GetID("##OutputText") };
+	ImGuiID output_id{ parent_window->GetID("##OutputText") };
 
 	ImGui::InputTextMultiline(
 		"##OutputText", selectable_output.data(), selectable_output.size() + 1,
@@ -324,9 +320,7 @@ struct OutputConsoleActions {
 
 		constexpr float kBottomTolerance{ 2.0f };
 
-		const ImGuiID vertical_scrollbar_id{
-			ImGui::GetWindowScrollbarID(output_window, ImGuiAxis_Y)
-		};
+		ImGuiID vertical_scrollbar_id{ ImGui::GetWindowScrollbarID(output_window, ImGuiAxis_Y) };
 
 		bool output_hovered{ imgui_context.HoveredWindow == output_window };
 
@@ -380,7 +374,7 @@ struct OutputConsoleActions {
 
 		if (open_clicked) {
 			if (ImGuiInputTextState * input_state{ ImGui::GetInputTextState(output_id) }) {
-				const int cursor_position{ input_state->GetCursorPos() };
+				int cursor_position{ input_state->GetCursorPos() };
 
 				if (cursor_position >= 0) {
 					if (auto target{ impl::FindOutputConsoleTargetAtCursor(

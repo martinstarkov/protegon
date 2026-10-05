@@ -57,8 +57,8 @@ public:
 
 	/// @return New quaternion rotated by the given angle along the given axes.
 	static Quaternion GetAngleAxis(Radians angle, const V3_float& axes) {
-		const auto a{ angle * 0.5f };
-		const float s = a.Sin();
+		auto a{ angle * 0.5f };
+		float s = a.Sin();
 
 		return Quaternion(axes.x * s, axes.y * s, axes.z * s, a.Cos());
 	}
@@ -147,9 +147,9 @@ public:
 	}
 
 	constexpr friend V3_float operator*(const Quaternion& q, const V3_float& v) {
-		const V3_float QuatVector(q.x, q.y, q.z);
-		const V3_float uv(QuatVector.Cross(v));
-		const V3_float uuv(QuatVector.Cross(uv));
+		V3_float QuatVector(q.x, q.y, q.z);
+		V3_float uv(QuatVector.Cross(v));
+		V3_float uuv(QuatVector.Cross(uv));
 
 		return v + ((uv * q.w) + uuv) * 2.0f;
 	}

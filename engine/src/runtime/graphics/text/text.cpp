@@ -188,7 +188,7 @@ struct RichTextStackEntry {
 		return true;
 	}
 
-	const std::string name{ LowerRichTextToken(value) };
+	std::string name{ LowerRichTextToken(value) };
 	if (name == "white") {
 		result = color::White;
 	} else if (name == "black") {
@@ -223,12 +223,12 @@ struct RichTextStackEntry {
 }
 
 [[nodiscard]] bool IsOffRichTextValue(std::string_view value) {
-	const std::string lowered{ LowerRichTextToken(TrimRichTextToken(value)) };
+	std::string lowered{ LowerRichTextToken(TrimRichTextToken(value)) };
 	return lowered == "off" || lowered == "false" || lowered == "0" || lowered == "none";
 }
 
 [[nodiscard]] bool ParseGlyphEffectType(std::string_view value, GlyphEffectType& result) {
-	const std::string name{ LowerRichTextToken(TrimRichTextToken(value)) };
+	std::string name{ LowerRichTextToken(TrimRichTextToken(value)) };
 	if (name == "none") {
 		result = GlyphEffectType::None;
 	} else if (name == "wobble") {
@@ -260,7 +260,7 @@ struct RichTextStackEntry {
 	std::string& canonical_tag, std::string& error
 ) {
 	canonical_tag = CanonicalRichTag(raw_name);
-	const auto arg{ argument ? TrimRichTextToken(*argument) : std::string_view{} };
+	auto arg{ argument ? TrimRichTextToken(*argument) : std::string_view{} };
 	const TextRunDefaults engine_defaults{};
 
 	// Value-bearing tags require an equals sign. An empty assignment is intentionally
@@ -525,7 +525,7 @@ struct RichTextStackEntry {
 			return false;
 		}
 
-		const auto close{ source.find('>', open + 1) };
+		auto close{ source.find('>', open + 1) };
 		if (close == std::string_view::npos) {
 			return false;
 		}
@@ -541,9 +541,9 @@ struct RichTextStackEntry {
 			token.remove_prefix(1);
 		}
 
-		const auto equals{ token.find('=') };
-		const auto raw_name{ equals == std::string_view::npos ? token : token.substr(0, equals) };
-		const std::string tag{ CanonicalRichTag(raw_name) };
+		auto equals{ token.find('=') };
+		auto raw_name{ equals == std::string_view::npos ? token : token.substr(0, equals) };
+		std::string tag{ CanonicalRichTag(raw_name) };
 
 		if (tag == canonical_tag) {
 			if (closing) {
@@ -551,11 +551,10 @@ struct RichTextStackEntry {
 					return true;
 				}
 			} else {
-				const std::optional<std::string_view> argument{
-					equals == std::string_view::npos
-						? std::nullopt
-						: std::optional<std::string_view>{ token.substr(equals + 1) }
-				};
+				std::optional<std::string_view> argument{ equals == std::string_view::npos
+															  ? std::nullopt
+															  : std::optional<std::string_view>{
+																	token.substr(equals + 1) } };
 				RichTextState probe{};
 				std::string probe_tag;
 				std::string error;
@@ -662,13 +661,13 @@ std::string ExpandRichTextVariables(
 			continue;
 		}
 
-		const auto close{ source.find('}', i + 2) };
+		auto close{ source.find('}', i + 2) };
 		if (close == std::string_view::npos) {
 			result.append(source.substr(i));
 			break;
 		}
 
-		const auto name{ source.substr(i + 2, close - (i + 2)) };
+		auto name{ source.substr(i + 2, close - (i + 2)) };
 		if (!name.empty() && resolver) {
 			if (auto value{ resolver(name) }) {
 				result += EscapeRichText(*value);
@@ -703,14 +702,14 @@ RichTextParseResult ParseRichText(std::string_view source, const TextRunDefaults
 			continue;
 		}
 
-		const auto close{ source.find('>', i + 1) };
+		auto close{ source.find('>', i + 1) };
 		if (close == std::string_view::npos) {
 			buffer.append(source.substr(i));
 			result.diagnostics.push_back({ i, "Unterminated rich text tag." });
 			break;
 		}
 
-		const auto raw_token{ source.substr(i + 1, close - i - 1) };
+		auto raw_token{ source.substr(i + 1, close - i - 1) };
 		auto token{ TrimRichTextToken(raw_token) };
 		if (token.empty()) {
 			buffer.append(source.substr(i, close - i + 1));
@@ -721,7 +720,7 @@ RichTextParseResult ParseRichText(std::string_view source, const TextRunDefaults
 
 		if (token.front() == '/') {
 			token.remove_prefix(1);
-			const std::string tag{ CanonicalRichTag(token) };
+			std::string tag{ CanonicalRichTag(token) };
 			if (stack.empty() || stack.back().tag != tag) {
 				buffer.append(source.substr(i, close - i + 1));
 				result.diagnostics.push_back({ i, "Mismatched closing tag </" + tag + ">." });
@@ -736,12 +735,12 @@ RichTextParseResult ParseRichText(std::string_view source, const TextRunDefaults
 			continue;
 		}
 
-		const auto equals{ token.find('=') };
-		const auto name{ equals == std::string_view::npos ? token : token.substr(0, equals) };
-		const std::optional<std::string_view> argument{ equals == std::string_view::npos
-															? std::nullopt
-															: std::optional<std::string_view>{
-																  token.substr(equals + 1) } };
+		auto equals{ token.find('=') };
+		auto name{ equals == std::string_view::npos ? token : token.substr(0, equals) };
+		std::optional<std::string_view> argument{ equals == std::string_view::npos
+													  ? std::nullopt
+													  : std::optional<std::string_view>{
+															token.substr(equals + 1) } };
 
 		RichTextState next{ state };
 		std::string canonical_tag;
@@ -795,21 +794,20 @@ std::string SerializeStyledTextToRichText(
 		std::vector<std::pair<std::string, std::string>> wrappers;
 
 		if (run.font != defaults.font) {
-			const std::string open{ run.font == engine_defaults.font
-										? "<font=>"
-										: "<font=" + run.font.value + ">" };
+			std::string open{ run.font == engine_defaults.font ? "<font=>"
+															   : "<font=" + run.font.value + ">" };
 			AddRichWrapper(wrappers, open, "</font>");
 		}
 		if (!NearlyEqual(run.style.size, defaults.style.size)) {
-			const std::string value{ NearlyEqual(run.style.size, engine_defaults.style.size)
-										 ? std::string{}
-										 : FormatRichFloat(run.style.size) };
+			std::string value{ NearlyEqual(run.style.size, engine_defaults.style.size)
+								   ? std::string{}
+								   : FormatRichFloat(run.style.size) };
 			AddRichWrapper(wrappers, "<size=" + value + ">", "</size>");
 		}
 		if (run.style.color != defaults.style.color) {
-			const std::string value{ run.style.color == engine_defaults.style.color
-										 ? std::string{}
-										 : FormatRichColor(run.style.color) };
+			std::string value{ run.style.color == engine_defaults.style.color
+								   ? std::string{}
+								   : FormatRichColor(run.style.color) };
 			AddRichWrapper(wrappers, "<c=" + value + ">", "</c>");
 		}
 
@@ -847,9 +845,8 @@ std::string SerializeStyledTextToRichText(
 			if (NearlyEqual(value, rich_default)) {
 				return;
 			}
-			const std::string argument{ NearlyEqual(value, engine_default)
-											? std::string{}
-											: FormatRichFloat(value) };
+			std::string argument{ NearlyEqual(value, engine_default) ? std::string{}
+																	 : FormatRichFloat(value) };
 			AddRichWrapper(
 				wrappers, "<" + std::string{ tag } + "=" + argument + ">",
 				"</" + std::string{ tag } + ">"
@@ -871,8 +868,7 @@ std::string SerializeStyledTextToRichText(
 			if (layer == rich_default) {
 				return;
 			}
-			const std::string value{ layer == engine_default ? std::string{}
-															 : LayerArgument(layer) };
+			std::string value{ layer == engine_default ? std::string{} : LayerArgument(layer) };
 			AddRichWrapper(
 				wrappers, "<" + std::string{ tag } + "=" + value + ">",
 				"</" + std::string{ tag } + ">"
@@ -916,8 +912,7 @@ std::string SerializeStyledTextToRichText(
 			AddRichWrapper(wrappers, "<fx=" + value + ">", "</fx>");
 		}
 
-		for (const auto& [open, close] : wrappers) {
-			(void)close;
+		for (const auto& [open, _close] : wrappers) {
 			result += open;
 		}
 		result += EscapeRichText(run.text);
@@ -1052,17 +1047,22 @@ Text& Text::Content(std::string_view content) {
 		data.current_run_index = 0;
 
 		auto& run{ data.text.runs.front() };
-		const TextRun baseline{
+
+		TextRun baseline{
 			.font  = data.defaults.font,
 			.style = data.defaults.style,
 		};
+
 		bool changed{ run.font != baseline.font || run.style != baseline.style };
+
 		run.font  = baseline.font;
 		run.style = baseline.style;
+
 		if (run.text != content) {
 			run.text = std::string{ content };
 			changed	 = true;
 		}
+
 		if (changed) {
 			InvalidateLayout();
 		}

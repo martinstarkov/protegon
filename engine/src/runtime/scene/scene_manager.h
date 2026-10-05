@@ -120,7 +120,7 @@ public:
 		std::unique_ptr<SceneTransition> transition_in,
 		SceneTransitionPriority priority = SceneTransitionPriority{}
 	) {
-		const auto scene_tag_hash{ Hash(scene_tag) };
+		auto scene_tag_hash{ Hash(scene_tag) };
 		if (!CanIssueCommands(scene_tag_hash)) {
 			return false;
 		}
@@ -157,7 +157,7 @@ public:
 		std::string_view scene_tag, std::unique_ptr<SceneTransition> transition_out,
 		SceneTransitionPriority priority = SceneTransitionPriority{}
 	) {
-		const auto scene_tag_hash{ Hash(scene_tag) };
+		auto scene_tag_hash{ Hash(scene_tag) };
 		if (!CanIssueCommands(scene_tag_hash) || !HasScene(scene_tag_hash)) {
 			return false;
 		}
@@ -197,7 +197,7 @@ public:
 		std::string_view scene_tag, SceneTransitionPair<TransitionOut, TransitionIn>&& transition,
 		SceneTransitionPriority priority, TArgs&&... constructor_args
 	) {
-		const auto scene_tag_hash{ Hash(scene_tag) };
+		auto scene_tag_hash{ Hash(scene_tag) };
 		if (!CanIssueCommands(scene_tag_hash)) {
 			return false;
 		}
@@ -404,7 +404,7 @@ private:
 		std::string_view scene_tag, SceneTransitionPair<TransitionOut, TransitionIn>&& transition,
 		SceneTransitionPriority priority, TArgs&&... constructor_args
 	) {
-		const auto scene_tag_hash{ Hash(scene_tag) };
+		auto scene_tag_hash{ Hash(scene_tag) };
 		if (!CanIssueCommands(scene_tag_hash) || !HasScene(scene_tag_hash)) {
 			return false;
 		}

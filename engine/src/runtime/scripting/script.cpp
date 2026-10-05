@@ -219,14 +219,14 @@ EventCondition SequenceEventRegistry::MakeCondition(TypeHashValue type_hash, jso
 
 const SequenceEventRegistration* SequenceEventRegistry::Find(TypeHashValue type_hash) {
 	const auto& entries{ Entries() };
-	const auto it{ std::ranges::find_if(entries, [type_hash](const auto& entry) {
+	auto it{ std::ranges::find_if(entries, [type_hash](const auto& entry) {
 		return entry.type_hash == type_hash;
 	}) };
 	return it == entries.end() ? nullptr : &*it;
 }
 
 ScriptSequence* SharedScriptSequenceRegistry::Find(SequenceId id) {
-	const auto it{ std::ranges::find_if(sequences, [id](const auto& sequence) {
+	auto it{ std::ranges::find_if(sequences, [id](const auto& sequence) {
 		return sequence.id == id;
 	}) };
 	return it == sequences.end() ? nullptr : &*it;
@@ -374,14 +374,8 @@ void SerializeScriptEntry(json& output, const ScriptEntry& entry) {
 		return nullptr;
 	}
 
-	if (const auto type{ input.find("type") }; type != input.end() && type->is_string()) {
+	if (auto type{ input.find("type") }; type != input.end() && type->is_string()) {
 		return ScriptRegistry::Find(type->get<std::string>());
-	}
-
-	// Backward compatibility with the previous hash-based ScriptEntry representation.
-	if (const auto hash{ input.find("type_hash") };
-		hash != input.end() && hash->is_number_unsigned()) {
-		return ScriptRegistry::Find(hash->get<TypeHashValue>());
 	}
 
 	return nullptr;
@@ -402,14 +396,14 @@ void DeserializeScriptEntry(const json& input, std::vector<ScriptEntry>& output)
 														  : ScriptSequence{};
 
 	if (input.is_object()) {
-		if (const auto enabled{ input.find("enabled") };
+		if (auto enabled{ input.find("enabled") };
 			enabled != input.end() && enabled->is_boolean()) {
 			entry.enabled = enabled->get<bool>();
 		}
-		if (const auto value{ input.find("value") }; value != input.end()) {
+		if (auto value{ input.find("value") }; value != input.end()) {
 			entry.value = *value;
 		}
-		if (const auto sequence{ input.find("sequence") }; sequence != input.end()) {
+		if (auto sequence{ input.find("sequence") }; sequence != input.end()) {
 			try {
 				sequence->get_to(entry.sequence);
 			} catch (...) {
@@ -448,19 +442,8 @@ void to_json(json& output, const Scripts& scripts) {
 void from_json(const json& input, Scripts& scripts) {
 	scripts.scripts.clear();
 
-	const json* serialized{ nullptr };
 	if (input.is_array()) {
-		serialized = &input;
-	} else if (input.is_object()) {
-		// Backward compatibility with the old { "scripts": [...] } component representation.
-		const auto legacy{ input.find("scripts") };
-		if (legacy != input.end() && legacy->is_array()) {
-			serialized = &*legacy;
-		}
-	}
-
-	if (serialized) {
-		for (const auto& entry : *serialized) {
+		for (const auto& entry : input) {
 			DeserializeScriptEntry(entry, scripts.scripts);
 		}
 	}
@@ -484,7 +467,7 @@ namespace {
 }
 
 void CopySequenceDefinition(ScriptSequence& destination, const ScriptSequence& source) {
-	const SequenceId id{ source.id };
+	SequenceId id{ source.id };
 	destination			= source;
 	destination.id		= id;
 	destination.runtime = ScriptSequenceRuntime{};
@@ -549,8 +532,8 @@ Script* EnsureInstance(Entity owner, ScriptEntry& entry) {
 
 	auto find = [&](auto& entries) -> ScriptEntry* {
 		for (auto& entry : entries) {
-			const SequenceId sequence_id{ entry.instance ? entry.instance->sequence.id
-														 : entry.sequence.id };
+			SequenceId sequence_id{ entry.instance ? entry.instance->sequence.id
+												   : entry.sequence.id };
 			if (sequence_id == id) {
 				return &entry;
 			}
@@ -593,9 +576,9 @@ Script* EnsureInstance(Entity owner, ScriptEntry& entry) {
 [[nodiscard]] SequenceChannelRuntime* FindChannel(
 	impl::Scripts& scripts, const SequenceChannelKey& key
 ) {
-	const auto it{ std::ranges::find_if(
-		scripts.channels, [&](const SequenceChannelRuntime& channel) { return channel.key == key; }
-	) };
+	auto it{ std::ranges::find_if(scripts.channels, [&](const SequenceChannelRuntime& channel) {
+		return channel.key == key;
+	}) };
 	return it == scripts.channels.end() ? nullptr : &*it;
 }
 
@@ -627,7 +610,7 @@ void InvokeLifecycle(Entity owner, ScriptSequence& binding, SequenceLifecycle li
 
 void PromoteNextInChannel(Entity owner, SequenceChannelRuntime& channel) {
 	while (!channel.waiting.empty()) {
-		const SequenceId id{ channel.waiting.front() };
+		SequenceId id{ channel.waiting.front() };
 		channel.waiting.pop_front();
 		if (auto* binding{ FindBinding(owner, id) }) {
 			binding->runtime.waiting_for_channel = false;
@@ -694,7 +677,7 @@ bool CancelBinding(
 	}
 
 	ReleaseChannel(owner, binding, promote_channel);
-	const int completed_runs{ binding.runtime.completed_runs };
+	int completed_runs{ binding.runtime.completed_runs };
 	binding.runtime				   = ScriptSequenceRuntime{};
 	binding.runtime.completed_runs = completed_runs;
 
@@ -716,7 +699,7 @@ bool StartBinding(Entity owner, ScriptSequence& binding, bool force) {
 
 	auto& runtime{ binding.runtime };
 	if (runtime.running) {
-		const ReentryMode mode{ force ? ReentryMode::Restart : sequence->reentry };
+		ReentryMode mode{ force ? ReentryMode::Restart : sequence->reentry };
 		switch (mode) {
 			case ReentryMode::IgnoreWhileRunning: return false;
 			case ReentryMode::Restart:
@@ -731,7 +714,7 @@ bool StartBinding(Entity owner, ScriptSequence& binding, bool force) {
 		scripts.Attach(owner);
 		auto& channel{ FindOrCreateChannel(scripts, *sequence->channel) };
 		if (channel.active && *channel.active != binding.id) {
-			const ReentryMode mode{ force ? ReentryMode::Restart : sequence->reentry };
+			ReentryMode mode{ force ? ReentryMode::Restart : sequence->reentry };
 			switch (mode) {
 				case ReentryMode::IgnoreWhileRunning: return false;
 				case ReentryMode::Restart:
@@ -749,8 +732,8 @@ bool StartBinding(Entity owner, ScriptSequence& binding, bool force) {
 		runtime.waiting_for_channel = false;
 	}
 
-	const int completed_runs{ runtime.completed_runs };
-	const int queued_runs{ runtime.queued_runs };
+	int completed_runs{ runtime.completed_runs };
+	int queued_runs{ runtime.queued_runs };
 	runtime				   = ScriptSequenceRuntime{};
 	runtime.completed_runs = completed_runs;
 	runtime.queued_runs	   = queued_runs;
@@ -855,7 +838,7 @@ void ProcessImmediateSteps(Entity owner, ScriptSequence& binding) {
 			++runtime.step_index;
 			continue;
 		}
-		const ScriptCompletion completion{ action.completion.value_or(registration->completion) };
+		ScriptCompletion completion{ action.completion.value_or(registration->completion) };
 		if (completion != ScriptCompletion::Instant) {
 			return;
 		}
@@ -896,8 +879,8 @@ void CompleteSequence(Entity owner, ScriptSequence& binding) {
 	}
 	bool remove_binding{ sequence->transient || sequence->remove_binding_on_complete };
 	bool destroy_owner{ sequence->destroy_owner_on_complete };
-	const int queued_runs{ binding.runtime.queued_runs };
-	const int completed_runs{ binding.runtime.completed_runs + 1 };
+	int queued_runs{ binding.runtime.queued_runs };
+	int completed_runs{ binding.runtime.completed_runs + 1 };
 
 	binding.runtime.running		   = false;
 	binding.runtime.paused		   = false;
@@ -952,7 +935,7 @@ void UpdateSequence(Entity owner, ScriptSequence& binding, float delta_seconds) 
 		ProcessImmediateSteps(owner, binding);
 		return;
 	}
-	const ScriptCompletion completion{ action.completion.value_or(registration->completion) };
+	ScriptCompletion completion{ action.completion.value_or(registration->completion) };
 	if (completion == ScriptCompletion::Instant) {
 		ProcessImmediateSteps(owner, binding);
 		return;
@@ -1201,7 +1184,7 @@ void AttachAll(Entity entity) {
 }
 
 void ApplyPending(Scene& scene) {
-	const auto entities{ scene.EntitiesWith<impl::Scripts>().GetVector() };
+	auto entities{ scene.EntitiesWith<impl::Scripts>().GetVector() };
 	for (Entity entity : entities) {
 		auto* scripts_ptr{ entity.TryGet<impl::Scripts>() };
 		if (!scripts_ptr) {
@@ -1209,7 +1192,7 @@ void ApplyPending(Scene& scene) {
 		}
 		auto& scripts{ *scripts_ptr };
 		scripts.Attach(entity);
-		for (const SequenceId id : scripts.pending_removals) {
+		for (SequenceId id : scripts.pending_removals) {
 			bool completed{ false };
 			if (auto* binding{ FindBinding(entity, id) }) {
 				completed = binding->runtime.completed;
@@ -1220,9 +1203,9 @@ void ApplyPending(Scene& scene) {
 				}
 			}
 
-			const auto remove_matching_entry = [id, completed](ScriptEntry& entry) {
-				const SequenceId sequence_id{ entry.instance ? entry.instance->sequence.id
-															 : entry.sequence.id };
+			auto remove_matching_entry = [id, completed](ScriptEntry& entry) {
+				SequenceId sequence_id{ entry.instance ? entry.instance->sequence.id
+													   : entry.sequence.id };
 				if (sequence_id != id) {
 					return false;
 				}
@@ -1245,8 +1228,8 @@ void ApplyPending(Scene& scene) {
 }
 
 void Update(Scene& scene, secondsf delta_time) {
-	const float delta_seconds{ std::max(0.0f, delta_time.count()) };
-	const auto entities{ scene.EntitiesWith<impl::Scripts>().GetVector() };
+	float delta_seconds{ std::max(0.0f, delta_time.count()) };
+	auto entities{ scene.EntitiesWith<impl::Scripts>().GetVector() };
 	for (Entity entity : entities) {
 		auto* scripts{ entity.TryGet<impl::Scripts>() };
 		if (!scripts) {
@@ -1260,7 +1243,7 @@ void Update(Scene& scene, secondsf delta_time) {
 				continue;
 			}
 			impl::ScriptAccessor::SetFrame(*script, delta_seconds, 0.0f, 0.0f, 0, false);
-			const ScriptStatus status{ script->OnUpdate() };
+			ScriptStatus status{ script->OnUpdate() };
 			UpdateSequence(entity, script->sequence, delta_seconds);
 			if (status == ScriptStatus::Complete ||
 				impl::ScriptAccessor::TakeCompletionRequest(*script)) {
@@ -1292,7 +1275,7 @@ bool DispatchEvent(Entity entity, Event event) {
 }
 
 bool DispatchGlobalEvent(Scene& scene, Event event) {
-	const auto entities{ scene.EntitiesWith<impl::Scripts>().GetVector() };
+	auto entities{ scene.EntitiesWith<impl::Scripts>().GetVector() };
 	for (Entity entity : entities) {
 		auto* scripts{ entity.TryGet<impl::Scripts>() };
 		if (!scripts) {
@@ -1331,7 +1314,7 @@ SequenceHandle RunSequence(Entity owner, ScriptSequence sequence) {
 	}
 	auto& scripts{ owner.TryAdd<impl::Scripts>() };
 	scripts.Attach(owner);
-	const SequenceId id{ sequence.id };
+	SequenceId id{ sequence.id };
 	ScriptRegistry::EnsureRegistered<WaitScript>();
 	ScriptEntry entry;
 	entry.enabled	= true;
@@ -1340,7 +1323,7 @@ SequenceHandle RunSequence(Entity owner, ScriptSequence sequence) {
 	entry.value		= json::object();
 	entry.sequence	= std::move(sequence);
 	entry.instance	= std::make_unique<Script>();
-	const SequenceId sequence_id{ entry.sequence.id };
+	SequenceId sequence_id{ entry.sequence.id };
 	entry.instance->sequence	= entry.sequence;
 	entry.instance->sequence.id = sequence_id;
 	entry.sequence.id			= sequence_id;
@@ -1578,21 +1561,15 @@ void from_json(const json& input, ScriptStep& step) {
 	step		 = ScriptStep{};
 	step.enabled = input.value("enabled", true);
 
-	const ScriptRegistration* registration{ nullptr };
-
-	if (input.contains("type") && input.at("type").is_string()) {
-		registration = ScriptRegistry::Find(input.at("type").get<std::string>());
-	}
-
-	if (!registration && input.contains("type_hash")) {
-		registration = ScriptRegistry::Find(input.at("type_hash").get<TypeHashValue>());
-	}
+	const ScriptRegistration* registration{
+		input.contains("type") && input.at("type").is_string()
+			? ScriptRegistry::Find(input.at("type").get<std::string>())
+			: nullptr
+	};
 
 	if (registration) {
 		step.type_hash = registration->type_hash;
 		step.value	   = registration->make_default ? registration->make_default() : json{};
-	} else {
-		step.type_hash = input.value("type_hash", TypeHashValue{ 0 });
 	}
 
 	if (input.contains("value")) {

@@ -312,7 +312,7 @@ inline std::string PrettyName(std::string_view name) {
 	bool capitalize{ true };
 
 	for (std::size_t i{ 0 }; i < name.size(); ++i) {
-		const char c{ name[i] };
+		char c{ name[i] };
 
 		if (c == '_') {
 			result.push_back(' ');
@@ -321,8 +321,8 @@ inline std::string PrettyName(std::string_view name) {
 		}
 
 		if (!result.empty() && std::isupper(static_cast<unsigned char>(c)) != 0) {
-			const char previous{ i > 0 ? name[i - 1] : '\0' };
-			const char next{ i + 1 < name.size() ? name[i + 1] : '\0' };
+			char previous{ i > 0 ? name[i - 1] : '\0' };
+			char next{ i + 1 < name.size() ? name[i + 1] : '\0' };
 
 			bool previous_is_lower{ std::islower(static_cast<unsigned char>(previous)) != 0 };
 			bool acronym_boundary{ std::isupper(static_cast<unsigned char>(previous)) != 0 &&
@@ -381,9 +381,9 @@ inline bool DrawKeyCombo(Key& value, const char* id = "##value") {
 	};
 
 	static std::unordered_map<ImGuiID, SearchState> states;
-	const ImGuiID combo_id{ ImGui::GetID(id) };
+	ImGuiID combo_id{ ImGui::GetID(id) };
 	auto& state{ states[combo_id] };
-	const std::string preview{ KeyDisplayLabel(value) };
+	std::string preview{ KeyDisplayLabel(value) };
 	bool changed{ false };
 
 	if (ImGui::BeginCombo(id, preview.c_str())) {
@@ -391,12 +391,12 @@ inline bool DrawKeyCombo(Key& value, const char* id = "##value") {
 		ImGui::InputTextWithHint("##KeySearch", "Search keys...", &state.filter);
 		ImGui::Separator();
 
-		const std::string normalized_filter{ NormalizeKeySearchText(state.filter) };
+		std::string normalized_filter{ NormalizeKeySearchText(state.filter) };
 
 		for (auto [candidate, name] : magic_enum::enum_entries<Key>()) {
-			const std::string item_label{ KeyDisplayLabel(candidate) };
-			const std::string normalized_name{ NormalizeKeySearchText(name) };
-			const std::string normalized_label{ NormalizeKeySearchText(item_label) };
+			std::string item_label{ KeyDisplayLabel(candidate) };
+			std::string normalized_name{ NormalizeKeySearchText(name) };
+			std::string normalized_label{ NormalizeKeySearchText(item_label) };
 
 			if (!normalized_filter.empty() &&
 				normalized_name.find(normalized_filter) == std::string::npos &&
@@ -468,7 +468,7 @@ inline bool DrawKeyCombo(Key& value, const char* id = "##value") {
 		return false;
 	}
 
-	const std::string normalized{ NormalizeKeyExpressionAlias(NormalizeKeySearchText(token)) };
+	std::string normalized{ NormalizeKeyExpressionAlias(NormalizeKeySearchText(token)) };
 
 	if (normalized.size() == 1 && normalized.front() >= 'a' && normalized.front() <= 'z') {
 		return true;
@@ -515,16 +515,16 @@ inline bool DrawKeyCombo(Key& value, const char* id = "##value") {
 }
 
 [[nodiscard]] inline std::optional<std::string> KeyExpressionError(std::string_view input) {
-	const std::string_view expression{ TrimKeyExpressionToken(input) };
+	std::string_view expression{ TrimKeyExpressionToken(input) };
 	if (expression.empty()) {
 		return "Enter at least one key.";
 	}
 
 	std::size_t group_begin{ 0 };
 	while (group_begin <= expression.size()) {
-		const std::size_t comma{ expression.find(',', group_begin) };
-		const std::size_t group_end{ comma == std::string_view::npos ? expression.size() : comma };
-		const std::string_view group{
+		std::size_t comma{ expression.find(',', group_begin) };
+		std::size_t group_end{ comma == std::string_view::npos ? expression.size() : comma };
+		std::string_view group{
 			TrimKeyExpressionToken(expression.substr(group_begin, group_end - group_begin))
 		};
 
@@ -534,9 +534,9 @@ inline bool DrawKeyCombo(Key& value, const char* id = "##value") {
 
 		std::size_t token_begin{ 0 };
 		while (token_begin <= group.size()) {
-			const std::size_t plus{ group.find('+', token_begin) };
-			const std::size_t token_end{ plus == std::string_view::npos ? group.size() : plus };
-			const std::string_view token{
+			std::size_t plus{ group.find('+', token_begin) };
+			std::size_t token_end{ plus == std::string_view::npos ? group.size() : plus };
+			std::string_view token{
 				TrimKeyExpressionToken(group.substr(token_begin, token_end - token_begin))
 			};
 
@@ -574,8 +574,8 @@ inline void DrawInvalidKeyExpressionBorder(const std::optional<std::string>& err
 		return;
 	}
 
-	const ImVec2 minimum{ ImGui::GetItemRectMin() };
-	const ImVec2 maximum{ ImGui::GetItemRectMax() };
+	ImVec2 minimum{ ImGui::GetItemRectMin() };
+	ImVec2 maximum{ ImGui::GetItemRectMax() };
 	ImGui::GetWindowDrawList()->AddRect(
 		minimum, maximum, ImGui::GetColorU32(ImVec4{ 1.0f, 0.2f, 0.2f, 1.0f }),
 		ImGui::GetStyle().FrameRounding, 0, 1.5f
@@ -593,10 +593,10 @@ inline bool DrawKeyExpression(
 	std::string_view hint = "W + X, W + Left Shift", float width = -FLT_MIN
 ) {
 	ImGui::SetNextItemWidth(width);
-	const std::string hint_string{ hint };
+	std::string hint_string{ hint };
 	bool changed{ ImGui::InputTextWithHint(id, hint_string.c_str(), &expression) };
 
-	const auto error{ KeyExpressionError(expression) };
+	auto error{ KeyExpressionError(expression) };
 	if (error) {
 		DrawInvalidKeyExpressionBorder(error);
 	} else if (ImGui::IsItemHovered()) {
@@ -662,7 +662,7 @@ inline float GetPropertyValueX(float fallback_start_x) {
 }
 
 inline ImVec2 GetResizableMultilineSize(const char* id, ImVec2 default_size) {
-	const ImVec2 cursor_position{ ImGui::GetCursorScreenPos() };
+	ImVec2 cursor_position{ ImGui::GetCursorScreenPos() };
 
 	ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2{ 0.0f, 0.0f });
 
@@ -671,7 +671,7 @@ inline ImVec2 GetResizableMultilineSize(const char* id, ImVec2 default_size) {
 		ImGuiChildFlags_ResizeY | ImGuiChildFlags_FrameStyle | ImGuiChildFlags_Borders
 	);
 
-	const ImVec2 actual_size{ ImGui::GetWindowSize() };
+	ImVec2 actual_size{ ImGui::GetWindowSize() };
 
 	ImGui::EndChild();
 	ImGui::PopStyleVar();
@@ -756,10 +756,10 @@ inline bool DrawWHValue(
 	ImGui::PushID(&value);
 
 	bool changed{ DrawPropertyRow(label, [&]() {
-		const float spacing{ ImGui::GetStyle().ItemInnerSpacing.x };
-		const float width{ std::max(1.0f, (ImGui::GetContentRegionAvail().x - spacing) * 0.5f) };
-		const std::string width_format{ std::string{ "W: " } + format };
-		const std::string height_format{ std::string{ "H: " } + format };
+		float spacing{ ImGui::GetStyle().ItemInnerSpacing.x };
+		float width{ std::max(1.0f, (ImGui::GetContentRegionAvail().x - spacing) * 0.5f) };
+		std::string width_format{ std::string{ "W: " } + format };
+		std::string height_format{ std::string{ "H: " } + format };
 
 		return DrawDisabledIf(disabled || IsReadOnly(), [&]() {
 			bool local_changed{ false };
@@ -796,8 +796,8 @@ inline bool DrawWHValue(
 	ImGui::PushID(&value);
 
 	bool changed{ DrawPropertyRow(label, [&]() {
-		const float spacing{ ImGui::GetStyle().ItemInnerSpacing.x };
-		const float width{ std::max(1.0f, (ImGui::GetContentRegionAvail().x - spacing) * 0.5f) };
+		float spacing{ ImGui::GetStyle().ItemInnerSpacing.x };
+		float width{ std::max(1.0f, (ImGui::GetContentRegionAvail().x - spacing) * 0.5f) };
 
 		return DrawDisabledIf(disabled || IsReadOnly(), [&]() {
 			bool local_changed{ false };
@@ -832,7 +832,7 @@ inline bool DrawRValue(
 ) {
 	ImGui::PushID(&value);
 
-	const std::string radius_format{ std::string{ "R: " } + format };
+	std::string radius_format{ std::string{ "R: " } + format };
 
 	bool changed{ DrawPropertyRow(label, [&]() {
 		return DrawDisabledIf(disabled || IsReadOnly(), [&]() {
@@ -867,9 +867,9 @@ inline bool DrawOptionalWHValue(
 	bool changed{ DrawPropertyRow(label, [&]() {
 		bool read_only{ disabled || IsReadOnly() };
 
-		const float spacing{ ImGui::GetStyle().ItemInnerSpacing.x };
-		const float checkbox_width{ ImGui::GetFrameHeight() };
-		const float field_width{ std::max(
+		float spacing{ ImGui::GetStyle().ItemInnerSpacing.x };
+		float checkbox_width{ ImGui::GetFrameHeight() };
+		float field_width{ std::max(
 			1.0f, (ImGui::GetContentRegionAvail().x - checkbox_width - spacing * 2.0f) * 0.5f
 		) };
 
@@ -882,8 +882,8 @@ inline bool DrawOptionalWHValue(
 
 		ImGui::BeginDisabled(!enabled || read_only);
 
-		const std::string width_format{ std::string{ "W: " } + format };
-		const std::string height_format{ std::string{ "H: " } + format };
+		std::string width_format{ std::string{ "W: " } + format };
+		std::string height_format{ std::string{ "H: " } + format };
 
 		ImGui::SetNextItemWidth(field_width);
 
@@ -929,17 +929,15 @@ inline bool DrawString(std::string_view label, std::string& value, const FieldOp
 			return DrawDisabledIf(read_only, [&]() { return ImGui::InputText("##value", &value); });
 		}
 
-		const std::string popup_name{ std::string{ "Edit " } + std::string{ label } +
-									  "##LargeTextEditor" };
+		std::string popup_name{ std::string{ "Edit " } + std::string{ label } +
+								"##LargeTextEditor" };
 
-		const float default_height{
-			ImGui::GetTextLineHeightWithSpacing() *
-			static_cast<float>(std::max<std::size_t>(options.line_count, 1))
-		};
+		float default_height{ ImGui::GetTextLineHeightWithSpacing() *
+							  static_cast<float>(std::max<std::size_t>(options.line_count, 1)) };
 
-		const float value_available{ std::max(1.0f, ImGui::GetContentRegionAvail().x) };
-		const float large_button_size{ ImGui::GetFrameHeight() };
-		const float large_button_spacing{ ImGui::GetStyle().ItemInnerSpacing.x };
+		float value_available{ std::max(1.0f, ImGui::GetContentRegionAvail().x) };
+		float large_button_size{ ImGui::GetFrameHeight() };
+		float large_button_spacing{ ImGui::GetStyle().ItemInnerSpacing.x };
 		bool show_large_button{ options.large_editor &&
 								value_available >=
 									large_button_size + large_button_spacing + 96.0f };
@@ -1012,10 +1010,10 @@ inline bool DrawString(std::string_view label, std::string& value, const FieldOp
 				if (close_requested) {
 					ImGui::CloseCurrentPopup();
 				} else {
-					const ImVec2 available{ ImGui::GetContentRegionAvail() };
+					ImVec2 available{ ImGui::GetContentRegionAvail() };
 
-					const ImVec2 editor_size{ std::max(1.0f, available.x),
-											  std::max(100.0f, available.y) };
+					ImVec2 editor_size{ std::max(1.0f, available.x),
+										std::max(100.0f, available.y) };
 
 					changed |= DrawDisabledIf(read_only, [&]() {
 						return ImGui::InputTextMultiline(
@@ -1127,8 +1125,8 @@ bool DrawAssetKeyInline(
 	if constexpr (shader_key) {
 		shader_button_width =
 			ImGui::CalcTextSize("[..]").x + ImGui::GetStyle().FramePadding.x * 2.0f;
-		const float available{ ImGui::GetContentRegionAvail().x };
-		const float spacing{ ImGui::GetStyle().ItemInnerSpacing.x };
+		float available{ ImGui::GetContentRegionAvail().x };
+		float spacing{ ImGui::GetStyle().ItemInnerSpacing.x };
 		// Preserve a useful text field first. At narrow widths the dedicated open button
 		// disappears; right-clicking the field still opens a valid shader in the editor.
 		show_shader_button = available >= shader_button_width + spacing + 72.0f;
@@ -1152,8 +1150,8 @@ bool DrawAssetKeyInline(
 	}
 	bool changed{ input_changed };
 
-	const ImVec2 input_min{ ImGui::GetItemRectMin() };
-	const ImVec2 input_max{ ImGui::GetItemRectMax() };
+	ImVec2 input_min{ ImGui::GetItemRectMin() };
+	ImVec2 input_max{ ImGui::GetItemRectMax() };
 	bool input_hovered{ ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled) };
 
 	if constexpr (shader_key) {
@@ -1201,7 +1199,7 @@ bool DrawAssetKeyInline(
 		return changed;
 	}
 
-	const ImU32 error_color{ ImGui::GetColorU32(ImVec4{ 1.0f, 0.25f, 0.25f, 1.0f }) };
+	ImU32 error_color{ ImGui::GetColorU32(ImVec4{ 1.0f, 0.25f, 0.25f, 1.0f }) };
 	ImGui::GetWindowDrawList()->AddRect(
 		input_min, input_max, error_color, ImGui::GetStyle().FrameRounding
 	);
@@ -1210,7 +1208,7 @@ bool DrawAssetKeyInline(
 		if constexpr (std::same_as<Value, AssetKey>) {
 			ImGui::SetTooltip("No asset exists with key \"%s\".", value.value.c_str());
 		} else {
-			const auto kind_name{ magic_enum::enum_name(Value::kind) };
+			auto kind_name{ magic_enum::enum_name(Value::kind) };
 			ImGui::SetTooltip(
 				"No %.*s asset exists with key \"%s\".", static_cast<int>(kind_name.size()),
 				kind_name.data(), value.value.c_str()
@@ -1356,7 +1354,7 @@ template <typename... Aliases>
 [[nodiscard]] inline std::optional<DurationInputUnit> ParseDurationInputUnit(
 	std::string_view unit
 ) {
-	const std::string normalized{ NormalizeDurationInputUnit(unit) };
+	std::string normalized{ NormalizeDurationInputUnit(unit) };
 
 	if (IsDurationInputUnit(normalized, "ns", "nsec", "nsecs", "nanosecond", "nanoseconds")) {
 		return DurationInputUnit::Nanoseconds;
@@ -1411,7 +1409,7 @@ template <typename... Aliases>
 [[nodiscard]] inline std::optional<ParsedInspectorDuration> ParseInspectorDuration(
 	std::string_view text, DurationInputUnit default_unit = DurationInputUnit::Milliseconds
 ) {
-	const std::string input{ TrimDurationInputText(text) };
+	std::string input{ TrimDurationInputText(text) };
 
 	if (input.empty()) {
 		return ParsedInspectorDuration{
@@ -1421,17 +1419,17 @@ template <typename... Aliases>
 	}
 
 	char* end{ nullptr };
-	const long double count{ std::strtold(input.c_str(), &end) };
+	long double count{ std::strtold(input.c_str(), &end) };
 
 	if (end == input.c_str() || !std::isfinite(count)) {
 		return std::nullopt;
 	}
 
-	const std::string entered_suffix{ TrimDurationInputText(std::string_view{ end }) };
-	const std::optional<DurationInputUnit> unit{
-		entered_suffix.empty() ? std::optional<DurationInputUnit>{ default_unit }
-							   : ParseDurationInputUnit(entered_suffix)
-	};
+	std::string entered_suffix{ TrimDurationInputText(std::string_view{ end }) };
+
+	std::optional<DurationInputUnit> unit{ entered_suffix.empty()
+											   ? std::optional<DurationInputUnit>{ default_unit }
+											   : ParseDurationInputUnit(entered_suffix) };
 
 	if (!unit) {
 		return std::nullopt;
@@ -1450,7 +1448,7 @@ template <DurationType T>
 	using Period		   = typename Duration::period;
 	using FloatingDuration = duration<long double, Period>;
 
-	const auto convert = [&]<typename SourcePeriod>() {
+	auto convert = [&]<typename SourcePeriod>() {
 		using SourceDuration = duration<long double, SourcePeriod>;
 		return std::chrono::duration_cast<FloatingDuration>(SourceDuration{ parsed.count }).count();
 	};
@@ -1489,7 +1487,7 @@ template <DurationType T>
 
 template <DurationType T>
 [[nodiscard]] long double InspectorDurationCount(T value, DurationInputUnit unit) {
-	const auto convert = [&]<DurationType Destination>() {
+	auto convert = [&]<DurationType Destination>() {
 		using FloatingDestination = duration<long double, typename Destination::period>;
 		return std::chrono::duration_cast<FloatingDestination>(value).count();
 	};
@@ -1551,7 +1549,7 @@ bool DrawDurationTextInput(
 	using Duration = std::remove_cvref_t<T>;
 	using Rep	   = typename Duration::rep;
 
-	const ImGuiID id{ ImGui::GetID(label) };
+	ImGuiID id{ ImGui::GetID(label) };
 	auto& state{ DurationTextEditStates()[id] };
 
 	if (!state.initialized) {
@@ -1575,7 +1573,7 @@ bool DrawDurationTextInput(
 	bool changed{ false };
 
 	if (commit) {
-		const auto parsed{ ParseInspectorDuration(state.buffer) };
+		auto parsed{ ParseInspectorDuration(state.buffer) };
 
 		if (parsed && parsed->count >= 0.0L) {
 			if (auto updated{ ConvertInspectorDuration<Duration>(*parsed) }) {
@@ -1588,7 +1586,7 @@ bool DrawDurationTextInput(
 					);
 				}
 
-				const Duration bounded{ static_cast<Rep>(count) };
+				Duration bounded{ static_cast<Rep>(count) };
 				state.display_unit = std::string{ DurationInputUnitSuffix(parsed->unit) };
 
 				if (bounded != value) {
@@ -1783,15 +1781,16 @@ inline bool DrawVector(std::string_view label, T& value, const FieldOptions& opt
 
 		constexpr std::array<std::string_view, 4> axes{ "X", "Y", "Z", "W" };
 
-		const float spacing{ ImGui::GetStyle().ItemInnerSpacing.x };
-		const float available{ ImGui::GetContentRegionAvail().x };
+		float spacing{ ImGui::GetStyle().ItemInnerSpacing.x };
+		float available{ ImGui::GetContentRegionAvail().x };
+
 		// Keep compound numeric controls usable rather than compressing 3-4 inputs into a few
 		// pixels. At narrow widths they wrap within the value cell; the outer property table
 		// expands the row.
-		const int components_per_line{ available >= static_cast<float>(component_count) * 56.0f
-										   ? component_count
-										   : std::min(component_count, 2) };
-		const float width{ InspectorSplitWidth(components_per_line, available, spacing) };
+		int components_per_line{ available >= static_cast<float>(component_count) * 56.0f
+									 ? component_count
+									 : std::min(component_count, 2) };
+		float width{ InspectorSplitWidth(components_per_line, available, spacing) };
 
 		bool changed{ false };
 
@@ -1801,9 +1800,9 @@ inline bool DrawVector(std::string_view label, T& value, const FieldOptions& opt
 					ImGui::SameLine(0.0f, spacing);
 				}
 
-				const std::string id{ "##" + std::string{ axes[static_cast<std::size_t>(i)] } };
-				const std::string format{ std::string{ axes[static_cast<std::size_t>(i)] } + ": " +
-										  base_format };
+				std::string id{ "##" + std::string{ axes[static_cast<std::size_t>(i)] } };
+				std::string format{ std::string{ axes[static_cast<std::size_t>(i)] } + ": " +
+									base_format };
 
 				ImGui::SetNextItemWidth(width);
 
@@ -1997,7 +1996,7 @@ inline bool DrawFillStyle(
 			}
 
 			if (ImGui::Selectable("Hollow", hollow)) {
-				const float width{ style.GetLineWidth().value_or(kInspectorMinLineWidth) };
+				float width{ style.GetLineWidth().value_or(kInspectorMinLineWidth) };
 				style		  = FillStyle{ width };
 				hollow		  = true;
 				local_changed = true;
@@ -2015,11 +2014,9 @@ inline bool DrawFillStyle(
 
 	float line_width{ style.GetLineWidth().value_or(kInspectorMinLineWidth) };
 
-	const float line_width_maximum{ std::max(kInspectorMinLineWidth, maximum_line_width) };
+	float line_width_maximum{ std::max(kInspectorMinLineWidth, maximum_line_width) };
 
-	const float clamped_line_width{
-		std::clamp(line_width, kInspectorMinLineWidth, line_width_maximum)
-	};
+	float clamped_line_width{ std::clamp(line_width, kInspectorMinLineWidth, line_width_maximum) };
 	if (line_width != clamped_line_width) {
 		line_width = clamped_line_width;
 		style	   = FillStyle{ line_width };
@@ -2210,9 +2207,8 @@ bool DrawVectorEditorItems(std::vector<T>& values, VectorOptions options, Draw&&
 	bool read_only{ IsReadOnly() };
 
 	auto draw_add = [&](std::string_view prefix) {
-		const std::string add_label{ options.add_label.empty()
-										 ? std::string{ prefix } + options.item_name
-										 : options.add_label };
+		std::string add_label{ options.add_label.empty() ? std::string{ prefix } + options.item_name
+														 : options.add_label };
 
 		ImGui::BeginDisabled(read_only);
 		if (ImGui::Button(add_label.c_str(), ImVec2{ -FLT_MIN, 0.0f })) {
@@ -2686,15 +2682,13 @@ bool DrawOptionalInlineValue(EditorContext& ctx, T& value, const FieldOptions& o
 			return ImGui::InputText("##value", &value);
 		});
 	} else if constexpr (std::same_as<Value, V2_float>) {
-		const float spacing{ ImGui::GetStyle().ItemInnerSpacing.x };
-		const float available{ ImGui::GetContentRegionAvail().x };
-		const float width{ std::max(1.0f, (available - spacing) * 0.5f) };
-		const float minimum{ static_cast<float>(options.min) };
-		const float maximum{ static_cast<float>(options.max) };
-		const std::string x_format{ std::string{ "X: " } +
-									(options.format ? options.format : "%.3f") };
-		const std::string y_format{ std::string{ "Y: " } +
-									(options.format ? options.format : "%.3f") };
+		float spacing{ ImGui::GetStyle().ItemInnerSpacing.x };
+		float available{ ImGui::GetContentRegionAvail().x };
+		float width{ std::max(1.0f, (available - spacing) * 0.5f) };
+		float minimum{ static_cast<float>(options.min) };
+		float maximum{ static_cast<float>(options.max) };
+		std::string x_format{ std::string{ "X: " } + (options.format ? options.format : "%.3f") };
+		std::string y_format{ std::string{ "Y: " } + (options.format ? options.format : "%.3f") };
 
 		return DrawDisabledIf(IsReadOnly(options), [&]() {
 			bool changed{ false };
@@ -2712,15 +2706,15 @@ bool DrawOptionalInlineValue(EditorContext& ctx, T& value, const FieldOptions& o
 			return changed;
 		});
 	} else if constexpr (std::same_as<Value, V2_int>) {
-		const float spacing{ ImGui::GetStyle().ItemInnerSpacing.x };
-		const float available{ ImGui::GetContentRegionAvail().x };
-		const float width{ std::max(1.0f, (available - spacing) * 0.5f) };
-		const int minimum{ static_cast<int>(options.min) };
-		const int maximum{ static_cast<int>(options.max) };
-		const std::string x_format{ std::string{ "X: " } +
-									(options.format ? options.format : "%d") };
-		const std::string y_format{ std::string{ "Y: " } +
-									(options.format ? options.format : "%d") };
+		float spacing{ ImGui::GetStyle().ItemInnerSpacing.x };
+		float available{ ImGui::GetContentRegionAvail().x };
+
+		float width{ std::max(1.0f, (available - spacing) * 0.5f) };
+		int minimum{ static_cast<int>(options.min) };
+		int maximum{ static_cast<int>(options.max) };
+
+		std::string x_format{ std::string{ "X: " } + (options.format ? options.format : "%d") };
+		std::string y_format{ std::string{ "Y: " } + (options.format ? options.format : "%d") };
 
 		return DrawDisabledIf(IsReadOnly(options), [&]() {
 			bool changed{ false };
@@ -2854,7 +2848,7 @@ bool DrawOptional(
 		constexpr InspectorTreeToggleSide toggle_side{ std::same_as<Value, TextClip>
 														   ? InspectorTreeToggleSide::Left
 														   : InspectorTreeToggleSide::Right };
-		const auto header{ DrawInspectorTreeToggleRow(
+		auto header{ DrawInspectorTreeToggleRow(
 			label, "##OptionalTree", enabled, IsReadOnly(options), toggle_side, options.default_open
 		) };
 		bool changed{ header.toggle_changed };

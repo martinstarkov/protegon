@@ -88,8 +88,8 @@ struct CopySource {
 	std::size_t start{};
 
 	while (start <= value.size()) {
-		const auto end{ value.find(separator, start) };
-		const auto length{ end == std::string_view::npos ? value.size() - start : end - start };
+		auto end{ value.find(separator, start) };
+		auto length{ end == std::string_view::npos ? value.size() - start : end - start };
 
 		if (length > 0) {
 			result.emplace_back(value.substr(start, length));
@@ -109,7 +109,7 @@ struct CopySource {
 		return false;
 	}
 
-	const path command_path{ command };
+	path command_path{ command };
 	if (command_path.has_parent_path()) {
 		return IsCommandFileUsable(command_path);
 	}
@@ -139,7 +139,7 @@ struct CopySource {
 #endif
 
 	for (const auto& directory : SplitEnvironmentList(path_value, kPathSeparator)) {
-		const path base{ path{ directory } / command_path };
+		path base{ path{ directory } / command_path };
 
 #if defined(_WIN32)
 		if (command_path.has_extension()) {
@@ -212,7 +212,7 @@ void AddMissingCommand(std::vector<std::string>& missing, std::string_view comma
 	std::vector<std::string> missing;
 	AddMissingCommand(missing, "cmake");
 
-	if (const auto build_command{ NativeBuildCommand(info.generator) }) {
+	if (auto build_command{ NativeBuildCommand(info.generator) }) {
 		AddMissingCommand(missing, build_command.value());
 	}
 
@@ -390,8 +390,8 @@ void UpdateBuildProgressFromText(
 		return;
 	}
 
-	const auto current{ static_cast<float>(std::strtoul(match[1].first, nullptr, 10)) };
-	const auto total{ static_cast<float>(std::strtoul(match[2].first, nullptr, 10)) };
+	auto current{ static_cast<float>(std::strtoul(match[1].first, nullptr, 10)) };
+	auto total{ static_cast<float>(std::strtoul(match[2].first, nullptr, 10)) };
 	if (total <= 0.0f) {
 		return;
 	}
@@ -427,7 +427,7 @@ void UpdateBuildProgressFromText(
 	startup_info.hStdInput	= GetStdHandle(STD_INPUT_HANDLE);
 
 	PROCESS_INFORMATION process_info{};
-	const std::string shell_command{ "cmd.exe /D /S /C \"" + command + "\"" };
+	std::string shell_command{ "cmd.exe /D /S /C \"" + command + "\"" };
 	std::vector<char> mutable_command(shell_command.begin(), shell_command.end());
 	mutable_command.push_back('\0');
 
@@ -523,7 +523,7 @@ void TerminateActiveProcess(const std::shared_ptr<impl::ExportSharedState>& stat
 		return -1;
 	}
 
-	const pid_t pid{ fork() };
+	pid_t pid{ fork() };
 	if (pid < 0) {
 		close(pipe_fds[0]);
 		close(pipe_fds[1]);
@@ -589,7 +589,7 @@ void TerminateActiveProcess(const std::shared_ptr<impl::ExportSharedState>& stat
 		return;
 	}
 
-	const auto pid{ static_cast<pid_t>(state->active_process) };
+	auto pid{ static_cast<pid_t>(state->active_process) };
 	kill(-pid, SIGTERM);
 	kill(-pid, SIGKILL);
 }
@@ -608,24 +608,28 @@ void TerminateActiveProcess(const std::shared_ptr<impl::ExportSharedState>& stat
 		return false;
 	}
 
-	const std::string command{ MakeCommand(executable, arguments) };
+	std::string command{ MakeCommand(executable, arguments) };
+
 	AppendOutputLine(state, "$ " + command);
 	AppendOutputLine(state, "");
 
-	const int result{ RunProcess(command, state, progress_base, progress_scale) };
+	int result{ RunProcess(command, state, progress_base, progress_scale) };
+
 	if (IsCancelled(state)) {
 		return false;
 	}
+
 	if (result != 0) {
 		AppendOutputLine(state, "");
 		AppendOutputLine(state, "Command failed with exit code " + std::to_string(result) + ".");
 		return false;
 	}
+
 	return true;
 }
 
 [[nodiscard]] bool IsExcludedExportFile(const path& source, bool include_editor) {
-	const auto extension{ source.extension() };
+	auto extension{ source.extension() };
 
 	return extension == ".ptgnlocal" || (!include_editor && extension == ".ptgneditor");
 }
@@ -661,7 +665,7 @@ void TerminateActiveProcess(const std::shared_ptr<impl::ExportSharedState>& stat
 		return true;
 	}
 
-	const path normalized_source{ NormalizeExportPath(source) };
+	path normalized_source{ NormalizeExportPath(source) };
 
 	return std::any_of(
 		excluded_directories.begin(), excluded_directories.end(),
@@ -696,7 +700,7 @@ void TerminateActiveProcess(const std::shared_ptr<impl::ExportSharedState>& stat
 			break;
 		}
 
-		const path source_path{ it->path() };
+		path source_path{ it->path() };
 
 		if (it->is_directory(error)) {
 			if (IsExcludedExportDirectory(source_path, excluded_directories)) {
@@ -729,9 +733,9 @@ void TerminateActiveProcess(const std::shared_ptr<impl::ExportSharedState>& stat
 ) {
 	std::error_code error;
 
-	const path normalized_source{ NormalizeExportPath(source) };
+	path normalized_source{ NormalizeExportPath(source) };
 
-	const path normalized_destination{ NormalizeExportPath(destination) };
+	path normalized_destination{ NormalizeExportPath(destination) };
 
 	if (normalized_source == normalized_destination) {
 		AppendOutputLine(state, "Export source and destination are the same: " + source.string());
@@ -774,7 +778,7 @@ void TerminateActiveProcess(const std::shared_ptr<impl::ExportSharedState>& stat
 		}
 	}
 
-	const std::uintmax_t total_files{
+	std::uintmax_t total_files{
 		CountExportFiles(source, include_editor, state, excluded_directories)
 	};
 	std::uintmax_t copied_files{};
@@ -836,7 +840,7 @@ void TerminateActiveProcess(const std::shared_ptr<impl::ExportSharedState>& stat
 			return false;
 		}
 
-		const path source_path{ it->path() };
+		path source_path{ it->path() };
 
 		if (it->is_directory(error)) {
 			if (IsExcludedExportDirectory(source_path, excluded_directories)) {
@@ -845,7 +849,7 @@ void TerminateActiveProcess(const std::shared_ptr<impl::ExportSharedState>& stat
 				continue;
 			}
 
-			const path relative{ source_path.lexically_relative(source) };
+			path relative{ source_path.lexically_relative(source) };
 			fs::create_directories(destination / relative, error);
 		} else if (it->is_regular_file(error)) {
 			if (IsExcludedExportFile(source_path, include_editor)) {
@@ -853,8 +857,8 @@ void TerminateActiveProcess(const std::shared_ptr<impl::ExportSharedState>& stat
 				continue;
 			}
 
-			const path relative{ source_path.lexically_relative(source) };
-			const path destination_path{ destination / relative };
+			path relative{ source_path.lexically_relative(source) };
+			path destination_path{ destination / relative };
 
 			fs::create_directories(destination_path.parent_path(), error);
 			if (!error) {
@@ -897,20 +901,20 @@ void TerminateActiveProcess(const std::shared_ptr<impl::ExportSharedState>& stat
 
 [[nodiscard]] std::uint64_t WebDistributionStamp(const path& web_output_directory) {
 	std::error_code error;
-	const path index_path{ WebIndexPath(web_output_directory) };
+	path index_path{ WebIndexPath(web_output_directory) };
 
-	const auto write_time{ fs::last_write_time(index_path, error) };
+	auto write_time{ fs::last_write_time(index_path, error) };
 	if (error) {
 		return 0;
 	}
 
 	error.clear();
-	const auto size{ fs::file_size(index_path, error) };
+	auto size{ fs::file_size(index_path, error) };
 	if (error) {
 		return 0;
 	}
 
-	const auto ticks{ write_time.time_since_epoch().count() };
+	auto ticks{ write_time.time_since_epoch().count() };
 
 	std::uint64_t value{ static_cast<std::uint64_t>(ticks) };
 	value ^=
@@ -928,7 +932,7 @@ struct DetachedProcess {
 [[nodiscard]] std::optional<DetachedProcess> StartDetachedProcess(
 	std::string_view executable, const std::vector<std::string>& arguments
 ) {
-	const std::string command{ MakeCommand(executable, arguments) };
+	std::string command{ MakeCommand(executable, arguments) };
 
 	std::vector<char> mutable_command(command.begin(), command.end());
 	mutable_command.push_back('\0');
@@ -1006,7 +1010,8 @@ void CloseDetachedProcess(DetachedProcess& process, bool terminate) {
 [[nodiscard]] std::optional<DetachedProcess> StartDetachedProcess(
 	std::string_view executable, const std::vector<std::string>& arguments
 ) {
-	const pid_t pid{ fork() };
+	pid_t pid{ fork() };
+
 	if (pid < 0) {
 		return std::nullopt;
 	}
@@ -1014,7 +1019,8 @@ void CloseDetachedProcess(DetachedProcess& process, bool terminate) {
 	if (pid == 0) {
 		setpgid(0, 0);
 
-		const int dev_null{ open("/dev/null", O_WRONLY) };
+		int dev_null{ open("/dev/null", O_WRONLY) };
+
 		if (dev_null >= 0) {
 			dup2(dev_null, STDOUT_FILENO);
 			dup2(dev_null, STDERR_FILENO);
@@ -1022,15 +1028,19 @@ void CloseDetachedProcess(DetachedProcess& process, bool terminate) {
 		}
 
 		std::vector<std::string> owned_arguments;
+
 		owned_arguments.reserve(arguments.size() + 1);
 		owned_arguments.emplace_back(executable);
 		owned_arguments.insert(owned_arguments.end(), arguments.begin(), arguments.end());
 
 		std::vector<char*> argv;
+
 		argv.reserve(owned_arguments.size() + 1);
+
 		for (auto& argument : owned_arguments) {
 			argv.emplace_back(argument.data());
 		}
+
 		argv.emplace_back(nullptr);
 
 		execvp(owned_arguments.front().c_str(), argv.data());
@@ -1050,8 +1060,8 @@ void CloseDetachedProcess(DetachedProcess& process, bool terminate) {
 	}
 
 	int status{};
-	const pid_t pid{ static_cast<pid_t>(process.process) };
-	const pid_t result{ waitpid(pid, &status, WNOHANG) };
+	pid_t pid{ static_cast<pid_t>(process.process) };
+	pid_t result{ waitpid(pid, &status, WNOHANG) };
 
 	if (result == 0) {
 		return true;
@@ -1068,14 +1078,14 @@ void CloseDetachedProcess(DetachedProcess& process, bool terminate) {
 		return;
 	}
 
-	const pid_t pid{ static_cast<pid_t>(process.process) };
+	pid_t pid{ static_cast<pid_t>(process.process) };
 
 	if (terminate) {
 		kill(-pid, SIGTERM);
 
 		for (int attempt{}; attempt < 20; ++attempt) {
 			int status{};
-			const pid_t result{ waitpid(pid, &status, WNOHANG) };
+			pid_t result{ waitpid(pid, &status, WNOHANG) };
 			if (result == pid || result < 0) {
 				process = {};
 				return;
@@ -1095,7 +1105,7 @@ void CloseDetachedProcess(DetachedProcess& process, bool terminate) {
 #endif
 
 void WriteZipU16(std::ostream& output, std::uint16_t value) {
-	const std::array<char, 2> bytes{
+	std::array<char, 2> bytes{
 		static_cast<char>(value & 0xFFU),
 		static_cast<char>((value >> 8U) & 0xFFU),
 	};
@@ -1103,7 +1113,7 @@ void WriteZipU16(std::ostream& output, std::uint16_t value) {
 }
 
 void WriteZipU32(std::ostream& output, std::uint32_t value) {
-	const std::array<char, 4> bytes{
+	std::array<char, 4> bytes{
 		static_cast<char>(value & 0xFFU),
 		static_cast<char>((value >> 8U) & 0xFFU),
 		static_cast<char>((value >> 16U) & 0xFFU),
@@ -1117,9 +1127,7 @@ void WriteZipU32(std::ostream& output, std::uint32_t value) {
 		crc ^= static_cast<std::uint8_t>(data[index]);
 
 		for (int bit{}; bit < 8; ++bit) {
-			const std::uint32_t mask{
-				static_cast<std::uint32_t>(-static_cast<std::int32_t>(crc & 1U))
-			};
+			std::uint32_t mask{ static_cast<std::uint32_t>(-static_cast<std::int32_t>(crc & 1U)) };
 			crc = (crc >> 1U) ^ (0xEDB88320U & mask);
 		}
 	}
@@ -1142,7 +1150,7 @@ struct ZipEntry {
 	std::vector<ZipEntry> entries;
 	total_bytes = 0;
 
-	const path normalized_zip{ NormalizeExportPath(zip_path) };
+	path normalized_zip{ NormalizeExportPath(zip_path) };
 
 	std::error_code error;
 	for (fs::recursive_directory_iterator it{ source_directory, error }, end; it != end && !error;
@@ -1159,12 +1167,12 @@ struct ZipEntry {
 			return std::nullopt;
 		}
 
-		const path source{ it->path() };
+		path source{ it->path() };
 		if (NormalizeExportPath(source) == normalized_zip) {
 			continue;
 		}
 
-		const auto size{ it->file_size(error) };
+		auto size{ it->file_size(error) };
 		if (error || size > std::numeric_limits<std::uint32_t>::max()) {
 			AppendOutputLine(
 				state, error ? "Failed to inspect Web file for ZIP: " + source.string() + " | " +
@@ -1175,8 +1183,8 @@ struct ZipEntry {
 			return std::nullopt;
 		}
 
-		const path relative{ source.lexically_relative(source_directory) };
-		const auto utf8_name{ relative.generic_u8string() };
+		path relative{ source.lexically_relative(source_directory) };
+		auto utf8_name{ relative.generic_u8string() };
 		std::string archive_name{ reinterpret_cast<const char*>(utf8_name.data()),
 								  utf8_name.size() };
 
@@ -1232,7 +1240,7 @@ struct ZipEntry {
 
 		while (input) {
 			input.read(buffer.data(), static_cast<std::streamsize>(buffer.size()));
-			const auto count{ input.gcount() };
+			auto count{ input.gcount() };
 			if (count <= 0) {
 				break;
 			}
@@ -1240,9 +1248,9 @@ struct ZipEntry {
 			crc		   = UpdateCrc32(crc, buffer.data(), static_cast<std::size_t>(count));
 			processed += static_cast<std::uintmax_t>(count);
 
-			const float ratio{ total_bytes == 0 ? 1.0f
-												: static_cast<float>(processed) /
-													  static_cast<float>(total_bytes) };
+			float ratio{ total_bytes == 0
+							 ? 1.0f
+							 : static_cast<float>(processed) / static_cast<float>(total_bytes) };
 			state->progress.store(
 				std::clamp(ratio * 0.45f, 0.0f, 0.45f), std::memory_order_relaxed
 			);
@@ -1331,7 +1339,7 @@ struct ZipEntry {
 	std::uintmax_t written_source_bytes{};
 
 	for (auto& entry : entries) {
-		const std::streamoff offset{ output.tellp() };
+		std::streamoff offset{ output.tellp() };
 		if (offset < 0 ||
 			static_cast<std::uint64_t>(offset) > std::numeric_limits<std::uint32_t>::max()) {
 			AppendOutputLine(state, "Web ZIP exceeded ZIP32 size limits.");
@@ -1366,7 +1374,7 @@ struct ZipEntry {
 
 		while (input) {
 			input.read(buffer.data(), static_cast<std::streamsize>(buffer.size()));
-			const auto count{ input.gcount() };
+			auto count{ input.gcount() };
 			if (count <= 0) {
 				break;
 			}
@@ -1380,9 +1388,9 @@ struct ZipEntry {
 			}
 
 			written_source_bytes += static_cast<std::uintmax_t>(count);
-			const float ratio{ total_bytes == 0 ? 1.0f
-												: static_cast<float>(written_source_bytes) /
-													  static_cast<float>(total_bytes) };
+			float ratio{ total_bytes == 0 ? 1.0f
+										  : static_cast<float>(written_source_bytes) /
+												static_cast<float>(total_bytes) };
 			state->progress.store(
 				std::clamp(0.45f + ratio * 0.45f, 0.45f, 0.90f), std::memory_order_relaxed
 			);
@@ -1395,7 +1403,7 @@ struct ZipEntry {
 		}
 	}
 
-	const std::streamoff central_start{ output.tellp() };
+	std::streamoff central_start{ output.tellp() };
 	if (central_start < 0 ||
 		static_cast<std::uint64_t>(central_start) > std::numeric_limits<std::uint32_t>::max()) {
 		AppendOutputLine(state, "Web ZIP exceeded ZIP32 size limits.");
@@ -1427,7 +1435,7 @@ struct ZipEntry {
 		);
 	}
 
-	const std::streamoff central_end{ output.tellp() };
+	std::streamoff central_end{ output.tellp() };
 	if (central_end < 0 ||
 		static_cast<std::uint64_t>(central_end) > std::numeric_limits<std::uint32_t>::max()) {
 		AppendOutputLine(state, "Web ZIP exceeded ZIP32 size limits.");
@@ -1436,8 +1444,8 @@ struct ZipEntry {
 		return false;
 	}
 
-	const auto central_size{ static_cast<std::uint32_t>(central_end - central_start) };
-	const auto entry_count{ static_cast<std::uint16_t>(entries.size()) };
+	auto central_size{ static_cast<std::uint32_t>(central_end - central_start) };
+	auto entry_count{ static_cast<std::uint16_t>(entries.size()) };
 
 	WriteZipU32(output, 0x06054B50U);
 	WriteZipU16(output, 0);
@@ -1477,7 +1485,7 @@ struct ZipEntry {
 	float progress_base, float progress_scale
 ) {
 	bool web{ target == ExportTarget::Web };
-	const std::string configuration_name{ ConfigurationName(configuration) };
+	std::string configuration_name{ ConfigurationName(configuration) };
 
 	std::error_code error;
 	fs::create_directories(build_directory, error);
@@ -1541,21 +1549,21 @@ struct ZipEntry {
 		configure_command_arguments.end(), configure_arguments.begin(), configure_arguments.end()
 	);
 
-	const float configure_scale{ progress_scale * 0.15f };
+	float configure_scale{ progress_scale * 0.15f };
 	if (!RunLoggedCommand(
 			configure_executable, configure_command_arguments, state, progress_base, configure_scale
 		)) {
 		return false;
 	}
 
-	const float build_base{ progress_base + configure_scale };
-	const float build_scale{ progress_scale - configure_scale };
+	float build_base{ progress_base + configure_scale };
+	float build_scale{ progress_scale - configure_scale };
 
-	const std::string build_target{ !web && !desktop_copy_directory.empty()
-										? info.target + "_ptgn_copy_output"
-										: info.target };
+	std::string build_target{ !web && !desktop_copy_directory.empty()
+								  ? info.target + "_ptgn_copy_output"
+								  : info.target };
 
-	const std::vector<std::string> build_arguments{
+	std::vector<std::string> build_arguments{
 		"--build",	  build_directory.string(), "--config", configuration_name, "--target",
 		build_target,
 	};
@@ -1591,15 +1599,15 @@ bool ExportManager::Export(ExportRequest request) {
 	// any failure is visible in the export output.
 	RefreshToolAvailability();
 	const auto& availability{ GetTargetAvailability(request.target) };
-	const std::string toolchain_warning{ availability.available ? std::string{}
-																: availability.unavailable_reason };
+	std::string toolchain_warning{ availability.available ? std::string{}
+														  : availability.unavailable_reason };
 
-	const auto info{ ::ptgn::impl::GetBuildInfo() };
-	const path build_directory{ ExportBuildDirectory(info, request.target, request.configuration) };
-	const impl::ExportTaskKind kind{ request.target == ExportTarget::Desktop
-										 ? impl::ExportTaskKind::Desktop
-										 : impl::ExportTaskKind::Web };
-	const auto state{ shared_state_ };
+	auto info{ ::ptgn::impl::GetBuildInfo() };
+	path build_directory{ ExportBuildDirectory(info, request.target, request.configuration) };
+	impl::ExportTaskKind kind{ request.target == ExportTarget::Desktop
+								   ? impl::ExportTaskKind::Desktop
+								   : impl::ExportTaskKind::Web };
+	auto state{ shared_state_ };
 
 	ClearOutput();
 	state->cancel_requested.store(false, std::memory_order_relaxed);
@@ -1641,8 +1649,8 @@ bool ExportManager::Export(ExportRequest request) {
 							  request.project_file.has_value() };
 
 			std::optional<path> staged_project_directory;
-			const path staging_root{ build_directory / "runtime_staging" };
-			const path desktop_build_output{ build_directory / "desktop_output" };
+			path staging_root{ build_directory / "runtime_staging" };
+			path desktop_build_output{ build_directory / "desktop_output" };
 
 			if (has_project) {
 				state->phase.store(ExportPhase::ProjectFiles, std::memory_order_relaxed);
@@ -1657,9 +1665,9 @@ bool ExportManager::Export(ExportRequest request) {
 					return result;
 				}
 
-				const path destination{ request.project_mount.empty()
-											? staging_root
-											: staging_root / request.project_mount };
+				path destination{ request.project_mount.empty()
+									  ? staging_root
+									  : staging_root / request.project_mount };
 
 				fs::create_directories(destination, error);
 				if (error) {
@@ -1724,7 +1732,7 @@ bool ExportManager::Export(ExportRequest request) {
 					// Compatibility fallback for existing callers. New callers should
 					// pass the resolved project asset directory explicitly.
 					std::error_code asset_error;
-					const path assets_dir{ request.project_directory.value() / "assets" };
+					path assets_dir{ request.project_directory.value() / "assets" };
 
 					if (fs::is_directory(assets_dir, asset_error)) {
 						project_assets = assets_dir;
@@ -1764,8 +1772,8 @@ bool ExportManager::Export(ExportRequest request) {
 					return result;
 				}
 
-				const float build_base{ has_project ? 0.10f : 0.0f };
-				const float build_scale{ has_project ? 0.70f : 0.75f };
+				float build_base{ has_project ? 0.10f : 0.0f };
+				float build_scale{ has_project ? 0.70f : 0.75f };
 
 				if (!RunDistributionBuild(
 						info, request.target, request.configuration, request.include_editor,
@@ -1794,10 +1802,9 @@ bool ExportManager::Export(ExportRequest request) {
 				}
 
 				if (staged_project_directory) {
-					const path destination{ request.project_mount.empty()
-												? request.output_directory
-												: request.output_directory /
-													  request.project_mount };
+					path destination{ request.project_mount.empty()
+										  ? request.output_directory
+										  : request.output_directory / request.project_mount };
 
 					AppendOutputLine(state, "Copying project snapshot to output...");
 					if (!CopyExportSource(
@@ -1842,7 +1849,7 @@ bool ExportManager::Export(ExportRequest request) {
 
 				state->phase.store(ExportPhase::Output, std::memory_order_relaxed);
 
-				const path web_output{ build_directory / "dist" };
+				path web_output{ build_directory / "dist" };
 				AppendOutputLine(state, "Copying Web output...");
 				if (!CopyExportSource(
 						web_output, request.output_directory, request.replace_existing, true,
@@ -1874,12 +1881,12 @@ bool ExportManager::Clean(ExportTarget target, ExportConfiguration configuration
 		return false;
 	}
 
-	const path build_directory{ GetBuildDirectory(target, configuration) };
+	path build_directory{ GetBuildDirectory(target, configuration) };
 	if (build_directory.empty()) {
 		return false;
 	}
 
-	const auto state{ shared_state_ };
+	auto state{ shared_state_ };
 	ClearOutput();
 	state->cancel_requested.store(false, std::memory_order_relaxed);
 	state->progress.store(0.0f, std::memory_order_relaxed);
@@ -1982,10 +1989,10 @@ bool ExportManager::ZipWebOutput(const path& web_output_directory) {
 		return false;
 	}
 
-	const path source_directory{ NormalizeExportPath(web_output_directory) };
-	const path zip_path{ GetWebZipPath(source_directory) };
+	path source_directory{ NormalizeExportPath(web_output_directory) };
+	path zip_path{ GetWebZipPath(source_directory) };
 
-	const auto state{ shared_state_ };
+	auto state{ shared_state_ };
 
 	ClearOutput();
 	state->cancel_requested.store(false, std::memory_order_relaxed);
@@ -2078,7 +2085,7 @@ void ExportManager::OnUpdate() {
 }
 
 void ExportManager::DrawOutputPanel() {
-	const auto revision{ shared_state_->output_revision.load(std::memory_order_relaxed) };
+	auto revision{ shared_state_->output_revision.load(std::memory_order_relaxed) };
 	bool output_updated{ revision != last_rendered_output_revision_ };
 
 	if (output_updated) {
@@ -2110,7 +2117,7 @@ void ExportManager::DrawOutputPanel() {
 
 	ImGui::ProgressBar(GetProgress(), ImVec2{ -1.0f, 0.0f });
 
-	const auto actions{ DrawOutputConsole(
+	auto actions{ DrawOutputConsole(
 		"ExportOutput", rendered_output_, follow_output_tail_, jump_to_bottom_requested_
 	) };
 
@@ -2129,7 +2136,7 @@ void ExportManager::RefreshToolAvailability() {
 	desktop_availability_ = CheckDesktopAvailability(info);
 	web_availability_	  = CheckWebAvailability();
 
-	const auto python{ FindPython3Command() };
+	auto python{ FindPython3Command() };
 	web_server_availability_ = CheckWebServerAvailability(python);
 
 	web_server_executable_.clear();
@@ -2171,7 +2178,7 @@ bool ExportManager::CanRunWebServer(const path& web_output_directory) const {
 		return true;
 	}
 
-	const path normalized{ NormalizeExportPath(web_output_directory) };
+	path normalized{ NormalizeExportPath(web_output_directory) };
 	if (normalized != web_server_directory_) {
 		return true;
 	}
@@ -2188,7 +2195,7 @@ bool ExportManager::CanRunWebServer(const path& web_output_directory) const {
 path ExportManager::GetWebZipPath(const path& web_output_directory) const {
 	const auto& info{ ::ptgn::impl::GetBuildInfo() };
 
-	const path root{ info.IsExample() ? web_output_directory.parent_path() : web_output_directory };
+	path root{ info.IsExample() ? web_output_directory.parent_path() : web_output_directory };
 
 	return (root / (info.target + ".zip")).lexically_normal();
 }
@@ -2198,8 +2205,8 @@ bool ExportManager::IsWebZipCurrent(const path& web_output_directory) const {
 		return false;
 	}
 
-	const path normalized_source{ NormalizeExportPath(web_output_directory) };
-	const path zip_path{ GetWebZipPath(normalized_source) };
+	path normalized_source{ NormalizeExportPath(web_output_directory) };
+	path zip_path{ GetWebZipPath(normalized_source) };
 
 	std::error_code error;
 	if (!fs::is_regular_file(zip_path, error) || error) {
@@ -2219,13 +2226,13 @@ bool ExportManager::IsWebZipCurrent(const path& web_output_directory) const {
 	}
 
 	error.clear();
-	const auto zip_time{ fs::last_write_time(zip_path, error) };
+	auto zip_time{ fs::last_write_time(zip_path, error) };
 	if (error) {
 		return false;
 	}
 
 	error.clear();
-	const auto index_time{ fs::last_write_time(WebIndexPath(normalized_source), error) };
+	auto index_time{ fs::last_write_time(WebIndexPath(normalized_source), error) };
 	if (error) {
 		return false;
 	}

@@ -89,7 +89,7 @@ int main() {
 	json j4 = script4.Serialize();
 	PTGN_LOG("script4: ", j4.dump(4));
 
-	const auto create_script_from_json = [&](const json& j) {
+	auto create_script_from_json = [&](const json& j) {
 		std::string class_name{ j.at("type").get<std::string>() };
 		auto instance{ impl::ScriptRegistry<impl::IScript>::Instance().Create(class_name) };
 		if (instance) {

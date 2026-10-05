@@ -5,6 +5,7 @@
 #include <concepts>
 #include <cstddef>
 #include <cstdint>
+#include <magic_enum/magic_enum.hpp>
 #include <memory>
 #include <optional>
 #include <ranges>
@@ -15,8 +16,6 @@
 #include <utility>
 #include <variant>
 #include <vector>
-
-#include <magic_enum/magic_enum.hpp>
 
 #include "core/util/hash.h"
 #include "core/util/reflection.h"
@@ -56,17 +55,17 @@ using ReflectedComponentMemberCallback =
 	void (*)(void* user_data, const ReflectedComponentMember& member);
 using ReflectedComponentShouldVisitChildrenCallback =
 	bool (*)(void* user_data, const ReflectedComponentMember& member);
-using ReflectedComponentSetBoolCallback = bool (*)(void* value, bool updated);
-using ReflectedComponentSetSignedCallback = bool (*)(void* value, std::int64_t updated);
-using ReflectedComponentSetUnsignedCallback = bool (*)(void* value, std::uint64_t updated);
-using ReflectedComponentSetFloatCallback = bool (*)(void* value, double updated);
-using ReflectedComponentOptionalSetCallback = bool (*)(void* value, bool enabled);
+using ReflectedComponentSetBoolCallback		   = bool (*)(void* value, bool updated);
+using ReflectedComponentSetSignedCallback	   = bool (*)(void* value, std::int64_t updated);
+using ReflectedComponentSetUnsignedCallback	   = bool (*)(void* value, std::uint64_t updated);
+using ReflectedComponentSetFloatCallback	   = bool (*)(void* value, double updated);
+using ReflectedComponentOptionalSetCallback	   = bool (*)(void* value, bool enabled);
 using ReflectedComponentSequenceInsertCallback = bool (*)(void* value, std::size_t index);
-using ReflectedComponentSequenceEraseCallback = bool (*)(void* value, std::size_t index);
+using ReflectedComponentSequenceEraseCallback  = bool (*)(void* value, std::size_t index);
 using ReflectedComponentSequenceMoveCallback =
 	bool (*)(void* value, std::size_t from, std::size_t to);
-using ReflectedComponentVariantSetCallback = bool (*)(void* value, std::size_t index);
-using ReflectedComponentEnumSetCallback = bool (*)(void* value, std::size_t index);
+using ReflectedComponentVariantSetCallback	= bool (*)(void* value, std::size_t index);
+using ReflectedComponentEnumSetCallback		= bool (*)(void* value, std::size_t index);
 using ReflectedComponentIndexedNameCallback = std::string_view (*)(std::size_t index);
 
 struct ReflectedComponentMember {
@@ -151,9 +150,7 @@ template <typename T>
 concept HasReflectedMembers = requires(T& value) { ReflectMembers(value); };
 
 template <typename T>
-concept HasReflectedReadOnlyMembers = requires(const T& value) {
-	ReflectReadOnlyMembers(value);
-};
+concept HasReflectedReadOnlyMembers = requires(const T& value) { ReflectReadOnlyMembers(value); };
 
 template <typename T>
 concept HasReflectedValue = requires(T& value) { ReflectValue(value); };
@@ -195,12 +192,8 @@ template <typename T>
 inline constexpr bool kIsVariant{ IsVariant<std::remove_cvref_t<T>>::value };
 
 template <typename T>
-inline constexpr bool kIsMagicEnumReflected{
-	magic_enum::detail::is_reflected_v<
-		std::remove_cvref_t<T>,
-		magic_enum::detail::enum_subtype::common
-	>
-};
+inline constexpr bool kIsMagicEnumReflected{ magic_enum::detail::is_reflected_v<
+	std::remove_cvref_t<T>, magic_enum::detail::enum_subtype::common> };
 
 template <typename T>
 [[nodiscard]] void* MutableReflectionPointer(T& value, bool read_only) {
@@ -222,11 +215,15 @@ bool SetReflectionBool(void* value, bool updated) {
 	}
 
 	auto& typed{ *static_cast<T*>(value) };
+
 	const T converted{ static_cast<T>(updated) };
+
 	if (typed == converted) {
 		return false;
 	}
+
 	typed = converted;
+
 	return true;
 }
 
@@ -414,27 +411,24 @@ std::string_view ReflectionEnumName(std::size_t index) {
 
 template <typename T>
 ReflectedComponentMember MakeReflectionNode(
-	ComponentReflectionNodeKind kind,
-	std::string_view name,
-	T& value,
-	bool read_only,
+	ComponentReflectionNodeKind kind, std::string_view name, T& value, bool read_only,
 	std::size_t depth
 ) {
 	using Value = std::remove_cvref_t<T>;
 	ReflectedComponentMember result{
-		.kind = kind,
-		.name = std::string{ name },
-		.type_id = Hash<Value>(),
-		.value = std::addressof(value),
+		.kind		   = kind,
+		.name		   = std::string{ name },
+		.type_id	   = Hash<Value>(),
+		.value		   = std::addressof(value),
 		.mutable_value = MutableReflectionPointer(value, read_only),
-		.read_only = read_only,
-		.depth = depth,
+		.read_only	   = read_only,
+		.depth		   = depth,
 	};
 
 	if constexpr (std::same_as<Value, bool>) {
 		result.value_kind = ComponentReflectionValueKind::Bool;
 		result.bool_value = value;
-		result.set_bool = &SetReflectionBool<Value>;
+		result.set_bool	  = &SetReflectionBool<Value>;
 	} else if constexpr (std::is_enum_v<Value>) {
 		using Underlying = std::underlying_type_t<Value>;
 
@@ -442,33 +436,29 @@ ReflectedComponentMember MakeReflectionNode(
 			result.value_kind = ComponentReflectionValueKind::Enum;
 			result.enum_count = magic_enum::enum_count<Value>();
 			result.enum_index = magic_enum::enum_index(value).value_or(0);
-			result.enum_name = &ReflectionEnumName<Value>;
-			result.enum_set = &SetReflectionEnumIndex<Value>;
+			result.enum_name  = &ReflectionEnumName<Value>;
+			result.enum_set	  = &SetReflectionEnumIndex<Value>;
 		} else if constexpr (std::is_signed_v<Underlying>) {
-			result.value_kind = ComponentReflectionValueKind::SignedInteger;
-			result.signed_value = static_cast<std::int64_t>(
-				static_cast<Underlying>(value)
-			);
-			result.set_signed = &SetReflectionSigned<Value>;
+			result.value_kind	= ComponentReflectionValueKind::SignedInteger;
+			result.signed_value = static_cast<std::int64_t>(static_cast<Underlying>(value));
+			result.set_signed	= &SetReflectionSigned<Value>;
 		} else {
-			result.value_kind = ComponentReflectionValueKind::UnsignedInteger;
-			result.unsigned_value = static_cast<std::uint64_t>(
-				static_cast<Underlying>(value)
-			);
-			result.set_unsigned = &SetReflectionUnsigned<Value>;
+			result.value_kind	  = ComponentReflectionValueKind::UnsignedInteger;
+			result.unsigned_value = static_cast<std::uint64_t>(static_cast<Underlying>(value));
+			result.set_unsigned	  = &SetReflectionUnsigned<Value>;
 		}
 	} else if constexpr (std::integral<Value> && std::is_signed_v<Value>) {
-		result.value_kind = ComponentReflectionValueKind::SignedInteger;
+		result.value_kind	= ComponentReflectionValueKind::SignedInteger;
 		result.signed_value = static_cast<std::int64_t>(value);
-		result.set_signed = &SetReflectionSigned<Value>;
+		result.set_signed	= &SetReflectionSigned<Value>;
 	} else if constexpr (std::integral<Value> && std::is_unsigned_v<Value>) {
-		result.value_kind = ComponentReflectionValueKind::UnsignedInteger;
+		result.value_kind	  = ComponentReflectionValueKind::UnsignedInteger;
 		result.unsigned_value = static_cast<std::uint64_t>(value);
-		result.set_unsigned = &SetReflectionUnsigned<Value>;
+		result.set_unsigned	  = &SetReflectionUnsigned<Value>;
 	} else if constexpr (std::floating_point<Value>) {
-		result.value_kind = ComponentReflectionValueKind::FloatingPoint;
+		result.value_kind	  = ComponentReflectionValueKind::FloatingPoint;
 		result.floating_value = static_cast<double>(value);
-		result.set_float = &SetReflectionFloat<Value>;
+		result.set_float	  = &SetReflectionFloat<Value>;
 	} else if constexpr (std::same_as<Value, std::string>) {
 		result.value_kind = ComponentReflectionValueKind::String;
 	}
@@ -477,8 +467,7 @@ ReflectedComponentMember MakeReflectionNode(
 }
 
 inline void EmitReflectionNode(
-	const ComponentReflectionVisitor& visitor,
-	const ReflectedComponentMember& member
+	const ComponentReflectionVisitor& visitor, const ReflectedComponentMember& member
 ) {
 	if (visitor.callback) {
 		visitor.callback(visitor.user_data, member);
@@ -486,34 +475,27 @@ inline void EmitReflectionNode(
 }
 
 inline bool ShouldVisitReflectionChildren(
-	const ComponentReflectionVisitor& visitor,
-	const ReflectedComponentMember& member
+	const ComponentReflectionVisitor& visitor, const ReflectedComponentMember& member
 ) {
 	return !visitor.should_visit_children ||
-		visitor.should_visit_children(visitor.user_data, member);
+		   visitor.should_visit_children(visitor.user_data, member);
 }
 
 template <typename T>
 void VisitReflectedValue(
-	std::string_view name,
-	T& value,
-	bool read_only,
-	std::size_t depth,
+	std::string_view name, T& value, bool read_only, std::size_t depth,
 	ComponentReflectionVisitor visitor
 );
 
 template <typename T>
 void VisitReflectedObject(
-	std::string_view name,
-	T& value,
-	bool read_only,
-	std::size_t depth,
+	std::string_view name, T& value, bool read_only, std::size_t depth,
 	ComponentReflectionVisitor visitor
 ) {
 	using Value = std::remove_cvref_t<T>;
-	auto begin{ MakeReflectionNode(
-		ComponentReflectionNodeKind::BeginObject, name, value, read_only, depth
-	) };
+	auto begin{
+		MakeReflectionNode(ComponentReflectionNodeKind::BeginObject, name, value, read_only, depth)
+	};
 	EmitReflectionNode(visitor, begin);
 
 	if (ShouldVisitReflectionChildren(visitor, begin)) {
@@ -526,8 +508,9 @@ void VisitReflectedObject(
 				std::apply(
 					[&](auto&&... member) {
 						(VisitReflectedValue(
-							member.name, member.value, read_only, depth + 1, visitor
-						), ...);
+							 member.name, member.value, read_only, depth + 1, visitor
+						 ),
+						 ...);
 					},
 					members
 				);
@@ -538,9 +521,8 @@ void VisitReflectedObject(
 				auto members{ ReflectReadOnlyMembers(const_value) };
 				std::apply(
 					[&](auto&&... member) {
-						(VisitReflectedValue(
-							member.name, member.value, true, depth + 1, visitor
-						), ...);
+						(VisitReflectedValue(member.name, member.value, true, depth + 1, visitor),
+						 ...);
 					},
 					members
 				);
@@ -556,10 +538,7 @@ void VisitReflectedObject(
 
 template <typename T>
 void VisitReflectedValue(
-	std::string_view name,
-	T& value,
-	bool read_only,
-	std::size_t depth,
+	std::string_view name, T& value, bool read_only, std::size_t depth,
 	ComponentReflectionVisitor visitor
 ) {
 	using Value = std::remove_cvref_t<T>;
@@ -569,54 +548,56 @@ void VisitReflectedValue(
 			ComponentReflectionNodeKind::BeginOptional, name, value, read_only, depth
 		) };
 		begin.optional_has_value = value.has_value();
-		begin.optional_set = &SetReflectionOptional<Value>;
+		begin.optional_set		 = &SetReflectionOptional<Value>;
 		EmitReflectionNode(visitor, begin);
 		if (ShouldVisitReflectionChildren(visitor, begin) && value.has_value()) {
 			VisitReflectedValue("Value", *value, read_only, depth + 1, visitor);
 		}
 		EmitReflectionNode(
-			visitor,
-			MakeReflectionNode(ComponentReflectionNodeKind::EndOptional, name, value, read_only, depth)
+			visitor, MakeReflectionNode(
+						 ComponentReflectionNodeKind::EndOptional, name, value, read_only, depth
+					 )
 		);
 	} else if constexpr (kIsVector<Value>) {
 		auto begin{ MakeReflectionNode(
 			ComponentReflectionNodeKind::BeginSequence, name, value, read_only, depth
 		) };
-		begin.sequence_size = value.size();
+		begin.sequence_size		 = value.size();
 		begin.sequence_resizable = true;
-		begin.sequence_insert = &InsertReflectionSequence<Value>;
-		begin.sequence_erase = &EraseReflectionSequence<Value>;
-		begin.sequence_move = &MoveReflectionSequence<Value>;
+		begin.sequence_insert	 = &InsertReflectionSequence<Value>;
+		begin.sequence_erase	 = &EraseReflectionSequence<Value>;
+		begin.sequence_move		 = &MoveReflectionSequence<Value>;
 		EmitReflectionNode(visitor, begin);
 
 		if (ShouldVisitReflectionChildren(visitor, begin)) {
 			if constexpr (std::same_as<typename Value::value_type, bool>) {
 				EmitReflectionNode(
 					visitor,
-					MakeReflectionNode(ComponentReflectionNodeKind::Value, name, value, read_only, depth + 1)
+					MakeReflectionNode(
+						ComponentReflectionNodeKind::Value, name, value, read_only, depth + 1
+					)
 				);
 			} else {
-				const std::size_t count{ value.size() };
+				std::size_t count{ value.size() };
 				for (std::size_t index{ 0 }; index < count; ++index) {
 					auto element{ MakeReflectionNode(
-						ComponentReflectionNodeKind::BeginSequenceElement,
-						std::to_string(index), value, read_only, depth + 1
+						ComponentReflectionNodeKind::BeginSequenceElement, std::to_string(index),
+						value, read_only, depth + 1
 					) };
-					element.sequence_index = index;
-					element.sequence_size = count;
+					element.sequence_index	   = index;
+					element.sequence_size	   = count;
 					element.sequence_resizable = true;
-					element.sequence_erase = begin.sequence_erase;
-					element.sequence_move = begin.sequence_move;
+					element.sequence_erase	   = begin.sequence_erase;
+					element.sequence_move	   = begin.sequence_move;
 					EmitReflectionNode(visitor, element);
 					if (ShouldVisitReflectionChildren(visitor, element)) {
 						VisitReflectedValue("Value", value[index], read_only, depth + 2, visitor);
 					}
 					EmitReflectionNode(
-						visitor,
-						MakeReflectionNode(
-							ComponentReflectionNodeKind::EndSequenceElement,
-							std::to_string(index), value, read_only, depth + 1
-						)
+						visitor, MakeReflectionNode(
+									 ComponentReflectionNodeKind::EndSequenceElement,
+									 std::to_string(index), value, read_only, depth + 1
+								 )
 					);
 				}
 			}
@@ -625,11 +606,11 @@ void VisitReflectedValue(
 		auto end{ MakeReflectionNode(
 			ComponentReflectionNodeKind::EndSequence, name, value, read_only, depth
 		) };
-		end.sequence_size = value.size();
+		end.sequence_size	   = value.size();
 		end.sequence_resizable = true;
-		end.sequence_insert = begin.sequence_insert;
-		end.sequence_erase = begin.sequence_erase;
-		end.sequence_move = begin.sequence_move;
+		end.sequence_insert	   = begin.sequence_insert;
+		end.sequence_erase	   = begin.sequence_erase;
+		end.sequence_move	   = begin.sequence_move;
 		EmitReflectionNode(visitor, end);
 	} else if constexpr (kIsArray<Value>) {
 		auto begin{ MakeReflectionNode(
@@ -639,7 +620,9 @@ void VisitReflectedValue(
 		EmitReflectionNode(visitor, begin);
 		if (ShouldVisitReflectionChildren(visitor, begin)) {
 			for (std::size_t index{ 0 }; index < value.size(); ++index) {
-				VisitReflectedValue(std::to_string(index), value[index], read_only, depth + 1, visitor);
+				VisitReflectedValue(
+					std::to_string(index), value[index], read_only, depth + 1, visitor
+				);
 			}
 		}
 		auto end{ MakeReflectionNode(
@@ -653,8 +636,8 @@ void VisitReflectedValue(
 		) };
 		begin.variant_index = value.index();
 		begin.variant_count = std::variant_size_v<Value>;
-		begin.variant_name = &ReflectionVariantName<Value>;
-		begin.variant_set = &SetReflectionVariant<Value>;
+		begin.variant_name	= &ReflectionVariantName<Value>;
+		begin.variant_set	= &SetReflectionVariant<Value>;
 		EmitReflectionNode(visitor, begin);
 		if (ShouldVisitReflectionChildren(visitor, begin)) {
 			std::visit(
@@ -665,8 +648,9 @@ void VisitReflectedValue(
 			);
 		}
 		EmitReflectionNode(
-			visitor,
-			MakeReflectionNode(ComponentReflectionNodeKind::EndVariant, name, value, read_only, depth)
+			visitor, MakeReflectionNode(
+						 ComponentReflectionNodeKind::EndVariant, name, value, read_only, depth
+					 )
 		);
 	} else if constexpr (
 		HasReflectedValue<Value> || HasReflectedMembers<Value> || HasReflectedReadOnlyMembers<Value>
@@ -684,8 +668,8 @@ template <typename T>
 void DispatchRegisteredComponent(ComponentOperationContext& context) {
 	switch (context.operation) {
 		case ComponentOperation::Has:
-			context.supported = true;
-			context.success = true;
+			context.supported	= true;
+			context.success		= true;
 			context.bool_result = context.entity.Has<T>();
 			break;
 		case ComponentOperation::Remove:
@@ -779,13 +763,15 @@ struct RegisteredComponent {
 	}
 
 	bool Remove(Entity entity) const {
-		ComponentOperationContext context{ .operation = ComponentOperation::Remove, .entity = entity };
+		ComponentOperationContext context{ .operation = ComponentOperation::Remove,
+										   .entity	  = entity };
 		dispatch(context);
 		return context.success;
 	}
 
 	bool AddDefault(Entity entity) const {
-		ComponentOperationContext context{ .operation = ComponentOperation::AddDefault, .entity = entity };
+		ComponentOperationContext context{ .operation = ComponentOperation::AddDefault,
+										   .entity	  = entity };
 		dispatch(context);
 		return context.success;
 	}
@@ -793,8 +779,8 @@ struct RegisteredComponent {
 	bool Serialize(json& output, Entity entity) const {
 		ComponentOperationContext context{
 			.operation = ComponentOperation::Serialize,
-			.entity = entity,
-			.output = std::addressof(output),
+			.entity	   = entity,
+			.output	   = std::addressof(output),
 		};
 		dispatch(context);
 		return context.success;
@@ -803,8 +789,8 @@ struct RegisteredComponent {
 	bool Deserialize(const json& input, Entity entity) const {
 		ComponentOperationContext context{
 			.operation = ComponentOperation::Deserialize,
-			.entity = entity,
-			.input = std::addressof(input),
+			.entity	   = entity,
+			.input	   = std::addressof(input),
 		};
 		dispatch(context);
 		return context.success;
@@ -814,7 +800,7 @@ struct RegisteredComponent {
 		json output;
 		ComponentOperationContext context{
 			.operation = ComponentOperation::MakeDefaultJson,
-			.output = std::addressof(output),
+			.output	   = std::addressof(output),
 		};
 		dispatch(context);
 		return context.success ? std::optional<json>{ std::move(output) } : std::nullopt;
@@ -822,8 +808,8 @@ struct RegisteredComponent {
 
 	bool Visit(void* value, ComponentReflectionVisitor visitor) const {
 		ComponentOperationContext context{
-			.operation = ComponentOperation::VisitValue,
-			.value = value,
+			.operation	= ComponentOperation::VisitValue,
+			.value		= value,
 			.reflection = visitor,
 		};
 		dispatch(context);
@@ -837,7 +823,7 @@ public:
 	static bool Register(std::string_view name) {
 		using Component = std::remove_cvref_t<T>;
 		auto& components{ MutableComponents() };
-		const std::size_t type_id{ Hash<Component>() };
+		std::size_t type_id{ Hash<Component>() };
 
 		for (auto& component : components) {
 			if (component.type_id == type_id) {
@@ -849,28 +835,29 @@ public:
 			}
 		}
 
-		constexpr bool deserializable{
-			JsonDeserializable<Component> &&
-			(std::default_initializable<Component> || impl::JsonGettable<Component>)
-		};
-		constexpr bool reflectable{
-			impl::HasReflectedValue<Component> || impl::HasReflectedMembers<Component> ||
-			impl::HasReflectedReadOnlyMembers<Component> || impl::kIsOptional<Component> ||
-			impl::kIsVector<Component> || impl::kIsArray<Component> || impl::kIsVariant<Component> ||
-			std::is_arithmetic_v<Component> || std::is_enum_v<Component> ||
-			std::same_as<Component, std::string>
-		};
+		constexpr bool deserializable{ JsonDeserializable<Component> &&
+									   (std::default_initializable<Component> ||
+										impl::JsonGettable<Component>)};
+		constexpr bool reflectable{ impl::HasReflectedValue<Component> ||
+									impl::HasReflectedMembers<Component> ||
+									impl::HasReflectedReadOnlyMembers<Component> ||
+									impl::kIsOptional<Component> || impl::kIsVector<Component> ||
+									impl::kIsArray<Component> || impl::kIsVariant<Component> ||
+									std::is_arithmetic_v<Component> || std::is_enum_v<Component> ||
+									std::same_as<Component, std::string> };
 
-		components.push_back(RegisteredComponent{
-			.type_id = type_id,
-			.name = std::string{ name },
-			.is_empty = std::is_empty_v<Component>,
-			.default_constructible = std::default_initializable<Component>,
-			.serializable = JsonSerializable<Component>,
-			.deserializable = deserializable,
-			.reflectable = reflectable,
-			.dispatch = &impl::DispatchRegisteredComponent<Component>,
-		});
+		components.push_back(
+			RegisteredComponent{
+				.type_id			   = type_id,
+				.name				   = std::string{ name },
+				.is_empty			   = std::is_empty_v<Component>,
+				.default_constructible = std::default_initializable<Component>,
+				.serializable		   = JsonSerializable<Component>,
+				.deserializable		   = deserializable,
+				.reflectable		   = reflectable,
+				.dispatch			   = &impl::DispatchRegisteredComponent<Component>,
+			}
+		);
 		return true;
 	}
 

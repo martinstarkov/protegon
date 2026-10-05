@@ -489,7 +489,7 @@ RaycastResult RaycastCircleRect(
 	V2_float top_right{ bottom_right.x, top_left.y };
 	V2_float bottom_left{ top_left.x, bottom_right.y };
 
-	const auto raycast_capsule_segment = [&](V2_float start, V2_float end) {
+	auto raycast_capsule_segment = [&](V2_float start, V2_float end) {
 		auto collision{ RaycastCapsule(
 			circle_center, ray_end, Transform{}, Capsule{ start, end, circle_radius }
 		) };
@@ -573,8 +573,8 @@ RaycastResult RaycastPolygonPolygon(
 	auto worldA{ A.GetWorldVertices(transform1) };
 	auto worldB{ B.GetWorldVertices(transform2) };
 
-	const auto sweep = [&](const std::vector<V2_float>& verts, const std::vector<Line>& edges,
-						   V2_float swep_vel) {
+	auto sweep = [&](const std::vector<V2_float>& verts, const std::vector<Line>& edges,
+					 V2_float swep_vel) {
 		for (const auto& vertex : verts) {
 			for (const auto& edge : edges) {
 				RaycastResult res{ RaycastLine(vertex, vertex + swep_vel, Transform{}, edge) };

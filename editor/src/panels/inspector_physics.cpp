@@ -17,7 +17,7 @@ bool DrawColliderSection(Target& target) {
 		return false;
 	}
 
-	const auto header{ DrawInspectorSectionHeader(
+	auto header{ DrawInspectorSectionHeader(
 		"Collider", "ColliderSection",
 		InspectorSectionOptions{
 			.default_open = true,
@@ -104,7 +104,7 @@ bool DrawRigidBodySection(Target& target) {
 		return false;
 	}
 
-	const auto header{ DrawInspectorSectionHeader(
+	auto header{ DrawInspectorSectionHeader(
 		"Rigid Body", "RigidBodySection",
 		InspectorSectionOptions{
 			.default_open = true,
@@ -164,7 +164,7 @@ bool DrawRigidBodySection(Target& target) {
 
 template <typename Enum>
 bool DrawPlatformerEnumCombo(const char* id, Enum& value) {
-	const std::string preview{ PrettyName(magic_enum::enum_name(value)) };
+	std::string preview{ PrettyName(magic_enum::enum_name(value)) };
 	ImGui::SetNextItemWidth(-FLT_MIN);
 
 	if (!ImGui::BeginCombo(id, preview.c_str())) {
@@ -172,8 +172,8 @@ bool DrawPlatformerEnumCombo(const char* id, Enum& value) {
 	}
 
 	bool changed{ false };
-	for (const auto candidate : magic_enum::enum_values<Enum>()) {
-		const std::string label{ PrettyName(magic_enum::enum_name(candidate)) };
+	for (auto candidate : magic_enum::enum_values<Enum>()) {
+		std::string label{ PrettyName(magic_enum::enum_name(candidate)) };
 		if (ImGui::Selectable(label.c_str(), candidate == value)) {
 			value	= candidate;
 			changed = true;
@@ -325,7 +325,7 @@ bool DrawPhysicsSectionImpl(Target& target) {
 		changed = true;
 	};
 
-	const auto movement_header{ DrawInspectorSectionHeader(
+	auto movement_header{ DrawInspectorSectionHeader(
 		"Movement", "MovementSection",
 		InspectorSectionOptions{ .default_open = true, .removable = true, .resettable = false }
 	) };
@@ -392,8 +392,7 @@ bool DrawPhysicsSectionImpl(Target& target) {
 			auto platformer{ target.template Capture<PlatformerMovement>().value() };
 			std::string selected_key{ platformer.jump_controller };
 			const auto* selected_controller{ PlatformerJumpControllerRegistry::Find(selected_key) };
-			const std::string jump_preview{ selected_controller ? selected_controller->label
-																: "None" };
+			std::string jump_preview{ selected_controller ? selected_controller->label : "None" };
 
 			changed |= DrawPropertyRow("Controller", [&]() {
 				bool local_changed{ false };
@@ -469,10 +468,10 @@ bool DrawPhysicsSectionImpl(Target& target) {
 			ImGui::SeparatorText("Runtime");
 			ImGui::TextDisabled("Grounded: %s", live.IsGrounded() ? "Yes" : "No");
 			if (Entity ground{ live.GetGroundEntity() }) {
-				const std::string ground_name{ ground.Has<Tag>() && !ground.Get<Tag>().value.empty()
-												   ? ground.Get<Tag>().value
-												   : "Entity" };
-				const V2_float normal{ live.GetGroundNormal() };
+				std::string ground_name{ ground.Has<Tag>() && !ground.Get<Tag>().value.empty()
+											 ? ground.Get<Tag>().value
+											 : "Entity" };
+				V2_float normal{ live.GetGroundNormal() };
 				ImGui::TextDisabled("Ground Entity: %s", ground_name.c_str());
 				ImGui::TextDisabled("Ground Normal: %.2f, %.2f", normal.x, normal.y);
 			}

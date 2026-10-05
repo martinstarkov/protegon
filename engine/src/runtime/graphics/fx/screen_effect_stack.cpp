@@ -13,26 +13,20 @@
 namespace ptgn::impl {
 
 Entity RegisterScreenEffectEntity(
-	ApplicationContext& ctx,
-	Entity effect,
-	std::string_view type,
-	ScreenEffectId source_id,
+	ApplicationContext& ctx, Entity effect, std::string_view type, ScreenEffectId source_id,
 	std::optional<std::uint64_t> runtime_id
 ) {
 	if (!effect) {
 		return {};
 	}
 
-	const std::uint64_t id{
-		runtime_id.value_or(ctx.next_screen_effect_runtime_id++)
-	};
-	ctx.next_screen_effect_runtime_id =
-		std::max(ctx.next_screen_effect_runtime_id, id + 1);
+	std::uint64_t id{ runtime_id.value_or(ctx.next_screen_effect_runtime_id++) };
+	ctx.next_screen_effect_runtime_id = std::max(ctx.next_screen_effect_runtime_id, id + 1);
 
 	ScreenEffectInstance instance{
 		.runtime_id = id,
-		.source_id = source_id,
-		.type = std::string{ type },
+		.source_id	= source_id,
+		.type		= std::string{ type },
 	};
 
 	if (effect.Has<ScreenEffectInstance>()) {
@@ -49,11 +43,8 @@ Entity RegisterScreenEffectEntity(
 }
 
 Entity CreateScreenEffectEntity(
-	ApplicationContext& ctx,
-	std::string_view type,
-	const json& parameters,
-	ScreenEffectId source_id,
-	std::optional<std::uint64_t> runtime_id
+	ApplicationContext& ctx, std::string_view type, const json& parameters,
+	ScreenEffectId source_id, std::optional<std::uint64_t> runtime_id
 ) {
 	const auto* registration{ EffectRegistry::Find(type) };
 	if (!registration || !registration->create) {
@@ -63,30 +54,16 @@ Entity CreateScreenEffectEntity(
 
 	Entity effect{ ctx.screen_effect_manager.CreateEntity() };
 	registration->create(effect, parameters);
-	return RegisterScreenEffectEntity(
-		ctx,
-		effect,
-		type,
-		source_id,
-		runtime_id
-	);
+	return RegisterScreenEffectEntity(ctx, effect, type, source_id, runtime_id);
 }
 
-void RebuildScreenEffects(
-	ApplicationContext& ctx,
-	const ScreenEffectSettings& settings
-) {
+void RebuildScreenEffects(ApplicationContext& ctx, const ScreenEffectSettings& settings) {
 	ctx.screen_effect_manager.Reset();
 	ctx.screen_effect_order.clear();
 
 	for (const auto& serialized : settings.effects) {
 		Entity effect{
-			CreateScreenEffectEntity(
-				ctx,
-				serialized.type,
-				serialized.parameters,
-				serialized.id
-			)
+			CreateScreenEffectEntity(ctx, serialized.type, serialized.parameters, serialized.id)
 		};
 
 		if (!effect) {
@@ -103,9 +80,7 @@ void ClearScreenEffects(ApplicationContext& ctx) {
 }
 
 void RefreshScreenEffectOrder(ApplicationContext& ctx) {
-	std::erase_if(ctx.screen_effect_order, [](Entity entity) {
-		return !entity;
-	});
+	std::erase_if(ctx.screen_effect_order, [](Entity entity) { return !entity; });
 
 	for (Entity entity : ctx.screen_effect_manager.Entities()) {
 		if (!std::ranges::contains(ctx.screen_effect_order, entity)) {
@@ -114,10 +89,7 @@ void RefreshScreenEffectOrder(ApplicationContext& ctx) {
 	}
 }
 
-Entity FindScreenEffectByRuntimeId(
-	ApplicationContext& ctx,
-	std::uint64_t runtime_id
-) {
+Entity FindScreenEffectByRuntimeId(ApplicationContext& ctx, std::uint64_t runtime_id) {
 	for (Entity entity : ctx.screen_effect_order) {
 		if (!entity || !entity.Has<ScreenEffectInstance>()) {
 			continue;
@@ -130,10 +102,7 @@ Entity FindScreenEffectByRuntimeId(
 	return {};
 }
 
-Entity FindScreenEffectBySourceId(
-	ApplicationContext& ctx,
-	ScreenEffectId source_id
-) {
+Entity FindScreenEffectBySourceId(ApplicationContext& ctx, ScreenEffectId source_id) {
 	if (source_id == 0) {
 		return {};
 	}
@@ -151,8 +120,7 @@ Entity FindScreenEffectBySourceId(
 }
 
 std::optional<std::size_t> FindScreenEffectIndex(
-	const ApplicationContext& ctx,
-	std::uint64_t runtime_id
+	const ApplicationContext& ctx, std::uint64_t runtime_id
 ) {
 	for (std::size_t index{ 0 }; index < ctx.screen_effect_order.size(); ++index) {
 		Entity entity{ ctx.screen_effect_order[index] };
@@ -177,18 +145,16 @@ std::optional<RuntimeScreenEffectSnapshot> CaptureScreenEffect(Entity entity) {
 
 	return RuntimeScreenEffectSnapshot{
 		.runtime_id = instance.runtime_id,
-		.source_id = instance.source_id,
-		.type = instance.type,
-		.enabled = entity.Has<Visible>() && entity.Get<Visible>().visible,
-		.parameters = registration && registration->serialize
-			? registration->serialize(entity)
-			: json::object(),
+		.source_id	= instance.source_id,
+		.type		= instance.type,
+		.enabled	= entity.Has<Visible>() && entity.Get<Visible>().visible,
+		.parameters = registration && registration->serialize ? registration->serialize(entity)
+															  : json::object(),
 	};
 }
 
 Entity RestoreScreenEffect(
-	ApplicationContext& ctx,
-	const RuntimeScreenEffectSnapshot& snapshot,
+	ApplicationContext& ctx, const RuntimeScreenEffectSnapshot& snapshot,
 	std::optional<std::size_t> index
 ) {
 	Entity effect{ FindScreenEffectByRuntimeId(ctx, snapshot.runtime_id) };
@@ -207,16 +173,12 @@ Entity RestoreScreenEffect(
 
 	if (!effect) {
 		effect = CreateScreenEffectEntity(
-			ctx,
-			snapshot.type,
-			snapshot.parameters,
-			snapshot.source_id,
-			snapshot.runtime_id
+			ctx, snapshot.type, snapshot.parameters, snapshot.source_id, snapshot.runtime_id
 		);
 	} else {
 		auto& instance{ effect.Get<ScreenEffectInstance>() };
 		instance.source_id = snapshot.source_id;
-		instance.type = snapshot.type;
+		instance.type	   = snapshot.type;
 
 		if (registration->deserialize) {
 			registration->deserialize(effect, snapshot.parameters);
@@ -235,22 +197,16 @@ Entity RestoreScreenEffect(
 
 	if (index.has_value()) {
 		std::erase(ctx.screen_effect_order, effect);
-		const std::size_t target{
-			std::min(index.value(), ctx.screen_effect_order.size())
-		};
+		std::size_t target{ std::min(index.value(), ctx.screen_effect_order.size()) };
 		ctx.screen_effect_order.insert(
-			ctx.screen_effect_order.begin() + static_cast<std::ptrdiff_t>(target),
-			effect
+			ctx.screen_effect_order.begin() + static_cast<std::ptrdiff_t>(target), effect
 		);
 	}
 
 	return effect;
 }
 
-bool RemoveScreenEffect(
-	ApplicationContext& ctx,
-	std::uint64_t runtime_id
-) {
+bool RemoveScreenEffect(ApplicationContext& ctx, std::uint64_t runtime_id) {
 	Entity entity{ FindScreenEffectByRuntimeId(ctx, runtime_id) };
 	if (!entity) {
 		return false;
@@ -261,12 +217,9 @@ bool RemoveScreenEffect(
 	return true;
 }
 
-bool MoveScreenEffect(
-	ApplicationContext& ctx,
-	std::uint64_t runtime_id,
-	std::size_t to_index
-) {
-	const auto from_index{ FindScreenEffectIndex(ctx, runtime_id) };
+bool MoveScreenEffect(ApplicationContext& ctx, std::uint64_t runtime_id, std::size_t to_index) {
+	auto from_index{ FindScreenEffectIndex(ctx, runtime_id) };
+
 	if (!from_index.has_value() || to_index >= ctx.screen_effect_order.size()) {
 		return false;
 	}
@@ -276,12 +229,12 @@ bool MoveScreenEffect(
 	}
 
 	Entity entity{ ctx.screen_effect_order[from_index.value()] };
+
 	ctx.screen_effect_order.erase(
 		ctx.screen_effect_order.begin() + static_cast<std::ptrdiff_t>(from_index.value())
 	);
 	ctx.screen_effect_order.insert(
-		ctx.screen_effect_order.begin() + static_cast<std::ptrdiff_t>(to_index),
-		entity
+		ctx.screen_effect_order.begin() + static_cast<std::ptrdiff_t>(to_index), entity
 	);
 	return true;
 }

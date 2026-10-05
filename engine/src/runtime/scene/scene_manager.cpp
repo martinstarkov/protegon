@@ -44,35 +44,22 @@ namespace impl {
 bool SceneManager::EnterFactory(
 	std::string_view scene_tag, SceneFactory scene_factory, SceneTransitionPriority priority
 ) {
-	return EnterFactory(
-		scene_tag,
-		std::move(scene_factory),
-		nullptr,
-		nullptr,
-		priority
-	);
+	return EnterFactory(scene_tag, std::move(scene_factory), nullptr, nullptr, priority);
 }
 
 bool SceneManager::ReconstructFactory(
-	std::string_view scene_tag,
-	SceneFactory scene_factory,
-	std::unique_ptr<SceneTransition> transition_out,
-	std::unique_ptr<SceneTransition> transition_in,
+	std::string_view scene_tag, SceneFactory scene_factory,
+	std::unique_ptr<SceneTransition> transition_out, std::unique_ptr<SceneTransition> transition_in,
 	SceneTransitionPriority priority
 ) {
-	const auto scene_tag_hash{ Hash(scene_tag) };
+	auto scene_tag_hash{ Hash(scene_tag) };
 	if (!CanIssueCommands(scene_tag_hash) || !HasScene(scene_tag_hash)) {
 		return false;
 	}
 
 	PushCommand(
-		CommandType::Reconstruct,
-		std::string{ scene_tag },
-		scene_tag_hash,
-		priority,
-		std::move(scene_factory),
-		std::move(transition_out),
-		std::move(transition_in)
+		CommandType::Reconstruct, std::string{ scene_tag }, scene_tag_hash, priority,
+		std::move(scene_factory), std::move(transition_out), std::move(transition_in)
 	);
 
 	return true;
@@ -83,8 +70,8 @@ bool SceneManager::RenameScene(std::string_view current_key, std::string_view ne
 		return false;
 	}
 
-	const auto current_hash{ Hash(current_key) };
-	const auto new_hash{ Hash(new_key) };
+	auto current_hash{ Hash(current_key) };
+	auto new_hash{ Hash(new_key) };
 
 	if (!HasScene(current_hash)) {
 		return false;
@@ -164,13 +151,13 @@ void SceneManager::ReorderScenes(std::span<const std::string> ordered_keys, bool
 	}
 
 	std::ranges::stable_sort(matching_scenes, [&order](const auto& a, const auto& b) {
-		const auto a_it{ order.find(a->GetTag()) };
-		const auto b_it{ order.find(b->GetTag()) };
+		auto a_it{ order.find(a->GetTag()) };
+		auto b_it{ order.find(b->GetTag()) };
 
-		const auto a_order{ a_it == order.end() ? std::numeric_limits<std::size_t>::max()
-												: a_it->second };
-		const auto b_order{ b_it == order.end() ? std::numeric_limits<std::size_t>::max()
-												: b_it->second };
+		auto a_order{ a_it == order.end() ? std::numeric_limits<std::size_t>::max()
+										  : a_it->second };
+		auto b_order{ b_it == order.end() ? std::numeric_limits<std::size_t>::max()
+										  : b_it->second };
 
 		return a_order < b_order;
 	});
@@ -198,9 +185,9 @@ std::unordered_map<std::size_t, SceneManager::Command> SceneManager::GetTopPrior
 				switch (type) {
 					using enum CommandType;
 					case Reconstruct: return 0;
-					case Exit:	  return 1;
-					case Enter:	  return 2;
-					default:	  PTGN_ERROR("Unknown CommandType: ", std::to_underlying(type));
+					case Exit:		  return 1;
+					case Enter:		  return 2;
+					default:		  PTGN_ERROR("Unknown CommandType: ", std::to_underlying(type));
 				}
 			};
 
@@ -223,10 +210,10 @@ std::unordered_map<std::size_t, SceneManager::Command> SceneManager::GetTopPrior
 void SceneManager::ApplyLoadedCommand(
 	Application& app, Command command, impl::AssetLoadTicket ticket
 ) {
-	const auto enter = [this, &app](
-						   std::size_t target_scene_tag_hash, Command& enter_command,
-						   impl::AssetLoadTicket& asset_ticket
-					   ) {
+	auto enter = [this, &app](
+					 std::size_t target_scene_tag_hash, Command& enter_command,
+					 impl::AssetLoadTicket& asset_ticket
+				 ) {
 		auto new_scene{ enter_command.scene_factory(
 			app, SceneData{
 					 .tag{ enter_command.to_scene_tag },
@@ -261,7 +248,7 @@ void SceneManager::ApplyLoadedCommand(
 		scenes_.emplace_back(std::move(new_scene));
 	};
 
-	const auto exit = [this](std::size_t target_scene_tag_hash, Command& exit_command) {
+	auto exit = [this](std::size_t target_scene_tag_hash, Command& exit_command) {
 		auto& target_scene{ GetScene(target_scene_tag_hash) };
 
 		target_scene.data_.state	  = SceneState::TransitionOut;
@@ -279,7 +266,7 @@ void SceneManager::ApplyLoadedCommand(
 		}
 	};
 
-	const auto target_scene_tag_hash{ command.to_scene_tag_hash };
+	auto target_scene_tag_hash{ command.to_scene_tag_hash };
 
 	switch (command.type) {
 		case CommandType::Enter:
@@ -297,7 +284,7 @@ void SceneManager::ApplyLoadedCommand(
 				"Cannot reconstruct a scene which is not in the scene manager"
 			);
 
-			const std::size_t temporary_tag_hash{ GenerateTempTagHash() };
+			std::size_t temporary_tag_hash{ GenerateTempTagHash() };
 
 			exit(target_scene_tag_hash, command);
 
@@ -313,7 +300,7 @@ void SceneManager::ApplyLoadedCommand(
 
 void SceneManager::UpdatePendingLoads(Application& app) {
 	for (auto it{ pending_loads_.begin() }; it != pending_loads_.end();) {
-		const auto progress{ it->ticket.GetProgress() };
+		auto progress{ it->ticket.GetProgress() };
 		if (!progress.IsComplete()) {
 			++it;
 			continue;
@@ -352,7 +339,7 @@ void SceneManager::ApplyCommands(
 
 		auto ticket{ assets.AcquireDependenciesAsync(dependencies) };
 
-		const auto progress{ ticket.GetProgress() };
+		auto progress{ ticket.GetProgress() };
 
 		if (!progress.IsComplete()) {
 			pending_loads_.emplace_back(

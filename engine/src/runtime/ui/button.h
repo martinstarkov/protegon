@@ -41,9 +41,7 @@ Button CreateButton(Scene& scene, Transform transform, const ButtonDesc& desc);
 
 /// @brief Ordered visual state fallback chain used when resolving button appearance.
 /// The requested state is first, followed by progressively more general fallbacks.
-[[nodiscard]] std::span<const ButtonVisualState> GetVisualStateFallbacks(
-	ButtonVisualState state
-);
+[[nodiscard]] std::span<const ButtonVisualState> GetVisualStateFallbacks(ButtonVisualState state);
 
 namespace event {
 
@@ -206,7 +204,9 @@ public:
 	Button& RemoveAnimations();
 	Button& RemoveAnimation(ButtonVisualState state);
 
-	Button& Sound(std::optional<AudioKey> sound_key, ButtonVisualState state = ButtonVisualState::Idle);
+	Button& Sound(
+		std::optional<AudioKey> sound_key, ButtonVisualState state = ButtonVisualState::Idle
+	);
 	Button& Sounds(std::optional<AudioKey> hover, std::optional<AudioKey> press);
 
 	Button& RemoveSound(ButtonVisualState state);
@@ -239,6 +239,7 @@ public:
 	}
 
 	void RefreshVisualState() const;
+
 protected:
 	void MarkDirty(impl::ButtonDirty dirty);
 	void RefreshDirty();
@@ -356,7 +357,7 @@ public:
 	ButtonText& Content(std::string_view content);
 	ButtonText& Content(StyledText styled_text);
 
-	/// @brief Compiles rich-text markup using this visual state's persistent Defaults.
+	/// @brief Compiles rich text markup using this visual state's persistent Defaults.
 	ButtonText& SetRichText(std::string_view source);
 
 	/// @brief Sets the bedrock values used by untagged rich text in this visual state.

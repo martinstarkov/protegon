@@ -23,38 +23,24 @@ public:
 	};
 
 	void Execute(
-		std::unique_ptr<EditorCommand> command,
-		bool affects_project_serialization = true,
-		bool allow_when_disabled = false,
-		bool transient = false
+		std::unique_ptr<EditorCommand> command, bool affects_project_serialization = true,
+		bool allow_when_disabled = false, bool transient = false
 	);
 
 	/// Adds a command whose result has already been applied.
 	void PushApplied(
-		std::unique_ptr<EditorCommand> command,
-		bool affects_project_serialization = true,
-		bool allow_when_disabled = false,
-		bool transient = false
+		std::unique_ptr<EditorCommand> command, bool affects_project_serialization = true,
+		bool allow_when_disabled = false, bool transient = false
 	);
 	void PushApplied(
-		std::string label,
-		Action undo,
-		Action redo,
-		bool affects_project_serialization = true,
-		bool allow_when_disabled = false,
-		bool transient = false
+		std::string label, Action undo, Action redo, bool affects_project_serialization = true,
+		bool allow_when_disabled = false, bool transient = false
 	);
 
 	/// Coalesces repeated changes from one active editor control into one command.
 	void TrackInteraction(
-		std::uint64_t key,
-		std::string label,
-		bool changed,
-		bool any_item_active,
-		Action undo,
-		Action redo,
-		bool affects_project_serialization = true,
-		bool allow_when_disabled = false,
+		std::uint64_t key, std::string label, bool changed, bool any_item_active, Action undo,
+		Action redo, bool affects_project_serialization = true, bool allow_when_disabled = false,
 		bool transient = false
 	);
 
@@ -68,11 +54,11 @@ public:
 	void SetUndoRedoEnabled(bool enabled);
 	[[nodiscard]] bool IsUndoRedoEnabled() const;
 
-	/// Marks the currently applied serialized-project history state as saved.
+	/// Marks the currently applied serialized project history state as saved.
 	void MarkProjectSaved();
 
-	/// @return True when the applied serialized-project history state differs from the saved state.
-	/// Editor-only commands such as selection and editor preferences do not affect this value.
+	/// @return True when the applied serialized project history state differs from the saved state.
+	/// Editor only commands such as selection and editor preferences do not affect this value.
 	[[nodiscard]] bool IsProjectDirty() const;
 
 	[[nodiscard]] bool CanUndo() const;

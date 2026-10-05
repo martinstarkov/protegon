@@ -93,8 +93,8 @@ void TemplateMenuScene::OnEnter() {
 	const auto& j_buttons = config.at("buttons");
 
 	for (const auto& j_button : j_buttons) {
-		const V2_float button_size{ 100, 50 };
-		const Color button_text_color{ color::White };
+		V2_float button_size{ 100, 50 };
+		Color button_text_color{ color::White };
 		const auto& text = j_button.at("text");
 		auto button{ CreateButton(*this, {}, button_size) };
 		button.Add<Tag>("Menu Button");

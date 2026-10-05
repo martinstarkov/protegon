@@ -18,7 +18,7 @@ set(
   PTGN_EXAMPLES
   "ALL"
   CACHE STRING
-  "Examples to build: ALL, an empty value to disable, or a semicolon-separated list such as basic/hello_world;audio/mixer_demo"
+  "Examples to build: ALL, an empty value to disable, or a semicolon separated list such as basic/hello_world;audio/mixer_demo"
 )
 
 if(NOT EMSCRIPTEN)

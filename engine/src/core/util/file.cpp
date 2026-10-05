@@ -7,6 +7,7 @@
 #include <fstream>
 #include <ios>
 #include <istream>
+#include <limits>
 #include <ostream>
 #include <span>
 #include <sstream>
@@ -14,7 +15,6 @@
 #include <string_view>
 #include <system_error>
 #include <vector>
-#include <limits>
 
 #include "core/assert.h"
 #include "core/build_info.h"
@@ -31,107 +31,63 @@ void EnsureDirectory(const path& dir_path) {
 	std::error_code ec;
 	fs::create_directories(dir_path, ec);
 
-	PTGN_ASSERT(
-		!ec,
-		"Could not create directory: ",
-		dir_path.string(),
-		": ",
-		ec.message()
-	);
+	PTGN_ASSERT(!ec, "Could not create directory: ", dir_path.string(), ": ", ec.message());
 }
 
 std::string FileToString(const path& file) {
-	const path absolute_path{ GetAbsolutePath(file) };
+	path absolute_path{ GetAbsolutePath(file) };
 
-	PTGN_ASSERT(
-		FileExists(absolute_path),
-		"File does not exist: ",
-		absolute_path.string()
-	);
+	PTGN_ASSERT(FileExists(absolute_path), "File does not exist: ", absolute_path.string());
 
 	std::ifstream in{ absolute_path, std::ios::binary };
 
-	PTGN_ASSERT(
-		in,
-		"Failed to open file: ",
-		absolute_path.string()
-	);
+	PTGN_ASSERT(in, "Failed to open file: ", absolute_path.string());
 
 	std::stringstream buffer;
 	buffer << in.rdbuf();
 
-	PTGN_ASSERT(
-		in,
-		"Failed to read file: ",
-		absolute_path.string()
-	);
+	PTGN_ASSERT(in, "Failed to read file: ", absolute_path.string());
 
 	return buffer.str();
 }
 
 std::vector<std::byte> ReadBinary(const path& file) {
-	const path absolute_path{ GetAbsolutePath(file) };
+	path absolute_path{ GetAbsolutePath(file) };
 
-	PTGN_ASSERT(
-		FileExists(absolute_path),
-		"Binary file does not exist: ",
-		absolute_path.string()
-	);
+	PTGN_ASSERT(FileExists(absolute_path), "Binary file does not exist: ", absolute_path.string());
 
-	std::uintmax_t file_size{
-		fs::file_size(absolute_path)
-	};
+	std::uintmax_t file_size{ fs::file_size(absolute_path) };
 
 	PTGN_ASSERT(
 		file_size <= std::numeric_limits<std::size_t>::max(),
-		"Binary file is too large to load into memory: ",
-		absolute_path.string()
+		"Binary file is too large to load into memory: ", absolute_path.string()
 	);
 
-	std::vector<std::byte> bytes{
-		static_cast<std::size_t>(file_size)
-	};
+	std::vector<std::byte> bytes{ static_cast<std::size_t>(file_size) };
 
-	std::ifstream in{
-		absolute_path,
-		std::ios::binary
-	};
+	std::ifstream in{ absolute_path, std::ios::binary };
 
-	PTGN_ASSERT(
-		in,
-		"Failed to open binary file: ",
-		absolute_path.string()
-	);
+	PTGN_ASSERT(in, "Failed to open binary file: ", absolute_path.string());
 
 	in.read(
 		reinterpret_cast<char*>(bytes.data()), // NOSONAR
 		static_cast<std::streamsize>(bytes.size())
 	);
 
-	PTGN_ASSERT(
-		in,
-		"Failed to read binary file: ",
-		absolute_path.string()
-	);
+	PTGN_ASSERT(in, "Failed to read binary file: ", absolute_path.string());
 
 	return bytes;
 }
 
 std::expected<void, FileWriteError> WriteBinary(
-	const path& file_path,
-	std::span<const std::byte> bytes
+	const path& file_path, std::span<const std::byte> bytes
 ) {
 	EnsureDirectory(file_path.parent_path());
 
-	std::ofstream out{
-		file_path,
-		std::ios::binary | std::ios::trunc
-	};
+	std::ofstream out{ file_path, std::ios::binary | std::ios::trunc };
 
 	if (!out) {
-		return std::unexpected(
-			FileWriteError::OpenFailed
-		);
+		return std::unexpected(FileWriteError::OpenFailed);
 	}
 
 	out.write(
@@ -140,9 +96,7 @@ std::expected<void, FileWriteError> WriteBinary(
 	);
 
 	if (!out) {
-		return std::unexpected(
-			FileWriteError::WriteFailed
-		);
+		return std::unexpected(FileWriteError::WriteFailed);
 	}
 
 	return {};
@@ -156,19 +110,12 @@ path GetWorkingDirectory() {
 		return working_directory.lexically_normal();
 	}
 
-	PTGN_WARN(
-		"Failed to get working directory: ",
-		ec.message(),
-		". Falling back to runtime root."
-	);
+	PTGN_WARN("Failed to get working directory: ", ec.message(), ". Falling back to runtime root.");
 
 	return GetRuntimeRoot();
 }
 
-path MergePaths(
-	const path& path_a,
-	const path& path_b
-) {
+path MergePaths(const path& path_a, const path& path_b) {
 	return path_a / path_b;
 }
 
@@ -197,23 +144,15 @@ bool IsDirectoryPath(std::string_view value) {
 
 	path p{ value };
 
-	if (
-		value.ends_with('/') ||
-		value.ends_with('\\')
-	) {
+	if (value.ends_with('/') || value.ends_with('\\')) {
 		return true;
 	}
 
-	if (
-		value == "." ||
-		value == ".."
-	) {
+	if (value == "." || value == "..") {
 		return true;
 	}
 
-	return
-		p.has_parent_path() &&
-		!p.has_extension();
+	return p.has_parent_path() && !p.has_extension();
 }
 
 std::string GetExtension(const path& file) {
@@ -221,24 +160,13 @@ std::string GetExtension(const path& file) {
 		return "";
 	}
 
-	return ToLower(
-		file.extension().string()
-	);
+	return ToLower(file.extension().string());
 }
 
-bool HasExtension(
-	const path& file,
-	std::string_view extension
-) {
-	PTGN_ASSERT(
-		extension.starts_with('.'),
-		"Extension must start with a dot: ",
-		extension
-	);
+bool HasExtension(const path& file, std::string_view extension) {
+	PTGN_ASSERT(extension.starts_with('.'), "Extension must start with a dot: ", extension);
 
-	return
-		file.has_extension() &&
-		GetExtension(file) == extension;
+	return file.has_extension() && GetExtension(file) == extension;
 }
 
 bool FileExists(const path& file) {
@@ -254,10 +182,7 @@ path GetAbsolutePath(const path& file) {
 		return file.lexically_normal();
 	}
 
-	return (
-		GetRuntimeRoot() /
-		file
-	).lexically_normal();
+	return (GetRuntimeRoot() / file).lexically_normal();
 }
 
 path GetRelativePath(const path& absolute_path) {
@@ -265,9 +190,7 @@ path GetRelativePath(const path& absolute_path) {
 }
 
 path GetRuntimeRoot() {
-	return impl::GetBuildInfo()
-		.runtime_root
-		.lexically_normal();
+	return impl::GetBuildInfo().runtime_root.lexically_normal();
 }
 
 } // namespace ptgn

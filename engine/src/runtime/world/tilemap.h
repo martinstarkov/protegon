@@ -21,7 +21,7 @@ class Scene;
 /// @brief One authored tile placement owned by a Tilemap entity.
 ///
 /// The tile is intentionally self-contained at the engine layer: it references a texture and UVs
-/// rather than an editor palette index. Editor-side tile assets can later resolve down to this
+/// rather than an editor palette index. Editor side tile assets can later resolve down to this
 /// representation without making runtime scenes depend on palette/group UI state.
 struct TilemapTile {
 	V2_int coordinate{};
@@ -32,23 +32,17 @@ struct TilemapTile {
 		V2_float{ 1.0f, 1.0f },
 		V2_float{ 0.0f, 1.0f },
 	};
-	/// Native visual size in world/pixel units. A zero/invalid size falls back to the Tilemap cell size.
+	/// Native visual size in world/pixel units. A zero/invalid size falls back to the Tilemap cell
+	/// size.
 	V2_int pixel_size{ 32, 32 };
 	Origin origin{ Origin::TopLeft };
 	V2_float offset{};
 	Color tint{ color::White };
-	/// Stable editor-authored terrain ruleset id when this is a derived autotile display cell.
+	/// Stable editor authored terrain ruleset id when this is a derived autotile display cell.
 	std::optional<std::uint64_t> terrain_ruleset_id{};
 
 	PTGN_REFLECT(
-		TilemapTile,
-		coordinate,
-		texture,
-		texture_coordinates,
-		pixel_size,
-		origin,
-		offset,
-		tint,
+		TilemapTile, coordinate, texture, texture_coordinates, pixel_size, origin, offset, tint,
 		terrain_ruleset_id
 	)
 };
@@ -69,11 +63,7 @@ struct TilemapStreamingSettings {
 	int max_loaded_chunks{ 128 };
 
 	PTGN_REFLECT(
-		TilemapStreamingSettings,
-		enabled,
-		preload_radius,
-		keep_alive_radius,
-		max_loaded_chunks
+		TilemapStreamingSettings, enabled, preload_radius, keep_alive_radius, max_loaded_chunks
 	)
 };
 
@@ -92,15 +82,7 @@ struct TilemapData {
 	std::vector<TilemapTerrainCell> terrain{};
 	std::vector<V2_int> exclusion_mask{};
 
-	PTGN_REFLECT(
-		TilemapData,
-		cell_size,
-		chunk_size,
-		streaming,
-		tiles,
-		terrain,
-		exclusion_mask
-	)
+	PTGN_REFLECT(TilemapData, cell_size, chunk_size, streaming, tiles, terrain, exclusion_mask)
 };
 
 } // namespace impl
@@ -142,10 +124,6 @@ public:
 
 /// @brief Creates a Tilemap entity directly in a Tile layer.
 /// @return A null Tilemap if layer is missing or is not a Tile layer.
-[[nodiscard]] Tilemap CreateTilemap(
-	Scene& scene,
-	SceneLayerId layer,
-	Tag tag = Tag{ "Tilemap" }
-);
+[[nodiscard]] Tilemap CreateTilemap(Scene& scene, SceneLayerId layer, Tag tag = Tag{ "Tilemap" });
 
 } // namespace ptgn

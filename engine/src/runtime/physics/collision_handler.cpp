@@ -43,18 +43,22 @@ bool CanCollide(
 	if (collider2.mode == CollisionMode::None) {
 		return false;
 	}
+
 	if (!Matches(collider1.collides_with, scene, entity1, entity2)) {
 		return false;
 	}
-	const Entity root1{ GetRootEntity(entity1) };
-	const Entity root2{ GetRootEntity(entity2) };
-	// Entities share the same root entity.
+
+	Entity root1{ GetRootEntity(entity1) };
+	Entity root2{ GetRootEntity(entity2) };
+
 	if (root1 == root2) {
 		return false;
 	}
+
 	if (!root1 || !root2 || !entity1 || !entity2) {
 		return false;
 	}
+
 	return true;
 }
 
@@ -123,10 +127,10 @@ void CollisionHandler::UpdateKDTree(Entity entity, secondsf dt) {
 	const auto& collider{ entity.Get<Collider>() };
 	auto transform{ GetWorldTransform(entity) };
 	transform = OffsetByOrigin(collider.shape, transform, entity);
-	const auto new_bounding_aabb{ GetBoundingAABB(collider.shape, transform) };
+	auto new_bounding_aabb{ GetBoundingAABB(collider.shape, transform) };
 	static_tree_.UpdateBoundingAABB(entity, new_bounding_aabb);
 	static_tree_.EndFrameUpdate();
-	if (const auto rb{ entity.TryGet<RigidBody>() }) {
+	if (const auto* rb{ entity.TryGet<RigidBody>() }) {
 		auto v{ rb->velocity * dt.count() };
 		auto new_expanded_aabb{ new_bounding_aabb.ExpandByVelocity(v) };
 		dynamic_tree_.UpdateBoundingAABB(entity, new_expanded_aabb);
@@ -439,7 +443,7 @@ void CollisionHandler::TryDrawDebugLine(
 
 V2_float CollisionHandler::GetRelativeVelocity(V2_float velocity1, Entity entity2, secondsf dt) {
 	V2_float relative_velocity{ velocity1 };
-	if (const auto rb2{ entity2.TryGet<RigidBody>() }) {
+	if (const auto* rb2{ entity2.TryGet<RigidBody>() }) {
 		auto velocity2{ rb2->velocity * dt.count() };
 		relative_velocity -= velocity2;
 	}

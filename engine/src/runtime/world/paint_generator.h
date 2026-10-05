@@ -188,7 +188,7 @@ struct PaintGeneratorData {
 	PaintGeneratorRecipe recipe{};
 
 	/// Compatibility/recovery hint for scenes authored before Tilemap parenting.
-	/// A Tile-layer generator's Tilemap parent is authoritative.
+	/// A Tile layer generator's Tilemap parent is authoritative.
 	std::optional<UUID> target_tilemap{};
 
 	/// Captured authoring raster. These are implementation details rather than ordinary

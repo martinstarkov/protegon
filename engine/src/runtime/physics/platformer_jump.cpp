@@ -18,12 +18,9 @@ namespace ptgn {
 
 void RegisterBuiltInPlatformerJumpControllers() {
 	static const AutoPlatformerJumpControllerRegistration<PlatformerJump> registration{
-		"standard",
-		"Standard",
-		"Built In",
-		"Built-in configurable platformer jump controller"
+		"standard", "Standard", "Built In", "Built-in configurable platformer jump controller"
 	};
-	(void)registration;
+	static_cast<void>(registration);
 }
 
 void PlatformerJump::Update(PlatformerJumpContext& ctx) {
@@ -34,7 +31,7 @@ void PlatformerJump::Update(PlatformerJumpContext& ctx) {
 	bool was_grounded{ ctx.platformer.WasGrounded() };
 
 	if (grounded) {
-		jumping_ = false;
+		jumping_		= false;
 		air_jumps_used_ = 0;
 		coyote_timer_.Stop();
 	} else if (was_grounded && coyote_time.has_value() && !jumping_) {
@@ -140,7 +137,7 @@ void PlatformerJump::CalculateGravity(PlatformerJumpContext& ctx) const {
 
 	PTGN_ASSERT(time_to_jump_apex > 0.0f);
 	ctx.rigid_body.gravity = gravity_multiplier * 2.0f * jump_height /
-							  (time_to_jump_apex * time_to_jump_apex * std::abs(ctx.gravity.y));
+							 (time_to_jump_apex * time_to_jump_apex * std::abs(ctx.gravity.y));
 	PTGN_ASSERT(!std::isinf(ctx.rigid_body.gravity));
 }
 

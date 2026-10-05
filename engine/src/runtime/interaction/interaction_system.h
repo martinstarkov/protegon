@@ -69,19 +69,16 @@ public:
 	[[nodiscard]] InteractionDebugInfo GetDebugInfo() const {
 		InteractionDebugInfo info{};
 
-		for (const auto& [camera, entities] : dragging_entities_) {
-			(void)camera;
+		for (const auto& [_camera, entities] : dragging_entities_) {
 			info.dragging_entities += entities.entities.size();
 		}
 
-		for (const auto& [camera, entities] : last_mouse_over_) {
-			(void)camera;
+		for (const auto& [_camera, entities] : last_mouse_over_) {
 			info.hovered_entities += entities.entities.size();
 		}
 
 		info.tracked_cameras = dragging_entities_.size();
-		for (const auto& [camera, entities] : last_mouse_over_) {
-			(void)entities;
+		for (const auto& [camera, _entities] : last_mouse_over_) {
 			if (!dragging_entities_.contains(camera)) {
 				++info.tracked_cameras;
 			}

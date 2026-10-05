@@ -9,8 +9,8 @@
 #include "commands/component/remove_component.h"
 #include "commands/component/set_component.h"
 #include "commands/undo_stack.h"
-#include "editor/editor_selection.h"
 #include "core/util/file.h"
+#include "editor/editor_selection.h"
 #include "runtime/asset/prefab.h"
 #include "runtime/ecs/entity.h"
 #include "runtime/ecs/entity_serialization.h"
@@ -41,49 +41,32 @@ public:
 
 	/// @brief Creates a prefab asset and selects its root.
 	/// @return The created key, or an empty key if creation failed.
-	[[nodiscard]] PrefabKey CreatePrefabAsset(Prefab prefab);
+	PrefabKey CreatePrefabAsset(Prefab prefab);
 
 	/// @brief Deletes a prefab asset. Undo restores the complete asset and selection.
-	[[nodiscard]] bool DeletePrefabAsset(const PrefabKey& key);
+	bool DeletePrefabAsset(const PrefabKey& key);
 
 	/// @brief Renames a prefab asset while preserving its complete serialized hierarchy.
-	[[nodiscard]] bool RenamePrefabAsset(
-		const PrefabKey& old_key,
-		const PrefabKey& new_key
-	);
+	bool RenamePrefabAsset(const PrefabKey& old_key, const PrefabKey& new_key);
 
 	/// @brief Copies a prefab to a new key and selects the duplicate.
-	[[nodiscard]] PrefabKey DuplicatePrefabAsset(
-		const PrefabKey& source_key,
-		PrefabKey duplicate_key
-	);
+	PrefabKey DuplicatePrefabAsset(const PrefabKey& source_key, PrefabKey duplicate_key);
 
 	/// @brief Adds a serialized child to a prefab entity.
 	///
 	/// parent_path is empty for the prefab root. The newly created child is selected.
-	[[nodiscard]] bool AddPrefabChild(
-		const PrefabKey& key,
-		SerializedEntityPath parent_path,
-		SerializedEntity child
+	bool AddPrefabChild(
+		const PrefabKey& key, SerializedEntityPath parent_path, SerializedEntity child
 	);
 
 	/// @brief Duplicates a non-root serialized prefab entity beside the source.
-	[[nodiscard]] bool DuplicatePrefabEntity(
-		const PrefabKey& key,
-		SerializedEntityPath entity_path
-	);
+	bool DuplicatePrefabEntity(const PrefabKey& key, SerializedEntityPath entity_path);
 
 	/// @brief Deletes a non-root serialized prefab entity and selects its parent.
-	[[nodiscard]] bool DeletePrefabEntity(
-		const PrefabKey& key,
-		SerializedEntityPath entity_path
-	);
+	bool DeletePrefabEntity(const PrefabKey& key, SerializedEntityPath entity_path);
 
 	/// @brief Instantiates a prefab in a scene as one undoable entity creation.
-	[[nodiscard]] Entity CreatePrefabInstance(
-		Scene& scene,
-		const PrefabKey& key
-	);
+	Entity CreatePrefabInstance(Scene& scene, const PrefabKey& key);
 
 	/// @brief Removes prefab-link metadata from the complete linked hierarchy as one undoable edit.
 	void ConvertPrefabInstanceToEntity(Entity entity);
@@ -99,12 +82,11 @@ public:
 			before = *current;
 		}
 
-		undo_stack_->Execute(std::make_unique<SetComponentValueCommand<T>>(
-			*editor_,
-			MakeEntityReference(entity),
-			std::move(before),
-			value
-		));
+		undo_stack_->Execute(
+			std::make_unique<SetComponentValueCommand<T>>(
+				*editor_, MakeEntityReference(entity), std::move(before), value
+			)
+		);
 	}
 
 	template <std::copy_constructible T>
@@ -118,11 +100,11 @@ public:
 			return;
 		}
 
-		undo_stack_->Execute(std::make_unique<RemoveComponentCommand<T>>(
-			*editor_,
-			MakeEntityReference(entity),
-			*component
-		));
+		undo_stack_->Execute(
+			std::make_unique<RemoveComponentCommand<T>>(
+				*editor_, MakeEntityReference(entity), *component
+			)
+		);
 	}
 
 	template <std::copy_constructible T>
@@ -131,11 +113,11 @@ public:
 			return;
 		}
 
-		undo_stack_->Execute(std::make_unique<AddComponentCommand<T>>(
-			*editor_,
-			MakeEntityReference(entity),
-			component
-		));
+		undo_stack_->Execute(
+			std::make_unique<AddComponentCommand<T>>(
+				*editor_, MakeEntityReference(entity), component
+			)
+		);
 	}
 
 	void SaveScene(const path& path);

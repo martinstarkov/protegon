@@ -12,8 +12,7 @@ namespace {
 
 bool DrawButtonVisualStateSelector(std::optional<ButtonVisualState>& state) {
 	return DrawPropertyRow("Visual State", [&]() {
-		const std::string preview{ state ? PrettyName(magic_enum::enum_name(*state))
-										 : "Base Entity" };
+		std::string preview{ state ? PrettyName(magic_enum::enum_name(*state)) : "Base Entity" };
 
 		ImGui::SetNextItemWidth(-FLT_MIN);
 
@@ -31,9 +30,9 @@ bool DrawButtonVisualStateSelector(std::optional<ButtonVisualState>& state) {
 
 		ImGui::Separator();
 
-		for (const auto candidate : magic_enum::enum_values<ButtonVisualState>()) {
+		for (auto candidate : magic_enum::enum_values<ButtonVisualState>()) {
 			bool selected{ state && *state == candidate };
-			const std::string label{ PrettyName(magic_enum::enum_name(candidate)) };
+			std::string label{ PrettyName(magic_enum::enum_name(candidate)) };
 
 			if (ImGui::Selectable(label.c_str(), selected)) {
 				state	= candidate;
@@ -51,17 +50,16 @@ bool DrawSliderWorldPosition(
 	Target& target, ::ptgn::impl::SliderData& data, std::string_view label, bool start
 ) {
 	V2_float& position{ start ? data.line.start : data.line.end };
-	const V2_float previous{ position };
+	V2_float previous{ position };
 
 	bool changed{ DrawPropertyRow(label, [&]() {
-		const float spacing{ ImGui::GetStyle().ItemInnerSpacing.x };
-		const float pick_width{ ImGui::CalcTextSize("Pick").x +
-								ImGui::GetStyle().FramePadding.x * 2.0f };
-		const float available{ std::max(1.0f, ImGui::GetContentRegionAvail().x) };
+		float spacing{ ImGui::GetStyle().ItemInnerSpacing.x };
+		float pick_width{ ImGui::CalcTextSize("Pick").x + ImGui::GetStyle().FramePadding.x * 2.0f };
+		float available{ std::max(1.0f, ImGui::GetContentRegionAvail().x) };
 		bool pick_inline{ available >= pick_width + spacing * 2.0f + 96.0f };
-		const float fields_width{ pick_inline ? std::max(1.0f, available - pick_width - spacing)
-											  : available };
-		const float field_width{ InspectorSplitWidth(2, fields_width, spacing) };
+		float fields_width{ pick_inline ? std::max(1.0f, available - pick_width - spacing)
+										: available };
+		float field_width{ InspectorSplitWidth(2, fields_width, spacing) };
 		bool local_changed{ false };
 
 		ImGui::SetNextItemWidth(field_width);
@@ -84,7 +82,7 @@ bool DrawSliderWorldPosition(
 			if (slider_entity) {
 				// Slider endpoints are authored in the slider entity's local space, regardless of
 				// whether the optional track transform is enabled.
-				const Transform basis_world{ GetWorldTransform(slider_entity) };
+				Transform basis_world{ GetWorldTransform(slider_entity) };
 				reference_world = basis_world.Apply(position);
 				convert			= [slider_entity](V2_float world) -> std::optional<V2_float> {
 					if (!slider_entity) {
@@ -133,15 +131,15 @@ bool DrawSliderValueTextConfig(Target& target, ::ptgn::impl::SliderData& data) {
 	bool changed{ false };
 	bool config_changed{ false };
 
-	const float preview_value{ config.display_min + std::clamp(data.value, 0.0f, 1.0f) *
-														(config.display_max - config.display_min) };
+	float preview_value{ config.display_min + std::clamp(data.value, 0.0f, 1.0f) *
+												  (config.display_max - config.display_min) };
 	char preview_buffer[96]{};
 	std::snprintf(
 		preview_buffer, sizeof(preview_buffer), "%.*f",
 		static_cast<int>(std::min<std::uint32_t>(config.decimal_places, 9)),
 		static_cast<double>(preview_value)
 	);
-	const std::array<RichTextVariableOption, 1> variables{ RichTextVariableOption{
+	std::array<RichTextVariableOption, 1> variables{ RichTextVariableOption{
 		.label	  = "Slider Value",
 		.variable = "value",
 		.preview  = preview_buffer,
@@ -282,7 +280,7 @@ bool DrawSliderValueTextConfig(Target& target, ::ptgn::impl::SliderData& data) {
 					{
 						ScopedID clip_scope{ "SliderValueTextClip" };
 						bool clip_enabled{ text_data.clip.has_value() };
-						const auto clip_header{ DrawInspectorTreeToggleRow(
+						auto clip_header{ DrawInspectorTreeToggleRow(
 							"Clip", "##SliderValueTextClipTree", clip_enabled, false,
 							InspectorTreeToggleSide::Left
 						) };
@@ -329,7 +327,7 @@ bool DrawSliderValueTextConfig(Target& target, ::ptgn::impl::SliderData& data) {
 				ImGui::TextDisabled("Value text entity is not available.");
 			}
 		} else {
-			ImGui::TextDisabled("Layout is generated on the runtime value-text entity.");
+			ImGui::TextDisabled("Layout is generated on the runtime value text entity.");
 		}
 		ImGui::TreePop();
 	}
@@ -346,7 +344,7 @@ template <typename Target>
 bool DrawSliderData(Target& target, ::ptgn::impl::SliderData& data) {
 	bool changed{ false };
 
-	const float clamped_value{ std::clamp(data.value, 0.0f, 1.0f) };
+	float clamped_value{ std::clamp(data.value, 0.0f, 1.0f) };
 
 	if (data.value != clamped_value) {
 		data.value = clamped_value;
@@ -437,8 +435,8 @@ template <typename Target>
 	bool dialogue{ HasTargetComponent<Target, ::ptgn::impl::DialogueData>(target) };
 	bool button{ HasTargetComponent<Target, ::ptgn::impl::ButtonData>(target) };
 
-	const int specialized_count{ static_cast<int>(slider) + static_cast<int>(toggle) +
-								 static_cast<int>(dropdown) };
+	int specialized_count{ static_cast<int>(slider) + static_cast<int>(toggle) +
+						   static_cast<int>(dropdown) };
 
 	if (specialized_count > 1 || (dialogue && (button || specialized_count > 0))) {
 		return FocusedUIControlType::Conflict;
@@ -572,7 +570,7 @@ bool DrawFocusedButtonStateSelector(
 		selected_state = ComposeButtonVisualState(mode, pointer_state);
 	}
 
-	const std::optional<ButtonVisualState> before{ selected_state };
+	std::optional<ButtonVisualState> before{ selected_state };
 	bool changed{ false };
 	changed |= DrawPropertyRow("Mode", [&]() {
 		std::vector<InspectorChoice> choices;
@@ -604,7 +602,7 @@ bool DrawFocusedButtonStateSelector(
 	});
 
 	changed |= DrawPropertyRow("Pointer", [&]() {
-		const std::array choices{
+		std::array choices{
 			InspectorChoice{
 				.label	  = "Idle",
 				.selected = pointer_state == ButtonState::Idle,
@@ -628,9 +626,9 @@ bool DrawFocusedButtonStateSelector(
 		return false;
 	}
 
-	const ButtonVisualState updated{ ComposeButtonVisualState(mode, pointer_state) };
+	ButtonVisualState updated{ ComposeButtonVisualState(mode, pointer_state) };
 	selected_state = updated;
-	const std::optional<ButtonVisualState> after{ selected_state };
+	std::optional<ButtonVisualState> after{ selected_state };
 
 	ctx.undo.PushApplied(
 		"Select UI Appearance",
@@ -668,7 +666,7 @@ Entity RecordCreatedEntityPreservingSelection(EditorContext& ctx, Entity entity)
 		return {};
 	}
 
-	const EditorSelection before_selection{ ctx.local.selection };
+	EditorSelection before_selection{ ctx.local.selection };
 	Entity recorded{ ctx.commands.RecordCreatedEntity(entity, before_selection) };
 	ApplyEditorSelection(ctx, before_selection);
 	return recorded;
@@ -690,10 +688,10 @@ Entity CreateButtonPartForInspector(
 	Button button{ button_entity };
 
 	switch (part) {
-		case ButtonChildPart::Background: (void)button.Background(state); break;
-		case ButtonChildPart::Border:	  (void)button.Border(state); break;
-		case ButtonChildPart::Text:		  (void)button.Text(state); break;
-		case ButtonChildPart::Sprite:	  (void)button.Sprite(state); break;
+		case ButtonChildPart::Background: button.Background(state); break;
+		case ButtonChildPart::Border:	  button.Border(state); break;
+		case ButtonChildPart::Text:		  button.Text(state); break;
+		case ButtonChildPart::Sprite:	  button.Sprite(state); break;
 	}
 
 	Entity created{ FindButtonPart(button_entity, part) };
@@ -709,7 +707,7 @@ Entity CreateButtonPartForInspector(
 [[maybe_unused]] bool DrawFocusedButtonAddParts(
 	EditorContext& ctx, Entity button_entity, ButtonVisualState state
 ) {
-	const auto state_index{ static_cast<std::size_t>(std::to_underlying(state)) };
+	auto state_index{ static_cast<std::size_t>(std::to_underlying(state)) };
 
 	std::vector<InspectorAction> actions;
 	actions.reserve(5);
@@ -828,7 +826,7 @@ bool DrawFocusedButtonPartContents(
 	switch (part) {
 		case ButtonChildPart::Background: {
 			EntityInspectorTarget child_target{ .ctx = ctx, .entity = child };
-			const ButtonChildInfo info{ .child = child, .button = button_entity, .part = part };
+			ButtonChildInfo info{ .child = child, .button = button_entity, .part = part };
 			changed |= DrawButtonChildStateTransformSection(child_target, info, state);
 			changed |= DrawFocusedButtonVisualComponent<ButtonBackgroundVisuals>(
 				ctx, button_entity, child, "Edit Button Background", [&](auto& states) {
@@ -841,7 +839,7 @@ bool DrawFocusedButtonPartContents(
 		}
 		case ButtonChildPart::Border: {
 			EntityInspectorTarget child_target{ .ctx = ctx, .entity = child };
-			const ButtonChildInfo info{ .child = child, .button = button_entity, .part = part };
+			ButtonChildInfo info{ .child = child, .button = button_entity, .part = part };
 			changed |= DrawButtonChildStateTransformSection(child_target, info, state);
 			changed |= DrawFocusedButtonVisualComponent<ButtonBorderVisuals>(
 				ctx, button_entity, child, "Edit Button Border", [&](auto& states) {
@@ -854,7 +852,7 @@ bool DrawFocusedButtonPartContents(
 		}
 		case ButtonChildPart::Sprite: {
 			EntityInspectorTarget child_target{ .ctx = ctx, .entity = child };
-			const ButtonChildInfo info{ .child = child, .button = button_entity, .part = part };
+			ButtonChildInfo info{ .child = child, .button = button_entity, .part = part };
 			changed |= DrawButtonChildStateTransformSection(child_target, info, state);
 			changed |= DrawFocusedButtonVisualComponent<ButtonSpriteVisuals>(
 				ctx, button_entity, child, "Edit Button Sprite", [&](auto& states) {
@@ -867,7 +865,7 @@ bool DrawFocusedButtonPartContents(
 		}
 		case ButtonChildPart::Text: {
 			EntityInspectorTarget child_target{ .ctx = ctx, .entity = child };
-			const ButtonChildInfo info{ .child = child, .button = button_entity, .part = part };
+			ButtonChildInfo info{ .child = child, .button = button_entity, .part = part };
 			changed |= DrawButtonChildStateTransformSection(child_target, info, state);
 			changed |= DrawButtonChildStateVisualSection(child_target, info, state);
 			break;
@@ -913,7 +911,7 @@ bool DrawFocusedButtonPartsTrees(
 		ImGui::EndPopup();
 	};
 
-	const std::size_t existing_count{ part_count() };
+	std::size_t existing_count{ part_count() };
 	bool has_all_parts{ existing_count == parts.size() };
 	if (DrawInspectorAddPartsButton(
 			!has_all_parts, "Add Button Part", "Add a button visual part."
@@ -922,17 +920,15 @@ bool DrawFocusedButtonPartsTrees(
 	}
 	draw_add_popup();
 
-	for (const ButtonChildPart part : parts) {
+	for (ButtonChildPart part : parts) {
 		Entity child{ FindButtonPart(button_entity, part) };
 		if (!child) {
 			continue;
 		}
 
 		ScopedID part_scope{ static_cast<int>(part) };
-		const std::string label{ ButtonPartLabel(part) };
-		const auto tree{
-			DrawInspectorPartTreeNode(label, "ButtonPart", true, false, "Remove Part")
-		};
+		std::string label{ ButtonPartLabel(part) };
+		auto tree{ DrawInspectorPartTreeNode(label, "ButtonPart", true, false, "Remove Part") };
 		if (tree.remove_requested) {
 			remove_after_trees = child;
 		}
@@ -963,7 +959,7 @@ bool DrawFocusedButtonSounds(Target& target, ButtonVisualState state) {
 		}
 
 		ButtonSounds sounds{ *before };
-		const auto index{ static_cast<std::size_t>(std::to_underlying(state)) };
+		auto index{ static_cast<std::size_t>(std::to_underlying(state)) };
 		auto& sound{ sounds.states[index] };
 
 		if (!sound.has_value()) {
@@ -1055,12 +1051,12 @@ bool DrawFocusedButtonInteraction(Target& target, FocusedUIControlType type) {
 		bool toggle_changed{ false };
 		bool dropdown_changed{ false };
 
-		const std::string press_label{ button.press_enabled ? "Press Enabled" : "Press Disabled" };
-		const std::string hover_label{ button.hover_enabled ? "Hover Enabled" : "Hover Disabled" };
-		const std::string state_label{ show_toggle ? (toggle.toggled ? "Toggled" : "Untoggled")
-									   : show_dropdown
-										   ? (dropdown.start_open ? "Starts Open" : "Starts Closed")
-										   : std::string{} };
+		std::string press_label{ button.press_enabled ? "Press Enabled" : "Press Disabled" };
+		std::string hover_label{ button.hover_enabled ? "Hover Enabled" : "Hover Disabled" };
+		std::string state_label{ show_toggle ? (toggle.toggled ? "Toggled" : "Untoggled")
+								 : show_dropdown
+									 ? (dropdown.start_open ? "Starts Open" : "Starts Closed")
+									 : std::string{} };
 
 		std::vector<InspectorAction> actions;
 		actions.reserve((show_toggle || show_dropdown) ? 3u : 2u);
@@ -1173,20 +1169,20 @@ void MoveDropdownItem(EditorContext& ctx, Entity dropdown_entity, Entity item, E
 		return;
 	}
 	const auto& children{ GetChildren(dropdown_entity) };
-	const auto item_it{ std::ranges::find(children, item) };
-	const auto adjacent_it{ std::ranges::find(children, adjacent) };
+	auto item_it{ std::ranges::find(children, item) };
+	auto adjacent_it{ std::ranges::find(children, adjacent) };
 	if (item_it == children.end() || adjacent_it == children.end()) {
 		return;
 	}
 
-	const std::size_t from{ static_cast<std::size_t>(std::distance(children.begin(), item_it)) };
-	const std::size_t to{ static_cast<std::size_t>(std::distance(children.begin(), adjacent_it)) };
+	std::size_t from{ static_cast<std::size_t>(std::distance(children.begin(), item_it)) };
+	std::size_t to{ static_cast<std::size_t>(std::distance(children.begin(), adjacent_it)) };
 	if (from == to) {
 		return;
 	}
 
-	const EntityReference dropdown_reference{ MakeEntityReference(dropdown_entity) };
-	const EntityReference item_reference{ MakeEntityReference(item) };
+	EntityReference dropdown_reference{ MakeEntityReference(dropdown_entity) };
+	EntityReference item_reference{ MakeEntityReference(item) };
 	MoveChild(dropdown_entity, item, to);
 	Dropdown{ dropdown_entity }.RefreshLayout();
 
@@ -1209,7 +1205,7 @@ bool DrawDropdownItems(EntityInspectorTarget& target) {
 	bool changed{ false };
 
 	bool section_open{ false };
-	const float button_size{ ImGui::GetFrameHeight() };
+	float button_size{ ImGui::GetFrameHeight() };
 	if (ImGui::BeginTable(
 			"##DropdownItemsHeader", 2,
 			ImGuiTableFlags_SizingStretchProp | ImGuiTableFlags_NoPadOuterX |
@@ -1227,12 +1223,12 @@ bool DrawDropdownItems(EntityInspectorTarget& target) {
 
 		ImGui::TableSetColumnIndex(1);
 		if (ImGui::Button("+##AddDropdownItem", ImVec2{ button_size, button_size })) {
-			const std::string label{ "Dropdown Item " + std::to_string(items.size() + 1) };
+			std::string label{ "Dropdown Item " + std::to_string(items.size() + 1) };
 			Button created{ dropdown.AddItem(label) };
 			created.Background().Color(color::DarkGray);
 			created.Background(ButtonVisualState::Hover).Color(color::Gray);
 			created.Background(ButtonVisualState::Press).Color(color::Black);
-			(void)RecordCreatedEntityPreservingSelection(target.ctx, created);
+			RecordCreatedEntityPreservingSelection(target.ctx, created);
 			dropdown.RefreshLayout();
 			items	= dropdown.GetButtons();
 			changed = true;
@@ -1256,7 +1252,7 @@ bool DrawDropdownItems(EntityInspectorTarget& target) {
 		}
 
 		ImGui::PushID(item.Get<UUID>());
-		const std::string item_label{ "Dropdown Item " + std::to_string(i + 1) };
+		std::string item_label{ "Dropdown Item " + std::to_string(i + 1) };
 		bool open{ ImGui::TreeNodeEx(
 			"##DropdownItem",
 			ImGuiTreeNodeFlags_SpanAvailWidth | ImGuiTreeNodeFlags_FramePadding |
@@ -1291,7 +1287,7 @@ bool DrawDropdownItems(EntityInspectorTarget& target) {
 			EntityInspectorTarget item_target{ .ctx = target.ctx, .entity = item };
 
 			// Dropdown item transforms are ordinary local transforms. The dropdown layout system
-			// preserves the user's delta while the normal ignore-parent components control whether
+			// preserves the user's delta while the normal ignore parent components control whether
 			// the transform is relative to the dropdown header.
 			changed |= DrawTransformSection(item_target, false);
 
@@ -1384,7 +1380,7 @@ bool DrawToggleGroupMembers(EntityInspectorTarget& target) {
 			created.Background(ButtonVisualState::Hover).Color(color::Gray);
 			created.Text().Content("Toggle " + std::to_string(buttons.size() + 1));
 			group.Add(key, created);
-			(void)target.ctx.commands.RecordCreatedEntity(created, target.ctx.local.selection);
+			target.ctx.commands.RecordCreatedEntity(created, target.ctx.local.selection);
 			editor_state.toggle_group_item_index = buttons.size();
 			changed								 = true;
 		}
@@ -1475,7 +1471,7 @@ void ApplyButtonAppearanceSnapshot(
 		AssignEntityComponent<ButtonSounds>(button, snapshot.sounds);
 	}
 
-	// Snapshot application replaces the authored per-state visual arrays wholesale. Rebuild the
+	// Snapshot application replaces the authored per state visual arrays wholesale. Rebuild the
 	// currently previewed state after every replacement so inherited visibility, transforms, text
 	// data, and other resolved child state are immediately reconstructed from the new fallbacks.
 	Button preview_button{ button };
@@ -1492,7 +1488,7 @@ bool ApplyButtonSnapshotStateOperation(
 		return false;
 	}
 
-	const auto destination_index{ static_cast<std::size_t>(std::to_underlying(destination)) };
+	auto destination_index{ static_cast<std::size_t>(std::to_underlying(destination)) };
 	if (!source) {
 		visuals->states[destination_index] = {};
 		return true;
@@ -1502,7 +1498,7 @@ bool ApplyButtonSnapshotStateOperation(
 	// own and instead inherit the whole part from an earlier state (for example Hover -> Idle).
 	// Copying the raw undefined source slot would incorrectly erase a defined destination such as
 	// Idle, causing the managed child to disappear even though the source looked identical.
-	for (const ButtonVisualState fallback : GetVisualStateFallbacks(*source)) {
+	for (ButtonVisualState fallback : GetVisualStateFallbacks(*source)) {
 		const auto& source_visual{
 			visuals->states[static_cast<std::size_t>(std::to_underlying(fallback))]
 		};
@@ -1535,9 +1531,9 @@ bool ApplyButtonStateOperation(
 		return false;
 	}
 
-	const std::string action{ source ? "Copy Button State" : "Reset Button State Overrides" };
-	const EntityReference button_reference{ MakeEntityReference(button) };
-	const ButtonAppearanceSnapshot before{ CaptureButtonAppearanceSnapshot(button) };
+	std::string action{ source ? "Copy Button State" : "Reset Button State Overrides" };
+	EntityReference button_reference{ MakeEntityReference(button) };
+	ButtonAppearanceSnapshot before{ CaptureButtonAppearanceSnapshot(button) };
 	ButtonAppearanceSnapshot after{ before };
 	bool changed{ false };
 
@@ -1547,10 +1543,10 @@ bool ApplyButtonStateOperation(
 	changed |= ApplyButtonSnapshotStateOperation(after.sprites, destination, source);
 
 	if (after.sounds) {
-		const auto destination_index{ static_cast<std::size_t>(std::to_underlying(destination)) };
+		auto destination_index{ static_cast<std::size_t>(std::to_underlying(destination)) };
 
 		if (source) {
-			const auto source_index{ static_cast<std::size_t>(std::to_underlying(*source)) };
+			auto source_index{ static_cast<std::size_t>(std::to_underlying(*source)) };
 
 			after.sounds->states[destination_index] = after.sounds->states[source_index];
 
@@ -1588,12 +1584,12 @@ bool DrawButtonStateActions(
 	EditorContext& ctx, Entity button, ButtonVisualState state, bool allow_toggled
 ) {
 	bool changed{ false };
-	const float available{ std::max(1.0f, ImGui::GetContentRegionAvail().x) };
+	float available{ std::max(1.0f, ImGui::GetContentRegionAvail().x) };
 	bool compact{ available < 260.0f };
 	bool can_reset_overrides{ state != ButtonVisualState::Idle };
 
 	auto draw_copy_items = [&]() {
-		for (const ButtonVisualState candidate : magic_enum::enum_values<ButtonVisualState>()) {
+		for (ButtonVisualState candidate : magic_enum::enum_values<ButtonVisualState>()) {
 			int mode{ 0 };
 			ButtonState pointer{ ButtonState::Idle };
 			DecomposeButtonVisualState(candidate, mode, pointer);
@@ -1601,7 +1597,7 @@ bool DrawButtonStateActions(
 				continue;
 			}
 
-			const std::string label{ PrettyName(magic_enum::enum_name(candidate)) };
+			std::string label{ PrettyName(magic_enum::enum_name(candidate)) };
 			if (ImGui::MenuItem(label.c_str())) {
 				changed |= ApplyButtonStateOperation(ctx, button, state, candidate);
 			}
@@ -1631,8 +1627,8 @@ bool DrawButtonStateActions(
 		return changed;
 	}
 
-	const float spacing{ ImGui::GetStyle().ItemSpacing.x };
-	const float half_width{ std::max(1.0f, (available - spacing) * 0.5f) };
+	float spacing{ ImGui::GetStyle().ItemSpacing.x };
+	float half_width{ std::max(1.0f, (available - spacing) * 0.5f) };
 	{
 		ScopedDisabled disabled{ !can_reset_overrides };
 		if (ImGui::Button("Reset State Overrides", ImVec2{ half_width, 0.0f })) {
@@ -1649,14 +1645,14 @@ bool DrawButtonStateActions(
 	ImGui::SameLine();
 	ImGui::SetNextItemWidth(half_width);
 	if (ImGui::BeginCombo("##CopyButtonState", "Copy From...")) {
-		for (const ButtonVisualState candidate : magic_enum::enum_values<ButtonVisualState>()) {
+		for (ButtonVisualState candidate : magic_enum::enum_values<ButtonVisualState>()) {
 			int mode{ 0 };
 			ButtonState pointer{ ButtonState::Idle };
 			DecomposeButtonVisualState(candidate, mode, pointer);
 			if ((!allow_toggled && mode == 1) || candidate == state) {
 				continue;
 			}
-			const std::string label{ PrettyName(magic_enum::enum_name(candidate)) };
+			std::string label{ PrettyName(magic_enum::enum_name(candidate)) };
 			if (ImGui::Selectable(label.c_str())) {
 				changed |= ApplyButtonStateOperation(ctx, button, state, candidate);
 			}
@@ -1679,9 +1675,7 @@ bool DrawFocusedButtonAppearance(Target& target, FocusedUIControlType type) {
 		target.ctx, target.GetInspectorTargetKey(), editor_state.button_visual_state, allow_toggled
 	);
 
-	const ButtonVisualState state{
-		editor_state.button_visual_state.value_or(ButtonVisualState::Idle)
-	};
+	ButtonVisualState state{ editor_state.button_visual_state.value_or(ButtonVisualState::Idle) };
 
 	bool changed{ false };
 
@@ -1863,7 +1857,7 @@ template <typename Marker, typename Draw>
 	bool changed{ false };
 	bool remove_requested{ false };
 	ScopedID scope{ label };
-	const std::string tree_label{ std::string{ label } + "##SliderTrackVisualPart" };
+	std::string tree_label{ std::string{ label } + "##SliderTrackVisualPart" };
 	bool open{ ImGui::TreeNodeEx(
 		tree_label.c_str(), ImGuiTreeNodeFlags_SpanAvailWidth | ImGuiTreeNodeFlags_FramePadding
 	) };
@@ -1941,7 +1935,7 @@ bool DrawSliderTrackPartTransform(EntityInspectorTarget& target, std::string_vie
 
 float SliderTrackPartMaximumLineWidth(Entity border) {
 	if (border.Has<Rect>()) {
-		const auto size{ border.Get<Rect>().GetSize() };
+		auto size{ border.Get<Rect>().GetSize() };
 		return std::max(
 			kInspectorMinLineWidth, std::min(std::abs(size.x), std::abs(size.y)) * 0.5f
 		);
@@ -1956,7 +1950,7 @@ bool DrawSliderTrackBorderLineWidth(ButtonShapeVisual& visual, Entity border) {
 	auto& value{ visual.fill_style };
 	bool was_enabled{ value.has_value() };
 	bool enabled{ was_enabled };
-	const float maximum_width{ SliderTrackPartMaximumLineWidth(border) };
+	float maximum_width{ SliderTrackPartMaximumLineWidth(border) };
 	float width{ std::clamp(
 		value.value_or(FillStyle{ kInspectorMinLineWidth })
 			.GetLineWidth()
@@ -2091,7 +2085,7 @@ bool DrawSliderTrackSpriteFields(EntityInspectorTarget& target, Entity sprite) {
 		target.ctx, "Texture Key", states, state, &ButtonSpriteVisual::texture
 	);
 	bool had_size_override{ states[0].size.has_value() };
-	const std::optional<V2_float> current_size{ GetDisplaySize(sprite) };
+	std::optional<V2_float> current_size{ GetDisplaySize(sprite) };
 	bool size_changed{ DrawButtonVisualOverrideValue(
 		target.ctx, "Texture Size", states, state, &ButtonSpriteVisual::size
 	) };
@@ -2187,7 +2181,7 @@ bool DrawSliderTrackVisual(EntityInspectorTarget& target, Slider slider, Entity&
 		}
 		track = slider.EnsureTrack();
 		if (track) {
-			(void)RecordCreatedEntityPreservingSelection(target.ctx, track);
+			RecordCreatedEntityPreservingSelection(target.ctx, track);
 		}
 		return track;
 	};
@@ -2201,19 +2195,19 @@ bool DrawSliderTrackVisual(EntityInspectorTarget& target, Slider slider, Entity&
 			if (!FindSliderTrackPart<::ptgn::impl::SliderTrackBackgroundData>(parent) &&
 				ImGui::MenuItem("Background")) {
 				Entity child{ CreateSliderTrackBackground(target.entity, parent) };
-				(void)RecordCreatedEntityPreservingSelection(target.ctx, child);
+				RecordCreatedEntityPreservingSelection(target.ctx, child);
 				changed = true;
 			}
 			if (!FindSliderTrackPart<::ptgn::impl::SliderTrackBorderData>(parent) &&
 				ImGui::MenuItem("Border")) {
 				Entity child{ CreateSliderTrackBorder(target.entity, parent) };
-				(void)RecordCreatedEntityPreservingSelection(target.ctx, child);
+				RecordCreatedEntityPreservingSelection(target.ctx, child);
 				changed = true;
 			}
 			if (!FindSliderTrackPart<::ptgn::impl::SliderTrackSpriteData>(parent) &&
 				ImGui::MenuItem("Sprite")) {
 				Entity child{ CreateSliderTrackSprite(target.entity, parent) };
-				(void)RecordCreatedEntityPreservingSelection(target.ctx, child);
+				RecordCreatedEntityPreservingSelection(target.ctx, child);
 				changed = true;
 			}
 			SynchronizeSliderTrackVisualEnabled(parent);
@@ -2238,7 +2232,7 @@ bool DrawSliderTrackVisual(EntityInspectorTarget& target, Slider slider, Entity&
 			return;
 		}
 		ScopedID part_scope{ label };
-		const auto tree{
+		auto tree{
 			DrawInspectorPartTreeNode(label, "SliderTrackPart", true, false, "Remove Part")
 		};
 		if (tree.remove_requested) {
@@ -2316,7 +2310,7 @@ void NormalizeDialogueEditorEntry(DialogueEditorEntryDraft& entry) {
 		if (variant.name.empty()) {
 			variant.name = "Variant " + std::to_string(i + 1);
 		}
-		const std::string base{ variant.name };
+		std::string base{ variant.name };
 		std::size_t suffix{ 2 };
 		auto duplicate_before = [&]() {
 			for (std::size_t previous{ 0 }; previous < i; ++previous) {
@@ -2334,7 +2328,7 @@ void NormalizeDialogueEditorEntry(DialogueEditorEntryDraft& entry) {
 	entry.initial_variant = std::min(entry.initial_variant, entry.variants.size() - 1);
 
 	// Inherit means inherit the entity's complete typewriter configuration, including duration.
-	// A dialogue-local duration only exists alongside an explicit Enabled/Disabled mode.
+	// A dialogue local duration only exists alongside an explicit Enabled/Disabled mode.
 	if (!entry.typewriter.has_value()) {
 		entry.typewriter_duration.reset();
 	}
@@ -2368,7 +2362,7 @@ void NormalizeDialogueEditorDocument(DialogueEditorDocument& document) {
 		}
 	}
 
-	const auto start_it{ std::ranges::find_if(
+	auto start_it{ std::ranges::find_if(
 		document.dialogues,
 		[&](const DialogueEditorEntryDraft& entry) { return entry.name == document.start; }
 	) };
@@ -2411,7 +2405,7 @@ void NormalizeDialogueEditorDocument(DialogueEditorDocument& document) {
 	}
 
 	std::string source;
-	const auto append_page = [&](const json& page_json, std::string& destination) {
+	auto append_page = [&](const json& page_json, std::string& destination) {
 		bool instant{ page_json.is_object() && page_json.value("instant", false) };
 
 		std::optional<milliseconds> duration_override{};
@@ -2498,9 +2492,9 @@ void NormalizeDialogueEditorDocument(DialogueEditorDocument& document) {
 [[nodiscard]] DialogueEditorDocument ParseDialogueEditorDocument(
 	const ::ptgn::impl::DialogueData& data
 ) {
-	const json root = data.Definition().is_object() && !data.Definition().empty()
-						? data.Definition()
-						: ::ptgn::impl::DialogueData::MakeDefaultDefinition();
+	json root = data.Definition().is_object() && !data.Definition().empty()
+				  ? data.Definition()
+				  : ::ptgn::impl::DialogueData::MakeDefaultDefinition();
 
 	DialogueEditorDocument document;
 	document.defaults = DialoguePageProperties{}.InheritProperties(root);
@@ -2647,7 +2641,7 @@ void NormalizeDialogueEditorDocument(DialogueEditorDocument& document) {
 	}
 
 	for (std::size_t suffix{ 2 };; ++suffix) {
-		const std::string candidate{ std::string{ base } + "_" + std::to_string(suffix) };
+		std::string candidate{ std::string{ base } + "_" + std::to_string(suffix) };
 		if (!DialogueEditorNameExists(document, candidate)) {
 			return candidate;
 		}
@@ -2676,7 +2670,7 @@ void NormalizeDialogueEditorDocument(DialogueEditorDocument& document) {
 		return std::string{ base };
 	}
 	for (std::size_t suffix{ 2 };; ++suffix) {
-		const std::string candidate{ std::string{ base } + " " + std::to_string(suffix) };
+		std::string candidate{ std::string{ base } + " " + std::to_string(suffix) };
 		if (!DialogueVariantNameExists(entry, candidate)) {
 			return candidate;
 		}
@@ -2690,7 +2684,7 @@ void RenameDialogueEditorEntry(
 		return;
 	}
 
-	const std::string old_name{ document.dialogues[index].name };
+	std::string old_name{ document.dialogues[index].name };
 	if (old_name == new_name) {
 		return;
 	}
@@ -2713,21 +2707,20 @@ void RenameDialogueEditorEntry(
 ) {
 	NormalizeDialogueEditorDocument(document);
 
-	const auto it{ std::ranges::find_if(
-		document.dialogues,
-		[&](const DialogueEditorEntryDraft& entry) { return entry.name == state.dialogue_key; }
-	) };
+	auto it{ std::ranges::find_if(document.dialogues, [&](const DialogueEditorEntryDraft& entry) {
+		return entry.name == state.dialogue_key;
+	}) };
 
 	if (it != document.dialogues.end()) {
 		return static_cast<std::size_t>(std::distance(document.dialogues.begin(), it));
 	}
 
-	const auto start_it{ std::ranges::find_if(
+	auto start_it{ std::ranges::find_if(
 		document.dialogues,
 		[&](const DialogueEditorEntryDraft& entry) { return entry.name == document.start; }
 	) };
 
-	const std::size_t index{
+	std::size_t index{
 		start_it != document.dialogues.end()
 			? static_cast<std::size_t>(std::distance(document.dialogues.begin(), start_it))
 			: 0
@@ -2768,7 +2761,7 @@ void AppendDialoguePagePreviewLine(
 			AppendDialoguePagePreviewLine(preview, {}, 0);
 		}
 
-		const std::string page_source{ SerializeStyledTextToRichText(
+		std::string page_source{ SerializeStyledTextToRichText(
 			pages[page_index].styled_text, pages[page_index].properties.text_defaults
 		) };
 
@@ -2779,9 +2772,8 @@ void AppendDialoguePagePreviewLine(
 
 		std::size_t line_begin{ 0 };
 		while (line_begin <= page_source.size()) {
-			const std::size_t newline{ page_source.find('\n', line_begin) };
-			const std::size_t line_end{ newline == std::string::npos ? page_source.size()
-																	 : newline };
+			std::size_t newline{ page_source.find('\n', line_begin) };
+			std::size_t line_end{ newline == std::string::npos ? page_source.size() : newline };
 			AppendDialoguePagePreviewLine(
 				preview, std::string_view{ page_source }.substr(line_begin, line_end - line_begin),
 				page_index + 1
@@ -2814,9 +2806,9 @@ void DrawDialoguePreviewNavigation(InspectorUiState& state, std::size_t page_cou
 	}
 	ImGui::EndDisabled();
 
-	const std::size_t range_begin{ state.dialogue_preview_page > 2 ? state.dialogue_preview_page - 2
-																   : 0 };
-	const std::size_t range_end{ std::min(page_count, state.dialogue_preview_page + 3) };
+	std::size_t range_begin{ state.dialogue_preview_page > 2 ? state.dialogue_preview_page - 2
+															 : 0 };
+	std::size_t range_end{ std::min(page_count, state.dialogue_preview_page + 3) };
 
 	for (std::size_t i{ range_begin }; i < range_end; ++i) {
 		ImGui::SameLine();
@@ -2825,7 +2817,7 @@ void DrawDialoguePreviewNavigation(InspectorUiState& state, std::size_t page_cou
 			ImGui::PushStyleColor(ImGuiCol_Button, ImGui::GetStyleColorVec4(ImGuiCol_ButtonActive));
 		}
 
-		const std::string label{ std::to_string(i + 1) + "##DialoguePreviewPage" };
+		std::string label{ std::to_string(i + 1) + "##DialoguePreviewPage" };
 		if (ImGui::Button(label.c_str())) {
 			state.dialogue_preview_page = i;
 		}
@@ -2843,8 +2835,8 @@ void DrawDialoguePreviewNavigation(InspectorUiState& state, std::size_t page_cou
 	ImGui::EndDisabled();
 
 	ImGui::SameLine();
-	const float page_input_width{ ImGui::CalcTextSize("000").x +
-								  ImGui::GetStyle().FramePadding.x * 2.0f + 4.0f };
+	float page_input_width{ ImGui::CalcTextSize("000").x + ImGui::GetStyle().FramePadding.x * 2.0f +
+							4.0f };
 	ImGui::SetNextItemWidth(page_input_width);
 	int requested_page{ static_cast<int>(state.dialogue_preview_page + 1) };
 	if (ImGui::InputInt(
@@ -2862,7 +2854,7 @@ void DrawDialoguePreviewNavigation(InspectorUiState& state, std::size_t page_cou
 	const DialoguePortraitActorMap& actors
 ) {
 	for (std::size_t index{ 1 };; ++index) {
-		const std::string key{ "speaker_" + std::to_string(index) };
+		std::string key{ "speaker_" + std::to_string(index) };
 		if (!actors.contains(key)) {
 			return key;
 		}
@@ -2873,7 +2865,7 @@ void DrawDialoguePreviewNavigation(InspectorUiState& state, std::size_t page_cou
 	const DialoguePortraitActor& actor
 ) {
 	for (std::size_t index{ 1 };; ++index) {
-		const std::string key{ "expression_" + std::to_string(index) };
+		std::string key{ "expression_" + std::to_string(index) };
 		if (!actor.expressions.contains(key)) {
 			return key;
 		}
@@ -2891,8 +2883,8 @@ void DrawDialoguePreviewNavigation(InspectorUiState& state, std::size_t page_cou
 	std::ranges::sort(keys, [&](const std::string& lhs, const std::string& rhs) {
 		const auto& left{ actors.at(lhs) };
 		const auto& right{ actors.at(rhs) };
-		const std::string_view left_name{ left.display_name.empty() ? lhs : left.display_name };
-		const std::string_view right_name{ right.display_name.empty() ? rhs : right.display_name };
+		std::string_view left_name{ left.display_name.empty() ? lhs : left.display_name };
+		std::string_view right_name{ right.display_name.empty() ? rhs : right.display_name };
 		return left_name < right_name;
 	});
 	return keys;
@@ -2909,8 +2901,8 @@ void DrawDialoguePreviewNavigation(InspectorUiState& state, std::size_t page_cou
 	std::ranges::sort(keys, [&](const std::string& lhs, const std::string& rhs) {
 		const auto& left{ actor.expressions.at(lhs) };
 		const auto& right{ actor.expressions.at(rhs) };
-		const std::string_view left_name{ left.display_name.empty() ? lhs : left.display_name };
-		const std::string_view right_name{ right.display_name.empty() ? rhs : right.display_name };
+		std::string_view left_name{ left.display_name.empty() ? lhs : left.display_name };
+		std::string_view right_name{ right.display_name.empty() ? rhs : right.display_name };
 		return left_name < right_name;
 	});
 	return keys;
@@ -2945,10 +2937,10 @@ bool DrawDialoguePortraitDefinitions(
 
 	if (document.portrait_actors.empty()) {
 		if (ImGui::Button("Add Speaker", ImVec2{ -FLT_MIN, 0.0f })) {
-			const std::string key{ MakeUniqueDialoguePortraitActorKey(document.portrait_actors) };
+			std::string key{ MakeUniqueDialoguePortraitActorKey(document.portrait_actors) };
 			DialoguePortraitActor actor;
 			actor.display_name = "Speaker 1";
-			const std::string expression_key{ MakeUniqueDialoguePortraitExpressionKey(actor) };
+			std::string expression_key{ MakeUniqueDialoguePortraitExpressionKey(actor) };
 			actor.default_expression = expression_key;
 			actor.expressions.emplace(
 				expression_key, DialoguePortraitExpression{ .display_name = "Neutral" }
@@ -2963,22 +2955,21 @@ bool DrawDialoguePortraitDefinitions(
 		return changed;
 	}
 
-	const auto actor_keys{ SortedDialoguePortraitActorKeys(document.portrait_actors) };
+	auto actor_keys{ SortedDialoguePortraitActorKeys(document.portrait_actors) };
 	if (!document.portrait_actors.contains(state.dialogue_portrait_actor)) {
 		state.dialogue_portrait_actor = actor_keys.front();
 	}
 
-	(void)DrawPropertyRow("Speaker", [&]() {
+	DrawPropertyRow("Speaker", [&]() {
 		bool local_changed{ false };
 		const auto& current{ document.portrait_actors.at(state.dialogue_portrait_actor) };
-		const std::string_view preview{ current.display_name.empty() ? state.dialogue_portrait_actor
-																	 : current.display_name };
+		std::string_view preview{ current.display_name.empty() ? state.dialogue_portrait_actor
+															   : current.display_name };
 		ImGui::SetNextItemWidth(-FLT_MIN);
 		if (ImGui::BeginCombo("##DialoguePortraitSpeakerDefinition", preview.data())) {
 			for (const auto& key : actor_keys) {
 				const auto& actor{ document.portrait_actors.at(key) };
-				const std::string_view label{ actor.display_name.empty() ? key
-																		 : actor.display_name };
+				std::string_view label{ actor.display_name.empty() ? key : actor.display_name };
 				if (ImGui::Selectable(label.data(), state.dialogue_portrait_actor == key)) {
 					state.dialogue_portrait_actor = key;
 					state.dialogue_portrait_expression.clear();
@@ -3001,18 +2992,18 @@ bool DrawDialoguePortraitDefinitions(
 	});
 
 	{
-		const std::array actions{
+		std::array actions{
 			InspectorAction{
 				.label = "Add Speaker",
 				.invoke =
 					[&]() {
-						const std::string key{
+						std::string key{
 							MakeUniqueDialoguePortraitActorKey(document.portrait_actors)
 						};
 						DialoguePortraitActor new_actor;
 						new_actor.display_name =
 							"Speaker " + std::to_string(document.portrait_actors.size() + 1);
-						const std::string expression_key{
+						std::string expression_key{
 							MakeUniqueDialoguePortraitExpressionKey(new_actor)
 						};
 						new_actor.default_expression = expression_key;
@@ -3032,9 +3023,7 @@ bool DrawDialoguePortraitDefinitions(
 				.invoke =
 					[&]() {
 						document.portrait_actors.erase(state.dialogue_portrait_actor);
-						const auto remaining{
-							SortedDialoguePortraitActorKeys(document.portrait_actors)
-						};
+						auto remaining{ SortedDialoguePortraitActorKeys(document.portrait_actors) };
 						state.dialogue_portrait_actor =
 							remaining.empty() ? std::string{} : remaining.front();
 						state.dialogue_portrait_expression.clear();
@@ -3055,7 +3044,7 @@ bool DrawDialoguePortraitDefinitions(
 		selected_actor.default_expression.clear();
 		state.dialogue_portrait_expression.clear();
 
-		(void)DrawPropertyRow("Default Expression", [&]() {
+		DrawPropertyRow("Default Expression", [&]() {
 			ScopedDisabled disabled{ true };
 			ImGui::SetNextItemWidth(-FLT_MIN);
 			return ImGui::BeginCombo("##DialoguePortraitDefaultExpressionEmpty", "None")
@@ -3063,7 +3052,7 @@ bool DrawDialoguePortraitDefinitions(
 					 : false;
 		});
 
-		(void)DrawPropertyRow("Expression", [&]() {
+		DrawPropertyRow("Expression", [&]() {
 			ScopedDisabled disabled{ true };
 			ImGui::SetNextItemWidth(-FLT_MIN);
 			return ImGui::BeginCombo("##DialoguePortraitExpressionDefinitionEmpty", "None")
@@ -3072,7 +3061,7 @@ bool DrawDialoguePortraitDefinitions(
 		});
 
 		if (ImGui::Button("Add Expression", ImVec2{ -FLT_MIN, 0.0f })) {
-			const std::string key{ MakeUniqueDialoguePortraitExpressionKey(selected_actor) };
+			std::string key{ MakeUniqueDialoguePortraitExpressionKey(selected_actor) };
 			selected_actor.default_expression = key;
 			selected_actor.expressions.emplace(
 				key, DialoguePortraitExpression{ .display_name = "Expression 1" }
@@ -3085,7 +3074,7 @@ bool DrawDialoguePortraitDefinitions(
 		ImGui::TreePop();
 		return changed;
 	}
-	const auto expression_keys{ SortedDialoguePortraitExpressionKeys(selected_actor) };
+	auto expression_keys{ SortedDialoguePortraitExpressionKeys(selected_actor) };
 	if (!selected_actor.expressions.contains(selected_actor.default_expression)) {
 		selected_actor.default_expression = expression_keys.front();
 	}
@@ -3099,16 +3088,14 @@ bool DrawDialoguePortraitDefinitions(
 	changed |= DrawPropertyRow("Default Expression", [&]() {
 		bool local_changed{ false };
 		const auto& current{ selected_actor.expressions.at(selected_actor.default_expression) };
-		const std::string_view preview{ current.display_name.empty()
-											? selected_actor.default_expression
-											: current.display_name };
+		std::string_view preview{ current.display_name.empty() ? selected_actor.default_expression
+															   : current.display_name };
 		ImGui::SetNextItemWidth(-FLT_MIN);
 		if (ImGui::BeginCombo("##DialoguePortraitDefaultExpression", preview.data())) {
 			for (const auto& key : expression_keys) {
 				const auto& expression{ selected_actor.expressions.at(key) };
-				const std::string_view label{ expression.display_name.empty()
-												  ? key
-												  : expression.display_name };
+				std::string_view label{ expression.display_name.empty() ? key
+																		: expression.display_name };
 				if (ImGui::Selectable(label.data(), selected_actor.default_expression == key)) {
 					selected_actor.default_expression = key;
 					local_changed					  = true;
@@ -3120,19 +3107,17 @@ bool DrawDialoguePortraitDefinitions(
 		return local_changed;
 	});
 
-	(void)DrawPropertyRow("Expression", [&]() {
+	DrawPropertyRow("Expression", [&]() {
 		bool local_changed{ false };
 		const auto& current{ selected_actor.expressions.at(state.dialogue_portrait_expression) };
-		const std::string_view preview{ current.display_name.empty()
-											? state.dialogue_portrait_expression
-											: current.display_name };
+		std::string_view preview{ current.display_name.empty() ? state.dialogue_portrait_expression
+															   : current.display_name };
 		ImGui::SetNextItemWidth(-FLT_MIN);
 		if (ImGui::BeginCombo("##DialoguePortraitExpressionDefinition", preview.data())) {
 			for (const auto& key : expression_keys) {
 				const auto& expression{ selected_actor.expressions.at(key) };
-				const std::string_view label{ expression.display_name.empty()
-												  ? key
-												  : expression.display_name };
+				std::string_view label{ expression.display_name.empty() ? key
+																		: expression.display_name };
 				if (ImGui::Selectable(label.data(), state.dialogue_portrait_expression == key)) {
 					state.dialogue_portrait_expression = key;
 					local_changed					   = true;
@@ -3154,14 +3139,12 @@ bool DrawDialoguePortraitDefinitions(
 	});
 
 	{
-		const std::array actions{
+		std::array actions{
 			InspectorAction{
 				.label = "Add Expression",
 				.invoke =
 					[&]() {
-						const std::string key{
-							MakeUniqueDialoguePortraitExpressionKey(selected_actor)
-						};
+						std::string key{ MakeUniqueDialoguePortraitExpressionKey(selected_actor) };
 						selected_actor.expressions.emplace(
 							key, DialoguePortraitExpression{
 									 .display_name =
@@ -3178,11 +3161,9 @@ bool DrawDialoguePortraitDefinitions(
 				.enabled = !selected_actor.expressions.empty(),
 				.invoke =
 					[&]() {
-						const std::string removed{ state.dialogue_portrait_expression };
+						std::string removed{ state.dialogue_portrait_expression };
 						selected_actor.expressions.erase(removed);
-						const auto remaining{
-							SortedDialoguePortraitExpressionKeys(selected_actor)
-						};
+						auto remaining{ SortedDialoguePortraitExpressionKeys(selected_actor) };
 						if (remaining.empty()) {
 							state.dialogue_portrait_expression.clear();
 							selected_actor.default_expression.clear();
@@ -3229,7 +3210,7 @@ bool DrawDialoguePortraitDefinitions(
 		bool enabled{ expression.talking.has_value() };
 		bool talking_open{ false };
 
-		const auto talking_header{
+		auto talking_header{
 			DrawInspectorTreeToggleRow("Talking Visual", "##DialoguePortraitTalking", enabled)
 		};
 		talking_open = talking_header.open;
@@ -3274,10 +3255,10 @@ bool DrawDialogueAppearanceControls(
 	auto& appearance{ entry.appearance };
 	bool changed{ false };
 
-	const std::size_t part_count{ static_cast<std::size_t>(appearance.background.has_value()) +
-								  static_cast<std::size_t>(appearance.border.has_value()) +
-								  static_cast<std::size_t>(appearance.sprite.has_value()) +
-								  static_cast<std::size_t>(appearance.audio.has_value()) };
+	std::size_t part_count{ static_cast<std::size_t>(appearance.background.has_value()) +
+							static_cast<std::size_t>(appearance.border.has_value()) +
+							static_cast<std::size_t>(appearance.sprite.has_value()) +
+							static_cast<std::size_t>(appearance.audio.has_value()) };
 	bool all_present{ part_count == 4 };
 
 	if (DrawInspectorAddPartsButton(
@@ -3321,7 +3302,7 @@ bool DrawDialogueAppearanceControls(
 	}
 
 	if (appearance.background.has_value()) {
-		const auto tree{ DrawInspectorPartTreeNode(
+		auto tree{ DrawInspectorPartTreeNode(
 			"Background", "DialogueBackgroundPart", true, false, "Remove Part"
 		) };
 		if (tree.remove_requested) {
@@ -3346,7 +3327,7 @@ bool DrawDialogueAppearanceControls(
 	}
 
 	if (appearance.border.has_value()) {
-		const auto tree{
+		auto tree{
 			DrawInspectorPartTreeNode("Border", "DialogueBorderPart", true, false, "Remove Part")
 		};
 		if (tree.remove_requested) {
@@ -3371,7 +3352,7 @@ bool DrawDialogueAppearanceControls(
 	}
 
 	if (appearance.sprite.has_value()) {
-		const auto tree{
+		auto tree{
 			DrawInspectorPartTreeNode("Sprite", "DialogueSpritePart", true, false, "Remove Part")
 		};
 		if (tree.remove_requested) {
@@ -3395,7 +3376,7 @@ bool DrawDialogueAppearanceControls(
 	}
 
 	if (appearance.audio.has_value()) {
-		const auto tree{
+		auto tree{
 			DrawInspectorPartTreeNode("Audio", "DialogueAudioPart", true, false, "Remove Part")
 		};
 		if (tree.remove_requested) {
@@ -3520,7 +3501,7 @@ bool DrawFocusedDialogueControl(Target& target) {
 				);
 
 				ImGui::SameLine();
-				const float duration_width{ std::max(1.0f, ImGui::GetContentRegionAvail().x) };
+				float duration_width{ std::max(1.0f, ImGui::GetContentRegionAvail().x) };
 				if (DrawDurationTextInput(
 						"##DialogueTypewriterDuration", document.defaults.scroll_duration,
 						duration_width, !document.typewriter,
@@ -3591,7 +3572,7 @@ bool DrawFocusedDialogueControl(Target& target) {
 				for (std::size_t i{ 0 }; i < document.dialogues.size(); ++i) {
 					ImGui::PushID(static_cast<int>(i));
 					bool active{ ImGui::BeginTabItem(document.dialogues[i].name.c_str()) };
-					const auto context{ DrawInspectorTabContextMenu(
+					auto context{ DrawInspectorTabContextMenu(
 						"##DialogueTabContext", true, true, document.dialogues.size() > 1, "Delete"
 					) };
 					if (context.rename_requested) {
@@ -3625,13 +3606,13 @@ bool DrawFocusedDialogueControl(Target& target) {
 		}
 
 		if (rename_dialogue.has_value()) {
-			const std::size_t index{ *rename_dialogue };
+			std::size_t index{ *rename_dialogue };
 			state.dialogue_rename_key = document.dialogues[index].name;
 			state.dialogue_rename.Begin(document.dialogues[index].name);
 		}
 
 		if (state.dialogue_rename.active && state.dialogue_rename_key.has_value()) {
-			const auto rename_it{ std::ranges::find_if(
+			auto rename_it{ std::ranges::find_if(
 				document.dialogues, [&](const DialogueEditorEntryDraft& candidate) {
 					return candidate.name == state.dialogue_rename_key.value();
 				}
@@ -3641,10 +3622,10 @@ bool DrawFocusedDialogueControl(Target& target) {
 				state.dialogue_rename.Cancel();
 				state.dialogue_rename_key.reset();
 			} else {
-				const std::size_t rename_index{
+				std::size_t rename_index{
 					static_cast<std::size_t>(std::distance(document.dialogues.begin(), rename_it))
 				};
-				const auto result{ DrawInspectorTabRenameModal(
+				auto result{ DrawInspectorTabRenameModal(
 					state.dialogue_rename, "Rename Dialogue Key", "##RenameDialogueKey",
 					[&](std::string_view value) -> std::string {
 						if (value.empty()) {
@@ -3656,7 +3637,7 @@ bool DrawFocusedDialogueControl(Target& target) {
 						return {};
 					},
 					[&](std::string_view value) {
-						const std::string renamed{ value };
+						std::string renamed{ value };
 						RenameDialogueEditorEntry(document, rename_index, renamed);
 						state.dialogue_key = renamed;
 						mark_changed("Rename Dialogue Key");
@@ -3670,7 +3651,7 @@ bool DrawFocusedDialogueControl(Target& target) {
 		}
 
 		if (add_dialogue) {
-			const std::string name{ MakeUniqueDialogueEditorName(document) };
+			std::string name{ MakeUniqueDialogueEditorName(document) };
 			document.dialogues.emplace_back(
 				DialogueEditorEntryDraft{
 					.name	  = name,
@@ -3685,7 +3666,7 @@ bool DrawFocusedDialogueControl(Target& target) {
 		}
 
 		if (duplicate_dialogue.has_value()) {
-			const std::size_t index{ *duplicate_dialogue };
+			std::size_t index{ *duplicate_dialogue };
 			auto duplicate{ document.dialogues[index] };
 			duplicate.name = MakeUniqueDialogueEditorName(document, duplicate.name + "_copy");
 			document.dialogues.insert(
@@ -3700,8 +3681,8 @@ bool DrawFocusedDialogueControl(Target& target) {
 		}
 
 		if (delete_dialogue.has_value() && document.dialogues.size() > 1) {
-			const std::size_t index{ *delete_dialogue };
-			const std::string deleted{ document.dialogues[index].name };
+			std::size_t index{ *delete_dialogue };
+			std::string deleted{ document.dialogues[index].name };
 			document.dialogues.erase(
 				document.dialogues.begin() + static_cast<std::ptrdiff_t>(index)
 			);
@@ -3729,8 +3710,7 @@ bool DrawFocusedDialogueControl(Target& target) {
 		{
 			changed |= DrawPropertyRow("Next Dialogue", [&]() {
 				bool local_changed{ false };
-				const std::string preview{ entry.next.empty() ? std::string{ "(none)" }
-															  : entry.next };
+				std::string preview{ entry.next.empty() ? std::string{ "(none)" } : entry.next };
 
 				ImGui::SetNextItemWidth(-FLT_MIN);
 				if (ImGui::BeginCombo("##DialogueNext", preview.c_str())) {
@@ -3780,7 +3760,7 @@ bool DrawFocusedDialogueControl(Target& target) {
 											 : "Random" };
 					ImGui::SetNextItemWidth(-FLT_MIN);
 					if (ImGui::BeginCombo("##DialogueBehavior", preview)) {
-						for (const DialogueBehavior behavior : {
+						for (DialogueBehavior behavior : {
 								 DialogueBehavior::Sequential,
 								 DialogueBehavior::Random,
 							 }) {
@@ -3823,9 +3803,9 @@ bool DrawFocusedDialogueControl(Target& target) {
 
 			changed |= DrawPropertyRow("Typewriter", [&]() {
 				bool local_changed{ false };
-				const float spacing{ ImGui::GetStyle().ItemSpacing.x };
-				const float available{ std::max(1.0f, ImGui::GetContentRegionAvail().x) };
-				const float mode_width{ std::max(1.0f, (available - spacing) * 0.5f) };
+				float spacing{ ImGui::GetStyle().ItemSpacing.x };
+				float available{ std::max(1.0f, ImGui::GetContentRegionAvail().x) };
+				float mode_width{ std::max(1.0f, (available - spacing) * 0.5f) };
 
 				const char* mode_preview{ !entry.typewriter.has_value()
 											  ? "Inherit"
@@ -3920,7 +3900,7 @@ bool DrawFocusedDialogueControl(Target& target) {
 					for (std::size_t i{ 0 }; i < entry.variants.size(); ++i) {
 						ImGui::PushID(static_cast<int>(i));
 						bool active{ ImGui::BeginTabItem(entry.variants[i].name.c_str()) };
-						const auto context{ DrawInspectorTabContextMenu(
+						auto context{ DrawInspectorTabContextMenu(
 							"##VariantTabContext", true, true, entry.variants.size() > 1, "Delete"
 						) };
 						if (context.rename_requested) {
@@ -3960,12 +3940,12 @@ bool DrawFocusedDialogueControl(Target& target) {
 
 			if (state.dialogue_variant_rename.active &&
 				state.dialogue_variant_rename_index.has_value()) {
-				const std::size_t rename_index{ *state.dialogue_variant_rename_index };
+				std::size_t rename_index{ *state.dialogue_variant_rename_index };
 				if (rename_index >= entry.variants.size()) {
 					state.dialogue_variant_rename.Cancel();
 					state.dialogue_variant_rename_index.reset();
 				} else {
-					const auto result{ DrawInspectorTabRenameModal(
+					auto result{ DrawInspectorTabRenameModal(
 						state.dialogue_variant_rename, "Rename Dialogue Variant",
 						"##RenameDialogueVariant",
 						[&](std::string_view value) -> std::string {
@@ -4003,7 +3983,7 @@ bool DrawFocusedDialogueControl(Target& target) {
 			}
 
 			if (duplicate_variant.has_value()) {
-				const std::size_t index{ *duplicate_variant };
+				std::size_t index{ *duplicate_variant };
 				auto duplicate{ entry.variants[index] };
 				duplicate.name = MakeUniqueDialogueVariantName(entry, duplicate.name + " Copy");
 				entry.variants.insert(
@@ -4016,7 +3996,7 @@ bool DrawFocusedDialogueControl(Target& target) {
 			}
 
 			if (delete_variant.has_value() && entry.variants.size() > 1) {
-				const std::size_t index{ *delete_variant };
+				std::size_t index{ *delete_variant };
 				entry.variants.erase(entry.variants.begin() + static_cast<std::ptrdiff_t>(index));
 				NormalizeDialogueEditorEntry(entry);
 				state.dialogue_variant_index =
@@ -4029,7 +4009,7 @@ bool DrawFocusedDialogueControl(Target& target) {
 		}
 
 		NormalizeDialogueEditorEntry(entry);
-		const std::size_t variant_index{
+		std::size_t variant_index{
 			std::min(state.dialogue_variant_index, entry.variants.size() - 1)
 		};
 		auto& variant{ entry.variants[variant_index] };
@@ -4039,20 +4019,20 @@ bool DrawFocusedDialogueControl(Target& target) {
 			preview_properties.scroll_duration = *entry.typewriter_duration;
 		}
 
-		const DialoguePageNumberPreview page_number_preview{
+		DialoguePageNumberPreview page_number_preview{
 			BuildDialoguePageNumberPreview(target.ctx, variant.source, preview_properties)
 		};
 
 		std::vector<std::vector<RichTextPortraitExpressionOption>> portrait_expression_options;
 		std::vector<RichTextPortraitSpeakerOption> portrait_speaker_options;
-		const auto portrait_actor_keys{ SortedDialoguePortraitActorKeys(document.portrait_actors) };
+		auto portrait_actor_keys{ SortedDialoguePortraitActorKeys(document.portrait_actors) };
 		portrait_expression_options.reserve(portrait_actor_keys.size());
 		portrait_speaker_options.reserve(portrait_actor_keys.size());
 		for (const auto& actor_key : portrait_actor_keys) {
 			const auto& actor{ document.portrait_actors.at(actor_key) };
 			portrait_expression_options.emplace_back();
 			auto& expression_options{ portrait_expression_options.back() };
-			const auto expression_keys{ SortedDialoguePortraitExpressionKeys(actor) };
+			auto expression_keys{ SortedDialoguePortraitExpressionKeys(actor) };
 			expression_options.reserve(expression_keys.size());
 			for (const auto& expression_key : expression_keys) {
 				const auto& expression{ actor.expressions.at(expression_key) };
@@ -4115,14 +4095,14 @@ bool DrawFocusedDialogueControl(Target& target) {
 			ImGui::SeparatorText("Preview");
 
 			TextBox preview_box{ pages[state.dialogue_preview_page].properties.ToTextBox() };
-			const TextLayout preview_layout{ ::ptgn::impl::BuildTextLayout(
+			TextLayout preview_layout{ ::ptgn::impl::BuildTextLayout(
 				target.ctx.editor.GetAssetManager(), pages[state.dialogue_preview_page].styled_text,
 				preview_box
 			) };
 			constexpr float preview_height{ 190.0f };
-			const float preview_padding{ 24.0f };
-			const float preview_available_width{ std::max(1.0f, ImGui::GetContentRegionAvail().x) };
-			const float preview_available_height{
+			float preview_padding{ 24.0f };
+			float preview_available_width{ std::max(1.0f, ImGui::GetContentRegionAvail().x) };
+			float preview_available_height{
 				std::max(1.0f, preview_height - ImGui::GetStyle().WindowPadding.y * 2.0f)
 			};
 			bool horizontal_overflow{ preview_layout.size.x + preview_padding >
@@ -4194,7 +4174,7 @@ bool DrawSliderPartsTrees(EntityInspectorTarget& target, Slider slider) {
 
 	Entity track{ slider.GetTrack() };
 	Button thumb{ slider.GetThumb() };
-	const auto slider_data{ target.template Capture<::ptgn::impl::SliderData>() };
+	auto slider_data{ target.template Capture<::ptgn::impl::SliderData>() };
 	bool has_value_text{ slider_data && slider_data->value_text.has_value() };
 	bool has_all_parts{ track && thumb && has_value_text };
 
@@ -4214,14 +4194,14 @@ bool DrawSliderPartsTrees(EntityInspectorTarget& target, Slider slider) {
 		if (!track && ImGui::MenuItem("Track")) {
 			Entity created{ slider.EnsureTrack() };
 			if (created) {
-				(void)RecordCreatedEntityPreservingSelection(target.ctx, created);
+				RecordCreatedEntityPreservingSelection(target.ctx, created);
 				changed = true;
 			}
 		}
 		if (!thumb && ImGui::MenuItem("Thumb")) {
 			Button created{ slider.EnsureThumb() };
 			if (created) {
-				(void)RecordCreatedEntityPreservingSelection(target.ctx, created);
+				RecordCreatedEntityPreservingSelection(target.ctx, created);
 				::ptgn::impl::SliderSystem::SynchronizeEntity(created);
 				changed = true;
 			}
@@ -4240,9 +4220,7 @@ bool DrawSliderPartsTrees(EntityInspectorTarget& target, Slider slider) {
 
 	if (track) {
 		ScopedID scope{ "TrackPartTree" };
-		const auto tree{
-			DrawInspectorPartTreeNode("Track", "SliderTrack", true, false, "Remove Part")
-		};
+		auto tree{ DrawInspectorPartTreeNode("Track", "SliderTrack", true, false, "Remove Part") };
 		if (tree.remove_requested) {
 			remove_after_trees = RemovePart::Track;
 		}
@@ -4257,9 +4235,7 @@ bool DrawSliderPartsTrees(EntityInspectorTarget& target, Slider slider) {
 
 	if (thumb) {
 		ScopedID scope{ "ThumbPartTree" };
-		const auto tree{
-			DrawInspectorPartTreeNode("Thumb", "SliderThumb", true, false, "Remove Part")
-		};
+		auto tree{ DrawInspectorPartTreeNode("Thumb", "SliderThumb", true, false, "Remove Part") };
 		if (tree.remove_requested) {
 			remove_after_trees = RemovePart::Thumb;
 		}
@@ -4294,7 +4270,7 @@ bool DrawSliderPartsTrees(EntityInspectorTarget& target, Slider slider) {
 
 	if (has_value_text) {
 		ScopedID scope{ "ValueTextPartTree" };
-		const auto tree{
+		auto tree{
 			DrawInspectorPartTreeNode("Value Text", "SliderValueText", true, false, "Remove Part")
 		};
 		if (tree.remove_requested) {
@@ -4379,8 +4355,8 @@ bool DrawFocusedControlSpecific(Target& target, FocusedUIControlType type) {
 						bool fields_changed{ false };
 						bool row_changed{ DrawOptionalPropertyRow(
 							"Item Size", enabled, false, [&]() {
-								const float spacing{ ImGui::GetStyle().ItemInnerSpacing.x };
-								const float width{ std::max(
+								float spacing{ ImGui::GetStyle().ItemInnerSpacing.x };
+								float width{ std::max(
 									1.0f, (ImGui::GetContentRegionAvail().x - spacing) * 0.5f
 								) };
 								ImGui::SetNextItemWidth(width);
@@ -4470,7 +4446,7 @@ bool DrawManagedVisualPartsTrees(
 			const auto& action{ add_actions[action_index] };
 			ScopedID action_scope{ static_cast<int>(action_index) };
 			ImGui::BeginDisabled(!action.enabled);
-			const std::string action_label{ action.label };
+			std::string action_label{ action.label };
 			if (ImGui::MenuItem(action_label.c_str()) && action.invoke) {
 				action.invoke();
 				changed = true;
@@ -4498,7 +4474,7 @@ bool DrawManagedVisualPartsTrees(
 		}
 
 		ScopedID part_scope{ static_cast<int>(index) };
-		const auto tree{
+		auto tree{
 			DrawInspectorPartTreeNode(label, "ManagedVisualPart", true, false, "Remove Part")
 		};
 		if (tree.remove_requested) {
@@ -4564,7 +4540,7 @@ bool DrawUISectionImpl(Target& target) {
 		return false;
 	}
 
-	if (const auto child_info{ GetButtonChildInfo(target) }) {
+	if (auto child_info{ GetButtonChildInfo(target) }) {
 		bool open{
 			ImGui::CollapsingHeader("Managed UI Part##ButtonChildUI", ImGuiTreeNodeFlags_None)
 		};
@@ -4579,7 +4555,7 @@ bool DrawUISectionImpl(Target& target) {
 		return false;
 	}
 
-	const FocusedUIControlType control_type{ GetFocusedUIControlType(target) };
+	FocusedUIControlType control_type{ GetFocusedUIControlType(target) };
 	bool has_toggle_group{
 		HasTargetComponent<Target, ::ptgn::impl::ToggleButtonGroupData>(target)
 	};
@@ -4595,7 +4571,7 @@ bool DrawUISectionImpl(Target& target) {
 	}
 
 	bool archetype_owned{ ArchetypeOwnsUI(ResolveInspectorArchetype(target)) };
-	const auto header{ DrawInspectorSectionHeader(
+	auto header{ DrawInspectorSectionHeader(
 		ui_label, "UISection",
 		InspectorSectionOptions{
 			.default_open = true,
@@ -4710,9 +4686,9 @@ bool DrawUISectionImpl(Target& target) {
 				}
 			);
 			if constexpr (requires { target.entity; }) {
-				const Entity text_part{ FindTooltipManagedPart(target.entity, true) };
-				const Entity background_part{ FindTooltipManagedPart(target.entity, false) };
-				const std::array tooltip_parts{
+				Entity text_part{ FindTooltipManagedPart(target.entity, true) };
+				Entity background_part{ FindTooltipManagedPart(target.entity, false) };
+				std::array tooltip_parts{
 					std::pair<std::string_view, Entity>{ "Text", text_part },
 					std::pair<std::string_view, Entity>{ "Background", background_part },
 				};
@@ -4724,9 +4700,7 @@ bool DrawUISectionImpl(Target& target) {
 							.tooltip = "Add the tooltip text part.",
 							.invoke =
 								[&]() {
-									(void)CreateTooltipPartForInspector(
-										target.ctx, target.entity, true
-									);
+									CreateTooltipPartForInspector(target.ctx, target.entity, true);
 								},
 						}
 					);
@@ -4738,9 +4712,7 @@ bool DrawUISectionImpl(Target& target) {
 							.tooltip = "Add the tooltip background part.",
 							.invoke =
 								[&]() {
-									(void)CreateTooltipPartForInspector(
-										target.ctx, target.entity, false
-									);
+									CreateTooltipPartForInspector(target.ctx, target.entity, false);
 								},
 						}
 					);

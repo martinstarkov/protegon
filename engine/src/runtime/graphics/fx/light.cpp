@@ -75,9 +75,7 @@ std::optional<std::vector<V2_float>> GetShadowCasterWorldVertices(Entity entity)
 	if (entity.Has<Circle>()) {
 		const auto& circle{ entity.Get<Circle>() };
 
-		auto offset_transform{
-			Rect{ circle.GetSize() }.Offset(transform, origin)
-		};
+		auto offset_transform{ Rect{ circle.GetSize() }.Offset(transform, origin) };
 
 		return circle.GetVertices(offset_transform, kCircleShadowSegments);
 	}
@@ -368,21 +366,15 @@ void DrawShadowedLight(
 						framebuffer.Clear(color::Transparent);
 						framebuffer.Clear(Stencil{ 0 });
 
-						WriteLightVisibilityStencil(
-							ctx, draw_transform, visibility_polygon
-						);
+						WriteLightVisibilityStencil(ctx, draw_transform, visibility_polygon);
 
-						DrawLightThroughStencil(
-							ctx, entity, size, std::move(uniforms)
-						);
+						DrawLightThroughStencil(ctx, entity, size, std::move(uniforms));
 					}
 				);
 			});
 
 			auto texture{ framebuffer.GetTexture() };
-			auto composite_params{
-				impl::GetTextureDrawParams(entity, size, true, color::White)
-			};
+			auto composite_params{ impl::GetTextureDrawParams(entity, size, true, color::White) };
 
 			ctx.SetBlendMode(blend_mode);
 			ctx.DrawTexture(draw_transform, texture, std::move(composite_params));
@@ -418,12 +410,12 @@ std::vector<UniformWrite> GetUniforms(const LightData& light, Color tint) {
 			 UniformWrite{ "u_Falloff", light.falloff },
 			 UniformWrite{ "u_UseCone", light.cone_angle.has_value() ? 1.0f : 0.0f },
 			 UniformWrite{ "u_ConeAngle", light.cone_angle.has_value()
-									? (light.cone_angle.value() / 2.0f).ToRad().value
-									: kTwoPi },
+											  ? (light.cone_angle.value() / 2.0f).ToRad().value
+											  : kTwoPi },
 			 UniformWrite{ "u_Color", color_n },
 			 UniformWrite{ "u_AmbientColor", ambient_color },
 			 UniformWrite{ "u_AmbientIntensity", light.ambient_intensity } };
-			//  UniformWrite{ "u_LightAttenuation", light_attenuation } };
+	//  UniformWrite{ "u_LightAttenuation", light_attenuation } };
 }
 
 } // namespace
@@ -614,7 +606,7 @@ Light& Light::ConeAngle(std::optional<Degrees> cone_angle) {
 }
 
 Light& Light::Config(LightData config) {
-	const Degrees direction_angle{ config.direction_angle };
+	Degrees direction_angle{ config.direction_angle };
 	Add<LightData>(std::move(config));
 	SetRotation(*this, direction_angle);
 	return *this;
@@ -631,7 +623,7 @@ Light CreateLight(Scene& scene, Transform transform, LightData config) {
 	light.Add<Tag>("Light");
 	light.Add<Transform>(transform);
 	light.Add<Visible>(true);
-	const Degrees direction_angle{ config.direction_angle };
+	Degrees direction_angle{ config.direction_angle };
 	light.Add<LightData>(std::move(config));
 	SetRotation(light, direction_angle);
 

@@ -204,7 +204,7 @@ public:
 
 		elapsed_ = clock_duration::zero();
 		running_ = true;
-		paused_ = false;
+		paused_	 = false;
 		has_run_ = true;
 		return true;
 	}
@@ -217,14 +217,14 @@ public:
 	/// @brief Stops the timer while retaining its elapsed time.
 	void Stop() {
 		running_ = false;
-		paused_ = false;
+		paused_	 = false;
 	}
 
 	/// @brief Stops the timer and resets its elapsed time and run state.
 	void Reset() {
 		elapsed_ = clock_duration::zero();
 		running_ = false;
-		paused_ = false;
+		paused_	 = false;
 		has_run_ = false;
 	}
 
@@ -240,14 +240,14 @@ public:
 	void Pause() {
 		if (running_ && !paused_) {
 			running_ = false;
-			paused_ = true;
+			paused_	 = true;
 		}
 	}
 
 	void Resume() {
 		if (!running_ && paused_) {
 			running_ = true;
-			paused_ = false;
+			paused_	 = false;
 		}
 	}
 
@@ -259,7 +259,7 @@ public:
 		}
 
 		elapsed_ += duration_cast<clock_duration>(dt);
-		has_run_ = true;
+		has_run_  = true;
 	}
 
 	/// @brief Advances elapsed time manually even if the timer is paused or stopped.
@@ -270,7 +270,7 @@ public:
 		}
 
 		elapsed_ += duration_cast<clock_duration>(dt);
-		has_run_ = true;
+		has_run_  = true;
 	}
 
 	/// @brief Removes elapsed time manually, clamped at zero.
@@ -334,7 +334,7 @@ public:
 			return false;
 		}
 
-		const auto amount{ duration_cast<clock_duration>(compared_to) };
+		auto amount{ duration_cast<clock_duration>(compared_to) };
 		if (amount <= clock_duration::zero()) {
 			return false;
 		}
@@ -353,12 +353,12 @@ public:
 			return 0;
 		}
 
-		const auto interval{ duration_cast<clock_duration>(compared_to) };
+		auto interval{ duration_cast<clock_duration>(compared_to) };
 		if (interval <= clock_duration::zero()) {
 			return 0;
 		}
 
-		const auto count{ static_cast<std::size_t>(elapsed_ / interval) };
+		auto count{ static_cast<std::size_t>(elapsed_ / interval) };
 		if (count == 0) {
 			return 0;
 		}
@@ -383,19 +383,20 @@ public:
 
 	friend void to_json(json& j, const ManualTimer& timer) {
 		j["running"] = timer.running_;
-		j["paused"] = timer.paused_;
+		j["paused"]	 = timer.paused_;
 		j["has_run"] = timer.has_run_;
 		j["elapsed"] = timer.ElapsedDuration<milliseconds>().count();
 	}
 
 	friend void from_json(const json& j, ManualTimer& timer) {
 		timer.running_ = j.value("running", false);
-		timer.paused_ = j.value("paused", false);
+		timer.paused_  = j.value("paused", false);
 		timer.has_run_ = j.value("has_run", false);
 		timer.elapsed_ = milliseconds{ j.value("elapsed", 0) };
 
-		// Read the old offset field into elapsed time for compatibility with previously serialized data.
-		if (const auto offset{ j.find("offset") }; offset != j.end() && offset->is_number_integer()) {
+		// Read the old offset field into elapsed time for compatibility with previously serialized
+		// data.
+		if (auto offset{ j.find("offset") }; offset != j.end() && offset->is_number_integer()) {
 			timer.elapsed_ += milliseconds{ offset->get<milliseconds::rep>() };
 			if (timer.elapsed_ < clock_duration::zero()) {
 				timer.elapsed_ = clock_duration::zero();

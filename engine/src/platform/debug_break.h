@@ -3,7 +3,7 @@
 #include "core/config.h"
 #include "platform/platform.h"
 
-#define PTGN_DEBUGBREAK() ((void)0)
+#define PTGN_DEBUGBREAK() static_cast<void>(0)
 
 #ifdef PTGN_DEBUG
 

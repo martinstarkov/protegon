@@ -381,25 +381,6 @@ bool EntityOrDescendantMatchesFilter(
 	return false;
 }
 
-std::vector<Entity> GetSiblings(Scene& scene, Entity parent) {
-	std::vector<Entity> siblings;
-
-	if (parent) {
-		if (HasChildren(parent)) {
-			siblings = GetChildren(parent);
-		}
-	} else {
-		for (Entity entity : scene.Entities()) {
-			if (!HasParent(entity)) {
-				siblings.emplace_back(entity);
-			}
-		}
-	}
-
-	SortByLocalDepth(siblings);
-	return siblings;
-}
-
 bool IsSameOrDescendant(Entity entity, Entity potential_ancestor) {
 	for (std::size_t depth{ 0 }; depth <= kMaxParentDepth; ++depth) {
 		if (!entity) {

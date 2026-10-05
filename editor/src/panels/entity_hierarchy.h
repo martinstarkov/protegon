@@ -140,9 +140,7 @@ struct LayerControlsOptions {
 	bool visibility_interactive{ true };
 };
 
-[[nodiscard]] inline bool DrawLayerControls(
-	const SceneLayer& layer, const LayerControlsOptions& options = {}
-) {
+inline bool DrawLayerControls(const SceneLayer& layer, const LayerControlsOptions& options = {}) {
 	DrawEditorIconButton(
 		"##LayerType", layer.kind == SceneLayerKind::Entity ? EditorIcon::Entity : EditorIcon::Tile,
 		EditorIconButtonOptions{

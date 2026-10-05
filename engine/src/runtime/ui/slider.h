@@ -35,7 +35,7 @@ struct SliderChange;
 struct SliderValueTextConfig {
 	V2_float offset{ 0.0f, -50.0f };
 
-	/// @brief Rich-text template. ${value} expands to the formatted display value.
+	/// @brief Rich text template. ${value} expands to the formatted display value.
 	RichText text{ .source = "${value}" };
 
 	float display_min{ 0.0f };
@@ -44,9 +44,7 @@ struct SliderValueTextConfig {
 
 	constexpr bool operator==(const SliderValueTextConfig&) const = default;
 
-	PTGN_REFLECT(
-		SliderValueTextConfig, offset, text, display_min, display_max, decimal_places
-	)
+	PTGN_REFLECT(SliderValueTextConfig, offset, text, display_min, display_max, decimal_places)
 };
 
 namespace impl {
@@ -234,8 +232,8 @@ public:
 	/// @brief Adds automatically updated text initially placed at config.offset relative to the
 	/// slider. The value text is separate from the thumb's ButtonText and has its own optional
 	/// Transform. Ignore parent Transform settings can make it independent of the slider transform.
-	/// @return The managed Text entity. Configure persistent styling through config.text.defaults or
-	/// the rich text source itself.
+	/// @return The managed Text entity. Configure persistent styling through config.text.defaults
+	/// or the rich text source itself.
 	///
 	/// Example:
 	/// slider.ValueText({
@@ -273,12 +271,13 @@ public:
 	Slider& SetValue(float value, bool emit_event);
 
 	// TODO: Move to private.
-	[[nodiscard]] Button EnsureThumb();
+	Button EnsureThumb();
+
 private:
 	friend struct impl::SliderSystem;
 
-	[[nodiscard]] Entity EnsureTrackBackground(Color color = color::Gray);
-	[[nodiscard]] Entity EnsureTrackSprite(TextureKey texture = {});
+	Entity EnsureTrackBackground(Color color = color::Gray);
+	Entity EnsureTrackSprite(TextureKey texture = {});
 
 	void ApplyValuePosition() const;
 

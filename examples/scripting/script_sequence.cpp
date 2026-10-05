@@ -120,14 +120,14 @@ public:
 	}
 
 	void OnEnter() override {
-		const Entity mover{ RequireEntity(kMoverTag) };
-		const Entity spinner{ RequireEntity(kSpinnerTag) };
-		const Entity pulse{ RequireEntity(kPulseTag) };
-		const Entity visibility{ RequireEntity(kBlinkTag) };
-		const Entity signal_responder{ RequireEntity(kSignalResponderTag) };
-		const Entity follow_target{ RequireEntity(kFollowTargetTag) };
-		const Entity follower{ RequireEntity(kFollowerTag) };
-		const Entity controller{ RequireEntity(kControllerTag) };
+		Entity mover{ RequireEntity(kMoverTag) };
+		Entity spinner{ RequireEntity(kSpinnerTag) };
+		Entity pulse{ RequireEntity(kPulseTag) };
+		Entity visibility{ RequireEntity(kBlinkTag) };
+		Entity signal_responder{ RequireEntity(kSignalResponderTag) };
+		Entity follow_target{ RequireEntity(kFollowTargetTag) };
+		Entity follower{ RequireEntity(kFollowerTag) };
+		Entity controller{ RequireEntity(kControllerTag) };
 
 		AddMoverSequence(mover);
 		AddSpinnerSequence(spinner);
@@ -234,7 +234,7 @@ private:
 
 		// FollowTargetScript is attached as a root script. It disables itself after reaching the
 		// target within the requested stopping distance.
-		(void)AddScript<FollowTargetScript>(
+		AddScript<FollowTargetScript>(
 			follower, follow_target, std::max(0.0f, follower_speed_), 6.0f
 		);
 	}
@@ -257,7 +257,7 @@ private:
 	}
 
 	void AssertDemoEntity(std::string_view tag) {
-		(void)RequireEntity(tag);
+		RequireEntity(tag);
 	}
 
 	// Scene-file parameters. These can be edited in the scene's parameters object.

@@ -7,10 +7,10 @@
 
 #include "core/assert.h"
 #include "core/log.h"
-#include "core/util/time.h"
-#include "core/util/timer.h"
 #include "core/util/function.h"
 #include "core/util/macro.h"
+#include "core/util/time.h"
+#include "core/util/timer.h"
 
 namespace ptgn {
 
@@ -93,6 +93,6 @@ Profiler& GetProfiler();
 // Optional: In the future profiling could be disabled for distribution builds.
 // #ifdef PTGN_DISTRIBUTION
 //
-// #define PTGN_PROFILE_FUNCTION(...) ((void)0)
+// #define PTGN_PROFILE_FUNCTION(...) static_cast<void>(0)
 //
 // #endif

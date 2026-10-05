@@ -5,16 +5,16 @@
 #include <optional>
 #include <string>
 #include <string_view>
-#include <utility>
 #include <unordered_map>
 #include <unordered_set>
+#include <utility>
 #include <vector>
 
 #include "core/math/geometry/origin.h"
-#include "editor/editor_selection.h"
 #include "core/math/noise.h"
 #include "core/math/transform.h"
 #include "core/math/vector2.h"
+#include "editor/editor_selection.h"
 #include "renderer/pipeline/viewport.h"
 #include "runtime/asset/asset_key.h"
 #include "runtime/ecs/entity_serialization.h"
@@ -52,7 +52,7 @@ enum class PaintBrushOperation : std::uint8_t {
 	Paint,
 	Replace,
 	ExclusionMask,
-	/// @brief Fill-only operation: flood-select the Replace region, then delete it.
+	/// @brief Fill only operation: flood select the Replace region, then delete it.
 	Erase,
 };
 PTGN_REFLECT_ENUM(PaintBrushOperation);
@@ -129,10 +129,8 @@ PTGN_REFLECT_ENUM(TileImportMode);
 
 struct PaintTileSource {
 	TextureKey texture{};
-	std::array<V2_float, 4> texture_coordinates{
-		V2_float{ 0.0f, 0.0f }, V2_float{ 1.0f, 0.0f },
-		V2_float{ 1.0f, 1.0f }, V2_float{ 0.0f, 1.0f }
-	};
+	std::array<V2_float, 4> texture_coordinates{ V2_float{ 0.0f, 0.0f }, V2_float{ 1.0f, 0.0f },
+												 V2_float{ 1.0f, 1.0f }, V2_float{ 0.0f, 1.0f } };
 	V2_int pixel_size{ 32, 32 };
 	V2_int slice{};
 
@@ -202,7 +200,10 @@ struct PaintNoiseThreshold {
 
 	bool operator==(const PaintNoiseThreshold&) const = default;
 
-	PTGN_REFLECT(PaintNoiseThreshold, minimum, maximum, enabled, source_kind, tile, prefab, weighted_tile_set_name, weighted_prefab_set_name, origin)
+	PTGN_REFLECT(
+		PaintNoiseThreshold, minimum, maximum, enabled, source_kind, tile, prefab,
+		weighted_tile_set_name, weighted_prefab_set_name, origin
+	)
 };
 
 struct PaintNoiseState {
@@ -219,15 +220,7 @@ struct PaintNoiseState {
 	bool operator==(const PaintNoiseState&) const = default;
 
 	PTGN_REFLECT(
-		PaintNoiseState,
-		type,
-		name,
-		seed,
-		frequency,
-		octaves,
-		lacunarity,
-		persistence,
-		offset,
+		PaintNoiseState, type, name, seed, frequency, octaves, lacunarity, persistence, offset,
 		thresholds
 	)
 };
@@ -265,50 +258,25 @@ struct PaintRecipeState {
 	bool operator==(const PaintRecipeState&) const = default;
 
 	PTGN_REFLECT(
-		PaintRecipeState,
-		source_kind,
-		commit_mode,
-		operation,
-		coverage,
-		weighted_tile_set_name,
-		weighted_prefab_set_name,
-		checker_tile,
-		checker_prefab,
-		autotile_format,
-		autotile_texture,
-		tile_placement,
-		tile_origin,
-		entity_origin,
-		density,
-		radial_inner,
-		radial_outer,
-		min_spacing,
-		avoid_exclusion_mask,
-		link_prefab_instances,
-		random_rotation,
-		rotation_min,
-		rotation_max,
-		random_scale,
-		scale_min,
-		scale_max,
-		noise,
-		show_noise_preview,
+		PaintRecipeState, source_kind, commit_mode, operation, coverage, weighted_tile_set_name,
+		weighted_prefab_set_name, checker_tile, checker_prefab, autotile_format, autotile_texture,
+		tile_placement, tile_origin, entity_origin, density, radial_inner, radial_outer,
+		min_spacing, avoid_exclusion_mask, link_prefab_instances, random_rotation, rotation_min,
+		rotation_max, random_scale, scale_min, scale_max, noise, show_noise_preview,
 		noise_preview_alpha
 	)
 };
 
-/// @brief Editor-side authoring controller for scene-layer painting, procedural generators and
-/// project paint-asset organization.
+/// @brief Editor side authoring controller for scene layer painting, procedural generators and
+/// project paint asset organization.
 class PaintEditor {
 public:
-	/// @brief Top viewport row: paint-tool buttons followed by the grid/settings button.
-	/// ViewportPanel owns the right-aligned runtime/camera controls on this same row.
+	/// @brief Top viewport row: paint tool buttons followed by the grid/settings button.
+	/// ViewportPanel owns the right aligned runtime/camera controls on this same row.
 	void DrawViewportToolButtons(EditorContext& ctx);
 
 	/// @brief Second viewport row: context-sensitive settings for the active paint tool.
 	bool DrawViewportOptionsToolbar(EditorContext& ctx);
-
-
 
 	/// Draws the Tiles dock window and returns whether it was the visible dock tab this frame.
 	bool DrawTilesPanel(EditorContext& ctx);
@@ -326,28 +294,36 @@ public:
 		EditorContext& ctx, Entity generator, PaintGeneratorRecipe& recipe
 	);
 
-	/// Draw tilemap/generator/grid/tool overlays and process paint input. Returns true when the paint
-	/// tool consumed the current pointer interaction. Selection is handled entirely by PaintEditor so
-	/// click, marquee, brush, generator, entity and tile selection all share one state machine.
+	/// Draw tilemap/generator/grid/tool overlays and process paint input. Returns true when the
+	/// paint tool consumed the current pointer interaction. Selection is handled entirely by
+	/// PaintEditor so click, marquee, brush, generator, entity and tile selection all share one
+	/// state machine.
 	bool DrawViewportAndHandleInput(
-		EditorContext& ctx,
-		Scene& scene,
-		Viewport image_viewport,
-		Viewport presentation_viewport,
+		EditorContext& ctx, Scene& scene, Viewport image_viewport, Viewport presentation_viewport,
 		const FrameContext& frame_context
 	);
 
-	[[nodiscard]] PaintTool GetTool() const { return tool_; }
-	void SetTool(PaintTool tool);
+	[[nodiscard]] PaintTool GetTool() const {
+		return tool_;
+	}
 
+	void SetTool(PaintTool tool);
 
 	[[nodiscard]] SceneLayerId GetActiveLayer(const Scene& scene) const;
 	void SetActiveLayer(Scene& scene, SceneLayerId layer);
 
-	[[nodiscard]] const PaintTileSource& GetTileSource() const { return tile_source_; }
-	[[nodiscard]] const PrefabKey& GetPrefabSource() const { return prefab_source_; }
+	[[nodiscard]] const PaintTileSource& GetTileSource() const {
+		return tile_source_;
+	}
 
-	[[nodiscard]] std::optional<UUID> GetTargetTilemapUUID() const { return target_tilemap_; }
+	[[nodiscard]] const PrefabKey& GetPrefabSource() const {
+		return prefab_source_;
+	}
+
+	[[nodiscard]] std::optional<UUID> GetTargetTilemapUUID() const {
+		return target_tilemap_;
+	}
+
 	void SetTargetTilemap(std::optional<UUID> uuid);
 
 	/// Project-scoped prefab grouping used by the Prefabs dock tab.
@@ -358,7 +334,9 @@ public:
 	bool DeletePrefabGroup(EditorContext& ctx, std::string_view name);
 	void MovePrefabToGroup(EditorContext& ctx, const PrefabKey& key, std::string group);
 	void OnPrefabRenamed(EditorContext& ctx, const PrefabKey& old_key, const PrefabKey& new_key);
-	void OnPrefabDuplicated(EditorContext& ctx, const PrefabKey& source, const PrefabKey& duplicate);
+	void OnPrefabDuplicated(
+		EditorContext& ctx, const PrefabKey& source, const PrefabKey& duplicate
+	);
 	void OnPrefabDeleted(EditorContext& ctx, const PrefabKey& key);
 
 	/// Called when hierarchy/layer mutations can invalidate transient paint selection.
@@ -428,45 +406,26 @@ private:
 	void SyncHierarchySelection(EditorContext& ctx, Scene& scene);
 
 	void DrawTilemaps(
-		EditorContext& ctx,
-		Scene& scene,
-		ImDrawList* draw,
-		Viewport presentation_viewport,
+		EditorContext& ctx, Scene& scene, ImDrawList* draw, Viewport presentation_viewport,
 		const FrameContext& frame
 	) const;
 	void DrawGenerators(
-		EditorContext& ctx,
-		Scene& scene,
-		ImDrawList* draw,
-		Viewport image_viewport,
-		Viewport presentation_viewport,
-		const FrameContext& frame
+		EditorContext& ctx, Scene& scene, ImDrawList* draw, Viewport image_viewport,
+		Viewport presentation_viewport, const FrameContext& frame
 	) const;
 	void DrawActiveGeneratorPreview(
-		EditorContext& ctx,
-		Scene& scene,
-		ImDrawList* draw,
-		Viewport presentation_viewport,
+		EditorContext& ctx, Scene& scene, ImDrawList* draw, Viewport presentation_viewport,
 		const FrameContext& frame
 	);
 	void DrawGrid(
-		Scene& scene,
-		ImDrawList* draw,
-		Viewport image_viewport,
-		Viewport presentation_viewport,
+		Scene& scene, ImDrawList* draw, Viewport image_viewport, Viewport presentation_viewport,
 		const FrameContext& frame
 	) const;
 	void DrawSelectionOverlay(
-		Scene& scene,
-		ImDrawList* draw,
-		Viewport presentation_viewport,
-		const FrameContext& frame
+		Scene& scene, ImDrawList* draw, Viewport presentation_viewport, const FrameContext& frame
 	) const;
 	void DrawToolPreview(
-		Scene& scene,
-		ImDrawList* draw,
-		V2_float mouse_world,
-		Viewport presentation_viewport,
+		Scene& scene, ImDrawList* draw, V2_float mouse_world, Viewport presentation_viewport,
 		const FrameContext& frame
 	) const;
 
@@ -491,7 +450,9 @@ private:
 
 	void ApplyLine(EditorContext& ctx, Scene& scene, V2_float a, V2_float b);
 	void ApplyRectangle(EditorContext& ctx, Scene& scene, V2_float a, V2_float b);
-	void CreateGeneratorForStroke(EditorContext& ctx, Scene& scene, PaintGeneratorGeometry geometry);
+	void CreateGeneratorForStroke(
+		EditorContext& ctx, Scene& scene, PaintGeneratorGeometry geometry
+	);
 	void AppendBrushStrokeToGenerator(EditorContext& ctx, Scene& scene);
 	void CreateInfiniteGenerator(EditorContext& ctx, Scene& scene);
 
@@ -501,9 +462,7 @@ private:
 	void EndMove(EditorContext& ctx, Scene& scene);
 	void CancelMove(Scene& scene);
 
-	void SelectClick(
-		EditorContext& ctx, Scene& scene, V2_float world, bool additive, bool toggle
-	);
+	void SelectClick(EditorContext& ctx, Scene& scene, V2_float world, bool additive, bool toggle);
 	void SelectMarquee(
 		EditorContext& ctx, Scene& scene, V2_float a, V2_float b, bool additive, bool toggle
 	);
@@ -530,9 +489,13 @@ private:
 	[[nodiscard]] PaintGeneratorRecipe CaptureGeneratorRecipe(const SceneLayer& layer) const;
 
 	void DrawTileSourceBrowser(EditorContext& ctx, PaintTileSource& source);
-	bool DrawTileSourceCombo(EditorContext& ctx, const char* id, std::optional<PaintTileSource>& source);
+	bool DrawTileSourceCombo(
+		EditorContext& ctx, const char* id, std::optional<PaintTileSource>& source
+	);
 	void DrawPrefabSourceBrowser(EditorContext& ctx, PrefabKey& source);
-	bool DrawPrefabSourceCombo(EditorContext& ctx, const char* id, std::optional<PrefabKey>& source);
+	bool DrawPrefabSourceCombo(
+		EditorContext& ctx, const char* id, std::optional<PrefabKey>& source
+	);
 	void DrawWeightedTileSetEditor(EditorContext& ctx);
 	void DrawWeightedPrefabSetEditor(EditorContext& ctx);
 	void DrawAutotileSourceEditor(EditorContext& ctx);
@@ -542,30 +505,25 @@ private:
 	[[nodiscard]] PaintWeightedPrefabSet* FindWeightedPrefabSet(std::string_view name);
 	[[nodiscard]] const PaintWeightedPrefabSet* FindWeightedPrefabSet(std::string_view name) const;
 	[[nodiscard]] PaintAutotileRuleSet* FindAutotileRuleSet(
-		const TextureKey& texture,
-		PaintAutotileFormat format
+		const TextureKey& texture, PaintAutotileFormat format
 	);
 	[[nodiscard]] const PaintAutotileRuleSet* FindAutotileRuleSet(
-		const TextureKey& texture,
-		PaintAutotileFormat format
+		const TextureKey& texture, PaintAutotileFormat format
 	) const;
 	[[nodiscard]] PaintAutotileRuleSet* FindAutotileRuleSet(std::uint64_t id);
 	[[nodiscard]] const PaintAutotileRuleSet* FindAutotileRuleSet(std::uint64_t id) const;
 	[[nodiscard]] std::string UniqueWeightedTileSetName() const;
 	[[nodiscard]] std::string UniqueWeightedPrefabSetName() const;
 	[[nodiscard]] std::uint64_t NextAutotileRuleSetId() const;
-	[[nodiscard]] PaintAutotileRuleSet* ResolveAutotileRuleSet(EditorContext& ctx);
+	PaintAutotileRuleSet* ResolveAutotileRuleSet(EditorContext& ctx);
 	bool RefreshAutotileRuleSet(EditorContext& ctx, PaintAutotileRuleSet& rules);
 	void RecomputeAutotileAround(Tilemap tilemap, V2_int cell, const PaintAutotileRuleSet& rules);
 
 	[[nodiscard]] PaintTileSource MakeTileSource(
-		EditorContext& ctx,
-		const TextureKey& texture,
-		V2_int slice
+		EditorContext& ctx, const TextureKey& texture, V2_int slice
 	) const;
 	[[nodiscard]] TileSliceSettings& GetSliceSettings(
-		EditorContext& ctx,
-		const TextureKey& texture
+		EditorContext& ctx, const TextureKey& texture
 	);
 	[[nodiscard]] const TileSliceSettings* FindSliceSettings(const TextureKey& texture) const;
 
@@ -580,9 +538,7 @@ private:
 	[[nodiscard]] std::string TileEntryId(const TextureKey& texture, V2_int slice) const;
 	[[nodiscard]] int ImportTiles(EditorContext& ctx, const TileImportSettings& settings);
 	[[nodiscard]] int ImportImageTiles(
-		EditorContext& ctx,
-		const TileImportSettings& settings,
-		const std::string& image_path,
+		EditorContext& ctx, const TileImportSettings& settings, const std::string& image_path,
 		std::string group
 	);
 

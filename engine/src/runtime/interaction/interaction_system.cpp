@@ -51,7 +51,7 @@ void GetShapes(
 ) {
 	bool is_parent{ entity == root_entity };
 
-	const auto get_shape = [&](auto e) {
+	auto get_shape = [&](auto e) {
 		if (e.template Has<Rect>()) {
 			const auto& rect{ e.template Get<Rect>() };
 			vector.emplace_back(rect, e);
@@ -348,8 +348,14 @@ void InteractionSystem::HandleDragging(
 			}
 
 			for (Entity dropzone : dropzones) {
-				PTGN_ASSERT((dropzone.Has<impl::Dropzone, impl::Interactive>()), "Dropzone must have Dropzone and Interactive components");
-				PTGN_ASSERT(dropzone.Get<impl::Interactive>().enabled, "Dropzone interactive must be enabled");
+				PTGN_ASSERT(
+					(dropzone.Has<impl::Dropzone, impl::Interactive>()),
+					"Dropzone must have Dropzone and Interactive components"
+				);
+				PTGN_ASSERT(
+					dropzone.Get<impl::Interactive>().enabled,
+					"Dropzone interactive must be enabled"
+				);
 				PTGN_ASSERT(dropzone.Get<impl::Dropzone>().enabled, "Dropzone must be enabled");
 				if (dropzone == dragging) {
 					continue;
@@ -422,8 +428,14 @@ void InteractionSystem::HandleDragging(
 			}
 
 			for (Entity dropzone : dropzones) {
-				PTGN_ASSERT((dropzone.Has<impl::Dropzone, impl::Interactive>()), "Dropzone must have Dropzone and Interactive components");
-				PTGN_ASSERT(dropzone.Get<impl::Interactive>().enabled, "Dropzone interactive must be enabled");
+				PTGN_ASSERT(
+					(dropzone.Has<impl::Dropzone, impl::Interactive>()),
+					"Dropzone must have Dropzone and Interactive components"
+				);
+				PTGN_ASSERT(
+					dropzone.Get<impl::Interactive>().enabled,
+					"Dropzone interactive must be enabled"
+				);
 				PTGN_ASSERT(dropzone.Get<impl::Dropzone>().enabled, "Dropzone must be enabled");
 				if (dropzone == dragging) {
 					continue;
@@ -494,8 +506,13 @@ void InteractionSystem::HandleDropzones(
 		draggable.hovered_dropzones = {};
 
 		for (Entity dropzone : dropzones) {
-			PTGN_ASSERT((dropzone.Has<impl::Dropzone, impl::Interactive>()), "Dropzone must have Dropzone and Interactive components");
-			PTGN_ASSERT(dropzone.Get<impl::Interactive>().enabled, "Dropzone interactive must be enabled");
+			PTGN_ASSERT(
+				(dropzone.Has<impl::Dropzone, impl::Interactive>()),
+				"Dropzone must have Dropzone and Interactive components"
+			);
+			PTGN_ASSERT(
+				dropzone.Get<impl::Interactive>().enabled, "Dropzone interactive must be enabled"
+			);
 			PTGN_ASSERT(dropzone.Get<impl::Dropzone>().enabled, "Dropzone must be enabled");
 			if (dragging == dropzone) {
 				continue;
@@ -555,8 +572,13 @@ void InteractionSystem::HandleDropzones(
 
 		// 3. Always call DragOut if not currently over a dropzone
 		for (Entity dropzone : dropzones) {
-			PTGN_ASSERT((dropzone.Has<impl::Dropzone, impl::Interactive>()), "Dropzone must have Dropzone and Interactive components");
-			PTGN_ASSERT(dropzone.Get<impl::Interactive>().enabled, "Dropzone interactive must be enabled");
+			PTGN_ASSERT(
+				(dropzone.Has<impl::Dropzone, impl::Interactive>()),
+				"Dropzone must have Dropzone and Interactive components"
+			);
+			PTGN_ASSERT(
+				dropzone.Get<impl::Interactive>().enabled, "Dropzone interactive must be enabled"
+			);
 			PTGN_ASSERT(dropzone.Get<impl::Dropzone>().enabled, "Dropzone must be enabled");
 			if (dragging == dropzone) {
 				continue;
@@ -581,7 +603,6 @@ void InteractionSystem::DispatchMouseEvents(
 	const std::vector<Entity>& over, const std::vector<Entity>& out, const impl::MouseInfo& mouse
 ) {
 	for (Entity e : over) {
-
 		if (auto lock{ e.TryGet<InteractionLock>() }; lock && lock->block_press) {
 			PTGN_ASSERT(
 				lock->remaining_time >= secondsf{ 0.0f }, "Interaction time cannot be negative"
@@ -606,7 +627,6 @@ void InteractionSystem::DispatchMouseEvents(
 	}
 
 	for (const Entity& e : out) {
-
 		if (std::ranges::contains(over, e)) {
 			continue;
 		}
@@ -709,7 +729,9 @@ void InteractionSystem::Update(Scene& scene) {
 
 	if (primary_world_camera.has_value()) {
 		RenderTarget render_target{ scene.GetRenderTarget() };
-		PTGN_ASSERT(render_target, "Primary world camera scene render target must be a valid entity");
+		PTGN_ASSERT(
+			render_target, "Primary world camera scene render target must be a valid entity"
+		);
 
 		UpdateForCamera(
 			scene, mouse_state, handled_under_mouse, render_target, primary_world_camera.value(),

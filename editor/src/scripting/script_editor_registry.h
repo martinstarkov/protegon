@@ -48,7 +48,7 @@ public:
 	template <typename TEvent>
 	static bool Register() {
 		auto& entries{ MutableEntries() };
-		const TypeHashValue type_hash{ Hash<TEvent>() };
+		TypeHashValue type_hash{ Hash<TEvent>() };
 
 		if (std::ranges::any_of(entries, [type_hash](const auto& entry) {
 				return entry.type_hash == type_hash;
@@ -62,7 +62,7 @@ public:
 	template <typename TEvent>
 	static bool Register(EventEditorOptions options) {
 		auto& entries{ MutableEntries() };
-		const TypeHashValue type_hash{ Hash<TEvent>() };
+		TypeHashValue type_hash{ Hash<TEvent>() };
 		bool inserted{ std::ranges::none_of(entries, [type_hash](const auto& entry) {
 			return entry.type_hash == type_hash;
 		}) };
@@ -85,7 +85,7 @@ public:
 					value = json::object();
 				}
 
-				const json previous{ value };
+				json previous = value;
 				bool changed{ std::invoke(fn, value) };
 
 				return changed || value != previous;
@@ -184,7 +184,7 @@ bool DrawTypedJsonEditor(ScriptEditorContext& context, json& input, F& draw) {
 		if constexpr (requires(const json& json_value, T& typed_value) {
 						  json_value.get_to(typed_value);
 					  }) {
-			(void)TryReadScriptJson(input, value);
+			TryReadScriptJson(input, value);
 		}
 
 		bool changed{ std::invoke(draw, context, value) };
@@ -218,7 +218,7 @@ public:
 	template <ScriptClass T>
 	static bool Register() {
 		auto& entries{ MutableEntries() };
-		const TypeHashValue type_hash{ Hash<T>() };
+		TypeHashValue type_hash{ Hash<T>() };
 
 		if (std::ranges::any_of(entries, [type_hash](const auto& entry) {
 				return entry.type_hash == type_hash;
@@ -232,7 +232,7 @@ public:
 	template <ScriptClass T>
 	static bool Register(ScriptEditorOptions<T> options) {
 		auto& entries{ MutableEntries() };
-		const TypeHashValue type_hash{ Hash<T>() };
+		TypeHashValue type_hash{ Hash<T>() };
 		bool inserted{ std::ranges::none_of(entries, [type_hash](const auto& entry) {
 			return entry.type_hash == type_hash;
 		}) };

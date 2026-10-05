@@ -93,10 +93,10 @@ constexpr float kBottomDockRatio{ 0.25f };
 }
 
 [[nodiscard]] std::string MakeConsoleLogFilename() {
-	const auto now{ std::chrono::system_clock::now() };
-	const auto time{ std::chrono::system_clock::to_time_t(now) };
-	const auto local_time{ LocalTime(time) };
-	const auto milliseconds{
+	auto now{ std::chrono::system_clock::now() };
+	auto time{ std::chrono::system_clock::to_time_t(now) };
+	auto local_time{ LocalTime(time) };
+	auto milliseconds{
 		std::chrono::duration_cast<std::chrono::milliseconds>(now.time_since_epoch()).count() % 1000
 	};
 
@@ -133,10 +133,10 @@ constexpr float kBottomDockRatio{ 0.25f };
 
 	std::size_t start{ 0 };
 	while (start < output.size()) {
-		const auto newline{ output.find('\n', start) };
+		auto newline{ output.find('\n', start) };
 		bool has_newline{ newline != std::string_view::npos };
-		const auto end{ has_newline ? newline : output.size() };
-		const std::string_view line{ output.substr(start, end - start) };
+		auto end{ has_newline ? newline : output.size() };
+		std::string_view line{ output.substr(start, end - start) };
 
 		if (!line.empty() && repeat_count > 0 && line == previous_line) {
 			++repeat_count;
@@ -291,7 +291,7 @@ private:
 		return "Scene";
 	}
 
-	const auto separator{ scene_type.rfind("::") };
+	auto separator{ scene_type.rfind("::") };
 	return separator == std::string_view::npos ? std::string{ scene_type }
 											   : std::string{ scene_type.substr(separator + 2) };
 }
@@ -301,7 +301,7 @@ private:
 	result.reserve(value.size());
 
 	for (char c : value) {
-		const auto byte{ static_cast<unsigned char>(c) };
+		auto byte{ static_cast<unsigned char>(c) };
 
 		if (std::isalnum(byte) || c == '_' || c == '-') {
 			result.push_back(c);
@@ -314,7 +314,7 @@ private:
 [[nodiscard]] std::string MakeUniqueProjectSceneKey(
 	const Project& project, std::string_view preferred_name
 ) {
-	const std::string base{ SanitizeSceneKey(preferred_name) };
+	std::string base{ SanitizeSceneKey(preferred_name) };
 
 	auto is_available = [&project](std::string_view candidate) {
 		return FindProjectScene(project, candidate) == nullptr;
@@ -335,7 +335,7 @@ private:
 
 [[nodiscard]] std::string MakeNextProjectSceneKey(const Project& project) {
 	for (std::size_t index{ 1 };; ++index) {
-		const std::string candidate{ "scene" + std::to_string(index) };
+		std::string candidate{ "scene" + std::to_string(index) };
 
 		if (!FindProjectScene(project, candidate)) {
 			return candidate;
@@ -348,7 +348,7 @@ private:
 	result.reserve(preferred_name.size());
 
 	for (char c : preferred_name) {
-		const auto byte{ static_cast<unsigned char>(c) };
+		auto byte{ static_cast<unsigned char>(c) };
 
 		if (std::isalnum(byte) || c == ' ' || c == '-' || c == '_') {
 			result.push_back(c);
@@ -367,7 +367,7 @@ private:
 [[nodiscard]] path MakeUniqueProjectScenePath(
 	const Project& project, std::string_view preferred_name
 ) {
-	const std::string base{ SanitizeSceneFileName(preferred_name) };
+	std::string base{ SanitizeSceneFileName(preferred_name) };
 
 	auto is_available = [&project](const path& candidate) {
 		bool used_by_project{ std::ranges::any_of(
@@ -420,7 +420,7 @@ private:
 
 [[nodiscard]] path NormalizeExistingPath(const path& value) {
 	std::error_code error;
-	const path canonical{ fs::weakly_canonical(value, error) };
+	path canonical{ fs::weakly_canonical(value, error) };
 	return error ? value.lexically_normal() : canonical;
 }
 
@@ -434,7 +434,7 @@ private:
 	}
 
 	std::error_code error;
-	const path working_candidate{ fs::absolute(project.file_path, error) };
+	path working_candidate{ fs::absolute(project.file_path, error) };
 	if (!error && fs::exists(working_candidate, error)) {
 		return NormalizeExistingPath(working_candidate);
 	}
@@ -478,7 +478,7 @@ private:
 
 	while (!current.empty() && !fs::is_directory(current, error)) {
 		error.clear();
-		const path parent{ current.parent_path() };
+		path parent{ current.parent_path() };
 		if (parent == current) {
 			break;
 		}
@@ -523,7 +523,7 @@ private:
 	};
 
 	for (std::size_t i{ 0 }; i < value.size(); ++i) {
-		const unsigned char c{ static_cast<unsigned char>(value[i]) };
+		unsigned char c{ static_cast<unsigned char>(value[i]) };
 		if (c < 32) {
 			return std::string{ "Windows paths cannot contain control characters." };
 		}
@@ -575,7 +575,7 @@ bool DrawDirectoryField(
 
 	ImGui::TableSetColumnIndex(1);
 	std::array<char, 4096> buffer{};
-	const std::size_t count{ std::min(value.size(), buffer.size() - 1) };
+	std::size_t count{ std::min(value.size(), buffer.size() - 1) };
 	std::copy_n(value.data(), count, buffer.data());
 
 	if (validation_error.has_value()) {
@@ -664,9 +664,7 @@ bool DrawDirectoryField(
 		return project.file_path.parent_path().lexically_normal();
 	}
 
-	const path relative{
-		resolved_project_file.parent_path().lexically_relative(resolved_runtime_root)
-	};
+	path relative{ resolved_project_file.parent_path().lexically_relative(resolved_runtime_root) };
 	if (relative.empty() || relative == ".") {
 		return {};
 	}
@@ -906,9 +904,9 @@ bool Editor::AddProjectScreenEffect(std::string_view type) {
 		return false;
 	}
 
-	const ScreenEffectSettings before{ project->screen_effects };
+	ScreenEffectSettings before{ project->screen_effects };
 	ScreenEffectSettings after{ before };
-	const ScreenEffectId id{ NextScreenEffectId(after) };
+	ScreenEffectId id{ NextScreenEffectId(after) };
 
 	after.effects.emplace_back(
 		SerializedScreenEffect{
@@ -919,7 +917,7 @@ bool Editor::AddProjectScreenEffect(std::string_view type) {
 		}
 	);
 
-	const EditorSelection before_selection{ context_->local.selection };
+	EditorSelection before_selection{ context_->local.selection };
 	EditorSelection after_selection{ before_selection };
 	after_selection.scene_list_tab		   = SceneListTab::ScreenEffects;
 	after_selection.inspector_tab		   = InspectorTab::ScreenEffect;
@@ -960,19 +958,19 @@ bool Editor::DuplicateProjectScreenEffect(ScreenEffectId id) {
 		return false;
 	}
 
-	const ScreenEffectSettings before{ project->screen_effects };
+	ScreenEffectSettings before{ project->screen_effects };
 	ScreenEffectSettings after{ before };
-	const ScreenEffectId new_id{ NextScreenEffectId(after) };
+	ScreenEffectId new_id{ NextScreenEffectId(after) };
 	SerializedScreenEffect copy{ *source };
 	copy.id = new_id;
 
-	const auto source_it{ std::ranges::find_if(
-		after.effects, [id](const SerializedScreenEffect& effect) { return effect.id == id; }
-	) };
-	const auto insert_it{ source_it == after.effects.end() ? after.effects.end() : source_it + 1 };
+	auto source_it{ std::ranges::find_if(after.effects, [id](const SerializedScreenEffect& effect) {
+		return effect.id == id;
+	}) };
+	auto insert_it{ source_it == after.effects.end() ? after.effects.end() : source_it + 1 };
 	after.effects.insert(insert_it, std::move(copy));
 
-	const EditorSelection before_selection{ context_->local.selection };
+	EditorSelection before_selection{ context_->local.selection };
 	EditorSelection after_selection{ before_selection };
 	after_selection.scene_list_tab		   = SceneListTab::ScreenEffects;
 	after_selection.inspector_tab		   = InspectorTab::ScreenEffect;
@@ -1008,9 +1006,9 @@ bool Editor::DeleteProjectScreenEffect(ScreenEffectId id) {
 		return false;
 	}
 
-	const ScreenEffectSettings before{ project->screen_effects };
+	ScreenEffectSettings before{ project->screen_effects };
 	ScreenEffectSettings after{ before };
-	const auto old_size{ after.effects.size() };
+	auto old_size{ after.effects.size() };
 	std::erase_if(after.effects, [id](const SerializedScreenEffect& effect) {
 		return effect.id == id;
 	});
@@ -1019,7 +1017,7 @@ bool Editor::DeleteProjectScreenEffect(ScreenEffectId id) {
 		return false;
 	}
 
-	const EditorSelection before_selection{ context_->local.selection };
+	EditorSelection before_selection{ context_->local.selection };
 	EditorSelection after_selection{ before_selection };
 	if (after_selection.selected_screen_effect ==
 		ScreenEffectSelection{ .id = id, .runtime = false }) {
@@ -1059,7 +1057,7 @@ bool Editor::MoveProjectScreenEffect(std::size_t from_index, std::size_t to_inde
 		return true;
 	}
 
-	const ScreenEffectSettings before{ project->screen_effects };
+	ScreenEffectSettings before{ project->screen_effects };
 	ScreenEffectSettings after{ before };
 
 	if (from_index < to_index) {
@@ -1123,7 +1121,7 @@ bool Editor::UpdateProjectScreenEffect(
 		return false;
 	}
 
-	const ScreenEffectSettings before{ project->screen_effects };
+	ScreenEffectSettings before{ project->screen_effects };
 	ScreenEffectSettings after{ before };
 	auto* updated{ FindScreenEffect(after, id) };
 	PTGN_ASSERT(updated);
@@ -1184,16 +1182,16 @@ Entity Editor::AddRuntimeScreenEffect(std::string_view type) {
 		return {};
 	}
 
-	const EditorSelection before_selection{ context_->local.selection };
+	EditorSelection before_selection{ context_->local.selection };
 	Entity effect{
 		::ptgn::impl::CreateScreenEffectEntity(app_context, type, registration->make_default())
 	};
-	const auto snapshot{ ::ptgn::impl::CaptureScreenEffect(effect) };
+	auto snapshot{ ::ptgn::impl::CaptureScreenEffect(effect) };
 	if (!snapshot.has_value()) {
 		return {};
 	}
 
-	const std::size_t index{ app_context.screen_effect_order.size() - 1 };
+	std::size_t index{ app_context.screen_effect_order.size() - 1 };
 	EditorSelection after_selection{ before_selection };
 	after_selection.scene_list_tab		   = SceneListTab::ScreenEffects;
 	after_selection.inspector_tab		   = InspectorTab::ScreenEffect;
@@ -1224,12 +1222,12 @@ Entity Editor::AddRuntimeScreenEffect(std::string_view type) {
 bool Editor::DuplicateRuntimeScreenEffect(std::uint64_t runtime_id) {
 	auto& app_context{ ::ptgn::impl::ApplicationAccessor::ctx(app) };
 	Entity source{ ::ptgn::impl::FindScreenEffectByRuntimeId(app_context, runtime_id) };
-	const auto source_snapshot{ ::ptgn::impl::CaptureScreenEffect(source) };
+	auto source_snapshot{ ::ptgn::impl::CaptureScreenEffect(source) };
 	if (!source_snapshot.has_value()) {
 		return false;
 	}
 
-	const EditorSelection before_selection{ context_->local.selection };
+	EditorSelection before_selection{ context_->local.selection };
 	Entity duplicate{ ::ptgn::impl::CreateScreenEffectEntity(
 		app_context, source_snapshot->type, source_snapshot->parameters
 	) };
@@ -1238,12 +1236,12 @@ bool Editor::DuplicateRuntimeScreenEffect(std::uint64_t runtime_id) {
 	}
 
 	duplicate.Get<Visible>().visible = source_snapshot->enabled;
-	const auto duplicate_snapshot{ ::ptgn::impl::CaptureScreenEffect(duplicate) };
+	auto duplicate_snapshot{ ::ptgn::impl::CaptureScreenEffect(duplicate) };
 	if (!duplicate_snapshot.has_value()) {
 		return false;
 	}
 
-	const std::size_t index{ app_context.screen_effect_order.size() - 1 };
+	std::size_t index{ app_context.screen_effect_order.size() - 1 };
 	EditorSelection after_selection{ before_selection };
 	after_selection.scene_list_tab		   = SceneListTab::ScreenEffects;
 	after_selection.inspector_tab		   = InspectorTab::ScreenEffect;
@@ -1273,16 +1271,16 @@ bool Editor::DuplicateRuntimeScreenEffect(std::uint64_t runtime_id) {
 bool Editor::DeleteRuntimeScreenEffect(std::uint64_t runtime_id) {
 	auto& app_context{ ::ptgn::impl::ApplicationAccessor::ctx(app) };
 	Entity entity{ ::ptgn::impl::FindScreenEffectByRuntimeId(app_context, runtime_id) };
-	const auto snapshot{ ::ptgn::impl::CaptureScreenEffect(entity) };
-	const auto index{ ::ptgn::impl::FindScreenEffectIndex(app_context, runtime_id) };
+	auto snapshot{ ::ptgn::impl::CaptureScreenEffect(entity) };
+	auto index{ ::ptgn::impl::FindScreenEffectIndex(app_context, runtime_id) };
 	if (!snapshot.has_value() || !index.has_value()) {
 		return false;
 	}
 
-	const EditorSelection before_selection{ context_->local.selection };
+	EditorSelection before_selection{ context_->local.selection };
 	EditorSelection after_selection{ before_selection };
 	if (after_selection.selected_screen_effect.has_value()) {
-		const auto selected{ after_selection.selected_screen_effect.value() };
+		auto selected{ after_selection.selected_screen_effect.value() };
 		bool deleting_selection{ (selected.runtime && selected.id == runtime_id) ||
 								 (!selected.runtime && snapshot->source_id != 0 &&
 								  selected.id == snapshot->source_id) };
@@ -1328,7 +1326,7 @@ bool Editor::MoveRuntimeScreenEffect(std::size_t from_index, std::size_t to_inde
 	if (!entity || !entity.Has<::ptgn::impl::ScreenEffectInstance>()) {
 		return false;
 	}
-	const std::uint64_t runtime_id{ entity.Get<::ptgn::impl::ScreenEffectInstance>().runtime_id };
+	std::uint64_t runtime_id{ entity.Get<::ptgn::impl::ScreenEffectInstance>().runtime_id };
 
 	if (!::ptgn::impl::MoveScreenEffect(app_context, runtime_id, to_index)) {
 		return false;
@@ -1352,7 +1350,7 @@ bool Editor::MoveRuntimeScreenEffect(std::size_t from_index, std::size_t to_inde
 bool Editor::SetRuntimeScreenEffectEnabled(std::uint64_t runtime_id, bool enabled) {
 	auto& app_context{ ::ptgn::impl::ApplicationAccessor::ctx(app) };
 	Entity entity{ ::ptgn::impl::FindScreenEffectByRuntimeId(app_context, runtime_id) };
-	const auto before{ ::ptgn::impl::CaptureScreenEffect(entity) };
+	auto before{ ::ptgn::impl::CaptureScreenEffect(entity) };
 	if (!before.has_value() || before->enabled == enabled) {
 		return false;
 	}
@@ -1363,7 +1361,7 @@ bool Editor::SetRuntimeScreenEffectEnabled(std::uint64_t runtime_id, bool enable
 		entity.Add<Visible>(enabled);
 	}
 
-	const auto after{ ::ptgn::impl::CaptureScreenEffect(entity) };
+	auto after{ ::ptgn::impl::CaptureScreenEffect(entity) };
 	PTGN_ASSERT(after.has_value());
 
 	undo_stack_.PushApplied(
@@ -1387,7 +1385,7 @@ bool Editor::UpdateRuntimeScreenEffect(
 ) {
 	auto& app_context{ ::ptgn::impl::ApplicationAccessor::ctx(app) };
 	Entity entity{ ::ptgn::impl::FindScreenEffectByRuntimeId(app_context, runtime_id) };
-	const auto before{ ::ptgn::impl::CaptureScreenEffect(entity) };
+	auto before{ ::ptgn::impl::CaptureScreenEffect(entity) };
 	if (!before.has_value() || before->parameters == parameters) {
 		return false;
 	}
@@ -1398,7 +1396,7 @@ bool Editor::UpdateRuntimeScreenEffect(
 	}
 
 	registration->deserialize(entity, parameters);
-	const auto after{ ::ptgn::impl::CaptureScreenEffect(entity) };
+	auto after{ ::ptgn::impl::CaptureScreenEffect(entity) };
 	PTGN_ASSERT(after.has_value());
 
 	auto undo = [this, before = *before]() {
@@ -1448,25 +1446,25 @@ bool Editor::CreateProjectScene(std::string_view scene_type) {
 		return false;
 	}
 
-	const std::string display_name{ SceneTypeName(scene_type) };
+	std::string display_name{ SceneTypeName(scene_type) };
 
 	// Scene keys generated through Add Scene always use
 	// scene1, scene2, scene3, ...
-	const std::string scene_key{ MakeNextProjectSceneKey(*project) };
+	std::string scene_key{ MakeNextProjectSceneKey(*project) };
 
-	const path relative_path{ MakeUniqueProjectScenePath(*project, display_name) };
+	path relative_path{ MakeUniqueProjectScenePath(*project, display_name) };
 
-	const SerializedScene serialized_scene{ MakeProjectSceneDefinition(scene_type) };
+	SerializedScene serialized_scene{ MakeProjectSceneDefinition(scene_type) };
 
-	const ProjectSceneEntry entry{
+	ProjectSceneEntry entry{
 		.key		  = scene_key,
 		.display_name = display_name,
 		.scene_path	  = relative_path,
 	};
 
-	const std::size_t insertion_index{ project->scenes.size() };
+	std::size_t insertion_index{ project->scenes.size() };
 
-	const EditorSelection before_selection{ context_->local.selection };
+	EditorSelection before_selection{ context_->local.selection };
 
 	EditorSelection after_selection{ before_selection };
 
@@ -1484,9 +1482,9 @@ bool Editor::CreateProjectScene(std::string_view scene_type) {
 			return false;
 		}
 
-		const std::size_t index{ std::min(insertion_index, current_project->scenes.size()) };
+		std::size_t index{ std::min(insertion_index, current_project->scenes.size()) };
 
-		const std::string previous_startup_scene_key{ current_project->startup_scene_key };
+		std::string previous_startup_scene_key{ current_project->startup_scene_key };
 
 		current_project->scenes.insert(
 			current_project->scenes.begin() + static_cast<std::ptrdiff_t>(index), entry
@@ -1518,7 +1516,7 @@ bool Editor::CreateProjectScene(std::string_view scene_type) {
 
 		SyncProjectSceneOrder();
 
-		const auto selected_uuid{ selection.GetEntityUUID(entry.key, false) };
+		auto selected_uuid{ selection.GetEntityUUID(entry.key, false) };
 
 		ApplyEditorSelection(*context_, std::move(selection));
 
@@ -1534,7 +1532,7 @@ bool Editor::CreateProjectScene(std::string_view scene_type) {
 			return false;
 		}
 
-		const auto it{ std::ranges::find_if(
+		auto it{ std::ranges::find_if(
 			current_project->scenes,
 			[&entry](const ProjectSceneEntry& candidate) { return candidate.key == entry.key; }
 		) };
@@ -1600,7 +1598,7 @@ bool Editor::DuplicateProjectScene(std::string_view scene_key) {
 
 	auto& manager{ GetSceneManager() };
 
-	const auto source_hash{ Hash(scene_key) };
+	auto source_hash{ Hash(scene_key) };
 
 	if (!manager.HasScene(source_hash)) {
 		return false;
@@ -1612,19 +1610,19 @@ bool Editor::DuplicateProjectScene(std::string_view scene_key) {
 		return false;
 	}
 
-	const SerializedScene serialized_scene{ CaptureScene(source_scene) };
+	SerializedScene serialized_scene{ CaptureScene(source_scene) };
 
-	const std::string duplicate_display_name{ source_entry->display_name };
+	std::string duplicate_display_name{ source_entry->display_name };
 
-	const ProjectSceneEntry entry{
+	ProjectSceneEntry entry{
 		.key		  = MakeUniqueProjectSceneKey(*project, source_entry->key + "_copy"),
 		.display_name = duplicate_display_name,
 		.scene_path	  = MakeUniqueProjectScenePath(*project, duplicate_display_name),
 	};
 
-	const std::size_t insertion_index{ project->scenes.size() };
+	std::size_t insertion_index{ project->scenes.size() };
 
-	const EditorSelection before_selection{ context_->local.selection };
+	EditorSelection before_selection{ context_->local.selection };
 
 	EditorSelection after_selection{ before_selection };
 
@@ -1642,7 +1640,7 @@ bool Editor::DuplicateProjectScene(std::string_view scene_key) {
 			return false;
 		}
 
-		const std::size_t index{ std::min(insertion_index, current_project->scenes.size()) };
+		std::size_t index{ std::min(insertion_index, current_project->scenes.size()) };
 
 		current_project->scenes.insert(
 			current_project->scenes.begin() + static_cast<std::ptrdiff_t>(index), entry
@@ -1666,7 +1664,7 @@ bool Editor::DuplicateProjectScene(std::string_view scene_key) {
 
 		SyncProjectSceneOrder();
 
-		const auto selected_uuid{ selection.GetEntityUUID(entry.key, false) };
+		auto selected_uuid{ selection.GetEntityUUID(entry.key, false) };
 
 		ApplyEditorSelection(*context_, std::move(selection));
 
@@ -1682,7 +1680,7 @@ bool Editor::DuplicateProjectScene(std::string_view scene_key) {
 			return false;
 		}
 
-		const auto it{ std::ranges::find_if(
+		auto it{ std::ranges::find_if(
 			current_project->scenes,
 			[&entry](const ProjectSceneEntry& candidate) { return candidate.key == entry.key; }
 		) };
@@ -1731,18 +1729,17 @@ bool Editor::DeleteProjectScene(std::string_view scene_key) {
 		return false;
 	}
 
-	const auto it{ std::ranges::find_if(
-		project->scenes,
-		[scene_key](const ProjectSceneEntry& entry) { return entry.key == scene_key; }
-	) };
+	auto it{ std::ranges::find_if(project->scenes, [scene_key](const ProjectSceneEntry& entry) {
+		return entry.key == scene_key;
+	}) };
 
 	if (it == project->scenes.end()) {
 		return false;
 	}
 
-	const std::size_t index{ static_cast<std::size_t>(std::distance(project->scenes.begin(), it)) };
+	std::size_t index{ static_cast<std::size_t>(std::distance(project->scenes.begin(), it)) };
 
-	const ProjectSceneEntry entry{ *it };
+	ProjectSceneEntry entry{ *it };
 
 	SerializedScene serialized_scene;
 
@@ -1757,7 +1754,7 @@ bool Editor::DeleteProjectScene(std::string_view scene_key) {
 
 		serialized_scene = CaptureScene(scene);
 	} else {
-		const path absolute_path{ GetProjectScenePath(*project, entry) };
+		path absolute_path{ GetProjectScenePath(*project, entry) };
 
 		if (!FileExists(absolute_path)) {
 			return false;
@@ -1766,7 +1763,7 @@ bool Editor::DeleteProjectScene(std::string_view scene_key) {
 		serialized_scene = LoadSceneFile(absolute_path);
 	}
 
-	const std::string before_startup{ project->startup_scene_key };
+	std::string before_startup{ project->startup_scene_key };
 
 	std::string after_startup{ before_startup };
 
@@ -1774,14 +1771,14 @@ bool Editor::DeleteProjectScene(std::string_view scene_key) {
 		if (project->scenes.size() == 1) {
 			after_startup.clear();
 		} else {
-			const std::size_t replacement_index{ index + 1 < project->scenes.size() ? index + 1
-																					: index - 1 };
+			std::size_t replacement_index{ index + 1 < project->scenes.size() ? index + 1
+																			  : index - 1 };
 
 			after_startup = project->scenes[replacement_index].key;
 		}
 	}
 
-	const EditorSelection before_selection{ context_->local.selection };
+	EditorSelection before_selection{ context_->local.selection };
 
 	EditorSelection after_selection{ before_selection };
 
@@ -1791,8 +1788,7 @@ bool Editor::DeleteProjectScene(std::string_view scene_key) {
 	after_selection.RemoveScene(entry.key);
 
 	if (deleted_scene_selected && project->scenes.size() > 1) {
-		const std::size_t replacement_index{ index + 1 < project->scenes.size() ? index + 1
-																				: index - 1 };
+		std::size_t replacement_index{ index + 1 < project->scenes.size() ? index + 1 : index - 1 };
 
 		after_selection.selected_scene_key = project->scenes[replacement_index].key;
 
@@ -1808,7 +1804,7 @@ bool Editor::DeleteProjectScene(std::string_view scene_key) {
 			return false;
 		}
 
-		const auto current_it{ std::ranges::find_if(
+		auto current_it{ std::ranges::find_if(
 			current_project->scenes,
 			[&entry](const ProjectSceneEntry& candidate) { return candidate.key == entry.key; }
 		) };
@@ -1842,7 +1838,7 @@ bool Editor::DeleteProjectScene(std::string_view scene_key) {
 			return false;
 		}
 
-		const std::size_t insertion_index{ std::min(index, current_project->scenes.size()) };
+		std::size_t insertion_index{ std::min(index, current_project->scenes.size()) };
 
 		current_project->scenes.insert(
 			current_project->scenes.begin() + static_cast<std::ptrdiff_t>(insertion_index), entry
@@ -1871,7 +1867,7 @@ bool Editor::DeleteProjectScene(std::string_view scene_key) {
 		bool select_restored_scene{ selection.selected_scene_key == entry.key &&
 									!selection.selected_scene_runtime };
 
-		const auto selected_uuid{ selection.GetEntityUUID(entry.key, false) };
+		auto selected_uuid{ selection.GetEntityUUID(entry.key, false) };
 
 		ApplyEditorSelection(*context_, selection);
 
@@ -1919,7 +1915,7 @@ bool Editor::RenameProjectSceneKey(std::string_view current_key, std::string_vie
 			return false;
 		}
 
-		const std::string old_key{ entry->key };
+		std::string old_key{ entry->key };
 
 		bool was_startup{ project->startup_scene_key == old_key };
 
@@ -1938,9 +1934,9 @@ bool Editor::RenameProjectSceneKey(std::string_view current_key, std::string_vie
 		return true;
 	};
 
-	const std::string before{ current_key };
+	std::string before{ current_key };
 
-	const std::string after{ new_key };
+	std::string after{ new_key };
 
 	if (!apply(before, after)) {
 		return false;
@@ -1973,15 +1969,15 @@ bool Editor::RenameProjectSceneDisplayName(std::string_view scene_key, std::stri
 		return false;
 	}
 
-	const std::string before{ entry->display_name };
+	std::string before{ entry->display_name };
 
-	const std::string after{ std::move(display_name) };
+	std::string after{ std::move(display_name) };
 
 	if (before == after) {
 		return true;
 	}
 
-	const std::string key{ scene_key };
+	std::string key{ scene_key };
 
 	auto apply = [this, key](const std::string& value) {
 		auto* current_project{ GetProject() };
@@ -2069,9 +2065,9 @@ bool Editor::SetStartupProjectScene(std::string_view scene_key) {
 		return false;
 	}
 
-	const std::string before{ project->startup_scene_key };
+	std::string before{ project->startup_scene_key };
 
-	const std::string after{ entry->key };
+	std::string after{ entry->key };
 
 	if (before == after) {
 		return true;
@@ -2336,13 +2332,13 @@ ExportRequest Editor::MakeExportRequest() const {
 	};
 
 	if (const auto* project{ GetProject() }) {
-		const path project_file{ ResolveProjectFilePath(*project) };
-		const path project_directory{ project_file.parent_path() };
-		const path runtime_root{ ResolveProjectRuntimeRoot(*project, project_file) };
+		path project_file{ ResolveProjectFilePath(*project) };
+		path project_directory{ project_file.parent_path() };
+		path runtime_root{ ResolveProjectRuntimeRoot(*project, project_file) };
 
-		const path project_asset_directory{ project->asset_directory.is_absolute()
-												? project->asset_directory
-												: project_directory / project->asset_directory };
+		path project_asset_directory{ project->asset_directory.is_absolute()
+										  ? project->asset_directory
+										  : project_directory / project->asset_directory };
 
 		request.project_directory	   = project_directory;
 		request.project_file		   = project_file;
@@ -2368,9 +2364,9 @@ void Editor::DrawExportWindow() {
 
 	if (export_window_recenter_requested_) {
 		auto* viewport{ ImGui::GetMainViewport() };
-		const ImVec2 size{ viewport->WorkSize.x * 0.60f, viewport->WorkSize.y * 0.70f };
-		const ImVec2 center{ viewport->WorkPos.x + viewport->WorkSize.x * 0.5f,
-							 viewport->WorkPos.y + viewport->WorkSize.y * 0.5f };
+		ImVec2 size{ viewport->WorkSize.x * 0.60f, viewport->WorkSize.y * 0.70f };
+		ImVec2 center{ viewport->WorkPos.x + viewport->WorkSize.x * 0.5f,
+					   viewport->WorkPos.y + viewport->WorkSize.y * 0.5f };
 
 		ImGui::SetNextWindowDockID(0, ImGuiCond_Always);
 		ImGui::SetNextWindowPos(center, ImGuiCond_Always, ImVec2{ 0.5f, 0.5f });
@@ -2518,9 +2514,7 @@ void Editor::DrawExportWindow() {
 			std::string& current_output_directory{ export_target_ == ExportTarget::Desktop
 													   ? desktop_export_directory_
 													   : web_export_directory_ };
-			const auto current_output_path_error{
-				ValidateOutputDirectoryPath(current_output_directory)
-			};
+			auto current_output_path_error{ ValidateOutputDirectoryPath(current_output_directory) };
 
 			DrawDirectoryField(
 				*this, "Output Directory", "##ExportOutputDirectory", current_output_directory,
@@ -2532,13 +2526,11 @@ void Editor::DrawExportWindow() {
 
 		ImGui::EndDisabled();
 
-		const std::string& current_output_directory{ export_target_ == ExportTarget::Desktop
-														 ? desktop_export_directory_
-														 : web_export_directory_ };
-		const auto current_output_path_error{
-			ValidateOutputDirectoryPath(current_output_directory)
-		};
-		const path build_directory{
+		std::string& current_output_directory{ export_target_ == ExportTarget::Desktop
+												   ? desktop_export_directory_
+												   : web_export_directory_ };
+		auto current_output_path_error{ ValidateOutputDirectoryPath(current_output_directory) };
+		path build_directory{
 			export_manager_.GetBuildDirectory(export_target_, export_configuration_)
 		};
 		bool build_cache_has_content{ DirectoryHasContent(build_directory) };
@@ -2612,7 +2604,7 @@ void Editor::DrawExportWindow() {
 		if (export_target_ == ExportTarget::Web) {
 			ImGui::SeparatorText("Web Distribution");
 
-			const path web_output_directory{ web_export_directory_ };
+			path web_output_directory{ web_export_directory_ };
 			bool web_files_exist{ export_manager_.HasWebOutput(web_output_directory) };
 			bool server_running{ export_manager_.IsWebServerRunning() };
 			bool can_run_server{ export_manager_.CanRunWebServer(web_output_directory) };
@@ -2688,7 +2680,7 @@ void Editor::DrawExportWindow() {
 
 			ImGui::SameLine();
 
-			const path web_zip_path{ export_manager_.GetWebZipPath(web_output_directory) };
+			path web_zip_path{ export_manager_.GetWebZipPath(web_output_directory) };
 			bool web_zip_current{ export_manager_.IsWebZipCurrent(web_output_directory) };
 			bool can_zip_web{ !busy && web_files_exist && !web_zip_current };
 
@@ -2829,7 +2821,7 @@ void Editor::DrawTaskConfirmationPopup() {
 #endif
 
 void ConsolePanel::OnRender(EditorContext& ctx) {
-	const auto revision{ ::ptgn::impl::GetConsoleOutputRevision() };
+	auto revision{ ::ptgn::impl::GetConsoleOutputRevision() };
 	if (revision != last_rendered_output_revision_) {
 		auto snapshot{ ::ptgn::impl::GetConsoleOutputSnapshot() };
 		last_rendered_output_revision_ = snapshot.revision;
@@ -2845,7 +2837,7 @@ void ConsolePanel::OnRender(EditorContext& ctx) {
 		ImGui::TextUnformatted(save_status_.c_str());
 	}
 
-	const auto actions{ DrawOutputConsole(
+	auto actions{ DrawOutputConsole(
 		"EditorConsole", rendered_output_, follow_output_tail_, jump_to_bottom_requested_,
 #if defined(__EMSCRIPTEN__)
 		false
@@ -2865,9 +2857,9 @@ void ConsolePanel::OnRender(EditorContext& ctx) {
 #if !defined(__EMSCRIPTEN__)
 	if (actions.save_requested) {
 		const auto& build_info{ ::ptgn::impl::GetBuildInfo() };
-		const path root{ ctx.editor.GetProjectRoot().value_or(build_info.runtime_root) };
+		path root{ ctx.editor.GetProjectRoot().value_or(build_info.runtime_root) };
 
-		const path output_path{ (root / "logs" / MakeConsoleLogFilename()).lexically_normal() };
+		path output_path{ (root / "logs" / MakeConsoleLogFilename()).lexically_normal() };
 
 		if (::ptgn::impl::SaveConsoleOutput(output_path)) {
 			save_status_ = "Saved: " + output_path.string();
@@ -2905,9 +2897,9 @@ void Editor::DrawPanels() {
 	}
 	SyncSelectedSceneAssetDependencies();
 
-	const EditorSettings before_content_browser_settings{ GetSettings() };
+	EditorSettings before_content_browser_settings{ GetSettings() };
 	content_browser_panel_.OnRender(*context_);
-	const EditorSettings after_content_browser_settings{ GetSettings() };
+	EditorSettings after_content_browser_settings{ GetSettings() };
 
 	if (before_content_browser_settings != after_content_browser_settings) {
 		PushUndoableValueChange(
@@ -2928,9 +2920,9 @@ void Editor::DrawPanels() {
 #endif
 
 	if (context_->local.settings.show_imgui_metrics) {
-		const EditorSettings before_metrics_settings{ GetSettings() };
+		EditorSettings before_metrics_settings{ GetSettings() };
 		ImGui::ShowMetricsWindow(&context_->local.settings.show_imgui_metrics);
-		const EditorSettings after_metrics_settings{ GetSettings() };
+		EditorSettings after_metrics_settings{ GetSettings() };
 
 		if (before_metrics_settings != after_metrics_settings) {
 			PushUndoableValueChange(
@@ -3008,7 +3000,7 @@ void Editor::SyncSelectedSceneAssetDependencies() {
 		return;
 	}
 
-	(void)scene->SyncAssetDependenciesFromSerialization();
+	scene->SyncAssetDependenciesFromSerialization();
 }
 
 void Editor::EnableRendering(bool enable) {
@@ -3203,9 +3195,7 @@ void Editor::Play() {
 		return;
 	}
 
-	const auto selected_entity_uuid{
-		GetSelectedEntityUUID(scene_hierarchy_panel_, selected_scene)
-	};
+	auto selected_entity_uuid{ GetSelectedEntityUUID(scene_hierarchy_panel_, selected_scene) };
 
 	auto& app_context{ ::ptgn::impl::ApplicationAccessor::ctx(app) };
 	auto& manager{ GetSceneManager() };
@@ -3214,7 +3204,7 @@ void Editor::Play() {
 	app_context.runtime_project_scenes.reserve(project->scenes.size());
 
 	for (const auto& entry : project->scenes) {
-		const auto scene_hash{ Hash(entry.key) };
+		auto scene_hash{ Hash(entry.key) };
 
 		PTGN_ASSERT(
 			manager.HasScene(scene_hash), "Project scene is not loaded in the editor: ", entry.key
@@ -3235,9 +3225,9 @@ void Editor::Play() {
 		);
 	}
 
-	const std::string selected_key{ selected_scene->GetTag() };
+	std::string selected_key{ selected_scene->GetTag() };
 
-	const auto snapshot_it{ std::ranges::find_if(
+	auto snapshot_it{ std::ranges::find_if(
 		app_context.runtime_project_scenes,
 		[&selected_key](const ::ptgn::impl::RuntimeProjectSceneSnapshot& snapshot) {
 			return snapshot.key == selected_key;
@@ -3316,7 +3306,7 @@ void Editor::StopDirectRuntime() {
 	std::optional<UUID> selected_entity_uuid;
 
 	if (auto* selected_scene{ scene_list_panel_.GetSelectedScene() }) {
-		const std::string runtime_key{ selected_scene->GetTag() };
+		std::string runtime_key{ selected_scene->GetTag() };
 
 		if (FindProjectScene(*project, runtime_key)) {
 			selected_key = runtime_key;
@@ -3337,7 +3327,7 @@ void Editor::StopDirectRuntime() {
 	editor_scenes.reserve(project->scenes.size());
 
 	for (const auto& entry : project->scenes) {
-		const path scene_path{ GetProjectScenePath(*project, entry) };
+		path scene_path{ GetProjectScenePath(*project, entry) };
 
 		if (!FileExists(scene_path)) {
 			PTGN_ERROR(
@@ -3384,11 +3374,11 @@ void Editor::StopDirectRuntime() {
 		);
 	}
 
-	// Remove any remaining runtime-only scenes which were entered while
+	// Remove any remaining runtime only scenes which were entered while
 	// the game was running. Project scenes replaced above are now
 	// non runtime and therefore remain.
 	for (const auto& runtime_key : runtime_scene_keys) {
-		const auto scene_hash{ Hash(runtime_key) };
+		auto scene_hash{ Hash(runtime_key) };
 
 		if (!manager.HasScene(scene_hash)) {
 			continue;
@@ -3445,7 +3435,7 @@ void Editor::Stop() {
 		return;
 	}
 
-	const auto selected_entity_uuid{
+	auto selected_entity_uuid{
 		GetSelectedEntityUUID(scene_hierarchy_panel_, scene_list_panel_.GetSelectedScene())
 	};
 
@@ -3464,7 +3454,7 @@ void Editor::Stop() {
 		PTGN_ASSERT(accepted, "Failed to restore project scene after editor play: ", snapshot.key);
 	}
 
-	const std::string selected_key{ play_snapshot_->selected_scene_key };
+	std::string selected_key{ play_snapshot_->selected_scene_key };
 
 	scene_list_panel_.QueueSceneSelection(*context_, selected_key, false, selected_entity_uuid);
 
@@ -3599,7 +3589,7 @@ bool Editor::CanSaveProject() const {
 	const auto& scene_manager{ GetSceneManager() };
 
 	return std::ranges::all_of(project->scenes, [&scene_manager](const ProjectSceneEntry& entry) {
-		const auto scene_hash{ Hash(entry.key) };
+		auto scene_hash{ Hash(entry.key) };
 
 		return scene_manager.HasScene(scene_hash) &&
 			   !scene_manager.GetScene(scene_hash).IsRuntime();
@@ -3624,7 +3614,7 @@ void Editor::SaveProjectScene() {
 	scenes.reserve(project->scenes.size());
 
 	for (const auto& entry : project->scenes) {
-		const auto scene_hash{ Hash(entry.key) };
+		auto scene_hash{ Hash(entry.key) };
 
 		PTGN_ASSERT(
 			scene_manager.HasScene(scene_hash),
@@ -3719,7 +3709,7 @@ std::optional<path> Editor::GetProjectRoot() const {
 		return std::nullopt;
 	}
 
-	const path project_path{ ResolveProjectFilePath(*app_context.project) };
+	path project_path{ ResolveProjectFilePath(*app_context.project) };
 	if (project_path.empty()) {
 		return std::nullopt;
 	}
@@ -3760,7 +3750,7 @@ V2_int Editor::GetPresentationTextureSize() const {
 	// Match the presentation framebuffer's color format/parameters. The runtime viewport is
 	// rendered into that target and then receives the renderer's final gamma/tone-mapping pass.
 	// Using the same descriptor here keeps HDR and filtering behavior identical.
-	const auto presentation_desc{ renderer.GetDesc(renderer.GetPresentationFramebuffer()) };
+	auto presentation_desc{ renderer.GetDesc(renderer.GetPresentationFramebuffer()) };
 	PTGN_ASSERT(
 		presentation_desc.has_value(), "Presentation framebuffer must have a color texture"
 	);
@@ -3770,15 +3760,15 @@ V2_int Editor::GetPresentationTextureSize() const {
 
 	auto framebuffer{ renderer.CreateFramebuffer(preview_desc, std::nullopt) };
 
-	const auto framebuffer_id{ static_cast<::ptgn::impl::FramebufferId>(framebuffer) };
-	const auto texture{ renderer.GetTexture(framebuffer_id) };
+	auto framebuffer_id{ static_cast<::ptgn::impl::FramebufferId>(framebuffer) };
+	auto texture{ renderer.GetTexture(framebuffer_id) };
 	PTGN_ASSERT(texture, "Text preview framebuffer must have a color texture");
 
 	renderer.FlushBatch();
 
-	const RenderState previous_state{ renderer.GetRenderState() };
-	const MaterialState previous_material{ renderer.GetMaterial() };
-	const auto previous_pipeline{ renderer.GetCurrentPipeline() };
+	RenderState previous_state{ renderer.GetRenderState() };
+	MaterialState previous_material{ renderer.GetMaterial() };
+	auto previous_pipeline{ renderer.GetCurrentPipeline() };
 
 	// The editor is rendered after Renderer::EndFrame(), which intentionally leaves the default
 	// framebuffer bound and current_framebuffer_ == nullptr. Preserve that nullable state instead
@@ -3789,7 +3779,7 @@ V2_int Editor::GetPresentationTextureSize() const {
 	renderer.Clear(framebuffer_id, clear_color);
 
 	RenderState preview_state{};
-	const Viewport preview_viewport{
+	Viewport preview_viewport{
 		.position = {},
 		.size	  = target_size,
 	};
@@ -3801,7 +3791,7 @@ V2_int Editor::GetPresentationTextureSize() const {
 	// calls SetBlendMode(GetBlendMode(entity)) immediately before drawing, so the preview should
 	// use the same value instead of hard-coding BlendMode::Blend.
 	BlendMode preview_blend_mode{ BlendMode::Blend };
-	if (const Entity selected_entity{ scene_hierarchy_panel_.GetSelectedEntity() }) {
+	if (Entity selected_entity{ scene_hierarchy_panel_.GetSelectedEntity() }) {
 		preview_blend_mode = GetBlendMode(selected_entity);
 	}
 	preview_state.blend_mode = preview_blend_mode;
@@ -3844,7 +3834,7 @@ void Editor::UpdateProjectLocalState() {
 		return;
 	}
 
-	const auto project_path{ app_context.project->file_path.lexically_normal() };
+	auto project_path{ app_context.project->file_path.lexically_normal() };
 
 	if (local_state_project_path_.has_value() &&
 		local_state_project_path_->lexically_normal() == project_path) {
@@ -3937,7 +3927,7 @@ void Editor::OnProjectChanged() {
 
 #if !defined(__EMSCRIPTEN__)
 	// Migrate legacy .ptgneditor local state into .ptgnlocal before replacing
-	// .ptgneditor with the new shared project-state shape. These writes are
+	// .ptgneditor with the new shared project state shape. These writes are
 	// intentionally unconditional on project change so old projects migrate safely.
 	SaveEditorLocalState(app_context.project.value(), context_->local);
 	SaveEditorProjectState(app_context.project.value(), context_->project_state);
@@ -3974,7 +3964,7 @@ void Editor::BuildDefaultDockLayout(std::uint32_t dockspace_id) {
 
 	// This is the exact size passed to ImGui::DockSpace() by OnRender(). Using the main viewport
 	// work size here is slightly too tall because EditorRootDockspace has its own menu bar.
-	const ImVec2 dockspace_size{ ImGui::GetContentRegionAvail() };
+	ImVec2 dockspace_size{ ImGui::GetContentRegionAvail() };
 
 	ImGui::DockBuilderRemoveNode(dockspace_id);
 	ImGui::DockBuilderAddNode(dockspace_id, ImGuiDockNodeFlags_DockSpace);

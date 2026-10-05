@@ -47,14 +47,12 @@ public:
 	template <typename T, bool Hdr, typename Registration>
 	static bool Register(const Registration& registration) {
 		RegisteredEffect effect{
-			.type_name = std::string{ registration.type_name },
+			.type_name	  = std::string{ registration.type_name },
 			.display_name = DisplayName(registration),
-			.hdr = Hdr,
+			.hdr		  = Hdr,
 		};
 
-		constexpr bool serializable_parameters{
-			JsonSerializable<T> && JsonDeserializable<T>
-		};
+		constexpr bool serializable_parameters{ JsonSerializable<T> && JsonDeserializable<T> };
 
 		effect.serialize = [](Entity entity) {
 			if constexpr (serializable_parameters) {
@@ -101,7 +99,7 @@ public:
 
 	[[nodiscard]] static const RegisteredEffect* Find(std::string_view type_name) {
 		const auto& entries{ Entries() };
-		const auto it{ std::ranges::find_if(entries, [type_name](const RegisteredEffect& entry) {
+		auto it{ std::ranges::find_if(entries, [type_name](const RegisteredEffect& entry) {
 			return entry.type_name == type_name;
 		}) };
 
@@ -119,19 +117,18 @@ private:
 			return std::string{ registration.options.name.value() };
 		}
 
-		const std::string_view type_name{ registration.type_name };
-		const auto separator{ type_name.rfind("::") };
-		return separator == std::string_view::npos
-			? std::string{ type_name }
-			: std::string{ type_name.substr(separator + 2) };
+		std::string_view type_name{ registration.type_name };
+		auto separator{ type_name.rfind("::") };
+		return separator == std::string_view::npos ? std::string{ type_name }
+												   : std::string{ type_name.substr(separator + 2) };
 	}
 
 	static bool RegisterEntry(RegisteredEffect effect) {
 		auto& entries{ MutableEntries() };
 
 		if (std::ranges::any_of(entries, [&effect](const RegisteredEffect& entry) {
-			return entry.type_name == effect.type_name;
-		})) {
+				return entry.type_name == effect.type_name;
+			})) {
 			return false;
 		}
 

@@ -316,9 +316,9 @@ RendererRowResult DrawRendererRow(Target& target, bool allow_renderer_change = t
 	auto drawable{ target.template Capture<Drawable>() };
 
 	const auto* info{ drawable ? Drawable::FindInfo(drawable->hash) : nullptr };
-	const std::string preview{ primary_scene_target ? "Render Target"
-							   : info				? GetDrawableInspectorLabel(*info)
-													: "None" };
+	std::string preview{ primary_scene_target ? "Render Target"
+						 : info				  ? GetDrawableInspectorLabel(*info)
+											  : "None" };
 
 	bool renderer_changed{ false };
 	auto before_renderer{ CaptureComponentSetState(target, VisualSectionComponents{}) };
@@ -339,17 +339,15 @@ RendererRowResult DrawRendererRow(Target& target, bool allow_renderer_change = t
 		DrawPropertyRow("Renderer", [&]() {
 			std::size_t renderer_popup_items{ 3 };
 			for (const auto& candidate : Drawable::data()) {
-				const std::string visual{
-					NormalizeInspectorName(GetDrawableInspectorLabel(candidate))
-				};
+				std::string visual{ NormalizeInspectorName(GetDrawableInspectorLabel(candidate)) };
 				if (!IsShapeRenderer(visual) && !IsEffectRenderer(visual)) {
 					++renderer_popup_items;
 				}
 			}
-			const float renderer_popup_height{ ImGui::GetStyle().WindowPadding.y * 2.0f +
-											   static_cast<float>(renderer_popup_items) *
-												   ImGui::GetTextLineHeightWithSpacing() -
-											   ImGui::GetStyle().ItemSpacing.y };
+			float renderer_popup_height{ ImGui::GetStyle().WindowPadding.y * 2.0f +
+										 static_cast<float>(renderer_popup_items) *
+											 ImGui::GetTextLineHeightWithSpacing() -
+										 ImGui::GetStyle().ItemSpacing.y };
 			ImGui::SetNextWindowSizeConstraints(
 				ImVec2{ 0.0f, renderer_popup_height }, ImVec2{ FLT_MAX, renderer_popup_height }
 			);
@@ -364,7 +362,7 @@ RendererRowResult DrawRendererRow(Target& target, bool allow_renderer_change = t
 
 			auto draw_candidate = [&](const auto& candidate) {
 				ScopedID candidate_scope{ static_cast<const void*>(std::addressof(candidate)) };
-				const std::string label{ GetDrawableInspectorLabel(candidate) };
+				std::string label{ GetDrawableInspectorLabel(candidate) };
 				bool selected{ drawable && drawable->hash == candidate.hash };
 				if (ImGui::Selectable(label.c_str(), selected)) {
 					choose_renderer(Drawable{ candidate.hash });
@@ -375,16 +373,14 @@ RendererRowResult DrawRendererRow(Target& target, bool allow_renderer_change = t
 			};
 
 			for (const auto& candidate : Drawable::data()) {
-				const std::string visual{
-					NormalizeInspectorName(GetDrawableInspectorLabel(candidate))
-				};
+				std::string visual{ NormalizeInspectorName(GetDrawableInspectorLabel(candidate)) };
 				if (!IsShapeRenderer(visual) && !IsEffectRenderer(visual)) {
 					draw_candidate(candidate);
 				}
 			}
 			if (ImGui::BeginMenu("Shapes")) {
 				for (const auto& candidate : Drawable::data()) {
-					const std::string visual{
+					std::string visual{
 						NormalizeInspectorName(GetDrawableInspectorLabel(candidate))
 					};
 					if (IsShapeRenderer(visual)) {
@@ -395,7 +391,7 @@ RendererRowResult DrawRendererRow(Target& target, bool allow_renderer_change = t
 			}
 			if (ImGui::BeginMenu("Effects")) {
 				for (const auto& candidate : Drawable::data()) {
-					const std::string visual{
+					std::string visual{
 						NormalizeInspectorName(GetDrawableInspectorLabel(candidate))
 					};
 					if (IsEffectRenderer(visual)) {
@@ -430,7 +426,7 @@ template <typename Target>
 bool DrawEffectMargin(Target& target) {
 	return DrawOptionalComponent<Target, EffectMargin>(
 		target, "Effect Margin", false, [&target](EffectMargin& margin) {
-			const FieldOptions options{
+			FieldOptions options{
 				.speed = 1.0f,
 				.min   = 0.0,
 				.max   = 4096.0,
@@ -557,7 +553,7 @@ void ForEachTextWrapMode(T& value, bool plain_mode_name, F&& fn) {
 		auto members{ ReflectMembers(value) };
 		auto visit = [&](auto&& member) {
 			using Member = std::remove_cvref_t<decltype(member.value)>;
-			const std::string normalized{ NormalizeInspectorName(member.name) };
+			std::string normalized{ NormalizeInspectorName(member.name) };
 
 			if constexpr (std::is_enum_v<Member>) {
 				if (normalized == "wrapmode" || (plain_mode_name && normalized == "mode")) {
@@ -598,7 +594,7 @@ void ForEachTextWrapSetting(T& value, bool inside_wrap, F&& fn) {
 		auto members{ ReflectMembers(value) };
 		auto visit = [&](auto&& member) {
 			using Member = std::remove_cvref_t<decltype(member.value)>;
-			const std::string normalized{ NormalizeInspectorName(member.name) };
+			std::string normalized{ NormalizeInspectorName(member.name) };
 
 			if constexpr (std::same_as<Member, bool>) {
 				if (IsTextWrapSettingName(normalized)) {
@@ -642,7 +638,7 @@ bool DrawTextWrapSettings(EditorContext&, Wrap& wrap, bool inside_wrap) {
 			if (ImGui::BeginCombo("##WrapSettings", preview.c_str())) {
 				ForEachTextWrapSetting(
 					wrap, inside_wrap, [&](bool& value, std::string_view normalized) {
-						const std::string item_label{ TextWrapSettingLabel(normalized) };
+						std::string item_label{ TextWrapSettingLabel(normalized) };
 						if (ImGui::Selectable(
 								item_label.c_str(), value, ImGuiSelectableFlags_DontClosePopups
 							)) {
@@ -668,7 +664,7 @@ bool DrawTextAlignment(EditorContext& ctx, Alignment& alignment) {
 		auto members{ ReflectMembers(alignment) };
 
 		auto draw_member = [&](auto&& member) {
-			const std::string normalized{ NormalizeInspectorName(member.name) };
+			std::string normalized{ NormalizeInspectorName(member.name) };
 
 			if (normalized.contains("horizontal")) {
 				changed |= DrawValue(ctx, "Horizontal Align", member.value);
@@ -698,7 +694,7 @@ bool DrawTextShrinkScale(EditorContext& ctx, Shrink& shrink) {
 			using Member = std::remove_cvref_t<decltype(member.value)>;
 
 			if constexpr (std::same_as<Member, float>) {
-				const std::string normalized{ NormalizeInspectorName(member.name) };
+				std::string normalized{ NormalizeInspectorName(member.name) };
 
 				if (normalized == "min") {
 					minimum = std::addressof(member.value);
@@ -716,8 +712,8 @@ bool DrawTextShrinkScale(EditorContext& ctx, Shrink& shrink) {
 
 		bool changed{ false };
 
-		const float normalized_minimum{ std::max(0.0f, *minimum) };
-		const float normalized_maximum{ std::max(normalized_minimum, *maximum) };
+		float normalized_minimum{ std::max(0.0f, *minimum) };
+		float normalized_maximum{ std::max(normalized_minimum, *maximum) };
 
 		if (*minimum != normalized_minimum || *maximum != normalized_maximum) {
 			*minimum = normalized_minimum;
@@ -761,7 +757,7 @@ bool DrawTextBoxAdditionalStyle(EditorContext& ctx, Style& style) {
 		auto members{ ReflectMembers(style) };
 
 		auto draw_member = [&](auto&& member) {
-			const std::string normalized{ NormalizeInspectorName(member.name) };
+			std::string normalized{ NormalizeInspectorName(member.name) };
 
 			if (normalized == "alignment") {
 				changed |= DrawTextAlignment(ctx, member.value);
@@ -878,7 +874,7 @@ bool DrawTextBoxMember(Target& target, TextData& text_data, auto& box) {
 	auto box_members{ ReflectMembers(box) };
 
 	auto draw_box_member = [&](auto&& box_member) {
-		const std::string box_name{ NormalizeInspectorName(box_member.name) };
+		std::string box_name{ NormalizeInspectorName(box_member.name) };
 
 		if (box_name == "rect") {
 			using BoxMember = std::remove_cvref_t<decltype(box_member.value)>;
@@ -950,7 +946,7 @@ template <std::size_t I, typename Target, typename TextData>
 bool DrawTextPrimaryMember(Target& target, TextData& text_data) {
 	auto members{ ReflectMembers(text_data) };
 	auto& member{ std::get<I>(members) };
-	const std::string normalized{ NormalizeInspectorName(member.name) };
+	std::string normalized{ NormalizeInspectorName(member.name) };
 
 	if (normalized == "text" || normalized == "content" || normalized == "defaults" ||
 		normalized.contains("richtextsource")) {
@@ -1007,7 +1003,7 @@ bool DrawTextClipMember(Target& target, ::ptgn::impl::TextData& text_data, Clip&
 	auto members{ ReflectMembers(clip) };
 	auto& member{ std::get<InnerIndex>(members) };
 	using Member = std::remove_cvref_t<decltype(member.value)>;
-	const std::string normalized{ NormalizeInspectorName(member.name) };
+	std::string normalized{ NormalizeInspectorName(member.name) };
 
 	if constexpr (std::same_as<Member, Rect>) {
 		if (normalized.contains("rect")) {
@@ -1047,7 +1043,7 @@ template <std::size_t I, typename Target>
 bool DrawTextAdditionalMember(Target& target, ::ptgn::impl::TextData& text_data) {
 	auto members{ ReflectMembers(text_data) };
 	auto& member{ std::get<I>(members) };
-	const std::string normalized{ NormalizeInspectorName(member.name) };
+	std::string normalized{ NormalizeInspectorName(member.name) };
 
 	if (!normalized.contains("glyph") && !normalized.contains("clip")) {
 		return false;
@@ -1176,7 +1172,7 @@ bool DrawFlattenedConfig(EditorContext& ctx, T& value) {
 		auto draw_member = [&](auto&& member) {
 			ScopedID member_scope{ static_cast<const void*>(std::addressof(member.value)) };
 			using Member = std::remove_cvref_t<decltype(member.value)>;
-			const std::string normalized{ NormalizeInspectorName(member.name) };
+			std::string normalized{ NormalizeInspectorName(member.name) };
 
 			if (normalized == "config" || normalized == "data") {
 				if constexpr (
@@ -1243,7 +1239,7 @@ float GetShapeRadiusLimit(const T& value) {
 
 		auto inspect_member = [&](auto&& member) {
 			using Member = std::remove_cvref_t<decltype(member.value)>;
-			const std::string normalized{ NormalizeInspectorName(member.name) };
+			std::string normalized{ NormalizeInspectorName(member.name) };
 
 			if (normalized.contains("radius") || normalized.contains("radii")) {
 				if constexpr (
@@ -1271,7 +1267,7 @@ float GetShapeSizeLimit(const T& value) {
 	using Value = std::remove_cvref_t<T>;
 
 	if constexpr (std::same_as<Value, Rect>) {
-		const V2_float size{ value.GetSize() };
+		V2_float size{ value.GetSize() };
 		return std::max(std::abs(size.x), std::abs(size.y));
 	} else if constexpr (ReflectedValue<Value>) {
 		return GetShapeSizeLimit(ReflectValue(const_cast<Value&>(value)).value);
@@ -1281,7 +1277,7 @@ float GetShapeSizeLimit(const T& value) {
 
 		auto inspect_member = [&](auto&& member) {
 			using Member = std::remove_cvref_t<decltype(member.value)>;
-			const std::string normalized{ NormalizeInspectorName(member.name) };
+			std::string normalized{ NormalizeInspectorName(member.name) };
 
 			if constexpr (std::same_as<Member, Rect>) {
 				limit = std::max(limit, GetShapeSizeLimit(member.value));
@@ -1324,7 +1320,7 @@ float GetEllipseLineWidthLimit(const T& value) {
 
 		auto inspect = [&](auto&& member) {
 			using Member = std::remove_cvref_t<decltype(member.value)>;
-			const std::string normalized{ NormalizeInspectorName(member.name) };
+			std::string normalized{ NormalizeInspectorName(member.name) };
 
 			if constexpr (std::same_as<Member, V2_float>) {
 				if (normalized.contains("radius") || normalized.contains("radii")) {
@@ -1360,14 +1356,14 @@ float GetShapeLineWidthLimit(const T& value, const Transform& transform) {
 	float limit{ 1000.0f };
 
 	if constexpr (std::same_as<Value, Rect>) {
-		const V2_float size{ value.GetSize(transform) };
+		V2_float size{ value.GetSize(transform) };
 		limit = std::min(size.x, size.y) * 0.5f;
 	} else if constexpr (std::same_as<Value, RoundedRect>) {
-		const V2_float size{ value.rect.GetSize(transform) };
-		const float half_min_size{ std::min(size.x, size.y) * 0.5f };
+		V2_float size{ value.rect.GetSize(transform) };
+		float half_min_size{ std::min(size.x, size.y) * 0.5f };
 		limit = half_min_size;
 	} else if constexpr (std::same_as<Value, Ellipse>) {
-		const V2_float radius{ value.GetRadius(transform) };
+		V2_float radius{ value.GetRadius(transform) };
 		limit = std::min(radius.x, radius.y);
 	} else if constexpr (
 		std::same_as<Value, Circle> || std::same_as<Value, Capsule> || std::same_as<Value, Arc>
@@ -1400,12 +1396,12 @@ bool DrawShapeFillStyle(Target& target) {
 	if constexpr (!Target::template Supports<FillStyle>()) {
 		return false;
 	} else {
-		const Shape shape{ target.template Capture<Shape>().value_or(Shape{}) };
-		const Transform transform{ GetShapeLineWidthTransform(target) };
+		Shape shape{ target.template Capture<Shape>().value_or(Shape{}) };
+		Transform transform{ GetShapeLineWidthTransform(target) };
 
-		const float unscaled_line_width_limit{ GetShapeLineWidthLimit(shape, Transform{}) };
-		const float scaled_line_width_limit{ GetShapeLineWidthLimit(shape, transform) };
-		const float line_width_scale{ scaled_line_width_limit / unscaled_line_width_limit };
+		float unscaled_line_width_limit{ GetShapeLineWidthLimit(shape, Transform{}) };
+		float scaled_line_width_limit{ GetShapeLineWidthLimit(shape, transform) };
+		float line_width_scale{ scaled_line_width_limit / unscaled_line_width_limit };
 
 		return DrawRequiredInlineVisualComponentWithDefault<Target, FillStyle>(
 			target, "Style", FillStyle{ Solid{} },
@@ -1413,7 +1409,7 @@ bool DrawShapeFillStyle(Target& target) {
 			 line_width_scale](FillStyle& style) {
 				FillStyle displayed_style{ style };
 
-				if (const auto stored_line_width{ style.GetLineWidth() }) {
+				if (auto stored_line_width{ style.GetLineWidth() }) {
 					displayed_style = FillStyle{ std::max(
 						kInspectorMinLineWidth, stored_line_width.value() / line_width_scale
 					) };
@@ -1425,7 +1421,7 @@ bool DrawShapeFillStyle(Target& target) {
 					return false;
 				}
 
-				if (const auto displayed_line_width{ displayed_style.GetLineWidth() }) {
+				if (auto displayed_line_width{ displayed_style.GetLineWidth() }) {
 					style = FillStyle{ std::clamp(
 						displayed_line_width.value() * line_width_scale, kInspectorMinLineWidth,
 						scaled_line_width_limit
@@ -1507,9 +1503,9 @@ bool DrawAnimationDataFlattened(
 	std::optional<::ptgn::impl::AnimationTextureLayout> detected_layout,
 	std::optional<V2_int> texture_size
 ) {
-	const auto initial_frame_size{ animation.config.frame_size };
-	const V2_int initial_start_pixel{ animation.config.start_pixel };
-	const std::size_t initial_automatic_row_count{ animation.GetAutomaticRowCount() };
+	auto initial_frame_size{ animation.config.frame_size };
+	V2_int initial_start_pixel{ animation.config.start_pixel };
+	std::size_t initial_automatic_row_count{ animation.GetAutomaticRowCount() };
 	bool changed{ false };
 
 	if (detected_layout.has_value()) {
@@ -1536,15 +1532,15 @@ bool DrawAnimationDataFlattened(
 
 	changed |= DrawValue(ctx, "Duration", animation.config.duration);
 
-	const auto automatic_frame_size{ detected_layout.has_value()
-										 ? ::ptgn::impl::GetFrameSize(
-											   texture_size, detected_layout->frame_count,
-											   detected_layout->row_count
-										   )
-										 : std::nullopt };
+	auto automatic_frame_size{ detected_layout.has_value()
+								   ? ::ptgn::impl::GetFrameSize(
+										 texture_size, detected_layout->frame_count,
+										 detected_layout->row_count
+									 )
+								   : std::nullopt };
 	if (detected_layout.has_value()) {
 		V2_int displayed{ automatic_frame_size.value_or(V2_int{ 1, 1 }) };
-		(void)DrawWHValue("Frame Size", displayed, 1.0f, 1, 4096, ImGuiSliderFlags_None, true);
+		DrawWHValue("Frame Size", displayed, 1.0f, 1, 4096, ImGuiSliderFlags_None, true);
 		DrawTooltip(
 			automatic_frame_size.has_value()
 				? "Frame size is derived from the texture pixel size and animation suffix. "
@@ -1572,15 +1568,13 @@ bool DrawAnimationDataFlattened(
 		local_changed |= toggle_changed;
 		ImGui::SameLine(0.0f, ImGui::GetStyle().ItemInnerSpacing.x);
 
-		const float remaining{ std::max(1.0f, ImGui::GetContentRegionAvail().x) };
+		float remaining{ std::max(1.0f, ImGui::GetContentRegionAvail().x) };
 		ImGui::SetNextItemWidth(remaining);
 
 		if (finite) {
-			std::uint64_t count{ static_cast<std::uint64_t>(
-				toggle_changed && !animation.config.play_count.has_value()
-					? std::size_t{ 1 }
-					: animation.config.play_count.value_or(std::size_t{ 1 })
-			) };
+			std::uint64_t count{ toggle_changed && !animation.config.play_count.has_value()
+									 ? std::size_t{ 1 }
+									 : animation.config.play_count.value_or(std::size_t{ 1 }) };
 			if (toggle_changed && !animation.config.play_count.has_value()) {
 				animation.config.play_count = 1;
 			}
@@ -1613,9 +1607,9 @@ bool DrawAnimationDataFlattened(
 
 	{
 		auto& start_pixel{ animation.config.start_pixel };
-		const V2_int before_start_pixel{ start_pixel };
-		const auto before_frame_size{ animation.config.frame_size };
-		const std::size_t before_current_frame{ animation.current_frame };
+		V2_int before_start_pixel{ start_pixel };
+		auto before_frame_size{ animation.config.frame_size };
+		std::size_t before_current_frame{ animation.current_frame };
 		bool frame_size_edited{ animation.config.frame_size != initial_frame_size };
 		bool start_pixel_edited{ start_pixel != initial_start_pixel };
 
@@ -1631,7 +1625,7 @@ bool DrawAnimationDataFlattened(
 		std::size_t available_frame_count{ animation.config.frame_count };
 
 		if (texture_size.has_value() && texture_size->IsPositive()) {
-			const V2_int size{ *texture_size };
+			V2_int size{ *texture_size };
 			start_pixel.x = std::min(start_pixel.x, size.x - 1);
 			start_pixel.y = std::min(start_pixel.y, size.y - 1);
 
@@ -1653,19 +1647,19 @@ bool DrawAnimationDataFlattened(
 				start_pixel.x = std::min(start_pixel.x, size.x - frame_size.x);
 				start_pixel.y = std::min(start_pixel.y, size.y - frame_size.y);
 
-				const std::size_t available_columns{
+				std::size_t available_columns{
 					static_cast<std::size_t>((size.x - start_pixel.x) / frame_size.x)
 				};
-				const std::size_t available_rows{
+				std::size_t available_rows{
 					static_cast<std::size_t>((size.y - start_pixel.y) / frame_size.y)
 				};
-				const std::size_t requested_rows{
+				std::size_t requested_rows{
 					std::max<std::size_t>(1, animation.GetAutomaticRowCount())
 				};
 				available_frame_count =
 					available_columns * std::min(available_rows, requested_rows);
 			} else if (
-				const auto frame_size{ ::ptgn::impl::GetFrameSize(
+				auto frame_size{ ::ptgn::impl::GetFrameSize(
 					texture_size, animation.config.frame_count, animation.GetAutomaticRowCount()
 				) };
 				frame_size && frame_size->IsPositive()
@@ -1673,13 +1667,13 @@ bool DrawAnimationDataFlattened(
 				start_pixel.x = std::min(start_pixel.x, size.x - frame_size->x);
 				start_pixel.y = std::min(start_pixel.y, size.y - frame_size->y);
 
-				const std::size_t available_columns{
+				std::size_t available_columns{
 					static_cast<std::size_t>((size.x - start_pixel.x) / frame_size->x)
 				};
-				const std::size_t available_rows{
+				std::size_t available_rows{
 					static_cast<std::size_t>((size.y - start_pixel.y) / frame_size->y)
 				};
-				const std::size_t requested_rows{
+				std::size_t requested_rows{
 					std::max<std::size_t>(1, animation.GetAutomaticRowCount())
 				};
 				available_frame_count =
@@ -1689,7 +1683,7 @@ bool DrawAnimationDataFlattened(
 			}
 		}
 
-		const std::size_t usable_frame_count{
+		std::size_t usable_frame_count{
 			std::min(animation.config.frame_count, available_frame_count)
 		};
 		animation.current_frame =
@@ -1805,7 +1799,7 @@ ResolveDetectedAnimationTextureLayout(const Target& target) {
 	if constexpr (!Target::template Supports<TextureKey>()) {
 		return std::nullopt;
 	} else {
-		const auto texture_key{ target.template Capture<TextureKey>() };
+		auto texture_key{ target.template Capture<TextureKey>() };
 
 		if (!texture_key) {
 			return std::nullopt;
@@ -1823,14 +1817,14 @@ template <typename Target>
 		Entity entity{ target.entity };
 
 		if (entity) {
-			const auto texture_size{ GetTextureSize(entity) };
+			auto texture_size{ GetTextureSize(entity) };
 			return texture_size && texture_size->IsPositive() ? texture_size : std::nullopt;
 		}
 	}
 
 	if constexpr (Target::template Supports<::ptgn::impl::TextureSize>()) {
-		if (const auto texture_size{ target.template Capture<::ptgn::impl::TextureSize>() }) {
-			const auto pixels{ ExtractTexturePixelSize(*texture_size) };
+		if (auto texture_size{ target.template Capture<::ptgn::impl::TextureSize>() }) {
+			auto pixels{ ExtractTexturePixelSize(*texture_size) };
 			return pixels && pixels->IsPositive() ? pixels : std::nullopt;
 		}
 	}
@@ -1854,7 +1848,7 @@ bool SynchronizeAnimationFrameData(Target& target, std::string_view reason) {
 
 		AnimationData animation{ *before_animation };
 
-		if (const auto layout{ ResolveDetectedAnimationTextureLayout(target) }) {
+		if (auto layout{ ResolveDetectedAnimationTextureLayout(target) }) {
 			animation.config.frame_count = layout->frame_count;
 			animation.config.frame_size.reset();
 			animation.SetAutomaticRowCount(layout->row_count);
@@ -1862,7 +1856,7 @@ bool SynchronizeAnimationFrameData(Target& target, std::string_view reason) {
 			animation.SetAutomaticRowCount(1);
 		}
 
-		const auto texture_size{ ResolveAnimationTextureSize(target) };
+		auto texture_size{ ResolveAnimationTextureSize(target) };
 
 		if (animation.config.frame_count == 0) {
 			animation.current_frame = 0;
@@ -1895,7 +1889,7 @@ template <typename Target>
 bool ApplyDetectedAnimationLayout(Target& target, ::ptgn::impl::AnimationData& animation) {
 	bool changed{ false };
 
-	if (const auto layout{ ResolveDetectedAnimationTextureLayout(target) }) {
+	if (auto layout{ ResolveDetectedAnimationTextureLayout(target) }) {
 		changed						 |= animation.config.frame_count != layout->frame_count;
 		changed						 |= animation.config.frame_size.has_value();
 		changed						 |= animation.GetAutomaticRowCount() != layout->row_count;
@@ -1907,10 +1901,9 @@ bool ApplyDetectedAnimationLayout(Target& target, ::ptgn::impl::AnimationData& a
 		animation.SetAutomaticRowCount(1);
 	}
 
-	const std::size_t resolved_frame{ animation.config.frame_count == 0
-										  ? 0
-										  : animation.current_frame %
-												animation.config.frame_count };
+	std::size_t resolved_frame{ animation.config.frame_count == 0
+									? 0
+									: animation.current_frame % animation.config.frame_count };
 	changed					|= animation.current_frame != resolved_frame;
 	animation.current_frame	 = resolved_frame;
 	return changed;
@@ -1923,7 +1916,7 @@ bool UpdateAnimationTextureCrop(Target& target, const ::ptgn::impl::AnimationDat
 	if constexpr (!Target::template Supports<TextureCrop>()) {
 		return false;
 	} else {
-		const auto texture_size{ ResolveAnimationTextureSize(target) };
+		auto texture_size{ ResolveAnimationTextureSize(target) };
 		if (!texture_size) {
 			return false;
 		}
@@ -1931,7 +1924,7 @@ bool UpdateAnimationTextureCrop(Target& target, const ::ptgn::impl::AnimationDat
 		TextureCrop crop{};
 		crop.Update(animation, texture_size);
 
-		const auto before_crop{ target.template Capture<TextureCrop>() };
+		auto before_crop{ target.template Capture<TextureCrop>() };
 		if (before_crop && *before_crop == crop) {
 			return false;
 		}
@@ -1948,7 +1941,7 @@ bool SynchronizeSpriteAnimationDerivedState(Target& target) {
 	if constexpr (!Target::template Supports<AnimationData>()) {
 		return false;
 	} else {
-		if (const auto stored_animation{ target.template Capture<AnimationData>() }) {
+		if (auto stored_animation{ target.template Capture<AnimationData>() }) {
 			AnimationData animation{ *stored_animation };
 			bool animation_changed{ ApplyDetectedAnimationLayout(target, animation) };
 			if (animation_changed) {
@@ -1961,7 +1954,7 @@ bool SynchronizeSpriteAnimationDerivedState(Target& target) {
 		// A spritesheet remains a correctly cropped static sprite while animation is disabled.
 		// The filename layout gives us enough information to show frame 0 without materializing
 		// AnimationData just because the checkbox is off.
-		const auto layout{ ResolveDetectedAnimationTextureLayout(target) };
+		auto layout{ ResolveDetectedAnimationTextureLayout(target) };
 		if (!layout) {
 			return false;
 		}
@@ -2042,9 +2035,9 @@ bool DrawSpriteStackPrimary(Target& target) {
 		[&target](TextureKey& value) { return DrawValue(target.ctx, "Texture Key", value); }
 	);
 
-	const auto texture_key{ target.template Capture<TextureKey>() };
+	auto texture_key{ target.template Capture<TextureKey>() };
 
-	const std::optional<std::size_t> detected_slice_count{
+	std::optional<std::size_t> detected_slice_count{
 		texture_key ? ::ptgn::impl::DetectSpriteStackSliceCount(
 						  target.ctx.editor.GetAssetManager(), *texture_key
 					  )
@@ -2071,7 +2064,7 @@ bool DrawSpriteAnimationInline(Target& target) {
 		return false;
 	} else {
 		auto before{ CaptureComponentSetState(target, components) };
-		const auto before_animation{ target.template Capture<AnimationData>() };
+		auto before_animation{ target.template Capture<AnimationData>() };
 		bool enabled{ before_animation.has_value() };
 		bool open{ false };
 
@@ -2090,13 +2083,13 @@ bool DrawSpriteAnimationInline(Target& target) {
 				ApplyDetectedAnimationLayout(target, animation);
 				animation.frame_dirty = true;
 				target.template SetLive<AnimationData>(animation);
-				(void)UpdateAnimationTextureCrop(target, animation);
+				UpdateAnimationTextureCrop(target, animation);
 			} else {
 				// Preserve a valid static frame when animation is disabled instead of exposing the
 				// entire spritesheet. Prefer the detected layout, but the existing authored
 				// animation configuration is also enough to calculate a frame-0 crop.
 				if (before_animation) {
-					(void)SetDisabledAnimationFallbackCrop(target, *before_animation);
+					SetDisabledAnimationFallbackCrop(target, *before_animation);
 				}
 				target.template SetLive<AnimationData>(std::nullopt);
 			}
@@ -2108,9 +2101,9 @@ bool DrawSpriteAnimationInline(Target& target) {
 		if (open) {
 			ScopedIndent indent;
 			ScopedDisabled disabled{ !enabled };
-			const std::size_t previous_frame_count{ animation.config.frame_count };
-			const auto detected_layout{ ResolveDetectedAnimationTextureLayout(target) };
-			const auto texture_size{ ResolveAnimationTextureSize(target) };
+			std::size_t previous_frame_count{ animation.config.frame_count };
+			auto detected_layout{ ResolveDetectedAnimationTextureLayout(target) };
+			auto texture_size{ ResolveAnimationTextureSize(target) };
 			bool contents_changed{
 				DrawAnimationDataFlattened(target.ctx, animation, detected_layout, texture_size)
 			};
@@ -2123,7 +2116,7 @@ bool DrawSpriteAnimationInline(Target& target) {
 				}
 				animation.frame_dirty = true;
 				target.template SetLive<AnimationData>(animation);
-				(void)UpdateAnimationTextureCrop(target, animation);
+				UpdateAnimationTextureCrop(target, animation);
 				changed = true;
 			}
 		}
@@ -2147,28 +2140,26 @@ bool DrawSpritePrimaryImpl(Target& target) {
 	using AnimationData = ::ptgn::impl::AnimationData;
 
 	bool changed{ SynchronizeSpriteAnimationDerivedState(target) };
-	const auto before_texture{ target.template Capture<TextureKey>() };
-	const auto before_animation{ target.template Capture<AnimationData>() };
-	const auto before_texture_size{ target.template Capture<::ptgn::impl::TextureSize>() };
+	auto before_texture{ target.template Capture<TextureKey>() };
+	auto before_animation{ target.template Capture<AnimationData>() };
+	auto before_texture_size{ target.template Capture<::ptgn::impl::TextureSize>() };
 
 	std::optional<V2_float> texture_size_default;
 
 	if (!before_texture_size && before_animation) {
 		AnimationData resolved_animation{ *before_animation };
-		if (const auto layout{ ResolveDetectedAnimationTextureLayout(target) }) {
+		if (auto layout{ ResolveDetectedAnimationTextureLayout(target) }) {
 			resolved_animation.config.frame_count = layout->frame_count;
 			resolved_animation.config.frame_size.reset();
 			resolved_animation.SetAutomaticRowCount(layout->row_count);
 		}
 
-		const V2_int frame_size{
-			resolved_animation.GetFrameSize(ResolveAnimationTextureSize(target))
-		};
+		V2_int frame_size{ resolved_animation.GetFrameSize(ResolveAnimationTextureSize(target)) };
 		if (frame_size.IsPositive()) {
 			V2_float scale{ 1.0f };
 
 			if constexpr (Target::template Supports<Transform>()) {
-				if (const auto transform{ target.template Capture<Transform>() }) {
+				if (auto transform{ target.template Capture<Transform>() }) {
 					scale = V2_float{ std::abs(transform->scale.x), std::abs(transform->scale.y) };
 				}
 			}
@@ -2196,7 +2187,7 @@ bool DrawSpritePrimaryImpl(Target& target) {
 		}
 	);
 
-	const auto after_texture{ target.template Capture<TextureKey>() };
+	auto after_texture{ target.template Capture<TextureKey>() };
 	bool texture_changed{ before_texture != after_texture };
 	if (texture_changed) {
 		if (before_animation) {
@@ -2225,7 +2216,7 @@ bool DrawMaterialDetails(Target& target, ::ptgn::Material& material) {
 		}
 	);
 
-	const std::size_t max_texture_slots{
+	std::size_t max_texture_slots{
 		std::max(std::size_t{ 1 }, static_cast<std::size_t>(target.ctx.editor.GetMaxTextureSlots()))
 	};
 
@@ -2241,7 +2232,7 @@ bool DrawMaterialDetails(Target& target, ::ptgn::Material& material) {
 	);
 
 	if (material.texture_slot_capacity.has_value()) {
-		const std::size_t clamped{
+		std::size_t clamped{
 			std::clamp(*material.texture_slot_capacity, std::size_t{ 1 }, max_texture_slots)
 		};
 
@@ -2346,8 +2337,8 @@ bool DrawCustomShaderPrimary(Target& target) {
 			size.x = std::max(0.0f, size.x);
 			size.y = std::max(0.0f, size.y);
 
-			const V2_float center{ value.GetCenter() };
-			const V2_float half_size{ size * 0.5f };
+			V2_float center{ value.GetCenter() };
+			V2_float half_size{ size * 0.5f };
 
 			value.min = center - half_size;
 			value.max = center + half_size;
@@ -2408,7 +2399,7 @@ bool DrawRenderTargetPrimary(Target& target) {
 		Entity entity{ target.entity };
 
 		if (entity && entity.Has<::ptgn::impl::FramebufferObject>()) {
-			const V2_int actual_size{ RenderTarget{ entity }.GetSize() };
+			V2_int actual_size{ RenderTarget{ entity }.GetSize() };
 
 			if (actual_size.IsPositive()) {
 				framebuffer_size = actual_size;
@@ -2477,7 +2468,7 @@ bool DrawVisualLayers(Target& target) {
 
 		auto apply_mask{ target.template MakeApply<::ptgn::impl::RenderMask>() };
 		auto apply_ui{ target.template MakeApply<::ptgn::impl::UILayer>() };
-		const ImGuiID key{ ImGui::GetID("##VisualLayersEdit") };
+		ImGuiID key{ ImGui::GetID("##VisualLayersEdit") };
 
 		TrackUndoableInteraction(
 			target.ctx, key, "Edit Layers", true,
@@ -2519,7 +2510,7 @@ bool DrawVisualAdditionalOptions(Target& target, std::string_view visual) {
 
 template <typename Target>
 bool DrawRenderingOptions(Target& target, bool draw_tint) {
-	const auto header{ DrawInspectorSectionHeader(
+	auto header{ DrawInspectorSectionHeader(
 		"Rendering", "VisualRendering", InspectorSectionOptions{ .default_open = true }
 	) };
 	if (!header.open) {
@@ -2596,7 +2587,7 @@ bool DrawButtonChildStateVisualComponent(
 
 		auto before{ target.template Capture<Visuals>() };
 		Visuals visuals{ before.value_or(Visuals{}) };
-		const auto index{ static_cast<std::size_t>(std::to_underlying(state)) };
+		auto index{ static_cast<std::size_t>(std::to_underlying(state)) };
 		auto& visual{ visuals.states[index] };
 
 		bool changed{ std::invoke(std::forward<Draw>(draw), visuals, visual) };
@@ -2680,21 +2671,21 @@ bool DrawButtonChildStateVisualSectionImpl(
 
 					// Draw the managed text using the same TextData component drawer used by
 					// ordinary Text entities. Content/defaults/text-box data belong to the active
-					// button visual state; runtime-only TextData properties stay on the managed
+					// button visual state; runtime only TextData properties stay on the managed
 					// entity.
 					auto text_before{ target.template Capture<::ptgn::impl::TextData>() };
 					::ptgn::impl::TextData text_data{
 						text_before.value_or(::ptgn::impl::TextData{})
 					};
 					const ::ptgn::impl::TextData displayed_before{ text_data };
-					const std::string source_before{ SerializeStyledTextToRichText(
+					std::string source_before{ SerializeStyledTextToRichText(
 						displayed_before.text, displayed_before.defaults
 					) };
 					if (DrawInspectorValueContents(
 							target.ctx, Hash<::ptgn::impl::TextData>(), std::addressof(text_data)
 						)) {
 						bool defaults_changed{ text_data.defaults != displayed_before.defaults };
-						const std::string source_after{
+						std::string source_after{
 							SerializeStyledTextToRichText(text_data.text, text_data.defaults)
 						};
 						bool authored_source_changed{ source_after != source_before };
@@ -2800,8 +2791,8 @@ bool DrawVisualSectionImpl(
 	Target& target, bool draw_header = true, bool allow_renderer_change = true,
 	std::string_view header_label = "Visual"
 ) {
-	if (const auto child_info{ GetButtonChildInfo(target) }) {
-		if (const auto state{ GetButtonVisualEditState(target) }) {
+	if (auto child_info{ GetButtonChildInfo(target) }) {
+		if (auto state{ GetButtonVisualEditState(target) }) {
 			return DrawButtonChildStateVisualSectionImpl(target, *child_info, *state);
 		}
 	}
@@ -2830,11 +2821,13 @@ bool DrawVisualSectionImpl(
 	}
 
 	bool changed{ false };
-	const RendererRowResult renderer{
-		DrawRendererRow(target, allow_renderer_change && header.open)
-	};
+
+	RendererRowResult renderer{ DrawRendererRow(target, allow_renderer_change && header.open) };
+
 	const std::string& visual{ renderer.visual };
+
 	changed |= renderer.changed;
+
 	if (renderer.changed) {
 		return true;
 	}
@@ -2934,9 +2927,7 @@ bool DrawVisualSectionImpl(
 			bool uses_origin{ !shape || visual == "rect" || visual == "roundedrect" };
 			if (uses_origin) {
 				if (primary_scene_target) {
-					const Origin origin{
-						target.template Capture<Origin>().value_or(Origin::Center)
-					};
+					Origin origin{ target.template Capture<Origin>().value_or(Origin::Center) };
 					DrawReadOnlyValue(target.ctx, "Origin", origin);
 				} else {
 					changed |= DrawImplicitDefaultVisualComponent<Target, Origin>(

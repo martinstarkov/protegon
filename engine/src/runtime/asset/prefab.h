@@ -29,9 +29,9 @@ struct Prefab {
 	PTGN_REFLECT(Prefab, key, root)
 };
 
-/// @brief Persistent editor-scene link from an instantiated entity back to its prefab definition.
+/// @brief Persistent editor scene link from an instantiated entity back to its prefab definition.
 ///
-/// Every entity in a linked prefab hierarchy receives this component. `entity_path` is empty for
+/// Every entity in a linked prefab hierarchy receives this component. entity_path is empty for
 /// the instance root and identifies the corresponding serialized prefab child for descendants.
 /// Runtime scenes remove these links after synchronizing the hierarchy, leaving ordinary entities.
 struct PrefabInstance {
@@ -52,18 +52,12 @@ enum class PrefabInstantiationMode : std::uint8_t {
 
 [[nodiscard]] bool IsPrefabComponentSupported(const RegisteredComponent& component);
 
-[[nodiscard]] Prefab CapturePrefab(
-	Entity entity,
-	PrefabKey key,
-	bool include_children = true
-);
+Prefab CapturePrefab(Entity entity, PrefabKey key, bool include_children = true);
 
 /// @brief Creates a prefab hierarchy. Auto keeps editor instances linked and creates ordinary
 /// entities directly in runtime scenes.
-[[nodiscard]] Entity InstantiatePrefab(
-	Scene& scene,
-	const Prefab& prefab,
-	PrefabInstantiationMode mode = PrefabInstantiationMode::Auto
+Entity InstantiatePrefab(
+	Scene& scene, const Prefab& prefab, PrefabInstantiationMode mode = PrefabInstantiationMode::Auto
 );
 
 [[nodiscard]] bool IsPrefabInstance(Entity entity);
@@ -71,12 +65,12 @@ enum class PrefabInstantiationMode : std::uint8_t {
 [[nodiscard]] Entity GetPrefabInstanceRoot(Entity entity);
 [[nodiscard]] const PrefabInstance* GetPrefabInstance(Entity entity);
 
-/// @brief Replaces prefab-authored data on one linked instance while preserving the instance root
+/// @brief Replaces prefab authored data on one linked instance while preserving the instance root
 /// transform, parent, UUID and layer placement.
-[[nodiscard]] bool SyncPrefabInstance(Entity instance_root, const Prefab& prefab);
+bool SyncPrefabInstance(Entity instance_root, const Prefab& prefab);
 
 /// @brief Resolves the linked prefab asset and synchronizes one instance.
-[[nodiscard]] bool SyncPrefabInstance(Entity instance_root);
+bool SyncPrefabInstance(Entity instance_root);
 
 /// @brief Synchronizes every linked instance of one prefab in a scene.
 std::size_t SyncPrefabInstances(Scene& scene, const PrefabKey& key);
@@ -86,14 +80,12 @@ std::size_t SyncPrefabInstances(Scene& scene);
 
 /// @brief Changes linked instances from one prefab key to another, then synchronizes them.
 std::size_t RetargetPrefabInstances(
-	Scene& scene,
-	const PrefabKey& old_key,
-	const PrefabKey& new_key
+	Scene& scene, const PrefabKey& old_key, const PrefabKey& new_key
 );
 
 /// @brief Synchronizes an instance one final time and removes all PrefabInstance metadata.
-[[nodiscard]] bool BakePrefabInstance(Entity instance_root);
-[[nodiscard]] bool BakePrefabInstance(Entity instance_root, const Prefab& prefab);
+bool BakePrefabInstance(Entity instance_root);
+bool BakePrefabInstance(Entity instance_root, const Prefab& prefab);
 
 /// @brief Bakes all linked prefab instances in the scene. Runtime scene initialization calls this.
 std::size_t BakePrefabInstances(Scene& scene);

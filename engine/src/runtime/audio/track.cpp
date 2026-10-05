@@ -19,8 +19,8 @@
 #include <string>
 #include <utility>
 
-#include "core/log.h"
 #include "core/assert.h"
+#include "core/log.h"
 #include "core/util/file.h"
 #include "core/util/string.h"
 
@@ -51,19 +51,13 @@ Track::Track(
 
 	ma_uint32 flags = MA_SOUND_FLAG_NO_SPATIALIZATION;
 
-	const path absolute_path{
-		GetAbsolutePath(audio_path)
-	};
+	path absolute_path{ GetAbsolutePath(audio_path) };
 
 	PTGN_ASSERT(
-		FileExists(absolute_path),
-		"Cannot create audio from invalid path: ",
-		absolute_path.string()
+		FileExists(absolute_path), "Cannot create audio from invalid path: ", absolute_path.string()
 	);
 
-	const auto file_path{
-		absolute_path.string()
-	};
+	auto file_path{ absolute_path.string() };
 
 	ma_result result = MA_ERROR;
 

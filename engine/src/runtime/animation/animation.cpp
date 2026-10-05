@@ -45,7 +45,7 @@ void DispatchFrameChange(Animation animation, impl::AnimationData& data, impl::T
 		return false;
 	}
 
-	const std::size_t total_frames{ data.config.play_count.value() * data.config.frame_count };
+	std::size_t total_frames{ data.config.play_count.value() * data.config.frame_count };
 
 	if (total_frames == 0) {
 		return false;
@@ -71,10 +71,10 @@ bool AdvanceAnimationFrame(
 		return false;
 	}
 
-	const std::size_t next_frames_played{ data.frames_played + 1 };
+	std::size_t next_frames_played{ data.frames_played + 1 };
 
 	if (data.config.play_count.has_value()) {
-		const std::size_t total_frames{ data.config.play_count.value() * data.config.frame_count };
+		std::size_t total_frames{ data.config.play_count.value() * data.config.frame_count };
 
 		if (next_frames_played >= total_frames) {
 			PushEvent<event::AnimationComplete>(animation, animation);
@@ -116,8 +116,8 @@ Animation& Animation::SetConfig(AnimationConfig config) {
 	auto texture_size{ GetTextureSize(*this) };
 	std::size_t automatic_row_count{ 1 };
 
-	if (const auto texture_key{ TryGet<TextureKey>() }) {
-		if (const auto layout{
+	if (const auto* texture_key{ TryGet<TextureKey>() }) {
+		if (auto layout{
 				impl::DetectAnimationTextureLayout(GetScene().ctx().asset, *texture_key) }) {
 			config.frame_count = layout->frame_count;
 			config.frame_size.reset();
@@ -131,9 +131,7 @@ Animation& Animation::SetConfig(AnimationConfig config) {
 		return *this;
 	}
 
-	const auto& anim{
-		Add<impl::AnimationData>(std::move(config), texture_size, automatic_row_count)
-	};
+	const auto& anim{ Add<impl::AnimationData>(std::move(config), automatic_row_count) };
 
 	auto& crop{ TryAdd<impl::TextureCrop>() };
 	crop.Update(anim, texture_size);
@@ -301,15 +299,15 @@ Animation& Animation::SetTexture(TextureKey texture_key) {
 
 	data->SetAutomaticRowCount(1);
 
-	if (const auto key{ TryGet<TextureKey>() }) {
-		if (const auto layout{ impl::DetectAnimationTextureLayout(GetScene().ctx().asset, *key) }) {
+	if (const auto* key{ TryGet<TextureKey>() }) {
+		if (auto layout{ impl::DetectAnimationTextureLayout(GetScene().ctx().asset, *key) }) {
 			data->config.frame_count = layout->frame_count;
 			data->config.frame_size.reset();
 			data->SetAutomaticRowCount(layout->row_count);
 		}
 	}
 
-	const auto texture_size{ GetTextureSize(*this) };
+	auto texture_size{ GetTextureSize(*this) };
 
 	if (data->config.frame_count == 0) {
 		data->current_frame = 0;
@@ -381,17 +379,19 @@ namespace {
 [[nodiscard]] std::optional<path> ResolveAnimationTextureSourcePath(
 	AssetManager& assets, const TextureKey& texture_key
 ) {
-	if (const auto asset{ assets.GetCatalogAsset(texture_key, AssetKind::Texture) }) {
+	if (auto asset{ assets.GetCatalogAsset(texture_key, AssetKind::Texture) }) {
 		return asset->source_path;
 	}
 
 	AssetAccessor accessor{ assets };
+
 	if (!accessor.Has<Texture>(texture_key)) {
 		return std::nullopt;
 	}
 
-	const Texture texture{ accessor.Get<Texture>(texture_key) };
-	if (const auto asset_path{ texture.GetEntity().TryGet<AssetPath>() }) {
+	Texture texture{ accessor.Get<Texture>(texture_key) };
+
+	if (const auto* asset_path{ texture.GetEntity().TryGet<AssetPath>() }) {
 		return asset_path->value;
 	}
 
@@ -404,7 +404,7 @@ namespace {
 	}
 
 	std::size_t value{ 0 };
-	const auto [end, error]{ std::from_chars(text.data(), text.data() + text.size(), value) };
+	auto [end, error]{ std::from_chars(text.data(), text.data() + text.size(), value) };
 
 	if (error != std::errc{} || end != text.data() + text.size() || value == 0) {
 		return std::nullopt;
@@ -417,19 +417,23 @@ namespace {
 	std::string_view stem
 ) {
 	constexpr std::string_view marker{ "_frames" };
-	const auto marker_position{ stem.rfind(marker) };
+
+	auto marker_position{ stem.rfind(marker) };
+
 	if (marker_position == std::string_view::npos) {
 		return std::nullopt;
 	}
 
-	const std::string_view suffix{ stem.substr(marker_position + marker.size()) };
+	std::string_view suffix{ stem.substr(marker_position + marker.size()) };
 	if (suffix.empty()) {
 		return std::nullopt;
 	}
 
-	const auto separator{ suffix.find('x') };
+	auto separator{ suffix.find('x') };
+
 	if (separator == std::string_view::npos) {
-		const auto frame_count{ ParsePositiveSize(suffix) };
+		auto frame_count{ ParsePositiveSize(suffix) };
+
 		return frame_count ? std::optional<AnimationTextureLayout>{ AnimationTextureLayout{
 								 .frame_count = *frame_count,
 								 .row_count	  = 1,
@@ -441,8 +445,9 @@ namespace {
 		return std::nullopt;
 	}
 
-	const auto frame_count{ ParsePositiveSize(suffix.substr(0, separator)) };
-	const auto row_count{ ParsePositiveSize(suffix.substr(separator + 1)) };
+	auto frame_count{ ParsePositiveSize(suffix.substr(0, separator)) };
+	auto row_count{ ParsePositiveSize(suffix.substr(separator + 1)) };
+
 	if (!frame_count || !row_count) {
 		return std::nullopt;
 	}
@@ -458,28 +463,26 @@ namespace {
 std::optional<AnimationTextureLayout> DetectAnimationTextureLayout(
 	AssetManager& assets, const TextureKey& texture_key
 ) {
-	const auto source_path{ ResolveAnimationTextureSourcePath(assets, texture_key) };
+	auto source_path{ ResolveAnimationTextureSourcePath(assets, texture_key) };
+
 	if (!source_path) {
 		return std::nullopt;
 	}
 
-	const std::string stem{ source_path->stem().string() };
+	std::string stem{ source_path->stem().string() };
+
 	return ParseAnimationTextureLayout(stem);
 }
 
 std::optional<std::size_t> DetectAnimationFrameCount(
 	AssetManager& assets, const TextureKey& texture_key
 ) {
-	const auto layout{ DetectAnimationTextureLayout(assets, texture_key) };
+	auto layout{ DetectAnimationTextureLayout(assets, texture_key) };
 	return layout ? std::optional<std::size_t>{ layout->frame_count } : std::nullopt;
 }
 
-AnimationData::AnimationData(
-	AnimationConfig&& anim_config, std::optional<V2_int> texture_size, std::size_t row_count
-) :
-	config{ std::move(anim_config) }, automatic_row_count{ std::max<std::size_t>(1, row_count) } {
-	(void)texture_size;
-}
+AnimationData::AnimationData(AnimationConfig&& anim_config, std::size_t row_count) :
+	config{ std::move(anim_config) }, automatic_row_count{ std::max<std::size_t>(1, row_count) } {}
 
 milliseconds AnimationData::GetFrameDuration() const {
 	if (!config.frame_count) {
@@ -530,9 +533,8 @@ void AnimationSystem::Prepare(Scene& scene) {
 
 		bool layout_detected{ false };
 
-		if (const auto texture_key{ entity.TryGet<TextureKey>() }) {
-			if (const auto layout{
-					DetectAnimationTextureLayout(scene.ctx().asset, *texture_key) }) {
+		if (const auto* texture_key{ entity.TryGet<TextureKey>() }) {
+			if (auto layout{ DetectAnimationTextureLayout(scene.ctx().asset, *texture_key) }) {
 				layout_detected = true;
 				bool layout_changed{ anim.config.frame_count != layout->frame_count ||
 									 anim.GetAutomaticRowCount() != layout->row_count ||
@@ -577,7 +579,7 @@ void AnimationSystem::Update(Scene& scene, secondsf dt) {
 
 		PushEvent<event::AnimationUpdate>(animation, animation);
 
-		const auto frame_duration{ data.GetFrameDuration() };
+		auto frame_duration{ data.GetFrameDuration() };
 
 		if (!data.frame_timer.Completed(frame_duration)) {
 			continue;

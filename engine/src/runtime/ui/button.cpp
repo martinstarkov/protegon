@@ -248,13 +248,13 @@ Rect GetButtonTextAutoBox(Rect content_rect, V2_float position, Origin origin) {
 		return {};
 	}
 
-	const auto alignment{ GetAlignment(origin) };
+	auto alignment{ GetAlignment(origin) };
 
 	PTGN_ASSERT(alignment.horizontal.has_value());
 	PTGN_ASSERT(alignment.vertical.has_value());
 
-	const V2_float from_min{ position - content_rect.min };
-	const V2_float to_max{ content_rect.max - position };
+	V2_float from_min{ position - content_rect.min };
+	V2_float to_max{ content_rect.max - position };
 
 	V2_float size;
 
@@ -342,12 +342,12 @@ void ApplyVisualTransform(
 	bool inherit_depth{ ResolveProperty(states, state, &Visual::inherit_depth)
 							? *ResolveProperty(states, state, &Visual::inherit_depth)
 							: true };
-	const float relative_depth{ ResolveProperty(states, state, &Visual::depth)
-									? *ResolveProperty(states, state, &Visual::depth)
-									: 0.0f };
+	float relative_depth{ ResolveProperty(states, state, &Visual::depth)
+							  ? *ResolveProperty(states, state, &Visual::depth)
+							  : 0.0f };
 
-	const Transform owner_world{ GetWorldTransform(owner) };
-	const Transform world_transform{ relative_transform.InverseRelativeTo(owner_world) };
+	Transform owner_world{ GetWorldTransform(owner) };
+	Transform world_transform{ relative_transform.InverseRelativeTo(owner_world) };
 	Transform applied{ relative_transform };
 	if (!inherit_position) {
 		applied.position = world_transform.position;
@@ -937,7 +937,7 @@ void ButtonSystem::OnMouseMoveOver(Entity entity) {
 		return;
 	}
 
-	const auto state{ button.GetInternalState() };
+	auto state{ button.GetInternalState() };
 
 	using enum InternalButtonState;
 
@@ -962,7 +962,7 @@ void ButtonSystem::OnMouseMoveOut(Entity entity) {
 		return;
 	}
 
-	const auto state{ button.GetInternalState() };
+	auto state{ button.GetInternalState() };
 
 	using enum InternalButtonState;
 
@@ -1009,7 +1009,7 @@ void ButtonSystem::OnMouseReleasedOver(Entity entity, Mouse mouse) {
 		return;
 	}
 
-	const auto state{ button.GetInternalState() };
+	auto state{ button.GetInternalState() };
 
 	using enum InternalButtonState;
 
@@ -1028,7 +1028,7 @@ void ButtonSystem::OnMouseReleasedOut(Entity entity, Mouse mouse) {
 		return;
 	}
 
-	const auto state{ button.GetInternalState() };
+	auto state{ button.GetInternalState() };
 
 	using enum InternalButtonState;
 
@@ -1377,7 +1377,7 @@ Button& Button::Sounds(std::optional<AudioKey> hover, std::optional<AudioKey> pr
 
 Button& Button::RemoveSound(ButtonVisualState state) {
 	if (auto sounds{ TryGet<ButtonSounds>() }) {
-		const auto index{ std::to_underlying(state) };
+		auto index{ std::to_underlying(state) };
 
 		sounds->states[index].reset();
 		sounds->state_exclusive[index] = false;
@@ -1600,22 +1600,26 @@ ButtonSpriteVisual& Button::SpriteVisual(ButtonVisualState state) {
 
 StyledText Button::GetTextFallback(ButtonVisualState state) const {
 	auto entity{ FindPart(impl::ButtonPart::Text) };
-	const auto target_defaults{ GetTextDefaultsFallback(state) };
+	auto target_defaults{ GetTextDefaultsFallback(state) };
 
 	if (entity) {
 		const auto& visuals{ entity.Get<ButtonTextVisuals>() };
 		ButtonVisualState source_state{ state };
+
 		if (auto value{ ResolveProperty(
 				visuals.states, state, &ButtonTextVisual::styled_text, &source_state
 			) }) {
 			// StyledText is resolved data. If content is inherited from a state with a
 			// different Defaults baseline, reconstruct its differential source against the
 			// source state's baseline and compile it against the target state's baseline.
-			const auto source_defaults{ GetTextDefaultsFallback(source_state) };
+			auto source_defaults{ GetTextDefaultsFallback(source_state) };
+
 			if (source_defaults == target_defaults) {
 				return *value;
 			}
-			const std::string source{ SerializeStyledTextToRichText(*value, source_defaults) };
+
+			std::string source{ SerializeStyledTextToRichText(*value, source_defaults) };
+
 			return ParseRichText(source, target_defaults).text;
 		}
 	}
@@ -1722,8 +1726,8 @@ void Button::ApplyShapeVisual(impl::ButtonPart part) const {
 			ResolveProperty(visuals.states, visual_state, &ButtonShapeVisual::fill_style) }) {
 		FillStyle fill{ *value };
 		if (part == impl::ButtonPart::Border) {
-			if (const auto line_width{ fill.GetLineWidth() }) {
-				const float maximum_width{ std::visit(
+			if (auto line_width{ fill.GetLineWidth() }) {
+				float maximum_width{ std::visit(
 					[](const auto& resolved_size) -> float {
 						using T = std::remove_cvref_t<decltype(resolved_size)>;
 						if constexpr (std::same_as<T, V2_float>) {
@@ -1760,7 +1764,7 @@ void Button::ApplyTextVisual() const {
 		return;
 	}
 
-	const StyledText styled_text{ GetTextFallback(visual_state) };
+	StyledText styled_text{ GetTextFallback(visual_state) };
 	const TextRunDefaults* defaults{
 		ResolveProperty(visuals.states, visual_state, &ButtonTextVisual::defaults)
 	};
@@ -1826,8 +1830,8 @@ void Button::ApplyTextVisual() const {
 
 	ptgn::Text text{ entity };
 
-	// The managed Text entity carries the resolved button-state baseline as real data.
-	// A whole-text override run therefore never becomes an inferred default.
+	// The managed Text entity carries the resolved button state baseline as real data.
+	// A whole text override run therefore never becomes an inferred default.
 	entity.Get<impl::TextData>().defaults = defaults ? *defaults : TextRunDefaults{};
 	text.Clear();
 	text.Content(styled_text);
@@ -1963,7 +1967,7 @@ void Button::PlaySound(ButtonVisualState state) {
 	}
 
 	const auto& sounds{ Get<ButtonSounds>() };
-	const auto index{ static_cast<std::size_t>(std::to_underlying(state)) };
+	auto index{ static_cast<std::size_t>(std::to_underlying(state)) };
 	const auto& active_sound{ sounds.states[index] };
 
 	if (!active_sound.has_value()) {
@@ -2306,7 +2310,7 @@ ButtonText& ButtonText::Content(std::string_view content) {
 	if (visual.styled_text.has_value() && !visual.styled_text.value().runs.empty()) {
 		run = visual.styled_text.value().runs.front();
 	} else {
-		const auto defaults{ button_.GetTextDefaultsFallback(state_) };
+		auto defaults{ button_.GetTextDefaultsFallback(state_) };
 		run.font  = defaults.font;
 		run.style = defaults.style;
 	}
@@ -2339,7 +2343,7 @@ ButtonText& ButtonText::Content(StyledText styled_text) {
 
 ButtonText& ButtonText::SetRichText(std::string_view source) {
 	auto& visual{ button_.TextVisual(state_) };
-	const auto defaults{ button_.GetTextDefaultsFallback(state_) };
+	auto defaults{ button_.GetTextDefaultsFallback(state_) };
 
 	visual.defined	   = true;
 	visual.styled_text = ParseRichText(source, defaults).text;
@@ -2350,8 +2354,8 @@ ButtonText& ButtonText::SetRichText(std::string_view source) {
 
 ButtonText& ButtonText::Defaults(TextRunDefaults defaults) {
 	// Reconstruct source against the old baseline before changing it. This preserves which
-	// values were overrides instead of promoting a resolved whole-text run into Defaults.
-	const auto old_defaults{ button_.GetTextDefaultsFallback(state_) };
+	// values were overrides instead of promoting a resolved whole text run into Defaults.
+	auto old_defaults{ button_.GetTextDefaultsFallback(state_) };
 	auto& visual{ button_.TextVisual(state_) };
 	std::optional<std::string> source;
 	if (visual.styled_text.has_value()) {
@@ -2369,7 +2373,7 @@ ButtonText& ButtonText::Defaults(TextRunDefaults defaults) {
 }
 
 ButtonText& ButtonText::ClearDefaults() {
-	const auto old_defaults{ button_.GetTextDefaultsFallback(state_) };
+	auto old_defaults{ button_.GetTextDefaultsFallback(state_) };
 	auto& visual{ button_.TextVisual(state_) };
 	std::optional<std::string> source;
 	if (visual.styled_text.has_value()) {
@@ -2377,7 +2381,7 @@ ButtonText& ButtonText::ClearDefaults() {
 	}
 
 	visual.defaults.reset();
-	const auto inherited_defaults{ button_.GetTextDefaultsFallback(state_) };
+	auto inherited_defaults{ button_.GetTextDefaultsFallback(state_) };
 	if (source.has_value()) {
 		visual.styled_text = ParseRichText(*source, inherited_defaults).text;
 	}

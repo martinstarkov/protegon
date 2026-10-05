@@ -38,7 +38,7 @@ struct ProjectSceneEntry {
 struct Project {
 	std::string name{};
 
-	/// @brief Runtime-only location from which the project was loaded.
+	/// @brief Runtime only location from which the project was loaded.
 	path file_path;
 
 	/// @brief Project-relative root shown by the Content Browser.
@@ -52,23 +52,15 @@ struct Project {
 	ProjectSettings settings{};
 
 	PTGN_REFLECT(
-		Project,
-		name,
-		asset_directory,
-		startup_scene_key,
-		scenes,
-		assets,
-		preload_assets,
-		screen_effects,
-		settings
+		Project, name, asset_directory, startup_scene_key, scenes, assets, preload_assets,
+		screen_effects, settings
 	)
 };
 
 Project LoadProject(const path& file_path, const ProjectSettings& default_settings = {});
 
 Project CreateProject(
-	const path& file_path,
-	const impl::SceneRegistryEntry* default_scene,
+	const path& file_path, const impl::SceneRegistryEntry* default_scene,
 	ProjectSettings settings = {}
 );
 

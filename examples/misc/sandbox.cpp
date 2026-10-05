@@ -36,13 +36,13 @@ struct I2 {
 	int x{};
 	int y{};
 
-	constexpr bool operator==(const I2&) const = default;
+	constexpr bool operator==(I2&) const = default;
 };
 
 struct I2Hash {
-	std::size_t operator()(const I2& v) const noexcept {
-		const auto a{ static_cast<std::uint64_t>(static_cast<std::uint32_t>(v.x)) };
-		const auto b{ static_cast<std::uint64_t>(static_cast<std::uint32_t>(v.y)) };
+	std::size_t operator()(I2& v) const noexcept {
+		auto a{ static_cast<std::uint64_t>(static_cast<std::uint32_t>(v.x)) };
+		auto b{ static_cast<std::uint64_t>(static_cast<std::uint32_t>(v.y)) };
 		return static_cast<std::size_t>((a << 32u) ^ b ^ (a * 0x9E3779B185EBCA87ull));
 	}
 };
@@ -87,13 +87,13 @@ static F2 Lerp(F2 a, F2 b, float t) {
 }
 
 static int FloorDiv(int a, int b) {
-	const int q{ a / b };
-	const int r{ a % b };
+	int q{ a / b };
+	int r{ a % b };
 	return (r != 0 && ((r < 0) != (b < 0))) ? q - 1 : q;
 }
 
 static int FloorMod(int a, int b) {
-	const int r{ a % b };
+	int r{ a % b };
 	return r < 0 ? r + std::abs(b) : r;
 }
 
@@ -131,20 +131,20 @@ enum class NoiseType {
 };
 
 static float Perlin2(float x, float y, std::uint32_t seed) {
-	const int x0{ static_cast<int>(std::floor(x)) };
-	const int y0{ static_cast<int>(std::floor(y)) };
-	const float tx{ x - static_cast<float>(x0) };
-	const float ty{ y - static_cast<float>(y0) };
-	const float u{ Fade(tx) };
-	const float v{ Fade(ty) };
+	int x0{ static_cast<int>(std::floor(x)) };
+	int y0{ static_cast<int>(std::floor(y)) };
+	float tx{ x - static_cast<float>(x0) };
+	float ty{ y - static_cast<float>(y0) };
+	float u{ Fade(tx) };
+	float v{ Fade(ty) };
 
-	const float a{ Grad(Hash2(x0, y0, seed), tx, ty) };
-	const float b{ Grad(Hash2(x0 + 1, y0, seed), tx - 1.0f, ty) };
-	const float c{ Grad(Hash2(x0, y0 + 1, seed), tx, ty - 1.0f) };
-	const float d{ Grad(Hash2(x0 + 1, y0 + 1, seed), tx - 1.0f, ty - 1.0f) };
+	float a{ Grad(Hash2(x0, y0, seed), tx, ty) };
+	float b{ Grad(Hash2(x0 + 1, y0, seed), tx - 1.0f, ty) };
+	float c{ Grad(Hash2(x0, y0 + 1, seed), tx, ty - 1.0f) };
+	float d{ Grad(Hash2(x0 + 1, y0 + 1, seed), tx - 1.0f, ty - 1.0f) };
 
-	const float ab{ a + (b - a) * u };
-	const float cd{ c + (d - c) * u };
+	float ab{ a + (b - a) * u };
+	float cd{ c + (d - c) * u };
 	return std::clamp((ab + (cd - ab) * v) * 0.5f + 0.5f, 0.0f, 1.0f);
 }
 
@@ -153,36 +153,36 @@ static float HashValue01(int x, int y, std::uint32_t seed) {
 }
 
 static float ValueNoise2(float x, float y, std::uint32_t seed) {
-	const int x0{ static_cast<int>(std::floor(x)) };
-	const int y0{ static_cast<int>(std::floor(y)) };
-	const float tx{ x - static_cast<float>(x0) };
-	const float ty{ y - static_cast<float>(y0) };
-	const float u{ Fade(tx) };
-	const float v{ Fade(ty) };
-	const float a{ HashValue01(x0, y0, seed) };
-	const float b{ HashValue01(x0 + 1, y0, seed) };
-	const float c{ HashValue01(x0, y0 + 1, seed) };
-	const float d{ HashValue01(x0 + 1, y0 + 1, seed) };
-	const float ab{ a + (b - a) * u };
-	const float cd{ c + (d - c) * u };
+	int x0{ static_cast<int>(std::floor(x)) };
+	int y0{ static_cast<int>(std::floor(y)) };
+	float tx{ x - static_cast<float>(x0) };
+	float ty{ y - static_cast<float>(y0) };
+	float u{ Fade(tx) };
+	float v{ Fade(ty) };
+	float a{ HashValue01(x0, y0, seed) };
+	float b{ HashValue01(x0 + 1, y0, seed) };
+	float c{ HashValue01(x0, y0 + 1, seed) };
+	float d{ HashValue01(x0 + 1, y0 + 1, seed) };
+	float ab{ a + (b - a) * u };
+	float cd{ c + (d - c) * u };
 	return std::clamp(ab + (cd - ab) * v, 0.0f, 1.0f);
 }
 
 static float SimplexNoise2(float xin, float yin, std::uint32_t seed) {
 	constexpr float F2s{ 0.3660254037844386f };
 	constexpr float G2s{ 0.2113248654051871f };
-	const float s{ (xin + yin) * F2s };
-	const int i{ static_cast<int>(std::floor(xin + s)) };
-	const int j{ static_cast<int>(std::floor(yin + s)) };
-	const float t{ static_cast<float>(i + j) * G2s };
-	const float x0{ xin - (static_cast<float>(i) - t) };
-	const float y0{ yin - (static_cast<float>(j) - t) };
-	const int i1{ x0 > y0 ? 1 : 0 };
-	const int j1{ x0 > y0 ? 0 : 1 };
-	const float x1{ x0 - static_cast<float>(i1) + G2s };
-	const float y1{ y0 - static_cast<float>(j1) + G2s };
-	const float x2{ x0 - 1.0f + 2.0f * G2s };
-	const float y2{ y0 - 1.0f + 2.0f * G2s };
+	float s{ (xin + yin) * F2s };
+	int i{ static_cast<int>(std::floor(xin + s)) };
+	int j{ static_cast<int>(std::floor(yin + s)) };
+	float t{ static_cast<float>(i + j) * G2s };
+	float x0{ xin - (static_cast<float>(i) - t) };
+	float y0{ yin - (static_cast<float>(j) - t) };
+	int i1{ x0 > y0 ? 1 : 0 };
+	int j1{ x0 > y0 ? 0 : 1 };
+	float x1{ x0 - static_cast<float>(i1) + G2s };
+	float y1{ y0 - static_cast<float>(j1) + G2s };
+	float x2{ x0 - 1.0f + 2.0f * G2s };
+	float y2{ y0 - 1.0f + 2.0f * G2s };
 	auto contribution = [&](int gx, int gy, float x, float y) {
 		float tt{ 0.5f - x * x - y * y };
 		if (tt <= 0.0f) {
@@ -191,9 +191,9 @@ static float SimplexNoise2(float xin, float yin, std::uint32_t seed) {
 		tt *= tt;
 		return tt * tt * Grad(Hash2(gx, gy, seed), x, y);
 	};
-	const float n0{ contribution(i, j, x0, y0) };
-	const float n1{ contribution(i + i1, j + j1, x1, y1) };
-	const float n2{ contribution(i + 1, j + 1, x2, y2) };
+	float n0{ contribution(i, j, x0, y0) };
+	float n1{ contribution(i + i1, j + j1, x1, y1) };
+	float n2{ contribution(i + 1, j + 1, x2, y2) };
 	return std::clamp(0.5f + 35.0f * (n0 + n1 + n2), 0.0f, 1.0f);
 }
 
@@ -911,7 +911,7 @@ struct EditorState {
 	NoiseBoundaryDragState noise_boundary_drag;
 	SelectionClipboard clipboard;
 
-	// Line/Rectangle use a Paint.NET-style live shape after mouse release.
+	// Line/Rectangle use a live shape after mouse release.
 	// Brush Keep Generator mode also uses this pending object so consecutive
 	// strokes accumulate into one live generator until Enter/checkmark commits
 	// it or Escape cancels it.
@@ -1010,7 +1010,7 @@ static SceneSnapshot CaptureScene(const EditorState& e) {
 	};
 }
 
-static void RestoreScene(EditorState& e, const SceneSnapshot& s) {
+static void RestoreScene(EditorState& e, SceneSnapshot& s) {
 	e.layers						= s.layers;
 	e.entities						= s.entities;
 	e.tilemaps						= s.tilemaps;
@@ -1322,7 +1322,7 @@ static std::size_t HashGeneratorForUndo(const PaintGenerator& generator) {
 			HashValue(h, generator.stroke_diameters[i]);
 		}
 	}
-	for (const I2 cell : generator.suppressed_cells) {
+	for (I2 cell : generator.suppressed_cells) {
 		HashValue(h, cell.x);
 		HashValue(h, cell.y);
 	}
@@ -1395,7 +1395,7 @@ static void SelectGenerator(EditorState& e, int generator_id) {
 
 static std::string UniqueWeightedTileSetName(const EditorState& e) {
 	for (int number{ 1 };; ++number) {
-		const std::string candidate{ "Weighted Set " + std::to_string(number) };
+		$1 candidate{ "Weighted Set " + std::to_string(number) };
 		bool exists{ std::ranges::any_of(e.weighted_tile_sets, [&](const auto& set) {
 			return set.name == candidate;
 		}) };
@@ -1407,7 +1407,7 @@ static std::string UniqueWeightedTileSetName(const EditorState& e) {
 
 static std::string UniqueWeightedPrefabSetName(const EditorState& e) {
 	for (int number{ 1 };; ++number) {
-		const std::string candidate{ "Weighted Set " + std::to_string(number) };
+		$1 candidate{ "Weighted Set " + std::to_string(number) };
 		bool exists{ std::ranges::any_of(e.weighted_prefab_sets, [&](const auto& set) {
 			return set.name == candidate;
 		}) };
@@ -1455,7 +1455,7 @@ static F2 ScreenToWorld(const EditorState& e, F2 p) {
 }
 
 static F2 SnapToGrid(const EditorState& e, F2 p) {
-	const auto snap_axis = [](float v, float offset, float size) {
+	auto snap_axis = [](float v, float offset, float size) {
 		if (size <= 0.0f) {
 			return v;
 		}
@@ -1468,16 +1468,16 @@ static F2 SnapToGrid(const EditorState& e, F2 p) {
 }
 
 static F2 EntityGridAnchorOffset(const EditorState& e, EntityOrigin origin) {
-	const F2 f{ EntityOriginFraction(origin) };
+	F2 f{ EntityOriginFraction(origin) };
 	return { f.x * e.grid.size.x, f.y * e.grid.size.y };
 }
 
 static F2 SnapEntityPlacementToGrid(const EditorState& e, F2 p, EntityOrigin origin) {
-	const float sx{ std::max(1.0f, e.grid.size.x) };
-	const float sy{ std::max(1.0f, e.grid.size.y) };
-	const int cell_x{ static_cast<int>(std::floor((p.x - e.grid.offset.x) / sx)) };
-	const int cell_y{ static_cast<int>(std::floor((p.y - e.grid.offset.y) / sy)) };
-	const F2 anchor_offset{ EntityGridAnchorOffset(e, origin) };
+	float sx{ std::max(1.0f, e.grid.size.x) };
+	float sy{ std::max(1.0f, e.grid.size.y) };
+	int cell_x{ static_cast<int>(std::floor((p.x - e.grid.offset.x) / sx)) };
+	int cell_y{ static_cast<int>(std::floor((p.y - e.grid.offset.y) / sy)) };
+	F2 anchor_offset{ EntityGridAnchorOffset(e, origin) };
 	return {
 		e.grid.offset.x + static_cast<float>(cell_x) * sx + anchor_offset.x,
 		e.grid.offset.y + static_cast<float>(cell_y) * sy + anchor_offset.y,
@@ -1545,8 +1545,8 @@ static TileChunk& EnsureLoadedChunk(SceneLayer& layer, const Tilemap& map, I2 co
 }
 
 static const TileCell* ReadTileCell(const SceneLayer& layer, const Tilemap& map, I2 cell) {
-	const I2 chunk_coord{ CellToChunk(map, cell) };
-	const I2 local{ CellToLocal(map, cell) };
+	I2 chunk_coord{ CellToChunk(map, cell) };
+	I2 local{ CellToLocal(map, cell) };
 	if (auto it = layer.tile.loaded_chunks.find(chunk_coord);
 		it != layer.tile.loaded_chunks.end()) {
 		return &it->second.cells[CellIndex(map, local)];
@@ -1559,8 +1559,8 @@ static const TileCell* ReadTileCell(const SceneLayer& layer, const Tilemap& map,
 }
 
 static TileCell* WriteTileCell(SceneLayer& layer, const Tilemap& map, I2 cell) {
-	const I2 chunk_coord{ CellToChunk(map, cell) };
-	const I2 local{ CellToLocal(map, cell) };
+	I2 chunk_coord{ CellToChunk(map, cell) };
+	I2 local{ CellToLocal(map, cell) };
 	auto& chunk{ EnsureLoadedChunk(layer, map, chunk_coord) };
 	chunk.dirty = true;
 	return &chunk.cells[CellIndex(map, local)];
@@ -1592,26 +1592,26 @@ struct RectF {
 	F2 max{};
 };
 
-static bool RectsOverlap(const RectF& a, const RectF& b) {
+static bool RectsOverlap(RectF& a, RectF& b) {
 	return a.min.x < b.max.x && a.max.x > b.min.x && a.min.y < b.max.y && a.max.y > b.min.y;
 }
 
-static bool CircleIntersectsRect(F2 center, float radius, const RectF& rect) {
-	const float closest_x{ std::clamp(center.x, rect.min.x, rect.max.x) };
-	const float closest_y{ std::clamp(center.y, rect.min.y, rect.max.y) };
-	const float dx{ center.x - closest_x };
-	const float dy{ center.y - closest_y };
+static bool CircleIntersectsRect(F2 center, float radius, RectF& rect) {
+	float closest_x{ std::clamp(center.x, rect.min.x, rect.max.x) };
+	float closest_y{ std::clamp(center.y, rect.min.y, rect.max.y) };
+	float dx{ center.x - closest_x };
+	float dy{ center.y - closest_y };
 	return dx * dx + dy * dy <= radius * radius;
 }
 
 static RectF EntityBounds(const Entity& entity) {
-	const F2 size{ entity.size.x * entity.scale, entity.size.y * entity.scale };
-	const F2 f{ EntityOriginFraction(entity.origin) };
-	const F2 min{ entity.position.x - size.x * f.x, entity.position.y - size.y * f.y };
+	F2 size{ entity.size.x * entity.scale, entity.size.y * entity.scale };
+	F2 f{ EntityOriginFraction(entity.origin) };
+	F2 min{ entity.position.x - size.x * f.x, entity.position.y - size.y * f.y };
 	return { min, min + size };
 }
 
-static F2 RectCenter(const RectF& rect) {
+static F2 RectCenter(RectF& rect) {
 	return { (rect.min.x + rect.max.x) * 0.5f, (rect.min.y + rect.max.y) * 0.5f };
 }
 
@@ -1626,7 +1626,7 @@ static F2 TileWorldSize(const EditorState& e, const Tilemap& map, int tile_id) {
 }
 
 static I2 TileFootprintCells(const EditorState& e, const Tilemap& map, int tile_id) {
-	const F2 size{ TileWorldSize(e, map, tile_id) };
+	F2 size{ TileWorldSize(e, map, tile_id) };
 	return {
 		std::max(1, static_cast<int>(std::ceil(size.x / std::max(1.0f, map.cell_size.x)))),
 		std::max(1, static_cast<int>(std::ceil(size.y / std::max(1.0f, map.cell_size.y)))),
@@ -1637,14 +1637,14 @@ static RectF TileAnchorRect(
 	const EditorState& e, const Tilemap& map, I2 cell, int tile_id, F2 local_offset = {},
 	EntityOrigin origin = EntityOrigin::TopLeft
 ) {
-	const F2 f{ EntityOriginFraction(origin) };
-	const F2 size{ TileWorldSize(e, map, tile_id) };
-	const F2 cell_min{ CellToWorld(map, cell) };
-	const F2 anchor{
+	F2 f{ EntityOriginFraction(origin) };
+	F2 size{ TileWorldSize(e, map, tile_id) };
+	F2 cell_min{ CellToWorld(map, cell) };
+	F2 anchor{
 		cell_min.x + map.cell_size.x * f.x + local_offset.x,
 		cell_min.y + map.cell_size.y * f.y + local_offset.y,
 	};
-	const F2 min{ anchor.x - size.x * f.x, anchor.y - size.y * f.y };
+	F2 min{ anchor.x - size.x * f.x, anchor.y - size.y * f.y };
 	return { min, min + size };
 }
 
@@ -1677,7 +1677,7 @@ static std::optional<I2> FindVisibleTileAnchorAtWorld(
 	std::optional<I2> found;
 
 	ForEachTileAnchor(layer, map, [&](I2 cell, const TileCell& tile) {
-		const RectF bounds{ TileAnchorRect(e, map, cell, tile.tile_id, tile.offset, tile.origin) };
+		RectF bounds{ TileAnchorRect(e, map, cell, tile.tile_id, tile.offset, tile.origin) };
 		if (world.x < bounds.min.x || world.x > bounds.max.x || world.y < bounds.min.y ||
 			world.y > bounds.max.y) {
 			return;
@@ -1819,7 +1819,7 @@ static F2 RecipeMaxSourceSize(
 		}
 	}
 
-	const RasterGrid grid{ ActiveRasterGrid(e) };
+	RasterGrid grid{ ActiveRasterGrid(e) };
 	if (result.x <= 0.0f) {
 		result.x = grid.size.x;
 	}
@@ -1831,11 +1831,11 @@ static F2 RecipeMaxSourceSize(
 
 static I2 RecipePaintFootprintCells(const EditorState& e) {
 	const SceneLayer* layer{ FindLayer(e, e.active_layer_id) };
-	const RasterGrid grid{ ActiveRasterGrid(e) };
+	RasterGrid grid{ ActiveRasterGrid(e) };
 	if (!layer) {
 		return { 1, 1 };
 	}
-	const F2 source_size{ RecipeMaxSourceSize(e, *layer, e.recipe) };
+	F2 source_size{ RecipeMaxSourceSize(e, *layer, e.recipe) };
 	return {
 		std::max(1, static_cast<int>(std::ceil(source_size.x / std::max(1.0f, grid.size.x)))),
 		std::max(1, static_cast<int>(std::ceil(source_size.y / std::max(1.0f, grid.size.y)))),
@@ -1843,59 +1843,59 @@ static I2 RecipePaintFootprintCells(const EditorState& e) {
 }
 
 static float EffectiveBrushRadius(const EditorState& e) {
-	const RasterGrid grid{ ActiveRasterGrid(e) };
+	RasterGrid grid{ ActiveRasterGrid(e) };
 	bool selection_brush{ e.tool == Tool::Select };
-	const I2 footprint{ selection_brush ? I2{ 1, 1 } : RecipePaintFootprintCells(e) };
-	const int diameter_units{ selection_brush ? std::max(1, e.brush.selection_diameter_cells)
-											  : std::max(1, e.brush.brush_diameter_tiles) };
-	const float width{ grid.size.x * static_cast<float>(diameter_units * footprint.x) };
-	const float height{ grid.size.y * static_cast<float>(diameter_units * footprint.y) };
+	I2 footprint{ selection_brush ? I2{ 1, 1 } : RecipePaintFootprintCells(e) };
+	int diameter_units{ selection_brush ? std::max(1, e.brush.selection_diameter_cells)
+										: std::max(1, e.brush.brush_diameter_tiles) };
+	float width{ grid.size.x * static_cast<float>(diameter_units * footprint.x) };
+	float height{ grid.size.y * static_cast<float>(diameter_units * footprint.y) };
 	return std::max(width, height) * 0.5f;
 }
 
-static I2 WorldToRasterCell(const RasterGrid& grid, F2 world) {
+static I2 WorldToRasterCell(RasterGrid& grid, F2 world) {
 	return {
 		static_cast<int>(std::floor((world.x - grid.offset.x) / grid.size.x)),
 		static_cast<int>(std::floor((world.y - grid.offset.y) / grid.size.y)),
 	};
 }
 
-static F2 RasterCellToWorld(const RasterGrid& grid, I2 cell) {
+static F2 RasterCellToWorld(RasterGrid& grid, I2 cell) {
 	return {
 		grid.offset.x + static_cast<float>(cell.x) * grid.size.x,
 		grid.offset.y + static_cast<float>(cell.y) * grid.size.y,
 	};
 }
 
-static RectF RasterCellRect(const RasterGrid& grid, I2 cell) {
-	const F2 min{ RasterCellToWorld(grid, cell) };
+static RectF RasterCellRect(RasterGrid& grid, I2 cell) {
+	F2 min{ RasterCellToWorld(grid, cell) };
 	return { min, min + grid.size };
 }
 
 static std::vector<I2> RasterBrushCells(const EditorState& e, F2 world) {
-	const RasterGrid grid{ ActiveRasterGrid(e) };
-	const I2 center{ WorldToRasterCell(grid, world) };
+	RasterGrid grid{ ActiveRasterGrid(e) };
+	I2 center{ WorldToRasterCell(grid, world) };
 	bool selection_brush{ e.tool == Tool::Select };
-	const I2 footprint{ selection_brush ? I2{ 1, 1 } : RecipePaintFootprintCells(e) };
-	const int diameter_units{ selection_brush ? std::max(1, e.brush.selection_diameter_cells)
-											  : std::max(1, e.brush.brush_diameter_tiles) };
-	const int count_x{ std::max(1, diameter_units * footprint.x) };
-	const int count_y{ std::max(1, diameter_units * footprint.y) };
-	const int start_x{ center.x - (count_x - 1) / 2 };
-	const int start_y{ center.y - (count_y - 1) / 2 };
+	I2 footprint{ selection_brush ? I2{ 1, 1 } : RecipePaintFootprintCells(e) };
+	int diameter_units{ selection_brush ? std::max(1, e.brush.selection_diameter_cells)
+										: std::max(1, e.brush.brush_diameter_tiles) };
+	int count_x{ std::max(1, diameter_units * footprint.x) };
+	int count_y{ std::max(1, diameter_units * footprint.y) };
+	int start_x{ center.x - (count_x - 1) / 2 };
+	int start_y{ center.y - (count_y - 1) / 2 };
 
 	std::vector<I2> cells;
 	cells.reserve(static_cast<std::size_t>(count_x * count_y));
-	const float cx{ (static_cast<float>(count_x) - 1.0f) * 0.5f };
-	const float cy{ (static_cast<float>(count_y) - 1.0f) * 0.5f };
-	const float rx{ std::max(0.5f, static_cast<float>(count_x) * 0.5f) };
-	const float ry{ std::max(0.5f, static_cast<float>(count_y) * 0.5f) };
+	float cx{ (static_cast<float>(count_x) - 1.0f) * 0.5f };
+	float cy{ (static_cast<float>(count_y) - 1.0f) * 0.5f };
+	float rx{ std::max(0.5f, static_cast<float>(count_x) * 0.5f) };
+	float ry{ std::max(0.5f, static_cast<float>(count_y) * 0.5f) };
 
 	for (int y{}; y < count_y; ++y) {
 		for (int x{}; x < count_x; ++x) {
 			if (e.brush.shape == BrushShape::Circle) {
-				const float nx{ (static_cast<float>(x) - cx) / rx };
-				const float ny{ (static_cast<float>(y) - cy) / ry };
+				float nx{ (static_cast<float>(x) - cx) / rx };
+				float ny{ (static_cast<float>(y) - cy) / ry };
 				if (nx * nx + ny * ny > 1.0f) {
 					continue;
 				}
@@ -1909,9 +1909,9 @@ static std::vector<I2> RasterBrushCells(const EditorState& e, F2 world) {
 	return cells;
 }
 
-static bool RectIntersectsRasterCells(const EditorState& e, F2 brush_world, const RectF& rect) {
-	const RasterGrid grid{ ActiveRasterGrid(e) };
-	for (const I2 cell : RasterBrushCells(e, brush_world)) {
+static bool RectIntersectsRasterCells(const EditorState& e, F2 brush_world, RectF& rect) {
+	RasterGrid grid{ ActiveRasterGrid(e) };
+	for (I2 cell : RasterBrushCells(e, brush_world)) {
 		if (RectsOverlap(rect, RasterCellRect(grid, cell))) {
 			return true;
 		}
@@ -1925,10 +1925,10 @@ static std::vector<I2> ExpandRasterCells(const std::vector<I2>& base, int thickn
 		return base;
 	}
 
-	const int min_offset{ -(thickness - 1) / 2 };
-	const int max_offset{ thickness / 2 };
+	int min_offset{ -(thickness - 1) / 2 };
+	int max_offset{ thickness / 2 };
 	std::unordered_set<I2, I2Hash> unique;
-	for (const I2 cell : base) {
+	for (I2 cell : base) {
 		for (int y{ min_offset }; y <= max_offset; ++y) {
 			for (int x{ min_offset }; x <= max_offset; ++x) {
 				unique.insert({ cell.x + x, cell.y + y });
@@ -1938,7 +1938,7 @@ static std::vector<I2> ExpandRasterCells(const std::vector<I2>& base, int thickn
 
 	std::vector<I2> result;
 	result.reserve(unique.size());
-	for (const I2 cell : unique) {
+	for (I2 cell : unique) {
 		result.push_back(cell);
 	}
 	std::sort(result.begin(), result.end(), [](I2 a, I2 b) {
@@ -1948,21 +1948,21 @@ static std::vector<I2> ExpandRasterCells(const std::vector<I2>& base, int thickn
 }
 
 static std::vector<I2> RasterLineCells(const EditorState& e, F2 a, F2 b) {
-	const RasterGrid grid{ ActiveRasterGrid(e) };
+	RasterGrid grid{ ActiveRasterGrid(e) };
 	I2 start{ WorldToRasterCell(grid, a) };
-	const I2 end{ WorldToRasterCell(grid, b) };
+	I2 end{ WorldToRasterCell(grid, b) };
 	std::vector<I2> base;
-	const int dx{ std::abs(end.x - start.x) };
-	const int sx{ start.x < end.x ? 1 : -1 };
-	const int dy{ -std::abs(end.y - start.y) };
-	const int sy{ start.y < end.y ? 1 : -1 };
+	int dx{ std::abs(end.x - start.x) };
+	int sx{ start.x < end.x ? 1 : -1 };
+	int dy{ -std::abs(end.y - start.y) };
+	int sy{ start.y < end.y ? 1 : -1 };
 	int error{ dx + dy };
 	for (;;) {
 		base.push_back(start);
 		if (start == end) {
 			break;
 		}
-		const int twice_error{ 2 * error };
+		int twice_error{ 2 * error };
 		if (twice_error >= dy) {
 			error	+= dy;
 			start.x += sx;
@@ -1972,7 +1972,7 @@ static std::vector<I2> RasterLineCells(const EditorState& e, F2 a, F2 b) {
 			start.y += sy;
 		}
 	}
-	const int spacing{ std::max(1, e.brush.line_spacing_cells) };
+	int spacing{ std::max(1, e.brush.line_spacing_cells) };
 	if (spacing > 1 && base.size() > 2) {
 		std::vector<I2> spaced;
 		for (std::size_t i{}; i < base.size(); i += static_cast<std::size_t>(spacing)) {
@@ -1983,26 +1983,26 @@ static std::vector<I2> RasterLineCells(const EditorState& e, F2 a, F2 b) {
 		}
 		base = std::move(spaced);
 	}
-	const I2 footprint{ RecipePaintFootprintCells(e) };
-	const int source_cells{ std::max(footprint.x, footprint.y) };
+	I2 footprint{ RecipePaintFootprintCells(e) };
+	int source_cells{ std::max(footprint.x, footprint.y) };
 	return ExpandRasterCells(base, std::max(1, e.brush.line_thickness) * source_cells);
 }
 
 static I2 QuantizeAreaEndCell(const EditorState& e, I2 start, I2 raw_end) {
-	const I2 footprint{ RecipePaintFootprintCells(e) };
-	const EntityOrigin origin{ FindLayer(e, e.active_layer_id) &&
-									   FindLayer(e, e.active_layer_id)->kind == LayerKind::Tile
-								   ? e.recipe.tile_origin
-								   : e.recipe.entity_origin };
-	const F2 origin_fraction{ EntityOriginFraction(origin) };
+	I2 footprint{ RecipePaintFootprintCells(e) };
+	EntityOrigin origin{ FindLayer(e, e.active_layer_id) &&
+								 FindLayer(e, e.active_layer_id)->kind == LayerKind::Tile
+							 ? e.recipe.tile_origin
+							 : e.recipe.entity_origin };
+	F2 origin_fraction{ EntityOriginFraction(origin) };
 
 	auto quantize_axis = [](int a, int b, int unit, float origin_axis) {
 		unit = std::max(1, unit);
 		if (unit == 1) {
 			return b;
 		}
-		const int direction{ b >= a ? 1 : -1 };
-		const int span{ std::abs(b - a) + 1 };
+		int direction{ b >= a ? 1 : -1 };
+		int span{ std::abs(b - a) + 1 };
 		bool prefer_expand{ direction > 0 ? origin_axis <= 0.5f : origin_axis >= 0.5f };
 		int units{};
 		if (prefer_expand) {
@@ -2020,32 +2020,32 @@ static I2 QuantizeAreaEndCell(const EditorState& e, I2 start, I2 raw_end) {
 }
 
 static F2 QuantizeAreaEndWorld(const EditorState& e, F2 start_world, F2 raw_end_world) {
-	const RasterGrid grid{ ActiveRasterGrid(e) };
-	const I2 start{ WorldToRasterCell(grid, start_world) };
-	const I2 end{ QuantizeAreaEndCell(e, start, WorldToRasterCell(grid, raw_end_world)) };
-	const RectF cell{ RasterCellRect(grid, end) };
+	RasterGrid grid{ ActiveRasterGrid(e) };
+	I2 start{ WorldToRasterCell(grid, start_world) };
+	I2 end{ QuantizeAreaEndCell(e, start, WorldToRasterCell(grid, raw_end_world)) };
+	RectF cell{ RasterCellRect(grid, end) };
 	return RectCenter(cell);
 }
 
 static std::vector<I2> RasterAreaCells(const EditorState& e, F2 a, F2 b) {
-	const RasterGrid grid{ ActiveRasterGrid(e) };
-	const I2 ca{ WorldToRasterCell(grid, a) };
-	const I2 cb{ QuantizeAreaEndCell(e, ca, WorldToRasterCell(grid, b)) };
-	const int min_x{ std::min(ca.x, cb.x) };
-	const int max_x{ std::max(ca.x, cb.x) };
-	const int min_y{ std::min(ca.y, cb.y) };
-	const int max_y{ std::max(ca.y, cb.y) };
-	const I2 footprint{ RecipePaintFootprintCells(e) };
-	const int thickness_x{ std::max(1, e.brush.area_thickness) * footprint.x };
-	const int thickness_y{ std::max(1, e.brush.area_thickness) * footprint.y };
+	RasterGrid grid{ ActiveRasterGrid(e) };
+	I2 ca{ WorldToRasterCell(grid, a) };
+	I2 cb{ QuantizeAreaEndCell(e, ca, WorldToRasterCell(grid, b)) };
+	int min_x{ std::min(ca.x, cb.x) };
+	int max_x{ std::max(ca.x, cb.x) };
+	int min_y{ std::min(ca.y, cb.y) };
+	int max_y{ std::max(ca.y, cb.y) };
+	I2 footprint{ RecipePaintFootprintCells(e) };
+	int thickness_x{ std::max(1, e.brush.area_thickness) * footprint.x };
+	int thickness_y{ std::max(1, e.brush.area_thickness) * footprint.y };
 	std::vector<I2> cells;
 	cells.reserve(static_cast<std::size_t>((max_x - min_x + 1) * (max_y - min_y + 1)));
 	for (int y{ min_y }; y <= max_y; ++y) {
 		for (int x{ min_x }; x <= max_x; ++x) {
-			const int left{ x - min_x };
-			const int right{ max_x - x };
-			const int top{ y - min_y };
-			const int bottom{ max_y - y };
+			int left{ x - min_x };
+			int right{ max_x - x };
+			int top{ y - min_y };
+			int bottom{ max_y - y };
 			bool thick_edge{ left < thickness_x || right < thickness_x || top < thickness_y ||
 							 bottom < thickness_y };
 			bool thick_corner{ (left < thickness_x || right < thickness_x) &&
@@ -2063,10 +2063,10 @@ static std::vector<I2> RasterAreaCells(const EditorState& e, F2 a, F2 b) {
 }
 
 static bool PassesAreaRandomFill(const EditorState& e, I2 cell) {
-	const std::uint32_t hash{
+	std::uint32_t hash{
 		Hash2(cell.x, cell.y, static_cast<std::uint32_t>(e.recipe.noise.seed) ^ 0xA511E9B3u)
 	};
-	const float value{ static_cast<float>(hash & 0x00FFFFFFu) / static_cast<float>(0x01000000u) };
+	float value{ static_cast<float>(hash & 0x00FFFFFFu) / static_cast<float>(0x01000000u) };
 	return value <= e.recipe.density;
 }
 
@@ -2089,9 +2089,7 @@ static bool TileFootprintOverlapsExisting(
 	const EditorState& e, const SceneLayer& layer, const Tilemap& map, I2 candidate, int tile_id,
 	bool ignore_same_anchor
 ) {
-	const RectF candidate_rect{
-		TileAnchorRect(e, map, candidate, tile_id, {}, e.recipe.tile_origin)
-	};
+	RectF candidate_rect{ TileAnchorRect(e, map, candidate, tile_id, {}, e.recipe.tile_origin) };
 	bool overlap{};
 	ForEachTileAnchor(layer, map, [&](I2 cell, const TileCell& existing) {
 		if (overlap || (ignore_same_anchor && cell == candidate)) {
@@ -2122,8 +2120,8 @@ static bool CanPlaceTileAnchor(
 		return true;
 	}
 
-	const I2 footprint{ TileFootprintCells(e, map, tile_id) };
-	const I2 lattice_origin{ e.stroke.active ? WorldToCell(map, e.stroke.start_world) : I2{} };
+	I2 footprint{ TileFootprintCells(e, map, tile_id) };
+	I2 lattice_origin{ e.stroke.active ? WorldToCell(map, e.stroke.start_world) : I2{} };
 	if (FloorMod(cell.x - lattice_origin.x, footprint.x) != 0 ||
 		FloorMod(cell.y - lattice_origin.y, footprint.y) != 0) {
 		return false;
@@ -2254,14 +2252,14 @@ static int AutotileIndex(
 	const SceneLayer& layer, const Tilemap& map, I2 cell, const AutotileRuleSet& rules
 ) {
 	if (rules.format == AutotileFormat::Blob47) {
-		const int mask{ BlobTerrainMask(layer, map, cell, rules.id) };
+		int mask{ BlobTerrainMask(layer, map, cell, rules.id) };
 		const auto& valid{ ValidBlob47Masks() };
-		if (const auto it = std::find(valid.begin(), valid.end(), mask); it != valid.end()) {
+		if (auto it = std::find(valid.begin(), valid.end(), mask); it != valid.end()) {
 			return static_cast<int>(std::distance(valid.begin(), it));
 		}
 		return 0;
 	}
-	const int mask{ CardinalTerrainMask(layer, map, cell, rules.id) };
+	int mask{ CardinalTerrainMask(layer, map, cell, rules.id) };
 	if (rules.format == AutotileFormat::Classic15) {
 		return mask == 0 ? 0 : std::clamp(mask - 1, 0, 14);
 	}
@@ -2272,14 +2270,14 @@ static void RecomputeAutotile(EditorState& e, SceneLayer& layer, const Tilemap& 
 	static constexpr std::array<I2, 9> offsets{ I2{ 0, 0 }, I2{ 0, -1 }, I2{ 1, 0 },
 												I2{ 0, 1 }, I2{ -1, 0 }, I2{ 1, -1 },
 												I2{ 1, 1 }, I2{ -1, 1 }, I2{ -1, -1 } };
-	for (const I2 o : offsets) {
-		const I2 c{ cell.x + o.x, cell.y + o.y };
-		const int ruleset_id{ TerrainRulesetAt(layer, map, c) };
+	for (I2 o : offsets) {
+		I2 c{ cell.x + o.x, cell.y + o.y };
+		int ruleset_id{ TerrainRulesetAt(layer, map, c) };
 		const auto* rules{ FindAutotileRuleSet(e, ruleset_id) };
 		if (!rules || rules->format == AutotileFormat::DualGrid16 || rules->tile_ids.empty()) {
 			continue;
 		}
-		const int index{ AutotileIndex(layer, map, c, *rules) };
+		int index{ AutotileIndex(layer, map, c, *rules) };
 		if (index < 0 || index >= static_cast<int>(rules->tile_ids.size())) {
 			continue;
 		}
@@ -2311,12 +2309,12 @@ static void DeleteSelection(EditorState& e) {
 		return;
 	}
 
-	const SceneSnapshot before{ CaptureScene(e) };
+	SceneSnapshot before{ CaptureScene(e) };
 	bool changed{};
 
 	if (e.selected_generator_id >= 0) {
-		const int id{ e.selected_generator_id };
-		const auto old_size{ e.generators.size() };
+		int id{ e.selected_generator_id };
+		auto old_size{ e.generators.size() };
 		e.generators.erase(
 			std::remove_if(
 				e.generators.begin(), e.generators.end(),
@@ -2328,7 +2326,7 @@ static void DeleteSelection(EditorState& e) {
 	}
 
 	if (!e.selected_entities.empty()) {
-		const auto old_size{ e.entities.size() };
+		auto old_size{ e.entities.size() };
 		e.entities.erase(
 			std::remove_if(
 				e.entities.begin(), e.entities.end(),
@@ -2343,7 +2341,7 @@ static void DeleteSelection(EditorState& e) {
 		if (auto* layer = FindLayer(e, e.selected_tile_layer_id);
 			layer && layer->kind == LayerKind::Tile && !layer->locked) {
 			if (const auto* map = FindTilemap(e, layer->tile.tilemap_id)) {
-				for (const I2 cell : e.selected_tile_cells) {
+				for (I2 cell : e.selected_tile_cells) {
 					const auto* old{ ReadTileCell(*layer, *map, cell) };
 					if (!old || old->tile_id < 0) {
 						continue;
@@ -2424,12 +2422,12 @@ static void CopySelection(EditorState& e) {
 	e.clipboard.kind			= LayerKind::Tile;
 	e.clipboard.source_layer_id = layer->id;
 	I2 min_cell{ std::numeric_limits<int>::max(), std::numeric_limits<int>::max() };
-	for (const I2 cell : e.selected_tile_cells) {
+	for (I2 cell : e.selected_tile_cells) {
 		min_cell.x = std::min(min_cell.x, cell.x);
 		min_cell.y = std::min(min_cell.y, cell.y);
 	}
 	e.clipboard.tile_origin = min_cell;
-	for (const I2 cell : e.selected_tile_cells) {
+	for (I2 cell : e.selected_tile_cells) {
 		if (const auto* tile = ReadTileCell(*layer, *map, cell); tile && tile->tile_id >= 0) {
 			e.clipboard.tiles.push_back({ { cell.x - min_cell.x, cell.y - min_cell.y }, *tile });
 		}
@@ -2452,7 +2450,7 @@ static void PasteClipboard(EditorState& e) {
 		return;
 	}
 
-	const SceneSnapshot before{ CaptureScene(e) };
+	SceneSnapshot before{ CaptureScene(e) };
 	DeselectAll(e);
 	bool changed{};
 
@@ -2473,7 +2471,7 @@ static void PasteClipboard(EditorState& e) {
 		}
 		if (target_layer && target_layer->kind != LayerKind::Noise && !target_layer->locked) {
 			copy.layer_id = target_layer->id;
-			const F2 offset{ std::max(1.0f, copy.grid_size.x), std::max(1.0f, copy.grid_size.y) };
+			F2 offset{ std::max(1.0f, copy.grid_size.x), std::max(1.0f, copy.grid_size.y) };
 			TranslateGenerator(copy, offset);
 			e.generators.push_back(std::move(copy));
 			e.selected_generator_id = e.generators.back().id;
@@ -2482,7 +2480,7 @@ static void PasteClipboard(EditorState& e) {
 			changed = true;
 		}
 	} else if (e.clipboard.kind == LayerKind::Entity) {
-		const F2 offset{
+		F2 offset{
 			std::max(1.0f, e.grid.size.x),
 			std::max(1.0f, e.grid.size.y),
 		};
@@ -2513,11 +2511,10 @@ static void PasteClipboard(EditorState& e) {
 		}
 		if (layer && layer->kind == LayerKind::Tile && !layer->locked) {
 			if (const auto* map = FindTilemap(e, layer->tile.tilemap_id)) {
-				const I2 origin{ e.clipboard.tile_origin.x + 1, e.clipboard.tile_origin.y + 1 };
+				I2 origin{ e.clipboard.tile_origin.x + 1, e.clipboard.tile_origin.y + 1 };
 				e.selected_tile_layer_id = layer->id;
 				for (const auto& item : e.clipboard.tiles) {
-					const I2 target{ origin.x + item.relative_cell.x,
-									 origin.y + item.relative_cell.y };
+					I2 target{ origin.x + item.relative_cell.x, origin.y + item.relative_cell.y };
 					*WriteTileCell(*layer, *map, target) = item.cell;
 					e.selected_tile_cells.insert(target);
 					changed = true;
@@ -2535,12 +2532,11 @@ static void PasteClipboard(EditorState& e) {
 static bool SelectionHitAtWorld(const EditorState& e, F2 world) {
 	if (e.selected_generator_id >= 0) {
 		if (const auto* generator = FindGenerator(e, e.selected_generator_id)) {
-			const auto [first, last]{ GeneratorCellBounds(*generator) };
-			const F2 mn{
-				generator->grid_offset.x + static_cast<float>(first.x) * generator->grid_size.x,
-				generator->grid_offset.y + static_cast<float>(first.y) * generator->grid_size.y
-			};
-			const F2 mx{
+			auto [first, last]{ GeneratorCellBounds(*generator) };
+			F2 mn{ generator->grid_offset.x + static_cast<float>(first.x) * generator->grid_size.x,
+				   generator->grid_offset.y +
+					   static_cast<float>(first.y) * generator->grid_size.y };
+			F2 mx{
 				generator->grid_offset.x + static_cast<float>(last.x + 1) * generator->grid_size.x,
 				generator->grid_offset.y + static_cast<float>(last.y + 1) * generator->grid_size.y
 			};
@@ -2553,7 +2549,7 @@ static bool SelectionHitAtWorld(const EditorState& e, F2 world) {
 		if (!e.selected_entities.contains(entity.id)) {
 			continue;
 		}
-		const RectF bounds{ EntityBounds(entity) };
+		RectF bounds{ EntityBounds(entity) };
 		if (world.x >= bounds.min.x && world.x <= bounds.max.x && world.y >= bounds.min.y &&
 			world.y <= bounds.max.y) {
 			return true;
@@ -2563,10 +2559,10 @@ static bool SelectionHitAtWorld(const EditorState& e, F2 world) {
 		const auto* layer{ FindLayer(e, e.selected_tile_layer_id) };
 		if (layer && layer->kind == LayerKind::Tile) {
 			if (const auto* map = FindTilemap(e, layer->tile.tilemap_id)) {
-				for (const I2 cell : e.selected_tile_cells) {
+				for (I2 cell : e.selected_tile_cells) {
 					if (const auto* tile = ReadTileCell(*layer, *map, cell);
 						tile && tile->tile_id >= 0) {
-						const RectF r{
+						RectF r{
 							TileAnchorRect(e, *map, cell, tile->tile_id, tile->offset, tile->origin)
 						};
 						if (world.x >= r.min.x && world.x <= r.max.x && world.y >= r.min.y &&
@@ -2600,10 +2596,10 @@ static F2 SelectionMoveUnit(const EditorState& e) {
 }
 
 static void ApplyMoveFromSnapshot(
-	EditorState& e, const SceneSnapshot& base, F2 raw_delta, bool free_movement
+	EditorState& e, SceneSnapshot& base, F2 raw_delta, bool free_movement
 ) {
 	RestoreScene(e, base);
-	const F2 unit{ SelectionMoveUnit(e) };
+	F2 unit{ SelectionMoveUnit(e) };
 	F2 delta{ raw_delta };
 	if (!free_movement) {
 		delta.x = std::round(delta.x / unit.x) * unit.x;
@@ -2639,7 +2635,7 @@ static void ApplyMoveFromSnapshot(
 	}
 
 	if (free_movement) {
-		for (const I2 cell : e.selected_tile_cells) {
+		for (I2 cell : e.selected_tile_cells) {
 			if (auto* tile = WriteTileCell(*layer, *map, cell); tile && tile->tile_id >= 0) {
 				tile->offset += delta;
 			}
@@ -2647,7 +2643,7 @@ static void ApplyMoveFromSnapshot(
 		return;
 	}
 
-	const I2 cell_delta{
+	I2 cell_delta{
 		static_cast<int>(std::lround(delta.x / unit.x)),
 		static_cast<int>(std::lround(delta.y / unit.y)),
 	};
@@ -2657,7 +2653,7 @@ static void ApplyMoveFromSnapshot(
 
 	std::vector<std::pair<I2, TileCell>> moved;
 	moved.reserve(e.selected_tile_cells.size());
-	for (const I2 cell : e.selected_tile_cells) {
+	for (I2 cell : e.selected_tile_cells) {
 		if (const auto* tile = ReadTileCell(*layer, *map, cell); tile && tile->tile_id >= 0) {
 			moved.push_back({ cell, *tile });
 		}
@@ -2667,7 +2663,7 @@ static void ApplyMoveFromSnapshot(
 	}
 	e.selected_tile_cells.clear();
 	for (auto& [cell, tile] : moved) {
-		const I2 target{ cell.x + cell_delta.x, cell.y + cell_delta.y };
+		I2 target{ cell.x + cell_delta.x, cell.y + cell_delta.y };
 		*WriteTileCell(*layer, *map, target) = tile;
 		e.selected_tile_cells.insert(target);
 	}
@@ -2677,12 +2673,12 @@ static void MoveSelectionByKeyboard(EditorState& e, I2 direction, bool ctrl, boo
 	if (!HasSelection(e) || direction == I2{}) {
 		return;
 	}
-	const SceneSnapshot before{ CaptureScene(e) };
+	SceneSnapshot before{ CaptureScene(e) };
 	bool default_free{ e.move.snap_mode == MoveSnapMode::Free };
 	bool free_movement{ ctrl ? !default_free : default_free };
-	const float speed{ shift ? 10.0f : 1.0f };
-	const F2 unit{ SelectionMoveUnit(e) };
-	const F2 delta{
+	float speed{ shift ? 10.0f : 1.0f };
+	F2 unit{ SelectionMoveUnit(e) };
+	F2 delta{
 		static_cast<float>(direction.x) * (free_movement ? 1.0f : unit.x) * speed,
 		static_cast<float>(direction.y) * (free_movement ? 1.0f : unit.y) * speed,
 	};
@@ -2694,7 +2690,7 @@ static void SnapSelectionToGrid(EditorState& e) {
 	if (!HasSelection(e)) {
 		return;
 	}
-	const SceneSnapshot before{ CaptureScene(e) };
+	SceneSnapshot before{ CaptureScene(e) };
 	bool changed{};
 
 	if (e.selected_generator_id >= 0) {
@@ -2709,7 +2705,7 @@ static void SnapSelectionToGrid(EditorState& e) {
 					target_offset = map->origin;
 				}
 			}
-			const F2 target{
+			F2 target{
 				target_offset.x +
 					std::round((generator->grid_offset.x - target_offset.x) / target_size.x) *
 						target_size.x,
@@ -2717,7 +2713,7 @@ static void SnapSelectionToGrid(EditorState& e) {
 					std::round((generator->grid_offset.y - target_offset.y) / target_size.y) *
 						target_size.y
 			};
-			const F2 delta{ target - generator->grid_offset };
+			F2 delta{ target - generator->grid_offset };
 			if (Distance(delta, F2{}) > 0.001f) {
 				TranslateGenerator(*generator, delta);
 				changed = true;
@@ -2729,9 +2725,9 @@ static void SnapSelectionToGrid(EditorState& e) {
 		if (!e.selected_entities.contains(entity.id)) {
 			continue;
 		}
-		const F2 f{ EntityOriginFraction(entity.origin) };
-		const F2 anchor_offset{ f.x * e.grid.size.x, f.y * e.grid.size.y };
-		const F2 snapped{
+		F2 f{ EntityOriginFraction(entity.origin) };
+		F2 anchor_offset{ f.x * e.grid.size.x, f.y * e.grid.size.y };
+		F2 snapped{
 			e.grid.offset.x +
 				std::round(
 					(entity.position.x - e.grid.offset.x - anchor_offset.x) /
@@ -2758,20 +2754,20 @@ static void SnapSelectionToGrid(EditorState& e) {
 							 : nullptr };
 		if (layer && map && !layer->locked) {
 			std::vector<std::pair<I2, TileCell>> moved;
-			for (const I2 cell : e.selected_tile_cells) {
+			for (I2 cell : e.selected_tile_cells) {
 				if (const auto* tile = ReadTileCell(*layer, *map, cell);
 					tile && tile->tile_id >= 0) {
 					moved.push_back({ cell, *tile });
 				}
 			}
 			for (const auto& [cell, tile] : moved) {
-				const F2 f{ EntityOriginFraction(tile.origin) };
-				const F2 cell_min{ CellToWorld(*map, cell) };
-				const F2 anchor{
+				F2 f{ EntityOriginFraction(tile.origin) };
+				F2 cell_min{ CellToWorld(*map, cell) };
+				F2 anchor{
 					cell_min.x + map->cell_size.x * f.x + tile.offset.x,
 					cell_min.y + map->cell_size.y * f.y + tile.offset.y,
 				};
-				const I2 target{
+				I2 target{
 					static_cast<int>(std::lround(
 						(anchor.x - map->origin.x - map->cell_size.x * f.x) /
 						std::max(1.0f, map->cell_size.x)
@@ -2791,11 +2787,11 @@ static void SnapSelectionToGrid(EditorState& e) {
 				}
 				e.selected_tile_cells.clear();
 				for (auto [cell, tile] : moved) {
-					const F2 f{ EntityOriginFraction(tile.origin) };
-					const F2 cell_min{ CellToWorld(*map, cell) };
-					const F2 anchor{ cell_min.x + map->cell_size.x * f.x + tile.offset.x,
-									 cell_min.y + map->cell_size.y * f.y + tile.offset.y };
-					const I2 target{
+					F2 f{ EntityOriginFraction(tile.origin) };
+					F2 cell_min{ CellToWorld(*map, cell) };
+					F2 anchor{ cell_min.x + map->cell_size.x * f.x + tile.offset.x,
+							   cell_min.y + map->cell_size.y * f.y + tile.offset.y };
+					I2 target{
 						static_cast<int>(std::lround(
 							(anchor.x - map->origin.x - map->cell_size.x * f.x) /
 							std::max(1.0f, map->cell_size.x)
@@ -2896,8 +2892,8 @@ static const NoiseThresholdRegion* RecipeNoiseThreshold(const PaintRecipe& recip
 		if (!threshold.enabled) {
 			continue;
 		}
-		const float lo{ std::min(threshold.minimum, threshold.maximum) };
-		const float hi{ std::max(threshold.minimum, threshold.maximum) };
+		float lo{ std::min(threshold.minimum, threshold.maximum) };
+		float hi{ std::max(threshold.minimum, threshold.maximum) };
 		if (value >= lo && (value < hi || (hi >= 0.99999f && value <= 1.0f))) {
 			return &threshold;
 		}
@@ -2912,7 +2908,7 @@ static float RecipeNoiseValue(F2 world, const PaintRecipe& recipe) {
 	float total{};
 	float weight{};
 	for (int octave{}; octave < std::clamp(field.octaves, 1, 12); ++octave) {
-		const float n{ BaseNoise2(
+		float n{ BaseNoise2(
 			field.type, (world.x + field.offset.x) * frequency,
 			(world.y + field.offset.y) * frequency,
 			static_cast<std::uint32_t>(field.seed + octave * 1013)
@@ -3022,12 +3018,12 @@ static int ChoosePrefabFromRecipe(
 }
 
 static int ChooseTile(EditorState& e, F2 world) {
-	const RasterGrid grid{ ActiveRasterGrid(e) };
+	RasterGrid grid{ ActiveRasterGrid(e) };
 	return ChooseTileFromRecipe(e, e.recipe, world, WorldToRasterCell(grid, world));
 }
 
 static int ChoosePrefab(EditorState& e, F2 world) {
-	const RasterGrid grid{ ActiveRasterGrid(e) };
+	RasterGrid grid{ ActiveRasterGrid(e) };
 	return ChoosePrefabFromRecipe(e, e.recipe, world, WorldToRasterCell(grid, world));
 }
 
@@ -3050,15 +3046,13 @@ static bool PassesDistribution(EditorState& e, F2 world) {
 		case PaintCoverageKind::Solid:		   return true;
 		case PaintCoverageKind::RandomDensity: return RandomRange(e, 0.0f, 1.0f) <= recipe.density;
 		case PaintCoverageKind::RadialFalloff: {
-			const float radius{ std::max(1.0f, EffectiveBrushRadius(e)) };
-			const float normalized{
+			float radius{ std::max(1.0f, EffectiveBrushRadius(e)) };
+			float normalized{
 				std::clamp(Distance(world, e.stroke.current_world) / radius, 0.0f, 1.0f)
 			};
-			const float inner{ std::clamp(recipe.radial_inner, 0.0f, 1.0f) };
-			const float outer{
-				std::max(inner + 0.001f, std::clamp(recipe.radial_outer, 0.0f, 1.0f))
-			};
-			const float t{ std::clamp((normalized - inner) / (outer - inner), 0.0f, 1.0f) };
+			float inner{ std::clamp(recipe.radial_inner, 0.0f, 1.0f) };
+			float outer{ std::max(inner + 0.001f, std::clamp(recipe.radial_outer, 0.0f, 1.0f)) };
+			float t{ std::clamp((normalized - inner) / (outer - inner), 0.0f, 1.0f) };
 			return RandomRange(e, 0.0f, 1.0f) <= (1.0f - t) * recipe.density;
 		}
 	}
@@ -3078,7 +3072,7 @@ static void PlaceEntity(EditorState& e, SceneLayer& layer, F2 world) {
 	if (layer.locked || layer.kind != LayerKind::Entity || !PassesDistribution(e, world)) {
 		return;
 	}
-	const EntityOrigin origin{ RecipeSourceOrigin(e.recipe, world, false) };
+	EntityOrigin origin{ RecipeSourceOrigin(e.recipe, world, false) };
 	if (e.grid.snap) {
 		world = SnapEntityPlacementToGrid(e, world, origin);
 	}
@@ -3086,7 +3080,7 @@ static void PlaceEntity(EditorState& e, SceneLayer& layer, F2 world) {
 		return;
 	}
 
-	const int prefab_index{ ChoosePrefab(e, world) };
+	int prefab_index{ ChoosePrefab(e, world) };
 	if (prefab_index < 0 || prefab_index >= static_cast<int>(e.prefabs.size())) {
 		return;
 	}
@@ -3118,7 +3112,7 @@ static void PlaceAutotileCell(EditorState& e, SceneLayer& layer, Tilemap& map, I
 		e.stroke.changed				   = true;
 		return;
 	}
-	const int tile_id{ rules->tile_ids.front() };
+	int tile_id{ rules->tile_ids.front() };
 	if (tile_id < 0) {
 		return;
 	}
@@ -3136,7 +3130,7 @@ static void PlaceTile(EditorState& e, SceneLayer& layer, Tilemap& map, I2 cell) 
 		return;
 	}
 
-	const F2 world{ CellToWorld(map, cell) };
+	F2 world{ CellToWorld(map, cell) };
 	if (!PassesDistribution(e, world)) {
 		return;
 	}
@@ -3155,10 +3149,10 @@ static void PlaceTile(EditorState& e, SceneLayer& layer, Tilemap& map, I2 cell) 
 
 	if (e.brush.operation == BrushOperation::Paint && !e.stamp_tiles.empty() &&
 		e.recipe.source_kind == PaintSourceKind::Single) {
-		const int width{ std::max(1, e.stamp_width) };
+		int width{ std::max(1, e.stamp_width) };
 		for (int i{}; i < static_cast<int>(e.stamp_tiles.size()); ++i) {
-			const I2 target{ cell.x + i % width, cell.y + i / width };
-			const int stamp_tile{ e.stamp_tiles[static_cast<std::size_t>(i)] };
+			I2 target{ cell.x + i % width, cell.y + i / width };
+			int stamp_tile{ e.stamp_tiles[static_cast<std::size_t>(i)] };
 			if (e.recipe.avoid_exclusion_mask && IsExcluded(map, target)) {
 				continue;
 			}
@@ -3173,7 +3167,7 @@ static void PlaceTile(EditorState& e, SceneLayer& layer, Tilemap& map, I2 cell) 
 		return;
 	}
 
-	const int tile_id{ ChooseTile(e, world) };
+	int tile_id{ ChooseTile(e, world) };
 	if (tile_id < 0) {
 		return;
 	}
@@ -3191,24 +3185,23 @@ static void PlaceTile(EditorState& e, SceneLayer& layer, Tilemap& map, I2 cell) 
 }
 
 static void ReplaceEntitiesAt(
-	EditorState& e, SceneLayer& layer, F2 world, const std::vector<I2>& raster_cells
+	EditorState& e, SceneLayer& layer, F2 _world, const std::vector<I2>& raster_cells
 ) {
-	(void)world;
 	if (e.prefabs.empty()) {
 		return;
 	}
-	const RasterGrid raster{ ActiveRasterGrid(e) };
-	for (const I2 cell : raster_cells) {
-		const F2 sample{ RectCenter(RasterCellRect(raster, cell)) };
+	RasterGrid raster{ ActiveRasterGrid(e) };
+	for (I2 cell : raster_cells) {
+		F2 sample{ RectCenter(RasterCellRect(raster, cell)) };
 		if (!PassesDistribution(e, sample)) {
 			continue;
 		}
-		const int to_index{ ChoosePrefabFromRecipe(e, e.recipe, sample, cell) };
+		int to_index{ ChoosePrefabFromRecipe(e, e.recipe, sample, cell) };
 		if (to_index < 0 || to_index >= static_cast<int>(e.prefabs.size())) {
 			continue;
 		}
 		const auto& to{ e.prefabs[static_cast<std::size_t>(to_index)] };
-		const RectF target{ RasterCellRect(raster, cell) };
+		RectF target{ RasterCellRect(raster, cell) };
 		for (auto& entity : e.entities) {
 			if (entity.layer_id != layer.id || e.stroke.touched_entities.contains(entity.id) ||
 				!RectsOverlap(EntityBounds(entity), target)) {
@@ -3236,15 +3229,15 @@ static void PaintAt(EditorState& e, F2 world) {
 			if (!map) {
 				return;
 			}
-			const I2 cell{ WorldToCell(*map, world) };
+			I2 cell{ WorldToCell(*map, world) };
 			if (!e.stroke.touched_cells.insert(cell).second) {
 				return;
 			}
 			PlaceTile(e, *layer, *map, cell);
 			return;
 		}
-		const RasterGrid raster{ ActiveRasterGrid(e) };
-		const I2 cell{ WorldToRasterCell(raster, world) };
+		RasterGrid raster{ ActiveRasterGrid(e) };
+		I2 cell{ WorldToRasterCell(raster, world) };
 		if (e.brush.operation == BrushOperation::Replace) {
 			ReplaceEntitiesAt(e, *layer, world, std::vector<I2>{ cell });
 			return;
@@ -3256,14 +3249,14 @@ static void PaintAt(EditorState& e, F2 world) {
 		return;
 	}
 
-	const RasterGrid raster{ ActiveRasterGrid(e) };
-	const std::vector<I2> raster_cells{ RasterBrushCells(e, world) };
+	RasterGrid raster{ ActiveRasterGrid(e) };
+	std::vector<I2> raster_cells{ RasterBrushCells(e, world) };
 	if (layer->kind == LayerKind::Tile) {
 		auto* map{ FindTilemap(e, layer->tile.tilemap_id) };
 		if (!map) {
 			return;
 		}
-		for (const I2 cell : raster_cells) {
+		for (I2 cell : raster_cells) {
 			if (!e.stroke.touched_cells.insert(cell).second) {
 				continue;
 			}
@@ -3279,13 +3272,13 @@ static void PaintAt(EditorState& e, F2 world) {
 		ReplaceEntitiesAt(e, *layer, world, raster_cells);
 		return;
 	}
-	for (const I2 cell : raster_cells) {
+	for (I2 cell : raster_cells) {
 		if (!e.stroke.touched_cells.insert(cell).second) {
 			continue;
 		}
-		const RectF cell_rect{ RasterCellRect(raster, cell) };
-		const F2 f{ EntityOriginFraction(e.recipe.entity_origin) };
-		const F2 placement{
+		RectF cell_rect{ RasterCellRect(raster, cell) };
+		F2 f{ EntityOriginFraction(e.recipe.entity_origin) };
+		F2 placement{
 			cell_rect.min.x + (cell_rect.max.x - cell_rect.min.x) * f.x,
 			cell_rect.min.y + (cell_rect.max.y - cell_rect.min.y) * f.y,
 		};
@@ -3311,17 +3304,17 @@ static void EraseAt(EditorState& e, F2 world) {
 		return;
 	}
 
-	const std::vector<I2> raster_cells{ RasterBrushCells(e, world) };
+	std::vector<I2> raster_cells{ RasterBrushCells(e, world) };
 	if (raster_cells.empty()) {
 		return;
 	}
-	const RasterGrid raster{ ActiveRasterGrid(e) };
+	RasterGrid raster{ ActiveRasterGrid(e) };
 
 	// Only process cells newly reached by this continuous eraser stroke. This is
 	// the main hot-path optimization: interpolation samples heavily overlap.
 	std::unordered_set<I2, I2Hash> new_cells;
 	new_cells.reserve(raster_cells.size());
-	for (const I2 cell : raster_cells) {
+	for (I2 cell : raster_cells) {
 		if (e.stroke.touched_cells.insert(cell).second) {
 			new_cells.insert(cell);
 		}
@@ -3335,9 +3328,9 @@ static void EraseAt(EditorState& e, F2 world) {
 		if (generator.layer_id != layer->id || !generator.visible) {
 			continue;
 		}
-		for (const I2 brush_cell : new_cells) {
-			const F2 sample{ RectCenter(RasterCellRect(raster, brush_cell)) };
-			const I2 generator_cell{
+		for (I2 brush_cell : new_cells) {
+			F2 sample{ RectCenter(RasterCellRect(raster, brush_cell)) };
+			I2 generator_cell{
 				static_cast<int>(std::floor(
 					(sample.x - generator.grid_offset.x) / std::max(1.0f, generator.grid_size.x)
 				)),
@@ -3359,7 +3352,7 @@ static void EraseAt(EditorState& e, F2 world) {
 		}
 
 		if (e.brush.operation == BrushOperation::ExclusionMask) {
-			for (const I2 cell : new_cells) {
+			for (I2 cell : new_cells) {
 				if (map->exclusion_mask.erase(cell) > 0) {
 					e.stroke.changed = true;
 				}
@@ -3367,7 +3360,7 @@ static void EraseAt(EditorState& e, F2 world) {
 			return;
 		}
 
-		for (const I2 cell : new_cells) {
+		for (I2 cell : new_cells) {
 			if (layer->tile.dual_grid_terrain.erase(cell) > 0) {
 				e.stroke.changed = true;
 			}
@@ -3393,11 +3386,11 @@ static void EraseAt(EditorState& e, F2 world) {
 		}
 
 		std::unordered_set<I2, I2Hash> anchors_to_erase;
-		for (const I2 brush_cell : new_cells) {
-			const RectF brush_rect{ RasterCellRect(raster, brush_cell) };
+		for (I2 brush_cell : new_cells) {
+			RectF brush_rect{ RasterCellRect(raster, brush_cell) };
 			for (int oy{ -max_cells_y }; oy <= max_cells_y; ++oy) {
 				for (int ox{ -max_cells_x }; ox <= max_cells_x; ++ox) {
-					const I2 anchor{ brush_cell.x + ox, brush_cell.y + oy };
+					I2 anchor{ brush_cell.x + ox, brush_cell.y + oy };
 					const TileCell* tile{ ReadTileCell(*layer, *map, anchor) };
 					if (!tile || tile->tile_id < 0) {
 						continue;
@@ -3417,7 +3410,7 @@ static void EraseAt(EditorState& e, F2 world) {
 			}
 		}
 
-		for (const I2 anchor : anchors_to_erase) {
+		for (I2 anchor : anchors_to_erase) {
 			const auto* old{ ReadTileCell(*layer, *map, anchor) };
 			bool was_terrain{ old && old->terrain };
 			EraseTile(*layer, *map, anchor);
@@ -3430,7 +3423,7 @@ static void EraseAt(EditorState& e, F2 world) {
 		return;
 	}
 
-	const std::string current_prefab{
+	$1 current_prefab{
 		e.prefabs.empty()
 			? std::string{}
 			: e.prefabs[static_cast<std::size_t>(std::clamp(
@@ -3440,13 +3433,13 @@ static void EraseAt(EditorState& e, F2 world) {
 	};
 
 	auto entity_touches_new_cell = [&](const Entity& entity) {
-		const RectF bounds{ EntityBounds(entity) };
-		const I2 first{ WorldToRasterCell(raster, bounds.min) };
-		const F2 max_inside{
+		RectF bounds{ EntityBounds(entity) };
+		I2 first{ WorldToRasterCell(raster, bounds.min) };
+		F2 max_inside{
 			bounds.max.x - std::max(0.0001f, raster.size.x * 0.0001f),
 			bounds.max.y - std::max(0.0001f, raster.size.y * 0.0001f),
 		};
-		const I2 last{ WorldToRasterCell(raster, max_inside) };
+		I2 last{ WorldToRasterCell(raster, max_inside) };
 		for (int y{ first.y }; y <= last.y; ++y) {
 			for (int x{ first.x }; x <= last.x; ++x) {
 				if (new_cells.contains({ x, y })) {
@@ -3457,7 +3450,7 @@ static void EraseAt(EditorState& e, F2 world) {
 		return false;
 	};
 
-	const auto old_size{ e.entities.size() };
+	auto old_size{ e.entities.size() };
 	e.entities.erase(
 		std::remove_if(
 			e.entities.begin(), e.entities.end(),
@@ -3493,12 +3486,11 @@ static void FloodFill(EditorState& e, F2 world) {
 		return;
 	}
 
-	const I2 start{ WorldToCell(*map, world) };
+	I2 start{ WorldToCell(*map, world) };
 	const auto* start_cell{ ReadTileCell(*layer, *map, start) };
-	const int old_tile{ start_cell ? start_cell->tile_id : -1 };
+	int old_tile{ start_cell ? start_cell->tile_id : -1 };
 
-	const int single_new_tile{ e.recipe.source_kind == PaintSourceKind::Single ? e.recipe.tile_id
-																			   : -2 };
+	int single_new_tile{ e.recipe.source_kind == PaintSourceKind::Single ? e.recipe.tile_id : -2 };
 	if (single_new_tile >= 0 && old_tile == single_new_tile) {
 		return;
 	}
@@ -3508,10 +3500,10 @@ static void FloodFill(EditorState& e, F2 world) {
 	I2 bound_min{};
 	I2 bound_max{};
 	if (old_tile < 0) {
-		const F2 w0{ ScreenToWorld(e, e.canvas_screen_min) };
-		const F2 w1{ ScreenToWorld(e, e.canvas_screen_max) };
-		const I2 c0{ WorldToCell(*map, w0) };
-		const I2 c1{ WorldToCell(*map, w1) };
+		F2 w0{ ScreenToWorld(e, e.canvas_screen_min) };
+		F2 w1{ ScreenToWorld(e, e.canvas_screen_max) };
+		I2 c0{ WorldToCell(*map, w0) };
+		I2 c1{ WorldToCell(*map, w1) };
 		bound_min = {
 			std::min(c0.x, c1.x),
 			std::min(c0.y, c1.y),
@@ -3527,7 +3519,7 @@ static void FloodFill(EditorState& e, F2 world) {
 	constexpr std::size_t kMaxFloodCells{ 50000 };
 
 	while (!stack.empty() && visited.size() < kMaxFloodCells) {
-		const I2 cell{ stack.back() };
+		I2 cell{ stack.back() };
 		stack.pop_back();
 
 		if (!visited.insert(cell).second) {
@@ -3540,13 +3532,13 @@ static void FloodFill(EditorState& e, F2 world) {
 		}
 
 		const auto* current{ ReadTileCell(*layer, *map, cell) };
-		const int current_tile{ current ? current->tile_id : -1 };
+		int current_tile{ current ? current->tile_id : -1 };
 		if (current_tile != old_tile) {
 			continue;
 		}
 
 		if (!e.recipe.avoid_exclusion_mask || !IsExcluded(*map, cell)) {
-			const int tile_id{ ChooseTile(e, CellToWorld(*map, cell)) };
+			int tile_id{ ChooseTile(e, CellToWorld(*map, cell)) };
 			if (e.recipe.source_kind == PaintSourceKind::Autotile) {
 				PlaceAutotileCell(e, *layer, *map, cell);
 			} else if (tile_id >= 0) {
@@ -3571,7 +3563,7 @@ static void Eyedrop(EditorState& e, F2 world) {
 
 	if (layer->kind == LayerKind::Tile) {
 		if (const auto* map = FindTilemap(e, layer->tile.tilemap_id)) {
-			if (const auto anchor = FindVisibleTileAnchorAtWorld(e, *layer, *map, world)) {
+			if (auto anchor = FindVisibleTileAnchorAtWorld(e, *layer, *map, world)) {
 				if (const auto* cell = ReadTileCell(*layer, *map, *anchor);
 					cell && cell->tile_id >= 0) {
 					e.active_tile_id	 = cell->tile_id;
@@ -3582,7 +3574,7 @@ static void Eyedrop(EditorState& e, F2 world) {
 				}
 			}
 		}
-		if (const auto hit = FindTopmostGeneratorSceneHit(e, world); hit && hit->tile_id >= 0) {
+		if (auto hit = FindTopmostGeneratorSceneHit(e, world); hit && hit->tile_id >= 0) {
 			e.active_tile_id	 = hit->tile_id;
 			e.recipe.source_kind = PaintSourceKind::Single;
 			e.recipe.tile_id	 = hit->tile_id;
@@ -3597,8 +3589,8 @@ static void Eyedrop(EditorState& e, F2 world) {
 		if (entity.layer_id != layer->id) {
 			continue;
 		}
-		const RectF bounds{ EntityBounds(entity) };
-		const float d{ Distance(RectCenter(bounds), world) };
+		RectF bounds{ EntityBounds(entity) };
+		float d{ Distance(RectCenter(bounds), world) };
 		bool inside{ world.x >= bounds.min.x && world.x <= bounds.max.x &&
 					 world.y >= bounds.min.y && world.y <= bounds.max.y };
 		if (d < best && inside) {
@@ -3616,7 +3608,7 @@ static void Eyedrop(EditorState& e, F2 world) {
 			}
 		}
 	}
-	if (const auto hit = FindTopmostGeneratorSceneHit(e, world); hit && hit->prefab_index >= 0) {
+	if (auto hit = FindTopmostGeneratorSceneHit(e, world); hit && hit->prefab_index >= 0) {
 		e.active_prefab_index = hit->prefab_index;
 		e.recipe.source_kind  = PaintSourceKind::Single;
 		e.recipe.prefab_index = hit->prefab_index;
@@ -3624,7 +3616,7 @@ static void Eyedrop(EditorState& e, F2 world) {
 }
 
 static bool PointInEntity(const Entity& entity, F2 p) {
-	const RectF bounds{ EntityBounds(entity) };
+	RectF bounds{ EntityBounds(entity) };
 	return p.x >= bounds.min.x && p.x <= bounds.max.x && p.y >= bounds.min.y && p.y <= bounds.max.y;
 }
 
@@ -3634,7 +3626,7 @@ static void SelectClick(EditorState& e, F2 world, bool add, bool toggle) {
 		return;
 	}
 
-	if (const auto hit = FindTopmostGeneratorSceneHit(e, world)) {
+	if (auto hit = FindTopmostGeneratorSceneHit(e, world)) {
 		if (toggle && e.selected_generator_id == hit->generator_id) {
 			e.selected_generator_id = -1;
 		} else {
@@ -3656,7 +3648,7 @@ static void SelectClick(EditorState& e, F2 world, bool add, bool toggle) {
 		e.selected_generator_id	 = -1;
 		e.selected_tile_layer_id = active_layer->id;
 
-		const auto anchor{ FindVisibleTileAnchorAtWorld(e, *active_layer, *map, world) };
+		auto anchor{ FindVisibleTileAnchorAtWorld(e, *active_layer, *map, world) };
 		if (!anchor) {
 			if (!add && !toggle) {
 				e.selected_tile_layer_id = -1;
@@ -3720,7 +3712,7 @@ static void SelectMarquee(EditorState& e, F2 a, F2 b, bool add, bool toggle) {
 			return;
 		}
 
-		const RectF selection_rect{
+		RectF selection_rect{
 			{ std::min(a.x, b.x), std::min(a.y, b.y) },
 			{ std::max(a.x, b.x), std::max(a.y, b.y) },
 		};
@@ -3754,10 +3746,10 @@ static void SelectMarquee(EditorState& e, F2 a, F2 b, bool add, bool toggle) {
 		return;
 	}
 
-	const float min_x{ std::min(a.x, b.x) };
-	const float max_x{ std::max(a.x, b.x) };
-	const float min_y{ std::min(a.y, b.y) };
-	const float max_y{ std::max(a.y, b.y) };
+	float min_x{ std::min(a.x, b.x) };
+	float max_x{ std::max(a.x, b.x) };
+	float min_y{ std::min(a.y, b.y) };
+	float max_y{ std::max(a.y, b.y) };
 
 	if (!add && !toggle) {
 		e.selected_entities.clear();
@@ -3765,7 +3757,7 @@ static void SelectMarquee(EditorState& e, F2 a, F2 b, bool add, bool toggle) {
 	e.selected_tile_cells.clear();
 	e.selected_tile_layer_id = -1;
 
-	const RectF selection_rect{ { min_x, min_y }, { max_x, max_y } };
+	RectF selection_rect{ { min_x, min_y }, { max_x, max_y } };
 	for (const auto& entity : e.entities) {
 		const auto* layer{ FindLayer(e, entity.layer_id) };
 		if (!layer || !layer->visible || layer->locked || !layer->selectable) {
@@ -3804,16 +3796,16 @@ static void SelectBrush(EditorState& e, F2 world, bool remove) {
 		e.primary_entity_id		 = -1;
 		e.selected_tile_layer_id = active_layer->id;
 
-		const RasterGrid raster{ ActiveRasterGrid(e) };
-		const auto brush_cells{ RasterBrushCells(e, world) };
+		RasterGrid raster{ ActiveRasterGrid(e) };
+		auto brush_cells{ RasterBrushCells(e, world) };
 
 		ForEachTileAnchor(*active_layer, *map, [&](I2 anchor, const TileCell& tile) {
 			bool overlaps{};
-			const RectF tile_rect{
+			RectF tile_rect{
 				TileAnchorRect(e, *map, anchor, tile.tile_id, tile.offset, tile.origin)
 			};
 
-			for (const I2 brush_cell : brush_cells) {
+			for (I2 brush_cell : brush_cells) {
 				if (RectsOverlap(tile_rect, RasterCellRect(raster, brush_cell))) {
 					overlaps = true;
 					break;
@@ -3860,7 +3852,7 @@ static void SelectBrush(EditorState& e, F2 world, bool remove) {
 }
 
 static void ReplaceEntitiesInRasterCells(
-	EditorState& e, SceneLayer& layer, const RasterGrid& raster, const std::vector<I2>& cells
+	EditorState& e, SceneLayer& layer, RasterGrid& raster, const std::vector<I2>& cells
 ) {
 	if (layer.kind != LayerKind::Entity || e.prefabs.empty() || cells.empty()) {
 		return;
@@ -3869,9 +3861,9 @@ static void ReplaceEntitiesInRasterCells(
 		if (entity.layer_id != layer.id) {
 			continue;
 		}
-		const RectF bounds{ EntityBounds(entity) };
+		RectF bounds{ EntityBounds(entity) };
 		std::optional<I2> hit;
-		for (const I2 cell : cells) {
+		for (I2 cell : cells) {
 			if (RectsOverlap(bounds, RasterCellRect(raster, cell))) {
 				hit = cell;
 				break;
@@ -3880,7 +3872,7 @@ static void ReplaceEntitiesInRasterCells(
 		if (!hit) {
 			continue;
 		}
-		const int to_index{ ChoosePrefabFromRecipe(e, e.recipe, entity.position, *hit) };
+		int to_index{ ChoosePrefabFromRecipe(e, e.recipe, entity.position, *hit) };
 		if (to_index < 0 || to_index >= static_cast<int>(e.prefabs.size())) {
 			continue;
 		}
@@ -3898,16 +3890,16 @@ static void ApplyLine(EditorState& e, F2 a, F2 b) {
 		return;
 	}
 
-	const RasterGrid raster{ ActiveRasterGrid(e) };
-	const std::vector<I2> cells{ RasterLineCells(e, a, b) };
-	const float line_angle{ std::atan2(b.y - a.y, b.x - a.x) * 57.2957795f };
+	RasterGrid raster{ ActiveRasterGrid(e) };
+	std::vector<I2> cells{ RasterLineCells(e, a, b) };
+	float line_angle{ std::atan2(b.y - a.y, b.x - a.x) * 57.2957795f };
 
 	if (layer->kind == LayerKind::Tile) {
 		auto* map{ FindTilemap(e, layer->tile.tilemap_id) };
 		if (!map) {
 			return;
 		}
-		for (const I2 cell : cells) {
+		for (I2 cell : cells) {
 			PlaceTile(e, *layer, *map, cell);
 		}
 		return;
@@ -3918,14 +3910,14 @@ static void ApplyLine(EditorState& e, F2 a, F2 b) {
 		return;
 	}
 
-	for (const I2 cell : cells) {
-		const RectF rect{ RasterCellRect(raster, cell) };
-		const F2 origin_fraction{ EntityOriginFraction(e.recipe.entity_origin) };
-		const F2 placement{
+	for (I2 cell : cells) {
+		RectF rect{ RasterCellRect(raster, cell) };
+		F2 origin_fraction{ EntityOriginFraction(e.recipe.entity_origin) };
+		F2 placement{
 			rect.min.x + (rect.max.x - rect.min.x) * origin_fraction.x,
 			rect.min.y + (rect.max.y - rect.min.y) * origin_fraction.y,
 		};
-		const std::size_t before_count{ e.entities.size() };
+		std::size_t before_count{ e.entities.size() };
 		PlaceEntity(e, *layer, placement);
 		if (e.brush.line_align_rotation && e.brush.operation == BrushOperation::Paint) {
 			for (std::size_t i{ before_count }; i < e.entities.size(); ++i) {
@@ -3941,8 +3933,8 @@ static void ApplyArea(EditorState& e, F2 a, F2 b) {
 		return;
 	}
 
-	const RasterGrid raster{ ActiveRasterGrid(e) };
-	const std::vector<I2> cells{ RasterAreaCells(e, a, b) };
+	RasterGrid raster{ ActiveRasterGrid(e) };
+	std::vector<I2> cells{ RasterAreaCells(e, a, b) };
 
 	if (layer->kind == LayerKind::Tile) {
 		auto* map{ FindTilemap(e, layer->tile.tilemap_id) };
@@ -3950,7 +3942,7 @@ static void ApplyArea(EditorState& e, F2 a, F2 b) {
 			return;
 		}
 
-		for (const I2 cell : cells) {
+		for (I2 cell : cells) {
 			if (e.brush.area_mode == AreaMode::RandomFill && !PassesAreaRandomFill(e, cell)) {
 				continue;
 			}
@@ -3961,7 +3953,7 @@ static void ApplyArea(EditorState& e, F2 a, F2 b) {
 
 	std::vector<I2> filtered_cells;
 	filtered_cells.reserve(cells.size());
-	for (const I2 cell : cells) {
+	for (I2 cell : cells) {
 		if (e.brush.area_mode == AreaMode::RandomFill && !PassesAreaRandomFill(e, cell)) {
 			continue;
 		}
@@ -3973,9 +3965,9 @@ static void ApplyArea(EditorState& e, F2 a, F2 b) {
 		return;
 	}
 
-	for (const I2 cell : filtered_cells) {
-		const RectF rect{ RasterCellRect(raster, cell) };
-		const F2 origin_fraction{ EntityOriginFraction(e.recipe.entity_origin) };
+	for (I2 cell : filtered_cells) {
+		RectF rect{ RasterCellRect(raster, cell) };
+		F2 origin_fraction{ EntityOriginFraction(e.recipe.entity_origin) };
 		PlaceEntity(
 			e, *layer,
 			{
@@ -3987,13 +3979,13 @@ static void ApplyArea(EditorState& e, F2 a, F2 b) {
 }
 
 static float DistancePointToSegment(F2 p, F2 a, F2 b) {
-	const F2 ab{ b - a };
-	const float length_sq{ ab.x * ab.x + ab.y * ab.y };
+	F2 ab{ b - a };
+	float length_sq{ ab.x * ab.x + ab.y * ab.y };
 	if (length_sq <= 0.00001f) {
 		return Distance(p, a);
 	}
-	const F2 ap{ p - a };
-	const float t{ std::clamp((ap.x * ab.x + ap.y * ab.y) / length_sq, 0.0f, 1.0f) };
+	F2 ap{ p - a };
+	float t{ std::clamp((ap.x * ab.x + ap.y * ab.y) / length_sq, 0.0f, 1.0f) };
 	return Distance(p, a + ab * t);
 }
 
@@ -4025,7 +4017,7 @@ static void IncludeGeneratorBrushCell(PaintGenerator& generator, I2 cell) {
 }
 
 static void StampGeneratorBrushCells(PaintGenerator& generator, F2 world, int diameter_tiles) {
-	const I2 center{
+	I2 center{
 		static_cast<int>(
 			std::floor((world.x - generator.grid_offset.x) / std::max(1.0f, generator.grid_size.x))
 		),
@@ -4033,20 +4025,20 @@ static void StampGeneratorBrushCells(PaintGenerator& generator, F2 world, int di
 			std::floor((world.y - generator.grid_offset.y) / std::max(1.0f, generator.grid_size.y))
 		),
 	};
-	const int diameter{ std::max(1, diameter_tiles) };
-	const int count_x{ std::max(1, diameter * std::max(1, generator.source_footprint_cells.x)) };
-	const int count_y{ std::max(1, diameter * std::max(1, generator.source_footprint_cells.y)) };
-	const int start_x{ center.x - (count_x - 1) / 2 };
-	const int start_y{ center.y - (count_y - 1) / 2 };
-	const float cx{ (static_cast<float>(count_x) - 1.0f) * 0.5f };
-	const float cy{ (static_cast<float>(count_y) - 1.0f) * 0.5f };
-	const float rx{ std::max(0.5f, static_cast<float>(count_x) * 0.5f) };
-	const float ry{ std::max(0.5f, static_cast<float>(count_y) * 0.5f) };
+	int diameter{ std::max(1, diameter_tiles) };
+	int count_x{ std::max(1, diameter * std::max(1, generator.source_footprint_cells.x)) };
+	int count_y{ std::max(1, diameter * std::max(1, generator.source_footprint_cells.y)) };
+	int start_x{ center.x - (count_x - 1) / 2 };
+	int start_y{ center.y - (count_y - 1) / 2 };
+	float cx{ (static_cast<float>(count_x) - 1.0f) * 0.5f };
+	float cy{ (static_cast<float>(count_y) - 1.0f) * 0.5f };
+	float rx{ std::max(0.5f, static_cast<float>(count_x) * 0.5f) };
+	float ry{ std::max(0.5f, static_cast<float>(count_y) * 0.5f) };
 	for (int y{}; y < count_y; ++y) {
 		for (int x{}; x < count_x; ++x) {
 			if (generator.brush_shape == BrushShape::Circle) {
-				const float nx{ (static_cast<float>(x) - cx) / rx };
-				const float ny{ (static_cast<float>(y) - cy) / ry };
+				float nx{ (static_cast<float>(x) - cx) / rx };
+				float ny{ (static_cast<float>(y) - cy) / ry };
 				if (nx * nx + ny * ny > 1.0f) {
 					continue;
 				}
@@ -4070,9 +4062,9 @@ static void AppendGeneratorBrushSample(
 		};
 	};
 	if (!begin_new_stroke && !generator.stroke_points.empty()) {
-		const int previous_diameter{ generator.stroke_diameters.empty()
-										 ? generator.brush_diameter_tiles
-										 : generator.stroke_diameters.back() };
+		int previous_diameter{ generator.stroke_diameters.empty()
+								   ? generator.brush_diameter_tiles
+								   : generator.stroke_diameters.back() };
 		// Same cell + same diameter is redundant. A diameter change is authored
 		// even without mouse movement so the next drag segment immediately uses it.
 		if (to_cell(generator.stroke_points.back()) == to_cell(world) &&
@@ -4092,15 +4084,15 @@ static bool GeneratorAnchorCell(const PaintGenerator& generator, I2 cell) {
 	if (generator.recipe.tile_paint_mode != TilePaintMode::Tile) {
 		return true;
 	}
-	const int sx{ std::max(1, generator.source_footprint_cells.x) };
-	const int sy{ std::max(1, generator.source_footprint_cells.y) };
+	int sx{ std::max(1, generator.source_footprint_cells.x) };
+	int sy{ std::max(1, generator.source_footprint_cells.y) };
 	if (sx == 1 && sy == 1) {
 		return true;
 	}
 	// Anchor the source-sized lattice to the generator's first authored cell.
 	// The origin must never move when a Brush later expands left/up, otherwise
 	// every existing oversized-tile anchor would appear to shift parity.
-	const I2 origin{ generator.lattice_origin_cell };
+	I2 origin{ generator.lattice_origin_cell };
 	return FloorMod(cell.x - origin.x, sx) == 0 && FloorMod(cell.y - origin.y, sy) == 0;
 }
 
@@ -4109,14 +4101,14 @@ static bool GeneratorGeometryContains(const PaintGenerator& generator, I2 cell) 
 		!generator.brush_cells.empty()) {
 		return generator.brush_cells.contains(cell);
 	}
-	const F2 p{ GeneratorCellCenter(generator, cell) };
+	F2 p{ GeneratorCellCenter(generator, cell) };
 	switch (generator.geometry) {
 		case GeneratorGeometryKind::Infinite:  return true;
 		case GeneratorGeometryKind::Rectangle: {
-			const F2 mn{ std::min(generator.start.x, generator.end.x),
-						 std::min(generator.start.y, generator.end.y) };
-			const F2 mx{ std::max(generator.start.x, generator.end.x),
-						 std::max(generator.start.y, generator.end.y) };
+			F2 mn{ std::min(generator.start.x, generator.end.x),
+				   std::min(generator.start.y, generator.end.y) };
+			F2 mx{ std::max(generator.start.x, generator.end.x),
+				   std::max(generator.start.y, generator.end.y) };
 			if (!(p.x >= mn.x && p.x < mx.x && p.y >= mn.y && p.y < mx.y)) {
 				return false;
 			}
@@ -4124,7 +4116,7 @@ static bool GeneratorGeometryContains(const PaintGenerator& generator, I2 cell) 
 				generator.area_mode == AreaMode::RandomFill) {
 				return true;
 			}
-			const I2 first{
+			I2 first{
 				static_cast<int>(std::floor(
 					(mn.x - generator.grid_offset.x) / std::max(1.0f, generator.grid_size.x)
 				)),
@@ -4132,7 +4124,7 @@ static bool GeneratorGeometryContains(const PaintGenerator& generator, I2 cell) 
 					(mn.y - generator.grid_offset.y) / std::max(1.0f, generator.grid_size.y)
 				)),
 			};
-			const I2 last{
+			I2 last{
 				static_cast<int>(std::floor(
 					(mx.x - generator.grid_offset.x - generator.grid_size.x * 0.0001f) /
 					std::max(1.0f, generator.grid_size.x)
@@ -4142,25 +4134,25 @@ static bool GeneratorGeometryContains(const PaintGenerator& generator, I2 cell) 
 					std::max(1.0f, generator.grid_size.y)
 				)),
 			};
-			const int tx{ std::max(1, generator.area_thickness) *
-						  std::max(1, generator.source_footprint_cells.x) };
-			const int ty{ std::max(1, generator.area_thickness) *
-						  std::max(1, generator.source_footprint_cells.y) };
-			const int left{ cell.x - first.x };
-			const int right{ last.x - cell.x };
-			const int top{ cell.y - first.y };
-			const int bottom{ last.y - cell.y };
+			int tx{ std::max(1, generator.area_thickness) *
+					std::max(1, generator.source_footprint_cells.x) };
+			int ty{ std::max(1, generator.area_thickness) *
+					std::max(1, generator.source_footprint_cells.y) };
+			int left{ cell.x - first.x };
+			int right{ last.x - cell.x };
+			int top{ cell.y - first.y };
+			int bottom{ last.y - cell.y };
 			bool edge{ left < tx || right < tx || top < ty || bottom < ty };
 			bool corner{ (left < tx || right < tx) && (top < ty || bottom < ty) };
 			return generator.area_mode == AreaMode::Outline ? edge : corner;
 		}
 		case GeneratorGeometryKind::Line: {
-			const int source_cells{
+			int source_cells{
 				std::max(generator.source_footprint_cells.x, generator.source_footprint_cells.y)
 			};
-			const float half_width{ std::max(generator.grid_size.x, generator.grid_size.y) *
-									std::max(1, generator.line_thickness) *
-									std::max(1, source_cells) * 0.5f };
+			float half_width{ std::max(generator.grid_size.x, generator.grid_size.y) *
+							  std::max(1, generator.line_thickness) * std::max(1, source_cells) *
+							  0.5f };
 			return DistancePointToSegment(p, generator.start, generator.end) <= half_width;
 		}
 		case GeneratorGeometryKind::BrushStroke:
@@ -4182,8 +4174,8 @@ static bool GeneratorCoveragePass(
 		return false;
 	}
 	const PaintRecipe& recipe{ generator.recipe };
-	const F2 world{ GeneratorCellCenter(generator, cell) };
-	const float selector{ Hash01(
+	F2 world{ GeneratorCellCenter(generator, cell) };
+	float selector{ Hash01(
 		cell, static_cast<std::uint32_t>(recipe.noise.seed) ^
 				  static_cast<std::uint32_t>((generator.id + 17) * 7919)
 	) };
@@ -4193,7 +4185,7 @@ static bool GeneratorCoveragePass(
 	}
 
 	if (recipe.source_kind == PaintSourceKind::Noise) {
-		const float noise_value{ cached_noise.value_or(RecipeNoiseValue(world, recipe)) };
+		float noise_value{ cached_noise.value_or(RecipeNoiseValue(world, recipe)) };
 		const auto* threshold{ RecipeNoiseThreshold(recipe, noise_value) };
 		if (!threshold || !threshold->enabled) {
 			return false;
@@ -4217,25 +4209,25 @@ static bool GeneratorCoveragePass(
 				// authored at each sample rather than the generator's largest diameter.
 				float closest_normalized{ std::numeric_limits<float>::max() };
 				for (std::size_t i{}; i < generator.stroke_points.size(); ++i) {
-					const int diameter{ i < generator.stroke_diameters.size()
-											? std::max(1, generator.stroke_diameters[i])
-											: std::max(1, generator.brush_diameter_tiles) };
-					const float rx{ std::max(
+					int diameter{ i < generator.stroke_diameters.size()
+									  ? std::max(1, generator.stroke_diameters[i])
+									  : std::max(1, generator.brush_diameter_tiles) };
+					float rx{ std::max(
 						0.5f, generator.grid_size.x *
 								  static_cast<float>(
 									  diameter * std::max(1, generator.source_footprint_cells.x)
 								  ) *
 								  0.5f
 					) };
-					const float ry{ std::max(
+					float ry{ std::max(
 						0.5f, generator.grid_size.y *
 								  static_cast<float>(
 									  diameter * std::max(1, generator.source_footprint_cells.y)
 								  ) *
 								  0.5f
 					) };
-					const float dx{ (world.x - generator.stroke_points[i].x) / rx };
-					const float dy{ (world.y - generator.stroke_points[i].y) / ry };
+					float dx{ (world.x - generator.stroke_points[i].x) / rx };
+					float dy{ (world.y - generator.stroke_points[i].y) / ry };
 					closest_normalized = std::min(closest_normalized, std::sqrt(dx * dx + dy * dy));
 				}
 				if (!std::isfinite(closest_normalized)) {
@@ -4243,17 +4235,13 @@ static bool GeneratorCoveragePass(
 				}
 				normalized = closest_normalized;
 			} else {
-				const F2 center{ (generator.start + generator.end) * 0.5f };
-				const float radius{
-					std::max(1.0f, Distance(generator.start, generator.end) * 0.5f)
-				};
+				F2 center{ (generator.start + generator.end) * 0.5f };
+				float radius{ std::max(1.0f, Distance(generator.start, generator.end) * 0.5f) };
 				normalized = Distance(world, center) / radius;
 			}
-			const float inner{ std::clamp(recipe.radial_inner, 0.0f, 1.0f) };
-			const float outer{
-				std::max(inner + 0.001f, std::clamp(recipe.radial_outer, 0.0f, 1.0f))
-			};
-			const float t{ std::clamp((normalized - inner) / (outer - inner), 0.0f, 1.0f) };
+			float inner{ std::clamp(recipe.radial_inner, 0.0f, 1.0f) };
+			float outer{ std::max(inner + 0.001f, std::clamp(recipe.radial_outer, 0.0f, 1.0f)) };
+			float t{ std::clamp((normalized - inner) / (outer - inner), 0.0f, 1.0f) };
 			return selector <= (1.0f - t) * recipe.density;
 		}
 	}
@@ -4272,18 +4260,17 @@ static std::pair<I2, I2> GeneratorCellBounds(const PaintGenerator& generator) {
 	F2 mx{ std::max(generator.start.x, generator.end.x),
 		   std::max(generator.start.y, generator.end.y) };
 	if (generator.geometry == GeneratorGeometryKind::Line) {
-		const int source_cells{
+		int source_cells{
 			std::max(generator.source_footprint_cells.x, generator.source_footprint_cells.y)
 		};
-		const float margin{ std::max(generator.grid_size.x, generator.grid_size.y) *
-							std::max(1, generator.line_thickness) * std::max(1, source_cells) *
-							0.5f };
+		float margin{ std::max(generator.grid_size.x, generator.grid_size.y) *
+					  std::max(1, generator.line_thickness) * std::max(1, source_cells) * 0.5f };
 		mn.x -= margin;
 		mn.y -= margin;
 		mx.x += margin;
 		mx.y += margin;
 	}
-	const auto to_cell = [&](F2 p) {
+	auto to_cell = [&](F2 p) {
 		return I2{
 			static_cast<int>(
 				std::floor((p.x - generator.grid_offset.x) / std::max(1.0f, generator.grid_size.x))
@@ -4293,8 +4280,8 @@ static std::pair<I2, I2> GeneratorCellBounds(const PaintGenerator& generator) {
 			),
 		};
 	};
-	const float eps_x{ std::max(0.0001f, generator.grid_size.x * 0.0001f) };
-	const float eps_y{ std::max(0.0001f, generator.grid_size.y * 0.0001f) };
+	float eps_x{ std::max(0.0001f, generator.grid_size.x * 0.0001f) };
+	float eps_y{ std::max(0.0001f, generator.grid_size.y * 0.0001f) };
 	return { to_cell(mn), to_cell({ mx.x - eps_x, mx.y - eps_y }) };
 }
 
@@ -4308,7 +4295,7 @@ static PaintGenerator MakeGeneratorFromCurrentStroke(
 							 : std::string{ ToolName(e.tool) } + " (Live)";
 	generator.geometry = geometry;
 	generator.recipe   = e.recipe;
-	const RasterGrid grid{ ActiveRasterGrid(e) };
+	RasterGrid grid{ ActiveRasterGrid(e) };
 	generator.grid_size				 = grid.size;
 	generator.grid_offset			 = grid.offset;
 	generator.source_footprint_cells = RecipePaintFootprintCells(e);
@@ -4324,20 +4311,19 @@ static PaintGenerator MakeGeneratorFromCurrentStroke(
 	generator.area_mode				 = e.brush.area_mode;
 
 	if (geometry == GeneratorGeometryKind::Rectangle) {
-		const I2 a{ WorldToRasterCell(grid, generator.start) };
-		const I2 b{ QuantizeAreaEndCell(e, a, WorldToRasterCell(grid, generator.end)) };
-		const I2 mn{ std::min(a.x, b.x), std::min(a.y, b.y) };
-		const I2 mx{ std::max(a.x, b.x), std::max(a.y, b.y) };
+		I2 a{ WorldToRasterCell(grid, generator.start) };
+		I2 b{ QuantizeAreaEndCell(e, a, WorldToRasterCell(grid, generator.end)) };
+		I2 mn{ std::min(a.x, b.x), std::min(a.y, b.y) };
+		I2 mx{ std::max(a.x, b.x), std::max(a.y, b.y) };
 		generator.start = RasterCellToWorld(grid, mn);
 		generator.end	= RasterCellToWorld(grid, { mx.x + 1, mx.y + 1 });
 	}
 
 	if (geometry == GeneratorGeometryKind::BrushStroke) {
-		const std::vector<F2> points{ e.stroke.points.empty()
-										  ? std::vector<F2>{ e.stroke.start_world }
-										  : e.stroke.points };
+		std::vector<F2> points{ e.stroke.points.empty() ? std::vector<F2>{ e.stroke.start_world }
+														: e.stroke.points };
 		bool first{ true };
-		for (const F2 point : points) {
+		for (F2 point : points) {
 			AppendGeneratorBrushSample(generator, point, first, e.brush.brush_diameter_tiles);
 			first = false;
 		}
@@ -4352,7 +4338,7 @@ static I2 GeneratorRecipeFootprintCells(const EditorState& e, const PaintGenerat
 	if (!layer) {
 		return { 1, 1 };
 	}
-	const F2 size{ RecipeMaxSourceSize(e, *layer, generator.recipe) };
+	F2 size{ RecipeMaxSourceSize(e, *layer, generator.recipe) };
 	return {
 		std::max(1, static_cast<int>(std::ceil(size.x / std::max(1.0f, generator.grid_size.x)))),
 		std::max(1, static_cast<int>(std::ceil(size.y / std::max(1.0f, generator.grid_size.y)))),
@@ -4367,17 +4353,17 @@ static void RebuildGeneratorBrushCache(PaintGenerator& generator) {
 	generator.brush_bounds_valid = false;
 	int max_diameter{ std::max(1, generator.brush_diameter_tiles) };
 	for (std::size_t i{}; i < generator.stroke_points.size(); ++i) {
-		const int diameter{ i < generator.stroke_diameters.size()
-								? std::max(1, generator.stroke_diameters[i])
-								: std::max(1, generator.brush_diameter_tiles) };
+		int diameter{ i < generator.stroke_diameters.size()
+						  ? std::max(1, generator.stroke_diameters[i])
+						  : std::max(1, generator.brush_diameter_tiles) };
 		max_diameter = std::max(max_diameter, diameter);
 		StampGeneratorBrushCells(generator, generator.stroke_points[i], diameter);
 	}
-	const float width{
+	float width{
 		generator.grid_size.x *
 		static_cast<float>(max_diameter * std::max(1, generator.source_footprint_cells.x))
 	};
-	const float height{
+	float height{
 		generator.grid_size.y *
 		static_cast<float>(max_diameter * std::max(1, generator.source_footprint_cells.y))
 	};
@@ -4386,7 +4372,7 @@ static void RebuildGeneratorBrushCache(PaintGenerator& generator) {
 
 static void SyncGeneratorRecipeFromPalette(EditorState& e, PaintGenerator& generator) {
 	generator.recipe = e.recipe;
-	const I2 footprint{ GeneratorRecipeFootprintCells(e, generator) };
+	I2 footprint{ GeneratorRecipeFootprintCells(e, generator) };
 	if (footprint != generator.source_footprint_cells) {
 		generator.source_footprint_cells = footprint;
 		RebuildGeneratorBrushCache(generator);
@@ -4399,7 +4385,7 @@ static bool PendingBrushGeneratorActive(const EditorState& e) {
 }
 
 static int AddGeneratorFromCurrentStroke(EditorState& e, GeneratorGeometryKind geometry, F2 end) {
-	const int id{ e.next_generator_id++ };
+	int id{ e.next_generator_id++ };
 	e.generators.push_back(MakeGeneratorFromCurrentStroke(e, geometry, end, id));
 	e.selected_generator_id = id;
 	e.primary_entity_id		= -1;
@@ -4427,14 +4413,14 @@ static void CreateInfiniteGenerator(EditorState& e) {
 	if (!layer || layer->kind == LayerKind::Noise || layer->locked) {
 		return;
 	}
-	const SceneSnapshot before{ CaptureScene(e) };
+	SceneSnapshot before{ CaptureScene(e) };
 	PaintGenerator generator;
 	generator.id	   = e.next_generator_id++;
 	generator.layer_id = layer->id;
 	generator.name	   = "Infinite Generator " + std::to_string(generator.id);
 	generator.geometry = GeneratorGeometryKind::Infinite;
 	generator.recipe   = e.recipe;
-	const RasterGrid grid{ ActiveRasterGrid(e) };
+	RasterGrid grid{ ActiveRasterGrid(e) };
 	generator.grid_size				 = grid.size;
 	generator.grid_offset			 = grid.offset;
 	generator.source_footprint_cells = RecipePaintFootprintCells(e);
@@ -4454,11 +4440,11 @@ static bool BakePaintGeneratorIntoScene(EditorState& e, const PaintGenerator& ge
 		return false;
 	}
 
-	const auto [first, last]{ GeneratorCellBounds(generator) };
+	auto [first, last]{ GeneratorCellBounds(generator) };
 	std::size_t visited{};
 	constexpr std::size_t kMaxBakeCells{ 200000 };
-	const PaintRecipe saved_recipe{ e.recipe };
-	const StrokeState saved_stroke{ e.stroke };
+	PaintRecipe saved_recipe{ e.recipe };
+	StrokeState saved_stroke{ e.stroke };
 	e.recipe		= generator.recipe;
 	e.stroke		= {};
 	e.stroke.active = true;
@@ -4466,17 +4452,17 @@ static bool BakePaintGeneratorIntoScene(EditorState& e, const PaintGenerator& ge
 
 	for (int y{ first.y }; y <= last.y && visited < kMaxBakeCells; ++y) {
 		for (int x{ first.x }; x <= last.x && visited < kMaxBakeCells; ++x, ++visited) {
-			const I2 cell{ x, y };
+			I2 cell{ x, y };
 			if (!GeneratorCoveragePass(generator, cell)) {
 				continue;
 			}
-			const F2 world{ GeneratorCellCenter(generator, cell) };
+			F2 world{ GeneratorCellCenter(generator, cell) };
 			if (layer->kind == LayerKind::Tile) {
 				auto* map{ FindTilemap(e, layer->tile.tilemap_id) };
 				if (!map) {
 					continue;
 				}
-				const I2 target{ WorldToCell(*map, world) };
+				I2 target{ WorldToCell(*map, world) };
 				if (generator.recipe.avoid_exclusion_mask && IsExcluded(*map, target)) {
 					continue;
 				}
@@ -4485,9 +4471,7 @@ static bool BakePaintGeneratorIntoScene(EditorState& e, const PaintGenerator& ge
 					PlaceAutotileCell(e, *layer, *map, target);
 					changed = changed || e.stroke.changed != before_changed || e.stroke.changed;
 				} else {
-					const int tile_id{
-						ChooseTileFromRecipe(e, generator.recipe, world, cell, true)
-					};
+					int tile_id{ ChooseTileFromRecipe(e, generator.recipe, world, cell, true) };
 					if (tile_id < 0) {
 						continue;
 					}
@@ -4498,9 +4482,7 @@ static bool BakePaintGeneratorIntoScene(EditorState& e, const PaintGenerator& ge
 					changed = true;
 				}
 			} else if (layer->kind == LayerKind::Entity) {
-				const int prefab_index{
-					ChoosePrefabFromRecipe(e, generator.recipe, world, cell, true)
-				};
+				int prefab_index{ ChoosePrefabFromRecipe(e, generator.recipe, world, cell, true) };
 				if (prefab_index < 0 || prefab_index >= static_cast<int>(e.prefabs.size())) {
 					continue;
 				}
@@ -4513,7 +4495,7 @@ static bool BakePaintGeneratorIntoScene(EditorState& e, const PaintGenerator& ge
 				entity.size		= prefab.size;
 				entity.origin	= RecipeSourceOrigin(generator.recipe, world, false);
 				if (generator.recipe.random_rotation) {
-					const float t{ Hash01(
+					float t{ Hash01(
 						cell, static_cast<std::uint32_t>(generator.recipe.noise.seed) ^ 0x41A7u
 					) };
 					entity.rotation =
@@ -4521,7 +4503,7 @@ static bool BakePaintGeneratorIntoScene(EditorState& e, const PaintGenerator& ge
 						(generator.recipe.rotation_max - generator.recipe.rotation_min) * t;
 				}
 				if (generator.recipe.random_scale) {
-					const float t{ Hash01(
+					float t{ Hash01(
 						cell, static_cast<std::uint32_t>(generator.recipe.noise.seed) ^ 0xAC31u
 					) };
 					entity.scale = generator.recipe.scale_min +
@@ -4548,7 +4530,7 @@ static void CommitPendingGenerator(EditorState& e) {
 		e.pending_generator_before.reset();
 		return;
 	}
-	const SceneSnapshot before{ e.pending_generator_before.value_or(CaptureScene(e)) };
+	SceneSnapshot before{ e.pending_generator_before.value_or(CaptureScene(e)) };
 	bool changed{};
 	if (generator.recipe.commit_mode == PaintCommitMode::KeepGenerator) {
 		generator.id			= e.next_generator_id++;
@@ -4583,8 +4565,8 @@ static void BakeGenerator(EditorState& e, int generator_id) {
 	if (!source || source->geometry == GeneratorGeometryKind::Infinite) {
 		return;
 	}
-	const SceneSnapshot before{ CaptureScene(e) };
-	const PaintGenerator generator{ *source };
+	SceneSnapshot before{ CaptureScene(e) };
+	PaintGenerator generator{ *source };
 	if (!BakePaintGeneratorIntoScene(e, generator)) {
 		return;
 	}
@@ -4605,7 +4587,7 @@ static void DeleteGenerator(EditorState& e, int generator_id) {
 	if (!FindGenerator(e, generator_id)) {
 		return;
 	}
-	const SceneSnapshot before{ CaptureScene(e) };
+	SceneSnapshot before{ CaptureScene(e) };
 	e.generators.erase(
 		std::remove_if(
 			e.generators.begin(), e.generators.end(),
@@ -4626,7 +4608,7 @@ static std::optional<GeneratorHit> FindTopmostGeneratorAtWorld(
 		return std::nullopt;
 	}
 
-	// Manually-authored content is rendered after generators, so it wins the hit test.
+	// Manually authored content is rendered after generators, so it wins the hit test.
 	if (layer.kind == LayerKind::Tile) {
 		if (const auto* map = FindTilemap(e, layer.tile.tilemap_id)) {
 			if (FindVisibleTileAnchorAtWorld(e, layer, *map, world)) {
@@ -4651,7 +4633,7 @@ static std::optional<GeneratorHit> FindTopmostGeneratorAtWorld(
 			!generator.recipe.show_generated_preview) {
 			continue;
 		}
-		const I2 center{
+		I2 center{
 			static_cast<int>(std::floor(
 				(world.x - generator.grid_offset.x) / std::max(1.0f, generator.grid_size.x)
 			)),
@@ -4659,15 +4641,15 @@ static std::optional<GeneratorHit> FindTopmostGeneratorAtWorld(
 				(world.y - generator.grid_offset.y) / std::max(1.0f, generator.grid_size.y)
 			)),
 		};
-		const int rx{ std::max(1, generator.source_footprint_cells.x) + 1 };
-		const int ry{ std::max(1, generator.source_footprint_cells.y) + 1 };
+		int rx{ std::max(1, generator.source_footprint_cells.x) + 1 };
+		int ry{ std::max(1, generator.source_footprint_cells.y) + 1 };
 		for (int y{ center.y + ry }; y >= center.y - ry; --y) {
 			for (int x{ center.x + rx }; x >= center.x - rx; --x) {
-				const I2 cell{ x, y };
+				I2 cell{ x, y };
 				if (!GeneratorCoveragePass(generator, cell)) {
 					continue;
 				}
-				const F2 sample{ GeneratorCellCenter(generator, cell) };
+				F2 sample{ GeneratorCellCenter(generator, cell) };
 				if (layer.kind == LayerKind::Tile) {
 					const auto* source_map{ FindTilemap(e, layer.tile.tilemap_id) };
 					if (!source_map) {
@@ -4705,7 +4687,7 @@ static std::optional<GeneratorHit> FindTopmostGeneratorAtWorld(
 							map.origin = { generator.grid_offset.x + generator.grid_size.x * 0.5f,
 										   generator.grid_offset.y + generator.grid_size.y * 0.5f };
 						} else {
-							const int index{ GeneratorAutotileIndex(generator, *rules, cell) };
+							int index{ GeneratorAutotileIndex(generator, *rules, cell) };
 							if (index < 0 || index >= static_cast<int>(rules->tile_ids.size())) {
 								continue;
 							}
@@ -4717,24 +4699,24 @@ static std::optional<GeneratorHit> FindTopmostGeneratorAtWorld(
 					if (tile_id < 0) {
 						continue;
 					}
-					const EntityOrigin origin{ RecipeSourceOrigin(generator.recipe, sample, true) };
-					const RectF rect{ TileAnchorRect(e, map, cell, tile_id, {}, origin) };
+					EntityOrigin origin{ RecipeSourceOrigin(generator.recipe, sample, true) };
+					RectF rect{ TileAnchorRect(e, map, cell, tile_id, {}, origin) };
 					if (world.x >= rect.min.x && world.x <= rect.max.x && world.y >= rect.min.y &&
 						world.y <= rect.max.y) {
 						return GeneratorHit{ generator.id, cell, tile_id, -1 };
 					}
 				} else {
-					const int prefab_index{
+					int prefab_index{
 						ChoosePrefabFromRecipe(e, generator.recipe, sample, cell, true)
 					};
 					if (prefab_index < 0 || prefab_index >= static_cast<int>(e.prefabs.size())) {
 						continue;
 					}
 					const auto& prefab{ e.prefabs[static_cast<std::size_t>(prefab_index)] };
-					const F2 f{
+					F2 f{
 						EntityOriginFraction(RecipeSourceOrigin(generator.recipe, sample, false))
 					};
-					const RectF rect{
+					RectF rect{
 						{ sample.x - prefab.size.x * f.x, sample.y - prefab.size.y * f.y },
 						{ sample.x + prefab.size.x * (1.0f - f.x),
 						  sample.y + prefab.size.y * (1.0f - f.y) },
@@ -4798,8 +4780,8 @@ static void SetNoiseBoundsToCurrentViewport(EditorState& e, SceneLayer& layer) {
 	F2 maximum{ 256.0f, 256.0f };
 	if (e.canvas_screen_max.x - e.canvas_screen_min.x > 8.0f &&
 		e.canvas_screen_max.y - e.canvas_screen_min.y > 8.0f) {
-		const F2 a{ VisibleWorldMin(e) };
-		const F2 b{ VisibleWorldMax(e) };
+		F2 a{ VisibleWorldMin(e) };
+		F2 b{ VisibleWorldMax(e) };
 		minimum = { std::min(a.x, b.x), std::min(a.y, b.y) };
 		maximum = { std::max(a.x, b.x), std::max(a.y, b.y) };
 	}
@@ -4812,19 +4794,19 @@ static void FrameNoiseBoundsInViewport(EditorState& e, const SceneLayer& layer) 
 		return;
 	}
 
-	const auto [minimum, maximum]{ OrderedNoiseBounds(layer) };
-	const float world_width{ std::max(1.0f, maximum.x - minimum.x) };
-	const float world_height{ std::max(1.0f, maximum.y - minimum.y) };
-	const float canvas_width{ std::max(1.0f, e.canvas_screen_max.x - e.canvas_screen_min.x) };
-	const float canvas_height{ std::max(1.0f, e.canvas_screen_max.y - e.canvas_screen_min.y) };
-	const float padding_px{ 36.0f };
-	const float usable_width{ std::max(1.0f, canvas_width - padding_px * 2.0f) };
-	const float usable_height{ std::max(1.0f, canvas_height - padding_px * 2.0f) };
+	auto [minimum, maximum]{ OrderedNoiseBounds(layer) };
+	float world_width{ std::max(1.0f, maximum.x - minimum.x) };
+	float world_height{ std::max(1.0f, maximum.y - minimum.y) };
+	float canvas_width{ std::max(1.0f, e.canvas_screen_max.x - e.canvas_screen_min.x) };
+	float canvas_height{ std::max(1.0f, e.canvas_screen_max.y - e.canvas_screen_min.y) };
+	float padding_px{ 36.0f };
+	float usable_width{ std::max(1.0f, canvas_width - padding_px * 2.0f) };
+	float usable_height{ std::max(1.0f, canvas_height - padding_px * 2.0f) };
 
 	e.view_zoom =
 		std::clamp(std::min(usable_width / world_width, usable_height / world_height), 0.15f, 5.0f);
 
-	const F2 center{ (minimum.x + maximum.x) * 0.5f, (minimum.y + maximum.y) * 0.5f };
+	F2 center{ (minimum.x + maximum.x) * 0.5f, (minimum.y + maximum.y) * 0.5f };
 	e.view_pan = {
 		canvas_width * 0.5f - center.x * e.view_zoom,
 		canvas_height * 0.5f - center.y * e.view_zoom,
@@ -4847,16 +4829,12 @@ static void UpdateStreamingForLayer(EditorState& e, SceneLayer& layer) {
 		return;
 	}
 
-	const F2 w0{ VisibleWorldMin(e) };
-	const F2 w1{ VisibleWorldMax(e) };
-	const I2 cell0{ WorldToCell(*map, w0) };
-	const I2 cell1{ WorldToCell(*map, w1) };
-	const I2 chunk0{
-		CellToChunk(*map, { std::min(cell0.x, cell1.x), std::min(cell0.y, cell1.y) })
-	};
-	const I2 chunk1{
-		CellToChunk(*map, { std::max(cell0.x, cell1.x), std::max(cell0.y, cell1.y) })
-	};
+	F2 w0{ VisibleWorldMin(e) };
+	F2 w1{ VisibleWorldMax(e) };
+	I2 cell0{ WorldToCell(*map, w0) };
+	I2 cell1{ WorldToCell(*map, w1) };
+	I2 chunk0{ CellToChunk(*map, { std::min(cell0.x, cell1.x), std::min(cell0.y, cell1.y) }) };
+	I2 chunk1{ CellToChunk(*map, { std::max(cell0.x, cell1.x), std::max(cell0.y, cell1.y) }) };
 
 	layer.tile.preload_chunks.clear();
 	layer.tile.keep_alive_chunks.clear();
@@ -4871,7 +4849,7 @@ static void UpdateStreamingForLayer(EditorState& e, SceneLayer& layer) {
 		 y <= chunk1.y + map->streaming.preload_margin; ++y) {
 		for (int x{ chunk0.x - map->streaming.preload_margin };
 			 x <= chunk1.x + map->streaming.preload_margin; ++x) {
-			const I2 c{ x, y };
+			I2 c{ x, y };
 			layer.tile.preload_chunks.insert(c);
 			if (!layer.tile.loaded_chunks.contains(c) && layer.tile.backing_chunks.contains(c) &&
 				layer.tile.loaded_chunks.size() <
@@ -4914,7 +4892,7 @@ static int CountMergedCollisionRects(const SceneLayer& layer, const Tilemap& map
 	collect(layer.tile.backing_chunks);
 	int rects{};
 	while (!solid.empty()) {
-		const I2 start{ *solid.begin() };
+		I2 start{ *solid.begin() };
 		int width{ 1 };
 		while (solid.contains({ start.x + width, start.y })) {
 			++width;
@@ -4946,7 +4924,7 @@ static int AddGeneratedTile(
 				default: use_accent = (y % 8 == 0) || (x % 8 == (y / 8 % 2) * 4); break; // brick
 			}
 			const auto& c{ use_accent ? accent : base };
-			const std::size_t i{ static_cast<std::size_t>((y * width + x) * 4) };
+			std::size_t i{ static_cast<std::size_t>((y * width + x) * 4) };
 			pixels[i + 0] = c[0];
 			pixels[i + 1] = c[1];
 			pixels[i + 2] = c[2];
@@ -4966,7 +4944,7 @@ static int AddGeneratedTile(
 		GL_TEXTURE_2D, 0, GL_RGBA8, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, pixels.data()
 	);
 
-	const int texture_index{ static_cast<int>(e.textures.size()) };
+	int texture_index{ static_cast<int>(e.textures.size()) };
 	e.textures.push_back({ texture, width, height, "generated://" + name });
 
 	TileDefinition tile;
@@ -4982,7 +4960,7 @@ static int AddGeneratedTile(
 	return tile.id;
 }
 
-static bool LoadTexture(EditorState& e, const std::string& path, int& texture_index) {
+static bool LoadTexture(EditorState& e, $1& path, int& texture_index) {
 	int w{}, h{}, channels{};
 	stbi_uc* pixels{ stbi_load(path.c_str(), &w, &h, &channels, 4) };
 	if (!pixels) {
@@ -5017,7 +4995,7 @@ static std::string ReadTextFile(const std::filesystem::path& path) {
 static std::optional<I2> FilenameTileDimensions(const std::filesystem::path& path) {
 	static const std::regex dimensions{ R"((?:_|-)([0-9]+)x([0-9]+)$)", std::regex::icase };
 	std::smatch match;
-	const std::string stem{ path.stem().string() };
+	$1 stem{ path.stem().string() };
 	if (!std::regex_search(stem, match, dimensions) || match.size() < 3) {
 		return std::nullopt;
 	}
@@ -5075,7 +5053,7 @@ static int ImportImageTiles(
 	}
 
 	const auto& texture{ e.textures[static_cast<std::size_t>(texture_index)] };
-	const std::string stem{ image_path.stem().string() };
+	$1 stem{ image_path.stem().string() };
 	std::optional<I2> inferred;
 	if (import.use_filename_dimensions) {
 		inferred = FilenameTileDimensions(image_path);
@@ -5101,8 +5079,8 @@ static int ImportImageTiles(
 
 	palette_index = std::clamp(palette_index, 0, static_cast<int>(e.palettes.size()) - 1);
 	auto& palette{ e.palettes[static_cast<std::size_t>(palette_index)] };
-	const int tile_w{ slice ? std::max(1, tile_size.x) : texture.width };
-	const int tile_h{ slice ? std::max(1, tile_size.y) : texture.height };
+	int tile_w{ slice ? std::max(1, tile_size.x) : texture.width };
+	int tile_h{ slice ? std::max(1, tile_size.y) : texture.height };
 	int index{};
 	int imported_count{};
 	for (int y{ slice ? std::max(0, import.margin_y) : 0 }; y + tile_h <= texture.height;
@@ -5147,7 +5125,7 @@ struct TiledTilesetInfo {
 	std::vector<std::string> images;
 };
 
-static int RegexInt(const std::string& text, const std::regex& pattern, int fallback = 0) {
+static int RegexInt($1& text, const std::regex& pattern, int fallback = 0) {
 	std::smatch match;
 	if (!std::regex_search(text, match, pattern) || match.size() < 2) {
 		return fallback;
@@ -5161,7 +5139,7 @@ static int RegexInt(const std::string& text, const std::regex& pattern, int fall
 
 static TiledTilesetInfo ParseTiledTileset(const std::filesystem::path& path) {
 	TiledTilesetInfo info;
-	const std::string text{ ReadTextFile(path) };
+	$1 text{ ReadTextFile(path) };
 	if (text.empty()) {
 		return info;
 	}
@@ -5179,7 +5157,7 @@ static TiledTilesetInfo ParseTiledTileset(const std::filesystem::path& path) {
 			RegexInt(text, std::regex{ R"rx(margin\s*=\s*"([0-9]+)")rx", std::regex::icase });
 		info.spacing =
 			RegexInt(text, std::regex{ R"rx(spacing\s*=\s*"([0-9]+)")rx", std::regex::icase });
-		const std::regex image{ R"rx(<image[^>]*\bsource\s*=\s*"([^"]+)")rx", std::regex::icase };
+		std::regex image{ R"rx(<image[^>]*\bsource\s*=\s*"([^"]+)")rx", std::regex::icase };
 		for (std::sregex_iterator it{ text.begin(), text.end(), image }, end; it != end; ++it) {
 			info.images.push_back((*it)[1].str());
 		}
@@ -5192,7 +5170,7 @@ static TiledTilesetInfo ParseTiledTileset(const std::filesystem::path& path) {
 			RegexInt(text, std::regex{ R"rx("margin"\s*:\s*([0-9]+))rx", std::regex::icase });
 		info.spacing =
 			RegexInt(text, std::regex{ R"rx("spacing"\s*:\s*([0-9]+))rx", std::regex::icase });
-		const std::regex image{ R"rx("image"\s*:\s*"([^"]+)")rx", std::regex::icase };
+		std::regex image{ R"rx("image"\s*:\s*"([^"]+)")rx", std::regex::icase };
 		for (std::sregex_iterator it{ text.begin(), text.end(), image }, end; it != end; ++it) {
 			std::string value{ (*it)[1].str() };
 			for (std::size_t pos{}; (pos = value.find("\\/", pos)) != std::string::npos;) {
@@ -5208,7 +5186,7 @@ static bool ImportTiles(EditorState& e, const ImportSettings& import) {
 	if (import.path.empty()) {
 		return false;
 	}
-	const std::filesystem::path source{ import.path };
+	path source{ import.path };
 	if (!std::filesystem::exists(source)) {
 		return false;
 	}
@@ -5217,18 +5195,18 @@ static bool ImportTiles(EditorState& e, const ImportSettings& import) {
 	std::ranges::transform(ext, ext.begin(), [](unsigned char c) {
 		return static_cast<char>(std::tolower(c));
 	});
-	const int palette_index{ ResolveImportPalette(e, import, source) };
+	int palette_index{ ResolveImportPalette(e, import, source) };
 	if (import.create_palette_from_source) {
 		e.active_palette_index = palette_index;
 	}
 
 	if (ext == ".tsx" || ext == ".tsj" || ext == ".json") {
-		const TiledTilesetInfo info{ ParseTiledTileset(source) };
+		TiledTilesetInfo info{ ParseTiledTileset(source) };
 		if (info.images.empty()) {
 			return false;
 		}
 		int imported{};
-		for (const std::string& image_name : info.images) {
+		for ($1& image_name : info.images) {
 			std::filesystem::path image_path{ image_name };
 			if (image_path.is_relative()) {
 				image_path = source.parent_path() / image_path;
@@ -5265,7 +5243,7 @@ static void GLFWDropCallback(GLFWwindow*, int count, const char** paths) {
 		return;
 	}
 
-	const SceneSnapshot before{ CaptureScene(*g_editor) };
+	SceneSnapshot before{ CaptureScene(*g_editor) };
 	int imported{};
 	std::string first_failed;
 	for (int i{}; i < count; ++i) {
@@ -5317,40 +5295,38 @@ static void AddDefaultScene(EditorState& e) {
 	e.palettes.push_back({ e.next_palette_id++, "Basic Tiles", {} });
 	e.palettes.push_back({ e.next_palette_id++, "Terrain", {} });
 	auto& basic{ e.palettes[1] };
-	const int grass{
+	int grass{
 		AddGeneratedTile(e, basic, "Grass", 16, 16, { 72, 132, 70, 255 }, { 99, 160, 80, 255 }, 1)
 	};
-	const int dirt{
+	int dirt{
 		AddGeneratedTile(e, basic, "Dirt", 16, 16, { 126, 88, 58, 255 }, { 151, 108, 72, 255 }, 0)
 	};
-	const int water{
+	int water{
 		AddGeneratedTile(e, basic, "Water", 16, 16, { 55, 104, 171, 255 }, { 78, 139, 205, 255 }, 2)
 	};
-	const int stone{ AddGeneratedTile(
+	int stone{ AddGeneratedTile(
 		e, basic, "Stone", 16, 16, { 105, 110, 116, 255 }, { 135, 141, 146, 255 }, 3
 	) };
-	const int sand{ AddGeneratedTile(
+	int sand{ AddGeneratedTile(
 		e, basic, "Sand", 16, 16, { 202, 177, 112, 255 }, { 228, 204, 139, 255 }, 4
 	) };
-	const int large_stone{ AddGeneratedTile(
+	int _large_stone{ AddGeneratedTile(
 		e, basic, "Large Stone 24x24", 24, 24, { 115, 118, 124, 255 }, { 151, 154, 160, 255 }, 3
 	) };
-	const int brick{ AddGeneratedTile(
+	int _brick{ AddGeneratedTile(
 		e, basic, "Brick 32x32", 32, 32, { 145, 68, 55, 255 }, { 91, 49, 45, 255 }, 5
 	) };
-	(void)large_stone;
-	(void)brick;
 
 	// A second palette demonstrates that weighted brushes/noise thresholds can
 	// reference tiles from more than one palette.
 	auto& terrain{ e.palettes[2] };
-	const int path_light{ AddGeneratedTile(
+	int path_light{ AddGeneratedTile(
 		e, terrain, "Path Light", 16, 16, { 146, 111, 72, 255 }, { 171, 134, 88, 255 }, 4
 	) };
-	const int path_dark{ AddGeneratedTile(
+	int path_dark{ AddGeneratedTile(
 		e, terrain, "Path Dark", 16, 16, { 104, 76, 54, 255 }, { 130, 94, 63, 255 }, 0
 	) };
-	const int pebble{ AddGeneratedTile(
+	int pebble{ AddGeneratedTile(
 		e, terrain, "Path Pebble", 16, 16, { 128, 102, 75, 255 }, { 151, 143, 129, 255 }, 3
 	) };
 
@@ -5401,7 +5377,7 @@ static void AddDefaultScene(EditorState& e) {
 
 	// Procedural content now lives inside ordinary Tile/Entity layers as paint
 	// recipes and persistent generators. There is intentionally no default or
-	// user-created Noise layer. The legacy Noise structures remain only so this
+	// user created Noise layer. The legacy Noise structures remain only so this
 	// standalone demo can still load/inspect older serialized experiments.
 
 	AutotileRuleSet terrain_rules;
@@ -5409,9 +5385,7 @@ static void AddDefaultScene(EditorState& e) {
 	terrain_rules.name	 = "Terrain Rules";
 	terrain_rules.format = AutotileFormat::DualGrid16;
 	terrain_rules.tile_ids.resize(16, grass);
-	const std::array<int, 7> starter_tiles{
-		grass, dirt, water, stone, sand, path_light, path_dark
-	};
+	std::array<int, 7> starter_tiles{ grass, dirt, water, stone, sand, path_light, path_dark };
 	for (std::size_t i{}; i < terrain_rules.tile_ids.size(); ++i) {
 		terrain_rules.tile_ids[i] = starter_tiles[i % starter_tiles.size()];
 	}
@@ -5481,8 +5455,8 @@ static void HelpMarker(const char* text) {
 static void DrawToolIcon(ImDrawList* dl, Tool tool, ImVec2 min, ImU32 color) {
 	// Intentionally simple 16x16-ish iconography: familiar paint-program metaphors,
 	// drawn directly with ImDrawList so the demo has no icon/font dependency.
-	const float x{ std::floor(min.x) };
-	const float y{ std::floor(min.y) };
+	float x{ std::floor(min.x) };
+	float y{ std::floor(min.y) };
 	auto P = [&](float px, float py) {
 		return ImVec2{ x + px, y + py };
 	};
@@ -5544,17 +5518,17 @@ static const ToolBinding* FindToolBinding(const EditorState& e, Tool tool) {
 }
 
 static bool ToolButton(EditorState& e, Tool tool, const char* id) {
-	const ImVec2 size{ 26.0f, 26.0f };
-	const ImVec2 p0{ ImGui::GetCursorScreenPos() };
+	ImVec2 size{ 26.0f, 26.0f };
+	ImVec2 p0{ ImGui::GetCursorScreenPos() };
 	ImGui::PushItemFlag(ImGuiItemFlags_NoNav, true);
 	ImGui::InvisibleButton(id, size);
 	ImGui::PopItemFlag();
 	bool hovered{ ImGui::IsItemHovered() };
 	bool pressed{ ImGui::IsItemClicked() };
 	bool active{ e.tool == tool };
-	const ImVec4 background{ active	   ? ImGui::GetStyleColorVec4(ImGuiCol_ButtonActive)
-							 : hovered ? ImGui::GetStyleColorVec4(ImGuiCol_ButtonHovered)
-									   : ImGui::GetStyleColorVec4(ImGuiCol_Button) };
+	ImVec4 background{ active	 ? ImGui::GetStyleColorVec4(ImGuiCol_ButtonActive)
+					   : hovered ? ImGui::GetStyleColorVec4(ImGuiCol_ButtonHovered)
+								 : ImGui::GetStyleColorVec4(ImGuiCol_Button) };
 	ImDrawList* dl{ ImGui::GetWindowDrawList() };
 	dl->AddRectFilled(p0, { p0.x + size.x, p0.y + size.y }, ImGui::GetColorU32(background), 3.0f);
 	if (active) {
@@ -5616,7 +5590,7 @@ static void DrawRuntimeToolbar(EditorState& e) {
 	ImGui::SameLine();
 	ImGui::SetNextItemWidth(80.0f);
 	const char* speeds[]{ "0.25x", "0.5x", "1.0x", "2.0x", "4.0x" };
-	const float values[]{ 0.25f, 0.5f, 1.0f, 2.0f, 4.0f };
+	float values[]{ 0.25f, 0.5f, 1.0f, 2.0f, 4.0f };
 	int current{ 2 };
 	for (int i{}; i < 5; ++i) {
 		if (std::abs(e.runtime.speed - values[i]) < 0.001f) {
@@ -5664,15 +5638,15 @@ static void DrawViewportToolbar(EditorState& e) {
 														: &e.grid.aspect_locked };
 			float* aspect_ptr{ noise_layer_active ? &toolbar_layer->noise.grid_locked_aspect
 												  : &e.grid.locked_aspect };
-			const F2 old_size{ *size_ptr };
+			F2 old_size{ *size_ptr };
 			float grid[2]{ old_size.x, old_size.y };
 			if (ImGui::DragFloat2("##grid_size", grid, 0.25f, 1.0f, 2048.0f, "%.0f")) {
 				grid[0] = std::max(1.0f, grid[0]);
 				grid[1] = std::max(1.0f, grid[1]);
 				if (*aspect_locked_ptr) {
-					const float ratio{ std::max(0.0001f, *aspect_ptr) };
-					const float dx{ std::abs(grid[0] - old_size.x) / std::max(1.0f, old_size.x) };
-					const float dy{ std::abs(grid[1] - old_size.y) / std::max(1.0f, old_size.y) };
+					float ratio{ std::max(0.0001f, *aspect_ptr) };
+					float dx{ std::abs(grid[0] - old_size.x) / std::max(1.0f, old_size.x) };
+					float dy{ std::abs(grid[1] - old_size.y) / std::max(1.0f, old_size.y) };
 					if (dx >= dy) {
 						grid[1] = std::max(1.0f, grid[0] / ratio);
 					} else {
@@ -5680,7 +5654,7 @@ static void DrawViewportToolbar(EditorState& e) {
 					}
 				}
 				if (noise_layer_active && toolbar_layer) {
-					const auto [old_min, old_max]{ OrderedNoiseBounds(*toolbar_layer) };
+					auto [old_min, old_max]{ OrderedNoiseBounds(*toolbar_layer) };
 					toolbar_layer->noise.grid_size = { grid[0], grid[1] };
 					if (toolbar_layer->noise.bounded) {
 						SnapNoiseBoundsOutwardToGrid(e, *toolbar_layer, old_min, old_max);
@@ -5717,7 +5691,7 @@ static void DrawViewportToolbar(EditorState& e) {
 				if (ImGui::DragFloat2("Offset", offset, 1.0f)) {
 					*offset_ptr = { offset[0], offset[1] };
 					if (noise_layer_active && toolbar_layer && toolbar_layer->noise.bounded) {
-						const auto [bmin, bmax]{ OrderedNoiseBounds(*toolbar_layer) };
+						auto [bmin, bmax]{ OrderedNoiseBounds(*toolbar_layer) };
 						SnapNoiseBoundsOutwardToGrid(e, *toolbar_layer, bmin, bmax);
 					}
 				}
@@ -5764,13 +5738,11 @@ static void DrawViewportToolbar(EditorState& e) {
 		ToolButton(e, Tool::Eyedropper, "##tool_pick");
 	}
 
-	const float tools_end_x{ ImGui::GetItemRectMax().x - ImGui::GetWindowPos().x };
-	const float right{ ImGui::GetWindowContentRegionMax().x };
-	const float runtime_width{ 365.0f };
-	const float runtime_x{ std::max(0.0f, right - runtime_width) };
-	const float estimated_grid_width{ tile_layer_active	   ? 70.0f
-									  : noise_layer_active ? 285.0f
-														   : 350.0f };
+	float tools_end_x{ ImGui::GetItemRectMax().x - ImGui::GetWindowPos().x };
+	float right{ ImGui::GetWindowContentRegionMax().x };
+	float runtime_width{ 365.0f };
+	float runtime_x{ std::max(0.0f, right - runtime_width) };
+	float estimated_grid_width{ tile_layer_active ? 70.0f : noise_layer_active ? 285.0f : 350.0f };
 	bool grid_second_row{ tools_end_x + style.ItemSpacing.x + estimated_grid_width > runtime_x };
 
 	if (!grid_second_row) {
@@ -5814,7 +5786,7 @@ static bool DrawCompactCombo(
 	float width, const char* tooltip
 ) {
 	value = std::clamp(value, 0, std::max(0, count - 1));
-	const std::string preview{ std::string{ prefix } + ": " + items[value] };
+	$1 preview{ std::string{ prefix } + ": " + items[value] };
 	ImGui::SetNextItemWidth(width);
 	bool changed{};
 	if (ImGui::BeginCombo(id, preview.c_str())) {
@@ -5949,8 +5921,7 @@ static void DrawBrushSettings(EditorState& e) {
 		if (random_entity) {
 			next_item();
 			bool any_transform{ e.recipe.random_rotation || e.recipe.random_scale };
-			const std::string preview{ std::string{ "Transform: " } +
-									   (any_transform ? "Random" : "None") };
+			$1 preview{ std::string{ "Transform: " } + (any_transform ? "Random" : "None") };
 			ImGui::SetNextItemWidth(138.0f);
 			if (ImGui::BeginCombo("##paint_transform", preview.c_str())) {
 				ImGui::Checkbox("Random Rotation", &e.recipe.random_rotation);
@@ -5984,7 +5955,7 @@ static void DrawBrushSettings(EditorState& e) {
 		int mode{ static_cast<int>(e.brush.select_mode) };
 		if (DrawCompactCombo(
 				"##select_mode", "Mode", mode, modes, 2, 185.0f,
-				"Click + Marquee behaves like Paint.NET selection. Selection Brush paints selected "
+				"Click + Marquee behaves like live selection. Selection Brush paints selected "
 				"grid cells. Right click clears selection."
 			)) {
 			e.brush.select_mode = static_cast<SelectMode>(mode);
@@ -6121,9 +6092,9 @@ static float FractalNoiseValue(F2 world, const NoiseField& field) {
 	float amplitude{ 1.0f };
 	float total{};
 	float weight{};
-	const int octaves{ std::clamp(field.octaves, 1, 12) };
+	int octaves{ std::clamp(field.octaves, 1, 12) };
 	for (int octave{}; octave < octaves; ++octave) {
-		const float n{ BaseNoise2(
+		float n{ BaseNoise2(
 			field.type, (world.x + field.offset.x) * frequency,
 			(world.y + field.offset.y) * frequency,
 			static_cast<std::uint32_t>(field.seed + octave * 1013)
@@ -6141,8 +6112,8 @@ static const NoiseThresholdRegion* FindNoiseThreshold(const NoiseField& field, f
 		if (!threshold.enabled) {
 			continue;
 		}
-		const float lo{ std::min(threshold.minimum, threshold.maximum) };
-		const float hi{ std::max(threshold.minimum, threshold.maximum) };
+		float lo{ std::min(threshold.minimum, threshold.maximum) };
+		float hi{ std::max(threshold.minimum, threshold.maximum) };
 		if (value >= lo && (value < hi || (hi >= 0.99999f && value <= 1.0f))) {
 			return &threshold;
 		}
@@ -6181,16 +6152,16 @@ static std::pair<F2, F2> OrderedNoiseBounds(const SceneLayer& layer) {
 static void SnapNoiseBoundsOutwardToGrid(
 	EditorState& e, SceneLayer& layer, F2 minimum, F2 maximum
 ) {
-	const RasterGrid grid{ NoiseRasterGrid(e, layer) };
-	const F2 ordered_min{ std::min(minimum.x, maximum.x), std::min(minimum.y, maximum.y) };
-	const F2 ordered_max{ std::max(minimum.x, maximum.x), std::max(minimum.y, maximum.y) };
-	minimum				  = ordered_min;
-	maximum				  = ordered_max;
-	const auto floor_axis = [](float value, float offset, float step) {
+	RasterGrid grid{ NoiseRasterGrid(e, layer) };
+	F2 ordered_min{ std::min(minimum.x, maximum.x), std::min(minimum.y, maximum.y) };
+	F2 ordered_max{ std::max(minimum.x, maximum.x), std::max(minimum.y, maximum.y) };
+	minimum			= ordered_min;
+	maximum			= ordered_max;
+	auto floor_axis = [](float value, float offset, float step) {
 		step = std::max(1.0f, step);
 		return std::floor((value - offset) / step) * step + offset;
 	};
-	const auto ceil_axis = [](float value, float offset, float step) {
+	auto ceil_axis = [](float value, float offset, float step) {
 		step = std::max(1.0f, step);
 		return std::ceil((value - offset) / step) * step + offset;
 	};
@@ -6211,23 +6182,22 @@ static void SnapNoiseBoundsOutwardToGrid(
 }
 
 static std::pair<I2, I2> NoiseBoundedCellRange(const EditorState& e, const SceneLayer& layer) {
-	const RasterGrid grid{ NoiseRasterGrid(e, layer) };
-	const auto [bmin, bmax]{ OrderedNoiseBounds(layer) };
-	const I2 first{ WorldToRasterCell(grid, bmin) };
-	const F2 epsilon{ std::max(0.001f, grid.size.x * 0.0001f),
-					  std::max(0.001f, grid.size.y * 0.0001f) };
-	const I2 last{ WorldToRasterCell(grid, { bmax.x - epsilon.x, bmax.y - epsilon.y }) };
+	RasterGrid grid{ NoiseRasterGrid(e, layer) };
+	auto [bmin, bmax]{ OrderedNoiseBounds(layer) };
+	I2 first{ WorldToRasterCell(grid, bmin) };
+	F2 epsilon{ std::max(0.001f, grid.size.x * 0.0001f), std::max(0.001f, grid.size.y * 0.0001f) };
+	I2 last{ WorldToRasterCell(grid, { bmax.x - epsilon.x, bmax.y - epsilon.y }) };
 	return { first, last };
 }
 
 static std::pair<I2, I2> NoiseBoundaryCellRect(const EditorState& e, const SceneLayer& layer) {
-	const RasterGrid grid{ NoiseRasterGrid(e, layer) };
-	const auto [minimum, maximum]{ OrderedNoiseBounds(layer) };
-	const I2 origin{
+	RasterGrid grid{ NoiseRasterGrid(e, layer) };
+	auto [minimum, maximum]{ OrderedNoiseBounds(layer) };
+	I2 origin{
 		static_cast<int>(std::lround((minimum.x - grid.offset.x) / grid.size.x)),
 		static_cast<int>(std::lround((minimum.y - grid.offset.y) / grid.size.y)),
 	};
-	const I2 size{
+	I2 size{
 		std::max(1, static_cast<int>(std::lround((maximum.x - minimum.x) / grid.size.x))),
 		std::max(1, static_cast<int>(std::lround((maximum.y - minimum.y) / grid.size.y))),
 	};
@@ -6235,7 +6205,7 @@ static std::pair<I2, I2> NoiseBoundaryCellRect(const EditorState& e, const Scene
 }
 
 static void SetNoiseBoundaryFromCellRect(EditorState& e, SceneLayer& layer, I2 origin, I2 size) {
-	const RasterGrid grid{ NoiseRasterGrid(e, layer) };
+	RasterGrid grid{ NoiseRasterGrid(e, layer) };
 	size.x				   = std::max(1, size.x);
 	size.y				   = std::max(1, size.y);
 	layer.noise.bounds_min = {
@@ -6251,21 +6221,21 @@ static void SetNoiseBoundaryFromCellRect(EditorState& e, SceneLayer& layer, I2 o
 static std::pair<ImVec2, ImVec2> PixelCoveredScreenRect(
 	const EditorState& e, F2 world_min, F2 world_max
 ) {
-	const F2 a{ WorldToScreen(e, world_min) };
-	const F2 b{ WorldToScreen(e, world_max) };
-	const float min_x{ std::min(a.x, b.x) };
-	const float min_y{ std::min(a.y, b.y) };
-	const float max_x{ std::max(a.x, b.x) };
-	const float max_y{ std::max(a.y, b.y) };
+	F2 a{ WorldToScreen(e, world_min) };
+	F2 b{ WorldToScreen(e, world_max) };
+	float min_x{ std::min(a.x, b.x) };
+	float min_y{ std::min(a.y, b.y) };
+	float max_x{ std::max(a.x, b.x) };
+	float max_y{ std::max(a.y, b.y) };
 	return {
 		ImVec2{ std::floor(min_x), std::floor(min_y) },
 		ImVec2{ std::ceil(max_x), std::ceil(max_y) },
 	};
 }
 
-static F2 NoiseEntityPlacement(const RasterGrid& grid, I2 cell, EntityOrigin origin) {
-	const RectF rect{ RasterCellRect(grid, cell) };
-	const F2 f{ EntityOriginFraction(origin) };
+static F2 NoiseEntityPlacement(RasterGrid& grid, I2 cell, EntityOrigin origin) {
+	RectF rect{ RasterCellRect(grid, cell) };
+	F2 f{ EntityOriginFraction(origin) };
 	return {
 		rect.min.x + (rect.max.x - rect.min.x) * f.x,
 		rect.min.y + (rect.max.y - rect.min.y) * f.y,
@@ -6273,11 +6243,10 @@ static F2 NoiseEntityPlacement(const RasterGrid& grid, I2 cell, EntityOrigin ori
 }
 
 static F2 NoiseTileOffset(
-	const EditorState& e, const RasterGrid& grid, const Tilemap& map, int tile_id,
-	EntityOrigin origin
+	const EditorState& e, RasterGrid& grid, const Tilemap& map, int tile_id, EntityOrigin origin
 ) {
-	const F2 tile_size{ TileWorldSize(e, map, tile_id) };
-	const F2 f{ EntityOriginFraction(origin) };
+	F2 tile_size{ TileWorldSize(e, map, tile_id) };
+	F2 f{ EntityOriginFraction(origin) };
 	return {
 		(grid.size.x - tile_size.x) * f.x,
 		(grid.size.y - tile_size.y) * f.y,
@@ -6285,10 +6254,10 @@ static F2 NoiseTileOffset(
 }
 
 static F2 NoiseTileWorldMinimum(
-	const EditorState& e, const RasterGrid& grid, const Tilemap& map, I2 cell, int tile_id,
+	const EditorState& e, RasterGrid& grid, const Tilemap& map, I2 cell, int tile_id,
 	EntityOrigin origin
 ) {
-	const RectF rect{ RasterCellRect(grid, cell) };
+	RectF rect{ RasterCellRect(grid, cell) };
 	return rect.min + NoiseTileOffset(e, grid, map, tile_id, origin);
 }
 
@@ -6300,15 +6269,15 @@ static void DrawNoiseLayer(EditorState& e, const SceneLayer& layer, ImDrawList* 
 		return;
 	}
 
-	const RasterGrid grid{ NoiseRasterGrid(e, layer) };
-	const F2 w0{ VisibleWorldMin(e) };
-	const F2 w1{ VisibleWorldMax(e) };
+	RasterGrid grid{ NoiseRasterGrid(e, layer) };
+	F2 w0{ VisibleWorldMin(e) };
+	F2 w1{ VisibleWorldMax(e) };
 	I2 c0{ WorldToRasterCell(grid, { std::min(w0.x, w1.x), std::min(w0.y, w1.y) }) };
 	I2 c1{ WorldToRasterCell(grid, { std::max(w0.x, w1.x), std::max(w0.y, w1.y) }) };
 	std::optional<std::pair<F2, F2>> noise_bounds_screen;
 	if (layer.noise.bounded) {
-		const auto [bmin, bmax]{ OrderedNoiseBounds(layer) };
-		const auto [bc0, bc1]{ NoiseBoundedCellRange(e, layer) };
+		auto [bmin, bmax]{ OrderedNoiseBounds(layer) };
+		auto [bc0, bc1]{ NoiseBoundedCellRange(e, layer) };
 		c0.x = std::max(c0.x, bc0.x);
 		c0.y = std::max(c0.y, bc0.y);
 		c1.x = std::min(c1.x, bc1.x);
@@ -6318,9 +6287,9 @@ static void DrawNoiseLayer(EditorState& e, const SceneLayer& layer, ImDrawList* 
 		}
 		noise_bounds_screen = std::pair{ WorldToScreen(e, bmin), WorldToScreen(e, bmax) };
 	}
-	const std::int64_t total_cells{ static_cast<std::int64_t>(c1.x - c0.x + 1) *
-									static_cast<std::int64_t>(c1.y - c0.y + 1) };
-	const int stride{
+	std::int64_t total_cells{ static_cast<std::int64_t>(c1.x - c0.x + 1) *
+							  static_cast<std::int64_t>(c1.y - c0.y + 1) };
+	int stride{
 		total_cells > 50000
 			? std::max(
 				  1,
@@ -6343,29 +6312,29 @@ static void DrawNoiseLayer(EditorState& e, const SceneLayer& layer, ImDrawList* 
 			++enabled_fields;
 		}
 	}
-	const float field_alpha{ layer.noise.noise_preview_alpha /
-							 static_cast<float>(std::max(1, enabled_fields)) };
+	float field_alpha{ layer.noise.noise_preview_alpha /
+					   static_cast<float>(std::max(1, enabled_fields)) };
 
 	for (int y{ c0.y }; y <= c1.y; y += stride) {
 		for (int x{ c0.x }; x <= c1.x; x += stride) {
-			const I2 cell{ x, y };
-			const RectF cell_rect{ RasterCellRect(grid, cell) };
-			const F2 sample{
+			I2 cell{ x, y };
+			RectF cell_rect{ RasterCellRect(grid, cell) };
+			F2 sample{
 				(cell_rect.min.x + cell_rect.max.x) * 0.5f,
 				(cell_rect.min.y + cell_rect.max.y) * 0.5f,
 			};
-			const auto [screen0_px, screen1_px]{
+			auto [screen0_px, screen1_px]{
 				PixelCoveredScreenRect(e, cell_rect.min, cell_rect.max)
 			};
-			const F2 screen0{ screen0_px.x, screen0_px.y };
-			const F2 screen1{ screen1_px.x, screen1_px.y };
+			F2 screen0{ screen0_px.x, screen0_px.y };
+			F2 screen1{ screen1_px.x, screen1_px.y };
 
 			for (const auto& field : layer.noise.fields) {
 				if (!field.enabled) {
 					continue;
 				}
 
-				const float value{ FractalNoiseValue(sample, field) };
+				float value{ FractalNoiseValue(sample, field) };
 				const auto* region{ FindNoiseThreshold(field, value) };
 
 				// Draw the generated result first. The grayscale noise overlay is
@@ -6374,15 +6343,15 @@ static void DrawNoiseLayer(EditorState& e, const SceneLayer& layer, ImDrawList* 
 				if (layer.noise.show_generated_preview && region) {
 					if (layer.noise.target == NoiseTargetKind::Tile) {
 						if (region->tile_id >= 0 && tilemap) {
-							const F2 draw_size{ TileWorldSize(e, *tilemap, region->tile_id) };
-							const F2 draw_min{ NoiseTileWorldMinimum(
+							F2 draw_size{ TileWorldSize(e, *tilemap, region->tile_id) };
+							F2 draw_min{ NoiseTileWorldMinimum(
 								e, grid, *tilemap, cell, region->tile_id, region->origin
 							) };
-							const auto [p0_px, p1_px]{
+							auto [p0_px, p1_px]{
 								PixelCoveredScreenRect(e, draw_min, draw_min + draw_size)
 							};
-							const F2 p0{ p0_px.x, p0_px.y };
-							const F2 p1{ p1_px.x, p1_px.y };
+							F2 p0{ p0_px.x, p0_px.y };
+							F2 p1{ p1_px.x, p1_px.y };
 							if (const auto* tile = FindTile(e, region->tile_id);
 								tile && tile->texture_index >= 0) {
 								const auto& texture{
@@ -6401,13 +6370,13 @@ static void DrawNoiseLayer(EditorState& e, const SceneLayer& layer, ImDrawList* 
 						const auto& prefab{
 							e.prefabs[static_cast<std::size_t>(region->prefab_index)]
 						};
-						const F2 placement{ NoiseEntityPlacement(grid, cell, region->origin) };
-						const F2 f{ EntityOriginFraction(region->origin) };
-						const F2 minimum{ placement.x - prefab.size.x * f.x,
-										  placement.y - prefab.size.y * f.y };
-						const RectF bounds{ minimum, minimum + prefab.size };
-						const F2 p0{ WorldToScreen(e, bounds.min) };
-						const F2 p1{ WorldToScreen(e, bounds.max) };
+						F2 placement{ NoiseEntityPlacement(grid, cell, region->origin) };
+						F2 f{ EntityOriginFraction(region->origin) };
+						F2 minimum{ placement.x - prefab.size.x * f.x,
+									placement.y - prefab.size.y * f.y };
+						RectF bounds{ minimum, minimum + prefab.size };
+						F2 p0{ WorldToScreen(e, bounds.min) };
+						F2 p1{ WorldToScreen(e, bounds.max) };
 						dl->AddRectFilled(
 							{ p0.x, p0.y }, { p1.x, p1.y },
 							ImGui::GetColorU32(ImVec4(0.30f, 0.58f, 0.86f, 0.72f)), 2.0f
@@ -6464,13 +6433,13 @@ static NoiseBoundaryEdge HitNoiseBoundaryEdge(
 		return NoiseBoundaryEdge::None;
 	}
 
-	const auto [bmin, bmax]{ OrderedNoiseBounds(layer) };
-	const F2 a{ WorldToScreen(e, bmin) };
-	const F2 b{ WorldToScreen(e, bmax) };
-	const float left{ std::min(a.x, b.x) };
-	const float right{ std::max(a.x, b.x) };
-	const float top{ std::min(a.y, b.y) };
-	const float bottom{ std::max(a.y, b.y) };
+	auto [bmin, bmax]{ OrderedNoiseBounds(layer) };
+	F2 a{ WorldToScreen(e, bmin) };
+	F2 b{ WorldToScreen(e, bmax) };
+	float left{ std::min(a.x, b.x) };
+	float right{ std::max(a.x, b.x) };
+	float top{ std::min(a.y, b.y) };
+	float bottom{ std::max(a.y, b.y) };
 	constexpr float tolerance{ 9.0f };
 	constexpr float corner_extent{ 15.0f };
 
@@ -6530,7 +6499,7 @@ static bool NoiseBoundaryMovesBottom(NoiseBoundaryEdge edge) {
 }
 
 static void SnapNoiseBoundaryDragToGrid(
-	SceneLayer& layer, NoiseBoundaryEdge edge, const RasterGrid& grid
+	SceneLayer& layer, NoiseBoundaryEdge edge, RasterGrid& grid
 ) {
 	F2 minimum{ layer.noise.bounds_min };
 	F2 maximum{ layer.noise.bounds_max };
@@ -6575,21 +6544,21 @@ static bool HandleNoiseBoundaryInput(EditorState& e, F2 mouse_world) {
 			return true;
 		}
 
-		const RasterGrid grid{ NoiseRasterGrid(e, *layer) };
+		RasterGrid grid{ NoiseRasterGrid(e, *layer) };
 		if (ImGui::IsMouseDown(ImGuiMouseButton_Left)) {
 			// Snap by delta from the original edge. The cursor must travel one full
 			// grid-cell in world space before the boundary advances one cell, which
 			// avoids the old high-speed/half-cell jump behavior.
-			const F2 delta{ mouse_world - e.noise_boundary_drag.start_mouse_world };
-			const int delta_cells_x{
+			F2 delta{ mouse_world - e.noise_boundary_drag.start_mouse_world };
+			int delta_cells_x{
 				static_cast<int>(std::lround(delta.x / std::max(1.0f, grid.size.x)))
 			};
-			const int delta_cells_y{
+			int delta_cells_y{
 				static_cast<int>(std::lround(delta.y / std::max(1.0f, grid.size.y)))
 			};
 			F2 minimum{ e.noise_boundary_drag.start_bounds_min };
 			F2 maximum{ e.noise_boundary_drag.start_bounds_max };
-			const NoiseBoundaryEdge edge{ e.noise_boundary_drag.edge };
+			NoiseBoundaryEdge edge{ e.noise_boundary_drag.edge };
 
 			if (NoiseBoundaryMovesLeft(edge)) {
 				minimum.x = std::min(
@@ -6643,7 +6612,7 @@ static bool HandleNoiseBoundaryInput(EditorState& e, F2 mouse_world) {
 		return false;
 	}
 
-	const NoiseBoundaryEdge edge{ HitNoiseBoundaryEdge(e, *layer, ImGui::GetMousePos()) };
+	NoiseBoundaryEdge edge{ HitNoiseBoundaryEdge(e, *layer, ImGui::GetMousePos()) };
 	if (edge == NoiseBoundaryEdge::None) {
 		return false;
 	}
@@ -6653,7 +6622,7 @@ static bool HandleNoiseBoundaryInput(EditorState& e, F2 mouse_world) {
 		return false;
 	}
 
-	const auto [minimum, maximum]{ OrderedNoiseBounds(*layer) };
+	auto [minimum, maximum]{ OrderedNoiseBounds(*layer) };
 	e.noise_boundary_drag.active			= true;
 	e.noise_boundary_drag.layer_id			= layer->id;
 	e.noise_boundary_drag.edge				= edge;
@@ -6670,17 +6639,17 @@ static void DrawActiveNoiseBoundaryHandles(EditorState& e, ImDrawList* dl) {
 		return;
 	}
 
-	const auto [bmin, bmax]{ OrderedNoiseBounds(*layer) };
-	const F2 a{ WorldToScreen(e, bmin) };
-	const F2 b{ WorldToScreen(e, bmax) };
-	const float left{ std::min(a.x, b.x) };
-	const float right{ std::max(a.x, b.x) };
-	const float top{ std::min(a.y, b.y) };
-	const float bottom{ std::max(a.y, b.y) };
-	const ImU32 color{ ImGui::GetColorU32(
+	auto [bmin, bmax]{ OrderedNoiseBounds(*layer) };
+	F2 a{ WorldToScreen(e, bmin) };
+	F2 b{ WorldToScreen(e, bmax) };
+	float left{ std::min(a.x, b.x) };
+	float right{ std::max(a.x, b.x) };
+	float top{ std::min(a.y, b.y) };
+	float bottom{ std::max(a.y, b.y) };
+	ImU32 color{ ImGui::GetColorU32(
 		layer->locked ? ImVec4(1.0f, 0.78f, 0.20f, 0.45f) : ImVec4(1.0f, 0.78f, 0.20f, 1.0f)
 	) };
-	const float thickness{ layer->locked ? 1.5f : 2.0f };
+	float thickness{ layer->locked ? 1.5f : 2.0f };
 	dl->AddRect({ left, top }, { right, bottom }, color, 0.0f, 0, thickness);
 	if (layer->locked) {
 		return;
@@ -6711,8 +6680,8 @@ static void DrawGrid(EditorState& e, ImDrawList* dl) {
 	if (!e.grid.visible) {
 		return;
 	}
-	const F2 w0{ VisibleWorldMin(e) };
-	const F2 w1{ VisibleWorldMax(e) };
+	F2 w0{ VisibleWorldMin(e) };
+	F2 w1{ VisibleWorldMax(e) };
 	F2 grid_size{ e.grid.size };
 	F2 grid_offset{ e.grid.offset };
 	if (const SceneLayer* active = FindLayer(e, e.active_layer_id); active) {
@@ -6726,18 +6695,18 @@ static void DrawGrid(EditorState& e, ImDrawList* dl) {
 			grid_offset = active->noise.grid_offset;
 		}
 	}
-	const float sx{ std::max(1.0f, grid_size.x) };
-	const float sy{ std::max(1.0f, grid_size.y) };
-	const int x0{ static_cast<int>(std::floor((std::min(w0.x, w1.x) - grid_offset.x) / sx)) - 1 };
-	const int x1{ static_cast<int>(std::ceil((std::max(w0.x, w1.x) - grid_offset.x) / sx)) + 1 };
-	const int y0{ static_cast<int>(std::floor((std::min(w0.y, w1.y) - grid_offset.y) / sy)) - 1 };
-	const int y1{ static_cast<int>(std::ceil((std::max(w0.y, w1.y) - grid_offset.y) / sy)) + 1 };
-	const ImU32 minor{ ImGui::GetColorU32(e.grid.minor_color) };
-	const ImU32 major{ ImGui::GetColorU32(e.grid.major_color) };
+	float sx{ std::max(1.0f, grid_size.x) };
+	float sy{ std::max(1.0f, grid_size.y) };
+	int x0{ static_cast<int>(std::floor((std::min(w0.x, w1.x) - grid_offset.x) / sx)) - 1 };
+	int x1{ static_cast<int>(std::ceil((std::max(w0.x, w1.x) - grid_offset.x) / sx)) + 1 };
+	int y0{ static_cast<int>(std::floor((std::min(w0.y, w1.y) - grid_offset.y) / sy)) - 1 };
+	int y1{ static_cast<int>(std::ceil((std::max(w0.y, w1.y) - grid_offset.y) / sy)) + 1 };
+	ImU32 minor{ ImGui::GetColorU32(e.grid.minor_color) };
+	ImU32 major{ ImGui::GetColorU32(e.grid.major_color) };
 	for (int x{ x0 }; x <= x1; ++x) {
-		const float wx{ grid_offset.x + static_cast<float>(x) * sx };
-		const auto p0{ WorldToScreen(e, { wx, w0.y }) };
-		const auto p1{ WorldToScreen(e, { wx, w1.y }) };
+		float wx{ grid_offset.x + static_cast<float>(x) * sx };
+		auto p0{ WorldToScreen(e, { wx, w0.y }) };
+		auto p1{ WorldToScreen(e, { wx, w1.y }) };
 		bool is_major{ x % std::max(1, e.grid.major_every) == 0 };
 		dl->AddLine(
 			{ p0.x, p0.y }, { p1.x, p1.y }, is_major ? major : minor,
@@ -6745,9 +6714,9 @@ static void DrawGrid(EditorState& e, ImDrawList* dl) {
 		);
 	}
 	for (int y{ y0 }; y <= y1; ++y) {
-		const float wy{ grid_offset.y + static_cast<float>(y) * sy };
-		const auto p0{ WorldToScreen(e, { w0.x, wy }) };
-		const auto p1{ WorldToScreen(e, { w1.x, wy }) };
+		float wy{ grid_offset.y + static_cast<float>(y) * sy };
+		auto p0{ WorldToScreen(e, { w0.x, wy }) };
+		auto p1{ WorldToScreen(e, { w1.x, wy }) };
 		bool is_major{ y % std::max(1, e.grid.major_every) == 0 };
 		dl->AddLine(
 			{ p0.x, p0.y }, { p1.x, p1.y }, is_major ? major : minor,
@@ -6763,8 +6732,8 @@ static void DrawTileVisual(
 	if (tile_id < 0) {
 		return;
 	}
-	const RectF rect{ TileAnchorRect(e, map, cell, tile_id, offset, origin) };
-	const auto [p0_px, p1_px]{ PixelCoveredScreenRect(e, rect.min, rect.max) };
+	RectF rect{ TileAnchorRect(e, map, cell, tile_id, offset, origin) };
+	auto [p0_px, p1_px]{ PixelCoveredScreenRect(e, rect.min, rect.max) };
 	if (p1_px.x < e.canvas_screen_min.x || p0_px.x > e.canvas_screen_max.x ||
 		p1_px.y < e.canvas_screen_min.y || p0_px.y > e.canvas_screen_max.y) {
 		return;
@@ -6820,7 +6789,7 @@ static int GeneratorAutotileIndex(
 			mask |= 128;
 		}
 		const auto& valid{ ValidBlob47Masks() };
-		if (const auto it = std::find(valid.begin(), valid.end(), mask); it != valid.end()) {
+		if (auto it = std::find(valid.begin(), valid.end(), mask); it != valid.end()) {
 			return static_cast<int>(std::distance(valid.begin(), it));
 		}
 		return 0;
@@ -6870,9 +6839,7 @@ static void DrawGeneratorsForLayer(EditorState& e, const SceneLayer& layer, ImDr
 		if (auto it = cache.values.find(cell); it != cache.values.end()) {
 			return it->second;
 		}
-		const float value{
-			RecipeNoiseValue(GeneratorCellCenter(generator, cell), generator.recipe)
-		};
+		float value{ RecipeNoiseValue(GeneratorCellCenter(generator, cell), generator.recipe) };
 		if (cache.values.size() > 262144) {
 			cache.values.clear();
 		}
@@ -6880,8 +6847,8 @@ static void DrawGeneratorsForLayer(EditorState& e, const SceneLayer& layer, ImDr
 		return value;
 	};
 
-	const F2 wa{ ScreenToWorld(e, e.canvas_screen_min) };
-	const F2 wb{ ScreenToWorld(e, e.canvas_screen_max) };
+	F2 wa{ ScreenToWorld(e, e.canvas_screen_min) };
+	F2 wb{ ScreenToWorld(e, e.canvas_screen_max) };
 
 	auto visible_bounds = [&](const PaintGenerator& generator) {
 		auto world_to_cell = [&](F2 p) {
@@ -6901,7 +6868,7 @@ static void DrawGeneratorsForLayer(EditorState& e, const SceneLayer& layer, ImDr
 		last.x	+= 2;
 		last.y	+= 2;
 		if (generator.geometry != GeneratorGeometryKind::Infinite) {
-			const auto [gf, gl]{ GeneratorCellBounds(generator) };
+			auto [gf, gl]{ GeneratorCellBounds(generator) };
 			first.x = std::max(first.x, gf.x);
 			first.y = std::max(first.y, gf.y);
 			last.x	= std::min(last.x, gl.x);
@@ -6911,25 +6878,25 @@ static void DrawGeneratorsForLayer(EditorState& e, const SceneLayer& layer, ImDr
 	};
 
 	auto for_each_visible_geometry_cell = [&](const PaintGenerator& generator, auto&& fn) {
-		const auto [first, last]{ visible_bounds(generator) };
+		auto [first, last]{ visible_bounds(generator) };
 		if (first.x > last.x || first.y > last.y) {
 			return;
 		}
 		if (generator.geometry == GeneratorGeometryKind::BrushStroke &&
 			!generator.brush_cells.empty()) {
-			const std::size_t visible_cell_count{ static_cast<std::size_t>(last.x - first.x + 1) *
-												  static_cast<std::size_t>(last.y - first.y + 1) };
+			std::size_t visible_cell_count{ static_cast<std::size_t>(last.x - first.x + 1) *
+											static_cast<std::size_t>(last.y - first.y + 1) };
 			if (visible_cell_count < generator.brush_cells.size()) {
 				for (int y{ first.y }; y <= last.y; ++y) {
 					for (int x{ first.x }; x <= last.x; ++x) {
-						const I2 cell{ x, y };
+						I2 cell{ x, y };
 						if (generator.brush_cells.contains(cell)) {
 							fn(cell);
 						}
 					}
 				}
 			} else {
-				for (const I2 cell : generator.brush_cells) {
+				for (I2 cell : generator.brush_cells) {
 					if (cell.x < first.x || cell.x > last.x || cell.y < first.y ||
 						cell.y > last.y) {
 						continue;
@@ -6941,7 +6908,7 @@ static void DrawGeneratorsForLayer(EditorState& e, const SceneLayer& layer, ImDr
 		}
 		for (int y{ first.y }; y <= last.y; ++y) {
 			for (int x{ first.x }; x <= last.x; ++x) {
-				const I2 cell{ x, y };
+				I2 cell{ x, y };
 				if (GeneratorGeometryContains(generator, cell)) {
 					fn(cell);
 				}
@@ -6961,14 +6928,14 @@ static void DrawGeneratorsForLayer(EditorState& e, const SceneLayer& layer, ImDr
 			if (GeneratorSuppressed(generator, cell)) {
 				return;
 			}
-			const float value{ noise_value(generator_index, generator, cell) };
-			const F2 mn{
+			float value{ noise_value(generator_index, generator, cell) };
+			F2 mn{
 				generator.grid_offset.x + static_cast<float>(cell.x) * generator.grid_size.x,
 				generator.grid_offset.y + static_cast<float>(cell.y) * generator.grid_size.y,
 			};
-			const F2 mx{ mn + generator.grid_size };
-			const F2 p0{ WorldToScreen(e, mn) };
-			const F2 p1{ WorldToScreen(e, mx) };
+			F2 mx{ mn + generator.grid_size };
+			F2 p0{ WorldToScreen(e, mn) };
+			F2 p1{ WorldToScreen(e, mx) };
 			dl->AddRectFilled(
 				{ p0.x, p0.y }, { p1.x, p1.y },
 				ImGui::GetColorU32(ImVec4(
@@ -6983,7 +6950,7 @@ static void DrawGeneratorsForLayer(EditorState& e, const SceneLayer& layer, ImDr
 	for (std::size_t generator_index{}; generator_index < generators.size(); ++generator_index) {
 		const PaintGenerator& generator{ *generators[generator_index] };
 		bool live_preview{ generator.id < 0 };
-		const float generator_alpha{ live_preview ? 0.70f : 0.92f };
+		float generator_alpha{ live_preview ? 0.70f : 0.92f };
 		if (generator.recipe.source_kind == PaintSourceKind::Noise &&
 			!generator.recipe.show_generated_preview) {
 			continue;
@@ -7006,7 +6973,7 @@ static void DrawGeneratorsForLayer(EditorState& e, const SceneLayer& layer, ImDr
 			if (GeneratorSuppressed(generator, cell) || !GeneratorAnchorCell(generator, cell)) {
 				return;
 			}
-			const std::optional<float> cached_noise{
+			std::optional<float> cached_noise{
 				generator.recipe.source_kind == PaintSourceKind::Noise
 					? std::optional<float>{ noise_value(generator_index, generator, cell) }
 					: std::nullopt
@@ -7014,7 +6981,7 @@ static void DrawGeneratorsForLayer(EditorState& e, const SceneLayer& layer, ImDr
 			if (!GeneratorCoveragePass(generator, cell, cached_noise)) {
 				return;
 			}
-			const F2 world{ GeneratorCellCenter(generator, cell) };
+			F2 world{ GeneratorCellCenter(generator, cell) };
 			if (layer.kind == LayerKind::Tile) {
 				int tile_id{ -1 };
 				EntityOrigin origin{ generator.recipe.tile_origin };
@@ -7054,7 +7021,7 @@ static void DrawGeneratorsForLayer(EditorState& e, const SceneLayer& layer, ImDr
 						);
 						return;
 					}
-					const int index{ GeneratorAutotileIndex(generator, *rules, cell) };
+					int index{ GeneratorAutotileIndex(generator, *rules, cell) };
 					if (index < 0 || index >= static_cast<int>(rules->tile_ids.size())) {
 						return;
 					}
@@ -7111,10 +7078,10 @@ static void DrawGeneratorsForLayer(EditorState& e, const SceneLayer& layer, ImDr
 					return;
 				}
 				const auto& prefab{ e.prefabs[static_cast<std::size_t>(prefab_index)] };
-				const F2 f{ EntityOriginFraction(origin) };
-				const F2 min{ world.x - prefab.size.x * f.x, world.y - prefab.size.y * f.y };
-				const F2 p0{ WorldToScreen(e, min) };
-				const F2 p1{ WorldToScreen(e, min + prefab.size) };
+				F2 f{ EntityOriginFraction(origin) };
+				F2 min{ world.x - prefab.size.x * f.x, world.y - prefab.size.y * f.y };
+				F2 p0{ WorldToScreen(e, min) };
+				F2 p1{ WorldToScreen(e, min + prefab.size) };
 				dl->AddRectFilled(
 					{ p0.x, p0.y }, { p1.x, p1.y },
 					ImGui::GetColorU32(ImVec4(0.25f, 0.72f, 0.42f, live_preview ? 0.42f : 0.58f)),
@@ -7137,19 +7104,19 @@ static void DrawGeneratorsForLayer(EditorState& e, const SceneLayer& layer, ImDr
 		if ((!live_preview && !selected) || generator.geometry == GeneratorGeometryKind::Infinite) {
 			continue;
 		}
-		const auto [first, last]{ GeneratorCellBounds(generator) };
-		const F2 mn{
+		auto [first, last]{ GeneratorCellBounds(generator) };
+		F2 mn{
 			generator.grid_offset.x + static_cast<float>(first.x) * generator.grid_size.x,
 			generator.grid_offset.y + static_cast<float>(first.y) * generator.grid_size.y,
 		};
-		const F2 mx{
+		F2 mx{
 			generator.grid_offset.x + static_cast<float>(last.x + 1) * generator.grid_size.x,
 			generator.grid_offset.y + static_cast<float>(last.y + 1) * generator.grid_size.y,
 		};
-		const F2 p0{ WorldToScreen(e, mn) };
-		const F2 p1{ WorldToScreen(e, mx) };
-		const ImVec4 border_color{ selected ? ImVec4(0.25f, 0.82f, 1.0f, 1.0f)
-											: ImVec4(1.0f, 0.75f, 0.18f, 0.98f) };
+		F2 p0{ WorldToScreen(e, mn) };
+		F2 p1{ WorldToScreen(e, mx) };
+		ImVec4 border_color{ selected ? ImVec4(0.25f, 0.82f, 1.0f, 1.0f)
+									  : ImVec4(1.0f, 0.75f, 0.18f, 0.98f) };
 		dl->AddRect(
 			{ p0.x, p0.y }, { p1.x, p1.y }, ImGui::GetColorU32(border_color), 0.0f, 0, 2.0f
 		);
@@ -7194,12 +7161,12 @@ static void DrawTileLayer(EditorState& e, const SceneLayer& layer, ImDrawList* d
 
 	for (const DrawAnchor& anchor : anchors) {
 		const TileCell& cell{ *anchor.data };
-		const RectF tile_rect{
+		RectF tile_rect{
 			TileAnchorRect(e, *map, anchor.cell, cell.tile_id, cell.offset, cell.origin)
 		};
-		const auto [p0_px, p1_px]{ PixelCoveredScreenRect(e, tile_rect.min, tile_rect.max) };
-		const F2 p0{ p0_px.x, p0_px.y };
-		const F2 p1{ p1_px.x, p1_px.y };
+		auto [p0_px, p1_px]{ PixelCoveredScreenRect(e, tile_rect.min, tile_rect.max) };
+		F2 p0{ p0_px.x, p0_px.y };
+		F2 p1{ p1_px.x, p1_px.y };
 		if (p1.x < e.canvas_screen_min.x || p0.x > e.canvas_screen_max.x ||
 			p1.y < e.canvas_screen_min.y || p0.y > e.canvas_screen_max.y) {
 			continue;
@@ -7236,22 +7203,22 @@ static void DrawTileLayer(EditorState& e, const SceneLayer& layer, ImDrawList* d
 	// offset by half a tile. Each displayed tile depends on the four overlapping
 	// logical cells, yielding the complete 16-case dual-grid set.
 	if (!layer.tile.dual_grid_terrain.empty()) {
-		const F2 wa{ ScreenToWorld(e, e.canvas_screen_min) };
-		const F2 wb{ ScreenToWorld(e, e.canvas_screen_max) };
-		const I2 first{ WorldToCell(*map, { std::min(wa.x, wb.x), std::min(wa.y, wb.y) }) };
-		const I2 last{ WorldToCell(*map, { std::max(wa.x, wb.x), std::max(wa.y, wb.y) }) };
+		F2 wa{ ScreenToWorld(e, e.canvas_screen_min) };
+		F2 wb{ ScreenToWorld(e, e.canvas_screen_max) };
+		I2 first{ WorldToCell(*map, { std::min(wa.x, wb.x), std::min(wa.y, wb.y) }) };
+		I2 last{ WorldToCell(*map, { std::max(wa.x, wb.x), std::max(wa.y, wb.y) }) };
 		Tilemap display_map{ *map };
 		display_map.origin = { map->origin.x + map->cell_size.x * 0.5f,
 							   map->origin.y + map->cell_size.y * 0.5f };
 		for (int y{ first.y - 2 }; y <= last.y + 1; ++y) {
 			for (int x{ first.x - 2 }; x <= last.x + 1; ++x) {
-				const I2 display_cell{ x, y };
-				const std::array<I2, 4> logical{
+				I2 display_cell{ x, y };
+				std::array<I2, 4> logical{
 					{ { x, y }, { x + 1, y }, { x, y + 1 }, { x + 1, y + 1 } }
 				};
 				int ruleset_id{ -1 };
-				for (const I2 c : logical) {
-					if (const auto it = layer.tile.dual_grid_terrain.find(c);
+				for (I2 c : logical) {
+					if (auto it = layer.tile.dual_grid_terrain.find(c);
 						it != layer.tile.dual_grid_terrain.end()) {
 						ruleset_id = it->second;
 						break;
@@ -7264,7 +7231,7 @@ static void DrawTileLayer(EditorState& e, const SceneLayer& layer, ImDrawList* d
 				}
 				int mask{};
 				for (int i{}; i < 4; ++i) {
-					if (const auto it =
+					if (auto it =
 							layer.tile.dual_grid_terrain.find(logical[static_cast<std::size_t>(i)]);
 						it != layer.tile.dual_grid_terrain.end() && it->second == ruleset_id) {
 						mask |= 1 << i;
@@ -7279,20 +7246,19 @@ static void DrawTileLayer(EditorState& e, const SceneLayer& layer, ImDrawList* d
 	}
 
 	if (map->streaming.show_chunk_boundaries) {
-		const float chunk_w{ map->cell_size.x * static_cast<float>(map->chunk_size.x) };
-		const float chunk_h{ map->cell_size.y * static_cast<float>(map->chunk_size.y) };
+		float chunk_w{ map->cell_size.x * static_cast<float>(map->chunk_size.x) };
+		float chunk_h{ map->cell_size.y * static_cast<float>(map->chunk_size.y) };
 		for (const auto& [coord, _] : layer.tile.loaded_chunks) {
-			const F2 w0{ map->origin.x + coord.x * chunk_w, map->origin.y + coord.y * chunk_h };
-			const F2 w1{ w0.x + chunk_w, w0.y + chunk_h };
-			const F2 p0{ WorldToScreen(e, w0) };
-			const F2 p1{ WorldToScreen(e, w1) };
+			F2 w0{ map->origin.x + coord.x * chunk_w, map->origin.y + coord.y * chunk_h };
+			F2 w1{ w0.x + chunk_w, w0.y + chunk_h };
+			F2 p0{ WorldToScreen(e, w0) };
+			F2 p1{ WorldToScreen(e, w1) };
 			dl->AddRect(
 				{ p0.x, p0.y }, { p1.x, p1.y }, ImGui::GetColorU32(ImVec4(1.0f, 0.8f, 0.2f, 0.45f)),
 				0.0f, 0, 1.5f
 			);
 			if (map->streaming.show_streaming_state) {
-				const std::string label{ "chunk " + std::to_string(coord.x) + "," +
-										 std::to_string(coord.y) };
+				$1 label{ "chunk " + std::to_string(coord.x) + "," + std::to_string(coord.y) };
 				dl->AddText(
 					{ p0.x + 4.0f, p0.y + 4.0f },
 					ImGui::GetColorU32(ImVec4(1.0f, 0.9f, 0.45f, 0.8f)), label.c_str()
@@ -7303,10 +7269,10 @@ static void DrawTileLayer(EditorState& e, const SceneLayer& layer, ImDrawList* d
 
 	if (map->streaming.show_streaming_state) {
 		for (const auto& cell : map->exclusion_mask) {
-			const F2 w0{ CellToWorld(*map, cell) };
-			const F2 w1{ w0 + map->cell_size };
-			const F2 p0{ WorldToScreen(e, w0) };
-			const F2 p1{ WorldToScreen(e, w1) };
+			F2 w0{ CellToWorld(*map, cell) };
+			F2 w1{ w0 + map->cell_size };
+			F2 p0{ WorldToScreen(e, w0) };
+			F2 p1{ WorldToScreen(e, w1) };
 			dl->AddRectFilled(
 				{ p0.x, p0.y }, { p1.x, p1.y }, ImGui::GetColorU32(ImVec4(1.0f, 0.1f, 0.1f, 0.18f))
 			);
@@ -7328,11 +7294,11 @@ static void DrawEntityLayer(EditorState& e, const SceneLayer& layer, ImDrawList*
 		return a->depth < b->depth;
 	});
 	for (const Entity* entity : sorted) {
-		const RectF bounds{ EntityBounds(*entity) };
-		const F2 p0{ WorldToScreen(e, bounds.min) };
-		const F2 p1{ WorldToScreen(e, bounds.max) };
+		RectF bounds{ EntityBounds(*entity) };
+		F2 p0{ WorldToScreen(e, bounds.min) };
+		F2 p1{ WorldToScreen(e, bounds.max) };
 		bool selected{ e.selected_entities.contains(entity->id) };
-		const ImU32 fill{ ImGui::GetColorU32(
+		ImU32 fill{ ImGui::GetColorU32(
 			selected ? ImVec4(0.95f, 0.7f, 0.15f, 0.65f) : ImVec4(0.3f, 0.55f, 0.8f, 0.65f)
 		) };
 		dl->AddRectFilled({ p0.x, p0.y }, { p1.x, p1.y }, fill, 3.0f);
@@ -7349,9 +7315,9 @@ static void DrawEntityLayer(EditorState& e, const SceneLayer& layer, ImDrawList*
 }
 
 static F2 ConstrainSquareDrag(F2 start, F2 current) {
-	const float dx{ current.x - start.x };
-	const float dy{ current.y - start.y };
-	const float side{ std::max(std::abs(dx), std::abs(dy)) };
+	float dx{ current.x - start.x };
+	float dy{ current.y - start.y };
+	float side{ std::max(std::abs(dx), std::abs(dy)) };
 	return {
 		start.x + (dx < 0.0f ? -side : side),
 		start.y + (dy < 0.0f ? -side : side),
@@ -7364,19 +7330,19 @@ static void DrawToolPreview(EditorState& e, ImDrawList* dl, F2 mouse_world) {
 		return;
 	}
 
-	const RasterGrid raster{ ActiveRasterGrid(e) };
+	RasterGrid raster{ ActiveRasterGrid(e) };
 	bool preview_uses_operation{ e.tool == Tool::Pencil || e.tool == Tool::Brush ||
 								 e.tool == Tool::Line || e.tool == Tool::Rectangle ||
 								 e.tool == Tool::Erase };
-	const BrushOperation preview_operation{ preview_uses_operation ? e.brush.operation
-																   : BrushOperation::Paint };
+	BrushOperation preview_operation{ preview_uses_operation ? e.brush.operation
+															 : BrushOperation::Paint };
 
 	auto draw_raster_cells = [&](const std::vector<I2>& cells, ImVec4 fill_color,
 								 ImVec4 line_color) {
-		for (const I2 cell : cells) {
-			const RectF rect{ RasterCellRect(raster, cell) };
-			const F2 p0{ WorldToScreen(e, rect.min) };
-			const F2 p1{ WorldToScreen(e, rect.max) };
+		for (I2 cell : cells) {
+			RectF rect{ RasterCellRect(raster, cell) };
+			F2 p0{ WorldToScreen(e, rect.min) };
+			F2 p1{ WorldToScreen(e, rect.max) };
 			dl->AddRectFilled({ p0.x, p0.y }, { p1.x, p1.y }, ImGui::GetColorU32(fill_color));
 			dl->AddRect({ p0.x, p0.y }, { p1.x, p1.y }, ImGui::GetColorU32(line_color));
 		}
@@ -7390,7 +7356,7 @@ static void DrawToolPreview(EditorState& e, ImDrawList* dl, F2 mouse_world) {
 			const auto* old{ ReadTileCell(tile_layer, map, cell) };
 			return old && old->tile_id >= 0;
 		}
-		const int preview_tile_id{
+		int preview_tile_id{
 			ChooseTileFromRecipe(e, e.recipe, CellToWorld(map, cell), cell, true)
 		};
 		if (preview_tile_id < 0 && e.recipe.source_kind != PaintSourceKind::Autotile) {
@@ -7405,8 +7371,8 @@ static void DrawToolPreview(EditorState& e, ImDrawList* dl, F2 mouse_world) {
 			}
 
 			if (e.recipe.tile_paint_mode == TilePaintMode::Tile) {
-				const I2 footprint{ TileFootprintCells(e, map, preview_tile_id) };
-				const I2 origin{ WorldToCell(map, mouse_world) };
+				I2 footprint{ TileFootprintCells(e, map, preview_tile_id) };
+				I2 origin{ WorldToCell(map, mouse_world) };
 				if (FloorMod(cell.x - origin.x, footprint.x) != 0 ||
 					FloorMod(cell.y - origin.y, footprint.y) != 0) {
 					return false;
@@ -7428,15 +7394,15 @@ static void DrawToolPreview(EditorState& e, ImDrawList* dl, F2 mouse_world) {
 
 	auto draw_tile_preview = [&](const SceneLayer& tile_layer, const Tilemap& map,
 								 const std::vector<I2>& cells) {
-		for (const I2 cell : cells) {
+		for (I2 cell : cells) {
 			if (!tile_anchor_allowed(tile_layer, map, cell)) {
 				continue;
 			}
 
 			if (preview_operation == BrushOperation::ExclusionMask) {
-				const F2 w0{ CellToWorld(map, cell) };
-				const F2 p0{ WorldToScreen(e, w0) };
-				const F2 p1{ WorldToScreen(e, w0 + map.cell_size) };
+				F2 w0{ CellToWorld(map, cell) };
+				F2 p0{ WorldToScreen(e, w0) };
+				F2 p1{ WorldToScreen(e, w0 + map.cell_size) };
 				dl->AddRectFilled(
 					{ p0.x, p0.y }, { p1.x, p1.y },
 					ImGui::GetColorU32(ImVec4(1.0f, 0.25f, 0.2f, 0.24f))
@@ -7444,15 +7410,13 @@ static void DrawToolPreview(EditorState& e, ImDrawList* dl, F2 mouse_world) {
 				continue;
 			}
 
-			const int tile_id{
-				ChooseTileFromRecipe(e, e.recipe, CellToWorld(map, cell), cell, true)
-			};
+			int tile_id{ ChooseTileFromRecipe(e, e.recipe, CellToWorld(map, cell), cell, true) };
 			const auto* tile{ FindTile(e, tile_id) };
-			const F2 source_world{ CellToWorld(map, cell) };
-			const EntityOrigin preview_origin{ RecipeSourceOrigin(e.recipe, source_world, true) };
-			const RectF preview_rect{ TileAnchorRect(e, map, cell, tile_id, {}, preview_origin) };
-			const F2 p0{ WorldToScreen(e, preview_rect.min) };
-			const F2 p1{ WorldToScreen(e, preview_rect.max) };
+			F2 source_world{ CellToWorld(map, cell) };
+			EntityOrigin preview_origin{ RecipeSourceOrigin(e.recipe, source_world, true) };
+			RectF preview_rect{ TileAnchorRect(e, map, cell, tile_id, {}, preview_origin) };
+			F2 p0{ WorldToScreen(e, preview_rect.min) };
+			F2 p1{ WorldToScreen(e, preview_rect.max) };
 
 			if (tile && tile->texture_index >= 0) {
 				const auto& texture{ e.textures[static_cast<std::size_t>(tile->texture_index)] };
@@ -7474,7 +7438,7 @@ static void DrawToolPreview(EditorState& e, ImDrawList* dl, F2 mouse_world) {
 
 	if (e.tool == Tool::Brush || e.tool == Tool::Erase ||
 		(e.tool == Tool::Select && e.brush.select_mode == SelectMode::Brush)) {
-		const std::vector<I2> cells{ RasterBrushCells(e, mouse_world) };
+		std::vector<I2> cells{ RasterBrushCells(e, mouse_world) };
 
 		if (layer && layer->kind == LayerKind::Tile && e.tool == Tool::Brush) {
 			if (const auto* map = FindTilemap(e, layer->tile.tilemap_id)) {
@@ -7516,11 +7480,11 @@ static void DrawToolPreview(EditorState& e, ImDrawList* dl, F2 mouse_world) {
 	if (e.stroke.active && e.tool == Tool::Select &&
 		e.brush.select_mode == SelectMode::ClickMarquee &&
 		Distance(e.stroke.start_world, mouse_world) >= 4.0f / e.view_zoom) {
-		const F2 constrained{ ImGui::GetIO().KeyShift
-								  ? ConstrainSquareDrag(e.stroke.start_world, mouse_world)
-								  : mouse_world };
-		const F2 a{ WorldToScreen(e, e.stroke.start_world) };
-		const F2 b{ WorldToScreen(e, constrained) };
+		F2 constrained{ ImGui::GetIO().KeyShift
+							? ConstrainSquareDrag(e.stroke.start_world, mouse_world)
+							: mouse_world };
+		F2 a{ WorldToScreen(e, e.stroke.start_world) };
+		F2 b{ WorldToScreen(e, constrained) };
 		dl->AddRect(
 			{ std::min(a.x, b.x), std::min(a.y, b.y) }, { std::max(a.x, b.x), std::max(a.y, b.y) },
 			ImGui::GetColorU32(ImVec4(1, 1, 1, 0.8f)), 0.0f, 0, 2.0f
@@ -7528,7 +7492,7 @@ static void DrawToolPreview(EditorState& e, ImDrawList* dl, F2 mouse_world) {
 	}
 }
 
-static void BeginStroke(EditorState& e, F2 world, const char* label) {
+static void BeginStroke(EditorState& e, F2 world, const char* _label) {
 	e.stroke			   = {};
 	e.stroke.active		   = true;
 	e.stroke.start_world   = world;
@@ -7536,7 +7500,6 @@ static void BeginStroke(EditorState& e, F2 world, const char* label) {
 	e.stroke.current_world = world;
 	e.stroke.points.push_back(world);
 	e.stroke.before = CaptureScene(e);
-	(void)label;
 }
 
 static void EndStroke(EditorState& e, const char* label) {
@@ -7566,14 +7529,14 @@ static float PencilSampleStep(const EditorState& e) {
 }
 
 static void PaintPencilSegment(EditorState& e, F2 from, F2 to) {
-	const float distance{ Distance(from, to) };
+	float distance{ Distance(from, to) };
 	if (distance <= 0.001f) {
 		return;
 	}
-	const float step{ PencilSampleStep(e) };
-	const int samples{ std::max(1, static_cast<int>(std::ceil(distance / step))) };
+	float step{ PencilSampleStep(e) };
+	int samples{ std::max(1, static_cast<int>(std::ceil(distance / step))) };
 	for (int i{ 1 }; i <= samples; ++i) {
-		const float t{ static_cast<float>(i) / static_cast<float>(samples) };
+		float t{ static_cast<float>(i) / static_cast<float>(samples) };
 		PaintAt(e, Lerp(from, to, t));
 	}
 }
@@ -7586,11 +7549,11 @@ static void HandleViewportInput(EditorState& e, F2 mouse_world) {
 		// deliberately multi-stroke: new Brush strokes keep accumulating until the
 		// user presses Enter/checkmark to finish or Escape to discard the generator.
 		SyncGeneratorRecipeFromPalette(e, *e.pending_generator);
-		const Tool pending_tool{ e.pending_generator->geometry == GeneratorGeometryKind::BrushStroke
-									 ? Tool::Brush
-								 : e.pending_generator->geometry == GeneratorGeometryKind::Line
-									 ? Tool::Line
-									 : Tool::Rectangle };
+		Tool pending_tool{ e.pending_generator->geometry == GeneratorGeometryKind::BrushStroke
+							   ? Tool::Brush
+						   : e.pending_generator->geometry == GeneratorGeometryKind::Line
+							   ? Tool::Line
+							   : Tool::Rectangle };
 		bool pending_brush{ e.pending_generator->geometry == GeneratorGeometryKind::BrushStroke };
 		if (e.pending_generator->layer_id != e.active_layer_id || e.tool != pending_tool) {
 			CommitPendingGenerator(e);
@@ -7624,7 +7587,7 @@ static void HandleViewportInput(EditorState& e, F2 mouse_world) {
 		if (e.move.before) {
 			RestoreScene(e, *e.move.before);
 		}
-		const MoveSnapMode snap_mode{ e.move.snap_mode };
+		MoveSnapMode snap_mode{ e.move.snap_mode };
 		e.move			 = {};
 		e.move.snap_mode = snap_mode;
 		return;
@@ -7645,9 +7608,9 @@ static void HandleViewportInput(EditorState& e, F2 mouse_world) {
 		e.view_pan.y += io.MouseDelta.y;
 	}
 	if (std::abs(io.MouseWheel) > 0.001f) {
-		const F2 before{ mouse_world };
+		F2 before{ mouse_world };
 		e.view_zoom = std::clamp(e.view_zoom * std::pow(1.12f, io.MouseWheel), 0.15f, 5.0f);
-		const F2 after{ ScreenToWorld(e, { io.MousePos.x, io.MousePos.y }) };
+		F2 after{ ScreenToWorld(e, { io.MousePos.x, io.MousePos.y }) };
 		e.view_pan.x += (after.x - before.x) * e.view_zoom;
 		e.view_pan.y += (after.y - before.y) * e.view_zoom;
 	}
@@ -7678,7 +7641,7 @@ static void HandleViewportInput(EditorState& e, F2 mouse_world) {
 			e.move.current_world = mouse_world;
 			bool default_free{ e.move.snap_mode == MoveSnapMode::Free };
 			bool free_movement{ ctrl ? !default_free : default_free };
-			const F2 delta{ mouse_world - e.move.start_world };
+			F2 delta{ mouse_world - e.move.start_world };
 			ApplyMoveFromSnapshot(e, *e.move.before, delta, free_movement);
 			e.move.changed = Distance(e.move.start_world, mouse_world) > 0.01f;
 		}
@@ -7686,7 +7649,7 @@ static void HandleViewportInput(EditorState& e, F2 mouse_world) {
 			if (e.move.changed && e.move.before) {
 				PushHistory(e, "Move Selection", std::move(*e.move.before));
 			}
-			const MoveSnapMode snap_mode{ e.move.snap_mode };
+			MoveSnapMode snap_mode{ e.move.snap_mode };
 			e.move			 = {};
 			e.move.snap_mode = snap_mode;
 		}
@@ -7710,9 +7673,8 @@ static void HandleViewportInput(EditorState& e, F2 mouse_world) {
 			if (Distance(e.stroke.start_world, mouse_world) < 4.0f / e.view_zoom) {
 				SelectClick(e, mouse_world, shift, ctrl);
 			} else {
-				const F2 selection_end{ shift
-											? ConstrainSquareDrag(e.stroke.start_world, mouse_world)
-											: mouse_world };
+				F2 selection_end{ shift ? ConstrainSquareDrag(e.stroke.start_world, mouse_world)
+										: mouse_world };
 				SelectMarquee(e, e.stroke.start_world, selection_end, shift, ctrl);
 			}
 			e.stroke = {};
@@ -7793,15 +7755,15 @@ static void HandleViewportInput(EditorState& e, F2 mouse_world) {
 
 		if (e.stroke.active && ImGui::IsMouseDown(ImGuiMouseButton_Left)) {
 			e.stroke.current_world = mouse_world;
-			const float distance{ Distance(e.stroke.last_world, mouse_world) };
-			const RasterGrid stroke_grid{ ActiveRasterGrid(e) };
-			const float spacing{
+			float distance{ Distance(e.stroke.last_world, mouse_world) };
+			RasterGrid stroke_grid{ ActiveRasterGrid(e) };
+			float spacing{
 				std::max(1.0f, std::min(stroke_grid.size.x, stroke_grid.size.y) * 0.45f)
 			};
 			if (distance >= 0.001f) {
-				const int samples{ std::max(1, static_cast<int>(std::ceil(distance / spacing))) };
+				int samples{ std::max(1, static_cast<int>(std::ceil(distance / spacing))) };
 				for (int i{ 1 }; i <= samples; ++i) {
-					const F2 sample{ Lerp(
+					F2 sample{ Lerp(
 						e.stroke.last_world, mouse_world,
 						static_cast<float>(i) / static_cast<float>(samples)
 					) };
@@ -7840,7 +7802,7 @@ static void HandleViewportInput(EditorState& e, F2 mouse_world) {
 		}
 		if (e.stroke.active && ImGui::IsMouseReleased(ImGuiMouseButton_Left)) {
 			// Paint operations stay as a temporary live procedural shape after release,
-			// matching Paint.NET-style shape editing. Inspector recipe changes continue
+			// matching shape editing. Inspector recipe changes continue
 			// updating the result until the next scene action commits it. Replace and
 			// Exclusion Mask are destructive operations and therefore apply immediately.
 			if (e.brush.operation == BrushOperation::Paint) {
@@ -7889,8 +7851,8 @@ static void DrawViewport(EditorState& e) {
 	ImVec2 avail{ ImGui::GetContentRegionAvail() };
 	avail.x = std::max(avail.x, 64.0f);
 	avail.y = std::max(avail.y, 64.0f);
-	const ImVec2 canvas_min{ ImGui::GetCursorScreenPos() };
-	const ImVec2 canvas_max{ canvas_min.x + avail.x, canvas_min.y + avail.y };
+	ImVec2 canvas_min{ ImGui::GetCursorScreenPos() };
+	ImVec2 canvas_max{ canvas_min.x + avail.x, canvas_min.y + avail.y };
 	e.canvas_screen_min = { canvas_min.x, canvas_min.y };
 	e.canvas_screen_max = { canvas_max.x, canvas_max.y };
 	ImGui::InvisibleButton(
@@ -7930,12 +7892,12 @@ static void DrawViewport(EditorState& e) {
 	DrawActiveNoiseBoundaryHandles(e, dl);
 
 	const ImGuiIO& io{ ImGui::GetIO() };
-	const F2 mouse_world{ ScreenToWorld(e, { io.MousePos.x, io.MousePos.y }) };
+	F2 mouse_world{ ScreenToWorld(e, { io.MousePos.x, io.MousePos.y }) };
 	DrawToolPreview(e, dl, mouse_world);
 
-	const std::string status{ "World: " + std::to_string(static_cast<int>(mouse_world.x)) + ", " +
-							  std::to_string(static_cast<int>(mouse_world.y)) + "   Zoom: " +
-							  std::to_string(static_cast<int>(e.view_zoom * 100.0f)) + "%" };
+	$1 status{ "World: " + std::to_string(static_cast<int>(mouse_world.x)) + ", " +
+			   std::to_string(static_cast<int>(mouse_world.y)) +
+			   "   Zoom: " + std::to_string(static_cast<int>(e.view_zoom * 100.0f)) + "%" };
 	dl->AddText(
 		{ canvas_min.x + 8.0f, canvas_max.y - ImGui::GetTextLineHeight() - 6.0f },
 		ImGui::GetColorU32(ImVec4(1, 1, 1, 0.7f)), status.c_str()
@@ -7956,7 +7918,7 @@ static int LayerIndex(const EditorState& e, int id) {
 }
 
 static bool CanMergeLayerDown(const EditorState& e, int upper_id) {
-	const int index{ LayerIndex(e, upper_id) };
+	int index{ LayerIndex(e, upper_id) };
 	if (index <= 0) {
 		return false;
 	}
@@ -7972,7 +7934,7 @@ static bool CanMergeLayerDown(const EditorState& e, int upper_id) {
 		if (upper.noise.target != lower.noise.target) {
 			return false;
 		}
-		const auto same_axis = [](float a, float b) {
+		auto same_axis = [](float a, float b) {
 			return std::abs(a - b) <= 0.001f;
 		};
 		return same_axis(upper.noise.grid_size.x, lower.noise.grid_size.x) &&
@@ -7984,16 +7946,16 @@ static bool CanMergeLayerDown(const EditorState& e, int upper_id) {
 }
 
 static void MergeLayerDown(EditorState& e, int upper_id, LayerMergeMode mode) {
-	const int upper_index{ LayerIndex(e, upper_id) };
+	int upper_index{ LayerIndex(e, upper_id) };
 	if (upper_index <= 0 || !CanMergeLayerDown(e, upper_id)) {
 		return;
 	}
-	const int lower_index{ upper_index - 1 };
-	const SceneSnapshot before{ CaptureScene(e) };
+	int lower_index{ upper_index - 1 };
+	SceneSnapshot before{ CaptureScene(e) };
 	SceneLayer& upper{ e.layers[static_cast<std::size_t>(upper_index)] };
 	SceneLayer& lower{ e.layers[static_cast<std::size_t>(lower_index)] };
-	const int upper_layer_id{ upper.id };
-	const int lower_layer_id{ lower.id };
+	int upper_layer_id{ upper.id };
+	int lower_layer_id{ lower.id };
 
 	if (upper.kind == LayerKind::Tile) {
 		const auto* map{ FindTilemap(e, upper.tile.tilemap_id) };
@@ -8041,10 +8003,10 @@ static void MergeLayerDown(EditorState& e, int upper_id, LayerMergeMode mode) {
 						if (entity.layer_id != lower_layer_id) {
 							return false;
 						}
-						const RectF bounds{ EntityBounds(entity) };
+						RectF bounds{ EntityBounds(entity) };
 						return std::any_of(
 							upper_bounds.begin(), upper_bounds.end(),
-							[&](const RectF& other) { return RectsOverlap(bounds, other); }
+							[&](RectF& other) { return RectsOverlap(bounds, other); }
 						);
 					}
 				),
@@ -8095,22 +8057,22 @@ static void MergeLayerDown(EditorState& e, int upper_id, LayerMergeMode mode) {
 static bool LayerIconButton(const char* id, bool& value, bool eye_icon) {
 	// Match the TreeNode/Selectable row height exactly so the controls read as a
 	// single hierarchy row rather than a collection of differently-sized widgets.
-	const float side{ ImGui::GetFrameHeight() };
-	const float scale{ side / 18.0f };
-	const ImVec2 size{ side, side };
-	const ImVec2 p0{ ImGui::GetCursorScreenPos() };
+	float side{ ImGui::GetFrameHeight() };
+	float scale{ side / 18.0f };
+	ImVec2 size{ side, side };
+	ImVec2 p0{ ImGui::GetCursorScreenPos() };
 	ImGui::InvisibleButton(id, size);
 	bool clicked{ ImGui::IsItemClicked() };
 	if (clicked) {
 		value = !value;
 	}
 	ImDrawList* dl{ ImGui::GetWindowDrawList() };
-	const ImU32 c{ ImGui::GetColorU32(value ? ImGuiCol_Text : ImGuiCol_TextDisabled) };
+	ImU32 c{ ImGui::GetColorU32(value ? ImGuiCol_Text : ImGuiCol_TextDisabled) };
 	auto pt = [&](float x, float y) {
 		return ImVec2{ p0.x + x * scale, p0.y + y * scale };
 	};
 	if (eye_icon) {
-		const ImVec2 center{ pt(9.0f, 9.0f) };
+		ImVec2 center{ pt(9.0f, 9.0f) };
 		dl->AddLine(pt(2.0f, 9.0f), pt(6.0f, 5.0f), c, 1.5f * scale);
 		dl->AddLine(pt(6.0f, 5.0f), pt(12.0f, 5.0f), c, 1.5f * scale);
 		dl->AddLine(pt(12.0f, 5.0f), pt(16.0f, 9.0f), c, 1.5f * scale);
@@ -8138,13 +8100,13 @@ static bool LayerIconButton(const char* id, bool& value, bool eye_icon) {
 }
 
 static void DrawLayerKindIcon(LayerKind kind) {
-	const float side{ ImGui::GetFrameHeight() };
-	const float scale{ side / 18.0f };
-	const ImVec2 size{ side, side };
-	const ImVec2 p0{ ImGui::GetCursorScreenPos() };
+	float side{ ImGui::GetFrameHeight() };
+	float scale{ side / 18.0f };
+	ImVec2 size{ side, side };
+	ImVec2 p0{ ImGui::GetCursorScreenPos() };
 	ImGui::Dummy(size);
 	ImDrawList* dl{ ImGui::GetWindowDrawList() };
-	const ImU32 c{ ImGui::GetColorU32(ImGuiCol_TextDisabled) };
+	ImU32 c{ ImGui::GetColorU32(ImGuiCol_TextDisabled) };
 	auto pt = [&](float x, float y) {
 		return ImVec2{ p0.x + x * scale, p0.y + y * scale };
 	};
@@ -8167,7 +8129,7 @@ static void DrawLayerKindIcon(LayerKind kind) {
 		dl->AddLine(pt(9.0f, 10.0f), pt(9.0f, 16.0f), c, 1.5f * scale);
 	} else {
 		for (int i{}; i < 3; ++i) {
-			const float yy{ 5.0f + i * 4.0f };
+			float yy{ 5.0f + i * 4.0f };
 			dl->AddLine(pt(2.0f, yy), pt(6.0f, yy - 2.0f), c, 1.2f * scale);
 			dl->AddLine(pt(6.0f, yy - 2.0f), pt(11.0f, yy + 2.0f), c, 1.2f * scale);
 			dl->AddLine(pt(11.0f, yy + 2.0f), pt(16.0f, yy), c, 1.2f * scale);
@@ -8210,7 +8172,7 @@ static void DrawSceneHierarchy(EditorState& e) {
 	};
 
 	auto add_entity_layer = [&]() {
-		const auto before{ CaptureScene(e) };
+		auto before{ CaptureScene(e) };
 		SceneLayer layer;
 		layer.id   = e.next_layer_id++;
 		layer.name = "Entity Layer " + std::to_string(layer.id);
@@ -8221,7 +8183,7 @@ static void DrawSceneHierarchy(EditorState& e) {
 	};
 
 	auto add_tile_layer = [&]() {
-		const auto before{ CaptureScene(e) };
+		auto before{ CaptureScene(e) };
 		if (e.tilemaps.empty()) {
 			Tilemap map;
 			map.id = e.next_tilemap_id++;
@@ -8237,7 +8199,7 @@ static void DrawSceneHierarchy(EditorState& e) {
 		PushHistory(e, "Add Tile Layer", before);
 	};
 
-	const float row_height{ ImGui::GetFrameHeight() };
+	float row_height{ ImGui::GetFrameHeight() };
 	if (ImGui::BeginTable(
 			"##SceneHierarchyLayers", 4,
 			ImGuiTableFlags_SizingStretchProp | ImGuiTableFlags_NoSavedSettings
@@ -8311,7 +8273,7 @@ static void DrawSceneHierarchy(EditorState& e) {
 				ItemTooltip("Select this layer. Drag to reorder; right click for layer options.");
 
 				if (ImGui::BeginDragDropSource(ImGuiDragDropFlags_SourceAllowNullID)) {
-					const int payload_id{ layer.id };
+					int payload_id{ layer.id };
 					ImGui::SetDragDropPayload("SCENE_LAYER_ID", &payload_id, sizeof(payload_id));
 					ImGui::Text("Move %s", layer.name.c_str());
 					ImGui::EndDragDropSource();
@@ -8320,7 +8282,7 @@ static void DrawSceneHierarchy(EditorState& e) {
 					if (const ImGuiPayload* payload =
 							ImGui::AcceptDragDropPayload("SCENE_LAYER_ID")) {
 						if (payload->DataSize == sizeof(int)) {
-							move_source_id = *static_cast<const int*>(payload->Data);
+							move_source_id = *static_cast<int*>(payload->Data);
 							move_target_id = layer.id;
 						}
 					}
@@ -8437,7 +8399,7 @@ static void DrawSceneHierarchy(EditorState& e) {
 				if (layer.name.empty()) {
 					layer.name = "Layer";
 				}
-				const std::string base{ layer.name };
+				$1 base{ layer.name };
 				std::string unique{ base };
 				int suffix{ 2 };
 				while (std::ranges::any_of(e.layers, [&](const SceneLayer& candidate) {
@@ -8558,7 +8520,7 @@ static void DrawSceneHierarchy(EditorState& e) {
 		merge_popup_requested = false;
 	}
 	if (ImGui::BeginPopupModal("Merge Layer Down", nullptr, ImGuiWindowFlags_AlwaysAutoResize)) {
-		const int index{ LayerIndex(e, merge_id) };
+		int index{ LayerIndex(e, merge_id) };
 		if (index > 0 && CanMergeLayerDown(e, merge_id)) {
 			const auto& upper{ e.layers[static_cast<std::size_t>(index)] };
 			const auto& lower{ e.layers[static_cast<std::size_t>(index - 1)] };
@@ -8595,7 +8557,7 @@ static void DrawSceneHierarchy(EditorState& e) {
 	}
 
 	if (move_source_id >= 0 && move_target_id >= 0 && move_source_id != move_target_id) {
-		const auto before{ CaptureScene(e) };
+		auto before{ CaptureScene(e) };
 		auto src = std::find_if(e.layers.begin(), e.layers.end(), [&](const SceneLayer& l) {
 			return l.id == move_source_id;
 		});
@@ -8603,15 +8565,11 @@ static void DrawSceneHierarchy(EditorState& e) {
 			return l.id == move_target_id;
 		});
 		if (src != e.layers.end() && dst != e.layers.end()) {
-			const std::size_t dst_index{
-				static_cast<std::size_t>(std::distance(e.layers.begin(), dst))
-			};
+			std::size_t dst_index{ static_cast<std::size_t>(std::distance(e.layers.begin(), dst)) };
 			SceneLayer moved{ std::move(*src) };
-			const std::size_t src_index{
-				static_cast<std::size_t>(std::distance(e.layers.begin(), src))
-			};
+			std::size_t src_index{ static_cast<std::size_t>(std::distance(e.layers.begin(), src)) };
 			e.layers.erase(e.layers.begin() + static_cast<std::ptrdiff_t>(src_index));
-			const std::size_t adjusted{ std::min(dst_index, e.layers.size()) };
+			std::size_t adjusted{ std::min(dst_index, e.layers.size()) };
 			e.layers.insert(
 				e.layers.begin() + static_cast<std::ptrdiff_t>(adjusted), std::move(moved)
 			);
@@ -8621,7 +8579,7 @@ static void DrawSceneHierarchy(EditorState& e) {
 
 	if (duplicate_layer_id >= 0) {
 		if (const SceneLayer* source = FindLayer(e, duplicate_layer_id)) {
-			const auto before{ CaptureScene(e) };
+			auto before{ CaptureScene(e) };
 			SceneLayer copy{ *source };
 			copy.id	   = e.next_layer_id++;
 			copy.name += " Copy";
@@ -8659,7 +8617,7 @@ static void DrawSceneHierarchy(EditorState& e) {
 	}
 
 	if (delete_layer_id >= 0 && e.layers.size() > 1) {
-		const auto before{ CaptureScene(e) };
+		auto before{ CaptureScene(e) };
 		for (const auto& entity : e.entities) {
 			if (entity.layer_id == delete_layer_id) {
 				e.selected_entities.erase(entity.id);
@@ -8723,8 +8681,8 @@ static void DrawPaletteTile(
 ) {
 	// Keep the thumbnail shorter than its reserved table row so it can never
 	// bleed into the palette tree header above or the next palette row below.
-	const float size{ 48.0f };
-	const ImVec2 p0{ ImGui::GetCursorScreenPos() };
+	float size{ 48.0f };
+	ImVec2 p0{ ImGui::GetCursorScreenPos() };
 	ImGui::InvisibleButton(("##tile" + std::to_string(tile.id)).c_str(), { size, size });
 	bool hovered{ ImGui::IsItemHovered() };
 	bool clicked{ ImGui::IsItemClicked() };
@@ -8735,7 +8693,7 @@ static void DrawPaletteTile(
 			(ImTextureID)(intptr_t)tex.handle, p0, { p0.x + size, p0.y + size }, tile.uv0, tile.uv1
 		);
 	}
-	const ImU32 outline{ ImGui::GetColorU32(
+	ImU32 outline{ ImGui::GetColorU32(
 		selected   ? ImVec4(1.0f, 0.75f, 0.1f, 1.0f)
 		: in_stamp ? ImVec4(0.25f, 0.85f, 1.0f, 1.0f)
 				   : ImVec4(1, 1, 1, hovered ? 0.6f : 0.2f)
@@ -8852,7 +8810,7 @@ static void DrawImportPopup(EditorState& e) {
 		}
 	}
 	if (ImGui::Button("Import")) {
-		const SceneSnapshot before{ CaptureScene(e) };
+		SceneSnapshot before{ CaptureScene(e) };
 		e.importer.create_palette_from_source = false;
 		bool success{ ImportTiles(e, e.importer) };
 		e.import_status = success
@@ -8909,8 +8867,7 @@ static void DrawSourceMode(EditorState& e) {
 		return;
 	}
 	bool tile_layer{ layer->kind == LayerKind::Tile };
-	const std::string preview{ std::string{ "Source: " } +
-							   PaintSourceKindName(e.recipe.source_kind) };
+	$1 preview{ std::string{ "Source: " } + PaintSourceKindName(e.recipe.source_kind) };
 	ImGui::SetNextItemWidth(190.0f);
 	if (ImGui::BeginCombo("##paint_recipe_source", preview.c_str())) {
 		for (PaintSourceKind kind :
@@ -8959,7 +8916,7 @@ static bool DrawPrefabSourceComboAll(EditorState& e, const char* id, int& prefab
 
 	std::vector<std::string> groups;
 	for (const auto& prefab : e.prefabs) {
-		const std::string group{ prefab.group.empty() ? "Ungrouped" : prefab.group };
+		$1 group{ prefab.group.empty() ? "Ungrouped" : prefab.group };
 		if (!ContainsCaseInsensitive(prefab.name, search) &&
 			!ContainsCaseInsensitive(group, search)) {
 			continue;
@@ -8974,7 +8931,7 @@ static bool DrawPrefabSourceComboAll(EditorState& e, const char* id, int& prefab
 		ImGui::SeparatorText(group.c_str());
 		for (int i{}; i < static_cast<int>(e.prefabs.size()); ++i) {
 			const auto& prefab{ e.prefabs[static_cast<std::size_t>(i)] };
-			const std::string candidate_group{ prefab.group.empty() ? "Ungrouped" : prefab.group };
+			$1 candidate_group{ prefab.group.empty() ? "Ungrouped" : prefab.group };
 			if (candidate_group != group) {
 				continue;
 			}
@@ -9000,10 +8957,10 @@ static bool DrawPrefabSourceComboAll(EditorState& e, const char* id, int& prefab
 }
 
 static void DrawInlineTileThumbnail(EditorState& e, int tile_id, float size = 0.0f) {
-	const float side{ size > 0.0f ? size : ImGui::GetTextLineHeight() };
-	const ImVec2 p0{ ImGui::GetCursorScreenPos() };
+	float side{ size > 0.0f ? size : ImGui::GetTextLineHeight() };
+	ImVec2 p0{ ImGui::GetCursorScreenPos() };
 	ImGui::Dummy({ side, side });
-	const ImVec2 p1{ p0.x + side, p0.y + side };
+	ImVec2 p1{ p0.x + side, p0.y + side };
 	if (const auto* tile = FindTile(e, tile_id); tile && tile->texture_index >= 0) {
 		const auto& texture{ e.textures[static_cast<std::size_t>(tile->texture_index)] };
 		ImGui::GetWindowDrawList()->AddImage(
@@ -9041,11 +8998,11 @@ static bool DrawTileSourceComboAll(EditorState& e, const char* id, int& tile_id)
 		changed = true;
 	}
 
-	const float row_height{ ImGui::GetFrameHeight() };
-	const float text_height{ ImGui::GetTextLineHeight() };
-	const float thumbnail_side{ text_height };
-	const float horizontal_padding{ ImGui::GetStyle().FramePadding.x };
-	const float item_spacing{ ImGui::GetStyle().ItemInnerSpacing.x };
+	float row_height{ ImGui::GetFrameHeight() };
+	float text_height{ ImGui::GetTextLineHeight() };
+	float thumbnail_side{ text_height };
+	float horizontal_padding{ ImGui::GetStyle().FramePadding.x };
+	float item_spacing{ ImGui::GetStyle().ItemInnerSpacing.x };
 
 	for (const auto& palette : e.palettes) {
 		bool any{};
@@ -9074,13 +9031,12 @@ static bool DrawTileSourceComboAll(EditorState& e, const char* id, int& tile_id)
 				changed = true;
 			}
 
-			const ImVec2 row_min{ ImGui::GetItemRectMin() };
-			const ImVec2 row_max{ ImGui::GetItemRectMax() };
-			const float thumbnail_y{
-				row_min.y + std::max(0.0f, (row_max.y - row_min.y - thumbnail_side) * 0.5f)
-			};
-			const ImVec2 thumb_min{ row_min.x + horizontal_padding, thumbnail_y };
-			const ImVec2 thumb_max{ thumb_min.x + thumbnail_side, thumb_min.y + thumbnail_side };
+			ImVec2 row_min{ ImGui::GetItemRectMin() };
+			ImVec2 row_max{ ImGui::GetItemRectMax() };
+			float thumbnail_y{ row_min.y +
+							   std::max(0.0f, (row_max.y - row_min.y - thumbnail_side) * 0.5f) };
+			ImVec2 thumb_min{ row_min.x + horizontal_padding, thumbnail_y };
+			ImVec2 thumb_max{ thumb_min.x + thumbnail_side, thumb_min.y + thumbnail_side };
 
 			ImDrawList* draw_list{ ImGui::GetWindowDrawList() };
 			if (tile->texture_index >= 0) {
@@ -9096,8 +9052,8 @@ static bool DrawTileSourceComboAll(EditorState& e, const char* id, int& tile_id)
 			}
 			draw_list->AddRect(thumb_min, thumb_max, ImGui::GetColorU32(ImGuiCol_Border));
 
-			const ImVec2 text_size{ ImGui::CalcTextSize(tile->name.c_str()) };
-			const ImVec2 text_position{
+			ImVec2 text_size{ ImGui::CalcTextSize(tile->name.c_str()) };
+			ImVec2 text_position{
 				thumb_max.x + item_spacing,
 				row_min.y + std::max(0.0f, (row_max.y - row_min.y - text_size.y) * 0.5f)
 			};
@@ -9121,7 +9077,7 @@ static void DrawPrefabTreeBrowser(
 ) {
 	std::vector<std::string> groups;
 	for (const auto& prefab : e.prefabs) {
-		const std::string group{ prefab.group.empty() ? "Ungrouped" : prefab.group };
+		$1 group{ prefab.group.empty() ? "Ungrouped" : prefab.group };
 		bool matches{ ContainsCaseInsensitive(prefab.name, search) ||
 					  ContainsCaseInsensitive(group, search) };
 		if (matches && std::find(groups.begin(), groups.end(), group) == groups.end()) {
@@ -9129,18 +9085,18 @@ static void DrawPrefabTreeBrowser(
 		}
 	}
 	SortGroupNamesUngroupedFirst(groups);
-	for (const std::string& group : groups) {
+	for ($1& group : groups) {
 		ImGuiTreeNodeFlags flags{ ImGuiTreeNodeFlags_SpanAvailWidth };
 		if (!search.empty()) {
 			flags |= ImGuiTreeNodeFlags_DefaultOpen;
 		}
-		const std::string node_id{ group + "##prefab_group" };
+		$1 node_id{ group + "##prefab_group" };
 		if (!ImGui::TreeNodeEx(node_id.c_str(), flags, "%s", group.c_str())) {
 			continue;
 		}
 		for (int i{}; i < static_cast<int>(e.prefabs.size()); ++i) {
 			const auto& prefab{ e.prefabs[static_cast<std::size_t>(i)] };
-			const std::string prefab_group{ prefab.group.empty() ? "Ungrouped" : prefab.group };
+			$1 prefab_group{ prefab.group.empty() ? "Ungrouped" : prefab.group };
 			if (prefab_group != group) {
 				continue;
 			}
@@ -9156,7 +9112,7 @@ static void DrawPrefabTreeBrowser(
 				) };
 				ImGui::BeginDisabled(already);
 				if (ImGui::SmallButton("+")) {
-					const SceneSnapshot before{ CaptureScene(e) };
+					SceneSnapshot before{ CaptureScene(e) };
 					add_to_set->entries.push_back({ i, 1.0f });
 					PushHistory(e, "Add Prefab to Weighted Set", before);
 				}
@@ -9188,7 +9144,7 @@ static void DrawPrefabTreeBrowser(
 }
 
 static void SortGroupNamesUngroupedFirst(std::vector<std::string>& groups) {
-	std::ranges::sort(groups, [](const std::string& a, const std::string& b) {
+	std::ranges::sort(groups, []($1& a, $1& b) {
 		bool a_ungrouped{ a == "Ungrouped" };
 		bool b_ungrouped{ b == "Ungrouped" };
 		if (a_ungrouped != b_ungrouped) {
@@ -9208,7 +9164,7 @@ static int FindUngroupedPaletteIndex(const EditorState& e) {
 }
 
 static int EnsureUngroupedPalette(EditorState& e) {
-	if (const int existing{ FindUngroupedPaletteIndex(e) }; existing >= 0) {
+	if (int existing{ FindUngroupedPaletteIndex(e) }; existing >= 0) {
 		return existing;
 	}
 	TilePalette palette;
@@ -9287,7 +9243,7 @@ static void DeletePrefabDefinition(EditorState& e, int deleted) {
 	if (deleted < 0 || deleted >= static_cast<int>(e.prefabs.size())) {
 		return;
 	}
-	const SceneSnapshot before{ CaptureScene(e) };
+	SceneSnapshot before{ CaptureScene(e) };
 	e.prefabs.erase(e.prefabs.begin() + deleted);
 	for (auto& set : e.weighted_prefab_sets) {
 		set.entries.erase(
@@ -9336,7 +9292,7 @@ static PrefabBrushEntityNode* FindPrefabEntityNode(
 	}
 	std::vector<PrefabBrushEntityNode>* children{ &prefab.children };
 	PrefabBrushEntityNode* node{};
-	for (const std::size_t index : path) {
+	for (std::size_t index : path) {
 		if (index >= children->size()) {
 			return nullptr;
 		}
@@ -9354,7 +9310,7 @@ static const PrefabBrushEntityNode* FindPrefabEntityNode(
 	}
 	const std::vector<PrefabBrushEntityNode>* children{ &prefab.children };
 	const PrefabBrushEntityNode* node{};
-	for (const std::size_t index : path) {
+	for (std::size_t index : path) {
 		if (index >= children->size()) {
 			return nullptr;
 		}
@@ -9403,7 +9359,7 @@ static void DrawPrefabs(EditorState& e) {
 	};
 
 	if (ImGui::Button("+ New Prefab")) {
-		const SceneSnapshot before{ CaptureScene(e) };
+		SceneSnapshot before{ CaptureScene(e) };
 		PrefabBrushEntry prefab;
 		prefab.name = UniquePrefabName(e, "New Prefab");
 		prefab.group.clear();
@@ -9419,7 +9375,7 @@ static void DrawPrefabs(EditorState& e) {
 	);
 	ImGui::SameLine();
 	if (ImGui::Button("+ Group")) {
-		const SceneSnapshot before{ CaptureScene(e) };
+		SceneSnapshot before{ CaptureScene(e) };
 		e.prefab_groups.push_back(UniquePrefabGroupName(e));
 		PushHistory(e, "Create Prefab Group", before);
 	}
@@ -9438,7 +9394,7 @@ static void DrawPrefabs(EditorState& e) {
 		}
 	}
 	for (const auto& prefab : e.prefabs) {
-		const std::string group{ prefab.group.empty() ? "Ungrouped" : prefab.group };
+		$1 group{ prefab.group.empty() ? "Ungrouped" : prefab.group };
 		if (!std::ranges::contains(groups, group)) {
 			groups.push_back(group);
 		}
@@ -9458,11 +9414,11 @@ static void DrawPrefabs(EditorState& e) {
 		e.inspector_context			  = InspectorContext::Prefab;
 	};
 
-	for (const std::string& group : groups) {
+	for ($1& group : groups) {
 		bool group_matches{ ContainsCaseInsensitive(group, search) };
 		bool child_matches{};
 		for (const auto& prefab : e.prefabs) {
-			const std::string prefab_group{ prefab.group.empty() ? "Ungrouped" : prefab.group };
+			$1 prefab_group{ prefab.group.empty() ? "Ungrouped" : prefab.group };
 			if (prefab_group == group && ContainsCaseInsensitive(prefab.name, search)) {
 				child_matches = true;
 				break;
@@ -9502,7 +9458,7 @@ static void DrawPrefabs(EditorState& e) {
 					name.end()
 				);
 				if (!name.empty() && name != group && name != "Ungrouped") {
-					const SceneSnapshot before{ CaptureScene(e) };
+					SceneSnapshot before{ CaptureScene(e) };
 					std::string unique{ name };
 					int suffix{ 2 };
 					while (std::ranges::contains(e.prefab_groups, unique) && unique != group) {
@@ -9549,7 +9505,7 @@ static void DrawPrefabs(EditorState& e) {
 		if (group_open) {
 			for (int i{}; i < static_cast<int>(e.prefabs.size()); ++i) {
 				auto& prefab{ e.prefabs[static_cast<std::size_t>(i)] };
-				const std::string prefab_group{ prefab.group.empty() ? "Ungrouped" : prefab.group };
+				$1 prefab_group{ prefab.group.empty() ? "Ungrouped" : prefab.group };
 				if (prefab_group != group) {
 					continue;
 				}
@@ -9590,8 +9546,8 @@ static void DrawPrefabs(EditorState& e) {
 							name.end()
 						);
 						if (!name.empty() && name != prefab.name) {
-							const SceneSnapshot before{ CaptureScene(e) };
-							const std::string old_name{ prefab.name };
+							SceneSnapshot before{ CaptureScene(e) };
+							$1 old_name{ prefab.name };
 							prefab.name = UniquePrefabName(e, name);
 							for (auto& entity : e.entities) {
 								if (entity.prefab == old_name) {
@@ -9645,7 +9601,7 @@ static void DrawPrefabs(EditorState& e) {
 					}
 					if (ImGui::BeginMenu("Move to Group")) {
 						if (ImGui::MenuItem("Ungrouped", nullptr, prefab.group.empty())) {
-							const SceneSnapshot before{ CaptureScene(e) };
+							SceneSnapshot before{ CaptureScene(e) };
 							prefab.group.clear();
 							PushHistory(e, "Move Prefab to Group", before);
 						}
@@ -9656,7 +9612,7 @@ static void DrawPrefabs(EditorState& e) {
 							if (ImGui::MenuItem(
 									candidate.c_str(), nullptr, prefab.group == candidate
 								)) {
-								const SceneSnapshot before{ CaptureScene(e) };
+								SceneSnapshot before{ CaptureScene(e) };
 								prefab.group = candidate;
 								PushHistory(e, "Move Prefab to Group", before);
 							}
@@ -9744,7 +9700,7 @@ static void DrawPrefabs(EditorState& e) {
 	}
 
 	if (delete_group) {
-		const SceneSnapshot before{ CaptureScene(e) };
+		SceneSnapshot before{ CaptureScene(e) };
 		for (auto& prefab : e.prefabs) {
 			if (prefab.group == *delete_group) {
 				prefab.group.clear();
@@ -9757,7 +9713,7 @@ static void DrawPrefabs(EditorState& e) {
 		PushHistory(e, "Delete Prefab Group", before);
 	}
 	if (duplicate_prefab >= 0 && duplicate_prefab < static_cast<int>(e.prefabs.size())) {
-		const SceneSnapshot before{ CaptureScene(e) };
+		SceneSnapshot before{ CaptureScene(e) };
 		PrefabBrushEntry copy{ e.prefabs[static_cast<std::size_t>(duplicate_prefab)] };
 		copy.name = UniquePrefabName(e, copy.name + " Copy");
 		e.prefabs.push_back(std::move(copy));
@@ -9772,7 +9728,7 @@ static void DrawPrefabs(EditorState& e) {
 	if (create_instance >= 0 && create_instance < static_cast<int>(e.prefabs.size())) {
 		SceneLayer* layer{ FindLayer(e, e.active_layer_id) };
 		if (layer && layer->kind == LayerKind::Entity && !layer->locked) {
-			const SceneSnapshot before{ CaptureScene(e) };
+			SceneSnapshot before{ CaptureScene(e) };
 			const auto& prefab{ e.prefabs[static_cast<std::size_t>(create_instance)] };
 			Entity entity;
 			entity.id		= e.next_entity_id++;
@@ -9783,7 +9739,7 @@ static void DrawPrefabs(EditorState& e) {
 				e, { (e.canvas_screen_min.x + e.canvas_screen_max.x) * 0.5f,
 					 (e.canvas_screen_min.y + e.canvas_screen_max.y) * 0.5f }
 			);
-			const int created_id{ entity.id };
+			int created_id{ entity.id };
 			e.entities.push_back(std::move(entity));
 			DeselectAll(e);
 			e.selected_entities.insert(created_id);
@@ -9797,7 +9753,7 @@ static void DrawPrefabs(EditorState& e) {
 	if (node_operation && node_operation->prefab_index >= 0 &&
 		node_operation->prefab_index < static_cast<int>(e.prefabs.size())) {
 		auto& prefab{ e.prefabs[static_cast<std::size_t>(node_operation->prefab_index)] };
-		const SceneSnapshot before{ CaptureScene(e) };
+		SceneSnapshot before{ CaptureScene(e) };
 		bool changed{};
 		switch (node_operation->type) {
 			case PrefabNodeOperationType::AddChild: {
@@ -9815,7 +9771,7 @@ static void DrawPrefabs(EditorState& e) {
 			case PrefabNodeOperationType::Duplicate: {
 				if (!node_operation->path.empty()) {
 					auto parent_path{ node_operation->path };
-					const std::size_t source_index{ parent_path.back() };
+					std::size_t source_index{ parent_path.back() };
 					parent_path.pop_back();
 					if (auto* siblings = FindPrefabChildList(prefab, parent_path);
 						siblings && source_index < siblings->size()) {
@@ -9836,7 +9792,7 @@ static void DrawPrefabs(EditorState& e) {
 			case PrefabNodeOperationType::Delete: {
 				if (!node_operation->path.empty()) {
 					auto parent_path{ node_operation->path };
-					const std::size_t index{ parent_path.back() };
+					std::size_t index{ parent_path.back() };
 					parent_path.pop_back();
 					if (auto* siblings = FindPrefabChildList(prefab, parent_path);
 						siblings && index < siblings->size()) {
@@ -9894,7 +9850,7 @@ static void DeleteTileDefinition(EditorState& e, int tile_id) {
 	if (!FindTile(e, tile_id)) {
 		return;
 	}
-	const SceneSnapshot before{ CaptureScene(e) };
+	SceneSnapshot before{ CaptureScene(e) };
 
 	e.tiles.erase(
 		std::remove_if(
@@ -9974,14 +9930,14 @@ static void DrawTiles(EditorState& e) {
 		e.inspector_context = InspectorContext::Tile;
 	}
 
-	const int ungrouped_index{ EnsureUngroupedPalette(e) };
+	int ungrouped_index{ EnsureUngroupedPalette(e) };
 	static std::string search;
 	static int renaming_palette_id{ -1 };
 	static bool focus_palette_rename{};
 	static std::string palette_rename_text;
 
 	if (ImGui::Button("+ Group")) {
-		const SceneSnapshot before{ CaptureScene(e) };
+		SceneSnapshot before{ CaptureScene(e) };
 		TilePalette palette;
 		palette.id	 = e.next_palette_id++;
 		palette.name = UniqueTileGroupName(e);
@@ -10031,7 +9987,7 @@ static void DrawTiles(EditorState& e) {
 			continue;
 		}
 		auto& palette{ e.palettes[static_cast<std::size_t>(palette_index)] };
-		const int palette_id{ palette.id };
+		int palette_id{ palette.id };
 		bool ungrouped{ palette.name == "Ungrouped" };
 		bool group_match{ ContainsCaseInsensitive(palette.name, search) };
 		bool child_match{};
@@ -10076,8 +10032,8 @@ static void DrawTiles(EditorState& e) {
 					name.end()
 				);
 				if (!name.empty() && name != palette.name && name != "Ungrouped") {
-					const SceneSnapshot before{ CaptureScene(e) };
-					const std::string base{ name };
+					SceneSnapshot before{ CaptureScene(e) };
+					$1 base{ name };
 					int suffix{ 2 };
 					while (std::ranges::any_of(e.palettes, [&](const TilePalette& candidate) {
 						return candidate.id != palette_id && candidate.name == name;
@@ -10124,8 +10080,8 @@ static void DrawTiles(EditorState& e) {
 			constexpr float thumbnail{ 32.0f };
 			constexpr float gap{ 5.0f };
 			constexpr float cell_width{ thumbnail + gap };
-			const float available{ std::max(cell_width, ImGui::GetContentRegionAvail().x) };
-			const int columns{
+			float available{ std::max(cell_width, ImGui::GetContentRegionAvail().x) };
+			int columns{
 				std::max(1, static_cast<int>(std::floor((available + gap) / cell_width)))
 			};
 			ImGui::PushStyleVar(ImGuiStyleVar_CellPadding, ImVec2{ gap * 0.5f, gap * 0.5f });
@@ -10154,9 +10110,9 @@ static void DrawTiles(EditorState& e) {
 					}
 					ImGui::TableSetColumnIndex(column);
 					ImGui::PushID(tile->id);
-					const ImVec2 p0{ ImGui::GetCursorScreenPos() };
+					ImVec2 p0{ ImGui::GetCursorScreenPos() };
 					ImGui::InvisibleButton("##tile_asset", { thumbnail, thumbnail });
-					const ImVec2 p1{ p0.x + thumbnail, p0.y + thumbnail };
+					ImVec2 p1{ p0.x + thumbnail, p0.y + thumbnail };
 					ImDrawList* dl{ ImGui::GetWindowDrawList() };
 					if (tile->texture_index >= 0 &&
 						tile->texture_index < static_cast<int>(e.textures.size())) {
@@ -10228,7 +10184,7 @@ static void DrawTiles(EditorState& e) {
 
 	if (move_tile_id >= 0 && move_target_palette >= 0 &&
 		move_target_palette < static_cast<int>(e.palettes.size())) {
-		const SceneSnapshot before{ CaptureScene(e) };
+		SceneSnapshot before{ CaptureScene(e) };
 		for (auto& palette : e.palettes) {
 			palette.entries.erase(
 				std::remove_if(
@@ -10250,14 +10206,14 @@ static void DrawTiles(EditorState& e) {
 		DeleteTileDefinition(e, delete_tile_id);
 	}
 	if (delete_palette_id >= 0) {
-		const int current_ungrouped{ EnsureUngroupedPalette(e) };
-		const SceneSnapshot before{ CaptureScene(e) };
+		int current_ungrouped{ EnsureUngroupedPalette(e) };
+		SceneSnapshot before{ CaptureScene(e) };
 		auto doomed = std::ranges::find_if(e.palettes, [&](const TilePalette& palette) {
 			return palette.id == delete_palette_id;
 		});
 		if (doomed != e.palettes.end() && doomed->name != "Ungrouped") {
-			const std::vector<PaletteEntry> moved{ doomed->entries };
-			const int doomed_index{ static_cast<int>(doomed - e.palettes.begin()) };
+			std::vector<PaletteEntry> moved{ doomed->entries };
+			int doomed_index{ static_cast<int>(doomed - e.palettes.begin()) };
 			e.palettes.erase(doomed);
 			int target_index{ FindUngroupedPaletteIndex(e) };
 			if (target_index < 0) {
@@ -10336,7 +10292,7 @@ static void DrawPrefabSourcePalette(EditorState& e) {
 	if (ImGui::BeginCombo("Weighted Set", active_const ? active_const->name.c_str() : "<none>")) {
 		for (const auto& set : e.weighted_prefab_sets) {
 			if (ImGui::Selectable(set.name.c_str(), set.id == e.active_prefab_weighted_set_id)) {
-				const SceneSnapshot before{ CaptureScene(e) };
+				SceneSnapshot before{ CaptureScene(e) };
 				e.active_prefab_weighted_set_id = set.id;
 				PushHistory(e, "Select Weighted Prefab Set", before);
 			}
@@ -10346,7 +10302,7 @@ static void DrawPrefabSourcePalette(EditorState& e) {
 	ItemTooltip("Choose which reusable weighted prefab brush is currently painted.");
 	ImGui::SameLine();
 	if (ImGui::Button("Add Weighted Set")) {
-		const SceneSnapshot before{ CaptureScene(e) };
+		SceneSnapshot before{ CaptureScene(e) };
 		WeightedPrefabSet set;
 		set.id							= e.next_prefab_weighted_set_id++;
 		set.name						= UniqueWeightedPrefabSetName(e);
@@ -10360,8 +10316,8 @@ static void DrawPrefabSourcePalette(EditorState& e) {
 	ImGui::SameLine();
 	ImGui::BeginDisabled(!FindWeightedPrefabSet(e, e.active_prefab_weighted_set_id));
 	if (ImGui::Button("Delete Set")) {
-		const SceneSnapshot before{ CaptureScene(e) };
-		const int id{ e.active_prefab_weighted_set_id };
+		SceneSnapshot before{ CaptureScene(e) };
+		int id{ e.active_prefab_weighted_set_id };
 		e.weighted_prefab_sets.erase(
 			std::remove_if(
 				e.weighted_prefab_sets.begin(), e.weighted_prefab_sets.end(),
@@ -10387,7 +10343,7 @@ static void DrawPrefabSourcePalette(EditorState& e) {
 	std::string edited_name{ active->name };
 	ImGui::SetNextItemWidth(240.0f);
 	if (ImGui::InputText("Set Name", &edited_name)) {
-		const SceneSnapshot before{ CaptureScene(e) };
+		SceneSnapshot before{ CaptureScene(e) };
 		if (edited_name.empty()) {
 			edited_name = UniqueWeightedPrefabSetName(e);
 		}
@@ -10427,7 +10383,7 @@ static void DrawPrefabSourcePalette(EditorState& e) {
 			ImGui::SetNextItemWidth(-1.0f);
 			float weight{ entry.weight };
 			if (ImGui::DragFloat("##weight", &weight, 0.05f, 0.0f, 100.0f, "%.2f")) {
-				const SceneSnapshot before{ CaptureScene(e) };
+				SceneSnapshot before{ CaptureScene(e) };
 				entry.weight = std::max(0.0f, weight);
 				PushHistory(e, "Change Prefab Weight", before);
 			}
@@ -10446,7 +10402,7 @@ static void DrawPrefabSourcePalette(EditorState& e) {
 			ImGui::PopID();
 		}
 		if (remove >= 0) {
-			const SceneSnapshot before{ CaptureScene(e) };
+			SceneSnapshot before{ CaptureScene(e) };
 			active->entries.erase(active->entries.begin() + remove);
 			PushHistory(e, "Remove Prefab from Weighted Set", before);
 		}
@@ -10477,8 +10433,8 @@ static bool DrawTilePaletteTree(
 	EditorState& e, TilePalette& palette, bool allow_select, WeightedTileSet* add_to_set = nullptr,
 	std::string_view search = {}
 ) {
-	const int palette_id{ palette.id };
-	const int palette_index{ static_cast<int>(&palette - e.palettes.data()) };
+	int palette_id{ palette.id };
+	int palette_index{ static_cast<int>(&palette - e.palettes.data()) };
 	bool group_match{ ContainsCaseInsensitive(palette.name, search) };
 	bool any_match{ search.empty() || group_match };
 	if (!any_match) {
@@ -10518,7 +10474,7 @@ static bool DrawTilePaletteTree(
 	bool name_input_drawn{};
 	bool name_input_hovered{};
 
-	const float row_height{ ImGui::GetFrameHeight() };
+	float row_height{ ImGui::GetFrameHeight() };
 	if (ImGui::BeginTable(
 			"##palette_tree_header", 1,
 			ImGuiTableFlags_SizingStretchProp | ImGuiTableFlags_NoSavedSettings
@@ -10527,10 +10483,10 @@ static bool DrawTilePaletteTree(
 		ImGui::TableNextRow(ImGuiTableRowFlags_None, row_height);
 		ImGui::TableSetColumnIndex(0);
 
-		const ImVec2 row_min{ ImGui::GetCursorScreenPos() };
-		const ImVec2 row_max{ row_min.x + std::max(1.0f, ImGui::GetContentRegionAvail().x),
-							  row_min.y + row_height };
-		const ImVec2 mouse{ ImGui::GetMousePos() };
+		ImVec2 row_min{ ImGui::GetCursorScreenPos() };
+		ImVec2 row_max{ row_min.x + std::max(1.0f, ImGui::GetContentRegionAvail().x),
+						row_min.y + row_height };
+		ImVec2 mouse{ ImGui::GetMousePos() };
 
 		ImGui::SetNextItemOpen(stored_open, ImGuiCond_Always);
 		bool editing_before_draw{ !add_to_set && editing_palette_id == palette_id };
@@ -10548,14 +10504,14 @@ static bool DrawTilePaletteTree(
 		stored_open = open;
 
 		bool tree_hovered{ ImGui::IsItemHovered() };
-		const ImVec2 tree_min{ ImGui::GetItemRectMin() };
-		const ImVec2 tree_max{ ImGui::GetItemRectMax() };
-		const float text_start_x{ tree_min.x + row_height };
-		const float minimum_name_width{ 48.0f };
-		const float visible_name_width{
+		ImVec2 tree_min{ ImGui::GetItemRectMin() };
+		ImVec2 tree_max{ ImGui::GetItemRectMax() };
+		float text_start_x{ tree_min.x + row_height };
+		float minimum_name_width{ 48.0f };
+		float visible_name_width{
 			std::max(minimum_name_width, ImGui::CalcTextSize(palette.name.c_str()).x)
 		};
-		const float name_hit_end_x{ std::min(tree_max.x, text_start_x + visible_name_width) };
+		float name_hit_end_x{ std::min(tree_max.x, text_start_x + visible_name_width) };
 		bool name_hit_hovered{ tree_hovered && mouse.x >= text_start_x &&
 							   mouse.x <= name_hit_end_x };
 		bool row_left_clicked{ ImGui::IsItemClicked(ImGuiMouseButton_Left) };
@@ -10566,7 +10522,7 @@ static bool DrawTilePaletteTree(
 
 		// The arrow keeps ImGui's normal tree interaction. Clicking the unused part
 		// of the row to the right of the name also toggles open/closed, while the
-		// name itself is reserved for selection and double-click rename.
+		// name itself is reserved for selection and double click rename.
 		if (!editing_before_draw && row_left_clicked && mouse.x > name_hit_end_x) {
 			stored_open = !open;
 			open		= stored_open;
@@ -10642,7 +10598,7 @@ static bool DrawTilePaletteTree(
 	}
 
 	if (request_delete) {
-		const SceneSnapshot before{ CaptureScene(e) };
+		SceneSnapshot before{ CaptureScene(e) };
 		e.palettes.erase(
 			std::remove_if(
 				e.palettes.begin(), e.palettes.end(),
@@ -10675,7 +10631,7 @@ static bool DrawTilePaletteTree(
 				bool clicked{ ImGui::IsMouseClicked(ImGuiMouseButton_Left) ||
 							  ImGui::IsMouseClicked(ImGuiMouseButton_Middle) ||
 							  ImGui::IsMouseClicked(ImGuiMouseButton_Right) };
-				const ImVec2 mouse{ ImGui::GetMousePos() };
+				ImVec2 mouse{ ImGui::GetMousePos() };
 				bool inside_input{ mouse.x >= name_input_min.x && mouse.x <= name_input_max.x &&
 								   mouse.y >= name_input_min.y && mouse.y <= name_input_max.y };
 				if (clicked && !inside_input && !name_input_hovered) {
@@ -10687,7 +10643,7 @@ static bool DrawTilePaletteTree(
 				if (palette.name.empty()) {
 					palette.name = "Palette";
 				}
-				const std::string base{ palette.name };
+				$1 base{ palette.name };
 				std::string unique{ base };
 				int suffix{ 2 };
 				while (std::ranges::any_of(e.palettes, [&](const TilePalette& candidate) {
@@ -10724,7 +10680,7 @@ static bool DrawTilePaletteTree(
 				) };
 				ImGui::BeginDisabled(already);
 				if (ImGui::SmallButton("+")) {
-					const SceneSnapshot before{ CaptureScene(e) };
+					SceneSnapshot before{ CaptureScene(e) };
 					add_to_set->entries.push_back({ tile->id, 1.0f });
 					PushHistory(e, "Add Tile to Weighted Set", before);
 				}
@@ -10747,8 +10703,8 @@ static bool DrawTilePaletteTree(
 			constexpr float thumbnail_gap{ 6.0f };
 			constexpr float cell_width{ thumbnail_size + thumbnail_gap };
 			constexpr float row_height_tiles{ thumbnail_size + thumbnail_gap };
-			const float available_width{ std::max(cell_width, ImGui::GetContentRegionAvail().x) };
-			const int columns{ std::max(
+			float available_width{ std::max(cell_width, ImGui::GetContentRegionAvail().x) };
+			int columns{ std::max(
 				1, static_cast<int>(std::floor((available_width + thumbnail_gap) / cell_width))
 			) };
 			ImGui::PushStyleVar(
@@ -10759,7 +10715,7 @@ static bool DrawTilePaletteTree(
 					ImGuiTableFlags_NoSavedSettings | ImGuiTableFlags_SizingFixedFit
 				)) {
 				for (int c{}; c < columns; ++c) {
-					const std::string column_id{ "##tile_column_" + std::to_string(c) };
+					$1 column_id{ "##tile_column_" + std::to_string(c) };
 					ImGui::TableSetupColumn(
 						column_id.c_str(), ImGuiTableColumnFlags_WidthFixed, cell_width
 					);
@@ -11004,7 +10960,7 @@ static void DrawTileSourcePalette(EditorState& e) {
 	if (ImGui::BeginCombo("Weighted Set", active_const ? active_const->name.c_str() : "<none>")) {
 		for (const auto& set : e.weighted_tile_sets) {
 			if (ImGui::Selectable(set.name.c_str(), set.id == e.active_tile_weighted_set_id)) {
-				const SceneSnapshot before{ CaptureScene(e) };
+				SceneSnapshot before{ CaptureScene(e) };
 				e.active_tile_weighted_set_id = set.id;
 				PushHistory(e, "Select Weighted Tile Set", before);
 			}
@@ -11017,7 +10973,7 @@ static void DrawTileSourcePalette(EditorState& e) {
 	);
 	ImGui::SameLine();
 	if (ImGui::Button("Add Weighted Set")) {
-		const SceneSnapshot before{ CaptureScene(e) };
+		SceneSnapshot before{ CaptureScene(e) };
 		WeightedTileSet set;
 		set.id						  = e.next_tile_weighted_set_id++;
 		set.name					  = UniqueWeightedTileSetName(e);
@@ -11028,8 +10984,8 @@ static void DrawTileSourcePalette(EditorState& e) {
 	ImGui::SameLine();
 	ImGui::BeginDisabled(!FindWeightedTileSet(e, e.active_tile_weighted_set_id));
 	if (ImGui::Button("Delete Set")) {
-		const SceneSnapshot before{ CaptureScene(e) };
-		const int id{ e.active_tile_weighted_set_id };
+		SceneSnapshot before{ CaptureScene(e) };
+		int id{ e.active_tile_weighted_set_id };
 		e.weighted_tile_sets.erase(
 			std::remove_if(
 				e.weighted_tile_sets.begin(), e.weighted_tile_sets.end(),
@@ -11052,7 +11008,7 @@ static void DrawTileSourcePalette(EditorState& e) {
 	std::string edited_name{ active->name };
 	ImGui::SetNextItemWidth(240.0f);
 	if (ImGui::InputText("Set Name", &edited_name)) {
-		const SceneSnapshot before{ CaptureScene(e) };
+		SceneSnapshot before{ CaptureScene(e) };
 		if (edited_name.empty()) {
 			edited_name = UniqueWeightedTileSetName(e);
 		}
@@ -11103,7 +11059,7 @@ static void DrawTileSourcePalette(EditorState& e) {
 			ImGui::SetNextItemWidth(-1.0f);
 			float weight{ entry.weight };
 			if (ImGui::DragFloat("##weight", &weight, 0.05f, 0.0f, 100.0f, "%.2f")) {
-				const SceneSnapshot before{ CaptureScene(e) };
+				SceneSnapshot before{ CaptureScene(e) };
 				entry.weight = std::max(0.0f, weight);
 				PushHistory(e, "Change Tile Weight", before);
 			}
@@ -11115,7 +11071,7 @@ static void DrawTileSourcePalette(EditorState& e) {
 			ImGui::PopID();
 		}
 		if (remove >= 0) {
-			const SceneSnapshot before{ CaptureScene(e) };
+			SceneSnapshot before{ CaptureScene(e) };
 			active->entries.erase(active->entries.begin() + remove);
 			PushHistory(e, "Remove Tile from Weighted Set", before);
 		}
@@ -11188,7 +11144,7 @@ static void NormalizeNoiseThresholds(NoiseField& field) {
 	}
 	field.thresholds.front().minimum = 0.0f;
 	for (std::size_t i{ 1 }; i < field.thresholds.size(); ++i) {
-		const float boundary{ std::clamp(field.thresholds[i - 1].maximum, 0.0f, 1.0f) };
+		float boundary{ std::clamp(field.thresholds[i - 1].maximum, 0.0f, 1.0f) };
 		field.thresholds[i].minimum = boundary;
 		field.thresholds[i].maximum = std::max(field.thresholds[i].maximum, boundary);
 	}
@@ -11258,7 +11214,7 @@ static void AddNoiseThresholdInLargestGap(EditorState& e, SceneLayer& layer, Noi
 	float blank_width{ -1.0f };
 	for (int i{}; i < static_cast<int>(field.thresholds.size()); ++i) {
 		const auto& region{ field.thresholds[static_cast<std::size_t>(i)] };
-		const float width{ region.maximum - region.minimum };
+		float width{ region.maximum - region.minimum };
 		if (!region.enabled && width > blank_width) {
 			blank_width = width;
 			blank_index = i;
@@ -11280,8 +11236,8 @@ static void AddNoiseThresholdInLargestGap(EditorState& e, SceneLayer& layer, Noi
 			widest = i;
 		}
 	}
-	const auto source{ field.thresholds[static_cast<std::size_t>(widest)] };
-	const float mid{ (source.minimum + source.maximum) * 0.5f };
+	auto source{ field.thresholds[static_cast<std::size_t>(widest)] };
+	float mid{ (source.minimum + source.maximum) * 0.5f };
 	SplitNoiseRegion(e, layer, field, mid);
 	if (widest + 1 < static_cast<int>(field.thresholds.size())) {
 		auto& created{ field.thresholds[static_cast<std::size_t>(widest + 1)] };
@@ -11295,8 +11251,8 @@ static std::string TruncatedLabel(std::string text, float available_px) {
 	if (available_px < 28.0f) {
 		return "";
 	}
-	const float approx_char{ 7.0f };
-	const int max_chars{ std::max(3, static_cast<int>(available_px / approx_char)) };
+	float approx_char{ 7.0f };
+	int max_chars{ std::max(3, static_cast<int>(available_px / approx_char)) };
 	if (static_cast<int>(text.size()) <= max_chars) {
 		return text;
 	}
@@ -11308,21 +11264,21 @@ static void DrawNoiseThresholdGradient(EditorState& e, SceneLayer& layer, NoiseF
 		field.thresholds.push_back(MakeNoiseThreshold(e, layer, 0.0f, 1.0f, false));
 	}
 	NormalizeNoiseThresholds(field);
-	const float width{ std::max(260.0f, ImGui::GetContentRegionAvail().x) };
-	const float height{ 76.0f };
-	const ImVec2 p0{ ImGui::GetCursorScreenPos() };
+	float width{ std::max(260.0f, ImGui::GetContentRegionAvail().x) };
+	float height{ 76.0f };
+	ImVec2 p0{ ImGui::GetCursorScreenPos() };
 	ImGui::InvisibleButton(
 		"##noise_threshold_gradient", { width, height },
 		ImGuiButtonFlags_MouseButtonLeft | ImGuiButtonFlags_MouseButtonRight
 	);
-	const ImVec2 mouse{ ImGui::GetIO().MousePos };
+	ImVec2 mouse{ ImGui::GetIO().MousePos };
 	ImDrawList* dl{ ImGui::GetWindowDrawList() };
-	const float bar_y0{ p0.y + 25.0f };
-	const float bar_y1{ p0.y + 47.0f };
+	float bar_y0{ p0.y + 25.0f };
+	float bar_y1{ p0.y + 47.0f };
 	for (int i{}; i < 96; ++i) {
-		const float a{ static_cast<float>(i) / 96.0f };
-		const float b{ static_cast<float>(i + 1) / 96.0f };
-		const float v{ (a + b) * 0.5f };
+		float a{ static_cast<float>(i) / 96.0f };
+		float b{ static_cast<float>(i + 1) / 96.0f };
+		float v{ (a + b) * 0.5f };
 		dl->AddRectFilled(
 			{ p0.x + a * width, bar_y0 }, { p0.x + b * width + 1.0f, bar_y1 },
 			ImGui::GetColorU32(ImVec4(v, v, v, 1.0f))
@@ -11332,23 +11288,23 @@ static void DrawNoiseThresholdGradient(EditorState& e, SceneLayer& layer, NoiseF
 
 	for (std::size_t i{}; i < field.thresholds.size(); ++i) {
 		const auto& region{ field.thresholds[i] };
-		const float x0{ p0.x + region.minimum * width };
-		const float x1{ p0.x + region.maximum * width };
+		float x0{ p0.x + region.minimum * width };
+		float x1{ p0.x + region.maximum * width };
 		if (region.enabled) {
 			dl->AddRect(
 				{ x0 + 1.0f, bar_y0 + 1.0f }, { x1 - 1.0f, bar_y1 - 1.0f },
 				ImGui::GetColorU32(ImVec4(0.95f, 0.78f, 0.26f, 0.95f)), 0.0f, 0, 2.0f
 			);
 		}
-		const std::string source{
+		$1 source{
 			TruncatedLabel(NoiseRegionSourceLabel(e, layer, region), std::max(0.0f, x1 - x0 - 4.0f))
 		};
 		if (!source.empty()) {
-			const ImVec2 text_size{ ImGui::CalcTextSize(source.c_str()) };
-			const float tx{
+			ImVec2 text_size{ ImGui::CalcTextSize(source.c_str()) };
+			float tx{
 				std::clamp((x0 + x1 - text_size.x) * 0.5f, p0.x, p0.x + width - text_size.x)
 			};
-			const float ty{ (i % 2 == 0) ? p0.y + 3.0f : bar_y1 + 6.0f };
+			float ty{ (i % 2 == 0) ? p0.y + 3.0f : bar_y1 + 6.0f };
 			dl->AddText(
 				{ tx, ty },
 				ImGui::GetColorU32(region.enabled ? ImGuiCol_Text : ImGuiCol_TextDisabled),
@@ -11357,7 +11313,7 @@ static void DrawNoiseThresholdGradient(EditorState& e, SceneLayer& layer, NoiseF
 		}
 	}
 	for (int i{}; i + 1 < static_cast<int>(field.thresholds.size()); ++i) {
-		const float x{ p0.x + field.thresholds[static_cast<std::size_t>(i)].maximum * width };
+		float x{ p0.x + field.thresholds[static_cast<std::size_t>(i)].maximum * width };
 		dl->AddLine(
 			{ x, bar_y0 - 5.0f }, { x, bar_y1 + 5.0f },
 			ImGui::GetColorU32(ImVec4(1.0f, 0.78f, 0.20f, 1.0f)), 2.0f
@@ -11371,13 +11327,13 @@ static void DrawNoiseThresholdGradient(EditorState& e, SceneLayer& layer, NoiseF
 	static ImGuiID dragging_id{};
 	static int dragging_boundary{ -1 };
 	static std::optional<SceneSnapshot> drag_before;
-	const ImGuiID widget_id{ ImGui::GetID("##noise_threshold_gradient") };
+	ImGuiID widget_id{ ImGui::GetID("##noise_threshold_gradient") };
 	auto nearest_boundary = [&]() {
 		int nearest{ -1 };
 		float best{ 9.0f };
 		for (int i{}; i + 1 < static_cast<int>(field.thresholds.size()); ++i) {
-			const float x{ p0.x + field.thresholds[static_cast<std::size_t>(i)].maximum * width };
-			const float d{ std::abs(mouse.x - x) };
+			float x{ p0.x + field.thresholds[static_cast<std::size_t>(i)].maximum * width };
+			float d{ std::abs(mouse.x - x) };
 			if (d < best) {
 				best	= d;
 				nearest = i;
@@ -11387,26 +11343,25 @@ static void DrawNoiseThresholdGradient(EditorState& e, SceneLayer& layer, NoiseF
 	};
 
 	if (ImGui::IsItemHovered() && ImGui::IsMouseClicked(ImGuiMouseButton_Left)) {
-		const int nearest{ nearest_boundary() };
+		int nearest{ nearest_boundary() };
 		if (nearest >= 0) {
 			dragging_id		  = widget_id;
 			dragging_boundary = nearest;
 			drag_before		  = CaptureScene(e);
 		} else {
-			const SceneSnapshot before{ CaptureScene(e) };
-			const float value{ std::clamp((mouse.x - p0.x) / width, 0.01f, 0.99f) };
+			SceneSnapshot before{ CaptureScene(e) };
+			float value{ std::clamp((mouse.x - p0.x) / width, 0.01f, 0.99f) };
 			SplitNoiseRegion(e, layer, field, value);
 			PushHistory(e, "Add Noise Stop", before);
 		}
 	}
 	if (dragging_id == widget_id && dragging_boundary >= 0 &&
 		ImGui::IsMouseDown(ImGuiMouseButton_Left)) {
-		const float value{ std::clamp((mouse.x - p0.x) / width, 0.0f, 1.0f) };
-		const float lo{ field.thresholds[static_cast<std::size_t>(dragging_boundary)].minimum +
-						0.005f };
-		const float hi{ field.thresholds[static_cast<std::size_t>(dragging_boundary + 1)].maximum -
-						0.005f };
-		const float boundary{ std::clamp(value, lo, hi) };
+		float value{ std::clamp((mouse.x - p0.x) / width, 0.0f, 1.0f) };
+		float lo{ field.thresholds[static_cast<std::size_t>(dragging_boundary)].minimum + 0.005f };
+		float hi{ field.thresholds[static_cast<std::size_t>(dragging_boundary + 1)].maximum -
+				  0.005f };
+		float boundary{ std::clamp(value, lo, hi) };
 		field.thresholds[static_cast<std::size_t>(dragging_boundary)].maximum	  = boundary;
 		field.thresholds[static_cast<std::size_t>(dragging_boundary + 1)].minimum = boundary;
 	}
@@ -11419,9 +11374,9 @@ static void DrawNoiseThresholdGradient(EditorState& e, SceneLayer& layer, NoiseF
 		dragging_boundary = -1;
 	}
 	if (ImGui::IsItemHovered() && ImGui::IsMouseClicked(ImGuiMouseButton_Right)) {
-		const int nearest{ nearest_boundary() };
+		int nearest{ nearest_boundary() };
 		if (nearest >= 0) {
-			const SceneSnapshot before{ CaptureScene(e) };
+			SceneSnapshot before{ CaptureScene(e) };
 			RemoveNoiseBoundary(field, nearest);
 			PushHistory(e, "Remove Noise Stop", before);
 		}
@@ -11436,7 +11391,7 @@ static void DrawNoiseThresholdGradient(EditorState& e, SceneLayer& layer, NoiseF
 	}
 }
 
-static bool SameGrid(const Tilemap& map, const RasterGrid& grid) {
+static bool SameGrid(const Tilemap& map, RasterGrid& grid) {
 	return std::abs(map.cell_size.x - grid.size.x) < 0.001f &&
 		   std::abs(map.cell_size.y - grid.size.y) < 0.001f &&
 		   std::abs(map.origin.x - grid.offset.x) < 0.001f &&
@@ -11444,7 +11399,7 @@ static bool SameGrid(const Tilemap& map, const RasterGrid& grid) {
 }
 
 static int ResolveNoiseBakeTilemap(EditorState& e, const SceneLayer& layer) {
-	const RasterGrid grid{ NoiseRasterGrid(e, layer) };
+	RasterGrid grid{ NoiseRasterGrid(e, layer) };
 	for (const auto& map : e.tilemaps) {
 		if (SameGrid(map, grid)) {
 			return map.id;
@@ -11469,13 +11424,13 @@ static void ConvertBoundedNoiseLayer(EditorState& e, int layer_id) {
 		return;
 	}
 
-	const SceneSnapshot before{ CaptureScene(e) };
-	const NoiseLayerData source{ layer->noise };
-	const RasterGrid grid{ NoiseRasterGrid(e, *layer) };
-	const auto [first, last]{ NoiseBoundedCellRange(e, *layer) };
+	SceneSnapshot before{ CaptureScene(e) };
+	NoiseLayerData source{ layer->noise };
+	RasterGrid grid{ NoiseRasterGrid(e, *layer) };
+	auto [first, last]{ NoiseBoundedCellRange(e, *layer) };
 
 	if (source.target == NoiseTargetKind::Tile) {
-		const int tilemap_id{ ResolveNoiseBakeTilemap(e, *layer) };
+		int tilemap_id{ ResolveNoiseBakeTilemap(e, *layer) };
 		layer = FindLayer(e, layer_id);
 		if (!layer) {
 			return;
@@ -11490,9 +11445,9 @@ static void ConvertBoundedNoiseLayer(EditorState& e, int layer_id) {
 		if (map) {
 			for (int y{ first.y }; y <= last.y; ++y) {
 				for (int x{ first.x }; x <= last.x; ++x) {
-					const I2 cell{ x, y };
-					const RectF rect{ RasterCellRect(grid, cell) };
-					const F2 sample{ RectCenter(rect) };
+					I2 cell{ x, y };
+					RectF rect{ RasterCellRect(grid, cell) };
+					F2 sample{ RectCenter(rect) };
 					int tile_id{ -1 };
 					const NoiseThresholdRegion* chosen_region{};
 					for (const auto& field : source.fields) {
@@ -11524,9 +11479,9 @@ static void ConvertBoundedNoiseLayer(EditorState& e, int layer_id) {
 
 		for (int y{ first.y }; y <= last.y; ++y) {
 			for (int x{ first.x }; x <= last.x; ++x) {
-				const I2 cell{ x, y };
-				const RectF rect{ RasterCellRect(grid, cell) };
-				const F2 sample{ RectCenter(rect) };
+				I2 cell{ x, y };
+				RectF rect{ RasterCellRect(grid, cell) };
+				F2 sample{ RectCenter(rect) };
 				for (const auto& field : source.fields) {
 					if (!field.enabled) {
 						continue;
@@ -11617,7 +11572,7 @@ static void DrawNoiseLayerPalette(EditorState& e, SceneLayer& layer) {
 		SetNoiseBoundsToCurrentViewport(e, layer);
 	}
 	if (layer.noise.bounded) {
-		const auto [boundary_origin, boundary_size]{ NoiseBoundaryCellRect(e, layer) };
+		auto [boundary_origin, boundary_size]{ NoiseBoundaryCellRect(e, layer) };
 		int origin_cells[2]{ boundary_origin.x, boundary_origin.y };
 		int size_cells[2]{ boundary_size.x, boundary_size.y };
 
@@ -11703,16 +11658,16 @@ static void DrawNoiseLayerPalette(EditorState& e, SceneLayer& layer) {
 		}
 
 		bool tree_hovered{ ImGui::IsItemHovered() };
-		const ImVec2 tree_min{ ImGui::GetItemRectMin() };
-		const ImVec2 tree_max{ ImGui::GetItemRectMax() };
-		const ImVec2 mouse{ ImGui::GetMousePos() };
-		const float row_height{ ImGui::GetFrameHeight() };
-		const float text_start_x{ tree_min.x + row_height };
-		const float minimum_name_width{ 48.0f };
-		const float visible_name_width{
+		ImVec2 tree_min{ ImGui::GetItemRectMin() };
+		ImVec2 tree_max{ ImGui::GetItemRectMax() };
+		ImVec2 mouse{ ImGui::GetMousePos() };
+		float row_height{ ImGui::GetFrameHeight() };
+		float text_start_x{ tree_min.x + row_height };
+		float minimum_name_width{ 48.0f };
+		float visible_name_width{
 			std::max(minimum_name_width, ImGui::CalcTextSize(field.name.c_str()).x)
 		};
-		const float name_hit_end_x{ std::min(tree_max.x, text_start_x + visible_name_width) };
+		float name_hit_end_x{ std::min(tree_max.x, text_start_x + visible_name_width) };
 		bool name_hit_hovered{ tree_hovered && mouse.x >= text_start_x &&
 							   mouse.x <= name_hit_end_x };
 
@@ -11729,7 +11684,7 @@ static void DrawNoiseLayerPalette(EditorState& e, SceneLayer& layer) {
 				begin_edit = true;
 			}
 			if (ImGui::MenuItem(field.enabled ? "Disable" : "Enable")) {
-				const SceneSnapshot before{ CaptureScene(e) };
+				SceneSnapshot before{ CaptureScene(e) };
 				field.enabled = !field.enabled;
 				PushHistory(
 					e, field.enabled ? "Enable Noise Field" : "Disable Noise Field", before
@@ -11801,7 +11756,7 @@ static void DrawNoiseLayerPalette(EditorState& e, SceneLayer& layer) {
 					bool clicked{ ImGui::IsMouseClicked(ImGuiMouseButton_Left) ||
 								  ImGui::IsMouseClicked(ImGuiMouseButton_Middle) ||
 								  ImGui::IsMouseClicked(ImGuiMouseButton_Right) };
-					const ImVec2 click_mouse{ ImGui::GetMousePos() };
+					ImVec2 click_mouse{ ImGui::GetMousePos() };
 					bool inside_input{ click_mouse.x >= name_input_min.x &&
 									   click_mouse.x <= name_input_max.x &&
 									   click_mouse.y >= name_input_min.y &&
@@ -11942,18 +11897,17 @@ static void DrawNoiseLayerPalette(EditorState& e, SceneLayer& layer) {
 					ImGui::PopID();
 				}
 				if (remove_region >= 0 && field.thresholds.size() > 1) {
-					const SceneSnapshot before{ CaptureScene(e) };
-					const int boundary{ remove_region ==
-												static_cast<int>(field.thresholds.size()) - 1
-											? remove_region - 1
-											: remove_region };
+					SceneSnapshot before{ CaptureScene(e) };
+					int boundary{ remove_region == static_cast<int>(field.thresholds.size()) - 1
+									  ? remove_region - 1
+									  : remove_region };
 					RemoveNoiseBoundary(field, std::max(0, boundary));
 					PushHistory(e, "Remove Noise Range", before);
 				}
 				ImGui::EndTable();
 			}
 			if (ImGui::Button("+ Add Range")) {
-				const SceneSnapshot before{ CaptureScene(e) };
+				SceneSnapshot before{ CaptureScene(e) };
 				AddNoiseThresholdInLargestGap(e, layer, field);
 				PushHistory(e, "Add Noise Range", before);
 			}
@@ -11967,7 +11921,7 @@ static void DrawNoiseLayerPalette(EditorState& e, SceneLayer& layer) {
 	}
 
 	if (remove_field >= 0) {
-		const SceneSnapshot before{ CaptureScene(e) };
+		SceneSnapshot before{ CaptureScene(e) };
 		layer.noise.fields.erase(layer.noise.fields.begin() + remove_field);
 		if (editing_noise_layer_id == layer.id) {
 			editing_noise_layer_id	  = -1;
@@ -11988,7 +11942,7 @@ static void DrawNoiseLayerPalette(EditorState& e, SceneLayer& layer) {
 	if (ImGui::BeginPopup("Add Noise Field Type")) {
 		for (NoiseType type : { NoiseType::Perlin, NoiseType::Simplex, NoiseType::Value }) {
 			if (ImGui::Selectable(NoiseTypeName(type))) {
-				const SceneSnapshot before{ CaptureScene(e) };
+				SceneSnapshot before{ CaptureScene(e) };
 				NoiseField field;
 				field.type = type;
 				field.name = std::string{ NoiseTypeName(type) } + " " +
@@ -12153,11 +12107,11 @@ static void DrawOriginCombo(const char* label, EntityOrigin& origin) {
 						   "Right",	   "Bottom Left", "Bottom",	   "Bottom Right" };
 	int value{ static_cast<int>(origin) };
 	std::string prefix{ label };
-	if (const auto pos = prefix.find("##"); pos != std::string::npos) {
+	if (auto pos = prefix.find("##"); pos != std::string::npos) {
 		prefix.resize(pos);
 	}
-	const std::string preview{ prefix + ": " + origins[value] };
-	const std::string id{ "##origin_combo_" + std::string{ label } };
+	$1 preview{ prefix + ": " + origins[value] };
+	$1 id{ "##origin_combo_" + std::string{ label } };
 	ImGui::SetNextItemWidth(prefix == "Origin" ? 150.0f : 180.0f);
 	if (ImGui::BeginCombo(id.c_str(), preview.c_str())) {
 		for (int i{}; i < 9; ++i) {
@@ -12247,22 +12201,22 @@ static void DrawRecipeNoiseThresholdGradient(EditorState& e, SceneLayer& layer) 
 	EnsureRecipeNoiseThreshold(e, layer);
 	NormalizeNoiseThresholds(field);
 
-	const float width{ std::max(260.0f, ImGui::GetContentRegionAvail().x) };
-	const float height{ 76.0f };
-	const ImVec2 p0{ ImGui::GetCursorScreenPos() };
+	float width{ std::max(260.0f, ImGui::GetContentRegionAvail().x) };
+	float height{ 76.0f };
+	ImVec2 p0{ ImGui::GetCursorScreenPos() };
 	ImGui::InvisibleButton(
 		"##recipe_noise_threshold_gradient", { width, height },
 		ImGuiButtonFlags_MouseButtonLeft | ImGuiButtonFlags_MouseButtonRight
 	);
-	const ImVec2 mouse{ ImGui::GetIO().MousePos };
+	ImVec2 mouse{ ImGui::GetIO().MousePos };
 	ImDrawList* dl{ ImGui::GetWindowDrawList() };
-	const float bar_y0{ p0.y + 25.0f };
-	const float bar_y1{ p0.y + 47.0f };
+	float bar_y0{ p0.y + 25.0f };
+	float bar_y1{ p0.y + 47.0f };
 
 	for (int i{}; i < 96; ++i) {
-		const float a{ static_cast<float>(i) / 96.0f };
-		const float b{ static_cast<float>(i + 1) / 96.0f };
-		const float v{ (a + b) * 0.5f };
+		float a{ static_cast<float>(i) / 96.0f };
+		float b{ static_cast<float>(i + 1) / 96.0f };
+		float v{ (a + b) * 0.5f };
 		dl->AddRectFilled(
 			{ p0.x + a * width, bar_y0 }, { p0.x + b * width + 1.0f, bar_y1 },
 			ImGui::GetColorU32(ImVec4(v, v, v, 1.0f))
@@ -12272,23 +12226,23 @@ static void DrawRecipeNoiseThresholdGradient(EditorState& e, SceneLayer& layer) 
 
 	for (std::size_t i{}; i < field.thresholds.size(); ++i) {
 		const auto& region{ field.thresholds[i] };
-		const float x0{ p0.x + region.minimum * width };
-		const float x1{ p0.x + region.maximum * width };
+		float x0{ p0.x + region.minimum * width };
+		float x1{ p0.x + region.maximum * width };
 		if (region.enabled) {
 			dl->AddRect(
 				{ x0 + 1.0f, bar_y0 + 1.0f }, { x1 - 1.0f, bar_y1 - 1.0f },
 				ImGui::GetColorU32(ImVec4(0.95f, 0.78f, 0.26f, 0.95f)), 0.0f, 0, 2.0f
 			);
 		}
-		const std::string source{ TruncatedLabel(
+		$1 source{ TruncatedLabel(
 			RecipeNoiseRegionSourceLabel(e, layer, region), std::max(0.0f, x1 - x0 - 4.0f)
 		) };
 		if (!source.empty()) {
-			const ImVec2 text_size{ ImGui::CalcTextSize(source.c_str()) };
-			const float tx{
+			ImVec2 text_size{ ImGui::CalcTextSize(source.c_str()) };
+			float tx{
 				std::clamp((x0 + x1 - text_size.x) * 0.5f, p0.x, p0.x + width - text_size.x)
 			};
-			const float ty{ (i % 2 == 0) ? p0.y + 3.0f : bar_y1 + 6.0f };
+			float ty{ (i % 2 == 0) ? p0.y + 3.0f : bar_y1 + 6.0f };
 			dl->AddText(
 				{ tx, ty },
 				ImGui::GetColorU32(region.enabled ? ImGuiCol_Text : ImGuiCol_TextDisabled),
@@ -12298,7 +12252,7 @@ static void DrawRecipeNoiseThresholdGradient(EditorState& e, SceneLayer& layer) 
 	}
 
 	for (int i{}; i + 1 < static_cast<int>(field.thresholds.size()); ++i) {
-		const float x{ p0.x + field.thresholds[static_cast<std::size_t>(i)].maximum * width };
+		float x{ p0.x + field.thresholds[static_cast<std::size_t>(i)].maximum * width };
 		dl->AddLine(
 			{ x, bar_y0 - 5.0f }, { x, bar_y1 + 5.0f },
 			ImGui::GetColorU32(ImVec4(1.0f, 0.78f, 0.20f, 1.0f)), 2.0f
@@ -12311,13 +12265,13 @@ static void DrawRecipeNoiseThresholdGradient(EditorState& e, SceneLayer& layer) 
 
 	static ImGuiID dragging_id{};
 	static int dragging_boundary{ -1 };
-	const ImGuiID widget_id{ ImGui::GetID("##recipe_noise_threshold_gradient") };
+	ImGuiID widget_id{ ImGui::GetID("##recipe_noise_threshold_gradient") };
 	auto nearest_boundary = [&]() {
 		int nearest{ -1 };
 		float best{ 9.0f };
 		for (int i{}; i + 1 < static_cast<int>(field.thresholds.size()); ++i) {
-			const float x{ p0.x + field.thresholds[static_cast<std::size_t>(i)].maximum * width };
-			const float d{ std::abs(mouse.x - x) };
+			float x{ p0.x + field.thresholds[static_cast<std::size_t>(i)].maximum * width };
+			float d{ std::abs(mouse.x - x) };
 			if (d < best) {
 				best	= d;
 				nearest = i;
@@ -12327,7 +12281,7 @@ static void DrawRecipeNoiseThresholdGradient(EditorState& e, SceneLayer& layer) 
 	};
 
 	if (ImGui::IsItemHovered() && ImGui::IsMouseClicked(ImGuiMouseButton_Left)) {
-		const int nearest{ nearest_boundary() };
+		int nearest{ nearest_boundary() };
 		if (nearest >= 0) {
 			dragging_id		  = widget_id;
 			dragging_boundary = nearest;
@@ -12337,12 +12291,11 @@ static void DrawRecipeNoiseThresholdGradient(EditorState& e, SceneLayer& layer) 
 	}
 	if (dragging_id == widget_id && dragging_boundary >= 0 &&
 		ImGui::IsMouseDown(ImGuiMouseButton_Left)) {
-		const float value{ std::clamp((mouse.x - p0.x) / width, 0.0f, 1.0f) };
-		const float lo{ field.thresholds[static_cast<std::size_t>(dragging_boundary)].minimum +
-						0.005f };
-		const float hi{ field.thresholds[static_cast<std::size_t>(dragging_boundary + 1)].maximum -
-						0.005f };
-		const float boundary{ std::clamp(value, lo, hi) };
+		float value{ std::clamp((mouse.x - p0.x) / width, 0.0f, 1.0f) };
+		float lo{ field.thresholds[static_cast<std::size_t>(dragging_boundary)].minimum + 0.005f };
+		float hi{ field.thresholds[static_cast<std::size_t>(dragging_boundary + 1)].maximum -
+				  0.005f };
+		float boundary{ std::clamp(value, lo, hi) };
 		field.thresholds[static_cast<std::size_t>(dragging_boundary)].maximum	  = boundary;
 		field.thresholds[static_cast<std::size_t>(dragging_boundary + 1)].minimum = boundary;
 	}
@@ -12351,7 +12304,7 @@ static void DrawRecipeNoiseThresholdGradient(EditorState& e, SceneLayer& layer) 
 		dragging_boundary = -1;
 	}
 	if (ImGui::IsItemHovered() && ImGui::IsMouseClicked(ImGuiMouseButton_Right)) {
-		const int nearest{ nearest_boundary() };
+		int nearest{ nearest_boundary() };
 		if (nearest >= 0) {
 			RemoveNoiseBoundary(field, nearest);
 		}
@@ -12371,7 +12324,7 @@ static bool NoiseThresholdOriginApplicable(
 	if (!region.enabled) {
 		return false;
 	}
-	const RasterGrid grid{ ActiveRasterGrid(e) };
+	RasterGrid grid{ ActiveRasterGrid(e) };
 	if (region.source_kind == PaintSourceKind::Single) {
 		if (layer.kind == LayerKind::Tile) {
 			if (const auto* tile = FindTile(e, region.tile_id)) {
@@ -12509,7 +12462,7 @@ static void DrawRecipeNoiseSettings(EditorState& e, SceneLayer& layer) {
 		ImGui::PopID();
 	}
 	if (remove_region >= 0 && e.recipe.noise.thresholds.size() > 1) {
-		const int boundary{ std::max(
+		int boundary{ std::max(
 			0, std::min(remove_region, static_cast<int>(e.recipe.noise.thresholds.size()) - 2)
 		) };
 		RemoveNoiseBoundary(e.recipe.noise, boundary);
@@ -12524,7 +12477,7 @@ static void RemoveLastGeneratorBrushStroke(PaintGenerator& generator) {
 		generator.stroke_starts.empty()) {
 		return;
 	}
-	const std::size_t first{ generator.stroke_starts.back() };
+	std::size_t first{ generator.stroke_starts.back() };
 	if (first < generator.stroke_points.size()) {
 		generator.stroke_points.erase(
 			generator.stroke_points.begin() + static_cast<std::ptrdiff_t>(first),
@@ -12543,8 +12496,8 @@ static void RemoveLastGeneratorBrushStroke(PaintGenerator& generator) {
 
 static void DrawGeneratorBrushDiameterGroups(PaintGenerator& generator, bool tile_layer) {
 	std::vector<int> diameters;
-	for (const int value : generator.stroke_diameters) {
-		const int diameter{ std::max(1, value) };
+	for (int value : generator.stroke_diameters) {
+		int diameter{ std::max(1, value) };
 		if (!std::ranges::contains(diameters, diameter)) {
 			diameters.push_back(diameter);
 		}
@@ -12560,13 +12513,13 @@ static void DrawGeneratorBrushDiameterGroups(PaintGenerator& generator, bool til
 		"authored at that diameter."
 	);
 	for (std::size_t group{}; group < diameters.size(); ++group) {
-		const int old_diameter{ diameters[group] };
+		int old_diameter{ diameters[group] };
 		int stroke_count{};
 		for (std::size_t stroke{}; stroke < generator.stroke_starts.size(); ++stroke) {
-			const std::size_t first{ generator.stroke_starts[stroke] };
-			const std::size_t last{ stroke + 1 < generator.stroke_starts.size()
-										? generator.stroke_starts[stroke + 1]
-										: generator.stroke_points.size() };
+			std::size_t first{ generator.stroke_starts[stroke] };
+			std::size_t last{ stroke + 1 < generator.stroke_starts.size()
+								  ? generator.stroke_starts[stroke + 1]
+								  : generator.stroke_points.size() };
 			bool uses_diameter{};
 			for (std::size_t sample{ first };
 				 sample < last && sample < generator.stroke_diameters.size(); ++sample) {
@@ -12582,8 +12535,7 @@ static void DrawGeneratorBrushDiameterGroups(PaintGenerator& generator, bool til
 		int value{ old_diameter };
 		ImGui::PushID(static_cast<int>(group));
 		ImGui::SetNextItemWidth(90.0f);
-		const std::string label{ std::string{ tile_layer ? "Tiles" : "Entities" } +
-								 "##diameter_group" };
+		$1 label{ std::string{ tile_layer ? "Tiles" : "Entities" } + "##diameter_group" };
 		if (ImGui::DragInt(label.c_str(), &value, 0.15f, 1, 128)) {
 			value = std::clamp(value, 1, 128);
 			for (int& authored : generator.stroke_diameters) {
@@ -12796,8 +12748,7 @@ static void DrawPaintRecipeEditor(EditorState& e) {
 	}
 
 	ImGui::SeparatorText("Recipe Settings");
-	const std::string coverage_preview{ std::string{ "Coverage: " } +
-										PaintCoverageKindName(e.recipe.coverage) };
+	$1 coverage_preview{ std::string{ "Coverage: " } + PaintCoverageKindName(e.recipe.coverage) };
 	ImGui::SetNextItemWidth(180.0f);
 	if (ImGui::BeginCombo("##paint_recipe_coverage", coverage_preview.c_str())) {
 		for (PaintCoverageKind coverage :
@@ -12822,7 +12773,7 @@ static void DrawPaintRecipeEditor(EditorState& e) {
 		const char* result_name{ e.recipe.commit_mode == PaintCommitMode::BakeOnCommit
 									 ? "Bake on Commit"
 									 : "Keep Generator" };
-		const std::string result_preview{ std::string{ "Result: " } + result_name };
+		$1 result_preview{ std::string{ "Result: " } + result_name };
 		ImGui::SetNextItemWidth(190.0f);
 		if (ImGui::BeginCombo("##paint_recipe_result", result_preview.c_str())) {
 			if (ImGui::Selectable(
@@ -13270,7 +13221,7 @@ static void DrawMainMenu(EditorState& e) {
 	ImGui::EndMainMenuBar();
 }
 
-static void DrawDefaultDockspace(EditorState& e) {
+static void DrawDefaultDockspace([[maybe_unused]] EditorState& e) {
 #ifdef IMGUI_HAS_DOCK
 	const ImGuiViewport* viewport{ ImGui::GetMainViewport() };
 	ImGui::SetNextWindowPos(viewport->WorkPos);
@@ -13288,7 +13239,7 @@ static void DrawDefaultDockspace(EditorState& e) {
 	ImGui::Begin("##ProtegonDemoDockHost", nullptr, host_flags);
 	ImGui::PopStyleVar(3);
 
-	const ImGuiID dockspace_id{ ImGui::GetID("ProtegonDemoDockSpace") };
+	ImGuiID dockspace_id{ ImGui::GetID("ProtegonDemoDockSpace") };
 	if (!e.dock_layout_initialized) {
 		e.dock_layout_initialized = true;
 		ImGui::DockBuilderRemoveNode(dockspace_id);
@@ -13325,7 +13276,6 @@ static void DrawDefaultDockspace(EditorState& e) {
 	ImGui::DockSpace(dockspace_id, { 0.0f, 0.0f }, ImGuiDockNodeFlags_PassthruCentralNode);
 	ImGui::End();
 #else
-	(void)e;
 #endif
 }
 

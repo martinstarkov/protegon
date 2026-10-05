@@ -46,7 +46,7 @@ struct PendingSceneOrderMove {
 
 [[nodiscard]] Scene* FindLoadedScene(Editor& editor, std::string_view key, bool runtime) {
 	auto& scenes{ editor.GetSceneManager().GetScenes() };
-	const auto it{ std::ranges::find_if(scenes, [key, runtime](const auto& scene) {
+	auto it{ std::ranges::find_if(scenes, [key, runtime](const auto& scene) {
 		return scene && scene->GetTag() == key && scene->IsRuntime() == runtime;
 	}) };
 	return it == scenes.end() ? nullptr : it->get();
@@ -70,8 +70,8 @@ struct PendingSceneOrderMove {
 		return "Scene key cannot be empty.";
 	}
 	bool valid_characters{ std::ranges::all_of(value, [](char character) {
-		const auto value{ static_cast<unsigned char>(character) };
-		return std::isalnum(value) || value == '_' || value == '-';
+		auto c{ static_cast<unsigned char>(character) };
+		return std::isalnum(c) || c == '_' || c == '-';
 	}) };
 	if (!valid_characters) {
 		return "Scene keys may only contain letters, numbers, '_' and '-'.";
@@ -126,7 +126,7 @@ bool DrawJsonEditor(const char* label, json& value) {
 	} else if (value.is_array()) {
 		if (ImGui::TreeNode(label)) {
 			for (std::size_t index{ 0 }; index < value.size(); ++index) {
-				const std::string item{ "[" + std::to_string(index) + "]" };
+				std::string item{ "[" + std::to_string(index) + "]" };
 				ImGui::PushID(static_cast<int>(index));
 				changed |= DrawJsonEditor(item.c_str(), value[index]);
 				ImGui::PopID();
@@ -143,7 +143,7 @@ void SelectDefaultEntity(
 	EditorContext& ctx, Scene& scene, std::optional<UUID> selected_entity_uuid = std::nullopt
 ) {
 	auto& hierarchy{ ctx.editor.GetSceneHierarchyPanel() };
-	const auto entities{ scene.Entities() };
+	auto entities{ scene.Entities() };
 	if (!selected_entity_uuid &&
 		ctx.local.selection.HasEntitySelection(scene.GetTag(), scene.IsRuntime())) {
 		selected_entity_uuid = ctx.local.selection.GetEntityUUID(scene.GetTag(), scene.IsRuntime());
@@ -163,10 +163,10 @@ void SelectDefaultEntity(
 		return;
 	}
 	auto& scene_ctx{ scene.ctx() };
-	const auto render_target{ scene.GetRenderTarget() };
-	const auto fixed_camera{ ::ptgn::impl::SceneContextAccessor::GetFixedCamera(scene_ctx) };
-	const auto camera{ scene_ctx.camera };
-	const auto regular_entity{ entities.FindIf([&](Entity entity) {
+	auto render_target{ scene.GetRenderTarget() };
+	auto fixed_camera{ ::ptgn::impl::SceneContextAccessor::GetFixedCamera(scene_ctx) };
+	auto camera{ scene_ctx.camera };
+	auto regular_entity{ entities.FindIf([&](Entity entity) {
 		return entity != render_target && entity != fixed_camera && entity != camera;
 	}) };
 	if (select_if_present(regular_entity) || select_if_present(camera) ||
@@ -180,7 +180,7 @@ void DrawSceneOrderDragSource(std::size_t index, bool runtime, std::string_view 
 	if (!ImGui::BeginDragDropSource()) {
 		return;
 	}
-	const SceneOrderDrag payload{
+	SceneOrderDrag payload{
 		.index	 = index,
 		.runtime = runtime,
 	};
@@ -197,7 +197,7 @@ void DrawSceneOrderDropTarget(
 	}
 	if (const auto* payload{ ImGui::AcceptDragDropPayload("PTGN_SCENE_ORDER") }) {
 		PTGN_ASSERT(payload->DataSize == sizeof(SceneOrderDrag));
-		const auto dragged{ *static_cast<const SceneOrderDrag*>(payload->Data) };
+		auto dragged{ *static_cast<const SceneOrderDrag*>(payload->Data) };
 		if (dragged.runtime == runtime && dragged.index != index) {
 			pending_move = PendingSceneOrderMove{
 				.from	 = dragged.index,
@@ -318,17 +318,21 @@ void SceneListPanel::DrawSceneKeyRenameModal(EditorContext& ctx) {
 	if (!scene_key_rename_.active || !renaming_scene_key_) {
 		return;
 	}
+
 	auto* project{ ctx.editor.GetProject() };
+
 	if (!project || IsRuntimeSceneList(ctx.editor) ||
 		!FindProjectScene(*project, *renaming_scene_key_)) {
 		scene_key_rename_.Cancel();
 		renaming_scene_key_.reset();
 		return;
 	}
-	const std::string current_key{ *renaming_scene_key_ };
+	std::string current_key{ *renaming_scene_key_ };
+
 	RenameModalOptions options;
 	options.title = "Rename Scene Key";
-	const RenameResult result{ DrawRenameModal(
+
+	RenameResult result{ DrawRenameModal(
 		scene_key_rename_, "RenameSceneKey", "##SceneKey",
 		[project, &current_key](std::string_view value) {
 			return ValidateSceneKey(*project, current_key, value);
@@ -339,6 +343,7 @@ void SceneListPanel::DrawSceneKeyRenameModal(EditorContext& ctx) {
 		},
 		std::move(options)
 	) };
+
 	if (result != RenameResult::None) {
 		renaming_scene_key_.reset();
 	}
@@ -349,7 +354,7 @@ bool SceneListPanel::ResolvePendingSceneSelection(EditorContext& ctx) {
 		ImGui::GetFrameCount() < pending_scene_selection_->earliest_frame) {
 		return false;
 	}
-	const auto pending{ pending_scene_selection_.value() };
+	auto pending{ pending_scene_selection_.value() };
 	auto* scene{ FindLoadedScene(ctx.editor, pending.key, pending.runtime) };
 	if (!scene) {
 		return false;
@@ -372,7 +377,7 @@ void SceneListPanel::OnRender(EditorContext& ctx) {
 	auto* project{ ctx.editor.GetProject() };
 	if (!GetSelectedScene() && !pending_scene_selection_) {
 		if (runtime_scene_list) {
-			const auto it{ std::ranges::find_if(loaded_scenes, [](const auto& scene) {
+			auto it{ std::ranges::find_if(loaded_scenes, [](const auto& scene) {
 				return scene && scene->IsRuntime();
 			}) };
 			if (it != loaded_scenes.end()) {
@@ -406,8 +411,8 @@ void SceneListPanel::OnRender(EditorContext& ctx) {
 				if (ctx.editor.IsStartupProjectScene(entry.key)) {
 					label += " [Startup]";
 				}
-				const std::string item_label{ label + "###ProjectScene" + std::to_string(index) };
-				const RenamableItemResult item{ DrawRenamableItem([&] {
+				std::string item_label{ label + "###ProjectScene" + std::to_string(index) };
+				RenamableItemResult item{ DrawRenamableItem([&] {
 					if (ImGui::Selectable(item_label.c_str(), selected) && scene) {
 						SetSelectedScene(ctx, scene);
 						SelectDefaultEntity(ctx, *scene);
@@ -416,8 +421,8 @@ void SceneListPanel::OnRender(EditorContext& ctx) {
 				DrawSceneOrderDragSource(index, false, label);
 				DrawSceneOrderDropTarget(index, false, pending_move);
 				bool scene_list_changed{ false };
-				const std::string popup_id{ "SceneContext###ProjectSceneContext" +
-											std::to_string(index) };
+				std::string popup_id{ "SceneContext###ProjectSceneContext" +
+									  std::to_string(index) };
 				DrawRenamableContextMenu(
 					item, popup_id.c_str(), entry.key,
 					[this, &entry](std::string_view current_value) {
@@ -459,8 +464,7 @@ void SceneListPanel::OnRender(EditorContext& ctx) {
 			if (scene->IsTransitioning()) {
 				label += " [Transitioning]";
 			}
-			const std::string item_label{ label + "###RuntimeScene" +
-										  std::to_string(runtime_index) };
+			std::string item_label{ label + "###RuntimeScene" + std::to_string(runtime_index) };
 			if (ImGui::Selectable(item_label.c_str(), scene.get() == GetSelectedScene())) {
 				SetSelectedScene(ctx, scene.get());
 				SelectDefaultEntity(ctx, *scene);
@@ -505,7 +509,7 @@ void SceneListPanel::QueueSceneSelection(
 
 void SceneListPanel::SetSelectedScene(EditorContext& ctx, Scene* scene, bool undoable) {
 	const auto& loaded_scenes{ ctx.editor.GetSceneManager().GetScenes() };
-	const auto is_loaded_scene = [&loaded_scenes](const Scene* candidate) {
+	auto is_loaded_scene = [&loaded_scenes](const Scene* candidate) {
 		return candidate &&
 			   std::ranges::any_of(loaded_scenes, [candidate](const auto& loaded_scene) {
 				   return loaded_scene && loaded_scene.get() == candidate;
@@ -523,13 +527,11 @@ void SceneListPanel::SetSelectedScene(EditorContext& ctx, Scene* scene, bool und
 		selection.selected_scene_runtime = next_scene->IsRuntime();
 		selection.mode					 = EditorSelectionMode::SceneHierarchy;
 		if (!selection.HasEntitySelection(next_scene->GetTag(), next_scene->IsRuntime())) {
-			const auto entities{ next_scene->Entities() };
+			auto entities{ next_scene->Entities() };
 			auto& scene_ctx{ next_scene->ctx() };
-			const Entity render_target{ next_scene->GetRenderTarget() };
-			const Entity fixed_camera{
-				::ptgn::impl::SceneContextAccessor::GetFixedCamera(scene_ctx)
-			};
-			const Entity camera{ scene_ctx.camera };
+			Entity render_target{ next_scene->GetRenderTarget() };
+			Entity fixed_camera{ ::ptgn::impl::SceneContextAccessor::GetFixedCamera(scene_ctx) };
+			Entity camera{ scene_ctx.camera };
 			Entity selected{ entities.FindIf([&](Entity entity) {
 				return entity != render_target && entity != fixed_camera && entity != camera;
 			}) };
@@ -565,9 +567,9 @@ void SceneListPanel::RebuildSceneEditorState(Scene* scene) {
 	if (!scene) {
 		return;
 	}
-	const std::string scene_type{ scene->GetRegisteredType().empty()
-									  ? std::string{ ::ptgn::impl::kBaseSceneType }
-									  : std::string{ scene->GetRegisteredType() } };
+	std::string scene_type{ scene->GetRegisteredType().empty()
+								? std::string{ ::ptgn::impl::kBaseSceneType }
+								: std::string{ scene->GetRegisteredType() } };
 	if (scene_type == ::ptgn::impl::kBaseSceneType) {
 		state_ = SceneEditorState{
 			.scene_type = std::string{ ::ptgn::impl::kBaseSceneType },

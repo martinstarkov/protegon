@@ -27,7 +27,7 @@ struct RenameEditStateRef {
 	std::string& error;
 };
 
-/// @brief Shared state for an in-place rename control.
+/// @brief Shared state for an in place rename control.
 ///
 /// The edited value stays separate from the model until Enter is pressed. Escape and clicking
 /// outside the input cancel the edit.
@@ -177,7 +177,7 @@ RenameResult DrawRenameInput(
 	return RenameResult::None;
 }
 
-/// @brief Draw a reusable in-place rename field.
+/// @brief Draw a reusable in place rename field.
 template <typename Validate, typename Commit>
 RenameResult DrawInlineRename(
 	InlineRenameState& state, const char* id, float width, Validate&& validate, Commit&& commit,
@@ -187,7 +187,7 @@ RenameResult DrawInlineRename(
 		return RenameResult::None;
 	}
 
-	const RenameResult result{ DrawRenameInput(
+	RenameResult result{ DrawRenameInput(
 		BindRenameState(state), id, width, std::forward<Validate>(validate),
 		std::forward<Commit>(commit), extra_flags
 	) };
@@ -195,6 +195,7 @@ RenameResult DrawInlineRename(
 	if (result != RenameResult::None) {
 		state.Cancel();
 	}
+
 	return result;
 }
 
@@ -230,9 +231,9 @@ RenameResult DrawRenameModal(
 		return RenameResult::None;
 	}
 
-	const std::string popup_name{ options.title && options.title[0] != '\0'
-									  ? std::string{ options.title } + "###" + popup_id
-									  : std::string{ popup_id } };
+	std::string popup_name{ options.title && options.title[0] != '\0'
+								? std::string{ options.title } + "###" + popup_id
+								: std::string{ popup_id } };
 
 	if (state.open_requested) {
 		ImGui::OpenPopup(popup_name.c_str());
@@ -249,9 +250,11 @@ RenameResult DrawRenameModal(
 	}
 
 	RenameResult result{ RenameResult::None };
+
 	if (!ImGui::BeginPopupModal(popup_name.c_str(), nullptr, options.window_flags)) {
 		return result;
 	}
+
 	bool window_appearing{ ImGui::IsWindowAppearing() };
 
 	if (options.draw_input_prefix) {
@@ -266,16 +269,19 @@ RenameResult DrawRenameModal(
 	}
 
 	ImGui::SetNextItemWidth(options.width);
+
 	bool enter_pressed{ ImGui::InputText(
 		input_id, &state.value,
 		options.input_flags | ImGuiInputTextFlags_EnterReturnsTrue |
 			ImGuiInputTextFlags_AutoSelectAll
 	) };
+
 	bool edited{ ImGui::IsItemEdited() };
 
 	if (edited) {
 		state.error = std::invoke(validate, std::string_view{ state.value });
 	}
+
 	DrawRenameError(state.error);
 
 	if (!state.error.empty()) {
@@ -284,23 +290,26 @@ RenameResult DrawRenameModal(
 
 	ImGui::Spacing();
 
-	const float spacing{ ImGui::GetStyle().ItemSpacing.x };
-	const float available{ std::max(1.0f, ImGui::GetContentRegionAvail().x) };
-	const float button_width{ std::max(1.0f, (available - spacing) * 0.5f) };
+	float spacing{ ImGui::GetStyle().ItemSpacing.x };
+	float available{ std::max(1.0f, ImGui::GetContentRegionAvail().x) };
+	float button_width{ std::max(1.0f, (available - spacing) * 0.5f) };
 
 	bool cancel_pressed{ ImGui::Button(options.cancel_label, ImVec2{ button_width, 0.0f }) };
+
 	ImGui::SameLine(0.0f, spacing);
+
 	bool rename_pressed{ ImGui::Button(options.rename_label, ImVec2{ button_width, 0.0f }) };
 
 	bool escape_pressed{ ImGui::IsKeyPressed(ImGuiKey_Escape, false) };
 
 	bool outside_clicked{ false };
+
 	if (options.cancel_on_outside_click && !window_appearing &&
 		ImGui::IsMouseClicked(ImGuiMouseButton_Left)) {
-		const ImVec2 mouse{ ImGui::GetIO().MousePos };
-		const ImVec2 window_min{ ImGui::GetWindowPos() };
-		const ImVec2 window_max{ window_min.x + ImGui::GetWindowSize().x,
-								 window_min.y + ImGui::GetWindowSize().y };
+		ImVec2 mouse{ ImGui::GetIO().MousePos };
+		ImVec2 window_min{ ImGui::GetWindowPos() };
+		ImVec2 window_max{ window_min.x + ImGui::GetWindowSize().x,
+						   window_min.y + ImGui::GetWindowSize().y };
 		outside_clicked = mouse.x < window_min.x || mouse.y < window_min.y ||
 						  mouse.x >= window_max.x || mouse.y >= window_max.y;
 	}
@@ -403,7 +412,7 @@ RenamableItemResult DrawRenamableTreeNode(
 			options.rename_input_flags
 		);
 
-		const RenamableItemResult interaction{ CaptureRenamableItemResult() };
+		RenamableItemResult interaction{ CaptureRenamableItemResult() };
 		result.item_id		 = interaction.item_id;
 		result.hovered		 = interaction.hovered;
 		result.left_clicked	 = interaction.left_clicked;
@@ -415,7 +424,7 @@ RenamableItemResult DrawRenamableTreeNode(
 	result.open =
 		ImGui::TreeNodeEx(node_id, flags, "%.*s", static_cast<int>(label.size()), label.data());
 
-	const RenamableItemResult interaction{ CaptureRenamableItemResult() };
+	RenamableItemResult interaction{ CaptureRenamableItemResult() };
 	result.item_id			 = interaction.item_id;
 	result.hovered			 = interaction.hovered;
 	result.left_clicked		 = interaction.left_clicked;
@@ -441,7 +450,7 @@ struct RenamableContextMenuOptions {
 /// DrawRenamableTreeNode.
 ///
 /// begin_rename(current_value) chooses the rename presentation: call InlineRenameState::Begin for
-/// in-place editing or RenameModalState::Begin for a modal. The before/after callbacks make the
+/// in place editing or RenameModalState::Begin for a modal. The before/after callbacks make the
 /// menu fully configurable without requiring the caller to reimplement the rename entry.
 template <typename BeginRename, typename DrawBeforeRename, typename DrawAfterRename>
 bool DrawRenamableContextMenu(

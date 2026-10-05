@@ -14,11 +14,11 @@
 #include "app/project.h"
 #include "commands/editor_commands.h"
 #include "commands/undo_stack.h"
+#include "core/math/vector2.h"
+#include "core/util/file.h"
 #include "editor/editor_context.h"
 #include "editor/editor_settings.h"
 #include "editor/paint/paint_editor.h"
-#include "core/math/vector2.h"
-#include "core/util/file.h"
 #include "panels/console.h"
 #include "panels/content_browser.h"
 #include "panels/inspector.h"
@@ -132,10 +132,8 @@ public:
 	bool MoveProjectScreenEffect(std::size_t from_index, std::size_t to_index);
 	bool SetProjectScreenEffectEnabled(ScreenEffectId id, bool enabled);
 	bool UpdateProjectScreenEffect(
-		ScreenEffectId id,
-		const SerializedScreenEffect& value,
-		std::string label = "Change Screen Effect",
-		std::uint64_t interaction_key = 0
+		ScreenEffectId id, const SerializedScreenEffect& value,
+		std::string label = "Change Screen Effect", std::uint64_t interaction_key = 0
 	);
 
 	[[nodiscard]] const std::vector<Entity>& GetRuntimeScreenEffects() const;
@@ -146,10 +144,8 @@ public:
 	bool MoveRuntimeScreenEffect(std::size_t from_index, std::size_t to_index);
 	bool SetRuntimeScreenEffectEnabled(std::uint64_t runtime_id, bool enabled);
 	bool UpdateRuntimeScreenEffect(
-		std::uint64_t runtime_id,
-		const json& parameters,
-		std::string label = "Change Runtime Screen Effect",
-		std::uint64_t interaction_key = 0
+		std::uint64_t runtime_id, const json& parameters,
+		std::string label = "Change Runtime Screen Effect", std::uint64_t interaction_key = 0
 	);
 
 	void MarkProjectDirty();
@@ -255,7 +251,7 @@ private:
 	bool untracked_project_dirty_{ false };
 	bool runtime_was_active_{ false };
 
-	// Editor-owned framebuffer lifetime for text previews. Every preview created during one
+	// Editor owned framebuffer lifetime for text previews. Every preview created during one
 	// ImGui frame remains valid until the next frame token is observed.
 	std::optional<std::uint64_t> text_preview_frame_token_;
 	std::vector<::ptgn::impl::FramebufferObject> text_preview_framebuffers_;

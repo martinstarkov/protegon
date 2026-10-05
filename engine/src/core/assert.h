@@ -51,6 +51,6 @@ template <StreamWritable... Ts>
 
 #else // !PTGN_ENABLE_ASSERTS
 
-#define PTGN_ASSERT(...) ((void)0)
+#define PTGN_ASSERT(...) static_cast<void>(0)
 
 #endif // PTGN_ENABLE_ASSERTS

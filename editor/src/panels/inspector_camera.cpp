@@ -39,24 +39,28 @@ bool DrawCameraParentRenderTarget(Target& target) {
 		};
 
 		auto& scene{ camera_entity.GetScene() };
-		const Entity scene_target{ scene.GetRenderTarget() };
-		const Entity main_camera{ scene.GetCamera() };
-		const Entity fixed_camera{ scene.GetFixedCamera() };
+
+		Entity scene_target{ scene.GetRenderTarget() };
+		Entity main_camera{ scene.GetCamera() };
+		Entity fixed_camera{ scene.GetFixedCamera() };
+
 		bool parent_target_read_only{ camera_entity == main_camera ||
 									  camera_entity == fixed_camera };
 
 		std::string scene_target_label{ "Scene Target" };
+
 		if (scene_target && scene_target.Has<Tag>()) {
 			scene_target_label = std::string{ scene_target.Get<Tag>() };
 		}
 
 		std::vector<RenderTargetOption> render_targets;
+
 		for (auto [entity, _target] : scene.EntitiesWith<::ptgn::impl::RenderTargetDesc>()) {
 			if (!entity || entity == scene_target || !entity.Has<Tag, UUID>()) {
 				continue;
 			}
 
-			const UUID uuid{ entity.Get<UUID>() };
+			UUID uuid{ entity.Get<UUID>() };
 			std::string label{ std::string{ entity.Get<Tag>() } };
 			label += " [";
 			label += uuid_text(uuid);
@@ -85,7 +89,7 @@ bool DrawCameraParentRenderTarget(Target& target) {
 			std::string missing_preview;
 
 			if (value) {
-				const auto selected{ std::ranges::find(
+				auto selected{ std::ranges::find(
 					render_targets, value->render_target, &RenderTargetOption::uuid
 				) };
 
@@ -162,7 +166,7 @@ bool DrawCameraSectionImpl(Target& target) {
 	}
 
 	bool archetype_owned{ ArchetypeOwnsCamera(ResolveInspectorArchetype(target)) };
-	const auto header{ DrawInspectorSectionHeader(
+	auto header{ DrawInspectorSectionHeader(
 		"Camera", "CameraSection",
 		InspectorSectionOptions{
 			.default_open = true,

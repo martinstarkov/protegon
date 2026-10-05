@@ -90,12 +90,12 @@ DemoPrefabKeys EnsureDemoPrefabs(Scene& scene) {
 }
 
 std::array<V2_float, 4> TilesetUVs(V2_int slice) {
-	const float left{ static_cast<float>(slice.x * kTileSize) / static_cast<float>(kTilesetWidth) };
-	const float top{ static_cast<float>(slice.y * kTileSize) / static_cast<float>(kTilesetHeight) };
-	const float right{ static_cast<float>((slice.x + 1) * kTileSize) /
-					   static_cast<float>(kTilesetWidth) };
-	const float bottom{ static_cast<float>((slice.y + 1) * kTileSize) /
-						static_cast<float>(kTilesetHeight) };
+	float left{ static_cast<float>(slice.x * kTileSize) / static_cast<float>(kTilesetWidth) };
+	float top{ static_cast<float>(slice.y * kTileSize) / static_cast<float>(kTilesetHeight) };
+	float right{ static_cast<float>((slice.x + 1) * kTileSize) /
+				 static_cast<float>(kTilesetWidth) };
+	float bottom{ static_cast<float>((slice.y + 1) * kTileSize) /
+				  static_cast<float>(kTilesetHeight) };
 	return {
 		V2_float{ left, top },
 		V2_float{ right, top },
@@ -175,9 +175,9 @@ void SeedForegroundTiles(Tilemap& tilemap) {
 
 void CreateDemoLayers(Scene& scene, const DemoPrefabKeys& prefabs) {
 	auto& layers{ scene.GetLayers() };
-	const SceneLayerId decorations{ layers.Create(SceneLayerKind::Entity, "Decorations") };
-	const SceneLayerId ground{ layers.Create(SceneLayerKind::Tile, "Ground") };
-	const SceneLayerId foreground{ layers.Create(SceneLayerKind::Tile, "Foreground") };
+	SceneLayerId decorations{ layers.Create(SceneLayerKind::Entity, "Decorations") };
+	SceneLayerId ground{ layers.Create(SceneLayerKind::Tile, "Ground") };
+	SceneLayerId foreground{ layers.Create(SceneLayerKind::Tile, "Foreground") };
 	Tilemap ground_tilemap{ CreateTilemap(scene, ground, Tag{ "Ground Tilemap" }) };
 	ground_tilemap.SetCellSize({ 16.0f, 16.0f });
 	SetPosition(ground_tilemap, { -72.0f, -56.0f });
@@ -196,7 +196,7 @@ void CreateDemoLayers(Scene& scene, const DemoPrefabKeys& prefabs) {
 		Entity smile{ scene.CreatePrefab(prefabs.smile) };
 		if (smile) {
 			SetPosition(smile, { 100.0f, 100.0f });
-			(void)layers.Assign(smile, decorations, true);
+			layers.Assign(smile, decorations, true);
 		}
 	}
 }
@@ -208,15 +208,13 @@ public:
 	void OnNew() override {
 		LoadAssets(*this);
 		SetBackgroundColor(Color{ 28, 30, 36, 255 });
-		const DemoPrefabKeys prefabs{ EnsureDemoPrefabs(*this) };
+		DemoPrefabKeys prefabs{ EnsureDemoPrefabs(*this) };
 		CreateDemoLayers(*this, prefabs);
 	}
 
 	void OnLoad() override {
 		LoadAssets(*this);
-		// EnsurePrefabAsset is idempotent. Existing assets are reused and CreatePrefab() handles
-		// residency automatically.
-		(void)EnsureDemoPrefabs(*this);
+		EnsureDemoPrefabs(*this);
 	}
 
 	void OnEnter() override {

@@ -63,7 +63,7 @@ public:
 		PTGN_ASSERT(ctx().asset.RegisterAsset(kAsyncFont, "assets/Inter-VariableFont.ttf"));
 		PTGN_ASSERT(ctx().asset.RegisterAsset(kAsyncMusic, "assets/music2.ogg"));
 
-		const std::array<AssetKey, 3> dependencies{
+		std::array<AssetKey, 3> dependencies{
 			kAsyncTexture,
 			kAsyncFont,
 			kAsyncMusic,
@@ -112,7 +112,8 @@ public:
 			font_switched_ = true;
 		}
 
-		const auto progress{ ticket_.GetProgress() };
+		auto progress{ ticket_.GetProgress() };
+
 		load_status_.Clear()
 			.Content(
 				std::format(

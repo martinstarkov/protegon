@@ -28,7 +28,7 @@ namespace {
 		return nullptr;
 	}
 
-	const auto it{ std::ranges::find_if(timers->timers, [&key](const TimerEntry& entry) {
+	auto it{ std::ranges::find_if(timers->timers, [&key](const TimerEntry& entry) {
 		return entry.config.key == key;
 	}) };
 	return it == timers->timers.end() ? nullptr : std::addressof(*it);
@@ -65,7 +65,7 @@ void InitializeTimerRuntime(TimerEntry& entry, bool apply_auto_start) {
 	}
 
 	InitializeTimerRuntime(entry, false);
-	const millisecondsf duration{ ClampTimerDuration(entry.config.duration) };
+	millisecondsf duration{ ClampTimerDuration(entry.config.duration) };
 	millisecondsf previous_elapsed{ entry.runtime.timer.ElapsedDuration<millisecondsf>() };
 
 	if (entry.config.mode == TimerMode::Once && entry.runtime.completed) {
@@ -206,7 +206,7 @@ void from_json(const json& input, Timers& timers) {
 	if (input.is_array()) {
 		entries = std::addressof(input);
 	} else if (input.is_object()) {
-		const auto it{ input.find("timers") };
+		auto it{ input.find("timers") };
 		if (it != input.end() && it->is_array()) {
 			entries = std::addressof(*it);
 		}
@@ -352,7 +352,7 @@ bool TimerHandle::SetDuration(millisecondsf duration) const {
 		return false;
 	}
 
-	const millisecondsf updated{ ClampTimerDuration(duration) };
+	millisecondsf updated{ ClampTimerDuration(duration) };
 	if (entry->config.duration == updated) {
 		return false;
 	}
@@ -404,7 +404,7 @@ float TimerHandle::Progress() const {
 		return 0.0f;
 	}
 
-	const millisecondsf duration{ ClampTimerDuration(entry->config.duration) };
+	millisecondsf duration{ ClampTimerDuration(entry->config.duration) };
 	if (duration <= millisecondsf{ 0.0f }) {
 		return entry->runtime.completed || entry->runtime.timer.HasRun() ? 1.0f : 0.0f;
 	}
@@ -490,9 +490,9 @@ bool RemoveTimer(Entity entity, const TimerKey& key) {
 
 namespace timer_runtime {
 void Update(Scene& scene, secondsf delta_time) {
-	const millisecondsf dt{ duration_cast<millisecondsf>(secondsf{
+	millisecondsf dt{ duration_cast<millisecondsf>(secondsf{
 		std::max(0.0f, delta_time.count()) }) };
-	const auto entities{ scene.EntitiesWith<impl::Timers>().GetVector() };
+	auto entities{ scene.EntitiesWith<impl::Timers>().GetVector() };
 	for (Entity entity : entities) {
 		if (!entity) {
 			continue;

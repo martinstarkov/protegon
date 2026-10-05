@@ -106,13 +106,13 @@ ComponentState<T> CapturePrefabComponent(const SerializedEntity& serialized) {
 		return std::nullopt;
 	}
 
-	const std::string name{ registration->name };
+	std::string name{ registration->name };
 
 	if constexpr (std::is_empty_v<T>) {
 		return std::ranges::contains(serialized.tags, name) ? ComponentState<T>{ T{} }
 															: std::nullopt;
 	} else {
-		const auto it{ serialized.components.find(name) };
+		auto it{ serialized.components.find(name) };
 
 		if (it == serialized.components.end()) {
 			return std::nullopt;
@@ -147,7 +147,7 @@ void AssignPrefabComponent(SerializedEntity& serialized, ComponentState<T> state
 		return;
 	}
 
-	const std::string name{ registration->name };
+	std::string name{ registration->name };
 
 	if (!state) {
 		if constexpr (std::is_empty_v<T>) {
@@ -252,7 +252,7 @@ struct EntityInspectorTarget {
 	template <typename T, typename Callback = std::nullptr_t>
 	auto MakeApply(Callback callback = nullptr) const {
 		Editor* editor{ std::addressof(ctx.editor) };
-		const EntityReference reference{ MakeEntityReference(entity) };
+		EntityReference reference{ MakeEntityReference(entity) };
 
 		return [editor, reference, callback](ComponentState<T> state) mutable {
 			Entity resolved{ reference.Resolve(*editor) };
@@ -299,7 +299,7 @@ struct EntityInspectorTarget {
 
 	auto MakeNameApply() const {
 		Editor* editor{ std::addressof(ctx.editor) };
-		const EntityReference reference{ MakeEntityReference(entity) };
+		EntityReference reference{ MakeEntityReference(entity) };
 
 		return [editor, reference](std::string name) {
 			Entity resolved{ reference.Resolve(*editor) };
@@ -314,7 +314,7 @@ struct EntityInspectorTarget {
 inline void SyncPrefabTargetInstances(EditorContext& ctx, const PrefabKey& key) {
 	for (const auto& scene : ctx.editor.GetSceneManager().GetScenes()) {
 		if (scene && !scene->IsRuntime()) {
-			(void)SyncPrefabInstances(*scene, key);
+			SyncPrefabInstances(*scene, key);
 		}
 	}
 }
@@ -456,7 +456,7 @@ void TrackComponentState(
 
 	ScopedID target_scope{ target.Id() };
 	ScopedID component_scope{ static_cast<int>(Hash<T>()) };
-	const ImGuiID key{ ImGui::GetID("##ComponentEdit") };
+	ImGuiID key{ ImGui::GetID("##ComponentEdit") };
 
 	auto apply{ target.template MakeApply<T>(callback) };
 
@@ -504,7 +504,7 @@ bool EditComponent(
 	}
 }
 
-/// Apply a structural component-state change as one undoable action. This is the common backend for
+/// Apply a structural component state change as one undoable action. This is the common backend for
 /// add/remove/reset helpers where there is no active ImGui drag to coalesce.
 template <typename Target, typename T, typename Callback = std::nullptr_t>
 bool SetComponentStateUndoable(
@@ -521,9 +521,9 @@ bool SetComponentStateUndoable(
 	}
 }
 
-/// Draw an already-present component as a semantic inspector section. Presence is represented by
+/// Draw an already present component as a semantic inspector section. Presence is represented by
 /// the section itself rather than an enable checkbox; reset/remove live in the section menu and are
-/// recorded as one undoable component-state change.
+/// recorded as one undoable component state change.
 template <typename Target, typename T, typename Draw, typename Callback = std::nullptr_t>
 bool DrawComponentSection(
 	Target& target, std::string_view label, Draw&& draw, bool default_open = true,
@@ -540,7 +540,7 @@ bool DrawComponentSection(
 		return false;
 	}
 
-	const auto header{ DrawInspectorSectionHeader(
+	auto header{ DrawInspectorSectionHeader(
 		label, "##ComponentSection",
 		InspectorSectionOptions{
 			.default_open = default_open,
@@ -612,7 +612,7 @@ bool DrawRequiredComponent(
 	T value{ target.template Capture<T>().value_or(T{}) };
 
 	if (tree) {
-		const std::string node_label{ std::string{ label } + "##Tree" };
+		std::string node_label{ std::string{ label } + "##Tree" };
 
 		if (ImGui::TreeNodeEx(node_label.c_str(), ImGuiTreeNodeFlags_SpanAvailWidth)) {
 			ScopedIndent indent;
@@ -665,7 +665,7 @@ bool DrawOptionalComponent(
 			return ImGui::Checkbox("##Enabled", &enabled);
 		});
 		ImGui::SameLine(0.0f, ImGui::GetStyle().ItemInnerSpacing.x);
-		const std::string node_label{ std::string{ label } + "##Tree" };
+		std::string node_label{ std::string{ label } + "##Tree" };
 		open = ImGui::TreeNodeEx(
 			node_label.c_str(), ImGuiTreeNodeFlags_SpanAvailWidth |
 									ImGuiTreeNodeFlags_FramePadding |
@@ -776,7 +776,7 @@ bool AddFeature(Target& target, std::string_view label) {
 
 template <typename Target>
 bool DrawName(Target& target) {
-	const std::string before{ target.GetName() };
+	std::string before{ target.GetName() };
 	std::string value{ before };
 
 	bool changed{ DrawPropertyRow("Tag", [&]() {
@@ -788,7 +788,7 @@ bool DrawName(Target& target) {
 		target.SetName(value);
 
 		ScopedID target_scope{ target.Id() };
-		const ImGuiID key{ ImGui::GetID("##NameEdit") };
+		ImGuiID key{ ImGui::GetID("##NameEdit") };
 		auto apply{ target.MakeNameApply() };
 
 		TrackUndoableInteraction(
@@ -798,7 +798,7 @@ bool DrawName(Target& target) {
 	}
 
 	if constexpr (requires { target.GetUUIDText(); }) {
-		const std::string uuid{ target.GetUUIDText() };
+		std::string uuid{ target.GetUUIDText() };
 
 		DrawPropertyRow("UUID", [&]() {
 			ImGui::SetNextItemWidth(-FLT_MIN);

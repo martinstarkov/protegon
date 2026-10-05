@@ -85,7 +85,7 @@ inline std::unordered_map<ImGuiID, ColorPickerUiState>& PickerStates() {
 }
 
 [[nodiscard]] inline ImVec4 ToImVec4(Color value) {
-	const auto color{ ToFloatColor(value) };
+	auto color{ ToFloatColor(value) };
 	return ImVec4{ color[0], color[1], color[2], color[3] };
 }
 
@@ -94,7 +94,7 @@ inline std::unordered_map<ImGuiID, ColorPickerUiState>& PickerStates() {
 		return true;
 	}
 
-	const auto match{ std::search(
+	auto match{ std::search(
 		text.begin(), text.end(), search.begin(), search.end(), [](char lhs, char rhs) {
 			return std::tolower(static_cast<unsigned char>(lhs)) ==
 				   std::tolower(static_cast<unsigned char>(rhs));
@@ -104,7 +104,7 @@ inline std::unordered_map<ImGuiID, ColorPickerUiState>& PickerStates() {
 }
 
 [[nodiscard]] inline std::string ColorDescription(Color value) {
-	// Palette entry names are palette-local and independently renameable. Do not replace the
+	// Palette entry names are palette local and independently renameable. Do not replace the
 	// value description with a globally registered color key just because the RGBA value matches.
 	return "RGBA (" + std::to_string(value.r) + ", " + std::to_string(value.g) + ", " +
 		   std::to_string(value.b) + ", " + std::to_string(value.a) + ")";
@@ -113,7 +113,7 @@ inline std::unordered_map<ImGuiID, ColorPickerUiState>& PickerStates() {
 inline void RecordPaletteChange(
 	EditorContext& ctx, std::string label, std::vector<EditorColorPalette> before
 ) {
-	const auto after{ ctx.project_state.color_palettes };
+	auto after{ ctx.project_state.color_palettes };
 	if (before == after) {
 		return;
 	}
@@ -169,10 +169,10 @@ inline void RecordPaletteChange(
 [[nodiscard]] inline std::string ToHex(Color value) {
 	constexpr char kDigits[]{ "0123456789ABCDEF" };
 	std::string result{ "#00000000" };
-	const std::array<std::uint8_t, 4> channels{ value.r, value.g, value.b, value.a };
+	std::array<std::uint8_t, 4> channels{ value.r, value.g, value.b, value.a };
 
 	for (std::size_t index{ 0 }; index < channels.size(); ++index) {
-		const auto channel{ channels[index] };
+		auto channel{ channels[index] };
 		result[1 + index * 2] = kDigits[(channel >> 4u) & 0x0Fu];
 		result[2 + index * 2] = kDigits[channel & 0x0Fu];
 	}
@@ -210,7 +210,7 @@ inline void RecordPaletteChange(
 		return result;
 	}
 
-	for (const char character : value) {
+	for (char character : value) {
 		if (HexDigit(character) < 0) {
 			result.error = std::string{ "Invalid hexadecimal character '" } + character + "'.";
 			return result;
@@ -218,7 +218,7 @@ inline void RecordPaletteChange(
 	}
 
 	auto read_short = [&](std::size_t index) {
-		const int digit{ HexDigit(value[index]) };
+		int digit{ HexDigit(value[index]) };
 		return static_cast<std::uint8_t>(digit * 17);
 	};
 
@@ -341,7 +341,7 @@ struct PaletteFileResult {
 
 [[nodiscard]] inline PaletteFileResult ParseJascPalette(const std::vector<std::uint8_t>& bytes) {
 	PaletteFileResult result;
-	const std::string text{ bytes.begin(), bytes.end() };
+	std::string text{ bytes.begin(), bytes.end() };
 	std::istringstream stream{ text };
 
 	std::string line;
@@ -364,7 +364,7 @@ struct PaletteFileResult {
 
 	std::size_t expected_count{};
 	try {
-		const std::string count_text{ TrimLine(line) };
+		std::string count_text{ TrimLine(line) };
 		std::size_t consumed{};
 		expected_count = std::stoull(count_text, &consumed);
 		if (consumed != count_text.size()) {
@@ -378,12 +378,12 @@ struct PaletteFileResult {
 
 	result.colors.reserve(expected_count);
 	while (result.colors.size() < expected_count && std::getline(stream, line)) {
-		const std::string_view trimmed{ TrimLine(line) };
+		std::string_view trimmed{ TrimLine(line) };
 		if (trimmed.empty()) {
 			continue;
 		}
 
-		const auto color{ ParsePaletteTextColorLine(std::string{ trimmed }) };
+		auto color{ ParsePaletteTextColorLine(std::string{ trimmed }) };
 		if (!color.has_value()) {
 			result.error = "The JASC-PAL file contains an invalid RGB/RGBA color row.";
 			result.colors.clear();
@@ -408,9 +408,9 @@ struct PaletteFileResult {
 	}
 
 	for (std::size_t chunk{ 12 }; chunk + 8 <= bytes.size();) {
-		const std::uint32_t chunk_size{ ReadLe32(bytes, chunk + 4) };
-		const std::size_t data_begin{ chunk + 8 };
-		const std::size_t data_end{ data_begin + static_cast<std::size_t>(chunk_size) };
+		std::uint32_t chunk_size{ ReadLe32(bytes, chunk + 4) };
+		std::size_t data_begin{ chunk + 8 };
+		std::size_t data_end{ data_begin + static_cast<std::size_t>(chunk_size) };
 		if (data_end > bytes.size()) {
 			result.error = "The RIFF PAL file contains a truncated chunk.";
 			return result;
@@ -422,10 +422,9 @@ struct PaletteFileResult {
 				return result;
 			}
 
-			const std::uint16_t color_count{ ReadLe16(bytes, data_begin + 2) };
-			const std::size_t colors_begin{ data_begin + 4 };
-			const std::size_t required_size{ colors_begin +
-											 static_cast<std::size_t>(color_count) * 4 };
+			std::uint16_t color_count{ ReadLe16(bytes, data_begin + 2) };
+			std::size_t colors_begin{ data_begin + 4 };
+			std::size_t required_size{ colors_begin + static_cast<std::size_t>(color_count) * 4 };
 			if (required_size > data_end) {
 				result.error = "The RIFF PAL file ended before all palette entries were read.";
 				return result;
@@ -433,7 +432,7 @@ struct PaletteFileResult {
 
 			result.colors.reserve(color_count);
 			for (std::size_t index{ 0 }; index < color_count; ++index) {
-				const std::size_t entry{ colors_begin + index * 4 };
+				std::size_t entry{ colors_begin + index * 4 };
 				// The fourth PALETTEENTRY byte contains flags, not alpha.
 				result.colors.push_back(
 					Color{
@@ -458,17 +457,17 @@ struct PaletteFileResult {
 	const std::vector<std::uint8_t>& bytes
 ) {
 	PaletteFileResult result;
-	const std::string text{ bytes.begin(), bytes.end() };
+	std::string text{ bytes.begin(), bytes.end() };
 	std::istringstream stream{ text };
 	std::string line;
 
 	while (std::getline(stream, line)) {
-		const std::string_view trimmed{ TrimLine(line) };
+		std::string_view trimmed{ TrimLine(line) };
 		if (trimmed.empty() || trimmed.starts_with("#") || trimmed.starts_with("//")) {
 			continue;
 		}
 
-		const auto color{ ParsePaletteTextColorLine(std::string{ trimmed }) };
+		auto color{ ParsePaletteTextColorLine(std::string{ trimmed }) };
 		if (!color.has_value()) {
 			result.colors.clear();
 			result.error = "Unsupported .PAL format or invalid RGB/RGBA text row.";
@@ -491,7 +490,7 @@ struct PaletteFileResult {
 		return result;
 	}
 
-	const std::streamsize size{ file.tellg() };
+	std::streamsize size{ file.tellg() };
 	if (size < 0) {
 		result.error = "Could not determine the selected .PAL file size.";
 		return result;
@@ -542,7 +541,7 @@ inline std::size_t AppendUniqueColors(
 	EditorColorPalette& palette, const std::vector<Color>& colors
 ) {
 	std::size_t added{};
-	for (const Color color : colors) {
+	for (Color color : colors) {
 		if (PaletteContainsColor(palette, color)) {
 			continue;
 		}
@@ -562,7 +561,7 @@ inline std::size_t AppendUniqueColors(
 	EditorContext& ctx, ColorPickerUiState& state
 ) {
 	state.palette_import_error.clear();
-	const auto dialog_result{ OpenPaletteFileDialog(ctx) };
+	auto dialog_result{ OpenPaletteFileDialog(ctx) };
 	if (!dialog_result.has_value()) {
 		state.palette_import_error = dialog_result.error();
 		return std::nullopt;
@@ -571,7 +570,7 @@ inline std::size_t AppendUniqueColors(
 		return std::nullopt;
 	}
 
-	const PaletteFileResult read_result{ ReadPaletteFile(**dialog_result) };
+	PaletteFileResult read_result{ ReadPaletteFile(**dialog_result) };
 	if (!read_result.error.empty()) {
 		state.palette_import_error = read_result.error;
 		return std::nullopt;
@@ -647,8 +646,7 @@ inline void AdjustPaletteUiStateAfterDelete(ColorPickerUiState& state, std::size
 	}
 
 	if (state.renaming_color.has_value()) {
-		auto& [palette_index, color_index]{ *state.renaming_color };
-		(void)color_index;
+		auto& [palette_index, _color_index]{ *state.renaming_color };
 		if (palette_index == deleted_index) {
 			CancelColorRename(state);
 		} else if (palette_index > deleted_index) {
@@ -673,7 +671,7 @@ inline ColorPickerResult DrawColorPickerContents(
 	ColorPickerResult result;
 	ImGui::PushID(id);
 
-	const ImGuiID state_id{ ImGui::GetID("##ColorPickerState") };
+	ImGuiID state_id{ ImGui::GetID("##ColorPickerState") };
 	auto& ui_state{ color_picker_detail::PickerStates()[state_id] };
 	if (!ui_state.initialized || ImGui::IsWindowAppearing()) {
 		ui_state.initialized	= true;
@@ -691,7 +689,7 @@ inline ColorPickerResult DrawColorPickerContents(
 		color_picker_detail::CancelPaletteRename(ui_state);
 	}
 	if (ui_state.renaming_color.has_value()) {
-		const auto [palette_index, color_index]{ *ui_state.renaming_color };
+		auto [palette_index, color_index]{ *ui_state.renaming_color };
 		if (palette_index >= palettes.size() ||
 			color_index >= palettes[palette_index].colors.size()) {
 			color_picker_detail::CancelColorRename(ui_state);
@@ -770,12 +768,12 @@ inline ColorPickerResult DrawColorPickerContents(
 	ImGui::SeparatorText("Picker");
 
 	auto rgba{ color_picker_detail::ToFloatColor(value) };
-	const ImGuiColorEditFlags picker_flags{ flags | ImGuiColorEditFlags_NoSidePreview |
-											ImGuiColorEditFlags_NoInputs };
+	ImGuiColorEditFlags picker_flags{ flags | ImGuiColorEditFlags_NoSidePreview |
+									  ImGuiColorEditFlags_NoInputs };
 
-	const float preview_width{ std::max(72.0f, ImGui::GetFrameHeight() * 3.25f) };
-	const float picker_width{ 300.0f };
-	const float preview_height{ std::max(36.0f, ImGui::GetFrameHeight() * 1.75f) };
+	float preview_width{ std::max(72.0f, ImGui::GetFrameHeight() * 3.25f) };
+	float picker_width{ 300.0f };
+	float preview_height{ std::max(36.0f, ImGui::GetFrameHeight() * 1.75f) };
 
 	ImGui::BeginGroup();
 	ImGui::SetNextItemWidth(picker_width);
@@ -819,15 +817,19 @@ inline ColorPickerResult DrawColorPickerContents(
 		static_cast<int>(value.b),
 		static_cast<int>(value.a),
 	};
+
 	bool has_alpha{ (flags & ImGuiColorEditFlags_NoAlpha) == 0 };
-	const int channel_count{ has_alpha ? 4 : 3 };
-	const float spacing{ ImGui::GetStyle().ItemSpacing.x };
-	const float channels_available{ ImGui::GetContentRegionAvail().x };
-	const float channel_width{ std::max(
+
+	int channel_count{ has_alpha ? 4 : 3 };
+	float spacing{ ImGui::GetStyle().ItemSpacing.x };
+
+	float channels_available{ ImGui::GetContentRegionAvail().x };
+	float channel_width{ std::max(
 		48.0f, (channels_available - spacing * static_cast<float>(channel_count - 1)) /
 				   static_cast<float>(channel_count)
 	) };
-	const std::array<const char*, 4> channel_formats{ "R: %d", "G: %d", "B: %d", "A: %d" };
+
+	std::array<const char*, 4> channel_formats{ "R: %d", "G: %d", "B: %d", "A: %d" };
 
 	bool channels_changed{ false };
 	for (int index{ 0 }; index < channel_count; ++index) {
@@ -871,7 +873,7 @@ inline ColorPickerResult DrawColorPickerContents(
 	bool hex_active{ ImGui::IsItemActive() };
 
 	if (hex_changed) {
-		const auto parsed{ color_picker_detail::ParseHexColor(ui_state.hex) };
+		auto parsed{ color_picker_detail::ParseHexColor(ui_state.hex) };
 		if (parsed.color.has_value()) {
 			ui_state.hex_color = *parsed.color;
 			if (value != *parsed.color) {
@@ -881,7 +883,7 @@ inline ColorPickerResult DrawColorPickerContents(
 		}
 	}
 
-	const auto parsed_hex{ color_picker_detail::ParseHexColor(ui_state.hex) };
+	auto parsed_hex{ color_picker_detail::ParseHexColor(ui_state.hex) };
 	color_picker_detail::DrawInvalidInputBorder(parsed_hex.error);
 
 	if (!hex_active && ui_state.hex_was_active) {
@@ -900,16 +902,15 @@ inline ColorPickerResult DrawColorPickerContents(
 		has_selected_palette &&
 		color_picker_detail::PaletteContainsColor(palettes[*ui_state.selected_palette], value)
 	};
-	const std::string add_color_label{ has_selected_palette
-										   ? "+ Add Color to " +
-												 palettes[*ui_state.selected_palette].name
-										   : "+ Add Color" };
+	std::string add_color_label{ has_selected_palette
+									 ? "+ Add Color to " + palettes[*ui_state.selected_palette].name
+									 : "+ Add Color" };
 
-	const float button_spacing{ ImGui::GetStyle().ItemSpacing.x };
-	const float button_height{ ImGui::GetFrameHeight() };
-	const float palette_button_width{ ImGui::CalcTextSize("+ Palette").x +
-									  ImGui::GetStyle().FramePadding.x * 2.0f + 4.0f };
-	const float add_color_button_width{
+	float button_spacing{ ImGui::GetStyle().ItemSpacing.x };
+	float button_height{ ImGui::GetFrameHeight() };
+	float palette_button_width{ ImGui::CalcTextSize("+ Palette").x +
+								ImGui::GetStyle().FramePadding.x * 2.0f + 4.0f };
+	float add_color_button_width{
 		std::max(1.0f, ImGui::GetContentRegionAvail().x - palette_button_width - button_spacing)
 	};
 
@@ -919,7 +920,7 @@ inline ColorPickerResult DrawColorPickerContents(
 	if (ImGui::BeginPopup("AddPaletteMenu")) {
 		if (ImGui::MenuItem("Blank Palette")) {
 			auto before{ palettes };
-			const std::size_t new_palette_index{ palettes.size() };
+			std::size_t new_palette_index{ palettes.size() };
 			palettes.push_back(
 				EditorColorPalette{
 					.name = color_picker_detail::MakeUniquePaletteName(ctx.project_state),
@@ -936,10 +937,10 @@ inline ColorPickerResult DrawColorPickerContents(
 		}
 
 		if (ImGui::MenuItem("From PAL File")) {
-			if (const auto imported_colors{
+			if (auto imported_colors{
 					color_picker_detail::ChoosePaletteFileColors(ctx, ui_state) }) {
 				auto before{ palettes };
-				const std::size_t new_palette_index{ palettes.size() };
+				std::size_t new_palette_index{ palettes.size() };
 				EditorColorPalette palette{
 					.name = color_picker_detail::MakeUniquePaletteName(ctx.project_state),
 				};
@@ -963,7 +964,7 @@ inline ColorPickerResult DrawColorPickerContents(
 	ImGui::SameLine(0.0f, button_spacing);
 	ImGui::BeginDisabled(!has_selected_palette || selected_palette_has_color);
 	if (ImGui::Button(add_color_label.c_str(), ImVec2{ add_color_button_width, button_height })) {
-		const std::size_t palette_index{ *ui_state.selected_palette };
+		std::size_t palette_index{ *ui_state.selected_palette };
 		auto before{ palettes };
 		auto& palette{ palettes[palette_index] };
 		palette.colors.push_back(
@@ -998,15 +999,15 @@ inline ColorPickerResult DrawColorPickerContents(
 	}
 
 	const ImGuiViewport* viewport{ ImGui::GetWindowViewport() };
-	const float resize_grip_height{ 7.0f };
-	const float viewport_bottom{ viewport ? viewport->WorkPos.y + viewport->WorkSize.y
-										  : ImGui::GetCursorScreenPos().y + 260.0f };
-	const float available_to_bottom{ std::max(
+	float resize_grip_height{ 7.0f };
+	float viewport_bottom{ viewport ? viewport->WorkPos.y + viewport->WorkSize.y
+									: ImGui::GetCursorScreenPos().y + 260.0f };
+	float available_to_bottom{ std::max(
 		1.0f, viewport_bottom - ImGui::GetCursorScreenPos().y -
 				  ImGui::GetStyle().WindowPadding.y * 2.0f - resize_grip_height
 	) };
-	const float minimum_palette_height{ std::min(140.0f, available_to_bottom) };
-	const float natural_palette_height{ std::max(
+	float minimum_palette_height{ std::min(140.0f, available_to_bottom) };
+	float natural_palette_height{ std::max(
 		minimum_palette_height,
 		static_cast<float>(palettes.size()) * ImGui::GetFrameHeightWithSpacing() +
 			ImGui::GetStyle().WindowPadding.y * 2.0f
@@ -1018,7 +1019,7 @@ inline ColorPickerResult DrawColorPickerContents(
 	}
 	ui_state.palette_height =
 		std::clamp(ui_state.palette_height, minimum_palette_height, available_to_bottom);
-	const float palette_child_height{ ui_state.palette_height };
+	float palette_child_height{ ui_state.palette_height };
 
 	if (ImGui::BeginChild(
 			"##PaletteList", ImVec2{ 0.0f, palette_child_height }, ImGuiChildFlags_Borders
@@ -1029,7 +1030,7 @@ inline ColorPickerResult DrawColorPickerContents(
 			auto& palette{ palettes[palette_index] };
 			ImGui::PushID(static_cast<int>(palette_index));
 
-			const float row_height{ ImGui::GetFrameHeight() };
+			float row_height{ ImGui::GetFrameHeight() };
 			bool open{ ui_state.palette_open[palette_index] };
 			bool renaming{ ui_state.renaming_palette.has_value() &&
 						   *ui_state.renaming_palette == palette_index };
@@ -1045,7 +1046,7 @@ inline ColorPickerResult DrawColorPickerContents(
 				ImGui::SetNextItemOpen(open, ImGuiCond_Always);
 			}
 
-			const auto palette_node{ DrawRenamableTreeNode(
+			auto palette_node{ DrawRenamableTreeNode(
 				renaming, BindRenameState(ui_state.palette_rename), "##PaletteNode", palette.name,
 				node_flags,
 				[&](std::string_view candidate) {
@@ -1101,7 +1102,7 @@ inline ColorPickerResult DrawColorPickerContents(
 					},
 					[&]() {
 						if (ImGui::MenuItem("Import from PAL file")) {
-							if (const auto imported_colors{
+							if (auto imported_colors{
 									color_picker_detail::ChoosePaletteFileColors(ctx, ui_state) }) {
 								auto before{ palettes };
 								color_picker_detail::AppendUniqueColors(palette, *imported_colors);
@@ -1123,10 +1124,10 @@ inline ColorPickerResult DrawColorPickerContents(
 			if (open) {
 				ImGui::Indent(row_height * 0.65f);
 				std::optional<std::size_t> color_to_delete;
-				const float swatch_size{ ImGui::GetFrameHeight() };
-				const float swatch_spacing{ ImGui::GetStyle().ItemSpacing.x };
-				const float available{ ImGui::GetContentRegionAvail().x };
-				const std::size_t columns{ std::max<std::size_t>(
+				float swatch_size{ ImGui::GetFrameHeight() };
+				float swatch_spacing{ ImGui::GetStyle().ItemSpacing.x };
+				float available{ ImGui::GetContentRegionAvail().x };
+				std::size_t columns{ std::max<std::size_t>(
 					1, static_cast<std::size_t>(
 						   (available + swatch_spacing) / (swatch_size + swatch_spacing)
 					   )
@@ -1140,9 +1141,9 @@ inline ColorPickerResult DrawColorPickerContents(
 					 ++color_index) {
 					ImGui::PushID(static_cast<int>(color_index));
 					auto& palette_entry{ palette.colors[color_index] };
-					const Color palette_color{ palette_entry.color };
+					Color palette_color{ palette_entry.color };
 
-					const auto color_item{ DrawRenamableItem([&]() {
+					auto color_item{ DrawRenamableItem([&]() {
 						if (ImGui::ColorButton(
 								"##Color", color_picker_detail::ToImVec4(palette_color),
 								ImGuiColorEditFlags_AlphaPreviewHalf |
@@ -1159,7 +1160,7 @@ inline ColorPickerResult DrawColorPickerContents(
 					}) };
 
 					if (color_item.hovered) {
-						const std::string description{
+						std::string description{
 							palette_entry.name + "\n" +
 							color_picker_detail::ColorDescription(palette_color)
 						};
@@ -1184,7 +1185,7 @@ inline ColorPickerResult DrawColorPickerContents(
 											  ui_state.renaming_color->first == palette_index &&
 											  ui_state.renaming_color->second == color_index };
 					if (renaming_this_color) {
-						const RenameResult rename_result{ DrawRenameModal(
+						RenameResult rename_result{ DrawRenameModal(
 							ui_state.color_rename, "Rename Color##RenameColorModal", "##Name",
 							[&](std::string_view candidate) {
 								if (candidate.empty()) {
@@ -1213,7 +1214,7 @@ inline ColorPickerResult DrawColorPickerContents(
 								.title = nullptr,
 								.draw_input_prefix =
 									[palette_color]() {
-										const float thumbnail_size{ ImGui::GetFrameHeight() };
+										float thumbnail_size{ ImGui::GetFrameHeight() };
 										ImGui::ColorButton(
 											"##RenameColorPreview",
 											color_picker_detail::ToImVec4(palette_color),
@@ -1284,9 +1285,9 @@ inline ColorPickerResult DrawColorPickerContents(
 		);
 	}
 
-	const ImVec2 grip_min{ ImGui::GetItemRectMin() };
-	const ImVec2 grip_max{ ImGui::GetItemRectMax() };
-	const float grip_y{ (grip_min.y + grip_max.y) * 0.5f };
+	ImVec2 grip_min{ ImGui::GetItemRectMin() };
+	ImVec2 grip_max{ ImGui::GetItemRectMax() };
+	float grip_y{ (grip_min.y + grip_max.y) * 0.5f };
 	ImGui::GetWindowDrawList()->AddLine(
 		ImVec2{ grip_min.x + ImGui::GetStyle().FramePadding.x, grip_y },
 		ImVec2{ grip_max.x - ImGui::GetStyle().FramePadding.x, grip_y },
@@ -1309,11 +1310,11 @@ inline bool DrawColorEdit(
 	bool changed{ false };
 	auto rgba{ color_picker_detail::ToFloatColor(value) };
 	bool no_inputs{ (flags & ImGuiColorEditFlags_NoInputs) != 0 };
-	const float swatch_size{ ImGui::GetFrameHeight() };
+	float swatch_size{ ImGui::GetFrameHeight() };
 
 	if (!no_inputs) {
-		const float requested_width{ ImGui::CalcItemWidth() };
-		const float input_width{
+		float requested_width{ ImGui::CalcItemWidth() };
+		float input_width{
 			std::max(1.0f, requested_width - swatch_size - ImGui::GetStyle().ItemInnerSpacing.x)
 		};
 		ImGui::SetNextItemWidth(input_width);
@@ -1335,7 +1336,7 @@ inline bool DrawColorEdit(
 		ImGui::OpenPopup("PickerPopup");
 	}
 
-	const std::string_view label_view{ label ? label : "" };
+	std::string_view label_view{ label ? label : "" };
 	if (!label_view.empty() && !label_view.starts_with("##")) {
 		ImGui::SameLine();
 		ImGui::TextUnformatted(label);

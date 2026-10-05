@@ -27,7 +27,7 @@ Scene* ResolveScene(Editor& editor, const EditorSelection& selection) {
 	}
 
 	auto& scenes{ editor.GetSceneManager().GetScenes() };
-	const auto it{ std::ranges::find_if(scenes, [&selection](const auto& scene) {
+	auto it{ std::ranges::find_if(scenes, [&selection](const auto& scene) {
 		return scene && scene->GetTag() == selection.selected_scene_key &&
 			   scene->IsRuntime() == selection.selected_scene_runtime;
 	}) };
@@ -58,7 +58,7 @@ bool EditorSelection::HasEntitySelection(std::string_view scene_key, bool runtim
 }
 
 std::optional<UUID> EditorSelection::GetEntityUUID(std::string_view scene_key, bool runtime) const {
-	const auto it{ std::ranges::find_if(
+	auto it{ std::ranges::find_if(
 		scene_entities, [scene_key, runtime](const SceneEntitySelection& selection) {
 			return selection.scene_key == scene_key && selection.runtime == runtime;
 		}
@@ -70,7 +70,7 @@ std::optional<UUID> EditorSelection::GetEntityUUID(std::string_view scene_key, b
 void EditorSelection::SetEntityUUID(
 	std::string scene_key, bool runtime, std::optional<UUID> entity_uuid
 ) {
-	const auto it{ std::ranges::find_if(
+	auto it{ std::ranges::find_if(
 		scene_entities, [&scene_key, runtime](const SceneEntitySelection& selection) {
 			return selection.scene_key == scene_key && selection.runtime == runtime;
 		}
@@ -131,7 +131,7 @@ Entity ResolveSelectedEntity(EditorContext& ctx) {
 		return {};
 	}
 
-	const auto uuid{ ctx.local.selection.GetEntityUUID(scene->GetTag(), scene->IsRuntime()) };
+	auto uuid{ ctx.local.selection.GetEntityUUID(scene->GetTag(), scene->IsRuntime()) };
 
 	return uuid ? scene->GetEntity(*uuid) : Entity{};
 }
@@ -139,8 +139,8 @@ Entity ResolveSelectedEntity(EditorContext& ctx) {
 void ApplyEditorSelection(EditorContext& ctx, EditorSelection selection) {
 	Scene* previous_scene{ ResolveSelectedScene(ctx) };
 
-	// A number of editor systems re-apply the current selection as part of keeping
-	// paint/layer state synchronized. Those no-op applications must not cancel an
+	// A number of editor systems reapply the current selection as part of keeping
+	// paint/layer state synchronized. Those no op applications must not cancel an
 	// active position pick. A real selection change still cancels the picker, since
 	// its apply callback belongs to the object/property that was being inspected.
 	bool selection_changed{ ctx.local.selection != selection };
@@ -164,7 +164,7 @@ bool SetEditorSelection(
 ) {
 	ctx.undo.CommitActiveEdit();
 
-	const EditorSelection before{ ctx.local.selection };
+	EditorSelection before{ ctx.local.selection };
 	if (before == selection) {
 		return false;
 	}
@@ -247,13 +247,13 @@ bool SetSceneHierarchyTab(EditorContext& ctx, EditorSelectionMode tab) {
 		return false;
 	}
 
-	const EditorSelection before{ ctx.local.selection };
+	EditorSelection before{ ctx.local.selection };
 	EditorSelection after{ before };
 	after.mode = tab;
 
 	bool runtime{ ctx.editor.IsPlaying() };
 	EditorContext* context{ std::addressof(ctx) };
-	const auto before_tab{ before.mode };
+	auto before_tab{ before.mode };
 
 	const char* label{ tab == EditorSelectionMode::SceneHierarchy ? "Select Scene Hierarchy Tab"
 					   : tab == EditorSelectionMode::Prefabs	  ? "Select Prefabs Tab"
@@ -282,7 +282,7 @@ bool SetSceneListTab(EditorContext& ctx, SceneListTab tab) {
 		return false;
 	}
 
-	const EditorSelection before{ ctx.local.selection };
+	EditorSelection before{ ctx.local.selection };
 	EditorSelection after{ before };
 	after.scene_list_tab = tab;
 
@@ -293,7 +293,7 @@ bool SetSceneListTab(EditorContext& ctx, SceneListTab tab) {
 
 	bool runtime{ ctx.editor.IsPlaying() };
 	EditorContext* context{ std::addressof(ctx) };
-	const auto before_tab{ before.scene_list_tab };
+	auto before_tab{ before.scene_list_tab };
 
 	ctx.undo.Execute(
 		std::make_unique<ActionEditorCommand>(
@@ -315,7 +315,7 @@ bool SetSceneListTab(EditorContext& ctx, SceneListTab tab) {
 
 bool SyncVisibleSceneListTab(EditorContext& ctx, SceneListTab tab) {
 	auto& pending{ PendingSceneListTabFocus() };
-	const auto it{ pending.find(std::addressof(ctx)) };
+	auto it{ pending.find(std::addressof(ctx)) };
 
 	if (it != pending.end()) {
 		if (it->second == tab) {
@@ -341,15 +341,15 @@ bool SetInspectorTab(EditorContext& ctx, InspectorTab tab) {
 		return false;
 	}
 
-	const EditorSelection before{ ctx.local.selection };
+	EditorSelection before{ ctx.local.selection };
 	EditorSelection after{ before };
 	after.inspector_tab = tab;
 
 	bool runtime{ ctx.editor.IsPlaying() };
 	EditorContext* context{ std::addressof(ctx) };
-	const auto before_tab{ before.inspector_tab };
-	const auto before_mode{ before.mode };
-	const auto after_mode{ after.mode };
+	auto before_tab{ before.inspector_tab };
+	auto before_mode{ before.mode };
+	auto after_mode{ after.mode };
 
 	ctx.undo.Execute(
 		std::make_unique<ActionEditorCommand>(
