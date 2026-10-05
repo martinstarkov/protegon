@@ -33,14 +33,14 @@ struct TimerReferenceSceneSnapshot {
 	std::shared_ptr<const void> data{};
 };
 
-[[nodiscard]] TimerReferenceSceneSnapshot CaptureTimerReferenceSceneSnapshot(Scene& scene);
+TimerReferenceSceneSnapshot CaptureTimerReferenceSceneSnapshot(Scene& scene);
+
 void RestoreTimerReferenceSceneSnapshot(
 	Editor& editor, const EntityReference& anchor_reference,
 	const TimerReferenceSceneSnapshot& snapshot
 );
-[[nodiscard]] bool RenameTimerReferences(
-	Entity timer_entity, const TimerKey& old_key, const TimerKey& new_key
-);
+
+bool RenameTimerReferences(Entity timer_entity, const TimerKey& old_key, const TimerKey& new_key);
 
 } // namespace inspector
 

@@ -249,7 +249,7 @@ public:
 	[[nodiscard]] bool IsComplete() const;
 	[[nodiscard]] AssetLoadProgress GetProgress() const;
 	[[nodiscard]] const std::vector<AssetKey>& GetDependencies() const;
-	/// @brief Transfers dependency-release responsibility to a Scene.
+	/// @brief Transfers dependency release responsibility to a Scene.
 	[[nodiscard]] std::vector<AssetKey> ReleaseOwnership();
 
 private:
@@ -276,8 +276,8 @@ struct PrefabAssetData {
 	path file_path{};
 	path source_path{};
 	Prefab value{};
-	/// Live ECS mirror of value.root. Prefab assets therefore expose the same component-bearing
-	/// entity model as scene entities while persistence remains SerializedEntity-based.
+	/// Live ECS mirror of value.root. Prefab assets therefore expose the same component bearing
+	/// entity model as scene entities while persistence remains based on SerializedEntity.
 	Entity root{};
 };
 
@@ -310,7 +310,7 @@ private:
 
 class AssetManager {
 public:
-	/// @brief Advances asynchronous asset preparation and finalizes GPU/main-thread resources.
+	/// @brief Advances asynchronous asset preparation and finalizes GPU/main thread resources.
 	/// Call once per application frame.
 	void Update();
 	/// @brief Loads all supported asset files from a directory immediately.
@@ -320,10 +320,10 @@ public:
 		const std::vector<std::pair<AssetKey, std::variant<path, ShaderCode, ShaderPair>>>&
 			asset_keys_and_paths
 	);
-	/// @brief Registers a path-backed asset without loading it. This is useful for asynchronous
+	/// @brief Registers a path backed asset without loading it. This is useful for asynchronous
 	/// loading when the asset is not already present in a project catalog.
 	[[nodiscard]] bool RegisterAsset(AssetKey key, const path& asset_path);
-	/// @brief Loads and catalogs a path-backed asset. Relative paths may be project-relative or
+	/// @brief Loads and catalogs a path backed asset. Relative paths may be project relative or
 	/// relative to the runtime asset root/current working directory.
 	void Load(AssetKey key, const path& asset_path);
 	void Load(ShaderKey key, const ShaderCode& shader_code);
@@ -331,10 +331,10 @@ public:
 	void Load(const SerializedAsset& asset);
 	/// @brief Synchronously loads catalog assets. Prefer AcquireDependenciesAsync for gameplay.
 	void LoadDependencies(std::span<const AssetKey> dependencies);
-	/// @brief Starts a non-blocking manual residency load. Unload clears this residency pin.
+	/// @brief Starts a nonblocking manual residency load. Unload clears this residency pin.
 	void LoadAssetAsync(const AssetKey& key);
 	void LoadAssetAsync(const AssetKey& key, AssetKind kind);
-	/// @brief Starts non-blocking loads and retains the assets until the returned ticket is moved
+	/// @brief Starts nonblocking loads and retains the assets until the returned ticket is moved
 	/// into a Scene or destroyed.
 	[[nodiscard]] impl::AssetLoadTicket AcquireDependenciesAsync(
 		std::span<const AssetKey> dependencies
@@ -342,21 +342,21 @@ public:
 	/// @return Aggregate progress for all currently active asynchronous load batches.
 	[[nodiscard]] impl::AssetLoadProgress GetActiveLoadProgress() const;
 	[[nodiscard]] bool IsLoading() const;
-	/// @brief Loads an asset and pins it as a project-wide startup dependency.
+	/// @brief Loads an asset and pins it as a project wide startup dependency.
 	void LoadProjectAsset(AssetKey key, const path& asset_path);
 	/// @brief Replaces the known project catalog without loading every entry.
 	/// @return True when normalization/discovery changed the serialized catalog.
 	bool RegisterCatalog(std::span<const SerializedAsset> assets, const Project& project);
 	/// @brief Adds supported files found under the project Assets directory to the catalog.
 	void RefreshCatalogFromDisk();
-	/// @return The complete known path-backed project asset catalog.
+	/// @return The complete known path backed project asset catalog.
 	[[nodiscard]] std::vector<SerializedAsset> GetCatalog() const;
 	[[nodiscard]] std::optional<SerializedAsset> GetCatalogAsset(const AssetKey& key) const;
 	[[nodiscard]] std::optional<SerializedAsset> GetCatalogAsset(
 		const AssetKey& key, AssetKind kind
 	) const;
 	void AddProjectAssetDependency(AssetKey key);
-	/// @brief Pins and starts a non-blocking load for one project-wide dependency.
+	/// @brief Pins and starts a nonblocking load for one project wide dependency.
 	void PreloadProjectAsset(AssetKey key);
 	void RemoveProjectAssetDependency(const AssetKey& key);
 	void AddProjectAssetDependencies(std::span<const AssetKey> dependencies);
@@ -388,7 +388,7 @@ public:
 	bool DeleteAsset(const AssetKey& key, AssetKind kind, bool delete_file = true);
 	/// @brief Sets the vertex/fragment source descriptors for a shader program.
 	/// $source selects this shader file, $builtin:<name> selects an embedded engine stage, and a
-	/// project-relative path selects another GLSL file. A missing stage is retained as
+	/// project relative path selects another GLSL file. A missing stage is retained as
 	/// unconfigured; passing nullopt for both clears the explicit program configuration.
 	bool ConfigureShaderProgram(
 		const ShaderKey& key, std::optional<std::string> vertex_source,
@@ -582,7 +582,7 @@ private:
 	AudioSystem* audio_{ nullptr };
 	FontSystem* font_{ nullptr };
 	ecs::Manager manager_;
-	/// Asset records use ecs::Manager (VoidArchiver). Prefab pseudo-entities need the engine
+	/// Asset records use ecs::Manager (VoidArchiver). Prefab pseudo entities need the engine
 	/// Entity wrapper, which is backed by BaseEntity<JsonArchiver>, so they live in a separate
 	/// ptgn::Manager.
 	Manager prefab_manager_;

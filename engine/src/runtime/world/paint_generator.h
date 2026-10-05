@@ -11,7 +11,6 @@
 #include "runtime/asset/asset_key.h"
 #include "runtime/ecs/entity.h"
 #include "runtime/ecs/tag.h"
-#include "runtime/ecs/uuid.h"
 #include "runtime/world/entity_layer.h"
 #include "runtime/world/tilemap.h"
 #include "serialization/serialize.h"
@@ -187,10 +186,6 @@ struct PaintGeneratorData {
 	PaintGeneratorGeometry geometry{ PaintGeneratorGeometry::Rectangle };
 	PaintGeneratorRecipe recipe{};
 
-	/// Compatibility/recovery hint for scenes authored before Tilemap parenting.
-	/// A Tile layer generator's Tilemap parent is authoritative.
-	std::optional<UUID> target_tilemap{};
-
 	/// Captured authoring raster. These are implementation details rather than ordinary
 	/// Inspector properties; generators retain the lattice they were authored against.
 	V2_float grid_size{ 32.0f, 32.0f };
@@ -210,9 +205,9 @@ struct PaintGeneratorData {
 	bool enabled{ true };
 
 	PTGN_REFLECT(
-		PaintGeneratorData, geometry, recipe, target_tilemap, grid_size, grid_offset, start, end,
-		brush_shape, line_thickness, line_spacing, area_mode, area_thickness, random_fill_density,
-		stroke_points, suppressed_cells, enabled
+		PaintGeneratorData, geometry, recipe, grid_size, grid_offset, start, end, brush_shape,
+		line_thickness, line_spacing, area_mode, area_thickness, random_fill_density, stroke_points,
+		suppressed_cells, enabled
 	)
 };
 
@@ -230,11 +225,11 @@ public:
 	PaintGenerator& SetGrid(V2_float size, V2_float offset = {});
 	PaintGenerator& SetEnabled(bool enabled);
 
-	/// @brief Return the Tilemap parent. A valid legacy UUID is accepted as a migration fallback.
+	/// @brief Return the Tilemap parent.
 	[[nodiscard]] Tilemap GetTargetTilemap() const;
 
 	/// @brief Parent this generator to a Tilemap while preserving its world transform.
-	/// Passing null removes a Tilemap parent and clears the compatibility target.
+	/// Passing null removes a Tilemap parent.
 	bool SetTargetTilemap(std::optional<Tilemap> target);
 
 	[[nodiscard]] bool IsSuppressed(V2_int cell) const;

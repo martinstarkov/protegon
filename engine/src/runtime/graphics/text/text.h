@@ -16,11 +16,11 @@
 #include "renderer/text/text_glyph.h"
 #include "renderer/text/text_layout.h"
 #include "renderer/text/text_style.h"
+#include "runtime/asset/asset_key.h"
 #include "runtime/ecs/entity.h"
 #include "runtime/graphics/drawable.h"
-#include "serialization/serialize.h"
-#include "runtime/asset/asset_key.h"
 #include "runtime/graphics/text/font_system.h"
+#include "serialization/serialize.h"
 
 namespace ptgn {
 
@@ -44,11 +44,9 @@ struct StyledText {
 
 	constexpr StyledText() = default;
 
-	constexpr StyledText(std::initializer_list<TextRun> text_runs) :
-		runs{ text_runs } {}
+	constexpr StyledText(std::initializer_list<TextRun> text_runs) : runs{ text_runs } {}
 
-	constexpr explicit StyledText(const TextRun& run) :
-		runs{ run } {}
+	constexpr explicit StyledText(const TextRun& run) : runs{ run } {}
 
 	constexpr bool operator==(const StyledText&) const = default;
 
@@ -98,8 +96,8 @@ using RichTextVariableResolver =
 /// Use this for user/runtime values before inserting them into markup.
 [[nodiscard]] std::string EscapeRichText(std::string_view text);
 
-/// @brief Expands ${variable} expressions. Resolved values are escaped so they cannot inject markup.
-/// Unresolved variables are preserved verbatim.
+/// @brief Expands ${variable} expressions. Resolved values are escaped so they cannot inject
+/// markup. Unresolved variables are preserved verbatim.
 [[nodiscard]] std::string ExpandRichTextVariables(
 	std::string_view source, const RichTextVariableResolver& resolver
 );
@@ -113,7 +111,7 @@ using RichTextVariableResolver =
 [[nodiscard]] RichTextParseResult ParseRichText(const RichText& rich_text);
 
 /// @brief Converts existing runs to an equivalent rich text source representation.
-/// Useful for editor migration of legacy/manual StyledText.
+/// Useful when converting StyledText into editable rich text source.
 [[nodiscard]] std::string SerializeStyledTextToRichText(
 	const StyledText& styled_text, const TextRunDefaults& defaults = {}
 );
@@ -182,17 +180,22 @@ public:
 	Text& Box(Rect text_rect);
 	Text& Box(const TextBox& text_box);
 
-	/// @brief Sets the number of glyphs to reveal. 
-	/// @param glyph_count If nullopt or greater than the total number of glyphs, all glyphs will be revealed.
+	/// @brief Sets the number of glyphs to reveal.
+	/// @param glyph_count If nullopt or greater than the total number of glyphs, all glyphs will be
+	/// revealed.
 	Text& Reveal(std::optional<std::size_t> glyph_count = std::nullopt);
 
-	Text& Reveal(std::size_t glyph_count) { return Reveal(std::optional<std::size_t>{ glyph_count }); }
-	
+	Text& Reveal(std::size_t glyph_count) {
+		return Reveal(std::optional<std::size_t>{ glyph_count });
+	}
+
 	/// @brief Sets the fraction of the total glyphs to reveal. Clamped to range: [0.0, 1.0]. 0.0 =
 	/// no glyphs revealed, 1.0 = all glyphs revealed.
 	Text& RevealFraction(float fraction);
 
-	Text& RevealAll() { return Reveal(std::nullopt); }
+	Text& RevealAll() {
+		return Reveal(std::nullopt);
+	}
 
 	Text& Align(Alignment alignment);
 	Text& Align(Origin origin);
@@ -228,7 +231,9 @@ public:
 	/// If nullopt, clears any previously set clipping.
 	Text& Clip(std::optional<TextClip> clip);
 
-	Text& ClearClip() { return Clip(std::nullopt); }
+	Text& ClearClip() {
+		return Clip(std::nullopt);
+	}
 
 	/// @brief If true, leading and trailing spaces will be trimmed and consecutive whitespace
 	/// characters will be collapsed into a single space across all text runs. Useful for processing
@@ -251,7 +256,6 @@ public:
 	Text& Font(FontKey font_key = {});
 	Text& Color(ptgn::Color color);
 	Text& Size(float font_size);
-	
 	/// @brief Kerning adjusts spacing between specific glyph pairs based on the font's kerning
 	/// data.
 	/// @param multiplier The multiplier for the kerning adjustment.
@@ -264,7 +268,6 @@ public:
 	/// The value is measured in rendered text pixels after font scaling.
 	/// Positive values spread glyphs apart; negative values bring glyphs closer.
 	Text& Tracking(float tracking);
-	
 	Text& LineSpacing(float line_spacing);
 	Text& Style(FontStyle flags);
 	Text& Bold(bool enabled = true, float weight = kDefaultBoldWeight);
@@ -312,8 +315,7 @@ Text CreateText(
 
 Text CreateText(
 	Scene& scene, Transform transform, std::string_view content, Color color,
-	float font_size = kDefaultFontSize, Origin origin = Origin::Center,
-	FontKey font = kDefaultFont
+	float font_size = kDefaultFontSize, Origin origin = Origin::Center, FontKey font = kDefaultFont
 );
 
 PTGN_REGISTER_DRAWABLE(Text);

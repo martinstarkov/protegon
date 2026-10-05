@@ -476,15 +476,6 @@ void ApplyHierarchyDrop(EditorContext& ctx, const PendingHierarchyDrop& drop) {
 	}
 
 	ctx.commands.ReparentEntity(drop.entity, drop.parent, true);
-
-	if (IsPaintGenerator(drop.entity)) {
-		auto& data{ PaintGenerator{ drop.entity }.GetData() };
-		if (drop.parent && IsTilemap(drop.parent)) {
-			data.target_tilemap = drop.parent.Get<UUID>();
-		} else {
-			data.target_tilemap.reset();
-		}
-	}
 }
 
 void DrawRestrictionReasons(std::initializer_list<std::optional<std::string_view>> reasons) {

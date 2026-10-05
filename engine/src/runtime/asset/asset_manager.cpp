@@ -893,7 +893,7 @@ private:
 						auto source{ FileToString(job.absolute_path) };
 						if (!HasVertexAndFragmentShader(source)) {
 							result.error =
-								"Single-stage shader is missing a configured engine shader pair";
+								"Single stage shader is missing a configured engine shader pair";
 							break;
 						}
 						result.payload = PreparedShader{ ShaderCode{ source } };
@@ -1041,15 +1041,7 @@ std::optional<std::string> AssetManager::GetEngineShaderSource(const AssetKey& k
 		return it->source;
 	}
 
-	constexpr std::string_view legacy_prefix{ "$engine/shaders/" };
-	if (!key.value.starts_with(legacy_prefix)) {
-		return std::nullopt;
-	}
-
-	std::string name{ path{ key.value.substr(legacy_prefix.size()) }.stem().string() };
-	auto it{ std::ranges::find(engine_shader_sources_, name, &impl::EngineShaderSource::name) };
-	return it == engine_shader_sources_.end() ? std::nullopt
-											  : std::optional<std::string>{ it->source };
+	return std::nullopt;
 }
 
 std::span<const std::string> AssetManager::GetEngineVertexShaderNames() const {
@@ -2878,7 +2870,7 @@ bool AssetManager::RegisterAsset(AssetKey key, const path& asset_path) {
 
 	auto kind{ DetectProjectAssetKind(source_path) };
 	if (kind == AssetKind::Unknown || kind == AssetKind::Scene) {
-		PTGN_WARN("Cannot register unsupported path-backed asset: ", source_path.string());
+		PTGN_WARN("Cannot register unsupported path backed asset: ", source_path.string());
 		return false;
 	}
 
@@ -2888,7 +2880,7 @@ bool AssetManager::RegisterAsset(AssetKey key, const path& asset_path) {
 	if (state.load_state == AssetLoadState::Loaded || state.load_state == AssetLoadState::Queued ||
 		state.load_state == AssetLoadState::Loading ||
 		state.load_state == AssetLoadState::Finalizing) {
-		PTGN_WARN("Cannot replace a resident or in-flight asset registration: ", key);
+		PTGN_WARN("Cannot replace a resident or in flight asset registration: ", key);
 		return false;
 	}
 
@@ -3707,7 +3699,7 @@ ConstAsset<T> AssetManager::Get(const AssetKey& key) const {
 			return fallback.value();
 		}
 
-		PTGN_WARN("Built-in missing texture fallback is unavailable");
+		PTGN_WARN("Built in missing texture fallback is unavailable");
 		return Texture{};
 	} else if constexpr (std::is_same_v<std::remove_cvref_t<T>, json>) {
 		static const json empty = json::object();
@@ -3734,7 +3726,7 @@ Asset<T> AssetManager::Get(const AssetKey& key) {
 			return fallback.value();
 		}
 
-		PTGN_WARN("Built-in missing texture fallback is unavailable");
+		PTGN_WARN("Built in missing texture fallback is unavailable");
 		return Texture{};
 	} else if constexpr (std::is_same_v<std::remove_cvref_t<T>, json>) {
 		static json empty = json::object();

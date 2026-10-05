@@ -91,29 +91,23 @@ struct SliderTrackData {
 
 /// @brief Managed background visual owned by a slider track.
 struct SliderTrackBackgroundData {
-	/// @brief False for data serialized before per part slider track overrides were introduced.
-	bool initialized{ false };
 	ButtonShapeVisual visual{};
 
-	PTGN_REFLECT(SliderTrackBackgroundData, initialized, visual)
+	PTGN_REFLECT(SliderTrackBackgroundData, visual)
 };
 
 /// @brief Managed border visual owned by a slider track.
 struct SliderTrackBorderData {
-	/// @brief False for data serialized before per part slider track overrides were introduced.
-	bool initialized{ false };
 	ButtonShapeVisual visual{};
 
-	PTGN_REFLECT(SliderTrackBorderData, initialized, visual)
+	PTGN_REFLECT(SliderTrackBorderData, visual)
 };
 
 /// @brief Managed sprite visual owned by a slider track.
 struct SliderTrackSpriteData {
-	/// @brief False for data serialized before per part slider track overrides were introduced.
-	bool initialized{ false };
 	ButtonSpriteVisual visual{};
 
-	PTGN_REFLECT(SliderTrackSpriteData, initialized, visual)
+	PTGN_REFLECT(SliderTrackSpriteData, visual)
 };
 
 /// @brief Marker for the text child owned by SliderValueTextConfig.
@@ -237,10 +231,10 @@ public:
 	///
 	/// Example:
 	/// slider.ValueText({
-	/// 	.text = {
-	/// 		.source = "Value: <c=blue>${value}</c>",
-	/// 		.defaults = { .style = { .color = color::White, .size = 24.0f } },
-	/// 	},
+	///     .text = {
+	///         .source = "Value: <c=blue>${value}</c>",
+	///         .defaults = { .style = { .color = color::White, .size = 24.0f } },
+	///     },
 	/// });
 	ptgn::Text ValueText(SliderValueTextConfig config = {});
 

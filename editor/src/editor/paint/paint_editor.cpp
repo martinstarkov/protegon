@@ -574,7 +574,7 @@ void MergeBounds(std::optional<PaintSelectionRect>& target, const PaintSelection
 	auto resolve_axis = [](int hovered_axis, int anchor_axis) {
 		// Even brushes are centered on the boundary shared by four cells. Keep the brush fixed
 		// while the pointer remains in either center cell on this axis, then shift only after
-		// the pointer leaves that two-cell center band.
+		// the pointer leaves that two cell center band.
 		if (hovered_axis < anchor_axis - 1) {
 			return hovered_axis + 1;
 		}
@@ -817,8 +817,8 @@ void SortGroupsUngroupedFirst(std::vector<std::string>& groups) {
 [[nodiscard]] const char* AutotileFormatName(PaintAutotileFormat format) {
 	switch (format) {
 		case PaintAutotileFormat::Classic15:  return "Classic 15";
-		case PaintAutotileFormat::Blob47:	  return "Blob 47 (8-neighbor)";
-		case PaintAutotileFormat::Subset16:	  return "4-neighbor / Subset 16";
+		case PaintAutotileFormat::Blob47:	  return "Blob 47 (8 neighbor)";
+		case PaintAutotileFormat::Subset16:	  return "4 neighbor / Subset 16";
 		case PaintAutotileFormat::DualGrid16: return "Dual Grid 16";
 		case PaintAutotileFormat::Wang16:	  return "Wang 16";
 	}
@@ -851,20 +851,20 @@ struct AutotileAtlasLayout {
 	switch (format) {
 		case PaintAutotileFormat::Classic15:
 			// Canonical Classic15 sheets are 5x3. Also accept the transposed 3x5
-			// arrangement for projects that author the same row-major sequence vertically.
+			// arrangement for projects that author the same row major sequence vertically.
 			if (auto result{ layout({ 5, 3 }, 15) }) {
 				return result;
 			}
 			return layout({ 3, 5 }, 15);
 
 		case PaintAutotileFormat::Blob47:
-			// Canonical 47-blob atlas: 8x6 with the final cell unused.
+			// Canonical 47 blob atlas: 8x6 with the final cell unused.
 			return layout({ 8, 6 }, 47);
 
 		case PaintAutotileFormat::Subset16:
 		case PaintAutotileFormat::DualGrid16:
 		case PaintAutotileFormat::Wang16:
-			// Prefer the square 4x4 form, but accept common row-major strips.
+			// Prefer the square 4x4 form, but accept common row major strips.
 			if (auto result{ layout({ 4, 4 }, 16) }) {
 				return result;
 			}
@@ -1425,44 +1425,6 @@ void PaintEditor::ValidateSceneState(Scene& scene) {
 		Entity target{ scene.GetEntity(*target_tilemap_) };
 		if (!target || !IsTilemap(target)) {
 			target_tilemap_.reset();
-		}
-	}
-
-	for (Entity entity : scene.Entities()) {
-		if (!IsPaintGenerator(entity)) {
-			continue;
-		}
-
-		PaintGenerator generator{ entity };
-		auto& data{ generator.GetData() };
-		auto layer_id{ scene.GetLayers().GetLayerId(entity) };
-		const SceneLayer* layer{ layer_id ? scene.GetLayers().Find(*layer_id) : nullptr };
-
-		if (!layer || layer->kind != SceneLayerKind::Tile) {
-			data.target_tilemap.reset();
-			continue;
-		}
-
-		if (HasParent(entity)) {
-			Entity parent{ GetParent(entity) };
-			if (parent && IsTilemap(parent) && scene.GetLayers().GetLayerId(parent) == layer_id) {
-				data.target_tilemap = parent.Get<UUID>();
-			} else {
-				data.target_tilemap.reset();
-			}
-			continue;
-		}
-
-		if (!data.target_tilemap) {
-			continue;
-		}
-
-		Entity legacy_target{ scene.GetEntity(*data.target_tilemap) };
-		if (legacy_target && IsTilemap(legacy_target) &&
-			scene.GetLayers().GetLayerId(legacy_target) == layer_id) {
-			generator.SetTargetTilemap(Tilemap{ legacy_target });
-		} else {
-			data.target_tilemap.reset();
 		}
 	}
 
@@ -2561,9 +2523,9 @@ void PaintEditor::DrawNoiseThresholdGradient(EditorContext&, SceneLayer& layer) 
 	}
 	if (ImGui::IsItemHovered()) {
 		ImGui::SetTooltip(
-			"Left-click empty gradient space: split a range.\n"
-			"Left-drag a divider: move the threshold.\n"
-			"Right-click a divider: remove it and merge its neighboring ranges."
+			"Left click empty gradient space: split a range.\n"
+			"Left drag a divider: move the threshold.\n"
+			"Right click a divider: remove it and merge its neighboring ranges."
 		);
 	}
 }
@@ -3020,7 +2982,7 @@ bool PaintEditor::RefreshAutotileRuleSet(EditorContext& ctx, PaintAutotileRuleSe
 	rules.tiles.resize(static_cast<std::size_t>(layout->source_count));
 
 	// The format defines the canonical block shape and slot order. A larger texture is
-	// allowed; the top-left complete block is used automatically and unrelated cells are ignored.
+	// allowed; the top left complete block is used automatically and unrelated cells are ignored.
 	for (int slot{}; slot < layout->source_count; ++slot) {
 		PaintTileSource source{
 			MakeTileSource(ctx, rules.texture, AutotileSourceSlice(*layout, slot))
@@ -3940,8 +3902,8 @@ void PaintEditor::DrawAutotileSourceEditor(EditorContext& ctx) {
 	BeginRecipeFillField("Format", source_popup_inset);
 	if (ImGui::Combo(
 			"##PaintAutotileFormat", &format,
-			"Classic 15\0Blob 47 (8-neighbor)\0"
-			"4-neighbor / Subset 16\0Dual Grid 16\0Wang 16\0"
+			"Classic 15\0Blob 47 (8 neighbor)\0"
+			"4 neighbor / Subset 16\0Dual Grid 16\0Wang 16\0"
 		)) {
 		recipe_.autotile_format = static_cast<PaintAutotileFormat>(format);
 		if (recipe_.autotile_texture) {
@@ -4140,7 +4102,7 @@ void PaintEditor::DrawAutotileSourceEditor(EditorContext& ctx) {
 	int block_count{ AutotileBlockCount(sheet_size, layout) };
 
 	ImGui::TextDisabled(
-		"%dx%d tiles, %dx%d sheet; %s uses the top-left %dx%d block automatically.",
+		"%dx%d tiles, %dx%d sheet; %s uses the top left %dx%d block automatically.",
 		slicing->tile_size.x, slicing->tile_size.y, sheet_size.x, sheet_size.y,
 		AutotileFormatName(recipe_.autotile_format), layout.block_size.x, layout.block_size.y
 	);
@@ -4451,6 +4413,12 @@ void PaintEditor::ReconcileProjectLibrary(EditorContext& ctx) {
 			return !entry.prefab || !prefab_keys.contains(entry.prefab.value);
 		});
 	}
+	auto autotile_rule_count{ autotile_rule_sets_.size() };
+	std::erase_if(autotile_rule_sets_, [](const PaintAutotileRuleSet& rules) {
+		return !rules.texture;
+	});
+	project_library_changed |= autotile_rule_sets_.size() != autotile_rule_count;
+
 	std::unordered_set<std::uint64_t> autotile_ids;
 	std::uint64_t next_autotile_id{ 1 };
 	for (const auto& rules : autotile_rule_sets_) {
@@ -4463,18 +4431,14 @@ void PaintEditor::ReconcileProjectLibrary(EditorContext& ctx) {
 			project_library_changed = true;
 		}
 
-		// New rulesets are keyed by tilesheet + format and their source slots are always derived.
-		// Legacy rulesets without a texture are retained so existing terrain cells can still
-		// resolve.
-		if (rules.texture) {
-			if (!texture_keys.contains(rules.texture.value)) {
-				rules.tiles.clear();
-				continue;
-			}
-			auto before{ rules.tiles };
-			RefreshAutotileRuleSet(ctx, rules);
-			project_library_changed |= before != rules.tiles;
+		if (!texture_keys.contains(rules.texture.value)) {
+			rules.tiles.clear();
+			continue;
 		}
+
+		auto before{ rules.tiles };
+		RefreshAutotileRuleSet(ctx, rules);
+		project_library_changed |= before != rules.tiles;
 	}
 	if (prefab_source_ && !prefab_keys.contains(prefab_source_.value)) {
 		prefab_source_ = {};
@@ -5223,7 +5187,7 @@ bool PaintEditor::DrawGeneratorSourceEditor(
 
 		if (recipe.source_kind == PaintGeneratorSourceKind::Noise) {
 			if (previous_source != PaintGeneratorSourceKind::Noise) {
-				// Thresholds are source-specific generator state. Do not resurrect
+				// Thresholds are source specific generator state. Do not resurrect
 				// unrelated/stale paint toolbar noise ranges when changing source type.
 				recipe.noise.thresholds.clear();
 			}
@@ -5580,9 +5544,9 @@ bool PaintEditor::DrawGeneratorSourceEditor(
 			}
 			if (ImGui::IsItemHovered()) {
 				ImGui::SetTooltip(
-					"Left-click empty gradient space: split a range.\n"
-					"Left-drag a divider: move the threshold.\n"
-					"Right-click a divider: remove it and merge its neighboring ranges."
+					"Left click empty gradient space: split a range.\n"
+					"Left drag a divider: move the threshold.\n"
+					"Right click a divider: remove it and merge its neighboring ranges."
 				);
 			}
 
@@ -6860,7 +6824,7 @@ void PaintEditor::DrawTilemaps(
 			}
 
 			// Exclusion cells are authored paint data, so keep them visible independently of
-			// streaming/debug settings. They use the same translucent-red convention as the
+			// streaming/debug settings. They use the same translucent red convention as the
 			// sandbox paint demo.
 			for (V2_int cell : data.exclusion_mask) {
 				V2_float mn{ tilemap.CellToWorld(cell) };
@@ -8144,7 +8108,7 @@ void PaintEditor::FillAt(EditorContext& ctx, Scene& scene, V2_float world) {
 								  : std::nullopt };
 
 		if (recipe_.operation == PaintBrushOperation::Erase) {
-			// Erase is Replace-with-nothing. Empty space has nothing to replace.
+			// Erase is Replace with nothing. Empty space has nothing to replace.
 			if (!start_tile) {
 				return;
 			}
@@ -8223,7 +8187,7 @@ void PaintEditor::FillAt(EditorContext& ctx, Scene& scene, V2_float world) {
 		return;
 	}
 
-	// Entity fill is deliberately bounded to the visible scene-camera rectangle so an empty
+	// Entity fill is deliberately bounded to the visible scene camera rectangle so an empty
 	// connected region can never expand forever. It fills either the connected empty region or,
 	// with Replace, the connected occupied region starting under the cursor.
 	auto vertices{ scene.ctx().camera.GetWorldVertices() };
@@ -8950,7 +8914,7 @@ void PaintEditor::CancelStroke(Scene& scene) {
 void PaintEditor::SelectClick(
 	EditorContext& ctx, Scene& scene, V2_float world, bool additive, bool toggle
 ) {
-	// Selection is scene-wide, not constrained by the current authoring layer.
+	// Selection is scene wide, not constrained by the current authoring layer.
 	// Walk the layer stack from front/top to back/bottom and stop at the first
 	// selectable object under the cursor. The active paint layer is deliberately
 	// left unchanged: it controls where new content is authored, not what may be
@@ -9074,7 +9038,7 @@ void PaintEditor::SelectClick(
 				selected_tile_cells_.clear();
 			}
 
-			// Tile multi-selection is intentionally scoped to one Tilemap. Clicking
+			// Tile multiple selection is intentionally scoped to one Tilemap. Clicking
 			// a tile in another Tilemap starts a fresh tile selection, while Shift/
 			// Ctrl continue to work within the same Tilemap.
 			UUID map_uuid{ hit.tilemap.Get<UUID>() };
@@ -9148,7 +9112,7 @@ void PaintEditor::SelectMarquee(
 ) {
 	PaintSelectionRect selection{ MakeSelectionRect(a, b) };
 
-	// Marquee selection is scene-wide, just like click selection. The active paint layer
+	// Marquee selection is scene wide, just like click selection. The active paint layer
 	// controls where new content is authored; it must not constrain what the selection tool
 	// can reach. Tile selection still intentionally belongs to one Tilemap at a time, so when
 	// several tile layers/maps overlap the marquee we use the visually topmost Tilemap that
@@ -9263,7 +9227,7 @@ void PaintEditor::SelectMarquee(
 		return;
 	}
 
-	// Entity marquee behavior remains scene-wide across all selectable entity layers. This is
+	// Entity marquee behavior remains scene wide across all selectable entity layers. This is
 	// intentionally unchanged from the selection rework; the only difference is that a visually
 	// higher tile layer can now win the marquee in the same way it wins a click.
 	if (!additive && !toggle) {

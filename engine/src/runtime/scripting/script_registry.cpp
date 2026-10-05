@@ -198,27 +198,13 @@ template <typename TEvent>
 	return alternatives;
 }
 
-[[nodiscard]] std::string KeyExpressionOrLegacy(const json& value) {
-	if (auto expression{ JsonValueOr<std::string>(value, "keys", "") };
-
-		!expression.empty()) {
-		return expression;
-	}
-
-	Key key{ JsonValueOr<Key>(value, "key", Key::W) };
-
-	std::string_view name{ magic_enum::enum_name(key) };
-
-	return name.empty() ? std::string{ "W" } : std::string{ name };
-}
-
 template <typename TEvent>
 [[nodiscard]] bool MatchKeyEvent(Entity owner, const json& value, const TEvent& event) {
 	if (!owner) {
 		return false;
 	}
 
-	auto alternatives{ ParseKeyExpression(KeyExpressionOrLegacy(value)) };
+	auto alternatives{ ParseKeyExpression(JsonValueOr<std::string>(value, "keys", "W")) };
 
 	if (alternatives.empty()) {
 		return false;
@@ -739,7 +725,7 @@ namespace impl {
 void EnsureEngineScriptsRegistered() {
 	// Intentionally empty.
 	//
-	// Referencing this function forces the linker to include this object file. The namespace-scope
+	// Referencing this function forces the linker to include this object file. The namespace scope
 	// registration initializers then populate the runtime registries.
 }
 

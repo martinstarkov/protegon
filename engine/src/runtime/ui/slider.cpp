@@ -469,24 +469,6 @@ Button Slider::EnsureThumb() {
 	SetDraggable(thumb);
 	SetDraggableFollowMouse(thumb, true);
 
-	// Migrate existing consolidated button visual children from legacy sliders to the new thumb.
-	if (HasChildren(*this)) {
-		auto children{ GetChildren(*this) };
-
-		for (Entity child : children) {
-			if (child == thumb || child.Has<impl::SliderTrackData>() ||
-				child.Has<impl::SliderValueTextData>()) {
-				continue;
-			}
-
-			if (child.HasAny<
-					ButtonBackgroundVisuals, ButtonBorderVisuals, ButtonTextVisuals,
-					ButtonSpriteVisuals>()) {
-				SetParent(child, thumb);
-			}
-		}
-	}
-
 	if (Has<ButtonSounds>()) {
 		thumb.Add<ButtonSounds>(Get<ButtonSounds>());
 		Remove<ButtonSounds>();

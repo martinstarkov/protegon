@@ -1893,7 +1893,6 @@ bool DrawSliderTrackPartTransform(EntityInspectorTarget& target, std::string_vie
 	}
 
 	Marker marker{ *before };
-	marker.initialized	  = true;
 	marker.visual.defined = true;
 	bool enabled{ marker.visual.transform.has_value() };
 	return DrawOptionalTransformTree(
@@ -1997,7 +1996,6 @@ bool DrawSliderTrackShapeFields(EntityInspectorTarget& target, Entity part, bool
 	}
 
 	Marker data{ *before };
-	data.initialized	= true;
 	data.visual.defined = true;
 	std::array<ButtonShapeVisual, 1> states{ data.visual };
 	constexpr ButtonVisualState state{ ButtonVisualState::Idle };
@@ -2075,7 +2073,6 @@ bool DrawSliderTrackSpriteFields(EntityInspectorTarget& target, Entity sprite) {
 	}
 
 	auto data{ *before };
-	data.initialized	= true;
 	data.visual.defined = true;
 	std::array<ButtonSpriteVisual, 1> states{ data.visual };
 	constexpr ButtonVisualState state{ ButtonVisualState::Idle };
@@ -2135,7 +2132,6 @@ Entity CreateSliderTrackBackground(Entity slider_entity, Entity track) {
 	};
 	background.Add<Tag>("Slider Track Background");
 	auto& part{ background.Add<::ptgn::impl::SliderTrackBackgroundData>() };
-	part.initialized	= true;
 	part.visual.defined = true;
 	part.visual.color	= color::Gray;
 	SetParent(background, track);
@@ -2149,7 +2145,6 @@ Entity CreateSliderTrackBorder(Entity slider_entity, Entity track) {
 	};
 	border.Add<Tag>("Slider Track Border");
 	auto& part{ border.Add<::ptgn::impl::SliderTrackBorderData>() };
-	part.initialized	   = true;
 	part.visual.defined	   = true;
 	part.visual.color	   = color::White;
 	part.visual.fill_style = FillStyle{ kInspectorMinLineWidth };
@@ -2163,7 +2158,6 @@ Entity CreateSliderTrackSprite(Entity slider_entity, Entity track) {
 	Entity sprite{ CreateSprite(slider_entity.GetScene(), {}, {}, Origin::Center) };
 	sprite.Add<Tag>("Slider Track Sprite");
 	auto& part{ sprite.Add<::ptgn::impl::SliderTrackSpriteData>() };
-	part.initialized	= true;
 	part.visual.defined = true;
 	part.visual.tint	= color::White;
 	SetParent(sprite, track);

@@ -275,7 +275,7 @@ public:
 	/// ViewportPanel owns the right aligned runtime/camera controls on this same row.
 	void DrawViewportToolButtons(EditorContext& ctx);
 
-	/// @brief Second viewport row: context-sensitive settings for the active paint tool.
+	/// @brief Second viewport row: context sensitive settings for the active paint tool.
 	bool DrawViewportOptionsToolbar(EditorContext& ctx);
 
 	/// Draws the Tiles dock window and returns whether it was the visible dock tab this frame.
@@ -326,7 +326,7 @@ public:
 
 	void SetTargetTilemap(std::optional<UUID> uuid);
 
-	/// Project-scoped prefab grouping used by the Prefabs dock tab.
+	/// Project scoped prefab grouping used by the Prefabs dock tab.
 	[[nodiscard]] std::vector<std::string> GetPrefabGroups(EditorContext& ctx);
 	[[nodiscard]] std::string GetPrefabGroup(EditorContext& ctx, const PrefabKey& key);
 	bool CreatePrefabGroup(EditorContext& ctx, std::string name);
@@ -603,7 +603,7 @@ private:
 	Stroke stroke_{};
 	MoveDrag move_{};
 
-	// A Keep Generator Brush remains live across mouse-up events. It is a real scene
+	// A Keep Generator Brush remains live across mouse release events. It is a real scene
 	// generator immediately so hierarchy/viewport selection and highlighting work while
 	// authoring, but it is not pushed to the global undo stack until Finish Generator.
 	std::optional<UUID> active_brush_generator_{};

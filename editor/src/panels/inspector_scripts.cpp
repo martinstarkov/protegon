@@ -657,7 +657,7 @@ bool DrawActionPicker(
 			changed = true;
 		}
 
-		// Only show the user-facing description.
+		// Only show the user facing description.
 		DrawTooltip(candidate.description.data());
 	};
 
@@ -3325,7 +3325,7 @@ bool DrawScriptsSectionImpl(Target& target) {
 	bool changed{ false };
 
 	// Scripts is an implicit editor feature: keep the section available without materializing an
-	// empty component, and clean up legacy/previously emptied components automatically.
+	// empty component, and clean up empty components automatically.
 	if constexpr (std::same_as<std::remove_cvref_t<Target>, EntityInspectorTarget>) {
 		if (auto* scripts{ target.entity.template TryGet<::ptgn::impl::Scripts>() };
 			scripts && !HasAuthoredScriptContents(*scripts)) {

@@ -22,7 +22,6 @@ namespace impl {
 struct SceneRegistryEntry;
 
 bool SaveProjectScenes(Application& app, std::span<const Scene* const> scenes);
-
 bool SaveBootstrapProjectScene(Application& app, const Scene& scene, bool save);
 
 } // namespace impl
@@ -41,7 +40,7 @@ struct Project {
 	/// @brief Runtime only location from which the project was loaded.
 	path file_path;
 
-	/// @brief Project-relative root shown by the Content Browser.
+	/// @brief Project relative root shown by the Content Browser.
 	path asset_directory{ "assets" };
 
 	std::string startup_scene_key{};
@@ -58,17 +57,14 @@ struct Project {
 };
 
 Project LoadProject(const path& file_path, const ProjectSettings& default_settings = {});
-
 Project CreateProject(
 	const path& file_path, const impl::SceneRegistryEntry* default_scene,
 	ProjectSettings settings = {}
 );
-
 void SaveProject(const Project& project);
 
 ProjectSceneEntry* FindProjectScene(Project& project, std::string_view scene_key);
 const ProjectSceneEntry* FindProjectScene(const Project& project, std::string_view scene_key);
-
 const ProjectSceneEntry& GetStartupProjectScene(const Project& project);
 
 path GetProjectScenePath(const Project& project, const ProjectSceneEntry& scene);

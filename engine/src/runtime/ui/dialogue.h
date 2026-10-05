@@ -50,7 +50,6 @@ PTGN_REFLECT_ENUM(DialoguePortraitSlot);
 namespace impl {
 
 enum class DialoguePartRole : std::uint8_t {
-	// Keep the first two values stable for existing serialized scenes.
 	Background,
 	Text,
 	BackgroundOverride,
@@ -126,7 +125,8 @@ struct DialoguePage {
 
 	/// @brief Stateful portrait changes applied when this page becomes current.
 	std::vector<DialoguePortraitCue> portrait_cues{};
-	/// @brief Last authored non hidden portrait cue on this page. If absent, the previous speaker stays active.
+	/// @brief Last authored non hidden portrait cue on this page. If absent, the previous speaker
+	/// stays active.
 	std::optional<DialoguePortraitSlot> speaking_slot{};
 
 	DialoguePage() = default;
@@ -147,11 +147,10 @@ inline constexpr std::string_view kDialoguePortraitPageTagSuffix{ "]]" };
 
 /// @brief Dialogue specific authoring pagination. A blank source line (two or more real
 /// newlines) creates a manual page break. A single real newline and the two character
-/// sequence `\\n` are in page line breaks before ordinary text pagination.
+/// sequence `\n` are in page line breaks before ordinary text pagination.
 [[nodiscard]] std::vector<DialoguePage> PaginateDialogueSource(
-	AssetManager& asset_manager, std::string_view source,
-	const DialoguePageProperties& properties, std::string_view split_end = "...",
-	std::string_view split_begin = {}
+	AssetManager& asset_manager, std::string_view source, const DialoguePageProperties& properties,
+	std::string_view split_end = "...", std::string_view split_begin = {}
 );
 
 [[nodiscard]] std::string DialogueKeyName(Key key);
@@ -164,7 +163,6 @@ inline constexpr std::string_view kDialoguePortraitPageTagSuffix{ "]]" };
 
 } // namespace impl
 
-
 struct DialoguePortraitExpression {
 	std::string display_name{};
 	ButtonSpriteVisual idle{};
@@ -174,14 +172,12 @@ struct DialoguePortraitExpression {
 struct DialoguePortraitActor {
 	std::string display_name{};
 	std::string default_expression{};
-	std::unordered_map<
-		std::string, DialoguePortraitExpression, StringHash, std::equal_to<>
-	> expressions{};
+	std::unordered_map<std::string, DialoguePortraitExpression, StringHash, std::equal_to<>>
+		expressions{};
 };
 
-using DialoguePortraitActorMap = std::unordered_map<
-	std::string, DialoguePortraitActor, StringHash, std::equal_to<>
->;
+using DialoguePortraitActorMap =
+	std::unordered_map<std::string, DialoguePortraitActor, StringHash, std::equal_to<>>;
 
 /// @brief Dialogue key appearance/audio overrides. Empty optionals inherit the dialogue entity's
 /// ordinary background and have no extra border/sprite/audio behavior.
@@ -199,8 +195,8 @@ struct DialogueAppearance {
 	std::optional<DialogueSounds> audio{};
 
 	[[nodiscard]] bool Empty() const {
-		return !background.has_value() && !border.has_value() &&
-			!sprite.has_value() && !audio.has_value();
+		return !background.has_value() && !border.has_value() && !sprite.has_value() &&
+			   !audio.has_value();
 	}
 
 	PTGN_REFLECT(DialogueAppearance, background, border, sprite, audio)

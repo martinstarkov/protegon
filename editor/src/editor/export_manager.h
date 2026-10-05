@@ -63,7 +63,7 @@ struct ExportRequest {
 
 	/// @brief Project manifest to package with a project backed application.
 	/// Prefer supplying this explicitly. project_directory/name.ptgnproj is used
-	/// as a backward compatible fallback when this is empty.
+	/// as a fallback when this is empty.
 	std::optional<path> project_file{};
 
 	/// @brief Runtime relative mount of the packaged project.
@@ -118,10 +118,10 @@ public:
 	ExportManager();
 	~ExportManager();
 
-	ExportManager(const ExportManager&) = delete;
+	ExportManager(const ExportManager&)			   = delete;
 	ExportManager& operator=(const ExportManager&) = delete;
-	ExportManager(ExportManager&&) = delete;
-	ExportManager& operator=(ExportManager&&) = delete;
+	ExportManager(ExportManager&&)				   = delete;
+	ExportManager& operator=(ExportManager&&)	   = delete;
 
 	bool Export(ExportRequest request);
 	bool Clean(ExportTarget target, ExportConfiguration configuration);
@@ -146,9 +146,7 @@ public:
 	/// editor is running can be picked up after the process environment changes.
 	void RefreshToolAvailability();
 
-	[[nodiscard]] const ExportTargetAvailability& GetTargetAvailability(
-		ExportTarget target
-	) const;
+	[[nodiscard]] const ExportTargetAvailability& GetTargetAvailability(ExportTarget target) const;
 	[[nodiscard]] bool IsTargetAvailable(ExportTarget target) const;
 
 	[[nodiscard]] const ExportTargetAvailability& GetWebServerAvailability() const;
@@ -166,16 +164,12 @@ public:
 	[[nodiscard]] bool IsExportingProjectFiles() const;
 	[[nodiscard]] float GetProgress() const;
 	[[nodiscard]] path GetBuildDirectory(
-		ExportTarget target,
-		ExportConfiguration configuration
+		ExportTarget target, ExportConfiguration configuration
 	) const;
 	[[nodiscard]] std::optional<path> GetLastExportDirectory(ExportTarget target) const;
 
 private:
-	bool StartTask(
-		impl::ExportTaskKind kind,
-		std::future<impl::ExportTaskResult> future
-	);
+	bool StartTask(impl::ExportTaskKind kind, std::future<impl::ExportTaskResult> future);
 	void ClearOutput();
 	void RefreshWebServerState();
 

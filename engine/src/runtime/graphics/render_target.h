@@ -128,6 +128,7 @@ public:
 	/// @param display_size Current renderer display size.
 	/// @return Whether the frame buffer was resized.
 	bool UpdateSize(V2_int display_size);
+
 private:
 	friend class Scene;
 
@@ -135,7 +136,6 @@ private:
 };
 
 /// @brief Create a render target with a custom size.
-/// A zero size is retained as backwards compatible shorthand for following the display size.
 /// @param size The size of the render target.
 /// @param clear_color The color to which the render target is cleared.
 /// @param texture_format Format of the render target texture.

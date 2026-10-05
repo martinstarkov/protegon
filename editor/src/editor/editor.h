@@ -150,7 +150,7 @@ public:
 
 	void MarkProjectDirty();
 	/// @brief Requests a fresh dependency scan of the selected serialized scene without forcing
-	/// an untracked project-dirty state. Editor commands whose serialized component data changes
+	/// an untracked project dirty state. Editor commands whose serialized component data changes
 	/// AssetKey references should call this after apply/undo/redo.
 	void MarkSceneAssetDependenciesDirty();
 	void RequestQuit();

@@ -715,7 +715,7 @@ Editor::Editor(Application& application) : app{ application } {
 
 	// Protegon examples share one source tree, so each example needs its own
 	// distribution subdirectory. Standalone applications own release/ and
-	// release-web/ directly.
+	// the web release directory directly.
 	if (build_info.IsExample()) {
 		desktop_export_directory /= build_info.target;
 		web_export_directory	 /= build_info.target;
@@ -2222,18 +2222,18 @@ void Editor::DrawMainMenuBar() {
 		}
 
 		if (ImGui::MenuItem(
-				"Show Read-Only Data", nullptr, GetSettings().show_read_only_inspector_data
+				"Show Read Only Data", nullptr, GetSettings().show_read_only_inspector_data
 			)) {
 			toggle_editor_setting(
-				"Toggle Read-Only Inspector Data", &EditorSettings::show_read_only_inspector_data
+				"Toggle Read Only Inspector Data", &EditorSettings::show_read_only_inspector_data
 			);
 		}
 
 		if (ImGui::MenuItem(
-				"Show Read-Only Scene Data", nullptr, GetSettings().show_read_only_scene_data
+				"Show Read Only Scene Data", nullptr, GetSettings().show_read_only_scene_data
 			)) {
 			toggle_editor_setting(
-				"Toggle Read-Only Scene Data", &EditorSettings::show_read_only_scene_data
+				"Toggle Read Only Scene Data", &EditorSettings::show_read_only_scene_data
 			);
 		}
 
@@ -2961,7 +2961,7 @@ const PaintEditor& Editor::GetPaintEditor() const {
 bool Editor::ShouldEnableEntityPicking() const {
 	PTGN_ASSERT(context_, "Editor context must be initialized");
 	// Paint Select and Move reuse the renderer's ID buffer for accurate entity picking;
-	// the legacy viewport gizmo/manipulation path remains disabled.
+	// the viewport gizmo manipulation path remains disabled.
 	return render_enabled_ && (context_->local.settings.entity_picking ||
 							   (paint_editor_.GetTool() == PaintTool::Select ||
 								paint_editor_.GetTool() == PaintTool::Move));
@@ -3748,7 +3748,7 @@ V2_int Editor::GetPresentationTextureSize() const {
 	}
 
 	// Match the presentation framebuffer's color format/parameters. The runtime viewport is
-	// rendered into that target and then receives the renderer's final gamma/tone-mapping pass.
+	// rendered into that target and then receives the renderer's final gamma/tone mapping pass.
 	// Using the same descriptor here keeps HDR and filtering behavior identical.
 	auto presentation_desc{ renderer.GetDesc(renderer.GetPresentationFramebuffer()) };
 	PTGN_ASSERT(
@@ -3789,7 +3789,7 @@ V2_int Editor::GetPresentationTextureSize() const {
 
 	// Match the blend mode used by Text::Draw for the entity currently being edited. Text::Draw
 	// calls SetBlendMode(GetBlendMode(entity)) immediately before drawing, so the preview should
-	// use the same value instead of hard-coding BlendMode::Blend.
+	// use the same value instead of hard coding BlendMode::Blend.
 	BlendMode preview_blend_mode{ BlendMode::Blend };
 	if (Entity selected_entity{ scene_hierarchy_panel_.GetSelectedEntity() }) {
 		preview_blend_mode = GetBlendMode(selected_entity);
@@ -3924,14 +3924,6 @@ void Editor::OnProjectChanged() {
 	context_->local.state.is_playing = false;
 
 	context_->local.state.is_paused = false;
-
-#if !defined(__EMSCRIPTEN__)
-	// Migrate legacy .ptgneditor local state into .ptgnlocal before replacing
-	// .ptgneditor with the new shared project state shape. These writes are
-	// intentionally unconditional on project change so old projects migrate safely.
-	SaveEditorLocalState(app_context.project.value(), context_->local);
-	SaveEditorProjectState(app_context.project.value(), context_->project_state);
-#endif
 
 	json local_value				 = context_->local;
 	json project_value				 = context_->project_state;

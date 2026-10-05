@@ -552,18 +552,9 @@ void ShakeScript::OnStart() {
 ScriptStatus ShakeScript::OnUpdate() {
 	auto& state{ Target().TryAdd<impl::ShakeAnimationState>() };
 
-	// Legacy editor authored Shake actions may have been serialized before Shake became Tween only.
-	// Treat an untimed invocation as the new instant impulse behavior instead of blocking forever.
-	bool untimed_action{ LinearProgress() <= 0.0f && Progress() <= 0.0f && DeltaSeconds() > 0.0f };
-	float progress{ untimed_action ? 1.0f : Progress() };
-	state.trauma = Clamp01(Lerp(start_trauma_, target_trauma_, progress));
+	state.trauma = Clamp01(Lerp(start_trauma_, target_trauma_, Progress()));
 	auto& offsets{ Target().TryAdd<impl::Offsets>() };
 	ApplyShake(GetScene().ctx().GameTime(), offsets, state.trauma, config, state.seed);
-	if (untimed_action) {
-		Shake(Target(), state.trauma, config, true);
-		return ScriptStatus::Complete;
-	}
-
 	return ScriptStatus::Running;
 }
 

@@ -68,8 +68,8 @@ template <typename T>
 
 	return ComponentDefinition{
 		.type_hash = Hash<T>(),
-		.type = std::string{ component->name },
-		.value = std::move(component_json),
+		.type	   = std::string{ component->name },
+		.value	   = std::move(component_json),
 		.apply_live =
 			[prototype](Entity entity) {
 				if (entity.Has<T>()) {
@@ -91,8 +91,10 @@ struct MoveToScript : public Script {
 	V2_float destination{ 0.0f, 64.0f };
 	bool relative{ true };
 	MoveToScript() = default;
+
 	MoveToScript(V2_float move_destination, bool relative_movement = true) :
 		destination{ move_destination }, relative{ relative_movement } {}
+
 	void OnStart() override;
 	[[nodiscard]] ScriptStatus OnUpdate() override;
 	void OnRepeat() override;
@@ -108,12 +110,14 @@ struct RotateToScript : public Script {
 	bool shortest_path{ true };
 	bool relative{ false };
 	RotateToScript() = default;
+
 	RotateToScript(
 		float rotate_degrees, bool shortest_rotation_path = true, bool relative_rotation = false
 	) :
 		degrees{ rotate_degrees },
 		shortest_path{ shortest_rotation_path },
 		relative{ relative_rotation } {}
+
 	void OnStart() override;
 	[[nodiscard]] ScriptStatus OnUpdate() override;
 	void OnRepeat() override;
@@ -128,8 +132,10 @@ struct ScaleToScript : public Script {
 	V2_float scale{ 1.0f, 1.0f };
 	bool relative{ false };
 	ScaleToScript() = default;
+
 	ScaleToScript(V2_float target_scale, bool relative_scaling = false) :
 		scale{ target_scale }, relative{ relative_scaling } {}
+
 	void OnStart() override;
 	[[nodiscard]] ScriptStatus OnUpdate() override;
 	void OnRepeat() override;
@@ -143,7 +149,9 @@ private:
 struct TintToScript : public Script {
 	Color tint{ color::White };
 	TintToScript() = default;
+
 	explicit TintToScript(Color target_tint) : tint{ target_tint } {}
+
 	void OnStart() override;
 	[[nodiscard]] ScriptStatus OnUpdate() override;
 	void OnRepeat() override;
@@ -181,6 +189,7 @@ struct BounceScript : public Script {
 	V2_float static_offset{};
 	bool symmetrical{ false };
 	BounceScript() = default;
+
 	BounceScript(
 		V2_float bounce_amplitude, V2_float bounce_static_offset = {},
 		bool symmetrical_bounce = false
@@ -188,6 +197,7 @@ struct BounceScript : public Script {
 		amplitude{ bounce_amplitude },
 		static_offset{ bounce_static_offset },
 		symmetrical{ symmetrical_bounce } {}
+
 	void OnStart() override;
 	[[nodiscard]] ScriptStatus OnUpdate() override;
 	void OnComplete() override;
@@ -224,6 +234,7 @@ struct ShakeScript : public Script {
 	ShakeConfig config{};
 	bool reset_on_complete{ true };
 	ShakeScript() = default;
+
 	ShakeScript(
 		float shake_intensity, ShakeConfig shake_config = {}, bool reset_shake_on_complete = true,
 		bool background_recovery_on_complete = true
@@ -232,6 +243,7 @@ struct ShakeScript : public Script {
 		config{ std::move(shake_config) },
 		reset_on_complete{ reset_shake_on_complete },
 		background_recovery_on_complete_{ background_recovery_on_complete } {}
+
 	void OnStart() override;
 	[[nodiscard]] ScriptStatus OnUpdate() override;
 	void OnRepeat() override;
@@ -254,13 +266,15 @@ struct ShakeActionScript : public Script {
 	PTGN_REFLECT(ShakeActionScript, intensity, config, force)
 };
 
-/// @brief Immediately modifies the trauma of an already-active persistent shake.
+/// @brief Immediately modifies the trauma of an active persistent shake.
 /// The temporary change recovers toward the baseline established by StartShakeScript.
 /// Does nothing when the target has no active shake state.
 struct AddShakeTraumaScript : public Script {
 	float intensity{ 1.0f };
 	AddShakeTraumaScript() = default;
+
 	explicit AddShakeTraumaScript(float shake_intensity) : intensity{ shake_intensity } {}
+
 	void OnStart() override;
 	PTGN_REFLECT(AddShakeTraumaScript, intensity)
 };
@@ -271,14 +285,17 @@ struct SetShakeTraumaScript : public Script {
 	float baseline_trauma{ 0.0f };
 	ShakeConfig config{};
 	SetShakeTraumaScript() = default;
+
 	SetShakeTraumaScript(float shake_intensity, ShakeConfig shake_config = {}) :
 		SetShakeTraumaScript{ shake_intensity, 0.0f, std::move(shake_config) } {}
+
 	SetShakeTraumaScript(
 		float shake_intensity, float shake_baseline_trauma, ShakeConfig shake_config = {}
 	) :
 		intensity{ shake_intensity },
 		baseline_trauma{ shake_baseline_trauma },
 		config{ std::move(shake_config) } {}
+
 	void OnStart() override;
 	PTGN_REFLECT(SetShakeTraumaScript, intensity, baseline_trauma, config)
 };
@@ -288,7 +305,9 @@ struct SetShakeTraumaScript : public Script {
 struct MaintainShakeScript : public Script {
 	ShakeConfig config{};
 	MaintainShakeScript() = default;
+
 	explicit MaintainShakeScript(ShakeConfig shake_config) : config{ std::move(shake_config) } {}
+
 	[[nodiscard]] ScriptStatus OnUpdate() override;
 	PTGN_REFLECT(MaintainShakeScript, config)
 };
@@ -297,14 +316,16 @@ struct MaintainShakeScript : public Script {
 struct RecoverShakeScript : public Script {
 	ShakeConfig config{};
 	RecoverShakeScript() = default;
+
 	explicit RecoverShakeScript(ShakeConfig shake_config) : config{ std::move(shake_config) } {}
+
 	[[nodiscard]] ScriptStatus OnUpdate() override;
 	void OnComplete() override;
 	void OnCancel(SequenceCancelReason) override;
 	PTGN_REFLECT(RecoverShakeScript, config)
 };
 
-/// @brief Internal cleanup step retained for runtime use and legacy serialized sequences.
+/// @brief Internal cleanup step used by runtime sequences.
 struct ResetShakeScript : public Script {
 	void OnStart() override;
 	PTGN_REFLECT_EMPTY(ResetShakeScript)
@@ -333,23 +354,27 @@ struct FollowTargetScript : public Script {
 	float speed{ 120.0f };
 	float stopping_distance{ 2.0f };
 	FollowTargetScript() = default;
+
 	FollowTargetScript(
 		Entity follow_target, float follow_speed, float follow_stopping_distance = 2.0f
 	) :
 		target{ follow_target.Get<UUID>() },
 		speed{ follow_speed },
 		stopping_distance{ follow_stopping_distance } {}
+
 	[[nodiscard]] ScriptStatus OnUpdate() override;
 	PTGN_REFLECT(FollowTargetScript, target, speed, stopping_distance)
 };
 
-/// Full configured target-follow behavior matching TargetFollowConfig.
+/// Full configured target follow behavior matching TargetFollowConfig.
 struct FollowEntityScript : public Script {
 	UUID target{};
 	TargetFollowConfig config{};
 	FollowEntityScript() = default;
+
 	FollowEntityScript(Entity follow_target, TargetFollowConfig follow_config = {}) :
 		target{ follow_target.Get<UUID>() }, config{ std::move(follow_config) } {}
+
 	void OnStart() override;
 	[[nodiscard]] ScriptStatus OnUpdate() override;
 	void OnComplete() override;
@@ -357,12 +382,13 @@ struct FollowEntityScript : public Script {
 	PTGN_REFLECT(FollowEntityScript, target, config)
 };
 
-/// Full configured waypoint-follow behavior matching PathFollowConfig.
+/// Full configured waypoint follow behavior matching PathFollowConfig.
 struct FollowPathScript : public Script {
 	std::vector<V2_float> waypoints{};
 	PathFollowConfig config{};
 	bool reset_waypoint_index{ false };
 	FollowPathScript() = default;
+
 	FollowPathScript(
 		std::vector<V2_float> follow_waypoints, PathFollowConfig follow_config = {},
 		bool reset_follow_waypoint_index = false
@@ -370,6 +396,7 @@ struct FollowPathScript : public Script {
 		waypoints{ std::move(follow_waypoints) },
 		config{ std::move(follow_config) },
 		reset_waypoint_index{ reset_follow_waypoint_index } {}
+
 	void OnStart() override;
 	[[nodiscard]] ScriptStatus OnUpdate() override;
 	void OnComplete() override;
@@ -413,8 +440,10 @@ struct NativeScriptCallbacks {
 struct NativeScript : public Script {
 	std::shared_ptr<NativeScriptCallbacks> callbacks{};
 	NativeScript() = default;
+
 	explicit NativeScript(NativeScriptCallbacks value) :
 		callbacks{ std::make_shared<NativeScriptCallbacks>(std::move(value)) } {}
+
 	void OnStart() override;
 	[[nodiscard]] ScriptStatus OnUpdate() override;
 	void OnComplete() override;
@@ -425,7 +454,9 @@ struct NativeScript : public Script {
 struct SetVisibleScript : public Script {
 	bool visible{ true };
 	SetVisibleScript() = default;
+
 	explicit SetVisibleScript(bool set_visible) : visible{ set_visible } {}
+
 	void OnStart() override;
 	PTGN_REFLECT(SetVisibleScript, visible)
 };
@@ -439,14 +470,10 @@ struct PlaySoundScript : public Script {
 	float volume{ 1.0f };
 	int loops{ 0 };
 	PlaySoundScript() = default;
-	explicit PlaySoundScript(
-		AudioKey audio_key,
-		float audio_volume = 1.0f,
-		int audio_loops = 0
-	) :
-		sound{ std::move(audio_key) },
-		volume{ audio_volume },
-		loops{ audio_loops } {}
+
+	explicit PlaySoundScript(AudioKey audio_key, float audio_volume = 1.0f, int audio_loops = 0) :
+		sound{ std::move(audio_key) }, volume{ audio_volume }, loops{ audio_loops } {}
+
 	void OnStart() override;
 	PTGN_REFLECT(PlaySoundScript, sound, volume, loops)
 };
@@ -545,7 +572,9 @@ struct TooltipActionScript : public Script {
 struct SetTextureScript : public Script {
 	TextureKey texture_key{};
 	SetTextureScript() = default;
+
 	explicit SetTextureScript(TextureKey texture) : texture_key{ std::move(texture) } {}
+
 	void OnStart() override;
 	PTGN_REFLECT(SetTextureScript, texture_key)
 };
@@ -557,8 +586,10 @@ struct SetEnabledScript : public Script {
 	std::string component{ "Interactive" };
 	bool enabled{ true };
 	SetEnabledScript() = default;
+
 	SetEnabledScript(std::string component_name, bool enable = true) :
 		component{ std::move(component_name) }, enabled{ enable } {}
+
 	void OnStart() override;
 	PTGN_REFLECT(SetEnabledScript, component, enabled)
 };
@@ -590,15 +621,17 @@ struct SceneChangeScript : public Script {
 	std::size_t priority{ 0 };
 	void OnStart() override;
 	PTGN_REFLECT(
-		SceneChangeScript, action, scene_key, transition,
-		duration_ms, delay_ms, ease, direction, priority
+		SceneChangeScript, action, scene_key, transition, duration_ms, delay_ms, ease, direction,
+		priority
 	)
 };
 
 struct EmitSignalScript : public Script {
 	SignalKey signal{ "sequence.completed" };
 	EmitSignalScript() = default;
+
 	explicit EmitSignalScript(SignalKey signal_key) : signal{ std::move(signal_key) } {}
+
 	void OnStart() override;
 	PTGN_REFLECT(EmitSignalScript, signal)
 };
@@ -640,7 +673,8 @@ SequenceHandle PropertyTo(
 	auto state{ std::make_shared<State>() };
 	state->target = std::move(target);
 	NativeScript action{ NativeScriptCallbacks{
-		.on_start = [state, getter = std::move(getter)](Script& script
+		.on_start = [state, getter = std::move(getter)](
+						Script& script
 					) mutable { state->start = std::invoke(getter, script.Owner()); },
 		.on_update =
 			[state, setter = std::move(setter)](Script& script) mutable {
@@ -649,9 +683,8 @@ SequenceHandle PropertyTo(
 					state->start + (state->target - state->start) * script.Progress()
 				);
 
-				return script.LinearProgress() >= 1.0f
-						 ? ScriptStatus::Complete
-						 : ScriptStatus::Running;
+				return script.LinearProgress() >= 1.0f ? ScriptStatus::Complete
+													   : ScriptStatus::Running;
 			},
 	} };
 	ScriptSequence sequence{ "Property To" };

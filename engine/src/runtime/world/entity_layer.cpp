@@ -388,7 +388,9 @@ bool SceneLayers::Validate(const Scene& scene) const {
 	if (!default_entity_layer_) {
 		return false;
 	}
+
 	const SceneLayer* default_layer{ Find(default_entity_layer_) };
+
 	if (!default_layer || default_layer->kind != SceneLayerKind::Entity) {
 		return false;
 	}
@@ -397,6 +399,7 @@ bool SceneLayers::Validate(const Scene& scene) const {
 		if (!layers_[i].id) {
 			return false;
 		}
+
 		for (std::size_t j{ i + 1 }; j < layers_.size(); ++j) {
 			if (layers_[i].id == layers_[j].id) {
 				return false;
@@ -406,27 +409,26 @@ bool SceneLayers::Validate(const Scene& scene) const {
 
 	for (Entity entity : scene.Entities()) {
 		auto layer_id{ GetLayerId(entity) };
+
 		if (!layer_id.has_value()) {
 			return false;
 		}
+
 		const SceneLayer* layer{ Find(layer_id.value()) };
+
 		if (!layer || !IsAllowed(entity, layer->kind)) {
 			return false;
 		}
 
-		if (IsPaintGenerator(entity)) {
-			const auto& generator{ entity.Get<impl::PaintGeneratorData>() };
-			if (generator.target_tilemap.has_value()) {
-				if (layer->kind != SceneLayerKind::Tile) {
-					return false;
-				}
-				Entity target{ scene.GetEntity(generator.target_tilemap.value()) };
-				if (!target || !IsTilemap(target) || GetLayerId(target) != layer_id) {
-					return false;
-				}
+		if (IsPaintGenerator(entity) && HasParent(entity)) {
+			Entity parent{ GetParent(entity) };
+
+			if (IsTilemap(parent) && GetLayerId(parent) != layer_id) {
+				return false;
 			}
 		}
 	}
+
 	return true;
 }
 

@@ -46,34 +46,22 @@ PaintGenerator& PaintGenerator::SetEnabled(bool enabled) {
 }
 
 Tilemap PaintGenerator::GetTargetTilemap() const {
-	if (!*this) {
+	if (!*this || !HasParent(*this)) {
+		return {};
+	}
+
+	Entity parent{ GetParent(*this) };
+	if (!parent || !IsTilemap(parent)) {
 		return {};
 	}
 
 	auto generator_layer{ GetScene().GetLayers().GetLayerId(*this) };
-	if (!generator_layer.has_value()) {
+	if (!generator_layer.has_value() ||
+		GetScene().GetLayers().GetLayerId(parent) != generator_layer) {
 		return {};
 	}
 
-	if (HasParent(*this)) {
-		Entity parent{ GetParent(*this) };
-		if (parent && IsTilemap(parent) &&
-			GetScene().GetLayers().GetLayerId(parent) == generator_layer) {
-			return Tilemap{ parent };
-		}
-		return {};
-	}
-
-	// Legacy/recovery path. ValidateSceneState migrates this into the hierarchy.
-	if (GetData().target_tilemap.has_value()) {
-		Entity target{ GetScene().GetEntity(*GetData().target_tilemap) };
-		if (target && IsTilemap(target) &&
-			GetScene().GetLayers().GetLayerId(target) == generator_layer) {
-			return Tilemap{ target };
-		}
-	}
-
-	return {};
+	return Tilemap{ parent };
 }
 
 bool PaintGenerator::SetTargetTilemap(std::optional<Tilemap> target) {
@@ -101,7 +89,6 @@ bool PaintGenerator::SetTargetTilemap(std::optional<Tilemap> target) {
 				SetWorldTransform(*this, *world_transform);
 			}
 		}
-		GetData().target_tilemap.reset();
 		return true;
 	}
 
@@ -122,8 +109,6 @@ bool PaintGenerator::SetTargetTilemap(std::optional<Tilemap> target) {
 		SetWorldTransform(*this, *world_transform);
 	}
 
-	// Parent is authoritative; the UUID lets entity-command snapshots recover the parent.
-	GetData().target_tilemap = target->Get<UUID>();
 	return true;
 }
 

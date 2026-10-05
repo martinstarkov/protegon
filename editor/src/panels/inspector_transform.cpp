@@ -227,11 +227,13 @@ void ApplySliderTrackVisualTransformDelta(
 	if (!marker) {
 		return;
 	}
-	marker->initialized	   = true;
+
 	marker->visual.defined = true;
+
 	if (!marker->visual.transform.has_value()) {
 		marker->visual.transform = Transform{};
 	}
+
 	if (before != after) {
 		auto& transform{ marker->visual.transform.value() };
 		transform.position += after.position - before.position;
@@ -246,6 +248,7 @@ void ApplySliderTrackVisualTransformDelta(
 		}
 		transform.ClampScale();
 	}
+
 	marker->visual.depth			= depth.value;
 	marker->visual.inherit_position = !ignore_position;
 	marker->visual.inherit_rotation = !ignore_rotation;
@@ -263,6 +266,7 @@ void ApplySliderTrackVisualTransformDelta(
 			state.ignore_rotation, state.ignore_scale, state.ignore_depth
 		);
 	};
+
 	apply(state.slider_track_background);
 	apply(state.slider_track_border);
 	apply(state.slider_track_sprite);
@@ -271,9 +275,8 @@ void ApplySliderTrackVisualTransformDelta(
 template <typename Target>
 [[nodiscard]] std::optional<V2_float> GetTargetWorldReferencePosition(const Target& target) {
 	if constexpr (requires { target.entity; }) {
-		Entity entity{ target.entity };
-		if (entity && entity.Has<Transform>()) {
-			return GetDrawTransform(entity).position;
+		if (target.entity && target.entity.template Has<Transform>()) {
+			return GetDrawTransform(target.entity).position;
 		}
 	}
 	return std::nullopt;

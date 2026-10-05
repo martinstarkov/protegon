@@ -1173,12 +1173,7 @@ void impl::DialogueData::SetDefinition(json value) {
 	definition	  = std::move(value);
 	runtime_dirty = true;
 
-	continue_keys = "Enter";
-	if (definition.contains("continue_key")) {
-		const auto& continue_json{ definition.at("continue_key") };
-		continue_keys = continue_json.is_string() ? continue_json.get<std::string>()
-												  : impl::DialogueKeyName(continue_json.get<Key>());
-	}
+	continue_keys = definition.value("continue_key", std::string{ "Enter" });
 
 	current_dialogue = definition.value("start", std::string{});
 	dialogues.clear();
@@ -1233,12 +1228,12 @@ void impl::DialogueData::LoadFromJson(
 	runtime_dirty = false;
 	PTGN_ASSERT(
 		!root_properties.box_size.IsZero(),
-		"Dialogue requires either a sprite background or a non-zero box size"
+		"Dialogue requires either a sprite background or a nonzero box size"
 	);
 
 	std::string split_end{ authored.value("split_end", "...") };
 	std::string split_begin{ authored.value("split_begin", "") };
-	int default_initial_variant{ authored.value("initial_variant", authored.value("index", 0)) };
+	int default_initial_variant{ authored.value("initial_variant", 0) };
 	PTGN_ASSERT(
 		default_initial_variant >= 0, "Initial variant must be greater than or equal to zero"
 	);
@@ -1249,14 +1244,7 @@ void impl::DialogueData::LoadFromJson(
 	std::string default_next{ authored.value("next", "") };
 	portrait_actors = authored.value("portrait_actors", DialoguePortraitActorMap{});
 
-	if (authored.contains("continue_key")) {
-		const auto& continue_json{ authored.at("continue_key") };
-		if (continue_json.is_string()) {
-			continue_keys = continue_json.get<std::string>();
-		} else {
-			continue_keys = impl::DialogueKeyName(continue_json.get<Key>());
-		}
-	}
+	continue_keys = authored.value("continue_key", std::string{ "Enter" });
 	PTGN_ASSERT(
 		impl::ValidateDialogueKeyExpression(continue_keys),
 		"Invalid dialogue continue key expression: ", continue_keys
@@ -1277,13 +1265,11 @@ void impl::DialogueData::LoadFromJson(
 		json dialogue_settings = dialogue_json.is_object() ? dialogue_json : json::object();
 		auto dialogue_properties{ InheritDialogueLayout(root_properties, dialogue_settings) };
 
-		int initial_variant{ dialogue_settings.value(
-			"initial_variant", dialogue_settings.value("index", default_initial_variant)
-		) };
+		int initial_variant{ dialogue_settings.value("initial_variant", default_initial_variant) };
 		PTGN_ASSERT(initial_variant >= 0, "Initial variant must be greater than or equal to zero");
 
 		dialogue.repeatable = dialogue_settings.value("repeatable", default_repeatable);
-		// A dialogue key may explicitly override the entity-level typewriter default in either
+		// A dialogue key may explicitly override the entity level typewriter default in either
 		// direction. If no local value is authored, inherit the entity setting.
 		dialogue.scroll		   = dialogue_settings.value("scroll", default_scroll);
 		dialogue.next_dialogue = dialogue_settings.value("next", default_next);
@@ -1328,60 +1314,9 @@ void impl::DialogueData::LoadFromJson(
 
 		if (!dialogue_json.is_object()) {
 			append_variants(dialogue_json);
-		} else if (dialogue_json.contains("variants")) {
-			append_variants(dialogue_json.at("variants"));
 		} else {
-			PTGN_ASSERT(dialogue_json.contains("lines"), "Dialogue requires 'variants'");
-			const auto& lines_json{ dialogue_json.at("lines") };
-
-			auto append_legacy_line = [&](const json& line_json) {
-				DialogueVariant variant;
-				if (line_json.is_string()) {
-					append_source(variant, line_json.get<std::string>(), dialogue_properties);
-				} else if (line_json.is_object()) {
-					auto line_properties{ InheritDialogueLayout(dialogue_properties, line_json) };
-					PTGN_ASSERT(line_json.contains("pages"));
-					const auto& pages_json{ line_json.at("pages") };
-					if (pages_json.is_string()) {
-						append_source(variant, pages_json.get<std::string>(), line_properties);
-					} else if (pages_json.is_array()) {
-						for (const auto& page_json : pages_json) {
-							if (page_json.is_string()) {
-								append_source(
-									variant, page_json.get<std::string>(), line_properties
-								);
-							} else if (page_json.is_object()) {
-								auto page_properties{
-									InheritDialogueLayout(line_properties, page_json)
-								};
-								if (page_json.contains("text")) {
-									const auto& text_json{ page_json.at("text") };
-									std::string source{
-										text_json.is_string()
-											? text_json.get<std::string>()
-											: text_json.at("source").get<std::string>()
-									};
-									append_source(variant, source, page_properties);
-								} else if (page_json.contains("content")) {
-									append_source(
-										variant, page_json.at("content").get<std::string>(),
-										page_properties
-									);
-								}
-							}
-						}
-					}
-				}
-				dialogue.variants.emplace_back(std::move(variant));
-			};
-
-			if (lines_json.is_string()) {
-				append_legacy_line(lines_json);
-			} else if (lines_json.is_array()) {
-				for (const auto& line_json : lines_json) {
-					append_legacy_line(line_json);
-				}
-			}
+			PTGN_ASSERT(dialogue_json.contains("variants"), "Dialogue requires 'variants'");
+			append_variants(dialogue_json.at("variants"));
 		}
 		if (dialogue.variants.empty()) {
 			dialogue.variants.emplace_back();
@@ -2365,18 +2300,13 @@ void from_json(const json& j, DialogueEntry& dialogue) {
 		return;
 	}
 
-	dialogue.initial_variant = j.value("initial_variant", j.value("index", 0uz));
+	dialogue.initial_variant = j.value("initial_variant", 0uz);
 	dialogue.repeatable		 = j.value("repeatable", true);
 	dialogue.behavior		 = j.value("behavior", DialogueBehavior::Sequential);
 	dialogue.scroll			 = j.value("scroll", true);
 	dialogue.next_dialogue	 = j.value("next", std::string{});
 	dialogue.appearance		 = j.value("appearance", DialogueAppearance{});
-	dialogue.variants.clear();
-	if (j.contains("variants")) {
-		dialogue.variants = j.at("variants").get<std::vector<DialogueVariant>>();
-	} else if (j.contains("lines")) {
-		dialogue.variants = j.at("lines").get<std::vector<DialogueVariant>>();
-	}
+	dialogue.variants		 = j.value("variants", std::vector<DialogueVariant>{});
 	if (!dialogue.variants.empty()) {
 		dialogue.initial_variant = std::min(dialogue.initial_variant, dialogue.variants.size() - 1);
 	} else {
@@ -2397,81 +2327,7 @@ void impl::from_json(const json& j, impl::DialogueData& data) {
 		return;
 	}
 
-	// DialogueData now serializes its authoring definition. Migrate the previous runtime-page
-	// component shape once so existing scenes retain their text when opened in the new inspector.
-	bool legacy_runtime_shape{ j.contains("current_variant") || j.contains("current_line") ||
-							   j.contains("current_page") || j.contains("open") };
-
-	if (!legacy_runtime_shape) {
-		data.SetDefinition(j);
-		return;
-	}
-
-	json definition			   = impl::DialogueData::MakeDefaultDefinition();
-	definition["continue_key"] = j.value("continue_key", json("Enter"));
-	definition["start"]		   = j.value("current_dialogue", std::string{});
-	definition["dialogues"]	   = json::object();
-
-	bool copied_root_properties{ false };
-	bool copied_root_typewriter{ false };
-
-	if (j.contains("dialogues") && j.at("dialogues").is_object()) {
-		for (const auto& [name, entry_json] : j.at("dialogues").items()) {
-			DialogueEntry entry{ entry_json.get<DialogueEntry>() };
-
-			json authored{
-				{ "initial_variant", entry.initial_variant },
-				{ "repeatable", entry.repeatable },
-				{ "behavior", entry.behavior },
-				{ "scroll", entry.scroll },
-				{ "next", entry.next_dialogue },
-				{ "appearance", entry.appearance },
-				{ "variants", json::array() },
-			};
-
-			if (!copied_root_typewriter) {
-				definition["scroll"]   = entry.scroll;
-				copied_root_typewriter = true;
-			}
-
-			for (const auto& variant : entry.variants) {
-				std::string source;
-				for (const auto& page : variant.pages) {
-					if (page.instant) {
-						if (!source.empty()) {
-							source += "\n";
-						}
-						source += std::string{ impl::kDialogueInstantPageTag };
-						source += "\n";
-					} else if (!source.empty()) {
-						source += "\n\n";
-					}
-					source += SerializeStyledTextToRichText(
-						page.styled_text, page.properties.text_defaults
-					);
-
-					if (!copied_root_properties) {
-						json properties = page.properties;
-						definition.update(properties);
-						copied_root_properties = true;
-					}
-				}
-				authored["variants"].push_back(std::move(source));
-			}
-
-			if (authored["variants"].empty()) {
-				authored["variants"].push_back("");
-			}
-
-			definition["dialogues"][name] = std::move(authored);
-		}
-	}
-
-	if (definition["start"].get<std::string>().empty() && !definition["dialogues"].empty()) {
-		definition["start"] = definition["dialogues"].begin().key();
-	}
-
-	data.SetDefinition(std::move(definition));
+	data.SetDefinition(j);
 }
 
 } // namespace ptgn

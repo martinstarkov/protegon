@@ -1683,7 +1683,7 @@ bool ExportManager::Export(ExportRequest request) {
 				if (request.project_file) {
 					project_file = request.project_file.value();
 				} else if (request.project_directory) {
-					// Backward-compatible fallback. Prefer supplying project_file.
+					// Fallback: prefer supplying project_file.
 					project_file = request.project_directory.value() /
 								   (request.project_directory->filename().string() + ".ptgnproj");
 				}
