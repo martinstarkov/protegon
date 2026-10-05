@@ -441,7 +441,7 @@ bool CanReparent(Entity entity, Entity parent) {
 	}
 
 	if (IsPaintGenerator(entity)) {
-		const auto layer_id{ entity.GetScene().GetLayers().GetLayerId(entity) };
+		auto layer_id{ entity.GetScene().GetLayers().GetLayerId(entity) };
 		const SceneLayer* layer{ layer_id ? entity.GetScene().GetLayers().Find(*layer_id)
 										  : nullptr };
 		if (layer && layer->kind == SceneLayerKind::Tile && parent && !IsTilemap(parent)) {
@@ -997,7 +997,7 @@ void AddDefaultPrefabComponent(SerializedEntity& entity, const RegisteredCompone
 	}
 
 	if (component->is_empty) {
-		const std::string name{ component->name };
+		std::string name{ component->name };
 
 		if (!std::ranges::contains(entity.tags, name)) {
 			entity.tags.emplace_back(name);
@@ -1066,7 +1066,7 @@ Prefab CreateBlankPrefab(const AssetManager& assets, const path& project_root) {
 Prefab CreatePrefabFromEntity(const AssetManager& assets, const path& project_root, Entity entity) {
 	std::string name{ entity.Has<Tag>() ? entity.Get<Tag>().value : std::string{ "Prefab" } };
 
-	const auto key{ MakeUniquePrefabKey(assets, project_root, name) };
+	auto key{ MakeUniquePrefabKey(assets, project_root, name) };
 
 	return CapturePrefab(entity, key, true);
 }
@@ -1099,10 +1099,10 @@ void DrawPrefabCreateMenu(CreateMenuContext& context) {
 void DrawCreateEntityMenu(
 	EditorContext& ctx, Scene& scene, Entity parent, Entity& selected_entity
 ) {
-	const SceneLayerId target_layer{ parent ? scene.GetLayers().GetLayerId(parent).value_or(
-												  scene.GetLayers().GetDefaultEntityLayer()
-											  )
-											: ctx.editor.GetPaintEditor().GetActiveLayer(scene) };
+	SceneLayerId target_layer{ parent ? scene.GetLayers().GetLayerId(parent).value_or(
+											scene.GetLayers().GetDefaultEntityLayer()
+										)
+									  : ctx.editor.GetPaintEditor().GetActiveLayer(scene) };
 	CreateMenuContext context{
 		.ctx{ ctx },
 		.scene{ scene },
@@ -1156,7 +1156,7 @@ void ApplySceneLayerSnapshot(Scene& scene, const SerializedSceneLayers& snapshot
 void PushSceneLayerEdit(
 	EditorContext& ctx, Scene& scene, std::string label, SerializedSceneLayers before
 ) {
-	const SerializedSceneLayers after{ scene.GetLayers().Serialize(scene) };
+	SerializedSceneLayers after{ scene.GetLayers().Serialize(scene) };
 	Scene* scene_ptr{ &scene };
 	ctx.undo.PushApplied(
 		std::move(label), [scene_ptr, before]() { ApplySceneLayerSnapshot(*scene_ptr, before); },
@@ -1243,7 +1243,7 @@ void DrawSceneHierarchyContents(
 
 		bool has_visible_children{ !children.empty() };
 
-		const UUID entity_uuid{ entity.Get<UUID>() };
+		UUID entity_uuid{ entity.Get<UUID>() };
 		ImGui::PushID(entity_uuid);
 
 		bool renaming{ renaming_entity.has_value() &&
@@ -1281,7 +1281,7 @@ void DrawSceneHierarchyContents(
 		}
 
 		auto label{ entity.Get<Tag>() };
-		const auto node{ DrawRenamableTreeNode(
+		auto node{ DrawRenamableTreeNode(
 			renaming, entity_rename_state, "##Entity", label.value, flags,
 			[&](std::string_view candidate) {
 				auto name{ TrimWhitespace(std::string{ candidate }) };
@@ -1330,7 +1330,7 @@ void DrawSceneHierarchyContents(
 		}
 
 		auto hierarchy_restriction_reason{ GetHierarchyRestrictionReason(entity) };
-		const std::optional<std::string_view>
+		std::optional<std::string_view>
 			layer_restriction_reason{ layer_interactable
 										  ? std::nullopt
 										  : std::optional<std::string_view>{
@@ -1387,7 +1387,7 @@ void DrawSceneHierarchyContents(
 				ImGui::BeginDisabled(!project_root.has_value());
 
 				if (ImGui::MenuItem("Save As Prefab")) {
-					const PrefabKey created_key{ ctx.commands.CreatePrefabAsset(
+					PrefabKey created_key{ ctx.commands.CreatePrefabAsset(
 						CreatePrefabFromEntity(scene.ctx().asset, project_root.value(), entity)
 					) };
 
@@ -1457,7 +1457,7 @@ void DrawSceneHierarchyContents(
 	std::optional<std::pair<SceneLayerId, std::size_t>> layer_to_move{};
 
 	for (std::size_t layer_index{}; layer_index < scene_layers.GetLayers().size(); ++layer_index) {
-		const SceneLayerId current_layer_id{ scene_layers.GetLayers()[layer_index].id };
+		SceneLayerId current_layer_id{ scene_layers.GetLayers()[layer_index].id };
 		SceneLayer* layer{ scene_layers.Find(current_layer_id) };
 		if (!layer) {
 			continue;
@@ -1468,7 +1468,7 @@ void DrawSceneHierarchyContents(
 		bool open{};
 		if (editing_layer) {
 			if (hierarchy::DrawLayerControls(*layer)) {
-				const SerializedSceneLayers before{ scene_layers.Serialize(scene) };
+				SerializedSceneLayers before{ scene_layers.Serialize(scene) };
 				scene_layers.SetVisible(layer->id, !layer->visible);
 				PushSceneLayerEdit(
 					ctx, scene, layer->visible ? "Show Layer" : "Hide Layer", before
@@ -1488,7 +1488,7 @@ void DrawSceneHierarchyContents(
 			if (submit) {
 				auto name{ TrimWhitespace(layer_rename_text) };
 				if (!name.empty() && name != layer->name) {
-					const SerializedSceneLayers before{ scene_layers.Serialize(scene) };
+					SerializedSceneLayers before{ scene_layers.Serialize(scene) };
 					scene_layers.Rename(layer->id, name);
 					PushSceneLayerEdit(ctx, scene, "Rename Layer", before);
 				}
@@ -1508,7 +1508,7 @@ void DrawSceneHierarchyContents(
 			open = row.open;
 
 			if (row.visibility_clicked) {
-				const SerializedSceneLayers before{ scene_layers.Serialize(scene) };
+				SerializedSceneLayers before{ scene_layers.Serialize(scene) };
 				scene_layers.SetVisible(layer->id, !layer->visible);
 				PushSceneLayerEdit(
 					ctx, scene, layer->visible ? "Show Layer" : "Hide Layer", before
@@ -1527,7 +1527,7 @@ void DrawSceneHierarchyContents(
 			}
 
 			if (ImGui::BeginDragDropSource(ImGuiDragDropFlags_SourceAllowNullID)) {
-				const SceneLayerId dragged_layer{ layer->id };
+				SceneLayerId dragged_layer{ layer->id };
 				ImGui::SetDragDropPayload(
 					kLayerDragDropPayload, &dragged_layer, sizeof(dragged_layer)
 				);
@@ -1541,9 +1541,7 @@ void DrawSceneHierarchyContents(
 				if (const ImGuiPayload* payload{
 						ImGui::AcceptDragDropPayload(kLayerDragDropPayload) };
 					payload && payload->DataSize == sizeof(SceneLayerId)) {
-					const SceneLayerId dragged_layer{
-						*static_cast<const SceneLayerId*>(payload->Data)
-					};
+					SceneLayerId dragged_layer{ *static_cast<const SceneLayerId*>(payload->Data) };
 					if (dragged_layer != layer->id) {
 						layer_to_move = std::pair{ dragged_layer, layer_index };
 					}
@@ -1553,7 +1551,7 @@ void DrawSceneHierarchyContents(
 					if (Entity dropped{ AcceptDraggedEntity(scene) };
 						dropped && !HasParent(dropped) &&
 						scene_layers.CanAssign(dropped, layer->id)) {
-						const SerializedSceneLayers before{ scene_layers.Serialize(scene) };
+						SerializedSceneLayers before{ scene_layers.Serialize(scene) };
 						scene_layers.Assign(dropped, layer->id, true);
 						PushSceneLayerEdit(ctx, scene, "Move Entity To Layer", before);
 						ctx.editor.GetPaintEditor().SetActiveLayer(scene, layer->id);
@@ -1571,7 +1569,7 @@ void DrawSceneHierarchyContents(
 					focus_layer_rename = true;
 				}
 				if (ImGui::MenuItem(layer->locked ? "Unlock Layer" : "Lock Layer")) {
-					const SerializedSceneLayers before{ scene_layers.Serialize(scene) };
+					SerializedSceneLayers before{ scene_layers.Serialize(scene) };
 					scene_layers.SetLocked(layer->id, !layer->locked);
 					PushSceneLayerEdit(
 						ctx, scene, layer->locked ? "Lock Layer" : "Unlock Layer", before
@@ -1604,13 +1602,13 @@ void DrawSceneHierarchyContents(
 					if (ImGui::MenuItem("Create Generator")) {
 						PaintGenerator created{ CreatePaintGenerator(scene, layer->id) };
 						if (created) {
-							if (const auto target_uuid{
+							if (auto target_uuid{
 									ctx.editor.GetPaintEditor().GetTargetTilemapUUID() }) {
 								if (Entity target{ scene.GetEntity(*target_uuid) };
 									target && IsTilemap(target) &&
 									scene.GetLayers().GetLayerId(target) ==
 										std::optional<SceneLayerId>{ layer->id }) {
-									static_cast<void>(created.SetTargetTilemap(Tilemap{ target }));
+									created.SetTargetTilemap(Tilemap{ target });
 								}
 							}
 							scene.Refresh();
@@ -1662,13 +1660,13 @@ void DrawSceneHierarchyContents(
 	}
 
 	if (layer_to_move.has_value()) {
-		const SerializedSceneLayers before{ scene_layers.Serialize(scene) };
+		SerializedSceneLayers before{ scene_layers.Serialize(scene) };
 		if (scene_layers.Move(layer_to_move->first, layer_to_move->second)) {
 			PushSceneLayerEdit(ctx, scene, "Reorder Layer", before);
 		}
 	}
 	if (layer_to_delete) {
-		const SerializedSceneLayers before{ scene_layers.Serialize(scene) };
+		SerializedSceneLayers before{ scene_layers.Serialize(scene) };
 		if (scene_layers.Delete(scene, layer_to_delete)) {
 			ctx.editor.GetPaintEditor().SetActiveLayer(scene, scene_layers.GetDefaultEntityLayer());
 			PushSceneLayerEdit(ctx, scene, "Delete Layer", before);
@@ -1688,7 +1686,7 @@ void DrawSceneHierarchyContents(
 		}
 		ImGui::Separator();
 
-		const SceneLayerId active_layer_id{ ctx.editor.GetPaintEditor().GetActiveLayer(scene) };
+		SceneLayerId active_layer_id{ ctx.editor.GetPaintEditor().GetActiveLayer(scene) };
 		SceneLayer* active_layer{ scene.GetLayers().Find(active_layer_id) };
 		if (active_layer && active_layer->kind == SceneLayerKind::Tile) {
 			ImGui::BeginDisabled(active_layer->locked);
@@ -1704,13 +1702,12 @@ void DrawSceneHierarchyContents(
 			if (ImGui::MenuItem("Create Generator")) {
 				PaintGenerator created{ CreatePaintGenerator(scene, active_layer_id) };
 				if (created) {
-					if (const auto target_uuid{
-							ctx.editor.GetPaintEditor().GetTargetTilemapUUID() }) {
+					if (auto target_uuid{ ctx.editor.GetPaintEditor().GetTargetTilemapUUID() }) {
 						if (Entity target{ scene.GetEntity(*target_uuid) };
 							target && IsTilemap(target) &&
 							scene.GetLayers().GetLayerId(target) ==
 								std::optional<SceneLayerId>{ active_layer_id }) {
-							static_cast<void>(created.SetTargetTilemap(Tilemap{ target }));
+							created.SetTargetTilemap(Tilemap{ target });
 						}
 					}
 					scene.Refresh();
@@ -1726,8 +1723,8 @@ void DrawSceneHierarchyContents(
 	}
 
 	if (layer_to_create.has_value()) {
-		const SerializedSceneLayers before{ scene_layers.Serialize(scene) };
-		const SceneLayerId created{ scene_layers.Create(*layer_to_create) };
+		SerializedSceneLayers before{ scene_layers.Serialize(scene) };
+		SceneLayerId created{ scene_layers.Create(*layer_to_create) };
 		ctx.editor.GetPaintEditor().SetActiveLayer(scene, created);
 		PushSceneLayerEdit(
 			ctx, scene,
@@ -1818,18 +1815,18 @@ bool SceneHierarchyPanel::DrawPrefabs(EditorContext& ctx) {
 	auto& paint{ ctx.editor.GetPaintEditor() };
 	const auto& scene_list{ ctx.editor.GetSceneListPanel() };
 	auto* selected_scene{ scene_list.GetSelectedScene() };
-	const auto project_root{ ctx.editor.GetProjectRoot() };
+	auto project_root{ ctx.editor.GetProjectRoot() };
 
-	const float available{ ImGui::GetContentRegionAvail().x };
+	float available{ ImGui::GetContentRegionAvail().x };
 	ImGui::BeginDisabled(!project_root.has_value());
 	if (ImGui::Button("+ New Prefab", ImVec2{ std::max(1.0f, available * 0.58f), 0.0f })) {
-		(void)ctx.commands.CreatePrefabAsset(CreateBlankPrefab(assets, project_root.value()));
+		ctx.commands.CreatePrefabAsset(CreateBlankPrefab(assets, project_root.value()));
 	}
 	ImGui::EndDisabled();
 	ImGui::SameLine();
 	if (ImGui::Button("+ Group", ImVec2{ -1.0f, 0.0f })) {
-		const auto groups{ paint.GetPrefabGroups(ctx) };
-		(void)paint.CreatePrefabGroup(ctx, NextDefaultGroupName(groups));
+		auto groups{ paint.GetPrefabGroups(ctx) };
+		paint.CreatePrefabGroup(ctx, NextDefaultGroupName(groups));
 	}
 
 	static std::string prefab_filter;
@@ -1863,12 +1860,12 @@ bool SceneHierarchyPanel::DrawPrefabs(EditorContext& ctx) {
 
 	auto all_keys{ assets.GetPrefabKeys() };
 	std::ranges::sort(all_keys, {}, [](const PrefabKey& key) { return key.value; });
-	const auto groups{ paint.GetPrefabGroups(ctx) };
+	auto groups{ paint.GetPrefabGroups(ctx) };
 
 	auto draw_prefab = [&](const PrefabKey& key) {
 		ImGui::PushID(key.value.c_str());
 		if (!::ptgn::impl::AssetAccessor{ assets }.Has<Prefab>(key)) {
-			if (const auto catalog{ assets.GetCatalogAsset(key, AssetKind::Prefab) };
+			if (auto catalog{ assets.GetCatalogAsset(key, AssetKind::Prefab) };
 				catalog.has_value()) {
 				assets.Load(key, catalog->source_path);
 			}
@@ -1889,7 +1886,7 @@ bool SceneHierarchyPanel::DrawPrefabs(EditorContext& ctx) {
 				return;
 			}
 			std::string entity_id{ "root" };
-			for (const std::size_t index : entity_path) {
+			for (std::size_t index : entity_path) {
 				entity_id += "/" + std::to_string(index);
 			}
 			ImGui::PushID(entity_id.c_str());
@@ -1952,7 +1949,7 @@ bool SceneHierarchyPanel::DrawPrefabs(EditorContext& ctx) {
 			if (!has_children) {
 				flags |= ImGuiTreeNodeFlags_Leaf | ImGuiTreeNodeFlags_NoTreePushOnOpen;
 			}
-			const std::string label{ root ? GetPrefabDisplayName(key) : entity.tag };
+			std::string label{ root ? GetPrefabDisplayName(key) : entity.tag };
 			if (force_open_prefab_ == key && force_open_prefab_entity_path_ == entity_path) {
 				ImGui::SetNextItemOpen(true, ImGuiCond_Always);
 				force_open_prefab_.reset();
@@ -1970,7 +1967,7 @@ bool SceneHierarchyPanel::DrawPrefabs(EditorContext& ctx) {
 			}
 			if (root && selected_scene && prefab_hovered &&
 				ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left)) {
-				(void)ctx.commands.CreatePrefabInstance(*selected_scene, key);
+				ctx.commands.CreatePrefabInstance(*selected_scene, key);
 				ImGui::SetWindowFocus("Scene Hierarchy###SceneHierarchyWindow");
 			}
 			if (root && ImGui::BeginDragDropSource()) {
@@ -1991,12 +1988,12 @@ bool SceneHierarchyPanel::DrawPrefabs(EditorContext& ctx) {
 					ImGui::Separator();
 					ImGui::BeginDisabled(!selected_scene);
 					if (ImGui::MenuItem("Create Instance")) {
-						(void)ctx.commands.CreatePrefabInstance(*selected_scene, key);
+						ctx.commands.CreatePrefabInstance(*selected_scene, key);
 						ImGui::SetWindowFocus("Scene Hierarchy###SceneHierarchyWindow");
 					}
 					ImGui::EndDisabled();
 					if (ImGui::BeginMenu("Move to Group")) {
-						const std::string current{ paint.GetPrefabGroup(ctx, key) };
+						std::string current{ paint.GetPrefabGroup(ctx, key) };
 						for (const auto& group : paint.GetPrefabGroups(ctx)) {
 							if (ImGui::MenuItem(group.c_str(), nullptr, group == current)) {
 								paint.MovePrefabToGroup(ctx, key, group);
@@ -2086,7 +2083,7 @@ bool SceneHierarchyPanel::DrawPrefabs(EditorContext& ctx) {
 					group_rename_text = group;
 				}
 				if (ImGui::MenuItem("Delete Group")) {
-					(void)paint.DeletePrefabGroup(ctx, group);
+					paint.DeletePrefabGroup(ctx, group);
 				}
 			}
 			ImGui::EndPopup();
@@ -2156,10 +2153,10 @@ bool SceneHierarchyPanel::DrawPrefabs(EditorContext& ctx) {
 
 	if (prefab_to_duplicate.has_value() && project_root.has_value()) {
 		auto source{ ::ptgn::impl::AssetAccessor{ assets }.Get<Prefab>(*prefab_to_duplicate) };
-		const PrefabKey requested_key{
+		PrefabKey requested_key{
 			MakeUniquePrefabKey(assets, project_root.value(), source.get().root.tag)
 		};
-		const PrefabKey duplicated_key{
+		PrefabKey duplicated_key{
 			ctx.commands.DuplicatePrefabAsset(*prefab_to_duplicate, requested_key)
 		};
 		if (!duplicated_key.value.empty()) {
@@ -2182,14 +2179,10 @@ bool SceneHierarchyPanel::DrawPrefabs(EditorContext& ctx) {
 				break;
 			}
 			case PrefabEntityOperationType::Duplicate:
-				(void)ctx.commands.DuplicatePrefabEntity(
-					entity_operation->key, entity_operation->path
-				);
+				ctx.commands.DuplicatePrefabEntity(entity_operation->key, entity_operation->path);
 				break;
 			case PrefabEntityOperationType::Delete:
-				(void)ctx.commands.DeletePrefabEntity(
-					entity_operation->key, entity_operation->path
-				);
+				ctx.commands.DeletePrefabEntity(entity_operation->key, entity_operation->path);
 				break;
 		}
 	}
@@ -2218,9 +2211,9 @@ bool SceneHierarchyPanel::DrawTiles(EditorContext& ctx) {
 }
 
 void SceneHierarchyPanel::OnRender(EditorContext& ctx) {
-	static_cast<void>(DrawSceneHierarchy(ctx));
-	static_cast<void>(DrawPrefabs(ctx));
-	static_cast<void>(DrawTiles(ctx));
+	DrawPrefabs(ctx);
+	DrawTiles(ctx);
+	DrawSceneHierarchy(ctx);
 }
 
 void SceneHierarchyPanel::Bind(EditorContext& ctx) {
@@ -2242,7 +2235,7 @@ void SceneHierarchyPanel::SetSelectedEntity(Entity entity, bool undoable) {
 		selection.selected_scene_key	 = scene.GetTag();
 		selection.selected_scene_runtime = scene.IsRuntime();
 		selection.SetEntityUUID(scene.GetTag(), scene.IsRuntime(), entity.Get<UUID>());
-		if (const auto layer{ scene.GetLayers().GetLayerId(entity) }; layer.has_value()) {
+		if (auto layer{ scene.GetLayers().GetLayerId(entity) }; layer.has_value()) {
 			context_->editor.GetPaintEditor().SetActiveLayer(scene, *layer);
 		}
 		if (IsTilemap(entity)) {
