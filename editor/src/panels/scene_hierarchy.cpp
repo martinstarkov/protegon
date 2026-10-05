@@ -26,9 +26,9 @@
 #include "core/util/file.h"
 #include "editor/editor.h"
 #include "editor/editor_context.h"
-#include "editor/editor_icons.h"
 #include "editor/paint/paint_editor.h"
 #include "editor/renamable_item.h"
+#include "panels/entity_hierarchy.h"
 #include "panels/scene_list.h"
 #include "runtime/animation/animation.h"
 #include "runtime/asset/asset_manager.h"
@@ -54,7 +54,6 @@
 #include "runtime/graphics/sprite.h"
 #include "runtime/graphics/sprite_stack.h"
 #include "runtime/graphics/text/text.h"
-#include "runtime/graphics/visible.h"
 #include "runtime/interaction/draggable.h"
 #include "runtime/interaction/dropzone.h"
 #include "runtime/interaction/interactive.h"
@@ -338,82 +337,6 @@ struct PendingHierarchyDrop {
 	}
 };
 
-bool EntityMatchesFilter(Entity entity, std::string_view filter_text) {
-	if (filter_text.empty()) {
-		return true;
-	}
-
-	auto name{ ToLower(entity.Get<Tag>().value) };
-	auto filter{ std::string{ filter_text } };
-
-	bool has_name_include{ false };
-	bool matched_name_include{ false };
-
-	bool require_hidden{ false };
-	bool require_shown{ false };
-
-	std::size_t start{ 0 };
-
-	while (start <= filter.size()) {
-		auto comma{ filter.find(',', start) };
-		auto token{ comma == std::string::npos ? filter.substr(start)
-											   : filter.substr(start, comma - start) };
-
-		token = ToLower(TrimWhitespace(std::move(token)));
-
-		if (!token.empty()) {
-			if (token.front() == '*') {
-				auto filter_name{ TrimWhitespace(token.substr(1)) };
-
-				if (filter_name == "hidden") {
-					require_hidden = true;
-				} else if (filter_name == "shown") {
-					require_shown = true;
-				}
-			} else {
-				bool exclude{ token.front() == '-' };
-				auto needle{ TrimWhitespace(exclude ? token.substr(1) : token) };
-
-				if (!needle.empty()) {
-					bool contains{ name.find(needle) != std::string::npos };
-
-					if (exclude && contains) {
-						return false;
-					}
-
-					if (!exclude) {
-						has_name_include	  = true;
-						matched_name_include |= contains;
-					}
-				}
-			}
-		}
-
-		if (comma == std::string::npos) {
-			break;
-		}
-
-		start = comma + 1;
-	}
-
-	// Conflicting property filters cannot both be satisfied.
-	if (require_hidden && require_shown) {
-		return false;
-	}
-
-	bool visible{ IsVisible(entity) };
-
-	if (require_hidden && visible) {
-		return false;
-	}
-
-	if (require_shown && !visible) {
-		return false;
-	}
-
-	return !has_name_include || matched_name_include;
-}
-
 bool EntityOrDescendantMatchesFilter(
 	Entity entity, std::string_view filter_text, bool show_managed_ui_parts,
 	std::size_t recursion_depth = 0
@@ -439,7 +362,7 @@ bool EntityOrDescendantMatchesFilter(
 		return false;
 	}
 
-	if (EntityMatchesFilter(entity, filter_text)) {
+	if (hierarchy::MatchesFilter(entity, filter_text)) {
 		return true;
 	}
 
@@ -1271,34 +1194,7 @@ void DrawSceneHierarchyContents(
 		"##HierarchyFilter", "Filter: player, -enemy, *hidden, *shown", filter.data(), filter.size()
 	);
 
-	if (ImGui::IsItemHovered()) {
-		ImGui::BeginTooltip();
-
-		ImGui::TextUnformatted("Hierarchy filter syntax:");
-		ImGui::Separator();
-
-		ImGui::TextUnformatted("player");
-		ImGui::SameLine();
-		ImGui::TextDisabled("Name contains \"player\"");
-
-		ImGui::TextUnformatted("-enemy");
-		ImGui::SameLine();
-		ImGui::TextDisabled("Name does not contain \"enemy\"");
-
-		ImGui::TextUnformatted("*shown");
-		ImGui::SameLine();
-		ImGui::TextDisabled("Entity is visible");
-
-		ImGui::TextUnformatted("*hidden");
-		ImGui::SameLine();
-		ImGui::TextDisabled("Entity is hidden");
-
-		ImGui::Spacing();
-		ImGui::TextDisabled("Separate filters with commas.");
-		ImGui::TextDisabled("Positive name filters use OR; all other filters must match.");
-
-		ImGui::EndTooltip();
-	}
+	hierarchy::DrawFilterTooltip();
 
 	ImGui::Separator();
 
@@ -1568,36 +1464,16 @@ void DrawSceneHierarchyContents(
 		}
 
 		ImGui::PushID(static_cast<int>(layer->id.value));
-		DrawEditorIconButton(
-			"##LayerType",
-			layer->kind == SceneLayerKind::Entity ? EditorIcon::Entity : EditorIcon::Tile,
-			EditorIconButtonOptions{
-				.tooltip = layer->kind == SceneLayerKind::Entity ? "Entity layer" : "Tile layer",
-				.compact = true,
-				.interactive = false,
-				.muted		 = true,
-			}
-		);
-		ImGui::SameLine(0.0f, 2.0f);
-
-		if (DrawEditorIconButton(
-				"##LayerVisible", layer->visible ? EditorIcon::Visible : EditorIcon::Hidden,
-				EditorIconButtonOptions{
-					.tooltip = layer->visible ? "Hide layer" : "Show layer",
-					.compact = true,
-					.muted	 = !layer->visible,
-				}
-			)) {
-			const SerializedSceneLayers before{ scene_layers.Serialize(scene) };
-			scene_layers.SetVisible(layer->id, !layer->visible);
-			PushSceneLayerEdit(ctx, scene, layer->visible ? "Show Layer" : "Hide Layer", before);
-		}
-
-		ImGui::SameLine(0.0f, 4.0f);
-
 		bool editing_layer{ renaming_layer == layer->id };
 		bool open{};
 		if (editing_layer) {
+			if (hierarchy::DrawLayerControls(*layer)) {
+				const SerializedSceneLayers before{ scene_layers.Serialize(scene) };
+				scene_layers.SetVisible(layer->id, !layer->visible);
+				PushSceneLayerEdit(
+					ctx, scene, layer->visible ? "Show Layer" : "Hide Layer", before
+				);
+			}
 			if (focus_layer_rename) {
 				ImGui::SetKeyboardFocusHere();
 				focus_layer_rename = false;
@@ -1623,20 +1499,23 @@ void DrawSceneHierarchyContents(
 				layer_rename_text.clear();
 			}
 		} else {
-			ImGuiTreeNodeFlags layer_flags{ ImGuiTreeNodeFlags_OpenOnArrow |
-											ImGuiTreeNodeFlags_SpanAvailWidth |
-											ImGuiTreeNodeFlags_DefaultOpen |
-											ImGuiTreeNodeFlags_FramePadding };
-			if (ctx.editor.GetPaintEditor().GetActiveLayer(scene) == layer->id) {
-				layer_flags |= ImGuiTreeNodeFlags_Selected;
+			auto row{ hierarchy::DrawLayerRow(
+				*layer,
+				hierarchy::LayerRowOptions{
+					.selected = ctx.editor.GetPaintEditor().GetActiveLayer(scene) == layer->id,
+				}
+			) };
+			open = row.open;
+
+			if (row.visibility_clicked) {
+				const SerializedSceneLayers before{ scene_layers.Serialize(scene) };
+				scene_layers.SetVisible(layer->id, !layer->visible);
+				PushSceneLayerEdit(
+					ctx, scene, layer->visible ? "Show Layer" : "Hide Layer", before
+				);
 			}
-			const ImVec2 previous_frame_padding{ ImGui::GetStyle().FramePadding };
-			ImGui::PushStyleVar(
-				ImGuiStyleVar_FramePadding, ImVec2{ previous_frame_padding.x, 1.0f }
-			);
-			open = ImGui::TreeNodeEx("##Layer", layer_flags, "%s", layer->name.c_str());
-			ImGui::PopStyleVar();
-			if (ImGui::IsItemClicked(ImGuiMouseButton_Left)) {
+
+			if (row.left_clicked) {
 				ctx.editor.GetPaintEditor().SetActiveLayer(scene, layer->id);
 				selected_entity				   = {};
 				entity_left_clicked_this_frame = true;

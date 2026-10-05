@@ -24,6 +24,7 @@ struct EntityFilterEditorOptions {
 	bool show_none{ true };
 	bool show_any{ true };
 	bool show_entity{ true };
+	bool show_layer{ true };
 	bool show_components{ true };
 	bool show_groups{ true };
 	bool show_queries{ true };
