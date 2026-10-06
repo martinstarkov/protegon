@@ -1367,7 +1367,10 @@ Tilemap PaintEditor::ResolveTargetTilemap(Scene& scene) {
 		}
 	}
 
-	for (Entity entity : scene.GetLayers().GetRootEntities(scene, layer->id)) {
+	auto roots{ scene.GetLayers().GetRootEntities(scene, layer->id) };
+	SortByLocalDepth(roots);
+
+	for (Entity entity : roots) {
 		if (IsTilemap(entity)) {
 			target_tilemap_ = entity.Get<UUID>();
 			return Tilemap{ entity };
@@ -8453,6 +8456,28 @@ void PaintEditor::CreateGeneratorForStroke(
 		return;
 	}
 
+	Tilemap target;
+	bool created_target{};
+	if (layer->kind == SceneLayerKind::Tile) {
+		target = ResolveTargetTilemap(scene);
+
+		if (!target) {
+			V2_float grid_size{ ActiveGridSize(scene) };
+			V2_float grid_origin{ ActiveGridOrigin(scene) };
+			target = CreateTilemap(scene, layer->id);
+			if (!target) {
+				return;
+			}
+
+			target.SetCellSize(grid_size);
+			SetPosition(target, grid_origin);
+			scene.Refresh();
+
+			created_target = true;
+			SetTargetTilemap(target.Get<UUID>());
+		}
+	}
+
 	PaintGenerator generator{ CreatePaintGenerator(
 		scene, layer->id,
 		Tag{ geometry == PaintGeneratorGeometry::BrushStroke ? "Brush Generator"
@@ -8460,6 +8485,11 @@ void PaintEditor::CreateGeneratorForStroke(
 															 : "Rectangle Generator" }
 	) };
 	if (!generator) {
+		if (created_target && target) {
+			target.Destroy();
+			scene.Refresh();
+			SetTargetTilemap(std::nullopt);
+		}
 		return;
 	}
 
@@ -8500,13 +8530,14 @@ void PaintEditor::CreateGeneratorForStroke(
 		}
 	}
 
-	if (layer->kind == SceneLayerKind::Tile) {
-		if (Tilemap target{ ResolveTargetTilemap(scene) };
-			target && !generator.SetTargetTilemap(target)) {
-			generator.Destroy();
-			scene.Refresh();
-			return;
+	if (target && !generator.SetTargetTilemap(target)) {
+		generator.Destroy();
+		if (created_target) {
+			target.Destroy();
+			SetTargetTilemap(std::nullopt);
 		}
+		scene.Refresh();
+		return;
 	}
 
 	scene.Refresh();
@@ -8517,12 +8548,15 @@ void PaintEditor::CreateGeneratorForStroke(
 		// leaving a stale global undo entry.
 		active_generator_before_selection_ = ctx.local.selection;
 		active_brush_generator_			   = generator.Get<UUID>();
+		active_generator_created_tilemap_ =
+			created_target ? std::optional<UUID>{ target.Get<UUID>() } : std::nullopt;
 		ctx.editor.GetSceneHierarchyPanel().SetSelectedEntity(generator, false);
 		return;
 	}
 
-	Entity recorded{ ctx.commands.RecordCreatedEntity(generator, ctx.local.selection) };
-	ctx.editor.GetSceneHierarchyPanel().SetSelectedEntity(recorded, false);
+	Entity record_root{ created_target ? Entity{ target } : Entity{ generator } };
+	ctx.commands.RecordCreatedEntity(record_root, ctx.local.selection);
+	ctx.editor.GetSceneHierarchyPanel().SetSelectedEntity(generator, false);
 }
 
 bool PaintEditor::IsActiveBrushGenerator(Entity generator) const {
@@ -8543,6 +8577,7 @@ void PaintEditor::AppendBrushStrokeToGenerator(EditorContext& ctx, Scene& scene)
 		scene.GetLayers().GetLayerId(entity) != std::optional<SceneLayerId>{ layer->id }) {
 		active_brush_generator_.reset();
 		active_generator_before_selection_.reset();
+		active_generator_created_tilemap_.reset();
 		next_active_brush_stroke_id_ = 1;
 		CreateGeneratorForStroke(ctx, scene, PaintGeneratorGeometry::BrushStroke);
 		return;
@@ -8588,6 +8623,7 @@ void PaintEditor::FinishActiveBrushGenerator(EditorContext& ctx, Scene& scene) {
 	if (!generator || !IsPaintGenerator(generator)) {
 		active_brush_generator_.reset();
 		active_generator_before_selection_.reset();
+		active_generator_created_tilemap_.reset();
 		next_active_brush_stroke_id_ = 1;
 		return;
 	}
@@ -8599,15 +8635,24 @@ void PaintEditor::FinishActiveBrushGenerator(EditorContext& ctx, Scene& scene) {
 										  SceneHierarchyTab::SceneHierarchy &&
 									  hierarchy.GetSelectedEntity() == generator };
 
-	Entity recorded{ ctx.commands.RecordCreatedEntity(generator, before) };
+	Entity record_root{ generator };
+	if (active_generator_created_tilemap_.has_value()) {
+		Entity tilemap{ scene.GetEntity(*active_generator_created_tilemap_) };
+		if (tilemap && IsTilemap(tilemap)) {
+			record_root = tilemap;
+		}
+	}
+
+	ctx.commands.RecordCreatedEntity(record_root, before);
 	if (generator_is_still_selected) {
-		ctx.editor.GetSceneHierarchyPanel().SetSelectedEntity(recorded, false);
+		ctx.editor.GetSceneHierarchyPanel().SetSelectedEntity(generator, false);
 	} else {
 		ApplyEditorSelection(ctx, current_selection);
 	}
 
 	active_brush_generator_.reset();
 	active_generator_before_selection_.reset();
+	active_generator_created_tilemap_.reset();
 	next_active_brush_stroke_id_ = 1;
 	ctx.local.state.is_dirty	 = true;
 }
@@ -8617,8 +8662,30 @@ void PaintEditor::CancelActiveBrushGenerator(EditorContext& ctx, Scene& scene) {
 		return;
 	}
 
+	std::optional<UUID> created_tilemap{ active_generator_created_tilemap_ };
+	bool destroyed{};
+
 	if (Entity generator{ scene.GetEntity(*active_brush_generator_) }) {
 		generator.Destroy();
+		destroyed = true;
+	}
+
+	if (created_tilemap.has_value()) {
+		if (Entity tilemap{ scene.GetEntity(*created_tilemap) }) {
+			tilemap.Destroy();
+			destroyed = true;
+		}
+
+		if (target_tilemap_ == created_tilemap) {
+			target_tilemap_.reset();
+		}
+		if (selected_tilemap_ == created_tilemap) {
+			selected_tilemap_.reset();
+			selected_tile_cells_.clear();
+		}
+	}
+
+	if (destroyed) {
 		scene.Refresh();
 	}
 
@@ -8630,6 +8697,7 @@ void PaintEditor::CancelActiveBrushGenerator(EditorContext& ctx, Scene& scene) {
 
 	active_brush_generator_.reset();
 	active_generator_before_selection_.reset();
+	active_generator_created_tilemap_.reset();
 	next_active_brush_stroke_id_ = 1;
 	stroke_						 = {};
 }
@@ -8673,26 +8741,59 @@ void PaintEditor::CreateInfiniteGenerator(EditorContext& ctx, Scene& scene) {
 	if (!layer || layer->locked) {
 		return;
 	}
+
+	Tilemap target;
+	bool created_target{};
+	if (layer->kind == SceneLayerKind::Tile) {
+		target = ResolveTargetTilemap(scene);
+
+		if (!target) {
+			V2_float grid_size{ ActiveGridSize(scene) };
+			V2_float grid_origin{ ActiveGridOrigin(scene) };
+			target = CreateTilemap(scene, layer->id);
+			if (!target) {
+				return;
+			}
+
+			target.SetCellSize(grid_size);
+			SetPosition(target, grid_origin);
+			scene.Refresh();
+
+			created_target = true;
+			SetTargetTilemap(target.Get<UUID>());
+		}
+	}
+
 	PaintGenerator generator{ CreatePaintGenerator(scene, layer->id, Tag{ "Infinite Generator" }) };
 	if (!generator) {
+		if (created_target && target) {
+			target.Destroy();
+			scene.Refresh();
+			SetTargetTilemap(std::nullopt);
+		}
 		return;
 	}
+
 	auto& data{ generator.GetData() };
 	data.geometry	 = PaintGeneratorGeometry::Infinite;
 	data.recipe		 = CaptureGeneratorRecipe(*layer);
 	data.grid_size	 = ActiveGridSize(scene);
 	data.grid_offset = ActiveGridOrigin(scene);
-	if (layer->kind == SceneLayerKind::Tile) {
-		if (Tilemap target{ ResolveTargetTilemap(scene) };
-			target && !generator.SetTargetTilemap(target)) {
-			generator.Destroy();
-			scene.Refresh();
-			return;
+
+	if (target && !generator.SetTargetTilemap(target)) {
+		generator.Destroy();
+		if (created_target) {
+			target.Destroy();
+			SetTargetTilemap(std::nullopt);
 		}
+		scene.Refresh();
+		return;
 	}
+
 	scene.Refresh();
-	Entity recorded{ ctx.commands.RecordCreatedEntity(generator, ctx.local.selection) };
-	ctx.editor.GetSceneHierarchyPanel().SetSelectedEntity(recorded, false);
+	Entity record_root{ created_target ? Entity{ target } : Entity{ generator } };
+	ctx.commands.RecordCreatedEntity(record_root, ctx.local.selection);
+	ctx.editor.GetSceneHierarchyPanel().SetSelectedEntity(generator, false);
 }
 
 void PaintEditor::CommitTileStroke(EditorContext& ctx, Scene& scene) {
@@ -9995,12 +10096,6 @@ bool PaintEditor::DrawViewportAndHandleInput(
 	if ((!ctx.local.state.viewport.hovered && !pointer_operation_active) ||
 		ImGui::GetIO().WantTextInput) {
 		return false;
-	}
-
-	if (active_brush_generator_.has_value() && ImGui::GetIO().KeyCtrl &&
-		ImGui::IsKeyPressed(ImGuiKey_Z, false)) {
-		UndoActiveBrushStroke(ctx, scene);
-		return true;
 	}
 
 	HandleShortcuts(ctx, scene);

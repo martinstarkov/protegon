@@ -425,7 +425,7 @@ bool CanReparent(Entity entity, Entity parent) {
 		auto layer_id{ entity.GetScene().GetLayers().GetLayerId(entity) };
 		const SceneLayer* layer{ layer_id ? entity.GetScene().GetLayers().Find(*layer_id)
 										  : nullptr };
-		if (layer && layer->kind == SceneLayerKind::Tile && parent && !IsTilemap(parent)) {
+		if (layer && layer->kind == SceneLayerKind::Tile && (!parent || !IsTilemap(parent))) {
 			return false;
 		}
 	}
@@ -480,7 +480,6 @@ void ApplyHierarchyDrop(EditorContext& ctx, const PendingHierarchyDrop& drop) {
 
 void DrawRestrictionReasons(std::initializer_list<std::optional<std::string_view>> reasons) {
 	std::vector<std::string_view> drawn_reasons;
-	bool drew_separator{ false };
 
 	for (const auto& reason : reasons) {
 		if (!reason.has_value() || reason->empty()) {
@@ -491,13 +490,7 @@ void DrawRestrictionReasons(std::initializer_list<std::optional<std::string_view
 			continue;
 		}
 
-		if (!drew_separator) {
-			ImGui::Separator();
-			drew_separator = true;
-		}
-
 		ImGui::TextDisabled("%.*s", static_cast<int>(reason->size()), reason->data());
-
 		drawn_reasons.emplace_back(reason.value());
 	}
 }
@@ -567,15 +560,13 @@ void DrawCreateMenuItem(
 	CreateMenuContext& context, const char* label, CreateEntityFunction create,
 	bool can_create_as_child = true
 ) {
-	bool disabled{ context.IsCreatingChild() && !can_create_as_child };
-
-	ImGui::BeginDisabled(disabled);
+	if (context.IsCreatingChild() && !can_create_as_child) {
+		return;
+	}
 
 	if (ImGui::MenuItem(label)) {
 		FinalizeCreatedEntity(context, create(context.scene));
 	}
-
-	ImGui::EndDisabled();
 }
 
 Entity CreateDefaultSprite(Scene& scene) {
@@ -1083,19 +1074,19 @@ void DrawCreateEntityMenu(
 		.layer{ target_layer },
 	};
 
+	if (parent && (IsTilemap(parent) || GetChildAcceptanceLockReason(parent).has_value())) {
+		return;
+	}
+
 	bool creating_child{ context.IsCreatingChild() };
 	const char* create_entity_label{ creating_child ? "Create Child Entity" : "Create Entity" };
 	const char* create_submenu_label{ creating_child ? "Create Child" : "Create" };
 
-	auto child_acceptance_reason{ parent ? GetChildAcceptanceLockReason(parent)
-										 : std::optional<std::string_view>{} };
-	bool can_create_child{ !child_acceptance_reason.has_value() };
-
-	if (ImGui::MenuItem(create_entity_label, nullptr, false, can_create_child)) {
+	if (ImGui::MenuItem(create_entity_label)) {
 		FinalizeCreatedEntity(context, scene.CreateEntity());
 	}
 
-	if (!ImGui::BeginMenu(create_submenu_label, can_create_child)) {
+	if (!ImGui::BeginMenu(create_submenu_label)) {
 		return;
 	}
 
@@ -1134,6 +1125,253 @@ void PushSceneLayerEdit(
 		std::move(label), [scene_ptr, before]() { ApplySceneLayerSnapshot(*scene_ptr, before); },
 		[scene_ptr, after]() { ApplySceneLayerSnapshot(*scene_ptr, after); }
 	);
+}
+
+struct EntityLayerRootState {
+	SerializedSceneLayers layers{};
+	std::optional<UUID> parent{};
+	std::optional<Transform> transform{};
+};
+
+void ApplyEntityLayerRootState(Scene& scene, UUID entity_uuid, const EntityLayerRootState& state) {
+	ApplySceneLayerSnapshot(scene, state.layers);
+
+	Entity entity{ scene.GetEntity(entity_uuid) };
+	if (!entity) {
+		return;
+	}
+
+	if (state.parent.has_value()) {
+		if (Entity parent{ scene.GetEntity(*state.parent) }) {
+			SetParent(entity, parent);
+		}
+	} else if (HasParent(entity)) {
+		RemoveParent(entity);
+	}
+
+	if (state.transform.has_value() && entity.Has<Transform>()) {
+		entity.Get<Transform>() = *state.transform;
+	}
+}
+
+bool CanMoveEntityToLayerRoot(Scene& scene, Entity entity, SceneLayerId layer_id) {
+	if (!entity || !CanReparent(entity, {})) {
+		return false;
+	}
+
+	const SceneLayer* destination{ scene.GetLayers().Find(layer_id) };
+	if (!destination) {
+		return false;
+	}
+
+	if (IsPaintGenerator(entity) && destination->kind == SceneLayerKind::Tile) {
+		return false;
+	}
+
+	auto can_assign_subtree = [&](auto&& self, Entity current) -> bool {
+		if (!scene.GetLayers().CanAssign(current, layer_id)) {
+			return false;
+		}
+
+		if (HasChildren(current)) {
+			for (Entity child : GetChildren(current)) {
+				if (!self(self, child)) {
+					return false;
+				}
+			}
+		}
+
+		return true;
+	};
+
+	return can_assign_subtree(can_assign_subtree, entity);
+}
+
+bool MoveEntityToLayerRoot(EditorContext& ctx, Scene& scene, Entity entity, SceneLayerId layer_id) {
+	if (!CanMoveEntityToLayerRoot(scene, entity, layer_id)) {
+		return false;
+	}
+
+	auto current_layer{ scene.GetLayers().GetLayerId(entity) };
+	if (!HasParent(entity) && current_layer == std::optional<SceneLayerId>{ layer_id }) {
+		return false;
+	}
+
+	EntityLayerRootState before{
+		.layers{ scene.GetLayers().Serialize(scene) },
+		.parent{ HasParent(entity) ? std::optional<UUID>{ GetParent(entity).Get<UUID>() }
+								   : std::nullopt },
+		.transform{ entity.Has<Transform>() ? std::optional<Transform>{ entity.Get<Transform>() }
+											: std::nullopt },
+	};
+
+	std::optional<Transform> world_transform{
+		entity.Has<Transform>() ? std::optional<Transform>{ GetWorldTransform(entity) }
+								: std::nullopt
+	};
+
+	if (!scene.GetLayers().Assign(entity, layer_id, true)) {
+		return false;
+	}
+
+	if (HasParent(entity)) {
+		RemoveParent(entity);
+	}
+	if (world_transform.has_value()) {
+		SetWorldTransform(entity, *world_transform);
+	}
+
+	EntityLayerRootState after{
+		.layers{ scene.GetLayers().Serialize(scene) },
+		.parent{},
+		.transform{ entity.Has<Transform>() ? std::optional<Transform>{ entity.Get<Transform>() }
+											: std::nullopt },
+	};
+
+	Scene* scene_ptr{ &scene };
+	UUID entity_uuid{ entity.Get<UUID>() };
+	ctx.undo.PushApplied(
+		"Move Entity To Layer",
+		[scene_ptr, entity_uuid, before]() {
+			ApplyEntityLayerRootState(*scene_ptr, entity_uuid, before);
+		},
+		[scene_ptr, entity_uuid, after]() {
+			ApplyEntityLayerRootState(*scene_ptr, entity_uuid, after);
+		}
+	);
+	return true;
+}
+
+struct DeletedLayerEntity {
+	SerializedEntity entity{};
+	std::optional<UUID> parent{};
+};
+
+void DestroyLayerEntityTree(Entity entity) {
+	if (!entity) {
+		return;
+	}
+
+	if (HasChildren(entity)) {
+		auto children{ GetChildren(entity) };
+		for (Entity child : children) {
+			DestroyLayerEntityTree(child);
+		}
+	}
+
+	if (HasParent(entity)) {
+		RemoveParent(entity);
+	}
+	entity.Destroy();
+}
+
+Entity RestoreLayerEntityTree(Scene& scene, const SerializedEntity& serialized) {
+	Entity entity{ scene.GetEntity(GetSerializedEntityUUID(serialized)) };
+	if (!entity) {
+		entity = scene.CreateEntity(Tag{ serialized.tag }, GetSerializedEntityUUID(serialized));
+	}
+
+	DeserializeEntity(serialized, entity);
+
+	for (const auto& child_serialized : serialized.children) {
+		Entity child{ RestoreLayerEntityTree(scene, child_serialized) };
+		SetParent(child, entity);
+	}
+
+	return entity;
+}
+
+void DestroyDeletedLayerEntities(Scene& scene, const std::vector<DeletedLayerEntity>& entities) {
+	for (const auto& snapshot : entities) {
+		if (Entity entity{ scene.GetEntity(GetSerializedEntityUUID(snapshot.entity)) }) {
+			DestroyLayerEntityTree(entity);
+		}
+	}
+
+	scene.Refresh();
+	scene.GetLayers().Prune(scene);
+}
+
+void RestoreDeletedLayer(
+	Scene& scene, const std::vector<DeletedLayerEntity>& entities,
+	const SerializedSceneLayers& layers
+) {
+	for (const auto& snapshot : entities) {
+		Entity restored{ RestoreLayerEntityTree(scene, snapshot.entity) };
+		if (snapshot.parent.has_value()) {
+			if (Entity parent{ scene.GetEntity(*snapshot.parent) }) {
+				SetParent(restored, parent);
+			}
+		}
+	}
+
+	scene.Refresh();
+	ApplySceneLayerSnapshot(scene, layers);
+}
+
+bool DeleteSceneLayer(EditorContext& ctx, Scene& scene, SceneLayerId layer_id) {
+	auto& layers{ scene.GetLayers() };
+	if (!layer_id || layer_id == layers.GetDefaultEntityLayer() || !layers.Find(layer_id)) {
+		return false;
+	}
+
+	SerializedSceneLayers before{ layers.Serialize(scene) };
+	std::vector<Entity> roots;
+
+	for (Entity entity : scene.Entities()) {
+		if (layers.GetLayerId(entity) != std::optional<SceneLayerId>{ layer_id }) {
+			continue;
+		}
+
+		if (HasParent(entity) &&
+			layers.GetLayerId(GetParent(entity)) == std::optional<SceneLayerId>{ layer_id }) {
+			continue;
+		}
+
+		roots.emplace_back(entity);
+	}
+
+	SortByLocalDepth(roots);
+
+	std::vector<DeletedLayerEntity> deleted_entities;
+	for (Entity root : roots) {
+		if (GetDeletionLockReason(root).has_value()) {
+			if (!layers.Assign(root, layers.GetDefaultEntityLayer(), true)) {
+				ApplySceneLayerSnapshot(scene, before);
+				return false;
+			}
+			continue;
+		}
+
+		deleted_entities.emplace_back(
+			DeletedLayerEntity{
+				.entity{ SerializeEntity(root) },
+				.parent{ HasParent(root) ? std::optional<UUID>{ GetParent(root).Get<UUID>() }
+										 : std::nullopt },
+			}
+		);
+	}
+
+	DestroyDeletedLayerEntities(scene, deleted_entities);
+
+	if (!layers.Delete(scene, layer_id)) {
+		RestoreDeletedLayer(scene, deleted_entities, before);
+		return false;
+	}
+
+	SerializedSceneLayers after{ layers.Serialize(scene) };
+	Scene* scene_ptr{ &scene };
+	ctx.undo.PushApplied(
+		"Delete Layer",
+		[scene_ptr, before, deleted_entities]() {
+			RestoreDeletedLayer(*scene_ptr, deleted_entities, before);
+		},
+		[scene_ptr, after, deleted_entities]() {
+			DestroyDeletedLayerEntities(*scene_ptr, deleted_entities);
+			ApplySceneLayerSnapshot(*scene_ptr, after);
+		}
+	);
+	return true;
 }
 
 void DrawSceneHierarchyContents(
@@ -1312,6 +1550,8 @@ void DrawSceneHierarchyContents(
 		auto duplication_lock_reason{ GetDuplicationLockReason(entity) };
 		auto deletion_lock_reason{ GetDeletionLockReason(entity) };
 		auto child_acceptance_reason{ GetChildAcceptanceLockReason(entity) };
+		bool protected_primary{ IsPrimarySceneRenderTarget(entity) ||
+								IsPrimarySceneCamera(entity) || IsFixedSceneCamera(entity) };
 
 		if (layer_interactable && ImGui::BeginDragDropSource()) {
 			auto uuid{ entity.Get<UUID>() };
@@ -1344,40 +1584,71 @@ void DrawSceneHierarchyContents(
 			},
 			[&]() {
 				ImGui::BeginDisabled(!layer_interactable);
-				DrawCreateEntityMenu(ctx, scene, entity, selected_entity);
+
+				if (IsTilemap(entity)) {
+					if (ImGui::MenuItem("Create Generator")) {
+						auto layer_id{ scene.GetLayers().GetLayerId(entity) };
+						if (layer_id.has_value()) {
+							PaintGenerator created{ CreatePaintGenerator(scene, *layer_id) };
+							if (created) {
+								if (created.SetTargetTilemap(Tilemap{ entity })) {
+									scene.Refresh();
+									selected_entity = ctx.commands.RecordCreatedEntity(
+										created, ctx.local.selection
+									);
+								} else {
+									created.Destroy();
+									scene.Refresh();
+								}
+							}
+						}
+					}
+				} else if (!child_acceptance_reason.has_value()) {
+					DrawCreateEntityMenu(ctx, scene, entity, selected_entity);
+				}
+
 				ImGui::EndDisabled();
 			},
 			[&]() {
-				ImGui::BeginDisabled(!layer_interactable || duplication_lock_reason.has_value());
+				if (!protected_primary) {
+					ImGui::BeginDisabled(
+						!layer_interactable || duplication_lock_reason.has_value()
+					);
 
-				if (ImGui::MenuItem("Duplicate")) {
-					entity_to_duplicate = entity;
-				}
-
-				ImGui::EndDisabled();
-
-				ImGui::BeginDisabled(!project_root.has_value());
-
-				if (ImGui::MenuItem("Save As Prefab")) {
-					PrefabKey created_key{ ctx.commands.CreatePrefabAsset(
-						CreatePrefabFromEntity(scene.ctx().asset, project_root.value(), entity)
-					) };
-
-					if (!created_key.value.empty()) {
-						selected_prefab = created_key;
-
-						ImGui::SetWindowFocus("Prefabs###PrefabsWindow");
+					if (ImGui::MenuItem("Duplicate")) {
+						entity_to_duplicate = entity;
 					}
+
+					ImGui::EndDisabled();
 				}
 
-				ImGui::EndDisabled();
+				if (!protected_primary) {
+					ImGui::BeginDisabled(!project_root.has_value());
 
-				ImGui::Separator();
+					if (ImGui::MenuItem("Save As Prefab")) {
+						PrefabKey created_key{ ctx.commands.CreatePrefabAsset(
+							CreatePrefabFromEntity(scene.ctx().asset, project_root.value(), entity)
+						) };
 
-				if (ptgn::HasParent(entity)) {
-					bool can_move_to_root{ CanReparent(entity, {}) };
+						if (!created_key.value.empty()) {
+							selected_prefab = created_key;
 
-					ImGui::BeginDisabled(!layer_interactable || !can_move_to_root);
+							ImGui::SetWindowFocus("Prefabs###PrefabsWindow");
+						}
+					}
+
+					ImGui::EndDisabled();
+				}
+
+				bool show_move_to_root{ ptgn::HasParent(entity) && CanReparent(entity, {}) };
+				bool show_delete{ !protected_primary };
+
+				if (show_move_to_root || show_delete) {
+					ImGui::Separator();
+				}
+
+				if (show_move_to_root) {
+					ImGui::BeginDisabled(!layer_interactable);
 
 					if (ImGui::MenuItem("Move To Root")) {
 						pending_drop = PendingHierarchyDrop{
@@ -1389,13 +1660,15 @@ void DrawSceneHierarchyContents(
 					ImGui::EndDisabled();
 				}
 
-				ImGui::BeginDisabled(!layer_interactable || deletion_lock_reason.has_value());
+				if (show_delete) {
+					ImGui::BeginDisabled(!layer_interactable || deletion_lock_reason.has_value());
 
-				if (ImGui::MenuItem("Delete")) {
-					entity_to_delete = entity;
+					if (ImGui::MenuItem("Delete")) {
+						entity_to_delete = entity;
+					}
+
+					ImGui::EndDisabled();
 				}
-
-				ImGui::EndDisabled();
 
 				DrawRestrictionReasons(
 					{
@@ -1408,6 +1681,7 @@ void DrawSceneHierarchyContents(
 				);
 			},
 			RenamableContextMenuOptions{
+				.show_rename	  = !protected_primary,
 				.rename_enabled	  = layer_interactable,
 				.rename_placement = RenameMenuPlacement::Middle,
 			}
@@ -1492,12 +1766,6 @@ void DrawSceneHierarchyContents(
 				selected_entity				   = {};
 				entity_left_clicked_this_frame = true;
 			}
-			if (ImGui::IsItemHovered() && ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left)) {
-				renaming_layer	   = layer->id;
-				layer_rename_text  = layer->name;
-				focus_layer_rename = true;
-			}
-
 			if (ImGui::BeginDragDropSource(ImGuiDragDropFlags_SourceAllowNullID)) {
 				SceneLayerId dragged_layer{ layer->id };
 				ImGui::SetDragDropPayload(
@@ -1507,8 +1775,7 @@ void DrawSceneHierarchyContents(
 				ImGui::EndDragDropSource();
 			}
 			Entity dragged{ GetDraggedEntity(scene) };
-			bool can_drop_entity{ dragged && !HasParent(dragged) &&
-								  scene_layers.CanAssign(dragged, layer->id) };
+			bool can_drop_entity{ CanMoveEntityToLayerRoot(scene, dragged, layer->id) };
 			if (ImGui::BeginDragDropTarget()) {
 				if (const ImGuiPayload* payload{
 						ImGui::AcceptDragDropPayload(kLayerDragDropPayload) };
@@ -1521,11 +1788,7 @@ void DrawSceneHierarchyContents(
 
 				if (can_drop_entity) {
 					if (Entity dropped{ AcceptDraggedEntity(scene) };
-						dropped && !HasParent(dropped) &&
-						scene_layers.CanAssign(dropped, layer->id)) {
-						SerializedSceneLayers before{ scene_layers.Serialize(scene) };
-						scene_layers.Assign(dropped, layer->id, true);
-						PushSceneLayerEdit(ctx, scene, "Move Entity To Layer", before);
+						MoveEntityToLayerRoot(ctx, scene, dropped, layer->id)) {
 						ctx.editor.GetPaintEditor().SetActiveLayer(scene, layer->id);
 					}
 				}
@@ -1571,23 +1834,6 @@ void DrawSceneHierarchyContents(
 							);
 						}
 					}
-					if (ImGui::MenuItem("Create Generator")) {
-						PaintGenerator created{ CreatePaintGenerator(scene, layer->id) };
-						if (created) {
-							if (auto target_uuid{
-									ctx.editor.GetPaintEditor().GetTargetTilemapUUID() }) {
-								if (Entity target{ scene.GetEntity(*target_uuid) };
-									target && IsTilemap(target) &&
-									scene.GetLayers().GetLayerId(target) ==
-										std::optional<SceneLayerId>{ layer->id }) {
-									created.SetTargetTilemap(Tilemap{ target });
-								}
-							}
-							scene.Refresh();
-							selected_entity =
-								ctx.commands.RecordCreatedEntity(created, ctx.local.selection);
-						}
-					}
 					ImGui::EndDisabled();
 				} else {
 					ImGui::BeginDisabled(layer->locked);
@@ -1604,14 +1850,10 @@ void DrawSceneHierarchyContents(
 				}
 				ImGui::Separator();
 				bool is_default{ layer->id == scene_layers.GetDefaultEntityLayer() };
-				bool has_entities{ !scene_layers.GetRootEntities(scene, layer->id).empty() };
-				ImGui::BeginDisabled(is_default || has_entities);
-				if (ImGui::MenuItem("Delete Layer")) {
+				if (is_default) {
+					ImGui::TextDisabled("Default layer cannot be deleted.");
+				} else if (ImGui::MenuItem("Delete Layer")) {
 					layer_to_delete = layer->id;
-				}
-				ImGui::EndDisabled();
-				if (has_entities && ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled)) {
-					ImGui::SetTooltip("Move or delete the layer contents first.");
 				}
 				ImGui::EndPopup();
 			}
@@ -1637,12 +1879,8 @@ void DrawSceneHierarchyContents(
 			PushSceneLayerEdit(ctx, scene, "Reorder Layer", before);
 		}
 	}
-	if (layer_to_delete) {
-		SerializedSceneLayers before{ scene_layers.Serialize(scene) };
-		if (scene_layers.Delete(scene, layer_to_delete)) {
-			ctx.editor.GetPaintEditor().SetActiveLayer(scene, scene_layers.GetDefaultEntityLayer());
-			PushSceneLayerEdit(ctx, scene, "Delete Layer", before);
-		}
+	if (layer_to_delete && DeleteSceneLayer(ctx, scene, layer_to_delete)) {
+		ctx.editor.GetPaintEditor().SetActiveLayer(scene, scene_layers.GetDefaultEntityLayer());
 	}
 
 	if (ImGui::BeginPopupContextWindow(
@@ -1669,22 +1907,6 @@ void DrawSceneHierarchyContents(
 					selected_entity =
 						ctx.commands.RecordCreatedEntity(created, ctx.local.selection);
 					ctx.editor.GetPaintEditor().SetTargetTilemap(selected_entity.Get<UUID>());
-				}
-			}
-			if (ImGui::MenuItem("Create Generator")) {
-				PaintGenerator created{ CreatePaintGenerator(scene, active_layer_id) };
-				if (created) {
-					if (auto target_uuid{ ctx.editor.GetPaintEditor().GetTargetTilemapUUID() }) {
-						if (Entity target{ scene.GetEntity(*target_uuid) };
-							target && IsTilemap(target) &&
-							scene.GetLayers().GetLayerId(target) ==
-								std::optional<SceneLayerId>{ active_layer_id }) {
-							created.SetTargetTilemap(Tilemap{ target });
-						}
-					}
-					scene.Refresh();
-					selected_entity =
-						ctx.commands.RecordCreatedEntity(created, ctx.local.selection);
 				}
 			}
 			ImGui::EndDisabled();

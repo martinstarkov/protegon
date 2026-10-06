@@ -289,6 +289,10 @@ public:
 	void BakeGenerator(EditorContext& ctx, Scene& scene, Entity generator);
 	[[nodiscard]] bool IsActiveBrushGenerator(Entity generator) const;
 
+	[[nodiscard]] bool HasActiveBrushGenerator() const {
+		return active_brush_generator_.has_value();
+	}
+
 	/// Edit an existing generator's captured source. The viewport resolves the recipe every frame.
 	bool DrawGeneratorSourceEditor(
 		EditorContext& ctx, Entity generator, PaintGeneratorRecipe& recipe
@@ -608,6 +612,7 @@ private:
 	// authoring, but it is not pushed to the global undo stack until Finish Generator.
 	std::optional<UUID> active_brush_generator_{};
 	std::optional<EditorSelection> active_generator_before_selection_{};
+	std::optional<UUID> active_generator_created_tilemap_{};
 	std::uint32_t next_active_brush_stroke_id_{ 1 };
 };
 

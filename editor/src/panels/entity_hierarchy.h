@@ -18,6 +18,7 @@ namespace ptgn::editor {
 
 namespace hierarchy {
 
+// TODO: Use string.h functions.
 [[nodiscard]] inline std::string TrimWhitespace(std::string value) {
 	auto first{ value.find_first_not_of(" \t\r\n") };
 
@@ -30,6 +31,7 @@ namespace hierarchy {
 	return value.substr(first, last - first + 1);
 }
 
+// TODO: Use string.h functions.
 [[nodiscard]] inline std::string ToLower(std::string value) {
 	for (char& c : value) {
 		c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
@@ -189,8 +191,10 @@ struct LayerRowResult {
 	LayerRowResult result;
 	result.visibility_clicked = DrawLayerControls(layer, options.controls);
 
-	ImGuiTreeNodeFlags flags{ ImGuiTreeNodeFlags_OpenOnArrow | ImGuiTreeNodeFlags_SpanAvailWidth |
-							  ImGuiTreeNodeFlags_DefaultOpen | ImGuiTreeNodeFlags_FramePadding };
+	ImGuiTreeNodeFlags flags{ ImGuiTreeNodeFlags_OpenOnArrow |
+							  ImGuiTreeNodeFlags_OpenOnDoubleClick |
+							  ImGuiTreeNodeFlags_SpanAvailWidth | ImGuiTreeNodeFlags_DefaultOpen |
+							  ImGuiTreeNodeFlags_FramePadding };
 	if (options.selected) {
 		flags |= ImGuiTreeNodeFlags_Selected;
 	}

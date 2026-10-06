@@ -3087,12 +3087,20 @@ void Editor::OnUpdate() {
 	if ((io.KeyCtrl || io.KeySuper) && !io.WantTextInput) {
 		if (ImGui::IsKeyPressed(ImGuiKey_Z, false)) {
 			context_->local.position_picker.Cancel();
+
 			if (io.KeyShift) {
 				undo_stack_.Redo();
+				scene_asset_dependencies_dirty_ = true;
 			} else {
-				undo_stack_.Undo();
+				Scene* scene{ scene_list_panel_.GetSelectedScene() };
+
+				if (scene && paint_editor_.HasActiveBrushGenerator()) {
+					paint_editor_.UndoActiveBrushStroke(*context_, *scene);
+				} else {
+					undo_stack_.Undo();
+					scene_asset_dependencies_dirty_ = true;
+				}
 			}
-			scene_asset_dependencies_dirty_ = true;
 		} else if (ImGui::IsKeyPressed(ImGuiKey_Y, false)) {
 			context_->local.position_picker.Cancel();
 			undo_stack_.Redo();
