@@ -12,12 +12,12 @@
 namespace ptgn {
 
 /// @brief Monotonic clock to prevent time variations if system time is changed.
-class Timer {
+class Stopwatch {
 public:
-	Timer() = default;
+	Stopwatch() = default;
 
 	/// @param start Whether to start the timer immediately upon construction or not.
-	explicit Timer(bool start) {
+	explicit Stopwatch(bool start) {
 		if (start) {
 			Start();
 		}
@@ -142,14 +142,14 @@ public:
 		return elapsed;
 	}
 
-	bool operator==(const Timer&) const = default;
+	bool operator==(const Stopwatch&) const = default;
 
-	friend void to_json(json& j, const Timer& timer) {
+	friend void to_json(json& j, const Stopwatch& timer) {
 		j["running"] = timer.running_;
 		j["paused"]	 = timer.paused_;
 	}
 
-	friend void from_json(const json& j, Timer& timer) {
+	friend void from_json(const json& j, Stopwatch& timer) {
 		j.at("running").get_to(timer.running_);
 		j.at("paused").get_to(timer.paused_);
 		if (timer.running_) {
@@ -164,7 +164,7 @@ public:
 		}
 	}
 
-	friend std::ostream& operator<<(std::ostream& os, const Timer& timer) {
+	friend std::ostream& operator<<(std::ostream& os, const Stopwatch& timer) {
 		return os << "{ running: " << timer.running_ << ", paused: " << timer.paused_
 				  << ", elapsed: " << timer.ElapsedDuration<secondsf>() << "s }";
 	}
@@ -182,13 +182,13 @@ private:
 	bool paused_{ false };
 };
 
-/// @brief Timer that only advances when manually updated with dt.
-class ManualTimer {
+/// @brief Delta timer that only advances when explicitly updated or adjusted.
+class DeltaTimer {
 public:
-	ManualTimer() = default;
+	DeltaTimer() = default;
 
 	/// @param start Whether to start the timer immediately upon construction or not.
-	explicit ManualTimer(bool start) {
+	explicit DeltaTimer(bool start) {
 		if (start) {
 			Start();
 		}
@@ -379,16 +379,16 @@ public:
 		return Clamp01(elapsed_time.count());
 	}
 
-	bool operator==(const ManualTimer&) const = default;
+	bool operator==(const DeltaTimer&) const = default;
 
-	friend void to_json(json& j, const ManualTimer& timer) {
+	friend void to_json(json& j, const DeltaTimer& timer) {
 		j["running"] = timer.running_;
 		j["paused"]	 = timer.paused_;
 		j["has_run"] = timer.has_run_;
 		j["elapsed"] = timer.ElapsedDuration<milliseconds>().count();
 	}
 
-	friend void from_json(const json& j, ManualTimer& timer) {
+	friend void from_json(const json& j, DeltaTimer& timer) {
 		timer.running_ = j.value("running", false);
 		timer.paused_  = j.value("paused", false);
 		timer.has_run_ = j.value("has_run", false);
@@ -408,7 +408,7 @@ public:
 		}
 	}
 
-	friend std::ostream& operator<<(std::ostream& os, const ManualTimer& timer) {
+	friend std::ostream& operator<<(std::ostream& os, const DeltaTimer& timer) {
 		return os << "{ running: " << timer.running_ << ", paused: " << timer.paused_
 				  << ", elapsed: " << timer.ElapsedDuration<secondsf>().count() << "s }";
 	}
@@ -421,7 +421,7 @@ private:
 	bool paused_{ false };
 	bool has_run_{ false };
 
-	PTGN_REFLECT(ManualTimer, elapsed_, running_, paused_, has_run_)
+	PTGN_REFLECT(DeltaTimer, elapsed_, running_, paused_, has_run_)
 };
 
 } // namespace ptgn

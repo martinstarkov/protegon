@@ -31,7 +31,7 @@ private:
 	ProfileInstance() = default;
 
 	std::string name_{};
-	Timer timer_;
+	Stopwatch timer_;
 };
 
 class Profiler {

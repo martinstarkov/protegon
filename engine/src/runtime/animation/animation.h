@@ -326,7 +326,7 @@ public:
 
 	AnimationConfig config;
 
-	ManualTimer frame_timer;
+	DeltaTimer frame_timer;
 
 	/// @brief Current frame of the animation.
 	std::size_t current_frame{ 0 };

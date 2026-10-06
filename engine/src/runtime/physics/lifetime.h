@@ -16,6 +16,20 @@ struct Lifetime {
 
 	/// @brief Will restart if lifetime is already running.
 	void Start();
+	void Stop();
+	void Reset();
+	void Pause();
+	void Resume();
+
+	void Advance(millisecondsf amount);
+	void Rewind(millisecondsf amount);
+
+	[[nodiscard]] millisecondsf Elapsed() const;
+	[[nodiscard]] millisecondsf Remaining() const;
+	[[nodiscard]] float Progress() const;
+	[[nodiscard]] bool IsRunning() const;
+	[[nodiscard]] bool IsPaused() const;
+	[[nodiscard]] bool HasRun() const;
 
 	void Update(Entity entity, secondsf dt);
 
@@ -28,7 +42,7 @@ private:
 
 	static void Update(Scene& scene, secondsf dt);
 
-	ManualTimer timer_{};
+	DeltaTimer timer_{};
 };
 
 } // namespace ptgn

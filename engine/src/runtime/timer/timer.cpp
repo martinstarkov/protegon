@@ -14,6 +14,7 @@
 namespace ptgn {
 
 namespace {
+
 [[nodiscard]] millisecondsf ClampTimerDuration(millisecondsf duration) {
 	return millisecondsf{ std::max(0.0f, duration.count()) };
 }
@@ -24,6 +25,7 @@ namespace {
 	}
 
 	auto* timers{ entity.TryGet<impl::Timers>() };
+
 	if (!timers) {
 		return nullptr;
 	}
@@ -31,6 +33,7 @@ namespace {
 	auto it{ std::ranges::find_if(timers->timers, [&key](const TimerEntry& entry) {
 		return entry.config.key == key;
 	}) };
+
 	return it == timers->timers.end() ? nullptr : std::addressof(*it);
 }
 
@@ -43,6 +46,7 @@ void InitializeTimerRuntime(TimerEntry& entry, bool apply_auto_start) {
 	entry.runtime.elapsed_count = 0;
 	entry.runtime.completed		= false;
 	entry.runtime.initialized	= true;
+
 	if (apply_auto_start && entry.config.start_automatically) {
 		entry.runtime.timer.Start();
 	}
@@ -60,6 +64,7 @@ void InitializeTimerRuntime(TimerEntry& entry, bool apply_auto_start) {
 	TimerEntry& entry, const TimerKey& key, millisecondsf amount
 ) {
 	std::vector<event::TimerElapsed> events;
+
 	if (amount <= millisecondsf{ 0.0f }) {
 		return events;
 	}
@@ -79,8 +84,11 @@ void InitializeTimerRuntime(TimerEntry& entry, bool apply_auto_start) {
 		if (duration <= millisecondsf{ 0.0f }) {
 			entry.runtime.timer.RemoveElapsed(elapsed);
 			entry.runtime.timer.Stop();
+
 			entry.runtime.completed = true;
+
 			++entry.runtime.elapsed_count;
+
 			events.push_back(
 				event::TimerElapsed{
 					.timer			  = key,
@@ -95,6 +103,7 @@ void InitializeTimerRuntime(TimerEntry& entry, bool apply_auto_start) {
 		}
 
 		previous_elapsed = std::min(previous_elapsed, duration);
+
 		if (elapsed >= duration) {
 			if (elapsed > duration) {
 				entry.runtime.timer.RemoveElapsed(elapsed - duration);
@@ -102,7 +111,9 @@ void InitializeTimerRuntime(TimerEntry& entry, bool apply_auto_start) {
 
 			entry.runtime.timer.Stop();
 			entry.runtime.completed = true;
+
 			++entry.runtime.elapsed_count;
+
 			events.push_back(
 				event::TimerElapsed{
 					.timer			  = key,
@@ -117,6 +128,7 @@ void InitializeTimerRuntime(TimerEntry& entry, bool apply_auto_start) {
 		}
 
 		entry.runtime.completed = false;
+
 		events.push_back(
 			event::TimerElapsed{
 				.timer			  = key,
@@ -131,9 +143,12 @@ void InitializeTimerRuntime(TimerEntry& entry, bool apply_auto_start) {
 	}
 
 	entry.runtime.completed = false;
+
 	if (duration <= millisecondsf{ 0.0f }) {
 		entry.runtime.timer.RemoveElapsed(elapsed);
+
 		++entry.runtime.elapsed_count;
+
 		events.push_back(
 			event::TimerElapsed{
 				.timer			  = key,
@@ -150,7 +165,9 @@ void InitializeTimerRuntime(TimerEntry& entry, bool apply_auto_start) {
 	std::size_t fire_count{ entry.runtime.timer.ConsumeAll(duration) };
 	millisecondsf remainder{ entry.runtime.timer.ElapsedDuration<millisecondsf>() };
 	std::uint64_t first_count{ entry.runtime.elapsed_count + 1 };
+
 	entry.runtime.elapsed_count += static_cast<std::uint64_t>(fire_count);
+
 	for (std::size_t index{ 0 }; index < fire_count; ++index) {
 		events.push_back(
 			event::TimerElapsed{
@@ -202,11 +219,14 @@ void to_json(json& output, const Timers& timers) {
 
 void from_json(const json& input, Timers& timers) {
 	timers.timers.clear();
+
 	const json* entries{ nullptr };
+
 	if (input.is_array()) {
 		entries = std::addressof(input);
 	} else if (input.is_object()) {
 		auto it{ input.find("timers") };
+
 		if (it != input.end() && it->is_array()) {
 			entries = std::addressof(*it);
 		}
@@ -226,6 +246,7 @@ void from_json(const json& input, Timers& timers) {
 
 		entry.config.duration = ClampTimerDuration(entry.config.duration);
 		entry.runtime		  = TimerRuntime{};
+
 		timers.timers.push_back(std::move(entry));
 	}
 }
@@ -238,28 +259,35 @@ TimerHandle::operator bool() const {
 
 bool TimerHandle::Start() const {
 	auto* entry{ ResolveHandle(*this) };
+
 	if (!entry) {
 		return false;
 	}
 
 	InitializeTimerRuntime(*entry, false);
+
 	entry->runtime.completed = false;
+
 	return entry->runtime.timer.Start(false);
 }
 
 bool TimerHandle::Restart() const {
 	auto* entry{ ResolveHandle(*this) };
+
 	if (!entry) {
 		return false;
 	}
 
 	InitializeTimerRuntime(*entry, false);
+
 	entry->runtime.completed = false;
+
 	return entry->runtime.timer.Restart();
 }
 
 bool TimerHandle::Stop() const {
 	auto* entry{ ResolveHandle(*this) };
+
 	if (!entry) {
 		return false;
 	}
@@ -273,11 +301,13 @@ bool TimerHandle::Stop() const {
 	// entry->runtime.elapsed_count = 0;
 	entry->runtime.completed   = false;
 	entry->runtime.initialized = true;
+
 	return changed;
 }
 
 bool TimerHandle::Reset() const {
 	auto* entry{ ResolveHandle(*this) };
+
 	if (!entry) {
 		return false;
 	}
@@ -286,26 +316,31 @@ bool TimerHandle::Reset() const {
 	entry->runtime.elapsed_count = 0;
 	entry->runtime.completed	 = false;
 	entry->runtime.initialized	 = true;
+
 	return true;
 }
 
 bool TimerHandle::Pause() const {
 	auto* entry{ ResolveHandle(*this) };
+
 	if (!entry || !entry->runtime.initialized || !entry->runtime.timer.IsRunning()) {
 		return false;
 	}
 
 	entry->runtime.timer.Pause();
+
 	return true;
 }
 
 bool TimerHandle::Resume() const {
 	auto* entry{ ResolveHandle(*this) };
+
 	if (!entry || !entry->runtime.initialized || !entry->runtime.timer.IsPaused()) {
 		return false;
 	}
 
 	entry->runtime.timer.Resume();
+
 	return true;
 }
 
@@ -313,52 +348,63 @@ bool TimerHandle::TogglePaused() const {
 	if (IsPaused()) {
 		return Resume();
 	}
+
 	if (IsRunning()) {
 		return Pause();
 	}
+
 	return false;
 }
 
 bool TimerHandle::Advance(millisecondsf amount) const {
 	auto* entry{ ResolveHandle(*this) };
+
 	if (!entry || amount <= millisecondsf{ 0.0f }) {
 		return false;
 	}
 
 	auto events{ AdvanceTimerEntry(*entry, key, amount) };
+
 	if (events.empty()) {
 		return false;
 	}
 
 	DispatchTimerEvents(owner, std::move(events));
+
 	return true;
 }
 
 bool TimerHandle::Rewind(millisecondsf amount) const {
 	auto* entry{ ResolveHandle(*this) };
+
 	if (!entry || amount <= millisecondsf{ 0.0f }) {
 		return false;
 	}
 
 	InitializeTimerRuntime(*entry, false);
+
 	entry->runtime.timer.RemoveElapsed(amount);
 	entry->runtime.completed = false;
+
 	return true;
 }
 
 bool TimerHandle::SetDuration(millisecondsf duration) const {
 	auto* entry{ ResolveHandle(*this) };
+
 	if (!entry) {
 		return false;
 	}
 
 	millisecondsf updated{ ClampTimerDuration(duration) };
+
 	if (entry->config.duration == updated) {
 		return false;
 	}
 
 	entry->config.duration	 = updated;
 	entry->runtime.completed = false;
+
 	return true;
 }
 
@@ -366,6 +412,7 @@ bool TimerHandle::AddDuration(millisecondsf amount) const {
 	if (amount <= millisecondsf{ 0.0f }) {
 		return false;
 	}
+
 	return SetDuration(Duration() + amount);
 }
 
@@ -373,11 +420,13 @@ bool TimerHandle::RemoveDuration(millisecondsf amount) const {
 	if (amount <= millisecondsf{ 0.0f }) {
 		return false;
 	}
+
 	return SetDuration(Duration() - amount);
 }
 
 millisecondsf TimerHandle::Elapsed() const {
 	const auto* entry{ ResolveHandleConst(*this) };
+
 	if (!entry || !entry->runtime.initialized) {
 		return millisecondsf{ 0.0f };
 	}
@@ -400,11 +449,13 @@ millisecondsf TimerHandle::Duration() const {
 
 float TimerHandle::Progress() const {
 	const auto* entry{ ResolveHandleConst(*this) };
+
 	if (!entry) {
 		return 0.0f;
 	}
 
 	millisecondsf duration{ ClampTimerDuration(entry->config.duration) };
+
 	if (duration <= millisecondsf{ 0.0f }) {
 		return entry->runtime.completed || entry->runtime.timer.HasRun() ? 1.0f : 0.0f;
 	}
@@ -441,6 +492,7 @@ TimerHandle AddTimer(
 	}
 
 	auto& timers{ entity.TryAdd<impl::Timers>() };
+
 	if (auto* existing{ FindTimerEntry(entity, key) }) {
 		existing->config.duration			 = ClampTimerDuration(duration);
 		existing->config.mode				 = mode;
@@ -459,8 +511,11 @@ TimerHandle AddTimer(
 				.start_automatically = start_automatically,
 			},
 	};
+
 	InitializeTimerRuntime(entry, true);
+
 	timers.timers.push_back(std::move(entry));
+
 	return TimerHandle{ .owner = entity, .key = std::move(key) };
 }
 
@@ -479,6 +534,7 @@ bool RemoveTimer(Entity entity, const TimerKey& key) {
 	}
 
 	auto* timers{ entity.TryGet<impl::Timers>() };
+
 	if (!timers) {
 		return false;
 	}
@@ -492,35 +548,42 @@ namespace timer_runtime {
 void Update(Scene& scene, secondsf delta_time) {
 	millisecondsf dt{ duration_cast<millisecondsf>(secondsf{
 		std::max(0.0f, delta_time.count()) }) };
+
 	auto entities{ scene.EntitiesWith<impl::Timers>().GetVector() };
+
 	for (Entity entity : entities) {
 		if (!entity) {
 			continue;
 		}
 
 		auto* timers{ entity.TryGet<impl::Timers>() };
+
 		if (!timers) {
 			continue;
 		}
 
 		std::vector<TimerKey> keys;
 		keys.reserve(timers->timers.size());
+
 		for (const auto& entry : timers->timers) {
 			keys.push_back(entry.config.key);
 		}
 
 		for (const auto& key : keys) {
 			auto* entry{ FindTimerEntry(entity, key) };
+
 			if (!entry) {
 				continue;
 			}
 
 			InitializeTimerRuntime(*entry, true);
+
 			if (!entry->runtime.timer.IsRunning()) {
 				continue;
 			}
 
 			auto events{ AdvanceTimerEntry(*entry, key, dt) };
+
 			DispatchTimerEvents(entity, std::move(events));
 		}
 	}

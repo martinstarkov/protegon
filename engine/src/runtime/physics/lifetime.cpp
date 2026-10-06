@@ -1,5 +1,7 @@
 #include "runtime/physics/lifetime.h"
 
+#include <algorithm>
+
 #include "core/util/time.h"
 #include "core/util/timer.h"
 #include "runtime/ecs/entity.h"
@@ -14,7 +16,56 @@ Lifetime::Lifetime(milliseconds lifetime, bool start) : duration{ lifetime } {
 }
 
 void Lifetime::Start() {
-	timer_.Start();
+	timer_.Restart();
+}
+
+void Lifetime::Stop() {
+	timer_.Stop();
+}
+
+void Lifetime::Reset() {
+	timer_.Reset();
+}
+
+void Lifetime::Pause() {
+	timer_.Pause();
+}
+
+void Lifetime::Resume() {
+	timer_.Resume();
+}
+
+void Lifetime::Advance(millisecondsf amount) {
+	timer_.AddElapsed(amount);
+}
+
+void Lifetime::Rewind(millisecondsf amount) {
+	timer_.RemoveElapsed(amount);
+}
+
+millisecondsf Lifetime::Elapsed() const {
+	return timer_.ElapsedDuration<millisecondsf>();
+}
+
+millisecondsf Lifetime::Remaining() const {
+	millisecondsf lifetime{ duration_cast<millisecondsf>(duration) };
+	return millisecondsf{ std::max(0.0f, lifetime.count() - Elapsed().count()) };
+}
+
+float Lifetime::Progress() const {
+	return timer_.ElapsedFraction(duration);
+}
+
+bool Lifetime::IsRunning() const {
+	return timer_.IsRunning();
+}
+
+bool Lifetime::IsPaused() const {
+	return timer_.IsPaused();
+}
+
+bool Lifetime::HasRun() const {
+	return timer_.HasRun();
 }
 
 void Lifetime::Update(Entity entity, secondsf dt) {

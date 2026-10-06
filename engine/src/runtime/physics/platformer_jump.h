@@ -72,8 +72,8 @@ struct PlatformerJump {
 private:
 	bool jumping_{ false };
 	std::uint32_t air_jumps_used_{ 0 };
-	ManualTimer jump_buffer_timer_{};
-	ManualTimer coyote_timer_{};
+	DeltaTimer jump_buffer_timer_{};
+	DeltaTimer coyote_timer_{};
 
 	void Jump(PlatformerJumpContext& ctx, event::PlayerJumpType type);
 	void CalculateGravity(PlatformerJumpContext& ctx) const;

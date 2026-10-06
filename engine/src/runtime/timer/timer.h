@@ -41,7 +41,7 @@ struct TimerConfig {
 };
 
 struct TimerRuntime {
-	ManualTimer timer{};
+	DeltaTimer timer{};
 	std::uint64_t elapsed_count{ 0 };
 	bool completed{ false };
 	bool initialized{ false };
