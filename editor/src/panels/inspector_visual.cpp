@@ -2407,21 +2407,12 @@ bool DrawRenderTargetPrimary(Target& target) {
 		}
 	}
 
-	if (primary_scene_target) {
-		changed |= DrawRequiredInlineVisualComponent<Target, ::ptgn::impl::RenderTargetDesc>(
-			target, "Render Target",
-			[&target, framebuffer_size](::ptgn::impl::RenderTargetDesc& value) {
-				return DrawRenderTargetDesc(target.ctx, value, framebuffer_size, true);
-			}
-		);
-	} else {
-		changed |= DrawOptionalComponent<Target, ::ptgn::impl::RenderTargetDesc>(
-			target, "Render Target", false,
-			[&target, framebuffer_size](::ptgn::impl::RenderTargetDesc& value) {
-				return DrawRenderTargetDesc(target.ctx, value, framebuffer_size);
-			}
-		);
-	}
+	changed |= DrawRequiredInlineVisualComponent<Target, ::ptgn::impl::RenderTargetDesc>(
+		target, "Render Target",
+		[&target, framebuffer_size, primary_scene_target](::ptgn::impl::RenderTargetDesc& value) {
+			return DrawRenderTargetDesc(target.ctx, value, framebuffer_size, primary_scene_target);
+		}
+	);
 
 	changed |= DrawOptionalNamedValue<Target, ::ptgn::impl::ClearColor>(target, "Clear Color");
 

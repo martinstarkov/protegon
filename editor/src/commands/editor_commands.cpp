@@ -23,12 +23,14 @@
 #include "editor/editor_context.h"
 #include "editor/editor_settings.h"
 #include "panels/scene_list.h"
+#include "renderer/renderer.h"
 #include "runtime/asset/asset_manager.h"
 #include "runtime/asset/prefab.h"
 #include "runtime/ecs/entity_hierarchy.h"
 #include "runtime/ecs/entity_serialization.h"
 #include "runtime/ecs/tag.h"
 #include "runtime/graphics/draw.h"
+#include "runtime/graphics/render_target.h"
 #include "runtime/scene/scene.h"
 #include "runtime/scene/scene_context.h"
 #include "runtime/scene/scene_file.h"
@@ -37,6 +39,42 @@
 namespace ptgn::editor {
 
 namespace {
+
+void RestoreRuntimeEntityComponents(Entity entity) {
+	if (!entity) {
+		return;
+	}
+
+	if (entity.Has<::ptgn::impl::RenderTargetDesc>()) {
+		SetDraw<RenderTarget>(entity);
+
+		auto& renderer{ entity.GetScene().ctx().renderer };
+		V2_int display_size{ renderer.GetDisplaySize() };
+
+		if (!display_size.IsPositive()) {
+			display_size = renderer.GetPresentationSize();
+		}
+
+		if (!display_size.IsPositive()) {
+			display_size = renderer.GetLogicalSize();
+		}
+
+		if (!display_size.IsPositive()) {
+			display_size = { 1, 1 };
+		}
+
+		RenderTarget target{ entity };
+
+		target.UpdateSize(display_size);
+		target.ClearColor(std::nullopt);
+	}
+
+	if (HasChildren(entity)) {
+		for (Entity child : GetChildren(entity)) {
+			RestoreRuntimeEntityComponents(child);
+		}
+	}
+}
 
 class SceneLayerEntityCommand final : public EditorCommand {
 public:
@@ -83,6 +121,8 @@ private:
 		if (layers.Find(layer_) && layers.CanAssign(entity, layer_)) {
 			layers.Assign(entity, layer_, true);
 		}
+
+		RestoreRuntimeEntityComponents(entity);
 	}
 
 	std::unique_ptr<EditorCommand> command_;
@@ -518,10 +558,28 @@ Entity DuplicateEntityNode(Scene& scene, Entity source) {
 	PTGN_ASSERT(source.Has<Tag>());
 	PTGN_ASSERT(&source.GetScene() == &scene);
 
-	Entity duplicate{ scene.CopyEntity(source, source.Get<Tag>()) };
+	Entity duplicate;
 
-	// CopyEntity copied the source hierarchy references.
-	// Remove them because the duplicated hierarchy is rebuilt below.
+	if (source.Has<::ptgn::impl::RenderTargetDesc>()) {
+		duplicate = scene.CreateEntity(source.Get<Tag>());
+
+		DeserializeEntity(
+			SerializeEntity(
+				source,
+				SerializeEntityOptions{
+					.include_uuid	  = false,
+					.include_children = false,
+				}
+			),
+			duplicate
+		);
+
+		RestoreRuntimeEntityComponents(duplicate);
+	} else {
+		duplicate = scene.CopyEntity(source, source.Get<Tag>());
+	}
+
+	// Remove hierarchy references because the duplicated hierarchy is rebuilt below.
 	duplicate.Remove<::ptgn::impl::Parent, ::ptgn::impl::Children>();
 
 	if (HasChildren(source)) {
