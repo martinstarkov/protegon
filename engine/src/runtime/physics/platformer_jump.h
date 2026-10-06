@@ -65,8 +65,8 @@ struct PlatformerJump {
 
 	PTGN_REFLECT(
 		PlatformerJump, jump_key, default_gravity_scale, upward_gravity_multiplier,
-		downward_gravity_multiplier, terminal_velocity, jump_height, time_to_jump_apex,
-		coyote_time, jump_buffer, air_jumps, variable_jump_height, fast_fall
+		downward_gravity_multiplier, terminal_velocity, jump_height, time_to_jump_apex, coyote_time,
+		jump_buffer, air_jumps, variable_jump_height, fast_fall
 	)
 
 private:

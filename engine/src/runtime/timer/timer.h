@@ -82,12 +82,14 @@ struct TimerHandle {
 
 	[[nodiscard]] explicit operator bool() const;
 
-	/// Functions return true if the timer was successfully modified, false if the timer was not found or could not be modified.
+	/// Functions return true if the timer was successfully modified, false if the timer was not
+	/// found or could not be modified.
 
 	bool Start() const;
 	bool Restart() const;
 	bool Stop() const;
-	/// @brief Resets the timer to its initial state, including resetting the elapsed count and completed state.
+	/// @brief Resets the timer to its initial state, including resetting the elapsed count and
+	/// completed state.
 	bool Reset() const;
 	bool Pause() const;
 	bool Resume() const;
@@ -151,27 +153,17 @@ struct TimerHandle {
 };
 
 TimerHandle AddTimer(
-	Entity entity,
-	TimerKey key,
-	millisecondsf duration,
-	TimerMode mode = TimerMode::Once,
+	Entity entity, TimerKey key, millisecondsf duration, TimerMode mode = TimerMode::Once,
 	bool start_automatically = true
 );
 
 template <DurationType D>
 TimerHandle AddTimer(
-	Entity entity,
-	TimerKey key,
-	D duration,
-	TimerMode mode = TimerMode::Once,
+	Entity entity, TimerKey key, D duration, TimerMode mode = TimerMode::Once,
 	bool start_automatically = true
 ) {
 	return AddTimer(
-		entity,
-		std::move(key),
-		duration_cast<millisecondsf>(duration),
-		mode,
-		start_automatically
+		entity, std::move(key), duration_cast<millisecondsf>(duration), mode, start_automatically
 	);
 }
 

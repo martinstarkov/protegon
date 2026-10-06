@@ -17,8 +17,8 @@
 #include "core/util/concepts.h"
 #include "core/util/file.h"
 #include "core/util/time.h"
-#include "platform/window_settings.h"
 #include "platform/file_dialog.h"
+#include "platform/window_settings.h"
 #include "serialization/serialize.h"
 
 struct GLFWwindow;
@@ -150,7 +150,7 @@ public:
 	V2_int GetMaximumSize() const;
 
 	void SetSize(V2_int new_size, bool centered = true);
-	
+
 	/// @return Window content size in screen coordinates.
 	/// On the web, these correspond to CSS pixels.
 	V2_int GetSize() const;

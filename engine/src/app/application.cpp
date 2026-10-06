@@ -71,6 +71,7 @@ impl::AssetLoadTicket LoadStartupDependencies(
 	}
 
 	auto progress{ ticket.GetProgress() };
+
 	if (progress.failed_assets > 0) {
 		PTGN_WARN(
 			"Failed to load ", progress.failed_assets,
@@ -84,11 +85,13 @@ impl::AssetLoadTicket LoadStartupDependencies(
 void LoadProjectPreloads(Application& app) {
 	auto& assets{ impl::ApplicationAccessor::ctx(app).assets };
 	const auto& dependencies{ assets.GetProjectAssetDependencies() };
+
 	if (dependencies.empty()) {
 		return;
 	}
 
 	auto ticket{ assets.AcquireDependenciesAsync(dependencies) };
+
 	while (!ticket.IsComplete()) {
 		assets.Update();
 #ifndef __EMSCRIPTEN__
@@ -97,6 +100,7 @@ void LoadProjectPreloads(Application& app) {
 	}
 
 	auto progress{ ticket.GetProgress() };
+
 	if (progress.failed_assets > 0) {
 		PTGN_WARN(
 			"Failed to load ", progress.failed_assets,
@@ -251,6 +255,7 @@ void Application::StartProjectImpl(
 		SaveProject(loaded_project);
 #endif
 	}
+
 	LoadProjectPreloads(*this);
 
 	if (ctx_.start_project_runtime) {
@@ -356,6 +361,7 @@ void Application::StartWithFactory(std::string_view scene_tag, impl::SceneFactor
 	first_scene->AdoptLoadedAssetDependencies(asset_ticket.ReleaseOwnership());
 
 	auto& scene{ ctx_.scene_manager.scenes_.emplace_back(std::move(first_scene)) };
+
 	scene->InternalEnter();
 
 	ctx_.state = ApplicationState::Running;
@@ -412,6 +418,7 @@ void Application::HandleGlobalEvents(bool dispatch_scene_events) {
 
 	for (auto& global_event : global_events) {
 		Event event{ global_event };
+
 		event.Dispatch<event::WindowResized>([this](const auto& size) {
 			ctx_.renderer.OnOutputResize(size);
 
@@ -419,13 +426,16 @@ void Application::HandleGlobalEvents(bool dispatch_scene_events) {
 			// handling this frame sees the current display viewport.
 			ctx_.renderer.UpdateDisplayViewport();
 		});
+
 		if (!dispatch_scene_events) {
 			continue;
 		}
+
 		for (const auto& scene : ctx_.scene_manager.GetScenes()) {
 			if (!scene->IsRuntime() || scene->IsAwaitingTransitionDelay()) {
 				continue;
 			}
+
 			scene->InternalOnEvent(event);
 		}
 	}
@@ -518,6 +528,7 @@ void Application::Update() {
 	ctx_.dt = unscaled_dt * ctx_.time_scale;
 
 	bool window_running{ ctx_.window.Update() };
+
 	if (!window_running && close_guard_ && !close_guard_()) {
 		ctx_.window.CancelQuit();
 		ctx_.running = true;

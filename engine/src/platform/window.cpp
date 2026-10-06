@@ -62,40 +62,26 @@ void ResizeCanvasToCssSize(Window& window) {
 	double width{};
 	double height{};
 
-	auto result{
-		emscripten_get_element_css_size(
-			"#canvas",
-			&width,
-			&height
-		)
-	};
+	auto result{ emscripten_get_element_css_size("#canvas", &width, &height) };
 
 	if (result != EMSCRIPTEN_RESULT_SUCCESS) {
 		return;
 	}
 
-	V2_int size{
-		std::max(1, static_cast<int>(std::lround(width))),
-		std::max(1, static_cast<int>(std::lround(height)))
-	};
+	V2_int size{ std::max(1, static_cast<int>(std::lround(width))),
+				 std::max(1, static_cast<int>(std::lround(height))) };
 
 	if (window.GetSize() != size) {
 		window.SetSize(size, false);
 	}
 }
 
-EM_BOOL EmscriptenResize(
-	int,
-	const EmscriptenUiEvent*,
-	void* window_ptr
-) {
+EM_BOOL EmscriptenResize(int, const EmscriptenUiEvent*, void* window_ptr) {
 	if (!window_ptr) {
 		return EM_FALSE;
 	}
 
-	auto& window{
-		*static_cast<::ptgn::Window*>(window_ptr)
-	};
+	auto& window{ *static_cast<::ptgn::Window*>(window_ptr) };
 
 	ResizeCanvasToCssSize(window);
 	return EM_TRUE;
@@ -115,45 +101,26 @@ EM_BOOL EmscriptenResizeMouseLeave(
 } // namespace
 
 void Window::SetCanvasCssSize(V2_int size) {
-	emscripten_set_element_css_size(
-		"#canvas",
-		size.x,
-		size.y
-	);
+	emscripten_set_element_css_size("#canvas", size.x, size.y);
 }
 
 V2_int Window::GetCanvasCssSize() const {
 	double width{};
 	double height{};
 
-	emscripten_get_element_css_size(
-		"#canvas",
-		&width,
-		&height
-	);
+	emscripten_get_element_css_size("#canvas", &width, &height);
 
-	return {
-		static_cast<int>(std::lround(width)),
-		static_cast<int>(std::lround(height))
-	};
+	return { static_cast<int>(std::lround(width)), static_cast<int>(std::lround(height)) };
 }
 
 void Window::SetCanvasFramebufferSize(V2_int size) {
-	emscripten_set_canvas_element_size(
-		"#canvas",
-		size.x,
-		size.y
-	);
+	emscripten_set_canvas_element_size("#canvas", size.x, size.y);
 }
 
 V2_int Window::GetCanvasFramebufferSize() const {
 	V2_int size;
 
-	emscripten_get_canvas_element_size(
-		"#canvas",
-		&size.x,
-		&size.y
-	);
+	emscripten_get_canvas_element_size("#canvas", &size.x, &size.y);
 
 	return size;
 }
@@ -188,11 +155,9 @@ void Window::SetCallbacks() {
 		}
 
 		V2_int pos{ x, y };
-		bool can_cache_windowed_rect{
-			!glfwGetWindowMonitor(window) &&
-			glfwGetWindowAttrib(window, GLFW_MAXIMIZED) != GLFW_TRUE &&
-			glfwGetWindowAttrib(window, GLFW_ICONIFIED) != GLFW_TRUE
-		};
+		bool can_cache_windowed_rect{ !glfwGetWindowMonitor(window) &&
+									  glfwGetWindowAttrib(window, GLFW_MAXIMIZED) != GLFW_TRUE &&
+									  glfwGetWindowAttrib(window, GLFW_ICONIFIED) != GLFW_TRUE };
 
 		if (can_cache_windowed_rect) {
 			self->windowed_pos_ = pos;
@@ -225,21 +190,16 @@ void Window::SetCallbacks() {
 		}
 	});
 
-	glfwSetFramebufferSizeCallback(
-		win,
-		[](GLFWwindow* glfw_window, int width, int height) {
-			auto self{
-				static_cast<Window*>(glfwGetWindowUserPointer(glfw_window))
-			};
-			if (!self || width <= 0 || height <= 0) {
-				return;
-			}
-
-			V2_int size{ width, height };
-
-			self->PushEvent<event::FramebufferResized>(size);
+	glfwSetFramebufferSizeCallback(win, [](GLFWwindow* glfw_window, int width, int height) {
+		auto self{ static_cast<Window*>(glfwGetWindowUserPointer(glfw_window)) };
+		if (!self || width <= 0 || height <= 0) {
+			return;
 		}
-	);
+
+		V2_int size{ width, height };
+
+		self->PushEvent<event::FramebufferResized>(size);
+	});
 
 	glfwSetWindowSizeCallback(win, [](GLFWwindow* window, int width, int height) {
 		auto self{ static_cast<Window*>(glfwGetWindowUserPointer(window)) };
@@ -248,12 +208,8 @@ void Window::SetCallbacks() {
 		}
 
 		if (!glfwGetWindowMonitor(window)) {
-			bool maximized{
-				glfwGetWindowAttrib(window, GLFW_MAXIMIZED) == GLFW_TRUE
-			};
-			bool minimized{
-				glfwGetWindowAttrib(window, GLFW_ICONIFIED) == GLFW_TRUE
-			};
+			bool maximized{ glfwGetWindowAttrib(window, GLFW_MAXIMIZED) == GLFW_TRUE };
+			bool minimized{ glfwGetWindowAttrib(window, GLFW_ICONIFIED) == GLFW_TRUE };
 
 			if (!minimized) {
 				self->windowed_was_maximized_ = maximized;
@@ -373,11 +329,11 @@ Window::Window(const WindowConfig& config, std::function<void(impl::EventData&&)
 	file{ *this },
 	event_sink_{ std::move(event_sink) },
 	window_settings_{
-		.title = config.title,
+		.title			  = config.title,
 		.background_color = color::Transparent,
-		.size = config.size,
-		.resizable = config.resizable,
-		.maximized = config.maximized,
+		.size			  = config.size,
+		.resizable		  = config.resizable,
+		.maximized		  = config.maximized,
 	},
 	title_{ config.title },
 	windowed_pos_{ config.x.value_or(100), config.y.value_or(100) },
@@ -444,7 +400,7 @@ Window::Window(const WindowConfig& config, std::function<void(impl::EventData&&)
 
 	IMGUI_CHECKVERSION();
 	ImGui::CreateContext();
-	ImGuiIO& io = ImGui::GetIO();
+	ImGuiIO& io		= ImGui::GetIO();
 	io.ConfigFlags &= ~ImGuiConfigFlags_NavEnableKeyboard;
 	io.ConfigFlags &= ~ImGuiConfigFlags_NavEnableGamepad;
 	io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;
@@ -649,11 +605,9 @@ void Window::CacheWindowedRect() {
 		return; // fullscreen, do not overwrite cached windowed rect
 	}
 
-	windowed_was_maximized_ =
-		glfwGetWindowAttrib(win, GLFW_MAXIMIZED) == GLFW_TRUE;
+	windowed_was_maximized_ = glfwGetWindowAttrib(win, GLFW_MAXIMIZED) == GLFW_TRUE;
 
-	if (windowed_was_maximized_ ||
-		glfwGetWindowAttrib(win, GLFW_ICONIFIED) == GLFW_TRUE) {
+	if (windowed_was_maximized_ || glfwGetWindowAttrib(win, GLFW_ICONIFIED) == GLFW_TRUE) {
 		return;
 	}
 
@@ -784,13 +738,8 @@ WindowSettings Window::GetSettings() const {
 	return window_settings_;
 }
 
-void Window::SetSettings(
-	const WindowSettings& settings
-) {
-	PTGN_ASSERT(
-		settings.size.IsPositive(),
-		"Window settings size must be positive"
-	);
+void Window::SetSettings(const WindowSettings& settings) {
+	PTGN_ASSERT(settings.size.IsPositive(), "Window settings size must be positive");
 
 	window_settings_ = settings;
 
@@ -813,17 +762,11 @@ void Window::SetSettings(
 		return;
 	}
 
-	if (
-		GetSetting(WindowSetting::Maximized) ||
-		GetSetting(WindowSetting::Minimized)
-	) {
+	if (GetSetting(WindowSetting::Maximized) || GetSetting(WindowSetting::Minimized)) {
 		SetSetting(WindowSetting::Restored);
 	}
 
-	SetSize(
-		settings.size,
-		false
-	);
+	SetSize(settings.size, false);
 
 	if (settings.maximized) {
 		SetSetting(WindowSetting::Maximized);
@@ -851,8 +794,8 @@ WindowLocalSettings Window::GetLocalSettings() const {
 	}
 
 	return WindowLocalSettings{
-		.position = position,
-		.size = size,
+		.position  = position,
+		.size	   = size,
 		.maximized = maximized || (minimized && windowed_was_maximized_),
 	};
 #endif
@@ -866,12 +809,9 @@ void Window::SetLocalSettings([[maybe_unused]] const WindowLocalSettings& settin
 		return;
 	}
 
-	bool should_maximize{
-		settings.maximized.value_or(GetSetting(WindowSetting::Maximized))
-	};
+	bool should_maximize{ settings.maximized.value_or(GetSetting(WindowSetting::Maximized)) };
 
-	if (settings.position.has_value() ||
-		settings.size.has_value() ||
+	if (settings.position.has_value() || settings.size.has_value() ||
 		settings.maximized.has_value()) {
 		SetSetting(WindowSetting::Restored);
 	}
