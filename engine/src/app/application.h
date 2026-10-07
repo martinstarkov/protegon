@@ -33,9 +33,9 @@ public:
 	explicit Application(std::string_view title, V2_int window_size);
 
 	~Application() noexcept;
-	Application(const Application&) = delete;
-	Application& operator=(const Application&) = delete;
-	Application(Application&&) noexcept = delete;
+	Application(const Application&)				   = delete;
+	Application& operator=(const Application&)	   = delete;
+	Application(Application&&) noexcept			   = delete;
 	Application& operator=(Application&&) noexcept = delete;
 
 	/// @brief Installs an application shutdown guard. Return false to cancel the close.
@@ -46,18 +46,18 @@ public:
 	void SetScreenEffectsEnabled(bool enabled);
 	[[nodiscard]] bool AreScreenEffectsEnabled() const;
 
+	void SetSceneInputEnabled(bool enabled);
+	[[nodiscard]] bool IsSceneInputEnabled() const;
+
 	/// @brief Opens an existing project or creates an empty project when it does not exist.
 	void StartProject(const path& project_path = {});
 
-	/// @brief Opens an existing project or creates it with TDefaultScene as its initial scene when it
-	/// does not exist.
+	/// @brief Opens an existing project or creates it with TDefaultScene as its initial scene when
+	/// it does not exist.
 	template <SceneType TDefaultScene>
 		requires std::default_initializable<TDefaultScene>
 	void StartProject(const path& project_path = {}) {
-		StartProjectImpl(
-			project_path,
-			&impl::GetSceneRegistration<TDefaultScene>()
-		);
+		StartProjectImpl(project_path, &impl::GetSceneRegistration<TDefaultScene>());
 	}
 
 	/// @brief Starts a code only runtime scene without creating or loading a project.
@@ -65,34 +65,25 @@ public:
 		requires std::constructible_from<TScene, TArgs...>
 	void StartWith(std::string_view scene_tag, TArgs&&... args) {
 		auto arguments{
-			std::make_shared<std::tuple<std::decay_t<TArgs>...>>(
-				std::forward<TArgs>(args)...
-			)
+			std::make_shared<std::tuple<std::decay_t<TArgs>...>>(std::forward<TArgs>(args)...)
 		};
 
-		impl::SceneFactory::Construct construct = [arguments](
-			Application& app,
-			impl::SceneData&& scene_data
-		) -> std::unique_ptr<Scene> {
+		impl::SceneFactory::Construct construct =
+			[arguments](Application& app, impl::SceneData&& scene_data) -> std::unique_ptr<Scene> {
 			auto scene{ std::apply(
-				[](const auto&... values) {
-					return std::make_unique<TScene>(values...);
-				},
+				[](const auto&... values) { return std::make_unique<TScene>(values...); },
 				*arguments
 			) };
-			scene_data.runtime = true;
+			scene_data.runtime		   = true;
 			scene_data.registered_type = impl::GetRegisteredSceneType<TScene>();
 			scene->Init(app, std::move(scene_data));
 			return scene;
 		};
 
 		impl::SceneFactory::Preload preload = [arguments](Application&) {
-			auto scene{ std::apply(
-				[](const auto&... values) {
-					return TScene{ values... };
-				},
-				*arguments
-			) };
+			auto scene{
+				std::apply([](const auto&... values) { return TScene{ values... }; }, *arguments)
+			};
 			AssetPreloadContext context;
 			scene.OnPreload(context);
 			for (const auto& key : scene.GetExplicitAssetDependencies()) {
@@ -101,10 +92,7 @@ public:
 			return context.GetDependencies();
 		};
 
-		StartWithFactory(
-			scene_tag,
-			impl::SceneFactory{ std::move(construct), std::move(preload) }
-		);
+		StartWithFactory(scene_tag, impl::SceneFactory{ std::move(construct), std::move(preload) });
 	}
 
 	template <SceneType TScene>
@@ -129,10 +117,7 @@ private:
 		return impl::ApplicationHasFeature(features, feature);
 	}
 
-	void StartProjectImpl(
-		const path& project_path,
-		const impl::SceneRegistryEntry* default_scene
-	);
+	void StartProjectImpl(const path& project_path, const impl::SceneRegistryEntry* default_scene);
 	void StartWithFactory(std::string_view scene_tag, impl::SceneFactory scene_factory);
 	void EnterMainLoop();
 	void Update();

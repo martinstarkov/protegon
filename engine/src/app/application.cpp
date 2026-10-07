@@ -30,6 +30,8 @@
 #include "core/build_info.h"
 #include "core/event/event.h"
 #include "core/event/event_handler.h"
+#include "core/event/key_event.h"
+#include "core/event/mouse_event.h"
 #include "core/event/window_event.h"
 #include "core/log.h"
 #include "core/math/vector2.h"
@@ -427,7 +429,16 @@ void Application::HandleGlobalEvents(bool dispatch_scene_events) {
 			ctx_.renderer.UpdateDisplayViewport();
 		});
 
-		if (!dispatch_scene_events) {
+		bool scene_input_event{ global_event.type_hash == Hash<event::KeyHeld>() ||
+								global_event.type_hash == Hash<event::KeyPressed>() ||
+								global_event.type_hash == Hash<event::KeyReleased>() ||
+								global_event.type_hash == Hash<event::MouseHeld>() ||
+								global_event.type_hash == Hash<event::MouseMove>() ||
+								global_event.type_hash == Hash<event::MousePressed>() ||
+								global_event.type_hash == Hash<event::MouseReleased>() ||
+								global_event.type_hash == Hash<event::MouseScroll>() };
+
+		if (!dispatch_scene_events || (!IsSceneInputEnabled() && scene_input_event)) {
 			continue;
 		}
 
@@ -484,6 +495,14 @@ void Application::SetScreenEffectsEnabled(bool enabled) {
 
 bool Application::AreScreenEffectsEnabled() const {
 	return ctx_.screen_effects_enabled;
+}
+
+void Application::SetSceneInputEnabled(bool enabled) {
+	ctx_.scene_input_state.enabled = enabled;
+}
+
+bool Application::IsSceneInputEnabled() const {
+	return ctx_.scene_input_state.enabled;
 }
 
 void Application::SetCloseGuard(std::function<bool()> close_guard) {

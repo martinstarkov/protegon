@@ -12,8 +12,14 @@ class Scene;
 class SceneContext;
 class Window;
 
+struct SceneInputState {
+	bool enabled{ true };
+};
+
 class SceneInput {
 public:
+	[[nodiscard]] bool IsEnabled() const;
+
 	/// @return Mouse position relative to the specified viewport.
 	V2_float GetMousePosition(Frame position_frame_of_reference = Frame::World) const;
 
@@ -77,7 +83,7 @@ private:
 	friend class SceneContext;
 
 	SceneInput() = delete;
-	explicit SceneInput(const Window& window, Scene& scene);
+	explicit SceneInput(const Window& window, const SceneInputState& state, Scene& scene);
 	~SceneInput() noexcept						 = default;
 	SceneInput(const SceneInput&)				 = delete;
 	SceneInput& operator=(const SceneInput&)	 = delete;
@@ -92,6 +98,7 @@ private:
 
 	Scene* scene_{ nullptr };
 	const Window& window_;
+	const SceneInputState& state_;
 };
 
 } // namespace ptgn

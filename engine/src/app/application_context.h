@@ -20,6 +20,7 @@
 #include "runtime/ecs/manager.h"
 #include "runtime/graphics/text/font_system.h"
 #include "runtime/scene/scene_file.h"
+#include "runtime/scene/scene_input.h"
 #include "runtime/scene/scene_manager.h"
 #include "tools/debug/debug_system.h"
 
@@ -42,9 +43,9 @@ private:
 
 	ApplicationLibrary();
 	~ApplicationLibrary() noexcept;
-	ApplicationLibrary(const ApplicationLibrary&)            = delete;
-	ApplicationLibrary& operator=(const ApplicationLibrary&) = delete;
-	ApplicationLibrary(ApplicationLibrary&&) noexcept         = delete;
+	ApplicationLibrary(const ApplicationLibrary&)				 = delete;
+	ApplicationLibrary& operator=(const ApplicationLibrary&)	 = delete;
+	ApplicationLibrary(ApplicationLibrary&&) noexcept			 = delete;
 	ApplicationLibrary& operator=(ApplicationLibrary&&) noexcept = delete;
 };
 
@@ -60,6 +61,7 @@ public:
 	ApplicationLibrary app_library;
 	EventHandler event_handler;
 	Window window;
+	SceneInputState scene_input_state;
 	Renderer renderer;
 	SceneManager scene_manager;
 	AssetManager assets;
@@ -72,7 +74,7 @@ public:
 
 	float fps{ 60.0f };
 	secondsf dt{ 0.0f };
-	
+
 	/// @brief The game time since application start, affected by time scale and pause.
 	secondsf game_time{ 0.0f };
 	/// @brief The game time since application start, affected by pause but not time scale.
@@ -97,7 +99,7 @@ public:
 
 	std::optional<Project> project;
 
-	/// @brief In-memory editor play snapshots used by project scene transitions.
+	/// @brief In memory editor play snapshots used by project scene transitions.
 	/// Empty for direct runtime projects, which load scene files from disk.
 	std::vector<RuntimeProjectSceneSnapshot> runtime_project_scenes;
 
@@ -109,9 +111,9 @@ private:
 	ApplicationContext() = delete;
 	explicit ApplicationContext(const ApplicationConfig& config);
 	~ApplicationContext() noexcept;
-	ApplicationContext(const ApplicationContext&)            = delete;
-	ApplicationContext& operator=(const ApplicationContext&) = delete;
-	ApplicationContext(ApplicationContext&&) noexcept         = delete;
+	ApplicationContext(const ApplicationContext&)				 = delete;
+	ApplicationContext& operator=(const ApplicationContext&)	 = delete;
+	ApplicationContext(ApplicationContext&&) noexcept			 = delete;
 	ApplicationContext& operator=(ApplicationContext&&) noexcept = delete;
 };
 

@@ -40,7 +40,11 @@ SceneContext::SceneContext(Application& app, Scene& parent_scene) :
 	scene{ impl::ApplicationAccessor::ctx(app).scene_manager, parent_scene },
 	render_queue{ impl::ApplicationAccessor::ctx(app).renderer, parent_scene },
 	event{ impl::ApplicationAccessor::ctx(app).event_handler },
-	input{ impl::ApplicationAccessor::ctx(app).window, parent_scene },
+	input{
+		impl::ApplicationAccessor::ctx(app).window,
+		impl::ApplicationAccessor::ctx(app).scene_input_state,
+		parent_scene,
+	},
 	physics{ parent_scene },
 	app_{ app } {}
 

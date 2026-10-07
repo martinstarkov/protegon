@@ -11,9 +11,18 @@
 
 namespace ptgn {
 
-SceneInput::SceneInput(const Window& window, Scene& scene) : scene_{ &scene }, window_{ window } {}
+SceneInput::SceneInput(const Window& window, const SceneInputState& state, Scene& scene) :
+	scene_{ &scene }, window_{ window }, state_{ state } {}
+
+bool SceneInput::IsEnabled() const {
+	return state_.enabled;
+}
 
 V2_float SceneInput::GetMousePosition(Frame position_frame_of_reference) const {
+	if (!IsEnabled()) {
+		return {};
+	}
+
 	auto position{ window_.GetMousePosition() };
 	if (position_frame_of_reference == Frame::Window) {
 		return position;
@@ -22,6 +31,10 @@ V2_float SceneInput::GetMousePosition(Frame position_frame_of_reference) const {
 }
 
 V2_float SceneInput::GetPreviousMousePosition(Frame position_frame_of_reference) const {
+	if (!IsEnabled()) {
+		return {};
+	}
+
 	auto prev_position{ window_.GetPreviousMousePosition() };
 	if (position_frame_of_reference == Frame::Window) {
 		return prev_position;
@@ -30,52 +43,56 @@ V2_float SceneInput::GetPreviousMousePosition(Frame position_frame_of_reference)
 }
 
 V2_float SceneInput::GetMouseDelta(Frame delta_frame_of_reference) const {
+	if (!IsEnabled()) {
+		return {};
+	}
+
 	return GetMousePosition(delta_frame_of_reference) -
 		   GetPreviousMousePosition(delta_frame_of_reference);
 }
 
 V2_float SceneInput::GetMouseScroll() const {
-	return window_.GetMouseScroll();
+	return IsEnabled() ? window_.GetMouseScroll() : V2_float{};
 }
 
 bool SceneInput::MousePressed(Mouse button) const {
-	return window_.MousePressed(button);
+	return IsEnabled() && window_.MousePressed(button);
 }
 
 bool SceneInput::MouseReleased(Mouse button) const {
-	return window_.MouseReleased(button);
+	return IsEnabled() && window_.MouseReleased(button);
 }
 
 bool SceneInput::MouseHeld(Mouse button) const {
-	return window_.MouseHeld(button);
+	return IsEnabled() && window_.MouseHeld(button);
 }
 
 bool SceneInput::MouseHeld(Mouse button, milliseconds time) const {
-	return window_.MouseHeld(button, time);
+	return IsEnabled() && window_.MouseHeld(button, time);
 }
 
 milliseconds SceneInput::GetMouseHeldTime(Mouse button) const {
-	return window_.GetMouseHeldTime(button);
+	return IsEnabled() ? window_.GetMouseHeldTime(button) : milliseconds{};
 }
 
 bool SceneInput::KeyPressed(Key key) const {
-	return window_.KeyPressed(key);
+	return IsEnabled() && window_.KeyPressed(key);
 }
 
 bool SceneInput::KeyReleased(Key key) const {
-	return window_.KeyReleased(key);
+	return IsEnabled() && window_.KeyReleased(key);
 }
 
 bool SceneInput::KeyHeld(Key key) const {
-	return window_.KeyHeld(key);
+	return IsEnabled() && window_.KeyHeld(key);
 }
 
 bool SceneInput::KeyHeld(Key key, milliseconds time) const {
-	return window_.KeyHeld(key, time);
+	return IsEnabled() && window_.KeyHeld(key, time);
 }
 
 milliseconds SceneInput::GetKeyHeldTime(Key key) const {
-	return window_.GetKeyHeldTime(key);
+	return IsEnabled() ? window_.GetKeyHeldTime(key) : milliseconds{};
 }
 
 V2_float SceneInput::GetMousePositionRelativeTo(

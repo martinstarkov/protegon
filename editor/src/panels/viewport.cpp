@@ -1433,12 +1433,16 @@ void ViewportPanel::DrawSceneCameraOutlines(
 
 void ViewportPanel::DrawViewportToolbar(EditorContext& ctx) {
 	auto& paint{ ctx.editor.GetPaintEditor() };
+	bool runtime_active{ ctx.editor.CanPause() };
+	bool paint_tools_available{ !runtime_active || use_editor_camera_ };
 	float default_item_spacing_y{ ImGui::GetStyle().ItemSpacing.y };
 
 	ImGui::PushStyleVar(
 		ImGuiStyleVar_ItemSpacing, ImVec2{ kViewportPaintToolSpacing, default_item_spacing_y }
 	);
+	ImGui::BeginDisabled(!paint_tools_available);
 	paint.DrawViewportToolButtons(ctx);
+	ImGui::EndDisabled();
 	ImGui::PopStyleVar();
 
 	bool paused{ ctx.editor.IsPaused() };
@@ -1529,7 +1533,9 @@ void ViewportPanel::DrawViewportToolbar(EditorContext& ctx) {
 	ImGui::PushStyleVar(
 		ImGuiStyleVar_ItemSpacing, ImVec2{ kViewportPaintOptionSpacing, default_item_spacing_y }
 	);
+	ImGui::BeginDisabled(!paint_tools_available);
 	bool drew_options{ paint.DrawViewportOptionsToolbar(ctx) };
+	ImGui::EndDisabled();
 	ImGui::PopStyleVar();
 
 	if (drew_options) {
@@ -1677,6 +1683,7 @@ void ViewportPanel::OnRender(EditorContext& ctx) {
 	}
 
 	auto* scene{ ctx.editor.GetSceneListPanel().GetSelectedScene() };
+	bool paint_tools_available{ !ctx.editor.CanPause() || use_editor_camera_ };
 
 	std::optional<FrameContext> frame_context;
 
@@ -1756,7 +1763,7 @@ void ViewportPanel::OnRender(EditorContext& ctx) {
 
 				inspector::CompletePickedPosition(ctx);
 			}
-		} else if (use_editor_camera_) {
+		} else if (paint_tools_available) {
 			auto& paint{ ctx.editor.GetPaintEditor() };
 			paint.DrawViewportAndHandleInput(ctx, *scene, viewport, presentation_viewport, frame);
 		}
@@ -1769,6 +1776,10 @@ void ViewportPanel::OnRender(EditorContext& ctx) {
 
 void ViewportPanel::SetUseEditorCamera(bool use_editor_camera) {
 	use_editor_camera_ = use_editor_camera;
+}
+
+bool ViewportPanel::IsUsingEditorCamera() const {
+	return use_editor_camera_;
 }
 
 void ViewportPanel::DrawSelectedEntityGizmo(

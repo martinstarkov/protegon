@@ -721,6 +721,10 @@ void InteractionSystem::Update(Scene& scene) {
 		}
 	}
 
+	if (!scene.ctx().input.IsEnabled()) {
+		return;
+	}
+
 	const impl::MouseInfo mouse_state{ scene };
 
 	bool handled_under_mouse{ false };

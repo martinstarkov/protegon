@@ -71,6 +71,7 @@ public:
 	void OnRender(EditorContext& ctx);
 
 	void SetUseEditorCamera(bool use_editor_camera);
+	[[nodiscard]] bool IsUsingEditorCamera() const;
 
 private:
 	void DrawSelectedEntityGizmo(
