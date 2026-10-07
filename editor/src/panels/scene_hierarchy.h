@@ -10,6 +10,12 @@
 #include "runtime/ecs/entity_serialization.h"
 #include "runtime/world/entity_layer.h"
 
+namespace ptgn {
+
+class Scene;
+
+} // namespace ptgn
+
 namespace ptgn::editor {
 
 class EditorContext;
@@ -41,6 +47,9 @@ private:
 	bool DrawTiles(EditorContext& ctx);
 
 	EditorContext* context_{ nullptr };
+
+	std::optional<SceneLayerId> selected_layer_;
+	Scene* selected_layer_scene_{ nullptr };
 
 	std::optional<SceneEntitySelection> renaming_entity_;
 	std::string entity_rename_text_;
