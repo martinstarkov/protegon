@@ -54,6 +54,9 @@ public:
 	void SetUndoRedoEnabled(bool enabled);
 	[[nodiscard]] bool IsUndoRedoEnabled() const;
 
+	void SetTransientMode(bool enabled);
+	[[nodiscard]] bool IsTransientMode() const;
+
 	/// Marks the currently applied serialized project history state as saved.
 	void MarkProjectSaved();
 
@@ -95,9 +98,10 @@ private:
 	std::size_t cursor_{ 0 };
 	std::unique_ptr<ActiveEdit> active_edit_;
 	bool undo_redo_enabled_{ true };
+	bool transient_mode_{ false };
 
 	/// State id at every history boundary. Element 0 is the state before the first command,
-	/// and element N is the serialized-project state after N commands have been applied.
+	/// and element N is the serialized project state after N commands have been applied.
 	std::vector<std::uint64_t> project_state_ids_{ 0 };
 	std::uint64_t next_project_state_id_{ 1 };
 	std::uint64_t saved_project_state_id_{ 0 };

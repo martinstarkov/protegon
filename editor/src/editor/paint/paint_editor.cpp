@@ -63,6 +63,31 @@ constexpr ImU32 kLockedPreview{ IM_COL32(255, 92, 92, 180) };
 constexpr std::size_t kMaxFloodCells{ 50000 };
 constexpr const char* kTileLibraryEntryDragDropPayload{ "PTGN_TILE_LIBRARY_ENTRY" };
 
+template <typename Undo, typename Redo>
+void PushPaintUndo(
+	EditorContext& ctx, const Scene& scene, std::string label, Undo&& undo, Redo&& redo
+) {
+	bool runtime{ scene.IsRuntime() };
+	ctx.undo.PushApplied(
+		std::move(label), std::forward<Undo>(undo), std::forward<Redo>(redo), !runtime, runtime,
+		runtime
+	);
+}
+
+Entity RecordPaintCreatedEntity(
+	EditorContext& ctx, Entity entity, EditorSelection before_selection
+) {
+	bool runtime{ entity.GetScene().IsRuntime() };
+	return ctx.commands.RecordCreatedEntity(
+		entity, std::move(before_selection), !runtime, runtime, runtime
+	);
+}
+
+void DeletePaintEntity(EditorContext& ctx, Entity entity) {
+	bool runtime{ entity.GetScene().IsRuntime() };
+	ctx.commands.DeleteEntity(entity, !runtime, runtime, runtime);
+}
+
 [[nodiscard]] float FractalNoise01(
 	V2_float world, NoiseType type, int seed, float frequency, int octaves, float lacunarity,
 	float persistence, V2_float offset
@@ -1471,6 +1496,245 @@ bool PaintEditor::HasSelection() const {
 		   !selected_tile_cells_.empty();
 }
 
+bool PaintEditor::DeleteSelection(EditorContext& ctx, Scene& scene) {
+	if (active_brush_generator_.has_value() && !stroke_.active) {
+		CancelActiveBrushGenerator(ctx, scene, true);
+		return true;
+	}
+
+	if (selected_generator_.has_value()) {
+		Entity generator{ scene.GetEntity(*selected_generator_) };
+		if (!generator || !IsPaintGenerator(generator)) {
+			selected_generator_.reset();
+			return false;
+		}
+
+		DeletePaintEntity(ctx, generator);
+		ClearSelection();
+		return true;
+	}
+
+	if (selected_entities_.size() == 1) {
+		Entity entity{ scene.GetEntity(selected_entities_.front()) };
+		if (!entity || IsProtectedSceneEntity(scene, entity) || IsTilemap(entity) ||
+			IsPaintGenerator(entity)) {
+			return false;
+		}
+
+		DeletePaintEntity(ctx, entity);
+		ClearSelection();
+		return true;
+	}
+
+	if (!selected_entities_.empty()) {
+		struct DeletedSelectionEntity {
+			SerializedEntity entity{};
+			SceneLayerId layer{};
+			std::optional<UUID> parent{};
+			std::optional<Transform> world_transform{};
+		};
+
+		std::vector<DeletedSelectionEntity> deleted;
+		deleted.reserve(selected_entities_.size());
+
+		for (UUID uuid : selected_entities_) {
+			Entity entity{ scene.GetEntity(uuid) };
+			if (!entity || IsProtectedSceneEntity(scene, entity) || IsTilemap(entity) ||
+				IsPaintGenerator(entity)) {
+				continue;
+			}
+
+			bool selected_ancestor{};
+			Entity parent{ HasParent(entity) ? GetParent(entity) : Entity{} };
+			while (parent) {
+				if (parent.Has<UUID>() &&
+					std::ranges::contains(selected_entities_, parent.Get<UUID>())) {
+					selected_ancestor = true;
+					break;
+				}
+				parent = HasParent(parent) ? GetParent(parent) : Entity{};
+			}
+			if (selected_ancestor) {
+				continue;
+			}
+
+			SceneLayerId layer{ scene.GetLayers().GetLayerId(entity).value_or(
+				scene.GetLayers().GetDefaultEntityLayer()
+			) };
+			std::optional<UUID> parent_uuid;
+			std::optional<Transform> world_transform;
+			if (HasParent(entity)) {
+				Entity entity_parent{ GetParent(entity) };
+				if (entity_parent && entity_parent.Has<UUID>()) {
+					parent_uuid = entity_parent.Get<UUID>();
+				}
+				if (entity.Has<Transform>()) {
+					world_transform = GetWorldTransform(entity);
+				}
+			}
+
+			deleted.push_back(
+				DeletedSelectionEntity{
+					.entity			 = SerializeEntity(entity),
+					.layer			 = layer,
+					.parent			 = parent_uuid,
+					.world_transform = world_transform,
+				}
+			);
+		}
+
+		if (deleted.empty()) {
+			return false;
+		}
+
+		const std::vector<UUID> selected_before{ selected_entities_ };
+		const EditorSelection editor_selection_before{ ctx.local.selection };
+
+		for (const auto& item : deleted) {
+			if (!item.entity.uuid.has_value()) {
+				continue;
+			}
+			if (Entity entity{ scene.GetEntity(*item.entity.uuid) }) {
+				entity.Destroy();
+			}
+		}
+		scene.Refresh();
+
+		ClearSelection();
+		ctx.editor.GetSceneHierarchyPanel().SetSelectedEntity({}, false);
+		const EditorSelection editor_selection_after{ ctx.local.selection };
+
+		Scene* scene_ptr{ &scene };
+		PaintEditor* paint{ this };
+		EditorContext* context{ &ctx };
+
+		PushPaintUndo(
+			ctx, scene, "Delete Selection",
+			[scene_ptr, paint, context, deleted, selected_before,
+			 editor_selection_before]() mutable {
+				for (const auto& item : deleted) {
+					if (item.entity.uuid.has_value() && scene_ptr->GetEntity(*item.entity.uuid)) {
+						continue;
+					}
+					RestoreEntityTree(*scene_ptr, item.entity, item.layer);
+				}
+				scene_ptr->Refresh();
+
+				for (const auto& item : deleted) {
+					if (!item.entity.uuid.has_value() || !item.parent.has_value()) {
+						continue;
+					}
+					Entity entity{ scene_ptr->GetEntity(*item.entity.uuid) };
+					Entity parent{ scene_ptr->GetEntity(*item.parent) };
+					if (!entity || !parent) {
+						continue;
+					}
+					SetParent(entity, parent);
+					if (item.world_transform.has_value() && entity.Has<Transform>()) {
+						SetWorldTransform(entity, *item.world_transform);
+					}
+				}
+				scene_ptr->Refresh();
+
+				paint->ClearSelection();
+				paint->selected_entities_ = selected_before;
+				ApplyEditorSelection(*context, editor_selection_before);
+			},
+			[scene_ptr, paint, context, deleted, editor_selection_after]() mutable {
+				for (const auto& item : deleted) {
+					if (!item.entity.uuid.has_value()) {
+						continue;
+					}
+					if (Entity entity{ scene_ptr->GetEntity(*item.entity.uuid) }) {
+						entity.Destroy();
+					}
+				}
+				scene_ptr->Refresh();
+				paint->ClearSelection();
+				ApplyEditorSelection(*context, editor_selection_after);
+			}
+		);
+
+		ctx.local.state.is_dirty = true;
+		return true;
+	}
+
+	if (selected_tilemap_.has_value() && !selected_tile_cells_.empty()) {
+		Entity entity{ scene.GetEntity(*selected_tilemap_) };
+		if (!entity || !IsTilemap(entity)) {
+			selected_tilemap_.reset();
+			selected_tile_cells_.clear();
+			return false;
+		}
+
+		Tilemap map{ entity };
+		UUID map_uuid{ map.Get<UUID>() };
+		const auto before{ map.GetData() };
+		const std::vector<V2_int> selected_cells_before{ selected_tile_cells_ };
+		const EditorSelection editor_selection_before{ ctx.local.selection };
+		std::vector<std::pair<V2_int, std::uint64_t>> removed_terrain;
+		bool changed{};
+
+		for (V2_int cell : selected_tile_cells_) {
+			if (const auto terrain{ map.GetTerrainRuleset(cell) }) {
+				map.SetTerrainRuleset(cell, std::nullopt);
+				removed_terrain.emplace_back(cell, *terrain);
+				changed = true;
+			} else if (map.FindTile(cell)) {
+				map.EraseTile(cell);
+				changed = true;
+			}
+		}
+
+		for (const auto& [cell, ruleset_id] : removed_terrain) {
+			if (const PaintAutotileRuleSet* rules{ FindAutotileRuleSet(ruleset_id) }) {
+				RecomputeAutotileAround(map, cell, *rules);
+			}
+		}
+
+		if (!changed) {
+			return false;
+		}
+
+		const auto after{ map.GetData() };
+		selected_tilemap_.reset();
+		selected_tile_cells_.clear();
+		const EditorSelection editor_selection_after{ ctx.local.selection };
+
+		Scene* scene_ptr{ &scene };
+		PaintEditor* paint{ this };
+		EditorContext* context{ &ctx };
+
+		PushPaintUndo(
+			ctx, scene, "Delete Tiles",
+			[scene_ptr, paint, context, map_uuid, before, selected_cells_before,
+			 editor_selection_before]() mutable {
+				if (Entity map_entity{ scene_ptr->GetEntity(map_uuid) };
+					map_entity && map_entity.Has<::ptgn::impl::TilemapData>()) {
+					map_entity.Get<::ptgn::impl::TilemapData>() = before;
+					paint->selected_tilemap_					= map_uuid;
+					paint->selected_tile_cells_					= selected_cells_before;
+				}
+				ApplyEditorSelection(*context, editor_selection_before);
+			},
+			[scene_ptr, paint, context, map_uuid, after, editor_selection_after]() mutable {
+				if (Entity map_entity{ scene_ptr->GetEntity(map_uuid) };
+					map_entity && map_entity.Has<::ptgn::impl::TilemapData>()) {
+					map_entity.Get<::ptgn::impl::TilemapData>() = after;
+				}
+				paint->selected_tilemap_.reset();
+				paint->selected_tile_cells_.clear();
+				ApplyEditorSelection(*context, editor_selection_after);
+			}
+		);
+
+		ctx.local.state.is_dirty = true;
+		return true;
+	}
+
+	return false;
+}
+
 void PaintEditor::DrawViewportToolButtons(EditorContext& ctx) {
 	EnsureLocalState(ctx);
 
@@ -2865,6 +3129,61 @@ PaintEditor::TileLibraryEntry* PaintEditor::FindTileEntry(std::string_view id) {
 const PaintEditor::TileLibraryEntry* PaintEditor::FindTileEntry(std::string_view id) const {
 	auto it{ std::ranges::find(tile_library_, id, &TileLibraryEntry::id) };
 	return it == tile_library_.end() ? nullptr : &*it;
+}
+
+bool PaintEditor::DeleteTileLibraryEntry(EditorContext& ctx, std::string_view id) {
+	const auto it{ std::ranges::find(tile_library_, id, &TileLibraryEntry::id) };
+	if (it == tile_library_.end()) {
+		return false;
+	}
+
+	std::size_t index{ static_cast<std::size_t>(it - tile_library_.begin()) };
+	const TileLibraryEntry removed{ *it };
+	const std::string selected_before{ selected_tile_entry_id_ };
+	const std::optional<TextureKey> inspected_texture_before{ inspected_texture_ };
+	V2_int inspected_slice_before{ inspected_slice_ };
+
+	tile_library_.erase(it);
+	if (selected_tile_entry_id_ == removed.id) {
+		selected_tile_entry_id_.clear();
+		inspected_texture_.reset();
+	}
+	SaveProjectLibrary(ctx);
+
+	const std::string selected_after{ selected_tile_entry_id_ };
+	const std::optional<TextureKey> inspected_texture_after{ inspected_texture_ };
+	V2_int inspected_slice_after{ inspected_slice_ };
+	PaintEditor* paint{ this };
+	EditorContext* context{ &ctx };
+
+	ctx.undo.PushApplied(
+		"Remove Tile from Library",
+		[paint, context, removed, index, selected_before, inspected_texture_before,
+		 inspected_slice_before]() mutable {
+			if (!paint->FindTileEntry(removed.id)) {
+				std::size_t restore_index{ std::min(index, paint->tile_library_.size()) };
+				auto position{ paint->tile_library_.begin() +
+							   static_cast<std::ptrdiff_t>(restore_index) };
+				paint->tile_library_.insert(position, removed);
+			}
+			paint->selected_tile_entry_id_ = selected_before;
+			paint->inspected_texture_	   = inspected_texture_before;
+			paint->inspected_slice_		   = inspected_slice_before;
+			paint->SaveProjectLibrary(*context);
+		},
+		[paint, context, id = removed.id, selected_after, inspected_texture_after,
+		 inspected_slice_after]() mutable {
+			std::erase_if(paint->tile_library_, [&](const TileLibraryEntry& entry) {
+				return entry.id == id;
+			});
+			paint->selected_tile_entry_id_ = selected_after;
+			paint->inspected_texture_	   = inspected_texture_after;
+			paint->inspected_slice_		   = inspected_slice_after;
+			paint->SaveProjectLibrary(*context);
+		}
+	);
+
+	return true;
 }
 
 PaintWeightedTileSet* PaintEditor::FindWeightedTileSet(std::string_view name) {
@@ -4841,7 +5160,8 @@ void PaintEditor::DrawImportPopup(EditorContext& ctx) {
 bool PaintEditor::DrawTilesPanel(EditorContext& ctx) {
 	EnsureLocalState(ctx);
 	bool visible{ ImGui::Begin("Tiles###TilesWindow") };
-	if (visible && ImGui::IsWindowFocused(ImGuiFocusedFlags_RootAndChildWindows)) {
+	bool focused{ visible && ImGui::IsWindowFocused(ImGuiFocusedFlags_RootAndChildWindows) };
+	if (focused) {
 		ctx.editor.GetSceneHierarchyPanel().SetActiveTab(SceneHierarchyTab::Tiles);
 	}
 	if (!visible) {
@@ -4849,6 +5169,11 @@ bool PaintEditor::DrawTilesPanel(EditorContext& ctx) {
 		return false;
 	}
 	EnsureProjectLibrary(ctx);
+
+	if (focused && !ImGui::GetIO().WantTextInput && !selected_tile_entry_id_.empty() &&
+		ImGui::IsKeyPressed(ImGuiKey_Delete, false)) {
+		DeleteTileLibraryEntry(ctx, selected_tile_entry_id_);
+	}
 
 	if (ImGui::Button("+ Group")) {
 		auto groups{ TileGroupNames() };
@@ -5048,14 +5373,7 @@ bool PaintEditor::DrawTilesPanel(EditorContext& ctx) {
 				++shown;
 			}
 			if (delete_id.has_value()) {
-				std::erase_if(tile_library_, [&](const TileLibraryEntry& e) {
-					return e.id == *delete_id;
-				});
-				if (selected_tile_entry_id_ == *delete_id) {
-					selected_tile_entry_id_.clear();
-					inspected_texture_.reset();
-				}
-				SaveProjectLibrary(ctx);
+				DeleteTileLibraryEntry(ctx, *delete_id);
 			}
 			if (shown == 0) {
 				ImGui::TextDisabled("Empty group. Right click the group to import tiles.");
@@ -6177,6 +6495,8 @@ void PaintEditor::BakeGenerator(EditorContext& ctx, Scene& scene, Entity entity)
 	if (active_brush_generator_.has_value() && *active_brush_generator_ == generator_uuid) {
 		active_brush_generator_.reset();
 		active_generator_before_selection_.reset();
+		active_generator_created_tilemap_.reset();
+		active_generator_undo_cursor_.reset();
 		next_active_brush_stroke_id_ = 1;
 	}
 
@@ -6215,8 +6535,8 @@ void PaintEditor::BakeGenerator(EditorContext& ctx, Scene& scene, Entity entity)
 		auto before{ *tilemap_before };
 		auto after{ *tilemap_after };
 
-		ctx.undo.PushApplied(
-			"Bake Generator",
+		PushPaintUndo(
+			ctx, scene, "Bake Generator",
 			[scene_ptr, map_uuid, before, restore_generator]() mutable {
 				if (Entity map{ scene_ptr->GetEntity(map_uuid) };
 					map && map.Has<::ptgn::impl::TilemapData>()) {
@@ -6253,8 +6573,8 @@ void PaintEditor::BakeGenerator(EditorContext& ctx, Scene& scene, Entity entity)
 			scene_ptr->Refresh();
 		};
 
-		ctx.undo.PushApplied(
-			"Bake Generator",
+		PushPaintUndo(
+			ctx, scene, "Bake Generator",
 			[apply_entities, created_entities, restore_generator]() mutable {
 				apply_entities(created_entities, {});
 				restore_generator();
@@ -8550,12 +8870,13 @@ void PaintEditor::CreateGeneratorForStroke(
 		active_brush_generator_			   = generator.Get<UUID>();
 		active_generator_created_tilemap_ =
 			created_target ? std::optional<UUID>{ target.Get<UUID>() } : std::nullopt;
+		active_generator_undo_cursor_ = ctx.undo.Cursor();
 		ctx.editor.GetSceneHierarchyPanel().SetSelectedEntity(generator, false);
 		return;
 	}
 
 	Entity record_root{ created_target ? Entity{ target } : Entity{ generator } };
-	ctx.commands.RecordCreatedEntity(record_root, ctx.local.selection);
+	RecordPaintCreatedEntity(ctx, record_root, ctx.local.selection);
 	ctx.editor.GetSceneHierarchyPanel().SetSelectedEntity(generator, false);
 }
 
@@ -8577,6 +8898,7 @@ void PaintEditor::AppendBrushStrokeToGenerator(EditorContext& ctx, Scene& scene)
 		scene.GetLayers().GetLayerId(entity) != std::optional<SceneLayerId>{ layer->id }) {
 		active_brush_generator_.reset();
 		active_generator_before_selection_.reset();
+		active_generator_undo_cursor_.reset();
 		active_generator_created_tilemap_.reset();
 		next_active_brush_stroke_id_ = 1;
 		CreateGeneratorForStroke(ctx, scene, PaintGeneratorGeometry::BrushStroke);
@@ -8623,6 +8945,7 @@ void PaintEditor::FinishActiveBrushGenerator(EditorContext& ctx, Scene& scene) {
 	if (!generator || !IsPaintGenerator(generator)) {
 		active_brush_generator_.reset();
 		active_generator_before_selection_.reset();
+		active_generator_undo_cursor_.reset();
 		active_generator_created_tilemap_.reset();
 		next_active_brush_stroke_id_ = 1;
 		return;
@@ -8643,7 +8966,7 @@ void PaintEditor::FinishActiveBrushGenerator(EditorContext& ctx, Scene& scene) {
 		}
 	}
 
-	ctx.commands.RecordCreatedEntity(record_root, before);
+	RecordPaintCreatedEntity(ctx, record_root, before);
 	if (generator_is_still_selected) {
 		ctx.editor.GetSceneHierarchyPanel().SetSelectedEntity(generator, false);
 	} else {
@@ -8652,70 +8975,203 @@ void PaintEditor::FinishActiveBrushGenerator(EditorContext& ctx, Scene& scene) {
 
 	active_brush_generator_.reset();
 	active_generator_before_selection_.reset();
+	active_generator_undo_cursor_.reset();
 	active_generator_created_tilemap_.reset();
 	next_active_brush_stroke_id_ = 1;
 	ctx.local.state.is_dirty	 = true;
 }
 
-void PaintEditor::CancelActiveBrushGenerator(EditorContext& ctx, Scene& scene) {
+void PaintEditor::CancelActiveBrushGenerator(EditorContext& ctx, Scene& scene, bool undoable) {
 	if (!active_brush_generator_.has_value()) {
 		return;
 	}
 
+	Entity generator{ scene.GetEntity(*active_brush_generator_) };
 	std::optional<UUID> created_tilemap{ active_generator_created_tilemap_ };
-	bool destroyed{};
 
-	if (Entity generator{ scene.GetEntity(*active_brush_generator_) }) {
-		generator.Destroy();
-		destroyed = true;
-	}
+	if (!undoable || !generator || !IsPaintGenerator(generator)) {
+		bool destroyed{};
 
-	if (created_tilemap.has_value()) {
-		if (Entity tilemap{ scene.GetEntity(*created_tilemap) }) {
-			tilemap.Destroy();
+		if (generator) {
+			generator.Destroy();
 			destroyed = true;
 		}
 
-		if (target_tilemap_ == created_tilemap) {
-			target_tilemap_.reset();
+		if (created_tilemap.has_value()) {
+			if (Entity tilemap{ scene.GetEntity(*created_tilemap) }) {
+				tilemap.Destroy();
+				destroyed = true;
+			}
+
+			if (target_tilemap_ == created_tilemap) {
+				target_tilemap_.reset();
+			}
+			if (selected_tilemap_ == created_tilemap) {
+				selected_tilemap_.reset();
+				selected_tile_cells_.clear();
+			}
 		}
-		if (selected_tilemap_ == created_tilemap) {
-			selected_tilemap_.reset();
-			selected_tile_cells_.clear();
+
+		if (destroyed) {
+			scene.Refresh();
+		}
+
+		if (active_generator_before_selection_.has_value()) {
+			ApplyEditorSelection(ctx, *active_generator_before_selection_);
+		} else {
+			ctx.editor.GetSceneHierarchyPanel().SetSelectedEntity({}, false);
+		}
+
+		active_brush_generator_.reset();
+		active_generator_before_selection_.reset();
+		active_generator_undo_cursor_.reset();
+		active_generator_created_tilemap_.reset();
+		next_active_brush_stroke_id_ = 1;
+		stroke_						 = {};
+		return;
+	}
+
+	Entity snapshot_root{ generator };
+	if (created_tilemap.has_value()) {
+		Entity tilemap{ scene.GetEntity(*created_tilemap) };
+		if (tilemap && IsTilemap(tilemap)) {
+			snapshot_root = tilemap;
 		}
 	}
 
-	if (destroyed) {
-		scene.Refresh();
+	UUID generator_uuid{ generator.Get<UUID>() };
+	UUID snapshot_root_uuid{ snapshot_root.Get<UUID>() };
+	SerializedEntity snapshot{ SerializeEntity(snapshot_root) };
+	SceneLayerId snapshot_layer{ scene.GetLayers()
+									 .GetLayerId(snapshot_root)
+									 .value_or(scene.GetLayers().GetDefaultEntityLayer()) };
+	std::optional<UUID> snapshot_parent;
+	std::optional<Transform> snapshot_world_transform;
+	if (HasParent(snapshot_root)) {
+		Entity parent{ GetParent(snapshot_root) };
+		if (parent && parent.Has<UUID>()) {
+			snapshot_parent = parent.Get<UUID>();
+		}
+		if (snapshot_root.Has<Transform>()) {
+			snapshot_world_transform = GetWorldTransform(snapshot_root);
+		}
 	}
 
-	if (active_generator_before_selection_.has_value()) {
-		ApplyEditorSelection(ctx, *active_generator_before_selection_);
-	} else {
-		ctx.editor.GetSceneHierarchyPanel().SetSelectedEntity({}, false);
-	}
+	EditorSelection editor_selection_before{ ctx.local.selection };
+	std::optional<EditorSelection> authoring_selection_before{ active_generator_before_selection_ };
+	std::optional<UUID> target_tilemap_before{ target_tilemap_ };
+	std::vector<UUID> selected_entities_before{ selected_entities_ };
+	std::optional<UUID> selected_generator_before{ selected_generator_ };
+	std::optional<UUID> selected_tilemap_before{ selected_tilemap_ };
+	std::vector<V2_int> selected_tile_cells_before{ selected_tile_cells_ };
+	std::uint32_t next_stroke_id_before{ next_active_brush_stroke_id_ };
+	std::optional<std::size_t> undo_cursor_before{ active_generator_undo_cursor_ };
+	Stroke stroke_before{ stroke_ };
 
-	active_brush_generator_.reset();
-	active_generator_before_selection_.reset();
-	active_generator_created_tilemap_.reset();
-	next_active_brush_stroke_id_ = 1;
-	stroke_						 = {};
+	CancelActiveBrushGenerator(ctx, scene, false);
+
+	EditorSelection editor_selection_after{ ctx.local.selection };
+	std::optional<UUID> target_tilemap_after{ target_tilemap_ };
+	std::vector<UUID> selected_entities_after{ selected_entities_ };
+	std::optional<UUID> selected_generator_after{ selected_generator_ };
+	std::optional<UUID> selected_tilemap_after{ selected_tilemap_ };
+	std::vector<V2_int> selected_tile_cells_after{ selected_tile_cells_ };
+
+	Scene* scene_ptr{ &scene };
+	PaintEditor* paint{ this };
+	EditorContext* context{ &ctx };
+
+	PushPaintUndo(
+		ctx, scene, "Cancel Generator",
+		[scene_ptr, paint, context, generator_uuid, created_tilemap, snapshot_root_uuid, snapshot,
+		 snapshot_layer, snapshot_parent, snapshot_world_transform, editor_selection_before,
+		 authoring_selection_before, target_tilemap_before, selected_entities_before,
+		 selected_generator_before, selected_tilemap_before, selected_tile_cells_before,
+		 next_stroke_id_before, undo_cursor_before, stroke_before]() mutable {
+			if (!scene_ptr->GetEntity(snapshot_root_uuid)) {
+				RestoreEntityTree(*scene_ptr, snapshot, snapshot_layer);
+				scene_ptr->Refresh();
+			}
+
+			Entity restored_root{ scene_ptr->GetEntity(snapshot_root_uuid) };
+			if (restored_root && snapshot_parent.has_value()) {
+				if (Entity parent{ scene_ptr->GetEntity(*snapshot_parent) }) {
+					SetParent(restored_root, parent);
+					if (snapshot_world_transform.has_value() && restored_root.Has<Transform>()) {
+						SetWorldTransform(restored_root, *snapshot_world_transform);
+					}
+				}
+			}
+			scene_ptr->Refresh();
+
+			paint->target_tilemap_					  = target_tilemap_before;
+			paint->selected_entities_				  = selected_entities_before;
+			paint->selected_generator_				  = selected_generator_before;
+			paint->selected_tilemap_				  = selected_tilemap_before;
+			paint->selected_tile_cells_				  = selected_tile_cells_before;
+			paint->active_brush_generator_			  = generator_uuid;
+			paint->active_generator_before_selection_ = authoring_selection_before;
+			paint->active_generator_created_tilemap_  = created_tilemap;
+			paint->active_generator_undo_cursor_	  = undo_cursor_before;
+			paint->next_active_brush_stroke_id_		  = next_stroke_id_before;
+			paint->stroke_							  = stroke_before;
+			ApplyEditorSelection(*context, editor_selection_before);
+		},
+		[scene_ptr, paint, context, generator_uuid, created_tilemap, editor_selection_after,
+		 target_tilemap_after, selected_entities_after, selected_generator_after,
+		 selected_tilemap_after, selected_tile_cells_after]() mutable {
+			bool destroyed{};
+			if (Entity active{ scene_ptr->GetEntity(generator_uuid) }) {
+				active.Destroy();
+				destroyed = true;
+			}
+			if (created_tilemap.has_value()) {
+				if (Entity tilemap{ scene_ptr->GetEntity(*created_tilemap) }) {
+					tilemap.Destroy();
+					destroyed = true;
+				}
+			}
+			if (destroyed) {
+				scene_ptr->Refresh();
+			}
+
+			paint->target_tilemap_		= target_tilemap_after;
+			paint->selected_entities_	= selected_entities_after;
+			paint->selected_generator_	= selected_generator_after;
+			paint->selected_tilemap_	= selected_tilemap_after;
+			paint->selected_tile_cells_ = selected_tile_cells_after;
+			paint->active_brush_generator_.reset();
+			paint->active_generator_before_selection_.reset();
+			paint->active_generator_undo_cursor_.reset();
+			paint->active_generator_created_tilemap_.reset();
+			paint->next_active_brush_stroke_id_ = 1;
+			paint->stroke_						= {};
+			ApplyEditorSelection(*context, editor_selection_after);
+		}
+	);
+
+	ctx.local.state.is_dirty = true;
 }
 
-void PaintEditor::UndoActiveBrushStroke(EditorContext& ctx, Scene& scene) {
+bool PaintEditor::UndoActiveBrushStroke(EditorContext& ctx, Scene& scene) {
 	if (!active_brush_generator_.has_value()) {
-		return;
+		return false;
 	}
 
 	Entity entity{ scene.GetEntity(*active_brush_generator_) };
 	if (!entity || !IsPaintGenerator(entity)) {
-		return;
+		active_brush_generator_.reset();
+		active_generator_before_selection_.reset();
+		active_generator_created_tilemap_.reset();
+		active_generator_undo_cursor_.reset();
+		next_active_brush_stroke_id_ = 1;
+		return false;
 	}
 
 	auto& points{ PaintGenerator{ entity }.GetData().stroke_points };
 	if (points.empty()) {
-		CancelActiveBrushGenerator(ctx, scene);
-		return;
+		CancelActiveBrushGenerator(ctx, scene, false);
+		return true;
 	}
 
 	std::uint32_t last_id{};
@@ -8728,12 +9184,23 @@ void PaintEditor::UndoActiveBrushStroke(EditorContext& ctx, Scene& scene) {
 	});
 
 	if (points.empty()) {
-		CancelActiveBrushGenerator(ctx, scene);
-		return;
+		CancelActiveBrushGenerator(ctx, scene, false);
+		return true;
 	}
 
 	ctx.editor.GetSceneHierarchyPanel().SetSelectedEntity(entity, false);
 	ctx.local.state.is_dirty = true;
+	return true;
+}
+
+bool PaintEditor::CanUndoActiveBrushStroke(const Scene& scene, std::size_t undo_cursor) const {
+	if (!active_brush_generator_.has_value() || !active_generator_undo_cursor_.has_value() ||
+		undo_cursor > *active_generator_undo_cursor_) {
+		return false;
+	}
+
+	Entity entity{ scene.GetEntity(*active_brush_generator_) };
+	return entity && IsPaintGenerator(entity);
 }
 
 void PaintEditor::CreateInfiniteGenerator(EditorContext& ctx, Scene& scene) {
@@ -8792,7 +9259,7 @@ void PaintEditor::CreateInfiniteGenerator(EditorContext& ctx, Scene& scene) {
 
 	scene.Refresh();
 	Entity record_root{ created_target ? Entity{ target } : Entity{ generator } };
-	ctx.commands.RecordCreatedEntity(record_root, ctx.local.selection);
+	RecordPaintCreatedEntity(ctx, record_root, ctx.local.selection);
 	ctx.editor.GetSceneHierarchyPanel().SetSelectedEntity(generator, false);
 }
 
@@ -8838,8 +9305,8 @@ void PaintEditor::CommitTileStroke(EditorContext& ctx, Scene& scene) {
 			}
 		};
 
-	ctx.undo.PushApplied(
-		tool_ == PaintTool::Erase ? "Erase Paint" : "Paint Tiles",
+	PushPaintUndo(
+		ctx, scene, tool_ == PaintTool::Erase ? "Erase Paint" : "Paint Tiles",
 		[scene_ptr, map_uuid, map_before, generator_before, apply_generators]() mutable {
 			if (map_uuid && map_before) {
 				if (Entity entity{ scene_ptr->GetEntity(*map_uuid) };
@@ -8916,8 +9383,8 @@ void PaintEditor::CommitEntityStroke(EditorContext& ctx, Scene& scene) {
 			}
 		};
 
-	ctx.undo.PushApplied(
-		tool_ == PaintTool::Erase ? "Erase Paint" : "Paint Entities",
+	PushPaintUndo(
+		ctx, scene, tool_ == PaintTool::Erase ? "Erase Paint" : "Paint Entities",
 		[apply_entities, apply_generators, created, deleted, generator_before]() mutable {
 			apply_entities(created, deleted);
 			apply_generators(generator_before);
@@ -9658,8 +10125,8 @@ void PaintEditor::SnapSelectionToGrid(EditorContext& ctx, Scene& scene) {
 
 	Scene* scene_ptr{ &scene };
 	PaintEditor* paint{ this };
-	ctx.undo.PushApplied(
-		"Snap Selection to Grid",
+	PushPaintUndo(
+		ctx, scene, "Snap Selection to Grid",
 		[scene_ptr, paint, entity_before, tilemap_uuid, tilemap_before, selected_cells_before]() {
 			for (const auto& [uuid, transform] : entity_before) {
 				if (Entity entity{ scene_ptr->GetEntity(uuid) }) {
@@ -9858,8 +10325,8 @@ void PaintEditor::CommitMove(EditorContext& ctx, Scene& scene) {
 		if (changed) {
 			Scene* scene_ptr{ &scene };
 			auto before{ move_.entity_before };
-			ctx.undo.PushApplied(
-				"Move Selection",
+			PushPaintUndo(
+				ctx, scene, "Move Selection",
 				[scene_ptr, before]() {
 					for (const auto& [uuid, transform] : before) {
 						if (Entity entity{ scene_ptr->GetEntity(uuid) }) {
@@ -9891,8 +10358,8 @@ void PaintEditor::CommitMove(EditorContext& ctx, Scene& scene) {
 				UUID uuid{ *move_.tilemap };
 				auto before_cells{ move_.tile_cells };
 				auto after_cells{ selected_tile_cells_ };
-				ctx.undo.PushApplied(
-					"Move Selection",
+				PushPaintUndo(
+					ctx, scene, "Move Selection",
 					[scene_ptr, paint, uuid, before, before_cells]() {
 						if (Entity e{ scene_ptr->GetEntity(uuid) };
 							e && e.Has<::ptgn::impl::TilemapData>()) {
@@ -10098,6 +10565,11 @@ bool PaintEditor::DrawViewportAndHandleInput(
 		return false;
 	}
 
+	if (!pointer_operation_active && ImGui::IsKeyPressed(ImGuiKey_Delete, false) &&
+		DeleteSelection(ctx, scene)) {
+		return true;
+	}
+
 	HandleShortcuts(ctx, scene);
 
 	if (active_brush_generator_.has_value() && !stroke_.active &&
@@ -10106,7 +10578,8 @@ bool PaintEditor::DrawViewportAndHandleInput(
 		return true;
 	}
 
-	if (tool_ == PaintTool::Select && ImGui::IsMouseClicked(ImGuiMouseButton_Right)) {
+	if (tool_ == PaintTool::Select && !active_brush_generator_.has_value() &&
+		ImGui::IsMouseClicked(ImGuiMouseButton_Right)) {
 		selection_drag_start_  = {};
 		selection_drag_active_ = false;
 		ClearSelection();

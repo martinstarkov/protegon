@@ -8,13 +8,17 @@
 namespace ptgn::editor {
 
 void UndoStack::Execute(
-	std::unique_ptr<EditorCommand> command,
-	bool affects_project_serialization,
-	bool allow_when_disabled,
-	bool transient
+	std::unique_ptr<EditorCommand> command, bool affects_project_serialization,
+	bool allow_when_disabled, bool transient
 ) {
 	if (!command) {
 		return;
+	}
+
+	if (transient_mode_) {
+		affects_project_serialization = false;
+		allow_when_disabled			  = true;
+		transient					  = true;
 	}
 
 	if (!undo_redo_enabled_ && !allow_when_disabled) {
@@ -24,20 +28,19 @@ void UndoStack::Execute(
 
 	CommitActiveEdit();
 	command->Redo();
-	PushApplied(
-		std::move(command),
-		affects_project_serialization,
-		allow_when_disabled,
-		transient
-	);
+	PushApplied(std::move(command), affects_project_serialization, allow_when_disabled, transient);
 }
 
 void UndoStack::PushApplied(
-	std::unique_ptr<EditorCommand> command,
-	bool affects_project_serialization,
-	bool allow_when_disabled,
-	bool transient
+	std::unique_ptr<EditorCommand> command, bool affects_project_serialization,
+	bool allow_when_disabled, bool transient
 ) {
+	if (transient_mode_) {
+		affects_project_serialization = false;
+		allow_when_disabled			  = true;
+		transient					  = true;
+	}
+
 	if (!command || (!undo_redo_enabled_ && !allow_when_disabled)) {
 		return;
 	}
@@ -45,85 +48,52 @@ void UndoStack::PushApplied(
 	CommitActiveEdit();
 	DiscardRedoBranch();
 
-	std::uint64_t project_state_id{
-		project_state_ids_[cursor_]
-	};
+	std::uint64_t project_state_id{ project_state_ids_[cursor_] };
 
 	if (affects_project_serialization) {
 		project_state_id = next_project_state_id_++;
 	}
 
-	commands_.push_back(CommandEntry{
-		.command = std::move(command),
-		.affects_project_serialization = affects_project_serialization,
-		.allow_when_disabled = allow_when_disabled,
-		.transient = transient,
-	});
+	commands_.push_back(
+		CommandEntry{
+			.command					   = std::move(command),
+			.affects_project_serialization = affects_project_serialization,
+			.allow_when_disabled		   = allow_when_disabled,
+			.transient					   = transient,
+		}
+	);
 	cursor_ = commands_.size();
 	project_state_ids_.push_back(project_state_id);
 }
 
 void UndoStack::PushApplied(
-	std::string label,
-	Action undo,
-	Action redo,
-	bool affects_project_serialization,
-	bool allow_when_disabled,
-	bool transient
+	std::string label, Action undo, Action redo, bool affects_project_serialization,
+	bool allow_when_disabled, bool transient
 ) {
 	PushApplied(
-		std::make_unique<ActionEditorCommand>(
-			std::move(label),
-			std::move(undo),
-			std::move(redo)
-		),
-		affects_project_serialization,
-		allow_when_disabled,
-		transient
+		std::make_unique<ActionEditorCommand>(std::move(label), std::move(undo), std::move(redo)),
+		affects_project_serialization, allow_when_disabled, transient
 	);
 }
 
 void UndoStack::TrackInteraction(
-	std::uint64_t key,
-	std::string label,
-	bool changed,
-	bool any_item_active,
-	Action undo,
-	Action redo,
-	bool affects_project_serialization,
-	bool allow_when_disabled,
-	bool transient
+	std::uint64_t key, std::string label, bool changed, bool any_item_active, Action undo,
+	Action redo, bool affects_project_serialization, bool allow_when_disabled, bool transient
 ) {
+	if (transient_mode_) {
+		affects_project_serialization = false;
+		allow_when_disabled			  = true;
+		transient					  = true;
+	}
+
 	if (!changed || (!undo_redo_enabled_ && !allow_when_disabled)) {
 		return;
 	}
 
 	if (!any_item_active) {
-		// Some ImGui controls can report their final changed value on the same frame
-		// that they become inactive. If this is the release frame of an interaction
-		// we are already tracking, fold that final value into the existing command
-		// instead of committing the drag and then pushing a second command.
-		if (active_edit_ && active_edit_->key == key) {
-			active_edit_->redo = std::move(redo);
-			active_edit_->affects_project_serialization |=
-				affects_project_serialization;
-			active_edit_->allow_when_disabled |= allow_when_disabled;
-			active_edit_->transient |= transient;
-			CommitActiveEdit();
-			return;
-		}
-
-		if (active_edit_) {
-			CommitActiveEdit();
-		}
-
 		PushApplied(
-			std::move(label),
-			std::move(undo),
-			std::move(redo),
-			affects_project_serialization,
-			allow_when_disabled,
-			transient
+			std::move(label), std::move(undo), std::move(redo), affects_project_serialization,
+			allow_when_disabled, transient
 		);
 		return;
 	}
@@ -134,22 +104,21 @@ void UndoStack::TrackInteraction(
 
 	if (!active_edit_) {
 		active_edit_ = std::make_unique<ActiveEdit>(ActiveEdit{
-			.key = key,
-			.label = std::move(label),
-			.undo = std::move(undo),
-			.redo = std::move(redo),
+			.key						   = key,
+			.label						   = std::move(label),
+			.undo						   = std::move(undo),
+			.redo						   = std::move(redo),
 			.affects_project_serialization = affects_project_serialization,
-			.allow_when_disabled = allow_when_disabled,
-			.transient = transient,
+			.allow_when_disabled		   = allow_when_disabled,
+			.transient					   = transient,
 		});
 		return;
 	}
 
-	active_edit_->redo = std::move(redo);
-	active_edit_->affects_project_serialization |=
-		affects_project_serialization;
-	active_edit_->allow_when_disabled |= allow_when_disabled;
-	active_edit_->transient |= transient;
+	active_edit_->redo							 = std::move(redo);
+	active_edit_->affects_project_serialization |= affects_project_serialization;
+	active_edit_->allow_when_disabled			|= allow_when_disabled;
+	active_edit_->transient						|= transient;
 }
 
 void UndoStack::CommitInactiveInteraction(bool any_item_active) {
@@ -167,13 +136,9 @@ void UndoStack::CommitActiveEdit() {
 
 	PushApplied(
 		std::make_unique<ActionEditorCommand>(
-			std::move(edit->label),
-			std::move(edit->undo),
-			std::move(edit->redo)
+			std::move(edit->label), std::move(edit->undo), std::move(edit->redo)
 		),
-		edit->affects_project_serialization,
-		edit->allow_when_disabled,
-		edit->transient
+		edit->affects_project_serialization, edit->allow_when_disabled, edit->transient
 	);
 }
 
@@ -226,19 +191,29 @@ bool UndoStack::IsUndoRedoEnabled() const {
 	return undo_redo_enabled_;
 }
 
+void UndoStack::SetTransientMode(bool enabled) {
+	if (transient_mode_ == enabled) {
+		return;
+	}
+
+	CommitActiveEdit();
+	transient_mode_ = enabled;
+}
+
+bool UndoStack::IsTransientMode() const {
+	return transient_mode_;
+}
+
 void UndoStack::MarkProjectSaved() {
-	saved_project_state_id_ =
-		project_state_ids_[cursor_];
+	saved_project_state_id_ = project_state_ids_[cursor_];
 }
 
 bool UndoStack::IsProjectDirty() const {
-	if (active_edit_ &&
-		active_edit_->affects_project_serialization) {
+	if (active_edit_ && active_edit_->affects_project_serialization) {
 		return true;
 	}
 
-	return project_state_ids_[cursor_] !=
-		saved_project_state_id_;
+	return project_state_ids_[cursor_] != saved_project_state_id_;
 }
 
 bool UndoStack::CanUndo() const {
@@ -246,8 +221,7 @@ bool UndoStack::CanUndo() const {
 		return false;
 	}
 
-	return undo_redo_enabled_ ||
-		commands_[cursor_ - 1].allow_when_disabled;
+	return undo_redo_enabled_ || commands_[cursor_ - 1].allow_when_disabled;
 }
 
 bool UndoStack::CanRedo() const {
@@ -255,8 +229,7 @@ bool UndoStack::CanRedo() const {
 		return false;
 	}
 
-	return undo_redo_enabled_ ||
-		commands_[cursor_].allow_when_disabled;
+	return undo_redo_enabled_ || commands_[cursor_].allow_when_disabled;
 }
 
 bool UndoStack::HasActiveEdit() const {
@@ -272,10 +245,12 @@ std::vector<UndoStack::HistoryEntry> UndoStack::History() const {
 	history.reserve(commands_.size());
 
 	for (std::size_t index{ 0 }; index < commands_.size(); ++index) {
-		history.push_back(HistoryEntry{
-			.label = std::string{ commands_[index].command->Label() },
-			.applied = index < cursor_,
-		});
+		history.push_back(
+			HistoryEntry{
+				.label	 = std::string{ commands_[index].command->Label() },
+				.applied = index < cursor_,
+			}
+		);
 	}
 
 	return history;
@@ -285,9 +260,10 @@ void UndoStack::Clear() {
 	commands_.clear();
 	cursor_ = 0;
 	active_edit_.reset();
+	transient_mode_ = false;
 
 	project_state_ids_.assign(1, 0);
-	next_project_state_id_ = 1;
+	next_project_state_id_	= 1;
 	saved_project_state_id_ = 0;
 }
 
@@ -296,14 +272,10 @@ void UndoStack::DiscardRedoBranch() {
 		return;
 	}
 
-	commands_.erase(
-		commands_.begin() + static_cast<std::ptrdiff_t>(cursor_),
-		commands_.end()
-	);
+	commands_.erase(commands_.begin() + static_cast<std::ptrdiff_t>(cursor_), commands_.end());
 
 	project_state_ids_.erase(
-		project_state_ids_.begin() +
-			static_cast<std::ptrdiff_t>(cursor_ + 1),
+		project_state_ids_.begin() + static_cast<std::ptrdiff_t>(cursor_ + 1),
 		project_state_ids_.end()
 	);
 }
@@ -333,9 +305,9 @@ void UndoStack::DiscardTransientCommands() {
 		project_state_ids.push_back(project_state_ids_[index + 1]);
 	}
 
-	commands_ = std::move(commands);
+	commands_		   = std::move(commands);
 	project_state_ids_ = std::move(project_state_ids);
-	cursor_ = cursor;
+	cursor_			   = cursor;
 }
 
 } // namespace ptgn::editor

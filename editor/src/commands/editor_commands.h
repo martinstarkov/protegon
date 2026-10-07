@@ -32,9 +32,15 @@ public:
 	void Bind(EditorContext& context);
 
 	Entity CreateEntity(std::string_view name);
-	Entity RecordCreatedEntity(Entity entity, EditorSelection before_selection);
+	Entity RecordCreatedEntity(
+		Entity entity, EditorSelection before_selection, bool affects_project_serialization = true,
+		bool allow_when_disabled = false, bool transient = false
+	);
 	Entity DuplicateEntity(Entity entity);
-	void DeleteEntity(Entity entity);
+	void DeleteEntity(
+		Entity entity, bool affects_project_serialization = true, bool allow_when_disabled = false,
+		bool transient = false
+	);
 
 	void RenameEntity(Entity entity, std::string_view new_name);
 	void ReparentEntity(Entity child, Entity new_parent, bool preserve_world_transform);

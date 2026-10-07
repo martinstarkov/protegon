@@ -1,6 +1,7 @@
 #pragma once
 
 #include <array>
+#include <cstddef>
 #include <cstdint>
 #include <optional>
 #include <string>
@@ -284,8 +285,9 @@ public:
 
 	/// Generator archetype actions. Generator data itself is edited by the ordinary inspector.
 	void FinishActiveBrushGenerator(EditorContext& ctx, Scene& scene);
-	void CancelActiveBrushGenerator(EditorContext& ctx, Scene& scene);
-	void UndoActiveBrushStroke(EditorContext& ctx, Scene& scene);
+	void CancelActiveBrushGenerator(EditorContext& ctx, Scene& scene, bool undoable = true);
+	bool UndoActiveBrushStroke(EditorContext& ctx, Scene& scene);
+	[[nodiscard]] bool CanUndoActiveBrushStroke(const Scene& scene, std::size_t undo_cursor) const;
 	void BakeGenerator(EditorContext& ctx, Scene& scene, Entity generator);
 	[[nodiscard]] bool IsActiveBrushGenerator(Entity generator) const;
 
@@ -346,6 +348,8 @@ public:
 	/// Called when hierarchy/layer mutations can invalidate transient paint selection.
 	void ValidateSceneState(Scene& scene);
 	void ClearSelection();
+
+	[[nodiscard]] bool HasSelection() const;
 
 private:
 	struct TileSliceSettings {
@@ -471,7 +475,7 @@ private:
 		EditorContext& ctx, Scene& scene, V2_float a, V2_float b, bool additive, bool toggle
 	);
 	void SelectBrush(EditorContext& ctx, Scene& scene, V2_float world, bool remove);
-	[[nodiscard]] bool HasSelection() const;
+	bool DeleteSelection(EditorContext& ctx, Scene& scene);
 	[[nodiscard]] bool SelectionHitAtWorld(Scene& scene, V2_float world) const;
 	[[nodiscard]] Entity FindGeneratorAtWorld(Scene& scene, V2_float world) const;
 
@@ -539,6 +543,7 @@ private:
 	[[nodiscard]] std::vector<std::string> TileGroupNames() const;
 	[[nodiscard]] TileLibraryEntry* FindTileEntry(std::string_view id);
 	[[nodiscard]] const TileLibraryEntry* FindTileEntry(std::string_view id) const;
+	bool DeleteTileLibraryEntry(EditorContext& ctx, std::string_view id);
 	[[nodiscard]] std::string TileEntryId(const TextureKey& texture, V2_int slice) const;
 	[[nodiscard]] int ImportTiles(EditorContext& ctx, const TileImportSettings& settings);
 	[[nodiscard]] int ImportImageTiles(
@@ -613,6 +618,7 @@ private:
 	std::optional<UUID> active_brush_generator_{};
 	std::optional<EditorSelection> active_generator_before_selection_{};
 	std::optional<UUID> active_generator_created_tilemap_{};
+	std::optional<std::size_t> active_generator_undo_cursor_{};
 	std::uint32_t next_active_brush_stroke_id_{ 1 };
 };
 

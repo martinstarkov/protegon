@@ -81,6 +81,44 @@ constexpr float kLeftColumnRatio{ 0.182f };
 constexpr float kRightColumnRatio{ 0.40f };
 constexpr float kBottomDockRatio{ 0.25f };
 
+[[nodiscard]] bool IsViewportFocused() {
+	ImGuiContext* context{ ImGui::GetCurrentContext() };
+	if (!context) {
+		return false;
+	}
+
+	ImGuiWindow* viewport{ ImGui::FindWindowByName("Viewport") };
+	return viewport && context->NavWindow == viewport;
+}
+
+[[nodiscard]] bool ShouldEnableSceneInput(
+	bool render_enabled, bool runtime_active, bool use_editor_camera
+) {
+	if (!render_enabled || !runtime_active) {
+		return true;
+	}
+
+	return !use_editor_camera && IsViewportFocused();
+}
+
+bool PerformEditorUndo(
+	EditorContext& ctx, PaintEditor& paint, UndoStack& undo_stack, Scene* scene
+) {
+	ctx.local.position_picker.Cancel();
+
+	if (scene && paint.CanUndoActiveBrushStroke(*scene, undo_stack.Cursor()) &&
+		paint.UndoActiveBrushStroke(ctx, *scene)) {
+		return true;
+	}
+
+	if (!undo_stack.CanUndo()) {
+		return false;
+	}
+
+	undo_stack.Undo();
+	return true;
+}
+
 #if !defined(__EMSCRIPTEN__)
 [[nodiscard]] std::tm LocalTime(std::time_t value) {
 	std::tm result{};
@@ -824,6 +862,9 @@ void Editor::OnRender() {
 	ImGui::DockSpace(dockspace_id, dockspace_size, ImGuiDockNodeFlags_None);
 
 	DrawPanels();
+	app.SetSceneInputEnabled(
+		ShouldEnableSceneInput(render_enabled_, CanPause(), viewport_panel_.IsUsingEditorCamera())
+	);
 	undo_stack_.CommitInactiveInteraction(ImGui::IsAnyItemActive());
 
 	ImGui::End();
@@ -2152,10 +2193,17 @@ void Editor::DrawMainMenuBar() {
 	}
 
 	if (ImGui::BeginMenu("Edit")) {
-		if (ImGui::MenuItem("Undo", "Ctrl+Z", false, undo_stack_.CanUndo())) {
-			context_->local.position_picker.Cancel();
-			undo_stack_.Undo();
-			scene_asset_dependencies_dirty_ = true;
+		Scene* undo_scene{ scene_list_panel_.GetSelectedScene() };
+		bool can_undo_active_brush{
+			undo_scene && paint_editor_.CanUndoActiveBrushStroke(*undo_scene, undo_stack_.Cursor())
+		};
+
+		if (ImGui::MenuItem(
+				"Undo", "Ctrl+Z", false, undo_stack_.CanUndo() || can_undo_active_brush
+			)) {
+			if (PerformEditorUndo(*context_, paint_editor_, undo_stack_, undo_scene)) {
+				scene_asset_dependencies_dirty_ = true;
+			}
 		}
 
 		if (ImGui::MenuItem("Redo", "Ctrl+Shift+Z", false, undo_stack_.CanRedo())) {
@@ -3017,6 +3065,9 @@ void Editor::EnableRendering(bool enable) {
 	auto& window{ GetWindow() };
 
 	window.SetSetting(render_enabled_ ? WindowSetting::Maximized : WindowSetting::Restored);
+	app.SetSceneInputEnabled(
+		ShouldEnableSceneInput(render_enabled_, CanPause(), viewport_panel_.IsUsingEditorCamera())
+	);
 
 	if (render_enabled_) {
 		dock_layout_update_requested_ = true;
@@ -3042,7 +3093,9 @@ void Editor::OnUpdate() {
 	export_manager_.OnUpdate();
 #endif
 
-	undo_stack_.SetUndoRedoEnabled(!CanPause());
+	bool runtime_active{ CanPause() };
+	undo_stack_.SetTransientMode(runtime_active);
+	undo_stack_.SetUndoRedoEnabled(!runtime_active);
 
 	scene_list_panel_.ClearInvalidSceneSelection(*context_);
 
@@ -3084,20 +3137,17 @@ void Editor::OnUpdate() {
 		SaveProjectScene();
 	}
 
-	if ((io.KeyCtrl || io.KeySuper) && !io.WantTextInput) {
-		if (ImGui::IsKeyPressed(ImGuiKey_Z, false)) {
-			context_->local.position_picker.Cancel();
+	bool editor_input_available{ !CanPause() || (render_enabled_ && !app.IsSceneInputEnabled()) };
 
+	if (editor_input_available && (io.KeyCtrl || io.KeySuper) && !io.WantTextInput) {
+		if (ImGui::IsKeyPressed(ImGuiKey_Z, false)) {
 			if (io.KeyShift) {
+				context_->local.position_picker.Cancel();
 				undo_stack_.Redo();
 				scene_asset_dependencies_dirty_ = true;
 			} else {
 				Scene* scene{ scene_list_panel_.GetSelectedScene() };
-
-				if (scene && paint_editor_.HasActiveBrushGenerator()) {
-					paint_editor_.UndoActiveBrushStroke(*context_, *scene);
-				} else {
-					undo_stack_.Undo();
+				if (PerformEditorUndo(*context_, paint_editor_, undo_stack_, scene)) {
 					scene_asset_dependencies_dirty_ = true;
 				}
 			}
@@ -3203,6 +3253,8 @@ void Editor::Play() {
 		return;
 	}
 
+	paint_editor_.FinishActiveBrushGenerator(*context_, *selected_scene);
+
 	auto selected_entity_uuid{ GetSelectedEntityUUID(scene_hierarchy_panel_, selected_scene) };
 
 	auto& app_context{ ::ptgn::impl::ApplicationAccessor::ctx(app) };
@@ -3255,6 +3307,7 @@ void Editor::Play() {
 
 	context_->local.position_picker.Cancel();
 	undo_stack_.CommitActiveEdit();
+	undo_stack_.SetTransientMode(true);
 	undo_stack_.SetUndoRedoEnabled(false);
 
 	app.SetScreenEffects(project->screen_effects);
@@ -3266,6 +3319,7 @@ void Editor::Play() {
 			selected_key, ::ptgn::impl::MakeSceneFactory(snapshot_it->scene, true)
 		)) {
 		bool preview_before_play{ play_snapshot_->screen_effect_preview_before_play };
+		undo_stack_.SetTransientMode(false);
 		undo_stack_.SetUndoRedoEnabled(true);
 		app_context.runtime_project_scenes.clear();
 		play_snapshot_.reset();
@@ -3426,6 +3480,7 @@ void Editor::StopDirectRuntime() {
 	}
 
 	undo_stack_.DiscardTransientCommands();
+	undo_stack_.SetTransientMode(false);
 	undo_stack_.SetUndoRedoEnabled(true);
 
 	RefreshProjectDirtyState();
@@ -3486,6 +3541,7 @@ void Editor::Stop() {
 	}
 
 	undo_stack_.DiscardTransientCommands();
+	undo_stack_.SetTransientMode(false);
 	undo_stack_.SetUndoRedoEnabled(true);
 	context_->local.state.is_dirty = play_snapshot_->was_dirty;
 
@@ -3828,6 +3884,10 @@ void Editor::UpdateRuntimeViewportState() {
 	if (runtime_active && !runtime_was_active_) {
 		viewport_panel_.SetUseEditorCamera(false);
 	}
+
+	app.SetSceneInputEnabled(ShouldEnableSceneInput(
+		render_enabled_, runtime_active, viewport_panel_.IsUsingEditorCamera()
+	));
 
 	runtime_was_active_ = runtime_active;
 }

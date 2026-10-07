@@ -641,7 +641,10 @@ Entity EditorCommands::CreateEntity(std::string_view name) {
 	return RecordCreatedEntity(entity, before);
 }
 
-Entity EditorCommands::RecordCreatedEntity(Entity entity, EditorSelection before_selection) {
+Entity EditorCommands::RecordCreatedEntity(
+	Entity entity, EditorSelection before_selection, bool affects_project_serialization,
+	bool allow_when_disabled, bool transient
+) {
 	PTGN_ASSERT(context_);
 
 	if (!entity) {
@@ -664,7 +667,8 @@ Entity EditorCommands::RecordCreatedEntity(Entity entity, EditorSelection before
 	context_->undo.PushApplied(
 		std::make_unique<SceneLayerEntityCommand>(
 			std::move(create_command), context_->editor, reference, layer, true
-		)
+		),
+		affects_project_serialization, allow_when_disabled, transient
 	);
 
 	return reference.Resolve(context_->editor);
@@ -690,7 +694,9 @@ Entity EditorCommands::DuplicateEntity(Entity entity) {
 	return RecordCreatedEntity(duplicate, before);
 }
 
-void EditorCommands::DeleteEntity(Entity entity) {
+void EditorCommands::DeleteEntity(
+	Entity entity, bool affects_project_serialization, bool allow_when_disabled, bool transient
+) {
 	PTGN_ASSERT(context_);
 
 	if (!entity) {
@@ -717,7 +723,8 @@ void EditorCommands::DeleteEntity(Entity entity) {
 	context_->undo.Execute(
 		std::make_unique<SceneLayerEntityCommand>(
 			std::move(delete_command), context_->editor, std::move(reference), layer, false
-		)
+		),
+		affects_project_serialization, allow_when_disabled, transient
 	);
 }
 
