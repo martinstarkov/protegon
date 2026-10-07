@@ -1,6 +1,7 @@
 #include "editor/editor_icons.h"
 #include "panels/inspector_archetype_inspector.h"
 #include "panels/inspector_scripts.h"
+#include "runtime/physics/lifetime.h"
 
 namespace ptgn::editor::inspector {
 
@@ -135,6 +136,89 @@ void DrawTimerRuntimeControls(Entity entity, const TimerKey& live_key, TimerEntr
 	if (runtime_changed) {
 		SyncTimerRuntimeSnapshot(entity, live_key, edited_entry);
 	}
+}
+
+millisecondsf lifetime_runtime_adjustment{ 100.0f };
+
+void DrawLifetimeRuntimeControls(Entity entity) {
+	auto* lifetime{ entity ? entity.TryGet<Lifetime>() : nullptr };
+	if (!lifetime) {
+		ImGui::TextDisabled("Runtime lifetime is unavailable.");
+		return;
+	}
+
+	const ImGuiStyle& style{ ImGui::GetStyle() };
+	float spacing{ style.ItemInnerSpacing.x };
+	bool active{ lifetime->IsRunning() || lifetime->IsPaused() };
+
+	if (DrawEditorIconButton(
+			"##LifetimeStartStop", active ? EditorIcon::Stop : EditorIcon::Play,
+			active ? "Stop lifetime timer" : "Start lifetime timer"
+		)) {
+		if (active) {
+			lifetime->Stop();
+		} else {
+			lifetime->Start();
+		}
+	}
+
+	ImGui::SameLine(0.0f, spacing);
+
+	bool paused{ lifetime->IsPaused() };
+	bool running{ lifetime->IsRunning() };
+	bool stopped{ !running && !paused };
+	EditorIcon secondary_icon{ stopped	? EditorIcon::Reset
+							   : paused ? EditorIcon::Play
+										: EditorIcon::Pause };
+	const char* secondary_tooltip{ stopped	? "Reset lifetime timer"
+								   : paused ? "Resume lifetime timer"
+											: "Pause lifetime timer" };
+
+	if (DrawEditorIconButton("##LifetimePauseResumeReset", secondary_icon, secondary_tooltip)) {
+		if (stopped) {
+			lifetime->Reset();
+		} else if (paused) {
+			lifetime->Resume();
+		} else {
+			lifetime->Pause();
+		}
+	}
+
+	ImGui::SameLine(0.0f, spacing);
+	if (DrawEditorIconButton(
+			"##LifetimeRewind", EditorIcon::StepBackward, "Rewind lifetime timer"
+		)) {
+		lifetime->Rewind(lifetime_runtime_adjustment);
+	}
+
+	ImGui::SameLine(0.0f, spacing);
+	float adjustment_width{ ImGui::CalcTextSize("1000ms").x + style.FramePadding.x * 2.0f };
+	DrawDurationTextInput(
+		"##LifetimeRuntimeAdjustment", lifetime_runtime_adjustment, adjustment_width, false,
+		"Amount to rewind or advance the lifetime timer."
+	);
+	lifetime_runtime_adjustment =
+		millisecondsf{ std::max(0.001f, lifetime_runtime_adjustment.count()) };
+
+	ImGui::SameLine(0.0f, spacing);
+	if (DrawEditorIconButton(
+			"##LifetimeAdvance", EditorIcon::StepForward, "Advance lifetime timer"
+		)) {
+		lifetime->Advance(lifetime_runtime_adjustment);
+	}
+
+	millisecondsf elapsed{ lifetime->Elapsed() };
+	millisecondsf duration{ duration_cast<millisecondsf>(lifetime->duration) };
+	bool completed{ lifetime->HasRun() && elapsed >= duration };
+	const char* state{ lifetime->IsPaused()	   ? "Paused"
+					   : lifetime->IsRunning() ? "Running"
+					   : completed			   ? "Complete"
+											   : "Stopped" };
+	std::string elapsed_text{ FormatTimerRuntimeDuration(elapsed) };
+	std::string duration_text{ FormatTimerRuntimeDuration(duration) };
+
+	ImGui::Text("%s  %s / %s", state, elapsed_text.c_str(), duration_text.c_str());
+	ImGui::ProgressBar(lifetime->Progress(), ImVec2{ -FLT_MIN, 0.0f });
 }
 
 struct TimerRename {
@@ -493,6 +577,15 @@ bool DrawUtilitiesSectionImpl(Target& target) {
 	});
 	changed |=
 		DrawComponentSection<Target, Lifetime>(target, "Lifetime", [&target](Lifetime& value) {
+			if constexpr (requires { target.entity; }) {
+				if (target.entity && IsTimerRuntimeActive(target.ctx)) {
+					DrawLifetimeRuntimeControls(target.entity);
+					if (auto* live_lifetime{ target.entity.template TryGet<Lifetime>() }) {
+						value = *live_lifetime;
+					}
+				}
+			}
+
 			return DrawRegisteredComponentContents(
 				target.ctx, Hash<Lifetime>(), std::addressof(value)
 			);

@@ -2,10 +2,99 @@
 #include "panels/inspector_archetype_inspector.h"
 #include "panels/inspector_geometry.h"
 #include "panels/rich_text_editor.h"
+#include "runtime/animation/animation.h"
 
 namespace ptgn::editor::inspector {
 
 namespace {
+
+[[nodiscard]] bool IsVisualRuntimeActive(EditorContext& ctx) {
+	return ctx.editor.IsPlaying() || ctx.editor.IsDirectRuntime();
+}
+
+void DrawAnimationRuntimeControls(Entity entity) {
+	using AnimationData = ::ptgn::impl::AnimationData;
+
+	if (!entity || !entity.Has<AnimationData>()) {
+		ImGui::TextDisabled("Runtime animation is unavailable.");
+		return;
+	}
+
+	Animation animation{ entity };
+	auto& data{ entity.Get<AnimationData>() };
+	auto& timer{ data.frame_timer };
+	const ImGuiStyle& style{ ImGui::GetStyle() };
+	float spacing{ style.ItemInnerSpacing.x };
+	bool active{ timer.IsRunning() || timer.IsPaused() };
+
+	if (DrawEditorIconButton(
+			"##AnimationStartStop", active ? EditorIcon::Stop : EditorIcon::Play,
+			active ? "Stop animation" : "Start animation"
+		)) {
+		if (active) {
+			animation.Stop();
+		} else {
+			animation.Start(false);
+		}
+	}
+
+	ImGui::SameLine(0.0f, spacing);
+
+	bool paused{ timer.IsPaused() };
+	bool running{ timer.IsRunning() };
+	bool stopped{ !running && !paused };
+	EditorIcon secondary_icon{ stopped	? EditorIcon::Reset
+							   : paused ? EditorIcon::Play
+										: EditorIcon::Pause };
+	const char* secondary_tooltip{ stopped	? "Reset animation"
+								   : paused ? "Resume animation"
+											: "Pause animation" };
+
+	if (DrawEditorIconButton("##AnimationPauseResumeReset", secondary_icon, secondary_tooltip)) {
+		if (stopped) {
+			animation.Reset();
+		} else if (paused) {
+			animation.Resume();
+		} else {
+			animation.Pause();
+		}
+	}
+
+	std::size_t frame_count{ data.config.frame_count };
+	bool can_step{ frame_count > 0 && !timer.IsRunning() };
+
+	ImGui::SameLine(0.0f, spacing);
+	ImGui::BeginDisabled(!can_step);
+	if (DrawEditorIconButton(
+			"##AnimationPreviousFrame", EditorIcon::StepBackward, "Previous animation frame"
+		)) {
+		std::size_t previous_frame{ data.current_frame == 0 ? frame_count - 1
+															: data.current_frame - 1 };
+		timer.RemoveElapsed(timer.ElapsedDuration<millisecondsf>());
+		animation.SetCurrentFrame(previous_frame);
+	}
+	ImGui::EndDisabled();
+
+	ImGui::SameLine(0.0f, spacing);
+	ImGui::BeginDisabled(!can_step);
+	if (DrawEditorIconButton(
+			"##AnimationNextFrame", EditorIcon::StepForward, "Next animation frame"
+		)) {
+		std::size_t next_frame{ (data.current_frame + 1) % frame_count };
+		timer.RemoveElapsed(timer.ElapsedDuration<millisecondsf>());
+		animation.SetCurrentFrame(next_frame);
+	}
+	ImGui::EndDisabled();
+
+	const char* state{ timer.IsPaused() ? "Paused" : timer.IsRunning() ? "Running" : "Stopped" };
+	std::size_t displayed_frame{ frame_count == 0 ? 0 : data.current_frame + 1 };
+	ImGui::Text("%s  Frame: %zu / %zu", state, displayed_frame, frame_count);
+
+	milliseconds frame_duration{ data.GetFrameDuration() };
+	float progress{ frame_duration > milliseconds{ 0 } ? timer.ElapsedFraction(frame_duration)
+													   : 0.0f };
+	ImGui::ProgressBar(progress, ImVec2{ -FLT_MIN, 0.0f });
+}
 
 template <typename Target, typename T, typename Draw, typename Callback = std::nullptr_t>
 bool DrawRequiredInlineVisualComponent(
@@ -2100,6 +2189,14 @@ bool DrawSpriteAnimationInline(Target& target) {
 		};
 		if (open) {
 			ScopedIndent indent;
+
+			if constexpr (requires { target.entity; }) {
+				if (enabled && target.entity && IsVisualRuntimeActive(target.ctx)) {
+					DrawAnimationRuntimeControls(target.entity);
+					animation = target.template Capture<AnimationData>().value_or(AnimationData{});
+				}
+			}
+
 			ScopedDisabled disabled{ !enabled };
 			std::size_t previous_frame_count{ animation.config.frame_count };
 			auto detected_layout{ ResolveDetectedAnimationTextureLayout(target) };
