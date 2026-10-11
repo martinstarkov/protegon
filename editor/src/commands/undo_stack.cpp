@@ -2,10 +2,43 @@
 
 #include <cstddef>
 #include <memory>
+#include <string>
 #include <utility>
 #include <vector>
 
 namespace ptgn::editor {
+
+namespace {
+
+class CombinedEditorCommand final : public EditorCommand {
+public:
+	CombinedEditorCommand(
+		std::string label, std::unique_ptr<EditorCommand> first,
+		std::unique_ptr<EditorCommand> second
+	) :
+		label_{ std::move(label) }, first_{ std::move(first) }, second_{ std::move(second) } {}
+
+	void Undo() override {
+		second_->Undo();
+		first_->Undo();
+	}
+
+	void Redo() override {
+		first_->Redo();
+		second_->Redo();
+	}
+
+	[[nodiscard]] std::string_view Label() const override {
+		return label_;
+	}
+
+private:
+	std::string label_;
+	std::unique_ptr<EditorCommand> first_;
+	std::unique_ptr<EditorCommand> second_;
+};
+
+} // namespace
 
 void UndoStack::Execute(
 	std::unique_ptr<EditorCommand> command, bool affects_project_serialization,
@@ -74,6 +107,36 @@ void UndoStack::PushApplied(
 		std::make_unique<ActionEditorCommand>(std::move(label), std::move(undo), std::move(redo)),
 		affects_project_serialization, allow_when_disabled, transient
 	);
+}
+
+bool UndoStack::MergeLastAppliedCommands(std::string label) {
+	// A merge may only include the latest two fully applied commands. Never cross an
+	// active edit or a redo branch.
+	if (active_edit_ || cursor_ != commands_.size() || cursor_ < 2) {
+		return false;
+	}
+
+	CommandEntry second{ std::move(commands_.back()) };
+	commands_.pop_back();
+	CommandEntry first{ std::move(commands_.back()) };
+	commands_.pop_back();
+
+	commands_.push_back(
+		CommandEntry{
+			.command = std::make_unique<CombinedEditorCommand>(
+				std::move(label), std::move(first.command), std::move(second.command)
+			),
+			.affects_project_serialization =
+				first.affects_project_serialization || second.affects_project_serialization,
+			.allow_when_disabled = first.allow_when_disabled && second.allow_when_disabled,
+			.transient			 = first.transient && second.transient,
+		}
+	);
+
+	// Keep the original state before both commands and the final state after both.
+	project_state_ids_.erase(project_state_ids_.end() - 2);
+	cursor_ = commands_.size();
+	return true;
 }
 
 void UndoStack::TrackInteraction(

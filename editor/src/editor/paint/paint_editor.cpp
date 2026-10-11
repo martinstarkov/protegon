@@ -6,6 +6,7 @@
 
 #include <algorithm>
 #include <cctype>
+#include <cfloat>
 #include <cmath>
 #include <cstddef>
 #include <cstring>
@@ -20,16 +21,20 @@
 #include <sstream>
 #include <string>
 #include <string_view>
+#include <tuple>
 #include <unordered_map>
 #include <utility>
+#include <vector>
 
 #include "core/assert.h"
 #include "core/math/angle.h"
 #include "core/math/geometry/rect.h"
+#include "core/util/string.h"
 #include "editor/color_picker.h"
 #include "editor/editor.h"
 #include "editor/editor_context.h"
 #include "editor/editor_icons.h"
+#include "editor/renamable_item.h"
 #include "panels/scene_hierarchy.h"
 #include "panels/scene_list.h"
 #include "platform/file_dialog.h"
@@ -62,6 +67,39 @@ constexpr ImU32 kPreview{ IM_COL32(255, 208, 70, 220) };
 constexpr ImU32 kLockedPreview{ IM_COL32(255, 92, 92, 180) };
 constexpr std::size_t kMaxFloodCells{ 50000 };
 constexpr const char* kTileLibraryEntryDragDropPayload{ "PTGN_TILE_LIBRARY_ENTRY" };
+
+struct GroupSnapshot {
+	std::vector<std::string> groups;
+	std::unordered_map<std::string, std::string> members;
+
+	bool operator==(const GroupSnapshot&) const = default;
+};
+
+template <typename Entries>
+[[nodiscard]] GroupSnapshot CaptureTileGroups(
+	const std::vector<std::string>& groups, const Entries& entries
+) {
+	GroupSnapshot result{ .groups = groups, .members = {} };
+	for (const auto& entry : entries) {
+		result.members.insert_or_assign(entry.id, entry.group);
+	}
+	return result;
+}
+
+template <typename Apply>
+void RecordGroupChange(
+	EditorContext& ctx, std::string label, GroupSnapshot before, GroupSnapshot after, Apply apply
+) {
+	if (before == after) {
+		return;
+	}
+
+	ctx.undo.PushApplied(
+		std::move(label),
+		[context = &ctx, state = std::move(before), apply]() { apply(*context, state); },
+		[context = &ctx, state = std::move(after), apply]() { apply(*context, state); }
+	);
+}
 
 [[nodiscard]] const PaintEntityExclusionMaskState* FindEntityExclusionMask(
 	const PaintProjectState& project, std::string_view scene_key, SceneLayerId layer
@@ -5209,12 +5247,22 @@ std::string PaintEditor::GetPrefabGroup(EditorContext& ctx, const PrefabKey& key
 bool PaintEditor::CreatePrefabGroup(EditorContext& ctx, std::string name) {
 	EnsureProjectLibrary(ctx);
 	name = Trim(std::move(name));
-	if (name.empty() || name == "Ungrouped" || std::ranges::contains(prefab_groups_, name)) {
+	if (name.empty() || name == "Ungrouped" || std::ranges::contains(GetPrefabGroups(ctx), name)) {
 		return false;
 	}
+	GroupSnapshot before{ prefab_groups_, prefab_group_by_key_ };
 	prefab_groups_.emplace_back(std::move(name));
 	std::ranges::sort(prefab_groups_);
 	SaveProjectLibrary(ctx);
+	RecordGroupChange(
+		ctx, "Create Prefab Group", std::move(before),
+		GroupSnapshot{ prefab_groups_, prefab_group_by_key_ },
+		[this](EditorContext& context, const GroupSnapshot& state) {
+			prefab_groups_		 = state.groups;
+			prefab_group_by_key_ = state.members;
+			SaveProjectLibrary(context);
+		}
+	);
 	return true;
 }
 
@@ -5226,9 +5274,14 @@ bool PaintEditor::RenamePrefabGroup(
 	if (old_name == "Ungrouped" || new_name.empty() || new_name == "Ungrouped") {
 		return false;
 	}
-	if (std::ranges::contains(prefab_groups_, new_name) && new_name != old_name) {
+	if (new_name != old_name && std::ranges::contains(GetPrefabGroups(ctx), new_name)) {
 		return false;
 	}
+	if (old_name == new_name ||
+		!std::ranges::contains(GetPrefabGroups(ctx), std::string{ old_name })) {
+		return false;
+	}
+	GroupSnapshot before{ prefab_groups_, prefab_group_by_key_ };
 	for (auto& name : prefab_groups_) {
 		if (name == old_name) {
 			name = new_name;
@@ -5241,14 +5294,24 @@ bool PaintEditor::RenamePrefabGroup(
 	}
 	std::ranges::sort(prefab_groups_);
 	SaveProjectLibrary(ctx);
+	RecordGroupChange(
+		ctx, "Rename Prefab Group", std::move(before),
+		GroupSnapshot{ prefab_groups_, prefab_group_by_key_ },
+		[this](EditorContext& context, const GroupSnapshot& state) {
+			prefab_groups_		 = state.groups;
+			prefab_group_by_key_ = state.members;
+			SaveProjectLibrary(context);
+		}
+	);
 	return true;
 }
 
 bool PaintEditor::DeletePrefabGroup(EditorContext& ctx, std::string_view name) {
 	EnsureProjectLibrary(ctx);
-	if (name == "Ungrouped") {
+	if (name == "Ungrouped" || !std::ranges::contains(GetPrefabGroups(ctx), std::string{ name })) {
 		return false;
 	}
+	GroupSnapshot before{ prefab_groups_, prefab_group_by_key_ };
 	std::erase_if(prefab_groups_, [&](const std::string& group) { return group == name; });
 	for (auto& [_, group] : prefab_group_by_key_) {
 		if (group == name) {
@@ -5256,6 +5319,15 @@ bool PaintEditor::DeletePrefabGroup(EditorContext& ctx, std::string_view name) {
 		}
 	}
 	SaveProjectLibrary(ctx);
+	RecordGroupChange(
+		ctx, "Delete Prefab Group", std::move(before),
+		GroupSnapshot{ prefab_groups_, prefab_group_by_key_ },
+		[this](EditorContext& context, const GroupSnapshot& state) {
+			prefab_groups_		 = state.groups;
+			prefab_group_by_key_ = state.members;
+			SaveProjectLibrary(context);
+		}
+	);
 	return true;
 }
 
@@ -5264,42 +5336,88 @@ void PaintEditor::MovePrefabToGroup(EditorContext& ctx, const PrefabKey& key, st
 	if (group.empty()) {
 		group = "Ungrouped";
 	}
-	prefab_group_by_key_.insert_or_assign(key.value, std::move(group));
+	if (GetPrefabGroup(ctx, key) == group) {
+		return;
+	}
+	GroupSnapshot before{ prefab_groups_, prefab_group_by_key_ };
+	if (group == "Ungrouped") {
+		prefab_group_by_key_.erase(key.value);
+	} else {
+		prefab_group_by_key_.insert_or_assign(key.value, std::move(group));
+	}
 	SaveProjectLibrary(ctx);
+	RecordGroupChange(
+		ctx, "Move Prefab to Group", std::move(before),
+		GroupSnapshot{ prefab_groups_, prefab_group_by_key_ },
+		[this](EditorContext& context, const GroupSnapshot& state) {
+			prefab_groups_		 = state.groups;
+			prefab_group_by_key_ = state.members;
+			SaveProjectLibrary(context);
+		}
+	);
 }
 
 void PaintEditor::OnPrefabRenamed(
 	EditorContext& ctx, const PrefabKey& old_key, const PrefabKey& new_key
 ) {
 	EnsureProjectLibrary(ctx);
-	bool project_changed{};
+
+	// Group membership, prefab references and weighted sets must all be restored
+	// together with the asset rename by the parent undo command.
+	auto capture = [this]() {
+		return std::tuple{ prefab_groups_, prefab_group_by_key_, prefab_source_, recipe_,
+						   weighted_prefab_sets_ };
+	};
+	auto before{ capture() };
+	bool changed{ false };
+
 	if (auto it{ prefab_group_by_key_.find(old_key.value) }; it != prefab_group_by_key_.end()) {
 		prefab_group_by_key_[new_key.value] = it->second;
 		prefab_group_by_key_.erase(it);
-		project_changed = true;
+		changed = true;
 	}
 	if (prefab_source_ == old_key) {
 		prefab_source_ = new_key;
+		changed		   = true;
 	}
 	if (recipe_.checker_prefab == old_key) {
 		recipe_.checker_prefab = new_key;
+		changed				   = true;
 	}
 	for (auto& threshold : recipe_.noise.thresholds) {
 		if (threshold.prefab == old_key) {
 			threshold.prefab = new_key;
+			changed			 = true;
 		}
 	}
 	for (auto& set : weighted_prefab_sets_) {
 		for (auto& entry : set.entries) {
 			if (entry.prefab == old_key) {
-				entry.prefab	= new_key;
-				project_changed = true;
+				entry.prefab = new_key;
+				changed		 = true;
 			}
 		}
 	}
-	if (project_changed) {
-		SaveProjectLibrary(ctx);
+	if (!changed) {
+		return;
 	}
+
+	SaveProjectLibrary(ctx);
+	auto after{ capture() };
+	PaintEditor* paint{ this };
+	EditorContext* context{ &ctx };
+	auto apply = [paint, context](const auto& state) {
+		paint->prefab_groups_		 = std::get<0>(state);
+		paint->prefab_group_by_key_	 = std::get<1>(state);
+		paint->prefab_source_		 = std::get<2>(state);
+		paint->recipe_				 = std::get<3>(state);
+		paint->weighted_prefab_sets_ = std::get<4>(state);
+		paint->SaveProjectLibrary(*context);
+	};
+	ctx.undo.PushApplied(
+		"Retarget Prefab References", [before = std::move(before), apply]() { apply(before); },
+		[after = std::move(after), apply]() { apply(after); }
+	);
 }
 
 void PaintEditor::OnPrefabDuplicated(
@@ -5310,28 +5428,55 @@ void PaintEditor::OnPrefabDuplicated(
 
 void PaintEditor::OnPrefabDeleted(EditorContext& ctx, const PrefabKey& key) {
 	EnsureProjectLibrary(ctx);
-	bool project_changed{ prefab_group_by_key_.erase(key.value) != 0 };
+
+	auto capture = [this]() {
+		return std::tuple{ prefab_groups_, prefab_group_by_key_, prefab_source_, recipe_,
+						   weighted_prefab_sets_ };
+	};
+	auto before{ capture() };
+	bool changed{ prefab_group_by_key_.erase(key.value) != 0 };
+
 	if (prefab_source_ == key) {
 		prefab_source_ = {};
+		changed		   = true;
 	}
 	if (recipe_.checker_prefab == key) {
 		recipe_.checker_prefab.reset();
+		changed = true;
 	}
 	for (auto& threshold : recipe_.noise.thresholds) {
 		if (threshold.prefab == key) {
 			threshold.prefab.reset();
+			changed = true;
 		}
 	}
 	for (auto& set : weighted_prefab_sets_) {
-		auto before{ set.entries.size() };
+		std::size_t size_before{ set.entries.size() };
 		std::erase_if(set.entries, [&](const PaintWeightedPrefabEntry& entry) {
 			return entry.prefab == key;
 		});
-		project_changed |= before != set.entries.size();
+		changed |= size_before != set.entries.size();
 	}
-	if (project_changed) {
-		SaveProjectLibrary(ctx);
+	if (!changed) {
+		return;
 	}
+
+	SaveProjectLibrary(ctx);
+	auto after{ capture() };
+	PaintEditor* paint{ this };
+	EditorContext* context{ &ctx };
+	auto apply = [paint, context](const auto& state) {
+		paint->prefab_groups_		 = std::get<0>(state);
+		paint->prefab_group_by_key_	 = std::get<1>(state);
+		paint->prefab_source_		 = std::get<2>(state);
+		paint->recipe_				 = std::get<3>(state);
+		paint->weighted_prefab_sets_ = std::get<4>(state);
+		paint->SaveProjectLibrary(*context);
+	};
+	ctx.undo.PushApplied(
+		"Remove Prefab References", [before = std::move(before), apply]() { apply(before); },
+		[after = std::move(after), apply]() { apply(after); }
+	);
 }
 
 int PaintEditor::ImportImageTiles(
@@ -5383,6 +5528,13 @@ int PaintEditor::ImportImageTiles(
 	} else if (inferred.has_value()) {
 		slice	  = true;
 		tile_size = *inferred;
+	}
+
+	// An invalid tile size must not erase existing slices from the library.
+	V2_int proposed_size{ slice ? tile_size : texture_size };
+	if (!proposed_size.IsPositive() || texture_size.x / proposed_size.x == 0 ||
+		texture_size.y / proposed_size.y == 0) {
+		return 0;
 	}
 
 	if (settings.create_group_from_source) {
@@ -5442,6 +5594,54 @@ int PaintEditor::ImportTiles(EditorContext& ctx, const TileImportSettings& setti
 		return static_cast<char>(std::tolower(c));
 	});
 	std::string group{ settings.target_group.empty() ? "Ungrouped" : settings.target_group };
+
+	// Tile imports can replace existing slices as well as create new entries.
+	// Record the complete library change as one command so undo restores both
+	// the original entries and their group memberships.
+	struct ImportState {
+		std::vector<TileLibraryEntry> tiles;
+		std::vector<std::string> groups;
+		decltype(tile_slice_settings_) slices;
+		std::string selected_tile;
+		std::optional<TextureKey> inspected_texture;
+		V2_int inspected_slice{};
+	};
+
+	auto capture = [this]() {
+		return ImportState{
+			.tiles			   = tile_library_,
+			.groups			   = tile_groups_,
+			.slices			   = tile_slice_settings_,
+			.selected_tile	   = selected_tile_entry_id_,
+			.inspected_texture = inspected_texture_,
+			.inspected_slice   = inspected_slice_,
+		};
+	};
+
+	ImportState before{ capture() };
+	auto finish_import = [&](int count) {
+		if (count <= 0) {
+			return count;
+		}
+
+		ImportState after{ capture() };
+		PaintEditor* paint{ this };
+		EditorContext* context{ &ctx };
+		auto apply = [paint, context](const ImportState& state) {
+			paint->tile_library_		   = state.tiles;
+			paint->tile_groups_			   = state.groups;
+			paint->tile_slice_settings_	   = state.slices;
+			paint->selected_tile_entry_id_ = state.selected_tile;
+			paint->inspected_texture_	   = state.inspected_texture;
+			paint->inspected_slice_		   = state.inspected_slice;
+			paint->SaveProjectLibrary(*context);
+		};
+		ctx.undo.PushApplied(
+			"Import Tiles", [before = std::move(before), apply]() { apply(before); },
+			[after = std::move(after), apply]() { apply(after); }
+		);
+		return count;
+	};
 	if (ext == ".tsx" || ext == ".tsj" || ext == ".json") {
 		TiledTilesetInfo info{ ParseTiledTileset(source) };
 		int total{};
@@ -5465,9 +5665,11 @@ int PaintEditor::ImportTiles(EditorContext& ctx, const TileImportSettings& setti
 				settings.create_group_from_source ? SourceGroupName(source) : group
 			);
 		}
-		return total;
+		return finish_import(total);
 	}
-	return ImportImageTiles(ctx, settings, source.lexically_normal().string(), group);
+	return finish_import(
+		ImportImageTiles(ctx, settings, source.lexically_normal().string(), group)
+	);
 }
 
 void PaintEditor::DrawImportPopup(EditorContext& ctx) {
@@ -5548,30 +5750,74 @@ bool PaintEditor::DrawTilesPanel(EditorContext& ctx) {
 		DeleteTileLibraryEntry(ctx, selected_tile_entry_id_);
 	}
 
-	if (ImGui::Button("+ Group")) {
+	auto capture_groups = [&]() {
+		return CaptureTileGroups(tile_groups_, tile_library_);
+	};
+	auto apply_groups = [this](EditorContext& context, const GroupSnapshot& state) {
+		tile_groups_ = state.groups;
+		for (auto& entry : tile_library_) {
+			if (auto it{ state.members.find(entry.id) }; it != state.members.end()) {
+				entry.group = it->second;
+			}
+		}
+		SaveProjectLibrary(context);
+	};
+	auto commit_groups = [&](std::string label, GroupSnapshot before) {
+		SaveProjectLibrary(ctx);
+		RecordGroupChange(ctx, std::move(label), std::move(before), capture_groups(), apply_groups);
+	};
+
+	auto create_group = [&]() {
+		GroupSnapshot before{ capture_groups() };
 		auto groups{ TileGroupNames() };
 		tile_groups_.push_back(NextDefaultGroupName(groups));
 		std::ranges::sort(tile_groups_);
-		SaveProjectLibrary(ctx);
-	}
-	ImGui::SameLine();
-	if (ImGui::Button("Import...")) {
-		import_settings_.target_group = "Ungrouped";
-		import_popup_requested_		  = true;
-	}
+		commit_groups("Create Tile Group", std::move(before));
+	};
+
+	auto add_tiles = [&](std::string_view group) {
+		import_settings_.target_group			  = group;
+		import_settings_.create_group_from_source = false;
+		import_popup_requested_					  = true;
+	};
+
 	ImGui::SetNextItemWidth(-FLT_MIN);
-	ImGui::InputTextWithHint("##TileSearch", "Filter tile or group...", &tile_search_);
+	ImGui::InputTextWithHint("##TileSearch", "Filter: grass, terrain, -stone", &tile_search_);
+	if (ImGui::IsItemHovered()) {
+		ImGui::BeginTooltip();
+		ImGui::TextUnformatted("Tile filter syntax:");
+		ImGui::Separator();
+		ImGui::TextUnformatted("grass");
+		ImGui::SameLine();
+		ImGui::TextDisabled("Tile name or texture contains \"grass\"");
+		ImGui::TextUnformatted("terrain");
+		ImGui::SameLine();
+		ImGui::TextDisabled("Group contains \"terrain\"");
+		ImGui::TextUnformatted("-stone");
+		ImGui::SameLine();
+		ImGui::TextDisabled("Tile name, texture and group do not contain \"stone\"");
+		ImGui::Spacing();
+		ImGui::TextDisabled("Separate filters with commas.");
+		ImGui::TextDisabled("Positive filters use OR; all exclusions apply.");
+		ImGui::TextDisabled("Matching ignores letter case.");
+		ImGui::EndTooltip();
+	}
+	ImGui::Separator();
 
 	auto records{ ::ptgn::impl::AssetAccessor{ ctx.editor.GetAssetManager() }.GetAssets() };
 	std::optional<std::pair<std::string, std::string>> pending_group_move;
+	static std::string group_to_rename;
+	static RenameModalState group_rename_modal;
+	auto matches_tile = [&](const TileLibraryEntry& entry, std::string_view group) {
+		return MatchesTextFilter(tile_search_, { group, entry.name, entry.texture.value });
+	};
+
 	for (const std::string& group : TileGroupNames()) {
-		bool group_matches{ ContainsInsensitive(group, tile_search_) };
-		bool has_matching{ std::ranges::any_of(tile_library_, [&](const TileLibraryEntry& e) {
-			return e.group == group &&
-				   (group_matches || ContainsInsensitive(e.name, tile_search_) ||
-					ContainsInsensitive(e.texture.value, tile_search_));
+		bool group_matches{ MatchesTextFilter(tile_search_, { group }) };
+		bool has_matching{ std::ranges::any_of(tile_library_, [&](const TileLibraryEntry& entry) {
+			return entry.group == group && matches_tile(entry, group);
 		}) };
-		if (!has_matching && !tile_search_.empty()) {
+		if (!has_matching && !group_matches) {
 			continue;
 		}
 		ImGui::PushID(group.c_str());
@@ -5590,68 +5836,28 @@ bool PaintEditor::DrawTilesPanel(EditorContext& ctx) {
 			}
 			ImGui::EndDragDropTarget();
 		}
-		static std::string rename_group;
 		if (ImGui::BeginPopupContextItem("TileGroupContext")) {
+			if (ImGui::MenuItem("Add Tiles")) {
+				add_tiles(group);
+			}
 			if (group != "Ungrouped") {
-				if (ImGui::MenuItem("Rename Group")) {
-					rename_group = group;
-					ImGui::OpenPopup("Rename Tile Group");
+				ImGui::Separator();
+				if (ImGui::MenuItem("Rename")) {
+					group_to_rename = group;
+					group_rename_modal.Begin(group);
 				}
-				if (ImGui::MenuItem("Delete Group")) {
-					for (auto& e : tile_library_) {
-						if (e.group == group) {
-							e.group = "Ungrouped";
+				if (ImGui::MenuItem("Delete")) {
+					GroupSnapshot before{ capture_groups() };
+					for (auto& entry : tile_library_) {
+						if (entry.group == group) {
+							entry.group = "Ungrouped";
 						}
 					}
 					std::erase(tile_groups_, group);
-					SaveProjectLibrary(ctx);
+					commit_groups("Delete Tile Group", std::move(before));
 				}
-			}
-			if (ImGui::MenuItem("Import into Group...")) {
-				import_settings_.target_group			  = group;
-				import_settings_.create_group_from_source = false;
-				import_popup_requested_					  = true;
 			}
 			ImGui::EndPopup();
-		}
-		if (!rename_group.empty()) {
-			ImGui::SetNextWindowSize({ 340, 0 }, ImGuiCond_Appearing);
-			if (ImGui::BeginPopupModal(
-					"Rename Tile Group", nullptr, ImGuiWindowFlags_AlwaysAutoResize
-				)) {
-				static std::string new_name;
-				if (ImGui::IsWindowAppearing()) {
-					new_name = rename_group;
-				}
-				ImGui::InputText("Name", &new_name);
-				if (ImGui::Button("Rename")) {
-					new_name = Trim(new_name);
-					if (!new_name.empty() && new_name != "Ungrouped" &&
-						(!std::ranges::contains(tile_groups_, new_name) ||
-						 new_name == rename_group)) {
-						for (auto& e : tile_library_) {
-							if (e.group == rename_group) {
-								e.group = new_name;
-							}
-						}
-						for (auto& name : tile_groups_) {
-							if (name == rename_group) {
-								name = new_name;
-							}
-						}
-						std::ranges::sort(tile_groups_);
-						SaveProjectLibrary(ctx);
-						rename_group.clear();
-						ImGui::CloseCurrentPopup();
-					}
-				}
-				ImGui::SameLine();
-				if (ImGui::Button("Cancel")) {
-					rename_group.clear();
-					ImGui::CloseCurrentPopup();
-				}
-				ImGui::EndPopup();
-			}
 		}
 
 		if (open) {
@@ -5662,9 +5868,7 @@ bool PaintEditor::DrawTilesPanel(EditorContext& ctx) {
 			};
 			std::optional<std::string> delete_id;
 			for (auto& entry : tile_library_) {
-				if (entry.group != group ||
-					(!group_matches && !ContainsInsensitive(entry.name, tile_search_) &&
-					 !ContainsInsensitive(entry.texture.value, tile_search_))) {
+				if (entry.group != group || !matches_tile(entry, group)) {
 					continue;
 				}
 				if (shown % per_row != 0) {
@@ -5728,15 +5932,6 @@ bool PaintEditor::DrawTilesPanel(EditorContext& ctx) {
 					}
 				}
 				if (ImGui::BeginPopup("TileContext")) {
-					if (ImGui::BeginMenu("Move to Group")) {
-						for (const auto& target : TileGroupNames()) {
-							if (ImGui::MenuItem(target.c_str(), nullptr, target == entry.group)) {
-								entry.group = target;
-								SaveProjectLibrary(ctx);
-							}
-						}
-						ImGui::EndMenu();
-					}
 					if (ImGui::MenuItem("Remove from Tile Library")) {
 						delete_id = entry.id;
 					}
@@ -5748,18 +5943,72 @@ bool PaintEditor::DrawTilesPanel(EditorContext& ctx) {
 			if (delete_id.has_value()) {
 				DeleteTileLibraryEntry(ctx, *delete_id);
 			}
-			if (shown == 0) {
-				ImGui::TextDisabled("Empty group. Right click the group to import tiles.");
-			}
 			ImGui::TreePop();
 		}
 		ImGui::PopID();
 	}
+	// Item context menus take priority over the panel background menu. An item popup can
+	// block hover detection when the right mouse button is released, so also check for
+	// existing popups before opening the background menu.
+	if (ImGui::IsMouseReleased(ImGuiMouseButton_Right) &&
+		ImGui::IsWindowHovered(ImGuiHoveredFlags_AllowWhenBlockedByPopup) &&
+		!ImGui::IsAnyItemHovered() &&
+		!ImGui::IsPopupOpen(nullptr, ImGuiPopupFlags_AnyPopupId | ImGuiPopupFlags_AnyPopupLevel)) {
+		ImGui::OpenPopup("TilesPanelContextMenu");
+	}
+	if (ImGui::BeginPopup("TilesPanelContextMenu")) {
+		if (ImGui::MenuItem("Create Group")) {
+			create_group();
+		}
+		ImGui::Separator();
+		if (ImGui::MenuItem("Add Tiles")) {
+			add_tiles("Ungrouped");
+		}
+		ImGui::EndPopup();
+	}
+
+	if (!group_to_rename.empty()) {
+		RenameResult result{ DrawRenameModal(
+			group_rename_modal, "RenameTileGroup", "##GroupName",
+			[&](std::string_view candidate) -> std::string {
+				std::string name{ Trim(std::string{ candidate }) };
+				if (name.empty() || name == "Ungrouped") {
+					return "Enter a valid group name.";
+				}
+				if (name != group_to_rename && std::ranges::contains(TileGroupNames(), name)) {
+					return "A group with that name already exists.";
+				}
+				return {};
+			},
+			[&](std::string_view candidate) {
+				GroupSnapshot before{ capture_groups() };
+				std::string name{ Trim(std::string{ candidate }) };
+				for (auto& entry : tile_library_) {
+					if (entry.group == group_to_rename) {
+						entry.group = name;
+					}
+				}
+				for (auto& current : tile_groups_) {
+					if (current == group_to_rename) {
+						current = name;
+					}
+				}
+				std::ranges::sort(tile_groups_);
+				commit_groups("Rename Tile Group", std::move(before));
+			},
+			RenameModalOptions{ .title = "Rename Tile Group" }
+		) };
+		if (result != RenameResult::None) {
+			group_to_rename.clear();
+		}
+	}
+
 	if (pending_group_move.has_value()) {
 		if (TileLibraryEntry* entry{ FindTileEntry(pending_group_move->first) };
 			entry && entry->group != pending_group_move->second) {
+			GroupSnapshot before{ capture_groups() };
 			entry->group = pending_group_move->second;
-			SaveProjectLibrary(ctx);
+			commit_groups("Move Tile to Group", std::move(before));
 		}
 	}
 	DrawImportPopup(ctx);

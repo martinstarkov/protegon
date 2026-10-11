@@ -37,6 +37,10 @@ public:
 		bool allow_when_disabled = false, bool transient = false
 	);
 
+	/// Combines the two most recent applied commands into one undo and redo action.
+	/// The second command is undone first and redone last.
+	[[nodiscard]] bool MergeLastAppliedCommands(std::string label);
+
 	/// Coalesces repeated changes from one active editor control into one command.
 	void TrackInteraction(
 		std::uint64_t key, std::string label, bool changed, bool any_item_active, Action undo,
