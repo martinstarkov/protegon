@@ -39,7 +39,6 @@ class EditorContext;
 enum class PaintTool : std::uint8_t {
 	Select,
 	Move,
-	Pencil,
 	Brush,
 	Line,
 	Rectangle,
@@ -348,6 +347,7 @@ public:
 	/// Called when hierarchy/layer mutations can invalidate transient paint selection.
 	void ValidateSceneState(Scene& scene);
 	void ClearSelection();
+	void ClearExclusionMask(EditorContext& ctx, Scene& scene, SceneLayerId layer_id);
 
 	[[nodiscard]] bool HasSelection() const;
 
@@ -393,6 +393,9 @@ private:
 		std::optional<UUID> tilemap{};
 		std::optional<::ptgn::impl::TilemapData> tilemap_before{};
 		EntityStroke entities{};
+		std::vector<V2_int> entity_mask_before{};
+		bool entity_mask_capture{};
+		std::unordered_set<V2_int> entity_mask_cells{};
 		std::vector<std::pair<UUID, ::ptgn::impl::PaintGeneratorData>> generator_before{};
 		std::unordered_set<V2_int> touched_cells{};
 		std::vector<V2_float> generator_points{};
@@ -444,10 +447,10 @@ private:
 	void DrawImportPopup(EditorContext& ctx);
 
 	void HandleShortcuts(EditorContext& ctx, Scene& scene);
-	void BeginStroke(Scene& scene, V2_float world);
+	void BeginStroke(EditorContext& ctx, Scene& scene, V2_float world);
 	void UpdateStroke(EditorContext& ctx, Scene& scene, V2_float world);
 	void EndStroke(EditorContext& ctx, Scene& scene, V2_float world);
-	void CancelStroke(Scene& scene);
+	void CancelStroke(EditorContext& ctx, Scene& scene);
 
 	void ApplyAt(EditorContext& ctx, Scene& scene, V2_float world);
 	void ApplyTileAt(EditorContext& ctx, Scene& scene, Tilemap tilemap, V2_int cell);

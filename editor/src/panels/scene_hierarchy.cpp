@@ -1848,16 +1848,14 @@ void DrawSceneHierarchyContents(
 				} else {
 					ImGui::BeginDisabled(layer->locked);
 					DrawCreateEntityMenu(ctx, scene, {}, selected_entity);
-					if (ImGui::MenuItem("Create Generator")) {
-						PaintGenerator created{ CreatePaintGenerator(scene, layer->id) };
-						if (created) {
-							scene.Refresh();
-							selected_entity =
-								ctx.commands.RecordCreatedEntity(created, ctx.local.selection);
-						}
-					}
 					ImGui::EndDisabled();
 				}
+				ImGui::Separator();
+				ImGui::BeginDisabled(layer->locked);
+				if (ImGui::MenuItem("Clear Exclusion Mask")) {
+					paint.ClearExclusionMask(ctx, scene, layer->id);
+				}
+				ImGui::EndDisabled();
 				ImGui::Separator();
 				bool is_default{ layer->id == scene_layers.GetDefaultEntityLayer() };
 				if (is_default) {

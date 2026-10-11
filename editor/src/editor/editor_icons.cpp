@@ -344,7 +344,7 @@ void DrawEditorIcon(ImDrawList* draw, EditorIcon icon, ImVec2 min, float extent,
 		}
 
 		case EditorIcon::Pencil: {
-			float half_side{ std::max(2.0f, std::round(3.0f * scale)) };
+			float half_side{ std::max(2.0f, std::round(5.0f * scale)) };
 			float left{ std::round(center.x - half_side) };
 			float right{ center.x * 2.0f - left };
 			float top{ std::round(center.y - half_side) };

@@ -1,7 +1,7 @@
-// paint_settings.h
 #pragma once
 
 #include <array>
+#include <cstdint>
 #include <string>
 #include <vector>
 
@@ -44,8 +44,18 @@ struct PaintPrefabGroupAssignmentState {
 	PTGN_REFLECT(PaintPrefabGroupAssignmentState, prefab, group)
 };
 
-/// @brief Shared editor only paint organization stored in the tracked .ptgneditor file.
-/// This deliberately contains no scene/runtime state.
+/// @brief Shared editor paint exclusions for one scene entity layer.
+struct PaintEntityExclusionMaskState {
+	std::string scene_key{};
+	std::uint64_t layer_id{};
+	std::vector<V2_int> cells{};
+
+	bool operator==(const PaintEntityExclusionMaskState&) const = default;
+
+	PTGN_REFLECT(PaintEntityExclusionMaskState, scene_key, layer_id, cells)
+};
+
+/// @brief Shared editor paint organization stored in the tracked .ptgneditor file.
 struct PaintProjectState {
 	std::vector<std::string> tile_groups{};
 	std::vector<std::string> prefab_groups{};
@@ -55,18 +65,18 @@ struct PaintProjectState {
 	std::vector<PaintWeightedTileSet> weighted_tile_sets{};
 	std::vector<PaintWeightedPrefabSet> weighted_prefab_sets{};
 	std::vector<PaintAutotileRuleSet> autotile_rule_sets{};
+	std::vector<PaintEntityExclusionMaskState> entity_exclusion_masks{};
 
 	bool operator==(const PaintProjectState&) const = default;
 
 	PTGN_REFLECT(
 		PaintProjectState, tile_groups, prefab_groups, tile_slice_settings, tiles,
-		prefab_group_assignments, weighted_tile_sets, weighted_prefab_sets, autotile_rule_sets
+		prefab_group_assignments, weighted_tile_sets, weighted_prefab_sets, autotile_rule_sets,
+		entity_exclusion_masks
 	)
 };
 
-/// @brief User/machine-specific paint authoring selection stored in .ptgnlocal.
-/// These values are analogous to editor selection/tool state and are not shared through source
-/// control.
+/// @brief User specific paint selection stored in .ptgnlocal.
 struct PaintLocalState {
 	PaintTool tool{ PaintTool::Select };
 	PaintRecipeState recipe{};
