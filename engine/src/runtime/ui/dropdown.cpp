@@ -15,6 +15,7 @@
 #include "core/math/transform.h"
 #include "core/math/vector2.h"
 #include "runtime/ecs/entity.h"
+#include "runtime/ecs/entity_creation_context.h"
 #include "runtime/ecs/entity_hierarchy.h"
 #include "runtime/ecs/tag.h"
 #include "runtime/graphics/draw.h"
@@ -414,7 +415,11 @@ Button Dropdown::AddItem(std::string_view text) {
 
 	return std::visit(
 		[&](const auto& s) {
-			Button button{ CreateButton(GetScene(), {}, s, ptgn::Origin::Center) };
+			EntityCreationContext context{ GetManager() };
+			if (HasScene()) {
+				context = GetScene();
+			}
+			Button button{ CreateButton(context, {}, s, ptgn::Origin::Center) };
 			button.Add<Tag>("Dropdown Item");
 			button.Text().Content(text);
 
@@ -578,9 +583,10 @@ Dropdown& Dropdown::Close(bool close_parents) {
 }
 
 Dropdown CreateDropdown(
-	Scene& scene, Transform transform, V2_float size, Origin origin, bool start_open
+	EntityCreationContext context, Transform transform, V2_float size, Origin origin,
+	bool start_open
 ) {
-	Button button{ CreateButton(scene, transform, size, origin) };
+	Button button{ CreateButton(context, transform, size, origin) };
 	button.Add<Tag>("Dropdown Button");
 
 	Dropdown dropdown{ button };
@@ -588,13 +594,16 @@ Dropdown CreateDropdown(
 	auto& info{ dropdown.Add<impl::DropdownData>() };
 	info.start_open = start_open;
 
-	if (start_open) {
-		dropdown.Open();
+	if (context.HasScene()) {
+		if (start_open) {
+			dropdown.Open();
+		} else {
+			dropdown.Close(false);
+		}
+		info.initialized = true;
 	} else {
-		dropdown.Close(false);
+		info.open = start_open;
 	}
-
-	info.initialized = true;
 
 	return dropdown;
 }

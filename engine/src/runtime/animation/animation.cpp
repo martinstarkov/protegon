@@ -19,6 +19,7 @@
 #include "runtime/animation/animation_event.h"
 #include "runtime/asset/asset_manager.h"
 #include "runtime/ecs/entity.h"
+#include "runtime/ecs/entity_creation_context.h"
 #include "runtime/ecs/entity_hierarchy.h"
 #include "runtime/ecs/tag.h"
 #include "runtime/graphics/sprite.h"
@@ -113,10 +114,10 @@ bool AdvanceAnimationFrame(
 Animation::Animation(Entity entity) : Entity{ entity } {}
 
 Animation& Animation::SetConfig(AnimationConfig config) {
-	auto texture_size{ GetTextureSize(*this) };
+	auto texture_size{ HasScene() ? GetTextureSize(*this) : std::nullopt };
 	std::size_t automatic_row_count{ 1 };
 
-	if (const auto* texture_key{ TryGet<TextureKey>() }) {
+	if (const auto* texture_key{ TryGet<TextureKey>() }; texture_key && HasScene()) {
 		if (auto layout{
 				impl::DetectAnimationTextureLayout(GetScene().ctx().asset, *texture_key) }) {
 			config.frame_count = layout->frame_count;
@@ -698,9 +699,10 @@ bool AnimationMap::SetActive(std::string_view animation_key) {
 }
 
 Animation CreateAnimation(
-	Scene& scene, Transform transform, TextureKey texture_key, AnimationConfig config, Origin origin
+	EntityCreationContext context, Transform transform, TextureKey texture_key,
+	AnimationConfig config, Origin origin
 ) {
-	Animation animation{ CreateSprite(scene, transform, std::move(texture_key), origin) };
+	Animation animation{ CreateSprite(context, transform, std::move(texture_key), origin) };
 	animation.SetConfig(std::move(config));
 	animation.Add<Tag>("Animation");
 	return animation;
@@ -730,8 +732,8 @@ Animation PlayTemporaryAnimation(
 	return animation;
 }
 
-AnimationMap CreateAnimationMap(Scene& scene) {
-	AnimationMap animation_map{ scene.CreateEntity() };
+AnimationMap CreateAnimationMap(EntityCreationContext context) {
+	AnimationMap animation_map{ context.CreateEntity() };
 
 	animation_map.Entity::Add<Tag>("Animation Map");
 	animation_map.Entity::Add<impl::AnimationMapData>();

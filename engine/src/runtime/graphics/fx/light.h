@@ -9,6 +9,7 @@
 #include "core/math/transform.h"
 #include "core/math/vector2.h"
 #include "runtime/ecs/entity.h"
+#include "runtime/ecs/entity_creation_context.h"
 #include "runtime/graphics/drawable.h"
 #include "serialization/serialize.h"
 
@@ -111,7 +112,7 @@ public:
 
 PTGN_REGISTER_DRAWABLE(Light);
 
-Light CreateLight(Scene& scene, Transform transform = {}, LightData config = {});
+Light CreateLight(EntityCreationContext context, Transform transform = {}, LightData config = {});
 
 /// @brief Marks an entity as a shadow occluder.
 /// @param entity Entity that should cast shadows.

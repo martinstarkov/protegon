@@ -13,6 +13,7 @@
 #include "core/math/vector2.h"
 #include "renderer/pipeline/blend_mode.h"
 #include "runtime/ecs/entity.h"
+#include "runtime/ecs/entity_creation_context.h"
 #include "runtime/graphics/draw.h"
 #include "runtime/graphics/drawable.h"
 #include "serialization/serialize.h"
@@ -75,6 +76,6 @@ public:
 
 PTGN_REGISTER_DRAWABLE(Graphics);
 
-Graphics CreateGraphics(Scene& scene, Transform transform = {});
+Graphics CreateGraphics(EntityCreationContext context, Transform transform = {});
 
 } // namespace ptgn

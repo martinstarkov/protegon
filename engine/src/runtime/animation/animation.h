@@ -21,6 +21,8 @@
 
 namespace ptgn {
 
+class EntityCreationContext;
+
 class Scene;
 class DrawContext;
 class AssetManager;
@@ -357,7 +359,7 @@ public:
 /// @param manager Which manager the entity is added to.
 /// @param texture Texture key to be used for the animation.
 Animation CreateAnimation(
-	Scene& scene, Transform transform = {}, TextureKey texture_key = {},
+	EntityCreationContext context, Transform transform = {}, TextureKey texture_key = {},
 	AnimationConfig config = {}, Origin origin = Origin::Center
 );
 
@@ -370,6 +372,6 @@ Animation PlayTemporaryAnimation(
 	AnimationConfig config = {}, milliseconds destroy_delay = 0ms, Origin origin = Origin::Center
 );
 
-AnimationMap CreateAnimationMap(Scene& scene);
+AnimationMap CreateAnimationMap(EntityCreationContext context);
 
 } // namespace ptgn

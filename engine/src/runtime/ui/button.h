@@ -27,6 +27,8 @@
 
 namespace ptgn {
 
+class EntityCreationContext;
+
 class Button;
 class ButtonShape;
 class ButtonBackground;
@@ -37,7 +39,7 @@ class ButtonAnimation;
 class Dropdown;
 class Scene;
 
-Button CreateButton(Scene& scene, Transform transform, const ButtonDesc& desc);
+Button CreateButton(EntityCreationContext context, Transform transform, const ButtonDesc& desc);
 
 /// @brief Ordered visual state fallback chain used when resolving button appearance.
 /// The requested state is first, followed by progressively more general fallbacks.
@@ -252,7 +254,9 @@ private:
 	friend class Dropdown;
 	friend struct impl::ButtonSystem;
 	friend struct impl::ButtonAnimationCompleteScript;
-	friend Button CreateButton(Scene& scene, Transform transform, const ButtonDesc& desc);
+	friend Button CreateButton(
+		EntityCreationContext context, Transform transform, const ButtonDesc& desc
+	);
 
 	template <typename E, EventCallbackInvocable<E> F>
 	Button& OnEvent(F&& callback) {
@@ -557,21 +561,28 @@ struct ButtonHoverStop {
 
 } // namespace event
 
-Button CreateButton(Scene& scene, Transform transform, const ButtonDesc& desc);
-
-Button CreateButton(Scene& scene, Transform transform, V2_float size, const ButtonConfig& config);
-
-Button CreateAnimatedButton(Scene& scene, Transform transform, const AnimatedButtonConfig& config);
-
-/// @brief Creates a button with the given transform and origin without a specified size.
-Button CreateButton(Scene& scene, Transform transform = {}, Origin origin = Origin::Center);
+Button CreateButton(EntityCreationContext context, Transform transform, const ButtonDesc& desc);
 
 Button CreateButton(
-	Scene& scene, Transform transform, V2_float size, Origin origin = Origin::Center
+	EntityCreationContext context, Transform transform, V2_float size, const ButtonConfig& config
+);
+
+Button CreateAnimatedButton(
+	EntityCreationContext context, Transform transform, const AnimatedButtonConfig& config
+);
+
+/// @brief Creates a button with the given transform and origin without a specified size.
+Button CreateButton(
+	EntityCreationContext context, Transform transform = {}, Origin origin = Origin::Center
 );
 
 Button CreateButton(
-	Scene& scene, Transform transform, float radius, Origin origin = Origin::Center
+	EntityCreationContext context, Transform transform, V2_float size,
+	Origin origin = Origin::Center
+);
+
+Button CreateButton(
+	EntityCreationContext context, Transform transform, float radius, Origin origin = Origin::Center
 );
 
 } // namespace ptgn

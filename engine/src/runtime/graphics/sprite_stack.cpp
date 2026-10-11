@@ -21,6 +21,7 @@
 #include "renderer/resources/id.h"
 #include "renderer/resources/texture.h"
 #include "runtime/asset/asset_manager.h"
+#include "runtime/ecs/entity_creation_context.h"
 #include "runtime/ecs/tag.h"
 #include "runtime/ecs/uuid.h"
 #include "runtime/graphics/draw.h"
@@ -49,11 +50,13 @@ std::size_t GetSpriteStackSliceCount(Entity entity) {
 		return 0;
 	}
 
-	if (const auto* texture_key{ entity.TryGet<TextureKey>() }) {
-		auto& assets{ entity.GetScene().ctx().asset };
+	if (entity.HasScene()) {
+		if (const auto* texture_key{ entity.TryGet<TextureKey>() }) {
+			auto& assets{ entity.GetScene().ctx().asset };
 
-		if (auto detected{ DetectSpriteStackSliceCount(assets, *texture_key) }) {
-			return *detected;
+			if (auto detected{ DetectSpriteStackSliceCount(assets, *texture_key) }) {
+				return *detected;
+			}
 		}
 	}
 
@@ -206,9 +209,10 @@ SpriteStack& SpriteStack::SetTexture(TextureKey texture_key) {
 }
 
 SpriteStack CreateSpriteStack(
-	Scene& scene, Transform transform, TextureKey texture_key, SpriteStackData data, Origin origin
+	EntityCreationContext context, Transform transform, TextureKey texture_key,
+	SpriteStackData data, Origin origin
 ) {
-	SpriteStack stack{ scene.CreateEntity() };
+	SpriteStack stack{ context.CreateEntity() };
 
 	stack.Add<Tag>("Sprite Stack");
 	stack.Add<Visible>(true);

@@ -30,6 +30,8 @@
 
 namespace ptgn {
 
+class EntityCreationContext;
+
 class AssetManager;
 class DialogueBox;
 class Scene;
@@ -419,7 +421,9 @@ struct DialogueFinished {
 
 } // namespace event
 
-DialogueBox CreateDialogueBox(Scene& scene, Transform transform, const DialogueDesc& desc);
+DialogueBox CreateDialogueBox(
+	EntityCreationContext context, Transform transform, const DialogueDesc& desc
+);
 
 void to_json(json& j, const DialoguePageProperties& properties);
 void from_json(const json& j, DialoguePageProperties& properties);

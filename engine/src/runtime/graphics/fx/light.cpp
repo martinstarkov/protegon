@@ -38,6 +38,7 @@
 #include "renderer/resources/texture.h"
 #include "renderer/resources/texture_format.h"
 #include "runtime/ecs/entity.h"
+#include "runtime/ecs/entity_creation_context.h"
 #include "runtime/ecs/tag.h"
 #include "runtime/graphics/draw.h"
 #include "runtime/graphics/render_queue.h"
@@ -617,8 +618,8 @@ LightData Light::GetConfig() const {
 	return Get<LightData>();
 }
 
-Light CreateLight(Scene& scene, Transform transform, LightData config) {
-	Light light{ scene.CreateEntity() };
+Light CreateLight(EntityCreationContext context, Transform transform, LightData config) {
+	Light light{ context.CreateEntity() };
 
 	light.Add<Tag>("Light");
 	light.Add<Transform>(transform);

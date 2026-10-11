@@ -38,6 +38,7 @@
 #include "runtime/audio/audio.h"
 #include "runtime/audio/audio_system.h"
 #include "runtime/ecs/entity.h"
+#include "runtime/ecs/entity_creation_context.h"
 #include "runtime/ecs/entity_hierarchy.h"
 #include "runtime/ecs/tag.h"
 #include "runtime/graphics/draw.h"
@@ -2039,7 +2040,9 @@ void DialogueBox::PositionTextForPage(const DialoguePageProperties& properties) 
 	text.Box(Rect{ {}, content_rect.GetSize() });
 }
 
-DialogueBox CreateDialogueBox(Scene& scene, Transform transform, const DialogueDesc& desc) {
+DialogueBox CreateDialogueBox(
+	EntityCreationContext context, Transform transform, const DialogueDesc& desc
+) {
 	bool has_authored_definition{ desc.data.is_object() && !desc.data.empty() &&
 								  desc.data.contains("dialogues") &&
 								  desc.data.at("dialogues").is_object() };
@@ -2054,7 +2057,7 @@ DialogueBox CreateDialogueBox(Scene& scene, Transform transform, const DialogueD
 	default_properties.box_size = desc.box_size;
 	default_properties			= default_properties.InheritProperties(definition);
 
-	DialogueBox dialogue{ scene.CreateEntity() };
+	DialogueBox dialogue{ context.CreateEntity() };
 	dialogue.Add<Tag>("Dialogue Box");
 	dialogue.Add<impl::DialogueData>();
 	dialogue.Add<Transform>(transform);
@@ -2066,13 +2069,13 @@ DialogueBox CreateDialogueBox(Scene& scene, Transform transform, const DialogueD
 
 	if (desc.background_texture.has_value()) {
 		Sprite background{
-			CreateSprite(scene, {}, desc.background_texture.value(), Origin::Center)
+			CreateSprite(context, {}, desc.background_texture.value(), Origin::Center)
 		};
 		background.Add<Tag>("Dialogue Sprite");
 		background.Add<impl::DialoguePart>(::ptgn::impl::DialoguePartRole::Background);
 		SetParent(background, dialogue);
 
-		if (auto size{ GetDisplaySize(background) };
+		if (auto size{ context.HasScene() ? GetDisplaySize(background) : std::nullopt };
 			size.has_value() && size.value().IsPositive()) {
 			default_properties.box_size = size.value();
 			if (!has_authored_definition) {
@@ -2083,7 +2086,7 @@ DialogueBox CreateDialogueBox(Scene& scene, Transform transform, const DialogueD
 		SetPosition(background, GetOffset(desc.origin, default_properties.box_size));
 		Hide(background);
 	} else if (default_properties.box_size.IsPositive()) {
-		Entity background{ scene.CreateEntity() };
+		Entity background{ context.CreateEntity() };
 		background.Add<Tag>("Dialogue Background");
 		background.Add<Rect>(Rect{ default_properties.box_size });
 		background.Add<impl::DialoguePart>(::ptgn::impl::DialoguePartRole::Background);
@@ -2095,8 +2098,23 @@ DialogueBox CreateDialogueBox(Scene& scene, Transform transform, const DialogueD
 		Hide(background);
 	}
 
-	dialogue.TextPart();
-	dialogue.Get<impl::DialogueData>().LoadFromJson(scene, definition, default_properties);
+	if (context.HasScene()) {
+		dialogue.TextPart();
+	} else {
+		Text text{ CreateText(context, {}, {}, Origin::TopLeft) };
+		text.Add<Tag>("Dialogue Text");
+		text.Add<impl::DialoguePart>(::ptgn::impl::DialoguePartRole::Text);
+		SetParent(text, dialogue);
+		SetUI(text, IsUI(dialogue));
+		Hide(text);
+	}
+	if (context.HasScene()) {
+		dialogue.Get<impl::DialogueData>().LoadFromJson(
+			*context.GetScene(), definition, default_properties
+		);
+	} else {
+		dialogue.Get<impl::DialogueData>().SetDefinition(std::move(definition));
+	}
 	dialogue.Close();
 	return dialogue;
 }

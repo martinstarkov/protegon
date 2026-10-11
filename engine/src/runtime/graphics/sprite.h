@@ -15,6 +15,7 @@
 #include "renderer/resources/texture.h"
 #include "runtime/asset/asset_key.h"
 #include "runtime/ecs/entity.h"
+#include "runtime/ecs/entity_creation_context.h"
 #include "runtime/graphics/drawable.h"
 #include "serialization/serialize.h"
 
@@ -83,7 +84,7 @@ public:
 };
 
 Sprite CreateSprite(
-	Scene& scene, Transform transform = {}, TextureKey texture_key = {},
+	EntityCreationContext context, Transform transform = {}, TextureKey texture_key = {},
 	Origin origin = Origin::Center
 );
 

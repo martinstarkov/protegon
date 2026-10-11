@@ -10,6 +10,7 @@
 #include "core/math/transform.h"
 #include "core/math/vector2.h"
 #include "runtime/ecs/entity.h"
+#include "runtime/ecs/entity_creation_context.h"
 #include "runtime/scripting/script.h"
 #include "runtime/ui/button.h"
 #include "serialization/serialize.h"
@@ -68,7 +69,7 @@ struct DropdownEnabledState {
 struct DropdownItem {
 	std::optional<DropdownEnabledState> enabled_state{};
 
-	// Runtime layout anchor. The entity Transform remains the user-editable transform;
+	// Runtime layout anchor. The entity Transform remains the user editable transform;
 	// layout changes preserve the delta from this anchor.
 	V2_float layout_position{};
 	bool layout_initialized{ false };
@@ -192,8 +193,8 @@ struct DropdownItemPress {
 
 /// @param start_open If true, dropdown starts in an open state.
 Dropdown CreateDropdown(
-	Scene& scene, Transform transform, V2_float size, Origin origin = Origin::Center,
-	bool start_open = false
+	EntityCreationContext context, Transform transform, V2_float size,
+	Origin origin = Origin::Center, bool start_open = false
 );
 
 } // namespace ptgn

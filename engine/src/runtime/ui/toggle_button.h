@@ -11,6 +11,7 @@
 #include "core/math/vector2.h"
 #include "core/util/strong_string.h"
 #include "runtime/ecs/entity.h"
+#include "runtime/ecs/entity_creation_context.h"
 #include "runtime/ecs/key_hash.h"
 #include "runtime/scripting/script.h"
 #include "runtime/ui/button.h"
@@ -127,15 +128,15 @@ struct ToggleButtonToggle {
 } // namespace event
 
 ToggleButton CreateToggleButton(
-	Scene& scene, Transform transform, V2_float size, Origin origin = Origin::Center,
-	bool toggled = false
+	EntityCreationContext context, Transform transform, V2_float size,
+	Origin origin = Origin::Center, bool toggled = false
 );
 
 ToggleButton CreateToggleButton(
-	Scene& scene, Transform transform, float radius, Origin origin = Origin::Center,
-	bool toggled = false
+	EntityCreationContext context, Transform transform, float radius,
+	Origin origin = Origin::Center, bool toggled = false
 );
 
-ToggleButtonGroup CreateToggleButtonGroup(Scene& scene);
+ToggleButtonGroup CreateToggleButtonGroup(EntityCreationContext context);
 
 } // namespace ptgn

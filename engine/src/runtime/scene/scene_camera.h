@@ -2,6 +2,7 @@
 
 #include <array>
 #include <cstdint>
+#include <functional>
 #include <optional>
 
 #include "core/graphics/color.h"
@@ -14,6 +15,7 @@
 #include "renderer/pipeline/camera.h"
 #include "renderer/pipeline/viewport.h"
 #include "runtime/ecs/entity.h"
+#include "runtime/ecs/entity_creation_context.h"
 #include "runtime/ecs/uuid.h"
 #include "runtime/graphics/render_target.h"
 
@@ -120,9 +122,7 @@ public:
 	V2_float GetSize() const;
 
 	V2_float GetZoom() const;
-
 	bool GetPixelRounding() const;
-
 	const Matrix4& GetViewProjection() const;
 
 	/// @return Bounding box viewport if set.
@@ -204,7 +204,6 @@ bool HasAllMasks(Entity entity, LayerMask test);
 namespace impl {
 
 void RecalculateCameraViewProjection(SceneCamera camera);
-
 void ApplyCameraBounds(SceneCamera camera);
 
 } // namespace impl
@@ -213,8 +212,9 @@ void ApplyCameraBounds(SceneCamera camera);
 /// parent render target.
 /// If unset, the camera's parent render target is the scene's default render target.
 SceneCamera CreateCamera(
-	Scene& scene, Transform transform = {}, std::optional<V2_float> viewport_size = std::nullopt,
-	ViewportSpace viewport_space = ViewportSpace::Logical
+	EntityCreationContext context, Transform transform = {},
+	std::optional<V2_float> viewport_size = std::nullopt,
+	ViewportSpace viewport_space		  = ViewportSpace::Logical
 );
 
 } // namespace ptgn

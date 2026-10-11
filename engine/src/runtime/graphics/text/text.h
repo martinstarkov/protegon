@@ -24,6 +24,8 @@
 
 namespace ptgn {
 
+class EntityCreationContext;
+
 class AssetManager;
 class DrawContext;
 class Scene;
@@ -309,12 +311,12 @@ private:
 };
 
 Text CreateText(
-	Scene& scene, Transform transform = {}, StyledText styled_text = {},
+	EntityCreationContext context, Transform transform = {}, StyledText styled_text = {},
 	Origin origin = Origin::Center
 );
 
 Text CreateText(
-	Scene& scene, Transform transform, std::string_view content, Color color,
+	EntityCreationContext context, Transform transform, std::string_view content, Color color,
 	float font_size = kDefaultFontSize, Origin origin = Origin::Center, FontKey font = kDefaultFont
 );
 

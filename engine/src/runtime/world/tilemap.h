@@ -10,6 +10,7 @@
 #include "core/math/vector2.h"
 #include "runtime/asset/asset_key.h"
 #include "runtime/ecs/entity.h"
+#include "runtime/ecs/entity_creation_context.h"
 #include "runtime/ecs/tag.h"
 #include "runtime/world/entity_layer.h"
 #include "serialization/serialize.h"
@@ -122,8 +123,11 @@ public:
 
 [[nodiscard]] bool IsTilemap(Entity entity);
 
-/// @brief Creates a Tilemap entity directly in a Tile layer.
-/// @return A null Tilemap if layer is missing or is not a Tile layer.
-[[nodiscard]] Tilemap CreateTilemap(Scene& scene, SceneLayerId layer, Tag tag = Tag{ "Tilemap" });
+/// @brief Creates a Tilemap entity directly in a Tile layer when a Scene is available.
+/// When authoring a prefab without a Scene, only the serialized components are created.
+/// @return A null Tilemap if a Scene layer is missing or is not a Tile layer.
+[[nodiscard]] Tilemap CreateTilemap(
+	EntityCreationContext context, SceneLayerId layer, Tag tag = Tag{ "Tilemap" }
+);
 
 } // namespace ptgn

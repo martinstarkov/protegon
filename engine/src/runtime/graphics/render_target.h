@@ -10,6 +10,7 @@
 #include "renderer/resources/texture.h"
 #include "renderer/resources/texture_format.h"
 #include "runtime/ecs/entity.h"
+#include "runtime/ecs/entity_creation_context.h"
 #include "runtime/graphics/drawable.h"
 #include "serialization/serialize.h"
 
@@ -140,7 +141,7 @@ private:
 /// @param clear_color The color to which the render target is cleared.
 /// @param texture_format Format of the render target texture.
 RenderTarget CreateRenderTarget(
-	Scene& scene, Transform transform, V2_int size,
+	EntityCreationContext context, Transform transform, V2_int size,
 	Color clear_color			 = kDefaultRenderTargetClearColor,
 	TextureFormat texture_format = kDefaultRenderTargetFormat
 );
@@ -149,7 +150,8 @@ RenderTarget CreateRenderTarget(
 /// @param clear_color The color to which the render target is cleared.
 /// @param texture_format Format of the render target texture.
 RenderTarget CreateRenderTarget(
-	Scene& scene, Transform transform = {}, Color clear_color = kDefaultRenderTargetClearColor,
+	EntityCreationContext context, Transform transform = {},
+	Color clear_color			 = kDefaultRenderTargetClearColor,
 	TextureFormat texture_format = kDefaultRenderTargetFormat
 );
 

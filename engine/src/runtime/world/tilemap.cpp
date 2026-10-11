@@ -7,6 +7,7 @@
 
 #include "core/assert.h"
 #include "core/math/transform.h"
+#include "runtime/ecs/entity_creation_context.h"
 #include "runtime/scene/scene.h"
 
 namespace ptgn {
@@ -88,8 +89,7 @@ Tilemap& Tilemap::SetTile(TilemapTile tile) {
 }
 
 bool Tilemap::EraseTile(V2_int coordinate) {
-	auto& tiles{ GetData().tiles };
-	return std::erase_if(tiles, [coordinate](const TilemapTile& tile) {
+	return std::erase_if(GetData().tiles, [coordinate](const TilemapTile& tile) {
 			   return tile.coordinate == coordinate;
 		   }) > 0;
 }
@@ -158,17 +158,20 @@ bool IsTilemap(Entity entity) {
 	return entity && entity.Has<impl::TilemapData>();
 }
 
-Tilemap CreateTilemap(Scene& scene, SceneLayerId layer, Tag tag) {
-	const SceneLayer* destination{ scene.GetLayers().Find(layer) };
-	if (!destination || destination->kind != SceneLayerKind::Tile) {
-		return {};
+Tilemap CreateTilemap(EntityCreationContext context, SceneLayerId layer, Tag tag) {
+	Scene* scene{ context.GetScene() };
+	if (scene) {
+		const SceneLayer* destination{ scene->GetLayers().Find(layer) };
+		if (!destination || destination->kind != SceneLayerKind::Tile) {
+			return {};
+		}
 	}
 
-	Entity entity{ scene.CreateEntity(std::move(tag)) };
+	Entity entity{ context.CreateEntity(std::move(tag)) };
 	entity.TryAdd<Transform>();
 	entity.Add<impl::TilemapData>();
 
-	if (!scene.GetLayers().Assign(entity, layer, false)) {
+	if (scene && !scene->GetLayers().Assign(entity, layer, false)) {
 		entity.Destroy();
 		return {};
 	}

@@ -36,6 +36,7 @@
 #include "renderer/text/text_style.h"
 #include "runtime/asset/asset_manager.h"
 #include "runtime/ecs/entity.h"
+#include "runtime/ecs/entity_creation_context.h"
 #include "runtime/ecs/tag.h"
 #include "runtime/graphics/draw.h"
 #include "runtime/graphics/drawable.h"
@@ -1766,6 +1767,10 @@ const TextLayout& Text::GetLayout() const {
 }
 
 void Text::UpdateLayout() const {
+	if (!HasScene()) {
+		return;
+	}
+
 	auto& asset_manager{ GetScene().ctx().asset };
 	const auto& styled_text{ GetStyledText() };
 	const auto& box{ GetTextBox() };
@@ -1799,8 +1804,10 @@ void Text::InvalidateLayout() {
 	}
 }
 
-Text CreateText(Scene& scene, Transform transform, StyledText styled_text, Origin origin) {
-	Text text{ scene.CreateEntity() };
+Text CreateText(
+	EntityCreationContext context, Transform transform, StyledText styled_text, Origin origin
+) {
+	Text text{ context.CreateEntity() };
 
 	text.Add<impl::TextData>();
 	text.Add<TextLayout>();
@@ -1817,11 +1824,11 @@ Text CreateText(Scene& scene, Transform transform, StyledText styled_text, Origi
 }
 
 Text CreateText(
-	Scene& scene, Transform transform, std::string_view content, Color color, float font_size,
-	Origin origin, FontKey font
+	EntityCreationContext context, Transform transform, std::string_view content, Color color,
+	float font_size, Origin origin, FontKey font
 ) {
 	return CreateText(
-		scene, transform,
+		context, transform,
 		{ { .text  = std::string{ content },
 			.font  = std::move(font),
 			.style = { .color = color, .size = font_size } } },

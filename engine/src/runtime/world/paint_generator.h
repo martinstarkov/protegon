@@ -10,6 +10,7 @@
 #include "core/math/vector2.h"
 #include "runtime/asset/asset_key.h"
 #include "runtime/ecs/entity.h"
+#include "runtime/ecs/entity_creation_context.h"
 #include "runtime/ecs/tag.h"
 #include "runtime/world/entity_layer.h"
 #include "runtime/world/tilemap.h"
@@ -240,7 +241,7 @@ public:
 [[nodiscard]] bool IsPaintGenerator(Entity entity);
 
 [[nodiscard]] PaintGenerator CreatePaintGenerator(
-	Scene& scene, SceneLayerId layer, Tag tag = Tag{ "Generator" }
+	EntityCreationContext context, SceneLayerId layer, Tag tag = Tag{ "Generator" }
 );
 
 } // namespace ptgn

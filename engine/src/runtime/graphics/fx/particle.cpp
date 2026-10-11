@@ -32,6 +32,7 @@
 #include "renderer/resources/texture.h"
 #include "runtime/asset/asset_manager.h"
 #include "runtime/ecs/entity.h"
+#include "runtime/ecs/entity_creation_context.h"
 #include "runtime/ecs/tag.h"
 #include "runtime/graphics/draw.h"
 #include "runtime/graphics/fx/particle_event.h"
@@ -517,9 +518,9 @@ void ParticleEmitter::Update(Scene& scene, secondsf dt) {
 }
 
 ParticleEmitter CreateParticleEmitter(
-	Scene& scene, Transform transform, const ParticleConfig& config, bool start
+	EntityCreationContext context, Transform transform, const ParticleConfig& config, bool start
 ) {
-	ParticleEmitter particle{ scene.CreateEntity() };
+	ParticleEmitter particle{ context.CreateEntity() };
 
 	particle.Add<Tag>("Particle Emitter");
 	particle.Add<Transform>(transform);

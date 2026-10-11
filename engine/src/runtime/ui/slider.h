@@ -19,6 +19,8 @@
 
 namespace ptgn {
 
+class EntityCreationContext;
+
 class Scene;
 class Slider;
 
@@ -302,12 +304,13 @@ struct SliderChange {
 } // namespace event
 
 Slider CreateSlider(
-	Scene& scene, Line line, V2_float button_size, Origin origin = Origin::Center,
+	EntityCreationContext context, Line line, V2_float button_size, Origin origin = Origin::Center,
 	float value = 0.0f
 );
 
 Slider CreateSlider(
-	Scene& scene, Line line, float button_radius, Origin origin = Origin::Center, float value = 0.0f
+	EntityCreationContext context, Line line, float button_radius, Origin origin = Origin::Center,
+	float value = 0.0f
 );
 
 } // namespace ptgn

@@ -9,6 +9,7 @@
 #include "core/math/vector2.h"
 #include "runtime/asset/asset_key.h"
 #include "runtime/ecs/entity.h"
+#include "runtime/ecs/entity_creation_context.h"
 #include "runtime/graphics/drawable.h"
 #include "serialization/serialize.h"
 
@@ -87,8 +88,8 @@ public:
 };
 
 SpriteStack CreateSpriteStack(
-	Scene& scene, Transform transform = {}, TextureKey texture_key = {}, SpriteStackData data = {},
-	Origin origin = Origin::Center
+	EntityCreationContext context, Transform transform = {}, TextureKey texture_key = {},
+	SpriteStackData data = {}, Origin origin = Origin::Center
 );
 
 PTGN_REGISTER_DRAWABLE(SpriteStack);

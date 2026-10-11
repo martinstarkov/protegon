@@ -11,6 +11,7 @@
 #include "core/math/transform.h"
 #include "core/math/vector2.h"
 #include "runtime/ecs/entity.h"
+#include "runtime/ecs/entity_creation_context.h"
 #include "runtime/ecs/entity_hierarchy.h"
 #include "runtime/ecs/tag.h"
 #include "runtime/scene/scene.h"
@@ -110,7 +111,9 @@ ToggleButton& ToggleButton::SetToggled(bool toggled) {
 	MarkDirty(impl::ButtonDirty::All);
 	RefreshDirty();
 
-	PushEvent<event::ToggleButtonToggle>(*this, *this, toggled);
+	if (HasScene()) {
+		PushEvent<event::ToggleButtonToggle>(*this, *this, toggled);
+	}
 
 	return *this;
 }
@@ -244,10 +247,11 @@ void ToggleButtonGroup::SetActiveKey(impl::ToggleButtonGroupKey key) {
 
 namespace {
 
+template <typename Shape>
 ToggleButton CreateToggleButton(
-	Scene& scene, Transform transform, auto shape, Origin origin, bool toggled
+	EntityCreationContext context, Transform transform, Shape shape, Origin origin, bool toggled
 ) {
-	ToggleButton button{ CreateButton(scene, transform, shape, origin) };
+	ToggleButton button{ CreateButton(context, transform, shape, origin) };
 
 	button.Add<Tag>("Toggle Button");
 	button.TryAdd<impl::ToggleButtonData>();
@@ -259,19 +263,19 @@ ToggleButton CreateToggleButton(
 } // namespace
 
 ToggleButton CreateToggleButton(
-	Scene& scene, Transform transform, V2_float size, Origin origin, bool toggled
+	EntityCreationContext context, Transform transform, V2_float size, Origin origin, bool toggled
 ) {
-	return CreateToggleButton<V2_float>(scene, transform, size, origin, toggled);
+	return CreateToggleButton<V2_float>(context, transform, size, origin, toggled);
 }
 
 ToggleButton CreateToggleButton(
-	Scene& scene, Transform transform, float radius, Origin origin, bool toggled
+	EntityCreationContext context, Transform transform, float radius, Origin origin, bool toggled
 ) {
-	return CreateToggleButton<float>(scene, transform, radius, origin, toggled);
+	return CreateToggleButton<float>(context, transform, radius, origin, toggled);
 }
 
-ToggleButtonGroup CreateToggleButtonGroup(Scene& scene) {
-	ToggleButtonGroup group{ scene.CreateEntity() };
+ToggleButtonGroup CreateToggleButtonGroup(EntityCreationContext context) {
+	ToggleButtonGroup group{ context.CreateEntity() };
 	group.Entity::Add<Tag>("Toggle Button Group");
 	group.Entity::Add<impl::ToggleButtonGroupData>();
 	return group;

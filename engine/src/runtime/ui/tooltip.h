@@ -12,6 +12,7 @@
 #include "core/math/vector2.h"
 #include "core/util/time.h"
 #include "runtime/ecs/entity.h"
+#include "runtime/ecs/entity_creation_context.h"
 #include "runtime/graphics/sprite.h"
 #include "serialization/serialize.h"
 
@@ -114,7 +115,8 @@ private:
 };
 
 Tooltip CreateTooltip(
-	Scene& scene, std::string_view tooltip_name, const TooltipProperties& tooltip_properties
+	EntityCreationContext context, std::string_view tooltip_name,
+	const TooltipProperties& tooltip_properties
 );
 
 void ShowTooltipOnHover(Entity entity, std::string_view tooltip_name, V2_float tooltip_offset = {});

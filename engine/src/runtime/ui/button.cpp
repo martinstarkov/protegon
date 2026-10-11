@@ -36,6 +36,7 @@
 #include "runtime/audio/audio.h"
 #include "runtime/audio/audio_system.h"
 #include "runtime/ecs/entity.h"
+#include "runtime/ecs/entity_creation_context.h"
 #include "runtime/ecs/entity_hierarchy.h"
 #include "runtime/ecs/tag.h"
 #include "runtime/graphics/draw.h"
@@ -1424,6 +1425,10 @@ void Button::MarkDirty(impl::ButtonDirty dirty) {
 }
 
 void Button::RefreshDirty() {
+	if (!HasScene()) {
+		return;
+	}
+
 	auto& data{ Get<impl::ButtonData>() };
 	auto visual_state{ GetVisualState() };
 
@@ -1487,6 +1492,11 @@ Button& Button::UnlockVisualState() {
 }
 
 Entity Button::EnsurePart(impl::ButtonPart part) {
+	EntityCreationContext creation{ GetManager() };
+	if (HasScene()) {
+		creation = GetScene();
+	}
+
 	auto existing{ FindPart(part) };
 
 	if (existing) {
@@ -1497,19 +1507,19 @@ Entity Button::EnsurePart(impl::ButtonPart part) {
 
 	switch (part) {
 		case impl::ButtonPart::Background: {
-			entity = CreateRect(GetScene(), {}, {}, {});
+			entity = CreateRect(creation, {}, {}, {});
 			entity.Add<ButtonBackgroundVisuals>();
 			break;
 		}
 
 		case impl::ButtonPart::Border: {
-			entity = CreateRect(GetScene(), {}, {}, {});
+			entity = CreateRect(creation, {}, {}, {});
 			entity.Add<ButtonBorderVisuals>();
 			break;
 		}
 
 		case impl::ButtonPart::Text: {
-			ptgn::Text text{ CreateText(GetScene()) };
+			ptgn::Text text{ CreateText(creation) };
 			text.ClearAlignment();
 			text.Remove<Origin>();
 			entity = text;
@@ -1518,10 +1528,10 @@ Entity Button::EnsurePart(impl::ButtonPart part) {
 		}
 
 		case impl::ButtonPart::Sprite: {
-			entity = CreateSprite(GetScene());
+			entity = CreateSprite(creation);
 			entity.Add<ButtonSpriteVisuals>();
 
-			if (!HasScript<impl::ButtonAnimationCompleteScript>(entity)) {
+			if (HasScene() && !HasScript<impl::ButtonAnimationCompleteScript>(entity)) {
 				AddScript<impl::ButtonAnimationCompleteScript>(entity, *this);
 			}
 
@@ -3224,23 +3234,27 @@ ButtonAnimation& ButtonAnimation::Clear() {
 	return *this;
 }
 
-Button CreateButton(Scene& scene, Transform transform, Origin origin) {
+Button CreateButton(EntityCreationContext context, Transform transform, Origin origin) {
 	ButtonDesc desc;
 
 	desc.origin = origin;
 
-	return CreateButton(scene, transform, desc);
+	return CreateButton(context, transform, desc);
 }
 
-Button CreateButton(Scene& scene, Transform transform, V2_float size, Origin origin) {
-	return CreateButton(scene, transform, ButtonDesc{ .size = size, .origin = origin });
+Button CreateButton(
+	EntityCreationContext context, Transform transform, V2_float size, Origin origin
+) {
+	return CreateButton(context, transform, ButtonDesc{ .size = size, .origin = origin });
 }
 
-Button CreateButton(Scene& scene, Transform transform, float radius, Origin origin) {
-	return CreateButton(scene, transform, ButtonDesc{ .size = radius, .origin = origin });
+Button CreateButton(
+	EntityCreationContext context, Transform transform, float radius, Origin origin
+) {
+	return CreateButton(context, transform, ButtonDesc{ .size = radius, .origin = origin });
 }
 
-Button CreateButton(Scene& scene, Transform transform, const ButtonDesc& desc) {
+Button CreateButton(EntityCreationContext context, Transform transform, const ButtonDesc& desc) {
 	auto resolved_desc{ desc };
 
 	if (resolved_desc.move.has_value()) {
@@ -3251,7 +3265,7 @@ Button CreateButton(Scene& scene, Transform transform, const ButtonDesc& desc) {
 		}
 	}
 
-	Button button{ scene.CreateEntity() };
+	Button button{ context.CreateEntity() };
 
 	button.Add<Tag>("Button");
 	button.Add<Visible>(true);
@@ -3274,21 +3288,27 @@ Button CreateButton(Scene& scene, Transform transform, const ButtonDesc& desc) {
 	ApplyButtonDescVisuals(button, resolved_desc);
 	ApplyButtonEffects(button, resolved_desc);
 
-	button.RefreshDirty();
+	if (context.HasScene()) {
+		button.RefreshDirty();
+	}
 
 	return button;
 }
 
-Button CreateButton(Scene& scene, Transform transform, V2_float size, const ButtonConfig& config) {
+Button CreateButton(
+	EntityCreationContext context, Transform transform, V2_float size, const ButtonConfig& config
+) {
 	auto desc{ ToButtonDesc(config) };
 
 	desc.size = std::variant<V2_float, float>{ size };
 
-	return CreateButton(scene, transform, desc);
+	return CreateButton(context, transform, desc);
 }
 
-Button CreateAnimatedButton(Scene& scene, Transform transform, const AnimatedButtonConfig& config) {
-	return CreateButton(scene, transform, ToButtonDesc(config));
+Button CreateAnimatedButton(
+	EntityCreationContext context, Transform transform, const AnimatedButtonConfig& config
+) {
+	return CreateButton(context, transform, ToButtonDesc(config));
 }
 
 } // namespace ptgn

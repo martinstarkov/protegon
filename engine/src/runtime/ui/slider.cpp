@@ -20,6 +20,7 @@
 #include "core/math/transform.h"
 #include "core/math/vector2.h"
 #include "runtime/ecs/entity.h"
+#include "runtime/ecs/entity_creation_context.h"
 #include "runtime/ecs/entity_hierarchy.h"
 #include "runtime/ecs/tag.h"
 #include "runtime/graphics/draw.h"
@@ -873,12 +874,14 @@ void Slider::RefreshTrack() {
 namespace {
 
 template <typename T>
-Slider CreateSliderImpl(Scene& scene, Line world_line, T button_size, Origin origin, float value) {
+Slider CreateSliderImpl(
+	EntityCreationContext context, Line world_line, T button_size, Origin origin, float value
+) {
 	PTGN_ASSERT(
 		IsValidSliderLine(world_line), "Slider line start and end positions must be different"
 	);
 
-	Slider slider{ scene.CreateEntity() };
+	Slider slider{ context.CreateEntity() };
 
 	slider.Add<Tag>("Slider");
 	slider.Add<Transform>(Transform{ world_line.start });
@@ -889,7 +892,7 @@ Slider CreateSliderImpl(Scene& scene, Line world_line, T button_size, Origin ori
 		.value = std::clamp(value, 0.0f, 1.0f),
 	});
 
-	Button thumb{ CreateButton(scene, {}, button_size, origin) };
+	Button thumb{ CreateButton(context, {}, button_size, origin) };
 
 	thumb.Add<Tag>("Slider Thumb");
 	thumb.Add<impl::SliderThumbData>();
@@ -900,7 +903,7 @@ Slider CreateSliderImpl(Scene& scene, Line world_line, T button_size, Origin ori
 	SetDraggable(thumb);
 	SetDraggableFollowMouse(thumb, true);
 
-	Entity track{ scene.CreateEntity() };
+	Entity track{ context.CreateEntity() };
 
 	track.Add<Tag>("Slider Track");
 	track.Add<Transform>();
@@ -912,19 +915,25 @@ Slider CreateSliderImpl(Scene& scene, Line world_line, T button_size, Origin ori
 	// Child depth is relative to the slider, placing the track behind the thumb.
 	SetDepth(track, kSliderTrackDepth);
 
-	slider.SetValue(value, false);
+	if (context.HasScene()) {
+		slider.SetValue(value, false);
+	}
 
 	return slider;
 }
 
 } // namespace
 
-Slider CreateSlider(Scene& scene, Line line, V2_float button_size, Origin origin, float value) {
-	return CreateSliderImpl(scene, line, button_size, origin, value);
+Slider CreateSlider(
+	EntityCreationContext context, Line line, V2_float button_size, Origin origin, float value
+) {
+	return CreateSliderImpl(context, line, button_size, origin, value);
 }
 
-Slider CreateSlider(Scene& scene, Line line, float button_radius, Origin origin, float value) {
-	return CreateSliderImpl(scene, line, button_radius, origin, value);
+Slider CreateSlider(
+	EntityCreationContext context, Line line, float button_radius, Origin origin, float value
+) {
+	return CreateSliderImpl(context, line, button_radius, origin, value);
 }
 
 } // namespace ptgn

@@ -21,6 +21,7 @@
 #include "renderer/resources/texture.h"
 #include "runtime/animation/scripted_animation.h"
 #include "runtime/ecs/entity.h"
+#include "runtime/ecs/entity_creation_context.h"
 #include "runtime/ecs/entity_hierarchy.h"
 #include "runtime/ecs/tag.h"
 #include "runtime/graphics/sprite.h"
@@ -219,14 +220,17 @@ void TooltipSystem::OnMouseLeave(Entity entity) {
 } // namespace impl
 
 Tooltip CreateTooltip(
-	Scene& scene, std::string_view tooltip_name, const TooltipProperties& tooltip_properties
+	EntityCreationContext context, std::string_view tooltip_name,
+	const TooltipProperties& tooltip_properties
 ) {
-	PTGN_ASSERT(
-		!Tooltip::Get(scene, tooltip_name).has_value(), "Tooltip with the name: ", tooltip_name,
-		" already exists in the manager"
-	);
+	if (Scene * scene{ context.GetScene() }) {
+		PTGN_ASSERT(
+			!Tooltip::Get(*scene, tooltip_name).has_value(),
+			"Tooltip with the name: ", tooltip_name, " already exists in the manager"
+		);
+	}
 
-	Tooltip tooltip{ scene.CreateEntity() };
+	Tooltip tooltip{ context.CreateEntity() };
 	tooltip.Add<Tag>("Tooltip");
 
 	auto& instance{ tooltip.Add<impl::TooltipData>() };
@@ -239,7 +243,7 @@ Tooltip CreateTooltip(
 
 	if (tooltip_properties.texture.has_value()) {
 		auto background{
-			CreateSprite(scene, {}, tooltip_properties.texture.value(), Origin::Center)
+			CreateSprite(context, {}, tooltip_properties.texture.value(), Origin::Center)
 		};
 		background.Add<Tag>("Tooltip Sprite");
 		background.Add<impl::TooltipBackgroundPart>();
@@ -248,7 +252,7 @@ Tooltip CreateTooltip(
 	}
 
 	Text text{
-		CreateText(scene).Content(tooltip_properties.content).Color(tooltip_properties.text_color)
+		CreateText(context).Content(tooltip_properties.content).Color(tooltip_properties.text_color)
 	};
 	text.Add<Tag>("Tooltip Text");
 	text.Add<impl::TooltipTextPart>();

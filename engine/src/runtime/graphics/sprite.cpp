@@ -1,8 +1,11 @@
 #include "runtime/graphics/sprite.h"
 
 #include <array>
+#include <functional>
 #include <optional>
+#include <string>
 #include <string_view>
+#include <utility>
 
 #include "core/assert.h"
 #include "core/graphics/color.h"
@@ -17,6 +20,7 @@
 #include "runtime/animation/animation.h"
 #include "runtime/asset/asset_manager.h"
 #include "runtime/ecs/entity.h"
+#include "runtime/ecs/entity_creation_context.h"
 #include "runtime/ecs/tag.h"
 #include "runtime/graphics/draw.h"
 #include "runtime/graphics/drawable.h"
@@ -36,7 +40,7 @@ TextureId GetTexture(Entity entity) {
 	if (auto texture{ entity.TryGet<Texture>() }) {
 		return *texture;
 	}
-	if (auto texture_key{ entity.TryGet<TextureKey>() }) {
+	if (auto texture_key{ entity.TryGet<TextureKey>() }; texture_key && entity.HasScene()) {
 		auto& scene{ entity.GetScene() };
 		auto& assets{ scene.ctx().asset };
 		if (impl::AssetAccessor{ assets }.Has<Texture>(texture_key->value)) {
@@ -142,8 +146,10 @@ Sprite& Sprite::SetTexture(TextureKey texture_key) {
 	return *this;
 }
 
-Sprite CreateSprite(Scene& scene, Transform transform, TextureKey texture_key, Origin origin) {
-	Sprite sprite{ scene.CreateEntity() };
+Sprite CreateSprite(
+	EntityCreationContext context, Transform transform, TextureKey texture_key, Origin origin
+) {
+	Sprite sprite{ context.CreateEntity() };
 
 	sprite.Add<Tag>("Sprite");
 	sprite.Add<Visible>(true);
@@ -158,6 +164,10 @@ Sprite CreateSprite(Scene& scene, Transform transform, TextureKey texture_key, O
 }
 
 std::optional<V2_int> GetTextureSize(Entity entity) {
+	if (!entity.HasScene()) {
+		return std::nullopt;
+	}
+
 	auto texture{ impl::GetTexture(entity) };
 	const auto& scene{ entity.GetScene() };
 	auto size{ impl::RendererAccessor{ scene.ctx().renderer }.GetSize(texture) };

@@ -17,6 +17,7 @@
 #include "core/math/vector2.h"
 #include "core/util/time.h"
 #include "runtime/ecs/entity.h"
+#include "runtime/ecs/entity_creation_context.h"
 #include "runtime/ecs/manager.h"
 #include "runtime/graphics/drawable.h"
 #include "runtime/scripting/script.h"
@@ -25,6 +26,7 @@
 namespace ptgn {
 
 class Scene;
+class EntityCreationContext;
 class DrawContext;
 class ParticleEmitter;
 
@@ -357,7 +359,8 @@ private:
 };
 
 ParticleEmitter CreateParticleEmitter(
-	Scene& scene, Transform transform = {}, const ParticleConfig& config = {}, bool start = false
+	EntityCreationContext context, Transform transform = {}, const ParticleConfig& config = {},
+	bool start = false
 );
 
 PTGN_REGISTER_DRAWABLE(ParticleEmitter, { .name = "Particle Emitter" });

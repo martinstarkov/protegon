@@ -11,6 +11,7 @@
 #include "renderer/pipeline/render_state.h"
 #include "runtime/asset/asset_key.h"
 #include "runtime/ecs/entity.h"
+#include "runtime/ecs/entity_creation_context.h"
 #include "runtime/graphics/draw.h"
 #include "runtime/scripting/script.h"
 #include "serialization/serialize.h"
@@ -88,7 +89,7 @@ struct TopDownPlayerConfig {
 };
 
 Entity CreateTopDownPlayer(
-	Scene& scene, Transform transform, const TopDownPlayerConfig& config = {}
+	EntityCreationContext context, Transform transform, const TopDownPlayerConfig& config = {}
 );
 
 } // namespace ptgn

@@ -1,4 +1,3 @@
-
 #include "runtime/scene/scene_camera.h"
 
 #include <algorithm>
@@ -18,6 +17,7 @@
 #include "renderer/renderer.h"
 #include "runtime/animation/offsets.h"
 #include "runtime/ecs/entity.h"
+#include "runtime/ecs/entity_creation_context.h"
 #include "runtime/ecs/tag.h"
 #include "runtime/graphics/draw.h"
 #include "runtime/graphics/render_target.h"
@@ -94,14 +94,14 @@ void RecalculateCameraViewProjection(SceneCamera camera) {
 	// V2_float flip_dir{ 1.0f, 1.0f };
 	// Flip flip{ Flip::None };
 	// switch (flip) {
-	//	case Flip::None:	   break;
-	//	case Flip::Vertical:   flip_dir.y = -1.0f; break;
-	//	case Flip::Horizontal: flip_dir.x = -1.0f; break;
-	//	case Flip::Both:
-	//		flip_dir.x = -1.0f;
-	//		flip_dir.y = -1.0f;
-	//		break;
-	//	default: PTGN_ERROR("Unrecognized flip state");
+	//  case Flip::None:       break;
+	//  case Flip::Vertical:   flip_dir.y = -1.0f; break;
+	//  case Flip::Horizontal: flip_dir.x = -1.0f; break;
+	//  case Flip::Both:
+	//      flip_dir.x = -1.0f;
+	//      flip_dir.y = -1.0f;
+	//      break;
+	//  default: PTGN_ERROR("Unrecognized flip state");
 	//}
 	// view_size *= flip_dir;
 
@@ -131,10 +131,7 @@ SceneCamera::operator Camera() const {
 }
 
 SceneCamera& SceneCamera::SetZoom(V2_float new_zoom) {
-	auto clamped{ Clamp(
-		new_zoom, 1000.0f * kEpsilon<float>,
-		std::numeric_limits<float>::max()
-	) };
+	auto clamped{ Clamp(new_zoom, 1000.0f * kEpsilon<float>, std::numeric_limits<float>::max()) };
 	if (GetZoom() == clamped) {
 		return *this;
 	}
@@ -440,10 +437,10 @@ bool HasAllMasks(Entity entity, LayerMask test) {
 }
 
 SceneCamera CreateCamera(
-	Scene& scene, Transform transform, std::optional<V2_float> viewport_size,
+	EntityCreationContext context, Transform transform, std::optional<V2_float> viewport_size,
 	ViewportSpace viewport_space
 ) {
-	SceneCamera camera{ scene.CreateEntity() };
+	SceneCamera camera{ context.CreateEntity() };
 
 	PTGN_ASSERT(
 		!viewport_size.has_value() || viewport_size.value().IsPositive(),
@@ -460,8 +457,8 @@ SceneCamera CreateCamera(
 		camera.SetViewport(Viewport{ {}, viewport_size.value() }, viewport_space);
 	}
 
-	camera.SetRenderTarget(std::nullopt);
-
+	// An independent camera has no default scene render target to bind.
+	// On instantiation, the absence of ParentRenderTarget selects the scene default.
 	return camera;
 }
 

@@ -7,6 +7,7 @@
 
 #include "core/assert.h"
 #include "core/math/transform.h"
+#include "runtime/ecs/entity_creation_context.h"
 #include "runtime/ecs/entity_hierarchy.h"
 #include "runtime/scene/scene.h"
 #include "runtime/world/tilemap.h"
@@ -55,10 +56,12 @@ Tilemap PaintGenerator::GetTargetTilemap() const {
 		return {};
 	}
 
-	auto generator_layer{ GetScene().GetLayers().GetLayerId(*this) };
-	if (!generator_layer.has_value() ||
-		GetScene().GetLayers().GetLayerId(parent) != generator_layer) {
-		return {};
+	if (HasScene()) {
+		auto generator_layer{ GetScene().GetLayers().GetLayerId(*this) };
+		if (!generator_layer.has_value() ||
+			GetScene().GetLayers().GetLayerId(parent) != generator_layer) {
+			return {};
+		}
 	}
 
 	return Tilemap{ parent };
@@ -69,13 +72,19 @@ bool PaintGenerator::SetTargetTilemap(std::optional<Tilemap> target) {
 		return false;
 	}
 
-	auto generator_layer_id{ GetScene().GetLayers().GetLayerId(*this) };
-	if (!generator_layer_id.has_value()) {
-		return false;
-	}
-	const SceneLayer* generator_layer{ GetScene().GetLayers().Find(*generator_layer_id) };
-	if (!generator_layer) {
-		return false;
+	Scene* scene{ HasScene() ? &GetScene() : nullptr };
+	std::optional<SceneLayerId> generator_layer_id;
+	const SceneLayer* generator_layer{};
+
+	if (scene) {
+		generator_layer_id = scene->GetLayers().GetLayerId(*this);
+		if (!generator_layer_id.has_value()) {
+			return false;
+		}
+		generator_layer = scene->GetLayers().Find(*generator_layer_id);
+		if (!generator_layer) {
+			return false;
+		}
 	}
 
 	std::optional<Transform> world_transform{
@@ -92,15 +101,21 @@ bool PaintGenerator::SetTargetTilemap(std::optional<Tilemap> target) {
 		return true;
 	}
 
-	if (!*target || &target->GetScene() != &GetScene() || !IsTilemap(*target)) {
-		return false;
-	}
-	if (generator_layer->kind != SceneLayerKind::Tile) {
+	if (!*target || !IsTilemap(*target)) {
 		return false;
 	}
 
-	auto target_layer{ GetScene().GetLayers().GetLayerId(*target) };
-	if (!target_layer.has_value() || *target_layer != *generator_layer_id) {
+	if (scene) {
+		if (!target->HasScene() || &target->GetScene() != scene ||
+			generator_layer->kind != SceneLayerKind::Tile) {
+			return false;
+		}
+
+		auto target_layer{ scene->GetLayers().GetLayerId(*target) };
+		if (!target_layer.has_value() || *target_layer != *generator_layer_id) {
+			return false;
+		}
+	} else if (target->HasScene() || &target->GetManager() != &GetManager()) {
 		return false;
 	}
 
@@ -141,16 +156,17 @@ bool IsPaintGenerator(Entity entity) {
 	return entity && entity.Has<impl::PaintGeneratorData>();
 }
 
-PaintGenerator CreatePaintGenerator(Scene& scene, SceneLayerId layer, Tag tag) {
-	if (!scene.GetLayers().Find(layer)) {
+PaintGenerator CreatePaintGenerator(EntityCreationContext context, SceneLayerId layer, Tag tag) {
+	Scene* scene{ context.GetScene() };
+	if (scene && !scene->GetLayers().Find(layer)) {
 		return {};
 	}
 
-	Entity entity{ scene.CreateEntity(std::move(tag)) };
+	Entity entity{ context.CreateEntity(std::move(tag)) };
 	entity.TryAdd<Transform>();
 	entity.Add<impl::PaintGeneratorData>();
 
-	if (!scene.GetLayers().Assign(entity, layer, false)) {
+	if (scene && !scene->GetLayers().Assign(entity, layer, false)) {
 		entity.Destroy();
 		return {};
 	}
