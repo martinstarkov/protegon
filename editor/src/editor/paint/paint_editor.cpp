@@ -187,6 +187,42 @@ template <typename Range>
 		   presentation_viewport.GetCenter();
 }
 
+[[nodiscard]] std::array<V2_float, 4> ViewportWorldCorners(
+	Viewport image_viewport, Viewport presentation_viewport, const FrameContext& frame
+) {
+	V2_float minimum{ image_viewport.position };
+	V2_float maximum{ image_viewport.position + image_viewport.size };
+	return {
+		ScreenToWorld(minimum, frame, presentation_viewport),
+		ScreenToWorld({ maximum.x, minimum.y }, frame, presentation_viewport),
+		ScreenToWorld(maximum, frame, presentation_viewport),
+		ScreenToWorld({ minimum.x, maximum.y }, frame, presentation_viewport),
+	};
+}
+
+[[nodiscard]] bool CellVisibleInViewport(
+	V2_float world_min, V2_float cell_size, Viewport image_viewport, Viewport presentation_viewport,
+	const FrameContext& frame
+) {
+	V2_float world_max{ world_min + cell_size };
+	std::array<V2_float, 4> vertices{
+		WorldToScreen(world_min, frame, presentation_viewport),
+		WorldToScreen({ world_max.x, world_min.y }, frame, presentation_viewport),
+		WorldToScreen(world_max, frame, presentation_viewport),
+		WorldToScreen({ world_min.x, world_max.y }, frame, presentation_viewport),
+	};
+	V2_float minimum{ vertices.front() };
+	V2_float maximum{ minimum };
+	for (V2_float vertex : vertices) {
+		minimum = Min(minimum, vertex);
+		maximum = Max(maximum, vertex);
+	}
+	V2_float view_min{ image_viewport.position };
+	V2_float view_max{ image_viewport.position + image_viewport.size };
+	return minimum.x < view_max.x && maximum.x > view_min.x && minimum.y < view_max.y &&
+		   maximum.y > view_min.y;
+}
+
 struct PrefabGeneratorPreview {
 	TextureKey texture{};
 	::ptgn::impl::TextureId texture_id{};
@@ -1286,7 +1322,7 @@ bool DrawOriginCombo(const char* id, Origin& origin) {
 	}
 
 	bool changed{};
-	if (ImGui::BeginCombo(id, selected_label, ImGuiComboFlags_NoArrowButton)) {
+	if (ImGui::BeginCombo(id, selected_label)) {
 		for (const auto& entry : entries) {
 			bool selected{ entry.value == origin };
 			if (ImGui::Selectable(entry.label, selected)) {
@@ -1369,11 +1405,12 @@ void DrawToolButton(PaintTool tool, PaintTool& selected) {
 	}
 }
 
-[[nodiscard]] float SteppedIntControlWidth(int maximum) {
+[[nodiscard]] float SteppedIntControlWidth() {
 	const auto& style{ ImGui::GetStyle() };
-	std::string preview{ std::to_string(maximum) };
+	// Match the width of the Line Thickness control for every stepped integer control.
+	constexpr const char* preview{ "32" };
 	float input_width{
-		std::ceil(ImGui::CalcTextSize(preview.c_str()).x + style.FramePadding.x * 2.0f + 4.0f)
+		std::ceil(ImGui::CalcTextSize(preview).x + style.FramePadding.x * 2.0f + 4.0f)
 	};
 	return ImGui::GetFrameHeight() * 2.0f + input_width + 4.0f;
 }
@@ -1383,7 +1420,7 @@ void DrawSteppedIntControl(const char* id, int& value, int maximum, const char* 
 
 	constexpr float spacing{ 2.0f };
 	float button_size{ ImGui::GetFrameHeight() };
-	float input_width{ SteppedIntControlWidth(maximum) - button_size * 2.0f - spacing * 2.0f };
+	float input_width{ SteppedIntControlWidth() - button_size * 2.0f - spacing * 2.0f };
 
 	if (ImGui::Button("-", { button_size, button_size })) {
 		value = std::max(1, value - 1);
@@ -1413,18 +1450,20 @@ void DrawSteppedIntControl(const char* id, int& value, int maximum, const char* 
 
 [[nodiscard]] float BrushShapeComboWidth() {
 	const auto& style{ ImGui::GetStyle() };
-	return std::ceil(ImGui::CalcTextSize("    Square").x + style.FramePadding.x * 2.0f + 2.0f);
+	return std::ceil(
+		ImGui::CalcTextSize("  Square").x + style.FramePadding.x * 2.0f + ImGui::GetFrameHeight()
+	);
 }
 
 void DrawBrushShapeCombo(const char* id, PaintBrushShape& shape, float width = 0.0f) {
 	float combo_width{ width > 0.0f ? width : BrushShapeComboWidth() };
-	const char* preview{ shape == PaintBrushShape::Circle ? "    Circle" : "    Square" };
+	const char* preview{ shape == PaintBrushShape::Circle ? "  Circle" : "  Square" };
 	ImGui::SetNextItemWidth(combo_width);
 	ImGui::SetNextWindowSizeConstraints({ BrushShapeComboWidth(), 0.0f }, { combo_width, FLT_MAX });
-	if (ImGui::BeginCombo(id, preview, ImGuiComboFlags_NoArrowButton)) {
+	if (ImGui::BeginCombo(id, preview)) {
 		for (PaintBrushShape choice : { PaintBrushShape::Circle, PaintBrushShape::Square }) {
 			bool selected{ choice == shape };
-			const char* label{ choice == PaintBrushShape::Circle ? "    Circle" : "    Square" };
+			const char* label{ choice == PaintBrushShape::Circle ? "  Circle" : "  Square" };
 			if (ImGui::Selectable(label, selected)) {
 				shape = choice;
 			}
@@ -1461,15 +1500,15 @@ void DrawBrushShapeCombo(const char* id, PaintBrushShape& shape, float width = 0
 	}
 }
 
-// A standard ImGui::Combo cannot hide its arrow, so paint options use BeginCombo.
-bool DrawNoArrowCombo(const char* id, int& current, const char* items) {
+// Draw a paint option combo with the standard arrow.
+bool DrawPaintCombo(const char* id, int& current, const char* items) {
 	const char* label{ items };
 	for (int index{}; index < current && *label; ++index) {
 		label += std::strlen(label) + 1;
 	}
 
 	bool changed{};
-	if (ImGui::BeginCombo(id, label, ImGuiComboFlags_NoArrowButton)) {
+	if (ImGui::BeginCombo(id, label)) {
 		int index{};
 		for (const char* item{ items }; *item; item += std::strlen(item) + 1, ++index) {
 			bool selected{ index == current };
@@ -2190,7 +2229,7 @@ void PaintEditor::DrawBrushSettingsToolbar(EditorContext& ctx, Scene& scene, Sce
 				preview += ": ";
 			}
 			preview += item_at(items, i);
-			width	 = std::max(width, compact_width(preview));
+			width	 = std::max(width, compact_width(preview, ImGui::GetFrameHeight()));
 		}
 		return width;
 	};
@@ -2209,7 +2248,7 @@ void PaintEditor::DrawBrushSettingsToolbar(EditorContext& ctx, Scene& scene, Sce
 		);
 
 		bool changed{};
-		if (ImGui::BeginCombo(id, preview.c_str(), ImGuiComboFlags_NoArrowButton)) {
+		if (ImGui::BeginCombo(id, preview.c_str())) {
 			for (int i{}; i < count; ++i) {
 				bool selected{ i == value };
 				if (ImGui::Selectable(item_at(items, i), selected)) {
@@ -2226,7 +2265,7 @@ void PaintEditor::DrawBrushSettingsToolbar(EditorContext& ctx, Scene& scene, Sce
 	};
 
 	float control_height{ ImGui::GetFrameHeight() };
-	float combo_arrow_width{ 0.0f };
+	float combo_arrow_width{ ImGui::GetFrameHeight() };
 	static constexpr std::array source_names{ "Single", "Weighted", "Checkered", "Autotile",
 											  "Noise" };
 	float source_combo_width{};
@@ -2260,7 +2299,7 @@ void PaintEditor::DrawBrushSettingsToolbar(EditorContext& ctx, Scene& scene, Sce
 	auto draw_options = [&] {
 		float spacing{ ImGui::GetStyle().ItemSpacing.x };
 		float available{ std::max(0.0f, ImGui::GetContentRegionAvail().x - 2.0f) };
-		float more_width{ compact_width("More") };
+		float more_width{ compact_width("More", ImGui::GetFrameHeight()) };
 		std::size_t inline_count{ options.size() };
 
 		auto inline_width = [&](std::size_t count) {
@@ -2298,7 +2337,7 @@ void PaintEditor::DrawBrushSettingsToolbar(EditorContext& ctx, Scene& scene, Sce
 			// Keep the More control at its measured width instead of shrinking its label.
 			ImGui::SetNextItemWidth(more_width);
 			ImGui::SetNextWindowSizeConstraints(ImVec2{ 330.0f, 0.0f }, ImVec2{ 460.0f, 520.0f });
-			if (ImGui::BeginCombo("##PaintMore", "More", ImGuiComboFlags_NoArrowButton)) {
+			if (ImGui::BeginCombo("##PaintMore", "More")) {
 				more_popup_inset = ComboPopupSideInset();
 				ImGui::Indent(more_popup_inset);
 
@@ -2340,7 +2379,7 @@ void PaintEditor::DrawBrushSettingsToolbar(EditorContext& ctx, Scene& scene, Sce
 
 	auto add_diameter = [&](const char* id, int& diameter) {
 		int* diameter_ptr{ &diameter };
-		add_option("Diameter", SteppedIntControlWidth(128), [diameter_ptr, id] {
+		add_option("Diameter", SteppedIntControlWidth(), [diameter_ptr, id] {
 			DrawSteppedIntControl(id, *diameter_ptr, 128, "Brush diameter");
 		});
 	};
@@ -2561,9 +2600,7 @@ void PaintEditor::DrawBrushSettingsToolbar(EditorContext& ctx, Scene& scene, Sce
 				ImVec2{ source_popup_min_width, 0.0f }, ImVec2{ source_popup_max_width, 680.0f }
 			);
 
-			bool source_open{ ImGui::BeginCombo(
-				"##PaintSource", source_preview.c_str(), ImGuiComboFlags_NoArrowButton
-			) };
+			bool source_open{ ImGui::BeginCombo("##PaintSource", source_preview.c_str()) };
 			bool source_hovered{ ImGui::IsItemHovered() };
 
 			if (source_open) {
@@ -2642,14 +2679,9 @@ void PaintEditor::DrawBrushSettingsToolbar(EditorContext& ctx, Scene& scene, Sce
 	}
 
 	if (tool_ == PaintTool::Line) {
-		add_option("Thickness", SteppedIntControlWidth(32), [&] {
+		add_option("Thickness", SteppedIntControlWidth(), [&] {
 			DrawSteppedIntControl("LineThickness", line_thickness_, 32, "Line thickness");
 		});
-		draw_extra_settings = [&](float popup_inset) {
-			BeginRecipeFillField("Spacing", popup_inset);
-			ImGui::DragInt("##LineSpacing", &line_spacing_, 0.2f, 1, 32, "%d");
-			line_spacing_ = std::max(1, line_spacing_);
-		};
 	}
 
 	if (tool_ == PaintTool::Rectangle) {
@@ -2664,7 +2696,7 @@ void PaintEditor::DrawBrushSettingsToolbar(EditorContext& ctx, Scene& scene, Sce
 		});
 
 		if (area_mode_ == PaintAreaMode::Outline || area_mode_ == PaintAreaMode::Corners) {
-			add_option("Thickness", SteppedIntControlWidth(32), [&] {
+			add_option("Thickness", SteppedIntControlWidth(), [&] {
 				DrawSteppedIntControl(
 					"AreaThickness", area_thickness_, 32,
 					area_mode_ == PaintAreaMode::Corners ? "Corner thickness" : "Outline thickness"
@@ -2682,6 +2714,15 @@ void PaintEditor::DrawBrushSettingsToolbar(EditorContext& ctx, Scene& scene, Sce
 				);
 			});
 		}
+	}
+
+	if (tool_ == PaintTool::Line && recipe_.operation == PaintBrushOperation::ExclusionMask) {
+		draw_extra_settings = [&](float popup_inset) {
+			ImGui::SeparatorText("Coverage");
+			BeginRecipeFillField("Spacing", popup_inset);
+			ImGui::DragInt("##LineSpacing", &line_spacing_, 0.2f, 1, 32, "%d");
+			line_spacing_ = std::max(1, line_spacing_);
+		};
 	}
 
 	recipe_applies = source_applicable;
@@ -2727,32 +2768,38 @@ void PaintEditor::DrawBrushSettingsToolbar(EditorContext& ctx, Scene& scene, Sce
 			});
 		}
 
-		draw_recipe_settings = [&](float more_popup_inset) {
+		draw_recipe_settings = [&](float right_inset) {
 			ImGui::SeparatorText("Coverage");
 
 			int coverage{ static_cast<int>(recipe_.coverage) };
-			BeginRecipeFillField("Coverage", more_popup_inset);
-			if (DrawNoArrowCombo(
+			BeginRecipeFillField("Coverage", right_inset);
+			if (DrawPaintCombo(
 					"##PaintCoverage", coverage, "Solid\0Random Density\0Radial Falloff\0"
 				)) {
 				recipe_.coverage = static_cast<PaintCoverageMode>(coverage);
 			}
 
+			if (tool_ == PaintTool::Line) {
+				BeginRecipeFillField("Spacing", right_inset);
+				ImGui::DragInt("##LineSpacing", &line_spacing_, 0.2f, 1, 32, "%d");
+				line_spacing_ = std::max(1, line_spacing_);
+			}
+
 			if (recipe_.coverage == PaintCoverageMode::RandomDensity) {
-				BeginRecipeFillField("Density", more_popup_inset);
+				BeginRecipeFillField("Density", right_inset);
 				ImGui::SliderFloat("##PaintCoverageDensity", &recipe_.density, 0.0f, 1.0f, "%.2f");
 			} else if (recipe_.coverage == PaintCoverageMode::RadialFalloff) {
-				BeginRecipeFillField("Center Density", more_popup_inset);
+				BeginRecipeFillField("Center Density", right_inset);
 				ImGui::SliderFloat(
 					"##PaintCoverageCenterDensity", &recipe_.density, 0.0f, 1.0f, "%.2f"
 				);
 
-				BeginRecipeFillField("Inner", more_popup_inset);
+				BeginRecipeFillField("Inner", right_inset);
 				ImGui::SliderFloat(
 					"##PaintCoverageRadialInner", &recipe_.radial_inner, 0.0f, 0.95f, "%.2f"
 				);
 
-				BeginRecipeFillField("Outer", more_popup_inset);
+				BeginRecipeFillField("Outer", right_inset);
 				ImGui::SliderFloat(
 					"##PaintCoverageRadialOuter", &recipe_.radial_outer, 0.05f, 1.0f, "%.2f"
 				);
@@ -2816,12 +2863,12 @@ void PaintEditor::DrawBrushSettingsToolbar(EditorContext& ctx, Scene& scene, Sce
 
 				if (source_size_differs) {
 					int placement{ static_cast<int>(recipe_.tile_placement) };
-					BeginRecipeFillField("Placement", more_popup_inset);
-					if (DrawNoArrowCombo("##PaintTilePlacement", placement, "Grid\0Tile\0")) {
+					BeginRecipeFillField("Placement", right_inset);
+					if (DrawPaintCombo("##PaintTilePlacement", placement, "Grid\0Tile\0")) {
 						recipe_.tile_placement = static_cast<PaintTilePlacementMode>(placement);
 					}
 
-					BeginRecipeFillField("Origin", more_popup_inset);
+					BeginRecipeFillField("Origin", right_inset);
 					DrawOriginCombo("##PaintTileOrigin", recipe_.tile_origin);
 				} else {
 					recipe_.tile_placement = PaintTilePlacementMode::Tile;
@@ -2858,7 +2905,7 @@ void PaintEditor::DrawBrushSettingsToolbar(EditorContext& ctx, Scene& scene, Sce
 				}
 
 				if (!source_matches_grid) {
-					BeginRecipeFillField("Origin", more_popup_inset);
+					BeginRecipeFillField("Origin", right_inset);
 					DrawOriginCombo("##PaintEntityOrigin", recipe_.entity_origin);
 				} else {
 					recipe_.entity_origin = Origin::Center;
@@ -2868,7 +2915,7 @@ void PaintEditor::DrawBrushSettingsToolbar(EditorContext& ctx, Scene& scene, Sce
 				BeginRecipeFillRow("Random Rotation");
 				ImGui::Checkbox("##PaintRandomRotation", &recipe_.random_rotation);
 				if (recipe_.random_rotation) {
-					BeginRecipeFillField("Rotation", more_popup_inset);
+					BeginRecipeFillField("Rotation", right_inset);
 					ImGui::DragFloatRange2(
 						"Rotation##PaintRotationRange", &recipe_.rotation_min,
 						&recipe_.rotation_max, 0.5f, -3600.0f, 3600.0f, "%.0f", "%.0f"
@@ -2878,7 +2925,7 @@ void PaintEditor::DrawBrushSettingsToolbar(EditorContext& ctx, Scene& scene, Sce
 				BeginRecipeFillRow("Random Scale");
 				ImGui::Checkbox("##PaintRandomScale", &recipe_.random_scale);
 				if (recipe_.random_scale) {
-					BeginRecipeFillField("Scale", more_popup_inset);
+					BeginRecipeFillField("Scale", right_inset);
 					ImGui::DragFloatRange2(
 						"Scale##PaintScaleRange", &recipe_.scale_min, &recipe_.scale_max, 0.01f,
 						0.01f, 8.0f, "%.2f", "%.2f"
@@ -2886,7 +2933,7 @@ void PaintEditor::DrawBrushSettingsToolbar(EditorContext& ctx, Scene& scene, Sce
 				}
 
 				if (recipe_.coverage != PaintCoverageMode::Solid) {
-					BeginRecipeFillField("Minimum Spacing", more_popup_inset);
+					BeginRecipeFillField("Minimum Spacing", right_inset);
 					ImGui::DragFloat(
 						"##PaintMinimumSpacing", &recipe_.min_spacing, 0.25f, 0.0f, 4096.0f, "%.1f"
 					);
@@ -2898,7 +2945,7 @@ void PaintEditor::DrawBrushSettingsToolbar(EditorContext& ctx, Scene& scene, Sce
 			if (ImGui::Button(
 					"Create Infinite Generator",
 					ImVec2{
-						std::max(1.0f, ImGui::GetContentRegionAvail().x - more_popup_inset),
+						std::max(1.0f, ImGui::GetContentRegionAvail().x - right_inset),
 						0.0f,
 					}
 				)) {
@@ -3182,7 +3229,7 @@ void PaintEditor::DrawNoiseRecipe(EditorContext& ctx, Scene&, SceneLayer& layer)
 	}
 
 	BeginRecipeFillField("Type", source_popup_inset);
-	if (DrawNoArrowCombo("##PaintNoiseType", type_index, "Perlin\0Simplex\0Value\0")) {
+	if (DrawPaintCombo("##PaintNoiseType", type_index, "Perlin\0Simplex\0Value\0")) {
 		recipe_.noise.type = type_index == 0 ? NoiseType::Perlin
 						   : type_index == 1 ? NoiseType::Simplex
 											 : NoiseType::Value;
@@ -3273,7 +3320,7 @@ void PaintEditor::DrawNoiseRecipe(EditorContext& ctx, Scene&, SceneLayer& layer)
 					  : region.source_kind == PaintSourceKind::WeightedSet ? 2
 																		   : 1 };
 			ImGui::SetNextItemWidth(-FLT_MIN);
-			if (DrawNoArrowCombo("##NoiseRangeKind", kind, "None\0Single\0Weighted Set\0")) {
+			if (DrawPaintCombo("##NoiseRangeKind", kind, "None\0Single\0Weighted Set\0")) {
 				region.enabled = kind != 0;
 				region.source_kind =
 					kind == 2 ? PaintSourceKind::WeightedSet : PaintSourceKind::Single;
@@ -8343,7 +8390,28 @@ void PaintEditor::BeginStroke(EditorContext& ctx, Scene& scene, V2_float world) 
 
 	if (const SceneLayer* layer{ ResolveActiveLayer(scene) };
 		layer && layer->kind == SceneLayerKind::Tile) {
-		if (Tilemap map{ ResolveTargetTilemap(scene) }) {
+		Tilemap map{ ResolveTargetTilemap(scene) };
+		bool content_tool{ tool_ == PaintTool::Brush || tool_ == PaintTool::Line ||
+						   tool_ == PaintTool::Rectangle || tool_ == PaintTool::Fill };
+		bool creates_content{ recipe_.operation == PaintBrushOperation::Paint ||
+							  recipe_.operation == PaintBrushOperation::ExclusionMask };
+		bool generator_stroke{ recipe_.commit_mode == PaintCommitMode::KeepGenerator &&
+							   recipe_.operation != PaintBrushOperation::ExclusionMask &&
+							   tool_ != PaintTool::Fill };
+		if (!map && content_tool && creates_content && !generator_stroke) {
+			V2_float grid_size{ ActiveGridSize(scene) };
+			V2_float grid_origin{ ActiveGridOrigin(scene) };
+			map = CreateTilemap(scene, layer->id);
+			if (map) {
+				map.SetCellSize(grid_size);
+				SetPosition(map, grid_origin);
+				scene.Refresh();
+				stroke_.created_tilemap			= true;
+				stroke_.previous_target_tilemap = target_tilemap_;
+				target_tilemap_					= map.Get<UUID>();
+			}
+		}
+		if (map) {
 			stroke_.tilemap		   = map.Get<UUID>();
 			stroke_.tilemap_before = map.GetData();
 		}
@@ -8643,7 +8711,7 @@ void PaintEditor::ApplyAt(EditorContext& ctx, Scene& scene, V2_float world) {
 	}
 }
 
-void PaintEditor::EraseAt(EditorContext& ctx, Scene& scene, V2_float world) {
+void PaintEditor::EraseAt(EditorContext&, Scene& scene, V2_float world) {
 	SceneLayer* layer{ ResolveActiveLayer(scene) };
 	if (!layer || layer->locked) {
 		return;
@@ -8765,15 +8833,53 @@ void PaintEditor::EraseAt(EditorContext& ctx, Scene& scene, V2_float world) {
 	}
 }
 
-void PaintEditor::FillAt(EditorContext& ctx, Scene& scene, V2_float world) {
+void PaintEditor::FillAt(
+	EditorContext& ctx, Scene& scene, V2_float world, Viewport image_viewport,
+	Viewport presentation_viewport, const FrameContext& frame
+) {
 	SceneLayer* layer{ ResolveActiveLayer(scene) };
 	if (!layer || layer->locked) {
 		return;
 	}
 
+	auto viewport_corners{ ViewportWorldCorners(image_viewport, presentation_viewport, frame) };
+	V2_float minimum{ viewport_corners.front() };
+	V2_float maximum{ minimum };
+	for (V2_float vertex : viewport_corners) {
+		minimum = Min(minimum, vertex);
+		maximum = Max(maximum, vertex);
+	}
+
+	auto fill_visible_cells = [&](auto to_cell, auto cell_to_world, V2_float cell_size,
+								  auto apply) {
+		V2_int first{ to_cell(minimum) - V2_int{ 1, 1 } };
+		V2_int last{ to_cell(maximum) + V2_int{ 1, 1 } };
+		std::size_t filled{};
+		for (int y{ first.y }; y <= last.y && filled < kMaxFloodCells; ++y) {
+			for (int x{ first.x }; x <= last.x && filled < kMaxFloodCells; ++x) {
+				V2_int cell{ x, y };
+				if (!CellVisibleInViewport(
+						cell_to_world(cell), cell_size, image_viewport, presentation_viewport, frame
+					)) {
+					continue;
+				}
+				apply(cell);
+				++filled;
+			}
+		}
+	};
+
 	if (layer->kind == SceneLayerKind::Tile) {
 		Tilemap map{ ResolveTargetTilemap(scene) };
 		if (!map) {
+			return;
+		}
+		if (recipe_.operation == PaintBrushOperation::ExclusionMask) {
+			fill_visible_cells(
+				[&](V2_float point) { return map.WorldToCell(point); },
+				[&](V2_int cell) { return map.CellToWorld(cell); }, map.GetData().cell_size,
+				[&](V2_int cell) { map.SetExcluded(cell, true); }
+			);
 			return;
 		}
 		V2_int start{ map.WorldToCell(world) };
@@ -8839,29 +8945,11 @@ void PaintEditor::FillAt(EditorContext& ctx, Scene& scene, V2_float world) {
 			return;
 		}
 
-		V2_int mask_min{};
-		V2_int mask_max{};
-		bool masking{ recipe_.operation == PaintBrushOperation::ExclusionMask };
-		if (masking) {
-			auto vertices{ scene.ctx().camera.GetWorldVertices() };
-			V2_float minimum{ vertices.front() };
-			V2_float maximum{ vertices.front() };
-			for (V2_float vertex : vertices) {
-				minimum = Min(minimum, vertex);
-				maximum = Max(maximum, vertex);
-			}
-			mask_min = map.WorldToCell(minimum) - V2_int{ 1, 1 };
-			mask_max = map.WorldToCell(maximum) + V2_int{ 1, 1 };
-		}
 		std::vector<V2_int> queue{ start };
 		std::unordered_set<V2_int> visited;
 		visited.reserve(1024);
 		for (std::size_t head{}; head < queue.size() && visited.size() < kMaxFloodCells; ++head) {
 			V2_int cell{ queue[head] };
-			if (masking && (cell.x < mask_min.x || cell.x > mask_max.x || cell.y < mask_min.y ||
-							cell.y > mask_max.y)) {
-				continue;
-			}
 			if (!visited.insert(cell).second) {
 				continue;
 			}
@@ -8882,15 +8970,14 @@ void PaintEditor::FillAt(EditorContext& ctx, Scene& scene, V2_float world) {
 		return;
 	}
 
-	// Entity fill is deliberately bounded to the visible scene camera rectangle so an empty
-	// connected region can never expand forever. It fills either the connected empty region or,
-	// with Replace, the connected occupied region starting under the cursor.
-	auto vertices{ scene.ctx().camera.GetWorldVertices() };
-	V2_float minimum{ vertices.front() };
-	V2_float maximum{ vertices.front() };
-	for (V2_float vertex : vertices) {
-		minimum = Min(minimum, vertex);
-		maximum = Max(maximum, vertex);
+	// The viewport bounds follow the editor presentation camera and its current zoom.
+	if (recipe_.operation == PaintBrushOperation::ExclusionMask) {
+		fill_visible_cells(
+			[&](V2_float point) { return WorldToActiveCell(scene, point); },
+			[&](V2_int cell) { return ActiveCellToWorld(scene, cell); }, ActiveGridSize(scene),
+			[&](V2_int cell) { stroke_.entity_mask_cells.insert(cell); }
+		);
+		return;
 	}
 	V2_int min_cell{ WorldToActiveCell(scene, minimum) - V2_int{ 1, 1 } };
 	V2_int max_cell{ WorldToActiveCell(scene, maximum) + V2_int{ 1, 1 } };
@@ -9664,11 +9751,32 @@ void PaintEditor::CommitTileStroke(EditorContext& ctx, Scene& scene) {
 		}
 	}
 
+	bool created_tilemap{ stroke_.created_tilemap && map_uuid.has_value() };
+	if (stroke_.created_tilemap && !map_uuid.has_value()) {
+		if (stroke_.tilemap.has_value()) {
+			if (Entity map{ scene.GetEntity(*stroke_.tilemap) }) {
+				map.Destroy();
+				scene.Refresh();
+			}
+		}
+		target_tilemap_ = stroke_.previous_target_tilemap;
+	}
+
 	if (!map_uuid && generator_before.empty()) {
 		return;
 	}
 
+	std::optional<SerializedEntity> created_snapshot;
+	SceneLayerId created_layer{};
+	if (created_tilemap) {
+		Entity map{ scene.GetEntity(*map_uuid) };
+		created_snapshot = SerializeEntity(map);
+		created_layer	 = scene.GetLayers().GetLayerId(map).value_or(GetActiveLayer(scene));
+	}
+
+	std::optional<UUID> previous_target_tilemap{ stroke_.previous_target_tilemap };
 	Scene* scene_ptr{ &scene };
+	PaintEditor* paint{ this };
 	auto apply_generators =
 		[scene_ptr](const std::vector<std::pair<UUID, ::ptgn::impl::PaintGeneratorData>>& states) {
 			for (const auto& [uuid, data] : states) {
@@ -9681,8 +9789,21 @@ void PaintEditor::CommitTileStroke(EditorContext& ctx, Scene& scene) {
 
 	PushPaintUndo(
 		ctx, scene, tool_ == PaintTool::Erase ? "Erase Paint" : "Paint Tiles",
-		[scene_ptr, map_uuid, map_before, generator_before, apply_generators]() mutable {
-			if (map_uuid && map_before) {
+		[scene_ptr, paint, map_uuid, map_before, created_tilemap, previous_target_tilemap,
+		 generator_before, apply_generators]() mutable {
+			if (created_tilemap && map_uuid) {
+				if (Entity map{ scene_ptr->GetEntity(*map_uuid) }) {
+					map.Destroy();
+					scene_ptr->Refresh();
+				}
+				if (paint->target_tilemap_ == map_uuid) {
+					paint->target_tilemap_ = previous_target_tilemap;
+				}
+				if (paint->selected_tilemap_ == map_uuid) {
+					paint->selected_tilemap_.reset();
+					paint->selected_tile_cells_.clear();
+				}
+			} else if (map_uuid && map_before) {
 				if (Entity entity{ scene_ptr->GetEntity(*map_uuid) };
 					entity && entity.Has<::ptgn::impl::TilemapData>()) {
 					entity.Get<::ptgn::impl::TilemapData>() = *map_before;
@@ -9690,8 +9811,15 @@ void PaintEditor::CommitTileStroke(EditorContext& ctx, Scene& scene) {
 			}
 			apply_generators(generator_before);
 		},
-		[scene_ptr, map_uuid, map_after, generator_after, apply_generators]() mutable {
-			if (map_uuid && map_after) {
+		[scene_ptr, paint, map_uuid, map_after, created_tilemap, created_snapshot, created_layer,
+		 generator_after, apply_generators]() mutable {
+			if (created_tilemap && map_uuid && created_snapshot) {
+				if (!scene_ptr->GetEntity(*map_uuid)) {
+					RestoreEntityTree(*scene_ptr, *created_snapshot, created_layer);
+					scene_ptr->Refresh();
+				}
+				paint->target_tilemap_ = map_uuid;
+			} else if (map_uuid && map_after) {
 				if (Entity entity{ scene_ptr->GetEntity(*map_uuid) };
 					entity && entity.Has<::ptgn::impl::TilemapData>()) {
 					entity.Get<::ptgn::impl::TilemapData>() = *map_after;
@@ -9852,10 +9980,16 @@ void PaintEditor::CancelStroke(EditorContext&, Scene& scene) {
 	if (!stroke_.active) {
 		return;
 	}
-	if (stroke_.tilemap.has_value() && stroke_.tilemap_before.has_value()) {
-		if (Entity e{ scene.GetEntity(*stroke_.tilemap) };
-			e && e.Has<::ptgn::impl::TilemapData>()) {
-			e.Get<::ptgn::impl::TilemapData>() = *stroke_.tilemap_before;
+	if (stroke_.created_tilemap && stroke_.tilemap.has_value()) {
+		if (Entity map{ scene.GetEntity(*stroke_.tilemap) }) {
+			map.Destroy();
+			scene.Refresh();
+		}
+		target_tilemap_ = stroke_.previous_target_tilemap;
+	} else if (stroke_.tilemap.has_value() && stroke_.tilemap_before.has_value()) {
+		if (Entity map{ scene.GetEntity(*stroke_.tilemap) };
+			map && map.Has<::ptgn::impl::TilemapData>()) {
+			map.Get<::ptgn::impl::TilemapData>() = *stroke_.tilemap_before;
 		}
 	}
 	for (const auto& [uuid, before] : stroke_.generator_before) {
@@ -10974,8 +11108,9 @@ bool PaintEditor::DrawViewportAndHandleInput(
 			continue;
 		}
 		for (V2_int cell : mask.cells) {
-			V2_float mn{ entity_grid_offset_.x + cell.x * entity_grid_size_.x,
-						 entity_grid_offset_.y + cell.y * entity_grid_size_.y };
+			V2_float mn{ entity_grid_offset_ +
+						 V2_float{ static_cast<float>(cell.x), static_cast<float>(cell.y) } *
+							 entity_grid_size_ };
 			V2_float mx{ mn + entity_grid_size_ };
 			ImVec2 p0{ ToImGui(WorldToScreen(mn, frame, presentation_viewport)) };
 			ImVec2 p1{ ToImGui(WorldToScreen(mx, frame, presentation_viewport)) };
@@ -11130,7 +11265,7 @@ bool PaintEditor::DrawViewportAndHandleInput(
 	if (tool_ == PaintTool::Fill) {
 		if (ImGui::IsMouseClicked(ImGuiMouseButton_Left) && inside) {
 			BeginStroke(ctx, scene, mouse_world);
-			FillAt(ctx, scene, mouse_world);
+			FillAt(ctx, scene, mouse_world, image_viewport, presentation_viewport, frame);
 			EndStroke(ctx, scene, mouse_world);
 			return true;
 		}

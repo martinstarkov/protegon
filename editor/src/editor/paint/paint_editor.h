@@ -392,6 +392,8 @@ private:
 		bool has_last_cell{};
 		std::optional<UUID> tilemap{};
 		std::optional<::ptgn::impl::TilemapData> tilemap_before{};
+		bool created_tilemap{};
+		std::optional<UUID> previous_target_tilemap{};
 		EntityStroke entities{};
 		std::vector<V2_int> entity_mask_before{};
 		bool entity_mask_capture{};
@@ -456,7 +458,10 @@ private:
 	void ApplyTileAt(EditorContext& ctx, Scene& scene, Tilemap tilemap, V2_int cell);
 	void ApplyEntityAt(EditorContext& ctx, Scene& scene, V2_float world);
 	void EraseAt(EditorContext& ctx, Scene& scene, V2_float world);
-	void FillAt(EditorContext& ctx, Scene& scene, V2_float world);
+	void FillAt(
+		EditorContext& ctx, Scene& scene, V2_float world, Viewport image_viewport,
+		Viewport presentation_viewport, const FrameContext& frame
+	);
 	void EyedropAt(EditorContext& ctx, Scene& scene, V2_float world);
 
 	void ApplyLine(EditorContext& ctx, Scene& scene, V2_float a, V2_float b);
