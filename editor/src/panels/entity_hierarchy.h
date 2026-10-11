@@ -2,12 +2,11 @@
 
 #include <imgui.h>
 
-#include <cctype>
 #include <cstddef>
 #include <string>
 #include <string_view>
-#include <utility>
 
+#include "core/util/string.h"
 #include "editor/editor_icons.h"
 #include "runtime/ecs/entity.h"
 #include "runtime/ecs/tag.h"
@@ -18,50 +17,29 @@ namespace ptgn::editor {
 
 namespace hierarchy {
 
-// TODO: Use string.h functions.
-[[nodiscard]] inline std::string TrimWhitespace(std::string value) {
-	auto first{ value.find_first_not_of(" \t\r\n") };
-
-	if (first == std::string::npos) {
-		return {};
-	}
-
-	auto last{ value.find_last_not_of(" \t\r\n") };
-
-	return value.substr(first, last - first + 1);
-}
-
-// TODO: Use string.h functions.
-[[nodiscard]] inline std::string ToLower(std::string value) {
-	for (char& c : value) {
-		c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
-	}
-
-	return value;
-}
-
 [[nodiscard]] inline bool MatchesFilter(Entity entity, std::string_view filter_text) {
 	if (filter_text.empty()) {
 		return true;
 	}
 
-	auto name{ ToLower(entity.Get<Tag>().value) };
-	auto filter{ std::string{ filter_text } };
+	std::string name{ ToLowerAscii(entity.Get<Tag>().value) };
 	bool has_name_include{ false };
 	bool matched_name_include{ false };
 	bool require_hidden{ false };
 	bool require_shown{ false };
 	std::size_t start{ 0 };
 
-	while (start <= filter.size()) {
-		auto comma{ filter.find(',', start) };
-		auto token{ comma == std::string::npos ? filter.substr(start)
-											   : filter.substr(start, comma - start) };
-		token = ToLower(TrimWhitespace(std::move(token)));
+	while (start <= filter_text.size()) {
+		std::size_t comma{ filter_text.find(',', start) };
+		std::string_view part{ comma == std::string_view::npos
+								   ? filter_text.substr(start)
+								   : filter_text.substr(start, comma - start) };
+		std::string token{ ToLowerAscii(TrimWhitespace(part)) };
+		std::string_view token_view{ token };
 
-		if (!token.empty()) {
-			if (token.front() == '*') {
-				auto filter_name{ TrimWhitespace(token.substr(1)) };
+		if (!token_view.empty()) {
+			if (token_view.front() == '*') {
+				std::string_view filter_name{ TrimWhitespace(token_view.substr(1)) };
 
 				if (filter_name == "hidden") {
 					require_hidden = true;
@@ -69,8 +47,10 @@ namespace hierarchy {
 					require_shown = true;
 				}
 			} else {
-				bool exclude{ token.front() == '-' };
-				auto needle{ TrimWhitespace(exclude ? token.substr(1) : token) };
+				bool exclude{ token_view.front() == '-' };
+				std::string_view needle{
+					TrimWhitespace(exclude ? token_view.substr(1) : token_view)
+				};
 
 				if (!needle.empty()) {
 					bool contains{ name.find(needle) != std::string::npos };
@@ -87,7 +67,7 @@ namespace hierarchy {
 			}
 		}
 
-		if (comma == std::string::npos) {
+		if (comma == std::string_view::npos) {
 			break;
 		}
 

@@ -4,7 +4,6 @@
 #include <imgui_stdlib.h>
 
 #include <algorithm>
-#include <cctype>
 #include <cfloat>
 #include <cstddef>
 #include <memory>
@@ -17,6 +16,7 @@
 #include <utility>
 #include <vector>
 
+#include "core/util/string.h"
 #include "panels/entity_hierarchy.h"
 #include "runtime/ecs/component_registry.h"
 #include "runtime/ecs/entity_group.h"
@@ -53,56 +53,6 @@ constexpr float kQueriesModeMinWidth{ 400.0f };
 constexpr float kTargetPopupWidth{ kComponentsModeMinWidth };
 constexpr float kTargetPopupScreenMargin{ 8.0f };
 constexpr float kComponentRowExtraHeight{ 4.0f };
-
-[[nodiscard]] char LowerAscii(char c) {
-	if (c >= 'A' && c <= 'Z') {
-		return static_cast<char>(c - 'A' + 'a');
-	}
-
-	return c;
-}
-
-[[nodiscard]] std::string TrimWhitespace(std::string value) {
-	auto first{ std::ranges::find_if(value, [](char c) {
-		return !std::isspace(static_cast<unsigned char>(c));
-	}) };
-
-	if (first == value.end()) {
-		return {};
-	}
-
-	auto last{ std::ranges::find_if(value | std::views::reverse, [](char c) {
-				   return !std::isspace(static_cast<unsigned char>(c));
-			   }).base() };
-	return std::string{ first, last };
-}
-
-[[nodiscard]] bool ContainsCaseInsensitive(std::string_view text, std::string_view filter) {
-	if (filter.empty()) {
-		return true;
-	}
-
-	if (filter.size() > text.size()) {
-		return false;
-	}
-
-	for (std::size_t i{ 0 }; i + filter.size() <= text.size(); ++i) {
-		bool matches{ true };
-
-		for (std::size_t j{ 0 }; j < filter.size(); ++j) {
-			if (LowerAscii(text[i + j]) != LowerAscii(filter[j])) {
-				matches = false;
-				break;
-			}
-		}
-
-		if (matches) {
-			return true;
-		}
-	}
-
-	return false;
-}
 
 [[nodiscard]] std::string_view ComponentDisplayName(const RegisteredComponent& component) {
 	std::string_view name{ component.name };
@@ -254,7 +204,7 @@ void EnsureLayerRef(Scene& scene, Entity owner, SceneLayerReference& reference) 
 		std::size_t comma{ filter.find(',', start) };
 		std::string token{ comma == std::string::npos ? filter.substr(start)
 													  : filter.substr(start, comma - start) };
-		token = TrimWhitespace(std::move(token));
+		token = std::string{ TrimWhitespace(token) };
 		std::ranges::transform(token, token.begin(), LowerAscii);
 
 		if (!token.empty()) {
