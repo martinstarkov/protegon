@@ -21,7 +21,7 @@ class Scene;
 
 /// @brief One authored tile placement owned by a Tilemap entity.
 ///
-/// The tile is intentionally self-contained at the engine layer: it references a texture and UVs
+/// The tile is intentionally self contained at the engine layer: it references a texture and UVs
 /// rather than an editor palette index. Editor side tile assets can later resolve down to this
 /// representation without making runtime scenes depend on palette/group UI state.
 struct TilemapTile {
