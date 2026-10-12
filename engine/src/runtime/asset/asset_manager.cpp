@@ -3330,13 +3330,24 @@ bool AssetManager::SavePrefabEntity(const PrefabKey& input_key) {
 		return false;
 	}
 
+	// The prefab editor uses serialized child index paths. Keep the exact child order
+	// instead of sorting by depth during capture, which would invalidate those paths.
+	auto capture = [&](auto&& self, Entity entity) -> SerializedEntity {
+		SerializedEntity result{
+			SerializeEntity(entity, { .include_uuid = false, .include_children = false })
+		};
+
+		if (HasChildren(entity)) {
+			for (Entity child : GetChildren(entity)) {
+				result.children.emplace_back(self(self, child));
+			}
+		}
+
+		return result;
+	};
+
 	it->second.value.key  = key;
-	it->second.value.root = SerializeEntity(
-		it->second.root, {
-							 .include_uuid	   = false,
-							 .include_children = true,
-						 }
-	);
+	it->second.value.root = capture(capture, it->second.root);
 	SavePrefabFile(it->second.file_path, it->second.value);
 	return true;
 }
