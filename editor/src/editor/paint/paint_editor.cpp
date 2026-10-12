@@ -2100,7 +2100,7 @@ void PaintEditor::DrawViewportToolButtons(EditorContext& ctx) {
 		if (DrawEditorIconButton(
 				"##GridVisible", grid_visible_ ? EditorIcon::Visible : EditorIcon::Hidden,
 				EditorIconButtonOptions{
-					.tooltip	   = grid_visible_ ? "Hide grid" : "Show grid",
+					.tooltip	   = grid_visible_ ? "Hide" : "Show",
 					.muted		   = !grid_visible_,
 					.no_navigation = true,
 					.icon_extent   = ImGui::GetTextLineHeight() + 2.0f,
@@ -5846,6 +5846,7 @@ bool PaintEditor::DrawTilesPanel(EditorContext& ctx) {
 					group_to_rename = group;
 					group_rename_modal.Begin(group);
 				}
+				ImGui::Separator();
 				if (ImGui::MenuItem("Delete")) {
 					GroupSnapshot before{ capture_groups() };
 					for (auto& entry : tile_library_) {

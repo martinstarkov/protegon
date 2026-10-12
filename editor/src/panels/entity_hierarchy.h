@@ -143,7 +143,7 @@ inline bool DrawLayerControls(const SceneLayer& layer, const LayerControlsOption
 	bool pressed{ DrawEditorIconButton(
 		"##LayerVisible", layer.visible ? EditorIcon::Visible : EditorIcon::Hidden,
 		EditorIconButtonOptions{
-			.tooltip	 = layer.visible ? "Hide layer" : "Show layer",
+			.tooltip	 = layer.visible ? "Hide Layer" : "Show Layer",
 			.compact	 = true,
 			.interactive = options.visibility_interactive,
 			.muted		 = !layer.visible,

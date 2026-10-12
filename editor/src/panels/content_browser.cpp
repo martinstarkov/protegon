@@ -1180,7 +1180,7 @@ void ContentBrowserPanel::DrawToolbar(EditorContext& ctx) {
 
 	if (IsShaderDirectory(selected_directory_)) {
 		ImGui::SameLine();
-		if (ImGui::Checkbox("Show engine shaders", &show_engine_shaders_) &&
+		if (ImGui::Checkbox("Show Engine Shaders", &show_engine_shaders_) &&
 			!show_engine_shaders_ && IsBuiltinShaderDirectory(selected_directory_)) {
 			selected_directory_ = path{ "shaders" };
 			ClearAssetSelection();

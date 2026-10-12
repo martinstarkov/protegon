@@ -617,7 +617,7 @@ bool DrawEditorGeneralSettings(EditorContext& ctx, std::string_view filter) {
 
 	if (MatchesFilter(filter, { "show read only data", "read only inspector", "inspector data" })) {
 		auto settings{ ctx.editor.GetSettings() };
-		if (ImGui::Checkbox("Show Read-Only Data", &settings.show_read_only_inspector_data)) {
+		if (ImGui::Checkbox("Show Read Only Data", &settings.show_read_only_inspector_data)) {
 			ctx.editor.SetEditorSettings(settings);
 			changed = true;
 		}
@@ -636,7 +636,7 @@ bool DrawEditorGeneralSettings(EditorContext& ctx, std::string_view filter) {
 					}
 		)) {
 		auto settings{ ctx.editor.GetSettings() };
-		if (ImGui::Checkbox("Show Read-Only Scene Data", &settings.show_read_only_scene_data)) {
+		if (ImGui::Checkbox("Show Read Only Scene Data", &settings.show_read_only_scene_data)) {
 			ctx.editor.SetEditorSettings(settings);
 			changed = true;
 		}
