@@ -1,5 +1,6 @@
 #include <imgui_internal.h>
 
+#include "editor/editor_icons.h"
 #include "editor/renamable_item.h"
 #include "panels/inspector_archetype_inspector.h"
 #include "panels/inspector_geometry.h"
@@ -9,6 +10,84 @@
 namespace ptgn::editor::inspector {
 
 namespace {
+
+bool DrawPartVisibilityIcon(bool& visible) {
+	return DrawPropertyRow("Visible", [&]() {
+		if (!DrawEditorIconButton(
+				"##PartVisible", visible ? EditorIcon::Visible : EditorIcon::Hidden,
+				EditorIconButtonOptions{
+					.tooltip	 = visible ? "Hide" : "Show",
+					.muted		 = !visible,
+					.icon_extent = ImGui::GetTextLineHeight() + 2.0f,
+				}
+			)) {
+			return false;
+		}
+
+		visible = !visible;
+		return true;
+	});
+}
+
+bool DrawButtonPartVisibility(EntityInspectorTarget& target) {
+	using Hidden = ::ptgn::impl::HiddenButtonPart;
+
+	auto before{ target.Capture<Hidden>() };
+	bool visible{ !before.has_value() };
+	bool changed{ DrawPartVisibilityIcon(visible) };
+	if (!changed) {
+		return false;
+	}
+
+	target.SetLive<Hidden>(visible ? ComponentState<Hidden>{} : ComponentState<Hidden>{ Hidden{} });
+
+	auto refresh = +[](Entity child) {
+		Entity button{ GetParent(child) };
+		if (button && button.Has<::ptgn::impl::ButtonData>()) {
+			Button{ button }.RefreshVisualState();
+		}
+	};
+	refresh(target.entity);
+
+	auto after{ target.Capture<Hidden>() };
+	TrackComponentState(
+		target, "Toggle Part Visibility", std::move(before), std::move(after), true, refresh
+	);
+	return true;
+}
+
+bool DrawPartVisibility(EditorContext& ctx, Entity entity) {
+	if (!entity) {
+		return false;
+	}
+
+	EntityInspectorTarget target{ .ctx = ctx, .entity = entity };
+	ScopedID part_scope{ target.Id() };
+	ScopedID visible_scope{ "PartVisibility" };
+
+	if (entity.HasAny<
+			ButtonBackgroundVisuals, ButtonBorderVisuals, ButtonTextVisuals,
+			ButtonSpriteVisuals>()) {
+		return DrawButtonPartVisibility(target);
+	}
+
+	auto before{ target.Capture<Visible>() };
+	bool visible{ before ? before->visible : true };
+	bool changed{ DrawPartVisibilityIcon(visible) };
+	if (!changed) {
+		return false;
+	}
+
+	Visible updated{ before.value_or(Visible{}) };
+	updated.visible = visible;
+	target.SetLive<Visible>(updated);
+
+	auto after{ target.Capture<Visible>() };
+	TrackComponentState(
+		target, "Toggle Part Visibility", std::move(before), std::move(after), true
+	);
+	return true;
+}
 
 bool DrawButtonVisualStateSelector(std::optional<ButtonVisualState>& state) {
 	return DrawPropertyRow("Visual State", [&]() {
@@ -934,6 +1013,7 @@ bool DrawFocusedButtonPartsTrees(
 		}
 		if (tree.open) {
 			if (child != remove_after_trees) {
+				changed |= DrawPartVisibility(ctx, child);
 				changed |= DrawFocusedButtonPartContents(ctx, button_entity, part, state);
 			}
 			ImGui::TreePop();
@@ -2235,6 +2315,7 @@ bool DrawSliderTrackVisual(EntityInspectorTarget& target, Slider slider, Entity&
 		if (tree.open) {
 			if (child != remove_after_trees) {
 				EntityInspectorTarget child_target{ .ctx = target.ctx, .entity = child };
+				changed |= DrawPartVisibility(target.ctx, child);
 				changed |= std::invoke(draw, child_target, child);
 			}
 			ImGui::TreePop();
@@ -4220,6 +4301,7 @@ bool DrawSliderPartsTrees(EntityInspectorTarget& target, Slider slider) {
 		}
 		if (tree.open) {
 			if (remove_after_trees != RemovePart::Track) {
+				changed |= DrawPartVisibility(target.ctx, track);
 				changed |= DrawSliderTrackTransform(target, track);
 				changed |= DrawSliderTrackVisual(target, slider, track);
 			}
@@ -4236,6 +4318,7 @@ bool DrawSliderPartsTrees(EntityInspectorTarget& target, Slider slider) {
 		if (tree.open) {
 			if (remove_after_trees != RemovePart::Thumb) {
 				EntityInspectorTarget thumb_target{ .ctx = target.ctx, .entity = thumb };
+				changed |= DrawPartVisibility(target.ctx, thumb);
 				changed |= DrawFocusedButtonInteraction(thumb_target, FocusedUIControlType::Button);
 				if (ImGui::TreeNodeEx(
 						"Transform##SliderThumbTransform",
@@ -4272,6 +4355,7 @@ bool DrawSliderPartsTrees(EntityInspectorTarget& target, Slider slider) {
 		}
 		if (tree.open) {
 			if (remove_after_trees != RemovePart::ValueText) {
+				changed |= DrawPartVisibility(target.ctx, slider.GetValueTextEntity());
 				auto before{ target.template Capture<::ptgn::impl::SliderData>() };
 				if (before) {
 					auto data{ *before };
@@ -4476,6 +4560,7 @@ bool DrawManagedVisualPartsTrees(
 		}
 		if (tree.open) {
 			if (child != remove_after_trees) {
+				changed |= DrawPartVisibility(ctx, child);
 				changed |= DrawManagedVisualChildContents(ctx, child);
 			}
 			ImGui::TreePop();
@@ -4544,9 +4629,13 @@ bool DrawUISectionImpl(Target& target) {
 		}
 
 		ScopedIndent section_indent;
+		bool changed{ false };
+		if constexpr (requires { target.entity; }) {
+			changed |= DrawPartVisibility(target.ctx, child_info->child);
+		}
 		auto& editor_state{ GetInspectorUiState(target.GetInspectorTargetKey()) };
 		DrawButtonVisualStateSelector(editor_state.button_visual_state);
-		return false;
+		return changed;
 	}
 
 	FocusedUIControlType control_type{ GetFocusedUIControlType(target) };

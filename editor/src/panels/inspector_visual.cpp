@@ -2614,7 +2614,7 @@ bool DrawRenderingOptions(Target& target, bool draw_tint) {
 		if (DrawEditorIconButton(
 				"##RendererVisible", visible ? EditorIcon::Visible : EditorIcon::Hidden,
 				EditorIconButtonOptions{
-					.tooltip	 = visible ? "Hide rendering" : "Show rendering",
+					.tooltip	 = visible ? "Hide" : "Show",
 					.muted		 = !visible,
 					.icon_extent = ImGui::GetTextLineHeight() + 2.0f,
 				}
@@ -2624,15 +2624,25 @@ bool DrawRenderingOptions(Target& target, bool draw_tint) {
 		}
 		return false;
 	}) };
+	auto refresh_managed_parts = +[](Entity entity) {
+		if (entity && entity.Has<::ptgn::impl::ButtonData>()) {
+			Button{ entity }.RefreshVisualState();
+		}
+	};
 	if (visible_changed) {
 		Visible updated{ before_visible.value_or(Visible{}) };
 		updated.visible = visible;
 		target.template SetLive<Visible>(ComponentState<Visible>{ updated });
+		if constexpr (requires { target.entity; }) {
+			refresh_managed_parts(target.entity);
+		} else if constexpr (requires { target.prefab; }) {
+			refresh_managed_parts(target.prefab);
+		}
 	}
 	auto after_visible{ target.template Capture<Visible>() };
 	TrackComponentState(
 		target, "Toggle Visibility", std::move(before_visible), std::move(after_visible),
-		visible_changed
+		visible_changed, refresh_managed_parts
 	);
 	changed |= visible_changed;
 
@@ -2881,7 +2891,11 @@ bool DrawVisualSectionImpl(
 ) {
 	if (auto child_info{ GetButtonChildInfo(target) }) {
 		if (auto state{ GetButtonVisualEditState(target) }) {
-			return DrawButtonChildStateVisualSectionImpl(target, *child_info, *state);
+			bool changed{ DrawButtonChildStateVisualSectionImpl(target, *child_info, *state) };
+			if (HasVisualSection(target)) {
+				changed |= DrawRenderingOptions(target, false);
+			}
+			return changed;
 		}
 	}
 
@@ -3038,6 +3052,14 @@ bool DrawVisualSectionImpl(
 }
 
 } // namespace
+
+bool DrawRenderingSection(EntityInspectorTarget& target) {
+	return DrawRenderingOptions(target, false);
+}
+
+bool DrawRenderingSection(PrefabInspectorTarget& target) {
+	return DrawRenderingOptions(target, false);
+}
 
 bool DrawVisualSection(
 	EntityInspectorTarget& target, bool draw_header, bool allow_renderer_change,

@@ -1263,6 +1263,42 @@ template <typename Target>
 		   HasAnyInspectorComponent(target, TransformSectionComponents{});
 }
 
+[[nodiscard]] inline bool HasDrawableDescendant(Entity entity) {
+	if (!entity || !HasChildren(entity)) {
+		return false;
+	}
+
+	for (Entity child : GetChildren(entity)) {
+		if (child && (child.Has<::ptgn::impl::IDrawable>() || HasDrawableDescendant(child))) {
+			return true;
+		}
+	}
+
+	return false;
+}
+
+template <typename Target>
+[[nodiscard]] bool HasManagedDrawableSection(const Target& target) {
+	InspectorArchetype archetype{ ResolveInspectorArchetype(target) };
+
+	if (!ArchetypeOwnsUI(archetype)) {
+		return false;
+	}
+
+	// These containers own drawable children even when those parts have not been created yet.
+	if (archetype == InspectorArchetype::Slider || archetype == InspectorArchetype::ToggleGroup) {
+		return true;
+	}
+
+	if constexpr (requires { target.entity; }) {
+		return HasDrawableDescendant(target.entity);
+	} else if constexpr (requires { target.prefab; }) {
+		return HasDrawableDescendant(target.prefab);
+	}
+
+	return false;
+}
+
 template <typename Target>
 [[nodiscard]] bool HasVisualSection(const Target& target) {
 	if (IsReservedFixedCamera(target)) {
@@ -1335,6 +1371,9 @@ bool DrawTransformSection(
 	PrefabInspectorTarget& target, bool draw_header = true, bool redirect_button_part = true,
 	bool draw_inline_separator = true
 );
+
+bool DrawRenderingSection(EntityInspectorTarget& target);
+bool DrawRenderingSection(PrefabInspectorTarget& target);
 
 bool DrawVisualSection(
 	EntityInspectorTarget& target, bool draw_header = true, bool allow_renderer_change = true,

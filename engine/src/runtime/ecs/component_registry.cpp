@@ -13,9 +13,11 @@
 #include "runtime/animation/animation.h"
 #include "runtime/animation/offsets.h"
 #include "runtime/asset/asset_key.h"
+#include "runtime/asset/prefab.h"
 #include "runtime/ecs/component_registration.h"
-#include "runtime/ecs/entity_hierarchy.h"
 #include "runtime/ecs/entity_group.h"
+#include "runtime/ecs/entity_hierarchy.h"
+#include "runtime/graphics/custom_shader.h"
 #include "runtime/graphics/drawable.h"
 #include "runtime/graphics/fx/bloom.h"
 #include "runtime/graphics/fx/blur.h"
@@ -27,7 +29,6 @@
 #include "runtime/graphics/sprite.h"
 #include "runtime/graphics/sprite_stack.h"
 #include "runtime/graphics/tint.h"
-#include "runtime/graphics/custom_shader.h"
 #include "runtime/graphics/visible.h"
 #include "runtime/interaction/draggable.h"
 #include "runtime/interaction/dropzone.h"
@@ -48,7 +49,6 @@
 #include "runtime/ui/tooltip.h"
 #include "runtime/world/paint_generator.h"
 #include "runtime/world/tilemap.h"
-#include "runtime/asset/prefab.h"
 
 namespace ptgn {
 
@@ -103,6 +103,7 @@ PTGN_REGISTER_COMPONENT(ShaderKey);
 PTGN_REGISTER_COMPONENT(JsonKey);
 
 PTGN_REGISTER_COMPONENT(impl::ButtonData);
+PTGN_REGISTER_COMPONENT(impl::HiddenButtonPart);
 PTGN_REGISTER_COMPONENT(impl::ButtonAnimationPart);
 PTGN_REGISTER_COMPONENT(ButtonBackgroundVisuals);
 PTGN_REGISTER_COMPONENT(ButtonBorderVisuals);

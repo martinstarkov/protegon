@@ -1673,7 +1673,7 @@ void Button::ApplyShapeVisual(impl::ButtonPart part) const {
 	}
 
 	bool button_visible{ IsVisible(*this) };
-	SetVisible(entity, button_visible);
+	SetVisible(entity, button_visible && !entity.Has<impl::HiddenButtonPart>());
 
 	auto size{ HasAny<Rect, Circle>() ? GetSize() : std::variant<V2_float, float>{ V2_float{} } };
 	auto origin{ GetOrDefault<Origin>() };
@@ -1785,7 +1785,7 @@ void Button::ApplyTextVisual() const {
 	}
 
 	bool button_visible{ IsVisible(*this) };
-	SetVisible(entity, button_visible);
+	SetVisible(entity, button_visible && !entity.Has<impl::HiddenButtonPart>());
 
 	TextBox box{ .style = {
 					 .alignment = { .horizontal = std::nullopt, .vertical = std::nullopt } } };
@@ -1866,7 +1866,7 @@ void Button::ApplySpriteVisual(ButtonVisualState state) const {
 	auto visible{ HasResolvedState(visuals.states, state) };
 
 	bool button_visible{ IsVisible(*this) };
-	SetVisible(entity, button_visible && visible);
+	SetVisible(entity, button_visible && visible && !entity.Has<impl::HiddenButtonPart>());
 
 	ptgn::Sprite sprite{ entity };
 
@@ -1937,7 +1937,9 @@ void Button::ApplySpriteVisual(ButtonVisualState state) const {
 
 	// A defined sprite appearance with no texture is a valid editor state. Keep the managed
 	// sprite entity, but do not submit it for rendering until a texture has been configured.
-	SetVisible(entity, button_visible && visible && has_texture);
+	SetVisible(
+		entity, button_visible && visible && has_texture && !entity.Has<impl::HiddenButtonPart>()
+	);
 
 	sprite.Add<Tint>(tint);
 	sprite.Add<Origin>(origin);

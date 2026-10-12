@@ -64,6 +64,9 @@ enum class ButtonPart : std::uint8_t {
 };
 PTGN_REFLECT_ENUM(ButtonPart);
 
+// Authored visibility of a managed button part is separate from its resolved runtime visibility.
+struct HiddenButtonPart {};
+
 enum class InternalButtonState : std::uint8_t {
 	IdleUp,
 	Hover,

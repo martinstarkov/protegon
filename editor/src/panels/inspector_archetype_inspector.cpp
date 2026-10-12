@@ -570,6 +570,8 @@ bool DrawCoreArchetypeSections(
 		changed |= DrawVisualSection(target, true, false, GetInspectorArchetypeLabel(target));
 	} else if (HasVisualSection(target)) {
 		changed |= DrawVisualSection(target, true, true, "Visual");
+	} else if (HasManagedDrawableSection(target)) {
+		changed |= DrawRenderingSection(target);
 	}
 
 	// Camera is likewise explicitly archetype-routed. DrawCameraSection owns the "Camera" header.
