@@ -20,7 +20,7 @@
 #include "editor/editor.h"
 #include "editor/editor_context.h"
 #include "editor/editor_selection.h"
-#include "panels/inspector_component_drawers.h"
+#include "panels/inspector_components.h"
 #include "panels/inspector_fields.h"
 #include "panels/inspector_helpers.h"
 #include "runtime/asset/asset_manager.h"

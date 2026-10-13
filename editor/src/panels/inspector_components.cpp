@@ -416,18 +416,18 @@ struct ComponentDrawer<::ptgn::impl::CameraData> {
 
 namespace {
 
-bool DrawLayerMaskValueImpl(std::string_view label, LayerMask& value, bool* ui_layer) {
+bool DrawRenderMaskValueImpl(std::string_view label, RenderMaskBits& value, bool* ui_rendering) {
 	ScopedID scope{ label };
 	const char* preview{ nullptr };
 	char raw_preview[32]{};
 
-	if (ui_layer && *ui_layer) {
-		preview = "UI Layer";
-	} else if (value == kLayersAll) {
+	if (ui_rendering && *ui_rendering) {
+		preview = "UI Rendering";
+	} else if (value == kRenderMaskAll) {
 		preview = "All";
-	} else if (value == kLayersNone) {
+	} else if (value == kRenderMaskNone) {
 		preview = "None";
-	} else if (value == kLayerDefault) {
+	} else if (value == kRenderMaskDefault) {
 		preview = "Default";
 	} else {
 		std::snprintf(
@@ -440,69 +440,71 @@ bool DrawLayerMaskValueImpl(std::string_view label, LayerMask& value, bool* ui_l
 		bool changed{ false };
 		ImGui::SetNextItemWidth(-FLT_MIN);
 
-		auto choose_mask = [&](LayerMask mask) {
+		auto choose_mask = [&](RenderMaskBits mask) {
 			value = mask;
-			if (ui_layer) {
-				*ui_layer = false;
+			if (ui_rendering) {
+				*ui_rendering = false;
 			}
 			changed = true;
 		};
 
-		if (ImGui::BeginCombo("##LayerMask", preview)) {
-			bool regular_layers_active{ !ui_layer || !*ui_layer };
+		if (ImGui::BeginCombo("##RenderMaskBits", preview)) {
+			bool regular_masks_active{ !ui_rendering || !*ui_rendering };
 
-			if (ui_layer) {
-				bool selected{ *ui_layer };
+			if (ui_rendering) {
+				bool selected{ *ui_rendering };
 
-				if (ImGui::Checkbox("UI Layer", &selected)) {
-					*ui_layer = selected;
-					value	  = selected ? kLayersNone : ::ptgn::impl::RenderMask{}.layers;
-					changed	  = true;
+				if (ImGui::Checkbox("UI Rendering", &selected)) {
+					*ui_rendering = selected;
+					value		  = selected ? kRenderMaskNone : ::ptgn::impl::RenderMask{}.bits;
+					changed		  = true;
 				}
 
 				DrawTooltip(
-					"UI Layer adds the UI layer tag. Selecting a normal render layer removes it."
+					"UI rendering marks the entity for UI cameras and uses no regular render mask "
+					"bits. "
+					"It does not change the entity's organizational scene layer."
 				);
 				ImGui::Separator();
 			}
 
-			if (ImGui::Selectable("All", regular_layers_active && value == kLayersAll)) {
-				choose_mask(kLayersAll);
+			if (ImGui::Selectable("All", regular_masks_active && value == kRenderMaskAll)) {
+				choose_mask(kRenderMaskAll);
 			}
 
-			if (ImGui::Selectable("None", regular_layers_active && value == kLayersNone)) {
-				choose_mask(kLayersNone);
+			if (ImGui::Selectable("None", regular_masks_active && value == kRenderMaskNone)) {
+				choose_mask(kRenderMaskNone);
 			}
 
-			if (ImGui::Selectable("Default", regular_layers_active && value == kLayerDefault)) {
-				choose_mask(kLayerDefault);
+			if (ImGui::Selectable("Default", regular_masks_active && value == kRenderMaskDefault)) {
+				choose_mask(kRenderMaskDefault);
 			}
 
 			ImGui::Separator();
 
 			if (ImGui::BeginChild(
-					"##LayerMaskValues",
+					"##RenderMaskValues",
 					ImVec2{ 0.0f, ImGui::GetTextLineHeightWithSpacing() * 10.0f },
 					ImGuiChildFlags_Borders
 				)) {
 				for (int index{ 0 }; index < 64; ++index) {
-					LayerMask layer{ GetLayer(index) };
-					bool selected{ regular_layers_active && (value & layer) != 0 };
-					std::string layer_label{ index == 0 ? "Layer 0 (Default)"
-														: std::string{ "Layer " } +
-															  std::to_string(index) };
+					RenderMaskBits bit{ GetRenderMaskBit(index) };
+					bool selected{ regular_masks_active && (value & bit) != 0 };
+					std::string bit_label{ index == 0 ? "Render Mask Bit 0 (Default)"
+													  : std::string{ "Render Mask Bit " } +
+															std::to_string(index) };
 
 					ImGui::PushID(index);
 
-					if (ImGui::Checkbox(layer_label.c_str(), &selected)) {
-						if (ui_layer) {
-							*ui_layer = false;
+					if (ImGui::Checkbox(bit_label.c_str(), &selected)) {
+						if (ui_rendering) {
+							*ui_rendering = false;
 						}
 
 						if (selected) {
-							value |= layer;
+							value |= bit;
 						} else {
-							value &= ~layer;
+							value &= ~bit;
 						}
 
 						changed = true;
@@ -516,24 +518,28 @@ bool DrawLayerMaskValueImpl(std::string_view label, LayerMask& value, bool* ui_l
 			ImGui::EndCombo();
 		}
 
+		DrawTooltip(
+			"Render mask bits select camera visibility and are independent of scene layers."
+		);
+
 		return changed;
 	});
 }
 
 } // namespace
 
-bool DrawLayerMaskValue(std::string_view label, LayerMask& value) {
-	return DrawLayerMaskValueImpl(label, value, nullptr);
+bool DrawRenderMaskValue(std::string_view label, RenderMaskBits& value) {
+	return DrawRenderMaskValueImpl(label, value, nullptr);
 }
 
-bool DrawLayerMaskValue(std::string_view label, LayerMask& value, bool& ui_layer) {
-	return DrawLayerMaskValueImpl(label, value, &ui_layer);
+bool DrawRenderMaskValue(std::string_view label, RenderMaskBits& value, bool& ui_rendering) {
+	return DrawRenderMaskValueImpl(label, value, &ui_rendering);
 }
 
 template <>
 struct ComponentDrawer<::ptgn::impl::RenderMask> {
 	static bool Draw(EditorContext&, ::ptgn::impl::RenderMask& mask) {
-		return DrawLayerMaskValue("Layers", mask.layers);
+		return DrawRenderMaskValue("Render Mask", mask.bits);
 	}
 };
 
@@ -541,8 +547,8 @@ template <>
 struct ComponentDrawer<::ptgn::impl::CameraMask> {
 	static bool Draw(EditorContext&, ::ptgn::impl::CameraMask& mask) {
 		bool changed{ false };
-		changed |= DrawLayerMaskValue("Include Layer", mask.include);
-		changed |= DrawLayerMaskValue("Exclude Layer", mask.exclude);
+		changed |= DrawRenderMaskValue("Include Render Mask", mask.include);
+		changed |= DrawRenderMaskValue("Exclude Render Mask", mask.exclude);
 		return changed;
 	}
 };

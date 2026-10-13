@@ -24,15 +24,17 @@ namespace ptgn {
 class Scene;
 class Renderer;
 
-using LayerMask = std::uint64_t;
+/// @brief Bits used to determine which entities pass a camera visibility filter.
+/// Render mask bits are independent of organizational scene layers and SceneLayerId values.
+using RenderMaskBits = std::uint64_t;
 
-constexpr LayerMask GetLayer(int i) {
-	return LayerMask{ 1 } << i;
+constexpr RenderMaskBits GetRenderMaskBit(int index) {
+	return RenderMaskBits{ 1 } << index;
 }
 
-inline constexpr LayerMask kLayersAll	 = ~LayerMask{ 0 }; // 0b11111111
-inline constexpr LayerMask kLayersNone	 = LayerMask{ 0 };	// 0b00000000
-inline constexpr LayerMask kLayerDefault = GetLayer(0);		// 0b00000001
+inline constexpr RenderMaskBits kRenderMaskAll	   = ~RenderMaskBits{ 0 };
+inline constexpr RenderMaskBits kRenderMaskNone	   = RenderMaskBits{ 0 };
+inline constexpr RenderMaskBits kRenderMaskDefault = GetRenderMaskBit(0);
 
 struct BoundingBox {
 	V2_float position{};
@@ -50,6 +52,7 @@ struct ParentRenderTarget {
 	PTGN_REFLECT_VALUE(ParentRenderTarget, render_target)
 };
 
+/// @brief Marks an entity for rendering by UI cameras, independently of scene layer membership.
 struct UILayer {};
 
 struct CameraData {
@@ -69,20 +72,20 @@ struct CameraData {
 	PTGN_REFLECT_READONLY(CameraData, view_projection)
 };
 
-/// @brief If an entity has no RenderMask, treat it as having
-/// RenderMask{} (default ctor).
+/// @brief Render mask bits assigned to an entity, independently of its organizational scene layer.
+/// If absent, an entity uses the default render mask.
 struct RenderMask {
-	/// @brief Neutral engine default: entity belongs to default layer.
-	LayerMask layers{ kLayerDefault };
+	RenderMaskBits bits{ kRenderMaskDefault };
 
-	PTGN_REFLECT_VALUE(RenderMask, layers)
+	PTGN_REFLECT_VALUE(RenderMask, bits)
 };
 
-/// @brief If a camera has no CameraMask, treat it as having
-/// CameraMask{} (default ctor). Neutral engine default: include all, exclude none.
+/// @brief Camera visibility filter using render mask bits, not organizational scene layers.
+/// An entity passes when it shares at least one include bit and has no excluded bits.
+/// If absent, a camera includes all render bits and excludes none.
 struct CameraMask {
-	LayerMask include{ kLayersAll };
-	LayerMask exclude{ kLayersNone };
+	RenderMaskBits include{ kRenderMaskAll };
+	RenderMaskBits exclude{ kRenderMaskNone };
 
 	PTGN_REFLECT(CameraMask, include, exclude)
 };
@@ -153,22 +156,24 @@ public:
 	/// Does not change the parent render target of the camera.
 	SceneCamera& Reset();
 
-	SceneCamera& SetMasks(LayerMask include, LayerMask exclude = kLayersNone);
-	SceneCamera& SetIncludeMask(LayerMask include);
-	SceneCamera& SetExcludeMask(LayerMask exclude);
+	/// @brief Sets the camera render mask include and exclude filters. These are independent
+	/// of organizational scene layers.
+	SceneCamera& SetRenderMasks(RenderMaskBits include, RenderMaskBits exclude = kRenderMaskNone);
+	SceneCamera& SetIncludeRenderMask(RenderMaskBits include);
+	SceneCamera& SetExcludeRenderMask(RenderMaskBits exclude);
 
-	SceneCamera& AddIncludeMasks(LayerMask layers_to_add);
-	SceneCamera& RemoveIncludeMasks(LayerMask layers_to_remove);
-	SceneCamera& AddExcludeMasks(LayerMask layers_to_add);
-	SceneCamera& RemoveExcludeMasks(LayerMask layers_to_remove);
+	SceneCamera& AddIncludeRenderMaskBits(RenderMaskBits masks_to_add);
+	SceneCamera& RemoveIncludeRenderMaskBits(RenderMaskBits masks_to_remove);
+	SceneCamera& AddExcludeRenderMaskBits(RenderMaskBits masks_to_add);
+	SceneCamera& RemoveExcludeRenderMaskBits(RenderMaskBits masks_to_remove);
 
-	SceneCamera& ClearMasks();
+	SceneCamera& ClearRenderMasks();
 
-	LayerMask GetIncludeMask() const;
-	LayerMask GetExcludeMask() const;
+	RenderMaskBits GetIncludeRenderMask() const;
+	RenderMaskBits GetExcludeRenderMask() const;
 
-	/// @return True if the entity is visible to the camera based on layer masks. UI entities are
-	/// always visible to UI cameras.
+	/// @return True if the entity passes the camera's render masks. UI entities are always visible
+	/// to UI cameras. Scene layer visibility is enforced separately by scene rendering.
 	[[nodiscard]] bool CanSee(Entity entity) const;
 
 	/// @param parent The render target to set as the camera's parent. Setting to nullopt will use
@@ -184,22 +189,23 @@ public:
 	std::optional<Color> GetClearColor() const;
 };
 
-LayerMask GetMask(Entity entity);
+/// @brief Gets an entity's render mask bits, independently of its organizational scene layer.
+RenderMaskBits GetRenderMask(Entity entity);
 
-/// @brief If ui_layer is true, the entity will be rendered on the UI layer, which uses the scene's
-/// fixed_camera. Note this will modify the entity's layer mask.
-void SetUI(Entity entity, bool ui_layer = true);
+/// @brief Enables UI rendering, which is distinct from organizational scene layers.
+/// This also changes the entity's render mask bits.
+void SetUI(Entity entity, bool ui_rendering = true);
 
-/// @return True if the entity is on the UI layer, false otherwise.
+/// @return True if the entity is marked for UI rendering.
 bool IsUI(Entity entity);
 
-void SetMask(Entity entity, LayerMask mask);
-void AddMasks(Entity entity, LayerMask layers_to_add);
-void RemoveMasks(Entity entity, LayerMask layers_to_remove);
-void ClearMasks(Entity entity);
+void SetRenderMask(Entity entity, RenderMaskBits mask);
+void AddRenderMaskBits(Entity entity, RenderMaskBits masks_to_add);
+void RemoveRenderMaskBits(Entity entity, RenderMaskBits masks_to_remove);
+void ClearRenderMask(Entity entity);
 
-bool HasAnyMask(Entity entity, LayerMask test);
-bool HasAllMasks(Entity entity, LayerMask test);
+bool HasAnyRenderMaskBits(Entity entity, RenderMaskBits test);
+bool HasAllRenderMaskBits(Entity entity, RenderMaskBits test);
 
 namespace impl {
 

@@ -21,29 +21,20 @@ class EditorContext;
 
 namespace inspector {
 
-bool DrawRegisteredComponentContents(
-	EditorContext& ctx,
-	std::size_t type_id,
-	void* value
-);
+bool DrawRegisteredComponentContents(EditorContext& ctx, std::size_t type_id, void* value);
 
 // Draw a value using the same custom component drawer used by the ordinary
 // Inspector when one is registered, falling back to reflected component data.
-bool DrawInspectorValueContents(
-	EditorContext& ctx,
-	std::size_t type_id,
-	void* value
-);
+bool DrawInspectorValueContents(EditorContext& ctx, std::size_t type_id, void* value);
 
 bool DrawRenderTargetDesc(
-	EditorContext& ctx,
-	::ptgn::impl::RenderTargetDesc& target,
-	std::optional<V2_int> framebuffer_size = std::nullopt,
-	bool size_read_only = false
+	EditorContext& ctx, ::ptgn::impl::RenderTargetDesc& target,
+	std::optional<V2_int> framebuffer_size = std::nullopt, bool size_read_only = false
 );
 
-bool DrawLayerMaskValue(std::string_view label, LayerMask& value);
-bool DrawLayerMaskValue(std::string_view label, LayerMask& value, bool& ui_layer);
+/// @brief Draw a camera visibility render mask, not an organizational scene layer.
+bool DrawRenderMaskValue(std::string_view label, RenderMaskBits& value);
+bool DrawRenderMaskValue(std::string_view label, RenderMaskBits& value, bool& ui_rendering);
 
 void MarkTextLayoutDirty(Entity entity);
 void MarkButtonTextDirty(Entity entity);

@@ -30,9 +30,9 @@
 #include "runtime/scene/scene.h"
 #include "runtime/scene/scene_camera.h"
 #include "runtime/scene/scene_context.h"
+#include "tools/debug/debug_settings.h"
 #include "tools/debug/profiling.h"
 #include "tools/debug/stats.h"
-#include "tools/debug/debug_settings.h"
 
 namespace ptgn {
 
@@ -68,7 +68,7 @@ void DrawDebugColliders(
 	}
 
 	for (auto [entity, collider] : scene.EntitiesWith<Collider>()) {
-		// Mask test (entity layers vs camera include/exclude).
+		// Camera render mask test, independent of organizational scene layers.
 		if (filter(entity)) {
 			continue;
 		}
@@ -248,7 +248,7 @@ void DrawDebugLightVisibilityPolygons(
 
 	for (auto [entity, _light, visibility_polygon] :
 		 scene.EntitiesWith<LightData, impl::VisibilityPolygon>()) {
-		// Mask test: entity layers vs camera include/exclude.
+		// Camera render mask test, independent of organizational scene layers.
 		if (filter(entity)) {
 			continue;
 		}
@@ -290,7 +290,9 @@ void DrawDebug(
 	DrawDebugLightVisibilityPolygons(scene, camera, filter, debug.settings.light);
 	DrawDebugTextBoundingBoxes(scene, camera, filter, debug.settings.text);
 	DrawDebugColliders(scene, camera, filter, debug.settings.collision);
-	DrawDebugInteractiveShapes(scene, camera, cam, render_target, filter, debug.settings.interaction);
+	DrawDebugInteractiveShapes(
+		scene, camera, cam, render_target, filter, debug.settings.interaction
+	);
 }
 
 } // namespace impl

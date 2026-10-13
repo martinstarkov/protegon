@@ -2521,7 +2521,7 @@ bool DrawRenderTargetPrimary(Target& target) {
 }
 
 template <typename Target>
-bool DrawVisualLayers(Target& target) {
+bool DrawVisualRenderMask(Target& target) {
 	if constexpr (
 		!Target::template Supports<::ptgn::impl::RenderMask>() ||
 		!Target::template Supports<::ptgn::impl::UILayer>()
@@ -2532,12 +2532,12 @@ bool DrawVisualLayers(Target& target) {
 		auto before_ui{ target.template Capture<::ptgn::impl::UILayer>() };
 
 		::ptgn::impl::RenderMask mask{ before_mask.value_or(::ptgn::impl::RenderMask{}) };
-		bool ui_layer{ before_ui.has_value() };
+		bool ui_rendering{ before_ui.has_value() };
 
 		ScopedID target_scope{ target.Id() };
-		ScopedID layers_scope{ "VisualLayers" };
+		ScopedID mask_scope{ "VisualRenderMask" };
 
-		bool changed{ DrawLayerMaskValue("Layers", mask.layers, ui_layer) };
+		bool changed{ DrawRenderMaskValue("Render Mask", mask.bits, ui_rendering) };
 
 		if (!changed) {
 			return false;
@@ -2546,7 +2546,7 @@ bool DrawVisualLayers(Target& target) {
 		target.template SetLive<::ptgn::impl::RenderMask>(mask);
 
 		ComponentState<::ptgn::impl::UILayer> ui_state;
-		if (ui_layer) {
+		if (ui_rendering) {
 			ui_state = ::ptgn::impl::UILayer{};
 		}
 		target.template SetLive<::ptgn::impl::UILayer>(ui_state);
@@ -2556,10 +2556,10 @@ bool DrawVisualLayers(Target& target) {
 
 		auto apply_mask{ target.template MakeApply<::ptgn::impl::RenderMask>() };
 		auto apply_ui{ target.template MakeApply<::ptgn::impl::UILayer>() };
-		ImGuiID key{ ImGui::GetID("##VisualLayersEdit") };
+		ImGuiID key{ ImGui::GetID("##VisualRenderMaskEdit") };
 
 		TrackUndoableInteraction(
-			target.ctx, key, "Edit Layers", true,
+			target.ctx, key, "Edit Render Mask", true,
 			[apply_mask, apply_ui, before_mask, before_ui]() mutable {
 				apply_mask(before_mask);
 				apply_ui(before_ui);
@@ -2663,7 +2663,7 @@ bool DrawRenderingOptions(Target& target, bool draw_tint) {
 		changed |= DrawOptionalVisualComponent<Target, ::ptgn::impl::IgnoreParentVisibility>(
 			target, "Ignore Parent Visibility"
 		);
-		changed |= DrawVisualLayers(target);
+		changed |= DrawVisualRenderMask(target);
 	}
 
 	return changed;

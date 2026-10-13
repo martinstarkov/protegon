@@ -80,8 +80,8 @@ constexpr BlendMode kDefaultFirstSceneBlendMode{ BlendMode::ReplaceRGBA };
 constexpr std::string_view kDefaultSceneTargetTag{ "Scene Target" };
 constexpr std::string_view kDefaultSceneCameraTag{ "Main Camera" };
 constexpr std::string_view kDefaultSceneFixedCameraTag{ "Fixed Camera" };
-constexpr LayerMask kDefaultFixedCameraIncludeLayerMask{ kLayersNone };
-constexpr LayerMask kDefaultFixedCameraExcludeLayerMask{ kLayersAll };
+constexpr RenderMaskBits kDefaultFixedCameraIncludeRenderMask{ kRenderMaskNone };
+constexpr RenderMaskBits kDefaultFixedCameraExcludeRenderMask{ kRenderMaskAll };
 
 void UpdateRenderTargetSizes(Scene& scene) {
 	auto display_size{ scene.ctx().renderer.GetDisplaySize() };
@@ -508,8 +508,8 @@ void Scene::CreateDefaultSceneEntities() {
 	ctx_->camera.Add<Tag>(kDefaultSceneCameraTag);
 	ctx_->fixed_camera_ = CreateCamera(*this, {}, std::nullopt, ViewportSpace::Logical);
 	ctx_->fixed_camera_.Add<Tag>(kDefaultSceneFixedCameraTag);
-	ctx_->fixed_camera_.SetMasks(
-		kDefaultFixedCameraIncludeLayerMask, kDefaultFixedCameraExcludeLayerMask
+	ctx_->fixed_camera_.SetRenderMasks(
+		kDefaultFixedCameraIncludeRenderMask, kDefaultFixedCameraExcludeRenderMask
 	);
 
 	SetUI(ctx_->fixed_camera_, true);
@@ -624,8 +624,8 @@ void Scene::DeserializeContent(const json& serialized_content) {
 
 	ApplySerializedIdentity(ctx_->fixed_camera_, *fixed_camera_serialized);
 
-	ctx_->fixed_camera_.SetMasks(
-		kDefaultFixedCameraIncludeLayerMask, kDefaultFixedCameraExcludeLayerMask
+	ctx_->fixed_camera_.SetRenderMasks(
+		kDefaultFixedCameraIncludeRenderMask, kDefaultFixedCameraExcludeRenderMask
 	);
 
 	SetUI(ctx_->fixed_camera_, true);
@@ -871,9 +871,9 @@ void Scene::InternalDraw(DrawContext& draw_context) {
 		std::optional<Color> clear_color;
 
 		auto filter = [this](auto entity) {
-			auto entity_mask{ GetMask(entity) };
-			auto include{ ctx().camera.GetIncludeMask() };
-			auto exclude{ ctx().camera.GetExcludeMask() };
+			auto entity_mask{ GetRenderMask(entity) };
+			auto include{ ctx().camera.GetIncludeRenderMask() };
+			auto exclude{ ctx().camera.GetExcludeRenderMask() };
 			bool in_include{ (entity_mask & include) != 0 };
 			bool in_exclude{ (entity_mask & exclude) != 0 };
 			return !((in_include && !in_exclude) || IsUI(entity)) || !IsVisible(entity) ||

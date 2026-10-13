@@ -298,7 +298,7 @@ bool InteractionSystem::IsOverlappingDropzone(
 		}
 		case TransformOverlaps: {
 			PTGN_ASSERT(
-				GetMask(draggable) == GetMask(dropzone),
+				GetRenderMask(draggable) == GetRenderMask(dropzone),
 				"Dropzone entity and drag entity must share the same camera"
 			);
 			// Origin not accounted for because this is about TransformOverlaps, not center.
@@ -308,7 +308,7 @@ bool InteractionSystem::IsOverlappingDropzone(
 		}
 		case Overlaps: {
 			PTGN_ASSERT(
-				GetMask(draggable) == GetMask(dropzone),
+				GetRenderMask(draggable) == GetRenderMask(dropzone),
 				"Dropzone entity and drag entity must share the same camera"
 			);
 			is_overlapping = Overlap(draggable, dropzone);

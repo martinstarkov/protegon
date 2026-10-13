@@ -194,9 +194,9 @@ bool DrawCameraSectionImpl(Target& target) {
 		}
 	);
 	changed |= DrawRequiredComponent<Target, ::ptgn::impl::CameraMask>(
-		target, "Layers", false, [](::ptgn::impl::CameraMask& value) {
-			bool masks_changed{ DrawLayerMaskValue("Include Layer", value.include) };
-			masks_changed |= DrawLayerMaskValue("Exclude Layer", value.exclude);
+		target, "Render Masks", false, [](::ptgn::impl::CameraMask& value) {
+			bool masks_changed{ DrawRenderMaskValue("Include Render Mask", value.include) };
+			masks_changed |= DrawRenderMaskValue("Exclude Render Mask", value.exclude);
 			return masks_changed;
 		}
 	);

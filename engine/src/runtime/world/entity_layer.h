@@ -23,11 +23,13 @@ enum class SceneLayerKind : std::uint8_t {
 };
 PTGN_REFLECT_ENUM(SceneLayerKind);
 
-/// @brief Stable scene local identity for an authoring layer.
+/// @brief Stable scene local identity for an organizational layer.
 ///
-/// Layer ids are deliberately independent from ECS entity ids/UUIDs: a layer is scene metadata,
-/// not an entity. This keeps layer membership out of prefab captures while allowing Tilemap and
-/// PaintGenerator themselves to remain ordinary ECS entities.
+/// Scene layers organize entities and control editor visibility, locking, and selection.
+/// They do not correspond to camera render mask bits or determine camera visibility.
+/// Layer ids are independent from ECS entity ids/UUIDs: a layer is scene metadata, not an entity.
+/// This keeps layer membership out of prefab captures while allowing Tilemap and PaintGenerator
+/// themselves to remain ordinary ECS entities.
 struct SceneLayerId {
 	std::uint64_t value{};
 
@@ -68,7 +70,7 @@ struct SerializedSceneLayerMembership {
 	PTGN_REFLECT(SerializedSceneLayerMembership, entity, layer)
 };
 
-/// @brief Persistent representation of the scene's layer model.
+/// @brief Persistent representation of the scene's organizational layer model.
 ///
 /// Membership is serialized separately from entity components on purpose. Scene layers are
 /// scene local organization, so prefab captures must not carry a source scene's layer id.
@@ -81,7 +83,11 @@ struct SerializedSceneLayers {
 	PTGN_REFLECT(SerializedSceneLayers, layers, memberships, default_entity_layer, next_layer_id)
 };
 
-/// @brief Scene owned layer registry and entity to layer membership table.
+/// @brief Scene owned organizational layer registry and entity to layer membership table.
+///
+/// These layers are independent of camera render masks. A scene layer can hide an entity from
+/// scene rendering, but assigning an entity to a different scene layer never changes its render
+/// mask or the camera's include and exclude masks.
 ///
 /// Rules:
 /// - Every live entity belongs to exactly one layer.
@@ -106,7 +112,7 @@ public:
 
 	[[nodiscard]] SceneLayerId Create(SceneLayerKind kind, std::string name = {});
 
-	/// @brief Deletes a non-default layer.
+	/// @brief Deletes any layer except the default layer.
 	///
 	/// If the layer contains entities, replacement must identify another layer capable of
 	/// containing every member. Empty layers can be deleted without a replacement.

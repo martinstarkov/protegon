@@ -28,7 +28,7 @@
 #include "editor/renamable_item.h"
 #include "panels/entity_filter_editor.h"
 #include "panels/inspector_archetype_inspector.h"
-#include "panels/inspector_component_drawers.h"
+#include "panels/inspector_components.h"
 #include "panels/inspector_fields.h"
 #include "panels/inspector_helpers.h"
 #include "panels/inspector_tabs.h"

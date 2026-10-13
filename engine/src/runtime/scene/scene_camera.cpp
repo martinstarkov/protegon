@@ -289,60 +289,60 @@ SceneCamera& SceneCamera::Reset() {
 	return *this;
 }
 
-SceneCamera& SceneCamera::SetMasks(LayerMask include, LayerMask exclude) {
+SceneCamera& SceneCamera::SetRenderMasks(RenderMaskBits include, RenderMaskBits exclude) {
 	auto& c	  = TryAdd<impl::CameraMask>();
 	c.include = include;
 	c.exclude = exclude;
 	return *this;
 }
 
-SceneCamera& SceneCamera::SetIncludeMask(LayerMask include) {
+SceneCamera& SceneCamera::SetIncludeRenderMask(RenderMaskBits include) {
 	TryAdd<impl::CameraMask>().include = include;
 	return *this;
 }
 
-SceneCamera& SceneCamera::SetExcludeMask(LayerMask exclude) {
+SceneCamera& SceneCamera::SetExcludeRenderMask(RenderMaskBits exclude) {
 	TryAdd<impl::CameraMask>().exclude = exclude;
 	return *this;
 }
 
-SceneCamera& SceneCamera::AddIncludeMasks(LayerMask layers_to_add) {
-	TryAdd<impl::CameraMask>().include |= layers_to_add;
+SceneCamera& SceneCamera::AddIncludeRenderMaskBits(RenderMaskBits masks_to_add) {
+	TryAdd<impl::CameraMask>().include |= masks_to_add;
 	return *this;
 }
 
-SceneCamera& SceneCamera::RemoveIncludeMasks(LayerMask layers_to_remove) {
-	TryAdd<impl::CameraMask>().include &= ~layers_to_remove;
+SceneCamera& SceneCamera::RemoveIncludeRenderMaskBits(RenderMaskBits masks_to_remove) {
+	TryAdd<impl::CameraMask>().include &= ~masks_to_remove;
 	return *this;
 }
 
-SceneCamera& SceneCamera::AddExcludeMasks(LayerMask layers_to_add) {
-	TryAdd<impl::CameraMask>().exclude |= layers_to_add;
+SceneCamera& SceneCamera::AddExcludeRenderMaskBits(RenderMaskBits masks_to_add) {
+	TryAdd<impl::CameraMask>().exclude |= masks_to_add;
 	return *this;
 }
 
-SceneCamera& SceneCamera::RemoveExcludeMasks(LayerMask layers_to_remove) {
-	TryAdd<impl::CameraMask>().exclude &= ~layers_to_remove;
+SceneCamera& SceneCamera::RemoveExcludeRenderMaskBits(RenderMaskBits masks_to_remove) {
+	TryAdd<impl::CameraMask>().exclude &= ~masks_to_remove;
 	return *this;
 }
 
-SceneCamera& SceneCamera::ClearMasks() {
+SceneCamera& SceneCamera::ClearRenderMasks() {
 	Remove<impl::CameraMask>();
 	return *this;
 }
 
-LayerMask SceneCamera::GetIncludeMask() const {
+RenderMaskBits SceneCamera::GetIncludeRenderMask() const {
 	return GetOrDefault<impl::CameraMask>().include;
 }
 
-LayerMask SceneCamera::GetExcludeMask() const {
+RenderMaskBits SceneCamera::GetExcludeRenderMask() const {
 	return GetOrDefault<impl::CameraMask>().exclude;
 }
 
 bool SceneCamera::CanSee(Entity entity) const {
-	auto entity_mask = GetMask(entity);
-	auto include	 = GetIncludeMask();
-	auto exclude	 = GetExcludeMask();
+	auto entity_mask = GetRenderMask(entity);
+	auto include	 = GetIncludeRenderMask();
+	auto exclude	 = GetExcludeRenderMask();
 
 	bool in_include = (entity_mask & include) != 0;
 	bool in_exclude = (entity_mask & exclude) != 0;
@@ -393,13 +393,13 @@ std::optional<Color> SceneCamera::GetClearColor() const {
 	}
 }
 
-void SetUI(Entity entity, bool ui_layer) {
-	if (ui_layer) {
+void SetUI(Entity entity, bool ui_rendering) {
+	if (ui_rendering) {
 		entity.Add<impl::UILayer>();
-		SetMask(entity, kLayersNone);
+		SetRenderMask(entity, kRenderMaskNone);
 	} else {
 		entity.Remove<impl::UILayer>();
-		SetMask(entity, impl::RenderMask{}.layers);
+		SetRenderMask(entity, impl::RenderMask{}.bits);
 	}
 }
 
@@ -407,32 +407,32 @@ bool IsUI(Entity entity) {
 	return entity.Has<impl::UILayer>();
 }
 
-LayerMask GetMask(Entity entity) {
-	return entity.GetOrDefault<impl::RenderMask>().layers;
+RenderMaskBits GetRenderMask(Entity entity) {
+	return entity.GetOrDefault<impl::RenderMask>().bits;
 }
 
-void SetMask(Entity entity, LayerMask mask) {
-	entity.TryAdd<impl::RenderMask>().layers = mask;
+void SetRenderMask(Entity entity, RenderMaskBits mask) {
+	entity.TryAdd<impl::RenderMask>().bits = mask;
 }
 
-void AddMasks(Entity entity, LayerMask layers_to_add) {
-	entity.TryAdd<impl::RenderMask>().layers |= layers_to_add;
+void AddRenderMaskBits(Entity entity, RenderMaskBits masks_to_add) {
+	entity.TryAdd<impl::RenderMask>().bits |= masks_to_add;
 }
 
-void RemoveMasks(Entity entity, LayerMask layers_to_remove) {
-	entity.TryAdd<impl::RenderMask>().layers &= ~layers_to_remove;
+void RemoveRenderMaskBits(Entity entity, RenderMaskBits masks_to_remove) {
+	entity.TryAdd<impl::RenderMask>().bits &= ~masks_to_remove;
 }
 
-void ClearMasks(Entity entity) {
+void ClearRenderMask(Entity entity) {
 	entity.Remove<impl::RenderMask>();
 }
 
-bool HasAnyMask(Entity entity, LayerMask test) {
-	return (GetMask(entity) & test) != 0;
+bool HasAnyRenderMaskBits(Entity entity, RenderMaskBits test) {
+	return (GetRenderMask(entity) & test) != 0;
 }
 
-bool HasAllMasks(Entity entity, LayerMask test) {
-	auto m{ GetMask(entity) };
+bool HasAllRenderMaskBits(Entity entity, RenderMaskBits test) {
+	auto m{ GetRenderMask(entity) };
 	return (m & test) == test;
 }
 

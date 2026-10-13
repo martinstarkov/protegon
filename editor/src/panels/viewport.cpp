@@ -722,9 +722,9 @@ bool IsRenderedByEditorCamera(Scene& scene, Entity entity) {
 		return false;
 	}
 
-	auto entity_mask{ GetMask(entity) };
-	auto include{ scene.ctx().camera.GetIncludeMask() };
-	auto exclude{ scene.ctx().camera.GetExcludeMask() };
+	auto entity_mask{ GetRenderMask(entity) };
+	auto include{ scene.ctx().camera.GetIncludeRenderMask() };
+	auto exclude{ scene.ctx().camera.GetExcludeRenderMask() };
 
 	bool in_include{ (entity_mask & include) != 0 };
 	bool in_exclude{ (entity_mask & exclude) != 0 };

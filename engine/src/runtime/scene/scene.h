@@ -144,7 +144,7 @@ public:
 
 	void SetBackgroundColor(Color background_color);
 	Color GetBackgroundColor() const;
-	/// @brief Scene owned authoring/runtime layer model.
+	/// @brief Scene owned organizational layers, independent of camera render mask bits.
 	[[nodiscard]] const SceneLayers& GetLayers() const;
 	[[nodiscard]] SceneLayers& GetLayers();
 	Entity GetEntity(UUID uuid) const;
