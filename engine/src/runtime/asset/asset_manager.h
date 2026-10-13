@@ -13,6 +13,7 @@
 #include <string_view>
 #include <type_traits>
 #include <unordered_map>
+#include <unordered_set>
 #include <utility>
 #include <variant>
 #include <vector>
@@ -429,6 +430,10 @@ public:
 	Prefab& LoadPrefab(PrefabKey key, const path& file_path, const path& source_path);
 	Prefab& SavePrefab(Prefab prefab, const path& prefab_path);
 	Prefab& SavePrefab(Prefab prefab, const path& file_path, const path& source_path);
+
+	// Editor projects stage prefab changes in memory until Save is requested.
+	void SetPrefabFileWritesDeferred(bool enabled);
+	[[nodiscard]] bool FlushDeferredPrefabFiles();
 	bool SavePrefab(const PrefabKey& key);
 	/// @brief Captures a normal entity hierarchy as a prefab asset. The source is not modified.
 	Prefab& SavePrefab(Entity source, PrefabKey key);
@@ -600,6 +605,10 @@ private:
 	std::vector<impl::EngineShaderSource> engine_shader_sources_;
 	std::vector<std::string> engine_vertex_shader_names_;
 	std::vector<std::string> engine_fragment_shader_names_;
+	bool defer_prefab_file_writes_{ false };
+	std::unordered_set<std::string> pending_prefab_writes_{};
+	std::unordered_set<std::string> pending_prefab_removals_{};
+
 	std::optional<path> project_root_;
 	std::optional<path> asset_directory_;
 	std::unique_ptr<AsyncLoader> async_loader_;

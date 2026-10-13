@@ -3229,14 +3229,56 @@ Prefab& AssetManager::LoadPrefab(PrefabKey key, const path& file_path, const pat
 	return it->second.value;
 }
 
+void AssetManager::SetPrefabFileWritesDeferred(bool enabled) {
+	defer_prefab_file_writes_ = enabled;
+	pending_prefab_writes_.clear();
+	pending_prefab_removals_.clear();
+}
+
+bool AssetManager::FlushDeferredPrefabFiles() {
+	if (!defer_prefab_file_writes_) {
+		return true;
+	}
+
+	auto project_root{ GetProjectRoot() };
+	if (!project_root) {
+		return false;
+	}
+
+	std::error_code error;
+	for (const std::string& key : pending_prefab_removals_) {
+		std::filesystem::remove(*project_root / GetPrefabSourcePath(PrefabKey{ key }), error);
+		if (error) {
+			return false;
+		}
+	}
+
+	for (const std::string& key : pending_prefab_writes_) {
+		auto it{ prefabs_.find(Hash(PrefabKey{ key })) };
+		if (it == prefabs_.end()) {
+			return false;
+		}
+		SavePrefabFile(it->second.file_path, it->second.value);
+	}
+
+	pending_prefab_removals_.clear();
+	pending_prefab_writes_.clear();
+	return true;
+}
+
 Prefab& AssetManager::SavePrefab(Prefab prefab, const path& prefab_path) {
 	return SavePrefab(std::move(prefab), prefab_path, prefab_path);
 }
 
 Prefab& AssetManager::SavePrefab(Prefab prefab, const path& file_path, const path& source_path) {
 	prefab.key = MakePrefabKey(prefab.key.value);
-	SavePrefabFile(file_path, prefab);
 	auto key{ prefab.key };
+	if (defer_prefab_file_writes_) {
+		pending_prefab_removals_.erase(key.value);
+		pending_prefab_writes_.insert(key.value);
+	} else {
+		SavePrefabFile(file_path, prefab);
+	}
 
 	if (auto previous{ prefabs_.find(Hash(key)) };
 		previous != prefabs_.end() && previous->second.root) {
@@ -3272,7 +3314,12 @@ bool AssetManager::SavePrefab(const PrefabKey& input_key) {
 	if (it == prefabs_.end()) {
 		return false;
 	}
-	SavePrefabFile(it->second.file_path, it->second.value);
+	if (defer_prefab_file_writes_) {
+		pending_prefab_writes_.insert(key.value);
+		pending_prefab_removals_.erase(key.value);
+	} else {
+		SavePrefabFile(it->second.file_path, it->second.value);
+	}
 	RebuildPrefabAssetEntity(prefab_manager_, it->second);
 	return true;
 }
@@ -3348,12 +3395,56 @@ bool AssetManager::SavePrefabEntity(const PrefabKey& input_key) {
 
 	it->second.value.key  = key;
 	it->second.value.root = capture(capture, it->second.root);
-	SavePrefabFile(it->second.file_path, it->second.value);
+	if (defer_prefab_file_writes_) {
+		pending_prefab_writes_.insert(key.value);
+		pending_prefab_removals_.erase(key.value);
+	} else {
+		SavePrefabFile(it->second.file_path, it->second.value);
+	}
 	return true;
 }
 
-bool AssetManager::RemovePrefab(const PrefabKey& key, bool remove_file) {
-	return DeleteAsset(key, AssetKind::Prefab, remove_file);
+bool AssetManager::RemovePrefab(const PrefabKey& input_key, bool remove_file) {
+	// A linked scene may hold an active asset reference. Unlike general asset deletion,
+	// prefab editor operations must still remove the old catalog entry when renaming
+	// or deleting a prefab. Otherwise the old and new names both remain listed.
+	PrefabKey key{ MakePrefabKey(input_key.value) };
+	auto storage_key{ MakeAssetStorageKey(key, AssetKind::Prefab) };
+	auto catalog_it{ catalog_.find(storage_key) };
+	if (catalog_it == catalog_.end()) {
+		return false;
+	}
+
+	if (auto state_it{ runtime_states_.find(storage_key) }; state_it != runtime_states_.end()) {
+		auto load_state{ state_it->second.load_state };
+		if (load_state == AssetLoadState::Queued || load_state == AssetLoadState::Loading ||
+			load_state == AssetLoadState::Finalizing) {
+			return false;
+		}
+	}
+
+	pending_prefab_writes_.erase(key.value);
+	if (remove_file) {
+		if (defer_prefab_file_writes_) {
+			pending_prefab_removals_.insert(key.value);
+		} else {
+			std::error_code error;
+			std::filesystem::remove(ResolveAssetPath(catalog_it->second), error);
+			if (error) {
+				return false;
+			}
+		}
+	}
+
+	ForceUnload(key, AssetKind::Prefab);
+	if (!std::ranges::any_of(catalog_, [&](const auto& entry) {
+			return entry.first != storage_key && entry.second.key.value == key.value;
+		})) {
+		std::erase(project_asset_dependencies_, AssetKey{ key.value });
+	}
+	catalog_.erase(catalog_it);
+	runtime_states_.erase(storage_key);
+	return true;
 }
 
 std::vector<PrefabKey> AssetManager::GetPrefabKeys() const {

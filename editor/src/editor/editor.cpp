@@ -13,6 +13,7 @@
 #include <ctime>
 #include <filesystem>
 #include <iomanip>
+#include <map>
 #include <memory>
 #include <optional>
 #include <sstream>
@@ -722,6 +723,222 @@ bool DrawDirectoryField(
 
 } // namespace
 
+namespace {
+
+// Keeps the saved project on disk recoverable while editor asset operations are pending.
+// Local editor preferences are intentionally outside the project transaction.
+class ProjectDiskSnapshot {
+public:
+	~ProjectDiskSnapshot() {
+		Clear();
+	}
+
+	[[nodiscard]] bool Capture(const Project& project) {
+		Clear();
+
+		project_file_ = project.file_path.lexically_normal();
+		asset_directory_ =
+			(project_file_.parent_path() / project.asset_directory).lexically_normal();
+
+		std::error_code error;
+		auto timestamp{ std::chrono::steady_clock::now().time_since_epoch().count() };
+		backup_directory_ = std::filesystem::temp_directory_path(error) /
+							("protegon_project_checkpoint_" + std::to_string(timestamp));
+		if (error || !std::filesystem::create_directories(backup_directory_, error) || error) {
+			Clear();
+			return false;
+		}
+
+		if (std::filesystem::exists(project_file_, error) && !error) {
+			std::filesystem::copy_file(project_file_, backup_directory_ / "project", error);
+			if (error) {
+				Clear();
+				return false;
+			}
+		}
+
+		error.clear();
+		if (std::filesystem::exists(asset_directory_, error) && !error) {
+			std::filesystem::copy(
+				asset_directory_, backup_directory_ / "assets",
+				std::filesystem::copy_options::recursive |
+					std::filesystem::copy_options::copy_symlinks,
+				error
+			);
+			if (error) {
+				Clear();
+				return false;
+			}
+		}
+
+		// Custom scene paths can live outside the configured asset directory.
+		for (const auto& entry : project.scenes) {
+			path scene_path{ (project_file_.parent_path() / entry.scene_path).lexically_normal() };
+			path relative{ scene_path.lexically_relative(asset_directory_) };
+			if (scene_path == project_file_ || (!relative.empty() && *relative.begin() != "..")) {
+				continue;
+			}
+
+			if (std::ranges::find(extra_scene_files_, scene_path) != extra_scene_files_.end()) {
+				continue;
+			}
+
+			extra_scene_files_.push_back(scene_path);
+			error.clear();
+			if (std::filesystem::exists(scene_path, error) && !error) {
+				std::filesystem::copy_file(
+					scene_path,
+					backup_directory_ / ("scene_" + std::to_string(extra_scene_files_.size())),
+					error
+				);
+				if (error) {
+					Clear();
+					return false;
+				}
+			}
+		}
+
+		baseline_ = Scan();
+		active_	  = true;
+		return true;
+	}
+
+	[[nodiscard]] bool HasChanges() const {
+		return active_ && Scan() != baseline_;
+	}
+
+	[[nodiscard]] bool Restore() {
+		if (!active_) {
+			return false;
+		}
+
+		std::error_code error;
+		std::filesystem::remove_all(asset_directory_, error);
+		if (error) {
+			return false;
+		}
+		if (std::filesystem::exists(backup_directory_ / "assets")) {
+			std::filesystem::copy(
+				backup_directory_ / "assets", asset_directory_,
+				std::filesystem::copy_options::recursive |
+					std::filesystem::copy_options::copy_symlinks,
+				error
+			);
+			if (error) {
+				return false;
+			}
+		}
+
+		for (std::size_t i{ 0 }; i < extra_scene_files_.size(); ++i) {
+			path backup{ backup_directory_ / ("scene_" + std::to_string(i + 1)) };
+			if (std::filesystem::exists(backup)) {
+				std::filesystem::create_directories(extra_scene_files_[i].parent_path(), error);
+				if (error) {
+					return false;
+				}
+				std::filesystem::copy_file(
+					backup, extra_scene_files_[i],
+					std::filesystem::copy_options::overwrite_existing, error
+				);
+			} else {
+				std::filesystem::remove(extra_scene_files_[i], error);
+			}
+			if (error) {
+				return false;
+			}
+		}
+
+		if (std::filesystem::exists(backup_directory_ / "project")) {
+			std::filesystem::copy_file(
+				backup_directory_ / "project", project_file_,
+				std::filesystem::copy_options::overwrite_existing, error
+			);
+		} else {
+			std::filesystem::remove(project_file_, error);
+		}
+		return !error;
+	}
+
+private:
+	struct FileState {
+		bool directory{ false };
+		std::uintmax_t size{ 0 };
+		std::filesystem::file_time_type modified{};
+		bool operator==(const FileState&) const = default;
+	};
+
+	[[nodiscard]] std::map<path, FileState> Scan() const {
+		std::map<path, FileState> result;
+		auto record = [&result](const path& file, const path& key) {
+			std::error_code error;
+			bool directory{ std::filesystem::is_directory(file, error) };
+			if (error) {
+				return;
+			}
+			FileState state{ .directory = directory };
+			if (!directory) {
+				state.size = std::filesystem::file_size(file, error);
+				if (!error) {
+					state.modified = std::filesystem::last_write_time(file, error);
+				}
+			}
+			if (!error) {
+				result.emplace(key, state);
+			}
+		};
+
+		std::error_code error;
+		if (std::filesystem::exists(project_file_, error) && !error) {
+			record(project_file_, "project");
+		}
+		error.clear();
+		if (std::filesystem::is_directory(asset_directory_, error) && !error) {
+			record(asset_directory_, "assets");
+			for (std::filesystem::recursive_directory_iterator it{
+					 asset_directory_, std::filesystem::directory_options::skip_permission_denied,
+					 error };
+				 !error && it != std::filesystem::recursive_directory_iterator{};
+				 it.increment(error)) {
+				record(
+					it->path(), path{ "assets" } / it->path().lexically_relative(asset_directory_)
+				);
+			}
+		}
+		for (std::size_t i{ 0 }; i < extra_scene_files_.size(); ++i) {
+			error.clear();
+			if (std::filesystem::exists(extra_scene_files_[i], error) && !error) {
+				record(extra_scene_files_[i], "scene_" + std::to_string(i + 1));
+			}
+		}
+		return result;
+	}
+
+	void Clear() {
+		active_ = false;
+		baseline_.clear();
+		extra_scene_files_.clear();
+		if (!backup_directory_.empty()) {
+			std::error_code error;
+			std::filesystem::remove_all(backup_directory_, error);
+			backup_directory_.clear();
+		}
+	}
+
+	path project_file_{};
+	path asset_directory_{};
+	path backup_directory_{};
+	std::vector<path> extra_scene_files_{};
+	std::map<path, FileState> baseline_{};
+	bool active_{ false };
+};
+
+ProjectDiskSnapshot& ProjectSnapshot() {
+	static ProjectDiskSnapshot snapshot;
+	return snapshot;
+}
+
+} // namespace
+
 Editor::Editor(Application& application) : app{ application } {
 	app.SetCloseGuard([this]() {
 		// Closing the game window during a shortcut runtime returns to the editor.
@@ -794,8 +1011,12 @@ bool Editor::CanApplicationClose() {
 		return true;
 	}
 
-	if (!unsaved_dialog_enabled_ || !GetProject()) {
+	if (!GetProject()) {
 		return true;
+	}
+
+	if (!unsaved_dialog_enabled_) {
+		return !ProjectSnapshot().HasChanges() || ProjectSnapshot().Restore();
 	}
 
 	if (!IsPlaying() && !IsDirectRuntime()) {
@@ -804,7 +1025,11 @@ bool Editor::CanApplicationClose() {
 	bool was_dirty_before_play{ play_snapshot_ && play_snapshot_->was_dirty };
 	RefreshProjectDirtyState();
 
-	if (!context_->local.state.is_dirty && !was_dirty_before_play) {
+	bool unsaved_editor_project_state{ saved_editor_project_state_json_.has_value() &&
+									   json{ context_->project_state }.dump() !=
+										   *saved_editor_project_state_json_ };
+	if (!context_->local.state.is_dirty && !was_dirty_before_play &&
+		!unsaved_editor_project_state && !ProjectSnapshot().HasChanges()) {
 		return true;
 	}
 
@@ -949,9 +1174,13 @@ void Editor::DrawUnsavedProjectClosePopup() {
 			}
 		}
 	} else if (!save_pressed && discard_clicked) {
-		allow_unsaved_project_close_ = true;
-		ImGui::CloseCurrentPopup();
-		app.RequestQuit();
+		if (ProjectSnapshot().Restore()) {
+			allow_unsaved_project_close_ = true;
+			ImGui::CloseCurrentPopup();
+			app.RequestQuit();
+		} else {
+			PTGN_ERROR("Could not restore the saved project files. Close was cancelled");
+		}
 	}
 
 	ImGui::EndPopup();
@@ -1062,7 +1291,6 @@ void Editor::OnRender() {
 
 	RefreshProjectDirtyState();
 	SaveEditorLocalStateIfChanged();
-	SaveEditorProjectStateIfChanged();
 }
 
 Project* Editor::GetProject() {
@@ -3956,8 +4184,18 @@ void Editor::SaveProjectScene() {
 		scenes.emplace_back(&scene);
 	}
 
+	if (!GetAssetManager().FlushDeferredPrefabFiles()) {
+		PTGN_ERROR("Could not save pending prefab changes");
+		return;
+	}
+
 	if (!::ptgn::impl::SaveProjectScenes(app, std::span<const Scene* const>{ scenes })) {
 		return;
+	}
+
+	SaveEditorProjectStateIfChanged();
+	if (!ProjectSnapshot().Capture(*project)) {
+		PTGN_ERROR("Could not update the saved project checkpoint");
 	}
 
 	undo_stack_.MarkProjectSaved();
@@ -4243,6 +4481,11 @@ void Editor::OnProjectChanged() {
 	untracked_project_dirty_ = false;
 	play_snapshot_.reset();
 	app_context.runtime_project_scenes.clear();
+
+	GetAssetManager().SetPrefabFileWritesDeferred(true);
+	if (!ProjectSnapshot().Capture(app_context.project.value())) {
+		PTGN_ERROR("Could not checkpoint project files for Discard");
+	}
 
 	context_->local			= LoadEditorLocalState(app_context.project.value());
 	context_->project_state = LoadEditorProjectState(app_context.project.value());

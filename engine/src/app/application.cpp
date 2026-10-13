@@ -253,9 +253,6 @@ void Application::StartProjectImpl(
 
 	if (ctx_.assets.RegisterCatalog(loaded_project.assets, loaded_project)) {
 		loaded_project.assets = ctx_.assets.GetCatalog();
-#if !defined(__EMSCRIPTEN__)
-		SaveProject(loaded_project);
-#endif
 	}
 
 	LoadProjectPreloads(*this);
