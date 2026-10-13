@@ -3,11 +3,13 @@
 #include <algorithm>
 #include <cctype>
 #include <chrono>
+#include <cmath>
 #include <format>
 #include <ostream>
 #include <ratio>
 #include <regex>
 #include <string>
+#include <string_view>
 #include <type_traits>
 
 #include "core/log.h"
@@ -77,6 +79,36 @@ template <DurationType T>
 [[nodiscard]] constexpr std::string_view DurationUnit() {
 	using Period = typename std::remove_cvref_t<T>::period;
 	return DurationUnit<Period>();
+}
+
+/// @brief Formats an elapsed time using the largest appropriate unit.
+/// Milliseconds use whole numbers; seconds and larger units use two decimal places.
+[[nodiscard]] inline std::string FormatDurationCompact(millisecondsf value) {
+	float duration{ std::abs(value.count()) };
+	float unit_scale{ 1.0f };
+	std::string_view unit{ "ms" };
+
+	if (duration >= 604800000.0f) {
+		unit_scale = 604800000.0f;
+		unit	   = "w";
+	} else if (duration >= 86400000.0f) {
+		unit_scale = 86400000.0f;
+		unit	   = "d";
+	} else if (duration >= 3600000.0f) {
+		unit_scale = 3600000.0f;
+		unit	   = "h";
+	} else if (duration >= 60000.0f) {
+		unit_scale = 60000.0f;
+		unit	   = "m";
+	} else if (duration >= 1000.0f) {
+		unit_scale = 1000.0f;
+		unit	   = "s";
+	}
+
+	if (unit == "ms") {
+		return std::format("{:.0f} ms", value.count());
+	}
+	return std::format("{:.2f} {}", value.count() / unit_scale, unit);
 }
 
 template <typename Rep, typename Period>

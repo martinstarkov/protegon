@@ -25,6 +25,7 @@
 #include "runtime/graphics/sprite.h"
 #include "runtime/graphics/tint.h"
 #include "runtime/graphics/visible.h"
+#include "runtime/physics/lifetime.h"
 #include "runtime/physics/movement.h"
 #include "runtime/physics/rigid_body.h"
 #include "runtime/scene/scene.h"
@@ -926,6 +927,36 @@ void TimerActionScript::OnStart() {
 		case TimerAction::SetDuration:	  handle.SetDuration(amount); break;
 		case TimerAction::AddDuration:	  handle.AddDuration(amount); break;
 		case TimerAction::RemoveDuration: handle.RemoveDuration(amount); break;
+	}
+}
+
+void LifetimeActionScript::OnStart() {
+	Entity entity{ Target() };
+	auto* lifetime{ entity ? entity.TryGet<Lifetime>() : nullptr };
+	if (!lifetime) {
+		PTGN_WARN("Lifetime action requires a Lifetime component on the target entity");
+		return;
+	}
+
+	switch (action) {
+		case LifetimeAction::Start:
+		case LifetimeAction::Restart: lifetime->Start(); break;
+		case LifetimeAction::Stop:	  lifetime->Stop(); break;
+		case LifetimeAction::Reset:	  lifetime->Reset(); break;
+		case LifetimeAction::Pause:	  lifetime->Pause(); break;
+		case LifetimeAction::Resume:  lifetime->Resume(); break;
+		case LifetimeAction::TogglePaused:
+			if (lifetime->IsPaused()) {
+				lifetime->Resume();
+			} else if (lifetime->IsRunning()) {
+				lifetime->Pause();
+			}
+			break;
+		case LifetimeAction::Advance:		 lifetime->Advance(entity, amount); break;
+		case LifetimeAction::Rewind:		 lifetime->Rewind(amount); break;
+		case LifetimeAction::SetDuration:	 lifetime->SetDuration(entity, amount); break;
+		case LifetimeAction::AddDuration:	 lifetime->AddDuration(entity, amount); break;
+		case LifetimeAction::RemoveDuration: lifetime->RemoveDuration(entity, amount); break;
 	}
 }
 

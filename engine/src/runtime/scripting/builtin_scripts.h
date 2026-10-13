@@ -527,6 +527,32 @@ struct TimerActionScript : public Script {
 	PTGN_REFLECT(TimerActionScript, timer, action, amount)
 };
 
+enum class LifetimeAction : std::uint8_t {
+	Start,
+	Restart,
+	Stop,
+	Reset,
+	Pause,
+	Resume,
+	TogglePaused,
+	Advance,
+	Rewind,
+	SetDuration,
+	AddDuration,
+	RemoveDuration
+};
+
+PTGN_REFLECT_ENUM(LifetimeAction);
+
+/// @brief Controls the Lifetime component on the script target entity.
+struct LifetimeActionScript : public Script {
+	LifetimeAction action{ LifetimeAction::Start };
+	millisecondsf amount{ 1000.0f };
+
+	void OnStart() override;
+	PTGN_REFLECT(LifetimeActionScript, action, amount)
+};
+
 enum class DialogueAction : std::uint8_t {
 	Open,
 	Close,

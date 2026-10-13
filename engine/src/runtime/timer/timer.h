@@ -33,7 +33,7 @@ struct TimerConfig {
 	TimerKey key{ "Timer" };
 	millisecondsf duration{ 1000.0f };
 	TimerMode mode{ TimerMode::Once };
-	bool start_automatically{ true };
+	bool start_automatically{ false };
 
 	constexpr bool operator==(const TimerConfig&) const = default;
 
@@ -154,13 +154,13 @@ struct TimerHandle {
 
 TimerHandle AddTimer(
 	Entity entity, TimerKey key, millisecondsf duration, TimerMode mode = TimerMode::Once,
-	bool start_automatically = true
+	bool start_automatically = false
 );
 
 template <DurationType D>
 TimerHandle AddTimer(
 	Entity entity, TimerKey key, D duration, TimerMode mode = TimerMode::Once,
-	bool start_automatically = true
+	bool start_automatically = false
 ) {
 	return AddTimer(
 		entity, std::move(key), duration_cast<millisecondsf>(duration), mode, start_automatically

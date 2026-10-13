@@ -770,6 +770,21 @@ inline constexpr std::array kTimerActions{
 	std::pair{ TimerAction::RemoveDuration, "Remove Duration" },
 };
 
+inline constexpr std::array kLifetimeActions{
+	std::pair{ LifetimeAction::Start, "Start" },
+	std::pair{ LifetimeAction::Restart, "Restart" },
+	std::pair{ LifetimeAction::Stop, "Stop" },
+	std::pair{ LifetimeAction::Reset, "Reset" },
+	std::pair{ LifetimeAction::Pause, "Pause" },
+	std::pair{ LifetimeAction::Resume, "Resume" },
+	std::pair{ LifetimeAction::TogglePaused, "Toggle Paused" },
+	std::pair{ LifetimeAction::Advance, "Advance" },
+	std::pair{ LifetimeAction::Rewind, "Rewind" },
+	std::pair{ LifetimeAction::SetDuration, "Set Duration" },
+	std::pair{ LifetimeAction::AddDuration, "Add Duration" },
+	std::pair{ LifetimeAction::RemoveDuration, "Remove Duration" },
+};
+
 inline constexpr std::array kDialogueActions{
 	std::pair{ DialogueAction::Open, "Open" },
 	std::pair{ DialogueAction::Close, "Close" },
@@ -844,6 +859,13 @@ inline constexpr std::array kSceneTransitions{
 	return it != kTimerActions.end() ? it->second : "Timer";
 }
 
+[[nodiscard]] const char* LifetimeActionLabel(LifetimeAction action) {
+	auto it{ std::ranges::find_if(kLifetimeActions, [action](const auto& entry) {
+		return entry.first == action;
+	}) };
+	return it != kLifetimeActions.end() ? it->second : "Lifetime";
+}
+
 [[nodiscard]] const char* DialogueActionLabel(DialogueAction action) {
 	auto it{ std::ranges::find_if(kDialogueActions, [action](const auto& entry) {
 		return entry.first == action;
@@ -869,6 +891,24 @@ inline constexpr std::array kSceneTransitions{
 		case TimerAction::Pause:
 		case TimerAction::Resume:
 		case TimerAction::TogglePaused:	  return false;
+	}
+	return false;
+}
+
+[[nodiscard]] bool LifetimeActionUsesAmount(LifetimeAction action) {
+	switch (action) {
+		case LifetimeAction::Advance:
+		case LifetimeAction::Rewind:
+		case LifetimeAction::SetDuration:
+		case LifetimeAction::AddDuration:
+		case LifetimeAction::RemoveDuration: return true;
+		case LifetimeAction::Start:
+		case LifetimeAction::Restart:
+		case LifetimeAction::Stop:
+		case LifetimeAction::Reset:
+		case LifetimeAction::Pause:
+		case LifetimeAction::Resume:
+		case LifetimeAction::TogglePaused:	 return false;
 	}
 	return false;
 }
@@ -992,6 +1032,38 @@ bool DrawTimerActionInline(ScriptEditorContext& context, TimerActionScript& scri
 		changed |= inspector::DrawDurationTextInput(
 			"##TimerAmount", script.amount, amount_width, false,
 			"Time amount used by this timer operation."
+		);
+	}
+
+	return changed;
+}
+
+bool DrawLifetimeActionInline(ScriptEditorContext&, LifetimeActionScript& script) {
+	bool changed{ false };
+	float available{ ImGui::GetContentRegionAvail().x };
+	bool uses_amount{ LifetimeActionUsesAmount(script.action) };
+	float spacing{ ImGui::GetStyle().ItemSpacing.x };
+	float amount_width{ std::min(100.0f, std::max(72.0f, available * 0.35f)) };
+	float action_width{ uses_amount ? std::max(1.0f, available - amount_width - spacing)
+									: std::max(1.0f, available) };
+
+	ImGui::SetNextItemWidth(action_width);
+	if (ImGui::BeginCombo("##LifetimeAction", LifetimeActionLabel(script.action))) {
+		for (const auto& [candidate, label] : kLifetimeActions) {
+			if (ImGui::Selectable(label, candidate == script.action)) {
+				script.action = candidate;
+				changed		  = true;
+			}
+		}
+		ImGui::EndCombo();
+	}
+	DrawItemTooltip("Lifetime operation to perform on the action target.");
+
+	if (LifetimeActionUsesAmount(script.action)) {
+		SameLineControl();
+		changed |= inspector::DrawDurationTextInput(
+			"##LifetimeAmount", script.amount, amount_width, false,
+			"Time amount used by this lifetime operation."
 		);
 	}
 
@@ -2404,6 +2476,16 @@ PTGN_REGISTER_SCRIPT(
 );
 
 PTGN_REGISTER_SCRIPT(
+	LifetimeActionScript, {
+							  .label	   = "Lifetime Action",
+							  .group	   = "",
+							  .description = "Control the Lifetime component on the action target.",
+							  .type		   = ScriptType::Sequence,
+							  .draw_inline = &DrawLifetimeActionInline,
+						  }
+);
+
+PTGN_REGISTER_SCRIPT(
 	DialogueActionScript,
 	{
 		.label		 = "Dialogue Action",
@@ -2433,6 +2515,12 @@ namespace {
 
 [[maybe_unused]] const bool kTimerActionRuntimeRegistered{
 	ScriptRegistry::Register<TimerActionScript>(ScriptRegistrationOptions{
+		.completion = ScriptCompletion::Instant,
+	})
+};
+
+[[maybe_unused]] const bool kLifetimeActionRuntimeRegistered{
+	ScriptRegistry::Register<LifetimeActionScript>(ScriptRegistrationOptions{
 		.completion = ScriptCompletion::Instant,
 	})
 };

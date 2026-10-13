@@ -339,7 +339,14 @@ bool TimerHandle::Resume() const {
 		return false;
 	}
 
-	entry->runtime.timer.Resume();
+	if (entry->runtime.completed) {
+		// A manually advanced one shot timer can be paused at its completed duration.
+		// Resuming it begins a new interval instead of dispatching completion twice.
+		entry->runtime.completed = false;
+		entry->runtime.timer.Restart();
+	} else {
+		entry->runtime.timer.Resume();
+	}
 
 	return true;
 }
@@ -363,7 +370,27 @@ bool TimerHandle::Advance(millisecondsf amount) const {
 		return false;
 	}
 
+	InitializeTimerRuntime(*entry, false);
+
+	if (entry->runtime.completed) {
+		entry->runtime.timer.Restart();
+		entry->runtime.completed = false;
+	} else if (!entry->runtime.timer.IsRunning() && !entry->runtime.timer.IsPaused()) {
+		millisecondsf elapsed{ entry->runtime.timer.ElapsedDuration<millisecondsf>() };
+		entry->runtime.timer.Start();
+		entry->runtime.timer.AddElapsed(elapsed);
+	}
+
 	auto events{ AdvanceTimerEntry(*entry, key, amount) };
+
+	// Manual stepping leaves the timer paused, including at completion.
+	// Preserve the completed state and elapsed count until another action changes them.
+	if (!entry->runtime.timer.IsRunning() && !entry->runtime.timer.IsPaused()) {
+		millisecondsf elapsed{ entry->runtime.timer.ElapsedDuration<millisecondsf>() };
+		entry->runtime.timer.Start();
+		entry->runtime.timer.AddElapsed(elapsed);
+	}
+	entry->runtime.timer.Pause();
 
 	if (events.empty()) {
 		return false;
@@ -385,6 +412,10 @@ bool TimerHandle::Rewind(millisecondsf amount) const {
 
 	entry->runtime.timer.RemoveElapsed(amount);
 	entry->runtime.completed = false;
+
+	if (entry->runtime.timer.ElapsedDuration<millisecondsf>() <= millisecondsf{ 0.0f }) {
+		entry->runtime.timer.Reset();
+	}
 
 	return true;
 }

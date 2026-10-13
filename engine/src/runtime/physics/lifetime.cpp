@@ -20,7 +20,7 @@ void Lifetime::Start() {
 }
 
 void Lifetime::Stop() {
-	timer_.Stop();
+	timer_.Reset();
 }
 
 void Lifetime::Reset() {
@@ -35,12 +35,50 @@ void Lifetime::Resume() {
 	timer_.Resume();
 }
 
-void Lifetime::Advance(millisecondsf amount) {
+void Lifetime::Advance(Entity entity, millisecondsf amount) {
+	if (amount <= millisecondsf{ 0.0f }) {
+		return;
+	}
+
+	if (!timer_.IsRunning() && !timer_.IsPaused()) {
+		millisecondsf elapsed{ timer_.ElapsedDuration<millisecondsf>() };
+		timer_.Start();
+		timer_.AddElapsed(elapsed);
+	}
+
 	timer_.AddElapsed(amount);
+	timer_.Pause();
+	ExpireIfComplete(entity);
 }
 
 void Lifetime::Rewind(millisecondsf amount) {
+	if (amount <= millisecondsf{ 0.0f }) {
+		return;
+	}
+
 	timer_.RemoveElapsed(amount);
+	if (Elapsed() <= millisecondsf{ 0.0f }) {
+		timer_.Reset();
+	} else if (timer_.IsRunning()) {
+		timer_.Pause();
+	}
+}
+
+void Lifetime::SetDuration(Entity entity, millisecondsf value) {
+	duration = duration_cast<milliseconds>(millisecondsf{ std::max(0.0f, value.count()) });
+	ExpireIfComplete(entity);
+}
+
+void Lifetime::AddDuration(Entity entity, millisecondsf amount) {
+	if (amount > millisecondsf{ 0.0f }) {
+		SetDuration(entity, duration_cast<millisecondsf>(duration) + amount);
+	}
+}
+
+void Lifetime::RemoveDuration(Entity entity, millisecondsf amount) {
+	if (amount > millisecondsf{ 0.0f }) {
+		SetDuration(entity, duration_cast<millisecondsf>(duration) - amount);
+	}
 }
 
 millisecondsf Lifetime::Elapsed() const {
@@ -68,11 +106,19 @@ bool Lifetime::HasRun() const {
 	return timer_.HasRun();
 }
 
-void Lifetime::Update(Entity entity, secondsf dt) {
-	timer_.Update(dt);
-	if (timer_.Completed(duration)) {
+void Lifetime::ExpireIfComplete(Entity entity) {
+	if (entity && timer_.HasRun() && timer_.Completed(duration)) {
 		entity.Destroy();
 	}
+}
+
+void Lifetime::Update(Entity entity, secondsf dt) {
+	if (!timer_.IsRunning()) {
+		return;
+	}
+
+	timer_.Update(dt);
+	ExpireIfComplete(entity);
 }
 
 void Lifetime::Update(Scene& scene, secondsf dt) {

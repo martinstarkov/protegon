@@ -1,3 +1,4 @@
+#include "core/util/time.h"
 #include "editor/editor_icons.h"
 #include "panels/inspector_archetype_inspector.h"
 #include "panels/inspector_scripts.h"
@@ -25,25 +26,6 @@ namespace {
 	return ctx.editor.IsPlaying() || ctx.editor.IsDirectRuntime();
 }
 
-[[nodiscard]] std::string FormatTimerRuntimeDuration(millisecondsf value) {
-	float milliseconds{ std::abs(value.count()) };
-	std::string_view unit{ "ms" };
-
-	if (milliseconds >= 604800000.0f) {
-		unit = "w";
-	} else if (milliseconds >= 86400000.0f) {
-		unit = "d";
-	} else if (milliseconds >= 3600000.0f) {
-		unit = "h";
-	} else if (milliseconds >= 60000.0f) {
-		unit = "m";
-	} else if (milliseconds >= 1000.0f) {
-		unit = "s";
-	}
-
-	return FormatInspectorDuration(value, unit);
-}
-
 void SyncTimerRuntimeSnapshot(Entity entity, const TimerKey& live_key, TimerEntry& edited_entry) {
 	if (!entity) {
 		return;
@@ -62,6 +44,26 @@ void SyncTimerRuntimeSnapshot(Entity entity, const TimerKey& live_key, TimerEntr
 	}
 }
 
+void DrawRuntimeTooltipAboveLastItem(const char* tooltip) {
+	if (!tooltip || !*tooltip || !ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled)) {
+		return;
+	}
+
+	ImVec2 min{ ImGui::GetItemRectMin() };
+	ImVec2 max{ ImGui::GetItemRectMax() };
+	ImVec2 position{ (min.x + max.x) * 0.5f, min.y - ImGui::GetStyle().ItemSpacing.y };
+	ImGui::SetNextWindowPos(position, ImGuiCond_Always, ImVec2{ 0.5f, 1.0f });
+	ImGui::BeginTooltip();
+	ImGui::TextUnformatted(tooltip);
+	ImGui::EndTooltip();
+}
+
+bool DrawRuntimeIconButton(const char* id, EditorIcon icon, const char* tooltip) {
+	bool pressed{ DrawEditorIconButton(id, icon, "") };
+	DrawRuntimeTooltipAboveLastItem(tooltip);
+	return pressed;
+}
+
 millisecondsf timer_runtime_adjustment{ 100.0f };
 
 void DrawTimerRuntimeControls(Entity entity, const TimerKey& live_key, TimerEntry& edited_entry) {
@@ -76,7 +78,7 @@ void DrawTimerRuntimeControls(Entity entity, const TimerKey& live_key, TimerEntr
 	float spacing{ style.ItemInnerSpacing.x };
 
 	bool active{ timer.IsRunning() || timer.IsPaused() };
-	if (DrawEditorIconButton(
+	if (DrawRuntimeIconButton(
 			"##TimerStartStop", active ? EditorIcon::Stop : EditorIcon::Play,
 			active ? "Stop and reset timer" : "Start timer"
 		)) {
@@ -87,33 +89,33 @@ void DrawTimerRuntimeControls(Entity entity, const TimerKey& live_key, TimerEntr
 	ImGui::SameLine(0.0f, spacing);
 
 	bool paused{ timer.IsPaused() };
-	bool running{ timer.IsRunning() };
-	bool stopped{ !running && !paused };
-	EditorIcon secondary_icon{ stopped	? EditorIcon::Reset
-							   : paused ? EditorIcon::Play
-										: EditorIcon::Pause };
-	const char* secondary_tooltip{ stopped	? "Reset timer"
-								   : paused ? "Resume timer"
-											: "Pause timer" };
-	if (DrawEditorIconButton("##TimerPauseResumeReset", secondary_icon, secondary_tooltip)) {
-		runtime_changed |= stopped ? timer.Reset() : paused ? timer.Resume() : timer.Pause();
+	bool stopped{ !timer.IsRunning() && !paused };
+	ImGui::BeginDisabled(stopped);
+	if (DrawRuntimeIconButton(
+			"##TimerPauseResume", paused ? EditorIcon::Play : EditorIcon::Pause,
+			paused ? "Resume timer" : "Pause timer"
+		)) {
+		runtime_changed |= paused ? timer.Resume() : timer.Pause();
 	}
+	ImGui::EndDisabled();
 
 	ImGui::SameLine(0.0f, spacing);
-	if (DrawEditorIconButton("##TimerRewind", EditorIcon::StepBackward, "Rewind timer")) {
+	if (DrawRuntimeIconButton("##TimerRewind", EditorIcon::StepBackward, "Rewind timer")) {
 		runtime_changed |= timer.Rewind(timer_runtime_adjustment);
 	}
 
 	ImGui::SameLine(0.0f, spacing);
 	float adjustment_width{ ImGui::CalcTextSize("1000ms").x + style.FramePadding.x * 2.0f };
+	ImGui::BeginGroup();
 	DrawDurationTextInput(
-		"##TimerRuntimeAdjustment", timer_runtime_adjustment, adjustment_width, false,
-		"Amount to rewind or advance."
+		"##TimerRuntimeAdjustment", timer_runtime_adjustment, adjustment_width, false, ""
 	);
+	ImGui::EndGroup();
+	DrawRuntimeTooltipAboveLastItem("Amount to rewind or advance.");
 	timer_runtime_adjustment = millisecondsf{ std::max(0.001f, timer_runtime_adjustment.count()) };
 
 	ImGui::SameLine(0.0f, spacing);
-	if (DrawEditorIconButton("##TimerAdvance", EditorIcon::StepForward, "Advance timer")) {
+	if (DrawRuntimeIconButton("##TimerAdvance", EditorIcon::StepForward, "Advance timer")) {
 		runtime_changed |= timer.Advance(timer_runtime_adjustment);
 	}
 
@@ -127,8 +129,8 @@ void DrawTimerRuntimeControls(Entity entity, const TimerKey& live_key, TimerEntr
 					   : timer.IsRunning()	 ? "Running"
 					   : timer.IsCompleted() ? "Complete"
 											 : "Stopped" };
-	std::string elapsed{ FormatTimerRuntimeDuration(timer.Elapsed()) };
-	std::string duration{ FormatTimerRuntimeDuration(timer.Duration()) };
+	std::string elapsed{ FormatDurationCompact(timer.Elapsed()) };
+	std::string duration{ FormatDurationCompact(timer.Duration()) };
 
 	ImGui::Text("%s  %s / %s", state, elapsed.c_str(), duration.c_str());
 	ImGui::ProgressBar(timer.Progress(), ImVec2{ -FLT_MIN, 0.0f });
@@ -151,9 +153,9 @@ void DrawLifetimeRuntimeControls(Entity entity) {
 	float spacing{ style.ItemInnerSpacing.x };
 	bool active{ lifetime->IsRunning() || lifetime->IsPaused() };
 
-	if (DrawEditorIconButton(
+	if (DrawRuntimeIconButton(
 			"##LifetimeStartStop", active ? EditorIcon::Stop : EditorIcon::Play,
-			active ? "Stop lifetime timer" : "Start lifetime timer"
+			active ? "Stop and reset lifetime timer" : "Start lifetime timer"
 		)) {
 		if (active) {
 			lifetime->Stop();
@@ -165,27 +167,22 @@ void DrawLifetimeRuntimeControls(Entity entity) {
 	ImGui::SameLine(0.0f, spacing);
 
 	bool paused{ lifetime->IsPaused() };
-	bool running{ lifetime->IsRunning() };
-	bool stopped{ !running && !paused };
-	EditorIcon secondary_icon{ stopped	? EditorIcon::Reset
-							   : paused ? EditorIcon::Play
-										: EditorIcon::Pause };
-	const char* secondary_tooltip{ stopped	? "Reset lifetime timer"
-								   : paused ? "Resume lifetime timer"
-											: "Pause lifetime timer" };
-
-	if (DrawEditorIconButton("##LifetimePauseResumeReset", secondary_icon, secondary_tooltip)) {
-		if (stopped) {
-			lifetime->Reset();
-		} else if (paused) {
+	bool stopped{ !lifetime->IsRunning() && !paused };
+	ImGui::BeginDisabled(stopped);
+	if (DrawRuntimeIconButton(
+			"##LifetimePauseResume", paused ? EditorIcon::Play : EditorIcon::Pause,
+			paused ? "Resume lifetime timer" : "Pause lifetime timer"
+		)) {
+		if (paused) {
 			lifetime->Resume();
 		} else {
 			lifetime->Pause();
 		}
 	}
+	ImGui::EndDisabled();
 
 	ImGui::SameLine(0.0f, spacing);
-	if (DrawEditorIconButton(
+	if (DrawRuntimeIconButton(
 			"##LifetimeRewind", EditorIcon::StepBackward, "Rewind lifetime timer"
 		)) {
 		lifetime->Rewind(lifetime_runtime_adjustment);
@@ -193,18 +190,23 @@ void DrawLifetimeRuntimeControls(Entity entity) {
 
 	ImGui::SameLine(0.0f, spacing);
 	float adjustment_width{ ImGui::CalcTextSize("1000ms").x + style.FramePadding.x * 2.0f };
+	ImGui::BeginGroup();
 	DrawDurationTextInput(
-		"##LifetimeRuntimeAdjustment", lifetime_runtime_adjustment, adjustment_width, false,
-		"Amount to rewind or advance the lifetime timer."
+		"##LifetimeRuntimeAdjustment", lifetime_runtime_adjustment, adjustment_width, false, ""
 	);
+	ImGui::EndGroup();
+	DrawRuntimeTooltipAboveLastItem("Amount to rewind or advance the lifetime timer.");
 	lifetime_runtime_adjustment =
 		millisecondsf{ std::max(0.001f, lifetime_runtime_adjustment.count()) };
 
 	ImGui::SameLine(0.0f, spacing);
-	if (DrawEditorIconButton(
+	if (DrawRuntimeIconButton(
 			"##LifetimeAdvance", EditorIcon::StepForward, "Advance lifetime timer"
 		)) {
-		lifetime->Advance(lifetime_runtime_adjustment);
+		lifetime->Advance(entity, lifetime_runtime_adjustment);
+		if (!entity || !entity.Has<Lifetime>()) {
+			return;
+		}
 	}
 
 	millisecondsf elapsed{ lifetime->Elapsed() };
@@ -214,8 +216,8 @@ void DrawLifetimeRuntimeControls(Entity entity) {
 					   : lifetime->IsRunning() ? "Running"
 					   : completed			   ? "Complete"
 											   : "Stopped" };
-	std::string elapsed_text{ FormatTimerRuntimeDuration(elapsed) };
-	std::string duration_text{ FormatTimerRuntimeDuration(duration) };
+	std::string elapsed_text{ FormatDurationCompact(elapsed) };
+	std::string duration_text{ FormatDurationCompact(duration) };
 
 	ImGui::Text("%s  %s / %s", state, elapsed_text.c_str(), duration_text.c_str());
 	ImGui::ProgressBar(lifetime->Progress(), ImVec2{ -FLT_MIN, 0.0f });
@@ -580,15 +582,16 @@ bool DrawUtilitiesSectionImpl(Target& target) {
 			if constexpr (requires { target.entity; }) {
 				if (target.entity && IsTimerRuntimeActive(target.ctx)) {
 					DrawLifetimeRuntimeControls(target.entity);
+					if (!target.entity || !target.entity.template Has<Lifetime>()) {
+						return false;
+					}
 					if (auto* live_lifetime{ target.entity.template TryGet<Lifetime>() }) {
 						value = *live_lifetime;
 					}
 				}
 			}
 
-			return DrawRegisteredComponentContents(
-				target.ctx, Hash<Lifetime>(), std::addressof(value)
-			);
+			return DrawValue(target.ctx, "Duration", value.duration);
 		});
 	return changed;
 }

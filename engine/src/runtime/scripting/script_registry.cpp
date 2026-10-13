@@ -474,6 +474,7 @@ PTGN_REGISTER_SCRIPT(SetVisibleScript, { .completion = ScriptCompletion::Instant
 PTGN_REGISTER_SCRIPT(PlaySoundScript, { .completion = ScriptCompletion::Instant });
 PTGN_REGISTER_SCRIPT(AnimationActionScript, { .completion = ScriptCompletion::Instant });
 PTGN_REGISTER_SCRIPT(TimerActionScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(LifetimeActionScript, { .completion = ScriptCompletion::Instant });
 PTGN_REGISTER_SCRIPT(DialogueActionScript, { .completion = ScriptCompletion::Instant });
 PTGN_REGISTER_SCRIPT(TooltipActionScript, { .completion = ScriptCompletion::Instant });
 PTGN_REGISTER_SCRIPT(SetTextureScript, { .completion = ScriptCompletion::Instant });
