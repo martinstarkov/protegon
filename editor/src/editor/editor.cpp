@@ -12,6 +12,7 @@
 #include <cstdint>
 #include <ctime>
 #include <filesystem>
+#include <fstream>
 #include <iomanip>
 #include <map>
 #include <memory>
@@ -804,7 +805,33 @@ public:
 	}
 
 	[[nodiscard]] bool HasChanges() const {
-		return active_ && Scan() != baseline_;
+		if (!active_) {
+			return false;
+		}
+
+		auto current{ Scan() };
+		if (current.size() != baseline_.size()) {
+			return true;
+		}
+
+		for (const auto& [key, state] : current) {
+			auto saved{ baseline_.find(key) };
+			if (saved == baseline_.end() || state.directory != saved->second.directory) {
+				return true;
+			}
+
+			if (state.directory) {
+				continue;
+			}
+
+			if (state.size != saved->second.size ||
+				(state.modified != saved->second.modified &&
+				 !SameFileContents(state.file, backup_directory_ / key))) {
+				return true;
+			}
+		}
+
+		return false;
 	}
 
 	[[nodiscard]] bool Restore() {
@@ -860,7 +887,35 @@ public:
 	}
 
 private:
+	[[nodiscard]] static bool SameFileContents(const path& left_path, const path& right_path) {
+		std::ifstream left{ left_path, std::ios::binary };
+		std::ifstream right{ right_path, std::ios::binary };
+		if (!left || !right) {
+			return false;
+		}
+
+		std::array<char, 65536> left_buffer{};
+		std::array<char, 65536> right_buffer{};
+		for (;;) {
+			left.read(left_buffer.data(), left_buffer.size());
+			right.read(right_buffer.data(), right_buffer.size());
+
+			auto count{ left.gcount() };
+			if (count != right.gcount() ||
+				!std::equal(
+					left_buffer.begin(), left_buffer.begin() + count, right_buffer.begin()
+				)) {
+				return false;
+			}
+
+			if (count < static_cast<std::streamsize>(left_buffer.size())) {
+				return left.eof() && right.eof();
+			}
+		}
+	}
+
 	struct FileState {
+		path file{};
 		bool directory{ false };
 		std::uintmax_t size{ 0 };
 		std::filesystem::file_time_type modified{};
@@ -875,7 +930,7 @@ private:
 			if (error) {
 				return;
 			}
-			FileState state{ .directory = directory };
+			FileState state{ .file = file, .directory = directory };
 			if (!directory) {
 				state.size = std::filesystem::file_size(file, error);
 				if (!error) {
@@ -941,14 +996,26 @@ ProjectDiskSnapshot& ProjectSnapshot() {
 
 Editor::Editor(Application& application) : app{ application } {
 	app.SetCloseGuard([this]() {
-		// Closing the game window during a shortcut runtime returns to the editor.
-		if (shortcut_runtime_active_ && !render_enabled_) {
-			if (CanStop()) {
-				Stop();
-			}
-			shortcut_runtime_active_ = false;
-			EnableRendering(true);
+		// A close request exits the application, even if F10 previously hid the editor.
+		// Restore the saved edit state first so runtime changes are never offered for saving.
+		if (pending_close_after_runtime_stop_) {
 			return false;
+		}
+
+		if (CanStop()) {
+			Stop();
+			shortcut_runtime_active_ = false;
+
+			if (!render_enabled_) {
+				EnableRendering(true);
+			}
+
+			// Scene replacement can be queued. Finish the same close request once
+			// the editor scenes have replaced all runtime scenes.
+			if (IsPlaying() || IsDirectRuntime()) {
+				pending_close_after_runtime_stop_ = true;
+				return false;
+			}
 		}
 
 #if !defined(__EMSCRIPTEN__)
@@ -1006,30 +1073,34 @@ void Editor::RequestQuit() {
 	app.RequestQuit();
 }
 
-bool Editor::CanApplicationClose() {
-	if (allow_unsaved_project_close_) {
-		return true;
-	}
-
+bool Editor::HasUnsavedProjectChanges() const {
 	if (!GetProject()) {
-		return true;
+		return false;
 	}
 
-	if (!unsaved_dialog_enabled_) {
-		return !ProjectSnapshot().HasChanges() || ProjectSnapshot().Restore();
+	bool unsaved_editor_project_state{ saved_editor_project_state_json_.has_value() &&
+									   json{ context_->project_state }.dump() !=
+										   *saved_editor_project_state_json_ };
+
+	return untracked_project_dirty_ || undo_stack_.IsProjectDirty() ||
+		   unsaved_editor_project_state || ProjectSnapshot().HasChanges();
+}
+
+bool Editor::CanApplicationClose() {
+	if (allow_unsaved_project_close_ || !GetProject()) {
+		return true;
 	}
 
 	if (!IsPlaying() && !IsDirectRuntime()) {
 		undo_stack_.CommitActiveEdit();
 	}
-	bool was_dirty_before_play{ play_snapshot_ && play_snapshot_->was_dirty };
 	RefreshProjectDirtyState();
 
-	bool unsaved_editor_project_state{ saved_editor_project_state_json_.has_value() &&
-									   json{ context_->project_state }.dump() !=
-										   *saved_editor_project_state_json_ };
-	if (!context_->local.state.is_dirty && !was_dirty_before_play &&
-		!unsaved_editor_project_state && !ProjectSnapshot().HasChanges()) {
+	if (!unsaved_dialog_enabled_) {
+		return !ProjectSnapshot().HasChanges() || ProjectSnapshot().Restore();
+	}
+
+	if (!HasUnsavedProjectChanges()) {
 		return true;
 	}
 
@@ -1168,7 +1239,8 @@ void Editor::DrawUnsavedProjectClosePopup() {
 			SaveProjectScene();
 			RefreshProjectDirtyState();
 
-			if (!context_->local.state.is_dirty) {
+			if (!HasUnsavedProjectChanges()) {
+				allow_unsaved_project_close_ = true;
 				ImGui::CloseCurrentPopup();
 				app.RequestQuit();
 			}
@@ -1288,6 +1360,20 @@ void Editor::OnRender() {
 	undo_stack_.CommitInactiveInteraction(ImGui::IsAnyItemActive());
 
 	ImGui::End();
+
+	// Some editor panels populate their project data on their first render. This is
+	// initialization, not an authored change. Establish the clean checkpoint after
+	// those panels have initialized, before accepting subsequent project edits.
+	if (project_initialization_pending_ && !IsPlaying() && !IsDirectRuntime()) {
+		project_initialization_pending_ = false;
+		if (const auto* project{ GetProject() };
+			!untracked_project_dirty_ && !undo_stack_.IsProjectDirty() && project) {
+			saved_editor_project_state_json_ = json{ context_->project_state }.dump();
+			if (ProjectSnapshot().HasChanges() && !ProjectSnapshot().Capture(*project)) {
+				PTGN_ERROR("Could not checkpoint initialized project files for Discard");
+			}
+		}
+	}
 
 	RefreshProjectDirtyState();
 	SaveEditorLocalStateIfChanged();
@@ -1915,6 +2001,10 @@ bool Editor::UpdateRuntimeScreenEffect(
 
 void Editor::MarkProjectDirty() {
 	PTGN_ASSERT(context_);
+	if (IsPlaying() || IsDirectRuntime()) {
+		return;
+	}
+
 	untracked_project_dirty_		= true;
 	scene_asset_dependencies_dirty_ = true;
 	RefreshProjectDirtyState();
@@ -3588,6 +3678,11 @@ void Editor::OnUpdate() {
 
 	scene_list_panel_.ClearInvalidSceneSelection(*context_);
 
+	if (pending_close_after_runtime_stop_ && !IsPlaying() && !IsDirectRuntime()) {
+		pending_close_after_runtime_stop_ = false;
+		app.RequestQuit();
+	}
+
 	UpdateProjectLocalState();
 	UpdateRuntimeViewportState();
 
@@ -3794,6 +3889,8 @@ void Editor::Play() {
 	play_snapshot_ = PlaySnapshot{
 		.selected_scene_key				   = selected_key,
 		.was_dirty						   = context_->local.state.is_dirty,
+		.was_untracked_project_dirty	   = untracked_project_dirty_,
+		.project_state_before_play		   = context_->project_state,
 		.screen_effect_preview_before_play = context_->local.settings.preview_screen_effects,
 	};
 
@@ -3975,6 +4072,9 @@ void Editor::StopDirectRuntime() {
 	undo_stack_.SetTransientMode(false);
 	undo_stack_.SetUndoRedoEnabled(true);
 
+	// Direct runtime starts without an editable scene snapshot. Restore any
+	// editor project state touched during runtime from the saved project.
+	context_->project_state = LoadEditorProjectState(*project);
 	RefreshProjectDirtyState();
 }
 
@@ -4036,6 +4136,8 @@ void Editor::Stop() {
 	undo_stack_.SetTransientMode(false);
 	undo_stack_.SetUndoRedoEnabled(true);
 	context_->local.state.is_dirty = play_snapshot_->was_dirty;
+	untracked_project_dirty_	   = play_snapshot_->was_untracked_project_dirty;
+	context_->project_state		   = std::move(play_snapshot_->project_state_before_play);
 
 	app_context.runtime_project_scenes.clear();
 	play_snapshot_.reset();
@@ -4199,7 +4301,8 @@ void Editor::SaveProjectScene() {
 	}
 
 	undo_stack_.MarkProjectSaved();
-	untracked_project_dirty_ = false;
+	untracked_project_dirty_		= false;
+	project_initialization_pending_ = false;
 
 	RefreshProjectDirtyState();
 }
@@ -4478,7 +4581,8 @@ void Editor::OnProjectChanged() {
 
 	undo_stack_.Clear();
 	undo_stack_.MarkProjectSaved();
-	untracked_project_dirty_ = false;
+	untracked_project_dirty_		= false;
+	project_initialization_pending_ = true;
 	play_snapshot_.reset();
 	app_context.runtime_project_scenes.clear();
 

@@ -184,11 +184,14 @@ private:
 	struct PlaySnapshot {
 		std::string selected_scene_key{};
 		bool was_dirty{ false };
+		bool was_untracked_project_dirty{ false };
+		EditorProjectState project_state_before_play{};
 		bool screen_effect_preview_before_play{ true };
 	};
 
 	void StopDirectRuntime();
 	[[nodiscard]] bool CanApplicationClose();
+	[[nodiscard]] bool HasUnsavedProjectChanges() const;
 	void DrawUnsavedProjectClosePopup();
 
 #if !defined(__EMSCRIPTEN__)
@@ -262,6 +265,8 @@ private:
 	bool untracked_project_dirty_{ false };
 	bool runtime_was_active_{ false };
 	bool shortcut_runtime_active_{ false };
+	bool pending_close_after_runtime_stop_{ false };
+	bool project_initialization_pending_{ false };
 	std::uint8_t runtime_window_center_frames_remaining_{ 0 };
 	V2_int runtime_window_center_last_size_{};
 	bool unsaved_dialog_enabled_{ kUnsavedDialogDefault };
@@ -290,6 +295,7 @@ private:
 	bool allow_application_close_{ false };
 #endif
 };
+
 } // namespace editor
 
 } // namespace ptgn
