@@ -61,6 +61,13 @@ namespace editor {
 
 struct ScreenEffectSelection;
 
+inline constexpr bool kUnsavedDialogDefault{ true };
+
+struct EditorLaunchOptions {
+	bool rendering{ true };
+	bool unsaved_dialog{ kUnsavedDialogDefault };
+};
+
 class Editor : public ApplicationLayer {
 public:
 	explicit Editor(Application& application);
@@ -79,7 +86,6 @@ public:
 	const Renderer& GetRenderer() const;
 	Renderer& GetRenderer();
 	std::size_t GetMaxTextureSlots() const;
-
 	::ptgn::impl::TextureId GetPresentationTexture() const;
 	V2_int GetPresentationTextureSize() const;
 
@@ -92,10 +98,8 @@ public:
 	void SetTimeScale(float time_scale);
 	float GetTimeScale() const;
 	void RequestStep();
-
 	void SetApplicationState(ApplicationState state);
 	ApplicationState GetApplicationState() const;
-
 	void Play();
 	void Stop();
 	void TogglePause();
@@ -106,7 +110,10 @@ public:
 	PaintEditor& GetPaintEditor();
 	const PaintEditor& GetPaintEditor() const;
 
-	void EnableRendering(bool enable = true);
+	Editor& EnableRendering(bool enable = true);
+	Editor& EnableRendering(EditorLaunchOptions options);
+	Editor& EnableUnsavedDialogue(bool enabled = kUnsavedDialogDefault);
+
 	void OnSelectedSceneChanged(Scene* previous_scene, Scene* selected_scene);
 
 	const EditorSettings& GetSettings() const;
@@ -120,7 +127,6 @@ public:
 
 	[[nodiscard]] Project* GetProject();
 	[[nodiscard]] const Project* GetProject() const;
-
 	[[nodiscard]] const ScreenEffectSettings* GetProjectScreenEffects() const;
 	[[nodiscard]] bool ShouldPreviewScreenEffects() const;
 	void SetScreenEffectPreview(bool enabled);
@@ -164,6 +170,7 @@ public:
 	bool SetStartupProjectScene(std::string_view scene_key);
 
 	[[nodiscard]] bool IsStartupProjectScene(std::string_view scene_key) const;
+
 	bool CanSaveProject() const;
 	bool IsPlaying() const;
 	bool IsPaused() const;
@@ -181,6 +188,8 @@ private:
 	};
 
 	void StopDirectRuntime();
+	[[nodiscard]] bool CanApplicationClose();
+	void DrawUnsavedProjectClosePopup();
 
 #if !defined(__EMSCRIPTEN__)
 	enum class PendingTaskConfirmation {
@@ -237,10 +246,12 @@ private:
 	SceneSettingsPanel scene_settings_panel_;
 	SceneListPanel scene_list_panel_;
 	ScreenEffectsPanel screen_effects_panel_;
+
 	std::optional<PlaySnapshot> play_snapshot_;
 	std::optional<path> local_state_project_path_;
 	std::optional<std::string> saved_editor_local_state_json_;
 	std::optional<std::string> saved_editor_project_state_json_;
+
 	std::uint32_t dock_left_column_id_{ 0 };
 	std::uint32_t dock_right_column_id_{ 0 };
 	std::uint8_t dock_resize_frames_remaining_{ 0 };
@@ -250,6 +261,12 @@ private:
 	bool scene_asset_dependencies_dirty_{ true };
 	bool untracked_project_dirty_{ false };
 	bool runtime_was_active_{ false };
+	bool shortcut_runtime_active_{ false };
+	std::uint8_t runtime_window_center_frames_remaining_{ 0 };
+	V2_int runtime_window_center_last_size_{};
+	bool unsaved_dialog_enabled_{ kUnsavedDialogDefault };
+	bool unsaved_project_close_requested_{ false };
+	bool allow_unsaved_project_close_{ false };
 
 	// Editor owned framebuffer lifetime for text previews. Every preview created during one
 	// ImGui frame remains valid until the next frame token is observed.
@@ -273,7 +290,6 @@ private:
 	bool allow_application_close_{ false };
 #endif
 };
-
 } // namespace editor
 
 } // namespace ptgn

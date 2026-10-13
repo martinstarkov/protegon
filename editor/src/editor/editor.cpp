@@ -77,6 +77,8 @@ namespace ptgn::editor {
 
 namespace {
 
+constexpr ImGuiKey kRuntimeShortcutKey{ ImGuiKey_F10 };
+
 constexpr float kLeftColumnRatio{ 0.182f };
 constexpr float kRightColumnRatio{ 0.40f };
 constexpr float kBottomDockRatio{ 0.25f };
@@ -722,6 +724,16 @@ bool DrawDirectoryField(
 
 Editor::Editor(Application& application) : app{ application } {
 	app.SetCloseGuard([this]() {
+		// Closing the game window during a shortcut runtime returns to the editor.
+		if (shortcut_runtime_active_ && !render_enabled_) {
+			if (CanStop()) {
+				Stop();
+			}
+			shortcut_runtime_active_ = false;
+			EnableRendering(true);
+			return false;
+		}
+
 #if !defined(__EMSCRIPTEN__)
 		if (!allow_application_close_ && export_manager_.IsBusy()) {
 			if (!render_enabled_) {
@@ -733,7 +745,16 @@ Editor::Editor(Application& application) : app{ application } {
 			return false;
 		}
 #endif
-		return content_browser_panel_.CanApplicationClose();
+		// Handle shader changes before project changes so cancelling the shader dialog
+		// leaves a subsequent project close attempt unchanged.
+		if (!content_browser_panel_.CanApplicationClose()) {
+			if (!render_enabled_) {
+				EnableRendering(true);
+			}
+			return false;
+		}
+
+		return CanApplicationClose();
 	});
 
 	// Generic application startup preference. The engine does not know why it was changed.
@@ -766,6 +787,175 @@ Editor::Editor(Application& application) : app{ application } {
 
 void Editor::RequestQuit() {
 	app.RequestQuit();
+}
+
+bool Editor::CanApplicationClose() {
+	if (allow_unsaved_project_close_) {
+		return true;
+	}
+
+	if (!unsaved_dialog_enabled_ || !GetProject()) {
+		return true;
+	}
+
+	if (!IsPlaying() && !IsDirectRuntime()) {
+		undo_stack_.CommitActiveEdit();
+	}
+	bool was_dirty_before_play{ play_snapshot_ && play_snapshot_->was_dirty };
+	RefreshProjectDirtyState();
+
+	if (!context_->local.state.is_dirty && !was_dirty_before_play) {
+		return true;
+	}
+
+	if (!render_enabled_) {
+		EnableRendering(true);
+	}
+	unsaved_project_close_requested_ = true;
+	return false;
+}
+
+void Editor::DrawUnsavedProjectClosePopup() {
+	if (unsaved_project_close_requested_) {
+		ImGui::OpenPopup("Unsaved Project Changes###UnsavedProjectExit");
+		unsaved_project_close_requested_ = false;
+	}
+
+	auto* viewport{ ImGui::GetMainViewport() };
+	ImVec2 center{ viewport->Pos.x + viewport->Size.x * 0.5f,
+				   viewport->Pos.y + viewport->Size.y * 0.5f };
+	ImGui::SetNextWindowPos(center, ImGuiCond_Always, ImVec2{ 0.5f, 0.5f });
+
+	float modal_width{ std::min(ImGui::GetFontSize() * 43.0f, viewport->Size.x * 0.9f) };
+	// Fix the width, but let the height follow the wrapped confirmation text and buttons.
+	ImGui::SetNextWindowSizeConstraints(
+		ImVec2{ modal_width, 0.0f }, ImVec2{ modal_width, FLT_MAX }
+	);
+
+	const auto& style{ ImGui::GetStyle() };
+	float modal_padding{ std::max(style.WindowPadding.x, style.WindowPadding.y) * 1.5f };
+	ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2{ modal_padding, modal_padding });
+	ImGui::PushStyleVar(
+		ImGuiStyleVar_FramePadding,
+		ImVec2{ style.FramePadding.x * 1.4f, style.FramePadding.y * 1.4f }
+	);
+	ImGui::PushStyleVar(
+		ImGuiStyleVar_ItemSpacing, ImVec2{ style.ItemSpacing.x * 1.25f, style.ItemSpacing.y * 1.4f }
+	);
+
+	if (!ImGui::BeginPopupModal(
+			"Unsaved Project Changes###UnsavedProjectExit", nullptr,
+			ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoMove |
+				ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_NoScrollbar |
+				ImGuiWindowFlags_NoScrollWithMouse
+		)) {
+		ImGui::PopStyleVar(3);
+		return;
+	}
+
+	const auto* project{ GetProject() };
+	ImGui::SetWindowFontScale(1.15f);
+
+	std::string project_name{ project ? project->name : "" };
+	std::string confirmation{ "Save changes to project \"" };
+	std::size_t name_start{ confirmation.size() };
+	confirmation += project_name;
+	confirmation += "\" before closing?";
+
+	// Keep the opening quote with the first word of the project name.
+	std::size_t first_word_end{ project_name.find_first_of(" \t\r\n") };
+	if (first_word_end == std::string::npos) {
+		first_word_end = project_name.size();
+	}
+
+	if (first_word_end > 0) {
+		float wrap_width{ ImGui::GetContentRegionAvail().x - 2.0f };
+		const char* text{ confirmation.c_str() };
+		float first_line_width{ ImGui::CalcTextSize(text, text + name_start + first_word_end).x };
+
+		if (first_line_width > wrap_width) {
+			float name_word_width{
+				ImGui::CalcTextSize(text + name_start - 1, text + name_start + first_word_end).x
+			};
+			std::size_t break_offset{ 0 };
+
+			if (name_word_width > wrap_width) {
+				for (std::size_t i{ 0 }; i < first_word_end;) {
+					std::size_t next{ i + 1 };
+					while (next < first_word_end &&
+						   (static_cast<unsigned char>(project_name[next]) & 0xC0u) == 0x80u) {
+						++next;
+					}
+
+					if (ImGui::CalcTextSize(text, text + name_start + next).x > wrap_width) {
+						break;
+					}
+					break_offset = next;
+					i			 = next;
+				}
+			}
+
+			if (break_offset > 0) {
+				confirmation.insert(name_start + break_offset, "\n");
+			} else {
+				confirmation.insert(name_start - 1, "\n");
+			}
+		}
+	}
+
+	ImGui::TextWrapped("%s", confirmation.c_str());
+	ImGui::SetWindowFontScale(0.95f);
+	ImGui::PushStyleColor(ImGuiCol_Text, ImGui::GetStyleColorVec4(ImGuiCol_TextDisabled));
+	ImGui::TextWrapped("If you don't save, all changes will be permanently lost.");
+	ImGui::PopStyleColor();
+	ImGui::SetWindowFontScale(1.15f);
+	ImGui::Spacing();
+	ImGui::Separator();
+	ImGui::Spacing();
+
+	float button_spacing{ ImGui::GetStyle().ItemSpacing.x };
+	float button_width{ (ImGui::GetContentRegionAvail().x - 2.0f * button_spacing) / 3.0f };
+	ImVec2 button_size{ button_width, ImGui::GetFrameHeight() * 1.25f };
+
+	bool discard_clicked{ ImGui::Button("Discard", button_size) };
+	ImGui::SameLine();
+	bool cancel_clicked{ ImGui::Button("Cancel", button_size) };
+	ImGui::SameLine();
+
+	bool can_save{ CanSaveProject() || CanStop() };
+	ImGui::BeginDisabled(!can_save);
+	bool save_clicked{ ImGui::Button("Save", button_size) };
+	ImGui::EndDisabled();
+
+	bool cancel_pressed{ ImGui::IsKeyPressed(ImGuiKey_Escape, false) };
+	bool save_pressed{ ImGui::IsKeyPressed(ImGuiKey_Enter, false) ||
+					   ImGui::IsKeyPressed(ImGuiKey_KeypadEnter, false) };
+
+	if (cancel_pressed || (!save_pressed && cancel_clicked)) {
+		allow_unsaved_project_close_ = false;
+		ImGui::CloseCurrentPopup();
+	} else if (can_save && (save_pressed || save_clicked)) {
+		if (CanStop()) {
+			Stop();
+		}
+
+		if (CanSaveProject()) {
+			SaveProjectScene();
+			RefreshProjectDirtyState();
+
+			if (!context_->local.state.is_dirty) {
+				ImGui::CloseCurrentPopup();
+				app.RequestQuit();
+			}
+		}
+	} else if (!save_pressed && discard_clicked) {
+		allow_unsaved_project_close_ = true;
+		ImGui::CloseCurrentPopup();
+		app.RequestQuit();
+	}
+
+	ImGui::EndPopup();
+	ImGui::PopStyleVar(3);
 }
 
 void Editor::RefreshProjectDirtyState() {
@@ -862,6 +1052,7 @@ void Editor::OnRender() {
 	ImGui::DockSpace(dockspace_id, dockspace_size, ImGuiDockNodeFlags_None);
 
 	DrawPanels();
+	DrawUnsavedProjectClosePopup();
 	app.SetSceneInputEnabled(
 		ShouldEnableSceneInput(render_enabled_, CanPause(), viewport_panel_.IsUsingEditorCamera())
 	);
@@ -3083,8 +3274,22 @@ void Editor::SyncSelectedSceneAssetDependencies() {
 	scene->SyncAssetDependenciesFromSerialization();
 }
 
-void Editor::EnableRendering(bool enable) {
+Editor& Editor::EnableUnsavedDialogue(bool enabled) {
+	unsaved_dialog_enabled_ = enabled;
+	return *this;
+}
+
+Editor& Editor::EnableRendering(EditorLaunchOptions options) {
+	EnableUnsavedDialogue(options.unsaved_dialog);
+	return EnableRendering(options.rendering);
+}
+
+Editor& Editor::EnableRendering(bool enable) {
 	render_enabled_ = enable;
+	if (enable) {
+		shortcut_runtime_active_				= false;
+		runtime_window_center_frames_remaining_ = 0;
+	}
 
 	auto& app_context{ ::ptgn::impl::ApplicationAccessor::ctx(app) };
 
@@ -3097,6 +3302,15 @@ void Editor::EnableRendering(bool enable) {
 	auto& window{ GetWindow() };
 
 	window.SetSetting(render_enabled_ ? WindowSetting::Maximized : WindowSetting::Restored);
+#if !defined(__EMSCRIPTEN__)
+	if (!render_enabled_ && shortcut_runtime_active_ &&
+		!window.GetSetting(WindowSetting::Fullscreen)) {
+		// Restoring a maximized window is asynchronous on some window managers.
+		// Center only after the restored size has had time to settle.
+		runtime_window_center_last_size_		= {};
+		runtime_window_center_frames_remaining_ = 3;
+	}
+#endif
 	app.SetSceneInputEnabled(
 		ShouldEnableSceneInput(render_enabled_, CanPause(), viewport_panel_.IsUsingEditorCamera())
 	);
@@ -3118,11 +3332,26 @@ void Editor::EnableRendering(bool enable) {
 	ApplySceneRenderSettings();
 	ApplyScreenEffectPreviewState();
 	UpdateWindowTitle();
+	return *this;
 }
 
 void Editor::OnUpdate() {
 #if !defined(__EMSCRIPTEN__)
 	export_manager_.OnUpdate();
+
+	if (runtime_window_center_frames_remaining_ > 0 && !render_enabled_) {
+		auto& window{ GetWindow() };
+		if (window.GetSetting(WindowSetting::Restored) &&
+			!window.GetSetting(WindowSetting::Fullscreen)) {
+			V2_int current_size{ window.GetSize() };
+			if (current_size != runtime_window_center_last_size_) {
+				runtime_window_center_last_size_		= current_size;
+				runtime_window_center_frames_remaining_ = 3;
+			} else if (--runtime_window_center_frames_remaining_ == 0) {
+				window.Center();
+			}
+		}
+	}
 #endif
 
 	bool runtime_active{ CanPause() };
@@ -3138,12 +3367,13 @@ void Editor::OnUpdate() {
 		SyncProjectSceneOrder();
 	}
 
-	if (ImGui::IsKeyPressed(ImGuiKey_F10)) {
+	if (ImGui::IsKeyPressed(kRuntimeShortcutKey)) {
 		if (!render_enabled_) {
 			// Game view -> editor view.
 			//
-			// If this is a project runtime that can be stopped, F10 returns
+			// If this is a project runtime that can be stopped, runtime shortcut key returns
 			// all the way to edit mode rather than merely revealing the editor.
+			shortcut_runtime_active_ = false;
 			if (CanStop()) {
 				Stop();
 			}
@@ -3152,12 +3382,14 @@ void Editor::OnUpdate() {
 		} else if (IsPlaying() || IsDirectRuntime()) {
 			// Runtime with the editor visible -> hide the editor while
 			// leaving runtime active.
+			shortcut_runtime_active_ = true;
 			EnableRendering(false);
 		} else {
 			// Edit mode -> start runtime and switch to game view.
 			Play();
 
 			if (IsPlaying()) {
+				shortcut_runtime_active_ = true;
 				EnableRendering(false);
 			}
 		}
@@ -3608,7 +3840,7 @@ void Editor::ApplySceneRenderSettings() {
 	bool has_valid_selection{ selected_it != scenes.end() };
 
 	// Render every scene while the editor UI is hidden. This preserves
-	// the normal game presentation when F10 switches out of editor view.
+	// the normal game presentation when runtime shortcut key switches out of editor view.
 	//
 	// Also render all scenes during a scene transition so incoming and
 	// outgoing scenes can both participate in the transition.
