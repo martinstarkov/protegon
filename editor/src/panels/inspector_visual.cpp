@@ -12,6 +12,26 @@ namespace {
 	return ctx.editor.IsPlaying() || ctx.editor.IsDirectRuntime();
 }
 
+void DrawAnimationRuntimeTooltipAboveLastItem(const char* tooltip) {
+	if (!tooltip || !*tooltip || !ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled)) {
+		return;
+	}
+
+	ImVec2 min{ ImGui::GetItemRectMin() };
+	ImVec2 max{ ImGui::GetItemRectMax() };
+	ImVec2 position{ (min.x + max.x) * 0.5f, min.y - ImGui::GetStyle().ItemSpacing.y };
+	ImGui::SetNextWindowPos(position, ImGuiCond_Always, ImVec2{ 0.5f, 1.0f });
+	ImGui::BeginTooltip();
+	ImGui::TextUnformatted(tooltip);
+	ImGui::EndTooltip();
+}
+
+bool DrawAnimationRuntimeIconButton(const char* id, EditorIcon icon, const char* tooltip) {
+	bool pressed{ DrawEditorIconButton(id, icon, "") };
+	DrawAnimationRuntimeTooltipAboveLastItem(tooltip);
+	return pressed;
+}
+
 void DrawAnimationRuntimeControls(Entity entity) {
 	using AnimationData = ::ptgn::impl::AnimationData;
 
@@ -27,9 +47,9 @@ void DrawAnimationRuntimeControls(Entity entity) {
 	float spacing{ style.ItemInnerSpacing.x };
 	bool active{ timer.IsRunning() || timer.IsPaused() };
 
-	if (DrawEditorIconButton(
+	if (DrawAnimationRuntimeIconButton(
 			"##AnimationStartStop", active ? EditorIcon::Stop : EditorIcon::Play,
-			active ? "Stop animation" : "Start animation"
+			active ? "Stop and reset animation" : "Start animation"
 		)) {
 		if (active) {
 			animation.Stop();
@@ -50,7 +70,9 @@ void DrawAnimationRuntimeControls(Entity entity) {
 								   : paused ? "Resume animation"
 											: "Pause animation" };
 
-	if (DrawEditorIconButton("##AnimationPauseResumeReset", secondary_icon, secondary_tooltip)) {
+	if (DrawAnimationRuntimeIconButton(
+			"##AnimationPauseResumeReset", secondary_icon, secondary_tooltip
+		)) {
 		if (stopped) {
 			animation.Reset();
 		} else if (paused) {
@@ -65,35 +87,119 @@ void DrawAnimationRuntimeControls(Entity entity) {
 
 	ImGui::SameLine(0.0f, spacing);
 	ImGui::BeginDisabled(!can_step);
-	if (DrawEditorIconButton(
+	if (DrawAnimationRuntimeIconButton(
 			"##AnimationPreviousFrame", EditorIcon::StepBackward, "Previous animation frame"
 		)) {
 		std::size_t previous_frame{ data.current_frame == 0 ? frame_count - 1
 															: data.current_frame - 1 };
-		timer.RemoveElapsed(timer.ElapsedDuration<millisecondsf>());
-		animation.SetCurrentFrame(previous_frame);
+		animation.SeekFrame(previous_frame);
 	}
 	ImGui::EndDisabled();
 
 	ImGui::SameLine(0.0f, spacing);
 	ImGui::BeginDisabled(!can_step);
-	if (DrawEditorIconButton(
+	if (DrawAnimationRuntimeIconButton(
 			"##AnimationNextFrame", EditorIcon::StepForward, "Next animation frame"
 		)) {
-		std::size_t next_frame{ (data.current_frame + 1) % frame_count };
-		timer.RemoveElapsed(timer.ElapsedDuration<millisecondsf>());
-		animation.SetCurrentFrame(next_frame);
+		bool completed_play{ data.current_frame == frame_count - 1 };
+		animation.SeekFrame((data.current_frame + 1) % frame_count);
+		if (completed_play) {
+			++data.completed_plays;
+		}
 	}
 	ImGui::EndDisabled();
+
+	ImGui::SameLine(0.0f, spacing);
+	ImGui::AlignTextToFramePadding();
+	ImGui::TextDisabled("Completed count: %zu", animation.GetPlayCount());
 
 	const char* state{ timer.IsPaused() ? "Paused" : timer.IsRunning() ? "Running" : "Stopped" };
 	std::size_t displayed_frame{ frame_count == 0 ? 0 : data.current_frame + 1 };
 	ImGui::Text("%s  Frame: %zu / %zu", state, displayed_frame, frame_count);
 
-	milliseconds frame_duration{ data.GetFrameDuration() };
-	float progress{ frame_duration > milliseconds{ 0 } ? timer.ElapsedFraction(frame_duration)
-													   : 0.0f };
-	ImGui::ProgressBar(progress, ImVec2{ -FLT_MIN, 0.0f });
+	ImVec2 timeline_size{ std::max(1.0f, ImGui::GetContentRegionAvail().x),
+						  ImGui::GetFrameHeight() };
+	ImGui::InvisibleButton("##AnimationTimeline", timeline_size);
+
+	ImVec2 timeline_min{ ImGui::GetItemRectMin() };
+	ImVec2 timeline_max{ ImGui::GetItemRectMax() };
+	ImDrawList* draw_list{ ImGui::GetWindowDrawList() };
+	bool hovered{ ImGui::IsItemHovered() };
+	std::size_t hovered_frame{ 0 };
+
+	if (frame_count > 0 && hovered) {
+		float position{
+			std::clamp((ImGui::GetIO().MousePos.x - timeline_min.x) / timeline_size.x, 0.0f, 1.0f)
+		};
+		hovered_frame = std::min(
+			frame_count - 1, static_cast<std::size_t>(position * static_cast<float>(frame_count))
+		);
+
+		if (ImGui::IsItemClicked(ImGuiMouseButton_Left)) {
+			animation.SeekFrame(hovered_frame);
+		}
+
+		ImGui::SetTooltip("Frame %zu / %zu", hovered_frame + 1, frame_count);
+	}
+
+	draw_list->AddRectFilled(
+		timeline_min, timeline_max, ImGui::GetColorU32(ImGuiCol_FrameBg), style.FrameRounding
+	);
+
+	if (frame_count > 0) {
+		milliseconds frame_duration{ data.GetFrameDuration() };
+		float elapsed_fraction{ frame_duration > milliseconds{ 0 }
+									? timer.ElapsedFraction(frame_duration)
+									: 0.0f };
+		float frame_progress{ std::clamp(elapsed_fraction, 0.0f, 1.0f) };
+		std::size_t current_frame{ std::min(data.current_frame, frame_count - 1) };
+		float overall_progress{ (static_cast<float>(current_frame) + frame_progress) /
+								static_cast<float>(frame_count) };
+
+		// Only actual completion, not selecting the last frame, fills the entire timeline.
+		if (data.completed && !data.config.reset_on_complete) {
+			overall_progress = 1.0f;
+		}
+
+		float filled_width{ timeline_size.x * std::clamp(overall_progress, 0.0f, 1.0f) };
+		if (filled_width > 0.0f) {
+			draw_list->AddRectFilled(
+				timeline_min, ImVec2{ timeline_min.x + filled_width, timeline_max.y },
+				ImGui::GetColorU32(ImGuiCol_PlotHistogram), style.FrameRounding,
+				overall_progress >= 1.0f ? ImDrawFlags_RoundCornersAll
+										 : ImDrawFlags_RoundCornersLeft
+			);
+		}
+
+		float segment_width{ timeline_size.x / static_cast<float>(frame_count) };
+		if (hovered) {
+			draw_list->AddRectFilled(
+				ImVec2{ timeline_min.x + segment_width * static_cast<float>(hovered_frame),
+						timeline_min.y },
+				ImVec2{ timeline_min.x + segment_width * static_cast<float>(hovered_frame + 1),
+						timeline_max.y },
+				ImGui::GetColorU32(ImGuiCol_HeaderHovered)
+			);
+		}
+
+		// Avoid overdraw when individual frames are narrower than a few pixels.
+		if (segment_width >= 3.0f) {
+			for (std::size_t index{ 1 }; index < frame_count; ++index) {
+				float x{ timeline_min.x + segment_width * static_cast<float>(index) };
+				draw_list->AddLine(
+					ImVec2{ x, timeline_min.y + 1.0f }, ImVec2{ x, timeline_max.y - 1.0f },
+					ImGui::GetColorU32(ImGuiCol_WindowBg)
+				);
+			}
+		}
+	}
+
+	if (style.FrameBorderSize > 0.0f) {
+		draw_list->AddRect(
+			timeline_min, timeline_max, ImGui::GetColorU32(ImGuiCol_Border), style.FrameRounding, 0,
+			style.FrameBorderSize
+		);
+	}
 }
 
 template <typename Target, typename T, typename Draw, typename Callback = std::nullptr_t>
@@ -1590,7 +1696,7 @@ bool DrawShapeVisual(Target& target, std::string_view visual) {
 bool DrawAnimationDataFlattened(
 	EditorContext& ctx, ::ptgn::impl::AnimationData& animation,
 	std::optional<::ptgn::impl::AnimationTextureLayout> detected_layout,
-	std::optional<V2_int> texture_size
+	std::optional<V2_int> texture_size, std::optional<std::size_t>& selected_frame
 ) {
 	auto initial_frame_size{ animation.config.frame_size };
 	V2_int initial_start_pixel{ animation.config.start_pixel };
@@ -1669,7 +1775,8 @@ bool DrawAnimationDataFlattened(
 			}
 			constexpr std::uint64_t minimum{ 1 };
 			if (ImGui::DragScalar(
-					"##PlayCountValue", ImGuiDataType_U64, &count, 1.0f, &minimum, nullptr, "%llu"
+					"##PlayCountValue", ImGuiDataType_U64, &count, 0.05f, &minimum, nullptr, "%llu",
+					ImGuiSliderFlags_AlwaysClamp
 				)) {
 				animation.config.play_count =
 					std::max<std::size_t>(1, static_cast<std::size_t>(count));
@@ -1692,7 +1799,31 @@ bool DrawAnimationDataFlattened(
 
 	changed |= DrawValue(ctx, "Start Pixel", animation.config.start_pixel);
 	changed |= DrawValue(ctx, "Reset On Complete", animation.config.reset_on_complete);
-	changed |= DrawValue(ctx, "Current Frame", animation.current_frame);
+
+	std::size_t frame_count{ animation.config.frame_count };
+	std::size_t displayed_frame{ frame_count == 0
+									 ? 0
+									 : std::min(animation.current_frame, frame_count - 1) + 1 };
+	if (frame_count == 0) {
+		ScopedDisabled disabled{ true };
+		DrawValue(ctx, "Current Frame", displayed_frame);
+	} else {
+		if (DrawValue(
+				ctx, "Current Frame", displayed_frame,
+				FieldOptions{
+					.speed = 0.05f,
+					.min   = 1.0,
+					.max   = static_cast<float>(frame_count),
+					.flags = ImGuiSliderFlags_AlwaysClamp,
+				}
+			)) {
+			animation.current_frame =
+				std::clamp(displayed_frame, std::size_t{ 1 }, frame_count) - 1;
+			animation.completed = false;
+			selected_frame		= animation.current_frame;
+			changed				= true;
+		}
+	}
 
 	{
 		auto& start_pixel{ animation.config.start_pixel };
@@ -2201,9 +2332,10 @@ bool DrawSpriteAnimationInline(Target& target) {
 			std::size_t previous_frame_count{ animation.config.frame_count };
 			auto detected_layout{ ResolveDetectedAnimationTextureLayout(target) };
 			auto texture_size{ ResolveAnimationTextureSize(target) };
-			bool contents_changed{
-				DrawAnimationDataFlattened(target.ctx, animation, detected_layout, texture_size)
-			};
+			std::optional<std::size_t> selected_frame;
+			bool contents_changed{ DrawAnimationDataFlattened(
+				target.ctx, animation, detected_layout, texture_size, selected_frame
+			) };
 			if (enabled && contents_changed) {
 				if (previous_frame_count != animation.config.frame_count) {
 					animation.current_frame =
@@ -2213,6 +2345,15 @@ bool DrawSpriteAnimationInline(Target& target) {
 				}
 				animation.frame_dirty = true;
 				target.template SetLive<AnimationData>(animation);
+
+				if constexpr (requires { target.entity; }) {
+					if (selected_frame && target.entity) {
+						Animation{ target.entity }.SeekFrame(animation.current_frame);
+						animation =
+							target.template Capture<AnimationData>().value_or(AnimationData{});
+					}
+				}
+
 				UpdateAnimationTextureCrop(target, animation);
 				changed = true;
 			}

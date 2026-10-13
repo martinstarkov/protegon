@@ -78,6 +78,9 @@ bool AdvanceAnimationFrame(
 		std::size_t total_frames{ data.config.play_count.value() * data.config.frame_count };
 
 		if (next_frames_played >= total_frames) {
+			data.frames_played = next_frames_played;
+			++data.completed_plays;
+			data.completed = true;
 			PushEvent<event::AnimationComplete>(animation, animation);
 
 			if (data.config.reset_on_complete) {
@@ -95,6 +98,10 @@ bool AdvanceAnimationFrame(
 	}
 
 	data.frames_played = next_frames_played;
+
+	if (data.frames_played % data.config.frame_count == 0) {
+		++data.completed_plays;
+	}
 
 	data.IncrementFrame();
 
@@ -132,12 +139,15 @@ Animation& Animation::SetConfig(AnimationConfig config) {
 		return *this;
 	}
 
+	std::size_t completed_plays{ GetPlayCount() };
 	const auto& anim{ Add<impl::AnimationData>(std::move(config), automatic_row_count) };
 
 	auto& crop{ TryAdd<impl::TextureCrop>() };
 	crop.Update(anim, texture_size);
 
-	return Reset();
+	Reset();
+	Get<impl::AnimationData>().completed_plays = completed_plays;
+	return *this;
 }
 
 Animation& Animation::Start(bool force) {
@@ -147,18 +157,23 @@ Animation& Animation::Start(bool force) {
 
 	auto& anim{ Get<impl::AnimationData>() };
 
-	anim.current_frame = 0;
-	anim.frames_played = 0;
+	if (!force && (anim.frame_timer.IsRunning() || anim.frame_timer.IsPaused())) {
+		return *this;
+	}
+
+	if (force || anim.completed) {
+		anim.current_frame = 0;
+	}
+
+	anim.frames_played = anim.current_frame;
+	anim.completed	   = false;
 
 	auto& crop{ Get<impl::TextureCrop>() };
+	crop.Update(anim, HasScene() ? GetTextureSize(*this) : std::nullopt);
 
-	auto texture_size{ GetTextureSize(*this) };
-
-	crop.Update(anim, texture_size);
-
-	if (bool started{ anim.frame_timer.Start(force) }; started) {
+	anim.frame_timer.Reset();
+	if (anim.frame_timer.Start(force)) {
 		PushEvent<event::AnimationStart>(*this, *this);
-
 		DispatchFinalFrameIfNeeded(*this, anim);
 	}
 
@@ -169,12 +184,15 @@ Animation& Animation::Reset() {
 	if (!Has<impl::AnimationData, impl::TextureCrop>()) {
 		return *this;
 	}
+
 	auto& anim{ Get<impl::AnimationData>() };
-	anim.current_frame = 0;
-	anim.frames_played = 0;
+	anim.current_frame	 = 0;
+	anim.frames_played	 = 0;
+	anim.completed_plays = 0;
+	anim.completed		 = false;
+
 	auto& crop{ Get<impl::TextureCrop>() };
-	auto texture_size{ GetTextureSize(*this) };
-	crop.Update(anim, texture_size);
+	crop.Update(anim, HasScene() ? GetTextureSize(*this) : std::nullopt);
 	anim.frame_timer.Reset();
 	PushEvent<event::AnimationStop>(*this, *this);
 	return *this;
@@ -182,14 +200,22 @@ Animation& Animation::Reset() {
 
 Animation& Animation::Stop(bool reset) {
 	if (reset) {
-		Reset();
-		return *this;
+		return Reset();
 	}
 	if (!Has<impl::AnimationData>()) {
 		return *this;
 	}
+
 	auto& anim{ Get<impl::AnimationData>() };
-	anim.frame_timer.Stop();
+	anim.current_frame = 0;
+	anim.frames_played = 0;
+	anim.completed	   = false;
+	anim.frame_timer.Reset();
+
+	if (auto* crop{ TryGet<impl::TextureCrop>() }) {
+		crop->Update(anim, HasScene() ? GetTextureSize(*this) : std::nullopt);
+	}
+
 	PushEvent<event::AnimationStop>(*this, *this);
 	return *this;
 }
@@ -278,6 +304,39 @@ std::size_t Animation::GetFrameCount() const {
 	}
 	const auto& anim{ Get<impl::AnimationData>() };
 	return anim.config.frame_count;
+}
+
+Animation& Animation::SeekFrame(std::size_t new_frame) {
+	if (!Has<impl::AnimationData>()) {
+		return *this;
+	}
+
+	auto& data{ Get<impl::AnimationData>() };
+	std::size_t frame_count{ data.config.frame_count };
+
+	if (frame_count == 0) {
+		return *this;
+	}
+
+	std::size_t frame{ new_frame % frame_count };
+	bool active{ data.frame_timer.IsRunning() || data.frame_timer.IsPaused() };
+	std::size_t completed_in_session{ active ? data.frames_played / frame_count : 0 };
+
+	data.frames_played = completed_in_session * frame_count + frame;
+	data.completed	   = false;
+	data.SetCurrentFrame(frame);
+
+	if (active) {
+		data.frame_timer.RemoveElapsed(data.frame_timer.ElapsedDuration<millisecondsf>());
+	} else {
+		data.frame_timer.Reset();
+	}
+
+	if (auto* crop{ TryGet<impl::TextureCrop>() }) {
+		crop->Update(data, HasScene() ? GetTextureSize(*this) : std::nullopt);
+	}
+
+	return *this;
 }
 
 Animation& Animation::SetCurrentFrame(std::size_t new_frame) {
@@ -513,10 +572,7 @@ V2_int AnimationData::GetCurrentFramePosition(std::optional<V2_int> texture_size
 }
 
 std::size_t AnimationData::GetPlayCount() const {
-	if (!config.frame_count) {
-		return 0;
-	}
-	return frames_played / config.frame_count;
+	return completed_plays;
 }
 
 void AnimationData::SetCurrentFrame(std::size_t new_frame) {

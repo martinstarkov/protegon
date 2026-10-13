@@ -188,13 +188,15 @@ struct Animation : public Entity {
 
 	Animation& SetTexture(TextureKey texture_key);
 
-	/// @brief Starts the animation. Can also be used to restart the animation.
-	/// @param force If false, only starts the animation if it is not already playing.
+	/// @brief Starts playback from the selected frame, or restarts from frame zero when forced.
+	/// @param force If false, does not restart active playback and preserves the selected frame.
 	Animation& Start(bool force = true);
 
-	/// @brief Stops and resets the animation.
+	/// @brief Resets playback and the cumulative completed play count.
 	Animation& Reset();
 
+	/// @brief Stops playback and returns to frame zero without clearing completed plays.
+	/// @param reset If true, performs a full Reset() instead.
 	Animation& Stop(bool reset = false);
 
 	/// @brief Toggles the pause state of the animation.
@@ -210,10 +212,10 @@ struct Animation : public Entity {
 	/// @return True if the animation is currently playing, false otherwise.
 	[[nodiscard]] bool IsPlaying() const;
 
-	/// @return The number of plays of the full animation sequence so far.
+	/// @return Total completed animation plays since the last Reset(), across starts and stops.
 	std::size_t GetPlayCount() const;
 
-	/// @return The total number of plays of individual animation frames so far.
+	/// @return The number of frame transitions in the current playback session.
 	std::size_t GetFramePlayCount() const;
 
 	/// @return Duration of the full animation sequence.
@@ -227,6 +229,11 @@ struct Animation : public Entity {
 	/// @brief Set the current animation frame.
 	/// new_frame is wrapped around frame_count using Mod().
 	Animation& SetCurrentFrame(std::size_t new_frame);
+
+	/// @brief Moves to the beginning of a frame without changing the running, paused, or stopped
+	/// state. Resets elapsed time within the frame and preserves the cumulative completed play
+	/// count.
+	Animation& SeekFrame(std::size_t new_frame);
 
 	Animation& IncrementFrame();
 
@@ -333,9 +340,14 @@ public:
 	/// @brief Current frame of the animation.
 	std::size_t current_frame{ 0 };
 
-	/// @brief Number of frames the animation has gone through. frames_played / frame_count gives
-	/// the number of repeats of the full animation sequence.
+	/// @brief Number of frames played in the current playback session.
 	std::size_t frames_played{ 0 };
+
+	/// @brief Total number of completed animation plays, including previous starts and stops.
+	std::size_t completed_plays{ 0 };
+
+	/// @brief Whether the current playback reached its configured end.
+	bool completed{ false };
 
 	/// @brief If the current frame has been changed externally.
 	bool frame_dirty{ false };
@@ -345,7 +357,7 @@ public:
 	std::size_t automatic_row_count{ 1 };
 
 	PTGN_REFLECT(AnimationData, config, current_frame)
-	PTGN_REFLECT_READONLY(AnimationData, frame_timer, frames_played)
+	PTGN_REFLECT_READONLY(AnimationData, frame_timer, frames_played, completed_plays, completed)
 };
 
 class AnimationSystem {
