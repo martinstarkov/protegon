@@ -1058,10 +1058,21 @@ bool Editor::DeleteProjectScreenEffect(ScreenEffectId id) {
 		return false;
 	}
 
-	EditorSelection before_selection{ context_->local.selection };
-	EditorSelection after_selection{ before_selection };
-	if (after_selection.selected_screen_effect ==
-		ScreenEffectSelection{ .id = id, .runtime = false }) {
+	EditorSelection restored_selection{ context_->local.selection };
+	restored_selection.scene_list_tab		  = SceneListTab::ScreenEffects;
+	restored_selection.inspector_tab		  = InspectorTab::ScreenEffect;
+	restored_selection.selected_screen_effect = ScreenEffectSelection{
+		.id		 = id,
+		.runtime = false,
+	};
+
+	EditorSelection after_selection{ restored_selection };
+	if (!after.effects.empty()) {
+		after_selection.selected_screen_effect = ScreenEffectSelection{
+			.id		 = after.effects.back().id,
+			.runtime = false,
+		};
+	} else {
 		after_selection.selected_screen_effect.reset();
 		after_selection.inspector_tab = InspectorTab::Primary;
 	}
@@ -1071,9 +1082,9 @@ bool Editor::DeleteProjectScreenEffect(ScreenEffectId id) {
 
 	undo_stack_.PushApplied(
 		"Delete Screen Effect",
-		[this, before, before_selection]() {
+		[this, before, restored_selection]() {
 			ApplyProjectScreenEffects(before);
-			ApplyEditorSelection(*context_, before_selection);
+			ApplyEditorSelection(*context_, restored_selection);
 		},
 		[this, after, after_selection]() {
 			ApplyProjectScreenEffects(after);
@@ -1318,30 +1329,51 @@ bool Editor::DeleteRuntimeScreenEffect(std::uint64_t runtime_id) {
 		return false;
 	}
 
-	EditorSelection before_selection{ context_->local.selection };
-	EditorSelection after_selection{ before_selection };
-	if (after_selection.selected_screen_effect.has_value()) {
-		auto selected{ after_selection.selected_screen_effect.value() };
-		bool deleting_selection{ (selected.runtime && selected.id == runtime_id) ||
-								 (!selected.runtime && snapshot->source_id != 0 &&
-								  selected.id == snapshot->source_id) };
-		if (deleting_selection) {
-			after_selection.selected_screen_effect.reset();
-			after_selection.inspector_tab = InspectorTab::Primary;
-		}
-	}
+	EditorSelection restored_selection{ context_->local.selection };
+	restored_selection.scene_list_tab		  = SceneListTab::ScreenEffects;
+	restored_selection.inspector_tab		  = InspectorTab::ScreenEffect;
+	restored_selection.selected_screen_effect = ScreenEffectSelection{
+		.id		 = snapshot->source_id != 0 ? snapshot->source_id : snapshot->runtime_id,
+		.runtime = snapshot->source_id == 0,
+	};
 
 	if (!::ptgn::impl::RemoveScreenEffect(app_context, runtime_id)) {
 		return false;
 	}
+
+	EditorSelection after_selection{ restored_selection };
+	after_selection.selected_screen_effect.reset();
+	for (auto it{ app_context.screen_effect_order.rbegin() };
+		 it != app_context.screen_effect_order.rend(); ++it) {
+		Entity remaining{ *it };
+		if (!remaining) {
+			continue;
+		}
+
+		const auto* instance{ remaining.TryGet<::ptgn::impl::ScreenEffectInstance>() };
+		if (!instance) {
+			continue;
+		}
+
+		after_selection.selected_screen_effect = ScreenEffectSelection{
+			.id		 = instance->source_id != 0 ? instance->source_id : instance->runtime_id,
+			.runtime = instance->source_id == 0,
+		};
+		break;
+	}
+
+	if (!after_selection.selected_screen_effect.has_value()) {
+		after_selection.inspector_tab = InspectorTab::Primary;
+	}
+
 	ApplyEditorSelection(*context_, after_selection);
 
 	undo_stack_.PushApplied(
 		"Delete Runtime Screen Effect",
-		[this, snapshot = *snapshot, index = *index, before_selection]() {
+		[this, snapshot = *snapshot, index = *index, restored_selection]() {
 			auto& ctx{ ::ptgn::impl::ApplicationAccessor::ctx(app) };
 			::ptgn::impl::RestoreScreenEffect(ctx, snapshot, index);
-			ApplyEditorSelection(*context_, before_selection);
+			ApplyEditorSelection(*context_, restored_selection);
 		},
 		[this, runtime_id, after_selection]() {
 			auto& ctx{ ::ptgn::impl::ApplicationAccessor::ctx(app) };
@@ -4087,7 +4119,9 @@ void Editor::BuildDefaultDockLayout(std::uint32_t dockspace_id) {
 	ImGui::DockBuilderDockWindow("Scenes", dock_left_bottom);
 	ImGui::DockBuilderDockWindow("Screen Effects", dock_left_bottom);
 
-	ImGui::DockBuilderDockWindow("Inspector", dock_right_column_id_);
+	ImGui::DockBuilderDockWindow("Entity Inspector###EntityInspector", dock_right_column_id_);
+	ImGui::DockBuilderDockWindow("Prefab Inspector###PrefabInspector", dock_right_column_id_);
+	ImGui::DockBuilderDockWindow("Tile Inspector###TileInspector", dock_right_column_id_);
 
 	ImGui::DockBuilderDockWindow("Viewport", dock_main);
 

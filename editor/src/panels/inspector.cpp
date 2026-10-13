@@ -1,8 +1,11 @@
 #include "panels/inspector.h"
 
 #include <imgui.h>
+#include <imgui_internal.h>
 
 #include <memory>
+#include <string>
+#include <string_view>
 #include <utility>
 
 #include "editor/editor.h"
@@ -44,6 +47,32 @@ void SyncEditedPrefabInstances(EditorContext& ctx, const PrefabKey& key) {
 		}
 		SyncPrefabInstances(*scene, key);
 	}
+}
+
+// Selecting a dock tab must not move keyboard focus away from the hierarchy or viewport.
+void SelectInspectorDockTab(const char* window_name) {
+	ImGuiWindow* window{ ImGui::FindWindowByName(window_name) };
+	if (!window) {
+		return;
+	}
+
+	if (ImGuiDockNode * dock{ window->DockNode }) {
+		dock->SelectedTabId = window->TabId;
+		if (dock->TabBar) {
+			dock->TabBar->NextSelectedTabId = window->TabId;
+		}
+	} else {
+		ImGui::SetWindowFocus(window_name);
+	}
+}
+
+[[nodiscard]] const char* InspectorWindow(EditorSelectionMode mode) {
+	switch (mode) {
+		case EditorSelectionMode::SceneHierarchy: return "Entity Inspector###EntityInspector";
+		case EditorSelectionMode::Prefabs:		  return "Prefab Inspector###PrefabInspector";
+		case EditorSelectionMode::Tiles:		  return "Tile Inspector###TileInspector";
+	}
+	return "Entity Inspector###EntityInspector";
 }
 
 } // namespace
@@ -109,27 +138,59 @@ void DrawPrefabInspector(EditorContext& ctx, const PrefabKey& key) {
 
 void InspectorPanel::OnRender(EditorContext& ctx) {
 	auto& hierarchy{ ctx.editor.GetSceneHierarchyPanel() };
-	SceneHierarchyTab active_tab{ hierarchy.GetActiveTab() };
+	auto& paint{ ctx.editor.GetPaintEditor() };
+	EditorSelection selection{ ctx.local.selection };
+	EditorSelectionMode mode{ selection.mode };
 
-	Entity selected_scene_entity{ active_tab == SceneHierarchyTab::SceneHierarchy
-									  ? hierarchy.GetSelectedEntity()
-									  : Entity{} };
-	const PrefabInstance* linked_instance{ selected_scene_entity
-											   ? GetPrefabInstance(selected_scene_entity)
-											   : nullptr };
-	bool inspect_linked_instance{ linked_instance != nullptr };
+	bool primary_selection_changed{ !previous_selection_.has_value() ||
+									previous_selection_->mode != mode };
+	if (previous_selection_.has_value()) {
+		switch (mode) {
+			case EditorSelectionMode::SceneHierarchy:
+				primary_selection_changed |=
+					previous_selection_->selected_scene_key != selection.selected_scene_key ||
+					previous_selection_->selected_scene_runtime !=
+						selection.selected_scene_runtime ||
+					previous_selection_->scene_entities != selection.scene_entities;
+				break;
 
-	// A linked scene instance remains an entity inspection surface. The prefab itself is only
-	// editable after explicitly navigating to the Prefabs tab.
-	const char* title{ active_tab == SceneHierarchyTab::Prefabs ? "Prefab Inspector###Inspector"
-					   : active_tab == SceneHierarchyTab::Tiles ? "Tile Inspector###Inspector"
-																: "Entity Inspector###Inspector" };
+			case EditorSelectionMode::Prefabs:
+				primary_selection_changed |=
+					previous_selection_->selected_prefab != selection.selected_prefab ||
+					previous_selection_->selected_prefab_entity_path !=
+						selection.selected_prefab_entity_path;
+				break;
 
-	bool inspector_visible{ ImGui::Begin(title) };
-	ImGuiID inspector_dock_id{ ImGui::GetWindowDockID() };
+			case EditorSelectionMode::Tiles:
+				primary_selection_changed |=
+					previous_tile_entry_id_ != paint.GetSelectedTileEntryId();
+				break;
+		}
+	}
 
-	if (inspector_visible) {
-		if (inspect_linked_instance) {
+	bool screen_effect_selection_changed{ previous_screen_effect_selection_ !=
+										  selection.selected_screen_effect };
+	std::optional<EditorSelectionMode> requested_primary{ ConsumePrimaryInspectorRequest(ctx) };
+	const char* requested_window{};
+	if (requested_primary.has_value()) {
+		requested_window = inspector::InspectorWindow(*requested_primary);
+	} else if (
+		screen_effect_selection_changed && selection.selected_screen_effect.has_value() &&
+		selection.inspector_tab == InspectorTab::ScreenEffect
+	) {
+		requested_window = "Screen Effect Inspector###ScreenEffectInspector";
+	} else if (primary_selection_changed) {
+		requested_window = inspector::InspectorWindow(mode);
+	}
+
+	ImGuiID inspector_dock_id{};
+	bool entity_visible{ ImGui::Begin("Entity Inspector###EntityInspector") };
+	inspector_dock_id = ImGui::GetWindowDockID();
+	if (entity_visible) {
+		Entity entity{ hierarchy.GetSelectedEntity() };
+		const PrefabInstance* linked_instance{ entity ? GetPrefabInstance(entity) : nullptr };
+
+		if (linked_instance) {
 			PrefabKey prefab_key{ linked_instance->prefab };
 			SerializedEntityPath prefab_path{ linked_instance->entity_path };
 
@@ -146,7 +207,7 @@ void InspectorPanel::OnRender(EditorContext& ctx) {
 
 			ImGui::SameLine();
 
-			Entity instance_root{ GetPrefabInstanceRoot(selected_scene_entity) };
+			Entity instance_root{ GetPrefabInstanceRoot(entity) };
 			ImGui::BeginDisabled(!instance_root);
 			bool convert{ ImGui::SmallButton("Convert to Entity") };
 			ImGui::EndDisabled();
@@ -164,86 +225,89 @@ void InspectorPanel::OnRender(EditorContext& ctx) {
 			if (convert && instance_root) {
 				ctx.commands.ConvertPrefabInstanceToEntity(instance_root);
 			} else {
-				// Read the actual linked scene entity, not the prefab definition. Disabling ImGui
-				// prevents every archetype/component editor from mutating it accidentally.
 				ImGui::BeginDisabled();
-				inspector::DrawEntityInspector(ctx, selected_scene_entity);
+				inspector::DrawEntityInspector(ctx, entity);
 				ImGui::EndDisabled();
 			}
+		} else if (entity) {
+			inspector::DrawEntityInspector(ctx, entity);
 		} else {
-			switch (active_tab) {
-				case SceneHierarchyTab::Prefabs:
-					if (const auto& selected_prefab{ hierarchy.GetSelectedPrefab() };
-						selected_prefab.has_value()) {
-						inspector::DrawPrefabInspector(ctx, selected_prefab.value());
-					} else {
-						ImGui::TextDisabled("Select a prefab to inspect it.");
-					}
-					break;
+			ImGui::TextDisabled("Select an entity to inspect it.");
+		}
+	}
+	ImGui::End();
 
-				case SceneHierarchyTab::Tiles:
-					ctx.editor.GetPaintEditor().DrawTileInspector(ctx);
-					break;
+	bool prefab_visible{ ImGui::Begin("Prefab Inspector###PrefabInspector") };
+	if (inspector_dock_id == 0) {
+		inspector_dock_id = ImGui::GetWindowDockID();
+	}
+	if (prefab_visible) {
+		if (const auto& prefab{ hierarchy.GetSelectedPrefab() }; prefab.has_value()) {
+			inspector::DrawPrefabInspector(ctx, prefab.value());
+		} else {
+			ImGui::TextDisabled("Select a prefab to inspect it.");
+		}
+	}
+	ImGui::End();
 
-				case SceneHierarchyTab::SceneHierarchy:
-				default:
-					if (auto entity{ hierarchy.GetSelectedEntity() }) {
-						inspector::DrawEntityInspector(ctx, entity);
-					} else {
-						ImGui::TextDisabled("Select an entity to inspect it.");
-					}
-					break;
-			}
+	bool tile_visible{ ImGui::Begin("Tile Inspector###TileInspector") };
+	if (inspector_dock_id == 0) {
+		inspector_dock_id = ImGui::GetWindowDockID();
+	}
+	if (tile_visible) {
+		paint.DrawTileInspector(ctx);
+	}
+	ImGui::End();
+
+	auto screen_effect_selection{ ctx.local.selection.selected_screen_effect };
+	bool screen_effect_visible{};
+	ImGuiID screen_effect_dock_id{};
+	if (screen_effect_selection.has_value()) {
+		if (inspector_dock_id != 0) {
+			ImGui::SetNextWindowDockID(inspector_dock_id, ImGuiCond_Appearing);
+		}
+
+		// Keep the close button on the inspector tab, but hide the shared dock close button.
+		ImGuiWindowClass window_class{};
+		window_class.DockNodeFlagsOverrideSet = ImGuiDockNodeFlags_NoCloseButton;
+		ImGui::SetNextWindowClass(&window_class);
+
+		bool screen_effect_open{ true };
+		screen_effect_visible =
+			ImGui::Begin("Screen Effect Inspector###ScreenEffectInspector", &screen_effect_open);
+		screen_effect_dock_id = ImGui::GetWindowDockID();
+		if (screen_effect_visible) {
+			inspector::DrawScreenEffectInspector(ctx, screen_effect_selection.value());
+		}
+		ImGui::End();
+
+		if (!screen_effect_open) {
+			ClearSelectedScreenEffect(ctx, "Close Screen Effect Inspector");
+			requested_window = inspector::InspectorWindow(mode);
 		}
 	}
 
-	ImGui::End();
-
-	auto selection{ ctx.local.selection.selected_screen_effect };
-	if (!selection.has_value()) {
-		previous_screen_effect_selection_.reset();
-		return;
-	}
-
-	bool selection_changed{ previous_screen_effect_selection_ != selection };
-	if (inspector_dock_id != 0) {
-		ImGui::SetNextWindowDockID(inspector_dock_id, ImGuiCond_Appearing);
-	}
-	if (selection_changed) {
-		ImGui::SetNextWindowFocus();
-	}
-
-	bool screen_effect_inspector_open{ true };
-	bool screen_effect_inspector_visible{ ImGui::Begin(
-		"Screen Effect Inspector###ScreenEffectInspector", &screen_effect_inspector_open
-	) };
-	ImGuiID screen_effect_inspector_dock_id{ ImGui::GetWindowDockID() };
-
-	if (screen_effect_inspector_visible) {
-		inspector::DrawScreenEffectInspector(ctx, selection.value());
-	}
-	ImGui::End();
-
-	if (!screen_effect_inspector_open) {
-		ClearSelectedScreenEffect(ctx, "Close Screen Effect Inspector");
-		previous_screen_effect_selection_.reset();
-		return;
-	}
-
-	bool shared_dock{ inspector_dock_id != 0 &&
-					  inspector_dock_id == screen_effect_inspector_dock_id };
-	if (!selection_changed && shared_dock) {
-		if (screen_effect_inspector_visible &&
-			ctx.local.selection.inspector_tab != InspectorTab::ScreenEffect) {
-			SetInspectorTab(ctx, InspectorTab::ScreenEffect);
-		} else if (
-			inspector_visible && ctx.local.selection.inspector_tab != InspectorTab::Primary
-		) {
+	if (requested_window) {
+		inspector::SelectInspectorDockTab(requested_window);
+		if (screen_effect_selection.has_value() &&
+			std::string_view{ requested_window } !=
+				"Screen Effect Inspector###ScreenEffectInspector") {
 			SetInspectorTab(ctx, InspectorTab::Primary);
 		}
+	} else if (
+		screen_effect_selection.has_value() && inspector_dock_id != 0 &&
+		inspector_dock_id == screen_effect_dock_id
+	) {
+		InspectorTab visible_tab{ screen_effect_visible ? InspectorTab::ScreenEffect
+														: InspectorTab::Primary };
+		if (screen_effect_visible || entity_visible || prefab_visible || tile_visible) {
+			SetInspectorTab(ctx, visible_tab);
+		}
 	}
 
-	previous_screen_effect_selection_ = selection;
+	previous_selection_				  = std::move(selection);
+	previous_screen_effect_selection_ = previous_selection_->selected_screen_effect;
+	previous_tile_entry_id_			  = std::string{ paint.GetSelectedTileEntryId() };
 }
 
 } // namespace ptgn::editor

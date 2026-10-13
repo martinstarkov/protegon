@@ -13,9 +13,11 @@
 #include "commands/editor_command.h"
 #include "editor/editor.h"
 #include "editor/editor_context.h"
+#include "editor/paint/paint_editor.h"
 #include "panels/scene_list.h"
 #include "runtime/scene/scene.h"
 #include "runtime/scene/scene_manager.h"
+#include "runtime/world/entity_layer.h"
 
 namespace ptgn::editor {
 
@@ -187,15 +189,6 @@ bool SetEditorSelection(
 
 namespace {
 
-[[nodiscard]] const char* GetSceneHierarchyTabWindow(EditorSelectionMode tab) {
-	switch (tab) {
-		case EditorSelectionMode::SceneHierarchy: return "Scene Hierarchy###SceneHierarchyWindow";
-		case EditorSelectionMode::Prefabs:		  return "Prefabs###PrefabsWindow";
-		case EditorSelectionMode::Tiles:		  return "Tiles###TilesWindow";
-	}
-	return nullptr;
-}
-
 [[nodiscard]] const char* GetSceneListTabWindow(SceneListTab tab) {
 	switch (tab) {
 		case SceneListTab::Scenes:		  return "Scenes";
@@ -217,63 +210,72 @@ void RequestSceneListTabFocus(EditorContext& ctx, SceneListTab tab) {
 	}
 }
 
-[[nodiscard]] const char* GetInspectorTabWindow(InspectorTab tab, EditorSelectionMode mode) {
-	if (tab == InspectorTab::ScreenEffect) {
-		return "Screen Effect Inspector###ScreenEffectInspector";
-	}
+} // namespace
 
-	if (mode == EditorSelectionMode::Prefabs) {
-		return "Prefab Inspector###Inspector";
-	}
-	if (mode == EditorSelectionMode::Tiles) {
-		return "Tile Inspector###Inspector";
-	}
-	return "Entity Inspector###Inspector";
+namespace {
+
+std::unordered_map<EditorContext*, EditorSelectionMode>& PendingPrimaryInspectorRequests() {
+	static std::unordered_map<EditorContext*, EditorSelectionMode> pending;
+	return pending;
 }
 
-void ApplyEditorSelectionAndFocus(
-	EditorContext& ctx, EditorSelection selection, const char* window
-) {
-	ApplyEditorSelection(ctx, std::move(selection));
-	if (window) {
-		ImGui::SetWindowFocus(window);
+void SelectPaintLayerForTab(EditorContext& ctx, EditorSelectionMode tab) {
+	if (tab == EditorSelectionMode::SceneHierarchy) {
+		return;
+	}
+
+	Scene* scene{ ctx.editor.GetSceneListPanel().GetSelectedScene() };
+	if (!scene) {
+		return;
+	}
+
+	auto& paint{ ctx.editor.GetPaintEditor() };
+	const auto& layers{ scene->GetLayers() };
+	SceneLayerKind kind{ tab == EditorSelectionMode::Tiles ? SceneLayerKind::Tile
+														   : SceneLayerKind::Entity };
+
+	if (const SceneLayer* current{ layers.Find(paint.GetActiveLayer(*scene)) };
+		current && current->kind == kind) {
+		return;
+	}
+
+	for (const SceneLayer& layer : layers.GetLayers()) {
+		if (layer.kind == kind) {
+			paint.SetActiveLayer(*scene, layer.id);
+			return;
+		}
 	}
 }
 
 } // namespace
 
+void RequestPrimaryInspector(EditorContext& ctx, EditorSelectionMode mode) {
+	PendingPrimaryInspectorRequests().insert_or_assign(std::addressof(ctx), mode);
+}
+
+std::optional<EditorSelectionMode> ConsumePrimaryInspectorRequest(EditorContext& ctx) {
+	auto& pending{ PendingPrimaryInspectorRequests() };
+	auto it{ pending.find(std::addressof(ctx)) };
+	if (it == pending.end()) {
+		return std::nullopt;
+	}
+
+	EditorSelectionMode mode{ it->second };
+	pending.erase(it);
+	return mode;
+}
+
 bool SetSceneHierarchyTab(EditorContext& ctx, EditorSelectionMode tab) {
 	if (ctx.local.selection.mode == tab) {
+		SelectPaintLayerForTab(ctx, tab);
 		return false;
 	}
 
-	EditorSelection before{ ctx.local.selection };
-	EditorSelection after{ before };
-	after.mode = tab;
-
-	bool runtime{ ctx.editor.IsPlaying() };
-	EditorContext* context{ std::addressof(ctx) };
-	auto before_tab{ before.mode };
-
-	const char* label{ tab == EditorSelectionMode::SceneHierarchy ? "Select Scene Hierarchy Tab"
-					   : tab == EditorSelectionMode::Prefabs	  ? "Select Prefabs Tab"
-																  : "Select Tiles Tab" };
-
-	ctx.undo.Execute(
-		std::make_unique<ActionEditorCommand>(
-			label,
-			[context, before, before_tab]() mutable {
-				ApplyEditorSelectionAndFocus(
-					*context, before, GetSceneHierarchyTabWindow(before_tab)
-				);
-			},
-			[context, after, tab]() mutable {
-				ApplyEditorSelectionAndFocus(*context, after, GetSceneHierarchyTabWindow(tab));
-			}
-		),
-		false, runtime, runtime
-	);
-
+	ctx.undo.CommitActiveEdit();
+	EditorSelection selection{ ctx.local.selection };
+	selection.mode = tab;
+	ApplyEditorSelection(ctx, std::move(selection));
+	SelectPaintLayerForTab(ctx, tab);
 	return true;
 }
 
@@ -341,34 +343,10 @@ bool SetInspectorTab(EditorContext& ctx, InspectorTab tab) {
 		return false;
 	}
 
-	EditorSelection before{ ctx.local.selection };
-	EditorSelection after{ before };
-	after.inspector_tab = tab;
-
-	bool runtime{ ctx.editor.IsPlaying() };
-	EditorContext* context{ std::addressof(ctx) };
-	auto before_tab{ before.inspector_tab };
-	auto before_mode{ before.mode };
-	auto after_mode{ after.mode };
-
-	ctx.undo.Execute(
-		std::make_unique<ActionEditorCommand>(
-			tab == InspectorTab::ScreenEffect ? "Select Screen Effect Inspector Tab"
-											  : "Select Primary Inspector Tab",
-			[context, before, before_tab, before_mode]() mutable {
-				ApplyEditorSelectionAndFocus(
-					*context, before, GetInspectorTabWindow(before_tab, before_mode)
-				);
-			},
-			[context, after, tab, after_mode]() mutable {
-				ApplyEditorSelectionAndFocus(
-					*context, after, GetInspectorTabWindow(tab, after_mode)
-				);
-			}
-		),
-		false, runtime, runtime
-	);
-
+	ctx.undo.CommitActiveEdit();
+	EditorSelection selection{ ctx.local.selection };
+	selection.inspector_tab = tab;
+	ApplyEditorSelection(ctx, std::move(selection));
 	return true;
 }
 

@@ -1750,12 +1750,14 @@ void DrawSceneHierarchyContents(
 		bool open{ node.open };
 
 		if (node.left_clicked && layer_interactable) {
+			RequestPrimaryInspector(ctx, EditorSelectionMode::SceneHierarchy);
 			selected_layer.reset();
 			selected_entity				   = entity;
 			entity_left_clicked_this_frame = true;
 		}
 
 		if (node.right_clicked && layer_interactable) {
+			RequestPrimaryInspector(ctx, EditorSelectionMode::SceneHierarchy);
 			selected_layer.reset();
 			selected_entity = entity;
 		}
@@ -2822,6 +2824,7 @@ void SceneHierarchyPanel::SetSelectedEntity(Entity entity, bool undoable) {
 
 	if (entity) {
 		selected_layer_.reset();
+		RequestPrimaryInspector(*context_, EditorSelectionMode::SceneHierarchy);
 	}
 
 	EditorSelection selection{ context_->local.selection };
@@ -2883,6 +2886,10 @@ void SceneHierarchyPanel::SetSelectedPrefab(
 	selection.selected_prefab			  = std::move(prefab);
 	selection.selected_prefab_entity_path = std::move(entity_path);
 	selection.mode						  = EditorSelectionMode::Prefabs;
+
+	if (selection.selected_prefab.has_value()) {
+		RequestPrimaryInspector(*context_, EditorSelectionMode::Prefabs);
+	}
 
 	if (undoable) {
 		SetEditorSelection(*context_, std::move(selection), "Select Prefab Entity");

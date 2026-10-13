@@ -282,6 +282,10 @@ public:
 	bool DrawTilesPanel(EditorContext& ctx);
 	void DrawTileInspector(EditorContext& ctx);
 
+	[[nodiscard]] std::string_view GetSelectedTileEntryId() const {
+		return selected_tile_entry_id_;
+	}
+
 	/// Generator archetype actions. Generator data itself is edited by the ordinary inspector.
 	void FinishActiveBrushGenerator(EditorContext& ctx, Scene& scene);
 	void CancelActiveBrushGenerator(EditorContext& ctx, Scene& scene, bool undoable = true);

@@ -1971,7 +1971,7 @@ void ViewportPanel::HandleEntityPicking(
 	auto& hierarchy{ ctx.editor.GetSceneHierarchyPanel() };
 
 	if (!outer_id.has_value() || outer_id.value() == ::ptgn::impl::kNoEntityId) {
-		hierarchy.SetSelectedEntity({});
+		hierarchy.SetSelectedEntity({}, false);
 		ctx.editor.GetPaintEditor().ClearSelection();
 		return;
 	}
@@ -1983,7 +1983,7 @@ void ViewportPanel::HandleEntityPicking(
 	auto outer_entity{ scene->GetEntity(UUID{ outer_id.value() }) };
 
 	if (!outer_entity) {
-		hierarchy.SetSelectedEntity({});
+		hierarchy.SetSelectedEntity({}, false);
 		return;
 	}
 
@@ -2004,9 +2004,9 @@ void ViewportPanel::HandleEntityPicking(
 
 	ctx.editor.GetPaintEditor().ClearSelection();
 	if (selected_entity) {
-		hierarchy.SetSelectedEntity(selected_entity);
+		hierarchy.SetSelectedEntity(selected_entity, false);
 	} else {
-		hierarchy.SetSelectedEntity({});
+		hierarchy.SetSelectedEntity({}, false);
 	}
 }
 

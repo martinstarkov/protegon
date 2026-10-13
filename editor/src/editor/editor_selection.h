@@ -81,15 +81,8 @@ struct EditorSelection {
 	bool HasSceneSelection() const;
 
 	PTGN_REFLECT(
-		EditorSelection,
-		selected_scene_key,
-		selected_scene_runtime,
-		scene_entities,
-		selected_prefab,
-		selected_prefab_entity_path,
-		selected_screen_effect,
-		mode,
-		scene_list_tab,
+		EditorSelection, selected_scene_key, selected_scene_runtime, scene_entities,
+		selected_prefab, selected_prefab_entity_path, selected_screen_effect, mode, scene_list_tab,
 		inspector_tab
 	)
 };
@@ -101,12 +94,14 @@ struct EditorSelection {
 void ApplyEditorSelection(EditorContext& ctx, EditorSelection selection);
 
 bool SetEditorSelection(
-	EditorContext& ctx,
-	EditorSelection selection,
-	std::string label,
-	bool allow_when_undo_disabled = false,
-	bool transient = false
+	EditorContext& ctx, EditorSelection selection, std::string label,
+	bool allow_when_undo_disabled = false, bool transient = false
 );
+
+/// Requests the corresponding inspector tab on an explicit hierarchy item click.
+/// Unlike a selection change, repeated clicks on the same item still activate its inspector.
+void RequestPrimaryInspector(EditorContext& ctx, EditorSelectionMode mode);
+[[nodiscard]] std::optional<EditorSelectionMode> ConsumePrimaryInspectorRequest(EditorContext& ctx);
 
 bool SetSceneHierarchyTab(EditorContext& ctx, EditorSelectionMode tab);
 bool SetSceneListTab(EditorContext& ctx, SceneListTab tab);

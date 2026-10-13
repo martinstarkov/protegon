@@ -5900,6 +5900,7 @@ bool PaintEditor::DrawTilesPanel(EditorContext& ctx) {
 				bool tile_clicked{ ImGui::IsItemClicked(ImGuiMouseButton_Left) };
 				bool tile_hovered{ ImGui::IsItemHovered() };
 				if (tile_clicked) {
+					RequestPrimaryInspector(ctx, EditorSelectionMode::Tiles);
 					selected_tile_entry_id_ = entry.id;
 					inspected_texture_		= entry.texture;
 					inspected_slice_		= entry.slice;
