@@ -15,6 +15,7 @@ enum class EditorIcon : std::uint8_t {
 	StepBackward,
 	Camera,
 	Entity,
+	Link,
 	Tile,
 	Visible,
 	Hidden,

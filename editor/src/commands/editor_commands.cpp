@@ -4,6 +4,7 @@
 #include <filesystem>
 #include <memory>
 #include <optional>
+#include <ranges>
 #include <string>
 #include <string_view>
 #include <system_error>
@@ -21,7 +22,6 @@
 #include "core/assert.h"
 #include "editor/editor.h"
 #include "editor/editor_context.h"
-#include "editor/editor_settings.h"
 #include "panels/scene_list.h"
 #include "renderer/renderer.h"
 #include "runtime/asset/asset_manager.h"
@@ -153,10 +153,20 @@ void ApplyPrefabAssetStates(
 	// a stale catalog or an unloaded prefab can otherwise leave the source file
 	// behind and cause it to be rediscovered immediately after undo.
 	for (const auto& state : states) {
-		assets.RemovePrefab(state.key, true);
+		if (assets.HasCatalogAsset(state.key, AssetKind::Prefab)) {
+			bool removed{ assets.RemovePrefab(state.key, true) };
+			PTGN_ASSERT(removed, "Could not remove prefab asset from the catalog");
+			if (!removed) {
+				return;
+			}
+		}
 
 		std::error_code error;
 		std::filesystem::remove(project_root / GetPrefabSourcePath(state.key), error);
+		PTGN_ASSERT(!error, "Could not remove the previous prefab file");
+		if (error) {
+			return;
+		}
 	}
 
 	for (const auto& state : states) {
@@ -243,12 +253,18 @@ void ApplyPrefabLinkStates(
 		}
 	}
 
-	// Component removal/addition is deferred by the ECS.
+	// Component removal/addition is deferred by the ECS. Refresh every affected scene.
+	std::vector<Scene*> scenes;
 	for (const auto& state : states) {
 		if (Entity entity{ state.reference.Resolve(editor) }) {
-			entity.GetScene().Refresh();
-			break;
+			Scene* scene{ std::addressof(entity.GetScene()) };
+			if (!std::ranges::contains(scenes, scene)) {
+				scenes.push_back(scene);
+			}
 		}
+	}
+	for (Scene* scene : scenes) {
+		scene->Refresh();
 	}
 }
 
@@ -364,15 +380,33 @@ class DeletePrefabAssetCommand final : public EditorCommand {
 public:
 	DeletePrefabAssetCommand(
 		EditorContext& context, path project_root, Prefab prefab, EditorSelection before_selection,
-		EditorSelection after_selection, PrefabDeleteInstanceBehavior behavior
+		EditorSelection after_selection, PrefabDeletionMode mode
 	) :
 		context_{ std::addressof(context) },
 		project_root_{ std::move(project_root) },
 		prefab_{ std::move(prefab) },
 		before_selection_{ std::move(before_selection) },
 		after_selection_{ std::move(after_selection) },
-		behavior_{ behavior },
-		instances_{ CapturePrefabInstanceRoots(context, prefab_.key) } {}
+		mode_{ mode },
+		instances_{ CapturePrefabInstanceRoots(context, prefab_.key) } {
+		if (mode_ == PrefabDeletionMode::UnlinkInstances) {
+			for (const auto& snapshot : instances_) {
+				if (!snapshot.scene || !snapshot.root.uuid) {
+					continue;
+				}
+
+				if (Entity root{ snapshot.scene->GetEntity(*snapshot.root.uuid) }) {
+					std::vector<LinkedPrefabEntityState> tree_links;
+					CollectPrefabLinkStates(root, tree_links);
+					for (auto& link : tree_links) {
+						if (link.link.prefab == prefab_.key) {
+							links_.push_back(std::move(link));
+						}
+					}
+				}
+			}
+		}
+	}
 
 	void Undo() override {
 		ApplyPrefabAssetStates(
@@ -386,27 +420,29 @@ public:
 			before_selection_
 		);
 
-		for (const auto& instance : instances_) {
-			RestoreDeletedPrefabInstance(instance);
+		if (mode_ == PrefabDeletionMode::UnlinkInstances) {
+			ApplyPrefabLinkStates(context_->editor, links_, true);
+		} else {
+			for (const auto& instance : instances_) {
+				RestoreDeletedPrefabInstance(instance);
+			}
 		}
 	}
 
 	void Redo() override {
-		for (const auto& snapshot : instances_) {
-			if (!snapshot.scene || !snapshot.root.uuid.has_value()) {
-				continue;
-			}
+		if (mode_ == PrefabDeletionMode::UnlinkInstances) {
+			// Preserve the scene entities exactly as they are when unlinking.
+			ApplyPrefabLinkStates(context_->editor, links_, false);
+		} else {
+			for (const auto& snapshot : instances_) {
+				if (!snapshot.scene || !snapshot.root.uuid) {
+					continue;
+				}
 
-			Entity instance{ snapshot.scene->GetEntity(*snapshot.root.uuid) };
-			if (!instance) {
-				continue;
-			}
-
-			if (behavior_ == PrefabDeleteInstanceBehavior::Delete) {
-				instance.Destroy();
-				snapshot.scene->Refresh();
-			} else {
-				BakePrefabInstance(instance, prefab_);
+				if (Entity instance{ snapshot.scene->GetEntity(*snapshot.root.uuid) }) {
+					instance.Destroy();
+					snapshot.scene->Refresh();
+				}
 			}
 		}
 
@@ -423,7 +459,8 @@ public:
 	}
 
 	[[nodiscard]] std::string_view Label() const override {
-		return "Delete Prefab";
+		return mode_ == PrefabDeletionMode::UnlinkInstances ? "Delete and Unlink Instances"
+															: "Delete with Instances";
 	}
 
 private:
@@ -432,8 +469,9 @@ private:
 	Prefab prefab_;
 	EditorSelection before_selection_;
 	EditorSelection after_selection_;
-	PrefabDeleteInstanceBehavior behavior_{ PrefabDeleteInstanceBehavior::Bake };
+	PrefabDeletionMode mode_{ PrefabDeletionMode::UnlinkInstances };
 	std::vector<DeletedPrefabInstanceSnapshot> instances_;
+	std::vector<LinkedPrefabEntityState> links_;
 };
 
 class PrefabAssetCommand final : public EditorCommand {
@@ -818,7 +856,7 @@ PrefabKey EditorCommands::CreatePrefabAsset(Prefab prefab) {
 	return key;
 }
 
-bool EditorCommands::DeletePrefabAsset(const PrefabKey& key) {
+bool EditorCommands::DeletePrefabAsset(const PrefabKey& key, PrefabDeletionMode mode) {
 	PTGN_ASSERT(context_);
 
 	auto project_root{ context_->editor.GetProjectRoot() };
@@ -839,10 +877,25 @@ bool EditorCommands::DeletePrefabAsset(const PrefabKey& key) {
 		after_selection = SelectPrefab(std::move(after_selection), std::nullopt);
 	}
 
+	if (mode == PrefabDeletionMode::DeleteInstances) {
+		for (const auto& snapshot : CapturePrefabInstanceRoots(*context_, key)) {
+			if (!snapshot.scene) {
+				continue;
+			}
+
+			for (auto& selected : after_selection.scene_entities) {
+				if (!selected.runtime && selected.scene_key == snapshot.scene->GetTag() &&
+					selected.entity_uuid &&
+					SerializedEntityContains(snapshot.root, *selected.entity_uuid)) {
+					selected.entity_uuid.reset();
+				}
+			}
+		}
+	}
+
 	context_->undo.Execute(
 		std::make_unique<DeletePrefabAssetCommand>(
-			*context_, *project_root, std::move(*prefab), before_selection, after_selection,
-			context_->editor.GetSettings().prefab_delete_instance_behavior
+			*context_, *project_root, std::move(*prefab), before_selection, after_selection, mode
 		)
 	);
 

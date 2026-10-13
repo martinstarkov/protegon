@@ -94,7 +94,15 @@ PositionPicker::Finish PreparePositionPickSession(EditorContext& ctx) {
 
 void DrawEntityInspector(EditorContext& ctx, Entity entity) {
 	EntityInspectorTarget target{ .ctx = ctx, .entity = entity };
+	bool read_only{ target.IsReadOnly() };
+	if (read_only) {
+		// Native editors honor the read only item flag while tree nodes and tabs stay interactive.
+		ImGui::PushItemFlag(ImGuiItemFlags_ReadOnly, true);
+	}
 	DrawInspectorContents(ctx, target);
+	if (read_only) {
+		ImGui::PopItemFlag();
+	}
 }
 
 void DrawPrefabInspector(
@@ -191,44 +199,12 @@ void InspectorPanel::OnRender(EditorContext& ctx) {
 		const PrefabInstance* linked_instance{ entity ? GetPrefabInstance(entity) : nullptr };
 
 		if (linked_instance) {
-			PrefabKey prefab_key{ linked_instance->prefab };
-			SerializedEntityPath prefab_path{ linked_instance->entity_path };
-
-			ImGui::TextDisabled("Linked prefab instance");
-
-			if (ImGui::SmallButton("Go to Prefab")) {
-				hierarchy.SetSelectedPrefab(prefab_key, prefab_path, false);
-				hierarchy.SetActiveTab(SceneHierarchyTab::Prefabs);
-				ImGui::SetWindowFocus("Prefabs###PrefabsWindow");
-			}
-			if (ImGui::IsItemHovered()) {
-				ImGui::SetTooltip("Open the source prefab and select the matching prefab entity.");
-			}
-
-			ImGui::SameLine();
-
-			Entity instance_root{ GetPrefabInstanceRoot(entity) };
-			ImGui::BeginDisabled(!instance_root);
-			bool convert{ ImGui::SmallButton("Convert to Entity") };
-			ImGui::EndDisabled();
-			if (ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled)) {
-				ImGui::SetTooltip(
-					"Stop syncing this instance to its prefab so this scene entity can be edited."
-				);
-			}
-
-			ImGui::Separator();
 			ImGui::TextDisabled(
-				"This linked instance is read only. Edit the prefab or convert the instance first."
+				IsPrefabInstanceRoot(entity) ? "Linked prefab instance (Transform editable)"
+											 : "Linked prefab instance (read only)"
 			);
-
-			if (convert && instance_root) {
-				ctx.commands.ConvertPrefabInstanceToEntity(instance_root);
-			} else {
-				ImGui::BeginDisabled();
-				inspector::DrawEntityInspector(ctx, entity);
-				ImGui::EndDisabled();
-			}
+			ImGui::Separator();
+			inspector::DrawEntityInspector(ctx, entity);
 		} else if (entity) {
 			inspector::DrawEntityInspector(ctx, entity);
 		} else {

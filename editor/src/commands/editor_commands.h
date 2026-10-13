@@ -24,6 +24,11 @@ namespace editor {
 class Editor;
 class EditorContext;
 
+enum class PrefabDeletionMode {
+	UnlinkInstances,
+	DeleteInstances
+};
+
 class EditorCommands {
 public:
 	EditorCommands() = default;
@@ -49,10 +54,11 @@ public:
 	/// @return The created key, or an empty key if creation failed.
 	PrefabKey CreatePrefabAsset(Prefab prefab);
 
-	/// @brief Deletes a prefab asset. Undo restores the complete asset and selection.
-	bool DeletePrefabAsset(const PrefabKey& key);
+	/// @brief Deletes a prefab and either unlinks or deletes every editor scene instance.
+	/// Both the prefab and its instances are restored by the same undo command.
+	bool DeletePrefabAsset(const PrefabKey& key, PrefabDeletionMode mode);
 
-	/// @brief Renames a prefab asset while preserving its complete serialized hierarchy.
+	/// @brief Renames a prefab asset and retargets every linked instance as one undoable edit.
 	bool RenamePrefabAsset(const PrefabKey& old_key, const PrefabKey& new_key);
 
 	/// @brief Copies a prefab to a new key and selects the duplicate.

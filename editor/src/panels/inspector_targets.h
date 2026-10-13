@@ -1,6 +1,7 @@
 #pragma once
 
 #include <imgui.h>
+#include <imgui_internal.h>
 #include <imgui_stdlib.h>
 
 #include <concepts>
@@ -45,6 +46,29 @@ namespace ptgn::editor::inspector {
 
 template <typename T>
 using ComponentState = std::optional<T>;
+
+// Keep navigation interactive while restricting fields in a linked prefab instance.
+// This is also used for other component fields within an editable root Transform section.
+class ScopedComponentReadOnly {
+public:
+	explicit ScopedComponentReadOnly(bool read_only) : read_only_{ read_only } {
+		if (read_only_) {
+			ImGui::PushItemFlag(ImGuiItemFlags_ReadOnly, true);
+		}
+	}
+
+	~ScopedComponentReadOnly() {
+		if (read_only_) {
+			ImGui::PopItemFlag();
+		}
+	}
+
+	ScopedComponentReadOnly(const ScopedComponentReadOnly&)			   = delete;
+	ScopedComponentReadOnly& operator=(const ScopedComponentReadOnly&) = delete;
+
+private:
+	bool read_only_{ false };
+};
 
 struct FeatureTargetKey {
 	const Scene* scene{ nullptr };
@@ -189,6 +213,36 @@ void AssignEntityInspectorComponent(Entity entity, ComponentState<T> state) {
 struct EntityInspectorTarget {
 	EditorContext& ctx;
 	Entity entity{};
+	bool editing_instance_transform{ false };
+
+	[[nodiscard]] bool IsReadOnly() const {
+		return entity && GetPrefabInstance(entity) != nullptr && !editing_instance_transform;
+	}
+
+	[[nodiscard]] bool IsComponentStructureReadOnly() const {
+		return entity && GetPrefabInstance(entity) != nullptr;
+	}
+
+	template <typename T>
+	[[nodiscard]] bool IsComponentReadOnly() const {
+		if (!entity || !GetPrefabInstance(entity)) {
+			return false;
+		}
+		return !(
+			std::same_as<T, Transform> && editing_instance_transform && IsPrefabInstanceRoot(entity)
+		);
+	}
+
+	template <typename T>
+	[[nodiscard]] bool CanApplyComponentEdit() const {
+		return entity && (!GetPrefabInstance(entity) ||
+						  (std::same_as<T, Transform> && IsPrefabInstanceRoot(entity)));
+	}
+
+	template <typename T>
+	[[nodiscard]] bool NeedsComponentReadOnlyFlag() const {
+		return editing_instance_transform && IsComponentReadOnly<T>();
+	}
 
 	template <typename T>
 	[[nodiscard]] static constexpr bool Supports() {
@@ -244,6 +298,9 @@ struct EntityInspectorTarget {
 
 	template <typename T, typename Callback = std::nullptr_t>
 	void SetLive(ComponentState<T> state, Callback callback = nullptr) {
+		if (!CanApplyComponentEdit<T>() || (IsComponentStructureReadOnly() && !state)) {
+			return;
+		}
 		AssignEntityInspectorComponent<T>(entity, std::move(state));
 		InvokeEntityChanged(callback, entity);
 		::ptgn::impl::SliderSystem::SynchronizeEntity(entity);
@@ -257,7 +314,9 @@ struct EntityInspectorTarget {
 		return [editor, reference, callback](ComponentState<T> state) mutable {
 			Entity resolved{ reference.Resolve(*editor) };
 
-			if (!resolved) {
+			if (!resolved ||
+				(GetPrefabInstance(resolved) &&
+				 (!std::same_as<T, Transform> || !IsPrefabInstanceRoot(resolved) || !state))) {
 				return;
 			}
 
@@ -294,7 +353,9 @@ struct EntityInspectorTarget {
 	}
 
 	void SetName(std::string name) {
-		entity.Add<Tag>(std::move(name));
+		if (!IsReadOnly()) {
+			entity.Add<Tag>(std::move(name));
+		}
 	}
 
 	auto MakeNameApply() const {
@@ -304,7 +365,7 @@ struct EntityInspectorTarget {
 		return [editor, reference](std::string name) {
 			Entity resolved{ reference.Resolve(*editor) };
 
-			if (resolved) {
+			if (resolved && !GetPrefabInstance(resolved)) {
 				resolved.Add<Tag>(std::move(name));
 			}
 		};
@@ -324,6 +385,24 @@ struct PrefabInspectorTarget {
 	PrefabKey key{};
 	SerializedEntityPath entity_path{};
 	Entity prefab{};
+
+	[[nodiscard]] bool IsReadOnly() const {
+		return false;
+	}
+
+	[[nodiscard]] bool IsComponentStructureReadOnly() const {
+		return false;
+	}
+
+	template <typename T>
+	[[nodiscard]] bool IsComponentReadOnly() const {
+		return false;
+	}
+
+	template <typename T>
+	[[nodiscard]] bool NeedsComponentReadOnlyFlag() const {
+		return false;
+	}
 
 	template <typename T>
 	[[nodiscard]] static constexpr bool Supports() {
@@ -402,7 +481,7 @@ struct PrefabInspectorTarget {
 				callback](ComponentState<T> state) mutable {
 			auto& assets{ context->editor.GetAssetManager() };
 			Entity resolved{ assets.GetPrefabEntity(prefab_key, path) };
-			if (!resolved) {
+			if (!resolved || GetPrefabInstance(resolved)) {
 				return;
 			}
 
@@ -450,7 +529,7 @@ void TrackComponentState(
 	Target& target, std::string_view label, ComponentState<T> before, ComponentState<T> after,
 	bool changed, Callback callback
 ) {
-	if (!changed) {
+	if (!changed || target.template IsComponentReadOnly<T>()) {
 		return;
 	}
 
@@ -491,10 +570,11 @@ bool EditComponent(
 		}
 
 		T value{ *before };
-		if (!std::invoke(std::forward<Edit>(edit), value)) {
+		ScopedComponentReadOnly read_only{ target.template NeedsComponentReadOnlyFlag<T>() };
+		if (!std::invoke(std::forward<Edit>(edit), value) ||
+			target.template IsComponentReadOnly<T>()) {
 			return false;
 		}
-
 		target.template SetLive<T>(std::move(value), callback);
 		auto after{ target.template Capture<T>() };
 		TrackComponentState(
@@ -513,6 +593,9 @@ bool SetComponentStateUndoable(
 	if constexpr (!Target::template Supports<T>()) {
 		return false;
 	} else {
+		if (target.template IsComponentReadOnly<T>() || target.IsComponentStructureReadOnly()) {
+			return false;
+		}
 		auto before{ target.template Capture<T>() };
 		target.template SetLive<T>(std::move(state), callback);
 		auto after{ target.template Capture<T>() };
@@ -544,8 +627,8 @@ bool DrawComponentSection(
 		label, "##ComponentSection",
 		InspectorSectionOptions{
 			.default_open = default_open,
-			.removable	  = removable,
-			.resettable	  = resettable,
+			.removable	  = removable && !target.IsComponentStructureReadOnly(),
+			.resettable	  = resettable && !target.IsComponentStructureReadOnly(),
 		}
 	) };
 
@@ -559,7 +642,9 @@ bool DrawComponentSection(
 	} else if (header.open) {
 		T value{ *before };
 		ScopedIndent indent;
-		if (std::invoke(std::forward<Draw>(draw), value)) {
+		ScopedComponentReadOnly read_only{ target.template NeedsComponentReadOnlyFlag<T>() };
+		if (std::invoke(std::forward<Draw>(draw), value) &&
+			!target.template IsComponentReadOnly<T>()) {
 			target.template SetLive<T>(std::move(value), callback);
 			changed = true;
 		}
@@ -604,11 +689,11 @@ bool DrawRequiredComponent(
 	auto before{ target.template Capture<T>() };
 	bool changed{ false };
 
-	if (!before) {
+	if (!before && !target.template IsComponentReadOnly<T>() &&
+		!target.IsComponentStructureReadOnly()) {
 		target.template SetLive<T>(T{}, callback);
 		changed = true;
 	}
-
 	T value{ target.template Capture<T>().value_or(T{}) };
 
 	if (tree) {
@@ -616,14 +701,16 @@ bool DrawRequiredComponent(
 
 		if (ImGui::TreeNodeEx(node_label.c_str(), ImGuiTreeNodeFlags_SpanAvailWidth)) {
 			ScopedIndent indent;
+			ScopedComponentReadOnly read_only{ target.template NeedsComponentReadOnlyFlag<T>() };
 			changed |= std::invoke(std::forward<Draw>(draw), value);
 			ImGui::TreePop();
 		}
 	} else {
+		ScopedComponentReadOnly read_only{ target.template NeedsComponentReadOnlyFlag<T>() };
 		changed |= std::invoke(std::forward<Draw>(draw), value);
 	}
 
-	if (changed) {
+	if (changed && !target.template IsComponentReadOnly<T>()) {
 		target.template SetLive<T>(std::move(value), callback);
 	}
 
@@ -661,9 +748,10 @@ bool DrawOptionalComponent(
 
 	if (tree) {
 		// Optional sections keep their enable toggle immediately to the left of the tree node.
-		changed |= DrawDisabledIf(toggle_read_only, [&]() {
-			return ImGui::Checkbox("##Enabled", &enabled);
-		});
+		changed |=
+			DrawDisabledIf(toggle_read_only || target.template IsComponentReadOnly<T>(), [&]() {
+				return ImGui::Checkbox("##Enabled", &enabled);
+			});
 		ImGui::SameLine(0.0f, ImGui::GetStyle().ItemInnerSpacing.x);
 		std::string node_label{ std::string{ label } + "##Tree" };
 		open = ImGui::TreeNodeEx(
@@ -673,18 +761,20 @@ bool DrawOptionalComponent(
 		);
 	} else if constexpr (std::is_empty_v<T>) {
 		changed |= DrawInspectorPropertyRow(label, [&]() {
-			return DrawDisabledIf(toggle_read_only, [&]() {
-				return ImGui::Checkbox("##Enabled", &enabled);
-			});
+			return DrawDisabledIf(
+				toggle_read_only || target.template IsComponentReadOnly<T>(),
+				[&]() { return ImGui::Checkbox("##Enabled", &enabled); }
+			);
 		});
 	} else {
 		// Ordinary optional values are a single row: Label | [enable] [value...]. Nested field
 		// drawers are put into inline-value mode so they reuse this value cell instead of emitting
 		// another property row.
 		changed |= DrawInspectorPropertyRow(label, [&]() {
-			bool toggle_changed{ DrawDisabledIf(toggle_read_only, [&]() {
-				return ImGui::Checkbox("##Enabled", &enabled);
-			}) };
+			bool toggle_changed{ DrawDisabledIf(
+				toggle_read_only || target.template IsComponentReadOnly<T>(),
+				[&]() { return ImGui::Checkbox("##Enabled", &enabled); }
+			) };
 			bool local_changed{ toggle_changed };
 			if (toggle_changed) {
 				target.template SetLive<T>(
@@ -694,10 +784,12 @@ bool DrawOptionalComponent(
 			ImGui::SameLine(0.0f, ImGui::GetStyle().ItemInnerSpacing.x);
 
 			T displayed{ target.template Capture<T>().value_or(enabled_default) };
-			ScopedDisabled disabled{ !enabled || contents_read_only };
+			ScopedDisabled disabled{ !enabled || contents_read_only ||
+									 target.template IsComponentReadOnly<T>() };
 			ScopedInspectorInlineValue inline_value;
 			bool contents_changed{ std::invoke(std::forward<Draw>(draw), displayed) };
-			if (enabled && !contents_read_only && contents_changed) {
+			if (enabled && !contents_read_only && !target.template IsComponentReadOnly<T>() &&
+				contents_changed) {
 				target.template SetLive<T>(std::move(displayed), callback);
 				local_changed = true;
 			}
@@ -705,7 +797,8 @@ bool DrawOptionalComponent(
 		});
 	}
 
-	if ((tree || std::is_empty_v<T>) && enabled != before.has_value()) {
+	if (!target.template IsComponentReadOnly<T>() && (tree || std::is_empty_v<T>) &&
+		enabled != before.has_value()) {
 		if (enabled) {
 			target.template SetLive<T>(enabled_default, callback);
 		} else {
@@ -718,9 +811,11 @@ bool DrawOptionalComponent(
 		if (tree && open) {
 			ScopedIndent indent;
 			ScopedDisabled disabled{ !enabled || contents_read_only };
+			ScopedComponentReadOnly read_only{ target.template NeedsComponentReadOnlyFlag<T>() };
 			T value{ target.template Capture<T>().value_or(enabled_default) };
 			bool contents_changed{ std::invoke(std::forward<Draw>(draw), value) };
-			if (enabled && !contents_read_only && contents_changed) {
+			if (enabled && !contents_read_only && !target.template IsComponentReadOnly<T>() &&
+				contents_changed) {
 				target.template SetLive<T>(std::move(value), callback);
 				changed = true;
 			}
@@ -781,10 +876,11 @@ bool DrawName(Target& target) {
 
 	bool changed{ DrawPropertyRow("Tag", [&]() {
 		ImGui::SetNextItemWidth(-FLT_MIN);
+		ScopedDisabled disabled{ target.IsReadOnly() };
 		return ImGui::InputText("##Tag", &value);
 	}) };
 
-	if (changed) {
+	if (changed && !target.IsReadOnly()) {
 		target.SetName(value);
 
 		ScopedID target_scope{ target.Id() };

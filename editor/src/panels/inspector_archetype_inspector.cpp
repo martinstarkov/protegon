@@ -86,6 +86,7 @@ bool DrawAddMovementItem(Target& target) {
 template <typename Target>
 bool DrawAddComponentMenu(Target& target) {
 	bool changed{ false };
+	ScopedDisabled read_only{ target.IsReadOnly() };
 
 	if (ImGui::Button("Add Component", ImVec2{ -FLT_MIN, 0.0f })) {
 		ImGui::OpenPopup("AddComponentPopup");
@@ -534,16 +535,33 @@ bool DrawCoreArchetypeSections(
 ) {
 	bool changed{ false };
 
+	auto draw_transform = [&]() {
+		if constexpr (std::same_as<Target, EntityInspectorTarget>) {
+			if (target.entity && IsPrefabInstanceRoot(target.entity)) {
+				// The enclosing inspector is read only. Temporarily unlock native value
+				// controls only while drawing the instance root's Transform section.
+				// Component mutation helpers still reject every other component type.
+				target.editing_instance_transform = true;
+				ImGui::PopItemFlag();
+				changed |= DrawTransformSection(target);
+				ImGui::PushItemFlag(ImGuiItemFlags_ReadOnly, true);
+				target.editing_instance_transform = false;
+				return;
+			}
+		}
+		changed |= DrawTransformSection(target);
+	};
+
 	if (GetButtonChildInfo(target)) {
 		changed |= DrawUISection(target);
-		changed |= DrawTransformSection(target);
+		draw_transform();
 		changed |= DrawVisualSection(target);
 		return changed;
 	}
 
 	if (ArchetypeRequiresTransform(archetype) ||
 		HasAnyInspectorComponent(target, TransformSectionComponents{})) {
-		changed |= DrawTransformSection(target);
+		draw_transform();
 	}
 
 	// Tilemaps and generators are first-class archetypes. Their identity owning components are

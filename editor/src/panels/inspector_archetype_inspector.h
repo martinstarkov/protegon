@@ -1143,6 +1143,9 @@ void TrackComponentSetState(
 	Target& target, std::string label, ComponentSetState<T...> before,
 	ComponentSetState<T...> after, ComponentSet<T...> components
 ) {
+	if (target.IsComponentStructureReadOnly()) {
+		return;
+	}
 	auto apply{ MakeComponentSetApply(target, components) };
 	target.ctx.undo.PushApplied(
 		std::move(label), [apply, before]() mutable { apply(before); },
@@ -1159,6 +1162,9 @@ void RemoveSupportedComponent(Target& target) {
 
 template <typename Target, typename... T>
 bool RemoveComponentSet(Target& target, std::string_view label, ComponentSet<T...> components) {
+	if (target.IsComponentStructureReadOnly()) {
+		return false;
+	}
 	auto before{ CaptureComponentSetState(target, components) };
 	(RemoveSupportedComponent<Target, T>(target), ...);
 	auto after{ CaptureComponentSetState(target, components) };

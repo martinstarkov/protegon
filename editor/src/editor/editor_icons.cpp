@@ -106,7 +106,7 @@ void DrawEditorIcon(ImDrawList* draw, EditorIcon icon, ImVec2 min, float extent,
 	bool runtime_icon{ icon == EditorIcon::Play || icon == EditorIcon::Stop ||
 					   icon == EditorIcon::Pause || icon == EditorIcon::Reset ||
 					   icon == EditorIcon::StepForward || icon == EditorIcon::StepBackward ||
-					   icon == EditorIcon::Camera };
+					   icon == EditorIcon::Camera || icon == EditorIcon::Link };
 
 	ImDrawListFlags prev_flags{ draw->Flags };
 
@@ -187,6 +187,29 @@ void DrawEditorIcon(ImDrawList* draw, EditorIcon icon, ImVec2 min, float extent,
 			float tab_bottom{ bar_top + line * 0.5f };
 			float tab_top{ tab_bottom - tab_height };
 			draw->AddRectFilled({ tab_left, tab_top }, { tab_right, tab_bottom }, color);
+			break;
+		}
+
+		case EditorIcon::Link: {
+			// Mirror both chain halves across the 45 degree diagonal.
+			// Stroke endpoints are pixel snapped and antialiasing is disabled.
+			ImVec2 points[]{
+				{ 9.0f, 7.0f },
+				{ 12.0f, 4.0f },
+				{ 15.0f, 7.0f },
+				{ 12.0f, 10.0f },
+			};
+			ImVec2 upper[4]{};
+			ImVec2 lower[4]{};
+			for (int index{}; index < 4; ++index) {
+				upper[index] = hierarchy_line_point(points[index].x, points[index].y);
+				lower[index] = hierarchy_line_point(points[index].y, points[index].x);
+			}
+			draw->AddPolyline(upper, 4, color, 0, line);
+			draw->AddPolyline(lower, 4, color, 0, line);
+			draw->AddLine(
+				hierarchy_line_point(7.0f, 11.0f), hierarchy_line_point(11.0f, 7.0f), color, line
+			);
 			break;
 		}
 

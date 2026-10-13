@@ -56,6 +56,10 @@ private:
 	float content_right_x_{ 0.0f };
 };
 
+[[nodiscard]] inline bool IsInspectorReadOnlyNavigation() {
+	return (ImGui::GetCurrentContext()->CurrentItemFlags & ImGuiItemFlags_ReadOnly) != 0;
+}
+
 [[nodiscard]] inline ImGuiTabBarFlags InspectorTabBarFlags() {
 	return ImGuiTabBarFlags_AutoSelectNewTabs | ImGuiTabBarFlags_FittingPolicyScroll |
 		   ImGuiTabBarFlags_NoTabListScrollingButtons;
@@ -63,12 +67,14 @@ private:
 
 inline bool DrawInspectorAddTabButton(const char* id, std::string_view tooltip = {}) {
 	ImGui::PushStyleVar(ImGuiStyleVar_FrameRounding, ImGui::GetStyle().TabRounding);
+	ImGui::BeginDisabled(IsInspectorReadOnlyNavigation());
 	bool pressed{
 		ImGui::TabItemButton(id, ImGuiTabItemFlags_Trailing | ImGuiTabItemFlags_NoTooltip)
 	};
+	ImGui::EndDisabled();
 	ImGui::PopStyleVar();
 
-	if (!tooltip.empty() && ImGui::IsItemHovered()) {
+	if (!tooltip.empty() && ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled)) {
 		ImGui::SetTooltip("%.*s", static_cast<int>(tooltip.size()), tooltip.data());
 	}
 	return pressed;
@@ -187,8 +193,11 @@ template <typename DrawTabs>
 		}
 
 		std::string label{ options.empty_add_label };
+		ImGui::BeginDisabled(IsInspectorReadOnlyNavigation());
 		bool pressed{ ImGui::Button(label.c_str(), ImVec2{ -FLT_MIN, ImGui::GetFrameHeight() }) };
-		if (!options.add_tooltip.empty() && ImGui::IsItemHovered()) {
+		ImGui::EndDisabled();
+		if (!options.add_tooltip.empty() &&
+			ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled)) {
 			ImGui::SetTooltip(
 				"%.*s", static_cast<int>(options.add_tooltip.size()), options.add_tooltip.data()
 			);
@@ -233,6 +242,8 @@ inline InspectorTabContextResult DrawInspectorTabContextMenu(
 		return result;
 	}
 
+	bool read_only{ IsInspectorReadOnlyNavigation() };
+	ImGui::BeginDisabled(read_only);
 	if (allow_rename && ImGui::MenuItem("Rename")) {
 		result.rename_requested = true;
 	}
@@ -248,6 +259,7 @@ inline InspectorTabContextResult DrawInspectorTabContextMenu(
 			result.remove_requested = true;
 		}
 	}
+	ImGui::EndDisabled();
 	ImGui::EndPopup();
 	ImGui::PopStyleVar();
 	return result;
