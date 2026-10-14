@@ -99,9 +99,9 @@ public:
 		animation.Stop(true);
 
 		// Signal -> advance exactly one frame.
-		AnimationActionScript next_frame;
+		ActionScript next_frame{ ActionFamily::Animation };
 
-		next_frame.action = AnimationAction::NextFrame;
+		next_frame.animation_action = AnimationAction::NextFrame;
 
 		ScriptSequence next_frame_sequence{ "Advance One Animation Frame" };
 
@@ -111,13 +111,13 @@ public:
 		AttachSequence(animation, std::move(next_frame_sequence));
 
 		// Signal -> reset and play the full animation.
-		AnimationActionScript reset;
+		ActionScript reset{ ActionFamily::Animation };
 
-		reset.action = AnimationAction::Reset;
+		reset.animation_action = AnimationAction::Reset;
 
-		AnimationActionScript play;
+		ActionScript play{ ActionFamily::Animation };
 
-		play.action = AnimationAction::Start;
+		play.animation_action = AnimationAction::Start;
 
 		play.force = true;
 
@@ -130,9 +130,9 @@ public:
 		AttachSequence(animation, std::move(play_sequence));
 
 		// Signal -> stop on the current frame.
-		AnimationActionScript stop;
+		ActionScript stop{ ActionFamily::Animation };
 
-		stop.action = AnimationAction::Stop;
+		stop.animation_action = AnimationAction::Stop;
 
 		stop.reset_on_stop = false;
 
@@ -146,13 +146,13 @@ public:
 		//
 		// The animation's configured play_count is 1, so it automatically
 		// stops after completing one full sequence.
-		AnimationActionScript play_once_reset;
+		ActionScript play_once_reset{ ActionFamily::Animation };
 
-		play_once_reset.action = AnimationAction::Reset;
+		play_once_reset.animation_action = AnimationAction::Reset;
 
-		AnimationActionScript play_once;
+		ActionScript play_once{ ActionFamily::Animation };
 
-		play_once.action = AnimationAction::Start;
+		play_once.animation_action = AnimationAction::Start;
 
 		play_once.force = true;
 

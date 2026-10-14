@@ -825,7 +825,11 @@ struct SequenceHandle {
 	bool Toggle() const;
 	bool Reset() const;
 	bool Clear() const;
+	/// @brief Cancels the active step and advances, completing the sequence at the end.
 	bool Skip() const;
+	/// @brief Cancels the active step and returns to the preceding step when possible.
+	/// Preserves the sequence pause state and restarts that step on the next update.
+	bool PreviousStep() const;
 	bool Seek(float progress) const;
 
 	[[nodiscard]] bool IsRunning() const;
@@ -869,6 +873,7 @@ bool Stop(Entity owner, SequenceId id, SequenceCancelReason reason = SequenceCan
 bool Reset(Entity owner, SequenceId id);
 bool Clear(Entity owner, SequenceId id);
 bool Skip(Entity owner, SequenceId id);
+bool PreviousStep(Entity owner, SequenceId id);
 bool Seek(Entity owner, SequenceId id, float progress);
 bool SetPaused(Entity owner, SequenceId id, bool paused);
 [[nodiscard]] float Progress(Entity owner, SequenceId id);

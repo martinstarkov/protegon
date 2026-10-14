@@ -1463,6 +1463,9 @@ DialogueBox& DialogueBox::Advance() {
 	}
 
 	auto& data{ Data() };
+	PushEvent<event::DialogueContinued>(
+		*this, *this, data.current_dialogue, data.current_variant, data.current_page
+	);
 	if (!data.page_complete) {
 		if (!TextPart().IsFullyRevealed()) {
 			return CompletePage();

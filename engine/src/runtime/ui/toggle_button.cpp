@@ -113,6 +113,11 @@ ToggleButton& ToggleButton::SetToggled(bool toggled) {
 
 	if (HasScene()) {
 		PushEvent<event::ToggleButtonToggle>(*this, *this, toggled);
+		if (toggled) {
+			PushEvent<event::ToggleButtonOn>(*this, *this);
+		} else {
+			PushEvent<event::ToggleButtonOff>(*this, *this);
+		}
 	}
 
 	return *this;
@@ -128,7 +133,11 @@ void ToggleButtonGroup::SetAlwaysOneActive(
 	bool always_active, std::optional<std::string_view> button_key
 ) {
 	auto& data{ TryAdd<impl::ToggleButtonGroupData>() };
+	bool was_required{ data.always_active };
 	data.always_active = always_active;
+	if (was_required != always_active && HasScene()) {
+		PushEvent<event::ToggleGroupRequiredChanged>(*this, *this, always_active);
+	}
 
 	if (!always_active) {
 		return;
@@ -231,6 +240,7 @@ void ToggleButtonGroup::SetActiveKey(impl::ToggleButtonGroupKey key) {
 		return;
 	}
 
+	std::string previous{ data.active.has_value() ? data.active->value : std::string{} };
 	if (same_as_current) {
 		data.active.reset();
 	} else {
@@ -242,6 +252,16 @@ void ToggleButtonGroup::SetActiveKey(impl::ToggleButtonGroupKey key) {
 
 		bool active{ data.active.has_value() && item.key == data.active.value() };
 		button.SetToggled(active);
+	}
+
+	if (HasScene()) {
+		if (data.active.has_value()) {
+			PushEvent<event::ToggleGroupSelectionChanged>(
+				*this, *this, data.active->value, previous
+			);
+		} else {
+			PushEvent<event::ToggleGroupSelectionCleared>(*this, *this);
+		}
 	}
 }
 

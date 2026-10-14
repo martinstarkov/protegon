@@ -490,17 +490,6 @@ enum class AnimationAction : std::uint8_t {
 	PreviousFrame
 };
 
-/// @brief Controls an Animation directly, or the active/keyed child of an AnimationMap.
-struct AnimationActionScript : public Script {
-	AnimationAction action{ AnimationAction::Start };
-	std::string animation_key{};
-	std::size_t frame{ 0 };
-	bool force{ true };
-	bool reset_on_stop{ false };
-	void OnStart() override;
-	PTGN_REFLECT(AnimationActionScript, action, animation_key, frame, force, reset_on_stop)
-};
-
 enum class TimerAction : std::uint8_t {
 	Start,
 	Restart,
@@ -517,15 +506,6 @@ enum class TimerAction : std::uint8_t {
 };
 
 PTGN_REFLECT_ENUM(TimerAction);
-
-/// @brief Controls a named timer on the script target entity.
-struct TimerActionScript : public Script {
-	TimerKey timer{};
-	TimerAction action{ TimerAction::Start };
-	millisecondsf amount{ 1000.0f };
-	void OnStart() override;
-	PTGN_REFLECT(TimerActionScript, timer, action, amount)
-};
 
 enum class LifetimeAction : std::uint8_t {
 	Start,
@@ -544,14 +524,36 @@ enum class LifetimeAction : std::uint8_t {
 
 PTGN_REFLECT_ENUM(LifetimeAction);
 
-/// @brief Controls the Lifetime component on the script target entity.
-struct LifetimeActionScript : public Script {
-	LifetimeAction action{ LifetimeAction::Start };
-	millisecondsf amount{ 1000.0f };
-
-	void OnStart() override;
-	PTGN_REFLECT(LifetimeActionScript, action, amount)
+enum class UIAction : std::uint8_t {
+	ButtonPress,
+	ButtonHoverStart,
+	ButtonHoverContinue,
+	ButtonHoverStop,
+	ButtonEnable,
+	ButtonDisable,
+	SliderSetValue,
+	SliderIncrease,
+	SliderDecrease,
+	ToggleButtonOn,
+	ToggleButtonOff,
+	ToggleButtonToggle,
+	ToggleGroupSelect,
+	ToggleGroupAllowNone,
+	ToggleGroupRequireActive,
+	DropdownOpen,
+	DropdownClose,
+	DropdownToggle,
+	DropdownPressItem
 };
+
+PTGN_REFLECT_ENUM(UIAction);
+
+/// @brief Performs an ordinary UI action on an existing control, using its event producing API.
+/// For ToggleGroupSelect, key identifies a member. For DropdownPressItem, value is a zero
+/// based item index. Slider actions use a normalized value in [0, 1].
+[[nodiscard]] bool ExecuteUIAction(
+	Entity entity, UIAction action, float value = 0.0f, std::string_view key = {}
+);
 
 enum class DialogueAction : std::uint8_t {
 	Open,
@@ -567,14 +569,6 @@ enum class DialogueAction : std::uint8_t {
 
 PTGN_REFLECT_ENUM(DialogueAction);
 
-/// @brief Controls a DialogueBox on the script target entity.
-struct DialogueActionScript : public Script {
-	DialogueAction action{ DialogueAction::Advance };
-	std::string dialogue{};
-	void OnStart() override;
-	PTGN_REFLECT(DialogueActionScript, action, dialogue)
-};
-
 enum class TooltipAction : std::uint8_t {
 	Show,
 	Hide,
@@ -586,12 +580,61 @@ enum class TooltipAction : std::uint8_t {
 
 PTGN_REFLECT_ENUM(TooltipAction);
 
-/// @brief Shows/hides a Tooltip target directly, or controls hover tooltip behavior on an entity
-/// with TooltipHoverData.
-struct TooltipActionScript : public Script {
-	TooltipAction action{ TooltipAction::Show };
+/// @brief Categories of actions sharing one registered runtime script type.
+/// The editor presents these as separate entries in the action picker.
+enum class ActionFamily : std::uint8_t {
+	Animation,
+	Timer,
+	Lifetime,
+	Button,
+	Slider,
+	ToggleButton,
+	ToggleGroup,
+	Dropdown,
+	Dialogue,
+	Tooltip
+};
+
+PTGN_REFLECT_ENUM(ActionFamily);
+
+/// @brief Invokes a target action without registering a separate script for each control type.
+/// The family determines which operation and parameters are active.
+struct ActionScript : public Script {
+	ActionFamily family{ ActionFamily::Button };
+	AnimationAction animation_action{ AnimationAction::Start };
+	TimerAction timer_action{ TimerAction::Start };
+	LifetimeAction lifetime_action{ LifetimeAction::Start };
+	UIAction ui_action{ UIAction::ButtonPress };
+	DialogueAction dialogue_action{ DialogueAction::Advance };
+	TooltipAction tooltip_action{ TooltipAction::Show };
+
+	TimerKey timer{};
+	millisecondsf amount{ 1000.0f };
+	std::string animation_key{};
+	std::size_t frame{ 0 };
+	bool force{ true };
+	bool reset_on_stop{ false };
+	float value{ 0.5f };
+	std::string key{};
+	std::string dialogue{};
+
+	ActionScript() = default;
+	explicit ActionScript(ActionFamily action_family) : family{ action_family } {
+		switch (family) {
+			case ActionFamily::Slider: ui_action = UIAction::SliderSetValue; break;
+			case ActionFamily::ToggleButton: ui_action = UIAction::ToggleButtonToggle; break;
+			case ActionFamily::ToggleGroup: ui_action = UIAction::ToggleGroupSelect; break;
+			case ActionFamily::Dropdown: ui_action = UIAction::DropdownOpen; break;
+			default: break;
+		}
+	}
+
 	void OnStart() override;
-	PTGN_REFLECT(TooltipActionScript, action)
+	PTGN_REFLECT(
+		ActionScript, family, animation_action, timer_action, lifetime_action, ui_action,
+		dialogue_action, tooltip_action, timer, amount, animation_key, frame, force,
+		reset_on_stop, value, key, dialogue
+	)
 };
 
 /// @brief Assigns a TextureKey to the owning entity.

@@ -52,7 +52,9 @@
 #include "runtime/ui/button.h"
 #include "runtime/ui/dialogue.h"
 #include "runtime/ui/dropdown.h"
+#include "runtime/ui/slider.h"
 #include "runtime/ui/toggle_button.h"
+#include "runtime/ui/tooltip.h"
 #include "scripting/script_registration_editor.h"
 
 namespace ptgn::editor {
@@ -785,6 +787,28 @@ inline constexpr std::array kLifetimeActions{
 	std::pair{ LifetimeAction::RemoveDuration, "Remove Duration" },
 };
 
+inline constexpr std::array kUIActions{
+	std::pair{ UIAction::ButtonPress, "Press Button" },
+	std::pair{ UIAction::ButtonHoverStart, "Start Button Hover" },
+	std::pair{ UIAction::ButtonHoverContinue, "Continue Button Hover" },
+	std::pair{ UIAction::ButtonHoverStop, "Stop Button Hover" },
+	std::pair{ UIAction::ButtonEnable, "Enable Button" },
+	std::pair{ UIAction::ButtonDisable, "Disable Button" },
+	std::pair{ UIAction::SliderSetValue, "Set Slider Value" },
+	std::pair{ UIAction::SliderIncrease, "Increase Slider Value" },
+	std::pair{ UIAction::SliderDecrease, "Decrease Slider Value" },
+	std::pair{ UIAction::ToggleButtonOn, "Toggle Button On" },
+	std::pair{ UIAction::ToggleButtonOff, "Toggle Button Off" },
+	std::pair{ UIAction::ToggleButtonToggle, "Toggle Button" },
+	std::pair{ UIAction::ToggleGroupSelect, "Select Toggle Group Item" },
+	std::pair{ UIAction::ToggleGroupAllowNone, "Allow No Active Toggle" },
+	std::pair{ UIAction::ToggleGroupRequireActive, "Require Active Toggle" },
+	std::pair{ UIAction::DropdownOpen, "Open Dropdown" },
+	std::pair{ UIAction::DropdownClose, "Close Dropdown" },
+	std::pair{ UIAction::DropdownToggle, "Toggle Dropdown" },
+	std::pair{ UIAction::DropdownPressItem, "Press Dropdown Item" },
+};
+
 inline constexpr std::array kDialogueActions{
 	std::pair{ DialogueAction::Open, "Open" },
 	std::pair{ DialogueAction::Close, "Close" },
@@ -1001,11 +1025,11 @@ bool DrawTimerKeyInline(
 	return changed;
 }
 
-bool DrawTimerActionInline(ScriptEditorContext& context, TimerActionScript& script) {
+bool DrawTimerActionInline(ScriptEditorContext& context, ActionScript& script) {
 	auto choices{ GetTimerActionChoices(context) };
 	float available{ ImGui::GetContentRegionAvail().x };
 	float spacing{ ImGui::GetStyle().ItemSpacing.x };
-	bool uses_amount{ TimerActionUsesAmount(script.action) };
+	bool uses_amount{ TimerActionUsesAmount(script.timer_action) };
 	float action_width{ std::min(130.0f, std::max(95.0f, available * 0.32f)) };
 	float amount_width{ std::min(100.0f, std::max(72.0f, available * 0.25f)) };
 	float timer_width{ std::max(
@@ -1016,18 +1040,18 @@ bool DrawTimerActionInline(ScriptEditorContext& context, TimerActionScript& scri
 	SameLineControl();
 
 	ImGui::SetNextItemWidth(action_width);
-	if (ImGui::BeginCombo("##TimerAction", TimerActionLabel(script.action))) {
+	if (ImGui::BeginCombo("##TimerAction", TimerActionLabel(script.timer_action))) {
 		for (const auto& [candidate, label] : kTimerActions) {
-			if (ImGui::Selectable(label, candidate == script.action)) {
-				script.action = candidate;
-				changed		  = true;
+			if (ImGui::Selectable(label, candidate == script.timer_action)) {
+				script.timer_action = candidate;
+				changed				= true;
 			}
 		}
 		ImGui::EndCombo();
 	}
 	DrawItemTooltip("Timer operation to perform.");
 
-	if (TimerActionUsesAmount(script.action)) {
+	if (TimerActionUsesAmount(script.timer_action)) {
 		SameLineControl();
 		changed |= inspector::DrawDurationTextInput(
 			"##TimerAmount", script.amount, amount_width, false,
@@ -1038,28 +1062,28 @@ bool DrawTimerActionInline(ScriptEditorContext& context, TimerActionScript& scri
 	return changed;
 }
 
-bool DrawLifetimeActionInline(ScriptEditorContext&, LifetimeActionScript& script) {
+bool DrawLifetimeActionInline(ScriptEditorContext&, ActionScript& script) {
 	bool changed{ false };
 	float available{ ImGui::GetContentRegionAvail().x };
-	bool uses_amount{ LifetimeActionUsesAmount(script.action) };
+	bool uses_amount{ LifetimeActionUsesAmount(script.lifetime_action) };
 	float spacing{ ImGui::GetStyle().ItemSpacing.x };
 	float amount_width{ std::min(100.0f, std::max(72.0f, available * 0.35f)) };
 	float action_width{ uses_amount ? std::max(1.0f, available - amount_width - spacing)
 									: std::max(1.0f, available) };
 
 	ImGui::SetNextItemWidth(action_width);
-	if (ImGui::BeginCombo("##LifetimeAction", LifetimeActionLabel(script.action))) {
+	if (ImGui::BeginCombo("##LifetimeAction", LifetimeActionLabel(script.lifetime_action))) {
 		for (const auto& [candidate, label] : kLifetimeActions) {
-			if (ImGui::Selectable(label, candidate == script.action)) {
-				script.action = candidate;
-				changed		  = true;
+			if (ImGui::Selectable(label, candidate == script.lifetime_action)) {
+				script.lifetime_action = candidate;
+				changed				   = true;
 			}
 		}
 		ImGui::EndCombo();
 	}
 	DrawItemTooltip("Lifetime operation to perform on the action target.");
 
-	if (LifetimeActionUsesAmount(script.action)) {
+	if (LifetimeActionUsesAmount(script.lifetime_action)) {
 		SameLineControl();
 		changed |= inspector::DrawDurationTextInput(
 			"##LifetimeAmount", script.amount, amount_width, false,
@@ -1070,27 +1094,110 @@ bool DrawLifetimeActionInline(ScriptEditorContext&, LifetimeActionScript& script
 	return changed;
 }
 
-bool DrawDialogueActionInline(ScriptEditorContext&, DialogueActionScript& script) {
+bool DrawUIActionInline(ScriptEditorContext&, ActionScript& script) {
 	float available{ ImGui::GetContentRegionAvail().x };
 	float spacing{ ImGui::GetStyle().ItemSpacing.x };
-	bool uses_key{ DialogueActionUsesKey(script.action) };
+	bool has_value{ script.ui_action == UIAction::SliderSetValue ||
+					script.ui_action == UIAction::SliderIncrease ||
+					script.ui_action == UIAction::SliderDecrease ||
+					script.ui_action == UIAction::DropdownPressItem };
+	bool has_key{ script.ui_action == UIAction::ToggleGroupSelect };
+	float parameter_width{ has_value || has_key ? std::min(115.0f, available * 0.42f) : 0.0f };
+	float action_width{
+		std::max(1.0f, available - parameter_width - ((has_value || has_key) ? spacing : 0.0f))
+	};
+
+	bool changed{ false };
+	ImGui::SetNextItemWidth(action_width);
+	if (ImGui::BeginCombo("##UIAction", [&]() {
+			auto it{ std::ranges::find_if(kUIActions, [&](const auto& entry) {
+				return entry.first == script.ui_action;
+			}) };
+			return it != kUIActions.end() ? it->second : "UI Action";
+		}())) {
+		for (const auto& [candidate, label] : kUIActions) {
+			bool relevant{ false };
+			switch (script.family) {
+				case ActionFamily::Button:
+					relevant =
+						candidate >= UIAction::ButtonPress && candidate <= UIAction::ButtonDisable;
+					break;
+				case ActionFamily::Slider:
+					relevant = candidate >= UIAction::SliderSetValue &&
+							   candidate <= UIAction::SliderDecrease;
+					break;
+				case ActionFamily::ToggleButton:
+					relevant = candidate >= UIAction::ToggleButtonOn &&
+							   candidate <= UIAction::ToggleButtonToggle;
+					break;
+				case ActionFamily::ToggleGroup:
+					relevant = candidate >= UIAction::ToggleGroupSelect &&
+							   candidate <= UIAction::ToggleGroupRequireActive;
+					break;
+				case ActionFamily::Dropdown:
+					relevant = candidate >= UIAction::DropdownOpen &&
+							   candidate <= UIAction::DropdownPressItem;
+					break;
+				default: break;
+			}
+			if (!relevant) {
+				continue;
+			}
+			if (ImGui::Selectable(label, candidate == script.ui_action)) {
+				script.ui_action = candidate;
+				changed			 = true;
+			}
+		}
+		ImGui::EndCombo();
+	}
+	DrawItemTooltip("Perform a UI action on the selected target.");
+
+	if (has_value) {
+		SameLineControl();
+		ImGui::SetNextItemWidth(std::max(1.0f, parameter_width));
+		if (script.ui_action == UIAction::DropdownPressItem) {
+			int index{ static_cast<int>(script.value) };
+			if (ImGui::InputInt("##DropdownItemIndex", &index)) {
+				script.value = static_cast<float>(std::max(0, index));
+				changed		 = true;
+			}
+			DrawItemTooltip("Zero based dropdown item index.");
+		} else {
+			changed |=
+				ImGui::DragFloat("##UIActionValue", &script.value, 0.01f, 0.0f, 1.0f, "%.2f");
+			DrawItemTooltip("Normalized slider value or relative change.");
+		}
+	} else if (has_key) {
+		SameLineControl();
+		ImGui::SetNextItemWidth(std::max(1.0f, parameter_width));
+		changed |= ImGui::InputTextWithHint("##ToggleGroupKey", "Item key", &script.key);
+		DrawItemTooltip("Toggle group member key.");
+	}
+
+	return changed;
+}
+
+bool DrawDialogueActionInline(ScriptEditorContext&, ActionScript& script) {
+	float available{ ImGui::GetContentRegionAvail().x };
+	float spacing{ ImGui::GetStyle().ItemSpacing.x };
+	bool uses_key{ DialogueActionUsesKey(script.dialogue_action) };
 	float action_width{ uses_key ? std::min(155.0f, std::max(110.0f, available * 0.46f))
 								 : available };
 
 	bool changed{ false };
 	ImGui::SetNextItemWidth(std::max(1.0f, action_width));
-	if (ImGui::BeginCombo("##DialogueAction", DialogueActionLabel(script.action))) {
+	if (ImGui::BeginCombo("##DialogueAction", DialogueActionLabel(script.dialogue_action))) {
 		for (const auto& [candidate, label] : kDialogueActions) {
-			if (ImGui::Selectable(label, candidate == script.action)) {
-				script.action = candidate;
-				changed		  = true;
+			if (ImGui::Selectable(label, candidate == script.dialogue_action)) {
+				script.dialogue_action = candidate;
+				changed				   = true;
 			}
 		}
 		ImGui::EndCombo();
 	}
 	DrawItemTooltip("Dialogue operation to perform on the action target.");
 
-	if (DialogueActionUsesKey(script.action)) {
+	if (DialogueActionUsesKey(script.dialogue_action)) {
 		SameLineControl();
 		ImGui::SetNextItemWidth(std::max(1.0f, available - action_width - spacing));
 		changed |=
@@ -1101,9 +1208,9 @@ bool DrawDialogueActionInline(ScriptEditorContext&, DialogueActionScript& script
 	return changed;
 }
 
-bool DrawTooltipActionInline(ScriptEditorContext&, TooltipActionScript& script) {
+bool DrawTooltipActionInline(ScriptEditorContext&, ActionScript& script) {
 	return DrawNamedEnumCombo(
-		"##TooltipAction", script.action, kTooltipActions,
+		"##TooltipAction", script.tooltip_action, kTooltipActions,
 		"Show/Hide/Toggle Visibility accepts a Tooltip or hover owner; hover controls require "
 		"TooltipHoverData."
 	);
@@ -1134,16 +1241,16 @@ bool DrawTooltipActionInline(ScriptEditorContext&, TooltipActionScript& script) 
 	return active.has_value() ? active->GetFrameCount() : 0;
 }
 
-bool DrawAnimationActionInline(ScriptEditorContext& context, AnimationActionScript& script) {
+bool DrawAnimationActionInline(ScriptEditorContext& context, ActionScript& script) {
 	float available{ ImGui::GetContentRegionAvail().x };
 
 	float spacing{ ImGui::GetStyle().ItemSpacing.x };
 
-	bool shows_force{ script.action == AnimationAction::Start };
+	bool shows_force{ script.animation_action == AnimationAction::Start };
 
-	bool shows_reset{ script.action == AnimationAction::Stop };
+	bool shows_reset{ script.animation_action == AnimationAction::Stop };
 
-	bool shows_frame{ script.action == AnimationAction::SetFrame };
+	bool shows_frame{ script.animation_action == AnimationAction::SetFrame };
 
 	bool has_inline_value{ shows_force || shows_reset || shows_frame };
 
@@ -1166,10 +1273,10 @@ bool DrawAnimationActionInline(ScriptEditorContext& context, AnimationActionScri
 
 	ImGui::SetNextItemWidth(action_width);
 
-	if (ImGui::BeginCombo("##AnimationAction", AnimationActionLabel(script.action))) {
+	if (ImGui::BeginCombo("##AnimationAction", AnimationActionLabel(script.animation_action))) {
 		for (const auto& [candidate, label] : kAnimationActions) {
-			if (ImGui::Selectable(label, candidate == script.action)) {
-				script.action = candidate;
+			if (ImGui::Selectable(label, candidate == script.animation_action)) {
+				script.animation_action = candidate;
 
 				changed = true;
 			}
@@ -2137,7 +2244,6 @@ bool DrawFollowPath(ScriptEditorContext& context, FollowPathScript& script) {
 	changed |= DrawReflectedScriptValue(context.ctx, script.config);
 	return changed;
 }
-
 } // namespace
 
 const EventEditorRegistration* EventEditorRegistry::Find(TypeHashValue type_hash) {
@@ -2453,79 +2559,33 @@ PTGN_REGISTER_SCRIPT(
 					 }
 );
 
+bool DrawActionScriptInline(ScriptEditorContext& context, ActionScript& script) {
+	switch (script.family) {
+		case ActionFamily::Animation:	 return DrawAnimationActionInline(context, script);
+		case ActionFamily::Timer:		 return DrawTimerActionInline(context, script);
+		case ActionFamily::Lifetime:	 return DrawLifetimeActionInline(context, script);
+		case ActionFamily::Button:
+		case ActionFamily::Slider:
+		case ActionFamily::ToggleButton:
+		case ActionFamily::ToggleGroup:
+		case ActionFamily::Dropdown:	 return DrawUIActionInline(context, script);
+		case ActionFamily::Dialogue:	 return DrawDialogueActionInline(context, script);
+		case ActionFamily::Tooltip:		 return DrawTooltipActionInline(context, script);
+	}
+	return false;
+}
+
 PTGN_REGISTER_SCRIPT(
-	AnimationActionScript,
+	ActionScript,
 	{
-		.label		 = "Animation Action",
-		.group		 = "Animation",
-		.description = "Start, stop, pause, resume, or change an animation frame.",
+		.label		 = "Button Action",
+		.group		 = "UI",
+		.description = "Perform a typed action on an animation, timer, lifetime, or UI control.",
 		.type		 = ScriptType::Sequence,
 		.menu_order	 = 1,
-		.draw_inline = &DrawAnimationActionInline,
+		.draw_inline = &DrawActionScriptInline,
 	}
 );
-
-PTGN_REGISTER_SCRIPT(
-	TimerActionScript, {
-						   .label		= "Timer Action",
-						   .group		= "",
-						   .description = "Control a named timer on the action target.",
-						   .type		= ScriptType::Sequence,
-						   .draw_inline = &DrawTimerActionInline,
-					   }
-);
-
-PTGN_REGISTER_SCRIPT(
-	LifetimeActionScript, {
-							  .label	   = "Lifetime Action",
-							  .group	   = "",
-							  .description = "Control the Lifetime component on the action target.",
-							  .type		   = ScriptType::Sequence,
-							  .draw_inline = &DrawLifetimeActionInline,
-						  }
-);
-
-PTGN_REGISTER_SCRIPT(
-	DialogueActionScript,
-	{
-		.label		 = "Dialogue Action",
-		.group		 = "Dialogue",
-		.description = "Open, close, advance, or change a dialogue on the action target.",
-		.type		 = ScriptType::Sequence,
-		.menu_order	 = 1,
-		.draw_inline = &DrawDialogueActionInline,
-	}
-);
-
-PTGN_REGISTER_SCRIPT(
-	TooltipActionScript,
-	{
-		.label = "Tooltip Action",
-		.group = "UI",
-		.description =
-			"Show, hide, or toggle a Tooltip directly, or control hover tooltip behavior on "
-			"its owner.",
-		.type		 = ScriptType::Sequence,
-		.menu_order	 = 1,
-		.draw_inline = &DrawTooltipActionInline,
-	}
-);
-
-namespace {
-
-[[maybe_unused]] const bool kTimerActionRuntimeRegistered{
-	ScriptRegistry::Register<TimerActionScript>(ScriptRegistrationOptions{
-		.completion = ScriptCompletion::Instant,
-	})
-};
-
-[[maybe_unused]] const bool kLifetimeActionRuntimeRegistered{
-	ScriptRegistry::Register<LifetimeActionScript>(ScriptRegistrationOptions{
-		.completion = ScriptCompletion::Instant,
-	})
-};
-
-} // namespace
 
 PTGN_REGISTER_SCRIPT(
 	SetTextureScript, {
@@ -2701,69 +2761,87 @@ PTGN_REGISTER_EVENT(
 );
 
 PTGN_REGISTER_EVENT(
-
-	event::ButtonPress,
-
-	{
-
-		.label = "On Button Press",
-
-		.group = "Button",
-
-		.description = "Matches when the owner emits ButtonPress.",
-
-	}
-
+	event::ButtonPress, {
+							.label		 = "On Button Press",
+							.group		 = "Button",
+							.description = "Matches when the owner emits ButtonPress.",
+						}
 );
 
 PTGN_REGISTER_EVENT(
-
 	event::ButtonHoverStart,
-
 	{
-
-		.label = "On Button Hover Start",
-
-		.group = "Button",
-
+		.label		 = "On Button Hover Start",
+		.group		 = "Button",
 		.description = "Matches when the pointer starts hovering over the owner button.",
-
 	}
-
 );
 
 PTGN_REGISTER_EVENT(
-
 	event::ButtonHover,
-
 	{
-
-		.label = "On Button Hover",
-
-		.group = "Button",
-
+		.label		 = "On Button Hover",
+		.group		 = "Button",
 		.description = "Matches while the pointer remains over the owner button.",
-
 	}
-
 );
 
 PTGN_REGISTER_EVENT(
-
 	event::ButtonHoverStop,
-
 	{
-
-		.label = "On Button Hover Stop",
-
-		.group = "Button",
-
+		.label		 = "On Button Hover Stop",
+		.group		 = "Button",
 		.description = "Matches when the pointer stops hovering over the owner button.",
-
 	}
-
 );
 
+PTGN_REGISTER_EVENT(
+	event::ButtonEnabled, { .label		 = "On Button Enable",
+							.group		 = "Button",
+							.description = "Matches when the owner button becomes press enabled." }
+);
+PTGN_REGISTER_EVENT(
+	event::ButtonDisabled,
+	{ .label	   = "On Button Disable",
+	  .group	   = "Button",
+	  .description = "Matches when the owner button becomes press disabled." }
+);
+PTGN_REGISTER_EVENT(
+	event::SliderChange, { .label		= "On Slider Change",
+						   .group		= "Slider",
+						   .description = "Matches when the owner slider value changes." }
+);
+PTGN_REGISTER_EVENT(
+	event::TooltipShown, { .label		= "On Tooltip Show",
+						   .group		= "Tooltip",
+						   .description = "Matches when the owner tooltip becomes visible." }
+);
+PTGN_REGISTER_EVENT(
+	event::TooltipHidden, { .label		 = "On Tooltip Hide",
+							.group		 = "Tooltip",
+							.description = "Matches when the owner tooltip becomes hidden." }
+);
+PTGN_REGISTER_EVENT(
+	event::TooltipHoverEnabled,
+	{ .label	   = "On Tooltip Hover Enable",
+	  .group	   = "Tooltip",
+	  .description = "Matches when automatic tooltip showing is enabled on the owner." }
+);
+PTGN_REGISTER_EVENT(
+	event::TooltipHoverDisabled,
+	{ .label	   = "On Tooltip Hover Disable",
+	  .group	   = "Tooltip",
+	  .description = "Matches when automatic tooltip showing is disabled on the owner." }
+);
+PTGN_REGISTER_EVENT(
+	event::DialogueContinued,
+	{ .label = "On Dialogue Continue",
+	  .group = "Dialogue",
+	  .description =
+		  "Matches every request to advance an open dialogue, including continue key presses.",
+	  .inline_fields = 2,
+	  .draw			 = &DrawDialoguePageEvent }
+);
 PTGN_REGISTER_EVENT(
 	event::DialogueOpened, {
 							   .label		  = "On Dialogue Open",
@@ -2828,83 +2906,75 @@ PTGN_REGISTER_EVENT(
 );
 
 PTGN_REGISTER_EVENT(
-
+	event::ToggleButtonOn, { .label		  = "On Toggle On",
+							 .group		  = "Toggle Button",
+							 .description = "Matches when the owner toggle becomes active." }
+);
+PTGN_REGISTER_EVENT(
+	event::ToggleButtonOff, { .label	   = "On Toggle Off",
+							  .group	   = "Toggle Button",
+							  .description = "Matches when the owner toggle becomes inactive." }
+);
+PTGN_REGISTER_EVENT(
+	event::ToggleGroupSelectionChanged,
+	{ .label	   = "On Toggle Group Selection",
+	  .group	   = "Toggle Group",
+	  .description = "Matches when the owner toggle group selects an item." }
+);
+PTGN_REGISTER_EVENT(
+	event::ToggleGroupSelectionCleared,
+	{ .label	   = "On Toggle Group Clear",
+	  .group	   = "Toggle Group",
+	  .description = "Matches when the owner toggle group clears its selection." }
+);
+PTGN_REGISTER_EVENT(
+	event::ToggleGroupRequiredChanged,
+	{ .label	   = "On Toggle Group Policy Change",
+	  .group	   = "Toggle Group",
+	  .description = "Matches when requiring an active toggle is enabled or disabled." }
+);
+PTGN_REGISTER_EVENT(
 	event::ToggleButtonToggle,
-
 	{
 
-		.label = "On Toggle",
-
-		.group = "Toggle Button",
-
+		.label		 = "On Toggle",
+		.group		 = "Toggle Button",
 		.description = "Matches when the owner toggle button changes state.",
-
 	}
-
 );
 
 PTGN_REGISTER_EVENT(
-
-	event::DropdownOpen,
-
-	{
-
-		.label = "On Dropdown Open",
-
-		.group = "Dropdown",
-
-		.description = "Matches when the owner dropdown opens.",
-
-	}
-
+	event::DropdownOpen, {
+							 .label		  = "On Dropdown Open",
+							 .group		  = "Dropdown",
+							 .description = "Matches when the owner dropdown opens.",
+						 }
 );
 
 PTGN_REGISTER_EVENT(
-
-	event::DropdownClose,
-
-	{
-
-		.label = "On Dropdown Close",
-
-		.group = "Dropdown",
-
-		.description = "Matches when the owner dropdown closes.",
-
-	}
-
+	event::DropdownClose, {
+							  .label	   = "On Dropdown Close",
+							  .group	   = "Dropdown",
+							  .description = "Matches when the owner dropdown closes.",
+						  }
 );
 
 PTGN_REGISTER_EVENT(
-
 	event::DropdownToggle,
-
 	{
-
-		.label = "On Dropdown Toggle",
-
-		.group = "Dropdown",
-
+		.label		 = "On Dropdown Toggle",
+		.group		 = "Dropdown",
 		.description = "Matches whenever the owner dropdown opens or closes.",
-
 	}
-
 );
 
 PTGN_REGISTER_EVENT(
-
 	event::DropdownItemPress,
-
 	{
-
-		.label = "On Dropdown Item Press",
-
-		.group = "Dropdown",
-
+		.label		 = "On Dropdown Item Press",
+		.group		 = "Dropdown",
 		.description = "Matches when one of the owner dropdown's direct items is pressed.",
-
 	}
-
 );
 
 PTGN_REGISTER_EVENT(
@@ -3122,7 +3192,6 @@ void EnsureEngineScriptEditorsRegistered() {
 	// PTGN_REGISTER_SCRIPT and PTGN_REGISTER_EVENT initializers then populate the editor
 	// registries.
 }
-
 } // namespace impl
 
 } // namespace ptgn::editor

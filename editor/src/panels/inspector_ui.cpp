@@ -1,6 +1,9 @@
 #include <imgui_internal.h>
 
 #include "editor/editor_icons.h"
+#include "editor/editor.h"
+#include "runtime/scripting/builtin_scripts.h"
+#include "runtime/ui/tooltip.h"
 #include "editor/renamable_item.h"
 #include "panels/inspector_archetype_inspector.h"
 #include "panels/inspector_geometry.h"
@@ -4613,6 +4616,162 @@ Entity CreateTooltipPartForInspector(EditorContext& ctx, Entity tooltip, bool te
 	return RecordCreatedEntityPreservingSelection(ctx, created);
 }
 
+void DrawUIRuntimeControls(
+	Entity entity, FocusedUIControlType type, bool has_toggle_group, bool has_tooltip
+) {
+	if (!entity) {
+		return;
+	}
+
+	ImGui::PushID("UIRuntimeControls");
+	ImGui::SeparatorText("Runtime Controls");
+
+	auto run = [&](const char* label, UIAction action, float value = 0.0f,
+				   std::string_view key = {}) {
+		if (ImGui::Button(label)) {
+			(void)ExecuteUIAction(entity, action, value, key);
+		}
+	};
+
+	bool has_button{ entity.Has<::ptgn::impl::ButtonData>() };
+	if (has_button && type != FocusedUIControlType::Slider) {
+		run("Press", UIAction::ButtonPress);
+		ImGui::SameLine();
+		run("Start Hover", UIAction::ButtonHoverStart);
+		ImGui::SameLine();
+		run("Stop Hover", UIAction::ButtonHoverStop);
+		ImGui::SameLine();
+		run("Hover", UIAction::ButtonHoverContinue);
+
+		bool enabled{ Button{ entity }.IsEnabled(false) };
+		if (ImGui::Checkbox("Enable Press", &enabled)) {
+			(void)ExecuteUIAction(
+				entity, enabled ? UIAction::ButtonEnable : UIAction::ButtonDisable
+			);
+		}
+	}
+
+	if (type == FocusedUIControlType::Slider && entity.Has<::ptgn::impl::SliderData>()) {
+		float value{ Slider{ entity }.GetValue() };
+		ImGui::SetNextItemWidth(-FLT_MIN);
+		if (ImGui::SliderFloat("##RuntimeSliderValue", &value, 0.0f, 1.0f, "Value: %.3f")) {
+			(void)ExecuteUIAction(entity, UIAction::SliderSetValue, value);
+		}
+	}
+
+	if (type == FocusedUIControlType::ToggleButton &&
+		entity.Has<::ptgn::impl::ToggleButtonData>()) {
+		bool toggled{ ToggleButton{ entity }.IsToggled() };
+		if (ImGui::Checkbox("Toggled##RuntimeToggleButton", &toggled)) {
+			(void)ExecuteUIAction(
+				entity, toggled ? UIAction::ToggleButtonOn : UIAction::ToggleButtonOff
+			);
+		}
+	}
+
+	if (has_toggle_group && entity.Has<::ptgn::impl::ToggleButtonGroupData>()) {
+		ToggleButtonGroup group{ entity };
+		const auto& data{ entity.Get<::ptgn::impl::ToggleButtonGroupData>() };
+		std::string current{ data.active ? data.active->value : "None" };
+		ImGui::SetNextItemWidth(-FLT_MIN);
+		if (ImGui::BeginCombo("##RuntimeToggleGroup", current.c_str())) {
+			for (ToggleButton member : group.GetButtons()) {
+				const auto& key{ member.Get<::ptgn::impl::ToggleButtonGroupItem>().key.value };
+				bool selected{ data.active && data.active->value == key };
+				if (ImGui::Selectable(key.c_str(), selected)) {
+					(void)ExecuteUIAction(entity, UIAction::ToggleGroupSelect, 0.0f, key);
+				}
+			}
+			ImGui::EndCombo();
+		}
+		bool require_active{ data.always_active };
+		if (ImGui::Checkbox("Always One Active##RuntimeToggleGroup", &require_active)) {
+			(void)ExecuteUIAction(
+				entity, require_active ? UIAction::ToggleGroupRequireActive
+											: UIAction::ToggleGroupAllowNone
+			);
+		}
+	}
+
+	if (type == FocusedUIControlType::Dropdown &&
+		entity.Has<::ptgn::impl::DropdownData>()) {
+		Dropdown dropdown{ entity };
+		run("Open", UIAction::DropdownOpen);
+		ImGui::SameLine();
+		run("Close", UIAction::DropdownClose);
+		ImGui::SameLine();
+		run("Toggle##Dropdown", UIAction::DropdownToggle);
+
+		auto buttons{ dropdown.GetButtons() };
+		if (!buttons.empty() && ImGui::BeginCombo("##RuntimeDropdownItems", "Press Item")) {
+			for (std::size_t i{ 0 }; i < buttons.size(); ++i) {
+				std::string label{ "Item " + std::to_string(i + 1) };
+				if (ImGui::Selectable(label.c_str())) {
+					(void)ExecuteUIAction(
+						entity, UIAction::DropdownPressItem, static_cast<float>(i)
+					);
+				}
+			}
+			ImGui::EndCombo();
+		}
+	}
+
+	if (type == FocusedUIControlType::Dialogue &&
+		entity.Has<::ptgn::impl::DialogueData>()) {
+		DialogueBox dialogue{ entity };
+		if (ImGui::Button("Open##RuntimeDialogue")) {
+			dialogue.Open();
+		}
+		ImGui::SameLine();
+		if (ImGui::Button("Close##RuntimeDialogue")) {
+			dialogue.Close();
+		}
+		ImGui::BeginDisabled(!dialogue.IsOpen());
+		if (ImGui::Button("Advance##RuntimeDialogue")) {
+			dialogue.Advance();
+		}
+		ImGui::SameLine();
+		if (ImGui::Button("Next Page##RuntimeDialogue")) {
+			dialogue.NextPage();
+		}
+		ImGui::SameLine();
+		if (ImGui::Button("Complete Page##RuntimeDialogue")) {
+			dialogue.CompletePage();
+		}
+		ImGui::EndDisabled();
+	}
+
+	if (has_tooltip && entity.Has<::ptgn::impl::TooltipData>()) {
+		if (ImGui::Button("Show##RuntimeTooltip")) {
+			ShowTooltip(entity);
+		}
+		ImGui::SameLine();
+		if (ImGui::Button("Hide##RuntimeTooltip")) {
+			HideTooltip(entity);
+		}
+		ImGui::SameLine();
+		if (ImGui::Button("Toggle##RuntimeTooltip")) {
+			ToggleTooltip(entity);
+		}
+	}
+
+	if (entity.Has<::ptgn::impl::TooltipHoverData>()) {
+		bool hover_enabled{ IsTooltipOnHoverEnabled(entity) };
+		if (ImGui::Checkbox("Show Tooltip On Hover", &hover_enabled)) {
+			SetTooltipOnHoverEnabled(entity, hover_enabled);
+		}
+		if (ImGui::Button("Show##RuntimeHoverTooltip")) {
+			ShowTooltip(entity);
+		}
+		ImGui::SameLine();
+		if (ImGui::Button("Hide##RuntimeHoverTooltip")) {
+			HideTooltip(entity);
+		}
+	}
+
+	ImGui::PopID();
+}
+
 template <typename Target>
 bool DrawUISectionImpl(Target& target) {
 	if (!HasUISection(target)) {
@@ -4672,6 +4831,12 @@ bool DrawUISectionImpl(Target& target) {
 
 	ScopedIndent section_indent;
 	bool changed{ false };
+
+	if constexpr (std::same_as<std::remove_cvref_t<Target>, EntityInspectorTarget>) {
+		if (target.ctx.editor.IsPlaying() || target.ctx.editor.IsDirectRuntime()) {
+			DrawUIRuntimeControls(target.entity, control_type, has_toggle_group, has_tooltip);
+		}
+	}
 
 	if (control_type != FocusedUIControlType::None) {
 		// UI control identity is owned by the entity archetype and is not editable here.

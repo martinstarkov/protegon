@@ -1,6 +1,7 @@
 #pragma once
 
 #include <optional>
+#include <string>
 #include <string_view>
 #include <utility>
 #include <vector>
@@ -119,6 +120,19 @@ private:
 };
 
 namespace event {
+
+struct ToggleButtonOn { ToggleButton button; };
+struct ToggleButtonOff { ToggleButton button; };
+struct ToggleGroupSelectionChanged {
+	ToggleButtonGroup group;
+	std::string key{};
+	std::string previous{};
+};
+struct ToggleGroupSelectionCleared { ToggleButtonGroup group; };
+struct ToggleGroupRequiredChanged {
+	ToggleButtonGroup group;
+	bool required{ false };
+};
 
 struct ToggleButtonToggle {
 	ToggleButton button;

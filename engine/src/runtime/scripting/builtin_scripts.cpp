@@ -34,7 +34,11 @@
 #include "runtime/scene/scene_manager.h"
 #include "runtime/scene/scene_registry.h"
 #include "runtime/scene/scene_transitions.h"
+#include "runtime/ui/button.h"
 #include "runtime/ui/dialogue.h"
+#include "runtime/ui/dropdown.h"
+#include "runtime/ui/slider.h"
+#include "runtime/ui/toggle_button.h"
 #include "runtime/ui/tooltip.h"
 
 namespace ptgn {
@@ -873,195 +877,344 @@ void PlaySoundScript::OnStart() {
 	GetScene().ctx().audio.Play(sound, volume, loops);
 }
 
-void AnimationActionScript::OnStart() {
-	auto animation{ ResolveAnimation(Target(), animation_key) };
-	if (!animation) {
-		PTGN_WARN(
-			"Animation action requires an Animation owner or an AnimationMap with an active/keyed "
-			"animation"
-		);
-
-		return;
+bool ExecuteUIAction(Entity entity, UIAction action, float value, std::string_view key) {
+	if (!entity) {
+		return false;
 	}
 
+	using enum UIAction;
 	switch (action) {
-		case AnimationAction::Start:		 animation.Start(force); break;
-		case AnimationAction::Stop:			 animation.Stop(reset_on_stop); break;
-		case AnimationAction::Reset:		 animation.Reset(); break;
-		case AnimationAction::Pause:		 animation.Pause(); break;
-		case AnimationAction::Resume:		 animation.Resume(); break;
-		case AnimationAction::TogglePlaying: animation.Toggle(); break;
-		case AnimationAction::SetFrame:		 animation.SetCurrentFrame(frame); break;
-		case AnimationAction::NextFrame:	 animation.IncrementFrame(); break;
-		case AnimationAction::PreviousFrame: {
-			std::size_t frame_count{ animation.GetFrameCount() };
-			if (frame_count > 0) {
-				animation.SetCurrentFrame(
-					(animation.GetCurrentFrame() + frame_count - 1) % frame_count
+		case ButtonPress:
+		case ButtonHoverStart:
+		case ButtonHoverContinue:
+		case ButtonHoverStop:
+		case ButtonEnable:
+		case ButtonDisable: {
+			if (!entity.Has<impl::ButtonData>()) {
+				return false;
+			}
+
+			Button button{ entity };
+			switch (action) {
+				case ButtonPress: button.Press(); break;
+				case ButtonHoverStart: button.StartHover(); break;
+				case ButtonHoverContinue: button.ContinueHover(); break;
+				case ButtonHoverStop: button.StopHover(); break;
+				case ButtonEnable: button.Enable(true, true); break;
+				case ButtonDisable: button.Disable(true, true); break;
+				default: break;
+			}
+			return true;
+		}
+
+		case SliderSetValue:
+		case SliderIncrease:
+		case SliderDecrease: {
+			if (!entity.Has<impl::SliderData>()) {
+				return false;
+			}
+
+			Slider slider{ entity };
+			float next_value{ action == SliderSetValue ? value
+						  : slider.GetValue() + (action == SliderIncrease ? value : -value) };
+			slider.SetValue(next_value);
+			return true;
+		}
+
+		case ToggleButtonOn:
+		case ToggleButtonOff:
+		case ToggleButtonToggle: {
+			if (!entity.Has<impl::ToggleButtonData>()) {
+				return false;
+			}
+
+			ToggleButton button{ entity };
+			if (action == ToggleButtonToggle) {
+				// Route a simulated click through the ordinary button event handlers.
+				button.Press();
+				return true;
+			}
+
+			bool desired{ action == ToggleButtonOn };
+			if (entity.Has<impl::ToggleButtonGroupItem>() && HasParent(entity)) {
+				Entity parent{ GetParent(entity) };
+				if (!parent.Has<impl::ToggleButtonGroupData>()) {
+					return false;
+				}
+				if (button.IsToggled() == desired) {
+					return true;
+				}
+				if (!desired && parent.Get<impl::ToggleButtonGroupData>().always_active) {
+					return false;
+				}
+
+				ToggleButtonGroup{ parent }.SetActive(
+					entity.Get<impl::ToggleButtonGroupItem>().key.value
 				);
+				return true;
 			}
 
-			break;
-		}
-	}
-}
-
-void TimerActionScript::OnStart() {
-	TimerHandle handle{ GetTimer(Target(), timer) };
-	if (!handle) {
-		PTGN_WARN("Timer action requires an existing timer on the target: ", timer.value);
-
-		return;
-	}
-
-	switch (action) {
-		case TimerAction::Start:		  handle.Start(); break;
-		case TimerAction::Restart:		  handle.Restart(); break;
-		case TimerAction::Stop:			  handle.Stop(); break;
-		case TimerAction::Reset:		  handle.Reset(); break;
-		case TimerAction::Pause:		  handle.Pause(); break;
-		case TimerAction::Resume:		  handle.Resume(); break;
-		case TimerAction::TogglePaused:	  handle.TogglePaused(); break;
-		case TimerAction::Advance:		  handle.Advance(amount); break;
-		case TimerAction::Rewind:		  handle.Rewind(amount); break;
-		case TimerAction::SetDuration:	  handle.SetDuration(amount); break;
-		case TimerAction::AddDuration:	  handle.AddDuration(amount); break;
-		case TimerAction::RemoveDuration: handle.RemoveDuration(amount); break;
-	}
-}
-
-void LifetimeActionScript::OnStart() {
-	Entity entity{ Target() };
-	auto* lifetime{ entity ? entity.TryGet<Lifetime>() : nullptr };
-	if (!lifetime) {
-		PTGN_WARN("Lifetime action requires a Lifetime component on the target entity");
-		return;
-	}
-
-	switch (action) {
-		case LifetimeAction::Start:
-		case LifetimeAction::Restart: lifetime->Start(); break;
-		case LifetimeAction::Stop:	  lifetime->Stop(); break;
-		case LifetimeAction::Reset:	  lifetime->Reset(); break;
-		case LifetimeAction::Pause:	  lifetime->Pause(); break;
-		case LifetimeAction::Resume:  lifetime->Resume(); break;
-		case LifetimeAction::TogglePaused:
-			if (lifetime->IsPaused()) {
-				lifetime->Resume();
-			} else if (lifetime->IsRunning()) {
-				lifetime->Pause();
-			}
-			break;
-		case LifetimeAction::Advance:		 lifetime->Advance(entity, amount); break;
-		case LifetimeAction::Rewind:		 lifetime->Rewind(amount); break;
-		case LifetimeAction::SetDuration:	 lifetime->SetDuration(entity, amount); break;
-		case LifetimeAction::AddDuration:	 lifetime->AddDuration(entity, amount); break;
-		case LifetimeAction::RemoveDuration: lifetime->RemoveDuration(entity, amount); break;
-	}
-}
-
-void DialogueActionScript::OnStart() {
-	if (!target || !target.Has<impl::DialogueData>()) {
-		PTGN_WARN("Dialogue action requires DialogueData on the target entity");
-
-		return;
-	}
-
-	DialogueBox box{ target };
-	auto require_dialogue = [&box, this](std::string_view action_name) {
-		if (dialogue.empty()) {
-			PTGN_WARN(action_name, " requires a dialogue key");
-
-			return false;
+			button.SetToggled(desired);
+			return true;
 		}
 
-		if (!box.Get<impl::DialogueData>().dialogues.contains(dialogue)) {
-			PTGN_WARN(action_name, " could not find dialogue: ", dialogue);
+		case ToggleGroupSelect:
+		case ToggleGroupAllowNone:
+		case ToggleGroupRequireActive: {
+			if (!entity.Has<impl::ToggleButtonGroupData>()) {
+				return false;
+			}
 
-			return false;
+			ToggleButtonGroup group{ entity };
+			if (action == ToggleGroupSelect) {
+				for (ToggleButton button : group.GetButtons()) {
+					if (button.Get<impl::ToggleButtonGroupItem>().key.value == key) {
+						group.SetActive(key);
+						return true;
+					}
+				}
+				return false;
+			}
+
+			group.SetAlwaysOneActive(action == ToggleGroupRequireActive);
+			return true;
 		}
 
-		return true;
-	};
-
-	switch (action) {
-		case DialogueAction::Open:		   box.Open(); break;
-		case DialogueAction::Close:		   box.Close(); break;
-		case DialogueAction::Advance:	   box.Advance(); break;
-		case DialogueAction::NextPage:	   box.NextPage(); break;
-		case DialogueAction::CompletePage: box.CompletePage(); break;
-		case DialogueAction::ChangeDialogue:
-			if (!require_dialogue("Change Dialogue")) {
-				return;
+		case DropdownOpen:
+		case DropdownClose:
+		case DropdownToggle:
+		case DropdownPressItem: {
+			if (!entity.Has<impl::DropdownData>()) {
+				return false;
 			}
 
-			box.Open(dialogue);
-			break;
-		case DialogueAction::SelectDialogue:
-			if (!require_dialogue("Select Dialogue")) {
-				return;
+			Dropdown dropdown{ entity };
+			switch (action) {
+				case DropdownOpen: dropdown.Open(); break;
+				case DropdownClose: dropdown.Close(); break;
+				case DropdownToggle: dropdown.Toggle(); break;
+				case DropdownPressItem: {
+					auto buttons{ dropdown.GetButtons() };
+					if (!std::isfinite(value) || value < 0.0f ||
+						value >= static_cast<float>(buttons.size())) {
+						return false;
+					}
+
+					buttons[static_cast<std::size_t>(value)].Press();
+					break;
+				}
+				default: break;
 			}
-
-			box.SetDialogue(dialogue);
-			break;
-		case DialogueAction::NextDialogue:	   box.SetNextDialogue(); break;
-		case DialogueAction::OpenNextDialogue: {
-			const auto* current{ box.GetCurrentDialogue() };
-			if (!current || current->next_dialogue.empty()) {
-				PTGN_WARN("Open Next Dialogue requires a configured next dialogue");
-
-				return;
-			}
-
-			std::string next{ current->next_dialogue };
-			box.Open(next);
-			break;
+			return true;
 		}
 	}
+
+	return false;
 }
 
-void TooltipActionScript::OnStart() {
-	if (!target) {
-		PTGN_WARN("Tooltip action requires a valid target entity");
-		return;
-	}
-
-	switch (action) {
-		case TooltipAction::Show:
-		case TooltipAction::Hide:
-		case TooltipAction::ToggleVisibility:
-			if (!target.Has<impl::TooltipData>() && !target.Has<impl::TooltipHoverData>()) {
+void ActionScript::OnStart() {
+	switch (family) {
+		case ActionFamily::Animation: {
+			auto animation{ ResolveAnimation(Target(), animation_key) };
+			if (!animation) {
 				PTGN_WARN(
-					"Tooltip visibility action requires a Tooltip target or an entity with "
-					"TooltipHoverData"
+					"Animation action requires an Animation owner or an AnimationMap with an active/keyed "
+					"animation"
 				);
+
 				return;
 			}
 
-			if (action == TooltipAction::Show) {
-				ShowTooltip(target);
-			} else if (action == TooltipAction::Hide) {
-				HideTooltip(target);
-			} else {
-				ToggleTooltip(target);
+			switch (animation_action) {
+				case AnimationAction::Start:		 animation.Start(force); break;
+				case AnimationAction::Stop:			 animation.Stop(reset_on_stop); break;
+				case AnimationAction::Reset:		 animation.Reset(); break;
+				case AnimationAction::Pause:		 animation.Pause(); break;
+				case AnimationAction::Resume:		 animation.Resume(); break;
+				case AnimationAction::TogglePlaying: animation.Toggle(); break;
+				case AnimationAction::SetFrame:		 animation.SetCurrentFrame(frame); break;
+				case AnimationAction::NextFrame:	 animation.IncrementFrame(); break;
+				case AnimationAction::PreviousFrame: {
+					std::size_t frame_count{ animation.GetFrameCount() };
+					if (frame_count > 0) {
+						animation.SetCurrentFrame(
+							(animation.GetCurrentFrame() + frame_count - 1) % frame_count
+						);
+					}
+
+					break;
+				}
 			}
 			break;
-		case TooltipAction::EnableHover:
-		case TooltipAction::DisableHover:
-		case TooltipAction::ToggleHover:
-			if (!target.Has<impl::TooltipHoverData>()) {
-				PTGN_WARN("Tooltip hover action requires TooltipHoverData on the target entity");
+		}
+		case ActionFamily::Timer: {
+			TimerHandle handle{ GetTimer(Target(), timer) };
+			if (!handle) {
+				PTGN_WARN("Timer action requires an existing timer on the target: ", timer.value);
+
 				return;
 			}
 
-			if (action == TooltipAction::EnableHover) {
-				SetTooltipOnHoverEnabled(target, true);
-			} else if (action == TooltipAction::DisableHover) {
-				SetTooltipOnHoverEnabled(target, false);
-			} else {
-				ToggleTooltipOnHover(target);
+			switch (timer_action) {
+				case TimerAction::Start:		  handle.Start(); break;
+				case TimerAction::Restart:		  handle.Restart(); break;
+				case TimerAction::Stop:			  handle.Stop(); break;
+				case TimerAction::Reset:		  handle.Reset(); break;
+				case TimerAction::Pause:		  handle.Pause(); break;
+				case TimerAction::Resume:		  handle.Resume(); break;
+				case TimerAction::TogglePaused:	  handle.TogglePaused(); break;
+				case TimerAction::Advance:		  handle.Advance(amount); break;
+				case TimerAction::Rewind:		  handle.Rewind(amount); break;
+				case TimerAction::SetDuration:	  handle.SetDuration(amount); break;
+				case TimerAction::AddDuration:	  handle.AddDuration(amount); break;
+				case TimerAction::RemoveDuration: handle.RemoveDuration(amount); break;
 			}
 			break;
+		}
+		case ActionFamily::Lifetime: {
+			Entity entity{ Target() };
+			auto* lifetime{ entity ? entity.TryGet<Lifetime>() : nullptr };
+			if (!lifetime) {
+				PTGN_WARN("Lifetime action requires a Lifetime component on the target entity");
+				return;
+			}
+
+			switch (lifetime_action) {
+				case LifetimeAction::Start:
+				case LifetimeAction::Restart: lifetime->Start(); break;
+				case LifetimeAction::Stop:	  lifetime->Stop(); break;
+				case LifetimeAction::Reset:	  lifetime->Reset(); break;
+				case LifetimeAction::Pause:	  lifetime->Pause(); break;
+				case LifetimeAction::Resume:  lifetime->Resume(); break;
+				case LifetimeAction::TogglePaused:
+					if (lifetime->IsPaused()) {
+						lifetime->Resume();
+					} else if (lifetime->IsRunning()) {
+						lifetime->Pause();
+					}
+					break;
+				case LifetimeAction::Advance:		 lifetime->Advance(entity, amount); break;
+				case LifetimeAction::Rewind:		 lifetime->Rewind(amount); break;
+				case LifetimeAction::SetDuration:	 lifetime->SetDuration(entity, amount); break;
+				case LifetimeAction::AddDuration:	 lifetime->AddDuration(entity, amount); break;
+				case LifetimeAction::RemoveDuration: lifetime->RemoveDuration(entity, amount); break;
+			}
+			break;
+		}
+		case ActionFamily::Dialogue: {
+			if (!target || !target.Has<impl::DialogueData>()) {
+				PTGN_WARN("Dialogue action requires DialogueData on the target entity");
+
+				return;
+			}
+
+			DialogueBox box{ target };
+			auto require_dialogue = [&box, this](std::string_view action_name) {
+				if (dialogue.empty()) {
+					PTGN_WARN(action_name, " requires a dialogue key");
+
+					return false;
+				}
+
+				if (!box.Get<impl::DialogueData>().dialogues.contains(dialogue)) {
+					PTGN_WARN(action_name, " could not find dialogue: ", dialogue);
+
+					return false;
+				}
+
+				return true;
+			};
+
+			switch (dialogue_action) {
+				case DialogueAction::Open:		   box.Open(); break;
+				case DialogueAction::Close:		   box.Close(); break;
+				case DialogueAction::Advance:	   box.Advance(); break;
+				case DialogueAction::NextPage:	   box.NextPage(); break;
+				case DialogueAction::CompletePage: box.CompletePage(); break;
+				case DialogueAction::ChangeDialogue:
+					if (!require_dialogue("Change Dialogue")) {
+						return;
+					}
+
+					box.Open(dialogue);
+					break;
+				case DialogueAction::SelectDialogue:
+					if (!require_dialogue("Select Dialogue")) {
+						return;
+					}
+
+					box.SetDialogue(dialogue);
+					break;
+				case DialogueAction::NextDialogue:	   box.SetNextDialogue(); break;
+				case DialogueAction::OpenNextDialogue: {
+					const auto* current{ box.GetCurrentDialogue() };
+					if (!current || current->next_dialogue.empty()) {
+						PTGN_WARN("Open Next Dialogue requires a configured next dialogue");
+
+						return;
+					}
+
+					std::string next{ current->next_dialogue };
+					box.Open(next);
+					break;
+				}
+			}
+			break;
+		}
+		case ActionFamily::Button:
+		case ActionFamily::Slider:
+		case ActionFamily::ToggleButton:
+		case ActionFamily::ToggleGroup:
+		case ActionFamily::Dropdown:
+			if (!ExecuteUIAction(Target(), ui_action, value, key)) {
+				PTGN_WARN("UI action is not valid for its target or parameters");
+			}
+			break;
+		case ActionFamily::Tooltip: {
+			if (!target) {
+				PTGN_WARN("Tooltip action requires a valid target entity");
+				return;
+			}
+
+			switch (tooltip_action) {
+				case TooltipAction::Show:
+				case TooltipAction::Hide:
+				case TooltipAction::ToggleVisibility:
+					if (!target.Has<impl::TooltipData>() && !target.Has<impl::TooltipHoverData>()) {
+						PTGN_WARN(
+							"Tooltip visibility action requires a Tooltip target or an entity with "
+							"TooltipHoverData"
+						);
+						return;
+					}
+
+					if (tooltip_action == TooltipAction::Show) {
+						ShowTooltip(target);
+					} else if (tooltip_action == TooltipAction::Hide) {
+						HideTooltip(target);
+					} else {
+						ToggleTooltip(target);
+					}
+					break;
+				case TooltipAction::EnableHover:
+				case TooltipAction::DisableHover:
+				case TooltipAction::ToggleHover:
+					if (!target.Has<impl::TooltipHoverData>()) {
+						PTGN_WARN("Tooltip hover action requires TooltipHoverData on the target entity");
+						return;
+					}
+
+					if (tooltip_action == TooltipAction::EnableHover) {
+						SetTooltipOnHoverEnabled(target, true);
+					} else if (tooltip_action == TooltipAction::DisableHover) {
+						SetTooltipOnHoverEnabled(target, false);
+					} else {
+						ToggleTooltipOnHover(target);
+					}
+					break;
+			}
+			break;
+		}
 	}
 }
 

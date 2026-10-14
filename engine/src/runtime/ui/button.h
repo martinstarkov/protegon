@@ -51,6 +51,8 @@ struct ButtonPress;
 struct ButtonHoverStart;
 struct ButtonHover;
 struct ButtonHoverStop;
+struct ButtonEnabled;
+struct ButtonDisabled;
 
 } // namespace event
 
@@ -561,6 +563,9 @@ struct ButtonHoverStop {
 
 	Button button;
 };
+
+struct ButtonEnabled { Button button; };
+struct ButtonDisabled { Button button; };
 
 } // namespace event
 

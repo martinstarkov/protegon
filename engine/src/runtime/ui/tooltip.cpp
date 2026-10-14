@@ -30,6 +30,7 @@
 #include "runtime/interaction/interactive.h"
 #include "runtime/interaction/interactive_event.h"
 #include "runtime/scene/scene.h"
+#include "runtime/scene/scene_event.h"
 
 namespace ptgn {
 
@@ -50,7 +51,11 @@ Tooltip::Tooltip(Entity entity) : Entity{ entity } {}
 
 void Tooltip::Show() {
 	auto& instance{ Entity::Get<impl::TooltipData>() };
+	bool was_visible{ instance.visible };
 	instance.visible = true;
+	if (!was_visible && HasScene()) {
+		PushEvent<event::TooltipShown>(*this, *this);
+	}
 
 	milliseconds fade_in_duration{ instance.fade_in_duration };
 	Ease fade_in_ease{ instance.fade_in_ease };
@@ -85,7 +90,11 @@ void Tooltip::Show(V2_float position) {
 
 void Tooltip::Hide() {
 	auto& instance{ Entity::Get<impl::TooltipData>() };
+	bool was_visible{ instance.visible };
 	instance.visible = false;
+	if (was_visible && HasScene()) {
+		PushEvent<event::TooltipHidden>(*this, *this);
+	}
 
 	milliseconds fade_out_duration{ instance.fade_out_duration };
 	Ease fade_out_ease{ instance.fade_out_ease };
@@ -384,7 +393,15 @@ void SetTooltipOnHoverEnabled(Entity entity, bool enabled) {
 	);
 
 	auto& hover{ entity.Get<impl::TooltipHoverData>() };
+	bool was_enabled{ hover.enabled };
 	hover.enabled = enabled;
+	if (was_enabled != enabled && entity.HasScene()) {
+		if (enabled) {
+			PushEvent<event::TooltipHoverEnabled>(entity, entity);
+		} else {
+			PushEvent<event::TooltipHoverDisabled>(entity, entity);
+		}
+	}
 	if (!enabled) {
 		HideTooltip(entity);
 	}

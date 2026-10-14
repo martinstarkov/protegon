@@ -35,6 +35,26 @@ struct TooltipProperties {
 	Ease fade_out_ease{ Ease::Linear };
 };
 
+namespace event {
+
+struct TooltipShown {
+	Entity tooltip;
+};
+
+struct TooltipHidden {
+	Entity tooltip;
+};
+
+struct TooltipHoverEnabled {
+	Entity owner;
+};
+
+struct TooltipHoverDisabled {
+	Entity owner;
+};
+
+} // namespace event
+
 namespace impl {
 
 enum class TooltipPart : std::uint8_t {

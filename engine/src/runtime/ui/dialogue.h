@@ -387,6 +387,14 @@ struct DialogueChanged {
 	std::string current{};
 };
 
+/// @brief A request to continue an open dialogue, even if the current page is still revealing.
+struct DialogueContinued {
+	DialogueBox dialogue{};
+	std::string key{};
+	std::size_t variant{ 0 };
+	std::size_t page{ 0 };
+};
+
 struct DialoguePageChanged {
 	operator DialogueBox() const { // NOSONAR
 		return dialogue;

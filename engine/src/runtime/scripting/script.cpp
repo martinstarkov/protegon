@@ -1402,16 +1402,19 @@ bool Clear(Entity owner, SequenceId id) {
 	return true;
 }
 
-bool Skip(Entity owner, SequenceId id) {
-	auto* binding{ FindBinding(owner, id) };
-	if (!binding || !binding->runtime.running) {
-		return false;
-	}
+static void CancelCurrentStep(Entity owner, ScriptSequence& binding) {
 	bool cancelled_step{ false };
 
-	for (auto& instance : binding->runtime.script_instances) {
+	for (auto& instance : binding.runtime.script_instances) {
 		if (!instance) {
 			continue;
+		}
+
+		if (instance->sequence.runtime.running ||
+			instance->sequence.runtime.waiting_for_channel) {
+			CancelBinding(
+				owner, instance->sequence, SequenceCancelReason::Skipped, false, false, false
+			);
 		}
 
 		instance->OnCancel(SequenceCancelReason::Skipped);
@@ -1419,10 +1422,32 @@ bool Skip(Entity owner, SequenceId id) {
 	}
 
 	if (cancelled_step) {
-		InvokeLifecycle(owner, *binding, SequenceLifecycle::ScriptCancel);
+		InvokeLifecycle(owner, binding, SequenceLifecycle::ScriptCancel);
 	}
+
+	binding.runtime.ClearActiveScript();
+}
+
+bool Skip(Entity owner, SequenceId id) {
+	auto* binding{ FindBinding(owner, id) };
+	if (!binding || !binding->runtime.running) {
+		return false;
+	}
+
+	CancelCurrentStep(owner, *binding);
 	++binding->runtime.step_index;
-	binding->runtime.ClearActiveScript();
+	ProcessImmediateSteps(owner, *binding);
+	return true;
+}
+
+bool PreviousStep(Entity owner, SequenceId id) {
+	auto* binding{ FindBinding(owner, id) };
+	if (!binding || !binding->runtime.running || binding->runtime.step_index == 0) {
+		return false;
+	}
+
+	CancelCurrentStep(owner, *binding);
+	--binding->runtime.step_index;
 	ProcessImmediateSteps(owner, *binding);
 	return true;
 }
@@ -1535,6 +1560,10 @@ bool SequenceHandle::Clear() const {
 
 bool SequenceHandle::Skip() const {
 	return script_runtime::Skip(owner, binding_id);
+}
+
+bool SequenceHandle::PreviousStep() const {
+	return script_runtime::PreviousStep(owner, binding_id);
 }
 
 bool SequenceHandle::Seek(float progress) const {

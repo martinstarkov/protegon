@@ -40,6 +40,8 @@
 #include "runtime/ui/button.h"
 #include "runtime/ui/dialogue.h"
 #include "runtime/ui/dropdown.h"
+#include "runtime/ui/slider.h"
+#include "runtime/ui/tooltip.h"
 #include "runtime/ui/toggle_button.h"
 
 namespace ptgn {
@@ -324,6 +326,22 @@ template <typename TEvent>
 	return entity && entity.Has<impl::ButtonData>();
 }
 
+[[nodiscard]] bool HasSliderData(Entity entity) {
+	return entity && entity.Has<impl::SliderData>();
+}
+
+[[nodiscard]] bool HasToggleGroupData(Entity entity) {
+	return entity && entity.Has<impl::ToggleButtonGroupData>();
+}
+
+[[nodiscard]] bool HasTooltipData(Entity entity) {
+	return entity && entity.Has<impl::TooltipData>();
+}
+
+[[nodiscard]] bool HasTooltipHoverData(Entity entity) {
+	return entity && entity.Has<impl::TooltipHoverData>();
+}
+
 [[nodiscard]] bool HasToggleButtonData(Entity entity) {
 	return entity && entity.Has<impl::ToggleButtonData>();
 }
@@ -472,11 +490,7 @@ PTGN_REGISTER_SCRIPT(
 );
 PTGN_REGISTER_SCRIPT(SetVisibleScript, { .completion = ScriptCompletion::Instant });
 PTGN_REGISTER_SCRIPT(PlaySoundScript, { .completion = ScriptCompletion::Instant });
-PTGN_REGISTER_SCRIPT(AnimationActionScript, { .completion = ScriptCompletion::Instant });
-PTGN_REGISTER_SCRIPT(TimerActionScript, { .completion = ScriptCompletion::Instant });
-PTGN_REGISTER_SCRIPT(LifetimeActionScript, { .completion = ScriptCompletion::Instant });
-PTGN_REGISTER_SCRIPT(DialogueActionScript, { .completion = ScriptCompletion::Instant });
-PTGN_REGISTER_SCRIPT(TooltipActionScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(ActionScript, { .completion = ScriptCompletion::Instant });
 PTGN_REGISTER_SCRIPT(SetTextureScript, { .completion = ScriptCompletion::Instant });
 PTGN_REGISTER_SCRIPT(SetEnabledScript, { .completion = ScriptCompletion::Instant });
 PTGN_REGISTER_SCRIPT(SceneChangeScript, { .completion = ScriptCompletion::Instant });
@@ -569,6 +583,13 @@ PTGN_REGISTER_EVENT(event::ButtonPress, { .available = &HasButtonData });
 PTGN_REGISTER_EVENT(event::ButtonHoverStart, { .available = &HasButtonData });
 PTGN_REGISTER_EVENT(event::ButtonHover, { .available = &HasButtonData });
 PTGN_REGISTER_EVENT(event::ButtonHoverStop, { .available = &HasButtonData });
+PTGN_REGISTER_EVENT(event::ButtonEnabled, { .available = &HasButtonData });
+PTGN_REGISTER_EVENT(event::ButtonDisabled, { .available = &HasButtonData });
+PTGN_REGISTER_EVENT(event::SliderChange, { .available = &HasSliderData });
+PTGN_REGISTER_EVENT(event::TooltipShown, { .available = &HasTooltipData });
+PTGN_REGISTER_EVENT(event::TooltipHidden, { .available = &HasTooltipData });
+PTGN_REGISTER_EVENT(event::TooltipHoverEnabled, { .available = &HasTooltipHoverData });
+PTGN_REGISTER_EVENT(event::TooltipHoverDisabled, { .available = &HasTooltipHoverData });
 PTGN_REGISTER_EVENT(
 	event::DialogueOpened, { .default_value = MakeEventDefault("dialogue", std::string{}),
 							 .matches =
@@ -592,6 +613,14 @@ PTGN_REGISTER_EVENT(
 		  [](Entity, const json& value, const event::DialogueChanged& event) {
 			  return MatchDialogueKey(value, event.current);
 		  },
+	  .available = &HasDialogueData }
+);
+PTGN_REGISTER_EVENT(
+	event::DialogueContinued,
+	{ .default_value = json{ { "dialogue", std::string{} }, { "page", -1 } },
+	  .matches = [](Entity, const json& value, const event::DialogueContinued& event) {
+		  return MatchDialoguePage(value, event.key, event.page);
+	  },
 	  .available = &HasDialogueData }
 );
 PTGN_REGISTER_EVENT(
@@ -630,6 +659,11 @@ PTGN_REGISTER_EVENT(
 	  .available = &HasDialogueData }
 );
 PTGN_REGISTER_EVENT(event::ToggleButtonToggle, { .available = &HasToggleButtonData });
+PTGN_REGISTER_EVENT(event::ToggleButtonOn, { .available = &HasToggleButtonData });
+PTGN_REGISTER_EVENT(event::ToggleButtonOff, { .available = &HasToggleButtonData });
+PTGN_REGISTER_EVENT(event::ToggleGroupSelectionChanged, { .available = &HasToggleGroupData });
+PTGN_REGISTER_EVENT(event::ToggleGroupSelectionCleared, { .available = &HasToggleGroupData });
+PTGN_REGISTER_EVENT(event::ToggleGroupRequiredChanged, { .available = &HasToggleGroupData });
 PTGN_REGISTER_EVENT(event::DropdownOpen, { .available = &HasDropdownData });
 PTGN_REGISTER_EVENT(event::DropdownClose, { .available = &HasDropdownData });
 PTGN_REGISTER_EVENT(event::DropdownToggle, { .available = &HasDropdownData });

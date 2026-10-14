@@ -1129,6 +1129,7 @@ Button& Button::Disable(bool disable_hover, bool reset_state) {
 
 Button& Button::SetEnabled(bool enable_press, bool enable_hover, bool reset_state) {
 	auto& button{ Get<impl::ButtonData>() };
+	bool was_enabled{ button.press_enabled };
 
 	button.press_enabled = enable_press;
 	button.hover_enabled = enable_hover;
@@ -1140,6 +1141,13 @@ Button& Button::SetEnabled(bool enable_press, bool enable_hover, bool reset_stat
 
 	MarkDirty(impl::ButtonDirty::All);
 	RefreshDirty();
+	if (HasScene() && was_enabled != enable_press) {
+		if (enable_press) {
+			PushEvent<event::ButtonEnabled>(*this, *this);
+		} else {
+			PushEvent<event::ButtonDisabled>(*this, *this);
+		}
+	}
 
 	return *this;
 }
@@ -1212,6 +1220,14 @@ Button& Button::StartHover() {
 		return *this;
 	}
 
+	using enum impl::InternalButtonState;
+	auto state{ GetInternalState() };
+	if (state == IdleUp) {
+		SetState(Hover);
+	} else if (state == IdleDown) {
+		SetState(HoverPressed);
+	}
+
 	PlaySound(GetVisualState());
 	PlayAnimation(ButtonState::Hover);
 	PushEvent<event::ButtonHoverStart>(*this, *this);
@@ -1232,6 +1248,16 @@ Button& Button::ContinueHover() {
 Button& Button::StopHover() {
 	if (!IsEnabled(true)) {
 		return *this;
+	}
+
+	using enum impl::InternalButtonState;
+	auto state{ GetInternalState() };
+	if (state == Hover) {
+		SetState(IdleUp);
+	} else if (state == Pressed) {
+		SetState(HeldOutside);
+	} else if (state == HoverPressed) {
+		SetState(IdleDown);
 	}
 
 	PlaySound(GetVisualState());
