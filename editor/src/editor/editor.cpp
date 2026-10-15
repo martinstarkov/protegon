@@ -996,8 +996,19 @@ ProjectDiskSnapshot& ProjectSnapshot() {
 
 Editor::Editor(Application& application) : app{ application } {
 	app.SetCloseGuard([this]() {
-		// A close request exits the application, even if F10 previously hid the editor.
-		// Restore the saved edit state first so runtime changes are never offered for saving.
+		// Closing the game window opened with runtime shortcut returns to the editor instead of
+		// quitting the application. Direct runtime without the runtime shortcut still exits.
+		if (shortcut_runtime_active_ && !render_enabled_) {
+			shortcut_runtime_active_ = false;
+			if (CanStop()) {
+				Stop();
+			}
+			EnableRendering(true);
+			return false;
+		}
+
+		// For an actual application exit, restore the saved edit state first so
+		// runtime changes are never offered for saving.
 		if (pending_close_after_runtime_stop_) {
 			return false;
 		}
