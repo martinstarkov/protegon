@@ -934,7 +934,7 @@ void DialogueSystem::OnKeyPressed(Scene& scene, Key key) {
 			continue;
 		}
 
-		DialogueBox dialogue{ entity };
+		Dialogue dialogue{ entity };
 		bool matched_before{
 			data.open && DialogueKeyExpressionMatches(data.continue_keys, data.held_continue_keys)
 		};
@@ -969,7 +969,7 @@ void DialogueSystem::Update(Scene& scene, secondsf delta_time) {
 			continue;
 		}
 
-		DialogueBox dialogue{ entity };
+		Dialogue dialogue{ entity };
 		auto& data{ dialogue.Data() };
 		if (!data.open || !data.scrolling) {
 			continue;
@@ -1333,21 +1333,21 @@ void impl::DialogueData::LoadFromJson(
 	ClearRuntimeState();
 }
 
-DialogueBox::DialogueBox(Entity entity) : Entity{ entity } {}
+Dialogue::Dialogue(Entity entity) : Entity{ entity } {}
 
-impl::DialogueData& DialogueBox::Data() {
+impl::DialogueData& Dialogue::Data() {
 	return Get<impl::DialogueData>();
 }
 
-const impl::DialogueData& DialogueBox::Data() const {
+const impl::DialogueData& Dialogue::Data() const {
 	return Get<impl::DialogueData>();
 }
 
-std::string_view DialogueBox::GetContinueKeys() const {
+std::string_view Dialogue::GetContinueKeys() const {
 	return Data().continue_keys;
 }
 
-DialogueBox& DialogueBox::SetContinueKeys(std::string_view continue_keys) {
+Dialogue& Dialogue::SetContinueKeys(std::string_view continue_keys) {
 	PTGN_ASSERT(impl::ValidateDialogueKeyExpression(continue_keys));
 	auto& data{ Data() };
 	data.continue_keys = std::string{ continue_keys };
@@ -1359,7 +1359,7 @@ DialogueBox& DialogueBox::SetContinueKeys(std::string_view continue_keys) {
 	return *this;
 }
 
-Key DialogueBox::GetContinueKey() const {
+Key Dialogue::GetContinueKey() const {
 	auto expression{ ParseDialogueKeyExpression(Data().continue_keys, nullptr) };
 	if (!expression.has_value() || expression->empty() || expression->front().empty()) {
 		return Key::Enter;
@@ -1367,22 +1367,22 @@ Key DialogueBox::GetContinueKey() const {
 	return expression->front().front();
 }
 
-DialogueBox& DialogueBox::SetContinueKey(Key continue_key) {
+Dialogue& Dialogue::SetContinueKey(Key continue_key) {
 	return SetContinueKeys(impl::DialogueKeyName(continue_key));
 }
 
-bool DialogueBox::IsOpen() const {
+bool Dialogue::IsOpen() const {
 	return Data().open;
 }
 
-void DialogueBox::EnsureRuntimeData() {
+void Dialogue::EnsureRuntimeData() {
 	auto& data{ Data() };
 	if (data.runtime_dirty) {
 		data.RebuildRuntime(GetScene());
 	}
 }
 
-DialogueBox& DialogueBox::Open(std::string_view dialogue_name) {
+Dialogue& Dialogue::Open(std::string_view dialogue_name) {
 	EnsureRuntimeData();
 	auto& data{ Data() };
 	PTGN_ASSERT(!data.dialogues.empty());
@@ -1428,7 +1428,7 @@ DialogueBox& DialogueBox::Open(std::string_view dialogue_name) {
 	return *this;
 }
 
-DialogueBox& DialogueBox::Close() {
+Dialogue& Dialogue::Close() {
 	auto& data{ Data() };
 	bool was_open{ data.open };
 	std::string closed_dialogue{ data.current_dialogue };
@@ -1457,7 +1457,7 @@ DialogueBox& DialogueBox::Close() {
 	return *this;
 }
 
-DialogueBox& DialogueBox::Advance() {
+Dialogue& Dialogue::Advance() {
 	if (!IsOpen()) {
 		return *this;
 	}
@@ -1476,7 +1476,7 @@ DialogueBox& DialogueBox::Advance() {
 	return NextPage();
 }
 
-DialogueBox& DialogueBox::NextPage() {
+Dialogue& Dialogue::NextPage() {
 	auto& data{ Data() };
 	if (!data.open) {
 		return *this;
@@ -1500,7 +1500,49 @@ DialogueBox& DialogueBox::NextPage() {
 	return *this;
 }
 
-DialogueBox& DialogueBox::CompletePage() {
+Dialogue& Dialogue::GoToPage(std::size_t page_index) {
+	if (!IsOpen()) {
+		return *this;
+	}
+
+	auto* variant{ GetCurrentDialogueVariant() };
+	if (!variant || page_index >= variant->pages.size()) {
+		return *this;
+	}
+
+	auto& data{ Data() };
+	if (page_index > data.current_page) {
+		// Preserve the same transitions and portrait cues as successive NextPage calls.
+		while (data.open && data.current_page < page_index) {
+			std::size_t previous_page{ data.current_page };
+			NextPage();
+			if (!data.open || data.current_page <= previous_page) {
+				break;
+			}
+		}
+		return *this;
+	}
+
+	StopCurrentPageScroll();
+	if (page_index < data.current_page) {
+		// Portrait cues can depend on earlier pages, so replay their state without
+		// rendering or revealing those intermediate pages.
+		data.portrait_states = {};
+		data.current_speaking_slot.reset();
+		HidePortraits();
+		for (std::size_t index{ 0 }; index < page_index; ++index) {
+			data.current_page = index;
+			ApplyCurrentPortraitCues();
+		}
+	}
+
+	data.current_page = page_index;
+	ApplyCurrentPage();
+	StartCurrentPageScroll();
+	return *this;
+}
+
+Dialogue& Dialogue::CompletePage() {
 	auto& data{ Data() };
 	if (!data.open || data.page_complete) {
 		return *this;
@@ -1517,7 +1559,7 @@ DialogueBox& DialogueBox::CompletePage() {
 	return *this;
 }
 
-DialogueBox& DialogueBox::SetDialogue(std::string_view name) {
+Dialogue& Dialogue::SetDialogue(std::string_view name) {
 	EnsureRuntimeData();
 	auto& data{ Data() };
 	PTGN_ASSERT(name.empty() || data.dialogues.contains(name));
@@ -1535,7 +1577,7 @@ DialogueBox& DialogueBox::SetDialogue(std::string_view name) {
 	return *this;
 }
 
-DialogueBox& DialogueBox::SetNextDialogue() {
+Dialogue& Dialogue::SetNextDialogue() {
 	auto& data{ Data() };
 	const auto* dialogue{ GetCurrentDialogue() };
 
@@ -1551,7 +1593,7 @@ DialogueBox& DialogueBox::SetNextDialogue() {
 	return SetDialogue(next);
 }
 
-DialogueEntry* DialogueBox::GetCurrentDialogue() {
+DialogueEntry* Dialogue::GetCurrentDialogue() {
 	auto& data{ Data() };
 	if (data.current_dialogue.empty()) {
 		return nullptr;
@@ -1561,7 +1603,7 @@ DialogueEntry* DialogueBox::GetCurrentDialogue() {
 	return it == data.dialogues.end() ? nullptr : &it->second;
 }
 
-DialogueVariant* DialogueBox::GetCurrentDialogueVariant() {
+DialogueVariant* Dialogue::GetCurrentDialogueVariant() {
 	const auto& data{ Data() };
 	auto* dialogue{ GetCurrentDialogue() };
 	if (!dialogue || data.current_variant >= dialogue->variants.size()) {
@@ -1570,7 +1612,7 @@ DialogueVariant* DialogueBox::GetCurrentDialogueVariant() {
 	return &dialogue->variants[data.current_variant];
 }
 
-DialoguePage* DialogueBox::GetCurrentDialoguePage() {
+DialoguePage* Dialogue::GetCurrentDialoguePage() {
 	const auto& data{ Data() };
 	auto* variant{ GetCurrentDialogueVariant() };
 	if (!variant || data.current_page >= variant->pages.size()) {
@@ -1579,11 +1621,11 @@ DialoguePage* DialogueBox::GetCurrentDialoguePage() {
 	return &variant->pages[data.current_page];
 }
 
-std::optional<Entity> DialogueBox::TryPart(::ptgn::impl::DialoguePartRole role) const {
+std::optional<Entity> Dialogue::TryPart(::ptgn::impl::DialoguePartRole role) const {
 	return FindDialoguePart(*this, role);
 }
 
-Entity DialogueBox::Part(::ptgn::impl::DialoguePartRole role) {
+Entity Dialogue::Part(::ptgn::impl::DialoguePartRole role) {
 	if (auto part{ TryPart(role) }) {
 		return part.value();
 	}
@@ -1641,7 +1683,7 @@ Entity DialogueBox::Part(::ptgn::impl::DialoguePartRole role) {
 	return entity;
 }
 
-Text DialogueBox::TextPart() {
+Text Dialogue::TextPart() {
 	if (auto text{ TryTextPart() }) {
 		return text.value();
 	}
@@ -1655,12 +1697,12 @@ Text DialogueBox::TextPart() {
 	return text;
 }
 
-std::optional<Text> DialogueBox::TryTextPart() const {
+std::optional<Text> Dialogue::TryTextPart() const {
 	auto part{ TryPart(::ptgn::impl::DialoguePartRole::Text) };
 	return part.has_value() ? std::optional<Text>{ Text{ part.value() } } : std::nullopt;
 }
 
-std::optional<Sprite> DialogueBox::TryBackground() const {
+std::optional<Sprite> Dialogue::TryBackground() const {
 	auto part{ TryPart(::ptgn::impl::DialoguePartRole::Background) };
 	if (!part.has_value() || !part.value().HasAny<Texture, TextureKey>()) {
 		return std::nullopt;
@@ -1668,11 +1710,11 @@ std::optional<Sprite> DialogueBox::TryBackground() const {
 	return Sprite{ part.value() };
 }
 
-std::optional<Entity> DialogueBox::TryBackgroundEntity() const {
+std::optional<Entity> Dialogue::TryBackgroundEntity() const {
 	return TryPart(::ptgn::impl::DialoguePartRole::Background);
 }
 
-void DialogueBox::ApplyCurrentPage() {
+void Dialogue::ApplyCurrentPage() {
 	const auto* page{ GetCurrentDialoguePage() };
 	if (!page) {
 		Close();
@@ -1696,7 +1738,7 @@ void DialogueBox::ApplyCurrentPage() {
 	);
 }
 
-void DialogueBox::ApplyCurrentPortraitCues() {
+void Dialogue::ApplyCurrentPortraitCues() {
 	const auto* page{ GetCurrentDialoguePage() };
 	if (!page) {
 		return;
@@ -1724,7 +1766,7 @@ void DialogueBox::ApplyCurrentPortraitCues() {
 	}
 }
 
-void DialogueBox::HidePortraits() {
+void Dialogue::HidePortraits() {
 	for (DialoguePortraitSlot slot : {
 			 DialoguePortraitSlot::Left,
 			 DialoguePortraitSlot::Center,
@@ -1739,7 +1781,7 @@ void DialogueBox::HidePortraits() {
 	}
 }
 
-void DialogueBox::RefreshPortraits(const DialoguePageProperties& properties, bool talking) {
+void Dialogue::RefreshPortraits(const DialoguePageProperties& properties, bool talking) {
 	auto& data{ Data() };
 	Rect dialogue_rect{ properties.box_size, GetOrDefault<Origin>() };
 	V2_float center{ dialogue_rect.GetOriginPoint(Origin::Center) };
@@ -1845,14 +1887,14 @@ void DialogueBox::RefreshPortraits(const DialoguePageProperties& properties, boo
 	}
 }
 
-void DialogueBox::FinishPortraitTalking() {
+void Dialogue::FinishPortraitTalking() {
 	const auto* page{ GetCurrentDialoguePage() };
 	if (page) {
 		RefreshPortraits(page->properties, false);
 	}
 }
 
-void DialogueBox::HideAppearanceOverrides() {
+void Dialogue::HideAppearanceOverrides() {
 	for (auto role :
 		 { ::ptgn::impl::DialoguePartRole::BackgroundOverride,
 		   ::ptgn::impl::DialoguePartRole::Border, ::ptgn::impl::DialoguePartRole::Sprite }) {
@@ -1862,7 +1904,7 @@ void DialogueBox::HideAppearanceOverrides() {
 	}
 }
 
-void DialogueBox::ApplyCurrentAppearance(const DialoguePageProperties& properties) {
+void Dialogue::ApplyCurrentAppearance(const DialoguePageProperties& properties) {
 	const auto* dialogue{ GetCurrentDialogue() };
 	if (!dialogue) {
 		return;
@@ -1978,7 +2020,7 @@ void DialogueBox::ApplyCurrentAppearance(const DialoguePageProperties& propertie
 	}
 }
 
-void DialogueBox::PlayOpenSound() {
+void Dialogue::PlayOpenSound() {
 	const auto* dialogue{ GetCurrentDialogue() };
 	if (!dialogue || !dialogue->appearance.audio.has_value() ||
 		!dialogue->appearance.audio->open.has_value() ||
@@ -1988,7 +2030,7 @@ void DialogueBox::PlayOpenSound() {
 	GetScene().ctx().audio.Play(*dialogue->appearance.audio->open);
 }
 
-void DialogueBox::PlayTypewriterSound() {
+void Dialogue::PlayTypewriterSound() {
 	const auto* dialogue{ GetCurrentDialogue() };
 	if (!dialogue || !dialogue->scroll || !dialogue->appearance.audio.has_value() ||
 		!dialogue->appearance.audio->typewriter.has_value() ||
@@ -1998,7 +2040,7 @@ void DialogueBox::PlayTypewriterSound() {
 	GetScene().ctx().audio.Play(*dialogue->appearance.audio->typewriter);
 }
 
-void DialogueBox::StartCurrentPageScroll() {
+void Dialogue::StartCurrentPageScroll() {
 	const auto* page{ GetCurrentDialoguePage() };
 	const auto* dialogue{ GetCurrentDialogue() };
 	if (!page || !dialogue) {
@@ -2021,7 +2063,7 @@ void DialogueBox::StartCurrentPageScroll() {
 	RefreshPortraits(page->properties, true);
 }
 
-void DialogueBox::StopCurrentPageScroll() {
+void Dialogue::StopCurrentPageScroll() {
 	if (!*this) {
 		return;
 	}
@@ -2032,7 +2074,7 @@ void DialogueBox::StopCurrentPageScroll() {
 	data.revealed_character_count = 0;
 }
 
-void DialogueBox::PositionTextForPage(const DialoguePageProperties& properties) {
+void Dialogue::PositionTextForPage(const DialoguePageProperties& properties) {
 	Rect outer_rect{ properties.box_size, GetOrDefault<Origin>() };
 	Rect content_rect{
 		outer_rect.Expanded(-properties.padding.GetLeftTop(), -properties.padding.GetRightBottom())
@@ -2043,7 +2085,7 @@ void DialogueBox::PositionTextForPage(const DialoguePageProperties& properties) 
 	text.Box(Rect{ {}, content_rect.GetSize() });
 }
 
-DialogueBox CreateDialogueBox(
+Dialogue CreateDialogueBox(
 	EntityCreationContext context, Transform transform, const DialogueDesc& desc
 ) {
 	bool has_authored_definition{ desc.data.is_object() && !desc.data.empty() &&
@@ -2060,7 +2102,7 @@ DialogueBox CreateDialogueBox(
 	default_properties.box_size = desc.box_size;
 	default_properties			= default_properties.InheritProperties(definition);
 
-	DialogueBox dialogue{ context.CreateEntity() };
+	Dialogue dialogue{ context.CreateEntity() };
 	dialogue.Add<Tag>("Dialogue");
 	dialogue.Add<impl::DialogueData>();
 	dialogue.Add<Transform>(transform);

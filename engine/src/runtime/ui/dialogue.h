@@ -33,7 +33,7 @@ namespace ptgn {
 class EntityCreationContext;
 
 class AssetManager;
-class DialogueBox;
+class Dialogue;
 class Scene;
 
 enum class DialogueBehavior {
@@ -300,29 +300,32 @@ struct DialogueDesc {
 	bool ui_layer{ true };
 };
 
-class DialogueBox : public Entity {
+class Dialogue : public Entity {
 public:
-	DialogueBox() = default;
-	explicit DialogueBox(Entity entity);
+	Dialogue() = default;
+	explicit Dialogue(Entity entity);
 
 	[[nodiscard]] std::string_view GetContinueKeys() const;
-	DialogueBox& SetContinueKeys(std::string_view continue_keys);
+	Dialogue& SetContinueKeys(std::string_view continue_keys);
 
 	Key GetContinueKey() const;
-	DialogueBox& SetContinueKey(Key continue_key);
+	Dialogue& SetContinueKey(Key continue_key);
 
 	bool IsOpen() const;
 
-	DialogueBox& Open(std::string_view dialogue_name = {});
-	DialogueBox& Close();
+	Dialogue& Open(std::string_view dialogue_name = {});
+	Dialogue& Close();
 
 	/// @brief Completes the current typewriter reveal, or advances when already complete.
-	DialogueBox& Advance();
-	DialogueBox& NextPage();
-	DialogueBox& CompletePage();
+	Dialogue& Advance();
+	Dialogue& NextPage();
+	Dialogue& CompletePage();
 
-	DialogueBox& SetDialogue(std::string_view name = {});
-	DialogueBox& SetNextDialogue();
+	/// @brief Jumps to a zero based page index and starts its normal typewriter reveal.
+	Dialogue& GoToPage(std::size_t page_index);
+
+	Dialogue& SetDialogue(std::string_view name = {});
+	Dialogue& SetNextDialogue();
 
 	DialogueEntry* GetCurrentDialogue();
 	DialogueVariant* GetCurrentDialogueVariant();
@@ -361,77 +364,77 @@ private:
 namespace event {
 
 struct DialogueOpened {
-	operator DialogueBox() const { // NOSONAR
+	operator Dialogue() const { // NOSONAR
 		return dialogue;
 	}
 
-	DialogueBox dialogue{};
+	Dialogue dialogue{};
 	std::string key{};
 	std::size_t variant{ 0 };
 };
 
 struct DialogueClosed {
-	operator DialogueBox() const { // NOSONAR
+	operator Dialogue() const { // NOSONAR
 		return dialogue;
 	}
 
-	DialogueBox dialogue{};
+	Dialogue dialogue{};
 	std::string key{};
 };
 
 struct DialogueChanged {
-	operator DialogueBox() const { // NOSONAR
+	operator Dialogue() const { // NOSONAR
 		return dialogue;
 	}
 
-	DialogueBox dialogue{};
+	Dialogue dialogue{};
 	std::string previous{};
 	std::string current{};
 };
 
 /// @brief A request to continue an open dialogue, even if the current page is still revealing.
 struct DialogueContinued {
-	DialogueBox dialogue{};
+	Dialogue dialogue{};
 	std::string key{};
 	std::size_t variant{ 0 };
 	std::size_t page{ 0 };
 };
 
 struct DialoguePageChanged {
-	operator DialogueBox() const { // NOSONAR
+	operator Dialogue() const { // NOSONAR
 		return dialogue;
 	}
 
-	DialogueBox dialogue{};
+	Dialogue dialogue{};
 	std::string key{};
 	std::size_t variant{ 0 };
 	std::size_t page{ 0 };
 };
 
 struct DialoguePageCompleted {
-	operator DialogueBox() const { // NOSONAR
+	operator Dialogue() const { // NOSONAR
 		return dialogue;
 	}
 
-	DialogueBox dialogue{};
+	Dialogue dialogue{};
 	std::string key{};
 	std::size_t variant{ 0 };
 	std::size_t page{ 0 };
 };
 
 struct DialogueFinished {
-	operator DialogueBox() const { // NOSONAR
+	operator Dialogue() const { // NOSONAR
 		return dialogue;
 	}
 
-	DialogueBox dialogue{};
+	Dialogue dialogue{};
 	std::string key{};
 	std::size_t variant{ 0 };
 };
 
 } // namespace event
 
-DialogueBox CreateDialogueBox(
+Dialogue CreateDialogueBox(
 	EntityCreationContext context, Transform transform, const DialogueDesc& desc
 );
 

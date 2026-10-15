@@ -889,20 +889,20 @@ bool ExecuteUIAction(Entity entity, UIAction action, float value, std::string_vi
 		case ButtonHoverContinue:
 		case ButtonHoverStop:
 		case ButtonEnable:
-		case ButtonDisable: {
+		case ButtonDisable:		  {
 			if (!entity.Has<impl::ButtonData>()) {
 				return false;
 			}
 
 			Button button{ entity };
 			switch (action) {
-				case ButtonPress: button.Press(); break;
-				case ButtonHoverStart: button.StartHover(); break;
+				case ButtonPress:		  button.Press(); break;
+				case ButtonHoverStart:	  button.StartHover(); break;
 				case ButtonHoverContinue: button.ContinueHover(); break;
-				case ButtonHoverStop: button.StopHover(); break;
-				case ButtonEnable: button.Enable(true, true); break;
-				case ButtonDisable: button.Disable(true, true); break;
-				default: break;
+				case ButtonHoverStop:	  button.StopHover(); break;
+				case ButtonEnable:		  button.Enable(true, true); break;
+				case ButtonDisable:		  button.Disable(true, true); break;
+				default:				  break;
 			}
 			return true;
 		}
@@ -915,8 +915,10 @@ bool ExecuteUIAction(Entity entity, UIAction action, float value, std::string_vi
 			}
 
 			Slider slider{ entity };
-			float next_value{ action == SliderSetValue ? value
-						  : slider.GetValue() + (action == SliderIncrease ? value : -value) };
+			float next_value{ action == SliderSetValue
+								  ? value
+								  : slider.GetValue() +
+										(action == SliderIncrease ? value : -value) };
 			slider.SetValue(next_value);
 			return true;
 		}
@@ -990,9 +992,9 @@ bool ExecuteUIAction(Entity entity, UIAction action, float value, std::string_vi
 
 			Dropdown dropdown{ entity };
 			switch (action) {
-				case DropdownOpen: dropdown.Open(); break;
-				case DropdownClose: dropdown.Close(); break;
-				case DropdownToggle: dropdown.Toggle(); break;
+				case DropdownOpen:		dropdown.Open(); break;
+				case DropdownClose:		dropdown.Close(); break;
+				case DropdownToggle:	dropdown.Toggle(); break;
 				case DropdownPressItem: {
 					auto buttons{ dropdown.GetButtons() };
 					if (!std::isfinite(value) || value < 0.0f ||
@@ -1018,7 +1020,8 @@ void ActionScript::OnStart() {
 			auto animation{ ResolveAnimation(Target(), animation_key) };
 			if (!animation) {
 				PTGN_WARN(
-					"Animation action requires an Animation owner or an AnimationMap with an active/keyed "
+					"Animation action requires an Animation owner or an AnimationMap with an "
+					"active/keyed "
 					"animation"
 				);
 
@@ -1093,11 +1096,13 @@ void ActionScript::OnStart() {
 						lifetime->Pause();
 					}
 					break;
-				case LifetimeAction::Advance:		 lifetime->Advance(entity, amount); break;
-				case LifetimeAction::Rewind:		 lifetime->Rewind(amount); break;
-				case LifetimeAction::SetDuration:	 lifetime->SetDuration(entity, amount); break;
-				case LifetimeAction::AddDuration:	 lifetime->AddDuration(entity, amount); break;
-				case LifetimeAction::RemoveDuration: lifetime->RemoveDuration(entity, amount); break;
+				case LifetimeAction::Advance:	  lifetime->Advance(entity, amount); break;
+				case LifetimeAction::Rewind:	  lifetime->Rewind(amount); break;
+				case LifetimeAction::SetDuration: lifetime->SetDuration(entity, amount); break;
+				case LifetimeAction::AddDuration: lifetime->AddDuration(entity, amount); break;
+				case LifetimeAction::RemoveDuration:
+					lifetime->RemoveDuration(entity, amount);
+					break;
 			}
 			break;
 		}
@@ -1108,7 +1113,7 @@ void ActionScript::OnStart() {
 				return;
 			}
 
-			DialogueBox box{ target };
+			Dialogue box{ target };
 			auto require_dialogue = [&box, this](std::string_view action_name) {
 				if (dialogue.empty()) {
 					PTGN_WARN(action_name, " requires a dialogue key");
@@ -1200,7 +1205,9 @@ void ActionScript::OnStart() {
 				case TooltipAction::DisableHover:
 				case TooltipAction::ToggleHover:
 					if (!target.Has<impl::TooltipHoverData>()) {
-						PTGN_WARN("Tooltip hover action requires TooltipHoverData on the target entity");
+						PTGN_WARN(
+							"Tooltip hover action requires TooltipHoverData on the target entity"
+						);
 						return;
 					}
 

@@ -1202,7 +1202,7 @@ bool DrawDialogueActionInline(ScriptEditorContext&, ActionScript& script) {
 		ImGui::SetNextItemWidth(std::max(1.0f, available - action_width - spacing));
 		changed |=
 			ImGui::InputTextWithHint("##DialogueActionKey", "Dialogue key", &script.dialogue);
-		DrawItemTooltip("Authored dialogue key on the target DialogueBox.");
+		DrawItemTooltip("Authored dialogue key on the target Dialogue.");
 	}
 
 	return changed;
