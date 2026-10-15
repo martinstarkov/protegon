@@ -275,7 +275,6 @@ template <typename Target>
 	switch (archetype) {
 		case InspectorArchetype::Generic:
 		case InspectorArchetype::ToggleGroup:
-		case InspectorArchetype::RenderTarget:
 		case InspectorArchetype::Effect:		 return false;
 
 		case InspectorArchetype::Tilemap:
