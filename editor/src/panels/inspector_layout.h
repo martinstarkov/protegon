@@ -364,6 +364,7 @@ struct InspectorActionBarOptions {
 
 	/// @brief When true, all visible actions share the full available row width equally.
 	bool equal_width{ false };
+	float spacing{ -1.0f };
 };
 
 /// Draws as many actions inline as fit. Remaining actions are placed in one overflow menu instead
@@ -377,7 +378,7 @@ inline bool DrawInspectorActionBar(
 
 	ImGui::PushID(options.id.data(), options.id.data() + options.id.size());
 	const auto& style{ ImGui::GetStyle() };
-	float spacing{ style.ItemSpacing.x };
+	float spacing{ options.spacing >= 0.0f ? options.spacing : style.ItemSpacing.x };
 	float available{ std::max(1.0f, ImGui::GetContentRegionAvail().x) };
 	auto button_width = [&](std::string_view label) {
 		return ImGui::CalcTextSize(label.data(), label.data() + label.size()).x +
