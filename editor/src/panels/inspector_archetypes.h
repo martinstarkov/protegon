@@ -245,7 +245,7 @@ template <typename Target>
 		case InspectorArchetype::Dropdown:		  return "Dropdown";
 		case InspectorArchetype::ToggleGroup:	  return "Toggle Group";
 		case InspectorArchetype::Tooltip:		  return "Tooltip";
-		case InspectorArchetype::Dialogue:		  return "Dialogue Box";
+		case InspectorArchetype::Dialogue:		  return "Dialogue";
 	}
 	return "Entity";
 }

@@ -2061,7 +2061,7 @@ DialogueBox CreateDialogueBox(
 	default_properties			= default_properties.InheritProperties(definition);
 
 	DialogueBox dialogue{ context.CreateEntity() };
-	dialogue.Add<Tag>("Dialogue Box");
+	dialogue.Add<Tag>("Dialogue");
 	dialogue.Add<impl::DialogueData>();
 	dialogue.Add<Transform>(transform);
 	dialogue.Add<Origin>(desc.origin);

@@ -916,22 +916,6 @@ Entity CreateDefaultUIButton(EntityCreationContext creation) {
 	return button;
 }
 
-Entity CreateDefaultUISpriteButton(EntityCreationContext creation) {
-	auto button{ CreateButton(creation, {}, kDefaultUISquareButtonSize) };
-	button.Background().Color(color::Black.WithAlpha(96));
-	button.Sprite().Size(kDefaultUISpriteSize);
-	SetCreatedEntityTag(button, "Sprite Button");
-	return button;
-}
-
-Entity CreateDefaultUIAnimatedButton(EntityCreationContext creation) {
-	auto button{ CreateButton(creation, {}, kDefaultUIButtonSize) };
-	ConfigureDefaultButton(button, "Animated Button");
-	button.Animation().Size(kDefaultUISpriteSize);
-	SetCreatedEntityTag(button, "Animated Button");
-	return button;
-}
-
 Entity CreateDefaultUIToggleButton(EntityCreationContext creation) {
 	auto button{ CreateToggleButton(creation, {}, kDefaultUIButtonSize) };
 	ConfigureDefaultButton(button, "Toggle");
@@ -999,9 +983,9 @@ Entity CreateDefaultUIDialogueBox(EntityCreationContext creation) {
 	DialogueDesc desc;
 	desc.box_size = kDefaultUIDialogueSize;
 
-	auto dialogue_box{ CreateDialogueBox(creation, {}, desc) };
-	SetCreatedEntityTag(dialogue_box, "Dialogue Box");
-	return dialogue_box;
+	auto dialogue{ CreateDialogueBox(creation, {}, desc) };
+	SetCreatedEntityTag(dialogue, "Dialogue");
+	return dialogue;
 }
 
 template <typename MenuContext>
@@ -1135,16 +1119,14 @@ void DrawUICreateMenu(MenuContext& context) {
 		return;
 	}
 
+	DrawCreateMenuItem(context, "Text", CreateDefaultUIText);
 	DrawCreateMenuItem(context, "Button", CreateDefaultUIButton);
-	DrawCreateMenuItem(context, "Sprite Button", CreateDefaultUISpriteButton);
-	DrawCreateMenuItem(context, "Animated Button", CreateDefaultUIAnimatedButton);
 	DrawCreateMenuItem(context, "Toggle Button", CreateDefaultUIToggleButton);
-	DrawCreateMenuItem(context, "Toggle Group", CreateDefaultUIToggleGroup);
 	DrawCreateMenuItem(context, "Slider", CreateDefaultUISlider);
 	DrawCreateMenuItem(context, "Dropdown", CreateDefaultUIDropdown);
-	DrawCreateMenuItem(context, "Text", CreateDefaultUIText);
 	DrawCreateMenuItem(context, "Tooltip", CreateDefaultUITooltip);
-	DrawCreateMenuItem(context, "Dialogue Box", CreateDefaultUIDialogueBox);
+	DrawCreateMenuItem(context, "Dialogue", CreateDefaultUIDialogueBox);
+	DrawCreateMenuItem(context, "Toggle Group", CreateDefaultUIToggleGroup);
 
 	ImGui::EndMenu();
 }
