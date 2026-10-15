@@ -43,6 +43,7 @@
 #include "runtime/timer/timer.h"
 #include "runtime/ui/button.h"
 #include "runtime/ui/button_config.h"
+#include "runtime/ui/dialogue.h"
 #include "runtime/ui/dropdown.h"
 #include "runtime/ui/slider.h"
 #include "runtime/ui/toggle_button.h"
@@ -126,6 +127,8 @@ PTGN_REGISTER_COMPONENT(impl::SliderTrackSpriteData);
 PTGN_REGISTER_COMPONENT(impl::SliderTrackBorderData);
 PTGN_REGISTER_COMPONENT(impl::SliderTrackBackgroundData);
 PTGN_REGISTER_COMPONENT(impl::SliderThumbData);
+PTGN_REGISTER_COMPONENT(impl::DialogueData);
+PTGN_REGISTER_COMPONENT(impl::DialoguePart);
 
 PTGN_REGISTER_COMPONENT(impl::IgnoreParentOffset);
 PTGN_REGISTER_COMPONENT(impl::IgnoreParentImmovable);

@@ -279,6 +279,8 @@ struct DialogueData {
 	void LoadFromJson(
 		const Scene& scene, const json& root, const DialoguePageProperties& default_properties
 	);
+
+	PTGN_REFLECT_VALUE(DialogueData, definition)
 };
 
 } // namespace impl
