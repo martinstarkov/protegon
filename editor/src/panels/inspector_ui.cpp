@@ -1,5 +1,7 @@
 #include <imgui_internal.h>
 
+#include <limits>
+
 #include "editor/editor.h"
 #include "editor/editor_icons.h"
 #include "editor/renamable_item.h"
@@ -1340,6 +1342,8 @@ bool DrawDropdownItems(EntityInspectorTarget& target) {
 	bool section_open{ false };
 	bool open_add_popup{ false };
 	float button_size{ ImGui::GetFrameHeight() };
+	float spacing{ ImGui::GetStyle().ItemInnerSpacing.x };
+	ImGui::PushStyleVar(ImGuiStyleVar_CellPadding, ImVec2{ spacing * 0.5f, 0.0f });
 	if (ImGui::BeginTable(
 			"##DropdownItemsHeader", 2,
 			ImGuiTableFlags_SizingStretchProp | ImGuiTableFlags_NoPadOuterX |
@@ -1362,6 +1366,7 @@ bool DrawDropdownItems(EntityInspectorTarget& target) {
 		DrawTooltip("Add a button item or a nested dropdown.");
 		ImGui::EndTable();
 	}
+	ImGui::PopStyleVar();
 
 	if (open_add_popup) {
 		ImGui::OpenPopup("##AddDropdownItemPopup");
@@ -1494,37 +1499,41 @@ bool DrawDropdownItems(EntityInspectorTarget& target) {
 	return changed;
 }
 
+void ApplyToggleGroupSelection(
+	Editor& editor, const EntityReference& group_reference,
+	const std::optional<std::string>& active_key
+) {
+	Entity entity{ group_reference.Resolve(editor) };
+	if (!entity || !entity.Has<::ptgn::impl::ToggleButtonGroupData>()) {
+		return;
+	}
+
+	ToggleButtonGroup group{ entity };
+	const auto& data{ group.Get<::ptgn::impl::ToggleButtonGroupData>() };
+	if (active_key) {
+		if (!data.active || data.active->value != *active_key) {
+			group.SetActive(*active_key);
+		}
+	} else if (data.active && !data.always_active) {
+		group.SetActive(data.active->value);
+	}
+}
+
 bool DrawToggleGroupMembers(EntityInspectorTarget& target) {
 	ToggleButtonGroup group{ target.entity };
 	auto buttons{ group.GetButtons() };
 	bool changed{ false };
 
-	bool section_open{ false };
-	bool add_requested{ false };
-	float button_size{ ImGui::GetFrameHeight() };
-	if (ImGui::BeginTable(
-			"##ToggleGroupMembersHeader", 2,
-			ImGuiTableFlags_SizingStretchProp | ImGuiTableFlags_NoPadOuterX |
-				ImGuiTableFlags_NoSavedSettings
-		)) {
-		ImGui::TableSetupColumn("Section", ImGuiTableColumnFlags_WidthStretch);
-		ImGui::TableSetupColumn("Add", ImGuiTableColumnFlags_WidthFixed, button_size);
-		ImGui::TableNextRow(ImGuiTableRowFlags_None, button_size);
-		ImGui::TableSetColumnIndex(0);
-		section_open = ImGui::TreeNodeEx(
-			"Members##FocusedToggleGroupMembers",
-			ImGuiTreeNodeFlags_SpanAvailWidth | ImGuiTreeNodeFlags_FramePadding |
-				ImGuiTreeNodeFlags_NoTreePushOnOpen | ImGuiTreeNodeFlags_DefaultOpen
-		);
-
-		ImGui::TableSetColumnIndex(1);
-		ImGui::BeginDisabled(target.IsReadOnly());
-		add_requested =
-			ImGui::Button("+##AddToggleGroupMember", ImVec2{ button_size, button_size });
-		ImGui::EndDisabled();
-		DrawTooltip("Add a toggle button.");
-		ImGui::EndTable();
-	}
+	const ImGuiStyle& style{ ImGui::GetStyle() };
+	ImGui::PushStyleVar(
+		ImGuiStyleVar_ItemSpacing, ImVec2{ style.ItemSpacing.x, style.ItemInnerSpacing.y }
+	);
+	ImGui::BeginDisabled(target.IsReadOnly());
+	bool add_requested{
+		ImGui::Button("+ Add Toggle Button", ImVec2{ -FLT_MIN, ImGui::GetFrameHeight() })
+	};
+	ImGui::EndDisabled();
+	DrawTooltip("Add a toggle button.");
 
 	if (add_requested) {
 		std::size_t number{ 1 };
@@ -1549,21 +1558,18 @@ bool DrawToggleGroupMembers(EntityInspectorTarget& target) {
 		changed = true;
 	}
 
-	if (!section_open) {
-		return changed;
-	}
-
-	ScopedIndent members_indent;
 	Entity remove_item{};
-	for (ToggleButton button : buttons) {
+	for (std::size_t i{ 0 }; i < buttons.size(); ++i) {
+		ToggleButton button{ buttons[i] };
 		if (!button) {
 			continue;
 		}
 
 		ImGui::PushID(button.Get<UUID>());
 		const auto& item{ button.Get<::ptgn::impl::ToggleButtonGroupItem>() };
-		bool active{ button.IsToggled() };
-		std::string label{ item.key.value };
+		const auto& group_data{ group.Get<::ptgn::impl::ToggleButtonGroupData>() };
+		bool active{ group_data.active && group_data.active.value() == item.key };
+		std::string label{ "Toggle Button " + std::to_string(i + 1) };
 		if (active) {
 			label += " (Active)";
 		}
@@ -1576,7 +1582,32 @@ bool DrawToggleGroupMembers(EntityInspectorTarget& target) {
 			if (ImGui::MenuItem("Open in Hierarchy")) {
 				target.ctx.editor.GetSceneHierarchyPanel().SetSelectedEntity(button);
 			}
+
 			ImGui::BeginDisabled(target.IsReadOnly());
+			if (!active || !group_data.always_active) {
+				if (ImGui::MenuItem(active ? "Set Inactive" : "Set Active")) {
+					std::optional<std::string> before{};
+					if (group_data.active) {
+						before = group_data.active->value;
+					}
+					std::optional<std::string> after{
+						active ? std::nullopt : std::optional<std::string>{ item.key.value }
+					};
+					EntityReference reference{ MakeEntityReference(group) };
+					Editor* editor{ &target.ctx.editor };
+					ApplyToggleGroupSelection(*editor, reference, after);
+					target.ctx.undo.PushApplied(
+						active ? "Clear Active Toggle" : "Set Active Toggle",
+						[editor, reference, before]() {
+							ApplyToggleGroupSelection(*editor, reference, before);
+						},
+						[editor, reference, after]() {
+							ApplyToggleGroupSelection(*editor, reference, after);
+						}
+					);
+					changed = true;
+				}
+			}
 			if (ImGui::MenuItem("Remove")) {
 				remove_item = button;
 			}
@@ -1598,6 +1629,7 @@ bool DrawToggleGroupMembers(EntityInspectorTarget& target) {
 		}
 	}
 
+	ImGui::PopStyleVar();
 	if (remove_item) {
 		target.ctx.commands.DeleteEntity(remove_item);
 		changed = true;
@@ -4765,7 +4797,7 @@ void DrawUIRuntimeControls(Entity entity, FocusedUIControlType type) {
 	}
 
 	if (is_dialogue) {
-		DialogueBox dialogue{ entity };
+		Dialogue dialogue{ entity };
 		bool open{ dialogue.IsOpen() };
 		if (ImGui::Button(open ? "Close" : "Open")) {
 			if (open) {
@@ -4776,13 +4808,57 @@ void DrawUIRuntimeControls(Entity entity, FocusedUIControlType type) {
 		}
 		DrawRuntimeTooltip(open ? "Close dialogue." : "Open dialogue.");
 
-		ImGui::SameLine();
+		ImGui::SameLine(0.0f, ImGui::GetStyle().ItemInnerSpacing.x);
 		ImGui::BeginDisabled(!dialogue.IsOpen());
 		if (ImGui::Button("Advance")) {
 			dialogue.Advance();
 		}
 		ImGui::EndDisabled();
 		DrawRuntimeTooltip("Continue dialogue.");
+
+		const auto* variant{ dialogue.IsOpen() ? dialogue.GetCurrentDialogueVariant() : nullptr };
+		std::size_t page_count{ variant ? variant->pages.size() : 0 };
+		int maximum_page{ static_cast<int>(
+			std::min(page_count, static_cast<std::size_t>(std::numeric_limits<int>::max()))
+		) };
+
+		ImGui::PushID(entity.Get<UUID>());
+		ImGuiID page_id{ ImGui::GetID("##DialogueRuntimeRequestedPageState") };
+		ImGuiID current_page_id{ ImGui::GetID("##DialogueRuntimeCurrentPage") };
+		ImGuiStorage* storage{ ImGui::GetStateStorage() };
+		std::size_t current_index{ dialogue.Get<::ptgn::impl::DialogueData>().current_page };
+		int current_page{ static_cast<int>(
+			std::min(current_index + 1, static_cast<std::size_t>(std::numeric_limits<int>::max()))
+		) };
+		int requested_page{ storage->GetInt(page_id, current_page) };
+		if (storage->GetInt(current_page_id, current_page) != current_page) {
+			requested_page = current_page;
+		}
+		requested_page = std::clamp(requested_page, 1, std::max(1, maximum_page));
+
+		ImGui::SameLine(0.0f, ImGui::GetStyle().ItemInnerSpacing.x);
+		ImGui::BeginDisabled(!dialogue.IsOpen() || maximum_page == 0);
+		if (ImGui::Button("Go to Page")) {
+			dialogue.GoToPage(static_cast<std::size_t>(requested_page - 1));
+		}
+		DrawRuntimeTooltip("Start the selected page.");
+
+		ImGui::SameLine(0.0f, ImGui::GetStyle().ItemInnerSpacing.x);
+		float width{ ImGui::CalcTextSize("000").x + ImGui::GetStyle().FramePadding.x * 2.0f };
+		ImGui::SetNextItemWidth(width);
+		if (ImGui::InputInt(
+				"##DialogueRuntimePageNumber", &requested_page, 0, 0,
+				ImGuiInputTextFlags_CharsDecimal
+			)) {
+			requested_page = std::clamp(requested_page, 1, std::max(1, maximum_page));
+		}
+		if (ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled)) {
+			ImGui::SetTooltip("Page 1 to %d.", maximum_page);
+		}
+		ImGui::EndDisabled();
+		storage->SetInt(page_id, requested_page);
+		storage->SetInt(current_page_id, current_page);
+		ImGui::PopID();
 	}
 
 	if (is_tooltip) {
@@ -4914,23 +4990,21 @@ bool DrawUISectionImpl(Target& target) {
 		changed |= DrawFocusedComponent<Target, ::ptgn::impl::ToggleButtonGroupData>(
 			target, "Toggle Group", [&](::ptgn::impl::ToggleButtonGroupData& data) {
 				bool local_changed{ false };
-				local_changed |= DrawValue(target.ctx, "Always One Active", data.always_active);
-				local_changed |= DrawValue(target.ctx, "Active Key", data.active);
+				local_changed |= DrawPropertyRow("Always One Active", [&]() {
+					return DrawDisabledIf(IsReadOnly(), [&]() {
+						bool checkbox_changed{
+							ImGui::Checkbox("##AlwaysOneActive", &data.always_active)
+						};
+						DrawTooltip("Keep one toggle button active.");
+						return checkbox_changed;
+					});
+				});
 				return local_changed;
 			}
 		);
 		if constexpr (std::same_as<std::remove_cvref_t<Target>, EntityInspectorTarget>) {
 			changed |= DrawToggleGroupMembers(target);
 		}
-	}
-
-	if (HasTargetComponent<Target, ::ptgn::impl::ToggleButtonGroupItem>(target)) {
-		ImGui::SeparatorText("Toggle Group Membership");
-		changed |= DrawFocusedComponent<Target, ::ptgn::impl::ToggleButtonGroupItem>(
-			target, "Toggle Group Item", [&](::ptgn::impl::ToggleButtonGroupItem& item) {
-				return DrawValue(target.ctx, "Key", item.key);
-			}
-		);
 	}
 
 	if (has_tooltip) {
