@@ -1265,6 +1265,10 @@ template <typename Target>
 
 template <typename Target>
 [[nodiscard]] bool HasTransformSection(const Target& target) {
+	if (ResolveInspectorArchetype(target) == InspectorArchetype::ToggleGroup) {
+		return false;
+	}
+
 	return ArchetypeRequiresTransform(ResolveInspectorArchetype(target)) ||
 		   HasAnyInspectorComponent(target, TransformSectionComponents{});
 }
