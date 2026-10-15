@@ -1,14 +1,13 @@
 #include <imgui_internal.h>
 
-#include "editor/editor_icons.h"
 #include "editor/editor.h"
-#include "runtime/scripting/builtin_scripts.h"
-#include "runtime/ui/tooltip.h"
+#include "editor/editor_icons.h"
 #include "editor/renamable_item.h"
 #include "panels/inspector_archetype_inspector.h"
 #include "panels/inspector_geometry.h"
 #include "panels/inspector_parts.h"
 #include "panels/rich_text_editor.h"
+#include "runtime/ui/tooltip.h"
 
 namespace ptgn::editor::inspector {
 
@@ -496,6 +495,9 @@ enum class FocusedUIControlType : std::uint8_t {
 
 template <typename Target>
 bool DrawFocusedButtonAppearance(Target& target, FocusedUIControlType type);
+
+template <typename Target>
+bool DrawFocusedControlSpecific(Target& target, FocusedUIControlType type);
 
 template <typename Target>
 bool DrawUIControlConflict(Target& target);
@@ -1196,6 +1198,7 @@ bool DrawFocusedButtonInteraction(Target& target, FocusedUIControlType type) {
 			actions, InspectorActionBarOptions{
 						 .id		  = "FocusedButtonInteraction",
 						 .equal_width = true,
+						 .spacing	  = ImGui::GetStyle().ItemInnerSpacing.x,
 					 }
 		);
 
@@ -1281,6 +1284,53 @@ void MoveDropdownItem(EditorContext& ctx, Entity dropdown_entity, Entity item, E
 	);
 }
 
+void DrawRuntimeTooltip(std::string_view description) {
+	if (ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled)) {
+		ImGui::SetTooltip("%.*s", static_cast<int>(description.size()), description.data());
+	}
+}
+
+void DrawRuntimePressButton(Entity entity) {
+	ImGui::BeginDisabled(!Button{ entity }.IsEnabled(false));
+	if (ImGui::Button("Press")) {
+		Button{ entity }.Press();
+	}
+	ImGui::EndDisabled();
+	std::string_view tooltip{ "Simulate a button press." };
+	if (entity.Has<::ptgn::impl::DropdownData>()) {
+		tooltip = "Press the dropdown header.";
+	} else if (entity.Has<::ptgn::impl::DropdownItem>()) {
+		tooltip = "Press this dropdown item.";
+	} else if (entity.Has<::ptgn::impl::ToggleButtonData>()) {
+		tooltip = "Press this toggle button.";
+	}
+	DrawRuntimeTooltip(tooltip);
+}
+
+void DrawNestedButtonRuntimePress(EditorContext& ctx, Entity entity) {
+	if (!entity || !entity.Has<::ptgn::impl::ButtonData>() ||
+		(!ctx.editor.IsPlaying() && !ctx.editor.IsDirectRuntime())) {
+		return;
+	}
+
+	DrawRuntimePressButton(entity);
+}
+
+template <typename Target>
+bool DrawDropdownHeader(Target& target) {
+	bool open{ ImGui::TreeNodeEx(
+		"Header##DropdownHeader",
+		ImGuiTreeNodeFlags_SpanAvailWidth | ImGuiTreeNodeFlags_FramePadding
+	) };
+	if (!open) {
+		return false;
+	}
+
+	bool changed{ DrawFocusedButtonAppearance(target, FocusedUIControlType::Dropdown) };
+	ImGui::TreePop();
+	return changed;
+}
+
 bool DrawDropdownItems(EntityInspectorTarget& target) {
 	Dropdown dropdown{ target.entity };
 	dropdown.RefreshLayout();
@@ -1288,6 +1338,7 @@ bool DrawDropdownItems(EntityInspectorTarget& target) {
 	bool changed{ false };
 
 	bool section_open{ false };
+	bool open_add_popup{ false };
 	float button_size{ ImGui::GetFrameHeight() };
 	if (ImGui::BeginTable(
 			"##DropdownItemsHeader", 2,
@@ -1305,19 +1356,48 @@ bool DrawDropdownItems(EntityInspectorTarget& target) {
 		);
 
 		ImGui::TableSetColumnIndex(1);
-		if (ImGui::Button("+##AddDropdownItem", ImVec2{ button_size, button_size })) {
-			std::string label{ "Dropdown Item " + std::to_string(items.size() + 1) };
+		ImGui::BeginDisabled(target.IsReadOnly());
+		open_add_popup = ImGui::Button("+##AddDropdownItem", ImVec2{ button_size, button_size });
+		ImGui::EndDisabled();
+		DrawTooltip("Add a button item or a nested dropdown.");
+		ImGui::EndTable();
+	}
+
+	if (open_add_popup) {
+		ImGui::OpenPopup("##AddDropdownItemPopup");
+	}
+	if (ImGui::BeginPopup("##AddDropdownItemPopup")) {
+		ImGui::BeginDisabled(target.IsReadOnly());
+		bool add_button{ ImGui::MenuItem("Button Item") };
+		bool add_dropdown{ ImGui::MenuItem("Nested Dropdown") };
+		ImGui::EndDisabled();
+
+		if (add_button || add_dropdown) {
+			std::size_t next_number{ 1 };
+			std::string_view prefix{ add_dropdown ? "Nested Dropdown " : "Dropdown Item " };
+			for (Button existing : items) {
+				if (existing.Has<::ptgn::impl::DropdownData>() == add_dropdown) {
+					++next_number;
+				}
+			}
+			std::string label{ std::string{ prefix } + std::to_string(next_number) };
 			Button created{ dropdown.AddItem(label) };
 			created.Background().Color(color::DarkGray);
 			created.Background(ButtonVisualState::Hover).Color(color::Gray);
 			created.Background(ButtonVisualState::Press).Color(color::Black);
+
+			if (add_dropdown) {
+				auto& data{ created.Add<::ptgn::impl::DropdownData>() };
+				Dropdown{ created }.Close(false);
+				data.initialized = true;
+			}
+
 			RecordCreatedEntityPreservingSelection(target.ctx, created);
 			dropdown.RefreshLayout();
 			items	= dropdown.GetButtons();
 			changed = true;
 		}
-		DrawTooltip("Add a dropdown item.");
-		ImGui::EndTable();
+		ImGui::EndPopup();
 	}
 
 	if (!section_open) {
@@ -1328,6 +1408,8 @@ bool DrawDropdownItems(EntityInspectorTarget& target) {
 	bool reordered{ false };
 	std::optional<float> restore_scroll_y{};
 
+	std::size_t item_number{ 0 };
+	std::size_t nested_number{ 0 };
 	for (std::size_t i{ 0 }; i < items.size(); ++i) {
 		Button item{ items[i] };
 		if (!item) {
@@ -1335,7 +1417,10 @@ bool DrawDropdownItems(EntityInspectorTarget& target) {
 		}
 
 		ImGui::PushID(item.Get<UUID>());
-		std::string item_label{ "Dropdown Item " + std::to_string(i + 1) };
+		bool nested{ item.Has<::ptgn::impl::DropdownData>() };
+		std::size_t number{ nested ? ++nested_number : ++item_number };
+		std::string item_label{ std::string{ nested ? "Nested Dropdown " : "Dropdown Item " } +
+								std::to_string(number) };
 		bool open{ ImGui::TreeNodeEx(
 			"##DropdownItem",
 			ImGuiTreeNodeFlags_SpanAvailWidth | ImGuiTreeNodeFlags_FramePadding |
@@ -1367,6 +1452,7 @@ bool DrawDropdownItems(EntityInspectorTarget& target) {
 
 		if (open && !reordered && !delete_item) {
 			ScopedIndent item_indent;
+			DrawNestedButtonRuntimePress(target.ctx, item);
 			EntityInspectorTarget item_target{ .ctx = target.ctx, .entity = item };
 
 			// Dropdown item transforms are ordinary local transforms. The dropdown layout system
@@ -1382,7 +1468,12 @@ bool DrawDropdownItems(EntityInspectorTarget& target) {
 				changed |= DrawUIControlConflict(item_target);
 			} else if (item_type != FocusedUIControlType::None) {
 				changed |= DrawFocusedButtonInteraction(item_target, item_type);
-				changed |= DrawFocusedButtonAppearance(item_target, item_type);
+				if (item_type == FocusedUIControlType::Dropdown) {
+					changed |= DrawFocusedControlSpecific(item_target, item_type);
+					changed |= DrawDropdownHeader(item_target);
+				} else {
+					changed |= DrawFocusedButtonAppearance(item_target, item_type);
+				}
 			}
 		}
 
@@ -1406,80 +1497,111 @@ bool DrawDropdownItems(EntityInspectorTarget& target) {
 bool DrawToggleGroupMembers(EntityInspectorTarget& target) {
 	ToggleButtonGroup group{ target.entity };
 	auto buttons{ group.GetButtons() };
-	auto& editor_state{ GetInspectorUiState(target.GetInspectorTargetKey()) };
-	if (!buttons.empty()) {
-		editor_state.toggle_group_item_index =
-			std::min(editor_state.toggle_group_item_index, buttons.size() - 1);
-	} else {
-		editor_state.toggle_group_item_index = 0;
-	}
 	bool changed{ false };
 
-	if (!ImGui::TreeNodeEx(
-			"Members##FocusedToggleGroupMembers",
-			ImGuiTreeNodeFlags_SpanAvailWidth | ImGuiTreeNodeFlags_DefaultOpen
+	bool section_open{ false };
+	bool add_requested{ false };
+	float button_size{ ImGui::GetFrameHeight() };
+	if (ImGui::BeginTable(
+			"##ToggleGroupMembersHeader", 2,
+			ImGuiTableFlags_SizingStretchProp | ImGuiTableFlags_NoPadOuterX |
+				ImGuiTableFlags_NoSavedSettings
 		)) {
-		return false;
+		ImGui::TableSetupColumn("Section", ImGuiTableColumnFlags_WidthStretch);
+		ImGui::TableSetupColumn("Add", ImGuiTableColumnFlags_WidthFixed, button_size);
+		ImGui::TableNextRow(ImGuiTableRowFlags_None, button_size);
+		ImGui::TableSetColumnIndex(0);
+		section_open = ImGui::TreeNodeEx(
+			"Members##FocusedToggleGroupMembers",
+			ImGuiTreeNodeFlags_SpanAvailWidth | ImGuiTreeNodeFlags_FramePadding |
+				ImGuiTreeNodeFlags_NoTreePushOnOpen | ImGuiTreeNodeFlags_DefaultOpen
+		);
+
+		ImGui::TableSetColumnIndex(1);
+		ImGui::BeginDisabled(target.IsReadOnly());
+		add_requested =
+			ImGui::Button("+##AddToggleGroupMember", ImVec2{ button_size, button_size });
+		ImGui::EndDisabled();
+		DrawTooltip("Add a toggle button.");
+		ImGui::EndTable();
 	}
 
-	{
-		ScopedIndent indent;
-		Entity delete_item;
-		for (std::size_t i{ 0 }; i < buttons.size(); ++i) {
-			ToggleButton button{ buttons[i] };
-			const auto& item{ button.Get<::ptgn::impl::ToggleButtonGroupItem>() };
-			ImGui::PushID(button.Get<UUID>());
-			ImGui::AlignTextToFramePadding();
-			ImGui::Text("%s", item.key.value.c_str());
-			ImGui::SameLine();
-			if (ImGui::SmallButton(
-					editor_state.toggle_group_item_index == i ? "Selected" : "Select"
-				)) {
-				editor_state.toggle_group_item_index = i;
-			}
-			ImGui::SameLine();
-			if (ImGui::SmallButton("Open")) {
+	if (add_requested) {
+		std::size_t number{ 1 };
+		while (std::ranges::any_of(buttons, [number](ToggleButton button) {
+			return button.Get<::ptgn::impl::ToggleButtonGroupItem>().key.value ==
+				   "option_" + std::to_string(number);
+		})) {
+			++number;
+		}
+
+		std::string name{ "Toggle " + std::to_string(number) };
+		ToggleButton created{
+			CreateToggleButton(target.entity.GetScene(), {}, V2_float{ 180.0f, 50.0f })
+		};
+		created.Add<Tag>(name);
+		created.Background().Color(color::DarkGray);
+		created.Background(ButtonVisualState::Hover).Color(color::Gray);
+		created.Text().Content(name);
+		group.Add("option_" + std::to_string(number), created);
+		RecordCreatedEntityPreservingSelection(target.ctx, created);
+		buttons = group.GetButtons();
+		changed = true;
+	}
+
+	if (!section_open) {
+		return changed;
+	}
+
+	ScopedIndent members_indent;
+	Entity remove_item{};
+	for (ToggleButton button : buttons) {
+		if (!button) {
+			continue;
+		}
+
+		ImGui::PushID(button.Get<UUID>());
+		const auto& item{ button.Get<::ptgn::impl::ToggleButtonGroupItem>() };
+		bool active{ button.IsToggled() };
+		std::string label{ item.key.value };
+		if (active) {
+			label += " (Active)";
+		}
+		bool open{ ImGui::TreeNodeEx(
+			"##ToggleGroupMember",
+			ImGuiTreeNodeFlags_SpanAvailWidth | ImGuiTreeNodeFlags_FramePadding, "%s", label.c_str()
+		) };
+
+		if (ImGui::BeginPopupContextItem()) {
+			if (ImGui::MenuItem("Open in Hierarchy")) {
 				target.ctx.editor.GetSceneHierarchyPanel().SetSelectedEntity(button);
 			}
-			ImGui::SameLine();
-			if (ImGui::SmallButton("Remove")) {
-				delete_item = button;
+			ImGui::BeginDisabled(target.IsReadOnly());
+			if (ImGui::MenuItem("Remove")) {
+				remove_item = button;
 			}
-			ImGui::PopID();
+			ImGui::EndDisabled();
+			ImGui::EndPopup();
 		}
 
-		if (delete_item) {
-			target.ctx.commands.DeleteEntity(delete_item);
-			changed = true;
-		}
-
-		if (ImGui::Button("+ Add Toggle", ImVec2{ -FLT_MIN, 0.0f })) {
-			std::string key{ "option_" + std::to_string(buttons.size() + 1) };
-			ToggleButton created{
-				CreateToggleButton(target.entity.GetScene(), {}, V2_float{ 180.0f, 50.0f })
-			};
-			created.Add<Tag>("Toggle " + std::to_string(buttons.size() + 1));
-			created.Background().Color(color::DarkGray);
-			created.Background(ButtonVisualState::Hover).Color(color::Gray);
-			created.Text().Content("Toggle " + std::to_string(buttons.size() + 1));
-			group.Add(key, created);
-			target.ctx.commands.RecordCreatedEntity(created, target.ctx.local.selection);
-			editor_state.toggle_group_item_index = buttons.size();
-			changed								 = true;
-		}
-
-		buttons = group.GetButtons();
-		if (!buttons.empty()) {
-			editor_state.toggle_group_item_index =
-				std::min(editor_state.toggle_group_item_index, buttons.size() - 1);
-			ToggleButton selected_button{ buttons[editor_state.toggle_group_item_index] };
-			ImGui::SeparatorText("Selected Toggle");
-			EntityInspectorTarget item_target{ .ctx = target.ctx, .entity = selected_button };
+		if (open) {
+			DrawNestedButtonRuntimePress(target.ctx, button);
+			EntityInspectorTarget item_target{ .ctx = target.ctx, .entity = button };
+			changed |= DrawTransformSection(item_target, false);
+			changed |= DrawFocusedButtonInteraction(item_target, FocusedUIControlType::Button);
 			changed |= DrawFocusedButtonAppearance(item_target, FocusedUIControlType::ToggleButton);
+			ImGui::TreePop();
+		}
+		ImGui::PopID();
+		if (remove_item) {
+			break;
 		}
 	}
 
-	ImGui::TreePop();
+	if (remove_item) {
+		target.ctx.commands.DeleteEntity(remove_item);
+		changed = true;
+	}
 	return changed;
 }
 
@@ -4616,157 +4738,59 @@ Entity CreateTooltipPartForInspector(EditorContext& ctx, Entity tooltip, bool te
 	return RecordCreatedEntityPreservingSelection(ctx, created);
 }
 
-void DrawUIRuntimeControls(
-	Entity entity, FocusedUIControlType type, bool has_toggle_group, bool has_tooltip
-) {
+void DrawUIRuntimeControls(Entity entity, FocusedUIControlType type) {
 	if (!entity) {
 		return;
 	}
 
+	bool can_press{ entity.Has<::ptgn::impl::ButtonData>() &&
+					type != FocusedUIControlType::Slider };
+	bool is_dialogue{ type == FocusedUIControlType::Dialogue &&
+					  entity.Has<::ptgn::impl::DialogueData>() };
+	bool is_tooltip{ entity.Has<::ptgn::impl::TooltipData>() };
+	if (!is_tooltip) {
+		if (auto hover{ entity.TryGet<::ptgn::impl::TooltipHoverData>() }) {
+			is_tooltip = Tooltip::Get(entity.GetScene(), hover->name).has_value();
+		}
+	}
+
+	if (!can_press && !is_dialogue && !is_tooltip) {
+		return;
+	}
+
 	ImGui::PushID("UIRuntimeControls");
-	ImGui::SeparatorText("Runtime Controls");
 
-	auto run = [&](const char* label, UIAction action, float value = 0.0f,
-				   std::string_view key = {}) {
-		if (ImGui::Button(label)) {
-			(void)ExecuteUIAction(entity, action, value, key);
-		}
-	};
-
-	bool has_button{ entity.Has<::ptgn::impl::ButtonData>() };
-	if (has_button && type != FocusedUIControlType::Slider) {
-		run("Press", UIAction::ButtonPress);
-		ImGui::SameLine();
-		run("Start Hover", UIAction::ButtonHoverStart);
-		ImGui::SameLine();
-		run("Stop Hover", UIAction::ButtonHoverStop);
-		ImGui::SameLine();
-		run("Hover", UIAction::ButtonHoverContinue);
-
-		bool enabled{ Button{ entity }.IsEnabled(false) };
-		if (ImGui::Checkbox("Enable Press", &enabled)) {
-			(void)ExecuteUIAction(
-				entity, enabled ? UIAction::ButtonEnable : UIAction::ButtonDisable
-			);
-		}
+	if (can_press) {
+		DrawRuntimePressButton(entity);
 	}
 
-	if (type == FocusedUIControlType::Slider && entity.Has<::ptgn::impl::SliderData>()) {
-		float value{ Slider{ entity }.GetValue() };
-		ImGui::SetNextItemWidth(-FLT_MIN);
-		if (ImGui::SliderFloat("##RuntimeSliderValue", &value, 0.0f, 1.0f, "Value: %.3f")) {
-			(void)ExecuteUIAction(entity, UIAction::SliderSetValue, value);
-		}
-	}
-
-	if (type == FocusedUIControlType::ToggleButton &&
-		entity.Has<::ptgn::impl::ToggleButtonData>()) {
-		bool toggled{ ToggleButton{ entity }.IsToggled() };
-		if (ImGui::Checkbox("Toggled##RuntimeToggleButton", &toggled)) {
-			(void)ExecuteUIAction(
-				entity, toggled ? UIAction::ToggleButtonOn : UIAction::ToggleButtonOff
-			);
-		}
-	}
-
-	if (has_toggle_group && entity.Has<::ptgn::impl::ToggleButtonGroupData>()) {
-		ToggleButtonGroup group{ entity };
-		const auto& data{ entity.Get<::ptgn::impl::ToggleButtonGroupData>() };
-		std::string current{ data.active ? data.active->value : "None" };
-		ImGui::SetNextItemWidth(-FLT_MIN);
-		if (ImGui::BeginCombo("##RuntimeToggleGroup", current.c_str())) {
-			for (ToggleButton member : group.GetButtons()) {
-				const auto& key{ member.Get<::ptgn::impl::ToggleButtonGroupItem>().key.value };
-				bool selected{ data.active && data.active->value == key };
-				if (ImGui::Selectable(key.c_str(), selected)) {
-					(void)ExecuteUIAction(entity, UIAction::ToggleGroupSelect, 0.0f, key);
-				}
-			}
-			ImGui::EndCombo();
-		}
-		bool require_active{ data.always_active };
-		if (ImGui::Checkbox("Always One Active##RuntimeToggleGroup", &require_active)) {
-			(void)ExecuteUIAction(
-				entity, require_active ? UIAction::ToggleGroupRequireActive
-											: UIAction::ToggleGroupAllowNone
-			);
-		}
-	}
-
-	if (type == FocusedUIControlType::Dropdown &&
-		entity.Has<::ptgn::impl::DropdownData>()) {
-		Dropdown dropdown{ entity };
-		run("Open", UIAction::DropdownOpen);
-		ImGui::SameLine();
-		run("Close", UIAction::DropdownClose);
-		ImGui::SameLine();
-		run("Toggle##Dropdown", UIAction::DropdownToggle);
-
-		auto buttons{ dropdown.GetButtons() };
-		if (!buttons.empty() && ImGui::BeginCombo("##RuntimeDropdownItems", "Press Item")) {
-			for (std::size_t i{ 0 }; i < buttons.size(); ++i) {
-				std::string label{ "Item " + std::to_string(i + 1) };
-				if (ImGui::Selectable(label.c_str())) {
-					(void)ExecuteUIAction(
-						entity, UIAction::DropdownPressItem, static_cast<float>(i)
-					);
-				}
-			}
-			ImGui::EndCombo();
-		}
-	}
-
-	if (type == FocusedUIControlType::Dialogue &&
-		entity.Has<::ptgn::impl::DialogueData>()) {
+	if (is_dialogue) {
 		DialogueBox dialogue{ entity };
-		if (ImGui::Button("Open##RuntimeDialogue")) {
-			dialogue.Open();
+		bool open{ dialogue.IsOpen() };
+		if (ImGui::Button(open ? "Close" : "Open")) {
+			if (open) {
+				dialogue.Close();
+			} else {
+				dialogue.Open();
+			}
 		}
+		DrawRuntimeTooltip(open ? "Close dialogue." : "Open dialogue.");
+
 		ImGui::SameLine();
-		if (ImGui::Button("Close##RuntimeDialogue")) {
-			dialogue.Close();
-		}
 		ImGui::BeginDisabled(!dialogue.IsOpen());
-		if (ImGui::Button("Advance##RuntimeDialogue")) {
+		if (ImGui::Button("Advance")) {
 			dialogue.Advance();
 		}
-		ImGui::SameLine();
-		if (ImGui::Button("Next Page##RuntimeDialogue")) {
-			dialogue.NextPage();
-		}
-		ImGui::SameLine();
-		if (ImGui::Button("Complete Page##RuntimeDialogue")) {
-			dialogue.CompletePage();
-		}
 		ImGui::EndDisabled();
+		DrawRuntimeTooltip("Continue dialogue.");
 	}
 
-	if (has_tooltip && entity.Has<::ptgn::impl::TooltipData>()) {
-		if (ImGui::Button("Show##RuntimeTooltip")) {
-			ShowTooltip(entity);
-		}
-		ImGui::SameLine();
-		if (ImGui::Button("Hide##RuntimeTooltip")) {
-			HideTooltip(entity);
-		}
-		ImGui::SameLine();
-		if (ImGui::Button("Toggle##RuntimeTooltip")) {
+	if (is_tooltip) {
+		bool visible{ IsTooltipVisible(entity) };
+		if (ImGui::Button(visible ? "Hide" : "Show")) {
 			ToggleTooltip(entity);
 		}
-	}
-
-	if (entity.Has<::ptgn::impl::TooltipHoverData>()) {
-		bool hover_enabled{ IsTooltipOnHoverEnabled(entity) };
-		if (ImGui::Checkbox("Show Tooltip On Hover", &hover_enabled)) {
-			SetTooltipOnHoverEnabled(entity, hover_enabled);
-		}
-		if (ImGui::Button("Show##RuntimeHoverTooltip")) {
-			ShowTooltip(entity);
-		}
-		ImGui::SameLine();
-		if (ImGui::Button("Hide##RuntimeHoverTooltip")) {
-			HideTooltip(entity);
-		}
+		DrawRuntimeTooltip(visible ? "Hide tooltip." : "Show tooltip.");
 	}
 
 	ImGui::PopID();
@@ -4834,7 +4858,7 @@ bool DrawUISectionImpl(Target& target) {
 
 	if constexpr (std::same_as<std::remove_cvref_t<Target>, EntityInspectorTarget>) {
 		if (target.ctx.editor.IsPlaying() || target.ctx.editor.IsDirectRuntime()) {
-			DrawUIRuntimeControls(target.entity, control_type, has_toggle_group, has_tooltip);
+			DrawUIRuntimeControls(target.entity, control_type);
 		}
 	}
 
@@ -4871,14 +4895,7 @@ bool DrawUISectionImpl(Target& target) {
 
 					if (control_type == FocusedUIControlType::Dropdown) {
 						changed |= DrawFocusedControlSpecific(target, control_type);
-						bool appearance_open{ ImGui::TreeNodeEx(
-							"Header Appearance##DropdownHeaderAppearance",
-							ImGuiTreeNodeFlags_SpanAvailWidth | ImGuiTreeNodeFlags_FramePadding |
-								ImGuiTreeNodeFlags_NoTreePushOnOpen
-						) };
-						if (appearance_open) {
-							changed |= DrawFocusedButtonAppearance(target, control_type);
-						}
+						changed |= DrawDropdownHeader(target);
 					} else {
 						changed |= DrawFocusedControlSpecific(target, control_type);
 						changed |= DrawFocusedButtonAppearance(target, control_type);
