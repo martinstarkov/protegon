@@ -26,6 +26,7 @@
 #include "core/util/type_info.h"
 #include "runtime/ecs/entity.h"
 #include "runtime/ecs/entity_filter.h"
+#include "runtime/scripting/variables.h"
 #include "serialization/json/json.h"
 
 namespace ptgn {
@@ -120,6 +121,46 @@ struct EventCondition {
 	PTGN_REFLECT(EventCondition, enabled, consume, type_hash, name, value)
 };
 
+// Conditions inspect stored entity state when a sequence is asked to start.
+// The join on each subsequent condition connects it to the preceding enabled condition.
+// AND has precedence over OR. Disabled conditions are ignored.
+enum class StateConditionKind : std::uint8_t {
+	Boolean,
+	Counter
+};
+PTGN_REFLECT_ENUM(StateConditionKind);
+
+enum class StateConditionJoin : std::uint8_t {
+	And,
+	Or
+};
+PTGN_REFLECT_ENUM(StateConditionJoin);
+
+enum class CounterComparison : std::uint8_t {
+	Equal,
+	NotEqual,
+	Less,
+	LessEqual,
+	Greater,
+	GreaterEqual
+};
+PTGN_REFLECT_ENUM(CounterComparison);
+
+struct StateCondition {
+	bool enabled{ true };
+	StateConditionJoin join{ StateConditionJoin::And };
+	StateConditionKind kind{ StateConditionKind::Boolean };
+	BooleanKey boolean{};
+	bool expected_value{ true };
+	CounterKey counter{};
+	CounterComparison comparison{ CounterComparison::Equal };
+	std::int64_t threshold{ 0 };
+
+	PTGN_REFLECT(
+		StateCondition, enabled, join, kind, boolean, expected_value, counter, comparison, threshold
+	)
+};
+
 struct ScriptStep {
 	bool enabled{ true };
 	TypeHashValue type_hash{ 0 };
@@ -192,6 +233,7 @@ public:
 	bool remove_binding_on_complete{ false };
 	bool destroy_owner_on_complete{ false };
 	std::vector<EventCondition> start_events{};
+	std::vector<StateCondition> start_conditions{};
 	std::vector<EventCondition> stop_events{};
 	std::vector<ScriptStep> steps{};
 	std::vector<LifecycleScript> lifecycle_actions{};
@@ -211,6 +253,14 @@ public:
 	ScriptSequence& Channel(SequenceChannelKey value);
 	ScriptSequence& Transient(bool remove_on_complete = true);
 	ScriptSequence& DestroyOwnerOnComplete(bool value = true);
+	ScriptSequence& RequireBoolean(
+		BooleanKey key, bool expected_value = true,
+		StateConditionJoin join = StateConditionJoin::And
+	);
+	ScriptSequence& RequireCounter(
+		CounterKey key, CounterComparison comparison, std::int64_t threshold,
+		StateConditionJoin join = StateConditionJoin::And
+	);
 
 	template <typename TEvent>
 	ScriptSequence& StartOn(json value = nullptr);
@@ -241,8 +291,8 @@ public:
 
 	PTGN_REFLECT(
 		ScriptSequence, id, enabled, shared_reference, shared_sequence_id, name, reentry, channel,
-		transient, remove_binding_on_complete, destroy_owner_on_complete, start_events, stop_events,
-		steps, lifecycle_actions
+		transient, remove_binding_on_complete, destroy_owner_on_complete, start_events,
+		start_conditions, stop_events, steps, lifecycle_actions
 	)
 
 private:

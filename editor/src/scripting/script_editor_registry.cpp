@@ -47,6 +47,7 @@
 #include "runtime/scene/scene_registry.h"
 #include "runtime/scripting/builtin_scripts.h"
 #include "runtime/scripting/script_event.h"
+#include "runtime/scripting/variable_event.h"
 #include "runtime/timer/timer.h"
 #include "runtime/timer/timer_event.h"
 #include "runtime/ui/button.h"
@@ -1059,6 +1060,152 @@ bool DrawTimerActionInline(ScriptEditorContext& context, ActionScript& script) {
 		);
 	}
 
+	return changed;
+}
+
+inline constexpr std::array kCounterActions{
+	std::pair{ CounterAction::Set, "Set" },
+	std::pair{ CounterAction::Increment, "Increment" },
+	std::pair{ CounterAction::Decrement, "Decrement" },
+	std::pair{ CounterAction::Reset, "Reset" },
+};
+
+inline constexpr std::array kBooleanActions{
+	std::pair{ BooleanAction::SetTrue, "Set True" },
+	std::pair{ BooleanAction::SetFalse, "Set False" },
+	std::pair{ BooleanAction::Toggle, "Toggle" },
+	std::pair{ BooleanAction::Reset, "Reset" },
+};
+
+template <typename Key>
+[[nodiscard]] std::vector<Key> GetVariableActionChoices(ScriptEditorContext& context) {
+	if (!context.owner) {
+		return {};
+	}
+	std::vector<Entity> targets;
+	if (context.sequence_target_filter && context.sequence_target_filter->has_value()) {
+		targets = ResolveEntityFilter(
+			context.sequence_target_filter->value(), context.owner.GetScene(), context.owner
+		);
+	} else {
+		targets.push_back(context.owner);
+	}
+	std::vector<Key> result;
+	for (Entity target : targets) {
+		if constexpr (std::same_as<Key, CounterKey>) {
+			if (const auto* variables{ target.TryGet<::ptgn::impl::Counters>() }) {
+				for (const auto& entry : variables->counters) {
+					if (!entry.config.key.value.empty() &&
+						!std::ranges::contains(result, entry.config.key)) {
+						result.push_back(entry.config.key);
+					}
+				}
+			}
+		} else {
+			if (const auto* variables{ target.TryGet<::ptgn::impl::Booleans>() }) {
+				for (const auto& entry : variables->booleans) {
+					if (!entry.config.key.value.empty() &&
+						!std::ranges::contains(result, entry.config.key)) {
+						result.push_back(entry.config.key);
+					}
+				}
+			}
+		}
+	}
+	return result;
+}
+
+template <typename Key>
+bool DrawVariableKeyInline(const char* id, Key& key, const std::vector<Key>& choices, float width) {
+	bool changed{ false };
+	ImGui::SetNextItemWidth(width);
+	if (ImGui::BeginCombo(id, key.value.empty() ? "None" : key.value.c_str())) {
+		std::string custom{ key.value };
+		ImGui::SetNextItemWidth(-FLT_MIN);
+		if (ImGui::InputTextWithHint("##VariableCustomName", "Name...", &custom)) {
+			key.value = std::move(custom);
+			changed	  = true;
+		}
+		ImGui::Separator();
+		if (ImGui::Selectable("None", key.value.empty()) && !key.value.empty()) {
+			key.value.clear();
+			changed = true;
+		}
+		for (const auto& choice : choices) {
+			if (ImGui::Selectable(choice.value.c_str(), choice == key) && choice != key) {
+				key		= choice;
+				changed = true;
+			}
+		}
+		if (choices.empty()) {
+			ImGui::TextDisabled("No matching variables on the target.");
+		}
+		ImGui::EndCombo();
+	}
+	return changed;
+}
+
+bool DrawCounterActionInline(ScriptEditorContext& context, ActionScript& script) {
+	float available{ ImGui::GetContentRegionAvail().x };
+	float spacing{ ImGui::GetStyle().ItemSpacing.x };
+	bool uses_amount{ script.counter_action != CounterAction::Reset };
+	float action_width{ 120.0f };
+	float amount_width{ 95.0f };
+	float key_width{ std::max(
+		1.0f, available - action_width - spacing - (uses_amount ? amount_width + spacing : 0.0f)
+	) };
+	bool changed{ DrawVariableKeyInline(
+		"##CounterKey", script.counter, GetVariableActionChoices<CounterKey>(context), key_width
+	) };
+	SameLineControl();
+	ImGui::SetNextItemWidth(action_width);
+	const char* preview{ "Set" };
+	for (const auto& [action, label] : kCounterActions) {
+		if (script.counter_action == action) {
+			preview = label;
+		}
+	}
+	if (ImGui::BeginCombo("##CounterAction", preview)) {
+		for (const auto& [action, label] : kCounterActions) {
+			if (ImGui::Selectable(label, script.counter_action == action)) {
+				script.counter_action = action;
+				changed				  = true;
+			}
+		}
+		ImGui::EndCombo();
+	}
+	if (uses_amount) {
+		SameLineControl();
+		ImGui::SetNextItemWidth(amount_width);
+		changed |= ImGui::InputScalar("##CounterAmount", ImGuiDataType_S64, &script.counter_amount);
+	}
+	return changed;
+}
+
+bool DrawBooleanActionInline(ScriptEditorContext& context, ActionScript& script) {
+	float available{ ImGui::GetContentRegionAvail().x };
+	float action_width{ 120.0f };
+	bool changed{ DrawVariableKeyInline(
+		"##BooleanKey", script.boolean, GetVariableActionChoices<BooleanKey>(context),
+		std::max(1.0f, available - action_width - ImGui::GetStyle().ItemSpacing.x)
+	) };
+	SameLineControl();
+	ImGui::SetNextItemWidth(action_width);
+	const char* preview{ "Toggle" };
+	for (const auto& [action, label] : kBooleanActions) {
+		if (script.boolean_action == action) {
+			preview = label;
+		}
+	}
+	if (ImGui::BeginCombo("##BooleanAction", preview)) {
+		for (const auto& [action, label] : kBooleanActions) {
+			if (ImGui::Selectable(label, script.boolean_action == action)) {
+				script.boolean_action = action;
+				changed				  = true;
+			}
+		}
+		ImGui::EndCombo();
+	}
 	return changed;
 }
 
@@ -2563,6 +2710,8 @@ bool DrawActionScriptInline(ScriptEditorContext& context, ActionScript& script) 
 	switch (script.family) {
 		case ActionFamily::Animation:	 return DrawAnimationActionInline(context, script);
 		case ActionFamily::Timer:		 return DrawTimerActionInline(context, script);
+		case ActionFamily::Counter:		 return DrawCounterActionInline(context, script);
+		case ActionFamily::Boolean:		 return DrawBooleanActionInline(context, script);
 		case ActionFamily::Lifetime:	 return DrawLifetimeActionInline(context, script);
 		case ActionFamily::Button:
 		case ActionFamily::Slider:
@@ -2578,9 +2727,10 @@ bool DrawActionScriptInline(ScriptEditorContext& context, ActionScript& script) 
 PTGN_REGISTER_SCRIPT(
 	ActionScript,
 	{
-		.label		 = "Button Action",
-		.group		 = "UI",
-		.description = "Perform a typed action on an animation, timer, lifetime, or UI control.",
+		.label = "Button Action",
+		.group = "UI",
+		.description =
+			"Perform a typed action on a counter, boolean, timer, animation, or UI control.",
 		.type		 = ScriptType::Sequence,
 		.menu_order	 = 1,
 		.draw_inline = &DrawActionScriptInline,
@@ -3114,6 +3264,26 @@ PTGN_REGISTER_EVENT(
 		.group = "Timing",
 		.description =
 			"Matches when a named timer reaches its configured or overridden elapsed duration.",
+		.inline_fields = 3,
+	}
+);
+
+PTGN_REGISTER_EVENT(
+	event::CounterChanged,
+	{
+		.label		   = "On Counter Changed",
+		.group		   = "Variables",
+		.description   = "Matches changes or threshold crossings of a named counter.",
+		.inline_fields = 3,
+	}
+);
+
+PTGN_REGISTER_EVENT(
+	event::BooleanChanged,
+	{
+		.label		   = "On Boolean Changed",
+		.group		   = "Variables",
+		.description   = "Matches changes to a named boolean or a specific boolean transition.",
 		.inline_fields = 3,
 	}
 );

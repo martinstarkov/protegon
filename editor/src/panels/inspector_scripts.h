@@ -4,6 +4,7 @@
 
 #include "commands/entity/entity_reference.h"
 #include "runtime/ecs/entity.h"
+#include "runtime/scripting/variables.h"
 #include "runtime/timer/timer.h"
 
 namespace ptgn {
@@ -27,8 +28,7 @@ namespace inspector {
 
 bool DrawScriptsComponent(EditorContext& ctx, ::ptgn::impl::Scripts& scripts);
 
-// Opaque snapshot used by the timer inspector when a timer rename also updates
-// script/event references throughout the scene.
+// Captures script and event references throughout the scene for undoing a rename.
 struct TimerReferenceSceneSnapshot {
 	std::shared_ptr<const void> data{};
 };
@@ -41,6 +41,8 @@ void RestoreTimerReferenceSceneSnapshot(
 );
 
 bool RenameTimerReferences(Entity timer_entity, const TimerKey& old_key, const TimerKey& new_key);
+bool RenameCounterReferences(Entity entity, const CounterKey& old_key, const CounterKey& new_key);
+bool RenameBooleanReferences(Entity entity, const BooleanKey& old_key, const BooleanKey& new_key);
 
 } // namespace inspector
 

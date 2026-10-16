@@ -1074,6 +1074,34 @@ void ActionScript::OnStart() {
 			}
 			break;
 		}
+		case ActionFamily::Counter: {
+			CounterHandle handle{ GetCounter(Target(), counter) };
+			if (!handle) {
+				PTGN_WARN("Counter action requires an existing counter: ", counter.value);
+				return;
+			}
+			switch (counter_action) {
+				case CounterAction::Set:	   handle.Set(counter_amount); break;
+				case CounterAction::Increment: handle.Add(counter_amount); break;
+				case CounterAction::Decrement: handle.Subtract(counter_amount); break;
+				case CounterAction::Reset:	   handle.Reset(); break;
+			}
+			break;
+		}
+		case ActionFamily::Boolean: {
+			BooleanHandle handle{ GetBoolean(Target(), boolean) };
+			if (!handle) {
+				PTGN_WARN("Boolean action requires an existing boolean: ", boolean.value);
+				return;
+			}
+			switch (boolean_action) {
+				case BooleanAction::SetTrue:  handle.Set(true); break;
+				case BooleanAction::SetFalse: handle.Set(false); break;
+				case BooleanAction::Toggle:	  handle.Toggle(); break;
+				case BooleanAction::Reset:	  handle.Reset(); break;
+			}
+			break;
+		}
 		case ActionFamily::Lifetime: {
 			Entity entity{ Target() };
 			auto* lifetime{ entity ? entity.TryGet<Lifetime>() : nullptr };

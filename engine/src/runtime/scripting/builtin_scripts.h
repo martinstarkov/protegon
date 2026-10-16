@@ -20,6 +20,7 @@
 #include "runtime/ecs/component_registry.h"
 #include "runtime/scene/scene_transition.h"
 #include "runtime/scripting/script.h"
+#include "runtime/scripting/variables.h"
 #include "runtime/timer/timer.h"
 
 namespace ptgn {
@@ -507,6 +508,22 @@ enum class TimerAction : std::uint8_t {
 
 PTGN_REFLECT_ENUM(TimerAction);
 
+enum class CounterAction : std::uint8_t {
+	Set,
+	Increment,
+	Decrement,
+	Reset
+};
+PTGN_REFLECT_ENUM(CounterAction);
+
+enum class BooleanAction : std::uint8_t {
+	SetTrue,
+	SetFalse,
+	Toggle,
+	Reset
+};
+PTGN_REFLECT_ENUM(BooleanAction);
+
 enum class LifetimeAction : std::uint8_t {
 	Start,
 	Restart,
@@ -592,7 +609,9 @@ enum class ActionFamily : std::uint8_t {
 	ToggleGroup,
 	Dropdown,
 	Dialogue,
-	Tooltip
+	Tooltip,
+	Counter,
+	Boolean
 };
 
 PTGN_REFLECT_ENUM(ActionFamily);
@@ -603,12 +622,17 @@ struct ActionScript : public Script {
 	ActionFamily family{ ActionFamily::Button };
 	AnimationAction animation_action{ AnimationAction::Start };
 	TimerAction timer_action{ TimerAction::Start };
+	CounterAction counter_action{ CounterAction::Set };
+	BooleanAction boolean_action{ BooleanAction::Toggle };
 	LifetimeAction lifetime_action{ LifetimeAction::Start };
 	UIAction ui_action{ UIAction::ButtonPress };
 	DialogueAction dialogue_action{ DialogueAction::Advance };
 	TooltipAction tooltip_action{ TooltipAction::Show };
 
 	TimerKey timer{};
+	CounterKey counter{};
+	BooleanKey boolean{};
+	std::int64_t counter_amount{ 1 };
 	millisecondsf amount{ 1000.0f };
 	std::string animation_key{};
 	std::size_t frame{ 0 };
@@ -619,21 +643,22 @@ struct ActionScript : public Script {
 	std::string dialogue{};
 
 	ActionScript() = default;
+
 	explicit ActionScript(ActionFamily action_family) : family{ action_family } {
 		switch (family) {
-			case ActionFamily::Slider: ui_action = UIAction::SliderSetValue; break;
+			case ActionFamily::Slider:		 ui_action = UIAction::SliderSetValue; break;
 			case ActionFamily::ToggleButton: ui_action = UIAction::ToggleButtonToggle; break;
-			case ActionFamily::ToggleGroup: ui_action = UIAction::ToggleGroupSelect; break;
-			case ActionFamily::Dropdown: ui_action = UIAction::DropdownOpen; break;
-			default: break;
+			case ActionFamily::ToggleGroup:	 ui_action = UIAction::ToggleGroupSelect; break;
+			case ActionFamily::Dropdown:	 ui_action = UIAction::DropdownOpen; break;
+			default:						 break;
 		}
 	}
 
 	void OnStart() override;
 	PTGN_REFLECT(
-		ActionScript, family, animation_action, timer_action, lifetime_action, ui_action,
-		dialogue_action, tooltip_action, timer, amount, animation_key, frame, force,
-		reset_on_stop, value, key, dialogue
+		ActionScript, family, animation_action, timer_action, counter_action, boolean_action,
+		lifetime_action, ui_action, dialogue_action, tooltip_action, timer, counter, boolean,
+		counter_amount, amount, animation_key, frame, force, reset_on_stop, value, key, dialogue
 	)
 };
 

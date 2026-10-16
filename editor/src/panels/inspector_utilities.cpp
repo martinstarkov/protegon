@@ -1,8 +1,12 @@
+#include <limits>
+#include <type_traits>
+
 #include "core/util/time.h"
 #include "editor/editor_icons.h"
 #include "panels/inspector_archetype_inspector.h"
 #include "panels/inspector_scripts.h"
 #include "runtime/physics/lifetime.h"
+#include "runtime/scripting/variables.h"
 
 namespace ptgn::editor::inspector {
 
@@ -566,6 +570,375 @@ bool DrawTimersComponent(Target& target) {
 	return true;
 }
 
+template <typename Component>
+[[nodiscard]] auto& VariableEntries(Component& component) {
+	if constexpr (std::same_as<std::remove_cvref_t<Component>, ::ptgn::impl::Counters>) {
+		return component.counters;
+	} else {
+		return component.booleans;
+	}
+}
+
+template <typename Component>
+[[nodiscard]] const char* VariableName() {
+	if constexpr (std::same_as<Component, ::ptgn::impl::Counters>) {
+		return "Counter";
+	} else {
+		return "Boolean";
+	}
+}
+
+template <typename Component>
+[[nodiscard]] bool IsVariableRuntimeActive(EditorContext& ctx) {
+	return ctx.editor.IsPlaying() || ctx.editor.IsDirectRuntime();
+}
+
+template <typename Component>
+[[nodiscard]] auto MakeUniqueVariableKey(const Component& component) {
+	const auto& entries{ VariableEntries(component) };
+	for (std::size_t index{ 1 };; ++index) {
+		std::string candidate{ std::string{ VariableName<Component>() } + " " +
+							   std::to_string(index) };
+		if (std::ranges::none_of(entries, [&candidate](const auto& entry) {
+				return entry.config.key.value == candidate;
+			})) {
+			if constexpr (std::same_as<Component, ::ptgn::impl::Counters>) {
+				return CounterKey{ std::move(candidate) };
+			} else {
+				return BooleanKey{ std::move(candidate) };
+			}
+		}
+	}
+}
+
+template <typename Component>
+[[nodiscard]] bool DrawCounterOrBooleanEntry(
+	EditorContext& ctx, Entity entity,
+	std::conditional_t<std::same_as<Component, ::ptgn::impl::Counters>, CounterEntry, BooleanEntry>&
+		entry
+) {
+	bool changed{ false };
+	bool runtime{ entity && IsVariableRuntimeActive<Component>(ctx) };
+	if constexpr (std::same_as<Component, ::ptgn::impl::Counters>) {
+		if (runtime) {
+			CounterHandle handle{ GetCounter(entity, entry.config.key) };
+			if (handle) {
+				std::int64_t current{ handle.Value() };
+				if (DrawPropertyRow("Current Value", [&]() {
+						ImGui::SetNextItemWidth(-FLT_MIN);
+						return ImGui::InputScalar("##CounterCurrent", ImGuiDataType_S64, &current);
+					})) {
+					handle.Set(current);
+				}
+				entry.value = handle.Value();
+			}
+		}
+		changed |= DrawPropertyRow("Initial Value", [&]() {
+			ImGui::SetNextItemWidth(-FLT_MIN);
+			return ImGui::InputScalar(
+				"##InitialCounter", ImGuiDataType_S64, &entry.config.initial_value
+			);
+		});
+		bool use_minimum{ entry.config.minimum.has_value() };
+		if (DrawValue(ctx, "Use Minimum", use_minimum)) {
+			entry.config.minimum = use_minimum ? std::optional<std::int64_t>{ 0 } : std::nullopt;
+			changed				 = true;
+		}
+		if (entry.config.minimum) {
+			changed |= DrawPropertyRow("Minimum", [&]() {
+				ImGui::SetNextItemWidth(-FLT_MIN);
+				return ImGui::InputScalar(
+					"##MinimumCounter", ImGuiDataType_S64, std::addressof(*entry.config.minimum)
+				);
+			});
+		}
+		bool use_maximum{ entry.config.maximum.has_value() };
+		if (DrawValue(ctx, "Use Maximum", use_maximum)) {
+			entry.config.maximum = use_maximum ? std::optional<std::int64_t>{ 100 } : std::nullopt;
+			changed				 = true;
+		}
+		if (entry.config.maximum) {
+			changed |= DrawPropertyRow("Maximum", [&]() {
+				ImGui::SetNextItemWidth(-FLT_MIN);
+				return ImGui::InputScalar(
+					"##MaximumCounter", ImGuiDataType_S64, std::addressof(*entry.config.maximum)
+				);
+			});
+		}
+		if (changed) {
+			if (entry.config.minimum && entry.config.maximum &&
+				*entry.config.minimum > *entry.config.maximum) {
+				std::swap(entry.config.minimum, entry.config.maximum);
+			}
+			entry.config.initial_value = std::clamp(
+				entry.config.initial_value,
+				entry.config.minimum.value_or(std::numeric_limits<std::int64_t>::min()),
+				entry.config.maximum.value_or(std::numeric_limits<std::int64_t>::max())
+			);
+			if (!runtime) {
+				entry.value = entry.config.initial_value;
+			}
+		}
+	} else {
+		if (runtime) {
+			BooleanHandle handle{ GetBoolean(entity, entry.config.key) };
+			if (handle) {
+				bool current{ handle.Value() };
+				if (DrawValue(ctx, "Current Value", current)) {
+					handle.Set(current);
+				}
+				entry.value = handle.Value();
+			}
+		}
+		changed |= DrawValue(ctx, "Initial Value", entry.config.initial_value);
+		if (changed && !runtime) {
+			entry.value = entry.config.initial_value;
+		}
+	}
+	return changed;
+}
+
+template <typename Key>
+struct VariableRename {
+	Key old_key{};
+	Key new_key{};
+};
+
+template <typename Target, typename Component>
+bool DrawNamedVariableComponent(Target& target) {
+	using Key =
+		std::conditional_t<std::same_as<Component, ::ptgn::impl::Counters>, CounterKey, BooleanKey>;
+
+	ScopedID target_scope{ target.Id() };
+	ScopedID component_scope{ static_cast<int>(Hash<Component>()) };
+	auto before{ target.template Capture<Component>() };
+	if (!before) {
+		return false;
+	}
+	const char* plural{ std::same_as<Component, ::ptgn::impl::Counters> ? "Counters" : "Booleans" };
+	const char* section_id{ std::same_as<Component, ::ptgn::impl::Counters> ? "CountersSection"
+																			: "BooleansSection" };
+	auto header{ DrawInspectorSectionHeader(
+		plural, section_id,
+		InspectorSectionOptions{ .default_open = true, .removable = true, .resettable = true }
+	) };
+	if (header.remove_requested || header.reset_requested) {
+		target.template SetLive<Component>(
+			header.remove_requested ? std::nullopt : ComponentState<Component>{ Component{} }
+		);
+		auto after{ target.template Capture<Component>() };
+		TrackComponentState(
+			target, header.remove_requested ? "Remove Variables" : "Reset Variables",
+			std::move(before), std::move(after), true
+		);
+		return true;
+	}
+	if (!header.open) {
+		return false;
+	}
+	ScopedIndent indent;
+	Component value{ *before };
+	auto& entries{ VariableEntries(value) };
+	std::vector<VariableRename<Key>> renames;
+	static RenameModalState rename_state{};
+	static std::optional<std::size_t> rename_index{};
+	std::optional<std::size_t> remove_index;
+	bool changed{ false };
+	std::string undo_label{ std::string{ "Edit " } + plural };
+	std::optional<ImGuiID> undo_key;
+	auto set_undo = [&](std::string_view name, const char* id) {
+		undo_label = name;
+		undo_key   = ImGui::GetID(id);
+	};
+	bool add_requested{ DrawInspectorTabCollection(
+		entries.empty(),
+		InspectorTabCollectionOptions{
+			.scope_id		 = "##VariableTabStrip",
+			.tab_bar_id		 = "##VariableTabs",
+			.add_tab_id		 = "+##AddVariable",
+			.empty_add_label = "Add Variable",
+			.add_tooltip	 = "Add a named variable",
+		},
+		[&]() {
+			for (std::size_t index{ 0 }; index < entries.size(); ++index) {
+				ScopedID entry_scope{ static_cast<int>(index) };
+				auto& entry{ entries[index] };
+				std::string label{ entry.config.key.value.empty()
+									   ? std::string{ VariableName<Component>() } + " " +
+											 std::to_string(index + 1)
+									   : entry.config.key.value };
+				bool selected{ BeginInspectorTabItem(label.c_str()) };
+				auto menu{
+					DrawInspectorTabContextMenu("##VariableTabContext", true, false, true, "Delete")
+				};
+				if (menu.rename_requested) {
+					rename_index = index;
+					rename_state.Begin(entry.config.key.value);
+				}
+				if (menu.remove_requested) {
+					remove_index = index;
+					set_undo("Remove Variable", "##RemoveVariable");
+				}
+				if (selected) {
+					if (!remove_index.has_value()) {
+						Entity entity{};
+						if constexpr (requires { target.entity; }) {
+							entity = target.entity;
+						}
+						if (DrawCounterOrBooleanEntry<Component>(target.ctx, entity, entry)) {
+							changed = true;
+							set_undo("Change Variable", "##ChangeVariable");
+						}
+					}
+					ImGui::EndTabItem();
+				}
+			}
+		}
+	) };
+	if (add_requested) {
+		auto key{ MakeUniqueVariableKey(value) };
+		if constexpr (std::same_as<Component, ::ptgn::impl::Counters>) {
+			entries.push_back(CounterEntry{ .config = CounterConfig{ .key = key } });
+		} else {
+			entries.push_back(BooleanEntry{ .config = BooleanConfig{ .key = key } });
+		}
+		changed = true;
+		set_undo("Add Variable", "##AddVariable");
+	}
+	if (remove_index && *remove_index < entries.size()) {
+		entries.erase(entries.begin() + static_cast<std::ptrdiff_t>(*remove_index));
+		changed = true;
+		if (rename_index) {
+			if (*rename_index == *remove_index) {
+				rename_state.Cancel();
+				rename_index.reset();
+			} else if (*rename_index > *remove_index) {
+				--*rename_index;
+			}
+		}
+	}
+	if (rename_state.active && rename_index) {
+		std::size_t index{ *rename_index };
+		if (index >= entries.size()) {
+			rename_state.Cancel();
+			rename_index.reset();
+		} else {
+			DrawInspectorTabRenameModal(
+				rename_state, "Rename Variable", "##RenameVariable",
+				[&](std::string_view name) {
+					if (name.empty()) {
+						return std::string{ "Variable name cannot be empty." };
+					}
+					for (std::size_t i{ 0 }; i < entries.size(); ++i) {
+						if (i != index && entries[i].config.key.value == name) {
+							return std::string{ "Names must be unique within this component." };
+						}
+					}
+					return std::string{};
+				},
+				[&](std::string_view name) {
+					Key old_key{ entries[index].config.key };
+					Key new_key{ std::string{ name } };
+					if (old_key == new_key) {
+						return;
+					}
+					entries[index].config.key = new_key;
+					renames.push_back(
+						VariableRename<Key>{ .old_key = old_key, .new_key = new_key }
+					);
+					changed = true;
+					set_undo("Rename Variable", "##RenameVariable");
+				},
+				""
+			);
+			if (!rename_state.active) {
+				rename_index.reset();
+			}
+		}
+	}
+	if (!changed) {
+		return false;
+	}
+	// Keep the current runtime values when editing configuration.
+	if constexpr (requires { target.entity; }) {
+		if (target.entity && IsVariableRuntimeActive<Component>(target.ctx)) {
+			for (auto& entry : entries) {
+				if constexpr (std::same_as<Component, ::ptgn::impl::Counters>) {
+					if (auto handle{ GetCounter(target.entity, entry.config.key) }) {
+						entry.value = handle.Value();
+					}
+				} else {
+					if (auto handle{ GetBoolean(target.entity, entry.config.key) }) {
+						entry.value = handle.Value();
+					}
+				}
+			}
+		}
+	}
+	target.template SetLive<Component>(value);
+	// Applying new bounds can immediately clamp an existing runtime value. Use the
+	// handle API so crossing or change triggers are dispatched exactly once.
+	if constexpr (std::same_as<Component, ::ptgn::impl::Counters>) {
+		if constexpr (requires { target.entity; }) {
+			if (target.entity && IsVariableRuntimeActive<Component>(target.ctx)) {
+				for (const auto& entry : value.counters) {
+					if (auto handle{ GetCounter(target.entity, entry.config.key) }) {
+						handle.Set(entry.value);
+					}
+				}
+			}
+		}
+	}
+	auto after{ target.template Capture<Component>() };
+	ImGuiID edit_id{ undo_key.value_or(ImGui::GetID("##VariableComponentEdit")) };
+	if constexpr (std::same_as<std::remove_cvref_t<Target>, EntityInspectorTarget>) {
+		bool references_changed{ false };
+		std::optional<TimerReferenceSceneSnapshot> before_references;
+		std::optional<TimerReferenceSceneSnapshot> after_references;
+		if (target.entity && !renames.empty()) {
+			before_references = CaptureTimerReferenceSceneSnapshot(target.entity.GetScene());
+			for (const auto& rename : renames) {
+				if constexpr (std::same_as<Component, ::ptgn::impl::Counters>) {
+					references_changed |=
+						RenameCounterReferences(target.entity, rename.old_key, rename.new_key);
+				} else {
+					references_changed |=
+						RenameBooleanReferences(target.entity, rename.old_key, rename.new_key);
+				}
+			}
+			if (references_changed) {
+				after_references = CaptureTimerReferenceSceneSnapshot(target.entity.GetScene());
+			}
+		}
+		if (references_changed) {
+			Editor* editor{ std::addressof(target.ctx.editor) };
+			EntityReference reference{ MakeEntityReference(target.entity) };
+			auto apply{ target.template MakeApply<Component>() };
+			TrackUndoableInteraction(
+				target.ctx, edit_id, undo_label, true,
+				[editor, reference, apply, before = std::move(before),
+				 before_references = std::move(*before_references)]() mutable {
+					apply(before);
+					RestoreTimerReferenceSceneSnapshot(*editor, reference, before_references);
+				},
+				[editor, reference, apply, after = std::move(after),
+				 after_references = std::move(*after_references)]() mutable {
+					apply(after);
+					RestoreTimerReferenceSceneSnapshot(*editor, reference, after_references);
+				}
+			);
+			return true;
+		}
+	}
+	auto apply{ target.template MakeApply<Component>() };
+	TrackUndoableInteraction(
+		target.ctx, edit_id, undo_label, true,
+		[apply, before = std::move(before)]() mutable { apply(before); },
+		[apply, after = std::move(after)]() mutable { apply(after); }
+	);
+	return true;
+}
+
 template <typename Target>
 bool DrawUtilitiesSectionImpl(Target& target) {
 	if (!HasUtilitiesSection(target)) {
@@ -574,6 +947,8 @@ bool DrawUtilitiesSectionImpl(Target& target) {
 
 	bool changed{ false };
 	changed |= DrawTimersComponent(target);
+	changed |= DrawNamedVariableComponent<Target, ::ptgn::impl::Counters>(target);
+	changed |= DrawNamedVariableComponent<Target, ::ptgn::impl::Booleans>(target);
 	changed |= DrawComponentSection<Target, Group>(target, "Groups", [](Group& value) {
 		return DrawGroupContents(value);
 	});

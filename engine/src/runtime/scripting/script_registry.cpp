@@ -35,14 +35,15 @@
 #include "runtime/scripting/builtin_scripts.h"
 #include "runtime/scripting/script_event.h"
 #include "runtime/scripting/script_registration_engine.h"
+#include "runtime/scripting/variable_event.h"
 #include "runtime/timer/timer.h"
 #include "runtime/timer/timer_event.h"
 #include "runtime/ui/button.h"
 #include "runtime/ui/dialogue.h"
 #include "runtime/ui/dropdown.h"
 #include "runtime/ui/slider.h"
-#include "runtime/ui/tooltip.h"
 #include "runtime/ui/toggle_button.h"
+#include "runtime/ui/tooltip.h"
 
 namespace ptgn {
 
@@ -374,6 +375,14 @@ template <typename TEvent>
 	return entity && entity.Has<impl::Timers>();
 }
 
+[[nodiscard]] bool HasCounters(Entity entity) {
+	return entity && entity.Has<impl::Counters>();
+}
+
+[[nodiscard]] bool HasBooleans(Entity entity) {
+	return entity && entity.Has<impl::Booleans>();
+}
+
 } // namespace
 
 PTGN_REGISTER_SCRIPT(Script);
@@ -618,9 +627,10 @@ PTGN_REGISTER_EVENT(
 PTGN_REGISTER_EVENT(
 	event::DialogueContinued,
 	{ .default_value = json{ { "dialogue", std::string{} }, { "page", -1 } },
-	  .matches = [](Entity, const json& value, const event::DialogueContinued& event) {
-		  return MatchDialoguePage(value, event.key, event.page);
-	  },
+	  .matches =
+		  [](Entity, const json& value, const event::DialogueContinued& event) {
+			  return MatchDialoguePage(value, event.key, event.page);
+		  },
 	  .available = &HasDialogueData }
 );
 PTGN_REGISTER_EVENT(
@@ -742,6 +752,73 @@ PTGN_REGISTER_EVENT(
 				return event.previous_elapsed < duration && event.elapsed >= duration;
 			},
 		.available = &HasTimers,
+	}
+);
+// Comparison values are stored in the trigger JSON so they can be edited in the inspector.
+// "crossed" comparisons use the previous value and fire only on threshold entry.
+PTGN_REGISTER_EVENT(
+	event::CounterChanged,
+	{
+		.default_value =
+			[] {
+				auto value			= MakeEventDefault("counter", CounterKey{});
+				value["comparison"] = 0;
+				value["threshold"]	= std::int64_t{ 0 };
+				return value;
+			}(),
+		.matches =
+			[](Entity, const json& value, const event::CounterChanged& event) {
+				if (event.counter != JsonValueOr<CounterKey>(value, "counter", CounterKey{})) {
+					return false;
+				}
+				std::int64_t threshold{ JsonValueOr<std::int64_t>(value, "threshold", 0) };
+				switch (JsonValueOr<int>(value, "comparison", 0)) {
+					case 0: return true;							   // Changed
+					case 1: return event.value > event.previous_value; // Increased
+					case 2: return event.value < event.previous_value; // Decreased
+					case 3:
+						return event.previous_value != threshold &&
+							   event.value == threshold; // Reached
+					case 4:
+						return event.previous_value < threshold &&
+							   event.value >= threshold; // Crossed above or reached
+					case 5:
+						return event.previous_value > threshold &&
+							   event.value <= threshold; // Crossed below or reached
+					case 6:
+						return event.previous_value <= threshold &&
+							   event.value > threshold; // Crossed strictly above
+					case 7:
+						return event.previous_value >= threshold &&
+							   event.value < threshold; // Crossed strictly below
+					default: return false;
+				}
+			},
+		.available = &HasCounters,
+	}
+);
+PTGN_REGISTER_EVENT(
+	event::BooleanChanged,
+	{
+		.default_value =
+			[] {
+				auto value			= MakeEventDefault("boolean", BooleanKey{});
+				value["transition"] = 0;
+				return value;
+			}(),
+		.matches =
+			[](Entity, const json& value, const event::BooleanChanged& event) {
+				if (event.boolean != JsonValueOr<BooleanKey>(value, "boolean", BooleanKey{})) {
+					return false;
+				}
+				switch (JsonValueOr<int>(value, "transition", 0)) {
+					case 0:	 return true;
+					case 1:	 return event.value;
+					case 2:	 return !event.value;
+					default: return false;
+				}
+			},
+		.available = &HasBooleans,
 	}
 );
 PTGN_REGISTER_EVENT(

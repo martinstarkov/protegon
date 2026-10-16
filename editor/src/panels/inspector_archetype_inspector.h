@@ -94,6 +94,7 @@
 #include "runtime/scene/scene_context.h"
 #include "runtime/scripting/builtin_scripts.h"
 #include "runtime/scripting/script.h"
+#include "runtime/scripting/variables.h"
 #include "runtime/timer/timer.h"
 #include "runtime/timer/timer_event.h"
 #include "runtime/ui/button.h"
@@ -1224,7 +1225,8 @@ using UISectionComponents = ComponentSet<
 
 using CameraSectionComponents = ComponentSet<
 	::ptgn::impl::CameraData, ::ptgn::impl::CameraMask, ::ptgn::impl::ParentRenderTarget>;
-using UtilitySectionComponents = ComponentSet<::ptgn::impl::Timers, Lifetime, Group>;
+using UtilitySectionComponents = ComponentSet<
+	::ptgn::impl::Timers, ::ptgn::impl::Counters, ::ptgn::impl::Booleans, Lifetime, Group>;
 
 template <typename Target, typename T>
 bool DrawIgnoreCheckbox(Target& target, std::string_view tooltip) {

@@ -62,6 +62,7 @@ ScriptSequence::ScriptSequence(const ScriptSequence& other) :
 	remove_binding_on_complete{ other.remove_binding_on_complete },
 	destroy_owner_on_complete{ other.destroy_owner_on_complete },
 	start_events{ other.start_events },
+	start_conditions{ other.start_conditions },
 	stop_events{ other.stop_events },
 	steps{ other.steps },
 	lifecycle_actions{ other.lifecycle_actions } {}
@@ -92,6 +93,35 @@ ScriptSequence& ScriptSequence::Transient(bool remove_on_complete) {
 
 ScriptSequence& ScriptSequence::DestroyOwnerOnComplete(bool value) {
 	destroy_owner_on_complete = value;
+	return *this;
+}
+
+ScriptSequence& ScriptSequence::RequireBoolean(
+	BooleanKey key, bool expected_value, StateConditionJoin join
+) {
+	start_conditions.push_back(
+		StateCondition{
+			.join			= start_conditions.empty() ? StateConditionJoin::And : join,
+			.kind			= StateConditionKind::Boolean,
+			.boolean		= std::move(key),
+			.expected_value = expected_value,
+		}
+	);
+	return *this;
+}
+
+ScriptSequence& ScriptSequence::RequireCounter(
+	CounterKey key, CounterComparison comparison, std::int64_t threshold, StateConditionJoin join
+) {
+	start_conditions.push_back(
+		StateCondition{
+			.join		= start_conditions.empty() ? StateConditionJoin::And : join,
+			.kind		= StateConditionKind::Counter,
+			.counter	= std::move(key),
+			.comparison = comparison,
+			.threshold	= threshold,
+		}
+	);
 	return *this;
 }
 
@@ -316,8 +346,8 @@ namespace {
 		   sequence.reentry != ReentryMode::IgnoreWhileRunning || sequence.channel.has_value() ||
 		   sequence.transient || sequence.remove_binding_on_complete ||
 		   sequence.destroy_owner_on_complete || !sequence.start_events.empty() ||
-		   !sequence.stop_events.empty() || !sequence.steps.empty() ||
-		   !sequence.lifecycle_actions.empty();
+		   !sequence.start_conditions.empty() || !sequence.stop_events.empty() ||
+		   !sequence.steps.empty() || !sequence.lifecycle_actions.empty();
 }
 
 [[nodiscard]] bool HasSerializedScriptValue(const json& value) {
@@ -463,7 +493,8 @@ namespace {
 
 [[nodiscard]] bool HasSequenceDefinition(const ScriptSequence& sequence) {
 	return sequence.shared_reference || !sequence.steps.empty() || !sequence.start_events.empty() ||
-		   !sequence.stop_events.empty() || !sequence.lifecycle_actions.empty();
+		   !sequence.start_conditions.empty() || !sequence.stop_events.empty() ||
+		   !sequence.lifecycle_actions.empty();
 }
 
 void CopySequenceDefinition(ScriptSequence& destination, const ScriptSequence& source) {
@@ -691,9 +722,68 @@ bool CancelBinding(
 	return active;
 }
 
+[[nodiscard]] bool EvaluateStateCondition(Entity owner, const StateCondition& condition) {
+	switch (condition.kind) {
+		case StateConditionKind::Boolean: {
+			BooleanHandle boolean{ GetBoolean(owner, condition.boolean) };
+			return boolean && boolean.Value() == condition.expected_value;
+		}
+		case StateConditionKind::Counter: {
+			CounterHandle counter{ GetCounter(owner, condition.counter) };
+			if (!counter) {
+				return false;
+			}
+
+			std::int64_t value{ counter.Value() };
+			switch (condition.comparison) {
+				case CounterComparison::Equal:		  return value == condition.threshold;
+				case CounterComparison::NotEqual:	  return value != condition.threshold;
+				case CounterComparison::Less:		  return value < condition.threshold;
+				case CounterComparison::LessEqual:	  return value <= condition.threshold;
+				case CounterComparison::Greater:	  return value > condition.threshold;
+				case CounterComparison::GreaterEqual: return value >= condition.threshold;
+				default:							  return false;
+			}
+		}
+		default: return false;
+	}
+}
+
+[[nodiscard]] bool EvaluateStartConditions(Entity owner, const ScriptSequence& sequence) {
+	if (!owner) {
+		return false;
+	}
+
+	bool has_condition{ false };
+	bool completed_groups_match{ false };
+	bool current_group_matches{ false };
+
+	for (const StateCondition& condition : sequence.start_conditions) {
+		if (!condition.enabled) {
+			continue;
+		}
+
+		bool matched{ EvaluateStateCondition(owner, condition) };
+		if (!has_condition) {
+			current_group_matches = matched;
+			has_condition		  = true;
+		} else if (condition.join == StateConditionJoin::And) {
+			current_group_matches = current_group_matches && matched;
+		} else if (condition.join == StateConditionJoin::Or) {
+			completed_groups_match = completed_groups_match || current_group_matches;
+			current_group_matches  = matched;
+		} else {
+			return false;
+		}
+	}
+
+	return !has_condition || completed_groups_match || current_group_matches;
+}
+
 bool StartBinding(Entity owner, ScriptSequence& binding, bool force) {
 	const auto* sequence{ Resolve(owner, binding) };
-	if (!sequence || !sequence->enabled || !binding.enabled) {
+	if (!sequence || !sequence->enabled || !binding.enabled ||
+		!EvaluateStartConditions(owner, *sequence)) {
 		return false;
 	}
 
@@ -1094,6 +1184,10 @@ void HandleSequenceEvent(Entity owner, ScriptSequence& binding, Event event) {
 		}
 	}
 
+	if (!EvaluateStartConditions(owner, *definition)) {
+		return;
+	}
+
 	for (const auto& condition : definition->start_events) {
 		if (!condition.enabled) {
 			continue;
@@ -1396,6 +1490,7 @@ bool Clear(Entity owner, SequenceId id) {
 	} else {
 		binding->steps.clear();
 		binding->start_events.clear();
+		binding->start_conditions.clear();
 		binding->stop_events.clear();
 		binding->lifecycle_actions.clear();
 	}
@@ -1410,8 +1505,7 @@ static void CancelCurrentStep(Entity owner, ScriptSequence& binding) {
 			continue;
 		}
 
-		if (instance->sequence.runtime.running ||
-			instance->sequence.runtime.waiting_for_channel) {
+		if (instance->sequence.runtime.running || instance->sequence.runtime.waiting_for_channel) {
 			CancelBinding(
 				owner, instance->sequence, SequenceCancelReason::Skipped, false, false, false
 			);

@@ -48,6 +48,7 @@
 #include "runtime/scene/scene_context.h"
 #include "runtime/scripting/builtin_scripts.h"
 #include "runtime/scripting/script.h"
+#include "runtime/scripting/variable_event.h"
 #include "runtime/timer/timer.h"
 #include "runtime/timer/timer_event.h"
 #include "runtime/ui/button.h"
@@ -283,6 +284,24 @@ void DrawSelectedItemsTooltip(std::span<const std::string> items) {
 ) {
 	auto choices{ GetTimerChoices(owner, target_filter) };
 	return choices.empty() ? TimerKey{} : choices.front();
+}
+
+void ApplyContextualVariableDefault(ScriptEditorContext& context, EventCondition& event) {
+	Entity owner{ ResolveInspectedEntity(context) };
+	if (!event.value.is_object() || !owner) {
+		return;
+	}
+	if (event.type_hash == Hash<event::CounterChanged>()) {
+		const auto* counters{ owner.TryGet<::ptgn::impl::Counters>() };
+		if (counters && !counters->counters.empty()) {
+			event.value["counter"] = counters->counters.front().config.key;
+		}
+	} else if (event.type_hash == Hash<event::BooleanChanged>()) {
+		const auto* booleans{ owner.TryGet<::ptgn::impl::Booleans>() };
+		if (booleans && !booleans->booleans.empty()) {
+			event.value["boolean"] = booleans->booleans.front().config.key;
+		}
+	}
 }
 
 void ApplyContextualTimerElapsedDefault(ScriptEditorContext& context, EventCondition& event) {
@@ -620,6 +639,8 @@ bool DrawActionPicker(
 	constexpr std::array action_categories{
 		std::pair{ ActionFamily::Animation, "Animation Action" },
 		std::pair{ ActionFamily::Timer, "Timer Action" },
+		std::pair{ ActionFamily::Counter, "Counter Action" },
+		std::pair{ ActionFamily::Boolean, "Boolean Action" },
 		std::pair{ ActionFamily::Lifetime, "Lifetime Action" },
 		std::pair{ ActionFamily::Button, "Button Action" },
 		std::pair{ ActionFamily::Slider, "Slider Action" },
@@ -775,7 +796,7 @@ bool DrawActionPicker(
 	}
 
 	if (!timed_only && ScriptRegistry::Find(Hash<ActionScript>())) {
-		for (std::string_view group : { "Animation", "Timing", "UI" }) {
+		for (std::string_view group : { "Animation", "Timing", "Variables", "UI" }) {
 			if (!std::ranges::contains(groups, group)) {
 				groups.push_back(group);
 			}
@@ -812,7 +833,9 @@ bool DrawActionPicker(
 				std::string_view family_group{
 					family == ActionFamily::Animation ? "Animation"
 					: (family == ActionFamily::Timer || family == ActionFamily::Lifetime) ? "Timing"
-																						  : "UI"
+					: (family == ActionFamily::Counter || family == ActionFamily::Boolean)
+						? "Variables"
+						: "UI"
 				};
 				if (group != family_group) {
 					continue;
@@ -1692,6 +1715,337 @@ bool DrawTimerElapsedTrigger(ScriptEditorContext& context, json& value) {
 	return changed;
 }
 
+template <typename Key>
+bool DrawVariableTriggerKey(
+	const char* id, Key& key, const std::vector<Key>& choices, float width
+) {
+	bool changed{ false };
+	ImGui::SetNextItemWidth(width);
+	if (ImGui::BeginCombo(id, key.value.empty() ? "None" : key.value.c_str())) {
+		std::string custom{ key.value };
+		ImGui::SetNextItemWidth(-FLT_MIN);
+		if (ImGui::InputTextWithHint("##VariableName", "Name...", &custom)) {
+			key.value = std::move(custom);
+			changed	  = true;
+		}
+		ImGui::Separator();
+		if (ImGui::Selectable("None", key.value.empty()) && !key.value.empty()) {
+			key.value.clear();
+			changed = true;
+		}
+		for (const auto& choice : choices) {
+			if (ImGui::Selectable(choice.value.c_str(), choice == key) && choice != key) {
+				key		= choice;
+				changed = true;
+			}
+		}
+		ImGui::EndCombo();
+	}
+	return changed;
+}
+
+[[nodiscard]] std::vector<BooleanKey> GetBooleanConditionKeys(Entity owner) {
+	std::vector<BooleanKey> keys;
+	if (const auto* booleans{ owner ? owner.TryGet<::ptgn::impl::Booleans>() : nullptr }) {
+		for (const auto& entry : booleans->booleans) {
+			keys.push_back(entry.config.key);
+		}
+	}
+	return keys;
+}
+
+[[nodiscard]] std::vector<CounterKey> GetCounterConditionKeys(Entity owner) {
+	std::vector<CounterKey> keys;
+	if (const auto* counters{ owner ? owner.TryGet<::ptgn::impl::Counters>() : nullptr }) {
+		for (const auto& entry : counters->counters) {
+			keys.push_back(entry.config.key);
+		}
+	}
+	return keys;
+}
+
+bool DrawStateConditions(ScriptEditorContext& context, ScriptSequence& sequence) {
+	if (sequence.start_conditions.empty()) {
+		return false;
+	}
+
+	bool changed{ false };
+	int remove_index{ -1 };
+	Entity owner{ ResolveInspectedEntity(context) };
+	std::vector<BooleanKey> boolean_keys{ GetBooleanConditionKeys(owner) };
+	std::vector<CounterKey> counter_keys{ GetCounterConditionKeys(owner) };
+
+	ImGui::TextDisabled("Conditions (AND before OR)");
+	ImGui::PushID("StartConditions");
+
+	for (int index{ 0 }; index < static_cast<int>(sequence.start_conditions.size()); ++index) {
+		StateCondition& condition{ sequence.start_conditions[static_cast<std::size_t>(index)] };
+		ImGui::PushID(index);
+
+		float spacing{ ImGui::GetStyle().ItemInnerSpacing.x };
+		if (index > 0) {
+			ImGui::BeginDisabled(!condition.enabled);
+			ImGui::SetNextItemWidth(76.0f);
+			const char* join_label{ condition.join == StateConditionJoin::Or ? "OR" : "AND" };
+			if (ImGui::BeginCombo("##ConditionJoin", join_label)) {
+				if (ImGui::Selectable("AND", condition.join == StateConditionJoin::And)) {
+					condition.join = StateConditionJoin::And;
+					changed		   = true;
+				}
+				if (ImGui::Selectable("OR", condition.join == StateConditionJoin::Or)) {
+					condition.join = StateConditionJoin::Or;
+					changed		   = true;
+				}
+				ImGui::EndCombo();
+			}
+			DrawTooltip("Join with previous enabled condition. AND is evaluated before OR.");
+			ImGui::EndDisabled();
+		}
+		if (ImGui::BeginTable(
+				"ConditionRow", 3,
+				ImGuiTableFlags_SizingStretchProp | ImGuiTableFlags_NoSavedSettings
+			)) {
+			ImGui::TableSetupColumn("Type", ImGuiTableColumnFlags_WidthFixed, 100.0f);
+			ImGui::TableSetupColumn("Condition", ImGuiTableColumnFlags_WidthStretch);
+			ImGui::TableSetupColumn("Options", ImGuiTableColumnFlags_WidthFixed, 28.0f);
+			ImGui::TableNextRow(ImGuiTableRowFlags_None, ImGui::GetFrameHeight());
+			ImGui::TableSetColumnIndex(0);
+			ImGui::BeginDisabled(!condition.enabled);
+			ImGui::SetNextItemWidth(-FLT_MIN);
+			const char* current_kind{ condition.kind == StateConditionKind::Counter ? "Counter"
+																					: "Boolean" };
+			if (ImGui::BeginCombo("##ConditionKind", current_kind)) {
+				if (ImGui::Selectable("Boolean", condition.kind == StateConditionKind::Boolean)) {
+					condition.kind = StateConditionKind::Boolean;
+					if (condition.boolean.value.empty() && !boolean_keys.empty()) {
+						condition.boolean = boolean_keys.front();
+					}
+					changed = true;
+				}
+				if (ImGui::Selectable("Counter", condition.kind == StateConditionKind::Counter)) {
+					condition.kind = StateConditionKind::Counter;
+					if (condition.counter.value.empty() && !counter_keys.empty()) {
+						condition.counter = counter_keys.front();
+					}
+					changed = true;
+				}
+				ImGui::EndCombo();
+			}
+			ImGui::TableSetColumnIndex(1);
+			float available{ ImGui::GetContentRegionAvail().x };
+			if (condition.kind == StateConditionKind::Boolean) {
+				float value_width{ 96.0f };
+				changed |= DrawVariableTriggerKey(
+					"##BooleanConditionKey", condition.boolean, boolean_keys,
+					std::max(1.0f, available - value_width - spacing)
+				);
+				ImGui::SameLine(0.0f, spacing);
+				ImGui::SetNextItemWidth(value_width);
+				if (ImGui::BeginCombo(
+						"##BooleanExpected", condition.expected_value ? "Is True" : "Is False"
+					)) {
+					if (ImGui::Selectable("Is True", condition.expected_value)) {
+						condition.expected_value = true;
+						changed					 = true;
+					}
+					if (ImGui::Selectable("Is False", !condition.expected_value)) {
+						condition.expected_value = false;
+						changed					 = true;
+					}
+					ImGui::EndCombo();
+				}
+			} else {
+				constexpr std::array labels{ "==", "!=", "<", "<=", ">", ">=" };
+				float comparison_width{ 56.0f };
+				float threshold_width{ 82.0f };
+				changed |= DrawVariableTriggerKey(
+					"##CounterConditionKey", condition.counter, counter_keys,
+					std::max(1.0f, available - comparison_width - threshold_width - spacing * 2.0f)
+				);
+				ImGui::SameLine(0.0f, spacing);
+				ImGui::SetNextItemWidth(comparison_width);
+				int comparison{ static_cast<int>(condition.comparison) };
+				comparison = std::clamp(comparison, 0, static_cast<int>(labels.size()) - 1);
+				if (ImGui::BeginCombo(
+						"##CounterComparison", labels[static_cast<std::size_t>(comparison)]
+					)) {
+					for (int i{ 0 }; i < static_cast<int>(labels.size()); ++i) {
+						if (ImGui::Selectable(
+								labels[static_cast<std::size_t>(i)], i == comparison
+							)) {
+							condition.comparison = static_cast<CounterComparison>(i);
+							changed				 = true;
+						}
+					}
+					ImGui::EndCombo();
+				}
+				ImGui::SameLine(0.0f, spacing);
+				ImGui::SetNextItemWidth(threshold_width);
+				changed |= ImGui::InputScalar(
+					"##CounterThreshold", ImGuiDataType_S64, &condition.threshold
+				);
+			}
+			ImGui::EndDisabled();
+			ImGui::TableSetColumnIndex(2);
+			if (ImGui::Button("...", ImVec2{ -FLT_MIN, ImGui::GetFrameHeight() })) {
+				ImGui::OpenPopup("ConditionOptions");
+			}
+			if (ImGui::BeginPopup("ConditionOptions")) {
+				changed |= DrawEnableDisableMenuItem(condition.enabled);
+				ImGui::Separator();
+				if (ImGui::MenuItem("Delete")) {
+					remove_index = index;
+				}
+				ImGui::EndPopup();
+			}
+			ImGui::EndTable();
+		}
+		ImGui::PopID();
+	}
+	if (remove_index >= 0) {
+		sequence.start_conditions.erase(sequence.start_conditions.begin() + remove_index);
+		changed = true;
+	}
+	ImGui::PopID();
+	return changed;
+}
+
+bool DrawAddConditionPopup(ScriptEditorContext& context, ScriptSequence& sequence) {
+	if (!ImGui::BeginPopup("AddCondition")) {
+		return false;
+	}
+	bool changed{ false };
+	Entity owner{ ResolveInspectedEntity(context) };
+	if (ImGui::MenuItem("Boolean")) {
+		StateCondition condition;
+		condition.kind = StateConditionKind::Boolean;
+		std::vector<BooleanKey> keys{ GetBooleanConditionKeys(owner) };
+		if (!keys.empty()) {
+			condition.boolean = keys.front();
+		}
+		sequence.start_conditions.push_back(std::move(condition));
+		changed = true;
+	}
+	if (ImGui::MenuItem("Counter")) {
+		StateCondition condition;
+		condition.kind = StateConditionKind::Counter;
+		std::vector<CounterKey> keys{ GetCounterConditionKeys(owner) };
+		if (!keys.empty()) {
+			condition.counter = keys.front();
+		}
+		sequence.start_conditions.push_back(std::move(condition));
+		changed = true;
+	}
+	ImGui::EndPopup();
+	return changed;
+}
+
+bool DrawCounterTrigger(ScriptEditorContext& context, json& value) {
+	CounterKey key{};
+	int comparison{ 0 };
+	std::int64_t threshold{ 0 };
+	if (value.is_object()) {
+		try {
+			key = value.value("counter", CounterKey{});
+		} catch (...) {}
+		try {
+			comparison = value.value("comparison", 0);
+		} catch (...) {}
+		try {
+			threshold = value.value("threshold", std::int64_t{ 0 });
+		} catch (...) {}
+	}
+	Entity owner{ ResolveInspectedEntity(context) };
+	std::vector<CounterKey> choices;
+	if (const auto* counters{ owner ? owner.TryGet<::ptgn::impl::Counters>() : nullptr }) {
+		for (const auto& entry : counters->counters) {
+			choices.push_back(entry.config.key);
+		}
+	}
+	constexpr std::array labels{ "Changed",		  "Increased",		  "Decreased",
+								 "Reached",		  "Crossed At Least", "Crossed At Most",
+								 "Crossed Above", "Crossed Below" };
+	comparison = std::clamp(comparison, 0, static_cast<int>(labels.size()) - 1);
+	float available{ ImGui::GetContentRegionAvail().x };
+	float spacing{ ImGui::GetStyle().ItemSpacing.x };
+	bool uses_threshold{ comparison >= 3 };
+	float comparison_width{ 155.0f };
+	float threshold_width{ 80.0f };
+	float key_width{ std::max(
+		1.0f,
+		available - comparison_width - spacing - (uses_threshold ? threshold_width + spacing : 0.0f)
+	) };
+	bool changed{ DrawVariableTriggerKey("##CounterEventKey", key, choices, key_width) };
+	ImGui::SameLine(0.0f, spacing);
+	ImGui::SetNextItemWidth(comparison_width);
+	if (ImGui::BeginCombo(
+			"##CounterEventComparison", labels[static_cast<std::size_t>(comparison)]
+		)) {
+		for (int i{ 0 }; i < static_cast<int>(labels.size()); ++i) {
+			if (ImGui::Selectable(labels[static_cast<std::size_t>(i)], i == comparison)) {
+				comparison = i;
+				changed	   = true;
+			}
+		}
+		ImGui::EndCombo();
+	}
+	if (uses_threshold) {
+		ImGui::SameLine(0.0f, spacing);
+		ImGui::SetNextItemWidth(threshold_width);
+		changed |= ImGui::InputScalar("##CounterEventThreshold", ImGuiDataType_S64, &threshold);
+	}
+	if (changed) {
+		value =
+			json{ { "counter", key }, { "comparison", comparison }, { "threshold", threshold } };
+	}
+	return changed;
+}
+
+bool DrawBooleanTrigger(ScriptEditorContext& context, json& value) {
+	BooleanKey key{};
+	int transition{ 0 };
+	if (value.is_object()) {
+		try {
+			key = value.value("boolean", BooleanKey{});
+		} catch (...) {}
+		try {
+			transition = value.value("transition", 0);
+		} catch (...) {}
+	}
+	Entity owner{ ResolveInspectedEntity(context) };
+	std::vector<BooleanKey> choices;
+	if (const auto* booleans{ owner ? owner.TryGet<::ptgn::impl::Booleans>() : nullptr }) {
+		for (const auto& entry : booleans->booleans) {
+			choices.push_back(entry.config.key);
+		}
+	}
+	constexpr std::array labels{ "Changed", "Became True", "Became False" };
+	transition = std::clamp(transition, 0, 2);
+	float available{ ImGui::GetContentRegionAvail().x };
+	float spacing{ ImGui::GetStyle().ItemSpacing.x };
+	float transition_width{ 135.0f };
+	bool changed{ DrawVariableTriggerKey(
+		"##BooleanEventKey", key, choices, std::max(1.0f, available - transition_width - spacing)
+	) };
+	ImGui::SameLine(0.0f, spacing);
+	ImGui::SetNextItemWidth(transition_width);
+	if (ImGui::BeginCombo(
+			"##BooleanEventTransition", labels[static_cast<std::size_t>(transition)]
+		)) {
+		for (int i{ 0 }; i < 3; ++i) {
+			if (ImGui::Selectable(labels[static_cast<std::size_t>(i)], i == transition)) {
+				transition = i;
+				changed	   = true;
+			}
+		}
+		ImGui::EndCombo();
+	}
+	if (changed) {
+		value = json{ { "boolean", key }, { "transition", transition } };
+	}
+	return changed;
+}
+
 bool DrawEvent(
 	ScriptEditorContext& context, EventCondition& event, bool stop_event, bool& switch_kind,
 	bool& changed
@@ -1781,6 +2135,7 @@ bool DrawEvent(
 					event.name		= registration->name;
 					registration->set_defaults(event);
 					ApplyContextualTimerElapsedDefault(context, event);
+					ApplyContextualVariableDefault(context, event);
 					selected		   = EventEditorRegistry::Find(event.type_hash);
 					event_type_changed = true;
 					changed			   = true;
@@ -1828,6 +2183,10 @@ bool DrawEvent(
 
 			if (event.type_hash == Hash<event::TimerElapsed>()) {
 				changed |= DrawTimerElapsedTrigger(context, event.value);
+			} else if (event.type_hash == Hash<event::CounterChanged>()) {
+				changed |= DrawCounterTrigger(context, event.value);
+			} else if (event.type_hash == Hash<event::BooleanChanged>()) {
+				changed |= DrawBooleanTrigger(context, event.value);
 			} else if (selected->options.draw) {
 				changed |= selected->options.draw(event.value);
 			}
@@ -1886,6 +2245,7 @@ bool DrawAddTriggerPopup(ScriptEditorContext& context, ScriptSequence& sequence)
 			};
 			registration->set_defaults(trigger);
 			ApplyContextualTimerElapsedDefault(context, trigger);
+			ApplyContextualVariableDefault(context, trigger);
 			sequence.start_events.push_back(std::move(trigger));
 			changed = true;
 		}
@@ -2106,13 +2466,14 @@ bool DrawSequenceToolbar(
 	float button_size{ ImGui::GetFrameHeight() };
 
 	if (!ImGui::BeginTable(
-			"SequenceToolbar", show_runtime_controls ? 4 : 3,
+			"SequenceToolbar", show_runtime_controls ? 5 : 4,
 			ImGuiTableFlags_SizingStretchProp | ImGuiTableFlags_NoSavedSettings
 		)) {
 		return false;
 	}
 
 	ImGui::TableSetupColumn("Trigger", ImGuiTableColumnFlags_WidthStretch, 1.0f);
+	ImGui::TableSetupColumn("Condition", ImGuiTableColumnFlags_WidthStretch, 1.0f);
 	ImGui::TableSetupColumn("Action", ImGuiTableColumnFlags_WidthStretch, 1.0f);
 	ImGui::TableSetupColumn("Options", ImGuiTableColumnFlags_WidthStretch, 1.0f);
 	if (show_runtime_controls) {
@@ -2135,6 +2496,16 @@ bool DrawSequenceToolbar(
 
 	ImGui::TableSetColumnIndex(1);
 
+	if (ImGui::Button("+ Condition", ImVec2{ -FLT_MIN, button_size })) {
+		ImGui::OpenPopup("AddCondition");
+	}
+	DrawTooltip("Add a Boolean or Counter start condition. Combine conditions using AND or OR.");
+	if (sequence) {
+		changed |= DrawAddConditionPopup(context, *sequence);
+	}
+
+	ImGui::TableSetColumnIndex(2);
+
 	if (ImGui::Button("+ Action", ImVec2{ -FLT_MIN, button_size })) {
 		ImGui::OpenPopup("AddAction");
 	}
@@ -2145,12 +2516,12 @@ bool DrawSequenceToolbar(
 		changed |= DrawAddActionPopup(*sequence);
 	}
 
-	ImGui::TableSetColumnIndex(2);
+	ImGui::TableSetColumnIndex(3);
 
 	changed |= DrawSequenceOptionsCombo(context, binding, sequence, -FLT_MIN);
 
 	if (show_runtime_controls) {
-		ImGui::TableSetColumnIndex(3);
+		ImGui::TableSetColumnIndex(4);
 		const ScriptSequenceRuntime& runtime{
 			runtime_binding
 				? runtime_binding->runtime
@@ -2503,6 +2874,7 @@ bool DrawEvents(ScriptEditorContext& context, ScriptSequence& sequence) {
 
 			if (sequence) {
 				changed |= DrawEvents(context, *sequence);
+				changed |= DrawStateConditions(context, *sequence);
 				changed |= DrawActions(context, *sequence, binding, resident_index);
 			}
 		}
@@ -2540,6 +2912,7 @@ bool DrawSequenceTabContents(
 	}
 
 	changed |= DrawEvents(context, *sequence);
+	changed |= DrawStateConditions(context, *sequence);
 	changed |= DrawActions(context, *sequence, binding, resident_index);
 	return changed;
 }
@@ -3403,6 +3776,122 @@ bool RenameTimerReferencesImpl(
 	return changed;
 }
 
+template <typename Key>
+[[nodiscard]] bool RenameVariableJsonReference(
+	json& value, const char* property, const Key& old_key, const Key& new_key
+) {
+	if (!value.is_object()) {
+		return false;
+	}
+	auto it{ value.find(property) };
+	if (it == value.end()) {
+		return false;
+	}
+	Key current{};
+	try {
+		it->get_to(current);
+	} catch (...) {
+		return false;
+	}
+	if (current != old_key) {
+		return false;
+	}
+	value[property] = new_key;
+	return true;
+}
+
+template <typename Key>
+bool RenameVariableReferencesImpl(Entity variable_entity, const Key& old_key, const Key& new_key) {
+	if (!variable_entity || old_key == new_key) {
+		return false;
+	}
+	constexpr bool is_counter{ std::same_as<Key, CounterKey> };
+	const char* property{ is_counter ? "counter" : "boolean" };
+	TypeHashValue event_type{ is_counter ? Hash<event::CounterChanged>()
+										 : Hash<event::BooleanChanged>() };
+	ActionFamily family{ is_counter ? ActionFamily::Counter : ActionFamily::Boolean };
+	Scene& scene{ variable_entity.GetScene() };
+	bool changed{ false };
+	for (Entity owner : scene.Entities()) {
+		auto* scripts{ owner.TryGet<::ptgn::impl::Scripts>() };
+		if (!scripts) {
+			continue;
+		}
+		for (auto& entry : scripts->scripts) {
+			ScriptSequence& binding{ entry.instance ? entry.instance->sequence : entry.sequence };
+			ScriptSequence* sequence{ std::addressof(binding) };
+			if (binding.shared_reference) {
+				sequence = scene.ctx().shared_script_sequences.Find(binding.shared_sequence_id);
+			}
+			if (!sequence) {
+				continue;
+			}
+			bool edited{ false };
+			if (owner == variable_entity) {
+				for (auto& condition : sequence->start_conditions) {
+					if constexpr (is_counter) {
+						if (condition.kind == StateConditionKind::Counter &&
+							condition.counter == old_key) {
+							condition.counter = new_key;
+							edited			  = true;
+						}
+					} else {
+						if (condition.kind == StateConditionKind::Boolean &&
+							condition.boolean == old_key) {
+							condition.boolean = new_key;
+							edited			  = true;
+						}
+					}
+				}
+				for (auto& condition : sequence->start_events) {
+					if (condition.type_hash == event_type) {
+						edited |= RenameVariableJsonReference(
+							condition.value, property, old_key, new_key
+						);
+					}
+				}
+				for (auto& condition : sequence->stop_events) {
+					if (condition.type_hash == event_type) {
+						edited |= RenameVariableJsonReference(
+							condition.value, property, old_key, new_key
+						);
+					}
+				}
+			}
+			auto rename_step = [&](ScriptStep& step) {
+				if (step.type_hash != Hash<ActionScript>() ||
+					!ScriptStepTargetsEntity(owner, step, variable_entity)) {
+					return;
+				}
+				ActionScript action{};
+				if (!TryReadScriptJson(step.value, action) || action.family != family) {
+					return;
+				}
+				if (RenameVariableJsonReference(step.value, property, old_key, new_key)) {
+					step.runtime_factory = {};
+					edited				 = true;
+				}
+			};
+			for (auto& step : sequence->steps) {
+				rename_step(step);
+			}
+			for (auto& lifecycle : sequence->lifecycle_actions) {
+				rename_step(lifecycle.action);
+			}
+			if (edited) {
+				changed = true;
+				if (!binding.shared_reference && entry.instance) {
+					SequenceId id{ binding.id };
+					entry.sequence		   = binding;
+					entry.sequence.id	   = id;
+					entry.sequence.runtime = ScriptSequenceRuntime{};
+				}
+			}
+		}
+	}
+	return changed;
+}
+
 template <typename Target>
 bool DrawScriptsSectionImpl(Target& target) {
 	bool changed{ false };
@@ -3555,6 +4044,14 @@ void RestoreTimerReferenceSceneSnapshot(
 
 	auto data{ std::static_pointer_cast<const TimerReferenceSceneSnapshotData>(snapshot.data) };
 	RestoreTimerReferenceSceneSnapshotData(editor, anchor_reference, *data);
+}
+
+bool RenameCounterReferences(Entity entity, const CounterKey& old_key, const CounterKey& new_key) {
+	return RenameVariableReferencesImpl(entity, old_key, new_key);
+}
+
+bool RenameBooleanReferences(Entity entity, const BooleanKey& old_key, const BooleanKey& new_key) {
+	return RenameVariableReferencesImpl(entity, old_key, new_key);
 }
 
 bool RenameTimerReferences(Entity timer_entity, const TimerKey& old_key, const TimerKey& new_key) {

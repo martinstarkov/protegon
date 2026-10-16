@@ -121,6 +121,8 @@ bool DrawAddComponentMenu(Target& target) {
 	}
 
 	bool can_add_utility{ CanAddComponentItem<::ptgn::impl::Timers>(target) ||
+						  CanAddComponentItem<::ptgn::impl::Counters>(target) ||
+						  CanAddComponentItem<::ptgn::impl::Booleans>(target) ||
 						  CanAddComponentItem<Group>(target) ||
 						  CanAddComponentItem<Lifetime>(target) };
 	if (!can_add_utility) {
@@ -133,6 +135,8 @@ bool DrawAddComponentMenu(Target& target) {
 	}
 	if (utilities_open) {
 		changed |= DrawAddComponentItem<::ptgn::impl::Timers>(target, "Timers");
+		changed |= DrawAddComponentItem<::ptgn::impl::Counters>(target, "Counters");
+		changed |= DrawAddComponentItem<::ptgn::impl::Booleans>(target, "Booleans");
 		changed |= DrawAddComponentItem<Group>(target, "Groups");
 		changed |= DrawAddComponentItem<Lifetime>(target, "Lifetime");
 		ImGui::EndMenu();
