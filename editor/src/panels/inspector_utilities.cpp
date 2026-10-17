@@ -1,3 +1,4 @@
+#include <cmath>
 #include <limits>
 #include <type_traits>
 
@@ -611,6 +612,121 @@ template <typename Component>
 	}
 }
 
+[[nodiscard]] std::int64_t ClampCounterInspectorValue(
+	std::int64_t value, const CounterConfig& config
+) {
+	return std::clamp(
+		value,
+		config.minimum.value_or(std::numeric_limits<std::int64_t>::min()),
+		config.maximum.value_or(std::numeric_limits<std::int64_t>::max())
+	);
+}
+
+[[nodiscard]] float CounterDragSpeed(const CounterConfig* config) {
+	if (!config || !config->minimum || !config->maximum) {
+		return 0.2f;
+	}
+
+	long double range{ static_cast<long double>(*config->maximum) -
+					   static_cast<long double>(*config->minimum) };
+	return std::clamp(
+		0.06f + 0.13f * static_cast<float>(std::log10(std::max(0.0L, range) + 1.0L)),
+		0.08f, 0.7f
+	);
+}
+
+bool DrawCounterNumberControls(
+	const char* id, std::int64_t& value, const CounterConfig* config = nullptr,
+	const char* reset_tooltip = nullptr, bool* reset_requested = nullptr,
+	bool show_value = true, bool enforce_bounds = true
+) {
+	ScopedID scope{ std::string_view{ id } };
+
+	const ImGuiStyle& style{ ImGui::GetStyle() };
+	float spacing{ style.ItemInnerSpacing.x };
+	float button_extent{ ImGui::GetFrameHeight() };
+	bool show_reset{ reset_requested != nullptr };
+	int button_count{ show_reset ? 3 : 2 };
+	float controls_width{
+		static_cast<float>(button_count) * (button_extent + spacing)
+	};
+	float input_width{ std::max(1.0f, ImGui::GetContentRegionAvail().x - controls_width) };
+
+	std::int64_t minimum{ config && enforce_bounds
+									? config->minimum.value_or(std::numeric_limits<std::int64_t>::min())
+									: std::numeric_limits<std::int64_t>::min() };
+	std::int64_t maximum{ config && enforce_bounds
+									? config->maximum.value_or(std::numeric_limits<std::int64_t>::max())
+									: std::numeric_limits<std::int64_t>::max() };
+
+	ImGui::SetNextItemWidth(input_width);
+	bool changed{ false };
+	if (show_value) {
+		changed = ImGui::DragScalar(
+			"##Value", ImGuiDataType_S64, &value, CounterDragSpeed(config),
+			config && enforce_bounds && config->minimum ? &minimum : nullptr,
+			config && enforce_bounds && config->maximum ? &maximum : nullptr
+		);
+		if (changed) {
+			value = std::clamp(value, minimum, maximum);
+		}
+	} else {
+		char blank[1]{};
+		ImGui::InputText("##Value", blank, sizeof(blank), ImGuiInputTextFlags_ReadOnly);
+	}
+
+	ImGui::SameLine(0.0f, spacing);
+	ImGui::BeginDisabled(!show_value || value <= minimum);
+	if (ImGui::Button("-##Decrement", ImVec2{ button_extent, button_extent })) {
+		value = std::max(minimum, value - 1);
+		changed = true;
+	}
+	ImGui::EndDisabled();
+
+	ImGui::SameLine(0.0f, spacing);
+	ImGui::BeginDisabled(!show_value || value >= maximum);
+	if (ImGui::Button("+##Increment", ImVec2{ button_extent, button_extent })) {
+		value = std::min(maximum, value + 1);
+		changed = true;
+	}
+	ImGui::EndDisabled();
+
+	if (show_reset) {
+		ImGui::SameLine(0.0f, spacing);
+		if (DrawEditorIconButton("##Reset", EditorIcon::Reset, reset_tooltip)) {
+			*reset_requested = true;
+		}
+	}
+
+	return changed;
+}
+
+bool DrawCounterBoundControls(
+	const char* id, std::optional<std::int64_t>& bound, std::int64_t default_value,
+	const CounterConfig& config
+) {
+	ScopedID scope{ std::string_view{ id } };
+	float spacing{ ImGui::GetStyle().ItemInnerSpacing.x };
+	bool enabled{ bound.has_value() };
+	bool changed{ false };
+
+	if (ImGui::Checkbox("##Enabled", &enabled)) {
+		bound = enabled ? std::optional<std::int64_t>{ default_value } : std::nullopt;
+		changed = true;
+	}
+
+	std::int64_t value{ bound.value_or(default_value) };
+	ImGui::SameLine(0.0f, spacing);
+	ImGui::BeginDisabled(!enabled);
+	if (DrawCounterNumberControls("##Bound", value, &config, nullptr, nullptr, enabled, false)) {
+		bound = value;
+		changed = true;
+	}
+	ImGui::EndDisabled();
+
+	return changed;
+}
+
 template <typename Component>
 [[nodiscard]] bool DrawCounterOrBooleanEntry(
 	EditorContext& ctx, Entity entity,
@@ -624,57 +740,60 @@ template <typename Component>
 			CounterHandle handle{ GetCounter(entity, entry.config.key) };
 			if (handle) {
 				std::int64_t current{ handle.Value() };
+				std::int64_t reset_value{
+					ClampCounterInspectorValue(entry.config.initial_value, entry.config)
+				};
+				std::string reset_tooltip{
+					"Reset to initial value: " + std::to_string(reset_value)
+				};
+				bool reset_requested{ false };
+
 				if (DrawPropertyRow("Current Value", [&]() {
-						ImGui::SetNextItemWidth(-FLT_MIN);
-						return ImGui::InputScalar("##CounterCurrent", ImGuiDataType_S64, &current);
+						return DrawCounterNumberControls(
+							"##CurrentCounter", current, &entry.config,
+							reset_tooltip.c_str(), &reset_requested
+						);
 					})) {
 					handle.Set(current);
 				}
+				if (reset_requested) {
+					handle.Reset();
+				}
 				entry.value = handle.Value();
 			}
+		} else {
+			changed |= DrawPropertyRow("Initial Value", [&]() {
+				return DrawCounterNumberControls(
+					"##InitialCounter", entry.config.initial_value, &entry.config
+				);
+			});
 		}
-		changed |= DrawPropertyRow("Initial Value", [&]() {
-			ImGui::SetNextItemWidth(-FLT_MIN);
-			return ImGui::InputScalar(
-				"##InitialCounter", ImGuiDataType_S64, &entry.config.initial_value
+
+		bool minimum_changed{ DrawPropertyRow("Minimum Value", [&]() {
+			return DrawCounterBoundControls(
+				"##MinimumCounter", entry.config.minimum, 0, entry.config
 			);
-		});
-		bool use_minimum{ entry.config.minimum.has_value() };
-		if (DrawValue(ctx, "Use Minimum", use_minimum)) {
-			entry.config.minimum = use_minimum ? std::optional<std::int64_t>{ 0 } : std::nullopt;
-			changed				 = true;
-		}
-		if (entry.config.minimum) {
-			changed |= DrawPropertyRow("Minimum", [&]() {
-				ImGui::SetNextItemWidth(-FLT_MIN);
-				return ImGui::InputScalar(
-					"##MinimumCounter", ImGuiDataType_S64, std::addressof(*entry.config.minimum)
-				);
-			});
-		}
-		bool use_maximum{ entry.config.maximum.has_value() };
-		if (DrawValue(ctx, "Use Maximum", use_maximum)) {
-			entry.config.maximum = use_maximum ? std::optional<std::int64_t>{ 100 } : std::nullopt;
-			changed				 = true;
-		}
-		if (entry.config.maximum) {
-			changed |= DrawPropertyRow("Maximum", [&]() {
-				ImGui::SetNextItemWidth(-FLT_MIN);
-				return ImGui::InputScalar(
-					"##MaximumCounter", ImGuiDataType_S64, std::addressof(*entry.config.maximum)
-				);
-			});
-		}
-		if (changed) {
-			if (entry.config.minimum && entry.config.maximum &&
-				*entry.config.minimum > *entry.config.maximum) {
-				std::swap(entry.config.minimum, entry.config.maximum);
+		}) };
+		bool maximum_changed{ DrawPropertyRow("Maximum Value", [&]() {
+			return DrawCounterBoundControls(
+				"##MaximumCounter", entry.config.maximum, 100, entry.config
+			);
+		}) };
+
+		if (entry.config.minimum && entry.config.maximum &&
+			*entry.config.minimum > *entry.config.maximum) {
+			if (maximum_changed) {
+				entry.config.minimum = *entry.config.maximum;
+			} else {
+				entry.config.maximum = *entry.config.minimum;
 			}
-			entry.config.initial_value = std::clamp(
-				entry.config.initial_value,
-				entry.config.minimum.value_or(std::numeric_limits<std::int64_t>::min()),
-				entry.config.maximum.value_or(std::numeric_limits<std::int64_t>::max())
-			);
+		}
+
+		changed |= minimum_changed || maximum_changed;
+
+		if (changed) {
+			entry.config.initial_value =
+				ClampCounterInspectorValue(entry.config.initial_value, entry.config);
 			if (!runtime) {
 				entry.value = entry.config.initial_value;
 			}
@@ -684,15 +803,37 @@ template <typename Component>
 			BooleanHandle handle{ GetBoolean(entity, entry.config.key) };
 			if (handle) {
 				bool current{ handle.Value() };
-				if (DrawValue(ctx, "Current Value", current)) {
+				std::string reset_tooltip{
+					std::string{ "Reset to initial value: " } +
+					(entry.config.initial_value ? "true" : "false")
+				};
+				bool reset_requested{ false };
+
+				if (DrawPropertyRow("Current Value", [&]() {
+						bool value_changed{ ImGui::Checkbox("##BooleanCurrent", &current) };
+						DrawTooltip(current ? "true" : "false");
+						ImGui::SameLine(0.0f, ImGui::GetStyle().ItemInnerSpacing.x);
+						reset_requested = DrawEditorIconButton(
+							"##BooleanReset", EditorIcon::Reset, reset_tooltip.c_str()
+						);
+						return value_changed;
+					})) {
 					handle.Set(current);
+				}
+				if (reset_requested) {
+					handle.Reset();
 				}
 				entry.value = handle.Value();
 			}
-		}
-		changed |= DrawValue(ctx, "Initial Value", entry.config.initial_value);
-		if (changed && !runtime) {
-			entry.value = entry.config.initial_value;
+		} else {
+			changed |= DrawPropertyRow("Initial Value", [&]() {
+				bool value_changed{ ImGui::Checkbox("##BooleanInitial", &entry.config.initial_value) };
+				DrawTooltip(entry.config.initial_value ? "true" : "false");
+				return value_changed;
+			});
+			if (changed) {
+				entry.value = entry.config.initial_value;
+			}
 		}
 	}
 	return changed;

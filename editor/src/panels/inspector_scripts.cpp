@@ -69,6 +69,10 @@ struct ActionDragPayload {
 	int index{ 0 };
 };
 
+struct ConditionDragPayload {
+	int index{ 0 };
+};
+
 struct ScriptInspectorState {
 	std::optional<ImGuiID> editing_sequence_name{};
 	std::string editing_sequence_original_name{};
@@ -87,6 +91,10 @@ inline constexpr std::array kLifecycleLabels{
 	"On Action Cancel", "On Repeat",   "On Yoyo"
 };
 inline constexpr std::array kActionFormLabels{ "Action", "Tween", "Delay" };
+inline constexpr std::array kConditionKindLabels{
+	std::pair{ StateConditionKind::Boolean, "Boolean" },
+	std::pair{ StateConditionKind::Counter, "Counter" },
+};
 inline constexpr std::array kEaseEntries{
 	std::pair{ Ease::Linear, "Linear" },	  std::pair{ Ease::InQuad, "In Quad" },
 	std::pair{ Ease::OutQuad, "Out Quad" },	  std::pair{ Ease::InOutQuad, "In Out Quad" },
@@ -578,7 +586,28 @@ bool DrawActionTarget(ScriptEditorContext& context, ScriptStep& action) {
 	ImGuiID state_id{ ImGui::GetID("##ActionTargetFilterState") };
 	auto& state{ GetScriptInspectorState().target_filter_states[state_id] };
 
-	return DrawEntityFilterButton(scene, owner, action.target, state);
+	EntityFilterEditorOptions options{};
+	options.button_tooltip = "Entities impacted by the action:";
+	options.append_filter_tooltip = true;
+	return DrawEntityFilterButton(scene, owner, action.target, state, options);
+}
+
+[[nodiscard]] const char* ActionFamilyTooltip(ActionFamily family) {
+	switch (family) {
+		case ActionFamily::Animation:    return "Control an entity animation.";
+		case ActionFamily::Timer:        return "Control a named timer.";
+		case ActionFamily::Counter:      return "Change a named counter.";
+		case ActionFamily::Boolean:      return "Change a named Boolean.";
+		case ActionFamily::Lifetime:     return "Control an entity lifetime.";
+		case ActionFamily::Button:       return "Control button interactions.";
+		case ActionFamily::Slider:       return "Change a slider value.";
+		case ActionFamily::ToggleButton: return "Control a toggle button.";
+		case ActionFamily::ToggleGroup:  return "Change a toggle group selection.";
+		case ActionFamily::Dropdown:     return "Control a dropdown menu.";
+		case ActionFamily::Dialogue:     return "Control dialogue progression.";
+		case ActionFamily::Tooltip:      return "Control tooltip visibility and hover.";
+	}
+	return "Choose an action.";
 }
 
 bool DrawActionPicker(
@@ -637,18 +666,18 @@ bool DrawActionPicker(
 	}
 
 	constexpr std::array action_categories{
-		std::pair{ ActionFamily::Animation, "Animation Action" },
-		std::pair{ ActionFamily::Timer, "Timer Action" },
-		std::pair{ ActionFamily::Counter, "Counter Action" },
-		std::pair{ ActionFamily::Boolean, "Boolean Action" },
-		std::pair{ ActionFamily::Lifetime, "Lifetime Action" },
-		std::pair{ ActionFamily::Button, "Button Action" },
-		std::pair{ ActionFamily::Slider, "Slider Action" },
-		std::pair{ ActionFamily::ToggleButton, "Toggle Button Action" },
-		std::pair{ ActionFamily::ToggleGroup, "Toggle Group Action" },
-		std::pair{ ActionFamily::Dropdown, "Dropdown Action" },
-		std::pair{ ActionFamily::Dialogue, "Dialogue Action" },
-		std::pair{ ActionFamily::Tooltip, "Tooltip Action" },
+		std::pair{ ActionFamily::Animation, "Animation" },
+		std::pair{ ActionFamily::Timer, "Timer" },
+		std::pair{ ActionFamily::Counter, "Counter" },
+		std::pair{ ActionFamily::Boolean, "Boolean" },
+		std::pair{ ActionFamily::Lifetime, "Lifetime" },
+		std::pair{ ActionFamily::Button, "Button" },
+		std::pair{ ActionFamily::Slider, "Slider" },
+		std::pair{ ActionFamily::ToggleButton, "Toggle Button" },
+		std::pair{ ActionFamily::ToggleGroup, "Toggle Group" },
+		std::pair{ ActionFamily::Dropdown, "Dropdown" },
+		std::pair{ ActionFamily::Dialogue, "Dialogue" },
+		std::pair{ ActionFamily::Tooltip, "Tooltip" },
 	};
 
 	const char* current_label{ current ? current->label.data() : "Missing Action" };
@@ -667,10 +696,11 @@ bool DrawActionPicker(
 		*context_requested |= IsItemRightClicked();
 	}
 
-	DrawTooltip(
-		current ? current->description.data()
-				: "Choose a registered Script for this sequence entry."
-	);
+	const char* picker_tooltip{ current_family
+			? ActionFamilyTooltip(*current_family)
+			: current && !current->description.empty() ? current->description.data()
+												  : "Choose an action." };
+	DrawTooltip(picker_tooltip);
 
 	if (!open) {
 		return false;
@@ -715,7 +745,8 @@ bool DrawActionPicker(
 		}
 
 		// Only show the user facing description.
-		DrawTooltip(candidate.description.data());
+		DrawTooltip(candidate.description.empty() ? "Choose this script action."
+											 : candidate.description.data());
 	};
 
 	std::vector<Candidate> candidates;
@@ -850,6 +881,7 @@ bool DrawActionPicker(
 					action.timing.reset();
 					changed = true;
 				}
+				DrawTooltip(ActionFamilyTooltip(family));
 			}
 		}
 
@@ -878,13 +910,10 @@ bool DrawActionPickerWithInline(
 
 	float available{ ImGui::GetContentRegionAvail().x };
 	float spacing{ ImGui::GetStyle().ItemSpacing.x };
-	float picker_width{ std::min(150.0f, std::max(110.0f, available * 0.32f)) };
-	if (action.type_hash == Hash<TintToScript>()) {
-		picker_width = std::max(1.0f, available - spacing - ImGui::GetFrameHeight());
-	} else if (action.type_hash == Hash<PrintConsoleScript>()) {
-		picker_width = ImGui::CalcTextSize("Print").x + ImGui::GetFrameHeight() +
-					   ImGui::GetStyle().FramePadding.x * 2.0f;
-	}
+	bool tint_inline{ action.type_hash == Hash<TintToScript>() };
+	float picker_width{ tint_inline
+		? std::max(1.0f, available - spacing - ImGui::GetFrameHeight())
+		: std::max(1.0f, available * 0.32f) };
 	float row_y{ ImGui::GetCursorScreenPos().y };
 
 	bool changed{ DrawActionPicker(context, action, timed_only, picker_width, context_requested) };
@@ -1086,7 +1115,10 @@ bool DrawTimingOptions(
 	return changed;
 }
 
-bool DrawActionParameters(ScriptEditorContext& context, ScriptStep& action, float left_screen_x) {
+bool DrawActionParameters(
+	ScriptEditorContext& context, ScriptStep& action, float left_screen_x,
+	bool editing_disabled = false
+) {
 	EnsureActionValue(action);
 	const auto* editor{ ScriptEditorRegistry::Find(action.type_hash) };
 	if (!editor || !HasScriptType(editor->options.type, ScriptType::Sequence) || !editor->draw ||
@@ -1116,7 +1148,10 @@ bool DrawActionParameters(ScriptEditorContext& context, ScriptStep& action, floa
 		auto* previous_target_filter{ context.sequence_target_filter };
 		context.sequence_target_filter = std::addressof(action.target);
 
-		changed = editor->draw(context, action.value);
+		{
+			ScopedActionEditorDisabled disabled{ editing_disabled };
+			changed = editor->draw(context, action.value);
+		}
 
 		context.sequence_target_filter = previous_target_filter;
 
@@ -1186,7 +1221,7 @@ bool DrawActions(
 		) };
 		float type_width{ label_width + ImGui::GetFrameHeight() +
 						  ImGui::GetStyle().FramePadding.x * 2.0f };
-		float target_width{ 77.0f };
+		float target_width{ 64.0f };
 		float duration_width{ ImGui::CalcTextSize("5000ms").x +
 							  ImGui::GetStyle().FramePadding.x * 2.0f };
 		float repeats_width{ GetCountControlWidth("Repeats") };
@@ -1203,21 +1238,26 @@ bool DrawActions(
 				"ActionRow", column_count,
 				ImGuiTableFlags_SizingStretchProp | ImGuiTableFlags_NoSavedSettings
 			)) {
+			// Stretch every editable column rather than shrinking only the action value.
+			// Preferred widths are weights, so their proportions survive inspector resizing.
+			float remaining{ std::max(
+				150.0f, ImGui::GetContentRegionAvail().x - drag_width - type_width -
+				target_width - (displayed_form == ActionForm::Tween
+					? duration_width + repeats_width : 0.0f)
+			) };
 			ImGui::TableSetupColumn("Drag", ImGuiTableColumnFlags_WidthFixed, drag_width);
-			ImGui::TableSetupColumn("Type", ImGuiTableColumnFlags_WidthFixed, type_width);
+			ImGui::TableSetupColumn("Type", ImGuiTableColumnFlags_WidthStretch, type_width);
 
 			if (displayed_form == ActionForm::Tween) {
-				ImGui::TableSetupColumn("Target", ImGuiTableColumnFlags_WidthFixed, target_width);
-				ImGui::TableSetupColumn(
-					"Duration", ImGuiTableColumnFlags_WidthFixed, duration_width
-				);
-				ImGui::TableSetupColumn("Action", ImGuiTableColumnFlags_WidthStretch);
-				ImGui::TableSetupColumn("Repeats", ImGuiTableColumnFlags_WidthFixed, repeats_width);
+				ImGui::TableSetupColumn("Target", ImGuiTableColumnFlags_WidthStretch, target_width);
+				ImGui::TableSetupColumn("Duration", ImGuiTableColumnFlags_WidthStretch, duration_width);
+				ImGui::TableSetupColumn("Action", ImGuiTableColumnFlags_WidthStretch, remaining);
+				ImGui::TableSetupColumn("Repeats", ImGuiTableColumnFlags_WidthStretch, repeats_width);
 			} else if (displayed_form == ActionForm::Action) {
-				ImGui::TableSetupColumn("Target", ImGuiTableColumnFlags_WidthFixed, target_width);
-				ImGui::TableSetupColumn("Value", ImGuiTableColumnFlags_WidthStretch);
+				ImGui::TableSetupColumn("Target", ImGuiTableColumnFlags_WidthStretch, target_width);
+				ImGui::TableSetupColumn("Value", ImGuiTableColumnFlags_WidthStretch, remaining);
 			} else {
-				ImGui::TableSetupColumn("Value", ImGuiTableColumnFlags_WidthStretch);
+				ImGui::TableSetupColumn("Value", ImGuiTableColumnFlags_WidthStretch, remaining);
 			}
 
 			ImGui::TableNextRow(ImGuiTableRowFlags_None, button_width);
@@ -1264,74 +1304,76 @@ bool DrawActions(
 				ImGui::EndDragDropTarget();
 			}
 
-			ImGui::TableSetColumnIndex(column++);
-			parameter_left_screen_x = ImGui::GetCursorScreenPos().x;
-			ImGui::SetNextItemWidth(-FLT_MIN);
+			{
+				ScopedActionEditorDisabled disabled{ !action.enabled };
+				ImGui::TableSetColumnIndex(column++);
+				parameter_left_screen_x = ImGui::GetCursorScreenPos().x;
+				ImGui::SetNextItemWidth(-FLT_MIN);
 
-			if (ImGui::BeginCombo(
-					"##Form", kActionFormLabels[static_cast<std::size_t>(displayed_form)]
-				)) {
-				for (int i{ 0 }; i < static_cast<int>(kActionFormLabels.size()); ++i) {
-					auto candidate{ static_cast<ActionForm>(i) };
+				if (ImGui::BeginCombo(
+						"##Form", kActionFormLabels[static_cast<std::size_t>(displayed_form)]
+					)) {
+					for (int i{ 0 }; i < static_cast<int>(kActionFormLabels.size()); ++i) {
+						auto candidate{ static_cast<ActionForm>(i) };
 
-					if (ImGui::Selectable(
-							kActionFormLabels[static_cast<std::size_t>(i)],
-							candidate == displayed_form
-						)) {
-						requested_form = candidate;
-						form_changed   = true;
+						if (ImGui::Selectable(
+								kActionFormLabels[static_cast<std::size_t>(i)],
+								candidate == displayed_form
+							)) {
+							requested_form = candidate;
+							form_changed   = true;
+						}
 					}
+
+					ImGui::EndCombo();
 				}
 
-				ImGui::EndCombo();
-			}
+				action_context_requested |= IsItemRightClicked();
+				DrawTooltip("Choose an Action, Tween, or Delay. Right click for action options.");
 
-			action_context_requested |= IsItemRightClicked();
-			DrawTooltip("Choose an Action, Tween, or Delay. Right click for action options.");
-
-			if (displayed_form == ActionForm::Tween) {
-				ImGui::TableSetColumnIndex(column++);
-				changed |= DrawActionTarget(context, action);
-
-				ImGui::TableSetColumnIndex(column++);
-				changed |= DrawDurationInput(
-					"##Duration", action.timing->duration_ms, -FLT_MIN,
-					"Duration of each Tween cycle."
-				);
-
-				ImGui::TableSetColumnIndex(column++);
-				changed |=
-					DrawActionPickerWithInline(context, action, true, &action_context_requested);
-
-				ImGui::TableSetColumnIndex(column);
-				changed |= DrawCountControl(
-					"Repeats", action.timing->additional_repeats, 0, 100,
-					action.timing->infinite_repeats, "Additional full duration cycles."
-				);
-			} else {
-				if (displayed_form == ActionForm::Action) {
+				if (displayed_form == ActionForm::Tween) {
 					ImGui::TableSetColumnIndex(column++);
 					changed |= DrawActionTarget(context, action);
-				}
 
-				ImGui::TableSetColumnIndex(column);
+					ImGui::TableSetColumnIndex(column++);
+					changed |= DrawDurationInput(
+						"##Duration", action.timing->duration_ms, -FLT_MIN,
+						"Duration of each Tween cycle."
+					);
 
-				switch (displayed_form) {
-					case ActionForm::Action:
-						changed |= DrawActionPickerWithInline(
-							context, action, false, &action_context_requested
-						);
-						break;
-					case ActionForm::Delay:
-						changed |= DrawDurationInput(
-							"##Duration", action.timing->duration_ms, -FLT_MIN,
-							"Delay before continuing."
-						);
-						break;
-					case ActionForm::Tween: break;
+					ImGui::TableSetColumnIndex(column++);
+					changed |=
+						DrawActionPickerWithInline(context, action, true, &action_context_requested);
+
+					ImGui::TableSetColumnIndex(column);
+					changed |= DrawCountControl(
+						"Repeats", action.timing->additional_repeats, 0, 100,
+						action.timing->infinite_repeats, "Additional full duration cycles."
+					);
+				} else {
+					if (displayed_form == ActionForm::Action) {
+						ImGui::TableSetColumnIndex(column++);
+						changed |= DrawActionTarget(context, action);
+					}
+
+					ImGui::TableSetColumnIndex(column);
+
+					switch (displayed_form) {
+						case ActionForm::Action:
+							changed |= DrawActionPickerWithInline(
+								context, action, false, &action_context_requested
+							);
+							break;
+						case ActionForm::Delay:
+							changed |= DrawDurationInput(
+								"##Duration", action.timing->duration_ms, -FLT_MIN,
+								"Delay before continuing."
+							);
+							break;
+						case ActionForm::Tween: break;
+					}
 				}
 			}
-
 			ImGui::EndTable();
 		}
 
@@ -1362,11 +1404,14 @@ bool DrawActions(
 		}
 
 		if (displayed_form == ActionForm::Tween && action.timing) {
+			ScopedActionEditorDisabled disabled{ !action.enabled };
 			changed |= DrawTimingOptions(context, action, *action.timing, parameter_left_screen_x);
 		}
 
 		if (displayed_form == ActionForm::Action || displayed_form == ActionForm::Tween) {
-			changed |= DrawActionParameters(context, action, parameter_left_screen_x);
+			changed |= DrawActionParameters(
+				context, action, parameter_left_screen_x, !action.enabled
+			);
 		}
 
 		DrawActiveActionProgress(displayed_runtime, static_cast<std::size_t>(index), action);
@@ -1466,9 +1511,9 @@ bool DrawLifecycleRows(ScriptEditorContext& context, ScriptSequence& sequence) {
 			ImGui::EndPopup();
 		}
 
-		ImGui::BeginDisabled(!callback.enabled);
-		changed |= DrawActionParameters(context, callback.action, ImGui::GetCursorScreenPos().x);
-		ImGui::EndDisabled();
+		changed |= DrawActionParameters(
+			context, callback.action, ImGui::GetCursorScreenPos().x, !callback.enabled
+		);
 		ImGui::PopID();
 	}
 
@@ -1721,16 +1766,57 @@ bool DrawTimerElapsedTrigger(ScriptEditorContext& context, json& value) {
 
 template <typename Key>
 bool DrawVariableTriggerKey(
-	const char* id, Key& key, const std::vector<Key>& choices, float width
+	const char* id, Key& key, const std::vector<Key>& choices, float width,
+	const char* missing_key_tooltip = nullptr, const char* empty_key_tooltip = nullptr
 ) {
 	bool changed{ false };
 	ImGui::SetNextItemWidth(width);
-	if (ImGui::BeginCombo(id, key.value.empty() ? "None" : key.value.c_str())) {
+	ImVec2 combo_min{ ImGui::GetCursorScreenPos() };
+	ImVec2 combo_max{ combo_min.x + ImGui::CalcItemWidth(),
+						 combo_min.y + ImGui::GetFrameHeight() };
+	ImDrawList* combo_draw_list{ ImGui::GetWindowDrawList() };
+	bool open{ ImGui::BeginCombo(id, key.value.empty() ? "None" : key.value.c_str()) };
+	bool missing_key{ missing_key_tooltip && !key.value.empty() &&
+					  !std::ranges::contains(choices, key) };
+	if (missing_key) {
+		combo_draw_list->AddRect(
+			combo_min, combo_max,
+			ImGui::GetColorU32(ImVec4{ 0.92f, 0.23f, 0.25f, 1.0f }),
+			ImGui::GetStyle().FrameRounding, 0, 2.0f
+		);
+	}
+	bool combo_hovered{ ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled) };
+	if (combo_hovered) {
+		if (key.value.empty() && empty_key_tooltip) {
+			ImGui::SetTooltip("%s", empty_key_tooltip);
+		} else if (missing_key_tooltip && !key.value.empty() &&
+			!std::ranges::contains(choices, key)) {
+			ImGui::SetTooltip("%s", missing_key_tooltip);
+		}
+	}
+	if (open) {
 		std::string custom{ key.value };
 		ImGui::SetNextItemWidth(-FLT_MIN);
 		if (ImGui::InputTextWithHint("##VariableName", "Name...", &custom)) {
 			key.value = std::move(custom);
-			changed	  = true;
+			changed   = true;
+		}
+		// Match the warning on the dropdown when a custom key is missing.
+		bool custom_key_missing{ missing_key_tooltip && !key.value.empty() &&
+			!std::ranges::contains(choices, key) };
+		if (custom_key_missing) {
+			ImGui::GetWindowDrawList()->AddRect(
+				ImGui::GetItemRectMin(), ImGui::GetItemRectMax(),
+				ImGui::GetColorU32(ImVec4{ 0.92f, 0.23f, 0.25f, 1.0f }),
+				ImGui::GetStyle().FrameRounding, 0, 2.0f
+			);
+		}
+		if (ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled)) {
+			if (custom_key_missing) {
+				ImGui::SetTooltip("%s", missing_key_tooltip);
+			} else if (key.value.empty() && empty_key_tooltip) {
+				ImGui::SetTooltip("%s", empty_key_tooltip);
+			}
 		}
 		ImGui::Separator();
 		if (ImGui::Selectable("None", key.value.empty()) && !key.value.empty()) {
@@ -1739,13 +1825,41 @@ bool DrawVariableTriggerKey(
 		}
 		for (const auto& choice : choices) {
 			if (ImGui::Selectable(choice.value.c_str(), choice == key) && choice != key) {
-				key		= choice;
+				key = choice;
 				changed = true;
 			}
 		}
 		ImGui::EndCombo();
 	}
 	return changed;
+}
+
+[[nodiscard]] Entity ResolveConditionTarget(Entity owner, const StateCondition& condition) {
+	if (!owner) {
+		return {};
+	}
+	if (!condition.target) {
+		return owner;
+	}
+	if (condition.target->type != EntityFilterType::Entity) {
+		return {};
+	}
+	return ResolveEntityReference(owner.GetScene(), condition.target->entity);
+}
+
+bool DrawConditionTarget(
+	ScriptEditorContext& context, StateCondition& condition, float width
+) {
+	Entity owner{ ResolveInspectedEntity(context) };
+	Scene* scene{ owner ? std::addressof(owner.GetScene()) : nullptr };
+	ImGuiID state_id{ ImGui::GetID("##ConditionTargetFilterState") };
+	auto& state{ GetScriptInspectorState().target_filter_states[state_id] };
+	EntityFilterEditorOptions options{};
+	options.single_entity_only = true;
+	options.button_width = width;
+	options.button_tooltip = "Entity whose condition is checked";
+	options.append_filter_tooltip = true;
+	return DrawEntityFilterButton(scene, owner, condition.target, state, options);
 }
 
 [[nodiscard]] std::vector<BooleanKey> GetBooleanConditionKeys(Entity owner) {
@@ -1768,6 +1882,13 @@ bool DrawVariableTriggerKey(
 	return keys;
 }
 
+bool DrawCounterConditionValue(std::int64_t& value, float width) {
+	ImGui::SetNextItemWidth(width);
+	return ImGui::DragScalar(
+		"##CounterThreshold", ImGuiDataType_S64, &value, 0.25f, nullptr, nullptr, "%lld"
+	);
+}
+
 bool DrawStateConditions(ScriptEditorContext& context, ScriptSequence& sequence) {
 	if (sequence.start_conditions.empty()) {
 		return false;
@@ -1775,140 +1896,278 @@ bool DrawStateConditions(ScriptEditorContext& context, ScriptSequence& sequence)
 
 	bool changed{ false };
 	int remove_index{ -1 };
+	int duplicate_index{ -1 };
+	int move_from{ -1 };
+	int move_to{ -1 };
 	Entity owner{ ResolveInspectedEntity(context) };
-	std::vector<BooleanKey> boolean_keys{ GetBooleanConditionKeys(owner) };
-	std::vector<CounterKey> counter_keys{ GetCounterConditionKeys(owner) };
 
-	ImGui::TextDisabled("Conditions (AND before OR)");
+	// Match the spacing used by action and trigger controls.
+	const ImGuiStyle& style{ ImGui::GetStyle() };
+	float spacing{ style.ItemSpacing.x };
+	float button_height{ ImGui::GetFrameHeight() };
+	float preferred_kind_width{ 0.0f };
+	for (const auto& candidate : kConditionKindLabels) {
+		preferred_kind_width = std::max(
+			preferred_kind_width, ImGui::CalcTextSize(candidate.second).x
+		);
+	}
+	preferred_kind_width += button_height + style.FramePadding.x * 2.0f + 16.0f;
+	float preferred_target_width{
+		ImGui::CalcTextSize("Owner").x + style.FramePadding.x * 2.0f + 18.0f
+	};
+	float preferred_join_width{
+		ImGui::CalcTextSize("AND").x + style.FramePadding.x * 2.0f + 24.0f
+	};
+	float preferred_comparison_width{
+		ImGui::CalcTextSize(">=").x + button_height + style.FramePadding.x * 2.0f + 16.0f
+	};
+	float preferred_value_width{ std::max(
+		ImGui::CalcTextSize("Is False").x + style.FramePadding.x * 2.0f + 8.0f,
+		ImGui::CalcTextSize("10000").x + style.FramePadding.x * 2.0f + 26.0f
+	) };
+
 	ImGui::PushID("StartConditions");
-
 	for (int index{ 0 }; index < static_cast<int>(sequence.start_conditions.size()); ++index) {
 		StateCondition& condition{ sequence.start_conditions[static_cast<std::size_t>(index)] };
+		bool has_next{ index + 1 < static_cast<int>(sequence.start_conditions.size()) };
+		bool context_requested{ false };
 		ImGui::PushID(index);
 
-		float spacing{ ImGui::GetStyle().ItemInnerSpacing.x };
-		if (index > 0) {
-			ImGui::BeginDisabled(!condition.enabled);
-			ImGui::SetNextItemWidth(76.0f);
-			const char* join_label{ condition.join == StateConditionJoin::Or ? "OR" : "AND" };
-			if (ImGui::BeginCombo("##ConditionJoin", join_label)) {
-				if (ImGui::Selectable("AND", condition.join == StateConditionJoin::And)) {
-					condition.join = StateConditionJoin::And;
-					changed		   = true;
-				}
-				if (ImGui::Selectable("OR", condition.join == StateConditionJoin::Or)) {
-					condition.join = StateConditionJoin::Or;
-					changed		   = true;
-				}
-				ImGui::EndCombo();
-			}
-			DrawTooltip("Join with previous enabled condition. AND is evaluated before OR.");
-			ImGui::EndDisabled();
-		}
+		// Use the same table row structure as triggers and actions for matching row spacing.
 		if (ImGui::BeginTable(
-				"ConditionRow", 3,
+				"ConditionRow", 1,
 				ImGuiTableFlags_SizingStretchProp | ImGuiTableFlags_NoSavedSettings
 			)) {
-			ImGui::TableSetupColumn("Type", ImGuiTableColumnFlags_WidthFixed, 100.0f);
-			ImGui::TableSetupColumn("Condition", ImGuiTableColumnFlags_WidthStretch);
-			ImGui::TableSetupColumn("Options", ImGuiTableColumnFlags_WidthFixed, 28.0f);
-			ImGui::TableNextRow(ImGuiTableRowFlags_None, ImGui::GetFrameHeight());
+			ImGui::TableSetupColumn("Controls", ImGuiTableColumnFlags_WidthStretch);
+			ImGui::TableNextRow(ImGuiTableRowFlags_None, button_height);
 			ImGui::TableSetColumnIndex(0);
-			ImGui::BeginDisabled(!condition.enabled);
-			ImGui::SetNextItemWidth(-FLT_MIN);
-			const char* current_kind{ condition.kind == StateConditionKind::Counter ? "Counter"
-																					: "Boolean" };
-			if (ImGui::BeginCombo("##ConditionKind", current_kind)) {
-				if (ImGui::Selectable("Boolean", condition.kind == StateConditionKind::Boolean)) {
-					condition.kind = StateConditionKind::Boolean;
-					if (condition.boolean.value.empty() && !boolean_keys.empty()) {
-						condition.boolean = boolean_keys.front();
-					}
-					changed = true;
+
+			// Measure the actual table cell, not the outer inspector content area.
+			// All widths share the available space, with the key using any surplus.
+			float available{ std::max(1.0f, ImGui::GetContentRegionAvail().x) };
+			float preferred_drag_width{ 28.0f };
+			float preferred_key_width{ 96.0f };
+			float preferred_controls{
+				preferred_drag_width + preferred_kind_width + preferred_target_width +
+				preferred_key_width + preferred_comparison_width +
+				preferred_value_width + preferred_join_width
+			};
+			// Six gaps for Counter; Boolean shares the key and comparison region.
+			float scale{ std::clamp(
+				(available - 6.0f * spacing) / preferred_controls, 0.0f, 1.0f
+			) };
+			float drag_width{ std::max(1.0f, preferred_drag_width * scale) };
+			float kind_width{ std::max(1.0f, preferred_kind_width * scale) };
+			float target_width{ std::max(1.0f, preferred_target_width * scale) };
+			float comparison_width{ std::max(1.0f, preferred_comparison_width * scale) };
+			float value_width{ std::max(1.0f, preferred_value_width * scale) };
+			float join_width{ std::max(1.0f, preferred_join_width * scale) };
+			float key_region_width{ std::max(
+				1.0f, available - drag_width - kind_width - target_width -
+				value_width - join_width - 5.0f * spacing
+			) };
+			float counter_key_width{ std::max(
+				1.0f, key_region_width - comparison_width - spacing
+			) };
+
+			// The last value control fills the space reserved for an absent join button.
+			float last_column_width{ value_width + (has_next ? 0.0f : spacing + join_width) };
+
+			if (!condition.enabled) {
+				ImGui::PushStyleVar(ImGuiStyleVar_Alpha, style.Alpha * 0.45f);
+			}
+			ImGui::Button("::", ImVec2{ drag_width, button_height });
+			if (!condition.enabled) {
+				ImGui::PopStyleVar();
+			}
+			context_requested = IsItemRightClicked();
+			DrawTooltip(
+				condition.enabled ? "Drag to reorder. Right click for condition options."
+									  : "Disabled condition. Right click for condition options."
+			);
+			if (ImGui::BeginDragDropSource(ImGuiDragDropFlags_SourceAllowNullID)) {
+				ConditionDragPayload payload{ index };
+				ImGui::SetDragDropPayload("PTGN_SCRIPT_CONDITION", &payload, sizeof(payload));
+				if (condition.kind == StateConditionKind::Counter) {
+					ImGui::Text("%d. Counter: %s", index + 1, condition.counter.value.c_str());
+				} else {
+					ImGui::Text("%d. Boolean: %s", index + 1, condition.boolean.value.c_str());
 				}
-				if (ImGui::Selectable("Counter", condition.kind == StateConditionKind::Counter)) {
-					condition.kind = StateConditionKind::Counter;
-					if (condition.counter.value.empty() && !counter_keys.empty()) {
-						condition.counter = counter_keys.front();
+				ImGui::EndDragDropSource();
+			}
+			if (ImGui::BeginDragDropTarget()) {
+				if (const ImGuiPayload* payload{
+						ImGui::AcceptDragDropPayload("PTGN_SCRIPT_CONDITION") }) {
+					const auto* drag{ static_cast<const ConditionDragPayload*>(payload->Data) };
+					if (drag) {
+						move_from = drag->index;
+						move_to = index;
 					}
-					changed = true;
+				}
+				ImGui::EndDragDropTarget();
+			}
+
+			ImGui::SameLine(0.0f, spacing);
+			ImGui::BeginDisabled(!condition.enabled);
+			ImGui::SetNextItemWidth(kind_width);
+			const char* current_kind{ "Unknown" };
+			for (const auto& [kind, label] : kConditionKindLabels) {
+				if (kind == condition.kind) {
+					current_kind = label;
+					break;
+				}
+			}
+			if (ImGui::BeginCombo("##ConditionKind", current_kind)) {
+				for (const auto& [kind, label] : kConditionKindLabels) {
+					if (ImGui::Selectable(label, condition.kind == kind)) {
+						condition.kind = kind;
+						Entity target{ ResolveConditionTarget(owner, condition) };
+						if (kind == StateConditionKind::Boolean && condition.boolean.value.empty()) {
+							auto keys{ GetBooleanConditionKeys(target) };
+							if (!keys.empty()) {
+								condition.boolean = keys.front();
+							}
+						} else if (kind == StateConditionKind::Counter &&
+								condition.counter.value.empty()) {
+							auto keys{ GetCounterConditionKeys(target) };
+							if (!keys.empty()) {
+								condition.counter = keys.front();
+							}
+						}
+						changed = true;
+					}
 				}
 				ImGui::EndCombo();
 			}
-			ImGui::TableSetColumnIndex(1);
-			float available{ ImGui::GetContentRegionAvail().x };
+			context_requested |= IsItemRightClicked();
+
+			ImGui::SameLine(0.0f, spacing);
+			changed |= DrawConditionTarget(context, condition, target_width);
+			context_requested |= IsItemRightClicked();
+			Entity target{ ResolveConditionTarget(owner, condition) };
+			std::vector<BooleanKey> boolean_keys{ GetBooleanConditionKeys(target) };
+			std::vector<CounterKey> counter_keys{ GetCounterConditionKeys(target) };
+
+			ImGui::SameLine(0.0f, spacing);
 			if (condition.kind == StateConditionKind::Boolean) {
-				float value_width{ 96.0f };
 				changed |= DrawVariableTriggerKey(
 					"##BooleanConditionKey", condition.boolean, boolean_keys,
-					std::max(1.0f, available - value_width - spacing)
+					key_region_width,
+					"Boolean key does not exist on the selected entity. This condition is false.",
+					"No key selected. This condition is true."
 				);
+				context_requested |= IsItemRightClicked();
 				ImGui::SameLine(0.0f, spacing);
-				ImGui::SetNextItemWidth(value_width);
-				if (ImGui::BeginCombo(
-						"##BooleanExpected", condition.expected_value ? "Is True" : "Is False"
+				if (ImGui::Button(
+						condition.expected_value ? "Is True###BooleanExpected"
+											 : "Is False###BooleanExpected",
+						ImVec2{ last_column_width, button_height }
 					)) {
-					if (ImGui::Selectable("Is True", condition.expected_value)) {
-						condition.expected_value = true;
-						changed					 = true;
-					}
-					if (ImGui::Selectable("Is False", !condition.expected_value)) {
-						condition.expected_value = false;
-						changed					 = true;
-					}
-					ImGui::EndCombo();
+					condition.expected_value = !condition.expected_value;
+					changed = true;
 				}
+				context_requested |= IsItemRightClicked();
 			} else {
 				constexpr std::array labels{ "==", "!=", "<", "<=", ">", ">=" };
-				float comparison_width{ 56.0f };
-				float threshold_width{ 82.0f };
 				changed |= DrawVariableTriggerKey(
 					"##CounterConditionKey", condition.counter, counter_keys,
-					std::max(1.0f, available - comparison_width - threshold_width - spacing * 2.0f)
+					counter_key_width,
+					"Counter key does not exist on the selected entity. This condition is false.",
+					"No key selected. This condition is true."
 				);
+				context_requested |= IsItemRightClicked();
 				ImGui::SameLine(0.0f, spacing);
 				ImGui::SetNextItemWidth(comparison_width);
 				int comparison{ static_cast<int>(condition.comparison) };
 				comparison = std::clamp(comparison, 0, static_cast<int>(labels.size()) - 1);
 				if (ImGui::BeginCombo(
-						"##CounterComparison", labels[static_cast<std::size_t>(comparison)]
-					)) {
+					"##CounterComparison", labels[static_cast<std::size_t>(comparison)]
+				)) {
 					for (int i{ 0 }; i < static_cast<int>(labels.size()); ++i) {
-						if (ImGui::Selectable(
-								labels[static_cast<std::size_t>(i)], i == comparison
-							)) {
+						if (ImGui::Selectable(labels[static_cast<std::size_t>(i)], i == comparison)) {
 							condition.comparison = static_cast<CounterComparison>(i);
-							changed				 = true;
+							changed = true;
 						}
 					}
 					ImGui::EndCombo();
 				}
+				context_requested |= IsItemRightClicked();
 				ImGui::SameLine(0.0f, spacing);
-				ImGui::SetNextItemWidth(threshold_width);
-				changed |= ImGui::InputScalar(
-					"##CounterThreshold", ImGuiDataType_S64, &condition.threshold
-				);
+				changed |= DrawCounterConditionValue(condition.threshold, last_column_width);
+				context_requested |= IsItemRightClicked();
 			}
 			ImGui::EndDisabled();
-			ImGui::TableSetColumnIndex(2);
-			if (ImGui::Button("...", ImVec2{ -FLT_MIN, ImGui::GetFrameHeight() })) {
-				ImGui::OpenPopup("ConditionOptions");
-			}
-			if (ImGui::BeginPopup("ConditionOptions")) {
-				changed |= DrawEnableDisableMenuItem(condition.enabled);
-				ImGui::Separator();
-				if (ImGui::MenuItem("Delete")) {
-					remove_index = index;
+
+			if (has_next) {
+				ImGui::SameLine(0.0f, spacing);
+				StateCondition& next{ sequence.start_conditions[static_cast<std::size_t>(index + 1)] };
+				ImGui::BeginDisabled(!next.enabled);
+				if (ImGui::Button(
+						next.join == StateConditionJoin::Or ? "OR##Join" : "AND##Join",
+						ImVec2{ join_width, button_height }
+					)) {
+					next.join = next.join == StateConditionJoin::And
+										? StateConditionJoin::Or : StateConditionJoin::And;
+					changed = true;
 				}
-				ImGui::EndPopup();
+				if (ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled)) {
+					ImGui::SetTooltip("AND is evaluated before OR.");
+				}
+				ImGui::EndDisabled();
 			}
 			ImGui::EndTable();
 		}
+
+		if (context_requested) {
+			ImGui::OpenPopup("ConditionContext");
+		}
+		if (ImGui::BeginPopup("ConditionContext")) {
+			changed |= DrawEnableDisableMenuItem(condition.enabled);
+			if (ImGui::MenuItem("Duplicate")) {
+				duplicate_index = index;
+			}
+			ImGui::Separator();
+			if (ImGui::MenuItem("Delete")) {
+				remove_index = index;
+			}
+			ImGui::EndPopup();
+		}
 		ImGui::PopID();
+	}
+
+	if (move_from >= 0 && move_to >= 0 && move_from != move_to &&
+		move_from < static_cast<int>(sequence.start_conditions.size()) &&
+		move_to < static_cast<int>(sequence.start_conditions.size())) {
+		// The join belongs to its position between two rows, not to the moved condition.
+		std::vector<StateConditionJoin> joins;
+		joins.reserve(sequence.start_conditions.size());
+		for (const auto& condition : sequence.start_conditions) {
+			joins.push_back(condition.join);
+		}
+		auto moved{ std::move(sequence.start_conditions[static_cast<std::size_t>(move_from)]) };
+		sequence.start_conditions.erase(sequence.start_conditions.begin() + move_from);
+		sequence.start_conditions.insert(
+			sequence.start_conditions.begin() + move_to, std::move(moved)
+		);
+		for (std::size_t index{ 0 }; index < joins.size(); ++index) {
+			sequence.start_conditions[index].join = joins[index];
+		}
+		changed = true;
+	}
+	if (duplicate_index >= 0) {
+		StateCondition copy{ sequence.start_conditions[static_cast<std::size_t>(duplicate_index)] };
+		copy.join = StateConditionJoin::And;
+		sequence.start_conditions.insert(
+			sequence.start_conditions.begin() + duplicate_index + 1, std::move(copy)
+		);
+		changed = true;
 	}
 	if (remove_index >= 0) {
 		sequence.start_conditions.erase(sequence.start_conditions.begin() + remove_index);
 		changed = true;
+	}
+	if (changed && !sequence.start_conditions.empty()) {
+		sequence.start_conditions.front().join = StateConditionJoin::And;
 	}
 	ImGui::PopID();
 	return changed;
@@ -1983,8 +2242,8 @@ bool DrawCounterTrigger(ScriptEditorContext& context, json& value) {
 	ImGui::SameLine(0.0f, spacing);
 	ImGui::SetNextItemWidth(comparison_width);
 	if (ImGui::BeginCombo(
-			"##CounterEventComparison", labels[static_cast<std::size_t>(comparison)]
-		)) {
+		"##CounterEventComparison", labels[static_cast<std::size_t>(comparison)]
+	)) {
 		for (int i{ 0 }; i < static_cast<int>(labels.size()); ++i) {
 			if (ImGui::Selectable(labels[static_cast<std::size_t>(i)], i == comparison)) {
 				comparison = i;
@@ -2034,8 +2293,8 @@ bool DrawBooleanTrigger(ScriptEditorContext& context, json& value) {
 	ImGui::SameLine(0.0f, spacing);
 	ImGui::SetNextItemWidth(transition_width);
 	if (ImGui::BeginCombo(
-			"##BooleanEventTransition", labels[static_cast<std::size_t>(transition)]
-		)) {
+		"##BooleanEventTransition", labels[static_cast<std::size_t>(transition)]
+	)) {
 		for (int i{ 0 }; i < 3; ++i) {
 			if (ImGui::Selectable(labels[static_cast<std::size_t>(i)], i == transition)) {
 				transition = i;
@@ -3831,22 +4090,29 @@ bool RenameVariableReferencesImpl(Entity variable_entity, const Key& old_key, co
 				continue;
 			}
 			bool edited{ false };
-			if (owner == variable_entity) {
-				for (auto& condition : sequence->start_conditions) {
-					if constexpr (is_counter) {
-						if (condition.kind == StateConditionKind::Counter &&
-							condition.counter == old_key) {
-							condition.counter = new_key;
-							edited			  = true;
-						}
-					} else {
-						if (condition.kind == StateConditionKind::Boolean &&
-							condition.boolean == old_key) {
-							condition.boolean = new_key;
-							edited			  = true;
-						}
+			for (auto& condition : sequence->start_conditions) {
+				bool targets_entity{ condition.target
+					? (condition.target->type == EntityFilterType::Entity &&
+					   ResolveEntityReference(scene, condition.target->entity) == variable_entity)
+					: owner == variable_entity };
+				if (!targets_entity) {
+					continue;
+				}
+				if constexpr (is_counter) {
+					if (condition.kind == StateConditionKind::Counter &&
+						condition.counter == old_key) {
+						condition.counter = new_key;
+						edited = true;
+					}
+				} else {
+					if (condition.kind == StateConditionKind::Boolean &&
+						condition.boolean == old_key) {
+						condition.boolean = new_key;
+						edited = true;
 					}
 				}
+			}
+			if (owner == variable_entity) {
 				for (auto& condition : sequence->start_events) {
 					if (condition.type_hash == event_type) {
 						edited |= RenameVariableJsonReference(

@@ -520,9 +520,13 @@ bool DrawMiniHierarchy(
 }
 
 [[nodiscard]] float GetPopupWidth(const EntityFilterEditorOptions& options) {
+	if (options.single_entity_only) {
+		return kEntityModeMinWidth;
+	}
+
 	float width{ 0.0f };
 
-	if (options.show_entity || options.show_layer) {
+	if (options.show_entity || options.show_layer || options.single_entity_only) {
 		width = std::max(width, kEntityModeMinWidth);
 	}
 
@@ -1246,6 +1250,9 @@ bool DrawEntityFilterEditor(
 	bool changed{ false };
 
 	auto mode_visible = [&](EntityFilterType type) {
+		if (options.single_entity_only) {
+			return type == EntityFilterType::Entity;
+		}
 		switch (type) {
 			case EntityFilterType::None:	   return options.show_none;
 			case EntityFilterType::Any:		   return options.show_any;
@@ -1260,7 +1267,7 @@ bool DrawEntityFilterEditor(
 	};
 
 	if (!mode_visible(target.type)) {
-		if (options.show_entity) {
+		if (options.single_entity_only || options.show_entity) {
 			target.type = EntityFilterType::Entity;
 		} else if (options.show_layer) {
 			target.type = EntityFilterType::Layer;
@@ -1281,18 +1288,20 @@ bool DrawEntityFilterEditor(
 		}
 	}
 
-	std::size_t mode_count{ static_cast<std::size_t>(options.show_none) +
-							static_cast<std::size_t>(options.show_any) +
-							static_cast<std::size_t>(options.show_entity) +
-							static_cast<std::size_t>(options.show_layer) +
-							static_cast<std::size_t>(options.show_components) +
-							static_cast<std::size_t>(options.show_groups) +
-							static_cast<std::size_t>(options.show_queries) };
+	std::size_t mode_count{ options.single_entity_only
+								? 1
+								: static_cast<std::size_t>(options.show_none) +
+									  static_cast<std::size_t>(options.show_any) +
+									  static_cast<std::size_t>(options.show_entity) +
+									  static_cast<std::size_t>(options.show_layer) +
+									  static_cast<std::size_t>(options.show_components) +
+									  static_cast<std::size_t>(options.show_groups) +
+									  static_cast<std::size_t>(options.show_queries) };
 	ImGuiStyle& style{ ImGui::GetStyle() };
 	float spacing{ style.ItemSpacing.x };
 	float mode_height{ ImGui::GetFrameHeight() };
 
-	if (mode_count > 1) {
+	if (mode_count > 1 && !options.single_entity_only) {
 		float vertical_spacing{ style.ItemInnerSpacing.y };
 
 		if (style.WindowPadding.y > vertical_spacing) {
@@ -1350,7 +1359,7 @@ bool DrawEntityFilterEditor(
 		ImGui::PopStyleVar();
 		ImGui::Separator();
 		ImGui::PopStyleVar();
-	} else {
+	} else if (!options.single_entity_only) {
 		ImGui::Separator();
 	}
 
@@ -1394,36 +1403,40 @@ bool DrawEntityFilterEditor(
 	return changed;
 }
 
-void DrawFilterButtonTooltip(Scene* scene, const EntityFilter& target) {
-	if (!ImGui::IsItemHovered()) {
+void DrawFilterButtonTooltip(
+	Scene* scene, const EntityFilter& target, const char* prefix = nullptr
+) {
+	if (!ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled)) {
 		return;
 	}
+
+	auto set_tooltip = [prefix](const std::string& detail) {
+		if (prefix && *prefix) {
+			ImGui::SetTooltip("%s\n%s", prefix, detail.c_str());
+		} else {
+			ImGui::SetTooltip("%s", detail.c_str());
+		}
+	};
 
 	switch (target.type) {
 		case EntityFilterType::Entity:
 			if (target.entity.uuid.has_value()) {
 				if (scene) {
 					Entity entity{ ResolveEntity(*scene, target.entity) };
-
 					if (entity) {
-						std::string name{ EntityDisplayName(entity) };
-						std::string uuid{ UUIDDisplayName(entity) };
-						ImGui::SetTooltip("%s\nuuid: %s", name.c_str(), uuid.c_str());
+						set_tooltip(
+							EntityDisplayName(entity) + "\nuuid: " + UUIDDisplayName(entity)
+						);
 						return;
 					}
 				} else {
 					json uuid = target.entity.uuid.value();
 					std::string uuid_text{ uuid.is_string() ? uuid.get<std::string>()
 															: uuid.dump() };
-
-					if (!target.entity.tag.empty()) {
-						ImGui::SetTooltip(
-							"%s\nuuid: %s", target.entity.tag.c_str(), uuid_text.c_str()
-						);
-					} else {
-						ImGui::SetTooltip("uuid: %s", uuid_text.c_str());
-					}
-
+					set_tooltip(
+						(target.entity.tag.empty() ? std::string{} : target.entity.tag + "\n") +
+						"uuid: " + uuid_text
+					);
 					return;
 				}
 			}
@@ -1432,38 +1445,32 @@ void DrawFilterButtonTooltip(Scene* scene, const EntityFilter& target) {
 		case EntityFilterType::Layer:
 			if (scene) {
 				if (const SceneLayer* layer{ ResolveLayer(*scene, target.layer) }) {
-					ImGui::SetTooltip("Layer: %s", layer->name.c_str());
+					set_tooltip("Layer: " + layer->name);
 					return;
 				}
 			} else if (!target.layer.name.empty()) {
-				ImGui::SetTooltip("Layer: %s", target.layer.name.c_str());
+				set_tooltip("Layer: " + target.layer.name);
 				return;
 			}
 			break;
 
-		case EntityFilterType::Components: {
-			if (!HasValidComponentCondition(target.components)) {
-				break;
+		case EntityFilterType::Components:
+			if (HasValidComponentCondition(target.components)) {
+				set_tooltip(ComponentQuerySummary(target.components));
+				return;
 			}
-
-			std::string full_summary{ ComponentQuerySummary(target.components) };
-			ImGui::SetTooltip("%s", full_summary.c_str());
-			return;
-		}
+			break;
 
 		case EntityFilterType::Group:
 			if (!target.group.groups.empty()) {
 				std::string groups{ "Groups: " };
-
 				for (std::size_t i{ 0 }; i < target.group.groups.size(); ++i) {
 					if (i > 0) {
 						groups += ", ";
 					}
-
 					groups += target.group.groups[i];
 				}
-
-				ImGui::SetTooltip("%s", groups.c_str());
+				set_tooltip(groups);
 				return;
 			}
 			break;
@@ -1471,8 +1478,7 @@ void DrawFilterButtonTooltip(Scene* scene, const EntityFilter& target) {
 		default: break;
 	}
 
-	std::string summary{ FilterSummary(scene, {}, target) };
-	ImGui::SetTooltip("%s", summary.c_str());
+	set_tooltip(FilterSummary(scene, {}, target));
 }
 
 void ApplyPopupConstraints(const EntityFilterEditorOptions& options) {
@@ -1538,11 +1544,21 @@ bool DrawEntityFilterButtonImpl(
 	std::string summary{ FilterSummary(scene, owner, target) };
 	bool changed{ false };
 
-	if (ImGui::Button(summary.c_str(), ImVec2{ ImGui::GetContentRegionAvail().x, 0.0f })) {
+	float button_width{ options.button_width > 0.0f ? options.button_width
+													: ImGui::GetContentRegionAvail().x };
+	if (ImGui::Button(summary.c_str(), ImVec2{ button_width, 0.0f })) {
 		ImGui::OpenPopup("Entity Filter###EntityFilterPopup");
 	}
 
-	DrawFilterButtonTooltip(scene, target);
+	if (options.append_filter_tooltip) {
+		DrawFilterButtonTooltip(scene, target, options.button_tooltip);
+	} else if (options.button_tooltip) {
+		if (ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled)) {
+			ImGui::SetTooltip("%s", options.button_tooltip);
+		}
+	} else {
+		DrawFilterButtonTooltip(scene, target);
+	}
 
 	if (BeginEntityFilterPopup(options)) {
 		changed |= DrawEntityFilterEditor(scene, owner, target, state, options);
@@ -1566,13 +1582,41 @@ bool DrawEntityFilterButtonImpl(
 	std::string summary{ owner_target ? "Owner" : FilterSummary(scene, owner, *target) };
 	bool changed{ false };
 
-	if (ImGui::Button(summary.c_str(), ImVec2{ ImGui::GetContentRegionAvail().x, 0.0f })) {
+	float button_width{ options.button_width > 0.0f ? options.button_width
+													: ImGui::GetContentRegionAvail().x };
+	if (ImGui::Button(summary.c_str(), ImVec2{ button_width, 0.0f })) {
 		ImGui::OpenPopup("Entity Filter###EntityFilterPopup");
 	}
 
-	if (owner_target) {
+	if (options.append_filter_tooltip) {
+		if (owner_target) {
+			if (ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled)) {
+				std::string details{ owner ? EntityDisplayName(owner) + "\nuuid: " +
+												 UUIDDisplayName(owner) + "\n[sequence owner]"
+										   : "No owner entity" };
+				if (options.button_tooltip && *options.button_tooltip) {
+					ImGui::SetTooltip("%s\n%s", options.button_tooltip, details.c_str());
+				} else {
+					ImGui::SetTooltip("%s", details.c_str());
+				}
+			}
+		} else {
+			DrawFilterButtonTooltip(scene, *target, options.button_tooltip);
+		}
+	} else if (options.button_tooltip) {
+		if (ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled)) {
+			ImGui::SetTooltip("%s", options.button_tooltip);
+		}
+	} else if (owner_target) {
 		if (ImGui::IsItemHovered()) {
-			ImGui::SetTooltip("The sequence owner is the target.");
+			if (owner) {
+				ImGui::SetTooltip(
+					"%s\nuuid: %s\n[sequence owner]", EntityDisplayName(owner).c_str(),
+					UUIDDisplayName(owner).c_str()
+				);
+			} else {
+				ImGui::SetTooltip("No owner entity");
+			}
 		}
 	} else {
 		DrawFilterButtonTooltip(scene, *target);

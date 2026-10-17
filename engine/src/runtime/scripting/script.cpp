@@ -98,12 +98,13 @@ ScriptSequence& ScriptSequence::DestroyOwnerOnComplete(bool value) {
 }
 
 ScriptSequence& ScriptSequence::RequireBoolean(
-	BooleanKey key, bool expected_value, StateConditionJoin join
+	BooleanKey key, bool expected_value, StateConditionJoin join, std::optional<EntityFilter> target
 ) {
 	start_conditions.push_back(
 		StateCondition{
 			.join			= start_conditions.empty() ? StateConditionJoin::And : join,
 			.kind			= StateConditionKind::Boolean,
+			.target			= std::move(target),
 			.boolean		= std::move(key),
 			.expected_value = expected_value,
 		}
@@ -112,12 +113,14 @@ ScriptSequence& ScriptSequence::RequireBoolean(
 }
 
 ScriptSequence& ScriptSequence::RequireCounter(
-	CounterKey key, CounterComparison comparison, std::int64_t threshold, StateConditionJoin join
+	CounterKey key, CounterComparison comparison, std::int64_t threshold, StateConditionJoin join,
+	std::optional<EntityFilter> target
 ) {
 	start_conditions.push_back(
 		StateCondition{
 			.join		= start_conditions.empty() ? StateConditionJoin::And : join,
 			.kind		= StateConditionKind::Counter,
+			.target		= std::move(target),
 			.counter	= std::move(key),
 			.comparison = comparison,
 			.threshold	= threshold,
@@ -724,13 +727,30 @@ bool CancelBinding(
 }
 
 [[nodiscard]] bool EvaluateStateCondition(Entity owner, const StateCondition& condition) {
+	// An unselected key is an unconditional true condition, even without a valid target.
+	if ((condition.kind == StateConditionKind::Boolean && condition.boolean.value.empty()) ||
+		(condition.kind == StateConditionKind::Counter && condition.counter.value.empty())) {
+		return true;
+	}
+
+	Entity target{ owner };
+	if (condition.target) {
+		if (condition.target->type != EntityFilterType::Entity) {
+			return false;
+		}
+		target = ResolveEntityReference(owner.GetScene(), condition.target->entity);
+		if (!target) {
+			return false;
+		}
+	}
+
 	switch (condition.kind) {
 		case StateConditionKind::Boolean: {
-			BooleanHandle boolean{ GetBoolean(owner, condition.boolean) };
+			BooleanHandle boolean{ GetBoolean(target, condition.boolean) };
 			return boolean && boolean.Value() == condition.expected_value;
 		}
 		case StateConditionKind::Counter: {
-			CounterHandle counter{ GetCounter(owner, condition.counter) };
+			CounterHandle counter{ GetCounter(target, condition.counter) };
 			if (!counter) {
 				return false;
 			}

@@ -31,6 +31,10 @@ struct EntityFilterEditorOptions {
 	bool show_queries{ true };
 	bool allow_select_owner{ true };
 	bool exclude_owner{ false };
+	bool single_entity_only{ false };
+	float button_width{ -1.0f };
+	const char* button_tooltip{ nullptr };
+	bool append_filter_tooltip{ false };
 	std::span<const Entity> excluded_entities{};
 };
 

@@ -34,6 +34,50 @@ private:
 	bool disabled_{ false };
 };
 
+// Keeps data controls read only while allowing inspection of nested navigation widgets.
+inline int& ActionEditorDisabledDepth() {
+	static thread_local int depth{ 0 };
+	return depth;
+}
+
+class ScopedActionEditorDisabled {
+public:
+	explicit ScopedActionEditorDisabled(bool disabled) : disabled_{ disabled } {
+		if (disabled_) {
+			++ActionEditorDisabledDepth();
+			ImGui::BeginDisabled();
+		}
+	}
+
+	~ScopedActionEditorDisabled() {
+		if (disabled_) {
+			ImGui::EndDisabled();
+			--ActionEditorDisabledDepth();
+		}
+	}
+
+	ScopedActionEditorDisabled(const ScopedActionEditorDisabled&)			 = delete;
+	ScopedActionEditorDisabled& operator=(const ScopedActionEditorDisabled&) = delete;
+
+private:
+	bool disabled_{ false };
+};
+
+inline bool DrawInspectOnlyTreeNodeEx(const char* label, ImGuiTreeNodeFlags flags) {
+	if (ActionEditorDisabledDepth() == 0) {
+		return ImGui::TreeNodeEx(label, flags);
+	}
+
+	// Restore input for the tree header only. Its children remain read only.
+	ImGui::EndDisabled();
+	const ImGuiStyle& style{ ImGui::GetStyle() };
+	ImGui::PushStyleVar(ImGuiStyleVar_Alpha, style.Alpha * style.DisabledAlpha);
+	bool open{ ImGui::TreeNodeEx(label, flags) };
+	ImGui::PopStyleVar();
+	ImGui::BeginDisabled();
+	return open;
+}
+
 class ScopedID {
 public:
 	explicit ScopedID(const void* id) {

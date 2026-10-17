@@ -33,6 +33,7 @@
 #include "panels/content_browser.h"
 #include "panels/entity_filter_editor.h"
 #include "panels/inspector_fields.h"
+#include "panels/inspector_helpers.h"
 #include "runtime/animation/animation.h"
 #include "runtime/animation/animation_event.h"
 #include "runtime/audio/audio_system.h"
@@ -187,7 +188,7 @@ bool DrawJsonObject(json& value, const json* defaults) {
 bool DrawJsonArray(std::string_view label, json& value, const json* defaults) {
 	std::string title{ std::string{ label } + " [" + std::to_string(value.size()) + "]" };
 
-	if (!ImGui::TreeNodeEx(title.c_str(), ImGuiTreeNodeFlags_SpanAvailWidth)) {
+	if (!inspector::DrawInspectOnlyTreeNodeEx(title.c_str(), ImGuiTreeNodeFlags_SpanAvailWidth)) {
 		return false;
 	}
 
@@ -283,7 +284,9 @@ bool DrawJsonValue(std::string_view label, json& value, const json* defaults) {
 
 	if (value.is_object()) {
 		std::string title{ label };
-		if (!ImGui::TreeNodeEx(title.c_str(), ImGuiTreeNodeFlags_SpanAvailWidth)) {
+		if (!inspector::DrawInspectOnlyTreeNodeEx(
+				title.c_str(), ImGuiTreeNodeFlags_SpanAvailWidth
+			)) {
 			return false;
 		}
 
@@ -858,7 +861,7 @@ bool DrawNamedEnumCombo(
 		}
 		ImGui::EndCombo();
 	}
-	DrawItemTooltip(tooltip);
+	DrawItemTooltip(tooltip ? tooltip : "Choose the action operation.");
 	return changed;
 }
 
@@ -1147,8 +1150,8 @@ bool DrawTimerActionInline(ScriptEditorContext& context, ActionScript& script) {
 	float available{ ImGui::GetContentRegionAvail().x };
 	float spacing{ ImGui::GetStyle().ItemSpacing.x };
 	bool uses_amount{ TimerActionUsesAmount(script.timer_action) };
-	float action_width{ std::min(130.0f, std::max(95.0f, available * 0.32f)) };
-	float amount_width{ std::min(100.0f, std::max(72.0f, available * 0.25f)) };
+	float action_width{ std::min(130.0f, std::max(1.0f, available * 0.32f)) };
+	float amount_width{ std::min(100.0f, std::max(1.0f, available * 0.25f)) };
 	float timer_width{ std::max(
 		1.0f, available - action_width - (uses_amount ? amount_width + spacing : 0.0f) - spacing
 	) };
@@ -1234,14 +1237,52 @@ template <typename Key>
 template <typename Key>
 bool DrawVariableKeyInline(const char* id, Key& key, const std::vector<Key>& choices, float width) {
 	bool changed{ false };
+	const char* kind{ std::same_as<Key, CounterKey> ? "Counter" : "Boolean" };
+	std::string missing_tooltip{ std::string{ kind } + " key does not exist on the action target." };
+	std::string key_tooltip{ std::string{ kind } + " key on the action target." };
+	auto missing = [&]() {
+		return !key.value.empty() && !std::ranges::contains(choices, key);
+	};
+	auto draw_warning_border = [&]() {
+		if (missing()) {
+			ImGui::GetWindowDrawList()->AddRect(
+				ImGui::GetItemRectMin(), ImGui::GetItemRectMax(),
+				ImGui::GetColorU32(ImVec4{ 0.92f, 0.23f, 0.25f, 1.0f }),
+				ImGui::GetStyle().FrameRounding, 0, 2.0f
+			);
+		}
+	};
+	auto draw_key_tooltip = [&]() {
+		if (ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled)) {
+			ImGui::SetTooltip("%s", missing() ? missing_tooltip.c_str()
+									  : key.value.empty() ? "No variable key selected."
+														  : key_tooltip.c_str());
+		}
+	};
+
 	ImGui::SetNextItemWidth(width);
-	if (ImGui::BeginCombo(id, key.value.empty() ? "None" : key.value.c_str())) {
+	ImVec2 combo_min{ ImGui::GetCursorScreenPos() };
+	ImVec2 combo_max{ combo_min.x + ImGui::CalcItemWidth(),
+						 combo_min.y + ImGui::GetFrameHeight() };
+	ImDrawList* combo_draw_list{ ImGui::GetWindowDrawList() };
+	bool open{ ImGui::BeginCombo(id, key.value.empty() ? "None" : key.value.c_str()) };
+	if (missing()) {
+		combo_draw_list->AddRect(
+			combo_min, combo_max,
+			ImGui::GetColorU32(ImVec4{ 0.92f, 0.23f, 0.25f, 1.0f }),
+			ImGui::GetStyle().FrameRounding, 0, 2.0f
+		);
+	}
+	draw_key_tooltip();
+	if (open) {
 		std::string custom{ key.value };
 		ImGui::SetNextItemWidth(-FLT_MIN);
 		if (ImGui::InputTextWithHint("##VariableCustomName", "Name...", &custom)) {
 			key.value = std::move(custom);
-			changed	  = true;
+			changed   = true;
 		}
+		draw_warning_border();
+		draw_key_tooltip();
 		ImGui::Separator();
 		if (ImGui::Selectable("None", key.value.empty()) && !key.value.empty()) {
 			key.value.clear();
@@ -1249,12 +1290,9 @@ bool DrawVariableKeyInline(const char* id, Key& key, const std::vector<Key>& cho
 		}
 		for (const auto& choice : choices) {
 			if (ImGui::Selectable(choice.value.c_str(), choice == key) && choice != key) {
-				key		= choice;
+				key = choice;
 				changed = true;
 			}
-		}
-		if (choices.empty()) {
-			ImGui::TextDisabled("No matching variables on the target.");
 		}
 		ImGui::EndCombo();
 	}
@@ -1265,10 +1303,28 @@ bool DrawCounterActionInline(ScriptEditorContext& context, ActionScript& script)
 	float available{ ImGui::GetContentRegionAvail().x };
 	float spacing{ ImGui::GetStyle().ItemSpacing.x };
 	bool uses_amount{ script.counter_action != CounterAction::Reset };
-	float action_width{ 120.0f };
-	float amount_width{ 95.0f };
+	const ImGuiStyle& style{ ImGui::GetStyle() };
+	float longest_label_width{ 0.0f };
+	for (const auto& entry : kCounterActions) {
+		longest_label_width = std::max(longest_label_width, ImGui::CalcTextSize(entry.second).x);
+	}
+	float preferred_action_width{ longest_label_width + ImGui::GetFrameHeight() +
+		style.FramePadding.x * 2.0f };
+	float preferred_amount_width{ ImGui::CalcTextSize("-999999").x +
+		style.FramePadding.x * 2.0f + 12.0f };
+	float usable{ std::max(1.0f, available - spacing * (uses_amount ? 2.0f : 1.0f)) };
+	float preferred_key_width{ std::max(
+		110.0f, usable - preferred_action_width -
+			(uses_amount ? preferred_amount_width : 0.0f)
+	) };
+	float preferred_total{ preferred_key_width + preferred_action_width +
+		(uses_amount ? preferred_amount_width : 0.0f) };
+	// Resize all three controls together once the available row becomes compact.
+	float scale{ std::min(1.0f, usable / std::max(330.0f, preferred_total)) };
+	float action_width{ std::max(1.0f, preferred_action_width * scale) };
+	float amount_width{ std::max(1.0f, preferred_amount_width * scale) };
 	float key_width{ std::max(
-		1.0f, available - action_width - spacing - (uses_amount ? amount_width + spacing : 0.0f)
+		1.0f, usable - action_width - (uses_amount ? amount_width : 0.0f)
 	) };
 	bool changed{ DrawVariableKeyInline(
 		"##CounterKey", script.counter, GetVariableActionChoices<CounterKey>(context), key_width
@@ -1290,17 +1346,32 @@ bool DrawCounterActionInline(ScriptEditorContext& context, ActionScript& script)
 		}
 		ImGui::EndCombo();
 	}
+	DrawItemTooltip("Counter operation to perform.");
 	if (uses_amount) {
 		SameLineControl();
 		ImGui::SetNextItemWidth(amount_width);
-		changed |= ImGui::InputScalar("##CounterAmount", ImGuiDataType_S64, &script.counter_amount);
+		changed |= ImGui::DragScalar(
+			"##CounterAmount", ImGuiDataType_S64, &script.counter_amount, 0.2f
+		);
+		const char* amount_tooltip{ "Value to assign to the counter." };
+		switch (script.counter_action) {
+			case CounterAction::Set: amount_tooltip = "Value to assign to the counter."; break;
+			case CounterAction::Increment:
+				amount_tooltip = "Amount to add to the counter.";
+				break;
+			case CounterAction::Decrement:
+				amount_tooltip = "Amount to subtract from the counter.";
+				break;
+			case CounterAction::Reset: break;
+		}
+		DrawItemTooltip(amount_tooltip);
 	}
 	return changed;
 }
 
 bool DrawBooleanActionInline(ScriptEditorContext& context, ActionScript& script) {
 	float available{ ImGui::GetContentRegionAvail().x };
-	float action_width{ 120.0f };
+	float action_width{ std::min(120.0f, std::max(1.0f, available * 0.40f)) };
 	bool changed{ DrawVariableKeyInline(
 		"##BooleanKey", script.boolean, GetVariableActionChoices<BooleanKey>(context),
 		std::max(1.0f, available - action_width - ImGui::GetStyle().ItemSpacing.x)
@@ -1322,6 +1393,7 @@ bool DrawBooleanActionInline(ScriptEditorContext& context, ActionScript& script)
 		}
 		ImGui::EndCombo();
 	}
+	DrawItemTooltip("Boolean operation to perform.");
 	return changed;
 }
 
@@ -1376,7 +1448,7 @@ bool DrawUIActionInline(ScriptEditorContext&, ActionScript& script) {
 			auto it{ std::ranges::find_if(kUIActions, [&](const auto& entry) {
 				return entry.first == script.ui_action;
 			}) };
-			return it != kUIActions.end() ? it->second : "UI Action";
+			return it != kUIActions.end() ? it->second : "UI";
 		}())) {
 		for (const auto& [candidate, label] : kUIActions) {
 			bool relevant{ false };
@@ -1909,6 +1981,7 @@ bool DrawSceneChangeActionAndKey(ScriptEditorContext& context, SceneChangeScript
 
 		ImGui::EndCombo();
 	}
+	DrawItemTooltip("Scene operation to perform.");
 
 	SameLineControl();
 
@@ -1968,6 +2041,7 @@ bool DrawSceneChange(ScriptEditorContext&, SceneChangeScript& script) {
 
 				ImGui::EndCombo();
 			}
+			DrawItemTooltip("Easing used for the scene transition.");
 
 			return ease_changed;
 		});
@@ -2248,14 +2322,9 @@ bool DrawFollowEntityPicker(
 	}
 
 	inspector::EntityFilterEditorOptions options{
-		.show_any			= false,
-		.show_entity		= true,
-		.show_components	= false,
-		.show_groups		= false,
-		.show_queries		= false,
 		.allow_select_owner = false,
-		.exclude_owner		= false,
-		.excluded_entities	= std::span<const Entity>{ excluded_entities },
+		.single_entity_only  = true,
+		.excluded_entities  = std::span<const Entity>{ excluded_entities },
 	};
 
 	ImGui::PushID(id);
@@ -2843,10 +2912,10 @@ bool DrawActionScriptInline(ScriptEditorContext& context, ActionScript& script) 
 PTGN_REGISTER_SCRIPT(
 	ActionScript,
 	{
-		.label = "Button Action",
+		.label = "Button",
 		.group = "UI",
 		.description =
-			"Perform a typed action on a counter, boolean, timer, animation, or UI control.",
+			"Choose an animation, timer, variable, or UI operation.",
 		.type		 = ScriptType::Sequence,
 		.menu_order	 = 1,
 		.draw_inline = &DrawActionScriptInline,
@@ -3488,6 +3557,7 @@ void EnsureEngineScriptEditorsRegistered() {
 	// PTGN_REGISTER_SCRIPT and PTGN_REGISTER_EVENT initializers then populate the editor
 	// registries.
 }
+
 } // namespace impl
 
 } // namespace ptgn::editor

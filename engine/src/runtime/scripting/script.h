@@ -150,6 +150,7 @@ struct StateCondition {
 	bool enabled{ true };
 	StateConditionJoin join{ StateConditionJoin::And };
 	StateConditionKind kind{ StateConditionKind::Boolean };
+	std::optional<EntityFilter> target{};
 	BooleanKey boolean{};
 	bool expected_value{ true };
 	CounterKey counter{};
@@ -157,7 +158,8 @@ struct StateCondition {
 	std::int64_t threshold{ 0 };
 
 	PTGN_REFLECT(
-		StateCondition, enabled, join, kind, boolean, expected_value, counter, comparison, threshold
+		StateCondition, enabled, join, kind, target, boolean, expected_value, counter, comparison,
+		threshold
 	)
 };
 
@@ -255,11 +257,13 @@ public:
 	ScriptSequence& DestroyOwnerOnComplete(bool value = true);
 	ScriptSequence& RequireBoolean(
 		BooleanKey key, bool expected_value = true,
-		StateConditionJoin join = StateConditionJoin::And
+		StateConditionJoin join			   = StateConditionJoin::And,
+		std::optional<EntityFilter> target = std::nullopt
 	);
 	ScriptSequence& RequireCounter(
 		CounterKey key, CounterComparison comparison, std::int64_t threshold,
-		StateConditionJoin join = StateConditionJoin::And
+		StateConditionJoin join			   = StateConditionJoin::And,
+		std::optional<EntityFilter> target = std::nullopt
 	);
 
 	template <typename TEvent>
@@ -421,8 +425,8 @@ public:
 	static void Attach(
 		Script& script, Entity owner, Entity target, std::string_view sequence_name = {}
 	) {
-		script.owner  = owner;
-		script.target = target ? target : owner;
+		script.owner				 = owner;
+		script.target				 = target ? target : owner;
 		script.active_sequence_name_ = sequence_name;
 	}
 
