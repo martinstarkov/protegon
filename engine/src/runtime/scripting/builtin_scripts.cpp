@@ -2,10 +2,13 @@
 
 #include <algorithm>
 #include <cmath>
+#include <iomanip>
 #include <numbers>
 #include <optional>
 #include <ranges>
 #include <span>
+#include <sstream>
+#include <string_view>
 #include <type_traits>
 #include <utility>
 
@@ -860,6 +863,109 @@ void NativeScript::OnComplete() {
 void NativeScript::OnCancel(SequenceCancelReason reason) {
 	if (callbacks && callbacks->on_cancel) {
 		callbacks->on_cancel(*this, reason);
+	}
+}
+
+std::string ResolveConsoleMessage(std::string_view message, Entity target) {
+	std::string resolved;
+	resolved.reserve(message.size());
+
+	std::size_t offset{ 0 };
+	while (offset < message.size()) {
+		std::size_t opening{ message.find('{', offset) };
+		if (opening == std::string_view::npos) {
+			resolved.append(message.substr(offset));
+			break;
+		}
+
+		resolved.append(message.substr(offset, opening - offset));
+		std::size_t closing{ message.find('}', opening + 1) };
+		if (closing == std::string_view::npos) {
+			resolved.append(message.substr(opening));
+			break;
+		}
+
+		std::string_view expression{ message.substr(opening + 1, closing - opening - 1) };
+		bool is_counter{ expression.starts_with("counter:") };
+		bool is_bool{ expression.starts_with("bool:") };
+		if (!is_counter && !is_bool) {
+			resolved.append(message.substr(opening, closing - opening + 1));
+			offset = closing + 1;
+			continue;
+		}
+
+		std::string_view name{ expression.substr(is_counter ? 8 : 5) };
+		if (is_counter) {
+			if (target && !name.empty()) {
+				CounterHandle counter{ GetCounter(target, CounterKey{ std::string{ name } }) };
+				if (counter) {
+					resolved += std::to_string(counter.Value());
+					offset	  = closing + 1;
+					continue;
+				}
+			}
+			resolved += "<missing counter:";
+			resolved.append(name);
+			resolved += '>';
+		} else {
+			if (target && !name.empty()) {
+				BooleanHandle boolean{ GetBoolean(target, BooleanKey{ std::string{ name } }) };
+				if (boolean) {
+					resolved += boolean.Value() ? "true" : "false";
+					offset	  = closing + 1;
+					continue;
+				}
+			}
+			resolved += "<missing bool:";
+			resolved.append(name);
+			resolved += '>';
+		}
+		offset = closing + 1;
+	}
+
+	return resolved;
+}
+
+void PrintConsoleScript::OnStart() {
+	std::string prefix;
+	switch (level) {
+		case ConsoleLogLevel::Debug:   prefix = "[DEBUG]"; break;
+		case ConsoleLogLevel::Info:	   prefix = "[INFO]"; break;
+		case ConsoleLogLevel::Warning: prefix = "[WARN]"; break;
+		case ConsoleLogLevel::Error:   prefix = "[ERROR]"; break;
+	}
+
+	if (include_timestamp) {
+		std::ostringstream time;
+		time << std::fixed << std::setprecision(3) << GetScene().ctx().GameTime().count();
+		prefix += " [" + time.str() + "s]";
+	}
+
+	if (include_entity) {
+		std::ostringstream identifier;
+		Entity entity{ Target() };
+		if (entity && entity.Has<UUID>()) {
+			identifier << entity.Get<UUID>();
+		} else {
+			identifier << "Unknown";
+		}
+		prefix += " [Entity: " + identifier.str() + "]";
+	}
+
+	if (include_sequence) {
+		prefix += " [" + std::string{ GetSequenceName() } + "]";
+	}
+
+	prefix += ' ';
+	std::string parsed{ ResolveConsoleMessage(message, Target()) };
+	std::size_t begin{ 0 };
+	while (true) {
+		std::size_t end{ parsed.find('\n', begin) };
+		PrintLine(prefix, std::string_view{ parsed }.substr(begin, end - begin));
+		if (end == std::string::npos) {
+			break;
+		}
+		begin = end + 1;
 	}
 }
 

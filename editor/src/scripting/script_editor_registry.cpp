@@ -654,6 +654,122 @@ bool DrawScaleToInline(ScriptEditorContext&, ScaleToScript& script) {
 	return changed;
 }
 
+Entity ResolvePrintPreviewTarget(ScriptEditorContext& context) {
+	if (!context.owner) {
+		return {};
+	}
+	if (context.sequence_target_filter && context.sequence_target_filter->has_value()) {
+		auto targets{ ResolveEntityFilter(
+			context.sequence_target_filter->value(), context.owner.GetScene(), context.owner
+		) };
+		return targets.empty() ? Entity{} : targets.front();
+	}
+	return context.owner;
+}
+
+bool DrawPrintConsoleInline(ScriptEditorContext& context, PrintConsoleScript& script) {
+	bool changed{ false };
+	float spacing{ ImGui::GetStyle().ItemSpacing.x };
+	float width{ ImGui::GetContentRegionAvail().x };
+	float options_width{ std::min(
+		ImGui::CalcTextSize("Warning +3").x + ImGui::GetFrameHeight() +
+			ImGui::GetStyle().FramePadding.x,
+		std::max(1.0f, width * 0.42f)
+	) };
+
+	const char* level_label{ "Info" };
+	switch (script.level) {
+		case ConsoleLogLevel::Debug:   level_label = "Debug"; break;
+		case ConsoleLogLevel::Info:	   level_label = "Info"; break;
+		case ConsoleLogLevel::Warning: level_label = "Warning"; break;
+		case ConsoleLogLevel::Error:   level_label = "Error"; break;
+	}
+
+	int includes{ static_cast<int>(script.include_entity) +
+				  static_cast<int>(script.include_sequence) +
+				  static_cast<int>(script.include_timestamp) };
+	std::string preview{ level_label };
+	if (includes > 0) {
+		preview += " +" + std::to_string(includes);
+	}
+
+	ImGui::SetNextItemWidth(options_width);
+	ImGui::SetNextWindowSizeConstraints(ImVec2{ 175.0f, 0.0f }, ImVec2{ FLT_MAX, FLT_MAX });
+	if (ImGui::BeginCombo("##PrintOptions", preview.c_str())) {
+		ImGui::TextDisabled("Log Level");
+		for (const auto& [level, label] : {
+				 std::pair{ ConsoleLogLevel::Debug, "Debug" },
+				 std::pair{ ConsoleLogLevel::Info, "Info" },
+				 std::pair{ ConsoleLogLevel::Warning, "Warning" },
+				 std::pair{ ConsoleLogLevel::Error, "Error" },
+			 }) {
+			if (ImGui::Selectable(label, script.level == level)) {
+				script.level = level;
+				changed		 = true;
+			}
+		}
+		ImGui::Separator();
+		ImGui::TextDisabled("Include");
+		changed |= ImGui::Checkbox("Entity", &script.include_entity);
+		DrawItemTooltip("Include the target entity UUID in the message.");
+		changed |= ImGui::Checkbox("Sequence", &script.include_sequence);
+		DrawItemTooltip("Include the name of the sequence running this action.");
+		changed |= ImGui::Checkbox("Timestamp", &script.include_timestamp);
+		DrawItemTooltip("Include the elapsed game time in seconds.");
+		ImGui::EndCombo();
+	}
+	DrawItemTooltip("Choose a log level and optional message context.");
+
+	SameLineControl();
+	changed |= ImGui::InputTextMultiline(
+		"##PrintMessage", &script.message,
+		ImVec2{ std::max(1.0f, width - options_width - spacing), ImGui::GetFrameHeight() },
+		ImGuiInputTextFlags_CtrlEnterForNewLine
+	);
+	bool hovered{ ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled) };
+	std::string popup_title{ "Debug Message###PrintMessageEditor" +
+							 std::to_string(ImGui::GetID("##PrintMessageEditor")) };
+	if (ImGui::IsItemClicked(ImGuiMouseButton_Right)) {
+		ImGui::OpenPopup(popup_title.c_str());
+	}
+
+	if (hovered) {
+		std::string resolved{
+			ResolveConsoleMessage(script.message, ResolvePrintPreviewTarget(context))
+		};
+		ImGui::BeginTooltip();
+		ImGui::PushTextWrapPos(ImGui::GetFontSize() * 38.0f);
+		ImGui::TextUnformatted(
+			"Use {counter:Name} and {bool:Name} for live variables. Right click to edit multiple "
+			"lines."
+		);
+		ImGui::Spacing();
+		ImGui::TextUnformatted(resolved.empty() ? "(empty message)" : resolved.c_str());
+		ImGui::PopTextWrapPos();
+		ImGui::EndTooltip();
+	}
+
+	ImGui::SetNextWindowSize(ImVec2{ 460.0f, 200.0f }, ImGuiCond_Appearing);
+	bool popup_open{ true };
+	if (ImGui::BeginPopupModal(
+			popup_title.c_str(), &popup_open,
+			ImGuiWindowFlags_NoDocking | ImGuiWindowFlags_NoSavedSettings
+		)) {
+		if (ImGui::IsWindowAppearing()) {
+			ImGui::SetKeyboardFocusHere();
+		}
+		changed |= ImGui::InputTextMultiline(
+			"##FullPrintMessage", &script.message, ImVec2{ -FLT_MIN, -FLT_MIN }
+		);
+		if (ImGui::IsKeyPressed(ImGuiKey_Escape)) {
+			ImGui::CloseCurrentPopup();
+		}
+		ImGui::EndPopup();
+	}
+
+	return changed;
+}
+
 bool DrawSetVisibleInline(ScriptEditorContext&, SetVisibleScript& script) {
 	const char* preview{ script.visible ? "True" : "False" };
 	bool changed{ false };
@@ -2768,6 +2884,16 @@ PTGN_REGISTER_SCRIPT(
 						   .draw_inline = &DrawSceneChangeInline,
 						   .draw		= &DrawSceneChange,
 					   }
+);
+
+PTGN_REGISTER_SCRIPT(
+	PrintConsoleScript, {
+							.label		 = "Print",
+							.group		 = "",
+							.description = "Print a message to the console.",
+							.type		 = ScriptType::Sequence,
+							.draw_inline = &DrawPrintConsoleInline,
+						}
 );
 
 PTGN_REGISTER_SCRIPT(

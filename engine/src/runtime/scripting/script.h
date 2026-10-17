@@ -362,6 +362,10 @@ public:
 		return progress_;
 	}
 
+	[[nodiscard]] std::string_view GetSequenceName() const {
+		return active_sequence_name_.empty() ? sequence.name : active_sequence_name_;
+	}
+
 	[[nodiscard]] Ease TimingEase() const {
 		return timing_ease_;
 	}
@@ -389,6 +393,7 @@ protected:
 private:
 	friend class impl::ScriptAccessor;
 
+	std::string active_sequence_name_{};
 	float delta_seconds_{ 0.0f };
 	float linear_progress_{ 0.0f };
 	float progress_{ 0.0f };
@@ -410,12 +415,15 @@ namespace impl {
 class ScriptAccessor {
 public:
 	static void Attach(Script& script, Entity owner) {
-		Attach(script, owner, owner);
+		Attach(script, owner, owner, script.sequence.name);
 	}
 
-	static void Attach(Script& script, Entity owner, Entity target) {
+	static void Attach(
+		Script& script, Entity owner, Entity target, std::string_view sequence_name = {}
+	) {
 		script.owner  = owner;
 		script.target = target ? target : owner;
+		script.active_sequence_name_ = sequence_name;
 	}
 
 	static void SetFrame(

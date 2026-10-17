@@ -452,6 +452,31 @@ struct NativeScript : public Script {
 	PTGN_REFLECT_EMPTY(NativeScript)
 };
 
+enum class ConsoleLogLevel : std::uint8_t {
+	Debug,
+	Info,
+	Warning,
+	Error
+};
+PTGN_REFLECT_ENUM(ConsoleLogLevel);
+
+// Resolves {counter:Name} and {bool:Name} on the script target.
+// Missing variables become an explicit marker instead of silently printing zero or false.
+[[nodiscard]] std::string ResolveConsoleMessage(std::string_view message, Entity target);
+
+struct PrintConsoleScript : public Script {
+	std::string message{};
+	ConsoleLogLevel level{ ConsoleLogLevel::Info };
+	bool include_entity{ false };
+	bool include_sequence{ false };
+	bool include_timestamp{ false };
+
+	void OnStart() override;
+	PTGN_REFLECT(
+		PrintConsoleScript, message, level, include_entity, include_sequence, include_timestamp
+	)
+};
+
 struct SetVisibleScript : public Script {
 	bool visible{ true };
 	SetVisibleScript() = default;

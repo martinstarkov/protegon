@@ -18,6 +18,7 @@ namespace ptgn {
 Script& Script::operator=(const Script& other) {
 	if (this != &other) {
 		sequence			  = other.sequence;
+		active_sequence_name_.clear();
 		owner				  = {};
 		target				  = {};
 		delta_seconds_		  = 0.0f;
@@ -623,7 +624,7 @@ Script* EnsureInstance(Entity owner, ScriptEntry& entry) {
 	return scripts.channels.back();
 }
 
-void ExecuteInstantStep(Entity owner, const ScriptStep& action);
+void ExecuteInstantStep(Entity owner, const ScriptStep& action, std::string_view sequence_name);
 void ProcessImmediateSteps(Entity owner, ScriptSequence& binding);
 void CompleteSequence(Entity owner, ScriptSequence& binding);
 
@@ -634,7 +635,7 @@ void InvokeLifecycle(Entity owner, ScriptSequence& binding, SequenceLifecycle li
 	}
 	for (const auto& callback : sequence->lifecycle_actions) {
 		if (callback.enabled && callback.lifecycle == lifecycle) {
-			ExecuteInstantStep(owner, callback.action);
+			ExecuteInstantStep(owner, callback.action, sequence->name);
 		}
 	}
 }
@@ -847,7 +848,7 @@ bool StartBinding(Entity owner, ScriptSequence& binding, bool force) {
 }
 
 [[nodiscard]] std::unique_ptr<Script> InstantiateStepScript(
-	Entity owner, Entity target, const ScriptStep& action
+	Entity owner, Entity target, const ScriptStep& action, std::string_view sequence_name
 ) {
 	const auto* registration{ ScriptRegistry::Find(action.type_hash) };
 	if (!registration) {
@@ -858,7 +859,7 @@ bool StartBinding(Entity owner, ScriptSequence& binding, bool force) {
 										  : registration->instantiate(action.value) };
 
 	if (instance) {
-		impl::ScriptAccessor::Attach(*instance, owner, target);
+		impl::ScriptAccessor::Attach(*instance, owner, target, sequence_name);
 	}
 
 	return instance;
@@ -889,7 +890,7 @@ ScriptStatus UpdateChildScript(Entity owner, Script& script, float delta_seconds
 	return status;
 }
 
-void ExecuteInstantStep(Entity owner, const ScriptStep& action) {
+void ExecuteInstantStep(Entity owner, const ScriptStep& action, std::string_view sequence_name) {
 	if (!action.enabled) {
 		return;
 	}
@@ -899,7 +900,7 @@ void ExecuteInstantStep(Entity owner, const ScriptStep& action) {
 			continue;
 		}
 
-		auto instance{ InstantiateStepScript(owner, target, action) };
+		auto instance{ InstantiateStepScript(owner, target, action, sequence_name) };
 		if (!instance) {
 			continue;
 		}
@@ -933,7 +934,7 @@ void ProcessImmediateSteps(Entity owner, ScriptSequence& binding) {
 			return;
 		}
 		InvokeLifecycle(owner, binding, SequenceLifecycle::ScriptStart);
-		ExecuteInstantStep(owner, action);
+		ExecuteInstantStep(owner, action, sequence->name);
 		InvokeLifecycle(owner, binding, SequenceLifecycle::ScriptComplete);
 		++runtime.step_index;
 	}
@@ -1039,7 +1040,7 @@ void UpdateSequence(Entity owner, ScriptSequence& binding, float delta_seconds) 
 				continue;
 			}
 
-			auto instance{ InstantiateStepScript(owner, target, action) };
+			auto instance{ InstantiateStepScript(owner, target, action, sequence->name) };
 			if (!instance) {
 				continue;
 			}

@@ -497,6 +497,7 @@ PTGN_REGISTER_SCRIPT(
 					  .serializable	   = false,
 				  }
 );
+PTGN_REGISTER_SCRIPT(PrintConsoleScript, { .completion = ScriptCompletion::Instant });
 PTGN_REGISTER_SCRIPT(SetVisibleScript, { .completion = ScriptCompletion::Instant });
 PTGN_REGISTER_SCRIPT(PlaySoundScript, { .completion = ScriptCompletion::Instant });
 PTGN_REGISTER_SCRIPT(ActionScript, { .completion = ScriptCompletion::Instant });

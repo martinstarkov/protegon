@@ -878,9 +878,13 @@ bool DrawActionPickerWithInline(
 
 	float available{ ImGui::GetContentRegionAvail().x };
 	float spacing{ ImGui::GetStyle().ItemSpacing.x };
-	bool tint_inline{ action.type_hash == Hash<TintToScript>() };
-	float picker_width{ tint_inline ? std::max(1.0f, available - spacing - ImGui::GetFrameHeight())
-									: std::min(150.0f, std::max(110.0f, available * 0.32f)) };
+	float picker_width{ std::min(150.0f, std::max(110.0f, available * 0.32f)) };
+	if (action.type_hash == Hash<TintToScript>()) {
+		picker_width = std::max(1.0f, available - spacing - ImGui::GetFrameHeight());
+	} else if (action.type_hash == Hash<PrintConsoleScript>()) {
+		picker_width = ImGui::CalcTextSize("Print").x + ImGui::GetFrameHeight() +
+					   ImGui::GetStyle().FramePadding.x * 2.0f;
+	}
 	float row_y{ ImGui::GetCursorScreenPos().y };
 
 	bool changed{ DrawActionPicker(context, action, timed_only, picker_width, context_requested) };
