@@ -32,6 +32,9 @@ struct EntityFilterEditorOptions {
 	bool allow_select_owner{ true };
 	bool exclude_owner{ false };
 	bool single_entity_only{ false };
+	bool hide_owner_descendants{ false };
+	bool hide_excluded_descendants{ false };
+	bool hide_managed_ui_parts{ false };
 	float button_width{ -1.0f };
 	const char* button_tooltip{ nullptr };
 	bool append_filter_tooltip{ false };

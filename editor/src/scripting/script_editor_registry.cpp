@@ -1309,7 +1309,7 @@ bool DrawCounterActionInline(ScriptEditorContext& context, ActionScript& script)
 		longest_label_width = std::max(longest_label_width, ImGui::CalcTextSize(entry.second).x);
 	}
 	float preferred_action_width{ longest_label_width + ImGui::GetFrameHeight() +
-		style.FramePadding.x * 2.0f };
+								  style.FramePadding.x * 2.0f + 12.0f };
 	float preferred_amount_width{ ImGui::CalcTextSize("-999999").x +
 		style.FramePadding.x * 2.0f + 12.0f };
 	float usable{ std::max(1.0f, available - spacing * (uses_amount ? 2.0f : 1.0f)) };
@@ -2322,9 +2322,12 @@ bool DrawFollowEntityPicker(
 	}
 
 	inspector::EntityFilterEditorOptions options{
-		.allow_select_owner = false,
-		.single_entity_only  = true,
-		.excluded_entities  = std::span<const Entity>{ excluded_entities },
+		.allow_select_owner		   = false,
+		.single_entity_only		   = true,
+		.hide_owner_descendants	   = true,
+		.hide_excluded_descendants = true,
+		.hide_managed_ui_parts	   = true,
+		.excluded_entities		   = std::span<const Entity>{ excluded_entities },
 	};
 
 	ImGui::PushID(id);

@@ -579,7 +579,11 @@ void DetachToLocal(ScriptEditorContext& context, ScriptSequence& binding) {
 	binding.runtime			   = ScriptSequenceRuntime{};
 }
 
-bool DrawActionTarget(ScriptEditorContext& context, ScriptStep& action) {
+[[nodiscard]] float SequenceTargetButtonWidth(float row_width) {
+	return std::min(64.0f, std::max(1.0f, row_width * (64.0f / 600.0f)));
+}
+
+bool DrawActionTarget(ScriptEditorContext& context, ScriptStep& action, float width) {
 	Entity owner{ ResolveInspectedEntity(context) };
 	Scene* scene{ owner ? std::addressof(owner.GetScene()) : nullptr };
 
@@ -587,6 +591,7 @@ bool DrawActionTarget(ScriptEditorContext& context, ScriptStep& action) {
 	auto& state{ GetScriptInspectorState().target_filter_states[state_id] };
 
 	EntityFilterEditorOptions options{};
+	options.button_width		  = width;
 	options.button_tooltip = "Entities impacted by the action:";
 	options.append_filter_tooltip = true;
 	return DrawEntityFilterButton(scene, owner, action.target, state, options);
@@ -911,9 +916,8 @@ bool DrawActionPickerWithInline(
 	float available{ ImGui::GetContentRegionAvail().x };
 	float spacing{ ImGui::GetStyle().ItemSpacing.x };
 	bool tint_inline{ action.type_hash == Hash<TintToScript>() };
-	float picker_width{ tint_inline
-		? std::max(1.0f, available - spacing - ImGui::GetFrameHeight())
-		: std::max(1.0f, available * 0.32f) };
+	float picker_width{ tint_inline ? std::max(1.0f, available - spacing - ImGui::GetFrameHeight())
+									: std::max(1.0f, available * 0.27f) };
 	float row_y{ ImGui::GetCursorScreenPos().y };
 
 	bool changed{ DrawActionPicker(context, action, timed_only, picker_width, context_requested) };
@@ -1214,14 +1218,14 @@ bool DrawActions(
 		bool action_context_requested{ false };
 		ImGui::PushID(index);
 
-		constexpr float drag_width{ 28.0f };
+		float drag_width{ ImGui::GetFrameHeight() };
 		float label_width{ std::max(
 			{ ImGui::CalcTextSize("Action").x, ImGui::CalcTextSize("Tween").x,
 			  ImGui::CalcTextSize("Delay").x }
 		) };
 		float type_width{ label_width + ImGui::GetFrameHeight() +
 						  ImGui::GetStyle().FramePadding.x * 2.0f };
-		float target_width{ 64.0f };
+		float target_width{ SequenceTargetButtonWidth(ImGui::GetContentRegionAvail().x) };
 		float duration_width{ ImGui::CalcTextSize("5000ms").x +
 							  ImGui::GetStyle().FramePadding.x * 2.0f };
 		float repeats_width{ GetCountControlWidth("Repeats") };
@@ -1249,12 +1253,12 @@ bool DrawActions(
 			ImGui::TableSetupColumn("Type", ImGuiTableColumnFlags_WidthStretch, type_width);
 
 			if (displayed_form == ActionForm::Tween) {
-				ImGui::TableSetupColumn("Target", ImGuiTableColumnFlags_WidthStretch, target_width);
+				ImGui::TableSetupColumn("Target", ImGuiTableColumnFlags_WidthFixed, target_width);
 				ImGui::TableSetupColumn("Duration", ImGuiTableColumnFlags_WidthStretch, duration_width);
 				ImGui::TableSetupColumn("Action", ImGuiTableColumnFlags_WidthStretch, remaining);
 				ImGui::TableSetupColumn("Repeats", ImGuiTableColumnFlags_WidthStretch, repeats_width);
 			} else if (displayed_form == ActionForm::Action) {
-				ImGui::TableSetupColumn("Target", ImGuiTableColumnFlags_WidthStretch, target_width);
+				ImGui::TableSetupColumn("Target", ImGuiTableColumnFlags_WidthFixed, target_width);
 				ImGui::TableSetupColumn("Value", ImGuiTableColumnFlags_WidthStretch, remaining);
 			} else {
 				ImGui::TableSetupColumn("Value", ImGuiTableColumnFlags_WidthStretch, remaining);
@@ -1270,7 +1274,7 @@ bool DrawActions(
 				ImGui::PushStyleVar(ImGuiStyleVar_Alpha, ImGui::GetStyle().Alpha * 0.45f);
 			}
 
-			ImGui::Button("::", ImVec2{ drag_width, button_width });
+			DrawEditorIconButton("##ActionReorder", EditorIcon::Move);
 
 			if (dimmed) {
 				ImGui::PopStyleVar();
@@ -1333,7 +1337,7 @@ bool DrawActions(
 
 				if (displayed_form == ActionForm::Tween) {
 					ImGui::TableSetColumnIndex(column++);
-					changed |= DrawActionTarget(context, action);
+					changed |= DrawActionTarget(context, action, target_width);
 
 					ImGui::TableSetColumnIndex(column++);
 					changed |= DrawDurationInput(
@@ -1353,7 +1357,7 @@ bool DrawActions(
 				} else {
 					if (displayed_form == ActionForm::Action) {
 						ImGui::TableSetColumnIndex(column++);
-						changed |= DrawActionTarget(context, action);
+						changed |= DrawActionTarget(context, action, target_width);
 					}
 
 					ImGui::TableSetColumnIndex(column);
@@ -1857,7 +1861,7 @@ bool DrawConditionTarget(
 	EntityFilterEditorOptions options{};
 	options.single_entity_only = true;
 	options.button_width = width;
-	options.button_tooltip = "Entity whose condition is checked";
+	options.button_tooltip		  = "Entity whose condition is checked:";
 	options.append_filter_tooltip = true;
 	return DrawEntityFilterButton(scene, owner, condition.target, state, options);
 }
@@ -1912,9 +1916,6 @@ bool DrawStateConditions(ScriptEditorContext& context, ScriptSequence& sequence)
 		);
 	}
 	preferred_kind_width += button_height + style.FramePadding.x * 2.0f + 16.0f;
-	float preferred_target_width{
-		ImGui::CalcTextSize("Owner").x + style.FramePadding.x * 2.0f + 18.0f
-	};
 	float preferred_join_width{
 		ImGui::CalcTextSize("AND").x + style.FramePadding.x * 2.0f + 24.0f
 	};
@@ -1934,6 +1935,7 @@ bool DrawStateConditions(ScriptEditorContext& context, ScriptSequence& sequence)
 		ImGui::PushID(index);
 
 		// Use the same table row structure as triggers and actions for matching row spacing.
+		float target_button_width{ SequenceTargetButtonWidth(ImGui::GetContentRegionAvail().x) };
 		if (ImGui::BeginTable(
 				"ConditionRow", 1,
 				ImGuiTableFlags_SizingStretchProp | ImGuiTableFlags_NoSavedSettings
@@ -1945,20 +1947,18 @@ bool DrawStateConditions(ScriptEditorContext& context, ScriptSequence& sequence)
 			// Measure the actual table cell, not the outer inspector content area.
 			// All widths share the available space, with the key using any surplus.
 			float available{ std::max(1.0f, ImGui::GetContentRegionAvail().x) };
-			float preferred_drag_width{ 28.0f };
+			float drag_width{ button_height };
 			float preferred_key_width{ 96.0f };
-			float preferred_controls{
-				preferred_drag_width + preferred_kind_width + preferred_target_width +
-				preferred_key_width + preferred_comparison_width +
-				preferred_value_width + preferred_join_width
-			};
-			// Six gaps for Counter; Boolean shares the key and comparison region.
+			float target_width{ target_button_width };
+			float preferred_controls{ preferred_kind_width + preferred_key_width +
+									  preferred_comparison_width + preferred_value_width +
+									  preferred_join_width };
+			// The drag icon is fixed; all remaining controls share the available width.
 			float scale{ std::clamp(
-				(available - 6.0f * spacing) / preferred_controls, 0.0f, 1.0f
+				(available - drag_width - target_width - 6.0f * spacing) / preferred_controls, 0.0f,
+				1.0f
 			) };
-			float drag_width{ std::max(1.0f, preferred_drag_width * scale) };
 			float kind_width{ std::max(1.0f, preferred_kind_width * scale) };
-			float target_width{ std::max(1.0f, preferred_target_width * scale) };
 			float comparison_width{ std::max(1.0f, preferred_comparison_width * scale) };
 			float value_width{ std::max(1.0f, preferred_value_width * scale) };
 			float join_width{ std::max(1.0f, preferred_join_width * scale) };
@@ -1976,7 +1976,7 @@ bool DrawStateConditions(ScriptEditorContext& context, ScriptSequence& sequence)
 			if (!condition.enabled) {
 				ImGui::PushStyleVar(ImGuiStyleVar_Alpha, style.Alpha * 0.45f);
 			}
-			ImGui::Button("::", ImVec2{ drag_width, button_height });
+			DrawEditorIconButton("##ConditionReorder", EditorIcon::Move);
 			if (!condition.enabled) {
 				ImGui::PopStyleVar();
 			}

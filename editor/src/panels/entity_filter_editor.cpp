@@ -26,7 +26,12 @@
 #include "runtime/ecs/uuid.h"
 #include "runtime/graphics/draw.h"
 #include "runtime/graphics/visible.h"
+#include "runtime/interaction/interactive.h"
 #include "runtime/scene/scene.h"
+#include "runtime/ui/button.h"
+#include "runtime/ui/button_config.h"
+#include "runtime/ui/dialogue.h"
+#include "runtime/ui/slider.h"
 #include "serialization/json/json.h"
 
 namespace ptgn::editor::inspector {
@@ -127,34 +132,96 @@ void SetEntityRef(EntityReference& reference, Entity entity) {
 	return components;
 }
 
-[[nodiscard]] bool EntityOrDescendantMatchesFilter(
-	Entity entity, std::string_view filter_text, std::size_t depth = 0
-) {
-	if (!entity || depth >= kMaxHierarchyDepth) {
-		return false;
-	}
-
-	if (hierarchy::MatchesFilter(entity, filter_text)) {
-		return true;
-	}
-
-	if (!HasChildren(entity)) {
-		return false;
-	}
-
-	for (Entity child : GetChildren(entity)) {
-		if (EntityOrDescendantMatchesFilter(child, filter_text, depth + 1)) {
-			return true;
-		}
-	}
-
-	return false;
-}
-
 [[nodiscard]] bool IsHierarchyEntityExcluded(
 	Entity entity, Entity excluded_entity, std::span<const Entity> excluded_entities
 ) {
 	return entity == excluded_entity || std::ranges::contains(excluded_entities, entity);
+}
+
+[[nodiscard]] bool IsManagedUiPart(Entity entity) {
+	if (!entity) {
+		return false;
+	}
+
+	// Use the same managed UI part rules as the Scene Hierarchy.
+	if (entity.Has<::ptgn::impl::InteractiveTag>()) {
+		return true;
+	}
+	if (!HasParent(entity)) {
+		return false;
+	}
+
+	Entity parent{ GetParent(entity) };
+	if (entity.HasAny<
+			ButtonBackgroundVisuals, ButtonBorderVisuals, ButtonSpriteVisuals,
+			ButtonTextVisuals>() &&
+		parent.Has<::ptgn::impl::ButtonData>()) {
+		return true;
+	}
+	if (entity.HasAny<
+			::ptgn::impl::SliderThumbData, ::ptgn::impl::SliderTrackData,
+			::ptgn::impl::SliderValueTextData>() &&
+		parent.Has<::ptgn::impl::SliderData>()) {
+		return true;
+	}
+	if (entity.HasAny<
+			::ptgn::impl::SliderTrackBackgroundData, ::ptgn::impl::SliderTrackBorderData,
+			::ptgn::impl::SliderTrackSpriteData>() &&
+		parent.Has<::ptgn::impl::SliderTrackData>()) {
+		return true;
+	}
+	return entity.Has<::ptgn::impl::DialoguePart>() && parent.Has<::ptgn::impl::DialogueData>();
+}
+
+[[nodiscard]] bool IsOwnerDescendant(Entity entity, Entity owner) {
+	for (std::size_t depth{ 0 }; entity && depth < kMaxHierarchyDepth; ++depth) {
+		if (!HasParent(entity)) {
+			break;
+		}
+		entity = GetParent(entity);
+		if (entity == owner) {
+			return true;
+		}
+	}
+	return false;
+}
+
+[[nodiscard]] bool HideEntityBranch(
+	Entity entity, Entity owner, Entity excluded_entity, std::span<const Entity> excluded_entities,
+	const EntityFilterEditorOptions& options
+) {
+	return (options.hide_managed_ui_parts && IsManagedUiPart(entity)) ||
+		   (options.hide_owner_descendants && owner && IsOwnerDescendant(entity, owner)) ||
+		   (options.hide_excluded_descendants &&
+			IsHierarchyEntityExcluded(entity, excluded_entity, excluded_entities));
+}
+
+[[nodiscard]] bool EntityOrDescendantMatchesFilter(
+	Entity entity, std::string_view filter_text, Entity owner, Entity excluded_entity,
+	std::span<const Entity> excluded_entities, const EntityFilterEditorOptions& options,
+	std::size_t depth = 0
+) {
+	if (!entity || depth >= kMaxHierarchyDepth ||
+		HideEntityBranch(entity, owner, excluded_entity, excluded_entities, options)) {
+		return false;
+	}
+
+	if (!IsHierarchyEntityExcluded(entity, excluded_entity, excluded_entities) &&
+		hierarchy::MatchesFilter(entity, filter_text)) {
+		return true;
+	}
+
+	if (HasChildren(entity)) {
+		for (Entity child : GetChildren(entity)) {
+			if (EntityOrDescendantMatchesFilter(
+					child, filter_text, owner, excluded_entity, excluded_entities, options,
+					depth + 1
+				)) {
+				return true;
+			}
+		}
+	}
+	return false;
 }
 
 void SetLayerRef(SceneLayerReference& reference, const SceneLayer& layer) {
@@ -284,10 +351,11 @@ void DrawLayerFilterTooltip() {
 
 void DrawEntityHierarchyNode(
 	Entity entity, const EntityReference* current, std::string_view filter, Entity* picked_entity,
-	Entity excluded_entity = {}, std::span<const Entity> excluded_entities = {},
-	std::size_t depth = 0
+	Entity owner, Entity excluded_entity, std::span<const Entity> excluded_entities,
+	const EntityFilterEditorOptions& options, std::size_t depth = 0
 ) {
-	if (!entity || depth >= kMaxHierarchyDepth) {
+	if (!entity || depth >= kMaxHierarchyDepth ||
+		HideEntityBranch(entity, owner, excluded_entity, excluded_entities, options)) {
 		return;
 	}
 
@@ -298,7 +366,8 @@ void DrawEntityHierarchyNode(
 
 			for (Entity child : children) {
 				DrawEntityHierarchyNode(
-					child, current, filter, picked_entity, excluded_entity, excluded_entities, depth
+					child, current, filter, picked_entity, owner, excluded_entity,
+					excluded_entities, options, depth + 1
 				);
 			}
 		}
@@ -306,7 +375,9 @@ void DrawEntityHierarchyNode(
 		return;
 	}
 
-	if (!EntityOrDescendantMatchesFilter(entity, filter, depth)) {
+	if (!EntityOrDescendantMatchesFilter(
+			entity, filter, owner, excluded_entity, excluded_entities, options, depth
+		)) {
 		return;
 	}
 
@@ -320,12 +391,17 @@ void DrawEntityHierarchyNode(
 		SortByLocalDepth(direct_children);
 
 		for (Entity child : direct_children) {
+			if (HideEntityBranch(child, owner, excluded_entity, excluded_entities, options)) {
+				continue;
+			}
 			if (IsHierarchyEntityExcluded(child, excluded_entity, excluded_entities)) {
 				self(self, child);
 				continue;
 			}
 
-			if (EntityOrDescendantMatchesFilter(child, filter, depth + 1)) {
+			if (EntityOrDescendantMatchesFilter(
+					child, filter, owner, excluded_entity, excluded_entities, options, depth + 1
+				)) {
 				children.emplace_back(child);
 			}
 		}
@@ -363,7 +439,8 @@ void DrawEntityHierarchyNode(
 	if (has_visible_children && open) {
 		for (Entity child : children) {
 			DrawEntityHierarchyNode(
-				child, current, filter, picked_entity, excluded_entity, excluded_entities, depth + 1
+				child, current, filter, picked_entity, owner, excluded_entity, excluded_entities,
+				options, depth + 1
 			);
 		}
 
@@ -376,11 +453,13 @@ void DrawEntityHierarchyNode(
 bool DrawMiniHierarchy(
 	Scene& scene, Entity owner, EntityReference* entity_reference,
 	SceneLayerReference* layer_reference, EntityFilterEditorState& state,
-	bool allow_select_owner = true, Entity excluded_entity = {},
-	std::span<const Entity> excluded_entities = {}
+	const EntityFilterEditorOptions& options
 ) {
 	bool changed{ false };
 	auto& layers{ scene.GetLayers() };
+	bool allow_select_owner{ options.allow_select_owner };
+	Entity excluded_entity{ options.exclude_owner ? owner : Entity{} };
+	std::span<const Entity> excluded_entities{ options.excluded_entities };
 
 	if (layer_reference) {
 		EnsureLayerRef(scene, owner, *layer_reference);
@@ -495,7 +574,7 @@ bool DrawMiniHierarchy(
 			for (Entity root : roots) {
 				DrawEntityHierarchyNode(
 					root, entity_reference, state.hierarchy_filter, std::addressof(picked_entity),
-					excluded_entity, excluded_entities
+					owner, excluded_entity, excluded_entities, options
 				);
 			}
 
@@ -1369,9 +1448,7 @@ bool DrawEntityFilterEditor(
 		case EntityFilterType::Entity:
 			if (scene) {
 				changed |= DrawMiniHierarchy(
-					*scene, owner, std::addressof(target.entity), nullptr, state,
-					options.allow_select_owner, options.exclude_owner ? owner : Entity{},
-					options.excluded_entities
+					*scene, owner, std::addressof(target.entity), nullptr, state, options
 				);
 			} else {
 				ImGui::TextDisabled("Exact entity selection requires a scene instance.");
@@ -1381,8 +1458,7 @@ bool DrawEntityFilterEditor(
 		case EntityFilterType::Layer:
 			if (scene) {
 				changed |= DrawMiniHierarchy(
-					*scene, owner, nullptr, std::addressof(target.layer), state,
-					options.allow_select_owner
+					*scene, owner, nullptr, std::addressof(target.layer), state, options
 				);
 			} else {
 				ImGui::TextDisabled("Scene layer selection requires a scene instance.");
