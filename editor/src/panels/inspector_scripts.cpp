@@ -2039,6 +2039,7 @@ bool DrawStateConditions(ScriptEditorContext& context, ScriptSequence& sequence)
 				}
 				ImGui::EndCombo();
 			}
+			DrawTooltip("Condition type.");
 			context_requested |= IsItemRightClicked();
 
 			ImGui::SameLine(0.0f, spacing);
