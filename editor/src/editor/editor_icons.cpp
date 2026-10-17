@@ -106,7 +106,8 @@ void DrawEditorIcon(ImDrawList* draw, EditorIcon icon, ImVec2 min, float extent,
 	bool runtime_icon{ icon == EditorIcon::Play || icon == EditorIcon::Stop ||
 					   icon == EditorIcon::Pause || icon == EditorIcon::Reset ||
 					   icon == EditorIcon::StepForward || icon == EditorIcon::StepBackward ||
-					   icon == EditorIcon::Camera || icon == EditorIcon::Link };
+					   icon == EditorIcon::Camera || icon == EditorIcon::Link ||
+					   icon == EditorIcon::Target };
 
 	ImDrawListFlags prev_flags{ draw->Flags };
 
@@ -500,8 +501,13 @@ void DrawEditorIcon(ImDrawList* draw, EditorIcon icon, ImVec2 min, float extent,
 
 		case EditorIcon::Target: {
 			float radius{ 4.5f * scale };
-			draw_vertical_band(center.x, origin.y, origin.y + pixel_extent, line_pixels);
-			draw_horizontal_band(center.y, origin.x, origin.x + pixel_extent, line_pixels);
+			float arm_half_extent{ pixel_extent * 0.5f - 1.0f };
+			draw_vertical_band(
+				center.x, center.y - arm_half_extent, center.y + arm_half_extent, line_pixels
+			);
+			draw_horizontal_band(
+				center.y, center.x - arm_half_extent, center.x + arm_half_extent, line_pixels
+			);
 			draw->AddCircle(center, radius, color, 24, line);
 			break;
 		}
@@ -571,7 +577,8 @@ bool DrawEditorIconButton(const char* id, EditorIcon icon, EditorIconButtonOptio
 		}
 	} else {
 		bool toggle_icon{ icon == EditorIcon::Visible || icon == EditorIcon::Hidden ||
-						  icon == EditorIcon::Locked || icon == EditorIcon::Unlocked };
+						  icon == EditorIcon::Locked || icon == EditorIcon::Unlocked ||
+						  icon == EditorIcon::Target };
 
 		ImVec4 background{ toggle_icon ? style.Colors
 											 [active	? ImGuiCol_FrameBgActive

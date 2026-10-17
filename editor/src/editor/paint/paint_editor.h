@@ -16,6 +16,7 @@
 #include "core/math/transform.h"
 #include "core/math/vector2.h"
 #include "editor/editor_selection.h"
+#include "editor/editor_transform_ops.h"
 #include "renderer/pipeline/viewport.h"
 #include "runtime/asset/asset_key.h"
 #include "runtime/ecs/entity_serialization.h"
@@ -410,7 +411,7 @@ private:
 	struct MoveDrag {
 		bool active{};
 		V2_float start_mouse_world{};
-		std::vector<std::pair<UUID, Transform>> entity_before{};
+		std::vector<std::pair<UUID, EditorEntityTransformSnapshot>> entity_before{};
 		std::optional<UUID> tilemap{};
 		std::vector<V2_int> tile_cells{};
 		std::optional<::ptgn::impl::TilemapData> tilemap_before{};

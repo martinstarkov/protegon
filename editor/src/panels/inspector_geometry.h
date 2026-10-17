@@ -77,7 +77,7 @@ bool DrawPickableLocalPosition(
 
 	bool changed{ DrawPropertyRow(label, [&]() {
 		float spacing{ ImGui::GetStyle().ItemInnerSpacing.x };
-		float pick_width{ ImGui::CalcTextSize("Pick").x + ImGui::GetStyle().FramePadding.x * 2.0f };
+		float pick_width{ ImGui::GetFrameHeight() };
 		float remove_width{ remove_requested ? ImGui::GetFrameHeight() : 0.0f };
 		float remove_spacing{ remove_requested ? spacing : 0.0f };
 		float available{ std::max(1.0f, ImGui::GetContentRegionAvail().x) };
@@ -90,15 +90,11 @@ bool DrawPickableLocalPosition(
 		bool local_changed{ false };
 
 		ImGui::SetNextItemWidth(field_width);
-		local_changed |= ImGui::DragFloat(
-			"##X", &position.x, kInspectorPositionDragSpeed, 0.0f, 0.0f, "X: %.2f"
-		);
+		local_changed |= ImGui::DragFloat("##X", &position.x, 1.0f, 0.0f, 0.0f, "X: %.0f");
 
 		ImGui::SameLine(0.0f, spacing);
 		ImGui::SetNextItemWidth(field_width);
-		local_changed |= ImGui::DragFloat(
-			"##Y", &position.y, kInspectorPositionDragSpeed, 0.0f, 0.0f, "Y: %.2f"
-		);
+		local_changed |= ImGui::DragFloat("##Y", &position.y, 1.0f, 0.0f, 0.0f, "Y: %.0f");
 
 		if (actions_inline) {
 			ImGui::SameLine(0.0f, spacing);
@@ -110,13 +106,19 @@ bool DrawPickableLocalPosition(
 			auto apply{ target.template MakeApply<Component>(callback) };
 			Component snapshot{ component };
 
-			DrawPositionPickButton(
-				target.ctx, label, position, MakeLocalPositionConverter(target),
-				[apply, snapshot = std::move(snapshot), locator](V2_float picked) mutable {
-					locator(snapshot) = picked;
-					apply(ComponentState<Component>{ snapshot });
-				},
-				GetGeometryTargetWorldReferencePosition(target, position), true
+			DrawInspectorPositionPickButton(
+				target.ctx, label, position,
+				InspectorPositionBinding{
+					.from_world = MakeLocalPositionConverter(target),
+					.apply =
+						[apply, snapshot = std::move(snapshot), locator](V2_float picked) mutable {
+							locator(snapshot) = picked;
+							apply(ComponentState<Component>{ snapshot });
+						},
+					.reference_world = GetGeometryTargetWorldReferencePosition(target, position),
+					.show_relative	 = true,
+					.available		 = CanPickLocalPosition<Target>() && !target.IsReadOnly(),
+				}
 			);
 
 			if constexpr (!CanPickLocalPosition<Target>()) {

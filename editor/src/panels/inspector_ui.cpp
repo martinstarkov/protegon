@@ -133,72 +133,51 @@ bool DrawSliderWorldPosition(
 	Target& target, ::ptgn::impl::SliderData& data, std::string_view label, bool start
 ) {
 	V2_float& position{ start ? data.line.start : data.line.end };
-	V2_float previous{ position };
+	V2_float before{ position };
 
-	bool changed{ DrawPropertyRow(label, [&]() {
-		float spacing{ ImGui::GetStyle().ItemInnerSpacing.x };
-		float pick_width{ ImGui::CalcTextSize("Pick").x + ImGui::GetStyle().FramePadding.x * 2.0f };
-		float available{ std::max(1.0f, ImGui::GetContentRegionAvail().x) };
-		bool pick_inline{ available >= pick_width + spacing * 2.0f + 96.0f };
-		float fields_width{ pick_inline ? std::max(1.0f, available - pick_width - spacing)
-										: available };
-		float field_width{ InspectorSplitWidth(2, fields_width, spacing) };
-		bool local_changed{ false };
+	auto apply{ target.template MakeApply<::ptgn::impl::SliderData>() };
+	::ptgn::impl::SliderData snapshot{ data };
+	InspectorPositionBinding binding{
+		.apply =
+			[apply, snapshot = std::move(snapshot), start](V2_float picked) mutable {
+				Line line{ snapshot.line };
+				if (start) {
+					line.start = picked;
+				} else {
+					line.end = picked;
+				}
+				if (line.GetDirection().IsZero()) {
+					return;
+				}
+				snapshot.line = line;
+				apply(ComponentState<::ptgn::impl::SliderData>{ snapshot });
+			},
+		.validate = [opposite =
+						 start ? data.line.end
+							   : data.line.start](V2_float picked) { return picked != opposite; },
+		.show_relative = true,
+		.available	   = false,
+	};
 
-		ImGui::SetNextItemWidth(field_width);
-		local_changed |= ImGui::DragFloat("##X", &position.x, 0.01f, 0.0f, 0.0f, "X: %.2f");
-		ImGui::SameLine(0.0f, spacing);
-		ImGui::SetNextItemWidth(field_width);
-		local_changed |= ImGui::DragFloat("##Y", &position.y, 0.01f, 0.0f, 0.0f, "Y: %.2f");
-		if (pick_inline) {
-			ImGui::SameLine(0.0f, spacing);
+	if constexpr (requires { target.entity; }) {
+		Entity entity{ target.entity };
+		if (entity && entity.Has<Transform>() && !target.IsReadOnly()) {
+			binding.available		= true;
+			binding.reference_world = GetDrawTransform(entity).Apply(position);
+			binding.from_world		= [entity](V2_float world) -> std::optional<V2_float> {
+				if (!entity || !entity.Has<Transform>()) {
+					return std::nullopt;
+				}
+				return GetDrawTransform(entity).ApplyInverse(world);
+			};
 		}
+	}
 
-		ScopedDisabled disabled{ !CanPickLocalPosition<Target>() };
-		auto apply{ target.template MakeApply<::ptgn::impl::SliderData>() };
-		::ptgn::impl::SliderData snapshot{ data };
-		PositionPicker::Convert convert{};
-		std::optional<V2_float> reference_world{};
-
-		if constexpr (requires { target.entity; }) {
-			Entity slider_entity{ target.entity };
-			if (slider_entity) {
-				// Slider endpoints are authored in the slider entity's local space, regardless of
-				// whether the optional track transform is enabled.
-				Transform basis_world{ GetWorldTransform(slider_entity) };
-				reference_world = basis_world.Apply(position);
-				convert			= [slider_entity](V2_float world) -> std::optional<V2_float> {
-					if (!slider_entity) {
-						return std::nullopt;
-					}
-					return GetWorldTransform(slider_entity).ApplyInverse(world);
-				};
-			}
-		}
-
-		DrawPositionPickButton(
-			target.ctx, label, position, std::move(convert),
-			PositionPicker::Apply{
-				[apply, snapshot = std::move(snapshot), start](V2_float picked) mutable {
-					Line line{ snapshot.line };
-					if (start) {
-						line.start = picked;
-					} else {
-						line.end = picked;
-					}
-					if (line.GetDirection().IsZero()) {
-						return;
-					}
-					snapshot.line = line;
-					apply(ComponentState<::ptgn::impl::SliderData>{ snapshot });
-				} },
-			reference_world, true
-		);
-		return local_changed;
-	}) };
-
+	bool changed{
+		DrawSharedPositionField(target.ctx, label, position, std::move(binding), nullptr, 0.01f)
+	};
 	if (changed && data.line.GetDirection().IsZero()) {
-		position = previous;
+		position = before;
 		return false;
 	}
 	return changed;

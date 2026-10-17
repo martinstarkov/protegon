@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cmath>
+#include <cstdint>
 #include <functional>
 #include <optional>
 #include <string>
@@ -16,6 +17,7 @@ class PositionPicker {
 public:
 	using Convert = std::function<std::optional<V2_float>(V2_float)>;
 	using Apply = std::function<void(V2_float)>;
+	using Validate = std::function<bool(V2_float)>;
 	using Finish = std::function<void()>;
 
 	struct PreviewData {
@@ -26,27 +28,28 @@ public:
 	};
 
 	void Begin(
-		std::string label,
-		V2_float initial,
-		Convert convert,
-		Apply apply,
-		std::optional<V2_float> reference_world = std::nullopt,
-		bool show_relative = false,
-		Finish finish = {}
+		std::string label, V2_float initial, Convert convert, Apply apply,
+		std::optional<V2_float> reference_world = std::nullopt, bool show_relative = false,
+		Finish finish = {}, bool round_to_pixels = true, bool display_frame = false,
+		std::uint32_t source_id = 0, Validate validate = {}
 	) {
 		if (request_) {
 			return;
 		}
 
 		request_ = Request{
-			.label = std::move(label),
-			.initial = initial,
-			.current = initial,
-			.convert = std::move(convert),
-			.apply = std::move(apply),
-			.finish = std::move(finish),
+			.label			 = std::move(label),
+			.initial		 = initial,
+			.current		 = initial,
+			.convert		 = std::move(convert),
+			.apply			 = std::move(apply),
+			.validate		 = std::move(validate),
+			.finish			 = std::move(finish),
 			.reference_world = reference_world,
-			.show_relative = show_relative,
+			.show_relative	 = show_relative,
+			.round_to_pixels = round_to_pixels,
+			.display_frame	 = display_frame,
+			.source_id		 = source_id,
 		};
 	}
 
@@ -60,7 +63,7 @@ public:
 
 		// The value is changed live while dragging, so cancellation must
 		// restore the value from before the pick began.
-		if (request.dragging && request.current != request.initial) {
+		if (request.current != request.initial) {
 			request.apply(request.initial);
 		}
 
@@ -69,8 +72,25 @@ public:
 		}
 	}
 
+	// Ignore the mouse click that activated the picker. Depending on dock order,
+	// the inspector can render before the viewport in the same ImGui frame.
+	[[nodiscard]] bool ConsumeActivation() {
+		if (!request_) {
+			return false;
+		}
+		return std::exchange(request_->newly_activated, false);
+	}
+
 	[[nodiscard]] bool IsActive() const {
 		return request_.has_value();
+	}
+
+	[[nodiscard]] std::uint32_t SourceId() const {
+		return request_ ? request_->source_id : 0;
+	}
+
+	[[nodiscard]] bool UsesDisplayFrame() const {
+		return request_ && request_->display_frame;
 	}
 
 	[[nodiscard]] bool IsDragging() const {
@@ -101,7 +121,9 @@ public:
 		}
 
 		V2_float absolute{ world_position };
-		RoundPosition(absolute);
+		if (request_->round_to_pixels) {
+			RoundPosition(absolute);
+		}
 
 		auto converted{
 			ConvertPosition(*request_, world_position)
@@ -205,11 +227,16 @@ private:
 
 		Convert convert{};
 		Apply apply{};
+		Validate validate{};
 		Finish finish{};
 
 		std::optional<V2_float> reference_world{};
 
 		bool show_relative{ false };
+		bool round_to_pixels{ false };
+		bool display_frame{ false };
+		std::uint32_t source_id{ 0 };
+		bool newly_activated{ true };
 		bool dragging{ false };
 	};
 
@@ -227,7 +254,13 @@ private:
 			return std::nullopt;
 		}
 
-		RoundPosition(*converted);
+		if (request.round_to_pixels) {
+			RoundPosition(*converted);
+		}
+
+		if (request.validate && !request.validate(*converted)) {
+			return std::nullopt;
+		}
 
 		return converted;
 	}

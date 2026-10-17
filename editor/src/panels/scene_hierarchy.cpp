@@ -499,8 +499,6 @@ constexpr float kDefaultShapeRadius{ 50.0f };
 constexpr V2_float kDefaultInteractiveSpriteSize{ 100, 100 };
 
 constexpr V2_float kDefaultUIButtonSize{ 180, 50 };
-constexpr V2_float kDefaultUISquareButtonSize{ 64, 64 };
-constexpr V2_float kDefaultUISpriteSize{ 40, 40 };
 constexpr V2_float kDefaultUIDialogueSize{ 640, 160 };
 
 Prefab CreatePrefabFromEntity(const AssetManager& assets, const path& project_root, Entity entity);

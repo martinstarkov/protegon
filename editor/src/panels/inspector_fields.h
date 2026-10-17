@@ -1833,6 +1833,12 @@ inline bool DrawVector(std::string_view label, T& value, const FieldOptions& opt
 	});
 }
 
+[[nodiscard]] inline bool IsInspectorPositionLabel(std::string_view label) {
+	return label == "Position" || label == "Start" || label == "End" || label == "Min" ||
+		   label == "Max" || label == "Point" || label == "Center" ||
+		   label.ends_with(" Position") || label.starts_with("Vertex ");
+}
+
 inline bool DrawColor(EditorContext& ctx, std::string_view label, Color& value) {
 	return DrawPropertyRow(label, [&]() {
 		return DrawDisabledIf(IsReadOnly(), [&]() {
@@ -2927,6 +2933,10 @@ bool DrawValue(EditorContext& ctx, std::string_view label, T& value, FieldOption
 			});
 		});
 	} else if constexpr (std::same_as<Value, float>) {
+		if (label == "Depth") {
+			options.format = "%.0f";
+			options.speed  = 1.0f;
+		}
 		return DrawFloat(label, value, options);
 	} else if constexpr (std::same_as<Value, int>) {
 		return DrawInt(label, value, options);
@@ -2965,6 +2975,14 @@ bool DrawValue(EditorContext& ctx, std::string_view label, T& value, FieldOption
 	} else if constexpr (std::same_as<Value, FillStyle>) {
 		return DrawFillStyle(ctx, label, value);
 	} else if constexpr (kInspectorVectorType<Value>) {
+		if constexpr (std::same_as<Value, V2_float>) {
+			// Normalized viewport positions need fractional coordinates.
+			bool normalized{ HasBounds(options) && options.min >= 0.0f && options.max <= 1.0f };
+			if (IsInspectorPositionLabel(label) && !normalized) {
+				options.format = "%.0f";
+				options.speed  = std::max(options.speed, 1.0f);
+			}
+		}
 		return DrawVector(label, value, options);
 	} else if constexpr (std::same_as<Value, Degrees>) {
 		return DrawFloat(label, value.value, options);

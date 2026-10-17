@@ -321,7 +321,7 @@ template <typename Target>
 bool DrawPaintGeneratorArchetype(Target& target, bool& stop_after_archetype) {
 	bool changed{ DrawArchetypeComponentSection<Target, ::ptgn::impl::PaintGeneratorData>(
 		target, "Paint Generator", "PaintGeneratorSection",
-		[&target](::ptgn::impl::PaintGeneratorData& data) {
+		[&](::ptgn::impl::PaintGeneratorData& data) {
 			bool local_changed{ false };
 
 			local_changed |= ImGui::Checkbox("Enabled", &data.enabled);

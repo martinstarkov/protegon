@@ -48,6 +48,7 @@
 #include "panels/inspector_scripts.h"
 #include "panels/inspector_tabs.h"
 #include "panels/inspector_targets.h"
+#include "panels/inspector_transform_fields.h"
 #include "panels/scene_hierarchy.h"
 #include "renderer/pipeline/blend_mode.h"
 #include "renderer/pipeline/render_state.h"
@@ -455,168 +456,63 @@ bool DrawButtonVisualOverrideValue(
 		if (open) {
 			ScopedIndent indent;
 			ScopedDisabled disabled{ !enabled };
-			bool fields_changed{ false };
 
-			auto draw_ignore = [&](bool& inherit, const char* tooltip) {
-				bool ignore{ !inherit };
-				bool local_changed{ ImGui::Checkbox("##IgnoreParent", &ignore) };
-				if (local_changed) {
-					inherit = !ignore;
+			bool ignore_position{ !inherit_position };
+			bool ignore_rotation{ !inherit_rotation };
+			bool ignore_scale{ !inherit_scale };
+			bool ignore_depth{ !inherit_depth };
+
+			ImGuiID pick_id{ ImGui::GetID("##RelativeVisualPositionPick") };
+			static std::unordered_map<ImGuiID, V2_float> picked_positions;
+			bool picked_changed{ false };
+			if (auto it{ picked_positions.find(pick_id) }; it != picked_positions.end()) {
+				if (enabled && displayed.position != it->second) {
+					displayed.position = it->second;
+					picked_changed	   = true;
+				} else if (!ctx.local.position_picker.IsActive()) {
+					picked_positions.erase(it);
 				}
-				DrawTooltip(tooltip);
-				return local_changed;
+			}
+
+			ImGuiID lock_id{ ImGui::GetID("##RelativeVisualScaleLock") };
+			static std::unordered_map<ImGuiID, bool> scale_locks;
+			bool& lock_ratio{ scale_locks.try_emplace(lock_id, true).first->second };
+
+			InspectorPositionBinding pick{
+				.apply = [pick_id](V2_float picked) { picked_positions[pick_id] = picked; },
+				.show_relative = true,
+				.available	   = static_cast<bool>(relative_to) && enabled,
 			};
 
-			fields_changed |= DrawPropertyRow("Position", [&]() {
-				float spacing{ ImGui::GetStyle().ItemInnerSpacing.x };
-				float available{ std::max(1.0f, ImGui::GetContentRegionAvail().x) };
-				float pick_width{ ImGui::CalcTextSize("Pick").x +
-								  ImGui::GetStyle().FramePadding.x * 2.0f };
-				float inherit_width{ ImGui::GetFrameHeight() };
-				float actions_width{ pick_width + inherit_width + spacing };
-				bool actions_inline{ available >= actions_width + spacing + 104.0f };
-				float fields_width{ actions_inline
-										? std::max(1.0f, available - actions_width - spacing)
-										: available };
-				float field_width{ InspectorSplitWidth(2, fields_width, spacing) };
-				bool local_changed{ false };
-
-				ImGui::SetNextItemWidth(field_width);
-				local_changed |=
-					ImGui::DragFloat("##X", &displayed.position.x, 1.0f, 0.0f, 0.0f, "X: %.0f");
-				ImGui::SameLine(0.0f, spacing);
-				ImGui::SetNextItemWidth(field_width);
-				local_changed |=
-					ImGui::DragFloat("##Y", &displayed.position.y, 1.0f, 0.0f, 0.0f, "Y: %.0f");
-
-				if (actions_inline) {
-					ImGui::SameLine(0.0f, spacing);
-				}
-				ImGuiID pick_id{ ImGui::GetID("##RelativeVisualPositionPick") };
-				static std::unordered_map<ImGuiID, V2_float> picked_positions;
-				if (auto it{ picked_positions.find(pick_id) }; it != picked_positions.end()) {
-					if (displayed.position != it->second) {
-						displayed.position = it->second;
-						local_changed	   = true;
-					} else if (!IsPositionPickingActive(ctx)) {
-						picked_positions.erase(it);
+			if (relative_to) {
+				pick.from_world = [relative_to](V2_float world) -> std::optional<V2_float> {
+					if (!relative_to) {
+						return std::nullopt;
 					}
-				}
-				if (relative_to) {
-					Transform basis{ GetDrawTransform(relative_to) };
-					DrawPositionPickButton(
-						ctx, "RelativeVisualPosition", displayed.position,
-						[relative_to](V2_float world) -> std::optional<V2_float> {
-							if (!relative_to) {
-								return std::nullopt;
-							}
-							return GetDrawTransform(relative_to).ApplyInverse(world);
-						},
-						[pick_id](V2_float picked) { picked_positions[pick_id] = picked; },
-						basis.Apply(displayed.position), true
-					);
-				} else {
-					ScopedDisabled no_basis{ true };
-					ImGui::Button("Pick");
-				}
-				ImGui::SameLine(0.0f, spacing);
-				local_changed |= draw_ignore(inherit_position, "Ignore parent position.");
-				return local_changed;
-			});
-
-			fields_changed |= DrawPropertyRow("Depth", [&]() {
-				float spacing{ ImGui::GetStyle().ItemInnerSpacing.x };
-				float available{ std::max(1.0f, ImGui::GetContentRegionAvail().x) };
-				float checkbox_width{ ImGui::GetFrameHeight() };
-				bool inline_ignore{ available >= checkbox_width + spacing + 72.0f };
-				ImGui::SetNextItemWidth(
-					inline_ignore ? std::max(1.0f, available - checkbox_width - spacing) : -FLT_MIN
-				);
-				bool local_changed{ ImGui::DragFloat("##Value", &depth, 1.0f, 0.0f, 0.0f, "%.0f") };
-				if (inline_ignore) {
-					ImGui::SameLine(0.0f, spacing);
-				}
-				local_changed |= draw_ignore(inherit_depth, "Ignore parent depth.");
-				return local_changed;
-			});
-
-			fields_changed |= DrawPropertyRow("Rotation", [&]() {
-				float spacing{ ImGui::GetStyle().ItemInnerSpacing.x };
-				float available{ std::max(1.0f, ImGui::GetContentRegionAvail().x) };
-				float checkbox_width{ ImGui::GetFrameHeight() };
-				bool inline_ignore{ available >= checkbox_width + spacing + 72.0f };
-				ImGui::SetNextItemWidth(
-					inline_ignore ? std::max(1.0f, available - checkbox_width - spacing) : -FLT_MIN
-				);
-				Degrees rotation{ displayed.rotation };
-				float degrees{ rotation.value };
-				bool local_changed{ false };
-				if (ImGui::DragFloat(
-						"##Value", &degrees, 1.0f, 0.0f, 360.0f, "%.1f deg",
-						ImGuiSliderFlags_AlwaysClamp
-					)) {
-					displayed.rotation = Radians{ Degrees{ degrees } };
-					local_changed	   = true;
-				}
-				if (inline_ignore) {
-					ImGui::SameLine(0.0f, spacing);
-				}
-				local_changed |= draw_ignore(inherit_rotation, "Ignore parent rotation.");
-				return local_changed;
-			});
-
-			fields_changed |= DrawPropertyRow("Scale", [&]() {
-				constexpr float minimum{ 0.001f };
-				constexpr float epsilon{ 0.000001f };
-				V2_float before_scale{ displayed.scale };
-				float spacing{ ImGui::GetStyle().ItemInnerSpacing.x };
-				float available{ std::max(1.0f, ImGui::GetContentRegionAvail().x) };
-				float action_width{ ImGui::GetFrameHeight() * 2.0f + spacing };
-				bool actions_inline{ available >= action_width + spacing + 104.0f };
-				float fields_width{ actions_inline
-										? std::max(1.0f, available - action_width - spacing)
-										: available };
-				float field_width{ InspectorSplitWidth(2, fields_width, spacing) };
-				ImGui::SetNextItemWidth(field_width);
-				bool x_changed{
-					ImGui::DragFloat("##X", &displayed.scale.x, 0.01f, -1000.0f, 1000.0f, "X: %.2f")
+					return GetDrawTransform(relative_to).ApplyInverse(world);
 				};
-				ImGui::SameLine(0.0f, spacing);
-				ImGui::SetNextItemWidth(field_width);
-				bool y_changed{
-					ImGui::DragFloat("##Y", &displayed.scale.y, 0.01f, -1000.0f, 1000.0f, "Y: %.2f")
-				};
-				auto clamp_axis = [](float current, float previous) {
-					if (std::abs(current) >= minimum) {
-						return current;
-					}
-					return (current < 0.0f || (current == 0.0f && previous < 0.0f)) ? -minimum
-																					: minimum;
-				};
-				displayed.scale.x = clamp_axis(displayed.scale.x, before_scale.x);
-				displayed.scale.y = clamp_axis(displayed.scale.y, before_scale.y);
+				pick.reference_world = GetDrawTransform(relative_to).Apply(displayed.position);
+			}
 
-				ImGuiID lock_id{ ImGui::GetID("##RelativeVisualScaleLock") };
-				static std::unordered_map<ImGuiID, bool> scale_locks;
-				bool& lock_ratio{ scale_locks.try_emplace(lock_id, true).first->second };
-				if (lock_ratio) {
-					if (x_changed && !y_changed && std::abs(before_scale.x) > epsilon) {
-						displayed.scale.y = before_scale.y * (displayed.scale.x / before_scale.x);
-					} else if (y_changed && !x_changed && std::abs(before_scale.y) > epsilon) {
-						displayed.scale.x = before_scale.x * (displayed.scale.y / before_scale.y);
-					}
+			bool fields_changed{ DrawSharedTransformFields(
+				ctx, displayed,
+				SharedTransformFieldOptions{
+					.depth				= &depth,
+					.ignore_position	= &ignore_position,
+					.ignore_rotation	= &ignore_rotation,
+					.ignore_scale		= &ignore_scale,
+					.ignore_depth		= &ignore_depth,
+					.scale_ratio_locked = &lock_ratio,
+					.position			= std::move(pick),
 				}
+			) };
 
-				if (actions_inline) {
-					ImGui::SameLine(0.0f, spacing);
-				}
-				ImGui::Checkbox("##LockRatio", &lock_ratio);
-				DrawTooltip("Lock the scale ratio.");
-				ImGui::SameLine(0.0f, spacing);
-				bool local_changed{ x_changed || y_changed };
-				local_changed |= draw_ignore(inherit_scale, "Ignore parent scale.");
-				return local_changed;
-			});
+			fields_changed |= picked_changed;
+
+			inherit_position = !ignore_position;
+			inherit_rotation = !ignore_rotation;
+			inherit_scale	 = !ignore_scale;
+			inherit_depth	 = !ignore_depth;
 
 			if (enabled && fields_changed) {
 				value					= displayed;
@@ -628,6 +524,7 @@ bool DrawButtonVisualOverrideValue(
 				changed					= true;
 			}
 		}
+
 		return changed;
 	}
 	if (normalized_label == "size" || normalized_label == "texturesize") {

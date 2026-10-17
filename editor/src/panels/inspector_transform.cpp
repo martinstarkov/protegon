@@ -1,5 +1,6 @@
 #include "editor/editor_icons.h"
 #include "panels/inspector_archetype_inspector.h"
+#include "panels/inspector_transform_fields.h"
 
 namespace ptgn::editor::inspector {
 
@@ -309,7 +310,7 @@ template <typename Target>
 			if (!parent || ignores_parent_position) {
 				return world_position;
 			}
-			return GetDrawTransform(parent).ApplyInverse(world_position);
+			return GetWorldTransform(parent).ApplyInverse(world_position);
 		};
 	} else {
 		return [](V2_float) -> std::optional<V2_float> {
@@ -337,191 +338,45 @@ template <typename Target, typename Apply>
 bool DrawTransformSectionFields(
 	Target& target, TransformSectionState<Target>& state, Apply apply_state
 ) {
-	bool changed{ false };
 	auto& editor_state{ GetInspectorUiState(target.GetInspectorTargetKey()) };
 	auto selected_button_state{ GetButtonVisualEditState(target) };
-	auto draw_ignore = [&](bool& value, const char* tooltip) {
-		bool local_changed{ ImGui::Checkbox("##IgnoreParent", &value) };
-		DrawTooltip(tooltip);
-		return local_changed;
+
+	InspectorPositionBinding pick{
+		.from_world = MakeTransformPositionConverter(target),
+		.apply =
+			[apply_state, state, selected_button_state](V2_float picked) mutable {
+				Transform before{ state.transform };
+				state.transform.position = picked;
+				ApplyButtonVisualTransformDelta(state, selected_button_state, before);
+				ApplySliderTrackVisualTransformDelta(state, before);
+				apply_state(state);
+			},
+		.reference_world = GetTargetWorldReferencePosition(target),
+		.show_relative	 = ShouldShowTransformRelativePosition(target),
+		.available		 = false,
 	};
-	changed |= DrawPropertyRow("Position", [&]() {
-		float spacing{ ImGui::GetStyle().ItemInnerSpacing.x };
-		float available{ std::max(1.0f, ImGui::GetContentRegionAvail().x) };
-		float pick_width{ ImGui::CalcTextSize("Pick").x + ImGui::GetStyle().FramePadding.x * 2.0f };
-		float checkbox_width{ ImGui::GetFrameHeight() };
-		float actions_width{ pick_width + checkbox_width + spacing };
-		bool actions_inline{ available >= actions_width + spacing + 104.0f };
-		float fields_width{ actions_inline ? std::max(1.0f, available - actions_width - spacing)
-										   : available };
-		float field_width{ InspectorSplitWidth(2, fields_width, spacing) };
-		bool local_changed{ false };
-		ImGui::SetNextItemWidth(field_width);
-		local_changed |=
-			ImGui::DragFloat("##X", &state.transform.position.x, 1.0f, 0.0f, 0.0f, "X: %.0f");
-		ImGui::SameLine(0.0f, spacing);
-		ImGui::SetNextItemWidth(field_width);
-		local_changed |=
-			ImGui::DragFloat("##Y", &state.transform.position.y, 1.0f, 0.0f, 0.0f, "Y: %.0f");
-		if (actions_inline) {
-			ImGui::SameLine(0.0f, spacing);
+
+	if constexpr (requires { target.entity; }) {
+		pick.available = static_cast<bool>(target.entity) &&
+						 target.entity.template Has<Transform>() && !target.IsReadOnly();
+		if (pick.available) {
+			Entity entity{ target.entity };
+			pick.display_frame = entity == entity.GetScene().GetRenderTarget();
 		}
-		DrawPositionPickButton(
-			target.ctx, "Position", state.transform.position,
-			MakeTransformPositionConverter(target),
-			PositionPicker::Apply{
-				[apply_state, state, selected_button_state](V2_float picked) mutable {
-					Transform before_transform{ state.transform };
-					state.transform.position = picked;
-					ApplyButtonVisualTransformDelta(state, selected_button_state, before_transform);
-					ApplySliderTrackVisualTransformDelta(state, before_transform);
-					apply_state(state);
-				} },
-			GetTargetWorldReferencePosition(target), ShouldShowTransformRelativePosition(target)
-		);
-		ImGui::SameLine(0.0f, spacing);
-		local_changed |= draw_ignore(state.ignore_position, "Ignore parent position.");
-		return local_changed;
-	});
-	changed |= DrawPropertyRow("Depth", [&]() {
-		float spacing{ ImGui::GetStyle().ItemInnerSpacing.x };
-		float available{ std::max(1.0f, ImGui::GetContentRegionAvail().x) };
-		float checkbox_width{ ImGui::GetFrameHeight() };
-		bool inline_ignore{ available >= checkbox_width + spacing + 72.0f };
-		ImGui::SetNextItemWidth(
-			inline_ignore ? std::max(1.0f, available - checkbox_width - spacing) : -FLT_MIN
-		);
-		bool local_changed{ ImGui::DragFloat(
-			"##Value", &state.depth.value, 0.05f, -1000.0f, 1000.0f, "%.2f",
-			ImGuiSliderFlags_AlwaysClamp
-		) };
-		if (inline_ignore) {
-			ImGui::SameLine(0.0f, spacing);
+	}
+
+	return DrawSharedTransformFields(
+		target.ctx, state.transform,
+		SharedTransformFieldOptions{
+			.depth				= &state.depth.value,
+			.ignore_position	= &state.ignore_position,
+			.ignore_rotation	= &state.ignore_rotation,
+			.ignore_scale		= &state.ignore_scale,
+			.ignore_depth		= &state.ignore_depth,
+			.scale_ratio_locked = &editor_state.scale_ratio_locked,
+			.position			= std::move(pick),
 		}
-		local_changed |= draw_ignore(state.ignore_depth, "Ignore parent depth.");
-		return local_changed;
-	});
-	changed |= DrawPropertyRow("Rotation", [&]() {
-		float spacing{ ImGui::GetStyle().ItemInnerSpacing.x };
-		float available{ std::max(1.0f, ImGui::GetContentRegionAvail().x) };
-		float checkbox_width{ ImGui::GetFrameHeight() };
-		bool inline_ignore{ available >= checkbox_width + spacing + 72.0f };
-		ImGui::SetNextItemWidth(
-			inline_ignore ? std::max(1.0f, available - checkbox_width - spacing) : -FLT_MIN
-		);
-		Degrees rotation{ state.transform.rotation };
-		float degrees{ rotation.value };
-		bool local_changed{ false };
-		if (ImGui::DragFloat(
-				"##Value", &degrees, 1.0f, 0.0f, 360.0f, "%.1f deg", ImGuiSliderFlags_AlwaysClamp
-			)) {
-			state.transform.rotation = Radians{ Degrees{ degrees } };
-			local_changed			 = true;
-		}
-		if (inline_ignore) {
-			ImGui::SameLine(0.0f, spacing);
-		}
-		local_changed |= draw_ignore(state.ignore_rotation, "Ignore parent rotation.");
-		return local_changed;
-	});
-	changed |= DrawPropertyRow("Scale", [&]() {
-		constexpr float kMinScaleMagnitude{ 0.001f };
-		constexpr float kScaleRatioEpsilon{ 0.000001f };
-
-		V2_float before_scale{ state.transform.scale };
-
-		auto clamp_scale{ [](float value, float previous) {
-			if (std::abs(value) >= kMinScaleMagnitude) {
-				return value;
-			}
-			float sign{ value < 0.0f || (value == 0.0f && previous < 0.0f) ? -1.0f : 1.0f };
-			return sign * kMinScaleMagnitude;
-		} };
-
-		float spacing{ ImGui::GetStyle().ItemInnerSpacing.x };
-		float available{ std::max(1.0f, ImGui::GetContentRegionAvail().x) };
-
-		float action_width{ ImGui::GetFrameHeight() * 2.0f + spacing };
-
-		bool actions_inline{ available >= action_width + spacing + 104.0f };
-
-		float fields_width{ actions_inline ? std::max(1.0f, available - action_width - spacing)
-										   : available };
-
-		float field_width{ InspectorSplitWidth(2, fields_width, spacing) };
-
-		ImGui::SetNextItemWidth(field_width);
-
-		bool x_changed{ ImGui::DragFloat(
-			"##X", &state.transform.scale.x, 0.01f, -1000.0f, 1000.0f, "X: %.2f",
-			ImGuiSliderFlags_AlwaysClamp
-		) };
-
-		ImGui::SameLine(0.0f, spacing);
-		ImGui::SetNextItemWidth(field_width);
-
-		bool y_changed{ ImGui::DragFloat(
-			"##Y", &state.transform.scale.y, 0.01f, -1000.0f, 1000.0f, "Y: %.2f",
-			ImGuiSliderFlags_AlwaysClamp
-		) };
-
-		if (x_changed) {
-			state.transform.scale.x = clamp_scale(state.transform.scale.x, before_scale.x);
-		}
-
-		if (y_changed) {
-			state.transform.scale.y = clamp_scale(state.transform.scale.y, before_scale.y);
-		}
-
-		if (editor_state.scale_ratio_locked) {
-			if (x_changed && !y_changed) {
-				if (std::abs(before_scale.x) > kScaleRatioEpsilon) {
-					state.transform.scale.y =
-						before_scale.y * (state.transform.scale.x / before_scale.x);
-				} else if (std::abs(before_scale.y) <= kScaleRatioEpsilon) {
-					state.transform.scale.y = state.transform.scale.x;
-				}
-			} else if (y_changed && !x_changed) {
-				if (std::abs(before_scale.y) > kScaleRatioEpsilon) {
-					state.transform.scale.x =
-						before_scale.x * (state.transform.scale.y / before_scale.y);
-				} else if (std::abs(before_scale.x) <= kScaleRatioEpsilon) {
-					state.transform.scale.x = state.transform.scale.y;
-				}
-			}
-		}
-
-		state.transform.scale.x = clamp_scale(state.transform.scale.x, before_scale.x);
-		state.transform.scale.y = clamp_scale(state.transform.scale.y, before_scale.y);
-
-		if (actions_inline) {
-			ImGui::SameLine(0.0f, spacing);
-		}
-
-		if (DrawEditorIconButton(
-				"##LockRatio",
-				editor_state.scale_ratio_locked ? EditorIcon::Locked : EditorIcon::Unlocked,
-				EditorIconButtonOptions{
-					.muted		 = !editor_state.scale_ratio_locked,
-					.icon_extent = ImGui::GetTextLineHeight() + 2.0f,
-				}
-			)) {
-			editor_state.scale_ratio_locked = !editor_state.scale_ratio_locked;
-		}
-
-		DrawTooltip(
-			"Lock the scale ratio. Editing either axis changes the other by the same proportional "
-			"factor."
-		);
-
-		ImGui::SameLine(0.0f, spacing);
-
-		bool local_changed{ x_changed || y_changed };
-		local_changed |= draw_ignore(state.ignore_scale, "Ignore parent scale.");
-
-		return local_changed;
-	});
-	return changed;
+	);
 }
 
 template <typename Target>

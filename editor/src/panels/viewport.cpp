@@ -24,6 +24,7 @@
 #include "editor/editor_context.h"
 #include "editor/editor_icons.h"
 #include "editor/editor_state.h"
+#include "editor/editor_transform_ops.h"
 #include "editor/paint/paint_editor.h"
 #include "panels/inspector_helpers.h"
 #include "panels/scene_hierarchy.h"
@@ -1660,6 +1661,7 @@ void ViewportPanel::OnRender(EditorContext& ctx) {
 	ctx.editor.GetDebugSystem().stats.Increment("draw_calls");
 
 	bool position_pick_was_active_at_viewport_start{ inspector::IsPositionPickingActive(ctx) };
+	bool position_pick_just_activated{ ctx.local.position_picker.ConsumeActivation() };
 	V2_float mouse_screen{ FromImGui(ImGui::GetIO().MousePos) };
 	bool mouse_inside_image{ ContainsPoint(viewport, mouse_screen) };
 
@@ -1673,7 +1675,8 @@ void ViewportPanel::OnRender(EditorContext& ctx) {
 	if (position_pick_was_active_at_viewport_start) {
 		bool cancel_with_escape{ ImGui::IsKeyPressed(ImGuiKey_Escape, false) };
 		bool cancel_with_right_click{ ImGui::IsMouseClicked(ImGuiMouseButton_Right) };
-		bool cancel_with_other_panel_click{ ImGui::IsMouseClicked(ImGuiMouseButton_Left) &&
+		bool cancel_with_other_panel_click{ !position_pick_just_activated &&
+											ImGui::IsMouseClicked(ImGuiMouseButton_Left) &&
 											!mouse_inside_image &&
 											!inspector::IsPositionPickDragging(ctx) };
 
@@ -1706,12 +1709,8 @@ void ViewportPanel::OnRender(EditorContext& ctx) {
 	if (scene && frame_context.has_value()) {
 		const FrameContext& frame{ frame_context.value() };
 
-		Frame position_pick_frame{ Frame::World };
-		Entity selected_entity{ ctx.editor.GetSceneHierarchyPanel().GetSelectedEntity() };
-
-		if (selected_entity && selected_entity == scene->GetRenderTarget()) {
-			position_pick_frame = Frame::Display;
-		}
+		Frame position_pick_frame{ ctx.local.position_picker.UsesDisplayFrame() ? Frame::Display
+																				: Frame::World };
 
 		draw_list->PushClipRect(
 			ToImGui(viewport.position), ToImGui(viewport.position + viewport.size), true
@@ -1836,7 +1835,8 @@ void ViewportPanel::DrawSelectedEntityGizmo(
 		presentation_viewport
 	) };
 
-	Transform local_transform_before{ GetTransform(selected_entity) };
+	EditorEntityTransformSnapshot snapshot_before{ CaptureEditorEntityTransform(selected_entity) };
+	Transform local_transform_before{ snapshot_before.local };
 	auto active_handle_before_update{ gizmo_state_.active };
 
 	UpdateAndDrawGizmoInstances(
@@ -1864,20 +1864,20 @@ void ViewportPanel::DrawSelectedEntityGizmo(
 
 	local_transform_after = GetTransform(selected_entity);
 
-	bool transform_changed{ local_transform_before != local_transform_after };
-	if (transform_changed) {
+	EditorEntityTransformSnapshot snapshot_after{ CaptureEditorEntityTransform(selected_entity) };
+	if (snapshot_before.local != snapshot_after.local) {
 		auto reference{ MakeEntityReference(selected_entity) };
 		Editor* editor{ std::addressof(ctx.editor) };
-		auto apply = [editor, reference](Transform value) {
+		auto apply = [editor, reference](const EditorEntityTransformSnapshot& snapshot) {
 			if (Entity entity{ reference.Resolve(*editor) }; entity && entity.Has<Transform>()) {
-				SetEditorLocalTransform(entity, value);
+				ApplyEditorEntityTransform(entity, snapshot);
 			}
 		};
 
 		ctx.undo.TrackInteraction(
 			selected_uuid, "Edit Transform", true, gizmo_state_.active != GizmoHandle::None,
-			[apply, local_transform_before]() mutable { apply(local_transform_before); },
-			[apply, local_transform_after]() mutable { apply(local_transform_after); }
+			[apply, snapshot_before]() mutable { apply(snapshot_before); },
+			[apply, snapshot_after]() mutable { apply(snapshot_after); }
 		);
 	}
 

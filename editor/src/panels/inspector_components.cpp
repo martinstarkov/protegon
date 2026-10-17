@@ -33,6 +33,7 @@
 #include "panels/inspector_fields.h"
 #include "panels/inspector_helpers.h"
 #include "panels/inspector_scripts.h"
+#include "panels/inspector_transform_fields.h"
 #include "panels/rich_text_editor.h"
 #include "panels/scene_hierarchy.h"
 #include "renderer/pipeline/blend_mode.h"
@@ -350,7 +351,7 @@ bool DrawOptionalBoundingBox(
 			ctx, "Position", displayed.position,
 			FieldOptions{
 				.speed	= kInspectorPositionDragSpeed,
-				.format = "%.3f",
+				.format = "%.0f",
 			}
 		);
 
@@ -373,14 +374,14 @@ bool DrawOptionalBoundingBox(
 			ctx, "Min", rect.min,
 			FieldOptions{
 				.speed	= kInspectorPositionDragSpeed,
-				.format = "%.3f",
+				.format = "%.0f",
 			}
 		);
 		contents_changed |= DrawValue(
 			ctx, "Max", rect.max,
 			FieldOptions{
 				.speed	= kInspectorPositionDragSpeed,
-				.format = "%.3f",
+				.format = "%.0f",
 			}
 		);
 		contents_changed |= DrawValue(ctx, "Origin", displayed.origin);
@@ -593,6 +594,15 @@ struct ComponentDrawer<::ptgn::impl::IDrawable> {
 	}
 };
 
+template <>
+struct ComponentDrawer<Depth> {
+	static bool Draw(EditorContext& ctx, Depth& depth) {
+		return DrawValue(
+			ctx, "Depth", depth.value, FieldOptions{ .speed = 1.0f, .format = "%.0f" }
+		);
+	}
+};
+
 // Only types whose default reflected layout is not ideal need a specialization.
 template <>
 struct ComponentDrawer<Hollow> {
@@ -704,7 +714,7 @@ bool DrawPickablePosition(
 ) {
 	return DrawPropertyRow(label, [&]() {
 		float spacing{ ImGui::GetStyle().ItemInnerSpacing.x };
-		float pick_width{ ImGui::CalcTextSize("Pick").x + ImGui::GetStyle().FramePadding.x * 2.0f };
+		float pick_width{ ImGui::GetFrameHeight() };
 		float remove_width{ remove_requested ? ImGui::GetFrameHeight() : 0.0f };
 		float remove_spacing{ remove_requested ? spacing : 0.0f };
 		float available{ ImGui::GetContentRegionAvail().x };
@@ -715,27 +725,22 @@ bool DrawPickablePosition(
 		bool changed{ false };
 
 		ImGui::SetNextItemWidth(field_width);
-		changed |=
-			ImGui::DragFloat("##X", &position.x, kInspectorScalarDragSpeed, 0.0f, 0.0f, "X %.2f");
+		changed |= ImGui::DragFloat("##X", &position.x, 1.0f, 0.0f, 0.0f, "X %.0f");
 
 		ImGui::SameLine(0.0f, spacing);
 		ImGui::SetNextItemWidth(field_width);
-		changed |=
-			ImGui::DragFloat("##Y", &position.y, kInspectorScalarDragSpeed, 0.0f, 0.0f, "Y %.2f");
+		changed |= ImGui::DragFloat("##Y", &position.y, 1.0f, 0.0f, 0.0f, "Y %.0f");
 
 		ImGui::SameLine(0.0f, spacing);
 
-		if (!apply) {
-			V2_float* target{ &position };
-			Editor* editor{ &ctx.editor };
-
-			apply = PositionPicker::Apply{ [target, editor](V2_float picked) {
-				*target = picked;
-				editor->MarkProjectDirty();
-			} };
-		}
-
-		DrawPositionPickButton(ctx, label, position, PositionPicker::Convert{ convert }, apply);
+		DrawInspectorPositionPickButton(
+			ctx, label, position,
+			InspectorPositionBinding{
+				.from_world = PositionPicker::Convert{ convert },
+				.apply		= apply,
+				.available	= static_cast<bool>(apply),
+			}
+		);
 
 		if (remove_requested) {
 			ImGui::SameLine(0.0f, spacing);
@@ -1170,12 +1175,86 @@ bool DrawGraphicsShape(
 	return DrawGraphicsShape(ctx, member.value, convert, command_index);
 }
 
+template <typename T>
+bool DrawGraphicsCommandTransform(EditorContext& ctx, T& value, std::size_t command_index) {
+	using Stored = std::remove_cvref_t<T>;
+	if constexpr (
+		std::same_as<Stored, Transform> || std::same_as<Stored, std::optional<Transform>>
+	) {
+		bool changed{ false };
+		Transform* transform{ nullptr };
+
+		if constexpr (std::same_as<Stored, std::optional<Transform>>) {
+			bool enabled{ value.has_value() };
+			if (DrawPropertyRow("Transform", [&]() {
+					return ImGui::Checkbox("##Enabled", &enabled);
+				})) {
+				if (enabled) {
+					value.emplace();
+				} else {
+					value.reset();
+				}
+				changed = true;
+			}
+			if (!value) {
+				return changed;
+			}
+			transform = std::addressof(*value);
+		} else {
+			transform = std::addressof(value);
+		}
+
+		Entity entity{ ctx.editor.GetSceneHierarchyPanel().GetSelectedEntity() };
+		Editor* editor{ &ctx.editor };
+		InspectorPositionBinding binding{
+			.apply =
+				[entity, editor, command_index](V2_float picked) {
+					if (!entity || !entity.Has<::ptgn::impl::GraphicsData>()) {
+						return;
+					}
+					auto& commands{ entity.Get<::ptgn::impl::GraphicsData>().commands_ };
+					if (command_index >= commands.size()) {
+						return;
+					}
+					auto& stored{ commands[command_index].transform };
+					stored.position = picked;
+					editor->MarkProjectDirty();
+				},
+			.show_relative = true,
+			.available	   = entity && entity.Has<Transform>(),
+		};
+		if (binding.available) {
+			binding.from_world = [entity](V2_float world) -> std::optional<V2_float> {
+				if (!entity) {
+					return std::nullopt;
+				}
+				return GetDrawTransform(entity).ApplyInverse(world);
+			};
+			binding.reference_world = GetDrawTransform(entity).Apply(transform->position);
+		}
+		static std::unordered_map<ImGuiID, bool> locks;
+		ImGuiID id{ ImGui::GetID("##GraphicsTransformScaleLock") };
+		bool& locked{ locks.try_emplace(id, true).first->second };
+		ScopedID scope{ "GraphicsCommandTransform" };
+		changed |= DrawSharedTransformFields(
+			ctx, *transform,
+			SharedTransformFieldOptions{
+				.scale_ratio_locked = &locked,
+				.position			= std::move(binding),
+			}
+		);
+		return changed;
+	} else {
+		return DrawMembers(ctx, value);
+	}
+}
+
 bool DrawGraphicsCommand(
 	EditorContext& ctx, ::ptgn::impl::GraphicsCommand& command, std::size_t command_index
 ) {
 	bool changed{ false };
 
-	changed |= DrawMembers(ctx, command.transform);
+	changed |= DrawGraphicsCommandTransform(ctx, command.transform, command_index);
 	PositionPicker::Convert convert{ MakeInspectorPositionConverter(ctx, command.transform) };
 
 	changed |= DrawGraphicsShape(ctx, command.shape, convert, command_index);
@@ -1361,7 +1440,7 @@ ErasedComponentDrawer FindCustomDrawer(std::size_t type_id) {
 	PTGN_INSPECTOR_COMPONENT_DRAWER(LightData)
 	PTGN_INSPECTOR_COMPONENT_DRAWER(::ptgn::impl::ShadowCaster)
 	PTGN_INSPECTOR_COMPONENT_DRAWER(::ptgn::impl::IDrawable)
-	PTGN_INSPECTOR_COMPONENT_DRAWER(Depth)
+
 	PTGN_INSPECTOR_COMPONENT_DRAWER(Visible)
 	PTGN_INSPECTOR_COMPONENT_DRAWER(Tint)
 	PTGN_INSPECTOR_COMPONENT_DRAWER(FillStyle)

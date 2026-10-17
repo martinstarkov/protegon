@@ -1294,7 +1294,6 @@ struct TiledTilesetInfo {
 }
 
 constexpr float kRecipeMinimumLabelWidth{ 116.0f };
-constexpr float kRecipeControlWidth{ 190.0f };
 
 [[nodiscard]] float RecipeLabelWidth() {
 	static constexpr std::array labels{
@@ -10964,7 +10963,7 @@ void PaintEditor::BeginMove(EditorContext&, Scene& scene, V2_float world) {
 		if (!layer || layer->locked || !layer->selectable) {
 			return;
 		}
-		move_.entity_before.emplace_back(entity.Get<UUID>(), GetWorldTransform(entity));
+		move_.entity_before.emplace_back(entity.Get<UUID>(), CaptureEditorEntityTransform(entity));
 		move_.active = true;
 		return;
 	}
@@ -10981,8 +10980,25 @@ void PaintEditor::BeginMove(EditorContext&, Scene& scene, V2_float world) {
 			if (!layer || layer->locked || !layer->selectable) {
 				continue;
 			}
-			move_.entity_before.emplace_back(uuid, GetWorldTransform(entity));
+			move_.entity_before.emplace_back(uuid, CaptureEditorEntityTransform(entity));
 		}
+		// Apply parent transforms before their selected children. Otherwise moving both
+		// can translate a child twice, depending on the selection iteration order.
+		std::stable_sort(
+			move_.entity_before.begin(), move_.entity_before.end(),
+			[&scene](const auto& a, const auto& b) {
+				auto depth = [&scene](UUID uuid) {
+					std::size_t count{ 0 };
+					Entity entity{ scene.GetEntity(uuid) };
+					while (entity && HasParent(entity)) {
+						++count;
+						entity = GetParent(entity);
+					}
+					return count;
+				};
+				return depth(a.first) < depth(b.first);
+			}
+		);
 		move_.active = !move_.entity_before.empty();
 		return;
 	}
@@ -11040,9 +11056,7 @@ void PaintEditor::UpdateMove(EditorContext&, Scene& scene, V2_float world) {
 	if (!move_.entity_before.empty()) {
 		for (const auto& [uuid, before] : move_.entity_before) {
 			if (Entity entity{ scene.GetEntity(uuid) }) {
-				Transform next{ before };
-				next.position += delta;
-				SetWorldTransform(entity, next);
+				MoveEditorEntityFromSnapshot(entity, before, delta);
 			}
 		}
 		return;
@@ -11100,14 +11114,14 @@ void PaintEditor::CommitMove(EditorContext& ctx, Scene& scene) {
 	}
 
 	if (!move_.entity_before.empty()) {
-		std::vector<std::pair<UUID, Transform>> after;
+		std::vector<std::pair<UUID, EditorEntityTransformSnapshot>> after;
 		after.reserve(move_.entity_before.size());
-		bool changed{};
+		bool changed{ false };
 		for (const auto& [uuid, before] : move_.entity_before) {
 			if (Entity entity{ scene.GetEntity(uuid) }) {
-				Transform transform{ GetWorldTransform(entity) };
-				after.emplace_back(uuid, transform);
-				changed = changed || transform != before;
+				auto snapshot{ CaptureEditorEntityTransform(entity) };
+				changed |= snapshot.world != before.world || snapshot.local != before.local;
+				after.emplace_back(uuid, std::move(snapshot));
 			}
 		}
 		if (changed) {
@@ -11116,16 +11130,16 @@ void PaintEditor::CommitMove(EditorContext& ctx, Scene& scene) {
 			PushPaintUndo(
 				ctx, scene, "Move Selection",
 				[scene_ptr, before]() {
-					for (const auto& [uuid, transform] : before) {
+					for (const auto& [uuid, snapshot] : before) {
 						if (Entity entity{ scene_ptr->GetEntity(uuid) }) {
-							SetWorldTransform(entity, transform);
+							ApplyEditorEntityTransform(entity, snapshot);
 						}
 					}
 				},
 				[scene_ptr, after]() {
-					for (const auto& [uuid, transform] : after) {
+					for (const auto& [uuid, snapshot] : after) {
 						if (Entity entity{ scene_ptr->GetEntity(uuid) }) {
-							SetWorldTransform(entity, transform);
+							ApplyEditorEntityTransform(entity, snapshot);
 						}
 					}
 				}
@@ -11177,9 +11191,9 @@ void PaintEditor::CancelMove(Scene& scene) {
 	if (!move_.active) {
 		return;
 	}
-	for (const auto& [uuid, transform] : move_.entity_before) {
+	for (const auto& [uuid, snapshot] : move_.entity_before) {
 		if (Entity entity{ scene.GetEntity(uuid) }) {
-			SetWorldTransform(entity, transform);
+			ApplyEditorEntityTransform(entity, snapshot);
 		}
 	}
 	if (move_.tilemap.has_value() && move_.tilemap_before.has_value()) {
