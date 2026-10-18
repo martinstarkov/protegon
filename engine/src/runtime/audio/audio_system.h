@@ -86,6 +86,8 @@ public:
 	/// @brief Toggles the pause state of the audio.
 	void TogglePause(const AudioKey& audio_key);
 
+	void SetFrequencyRatio(const AudioKey& audio_key, float ratio);
+
 	/// @brief Only sets the volume of the specific audio if it's currently playing; otherwise, does
 	/// nothing.
 	/// @param volume Volume of the specific audio in range [kMinVolume, kMaxVolume]. Volume clamped

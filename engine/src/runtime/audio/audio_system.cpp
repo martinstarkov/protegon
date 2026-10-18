@@ -119,6 +119,16 @@ void AudioSystem::TogglePause(const AudioKey& audio_key) {
 	}
 }
 
+void AudioSystem::SetFrequencyRatio(const AudioKey& audio_key, float ratio) {
+	std::size_t id{ Hash(audio_key) };
+	float pitch{ std::clamp(ratio, kMinFrequencyRatio, kMaxFrequencyRatio) };
+	for (auto& track : tracks_) {
+		if (track.GetId() == id) {
+			track.SetPitch(pitch);
+		}
+	}
+}
+
 bool AudioSystem::IsPaused(const AudioKey& audio_key) {
 	auto id{ Hash(audio_key) };
 
