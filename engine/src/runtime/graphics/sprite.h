@@ -48,6 +48,13 @@ struct TextureSize {
 	PTGN_REFLECT_VALUE(TextureSize, value)
 };
 
+struct TextureCoordinateOverride {
+	std::array<V2_float, 4> coordinates{ V2_float{ 0.0f, 0.0f }, V2_float{ 1.0f, 0.0f },
+										 V2_float{ 1.0f, 1.0f }, V2_float{ 0.0f, 1.0f } };
+
+	PTGN_REFLECT_VALUE(TextureCoordinateOverride, coordinates)
+};
+
 struct TextureCrop {
 	/// @brief Position and size are V2_float instead of V2_int to allow for smooth increase in
 	/// display size (for example).

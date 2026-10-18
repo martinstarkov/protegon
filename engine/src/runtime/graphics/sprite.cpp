@@ -132,6 +132,9 @@ void Sprite::Draw(
 
 	auto blend_mode{ GetBlendMode(entity) };
 	auto params{ impl::GetTextureDrawParams(entity, texture_size.value(), false, additional_tint) };
+	if (const auto* override{ entity.TryGet<impl::TextureCoordinateOverride>() }) {
+		params.texture_coordinates = override->coordinates;
+	}
 
 	ctx.SetBlendMode(blend_mode);
 	ctx.DrawTexture(draw_transform, texture, params);
