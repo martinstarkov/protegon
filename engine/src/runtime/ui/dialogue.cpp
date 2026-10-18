@@ -1738,6 +1738,32 @@ void Dialogue::ApplyCurrentPage() {
 	);
 }
 
+Dialogue& Dialogue::SetPortrait(
+	DialoguePortraitSlot slot, std::string_view speaker, std::string_view expression
+) {
+	EnsureRuntimeData();
+	auto& data{ Data() };
+	std::size_t index{ DialoguePortraitSlotIndex(slot) };
+	if (speaker.empty()) {
+		data.portrait_states[index].reset();
+		if (data.current_speaking_slot == slot) {
+			data.current_speaking_slot.reset();
+		}
+	} else {
+		data.portrait_states[index] = impl::DialoguePortraitRuntimeState{
+			.speaker	= std::string{ speaker },
+			.expression = std::string{ expression },
+		};
+		data.current_speaking_slot = slot;
+	}
+	if (data.open) {
+		if (const auto* page{ GetCurrentDialoguePage() }) {
+			RefreshPortraits(page->properties, false);
+		}
+	}
+	return *this;
+}
+
 void Dialogue::ApplyCurrentPortraitCues() {
 	const auto* page{ GetCurrentDialoguePage() };
 	if (!page) {

@@ -323,6 +323,9 @@ public:
 
 	/// @brief Jumps to a zero based page index and starts its normal typewriter reveal.
 	Dialogue& GoToPage(std::size_t page_index);
+	Dialogue& SetPortrait(
+		DialoguePortraitSlot slot, std::string_view speaker, std::string_view expression = {}
+	);
 
 	Dialogue& SetDialogue(std::string_view name = {});
 	Dialogue& SetNextDialogue();
