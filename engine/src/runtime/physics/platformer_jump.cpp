@@ -23,6 +23,10 @@ void RegisterBuiltInPlatformerJumpControllers() {
 	static_cast<void>(registration);
 }
 
+void PlatformerJump::RequestJump() {
+	requested_jump_ = true;
+}
+
 void PlatformerJump::Update(PlatformerJumpContext& ctx) {
 	coyote_timer_.Update(ctx.dt);
 	jump_buffer_timer_.Update(ctx.dt);
@@ -40,7 +44,8 @@ void PlatformerJump::Update(PlatformerJumpContext& ctx) {
 
 	CalculateGravity(ctx);
 
-	bool pressed_jump{ ctx.scene.ctx().input.KeyPressed(jump_key) };
+	bool pressed_jump{ requested_jump_ || ctx.scene.ctx().input.KeyPressed(jump_key) };
+	requested_jump_ = false;
 	if (pressed_jump) {
 		if (auto type{ GetAvailableJump(ctx) }) {
 			Jump(ctx, type.value());

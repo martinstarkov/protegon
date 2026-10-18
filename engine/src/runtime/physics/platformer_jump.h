@@ -61,6 +61,8 @@ struct PlatformerJump {
 	std::optional<VariableJumpHeight> variable_jump_height{ VariableJumpHeight{} };
 	std::optional<FastFall> fast_fall{ FastFall{} };
 
+	void RequestJump();
+
 	void Update(PlatformerJumpContext& ctx);
 
 	PTGN_REFLECT(
@@ -71,6 +73,7 @@ struct PlatformerJump {
 
 private:
 	bool jumping_{ false };
+	bool requested_jump_{ false };
 	std::uint32_t air_jumps_used_{ 0 };
 	DeltaTimer jump_buffer_timer_{};
 	DeltaTimer coyote_timer_{};
