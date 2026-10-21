@@ -7,6 +7,7 @@
 #include <array>
 #include <cctype>
 #include <cfloat>
+#include <chrono>
 #include <cmath>
 #include <concepts>
 #include <cstddef>
@@ -36,6 +37,7 @@
 #include "core/math/geometry/rect.h"
 #include "core/math/transform.h"
 #include "core/util/hash.h"
+#include "core/util/time.h"
 #include "editor/color_picker.h"
 #include "editor/editor.h"
 #include "editor/editor_context.h"
@@ -177,7 +179,7 @@ struct RichTextEditorState {
 	std::array<float, 4> color{ 1.0f, 1.0f, 1.0f, 1.0f };
 	std::string font{};
 	float size{ kDefaultFontSize };
-	float page_duration_ms{ 1000.0f };
+	milliseconds page_duration{ 1000 };
 	int portrait_slot{ 0 };
 	std::string portrait_speaker{};
 	std::string portrait_expression{};
@@ -4942,8 +4944,7 @@ void DrawRichTextToolbar(
 				begin_text_action();
 				queue_toggle_standalone_line_token(*current_page_control);
 			} else {
-				state.page_duration_ms =
-					std::max(0.0f, static_cast<float>(options.page_duration_default.count()));
+				state.page_duration = std::max(0ms, options.page_duration_default);
 				preserve_source_selection();
 				ImGui::OpenPopup("RichTextPageDurationPopup");
 			}
@@ -4969,9 +4970,7 @@ void DrawRichTextToolbar(
 				ImGui::CloseCurrentPopup();
 			}
 
-			milliseconds duration{
-				static_cast<milliseconds::rep>(std::max(0.0f, state.page_duration_ms))
-			};
+			milliseconds duration{ state.page_duration };
 			float apply_width{ toolbar_button_width("Apply Timed") };
 			float popup_spacing{ ImGui::GetStyle().ItemSpacing.x };
 			float input_width{ ImGui::CalcTextSize("5000ms").x +
@@ -4980,13 +4979,13 @@ void DrawRichTextToolbar(
 					"##RichTextPageDurationValue", duration, input_width, false,
 					"Custom typewriter duration for this page."
 				)) {
-				state.page_duration_ms = static_cast<float>(duration.count());
+				state.page_duration = duration;
 			}
 			ImGui::SameLine(0.0f, popup_spacing);
 			if (ImGui::Button("Apply Timed", ImVec2{ apply_width, 0.0f })) {
 				begin_text_action();
 				std::string token{ std::string{ options.page_duration_tag_prefix } +
-								   FormatRichTextEditorFloat(state.page_duration_ms) + "ms" +
+								   std::to_string(state.page_duration.count()) + "ms" +
 								   std::string{ options.page_duration_tag_suffix } };
 				queue_toggle_standalone_line_token(token);
 				ImGui::CloseCurrentPopup();

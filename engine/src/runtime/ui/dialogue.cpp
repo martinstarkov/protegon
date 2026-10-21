@@ -374,21 +374,23 @@ struct PreparedDialogueSource {
 	line = TrimDialogueControlLine(line);
 
 	double value{ 0.0 };
+
 	const char* begin{ line.data() };
 	const char* end{ line.data() + line.size() };
+
 	auto [parsed_end, error]{ std::from_chars(begin, end, value) };
+
 	if (error != std::errc{} || parsed_end != end || !std::isfinite(value) || value < 0.0) {
 		return std::nullopt;
 	}
 
-	using Count = decltype(milliseconds{}.count());
-	double milliseconds_value{ value * multiplier };
-	if (milliseconds_value > static_cast<double>(std::numeric_limits<Count>::max())) {
+	auto milliseconds_value{ value * multiplier };
+
+	if (milliseconds_value < 0.0) {
 		return std::nullopt;
 	}
-	return std::optional<std::optional<milliseconds>>{
-		std::in_place, milliseconds{ static_cast<Count>(milliseconds_value) }
-	};
+
+	return milliseconds{ static_cast<milliseconds::rep>(value * multiplier) };
 }
 
 [[nodiscard]] std::optional<DialoguePortraitCue> ParseDialoguePortraitCueLine(
@@ -960,8 +962,7 @@ void DialogueSystem::OnKeyReleased(Scene& scene, Key key) {
 	}
 }
 
-void DialogueSystem::Update(Scene& scene, secondsf delta_time) {
-	float delta_ms{ std::max(0.0f, delta_time.count()) * 1000.0f };
+void DialogueSystem::Update(Scene& scene, milliseconds dt) {
 	auto entities{ scene.EntitiesWith<DialogueData>().GetVector() };
 
 	for (Entity entity : entities) {
@@ -982,15 +983,17 @@ void DialogueSystem::Update(Scene& scene, secondsf delta_time) {
 			continue;
 		}
 
-		float duration_ms{ static_cast<float>(page->properties.scroll_duration.count()) };
-		if (page->instant || !entry->scroll || duration_ms <= 0.0f) {
+		milliseconds duration{ page->properties.scroll_duration };
+		if (page->instant || !entry->scroll || duration <= 0ms) {
 			dialogue.CompletePage();
 			continue;
 		}
 
-		data.scroll_elapsed_ms += delta_ms;
-		float progress{ std::clamp(data.scroll_elapsed_ms / duration_ms, 0.0f, 1.0f) };
-		std::size_t revealed{ static_cast<std::size_t>(
+		data.scroll_elapsed += dt;
+
+		float progress{ std::clamp(millisecondsf{ data.scroll_elapsed } / duration, 0.0f, 1.0f) };
+
+		auto revealed{ static_cast<std::size_t>(
 			std::floor(progress * static_cast<float>(CountDialogueCharacters(*page)))
 		) };
 
@@ -1203,7 +1206,7 @@ void impl::DialogueData::ClearRuntimeState() {
 	open			= false;
 	held_continue_keys.clear();
 	scrolling				 = false;
-	scroll_elapsed_ms		 = 0.0f;
+	scroll_elapsed			 = 0ms;
 	revealed_character_count = 0;
 	page_complete			 = false;
 	portrait_states			 = {};
@@ -2084,7 +2087,7 @@ void Dialogue::StartCurrentPageScroll() {
 
 	auto& data{ Data() };
 	data.scrolling				  = true;
-	data.scroll_elapsed_ms		  = 0.0f;
+	data.scroll_elapsed			  = 0ms;
 	data.revealed_character_count = 0;
 	RefreshPortraits(page->properties, true);
 }
@@ -2096,7 +2099,7 @@ void Dialogue::StopCurrentPageScroll() {
 
 	auto& data{ Data() };
 	data.scrolling				  = false;
-	data.scroll_elapsed_ms		  = 0.0f;
+	data.scroll_elapsed			  = 0ms;
 	data.revealed_character_count = 0;
 }
 

@@ -74,7 +74,6 @@
 namespace ptgn {
 
 void RigidBodySetVelocityScript::OnStart() {
-	Entity target{ Target() };
 	if (!target) {
 		return;
 	}
@@ -86,7 +85,6 @@ void RigidBodySetVelocityScript::OnStart() {
 }
 
 void RigidBodyAddVelocityScript::OnStart() {
-	Entity target{ Target() };
 	if (!target) {
 		return;
 	}
@@ -98,7 +96,6 @@ void RigidBodyAddVelocityScript::OnStart() {
 }
 
 void RigidBodyAddImpulseScript::OnStart() {
-	Entity target{ Target() };
 	if (!target) {
 		return;
 	}
@@ -110,7 +107,6 @@ void RigidBodyAddImpulseScript::OnStart() {
 }
 
 void RigidBodyAddAccelerationScript::OnStart() {
-	Entity target{ Target() };
 	if (!target) {
 		return;
 	}
@@ -122,7 +118,6 @@ void RigidBodyAddAccelerationScript::OnStart() {
 }
 
 void RigidBodyStopMovementScript::OnStart() {
-	Entity target{ Target() };
 	if (!target) {
 		return;
 	}
@@ -134,7 +129,6 @@ void RigidBodyStopMovementScript::OnStart() {
 }
 
 void RigidBodySetGravityScaleScript::OnStart() {
-	Entity target{ Target() };
 	if (!target) {
 		return;
 	}
@@ -146,7 +140,6 @@ void RigidBodySetGravityScaleScript::OnStart() {
 }
 
 void RigidBodySetDragScript::OnStart() {
-	Entity target{ Target() };
 	if (!target) {
 		return;
 	}
@@ -158,7 +151,6 @@ void RigidBodySetDragScript::OnStart() {
 }
 
 void RigidBodySetAngularVelocityScript::OnStart() {
-	Entity target{ Target() };
 	if (!target) {
 		return;
 	}
@@ -170,7 +162,6 @@ void RigidBodySetAngularVelocityScript::OnStart() {
 }
 
 void RigidBodyAddAngularImpulseScript::OnStart() {
-	Entity target{ Target() };
 	if (!target) {
 		return;
 	}
@@ -182,7 +173,6 @@ void RigidBodyAddAngularImpulseScript::OnStart() {
 }
 
 void RigidBodySetMaximumSpeedScript::OnStart() {
-	Entity target{ Target() };
 	if (!target) {
 		return;
 	}
@@ -194,7 +184,6 @@ void RigidBodySetMaximumSpeedScript::OnStart() {
 }
 
 void RigidBodySetImmovableScript::OnStart() {
-	Entity target{ Target() };
 	if (!target) {
 		return;
 	}
@@ -206,7 +195,6 @@ void RigidBodySetImmovableScript::OnStart() {
 }
 
 void ColliderSetCollisionModeScript::OnStart() {
-	Entity target{ Target() };
 	if (!target) {
 		return;
 	}
@@ -220,7 +208,6 @@ void ColliderSetCollisionModeScript::OnStart() {
 }
 
 void ColliderSetColliderShapeScript::OnStart() {
-	Entity target{ Target() };
 	if (!target) {
 		return;
 	}
@@ -232,7 +219,6 @@ void ColliderSetColliderShapeScript::OnStart() {
 }
 
 void ColliderSetCollisionResponseScript::OnStart() {
-	Entity target{ Target() };
 	if (!target) {
 		return;
 	}
@@ -246,7 +232,6 @@ void ColliderSetCollisionResponseScript::OnStart() {
 }
 
 void ColliderSetCollisionFilterScript::OnStart() {
-	Entity target{ Target() };
 	if (!target) {
 		return;
 	}
@@ -258,7 +243,6 @@ void ColliderSetCollisionFilterScript::OnStart() {
 }
 
 void ColliderSetOverlapModeScript::OnStart() {
-	Entity target{ Target() };
 	if (!target) {
 		return;
 	}
@@ -270,7 +254,6 @@ void ColliderSetOverlapModeScript::OnStart() {
 }
 
 void TopDownSetMaximumSpeedScript::OnStart() {
-	Entity target{ Target() };
 	if (!target) {
 		return;
 	}
@@ -280,7 +263,6 @@ void TopDownSetMaximumSpeedScript::OnStart() {
 }
 
 void TopDownSetAccelerationScript::OnStart() {
-	Entity target{ Target() };
 	if (!target) {
 		return;
 	}
@@ -290,7 +272,6 @@ void TopDownSetAccelerationScript::OnStart() {
 }
 
 void TopDownMoveDirectionScript::OnStart() {
-	Entity target{ Target() };
 	if (!target) {
 		return;
 	}
@@ -300,7 +281,6 @@ void TopDownMoveDirectionScript::OnStart() {
 }
 
 void PlatformerSetMaximumSpeedScript::OnStart() {
-	Entity target{ Target() };
 	if (!target) {
 		return;
 	}
@@ -310,7 +290,6 @@ void PlatformerSetMaximumSpeedScript::OnStart() {
 }
 
 void PlatformerSetJumpControllerScript::OnStart() {
-	Entity target{ Target() };
 	if (!target) {
 		return;
 	}
@@ -318,7 +297,6 @@ void PlatformerSetJumpControllerScript::OnStart() {
 }
 
 void JumpJumpScript::OnStart() {
-	Entity target{ Target() };
 	if (!target) {
 		return;
 	}
@@ -328,7 +306,6 @@ void JumpJumpScript::OnStart() {
 }
 
 void JumpSetJumpHeightScript::OnStart() {
-	Entity target{ Target() };
 	if (!target) {
 		return;
 	}
@@ -338,7 +315,6 @@ void JumpSetJumpHeightScript::OnStart() {
 }
 
 void JumpSetGravityMultipliersScript::OnStart() {
-	Entity target{ Target() };
 	if (!target) {
 		return;
 	}
@@ -349,7 +325,6 @@ void JumpSetGravityMultipliersScript::OnStart() {
 }
 
 void JumpSetAirJumpsScript::OnStart() {
-	Entity target{ Target() };
 	if (!target) {
 		return;
 	}

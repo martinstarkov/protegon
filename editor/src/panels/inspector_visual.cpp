@@ -148,9 +148,8 @@ void DrawAnimationRuntimeControls(Entity entity) {
 
 	if (frame_count > 0) {
 		milliseconds frame_duration{ data.GetFrameDuration() };
-		float elapsed_fraction{ frame_duration > milliseconds{ 0 }
-									? timer.ElapsedFraction(frame_duration)
-									: 0.0f };
+		float elapsed_fraction{ frame_duration > 0ms ? timer.ElapsedFraction(frame_duration)
+													 : 0.0f };
 		float frame_progress{ std::clamp(elapsed_fraction, 0.0f, 1.0f) };
 		std::size_t current_frame{ std::min(data.current_frame, frame_count - 1) };
 		float overall_progress{ (static_cast<float>(current_frame) + frame_progress) /

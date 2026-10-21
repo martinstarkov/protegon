@@ -31,7 +31,7 @@ PTGN_REFLECT_ENUM(TimerMode);
 
 struct TimerConfig {
 	TimerKey key{ "Timer" };
-	millisecondsf duration{ 1000.0f };
+	milliseconds duration{ 1000 };
 	TimerMode mode{ TimerMode::Once };
 	bool start_automatically{ false };
 
@@ -95,40 +95,40 @@ struct TimerHandle {
 	bool Resume() const;
 	bool TogglePaused() const;
 
-	bool Advance(millisecondsf amount) const;
-	bool Rewind(millisecondsf amount) const;
-	bool SetDuration(millisecondsf duration) const;
-	bool AddDuration(millisecondsf amount) const;
-	bool RemoveDuration(millisecondsf amount) const;
+	bool Advance(milliseconds amount) const;
+	bool Rewind(milliseconds amount) const;
+	bool SetDuration(milliseconds duration) const;
+	bool AddDuration(milliseconds amount) const;
+	bool RemoveDuration(milliseconds amount) const;
 
 	template <DurationType D>
 	bool Advance(D amount) const {
-		return Advance(duration_cast<millisecondsf>(amount));
+		return Advance(amount);
 	}
 
 	template <DurationType D>
 	bool Rewind(D amount) const {
-		return Rewind(duration_cast<millisecondsf>(amount));
+		return Rewind(amount);
 	}
 
 	template <DurationType D>
 	bool SetDuration(D duration) const {
-		return SetDuration(duration_cast<millisecondsf>(duration));
+		return SetDuration(duration);
 	}
 
 	template <DurationType D>
 	bool AddDuration(D amount) const {
-		return AddDuration(duration_cast<millisecondsf>(amount));
+		return AddDuration(amount);
 	}
 
 	template <DurationType D>
 	bool RemoveDuration(D amount) const {
-		return RemoveDuration(duration_cast<millisecondsf>(amount));
+		return RemoveDuration(amount);
 	}
 
-	[[nodiscard]] millisecondsf Elapsed() const;
-	[[nodiscard]] millisecondsf Remaining() const;
-	[[nodiscard]] millisecondsf Duration() const;
+	[[nodiscard]] milliseconds Elapsed() const;
+	[[nodiscard]] milliseconds Remaining() const;
+	[[nodiscard]] milliseconds Duration() const;
 
 	template <DurationType D>
 	[[nodiscard]] D Elapsed() const {
@@ -153,7 +153,7 @@ struct TimerHandle {
 };
 
 TimerHandle AddTimer(
-	Entity entity, TimerKey key, millisecondsf duration, TimerMode mode = TimerMode::Once,
+	Entity entity, TimerKey key, milliseconds duration, TimerMode mode = TimerMode::Once,
 	bool start_automatically = false
 );
 
@@ -162,9 +162,7 @@ TimerHandle AddTimer(
 	Entity entity, TimerKey key, D duration, TimerMode mode = TimerMode::Once,
 	bool start_automatically = false
 ) {
-	return AddTimer(
-		entity, std::move(key), duration_cast<millisecondsf>(duration), mode, start_automatically
-	);
+	return AddTimer(entity, std::move(key), duration, mode, start_automatically);
 }
 
 [[nodiscard]] TimerHandle GetTimer(Entity entity, TimerKey key);
@@ -173,7 +171,7 @@ bool RemoveTimer(Entity entity, const TimerKey& key);
 
 namespace timer_runtime {
 
-void Update(Scene& scene, secondsf delta_time);
+void Update(Scene& scene, milliseconds dt);
 
 } // namespace timer_runtime
 

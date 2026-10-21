@@ -74,49 +74,42 @@
 namespace ptgn {
 
 void TooltipShowScript::OnStart() {
-	Entity target{ Target() };
 	if (target) {
 		ShowTooltip(target);
 	}
 }
 
 void TooltipHideScript::OnStart() {
-	Entity target{ Target() };
 	if (target) {
 		HideTooltip(target);
 	}
 }
 
 void TooltipEnableHoverScript::OnStart() {
-	Entity target{ Target() };
 	if (target) {
 		SetTooltipOnHoverEnabled(target, true);
 	}
 }
 
 void TooltipDisableHoverScript::OnStart() {
-	Entity target{ Target() };
 	if (target) {
 		SetTooltipOnHoverEnabled(target, false);
 	}
 }
 
 void TooltipToggleHoverScript::OnStart() {
-	Entity target{ Target() };
 	if (target) {
 		ToggleTooltipOnHover(target);
 	}
 }
 
 void TooltipToggleVisibilityScript::OnStart() {
-	Entity target{ Target() };
 	if (target) {
 		ToggleTooltip(target);
 	}
 }
 
 void DialogueOpenScript::OnStart() {
-	Entity target{ Target() };
 	if (!target || !target.Has<impl::DialogueData>()) {
 		PTGN_WARN("Dialogue action requires a Dialogue target");
 		return;
@@ -126,7 +119,6 @@ void DialogueOpenScript::OnStart() {
 }
 
 void DialogueCloseScript::OnStart() {
-	Entity target{ Target() };
 	if (!target || !target.Has<impl::DialogueData>()) {
 		PTGN_WARN("Dialogue action requires a Dialogue target");
 		return;
@@ -136,7 +128,6 @@ void DialogueCloseScript::OnStart() {
 }
 
 void DialogueAdvanceScript::OnStart() {
-	Entity target{ Target() };
 	if (!target || !target.Has<impl::DialogueData>()) {
 		PTGN_WARN("Dialogue action requires a Dialogue target");
 		return;
@@ -146,7 +137,6 @@ void DialogueAdvanceScript::OnStart() {
 }
 
 void DialogueNextPageScript::OnStart() {
-	Entity target{ Target() };
 	if (!target || !target.Has<impl::DialogueData>()) {
 		PTGN_WARN("Dialogue action requires a Dialogue target");
 		return;
@@ -156,7 +146,6 @@ void DialogueNextPageScript::OnStart() {
 }
 
 void DialogueCompletePageScript::OnStart() {
-	Entity target{ Target() };
 	if (!target || !target.Has<impl::DialogueData>()) {
 		PTGN_WARN("Dialogue action requires a Dialogue target");
 		return;
@@ -166,7 +155,6 @@ void DialogueCompletePageScript::OnStart() {
 }
 
 void DialogueChangeDialogueScript::OnStart() {
-	Entity target{ Target() };
 	if (!target || !target.Has<impl::DialogueData>()) {
 		PTGN_WARN("Dialogue action requires a Dialogue target");
 		return;
@@ -178,7 +166,6 @@ void DialogueChangeDialogueScript::OnStart() {
 }
 
 void DialogueSelectDialogueScript::OnStart() {
-	Entity target{ Target() };
 	if (!target || !target.Has<impl::DialogueData>()) {
 		PTGN_WARN("Dialogue action requires a Dialogue target");
 		return;
@@ -190,7 +177,6 @@ void DialogueSelectDialogueScript::OnStart() {
 }
 
 void DialogueNextDialogueScript::OnStart() {
-	Entity target{ Target() };
 	if (!target || !target.Has<impl::DialogueData>()) {
 		PTGN_WARN("Dialogue action requires a Dialogue target");
 		return;
@@ -200,7 +186,6 @@ void DialogueNextDialogueScript::OnStart() {
 }
 
 void DialogueOpenNextDialogueScript::OnStart() {
-	Entity target{ Target() };
 	if (!target || !target.Has<impl::DialogueData>()) {
 		PTGN_WARN("Dialogue action requires a Dialogue target");
 		return;
@@ -213,7 +198,6 @@ void DialogueOpenNextDialogueScript::OnStart() {
 }
 
 void ButtonPressScript::OnStart() {
-	Entity target{ Target() };
 	if (!target || !target.Has<impl::ButtonData>()) {
 		PTGN_WARN("UI action requires Button");
 		return;
@@ -223,7 +207,6 @@ void ButtonPressScript::OnStart() {
 }
 
 void ButtonHoverStartScript::OnStart() {
-	Entity target{ Target() };
 	if (!target || !target.Has<impl::ButtonData>()) {
 		PTGN_WARN("UI action requires Button");
 		return;
@@ -233,7 +216,6 @@ void ButtonHoverStartScript::OnStart() {
 }
 
 void ButtonHoverContinueScript::OnStart() {
-	Entity target{ Target() };
 	if (!target || !target.Has<impl::ButtonData>()) {
 		PTGN_WARN("UI action requires Button");
 		return;
@@ -243,7 +225,6 @@ void ButtonHoverContinueScript::OnStart() {
 }
 
 void ButtonHoverStopScript::OnStart() {
-	Entity target{ Target() };
 	if (!target || !target.Has<impl::ButtonData>()) {
 		PTGN_WARN("UI action requires Button");
 		return;
@@ -253,7 +234,6 @@ void ButtonHoverStopScript::OnStart() {
 }
 
 void ButtonEnableScript::OnStart() {
-	Entity target{ Target() };
 	if (!target || !target.Has<impl::ButtonData>()) {
 		PTGN_WARN("UI action requires Button");
 		return;
@@ -263,7 +243,6 @@ void ButtonEnableScript::OnStart() {
 }
 
 void ButtonDisableScript::OnStart() {
-	Entity target{ Target() };
 	if (!target || !target.Has<impl::ButtonData>()) {
 		PTGN_WARN("UI action requires Button");
 		return;
@@ -273,7 +252,6 @@ void ButtonDisableScript::OnStart() {
 }
 
 void SliderSetValueScript::OnStart() {
-	Entity target{ Target() };
 	if (!target || !target.Has<impl::SliderData>()) {
 		PTGN_WARN("UI action requires Slider");
 		return;
@@ -283,7 +261,6 @@ void SliderSetValueScript::OnStart() {
 }
 
 void SliderIncreaseScript::OnStart() {
-	Entity target{ Target() };
 	if (!target || !target.Has<impl::SliderData>()) {
 		PTGN_WARN("UI action requires Slider");
 		return;
@@ -293,7 +270,6 @@ void SliderIncreaseScript::OnStart() {
 }
 
 void SliderDecreaseScript::OnStart() {
-	Entity target{ Target() };
 	if (!target || !target.Has<impl::SliderData>()) {
 		PTGN_WARN("UI action requires Slider");
 		return;
@@ -303,7 +279,6 @@ void SliderDecreaseScript::OnStart() {
 }
 
 void ToggleButtonOnScript::OnStart() {
-	Entity target{ Target() };
 	if (!target || !target.Has<impl::ToggleButtonData>()) {
 		PTGN_WARN("UI action requires ToggleButton");
 		return;
@@ -313,7 +288,6 @@ void ToggleButtonOnScript::OnStart() {
 }
 
 void ToggleButtonOffScript::OnStart() {
-	Entity target{ Target() };
 	if (!target || !target.Has<impl::ToggleButtonData>()) {
 		PTGN_WARN("UI action requires ToggleButton");
 		return;
@@ -323,7 +297,6 @@ void ToggleButtonOffScript::OnStart() {
 }
 
 void ToggleButtonToggleScript::OnStart() {
-	Entity target{ Target() };
 	if (!target || !target.Has<impl::ToggleButtonData>()) {
 		PTGN_WARN("UI action requires ToggleButton");
 		return;
@@ -333,7 +306,6 @@ void ToggleButtonToggleScript::OnStart() {
 }
 
 void ToggleGroupSelectScript::OnStart() {
-	Entity target{ Target() };
 	if (!target || !target.Has<impl::ToggleButtonGroupData>()) {
 		PTGN_WARN("UI action requires ToggleButtonGroup");
 		return;
@@ -343,7 +315,6 @@ void ToggleGroupSelectScript::OnStart() {
 }
 
 void ToggleGroupAllowNoneScript::OnStart() {
-	Entity target{ Target() };
 	if (!target || !target.Has<impl::ToggleButtonGroupData>()) {
 		PTGN_WARN("UI action requires ToggleButtonGroup");
 		return;
@@ -353,7 +324,6 @@ void ToggleGroupAllowNoneScript::OnStart() {
 }
 
 void ToggleGroupRequireActiveScript::OnStart() {
-	Entity target{ Target() };
 	if (!target || !target.Has<impl::ToggleButtonGroupData>()) {
 		PTGN_WARN("UI action requires ToggleButtonGroup");
 		return;
@@ -363,7 +333,6 @@ void ToggleGroupRequireActiveScript::OnStart() {
 }
 
 void DropdownOpenScript::OnStart() {
-	Entity target{ Target() };
 	if (!target || !target.Has<impl::DropdownData>()) {
 		PTGN_WARN("UI action requires Dropdown");
 		return;
@@ -373,7 +342,6 @@ void DropdownOpenScript::OnStart() {
 }
 
 void DropdownCloseScript::OnStart() {
-	Entity target{ Target() };
 	if (!target || !target.Has<impl::DropdownData>()) {
 		PTGN_WARN("UI action requires Dropdown");
 		return;
@@ -383,7 +351,6 @@ void DropdownCloseScript::OnStart() {
 }
 
 void DropdownToggleScript::OnStart() {
-	Entity target{ Target() };
 	if (!target || !target.Has<impl::DropdownData>()) {
 		PTGN_WARN("UI action requires Dropdown");
 		return;
@@ -393,7 +360,6 @@ void DropdownToggleScript::OnStart() {
 }
 
 void DropdownPressItemScript::OnStart() {
-	Entity target{ Target() };
 	if (!target || !target.Has<impl::DropdownData>()) {
 		PTGN_WARN("UI action requires Dropdown");
 		return;
@@ -406,7 +372,6 @@ void DropdownPressItemScript::OnStart() {
 }
 
 void SetUITextScript::OnStart() {
-	Entity target{ Target() };
 	if (!target) {
 		return;
 	}
@@ -425,7 +390,6 @@ void SetUITextScript::OnStart() {
 }
 
 void TooltipSetPositionScript::OnStart() {
-	Entity target{ Target() };
 	if (!target) {
 		return;
 	}
@@ -435,7 +399,6 @@ void TooltipSetPositionScript::OnStart() {
 }
 
 void TooltipSetHoverOffsetScript::OnStart() {
-	Entity target{ Target() };
 	if (!target) {
 		return;
 	}
@@ -445,7 +408,6 @@ void TooltipSetHoverOffsetScript::OnStart() {
 }
 
 void DialogueGoToPageScript::OnStart() {
-	Entity target{ Target() };
 	if (!target) {
 		return;
 	}
@@ -455,7 +417,6 @@ void DialogueGoToPageScript::OnStart() {
 }
 
 void DialogueSetPortraitScript::OnStart() {
-	Entity target{ Target() };
 	if (!target) {
 		return;
 	}

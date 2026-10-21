@@ -30,6 +30,7 @@
 #include "core/math/noise.h"
 #include "core/math/rng.h"
 #include "core/math/tolerance.h"
+#include "core/util/time.h"
 #include "runtime/animation/animation.h"
 #include "runtime/animation/offsets.h"
 #include "runtime/animation/scripted_animation.h"
@@ -78,7 +79,6 @@ void SetTextureScript::OnStart() {
 }
 
 void SpriteSetDisplaySizeScript::OnStart() {
-	Entity target{ Target() };
 	if (!target) {
 		return;
 	}
@@ -86,7 +86,6 @@ void SpriteSetDisplaySizeScript::OnStart() {
 }
 
 void SpriteSetCropScript::OnStart() {
-	Entity target{ Target() };
 	if (!target) {
 		return;
 	}
@@ -95,7 +94,6 @@ void SpriteSetCropScript::OnStart() {
 }
 
 void SpriteClearCropScript::OnStart() {
-	Entity target{ Target() };
 	if (!target) {
 		return;
 	}
@@ -103,7 +101,6 @@ void SpriteClearCropScript::OnStart() {
 }
 
 void SpriteSetTextureCoordinatesScript::OnStart() {
-	Entity target{ Target() };
 	if (!target) {
 		return;
 	}
@@ -112,7 +109,6 @@ void SpriteSetTextureCoordinatesScript::OnStart() {
 }
 
 void SpriteSetOriginScript::OnStart() {
-	Entity target{ Target() };
 	if (!target) {
 		return;
 	}
@@ -122,7 +118,6 @@ void SpriteSetOriginScript::OnStart() {
 }
 
 void SpriteFlipXScript::OnStart() {
-	Entity target{ Target() };
 	if (!target) {
 		return;
 	}
@@ -130,7 +125,6 @@ void SpriteFlipXScript::OnStart() {
 }
 
 void SpriteFlipYScript::OnStart() {
-	Entity target{ Target() };
 	if (!target) {
 		return;
 	}
@@ -138,7 +132,6 @@ void SpriteFlipYScript::OnStart() {
 }
 
 void SpriteStackSetTextureScript::OnStart() {
-	Entity target{ Target() };
 	if (!target) {
 		return;
 	}
@@ -146,7 +139,6 @@ void SpriteStackSetTextureScript::OnStart() {
 }
 
 void SpriteStackSetSliceCountScript::OnStart() {
-	Entity target{ Target() };
 	if (!target) {
 		return;
 	}
@@ -156,7 +148,6 @@ void SpriteStackSetSliceCountScript::OnStart() {
 }
 
 void SpriteStackSetSliceOrderScript::OnStart() {
-	Entity target{ Target() };
 	if (!target) {
 		return;
 	}
@@ -168,7 +159,6 @@ void SpriteStackSetSliceOrderScript::OnStart() {
 }
 
 void SpriteStackSetLayerOffsetScript::OnStart() {
-	Entity target{ Target() };
 	if (!target) {
 		return;
 	}
@@ -178,7 +168,6 @@ void SpriteStackSetLayerOffsetScript::OnStart() {
 }
 
 void SpriteStackSetPixelSnappingScript::OnStart() {
-	Entity target{ Target() };
 	if (!target) {
 		return;
 	}
@@ -188,137 +177,129 @@ void SpriteStackSetPixelSnappingScript::OnStart() {
 }
 
 void TextSetTextScript::OnStart() {
-	Entity target{ Target() };
 	if (!target) {
 		return;
 	}
 	if (!target.Has<impl::TextData>()) {
 		return;
 	}
-	Text text{ target };
-	text.Content(StyledText{ TextRun{ .text = this->text } });
+	Text text_entity{ target };
+	text_entity.Content(StyledText{ TextRun{ .text = this->text } });
 }
 
 void TextAppendTextScript::OnStart() {
-	Entity target{ Target() };
 	if (!target) {
 		return;
 	}
 	if (!target.Has<impl::TextData>()) {
 		return;
 	}
-	Text text{ target };
-	text.Content(this->text);
+	Text text_entity{ target };
+	text_entity.Content(this->text);
 }
 
 void TextClearTextScript::OnStart() {
-	Entity target{ Target() };
 	if (!target) {
 		return;
 	}
 	if (!target.Has<impl::TextData>()) {
 		return;
 	}
-	Text text{ target };
-	text.Clear();
+	Text text_entity{ target };
+	text_entity.Clear();
 }
 
 void TextSetRichTextScript::OnStart() {
-	Entity target{ Target() };
 	if (!target) {
 		return;
 	}
 	if (!target.Has<impl::TextData>()) {
 		return;
 	}
-	Text text{ target };
-	text.SetRichText(this->text);
+	Text text_entity{ target };
+	text_entity.SetRichText(this->text);
 }
 
 void TextSetTextColorScript::OnStart() {
-	Entity target{ Target() };
 	if (!target) {
 		return;
 	}
 	if (!target.Has<impl::TextData>()) {
 		return;
 	}
-	Text text{ target };
-	text.Color(selected_color);
+	Text text_entity{ target };
+	text_entity.Color(selected_color);
 }
 
 void TextSetFontScript::OnStart() {
-	Entity target{ Target() };
 	if (!target) {
 		return;
 	}
 	if (!target.Has<impl::TextData>()) {
 		return;
 	}
-	Text text{ target };
-	text.Font(FontKey{ this->text });
+	Text text_entity{ target };
+	text_entity.Font(FontKey{ this->text });
 }
 
 void TextSetFontSizeScript::OnStart() {
-	Entity target{ Target() };
 	if (!target) {
 		return;
 	}
 	if (!target.Has<impl::TextData>()) {
 		return;
 	}
-	Text text{ target };
-	text.Size(number);
+	Text text_entity{ target };
+	text_entity.Size(number);
 }
 
 void TextSetRevealCountScript::OnStart() {
-	Entity target{ Target() };
 	if (!target) {
 		return;
 	}
 	if (!target.Has<impl::TextData>()) {
 		return;
 	}
-	Text text{ target };
-	text.Reveal(static_cast<std::size_t>(std::max(0, index)));
+	Text text_entity{ target };
+	text_entity.Reveal(static_cast<std::size_t>(std::max(0, index)));
 }
 
 void TextSetRevealFractionScript::OnStart() {
-	Entity target{ Target() };
 	if (!target) {
 		return;
 	}
 	if (!target.Has<impl::TextData>()) {
 		return;
 	}
-	Text text{ target };
-	text.RevealFraction(number);
+	Text text_entity{ target };
+	text_entity.RevealFraction(number);
 }
 
 void TextRevealAllScript::OnStart() {
-	Entity target{ Target() };
 	if (!target) {
 		return;
 	}
 	if (!target.Has<impl::TextData>()) {
 		return;
 	}
-	Text text{ target };
-	text.RevealAll();
+	Text text_entity{ target };
+	text_entity.RevealAll();
 }
 
 void TextTypewriterRevealScript::OnStart() {
-	Entity target{ Target() };
 	if (!target) {
 		return;
 	}
 	if (!target.Has<impl::TextData>()) {
 		return;
 	}
-	Text text{ target };
-	text.Reveal(std::size_t{ 0 });
+
+	Text text_entity{ target };
+	text_entity.Reveal(std::size_t{ 0 });
+
 	PropertyTo<float>(
-		target, SequenceChannelKey{ "text.reveal" }, 1.0f, std::max(1.0f, number),
+		target, SequenceChannelKey{ "text.reveal" }, 1.0f,
+		milliseconds{ static_cast<std::int64_t>(std::max(1.0f, number)) },
 		[](Entity entity) {
 			return entity.Has<impl::TextData>() && Text{ entity }.IsFullyRevealed() ? 1.0f : 0.0f;
 		},
@@ -327,113 +308,104 @@ void TextTypewriterRevealScript::OnStart() {
 }
 
 void TextSetAlignmentScript::OnStart() {
-	Entity target{ Target() };
 	if (!target) {
 		return;
 	}
 	if (!target.Has<impl::TextData>()) {
 		return;
 	}
-	Text text{ target };
+	Text text_entity{ target };
 	if (auto value{ magic_enum::enum_cast<Origin>(this->text) }) {
-		text.Align(*value);
+		text_entity.Align(*value);
 	}
 }
 
 void TextSetWrapModeScript::OnStart() {
-	Entity target{ Target() };
 	if (!target) {
 		return;
 	}
 	if (!target.Has<impl::TextData>()) {
 		return;
 	}
-	Text text{ target };
+	Text text_entity{ target };
 	if (auto value{ magic_enum::enum_cast<WrapMode>(this->text) }) {
-		text.Wrap(*value);
+		text_entity.Wrap(*value);
 	}
 }
 
 void TextSetTextBoxScript::OnStart() {
-	Entity target{ Target() };
 	if (!target) {
 		return;
 	}
 	if (!target.Has<impl::TextData>()) {
 		return;
 	}
-	Text text{ target };
-	text.Box(Rect{ vector, vector2 });
+	Text text_entity{ target };
+	text_entity.Box(Rect{ vector, vector2 });
 }
 
 void TextSetClipScript::OnStart() {
-	Entity target{ Target() };
 	if (!target) {
 		return;
 	}
 	if (!target.Has<impl::TextData>()) {
 		return;
 	}
-	Text text{ target };
+	Text text_entity{ target };
 	if (option) {
-		text.Clip(TextClip{ Rect{ vector, vector2 } });
+		text_entity.Clip(TextClip{ Rect{ vector, vector2 } });
 	} else {
-		text.ClearClip();
+		text_entity.ClearClip();
 	}
 }
 
 void TextSetOutlineScript::OnStart() {
-	Entity target{ Target() };
 	if (!target) {
 		return;
 	}
 	if (!target.Has<impl::TextData>()) {
 		return;
 	}
-	Text text{ target };
-	text.Outline(selected_color, number);
+	Text text_entity{ target };
+	text_entity.Outline(selected_color, number);
 }
 
 void TextSetShadowScript::OnStart() {
-	Entity target{ Target() };
 	if (!target) {
 		return;
 	}
 	if (!target.Has<impl::TextData>()) {
 		return;
 	}
-	Text text{ target };
-	text.Shadow(selected_color, vector);
+	Text text_entity{ target };
+	text_entity.Shadow(selected_color, vector);
 }
 
 void TextSetGlowScript::OnStart() {
-	Entity target{ Target() };
 	if (!target) {
 		return;
 	}
 	if (!target.Has<impl::TextData>()) {
 		return;
 	}
-	Text text{ target };
-	text.OuterGlow(selected_color, number);
+	Text text_entity{ target };
+	text_entity.OuterGlow(selected_color, number);
 }
 
 void TextSetTextEffectScript::OnStart() {
-	Entity target{ Target() };
 	if (!target) {
 		return;
 	}
 	if (!target.Has<impl::TextData>()) {
 		return;
 	}
-	Text text{ target };
+	Text text_entity{ target };
 	if (auto value{ magic_enum::enum_cast<GlyphEffectType>(this->text) }) {
-		text.Effect(*value, number, number2, vector.x, vector.y);
+		text_entity.Effect(*value, number, number2, vector.x, vector.y);
 	}
 }
 
 void ParticlesStartScript::OnStart() {
-	Entity target{ Target() };
 	if (!target) {
 		return;
 	}
@@ -445,7 +417,6 @@ void ParticlesStartScript::OnStart() {
 }
 
 void ParticlesStopScript::OnStart() {
-	Entity target{ Target() };
 	if (!target) {
 		return;
 	}
@@ -457,7 +428,6 @@ void ParticlesStopScript::OnStart() {
 }
 
 void ParticlesPauseScript::OnStart() {
-	Entity target{ Target() };
 	if (!target) {
 		return;
 	}
@@ -469,7 +439,6 @@ void ParticlesPauseScript::OnStart() {
 }
 
 void ParticlesResumeScript::OnStart() {
-	Entity target{ Target() };
 	if (!target) {
 		return;
 	}
@@ -481,7 +450,6 @@ void ParticlesResumeScript::OnStart() {
 }
 
 void ParticlesToggleScript::OnStart() {
-	Entity target{ Target() };
 	if (!target) {
 		return;
 	}
@@ -493,7 +461,6 @@ void ParticlesToggleScript::OnStart() {
 }
 
 void ParticlesResetScript::OnStart() {
-	Entity target{ Target() };
 	if (!target) {
 		return;
 	}
@@ -505,7 +472,6 @@ void ParticlesResetScript::OnStart() {
 }
 
 void ParticlesEmitBurstScript::OnStart() {
-	Entity target{ Target() };
 	if (!target) {
 		return;
 	}
@@ -513,8 +479,9 @@ void ParticlesEmitBurstScript::OnStart() {
 		return;
 	}
 	ParticleEmitter emitter{ target };
+
 	auto& data{ target.Get<impl::ParticleEmitterData>() };
-	auto& config{ data.config };
+
 	for (int i{ 0 }; i < std::max(0, index); ++i) {
 		if (!data.TrySpawnParticle()) {
 			break;
@@ -523,7 +490,6 @@ void ParticlesEmitBurstScript::OnStart() {
 }
 
 void ParticlesSetEmissionRateScript::OnStart() {
-	Entity target{ Target() };
 	if (!target) {
 		return;
 	}
@@ -531,15 +497,17 @@ void ParticlesSetEmissionRateScript::OnStart() {
 		return;
 	}
 	ParticleEmitter emitter{ target };
+
 	auto& data{ target.Get<impl::ParticleEmitterData>() };
+
 	auto& config{ data.config };
+
 	if (auto* rate{ std::get_if<ParticleRate>(&config.rate_or_burst) }) {
 		rate->rate_over_time = std::max(0.0f, number);
 	}
 }
 
 void ParticlesSetStartColorScript::OnStart() {
-	Entity target{ Target() };
 	if (!target) {
 		return;
 	}
@@ -554,7 +522,6 @@ void ParticlesSetStartColorScript::OnStart() {
 }
 
 void ParticlesSetStartSpeedScript::OnStart() {
-	Entity target{ Target() };
 	if (!target) {
 		return;
 	}
@@ -569,7 +536,6 @@ void ParticlesSetStartSpeedScript::OnStart() {
 }
 
 void ParticlesSetStartSizeScript::OnStart() {
-	Entity target{ Target() };
 	if (!target) {
 		return;
 	}
@@ -584,7 +550,6 @@ void ParticlesSetStartSizeScript::OnStart() {
 }
 
 void ParticlesSetLifetimeScript::OnStart() {
-	Entity target{ Target() };
 	if (!target) {
 		return;
 	}
@@ -601,7 +566,6 @@ void ParticlesSetLifetimeScript::OnStart() {
 }
 
 void ParticlesSetEmissionShapeScript::OnStart() {
-	Entity target{ Target() };
 	if (!target) {
 		return;
 	}
@@ -615,7 +579,6 @@ void ParticlesSetEmissionShapeScript::OnStart() {
 }
 
 void ParticlesSetGravityScript::OnStart() {
-	Entity target{ Target() };
 	if (!target) {
 		return;
 	}
@@ -629,7 +592,6 @@ void ParticlesSetGravityScript::OnStart() {
 }
 
 void ParticlesSetSimulationSpeedScript::OnStart() {
-	Entity target{ Target() };
 	if (!target) {
 		return;
 	}
@@ -643,7 +605,6 @@ void ParticlesSetSimulationSpeedScript::OnStart() {
 }
 
 void ParticlesSetMaximumParticlesScript::OnStart() {
-	Entity target{ Target() };
 	if (!target) {
 		return;
 	}
@@ -657,7 +618,6 @@ void ParticlesSetMaximumParticlesScript::OnStart() {
 }
 
 void ParticlesSetEndColorScript::OnStart() {
-	Entity target{ Target() };
 	if (!target) {
 		return;
 	}
@@ -676,7 +636,6 @@ void ParticlesSetEndColorScript::OnStart() {
 }
 
 void ParticlesSetEndSizeScript::OnStart() {
-	Entity target{ Target() };
 	if (!target) {
 		return;
 	}
@@ -695,7 +654,6 @@ void ParticlesSetEndSizeScript::OnStart() {
 }
 
 void ParticlesSetEndVelocityScript::OnStart() {
-	Entity target{ Target() };
 	if (!target) {
 		return;
 	}
@@ -715,7 +673,6 @@ void ParticlesSetEndVelocityScript::OnStart() {
 }
 
 void ParticlesSetParticleTypeScript::OnStart() {
-	Entity target{ Target() };
 	if (!target) {
 		return;
 	}
@@ -729,7 +686,6 @@ void ParticlesSetParticleTypeScript::OnStart() {
 }
 
 void LightSetColorScript::OnStart() {
-	Entity target{ Target() };
 	if (!target) {
 		return;
 	}
@@ -741,7 +697,6 @@ void LightSetColorScript::OnStart() {
 }
 
 void LightSetIntensityScript::OnStart() {
-	Entity target{ Target() };
 	if (!target) {
 		return;
 	}
@@ -753,7 +708,6 @@ void LightSetIntensityScript::OnStart() {
 }
 
 void LightSetRadiusScript::OnStart() {
-	Entity target{ Target() };
 	if (!target) {
 		return;
 	}
@@ -765,7 +719,6 @@ void LightSetRadiusScript::OnStart() {
 }
 
 void LightSetFalloffScript::OnStart() {
-	Entity target{ Target() };
 	if (!target) {
 		return;
 	}
@@ -777,7 +730,6 @@ void LightSetFalloffScript::OnStart() {
 }
 
 void LightSetConeAngleScript::OnStart() {
-	Entity target{ Target() };
 	if (!target) {
 		return;
 	}
@@ -789,7 +741,6 @@ void LightSetConeAngleScript::OnStart() {
 }
 
 void LightSetDirectionAngleScript::OnStart() {
-	Entity target{ Target() };
 	if (!target) {
 		return;
 	}
@@ -801,7 +752,6 @@ void LightSetDirectionAngleScript::OnStart() {
 }
 
 void LightSetAmbientColorScript::OnStart() {
-	Entity target{ Target() };
 	if (!target) {
 		return;
 	}
@@ -813,7 +763,6 @@ void LightSetAmbientColorScript::OnStart() {
 }
 
 void LightSetAmbientIntensityScript::OnStart() {
-	Entity target{ Target() };
 	if (!target) {
 		return;
 	}
@@ -825,7 +774,6 @@ void LightSetAmbientIntensityScript::OnStart() {
 }
 
 void LightSetLightConfigScript::OnStart() {
-	Entity target{ Target() };
 	if (!target) {
 		return;
 	}
@@ -837,7 +785,6 @@ void LightSetLightConfigScript::OnStart() {
 }
 
 void ShaderSetUniformScript::OnStart() {
-	Entity target{ Target() };
 	if (!target) {
 		return;
 	}
@@ -860,7 +807,6 @@ void ShaderSetUniformScript::OnStart() {
 }
 
 void ShaderSetShaderScript::OnStart() {
-	Entity target{ Target() };
 	if (!target) {
 		return;
 	}
@@ -874,7 +820,6 @@ void ShaderSetShaderScript::OnStart() {
 }
 
 void ShaderSetMaterialScript::OnStart() {
-	Entity target{ Target() };
 	if (!target) {
 		return;
 	}
@@ -886,7 +831,6 @@ void ShaderSetMaterialScript::OnStart() {
 }
 
 void ShaderSetMultipleUniformsScript::OnStart() {
-	Entity target{ Target() };
 	if (!target) {
 		return;
 	}
@@ -898,7 +842,6 @@ void ShaderSetMultipleUniformsScript::OnStart() {
 }
 
 void RenderTargetSetClearColorScript::OnStart() {
-	Entity target{ Target() };
 	if (!target) {
 		return;
 	}
@@ -910,7 +853,6 @@ void RenderTargetSetClearColorScript::OnStart() {
 }
 
 void RenderTargetClearColorScript::OnStart() {
-	Entity target{ Target() };
 	if (!target) {
 		return;
 	}
@@ -922,7 +864,6 @@ void RenderTargetClearColorScript::OnStart() {
 }
 
 void RenderTargetClearDepthScript::OnStart() {
-	Entity target{ Target() };
 	if (!target) {
 		return;
 	}
@@ -934,7 +875,6 @@ void RenderTargetClearDepthScript::OnStart() {
 }
 
 void RenderTargetClearStencilScript::OnStart() {
-	Entity target{ Target() };
 	if (!target) {
 		return;
 	}
@@ -946,7 +886,6 @@ void RenderTargetClearStencilScript::OnStart() {
 }
 
 void RenderTargetSetSizeScript::OnStart() {
-	Entity target{ Target() };
 	if (!target) {
 		return;
 	}
@@ -958,7 +897,6 @@ void RenderTargetSetSizeScript::OnStart() {
 }
 
 void RenderTargetFollowDisplaySizeScript::OnStart() {
-	Entity target{ Target() };
 	if (!target) {
 		return;
 	}
@@ -970,7 +908,6 @@ void RenderTargetFollowDisplaySizeScript::OnStart() {
 }
 
 void RenderTargetSetClearDepthValueScript::OnStart() {
-	Entity target{ Target() };
 	if (!target) {
 		return;
 	}
@@ -982,7 +919,6 @@ void RenderTargetSetClearDepthValueScript::OnStart() {
 }
 
 void RenderTargetSetClearStencilValueScript::OnStart() {
-	Entity target{ Target() };
 	if (!target) {
 		return;
 	}
@@ -994,7 +930,6 @@ void RenderTargetSetClearStencilValueScript::OnStart() {
 }
 
 void CameraSetZoomScript::OnStart() {
-	Entity target{ Target() };
 	if (!target) {
 		return;
 	}
@@ -1006,7 +941,6 @@ void CameraSetZoomScript::OnStart() {
 }
 
 void CameraZoomByScript::OnStart() {
-	Entity target{ Target() };
 	if (!target) {
 		return;
 	}
@@ -1018,7 +952,6 @@ void CameraZoomByScript::OnStart() {
 }
 
 void CameraZoomToScript::OnStart() {
-	Entity target{ Target() };
 	if (!target) {
 		return;
 	}
@@ -1026,15 +959,16 @@ void CameraZoomToScript::OnStart() {
 		return;
 	}
 	SceneCamera camera{ target };
+
 	PropertyTo<V2_float>(
-		target, SequenceChannelKey{ "camera.zoom" }, vector, std::max(1.0f, number),
+		target, SequenceChannelKey{ "camera.zoom" }, vector,
+		milliseconds{ static_cast<std::int64_t>(std::max(1.0f, number)) },
 		[](Entity entity) { return SceneCamera{ entity }.GetZoom(); },
 		[](Entity entity, V2_float zoom) { SceneCamera{ entity }.SetZoom(zoom); }
 	);
 }
 
 void CameraResetCameraScript::OnStart() {
-	Entity target{ Target() };
 	if (!target) {
 		return;
 	}
@@ -1046,7 +980,6 @@ void CameraResetCameraScript::OnStart() {
 }
 
 void CameraSetCameraBoundsScript::OnStart() {
-	Entity target{ Target() };
 	if (!target) {
 		return;
 	}
@@ -1062,7 +995,6 @@ void CameraSetCameraBoundsScript::OnStart() {
 }
 
 void CameraSetPixelRoundingScript::OnStart() {
-	Entity target{ Target() };
 	if (!target) {
 		return;
 	}
@@ -1074,7 +1006,6 @@ void CameraSetPixelRoundingScript::OnStart() {
 }
 
 void CameraSetRenderMaskScript::OnStart() {
-	Entity target{ Target() };
 	if (!target) {
 		return;
 	}
@@ -1091,7 +1022,6 @@ void CameraSetRenderMaskScript::OnStart() {
 }
 
 void CameraAddRenderMaskBitsScript::OnStart() {
-	Entity target{ Target() };
 	if (!target) {
 		return;
 	}
@@ -1108,7 +1038,6 @@ void CameraAddRenderMaskBitsScript::OnStart() {
 }
 
 void CameraRemoveRenderMaskBitsScript::OnStart() {
-	Entity target{ Target() };
 	if (!target) {
 		return;
 	}
@@ -1125,7 +1054,6 @@ void CameraRemoveRenderMaskBitsScript::OnStart() {
 }
 
 void CameraSetClearColorScript::OnStart() {
-	Entity target{ Target() };
 	if (!target) {
 		return;
 	}
@@ -1137,7 +1065,6 @@ void CameraSetClearColorScript::OnStart() {
 }
 
 void CameraSetRenderTargetScript::OnStart() {
-	Entity target{ Target() };
 	if (!target) {
 		return;
 	}
@@ -1156,7 +1083,6 @@ void CameraSetRenderTargetScript::OnStart() {
 }
 
 void CameraSetViewportScript::OnStart() {
-	Entity target{ Target() };
 	if (!target) {
 		return;
 	}
@@ -1170,7 +1096,6 @@ void CameraSetViewportScript::OnStart() {
 }
 
 void EffectEnableEffectScript::OnStart() {
-	Entity target{ Target() };
 	if (!target) {
 		return;
 	}
@@ -1180,7 +1105,6 @@ void EffectEnableEffectScript::OnStart() {
 }
 
 void EffectDisableEffectScript::OnStart() {
-	Entity target{ Target() };
 	if (!target) {
 		return;
 	}
@@ -1190,7 +1114,6 @@ void EffectDisableEffectScript::OnStart() {
 }
 
 void EffectToggleEffectScript::OnStart() {
-	Entity target{ Target() };
 	if (!target) {
 		return;
 	}
@@ -1201,7 +1124,6 @@ void EffectToggleEffectScript::OnStart() {
 }
 
 void EffectSetEffectMarginScript::OnStart() {
-	Entity target{ Target() };
 	if (!target) {
 		return;
 	}
@@ -1209,7 +1131,6 @@ void EffectSetEffectMarginScript::OnStart() {
 }
 
 void EffectClearEffectsScript::OnStart() {
-	Entity target{ Target() };
 	if (!target) {
 		return;
 	}
@@ -1217,7 +1138,6 @@ void EffectClearEffectsScript::OnStart() {
 }
 
 void EffectClearScreenEffectsScript::OnStart() {
-	Entity target{ Target() };
 	if (!target) {
 		return;
 	}
@@ -1226,7 +1146,6 @@ void EffectClearScreenEffectsScript::OnStart() {
 }
 
 void EffectAddEffectScript::OnStart() {
-	Entity target{ Target() };
 	if (!target) {
 		return;
 	}
@@ -1241,7 +1160,6 @@ void EffectAddEffectScript::OnStart() {
 }
 
 void EffectAddScreenEffectScript::OnStart() {
-	Entity target{ Target() };
 	if (!target) {
 		return;
 	}
@@ -1251,7 +1169,6 @@ void EffectAddScreenEffectScript::OnStart() {
 }
 
 void EffectRemoveScreenEffectScript::OnStart() {
-	Entity target{ Target() };
 	if (!target) {
 		return;
 	}
@@ -1263,7 +1180,6 @@ void EffectRemoveScreenEffectScript::OnStart() {
 }
 
 void EffectRemoveEffectScript::OnStart() {
-	Entity target{ Target() };
 	if (!target) {
 		return;
 	}
@@ -1292,7 +1208,6 @@ void EffectRemoveEffectScript::OnStart() {
 }
 
 void EffectSetEffectPropertyScript::OnStart() {
-	Entity target{ Target() };
 	if (!target) {
 		return;
 	}

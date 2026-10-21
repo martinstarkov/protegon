@@ -74,7 +74,6 @@
 namespace ptgn {
 
 void ShapeSetColorScript::OnStart() {
-	Entity target{ Target() };
 	if (!target) {
 		return;
 	}
@@ -82,7 +81,6 @@ void ShapeSetColorScript::OnStart() {
 }
 
 void ShapeSetFillStyleScript::OnStart() {
-	Entity target{ Target() };
 	if (!target) {
 		return;
 	}
@@ -90,7 +88,6 @@ void ShapeSetFillStyleScript::OnStart() {
 }
 
 void ShapeSetStrokeWidthScript::OnStart() {
-	Entity target{ Target() };
 	if (!target) {
 		return;
 	}
@@ -98,7 +95,6 @@ void ShapeSetStrokeWidthScript::OnStart() {
 }
 
 void ShapeSetGeometryScript::OnStart() {
-	Entity target{ Target() };
 	if (!target) {
 		return;
 	}
@@ -112,7 +108,6 @@ void ShapeSetGeometryScript::OnStart() {
 }
 
 void ShapeRectSetBoundsOrSizeScript::OnStart() {
-	Entity target{ Target() };
 	if (!target) {
 		return;
 	}
@@ -124,7 +119,6 @@ void ShapeRectSetBoundsOrSizeScript::OnStart() {
 }
 
 void ShapeRectSetCenterScript::OnStart() {
-	Entity target{ Target() };
 	if (!target) {
 		return;
 	}
@@ -134,7 +128,6 @@ void ShapeRectSetCenterScript::OnStart() {
 }
 
 void ShapeCircleSetDiameterScript::OnStart() {
-	Entity target{ Target() };
 	if (!target) {
 		return;
 	}
@@ -144,7 +137,6 @@ void ShapeCircleSetDiameterScript::OnStart() {
 }
 
 void ShapeRoundedRectSetCornerRadiusScript::OnStart() {
-	Entity target{ Target() };
 	if (!target) {
 		return;
 	}
@@ -154,7 +146,6 @@ void ShapeRoundedRectSetCornerRadiusScript::OnStart() {
 }
 
 void ShapePolygonSetVerticesScript::OnStart() {
-	Entity target{ Target() };
 	if (!target) {
 		return;
 	}
@@ -164,7 +155,6 @@ void ShapePolygonSetVerticesScript::OnStart() {
 }
 
 void ShapePolygonSetVertexScript::OnStart() {
-	Entity target{ Target() };
 	if (!target) {
 		return;
 	}
@@ -175,7 +165,6 @@ void ShapePolygonSetVertexScript::OnStart() {
 }
 
 void ShapeEllipseSetRadiiScript::OnStart() {
-	Entity target{ Target() };
 	if (!target) {
 		return;
 	}
@@ -185,7 +174,6 @@ void ShapeEllipseSetRadiiScript::OnStart() {
 }
 
 void ShapeEllipseSetWidthScript::OnStart() {
-	Entity target{ Target() };
 	if (!target) {
 		return;
 	}
@@ -195,7 +183,6 @@ void ShapeEllipseSetWidthScript::OnStart() {
 }
 
 void ShapeEllipseSetHeightScript::OnStart() {
-	Entity target{ Target() };
 	if (!target) {
 		return;
 	}
@@ -205,7 +192,6 @@ void ShapeEllipseSetHeightScript::OnStart() {
 }
 
 void ShapeTriangleSetVerticesScript::OnStart() {
-	Entity target{ Target() };
 	if (!target) {
 		return;
 	}
@@ -215,7 +201,6 @@ void ShapeTriangleSetVerticesScript::OnStart() {
 }
 
 void ShapeTriangleSetVertexScript::OnStart() {
-	Entity target{ Target() };
 	if (!target) {
 		return;
 	}
@@ -225,7 +210,6 @@ void ShapeTriangleSetVertexScript::OnStart() {
 }
 
 void ShapeLineSetStartScript::OnStart() {
-	Entity target{ Target() };
 	if (!target) {
 		return;
 	}
@@ -235,7 +219,6 @@ void ShapeLineSetStartScript::OnStart() {
 }
 
 void ShapeLineSetEndScript::OnStart() {
-	Entity target{ Target() };
 	if (!target) {
 		return;
 	}
@@ -245,7 +228,6 @@ void ShapeLineSetEndScript::OnStart() {
 }
 
 void ShapeLineSetEndpointsScript::OnStart() {
-	Entity target{ Target() };
 	if (!target) {
 		return;
 	}
@@ -255,7 +237,6 @@ void ShapeLineSetEndpointsScript::OnStart() {
 }
 
 void ShapeLineSetWidthScript::OnStart() {
-	Entity target{ Target() };
 	if (!target) {
 		return;
 	}
@@ -263,7 +244,6 @@ void ShapeLineSetWidthScript::OnStart() {
 }
 
 void ShapeCapsuleSetStartScript::OnStart() {
-	Entity target{ Target() };
 	if (!target) {
 		return;
 	}
@@ -273,7 +253,6 @@ void ShapeCapsuleSetStartScript::OnStart() {
 }
 
 void ShapeCapsuleSetEndScript::OnStart() {
-	Entity target{ Target() };
 	if (!target) {
 		return;
 	}
@@ -283,7 +262,6 @@ void ShapeCapsuleSetEndScript::OnStart() {
 }
 
 void ShapeCapsuleSetRadiusScript::OnStart() {
-	Entity target{ Target() };
 	if (!target) {
 		return;
 	}
@@ -293,7 +271,6 @@ void ShapeCapsuleSetRadiusScript::OnStart() {
 }
 
 void ShapeCapsuleSetLengthScript::OnStart() {
-	Entity target{ Target() };
 	if (!target) {
 		return;
 	}
@@ -307,7 +284,6 @@ void ShapeCapsuleSetLengthScript::OnStart() {
 }
 
 void ShapeArcSetRadiusScript::OnStart() {
-	Entity target{ Target() };
 	if (!target) {
 		return;
 	}
@@ -317,7 +293,6 @@ void ShapeArcSetRadiusScript::OnStart() {
 }
 
 void ShapeArcSetStartAngleScript::OnStart() {
-	Entity target{ Target() };
 	if (!target) {
 		return;
 	}
@@ -327,7 +302,6 @@ void ShapeArcSetStartAngleScript::OnStart() {
 }
 
 void ShapeArcSetEndAngleScript::OnStart() {
-	Entity target{ Target() };
 	if (!target) {
 		return;
 	}
@@ -337,7 +311,6 @@ void ShapeArcSetEndAngleScript::OnStart() {
 }
 
 void ShapeArcSetDirectionScript::OnStart() {
-	Entity target{ Target() };
 	if (!target) {
 		return;
 	}
@@ -347,7 +320,6 @@ void ShapeArcSetDirectionScript::OnStart() {
 }
 
 void ShapeSetSizeScript::OnStart() {
-	Entity target{ Target() };
 	if (!target) {
 		return;
 	}
@@ -368,7 +340,6 @@ void ShapeSetSizeScript::OnStart() {
 }
 
 void ShapeSetRadiusScript::OnStart() {
-	Entity target{ Target() };
 	if (!target) {
 		return;
 	}

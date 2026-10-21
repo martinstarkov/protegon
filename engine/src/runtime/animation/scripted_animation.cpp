@@ -44,12 +44,7 @@ const SequenceChannelKey kShakeRecoveryChannel{ "transform.shake.recovery" };
 	}
 
 	ScriptSequence sequence{ symmetrical ? "Symmetrical Bounce" : "Bounce" };
-	sequence
-		.During(
-			static_cast<float>(period.count()),
-			BounceScript{ amplitude, static_offset, symmetrical }
-		)
-		.Ease(ease);
+	sequence.During(period, BounceScript{ amplitude, static_offset, symmetrical }).Ease(ease);
 
 	if (total_periods.has_value()) {
 		sequence.Repeat(static_cast<int>(total_periods.value() - 1));
@@ -69,8 +64,7 @@ SequenceHandle TranslateTo(
 	PTGN_ASSERT(duration > 0ms, "Translation duration must be positive");
 
 	ScriptSequence sequence{ "Translate To" };
-	sequence.During(static_cast<float>(duration.count()), MoveToScript{ target_position, relative })
-		.Ease(ease);
+	sequence.During(duration, MoveToScript{ target_position, relative }).Ease(ease);
 
 	return RunAnimation(entity, animation_channel::Position, std::move(sequence), force);
 }
@@ -82,11 +76,7 @@ SequenceHandle RotateTo(
 	PTGN_ASSERT(duration > 0ms, "Rotation duration must be positive");
 
 	ScriptSequence sequence{ "Rotate To" };
-	sequence
-		.During(
-			static_cast<float>(duration.count()),
-			RotateToScript{ target_angle.value, shortest_path, relative }
-		)
+	sequence.During(duration, RotateToScript{ target_angle.value, shortest_path, relative })
 		.Ease(ease);
 
 	return RunAnimation(entity, animation_channel::Rotation, std::move(sequence), force);
@@ -99,8 +89,7 @@ SequenceHandle ScaleTo(
 	PTGN_ASSERT(duration > 0ms, "Scale duration must be positive");
 
 	ScriptSequence sequence{ "Scale To" };
-	sequence.During(static_cast<float>(duration.count()), ScaleToScript{ target_scale, relative })
-		.Ease(ease);
+	sequence.During(duration, ScaleToScript{ target_scale, relative }).Ease(ease);
 
 	return RunAnimation(entity, animation_channel::Scale, std::move(sequence), force);
 }
@@ -111,7 +100,7 @@ SequenceHandle TintTo(
 	PTGN_ASSERT(duration > 0ms, "Tint duration must be positive");
 
 	ScriptSequence sequence{ "Tint To" };
-	sequence.During(static_cast<float>(duration.count()), TintToScript{ target_tint }).Ease(ease);
+	sequence.During(duration, TintToScript{ target_tint }).Ease(ease);
 
 	return RunAnimation(entity, animation_channel::Tint, std::move(sequence), force);
 }
@@ -190,11 +179,7 @@ SequenceHandle Shake(
 			// One-shot shake actions recover all the way back to zero.
 			sequence.Then(SetShakeTraumaScript{ intensity, 0.0f, config });
 		} else {
-			sequence
-				.During(
-					static_cast<float>(duration->count()),
-					ShakeScript{ intensity, config, false, false }
-				)
+			sequence.During(duration.value(), ShakeScript{ intensity, config, false, false })
 				.Ease(ease);
 		}
 

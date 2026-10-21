@@ -73,6 +73,8 @@
 
 namespace ptgn {
 
+namespace {
+
 struct SceneTransitionPointers {
 	std::unique_ptr<SceneTransition> out{};
 	std::unique_ptr<SceneTransition> in{};
@@ -212,7 +214,6 @@ void SceneChangeScript::OnStart() {
 }
 
 void TilemapSetTileScript::OnStart() {
-	Entity target{ Target() };
 	if (!target) {
 		return;
 	}
@@ -222,7 +223,6 @@ void TilemapSetTileScript::OnStart() {
 }
 
 void TilemapRemoveTileScript::OnStart() {
-	Entity target{ Target() };
 	if (!target) {
 		return;
 	}

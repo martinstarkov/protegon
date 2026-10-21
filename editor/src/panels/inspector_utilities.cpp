@@ -69,7 +69,7 @@ bool DrawRuntimeIconButton(const char* id, EditorIcon icon, const char* tooltip)
 	return pressed;
 }
 
-millisecondsf timer_runtime_adjustment{ 100.0f };
+milliseconds timer_runtime_adjustment{ 100 };
 
 void DrawTimerRuntimeControls(Entity entity, const TimerKey& live_key, TimerEntry& edited_entry) {
 	TimerHandle timer{ GetTimer(entity, live_key) };
@@ -117,7 +117,8 @@ void DrawTimerRuntimeControls(Entity entity, const TimerKey& live_key, TimerEntr
 	);
 	ImGui::EndGroup();
 	DrawRuntimeTooltipAboveLastItem("Amount to rewind or advance.");
-	timer_runtime_adjustment = millisecondsf{ std::max(0.001f, timer_runtime_adjustment.count()) };
+
+	timer_runtime_adjustment = std::max(0ms, timer_runtime_adjustment);
 
 	ImGui::SameLine(0.0f, spacing);
 	if (DrawRuntimeIconButton("##TimerAdvance", EditorIcon::StepForward, "Advance timer")) {
@@ -145,7 +146,7 @@ void DrawTimerRuntimeControls(Entity entity, const TimerKey& live_key, TimerEntr
 	}
 }
 
-millisecondsf lifetime_runtime_adjustment{ 100.0f };
+milliseconds lifetime_runtime_adjustment{ 100 };
 
 void DrawLifetimeRuntimeControls(Entity entity) {
 	auto* lifetime{ entity ? entity.TryGet<Lifetime>() : nullptr };
@@ -201,8 +202,8 @@ void DrawLifetimeRuntimeControls(Entity entity) {
 	);
 	ImGui::EndGroup();
 	DrawRuntimeTooltipAboveLastItem("Amount to rewind or advance the lifetime timer.");
-	lifetime_runtime_adjustment =
-		millisecondsf{ std::max(0.001f, lifetime_runtime_adjustment.count()) };
+
+	lifetime_runtime_adjustment = std::max(0ms, lifetime_runtime_adjustment);
 
 	ImGui::SameLine(0.0f, spacing);
 	if (DrawRuntimeIconButton(
@@ -214,8 +215,8 @@ void DrawLifetimeRuntimeControls(Entity entity) {
 		}
 	}
 
-	millisecondsf elapsed{ lifetime->Elapsed() };
-	millisecondsf duration{ duration_cast<millisecondsf>(lifetime->duration) };
+	milliseconds elapsed{ lifetime->Elapsed() };
+	milliseconds duration{ lifetime->duration };
 	bool completed{ lifetime->HasRun() && elapsed >= duration };
 	const char* state{ lifetime->IsPaused()	   ? "Paused"
 					   : lifetime->IsRunning() ? "Running"
@@ -616,8 +617,7 @@ template <typename Component>
 	std::int64_t value, const CounterConfig& config
 ) {
 	return std::clamp(
-		value,
-		config.minimum.value_or(std::numeric_limits<std::int64_t>::min()),
+		value, config.minimum.value_or(std::numeric_limits<std::int64_t>::min()),
 		config.maximum.value_or(std::numeric_limits<std::int64_t>::max())
 	);
 }
@@ -630,15 +630,14 @@ template <typename Component>
 	long double range{ static_cast<long double>(*config->maximum) -
 					   static_cast<long double>(*config->minimum) };
 	return std::clamp(
-		0.06f + 0.13f * static_cast<float>(std::log10(std::max(0.0L, range) + 1.0L)),
-		0.08f, 0.7f
+		0.06f + 0.13f * static_cast<float>(std::log10(std::max(0.0L, range) + 1.0L)), 0.08f, 0.7f
 	);
 }
 
 bool DrawCounterNumberControls(
 	const char* id, std::int64_t& value, const CounterConfig* config = nullptr,
-	const char* reset_tooltip = nullptr, bool* reset_requested = nullptr,
-	bool show_value = true, bool enforce_bounds = true
+	const char* reset_tooltip = nullptr, bool* reset_requested = nullptr, bool show_value = true,
+	bool enforce_bounds = true
 ) {
 	ScopedID scope{ std::string_view{ id } };
 
@@ -647,17 +646,15 @@ bool DrawCounterNumberControls(
 	float button_extent{ ImGui::GetFrameHeight() };
 	bool show_reset{ reset_requested != nullptr };
 	int button_count{ show_reset ? 3 : 2 };
-	float controls_width{
-		static_cast<float>(button_count) * (button_extent + spacing)
-	};
+	float controls_width{ static_cast<float>(button_count) * (button_extent + spacing) };
 	float input_width{ std::max(1.0f, ImGui::GetContentRegionAvail().x - controls_width) };
 
 	std::int64_t minimum{ config && enforce_bounds
-									? config->minimum.value_or(std::numeric_limits<std::int64_t>::min())
-									: std::numeric_limits<std::int64_t>::min() };
+							  ? config->minimum.value_or(std::numeric_limits<std::int64_t>::min())
+							  : std::numeric_limits<std::int64_t>::min() };
 	std::int64_t maximum{ config && enforce_bounds
-									? config->maximum.value_or(std::numeric_limits<std::int64_t>::max())
-									: std::numeric_limits<std::int64_t>::max() };
+							  ? config->maximum.value_or(std::numeric_limits<std::int64_t>::max())
+							  : std::numeric_limits<std::int64_t>::max() };
 
 	ImGui::SetNextItemWidth(input_width);
 	bool changed{ false };
@@ -678,7 +675,7 @@ bool DrawCounterNumberControls(
 	ImGui::SameLine(0.0f, spacing);
 	ImGui::BeginDisabled(!show_value || value <= minimum);
 	if (ImGui::Button("-##Decrement", ImVec2{ button_extent, button_extent })) {
-		value = std::max(minimum, value - 1);
+		value	= std::max(minimum, value - 1);
 		changed = true;
 	}
 	ImGui::EndDisabled();
@@ -686,7 +683,7 @@ bool DrawCounterNumberControls(
 	ImGui::SameLine(0.0f, spacing);
 	ImGui::BeginDisabled(!show_value || value >= maximum);
 	if (ImGui::Button("+##Increment", ImVec2{ button_extent, button_extent })) {
-		value = std::min(maximum, value + 1);
+		value	= std::min(maximum, value + 1);
 		changed = true;
 	}
 	ImGui::EndDisabled();
@@ -711,7 +708,7 @@ bool DrawCounterBoundControls(
 	bool changed{ false };
 
 	if (ImGui::Checkbox("##Enabled", &enabled)) {
-		bound = enabled ? std::optional<std::int64_t>{ default_value } : std::nullopt;
+		bound	= enabled ? std::optional<std::int64_t>{ default_value } : std::nullopt;
 		changed = true;
 	}
 
@@ -719,7 +716,7 @@ bool DrawCounterBoundControls(
 	ImGui::SameLine(0.0f, spacing);
 	ImGui::BeginDisabled(!enabled);
 	if (DrawCounterNumberControls("##Bound", value, &config, nullptr, nullptr, enabled, false)) {
-		bound = value;
+		bound	= value;
 		changed = true;
 	}
 	ImGui::EndDisabled();
@@ -743,15 +740,14 @@ template <typename Component>
 				std::int64_t reset_value{
 					ClampCounterInspectorValue(entry.config.initial_value, entry.config)
 				};
-				std::string reset_tooltip{
-					"Reset to initial value: " + std::to_string(reset_value)
-				};
+				std::string reset_tooltip{ "Reset to initial value: " +
+										   std::to_string(reset_value) };
 				bool reset_requested{ false };
 
 				if (DrawPropertyRow("Current Value", [&]() {
 						return DrawCounterNumberControls(
-							"##CurrentCounter", current, &entry.config,
-							reset_tooltip.c_str(), &reset_requested
+							"##CurrentCounter", current, &entry.config, reset_tooltip.c_str(),
+							&reset_requested
 						);
 					})) {
 					handle.Set(current);
@@ -803,10 +799,8 @@ template <typename Component>
 			BooleanHandle handle{ GetBoolean(entity, entry.config.key) };
 			if (handle) {
 				bool current{ handle.Value() };
-				std::string reset_tooltip{
-					std::string{ "Reset to initial value: " } +
-					(entry.config.initial_value ? "true" : "false")
-				};
+				std::string reset_tooltip{ std::string{ "Reset to initial value: " } +
+										   (entry.config.initial_value ? "true" : "false") };
 				bool reset_requested{ false };
 
 				if (DrawPropertyRow("Current Value", [&]() {
@@ -827,7 +821,9 @@ template <typename Component>
 			}
 		} else {
 			changed |= DrawPropertyRow("Initial Value", [&]() {
-				bool value_changed{ ImGui::Checkbox("##BooleanInitial", &entry.config.initial_value) };
+				bool value_changed{
+					ImGui::Checkbox("##BooleanInitial", &entry.config.initial_value)
+				};
 				DrawTooltip(entry.config.initial_value ? "true" : "false");
 				return value_changed;
 			});

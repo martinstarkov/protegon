@@ -74,7 +74,6 @@
 namespace ptgn {
 
 void DraggableSetFollowMouseScript::OnStart() {
-	Entity target{ Target() };
 	if (!target) {
 		return;
 	}
@@ -84,7 +83,6 @@ void DraggableSetFollowMouseScript::OnStart() {
 }
 
 void DraggableSetMoveConditionScript::OnStart() {
-	Entity target{ Target() };
 	if (!target) {
 		return;
 	}
@@ -97,7 +95,6 @@ void DraggableSetMoveConditionScript::OnStart() {
 }
 
 void DraggableSetDropConditionScript::OnStart() {
-	Entity target{ Target() };
 	if (!target) {
 		return;
 	}
@@ -110,7 +107,6 @@ void DraggableSetDropConditionScript::OnStart() {
 }
 
 void DraggableSetPickupConditionScript::OnStart() {
-	Entity target{ Target() };
 	if (!target) {
 		return;
 	}
@@ -123,7 +119,6 @@ void DraggableSetPickupConditionScript::OnStart() {
 }
 
 void DropzoneSetMoveConditionScript::OnStart() {
-	Entity target{ Target() };
 	if (!target) {
 		return;
 	}
@@ -136,7 +131,6 @@ void DropzoneSetMoveConditionScript::OnStart() {
 }
 
 void DropzoneSetDropConditionScript::OnStart() {
-	Entity target{ Target() };
 	if (!target) {
 		return;
 	}
@@ -149,7 +143,6 @@ void DropzoneSetDropConditionScript::OnStart() {
 }
 
 void DropzoneSetPickupConditionScript::OnStart() {
-	Entity target{ Target() };
 	if (!target) {
 		return;
 	}
@@ -162,7 +155,6 @@ void DropzoneSetPickupConditionScript::OnStart() {
 }
 
 void InteractionAddInteractiveShapeScript::OnStart() {
-	Entity target{ Target() };
 	if (!target) {
 		return;
 	}
@@ -174,7 +166,6 @@ void InteractionAddInteractiveShapeScript::OnStart() {
 }
 
 void InteractionRemoveInteractiveShapeScript::OnStart() {
-	Entity target{ Target() };
 	if (!target) {
 		return;
 	}
@@ -182,7 +173,6 @@ void InteractionRemoveInteractiveShapeScript::OnStart() {
 }
 
 void InteractionClearInteractiveShapesScript::OnStart() {
-	Entity target{ Target() };
 	if (!target) {
 		return;
 	}
@@ -190,7 +180,6 @@ void InteractionClearInteractiveShapesScript::OnStart() {
 }
 
 void InteractionLockInteractionsScript::OnStart() {
-	Entity target{ Target() };
 	if (!target) {
 		return;
 	}
@@ -198,7 +187,6 @@ void InteractionLockInteractionsScript::OnStart() {
 }
 
 void InteractionUnlockInteractionsScript::OnStart() {
-	Entity target{ Target() };
 	if (!target) {
 		return;
 	}

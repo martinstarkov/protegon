@@ -943,16 +943,17 @@ void Scene::InternalUpdate() {
 
 	if (data_.runtime) {
 		auto dt{ ctx().dt() };
+		auto dt_ms{ duration_cast<milliseconds>(dt) };
 
 		script_runtime::Update(*this, dt);
 
-		impl::DialogueSystem::Update(*this, dt);
+		impl::DialogueSystem::Update(*this, dt_ms);
 
 		OnUpdate();
 
 		// Timers advance after script and scene updates so newly triggered timed actions do not
 		// receive the current frame's full dt.
-		timer_runtime::Update(*this, dt);
+		timer_runtime::Update(*this, dt_ms);
 		ParticleEmitter::Update(*this, dt);
 		impl::AnimationSystem::Update(*this, dt);
 		Lifetime::Update(*this, dt);

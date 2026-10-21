@@ -15,6 +15,7 @@
 #include "core/math/transform.h"
 #include "core/math/vector2.h"
 #include "core/util/strong_string.h"
+#include "core/util/time.h"
 #include "runtime/animation/follow_config.h"
 #include "runtime/animation/shake_config.h"
 #include "runtime/asset/asset_key.h"
@@ -135,7 +136,7 @@ struct NativeScript : public Script {
 
 template <typename T, typename TGetter, typename TSetter>
 SequenceHandle PropertyTo(
-	Entity entity, SequenceChannelKey channel, T target, float duration_ms, TGetter getter,
+	Entity entity, SequenceChannelKey channel, T target, milliseconds duration, TGetter getter,
 	TSetter setter, Ease ease = Ease::Linear, bool force = true
 ) {
 	if (!entity) {
@@ -165,7 +166,7 @@ SequenceHandle PropertyTo(
 			},
 	} };
 	ScriptSequence sequence{ "Property To" };
-	sequence.Channel(channel).Transient().During(duration_ms, std::move(action)).Ease(ease);
+	sequence.Channel(channel).Transient().During(duration, std::move(action)).Ease(ease);
 
 	return script_runtime::RunInChannel(
 		entity, std::move(channel), std::move(sequence),

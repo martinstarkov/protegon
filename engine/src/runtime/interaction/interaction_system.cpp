@@ -166,7 +166,7 @@ InteractionSystem::InteractiveEntities InteractionSystem::GetInteractiveEntities
 	for (Entity entity : all_entities) {
 		if (auto lock{ entity.TryGet<InteractionLock>() }; lock && lock->block_hover) {
 			PTGN_ASSERT(
-				lock->remaining_time >= secondsf{ 0.0f }, "Interaction time cannot be negative"
+				lock->remaining_time >= secondsf::zero(), "Interaction time cannot be negative"
 			);
 			continue;
 		}
@@ -605,7 +605,7 @@ void InteractionSystem::DispatchMouseEvents(
 	for (Entity e : over) {
 		if (auto lock{ e.TryGet<InteractionLock>() }; lock && lock->block_press) {
 			PTGN_ASSERT(
-				lock->remaining_time >= secondsf{ 0.0f }, "Interaction time cannot be negative"
+				lock->remaining_time >= secondsf::zero(), "Interaction time cannot be negative"
 			);
 			continue;
 		}
@@ -716,7 +716,7 @@ void InteractionSystem::Update(Scene& scene) {
 	for (auto [entity, lock] : scene.EntitiesWith<InteractionLock>()) {
 		lock.remaining_time -= dt;
 
-		if (lock.remaining_time <= secondsf{ 0.0f }) {
+		if (lock.remaining_time <= secondsf::zero()) {
 			entity.Remove<InteractionLock>();
 		}
 	}

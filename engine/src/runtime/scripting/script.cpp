@@ -1,6 +1,7 @@
 #include "runtime/scripting/script.h"
 
 #include <algorithm>
+#include <chrono>
 #include <cmath>
 #include <memory>
 #include <ranges>
@@ -21,7 +22,7 @@ Script& Script::operator=(const Script& other) {
 		active_sequence_name_.clear();
 		owner				  = {};
 		target				  = {};
-		delta_seconds_		  = 0.0f;
+		dt_					  = secondsf::zero();
 		linear_progress_	  = 0.0f;
 		progress_			  = 0.0f;
 		timing_ease_		  = Ease::Linear;
@@ -41,7 +42,7 @@ void ScriptSequenceRuntime::ClearActiveScript() {
 	script_targets.clear();
 	script_instances.clear();
 	script_completed.clear();
-	elapsed_ms		   = 0.0f;
+	elapsed			   = 0ms;
 	current_repeat	   = 0;
 	currently_reversed = false;
 }
@@ -168,12 +169,12 @@ ScriptSequence& ScriptSequence::Yoyo(bool value) {
 	return *this;
 }
 
-ScriptSequence& ScriptSequence::Wait(float duration_ms) {
+ScriptSequence& ScriptSequence::Wait(milliseconds duration) {
 	ScriptRegistry::EnsureRegistered<WaitScript>();
 	ScriptStep action{ ScriptRegistry::MakeStep<WaitScript>() };
-	action.completion		   = ScriptCompletion::Duration;
-	action.timing			   = action.timing.value_or(ScriptTiming{});
-	action.timing->duration_ms = std::max(0.0f, duration_ms);
+	action.completion		= ScriptCompletion::Duration;
+	action.timing			= action.timing.value_or(ScriptTiming{});
+	action.timing->duration = std::max(0ms, duration);
 	steps.push_back(std::move(action));
 	return *this;
 }
@@ -509,7 +510,7 @@ void CopySequenceDefinition(ScriptSequence& destination, const ScriptSequence& s
 }
 
 bool StartBinding(Entity owner, ScriptSequence& binding, bool force);
-void UpdateSequence(Entity owner, ScriptSequence& binding, float delta_seconds);
+void UpdateSequence(Entity owner, ScriptSequence& binding, secondsf dt);
 
 Script* EnsureInstance(Entity owner, ScriptEntry& entry) {
 	if (!entry.instance) {
@@ -692,7 +693,7 @@ bool CancelBinding(
 		}
 
 		impl::ScriptAccessor::SetFrame(
-			*instance, 0.0f, 0.0f, 0.0f, binding.runtime.current_repeat,
+			*instance, secondsf::zero(), 0.0f, 0.0f, binding.runtime.current_repeat,
 			binding.runtime.currently_reversed
 		);
 
@@ -888,7 +889,7 @@ bool StartBinding(Entity owner, ScriptSequence& binding, bool force) {
 void StartChildScript(
 	Entity owner, Script& script, float linear, float progress, int repeat, bool reversed
 ) {
-	impl::ScriptAccessor::SetFrame(script, 0.0f, linear, progress, repeat, reversed);
+	impl::ScriptAccessor::SetFrame(script, secondsf::zero(), linear, progress, repeat, reversed);
 	script.OnCreate();
 	script.OnStart();
 
@@ -898,9 +899,9 @@ void StartChildScript(
 	}
 }
 
-ScriptStatus UpdateChildScript(Entity owner, Script& script, float delta_seconds) {
+ScriptStatus UpdateChildScript(Entity owner, Script& script, secondsf dt) {
 	ScriptStatus status{ script.OnUpdate() };
-	UpdateSequence(owner, script.sequence, delta_seconds);
+	UpdateSequence(owner, script.sequence, dt);
 
 	if (impl::ScriptAccessor::TakeCompletionRequest(script) ||
 		(HasSequenceDefinition(script.sequence) && script.sequence.runtime.completed)) {
@@ -926,8 +927,8 @@ void ExecuteInstantStep(Entity owner, const ScriptStep& action, std::string_view
 		}
 
 		StartChildScript(owner, *instance, 1.0f, 1.0f, 0, false);
-		impl::ScriptAccessor::SetFrame(*instance, 0.0f, 1.0f, 1.0f, 0, false);
-		UpdateChildScript(owner, *instance, 0.0f);
+		impl::ScriptAccessor::SetFrame(*instance, secondsf::zero(), 1.0f, 1.0f, 0, false);
+		UpdateChildScript(owner, *instance, secondsf::zero());
 		instance->OnComplete();
 	}
 }
@@ -972,7 +973,8 @@ void CompleteCurrentStep(Entity owner, ScriptSequence& binding) {
 		}
 
 		impl::ScriptAccessor::SetFrame(
-			*instance, 0.0f, 1.0f, 1.0f, runtime.current_repeat, runtime.currently_reversed
+			*instance, secondsf::zero(), 1.0f, 1.0f, runtime.current_repeat,
+			runtime.currently_reversed
 		);
 		instance->OnComplete();
 	}
@@ -1023,7 +1025,7 @@ void CompleteSequence(Entity owner, ScriptSequence& binding) {
 	}
 }
 
-void UpdateSequence(Entity owner, ScriptSequence& binding, float delta_seconds) {
+void UpdateSequence(Entity owner, ScriptSequence& binding, secondsf dt) {
 	auto& runtime{ binding.runtime };
 	if (!runtime.running || runtime.paused || runtime.waiting_for_channel) {
 		return;
@@ -1087,9 +1089,8 @@ void UpdateSequence(Entity owner, ScriptSequence& binding, float delta_seconds) 
 		InvokeLifecycle(owner, binding, SequenceLifecycle::ScriptStart);
 	}
 
-	float delta_ms{ std::max(0.0f, delta_seconds) * 1000.0f };
 	if (action.timing) {
-		runtime.elapsed_ms += delta_ms;
+		runtime.elapsed += duration_cast<milliseconds>(dt);
 	}
 
 	float linear{ 0.0f };
@@ -1097,9 +1098,9 @@ void UpdateSequence(Entity owner, ScriptSequence& binding, float delta_seconds) 
 
 	if (action.timing) {
 		const auto& timing{ *action.timing };
-		linear = timing.duration_ms <= 0.0f
+		linear = timing.duration <= 0ms
 				   ? 1.0f
-				   : std::clamp(runtime.elapsed_ms / timing.duration_ms, 0.0f, 1.0f);
+				   : std::clamp(millisecondsf{ runtime.elapsed } / timing.duration, 0.0f, 1.0f);
 
 		float directed{ runtime.currently_reversed ? 1.0f - linear : linear };
 		// Ease::None is a step/hold Tween: immediately use the endpoint for the current
@@ -1124,11 +1125,11 @@ void UpdateSequence(Entity owner, ScriptSequence& binding, float delta_seconds) 
 		}
 
 		impl::ScriptAccessor::SetFrame(
-			*instance, delta_seconds, linear, progress, runtime.current_repeat,
-			runtime.currently_reversed, action.timing ? action.timing->ease : Ease::Linear
+			*instance, dt, linear, progress, runtime.current_repeat, runtime.currently_reversed,
+			action.timing ? action.timing->ease : Ease::Linear
 		);
 
-		ScriptStatus status{ UpdateChildScript(owner, *instance, delta_seconds) };
+		ScriptStatus status{ UpdateChildScript(owner, *instance, dt) };
 
 		bool instance_complete{ false };
 
@@ -1161,7 +1162,7 @@ void UpdateSequence(Entity owner, ScriptSequence& binding, float delta_seconds) 
 
 	if (repeat) {
 		++runtime.current_repeat;
-		runtime.elapsed_ms = 0.0f;
+		runtime.elapsed = 0ms;
 		InvokeLifecycle(owner, binding, SequenceLifecycle::Repeat);
 
 		if (action.timing->yoyo) {
@@ -1177,7 +1178,8 @@ void UpdateSequence(Entity owner, ScriptSequence& binding, float delta_seconds) 
 
 			runtime.script_completed[i] = false;
 			impl::ScriptAccessor::SetFrame(
-				*instance, 0.0f, 0.0f, 0.0f, runtime.current_repeat, runtime.currently_reversed
+				*instance, secondsf::zero(), 0.0f, 0.0f, runtime.current_repeat,
+				runtime.currently_reversed
 			);
 			instance->OnRepeat();
 		}
@@ -1342,8 +1344,7 @@ void ApplyPending(Scene& scene) {
 	}
 }
 
-void Update(Scene& scene, secondsf delta_time) {
-	float delta_seconds{ std::max(0.0f, delta_time.count()) };
+void Update(Scene& scene, secondsf dt) {
 	auto entities{ scene.EntitiesWith<impl::Scripts>().GetVector() };
 	for (Entity entity : entities) {
 		auto* scripts{ entity.TryGet<impl::Scripts>() };
@@ -1357,9 +1358,9 @@ void Update(Scene& scene, secondsf delta_time) {
 			if (!script || !entry.enabled) {
 				continue;
 			}
-			impl::ScriptAccessor::SetFrame(*script, delta_seconds, 0.0f, 0.0f, 0, false);
+			impl::ScriptAccessor::SetFrame(*script, dt, 0.0f, 0.0f, 0, false);
 			ScriptStatus status{ script->OnUpdate() };
-			UpdateSequence(entity, script->sequence, delta_seconds);
+			UpdateSequence(entity, script->sequence, dt);
 			if (status == ScriptStatus::Complete ||
 				impl::ScriptAccessor::TakeCompletionRequest(*script)) {
 				script->OnComplete();
@@ -1583,9 +1584,10 @@ bool Seek(Entity owner, SequenceId id, float progress) {
 	if (!action.timing) {
 		return false;
 	}
-	binding->runtime.elapsed_ms =
-		std::clamp(progress, 0.0f, 1.0f) * std::max(0.0f, action.timing->duration_ms);
-	UpdateSequence(owner, *binding, 0.0f);
+	binding->runtime.elapsed = duration_cast<milliseconds>(
+		std::clamp(progress, 0.0f, 1.0f) * std::max(0ms, action.timing->duration)
+	);
+	UpdateSequence(owner, *binding, secondsf::zero());
 	return true;
 }
 
@@ -1610,10 +1612,12 @@ float Progress(Entity owner, SequenceId id) {
 		return binding->runtime.completed ? 1.0f : 0.0f;
 	}
 	const auto& action{ sequence->steps[binding->runtime.step_index] };
-	if (!action.timing || action.timing->duration_ms <= 0.0f) {
+	if (!action.timing || action.timing->duration <= 0ms) {
 		return 0.0f;
 	}
-	return std::clamp(binding->runtime.elapsed_ms / action.timing->duration_ms, 0.0f, 1.0f);
+	return std::clamp(
+		millisecondsf{ binding->runtime.elapsed } / action.timing->duration, 0.0f, 1.0f
+	);
 }
 
 bool IsRunning(Entity owner, SequenceId id) {

@@ -182,7 +182,6 @@ void TimerRemoveDurationScript::OnStart() {
 }
 
 void LifetimeStartScript::OnStart() {
-	Entity target{ Target() };
 	auto* lifetime{ target ? target.TryGet<Lifetime>() : nullptr };
 	if (!lifetime) {
 		PTGN_WARN("Lifetime action requires a Lifetime component");
@@ -192,7 +191,6 @@ void LifetimeStartScript::OnStart() {
 }
 
 void LifetimeRestartScript::OnStart() {
-	Entity target{ Target() };
 	auto* lifetime{ target ? target.TryGet<Lifetime>() : nullptr };
 	if (!lifetime) {
 		PTGN_WARN("Lifetime action requires a Lifetime component");
@@ -202,7 +200,6 @@ void LifetimeRestartScript::OnStart() {
 }
 
 void LifetimeStopScript::OnStart() {
-	Entity target{ Target() };
 	auto* lifetime{ target ? target.TryGet<Lifetime>() : nullptr };
 	if (!lifetime) {
 		PTGN_WARN("Lifetime action requires a Lifetime component");
@@ -212,7 +209,6 @@ void LifetimeStopScript::OnStart() {
 }
 
 void LifetimeResetScript::OnStart() {
-	Entity target{ Target() };
 	auto* lifetime{ target ? target.TryGet<Lifetime>() : nullptr };
 	if (!lifetime) {
 		PTGN_WARN("Lifetime action requires a Lifetime component");
@@ -222,7 +218,6 @@ void LifetimeResetScript::OnStart() {
 }
 
 void LifetimePauseScript::OnStart() {
-	Entity target{ Target() };
 	auto* lifetime{ target ? target.TryGet<Lifetime>() : nullptr };
 	if (!lifetime) {
 		PTGN_WARN("Lifetime action requires a Lifetime component");
@@ -232,7 +227,6 @@ void LifetimePauseScript::OnStart() {
 }
 
 void LifetimeResumeScript::OnStart() {
-	Entity target{ Target() };
 	auto* lifetime{ target ? target.TryGet<Lifetime>() : nullptr };
 	if (!lifetime) {
 		PTGN_WARN("Lifetime action requires a Lifetime component");
@@ -242,7 +236,6 @@ void LifetimeResumeScript::OnStart() {
 }
 
 void LifetimeTogglePausedScript::OnStart() {
-	Entity target{ Target() };
 	auto* lifetime{ target ? target.TryGet<Lifetime>() : nullptr };
 	if (!lifetime) {
 		PTGN_WARN("Lifetime action requires a Lifetime component");
@@ -256,7 +249,6 @@ void LifetimeTogglePausedScript::OnStart() {
 }
 
 void LifetimeAdvanceScript::OnStart() {
-	Entity target{ Target() };
 	auto* lifetime{ target ? target.TryGet<Lifetime>() : nullptr };
 	if (!lifetime) {
 		PTGN_WARN("Lifetime action requires a Lifetime component");
@@ -266,7 +258,6 @@ void LifetimeAdvanceScript::OnStart() {
 }
 
 void LifetimeRewindScript::OnStart() {
-	Entity target{ Target() };
 	auto* lifetime{ target ? target.TryGet<Lifetime>() : nullptr };
 	if (!lifetime) {
 		PTGN_WARN("Lifetime action requires a Lifetime component");
@@ -276,7 +267,6 @@ void LifetimeRewindScript::OnStart() {
 }
 
 void LifetimeSetDurationScript::OnStart() {
-	Entity target{ Target() };
 	auto* lifetime{ target ? target.TryGet<Lifetime>() : nullptr };
 	if (!lifetime) {
 		PTGN_WARN("Lifetime action requires a Lifetime component");
@@ -286,7 +276,6 @@ void LifetimeSetDurationScript::OnStart() {
 }
 
 void LifetimeAddDurationScript::OnStart() {
-	Entity target{ Target() };
 	auto* lifetime{ target ? target.TryGet<Lifetime>() : nullptr };
 	if (!lifetime) {
 		PTGN_WARN("Lifetime action requires a Lifetime component");
@@ -296,7 +285,6 @@ void LifetimeAddDurationScript::OnStart() {
 }
 
 void LifetimeRemoveDurationScript::OnStart() {
-	Entity target{ Target() };
 	auto* lifetime{ target ? target.TryGet<Lifetime>() : nullptr };
 	if (!lifetime) {
 		PTGN_WARN("Lifetime action requires a Lifetime component");

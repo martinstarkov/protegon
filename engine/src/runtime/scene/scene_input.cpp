@@ -72,7 +72,7 @@ bool SceneInput::MouseHeld(Mouse button, milliseconds time) const {
 }
 
 milliseconds SceneInput::GetMouseHeldTime(Mouse button) const {
-	return IsEnabled() ? window_.GetMouseHeldTime(button) : milliseconds{};
+	return IsEnabled() ? window_.GetMouseHeldTime(button) : 0ms;
 }
 
 bool SceneInput::KeyPressed(Key key) const {
@@ -92,7 +92,7 @@ bool SceneInput::KeyHeld(Key key, milliseconds time) const {
 }
 
 milliseconds SceneInput::GetKeyHeldTime(Key key) const {
-	return IsEnabled() ? window_.GetKeyHeldTime(key) : milliseconds{};
+	return IsEnabled() ? window_.GetKeyHeldTime(key) : 0ms;
 }
 
 V2_float SceneInput::GetMousePositionRelativeTo(

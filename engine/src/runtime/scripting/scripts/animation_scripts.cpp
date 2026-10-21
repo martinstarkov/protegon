@@ -145,10 +145,9 @@ void StartBackgroundShakeRecovery(Entity entity, const ShakeConfig& config) {
 	);
 }
 
-void RecoverShakeTrauma(
-	impl::ShakeAnimationState& state, const ShakeConfig& config, float delta_seconds
-) {
-	float recovery{ std::max(0.0f, config.recovery_speed) * std::max(0.0f, delta_seconds) };
+void RecoverShakeTrauma(impl::ShakeAnimationState& state, const ShakeConfig& config, secondsf dt) {
+	float recovery{ std::max(0.0f, config.recovery_speed) *
+					std::max(secondsf::zero(), dt).count() };
 	if (state.trauma > state.baseline_trauma) {
 		state.trauma = std::max(state.baseline_trauma, state.trauma - recovery);
 	} else if (state.trauma < state.baseline_trauma) {
@@ -157,11 +156,11 @@ void RecoverShakeTrauma(
 }
 
 void ApplyShake(
-	secondsf time, impl::Offsets& offsets, float trauma, const ShakeConfig& config,
+	millisecondsf time, impl::Offsets& offsets, float trauma, const ShakeConfig& config,
 	std::int32_t seed
 ) {
 	float shake_value{ std::pow(std::clamp(trauma, 0.0f, 1.0f), config.trauma_exponent) };
-	float phase{ time.count() * 1000.0f * config.frequency };
+	float phase{ time.count() * config.frequency };
 	V2_float position_noise{ PerlinNoise::GetValue(phase, 0.0f, seed + 0) * 2.0f - 1.0f,
 							 PerlinNoise::GetValue(phase, 0.0f, seed + 1) * 2.0f - 1.0f };
 	float rotation_noise{ PerlinNoise::GetValue(phase, 0.0f, seed + 3) * 2.0f - 1.0f };
@@ -440,25 +439,15 @@ void BounceScript::OnCancel(SequenceCancelReason) {
 }
 
 void StartBounceScript::OnStart() {
-	if (period <= millisecondsf{ 0.0f }) {
+	if (period <= 0ms) {
 		PTGN_WARN("Start Bounce requires a positive period");
-
-		return;
-	}
-
-	milliseconds bounce_period{ period };
-	if (bounce_period <= 0) {
-		PTGN_WARN("Start Bounce period must be at least one millisecond");
-
 		return;
 	}
 
 	if (symmetrical) {
-		SymmetricalBounce(
-			Target(), amplitude, bounce_period, std::nullopt, ease, static_offset, force
-		);
+		SymmetricalBounce(Target(), amplitude, period, std::nullopt, ease, static_offset, force);
 	} else {
-		Bounce(Target(), amplitude, bounce_period, std::nullopt, ease, static_offset, force);
+		Bounce(Target(), amplitude, period, std::nullopt, ease, static_offset, force);
 	}
 }
 
@@ -484,7 +473,9 @@ ScriptStatus ShakeScript::OnUpdate() {
 
 	state.trauma = Clamp01(Lerp(start_trauma_, target_trauma_, Progress()));
 	auto& offsets{ Target().TryAdd<impl::Offsets>() };
-	ApplyShake(GetScene().ctx().GameTime(), offsets, state.trauma, config, state.seed);
+	ApplyShake(
+		GetScene().ctx().GameTime<millisecondsf>(), offsets, state.trauma, config, state.seed
+	);
 	return ScriptStatus::Running;
 }
 
@@ -537,15 +528,23 @@ void SetShakeTraumaScript::OnStart() {
 	state.baseline_trauma = Clamp01(baseline_trauma);
 	state.seed			  = RandomNumber<std::int32_t>();
 	auto& offsets{ Target().TryAdd<impl::Offsets>() };
-	ApplyShake(GetScene().ctx().GameTime(), offsets, state.trauma, config, state.seed);
+	ApplyShake(
+		GetScene().ctx().GameTime<millisecondsf>(), offsets, state.trauma, config, state.seed
+	);
 	MoveOn();
 }
 
 ScriptStatus MaintainShakeScript::OnUpdate() {
 	auto& state{ Target().TryAdd<impl::ShakeAnimationState>() };
-	RecoverShakeTrauma(state, config, DeltaSeconds());
+
+	RecoverShakeTrauma(state, config, dt());
+
 	auto& offsets{ Target().TryAdd<impl::Offsets>() };
-	ApplyShake(GetScene().ctx().GameTime(), offsets, state.trauma, config, state.seed);
+
+	ApplyShake(
+		GetScene().ctx().GameTime<millisecondsf>(), offsets, state.trauma, config, state.seed
+	);
+
 	return ScriptStatus::Running;
 }
 
@@ -555,13 +554,17 @@ ScriptStatus RecoverShakeScript::OnUpdate() {
 		return ScriptStatus::Complete;
 	}
 
-	RecoverShakeTrauma(*state, config, DeltaSeconds());
+	RecoverShakeTrauma(*state, config, dt());
+
 	if (NearlyEqual(state->trauma, state->baseline_trauma)) {
 		return ScriptStatus::Complete;
 	}
 
 	auto& offsets{ Target().TryAdd<impl::Offsets>() };
-	ApplyShake(GetScene().ctx().GameTime(), offsets, state->trauma, config, state->seed);
+
+	ApplyShake(
+		GetScene().ctx().GameTime<millisecondsf>(), offsets, state->trauma, config, state->seed
+	);
 
 	return ScriptStatus::Running;
 }
@@ -620,9 +623,7 @@ ScriptStatus FollowEntityScript::OnUpdate() {
 	if (config.move_mode == MoveMode::Velocity) {
 		MoveUsingVelocity(config, Target(), direction);
 	} else {
-		V2_float next{
-			GetFollowPosition(secondsf{ DeltaSeconds() }, config, current, target_position)
-		};
+		V2_float next{ GetFollowPosition(dt(), config, current, target_position) };
 
 		SetPosition(Target(), next);
 		direction = target_position - next;
@@ -691,10 +692,7 @@ ScriptStatus FollowPathScript::OnUpdate() {
 	if (config.move_mode == MoveMode::Velocity) {
 		MoveUsingVelocity(config, Target(), direction);
 	} else {
-		SetPosition(
-			Target(),
-			GetFollowPosition(secondsf{ DeltaSeconds() }, config, current, target_position)
-		);
+		SetPosition(Target(), GetFollowPosition(dt(), config, current, target_position));
 	}
 
 	return ScriptStatus::Running;
@@ -801,20 +799,25 @@ void AnimationSetFrameScript::OnStart() {
 
 void AnimationNextFrameScript::OnStart() {
 	Animation animation{ ResolveAnimation(Target(), animation_key) };
+
 	if (!animation) {
 		PTGN_WARN("Animation action requires an Animation target");
 		return;
 	}
+
 	animation.IncrementFrame();
 }
 
 void AnimationPreviousFrameScript::OnStart() {
 	Animation animation{ ResolveAnimation(Target(), animation_key) };
+
 	if (!animation) {
 		PTGN_WARN("Animation action requires an Animation target");
 		return;
 	}
+
 	std::size_t count{ animation.GetFrameCount() };
+
 	if (count > 0) {
 		animation.SetCurrentFrame((animation.GetCurrentFrame() + count - 1) % count);
 	}
@@ -822,19 +825,25 @@ void AnimationPreviousFrameScript::OnStart() {
 
 ScriptStatus FollowTargetScript::OnUpdate() {
 	const auto& scene{ GetScene() };
+
 	auto target_entity{ scene.GetEntity(target) };
+
 	if (!target_entity || !target_entity.Has<Transform>() || !Target().Has<Transform>()) {
 		return ScriptStatus::Complete;
 	}
 
 	auto& position{ Target().Get<Transform>().position };
+
 	V2_float offset{ target_entity.Get<Transform>().position - position };
+
 	float distance{ std::sqrt(offset.x * offset.x + offset.y * offset.y) };
+
 	if (distance <= std::max(0.0f, stopping_distance)) {
 		return ScriptStatus::Complete;
 	}
 
-	float step{ std::max(0.0f, speed) * std::max(0.0f, DeltaSeconds()) };
+	float step{ std::max(0.0f, speed) * std::max(secondsf::zero(), dt()).count() };
+
 	if (step >= distance) {
 		position += offset;
 

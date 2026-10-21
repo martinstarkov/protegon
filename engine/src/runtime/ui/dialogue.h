@@ -74,7 +74,7 @@ struct DialogueSystem {
 	static void OnEvent(Scene& scene, Event event);
 
 	/// @brief Advances active typewriter reveals without using the scripting runtime.
-	static void Update(Scene& scene, secondsf delta_time);
+	static void Update(Scene& scene, milliseconds dt);
 
 private:
 	static void OnKeyPressed(Scene& scene, Key key);
@@ -249,7 +249,7 @@ struct DialogueData {
 	/// @brief Runtime only state owned by DialogueSystem.
 	std::vector<Key> held_continue_keys{};
 	bool scrolling{ false };
-	float scroll_elapsed_ms{ 0.0f };
+	milliseconds scroll_elapsed{ 0 };
 	std::size_t revealed_character_count{ 0 };
 	bool page_complete{ false };
 

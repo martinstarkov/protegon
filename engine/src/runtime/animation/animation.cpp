@@ -327,7 +327,7 @@ Animation& Animation::SeekFrame(std::size_t new_frame) {
 	data.SetCurrentFrame(frame);
 
 	if (active) {
-		data.frame_timer.RemoveElapsed(data.frame_timer.ElapsedDuration<millisecondsf>());
+		data.frame_timer.RemoveElapsed(data.frame_timer.ElapsedDuration());
 	} else {
 		data.frame_timer.Reset();
 	}

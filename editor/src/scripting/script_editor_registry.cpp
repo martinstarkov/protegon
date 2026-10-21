@@ -30,6 +30,7 @@
 #include "core/event/mouse_event.h"
 #include "core/input/key.h"
 #include "core/input/mouse.h"
+#include "core/util/time.h"
 #include "editor/color_picker.h"
 #include "editor/editor.h"
 #include "editor/editor_context.h"
@@ -365,7 +366,9 @@ bool DrawHeldDurationToggle(bool& require_duration) {
 bool DrawKeyExpression(json& value, bool with_duration) {
 	std::string expression{ KeyExpressionValue(value) };
 	bool require_duration{ JsonValueOr<bool>(value, "require_held_duration", true) };
-	float held_duration_ms{ std::max(0.0f, JsonValueOr<float>(value, "held_duration_ms", 250.0f)) };
+
+	auto held_duration{ std::max(0ms, JsonValueOr<milliseconds>(value, "held_duration", 250ms)) };
+
 	float spacing{ ImGui::GetStyle().ItemSpacing.x };
 	float duration_width{ 112.0f };
 	float checkbox_width{ ImGui::GetFrameHeight() };
@@ -387,11 +390,11 @@ bool DrawKeyExpression(json& value, bool with_duration) {
 		ImGui::SameLine(0.0f, spacing);
 		ImGui::BeginDisabled(!require_duration);
 		changed |= inspector::DrawDurationInput(
-			"##HeldDuration", held_duration_ms, duration_width,
+			"##HeldDuration", held_duration, duration_width,
 			"Minimum time the key expression must remain held."
 		);
 		ImGui::EndDisabled();
-		held_duration_ms = std::max(0.0f, held_duration_ms);
+		held_duration = std::max(0ms, held_duration);
 	}
 
 	if (changed) {
@@ -399,7 +402,7 @@ bool DrawKeyExpression(json& value, bool with_duration) {
 		value.erase("key");
 		if (with_duration) {
 			value["require_held_duration"] = require_duration;
-			value["held_duration_ms"]	   = held_duration_ms;
+			value["held_duration"]		   = held_duration.count();
 		}
 	}
 
@@ -432,7 +435,9 @@ bool DrawMouseTrigger(json& value, bool with_duration) {
 	}
 
 	bool require_duration{ JsonValueOr<bool>(value, "require_held_duration", true) };
-	float held_duration_ms{ std::max(0.0f, JsonValueOr<float>(value, "held_duration_ms", 250.0f)) };
+
+	auto held_duration{ std::max(0ms, JsonValueOr<milliseconds>(value, "held_duration", 250ms)) };
+
 	float spacing{ ImGui::GetStyle().ItemSpacing.x };
 	float duration_width{ 112.0f };
 	float checkbox_width{ ImGui::GetFrameHeight() };
@@ -465,18 +470,18 @@ bool DrawMouseTrigger(json& value, bool with_duration) {
 		ImGui::SameLine(0.0f, spacing);
 		ImGui::BeginDisabled(!require_duration);
 		changed |= inspector::DrawDurationInput(
-			"##HeldDuration", held_duration_ms, duration_width,
+			"##HeldDuration", held_duration, duration_width,
 			"Minimum time the mouse button must remain held."
 		);
 		ImGui::EndDisabled();
-		held_duration_ms = std::max(0.0f, held_duration_ms);
+		held_duration = std::max(0ms, held_duration);
 	}
 
 	if (changed) {
 		value["button"] = mouse;
 		if (with_duration) {
 			value["require_held_duration"] = require_duration;
-			value["held_duration_ms"]	   = held_duration_ms;
+			value["held_duration"]		   = held_duration.count();
 		}
 	}
 
@@ -2336,7 +2341,8 @@ template <typename T>
 constexpr bool kCompactScriptValue =
 	std::same_as<T, float> || std::same_as<T, int> || std::same_as<T, std::size_t> ||
 	std::same_as<T, std::int64_t> || std::same_as<T, V2_float> || std::same_as<T, std::string> ||
-	std::same_as<T, Color> || std::same_as<T, bool> || std::same_as<T, millisecondsf>;
+	std::same_as<T, Color> || std::same_as<T, bool> || std::same_as<T, millisecondsf> ||
+	std::same_as<T, milliseconds>;
 
 template <typename T>
 bool DrawSingleScriptValue(EditorContext& context, T& script) {
@@ -2363,7 +2369,9 @@ bool DrawSingleScriptValue(EditorContext& context, T& script) {
 			return DrawColorEdit(context, "##Color", value);
 		} else if constexpr (std::same_as<Value, bool>) {
 			return ImGui::Checkbox("##Value", &value);
-		} else if constexpr (std::same_as<Value, millisecondsf>) {
+		} else if constexpr (
+			std::same_as<Value, millisecondsf> || std::same_as<Value, milliseconds>
+		) {
 			return inspector::DrawDurationTextInput(
 				"##Duration", value, -FLT_MIN, false, "Duration of this operation."
 			);

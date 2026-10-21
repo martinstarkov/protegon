@@ -140,7 +140,7 @@ struct BounceScript : public Script {
 
 struct StartBounceScript : public Script {
 	V2_float amplitude{ 0.0f, -16.0f };
-	millisecondsf period{ 500.0f };
+	milliseconds period{ 500 };
 	Ease ease{ Ease::Linear };
 	V2_float static_offset{};
 	bool symmetrical{ false };

@@ -462,7 +462,7 @@ private:
 
 	void PreUpdate();
 	void OnEvent();
-	void Update(Application& app, secondsf dt);
+	void Update(Application& app, milliseconds dt);
 	void Draw(DrawContext& ctx) const;
 
 	struct ReconstructingScene {
@@ -478,7 +478,7 @@ private:
 	);
 	void ApplyLoadedCommand(Application& app, Command command, impl::AssetLoadTicket ticket);
 	void UpdatePendingLoads(Application& app);
-	void UpdateTransitions(secondsf dt);
+	void UpdateTransitions(milliseconds dt);
 	void UpdateReconstructedSceneTagHashes();
 
 	[[nodiscard]] std::size_t GenerateTempTagHash() const;

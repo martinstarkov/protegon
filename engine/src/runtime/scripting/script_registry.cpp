@@ -6,6 +6,7 @@
 
 #include <algorithm>
 #include <cctype>
+#include <chrono>
 #include <concepts>
 #include <magic_enum/magic_enum.hpp>
 #include <optional>
@@ -19,6 +20,7 @@
 #include "core/event/mouse_event.h"
 #include "core/input/key.h"
 #include "core/input/mouse.h"
+#include "core/util/time.h"
 #include "platform/window.h"
 #include "runtime/animation/animation_event.h"
 #include "runtime/interaction/draggable.h"
@@ -32,9 +34,9 @@
 #include "runtime/scene/scene.h"
 #include "runtime/scene/scene_context.h"
 #include "runtime/scene/scene_event.h"
-#include "runtime/scripting/scripts.h"
 #include "runtime/scripting/script_event.h"
 #include "runtime/scripting/script_registration_engine.h"
+#include "runtime/scripting/scripts.h"
 #include "runtime/scripting/variable_event.h"
 #include "runtime/timer/timer.h"
 #include "runtime/timer/timer_event.h"
@@ -221,9 +223,7 @@ template <typename TEvent>
 
 	bool require_held_duration{ JsonValueOr<bool>(value, "require_held_duration", true) };
 
-	float held_ms{ std::max(0.0f, JsonValueOr<float>(value, "held_duration_ms", 250.0f)) };
-
-	milliseconds held_duration{ static_cast<milliseconds::rep>(held_ms) };
+	auto held_duration{ std::max(0ms, JsonValueOr<milliseconds>(value, "held_duration", 250ms)) };
 
 	for (const auto& keys : alternatives) {
 		if (std::ranges::find(keys, event.key) == keys.end()) {
@@ -277,11 +277,11 @@ template <typename TEvent>
 			return owner.GetScene().ctx().input.MouseHeld(button);
 		}
 
-		float held_ms{ std::max(0.0f, JsonValueOr<float>(value, "held_duration_ms", 250.0f)) };
+		auto held_duration{
+			std::max(0ms, JsonValueOr<milliseconds>(value, "held_duration", 250ms))
+		};
 
-		return owner.GetScene().ctx().input.MouseHeld(
-			button, milliseconds{ static_cast<milliseconds::rep>(held_ms) }
-		);
+		return owner.GetScene().ctx().input.MouseHeld(button, held_duration);
 	}
 
 	return true;
@@ -391,7 +391,7 @@ PTGN_REGISTER_SCRIPT(
 					.completion		 = ScriptCompletion::Duration,
 					.supports_timing = true,
 					.requires_timing = true,
-					.default_timing	 = ScriptTiming{ .duration_ms = 250.0f },
+					.default_timing	 = ScriptTiming{ .duration = 250ms },
 				}
 );
 PTGN_REGISTER_SCRIPT(
@@ -400,8 +400,8 @@ PTGN_REGISTER_SCRIPT(
 					  .supports_timing = true,
 					  .default_timing =
 						  ScriptTiming{
-							  .duration_ms = 300.0f,
-							  .ease		   = Ease::OutCubic,
+							  .duration = 300ms,
+							  .ease		= Ease::OutCubic,
 						  },
 				  }
 );
@@ -409,7 +409,7 @@ PTGN_REGISTER_SCRIPT(
 	RotateToScript, {
 						.completion		 = ScriptCompletion::Instant,
 						.supports_timing = true,
-						.default_timing	 = ScriptTiming{ .duration_ms = 300.0f },
+						.default_timing	 = ScriptTiming{ .duration = 300ms },
 					}
 );
 PTGN_REGISTER_SCRIPT(
@@ -418,8 +418,8 @@ PTGN_REGISTER_SCRIPT(
 					   .supports_timing = true,
 					   .default_timing =
 						   ScriptTiming{
-							   .duration_ms = 180.0f,
-							   .ease		= Ease::OutBack,
+							   .duration = 180ms,
+							   .ease	 = Ease::OutBack,
 						   },
 				   }
 );
@@ -427,7 +427,7 @@ PTGN_REGISTER_SCRIPT(
 	TintToScript, {
 					  .completion	   = ScriptCompletion::Instant,
 					  .supports_timing = true,
-					  .default_timing  = ScriptTiming{ .duration_ms = 300.0f },
+					  .default_timing  = ScriptTiming{ .duration = 300ms },
 				  }
 );
 PTGN_REGISTER_SCRIPT(
@@ -435,7 +435,7 @@ PTGN_REGISTER_SCRIPT(
 					  .completion	   = ScriptCompletion::Duration,
 					  .supports_timing = true,
 					  .requires_timing = true,
-					  .default_timing  = ScriptTiming{ .duration_ms = 300.0f },
+					  .default_timing  = ScriptTiming{ .duration = 300ms },
 				  }
 );
 PTGN_REGISTER_SCRIPT(
@@ -443,7 +443,7 @@ PTGN_REGISTER_SCRIPT(
 					   .completion		= ScriptCompletion::Duration,
 					   .supports_timing = true,
 					   .requires_timing = true,
-					   .default_timing	= ScriptTiming{ .duration_ms = 300.0f },
+					   .default_timing	= ScriptTiming{ .duration = 300ms },
 				   }
 );
 PTGN_REGISTER_SCRIPT(
@@ -451,7 +451,7 @@ PTGN_REGISTER_SCRIPT(
 					  .completion	   = ScriptCompletion::Duration,
 					  .supports_timing = true,
 					  .requires_timing = true,
-					  .default_timing  = ScriptTiming{ .duration_ms = 500.0f },
+					  .default_timing  = ScriptTiming{ .duration = 500ms },
 				  }
 );
 PTGN_REGISTER_SCRIPT(StartBounceScript, { .completion = ScriptCompletion::Instant });
@@ -461,7 +461,7 @@ PTGN_REGISTER_SCRIPT(
 					 .completion	  = ScriptCompletion::Duration,
 					 .supports_timing = true,
 					 .requires_timing = true,
-					 .default_timing  = ScriptTiming{ .duration_ms = 300.0f },
+					 .default_timing  = ScriptTiming{ .duration = 300ms },
 				 }
 );
 PTGN_REGISTER_SCRIPT(
@@ -829,7 +829,7 @@ PTGN_REGISTER_EVENT(
 							json{
 								{ "keys", "W" },
 								{ "require_held_duration", true },
-								{ "held_duration_ms", 250.0f },
+								{ "held_duration", 250.0f },
 							},
 						.matches = &MatchKeyEvent<event::KeyHeld>,
 					}
@@ -852,7 +852,7 @@ PTGN_REGISTER_EVENT(
 							  json{
 								  { "button", Mouse::Left },
 								  { "require_held_duration", true },
-								  { "held_duration_ms", 250.0f },
+								  { "held_duration", 250.0f },
 							  },
 						  .matches = &MatchMouseEvent<event::MouseHeld>,
 					  }
@@ -886,7 +886,7 @@ PTGN_REGISTER_EVENT(
 								  json{
 									  { "button", Mouse::Left },
 									  { "require_held_duration", true },
-									  { "held_duration_ms", 250.0f },
+									  { "held_duration", 250.0f },
 								  },
 							  .matches	 = &MatchMouseEvent<event::MouseHeldOver>,
 							  .available = &HasInteractive,
@@ -1049,14 +1049,14 @@ PTGN_REGISTER_EVENT(
 					return event.completed;
 				}
 
-				millisecondsf duration;
+				milliseconds duration;
 				try {
 					duration_it->get_to(duration);
 				} catch (...) {
 					return false;
 				}
 
-				if (duration <= millisecondsf{ 0.0f }) {
+				if (duration <= 0ms) {
 					return false;
 				}
 

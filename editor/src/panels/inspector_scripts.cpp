@@ -23,6 +23,7 @@
 #include <vector>
 
 #include "core/util/hash.h"
+#include "core/util/time.h"
 #include "editor/editor.h"
 #include "editor/editor_context.h"
 #include "editor/editor_icons.h"
@@ -490,7 +491,7 @@ std::string ActionSummary(const ScriptStep& action) {
 	const auto* editor{ ScriptEditorRegistry::Find(action.type_hash) };
 	std::string result{ editor ? editor->options.label : std::string{ "Missing Script" } };
 	if (action.timing) {
-		result += " (" + std::to_string(static_cast<int>(action.timing->duration_ms)) + "ms)";
+		result += " (" + std::to_string(static_cast<int>(action.timing->duration.count())) + "ms)";
 	}
 	return result;
 }
@@ -1117,9 +1118,13 @@ void DrawActiveActionProgress(
 		return;
 	}
 
-	float duration_ms{ action.timing ? action.timing->duration_ms : 0.0f };
-	float progress{ duration_ms > 0.0f ? std::clamp(runtime.elapsed_ms / duration_ms, 0.0f, 1.0f)
-									   : 0.0f };
+	milliseconds duration{ action.timing ? action.timing->duration : 0ms };
+	float progress{ duration > 0ms ? std::clamp(
+										 static_cast<float>(runtime.elapsed.count()) /
+											 static_cast<float>(duration.count()),
+										 0.0f, 1.0f
+									 )
+								   : 0.0f };
 
 	ImGui::ProgressBar(progress, ImVec2{ -FLT_MIN, 2.0f }, "");
 }
@@ -1278,7 +1283,7 @@ bool DrawActions(
 
 					ImGui::TableSetColumnIndex(column++);
 					changed |= DrawDurationInput(
-						"##Duration", action.timing->duration_ms, -FLT_MIN,
+						"##Duration", action.timing->duration, -FLT_MIN,
 						"Duration of each Tween cycle."
 					);
 
@@ -1308,7 +1313,7 @@ bool DrawActions(
 							break;
 						case ActionForm::Delay:
 							changed |= DrawDurationInput(
-								"##Duration", action.timing->duration_ms, -FLT_MIN,
+								"##Duration", action.timing->duration, -FLT_MIN,
 								"Delay before continuing."
 							);
 							break;
@@ -1543,7 +1548,7 @@ template <typename... TEvents>
 
 bool DrawTimerElapsedTrigger(ScriptEditorContext& context, json& value) {
 	TimerKey timer;
-	std::optional<millisecondsf> duration_override;
+	std::optional<milliseconds> duration_override;
 
 	if (value.is_object()) {
 		auto timer_it{ value.find("timer") };
@@ -1558,10 +1563,10 @@ bool DrawTimerElapsedTrigger(ScriptEditorContext& context, json& value) {
 		auto duration_it{ value.find("duration") };
 		if (duration_it != value.end() && !duration_it->is_null()) {
 			try {
-				millisecondsf duration;
+				milliseconds duration;
 				duration_it->get_to(duration);
 
-				if (duration > millisecondsf{ 0.0f }) {
+				if (duration > 0ms) {
 					duration_override = duration;
 				}
 			} catch (...) {
@@ -1632,7 +1637,7 @@ bool DrawTimerElapsedTrigger(ScriptEditorContext& context, json& value) {
 		"Open the combo to choose an existing timer or enter a custom name."
 	);
 
-	std::optional<millisecondsf> timer_duration;
+	std::optional<milliseconds> timer_duration;
 
 	if (owner) {
 		if (const auto* timers{ owner.TryGet<::ptgn::impl::Timers>() }) {
@@ -1646,12 +1651,11 @@ bool DrawTimerElapsedTrigger(ScriptEditorContext& context, json& value) {
 		}
 	}
 
-	millisecondsf displayed_duration{
-		duration_override.value_or(timer_duration.value_or(millisecondsf{ 1000.0f }))
-	};
-	displayed_duration = millisecondsf{ std::max(0.001f, displayed_duration.count()) };
+	auto displayed_duration{ duration_override.value_or(timer_duration.value_or(1000ms)) };
 
-	if (timer_duration && *timer_duration > millisecondsf{ 0.0f }) {
+	displayed_duration = std::max(0ms, displayed_duration);
+
+	if (timer_duration && *timer_duration > 0ms) {
 		displayed_duration = std::min(displayed_duration, *timer_duration);
 	}
 
@@ -1676,9 +1680,9 @@ bool DrawTimerElapsedTrigger(ScriptEditorContext& context, json& value) {
 			"##TimerElapsedDuration", displayed_duration, duration_width, false,
 			"Elapsed duration required before this trigger matches."
 		)) {
-		displayed_duration = millisecondsf{ std::max(0.001f, displayed_duration.count()) };
+				displayed_duration = std::max(0ms, displayed_duration);
 
-		if (timer_duration && *timer_duration > millisecondsf{ 0.0f }) {
+		if (timer_duration && *timer_duration > 0ms) {
 			displayed_duration = std::min(displayed_duration, *timer_duration);
 		}
 

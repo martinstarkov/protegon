@@ -40,7 +40,8 @@ public:
 
 	[[nodiscard]] bool IsStarted() const;
 
-	virtual void OnDelayStart([[maybe_unused]] Scene& target_scene
+	virtual void OnDelayStart(
+		[[maybe_unused]] Scene& target_scene
 	) { /* Optional user implementation */ }
 
 	virtual void OnStart([[maybe_unused]] Scene& target_scene) { /* Optional user implementation */
@@ -57,8 +58,8 @@ public:
 private:
 	friend class impl::SceneManager;
 
-	void UpdateTime(secondsf dt);
-	void UpdateDelayTime(secondsf dt);
+	void UpdateTime(milliseconds dt);
+	void UpdateDelayTime(milliseconds dt);
 	[[nodiscard]] bool IsFinished() const;
 	[[nodiscard]] bool IsInDelay() const;
 

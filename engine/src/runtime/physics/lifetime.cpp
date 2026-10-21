@@ -35,13 +35,13 @@ void Lifetime::Resume() {
 	timer_.Resume();
 }
 
-void Lifetime::Advance(Entity entity, millisecondsf amount) {
-	if (amount <= millisecondsf{ 0.0f }) {
+void Lifetime::Advance(Entity entity, milliseconds amount) {
+	if (amount <= 0ms) {
 		return;
 	}
 
 	if (!timer_.IsRunning() && !timer_.IsPaused()) {
-		millisecondsf elapsed{ timer_.ElapsedDuration<millisecondsf>() };
+		milliseconds elapsed{ timer_.ElapsedDuration<milliseconds>() };
 		timer_.Start();
 		timer_.AddElapsed(elapsed);
 	}
@@ -51,43 +51,42 @@ void Lifetime::Advance(Entity entity, millisecondsf amount) {
 	ExpireIfComplete(entity);
 }
 
-void Lifetime::Rewind(millisecondsf amount) {
-	if (amount <= millisecondsf{ 0.0f }) {
+void Lifetime::Rewind(milliseconds amount) {
+	if (amount <= 0ms) {
 		return;
 	}
 
 	timer_.RemoveElapsed(amount);
-	if (Elapsed() <= millisecondsf{ 0.0f }) {
+	if (Elapsed() <= 0ms) {
 		timer_.Reset();
 	} else if (timer_.IsRunning()) {
 		timer_.Pause();
 	}
 }
 
-void Lifetime::SetDuration(Entity entity, millisecondsf value) {
-	duration = duration_cast<milliseconds>(millisecondsf{ std::max(0.0f, value.count()) });
+void Lifetime::SetDuration(Entity entity, milliseconds value) {
+	duration = std::max(0ms, value);
 	ExpireIfComplete(entity);
 }
 
-void Lifetime::AddDuration(Entity entity, millisecondsf amount) {
-	if (amount > millisecondsf{ 0.0f }) {
-		SetDuration(entity, duration_cast<millisecondsf>(duration) + amount);
+void Lifetime::AddDuration(Entity entity, milliseconds amount) {
+	if (amount > 0ms) {
+		SetDuration(entity, duration + amount);
 	}
 }
 
-void Lifetime::RemoveDuration(Entity entity, millisecondsf amount) {
-	if (amount > millisecondsf{ 0.0f }) {
-		SetDuration(entity, duration_cast<millisecondsf>(duration) - amount);
+void Lifetime::RemoveDuration(Entity entity, milliseconds amount) {
+	if (amount > 0ms) {
+		SetDuration(entity, duration - amount);
 	}
 }
 
-millisecondsf Lifetime::Elapsed() const {
-	return timer_.ElapsedDuration<millisecondsf>();
+milliseconds Lifetime::Elapsed() const {
+	return timer_.ElapsedDuration<milliseconds>();
 }
 
-millisecondsf Lifetime::Remaining() const {
-	millisecondsf lifetime{ duration_cast<millisecondsf>(duration) };
-	return millisecondsf{ std::max(0.0f, lifetime.count() - Elapsed().count()) };
+milliseconds Lifetime::Remaining() const {
+	return std::max(0ms, duration - Elapsed());
 }
 
 float Lifetime::Progress() const {

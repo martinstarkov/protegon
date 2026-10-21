@@ -15,6 +15,8 @@
 #include <utility>
 #include <vector>
 
+#include "core/util/time.h"
+
 namespace ptgn::impl {
 
 namespace {
@@ -39,15 +41,11 @@ struct ConsoleLine {
 [[nodiscard]] std::string FormatTimestamp(Clock::time_point timestamp) {
 	auto time{ Clock::to_time_t(timestamp) };
 	auto local_time{ LocalTime(time) };
-	auto milliseconds{
-		std::chrono::duration_cast<std::chrono::milliseconds>(timestamp.time_since_epoch())
-			.count() %
-		1000
-	};
+	milliseconds duration{ timestamp.time_since_epoch().count() % 1000 };
 
 	std::ostringstream output;
 	output << std::put_time(&local_time, "%Y-%m-%d %H:%M:%S") << '.' << std::setfill('0')
-		   << std::setw(3) << milliseconds;
+		   << std::setw(3) << duration;
 	return output.str();
 }
 

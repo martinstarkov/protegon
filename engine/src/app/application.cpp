@@ -68,7 +68,7 @@ impl::AssetLoadTicket LoadStartupDependencies(
 	while (!ticket.IsComplete()) {
 		assets.Update();
 #ifndef __EMSCRIPTEN__
-		std::this_thread::sleep_for(std::chrono::milliseconds{ 1 });
+		std::this_thread::sleep_for(1ms);
 #endif
 	}
 
@@ -97,7 +97,7 @@ void LoadProjectPreloads(Application& app) {
 	while (!ticket.IsComplete()) {
 		assets.Update();
 #ifndef __EMSCRIPTEN__
-		std::this_thread::sleep_for(std::chrono::milliseconds{ 1 });
+		std::this_thread::sleep_for(1ms);
 #endif
 	}
 
@@ -584,7 +584,7 @@ void Application::Update() {
 	}
 
 	if (update_scenes) {
-		ctx_.scene_manager.Update(*this, ctx_.dt);
+		ctx_.scene_manager.Update(*this, duration_cast<milliseconds>(ctx_.dt));
 
 		ctx_.unscaled_game_time += unscaled_dt;
 		ctx_.game_time			+= ctx_.dt;

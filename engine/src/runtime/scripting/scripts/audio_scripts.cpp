@@ -84,7 +84,6 @@ void PlaySoundScript::OnStart() {
 }
 
 void AudioStopSoundScript::OnStart() {
-	Entity target{ Target() };
 	if (!target) {
 		return;
 	}
@@ -97,7 +96,6 @@ void AudioStopSoundScript::OnStart() {
 }
 
 void AudioPauseSoundScript::OnStart() {
-	Entity target{ Target() };
 	if (!target) {
 		return;
 	}
@@ -110,7 +108,6 @@ void AudioPauseSoundScript::OnStart() {
 }
 
 void AudioResumeSoundScript::OnStart() {
-	Entity target{ Target() };
 	if (!target) {
 		return;
 	}
@@ -123,7 +120,6 @@ void AudioResumeSoundScript::OnStart() {
 }
 
 void AudioToggleSoundPauseScript::OnStart() {
-	Entity target{ Target() };
 	if (!target) {
 		return;
 	}
@@ -136,7 +132,6 @@ void AudioToggleSoundPauseScript::OnStart() {
 }
 
 void AudioSetSoundVolumeScript::OnStart() {
-	Entity target{ Target() };
 	if (!target) {
 		return;
 	}
@@ -149,7 +144,6 @@ void AudioSetSoundVolumeScript::OnStart() {
 }
 
 void AudioToggleSoundVolumeScript::OnStart() {
-	Entity target{ Target() };
 	if (!target) {
 		return;
 	}
@@ -162,7 +156,6 @@ void AudioToggleSoundVolumeScript::OnStart() {
 }
 
 void AudioSetPlaybackSpeedScript::OnStart() {
-	Entity target{ Target() };
 	if (!target) {
 		return;
 	}
@@ -175,7 +168,6 @@ void AudioSetPlaybackSpeedScript::OnStart() {
 }
 
 void AudioSetMasterVolumeScript::OnStart() {
-	Entity target{ Target() };
 	if (!target) {
 		return;
 	}
@@ -184,7 +176,6 @@ void AudioSetMasterVolumeScript::OnStart() {
 }
 
 void AudioToggleMasterVolumeScript::OnStart() {
-	Entity target{ Target() };
 	if (!target) {
 		return;
 	}
@@ -193,7 +184,6 @@ void AudioToggleMasterVolumeScript::OnStart() {
 }
 
 void AudioStopAllAudioScript::OnStart() {
-	Entity target{ Target() };
 	if (!target) {
 		return;
 	}
@@ -202,7 +192,6 @@ void AudioStopAllAudioScript::OnStart() {
 }
 
 void AudioPauseAllAudioScript::OnStart() {
-	Entity target{ Target() };
 	if (!target) {
 		return;
 	}
@@ -211,7 +200,6 @@ void AudioPauseAllAudioScript::OnStart() {
 }
 
 void AudioResumeAllAudioScript::OnStart() {
-	Entity target{ Target() };
 	if (!target) {
 		return;
 	}
@@ -220,7 +208,6 @@ void AudioResumeAllAudioScript::OnStart() {
 }
 
 void AudioFadeInSoundScript::OnStart() {
-	Entity target{ Target() };
 	if (!target) {
 		return;
 	}
@@ -235,26 +222,30 @@ void AudioFadeInSoundScript::OnStart() {
 		audio.SetVolume(key, 0.0f);
 	}
 	PropertyTo<float>(
-		target, SequenceChannelKey{ "audio.fade." + key.value }, 1.0f, std::max(1.0f, number),
-		[key](Entity owner) { return owner.GetScene().ctx().audio.GetVolume(key); },
-		[key](Entity owner, float volume) { owner.GetScene().ctx().audio.SetVolume(key, volume); }
+		target, SequenceChannelKey{ "audio.fade." + key.value }, 1.0f,
+		milliseconds{ static_cast<std::int64_t>(std::max(1.0f, number)) },
+		[key](Entity owner_entity) { return owner_entity.GetScene().ctx().audio.GetVolume(key); },
+		[key](Entity owner_entity, float volume) {
+			owner_entity.GetScene().ctx().audio.SetVolume(key, volume);
+		}
 	);
 }
 
 void AudioFadeOutSoundScript::OnStart() {
-	Entity target{ Target() };
 	if (!target) {
 		return;
 	}
-	auto& audio{ GetScene().ctx().audio };
 	AudioKey key{ text };
 	if (key.value.empty()) {
 		return;
 	}
 	PropertyTo<float>(
-		target, SequenceChannelKey{ "audio.fade." + key.value }, 0.0f, std::max(1.0f, number),
-		[key](Entity owner) { return owner.GetScene().ctx().audio.GetVolume(key); },
-		[key](Entity owner, float volume) { owner.GetScene().ctx().audio.SetVolume(key, volume); }
+		target, SequenceChannelKey{ "audio.fade." + key.value }, 0.0f,
+		milliseconds{ static_cast<std::int64_t>(std::max(1.0f, number)) },
+		[key](Entity owner_entity) { return owner_entity.GetScene().ctx().audio.GetVolume(key); },
+		[key](Entity owner_entity, float volume) {
+			owner_entity.GetScene().ctx().audio.SetVolume(key, volume);
+		}
 	);
 }
 

@@ -1450,7 +1450,7 @@ template <DurationType T>
 
 	auto convert = [&]<typename SourcePeriod>() {
 		using SourceDuration = duration<long double, SourcePeriod>;
-		return std::chrono::duration_cast<FloatingDuration>(SourceDuration{ parsed.count }).count();
+		return duration_cast<FloatingDuration>(SourceDuration{ parsed.count }).count();
 	};
 
 	long double count{ 0.0L };
@@ -1489,7 +1489,7 @@ template <DurationType T>
 [[nodiscard]] long double InspectorDurationCount(T value, DurationInputUnit unit) {
 	auto convert = [&]<DurationType Destination>() {
 		using FloatingDestination = duration<long double, typename Destination::period>;
-		return std::chrono::duration_cast<FloatingDestination>(value).count();
+		return duration_cast<FloatingDestination>(value).count();
 	};
 
 	switch (unit) {
@@ -1609,12 +1609,6 @@ bool DrawDurationTextInput(
 	}
 
 	return changed;
-}
-
-inline bool DrawDurationInput(
-	const char* label, millisecondsf& duration, float width, const char* tooltip = nullptr
-) {
-	return DrawDurationTextInput(label, duration, width, false, tooltip);
 }
 
 inline bool DrawDurationInput(

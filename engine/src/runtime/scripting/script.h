@@ -99,16 +99,14 @@ enum class SequenceLifecycle {
 PTGN_REFLECT_ENUM(SequenceLifecycle);
 
 struct ScriptTiming {
-	float duration_ms{ 300.0f };
+	milliseconds duration{ 300 };
 	Ease ease{ Ease::Linear };
 	int additional_repeats{ 0 };
 	bool infinite_repeats{ false };
 	bool reversed{ false };
 	bool yoyo{ false };
 
-	PTGN_REFLECT(
-		ScriptTiming, duration_ms, ease, additional_repeats, infinite_repeats, reversed, yoyo
-	)
+	PTGN_REFLECT(ScriptTiming, duration, ease, additional_repeats, infinite_repeats, reversed, yoyo)
 };
 
 struct EventCondition {
@@ -201,7 +199,7 @@ struct ScriptSequenceRuntime {
 	bool waiting_for_channel{ false };
 	int queued_runs{ 0 };
 	std::size_t step_index{ 0 };
-	float elapsed_ms{ 0.0f };
+	milliseconds elapsed{ 0 };
 	int current_repeat{ 0 };
 	bool currently_reversed{ false };
 	std::vector<Entity> script_targets{};
@@ -282,14 +280,14 @@ public:
 	ScriptSequence& Forever(TScript script = {});
 
 	template <typename TScript>
-	ScriptSequence& During(float duration_ms, TScript script = {});
+	ScriptSequence& During(milliseconds duration, TScript script = {});
 
 	ScriptSequence& Ease(ptgn::Ease value);
 	ScriptSequence& Repeat(int additional_repeats);
 	ScriptSequence& Infinite();
 	ScriptSequence& Reversed(bool value = true);
 	ScriptSequence& Yoyo(bool value = true);
-	ScriptSequence& Wait(float duration_ms);
+	ScriptSequence& Wait(milliseconds duration);
 	ScriptSequence& EmitSignal(SignalKey signal);
 	[[nodiscard]] SequenceHandle Start(Entity owner, bool force = true) const;
 
@@ -354,8 +352,8 @@ public:
 		return owner.GetScene();
 	}
 
-	[[nodiscard]] float DeltaSeconds() const {
-		return delta_seconds_;
+	[[nodiscard]] secondsf dt() const {
+		return dt_;
 	}
 
 	[[nodiscard]] float LinearProgress() const {
@@ -398,7 +396,7 @@ private:
 	friend class impl::ScriptAccessor;
 
 	std::string active_sequence_name_{};
-	float delta_seconds_{ 0.0f };
+	secondsf dt_{ secondsf::zero() };
 	float linear_progress_{ 0.0f };
 	float progress_{ 0.0f };
 	Ease timing_ease_{ Ease::Linear };
@@ -431,10 +429,10 @@ public:
 	}
 
 	static void SetFrame(
-		Script& script, float delta_seconds, float linear_progress, float progress, int repeat,
+		Script& script, secondsf dt, float linear_progress, float progress, int repeat,
 		bool reversed, Ease timing_ease = Ease::Linear
 	) {
-		script.delta_seconds_	= delta_seconds;
+		script.dt_				= dt;
 		script.linear_progress_ = linear_progress;
 		script.progress_		= progress;
 		script.timing_ease_		= timing_ease;
@@ -905,7 +903,7 @@ namespace script_runtime {
 void AttachEntry(Entity entity, ScriptEntry& entry);
 void AttachAll(Entity entity);
 void ApplyPending(Scene& scene);
-void Update(Scene& scene, secondsf delta_time);
+void Update(Scene& scene, secondsf dt);
 bool DispatchEvent(Entity entity, Event event);
 bool DispatchGlobalEvent(Scene& scene, Event event);
 
@@ -1041,12 +1039,12 @@ ScriptSequence& ScriptSequence::Forever(TScript script) {
 }
 
 template <typename TScript>
-ScriptSequence& ScriptSequence::During(float duration_ms, TScript script) {
+ScriptSequence& ScriptSequence::During(milliseconds duration, TScript script) {
 	static_assert(ScriptClass<TScript>);
 	auto step{ ScriptRegistry::MakeStep<TScript>(std::move(script)) };
-	step.completion			 = ScriptCompletion::Duration;
-	step.timing				 = step.timing.value_or(ScriptTiming{});
-	step.timing->duration_ms = std::max(0.0f, duration_ms);
+	step.completion		  = ScriptCompletion::Duration;
+	step.timing			  = step.timing.value_or(ScriptTiming{});
+	step.timing->duration = std::max(0ms, duration);
 	steps.push_back(std::move(step));
 	return *this;
 }

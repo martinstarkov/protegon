@@ -43,9 +43,9 @@ public:
 	SceneContext() = delete;
 	explicit SceneContext(Application& app, Scene& parent_scene);
 	~SceneContext() noexcept;
-	SceneContext(const SceneContext&) = delete;
-	SceneContext& operator=(const SceneContext&) = delete;
-	SceneContext(SceneContext&&) noexcept = delete;
+	SceneContext(const SceneContext&)				 = delete;
+	SceneContext& operator=(const SceneContext&)	 = delete;
+	SceneContext(SceneContext&&) noexcept			 = delete;
 	SceneContext& operator=(SceneContext&&) noexcept = delete;
 
 	Window& window;
@@ -85,13 +85,20 @@ public:
 	/// @brief Returns the game time since application start, affected by time scale and pause.
 	[[nodiscard]] secondsf GameTime() const;
 
+	/// @brief Returns the game time since application start, affected by time scale and pause.
+	template <DurationType T>
+	[[nodiscard]] T GameTime() const {
+		return duration_cast<T>(GameTime());
+	}
+
 	/// @brief Returns the game time since application start, affected by pause but not time scale.
 	[[nodiscard]] secondsf UnscaledGameTime() const;
 
 	/// @brief Returns the real time since application start, not affected by time scale or pause.
 	[[nodiscard]] secondsf RealTime() const;
 
-	/// @brief Returns the time elapsed since the Application instance was constructed (based on GLFW).
+	/// @brief Returns the time elapsed since the Application instance was constructed (based on
+	/// GLFW).
 	[[nodiscard]] secondsf TimeSinceApplicationStart() const;
 
 	/// @brief Returns whether the application is currently running.

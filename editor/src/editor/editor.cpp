@@ -43,6 +43,7 @@
 #include "core/math/vector2.h"
 #include "core/util/file.h"
 #include "core/util/hash.h"
+#include "core/util/time.h"
 #include "editor/editor_context.h"
 #include "editor/editor_selection.h"
 #include "editor/editor_state.h"
@@ -138,13 +139,11 @@ bool PerformEditorUndo(
 	auto now{ std::chrono::system_clock::now() };
 	auto time{ std::chrono::system_clock::to_time_t(now) };
 	auto local_time{ LocalTime(time) };
-	auto milliseconds{
-		std::chrono::duration_cast<std::chrono::milliseconds>(now.time_since_epoch()).count() % 1000
-	};
+	milliseconds duration{ now.time_since_epoch().count() % 1000 };
 
 	std::ostringstream output;
 	output << "console_" << std::put_time(&local_time, "%Y-%m-%d_%H-%M-%S-") << std::setfill('0')
-		   << std::setw(3) << milliseconds << ".ptgnlog";
+		   << std::setw(3) << duration << ".ptgnlog";
 	return output.str();
 }
 #endif

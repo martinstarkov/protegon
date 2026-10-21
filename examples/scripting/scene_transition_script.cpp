@@ -7,6 +7,7 @@
 #include "core/graphics/color.h"
 #include "core/math/geometry/origin.h"
 #include "core/math/transform.h"
+#include "core/util/time.h"
 #include "runtime/scene/scene.h"
 #include "runtime/scene/scene_registry.h"
 #include "runtime/scripting/script.h"
@@ -19,15 +20,10 @@ namespace {
 
 Button CreateTextButton(Scene& scene, V2_float position, std::string_view label) {
 	Transform transform;
-
 	transform.position = position;
-
 	Button button{ CreateButton(scene, transform, V2_float{ 300.0f, 80.0f }, Origin::Center) };
-
 	button.Background();
-
 	button.Text().Content(label);
-
 	return button;
 }
 
@@ -44,23 +40,15 @@ ScriptSequence MakeSceneChangeSequence(
 	SceneChangeScript change;
 
 	change.action = SceneChangeAction::Switch;
-
 	// Reuse the current scene tag so the active scene is replaced.
 	change.scene_tag.clear();
-
-	change.scene_type = std::move(target_scene_type);
-
+	change.scene_type		= std::move(target_scene_type);
 	change.scene_parameters = json::object();
-
-	change.transition = transition;
-
-	change.duration_ms = 700.0f;
-
-	change.delay_ms = 0.0f;
-
-	change.ease = Ease::InOutQuad;
-
-	change.direction = direction;
+	change.transition		= transition;
+	change.duration			= 700ms;
+	change.delay			= 0ms;
+	change.ease				= Ease::InOutQuad;
+	change.direction		= direction;
 
 	ScriptSequence sequence{ std::move(name) };
 
@@ -105,7 +93,6 @@ public:
 };
 
 PTGN_REGISTER_SCENE(RedTransitionScene);
-
 PTGN_REGISTER_SCENE(BlueTransitionScene);
 
 int main(int, char**) {

@@ -207,10 +207,7 @@ SequenceHandle After(Scene& scene, milliseconds duration, SequenceFunction funct
 			},
 	} };
 	ScriptSequence sequence{ "After" };
-	sequence.Wait(static_cast<float>(duration.count()))
-		.Then(std::move(callback))
-		.Transient()
-		.DestroyOwnerOnComplete();
+	sequence.Wait(duration).Then(std::move(callback)).Transient().DestroyOwnerOnComplete();
 	auto handle{ script_runtime::RunSequence(owner, std::move(sequence)) };
 	*handle_ref = handle;
 	handle.Start();
@@ -238,9 +235,7 @@ SequenceHandle During(Scene& scene, milliseconds duration, DuringSequenceFunctio
 			},
 	} };
 	ScriptSequence sequence{ "During" };
-	sequence.During(static_cast<float>(duration.count()), std::move(callback))
-		.Transient()
-		.DestroyOwnerOnComplete();
+	sequence.During(duration, std::move(callback)).Transient().DestroyOwnerOnComplete();
 	auto handle{ script_runtime::RunSequence(owner, std::move(sequence)) };
 	handle.Start();
 

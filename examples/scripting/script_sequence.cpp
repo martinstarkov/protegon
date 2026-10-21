@@ -11,6 +11,7 @@
 #include "core/math/easing.h"
 #include "core/math/transform.h"
 #include "core/math/vector2.h"
+#include "core/util/time.h"
 #include "runtime/ecs/entity.h"
 #include "runtime/ecs/tag.h"
 #include "runtime/graphics/graphics.h"
@@ -115,7 +116,7 @@ public:
 
 		std::cout << "[ScriptSequenceSceneDemo] OnLoad\n"
 				  << "  mode: " << (IsRuntime() ? "runtime" : "editor") << '\n'
-				  << "  move_duration_ms: " << move_duration_ms_ << '\n'
+				  << "  move_duration: " << move_duration_ << '\n'
 				  << "  follower_speed: " << follower_speed_ << '\n';
 	}
 
@@ -157,11 +158,11 @@ private:
 		ScriptSequence sequence{ "Mover: Move, Yoyo, Wait, Signal" };
 		sequence.Channel(SequenceChannelKey{ "transform" })
 			.Reentry(ReentryMode::Restart)
-			.During(move_duration_ms_, MoveToScript{ V2_float{ 345.0f, 0.0f }, true })
+			.During(move_duration_, MoveToScript{ V2_float{ 345.0f, 0.0f }, true })
 			.Ease(Ease::InOutQuad)
 			.Yoyo()
 			.Repeat(1)
-			.Wait(250.0f)
+			.Wait(250ms)
 			.EmitSignal(SignalKey{ kMoverCompleteSignal })
 			.Then(LogStep("Mover completed and emitted script_demo.mover_complete."));
 
@@ -170,8 +171,8 @@ private:
 
 	void AddSpinnerSequence(Entity spinner) {
 		ScriptSequence sequence{ "Spinner: Delayed Repeated Rotation" };
-		sequence.Wait(300.0f)
-			.During(spin_duration_ms_, RotateToScript{ 360.0f, false, true })
+		sequence.Wait(300ms)
+			.During(spin_duration_, RotateToScript{ 360.0f, false, true })
 			.Ease(Ease::InOutQuad)
 			.Repeat(2)
 			.Then(LogStep("Spinner completed three rotations."));
@@ -186,7 +187,7 @@ private:
 		auto& script{ AddScript<Script>(pulse) };
 		script.sequence = ScriptSequence{ "Pulse: Infinite Scale Until Signal" };
 		script.sequence.StopOn<Signal>(json{ { "signal", std::string{ kStopPulseSignal } } })
-			.During(pulse_duration_ms_, ScaleToScript{ V2_float{ 1.65f, 1.65f }, false })
+			.During(pulse_duration_, ScaleToScript{ V2_float{ 1.65f, 1.65f }, false })
 			.Ease(Ease::InOutQuad)
 			.Yoyo()
 			.Infinite();
@@ -195,9 +196,9 @@ private:
 	void AddVisibilitySequence(Entity visibility) {
 		ScriptSequence sequence{ "Visibility: Blink Three Times" };
 		for (int i{ 0 }; i < 3; ++i) {
-			sequence.Wait(500.0f)
+			sequence.Wait(500ms)
 				.Then(SetVisibleScript{ false })
-				.Wait(260.0f)
+				.Wait(260ms)
 				.Then(SetVisibleScript{ true });
 		}
 		sequence.Then(LogStep("Visibility sequence completed three blink cycles."));
@@ -211,11 +212,11 @@ private:
 		script.sequence = ScriptSequence{ "Signal Responder: Start On Mover Complete" };
 		script.sequence.Reentry(ReentryMode::Restart)
 			.StartOn<Signal>(json{ { "signal", std::string{ kMoverCompleteSignal } } })
-			.During(700.0f, MoveToScript{ V2_float{ 0.0f, 145.0f }, true })
+			.During(700ms, MoveToScript{ V2_float{ 0.0f, 145.0f }, true })
 			.Ease(Ease::OutBack)
-			.During(650.0f, RotateToScript{ 180.0f, true, true })
+			.During(650ms, RotateToScript{ 180.0f, true, true })
 			.Ease(Ease::InOutQuad)
-			.During(700.0f, MoveToScript{ V2_float{ 0.0f, -145.0f }, true })
+			.During(700ms, MoveToScript{ V2_float{ 0.0f, -145.0f }, true })
 			.Ease(Ease::InOutQuad)
 			.EmitSignal(SignalKey{ kResponderCompleteSignal })
 			.Then(LogStep("Signal responder completed its event-triggered sequence."));
@@ -223,8 +224,8 @@ private:
 
 	void AddFollowDemo(Entity follow_target, Entity follower) {
 		ScriptSequence target_sequence{ "Follow Target: Move Away And Return" };
-		target_sequence.Wait(200.0f)
-			.During(follow_target_duration_ms_, MoveToScript{ V2_float{ 300.0f, 0.0f }, true })
+		target_sequence.Wait(200ms)
+			.During(follow_target_duration_, MoveToScript{ V2_float{ 300.0f, 0.0f }, true })
 			.Ease(Ease::InOutQuad)
 			.Yoyo()
 			.Repeat(1)
@@ -241,10 +242,10 @@ private:
 
 	void AddControllerTimeline(Entity controller) {
 		ScriptSequence sequence{ "Controller: Stop Pulse After Delay" };
-		sequence.Wait(stop_pulse_after_ms_)
+		sequence.Wait(stop_pulse_after_)
 			.EmitSignal(SignalKey{ kStopPulseSignal })
 			.Then(LogStep("Controller emitted script_demo.stop_pulse."))
-			.Wait(500.0f)
+			.Wait(500ms)
 			.Then(LogStep("Demo timeline completed. Stop Play to restore authored transforms."));
 
 		controller_sequence_ = sequence.Start(controller);
@@ -261,12 +262,12 @@ private:
 	}
 
 	// Scene-file parameters. These can be edited in the scene's parameters object.
-	float move_duration_ms_{ 1250.0f };
-	float spin_duration_ms_{ 850.0f };
-	float pulse_duration_ms_{ 450.0f };
-	float follow_target_duration_ms_{ 1600.0f };
+	milliseconds move_duration_{ 1250 };
+	milliseconds spin_duration_{ 850 };
+	milliseconds pulse_duration_{ 450 };
+	milliseconds follow_target_duration_{ 1600 };
 	float follower_speed_{ 185.0f };
-	float stop_pulse_after_ms_{ 5200.0f };
+	milliseconds stop_pulse_after_{ 5200 };
 
 	// Runtime only handles are deliberately omitted from reflection.
 	SequenceHandle mover_sequence_;
@@ -276,8 +277,8 @@ private:
 	SequenceHandle controller_sequence_;
 
 	PTGN_REFLECT(
-		ScriptSequenceSceneDemo, move_duration_ms_, spin_duration_ms_, pulse_duration_ms_,
-		follow_target_duration_ms_, follower_speed_, stop_pulse_after_ms_
+		ScriptSequenceSceneDemo, move_duration_, spin_duration_, pulse_duration_,
+		follow_target_duration_, follower_speed_, stop_pulse_after_
 	)
 };
 

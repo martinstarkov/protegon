@@ -257,11 +257,13 @@ void ParticleEmitterData::Start() {
 
 	// Prewarm means: make the emitter look like it has already been running
 	// for one full cycle.
-	auto cycle_particles{ rate.rate_over_time * duration_cast<secondsf>(rate.duration).count() };
+	auto cycle_particles{ rate.rate_over_time * duration_cast<secondsf>(rate.duration) };
 
-	PTGN_ASSERT(cycle_particles >= 0.0f, "Prewarm cycle particle count cannot be negative");
+	PTGN_ASSERT(
+		cycle_particles >= secondsf::zero(), "Prewarm cycle particle count cannot be negative"
+	);
 
-	auto prewarm_count{ static_cast<std::size_t>(cycle_particles) };
+	auto prewarm_count{ static_cast<std::size_t>(cycle_particles.count()) };
 
 	for (auto i{ 0uz }; i < prewarm_count; ++i) {
 		auto particle_entity{ TrySpawnParticle() };

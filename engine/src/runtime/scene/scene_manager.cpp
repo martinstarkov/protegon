@@ -415,7 +415,7 @@ void SceneManager::OnEvent() {
 	}
 }
 
-void SceneManager::Update(Application& app, secondsf dt) {
+void SceneManager::Update(Application& app, milliseconds dt) {
 	for (const auto& scene : scenes_) {
 		if (scene->IsAwaitingTransitionDelay()) {
 			continue;
@@ -431,7 +431,7 @@ void SceneManager::Update(Application& app, secondsf dt) {
 	UpdateReconstructedSceneTagHashes();
 }
 
-void SceneManager::UpdateTransitions(secondsf dt) {
+void SceneManager::UpdateTransitions(milliseconds dt) {
 	for (auto it{ scenes_.begin() }; it != scenes_.end();) {
 		using enum SceneState;
 

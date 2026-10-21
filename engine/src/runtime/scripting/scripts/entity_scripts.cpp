@@ -184,7 +184,6 @@ ComponentDefinition MakeComponentDefinition(std::string_view name) {
 }
 
 void EntityDestroyEntityScript::OnStart() {
-	Entity target{ Target() };
 	if (!target) {
 		return;
 	}
@@ -192,7 +191,6 @@ void EntityDestroyEntityScript::OnStart() {
 }
 
 void EntitySpawnPrefabScript::OnStart() {
-	Entity target{ Target() };
 	if (!target) {
 		return;
 	}
@@ -206,7 +204,6 @@ void EntitySpawnPrefabScript::OnStart() {
 }
 
 void EntitySetColorScript::OnStart() {
-	Entity target{ Target() };
 	if (!target) {
 		return;
 	}
@@ -214,7 +211,6 @@ void EntitySetColorScript::OnStart() {
 }
 
 void EntitySetDepthScript::OnStart() {
-	Entity target{ Target() };
 	if (!target) {
 		return;
 	}
@@ -222,7 +218,6 @@ void EntitySetDepthScript::OnStart() {
 }
 
 void EntitySetPositionScript::OnStart() {
-	Entity target{ Target() };
 	if (!target) {
 		return;
 	}
@@ -230,7 +225,6 @@ void EntitySetPositionScript::OnStart() {
 }
 
 void EntityAddPositionScript::OnStart() {
-	Entity target{ Target() };
 	if (!target) {
 		return;
 	}
@@ -238,7 +232,6 @@ void EntityAddPositionScript::OnStart() {
 }
 
 void EntitySetRotationScript::OnStart() {
-	Entity target{ Target() };
 	if (!target) {
 		return;
 	}
@@ -246,7 +239,6 @@ void EntitySetRotationScript::OnStart() {
 }
 
 void EntityAddRotationScript::OnStart() {
-	Entity target{ Target() };
 	if (!target) {
 		return;
 	}
@@ -254,7 +246,6 @@ void EntityAddRotationScript::OnStart() {
 }
 
 void EntitySetScaleScript::OnStart() {
-	Entity target{ Target() };
 	if (!target) {
 		return;
 	}
@@ -262,7 +253,6 @@ void EntitySetScaleScript::OnStart() {
 }
 
 void EntityMultiplyScaleScript::OnStart() {
-	Entity target{ Target() };
 	if (!target) {
 		return;
 	}
@@ -270,7 +260,6 @@ void EntityMultiplyScaleScript::OnStart() {
 }
 
 void EntitySetRenderMaskScript::OnStart() {
-	Entity target{ Target() };
 	if (!target) {
 		return;
 	}
@@ -278,7 +267,6 @@ void EntitySetRenderMaskScript::OnStart() {
 }
 
 void EntitySetBlendModeScript::OnStart() {
-	Entity target{ Target() };
 	if (!target) {
 		return;
 	}
@@ -288,7 +276,6 @@ void EntitySetBlendModeScript::OnStart() {
 }
 
 void EntitySetOriginScript::OnStart() {
-	Entity target{ Target() };
 	if (!target) {
 		return;
 	}
@@ -298,7 +285,6 @@ void EntitySetOriginScript::OnStart() {
 }
 
 void EntitySetParentScript::OnStart() {
-	Entity target{ Target() };
 	if (!target) {
 		return;
 	}
@@ -317,7 +303,6 @@ void EntitySetParentScript::OnStart() {
 }
 
 void EntityRemoveParentScript::OnStart() {
-	Entity target{ Target() };
 	if (!target) {
 		return;
 	}
