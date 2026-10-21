@@ -46,8 +46,8 @@
 #include "runtime/physics/collision_event.h"
 #include "runtime/scene/scene.h"
 #include "runtime/scene/scene_context.h"
-#include "runtime/scripting/builtin_scripts.h"
 #include "runtime/scripting/script.h"
+#include "runtime/scripting/scripts.h"
 #include "runtime/scripting/variable_event.h"
 #include "runtime/timer/timer.h"
 #include "runtime/timer/timer_event.h"
@@ -592,27 +592,9 @@ bool DrawActionTarget(ScriptEditorContext& context, ScriptStep& action, float wi
 
 	EntityFilterEditorOptions options{};
 	options.button_width		  = width;
-	options.button_tooltip = "Entities impacted by the action:";
+	options.button_tooltip		  = "Entities impacted by the action:";
 	options.append_filter_tooltip = true;
 	return DrawEntityFilterButton(scene, owner, action.target, state, options);
-}
-
-[[nodiscard]] const char* ActionFamilyTooltip(ActionFamily family) {
-	switch (family) {
-		case ActionFamily::Animation:    return "Control an entity animation.";
-		case ActionFamily::Timer:        return "Control a named timer.";
-		case ActionFamily::Counter:      return "Change a named counter.";
-		case ActionFamily::Boolean:      return "Change a named Boolean.";
-		case ActionFamily::Lifetime:     return "Control an entity lifetime.";
-		case ActionFamily::Button:       return "Control button interactions.";
-		case ActionFamily::Slider:       return "Change a slider value.";
-		case ActionFamily::ToggleButton: return "Control a toggle button.";
-		case ActionFamily::ToggleGroup:  return "Change a toggle group selection.";
-		case ActionFamily::Dropdown:     return "Control a dropdown menu.";
-		case ActionFamily::Dialogue:     return "Control dialogue progression.";
-		case ActionFamily::Tooltip:      return "Control tooltip visibility and hover.";
-	}
-	return "Choose an action.";
 }
 
 bool DrawActionPicker(
@@ -662,38 +644,7 @@ bool DrawActionPicker(
 		ImVec2{ popup_min_width, 0.0f }, ImVec2{ FLT_MAX, FLT_MAX }
 	);
 
-	std::optional<ActionFamily> current_family{};
-	if (action.type_hash == Hash<ActionScript>()) {
-		ActionScript current_action{};
-		if (TryReadScriptJson(action.value, current_action)) {
-			current_family = current_action.family;
-		}
-	}
-
-	constexpr std::array action_categories{
-		std::pair{ ActionFamily::Animation, "Animation" },
-		std::pair{ ActionFamily::Timer, "Timer" },
-		std::pair{ ActionFamily::Counter, "Counter" },
-		std::pair{ ActionFamily::Boolean, "Boolean" },
-		std::pair{ ActionFamily::Lifetime, "Lifetime" },
-		std::pair{ ActionFamily::Button, "Button" },
-		std::pair{ ActionFamily::Slider, "Slider" },
-		std::pair{ ActionFamily::ToggleButton, "Toggle Button" },
-		std::pair{ ActionFamily::ToggleGroup, "Toggle Group" },
-		std::pair{ ActionFamily::Dropdown, "Dropdown" },
-		std::pair{ ActionFamily::Dialogue, "Dialogue" },
-		std::pair{ ActionFamily::Tooltip, "Tooltip" },
-	};
-
 	const char* current_label{ current ? current->label.data() : "Missing Action" };
-	if (current_family.has_value()) {
-		for (const auto& [family, label] : action_categories) {
-			if (family == *current_family) {
-				current_label = label;
-				break;
-			}
-		}
-	}
 
 	bool open{ ImGui::BeginCombo("##RegisteredAction", current_label) };
 
@@ -701,10 +652,9 @@ bool DrawActionPicker(
 		*context_requested |= IsItemRightClicked();
 	}
 
-	const char* picker_tooltip{ current_family
-			? ActionFamilyTooltip(*current_family)
-			: current && !current->description.empty() ? current->description.data()
-												  : "Choose an action." };
+	const char* picker_tooltip{ current && !current->description.empty()
+									? current->description.data()
+									: "Choose an action." };
 	DrawTooltip(picker_tooltip);
 
 	if (!open) {
@@ -717,9 +667,8 @@ bool DrawActionPicker(
 		const auto& registration{ *candidate.runtime };
 
 		return registration.serializable && registration.type_hash != Hash<Script>() &&
-			   registration.type_hash != Hash<WaitScript>() &&
-			   registration.type_hash != Hash<ActionScript>() &&
-			   !candidate.editor->options.hidden && (!timed_only || registration.supports_timing) &&
+			   registration.type_hash != Hash<WaitScript>() && !candidate.editor->options.hidden &&
+			   (!timed_only || registration.supports_timing) &&
 			   (timed_only || !registration.requires_timing);
 	};
 
@@ -750,8 +699,10 @@ bool DrawActionPicker(
 		}
 
 		// Only show the user facing description.
-		DrawTooltip(candidate.description.empty() ? "Choose this script action."
-											 : candidate.description.data());
+		DrawTooltip(
+			candidate.description.empty() ? "Choose this script action."
+										  : candidate.description.data()
+		);
 	};
 
 	std::vector<Candidate> candidates;
@@ -823,75 +774,57 @@ bool DrawActionPicker(
 		}
 	}
 
-	std::vector<std::string_view> groups;
-
+	// All script types use their registration's group path. No special action catalog.
+	std::vector<std::string> groups;
 	for (const auto& candidate : candidates) {
-		if (!candidate.group.empty() && !std::ranges::contains(groups, candidate.group)) {
-			groups.push_back(candidate.group);
-		}
-	}
-
-	if (!timed_only && ScriptRegistry::Find(Hash<ActionScript>())) {
-		for (std::string_view group : { "Animation", "Timing", "Variables", "UI" }) {
-			if (!std::ranges::contains(groups, group)) {
-				groups.push_back(group);
+		if (!candidate.group.empty()) {
+			std::string name{ candidate.group };
+			if (!std::ranges::contains(groups, name)) {
+				groups.push_back(std::move(name));
 			}
 		}
 	}
-
-	for (auto group : groups) {
-		if (!ImGui::BeginMenu(group.data())) {
-			continue;
-		}
-
-		std::vector<const Candidate*> grouped;
-
-		for (const auto& candidate : candidates) {
-			if (candidate.group == group) {
-				grouped.push_back(&candidate);
+	std::ranges::sort(groups);
+	std::function<void(std::string_view)> draw_menu = [&](std::string_view parent) {
+		std::vector<std::string> children;
+		for (const auto& group : groups) {
+			if (!parent.empty() && !(group.starts_with(parent) && group.size() > parent.size() &&
+									 group[parent.size()] == '/')) {
+				continue;
+			}
+			std::string_view remaining{ group };
+			if (!parent.empty()) {
+				remaining.remove_prefix(parent.size() + 1);
+			}
+			if (remaining.empty()) {
+				continue;
+			}
+			auto separator{ remaining.find('/') };
+			std::string name{ remaining.substr(0, separator) };
+			if (!std::ranges::contains(children, name)) {
+				children.push_back(std::move(name));
 			}
 		}
-
-		std::ranges::sort(grouped, {}, [](const Candidate* candidate) {
-			return candidate->menu_order;
-		});
-
-		for (std::size_t i{ 0 }; i < grouped.size(); ++i) {
-			select_candidate(*grouped[i]);
-
-			if (grouped[i]->separator_after && i + 1 < grouped.size()) {
-				ImGui::Separator();
+		for (const auto& name : children) {
+			std::string path{ parent.empty() ? name : std::string{ parent } + "/" + name };
+			if (!ImGui::BeginMenu(name.c_str())) {
+				continue;
 			}
-		}
-
-		if (!timed_only) {
-			for (const auto& [family, label] : action_categories) {
-				std::string_view family_group{
-					family == ActionFamily::Animation ? "Animation"
-					: (family == ActionFamily::Timer || family == ActionFamily::Lifetime) ? "Timing"
-					: (family == ActionFamily::Counter || family == ActionFamily::Boolean)
-						? "Variables"
-						: "UI"
-				};
-				if (group != family_group) {
-					continue;
+			std::vector<const Candidate*> direct;
+			for (const auto& candidate : candidates) {
+				if (candidate.group == path) {
+					direct.push_back(&candidate);
 				}
-				if (ImGui::MenuItem(label, nullptr, current_family == family)) {
-					bool enabled{ action.enabled };
-					auto target{ action.target };
-					action		   = ScriptRegistry::MakeStep<ActionScript>(ActionScript{ family });
-					action.enabled = enabled;
-					action.target  = std::move(target);
-					action.completion.reset();
-					action.timing.reset();
-					changed = true;
-				}
-				DrawTooltip(ActionFamilyTooltip(family));
 			}
+			std::ranges::sort(direct, {}, [](const Candidate* item) { return item->menu_order; });
+			for (const auto* candidate : direct) {
+				select_candidate(*candidate);
+			}
+			draw_menu(path);
+			ImGui::EndMenu();
 		}
-
-		ImGui::EndMenu();
-	}
+	};
+	draw_menu({});
 
 	ImGui::EndCombo();
 
@@ -1245,18 +1178,22 @@ bool DrawActions(
 			// Stretch every editable column rather than shrinking only the action value.
 			// Preferred widths are weights, so their proportions survive inspector resizing.
 			float remaining{ std::max(
-				150.0f, ImGui::GetContentRegionAvail().x - drag_width - type_width -
-				target_width - (displayed_form == ActionForm::Tween
-					? duration_width + repeats_width : 0.0f)
+				150.0f,
+				ImGui::GetContentRegionAvail().x - drag_width - type_width - target_width -
+					(displayed_form == ActionForm::Tween ? duration_width + repeats_width : 0.0f)
 			) };
 			ImGui::TableSetupColumn("Drag", ImGuiTableColumnFlags_WidthFixed, drag_width);
 			ImGui::TableSetupColumn("Type", ImGuiTableColumnFlags_WidthStretch, type_width);
 
 			if (displayed_form == ActionForm::Tween) {
 				ImGui::TableSetupColumn("Target", ImGuiTableColumnFlags_WidthFixed, target_width);
-				ImGui::TableSetupColumn("Duration", ImGuiTableColumnFlags_WidthStretch, duration_width);
+				ImGui::TableSetupColumn(
+					"Duration", ImGuiTableColumnFlags_WidthStretch, duration_width
+				);
 				ImGui::TableSetupColumn("Action", ImGuiTableColumnFlags_WidthStretch, remaining);
-				ImGui::TableSetupColumn("Repeats", ImGuiTableColumnFlags_WidthStretch, repeats_width);
+				ImGui::TableSetupColumn(
+					"Repeats", ImGuiTableColumnFlags_WidthStretch, repeats_width
+				);
 			} else if (displayed_form == ActionForm::Action) {
 				ImGui::TableSetupColumn("Target", ImGuiTableColumnFlags_WidthFixed, target_width);
 				ImGui::TableSetupColumn("Value", ImGuiTableColumnFlags_WidthStretch, remaining);
@@ -1346,8 +1283,9 @@ bool DrawActions(
 					);
 
 					ImGui::TableSetColumnIndex(column++);
-					changed |=
-						DrawActionPickerWithInline(context, action, true, &action_context_requested);
+					changed |= DrawActionPickerWithInline(
+						context, action, true, &action_context_requested
+					);
 
 					ImGui::TableSetColumnIndex(column);
 					changed |= DrawCountControl(
@@ -1413,9 +1351,8 @@ bool DrawActions(
 		}
 
 		if (displayed_form == ActionForm::Action || displayed_form == ActionForm::Tween) {
-			changed |= DrawActionParameters(
-				context, action, parameter_left_screen_x, !action.enabled
-			);
+			changed |=
+				DrawActionParameters(context, action, parameter_left_screen_x, !action.enabled);
 		}
 
 		DrawActiveActionProgress(displayed_runtime, static_cast<std::size_t>(index), action);
@@ -1776,16 +1713,14 @@ bool DrawVariableTriggerKey(
 	bool changed{ false };
 	ImGui::SetNextItemWidth(width);
 	ImVec2 combo_min{ ImGui::GetCursorScreenPos() };
-	ImVec2 combo_max{ combo_min.x + ImGui::CalcItemWidth(),
-						 combo_min.y + ImGui::GetFrameHeight() };
+	ImVec2 combo_max{ combo_min.x + ImGui::CalcItemWidth(), combo_min.y + ImGui::GetFrameHeight() };
 	ImDrawList* combo_draw_list{ ImGui::GetWindowDrawList() };
 	bool open{ ImGui::BeginCombo(id, key.value.empty() ? "None" : key.value.c_str()) };
 	bool missing_key{ missing_key_tooltip && !key.value.empty() &&
 					  !std::ranges::contains(choices, key) };
 	if (missing_key) {
 		combo_draw_list->AddRect(
-			combo_min, combo_max,
-			ImGui::GetColorU32(ImVec4{ 0.92f, 0.23f, 0.25f, 1.0f }),
+			combo_min, combo_max, ImGui::GetColorU32(ImVec4{ 0.92f, 0.23f, 0.25f, 1.0f }),
 			ImGui::GetStyle().FrameRounding, 0, 2.0f
 		);
 	}
@@ -1793,8 +1728,9 @@ bool DrawVariableTriggerKey(
 	if (combo_hovered) {
 		if (key.value.empty() && empty_key_tooltip) {
 			ImGui::SetTooltip("%s", empty_key_tooltip);
-		} else if (missing_key_tooltip && !key.value.empty() &&
-			!std::ranges::contains(choices, key)) {
+		} else if (
+			missing_key_tooltip && !key.value.empty() && !std::ranges::contains(choices, key)
+		) {
 			ImGui::SetTooltip("%s", missing_key_tooltip);
 		}
 	}
@@ -1803,11 +1739,11 @@ bool DrawVariableTriggerKey(
 		ImGui::SetNextItemWidth(-FLT_MIN);
 		if (ImGui::InputTextWithHint("##VariableName", "Name...", &custom)) {
 			key.value = std::move(custom);
-			changed   = true;
+			changed	  = true;
 		}
 		// Match the warning on the dropdown when a custom key is missing.
 		bool custom_key_missing{ missing_key_tooltip && !key.value.empty() &&
-			!std::ranges::contains(choices, key) };
+								 !std::ranges::contains(choices, key) };
 		if (custom_key_missing) {
 			ImGui::GetWindowDrawList()->AddRect(
 				ImGui::GetItemRectMin(), ImGui::GetItemRectMax(),
@@ -1829,7 +1765,7 @@ bool DrawVariableTriggerKey(
 		}
 		for (const auto& choice : choices) {
 			if (ImGui::Selectable(choice.value.c_str(), choice == key) && choice != key) {
-				key = choice;
+				key		= choice;
 				changed = true;
 			}
 		}
@@ -1851,16 +1787,14 @@ bool DrawVariableTriggerKey(
 	return ResolveEntityReference(owner.GetScene(), condition.target->entity);
 }
 
-bool DrawConditionTarget(
-	ScriptEditorContext& context, StateCondition& condition, float width
-) {
+bool DrawConditionTarget(ScriptEditorContext& context, StateCondition& condition, float width) {
 	Entity owner{ ResolveInspectedEntity(context) };
 	Scene* scene{ owner ? std::addressof(owner.GetScene()) : nullptr };
 	ImGuiID state_id{ ImGui::GetID("##ConditionTargetFilterState") };
 	auto& state{ GetScriptInspectorState().target_filter_states[state_id] };
 	EntityFilterEditorOptions options{};
-	options.single_entity_only = true;
-	options.button_width = width;
+	options.single_entity_only	  = true;
+	options.button_width		  = width;
 	options.button_tooltip		  = "Entity whose condition is checked:";
 	options.append_filter_tooltip = true;
 	return DrawEntityFilterButton(scene, owner, condition.target, state, options);
@@ -1911,17 +1845,14 @@ bool DrawStateConditions(ScriptEditorContext& context, ScriptSequence& sequence)
 	float button_height{ ImGui::GetFrameHeight() };
 	float preferred_kind_width{ 0.0f };
 	for (const auto& candidate : kConditionKindLabels) {
-		preferred_kind_width = std::max(
-			preferred_kind_width, ImGui::CalcTextSize(candidate.second).x
-		);
+		preferred_kind_width =
+			std::max(preferred_kind_width, ImGui::CalcTextSize(candidate.second).x);
 	}
 	preferred_kind_width += button_height + style.FramePadding.x * 2.0f + 16.0f;
-	float preferred_join_width{
-		ImGui::CalcTextSize("AND").x + style.FramePadding.x * 2.0f + 24.0f
-	};
-	float preferred_comparison_width{
-		ImGui::CalcTextSize(">=").x + button_height + style.FramePadding.x * 2.0f + 16.0f
-	};
+	float preferred_join_width{ ImGui::CalcTextSize("AND").x + style.FramePadding.x * 2.0f +
+								24.0f };
+	float preferred_comparison_width{ ImGui::CalcTextSize(">=").x + button_height +
+									  style.FramePadding.x * 2.0f + 16.0f };
 	float preferred_value_width{ std::max(
 		ImGui::CalcTextSize("Is False").x + style.FramePadding.x * 2.0f + 8.0f,
 		ImGui::CalcTextSize("10000").x + style.FramePadding.x * 2.0f + 26.0f
@@ -1963,12 +1894,12 @@ bool DrawStateConditions(ScriptEditorContext& context, ScriptSequence& sequence)
 			float value_width{ std::max(1.0f, preferred_value_width * scale) };
 			float join_width{ std::max(1.0f, preferred_join_width * scale) };
 			float key_region_width{ std::max(
-				1.0f, available - drag_width - kind_width - target_width -
-				value_width - join_width - 5.0f * spacing
+				1.0f, available - drag_width - kind_width - target_width - value_width -
+						  join_width - 5.0f * spacing
 			) };
-			float counter_key_width{ std::max(
-				1.0f, key_region_width - comparison_width - spacing
-			) };
+			float counter_key_width{
+				std::max(1.0f, key_region_width - comparison_width - spacing)
+			};
 
 			// The last value control fills the space reserved for an absent join button.
 			float last_column_width{ value_width + (has_next ? 0.0f : spacing + join_width) };
@@ -1983,7 +1914,7 @@ bool DrawStateConditions(ScriptEditorContext& context, ScriptSequence& sequence)
 			context_requested = IsItemRightClicked();
 			DrawTooltip(
 				condition.enabled ? "Drag to reorder. Right click for condition options."
-									  : "Disabled condition. Right click for condition options."
+								  : "Disabled condition. Right click for condition options."
 			);
 			if (ImGui::BeginDragDropSource(ImGuiDragDropFlags_SourceAllowNullID)) {
 				ConditionDragPayload payload{ index };
@@ -2001,7 +1932,7 @@ bool DrawStateConditions(ScriptEditorContext& context, ScriptSequence& sequence)
 					const auto* drag{ static_cast<const ConditionDragPayload*>(payload->Data) };
 					if (drag) {
 						move_from = drag->index;
-						move_to = index;
+						move_to	  = index;
 					}
 				}
 				ImGui::EndDragDropTarget();
@@ -2022,13 +1953,15 @@ bool DrawStateConditions(ScriptEditorContext& context, ScriptSequence& sequence)
 					if (ImGui::Selectable(label, condition.kind == kind)) {
 						condition.kind = kind;
 						Entity target{ ResolveConditionTarget(owner, condition) };
-						if (kind == StateConditionKind::Boolean && condition.boolean.value.empty()) {
+						if (kind == StateConditionKind::Boolean &&
+							condition.boolean.value.empty()) {
 							auto keys{ GetBooleanConditionKeys(target) };
 							if (!keys.empty()) {
 								condition.boolean = keys.front();
 							}
-						} else if (kind == StateConditionKind::Counter &&
-								condition.counter.value.empty()) {
+						} else if (
+							kind == StateConditionKind::Counter && condition.counter.value.empty()
+						) {
 							auto keys{ GetCounterConditionKeys(target) };
 							if (!keys.empty()) {
 								condition.counter = keys.front();
@@ -2043,7 +1976,7 @@ bool DrawStateConditions(ScriptEditorContext& context, ScriptSequence& sequence)
 			context_requested |= IsItemRightClicked();
 
 			ImGui::SameLine(0.0f, spacing);
-			changed |= DrawConditionTarget(context, condition, target_width);
+			changed			  |= DrawConditionTarget(context, condition, target_width);
 			context_requested |= IsItemRightClicked();
 			Entity target{ ResolveConditionTarget(owner, condition) };
 			std::vector<BooleanKey> boolean_keys{ GetBooleanConditionKeys(target) };
@@ -2052,8 +1985,7 @@ bool DrawStateConditions(ScriptEditorContext& context, ScriptSequence& sequence)
 			ImGui::SameLine(0.0f, spacing);
 			if (condition.kind == StateConditionKind::Boolean) {
 				changed |= DrawVariableTriggerKey(
-					"##BooleanConditionKey", condition.boolean, boolean_keys,
-					key_region_width,
+					"##BooleanConditionKey", condition.boolean, boolean_keys, key_region_width,
 					"Boolean key does not exist on the selected entity. This condition is false.",
 					"No key selected. This condition is true."
 				);
@@ -2061,18 +1993,17 @@ bool DrawStateConditions(ScriptEditorContext& context, ScriptSequence& sequence)
 				ImGui::SameLine(0.0f, spacing);
 				if (ImGui::Button(
 						condition.expected_value ? "Is True###BooleanExpected"
-											 : "Is False###BooleanExpected",
+												 : "Is False###BooleanExpected",
 						ImVec2{ last_column_width, button_height }
 					)) {
 					condition.expected_value = !condition.expected_value;
-					changed = true;
+					changed					 = true;
 				}
 				context_requested |= IsItemRightClicked();
 			} else {
 				constexpr std::array labels{ "==", "!=", "<", "<=", ">", ">=" };
 				changed |= DrawVariableTriggerKey(
-					"##CounterConditionKey", condition.counter, counter_keys,
-					counter_key_width,
+					"##CounterConditionKey", condition.counter, counter_keys, counter_key_width,
 					"Counter key does not exist on the selected entity. This condition is false.",
 					"No key selected. This condition is true."
 				);
@@ -2082,12 +2013,14 @@ bool DrawStateConditions(ScriptEditorContext& context, ScriptSequence& sequence)
 				int comparison{ static_cast<int>(condition.comparison) };
 				comparison = std::clamp(comparison, 0, static_cast<int>(labels.size()) - 1);
 				if (ImGui::BeginCombo(
-					"##CounterComparison", labels[static_cast<std::size_t>(comparison)]
-				)) {
+						"##CounterComparison", labels[static_cast<std::size_t>(comparison)]
+					)) {
 					for (int i{ 0 }; i < static_cast<int>(labels.size()); ++i) {
-						if (ImGui::Selectable(labels[static_cast<std::size_t>(i)], i == comparison)) {
+						if (ImGui::Selectable(
+								labels[static_cast<std::size_t>(i)], i == comparison
+							)) {
 							condition.comparison = static_cast<CounterComparison>(i);
-							changed = true;
+							changed				 = true;
 						}
 					}
 					ImGui::EndCombo();
@@ -2101,15 +2034,17 @@ bool DrawStateConditions(ScriptEditorContext& context, ScriptSequence& sequence)
 
 			if (has_next) {
 				ImGui::SameLine(0.0f, spacing);
-				StateCondition& next{ sequence.start_conditions[static_cast<std::size_t>(index + 1)] };
+				StateCondition& next{
+					sequence.start_conditions[static_cast<std::size_t>(index + 1)]
+				};
 				ImGui::BeginDisabled(!next.enabled);
 				if (ImGui::Button(
 						next.join == StateConditionJoin::Or ? "OR##Join" : "AND##Join",
 						ImVec2{ join_width, button_height }
 					)) {
-					next.join = next.join == StateConditionJoin::And
-										? StateConditionJoin::Or : StateConditionJoin::And;
-					changed = true;
+					next.join = next.join == StateConditionJoin::And ? StateConditionJoin::Or
+																	 : StateConditionJoin::And;
+					changed	  = true;
 				}
 				if (ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled)) {
 					ImGui::SetTooltip("AND is evaluated before OR.");
@@ -2243,8 +2178,8 @@ bool DrawCounterTrigger(ScriptEditorContext& context, json& value) {
 	ImGui::SameLine(0.0f, spacing);
 	ImGui::SetNextItemWidth(comparison_width);
 	if (ImGui::BeginCombo(
-		"##CounterEventComparison", labels[static_cast<std::size_t>(comparison)]
-	)) {
+			"##CounterEventComparison", labels[static_cast<std::size_t>(comparison)]
+		)) {
 		for (int i{ 0 }; i < static_cast<int>(labels.size()); ++i) {
 			if (ImGui::Selectable(labels[static_cast<std::size_t>(i)], i == comparison)) {
 				comparison = i;
@@ -2294,8 +2229,8 @@ bool DrawBooleanTrigger(ScriptEditorContext& context, json& value) {
 	ImGui::SameLine(0.0f, spacing);
 	ImGui::SetNextItemWidth(transition_width);
 	if (ImGui::BeginCombo(
-		"##BooleanEventTransition", labels[static_cast<std::size_t>(transition)]
-	)) {
+			"##BooleanEventTransition", labels[static_cast<std::size_t>(transition)]
+		)) {
 		for (int i{ 0 }; i < 3; ++i) {
 			if (ImGui::Selectable(labels[static_cast<std::size_t>(i)], i == transition)) {
 				transition = i;
@@ -3945,13 +3880,18 @@ bool RenameTimerActionReference(
 	Entity owner, ScriptStep& step, Entity timer_entity, const TimerKey& old_key,
 	const TimerKey& new_key
 ) {
-	if (step.type_hash != Hash<ActionScript>() ||
+	if (!(step.type_hash == Hash<TimerStartScript>() ||
+		  step.type_hash == Hash<TimerRestartScript>() ||
+		  step.type_hash == Hash<TimerStopScript>() || step.type_hash == Hash<TimerResetScript>() ||
+		  step.type_hash == Hash<TimerPauseScript>() ||
+		  step.type_hash == Hash<TimerResumeScript>() ||
+		  step.type_hash == Hash<TimerTogglePausedScript>() ||
+		  step.type_hash == Hash<TimerAdvanceScript>() ||
+		  step.type_hash == Hash<TimerRewindScript>() ||
+		  step.type_hash == Hash<TimerSetDurationScript>() ||
+		  step.type_hash == Hash<TimerAddDurationScript>() ||
+		  step.type_hash == Hash<TimerRemoveDurationScript>()) ||
 		!ScriptStepTargetsEntity(owner, step, timer_entity)) {
-		return false;
-	}
-
-	ActionScript action{};
-	if (!TryReadScriptJson(step.value, action) || action.family != ActionFamily::Timer) {
 		return false;
 	}
 
@@ -4073,7 +4013,19 @@ bool RenameVariableReferencesImpl(Entity variable_entity, const Key& old_key, co
 	const char* property{ is_counter ? "counter" : "boolean" };
 	TypeHashValue event_type{ is_counter ? Hash<event::CounterChanged>()
 										 : Hash<event::BooleanChanged>() };
-	ActionFamily family{ is_counter ? ActionFamily::Counter : ActionFamily::Boolean };
+	auto matches_script_type = [](TypeHashValue hash) {
+		if constexpr (is_counter) {
+			return (
+				hash == Hash<CounterSetScript>() || hash == Hash<CounterIncrementScript>() ||
+				hash == Hash<CounterDecrementScript>() || hash == Hash<CounterResetScript>()
+			);
+		} else {
+			return (
+				hash == Hash<BooleanSetTrueScript>() || hash == Hash<BooleanSetFalseScript>() ||
+				hash == Hash<BooleanToggleScript>() || hash == Hash<BooleanResetScript>()
+			);
+		}
+	};
 	Scene& scene{ variable_entity.GetScene() };
 	bool changed{ false };
 	for (Entity owner : scene.Entities()) {
@@ -4092,10 +4044,12 @@ bool RenameVariableReferencesImpl(Entity variable_entity, const Key& old_key, co
 			}
 			bool edited{ false };
 			for (auto& condition : sequence->start_conditions) {
-				bool targets_entity{ condition.target
-					? (condition.target->type == EntityFilterType::Entity &&
-					   ResolveEntityReference(scene, condition.target->entity) == variable_entity)
-					: owner == variable_entity };
+				bool targets_entity{
+					condition.target ? (condition.target->type == EntityFilterType::Entity &&
+										ResolveEntityReference(scene, condition.target->entity) ==
+											variable_entity)
+									 : owner == variable_entity
+				};
 				if (!targets_entity) {
 					continue;
 				}
@@ -4103,13 +4057,13 @@ bool RenameVariableReferencesImpl(Entity variable_entity, const Key& old_key, co
 					if (condition.kind == StateConditionKind::Counter &&
 						condition.counter == old_key) {
 						condition.counter = new_key;
-						edited = true;
+						edited			  = true;
 					}
 				} else {
 					if (condition.kind == StateConditionKind::Boolean &&
 						condition.boolean == old_key) {
 						condition.boolean = new_key;
-						edited = true;
+						edited			  = true;
 					}
 				}
 			}
@@ -4130,12 +4084,8 @@ bool RenameVariableReferencesImpl(Entity variable_entity, const Key& old_key, co
 				}
 			}
 			auto rename_step = [&](ScriptStep& step) {
-				if (step.type_hash != Hash<ActionScript>() ||
+				if (!matches_script_type(step.type_hash) ||
 					!ScriptStepTargetsEntity(owner, step, variable_entity)) {
-					return;
-				}
-				ActionScript action{};
-				if (!TryReadScriptJson(step.value, action) || action.family != family) {
 					return;
 				}
 				if (RenameVariableJsonReference(step.value, property, old_key, new_key)) {

@@ -32,7 +32,7 @@
 #include "runtime/scene/scene.h"
 #include "runtime/scene/scene_context.h"
 #include "runtime/scene/scene_event.h"
-#include "runtime/scripting/builtin_scripts.h"
+#include "runtime/scripting/scripts.h"
 #include "runtime/scripting/script_event.h"
 #include "runtime/scripting/script_registration_engine.h"
 #include "runtime/scripting/variable_event.h"
@@ -500,7 +500,317 @@ PTGN_REGISTER_SCRIPT(
 PTGN_REGISTER_SCRIPT(PrintConsoleScript, { .completion = ScriptCompletion::Instant });
 PTGN_REGISTER_SCRIPT(SetVisibleScript, { .completion = ScriptCompletion::Instant });
 PTGN_REGISTER_SCRIPT(PlaySoundScript, { .completion = ScriptCompletion::Instant });
-PTGN_REGISTER_SCRIPT(ActionScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(AnimationStartScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(AnimationStopScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(AnimationResetScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(AnimationPauseScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(AnimationResumeScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(AnimationTogglePlayingScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(AnimationSetFrameScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(AnimationNextFrameScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(AnimationPreviousFrameScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(TimerStartScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(TimerRestartScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(TimerStopScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(TimerResetScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(TimerPauseScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(TimerResumeScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(TimerTogglePausedScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(TimerAdvanceScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(TimerRewindScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(TimerSetDurationScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(TimerAddDurationScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(TimerRemoveDurationScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(LifetimeStartScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(LifetimeRestartScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(LifetimeStopScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(LifetimeResetScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(LifetimePauseScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(LifetimeResumeScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(LifetimeTogglePausedScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(LifetimeAdvanceScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(LifetimeRewindScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(LifetimeSetDurationScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(LifetimeAddDurationScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(LifetimeRemoveDurationScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(CounterSetScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(CounterIncrementScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(CounterDecrementScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(CounterResetScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(BooleanSetTrueScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(BooleanSetFalseScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(BooleanToggleScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(BooleanResetScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(DialogueOpenScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(DialogueCloseScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(DialogueAdvanceScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(DialogueNextPageScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(DialogueCompletePageScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(DialogueChangeDialogueScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(DialogueSelectDialogueScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(DialogueNextDialogueScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(DialogueOpenNextDialogueScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(TooltipShowScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(TooltipHideScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(TooltipEnableHoverScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(TooltipDisableHoverScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(TooltipToggleHoverScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(TooltipToggleVisibilityScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(ButtonPressScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(ButtonHoverStartScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(ButtonHoverContinueScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(ButtonHoverStopScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(ButtonEnableScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(ButtonDisableScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(SliderSetValueScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(SliderIncreaseScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(SliderDecreaseScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(ToggleButtonOnScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(ToggleButtonOffScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(ToggleButtonToggleScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(ToggleGroupSelectScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(ToggleGroupAllowNoneScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(ToggleGroupRequireActiveScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(DropdownOpenScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(DropdownCloseScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(DropdownToggleScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(DropdownPressItemScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(EntityDestroyEntityScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(EntitySpawnPrefabScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(EntitySetColorScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(EntitySetDepthScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(EntitySetPositionScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(EntityAddPositionScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(EntitySetRotationScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(EntityAddRotationScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(EntitySetScaleScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(EntityMultiplyScaleScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(EntitySetRenderMaskScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(EntitySetBlendModeScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(EntitySetOriginScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(EntitySetParentScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(EntityRemoveParentScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(TilemapSetTileScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(TilemapRemoveTileScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(ShapeSetColorScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(ShapeSetFillStyleScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(ShapeSetStrokeWidthScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(ShapeSetSizeScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(ShapeSetRadiusScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(ShapeSetGeometryScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(ShapeRectSetBoundsOrSizeScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(ShapeRectSetCenterScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(ShapeCircleSetDiameterScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(
+	ShapeRoundedRectSetCornerRadiusScript, { .completion = ScriptCompletion::Instant }
+);
+PTGN_REGISTER_SCRIPT(ShapePolygonSetVerticesScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(ShapePolygonSetVertexScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(ShapeEllipseSetRadiiScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(ShapeEllipseSetWidthScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(ShapeEllipseSetHeightScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(ShapeTriangleSetVerticesScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(ShapeTriangleSetVertexScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(ShapeLineSetStartScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(ShapeLineSetEndScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(ShapeLineSetEndpointsScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(ShapeLineSetWidthScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(ShapeCapsuleSetStartScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(ShapeCapsuleSetEndScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(ShapeCapsuleSetRadiusScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(ShapeCapsuleSetLengthScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(ShapeArcSetRadiusScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(ShapeArcSetStartAngleScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(ShapeArcSetEndAngleScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(ShapeArcSetDirectionScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(SpriteSetDisplaySizeScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(SpriteSetCropScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(SpriteClearCropScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(
+	SpriteSetTextureCoordinatesScript, { .completion = ScriptCompletion::Instant }
+);
+PTGN_REGISTER_SCRIPT(SpriteSetOriginScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(SpriteFlipXScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(SpriteFlipYScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(SpriteStackSetTextureScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(SpriteStackSetSliceCountScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(SpriteStackSetSliceOrderScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(SpriteStackSetLayerOffsetScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(
+	SpriteStackSetPixelSnappingScript, { .completion = ScriptCompletion::Instant }
+);
+PTGN_REGISTER_SCRIPT(TextSetTextScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(TextAppendTextScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(TextClearTextScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(TextSetRichTextScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(TextSetTextColorScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(TextSetFontScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(TextSetFontSizeScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(TextSetRevealCountScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(TextSetRevealFractionScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(TextRevealAllScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(TextTypewriterRevealScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(TextSetAlignmentScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(TextSetWrapModeScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(TextSetTextBoxScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(TextSetClipScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(TextSetOutlineScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(TextSetShadowScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(TextSetGlowScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(TextSetTextEffectScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(ParticlesStartScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(ParticlesStopScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(ParticlesPauseScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(ParticlesResumeScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(ParticlesToggleScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(ParticlesResetScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(ParticlesEmitBurstScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(ParticlesSetEmissionRateScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(ParticlesSetStartColorScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(ParticlesSetStartSpeedScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(ParticlesSetStartSizeScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(ParticlesSetLifetimeScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(ParticlesSetEmissionShapeScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(ParticlesSetGravityScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(
+	ParticlesSetSimulationSpeedScript, { .completion = ScriptCompletion::Instant }
+);
+PTGN_REGISTER_SCRIPT(
+	ParticlesSetMaximumParticlesScript, { .completion = ScriptCompletion::Instant }
+);
+PTGN_REGISTER_SCRIPT(ParticlesSetEndColorScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(ParticlesSetEndSizeScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(ParticlesSetEndVelocityScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(ParticlesSetParticleTypeScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(LightSetColorScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(LightSetIntensityScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(LightSetRadiusScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(LightSetFalloffScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(LightSetConeAngleScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(LightSetDirectionAngleScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(LightSetAmbientColorScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(LightSetAmbientIntensityScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(LightSetLightConfigScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(ShaderSetUniformScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(ShaderSetShaderScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(ShaderSetMaterialScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(ShaderSetMultipleUniformsScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(RenderTargetSetClearColorScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(RenderTargetClearColorScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(RenderTargetClearDepthScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(RenderTargetClearStencilScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(RenderTargetSetSizeScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(
+	RenderTargetFollowDisplaySizeScript, { .completion = ScriptCompletion::Instant }
+);
+PTGN_REGISTER_SCRIPT(
+	RenderTargetSetClearDepthValueScript, { .completion = ScriptCompletion::Instant }
+);
+PTGN_REGISTER_SCRIPT(
+	RenderTargetSetClearStencilValueScript, { .completion = ScriptCompletion::Instant }
+);
+PTGN_REGISTER_SCRIPT(CameraSetZoomScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(CameraZoomByScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(CameraZoomToScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(CameraResetCameraScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(CameraSetCameraBoundsScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(CameraSetPixelRoundingScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(CameraSetRenderMaskScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(CameraAddRenderMaskBitsScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(CameraRemoveRenderMaskBitsScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(CameraSetClearColorScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(CameraSetRenderTargetScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(CameraSetViewportScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(EffectEnableEffectScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(EffectDisableEffectScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(EffectToggleEffectScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(EffectSetEffectPropertyScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(EffectAddEffectScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(EffectRemoveEffectScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(EffectAddScreenEffectScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(EffectRemoveScreenEffectScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(EffectClearEffectsScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(EffectClearScreenEffectsScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(EffectSetEffectMarginScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(RigidBodySetVelocityScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(RigidBodyAddVelocityScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(RigidBodyAddImpulseScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(RigidBodyAddAccelerationScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(RigidBodyStopMovementScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(RigidBodySetGravityScaleScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(RigidBodySetDragScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(
+	RigidBodySetAngularVelocityScript, { .completion = ScriptCompletion::Instant }
+);
+PTGN_REGISTER_SCRIPT(RigidBodyAddAngularImpulseScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(RigidBodySetMaximumSpeedScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(RigidBodySetImmovableScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(ColliderSetCollisionModeScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(ColliderSetColliderShapeScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(
+	ColliderSetCollisionResponseScript, { .completion = ScriptCompletion::Instant }
+);
+PTGN_REGISTER_SCRIPT(ColliderSetCollisionFilterScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(ColliderSetOverlapModeScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(DraggableSetFollowMouseScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(DraggableSetMoveConditionScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(DraggableSetDropConditionScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(
+	DraggableSetPickupConditionScript, { .completion = ScriptCompletion::Instant }
+);
+PTGN_REGISTER_SCRIPT(DropzoneSetMoveConditionScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(DropzoneSetDropConditionScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(DropzoneSetPickupConditionScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(
+	InteractionAddInteractiveShapeScript, { .completion = ScriptCompletion::Instant }
+);
+PTGN_REGISTER_SCRIPT(
+	InteractionRemoveInteractiveShapeScript, { .completion = ScriptCompletion::Instant }
+);
+PTGN_REGISTER_SCRIPT(
+	InteractionClearInteractiveShapesScript, { .completion = ScriptCompletion::Instant }
+);
+PTGN_REGISTER_SCRIPT(
+	InteractionLockInteractionsScript, { .completion = ScriptCompletion::Instant }
+);
+PTGN_REGISTER_SCRIPT(
+	InteractionUnlockInteractionsScript, { .completion = ScriptCompletion::Instant }
+);
+PTGN_REGISTER_SCRIPT(TopDownSetMaximumSpeedScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(TopDownMoveDirectionScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(TopDownSetAccelerationScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(PlatformerSetMaximumSpeedScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(
+	PlatformerSetJumpControllerScript, { .completion = ScriptCompletion::Instant }
+);
+PTGN_REGISTER_SCRIPT(JumpJumpScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(JumpSetJumpHeightScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(JumpSetGravityMultipliersScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(JumpSetAirJumpsScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(PhysicsSetGravityScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(PhysicsEnablePhysicsScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(PhysicsDisablePhysicsScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(PhysicsSetBoundsScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(PhysicsClearBoundsScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(AudioStopSoundScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(AudioPauseSoundScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(AudioResumeSoundScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(AudioToggleSoundPauseScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(AudioSetSoundVolumeScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(AudioToggleSoundVolumeScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(AudioSetMasterVolumeScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(AudioToggleMasterVolumeScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(AudioStopAllAudioScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(AudioPauseAllAudioScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(AudioResumeAllAudioScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(AudioFadeInSoundScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(AudioFadeOutSoundScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(AudioSetPlaybackSpeedScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(SetUITextScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(TooltipSetPositionScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(TooltipSetHoverOffsetScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(DialogueGoToPageScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(DialogueSetPortraitScript, { .completion = ScriptCompletion::Instant });
 PTGN_REGISTER_SCRIPT(SetTextureScript, { .completion = ScriptCompletion::Instant });
 PTGN_REGISTER_SCRIPT(SetEnabledScript, { .completion = ScriptCompletion::Instant });
 PTGN_REGISTER_SCRIPT(SceneChangeScript, { .completion = ScriptCompletion::Instant });
