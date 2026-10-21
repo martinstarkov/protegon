@@ -1076,28 +1076,33 @@ bool DrawActionParameters(
 		}
 	}
 
-	float right_screen_x{ ImGui::GetWindowPos().x + ImGui::GetWindowContentRegionMax().x };
-	ImGui::SetCursorScreenPos(ImVec2{ left_screen_x, ImGui::GetCursorScreenPos().y });
+	// A details callback is permitted to draw nothing. Do not create an auto-sized
+	// child here, since even an empty child leaves a visible gap under the action row.
+	ImVec2 initial_position{ ImGui::GetCursorScreenPos() };
+	ImGui::SetCursorScreenPos(ImVec2{ left_screen_x, initial_position.y });
+	ImGui::PushID("ActionParameters");
+
+	auto* previous_target_filter{ context.sequence_target_filter };
+	context.sequence_target_filter = std::addressof(action.target);
+
 	bool changed{ false };
-	if (ImGui::BeginChild(
-			"ActionParameters", ImVec2{ std::max(1.0f, right_screen_x - left_screen_x), 0.0f },
-			ImGuiChildFlags_AutoResizeY
-		)) {
-		auto* previous_target_filter{ context.sequence_target_filter };
-		context.sequence_target_filter = std::addressof(action.target);
-
-		{
-			ScopedActionEditorDisabled disabled{ editing_disabled };
-			changed = editor->draw(context, action.value);
-		}
-
-		context.sequence_target_filter = previous_target_filter;
-
-		if (changed) {
-			action.runtime_factory = {};
-		}
+	{
+		ScopedActionEditorDisabled disabled{ editing_disabled };
+		changed = editor->draw(context, action.value);
 	}
-	ImGui::EndChild();
+
+	context.sequence_target_filter = previous_target_filter;
+	ImGui::PopID();
+
+	// Preserve the parent's horizontal layout, but keep any vertical space
+	// actually consumed by visible detail controls.
+	ImVec2 final_position{ ImGui::GetCursorScreenPos() };
+	ImGui::SetCursorScreenPos(ImVec2{ initial_position.x, final_position.y });
+
+	if (changed) {
+		action.runtime_factory = {};
+	}
+
 	return changed;
 }
 
@@ -1680,7 +1685,7 @@ bool DrawTimerElapsedTrigger(ScriptEditorContext& context, json& value) {
 			"##TimerElapsedDuration", displayed_duration, duration_width, false,
 			"Elapsed duration required before this trigger matches."
 		)) {
-				displayed_duration = std::max(0ms, displayed_duration);
+		displayed_duration = std::max(0ms, displayed_duration);
 
 		if (timer_duration && *timer_duration > 0ms) {
 			displayed_duration = std::min(displayed_duration, *timer_duration);
