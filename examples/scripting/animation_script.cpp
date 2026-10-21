@@ -11,13 +11,12 @@
 #include "runtime/animation/animation_event.h"
 #include "runtime/asset/asset_manager.h"
 #include "runtime/graphics/shape.h"
-#include "runtime/graphics/custom_shader.h"
 #include "runtime/graphics/visible.h"
 #include "runtime/scene/scene.h"
 #include "runtime/scene/scene_context.h"
 #include "runtime/scene/scene_registry.h"
-#include "runtime/scripting/builtin_scripts.h"
 #include "runtime/scripting/script.h"
+#include "runtime/scripting/scripts.h"
 #include "runtime/ui/button.h"
 
 using namespace ptgn;
@@ -25,13 +24,9 @@ using namespace ptgn;
 namespace {
 
 constexpr std::string_view kNextFrameSignal{ "animation.next_frame" };
-
 constexpr std::string_view kPlaySignal{ "animation.play" };
-
 constexpr std::string_view kStopSignal{ "animation.stop" };
-
 constexpr std::string_view kPlayOnceSignal{ "animation.play_once" };
-
 constexpr std::string_view kCompleteSignal{ "animation.complete" };
 
 void LoadAssets(Scene& scene) {
@@ -40,39 +35,30 @@ void LoadAssets(Scene& scene) {
 
 Button CreateTextButton(Scene& scene, V2_float position, std::string_view label) {
 	Transform transform;
-
 	transform.position = position;
 
 	Button button{ CreateButton(scene, transform, V2_float{ 260.0f, 72.0f }, Origin::Center) };
-
 	button.Background();
-
 	button.Text().Content(label);
-
 	return button;
 }
 
 void AttachSequence(Entity owner, ScriptSequence sequence) {
 	auto& script{ AddScript<Script>(owner) };
-
 	script.sequence = std::move(sequence);
 }
 
 json MakeSignalCondition(std::string_view signal) {
-	json value = json::object();
-
+	json value		= json::object();
 	value["signal"] = std::string{ signal };
-
 	return value;
 }
 
 ScriptSequence MakeButtonSignalSequence(std::string name, std::string_view signal) {
 	ScriptSequence sequence{ std::move(name) };
-
 	sequence.StartOn<event::ButtonPress>().Then(
 		EmitSignalScript{ SignalKey{ std::string{ signal } } }
 	);
-
 	return sequence;
 }
 
@@ -82,11 +68,9 @@ class AnimationScriptScene : public Scene {
 public:
 	void OnNew() override {
 		LoadAssets(*this);
-
 		SetBackgroundColor(color::Transparent);
 
 		Transform animation_transform;
-
 		animation_transform.position = { 0.0f, -100.0f };
 
 		Animation animation{ CreateAnimation(
@@ -95,119 +79,64 @@ public:
 		) };
 
 		SetScale(animation, 4.0f);
-
 		animation.Stop(true);
 
 		// Signal -> advance exactly one frame.
-		ActionScript next_frame{ ActionFamily::Animation };
-
-		next_frame.animation_action = AnimationAction::NextFrame;
-
 		ScriptSequence next_frame_sequence{ "Advance One Animation Frame" };
-
 		next_frame_sequence.StartOn<Signal>(MakeSignalCondition(kNextFrameSignal))
-			.Then(std::move(next_frame));
-
+			.Then(AnimationNextFrameScript{});
 		AttachSequence(animation, std::move(next_frame_sequence));
 
 		// Signal -> reset and play the full animation.
-		ActionScript reset{ ActionFamily::Animation };
-
-		reset.animation_action = AnimationAction::Reset;
-
-		ActionScript play{ ActionFamily::Animation };
-
-		play.animation_action = AnimationAction::Start;
-
-		play.force = true;
-
 		ScriptSequence play_sequence{ "Play Entire Animation" };
-
 		play_sequence.StartOn<Signal>(MakeSignalCondition(kPlaySignal))
-			.Then(std::move(reset))
-			.Then(std::move(play));
-
+			.Then(AnimationResetScript{})
+			.Then(AnimationStartScript{});
 		AttachSequence(animation, std::move(play_sequence));
 
-		// Signal -> stop on the current frame.
-		ActionScript stop{ ActionFamily::Animation };
-
-		stop.animation_action = AnimationAction::Stop;
-
-		stop.reset_on_stop = false;
-
+		// Signal -> stop on the current frame (without resetting).
 		ScriptSequence stop_sequence{ "Stop Animation" };
-
-		stop_sequence.StartOn<Signal>(MakeSignalCondition(kStopSignal)).Then(std::move(stop));
-
+		stop_sequence.StartOn<Signal>(MakeSignalCondition(kStopSignal)).Then(AnimationStopScript{});
 		AttachSequence(animation, std::move(stop_sequence));
 
-		// Signal -> reset and play exactly once.
-		//
-		// The animation's configured play_count is 1, so it automatically
-		// stops after completing one full sequence.
-		ActionScript play_once_reset{ ActionFamily::Animation };
-
-		play_once_reset.animation_action = AnimationAction::Reset;
-
-		ActionScript play_once{ ActionFamily::Animation };
-
-		play_once.animation_action = AnimationAction::Start;
-
-		play_once.force = true;
-
+		// Signal -> reset and play once (animation's configured play_count is 1).
 		ScriptSequence play_once_sequence{ "Play Animation Once" };
-
 		play_once_sequence.StartOn<Signal>(MakeSignalCondition(kPlayOnceSignal))
-			.Then(std::move(play_once_reset))
-			.Then(std::move(play_once));
-
+			.Then(AnimationResetScript{})
+			.Then(AnimationStartScript{});
 		AttachSequence(animation, std::move(play_once_sequence));
 
-		// The real animation completion event emits a global signal.
+		// Send a signal when the animation completes.
 		ScriptSequence complete_sequence{ "Send Animation Complete Signal" };
-
 		complete_sequence.StartOn<event::AnimationComplete>().Then(
 			EmitSignalScript{ SignalKey{ std::string{ kCompleteSignal } } }
 		);
-
 		AttachSequence(animation, std::move(complete_sequence));
 
 		Entity completion_indicator{ CreateCircle(*this, { 0.0f, 80.0f }, 34.0f, color::Green) };
-
 		Hide(completion_indicator);
 
 		ScriptSequence show_indicator_sequence{ "Show Completion Indicator" };
-
 		show_indicator_sequence.StartOn<Signal>(MakeSignalCondition(kCompleteSignal))
 			.Then(SetVisibleScript{ true });
-
 		AttachSequence(completion_indicator, std::move(show_indicator_sequence));
 
-		// Top-left: advance one frame.
 		Button next_frame_button{ CreateTextButton(*this, { -160.0f, 190.0f }, "Next Frame") };
-
 		AttachSequence(
 			next_frame_button, MakeButtonSignalSequence("Request Next Frame", kNextFrameSignal)
 		);
 
-		// Top-right: restart and play the full animation.
 		Button play_button{ CreateTextButton(*this, { 160.0f, 190.0f }, "Play Full Animation") };
-
 		AttachSequence(
 			play_button, MakeButtonSignalSequence("Request Full Animation", kPlaySignal)
 		);
 
-		// Bottom-left: stop without resetting.
 		Button stop_button{ CreateTextButton(*this, { -160.0f, 280.0f }, "Stop Animation") };
-
 		AttachSequence(
 			stop_button, MakeButtonSignalSequence("Request Animation Stop", kStopSignal)
 		);
 
-		// Bottom-right: reset and play one configured loop.
 		Button play_once_button{ CreateTextButton(*this, { 160.0f, 280.0f }, "Play Once") };
-
 		AttachSequence(
 			play_once_button, MakeButtonSignalSequence("Request Animation Once", kPlayOnceSignal)
 		);
@@ -222,10 +151,6 @@ PTGN_REGISTER_SCENE(AnimationScriptScene);
 
 int main(int, char**) {
 	Application app{ "Animation Built-in Script Sequence Test" };
-
 	PTGN_WITH_EDITOR(app, true);
-
-	app.StartProject<AnimationScriptScene>(
-		"AnimationScriptProject/AnimationScript.ptgnproj"
-	);
+	app.StartProject<AnimationScriptScene>("AnimationScriptProject/AnimationScript.ptgnproj");
 }
