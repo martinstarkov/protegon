@@ -88,7 +88,6 @@
 #include "runtime/scene/scene.h"
 #include "runtime/scene/scene_camera.h"
 #include "runtime/scene/scene_context.h"
-#include "runtime/scripting/builtin_scripts.h"
 #include "runtime/scripting/script.h"
 #include "runtime/timer/timer.h"
 #include "runtime/timer/timer_event.h"

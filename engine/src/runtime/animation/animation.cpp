@@ -17,6 +17,7 @@
 #include "core/util/time.h"
 #include "core/util/timer.h"
 #include "runtime/animation/animation_event.h"
+#include "runtime/animation/scripted_animation.h"
 #include "runtime/asset/asset_manager.h"
 #include "runtime/ecs/entity.h"
 #include "runtime/ecs/entity_creation_context.h"
@@ -27,7 +28,6 @@
 #include "runtime/scene/scene.h"
 #include "runtime/scene/scene_context.h"
 #include "runtime/scene/scene_event.h"
-#include "runtime/scripting/builtin_scripts.h"
 
 namespace ptgn {
 

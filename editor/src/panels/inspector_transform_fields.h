@@ -159,9 +159,9 @@ inline bool DrawSharedTransformFields(
 		if (!ignore) {
 			return false;
 		}
-		bool changed{ ImGui::Checkbox("##IgnoreParent", ignore) };
+		bool ignore_changed{ ImGui::Checkbox("##IgnoreParent", ignore) };
 		DrawTooltip(tooltip);
-		return changed;
+		return ignore_changed;
 	};
 
 	changed |= DrawSharedPositionField(

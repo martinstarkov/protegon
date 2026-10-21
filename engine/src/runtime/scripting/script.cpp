@@ -17,7 +17,7 @@ namespace ptgn {
 
 Script& Script::operator=(const Script& other) {
 	if (this != &other) {
-		sequence			  = other.sequence;
+		sequence = other.sequence;
 		active_sequence_name_.clear();
 		owner				  = {};
 		target				  = {};

@@ -20,7 +20,7 @@
 #include "runtime/animation/follow_config.h"
 #include "runtime/animation/shake_config.h"
 #include "runtime/ecs/entity.h"
-#include "runtime/scripting/builtin_scripts.h"
+#include "runtime/scripting/scripts.h"
 
 namespace ptgn {
 
@@ -102,8 +102,7 @@ std::vector<SequenceHandle> TranslateTo(
 	Ease ease = Ease::Linear, bool force = true, bool relative = false
 ) {
 	return impl::CreateAnimations(
-		entities, target_positions,
-		[&](Entity entity, const V2_float& target) {
+		entities, target_positions, [&](Entity entity, const V2_float& target) {
 			return TranslateTo(entity, target, duration, ease, force, relative);
 		}
 	);
@@ -125,8 +124,7 @@ std::vector<SequenceHandle> RotateTo(
 	Ease ease = Ease::Linear, bool force = true, bool shortest_path = true, bool relative = false
 ) {
 	return impl::CreateAnimations(
-		entities, target_angles,
-		[&](Entity entity, const Degrees& target) {
+		entities, target_angles, [&](Entity entity, const Degrees& target) {
 			return RotateTo(entity, target, duration, ease, force, shortest_path, relative);
 		}
 	);
@@ -148,8 +146,7 @@ std::vector<SequenceHandle> ScaleTo(
 	Ease ease = Ease::Linear, bool force = true, bool relative = false
 ) {
 	return impl::CreateAnimations(
-		entities, target_scales,
-		[&](Entity entity, const V2_float& target) {
+		entities, target_scales, [&](Entity entity, const V2_float& target) {
 			return ScaleTo(entity, target, duration, ease, force, relative);
 		}
 	);
