@@ -832,6 +832,46 @@ bool DrawActionPicker(
 	return changed;
 }
 
+// Reflected scripts with no members have no inline widget. Do not reserve space
+// for them: a cursor movement without a submitted ImGui item can assert at End().
+[[nodiscard]] bool HasActionInlineControls(
+	const ScriptEditorContext& context, const ScriptStep& action
+) {
+	if (action.value.is_object() && action.value.empty()) {
+		return false;
+	}
+
+	TypeHashValue type_hash{ action.type_hash };
+	bool is_animation_key_action{ type_hash == Hash<AnimationStartScript>() ||
+								  type_hash == Hash<AnimationStopScript>() ||
+								  type_hash == Hash<AnimationResetScript>() ||
+								  type_hash == Hash<AnimationPauseScript>() ||
+								  type_hash == Hash<AnimationResumeScript>() ||
+								  type_hash == Hash<AnimationTogglePlayingScript>() ||
+								  type_hash == Hash<AnimationNextFrameScript>() ||
+								  type_hash == Hash<AnimationPreviousFrameScript>() };
+
+	if (!is_animation_key_action) {
+		return true;
+	}
+
+	Entity owner{ ResolveInspectedEntity(context) };
+
+	if (!owner) {
+		return false;
+	}
+
+	if (action.target) {
+		auto targets{ ResolveEntityFilter(*action.target, owner.GetScene(), owner) };
+
+		return std::ranges::any_of(targets, [](Entity target) {
+			return target && target.Has<ptgn::impl::AnimationMapData>();
+		});
+	}
+
+	return owner.Has<ptgn::impl::AnimationMapData>();
+}
+
 bool DrawActionPickerWithInline(
 	ScriptEditorContext& context, ScriptStep& action, bool timed_only,
 	bool* context_requested = nullptr
@@ -841,7 +881,8 @@ bool DrawActionPickerWithInline(
 	const auto* registered_editor{ ScriptEditorRegistry::Find(action.type_hash) };
 	bool allow_inline{ !timed_only || action.type_hash == Hash<TintToScript>() };
 	bool has_inline_editor{ allow_inline && registered_editor &&
-							static_cast<bool>(registered_editor->draw_inline) };
+							static_cast<bool>(registered_editor->draw_inline) &&
+							HasActionInlineControls(context, action) };
 
 	if (!has_inline_editor) {
 		return DrawActionPicker(context, action, timed_only, -FLT_MIN, context_requested);
@@ -858,7 +899,8 @@ bool DrawActionPickerWithInline(
 
 	registered_editor = ScriptEditorRegistry::Find(action.type_hash);
 
-	if (registered_editor && registered_editor->draw_inline) {
+	if (registered_editor && registered_editor->draw_inline &&
+		HasActionInlineControls(context, action)) {
 		ImGui::SameLine(0.0f, spacing);
 
 		ImVec2 inline_position{ ImGui::GetCursorScreenPos() };
@@ -1054,12 +1096,13 @@ bool DrawTimingOptions(
 }
 
 bool DrawActionParameters(
-	ScriptEditorContext& context, ScriptStep& action, float left_screen_x,
+	ScriptEditorContext& context, ScriptStep& action, float /*left_screen_x*/,
 	bool editing_disabled = false
 ) {
 	EnsureActionValue(action);
 	const auto* editor{ ScriptEditorRegistry::Find(action.type_hash) };
-	if (!editor || !HasScriptType(editor->options.type, ScriptType::Sequence) || !editor->draw ||
+	if ((action.value.is_object() && action.value.empty()) || !editor ||
+		!HasScriptType(editor->options.type, ScriptType::Sequence) || !editor->draw ||
 		action.type_hash == Hash<Script>() || action.type_hash == Hash<WaitScript>() ||
 		action.type_hash == Hash<EmitSignalScript>() ||
 		action.type_hash == Hash<SetVisibleScript>() || action.type_hash == Hash<MoveToScript>() ||
@@ -1076,10 +1119,8 @@ bool DrawActionParameters(
 		}
 	}
 
-	// A details callback is permitted to draw nothing. Do not create an auto-sized
-	// child here, since even an empty child leaves a visible gap under the action row.
-	ImVec2 initial_position{ ImGui::GetCursorScreenPos() };
-	ImGui::SetCursorScreenPos(ImVec2{ left_screen_x, initial_position.y });
+	// Draw property rows at the normal Inspector indentation, rather than
+	// shifting them under the action selector. Empty editors submit no items.
 	ImGui::PushID("ActionParameters");
 
 	auto* previous_target_filter{ context.sequence_target_filter };
@@ -1093,11 +1134,6 @@ bool DrawActionParameters(
 
 	context.sequence_target_filter = previous_target_filter;
 	ImGui::PopID();
-
-	// Preserve the parent's horizontal layout, but keep any vertical space
-	// actually consumed by visible detail controls.
-	ImVec2 final_position{ ImGui::GetCursorScreenPos() };
-	ImGui::SetCursorScreenPos(ImVec2{ initial_position.x, final_position.y });
 
 	if (changed) {
 		action.runtime_factory = {};

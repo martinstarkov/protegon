@@ -783,22 +783,11 @@ bool DrawPrintConsoleInline(ScriptEditorContext& context, PrintConsoleScript& sc
 }
 
 bool DrawSetVisibleInline(ScriptEditorContext&, SetVisibleScript& script) {
-	const char* preview{ script.visible ? "True" : "False" };
-	bool changed{ false };
-	ImGui::SetNextItemWidth(-FLT_MIN);
-	if (ImGui::BeginCombo("##VisibleValue", preview)) {
-		if (ImGui::Selectable("True", script.visible)) {
-			script.visible = true;
-			changed		   = true;
-		}
-		if (ImGui::Selectable("False", !script.visible)) {
-			script.visible = false;
-			changed		   = true;
-		}
-		ImGui::EndCombo();
-	}
-	DrawItemTooltip("Visibility value assigned by this action.");
-	return changed;
+	return DrawToggleButton(
+		script.visible ? "Visible##Visibility" : "Hidden##Visibility", script.visible,
+		ImVec2{ std::max(1.0f, ImGui::GetContentRegionAvail().x), 0.0f },
+		"Toggle the visibility assigned by this action."
+	);
 }
 
 bool DrawPlaySoundInline(ScriptEditorContext& context, PlaySoundScript& script) {
@@ -1850,7 +1839,7 @@ bool DrawBounce(ScriptEditorContext&, BounceScript& script) {
 	return changed;
 }
 
-bool DrawStartBounce(ScriptEditorContext& context, StartBounceScript& script) {
+bool DrawStartBounce(ScriptEditorContext&, StartBounceScript& script) {
 	bool changed{ inspector::DrawPropertyRow("Amplitude", [&]() {
 		ImGui::SetNextItemWidth(-FLT_MIN);
 		return ImGui::DragFloat2("##Amplitude", &script.amplitude.x, 0.1f);
@@ -1870,7 +1859,25 @@ bool DrawStartBounce(ScriptEditorContext& context, StartBounceScript& script) {
 	changed |= inspector::DrawPropertyRow("Force", [&]() {
 		return ImGui::Checkbox("##Force", &script.force);
 	});
-	changed |= DrawReflectedScriptValue(context.ctx, script.ease);
+	changed |= inspector::DrawPropertyRow("Easing", [&]() {
+		ImGui::SetNextItemWidth(-FLT_MIN);
+
+		std::string preview{ magic_enum::enum_name(script.ease) };
+		bool row_changed{ false };
+
+		if (ImGui::BeginCombo("##Ease", preview.c_str())) {
+			for (const auto& [ease, name] : magic_enum::enum_entries<Ease>()) {
+				std::string label{ name };
+
+				if (ImGui::Selectable(label.c_str(), ease == script.ease)) {
+					script.ease = ease;
+					row_changed = true;
+				}
+			}
+			ImGui::EndCombo();
+		}
+		return row_changed;
+	});
 	return changed;
 }
 
@@ -2335,6 +2342,77 @@ PTGN_REGISTER_SCRIPT(
 					 }
 );
 
+// A selected animation may only be chosen when the target owns an AnimationMap.
+// Ordinary Animation entities always use their single AnimationData component.
+[[nodiscard]] bool HasAnimationMapTarget(const ScriptEditorContext& context) {
+	Entity owner{ context.owner };
+
+	if (!owner) {
+		return false;
+	}
+
+	if (context.sequence_target_filter && *context.sequence_target_filter) {
+		auto targets{
+			ResolveEntityFilter(**context.sequence_target_filter, owner.GetScene(), owner)
+		};
+
+		return std::ranges::any_of(targets, [](Entity target) {
+			return target && target.Has<ptgn::impl::AnimationMapData>();
+		});
+	}
+
+	return owner.Has<ptgn::impl::AnimationMapData>();
+}
+
+template <typename Enum>
+bool DrawEnumStringInline(const char* id, std::string& value, Enum fallback) {
+	std::string preview{ value.empty() ? std::string{ magic_enum::enum_name(fallback) } : value };
+	bool changed{ false };
+
+	ImGui::SetNextItemWidth(-FLT_MIN);
+
+	if (ImGui::BeginCombo(id, preview.c_str())) {
+		for (const auto& [mode, name] : magic_enum::enum_entries<Enum>()) {
+			std::string label{ name };
+
+			if (ImGui::Selectable(label.c_str(), value == name)) {
+				value	= label;
+				changed = true;
+			}
+		}
+		ImGui::EndCombo();
+	}
+
+	return changed;
+}
+
+template <typename T>
+bool DrawAudioFadeDetails(ScriptEditorContext& context, T& script) {
+	bool changed{ false };
+
+	changed |= inspector::DrawPropertyRow("Sound", [&]() {
+		AudioKey key{ script.text };
+		bool selected{ inspector::DrawAssetKeyInline(
+			context.ctx, key, inspector::FieldOptions{}, "Audio asset to fade"
+		) };
+
+		if (selected) {
+			script.text = key.value;
+		}
+		return selected;
+	});
+
+	changed |= inspector::DrawPropertyRow("Fade Duration", [&]() {
+		ImGui::SetNextItemWidth(-FLT_MIN);
+		return ImGui::DragFloat(
+			"##FadeDuration", &script.number, 0.1f, 1.0f, 1000000.0f, "%.2f",
+			ImGuiSliderFlags_AlwaysClamp
+		);
+	});
+
+	return changed;
+}
+
 // Reflected single member scripts share the same compact value renderer.
 // Domain and menu information is deliberately not part of the script type.
 template <typename T>
@@ -2411,11 +2489,33 @@ bool DrawTypedActionInline(ScriptEditorContext& context, T& script) {
 		return DrawVariableKeyInline(
 			"##Boolean", script.boolean, GetVariableActionChoices<BooleanKey>(context), -FLT_MIN
 		);
+	} else if constexpr (std::is_same_v<T, AnimationSetFrameScript>) {
+		int value{ static_cast<int>(
+			std::min(script.frame, static_cast<std::size_t>(std::numeric_limits<int>::max()))
+		) };
+		ImGui::SetNextItemWidth(-FLT_MIN);
+		bool changed{ ImGui::DragInt(
+			"##AnimationFrame", &value, 1.0f, 0, std::numeric_limits<int>::max(), "Frame: %d",
+			ImGuiSliderFlags_AlwaysClamp
+		) };
+
+		if (changed) {
+			script.frame = static_cast<std::size_t>(std::max(0, value));
+		}
+		return changed;
 	} else if constexpr (requires { script.animation_key; }) {
+		if (!HasAnimationMapTarget(context)) {
+			return false;
+		}
+
 		ImGui::SetNextItemWidth(-FLT_MIN);
 		return ImGui::InputTextWithHint(
 			"##AnimationKey", "Active animation", &script.animation_key
 		);
+	} else if constexpr (std::is_same_v<T, ColliderSetCollisionModeScript>) {
+		return DrawEnumStringInline("##CollisionMode", script.text, CollisionMode::Discrete);
+	} else if constexpr (std::is_same_v<T, ColliderSetCollisionResponseScript>) {
+		return DrawEnumStringInline("##CollisionResponse", script.text, CollisionResponse::Slide);
 	} else if constexpr (requires { script.dialogue; }) {
 		ImGui::SetNextItemWidth(-FLT_MIN);
 		return ImGui::InputText("##DialogueKey", &script.dialogue);
@@ -2467,17 +2567,16 @@ bool DrawTypedActionDetails(ScriptEditorContext& context, T& script) {
 		return inspector::DrawPropertyRow("Reset On Stop", [&]() {
 			return ImGui::Checkbox("##Reset", &script.reset_on_stop);
 		});
-	} else if constexpr (requires {
-							 script.animation_key;
-							 script.frame;
-						 }) {
-		return inspector::DrawPropertyRow("Frame", [&]() {
-			int value{ static_cast<int>(script.frame) };
-			bool changed{ ImGui::InputInt("##Frame", &value) };
-			if (changed) {
-				script.frame = static_cast<std::size_t>(std::max(0, value));
-			}
-			return changed;
+	} else if constexpr (std::is_same_v<T, AnimationSetFrameScript>) {
+		if (!HasAnimationMapTarget(context)) {
+			return false;
+		}
+
+		return inspector::DrawPropertyRow("Active Animation", [&]() {
+			ImGui::SetNextItemWidth(-FLT_MIN);
+			return ImGui::InputTextWithHint(
+				"##AnimationKey", "Active animation", &script.animation_key
+			);
 		});
 	} else if constexpr (
 		requires { script.timer; } || requires { script.counter; } ||
@@ -5122,8 +5221,8 @@ PTGN_REGISTER_SCRIPT(
 		.group		 = "Physics/Platformer Jump",
 		.description = "Set Gravity Multipliers on the selected target.",
 		.type		 = ScriptType::Sequence,
-		.draw_inline = &DrawTypedActionInline<JumpSetGravityMultipliersScript>,
-		.draw		 = &DrawTypedActionDetails<JumpSetGravityMultipliersScript>,
+
+		.draw = &DrawTypedActionDetails<JumpSetGravityMultipliersScript>,
 	}
 );
 PTGN_REGISTER_SCRIPT(
@@ -5296,7 +5395,7 @@ PTGN_REGISTER_SCRIPT(
 								.group		 = "Audio/Fade",
 								.description = "Fade In Sound on the selected target.",
 								.type		 = ScriptType::Sequence,
-								.draw		 = &DrawTypedActionDetails<AudioFadeInSoundScript>,
+								.draw		 = &DrawAudioFadeDetails<AudioFadeInSoundScript>,
 							}
 );
 PTGN_REGISTER_SCRIPT(
@@ -5305,7 +5404,7 @@ PTGN_REGISTER_SCRIPT(
 								 .group		  = "Audio/Fade",
 								 .description = "Fade Out Sound on the selected target.",
 								 .type		  = ScriptType::Sequence,
-								 .draw		  = &DrawTypedActionDetails<AudioFadeOutSoundScript>,
+								 .draw		  = &DrawAudioFadeDetails<AudioFadeOutSoundScript>,
 							 }
 );
 PTGN_REGISTER_SCRIPT(
