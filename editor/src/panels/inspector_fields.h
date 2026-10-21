@@ -1573,7 +1573,10 @@ bool DrawDurationTextInput(
 	bool changed{ false };
 
 	if (commit) {
-		auto parsed{ ParseInspectorDuration(state.buffer) };
+		auto parsed{ ParseInspectorDuration(
+			state.buffer,
+			ParseDurationInputUnit(state.display_unit).value_or(DurationInputUnit::Milliseconds)
+		) };
 
 		if (parsed && parsed->count >= 0.0L) {
 			if (auto updated{ ConvertInspectorDuration<Duration>(*parsed) }) {
@@ -1609,16 +1612,15 @@ bool DrawDurationTextInput(
 }
 
 inline bool DrawDurationInput(
-	const char* label, float& milliseconds, float width, const char* tooltip = nullptr
+	const char* label, millisecondsf& duration, float width, const char* tooltip = nullptr
 ) {
-	millisecondsf duration{ milliseconds };
-	bool changed{ DrawDurationTextInput(label, duration, width, false, tooltip) };
+	return DrawDurationTextInput(label, duration, width, false, tooltip);
+}
 
-	if (changed) {
-		milliseconds = duration.count();
-	}
-
-	return changed;
+inline bool DrawDurationInput(
+	const char* label, milliseconds& duration, float width, const char* tooltip = nullptr
+) {
+	return DrawDurationTextInput(label, duration, width, false, tooltip);
 }
 
 template <typename Rep, typename Period>
