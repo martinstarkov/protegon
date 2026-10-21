@@ -83,7 +83,7 @@ struct RigidBodySetImmovableScript : public Script {
 
 struct ColliderSetCollisionModeScript : public Script {
 	void OnStart() override;
-	std::string text{};
+	std::string text{ "Discrete" };
 
 	PTGN_REFLECT(ColliderSetCollisionModeScript, text)
 };
@@ -97,7 +97,7 @@ struct ColliderSetColliderShapeScript : public Script {
 
 struct ColliderSetCollisionResponseScript : public Script {
 	void OnStart() override;
-	std::string text{};
+	std::string text{ "Slide" };
 
 	PTGN_REFLECT(ColliderSetCollisionResponseScript, text)
 };
