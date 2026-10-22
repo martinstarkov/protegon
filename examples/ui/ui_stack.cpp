@@ -199,13 +199,10 @@ void CreatePlanetDetails(Scene& scene, UIStack stack, const DemoPlanet& planet) 
 
 	// Demonstrates an advanced cover override: the Select button disappears
 	// when the confirmation screen is pushed, but the rest of this popup stays.
-	Entity footer{ scene.CreateEntity(Tag{ "Selection Controls" }) };
-	AddChild(screen, footer);
-	footer.Add<OverlayOverride>(OverlayOverride{ OverlayMode::Hide });
-
 	Button select{
-		MakeImageButton(scene, footer, "confirm_button", { -39.5f, 51.5f }, { 47.0f, 14.0f })
+		MakeImageButton(scene, screen, "confirm_button", { -39.5f, 51.5f }, { 47.0f, 14.0f })
 	};
+	select.Add<OverlayOverride>(OverlayOverride{ OverlayMode::Hide });
 	AttachNavigation(select, "Confirm planet selection", DemoNavigation::Push, "Confirm");
 }
 
