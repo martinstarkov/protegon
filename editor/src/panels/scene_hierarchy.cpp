@@ -2312,6 +2312,15 @@ void DrawSceneHierarchyContents(
 
 } // namespace
 
+bool CanReparentHierarchyEntity(Entity entity, Entity parent) {
+	return CanReparent(entity, parent);
+}
+
+bool CanAssignEntityToUILayer(Entity entity, Entity layer) {
+	return entity && layer && layer.Has<UILayerData>() &&
+		   !entity.HasAny<UIStackData, UILayerData>() && CanReparent(entity, layer);
+}
+
 bool SceneHierarchyPanel::DrawSceneHierarchy(EditorContext& ctx) {
 	bool visible{ ImGui::Begin("Scene Hierarchy###SceneHierarchyWindow") };
 

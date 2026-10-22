@@ -483,7 +483,10 @@ private:
 	void EndMove(EditorContext& ctx, Scene& scene);
 	void CancelMove(Scene& scene);
 
-	void SelectClick(EditorContext& ctx, Scene& scene, V2_float world, bool additive, bool toggle);
+	void SelectClick(
+		EditorContext& ctx, Scene& scene, V2_float world, bool additive, bool toggle,
+		Entity picked_ui
+	);
 	void SelectMarquee(
 		EditorContext& ctx, Scene& scene, V2_float a, V2_float b, bool additive, bool toggle
 	);

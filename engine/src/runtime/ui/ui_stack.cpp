@@ -172,6 +172,58 @@ ScreenState ResolveState(Entity entity) {
 
 } // namespace
 
+bool UILayer::SetKey(std::string_view key) {
+	if (!*this || !Has<UILayerData>() || key.empty()) {
+		return false;
+	}
+
+	auto& layer{ Get<UILayerData>() };
+	std::string previous{ layer.key };
+
+	if (previous == key) {
+		return true;
+	}
+
+	UIStack stack{ GetUIStack(*this) };
+
+	if (stack) {
+		UILayer duplicate{ stack.GetLayer(key) };
+
+		if (duplicate && duplicate != *this) {
+			return false;
+		}
+
+		auto& data{ stack.Get<UIStackData>() };
+
+		if (data.initial == previous) {
+			data.initial = key;
+		}
+
+		for (auto& entry : data.history) {
+			if (entry == previous) {
+				entry = key;
+			}
+		}
+
+		if (data.preview_visible) {
+			for (auto& entry : *data.preview_visible) {
+				if (entry == previous) {
+					entry = key;
+				}
+			}
+		}
+	}
+
+	layer.key = key;
+
+	// Keep the default hierarchy label in sync without overwriting a custom name.
+	if (Has<Tag>() && std::string_view{ Get<Tag>() } == previous) {
+		Get<Tag>() = Tag{ std::string{ key } };
+	}
+
+	return true;
+}
+
 void UILayer::SetOverlayMode(OverlayMode mode) {
 	TryAdd<UILayerData>().overlay = mode;
 }

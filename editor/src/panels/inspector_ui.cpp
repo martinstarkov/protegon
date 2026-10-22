@@ -5001,49 +5001,16 @@ bool DrawUISectionImpl(Target& target) {
 			});
 		if constexpr (requires { target.entity; }) {
 			UIStack stack{ target.entity };
-			if (ImGui::TreeNodeEx("Layers", ImGuiTreeNodeFlags_DefaultOpen)) {
-				for (UILayer screen : stack.GetLayers()) {
-					ImGui::BulletText("%s", std::string{ screen.GetKey() }.c_str());
-				}
-				if (!target.ctx.editor.IsPlaying() && !target.ctx.editor.IsDirectRuntime()) {
-					if (ImGui::Button("Add Layer")) {
-						std::string key{ "Layer 1" };
-						for (std::size_t i{ 1 }; stack.GetLayer(key); ++i) {
-							key = "Layer " + std::to_string(i + 1);
-						}
-						UILayer screen{ stack.AddLayer(key) };
-						target.ctx.commands.RecordCreatedEntity(screen, target.ctx.local.selection);
-						changed = true;
-					}
-					DrawTooltip("Create a child UI layer in this stack.");
-				}
-				ImGui::TreePop();
-			}
+
 			if (!target.ctx.editor.IsPlaying() && !target.ctx.editor.IsDirectRuntime()) {
-				ImGui::SeparatorText("Editor Visibility");
-				for (UILayer layer : stack.GetLayers()) {
-					ImGui::PushID(layer.Get<UUID>());
-					bool visible{ stack.IsLayerPreviewVisible(layer.GetKey()) };
-					if (DrawEditorIconButton(
-							"##LayerPreview", visible ? EditorIcon::Visible : EditorIcon::Hidden,
-							EditorIconButtonOptions{
-								.tooltip =
-									visible ? "Hide layer in editor" : "Show layer in editor",
-								.compact = true,
-								.muted	 = !visible,
-							}
-						)) {
-						stack.SetLayerPreviewVisible(layer.GetKey(), !visible);
-					}
-					ImGui::SameLine();
-					ImGui::TextUnformatted(std::string{ layer.GetKey() }.c_str());
-					ImGui::PopID();
-				}
-				if (ImGui::SmallButton("Reset Preview")) {
+				if (ImGui::Button(
+						"Reset Editor Preview", ImVec2{ -FLT_MIN, ImGui::GetFrameHeight() }
+					)) {
 					stack.ResetLayerPreview();
 				}
-				DrawTooltip("Restore the initial runtime layer in the editor viewport.");
+				DrawTooltip("Show only the initial UI layer in the editor viewport.");
 			}
+
 			if (target.ctx.editor.IsPlaying() || target.ctx.editor.IsDirectRuntime()) {
 				ImGui::TextDisabled(
 					"Current Layer: %s", std::string{ stack.GetCurrentLayer() }.c_str()
@@ -5061,15 +5028,129 @@ bool DrawUISectionImpl(Target& target) {
 	}
 
 	if (has_screen) {
+		if constexpr (requires { target.entity; }) {
+			// Rename the authored layer key and all stack references as one undoable edit.
+			// Enter commits the new key; invalid and duplicate keys are rejected.
+			Entity entity{ target.entity };
+			if (entity && entity.Has<UILayerData>()) {
+				static std::string editing_entity;
+				static std::string editing_key;
+				std::string identity{ target.GetUUIDText() };
+
+				if (editing_entity != identity) {
+					editing_entity = identity;
+					editing_key	   = entity.Get<UILayerData>().key;
+				}
+
+				ScopedID key_scope{ "UILayerKey" };
+				DrawPropertyRow("Layer Key", [&]() {
+					ImGui::SetNextItemWidth(-FLT_MIN);
+					bool submitted{ ImGui::InputText(
+						"##Key", &editing_key, ImGuiInputTextFlags_EnterReturnsTrue
+					) };
+					DrawTooltip(
+						"Unique identifier used by the UI Stack and navigation scripts. Press "
+						"Enter to rename."
+					);
+
+					if (submitted && !target.IsReadOnly()) {
+						UILayer layer{ entity };
+						UIStack stack{ GetUIStack(entity) };
+						auto before_layer{ entity.Get<UILayerData>() };
+						auto before_tag{ entity.Get<Tag>() };
+						std::optional<UIStackData> before_stack;
+
+						if (stack) {
+							before_stack = stack.Get<UIStackData>();
+						}
+
+						if (layer.SetKey(editing_key) && editing_key != before_layer.key) {
+							auto after_layer{ entity.Get<UILayerData>() };
+							auto after_tag{ entity.Get<Tag>() };
+							std::optional<UIStackData> after_stack;
+
+							if (stack) {
+								after_stack = stack.Get<UIStackData>();
+							}
+
+							Editor* editor{ std::addressof(target.ctx.editor) };
+							EntityReference layer_ref{ MakeEntityReference(entity) };
+							std::optional<EntityReference> stack_ref;
+
+							if (stack) {
+								stack_ref = MakeEntityReference(stack);
+							}
+
+							auto apply = [editor, layer_ref, stack_ref](
+											 UILayerData layer_data, Tag tag,
+											 std::optional<UIStackData> stack_data
+										 ) {
+								Entity resolved{ layer_ref.Resolve(*editor) };
+
+								if (!resolved || !resolved.Has<UILayerData>()) {
+									return;
+								}
+
+								resolved.Get<UILayerData>() = std::move(layer_data);
+								resolved.Add<Tag>(std::move(tag));
+
+								if (stack_ref && stack_data) {
+									Entity resolved_stack{ stack_ref->Resolve(*editor) };
+
+									if (resolved_stack && resolved_stack.Has<UIStackData>()) {
+										resolved_stack.Get<UIStackData>() = std::move(*stack_data);
+									}
+								}
+							};
+
+							target.ctx.undo.PushApplied(
+								"Rename UI Layer",
+								[apply, before_layer, before_tag, before_stack]() mutable {
+									apply(before_layer, before_tag, before_stack);
+								},
+								[apply, after_layer, after_tag, after_stack]() mutable {
+									apply(after_layer, after_tag, after_stack);
+								}
+							);
+							changed = true;
+						}
+
+						editing_key = entity.Get<UILayerData>().key;
+					}
+
+					if (!ImGui::IsItemActive()) {
+						editing_key = entity.Get<UILayerData>().key;
+					}
+
+					return submitted;
+				});
+			}
+		} else {
+			changed |= DrawFocusedComponent<Target, UILayerData>(
+				target, "Layer Key",
+				[&](UILayerData& data) { return DrawValue(target.ctx, "Layer Key", data.key); }
+			);
+		}
+
 		changed |=
 			DrawFocusedComponent<Target, UILayerData>(target, "UI Layer", [&](UILayerData& data) {
 				bool local_changed{ false };
-				ImGui::TextDisabled("Layer key: %s", data.key.c_str());
 				local_changed |= DrawValue(target.ctx, "Overlay Mode", data.overlay);
+				DrawTooltip(
+					"Choose whether this layer stays visible or becomes hidden when covered by "
+					"another layer."
+				);
 				local_changed |=
 					DrawValue(target.ctx, "Show Disabled Style", data.show_disabled_style);
+				DrawTooltip(
+					"Display disabled button styles while this layer is covered and visible."
+				);
 				local_changed |=
 					DrawValue(target.ctx, "Block Background Input", data.block_background_input);
+				DrawTooltip(
+					"Prevent interactions with entities outside this layer while it is the active "
+					"runtime layer."
+				);
 				return local_changed;
 			});
 	}

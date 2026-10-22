@@ -52,6 +52,7 @@ public:
 
 	explicit UILayer(Entity entity) : Entity{ entity } {}
 
+	[[nodiscard]] bool SetKey(std::string_view key);
 	void SetOverlayMode(OverlayMode mode);
 	void SetShowDisabledStyle(bool enabled);
 	void SetBlockBackgroundInput(bool enabled);

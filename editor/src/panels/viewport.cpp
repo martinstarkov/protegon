@@ -45,6 +45,7 @@
 #include "runtime/ui/button_config.h"
 #include "runtime/ui/dropdown.h"
 #include "runtime/ui/slider.h"
+#include "runtime/ui/ui_stack.h"
 #include "tools/debug/stats.h"
 
 namespace ptgn::editor {
@@ -1993,8 +1994,18 @@ void ViewportPanel::HandleEntityPicking(
 
 	auto selected_entity{ ResolveRenderTargetPick(*scene, renderer, outer_entity, mouse_world) };
 
+	// UI stacks and layers are navigation containers, not pickable graphics.
+	// Retain the actual rendered child under the cursor rather than selecting a container.
+	if (selected_entity && selected_entity.HasAny<UIStackData, UILayerData>()) {
+		return;
+	}
+
 	if (selected_entity && !ctx.editor.GetSettings().show_managed_ui_parts) {
 		selected_entity = ResolveManagedUIPick(selected_entity);
+	}
+
+	if (selected_entity && selected_entity.HasAny<UIStackData, UILayerData>()) {
+		return;
 	}
 
 	if (selected_entity && (!scene->GetLayers().IsSelectable(selected_entity) ||

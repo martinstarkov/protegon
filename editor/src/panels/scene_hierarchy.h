@@ -20,6 +20,10 @@ namespace ptgn::editor {
 
 class EditorContext;
 
+// Same assignment restrictions for hierarchy drag/drop and the Rendering inspector.
+[[nodiscard]] bool CanReparentHierarchyEntity(Entity entity, Entity parent);
+[[nodiscard]] bool CanAssignEntityToUILayer(Entity entity, Entity layer);
+
 using SceneHierarchyTab = EditorSelectionMode;
 
 class SceneHierarchyPanel {

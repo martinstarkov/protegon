@@ -2715,6 +2715,84 @@ bool DrawVisualRenderMask(Target& target) {
 }
 
 template <typename Target>
+bool DrawVisualUILayer(Target& target) {
+	if constexpr (!requires { target.entity; }) {
+		return false;
+	} else {
+		Entity entity{ target.entity };
+
+		if (!entity || entity.HasAny<UIStackData, UILayerData>() || target.IsReadOnly()) {
+			return false;
+		}
+
+		UILayer current{ GetUILayer(entity) };
+		UIStack current_stack{ GetUIStack(entity) };
+		std::string preview{ "None" };
+
+		if (current && current_stack) {
+			preview = std::string{ current.GetKey() };
+		} else if (current) {
+			preview = std::string{ current.GetKey() };
+		}
+
+		bool changed{ DrawPropertyRow("UI Layer", [&]() {
+			ScopedID id{ "EntityUILayer" };
+			ImGui::SetNextItemWidth(-FLT_MIN);
+
+			if (!ImGui::BeginCombo("##UILayer", preview.c_str())) {
+				return false;
+			}
+
+			bool selected{ false };
+			bool can_remove{ current && !target.ctx.editor.IsPlaying() &&
+							 !target.ctx.editor.IsDirectRuntime() &&
+							 CanReparentHierarchyEntity(entity, {}) };
+			ImGui::BeginDisabled(!can_remove);
+
+			if (ImGui::Selectable("None (Scene Root)", !current)) {
+				target.ctx.commands.ReparentEntity(entity, {}, true);
+				selected = true;
+			}
+
+			ImGui::EndDisabled();
+
+			for (auto [candidate, data] : entity.GetScene().EntitiesWith<UILayerData>()) {
+				UIStack stack{ GetUIStack(candidate) };
+
+				if (!stack) {
+					continue;
+				}
+
+				bool is_current{ current == candidate };
+				bool allowed{ is_current || (!target.ctx.editor.IsPlaying() &&
+											 !target.ctx.editor.IsDirectRuntime() &&
+											 CanAssignEntityToUILayer(entity, candidate)) };
+				std::string caption{ std::string{ stack.Get<Tag>() } + " / " + data.key };
+				ImGui::PushID(candidate.Get<UUID>());
+				ImGui::BeginDisabled(!allowed);
+
+				if (ImGui::Selectable(caption.c_str(), is_current) && !is_current) {
+					target.ctx.commands.ReparentEntity(entity, candidate, true);
+					selected = true;
+				}
+
+				ImGui::EndDisabled();
+				ImGui::PopID();
+			}
+
+			ImGui::EndCombo();
+			return selected;
+		}) };
+
+		DrawTooltip(
+			"Assign this entity and its children to a UI layer by reparenting it. The same "
+			"operation is available by dragging in the hierarchy."
+		);
+		return changed;
+	}
+}
+
+template <typename Target>
 bool DrawVisualAdditionalOptions(Target& target, std::string_view visual) {
 	if (!visual.contains("text")) {
 		return false;
@@ -2804,6 +2882,7 @@ bool DrawRenderingOptions(Target& target, bool draw_tint) {
 			target, "Ignore Parent Visibility"
 		);
 		changed |= DrawVisualRenderMask(target);
+		changed |= DrawVisualUILayer(target);
 	}
 
 	return changed;

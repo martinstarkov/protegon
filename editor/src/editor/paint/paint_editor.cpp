@@ -39,6 +39,7 @@
 #include "panels/scene_list.h"
 #include "platform/file_dialog.h"
 #include "platform/window.h"
+#include "renderer/renderer.h"
 #include "runtime/animation/animation.h"
 #include "runtime/asset/asset_manager.h"
 #include "runtime/asset/prefab.h"
@@ -48,12 +49,16 @@
 #include "runtime/ecs/tag.h"
 #include "runtime/graphics/draw.h"
 #include "runtime/graphics/frame_context.h"
+#include "runtime/graphics/render_target.h"
 #include "runtime/graphics/shape.h"
 #include "runtime/graphics/sprite.h"
 #include "runtime/graphics/text/text.h"
 #include "runtime/graphics/visible.h"
 #include "runtime/scene/scene.h"
 #include "runtime/scene/scene_context.h"
+#include "runtime/ui/button_config.h"
+#include "runtime/ui/slider.h"
+#include "runtime/ui/ui_stack.h"
 #include "runtime/world/paint_generator.h"
 #include "runtime/world/tilemap.h"
 #include "serialization/json/json.h"
@@ -533,6 +538,80 @@ void MergeBounds(std::optional<PaintSelectionRect>& target, const PaintSelection
 		}
 	}
 	return result;
+}
+
+// Pick UI content using the rendered entity ID, not the bounding box of its root.
+// A UI Stack is a scene-layer root whose bounds span all of its descendants, so
+// treating that root as a selectable entity hides the actual UI controls beneath it.
+[[nodiscard]] Entity PickUIContent(
+	EditorContext& ctx, Scene& scene, V2_float screen_position, Viewport image_viewport
+) {
+	RenderTarget target{ scene.GetRenderTarget() };
+
+	if (!target || !target.Has<::ptgn::impl::FramebufferObject>() ||
+		!image_viewport.size.IsPositive()) {
+		return {};
+	}
+
+	V2_float local{ screen_position - image_viewport.position };
+
+	if (local.x < 0.0f || local.y < 0.0f || local.x >= image_viewport.size.x ||
+		local.y >= image_viewport.size.y) {
+		return {};
+	}
+
+	::ptgn::impl::RendererAccessor renderer{ ctx.editor.GetRenderer() };
+	auto framebuffer{
+		static_cast<::ptgn::impl::FramebufferId>(target.Get<::ptgn::impl::FramebufferObject>())
+	};
+
+	if (!renderer.IsEntityPickingEnabled(framebuffer)) {
+		return {};
+	}
+
+	V2_int size{ target.GetSize() };
+
+	if (!size.IsPositive()) {
+		return {};
+	}
+
+	V2_int pixel{
+		static_cast<int>(local.x / image_viewport.size.x * static_cast<float>(size.x)),
+		static_cast<int>(local.y / image_viewport.size.y * static_cast<float>(size.y)),
+	};
+	pixel = Clamp(pixel, V2_int{ 0, 0 }, size - V2_int{ 1, 1 });
+
+	renderer.FlushBatch();
+	auto picked_id{ renderer.ReadEntityId(framebuffer, pixel) };
+
+	if (!picked_id.has_value() || picked_id.value() == ::ptgn::impl::kNoEntityId ||
+		picked_id.value() < 0) {
+		return {};
+	}
+
+	Entity picked{ scene.GetEntity(UUID{ picked_id.value() }) };
+
+	if (!picked || !GetUIStack(picked)) {
+		return {};
+	}
+
+	// Managed sprite/text/shape parts should select the button or slider that
+	// owns them, not an implementation detail inside the control.
+	while (!ctx.editor.GetSettings().show_managed_ui_parts && picked && HasParent(picked) &&
+		   picked.HasAny<
+			   ButtonBackgroundVisuals, ButtonBorderVisuals, ButtonSpriteVisuals, ButtonTextVisuals,
+			   ::ptgn::impl::SliderThumbData, ::ptgn::impl::SliderTrackData,
+			   ::ptgn::impl::SliderTrackBackgroundData, ::ptgn::impl::SliderTrackBorderData,
+			   ::ptgn::impl::SliderTrackSpriteData, ::ptgn::impl::SliderValueTextData>()) {
+		picked = GetParent(picked);
+	}
+
+	if (!picked || picked.HasAny<UIStackData, UILayerData>() || !IsVisible(picked) ||
+		!scene.GetLayers().IsSelectable(picked) || scene.GetLayers().IsLocked(picked)) {
+		return {};
+	}
+
+	return picked;
 }
 
 [[nodiscard]] PaintSelectionRect TileSelectionBounds(Tilemap map, const TilemapTile& tile) {
@@ -10267,7 +10346,7 @@ void PaintEditor::CancelStroke(EditorContext&, Scene& scene) {
 }
 
 void PaintEditor::SelectClick(
-	EditorContext& ctx, Scene& scene, V2_float world, bool additive, bool toggle
+	EditorContext& ctx, Scene& scene, V2_float world, bool additive, bool toggle, Entity picked_ui
 ) {
 	// Selection is scene wide, not constrained by the current authoring layer.
 	// Walk the layer stack from front/top to back/bottom and stop at the first
@@ -10289,6 +10368,14 @@ void PaintEditor::SelectClick(
 	};
 
 	Hit hit{};
+
+	// Prefer the actual visible pixel under the cursor for UI, including fixed-camera
+	// UI elements. World-space root bounds cannot distinguish a stack from its children.
+	if (picked_ui && !picked_ui.HasAny<UIStackData, UILayerData>()) {
+		hit.kind   = Hit::Kind::Entity;
+		hit.entity = picked_ui;
+	}
+
 	const auto& layers{ scene.GetLayers().GetLayers() };
 
 	for (auto layer_it{ layers.rbegin() }; layer_it != layers.rend() && hit.kind == Hit::Kind::None;
@@ -10307,6 +10394,7 @@ void PaintEditor::SelectClick(
 			for (auto root_it{ roots.rbegin() }; root_it != roots.rend(); ++root_it) {
 				Entity root{ *root_it };
 				if (!root || IsPaintGenerator(root) || IsTilemap(root) ||
+					root.HasAny<UIStackData, UILayerData>() ||
 					IsProtectedSceneEntity(scene, root)) {
 					continue;
 				}
@@ -10497,6 +10585,7 @@ void PaintEditor::SelectMarquee(
 			for (auto root_it{ roots.rbegin() }; root_it != roots.rend(); ++root_it) {
 				Entity root{ *root_it };
 				if (!root || IsPaintGenerator(root) || IsTilemap(root) ||
+					root.HasAny<UIStackData, UILayerData>() ||
 					IsProtectedSceneEntity(scene, root)) {
 					continue;
 				}
@@ -10600,7 +10689,7 @@ void PaintEditor::SelectMarquee(
 		}
 		for (Entity root : scene.GetLayers().GetRootEntities(scene, layer.id)) {
 			if (!root || IsPaintGenerator(root) || IsTilemap(root) ||
-				IsProtectedSceneEntity(scene, root)) {
+				root.HasAny<UIStackData, UILayerData>() || IsProtectedSceneEntity(scene, root)) {
 				continue;
 			}
 			auto bounds{ EntitySelectionBounds(root) };
@@ -10697,7 +10786,7 @@ void PaintEditor::SelectBrush(EditorContext& ctx, Scene& scene, V2_float world, 
 		}
 		for (Entity root : scene.GetLayers().GetRootEntities(scene, layer.id)) {
 			if (!root || IsPaintGenerator(root) || IsTilemap(root) ||
-				IsProtectedSceneEntity(scene, root)) {
+				root.HasAny<UIStackData, UILayerData>() || IsProtectedSceneEntity(scene, root)) {
 				continue;
 			}
 			auto bounds{ EntitySelectionBounds(root) };
@@ -11236,6 +11325,7 @@ Entity PaintEditor::FindGeneratorAtWorld(Scene& scene, V2_float world) const {
 			for (auto root_it{ roots.rbegin() }; root_it != roots.rend(); ++root_it) {
 				Entity root{ *root_it };
 				if (!root || IsPaintGenerator(root) || IsTilemap(root) ||
+					root.HasAny<UIStackData, UILayerData>() ||
 					IsProtectedSceneEntity(scene, root)) {
 					continue;
 				}
@@ -11457,9 +11547,15 @@ bool PaintEditor::DrawViewportAndHandleInput(
 		if (inside && ImGui::IsMouseClicked(ImGuiMouseButton_Left)) {
 			bool additive{ ImGui::GetIO().KeyShift };
 			bool toggle{ CtrlDown() };
-			if (!SelectionHitAtWorld(scene, mouse_world)) {
-				SelectClick(ctx, scene, mouse_world, additive, toggle);
+			Entity picked_ui{ PickUIContent(ctx, scene, mouse_screen, image_viewport) };
+			bool picked_different_ui{
+				picked_ui && !std::ranges::contains(selected_entities_, picked_ui.Get<UUID>())
+			};
+
+			if (picked_different_ui || !SelectionHitAtWorld(scene, mouse_world)) {
+				SelectClick(ctx, scene, mouse_world, additive, toggle, picked_ui);
 			}
+
 			if (HasSelection() && SelectionHitAtWorld(scene, mouse_world)) {
 				BeginMove(ctx, scene, mouse_world);
 			}
@@ -11500,7 +11596,10 @@ bool PaintEditor::DrawViewportAndHandleInput(
 			};
 
 			if (screen_distance < 4.0f) {
-				SelectClick(ctx, scene, mouse_world, additive, toggle);
+				SelectClick(
+					ctx, scene, mouse_world, additive, toggle,
+					PickUIContent(ctx, scene, mouse_screen, image_viewport)
+				);
 			} else {
 				if (additive) {
 					selection_end = ConstrainSquareDrag(selection_drag_start_, mouse_world);
