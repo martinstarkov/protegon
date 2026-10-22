@@ -3,6 +3,7 @@
 #include "runtime/ecs/entity.h"
 #include "runtime/ecs/entity_hierarchy.h"
 #include "runtime/scene/scene_event.h"
+#include "runtime/ui/ui_stack.h"
 
 namespace ptgn {
 
@@ -39,7 +40,7 @@ void Hide(Entity entity) {
 	SetVisible(entity, false);
 }
 
-bool IsVisible(Entity entity, bool check_parent_visibility) {
+bool IsAuthoredVisible(Entity entity, bool check_parent_visibility) {
 	if (!check_parent_visibility) {
 		return IsLocallyVisible(entity);
 	}
@@ -63,6 +64,10 @@ bool IsVisible(Entity entity, bool check_parent_visibility) {
 	);
 
 	return visible;
+}
+
+bool IsVisible(Entity entity, bool check_parent_visibility) {
+	return IsAuthoredVisible(entity, check_parent_visibility) && IsUIStackVisible(entity);
 }
 
 void IgnoreParentVisibility(Entity entity, bool ignore) {
