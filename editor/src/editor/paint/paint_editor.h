@@ -571,8 +571,8 @@ private:
 	PaintSelectMode select_mode_{ PaintSelectMode::ClickMarquee };
 	PaintAreaMode area_mode_{ PaintAreaMode::Fill };
 	PaintMoveSnapMode move_snap_{ PaintMoveSnapMode::Grid };
-	int brush_diameter_{ 3 };
-	int selection_diameter_{ 3 };
+	int brush_diameter_{ 1 };
+	int selection_diameter_{ 1 };
 	int line_thickness_{ 1 };
 	int line_spacing_{ 1 };
 	int area_thickness_{ 1 };
