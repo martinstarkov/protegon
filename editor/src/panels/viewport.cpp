@@ -294,7 +294,7 @@ void SetEditorWorldTransform(Entity entity, Transform transform) {
 	::ptgn::impl::SliderSystem::SynchronizeEntity(entity);
 }
 
-void SetEditorLocalTransform(Entity entity, Transform transform) {
+[[maybe_unused]] void SetEditorLocalTransform(Entity entity, Transform transform) {
 	SetTransform(entity, transform);
 	::ptgn::impl::SliderSystem::SynchronizeEntity(entity);
 }

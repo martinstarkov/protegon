@@ -86,6 +86,7 @@ public:
 	// Editor only; independent visibility toggles can display multiple layers.
 	// Nullopt restores the initial layer. Preview state is never serialized.
 	void SetLayerPreviewVisible(std::string_view key, bool visible);
+	void ShowOnlyLayerPreview(std::string_view key);
 	[[nodiscard]] bool IsLayerPreviewVisible(std::string_view key) const;
 	void ResetLayerPreview();
 };

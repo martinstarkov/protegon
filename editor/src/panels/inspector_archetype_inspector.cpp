@@ -633,7 +633,9 @@ bool DrawArchetypeInspectorImpl(Target& target) {
 
 	changed |= DrawInteractionSection(target);
 	changed |= DrawPhysicsSection(target);
-	changed |= DrawScriptsSection(target);
+	if (archetype != InspectorArchetype::UIStack && archetype != InspectorArchetype::UILayer) {
+		changed |= DrawScriptsSection(target);
+	}
 	changed |= DrawUtilitiesSection(target);
 
 	ImGui::Separator();

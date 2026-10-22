@@ -73,6 +73,7 @@
 #include "runtime/graphics/visible.h"
 #include "runtime/scene/scene_file.h"
 #include "runtime/scene/scene_manager.h"
+#include "runtime/ui/ui_stack.h"
 #include "serialization/json/json.h"
 #include "tools/debug/debug_system.h"
 
@@ -2806,6 +2807,17 @@ void Editor::DrawMainMenuBar() {
 			);
 		}
 
+		if (ImGui::MenuItem(
+				"Preview Selected UI Layer", nullptr, GetSettings().preview_selected_ui_layer
+			)) {
+			toggle_editor_setting(
+				"Toggle Preview Selected UI Layer", &EditorSettings::preview_selected_ui_layer
+			);
+		}
+		if (ImGui::IsItemHovered()) {
+			ImGui::SetTooltip("Selecting a UI layer shows only that layer in the editor.");
+		}
+
 		ImGui::Separator();
 
 		if (ImGui::MenuItem("Entity Picking", nullptr, GetSettings().entity_picking)) {
@@ -3787,6 +3799,7 @@ void Editor::SetEditorSettings(EditorSettings settings) {
 	current.show_read_only_inspector_data	   = settings.show_read_only_inspector_data;
 	current.show_read_only_scene_data		   = settings.show_read_only_scene_data;
 	current.show_managed_ui_parts			   = settings.show_managed_ui_parts;
+	current.preview_selected_ui_layer		   = settings.preview_selected_ui_layer;
 	current.show_imgui_metrics				   = settings.show_imgui_metrics;
 	current.preview_screen_effects			   = settings.preview_screen_effects;
 	current.content_browser_items_per_row	   = settings.content_browser_items_per_row;
@@ -3903,6 +3916,24 @@ void Editor::Play() {
 		.project_state_before_play		   = context_->project_state,
 		.screen_effect_preview_before_play = context_->local.settings.preview_screen_effects,
 	};
+
+	// Editor-only UI layer visibility is deliberately not serialized. Keep it
+	// across the edit -> runtime -> edit scene reconstruction instead.
+	for (const auto& entry : project->scenes) {
+		auto& editor_scene{ manager.GetScene(Hash(entry.key)) };
+
+		for (auto [entity, data] : editor_scene.EntitiesWith<UIStackData>()) {
+			if (data.preview_visible) {
+				play_snapshot_->layer_previews.push_back(
+					UILayerPreviewSnapshot{
+						.scene_key		= entry.key,
+						.stack_uuid		= entity.Get<UUID>(),
+						.visible_layers = *data.preview_visible,
+					}
+				);
+			}
+		}
+	}
 
 	context_->local.position_picker.Cancel();
 	undo_stack_.CommitActiveEdit();
@@ -4117,6 +4148,19 @@ void Editor::Stop() {
 		bool accepted{ manager.EnterFactory(snapshot.key, std::move(factory)) };
 
 		PTGN_ASSERT(accepted, "Failed to restore project scene after editor play: ", snapshot.key);
+	}
+
+	for (const auto& preview : play_snapshot_->layer_previews) {
+		if (!manager.HasScene(Hash(preview.scene_key))) {
+			continue;
+		}
+
+		auto& editor_scene{ manager.GetScene(Hash(preview.scene_key)) };
+		Entity stack_entity{ editor_scene.GetEntity(preview.stack_uuid) };
+
+		if (stack_entity && stack_entity.Has<UIStackData>()) {
+			stack_entity.Get<UIStackData>().preview_visible = preview.visible_layers;
+		}
 	}
 
 	std::string selected_key{ play_snapshot_->selected_scene_key };

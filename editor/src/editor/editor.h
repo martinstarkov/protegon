@@ -31,6 +31,7 @@
 #include "renderer/resources/framebuffer.h"
 #include "renderer/resources/id.h"
 #include "runtime/ecs/entity.h"
+#include "runtime/ecs/uuid.h"
 #include "runtime/graphics/fx/screen_effect_stack.h"
 #include "runtime/scene/scene_file.h"
 
@@ -181,12 +182,19 @@ public:
 	std::optional<path> GetProjectRoot() const;
 
 private:
+	struct UILayerPreviewSnapshot {
+		std::string scene_key{};
+		UUID stack_uuid{};
+		std::vector<std::string> visible_layers{};
+	};
+
 	struct PlaySnapshot {
 		std::string selected_scene_key{};
 		bool was_dirty{ false };
 		bool was_untracked_project_dirty{ false };
 		EditorProjectState project_state_before_play{};
 		bool screen_effect_preview_before_play{ true };
+		std::vector<UILayerPreviewSnapshot> layer_previews{};
 	};
 
 	void StopDirectRuntime();

@@ -10,6 +10,12 @@ namespace ptgn {
 namespace {
 
 bool IsLocallyVisible(Entity entity) {
+	// Layer visibility is controlled by the UI stack in runtime and the editor
+	// preview otherwise; old authored Visible flags must not suppress either.
+	if (entity.Has<UILayerData>()) {
+		return true;
+	}
+
 	return !entity.Has<Visible>() || entity.Get<Visible>().visible;
 }
 

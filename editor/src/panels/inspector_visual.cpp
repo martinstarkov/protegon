@@ -2933,43 +2933,90 @@ bool DrawRenderingOptions(Target& target, bool draw_tint) {
 	bool changed{ false };
 	ScopedIndent indent;
 
-	auto before_visible{ target.template Capture<Visible>() };
-	bool visible{ before_visible ? before_visible->visible : true };
-	bool visible_changed{ DrawPropertyRow("Visible", [&]() {
-		if (DrawEditorIconButton(
-				"##RendererVisible", visible ? EditorIcon::Visible : EditorIcon::Hidden,
-				EditorIconButtonOptions{
-					.tooltip	 = visible ? "Hide" : "Show",
-					.muted		 = !visible,
-					.icon_extent = ImGui::GetTextLineHeight() + 2.0f,
-				}
-			)) {
-			visible = !visible;
-			return true;
-		}
-		return false;
-	}) };
-	auto refresh_managed_parts = +[](Entity entity) {
-		if (entity && entity.Has<::ptgn::impl::ButtonData>()) {
-			Button{ entity }.RefreshVisualState();
-		}
-	};
-	if (visible_changed) {
-		Visible updated{ before_visible.value_or(Visible{}) };
-		updated.visible = visible;
-		target.template SetLive<Visible>(ComponentState<Visible>{ updated });
-		if constexpr (requires { target.entity; }) {
-			refresh_managed_parts(target.entity);
-		} else if constexpr (requires { target.prefab; }) {
-			refresh_managed_parts(target.prefab);
+	bool is_ui_layer{ HasInspectorComponent<Target, UILayerData>(target) };
+	bool uses_layer_preview{ false };
+	bool runtime_layer{ false };
+	UIStack preview_stack{};
+	UILayer preview_layer{};
+
+	if constexpr (requires { target.entity; }) {
+		if (is_ui_layer && target.entity && target.entity.HasScene()) {
+			preview_layer = UILayer{ target.entity };
+			preview_stack = GetUIStack(target.entity);
+			runtime_layer = target.entity.GetScene().IsRuntime() || target.ctx.editor.IsPlaying() ||
+							target.ctx.editor.IsDirectRuntime();
+			uses_layer_preview = static_cast<bool>(preview_stack);
 		}
 	}
-	auto after_visible{ target.template Capture<Visible>() };
-	TrackComponentState(
-		target, "Toggle Visibility", std::move(before_visible), std::move(after_visible),
-		visible_changed, refresh_managed_parts
-	);
-	changed |= visible_changed;
+
+	if (uses_layer_preview) {
+		// Both the hierarchy eye and this eye read/write the same editor preview.
+		// During runtime, render the stack's effective state instead of allowing
+		// authored visibility to override the active navigation layer.
+		bool visible{ runtime_layer ? IsUIStackVisible(preview_layer)
+									: preview_stack.IsLayerPreviewVisible(preview_layer.GetKey()) };
+		bool visible_changed{ DrawPropertyRow("Visible", [&]() {
+			ImGui::BeginDisabled(runtime_layer || target.IsReadOnly());
+			bool clicked{ DrawEditorIconButton(
+				"##RendererVisible", visible ? EditorIcon::Visible : EditorIcon::Hidden,
+				EditorIconButtonOptions{
+					.tooltip = runtime_layer ? "Visibility is controlled by the UI stack in runtime"
+							 : visible		 ? "Hide UI layer in editor viewport"
+											 : "Show UI layer in editor viewport",
+					.muted	 = !visible,
+					.icon_extent = ImGui::GetTextLineHeight() + 2.0f,
+				}
+			) };
+			ImGui::EndDisabled();
+			return clicked;
+		}) };
+
+		if (visible_changed && !runtime_layer) {
+			preview_stack.SetLayerPreviewVisible(preview_layer.GetKey(), !visible);
+		}
+
+		// Preview visibility is transient and must not mark the scene dirty.
+	} else {
+		auto before_visible{ target.template Capture<Visible>() };
+		bool visible{ before_visible ? before_visible->visible : true };
+		bool visible_changed{ DrawPropertyRow("Visible", [&]() {
+			if (DrawEditorIconButton(
+					"##RendererVisible", visible ? EditorIcon::Visible : EditorIcon::Hidden,
+					EditorIconButtonOptions{
+						.tooltip	 = visible ? "Hide" : "Show",
+						.muted		 = !visible,
+						.icon_extent = ImGui::GetTextLineHeight() + 2.0f,
+					}
+				)) {
+				visible = !visible;
+				return true;
+			}
+			return false;
+		}) };
+		auto refresh_managed_parts = +[](Entity entity) {
+			if (entity && entity.Has<::ptgn::impl::ButtonData>()) {
+				Button{ entity }.RefreshVisualState();
+			}
+		};
+
+		if (visible_changed) {
+			Visible updated{ before_visible.value_or(Visible{}) };
+			updated.visible = visible;
+			target.template SetLive<Visible>(ComponentState<Visible>{ updated });
+			if constexpr (requires { target.entity; }) {
+				refresh_managed_parts(target.entity);
+			} else if constexpr (requires { target.prefab; }) {
+				refresh_managed_parts(target.prefab);
+			}
+		}
+
+		auto after_visible{ target.template Capture<Visible>() };
+		TrackComponentState(
+			target, "Toggle Visibility", std::move(before_visible), std::move(after_visible),
+			visible_changed, refresh_managed_parts
+		);
+		changed |= visible_changed;
+	}
 
 	bool ui_container{ HasInspectorComponent<Target, UIStackData>(target) ||
 					   HasInspectorComponent<Target, UILayerData>(target) };

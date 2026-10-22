@@ -81,7 +81,7 @@ Depth GetDepth(Entity entity) {
 		}
 	);
 
-	depth.value += GetUIStackDepthOffset(entity);
+	depth.value += static_cast<float>(GetUIStackDepthOffset(entity));
 	return depth;
 }
 

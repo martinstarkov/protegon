@@ -1753,8 +1753,8 @@ void DrawSceneHierarchyContents(
 				if (DrawEditorIconButton(
 						"##UILayerVisible", visible ? EditorIcon::Visible : EditorIcon::Hidden,
 						EditorIconButtonOptions{
-							.tooltip =
-								visible ? "Hide UI layer in editor" : "Show UI layer in editor",
+							.tooltip = visible ? "Hide UI layer in editor viewport"
+											   : "Show UI layer in editor viewport",
 							.compact = true,
 							.muted	 = !visible,
 						}
@@ -1853,6 +1853,16 @@ void DrawSceneHierarchyContents(
 			selected_layer.reset();
 			selected_entity				   = entity;
 			entity_left_clicked_this_frame = true;
+
+			if (entity.Has<UILayerData>() && !scene.IsRuntime() && !ctx.editor.IsPlaying() &&
+				!ctx.editor.IsDirectRuntime() &&
+				ctx.editor.GetSettings().preview_selected_ui_layer) {
+				UIStack stack{ GetUIStack(entity) };
+
+				if (stack) {
+					stack.ShowOnlyLayerPreview(entity.Get<UILayerData>().key);
+				}
+			}
 		}
 
 		if (node.right_clicked && layer_interactable) {

@@ -456,6 +456,16 @@ void UIStack::SetLayerPreviewVisible(std::string_view key, bool visible) {
 	ResetInteraction(*this);
 }
 
+void UIStack::ShowOnlyLayerPreview(std::string_view key) {
+	if (!GetLayer(key)) {
+		return;
+	}
+
+	auto& data{ Get<UIStackData>() };
+	data.preview_visible = std::vector<std::string>{ std::string{ key } };
+	ResetInteraction(*this);
+}
+
 void UIStack::ResetLayerPreview() {
 	if (!Has<UIStackData>()) {
 		return;
