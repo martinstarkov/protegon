@@ -89,12 +89,13 @@ private:
 		Viewport presentation_viewport, const FrameContext& frame_context
 	);
 
-	EditorCamera editor_camera_;
+	EditorCamera editor_camera_{};
 
-	GizmoState gizmo_state_;
-	std::optional<std::uint64_t> gizmo_entity_uuid_;
+	GizmoState gizmo_state_{};
+	std::optional<std::uint64_t> gizmo_entity_uuid_{};
 
 	bool use_editor_camera_{ true };
+	bool middle_mouse_panning_{ false };
 };
 
 } // namespace ptgn::editor

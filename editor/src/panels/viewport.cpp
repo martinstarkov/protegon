@@ -606,7 +606,9 @@ void DrawPositionPickerPreview(
 	draw_list->PopClipRect();
 }
 
-void UpdateEditorCamera(EditorCamera& editor_camera) {
+void UpdateEditorCamera(
+	EditorCamera& editor_camera, bool& middle_mouse_panning, bool mouse_inside_viewport
+) {
 	const auto& io{ ImGui::GetIO() };
 	auto& camera{ editor_camera.camera };
 
@@ -631,6 +633,19 @@ void UpdateEditorCamera(EditorCamera& editor_camera) {
 			V2_float pan_distance{ kEditorCameraPanSpeedPixelsPerSecond * io.DeltaTime / zoom };
 			camera.transform.position += pan_direction * pan_distance;
 		}
+	}
+
+	if (!ImGui::IsMouseDown(ImGuiMouseButton_Middle)) {
+		middle_mouse_panning = false;
+	}
+
+	if (mouse_inside_viewport && ImGui::IsMouseClicked(ImGuiMouseButton_Middle)) {
+		middle_mouse_panning = true;
+	}
+
+	if (middle_mouse_panning) {
+		// Drag the image under the cursor, adjusting camera movement for zoom.
+		camera.transform.position -= V2_float{ io.MouseDelta.x, io.MouseDelta.y } / zoom;
 	}
 
 	// Mouse-wheel zoom remains local to the viewport, while arrow-key panning is global whenever
@@ -1627,8 +1642,13 @@ void ViewportPanel::OnRender(EditorContext& ctx) {
 	auto presentation_texture{ ctx.editor.GetPresentationTexture() };
 	auto presentation_size{ ctx.editor.GetPresentationTextureSize() };
 
+	Viewport viewport{ .position{ min + display_viewport.position },
+					   .size{ display_viewport.size } };
+	bool mouse_inside_viewport{ ImGui::IsWindowHovered() &&
+								ContainsPoint(viewport, FromImGui(ImGui::GetIO().MousePos)) };
+
 	if (use_editor_camera_) {
-		UpdateEditorCamera(editor_camera_);
+		UpdateEditorCamera(editor_camera_, middle_mouse_panning_, mouse_inside_viewport);
 
 		editor_camera_.camera.raw_viewport	 = { .position{}, .size{ 1.0f, 1.0f } };
 		editor_camera_.camera.viewport_space = ViewportSpace::Normalized;
@@ -1644,11 +1664,9 @@ void ViewportPanel::OnRender(EditorContext& ctx) {
 
 		renderer.SetPrimaryWorldCamera(editor_camera_.camera);
 	} else {
+		middle_mouse_panning_ = false;
 		renderer.SetPrimaryWorldCamera(std::nullopt);
 	}
-
-	Viewport viewport{ .position{ min + display_viewport.position },
-					   .size{ display_viewport.size } };
 
 	draw_list->AddCallback(SetImageBlendMode, &renderer);
 
