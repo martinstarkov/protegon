@@ -3876,6 +3876,38 @@ std::size_t AssetManager::Size() const {
 	return manager_.Size() + jsons_.size() + prefabs_.size();
 }
 
+bool AssetManager::ReloadTextureFromDisk(const TextureKey& key) {
+	auto catalog{ GetCatalogAsset(key, AssetKind::Texture) };
+	if (!catalog) {
+		return false;
+	}
+	path source{ ResolveAssetPath(*catalog) };
+	if (!FileExists(source)) {
+		return false;
+	}
+	auto existing{ TryGet<Texture>(key) };
+	if (!existing) {
+		Load(key, catalog->source_path);
+		return Has<Texture>(key);
+	}
+
+	auto& current{ existing->GetEntity().Get<impl::TextureObject>() };
+	TextureDesc desc{ current.GetDesc() };
+	impl::Surface surface{ source };
+	if (!surface.GetSize().IsPositive()) {
+		return false;
+	}
+	impl::TextureObject replacement{ CreateTexture(surface, desc.format, desc.params) };
+	if (!replacement) {
+		return false;
+	}
+	current = std::move(replacement);
+	auto& state{ runtime_states_[MakeAssetStorageKey(key, AssetKind::Texture)] };
+	state.metadata	 = ProbeMetadata(*catalog);
+	state.load_state = AssetLoadState::Loaded;
+	return true;
+}
+
 V2_int AssetManager::GetTextureSize(const TextureKey& key) const {
 	return Get<Texture>(key).GetEntity().Get<impl::TextureObject>().GetSize();
 }

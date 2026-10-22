@@ -464,6 +464,8 @@ public:
 	bool Unload(const AssetKey& key);
 	[[nodiscard]] std::size_t Size() const;
 	V2_int GetTextureSize(const TextureKey& key) const;
+	/// Reloads a texture in place from its catalog file, keeping its asset key and entity.
+	bool ReloadTextureFromDisk(const TextureKey& key);
 	V2_int GetFontAtlasSize(const FontKey& key) const;
 	impl::TextureId GetFontAtlasTexture(const FontKey& key) const;
 	[[nodiscard]] json CreateJson(const path& json_path) const;
