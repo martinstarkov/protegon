@@ -69,6 +69,7 @@
 #include "runtime/ui/slider.h"
 #include "runtime/ui/toggle_button.h"
 #include "runtime/ui/tooltip.h"
+#include "runtime/ui/ui_stack.h"
 #include "runtime/world/tilemap.h"
 
 namespace ptgn {
@@ -422,6 +423,66 @@ void DialogueSetPortraitScript::OnStart() {
 	}
 	if (target.Has<impl::DialogueData>()) {
 		Dialogue{ target }.SetPortrait(slot, speaker, expression);
+	}
+}
+
+namespace {
+
+UIStack ResolveScriptStack(const Script& script) {
+	Entity target{ script.Target() };
+	if (target && target.Has<UIStackData>()) {
+		return UIStack{ target };
+	}
+	if (target) {
+		if (UIStack stack{ GetUIStack(target) }) {
+			return stack;
+		}
+	}
+	Entity owner{ script.Owner() };
+	return owner ? GetUIStack(owner) : UIStack{};
+}
+
+} // namespace
+
+void UIStackPushScript::OnStart() {
+	if (UIStack stack{ ResolveScriptStack(*this) }) {
+		stack.Push(layer);
+	}
+}
+
+void UIStackPopScript::OnStart() {
+	if (UIStack stack{ ResolveScriptStack(*this) }) {
+		stack.Pop();
+	}
+}
+
+void UIStackReplaceScript::OnStart() {
+	if (UIStack stack{ ResolveScriptStack(*this) }) {
+		stack.Replace(layer);
+	}
+}
+
+void UIStackPopToScript::OnStart() {
+	if (UIStack stack{ ResolveScriptStack(*this) }) {
+		stack.PopTo(layer);
+	}
+}
+
+void UIStackSetScript::OnStart() {
+	if (UIStack stack{ ResolveScriptStack(*this) }) {
+		stack.Set(layer);
+	}
+}
+
+void UIStackResetScript::OnStart() {
+	if (UIStack stack{ ResolveScriptStack(*this) }) {
+		stack.Reset();
+	}
+}
+
+void UIStackClearScript::OnStart() {
+	if (UIStack stack{ ResolveScriptStack(*this) }) {
+		stack.Clear();
 	}
 }
 

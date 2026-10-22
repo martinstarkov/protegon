@@ -219,4 +219,45 @@ struct DialogueSetPortraitScript : public Script {
 	PTGN_REFLECT(DialogueSetPortraitScript, slot, speaker, expression)
 };
 
+// Navigate the containing UI stack (or the stack selected by the action target).
+// Layer keys are stable IDs, independent of hierarchy entity names.
+struct UIStackPushScript : public Script {
+	std::string layer{};
+	void OnStart() override;
+	PTGN_REFLECT(UIStackPushScript, layer)
+};
+
+struct UIStackPopScript : public Script {
+	void OnStart() override;
+	PTGN_REFLECT_EMPTY(UIStackPopScript)
+};
+
+struct UIStackReplaceScript : public Script {
+	std::string layer{};
+	void OnStart() override;
+	PTGN_REFLECT(UIStackReplaceScript, layer)
+};
+
+struct UIStackPopToScript : public Script {
+	std::string layer{};
+	void OnStart() override;
+	PTGN_REFLECT(UIStackPopToScript, layer)
+};
+
+struct UIStackSetScript : public Script {
+	std::string layer{};
+	void OnStart() override;
+	PTGN_REFLECT(UIStackSetScript, layer)
+};
+
+struct UIStackResetScript : public Script {
+	void OnStart() override;
+	PTGN_REFLECT_EMPTY(UIStackResetScript)
+};
+
+struct UIStackClearScript : public Script {
+	void OnStart() override;
+	PTGN_REFLECT_EMPTY(UIStackClearScript)
+};
+
 } // namespace ptgn
