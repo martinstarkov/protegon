@@ -10,6 +10,7 @@
 #include "runtime/ecs/entity.h"
 #include "runtime/ecs/entity_hierarchy.h"
 #include "runtime/graphics/drawable.h"
+#include "runtime/ui/ui_stack.h"
 
 namespace ptgn {
 
@@ -80,6 +81,7 @@ Depth GetDepth(Entity entity) {
 		}
 	);
 
+	depth.value += GetUIStackDepthOffset(entity);
 	return depth;
 }
 

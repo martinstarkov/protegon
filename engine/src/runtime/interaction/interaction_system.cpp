@@ -27,6 +27,7 @@
 #include "runtime/graphics/frame_context.h"
 #include "runtime/graphics/render_target.h"
 #include "runtime/graphics/shape.h"
+#include "runtime/graphics/visible.h"
 #include "runtime/interaction/draggable.h"
 #include "runtime/interaction/draggable_event.h"
 #include "runtime/interaction/dropzone.h"
@@ -41,6 +42,7 @@
 #include "runtime/scene/scene_context.h"
 #include "runtime/scene/scene_event.h"
 #include "runtime/scene/scene_input.h"
+#include "runtime/ui/ui_stack.h"
 
 namespace ptgn {
 
@@ -259,7 +261,8 @@ std::vector<Entity> InteractionSystem::GetDropzones(const Scene& scene) {
 
 	for (auto [entity, interactive, dropzone] :
 		 scene.EntitiesWith<impl::Interactive, impl::Dropzone>()) {
-		if (!interactive.enabled || !dropzone.enabled) {
+		if (!interactive.enabled || !dropzone.enabled || !IsVisible(entity) ||
+			!IsUIStackInteractive(entity)) {
 			continue;
 		}
 
@@ -331,7 +334,8 @@ void InteractionSystem::HandleDragging(
 	// Start dragging
 	if (mouse.left_pressed) {
 		for (Entity dragging : over) {
-			if (!dragging.Has<impl::Draggable>() || !dragging.Get<impl::Draggable>().enabled) {
+			if (!dragging || !IsVisible(dragging) || !IsUIStackInteractive(dragging) ||
+				!dragging.Has<impl::Draggable>() || !dragging.Get<impl::Draggable>().enabled) {
 				continue;
 			}
 
@@ -343,7 +347,8 @@ void InteractionSystem::HandleDragging(
 
 			PushEvent<event::DragStart>(dragging, mouse.position);
 
-			if (!dragging.Has<impl::Draggable>() || !dragging.Get<impl::Draggable>().enabled) {
+			if (!dragging || !IsVisible(dragging) || !IsUIStackInteractive(dragging) ||
+				!dragging.Has<impl::Draggable>() || !dragging.Get<impl::Draggable>().enabled) {
 				continue;
 			}
 
@@ -380,7 +385,8 @@ void InteractionSystem::HandleDragging(
 				);
 			}
 
-			if (!dragging.Has<impl::Draggable>() || !dragging.Get<impl::Draggable>().enabled) {
+			if (!dragging || !IsVisible(dragging) || !IsUIStackInteractive(dragging) ||
+				!dragging.Has<impl::Draggable>() || !dragging.Get<impl::Draggable>().enabled) {
 				continue;
 			}
 
@@ -397,7 +403,8 @@ void InteractionSystem::HandleDragging(
 	// Continue dragging
 	if (mouse.left_held || mouse.left_pressed) {
 		for (Entity dragging : dragging_entities) {
-			if (!dragging.Has<impl::Draggable>() || !dragging.Get<impl::Draggable>().enabled) {
+			if (!dragging || !IsVisible(dragging) || !IsUIStackInteractive(dragging) ||
+				!dragging.Has<impl::Draggable>() || !dragging.Get<impl::Draggable>().enabled) {
 				continue;
 			}
 
@@ -498,7 +505,8 @@ void InteractionSystem::HandleDropzones(
 ) {
 	// 1. Compute which dropzones each dragged entity is currently over
 	for (Entity dragging : dragging_entities) {
-		if (!dragging.Has<impl::Draggable>() || !dragging.Get<impl::Draggable>().enabled) {
+		if (!dragging || !IsVisible(dragging) || !IsUIStackInteractive(dragging) ||
+			!dragging.Has<impl::Draggable>() || !dragging.Get<impl::Draggable>().enabled) {
 			continue;
 		}
 
@@ -546,7 +554,8 @@ void InteractionSystem::HandleDropzones(
 			);
 		}
 
-		if (!dragging.Has<impl::Draggable>() || !dragging.Get<impl::Draggable>().enabled) {
+		if (!dragging || !IsVisible(dragging) || !IsUIStackInteractive(dragging) ||
+			!dragging.Has<impl::Draggable>() || !dragging.Get<impl::Draggable>().enabled) {
 			continue;
 		}
 
@@ -566,7 +575,8 @@ void InteractionSystem::HandleDropzones(
 			PushEvent<event::DragLeave>(dragging, last_dropzone);
 		}
 
-		if (!dragging.Has<impl::Draggable>() || !dragging.Get<impl::Draggable>().enabled) {
+		if (!dragging || !IsVisible(dragging) || !IsUIStackInteractive(dragging) ||
+			!dragging.Has<impl::Draggable>() || !dragging.Get<impl::Draggable>().enabled) {
 			continue;
 		}
 
@@ -590,7 +600,8 @@ void InteractionSystem::HandleDropzones(
 			PushEvent<event::DragOut>(dragging, dropzone);
 		}
 
-		if (!dragging.Has<impl::Draggable>() || !dragging.Get<impl::Draggable>().enabled) {
+		if (!dragging || !IsVisible(dragging) || !IsUIStackInteractive(dragging) ||
+			!dragging.Has<impl::Draggable>() || !dragging.Get<impl::Draggable>().enabled) {
 			continue;
 		}
 
@@ -603,6 +614,9 @@ void InteractionSystem::DispatchMouseEvents(
 	const std::vector<Entity>& over, const std::vector<Entity>& out, const impl::MouseInfo& mouse
 ) {
 	for (Entity e : over) {
+		if (!e || !IsVisible(e) || !IsUIStackInteractive(e)) {
+			continue;
+		}
 		if (auto lock{ e.TryGet<InteractionLock>() }; lock && lock->block_press) {
 			PTGN_ASSERT(
 				lock->remaining_time >= secondsf::zero(), "Interaction time cannot be negative"
@@ -627,6 +641,9 @@ void InteractionSystem::DispatchMouseEvents(
 	}
 
 	for (const Entity& e : out) {
+		if (!e || !IsVisible(e) || !IsUIStackInteractive(e)) {
+			continue;
+		}
 		if (std::ranges::contains(over, e)) {
 			continue;
 		}
@@ -663,7 +680,7 @@ void InteractionSystem::UpdateForCamera(
 	std::vector<Entity> camera_entities;
 
 	for (auto [entity, interactive] : scene.EntitiesWith<impl::Interactive>()) {
-		if (!interactive.enabled) {
+		if (!interactive.enabled || !IsVisible(entity) || !IsUIStackInteractive(entity)) {
 			continue;
 		}
 		if (filter(entity)) {
@@ -702,8 +719,9 @@ void InteractionSystem::UpdateForCamera(
 	CleanupDropzones(dropzones);
 
 	std::erase_if(dragging_entities, [](const auto& entity) {
-		return !entity.template Has<impl::Draggable>() ||
-			   !entity.template Get<impl::Draggable>().enabled;
+		return !entity || !entity.template Has<impl::Draggable>() ||
+			   !entity.template Get<impl::Draggable>().enabled || !IsVisible(entity) ||
+			   !IsUIStackInteractive(entity);
 	});
 
 	// Save for next frame.

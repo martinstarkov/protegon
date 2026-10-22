@@ -55,6 +55,7 @@
 #include "runtime/scripting/script.h"
 #include "runtime/ui/button_config.h"
 #include "runtime/ui/toggle_button.h"
+#include "runtime/ui/ui_stack.h"
 
 namespace ptgn {
 
@@ -1055,7 +1056,8 @@ Button::Button(Entity entity) : Entity{ entity } {}
 bool Button::IsEnabled(bool check_for_hover_enabled) const {
 	const auto& button{ Get<impl::ButtonData>() };
 
-	return check_for_hover_enabled ? button.hover_enabled : button.press_enabled;
+	return IsUIStackInteractive(*this) &&
+		   (check_for_hover_enabled ? button.hover_enabled : button.press_enabled);
 }
 
 ButtonState Button::GetState() const {
@@ -1075,7 +1077,8 @@ ButtonState Button::GetState() const {
 }
 
 ButtonVisualState Button::GetVisualState(ButtonState state, bool check_for_visual_lock) const {
-	if (!IsEnabled(false)) {
+	if (!Get<impl::ButtonData>().press_enabled ||
+		(!IsUIStackInteractive(*this) && UseUIDisabledStyle(*this))) {
 		return DisabledVisualState(state);
 	}
 
@@ -1698,7 +1701,7 @@ void Button::ApplyShapeVisual(impl::ButtonPart part) const {
 		return;
 	}
 
-	bool button_visible{ IsVisible(*this) };
+	bool button_visible{ IsAuthoredVisible(*this) };
 	SetVisible(entity, button_visible && !entity.Has<impl::HiddenButtonPart>());
 
 	auto size{ HasAny<Rect, Circle>() ? GetSize() : std::variant<V2_float, float>{ V2_float{} } };
@@ -1810,7 +1813,7 @@ void Button::ApplyTextVisual() const {
 		return;
 	}
 
-	bool button_visible{ IsVisible(*this) };
+	bool button_visible{ IsAuthoredVisible(*this) };
 	SetVisible(entity, button_visible && !entity.Has<impl::HiddenButtonPart>());
 
 	TextBox box{ .style = {
@@ -1891,7 +1894,7 @@ void Button::ApplySpriteVisual(ButtonVisualState state) const {
 
 	auto visible{ HasResolvedState(visuals.states, state) };
 
-	bool button_visible{ IsVisible(*this) };
+	bool button_visible{ IsAuthoredVisible(*this) };
 	SetVisible(entity, button_visible && visible && !entity.Has<impl::HiddenButtonPart>());
 
 	ptgn::Sprite sprite{ entity };

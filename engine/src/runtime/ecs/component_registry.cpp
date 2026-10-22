@@ -49,6 +49,7 @@
 #include "runtime/ui/slider.h"
 #include "runtime/ui/toggle_button.h"
 #include "runtime/ui/tooltip.h"
+#include "runtime/ui/ui_stack.h"
 #include "runtime/world/paint_generator.h"
 #include "runtime/world/tilemap.h"
 
@@ -106,6 +107,9 @@ PTGN_REGISTER_COMPONENT(AudioKey);
 PTGN_REGISTER_COMPONENT(ShaderKey);
 PTGN_REGISTER_COMPONENT(JsonKey);
 
+PTGN_REGISTER_COMPONENT(UIStackData);
+PTGN_REGISTER_COMPONENT(UILayerData);
+PTGN_REGISTER_COMPONENT(OverlayOverride);
 PTGN_REGISTER_COMPONENT(impl::ButtonData);
 PTGN_REGISTER_COMPONENT(impl::HiddenButtonPart);
 PTGN_REGISTER_COMPONENT(impl::ButtonAnimationPart);
