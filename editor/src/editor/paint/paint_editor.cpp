@@ -59,6 +59,7 @@
 #include "runtime/ui/button_config.h"
 #include "runtime/ui/slider.h"
 #include "runtime/ui/ui_stack.h"
+#include "runtime/world/autotile.h"
 #include "runtime/world/paint_generator.h"
 #include "runtime/world/tilemap.h"
 #include "serialization/json/json.h"
@@ -76,6 +77,7 @@ constexpr const char* kTileLibraryEntryDragDropPayload{ "PTGN_TILE_LIBRARY_ENTRY
 struct GroupSnapshot {
 	std::vector<std::string> groups;
 	std::unordered_map<std::string, std::string> members;
+	std::vector<std::string> autotile_groups{};
 
 	bool operator==(const GroupSnapshot&) const = default;
 };
@@ -264,6 +266,21 @@ template <typename Range>
 	V2_float view_max{ image_viewport.position + image_viewport.size };
 	return minimum.x < view_max.x && maximum.x > view_min.x && minimum.y < view_max.y &&
 		   maximum.y > view_min.y;
+}
+
+[[nodiscard]] bool IsClassic15GeneratorBrush(const PaintGeneratorRecipe& recipe) {
+	return recipe.source_kind == PaintGeneratorSourceKind::Autotile &&
+		   recipe.autotile_format == PaintGeneratorAutotileFormat::Classic15;
+}
+
+template <typename Add>
+void AddGeneratorBrushCell(const PaintGeneratorRecipe& recipe, V2_int cell, Add add) {
+	add(cell);
+	if (IsClassic15GeneratorBrush(recipe)) {
+		add(cell + V2_int{ 1, 0 });
+		add(cell + V2_int{ 0, 1 });
+		add(cell + V2_int{ 1, 1 });
+	}
 }
 
 struct PrefabGeneratorPreview {
@@ -711,8 +728,9 @@ void MergeBounds(std::optional<PaintSelectionRect>& target, const PaintSelection
 			int diameter{ std::max(1, point.diameter) };
 			int low{ -(diameter / 2) };
 			int high{ low + diameter - 1 };
+			int extra{ IsClassic15GeneratorBrush(data.recipe) ? 1 : 0 };
 			include(center + V2_int{ low, low });
-			include(center + V2_int{ high, high });
+			include(center + V2_int{ high + extra, high + extra });
 		}
 	}
 
@@ -934,19 +952,27 @@ void MergeBounds(std::optional<PaintSelectionRect>& target, const PaintSelection
 		int diameter{ std::max(1, point.diameter) };
 		int low{ -(diameter / 2) };
 		int high{ low + diameter - 1 };
-		V2_int delta{ target - center };
-		if (delta.x < low || delta.x > high || delta.y < low || delta.y > high) {
-			continue;
-		}
-		if (data.brush_shape == PaintGeneratorBrushShape::Circle) {
-			float offset{ BrushCircleCellOffset(diameter) };
-			float dx{ static_cast<float>(delta.x) + offset };
-			float dy{ static_cast<float>(delta.y) + offset };
-			if (std::sqrt(dx * dx + dy * dy) > static_cast<float>(diameter) * 0.5f) {
-				continue;
+		auto contains = [&](V2_int candidate) {
+			V2_int delta{ candidate - center };
+			if (delta.x < low || delta.x > high || delta.y < low || delta.y > high) {
+				return false;
 			}
+			if (data.brush_shape == PaintGeneratorBrushShape::Circle) {
+				float offset{ BrushCircleCellOffset(diameter) };
+				float dx{ static_cast<float>(delta.x) + offset };
+				float dy{ static_cast<float>(delta.y) + offset };
+				return std::sqrt(dx * dx + dy * dy) <= static_cast<float>(diameter) * 0.5f;
+			}
+			return true;
+		};
+		if (contains(target)) {
+			return true;
 		}
-		return true;
+		if (IsClassic15GeneratorBrush(data.recipe) &&
+			(contains(target - V2_int{ 1, 0 }) || contains(target - V2_int{ 0, 1 }) ||
+			 contains(target - V2_int{ 1, 1 }))) {
+			return true;
+		}
 	}
 	return false;
 }
@@ -973,23 +999,6 @@ template <typename Entry, typename Weight>
 		}
 	}
 	return entries.size() - 1;
-}
-
-[[nodiscard]] int CardinalOccupancyMask(const std::function<bool(V2_int)>& occupied, V2_int cell) {
-	int mask{};
-	if (occupied(cell + V2_int{ 0, -1 })) {
-		mask |= 1;
-	}
-	if (occupied(cell + V2_int{ 1, 0 })) {
-		mask |= 2;
-	}
-	if (occupied(cell + V2_int{ 0, 1 })) {
-		mask |= 4;
-	}
-	if (occupied(cell + V2_int{ -1, 0 })) {
-		mask |= 8;
-	}
-	return mask;
 }
 
 [[nodiscard]] bool IsProtectedSceneEntity(Scene& scene, Entity entity) {
@@ -1051,7 +1060,7 @@ void SortGroupsUngroupedFirst(std::vector<std::string>& groups) {
 		case PaintAutotileFormat::Classic15:  return "Classic 15";
 		case PaintAutotileFormat::Blob47:	  return "Blob 47 (8 neighbor)";
 		case PaintAutotileFormat::Subset16:	  return "4 neighbor / Subset 16";
-		case PaintAutotileFormat::DualGrid16: return "Dual Grid 16";
+		case PaintAutotileFormat::DualGrid16: return "Dual Grid (15 or 16)";
 		case PaintAutotileFormat::Wang16:	  return "Wang 16";
 	}
 	return "Autotile";
@@ -1082,19 +1091,28 @@ struct AutotileAtlasLayout {
 
 	switch (format) {
 		case PaintAutotileFormat::Classic15:
-			// Canonical Classic15 sheets are 5x3. Also accept the transposed 3x5
-			// arrangement for projects that author the same row major sequence vertically.
+			// Also accept 4x4 sheets with an explicit empty mask at slot zero.
 			if (auto result{ layout({ 5, 3 }, 15) }) {
 				return result;
 			}
-			return layout({ 3, 5 }, 15);
+			if (auto result{ layout({ 3, 5 }, 15) }) {
+				return result;
+			}
+			return layout({ 4, 4 }, 16);
 
 		case PaintAutotileFormat::Blob47:
 			// Canonical 47 blob atlas: 8x6 with the final cell unused.
 			return layout({ 8, 6 }, 47);
 
-		case PaintAutotileFormat::Subset16:
 		case PaintAutotileFormat::DualGrid16:
+			// A 15 piece dual grid atlas has no empty variant. A 4x4 atlas may
+			// additionally contain an explicit transparent zero mask.
+			if (sheet_size == V2_int{ 5, 3 } || sheet_size == V2_int{ 3, 5 }) {
+				return layout(sheet_size, 15);
+			}
+			[[fallthrough]];
+
+		case PaintAutotileFormat::Subset16:
 		case PaintAutotileFormat::Wang16:
 			// Prefer the square 4x4 form, but accept common row major strips.
 			if (auto result{ layout({ 4, 4 }, 16) }) {
@@ -1115,6 +1133,33 @@ struct AutotileAtlasLayout {
 	return std::nullopt;
 }
 
+[[nodiscard]] std::optional<V2_int> InferAutotileTileSize(
+	PaintAutotileFormat format, V2_int texture_size
+) {
+	std::vector<V2_int> shapes;
+	switch (format) {
+		case PaintAutotileFormat::Classic15: shapes = { { 5, 3 }, { 3, 5 }, { 4, 4 } }; break;
+		case PaintAutotileFormat::Blob47:	 shapes = { { 8, 6 } }; break;
+		case PaintAutotileFormat::DualGrid16:
+			shapes = { { 5, 3 }, { 3, 5 }, { 4, 4 }, { 8, 2 }, { 2, 8 } };
+			break;
+		case PaintAutotileFormat::Subset16:
+		case PaintAutotileFormat::Wang16:
+			shapes = { { 4, 4 }, { 8, 2 }, { 2, 8 }, { 16, 1 }, { 1, 16 } };
+			break;
+	}
+	for (V2_int shape : shapes) {
+		if (texture_size.x % shape.x != 0 || texture_size.y % shape.y != 0) {
+			continue;
+		}
+		V2_int tile{ texture_size.x / shape.x, texture_size.y / shape.y };
+		if (tile.IsPositive() && tile.x == tile.y) {
+			return tile;
+		}
+	}
+	return std::nullopt;
+}
+
 [[nodiscard]] V2_int AutotileSourceSlice(const AutotileAtlasLayout& layout, int source_index) {
 	return {
 		source_index % layout.block_size.x,
@@ -1122,98 +1167,14 @@ struct AutotileAtlasLayout {
 	};
 }
 
-[[nodiscard]] int AutotileBlockCount(V2_int sheet_size, const AutotileAtlasLayout& layout) {
-	if (!FitsAutotileBlock(sheet_size, layout.block_size)) {
-		return 0;
-	}
-	return std::max(1, sheet_size.x / layout.block_size.x) *
-		   std::max(1, sheet_size.y / layout.block_size.y);
-}
-
-[[nodiscard]] int BlobOccupancyMask(const std::function<bool(V2_int)>& occupied, V2_int c) {
-	bool n{ occupied(c + V2_int{ 0, -1 }) };
-	bool e{ occupied(c + V2_int{ 1, 0 }) };
-	bool south{ occupied(c + V2_int{ 0, 1 }) };
-	bool w{ occupied(c + V2_int{ -1, 0 }) };
-
-	int mask{};
-
-	if (n) {
-		mask |= 1;
-	}
-	if (e) {
-		mask |= 2;
-	}
-	if (south) {
-		mask |= 4;
-	}
-	if (w) {
-		mask |= 8;
-	}
-	if (n && e && occupied(c + V2_int{ 1, -1 })) {
-		mask |= 16;
-	}
-	if (e && south && occupied(c + V2_int{ 1, 1 })) {
-		mask |= 32;
-	}
-	if (south && w && occupied(c + V2_int{ -1, 1 })) {
-		mask |= 64;
-	}
-	if (w && n && occupied(c + V2_int{ -1, -1 })) {
-		mask |= 128;
-	}
-	return mask;
-}
-
-[[nodiscard]] const std::vector<int>& ValidBlob47Masks() {
-	static const std::vector<int> masks = [] {
-		std::vector<int> result;
-		for (int mask{}; mask < 256; ++mask) {
-			bool n{ (mask & 1) != 0 };
-			bool e{ (mask & 2) != 0 };
-			bool south{ (mask & 4) != 0 };
-			bool w{ (mask & 8) != 0 };
-			if ((mask & 16) && !(n && e)) {
-				continue;
-			}
-			if ((mask & 32) && !(e && south)) {
-				continue;
-			}
-			if ((mask & 64) && !(south && w)) {
-				continue;
-			}
-			if ((mask & 128) && !(w && n)) {
-				continue;
-			}
-			result.push_back(mask);
-		}
-		return result;
-	}();
-	return masks;
-}
-
 [[nodiscard]] int AutotileIndex(
 	PaintAutotileFormat format, const std::function<bool(V2_int)>& occupied, V2_int cell
 ) {
-	if (format == PaintAutotileFormat::Blob47) {
-		int mask{ BlobOccupancyMask(occupied, cell) };
-
-		const auto& valid{ ValidBlob47Masks() };
-
-		if (auto it{ std::ranges::find(valid, mask) }; it != valid.end()) {
-			return static_cast<int>(std::distance(valid.begin(), it));
-		}
-
-		return 0;
-	}
-
-	int mask{ CardinalOccupancyMask(occupied, cell) };
-
-	if (format == PaintAutotileFormat::Classic15) {
-		return mask == 0 ? 0 : std::clamp(mask - 1, 0, 14);
-	}
-
-	return std::clamp(mask, 0, 15);
+	return AutotileSlot(
+		format == PaintAutotileFormat::Blob47 ? TilemapAutotileFormat::Blob47
+											  : TilemapAutotileFormat::Subset16,
+		occupied, cell
+	);
 }
 
 [[nodiscard]] EditorIcon PaintToolIcon(PaintTool tool) {
@@ -2382,8 +2343,7 @@ void PaintEditor::DrawBrushSettingsToolbar(EditorContext& ctx, Scene& scene, Sce
 
 	float control_height{ ImGui::GetFrameHeight() };
 	float combo_arrow_width{ ImGui::GetFrameHeight() };
-	static constexpr std::array source_names{ "Single", "Weighted", "Checkered", "Autotile",
-											  "Noise" };
+	static constexpr std::array source_names{ "Single", "Weighted", "Checkered", "Noise" };
 	float source_combo_width{};
 	for (const char* source_name : source_names) {
 		source_combo_width = std::max(
@@ -2657,9 +2617,7 @@ void PaintEditor::DrawBrushSettingsToolbar(EditorContext& ctx, Scene& scene, Sce
 			if (tile_layer) {
 				if (const TileLibraryEntry* selected{ FindTileEntry(selected_tile_entry_id_) }) {
 					tile_source_ = MakeTileSource(ctx, selected->texture, selected->slice);
-				} else {
-					tile_source_ = {};
-				}
+				} // Keep a direct tile selection when browsing an autotile as slices.
 			} else if (entity_layer) {
 				auto selected_prefab{ ctx.editor.GetSceneHierarchyPanel().GetSelectedPrefab() };
 				prefab_source_ = selected_prefab.value_or(PrefabKey{});
@@ -2672,7 +2630,7 @@ void PaintEditor::DrawBrushSettingsToolbar(EditorContext& ctx, Scene& scene, Sce
 					case PaintSourceKind::Single:		return "Single";
 					case PaintSourceKind::WeightedSet:	return "Weighted";
 					case PaintSourceKind::Checkerboard: return "Checkered";
-					case PaintSourceKind::Autotile:		return "Autotile";
+					case PaintSourceKind::Autotile:		return "Single";
 					case PaintSourceKind::Noise:		return "Noise";
 				}
 				return "Single";
@@ -2724,12 +2682,22 @@ void PaintEditor::DrawBrushSettingsToolbar(EditorContext& ctx, Scene& scene, Sce
 				ImGui::Indent(source_popup_inset);
 
 				auto source_item = [&](PaintSourceKind kind, const char* label) {
-					bool selected{ recipe_.source_kind == kind };
+					bool selected{ recipe_.source_kind == kind ||
+								   (kind == PaintSourceKind::Single &&
+									recipe_.source_kind == PaintSourceKind::Autotile) };
 					if (ImGui::Selectable(
 							label, selected, ImGuiSelectableFlags_DontClosePopups,
 							ImVec2{ AvailableContentWidth(source_popup_inset), 0.0f }
 						)) {
 						recipe_.source_kind = kind;
+						if (kind == PaintSourceKind::Single && tile_layer &&
+							std::ranges::contains(
+								autotile_library_, recipe_.autotile_texture,
+								&AutotileLibraryEntry::texture
+							) &&
+							selected_tile_entry_id_.empty() && !tile_source_) {
+							recipe_.source_kind = PaintSourceKind::Autotile;
+						}
 					}
 					if (selected) {
 						ImGui::SetItemDefaultFocus();
@@ -2739,17 +2707,19 @@ void PaintEditor::DrawBrushSettingsToolbar(EditorContext& ctx, Scene& scene, Sce
 				source_item(PaintSourceKind::Single, "Single");
 				source_item(PaintSourceKind::WeightedSet, "Weighted");
 				source_item(PaintSourceKind::Checkerboard, "Checkered");
-				if (tile_layer) {
-					source_item(PaintSourceKind::Autotile, "Autotile");
-				}
 				source_item(PaintSourceKind::Noise, "Noise");
 
-				if (recipe_.source_kind == PaintSourceKind::Single) {
+				if (recipe_.source_kind == PaintSourceKind::Single ||
+					recipe_.source_kind == PaintSourceKind::Autotile) {
 					ImGui::Separator();
 					if (tile_layer) {
 						if (const TileLibraryEntry* selected{
 								FindTileEntry(selected_tile_entry_id_) }) {
 							ImGui::TextDisabled("Using selected tile: %s", selected->name.c_str());
+						} else if (recipe_.source_kind == PaintSourceKind::Autotile) {
+							ImGui::TextDisabled("Using selected autotile tileset.");
+						} else if (tile_source_) {
+							ImGui::TextDisabled("Using selected atlas tile.");
 						} else {
 							ImGui::TextDisabled("Select a tile in the Tiles window.");
 						}
@@ -3327,7 +3297,14 @@ void PaintEditor::DrawExtendedSourceRecipe(EditorContext& ctx, Scene&, SceneLaye
 	}
 
 	if (recipe_.source_kind == PaintSourceKind::Autotile && layer.kind == SceneLayerKind::Tile) {
-		DrawAutotileSourceEditor(ctx);
+		if (auto entry{ std::ranges::find(
+				autotile_library_, recipe_.autotile_texture, &AutotileLibraryEntry::texture
+			) };
+			entry != autotile_library_.end()) {
+			ImGui::TextDisabled(
+				"Selected tileset: %s (%s)", entry->name.c_str(), AutotileFormatName(entry->format)
+			);
+		}
 	}
 }
 
@@ -3808,19 +3785,21 @@ bool PaintEditor::RefreshAutotileRuleSet(EditorContext& ctx, PaintAutotileRuleSe
 	return true;
 }
 
-PaintAutotileRuleSet* PaintEditor::ResolveAutotileRuleSet(EditorContext& ctx) {
-	if (!recipe_.autotile_texture) {
+PaintAutotileRuleSet* PaintEditor::EnsureAutotileRuleSet(
+	EditorContext& ctx, const TextureKey& texture, PaintAutotileFormat format
+) {
+	if (!texture) {
 		return nullptr;
 	}
 
-	if (auto* existing{ FindAutotileRuleSet(recipe_.autotile_texture, recipe_.autotile_format) }) {
+	if (auto* existing{ FindAutotileRuleSet(texture, format) }) {
 		return RefreshAutotileRuleSet(ctx, *existing) ? existing : nullptr;
 	}
 
 	PaintAutotileRuleSet rules;
 	rules.id	  = NextAutotileRuleSetId();
-	rules.texture = recipe_.autotile_texture;
-	rules.format  = recipe_.autotile_format;
+	rules.texture = texture;
+	rules.format  = format;
 	if (!RefreshAutotileRuleSet(ctx, rules)) {
 		return nullptr;
 	}
@@ -3830,99 +3809,219 @@ PaintAutotileRuleSet* PaintEditor::ResolveAutotileRuleSet(EditorContext& ctx) {
 	return &autotile_rule_sets_.back();
 }
 
+PaintAutotileRuleSet* PaintEditor::ResolveAutotileRuleSet(EditorContext& ctx) {
+	if (!recipe_.autotile_texture) {
+		return nullptr;
+	}
+
+	// A tileset's imported format is authoritative, not the last brush selection.
+	auto imported{ std::ranges::find(
+		autotile_library_, recipe_.autotile_texture, &AutotileLibraryEntry::texture
+	) };
+	if (imported == autotile_library_.end()) {
+		return nullptr;
+	}
+	recipe_.autotile_format = imported->format;
+	return EnsureAutotileRuleSet(ctx, imported->texture, imported->format);
+}
+
 void PaintEditor::RecomputeAutotileAround(
-	Tilemap tilemap, V2_int cell, const PaintAutotileRuleSet& rules
+	Tilemap tilemap, V2_int cell, const PaintAutotileRuleSet&
 ) {
-	if (!tilemap || rules.id == 0) {
+	RecomputeAutotileRegion(tilemap, { cell });
+}
+
+void PaintEditor::RecomputeAutotileRegion(
+	Tilemap tilemap, const std::vector<V2_int>& changed_cells
+) {
+	if (!tilemap || changed_cells.empty()) {
 		return;
 	}
 
-	auto set_display = [&](V2_int display_cell, const PaintAutotileRuleSet& display_rules,
-						   int index, V2_float offset) {
-		if (index < 0 || index >= static_cast<int>(display_rules.tiles.size()) ||
-			!display_rules.tiles[static_cast<std::size_t>(index)].has_value()) {
-			if (const TilemapTile* current{ tilemap.FindTile(display_cell) };
-				current && current->terrain_ruleset_id.has_value()) {
-				tilemap.EraseTile(display_cell);
-			}
-			return;
+	auto& data{ tilemap.GetData() };
+	std::unordered_map<V2_int, std::uint64_t> terrain;
+	terrain.reserve(data.terrain.size() * 2 + 1);
+	for (const TilemapTerrainCell& cell : data.terrain) {
+		terrain.insert_or_assign(cell.coordinate, cell.ruleset_id);
+	}
+
+	std::unordered_map<std::uint64_t, const PaintAutotileRuleSet*> rules_by_id;
+	for (const auto& rules : autotile_rule_sets_) {
+		rules_by_id.insert_or_assign(rules.id, &rules);
+	}
+	const auto style_at = [&](V2_int cell) -> const PaintAutotileRuleSet* {
+		auto it{ terrain.find(cell) };
+		if (it == terrain.end()) {
+			return nullptr;
 		}
-		const PaintTileSource& source{ *display_rules.tiles[static_cast<std::size_t>(index)] };
-		tilemap.SetTile(
-			TilemapTile{
-				.coordinate			 = display_cell,
-				.texture			 = source.texture,
-				.texture_coordinates = source.texture_coordinates,
-				.pixel_size			 = source.pixel_size,
-				.origin				 = Origin::TopLeft,
-				.offset				 = offset,
-				.tint				 = color::White,
-				.terrain_ruleset_id	 = display_rules.id,
-			}
-		);
+		auto rules{ rules_by_id.find(it->second) };
+		return rules == rules_by_id.end() ? nullptr : rules->second;
+	};
+	const auto corner_style = [](const PaintAutotileRuleSet* rules) {
+		return rules && (rules->format == PaintAutotileFormat::DualGrid16 ||
+						 rules->format == PaintAutotileFormat::Classic15);
 	};
 
-	if (rules.format == PaintAutotileFormat::DualGrid16) {
-		static constexpr std::array<V2_int, 4> affected{ V2_int{ 0, 0 }, V2_int{ -1, 0 },
-														 V2_int{ 0, -1 }, V2_int{ -1, -1 } };
-		V2_float half_cell{ tilemap.GetData().cell_size * 0.5f };
-		for (V2_int delta : affected) {
-			V2_int display_cell{ cell + delta };
-			std::array<V2_int, 4> logical{
-				display_cell,
-				display_cell + V2_int{ 1, 0 },
-				display_cell + V2_int{ 0, 1 },
-				display_cell + V2_int{ 1, 1 },
-			};
-			std::optional<std::uint64_t> display_ruleset;
-			for (V2_int logical_cell : logical) {
-				if (auto id{ tilemap.GetTerrainRuleset(logical_cell) }) {
-					display_ruleset = *id;
+	std::unordered_set<V2_int> changed;
+	std::unordered_set<V2_int> affected;
+	changed.reserve(changed_cells.size() * 2);
+	affected.reserve(changed_cells.size() * 2 + 16);
+	for (V2_int cell : changed_cells) {
+		changed.insert(cell);
+		for (int y{ -1 }; y <= 1; ++y) {
+			for (int x{ -1 }; x <= 1; ++x) {
+				affected.insert(cell + V2_int{ x, y });
+			}
+		}
+	}
+
+	// Existing tiles are indexed only once. Neither terrain lookup nor display
+	// updates scan the growing vector, even when filling tens of thousands of cells.
+	std::unordered_set<V2_int> existing_terrain_tiles;
+	existing_terrain_tiles.reserve(data.tiles.size());
+	for (const TilemapTile& tile : data.tiles) {
+		if (tile.terrain_ruleset_id) {
+			existing_terrain_tiles.insert(tile.coordinate);
+		}
+	}
+
+	std::unordered_map<V2_int, TilemapTile> updated;
+	std::unordered_set<V2_int> erased;
+	updated.reserve(affected.size());
+	erased.reserve(affected.size() / 4 + 1);
+
+	static constexpr std::array<V2_int, 4> corners{
+		V2_int{ 0, 0 },
+		V2_int{ 1, 0 },
+		V2_int{ 0, 1 },
+		V2_int{ 1, 1 },
+	};
+	static constexpr std::array<V2_int, 8> neighbors{
+		V2_int{ 0, -1 }, V2_int{ 1, -1 }, V2_int{ 1, 0 },  V2_int{ 1, 1 },
+		V2_int{ 0, 1 },	 V2_int{ -1, 1 }, V2_int{ -1, 0 }, V2_int{ -1, -1 },
+	};
+
+	for (V2_int cell : affected) {
+		const PaintAutotileRuleSet* style{ style_at(cell) };
+		if (!style || corner_style(style) || !changed.contains(cell)) {
+			// Favor terrain just painted at this corner. A normal grid tile
+			// painted at the same display cell keeps priority over its neighbors.
+			bool picked_changed_corner{};
+			for (V2_int delta : corners) {
+				V2_int logical{ cell + delta };
+				const auto* candidate{ style_at(logical) };
+				if (corner_style(candidate) && changed.contains(logical)) {
+					style				  = candidate;
+					picked_changed_corner = true;
 					break;
 				}
 			}
-			if (!display_ruleset.has_value()) {
-				if (const TilemapTile* current{ tilemap.FindTile(display_cell) };
-					current && current->terrain_ruleset_id.has_value()) {
-					tilemap.EraseTile(display_cell);
-				}
-				continue;
-			}
-			const PaintAutotileRuleSet* display_rules{ FindAutotileRuleSet(*display_ruleset) };
-			if (!display_rules || display_rules->format != PaintAutotileFormat::DualGrid16) {
-				continue;
-			}
-			int mask{};
-			for (int i{}; i < 4; ++i) {
-				if (tilemap.GetTerrainRuleset(logical[static_cast<std::size_t>(i)]) ==
-					display_rules->id) {
-					mask |= 1 << i;
+			if (!picked_changed_corner && !corner_style(style)) {
+				for (V2_int delta : corners) {
+					const auto* candidate{ style_at(cell + delta) };
+					if (corner_style(candidate)) {
+						style = candidate;
+						break;
+					}
 				}
 			}
-			set_display(display_cell, *display_rules, mask, half_cell);
 		}
-		return;
-	}
 
-	static constexpr std::array<V2_int, 9> offsets{
-		V2_int{ 0, 0 },	 V2_int{ 0, -1 }, V2_int{ 1, 0 },  V2_int{ 0, 1 },	 V2_int{ -1, 0 },
-		V2_int{ 1, -1 }, V2_int{ 1, 1 },  V2_int{ -1, 1 }, V2_int{ -1, -1 },
-	};
-	auto occupied = [&](V2_int candidate) {
-		return tilemap.GetTerrainRuleset(candidate) == rules.id;
-	};
-	for (V2_int delta : offsets) {
-		V2_int candidate{ cell + delta };
-		if (!occupied(candidate)) {
-			if (const TilemapTile* current{ tilemap.FindTile(candidate) };
-				current && current->terrain_ruleset_id == rules.id) {
-				tilemap.EraseTile(candidate);
+		if (!style) {
+			if (changed.contains(cell) || existing_terrain_tiles.contains(cell)) {
+				erased.insert(cell);
 			}
 			continue;
 		}
-		int index{ AutotileIndex(rules.format, occupied, candidate) };
-		set_display(candidate, rules, index, {});
+
+		int mask{};
+		bool interior{ changed.contains(cell) };
+		if (corner_style(style)) {
+			for (V2_int delta : corners) {
+				V2_int logical{ cell + delta };
+				auto it{ terrain.find(logical) };
+				if (it == terrain.end() || it->second != style->id || !changed.contains(logical)) {
+					interior = false;
+					break;
+				}
+			}
+			if (interior) {
+				mask = 15;
+			} else {
+				for (std::size_t i{}; i < corners.size(); ++i) {
+					V2_int logical{ cell + corners[i] };
+					auto it{ terrain.find(logical) };
+					if (it != terrain.end() && it->second == style->id) {
+						mask |= 1 << i;
+					}
+				}
+			}
+		} else {
+			if (style_at(cell) != style) {
+				if (changed.contains(cell) || existing_terrain_tiles.contains(cell)) {
+					erased.insert(cell);
+				}
+				continue;
+			}
+			// Interior cells have a fixed 4 or 8 neighbor mask. Only edges
+			// require checking the individual neighbor configuration.
+			for (V2_int delta : neighbors) {
+				V2_int neighbor{ cell + delta };
+				if (!changed.contains(neighbor) || style_at(neighbor) != style) {
+					interior = false;
+					break;
+				}
+			}
+			if (interior) {
+				mask = style->format == PaintAutotileFormat::Blob47 ? 46 : 15;
+			} else {
+				auto occupied = [&](V2_int coordinate) {
+					auto it{ terrain.find(coordinate) };
+					return it != terrain.end() && it->second == style->id;
+				};
+				mask = AutotileIndex(style->format, occupied, cell);
+			}
+		}
+
+		int index{ corner_style(style) && style->tiles.size() == 15 ? mask - 1 : mask };
+		if (index < 0 || index >= static_cast<int>(style->tiles.size()) ||
+			!style->tiles[static_cast<std::size_t>(index)]) {
+			if (changed.contains(cell) || existing_terrain_tiles.contains(cell)) {
+				erased.insert(cell);
+			}
+			continue;
+		}
+		const PaintTileSource& source{ *style->tiles[static_cast<std::size_t>(index)] };
+		updated.insert_or_assign(cell, TilemapTile{
+			.coordinate = cell,
+			.texture = source.texture,
+			.texture_coordinates = source.texture_coordinates,
+			.pixel_size = {
+				std::max(1, static_cast<int>(std::lround(data.cell_size.x))),
+				std::max(1, static_cast<int>(std::lround(data.cell_size.y))),
+			},
+			.origin = Origin::TopLeft,
+			.offset = style->format == PaintAutotileFormat::DualGrid16
+				? data.cell_size * 0.5f : V2_float{},
+			.tint = color::White,
+			.terrain_ruleset_id = style->id,
+		});
 	}
+
+	std::vector<TilemapTile> next_tiles;
+	next_tiles.reserve(data.tiles.size() + updated.size());
+	for (TilemapTile& tile : data.tiles) {
+		if (auto it{ updated.find(tile.coordinate) }; it != updated.end()) {
+			next_tiles.push_back(std::move(it->second));
+			updated.erase(it);
+		} else if (!erased.contains(tile.coordinate)) {
+			next_tiles.push_back(std::move(tile));
+		}
+	}
+	for (auto& [coordinate, tile] : updated) {
+		next_tiles.push_back(std::move(tile));
+	}
+	data.tiles = std::move(next_tiles);
 }
 
 void PaintEditor::DrawTileSourceBrowser(EditorContext& ctx, PaintTileSource& source) {
@@ -4708,19 +4807,6 @@ void PaintEditor::DrawAutotileSourceEditor(EditorContext& ctx) {
 	EnsureProjectLibrary(ctx);
 
 	float source_popup_inset{ ComboPopupSideInset() };
-	int format{ static_cast<int>(recipe_.autotile_format) };
-	BeginRecipeFillField("Format", source_popup_inset);
-	if (ImGui::Combo(
-			"##PaintAutotileFormat", &format,
-			"Classic 15\0Blob 47 (8 neighbor)\0"
-			"4 neighbor / Subset 16\0Dual Grid 16\0Wang 16\0"
-		)) {
-		recipe_.autotile_format = static_cast<PaintAutotileFormat>(format);
-		if (recipe_.autotile_texture) {
-			ResolveAutotileRuleSet(ctx);
-		}
-	}
-
 	auto records{ ::ptgn::impl::AssetAccessor{ ctx.editor.GetAssetManager() }.GetAssets() };
 
 	auto record_for = [&](const TextureKey& texture) {
@@ -4730,41 +4816,15 @@ void PaintEditor::DrawAutotileSourceEditor(EditorContext& ctx) {
 		});
 	};
 
-	auto texture_size_for = [&](const TextureKey& texture) {
-		V2_int size{};
-		auto record{ record_for(texture) };
-		if (record != records.end() && record->metadata.dimensions.has_value()) {
-			size = *record->metadata.dimensions;
-		}
-		if (!size.IsPositive() && ctx.editor.GetAssetManager().Has(texture)) {
-			size = ctx.editor.GetAssetManager().GetTextureSize(texture);
-		}
-		return size;
+	auto library_for = [&](const TextureKey& texture) {
+		return std::ranges::find(autotile_library_, texture, &AutotileLibraryEntry::texture);
 	};
 
-	auto sheet_layout_for =
-		[&](const TextureKey& texture) -> std::optional<std::pair<V2_int, AutotileAtlasLayout>> {
-		const TileSliceSettings* slicing{ FindSliceSettings(texture) };
-		if (!slicing || !slicing->tile_size.IsPositive()) {
-			return std::nullopt;
-		}
-
-		V2_int texture_size{ texture_size_for(texture) };
-		if (!texture_size.IsPositive() || texture_size.x % slicing->tile_size.x != 0 ||
-			texture_size.y % slicing->tile_size.y != 0) {
-			return std::nullopt;
-		}
-
-		V2_int sheet_size{
-			texture_size.x / slicing->tile_size.x,
-			texture_size.y / slicing->tile_size.y,
-		};
-		auto layout{ ResolveAutotileAtlasLayout(recipe_.autotile_format, sheet_size) };
-		if (!layout.has_value()) {
-			return std::nullopt;
-		}
-		return std::pair{ sheet_size, *layout };
-	};
+	// Imported autotiles own their format. The brush only selects the tileset.
+	auto selected_entry{ library_for(recipe_.autotile_texture) };
+	if (selected_entry != autotile_library_.end()) {
+		recipe_.autotile_format = selected_entry->format;
+	}
 
 	auto draw_sheet_thumbnail = [&](const TextureKey& texture, float side) {
 		auto record{ record_for(texture) };
@@ -4835,7 +4895,10 @@ void PaintEditor::DrawAutotileSourceEditor(EditorContext& ctx) {
 	ImGui::SetNextItemWidth(std::max(1.0f, requested_width - thumbnail_side - spacing));
 
 	std::string preview{ "<none>" };
-	if (recipe_.autotile_texture) {
+	if (selected_entry != autotile_library_.end()) {
+		preview = selected_entry->name.empty() ? TextureDisplayName(selected_entry->texture)
+											   : selected_entry->name;
+	} else if (recipe_.autotile_texture) {
 		preview = TextureDisplayName(recipe_.autotile_texture);
 	}
 
@@ -4844,43 +4907,23 @@ void PaintEditor::DrawAutotileSourceEditor(EditorContext& ctx) {
 			recipe_.autotile_texture = {};
 		}
 
-		for (const auto& record : records) {
-			if (record.kind != AssetKind::Texture || record.engine_asset) {
-				continue;
-			}
-
-			TextureKey texture{ record.key };
-			const TileSliceSettings* slicing{ FindSliceSettings(texture) };
-			auto detected{ sheet_layout_for(texture) };
-			bool compatible{ detected.has_value() };
-
-			ImGui::PushID(texture.value.c_str());
-			ImGui::BeginDisabled(!compatible);
-
-			bool selected{ recipe_.autotile_texture == texture };
-			std::string label{ TextureDisplayName(texture) };
-			if (slicing && slicing->tile_size.IsPositive()) {
-				label += "  (" + std::to_string(slicing->tile_size.x) + "x" +
-						 std::to_string(slicing->tile_size.y);
-				if (detected.has_value()) {
-					label += ", " + std::to_string(detected->first.x) + "x" +
-							 std::to_string(detected->first.y);
-				}
-				label += ")";
-			}
-
+		// Use the saved paint library as the authority. Asset record iteration alone
+		// excluded imported tilesets when their metadata or load state was unavailable.
+		for (const auto& entry : autotile_library_) {
+			ImGui::PushID(entry.texture.value.c_str());
+			bool selected{ recipe_.autotile_texture == entry.texture };
+			std::string label{ entry.name.empty() ? TextureDisplayName(entry.texture)
+												  : entry.name };
+			label += " (";
+			label += AutotileFormatName(entry.format);
+			label += ")";
 			if (ImGui::Selectable(label.c_str(), selected)) {
-				recipe_.autotile_texture = texture;
+				recipe_.autotile_texture = entry.texture;
+				recipe_.autotile_format	 = entry.format;
 				ResolveAutotileRuleSet(ctx);
 			}
-
-			ImGui::EndDisabled();
-			if (!compatible && ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled)) {
-				ImGui::SetTooltip(
-					"This texture does not contain a compatible %s atlas block "
-					"at its imported tile size.",
-					AutotileFormatName(recipe_.autotile_format)
-				);
+			if (selected) {
+				ImGui::SetItemDefaultFocus();
 			}
 			ImGui::PopID();
 		}
@@ -4888,40 +4931,25 @@ void PaintEditor::DrawAutotileSourceEditor(EditorContext& ctx) {
 		ImGui::EndCombo();
 	}
 
-	if (!recipe_.autotile_texture) {
-		ImGui::TextDisabled(
-			"Choose a sliced tileset. Tile size is inferred from import metadata or a suffix "
-			"such as _16x16."
-		);
+	if (selected_entry == autotile_library_.end()) {
+		ImGui::TextDisabled("Import an autotile in the Tiles window to assign its layout.");
 		return;
 	}
 
+	BeginRecipeFillRow("Layout");
+	ImGui::TextDisabled("%s", AutotileFormatName(selected_entry->format));
+
 	const TileSliceSettings* slicing{ FindSliceSettings(recipe_.autotile_texture) };
-	auto detected{ sheet_layout_for(recipe_.autotile_texture) };
-	if (!slicing || !detected.has_value()) {
-		ImGui::TextDisabled(
-			"The selected tileset is not compatible with %s.",
-			AutotileFormatName(recipe_.autotile_format)
-		);
+	if (!slicing || !slicing->tile_size.IsPositive()) {
+		ImGui::TextDisabled("This tileset is missing its imported tile size.");
 		return;
 	}
 
 	ResolveAutotileRuleSet(ctx);
-
-	const auto& [sheet_size, layout]{ *detected };
-	int block_count{ AutotileBlockCount(sheet_size, layout) };
-
 	ImGui::TextDisabled(
-		"%dx%d tiles, %dx%d sheet; %s uses the top left %dx%d block automatically.",
-		slicing->tile_size.x, slicing->tile_size.y, sheet_size.x, sheet_size.y,
-		AutotileFormatName(recipe_.autotile_format), layout.block_size.x, layout.block_size.y
+		"%dx%d tiles. Layout saved with the imported tileset.", slicing->tile_size.x,
+		slicing->tile_size.y
 	);
-
-	if (block_count > 1) {
-		ImGui::TextDisabled(
-			"%d compatible blocks detected; no slot setup is required.", block_count
-		);
-	}
 }
 
 void PaintEditor::EnsureLocalState(EditorContext& ctx) {
@@ -4999,19 +5027,56 @@ void PaintEditor::StoreLocalState(EditorContext& ctx) const {
 	state.prefab_source			 = prefab_source_;
 }
 
+void PaintEditor::RegisterAutotileTileset(
+	TextureKey texture, PaintAutotileFormat format, V2_int tile_size, std::string group
+) {
+	if (!texture || !tile_size.IsPositive()) {
+		return;
+	}
+	auto it{
+		std::ranges::find(registered_autotiles_, texture, &RegisteredAutotileTileset::texture)
+	};
+	RegisteredAutotileTileset definition{
+		.texture   = std::move(texture),
+		.format	   = format,
+		.tile_size = tile_size,
+		.group	   = std::move(group),
+	};
+	if (it == registered_autotiles_.end()) {
+		registered_autotiles_.push_back(std::move(definition));
+	} else {
+		*it = std::move(definition);
+	}
+}
+
 void PaintEditor::EnsureProjectLibrary(EditorContext& ctx) {
 	auto root{ ctx.editor.GetProjectRoot() };
 	std::string project{ root.has_value() ? root->lexically_normal().generic_string()
 										  : std::string{} };
+	auto records{ ::ptgn::impl::AssetAccessor{ ctx.editor.GetAssetManager() }.GetAssets() };
+	std::vector<std::string> texture_keys;
+	for (const auto& record : records) {
+		if (record.kind == AssetKind::Texture && !record.engine_asset) {
+			texture_keys.push_back(record.key.value);
+		}
+	}
+	std::ranges::sort(texture_keys);
 	if (project_library_loaded_ && project == loaded_project_library_) {
+		if (loaded_texture_keys_ != texture_keys) {
+			loaded_texture_keys_ = std::move(texture_keys);
+			ReconcileProjectLibrary(ctx);
+		}
 		return;
 	}
 
+	loaded_texture_keys_	= std::move(texture_keys);
 	project_library_loaded_ = true;
 	loaded_project_library_ = project;
 	tile_slice_settings_.clear();
 	tile_library_.clear();
+	autotile_library_.clear();
 	tile_groups_.clear();
+	autotile_groups_.clear();
 	prefab_groups_.clear();
 	prefab_group_by_key_.clear();
 	weighted_tile_sets_.clear();
@@ -5020,6 +5085,7 @@ void PaintEditor::EnsureProjectLibrary(EditorContext& ctx) {
 
 	const PaintProjectState& state{ ctx.project_state.paint };
 	tile_groups_		  = state.tile_groups;
+	autotile_groups_	  = state.autotile_groups.value_or(std::vector<std::string>{});
 	prefab_groups_		  = state.prefab_groups;
 	weighted_tile_sets_	  = state.weighted_tile_sets;
 	weighted_prefab_sets_ = state.weighted_prefab_sets;
@@ -5042,6 +5108,18 @@ void PaintEditor::EnsureProjectLibrary(EditorContext& ctx) {
 			}
 		);
 	}
+	for (const auto& stored :
+		 state.autotiles.value_or(std::vector<PaintAutotileLibraryEntryState>{})) {
+		autotile_library_.push_back(
+			AutotileLibraryEntry{
+				.name		 = stored.name,
+				.texture	 = stored.texture,
+				.format		 = stored.format,
+				.group		 = stored.group,
+				.show_slices = stored.show_slices.value_or(false),
+			}
+		);
+	}
 	for (const auto& stored : state.prefab_group_assignments) {
 		prefab_group_by_key_.insert_or_assign(stored.prefab.value, stored.group);
 	}
@@ -5058,8 +5136,9 @@ void PaintEditor::EnsureProjectLibrary(EditorContext& ctx) {
 
 void PaintEditor::SaveProjectLibrary(EditorContext& ctx) const {
 	PaintProjectState state;
-	state.tile_groups	= tile_groups_;
-	state.prefab_groups = prefab_groups_;
+	state.tile_groups	  = tile_groups_;
+	state.autotile_groups = autotile_groups_;
+	state.prefab_groups	  = prefab_groups_;
 	state.tile_slice_settings.reserve(tile_slice_settings_.size());
 	for (const auto& [texture, settings] : tile_slice_settings_) {
 		state.tile_slice_settings.push_back(
@@ -5082,6 +5161,20 @@ void PaintEditor::SaveProjectLibrary(EditorContext& ctx) const {
 				.texture = entry.texture,
 				.slice	 = entry.slice,
 				.group	 = entry.group,
+			}
+		);
+	}
+
+	state.autotiles.emplace();
+	state.autotiles->reserve(autotile_library_.size());
+	for (const auto& entry : autotile_library_) {
+		state.autotiles->push_back(
+			PaintAutotileLibraryEntryState{
+				.name		 = entry.name,
+				.texture	 = entry.texture,
+				.format		 = entry.format,
+				.group		 = entry.group,
+				.show_slices = entry.show_slices,
 			}
 		);
 	}
@@ -5131,6 +5224,34 @@ void PaintEditor::ReconcileProjectLibrary(EditorContext& ctx) {
 		auto [settings_it, inserted]{ tile_slice_settings_.try_emplace(texture.value) };
 		if (inserted && texture_size.IsPositive()) {
 			settings_it->second.tile_size = texture_size;
+		}
+
+		// Explicit demo definitions are imported once. Existing authoring metadata wins.
+		auto declaration{
+			std::ranges::find(registered_autotiles_, texture, &RegisteredAutotileTileset::texture)
+		};
+		if (declaration != registered_autotiles_.end() &&
+			!std::ranges::contains(autotile_library_, texture, &AutotileLibraryEntry::texture)) {
+			settings_it->second.tile_size = declaration->tile_size;
+			std::erase_if(tile_library_, [&](const TileLibraryEntry& entry) {
+				return entry.texture == texture;
+			});
+			autotile_library_.push_back(
+				AutotileLibraryEntry{
+					.name	 = TextureDisplayName(texture),
+					.texture = texture,
+					.format	 = declaration->format,
+					.group	 = declaration->group,
+				}
+			);
+			project_library_changed = true;
+		}
+
+		bool is_autotile{ std::ranges::any_of(autotile_library_, [&](const auto& entry) {
+			return entry.texture == texture;
+		}) };
+		if (is_autotile) {
+			continue;
 		}
 
 		path source_path{ record.source_path };
@@ -5205,6 +5326,11 @@ void PaintEditor::ReconcileProjectLibrary(EditorContext& ctx) {
 	std::erase_if(tile_library_, [&](const TileLibraryEntry& entry) {
 		return !texture_keys.contains(entry.texture.value);
 	});
+	auto autotile_count{ autotile_library_.size() };
+	std::erase_if(autotile_library_, [&](const AutotileLibraryEntry& entry) {
+		return !texture_keys.contains(entry.texture.value);
+	});
+	project_library_changed |= autotile_count != autotile_library_.size();
 
 	std::unordered_set<std::string> prefab_keys;
 	for (const PrefabKey& key : ctx.editor.GetAssetManager().GetPrefabKeys()) {
@@ -5269,6 +5395,8 @@ void PaintEditor::ReconcileProjectLibrary(EditorContext& ctx) {
 		recipe_.autotile_texture = {};
 	}
 
+	project_library_changed |= NormalizeAutotileGroups();
+
 	std::erase_if(tile_groups_, [](const std::string& name) {
 		return name.empty() || name == "Ungrouped";
 	});
@@ -5287,10 +5415,94 @@ void PaintEditor::ReconcileProjectLibrary(EditorContext& ctx) {
 	}
 }
 
+bool PaintEditor::IsAutotileGroup(std::string_view group) const {
+	return group != "Ungrouped" && std::ranges::contains(autotile_groups_, group);
+}
+
+bool PaintEditor::NormalizeAutotileGroups() {
+	// An autotile always has an exclusive group. Existing projects that stored
+	// several autotiles in one group are separated during reconciliation.
+	bool changed{};
+	std::vector<std::string> groups;
+	std::unordered_set<std::string> assigned;
+	for (const auto& name : autotile_groups_) {
+		if (!name.empty() && name != "Ungrouped" && !std::ranges::contains(groups, name)) {
+			groups.push_back(name);
+		} else {
+			changed = true;
+		}
+	}
+
+	auto normal_group_in_use = [&](std::string_view name) {
+		return std::ranges::any_of(tile_library_, [&](const TileLibraryEntry& tile) {
+			return tile.group == name;
+		});
+	};
+	auto unique_name = [&](std::string name) {
+		if (name.empty() || name == "Ungrouped") {
+			name = "Autotile";
+		}
+		std::string candidate{ name };
+		int number{ 2 };
+		while (assigned.contains(candidate) || normal_group_in_use(candidate) ||
+			   (std::ranges::contains(tile_groups_, candidate) &&
+				!std::ranges::contains(groups, candidate))) {
+			candidate = name + " " + std::to_string(number++);
+		}
+		return candidate;
+	};
+
+	for (auto& entry : autotile_library_) {
+		std::string original{ entry.group };
+		if (original.empty() || original == "Ungrouped" || assigned.contains(original) ||
+			(normal_group_in_use(original) && !std::ranges::contains(groups, original)) ||
+			(std::ranges::contains(tile_groups_, original) &&
+			 !std::ranges::contains(groups, original))) {
+			entry.group = unique_name(entry.name);
+			changed		= true;
+		}
+		assigned.insert(entry.group);
+		if (!std::ranges::contains(groups, entry.group)) {
+			groups.push_back(entry.group);
+			changed = true;
+		}
+	}
+
+	// A group that was already marked exclusive in an older project cannot
+	// contain manually imported tiles, even when the atlas is shown as slices.
+	for (auto& tile : tile_library_) {
+		if (std::ranges::contains(groups, tile.group)) {
+			tile.group = "Ungrouped";
+			changed	   = true;
+		}
+	}
+	std::ranges::sort(groups);
+	auto old_normal_count{ tile_groups_.size() };
+	std::erase_if(tile_groups_, [&](const std::string& name) {
+		return std::ranges::contains(groups, name) && !normal_group_in_use(name);
+	});
+	changed |= old_normal_count != tile_groups_.size();
+	if (groups != autotile_groups_) {
+		autotile_groups_ = std::move(groups);
+		changed			 = true;
+	}
+	return changed;
+}
+
 std::vector<std::string> PaintEditor::TileGroupNames() const {
 	std::vector<std::string> groups{ "Ungrouped" };
 	groups.insert(groups.end(), tile_groups_.begin(), tile_groups_.end());
+	for (const auto& group : autotile_groups_) {
+		if (!std::ranges::contains(groups, group)) {
+			groups.push_back(group);
+		}
+	}
 	for (const auto& entry : tile_library_) {
+		if (entry.group != "Ungrouped" && !std::ranges::contains(groups, entry.group)) {
+			groups.emplace_back(entry.group);
+		}
+	}
+	for (const auto& entry : autotile_library_) {
 		if (entry.group != "Ungrouped" && !std::ranges::contains(groups, entry.group)) {
 			groups.emplace_back(entry.group);
 		}
@@ -5557,6 +5769,66 @@ void PaintEditor::OnPrefabDeleted(EditorContext& ctx, const PrefabKey& key) {
 	);
 }
 
+// An imported PNG is a project asset, not just a palette entry. Preserve its bytes
+// with the import command so reimporting can be undone and redone without touching
+// unrelated assets in the content browser.
+[[nodiscard]] std::optional<std::vector<char>> ReadTilesetBytes(const path& file) {
+	std::ifstream stream{ file, std::ios::binary | std::ios::ate };
+	if (!stream) {
+		return std::nullopt;
+	}
+
+	std::streampos length{ stream.tellg() };
+
+	if (length < 0) {
+		return std::nullopt;
+	}
+
+	std::vector<char> bytes(static_cast<std::size_t>(length));
+	stream.seekg(0);
+	if (!bytes.empty() && !stream.read(bytes.data(), static_cast<std::streamsize>(bytes.size()))) {
+		return std::nullopt;
+	}
+
+	return bytes;
+}
+
+[[nodiscard]] bool WriteTilesetBytes(const path& file, const std::vector<char>& bytes) {
+	std::ofstream stream{ file, std::ios::binary | std::ios::trunc };
+	if (!stream) {
+		return false;
+	}
+
+	if (!bytes.empty()) {
+		stream.write(bytes.data(), static_cast<std::streamsize>(bytes.size()));
+	}
+
+	stream.flush();
+	return stream.good();
+}
+
+[[nodiscard]] std::optional<V2_int> ReadTilesetPngSize(const path& file) {
+	std::ifstream stream{ file, std::ios::binary };
+	std::array<unsigned char, 24> header{};
+	if (!stream.read(reinterpret_cast<char*>(header.data()), header.size())) {
+		return std::nullopt;
+	}
+	constexpr std::array<unsigned char, 8> signature{ 137, 80, 78, 71, 13, 10, 26, 10 };
+	if (!std::equal(signature.begin(), signature.end(), header.begin())) {
+		return std::nullopt;
+	}
+	auto read_int = [&](std::size_t offset) -> int {
+		return static_cast<int>(
+			(static_cast<std::uint32_t>(header[offset]) << 24) |
+			(static_cast<std::uint32_t>(header[offset + 1]) << 16) |
+			(static_cast<std::uint32_t>(header[offset + 2]) << 8) |
+			static_cast<std::uint32_t>(header[offset + 3])
+		);
+	};
+	V2_int size{ read_int(16), read_int(20) };
+	return size.IsPositive() ? std::optional{ size } : std::nullopt;
+}
+
 int PaintEditor::ImportImageTiles(
 	EditorContext& ctx, const TileImportSettings& settings, const std::string& image_path_text,
 	std::string group
@@ -5565,19 +5837,105 @@ int PaintEditor::ImportImageTiles(
 	if (!std::filesystem::exists(image_path) || !IsImagePath(image_path)) {
 		return 0;
 	}
-	auto& assets{ ctx.editor.GetAssetManager() };
-	auto imported{ assets.ImportAsset(image_path) };
-	if (!imported.has_value()) {
+	if (settings.create_group_from_source) {
+		group = SourceGroupName(image_path);
+	}
+	if (group.empty()) {
+		group = "Ungrouped";
+	}
+
+	TextureKey replace_texture{ settings.replace_texture };
+	if (settings.autotile) {
+		if (group == "Ungrouped") {
+			group = SourceGroupName(image_path);
+		}
+		if (group.empty() || group == "Ungrouped") {
+			group = image_path.stem().string();
+		}
+		if (IsAutotileGroup(group)) {
+			// An occupied autotile group cannot be replaced by a new import.
+			// Reimporting an existing texture remains available through its group menu.
+			if (std::ranges::any_of(autotile_library_, [&](const AutotileLibraryEntry& entry) {
+					return entry.group == group && entry.texture != replace_texture;
+				})) {
+				return 0;
+			}
+		} else if (std::ranges::any_of(tile_library_, [&](const TileLibraryEntry& tile) {
+					   return tile.group == group;
+				   })) {
+			// Never convert a populated ordinary group into an exclusive autotile group.
+			std::string base{ SourceGroupName(image_path) };
+			if (base.empty() || base == "Ungrouped") {
+				base = image_path.stem().string();
+			}
+			group = base;
+			int suffix{ 2 };
+			while (std::ranges::contains(TileGroupNames(), group)) {
+				group = base + " " + std::to_string(suffix++);
+			}
+		}
+	} else if (IsAutotileGroup(group)) {
+		// Individual images and ordinary tilesets cannot be added to an autotile group.
 		return 0;
 	}
-	TextureKey texture{ imported->value };
-	if (auto catalog{ assets.GetCatalogAsset(*imported, AssetKind::Texture) };
-		catalog.has_value()) {
-		assets.Load(*imported, catalog->source_path);
+	if (replace_texture && !settings.autotile &&
+		std::ranges::contains(autotile_library_, replace_texture, &AutotileLibraryEntry::texture)) {
+		return 0;
+	}
+
+	auto& assets{ ctx.editor.GetAssetManager() };
+	TextureKey texture{};
+	if (replace_texture) {
+		auto catalog{ assets.GetCatalogAsset(replace_texture, AssetKind::Texture) };
+		auto root{ ctx.editor.GetProjectRoot() };
+		if (!catalog || !root || image_path.extension() != ".png" ||
+			image_path.extension() != path{ catalog->source_path }.extension()) {
+			return 0;
+		}
+		// Reject a mismatched atlas before overwriting the existing project asset.
+		auto image_size{ ReadTilesetPngSize(image_path) };
+		V2_int current_tile_size{ std::max(1, settings.tile_width),
+								  std::max(1, settings.tile_height) };
+		if (!image_size || image_size->x % current_tile_size.x != 0 ||
+			image_size->y % current_tile_size.y != 0) {
+			return 0;
+		}
+		if (settings.autotile) {
+			V2_int sheet{ image_size->x / current_tile_size.x,
+						  image_size->y / current_tile_size.y };
+			if (!ResolveAutotileAtlasLayout(settings.autotile_format, sheet)) {
+				return 0;
+			}
+		}
+		path destination{ (*root / catalog->source_path).lexically_normal() };
+		std::error_code error;
+		if (!std::filesystem::equivalent(image_path, destination, error)) {
+			std::filesystem::copy_file(
+				image_path, destination, std::filesystem::copy_options::overwrite_existing, error
+			);
+			if (error) {
+				return 0;
+			}
+		}
+		texture = replace_texture;
+		assets.RefreshCatalogFromDisk();
+		if (!std::ranges::contains(pending_texture_reloads_, texture)) {
+			pending_texture_reloads_.push_back(texture);
+		}
+	} else {
+		auto imported{ assets.ImportAsset(image_path) };
+		if (!imported) {
+			return 0;
+		}
+		texture = TextureKey{ imported->value };
+		if (auto catalog{ assets.GetCatalogAsset(*imported, AssetKind::Texture) }) {
+			assets.Load(*imported, catalog->source_path);
+		}
 	}
 	V2_int texture_size{};
 	for (const auto& record : ::ptgn::impl::AssetAccessor{ assets }.GetAssets()) {
-		if (record.kind == AssetKind::Texture && record.key == *imported &&
+		if (record.kind == AssetKind::Texture &&
+			record.key == static_cast<const AssetKey&>(texture) &&
 			record.metadata.dimensions.has_value()) {
 			texture_size = *record.metadata.dimensions;
 			break;
@@ -5591,12 +5949,22 @@ int PaintEditor::ImportImageTiles(
 	}
 
 	std::optional<V2_int> inferred;
-	if (settings.use_filename_dimensions) {
+	if (settings.use_filename_dimensions && !replace_texture) {
 		inferred = FilenameTileDimensions(image_path);
 	}
 	bool slice{};
 	V2_int tile_size{ texture_size };
-	if (settings.mode == TileImportMode::Individual) {
+	if (settings.autotile) {
+		slice = true;
+		tile_size =
+			replace_texture
+				? V2_int{ std::max(1, settings.tile_width), std::max(1, settings.tile_height) }
+				: inferred.value_or(InferAutotileTileSize(settings.autotile_format, texture_size)
+										.value_or(
+											V2_int{ std::max(1, settings.tile_width),
+													std::max(1, settings.tile_height) }
+										));
+	} else if (settings.mode == TileImportMode::Individual) {
 		slice = false;
 	} else if (settings.mode == TileImportMode::Tileset) {
 		slice	  = true;
@@ -5606,25 +5974,117 @@ int PaintEditor::ImportImageTiles(
 	} else if (inferred.has_value()) {
 		slice	  = true;
 		tile_size = *inferred;
+	} else if (settings.mode == TileImportMode::Auto) {
+		V2_int requested{ std::max(1, settings.tile_width), std::max(1, settings.tile_height) };
+		if (texture_size.x % requested.x == 0 && texture_size.y % requested.y == 0 &&
+			(texture_size.x > requested.x || texture_size.y > requested.y)) {
+			slice	  = true;
+			tile_size = requested;
+		}
 	}
 
 	// An invalid tile size must not erase existing slices from the library.
 	V2_int proposed_size{ slice ? tile_size : texture_size };
-	if (!proposed_size.IsPositive() || texture_size.x / proposed_size.x == 0 ||
-		texture_size.y / proposed_size.y == 0) {
+	if (!proposed_size.IsPositive() || texture_size.x % proposed_size.x != 0 ||
+		texture_size.y % proposed_size.y != 0) {
 		return 0;
 	}
 
-	if (settings.create_group_from_source) {
-		group = SourceGroupName(image_path);
-		if (group != "Ungrouped" && !std::ranges::contains(tile_groups_, group)) {
-			tile_groups_.emplace_back(group);
-		}
-	}
-	if (group.empty()) {
-		group = "Ungrouped";
+	if (!settings.autotile && !replace_texture &&
+		std::ranges::contains(autotile_library_, texture, &AutotileLibraryEntry::texture)) {
+		return 0;
 	}
 
+	if (settings.autotile) {
+		tile_size =
+			replace_texture
+				? V2_int{ std::max(1, settings.tile_width), std::max(1, settings.tile_height) }
+				: inferred.value_or(InferAutotileTileSize(settings.autotile_format, texture_size)
+										.value_or(
+											V2_int{ std::max(1, settings.tile_width),
+													std::max(1, settings.tile_height) }
+										));
+		if (!tile_size.IsPositive() || texture_size.x % tile_size.x != 0 ||
+			texture_size.y % tile_size.y != 0) {
+			return 0;
+		}
+		V2_int sheet{ texture_size.x / tile_size.x, texture_size.y / tile_size.y };
+		if (!ResolveAutotileAtlasLayout(settings.autotile_format, sheet)) {
+			return 0;
+		}
+		tile_slice_settings_.insert_or_assign(
+			texture.value, TileSliceSettings{ .tile_size = tile_size }
+		);
+		std::erase_if(tile_library_, [&](const TileLibraryEntry& entry) {
+			return entry.texture == texture;
+		});
+		bool show_slices{};
+		std::string tileset_name{ image_path.stem().string() };
+		for (const auto& entry : autotile_library_) {
+			if (entry.texture == texture) {
+				show_slices = entry.show_slices;
+				if (replace_texture) {
+					tileset_name = entry.name;
+				}
+				break;
+			}
+		}
+		std::erase_if(autotile_library_, [&](const AutotileLibraryEntry& entry) {
+			return entry.texture == texture;
+		});
+		autotile_library_.push_back(
+			AutotileLibraryEntry{
+				.name		 = tileset_name,
+				.texture	 = texture,
+				.format		 = settings.autotile_format,
+				.group		 = group,
+				.show_slices = show_slices,
+			}
+		);
+		std::erase(tile_groups_, group);
+		if (!IsAutotileGroup(group)) {
+			autotile_groups_.push_back(group);
+		}
+		if (!replace_texture) {
+			std::erase_if(autotile_rule_sets_, [&](const PaintAutotileRuleSet& rules) {
+				return rules.texture == texture;
+			});
+			recipe_.autotile_texture = texture;
+			recipe_.autotile_format	 = settings.autotile_format;
+			recipe_.source_kind		 = PaintSourceKind::Autotile;
+			selected_tile_entry_id_.clear();
+			inspected_texture_ = texture;
+			inspected_slice_   = {};
+			if (!ResolveAutotileRuleSet(ctx)) {
+				return 0;
+			}
+		} else {
+			// Keep the ruleset ID referenced by previously painted terrain.
+			for (auto& rules : autotile_rule_sets_) {
+				if (rules.texture == texture) {
+					rules.format = settings.autotile_format;
+					RefreshAutotileRuleSet(ctx, rules);
+				}
+			}
+		}
+		SaveProjectLibrary(ctx);
+		return 1;
+	}
+
+	std::erase_if(autotile_library_, [&](const AutotileLibraryEntry& entry) {
+		return entry.texture == texture;
+	});
+	std::erase_if(autotile_rule_sets_, [&](const PaintAutotileRuleSet& rules) {
+		return rules.texture == texture;
+	});
+	std::unordered_map<std::string, TileLibraryEntry> previous_tiles;
+	if (replace_texture) {
+		for (const auto& entry : tile_library_) {
+			if (entry.texture == texture) {
+				previous_tiles.emplace(entry.id, entry);
+			}
+		}
+	}
 	TileSliceSettings slicing{ .tile_size = slice ? tile_size : texture_size };
 	tile_slice_settings_.insert_or_assign(texture.value, slicing);
 	std::erase_if(tile_library_, [&](const TileLibraryEntry& entry) {
@@ -5637,23 +6097,34 @@ int PaintEditor::ImportImageTiles(
 	for (int y{}; y < rows; ++y) {
 		for (int x{}; x < columns; ++x) {
 			V2_int coord{ x, y };
+			std::string id{ TileEntryId(texture, coord) };
 			std::string name{ slice ? image_path.stem().string() + "_" + std::to_string(count)
 									: image_path.stem().string() };
+			std::string entry_group{ group };
+			if (auto old{ previous_tiles.find(id) }; old != previous_tiles.end()) {
+				name		= old->second.name;
+				entry_group = old->second.group;
+			}
 			tile_library_.push_back(
-				TileLibraryEntry{ .id	   = TileEntryId(texture, coord),
+				TileLibraryEntry{ .id	   = id,
 								  .name	   = name,
 								  .texture = texture,
 								  .slice   = coord,
-								  .group   = group }
+								  .group   = entry_group }
 			);
 			++count;
 		}
 	}
 	if (count > 0) {
-		selected_tile_entry_id_ = tile_library_.back().id;
-		inspected_texture_		= texture;
-		inspected_slice_		= tile_library_.back().slice;
-
+		if (group != "Ungrouped" && !std::ranges::contains(tile_groups_, group)) {
+			tile_groups_.push_back(group);
+		}
+		if (!replace_texture) {
+			selected_tile_entry_id_ = tile_library_.back().id;
+			recipe_.source_kind		= PaintSourceKind::Single;
+			inspected_texture_		= texture;
+			inspected_slice_		= tile_library_.back().slice;
+		}
 		SaveProjectLibrary(ctx);
 	}
 	return count;
@@ -5673,50 +6144,148 @@ int PaintEditor::ImportTiles(EditorContext& ctx, const TileImportSettings& setti
 	});
 	std::string group{ settings.target_group.empty() ? "Ungrouped" : settings.target_group };
 
+	// Importing multiple sheets into a single exclusive group would silently replace
+	// the previous sheet with the last selected file. Require one replacement at a time.
+	if (settings.autotile && settings.paths.size() > 1 && !settings.create_group_from_source &&
+		group != "Ungrouped") {
+		return 0;
+	}
+
+	path replaced_asset_path;
+	std::optional<std::vector<char>> previous_asset_bytes;
+	if (settings.replace_texture) {
+		auto& assets{ ctx.editor.GetAssetManager() };
+		auto catalog{ assets.GetCatalogAsset(settings.replace_texture, AssetKind::Texture) };
+		auto root{ ctx.editor.GetProjectRoot() };
+		if (!catalog || !root) {
+			return 0;
+		}
+
+		replaced_asset_path	 = (*root / catalog->source_path).lexically_normal();
+		previous_asset_bytes = ReadTilesetBytes(replaced_asset_path);
+		if (!previous_asset_bytes) {
+			return 0;
+		}
+	}
+
 	// Tile imports can replace existing slices as well as create new entries.
 	// Record the complete library change as one command so undo restores both
 	// the original entries and their group memberships.
 	struct ImportState {
 		std::vector<TileLibraryEntry> tiles;
+		std::vector<AutotileLibraryEntry> autotiles;
+		std::vector<PaintAutotileRuleSet> rulesets;
 		std::vector<std::string> groups;
+		std::vector<std::string> autotile_groups;
 		decltype(tile_slice_settings_) slices;
 		std::string selected_tile;
 		std::optional<TextureKey> inspected_texture;
 		V2_int inspected_slice{};
+		PaintRecipeState recipe;
+		PaintTileSource tile_source;
 	};
 
 	auto capture = [this]() {
 		return ImportState{
 			.tiles			   = tile_library_,
+			.autotiles		   = autotile_library_,
+			.rulesets		   = autotile_rule_sets_,
 			.groups			   = tile_groups_,
+			.autotile_groups   = autotile_groups_,
 			.slices			   = tile_slice_settings_,
 			.selected_tile	   = selected_tile_entry_id_,
 			.inspected_texture = inspected_texture_,
 			.inspected_slice   = inspected_slice_,
+			.recipe			   = recipe_,
+			.tile_source	   = tile_source_,
 		};
 	};
 
 	ImportState before{ capture() };
+	auto rollback_import = [&]() {
+		if (previous_asset_bytes) {
+			auto current_bytes{ ReadTilesetBytes(replaced_asset_path) };
+
+			if (!current_bytes || *current_bytes != *previous_asset_bytes) {
+				if (WriteTilesetBytes(replaced_asset_path, *previous_asset_bytes)) {
+					ctx.editor.GetAssetManager().RefreshCatalogFromDisk();
+					if (!std::ranges::contains(
+							pending_texture_reloads_, settings.replace_texture
+						)) {
+						pending_texture_reloads_.push_back(settings.replace_texture);
+					}
+				}
+			}
+		}
+		tile_library_			= before.tiles;
+		autotile_library_		= before.autotiles;
+		autotile_rule_sets_		= before.rulesets;
+		tile_groups_			= before.groups;
+		autotile_groups_		= before.autotile_groups;
+		tile_slice_settings_	= before.slices;
+		selected_tile_entry_id_ = before.selected_tile;
+		inspected_texture_		= before.inspected_texture;
+		inspected_slice_		= before.inspected_slice;
+		recipe_					= before.recipe;
+		tile_source_			= before.tile_source;
+		SaveProjectLibrary(ctx);
+	};
 	auto finish_import = [&](int count) {
 		if (count <= 0) {
+			rollback_import();
 			return count;
 		}
 
 		ImportState after{ capture() };
+		std::shared_ptr<const std::vector<char>> original_png;
+		std::shared_ptr<const std::vector<char>> imported_png;
+
+		if (previous_asset_bytes) {
+			auto current_bytes{ ReadTilesetBytes(replaced_asset_path) };
+
+			if (!current_bytes) {
+				rollback_import();
+				return 0;
+			}
+
+			original_png =
+				std::make_shared<const std::vector<char>>(std::move(*previous_asset_bytes));
+			imported_png = std::make_shared<const std::vector<char>>(std::move(*current_bytes));
+		}
+
 		PaintEditor* paint{ this };
 		EditorContext* context{ &ctx };
-		auto apply = [paint, context](const ImportState& state) {
+		auto apply = [paint, context, replaced_asset_path, key = settings.replace_texture](
+						 const ImportState& state,
+						 const std::shared_ptr<const std::vector<char>>& png
+					 ) {
+			if (png) {
+				if (!WriteTilesetBytes(replaced_asset_path, *png)) {
+					return;
+				}
+
+				context->editor.GetAssetManager().RefreshCatalogFromDisk();
+				if (!std::ranges::contains(paint->pending_texture_reloads_, key)) {
+					paint->pending_texture_reloads_.push_back(key);
+				}
+			}
 			paint->tile_library_		   = state.tiles;
+			paint->autotile_library_	   = state.autotiles;
+			paint->autotile_rule_sets_	   = state.rulesets;
 			paint->tile_groups_			   = state.groups;
+			paint->autotile_groups_		   = state.autotile_groups;
 			paint->tile_slice_settings_	   = state.slices;
 			paint->selected_tile_entry_id_ = state.selected_tile;
 			paint->inspected_texture_	   = state.inspected_texture;
 			paint->inspected_slice_		   = state.inspected_slice;
+			paint->recipe_				   = state.recipe;
+			paint->tile_source_			   = state.tile_source;
 			paint->SaveProjectLibrary(*context);
 		};
 		ctx.undo.PushApplied(
-			"Import Tiles", [before = std::move(before), apply]() { apply(before); },
-			[after = std::move(after), apply]() { apply(after); }
+			settings.replace_texture ? "Reimport Tileset" : "Import Tiles",
+			[before = std::move(before), original_png, apply]() { apply(before, original_png); },
+			[after = std::move(after), imported_png, apply]() { apply(after, imported_png); }
 		);
 		return count;
 	};
@@ -5745,9 +6314,18 @@ int PaintEditor::ImportTiles(EditorContext& ctx, const TileImportSettings& setti
 		}
 		return finish_import(total);
 	}
-	return finish_import(
-		ImportImageTiles(ctx, settings, source.lexically_normal().string(), group)
-	);
+	int total{};
+	if (!settings.paths.empty()) {
+		for (const std::string& selected : settings.paths) {
+			path item{ selected };
+			if (IsImagePath(item)) {
+				total += ImportImageTiles(ctx, settings, item.lexically_normal().string(), group);
+			}
+		}
+	} else {
+		total = ImportImageTiles(ctx, settings, source.lexically_normal().string(), group);
+	}
+	return finish_import(total);
 }
 
 void PaintEditor::DrawImportPopup(EditorContext& ctx) {
@@ -5759,31 +6337,74 @@ void PaintEditor::DrawImportPopup(EditorContext& ctx) {
 		return;
 	}
 	ImGui::InputText("Source", &import_settings_.path);
+	if (ImGui::IsItemEdited()) {
+		import_settings_.paths.clear();
+	}
 	ImGui::SameLine();
 	if (ImGui::Button("Browse...")) {
 		auto result{ ctx.editor.GetWindow().file.OpenFiles(TileImportOptions()) };
 		if (!result.has_value()) {
 			import_status_ = "File picker failed: " + result.error();
 		} else if (result->has_value() && !result->value().empty()) {
-			import_settings_.path = result->value().front().string();
+			import_settings_.paths.clear();
+			for (const auto& file : result->value()) {
+				import_settings_.paths.push_back(file.string());
+			}
+			import_settings_.path = import_settings_.paths.front();
+			import_status_ = std::to_string(import_settings_.paths.size()) + " file(s) selected.";
 		}
 	}
-	int mode{ static_cast<int>(import_settings_.mode) };
-	if (ImGui::Combo("Mode", &mode, "Auto\0Tileset\0Individual\0")) {
-		import_settings_.mode = static_cast<TileImportMode>(mode);
+	bool exclusive_target{ IsAutotileGroup(import_settings_.target_group) };
+	if (exclusive_target) {
+		import_settings_.autotile				  = true;
+		import_settings_.create_group_from_source = false;
+		ImGui::BeginDisabled();
 	}
-	if (import_settings_.mode != TileImportMode::Individual) {
+	ImGui::Checkbox("Autotile", &import_settings_.autotile);
+	if (exclusive_target) {
+		ImGui::EndDisabled();
+		ImGui::TextDisabled("This group contains one autotile tileset.");
+	}
+	if (import_settings_.autotile) {
+		int format{ static_cast<int>(import_settings_.autotile_format) };
+		if (ImGui::Combo(
+				"Layout", &format,
+				"15 pieces (5x3 / 4x4)\0"
+				"47 pieces (8x6)\0"
+				"16 subset (4x4)\0"
+				"Dual grid (15 or 16)\0"
+			)) {
+			import_settings_.autotile_format = static_cast<PaintAutotileFormat>(format);
+		}
+	}
+	if (!import_settings_.autotile) {
+		int mode{ static_cast<int>(import_settings_.mode) };
+		if (ImGui::Combo("Mode", &mode, "Auto\0Tileset\0Individual\0")) {
+			import_settings_.mode = static_cast<TileImportMode>(mode);
+		}
+	}
+	if (import_settings_.autotile || import_settings_.mode != TileImportMode::Individual) {
 		ImGui::DragInt("Tile Width", &import_settings_.tile_width, 1.0f, 1, 8192);
 		ImGui::DragInt("Tile Height", &import_settings_.tile_height, 1.0f, 1, 8192);
-		ImGui::Checkbox(
-			"Use _32x32 / -32x32 filename dimensions", &import_settings_.use_filename_dimensions
-		);
+		ImGui::Checkbox("Use filename tile dimensions", &import_settings_.use_filename_dimensions);
+		if (import_settings_.autotile) {
+			ImGui::TextDisabled("Square tile size is inferred from the selected layout.");
+		}
+	}
+	if (exclusive_target) {
+		ImGui::BeginDisabled();
 	}
 	ImGui::Checkbox("Create group from source name", &import_settings_.create_group_from_source);
+	if (exclusive_target) {
+		ImGui::EndDisabled();
+	}
 	if (!import_settings_.create_group_from_source) {
 		auto groups{ TileGroupNames() };
 		if (ImGui::BeginCombo("Group", import_settings_.target_group.c_str())) {
 			for (const auto& group : groups) {
+				if (group != "Ungrouped" && IsAutotileGroup(group) != import_settings_.autotile) {
+					continue;
+				}
 				if (ImGui::Selectable(group.c_str(), group == import_settings_.target_group)) {
 					import_settings_.target_group = group;
 				}
@@ -5800,6 +6421,7 @@ void PaintEditor::DrawImportPopup(EditorContext& ctx) {
 			count > 0 ? "Imported " + std::to_string(count) + " tile" + (count == 1 ? "." : "s.")
 					  : "Nothing was imported.";
 		if (count > 0) {
+			import_settings_.paths.clear();
 			ImGui::CloseCurrentPopup();
 		}
 	}
@@ -5811,6 +6433,12 @@ void PaintEditor::DrawImportPopup(EditorContext& ctx) {
 }
 
 bool PaintEditor::DrawTilesPanel(EditorContext& ctx) {
+	// Rebuild textures at the beginning of the next frame, after the previous
+	// frame has finished consuming its cached preview texture identifiers.
+	for (const TextureKey& key : pending_texture_reloads_) {
+		ctx.editor.GetAssetManager().ReloadTextureFromDisk(key);
+	}
+	pending_texture_reloads_.clear();
 	EnsureLocalState(ctx);
 	bool visible{ ImGui::Begin("Tiles###TilesWindow") };
 	bool focused{ visible && ImGui::IsWindowFocused(ImGuiFocusedFlags_RootAndChildWindows) };
@@ -5829,12 +6457,24 @@ bool PaintEditor::DrawTilesPanel(EditorContext& ctx) {
 	}
 
 	auto capture_groups = [&]() {
-		return CaptureTileGroups(tile_groups_, tile_library_);
+		GroupSnapshot result{ CaptureTileGroups(tile_groups_, tile_library_) };
+		for (const auto& entry : autotile_library_) {
+			result.members.insert_or_assign("auto:" + entry.texture.value, entry.group);
+		}
+		result.autotile_groups = autotile_groups_;
+		return result;
 	};
 	auto apply_groups = [this](EditorContext& context, const GroupSnapshot& state) {
-		tile_groups_ = state.groups;
+		tile_groups_	 = state.groups;
+		autotile_groups_ = state.autotile_groups;
 		for (auto& entry : tile_library_) {
 			if (auto it{ state.members.find(entry.id) }; it != state.members.end()) {
+				entry.group = it->second;
+			}
+		}
+		for (auto& entry : autotile_library_) {
+			if (auto it{ state.members.find("auto:" + entry.texture.value) };
+				it != state.members.end()) {
 				entry.group = it->second;
 			}
 		}
@@ -5856,7 +6496,21 @@ bool PaintEditor::DrawTilesPanel(EditorContext& ctx) {
 	auto add_tiles = [&](std::string_view group) {
 		import_settings_.target_group			  = group;
 		import_settings_.create_group_from_source = false;
-		import_popup_requested_					  = true;
+		import_settings_.replace_texture		  = {};
+		import_settings_.autotile				  = IsAutotileGroup(group);
+		if (import_settings_.autotile) {
+			for (const auto& entry : autotile_library_) {
+				if (entry.group == group) {
+					import_settings_.autotile_format = entry.format;
+					if (const TileSliceSettings* slicing{ FindSliceSettings(entry.texture) }) {
+						import_settings_.tile_width	 = slicing->tile_size.x;
+						import_settings_.tile_height = slicing->tile_size.y;
+					}
+					break;
+				}
+			}
+		}
+		import_popup_requested_ = true;
 	};
 
 	ImGui::SetNextItemWidth(-FLT_MIN);
@@ -5884,6 +6538,7 @@ bool PaintEditor::DrawTilesPanel(EditorContext& ctx) {
 
 	auto records{ ::ptgn::impl::AssetAccessor{ ctx.editor.GetAssetManager() }.GetAssets() };
 	std::optional<std::pair<std::string, std::string>> pending_group_move;
+	std::optional<TextureKey> pending_reimport;
 	static std::string group_to_rename;
 	static RenameModalState group_rename_modal;
 	auto matches_tile = [&](const TileLibraryEntry& entry, std::string_view group) {
@@ -5892,9 +6547,21 @@ bool PaintEditor::DrawTilesPanel(EditorContext& ctx) {
 
 	for (const std::string& group : TileGroupNames()) {
 		bool group_matches{ MatchesTextFilter(tile_search_, { group }) };
-		bool has_matching{ std::ranges::any_of(tile_library_, [&](const TileLibraryEntry& entry) {
-			return entry.group == group && matches_tile(entry, group);
-		}) };
+		bool has_matching{ std::ranges::any_of(
+							   tile_library_,
+							   [&](const TileLibraryEntry& entry) {
+								   return entry.group == group && matches_tile(entry, group);
+							   }
+						   ) ||
+						   std::ranges::any_of(
+							   autotile_library_, [&](const AutotileLibraryEntry& entry) {
+								   return entry.group == group &&
+										  MatchesTextFilter(
+											  tile_search_,
+											  { group, entry.name, entry.texture.value }
+										  );
+							   }
+						   ) };
 		if (!has_matching && !group_matches) {
 			continue;
 		}
@@ -5903,7 +6570,7 @@ bool PaintEditor::DrawTilesPanel(EditorContext& ctx) {
 			"##TileGroup", ImGuiTreeNodeFlags_DefaultOpen | ImGuiTreeNodeFlags_SpanAvailWidth, "%s",
 			group.c_str()
 		) };
-		if (ImGui::BeginDragDropTarget()) {
+		if (!IsAutotileGroup(group) && ImGui::BeginDragDropTarget()) {
 			if (const ImGuiPayload* payload{
 					ImGui::AcceptDragDropPayload(kTileLibraryEntryDragDropPayload) };
 				payload && payload->Data && payload->DataSize > 1) {
@@ -5915,7 +6582,48 @@ bool PaintEditor::DrawTilesPanel(EditorContext& ctx) {
 			ImGui::EndDragDropTarget();
 		}
 		if (ImGui::BeginPopupContextItem("TileGroupContext")) {
-			if (ImGui::MenuItem("Add Tiles")) {
+			if (IsAutotileGroup(group)) {
+				auto atlas{ std::ranges::find_if(
+					autotile_library_,
+					[&](const AutotileLibraryEntry& entry) { return entry.group == group; }
+				) };
+
+				if (atlas != autotile_library_.end()) {
+					if (ImGui::MenuItem(
+							atlas->show_slices ? "View as Autotile" : "View as Individual Tiles"
+						)) {
+						TextureKey texture{ atlas->texture };
+						bool before{ atlas->show_slices };
+
+						atlas->show_slices = !before;
+						SaveProjectLibrary(ctx);
+
+						PaintEditor* paint{ this };
+						EditorContext* context{ &ctx };
+						auto apply = [paint, context, texture](bool show_slices) {
+							auto entry{ std::ranges::find(
+								paint->autotile_library_, texture, &AutotileLibraryEntry::texture
+							) };
+
+							if (entry != paint->autotile_library_.end()) {
+								entry->show_slices = show_slices;
+								paint->SaveProjectLibrary(*context);
+							}
+						};
+						ctx.undo.PushApplied(
+							before ? "View as Autotile" : "View as Individual Tiles",
+							[apply, before]() { apply(before); },
+							[apply, before]() { apply(!before); }
+						);
+					}
+
+					if (ImGui::MenuItem("Reimport Tileset")) {
+						pending_reimport = atlas->texture;
+					}
+				} else if (ImGui::MenuItem("Import Autotile Tileset")) {
+					add_tiles(group);
+				}
+			} else if (ImGui::MenuItem("Add Tiles")) {
 				add_tiles(group);
 			}
 			if (group != "Ungrouped") {
@@ -5926,14 +6634,57 @@ bool PaintEditor::DrawTilesPanel(EditorContext& ctx) {
 				}
 				ImGui::Separator();
 				if (ImGui::MenuItem("Delete")) {
-					GroupSnapshot before{ capture_groups() };
-					for (auto& entry : tile_library_) {
-						if (entry.group == group) {
-							entry.group = "Ungrouped";
+					if (IsAutotileGroup(group)) {
+						// Deleting an exclusive group removes its palette atlas rather than
+						// moving that atlas into an ordinary or shared group.
+						const auto old_tiles{ autotile_library_ };
+						const auto old_groups{ autotile_groups_ };
+						const auto old_recipe{ recipe_ };
+						std::erase_if(autotile_library_, [&](const AutotileLibraryEntry& entry) {
+							return entry.group == group;
+						});
+						std::erase(autotile_groups_, group);
+						if (recipe_.source_kind == PaintSourceKind::Autotile &&
+							!std::ranges::contains(
+								autotile_library_, recipe_.autotile_texture,
+								&AutotileLibraryEntry::texture
+							)) {
+							recipe_.autotile_texture = {};
+							recipe_.source_kind		 = PaintSourceKind::Single;
 						}
+						SaveProjectLibrary(ctx);
+						const auto new_tiles{ autotile_library_ };
+						const auto new_groups{ autotile_groups_ };
+						const auto new_recipe{ recipe_ };
+						PaintEditor* paint{ this };
+						EditorContext* context{ &ctx };
+						auto restore = [paint, context](
+										   const auto& tiles, const auto& groups, const auto& recipe
+									   ) {
+							paint->autotile_library_ = tiles;
+							paint->autotile_groups_	 = groups;
+							paint->recipe_			 = recipe;
+							paint->SaveProjectLibrary(*context);
+						};
+						ctx.undo.PushApplied(
+							"Delete Autotile Group",
+							[restore, old_tiles, old_groups, old_recipe]() {
+								restore(old_tiles, old_groups, old_recipe);
+							},
+							[restore, new_tiles, new_groups, new_recipe]() {
+								restore(new_tiles, new_groups, new_recipe);
+							}
+						);
+					} else {
+						GroupSnapshot before{ capture_groups() };
+						for (auto& entry : tile_library_) {
+							if (entry.group == group) {
+								entry.group = "Ungrouped";
+							}
+						}
+						std::erase(tile_groups_, group);
+						commit_groups("Delete Tile Group", std::move(before));
 					}
-					std::erase(tile_groups_, group);
-					commit_groups("Delete Tile Group", std::move(before));
 				}
 			}
 			ImGui::EndPopup();
@@ -5946,6 +6697,141 @@ bool PaintEditor::DrawTilesPanel(EditorContext& ctx) {
 				std::max(1, static_cast<int>(ImGui::GetContentRegionAvail().x / (cell + 5.0f)))
 			};
 			std::optional<std::string> delete_id;
+			for (auto& entry : autotile_library_) {
+				if (entry.group != group ||
+					!MatchesTextFilter(tile_search_, { group, entry.name, entry.texture.value })) {
+					continue;
+				}
+				if (entry.show_slices) {
+					shown = 0;
+					ImGui::PushID(entry.texture.value.c_str());
+					const TileSliceSettings* settings{ FindSliceSettings(entry.texture) };
+					V2_int dimensions{};
+					for (const auto& record : records) {
+						if (record.kind == AssetKind::Texture &&
+							record.key == static_cast<const AssetKey&>(entry.texture) &&
+							record.metadata.dimensions) {
+							dimensions = *record.metadata.dimensions;
+							break;
+						}
+					}
+					if (settings && settings->tile_size.IsPositive() && dimensions.IsPositive()) {
+						V2_int sheet{ dimensions.x / settings->tile_size.x,
+									  dimensions.y / settings->tile_size.y };
+						if (auto layout{ ResolveAutotileAtlasLayout(entry.format, sheet) }) {
+							int row_index{};
+							for (int slot{}; slot < layout->source_count; ++slot) {
+								if (row_index % per_row != 0) {
+									ImGui::SameLine();
+								}
+								ImGui::PushID(slot);
+								PaintTileSource source{ MakeTileSource(
+									ctx, entry.texture, AutotileSourceSlice(*layout, slot)
+								) };
+								ImVec2 start{ ImGui::GetCursorScreenPos() };
+								ImGui::InvisibleButton("##AtlasTile", { cell, cell });
+								ImVec2 end{ start.x + cell, start.y + cell };
+								auto* draw{ ImGui::GetWindowDrawList() };
+								draw->AddRectFilled(
+									start, end, ImGui::GetColorU32(ImGuiCol_FrameBg), 3.0f
+								);
+								for (const auto& record : records) {
+									if (record.kind != AssetKind::Texture ||
+										record.key != static_cast<const AssetKey&>(entry.texture) ||
+										!record.preview || !source) {
+										continue;
+									}
+									const auto& uv{ source.texture_coordinates };
+									draw->AddImageQuad(
+										static_cast<ImTextureID>(record.preview->texture), start,
+										{ end.x, start.y }, end, { start.x, end.y }, ToImGui(uv[0]),
+										ToImGui(uv[1]), ToImGui(uv[2]), ToImGui(uv[3])
+									);
+									break;
+								}
+								if (recipe_.source_kind == PaintSourceKind::Single &&
+									tile_source_ == source) {
+									draw->AddRect(start, end, kSelection, 3.0f, 0, 2.0f);
+								}
+								if (ImGui::IsItemClicked(ImGuiMouseButton_Left)) {
+									tile_source_		= source;
+									recipe_.source_kind = PaintSourceKind::Single;
+									selected_tile_entry_id_.clear();
+									inspected_texture_ = entry.texture;
+									inspected_slice_   = source.slice;
+									tool_			   = PaintTool::Brush;
+								}
+								if (ImGui::IsItemHovered()) {
+									ImGui::SetTooltip(
+										"%s | tile %d | Manual painting", entry.name.c_str(), slot
+									);
+								}
+								ImGui::PopID();
+								++row_index;
+							}
+						}
+					}
+					ImGui::PopID();
+					continue;
+				}
+				if (shown % per_row != 0) {
+					ImGui::SameLine();
+				}
+				ImGui::PushID(entry.texture.value.c_str());
+				ImVec2 p0{ ImGui::GetCursorScreenPos() };
+				ImGui::InvisibleButton("##Autotile", { cell, cell });
+				ImVec2 p1{ p0.x + cell, p0.y + cell };
+				auto* draw{ ImGui::GetWindowDrawList() };
+				draw->AddRectFilled(p0, p1, ImGui::GetColorU32(ImGuiCol_FrameBg), 3.0f);
+				auto record_it{ std::ranges::find_if(records, [&](const auto& r) {
+					return r.kind == AssetKind::Texture &&
+						   r.key == static_cast<const AssetKey&>(entry.texture);
+				}) };
+				if (record_it != records.end() && record_it->preview.has_value()) {
+					const auto& preview{ *record_it->preview };
+					V2_int size{ preview.size };
+					if (size.IsPositive()) {
+						float scale{ std::min(
+							cell / static_cast<float>(size.x), cell / static_cast<float>(size.y)
+						) };
+						ImVec2 extent{ static_cast<float>(size.x) * scale,
+									   static_cast<float>(size.y) * scale };
+						ImVec2 a{ p0.x + (cell - extent.x) * 0.5f,
+								  p0.y + (cell - extent.y) * 0.5f };
+						draw->AddImage(
+							static_cast<ImTextureID>(preview.texture), a,
+							{ a.x + extent.x, a.y + extent.y }
+						);
+					}
+				}
+				bool selected{ recipe_.source_kind == PaintSourceKind::Autotile &&
+							   recipe_.autotile_texture == entry.texture &&
+							   recipe_.autotile_format == entry.format };
+				if (selected) {
+					draw->AddRect(p0, p1, kSelection, 3.0f, 0, 2.0f);
+				}
+				// Keep the distinction visible even in a small thumbnail.
+				draw->AddText({ p0.x + 3.0f, p0.y + 2.0f }, IM_COL32(255, 255, 255, 255), "A");
+				if (ImGui::IsItemClicked(ImGuiMouseButton_Left)) {
+					recipe_.source_kind		 = PaintSourceKind::Autotile;
+					recipe_.autotile_texture = entry.texture;
+					recipe_.autotile_format	 = entry.format;
+					tile_source_			 = {};
+					selected_tile_entry_id_.clear();
+					inspected_texture_ = entry.texture;
+					inspected_slice_   = {};
+					tool_			   = PaintTool::Brush;
+					ResolveAutotileRuleSet(ctx);
+				}
+				if (ImGui::IsItemHovered()) {
+					ImGui::SetTooltip(
+						"%s\n%s\nClick to paint automatically.", entry.name.c_str(),
+						AutotileFormatName(entry.format)
+					);
+				}
+				ImGui::PopID();
+				++shown;
+			}
 			for (auto& entry : tile_library_) {
 				if (entry.group != group || !matches_tile(entry, group)) {
 					continue;
@@ -5982,9 +6868,8 @@ bool PaintEditor::DrawTilesPanel(EditorContext& ctx) {
 					selected_tile_entry_id_ = entry.id;
 					inspected_texture_		= entry.texture;
 					inspected_slice_		= entry.slice;
-					if (recipe_.source_kind == PaintSourceKind::Single) {
-						tile_source_ = source;
-					}
+					recipe_.source_kind		= PaintSourceKind::Single;
+					tile_source_			= source;
 				}
 				if (ImGui::IsItemClicked(ImGuiMouseButton_Right)) {
 					ImGui::OpenPopup("TileContext");
@@ -6012,6 +6897,9 @@ bool PaintEditor::DrawTilesPanel(EditorContext& ctx) {
 					}
 				}
 				if (ImGui::BeginPopup("TileContext")) {
+					if (ImGui::MenuItem("Reimport Source Tileset")) {
+						pending_reimport = entry.texture;
+					}
 					if (ImGui::MenuItem("Remove from Tile Library")) {
 						delete_id = entry.id;
 					}
@@ -6027,6 +6915,7 @@ bool PaintEditor::DrawTilesPanel(EditorContext& ctx) {
 		}
 		ImGui::PopID();
 	}
+
 	// Item context menus take priority over the panel background menu. An item popup can
 	// block hover detection when the right mouse button is released, so also check for
 	// existing popups before opening the background menu.
@@ -6068,12 +6957,23 @@ bool PaintEditor::DrawTilesPanel(EditorContext& ctx) {
 						entry.group = name;
 					}
 				}
+				for (auto& entry : autotile_library_) {
+					if (entry.group == group_to_rename) {
+						entry.group = name;
+					}
+				}
 				for (auto& current : tile_groups_) {
 					if (current == group_to_rename) {
 						current = name;
 					}
 				}
+				for (auto& current : autotile_groups_) {
+					if (current == group_to_rename) {
+						current = name;
+					}
+				}
 				std::ranges::sort(tile_groups_);
+				std::ranges::sort(autotile_groups_);
 				commit_groups("Rename Tile Group", std::move(before));
 			},
 			RenameModalOptions{ .title = "Rename Tile Group" }
@@ -6083,12 +6983,51 @@ bool PaintEditor::DrawTilesPanel(EditorContext& ctx) {
 		}
 	}
 
-	if (pending_group_move.has_value()) {
+	if (pending_group_move.has_value() && !IsAutotileGroup(pending_group_move->second) &&
+		!pending_group_move->first.starts_with("auto:")) {
 		if (TileLibraryEntry* entry{ FindTileEntry(pending_group_move->first) };
 			entry && entry->group != pending_group_move->second) {
 			GroupSnapshot before{ capture_groups() };
 			entry->group = pending_group_move->second;
 			commit_groups("Move Tile to Group", std::move(before));
+		}
+	}
+	if (pending_reimport) {
+		TileImportSettings settings;
+		settings.replace_texture		  = *pending_reimport;
+		settings.create_group_from_source = false;
+		if (auto it{ std::ranges::find(
+				autotile_library_, *pending_reimport, &AutotileLibraryEntry::texture
+			) };
+			it != autotile_library_.end()) {
+			settings.autotile		 = true;
+			settings.autotile_format = it->format;
+			settings.target_group	 = it->group;
+			if (const TileSliceSettings* slicing{ FindSliceSettings(*pending_reimport) }) {
+				settings.tile_width	 = slicing->tile_size.x;
+				settings.tile_height = slicing->tile_size.y;
+			}
+		} else {
+			settings.mode					 = TileImportMode::Tileset;
+			settings.use_filename_dimensions = false;
+			if (const TileSliceSettings* slicing{ FindSliceSettings(*pending_reimport) }) {
+				settings.tile_width	 = slicing->tile_size.x;
+				settings.tile_height = slicing->tile_size.y;
+			}
+			for (const auto& tile : tile_library_) {
+				if (tile.texture == *pending_reimport) {
+					settings.target_group = tile.group;
+					break;
+				}
+			}
+		}
+		auto result{ ctx.editor.GetWindow().file.OpenFiles(TileImportOptions()) };
+		if (result && result->has_value() && !result->value().empty()) {
+			settings.path = result->value().front().string();
+			int count{ ImportTiles(ctx, settings) };
+			import_status_ = count > 0
+							   ? "Reimported source tileset."
+							   : "Reimport failed. Check source format, extension and dimensions.";
 		}
 	}
 	DrawImportPopup(ctx);
@@ -6264,14 +7203,6 @@ bool PaintEditor::DrawGeneratorSourceEditor(
 
 		case PaintGeneratorSourceKind::Autotile:
 			if (tile_layer) {
-				int format{ static_cast<int>(recipe.autotile_format) };
-				if (ImGui::Combo(
-						"Format", &format, "Classic 15\0Blob 47\0Subset 16\0Dual Grid 16\0Wang 16\0"
-					)) {
-					recipe.autotile_format = static_cast<PaintGeneratorAutotileFormat>(format);
-					changed				   = true;
-				}
-
 				TextureKey current{};
 				for (const auto& slot : recipe.autotile_tiles) {
 					if (slot && slot->texture) {
@@ -6280,23 +7211,36 @@ bool PaintEditor::DrawGeneratorSourceEditor(
 					}
 				}
 
-				std::vector<TextureKey> textures;
-				for (const auto& entry : tile_library_) {
-					if (entry.texture && !std::ranges::contains(textures, entry.texture)) {
-						textures.emplace_back(entry.texture);
+				auto imported{
+					std::ranges::find(autotile_library_, current, &AutotileLibraryEntry::texture)
+				};
+				if (imported != autotile_library_.end()) {
+					auto format{ static_cast<PaintGeneratorAutotileFormat>(imported->format) };
+					if (recipe.autotile_format != format) {
+						recipe.autotile_format = format;
+						changed				   = true;
 					}
+					ImGui::TextDisabled("Layout: %s", AutotileFormatName(imported->format));
 				}
-				std::ranges::sort(textures, {}, &TextureKey::value);
 
-				std::string preview{ current ? current.value : std::string{ "<none>" } };
+				std::string preview{ imported != autotile_library_.end() && !imported->name.empty()
+										 ? imported->name
+									 : current ? TextureDisplayName(current)
+											   : std::string{ "<none>" } };
 				if (ImGui::BeginCombo("Tileset", preview.c_str())) {
-					for (const TextureKey& texture : textures) {
-						bool selected{ texture == current };
-						if (ImGui::Selectable(texture.value.c_str(), selected)) {
-							const auto* rules{ FindAutotileRuleSet(
-								texture, static_cast<PaintAutotileFormat>(recipe.autotile_format)
-							) };
-							if (rules) {
+					for (const auto& entry : autotile_library_) {
+						ImGui::PushID(entry.texture.value.c_str());
+						bool selected{ entry.texture == current };
+						std::string label{ entry.name.empty() ? TextureDisplayName(entry.texture)
+															  : entry.name };
+						label += " (";
+						label += AutotileFormatName(entry.format);
+						label += ")";
+						if (ImGui::Selectable(label.c_str(), selected)) {
+							if (auto* rules{
+									EnsureAutotileRuleSet(ctx, entry.texture, entry.format) }) {
+								recipe.autotile_format =
+									static_cast<PaintGeneratorAutotileFormat>(entry.format);
 								recipe.autotile_tiles.assign(rules->tiles.size(), std::nullopt);
 								for (std::size_t i{}; i < rules->tiles.size(); ++i) {
 									if (!rules->tiles[i]) {
@@ -6315,6 +7259,7 @@ bool PaintEditor::DrawGeneratorSourceEditor(
 						if (selected) {
 							ImGui::SetItemDefaultFocus();
 						}
+						ImGui::PopID();
 					}
 					ImGui::EndCombo();
 				}
@@ -6884,7 +7829,10 @@ void PaintEditor::BakeGenerator(EditorContext& ctx, Scene& scene, Entity entity)
 								continue;
 							}
 						}
-						cells.insert(center + V2_int{ x, y });
+						AddGeneratorBrushCell(
+							data.recipe, center + V2_int{ x, y },
+							[&](V2_int cell) { cells.insert(cell); }
+						);
 					}
 				}
 			}
@@ -7384,6 +8332,29 @@ std::vector<V2_int> PaintEditor::BrushCells(V2_int center) const {
 			cells.emplace_back(center + V2_int{ x, y });
 		}
 	}
+	// Classic 15 uses the occupancy of four grid vertices to choose one display tile.
+	// A regular N-cell brush needs (N + 1) x (N + 1) occupied vertices so the
+	// visible result is N + 2 cells wide: one full tile at the click for diameter
+	// one, with the eight edge and corner variants surrounding it.
+	if (recipe_.source_kind == PaintSourceKind::Autotile &&
+		recipe_.autotile_format == PaintAutotileFormat::Classic15 &&
+		recipe_.operation != PaintBrushOperation::ExclusionMask) {
+		std::vector<V2_int> corners;
+		corners.reserve(cells.size() * 4);
+		for (V2_int cell : cells) {
+			corners.push_back(cell);
+			corners.push_back(cell + V2_int{ 1, 0 });
+			corners.push_back(cell + V2_int{ 0, 1 });
+			corners.push_back(cell + V2_int{ 1, 1 });
+		}
+
+		std::ranges::sort(corners, [](V2_int a, V2_int b) {
+			return a.y == b.y ? a.x < b.x : a.y < b.y;
+		});
+		corners.erase(std::unique(corners.begin(), corners.end()), corners.end());
+		return corners;
+	}
+
 	return cells;
 }
 
@@ -7796,6 +8767,9 @@ void PaintEditor::DrawTilemaps(
 ) const {
 	auto records{ ::ptgn::impl::AssetAccessor{ ctx.editor.GetAssetManager() }.GetAssets() };
 
+	ImVec2 viewport_min{ ToImGui(presentation_viewport.position) };
+	ImVec2 viewport_max{ ToImGui(presentation_viewport.position + presentation_viewport.size) };
+
 	for (const SceneLayer& layer : scene.GetLayers().GetLayers()) {
 		if (layer.kind != SceneLayerKind::Tile || !layer.visible) {
 			continue;
@@ -7814,11 +8788,6 @@ void PaintEditor::DrawTilemaps(
 					continue;
 				}
 
-				auto record_it{ std::ranges::find_if(records, [&](const auto& record) {
-					return record.kind == AssetKind::Texture &&
-						   record.key == static_cast<const AssetKey&>(tile.texture);
-				}) };
-
 				V2_float visual_size{
 					tile.pixel_size.IsPositive()
 						? V2_float{
@@ -7835,6 +8804,20 @@ void PaintEditor::DrawTilemaps(
 
 				ImVec2 p0{ ToImGui(WorldToScreen(mn, frame, presentation_viewport)) };
 				ImVec2 p1{ ToImGui(WorldToScreen(mx, frame, presentation_viewport)) };
+
+				// Large tilemaps may contain tens of thousands of cells. Do not
+				// build ImGui draw commands or search asset records off screen.
+				if (std::max(p0.x, p1.x) < viewport_min.x ||
+					std::min(p0.x, p1.x) > viewport_max.x ||
+					std::max(p0.y, p1.y) < viewport_min.y ||
+					std::min(p0.y, p1.y) > viewport_max.y) {
+					continue;
+				}
+
+				auto record_it{ std::ranges::find_if(records, [&](const auto& record) {
+					return record.kind == AssetKind::Texture &&
+						   record.key == static_cast<const AssetKey&>(tile.texture);
+				}) };
 
 				if (record_it != records.end() && record_it->preview.has_value()) {
 					const auto& uv{ tile.texture_coordinates };
@@ -7856,6 +8839,12 @@ void PaintEditor::DrawTilemaps(
 				V2_float mx{ mn + data.cell_size };
 				ImVec2 p0{ ToImGui(WorldToScreen(mn, frame, presentation_viewport)) };
 				ImVec2 p1{ ToImGui(WorldToScreen(mx, frame, presentation_viewport)) };
+				if (std::max(p0.x, p1.x) < viewport_min.x ||
+					std::min(p0.x, p1.x) > viewport_max.x ||
+					std::max(p0.y, p1.y) < viewport_min.y ||
+					std::min(p0.y, p1.y) > viewport_max.y) {
+					continue;
+				}
 
 				draw->AddRectFilled(p0, p1, IM_COL32(255, 26, 26, 46));
 				draw->AddRect(p0, p1, IM_COL32(255, 72, 72, 120), 0.0f, 0, 1.0f);
@@ -8029,7 +9018,10 @@ void PaintEditor::DrawGenerators(
 									continue;
 								}
 							}
-							add_if_visible(center + V2_int{ x, y });
+							AddGeneratorBrushCell(
+								data.recipe, center + V2_int{ x, y },
+								[&](V2_int cell) { add_if_visible(cell); }
+							);
 						}
 					}
 				}
@@ -8670,8 +9662,28 @@ void PaintEditor::DrawToolPreview(
 			draw_cell(c);
 		}
 	} else if (tool_ == PaintTool::Brush || tool_ == PaintTool::Erase) {
-		for (V2_int c : BrushCells(cell)) {
-			draw_cell(c);
+		auto brush_cells{ BrushCells(cell) };
+		if (recipe_.source_kind == PaintSourceKind::Autotile &&
+			recipe_.autotile_format == PaintAutotileFormat::Classic15 &&
+			recipe_.operation != PaintBrushOperation::ExclusionMask) {
+			// Rendered tiles occupy the four cells above/left of each logical
+			// occupancy vertex. Show the complete visual footprint, not just the
+			// vertices that are written to the tilemap.
+			std::unordered_set<V2_int> preview;
+			preview.reserve(brush_cells.size() * 4);
+			for (V2_int logical : brush_cells) {
+				preview.insert(logical);
+				preview.insert(logical + V2_int{ -1, 0 });
+				preview.insert(logical + V2_int{ 0, -1 });
+				preview.insert(logical + V2_int{ -1, -1 });
+			}
+			for (V2_int c : preview) {
+				draw_cell(c);
+			}
+		} else {
+			for (V2_int c : brush_cells) {
+				draw_cell(c);
+			}
 		}
 	} else if ((tool_ == PaintTool::Line || tool_ == PaintTool::Rectangle) && stroke_.active) {
 		V2_int start{ WorldToActiveCell(scene, stroke_.start_world) };
@@ -8767,7 +9779,13 @@ void PaintEditor::ApplyTileAt(EditorContext& ctx, Scene&, Tilemap tilemap, V2_in
 		if (!rules || rules->id == 0 || rules->tiles.empty()) {
 			return;
 		}
+		std::optional<std::uint64_t> old_ruleset{ tilemap.GetTerrainRuleset(cell) };
 		tilemap.SetTerrainRuleset(cell, rules->id);
+		if (old_ruleset.has_value() && *old_ruleset != rules->id) {
+			if (const PaintAutotileRuleSet* old{ FindAutotileRuleSet(*old_ruleset) }) {
+				RecomputeAutotileAround(tilemap, cell, *old);
+			}
+		}
 		RecomputeAutotileAround(tilemap, cell, *rules);
 		return;
 	}
@@ -9211,90 +10229,147 @@ void PaintEditor::FillAt(
 			);
 			return;
 		}
+		// Flood matching uses the logical terrain identity. Display UVs vary at each
+		// autotile edge, so matching rendered tiles would stop at the first corner.
+		const auto& data{ map.GetData() };
+		std::unordered_map<V2_int, const TilemapTile*> original_tiles;
+		original_tiles.reserve(data.tiles.size() * 2 + 1);
+		for (const TilemapTile& tile : data.tiles) {
+			original_tiles.insert_or_assign(tile.coordinate, &tile);
+		}
+		std::unordered_map<V2_int, std::uint64_t> original_terrain;
+		original_terrain.reserve(data.terrain.size() * 2 + 1);
+		for (const TilemapTerrainCell& cell : data.terrain) {
+			original_terrain.insert_or_assign(cell.coordinate, cell.ruleset_id);
+		}
+
 		V2_int start{ map.WorldToCell(world) };
-		const TilemapTile* start_tile{ map.FindTile(start) };
-		std::optional<TextureKey> match_texture{
-			start_tile ? std::optional<TextureKey>{ start_tile->texture } : std::nullopt
-		};
-		auto match_uv{ start_tile ? std::optional{ start_tile->texture_coordinates }
-								  : std::nullopt };
-
-		if (recipe_.operation == PaintBrushOperation::Erase) {
-			// Erase is Replace with nothing. Empty space has nothing to replace.
-			if (!start_tile) {
-				return;
-			}
-
-			std::vector<V2_int> queue{ start };
-			std::unordered_set<V2_int> visited;
-			std::vector<V2_int> erase_cells;
-			visited.reserve(1024);
-			erase_cells.reserve(256);
-
-			for (std::size_t head{}; head < queue.size() && visited.size() < kMaxFloodCells;
-				 ++head) {
-				V2_int cell{ queue[head] };
-				if (!visited.insert(cell).second) {
-					continue;
-				}
-
-				const TilemapTile* current{ map.FindTile(cell) };
-				bool matches{ current && current->texture == *match_texture &&
-							  current->texture_coordinates == *match_uv };
-				if (!matches) {
-					continue;
-				}
-
-				erase_cells.emplace_back(cell);
-				queue.emplace_back(cell + V2_int{ 1, 0 });
-				queue.emplace_back(cell + V2_int{ -1, 0 });
-				queue.emplace_back(cell + V2_int{ 0, 1 });
-				queue.emplace_back(cell + V2_int{ 0, -1 });
-			}
-
-			std::vector<std::pair<V2_int, std::uint64_t>> removed_terrain;
-			removed_terrain.reserve(erase_cells.size());
-
-			for (V2_int cell : erase_cells) {
-				if (auto terrain{ map.GetTerrainRuleset(cell) }) {
-					map.SetTerrainRuleset(cell, std::nullopt);
-					removed_terrain.emplace_back(cell, *terrain);
-				} else {
-					map.EraseTile(cell);
-				}
-			}
-
-			// Recompute only after all logical terrain cells have been removed, so
-			// neighboring autotile variants see the final terrain state.
-			for (const auto& [cell, ruleset_id] : removed_terrain) {
-				if (const PaintAutotileRuleSet* rules{ FindAutotileRuleSet(ruleset_id) }) {
-					RecomputeAutotileAround(map, cell, *rules);
-				}
-			}
+		auto start_terrain{ original_terrain.find(start) };
+		auto start_display{ original_tiles.find(start) };
+		const TilemapTile* start_tile{ start_display == original_tiles.end()
+										   ? nullptr
+										   : start_display->second };
+		// A derived dual grid display tile may cover a logically empty cell.
+		if (start_terrain == original_terrain.end() && start_tile &&
+			start_tile->terrain_ruleset_id) {
+			start_tile = nullptr;
+		}
+		if (recipe_.operation == PaintBrushOperation::Erase &&
+			start_terrain == original_terrain.end() && !start_tile) {
 			return;
 		}
 
+		V2_int first{ map.WorldToCell(minimum) - V2_int{ 1, 1 } };
+		V2_int last{ map.WorldToCell(maximum) + V2_int{ 1, 1 } };
+		bool empty_start{ start_terrain == original_terrain.end() && !start_tile };
+
+		auto matches = [&](V2_int cell) {
+			if (auto it{ original_terrain.find(cell) }; it != original_terrain.end()) {
+				return start_terrain != original_terrain.end() &&
+					   it->second == start_terrain->second;
+			}
+			if (start_terrain != original_terrain.end()) {
+				return false;
+			}
+			auto it{ original_tiles.find(cell) };
+			const TilemapTile* current{ it == original_tiles.end() ? nullptr : it->second };
+			if (current && current->terrain_ruleset_id) {
+				current = nullptr;
+			}
+			if (!start_tile) {
+				return !current;
+			}
+			return current && current->texture == start_tile->texture &&
+				   current->texture_coordinates == start_tile->texture_coordinates;
+		};
+
 		std::vector<V2_int> queue{ start };
 		std::unordered_set<V2_int> visited;
-		visited.reserve(1024);
-		for (std::size_t head{}; head < queue.size() && visited.size() < kMaxFloodCells; ++head) {
+		std::vector<V2_int> region;
+		visited.reserve(2048);
+		region.reserve(2048);
+		for (std::size_t head{}; head < queue.size(); ++head) {
 			V2_int cell{ queue[head] };
-			if (!visited.insert(cell).second) {
+			if (empty_start &&
+				(cell.x < first.x || cell.x > last.x || cell.y < first.y || cell.y > last.y)) {
 				continue;
 			}
-			const TilemapTile* current{ map.FindTile(cell) };
-			bool matches{ match_texture.has_value()
-							  ? current && current->texture == *match_texture &&
-									current->texture_coordinates == *match_uv
-							  : current == nullptr };
-			if (!matches) {
+			if (!visited.insert(cell).second || !matches(cell)) {
 				continue;
 			}
+			// Never apply a partial flood if the region is too large. This also
+			// prevents accidentally filling unbounded empty world space.
+			if (region.size() >= kMaxFloodCells) {
+				return;
+			}
+			region.push_back(cell);
+			queue.push_back(cell + V2_int{ 1, 0 });
+			queue.push_back(cell + V2_int{ -1, 0 });
+			queue.push_back(cell + V2_int{ 0, 1 });
+			queue.push_back(cell + V2_int{ 0, -1 });
+		}
+		if (region.empty()) {
+			return;
+		}
+
+		if (recipe_.operation == PaintBrushOperation::Erase ||
+			recipe_.source_kind == PaintSourceKind::Autotile) {
+			std::optional<std::uint64_t> new_ruleset;
+			if (recipe_.operation != PaintBrushOperation::Erase) {
+				const PaintAutotileRuleSet* rules{ ResolveAutotileRuleSet(ctx) };
+				if (!rules || rules->tiles.empty()) {
+					return;
+				}
+				new_ruleset = rules->id;
+			}
+
+			std::unordered_set<V2_int> excluded;
+			if (new_ruleset) {
+				excluded.reserve(map.GetData().exclusion_mask.size());
+				excluded.insert(
+					map.GetData().exclusion_mask.begin(), map.GetData().exclusion_mask.end()
+				);
+			}
+			std::unordered_set<V2_int> changed_set;
+			changed_set.reserve(region.size() * 2);
+			std::vector<V2_int> changed;
+			changed.reserve(region.size());
+			for (V2_int cell : region) {
+				if (new_ruleset && (excluded.contains(cell) ||
+									(recipe_.coverage == PaintCoverageMode::RandomDensity &&
+									 Hash01(cell) > recipe_.density))) {
+					continue;
+				}
+				if (changed_set.insert(cell).second) {
+					changed.push_back(cell);
+				}
+			}
+			if (changed.empty()) {
+				return;
+			}
+
+			// Edit the logical terrain vector in one pass. Calling
+			// SetTerrainRuleset() separately per cell is quadratic on large fills.
+			auto& terrain{ map.GetData().terrain };
+			std::erase_if(terrain, [&](const TilemapTerrainCell& cell) {
+				return changed_set.contains(cell.coordinate);
+			});
+			if (new_ruleset) {
+				terrain.reserve(terrain.size() + changed.size());
+				for (V2_int cell : changed) {
+					terrain.push_back(
+						TilemapTerrainCell{ .coordinate = cell, .ruleset_id = *new_ruleset }
+					);
+				}
+			}
+			// Rebuild the final rendered region exactly once. Solid interior tiles
+			// have a known mask; only the outer edges need neighbor sampling.
+			RecomputeAutotileRegion(map, changed);
+			return;
+		}
+
+		for (V2_int cell : region) {
 			ApplyTileAt(ctx, scene, map, cell);
-			queue.emplace_back(cell + V2_int{ 1, 0 });
-			queue.emplace_back(cell + V2_int{ -1, 0 });
-			queue.emplace_back(cell + V2_int{ 0, 1 });
-			queue.emplace_back(cell + V2_int{ 0, -1 });
 		}
 		return;
 	}

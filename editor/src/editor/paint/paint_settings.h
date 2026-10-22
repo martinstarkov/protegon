@@ -2,6 +2,7 @@
 
 #include <array>
 #include <cstdint>
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -35,6 +36,18 @@ struct PaintTileLibraryEntryState {
 	PTGN_REFLECT(PaintTileLibraryEntryState, id, name, texture, slice, group)
 };
 
+/// @brief An imported autotile is one palette item with an authored layout.
+struct PaintAutotileLibraryEntryState {
+	std::string name{};
+	TextureKey texture{};
+	PaintAutotileFormat format{ PaintAutotileFormat::Classic15 };
+	std::string group{ "Ungrouped" };
+	std::optional<bool> show_slices{};
+
+	bool operator==(const PaintAutotileLibraryEntryState&) const = default;
+	PTGN_REFLECT(PaintAutotileLibraryEntryState, name, texture, format, group, show_slices)
+};
+
 struct PaintPrefabGroupAssignmentState {
 	PrefabKey prefab{};
 	std::string group{ "Ungrouped" };
@@ -58,9 +71,11 @@ struct PaintEntityExclusionMaskState {
 /// @brief Shared editor paint organization stored in the tracked .ptgneditor file.
 struct PaintProjectState {
 	std::vector<std::string> tile_groups{};
+	std::optional<std::vector<std::string>> autotile_groups{};
 	std::vector<std::string> prefab_groups{};
 	std::vector<PaintTileSliceSettingsState> tile_slice_settings{};
 	std::vector<PaintTileLibraryEntryState> tiles{};
+	std::optional<std::vector<PaintAutotileLibraryEntryState>> autotiles{};
 	std::vector<PaintPrefabGroupAssignmentState> prefab_group_assignments{};
 	std::vector<PaintWeightedTileSet> weighted_tile_sets{};
 	std::vector<PaintWeightedPrefabSet> weighted_prefab_sets{};
@@ -70,9 +85,9 @@ struct PaintProjectState {
 	bool operator==(const PaintProjectState&) const = default;
 
 	PTGN_REFLECT(
-		PaintProjectState, tile_groups, prefab_groups, tile_slice_settings, tiles,
-		prefab_group_assignments, weighted_tile_sets, weighted_prefab_sets, autotile_rule_sets,
-		entity_exclusion_masks
+		PaintProjectState, tile_groups, autotile_groups, prefab_groups, tile_slice_settings, tiles,
+		autotiles, prefab_group_assignments, weighted_tile_sets, weighted_prefab_sets,
+		autotile_rule_sets, entity_exclusion_masks
 	)
 };
 

@@ -279,6 +279,13 @@ public:
 	/// @brief Second viewport row: context sensitive settings for the active paint tool.
 	bool DrawViewportOptionsToolbar(EditorContext& ctx);
 
+	/// Associates a demo or project texture with its autotile layout before project startup.
+	/// The declaration is adopted into the saved paint library once its texture is cataloged.
+	void RegisterAutotileTileset(
+		TextureKey texture, PaintAutotileFormat format, V2_int tile_size,
+		std::string group = "Ungrouped"
+	);
+
 	/// Draws the Tiles dock window and returns whether it was the visible dock tab this frame.
 	bool DrawTilesPanel(EditorContext& ctx);
 	void DrawTileInspector(EditorContext& ctx);
@@ -369,14 +376,33 @@ private:
 		std::string group{ "Ungrouped" };
 	};
 
+	struct AutotileLibraryEntry {
+		std::string name{};
+		TextureKey texture{};
+		PaintAutotileFormat format{ PaintAutotileFormat::Classic15 };
+		std::string group{ "Ungrouped" };
+		bool show_slices{};
+	};
+
+	struct RegisteredAutotileTileset {
+		TextureKey texture{};
+		PaintAutotileFormat format{ PaintAutotileFormat::Classic15 };
+		V2_int tile_size{};
+		std::string group{ "Ungrouped" };
+	};
+
 	struct TileImportSettings {
 		std::string path{};
+		std::vector<std::string> paths{};
+		bool autotile{};
+		PaintAutotileFormat autotile_format{ PaintAutotileFormat::Classic15 };
 		TileImportMode mode{ TileImportMode::Auto };
 		int tile_width{ 32 };
 		int tile_height{ 32 };
 		bool use_filename_dimensions{ true };
 		bool create_group_from_source{};
 		std::string target_group{ "Ungrouped" };
+		TextureKey replace_texture{};
 	};
 
 	struct DeletedEntity {
@@ -539,9 +565,13 @@ private:
 	[[nodiscard]] std::string UniqueWeightedTileSetName() const;
 	[[nodiscard]] std::string UniqueWeightedPrefabSetName() const;
 	[[nodiscard]] std::uint64_t NextAutotileRuleSetId() const;
+	PaintAutotileRuleSet* EnsureAutotileRuleSet(
+		EditorContext& ctx, const TextureKey& texture, PaintAutotileFormat format
+	);
 	PaintAutotileRuleSet* ResolveAutotileRuleSet(EditorContext& ctx);
 	bool RefreshAutotileRuleSet(EditorContext& ctx, PaintAutotileRuleSet& rules);
 	void RecomputeAutotileAround(Tilemap tilemap, V2_int cell, const PaintAutotileRuleSet& rules);
+	void RecomputeAutotileRegion(Tilemap tilemap, const std::vector<V2_int>& changed_cells);
 
 	[[nodiscard]] PaintTileSource MakeTileSource(
 		EditorContext& ctx, const TextureKey& texture, V2_int slice
@@ -557,6 +587,8 @@ private:
 	void SaveProjectLibrary(EditorContext& ctx) const;
 	void ReconcileProjectLibrary(EditorContext& ctx);
 	[[nodiscard]] std::vector<std::string> TileGroupNames() const;
+	[[nodiscard]] bool IsAutotileGroup(std::string_view group) const;
+	bool NormalizeAutotileGroups();
 	[[nodiscard]] TileLibraryEntry* FindTileEntry(std::string_view id);
 	[[nodiscard]] const TileLibraryEntry* FindTileEntry(std::string_view id) const;
 	bool DeleteTileLibraryEntry(EditorContext& ctx, std::string_view id);
@@ -598,13 +630,18 @@ private:
 
 	std::unordered_map<std::string, TileSliceSettings> tile_slice_settings_{};
 	std::vector<TileLibraryEntry> tile_library_{};
+	std::vector<AutotileLibraryEntry> autotile_library_{};
+	std::vector<RegisteredAutotileTileset> registered_autotiles_{};
+	std::vector<TextureKey> pending_texture_reloads_{};
 	std::vector<std::string> tile_groups_{};
+	std::vector<std::string> autotile_groups_{};
 	std::vector<std::string> prefab_groups_{};
 	std::unordered_map<std::string, std::string> prefab_group_by_key_{};
 	std::vector<PaintWeightedTileSet> weighted_tile_sets_{};
 	std::vector<PaintWeightedPrefabSet> weighted_prefab_sets_{};
 	std::vector<PaintAutotileRuleSet> autotile_rule_sets_{};
 	std::string loaded_project_library_{};
+	std::vector<std::string> loaded_texture_keys_{};
 	bool project_library_loaded_{};
 	std::string loaded_local_project_{};
 	bool local_state_loaded_{};
