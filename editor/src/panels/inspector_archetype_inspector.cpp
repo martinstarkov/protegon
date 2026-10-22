@@ -99,6 +99,7 @@ bool DrawAddComponentMenu(Target& target) {
 	bool button_control{ HasInspectorComponent<Target, ::ptgn::impl::ButtonData>(target) };
 
 	changed |= DrawAddComponentItem<Transform>(target, "Transform");
+	changed |= DrawAddComponentItem<OverlayOverride>(target, "Overlay Override");
 	changed |=
 		DrawAddComponentItem<::ptgn::impl::Interactive>(target, "Interaction", button_control);
 

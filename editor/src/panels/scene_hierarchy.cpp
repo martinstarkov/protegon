@@ -72,6 +72,7 @@
 #include "runtime/ui/slider.h"
 #include "runtime/ui/toggle_button.h"
 #include "runtime/ui/tooltip.h"
+#include "runtime/ui/ui_stack.h"
 #include "runtime/world/entity_layer.h"
 #include "runtime/world/paint_generator.h"
 #include "runtime/world/tilemap.h"
@@ -402,6 +403,17 @@ bool CanReparent(Entity entity, Entity parent) {
 		return false;
 	}
 
+	if (entity.Has<UILayerData>() && parent) {
+		if (!parent.Has<UIStackData>()) {
+			return false;
+		}
+		UIStack stack{ parent };
+		UILayer existing{ stack.GetLayer(entity.Get<UILayerData>().key) };
+		if (existing && existing != entity) {
+			return false;
+		}
+	}
+
 	if (GetPrefabInstance(entity) && GetPrefabInstanceRoot(entity) != entity) {
 		return false;
 	}
@@ -602,6 +614,17 @@ void FinalizeCreatedEntity(
 		return;
 	}
 
+	if (context.parent && created.Has<UILayerData>() && context.parent.Has<UIStackData>()) {
+		UIStack stack{ context.parent };
+		std::string base{ created.Get<Tag>().value };
+		std::string key{ base };
+		std::size_t suffix{ 2 };
+		while (stack.GetLayer(key)) {
+			key = base + " " + std::to_string(suffix++);
+		}
+		created.Get<UILayerData>().key = key;
+	}
+
 	if (context.parent) {
 		// This is a final safeguard for entities such as cameras that are
 		// not allowed to become children.
@@ -615,6 +638,10 @@ void FinalizeCreatedEntity(
 		}
 
 		SetParent(created, context.parent);
+		if (created.Has<UILayerData>() && context.parent.Has<UIStackData>() &&
+			context.parent.Get<UIStackData>().initial.empty()) {
+			context.parent.Get<UIStackData>().initial = created.Get<UILayerData>().key;
+		}
 	}
 
 	context.selected_entity =
@@ -927,6 +954,16 @@ Entity CreateDefaultUIToggleGroup(EntityCreationContext creation) {
 	return group;
 }
 
+Entity CreateDefaultUIStack(EntityCreationContext creation) {
+	UIStack stack{ CreateUIStack(creation) };
+	[[maybe_unused]] UILayer initial{ stack.AddLayer("Main") };
+	return stack;
+}
+
+Entity CreateDefaultUILayer(EntityCreationContext creation) {
+	return CreateUILayer(creation, "Screen");
+}
+
 Entity CreateDefaultUISlider(EntityCreationContext creation) {
 	auto slider{ CreateSlider(
 		creation, Line{ {}, V2_float{ 200.0f, 0.0f } }, V2_float{ 24.0f, 24.0f }, Origin::Center,
@@ -1125,6 +1162,9 @@ void DrawUICreateMenu(MenuContext& context) {
 	DrawCreateMenuItem(context, "Tooltip", CreateDefaultUITooltip);
 	DrawCreateMenuItem(context, "Dialogue", CreateDefaultUIDialogueBox);
 	DrawCreateMenuItem(context, "Toggle Group", CreateDefaultUIToggleGroup);
+	ImGui::Separator();
+	DrawCreateMenuItem(context, "UI Stack", CreateDefaultUIStack);
+	DrawCreateMenuItem(context, "UI Layer", CreateDefaultUILayer);
 
 	ImGui::EndMenu();
 }
@@ -1701,6 +1741,28 @@ void DrawSceneHierarchyContents(
 			ImGui::PushStyleColor(ImGuiCol_Header, kTransparent);
 			ImGui::PushStyleColor(ImGuiCol_HeaderHovered, kTransparent);
 			ImGui::PushStyleColor(ImGuiCol_HeaderActive, kTransparent);
+		}
+
+		// UI layers have independent, transient editor visibility. This never edits
+		// the runtime stack history or the serialized initial layer.
+		if (entity.Has<UILayerData>() && !scene.IsRuntime() && !ctx.editor.IsPlaying() &&
+			!ctx.editor.IsDirectRuntime()) {
+			UIStack stack{ GetUIStack(entity) };
+			if (stack) {
+				bool visible{ stack.IsLayerPreviewVisible(entity.Get<UILayerData>().key) };
+				if (DrawEditorIconButton(
+						"##UILayerVisible", visible ? EditorIcon::Visible : EditorIcon::Hidden,
+						EditorIconButtonOptions{
+							.tooltip =
+								visible ? "Hide UI layer in editor" : "Show UI layer in editor",
+							.compact = true,
+							.muted	 = !visible,
+						}
+					)) {
+					stack.SetLayerPreviewVisible(entity.Get<UILayerData>().key, !visible);
+				}
+				ImGui::SameLine(0.0f, 2.0f);
+			}
 		}
 
 		auto label{ entity.Get<Tag>() };

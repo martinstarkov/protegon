@@ -104,6 +104,7 @@
 #include "runtime/ui/slider.h"
 #include "runtime/ui/toggle_button.h"
 #include "runtime/ui/tooltip.h"
+#include "runtime/ui/ui_stack.h"
 
 namespace ptgn::editor::inspector {
 
@@ -1117,7 +1118,7 @@ using UISectionComponents = ComponentSet<
 	::ptgn::impl::ToggleButtonGroupItem, ::ptgn::impl::DropdownData, ::ptgn::impl::DropdownItem,
 	::ptgn::impl::DialogueData, ::ptgn::impl::DialoguePart, ::ptgn::impl::TooltipData,
 	::ptgn::impl::TooltipHoverData, ::ptgn::impl::TooltipBackgroundPart,
-	::ptgn::impl::TooltipTextPart>;
+	::ptgn::impl::TooltipTextPart, UIStackData, UILayerData, OverlayOverride>;
 
 using CameraSectionComponents = ComponentSet<
 	::ptgn::impl::CameraData, ::ptgn::impl::CameraMask, ::ptgn::impl::ParentRenderTarget>;

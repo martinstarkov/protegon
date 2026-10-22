@@ -10,6 +10,7 @@
 #include "panels/inspector_parts.h"
 #include "panels/rich_text_editor.h"
 #include "runtime/ui/tooltip.h"
+#include "runtime/ui/ui_stack.h"
 
 namespace ptgn::editor::inspector {
 
@@ -4877,6 +4878,9 @@ bool DrawUISectionImpl(Target& target) {
 	}
 
 	FocusedUIControlType control_type{ GetFocusedUIControlType(target) };
+	bool has_stack{ HasTargetComponent<Target, UIStackData>(target) };
+	bool has_screen{ HasTargetComponent<Target, UILayerData>(target) };
+	bool has_cover_override{ HasTargetComponent<Target, OverlayOverride>(target) };
 	bool has_toggle_group{
 		HasTargetComponent<Target, ::ptgn::impl::ToggleButtonGroupData>(target)
 	};
@@ -4885,6 +4889,12 @@ bool DrawUISectionImpl(Target& target) {
 	if (control_type != FocusedUIControlType::None &&
 		control_type != FocusedUIControlType::Conflict) {
 		ui_label = std::string{ FocusedUIControlLabel(control_type) };
+	} else if (has_stack) {
+		ui_label = "UI Stack";
+	} else if (has_screen) {
+		ui_label = "UI Layer";
+	} else if (has_cover_override) {
+		ui_label = "Overlay Override";
 	} else if (has_toggle_group) {
 		ui_label = "Toggle Group";
 	} else if (has_tooltip) {
@@ -4960,6 +4970,116 @@ bool DrawUISectionImpl(Target& target) {
 		} else {
 			changed |= DrawUIControlConflict(target);
 		}
+	}
+
+	if (has_stack) {
+		changed |=
+			DrawFocusedComponent<Target, UIStackData>(target, "UI Stack", [&](UIStackData& data) {
+				bool local_changed{ false };
+				if constexpr (requires { target.entity; }) {
+					UIStack stack{ target.entity };
+					local_changed |= DrawPropertyRow("Initial Layer", [&]() {
+						bool selected{ false };
+						ImGui::SetNextItemWidth(-FLT_MIN);
+						if (ImGui::BeginCombo("##StackInitialLayer", data.initial.c_str())) {
+							for (UILayer screen : stack.GetLayers()) {
+								std::string key{ screen.GetKey() };
+								if (ImGui::Selectable(key.c_str(), data.initial == key)) {
+									data.initial = key;
+									data.history.clear();
+									selected = true;
+								}
+							}
+							ImGui::EndCombo();
+						}
+						return selected;
+					});
+				} else {
+					local_changed |= DrawValue(target.ctx, "Initial Layer", data.initial);
+				}
+				return local_changed;
+			});
+		if constexpr (requires { target.entity; }) {
+			UIStack stack{ target.entity };
+			if (ImGui::TreeNodeEx("Layers", ImGuiTreeNodeFlags_DefaultOpen)) {
+				for (UILayer screen : stack.GetLayers()) {
+					ImGui::BulletText("%s", std::string{ screen.GetKey() }.c_str());
+				}
+				if (!target.ctx.editor.IsPlaying() && !target.ctx.editor.IsDirectRuntime()) {
+					if (ImGui::Button("Add Layer")) {
+						std::string key{ "Layer 1" };
+						for (std::size_t i{ 1 }; stack.GetLayer(key); ++i) {
+							key = "Layer " + std::to_string(i + 1);
+						}
+						UILayer screen{ stack.AddLayer(key) };
+						target.ctx.commands.RecordCreatedEntity(screen, target.ctx.local.selection);
+						changed = true;
+					}
+					DrawTooltip("Create a child UI layer in this stack.");
+				}
+				ImGui::TreePop();
+			}
+			if (!target.ctx.editor.IsPlaying() && !target.ctx.editor.IsDirectRuntime()) {
+				ImGui::SeparatorText("Editor Visibility");
+				for (UILayer layer : stack.GetLayers()) {
+					ImGui::PushID(layer.Get<UUID>());
+					bool visible{ stack.IsLayerPreviewVisible(layer.GetKey()) };
+					if (DrawEditorIconButton(
+							"##LayerPreview", visible ? EditorIcon::Visible : EditorIcon::Hidden,
+							EditorIconButtonOptions{
+								.tooltip =
+									visible ? "Hide layer in editor" : "Show layer in editor",
+								.compact = true,
+								.muted	 = !visible,
+							}
+						)) {
+						stack.SetLayerPreviewVisible(layer.GetKey(), !visible);
+					}
+					ImGui::SameLine();
+					ImGui::TextUnformatted(std::string{ layer.GetKey() }.c_str());
+					ImGui::PopID();
+				}
+				if (ImGui::SmallButton("Reset Preview")) {
+					stack.ResetLayerPreview();
+				}
+				DrawTooltip("Restore the initial runtime layer in the editor viewport.");
+			}
+			if (target.ctx.editor.IsPlaying() || target.ctx.editor.IsDirectRuntime()) {
+				ImGui::TextDisabled(
+					"Current Layer: %s", std::string{ stack.GetCurrentLayer() }.c_str()
+				);
+				ImGui::TextDisabled("Stack depth: %zu", stack.GetDepth());
+				if (ImGui::Button("Pop")) {
+					stack.Pop();
+				}
+				ImGui::SameLine();
+				if (ImGui::Button("Reset")) {
+					stack.Reset();
+				}
+			}
+		}
+	}
+
+	if (has_screen) {
+		changed |=
+			DrawFocusedComponent<Target, UILayerData>(target, "UI Layer", [&](UILayerData& data) {
+				bool local_changed{ false };
+				ImGui::TextDisabled("Layer key: %s", data.key.c_str());
+				local_changed |= DrawValue(target.ctx, "Overlay Mode", data.overlay);
+				local_changed |=
+					DrawValue(target.ctx, "Show Disabled Style", data.show_disabled_style);
+				local_changed |=
+					DrawValue(target.ctx, "Block Background Input", data.block_background_input);
+				return local_changed;
+			});
+	}
+
+	if (has_cover_override) {
+		changed |= DrawFocusedComponent<Target, OverlayOverride>(
+			target, "Overlay Override", [&](OverlayOverride& data) {
+				return DrawValue(target.ctx, "Overlay Mode", data.overlay);
+			}
+		);
 	}
 
 	if (has_toggle_group) {

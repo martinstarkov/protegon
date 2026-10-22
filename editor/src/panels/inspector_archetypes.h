@@ -23,6 +23,7 @@
 #include "runtime/ui/slider.h"
 #include "runtime/ui/toggle_button.h"
 #include "runtime/ui/tooltip.h"
+#include "runtime/ui/ui_stack.h"
 #include "runtime/world/paint_generator.h"
 #include "runtime/world/tilemap.h"
 
@@ -61,6 +62,8 @@ enum class InspectorArchetype : std::uint8_t {
 	ToggleGroup,
 	Tooltip,
 	Dialogue,
+	UIStack,
+	UILayer,
 };
 
 [[nodiscard]] inline std::string NormalizeArchetypeName(std::string_view input) {
@@ -122,6 +125,12 @@ template <typename Target>
 		return InspectorArchetype::RenderTarget;
 	}
 
+	if (HasArchetypeComponent<Target, UIStackData>(target)) {
+		return InspectorArchetype::UIStack;
+	}
+	if (HasArchetypeComponent<Target, UILayerData>(target)) {
+		return InspectorArchetype::UILayer;
+	}
 	if (HasArchetypeComponent<Target, ::ptgn::impl::SliderData>(target)) {
 		return InspectorArchetype::Slider;
 	}
@@ -246,6 +255,8 @@ template <typename Target>
 		case InspectorArchetype::ToggleGroup:	  return "Toggle Group";
 		case InspectorArchetype::Tooltip:		  return "Tooltip";
 		case InspectorArchetype::Dialogue:		  return "Dialogue";
+		case InspectorArchetype::UIStack:		  return "UI Stack";
+		case InspectorArchetype::UILayer:		  return "UI Layer";
 	}
 	return "Entity";
 }
@@ -268,13 +279,15 @@ template <typename Target>
 }
 
 [[nodiscard]] inline bool IsUIArchetype(InspectorArchetype archetype) {
-	return archetype >= InspectorArchetype::Button && archetype <= InspectorArchetype::Dialogue;
+	return archetype >= InspectorArchetype::Button && archetype <= InspectorArchetype::UILayer;
 }
 
 [[nodiscard]] inline bool ArchetypeRequiresTransform(InspectorArchetype archetype) {
 	switch (archetype) {
 		case InspectorArchetype::Generic:
 		case InspectorArchetype::ToggleGroup:
+		case InspectorArchetype::UIStack:
+		case InspectorArchetype::UILayer:
 		case InspectorArchetype::Effect:		 return false;
 
 		case InspectorArchetype::Tilemap:

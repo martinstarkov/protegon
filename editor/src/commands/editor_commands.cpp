@@ -35,6 +35,7 @@
 #include "runtime/scene/scene_context.h"
 #include "runtime/scene/scene_file.h"
 #include "runtime/scene/scene_manager.h"
+#include "runtime/ui/ui_stack.h"
 
 namespace ptgn::editor {
 
@@ -726,6 +727,17 @@ Entity EditorCommands::DuplicateEntity(Entity entity) {
 
 	if (parent) {
 		SetParent(duplicate, parent);
+	}
+
+	if (parent && parent.Has<UIStackData>() && duplicate.Has<UILayerData>()) {
+		UIStack stack{ parent };
+		std::string base{ duplicate.Get<UILayerData>().key + " Copy" };
+		std::string key{ base };
+		std::size_t suffix{ 2 };
+		while (stack.GetLayer(key) && stack.GetLayer(key) != duplicate) {
+			key = base + " " + std::to_string(suffix++);
+		}
+		duplicate.Get<UILayerData>().key = key;
 	}
 
 	scene.Refresh();
