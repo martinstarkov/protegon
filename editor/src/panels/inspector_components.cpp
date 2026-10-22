@@ -417,7 +417,10 @@ struct ComponentDrawer<::ptgn::impl::CameraData> {
 
 namespace {
 
-bool DrawRenderMaskValueImpl(std::string_view label, RenderMaskBits& value, bool* ui_rendering) {
+bool DrawRenderMaskValueImpl(
+	std::string_view label, RenderMaskBits& value, bool* ui_rendering,
+	bool* override_enabled = nullptr
+) {
 	ScopedID scope{ label };
 	const char* preview{ nullptr };
 	char raw_preview[32]{};
@@ -439,6 +442,12 @@ bool DrawRenderMaskValueImpl(std::string_view label, RenderMaskBits& value, bool
 
 	return DrawPropertyRow(label, [&]() {
 		bool changed{ false };
+		if (override_enabled) {
+			changed |= ImGui::Checkbox("##RenderMaskOverride", override_enabled);
+			DrawTooltip("Override the inherited render mask.");
+			ImGui::SameLine(0.0f, ImGui::GetStyle().ItemInnerSpacing.x);
+			ImGui::BeginDisabled(!*override_enabled);
+		}
 		ImGui::SetNextItemWidth(-FLT_MIN);
 
 		auto choose_mask = [&](RenderMaskBits mask) {
@@ -523,6 +532,9 @@ bool DrawRenderMaskValueImpl(std::string_view label, RenderMaskBits& value, bool
 			"Render mask bits select camera visibility and are independent of scene layers."
 		);
 
+		if (override_enabled) {
+			ImGui::EndDisabled();
+		}
 		return changed;
 	});
 }
@@ -535,6 +547,12 @@ bool DrawRenderMaskValue(std::string_view label, RenderMaskBits& value) {
 
 bool DrawRenderMaskValue(std::string_view label, RenderMaskBits& value, bool& ui_rendering) {
 	return DrawRenderMaskValueImpl(label, value, &ui_rendering);
+}
+
+bool DrawRenderMaskValue(
+	std::string_view label, RenderMaskBits& value, bool& ui_rendering, bool& override_enabled
+) {
+	return DrawRenderMaskValueImpl(label, value, &ui_rendering, &override_enabled);
 }
 
 template <>

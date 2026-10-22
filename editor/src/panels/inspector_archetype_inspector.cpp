@@ -99,7 +99,6 @@ bool DrawAddComponentMenu(Target& target) {
 	bool button_control{ HasInspectorComponent<Target, ::ptgn::impl::ButtonData>(target) };
 
 	changed |= DrawAddComponentItem<Transform>(target, "Transform");
-	changed |= DrawAddComponentItem<OverlayOverride>(target, "Overlay Override");
 	changed |=
 		DrawAddComponentItem<::ptgn::impl::Interactive>(target, "Interaction", button_control);
 
@@ -564,8 +563,9 @@ bool DrawCoreArchetypeSections(
 		return changed;
 	}
 
-	if (ArchetypeRequiresTransform(archetype) ||
-		HasAnyInspectorComponent(target, TransformSectionComponents{})) {
+	if (archetype != InspectorArchetype::UIStack && archetype != InspectorArchetype::UILayer &&
+		(ArchetypeRequiresTransform(archetype) ||
+		 HasAnyInspectorComponent(target, TransformSectionComponents{}))) {
 		draw_transform();
 	}
 
@@ -585,6 +585,11 @@ bool DrawCoreArchetypeSections(
 		changed |= DrawUISection(target);
 	}
 
+	bool belongs_to_ui_layer{ false };
+	if constexpr (requires { target.entity; }) {
+		belongs_to_ui_layer = static_cast<bool>(GetUILayer(target.entity));
+	}
+
 	// RenderTarget is explicitly archetype-routed and owns a "Render Target" section header.
 	// Other visual archetypes use their own archetype label. Generic entities retain "Visual".
 	if (archetype == InspectorArchetype::RenderTarget) {
@@ -593,7 +598,10 @@ bool DrawCoreArchetypeSections(
 		changed |= DrawVisualSection(target, true, false, GetInspectorArchetypeLabel(target));
 	} else if (HasVisualSection(target)) {
 		changed |= DrawVisualSection(target, true, true, "Visual");
-	} else if (HasManagedDrawableSection(target)) {
+	} else if (
+		archetype == InspectorArchetype::UIStack || archetype == InspectorArchetype::UILayer ||
+		HasManagedDrawableSection(target) || belongs_to_ui_layer
+	) {
 		changed |= DrawRenderingSection(target);
 	}
 

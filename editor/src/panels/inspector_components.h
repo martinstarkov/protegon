@@ -35,6 +35,9 @@ bool DrawRenderTargetDesc(
 /// @brief Draw a camera visibility render mask, not an organizational scene layer.
 bool DrawRenderMaskValue(std::string_view label, RenderMaskBits& value);
 bool DrawRenderMaskValue(std::string_view label, RenderMaskBits& value, bool& ui_rendering);
+bool DrawRenderMaskValue(
+	std::string_view label, RenderMaskBits& value, bool& ui_rendering, bool& override_enabled
+);
 
 void MarkTextLayoutDirty(Entity entity);
 void MarkButtonTextDirty(Entity entity);

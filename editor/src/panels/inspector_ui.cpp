@@ -4880,7 +4880,6 @@ bool DrawUISectionImpl(Target& target) {
 	FocusedUIControlType control_type{ GetFocusedUIControlType(target) };
 	bool has_stack{ HasTargetComponent<Target, UIStackData>(target) };
 	bool has_screen{ HasTargetComponent<Target, UILayerData>(target) };
-	bool has_cover_override{ HasTargetComponent<Target, OverlayOverride>(target) };
 	bool has_toggle_group{
 		HasTargetComponent<Target, ::ptgn::impl::ToggleButtonGroupData>(target)
 	};
@@ -4893,8 +4892,6 @@ bool DrawUISectionImpl(Target& target) {
 		ui_label = "UI Stack";
 	} else if (has_screen) {
 		ui_label = "UI Layer";
-	} else if (has_cover_override) {
-		ui_label = "Overlay Override";
 	} else if (has_toggle_group) {
 		ui_label = "Toggle Group";
 	} else if (has_tooltip) {
@@ -5048,10 +5045,7 @@ bool DrawUISectionImpl(Target& target) {
 					bool submitted{ ImGui::InputText(
 						"##Key", &editing_key, ImGuiInputTextFlags_EnterReturnsTrue
 					) };
-					DrawTooltip(
-						"Unique identifier used by the UI Stack and navigation scripts. Press "
-						"Enter to rename."
-					);
+					DrawTooltip("Unique layer key for navigation. Press Enter to rename.");
 
 					if (submitted && !target.IsReadOnly()) {
 						UILayer layer{ entity };
@@ -5135,32 +5129,35 @@ bool DrawUISectionImpl(Target& target) {
 		changed |=
 			DrawFocusedComponent<Target, UILayerData>(target, "UI Layer", [&](UILayerData& data) {
 				bool local_changed{ false };
-				local_changed |= DrawValue(target.ctx, "Overlay Mode", data.overlay);
-				DrawTooltip(
-					"Choose whether this layer stays visible or becomes hidden when covered by "
-					"another layer."
-				);
+				local_changed |= DrawPropertyRow("Overlay Mode", [&]() {
+					ImGui::SetNextItemWidth(-FLT_MIN);
+					bool local{ false };
+					const char* preview{ data.overlay == OverlayMode::Hide ? "Hide and Disable"
+																		   : "Disable" };
+					if (ImGui::BeginCombo("##LayerOverlayMode", preview)) {
+						if (ImGui::Selectable("Disable", data.overlay == OverlayMode::Disable)) {
+							data.overlay = OverlayMode::Disable;
+							local		 = true;
+						}
+						if (ImGui::Selectable(
+								"Hide and Disable", data.overlay == OverlayMode::Hide
+							)) {
+							data.overlay = OverlayMode::Hide;
+							local		 = true;
+						}
+						ImGui::EndCombo();
+					}
+					return local;
+				});
+				DrawTooltip("How the layer behaves when covered.");
 				local_changed |=
 					DrawValue(target.ctx, "Show Disabled Style", data.show_disabled_style);
-				DrawTooltip(
-					"Display disabled button styles while this layer is covered and visible."
-				);
+				DrawTooltip("Use disabled visuals while covered.");
 				local_changed |=
 					DrawValue(target.ctx, "Block Background Input", data.block_background_input);
-				DrawTooltip(
-					"Prevent interactions with entities outside this layer while it is the active "
-					"runtime layer."
-				);
+				DrawTooltip("Block input outside the active layer.");
 				return local_changed;
 			});
-	}
-
-	if (has_cover_override) {
-		changed |= DrawFocusedComponent<Target, OverlayOverride>(
-			target, "Overlay Override", [&](OverlayOverride& data) {
-				return DrawValue(target.ctx, "Overlay Mode", data.overlay);
-			}
-		);
 	}
 
 	if (has_toggle_group) {

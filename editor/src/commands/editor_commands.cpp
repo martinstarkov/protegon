@@ -809,6 +809,7 @@ void EditorCommands::ReparentEntity(
 	}
 
 	auto before_parent{ ParentReference(child) };
+	bool before_mask_override{ child.Has<::ptgn::impl::RenderMaskOverride>() };
 	std::optional<Transform> before_transform{
 		child.Has<Transform>() ? std::optional<Transform>{ child.Get<Transform>() } : std::nullopt
 	};
@@ -816,18 +817,20 @@ void EditorCommands::ReparentEntity(
 	ApplyParent(child, new_parent, preserve_world_transform);
 
 	auto after_parent{ ParentReference(child) };
+	bool after_mask_override{ child.Has<::ptgn::impl::RenderMaskOverride>() };
 	std::optional<Transform> after_transform{
 		child.Has<Transform>() ? std::optional<Transform>{ child.Get<Transform>() } : std::nullopt
 	};
 
-	if (before_parent == after_parent && before_transform == after_transform) {
+	if (before_parent == after_parent && before_transform == after_transform &&
+		before_mask_override == after_mask_override) {
 		return;
 	}
 
 	context_->undo.PushApplied(
 		std::make_unique<ReparentEntityCommand>(
 			context_->editor, MakeEntityReference(child), before_parent, after_parent,
-			before_transform, after_transform
+			before_transform, after_transform, before_mask_override, after_mask_override
 		)
 	);
 }

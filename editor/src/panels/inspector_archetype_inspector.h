@@ -1099,9 +1099,10 @@ using VisualSectionComponents = ComponentSet<
 	::ptgn::SpriteStackData, ::ptgn::impl::Offsets, Tint, ::ptgn::impl::IgnoreParentTint,
 	::ptgn::impl::TextData, ::ptgn::impl::ParticleEmitterData, LightData,
 	::ptgn::impl::ShadowCaster, ::ptgn::impl::GraphicsData, ::ptgn::Material, ShaderKey,
-	::ptgn::impl::RenderTargetDesc, ::ptgn::impl::RenderMask, ::ptgn::impl::UILayer,
-	::ptgn::impl::EffectTag, ::ptgn::impl::HDREffectTag, EffectMargin, Bloom, Blur, GaussianBlur,
-	::ptgn::impl::ClearColor, ::ptgn::impl::ClearDepth, ::ptgn::impl::ClearStencil>;
+	::ptgn::impl::RenderTargetDesc, ::ptgn::impl::RenderMask, ::ptgn::impl::RenderMaskOverride,
+	::ptgn::impl::UILayer, ::ptgn::impl::EffectTag, ::ptgn::impl::HDREffectTag, EffectMargin, Bloom,
+	Blur, GaussianBlur, ::ptgn::impl::ClearColor, ::ptgn::impl::ClearDepth,
+	::ptgn::impl::ClearStencil>;
 
 using InteractionSectionComponents = ComponentSet<
 	::ptgn::impl::Interactive, ::ptgn::impl::Draggable, ::ptgn::impl::Dropzone, InteractionLock,
@@ -1118,7 +1119,7 @@ using UISectionComponents = ComponentSet<
 	::ptgn::impl::ToggleButtonGroupItem, ::ptgn::impl::DropdownData, ::ptgn::impl::DropdownItem,
 	::ptgn::impl::DialogueData, ::ptgn::impl::DialoguePart, ::ptgn::impl::TooltipData,
 	::ptgn::impl::TooltipHoverData, ::ptgn::impl::TooltipBackgroundPart,
-	::ptgn::impl::TooltipTextPart, UIStackData, UILayerData, OverlayOverride>;
+	::ptgn::impl::TooltipTextPart, UIStackData, UILayerData>;
 
 using CameraSectionComponents = ComponentSet<
 	::ptgn::impl::CameraData, ::ptgn::impl::CameraMask, ::ptgn::impl::ParentRenderTarget>;

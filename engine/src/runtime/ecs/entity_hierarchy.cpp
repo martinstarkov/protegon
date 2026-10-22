@@ -10,6 +10,7 @@
 #include "runtime/ecs/manager.h"
 #include "runtime/ecs/relatives.h"
 #include "runtime/scene/scene.h"
+#include "runtime/scene/scene_camera.h"
 
 namespace ptgn {
 
@@ -44,6 +45,8 @@ void AttachChild(Entity parent, Entity child, std::optional<std::string_view> na
 	PTGN_ASSERT(
 		!IsInParentChain(parent, child), "Cannot parent an entity to one of its descendants"
 	);
+
+	PrepareUILayerRenderMaskReparent(child, parent);
 
 	RemoveParent(child);
 

@@ -18,11 +18,13 @@
 #include "runtime/animation/offsets.h"
 #include "runtime/ecs/entity.h"
 #include "runtime/ecs/entity_creation_context.h"
+#include "runtime/ecs/entity_hierarchy.h"
 #include "runtime/ecs/tag.h"
 #include "runtime/graphics/draw.h"
 #include "runtime/graphics/render_target.h"
 #include "runtime/scene/scene.h"
 #include "runtime/scene/scene_context.h"
+#include "runtime/ui/ui_stack.h"
 
 namespace ptgn {
 
@@ -394,37 +396,113 @@ std::optional<Color> SceneCamera::GetClearColor() const {
 }
 
 void SetUI(Entity entity, bool ui_rendering) {
+	if (!entity) {
+		return;
+	}
+
 	if (ui_rendering) {
-		entity.Add<impl::UILayer>();
-		SetRenderMask(entity, kRenderMaskNone);
+		entity.TryAdd<impl::UILayer>();
+		entity.TryAdd<impl::RenderMask>().bits = kRenderMaskNone;
 	} else {
 		entity.Remove<impl::UILayer>();
-		SetRenderMask(entity, impl::RenderMask{}.bits);
+		entity.TryAdd<impl::RenderMask>().bits = impl::RenderMask{}.bits;
+	}
+
+	// SetUI is also called when UI controls build their managed visuals.
+	// Those controls inherit unless this explicitly differs from their layer.
+	UILayer layer{ GetUILayer(entity) };
+	if (layer && layer != entity && !entity.Has<impl::RenderMaskOverride>() &&
+		ui_rendering != IsUI(layer)) {
+		entity.TryAdd<impl::RenderMaskOverride>();
 	}
 }
 
 bool IsUI(Entity entity) {
+	if (!entity) {
+		return false;
+	}
+
+	UILayer layer{ GetUILayer(entity) };
+	if (layer && layer != entity) {
+		return entity.Has<impl::RenderMaskOverride>() ? entity.Has<impl::UILayer>() : IsUI(layer);
+	}
+
+	UIStack stack{ GetUIStack(entity) };
+	if (layer && stack && layer == entity && !layer.Has<impl::RenderMaskOverride>()) {
+		return IsUI(stack);
+	}
+
+	// Older saved stacks may not yet have a RenderMask component. Treat them
+	// as UI rendered until the stack's mandatory mask is explicitly authored.
+	if (entity.Has<UIStackData>() && !entity.Has<impl::RenderMask>()) {
+		return true;
+	}
+
 	return entity.Has<impl::UILayer>();
 }
 
 RenderMaskBits GetRenderMask(Entity entity) {
+	if (!entity) {
+		return kRenderMaskDefault;
+	}
+
+	UILayer layer{ GetUILayer(entity) };
+	if (layer && layer != entity) {
+		return entity.Has<impl::RenderMaskOverride>() ? entity.GetOrDefault<impl::RenderMask>().bits
+													  : GetRenderMask(layer);
+	}
+
+	UIStack stack{ GetUIStack(entity) };
+	if (layer && stack && layer == entity && !layer.Has<impl::RenderMaskOverride>()) {
+		return GetRenderMask(stack);
+	}
+
+	if (entity.Has<UIStackData>() && !entity.Has<impl::RenderMask>()) {
+		return kRenderMaskNone;
+	}
+
 	return entity.GetOrDefault<impl::RenderMask>().bits;
 }
 
 void SetRenderMask(Entity entity, RenderMaskBits mask) {
+	if (!entity) {
+		return;
+	}
+
 	entity.TryAdd<impl::RenderMask>().bits = mask;
+	if (GetUILayer(entity)) {
+		entity.TryAdd<impl::RenderMaskOverride>();
+	}
 }
 
 void AddRenderMaskBits(Entity entity, RenderMaskBits masks_to_add) {
-	entity.TryAdd<impl::RenderMask>().bits |= masks_to_add;
+	SetRenderMask(entity, GetRenderMask(entity) | masks_to_add);
 }
 
 void RemoveRenderMaskBits(Entity entity, RenderMaskBits masks_to_remove) {
-	entity.TryAdd<impl::RenderMask>().bits &= ~masks_to_remove;
+	SetRenderMask(entity, GetRenderMask(entity) & ~masks_to_remove);
 }
 
 void ClearRenderMask(Entity entity) {
 	entity.Remove<impl::RenderMask>();
+	entity.Remove<impl::RenderMaskOverride>();
+}
+
+void PrepareUILayerRenderMaskReparent(Entity entity, Entity new_parent) {
+	if (!entity || !new_parent || entity.Has<impl::RenderMaskOverride>() || GetUILayer(entity) ||
+		!GetUILayer(new_parent)) {
+		return;
+	}
+
+	// Existing UI controls use None + UI rendering as their natural default.
+	// Other entities use the default (bit zero) as their natural default.
+	bool ui_rendering{ entity.Has<impl::UILayer>() };
+	RenderMaskBits mask{ entity.GetOrDefault<impl::RenderMask>().bits };
+	RenderMaskBits default_mask{ ui_rendering ? kRenderMaskNone : kRenderMaskDefault };
+
+	if (mask != default_mask) {
+		entity.TryAdd<impl::RenderMaskOverride>();
+	}
 }
 
 bool HasAnyRenderMaskBits(Entity entity, RenderMaskBits test) {

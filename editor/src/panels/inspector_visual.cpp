@@ -2664,49 +2664,91 @@ template <typename Target>
 bool DrawVisualRenderMask(Target& target) {
 	if constexpr (
 		!Target::template Supports<::ptgn::impl::RenderMask>() ||
-		!Target::template Supports<::ptgn::impl::UILayer>()
+		!Target::template Supports<::ptgn::impl::UILayer>() ||
+		!Target::template Supports<::ptgn::impl::RenderMaskOverride>()
 	) {
 		return false;
 	} else {
 		auto before_mask{ target.template Capture<::ptgn::impl::RenderMask>() };
 		auto before_ui{ target.template Capture<::ptgn::impl::UILayer>() };
+		auto before_override{ target.template Capture<::ptgn::impl::RenderMaskOverride>() };
 
+		bool has_stack{ HasInspectorComponent<Target, UIStackData>(target) };
+		bool has_layer{ HasInspectorComponent<Target, UILayerData>(target) };
+		bool inherits_mask{ has_layer };
+		Entity entity{};
+
+		if constexpr (requires { target.entity; }) {
+			entity		   = target.entity;
+			inherits_mask |= entity && !has_stack && !has_layer && GetUILayer(entity);
+		}
+
+		// Stack masks are mandatory. A layer or layer member uses its stack/layer
+		// mask unless an explicit override component is present.
 		::ptgn::impl::RenderMask mask{ before_mask.value_or(::ptgn::impl::RenderMask{}) };
 		bool ui_rendering{ before_ui.has_value() };
+		bool override_enabled{ before_override.has_value() };
+		if (entity && inherits_mask && !override_enabled) {
+			mask.bits	 = GetRenderMask(entity);
+			ui_rendering = IsUI(entity);
+		} else if (has_stack && !before_mask) {
+			mask.bits	 = kRenderMaskNone;
+			ui_rendering = true;
+		} else if (has_layer && !before_mask) {
+			mask.bits	 = kRenderMaskNone;
+			ui_rendering = true;
+		}
 
 		ScopedID target_scope{ target.Id() };
 		ScopedID mask_scope{ "VisualRenderMask" };
 
-		bool changed{ DrawRenderMaskValue("Render Mask", mask.bits, ui_rendering) };
+		bool changed{ inherits_mask ? DrawRenderMaskValue(
+										  "Render Mask", mask.bits, ui_rendering, override_enabled
+									  )
+									: DrawRenderMaskValue("Render Mask", mask.bits, ui_rendering) };
 
 		if (!changed) {
 			return false;
 		}
 
-		target.template SetLive<::ptgn::impl::RenderMask>(mask);
-
-		ComponentState<::ptgn::impl::UILayer> ui_state;
-		if (ui_rendering) {
-			ui_state = ::ptgn::impl::UILayer{};
+		if (!inherits_mask || override_enabled) {
+			target.template SetLive<::ptgn::impl::RenderMask>(mask);
+			ComponentState<::ptgn::impl::UILayer> ui_state;
+			if (ui_rendering) {
+				ui_state = ::ptgn::impl::UILayer{};
+			}
+			target.template SetLive<::ptgn::impl::UILayer>(ui_state);
 		}
-		target.template SetLive<::ptgn::impl::UILayer>(ui_state);
+
+		if (inherits_mask) {
+			target.template SetLive<::ptgn::impl::RenderMaskOverride>(
+				override_enabled
+					? ComponentState<
+						  ::ptgn::impl::RenderMaskOverride>{ ::ptgn::impl::RenderMaskOverride{} }
+					: ComponentState<::ptgn::impl::RenderMaskOverride>{}
+			);
+		}
 
 		auto after_mask{ target.template Capture<::ptgn::impl::RenderMask>() };
 		auto after_ui{ target.template Capture<::ptgn::impl::UILayer>() };
-
+		auto after_override{ target.template Capture<::ptgn::impl::RenderMaskOverride>() };
 		auto apply_mask{ target.template MakeApply<::ptgn::impl::RenderMask>() };
 		auto apply_ui{ target.template MakeApply<::ptgn::impl::UILayer>() };
+		auto apply_override{ target.template MakeApply<::ptgn::impl::RenderMaskOverride>() };
 		ImGuiID key{ ImGui::GetID("##VisualRenderMaskEdit") };
 
 		TrackUndoableInteraction(
 			target.ctx, key, "Edit Render Mask", true,
-			[apply_mask, apply_ui, before_mask, before_ui]() mutable {
+			[apply_mask, apply_ui, apply_override, before_mask, before_ui,
+			 before_override]() mutable {
 				apply_mask(before_mask);
 				apply_ui(before_ui);
+				apply_override(before_override);
 			},
-			[apply_mask, apply_ui, after_mask, after_ui]() mutable {
+			[apply_mask, apply_ui, apply_override, after_mask, after_ui, after_override]() mutable {
 				apply_mask(after_mask);
 				apply_ui(after_ui);
+				apply_override(after_override);
 			}
 		);
 
@@ -2793,6 +2835,71 @@ bool DrawVisualUILayer(Target& target) {
 }
 
 template <typename Target>
+bool DrawVisualOverlayOverride(Target& target) {
+	if constexpr (!Target::template Supports<OverlayOverride>()) {
+		return false;
+	} else {
+		if (HasInspectorComponent<Target, UIStackData>(target) ||
+			HasInspectorComponent<Target, UILayerData>(target)) {
+			return false;
+		}
+
+		auto before{ target.template Capture<OverlayOverride>() };
+		bool enabled{ before.has_value() };
+		OverlayOverride value{ before.value_or(OverlayOverride{}) };
+		if (!enabled) {
+			if constexpr (requires { target.entity; }) {
+				UILayer layer{ GetUILayer(target.entity) };
+				if (layer) {
+					value.overlay = layer.Get<UILayerData>().overlay;
+				}
+			}
+		}
+
+		ScopedID target_scope{ target.Id() };
+		ScopedID overlay_scope{ "VisualOverlayOverride" };
+		bool changed{ DrawPropertyRow("UI Overlay Override", [&]() {
+			bool row_changed{ ImGui::Checkbox("##UseOverlayOverride", &enabled) };
+			ImGui::SameLine(0.0f, ImGui::GetStyle().ItemInnerSpacing.x);
+			ImGui::BeginDisabled(!enabled);
+			ImGui::SetNextItemWidth(-FLT_MIN);
+			const char* preview{ !enabled							  ? ""
+								 : value.overlay == OverlayMode::Hide ? "Hide and Disable"
+																	  : "Disable" };
+			if (ImGui::BeginCombo("##OverlayMode", preview)) {
+				if (ImGui::Selectable("Disable", value.overlay == OverlayMode::Disable)) {
+					value.overlay = OverlayMode::Disable;
+					row_changed	  = true;
+				}
+				if (ImGui::Selectable("Hide and Disable", value.overlay == OverlayMode::Hide)) {
+					value.overlay = OverlayMode::Hide;
+					row_changed	  = true;
+				}
+				ImGui::EndCombo();
+			}
+			ImGui::EndDisabled();
+			return row_changed;
+		}) };
+		DrawTooltip(
+			"Override how this entity and its children behave when the UI layer is covered."
+		);
+
+		if (!changed) {
+			return false;
+		}
+
+		target.template SetLive<OverlayOverride>(
+			enabled ? ComponentState<OverlayOverride>{ value } : ComponentState<OverlayOverride>{}
+		);
+		auto after{ target.template Capture<OverlayOverride>() };
+		TrackComponentState(
+			target, "Edit UI Overlay Override", std::move(before), std::move(after), true
+		);
+		return true;
+	}
+}
+
+template <typename Target>
 bool DrawVisualAdditionalOptions(Target& target, std::string_view visual) {
 	if (!visual.contains("text")) {
 		return false;
@@ -2864,10 +2971,14 @@ bool DrawRenderingOptions(Target& target, bool draw_tint) {
 	);
 	changed |= visible_changed;
 
-	changed |= DrawImplicitDefaultVisualComponent<Target, BlendMode>(
-		target, "Blend Mode", BlendMode{},
-		[&target](BlendMode& value) { return DrawValue(target.ctx, "Blend Mode", value); }
-	);
+	bool ui_container{ HasInspectorComponent<Target, UIStackData>(target) ||
+					   HasInspectorComponent<Target, UILayerData>(target) };
+	if (!ui_container) {
+		changed |= DrawImplicitDefaultVisualComponent<Target, BlendMode>(
+			target, "Blend Mode", BlendMode{},
+			[&target](BlendMode& value) { return DrawValue(target.ctx, "Blend Mode", value); }
+		);
+	}
 	if (draw_tint) {
 		changed |= DrawImplicitDefaultVisualComponent<Target, Tint>(
 			target, "Tint", Tint{},
@@ -2878,11 +2989,14 @@ bool DrawRenderingOptions(Target& target, bool draw_tint) {
 		);
 	}
 	if (!IsPrimarySceneRenderTarget(target)) {
-		changed |= DrawOptionalVisualComponent<Target, ::ptgn::impl::IgnoreParentVisibility>(
-			target, "Ignore Parent Visibility"
-		);
+		if (!ui_container) {
+			changed |= DrawOptionalVisualComponent<Target, ::ptgn::impl::IgnoreParentVisibility>(
+				target, "Ignore Parent Visibility"
+			);
+		}
 		changed |= DrawVisualRenderMask(target);
 		changed |= DrawVisualUILayer(target);
+		changed |= DrawVisualOverlayOverride(target);
 	}
 
 	return changed;

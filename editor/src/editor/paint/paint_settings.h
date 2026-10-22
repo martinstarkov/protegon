@@ -85,8 +85,8 @@ struct PaintLocalState {
 	PaintSelectMode select_mode{ PaintSelectMode::ClickMarquee };
 	PaintAreaMode area_mode{ PaintAreaMode::Fill };
 	PaintMoveSnapMode move_snap{ PaintMoveSnapMode::Grid };
-	int brush_diameter{ 3 };
-	int selection_diameter{ 3 };
+	int brush_diameter{ 1 };
+	int selection_diameter{ 1 };
 	int line_thickness{ 1 };
 	int line_spacing{ 1 };
 	int area_thickness{ 1 };

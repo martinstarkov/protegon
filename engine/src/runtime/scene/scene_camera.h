@@ -80,6 +80,11 @@ struct RenderMask {
 	PTGN_REFLECT_VALUE(RenderMask, bits)
 };
 
+/// @brief When present on a UI layer or one of its members, use this entity's
+/// authored render mask instead of inheriting the containing layer/stack mask.
+/// Without a UI layer this marker has no effect.
+struct RenderMaskOverride {};
+
 /// @brief Camera visibility filter using render mask bits, not organizational scene layers.
 /// An entity passes when it shares at least one include bit and has no excluded bits.
 /// If absent, a camera includes all render bits and excludes none.
@@ -189,20 +194,25 @@ public:
 	std::optional<Color> GetClearColor() const;
 };
 
-/// @brief Gets an entity's render mask bits, independently of its organizational scene layer.
+/// @brief Gets the effective render mask. UI layer members inherit the layer's
+/// mask, which in turn inherits its UI stack's mask, unless explicitly overridden.
 RenderMaskBits GetRenderMask(Entity entity);
 
 /// @brief Enables UI rendering, which is distinct from organizational scene layers.
 /// This also changes the entity's render mask bits.
 void SetUI(Entity entity, bool ui_rendering = true);
 
-/// @return True if the entity is marked for UI rendering.
+/// @return True if effective rendering uses the UI camera (including inherited UI masks).
 bool IsUI(Entity entity);
 
 void SetRenderMask(Entity entity, RenderMaskBits mask);
 void AddRenderMaskBits(Entity entity, RenderMaskBits masks_to_add);
 void RemoveRenderMaskBits(Entity entity, RenderMaskBits masks_to_remove);
 void ClearRenderMask(Entity entity);
+
+/// @brief Preserves nondefault authored masks when moving an entity into a UI layer.
+/// Ordinary default masks instead inherit the destination layer's render mask.
+void PrepareUILayerRenderMaskReparent(Entity entity, Entity new_parent);
 
 bool HasAnyRenderMaskBits(Entity entity, RenderMaskBits test);
 bool HasAllRenderMaskBits(Entity entity, RenderMaskBits test);

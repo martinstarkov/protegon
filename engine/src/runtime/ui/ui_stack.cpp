@@ -12,6 +12,7 @@
 #include "runtime/graphics/draw.h"
 #include "runtime/interaction/draggable.h"
 #include "runtime/scene/scene.h"
+#include "runtime/scene/scene_camera.h"
 #include "runtime/ui/button.h"
 
 namespace ptgn {
@@ -466,6 +467,7 @@ void UIStack::ResetLayerPreview() {
 UIStack CreateUIStack(EntityCreationContext context) {
 	Entity entity{ context.CreateEntity(Tag{ "UI Stack" }) };
 	entity.Add<UIStackData>();
+	SetUI(entity, true);
 	return UIStack{ entity };
 }
 
