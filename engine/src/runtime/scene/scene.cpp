@@ -67,7 +67,6 @@
 #include "runtime/ui/slider.h"
 #include "runtime/ui/toggle_button.h"
 #include "runtime/ui/tooltip.h"
-#include "runtime/world/entity_layer.h"
 #include "tools/debug/debug_system.h"
 
 namespace ptgn {
@@ -405,8 +404,8 @@ void RestoreSerializedChildren(Scene& scene, const SerializedEntity& serialized)
 Scene::Scene(Scene&& other) noexcept :
 	ctx_{ std::exchange(other.ctx_, nullptr) },
 	manager_{ std::exchange(other.manager_, {}) },
-	layers_{ std::move(other.layers_) },
 	data_{ std::exchange(other.data_, {}) },
+	tags_{ std::exchange(other.tags_, {}) },
 	asset_dependencies_{ std::exchange(other.asset_dependencies_, {}) },
 	explicit_asset_dependencies_{ std::exchange(other.explicit_asset_dependencies_, {}) },
 	retained_asset_dependencies_{ std::exchange(other.retained_asset_dependencies_, {}) } {
@@ -421,8 +420,8 @@ Scene& Scene::operator=(Scene&& other) noexcept {
 
 		ctx_						 = std::exchange(other.ctx_, nullptr);
 		manager_					 = std::exchange(other.manager_, {});
-		layers_						 = std::move(other.layers_);
 		data_						 = std::exchange(other.data_, {});
+		tags_						 = std::exchange(other.tags_, {});
 		asset_dependencies_			 = std::exchange(other.asset_dependencies_, {});
 		explicit_asset_dependencies_ = std::exchange(other.explicit_asset_dependencies_, {});
 		retained_asset_dependencies_ = std::exchange(other.retained_asset_dependencies_, {});
@@ -440,8 +439,7 @@ Scene::~Scene() {
 
 void Scene::InitBase(Application& app, impl::SceneData&& scene_data) {
 	data_ = std::move(scene_data);
-	layers_.Reset();
-	ctx_ = std::make_unique<SceneContext>(app, *this);
+	ctx_  = std::make_unique<SceneContext>(app, *this);
 }
 
 void Scene::Init(Application& app, impl::SceneData&& scene_data) {
@@ -521,6 +519,15 @@ void Scene::CreateDefaultSceneEntities() {
 	Refresh();
 }
 
+bool Scene::AddTag(std::string name) {
+	if (name.empty() || name == "Untagged" || std::ranges::contains(tags_, name)) {
+		return false;
+	}
+	tags_.push_back(std::move(name));
+	std::ranges::sort(tags_);
+	return true;
+}
+
 json Scene::SerializeContent() const {
 	std::vector<Entity> roots;
 
@@ -548,13 +555,12 @@ json Scene::SerializeContent() const {
 	primary_entities["render_target"] = GetRenderTarget().Get<UUID>();
 	primary_entities["camera"]		  = GetCamera().Get<UUID>();
 	primary_entities["fixed_camera"]  = GetFixedCamera().Get<UUID>();
-	PTGN_ASSERT(layers_.Validate(*this), "Cannot serialize a scene with invalid layer membership");
 
 	json content;
 
 	content["primary_entities"]		   = std::move(primary_entities);
 	content["entities"]				   = std::move(serialized_entities);
-	content["layers"]				   = layers_.Serialize(*this);
+	content["tags"]					   = tags_;
 	content["settings"]["physics"]	   = ctx_->physics;
 	content["settings"]["interaction"] = ctx_->interaction;
 
@@ -564,9 +570,15 @@ json Scene::SerializeContent() const {
 void Scene::DeserializeContent(const json& serialized_content) {
 	PTGN_ASSERT(serialized_content.is_object(), "Serialized scene content must be a JSON object");
 
-	SerializedSceneLayers serialized_layers;
-	serialized_content.at("layers").get_to(serialized_layers);
-	layers_.Deserialize(serialized_layers);
+	tags_.clear();
+	if (auto it{ serialized_content.find("tags") };
+		it != serialized_content.end() && it->is_array()) {
+		for (const auto& value : *it) {
+			if (value.is_string()) {
+				AddTag(value.get<std::string>());
+			}
+		}
+	}
 
 	const auto& primary_entities{ serialized_content.at("primary_entities") };
 	const auto& serialized_entities_json{ serialized_content.at("entities") };
@@ -651,10 +663,6 @@ void Scene::DeserializeContent(const json& serialized_content) {
 		RestoreSerializedChildren(*this, root);
 	}
 	Refresh();
-
-	layers_.Prune(*this);
-
-	PTGN_ASSERT(layers_.Validate(*this), "Serialized scene contains invalid layer membership");
 
 	UpdateRenderTargetSizes(*this);
 
@@ -806,8 +814,8 @@ void Scene::DrawCameras(DrawContext& draw_context, const std::vector<Entity>& ca
 		auto cam{ camera.operator Camera() };
 		auto clear_color{ camera.GetClearColor() };
 
-		auto filter = [this, camera](auto entity) {
-			return !camera.CanSee(entity) || !IsVisible(entity) || !layers_.IsVisible(entity);
+		auto filter = [camera](auto entity) {
+			return !camera.CanSee(entity) || !IsVisible(entity);
 		};
 
 		auto& commands{ ctx().render_queue.GetRenderCommands(camera, false) };
@@ -876,8 +884,7 @@ void Scene::InternalDraw(DrawContext& draw_context) {
 			auto exclude{ ctx().camera.GetExcludeRenderMask() };
 			bool in_include{ (entity_mask & include) != 0 };
 			bool in_exclude{ (entity_mask & exclude) != 0 };
-			return !((in_include && !in_exclude) || IsUI(entity)) || !IsVisible(entity) ||
-				   !layers_.IsVisible(entity);
+			return !((in_include && !in_exclude) || IsUI(entity)) || !IsVisible(entity);
 		};
 
 		auto& commands{ ctx().render_queue.GetRenderCommands(camera, false) };
@@ -1020,7 +1027,6 @@ Entity Scene::CreateEntity(Tag tag, UUID uuid) {
 	entity.Add<Tag>(std::move(tag));
 	entity.Add<UUID>(uuid);
 	Entity created{ entity, this };
-	layers_.RegisterEntity(created);
 	return created;
 }
 
@@ -1084,14 +1090,6 @@ void Scene::SetBackgroundColor(Color background_color) {
 
 Color Scene::GetBackgroundColor() const {
 	return ctx_->render_target_.GetClearColor().value_or(impl::ClearColor{}.color);
-}
-
-const SceneLayers& Scene::GetLayers() const {
-	return layers_;
-}
-
-SceneLayers& Scene::GetLayers() {
-	return layers_;
 }
 
 std::size_t Scene::GetTagHash() const {
@@ -1222,7 +1220,6 @@ void Scene::ReleaseLoadedAssetDependencies() noexcept {
 
 void Scene::Refresh() {
 	manager_.Refresh();
-	layers_.Prune(*this);
 }
 
 std::size_t Scene::GetEntityCount() const {

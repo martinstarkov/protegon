@@ -874,7 +874,7 @@ bool DrawName(Target& target) {
 	std::string before{ target.GetName() };
 	std::string value{ before };
 
-	bool changed{ DrawPropertyRow("Tag", [&]() {
+	bool changed{ DrawPropertyRow("Name", [&]() {
 		ImGui::SetNextItemWidth(-FLT_MIN);
 		ScopedDisabled disabled{ target.IsReadOnly() };
 		return ImGui::InputText("##Tag", &value);

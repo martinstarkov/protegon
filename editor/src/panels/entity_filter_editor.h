@@ -15,9 +15,8 @@ namespace editor::inspector {
 
 struct EntityFilterEditorState {
 	std::string hierarchy_filter{};
-	std::string layer_filter{};
 	std::string component_filter{};
-	std::string group_filter{};
+	std::string tag_filter{};
 	std::string query_filter{};
 };
 
@@ -25,9 +24,8 @@ struct EntityFilterEditorOptions {
 	bool show_none{ true };
 	bool show_any{ true };
 	bool show_entity{ true };
-	bool show_layer{ true };
 	bool show_components{ true };
-	bool show_groups{ true };
+	bool show_tags{ true };
 	bool show_queries{ true };
 	bool allow_select_owner{ true };
 	bool exclude_owner{ false };

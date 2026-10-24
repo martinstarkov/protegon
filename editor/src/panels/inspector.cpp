@@ -3,7 +3,11 @@
 #include <imgui.h>
 #include <imgui_internal.h>
 
+#include <algorithm>
+#include <cfloat>
 #include <memory>
+#include <optional>
+#include <ranges>
 #include <string>
 #include <string_view>
 #include <utility>
@@ -12,6 +16,7 @@
 #include "editor/editor_context.h"
 #include "editor/editor_selection.h"
 #include "editor/paint/paint_editor.h"
+#include "editor/renamable_item.h"
 #include "panels/inspector_archetype_inspector.h"
 #include "panels/inspector_helpers.h"
 #include "panels/inspector_screen_effects.h"
@@ -27,11 +32,144 @@ namespace inspector {
 
 namespace {
 
+// Display names (Tag) and query labels (Tags) are intentionally separate.
+bool DrawEntityTags(EntityInspectorTarget& target) {
+	Entity entity{ target.entity };
+
+	if (!entity || !entity.HasScene()) {
+		return false;
+	}
+
+	auto* existing{ entity.TryGet<Tags>() };
+	Tags selected{ existing ? *existing : Tags{} };
+	std::string preview{ selected.values.empty() ? "Untagged" : std::string{} };
+
+	for (const auto& label : selected.values) {
+		if (!preview.empty()) {
+			preview += ", ";
+		}
+		preview += label;
+	}
+
+	// The tag dialog uses the same centered, equal button width modal as script sequences.
+	// Cancel an unfinished dialog when switching entities so it cannot edit the next selection.
+	static RenameModalState add_tag_modal;
+	static std::optional<UUID> modal_entity;
+	if (add_tag_modal.active && (!modal_entity || *modal_entity != entity.Get<UUID>())) {
+		add_tag_modal.Cancel();
+		modal_entity.reset();
+	}
+
+	bool changed{ false };
+	ImGui::PushID(entity.Get<UUID>());
+	DrawPropertyRow("Tags", [&]() {
+		ImGui::SetNextItemWidth(-FLT_MIN);
+		ImGui::BeginDisabled(target.IsReadOnly());
+
+		bool combo_open{ ImGui::BeginCombo("##EntityTags", preview.c_str()) };
+
+		if (ImGui::IsItemHovered() && !selected.values.empty()) {
+			ImGui::SetTooltip("%s", preview.c_str());
+		}
+
+		if (combo_open) {
+			if (ImGui::Selectable(
+					"Untagged", selected.values.empty(), ImGuiSelectableFlags_DontClosePopups
+				) &&
+				!selected.values.empty()) {
+				selected.values.clear();
+				changed = true;
+			}
+
+			ImGui::Separator();
+
+			for (const auto& name : entity.GetScene().GetTags()) {
+				bool is_selected{ selected.Contains(name) };
+
+				if (ImGui::Selectable(
+						name.c_str(), is_selected, ImGuiSelectableFlags_DontClosePopups
+					)) {
+					if (is_selected) {
+						std::erase(selected.values, name);
+					} else {
+						selected.values.push_back(name);
+					}
+					changed = true;
+				}
+			}
+
+			ImGui::Separator();
+
+			if (ImGui::Selectable("Add Tag...")) {
+				modal_entity = entity.Get<UUID>();
+				add_tag_modal.Begin("");
+			}
+			ImGui::EndCombo();
+		}
+		ImGui::EndDisabled();
+		return changed;
+	});
+
+	if (add_tag_modal.active) {
+		DrawRenameModal(
+			add_tag_modal, "AddEntityTagModal", "##TagName",
+			[&](std::string_view name) {
+				if (name.empty()) {
+					return std::string{ "Tag name cannot be empty." };
+				}
+
+				if (name == "Untagged") {
+					return std::string{ "Untagged is reserved." };
+				}
+
+				if (std::ranges::contains(entity.GetScene().GetTags(), name)) {
+					return std::string{ "Tag already exists." };
+				}
+
+				return std::string{};
+			},
+			[&](std::string_view name) {
+				std::string new_tag{ name };
+
+				if (entity.GetScene().AddTag(new_tag)) {
+					selected.values.push_back(std::move(new_tag));
+					changed							= true;
+					target.ctx.local.state.is_dirty = true;
+				}
+			},
+			RenameModalOptions{ .title = "New Tag", .rename_label = "Add" }
+		);
+
+		if (!add_tag_modal.active) {
+			modal_entity.reset();
+		}
+	}
+	ImGui::PopID();
+
+	if (changed && !target.IsReadOnly()) {
+		return SetComponentStateUndoable<EntityInspectorTarget, Tags>(
+			target, "Change Entity Tags",
+			selected.values.empty() ? std::optional<Tags>{}
+									: std::optional<Tags>{ std::move(selected) }
+		);
+	}
+
+	return false;
+}
+
 template <typename Target>
 bool DrawInspectorContents(EditorContext& ctx, Target& target) {
 	CommitInactiveInspectorEdit(ctx);
 
+	// Every input in the inspector must have an identity scoped to its entity.
+	// Otherwise ImGui reuses the active text/drag field when selecting a different
+	// entity, and its unfinished edit can be written into the new target.
+	ScopedID target_scope{ target.Id() };
+
 	bool changed{ DrawName(target) };
+	if constexpr (std::same_as<std::remove_cvref_t<Target>, EntityInspectorTarget>) {
+		changed |= DrawEntityTags(target);
+	}
 	changed |= DrawArchetypeInspector(target);
 	return changed;
 }
@@ -178,6 +316,14 @@ void InspectorPanel::OnRender(EditorContext& ctx) {
 
 	bool screen_effect_selection_changed{ previous_screen_effect_selection_ !=
 										  selection.selected_screen_effect };
+
+	// Finish any in-progress edit against the previous target before drawing the
+	// newly selected entity. This also keeps its undo history independent.
+	if (previous_selection_.has_value() &&
+		(primary_selection_changed || screen_effect_selection_changed)) {
+		ctx.undo.CommitActiveEdit();
+	}
+
 	std::optional<EditorSelectionMode> requested_primary{ ConsumePrimaryInspectorRequest(ctx) };
 	const char* requested_window{};
 	if (requested_primary.has_value()) {

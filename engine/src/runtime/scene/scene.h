@@ -28,7 +28,6 @@
 #include "runtime/scene/scene_common.h"
 #include "runtime/scene/scene_transition.h"
 #include "runtime/scene/scene_view.h"
-#include "runtime/world/entity_layer.h"
 #include "serialization/json/archiver.h"
 #include "serialization/json/json.h"
 
@@ -142,11 +141,15 @@ public:
 		/* User implementation */
 	}
 
+	[[nodiscard]] const std::vector<std::string>& GetTags() const {
+		return tags_;
+	}
+
+	// Tag definitions persist even when no entity currently uses them.
+	bool AddTag(std::string name);
+
 	void SetBackgroundColor(Color background_color);
 	Color GetBackgroundColor() const;
-	/// @brief Scene owned organizational layers, independent of camera render mask bits.
-	[[nodiscard]] const SceneLayers& GetLayers() const;
-	[[nodiscard]] SceneLayers& GetLayers();
 	Entity GetEntity(UUID uuid) const;
 	Entity GetEntity(const Tag& tag) const;
 	Entity CreateEntity(Tag tag = {}, UUID uuid = {});
@@ -195,22 +198,12 @@ public:
 		entity.template Add<Tag>(std::move(tag));
 		entity.template Add<UUID>(uuid);
 		Entity copied{ entity, this };
-		layers_.RegisterEntity(copied);
-		if (auto source_layer{ layers_.GetLayerId(from) }; source_layer.has_value()) {
-			// Copying an entity should preserve its scene layer placement when the copied
-			// component set is still valid for that layer. Otherwise it safely remains in
-			// the default Entity layer.
-			layers_.Assign(copied, source_layer.value(), false);
-		}
 		return copied;
 	}
 
 	template <typename... Ts>
 	void CopyEntity(const Entity& from, Entity& to) {
 		manager_.CopyEntity<Ts...>(from.entity_, to.entity_);
-		if (auto source_layer{ layers_.GetLayerId(from) }; source_layer.has_value()) {
-			layers_.Assign(to, source_layer.value(), false);
-		}
 	}
 
 	auto Entities() {
@@ -350,7 +343,7 @@ private:
 	void ReleaseLoadedAssetDependencies() noexcept;
 	std::unique_ptr<SceneContext> ctx_;
 	Manager manager_;
-	SceneLayers layers_;
+	std::vector<std::string> tags_{};
 	impl::SceneData data_;
 	std::vector<AssetKey> asset_dependencies_;
 	std::vector<AssetKey> explicit_asset_dependencies_;
