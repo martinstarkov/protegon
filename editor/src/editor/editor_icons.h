@@ -27,6 +27,7 @@ enum class EditorIcon : std::uint8_t {
 	Brush,
 	Line,
 	Rectangle,
+	Recenter,
 	Fill,
 	Erase,
 	Eyedropper,

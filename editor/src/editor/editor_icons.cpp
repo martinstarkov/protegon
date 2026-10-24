@@ -107,7 +107,7 @@ void DrawEditorIcon(ImDrawList* draw, EditorIcon icon, ImVec2 min, float extent,
 					   icon == EditorIcon::Pause || icon == EditorIcon::Reset ||
 					   icon == EditorIcon::StepForward || icon == EditorIcon::StepBackward ||
 					   icon == EditorIcon::Camera || icon == EditorIcon::Link ||
-					   icon == EditorIcon::Target };
+					   icon == EditorIcon::Target || icon == EditorIcon::Recenter };
 
 	ImDrawListFlags prev_flags{ draw->Flags };
 
@@ -415,6 +415,15 @@ void DrawEditorIcon(ImDrawList* draw, EditorIcon icon, ImVec2 min, float extent,
 		case EditorIcon::Rectangle:
 			draw_rect_outline(point(2.0f, 3.0f), point(14.0f, 13.0f), line_pixels);
 			break;
+
+		case EditorIcon::Recenter: {
+			// Pixel aligned, symmetrical cross inside the viewport rectangle.
+			// Use a single shared center for both bars to avoid subpixel offsets.
+			draw_rect_outline(point(1.0f, 1.0f), point(15.0f, 15.0f), line_pixels);
+			draw_vertical_band(center.x, point(8.0f, 5.0f).y, point(8.0f, 11.0f).y, line_pixels);
+			draw_horizontal_band(center.y, point(5.0f, 8.0f).x, point(11.0f, 8.0f).x, line_pixels);
+			break;
+		}
 
 		case EditorIcon::Fill: {
 			ImDrawListFlags previous_flags{ draw->Flags };

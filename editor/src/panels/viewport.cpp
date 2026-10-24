@@ -35,6 +35,7 @@
 #include "renderer/renderer.h"
 #include "runtime/ecs/entity.h"
 #include "runtime/ecs/entity_hierarchy.h"
+#include "runtime/ecs/group_stack.h"
 #include "runtime/graphics/draw.h"
 #include "runtime/graphics/render_target.h"
 #include "runtime/graphics/visible.h"
@@ -45,7 +46,6 @@
 #include "runtime/ui/button_config.h"
 #include "runtime/ui/dropdown.h"
 #include "runtime/ui/slider.h"
-#include "runtime/ui/ui_stack.h"
 #include "tools/debug/stats.h"
 
 namespace ptgn::editor {
@@ -1473,8 +1473,8 @@ void ViewportPanel::DrawViewportToolbar(EditorContext& ctx) {
 	const char* camera_label{ use_editor_camera_ ? "Editor" : "Scene" };
 	float camera_width{ ViewportCameraButtonWidth() };
 
-	float runtime_width{ icon_side * 3.0f + speed_width + camera_width +
-						 kViewportRuntimeControlSpacing * 4.0f };
+	float runtime_width{ icon_side * 4.0f + speed_width + camera_width +
+						 kViewportRuntimeControlSpacing * 5.0f };
 	float right_x{ ImGui::GetWindowContentRegionMax().x - kViewportToolbarSidePadding -
 				   runtime_width };
 
@@ -1527,6 +1527,16 @@ void ViewportPanel::DrawViewportToolbar(EditorContext& ctx) {
 
 	ImGui::SameLine(0.0f, kViewportRuntimeControlSpacing);
 	DrawRuntimeSpeedControl(ctx, speed_width);
+
+	ImGui::SameLine(0.0f, kViewportRuntimeControlSpacing);
+	if (DrawEditorIconButton(
+			"##RecenterViewport", EditorIcon::Recenter,
+			"Recenter the editor viewport and reset zoom."
+		)) {
+		editor_camera_.camera.transform = Transform{};
+		middle_mouse_panning_			= false;
+		SetUseEditorCamera(true);
+	}
 
 	ImGui::SameLine(0.0f, kViewportRuntimeControlSpacing);
 	if (DrawViewportCameraButton(
@@ -2012,9 +2022,9 @@ void ViewportPanel::HandleEntityPicking(
 
 	auto selected_entity{ ResolveRenderTargetPick(*scene, renderer, outer_entity, mouse_world) };
 
-	// UI stacks and layers are navigation containers, not pickable graphics.
+	// group stacks and layers are navigation containers, not pickable graphics.
 	// Retain the actual rendered child under the cursor rather than selecting a container.
-	if (selected_entity && selected_entity.HasAny<UIStackData, UILayerData>()) {
+	if (selected_entity && selected_entity.HasAny<GroupStackData, Group>()) {
 		return;
 	}
 
@@ -2022,12 +2032,7 @@ void ViewportPanel::HandleEntityPicking(
 		selected_entity = ResolveManagedUIPick(selected_entity);
 	}
 
-	if (selected_entity && selected_entity.HasAny<UIStackData, UILayerData>()) {
-		return;
-	}
-
-	if (selected_entity && (!scene->GetLayers().IsSelectable(selected_entity) ||
-							scene->GetLayers().IsLocked(selected_entity))) {
+	if (selected_entity && selected_entity.HasAny<GroupStackData, Group>()) {
 		return;
 	}
 
