@@ -9,6 +9,8 @@
 #include <string_view>
 #include <utility>
 
+#include "editor/modal_scale.h"
+
 namespace ptgn::editor {
 
 enum class RenameResult {
@@ -246,14 +248,35 @@ RenameResult DrawRenameModal(
 	}
 
 	if (const ImGuiViewport* viewport{ ImGui::GetMainViewport() }) {
-		ImGui::SetNextWindowPos(viewport->GetCenter(), ImGuiCond_Appearing, ImVec2{ 0.5f, 0.5f });
+		ImGui::SetNextWindowPos(viewport->GetCenter(), ImGuiCond_Always, ImVec2{ 0.5f, 0.5f });
 	}
 
 	RenameResult result{ RenameResult::None };
 
-	if (!ImGui::BeginPopupModal(popup_name.c_str(), nullptr, options.window_flags)) {
+	// Keep the layout proportions while scaling the dialog and typography together.
+	float modal_scale{ kEditorModalScale };
+	const ImGuiStyle& style{ ImGui::GetStyle() };
+	ImGui::PushStyleVar(
+		ImGuiStyleVar_WindowPadding,
+		ImVec2{ style.WindowPadding.x * modal_scale, style.WindowPadding.y * modal_scale }
+	);
+	ImGui::PushStyleVar(
+		ImGuiStyleVar_FramePadding,
+		ImVec2{ style.FramePadding.x * modal_scale, style.FramePadding.y * modal_scale }
+	);
+	ImGui::PushStyleVar(
+		ImGuiStyleVar_ItemSpacing,
+		ImVec2{ style.ItemSpacing.x * modal_scale, style.ItemSpacing.y * modal_scale }
+	);
+
+	if (!ImGui::BeginPopupModal(
+			popup_name.c_str(), nullptr, options.window_flags | ImGuiWindowFlags_NoMove
+		)) {
+		ImGui::PopStyleVar(3);
 		return result;
 	}
+
+	ImGui::SetWindowFontScale(modal_scale);
 
 	bool window_appearing{ ImGui::IsWindowAppearing() };
 
@@ -268,7 +291,7 @@ RenameResult DrawRenameModal(
 		state.focus_requested = false;
 	}
 
-	ImGui::SetNextItemWidth(options.width);
+	ImGui::SetNextItemWidth(options.width * modal_scale);
 
 	bool enter_pressed{ ImGui::InputText(
 		input_id, &state.value,
@@ -330,7 +353,9 @@ RenameResult DrawRenameModal(
 		ImGui::CloseCurrentPopup();
 	}
 
+	ImGui::SetWindowFontScale(1.0f);
 	ImGui::EndPopup();
+	ImGui::PopStyleVar(3);
 
 	if (result != RenameResult::None) {
 		state.Cancel();

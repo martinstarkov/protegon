@@ -344,11 +344,17 @@ void ScreenEffectsPanel::OnRender(EditorContext& ctx) {
 	}
 
 	ImGui::SameLine();
-	ImGui::SetCursorPosX(
-		std::max(ImGui::GetCursorPosX(), ImGui::GetWindowContentRegionMax().x - 105.0f)
-	);
+	float button_width{ ImGui::CalcTextSize("+ Add Effect").x +
+						ImGui::GetStyle().FramePadding.x * 2.0f + 14.0f };
+	float right_edge{ ImGui::GetWindowContentRegionMax().x };
 
-	if (ImGui::Button("+ Add Effect", ImVec2{ -FLT_MIN, 0.0f })) {
+	if (ImGui::GetCursorPosX() + button_width > right_edge) {
+		ImGui::NewLine();
+	}
+
+	ImGui::SetCursorPosX(std::max(ImGui::GetCursorPosX(), right_edge - button_width));
+
+	if (ImGui::Button("+ Add Effect", ImVec2{ button_width, 0.0f })) {
 		ImGui::OpenPopup("AddScreenEffect");
 	}
 	DrawAddEffectPopup(ctx, runtime);

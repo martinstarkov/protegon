@@ -288,6 +288,8 @@ struct OutputConsoleActions {
 		ImGui::EndDisabled();
 	}
 
+	ImGui::Spacing();
+
 	std::string selectable_output{ output };
 
 	if (!selectable_output.empty() && selectable_output.back() == '\n') {

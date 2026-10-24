@@ -22,7 +22,6 @@
 #include "runtime/ecs/entity_serialization.h"
 #include "runtime/ecs/uuid.h"
 #include "runtime/graphics/frame_context.h"
-#include "runtime/world/entity_layer.h"
 #include "runtime/world/paint_generator.h"
 #include "runtime/world/tilemap.h"
 #include "serialization/serialize.h"
@@ -268,8 +267,8 @@ struct PaintRecipeState {
 	)
 };
 
-/// @brief Editor side authoring controller for scene layer painting, procedural generators and
-/// project paint asset organization.
+/// @brief Editor side authoring controller for tilemap and entity painting, procedural generators
+/// and project paint asset organization.
 class PaintEditor {
 public:
 	/// @brief Top viewport row: paint tool buttons followed by the grid/settings button.
@@ -326,9 +325,6 @@ public:
 
 	void SetTool(PaintTool tool);
 
-	[[nodiscard]] SceneLayerId GetActiveLayer(const Scene& scene) const;
-	void SetActiveLayer(Scene& scene, SceneLayerId layer);
-
 	[[nodiscard]] const PaintTileSource& GetTileSource() const {
 		return tile_source_;
 	}
@@ -356,10 +352,10 @@ public:
 	);
 	void OnPrefabDeleted(EditorContext& ctx, const PrefabKey& key);
 
-	/// Called when hierarchy/layer mutations can invalidate transient paint selection.
+	/// Called when scene entity changes can invalidate transient paint selection.
 	void ValidateSceneState(Scene& scene);
 	void ClearSelection();
-	void ClearExclusionMask(EditorContext& ctx, Scene& scene, SceneLayerId layer_id);
+	void ClearExclusionMask(EditorContext& ctx, Scene& scene);
 
 	[[nodiscard]] bool HasSelection() const;
 
@@ -407,7 +403,6 @@ private:
 
 	struct DeletedEntity {
 		SerializedEntity entity{};
-		SceneLayerId layer{};
 	};
 
 	struct EntityStroke {
@@ -443,8 +438,7 @@ private:
 		std::optional<::ptgn::impl::TilemapData> tilemap_before{};
 	};
 
-	[[nodiscard]] SceneLayer* ResolveActiveLayer(Scene& scene);
-	[[nodiscard]] const SceneLayer* ResolveActiveLayer(const Scene& scene) const;
+	[[nodiscard]] bool IsTileMode(const Scene& scene) const;
 	[[nodiscard]] Tilemap ResolveTargetTilemap(Scene& scene);
 	[[nodiscard]] Tilemap ResolveTargetTilemap(const Scene& scene) const;
 	void SyncHierarchySelection(EditorContext& ctx, Scene& scene);
@@ -473,10 +467,10 @@ private:
 		const FrameContext& frame
 	) const;
 
-	void DrawBrushSettingsToolbar(EditorContext& ctx, Scene& scene, SceneLayer& layer);
-	void DrawNoiseRecipe(EditorContext& ctx, Scene& scene, SceneLayer& layer);
-	void DrawExtendedSourceRecipe(EditorContext& ctx, Scene& scene, SceneLayer& layer);
-	void DrawNoiseThresholdGradient(EditorContext& ctx, SceneLayer& layer);
+	void DrawBrushSettingsToolbar(EditorContext& ctx, Scene& scene, bool tile_mode);
+	void DrawNoiseRecipe(EditorContext& ctx, Scene& scene, bool tile_mode);
+	void DrawExtendedSourceRecipe(EditorContext& ctx, Scene& scene, bool tile_mode);
+	void DrawNoiseThresholdGradient(EditorContext& ctx, bool tile_mode);
 	void DrawImportPopup(EditorContext& ctx);
 
 	void HandleShortcuts(EditorContext& ctx, Scene& scene);
@@ -536,7 +530,7 @@ private:
 	[[nodiscard]] bool CoveragePass(V2_int cell, V2_int first, V2_int last) const;
 	[[nodiscard]] float NoiseValue(V2_float world, const PaintNoiseState& noise) const;
 	[[nodiscard]] const PaintNoiseThreshold* ResolveNoiseThreshold(V2_float world) const;
-	[[nodiscard]] PaintGeneratorRecipe CaptureGeneratorRecipe(const SceneLayer& layer) const;
+	[[nodiscard]] PaintGeneratorRecipe CaptureGeneratorRecipe(bool tile_mode) const;
 
 	void DrawTileSourceBrowser(EditorContext& ctx, PaintTileSource& source);
 	bool DrawTileSourceCombo(
@@ -623,7 +617,6 @@ private:
 	float grid_minor_thickness_{ 1.0f };
 	float grid_major_thickness_{ 1.0f };
 
-	SceneLayerId active_layer_{};
 	std::optional<UUID> target_tilemap_{};
 	PrefabKey prefab_source_{};
 	PaintTileSource tile_source_{};
@@ -652,6 +645,9 @@ private:
 	std::optional<TextureKey> inspected_texture_{};
 	V2_int inspected_slice_{};
 	TileImportSettings import_settings_{};
+	bool import_tile_aspect_locked_{ true };
+	int import_tile_locked_ratio_width_{ 1 };
+	int import_tile_locked_ratio_height_{ 1 };
 	bool import_popup_requested_{};
 	std::string import_status_{};
 

@@ -1044,6 +1044,7 @@ void ContentBrowserPanel::OnRender(EditorContext& ctx) {
 void ContentBrowserPanel::DrawContentBrowser(EditorContext& ctx) {
 	InitializePreviewIcons(ctx);
 	DrawToolbar(ctx);
+	ImGui::Spacing();
 	ImGui::Separator();
 
 	if (ImGui::IsWindowHovered(ImGuiHoveredFlags_RootAndChildWindows)) {
@@ -1187,23 +1188,54 @@ void ContentBrowserPanel::DrawToolbar(EditorContext& ctx) {
 		}
 	}
 
-	float counter_width{ 58.0f };
-	float search_width{ std::max(120.0f, ImGui::GetContentRegionAvail().x - counter_width) };
+	// Leave enough space for the full label, even at the maximum row count.
+	std::string maximum_label{ std::format("{} / row", kMaxItemsPerRow) };
+	float counter_width{ std::max(
+		78.0f, ImGui::CalcTextSize(maximum_label.c_str()).x +
+				   ImGui::GetStyle().FramePadding.x * 2.0f + 6.0f
+	) };
+	float available_width{ ImGui::GetContentRegionAvail().x };
+	float search_width{
+		std::max(1.0f, available_width - counter_width - ImGui::GetStyle().ItemSpacing.x)
+	};
+
+	// Match the gap above the toolbar, rather than the smaller default row gap.
+	// The cursor already includes ItemSpacing.y after the button row.
+	float toolbar_gap{
+		std::max(0.0f, ImGui::GetStyle().WindowPadding.y - ImGui::GetStyle().ItemSpacing.y)
+	};
+	ImGui::SetCursorPosY(ImGui::GetCursorPosY() + toolbar_gap);
 	ImGui::SetNextItemWidth(search_width);
 	ImGui::InputTextWithHint("##asset_search", "Search assets...", &search_);
 	ImGui::SameLine();
-	ImGui::Button(
-		std::format("{} / row", settings.content_browser_items_per_row).c_str(),
-		ImVec2{ counter_width, 0.0f }
-	);
+
+	std::string row_label{ std::format("{} / row", settings.content_browser_items_per_row) };
+
+	if (ImGui::Button(row_label.c_str(), ImVec2{ counter_width, 0.0f })) {
+		ImGui::OpenPopup("##AssetItemsPerRow");
+	}
+
 	if (ImGui::IsItemHovered()) {
 		float wheel{ ImGui::GetIO().MouseWheel };
+
 		if (wheel != 0.0f) {
 			settings.content_browser_items_per_row = std::clamp(
 				settings.content_browser_items_per_row + (wheel > 0.0f ? 1 : -1), kMinItemsPerRow,
 				kMaxItemsPerRow
 			);
 		}
+
+		ImGui::SetTooltip("Click to set the number of items per row, or scroll to adjust.");
+	}
+
+	if (ImGui::BeginPopup("##AssetItemsPerRow")) {
+		ImGui::TextUnformatted("Items per row");
+		ImGui::SetNextItemWidth(160.0f);
+		ImGui::SliderInt(
+			"##AssetItemsPerRowValue", &settings.content_browser_items_per_row, kMinItemsPerRow,
+			kMaxItemsPerRow
+		);
+		ImGui::EndPopup();
 	}
 }
 
