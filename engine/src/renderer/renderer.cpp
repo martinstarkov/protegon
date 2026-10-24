@@ -696,13 +696,18 @@ void Renderer::ResetState() {
 void Renderer::BeginFrame() {
 	ResetState();
 
-	if (!presentation_viewport_.has_value()) {
-		auto presentation{ GetPresentationViewport() };
-		Color window_background_color{ window_.GetSettings().background_color };
-		auto _ = gl_->Bind(impl::FramebufferId{ 0 }, false);
-		gl_->SetClearColor(window_background_color);
-		SetViewport(presentation);
-		gl_->framebuffers.Clear();
+	{
+		auto _{ gl_->Bind(impl::FramebufferId{ 0 }, false) };
+		gl_->SetScissor(ScissorState{ false });
+		gl_->SetColorMask(ColorMaskState{});
+		gl_->SetClearColor(window_.GetSettings().background_color);
+
+		auto framebuffer_size{ window_.GetFramebufferSize() };
+
+		if (framebuffer_size.IsPositive()) {
+			gl_->SetViewport(Viewport{ .position{}, .size{ framebuffer_size } });
+			gl_->framebuffers.Clear();
+		}
 	}
 
 	SetFramebuffer(&presentation_framebuffer_);
