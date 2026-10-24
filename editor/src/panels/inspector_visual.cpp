@@ -2664,23 +2664,23 @@ template <typename Target>
 bool DrawVisualRenderMask(Target& target) {
 	if constexpr (
 		!Target::template Supports<::ptgn::impl::RenderMask>() ||
-		!Target::template Supports<::ptgn::impl::UILayer>() ||
+		!Target::template Supports<::ptgn::impl::UIRenderTag>() ||
 		!Target::template Supports<::ptgn::impl::RenderMaskOverride>()
 	) {
 		return false;
 	} else {
 		auto before_mask{ target.template Capture<::ptgn::impl::RenderMask>() };
-		auto before_ui{ target.template Capture<::ptgn::impl::UILayer>() };
+		auto before_ui{ target.template Capture<::ptgn::impl::UIRenderTag>() };
 		auto before_override{ target.template Capture<::ptgn::impl::RenderMaskOverride>() };
 
-		bool has_stack{ HasInspectorComponent<Target, UIStackData>(target) };
-		bool has_layer{ HasInspectorComponent<Target, UILayerData>(target) };
+		bool has_stack{ HasInspectorComponent<Target, GroupStackData>(target) };
+		bool has_layer{ HasInspectorComponent<Target, Group>(target) };
 		bool inherits_mask{ has_layer };
 		Entity entity{};
 
 		if constexpr (requires { target.entity; }) {
 			entity		   = target.entity;
-			inherits_mask |= entity && !has_stack && !has_layer && GetUILayer(entity);
+			inherits_mask |= entity && !has_stack && !has_layer && GetGroup(entity);
 		}
 
 		// Stack masks are mandatory. A layer or layer member uses its stack/layer
@@ -2691,12 +2691,6 @@ bool DrawVisualRenderMask(Target& target) {
 		if (entity && inherits_mask && !override_enabled) {
 			mask.bits	 = GetRenderMask(entity);
 			ui_rendering = IsUI(entity);
-		} else if (has_stack && !before_mask) {
-			mask.bits	 = kRenderMaskNone;
-			ui_rendering = true;
-		} else if (has_layer && !before_mask) {
-			mask.bits	 = kRenderMaskNone;
-			ui_rendering = true;
 		}
 
 		ScopedID target_scope{ target.Id() };
@@ -2713,11 +2707,11 @@ bool DrawVisualRenderMask(Target& target) {
 
 		if (!inherits_mask || override_enabled) {
 			target.template SetLive<::ptgn::impl::RenderMask>(mask);
-			ComponentState<::ptgn::impl::UILayer> ui_state;
+			ComponentState<::ptgn::impl::UIRenderTag> ui_state;
 			if (ui_rendering) {
-				ui_state = ::ptgn::impl::UILayer{};
+				ui_state = ::ptgn::impl::UIRenderTag{};
 			}
-			target.template SetLive<::ptgn::impl::UILayer>(ui_state);
+			target.template SetLive<::ptgn::impl::UIRenderTag>(ui_state);
 		}
 
 		if (inherits_mask) {
@@ -2730,10 +2724,10 @@ bool DrawVisualRenderMask(Target& target) {
 		}
 
 		auto after_mask{ target.template Capture<::ptgn::impl::RenderMask>() };
-		auto after_ui{ target.template Capture<::ptgn::impl::UILayer>() };
+		auto after_ui{ target.template Capture<::ptgn::impl::UIRenderTag>() };
 		auto after_override{ target.template Capture<::ptgn::impl::RenderMaskOverride>() };
 		auto apply_mask{ target.template MakeApply<::ptgn::impl::RenderMask>() };
-		auto apply_ui{ target.template MakeApply<::ptgn::impl::UILayer>() };
+		auto apply_ui{ target.template MakeApply<::ptgn::impl::UIRenderTag>() };
 		auto apply_override{ target.template MakeApply<::ptgn::impl::RenderMaskOverride>() };
 		ImGuiID key{ ImGui::GetID("##VisualRenderMaskEdit") };
 
@@ -2757,31 +2751,24 @@ bool DrawVisualRenderMask(Target& target) {
 }
 
 template <typename Target>
-bool DrawVisualUILayer(Target& target) {
+bool DrawVisualGroupEntity(Target& target) {
 	if constexpr (!requires { target.entity; }) {
 		return false;
 	} else {
 		Entity entity{ target.entity };
 
-		if (!entity || entity.HasAny<UIStackData, UILayerData>() || target.IsReadOnly()) {
+		if (!entity || entity.Has<GroupStackData>() || entity.Has<Group>() || target.IsReadOnly()) {
 			return false;
 		}
 
-		UILayer current{ GetUILayer(entity) };
-		UIStack current_stack{ GetUIStack(entity) };
-		std::string preview{ "None" };
+		GroupEntity current{ HasParent(entity) ? GetGroup(GetParent(entity)) : GroupEntity{} };
+		std::string preview{ current ? current.Get<Tag>().value : "None" };
 
-		if (current && current_stack) {
-			preview = std::string{ current.GetKey() };
-		} else if (current) {
-			preview = std::string{ current.GetKey() };
-		}
-
-		bool changed{ DrawPropertyRow("UI Layer", [&]() {
-			ScopedID id{ "EntityUILayer" };
+		bool changed{ DrawPropertyRow("Group", [&]() {
+			ScopedID id{ "EntityGroupEntity" };
 			ImGui::SetNextItemWidth(-FLT_MIN);
 
-			if (!ImGui::BeginCombo("##UILayer", preview.c_str())) {
+			if (!ImGui::BeginCombo("##GroupEntity", preview.c_str())) {
 				return false;
 			}
 
@@ -2798,18 +2785,16 @@ bool DrawVisualUILayer(Target& target) {
 
 			ImGui::EndDisabled();
 
-			for (auto [candidate, data] : entity.GetScene().EntitiesWith<UILayerData>()) {
-				UIStack stack{ GetUIStack(candidate) };
-
-				if (!stack) {
-					continue;
-				}
+			for (auto [candidate, group_data] : entity.GetScene().EntitiesWith<Group>()) {
+				GroupStack stack{ GetGroupStack(candidate) };
 
 				bool is_current{ current == candidate };
 				bool allowed{ is_current || (!target.ctx.editor.IsPlaying() &&
 											 !target.ctx.editor.IsDirectRuntime() &&
-											 CanAssignEntityToUILayer(entity, candidate)) };
-				std::string caption{ std::string{ stack.Get<Tag>() } + " / " + data.key };
+											 CanAssignEntityToGroup(entity, candidate)) };
+				std::string caption{ stack ? std::string{ stack.Get<Tag>() } + " / " +
+												 candidate.Get<Tag>().value
+										   : candidate.Get<Tag>().value };
 				ImGui::PushID(candidate.Get<UUID>());
 				ImGui::BeginDisabled(!allowed);
 
@@ -2827,7 +2812,7 @@ bool DrawVisualUILayer(Target& target) {
 		}) };
 
 		DrawTooltip(
-			"Assign this entity and its children to a UI layer by reparenting it. The same "
+			"Assign this entity and its children to a group by reparenting it. The same "
 			"operation is available by dragging in the hierarchy."
 		);
 		return changed;
@@ -2839,8 +2824,8 @@ bool DrawVisualOverlayOverride(Target& target) {
 	if constexpr (!Target::template Supports<OverlayOverride>()) {
 		return false;
 	} else {
-		if (HasInspectorComponent<Target, UIStackData>(target) ||
-			HasInspectorComponent<Target, UILayerData>(target)) {
+		if (HasInspectorComponent<Target, GroupStackData>(target) ||
+			HasInspectorComponent<Target, Group>(target)) {
 			return false;
 		}
 
@@ -2849,16 +2834,16 @@ bool DrawVisualOverlayOverride(Target& target) {
 		OverlayOverride value{ before.value_or(OverlayOverride{}) };
 		if (!enabled) {
 			if constexpr (requires { target.entity; }) {
-				UILayer layer{ GetUILayer(target.entity) };
+				GroupEntity layer{ GetGroup(target.entity) };
 				if (layer) {
-					value.overlay = layer.Get<UILayerData>().overlay;
+					value.overlay = layer.Get<Group>().overlay;
 				}
 			}
 		}
 
 		ScopedID target_scope{ target.Id() };
 		ScopedID overlay_scope{ "VisualOverlayOverride" };
-		bool changed{ DrawPropertyRow("UI Overlay Override", [&]() {
+		bool changed{ DrawPropertyRow("Group Overlay Override", [&]() {
 			bool row_changed{ ImGui::Checkbox("##UseOverlayOverride", &enabled) };
 			ImGui::SameLine(0.0f, ImGui::GetStyle().ItemInnerSpacing.x);
 			ImGui::BeginDisabled(!enabled);
@@ -2880,9 +2865,7 @@ bool DrawVisualOverlayOverride(Target& target) {
 			ImGui::EndDisabled();
 			return row_changed;
 		}) };
-		DrawTooltip(
-			"Override how this entity and its children behave when the UI layer is covered."
-		);
+		DrawTooltip("Override how this entity and its children behave when the group is covered.");
 
 		if (!changed) {
 			return false;
@@ -2933,16 +2916,16 @@ bool DrawRenderingOptions(Target& target, bool draw_tint) {
 	bool changed{ false };
 	ScopedIndent indent;
 
-	bool is_ui_layer{ HasInspectorComponent<Target, UILayerData>(target) };
+	bool is_ui_layer{ HasInspectorComponent<Target, Group>(target) };
 	bool uses_layer_preview{ false };
 	bool runtime_layer{ false };
-	UIStack preview_stack{};
-	UILayer preview_layer{};
+	GroupStack preview_stack{};
+	GroupEntity preview_layer{};
 
 	if constexpr (requires { target.entity; }) {
 		if (is_ui_layer && target.entity && target.entity.HasScene()) {
-			preview_layer = UILayer{ target.entity };
-			preview_stack = GetUIStack(target.entity);
+			preview_layer = GroupEntity{ target.entity };
+			preview_stack = GetGroupStack(target.entity);
 			runtime_layer = target.entity.GetScene().IsRuntime() || target.ctx.editor.IsPlaying() ||
 							target.ctx.editor.IsDirectRuntime();
 			uses_layer_preview = static_cast<bool>(preview_stack);
@@ -2953,17 +2936,18 @@ bool DrawRenderingOptions(Target& target, bool draw_tint) {
 		// Both the hierarchy eye and this eye read/write the same editor preview.
 		// During runtime, render the stack's effective state instead of allowing
 		// authored visibility to override the active navigation layer.
-		bool visible{ runtime_layer ? IsUIStackVisible(preview_layer)
-									: preview_stack.IsLayerPreviewVisible(preview_layer.GetKey()) };
+		bool visible{ runtime_layer ? IsGroupStackVisible(preview_layer)
+									: preview_stack.IsGroupPreviewVisible(preview_layer) };
 		bool visible_changed{ DrawPropertyRow("Visible", [&]() {
 			ImGui::BeginDisabled(runtime_layer || target.IsReadOnly());
 			bool clicked{ DrawEditorIconButton(
 				"##RendererVisible", visible ? EditorIcon::Visible : EditorIcon::Hidden,
 				EditorIconButtonOptions{
-					.tooltip = runtime_layer ? "Visibility is controlled by the UI stack in runtime"
-							 : visible		 ? "Hide UI layer in editor viewport"
-											 : "Show UI layer in editor viewport",
-					.muted	 = !visible,
+					.tooltip	 = runtime_layer
+									 ? "Visibility is controlled by the group stack in runtime"
+								 : visible ? "Hide group in editor viewport"
+										   : "Show group in editor viewport",
+					.muted		 = !visible,
 					.icon_extent = ImGui::GetTextLineHeight() + 2.0f,
 				}
 			) };
@@ -2972,7 +2956,7 @@ bool DrawRenderingOptions(Target& target, bool draw_tint) {
 		}) };
 
 		if (visible_changed && !runtime_layer) {
-			preview_stack.SetLayerPreviewVisible(preview_layer.GetKey(), !visible);
+			preview_stack.SetGroupPreviewVisible(preview_layer, !visible);
 		}
 
 		// Preview visibility is transient and must not mark the scene dirty.
@@ -3018,8 +3002,8 @@ bool DrawRenderingOptions(Target& target, bool draw_tint) {
 		changed |= visible_changed;
 	}
 
-	bool ui_container{ HasInspectorComponent<Target, UIStackData>(target) ||
-					   HasInspectorComponent<Target, UILayerData>(target) };
+	bool ui_container{ HasInspectorComponent<Target, GroupStackData>(target) ||
+					   HasInspectorComponent<Target, Group>(target) };
 	if (!ui_container) {
 		changed |= DrawImplicitDefaultVisualComponent<Target, BlendMode>(
 			target, "Blend Mode", BlendMode{},
@@ -3042,7 +3026,7 @@ bool DrawRenderingOptions(Target& target, bool draw_tint) {
 			);
 		}
 		changed |= DrawVisualRenderMask(target);
-		changed |= DrawVisualUILayer(target);
+		changed |= DrawVisualGroupEntity(target);
 		changed |= DrawVisualOverlayOverride(target);
 	}
 

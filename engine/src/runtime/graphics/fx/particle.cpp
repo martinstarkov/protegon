@@ -33,6 +33,7 @@
 #include "runtime/asset/asset_manager.h"
 #include "runtime/ecs/entity.h"
 #include "runtime/ecs/entity_creation_context.h"
+#include "runtime/ecs/group_stack.h"
 #include "runtime/ecs/tag.h"
 #include "runtime/graphics/draw.h"
 #include "runtime/graphics/fx/particle_event.h"
@@ -515,6 +516,9 @@ void ParticleEmitter::Draw(DrawContext& ctx, Entity entity) {
 
 void ParticleEmitter::Update(Scene& scene, secondsf dt) {
 	for (auto [entity, emitter] : scene.EntitiesWith<impl::ParticleEmitterData>()) {
+		if (!IsGroupStackActive(entity)) {
+			continue;
+		}
 		emitter.Update(ParticleEmitter{ entity }, dt);
 	}
 }

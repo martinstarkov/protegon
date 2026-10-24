@@ -219,45 +219,45 @@ struct DialogueSetPortraitScript : public Script {
 	PTGN_REFLECT(DialogueSetPortraitScript, slot, speaker, expression)
 };
 
-// Navigate the containing UI stack (or the stack selected by the action target).
-// Layer keys are stable IDs, independent of hierarchy entity names.
-struct UIStackPushScript : public Script {
-	std::string layer{};
+// Navigate the containing group stack (or the stack selected by the action target).
+// Group destinations are UUIDs of direct child entities, independent of display names.
+struct GroupStackPushScript : public Script {
+	UUID group{ 0 };
 	void OnStart() override;
-	PTGN_REFLECT(UIStackPushScript, layer)
+	PTGN_REFLECT(GroupStackPushScript, group)
 };
 
-struct UIStackPopScript : public Script {
+struct GroupStackPopScript : public Script {
 	void OnStart() override;
-	PTGN_REFLECT_EMPTY(UIStackPopScript)
+	PTGN_REFLECT_EMPTY(GroupStackPopScript)
 };
 
-struct UIStackReplaceScript : public Script {
-	std::string layer{};
+struct GroupStackReplaceScript : public Script {
+	UUID group{ 0 };
 	void OnStart() override;
-	PTGN_REFLECT(UIStackReplaceScript, layer)
+	PTGN_REFLECT(GroupStackReplaceScript, group)
 };
 
-struct UIStackPopToScript : public Script {
-	std::string layer{};
+struct GroupStackPopToScript : public Script {
+	UUID group{ 0 };
 	void OnStart() override;
-	PTGN_REFLECT(UIStackPopToScript, layer)
+	PTGN_REFLECT(GroupStackPopToScript, group)
 };
 
-struct UIStackSetScript : public Script {
-	std::string layer{};
+struct GroupStackSetScript : public Script {
+	UUID group{ 0 };
 	void OnStart() override;
-	PTGN_REFLECT(UIStackSetScript, layer)
+	PTGN_REFLECT(GroupStackSetScript, group)
 };
 
-struct UIStackResetScript : public Script {
+struct GroupStackResetScript : public Script {
 	void OnStart() override;
-	PTGN_REFLECT_EMPTY(UIStackResetScript)
+	PTGN_REFLECT_EMPTY(GroupStackResetScript)
 };
 
-struct UIStackClearScript : public Script {
+struct GroupStackClearScript : public Script {
 	void OnStart() override;
-	PTGN_REFLECT_EMPTY(UIStackClearScript)
+	PTGN_REFLECT_EMPTY(GroupStackClearScript)
 };
 
 } // namespace ptgn

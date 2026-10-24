@@ -1,5 +1,3 @@
-#include "runtime/ui/ui_stack.h"
-
 #include <array>
 #include <string>
 #include <string_view>
@@ -14,6 +12,7 @@
 #include "renderer/renderer.h"
 #include "runtime/asset/asset_manager.h"
 #include "runtime/ecs/entity_hierarchy.h"
+#include "runtime/ecs/group_stack.h"
 #include "runtime/ecs/tag.h"
 #include "runtime/graphics/draw.h"
 #include "runtime/graphics/shape.h"
@@ -145,8 +144,8 @@ Button MakeTextButton(
 	return button;
 }
 
-// UI Stack navigation through the new serializable ScriptSequence actions.
-// Without an explicit target, actions resolve the button's containing stack.
+// Group Stack navigation through serializable ScriptSequence actions.
+// Without an explicit target, actions resolve the button's containing Group Stack.
 enum class DemoNavigation {
 	Push,
 	Pop,
@@ -154,23 +153,22 @@ enum class DemoNavigation {
 };
 
 void AttachNavigation(
-	Button button, std::string_view description, DemoNavigation action,
-	std::string_view destination = {}
+	Button button, std::string_view description, DemoNavigation action, GroupEntity destination = {}
 ) {
 	ScriptSequence sequence{ std::string{ description } };
 	sequence.StartOn<event::ButtonPress>();
 
 	switch (action) {
 		case DemoNavigation::Push: {
-			UIStackPushScript script;
-			script.layer = destination;
+			GroupStackPushScript script;
+			script.group = destination ? destination.Get<UUID>() : UUID{ 0 };
 			sequence.Then(std::move(script));
 			break;
 		}
-		case DemoNavigation::Pop: sequence.Then(UIStackPopScript{}); break;
+		case DemoNavigation::Pop: sequence.Then(GroupStackPopScript{}); break;
 		case DemoNavigation::Set: {
-			UIStackSetScript script;
-			script.layer = destination;
+			GroupStackSetScript script;
+			script.group = destination ? destination.Get<UUID>() : UUID{ 0 };
 			sequence.Then(std::move(script));
 			break;
 		}
@@ -180,9 +178,9 @@ void AttachNavigation(
 	script.sequence = std::move(sequence);
 }
 
-void CreatePlanetDetails(Scene& scene, UIStack stack, const DemoPlanet& planet) {
-	UILayer screen{ stack.AddLayer(planet.screen) };
-
+void CreatePlanetDetails(
+	Scene& scene, GroupEntity screen, const DemoPlanet& planet, GroupEntity confirm
+) {
 	// Opening Confirm leaves this screen visible but prevents interactions.
 	screen.SetOverlayMode(OverlayMode::Disable);
 	screen.SetShowDisabledStyle(true);
@@ -203,11 +201,10 @@ void CreatePlanetDetails(Scene& scene, UIStack stack, const DemoPlanet& planet) 
 		MakeImageButton(scene, screen, "confirm_button", { -39.5f, 51.5f }, { 47.0f, 14.0f })
 	};
 	select.Add<OverlayOverride>(OverlayOverride{ OverlayMode::Hide });
-	AttachNavigation(select, "Confirm planet selection", DemoNavigation::Push, "Confirm");
+	AttachNavigation(select, "Confirm planet selection", DemoNavigation::Push, confirm);
 }
 
-void CreateSpeciesScreen(Scene& scene, UIStack stack) {
-	UILayer species{ stack.AddLayer("Species") };
+void CreateSpeciesScreen(Scene& scene, GroupEntity species) {
 	species.SetOverlayMode(OverlayMode::Hide);
 
 	MakeSprite(scene, species, "human_popup", { 0.0f, -1.0f });
@@ -225,8 +222,7 @@ void CreateSpeciesScreen(Scene& scene, UIStack stack) {
 	AttachNavigation(close, "Return to planet selection", DemoNavigation::Pop);
 }
 
-void CreateConfirmationScreen(Scene& scene, UIStack stack) {
-	UILayer confirm{ stack.AddLayer("Confirm") };
+void CreateConfirmationScreen(Scene& scene, GroupEntity confirm, GroupEntity complete) {
 	confirm.SetBlockBackgroundInput(true);
 	confirm.SetOverlayMode(OverlayMode::Hide);
 
@@ -247,26 +243,24 @@ void CreateConfirmationScreen(Scene& scene, UIStack stack) {
 	AttachNavigation(cancel, "Cancel and return to planet", DemoNavigation::Pop);
 
 	Button accept{ MakeTextButton(scene, confirm, "LAUNCH", { 46.0f, 23.0f }, { 72.0f, 18.0f }) };
-	AttachNavigation(accept, "Confirm destination", DemoNavigation::Set, "Complete");
+	AttachNavigation(accept, "Confirm destination", DemoNavigation::Set, complete);
 }
 
-void CreateCompletionScreen(Scene& scene, UIStack stack) {
-	UILayer complete{ stack.AddLayer("Complete") };
-
+void CreateCompletionScreen(Scene& scene, GroupEntity complete, GroupEntity choose) {
 	MakeSprite(scene, complete, "human_popup", { 0.0f, -1.0f });
 	MakeText(scene, complete, "DESTINATION SELECTED", { 0.0f, -25.0f }, 10.0f);
 	MakeText(scene, complete, "Your expedition is ready!", { 0.0f, -5.0f }, 7.0f);
-	MakeText(scene, complete, "This demo uses UI Stack navigation.", { 0.0f, 13.0f }, 5.0f);
+	MakeText(scene, complete, "This demo uses Group Stack navigation.", { 0.0f, 13.0f }, 5.0f);
 
 	Button restart{
 		MakeImageButton(scene, complete, "back_button", { 0.0f, 46.0f }, { 48.0f, 25.0f })
 	};
-	AttachNavigation(restart, "Choose another planet", DemoNavigation::Set, "Choose");
+	AttachNavigation(restart, "Choose another planet", DemoNavigation::Set, choose);
 }
 
 } // namespace
 
-class UIStackDemoScene : public Scene {
+class GroupStackDemoScene : public Scene {
 public:
 	void OnNew() override {
 		LoadAssets(*this);
@@ -278,19 +272,29 @@ public:
 		// The star field is shared by all screens and is never hidden.
 		MakeSprite(*this, {}, "space_background", { 0.0f, 0.0f }, -100.0f);
 
-		UIStack stack{ CreateUIStack(*this) };
-		UILayer choose{ stack.AddLayer("Choose") };
+		GroupStack stack{ CreateGroupStack(*this) };
+		GroupEntity choose{ stack.AddGroup("Choose") };
 		choose.SetOverlayMode(OverlayMode::Hide);
-		stack.SetInitialLayer("Choose");
+		stack.SetInitialGroup(choose);
+
+		// Create the direct child groups before wiring navigation actions.
+		GroupEntity species{ stack.AddGroup("Species") };
+		GroupEntity confirm{ stack.AddGroup("Confirm") };
+		GroupEntity complete{ stack.AddGroup("Complete") };
+		std::array<GroupEntity, kPlanets.size()> planet_groups{};
+		for (std::size_t i{}; i < kPlanets.size(); ++i) {
+			planet_groups[i] = stack.AddGroup(kPlanets[i].screen);
+		}
 
 		// This is the entire interactive planet selection screen. No manual
 		// Show(), Hide(), Enable(), or Disable() calls are required.
-		for (const auto& planet : kPlanets) {
+		for (std::size_t i{}; i < kPlanets.size(); ++i) {
+			const auto& planet{ kPlanets[i] };
 			MakeSprite(*this, choose, "planet_glow", { planet.x, 0.0f }, 1.0f);
 			Button button{ MakeImageButton(
 				*this, choose, planet.texture, { planet.x, 0.0f }, { 60.0f, 60.0f }, 2.0f
 			) };
-			AttachNavigation(button, "Open planet details", DemoNavigation::Push, planet.screen);
+			AttachNavigation(button, "Open planet details", DemoNavigation::Push, planet_groups[i]);
 		}
 
 		Button species_button{
@@ -299,14 +303,14 @@ public:
 		MakeText(
 			*this, species_button, "Species Traits", { 0.0f, 0.0f }, 6.0f, Origin::Center, 1.0f
 		);
-		AttachNavigation(species_button, "Open species traits", DemoNavigation::Push, "Species");
+		AttachNavigation(species_button, "Open species traits", DemoNavigation::Push, species);
 
-		CreateSpeciesScreen(*this, stack);
-		for (const auto& planet : kPlanets) {
-			CreatePlanetDetails(*this, stack, planet);
+		CreateSpeciesScreen(*this, species);
+		for (std::size_t i{}; i < kPlanets.size(); ++i) {
+			CreatePlanetDetails(*this, planet_groups[i], kPlanets[i], confirm);
 		}
-		CreateConfirmationScreen(*this, stack);
-		CreateCompletionScreen(*this, stack);
+		CreateConfirmationScreen(*this, confirm, complete);
+		CreateCompletionScreen(*this, complete, choose);
 	}
 
 	void OnLoad() override {
@@ -315,12 +319,12 @@ public:
 	}
 };
 
-PTGN_REGISTER_SCENE(UIStackDemoScene);
+PTGN_REGISTER_SCENE(GroupStackDemoScene);
 
 int main(int, char**) {
-	Application app{ "UI Stack Demo", { 1280, 720 } };
+	Application app{ "Group Stack Demo", { 1280, 720 } };
 
 	PTGN_WITH_EDITOR(app, true);
 
-	app.StartProject<UIStackDemoScene>("UIStackProject/UIStack.ptgnproj");
+	app.StartProject<GroupStackDemoScene>("UIStackProject/UIStack.ptgnproj");
 }

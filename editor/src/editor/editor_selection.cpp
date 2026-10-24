@@ -17,7 +17,7 @@
 #include "panels/scene_list.h"
 #include "runtime/scene/scene.h"
 #include "runtime/scene/scene_manager.h"
-#include "runtime/world/entity_layer.h"
+#include "runtime/world/tilemap.h"
 
 namespace ptgn::editor {
 
@@ -153,6 +153,18 @@ void ApplyEditorSelection(EditorContext& ctx, EditorSelection selection) {
 	ctx.local.selection = std::move(selection);
 
 	Scene* next_scene{ ResolveSelectedScene(ctx) };
+	// The active Tilemap is always the selected scene entity, never a hidden
+	// layer selection or a previously selected map. Undo and viewport selection
+	// changes also pass through this function.
+	Entity selected{ ResolveSelectedEntity(ctx) };
+	std::optional<UUID> tilemap_uuid{ selected && IsTilemap(selected)
+										  ? std::optional<UUID>{ selected.Get<UUID>() }
+										  : std::nullopt };
+	auto& paint{ ctx.editor.GetPaintEditor() };
+	if (paint.GetTargetTilemapUUID() != tilemap_uuid) {
+		paint.SetTargetTilemap(tilemap_uuid);
+	}
+
 	ctx.editor.GetSceneListPanel().RefreshSelectedSceneState();
 
 	if (previous_scene != next_scene) {
@@ -219,34 +231,6 @@ std::unordered_map<EditorContext*, EditorSelectionMode>& PendingPrimaryInspector
 	return pending;
 }
 
-void SelectPaintLayerForTab(EditorContext& ctx, EditorSelectionMode tab) {
-	if (tab == EditorSelectionMode::SceneHierarchy) {
-		return;
-	}
-
-	Scene* scene{ ctx.editor.GetSceneListPanel().GetSelectedScene() };
-	if (!scene) {
-		return;
-	}
-
-	auto& paint{ ctx.editor.GetPaintEditor() };
-	const auto& layers{ scene->GetLayers() };
-	SceneLayerKind kind{ tab == EditorSelectionMode::Tiles ? SceneLayerKind::Tile
-														   : SceneLayerKind::Entity };
-
-	if (const SceneLayer* current{ layers.Find(paint.GetActiveLayer(*scene)) };
-		current && current->kind == kind) {
-		return;
-	}
-
-	for (const SceneLayer& layer : layers.GetLayers()) {
-		if (layer.kind == kind) {
-			paint.SetActiveLayer(*scene, layer.id);
-			return;
-		}
-	}
-}
-
 } // namespace
 
 void RequestPrimaryInspector(EditorContext& ctx, EditorSelectionMode mode) {
@@ -267,7 +251,6 @@ std::optional<EditorSelectionMode> ConsumePrimaryInspectorRequest(EditorContext&
 
 bool SetSceneHierarchyTab(EditorContext& ctx, EditorSelectionMode tab) {
 	if (ctx.local.selection.mode == tab) {
-		SelectPaintLayerForTab(ctx, tab);
 		return false;
 	}
 
@@ -275,7 +258,6 @@ bool SetSceneHierarchyTab(EditorContext& ctx, EditorSelectionMode tab) {
 	EditorSelection selection{ ctx.local.selection };
 	selection.mode = tab;
 	ApplyEditorSelection(ctx, std::move(selection));
-	SelectPaintLayerForTab(ctx, tab);
 	return true;
 }
 

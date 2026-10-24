@@ -20,6 +20,7 @@
 #include "runtime/ecs/entity.h"
 #include "runtime/ecs/entity_filter.h"
 #include "runtime/ecs/entity_hierarchy.h"
+#include "runtime/ecs/group_stack.h"
 #include "runtime/graphics/render_queue.h"
 #include "runtime/graphics/shape.h"
 #include "runtime/physics/bounding_aabb.h"
@@ -547,6 +548,9 @@ void CollisionHandler::Update(Scene& scene, secondsf dt) {
 
 	for (auto [entity, collider] : scene.EntitiesWith<Collider>()) {
 		collider.ResetContainers();
+		if (!IsGroupStackActive(entity)) {
+			continue;
+		}
 		auto transform{ GetWorldTransform(entity) };
 		transform = OffsetByOrigin(collider.shape, transform, entity);
 		auto bounding_aabb{ GetBoundingAABB(collider.shape, transform) };
@@ -591,7 +595,7 @@ void CollisionHandler::Update(Scene& scene, secondsf dt) {
 	}
 
 	for (auto [entity, collider, _scripts] : scene.EntitiesWith<Collider, impl::Scripts>()) {
-		if (collider.mode != CollisionMode::Overlap) {
+		if (!IsGroupStackActive(entity) || collider.mode != CollisionMode::Overlap) {
 			continue;
 		}
 		for (const auto& current : collider.overlaps_) {

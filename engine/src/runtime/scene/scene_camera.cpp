@@ -19,12 +19,12 @@
 #include "runtime/ecs/entity.h"
 #include "runtime/ecs/entity_creation_context.h"
 #include "runtime/ecs/entity_hierarchy.h"
+#include "runtime/ecs/group_stack.h"
 #include "runtime/ecs/tag.h"
 #include "runtime/graphics/draw.h"
 #include "runtime/graphics/render_target.h"
 #include "runtime/scene/scene.h"
 #include "runtime/scene/scene_context.h"
-#include "runtime/ui/ui_stack.h"
 
 namespace ptgn {
 
@@ -401,16 +401,21 @@ void SetUI(Entity entity, bool ui_rendering) {
 	}
 
 	if (ui_rendering) {
-		entity.TryAdd<impl::UILayer>();
+		entity.TryAdd<impl::UIRenderTag>();
 		entity.TryAdd<impl::RenderMask>().bits = kRenderMaskNone;
 	} else {
-		entity.Remove<impl::UILayer>();
+		entity.Remove<impl::UIRenderTag>();
 		entity.TryAdd<impl::RenderMask>().bits = impl::RenderMask{}.bits;
 	}
 
-	// SetUI is also called when UI controls build their managed visuals.
-	// Those controls inherit unless this explicitly differs from their layer.
-	UILayer layer{ GetUILayer(entity) };
+	// Group entities inherit the parent render mode unless explicitly overridden.
+	if (entity.Has<Group>() && HasParent(entity) && !entity.Has<impl::RenderMaskOverride>() &&
+		ui_rendering != IsUI(GetParent(entity))) {
+		entity.TryAdd<impl::RenderMaskOverride>();
+	}
+
+	// Managed controls inside a group inherit that group unless overridden.
+	GroupEntity layer{ GetGroup(entity) };
 	if (layer && layer != entity && !entity.Has<impl::RenderMaskOverride>() &&
 		ui_rendering != IsUI(layer)) {
 		entity.TryAdd<impl::RenderMaskOverride>();
@@ -422,23 +427,22 @@ bool IsUI(Entity entity) {
 		return false;
 	}
 
-	UILayer layer{ GetUILayer(entity) };
-	if (layer && layer != entity) {
-		return entity.Has<impl::RenderMaskOverride>() ? entity.Has<impl::UILayer>() : IsUI(layer);
+	if (entity.Has<Group>() && HasParent(entity) && !entity.Has<impl::RenderMaskOverride>()) {
+		return IsUI(GetParent(entity));
 	}
 
-	UIStack stack{ GetUIStack(entity) };
+	GroupEntity layer{ GetGroup(entity) };
+	if (layer && layer != entity) {
+		return entity.Has<impl::RenderMaskOverride>() ? entity.Has<impl::UIRenderTag>()
+													  : IsUI(layer);
+	}
+
+	GroupStack stack{ GetGroupStack(entity) };
 	if (layer && stack && layer == entity && !layer.Has<impl::RenderMaskOverride>()) {
 		return IsUI(stack);
 	}
 
-	// Older saved stacks may not yet have a RenderMask component. Treat them
-	// as UI rendered until the stack's mandatory mask is explicitly authored.
-	if (entity.Has<UIStackData>() && !entity.Has<impl::RenderMask>()) {
-		return true;
-	}
-
-	return entity.Has<impl::UILayer>();
+	return entity.Has<impl::UIRenderTag>();
 }
 
 RenderMaskBits GetRenderMask(Entity entity) {
@@ -446,19 +450,19 @@ RenderMaskBits GetRenderMask(Entity entity) {
 		return kRenderMaskDefault;
 	}
 
-	UILayer layer{ GetUILayer(entity) };
+	if (entity.Has<Group>() && HasParent(entity) && !entity.Has<impl::RenderMaskOverride>()) {
+		return GetRenderMask(GetParent(entity));
+	}
+
+	GroupEntity layer{ GetGroup(entity) };
 	if (layer && layer != entity) {
 		return entity.Has<impl::RenderMaskOverride>() ? entity.GetOrDefault<impl::RenderMask>().bits
 													  : GetRenderMask(layer);
 	}
 
-	UIStack stack{ GetUIStack(entity) };
+	GroupStack stack{ GetGroupStack(entity) };
 	if (layer && stack && layer == entity && !layer.Has<impl::RenderMaskOverride>()) {
 		return GetRenderMask(stack);
-	}
-
-	if (entity.Has<UIStackData>() && !entity.Has<impl::RenderMask>()) {
-		return kRenderMaskNone;
 	}
 
 	return entity.GetOrDefault<impl::RenderMask>().bits;
@@ -470,7 +474,7 @@ void SetRenderMask(Entity entity, RenderMaskBits mask) {
 	}
 
 	entity.TryAdd<impl::RenderMask>().bits = mask;
-	if (GetUILayer(entity)) {
+	if (GetGroup(entity)) {
 		entity.TryAdd<impl::RenderMaskOverride>();
 	}
 }
@@ -488,15 +492,15 @@ void ClearRenderMask(Entity entity) {
 	entity.Remove<impl::RenderMaskOverride>();
 }
 
-void PrepareUILayerRenderMaskReparent(Entity entity, Entity new_parent) {
-	if (!entity || !new_parent || entity.Has<impl::RenderMaskOverride>() || GetUILayer(entity) ||
-		!GetUILayer(new_parent)) {
+void PrepareGroupEntityRenderMaskReparent(Entity entity, Entity new_parent) {
+	if (!entity || !new_parent || entity.Has<impl::RenderMaskOverride>() || GetGroup(entity) ||
+		!GetGroup(new_parent)) {
 		return;
 	}
 
 	// Existing UI controls use None + UI rendering as their natural default.
 	// Other entities use the default (bit zero) as their natural default.
-	bool ui_rendering{ entity.Has<impl::UILayer>() };
+	bool ui_rendering{ entity.Has<impl::UIRenderTag>() };
 	RenderMaskBits mask{ entity.GetOrDefault<impl::RenderMask>().bits };
 	RenderMaskBits default_mask{ ui_rendering ? kRenderMaskNone : kRenderMaskDefault };
 

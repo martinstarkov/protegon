@@ -10,6 +10,7 @@
 #include "core/assert.h"
 #include "core/math/math_utils.h"
 #include "runtime/ecs/entity_filter.h"
+#include "runtime/ecs/group_stack.h"
 #include "runtime/scene/scene.h"
 #include "runtime/scene/scene_context.h"
 #include "runtime/scripting/script_event.h"
@@ -1347,6 +1348,9 @@ void ApplyPending(Scene& scene) {
 void Update(Scene& scene, secondsf dt) {
 	auto entities{ scene.EntitiesWith<impl::Scripts>().GetVector() };
 	for (Entity entity : entities) {
+		if (!IsGroupStackActive(entity)) {
+			continue;
+		}
 		auto* scripts{ entity.TryGet<impl::Scripts>() };
 		if (!scripts) {
 			continue;
@@ -1371,7 +1375,7 @@ void Update(Scene& scene, secondsf dt) {
 }
 
 bool DispatchEvent(Entity entity, Event event) {
-	if (!entity || !entity.Has<impl::Scripts>()) {
+	if (!entity || !entity.Has<impl::Scripts>() || !IsGroupStackActive(entity)) {
 		return false;
 	}
 	auto& scripts{ entity.Get<impl::Scripts>() };
@@ -1393,6 +1397,9 @@ bool DispatchEvent(Entity entity, Event event) {
 bool DispatchGlobalEvent(Scene& scene, Event event) {
 	auto entities{ scene.EntitiesWith<impl::Scripts>().GetVector() };
 	for (Entity entity : entities) {
+		if (!IsGroupStackActive(entity)) {
+			continue;
+		}
 		auto* scripts{ entity.TryGet<impl::Scripts>() };
 		if (!scripts) {
 			continue;

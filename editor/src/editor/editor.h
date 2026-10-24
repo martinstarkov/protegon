@@ -182,10 +182,10 @@ public:
 	std::optional<path> GetProjectRoot() const;
 
 private:
-	struct UILayerPreviewSnapshot {
+	struct GroupPreviewSnapshot {
 		std::string scene_key{};
 		UUID stack_uuid{};
-		std::vector<std::string> visible_layers{};
+		std::vector<UUID> visible_groups{};
 	};
 
 	struct PlaySnapshot {
@@ -194,7 +194,7 @@ private:
 		bool was_untracked_project_dirty{ false };
 		EditorProjectState project_state_before_play{};
 		bool screen_effect_preview_before_play{ true };
-		std::vector<UILayerPreviewSnapshot> layer_previews{};
+		std::vector<GroupPreviewSnapshot> layer_previews{};
 	};
 
 	void StopDirectRuntime();

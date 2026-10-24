@@ -10,6 +10,7 @@
 #include "core/math/vector2.h"
 #include "core/util/time.h"
 #include "runtime/ecs/entity.h"
+#include "runtime/ecs/group_stack.h"
 #include "runtime/physics/movement.h"
 #include "runtime/physics/platformer_event.h"
 #include "runtime/physics/platformer_grounding.h"
@@ -103,11 +104,17 @@ void Physics::PreCollisionUpdate() const {
 
 	for (auto [entity, transform, rigid_body, movement] :
 		 scene_->EntitiesWith<Transform, RigidBody, TopDownMovement>()) {
+		if (!IsGroupStackActive(entity)) {
+			continue;
+		}
 		movement.Update(entity, transform, rigid_body, frame_dt);
 	}
 
 	for (auto [entity, transform, rigid_body, movement] :
 		 scene_->EntitiesWith<Transform, RigidBody, PlatformerMovement>()) {
+		if (!IsGroupStackActive(entity)) {
+			continue;
+		}
 		movement.Update(*scene_, transform, rigid_body, frame_dt);
 
 		PlatformerJumpContext context{
@@ -123,6 +130,9 @@ void Physics::PreCollisionUpdate() const {
 	}
 
 	for (auto [entity, rigid_body] : scene_->EntitiesWith<RigidBody>()) {
+		if (!IsGroupStackActive(entity)) {
+			continue;
+		}
 		rigid_body.Update(gravity_, frame_dt);
 	}
 }
@@ -136,6 +146,9 @@ void Physics::PostCollisionUpdate() const {
 	PTGN_ASSERT(scene_);
 
 	for (auto [entity, transform, rigid_body] : scene_->EntitiesWith<Transform, RigidBody>()) {
+		if (!IsGroupStackActive(entity)) {
+			continue;
+		}
 		transform.Translate(rigid_body.velocity * dt.count());
 		transform.Rotate(rigid_body.angular_velocity * dt.count());
 		transform.ClampRotation();

@@ -43,6 +43,7 @@
 #include "runtime/audio/audio_system.h"
 #include "runtime/ecs/component_registry.h"
 #include "runtime/ecs/entity_filter.h"
+#include "runtime/ecs/group_stack.h"
 #include "runtime/graphics/fx/effect_registry.h"
 #include "runtime/interaction/draggable_event.h"
 #include "runtime/interaction/dropzone_event.h"
@@ -62,7 +63,6 @@
 #include "runtime/ui/slider.h"
 #include "runtime/ui/toggle_button.h"
 #include "runtime/ui/tooltip.h"
-#include "runtime/ui/ui_stack.h"
 #include "scripting/script_registration_editor.h"
 
 namespace ptgn::editor {
@@ -2464,7 +2464,7 @@ bool DrawSingleScriptValue(EditorContext& context, T& script) {
 // Their fields are exposed through the same reflected Inspector layout as components.
 // Reflection determines whether a script can fit in one action row.
 // Group and label information is defined only in the editor registrations below.
-bool DrawUILayerActionKey(ScriptEditorContext& context, std::string& layer) {
+bool DrawGroupEntityActionKey(ScriptEditorContext& context, UUID& group) {
 	Entity owner{ context.owner };
 	Entity target{ owner };
 	if (owner && context.sequence_target_filter && *context.sequence_target_filter) {
@@ -2475,28 +2475,38 @@ bool DrawUILayerActionKey(ScriptEditorContext& context, std::string& layer) {
 			target = matches.front();
 		}
 	}
-	UIStack stack{};
-	if (target && target.Has<UIStackData>()) {
-		stack = UIStack{ target };
+
+	GroupStack stack{};
+	if (target && target.Has<GroupStackData>()) {
+		stack = GroupStack{ target };
 	} else if (target) {
-		stack = GetUIStack(target);
+		stack = GetGroupStack(target);
 	}
+
 	if (!stack && owner) {
-		stack = GetUIStack(owner);
+		stack = GetGroupStack(owner);
 	}
-	ImGui::SetNextItemWidth(-FLT_MIN);
+
 	if (!stack) {
-		return ImGui::InputTextWithHint("##UILayerKey", "Layer key", &layer);
+		ImGui::TextDisabled("Select a Group Stack target");
+		return false;
 	}
+
+	GroupEntity selected{ stack.GetGroup(group) };
+	std::string preview{ selected && selected.Has<Tag>() ? selected.Get<Tag>().value
+														 : "Select group" };
 	bool changed{ false };
-	const char* preview{ layer.empty() ? "Select layer" : layer.c_str() };
-	if (ImGui::BeginCombo("##UILayerKey", preview)) {
-		for (UILayer candidate : stack.GetLayers()) {
-			std::string key{ candidate.GetKey() };
-			if (ImGui::Selectable(key.c_str(), key == layer)) {
-				layer	= key;
+	ImGui::SetNextItemWidth(-FLT_MIN);
+	if (ImGui::BeginCombo("##GroupEntity", preview.c_str())) {
+		for (GroupEntity candidate : stack.GetGroups()) {
+			std::string label{ candidate.Has<Tag>() ? candidate.Get<Tag>().value : "Group" };
+			UUID candidate_id{ candidate.Get<UUID>() };
+			ImGui::PushID(candidate_id);
+			if (ImGui::Selectable(label.c_str(), candidate_id == group)) {
+				group	= candidate_id;
 				changed = true;
 			}
+			ImGui::PopID();
 		}
 		ImGui::EndCombo();
 	}
@@ -2505,8 +2515,8 @@ bool DrawUILayerActionKey(ScriptEditorContext& context, std::string& layer) {
 
 template <typename T>
 bool DrawTypedActionInline(ScriptEditorContext& context, T& script) {
-	if constexpr (requires { script.layer; }) {
-		return DrawUILayerActionKey(context, script.layer);
+	if constexpr (requires { script.group; }) {
+		return DrawGroupEntityActionKey(context, script.group);
 	} else if constexpr (std::is_same_v<T, SetUITextScript>) {
 		ImGui::SetNextItemWidth(-FLT_MIN);
 		return ImGui::InputText("##Content", &script.content);
@@ -5459,50 +5469,50 @@ PTGN_REGISTER_SCRIPT(
 								 }
 );
 PTGN_REGISTER_SCRIPT(
-	UIStackPushScript, { .label		  = "Push Layer",
-						 .group		  = "UI/Stack",
-						 .description = "Open a layer on top of the current layer.",
-						 .type		  = ScriptType::Sequence,
-						 .draw_inline = &DrawTypedActionInline<UIStackPushScript> }
-);
-PTGN_REGISTER_SCRIPT(
-	UIStackPopScript, { .label		 = "Pop Layer",
-						.group		 = "UI/Stack",
-						.description = "Close the top layer and restore the previous one.",
-						.type		 = ScriptType::Sequence }
-);
-PTGN_REGISTER_SCRIPT(
-	UIStackReplaceScript, { .label		 = "Replace Layer",
-							.group		 = "UI/Stack",
-							.description = "Replace the top layer.",
+	GroupStackPushScript, { .label		 = "Push Group",
+							.group		 = "Groups/Stack",
+							.description = "Open a group on top of the current group.",
 							.type		 = ScriptType::Sequence,
-							.draw_inline = &DrawTypedActionInline<UIStackReplaceScript> }
+							.draw_inline = &DrawTypedActionInline<GroupStackPushScript> }
 );
 PTGN_REGISTER_SCRIPT(
-	UIStackPopToScript, { .label	   = "Pop To Layer",
-						  .group	   = "UI/Stack",
-						  .description = "Return to a layer already in the stack.",
-						  .type		   = ScriptType::Sequence,
-						  .draw_inline = &DrawTypedActionInline<UIStackPopToScript> }
+	GroupStackPopScript, { .label		= "Pop Group",
+						   .group		= "Groups/Stack",
+						   .description = "Close the top group and restore the previous one.",
+						   .type		= ScriptType::Sequence }
 );
 PTGN_REGISTER_SCRIPT(
-	UIStackSetScript, { .label		 = "Set Layer",
-						.group		 = "UI/Stack",
-						.description = "Clear history and activate the chosen layer.",
-						.type		 = ScriptType::Sequence,
-						.draw_inline = &DrawTypedActionInline<UIStackSetScript> }
+	GroupStackReplaceScript, { .label		= "Replace Group",
+							   .group		= "Groups/Stack",
+							   .description = "Replace the top group.",
+							   .type		= ScriptType::Sequence,
+							   .draw_inline = &DrawTypedActionInline<GroupStackReplaceScript> }
 );
 PTGN_REGISTER_SCRIPT(
-	UIStackResetScript, { .label	   = "Reset Stack",
-						  .group	   = "UI/Stack",
-						  .description = "Return to the initial layer.",
-						  .type		   = ScriptType::Sequence }
+	GroupStackPopToScript, { .label		  = "Pop To Group",
+							 .group		  = "Groups/Stack",
+							 .description = "Return to a group already in the stack.",
+							 .type		  = ScriptType::Sequence,
+							 .draw_inline = &DrawTypedActionInline<GroupStackPopToScript> }
 );
 PTGN_REGISTER_SCRIPT(
-	UIStackClearScript, { .label	   = "Clear Stack",
-						  .group	   = "UI/Stack",
-						  .description = "Clear stack navigation.",
-						  .type		   = ScriptType::Sequence }
+	GroupStackSetScript, { .label		= "Set Group",
+						   .group		= "Groups/Stack",
+						   .description = "Clear history and activate the chosen group.",
+						   .type		= ScriptType::Sequence,
+						   .draw_inline = &DrawTypedActionInline<GroupStackSetScript> }
+);
+PTGN_REGISTER_SCRIPT(
+	GroupStackResetScript, { .label		  = "Reset Stack",
+							 .group		  = "Groups/Stack",
+							 .description = "Return to the initial group.",
+							 .type		  = ScriptType::Sequence }
+);
+PTGN_REGISTER_SCRIPT(
+	GroupStackClearScript, { .label		  = "Clear Stack",
+							 .group		  = "Groups/Stack",
+							 .description = "Clear stack navigation.",
+							 .type		  = ScriptType::Sequence }
 );
 
 PTGN_REGISTER_SCRIPT(

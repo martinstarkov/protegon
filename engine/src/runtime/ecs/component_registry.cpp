@@ -17,6 +17,8 @@
 #include "runtime/ecs/component_registration.h"
 #include "runtime/ecs/entity_group.h"
 #include "runtime/ecs/entity_hierarchy.h"
+#include "runtime/ecs/group_stack.h"
+#include "runtime/ecs/tag.h"
 #include "runtime/graphics/custom_shader.h"
 #include "runtime/graphics/drawable.h"
 #include "runtime/graphics/fx/bloom.h"
@@ -49,7 +51,6 @@
 #include "runtime/ui/slider.h"
 #include "runtime/ui/toggle_button.h"
 #include "runtime/ui/tooltip.h"
-#include "runtime/ui/ui_stack.h"
 #include "runtime/world/paint_generator.h"
 #include "runtime/world/tilemap.h"
 
@@ -62,6 +63,7 @@ PTGN_REGISTER_COMPONENT(impl::Booleans);
 PTGN_REGISTER_COMPONENT(impl::Scripts);
 PTGN_REGISTER_COMPONENT(impl::ParentRenderTarget);
 PTGN_REGISTER_COMPONENT(Group);
+PTGN_REGISTER_COMPONENT(Tags);
 PTGN_REGISTER_COMPONENT(PrefabInstance);
 
 PTGN_REGISTER_COMPONENT(impl::TextData);
@@ -107,8 +109,7 @@ PTGN_REGISTER_COMPONENT(AudioKey);
 PTGN_REGISTER_COMPONENT(ShaderKey);
 PTGN_REGISTER_COMPONENT(JsonKey);
 
-PTGN_REGISTER_COMPONENT(UIStackData);
-PTGN_REGISTER_COMPONENT(UILayerData);
+PTGN_REGISTER_COMPONENT(GroupStackData);
 PTGN_REGISTER_COMPONENT(OverlayOverride);
 PTGN_REGISTER_COMPONENT(impl::ButtonData);
 PTGN_REGISTER_COMPONENT(impl::HiddenButtonPart);
@@ -162,7 +163,7 @@ PTGN_REGISTER_COMPONENT(impl::CameraData);
 PTGN_REGISTER_COMPONENT(impl::ClearColor);
 PTGN_REGISTER_COMPONENT(impl::ClearDepth);
 PTGN_REGISTER_COMPONENT(impl::ClearStencil);
-PTGN_REGISTER_COMPONENT(impl::UILayer);
+PTGN_REGISTER_COMPONENT(impl::UIRenderTag);
 PTGN_REGISTER_COMPONENT(Material);
 
 PTGN_REGISTER_COMPONENT(impl::TextureSize);

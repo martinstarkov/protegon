@@ -123,7 +123,6 @@ bool DrawAddComponentMenu(Target& target) {
 	bool can_add_utility{ CanAddComponentItem<::ptgn::impl::Timers>(target) ||
 						  CanAddComponentItem<::ptgn::impl::Counters>(target) ||
 						  CanAddComponentItem<::ptgn::impl::Booleans>(target) ||
-						  CanAddComponentItem<Group>(target) ||
 						  CanAddComponentItem<Lifetime>(target) };
 	if (!can_add_utility) {
 		const auto& style{ ImGui::GetStyle() };
@@ -137,7 +136,6 @@ bool DrawAddComponentMenu(Target& target) {
 		changed |= DrawAddComponentItem<::ptgn::impl::Timers>(target, "Timers");
 		changed |= DrawAddComponentItem<::ptgn::impl::Counters>(target, "Counters");
 		changed |= DrawAddComponentItem<::ptgn::impl::Booleans>(target, "Booleans");
-		changed |= DrawAddComponentItem<Group>(target, "Groups");
 		changed |= DrawAddComponentItem<Lifetime>(target, "Lifetime");
 		ImGui::EndMenu();
 	}
@@ -506,11 +504,8 @@ bool DrawPaintGeneratorArchetype(Target& target, bool& stop_after_archetype) {
 		}
 
 		ImGui::Separator();
-		auto generator_layer_id{ entity.GetScene().GetLayers().GetLayerId(entity) };
-		const SceneLayer* generator_layer{
-			generator_layer_id ? entity.GetScene().GetLayers().Find(*generator_layer_id) : nullptr
-		};
-		bool missing_tilemap{ generator_layer && generator_layer->kind == SceneLayerKind::Tile &&
+		// A generator bound to a Tilemap is a tile generator; no tile layer exists.
+		bool missing_tilemap{ HasParent(entity) && IsTilemap(GetParent(entity)) &&
 							  !PaintGenerator{ entity }.GetTargetTilemap() };
 		ImGui::BeginDisabled(data.geometry == PaintGeneratorGeometry::Infinite || missing_tilemap);
 		if (ImGui::Button("Bake Generator")) {
@@ -563,7 +558,8 @@ bool DrawCoreArchetypeSections(
 		return changed;
 	}
 
-	if (archetype != InspectorArchetype::UIStack && archetype != InspectorArchetype::UILayer &&
+	if (archetype != InspectorArchetype::GroupStack &&
+		archetype != InspectorArchetype::GroupEntity &&
 		(ArchetypeRequiresTransform(archetype) ||
 		 HasAnyInspectorComponent(target, TransformSectionComponents{}))) {
 		draw_transform();
@@ -587,7 +583,7 @@ bool DrawCoreArchetypeSections(
 
 	bool belongs_to_ui_layer{ false };
 	if constexpr (requires { target.entity; }) {
-		belongs_to_ui_layer = static_cast<bool>(GetUILayer(target.entity));
+		belongs_to_ui_layer = static_cast<bool>(GetGroup(target.entity));
 	}
 
 	// RenderTarget is explicitly archetype-routed and owns a "Render Target" section header.
@@ -599,8 +595,9 @@ bool DrawCoreArchetypeSections(
 	} else if (HasVisualSection(target)) {
 		changed |= DrawVisualSection(target, true, true, "Visual");
 	} else if (
-		archetype == InspectorArchetype::UIStack || archetype == InspectorArchetype::UILayer ||
-		HasManagedDrawableSection(target) || belongs_to_ui_layer
+		archetype == InspectorArchetype::GroupStack ||
+		archetype == InspectorArchetype::GroupEntity || HasManagedDrawableSection(target) ||
+		belongs_to_ui_layer
 	) {
 		changed |= DrawRenderingSection(target);
 	}
@@ -633,7 +630,8 @@ bool DrawArchetypeInspectorImpl(Target& target) {
 
 	changed |= DrawInteractionSection(target);
 	changed |= DrawPhysicsSection(target);
-	if (archetype != InspectorArchetype::UIStack && archetype != InspectorArchetype::UILayer) {
+	if (archetype != InspectorArchetype::GroupStack &&
+		archetype != InspectorArchetype::GroupEntity) {
 		changed |= DrawScriptsSection(target);
 	}
 	changed |= DrawUtilitiesSection(target);

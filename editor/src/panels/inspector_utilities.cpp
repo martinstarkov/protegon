@@ -410,77 +410,6 @@ bool DrawTimersContents(
 	return changed;
 }
 
-bool DrawGroupContents(Group& group) {
-	bool changed{ false };
-
-	if (ImGui::Button("+ Group", ImVec2{ -FLT_MIN, 0.0f })) {
-		group.groups.emplace_back();
-		changed = true;
-	}
-
-	std::optional<std::size_t> remove_index;
-
-	for (std::size_t index{ 0 }; index < group.groups.size(); ++index) {
-		ScopedID group_scope{ static_cast<int>(index) };
-		std::string label{ "Group " + std::to_string(index + 1) };
-
-		changed |= DrawPropertyRow(label, [&]() {
-			float remove_width{ ImGui::GetFrameHeight() };
-			float spacing{ ImGui::GetStyle().ItemSpacing.x };
-			float available{ std::max(1.0f, ImGui::GetContentRegionAvail().x) };
-			bool remove_inline{ available >= remove_width + spacing + 80.0f };
-			float field_width{ remove_inline ? std::max(1.0f, available - remove_width - spacing)
-											 : available };
-
-			ImGui::SetNextItemWidth(field_width);
-			bool row_changed{ ImGui::InputText("##Value", &group.groups[index]) };
-
-			ImVec2 field_min{ ImGui::GetItemRectMin() };
-			ImVec2 field_max{ ImGui::GetItemRectMax() };
-
-			bool duplicate{ false };
-
-			if (!group.groups[index].empty()) {
-				for (std::size_t earlier_index{ 0 }; earlier_index < index; ++earlier_index) {
-					if (!group.groups[earlier_index].empty() &&
-						group.groups[earlier_index] == group.groups[index]) {
-						duplicate = true;
-						break;
-					}
-				}
-			}
-
-			if (duplicate) {
-				ImGui::GetWindowDrawList()->AddRect(
-					field_min, field_max, IM_COL32(255, 200, 0, 255),
-					ImGui::GetStyle().FrameRounding, 0, 1.0f
-				);
-
-				if (ImGui::IsItemHovered()) {
-					ImGui::SetTooltip("Duplicate group; this entry is redundant.");
-				}
-			}
-
-			if (remove_inline) {
-				ImGui::SameLine(0.0f, spacing);
-			}
-
-			if (ImGui::Button("X", ImVec2{ remove_width, remove_width })) {
-				remove_index = index;
-			}
-
-			return row_changed;
-		});
-	}
-
-	if (remove_index) {
-		group.groups.erase(group.groups.begin() + static_cast<std::ptrdiff_t>(*remove_index));
-		changed = true;
-	}
-
-	return changed;
-}
-
 template <typename Target>
 bool DrawTimersComponent(Target& target) {
 	using Timers = ::ptgn::impl::Timers;
@@ -1086,9 +1015,7 @@ bool DrawUtilitiesSectionImpl(Target& target) {
 	changed |= DrawTimersComponent(target);
 	changed |= DrawNamedVariableComponent<Target, ::ptgn::impl::Counters>(target);
 	changed |= DrawNamedVariableComponent<Target, ::ptgn::impl::Booleans>(target);
-	changed |= DrawComponentSection<Target, Group>(target, "Groups", [](Group& value) {
-		return DrawGroupContents(value);
-	});
+
 	changed |=
 		DrawComponentSection<Target, Lifetime>(target, "Lifetime", [&target](Lifetime& value) {
 			if constexpr (requires { target.entity; }) {

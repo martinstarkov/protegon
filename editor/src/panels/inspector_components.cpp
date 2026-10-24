@@ -472,8 +472,7 @@ bool DrawRenderMaskValueImpl(
 
 				DrawTooltip(
 					"UI rendering marks the entity for UI cameras and uses no regular render mask "
-					"bits. "
-					"It does not change the entity's organizational scene layer."
+					"bits."
 				);
 				ImGui::Separator();
 			}
@@ -528,9 +527,7 @@ bool DrawRenderMaskValueImpl(
 			ImGui::EndCombo();
 		}
 
-		DrawTooltip(
-			"Render mask bits select camera visibility and are independent of scene layers."
-		);
+		DrawTooltip("Render mask bits select camera visibility.");
 
 		if (override_enabled) {
 			ImGui::EndDisabled();
@@ -1543,7 +1540,7 @@ ErasedComponentDrawer FindCustomDrawer(std::size_t type_id) {
 	PTGN_INSPECTOR_COMPONENT_DRAWER(::ptgn::impl::ClearColor)
 	PTGN_INSPECTOR_COMPONENT_DRAWER(::ptgn::impl::ClearDepth)
 	PTGN_INSPECTOR_COMPONENT_DRAWER(::ptgn::impl::ClearStencil)
-	PTGN_INSPECTOR_COMPONENT_DRAWER(::ptgn::impl::UILayer)
+	PTGN_INSPECTOR_COMPONENT_DRAWER(::ptgn::impl::UIRenderTag)
 	PTGN_INSPECTOR_COMPONENT_DRAWER(Material)
 
 	PTGN_INSPECTOR_COMPONENT_DRAWER(::ptgn::impl::TextureSize)

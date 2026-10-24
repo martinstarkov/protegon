@@ -52,7 +52,7 @@ void Hide(Entity entity);
 /// @return True if the entity is visible, false otherwise.
 bool IsVisible(Entity entity, bool check_parent_visibility = true);
 
-/// @brief Checks authored Visible components without any transient UI stack restrictions.
+/// @brief Checks authored Visible components without any transient group stack restrictions.
 bool IsAuthoredVisible(Entity entity, bool check_parent_visibility = true);
 
 /// @brief Ignores the visibility of parent entities when determining if this entity is visible.

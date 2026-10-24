@@ -38,6 +38,7 @@
 #include "runtime/ecs/entity.h"
 #include "runtime/ecs/entity_creation_context.h"
 #include "runtime/ecs/entity_hierarchy.h"
+#include "runtime/ecs/group_stack.h"
 #include "runtime/ecs/tag.h"
 #include "runtime/graphics/draw.h"
 #include "runtime/graphics/drawable.h"
@@ -55,7 +56,6 @@
 #include "runtime/scripting/script.h"
 #include "runtime/ui/button_config.h"
 #include "runtime/ui/toggle_button.h"
-#include "runtime/ui/ui_stack.h"
 
 namespace ptgn {
 
@@ -1056,7 +1056,7 @@ Button::Button(Entity entity) : Entity{ entity } {}
 bool Button::IsEnabled(bool check_for_hover_enabled) const {
 	const auto& button{ Get<impl::ButtonData>() };
 
-	return IsUIStackInteractive(*this) &&
+	return IsGroupStackInteractive(*this) &&
 		   (check_for_hover_enabled ? button.hover_enabled : button.press_enabled);
 }
 
@@ -1078,7 +1078,7 @@ ButtonState Button::GetState() const {
 
 ButtonVisualState Button::GetVisualState(ButtonState state, bool check_for_visual_lock) const {
 	if (!Get<impl::ButtonData>().press_enabled ||
-		(!IsUIStackInteractive(*this) && UseUIDisabledStyle(*this))) {
+		(!IsGroupStackInteractive(*this) && UseGroupDisabledStyle(*this))) {
 		return DisabledVisualState(state);
 	}
 

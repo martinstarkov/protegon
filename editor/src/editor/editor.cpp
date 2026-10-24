@@ -47,6 +47,7 @@
 #include "editor/editor_context.h"
 #include "editor/editor_selection.h"
 #include "editor/editor_state.h"
+#include "editor/modal_scale.h"
 #include "editor/output_console.h"
 #include "panels/console.h"
 #include "panels/content_browser.h"
@@ -66,6 +67,7 @@
 #include "renderer/resources/texture_format.h"
 #include "renderer/text/text_layout.h"
 #include "runtime/asset/asset_manager.h"
+#include "runtime/ecs/group_stack.h"
 #include "runtime/ecs/uuid.h"
 #include "runtime/graphics/draw.h"
 #include "runtime/graphics/fx/effect_registry.h"
@@ -73,7 +75,6 @@
 #include "runtime/graphics/visible.h"
 #include "runtime/scene/scene_file.h"
 #include "runtime/scene/scene_manager.h"
-#include "runtime/ui/ui_stack.h"
 #include "serialization/json/json.h"
 #include "tools/debug/debug_system.h"
 
@@ -1133,21 +1134,25 @@ void Editor::DrawUnsavedProjectClosePopup() {
 				   viewport->Pos.y + viewport->Size.y * 0.5f };
 	ImGui::SetNextWindowPos(center, ImGuiCond_Always, ImVec2{ 0.5f, 0.5f });
 
-	float modal_width{ std::min(ImGui::GetFontSize() * 43.0f, viewport->Size.x * 0.9f) };
+	float modal_width{
+		std::min(ImGui::GetFontSize() * 43.0f * kEditorModalScale, viewport->Size.x * 0.9f)
+	};
 	// Fix the width, but let the height follow the wrapped confirmation text and buttons.
 	ImGui::SetNextWindowSizeConstraints(
 		ImVec2{ modal_width, 0.0f }, ImVec2{ modal_width, FLT_MAX }
 	);
 
 	const auto& style{ ImGui::GetStyle() };
-	float modal_padding{ std::max(style.WindowPadding.x, style.WindowPadding.y) * 1.5f };
+	float modal_padding{ std::max(style.WindowPadding.x, style.WindowPadding.y) * 1.5f *
+						 kEditorModalScale };
 	ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2{ modal_padding, modal_padding });
 	ImGui::PushStyleVar(
-		ImGuiStyleVar_FramePadding,
-		ImVec2{ style.FramePadding.x * 1.4f, style.FramePadding.y * 1.4f }
+		ImGuiStyleVar_FramePadding, ImVec2{ style.FramePadding.x * 1.4f * kEditorModalScale,
+											style.FramePadding.y * 1.4f * kEditorModalScale }
 	);
 	ImGui::PushStyleVar(
-		ImGuiStyleVar_ItemSpacing, ImVec2{ style.ItemSpacing.x * 1.25f, style.ItemSpacing.y * 1.4f }
+		ImGuiStyleVar_ItemSpacing, ImVec2{ style.ItemSpacing.x * 1.25f * kEditorModalScale,
+										   style.ItemSpacing.y * 1.4f * kEditorModalScale }
 	);
 
 	if (!ImGui::BeginPopupModal(
@@ -1161,7 +1166,7 @@ void Editor::DrawUnsavedProjectClosePopup() {
 	}
 
 	const auto* project{ GetProject() };
-	ImGui::SetWindowFontScale(1.15f);
+	ImGui::SetWindowFontScale(1.15f * kEditorModalScale);
 
 	std::string project_name{ project ? project->name : "" };
 	std::string confirmation{ "Save changes to project \"" };
@@ -1211,11 +1216,11 @@ void Editor::DrawUnsavedProjectClosePopup() {
 	}
 
 	ImGui::TextWrapped("%s", confirmation.c_str());
-	ImGui::SetWindowFontScale(0.95f);
+	ImGui::SetWindowFontScale(0.95f * kEditorModalScale);
 	ImGui::PushStyleColor(ImGuiCol_Text, ImGui::GetStyleColorVec4(ImGuiCol_TextDisabled));
 	ImGui::TextWrapped("If you don't save, all changes will be permanently lost.");
 	ImGui::PopStyleColor();
-	ImGui::SetWindowFontScale(1.15f);
+	ImGui::SetWindowFontScale(1.15f * kEditorModalScale);
 	ImGui::Spacing();
 	ImGui::Separator();
 	ImGui::Spacing();
@@ -1266,6 +1271,7 @@ void Editor::DrawUnsavedProjectClosePopup() {
 		}
 	}
 
+	ImGui::SetWindowFontScale(1.0f);
 	ImGui::EndPopup();
 	ImGui::PopStyleVar(3);
 }
@@ -2808,14 +2814,14 @@ void Editor::DrawMainMenuBar() {
 		}
 
 		if (ImGui::MenuItem(
-				"Preview Selected UI Layer", nullptr, GetSettings().preview_selected_ui_layer
+				"Preview Selected Group", nullptr, GetSettings().preview_selected_group
 			)) {
 			toggle_editor_setting(
-				"Toggle Preview Selected UI Layer", &EditorSettings::preview_selected_ui_layer
+				"Toggle Preview Selected Group", &EditorSettings::preview_selected_group
 			);
 		}
 		if (ImGui::IsItemHovered()) {
-			ImGui::SetTooltip("Selecting a UI layer shows only that layer in the editor.");
+			ImGui::SetTooltip("Selecting a group shows only that layer in the editor.");
 		}
 
 		ImGui::Separator();
@@ -3799,7 +3805,7 @@ void Editor::SetEditorSettings(EditorSettings settings) {
 	current.show_read_only_inspector_data	   = settings.show_read_only_inspector_data;
 	current.show_read_only_scene_data		   = settings.show_read_only_scene_data;
 	current.show_managed_ui_parts			   = settings.show_managed_ui_parts;
-	current.preview_selected_ui_layer		   = settings.preview_selected_ui_layer;
+	current.preview_selected_group			   = settings.preview_selected_group;
 	current.show_imgui_metrics				   = settings.show_imgui_metrics;
 	current.preview_screen_effects			   = settings.preview_screen_effects;
 	current.content_browser_items_per_row	   = settings.content_browser_items_per_row;
@@ -3917,18 +3923,18 @@ void Editor::Play() {
 		.screen_effect_preview_before_play = context_->local.settings.preview_screen_effects,
 	};
 
-	// Editor-only UI layer visibility is deliberately not serialized. Keep it
+	// Editor-only group visibility is deliberately not serialized. Keep it
 	// across the edit -> runtime -> edit scene reconstruction instead.
 	for (const auto& entry : project->scenes) {
 		auto& editor_scene{ manager.GetScene(Hash(entry.key)) };
 
-		for (auto [entity, data] : editor_scene.EntitiesWith<UIStackData>()) {
+		for (auto [entity, data] : editor_scene.EntitiesWith<GroupStackData>()) {
 			if (data.preview_visible) {
 				play_snapshot_->layer_previews.push_back(
-					UILayerPreviewSnapshot{
+					GroupPreviewSnapshot{
 						.scene_key		= entry.key,
 						.stack_uuid		= entity.Get<UUID>(),
-						.visible_layers = *data.preview_visible,
+						.visible_groups = *data.preview_visible,
 					}
 				);
 			}
@@ -4158,8 +4164,8 @@ void Editor::Stop() {
 		auto& editor_scene{ manager.GetScene(Hash(preview.scene_key)) };
 		Entity stack_entity{ editor_scene.GetEntity(preview.stack_uuid) };
 
-		if (stack_entity && stack_entity.Has<UIStackData>()) {
-			stack_entity.Get<UIStackData>().preview_visible = preview.visible_layers;
+		if (stack_entity && stack_entity.Has<GroupStackData>()) {
+			stack_entity.Get<GroupStackData>().preview_visible = preview.visible_groups;
 		}
 	}
 
@@ -4748,7 +4754,6 @@ void Editor::BuildDefaultDockLayout(std::uint32_t dockspace_id) {
 	ImGui::DockBuilderDockWindow("Scene Hierarchy###SceneHierarchyWindow", dock_left_top);
 	ImGui::DockBuilderDockWindow("Settings###SceneSettingsWindow", dock_left_top);
 	ImGui::DockBuilderDockWindow("Prefabs###PrefabsWindow", dock_left_middle);
-	ImGui::DockBuilderDockWindow("Tiles###TilesWindow", dock_left_middle);
 	ImGui::DockBuilderDockWindow("Scenes", dock_left_bottom);
 	ImGui::DockBuilderDockWindow("Screen Effects", dock_left_bottom);
 

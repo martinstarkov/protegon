@@ -37,6 +37,7 @@
 #include "panels/scene_hierarchy.h"
 #include "runtime/animation/animation.h"
 #include "runtime/animation/animation_event.h"
+#include "runtime/ecs/group_stack.h"
 #include "runtime/interaction/draggable.h"
 #include "runtime/interaction/draggable_event.h"
 #include "runtime/interaction/dropzone.h"
@@ -55,7 +56,6 @@
 #include "runtime/ui/button.h"
 #include "runtime/ui/dropdown.h"
 #include "runtime/ui/toggle_button.h"
-#include "runtime/ui/ui_stack.h"
 #include "scripting/script_editor_registry.h"
 
 namespace ptgn::editor::inspector {
@@ -594,17 +594,16 @@ bool DrawActionTarget(ScriptEditorContext& context, ScriptStep& action, float wi
 
 	EntityFilterEditorOptions options{};
 	options.button_width = width;
-	bool stack_action{ action.type_hash == Hash<UIStackPushScript>() ||
-					   action.type_hash == Hash<UIStackPopScript>() ||
-					   action.type_hash == Hash<UIStackReplaceScript>() ||
-					   action.type_hash == Hash<UIStackPopToScript>() ||
-					   action.type_hash == Hash<UIStackSetScript>() ||
-					   action.type_hash == Hash<UIStackResetScript>() ||
-					   action.type_hash == Hash<UIStackClearScript>() };
-	options.button_tooltip =
-		stack_action
-			? "UI Stack target (optional). Without one, uses the action owner's containing stack:"
-			: "Entities impacted by the action:";
+	bool stack_action{ action.type_hash == Hash<GroupStackPushScript>() ||
+					   action.type_hash == Hash<GroupStackPopScript>() ||
+					   action.type_hash == Hash<GroupStackReplaceScript>() ||
+					   action.type_hash == Hash<GroupStackPopToScript>() ||
+					   action.type_hash == Hash<GroupStackSetScript>() ||
+					   action.type_hash == Hash<GroupStackResetScript>() ||
+					   action.type_hash == Hash<GroupStackClearScript>() };
+	options.button_tooltip = stack_action ? "Group Stack target (optional). Without one, uses the "
+											"action owner's containing stack:"
+										  : "Entities impacted by the action:";
 	options.append_filter_tooltip = true;
 	return DrawEntityFilterButton(scene, owner, action.target, state, options);
 }

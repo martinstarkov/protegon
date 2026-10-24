@@ -7,6 +7,7 @@
 
 #include "core/assert.h"
 #include "runtime/ecs/entity.h"
+#include "runtime/ecs/group_stack.h"
 #include "runtime/ecs/manager.h"
 #include "runtime/ecs/relatives.h"
 #include "runtime/scene/scene.h"
@@ -45,8 +46,12 @@ void AttachChild(Entity parent, Entity child, std::optional<std::string_view> na
 	PTGN_ASSERT(
 		!IsInParentChain(parent, child), "Cannot parent an entity to one of its descendants"
 	);
+	PTGN_ASSERT(
+		!parent.Has<GroupStackData>() || child.Has<Group>(),
+		"A Group Stack can only contain Group entities as direct children"
+	);
 
-	PrepareUILayerRenderMaskReparent(child, parent);
+	PrepareGroupEntityRenderMaskReparent(child, parent);
 
 	RemoveParent(child);
 

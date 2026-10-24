@@ -11,7 +11,6 @@
 #include "runtime/ecs/entity.h"
 #include "runtime/ecs/tag.h"
 #include "runtime/graphics/visible.h"
-#include "runtime/world/entity_layer.h"
 
 namespace ptgn::editor {
 
@@ -115,77 +114,6 @@ inline void DrawFilterTooltip() {
 	ImGui::TextDisabled("Separate filters with commas.");
 	ImGui::TextDisabled("Positive name filters use OR; all other filters must match.");
 	ImGui::EndTooltip();
-}
-
-struct LayerControlsOptions {
-	bool show_visibility{ true };
-	bool visibility_interactive{ true };
-};
-
-inline bool DrawLayerControls(const SceneLayer& layer, const LayerControlsOptions& options = {}) {
-	DrawEditorIconButton(
-		"##LayerType", layer.kind == SceneLayerKind::Entity ? EditorIcon::Entity : EditorIcon::Tile,
-		EditorIconButtonOptions{
-			.tooltip	 = layer.kind == SceneLayerKind::Entity ? "Entity layer" : "Tile layer",
-			.compact	 = true,
-			.interactive = false,
-			.muted		 = true,
-		}
-	);
-
-	if (!options.show_visibility) {
-		ImGui::SameLine(0.0f, 4.0f);
-
-		return false;
-	}
-
-	ImGui::SameLine(0.0f, 2.0f);
-	bool pressed{ DrawEditorIconButton(
-		"##LayerVisible", layer.visible ? EditorIcon::Visible : EditorIcon::Hidden,
-		EditorIconButtonOptions{
-			.tooltip	 = layer.visible ? "Hide Layer" : "Show Layer",
-			.compact	 = true,
-			.interactive = options.visibility_interactive,
-			.muted		 = !layer.visible,
-		}
-	) };
-	ImGui::SameLine(0.0f, 4.0f);
-
-	return pressed;
-}
-
-struct LayerRowOptions {
-	LayerControlsOptions controls{};
-	bool selected{ false };
-};
-
-struct LayerRowResult {
-	bool open{ false };
-	bool left_clicked{ false };
-	bool visibility_clicked{ false };
-};
-
-[[nodiscard]] inline LayerRowResult DrawLayerRow(
-	const SceneLayer& layer, const LayerRowOptions& options = {}
-) {
-	LayerRowResult result;
-	result.visibility_clicked = DrawLayerControls(layer, options.controls);
-
-	ImGuiTreeNodeFlags flags{ ImGuiTreeNodeFlags_OpenOnArrow |
-							  ImGuiTreeNodeFlags_OpenOnDoubleClick |
-							  ImGuiTreeNodeFlags_SpanAvailWidth | ImGuiTreeNodeFlags_DefaultOpen |
-							  ImGuiTreeNodeFlags_FramePadding };
-	if (options.selected) {
-		flags |= ImGuiTreeNodeFlags_Selected;
-	}
-
-	ImVec2 previous_frame_padding{ ImGui::GetStyle().FramePadding };
-	ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2{ previous_frame_padding.x, 1.0f });
-	result.open = ImGui::TreeNodeEx("##Layer", flags, "%s", layer.name.c_str());
-	ImGui::PopStyleVar();
-	result.left_clicked = ImGui::IsItemClicked(ImGuiMouseButton_Left);
-
-	return result;
 }
 
 } // namespace hierarchy

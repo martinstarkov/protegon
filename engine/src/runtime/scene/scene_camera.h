@@ -25,7 +25,7 @@ class Scene;
 class Renderer;
 
 /// @brief Bits used to determine which entities pass a camera visibility filter.
-/// Render mask bits are independent of organizational scene layers and SceneLayerId values.
+/// Render mask bits select which entities each camera renders.
 using RenderMaskBits = std::uint64_t;
 
 constexpr RenderMaskBits GetRenderMaskBit(int index) {
@@ -52,8 +52,9 @@ struct ParentRenderTarget {
 	PTGN_REFLECT_VALUE(ParentRenderTarget, render_target)
 };
 
-/// @brief Marks an entity for rendering by UI cameras, independently of scene layer membership.
-struct UILayer {};
+/// @brief Marks an entity for rendering by UI cameras, without depending on entity hierarchy
+/// placement.
+struct UIRenderTag {};
 
 struct CameraData {
 	/// @brief If nullopt, viewport is set to the size of the parent render target.
@@ -72,7 +73,7 @@ struct CameraData {
 	PTGN_REFLECT_READONLY(CameraData, view_projection)
 };
 
-/// @brief Render mask bits assigned to an entity, independently of its organizational scene layer.
+/// @brief Render mask bits assigned to an entity, independently of its parent entity.
 /// If absent, an entity uses the default render mask.
 struct RenderMask {
 	RenderMaskBits bits{ kRenderMaskDefault };
@@ -80,12 +81,12 @@ struct RenderMask {
 	PTGN_REFLECT_VALUE(RenderMask, bits)
 };
 
-/// @brief When present on a UI layer or one of its members, use this entity's
+/// @brief When present on a group or one of its members, use this entity's
 /// authored render mask instead of inheriting the containing layer/stack mask.
-/// Without a UI layer this marker has no effect.
+/// Without a group this marker has no effect.
 struct RenderMaskOverride {};
 
-/// @brief Camera visibility filter using render mask bits, not organizational scene layers.
+/// @brief Camera visibility filter using render mask bits, not hierarchy organization.
 /// An entity passes when it shares at least one include bit and has no excluded bits.
 /// If absent, a camera includes all render bits and excludes none.
 struct CameraMask {
@@ -162,7 +163,7 @@ public:
 	SceneCamera& Reset();
 
 	/// @brief Sets the camera render mask include and exclude filters. These are independent
-	/// of organizational scene layers.
+	/// of hierarchy organization.
 	SceneCamera& SetRenderMasks(RenderMaskBits include, RenderMaskBits exclude = kRenderMaskNone);
 	SceneCamera& SetIncludeRenderMask(RenderMaskBits include);
 	SceneCamera& SetExcludeRenderMask(RenderMaskBits exclude);
@@ -194,11 +195,11 @@ public:
 	std::optional<Color> GetClearColor() const;
 };
 
-/// @brief Gets the effective render mask. UI layer members inherit the layer's
-/// mask, which in turn inherits its UI stack's mask, unless explicitly overridden.
+/// @brief Gets the effective render mask. group members inherit the layer's
+/// mask, which in turn inherits its group stack's mask, unless explicitly overridden.
 RenderMaskBits GetRenderMask(Entity entity);
 
-/// @brief Enables UI rendering, which is distinct from organizational scene layers.
+/// @brief Enables UI rendering, which is distinct from hierarchy organization.
 /// This also changes the entity's render mask bits.
 void SetUI(Entity entity, bool ui_rendering = true);
 
@@ -210,9 +211,9 @@ void AddRenderMaskBits(Entity entity, RenderMaskBits masks_to_add);
 void RemoveRenderMaskBits(Entity entity, RenderMaskBits masks_to_remove);
 void ClearRenderMask(Entity entity);
 
-/// @brief Preserves nondefault authored masks when moving an entity into a UI layer.
+/// @brief Preserves nondefault authored masks when moving an entity into a group.
 /// Ordinary default masks instead inherit the destination layer's render mask.
-void PrepareUILayerRenderMaskReparent(Entity entity, Entity new_parent);
+void PrepareGroupEntityRenderMaskReparent(Entity entity, Entity new_parent);
 
 bool HasAnyRenderMaskBits(Entity entity, RenderMaskBits test);
 bool HasAllRenderMaskBits(Entity entity, RenderMaskBits test);

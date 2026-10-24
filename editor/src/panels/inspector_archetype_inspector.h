@@ -63,6 +63,7 @@
 #include "runtime/ecs/entity.h"
 #include "runtime/ecs/entity_group.h"
 #include "runtime/ecs/entity_hierarchy.h"
+#include "runtime/ecs/group_stack.h"
 #include "runtime/ecs/tag.h"
 #include "runtime/graphics/custom_shader.h"
 #include "runtime/graphics/draw.h"
@@ -104,7 +105,6 @@
 #include "runtime/ui/slider.h"
 #include "runtime/ui/toggle_button.h"
 #include "runtime/ui/tooltip.h"
-#include "runtime/ui/ui_stack.h"
 
 namespace ptgn::editor::inspector {
 
@@ -1100,8 +1100,8 @@ using VisualSectionComponents = ComponentSet<
 	::ptgn::impl::TextData, ::ptgn::impl::ParticleEmitterData, LightData,
 	::ptgn::impl::ShadowCaster, ::ptgn::impl::GraphicsData, ::ptgn::Material, ShaderKey,
 	::ptgn::impl::RenderTargetDesc, ::ptgn::impl::RenderMask, ::ptgn::impl::RenderMaskOverride,
-	::ptgn::impl::UILayer, ::ptgn::impl::EffectTag, ::ptgn::impl::HDREffectTag, EffectMargin, Bloom,
-	Blur, GaussianBlur, ::ptgn::impl::ClearColor, ::ptgn::impl::ClearDepth,
+	::ptgn::impl::UIRenderTag, ::ptgn::impl::EffectTag, ::ptgn::impl::HDREffectTag, EffectMargin,
+	Bloom, Blur, GaussianBlur, ::ptgn::impl::ClearColor, ::ptgn::impl::ClearDepth,
 	::ptgn::impl::ClearStencil>;
 
 using InteractionSectionComponents = ComponentSet<
@@ -1119,7 +1119,7 @@ using UISectionComponents = ComponentSet<
 	::ptgn::impl::ToggleButtonGroupItem, ::ptgn::impl::DropdownData, ::ptgn::impl::DropdownItem,
 	::ptgn::impl::DialogueData, ::ptgn::impl::DialoguePart, ::ptgn::impl::TooltipData,
 	::ptgn::impl::TooltipHoverData, ::ptgn::impl::TooltipBackgroundPart,
-	::ptgn::impl::TooltipTextPart, UIStackData, UILayerData>;
+	::ptgn::impl::TooltipTextPart, GroupStackData, Group>;
 
 using CameraSectionComponents = ComponentSet<
 	::ptgn::impl::CameraData, ::ptgn::impl::CameraMask, ::ptgn::impl::ParentRenderTarget>;
@@ -1252,6 +1252,8 @@ template <typename Target>
 template <typename Target>
 [[nodiscard]] bool HasUISection(const Target& target) {
 	return ArchetypeOwnsUI(ResolveInspectorArchetype(target)) ||
+		   HasInspectorComponent<Target, Group>(target) ||
+		   HasInspectorComponent<Target, GroupStackData>(target) ||
 		   HasAnyInspectorComponent(target, UISectionComponents{});
 }
 

@@ -35,6 +35,7 @@
 #include "runtime/animation/scripted_animation.h"
 #include "runtime/audio/audio_system.h"
 #include "runtime/ecs/entity_hierarchy.h"
+#include "runtime/ecs/group_stack.h"
 #include "runtime/graphics/draw.h"
 #include "runtime/graphics/fx/effect_registry.h"
 #include "runtime/graphics/fx/effects.h"
@@ -69,7 +70,6 @@
 #include "runtime/ui/slider.h"
 #include "runtime/ui/toggle_button.h"
 #include "runtime/ui/tooltip.h"
-#include "runtime/ui/ui_stack.h"
 #include "runtime/world/tilemap.h"
 
 namespace ptgn {
@@ -428,60 +428,60 @@ void DialogueSetPortraitScript::OnStart() {
 
 namespace {
 
-UIStack ResolveScriptStack(const Script& script) {
+GroupStack ResolveScriptStack(const Script& script) {
 	Entity target{ script.Target() };
-	if (target && target.Has<UIStackData>()) {
-		return UIStack{ target };
+	if (target && target.Has<GroupStackData>()) {
+		return GroupStack{ target };
 	}
 	if (target) {
-		if (UIStack stack{ GetUIStack(target) }) {
+		if (GroupStack stack{ GetGroupStack(target) }) {
 			return stack;
 		}
 	}
 	Entity owner{ script.Owner() };
-	return owner ? GetUIStack(owner) : UIStack{};
+	return owner ? GetGroupStack(owner) : GroupStack{};
 }
 
 } // namespace
 
-void UIStackPushScript::OnStart() {
-	if (UIStack stack{ ResolveScriptStack(*this) }) {
-		stack.Push(layer);
+void GroupStackPushScript::OnStart() {
+	if (GroupStack stack{ ResolveScriptStack(*this) }) {
+		stack.Push(group);
 	}
 }
 
-void UIStackPopScript::OnStart() {
-	if (UIStack stack{ ResolveScriptStack(*this) }) {
+void GroupStackPopScript::OnStart() {
+	if (GroupStack stack{ ResolveScriptStack(*this) }) {
 		stack.Pop();
 	}
 }
 
-void UIStackReplaceScript::OnStart() {
-	if (UIStack stack{ ResolveScriptStack(*this) }) {
-		stack.Replace(layer);
+void GroupStackReplaceScript::OnStart() {
+	if (GroupStack stack{ ResolveScriptStack(*this) }) {
+		stack.Replace(group);
 	}
 }
 
-void UIStackPopToScript::OnStart() {
-	if (UIStack stack{ ResolveScriptStack(*this) }) {
-		stack.PopTo(layer);
+void GroupStackPopToScript::OnStart() {
+	if (GroupStack stack{ ResolveScriptStack(*this) }) {
+		stack.PopTo(group);
 	}
 }
 
-void UIStackSetScript::OnStart() {
-	if (UIStack stack{ ResolveScriptStack(*this) }) {
-		stack.Set(layer);
+void GroupStackSetScript::OnStart() {
+	if (GroupStack stack{ ResolveScriptStack(*this) }) {
+		stack.Set(group);
 	}
 }
 
-void UIStackResetScript::OnStart() {
-	if (UIStack stack{ ResolveScriptStack(*this) }) {
+void GroupStackResetScript::OnStart() {
+	if (GroupStack stack{ ResolveScriptStack(*this) }) {
 		stack.Reset();
 	}
 }
 
-void UIStackClearScript::OnStart() {
-	if (UIStack stack{ ResolveScriptStack(*this) }) {
+void GroupStackClearScript::OnStart() {
+	if (GroupStack stack{ ResolveScriptStack(*this) }) {
 		stack.Clear();
 	}
 }

@@ -9,8 +9,8 @@
 #include "renderer/pipeline/render_state.h"
 #include "runtime/ecs/entity.h"
 #include "runtime/ecs/entity_hierarchy.h"
+#include "runtime/ecs/group_stack.h"
 #include "runtime/graphics/drawable.h"
-#include "runtime/ui/ui_stack.h"
 
 namespace ptgn {
 
@@ -81,7 +81,7 @@ Depth GetDepth(Entity entity) {
 		}
 	);
 
-	depth.value += static_cast<float>(GetUIStackDepthOffset(entity));
+	depth.value += static_cast<float>(GetGroupStackDepthOffset(entity));
 	return depth;
 }
 

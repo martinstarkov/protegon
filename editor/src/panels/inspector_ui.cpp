@@ -9,8 +9,8 @@
 #include "panels/inspector_geometry.h"
 #include "panels/inspector_parts.h"
 #include "panels/rich_text_editor.h"
+#include "runtime/ecs/group_stack.h"
 #include "runtime/ui/tooltip.h"
-#include "runtime/ui/ui_stack.h"
 
 namespace ptgn::editor::inspector {
 
@@ -4878,20 +4878,33 @@ bool DrawUISectionImpl(Target& target) {
 	}
 
 	FocusedUIControlType control_type{ GetFocusedUIControlType(target) };
-	bool has_stack{ HasTargetComponent<Target, UIStackData>(target) };
-	bool has_screen{ HasTargetComponent<Target, UILayerData>(target) };
+	bool has_stack{ HasTargetComponent<Target, GroupStackData>(target) };
+	bool has_screen{ HasTargetComponent<Target, Group>(target) };
+	// Standalone Groups are ordinary hierarchy organizers; they have no stack
+	// settings to edit. Keep unrelated UI components visible when present.
+	if (has_screen) {
+		bool managed{ false };
+		if constexpr (requires { target.entity; }) {
+			managed = static_cast<bool>(GetGroupStack(target.entity));
+		}
+		has_screen = managed;
+	}
 	bool has_toggle_group{
 		HasTargetComponent<Target, ::ptgn::impl::ToggleButtonGroupData>(target)
 	};
 	bool has_tooltip{ HasTargetComponent<Target, ::ptgn::impl::TooltipData>(target) };
+	if (!has_screen && !has_stack && !has_toggle_group && !has_tooltip &&
+		control_type == FocusedUIControlType::None && HasTargetComponent<Target, Group>(target)) {
+		return false;
+	}
 	std::string ui_label{ "UI" };
 	if (control_type != FocusedUIControlType::None &&
 		control_type != FocusedUIControlType::Conflict) {
 		ui_label = std::string{ FocusedUIControlLabel(control_type) };
 	} else if (has_stack) {
-		ui_label = "UI Stack";
+		ui_label = "Group Stack";
 	} else if (has_screen) {
-		ui_label = "UI Layer";
+		ui_label = "Group";
 	} else if (has_toggle_group) {
 		ui_label = "Toggle Group";
 	} else if (has_tooltip) {
@@ -4970,48 +4983,56 @@ bool DrawUISectionImpl(Target& target) {
 	}
 
 	if (has_stack) {
-		changed |=
-			DrawFocusedComponent<Target, UIStackData>(target, "UI Stack", [&](UIStackData& data) {
+		changed |= DrawFocusedComponent<Target, GroupStackData>(
+			target, "Group Stack", [&](GroupStackData& data) {
 				bool local_changed{ false };
 				if constexpr (requires { target.entity; }) {
-					UIStack stack{ target.entity };
-					local_changed |= DrawPropertyRow("Initial Layer", [&]() {
+					GroupStack stack{ target.entity };
+					local_changed |= DrawPropertyRow("Initial Group", [&]() {
+						GroupEntity initial{ stack.GetInitialGroup() };
+						std::string preview{ initial && initial.Has<Tag>()
+												 ? initial.Get<Tag>().value
+												 : "No groups" };
 						bool selected{ false };
 						ImGui::SetNextItemWidth(-FLT_MIN);
-						if (ImGui::BeginCombo("##StackInitialLayer", data.initial.c_str())) {
-							for (UILayer screen : stack.GetLayers()) {
-								std::string key{ screen.GetKey() };
-								if (ImGui::Selectable(key.c_str(), data.initial == key)) {
-									data.initial = key;
+						if (ImGui::BeginCombo("##StackInitialGroup", preview.c_str())) {
+							for (GroupEntity group : stack.GetGroups()) {
+								std::string name{ group.Has<Tag>() ? group.Get<Tag>().value
+																   : "Group" };
+								ImGui::PushID(group.Get<UUID>());
+								if (ImGui::Selectable(name.c_str(), group == initial)) {
+									data.initial = group.Get<UUID>();
 									data.history.clear();
-									selected = true;
+									data.cleared = false;
+									selected	 = true;
 								}
+								ImGui::PopID();
 							}
 							ImGui::EndCombo();
 						}
 						return selected;
 					});
-				} else {
-					local_changed |= DrawValue(target.ctx, "Initial Layer", data.initial);
 				}
 				return local_changed;
-			});
-		if constexpr (requires { target.entity; }) {
-			UIStack stack{ target.entity };
+			}
+		);
 
+		if constexpr (requires { target.entity; }) {
+			GroupStack stack{ target.entity };
 			if (!target.ctx.editor.IsPlaying() && !target.ctx.editor.IsDirectRuntime()) {
 				if (ImGui::Button(
 						"Reset Editor Preview", ImVec2{ -FLT_MIN, ImGui::GetFrameHeight() }
 					)) {
-					stack.ResetLayerPreview();
+					stack.ResetGroupPreview();
 				}
-				DrawTooltip("Show only the initial UI layer in the editor viewport.");
+				DrawTooltip("Show only the initial group in the editor viewport.");
 			}
 
 			if (target.ctx.editor.IsPlaying() || target.ctx.editor.IsDirectRuntime()) {
-				ImGui::TextDisabled(
-					"Current Layer: %s", std::string{ stack.GetCurrentLayer() }.c_str()
-				);
+				GroupEntity current{ stack.GetCurrentGroup() };
+				std::string name{ current && current.Has<Tag>() ? current.Get<Tag>().value
+																: "None" };
+				ImGui::TextDisabled("Current Group: %s", name.c_str());
 				ImGui::TextDisabled("Stack depth: %zu", stack.GetDepth());
 				if (ImGui::Button("Pop")) {
 					stack.Pop();
@@ -5025,116 +5046,21 @@ bool DrawUISectionImpl(Target& target) {
 	}
 
 	if (has_screen) {
-		if constexpr (requires { target.entity; }) {
-			// Rename the authored layer key and all stack references as one undoable edit.
-			// Enter commits the new key; invalid and duplicate keys are rejected.
-			Entity entity{ target.entity };
-			if (entity && entity.Has<UILayerData>()) {
-				static std::string editing_entity;
-				static std::string editing_key;
-				std::string identity{ target.GetUUIDText() };
-
-				if (editing_entity != identity) {
-					editing_entity = identity;
-					editing_key	   = entity.Get<UILayerData>().key;
-				}
-
-				ScopedID key_scope{ "UILayerKey" };
-				DrawPropertyRow("Layer Key", [&]() {
-					ImGui::SetNextItemWidth(-FLT_MIN);
-					bool submitted{ ImGui::InputText(
-						"##Key", &editing_key, ImGuiInputTextFlags_EnterReturnsTrue
-					) };
-					DrawTooltip("Unique layer key for navigation. Press Enter to rename.");
-
-					if (submitted && !target.IsReadOnly()) {
-						UILayer layer{ entity };
-						UIStack stack{ GetUIStack(entity) };
-						auto before_layer{ entity.Get<UILayerData>() };
-						auto before_tag{ entity.Get<Tag>() };
-						std::optional<UIStackData> before_stack;
-
-						if (stack) {
-							before_stack = stack.Get<UIStackData>();
-						}
-
-						if (layer.SetKey(editing_key) && editing_key != before_layer.key) {
-							auto after_layer{ entity.Get<UILayerData>() };
-							auto after_tag{ entity.Get<Tag>() };
-							std::optional<UIStackData> after_stack;
-
-							if (stack) {
-								after_stack = stack.Get<UIStackData>();
-							}
-
-							Editor* editor{ std::addressof(target.ctx.editor) };
-							EntityReference layer_ref{ MakeEntityReference(entity) };
-							std::optional<EntityReference> stack_ref;
-
-							if (stack) {
-								stack_ref = MakeEntityReference(stack);
-							}
-
-							auto apply = [editor, layer_ref, stack_ref](
-											 UILayerData layer_data, Tag tag,
-											 std::optional<UIStackData> stack_data
-										 ) {
-								Entity resolved{ layer_ref.Resolve(*editor) };
-
-								if (!resolved || !resolved.Has<UILayerData>()) {
-									return;
-								}
-
-								resolved.Get<UILayerData>() = std::move(layer_data);
-								resolved.Add<Tag>(std::move(tag));
-
-								if (stack_ref && stack_data) {
-									Entity resolved_stack{ stack_ref->Resolve(*editor) };
-
-									if (resolved_stack && resolved_stack.Has<UIStackData>()) {
-										resolved_stack.Get<UIStackData>() = std::move(*stack_data);
-									}
-								}
-							};
-
-							target.ctx.undo.PushApplied(
-								"Rename UI Layer",
-								[apply, before_layer, before_tag, before_stack]() mutable {
-									apply(before_layer, before_tag, before_stack);
-								},
-								[apply, after_layer, after_tag, after_stack]() mutable {
-									apply(after_layer, after_tag, after_stack);
-								}
-							);
-							changed = true;
-						}
-
-						editing_key = entity.Get<UILayerData>().key;
-					}
-
-					if (!ImGui::IsItemActive()) {
-						editing_key = entity.Get<UILayerData>().key;
-					}
-
-					return submitted;
-				});
+		changed |= DrawFocusedComponent<Target, Group>(target, "Group", [&](Group& data) {
+			bool local_changed{ false };
+			// A standalone group is a hierarchy organizer; stack policies apply only
+			// when it is a direct child of a Group Stack.
+			bool managed{ false };
+			if constexpr (requires { target.entity; }) {
+				managed = static_cast<bool>(GetGroupStack(target.entity));
 			}
-		} else {
-			changed |= DrawFocusedComponent<Target, UILayerData>(
-				target, "Layer Key",
-				[&](UILayerData& data) { return DrawValue(target.ctx, "Layer Key", data.key); }
-			);
-		}
-
-		changed |=
-			DrawFocusedComponent<Target, UILayerData>(target, "UI Layer", [&](UILayerData& data) {
-				bool local_changed{ false };
+			if (managed) {
 				local_changed |= DrawPropertyRow("Overlay Mode", [&]() {
 					ImGui::SetNextItemWidth(-FLT_MIN);
 					bool local{ false };
 					const char* preview{ data.overlay == OverlayMode::Hide ? "Hide and Disable"
 																		   : "Disable" };
-					if (ImGui::BeginCombo("##LayerOverlayMode", preview)) {
+					if (ImGui::BeginCombo("##GroupOverlayMode", preview)) {
 						if (ImGui::Selectable("Disable", data.overlay == OverlayMode::Disable)) {
 							data.overlay = OverlayMode::Disable;
 							local		 = true;
@@ -5149,15 +5075,16 @@ bool DrawUISectionImpl(Target& target) {
 					}
 					return local;
 				});
-				DrawTooltip("How the layer behaves when covered.");
+				DrawTooltip("How this group behaves when covered by another group.");
 				local_changed |=
 					DrawValue(target.ctx, "Show Disabled Style", data.show_disabled_style);
 				DrawTooltip("Use disabled visuals while covered.");
 				local_changed |=
 					DrawValue(target.ctx, "Block Background Input", data.block_background_input);
-				DrawTooltip("Block input outside the active layer.");
-				return local_changed;
-			});
+				DrawTooltip("Block input outside the active group.");
+			}
+			return local_changed;
+		});
 	}
 
 	if (has_toggle_group) {

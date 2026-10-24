@@ -5,6 +5,7 @@
 #include "core/util/time.h"
 #include "core/util/timer.h"
 #include "runtime/ecs/entity.h"
+#include "runtime/ecs/group_stack.h"
 #include "runtime/scene/scene.h"
 
 namespace ptgn {
@@ -122,6 +123,9 @@ void Lifetime::Update(Entity entity, secondsf dt) {
 
 void Lifetime::Update(Scene& scene, secondsf dt) {
 	for (auto [entity, lifetime] : scene.EntitiesWith<Lifetime>()) {
+		if (!IsGroupStackActive(entity)) {
+			continue;
+		}
 		lifetime.Update(entity, dt);
 	}
 }

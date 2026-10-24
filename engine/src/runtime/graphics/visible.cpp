@@ -2,17 +2,17 @@
 
 #include "runtime/ecs/entity.h"
 #include "runtime/ecs/entity_hierarchy.h"
+#include "runtime/ecs/group_stack.h"
 #include "runtime/scene/scene_event.h"
-#include "runtime/ui/ui_stack.h"
 
 namespace ptgn {
 
 namespace {
 
 bool IsLocallyVisible(Entity entity) {
-	// Layer visibility is controlled by the UI stack in runtime and the editor
+	// Layer visibility is controlled by the group stack in runtime and the editor
 	// preview otherwise; old authored Visible flags must not suppress either.
-	if (entity.Has<UILayerData>()) {
+	if (entity.Has<Group>() && GetGroupStack(entity)) {
 		return true;
 	}
 
@@ -73,7 +73,7 @@ bool IsAuthoredVisible(Entity entity, bool check_parent_visibility) {
 }
 
 bool IsVisible(Entity entity, bool check_parent_visibility) {
-	return IsAuthoredVisible(entity, check_parent_visibility) && IsUIStackVisible(entity);
+	return IsAuthoredVisible(entity, check_parent_visibility) && IsGroupStackVisible(entity);
 }
 
 void IgnoreParentVisibility(Entity entity, bool ignore) {

@@ -22,6 +22,7 @@
 #include "runtime/ecs/entity.h"
 #include "runtime/ecs/entity_creation_context.h"
 #include "runtime/ecs/entity_hierarchy.h"
+#include "runtime/ecs/group_stack.h"
 #include "runtime/ecs/tag.h"
 #include "runtime/graphics/sprite.h"
 #include "runtime/graphics/visible.h"
@@ -619,6 +620,9 @@ void AnimationSystem::Prepare(Scene& scene) {
 
 void AnimationSystem::Update(Scene& scene, secondsf dt) {
 	for (auto [entity, data, crop] : scene.EntitiesWith<AnimationData, TextureCrop>()) {
+		if (!IsGroupStackActive(entity)) {
+			continue;
+		}
 		data.frame_timer.Update(dt);
 
 		Animation animation{ entity };
