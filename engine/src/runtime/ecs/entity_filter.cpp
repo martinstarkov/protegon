@@ -109,16 +109,6 @@ bool Matches(const EntityFilter& filter, Scene& scene, Entity owner, Entity targ
 		case EntityFilterType::Entity:
 			return filter.entity.uuid.has_value() &&
 				   target.Get<UUID>() == filter.entity.uuid.value();
-		case EntityFilterType::Layer: {
-			if (!filter.layer.id) {
-				return false;
-			}
-
-			auto layer{ scene.GetLayers().GetLayerId(target) };
-
-			return layer.has_value() && layer.value() == filter.layer.id;
-		}
-
 		case EntityFilterType::Components:
 			if (filter.components.groups.empty()) {
 				return false;
@@ -126,20 +116,15 @@ bool Matches(const EntityFilter& filter, Scene& scene, Entity owner, Entity targ
 
 			return MatchesComponentQuery(target, filter.components);
 
-		case EntityFilterType::Group:
-			if (filter.group.groups.empty()) {
+		case EntityFilterType::Tags: {
+			const auto* labels{ target.TryGet<Tags>() };
+			if (!labels || filter.tags.tags.empty()) {
 				return false;
 			}
-
-			if (auto* membership{ target.TryGet<Group>() }) {
-				return std::ranges::any_of(
-					filter.group.groups, [&membership](const std::string& group) {
-						return !group.empty() && std::ranges::contains(membership->groups, group);
-					}
-				);
-			}
-
-			return false;
+			return std::ranges::any_of(filter.tags.tags, [labels](const std::string& label) {
+				return !label.empty() && labels->Contains(label);
+			});
+		}
 
 		case EntityFilterType::Query: {
 			if (filter.query.key.empty()) {

@@ -28,6 +28,7 @@
 #include "runtime/asset/prefab.h"
 #include "runtime/ecs/entity_hierarchy.h"
 #include "runtime/ecs/entity_serialization.h"
+#include "runtime/ecs/group_stack.h"
 #include "runtime/ecs/tag.h"
 #include "runtime/graphics/draw.h"
 #include "runtime/graphics/render_target.h"
@@ -35,103 +36,10 @@
 #include "runtime/scene/scene_context.h"
 #include "runtime/scene/scene_file.h"
 #include "runtime/scene/scene_manager.h"
-#include "runtime/ui/ui_stack.h"
 
 namespace ptgn::editor {
 
 namespace {
-
-void RestoreRuntimeEntityComponents(Entity entity) {
-	if (!entity) {
-		return;
-	}
-
-	if (entity.Has<::ptgn::impl::RenderTargetDesc>()) {
-		SetDraw<RenderTarget>(entity);
-
-		auto& renderer{ entity.GetScene().ctx().renderer };
-		V2_int display_size{ renderer.GetDisplaySize() };
-
-		if (!display_size.IsPositive()) {
-			display_size = renderer.GetPresentationSize();
-		}
-
-		if (!display_size.IsPositive()) {
-			display_size = renderer.GetLogicalSize();
-		}
-
-		if (!display_size.IsPositive()) {
-			display_size = { 1, 1 };
-		}
-
-		RenderTarget target{ entity };
-
-		target.UpdateSize(display_size);
-		target.ClearColor(std::nullopt);
-	}
-
-	if (HasChildren(entity)) {
-		for (Entity child : GetChildren(entity)) {
-			RestoreRuntimeEntityComponents(child);
-		}
-	}
-}
-
-class SceneLayerEntityCommand final : public EditorCommand {
-public:
-	SceneLayerEntityCommand(
-		std::unique_ptr<EditorCommand> command, Editor& editor, EntityReference reference,
-		SceneLayerId layer, bool restore_layer_after_redo
-	) :
-		command_{ std::move(command) },
-		editor_{ &editor },
-		reference_{ std::move(reference) },
-		layer_{ layer },
-		restore_layer_after_redo_{ restore_layer_after_redo } {}
-
-	void Undo() override {
-		command_->Undo();
-		if (!restore_layer_after_redo_) {
-			RestoreLayer();
-		}
-	}
-
-	void Redo() override {
-		command_->Redo();
-		if (restore_layer_after_redo_) {
-			RestoreLayer();
-		}
-	}
-
-	[[nodiscard]] std::string_view Label() const override {
-		return command_->Label();
-	}
-
-private:
-	void RestoreLayer() {
-		if (!editor_ || !layer_) {
-			return;
-		}
-
-		Entity entity{ reference_.Resolve(*editor_) };
-		if (!entity) {
-			return;
-		}
-
-		auto& layers{ entity.GetScene().GetLayers() };
-		if (layers.Find(layer_) && layers.CanAssign(entity, layer_)) {
-			layers.Assign(entity, layer_, true);
-		}
-
-		RestoreRuntimeEntityComponents(entity);
-	}
-
-	std::unique_ptr<EditorCommand> command_;
-	Editor* editor_{ nullptr };
-	EntityReference reference_{};
-	SceneLayerId layer_{};
-	bool restore_layer_after_redo_{ false };
-};
 
 struct PrefabAssetState {
 	PrefabKey key{};
@@ -295,7 +203,6 @@ struct DeletedPrefabInstanceSnapshot {
 	Scene* scene{ nullptr };
 	SerializedEntity root{};
 	std::optional<UUID> parent{};
-	std::optional<SceneLayerId> layer{};
 };
 
 Entity RestoreSerializedTree(Scene& scene, const SerializedEntity& serialized, Entity parent = {}) {
@@ -333,9 +240,6 @@ void RestoreDeletedPrefabInstance(const DeletedPrefabInstanceSnapshot& snapshot)
 			SetParent(root, parent);
 		}
 	}
-	if (snapshot.layer.has_value()) {
-		scene.GetLayers().Assign(root, *snapshot.layer, true);
-	}
 	scene.Refresh();
 }
 
@@ -369,7 +273,6 @@ std::vector<DeletedPrefabInstanceSnapshot> CapturePrefabInstanceRoots(
 					.parent = HasParent(entity) && GetParent(entity).Has<UUID>()
 								? std::optional<UUID>{ GetParent(entity).Get<UUID>() }
 								: std::nullopt,
-					.layer	= scene.GetLayers().GetLayerId(entity),
 				}
 			);
 		}
@@ -693,9 +596,6 @@ Entity EditorCommands::RecordCreatedEntity(
 	auto reference{ MakeEntityReference(entity) };
 	auto snapshot{ CaptureEntitySnapshot(entity) };
 	auto after_selection{ SelectEntity(before_selection, entity) };
-	SceneLayerId layer{ entity.GetScene().GetLayers().GetLayerId(entity).value_or(
-		entity.GetScene().GetLayers().GetDefaultEntityLayer()
-	) };
 
 	ApplyEditorSelection(*context_, after_selection);
 
@@ -704,10 +604,7 @@ Entity EditorCommands::RecordCreatedEntity(
 		std::move(after_selection)
 	) };
 	context_->undo.PushApplied(
-		std::make_unique<SceneLayerEntityCommand>(
-			std::move(create_command), context_->editor, reference, layer, true
-		),
-		affects_project_serialization, allow_when_disabled, transient
+		std::move(create_command), affects_project_serialization, allow_when_disabled, transient
 	);
 
 	return reference.Resolve(context_->editor);
@@ -727,17 +624,6 @@ Entity EditorCommands::DuplicateEntity(Entity entity) {
 
 	if (parent) {
 		SetParent(duplicate, parent);
-	}
-
-	if (parent && parent.Has<UIStackData>() && duplicate.Has<UILayerData>()) {
-		UIStack stack{ parent };
-		std::string base{ duplicate.Get<UILayerData>().key + " Copy" };
-		std::string key{ base };
-		std::size_t suffix{ 2 };
-		while (stack.GetLayer(key) && stack.GetLayer(key) != duplicate) {
-			key = base + " " + std::to_string(suffix++);
-		}
-		duplicate.Get<UILayerData>().key = key;
 	}
 
 	scene.Refresh();
@@ -763,18 +649,11 @@ void EditorCommands::DeleteEntity(
 		after.SetEntityUUID(reference.scene_key, reference.runtime, std::nullopt);
 	}
 
-	SceneLayerId layer{ entity.GetScene().GetLayers().GetLayerId(entity).value_or(
-		entity.GetScene().GetLayers().GetDefaultEntityLayer()
-	) };
-
 	auto delete_command{ std::make_unique<DeleteEntityCommand>(
 		*context_, reference, std::move(snapshot), before, std::move(after)
 	) };
 	context_->undo.Execute(
-		std::make_unique<SceneLayerEntityCommand>(
-			std::move(delete_command), context_->editor, std::move(reference), layer, false
-		),
-		affects_project_serialization, allow_when_disabled, transient
+		std::move(delete_command), affects_project_serialization, allow_when_disabled, transient
 	);
 }
 

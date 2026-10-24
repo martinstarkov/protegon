@@ -12,7 +12,6 @@
 #include "runtime/ecs/entity.h"
 #include "runtime/ecs/entity_creation_context.h"
 #include "runtime/ecs/tag.h"
-#include "runtime/world/entity_layer.h"
 #include "runtime/world/tilemap.h"
 #include "serialization/serialize.h"
 
@@ -241,7 +240,7 @@ public:
 [[nodiscard]] bool IsPaintGenerator(Entity entity);
 
 [[nodiscard]] PaintGenerator CreatePaintGenerator(
-	EntityCreationContext context, SceneLayerId layer, Tag tag = Tag{ "Generator" }
+	EntityCreationContext context, Tag tag = Tag{ "Generator" }
 );
 
 } // namespace ptgn

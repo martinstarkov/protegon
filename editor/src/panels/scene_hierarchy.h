@@ -8,7 +8,6 @@
 #include "runtime/asset/asset_key.h"
 #include "runtime/ecs/entity.h"
 #include "runtime/ecs/entity_serialization.h"
-#include "runtime/world/entity_layer.h"
 
 namespace ptgn {
 
@@ -22,7 +21,7 @@ class EditorContext;
 
 // Same assignment restrictions for hierarchy drag/drop and the Rendering inspector.
 [[nodiscard]] bool CanReparentHierarchyEntity(Entity entity, Entity parent);
-[[nodiscard]] bool CanAssignEntityToUILayer(Entity entity, Entity layer);
+[[nodiscard]] bool CanAssignEntityToGroup(Entity entity, Entity layer);
 
 using SceneHierarchyTab = EditorSelectionMode;
 
@@ -52,17 +51,10 @@ private:
 
 	EditorContext* context_{ nullptr };
 
-	std::optional<SceneLayerId> selected_layer_;
-	Scene* selected_layer_scene_{ nullptr };
-
 	std::optional<SceneEntitySelection> renaming_entity_;
 	std::string entity_rename_text_;
 	std::string entity_rename_error_;
 	bool focus_entity_rename_{ false };
-
-	std::optional<SceneLayerId> renaming_layer_;
-	std::string layer_rename_text_;
-	bool focus_layer_rename_{ false };
 
 	std::optional<PrefabKey> renaming_prefab_;
 	std::string prefab_rename_text_;

@@ -56,35 +56,12 @@ Tilemap PaintGenerator::GetTargetTilemap() const {
 		return {};
 	}
 
-	if (HasScene()) {
-		auto generator_layer{ GetScene().GetLayers().GetLayerId(*this) };
-		if (!generator_layer.has_value() ||
-			GetScene().GetLayers().GetLayerId(parent) != generator_layer) {
-			return {};
-		}
-	}
-
 	return Tilemap{ parent };
 }
 
 bool PaintGenerator::SetTargetTilemap(std::optional<Tilemap> target) {
 	if (!*this) {
 		return false;
-	}
-
-	Scene* scene{ HasScene() ? &GetScene() : nullptr };
-	std::optional<SceneLayerId> generator_layer_id;
-	const SceneLayer* generator_layer{};
-
-	if (scene) {
-		generator_layer_id = scene->GetLayers().GetLayerId(*this);
-		if (!generator_layer_id.has_value()) {
-			return false;
-		}
-		generator_layer = scene->GetLayers().Find(*generator_layer_id);
-		if (!generator_layer) {
-			return false;
-		}
 	}
 
 	std::optional<Transform> world_transform{
@@ -105,14 +82,8 @@ bool PaintGenerator::SetTargetTilemap(std::optional<Tilemap> target) {
 		return false;
 	}
 
-	if (scene) {
-		if (!target->HasScene() || &target->GetScene() != scene ||
-			generator_layer->kind != SceneLayerKind::Tile) {
-			return false;
-		}
-
-		auto target_layer{ scene->GetLayers().GetLayerId(*target) };
-		if (!target_layer.has_value() || *target_layer != *generator_layer_id) {
+	if (HasScene()) {
+		if (!target->HasScene() || &target->GetScene() != &GetScene()) {
 			return false;
 		}
 	} else if (target->HasScene() || &target->GetManager() != &GetManager()) {
@@ -156,21 +127,10 @@ bool IsPaintGenerator(Entity entity) {
 	return entity && entity.Has<impl::PaintGeneratorData>();
 }
 
-PaintGenerator CreatePaintGenerator(EntityCreationContext context, SceneLayerId layer, Tag tag) {
-	Scene* scene{ context.GetScene() };
-	if (scene && !scene->GetLayers().Find(layer)) {
-		return {};
-	}
-
+PaintGenerator CreatePaintGenerator(EntityCreationContext context, Tag tag) {
 	Entity entity{ context.CreateEntity(std::move(tag)) };
 	entity.TryAdd<Transform>();
 	entity.Add<impl::PaintGeneratorData>();
-
-	if (scene && !scene->GetLayers().Assign(entity, layer, false)) {
-		entity.Destroy();
-		return {};
-	}
-
 	return PaintGenerator{ entity };
 }
 

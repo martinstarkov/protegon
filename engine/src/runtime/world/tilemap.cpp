@@ -158,24 +158,10 @@ bool IsTilemap(Entity entity) {
 	return entity && entity.Has<impl::TilemapData>();
 }
 
-Tilemap CreateTilemap(EntityCreationContext context, SceneLayerId layer, Tag tag) {
-	Scene* scene{ context.GetScene() };
-	if (scene) {
-		const SceneLayer* destination{ scene->GetLayers().Find(layer) };
-		if (!destination || destination->kind != SceneLayerKind::Tile) {
-			return {};
-		}
-	}
-
+Tilemap CreateTilemap(EntityCreationContext context, Tag tag) {
 	Entity entity{ context.CreateEntity(std::move(tag)) };
 	entity.TryAdd<Transform>();
 	entity.Add<impl::TilemapData>();
-
-	if (scene && !scene->GetLayers().Assign(entity, layer, false)) {
-		entity.Destroy();
-		return {};
-	}
-
 	return Tilemap{ entity };
 }
 

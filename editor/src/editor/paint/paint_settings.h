@@ -57,15 +57,14 @@ struct PaintPrefabGroupAssignmentState {
 	PTGN_REFLECT(PaintPrefabGroupAssignmentState, prefab, group)
 };
 
-/// @brief Shared editor paint exclusions for one scene entity layer.
+/// @brief Shared editor paint exclusions for a scene.
 struct PaintEntityExclusionMaskState {
 	std::string scene_key{};
-	std::uint64_t layer_id{};
 	std::vector<V2_int> cells{};
 
 	bool operator==(const PaintEntityExclusionMaskState&) const = default;
 
-	PTGN_REFLECT(PaintEntityExclusionMaskState, scene_key, layer_id, cells)
+	PTGN_REFLECT(PaintEntityExclusionMaskState, scene_key, cells)
 };
 
 /// @brief Shared editor paint organization stored in the tracked .ptgneditor file.

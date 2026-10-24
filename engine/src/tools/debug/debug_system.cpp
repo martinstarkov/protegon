@@ -68,7 +68,7 @@ void DrawDebugColliders(
 	}
 
 	for (auto [entity, collider] : scene.EntitiesWith<Collider>()) {
-		// Camera render mask test, independent of organizational scene layers.
+		// Camera render mask test, independent of scene hierarchy organization.
 		if (filter(entity)) {
 			continue;
 		}
@@ -248,7 +248,7 @@ void DrawDebugLightVisibilityPolygons(
 
 	for (auto [entity, _light, visibility_polygon] :
 		 scene.EntitiesWith<LightData, impl::VisibilityPolygon>()) {
-		// Camera render mask test, independent of organizational scene layers.
+		// Camera render mask test, independent of scene hierarchy organization.
 		if (filter(entity)) {
 			continue;
 		}

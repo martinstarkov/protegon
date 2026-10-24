@@ -12,7 +12,6 @@
 #include "runtime/ecs/entity.h"
 #include "runtime/ecs/entity_creation_context.h"
 #include "runtime/ecs/tag.h"
-#include "runtime/world/entity_layer.h"
 #include "serialization/serialize.h"
 
 namespace ptgn {
@@ -72,8 +71,8 @@ namespace impl {
 
 /// @brief Persistent component that turns an ECS entity into a Tilemap entity.
 ///
-/// A Tilemap owns exactly one authored set of tiles. It must belong to a SceneLayerKind::Tile
-/// layer. Tilemaps are deliberately entities so they can be selected, named, serialized, copied,
+/// A Tilemap owns exactly one authored set of tiles. It is an ordinary entity, so
+/// it can be selected, named, serialized, copied,
 /// and targeted by generators like any other scene object.
 struct TilemapData {
 	V2_float cell_size{ 32.0f, 32.0f };
@@ -123,11 +122,7 @@ public:
 
 [[nodiscard]] bool IsTilemap(Entity entity);
 
-/// @brief Creates a Tilemap entity directly in a Tile layer when a Scene is available.
-/// When authoring a prefab without a Scene, only the serialized components are created.
-/// @return A null Tilemap if a Scene layer is missing or is not a Tile layer.
-[[nodiscard]] Tilemap CreateTilemap(
-	EntityCreationContext context, SceneLayerId layer, Tag tag = Tag{ "Tilemap" }
-);
+/// @brief Creates a Tilemap entity.
+[[nodiscard]] Tilemap CreateTilemap(EntityCreationContext context, Tag tag = Tag{ "Tilemap" });
 
 } // namespace ptgn
