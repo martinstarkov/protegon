@@ -1,11 +1,15 @@
 #include "commands/entity/entity_snapshot.h"
 
 #include "core/assert.h"
+#include "renderer/renderer.h"
 #include "runtime/ecs/entity_hierarchy.h"
 #include "runtime/ecs/entity_serialization.h"
 #include "runtime/ecs/relatives.h"
 #include "runtime/ecs/tag.h"
+#include "runtime/graphics/draw.h"
+#include "runtime/graphics/render_target.h"
 #include "runtime/scene/scene.h"
+#include "runtime/scene/scene_context.h"
 
 namespace ptgn::editor {
 
@@ -71,6 +75,42 @@ void DestroyNode(Scene& scene, const SerializedEntity& serialized) {
 
 } // namespace
 
+void RestoreRuntimeEntityComponents(Entity entity) {
+	if (!entity) {
+		return;
+	}
+
+	if (entity.Has<::ptgn::impl::RenderTargetDesc>()) {
+		SetDraw<RenderTarget>(entity);
+
+		auto& renderer{ entity.GetScene().ctx().renderer };
+		V2_int display_size{ renderer.GetDisplaySize() };
+
+		if (!display_size.IsPositive()) {
+			display_size = renderer.GetPresentationSize();
+		}
+
+		if (!display_size.IsPositive()) {
+			display_size = renderer.GetLogicalSize();
+		}
+
+		if (!display_size.IsPositive()) {
+			display_size = { 1, 1 };
+		}
+
+		RenderTarget target{ entity };
+
+		target.UpdateSize(display_size);
+		target.ClearColor(std::nullopt);
+	}
+
+	if (HasChildren(entity)) {
+		for (Entity child : GetChildren(entity)) {
+			RestoreRuntimeEntityComponents(child);
+		}
+	}
+}
+
 EntitySnapshot CaptureEntitySnapshot(Entity entity) {
 	PTGN_ASSERT(entity, "Cannot capture a null entity snapshot");
 
@@ -119,7 +159,9 @@ Entity RestoreEntitySnapshot(Scene& scene, const EntitySnapshot& snapshot) {
 
 	scene.Refresh();
 
-	return scene.GetEntity(GetSerializedEntityUUID(snapshot.root));
+	Entity restored{ scene.GetEntity(GetSerializedEntityUUID(snapshot.root)) };
+	RestoreRuntimeEntityComponents(restored);
+	return restored;
 }
 
 void DestroyEntitySnapshot(Scene& scene, const EntitySnapshot& snapshot) {

@@ -22,19 +22,14 @@ struct EntitySnapshot {
 	std::optional<UUID> parent_uuid{};
 };
 
-[[nodiscard]] EntitySnapshot CaptureEntitySnapshot(
-	Entity entity
-);
+[[nodiscard]] EntitySnapshot CaptureEntitySnapshot(Entity entity);
 
-Entity RestoreEntitySnapshot(
-	Scene& scene,
-	const EntitySnapshot& snapshot
-);
+/// @brief Reinitialize nonserialized GPU resources after an entity tree is restored.
+void RestoreRuntimeEntityComponents(Entity entity);
 
-void DestroyEntitySnapshot(
-	Scene& scene,
-	const EntitySnapshot& snapshot
-);
+Entity RestoreEntitySnapshot(Scene& scene, const EntitySnapshot& snapshot);
+
+void DestroyEntitySnapshot(Scene& scene, const EntitySnapshot& snapshot);
 
 } // namespace editor
 
