@@ -26,7 +26,7 @@ const SequenceChannelKey kShakeRecoveryChannel{ "transform.shake.recovery" };
 		return {};
 	}
 	sequence.Transient();
-	return script_runtime::RunInChannel(
+	return ScriptSystem::RunInChannel(
 		entity, std::move(channel), std::move(sequence), AnimationReentry(force)
 	);
 }
@@ -147,7 +147,7 @@ void StopBounce(Entity entity, bool force) {
 	if (!entity) {
 		return;
 	}
-	script_runtime::StopChannel(
+	ScriptSystem::StopChannel(
 		entity, animation_channel::Bounce, force ? SequenceStopMode::All : SequenceStopMode::Current
 	);
 	if (force) {
@@ -166,7 +166,7 @@ SequenceHandle Shake(
 
 	// A new shake takes ownership of the current shake state. Cancel any recovery that may have
 	// been started by an editor authored Tween which ended without Reset On Complete.
-	script_runtime::StopChannel(entity, kShakeRecoveryChannel, SequenceStopMode::All);
+	ScriptSystem::StopChannel(entity, kShakeRecoveryChannel, SequenceStopMode::All);
 
 	ScriptSequence sequence{ "Shake" };
 	if (!duration.has_value()) {
@@ -208,10 +208,10 @@ void StopShake(Entity entity, bool force) {
 	if (!entity) {
 		return;
 	}
-	script_runtime::StopChannel(
+	ScriptSystem::StopChannel(
 		entity, animation_channel::Shake, force ? SequenceStopMode::All : SequenceStopMode::Current
 	);
-	script_runtime::StopChannel(entity, kShakeRecoveryChannel, SequenceStopMode::All);
+	ScriptSystem::StopChannel(entity, kShakeRecoveryChannel, SequenceStopMode::All);
 	impl::ResetShakeAnimationState(entity);
 }
 
@@ -253,7 +253,7 @@ void StopFollow(Entity entity, bool force, bool reset_previous_waypoints) {
 	if (!entity) {
 		return;
 	}
-	script_runtime::StopChannel(
+	ScriptSystem::StopChannel(
 		entity, animation_channel::Follow, force ? SequenceStopMode::All : SequenceStopMode::Current
 	);
 	if (force || reset_previous_waypoints) {

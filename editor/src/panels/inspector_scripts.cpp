@@ -412,7 +412,7 @@ void AddEditorScriptEntry(
 	Entity owner{ ::ptgn::impl::ScriptsAccessor::GetOwner(scripts) };
 	if (owner && IsRuntimeActive(context)) {
 		scripts.Attach(owner);
-		script_runtime::AttachEntry(owner, scripts.scripts.back());
+		ScriptSystem::AttachEntry(owner, scripts.scripts.back());
 	}
 }
 
@@ -2788,9 +2788,9 @@ bool DrawSequenceToolbar(
 				active ? "Stop and reset this sequence." : "Start this sequence."
 			)) {
 			if (active) {
-				script_runtime::Reset(runtime_owner, runtime_binding->id);
+				ScriptSystem::Reset(runtime_owner, runtime_binding->id);
 			} else {
-				script_runtime::Start(runtime_owner, runtime_binding->id);
+				ScriptSystem::Start(runtime_owner, runtime_binding->id);
 			}
 		}
 		ImGui::EndDisabled();
@@ -2801,7 +2801,7 @@ bool DrawSequenceToolbar(
 				"##SequencePauseResume", runtime.paused ? EditorIcon::Play : EditorIcon::Pause,
 				runtime.paused ? "Resume this sequence." : "Pause this sequence."
 			)) {
-			script_runtime::SetPaused(runtime_owner, runtime_binding->id, !runtime.paused);
+			ScriptSystem::SetPaused(runtime_owner, runtime_binding->id, !runtime.paused);
 		}
 		ImGui::EndDisabled();
 
@@ -2811,7 +2811,7 @@ bool DrawSequenceToolbar(
 				"##SequencePrevious", EditorIcon::StepBackward,
 				"Return to the previous sequence step."
 			)) {
-			script_runtime::PreviousStep(runtime_owner, runtime_binding->id);
+			ScriptSystem::PreviousStep(runtime_owner, runtime_binding->id);
 		}
 		ImGui::EndDisabled();
 
@@ -2820,7 +2820,7 @@ bool DrawSequenceToolbar(
 		if (DrawSequenceRuntimeButton(
 				"##SequenceNext", EditorIcon::StepForward, "Skip this step or finish the sequence."
 			)) {
-			script_runtime::Skip(runtime_owner, runtime_binding->id);
+			ScriptSystem::Skip(runtime_owner, runtime_binding->id);
 		}
 		ImGui::EndDisabled();
 	}
@@ -3218,7 +3218,7 @@ std::optional<int> DrawSequenceTabs(
 
 				if (context.owner) {
 					if (!script.instance && registration) {
-						script_runtime::AttachEntry(context.owner, script);
+						ScriptSystem::AttachEntry(context.owner, script);
 					}
 					auto* sequence_script{ script.instance.get() };
 					if (!sequence_script) {
@@ -3483,7 +3483,7 @@ std::optional<int> DrawRegisteredScriptTabs(
 
 						if (context.owner) {
 							if (!script.instance) {
-								script_runtime::AttachEntry(context.owner, script);
+								ScriptSystem::AttachEntry(context.owner, script);
 							} else if (registration && registration->apply) {
 								registration->apply(*script.instance, script.value);
 							}
@@ -4224,10 +4224,10 @@ bool DrawScriptsSectionImpl(Target& target) {
 				if (target.ctx.editor.IsPlaying() || target.ctx.editor.IsDirectRuntime()) {
 					auto& live_scripts{ target.entity.template Get<::ptgn::impl::Scripts>() };
 					for (auto& entry : live_scripts.scripts) {
-						script_runtime::AttachEntry(target.entity, entry);
+						ScriptSystem::AttachEntry(target.entity, entry);
 					}
 					for (auto& entry : live_scripts.pending_additions) {
-						script_runtime::AttachEntry(target.entity, entry);
+						ScriptSystem::AttachEntry(target.entity, entry);
 					}
 				}
 			}

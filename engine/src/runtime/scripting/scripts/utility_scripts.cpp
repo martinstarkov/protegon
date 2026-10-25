@@ -177,7 +177,7 @@ void PrintConsoleScript::OnStart() {
 }
 
 void EmitSignalScript::OnStart() {
-	script_runtime::DispatchGlobal<Signal>(GetScene(), Signal{ signal });
+	GetScene().ctx().event.PushGlobal<Signal>(Signal{ signal });
 }
 
 ScriptSequence& ScriptSequence::EmitSignal(SignalKey signal) {
@@ -208,7 +208,7 @@ SequenceHandle After(Scene& scene, milliseconds duration, SequenceFunction funct
 	} };
 	ScriptSequence sequence{ "After" };
 	sequence.Wait(duration).Then(std::move(callback)).Transient().DestroyOwnerOnComplete();
-	auto handle{ script_runtime::RunSequence(owner, std::move(sequence)) };
+	auto handle{ ScriptSystem::RunSequence(owner, std::move(sequence)) };
 	*handle_ref = handle;
 	handle.Start();
 
@@ -236,7 +236,7 @@ SequenceHandle During(Scene& scene, milliseconds duration, DuringSequenceFunctio
 	} };
 	ScriptSequence sequence{ "During" };
 	sequence.During(duration, std::move(callback)).Transient().DestroyOwnerOnComplete();
-	auto handle{ script_runtime::RunSequence(owner, std::move(sequence)) };
+	auto handle{ ScriptSystem::RunSequence(owner, std::move(sequence)) };
 	handle.Start();
 
 	return handle;

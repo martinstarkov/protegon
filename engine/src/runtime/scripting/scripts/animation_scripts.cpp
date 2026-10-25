@@ -129,7 +129,7 @@ void StopBackgroundShakeRecovery(Entity entity) {
 		return;
 	}
 
-	script_runtime::StopChannel(entity, kShakeRecoveryChannel, SequenceStopMode::All);
+	ScriptSystem::StopChannel(entity, kShakeRecoveryChannel, SequenceStopMode::All);
 }
 
 void StartBackgroundShakeRecovery(Entity entity, const ShakeConfig& config) {
@@ -140,7 +140,7 @@ void StartBackgroundShakeRecovery(Entity entity, const ShakeConfig& config) {
 	ScriptSequence sequence{ "Shake Recovery" };
 	sequence.UntilComplete(RecoverShakeScript{ config });
 	sequence.Transient();
-	script_runtime::RunInChannel(
+	ScriptSystem::RunInChannel(
 		entity, kShakeRecoveryChannel, std::move(sequence), ReentryMode::Restart
 	);
 }

@@ -221,6 +221,8 @@ void AudioFadeInSoundScript::OnStart() {
 	} else {
 		audio.SetVolume(key, 0.0f);
 	}
+	audio.MarkFadeTarget(key, 1.0f);
+
 	PropertyTo<float>(
 		target, SequenceChannelKey{ "audio.fade." + key.value }, 1.0f,
 		milliseconds{ static_cast<std::int64_t>(std::max(1.0f, number)) },
@@ -239,6 +241,8 @@ void AudioFadeOutSoundScript::OnStart() {
 	if (key.value.empty()) {
 		return;
 	}
+	GetScene().ctx().audio.MarkFadeTarget(key, 0.0f);
+
 	PropertyTo<float>(
 		target, SequenceChannelKey{ "audio.fade." + key.value }, 0.0f,
 		milliseconds{ static_cast<std::int64_t>(std::max(1.0f, number)) },

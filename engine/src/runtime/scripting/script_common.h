@@ -168,7 +168,7 @@ SequenceHandle PropertyTo(
 	ScriptSequence sequence{ "Property To" };
 	sequence.Channel(channel).Transient().During(duration, std::move(action)).Ease(ease);
 
-	return script_runtime::RunInChannel(
+	return ScriptSystem::RunInChannel(
 		entity, std::move(channel), std::move(sequence),
 		force ? ReentryMode::Restart : ReentryMode::Queue
 	);

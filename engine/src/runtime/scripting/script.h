@@ -898,50 +898,42 @@ struct SequenceHandle {
 	[[nodiscard]] float Progress() const;
 };
 
-namespace script_runtime {
+/// @brief Runs script and sequence logic. Event delivery is exclusively owned by
+/// EventHandler / LocalEventHandler; OnEvent is an internal queued-event sink.
+class ScriptSystem {
+public:
+	static void AttachEntry(Entity entity, ScriptEntry& entry);
+	static void AttachAll(Entity entity);
+	static void ApplyPending(Scene& scene);
+	static void Update(Scene& scene, secondsf dt);
+	[[nodiscard]] static ScriptSequence* Resolve(Entity owner, ScriptSequence& binding);
+	[[nodiscard]] static const ScriptSequence* Resolve(Entity owner, const ScriptSequence& binding);
+	static SequenceHandle RunSequence(Entity owner, ScriptSequence sequence);
+	static SequenceHandle RunInChannel(
+		Entity owner, SequenceChannelKey channel, ScriptSequence sequence, ReentryMode reentry
+	);
+	static bool Start(Entity owner, SequenceId id, bool force = false);
+	static void StopChannel(Entity owner, SequenceChannelKey channel, SequenceStopMode mode);
+	static bool Stop(
+		Entity owner, SequenceId id, SequenceCancelReason reason = SequenceCancelReason::Stopped
+	);
+	static bool Reset(Entity owner, SequenceId id);
+	static bool Clear(Entity owner, SequenceId id);
+	static bool Skip(Entity owner, SequenceId id);
+	static bool PreviousStep(Entity owner, SequenceId id);
+	static bool Seek(Entity owner, SequenceId id, float progress);
+	static bool SetPaused(Entity owner, SequenceId id, bool paused);
+	[[nodiscard]] static float Progress(Entity owner, SequenceId id);
+	[[nodiscard]] static bool IsRunning(Entity owner, SequenceId id);
+	[[nodiscard]] static bool IsPaused(Entity owner, SequenceId id);
+	[[nodiscard]] static bool IsCompleted(Entity owner, SequenceId id);
 
-void AttachEntry(Entity entity, ScriptEntry& entry);
-void AttachAll(Entity entity);
-void ApplyPending(Scene& scene);
-void Update(Scene& scene, secondsf dt);
-bool DispatchEvent(Entity entity, Event event);
-bool DispatchGlobalEvent(Scene& scene, Event event);
-
-template <typename T, typename... TArgs>
-	requires BraceConstructible<T, TArgs...>
-bool Dispatch(Entity entity, TArgs&&... args) {
-	auto data{ impl::EventData::Create<T>(std::forward<TArgs>(args)...) };
-	return DispatchEvent(entity, Event{ data });
-}
-
-template <typename T, typename... TArgs>
-	requires BraceConstructible<T, TArgs...>
-bool DispatchGlobal(Scene& scene, TArgs&&... args) {
-	auto data{ impl::EventData::Create<T>(std::forward<TArgs>(args)...) };
-	return DispatchGlobalEvent(scene, Event{ data });
-}
-
-[[nodiscard]] ScriptSequence* Resolve(Entity owner, ScriptSequence& binding);
-[[nodiscard]] const ScriptSequence* Resolve(Entity owner, const ScriptSequence& binding);
-SequenceHandle RunSequence(Entity owner, ScriptSequence sequence);
-SequenceHandle RunInChannel(
-	Entity owner, SequenceChannelKey channel, ScriptSequence sequence, ReentryMode reentry
-);
-bool Start(Entity owner, SequenceId id, bool force = false);
-void StopChannel(Entity owner, SequenceChannelKey channel, SequenceStopMode mode);
-bool Stop(Entity owner, SequenceId id, SequenceCancelReason reason = SequenceCancelReason::Stopped);
-bool Reset(Entity owner, SequenceId id);
-bool Clear(Entity owner, SequenceId id);
-bool Skip(Entity owner, SequenceId id);
-bool PreviousStep(Entity owner, SequenceId id);
-bool Seek(Entity owner, SequenceId id, float progress);
-bool SetPaused(Entity owner, SequenceId id, bool paused);
-[[nodiscard]] float Progress(Entity owner, SequenceId id);
-[[nodiscard]] bool IsRunning(Entity owner, SequenceId id);
-[[nodiscard]] bool IsPaused(Entity owner, SequenceId id);
-[[nodiscard]] bool IsCompleted(Entity owner, SequenceId id);
-
-} // namespace script_runtime
+private:
+	friend class Scene;
+	friend class impl::Scripts;
+	static bool OnEvent(Entity entity, Event event);
+	static bool OnEvent(Scene& scene, Event event);
+};
 
 /// @brief Adds an instance of a script of type T to the entity.
 template <ScriptClass T, typename... TArgs>

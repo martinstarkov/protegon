@@ -7,6 +7,7 @@
 #include <ranges>
 #include <utility>
 
+#include "runtime/scene/scene_event.h"
 #include "runtime/scripting/script.h"
 #include "runtime/scripting/variable_event.h"
 
@@ -232,7 +233,7 @@ bool CounterHandle::Set(std::int64_t requested) const {
 
 	entry->value = next;
 
-	script_runtime::Dispatch<event::CounterChanged>(
+	PushEvent<event::CounterChanged>(
 		owner, event::CounterChanged{ .counter = key, .previous_value = previous, .value = next }
 	);
 	return true;
@@ -317,7 +318,7 @@ bool BooleanHandle::Set(bool value) const {
 
 	entry->value = value;
 
-	script_runtime::Dispatch<event::BooleanChanged>(
+	PushEvent<event::BooleanChanged>(
 		owner, event::BooleanChanged{ .boolean = key, .previous_value = previous, .value = value }
 	);
 
