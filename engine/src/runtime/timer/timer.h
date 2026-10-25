@@ -169,11 +169,14 @@ TimerHandle AddTimer(
 [[nodiscard]] bool HasTimer(Entity entity, const TimerKey& key);
 bool RemoveTimer(Entity entity, const TimerKey& key);
 
-namespace timer_runtime {
+namespace impl {
 
-void Update(Scene& scene, milliseconds dt);
+class TimerSystem {
+public:
+	static void Update(Scene& scene, milliseconds dt);
+};
 
-} // namespace timer_runtime
+} // namespace impl
 
 std::ostream& operator<<(std::ostream& os, const TimerConfig& timer);
 std::ostream& operator<<(std::ostream& os, const impl::Timers& timers);

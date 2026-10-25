@@ -9,6 +9,7 @@
 #include "core/log.h"
 #include "runtime/ecs/group_stack.h"
 #include "runtime/scene/scene.h"
+#include "runtime/scene/scene_event.h"
 #include "runtime/scripting/script.h"
 #include "runtime/timer/timer_event.h"
 
@@ -202,7 +203,7 @@ void InitializeTimerRuntime(TimerEntry& entry, bool apply_auto_start) {
 
 void DispatchTimerEvents(Entity entity, std::vector<event::TimerElapsed> events) {
 	for (auto& timer_event : events) {
-		script_runtime::Dispatch<event::TimerElapsed>(entity, std::move(timer_event));
+		PushEvent<event::TimerElapsed>(entity, std::move(timer_event));
 	}
 }
 
@@ -575,9 +576,7 @@ bool RemoveTimer(Entity entity, const TimerKey& key) {
 		   }) > 0;
 }
 
-namespace timer_runtime {
-
-void Update(Scene& scene, milliseconds dt) {
+void impl::TimerSystem::Update(Scene& scene, milliseconds dt) {
 	auto entities{ scene.EntitiesWith<impl::Timers>().GetVector() };
 
 	for (Entity entity : entities) {
@@ -620,8 +619,6 @@ void Update(Scene& scene, milliseconds dt) {
 		}
 	}
 }
-
-} // namespace timer_runtime
 
 std::ostream& operator<<(std::ostream& os, const TimerConfig& timer) {
 	return os << "{ key: " << timer.key.value << ", duration: " << timer.duration
