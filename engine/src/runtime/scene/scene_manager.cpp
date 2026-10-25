@@ -28,13 +28,12 @@ namespace ptgn {
 namespace {
 
 template <typename TEvent>
-void DispatchSceneSequenceEvent(Scene& scene) {
+void QueueSceneSequenceEvent(Scene& scene) {
 	if (!scene.IsRuntime()) {
 		return;
 	}
 
-	script_runtime::DispatchGlobal<TEvent>(scene);
-	script_runtime::ApplyPending(scene);
+	scene.ctx().event.PushScene<TEvent>();
 }
 
 } // namespace
@@ -229,7 +228,7 @@ void SceneManager::ApplyLoadedCommand(
 		if (!new_scene->data_.transition) {
 			new_scene->InternalEnter();
 
-			DispatchSceneSequenceEvent<event::SceneEnter>(*new_scene);
+			QueueSceneSequenceEvent<event::SceneEnter>(*new_scene);
 		} else {
 			new_scene->data_.transition->OnDelayStart(*new_scene);
 
@@ -239,9 +238,9 @@ void SceneManager::ApplyLoadedCommand(
 
 				new_scene->InternalEnter();
 
-				DispatchSceneSequenceEvent<event::SceneTransitionStart>(*new_scene);
+				QueueSceneSequenceEvent<event::SceneTransitionStart>(*new_scene);
 
-				DispatchSceneSequenceEvent<event::SceneEnter>(*new_scene);
+				QueueSceneSequenceEvent<event::SceneEnter>(*new_scene);
 			}
 		}
 
@@ -261,7 +260,7 @@ void SceneManager::ApplyLoadedCommand(
 				target_scene.data_.transition->started_ = true;
 				target_scene.data_.transition->OnStart(target_scene);
 
-				DispatchSceneSequenceEvent<event::SceneTransitionStart>(target_scene);
+				QueueSceneSequenceEvent<event::SceneTransitionStart>(target_scene);
 			}
 		}
 	};
@@ -391,7 +390,7 @@ void SceneManager::ApplyCommands(
 
 				target_scene.data_.transition->OnStart(target_scene);
 
-				DispatchSceneSequenceEvent<event::SceneTransitionStart>(target_scene);
+				QueueSceneSequenceEvent<event::SceneTransitionStart>(target_scene);
 			}
 		}
 	}
@@ -403,15 +402,6 @@ void SceneManager::PreUpdate() {
 			continue;
 		}
 		scene->InternalPreUpdate();
-	}
-}
-
-void SceneManager::OnEvent() {
-	for (const auto& scene : scenes_) {
-		if (scene->IsAwaitingTransitionDelay()) {
-			continue;
-		}
-		scene->InternalOnEvent();
 	}
 }
 
@@ -452,10 +442,10 @@ void SceneManager::UpdateTransitions(milliseconds dt) {
 					scene->InternalEnter();
 				}
 
-				DispatchSceneSequenceEvent<event::SceneTransitionStart>(*scene);
+				QueueSceneSequenceEvent<event::SceneTransitionStart>(*scene);
 
 				if (scene->data_.state == TransitionIn) {
-					DispatchSceneSequenceEvent<event::SceneEnter>(*scene);
+					QueueSceneSequenceEvent<event::SceneEnter>(*scene);
 				}
 			}
 
@@ -463,7 +453,7 @@ void SceneManager::UpdateTransitions(milliseconds dt) {
 
 			scene->data_.transition->OnUpdate(*scene);
 
-			DispatchSceneSequenceEvent<event::SceneTransitionUpdate>(*scene);
+			QueueSceneSequenceEvent<event::SceneTransitionUpdate>(*scene);
 
 			if (!scene->data_.transition->IsFinished()) {
 				++it;
@@ -474,7 +464,7 @@ void SceneManager::UpdateTransitions(milliseconds dt) {
 		if (scene->data_.transition) {
 			scene->data_.transition->OnStop(*scene);
 
-			DispatchSceneSequenceEvent<event::SceneTransitionFinish>(*scene);
+			QueueSceneSequenceEvent<event::SceneTransitionFinish>(*scene);
 		}
 
 		if (scene->data_.state == TransitionIn) {
@@ -485,10 +475,13 @@ void SceneManager::UpdateTransitions(milliseconds dt) {
 		} else if (scene->data_.state == TransitionOut) {
 			scene->data_.transition.reset();
 
-			DispatchSceneSequenceEvent<event::SceneLeave>(*scene);
+			QueueSceneSequenceEvent<event::SceneLeave>(*scene);
 
 			scene->InternalExit();
 
+			// No queue drain occurs between this push and the erase. The unloaded
+			// scene cannot receive its own application wide unload notification.
+			scene->ctx().event.PushGlobal<event::SceneUnloaded>();
 			it = scenes_.erase(it);
 		} else {
 			++it;

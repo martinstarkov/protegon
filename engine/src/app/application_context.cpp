@@ -48,9 +48,7 @@ ApplicationContext::ApplicationContext(const ApplicationConfig& config) :
 	event_handler{},
 	window{
 		config.window,
-		[this](EventData&& event) {
-			event_handler.global_event_queue_.emplace_back(std::move(event));
-		},
+		[this](EventData&& event) { event_handler.PushData(std::move(event)); },
 	},
 	renderer{
 		window,
@@ -58,22 +56,20 @@ ApplicationContext::ApplicationContext(const ApplicationConfig& config) :
 		[this](V2_int size, ResizeType type) {
 			switch (type) {
 				using enum ResizeType;
-				case Presentation:
-					event_handler.Push<event::PresentationResized>(size);
-					break;
-				case Display: event_handler.Push<event::DisplayResized>(size); break;
-				case Logical: event_handler.Push<event::LogicalResized>(size); break;
-				default: PTGN_ERROR("Unknown ResizeType: ", std::to_underlying(type));
+				case Presentation: event_handler.Push<event::PresentationResized>(size); break;
+				case Display:	   event_handler.Push<event::DisplayResized>(size); break;
+				case Logical:	   event_handler.Push<event::LogicalResized>(size); break;
+				default:		   PTGN_ERROR("Unknown ResizeType: ", std::to_underlying(type));
 			}
 		},
 	},
 	assets{ renderer },
 	font{ renderer, assets },
-	audio{ assets } {
+	audio{ assets, event_handler } {
 	// AssetManager is constructed before the systems that use it. Connect them only after
 	// all three objects have begun their lifetimes; this avoids storing references to
 	// not-yet-constructed members.
-	assets.font_ = &font;
+	assets.font_  = &font;
 	assets.audio_ = &audio;
 
 	PTGN_INFO("Application Config: ", json(config));

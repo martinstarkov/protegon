@@ -11,11 +11,14 @@
 #include <imgui_impl_glfw.h>
 #include <imgui_impl_opengl3.h>
 
+#include <algorithm>
 #include <chrono>
 #include <exception>
 #include <filesystem>
 #include <functional>
+#include <iterator>
 #include <memory>
+#include <ranges>
 #include <string_view>
 #include <thread>
 #include <utility>
@@ -48,9 +51,12 @@
 #include "runtime/graphics/fx/screen_effect_stack.h"
 #include "runtime/graphics/visible.h"
 #include "runtime/scene/scene.h"
+#include "runtime/scene/scene_context.h"
+#include "runtime/scene/scene_event_handler.h"
 #include "runtime/scene/scene_file.h"
 #include "runtime/scene/scene_manager.h"
 #include "runtime/scene/scene_registry.h"
+#include "runtime/scripting/script.h"
 #include "tools/debug/debug_system.h"
 
 namespace ptgn {
@@ -412,17 +418,52 @@ void Application::EnterMainLoop() {
 #endif
 }
 
-void Application::HandleGlobalEvents(bool dispatch_scene_events) {
+void Application::ProcessQueuedEvents(bool dispatch_scene_events) {
+	// Commit previous frame script mutations before capturing the listener set.
+	if (dispatch_scene_events) {
+		for (const auto& scene : ctx_.scene_manager.GetScenes()) {
+			if (scene->IsRuntime()) {
+				ScriptSystem::ApplyPending(*scene);
+			}
+		}
+	}
+
+	// Snapshot all queues before invoking any callback. Events emitted by callbacks
+	// are therefore deferred to the next drain, even if they target another scope.
 	auto global_events{ std::exchange(ctx_.event_handler.global_event_queue_, {}) };
 
+	struct LocalEventBatch {
+		Scene* scene{};
+		std::vector<impl::EventData> scene_events{};
+		std::vector<impl::EntityEvent> entity_events{};
+	};
+
+	std::vector<LocalEventBatch> local_batches;
+
+	if (dispatch_scene_events) {
+		for (const auto& scene : ctx_.scene_manager.GetScenes()) {
+			auto& local{ scene->ctx().event };
+			auto scene_events{ std::exchange(local.scene_event_queue_, {}) };
+			auto entity_events{ std::exchange(local.entity_event_queue_, {}) };
+
+			if (!scene_events.empty() || !entity_events.empty()) {
+				local_batches.push_back(
+					LocalEventBatch{
+						.scene		   = scene.get(),
+						.scene_events  = std::move(scene_events),
+						.entity_events = std::move(entity_events),
+					}
+				);
+			}
+		}
+	}
+
+	// Application wide events are offered to all eligible scenes.
 	for (auto& global_event : global_events) {
 		Event event{ global_event };
 
 		event.Dispatch<event::WindowResized>([this](const auto& size) {
 			ctx_.renderer.OnOutputResize(size);
-
-			// Apply the new output dimensions immediately so everything
-			// handling this frame sees the current display viewport.
 			ctx_.renderer.UpdateDisplayViewport();
 		});
 
@@ -447,6 +488,43 @@ void Application::HandleGlobalEvents(bool dispatch_scene_events) {
 			scene->InternalOnEvent(event);
 		}
 	}
+
+	// Scene events, then targeted entity events, in scene order.
+	// Each phase retains FIFO ordering within its own queue.
+	for (auto& batch : local_batches) {
+		// A callback can request scene changes. Never dereference a removed scene.
+		const auto& scenes{ ctx_.scene_manager.GetScenes() };
+		bool scene_alive{ std::ranges::any_of(scenes, [&batch](const auto& scene) {
+			return scene.get() == batch.scene;
+		}) };
+
+		if (!scene_alive || !batch.scene->IsRuntime() || batch.scene->IsAwaitingTransitionDelay()) {
+			continue;
+		}
+
+		for (auto& scene_event : batch.scene_events) {
+			Event event{ scene_event };
+			batch.scene->InternalOnEvent(event);
+		}
+
+		for (auto& entity_event : batch.entity_events) {
+			Event event{ entity_event.event };
+			batch.scene->InternalOnEvent(entity_event.entity, event);
+		}
+	}
+
+	// Apply script additions and removals only at batch boundaries.
+	if (dispatch_scene_events) {
+		for (const auto& scene : ctx_.scene_manager.GetScenes()) {
+			if (scene->IsRuntime()) {
+				ScriptSystem::ApplyPending(*scene);
+			}
+		}
+	}
+}
+
+void Application::FlushEventsForSceneExit() {
+	ProcessQueuedEvents(true);
 }
 
 void Application::RenderScenes() {
@@ -577,11 +655,7 @@ void Application::Update() {
 		ctx_.scene_manager.PreUpdate();
 	}
 
-	HandleGlobalEvents(scene_events);
-
-	if (scene_events) {
-		ctx_.scene_manager.OnEvent();
-	}
+	ProcessQueuedEvents(scene_events);
 
 	if (update_scenes) {
 		ctx_.scene_manager.Update(*this, duration_cast<milliseconds>(ctx_.dt));

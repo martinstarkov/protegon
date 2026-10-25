@@ -39,7 +39,7 @@ SceneContext::SceneContext(Application& app, Scene& parent_scene) :
 	debug{ impl::ApplicationAccessor::ctx(app).debug },
 	scene{ impl::ApplicationAccessor::ctx(app).scene_manager, parent_scene },
 	render_queue{ impl::ApplicationAccessor::ctx(app).renderer, parent_scene },
-	event{ impl::ApplicationAccessor::ctx(app).event_handler },
+	event{ impl::ApplicationAccessor::ctx(app).event_handler, parent_scene },
 	input{
 		impl::ApplicationAccessor::ctx(app).window,
 		impl::ApplicationAccessor::ctx(app).scene_input_state,
@@ -83,6 +83,7 @@ std::size_t SceneContext::GetFrameCount() const {
 }
 
 void SceneContext::Rebind(Scene& parent_scene) {
+	event.Rebind(parent_scene);
 	scene.Rebind(parent_scene);
 	render_queue.Rebind(parent_scene);
 	input.Rebind(parent_scene);

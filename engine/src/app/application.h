@@ -109,6 +109,9 @@ public:
 		);
 	}
 
+	/// @brief Internal teardown hook. Uses the same queued event delivery as the normal frame.
+	void FlushEventsForSceneExit();
+
 private:
 	friend class impl::ApplicationAccessor;
 
@@ -122,7 +125,7 @@ private:
 	void EnterMainLoop();
 	void Update();
 	void RenderScenes();
-	void HandleGlobalEvents(bool dispatch_scene_events);
+	void ProcessQueuedEvents(bool dispatch_scene_events);
 
 	std::function<bool()> close_guard_;
 

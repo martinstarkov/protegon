@@ -56,6 +56,7 @@
 #include "runtime/physics/physics.h"
 #include "runtime/scene/scene_camera.h"
 #include "runtime/scene/scene_context.h"
+#include "runtime/scene/scene_event.h"
 #include "runtime/scene/scene_event_handler.h"
 #include "runtime/scene/scene_file.h"
 #include "runtime/scene/scene_transition.h"
@@ -474,6 +475,10 @@ void Scene::Init(Application& app, impl::SceneData&& scene_data) {
 
 	OnLoad();
 	Refresh();
+	if (IsRuntime()) {
+		ctx().event.PushGlobal<event::SceneLoaded>();
+		ScriptSystem::ApplyPending(*this);
+	}
 }
 
 void Scene::Init(Application& app, impl::SceneData&& scene_data, const json& serialized_content) {
@@ -494,6 +499,10 @@ void Scene::Init(Application& app, impl::SceneData&& scene_data, const json& ser
 	Refresh();
 	OnLoad();
 	Refresh();
+	if (IsRuntime()) {
+		ctx().event.PushGlobal<event::SceneLoaded>();
+		ScriptSystem::ApplyPending(*this);
+	}
 }
 
 void Scene::CreateDefaultSceneEntities() {
@@ -675,43 +684,25 @@ void Scene::InternalOnEvent(Event event) {
 		return;
 	}
 
-	// Built in global component behavior runs before user authored scripts and sequence triggers.
 	impl::DialogueSystem::OnEvent(*this, event);
-	// Global event, dispatched to all scripted entities and sequence triggers in the scene.
-	script_runtime::DispatchGlobalEvent(*this, event);
+	ScriptSystem::OnEvent(*this, event);
 
 	if (!event.IsHandled()) {
 		OnEvent(event);
 	}
-
-	script_runtime::ApplyPending(*this);
 }
 
-void Scene::InternalOnEvent() {
-	if (!data_.runtime) {
+void Scene::InternalOnEvent(Entity entity, Event event) {
+	if (!data_.runtime || !entity || !entity.HasScene() || &entity.GetScene() != this) {
 		return;
 	}
 
-	auto& events{ ctx().event };
-	auto current = std::exchange(events.entity_event_queue_, {});
-
-	for (auto& entity_event : current) {
-		Event event{ entity_event.event };
-
-		if (entity_event.entity) {
-			Entity entity{ entity_event.entity };
-			// Built in component behavior runs before user authored scripts and sequence triggers.
-			impl::ButtonSystem::OnEvent(entity, event);
-			impl::ToggleButtonSystem::OnEvent(entity, event);
-			impl::DropdownSystem::OnEvent(entity, event);
-			impl::TooltipSystem::OnEvent(entity, event);
-			script_runtime::DispatchEvent(entity, event);
-			continue;
-		}
-
-		InternalOnEvent(event);
-	}
-	script_runtime::ApplyPending(*this);
+	// All built in and scripted listeners see the event in one queue draining phase.
+	impl::ButtonSystem::OnEvent(entity, event);
+	impl::ToggleButtonSystem::OnEvent(entity, event);
+	impl::DropdownSystem::OnEvent(entity, event);
+	impl::TooltipSystem::OnEvent(entity, event);
+	entity.OnEvent(event);
 }
 
 void Scene::InternalPreUpdate() {
@@ -742,21 +733,40 @@ void Scene::InternalEnter() {
 	}
 
 	for (auto [entity, _scripts] : EntitiesWith<impl::Scripts>()) {
-		script_runtime::AttachAll(entity);
+		ScriptSystem::AttachAll(entity);
 	}
 
-	script_runtime::ApplyPending(*this);
+	ScriptSystem::ApplyPending(*this);
 	Refresh();
 
 	OnEnter();
 	Refresh();
 
 	for (auto [entity, _scripts] : EntitiesWith<impl::Scripts>()) {
-		script_runtime::AttachAll(entity);
+		ScriptSystem::AttachAll(entity);
 	}
 
-	script_runtime::ApplyPending(*this);
+	ScriptSystem::ApplyPending(*this);
 	Refresh();
+}
+
+void Scene::SetPaused(bool paused) {
+	if (data_.paused == paused) {
+		return;
+	}
+	data_.paused = paused;
+	if (!data_.runtime) {
+		return;
+	}
+	if (paused) {
+		ctx().event.PushScene<event::ScenePaused>();
+	} else {
+		ctx().event.PushScene<event::SceneResumed>();
+	}
+}
+
+bool Scene::IsPaused() const {
+	return data_.paused;
 }
 
 void Scene::SetRenderEnabled(bool enabled) {
@@ -945,14 +955,14 @@ void Scene::DrawSceneTarget(DrawContext& draw_context) const {
 }
 
 void Scene::InternalUpdate() {
-	script_runtime::ApplyPending(*this);
+	ScriptSystem::ApplyPending(*this);
 	impl::AnimationSystem::Prepare(*this);
 
-	if (data_.runtime) {
+	if (data_.runtime && !data_.paused) {
 		auto dt{ ctx().dt() };
 		auto dt_ms{ duration_cast<milliseconds>(dt) };
 
-		script_runtime::Update(*this, dt);
+		ScriptSystem::Update(*this, dt);
 
 		impl::DialogueSystem::Update(*this, dt_ms);
 
@@ -960,7 +970,7 @@ void Scene::InternalUpdate() {
 
 		// Timers advance after script and scene updates so newly triggered timed actions do not
 		// receive the current frame's full dt.
-		timer_runtime::Update(*this, dt_ms);
+		impl::TimerSystem::Update(*this, dt_ms);
 		ParticleEmitter::Update(*this, dt);
 		impl::AnimationSystem::Update(*this, dt);
 		Lifetime::Update(*this, dt);
@@ -974,6 +984,7 @@ void Scene::InternalUpdate() {
 
 	Refresh();
 
+	impl::UpdateCameraVisibilityEvents(*this);
 	impl::OrphanChildren(*this);
 	impl::ClearDeadChildren(*this);
 }
@@ -982,6 +993,16 @@ void Scene::InternalExit() {
 	Refresh();
 
 	if (data_.runtime) {
+		// Application wide events are processed on the next event pass. This scene
+		// will be gone by then, so queue a local notification for each scripted
+		// entity and drain it before tearing down its components and scripts.
+		for (auto [entity, _scripts] : EntitiesWith<impl::Scripts>()) {
+			ctx().event.Push<event::SceneUnloaded>(entity);
+		}
+
+		// Deliver queued local notifications before the scene is destroyed.
+		impl::SceneContextAccessor::app(ctx()).FlushEventsForSceneExit();
+
 		OnExit();
 		Refresh();
 	}
@@ -991,7 +1012,7 @@ void Scene::InternalExit() {
 		scripts.CancelAll(SequenceCancelReason::OwnerDestroyed);
 	}
 
-	script_runtime::ApplyPending(*this);
+	ScriptSystem::ApplyPending(*this);
 	Refresh();
 
 	// Clears component hooks.

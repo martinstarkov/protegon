@@ -461,7 +461,6 @@ private:
 	}
 
 	void PreUpdate();
-	void OnEvent();
 	void Update(Application& app, milliseconds dt);
 	void Draw(DrawContext& ctx) const;
 

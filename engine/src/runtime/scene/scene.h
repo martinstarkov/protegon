@@ -83,6 +83,7 @@ struct SceneData {
 	bool first_scene{ false };
 	std::string registered_type{};
 	bool render_enabled{ true };
+	bool paused{ false };
 };
 
 template <SceneType TScene>
@@ -297,7 +298,9 @@ public:
 	std::string GetTag() const;
 	void SetRenderEnabled(bool enabled = true);
 	[[nodiscard]] bool IsRenderEnabled() const;
-	[[nodiscard]] bool IsRuntime() const;
+	bool IsRuntime() const;
+	void SetPaused(bool paused = true);
+	[[nodiscard]] bool IsPaused() const;
 	[[nodiscard]] bool IsTransitioning() const;
 	[[nodiscard]] std::string_view GetRegisteredType() const;
 	[[nodiscard]] json SerializeContent() const;
@@ -328,7 +331,7 @@ private:
 	void InternalEnter();
 	void InternalExit();
 	void InternalOnEvent(Event event);
-	void InternalOnEvent();
+	void InternalOnEvent(Entity entity, Event event);
 	void InternalPreUpdate();
 	void InternalUpdate();
 	void InternalDraw(DrawContext& draw_context);
