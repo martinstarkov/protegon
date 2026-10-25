@@ -752,8 +752,14 @@ bool AnimationMap::SetActive(std::string_view animation_key) {
 		previous.Pause();
 	}
 
+	std::string previous_key{ info.active.value };
 	info.active = key;
 	Show(animation);
+	if (HasScene()) {
+		PushEvent<event::AnimationMapActiveChanged>(
+			*this, previous_key, std::string{ animation_key }
+		);
+	}
 
 	return true;
 }

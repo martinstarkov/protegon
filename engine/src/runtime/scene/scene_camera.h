@@ -4,6 +4,7 @@
 #include <cstdint>
 #include <functional>
 #include <optional>
+#include <vector>
 
 #include "core/graphics/color.h"
 #include "core/math/geometry/origin.h"
@@ -68,6 +69,7 @@ struct CameraData {
 	std::optional<BoundingBox> bounding_box{};
 
 	Matrix4 view_projection{ 1.0f };
+	std::vector<Entity> visible_last_frame{};
 
 	PTGN_REFLECT(CameraData, raw_viewport, viewport_space, pixel_rounding, bounding_box)
 	PTGN_REFLECT_READONLY(CameraData, view_projection)
@@ -222,6 +224,7 @@ namespace impl {
 
 void RecalculateCameraViewProjection(SceneCamera camera);
 void ApplyCameraBounds(SceneCamera camera);
+void UpdateCameraVisibilityEvents(Scene& scene);
 
 } // namespace impl
 
@@ -233,6 +236,30 @@ SceneCamera CreateCamera(
 	std::optional<V2_float> viewport_size = std::nullopt,
 	ViewportSpace viewport_space		  = ViewportSpace::Logical
 );
+
+namespace event {
+
+struct CameraEntityEnteredView {
+	SceneCamera camera{};
+	Entity entity{};
+};
+
+struct CameraEntityExitedView {
+	SceneCamera camera{};
+	Entity entity{};
+};
+
+struct CameraBoundsReached {
+	V2_float attempted{};
+	V2_float clamped{};
+};
+
+struct CameraZoomChanged {
+	V2_float previous{};
+	V2_float current{};
+};
+
+} // namespace event
 
 } // namespace ptgn
 

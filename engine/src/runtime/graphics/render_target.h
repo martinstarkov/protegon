@@ -155,6 +155,15 @@ RenderTarget CreateRenderTarget(
 	TextureFormat texture_format = kDefaultRenderTargetFormat
 );
 
+namespace event {
+
+struct RenderTargetResized {
+	V2_int previous{};
+	V2_int current{};
+};
+
+} // namespace event
+
 PTGN_REGISTER_DRAWABLE(RenderTarget, { .name = "Render Target" });
 
 } // namespace ptgn

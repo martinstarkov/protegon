@@ -1,9 +1,11 @@
 #pragma once
 
+#include <chrono>
 #include <cstddef>
 #include <functional>
 #include <ostream>
 #include <unordered_map>
+#include <unordered_set>
 #include <utility>
 #include <vector>
 
@@ -92,6 +94,10 @@ public:
 
 	PTGN_REFLECT(InteractionSystem, top_only_)
 private:
+	using Clock = std::chrono::steady_clock;
+	std::unordered_map<std::size_t, Clock::time_point> mouse_press_started_{};
+	std::unordered_map<std::size_t, Clock::time_point> last_mouse_click_{};
+	std::unordered_set<std::size_t> mouse_long_press_emitted_{};
 	friend class Scene;
 	friend class SceneContext;
 	friend bool IsDragging(Entity entity);
@@ -189,7 +195,7 @@ private:
 
 	std::vector<Entity> GetDropzones(const Scene& scene);
 
-	static void DispatchMouseEvents(
+	void DispatchMouseEvents(
 		const std::vector<Entity>& over, const std::vector<Entity>& out,
 		const impl::MouseInfo& mouse
 	);

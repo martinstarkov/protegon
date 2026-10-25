@@ -22,6 +22,7 @@
 #include "runtime/graphics/visible.h"
 #include "runtime/scene/scene.h"
 #include "runtime/scene/scene_context.h"
+#include "runtime/scene/scene_event.h"
 
 namespace ptgn {
 
@@ -329,6 +330,7 @@ bool RenderTarget::UpdateSize(V2_int display_size) {
 							   Get<impl::FramebufferObject>().GetDesc().format != target.format };
 
 	if (recreate_framebuffer) {
+		V2_int previous{ Has<impl::FramebufferObject>() ? GetSize() : V2_int{} };
 		auto& scene{ GetScene() };
 
 		impl::RendererAccessor renderer{ scene.ctx().renderer };
@@ -341,6 +343,9 @@ bool RenderTarget::UpdateSize(V2_int display_size) {
 			std::nullopt
 		));
 
+		if (previous != desired_size) {
+			PushEvent<event::RenderTargetResized>(*this, previous, desired_size);
+		}
 		return true;
 	}
 
@@ -350,7 +355,9 @@ bool RenderTarget::UpdateSize(V2_int display_size) {
 		return false;
 	}
 
+	V2_int previous{ framebuffer.GetDesc().size };
 	framebuffer.Resize(desired_size);
+	PushEvent<event::RenderTargetResized>(*this, previous, desired_size);
 	return true;
 }
 

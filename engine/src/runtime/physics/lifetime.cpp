@@ -7,6 +7,8 @@
 #include "runtime/ecs/entity.h"
 #include "runtime/ecs/group_stack.h"
 #include "runtime/scene/scene.h"
+#include "runtime/scene/scene_event.h"
+#include "runtime/scripting/script.h"
 
 namespace ptgn {
 
@@ -108,7 +110,14 @@ bool Lifetime::HasRun() const {
 
 void Lifetime::ExpireIfComplete(Entity entity) {
 	if (entity && timer_.HasRun() && timer_.Completed(duration)) {
-		entity.Destroy();
+		// Queued events are lost when their owner is destroyed in the same tick.
+		// Deliver this one synchronously while the entity is still alive.
+		if (entity.HasScene() && entity.GetScene().IsRuntime()) {
+			PushEvent<event::LifetimeExpiring>(entity, entity);
+		}
+		if (entity) {
+			entity.Destroy();
+		}
 	}
 }
 

@@ -1,6 +1,8 @@
 #include "runtime/physics/physics.h"
 
+#include <algorithm>
 #include <chrono>
+#include <cmath>
 #include <optional>
 
 #include "core/assert.h"
@@ -11,6 +13,8 @@
 #include "core/util/time.h"
 #include "runtime/ecs/entity.h"
 #include "runtime/ecs/group_stack.h"
+#include "runtime/physics/collider.h"
+#include "runtime/physics/collision_event.h"
 #include "runtime/physics/movement.h"
 #include "runtime/physics/platformer_event.h"
 #include "runtime/physics/platformer_grounding.h"
@@ -73,7 +77,7 @@ bool Physics::IsEnabled() const {
 	return enabled_;
 }
 
-void Physics::UpdatePlatformerGrounding() const {
+void Physics::UpdatePlatformerGrounding() {
 	PTGN_ASSERT(scene_);
 
 	for (auto [entity, movement] : scene_->EntitiesWith<PlatformerMovement>()) {
@@ -86,13 +90,21 @@ void Physics::UpdatePlatformerGrounding() const {
 			PushEvent<event::PlayerGrounded>(
 				entity, movement.GetGroundEntity(), movement.GetGroundNormal()
 			);
+			float impact_speed{ 0.0f };
+			if (auto* body{ entity.TryGet<RigidBody>() }) {
+				impact_speed = std::max(0.0f, body->velocity.Dot(-movement.GetGroundNormal()));
+			}
+
+			PushEvent<event::PlayerLanded>(
+				entity, movement.GetGroundEntity(), movement.GetGroundNormal(), impact_speed
+			);
 		} else if (was_grounded && !movement.IsGrounded()) {
 			PushEvent<event::PlayerUngrounded>(entity);
 		}
 	}
 }
 
-void Physics::PreCollisionUpdate() const {
+void Physics::PreCollisionUpdate() {
 	if (!enabled_) {
 		return;
 	}
@@ -135,9 +147,32 @@ void Physics::PreCollisionUpdate() const {
 		}
 		rigid_body.Update(gravity_, frame_dt);
 	}
+
+	// Detect the apex as velocity changes from opposing gravity to following it.
+	if (!gravity_.IsZero()) {
+		V2_float down{ gravity_.Normalized() };
+
+		for (auto [entity, movement, body] :
+			 scene_->EntitiesWith<PlatformerMovement, RigidBody>()) {
+			if (!IsGroupStackActive(entity)) {
+				continue;
+			}
+
+			std::size_t id{ entity.GetECSId() };
+			float speed_down{ body.velocity.Dot(down) };
+			auto previous{ previous_gravity_velocity_.find(id) };
+
+			if (previous != previous_gravity_velocity_.end() && previous->second < 0.0f &&
+				speed_down >= 0.0f && !movement.IsGrounded()) {
+				PushEvent<event::PlayerJumpApex>(entity, GetWorldPosition(entity));
+			}
+
+			previous_gravity_velocity_[id] = speed_down;
+		}
+	}
 }
 
-void Physics::PostCollisionUpdate() const {
+void Physics::PostCollisionUpdate() {
 	if (!enabled_) {
 		return;
 	}
@@ -162,10 +197,69 @@ void Physics::PostCollisionUpdate() const {
 			behavior = entity.Get<BoundaryBehavior>();
 		}
 
+		V2_float attempted{ transform.position };
+		V2_float half_size{ bounds_.value().size * 0.5f };
+		V2_float minimum{ bounds_.value().position - half_size };
+		V2_float maximum{ bounds_.value().position + half_size };
+		bool inside{ attempted.x >= minimum.x && attempted.x <= maximum.x &&
+					 attempted.y >= minimum.y && attempted.y <= maximum.y };
+		std::size_t id{ entity.GetECSId() };
+		auto previous_inside{ previous_inside_bounds_.find(id) };
+
+		if (previous_inside != previous_inside_bounds_.end() && inside != previous_inside->second) {
+			if (inside) {
+				PushEvent<event::EntityEnteredBounds>(entity, attempted);
+			} else {
+				PushEvent<event::EntityExitedBounds>(entity, attempted);
+			}
+		}
+
+		previous_inside_bounds_[id] = inside;
+
 		HandleBoundary(
 			transform, rigid_body.velocity,
 			Bounds{ bounds_.value().position, bounds_.value().size, behavior }
 		);
+
+		if (attempted != transform.position) {
+			PushEvent<event::EntityHitBounds>(entity, attempted, transform.position);
+		}
+	}
+
+	for (auto [entity, movement, collider] : scene_->EntitiesWith<PlatformerMovement, Collider>()) {
+		if (!IsGroupStackActive(entity)) {
+			continue;
+		}
+		(void)movement;
+		Entity wall{};
+		V2_float wall_normal{};
+		V2_float up{ gravity_.IsZero() ? V2_float{ 0.0f, -1.0f } : -gravity_.Normalized() };
+		auto check_contact = [&](const CollisionInfo& hit) {
+			float alignment{ hit.normal.Dot(up) };
+			if (alignment < -0.7f) {
+				PushEvent<event::PlayerHitCeiling>(entity, hit.entity, hit.normal);
+			} else if (std::abs(alignment) < 0.5f) {
+				wall		= hit.entity;
+				wall_normal = hit.normal;
+			}
+		};
+		for (const auto& hit : collider.GetIntersections()) {
+			check_contact(hit);
+		}
+		for (const auto& hit : collider.GetSweeps()) {
+			check_contact(hit);
+		}
+		std::size_t id{ entity.GetECSId() };
+		Entity previous{ previous_wall_contacts_[id] };
+		if (wall != previous) {
+			if (previous) {
+				PushEvent<event::PlayerWallContactStop>(entity, previous);
+			}
+			if (wall) {
+				PushEvent<event::PlayerWallContactStart>(entity, wall, wall_normal);
+			}
+			previous_wall_contacts_[id] = wall;
+		}
 	}
 }
 
@@ -204,6 +298,9 @@ void Physics::HandleBoundary(Transform& transform, V2_float& velocity, const Bou
 }
 
 void Physics::Reset() {
+	previous_gravity_velocity_.clear();
+	previous_wall_contacts_.clear();
+	previous_inside_bounds_.clear();
 	enabled_ = true;
 	bounds_	 = {};
 	gravity_ = {};

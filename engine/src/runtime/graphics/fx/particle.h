@@ -265,6 +265,7 @@ struct ParticleEmitterData {
 	ParticleEmitterPlayback playback{};
 	Manager manager{};
 	std::size_t live_particle_count{ 0 };
+	Entity owner{};
 
 	/// @return Null entity if the particle emitter has reached its max particle count.
 	Entity TrySpawnParticle();

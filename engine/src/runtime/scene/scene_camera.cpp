@@ -23,8 +23,10 @@
 #include "runtime/ecs/tag.h"
 #include "runtime/graphics/draw.h"
 #include "runtime/graphics/render_target.h"
+#include "runtime/graphics/visible.h"
 #include "runtime/scene/scene.h"
 #include "runtime/scene/scene_context.h"
+#include "runtime/scene/scene_event.h"
 
 namespace ptgn {
 
@@ -70,8 +72,58 @@ V2_float ApplyCameraBounds(SceneCamera camera, V2_float position) {
 
 namespace impl {
 
+void UpdateCameraVisibilityEvents(Scene& scene) {
+	if (!scene.IsRuntime() || scene.IsPaused()) {
+		return;
+	}
+	for (auto [camera_entity, data] : scene.EntitiesWith<CameraData>()) {
+		SceneCamera camera{ camera_entity };
+		auto quad{ camera.GetWorldVertices() };
+		std::vector<Entity> current;
+		for (auto [entity, transform] : scene.EntitiesWith<Transform>()) {
+			if (entity == camera_entity || !HasDraw(entity) || !IsVisible(entity) ||
+				!camera.CanSee(entity)) {
+				continue;
+			}
+			V2_float point{ GetWorldPosition(entity) };
+			float last_cross{ 0.0f };
+			bool inside{ true };
+			for (std::size_t i{ 0 }; i < quad.size(); ++i) {
+				V2_float edge{ quad[(i + 1) % quad.size()] - quad[i] };
+				float cross{ edge.Cross(point - quad[i]) };
+				if (cross != 0.0f && last_cross != 0.0f && cross * last_cross < 0.0f) {
+					inside = false;
+					break;
+				}
+				if (cross != 0.0f) {
+					last_cross = cross;
+				}
+			}
+			if (inside) {
+				current.push_back(entity);
+				if (!std::ranges::contains(data.visible_last_frame, entity)) {
+					PushEvent<event::CameraEntityEnteredView>(camera_entity, camera, entity);
+					PushEvent<event::CameraEntityEnteredView>(entity, camera, entity);
+				}
+			}
+		}
+		for (Entity previous : data.visible_last_frame) {
+			if (previous && !std::ranges::contains(current, previous)) {
+				PushEvent<event::CameraEntityExitedView>(camera_entity, camera, previous);
+				PushEvent<event::CameraEntityExitedView>(previous, camera, previous);
+			}
+		}
+		data.visible_last_frame = std::move(current);
+	}
+}
+
 void ApplyCameraBounds(SceneCamera camera) {
-	SetPosition(camera, ptgn::ApplyCameraBounds(camera, GetPosition(camera)));
+	V2_float attempted{ GetPosition(camera) };
+	V2_float clamped{ ptgn::ApplyCameraBounds(camera, attempted) };
+	if (clamped != attempted && camera.HasScene()) {
+		PushEvent<event::CameraBoundsReached>(camera, attempted, clamped);
+	}
+	SetPosition(camera, clamped);
 }
 
 void RecalculateCameraViewProjection(SceneCamera camera) {
@@ -138,7 +190,11 @@ SceneCamera& SceneCamera::SetZoom(V2_float new_zoom) {
 		return *this;
 	}
 	PTGN_ASSERT(clamped.IsPositive(), "Cannot set negative or zero zoom");
+	V2_float previous{ GetZoom() };
 	SetScale(*this, 1.0f / clamped);
+	if (HasScene()) {
+		PushEvent<event::CameraZoomChanged>(*this, previous, clamped);
+	}
 	return *this;
 }
 

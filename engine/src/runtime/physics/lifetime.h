@@ -53,4 +53,13 @@ private:
 	DeltaTimer timer_{};
 };
 
+namespace event {
+
+/// @brief Synchronous notification on the final lifetime update before destruction.
+struct LifetimeExpiring {
+	Entity entity{};
+};
+
+} // namespace event
+
 } // namespace ptgn

@@ -23,6 +23,11 @@
 #include "core/util/time.h"
 #include "platform/window.h"
 #include "runtime/animation/animation_event.h"
+#include "runtime/audio/audio_event.h"
+#include "runtime/ecs/component_registry.h"
+#include "runtime/ecs/entity.h"
+#include "runtime/graphics/fx/particle_event.h"
+#include "runtime/graphics/render_target.h"
 #include "runtime/interaction/draggable.h"
 #include "runtime/interaction/draggable_event.h"
 #include "runtime/interaction/dropzone.h"
@@ -31,7 +36,11 @@
 #include "runtime/interaction/interactive_event.h"
 #include "runtime/physics/collider.h"
 #include "runtime/physics/collision_event.h"
+#include "runtime/physics/lifetime.h"
+#include "runtime/physics/physics.h"
+#include "runtime/physics/platformer_event.h"
 #include "runtime/scene/scene.h"
+#include "runtime/scene/scene_camera.h"
 #include "runtime/scene/scene_context.h"
 #include "runtime/scene/scene_event.h"
 #include "runtime/scripting/script_event.h"
@@ -1160,5 +1169,126 @@ void EnsureEngineScriptsRegistered() {
 }
 
 } // namespace impl
+
+PTGN_REGISTER_EVENT(event::EntityDestroyed);
+PTGN_REGISTER_EVENT(
+	event::ComponentAdded,
+	{ .default_value = MakeEventDefault("component", std::string{}),
+	  .matches		 = [](Entity, const json& value, const event::ComponentAdded& e) {
+		  auto name{ JsonValueOr<std::string>(value, "component", "") };
+		  const auto* type{ ComponentRegistry::Find(name) };
+		  return name.empty() || (type && type->type_id == e.component_hash);
+	  } }
+);
+PTGN_REGISTER_EVENT(
+	event::ComponentRemoved,
+	{ .default_value = MakeEventDefault("component", std::string{}),
+	  .matches		 = [](Entity, const json& value, const event::ComponentRemoved& e) {
+		  auto name{ JsonValueOr<std::string>(value, "component", "") };
+		  const auto* type{ ComponentRegistry::Find(name) };
+		  return name.empty() || (type && type->type_id == e.component_hash);
+	  } }
+);
+PTGN_REGISTER_EVENT(event::CollisionStart);
+PTGN_REGISTER_EVENT(event::CollisionStop);
+PTGN_REGISTER_EVENT(event::PlayerLanded);
+PTGN_REGISTER_EVENT(event::PlayerJumpApex);
+PTGN_REGISTER_EVENT(event::PlayerHitCeiling);
+PTGN_REGISTER_EVENT(event::PlayerWallContactStart);
+PTGN_REGISTER_EVENT(event::PlayerWallContactStop);
+PTGN_REGISTER_EVENT(event::EntityHitBounds);
+PTGN_REGISTER_EVENT(event::EntityEnteredBounds);
+PTGN_REGISTER_EVENT(event::EntityExitedBounds);
+PTGN_REGISTER_EVENT(event::LifetimeExpiring);
+PTGN_REGISTER_EVENT(
+	event::AudioStarted, { .default_value = json{ { "audio", std::string{} } },
+						   .matches = [](Entity, const json& value, const event::AudioStarted& e) {
+							   std::string filter{ JsonValueOr<std::string>(value, "audio", "") };
+							   return filter.empty() || filter == e.audio.value;
+						   } }
+);
+PTGN_REGISTER_EVENT(
+	event::AudioFinished,
+	{ .default_value = json{ { "audio", std::string{} } },
+	  .matches		 = [](Entity, const json& value, const event::AudioFinished& e) {
+		  std::string filter{ JsonValueOr<std::string>(value, "audio", "") };
+		  return filter.empty() || filter == e.audio.value;
+	  } }
+);
+PTGN_REGISTER_EVENT(
+	event::AudioStopped, { .default_value = json{ { "audio", std::string{} } },
+						   .matches = [](Entity, const json& value, const event::AudioStopped& e) {
+							   std::string filter{ JsonValueOr<std::string>(value, "audio", "") };
+							   return filter.empty() || filter == e.audio.value;
+						   } }
+);
+PTGN_REGISTER_EVENT(
+	event::AudioPaused, { .default_value = json{ { "audio", std::string{} } },
+						  .matches = [](Entity, const json& value, const event::AudioPaused& e) {
+							  std::string filter{ JsonValueOr<std::string>(value, "audio", "") };
+							  return filter.empty() || filter == e.audio.value;
+						  } }
+);
+PTGN_REGISTER_EVENT(
+	event::AudioResumed, { .default_value = json{ { "audio", std::string{} } },
+						   .matches = [](Entity, const json& value, const event::AudioResumed& e) {
+							   std::string filter{ JsonValueOr<std::string>(value, "audio", "") };
+							   return filter.empty() || filter == e.audio.value;
+						   } }
+);
+PTGN_REGISTER_EVENT(
+	event::AudioLoopCompleted,
+	{ .default_value = json{ { "audio", std::string{} } },
+	  .matches		 = [](Entity, const json& value, const event::AudioLoopCompleted& e) {
+		  std::string filter{ JsonValueOr<std::string>(value, "audio", "") };
+		  return filter.empty() || filter == e.audio.value;
+	  } }
+);
+PTGN_REGISTER_EVENT(
+	event::AudioFadeCompleted,
+	{ .default_value = json{ { "audio", std::string{} } },
+	  .matches		 = [](Entity, const json& value, const event::AudioFadeCompleted& e) {
+		  std::string filter{ JsonValueOr<std::string>(value, "audio", "") };
+		  return filter.empty() || filter == e.audio.value;
+	  } }
+);
+PTGN_REGISTER_EVENT(
+	event::AudioVolumeChanged,
+	{ .default_value = json{ { "audio", std::string{} } },
+	  .matches		 = [](Entity, const json& value, const event::AudioVolumeChanged& e) {
+		  std::string filter{ JsonValueOr<std::string>(value, "audio", "") };
+		  return filter.empty() || filter == e.audio.value;
+	  } }
+);
+PTGN_REGISTER_EVENT(event::ParticleSpawned);
+PTGN_REGISTER_EVENT(event::ParticleDestroyed);
+PTGN_REGISTER_EVENT(
+	event::MouseClicked, { .default_value = MakeEventDefault("button", Mouse::Left),
+						   .matches		  = &MatchMouseEvent<event::MouseClicked>,
+						   .available	  = &HasInteractive }
+);
+PTGN_REGISTER_EVENT(
+	event::MouseDoubleClicked, { .default_value = MakeEventDefault("button", Mouse::Left),
+								 .matches		= &MatchMouseEvent<event::MouseDoubleClicked>,
+								 .available		= &HasInteractive }
+);
+PTGN_REGISTER_EVENT(
+	event::MouseLongPressed, { .default_value = MakeEventDefault("button", Mouse::Left),
+							   .matches		  = &MatchMouseEvent<event::MouseLongPressed>,
+							   .available	  = &HasInteractive }
+);
+PTGN_REGISTER_EVENT(event::DragCanceled);
+PTGN_REGISTER_EVENT(event::SliderDragStarted);
+PTGN_REGISTER_EVENT(event::SliderDragFinished);
+PTGN_REGISTER_EVENT(event::CameraEntityEnteredView);
+PTGN_REGISTER_EVENT(event::CameraEntityExitedView);
+PTGN_REGISTER_EVENT(event::CameraBoundsReached);
+PTGN_REGISTER_EVENT(event::CameraZoomChanged);
+PTGN_REGISTER_EVENT(event::RenderTargetResized);
+PTGN_REGISTER_EVENT(event::AnimationMapActiveChanged);
+PTGN_REGISTER_EVENT(event::SceneLoaded);
+PTGN_REGISTER_EVENT(event::SceneUnloaded);
+PTGN_REGISTER_EVENT(event::ScenePaused);
+PTGN_REGISTER_EVENT(event::SceneResumed);
 
 } // namespace ptgn

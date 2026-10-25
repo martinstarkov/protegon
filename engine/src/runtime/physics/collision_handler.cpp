@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <chrono>
 #include <functional>
+#include <span>
 #include <vector>
 
 #include "core/assert.h"
@@ -591,6 +592,47 @@ void CollisionHandler::Update(Scene& scene, secondsf dt) {
 				break;
 			}
 			default: PTGN_ERROR("Unknown collision mode");
+		}
+	}
+
+	// Compare contact pairs after all collision passes. Deduplicate sweep and intersection.
+	for (auto [entity, collider] : scene.EntitiesWith<Collider>()) {
+		if (collider.mode == CollisionMode::None || collider.mode == CollisionMode::Overlap) {
+			continue;
+		}
+		auto contact_in = [](std::span<const CollisionInfo> first,
+							 std::span<const CollisionInfo> second, Entity other) {
+			auto contains = [other](const CollisionInfo& hit) {
+				return hit.entity == other;
+			};
+			return std::ranges::any_of(first, contains) || std::ranges::any_of(second, contains);
+		};
+		for (const auto& hit : collider.intersects_) {
+			if (!contact_in(collider.previous_intersects_, collider.previous_sweeps_, hit.entity)) {
+				PushEvent<event::CollisionStart>(entity, hit);
+			}
+		}
+		for (const auto& hit : collider.sweeps_) {
+			if (!contact_in(collider.intersects_, std::span<const CollisionInfo>{}, hit.entity)) {
+				if (!contact_in(
+						collider.previous_intersects_, collider.previous_sweeps_, hit.entity
+					)) {
+					PushEvent<event::CollisionStart>(entity, hit);
+				}
+			}
+		}
+		for (const auto& hit : collider.previous_intersects_) {
+			if (!contact_in(collider.intersects_, collider.sweeps_, hit.entity)) {
+				PushEvent<event::CollisionStop>(entity, hit);
+			}
+		}
+		for (const auto& hit : collider.previous_sweeps_) {
+			if (!contact_in(
+					collider.previous_intersects_, std::span<const CollisionInfo>{}, hit.entity
+				) &&
+				!contact_in(collider.intersects_, collider.sweeps_, hit.entity)) {
+				PushEvent<event::CollisionStop>(entity, hit);
+			}
 		}
 	}
 

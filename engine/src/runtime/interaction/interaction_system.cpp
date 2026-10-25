@@ -422,6 +422,12 @@ void InteractionSystem::HandleDragging(
 	// Stop dragging
 	if (mouse.left_released) {
 		for (Entity dragging : dragging_entities) {
+			if (dragging &&
+				(!dragging.Has<impl::Draggable>() || !dragging.Get<impl::Draggable>().enabled ||
+				 !dragging.Has<impl::Interactive>() ||
+				 !dragging.Get<impl::Interactive>().enabled)) {
+				PushEvent<event::DragCanceled>(dragging, mouse.position);
+			}
 			if (!dragging.Has<impl::Draggable>() || !dragging.Get<impl::Draggable>().enabled ||
 				!dragging.Has<impl::Interactive>() || !dragging.Get<impl::Interactive>().enabled) {
 				continue;
@@ -429,8 +435,9 @@ void InteractionSystem::HandleDragging(
 
 			PushEvent<event::DragStop>(dragging, mouse.position);
 
-			if (!dragging.Has<impl::Draggable>() || !dragging.Get<impl::Draggable>().enabled ||
-				!dragging.Has<impl::Interactive>() || !dragging.Get<impl::Interactive>().enabled) {
+			if (!dragging || !dragging.Has<impl::Draggable>() ||
+				!dragging.Get<impl::Draggable>().enabled || !dragging.Has<impl::Interactive>() ||
+				!dragging.Get<impl::Interactive>().enabled) {
 				continue;
 			}
 
@@ -470,8 +477,9 @@ void InteractionSystem::HandleDragging(
 				);
 			}
 
-			if (!dragging.Has<impl::Draggable>() || !dragging.Get<impl::Draggable>().enabled ||
-				!dragging.Has<impl::Interactive>() || !dragging.Get<impl::Interactive>().enabled) {
+			if (!dragging || !dragging.Has<impl::Draggable>() ||
+				!dragging.Get<impl::Draggable>().enabled || !dragging.Has<impl::Interactive>() ||
+				!dragging.Get<impl::Interactive>().enabled) {
 				continue;
 			}
 
@@ -626,14 +634,36 @@ void InteractionSystem::DispatchMouseEvents(
 
 		PushEvent<event::MouseMoveOver>(e);
 
+		std::size_t id{ e.GetECSId() };
+		auto now{ Clock::now() };
 		if (mouse.left_pressed) {
+			mouse_press_started_[id] = now;
+			mouse_long_press_emitted_.erase(id);
 			PushEvent<event::MousePressedOver>(e, Mouse::Left);
 		}
 		if (mouse.left_held) {
 			PushEvent<event::MouseHeldOver>(e, Mouse::Left);
+			auto started{ mouse_press_started_.find(id) };
+			if (started != mouse_press_started_.end() &&
+				now - started->second >= std::chrono::milliseconds{ 500 } &&
+				mouse_long_press_emitted_.insert(id).second) {
+				PushEvent<event::MouseLongPressed>(e, Mouse::Left);
+			}
 		}
 		if (mouse.left_released) {
 			PushEvent<event::MouseReleasedOver>(e, Mouse::Left);
+			if (mouse_press_started_.erase(id) > 0 && !mouse_long_press_emitted_.contains(id)) {
+				PushEvent<event::MouseClicked>(e, Mouse::Left);
+				auto previous{ last_mouse_click_.find(id) };
+				if (previous != last_mouse_click_.end() &&
+					now - previous->second <= std::chrono::milliseconds{ 350 }) {
+					PushEvent<event::MouseDoubleClicked>(e, Mouse::Left);
+					last_mouse_click_.erase(previous);
+				} else {
+					last_mouse_click_[id] = now;
+				}
+			}
+			mouse_long_press_emitted_.erase(id);
 		}
 		if (!mouse.scroll_delta.IsZero()) {
 			PushEvent<event::MouseScrollOver>(e, mouse.scroll_delta);
@@ -657,6 +687,8 @@ void InteractionSystem::DispatchMouseEvents(
 			PushEvent<event::MouseHeldOut>(e, Mouse::Left);
 		}
 		if (mouse.left_released) {
+			mouse_press_started_.erase(e.GetECSId());
+			mouse_long_press_emitted_.erase(e.GetECSId());
 			PushEvent<event::MouseReleasedOut>(e, Mouse::Left);
 		}
 		if (!mouse.scroll_delta.IsZero()) {
@@ -718,10 +750,16 @@ void InteractionSystem::UpdateForCamera(
 
 	CleanupDropzones(dropzones);
 
-	std::erase_if(dragging_entities, [](const auto& entity) {
-		return !entity || !entity.template Has<impl::Draggable>() ||
-			   !entity.template Get<impl::Draggable>().enabled || !IsVisible(entity) ||
-			   !IsGroupStackInteractive(entity);
+	std::erase_if(dragging_entities, [&](const Entity& entity) {
+		bool canceled{ !entity || !entity.Has<impl::Draggable>() ||
+					   !entity.Get<impl::Draggable>().enabled || !IsVisible(entity) ||
+					   !IsGroupStackInteractive(entity) };
+
+		if (canceled && entity) {
+			PushEvent<event::DragCanceled>(entity, mouse.position);
+		}
+
+		return canceled;
 	});
 
 	// Save for next frame.

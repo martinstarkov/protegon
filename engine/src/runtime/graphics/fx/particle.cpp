@@ -230,7 +230,11 @@ Entity ParticleEmitterData::TrySpawnParticle() {
 	auto particle_entity{ manager.CreateEntity() };
 	particle_entity.Add<Particle>(config);
 	++live_particle_count;
-
+	if (owner && owner.HasScene() && owner.GetScene().IsRuntime()) {
+		PushEvent<event::ParticleSpawned>(
+			owner, ParticleEmitter{ owner }, particle_entity.Get<Particle>()
+		);
+	}
 	return particle_entity;
 }
 
@@ -282,6 +286,7 @@ void ParticleEmitterData::Start() {
 }
 
 void ParticleEmitterData::Update(const ParticleEmitter& emitter, secondsf dt) {
+	owner = emitter;
 	if (playback.state == impl::ParticleEmitterState::Playing) {
 		// Update emission (spawn new particles).
 		std::visit(
@@ -408,6 +413,7 @@ ParticleEmitter& ParticleEmitter::Start() {
 	using enum impl::ParticleEmitterState;
 
 	auto& emitter{ Get<impl::ParticleEmitterData>() };
+	emitter.owner = *this;
 
 	if (emitter.playback.state == Paused) {
 		emitter.playback.state = Playing;

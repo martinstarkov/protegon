@@ -40,15 +40,23 @@
 #include "panels/inspector_helpers.h"
 #include "runtime/animation/animation.h"
 #include "runtime/animation/animation_event.h"
+#include "runtime/audio/audio_event.h"
 #include "runtime/audio/audio_system.h"
 #include "runtime/ecs/component_registry.h"
+#include "runtime/ecs/entity.h"
 #include "runtime/ecs/entity_filter.h"
 #include "runtime/ecs/group_stack.h"
 #include "runtime/graphics/fx/effect_registry.h"
+#include "runtime/graphics/fx/particle_event.h"
+#include "runtime/graphics/render_target.h"
 #include "runtime/interaction/draggable_event.h"
 #include "runtime/interaction/dropzone_event.h"
 #include "runtime/interaction/interactive_event.h"
 #include "runtime/physics/collision_event.h"
+#include "runtime/physics/lifetime.h"
+#include "runtime/physics/physics.h"
+#include "runtime/physics/platformer_event.h"
+#include "runtime/scene/scene_camera.h"
 #include "runtime/scene/scene_event.h"
 #include "runtime/scene/scene_manager.h"
 #include "runtime/scene/scene_registry.h"
@@ -497,6 +505,41 @@ bool DrawHeldMouse(json& value) {
 	return DrawMouseTrigger(value, true);
 }
 
+bool DrawAudioEventKey(json& value) {
+	std::string key{ JsonValueOr<std::string>(value, "audio", "") };
+	ImGui::SetNextItemWidth(-FLT_MIN);
+	bool changed{ ImGui::InputTextWithHint("##AudioKey", "Any audio", &key) };
+	DrawItemTooltip("Optional audio asset key. Leave empty to match all audio.");
+	if (changed) {
+		value["audio"] = key;
+	}
+	return changed;
+}
+
+bool DrawComponentEventKey(json& value) {
+	std::string name{ JsonValueOr<std::string>(value, "component", "") };
+	std::string_view label{ name.empty() ? "Any component" : std::string_view{ name } };
+	ImGui::SetNextItemWidth(-FLT_MIN);
+	bool changed{ false };
+	if (ImGui::BeginCombo("##Component", label.data())) {
+		if (ImGui::Selectable("Any component", name.empty())) {
+			name.clear();
+			changed = true;
+		}
+		for (const auto& component : ComponentRegistry::Components()) {
+			if (ImGui::Selectable(component.name.data(), name == component.name)) {
+				name	= component.name;
+				changed = true;
+			}
+		}
+		ImGui::EndCombo();
+	}
+	if (changed) {
+		value["component"] = name;
+	}
+	return changed;
+}
+
 bool DrawSignalEvent(json& value) {
 	std::string signal{ JsonValueOr<std::string>(value, "signal", "") };
 	ImGui::SetNextItemWidth(-FLT_MIN);
@@ -753,7 +796,8 @@ bool DrawPrintConsoleInline(ScriptEditorContext& context, PrintConsoleScript& sc
 		ImGui::BeginTooltip();
 		ImGui::PushTextWrapPos(ImGui::GetFontSize() * 38.0f);
 		ImGui::TextUnformatted(
-			"Use {counter:Name} and {bool:Name} for live variables. Right click to edit multiple "
+			"Use {counter:Name} and {bool:Name} for live variables. Right click to edit "
+			"multiple "
 			"lines."
 		);
 		ImGui::Spacing();
@@ -6190,6 +6234,238 @@ PTGN_REGISTER_EVENT(
 		.group		 = "",
 		.description = "Matches once when the entity's scripts are created for runtime.",
 	}
+);
+
+PTGN_REGISTER_EVENT(
+	event::EntityDestroyed, { .label	   = "On Entity Destroyed",
+							  .group	   = "Entity",
+							  .description = "Triggered when entity destroyed occurs." }
+);
+PTGN_REGISTER_EVENT(
+	event::ComponentAdded, { .label			= "On Component Added",
+							 .group			= "Entity",
+							 .description	= "Triggered when component added occurs.",
+							 .inline_fields = 1,
+							 .draw			= &DrawComponentEventKey }
+);
+PTGN_REGISTER_EVENT(
+	event::ComponentRemoved, { .label		  = "On Component Removed",
+							   .group		  = "Entity",
+							   .description	  = "Triggered when component removed occurs.",
+							   .inline_fields = 1,
+							   .draw		  = &DrawComponentEventKey }
+);
+PTGN_REGISTER_EVENT(
+	event::CollisionStart, { .label		  = "On Collision Start",
+							 .group		  = "Physics",
+							 .description = "Triggered when collision start occurs." }
+);
+PTGN_REGISTER_EVENT(
+	event::CollisionStop, { .label		 = "On Collision Stop",
+							.group		 = "Physics",
+							.description = "Triggered when collision stop occurs." }
+);
+PTGN_REGISTER_EVENT(
+	event::PlayerLanded, { .label		= "On Player Landed",
+						   .group		= "Physics",
+						   .description = "Triggered when player landed occurs." }
+);
+PTGN_REGISTER_EVENT(
+	event::PlayerJumpApex, { .label		  = "On Player Jump Apex",
+							 .group		  = "Physics",
+							 .description = "Triggered when player jump apex occurs." }
+);
+PTGN_REGISTER_EVENT(
+	event::PlayerHitCeiling, { .label		= "On Player Hit Ceiling",
+							   .group		= "Physics",
+							   .description = "Triggered when player hit ceiling occurs." }
+);
+PTGN_REGISTER_EVENT(
+	event::PlayerWallContactStart,
+	{ .label	   = "On Player Wall Contact Start",
+	  .group	   = "Physics",
+	  .description = "Triggered when player wall contact start occurs." }
+);
+PTGN_REGISTER_EVENT(
+	event::PlayerWallContactStop,
+	{ .label	   = "On Player Wall Contact Stop",
+	  .group	   = "Physics",
+	  .description = "Triggered when player wall contact stop occurs." }
+);
+PTGN_REGISTER_EVENT(
+	event::EntityHitBounds, { .label	   = "On Entity Hit Bounds",
+							  .group	   = "Physics",
+							  .description = "Triggered when entity hit bounds occurs." }
+);
+PTGN_REGISTER_EVENT(
+	event::EntityEnteredBounds, { .label	   = "On Entity Entered Bounds",
+								  .group	   = "Physics",
+								  .description = "Triggered when entity entered bounds occurs." }
+);
+PTGN_REGISTER_EVENT(
+	event::EntityExitedBounds, { .label		  = "On Entity Exited Bounds",
+								 .group		  = "Physics",
+								 .description = "Triggered when entity exited bounds occurs." }
+);
+PTGN_REGISTER_EVENT(
+	event::LifetimeExpiring, { .label		= "On Lifetime Expiring",
+							   .group		= "Physics",
+							   .description = "Triggered when lifetime expiring occurs." }
+);
+PTGN_REGISTER_EVENT(
+	event::AudioStarted, { .label		  = "On Audio Started",
+						   .group		  = "Audio",
+						   .description	  = "Triggered when audio started occurs.",
+						   .inline_fields = 1,
+						   .draw		  = &DrawAudioEventKey }
+);
+PTGN_REGISTER_EVENT(
+	event::AudioFinished, { .label		   = "On Audio Finished",
+							.group		   = "Audio",
+							.description   = "Triggered when audio finished occurs.",
+							.inline_fields = 1,
+							.draw		   = &DrawAudioEventKey }
+);
+PTGN_REGISTER_EVENT(
+	event::AudioStopped, { .label		  = "On Audio Stopped",
+						   .group		  = "Audio",
+						   .description	  = "Triggered when audio stopped occurs.",
+						   .inline_fields = 1,
+						   .draw		  = &DrawAudioEventKey }
+);
+PTGN_REGISTER_EVENT(
+	event::AudioPaused, { .label		 = "On Audio Paused",
+						  .group		 = "Audio",
+						  .description	 = "Triggered when audio paused occurs.",
+						  .inline_fields = 1,
+						  .draw			 = &DrawAudioEventKey }
+);
+PTGN_REGISTER_EVENT(
+	event::AudioResumed, { .label		  = "On Audio Resumed",
+						   .group		  = "Audio",
+						   .description	  = "Triggered when audio resumed occurs.",
+						   .inline_fields = 1,
+						   .draw		  = &DrawAudioEventKey }
+);
+PTGN_REGISTER_EVENT(
+	event::AudioLoopCompleted, { .label			= "On Audio Loop Completed",
+								 .group			= "Audio",
+								 .description	= "Triggered when audio loop completed occurs.",
+								 .inline_fields = 1,
+								 .draw			= &DrawAudioEventKey }
+);
+PTGN_REGISTER_EVENT(
+	event::AudioFadeCompleted, { .label			= "On Audio Fade Completed",
+								 .group			= "Audio",
+								 .description	= "Triggered when audio fade completed occurs.",
+								 .inline_fields = 1,
+								 .draw			= &DrawAudioEventKey }
+);
+PTGN_REGISTER_EVENT(
+	event::AudioVolumeChanged, { .label			= "On Audio Volume Changed",
+								 .group			= "Audio",
+								 .description	= "Triggered when audio volume changed occurs.",
+								 .inline_fields = 1,
+								 .draw			= &DrawAudioEventKey }
+);
+PTGN_REGISTER_EVENT(
+	event::ParticleSpawned, { .label	   = "On Particle Spawned",
+							  .group	   = "Particle Emitter",
+							  .description = "Triggered when particle spawned occurs." }
+);
+PTGN_REGISTER_EVENT(
+	event::ParticleDestroyed, { .label		 = "On Particle Destroyed",
+								.group		 = "Particle Emitter",
+								.description = "Triggered when particle destroyed occurs." }
+);
+PTGN_REGISTER_EVENT(
+	event::MouseClicked, { .label		  = "On Mouse Clicked",
+						   .group		  = "Interaction",
+						   .description	  = "Triggered when mouse clicked occurs.",
+						   .inline_fields = 1,
+						   .draw		  = &DrawMouse }
+);
+PTGN_REGISTER_EVENT(
+	event::MouseDoubleClicked, { .label			= "On Mouse Double Clicked",
+								 .group			= "Interaction",
+								 .description	= "Triggered when mouse double clicked occurs.",
+								 .inline_fields = 1,
+								 .draw			= &DrawMouse }
+);
+PTGN_REGISTER_EVENT(
+	event::MouseLongPressed, { .label		  = "On Mouse Long Pressed",
+							   .group		  = "Interaction",
+							   .description	  = "Triggered when mouse long pressed occurs.",
+							   .inline_fields = 1,
+							   .draw		  = &DrawMouse }
+);
+PTGN_REGISTER_EVENT(
+	event::DragCanceled, { .label		= "On Drag Canceled",
+						   .group		= "Interaction",
+						   .description = "Triggered when drag canceled occurs." }
+);
+PTGN_REGISTER_EVENT(
+	event::SliderDragStarted, { .label		 = "On Slider Drag Started",
+								.group		 = "Interaction",
+								.description = "Triggered when slider drag started occurs." }
+);
+PTGN_REGISTER_EVENT(
+	event::SliderDragFinished, { .label		  = "On Slider Drag Finished",
+								 .group		  = "Interaction",
+								 .description = "Triggered when slider drag finished occurs." }
+);
+PTGN_REGISTER_EVENT(
+	event::CameraEntityEnteredView,
+	{ .label	   = "On Camera Entity Entered View",
+	  .group	   = "Camera",
+	  .description = "Triggered when camera entity entered view occurs." }
+);
+PTGN_REGISTER_EVENT(
+	event::CameraEntityExitedView,
+	{ .label	   = "On Camera Entity Exited View",
+	  .group	   = "Camera",
+	  .description = "Triggered when camera entity exited view occurs." }
+);
+PTGN_REGISTER_EVENT(
+	event::CameraBoundsReached, { .label	   = "On Camera Bounds Reached",
+								  .group	   = "Camera",
+								  .description = "Triggered when camera bounds reached occurs." }
+);
+PTGN_REGISTER_EVENT(
+	event::CameraZoomChanged, { .label		 = "On Camera Zoom Changed",
+								.group		 = "Camera",
+								.description = "Triggered when camera zoom changed occurs." }
+);
+PTGN_REGISTER_EVENT(
+	event::RenderTargetResized, { .label	   = "On Render Target Resized",
+								  .group	   = "Camera",
+								  .description = "Triggered when render target resized occurs." }
+);
+PTGN_REGISTER_EVENT(
+	event::AnimationMapActiveChanged,
+	{ .label	   = "On Animation Map Active Changed",
+	  .group	   = "Animation",
+	  .description = "Triggered when animation map active changed occurs." }
+);
+PTGN_REGISTER_EVENT(
+	event::SceneLoaded, { .label	   = "On Scene Loaded",
+						  .group	   = "Scene",
+						  .description = "Triggered when scene loaded occurs." }
+);
+PTGN_REGISTER_EVENT(
+	event::SceneUnloaded, { .label		 = "On Scene Unloaded",
+							.group		 = "Scene",
+							.description = "Triggered when scene unloaded occurs." }
+);
+PTGN_REGISTER_EVENT(
+	event::ScenePaused, { .label	   = "On Scene Paused",
+						  .group	   = "Scene",
+						  .description = "Triggered when scene paused occurs." }
+);
+PTGN_REGISTER_EVENT(
+	event::SceneResumed, { .label		= "On Scene Resumed",
+						   .group		= "Scene",
+						   .description = "Triggered when scene resumed occurs." }
 );
 
 namespace impl {
