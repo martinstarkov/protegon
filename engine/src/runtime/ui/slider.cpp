@@ -168,11 +168,19 @@ void SliderSystem::Prepare(Scene& scene) {
 }
 
 void SliderSystem::Update(Scene& scene) {
-	for (auto [entity, _data] : scene.EntitiesWith<SliderData>()) {
+	for (auto [entity, data] : scene.EntitiesWith<SliderData>()) {
 		Slider slider{ entity };
 		Button thumb{ slider.GetThumb() };
-
-		if (!thumb || !IsDragging(thumb)) {
+		bool dragging{ thumb && IsDragging(thumb) };
+		if (dragging != data.was_dragging) {
+			if (dragging) {
+				PushEvent<event::SliderDragStarted>(entity, slider);
+			} else {
+				PushEvent<event::SliderDragFinished>(entity, slider);
+			}
+			data.was_dragging = dragging;
+		}
+		if (!dragging) {
 			continue;
 		}
 

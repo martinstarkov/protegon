@@ -55,6 +55,7 @@ struct SliderData {
 	/// @brief Slider segment in Track Transform local space.
 	Line line{};
 	float value{ 0.0f };
+	bool was_dragging{ false };
 
 	/// @brief Number of allowed slider positions including both endpoints.
 	/// 0 means continuous. A discrete slider must have at least 2 positions.
@@ -299,6 +300,14 @@ struct SliderChange {
 
 	/// @brief Previous normalized slider value in [0, 1].
 	float previous_value{ 0.0f };
+};
+
+struct SliderDragStarted {
+	Slider slider{};
+};
+
+struct SliderDragFinished {
+	Slider slider{};
 };
 
 } // namespace event
