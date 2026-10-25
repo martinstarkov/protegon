@@ -650,7 +650,7 @@ void PromoteNextInChannel(Entity owner, SequenceChannelRuntime& channel) {
 		channel.waiting.pop_front();
 		if (auto* binding{ FindBinding(owner, id) }) {
 			binding->runtime.waiting_for_channel = false;
-			if (Start(owner, id, true)) {
+			if (ScriptSystem::Start(owner, id, true)) {
 				return;
 			}
 		}
