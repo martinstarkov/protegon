@@ -9,6 +9,7 @@
 #include "core/log.h"
 #include "runtime/ecs/group_stack.h"
 #include "runtime/scene/scene.h"
+#include "runtime/scene/scene_context.h"
 #include "runtime/scene/scene_event.h"
 #include "runtime/scripting/script.h"
 #include "runtime/timer/timer_event.h"
@@ -580,7 +581,7 @@ void impl::TimerSystem::Update(Scene& scene, milliseconds dt) {
 	auto entities{ scene.EntitiesWith<impl::Timers>().GetVector() };
 
 	for (Entity entity : entities) {
-		if (!IsGroupStackActive(entity)) {
+		if (!IsGroupStackActive(entity) || !scene.ctx().chunks.ShouldSimulate(entity)) {
 			continue;
 		}
 		if (!entity) {

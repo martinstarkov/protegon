@@ -4,6 +4,7 @@
 #include <chrono>
 #include <functional>
 #include <span>
+#include <utility>
 #include <vector>
 
 #include "core/assert.h"
@@ -38,6 +39,11 @@
 
 namespace ptgn {
 
+namespace {
+/// Disable to retain the old full KD tree rebuild implementation.
+constexpr bool kIncrementalStaticBroadphase = true;
+}
+
 bool CanCollide(
 	Scene& scene, Entity entity1, const Collider& collider1, Entity entity2,
 	const Collider& collider2
@@ -66,7 +72,8 @@ bool CanCollide(
 
 template <auto EarlyExit, bool kPreOverlapCheck>
 std::vector<Entity> GetDiscreteCollideables(
-	Scene& scene, Entity entity1, const impl::KDTree& tree
+	Scene& scene, Entity entity1, const impl::KDTree& tree,
+    const impl::KDTree& dynamic_tree
 ) {
 	const auto& collider{ entity1.Get<Collider>() };
 
@@ -76,6 +83,10 @@ std::vector<Entity> GetDiscreteCollideables(
 	auto bounding_aabb{ GetBoundingAABB(collider.shape, transform) };
 
 	auto candidates{ tree.Query(bounding_aabb) };
+    if constexpr (kIncrementalStaticBroadphase) {
+        auto moving{ dynamic_tree.Query(bounding_aabb) };
+        candidates.insert(candidates.end(), moving.begin(), moving.end());
+    }
 
 	std::vector<Entity> collideables;
 	collideables.reserve(candidates.size());
@@ -130,8 +141,14 @@ void CollisionHandler::UpdateKDTree(Entity entity, secondsf dt) {
 	auto transform{ GetWorldTransform(entity) };
 	transform = OffsetByOrigin(collider.shape, transform, entity);
 	auto new_bounding_aabb{ GetBoundingAABB(collider.shape, transform) };
-	static_tree_.UpdateBoundingAABB(entity, new_bounding_aabb);
-	static_tree_.EndFrameUpdate();
+    if constexpr (!kIncrementalStaticBroadphase) {
+        static_tree_.UpdateBoundingAABB(entity, new_bounding_aabb);
+        static_tree_.EndFrameUpdate();
+    } else if (!entity.Has<RigidBody>()) {
+        static_tree_.UpdateBoundingAABB(entity, new_bounding_aabb);
+        static_tree_.EndFrameUpdate();
+        cached_static_bounds_[entity] = new_bounding_aabb;
+    }
 	if (const auto* rb{ entity.TryGet<RigidBody>() }) {
 		auto v{ rb->velocity * dt.count() };
 		auto new_expanded_aabb{ new_bounding_aabb.ExpandByVelocity(v) };
@@ -148,7 +165,7 @@ void CollisionHandler::Overlap(Scene& scene, Entity entity1) const {
 		[]([[maybe_unused]] Entity e1, const Collider& c1, Entity e2, const Collider& c2) {
 			return c2.mode == CollisionMode::None || c1.OverlappedWith(e2);
 		},
-		true>(scene, entity1, static_tree_) };
+		true>(scene, entity1, static_tree_, dynamic_tree_) };
 	for (const auto& entity2 : collideables) {
 		auto& collider1{ entity1.Get<Collider>() };
 		auto& collider2{ entity2.Get<Collider>() };
@@ -177,7 +194,7 @@ void CollisionHandler::Intersect(Scene& scene, Entity entity1, secondsf dt) {
 			return c2.mode == CollisionMode::Overlap ||
 				   c2.mode == CollisionMode::None; //|| c1.IntersectedWith(e2);
 		},
-		false>(scene, entity1, static_tree_) };
+		false>(scene, entity1, static_tree_, dynamic_tree_) };
 	std::vector<Entity> moved_entities;
 
 	for (auto& entity2 : collideables) {
@@ -546,16 +563,22 @@ V2_float CollisionHandler::GetRemainingVelocity(
 void CollisionHandler::Update(Scene& scene, secondsf dt) {
 	std::vector<impl::KDObject> objects;
 	std::vector<impl::KDObject> dynamic_objects;
+    std::unordered_map<Entity, BoundingAABB> static_bounds;
 
 	for (auto [entity, collider] : scene.EntitiesWith<Collider>()) {
 		collider.ResetContainers();
-		if (!IsGroupStackActive(entity)) {
+		if (!IsGroupStackActive(entity) || !scene.ctx().chunks.ShouldSimulate(entity)) {
 			continue;
 		}
 		auto transform{ GetWorldTransform(entity) };
 		transform = OffsetByOrigin(collider.shape, transform, entity);
 		auto bounding_aabb{ GetBoundingAABB(collider.shape, transform) };
 		objects.emplace_back(entity, bounding_aabb);
+        if constexpr (kIncrementalStaticBroadphase) {
+            if (!entity.Has<RigidBody>()) {
+                static_bounds.emplace(entity, bounding_aabb);
+            }
+        }
 		if (entity.Has<RigidBody>()) {
 			const auto& rb{ entity.Get<RigidBody>() };
 			auto velocity{ rb.velocity * dt.count() };
@@ -564,7 +587,26 @@ void CollisionHandler::Update(Scene& scene, secondsf dt) {
 		}
 	}
 
-	static_tree_.Build(objects);
+    if constexpr (kIncrementalStaticBroadphase) {
+        for (const auto& [entity, bounds] : static_bounds) {
+            auto existing{ cached_static_bounds_.find(entity) };
+            if (existing == cached_static_bounds_.end()) {
+                static_tree_.Insert(entity, bounds);
+            } else if (existing->second.min != bounds.min ||
+                       existing->second.max != bounds.max) {
+                static_tree_.UpdateBoundingAABB(entity, bounds);
+            }
+        }
+        for (const auto& [entity, bounds] : cached_static_bounds_) {
+            if (!static_bounds.contains(entity)) {
+                static_tree_.Remove(entity);
+            }
+        }
+        static_tree_.EndFrameUpdate();
+        cached_static_bounds_ = std::move(static_bounds);
+    } else {
+        static_tree_.Build(objects);
+    }
 	dynamic_tree_.Build(dynamic_objects);
 
 	for (auto& object : objects) {

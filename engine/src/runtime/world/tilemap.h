@@ -3,6 +3,7 @@
 #include <array>
 #include <cstdint>
 #include <optional>
+#include <unordered_map>
 #include <vector>
 
 #include "core/graphics/color.h"
@@ -38,12 +39,15 @@ struct TilemapTile {
 	Origin origin{ Origin::TopLeft };
 	V2_float offset{};
 	Color tint{ color::White };
+	/// When true, a static cell-sized Collider proxy is created automatically for this tile.
+	/// Works in both partitioned and non-partitioned scenes.
+	std::optional<bool> collidable{};
 	/// Stable editor authored terrain ruleset id when this is a derived autotile display cell.
 	std::optional<std::uint64_t> terrain_ruleset_id{};
 
 	PTGN_REFLECT(
 		TilemapTile, coordinate, texture, texture_coordinates, pixel_size, origin, offset, tint,
-		terrain_ruleset_id
+		collidable, terrain_ruleset_id
 	)
 };
 
@@ -56,17 +60,6 @@ struct TilemapTerrainCell {
 	PTGN_REFLECT(TilemapTerrainCell, coordinate, ruleset_id)
 };
 
-struct TilemapStreamingSettings {
-	bool enabled{ true };
-	int preload_radius{ 1 };
-	int keep_alive_radius{ 2 };
-	int max_loaded_chunks{ 128 };
-
-	PTGN_REFLECT(
-		TilemapStreamingSettings, enabled, preload_radius, keep_alive_radius, max_loaded_chunks
-	)
-};
-
 namespace impl {
 
 /// @brief Persistent component that turns an ECS entity into a Tilemap entity.
@@ -76,13 +69,14 @@ namespace impl {
 /// and targeted by generators like any other scene object.
 struct TilemapData {
 	V2_float cell_size{ 32.0f, 32.0f };
-	V2_int chunk_size{ 16, 16 };
-	TilemapStreamingSettings streaming{};
 	std::vector<TilemapTile> tiles{};
 	std::vector<TilemapTerrainCell> terrain{};
 	std::vector<V2_int> exclusion_mask{};
+	// Derived, runtime-only lookup. Not reflected/serialized with authored tile data.
+	mutable std::unordered_map<V2_int, std::size_t> runtime_tile_index{};
+	mutable bool runtime_tile_index_valid{ false };
 
-	PTGN_REFLECT(TilemapData, cell_size, chunk_size, streaming, tiles, terrain, exclusion_mask)
+	PTGN_REFLECT(TilemapData, cell_size, tiles, terrain, exclusion_mask)
 };
 
 } // namespace impl
@@ -96,8 +90,6 @@ public:
 	[[nodiscard]] impl::TilemapData& GetData();
 
 	Tilemap& SetCellSize(V2_float cell_size);
-	Tilemap& SetChunkSize(V2_int chunk_size);
-	Tilemap& SetStreaming(TilemapStreamingSettings settings);
 
 	[[nodiscard]] V2_int WorldToCell(V2_float world) const;
 	[[nodiscard]] V2_float CellToWorld(V2_int coordinate) const;

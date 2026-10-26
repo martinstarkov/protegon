@@ -1323,7 +1323,7 @@ void ScriptSystem::ApplyPending(Scene& scene) {
 void ScriptSystem::Update(Scene& scene, secondsf dt) {
 	auto entities{ scene.EntitiesWith<impl::Scripts>().GetVector() };
 	for (Entity entity : entities) {
-		if (!IsGroupStackActive(entity)) {
+		if (!IsGroupStackActive(entity) || !scene.ctx().chunks.ShouldSimulate(entity)) {
 			continue;
 		}
 		auto* scripts{ entity.TryGet<impl::Scripts>() };

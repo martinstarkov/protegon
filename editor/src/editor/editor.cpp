@@ -2824,6 +2824,19 @@ void Editor::DrawMainMenuBar() {
 			ImGui::SetTooltip("Selecting a group shows only that layer in the editor.");
 		}
 
+		if (ImGui::MenuItem(
+			"Persist Chunk Changes During Play", nullptr,
+			GetSettings().persist_runtime_chunk_changes
+		)) {
+			toggle_editor_setting(
+				"Toggle Runtime Chunk Persistence", &EditorSettings::persist_runtime_chunk_changes
+			);
+		}
+		if (ImGui::IsItemHovered()) {
+			ImGui::SetTooltip("Off: changes to world chunks are kept only during this play session. "
+				"On: runtime saves follow the scene's configured chunk save mode.");
+		}
+
 		ImGui::Separator();
 
 		if (ImGui::MenuItem("Entity Picking", nullptr, GetSettings().entity_picking)) {
@@ -3497,6 +3510,9 @@ void Editor::DrawPanels() {
 	if (scene_list_panel_.ResolvePendingSceneSelection(*context_)) {
 		auto* scene{ scene_list_panel_.GetSelectedScene() };
 
+		if (scene && !scene->IsRuntime()) {
+			viewport_panel_.MatchSceneCamera(scene->GetCamera());
+		}
 		viewport_panel_.SetUseEditorCamera(!scene || !scene->IsRuntime());
 	}
 
@@ -3682,6 +3698,24 @@ Editor& Editor::EnableRendering(bool enable) {
 }
 
 void Editor::OnUpdate() {
+	// A stop requested by a viewport button happens after RenderScenes. Defer scene
+	// reconstruction until this pre-render phase to prevent a partial snow-only frame.
+	if (stop_requested_) {
+		stop_requested_ = false;
+		Stop();
+	}
+
+	// Apply editor play-session policy to every runtime scene, including scenes
+	// entered after Play. Disk reads remain enabled to restore existing saves.
+	if (context_) {
+		bool writes_enabled{ context_->local.settings.persist_runtime_chunk_changes };
+		for (const auto& scene : GetSceneManager().GetScenes()) {
+			if (scene && scene->IsRuntime()) {
+				scene->ctx().chunks.SetDiskWritesEnabled(writes_enabled);
+			}
+		}
+		viewport_panel_.PrepareCameraForRender(GetRenderer());
+	}
 #if !defined(__EMSCRIPTEN__)
 	export_manager_.OnUpdate();
 
@@ -3808,6 +3842,7 @@ void Editor::SetEditorSettings(EditorSettings settings) {
 	current.preview_selected_group			   = settings.preview_selected_group;
 	current.show_imgui_metrics				   = settings.show_imgui_metrics;
 	current.preview_screen_effects			   = settings.preview_screen_effects;
+	current.persist_runtime_chunk_changes = settings.persist_runtime_chunk_changes;
 	current.content_browser_items_per_row	   = settings.content_browser_items_per_row;
 	current.content_browser_search_entire_tree = settings.content_browser_search_entire_tree;
 
@@ -3963,6 +3998,11 @@ void Editor::Play() {
 		return;
 	}
 
+	// Set policy before the first streaming update (and before any runtime teardown).
+	manager.GetScene(Hash(selected_key)).ctx().chunks.SetDiskWritesEnabled(
+		GetSettings().persist_runtime_chunk_changes
+	);
+
 	for (const auto& entry : project->scenes) {
 		if (entry.key == selected_key) {
 			continue;
@@ -4098,6 +4138,9 @@ void Editor::StopDirectRuntime() {
 
 	context_->local.state.is_paused = false;
 
+	if (!selected_key.empty() && manager.HasScene(Hash(selected_key))) {
+		viewport_panel_.MatchSceneCamera(manager.GetScene(Hash(selected_key)).GetCamera());
+	}
 	viewport_panel_.SetUseEditorCamera(true);
 
 	if (!selected_key.empty()) {
@@ -4123,6 +4166,10 @@ void Editor::StopDirectRuntime() {
 	// editor project state touched during runtime from the saved project.
 	context_->project_state = LoadEditorProjectState(*project);
 	RefreshProjectDirtyState();
+}
+
+void Editor::RequestStop() {
+	stop_requested_ = true;
 }
 
 void Editor::Stop() {
@@ -4173,6 +4220,9 @@ void Editor::Stop() {
 
 	scene_list_panel_.QueueSceneSelection(*context_, selected_key, false, selected_entity_uuid);
 
+	if (manager.HasScene(Hash(selected_key))) {
+		viewport_panel_.MatchSceneCamera(manager.GetScene(Hash(selected_key)).GetCamera());
+	}
 	viewport_panel_.SetUseEditorCamera(true);
 
 	context_->local.state.is_playing = false;

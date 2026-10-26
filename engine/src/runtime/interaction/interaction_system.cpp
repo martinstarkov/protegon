@@ -262,7 +262,7 @@ std::vector<Entity> InteractionSystem::GetDropzones(const Scene& scene) {
 	for (auto [entity, interactive, dropzone] :
 		 scene.EntitiesWith<impl::Interactive, impl::Dropzone>()) {
 		if (!interactive.enabled || !dropzone.enabled || !IsVisible(entity) ||
-			!IsGroupStackInteractive(entity)) {
+			!scene.ctx().chunks.ShouldSimulate(entity) || !IsGroupStackInteractive(entity)) {
 			continue;
 		}
 
@@ -712,7 +712,8 @@ void InteractionSystem::UpdateForCamera(
 	std::vector<Entity> camera_entities;
 
 	for (auto [entity, interactive] : scene.EntitiesWith<impl::Interactive>()) {
-		if (!interactive.enabled || !IsVisible(entity) || !IsGroupStackInteractive(entity)) {
+		if (!interactive.enabled || !IsVisible(entity) || !IsGroupStackInteractive(entity) ||
+			!scene.ctx().chunks.ShouldSimulate(entity)) {
 			continue;
 		}
 		if (filter(entity)) {

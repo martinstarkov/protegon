@@ -1,5 +1,6 @@
 #pragma once
 
+#include <unordered_map>
 #include <vector>
 
 #include "core/graphics/color.h"
@@ -88,6 +89,8 @@ private:
 
 	impl::KDTree static_tree_{ 100 };
 	impl::KDTree dynamic_tree_{ 100 };
+	/// Used when incremental static broadphase is enabled in collision_handler.cpp.
+	std::unordered_map<Entity, BoundingAABB> cached_static_bounds_{};
 
 	constexpr static auto slop_{ 0.0005f };
 	constexpr static std::size_t max_sweep_iterations_{ 4 };

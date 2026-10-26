@@ -103,6 +103,8 @@ public:
 	ApplicationState GetApplicationState() const;
 	void Play();
 	void Stop();
+	/// Stop after the current ImGui frame so the next presentation renders a complete editor scene.
+	void RequestStop();
 	void TogglePause();
 	void SaveProjectScene();
 
@@ -274,6 +276,7 @@ private:
 	bool runtime_was_active_{ false };
 	bool shortcut_runtime_active_{ false };
 	bool pending_close_after_runtime_stop_{ false };
+	bool stop_requested_{ false };
 	bool project_initialization_pending_{ false };
 	std::uint8_t runtime_window_center_frames_remaining_{ 0 };
 	V2_int runtime_window_center_last_size_{};

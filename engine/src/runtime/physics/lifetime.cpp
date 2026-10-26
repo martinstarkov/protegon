@@ -7,6 +7,7 @@
 #include "runtime/ecs/entity.h"
 #include "runtime/ecs/group_stack.h"
 #include "runtime/scene/scene.h"
+#include "runtime/scene/scene_context.h"
 #include "runtime/scene/scene_event.h"
 #include "runtime/scripting/script.h"
 
@@ -132,7 +133,7 @@ void Lifetime::Update(Entity entity, secondsf dt) {
 
 void Lifetime::Update(Scene& scene, secondsf dt) {
 	for (auto [entity, lifetime] : scene.EntitiesWith<Lifetime>()) {
-		if (!IsGroupStackActive(entity)) {
+		if (!IsGroupStackActive(entity) || !scene.ctx().chunks.ShouldSimulate(entity)) {
 			continue;
 		}
 		lifetime.Update(entity, dt);

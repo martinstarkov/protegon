@@ -82,7 +82,7 @@ void UpdateCameraVisibilityEvents(Scene& scene) {
 		std::vector<Entity> current;
 		for (auto [entity, transform] : scene.EntitiesWith<Transform>()) {
 			if (entity == camera_entity || !HasDraw(entity) || !IsVisible(entity) ||
-				!camera.CanSee(entity)) {
+				!camera.CanSee(entity) || !scene.ctx().chunks.ShouldRender(entity)) {
 				continue;
 			}
 			V2_float point{ GetWorldPosition(entity) };

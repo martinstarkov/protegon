@@ -31,7 +31,16 @@ Matrix4 GetOrthographicViewProjection(
 	projection = Matrix4::Orthographic(min, max);
 
 	if (pixel_rounding) {
-		transform.position = Round(transform.position);
+		// A camera zoomed to 4x needs a 1/4-world-unit step per OUTPUT pixel.
+		// Rounding to whole world units makes the camera jump four pixels at
+		// once and visibly jitters otherwise stationary sprites while following.
+		V2_float step{ Abs(transform.scale) };
+		if (step.IsPositive()) {
+			transform.position = {
+				std::round(transform.position.x / step.x) * step.x,
+				std::round(transform.position.y / step.y) * step.y
+			};
+		}
 	}
 
 	auto view{ Matrix4::MakeInverseTransform(transform) };

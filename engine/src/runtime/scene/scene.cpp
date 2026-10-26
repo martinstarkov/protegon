@@ -51,6 +51,7 @@
 #include "runtime/graphics/tint.h"
 #include "runtime/graphics/visible.h"
 #include "runtime/interaction/interaction_system.h"
+#include "runtime/physics/bounding_aabb.h"
 #include "runtime/physics/collision_handler.h"
 #include "runtime/physics/lifetime.h"
 #include "runtime/physics/physics.h"
@@ -68,6 +69,8 @@
 #include "runtime/ui/slider.h"
 #include "runtime/ui/toggle_button.h"
 #include "runtime/ui/tooltip.h"
+#include "runtime/world/chunk.h"
+#include "runtime/world/tilemap.h"
 #include "tools/debug/debug_system.h"
 
 namespace ptgn {
@@ -92,6 +95,89 @@ void UpdateRenderTargetSizes(Scene& scene) {
 
 	for (auto [entity, _target] : scene.EntitiesWith<impl::RenderTargetDesc>()) {
 		RenderTarget{ entity }.UpdateSize(display_size);
+	}
+}
+
+// Tilemap entities are intentionally ordinary ECS objects. Rendering is derived from
+// the tiles currently present in those entities, irrespective of their provenance
+// (authored placements, generators, or edits restored from the chunk journal).
+void QueueRuntimeTilemaps(Scene& scene) {
+	SceneCamera camera{ scene.GetCamera() };
+	const auto& preview_camera{ scene.ctx().renderer.GetPrimaryWorldCamera() };
+	BoundingAABB visible{ preview_camera.has_value()
+		? GetBoundingAABB(preview_camera->GetWorldVertices(
+			scene.ctx().renderer.GetLogicalSize()))
+		: GetBoundingAABB(camera.GetWorldVertices()) };
+	float multiplier{ scene.ctx().chunks.GetSettings().render_viewports };
+	V2_float center{ (visible.min + visible.max) * 0.5f };
+	V2_float half{ (visible.max - visible.min) * (0.5f * multiplier) };
+	visible = { center - half, center + half };
+
+	impl::AssetAccessor asset{ scene.ctx().asset };
+	for (auto [entity, data] : scene.EntitiesWith<impl::TilemapData>()) {
+		if (!IsVisible(entity) || !camera.CanSee(entity)) {
+			continue;
+		}
+
+		Tilemap tilemap{ entity };
+		Depth depth{ GetDepth(entity) };
+		auto draw_tile = [&](const TilemapTile& tile) {
+			if (!tile.texture) {
+				return;
+			}
+
+			V2_float size{ tile.pixel_size.IsPositive() ? V2_float{ tile.pixel_size }
+														: data.cell_size };
+			V2_float anchor{ tilemap.CellToWorld(tile.coordinate) + tile.offset };
+			V2_float tile_center{ anchor + GetOffset(tile.origin, size) };
+			V2_float tile_min{ tile_center - size * 0.5f };
+			V2_float tile_max{ tile_center + size * 0.5f };
+			if (tile_max.x < visible.min.x || tile_min.x > visible.max.x ||
+				tile_max.y < visible.min.y || tile_min.y > visible.max.y) {
+				return;
+			}
+
+			if (!asset.Has<Texture>(tile.texture)) {
+				return;
+			}
+
+			scene.ctx().render_queue.DrawTexture(
+				Transform{ anchor }, tile.texture,
+				{
+					.size				 = size,
+					.origin				 = tile.origin,
+					.tint				 = tile.tint,
+					.depth				 = depth,
+					.texture_coordinates = tile.texture_coordinates,
+				}
+			);
+		};
+
+		// Resident procedural maps and large authored maps can contain many cells.
+		// Use the tilemap's indexed cell lookup when the visible window is smaller
+		// than the resident tile collection; otherwise a linear pass is cheaper.
+		V2_int min_cell{ tilemap.WorldToCell(visible.min) };
+		V2_int max_cell{ tilemap.WorldToCell(visible.max) };
+		// One extra cell catches ordinary edge-aligned sprites on viewport edges.
+		// Custom oversized offset sprites are still handled by the linear fallback.
+		long long nx{ static_cast<long long>(max_cell.x) - min_cell.x + 3 };
+		long long ny{ static_cast<long long>(max_cell.y) - min_cell.y + 3 };
+		bool indexed{ nx > 0 && ny > 0 && nx <= 8192 && ny <= 8192 &&
+					  nx * ny < static_cast<long long>(data.tiles.size()) };
+
+		if (indexed) {
+			for (int y = min_cell.y - 1; y <= max_cell.y + 1; ++y) {
+				for (int x = min_cell.x - 1; x <= max_cell.x + 1; ++x) {
+					if (const auto* tile{ tilemap.FindTile({ x, y }) }) {
+						draw_tile(*tile);
+					}
+				}
+			}
+		} else {
+			for (const auto& tile : data.tiles) {
+				draw_tile(tile);
+			}
+		}
 	}
 }
 
@@ -405,8 +491,8 @@ void RestoreSerializedChildren(Scene& scene, const SerializedEntity& serialized)
 Scene::Scene(Scene&& other) noexcept :
 	ctx_{ std::exchange(other.ctx_, nullptr) },
 	manager_{ std::exchange(other.manager_, {}) },
-	data_{ std::exchange(other.data_, {}) },
 	tags_{ std::exchange(other.tags_, {}) },
+	data_{ std::exchange(other.data_, {}) },
 	asset_dependencies_{ std::exchange(other.asset_dependencies_, {}) },
 	explicit_asset_dependencies_{ std::exchange(other.explicit_asset_dependencies_, {}) },
 	retained_asset_dependencies_{ std::exchange(other.retained_asset_dependencies_, {}) } {
@@ -541,7 +627,7 @@ json Scene::SerializeContent() const {
 	std::vector<Entity> roots;
 
 	for (Entity entity : Entities()) {
-		if (!HasParent(entity)) {
+		if (!HasParent(entity) && !ctx_->chunks.OwnsEntity(entity)) {
 			roots.emplace_back(entity);
 		}
 	}
@@ -572,6 +658,7 @@ json Scene::SerializeContent() const {
 	content["tags"]					   = tags_;
 	content["settings"]["physics"]	   = ctx_->physics;
 	content["settings"]["interaction"] = ctx_->interaction;
+	content["settings"]["chunks"]	   = ctx_->chunks.GetSettings();
 
 	return content;
 }
@@ -677,6 +764,22 @@ void Scene::DeserializeContent(const json& serialized_content) {
 
 	serialized_content.at("settings").at("physics").get_to(ctx_->physics);
 	serialized_content.at("settings").at("interaction").get_to(ctx_->interaction);
+	if (auto it{ serialized_content.at("settings").find("chunks") };
+		it != serialized_content.at("settings").end()) {
+		// Scenes saved before persistent chunk directories were introduced do not
+		// contain this field. Retain their previous in-memory-only behavior.
+		json chunk_settings{ *it };
+		if (!chunk_settings.contains("save_directory")) {
+			chunk_settings["save_directory"] = "";
+		}
+		if (!chunk_settings.contains("render_viewports")) {
+			chunk_settings["render_viewports"] = 1.0f;
+		}
+		if (!chunk_settings.contains("simulation_viewports")) {
+			chunk_settings["simulation_viewports"] = 1.5f;
+		}
+		ctx_->chunks.SetSettings(chunk_settings.get<ChunkSettings>());
+	}
 }
 
 void Scene::InternalOnEvent(Event event) {
@@ -707,6 +810,7 @@ void Scene::InternalOnEvent(Entity entity, Event event) {
 
 void Scene::InternalPreUpdate() {
 	if (data_.runtime) {
+		ctx().chunks.Update(*this);
 		ValidateUIControlTypes(*this);
 
 		// Derived UI components first add ButtonData; ButtonSystem then adds Interactive.
@@ -731,6 +835,8 @@ void Scene::InternalEnter() {
 	if (!data_.runtime) {
 		return;
 	}
+
+	ctx().chunks.BeginRuntime();
 
 	for (auto [entity, _scripts] : EntitiesWith<impl::Scripts>()) {
 		ScriptSystem::AttachAll(entity);
@@ -824,8 +930,9 @@ void Scene::DrawCameras(DrawContext& draw_context, const std::vector<Entity>& ca
 		auto cam{ camera.operator Camera() };
 		auto clear_color{ camera.GetClearColor() };
 
-		auto filter = [camera](auto entity) {
-			return !camera.CanSee(entity) || !IsVisible(entity);
+		auto filter = [this, camera](auto entity) {
+			return !camera.CanSee(entity) || !IsVisible(entity) ||
+				   !ctx().chunks.ShouldRender(entity, camera);
 		};
 
 		auto& commands{ ctx().render_queue.GetRenderCommands(camera, false) };
@@ -856,7 +963,15 @@ void Scene::InternalDraw(DrawContext& draw_context) {
 
 	ClearRenderTargets();
 
+	// Let OnRender update the camera after physics, before tiles and other render
+	// commands are culled. This also keeps the camera and UI in the same frame.
 	OnRender();
+
+	// Editor tile previews use their own overlay; runtime draws through the normal
+	// render queue so tilemaps share camera, depth and batching with other entities.
+	if (data_.runtime) {
+		QueueRuntimeTilemaps(*this);
+	}
 
 	if (const auto& primary_world_camera{ ctx().renderer.GetPrimaryWorldCamera() };
 		primary_world_camera.has_value()) {
@@ -875,35 +990,24 @@ void Scene::InternalDraw(DrawContext& draw_context) {
 
 		DrawCameras(draw_context, non_scene_cameras);
 
-		ctx().render_queue.CombineCommands();
-		PTGN_ASSERT(ctx().render_queue.render_commands_.size() == 1);
-		PTGN_ASSERT(ctx().render_queue.debug_commands_.size() == 1);
-
-		SceneCamera camera;
-
-		auto render_target{ GetRenderTarget() };
-		auto tint{ color::White };
-
-		impl::EffectParams effect_params;
+		// Only replace the scene WORLD projection. Do not collapse scene and
+		// fixed-camera commands into one bucket: snow/tile commands and the HUD
+		// otherwise acquire the wrong camera state or ordering during a toggle.
+		SceneCamera scene_camera{ ctx_->camera };
 		Camera cam{ primary_world_camera.value() };
-		std::optional<Color> clear_color;
-
-		auto filter = [this](auto entity) {
-			auto entity_mask{ GetRenderMask(entity) };
-			auto include{ ctx().camera.GetIncludeRenderMask() };
-			auto exclude{ ctx().camera.GetExcludeRenderMask() };
-			bool in_include{ (entity_mask & include) != 0 };
-			bool in_exclude{ (entity_mask & exclude) != 0 };
-			return !((in_include && !in_exclude) || IsUI(entity)) || !IsVisible(entity);
+		auto filter = [this, scene_camera](Entity entity) {
+			return !scene_camera.CanSee(entity) || !IsVisible(entity) ||
+				!ctx().chunks.ShouldRender(entity, SceneCamera{});
 		};
-
-		auto& commands{ ctx().render_queue.GetRenderCommands(camera, false) };
-		auto& debug_commands{ ctx().render_queue.GetRenderCommands(camera, true) };
-
+		auto& commands{ ctx().render_queue.GetRenderCommands(scene_camera, false) };
+		auto& debug_commands{ ctx().render_queue.GetRenderCommands(scene_camera, true) };
 		DrawScene(
-			*this, commands, debug_commands, draw_context, render_target, cam, camera, clear_color,
-			tint, effect_params, filter
+			*this, commands, debug_commands, draw_context, GetRenderTarget(), cam,
+			scene_camera, std::nullopt, color::White, impl::EffectParams{}, filter
 		);
+
+		// The fixed UI camera still needs its own orthographic projection.
+		DrawCameras(draw_context, std::vector<Entity>{ ctx_->fixed_camera_ });
 	} else {
 		std::vector<Entity> cameras;
 
@@ -967,6 +1071,8 @@ void Scene::InternalUpdate() {
 		impl::DialogueSystem::Update(*this, dt_ms);
 
 		OnUpdate();
+		// Handle camera movement requested by the game before collision broad phase construction.
+		ctx().chunks.Update(*this);
 
 		// Timers advance after script and scene updates so newly triggered timed actions do not
 		// receive the current frame's full dt.
@@ -1014,6 +1120,11 @@ void Scene::InternalExit() {
 
 	ScriptSystem::ApplyPending(*this);
 	Refresh();
+	ctx().chunks.UnloadAll(*this);
+	// In Manual mode the game must call SaveConfigured() explicitly.
+    if (ctx().chunks.GetSettings().save_mode != ChunkSaveMode::Manual) {
+        [[maybe_unused]] bool saved_chunks{ ctx().chunks.SaveConfigured() };
+    }
 
 	// Clears component hooks.
 	manager_.Reset();
@@ -1048,6 +1159,9 @@ Entity Scene::CreateEntity(Tag tag, UUID uuid) {
 	entity.Add<Tag>(std::move(tag));
 	entity.Add<UUID>(uuid);
 	Entity created{ entity, this };
+	if (ctx_ && data_.runtime) {
+		ctx_->chunks.OnEntityCreated(created);
+	}
 	return created;
 }
 

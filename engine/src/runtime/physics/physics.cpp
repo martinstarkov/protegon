@@ -81,6 +81,9 @@ void Physics::UpdatePlatformerGrounding() {
 	PTGN_ASSERT(scene_);
 
 	for (auto [entity, movement] : scene_->EntitiesWith<PlatformerMovement>()) {
+		if (!scene_->ctx().chunks.ShouldSimulate(entity)) {
+			continue;
+		}
 		bool was_grounded{ movement.IsGrounded() };
 		ptgn::UpdatePlatformerGrounding(
 			entity, movement.grounding, movement.grounding_state_, gravity_
@@ -116,7 +119,7 @@ void Physics::PreCollisionUpdate() {
 
 	for (auto [entity, transform, rigid_body, movement] :
 		 scene_->EntitiesWith<Transform, RigidBody, TopDownMovement>()) {
-		if (!IsGroupStackActive(entity)) {
+		if (!IsGroupStackActive(entity) || !scene_->ctx().chunks.ShouldSimulate(entity)) {
 			continue;
 		}
 		movement.Update(entity, transform, rigid_body, frame_dt);
@@ -124,7 +127,7 @@ void Physics::PreCollisionUpdate() {
 
 	for (auto [entity, transform, rigid_body, movement] :
 		 scene_->EntitiesWith<Transform, RigidBody, PlatformerMovement>()) {
-		if (!IsGroupStackActive(entity)) {
+		if (!IsGroupStackActive(entity) || !scene_->ctx().chunks.ShouldSimulate(entity)) {
 			continue;
 		}
 		movement.Update(*scene_, transform, rigid_body, frame_dt);
@@ -142,7 +145,7 @@ void Physics::PreCollisionUpdate() {
 	}
 
 	for (auto [entity, rigid_body] : scene_->EntitiesWith<RigidBody>()) {
-		if (!IsGroupStackActive(entity)) {
+		if (!IsGroupStackActive(entity) || !scene_->ctx().chunks.ShouldSimulate(entity)) {
 			continue;
 		}
 		rigid_body.Update(gravity_, frame_dt);
@@ -154,7 +157,7 @@ void Physics::PreCollisionUpdate() {
 
 		for (auto [entity, movement, body] :
 			 scene_->EntitiesWith<PlatformerMovement, RigidBody>()) {
-			if (!IsGroupStackActive(entity)) {
+			if (!IsGroupStackActive(entity) || !scene_->ctx().chunks.ShouldSimulate(entity)) {
 				continue;
 			}
 
@@ -181,7 +184,7 @@ void Physics::PostCollisionUpdate() {
 	PTGN_ASSERT(scene_);
 
 	for (auto [entity, transform, rigid_body] : scene_->EntitiesWith<Transform, RigidBody>()) {
-		if (!IsGroupStackActive(entity)) {
+		if (!IsGroupStackActive(entity) || !scene_->ctx().chunks.ShouldSimulate(entity)) {
 			continue;
 		}
 		transform.Translate(rigid_body.velocity * dt.count());
@@ -227,7 +230,7 @@ void Physics::PostCollisionUpdate() {
 	}
 
 	for (auto [entity, movement, collider] : scene_->EntitiesWith<PlatformerMovement, Collider>()) {
-		if (!IsGroupStackActive(entity)) {
+		if (!IsGroupStackActive(entity) || !scene_->ctx().chunks.ShouldSimulate(entity)) {
 			continue;
 		}
 		(void)movement;

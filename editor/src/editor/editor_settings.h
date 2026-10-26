@@ -22,6 +22,8 @@ struct EditorSettings {
 	bool preview_selected_group{ true };
 	bool show_imgui_metrics{ false };
 	bool preview_screen_effects{ true };
+	/// Test play sessions discard world edits by default; standalone games still save normally.
+	bool persist_runtime_chunk_changes{ false };
 	int content_browser_items_per_row{ 8 };
 	bool content_browser_search_entire_tree{ false };
 
@@ -36,6 +38,7 @@ struct EditorSettings {
 		EditorSettings, entity_picking, render_only_selected_scene, gizmo_uses_local_orientation,
 		show_read_only_inspector_data, show_read_only_scene_data, show_managed_ui_parts,
 		preview_selected_group, show_imgui_metrics, preview_screen_effects,
+		persist_runtime_chunk_changes,
 		content_browser_items_per_row, content_browser_search_entire_tree,
 		prefab_delete_instance_behavior
 	)

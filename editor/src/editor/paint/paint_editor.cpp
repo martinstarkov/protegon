@@ -10,7 +10,6 @@
 #include <cmath>
 #include <cstddef>
 #include <cstring>
-#include <filesystem>
 #include <fstream>
 #include <functional>
 #include <iomanip>
@@ -27,6 +26,7 @@
 #include <vector>
 
 #include "core/assert.h"
+#include "core/util/file.h"
 #include "core/math/angle.h"
 #include "core/math/geometry/rect.h"
 #include "core/util/string.h"
@@ -38,6 +38,7 @@
 #include "editor/renamable_item.h"
 #include "panels/scene_hierarchy.h"
 #include "panels/scene_list.h"
+#include "panels/inspector_layout.h"
 #include "platform/file_dialog.h"
 #include "platform/window.h"
 #include "renderer/renderer.h"
@@ -61,6 +62,7 @@
 #include "runtime/ui/button_config.h"
 #include "runtime/ui/slider.h"
 #include "runtime/world/autotile.h"
+#include "runtime/world/chunk.h"
 #include "runtime/world/paint_generator.h"
 #include "runtime/world/tilemap.h"
 #include "serialization/json/json.h"
@@ -1228,8 +1230,8 @@ struct AutotileAtlasLayout {
 	return std::string{ first, last };
 }
 
-[[nodiscard]] bool IsImagePath(const std::filesystem::path& path) {
-	std::string ext{ path.extension().string() };
+[[nodiscard]] bool IsImagePath(const path& filepath) {
+	std::string ext{ filepath.extension().string() };
 	std::ranges::transform(ext, ext.begin(), [](unsigned char c) {
 		return static_cast<char>(std::tolower(c));
 	});
@@ -1237,11 +1239,11 @@ struct AutotileAtlasLayout {
 	return ext == ".png" || ext == ".jpg" || ext == ".jpeg" || ext == ".bmp" || ext == ".gif";
 }
 
-[[nodiscard]] std::optional<V2_int> FilenameTileDimensions(const std::filesystem::path& path) {
+[[nodiscard]] std::optional<V2_int> FilenameTileDimensions(const path& filepath) {
 	static const std::regex dimensions{ R"((?:_|-)([0-9]+)x([0-9]+)$)", std::regex::icase };
 	std::smatch match;
 
-	std::string stem{ path.stem().string() };
+	std::string stem{ filepath.stem().string() };
 
 	if (!std::regex_search(stem, match, dimensions) || match.size() < 3) {
 		return std::nullopt;
@@ -1255,9 +1257,9 @@ struct AutotileAtlasLayout {
 	}
 }
 
-[[nodiscard]] std::string SourceGroupName(const std::filesystem::path& path) {
+[[nodiscard]] std::string SourceGroupName(const path& filepath) {
 	static const std::regex dimensions{ R"((?:_|-)[0-9]+x[0-9]+$)", std::regex::icase };
-	std::string result{ std::regex_replace(path.stem().string(), dimensions, "") };
+	std::string result{ std::regex_replace(filepath.stem().string(), dimensions, "") };
 	return result.empty() ? "Tiles" : result;
 }
 
@@ -1267,8 +1269,8 @@ struct TiledTilesetInfo {
 	std::vector<std::string> images{};
 };
 
-[[nodiscard]] std::string ReadTextFile(const std::filesystem::path& path) {
-	std::ifstream file{ path, std::ios::binary };
+[[nodiscard]] std::string ReadTextFile(const path& filepath) {
+	std::ifstream file{ filepath, std::ios::binary };
 	if (!file) {
 		return {};
 	}
@@ -1289,13 +1291,13 @@ struct TiledTilesetInfo {
 	}
 }
 
-[[nodiscard]] TiledTilesetInfo ParseTiledTileset(const std::filesystem::path& path) {
+[[nodiscard]] TiledTilesetInfo ParseTiledTileset(const path& filepath) {
 	TiledTilesetInfo info;
-	std::string text{ ReadTextFile(path) };
+	std::string text{ ReadTextFile(filepath) };
 	if (text.empty()) {
 		return info;
 	}
-	std::string ext{ path.extension().string() };
+	std::string ext{ filepath.extension().string() };
 	std::ranges::transform(ext, ext.begin(), [](unsigned char c) {
 		return static_cast<char>(std::tolower(c));
 	});
@@ -5680,7 +5682,7 @@ int PaintEditor::ImportImageTiles(
 	std::string group
 ) {
 	path image_path{ image_path_text };
-	if (!std::filesystem::exists(image_path) || !IsImagePath(image_path)) {
+	if (!fs::exists(image_path) || !IsImagePath(image_path)) {
 		return 0;
 	}
 	if (settings.create_group_from_source) {
@@ -5755,9 +5757,9 @@ int PaintEditor::ImportImageTiles(
 		}
 		path destination{ (*root / catalog->source_path).lexically_normal() };
 		std::error_code error;
-		if (!std::filesystem::equivalent(image_path, destination, error)) {
-			std::filesystem::copy_file(
-				image_path, destination, std::filesystem::copy_options::overwrite_existing, error
+		if (!fs::equivalent(image_path, destination, error)) {
+			fs::copy_file(
+				image_path, destination, fs::copy_options::overwrite_existing, error
 			);
 			if (error) {
 				return 0;
@@ -5981,7 +5983,7 @@ int PaintEditor::ImportTiles(EditorContext& ctx, const TileImportSettings& setti
 		return 0;
 	}
 	path source{ settings.path };
-	if (!std::filesystem::exists(source)) {
+	if (!fs::exists(source)) {
 		return 0;
 	}
 	std::string ext{ source.extension().string() };
@@ -6139,7 +6141,7 @@ int PaintEditor::ImportTiles(EditorContext& ctx, const TileImportSettings& setti
 		TiledTilesetInfo info{ ParseTiledTileset(source) };
 		int total{};
 		for (const auto& image_name : info.images) {
-			std::filesystem::path image{ image_name };
+			path image{ image_name };
 			if (image.is_relative()) {
 				image = source.parent_path() / image;
 			}
@@ -6291,7 +6293,7 @@ void PaintEditor::DrawImportPopup(EditorContext& ctx) {
 		path file{ source };
 		std::error_code error;
 
-		if (!std::filesystem::is_regular_file(file, error) || error) {
+		if (!fs::is_regular_file(file, error) || error) {
 			return false;
 		}
 
@@ -6353,9 +6355,9 @@ void PaintEditor::DrawImportPopup(EditorContext& ctx) {
 		int current_mode{ static_cast<int>(import_settings_.mode) };
 		ImGui::SetNextItemWidth(control_width);
 
-		if (ImGui::BeginCombo("##ImportTileMode", mode_names[std::clamp(current_mode, 0, 2)])) {
-			for (int i{}; i < static_cast<int>(mode_names.size()); ++i) {
-				bool selected{ current_mode == i };
+		if (ImGui::BeginCombo("##ImportTileMode", mode_names[static_cast<std::size_t>(std::clamp(current_mode, 0, 2))])) {
+			for (std::size_t i{}; i < mode_names.size(); ++i) {
+				bool selected{ current_mode == static_cast<int>(i) };
 
 				if (ImGui::Selectable(mode_names[i], selected)) {
 					import_settings_.mode = static_cast<TileImportMode>(i);
@@ -7150,7 +7152,6 @@ bool PaintEditor::DrawGeneratorSourceEditor(
 
 	EnsureProjectLibrary(ctx);
 
-	Scene& scene{ generator.GetScene() };
 	bool targets_tilemap{ static_cast<bool>(PaintGenerator{ generator }.GetTargetTilemap()) };
 	bool changed{ false };
 
@@ -7236,7 +7237,7 @@ bool PaintEditor::DrawGeneratorSourceEditor(
 	const char* items{ targets_tilemap
 						   ? "Single\0Weighted Set\0Checkerboard\0Autotile / Terrain\0Noise\0"
 						   : "Single\0Weighted Set\0Checkerboard\0Noise\0" };
-	if (ImGui::Combo("Source", &displayed_source, items, targets_tilemap ? 5 : 4)) {
+	if (inspector::DrawInspectorPropertyRow("Source", [&]() { return ImGui::Combo("##Source", &displayed_source, items, targets_tilemap ? 5 : 4); })) {
 		PaintGeneratorSourceKind previous_source{ recipe.source_kind };
 		recipe.source_kind =
 			targets_tilemap			? static_cast<PaintGeneratorSourceKind>(displayed_source)
@@ -7258,13 +7259,17 @@ bool PaintEditor::DrawGeneratorSourceEditor(
 		case PaintGeneratorSourceKind::Single:
 			if (targets_tilemap) {
 				auto source{ to_editor(recipe.tile) };
-				if (DrawTileSourceCombo(ctx, "##GeneratorSourceTile", source)) {
+				if (inspector::DrawInspectorPropertyRow("Tile", [&]() {
+                    return DrawTileSourceCombo(ctx, "##GeneratorSourceTile", source);
+                })) {
 					recipe.tile = to_generator(source, recipe.tile_origin);
 					changed		= true;
 				}
 			} else {
 				auto source{ recipe.prefab };
-				if (DrawPrefabSourceCombo(ctx, "##GeneratorSourcePrefab", source)) {
+				if (inspector::DrawInspectorPropertyRow("Prefab", [&]() {
+                    return DrawPrefabSourceCombo(ctx, "##GeneratorSourcePrefab", source);
+                })) {
 					recipe.prefab = std::move(source);
 					changed		  = true;
 				}
@@ -7275,22 +7280,30 @@ bool PaintEditor::DrawGeneratorSourceEditor(
 			if (targets_tilemap) {
 				auto first{ to_editor(recipe.tile) };
 				auto second{ to_editor(recipe.checker_tile) };
-				if (DrawTileSourceCombo(ctx, "##GeneratorCheckerFirst", first)) {
+				if (inspector::DrawInspectorPropertyRow("First Tile", [&]() {
+                    return DrawTileSourceCombo(ctx, "##GeneratorCheckerFirst", first);
+                })) {
 					recipe.tile = to_generator(first, recipe.tile_origin);
 					changed		= true;
 				}
-				if (DrawTileSourceCombo(ctx, "##GeneratorCheckerSecond", second)) {
+				if (inspector::DrawInspectorPropertyRow("Second Tile", [&]() {
+                    return DrawTileSourceCombo(ctx, "##GeneratorCheckerSecond", second);
+                })) {
 					recipe.checker_tile = to_generator(second, recipe.tile_origin);
 					changed				= true;
 				}
 			} else {
 				auto first{ recipe.prefab };
 				auto second{ recipe.checker_prefab };
-				if (DrawPrefabSourceCombo(ctx, "##GeneratorCheckerFirstPrefab", first)) {
+				if (inspector::DrawInspectorPropertyRow("First Prefab", [&]() {
+                    return DrawPrefabSourceCombo(ctx, "##GeneratorCheckerFirstPrefab", first);
+                })) {
 					recipe.prefab = std::move(first);
 					changed		  = true;
 				}
-				if (DrawPrefabSourceCombo(ctx, "##GeneratorCheckerSecondPrefab", second)) {
+				if (inspector::DrawInspectorPropertyRow("Second Prefab", [&]() {
+                    return DrawPrefabSourceCombo(ctx, "##GeneratorCheckerSecondPrefab", second);
+                })) {
 					recipe.checker_prefab = std::move(second);
 					changed				  = true;
 				}
@@ -7316,7 +7329,10 @@ bool PaintEditor::DrawGeneratorSourceEditor(
 						recipe.autotile_format = format;
 						changed				   = true;
 					}
-					ImGui::TextDisabled("Layout: %s", AutotileFormatName(imported->format));
+					inspector::DrawInspectorPropertyRow("Layout", [&]() {
+                        ImGui::TextDisabled("%s", AutotileFormatName(imported->format));
+                        return false;
+                    });
 				}
 
 				std::string preview{ imported != autotile_library_.end() && !imported->name.empty()
@@ -7384,36 +7400,36 @@ bool PaintEditor::DrawGeneratorSourceEditor(
 			} else if (recipe.noise.type == NoiseType::Value) {
 				type_index = 2;
 			}
-			if (ImGui::Combo("Type", &type_index, "Perlin\0Simplex\0Value\0")) {
+			if (inspector::DrawInspectorPropertyRow("Type", [&]() { return ImGui::Combo("##Type", &type_index, "Perlin\0Simplex\0Value\0"); })) {
 				recipe.noise.type = type_index == 0 ? NoiseType::Perlin
 								  : type_index == 1 ? NoiseType::Simplex
 													: NoiseType::Value;
 				changed			  = true;
 			}
-			changed |= ImGui::DragInt("Seed", &recipe.noise.seed, 1.0f);
-			changed |= ImGui::DragFloat(
-				"Frequency", &recipe.noise.frequency, 0.001f, 0.0001f, 1.0f, "%.4f",
+			changed |= inspector::DrawInspectorPropertyRow("Seed", [&]() { return ImGui::DragInt("##Seed", &recipe.noise.seed, 1.0f); });
+			changed |= inspector::DrawInspectorPropertyRow("Frequency", [&]() { return ImGui::DragFloat(
+				"##Frequency", &recipe.noise.frequency, 0.001f, 0.0001f, 1.0f, "%.4f",
 				ImGuiSliderFlags_AlwaysClamp
-			);
-			changed |= ImGui::DragInt("Octaves", &recipe.noise.octaves, 0.2f, 1, 12);
-			changed |= ImGui::DragFloat(
-				"Lacunarity", &recipe.noise.lacunarity, 0.02f, 1.0f, 8.0f, "%.2f",
+			); });
+			changed |= inspector::DrawInspectorPropertyRow("Octaves", [&]() { return ImGui::DragInt("##Octaves", &recipe.noise.octaves, 0.2f, 1, 12); });
+			changed |= inspector::DrawInspectorPropertyRow("Lacunarity", [&]() { return ImGui::DragFloat(
+				"##Lacunarity", &recipe.noise.lacunarity, 0.02f, 1.0f, 8.0f, "%.2f",
 				ImGuiSliderFlags_AlwaysClamp
-			);
+			); });
 			changed |=
-				ImGui::SliderFloat("Persistence", &recipe.noise.persistence, 0.0f, 1.0f, "%.2f");
+				inspector::DrawInspectorPropertyRow("Persistence", [&]() { return ImGui::SliderFloat("##Persistence", &recipe.noise.persistence, 0.0f, 1.0f, "%.2f"); });
 
 			float offset[2]{ recipe.noise.offset.x, recipe.noise.offset.y };
-			if (ImGui::DragFloat2("Noise Offset", offset, 0.25f)) {
+			if (inspector::DrawInspectorPropertyRow("Noise Offset", [&]() { return ImGui::DragFloat2("##Noise Offset", offset, 0.25f); })) {
 				recipe.noise.offset = { offset[0], offset[1] };
 				changed				= true;
 			}
 
-			changed |= ImGui::Checkbox("Show Noise Preview", &recipe.show_noise_preview);
+			changed |= inspector::DrawInspectorPropertyRow("Show Noise Preview", [&]() { return ImGui::Checkbox("##Show Noise Preview", &recipe.show_noise_preview); });
 			if (recipe.show_noise_preview) {
-				changed |= ImGui::SliderFloat(
-					"Noise Preview Opacity", &recipe.noise_preview_alpha, 0.0f, 1.0f, "%.2f"
-				);
+				changed |= inspector::DrawInspectorPropertyRow("Noise Preview Opacity", [&]() { return ImGui::SliderFloat(
+					"##Noise Preview Opacity", &recipe.noise_preview_alpha, 0.0f, 1.0f, "%.2f"
+				); });
 			}
 
 			ImGui::SeparatorText("Noise Thresholds");
@@ -8929,21 +8945,111 @@ void PaintEditor::DrawTilemaps(
 	}
 }
 
+// Highlight only the actual sprites produced by a custom streamed generator,
+// not its potentially infinite underlying candidate lattice.
+void DrawCustomGeneratorSelection(
+	PaintGenerator generator, ImDrawList* draw, const FrameContext& frame,
+	Viewport presentation_viewport, V2_float view_min, V2_float view_max
+) {
+	const auto& source{ generator.Get<WorldGeneratorSource>() };
+	const auto& data{ generator.GetData() };
+	if (!source.preview_texture || !source.preview_size.IsPositive() ||
+		!data.grid_size.IsPositive() ||
+		data.recipe.source_kind != PaintGeneratorSourceKind::Noise) {
+		return;
+	}
+
+	auto hash_unit = [](V2_int cell, std::uint32_t salt) {
+		std::uint32_t hash{ salt ^ (static_cast<std::uint32_t>(cell.x) * 0x85ebca6bu) ^
+			(static_cast<std::uint32_t>(cell.y) * 0xc2b2ae35u) };
+		hash ^= hash >> 16u;
+		hash *= 0x7feb352du;
+		hash ^= hash >> 15u;
+		hash *= 0x846ca68bu;
+		hash ^= hash >> 16u;
+		return static_cast<float>(hash & 0x00ffffffu) / static_cast<float>(0x01000000u);
+	};
+
+	V2_float origin{ GetWorldPosition(generator) + data.grid_offset + source.preview_origin };
+	V2_float spacing{ data.grid_size };
+	V2_float margin{ spacing + source.preview_size };
+	V2_int first{
+		static_cast<int>(std::floor((view_min.x - margin.x - origin.x) / spacing.x)),
+		static_cast<int>(std::floor((view_min.y - margin.y - origin.y) / spacing.y))
+	};
+	V2_int last{
+		static_cast<int>(std::ceil((view_max.x + margin.x - origin.x) / spacing.x)),
+		static_cast<int>(std::ceil((view_max.y + margin.y - origin.y) / spacing.y))
+	};
+	if (static_cast<std::int64_t>(last.x - first.x + 1) *
+		static_cast<std::int64_t>(last.y - first.y + 1) > 4096) {
+		return;
+	}
+
+	for (int y{ first.y }; y <= last.y; ++y) {
+		for (int x{ first.x }; x <= last.x; ++x) {
+			V2_int cell{ x, y };
+			if (generator.IsSuppressed(cell)) {
+				continue;
+			}
+			V2_float position{ origin + V2_float{ static_cast<float>(x) * spacing.x,
+				static_cast<float>(y) * spacing.y } };
+			position += V2_float{
+				(hash_unit(cell, source.preview_jitter_salt) * 2.0f - 1.0f) * spacing.x * 0.46f,
+				(hash_unit(cell, source.preview_jitter_salt ^ 0x5e19c713u) * 2.0f - 1.0f) * spacing.y * 0.46f
+			};
+			if (source.preview_exclusion_half_size.IsPositive() &&
+				std::abs(position.x) < source.preview_exclusion_half_size.x &&
+				std::abs(position.y) < source.preview_exclusion_half_size.y) {
+				continue;
+			}
+			float noise{ SamplePaintGeneratorNoise(data.recipe.noise, position) };
+			bool passes_noise{ false };
+			for (const auto& region : data.recipe.noise.thresholds) {
+				if (!region.enabled) {
+					continue;
+				}
+				float low{ std::min(region.minimum, region.maximum) };
+				float high{ std::max(region.minimum, region.maximum) };
+				if (noise >= low && (noise < high || (high >= 1.0f && noise <= 1.0f))) {
+					passes_noise = true;
+					break;
+				}
+			}
+			if (!passes_noise || hash_unit(cell, source.preview_density_salt) >=
+				std::clamp(data.recipe.density, 0.0f, 1.0f)) {
+				continue;
+			}
+			V2_float min{ position - source.preview_size * 0.5f };
+			V2_float max{ position + source.preview_size * 0.5f };
+			draw->AddRectFilled(
+				ToImGui(WorldToScreen(min, frame, presentation_viewport)),
+				ToImGui(WorldToScreen(max, frame, presentation_viewport)),
+				IM_COL32(78, 190, 255, 36)
+			);
+			draw->AddRect(
+				ToImGui(WorldToScreen(min, frame, presentation_viewport)),
+				ToImGui(WorldToScreen(max, frame, presentation_viewport)),
+				kSelection, 0.0f, 0, 2.0f
+			);
+		}
+	}
+}
+
 void PaintEditor::DrawGenerators(
 	EditorContext& ctx, Scene& scene, ImDrawList* draw, Viewport image_viewport,
 	Viewport presentation_viewport, const FrameContext& frame
 ) const {
 	auto records{ ::ptgn::impl::AssetAccessor{ ctx.editor.GetAssetManager() }.GetAssets() };
 	std::unordered_map<std::string, std::optional<PrefabGeneratorPreview>> prefab_preview_cache;
-	Entity selected_generator{ selected_generator_.has_value()
-								   ? scene.GetEntity(*selected_generator_)
-								   : Entity{} };
-	if (!selected_generator) {
-		Entity hierarchy_selected{ ctx.editor.GetSceneHierarchyPanel().GetSelectedEntity() };
-		if (hierarchy_selected && IsPaintGenerator(hierarchy_selected)) {
-			selected_generator = hierarchy_selected;
-		}
-	}
+	Entity hierarchy_selected{ ctx.editor.GetSceneHierarchyPanel().GetSelectedEntity() };
+	Entity selected_generator{
+		hierarchy_selected && IsPaintGenerator(hierarchy_selected)
+			? hierarchy_selected
+			: (!hierarchy_selected && selected_generator_.has_value()
+				? scene.GetEntity(*selected_generator_)
+				: Entity{})
+	};
 	V2_float view_a{ ScreenToWorld(image_viewport.position, frame, presentation_viewport) };
 	V2_float view_b{
 		ScreenToWorld(image_viewport.position + image_viewport.size, frame, presentation_viewport)
@@ -8997,6 +9103,21 @@ void PaintEditor::DrawGenerators(
 			if (!data.enabled || !data.grid_size.IsPositive()) {
 				continue;
 			}
+			// A custom world generator is drawn by the scene's editor preview.
+			// Only its actual generated sprite bounds receive a selection overlay.
+			if (entity.Has<WorldGeneratorSource>()) {
+				if (entity == selected_generator) {
+					DrawCustomGeneratorSelection(
+						generator, draw, frame, presentation_viewport,
+						{ view_min_x, view_min_y }, { view_max_x, view_max_y }
+					);
+				}
+				continue;
+			}
+
+			// Always draw the generated tile/prefab preview in editor mode.
+			// Selection affects only guides, not the generated content.
+
 			Tilemap generator_target{ generator.GetTargetTilemap() };
 			bool generates_tiles{ static_cast<bool>(generator_target) };
 			V2_float entity_offset{ GetWorldPosition(generator) };
@@ -9110,14 +9231,9 @@ void PaintEditor::DrawGenerators(
 				V2_float mx{ mn + data.grid_size };
 				V2_float center{ mn + data.grid_size * 0.5f };
 				float noise_value{ data.recipe.source_kind == PaintGeneratorSourceKind::Noise
-									   ? FractalNoise01(
-											 center, data.recipe.noise.type, data.recipe.noise.seed,
-											 data.recipe.noise.frequency, data.recipe.noise.octaves,
-											 data.recipe.noise.lacunarity,
-											 data.recipe.noise.persistence, data.recipe.noise.offset
-										 )
+									   ? SamplePaintGeneratorNoise(data.recipe.noise, center)
 									   : 0.0f };
-				if (data.recipe.show_noise_preview &&
+				if (entity == selected_generator && data.recipe.show_noise_preview &&
 					data.recipe.source_kind == PaintGeneratorSourceKind::Noise) {
 					int shade{ static_cast<int>(std::round(noise_value * 255.0f)) };
 					int alpha{ static_cast<int>(
@@ -9253,7 +9369,19 @@ void PaintEditor::DrawGenerators(
 						draw->AddImageQuad(
 							static_cast<ImTextureID>(record_it->preview->texture), p0,
 							{ p1.x, p0.y }, p1, { p0.x, p1.y }, ToImGui(uv[0]), ToImGui(uv[1]),
-							ToImGui(uv[2]), ToImGui(uv[3]), IM_COL32(255, 255, 255, 205)
+							ToImGui(uv[2]), ToImGui(uv[3]), IM_COL32(255, 255, 255, 255)
+						);
+					}
+					if (selected) {
+						draw->AddRectFilled(
+							ToImGui(WorldToScreen(tile_min, frame, presentation_viewport)),
+							ToImGui(WorldToScreen(tile_max, frame, presentation_viewport)),
+							IM_COL32(78, 190, 255, 32)
+						);
+						draw->AddRect(
+							ToImGui(WorldToScreen(tile_min, frame, presentation_viewport)),
+							ToImGui(WorldToScreen(tile_max, frame, presentation_viewport)),
+							kSelection, 0.0f, 0, 2.0f
 						);
 					}
 				} else if (!generates_tiles && prefab.has_value()) {
@@ -9274,10 +9402,11 @@ void PaintEditor::DrawGenerators(
 												 : std::nullopt
 					};
 					V2_float placement{ mn + GetOffset(entity_origin, data.grid_size) };
-					if (!DrawPrefabGeneratorPreview(
-							ctx, prefab_preview_cache, draw, *prefab, placement, preview_rotation,
-							preview_scale, frame, presentation_viewport
-						)) {
+					bool drawn{ DrawPrefabGeneratorPreview(
+						ctx, prefab_preview_cache, draw, *prefab, placement, preview_rotation,
+						preview_scale, frame, presentation_viewport
+					) };
+					if (!drawn) {
 						// A prefab without a drawable texture still gets a useful fallback.
 						ImVec2 p0{ ToImGui(WorldToScreen(mn, frame, presentation_viewport)) };
 						ImVec2 p1{ ToImGui(WorldToScreen(mx, frame, presentation_viewport)) };
@@ -9291,12 +9420,32 @@ void PaintEditor::DrawGenerators(
 							);
 						}
 					}
+					if (selected) {
+						V2_float size{ data.grid_size };
+						auto preview_it{ prefab_preview_cache.find(prefab->value) };
+						if (preview_it != prefab_preview_cache.end() &&
+							preview_it->second.has_value()) {
+							size = V2_float{ preview_it->second->texture_size };
+						}
+						if (preview_scale.has_value()) {
+							size *= *preview_scale;
+						}
+						V2_float bounds_min{ placement - size * 0.5f };
+						V2_float bounds_max{ placement + size * 0.5f };
+						draw->AddRectFilled(
+							ToImGui(WorldToScreen(bounds_min, frame, presentation_viewport)),
+							ToImGui(WorldToScreen(bounds_max, frame, presentation_viewport)),
+							IM_COL32(78, 190, 255, 32)
+						);
+						draw->AddRect(
+							ToImGui(WorldToScreen(bounds_min, frame, presentation_viewport)),
+							ToImGui(WorldToScreen(bounds_max, frame, presentation_viewport)),
+							kSelection, 0.0f, 0, 2.0f
+						);
+					}
 				}
-				draw->AddRect(
-					ToImGui(WorldToScreen(mn, frame, presentation_viewport)),
-					ToImGui(WorldToScreen(mx, frame, presentation_viewport)),
-					selected ? kPreview : kSelection, 0.0f, 0, selected ? 2.0f : 1.35f
-				);
+				// Selection outlines are drawn around emitted visuals in the
+				// tile/prefab branches, never around empty candidate cells.
 			}
 		}
 	}
@@ -9560,6 +9709,15 @@ void PaintEditor::DrawGrid(
 ) const {
 	if (!grid_visible_) {
 		return;
+	}
+	// Infinite generators are selected by highlighting their generated artwork.
+	// Do not overlay the infinite authoring lattice on top of that artwork.
+	if (selected_generator_.has_value()) {
+		Entity selected{ scene.GetEntity(*selected_generator_) };
+		if (selected && IsPaintGenerator(selected) &&
+			PaintGenerator{ selected }.GetData().geometry == PaintGeneratorGeometry::Infinite) {
+			return;
+		}
 	}
 	V2_float size{ ActiveGridSize(scene) };
 	if (!size.IsPositive()) {

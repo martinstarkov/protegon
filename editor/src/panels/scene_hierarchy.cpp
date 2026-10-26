@@ -73,6 +73,7 @@
 #include "runtime/ui/slider.h"
 #include "runtime/ui/toggle_button.h"
 #include "runtime/ui/tooltip.h"
+#include "runtime/world/chunk.h"
 #include "runtime/world/paint_generator.h"
 #include "runtime/world/tilemap.h"
 
@@ -154,6 +155,13 @@ bool IsManagedButtonVisual(Entity entity) {
 
 bool IsManagedInteractiveShape(Entity entity) {
 	return entity && entity.Has<::ptgn::impl::InteractiveTag>();
+}
+
+bool IsRuntimeWorldContent(Entity entity) {
+	// World instances still exist in the ECS for rendering, interaction and
+	// physics. Only their authoring representation is hidden from the editor.
+	return entity && entity.HasScene() && entity.GetScene().IsRuntime() &&
+		   entity.GetScene().ctx().chunks.IsManagedRuntimeEntity(entity);
 }
 
 bool IsCameraEntity(Entity entity) {
@@ -343,7 +351,7 @@ bool EntityOrDescendantMatchesFilter(
 	);
 
 	// Interactive hit areas are always managed through the Interaction inspector.
-	if (IsManagedInteractiveShape(entity)) {
+	if (IsManagedInteractiveShape(entity) || IsRuntimeWorldContent(entity)) {
 		return false;
 	}
 
@@ -1719,6 +1727,9 @@ void DrawSceneHierarchyContents(
 	// are ordinary entities, not the contents of an organizational tile layer.
 	std::vector<Entity> roots;
 	for (Entity entity : scene.Entities()) {
+		if (IsRuntimeWorldContent(entity)) {
+			continue;
+		}
 		if (entity && !HasParent(entity)) {
 			roots.push_back(entity);
 		}

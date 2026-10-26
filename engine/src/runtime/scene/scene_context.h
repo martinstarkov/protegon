@@ -13,6 +13,7 @@
 #include "runtime/scene/scene_input.h"
 #include "runtime/scene/scene_manager.h"
 #include "runtime/scripting/script.h"
+#include "runtime/world/chunk.h"
 #include "tools/debug/debug_system.h"
 
 namespace ptgn {
@@ -62,6 +63,8 @@ public:
 	InteractionSystem interaction;
 	Physics physics;
 	CollisionHandler collision;
+	/// Scene-wide viewport culling and optional bounded procedural chunk streaming.
+	ChunkManager chunks;
 
 	/// @brief Scene local shared ScriptSequence definitions used by shared sequence bindings.
 	SharedScriptSequenceRegistry shared_script_sequences;

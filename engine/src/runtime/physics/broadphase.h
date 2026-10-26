@@ -34,6 +34,8 @@ struct KDNode {
 	float split_value{ 0.0f };
 
 	std::vector<KDObject> objects{}; // only populated on leaves
+	BoundingAABB bounds{};
+	bool has_bounds{ false };
 	std::unique_ptr<KDNode> left{};
 	std::unique_ptr<KDNode> right{};
 };
@@ -87,6 +89,8 @@ private:
 	std::unique_ptr<KDNode> root;
 	std::unordered_map<Entity, KDObject> entity_map;
 	std::unordered_set<Entity> moved_entities;
+	/// Original bounds are needed to locate moved entries during partial updates.
+	std::unordered_map<Entity, BoundingAABB> previous_aabbs_;
 
 	std::size_t max_objects_per_node{ 64 };
 	float rebuild_threshold{ 0.25f };
@@ -110,6 +114,9 @@ private:
 	}
 
 	std::unique_ptr<KDNode> BuildRecursive(const std::vector<KDObject>& objects, int depth);
+	static void RebuildNodeBounds(KDNode* node);
+	static void QueryNode(const KDNode* node, BoundingAABB region, std::vector<Entity>& result);
+	static void QueryNode(const KDNode* node, V2_float point, std::vector<Entity>& result);
 
 	/// @brief
 	/// For each moved entity that exists in the tree, find the leaf it currently resides in

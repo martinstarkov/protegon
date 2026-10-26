@@ -192,7 +192,7 @@ bool DrawTilemapArchetype(Target& target) {
 			bool changed{ false };
 
 			float cell_size[2]{ data.cell_size.x, data.cell_size.y };
-			if (ImGui::DragFloat2("Cell Size", cell_size, 0.25f, 1.0f, 16384.0f, "%.1f")) {
+			if (DrawPropertyRow("Cell Size", [&]() { return ImGui::DragFloat2("##Cell Size", cell_size, 0.25f, 1.0f, 16384.0f, "%.1f"); })) {
 				data.cell_size = {
 					std::max(1.0f, cell_size[0]),
 					std::max(1.0f, cell_size[1]),
@@ -200,51 +200,27 @@ bool DrawTilemapArchetype(Target& target) {
 				changed = true;
 			}
 
-			int chunk_size[2]{ data.chunk_size.x, data.chunk_size.y };
-			if (ImGui::DragInt2("Chunk Size", chunk_size, 0.25f, 1, 4096)) {
-				data.chunk_size = {
-					std::max(1, chunk_size[0]),
-					std::max(1, chunk_size[1]),
-				};
-				changed = true;
-			}
-
-			if (ImGui::TreeNodeEx(
-					"Streaming##TilemapStreaming",
-					ImGuiTreeNodeFlags_DefaultOpen | ImGuiTreeNodeFlags_SpanAvailWidth
-				)) {
-				bool streaming_changed{ false };
-
-				streaming_changed |= ImGui::Checkbox("Enabled", &data.streaming.enabled);
-				streaming_changed |= ImGui::DragInt(
-					"Preload Radius", &data.streaming.preload_radius, 0.15f, 0, 1024
-				);
-				streaming_changed |= ImGui::DragInt(
-					"Keep Alive Radius", &data.streaming.keep_alive_radius, 0.15f, 0, 1024
-				);
-				streaming_changed |= ImGui::DragInt(
-					"Max Loaded Chunks", &data.streaming.max_loaded_chunks, 0.5f, 1, 100000
-				);
-
-				if (streaming_changed) {
-					data.streaming.preload_radius = std::max(0, data.streaming.preload_radius);
-					data.streaming.keep_alive_radius =
-						std::max(data.streaming.preload_radius, data.streaming.keep_alive_radius);
-					data.streaming.max_loaded_chunks =
-						std::max(1, data.streaming.max_loaded_chunks);
-					changed = true;
-				}
-
-				ImGui::TreePop();
-			}
+			ImGui::TextDisabled("World streaming is configured in Scene Settings > World Chunks.");
+			ImGui::TextDisabled("Authored tiles stay resident; only generated tiles are streamed.");
 
 			ImGui::SeparatorText("Authored Data");
-			ImGui::TextDisabled("Tiles: %zu", data.tiles.size());
-			ImGui::TextDisabled("Terrain cells: %zu", data.terrain.size());
-			ImGui::TextDisabled("Excluded cells: %zu", data.exclusion_mask.size());
+			DrawPropertyRow("Tiles", [&]() {
+                ImGui::TextDisabled("%zu", data.tiles.size());
+                return false;
+            });
+            DrawPropertyRow("Terrain Cells", [&]() {
+                ImGui::TextDisabled("%zu", data.terrain.size());
+                return false;
+            });
+            DrawPropertyRow("Excluded Cells", [&]() {
+                ImGui::TextDisabled("%zu", data.exclusion_mask.size());
+                return false;
+            });
 
 			ImGui::BeginDisabled(data.exclusion_mask.empty());
-			if (ImGui::Button("Clear Exclusion Mask")) {
+			if (DrawPropertyRow("Exclusion Mask", [&]() {
+                return ImGui::Button("Clear Mask", ImVec2{ -FLT_MIN, 0.0f });
+            })) {
 				data.exclusion_mask.clear();
 				changed = true;
 			}
@@ -267,46 +243,46 @@ bool DrawGeneratorRecipe(::ptgn::impl::PaintGeneratorData& data) {
 	}
 
 	int coverage{ static_cast<int>(recipe.coverage) };
-	if (ImGui::Combo("Coverage", &coverage, "Solid\0Random Density\0Radial Falloff\0")) {
+	if (DrawPropertyRow("Coverage", [&]() { return ImGui::Combo("##Coverage", &coverage, "Solid\0Random Density\0Radial Falloff\0"); })) {
 		recipe.coverage = static_cast<PaintGeneratorCoverageMode>(coverage);
 		changed			= true;
 	}
 
 	if (recipe.coverage == PaintGeneratorCoverageMode::RandomDensity) {
-		changed |= ImGui::SliderFloat("Density", &recipe.density, 0.0f, 1.0f, "%.2f");
+		changed |= DrawPropertyRow("Density", [&]() { return ImGui::SliderFloat("##Density", &recipe.density, 0.0f, 1.0f, "%.2f"); });
 	} else if (recipe.coverage == PaintGeneratorCoverageMode::RadialFalloff) {
-		changed |= ImGui::SliderFloat("Center Density", &recipe.density, 0.0f, 1.0f, "%.2f");
-		changed |= ImGui::SliderFloat("Inner Radius", &recipe.radial_inner, 0.0f, 0.95f, "%.2f");
-		changed |= ImGui::SliderFloat("Outer Radius", &recipe.radial_outer, 0.05f, 1.0f, "%.2f");
+		changed |= DrawPropertyRow("Center Density", [&]() { return ImGui::SliderFloat("##Center Density", &recipe.density, 0.0f, 1.0f, "%.2f"); });
+		changed |= DrawPropertyRow("Inner Radius", [&]() { return ImGui::SliderFloat("##Inner Radius", &recipe.radial_inner, 0.0f, 0.95f, "%.2f"); });
+		changed |= DrawPropertyRow("Outer Radius", [&]() { return ImGui::SliderFloat("##Outer Radius", &recipe.radial_outer, 0.05f, 1.0f, "%.2f"); });
 		if (recipe.radial_outer <= recipe.radial_inner) {
 			recipe.radial_outer = std::min(1.0f, recipe.radial_inner + 0.01f);
 		}
 	}
 
 	changed |=
-		ImGui::DragFloat("Minimum Spacing", &recipe.min_spacing, 0.25f, 0.0f, 4096.0f, "%.1f");
+		DrawPropertyRow("Minimum Spacing", [&]() { return ImGui::DragFloat("##Minimum Spacing", &recipe.min_spacing, 0.25f, 0.0f, 4096.0f, "%.1f"); });
 	recipe.min_spacing = std::max(0.0f, recipe.min_spacing);
 
-	changed |= ImGui::Checkbox("Avoid Exclusion Mask", &recipe.avoid_exclusion_mask);
-	changed |= ImGui::Checkbox("Linked Prefab Instances", &recipe.link_prefab_instances);
+	changed |= DrawPropertyRow("Avoid Exclusion Mask", [&]() { return ImGui::Checkbox("##Avoid Exclusion Mask", &recipe.avoid_exclusion_mask); });
+	changed |= DrawPropertyRow("Linked Prefab Instances", [&]() { return ImGui::Checkbox("##Linked Prefab Instances", &recipe.link_prefab_instances); });
 
-	changed |= ImGui::Checkbox("Random Rotation", &recipe.random_rotation);
+	changed |= DrawPropertyRow("Random Rotation", [&]() { return ImGui::Checkbox("##Random Rotation", &recipe.random_rotation); });
 	if (recipe.random_rotation) {
-		changed |= ImGui::DragFloatRange2(
-			"Rotation", &recipe.rotation_min, &recipe.rotation_max, 0.5f, -3600.0f, 3600.0f,
+		changed |= DrawPropertyRow("Rotation", [&]() { return ImGui::DragFloatRange2(
+			"##Rotation", &recipe.rotation_min, &recipe.rotation_max, 0.5f, -3600.0f, 3600.0f,
 			"Min: %.1f", "Max: %.1f"
-		);
+		); });
 		if (recipe.rotation_min > recipe.rotation_max) {
 			std::swap(recipe.rotation_min, recipe.rotation_max);
 		}
 	}
 
-	changed |= ImGui::Checkbox("Random Scale", &recipe.random_scale);
+	changed |= DrawPropertyRow("Random Scale", [&]() { return ImGui::Checkbox("##Random Scale", &recipe.random_scale); });
 	if (recipe.random_scale) {
-		changed |= ImGui::DragFloatRange2(
-			"Scale", &recipe.scale_min, &recipe.scale_max, 0.01f, 0.001f, 1000.0f, "Min: %.2f",
+		changed |= DrawPropertyRow("Scale", [&]() { return ImGui::DragFloatRange2(
+			"##Scale", &recipe.scale_min, &recipe.scale_max, 0.01f, 0.001f, 1000.0f, "Min: %.2f",
 			"Max: %.2f"
-		);
+		); });
 		recipe.scale_min = std::max(0.001f, recipe.scale_min);
 		recipe.scale_max = std::max(recipe.scale_min, recipe.scale_max);
 	}
@@ -322,8 +298,22 @@ bool DrawPaintGeneratorArchetype(Target& target, bool& stop_after_archetype) {
 		[&](::ptgn::impl::PaintGeneratorData& data) {
 			bool local_changed{ false };
 
-			local_changed |= ImGui::Checkbox("Enabled", &data.enabled);
-			ImGui::Text("Geometry: %s", GeneratorGeometryName(data.geometry));
+			local_changed |= DrawPropertyRow("Enabled", [&]() { return ImGui::Checkbox("##Enabled", &data.enabled); });
+			bool stream_at_runtime{ data.stream_at_runtime.value_or(true) };
+			if (DrawPropertyRow("Stream At Runtime", [&]() { return ImGui::Checkbox("##Stream At Runtime", &stream_at_runtime); })) {
+				data.stream_at_runtime = stream_at_runtime;
+				local_changed		   = true;
+			}
+			if (ImGui::IsItemHovered()) {
+				ImGui::SetTooltip(
+					"Automatically generate content around the camera at runtime.\nDisabled "
+					"generators remain available in the editor and may be baked."
+				);
+			}
+			DrawPropertyRow("Geometry", [&]() {
+                ImGui::TextUnformatted(GeneratorGeometryName(data.geometry));
+                return false;
+            });
 
 			if constexpr (requires { target.entity; }) {
 				if (target.entity && IsPaintGenerator(target.entity)) {
@@ -332,7 +322,10 @@ bool DrawPaintGeneratorArchetype(Target& target, bool& stop_after_archetype) {
 					);
 				}
 			} else {
-				ImGui::Text("Source: %s", GeneratorSourceName(data.recipe.source_kind));
+				DrawPropertyRow("Source", [&]() {
+                    ImGui::TextUnformatted(GeneratorSourceName(data.recipe.source_kind));
+                    return false;
+                });
 			}
 
 			if (data.geometry == PaintGeneratorGeometry::Line ||
@@ -340,28 +333,28 @@ bool DrawPaintGeneratorArchetype(Target& target, bool& stop_after_archetype) {
 				float start[2]{ data.start.x, data.start.y };
 				float end[2]{ data.end.x, data.end.y };
 
-				if (ImGui::DragFloat2("Start", start, 0.25f)) {
+				if (DrawPropertyRow("Start", [&]() { return ImGui::DragFloat2("##Start", start, 0.25f); })) {
 					data.start	  = { start[0], start[1] };
 					local_changed = true;
 				}
-				if (ImGui::DragFloat2("End", end, 0.25f)) {
+				if (DrawPropertyRow("End", [&]() { return ImGui::DragFloat2("##End", end, 0.25f); })) {
 					data.end	  = { end[0], end[1] };
 					local_changed = true;
 				}
 			}
 
 			if (data.geometry == PaintGeneratorGeometry::Line) {
-				local_changed |= ImGui::DragInt("Thickness", &data.line_thickness, 0.15f, 1, 128);
-				local_changed |= ImGui::DragInt("Spacing", &data.line_spacing, 0.15f, 1, 128);
+				local_changed |= DrawPropertyRow("Thickness", [&]() { return ImGui::DragInt("##Thickness", &data.line_thickness, 0.15f, 1, 128); });
+				local_changed |= DrawPropertyRow("Spacing", [&]() { return ImGui::DragInt("##Spacing", &data.line_spacing, 0.15f, 1, 128); });
 				data.line_thickness = std::clamp(data.line_thickness, 1, 128);
 				data.line_spacing	= std::clamp(data.line_spacing, 1, 128);
 			}
 
 			if (data.geometry == PaintGeneratorGeometry::Rectangle) {
 				int area_mode{ static_cast<int>(data.area_mode) };
-				if (ImGui::Combo(
-						"Area Mode", &area_mode, "Fill\0Outline\0Corners\0Random Fill\0"
-					)) {
+				if (DrawPropertyRow("Area Mode", [&]() { return ImGui::Combo(
+						"##Area Mode", &area_mode, "Fill\0Outline\0Corners\0Random Fill\0"
+					); })) {
 					data.area_mode = static_cast<PaintGeneratorAreaMode>(area_mode);
 					local_changed  = true;
 				}
@@ -369,18 +362,18 @@ bool DrawPaintGeneratorArchetype(Target& target, bool& stop_after_archetype) {
 				if (data.area_mode == PaintGeneratorAreaMode::Outline ||
 					data.area_mode == PaintGeneratorAreaMode::Corners) {
 					local_changed |=
-						ImGui::DragInt("Area Thickness", &data.area_thickness, 0.15f, 1, 128);
+						DrawPropertyRow("Area Thickness", [&]() { return ImGui::DragInt("##Area Thickness", &data.area_thickness, 0.15f, 1, 128); });
 					data.area_thickness = std::clamp(data.area_thickness, 1, 128);
 				} else if (data.area_mode == PaintGeneratorAreaMode::RandomFill) {
-					local_changed |= ImGui::SliderFloat(
-						"Random Fill Density", &data.random_fill_density, 0.0f, 1.0f, "%.2f"
-					);
+					local_changed |= DrawPropertyRow("Random Fill Density", [&]() { return ImGui::SliderFloat(
+						"##Random Fill Density", &data.random_fill_density, 0.0f, 1.0f, "%.2f"
+					); });
 				}
 			}
 
 			if (data.geometry == PaintGeneratorGeometry::BrushStroke) {
 				int shape{ static_cast<int>(data.brush_shape) };
-				if (ImGui::Combo("Brush Shape", &shape, "Circle\0Square\0")) {
+				if (DrawPropertyRow("Brush Shape", [&]() { return ImGui::Combo("##Brush Shape", &shape, "Circle\0Square\0"); })) {
 					data.brush_shape = static_cast<PaintGeneratorBrushShape>(shape);
 					local_changed	 = true;
 				}
@@ -449,14 +442,16 @@ bool DrawPaintGeneratorArchetype(Target& target, bool& stop_after_archetype) {
 				ImGui::TextDisabled("Brush strokes: %zu", strokes.size());
 			}
 
-			ImGui::TextDisabled("Suppressed generated cells: %zu", data.suppressed_cells.size());
-			ImGui::SameLine();
-			ImGui::BeginDisabled(data.suppressed_cells.empty());
-			if (ImGui::SmallButton("Clear Overrides")) {
-				data.suppressed_cells.clear();
-				local_changed = true;
-			}
-			ImGui::EndDisabled();
+			local_changed |= DrawPropertyRow("Suppressed Cells", [&]() {
+                ImGui::BeginDisabled(data.suppressed_cells.empty());
+                bool cleared{ ImGui::Button("Clear Overrides") };
+                ImGui::EndDisabled();
+
+                if (cleared) {
+                    data.suppressed_cells.clear();
+                }
+                return cleared;
+            });
 			if (ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled)) {
 				ImGui::SetTooltip(
 					"Restore manually erased generated output. Regeneration is again allowed "

@@ -620,7 +620,7 @@ void AnimationSystem::Prepare(Scene& scene) {
 
 void AnimationSystem::Update(Scene& scene, secondsf dt) {
 	for (auto [entity, data, crop] : scene.EntitiesWith<AnimationData, TextureCrop>()) {
-		if (!IsGroupStackActive(entity)) {
+		if (!IsGroupStackActive(entity) || !scene.ctx().chunks.ShouldSimulate(entity)) {
 			continue;
 		}
 		data.frame_timer.Update(dt);

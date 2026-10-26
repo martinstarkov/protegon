@@ -1489,7 +1489,7 @@ void ViewportPanel::DrawViewportToolbar(EditorContext& ctx) {
 
 	if (can_stop) {
 		if (DrawEditorIconButton("##StopRuntime", EditorIcon::Stop, "Stop")) {
-			ctx.editor.Stop();
+			ctx.editor.RequestStop();
 		}
 	} else if (direct_runtime) {
 		ImGui::BeginDisabled();
@@ -1544,6 +1544,13 @@ void ViewportPanel::DrawViewportToolbar(EditorContext& ctx) {
 			use_editor_camera_ ? "Using the editor camera. Click to use scene cameras."
 							   : "Using scene cameras. Click to use the editor camera."
 		)) {
+		if (!use_editor_camera_) {
+			// Entering the editor camera should initially show the same world area
+			// as the scene camera. Further editor panning remains independent.
+			if (Scene* scene{ ctx.editor.GetSceneListPanel().GetSelectedScene() }) {
+				MatchSceneCamera(scene->GetCamera());
+			}
+		}
 		SetUseEditorCamera(!use_editor_camera_);
 	}
 
@@ -1652,7 +1659,10 @@ void ViewportPanel::OnRender(EditorContext& ctx) {
 	auto presentation_texture{ ctx.editor.GetPresentationTexture() };
 	auto presentation_size{ ctx.editor.GetPresentationTextureSize() };
 
-	Viewport viewport{ .position{ min + display_viewport.position },
+	// Align the presentation texture to whole ImGui pixels. A fractional
+	// destination origin can introduce an extra sampling phase while panning,
+	// even if the scene camera itself is correctly aligned.
+	Viewport viewport{ .position{ Round(min + display_viewport.position) },
 					   .size{ display_viewport.size } };
 	bool mouse_inside_viewport{ ImGui::IsWindowHovered() &&
 								ContainsPoint(viewport, FromImGui(ImGui::GetIO().MousePos)) };
@@ -1800,6 +1810,36 @@ void ViewportPanel::OnRender(EditorContext& ctx) {
 	}
 
 	ImGui::End();
+}
+
+void ViewportPanel::PrepareCameraForRender(Renderer& renderer) {
+	// Projection override must be ready BEFORE RenderScenes, not only when the
+	// ImGui viewport is composed afterward. Otherwise transitions can draw a
+	// frame of procedural snow with the previous camera state.
+	if (!use_editor_camera_) {
+		renderer.SetPrimaryWorldCamera(std::nullopt);
+		return;
+	}
+
+	editor_camera_.camera.raw_viewport = { .position{}, .size{ 1.0f, 1.0f } };
+	editor_camera_.camera.viewport_space = ViewportSpace::Normalized;
+	auto logical{ GetLogicalViewport(
+		editor_camera_.camera.raw_viewport, editor_camera_.camera.viewport_space,
+		renderer.GetLogicalSize()
+	) };
+	editor_camera_.camera.view_projection = GetOrthographicViewProjection(
+		editor_camera_.camera.transform, logical.size, editor_camera_.pixel_rounding
+	);
+	renderer.SetPrimaryWorldCamera(editor_camera_.camera);
+}
+
+void ViewportPanel::MatchSceneCamera(SceneCamera camera) {
+	if (!camera) {
+		return;
+	}
+	editor_camera_.camera.transform = GetTransform(camera);
+	editor_camera_.pixel_rounding = camera.GetPixelRounding();
+	middle_mouse_panning_ = false;
 }
 
 void ViewportPanel::SetUseEditorCamera(bool use_editor_camera) {

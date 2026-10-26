@@ -9,6 +9,7 @@
 #include "core/math/transform.h"
 #include "runtime/ecs/entity_creation_context.h"
 #include "runtime/scene/scene.h"
+#include "runtime/scene/scene_context.h"
 
 namespace ptgn {
 
@@ -31,20 +32,6 @@ Tilemap& Tilemap::SetCellSize(V2_float cell_size) {
 	return *this;
 }
 
-Tilemap& Tilemap::SetChunkSize(V2_int chunk_size) {
-	PTGN_ASSERT(chunk_size.IsPositive(), "Tilemap chunk size must be positive");
-	GetData().chunk_size = chunk_size;
-	return *this;
-}
-
-Tilemap& Tilemap::SetStreaming(TilemapStreamingSettings settings) {
-	settings.preload_radius	   = std::max(0, settings.preload_radius);
-	settings.keep_alive_radius = std::max(settings.preload_radius, settings.keep_alive_radius);
-	settings.max_loaded_chunks = std::max(1, settings.max_loaded_chunks);
-	GetData().streaming		   = settings;
-	return *this;
-}
-
 V2_int Tilemap::WorldToCell(V2_float world) const {
 	const auto& data{ GetData() };
 	V2_float origin{ GetWorldPosition(*this) };
@@ -62,12 +49,27 @@ V2_float Tilemap::CellToWorld(V2_int coordinate) const {
 }
 
 std::optional<std::size_t> Tilemap::FindTileIndex(V2_int coordinate) const {
-	const auto& tiles{ GetData().tiles };
-	auto it{ std::ranges::find(tiles, coordinate, &TilemapTile::coordinate) };
-	if (it == tiles.end()) {
-		return std::nullopt;
+	const auto& data{ GetData() };
+	const auto& tiles{ data.tiles };
+	if (HasScene() && GetScene().IsRuntime()) {
+		if (!data.runtime_tile_index_valid) {
+			data.runtime_tile_index.clear();
+			data.runtime_tile_index.reserve(tiles.size());
+			for (std::size_t i{ 0 }; i < tiles.size(); ++i) {
+				data.runtime_tile_index.insert_or_assign(tiles[i].coordinate, i);
+			}
+			data.runtime_tile_index_valid = true;
+		}
+		auto it{ data.runtime_tile_index.find(coordinate) };
+		return it == data.runtime_tile_index.end() ? std::nullopt
+												   : std::optional<std::size_t>{ it->second };
 	}
-	return static_cast<std::size_t>(std::distance(tiles.begin(), it));
+
+	auto it{ std::ranges::find(tiles, coordinate, &TilemapTile::coordinate) };
+	return it == tiles.end() ? std::nullopt
+							 : std::optional<std::size_t>{
+								   static_cast<std::size_t>(std::distance(tiles.begin(), it))
+							   };
 }
 
 const TilemapTile* Tilemap::FindTile(V2_int coordinate) const {
@@ -80,22 +82,64 @@ TilemapTile* Tilemap::FindTile(V2_int coordinate) {
 }
 
 Tilemap& Tilemap::SetTile(TilemapTile tile) {
-	if (auto* current{ FindTile(tile.coordinate) }) {
+	if (HasScene() && GetScene().IsRuntime()) {
+		GetScene().ctx().chunks.BeforeTileChanged(*this, tile.coordinate);
+	}
+	V2_int cell{ tile.coordinate };
+	if (auto* current{ FindTile(cell) }) {
 		*current = std::move(tile);
 	} else {
-		GetData().tiles.emplace_back(std::move(tile));
+		auto& data{ GetData() };
+		data.tiles.emplace_back(std::move(tile));
+		if (data.runtime_tile_index_valid) {
+			data.runtime_tile_index[cell] = data.tiles.size() - 1;
+		}
+	}
+	if (HasScene() && GetScene().IsRuntime()) {
+		GetScene().ctx().chunks.AfterTileChanged(*this, cell);
 	}
 	return *this;
 }
 
 bool Tilemap::EraseTile(V2_int coordinate) {
-	return std::erase_if(GetData().tiles, [coordinate](const TilemapTile& tile) {
-			   return tile.coordinate == coordinate;
-		   }) > 0;
+	bool runtime{ HasScene() && GetScene().IsRuntime() };
+	if (runtime) {
+		GetScene().ctx().chunks.BeforeTileChanged(*this, coordinate);
+	}
+
+	auto index{ FindTileIndex(coordinate) };
+	if (!index) {
+		return false;
+	}
+
+	auto& data{ GetData() };
+	if (runtime) {
+		// In chunked worlds removal must not shift every remaining tile's index.
+		std::size_t last{ data.tiles.size() - 1 };
+		if (*index != last) {
+			data.tiles[*index]									   = std::move(data.tiles[last]);
+			data.runtime_tile_index[data.tiles[*index].coordinate] = *index;
+		}
+		data.tiles.pop_back();
+		data.runtime_tile_index.erase(coordinate);
+		GetScene().ctx().chunks.AfterTileChanged(*this, coordinate);
+	} else {
+		// Preserve authored tile order inside the editor.
+		data.tiles.erase(data.tiles.begin() + static_cast<std::ptrdiff_t>(*index));
+		data.runtime_tile_index_valid = false;
+	}
+	return true;
 }
 
 void Tilemap::ClearTiles() {
-	GetData().tiles.clear();
+	std::vector<V2_int> cells;
+	cells.reserve(GetData().tiles.size());
+	for (const auto& tile : GetData().tiles) {
+		cells.push_back(tile.coordinate);
+	}
+	for (V2_int cell : cells) {
+		EraseTile(cell);
+	}
 }
 
 std::optional<std::uint64_t> Tilemap::GetTerrainRuleset(V2_int coordinate) const {

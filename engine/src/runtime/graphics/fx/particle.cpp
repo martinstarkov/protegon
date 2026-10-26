@@ -522,7 +522,7 @@ void ParticleEmitter::Draw(DrawContext& ctx, Entity entity) {
 
 void ParticleEmitter::Update(Scene& scene, secondsf dt) {
 	for (auto [entity, emitter] : scene.EntitiesWith<impl::ParticleEmitterData>()) {
-		if (!IsGroupStackActive(entity)) {
+		if (!IsGroupStackActive(entity) || !scene.ctx().chunks.ShouldSimulate(entity)) {
 			continue;
 		}
 		emitter.Update(ParticleEmitter{ entity }, dt);

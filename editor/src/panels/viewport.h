@@ -7,8 +7,13 @@
 #include "core/math/matrix4.h"
 #include "core/math/transform.h"
 #include "renderer/pipeline/camera.h"
+#include "runtime/scene/scene_camera.h"
 #include "renderer/pipeline/viewport.h"
 #include "runtime/graphics/frame_context.h"
+
+namespace ptgn {
+class Renderer;
+}
 
 namespace ptgn::editor {
 
@@ -71,6 +76,8 @@ public:
 	void OnRender(EditorContext& ctx);
 
 	void SetUseEditorCamera(bool use_editor_camera);
+	void PrepareCameraForRender(Renderer& renderer);
+	void MatchSceneCamera(SceneCamera camera);
 	[[nodiscard]] bool IsUsingEditorCamera() const;
 
 private:

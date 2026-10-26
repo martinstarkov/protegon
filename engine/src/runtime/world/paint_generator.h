@@ -133,6 +133,10 @@ struct PaintGeneratorNoise {
 	)
 };
 
+/// Sample a Paint Generator noise source using the same implementation as runtime
+/// chunk generation. Returns a normalized value in [0, 1].
+[[nodiscard]] float SamplePaintGeneratorNoise(const PaintGeneratorNoise& noise, V2_float world);
+
 struct PaintGeneratorRecipe {
 	PaintGeneratorSourceKind source_kind{ PaintGeneratorSourceKind::Single };
 	PaintGeneratorCoverageMode coverage{ PaintGeneratorCoverageMode::Solid };
@@ -203,11 +207,13 @@ struct PaintGeneratorData {
 	std::vector<PaintGeneratorStrokePoint> stroke_points{};
 	std::vector<V2_int> suppressed_cells{};
 	bool enabled{ true };
+	/// Register this authoring generator with runtime world streaming automatically.
+	std::optional<bool> stream_at_runtime{ true };
 
 	PTGN_REFLECT(
 		PaintGeneratorData, geometry, recipe, grid_size, grid_offset, start, end, brush_shape,
 		line_thickness, line_spacing, area_mode, area_thickness, random_fill_density, stroke_points,
-		suppressed_cells, enabled
+		suppressed_cells, enabled, stream_at_runtime
 	)
 };
 
