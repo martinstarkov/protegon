@@ -6,8 +6,8 @@
 namespace ptgn {
 
 struct Axis {
-	V2_float direction;
-	V2_float midpoint;
+	V2_float direction{};
+	V2_float midpoint{};
 
 	PTGN_REFLECT(Axis, direction, midpoint)
 };

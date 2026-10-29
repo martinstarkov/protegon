@@ -2,8 +2,6 @@
 
 #include <ecs/ecs.h>
 
-#include <nlohmann/json.hpp>
-
 #include "app/application.h"
 #include "core/assert.h"
 #include "core/event/key_event.h"
@@ -46,3 +44,4 @@
 #include "runtime/scripting/script_sequence.h"
 #include "runtime/ui/button.h"
 #include "serialization/json/fwd.h"
+#include "serialization/json/json.h"

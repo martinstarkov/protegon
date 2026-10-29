@@ -3,7 +3,6 @@
 #include <bit>
 #include <cstdint>
 #include <magic_enum/magic_enum.hpp>
-#include <nlohmann/json.hpp>
 #include <optional>
 #include <ostream>
 #include <string>

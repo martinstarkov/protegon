@@ -2,7 +2,7 @@
 #include <chrono>
 
 #include "app/application.h"
-#include "core/editor.h"
+#include "app/editor.h"
 #include "core/graphics/color.h"
 #include "core/math/vector2.h"
 #include "runtime/ecs/entity.h"
@@ -23,22 +23,22 @@ struct RenderTargetEffectScene : public Scene {
 
 	void OnEnter() override {
 		constexpr V2_float rt_size{ 200 };
-		constexpr auto rt_layer{ GetLayer(3) };
+		constexpr auto rt_layer{ GetRenderMaskBit(3) };
 
 		SetBackgroundColor(color::LightBlue);
 
 		CreateRect(*this, { -300, -300 }, { 100, 100 }, color::Blue);
 
-		ctx().camera.SetExcludeMask(rt_layer);
+		ctx().camera.SetExcludeRenderMask(rt_layer);
 
 		rt = CreateRenderTarget(*this, { 200, 200 }, rt_size, color::Red);
 
 		rt_camera = CreateCamera(*this, {}, rt.GetSize());
 		rt_camera.SetRenderTarget(rt);
-		rt_camera.SetIncludeMask(rt_layer);
+		rt_camera.SetIncludeRenderMask(rt_layer);
 
 		auto rect2{ CreateRect(*this, { 0, 0 }, { 100, 100 }, color::Orange) };
-		SetMask(rect2, rt_layer);
+		SetRenderMask(rect2, rt_layer);
 
 		AddEffect<Grayscale>(rt);
 	}

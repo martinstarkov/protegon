@@ -9,8 +9,8 @@
 #include "commands/component/remove_component.h"
 #include "commands/component/set_component.h"
 #include "commands/undo_stack.h"
-#include "core/editor_selection.h"
 #include "core/util/file.h"
+#include "editor/editor_selection.h"
 #include "runtime/asset/prefab.h"
 #include "runtime/ecs/entity.h"
 #include "runtime/ecs/entity_serialization.h"
@@ -24,6 +24,11 @@ namespace editor {
 class Editor;
 class EditorContext;
 
+enum class PrefabDeletionMode {
+	UnlinkInstances,
+	DeleteInstances
+};
+
 class EditorCommands {
 public:
 	EditorCommands() = default;
@@ -32,58 +37,51 @@ public:
 	void Bind(EditorContext& context);
 
 	Entity CreateEntity(std::string_view name);
-	Entity RecordCreatedEntity(Entity entity, EditorSelection before_selection);
+	Entity RecordCreatedEntity(
+		Entity entity, EditorSelection before_selection, bool affects_project_serialization = true,
+		bool allow_when_disabled = false, bool transient = false
+	);
 	Entity DuplicateEntity(Entity entity);
-	void DeleteEntity(Entity entity);
+	void DeleteEntity(
+		Entity entity, bool affects_project_serialization = true, bool allow_when_disabled = false,
+		bool transient = false
+	);
 
 	void RenameEntity(Entity entity, std::string_view new_name);
 	void ReparentEntity(Entity child, Entity new_parent, bool preserve_world_transform);
 
 	/// @brief Creates a prefab asset and selects its root.
 	/// @return The created key, or an empty key if creation failed.
-	[[nodiscard]] PrefabKey CreatePrefabAsset(Prefab prefab);
+	PrefabKey CreatePrefabAsset(Prefab prefab);
 
-	/// @brief Deletes a prefab asset. Undo restores the complete asset and selection.
-	[[nodiscard]] bool DeletePrefabAsset(const PrefabKey& key);
+	/// @brief Deletes a prefab and either unlinks or deletes every editor scene instance.
+	/// Both the prefab and its instances are restored by the same undo command.
+	bool DeletePrefabAsset(const PrefabKey& key, PrefabDeletionMode mode);
 
-	/// @brief Renames a prefab asset while preserving its complete serialized hierarchy.
-	[[nodiscard]] bool RenamePrefabAsset(
-		const PrefabKey& old_key,
-		const PrefabKey& new_key
-	);
+	/// @brief Renames a prefab asset and retargets every linked instance as one undoable edit.
+	bool RenamePrefabAsset(const PrefabKey& old_key, const PrefabKey& new_key);
 
 	/// @brief Copies a prefab to a new key and selects the duplicate.
-	[[nodiscard]] PrefabKey DuplicatePrefabAsset(
-		const PrefabKey& source_key,
-		PrefabKey duplicate_key
-	);
+	PrefabKey DuplicatePrefabAsset(const PrefabKey& source_key, PrefabKey duplicate_key);
 
 	/// @brief Adds a serialized child to a prefab entity.
 	///
 	/// parent_path is empty for the prefab root. The newly created child is selected.
-	[[nodiscard]] bool AddPrefabChild(
-		const PrefabKey& key,
-		SerializedEntityPath parent_path,
-		SerializedEntity child
+	bool AddPrefabChild(
+		const PrefabKey& key, SerializedEntityPath parent_path, SerializedEntity child
 	);
 
 	/// @brief Duplicates a non-root serialized prefab entity beside the source.
-	[[nodiscard]] bool DuplicatePrefabEntity(
-		const PrefabKey& key,
-		SerializedEntityPath entity_path
-	);
+	bool DuplicatePrefabEntity(const PrefabKey& key, SerializedEntityPath entity_path);
 
 	/// @brief Deletes a non-root serialized prefab entity and selects its parent.
-	[[nodiscard]] bool DeletePrefabEntity(
-		const PrefabKey& key,
-		SerializedEntityPath entity_path
-	);
+	bool DeletePrefabEntity(const PrefabKey& key, SerializedEntityPath entity_path);
 
 	/// @brief Instantiates a prefab in a scene as one undoable entity creation.
-	[[nodiscard]] Entity CreatePrefabInstance(
-		Scene& scene,
-		const PrefabKey& key
-	);
+	Entity CreatePrefabInstance(Scene& scene, const PrefabKey& key);
+
+	/// @brief Removes prefab-link metadata from the complete linked hierarchy as one undoable edit.
+	void ConvertPrefabInstanceToEntity(Entity entity);
 
 	template <std::copy_constructible T>
 	void SetComponentValue(Entity entity, const T& value) {
@@ -96,12 +94,11 @@ public:
 			before = *current;
 		}
 
-		undo_stack_->Execute(std::make_unique<SetComponentValueCommand<T>>(
-			*editor_,
-			MakeEntityReference(entity),
-			std::move(before),
-			value
-		));
+		undo_stack_->Execute(
+			std::make_unique<SetComponentValueCommand<T>>(
+				*editor_, MakeEntityReference(entity), std::move(before), value
+			)
+		);
 	}
 
 	template <std::copy_constructible T>
@@ -115,11 +112,11 @@ public:
 			return;
 		}
 
-		undo_stack_->Execute(std::make_unique<RemoveComponentCommand<T>>(
-			*editor_,
-			MakeEntityReference(entity),
-			*component
-		));
+		undo_stack_->Execute(
+			std::make_unique<RemoveComponentCommand<T>>(
+				*editor_, MakeEntityReference(entity), *component
+			)
+		);
 	}
 
 	template <std::copy_constructible T>
@@ -128,11 +125,11 @@ public:
 			return;
 		}
 
-		undo_stack_->Execute(std::make_unique<AddComponentCommand<T>>(
-			*editor_,
-			MakeEntityReference(entity),
-			component
-		));
+		undo_stack_->Execute(
+			std::make_unique<AddComponentCommand<T>>(
+				*editor_, MakeEntityReference(entity), component
+			)
+		);
 	}
 
 	void SaveScene(const path& path);

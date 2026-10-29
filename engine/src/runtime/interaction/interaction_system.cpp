@@ -23,10 +23,12 @@
 #include "renderer/pipeline/camera.h"
 #include "renderer/renderer.h"
 #include "runtime/ecs/entity.h"
+#include "runtime/ecs/group_stack.h"
 #include "runtime/graphics/draw.h"
 #include "runtime/graphics/frame_context.h"
 #include "runtime/graphics/render_target.h"
 #include "runtime/graphics/shape.h"
+#include "runtime/graphics/visible.h"
 #include "runtime/interaction/draggable.h"
 #include "runtime/interaction/draggable_event.h"
 #include "runtime/interaction/dropzone.h"
@@ -51,7 +53,7 @@ void GetShapes(
 ) {
 	bool is_parent{ entity == root_entity };
 
-	const auto get_shape = [&](auto e) {
+	auto get_shape = [&](auto e) {
 		if (e.template Has<Rect>()) {
 			const auto& rect{ e.template Get<Rect>() };
 			vector.emplace_back(rect, e);
@@ -166,7 +168,7 @@ InteractionSystem::InteractiveEntities InteractionSystem::GetInteractiveEntities
 	for (Entity entity : all_entities) {
 		if (auto lock{ entity.TryGet<InteractionLock>() }; lock && lock->block_hover) {
 			PTGN_ASSERT(
-				lock->remaining_time >= secondsf{ 0.0f }, "Interaction time cannot be negative"
+				lock->remaining_time >= secondsf::zero(), "Interaction time cannot be negative"
 			);
 			continue;
 		}
@@ -259,7 +261,8 @@ std::vector<Entity> InteractionSystem::GetDropzones(const Scene& scene) {
 
 	for (auto [entity, interactive, dropzone] :
 		 scene.EntitiesWith<impl::Interactive, impl::Dropzone>()) {
-		if (!interactive.enabled || !dropzone.enabled) {
+		if (!interactive.enabled || !dropzone.enabled || !IsVisible(entity) ||
+			!scene.ctx().chunks.ShouldSimulate(entity) || !IsGroupStackInteractive(entity)) {
 			continue;
 		}
 
@@ -298,7 +301,7 @@ bool InteractionSystem::IsOverlappingDropzone(
 		}
 		case TransformOverlaps: {
 			PTGN_ASSERT(
-				GetMask(draggable) == GetMask(dropzone),
+				GetRenderMask(draggable) == GetRenderMask(dropzone),
 				"Dropzone entity and drag entity must share the same camera"
 			);
 			// Origin not accounted for because this is about TransformOverlaps, not center.
@@ -308,7 +311,7 @@ bool InteractionSystem::IsOverlappingDropzone(
 		}
 		case Overlaps: {
 			PTGN_ASSERT(
-				GetMask(draggable) == GetMask(dropzone),
+				GetRenderMask(draggable) == GetRenderMask(dropzone),
 				"Dropzone entity and drag entity must share the same camera"
 			);
 			is_overlapping = Overlap(draggable, dropzone);
@@ -331,7 +334,8 @@ void InteractionSystem::HandleDragging(
 	// Start dragging
 	if (mouse.left_pressed) {
 		for (Entity dragging : over) {
-			if (!dragging.Has<impl::Draggable>() || !dragging.Get<impl::Draggable>().enabled) {
+			if (!dragging || !IsVisible(dragging) || !IsGroupStackInteractive(dragging) ||
+				!dragging.Has<impl::Draggable>() || !dragging.Get<impl::Draggable>().enabled) {
 				continue;
 			}
 
@@ -343,13 +347,20 @@ void InteractionSystem::HandleDragging(
 
 			PushEvent<event::DragStart>(dragging, mouse.position);
 
-			if (!dragging.Has<impl::Draggable>() || !dragging.Get<impl::Draggable>().enabled) {
+			if (!dragging || !IsVisible(dragging) || !IsGroupStackInteractive(dragging) ||
+				!dragging.Has<impl::Draggable>() || !dragging.Get<impl::Draggable>().enabled) {
 				continue;
 			}
 
 			for (Entity dropzone : dropzones) {
-				PTGN_ASSERT((dropzone.Has<impl::Dropzone, impl::Interactive>()), "Dropzone must have Dropzone and Interactive components");
-				PTGN_ASSERT(dropzone.Get<impl::Interactive>().enabled, "Dropzone interactive must be enabled");
+				PTGN_ASSERT(
+					(dropzone.Has<impl::Dropzone, impl::Interactive>()),
+					"Dropzone must have Dropzone and Interactive components"
+				);
+				PTGN_ASSERT(
+					dropzone.Get<impl::Interactive>().enabled,
+					"Dropzone interactive must be enabled"
+				);
 				PTGN_ASSERT(dropzone.Get<impl::Dropzone>().enabled, "Dropzone must be enabled");
 				if (dropzone == dragging) {
 					continue;
@@ -374,7 +385,8 @@ void InteractionSystem::HandleDragging(
 				);
 			}
 
-			if (!dragging.Has<impl::Draggable>() || !dragging.Get<impl::Draggable>().enabled) {
+			if (!dragging || !IsVisible(dragging) || !IsGroupStackInteractive(dragging) ||
+				!dragging.Has<impl::Draggable>() || !dragging.Get<impl::Draggable>().enabled) {
 				continue;
 			}
 
@@ -391,7 +403,8 @@ void InteractionSystem::HandleDragging(
 	// Continue dragging
 	if (mouse.left_held || mouse.left_pressed) {
 		for (Entity dragging : dragging_entities) {
-			if (!dragging.Has<impl::Draggable>() || !dragging.Get<impl::Draggable>().enabled) {
+			if (!dragging || !IsVisible(dragging) || !IsGroupStackInteractive(dragging) ||
+				!dragging.Has<impl::Draggable>() || !dragging.Get<impl::Draggable>().enabled) {
 				continue;
 			}
 
@@ -409,6 +422,12 @@ void InteractionSystem::HandleDragging(
 	// Stop dragging
 	if (mouse.left_released) {
 		for (Entity dragging : dragging_entities) {
+			if (dragging &&
+				(!dragging.Has<impl::Draggable>() || !dragging.Get<impl::Draggable>().enabled ||
+				 !dragging.Has<impl::Interactive>() ||
+				 !dragging.Get<impl::Interactive>().enabled)) {
+				PushEvent<event::DragCanceled>(dragging, mouse.position);
+			}
 			if (!dragging.Has<impl::Draggable>() || !dragging.Get<impl::Draggable>().enabled ||
 				!dragging.Has<impl::Interactive>() || !dragging.Get<impl::Interactive>().enabled) {
 				continue;
@@ -416,14 +435,21 @@ void InteractionSystem::HandleDragging(
 
 			PushEvent<event::DragStop>(dragging, mouse.position);
 
-			if (!dragging.Has<impl::Draggable>() || !dragging.Get<impl::Draggable>().enabled ||
-				!dragging.Has<impl::Interactive>() || !dragging.Get<impl::Interactive>().enabled) {
+			if (!dragging || !dragging.Has<impl::Draggable>() ||
+				!dragging.Get<impl::Draggable>().enabled || !dragging.Has<impl::Interactive>() ||
+				!dragging.Get<impl::Interactive>().enabled) {
 				continue;
 			}
 
 			for (Entity dropzone : dropzones) {
-				PTGN_ASSERT((dropzone.Has<impl::Dropzone, impl::Interactive>()), "Dropzone must have Dropzone and Interactive components");
-				PTGN_ASSERT(dropzone.Get<impl::Interactive>().enabled, "Dropzone interactive must be enabled");
+				PTGN_ASSERT(
+					(dropzone.Has<impl::Dropzone, impl::Interactive>()),
+					"Dropzone must have Dropzone and Interactive components"
+				);
+				PTGN_ASSERT(
+					dropzone.Get<impl::Interactive>().enabled,
+					"Dropzone interactive must be enabled"
+				);
 				PTGN_ASSERT(dropzone.Get<impl::Dropzone>().enabled, "Dropzone must be enabled");
 				if (dropzone == dragging) {
 					continue;
@@ -451,8 +477,9 @@ void InteractionSystem::HandleDragging(
 				);
 			}
 
-			if (!dragging.Has<impl::Draggable>() || !dragging.Get<impl::Draggable>().enabled ||
-				!dragging.Has<impl::Interactive>() || !dragging.Get<impl::Interactive>().enabled) {
+			if (!dragging || !dragging.Has<impl::Draggable>() ||
+				!dragging.Get<impl::Draggable>().enabled || !dragging.Has<impl::Interactive>() ||
+				!dragging.Get<impl::Interactive>().enabled) {
 				continue;
 			}
 
@@ -486,7 +513,8 @@ void InteractionSystem::HandleDropzones(
 ) {
 	// 1. Compute which dropzones each dragged entity is currently over
 	for (Entity dragging : dragging_entities) {
-		if (!dragging.Has<impl::Draggable>() || !dragging.Get<impl::Draggable>().enabled) {
+		if (!dragging || !IsVisible(dragging) || !IsGroupStackInteractive(dragging) ||
+			!dragging.Has<impl::Draggable>() || !dragging.Get<impl::Draggable>().enabled) {
 			continue;
 		}
 
@@ -494,8 +522,13 @@ void InteractionSystem::HandleDropzones(
 		draggable.hovered_dropzones = {};
 
 		for (Entity dropzone : dropzones) {
-			PTGN_ASSERT((dropzone.Has<impl::Dropzone, impl::Interactive>()), "Dropzone must have Dropzone and Interactive components");
-			PTGN_ASSERT(dropzone.Get<impl::Interactive>().enabled, "Dropzone interactive must be enabled");
+			PTGN_ASSERT(
+				(dropzone.Has<impl::Dropzone, impl::Interactive>()),
+				"Dropzone must have Dropzone and Interactive components"
+			);
+			PTGN_ASSERT(
+				dropzone.Get<impl::Interactive>().enabled, "Dropzone interactive must be enabled"
+			);
 			PTGN_ASSERT(dropzone.Get<impl::Dropzone>().enabled, "Dropzone must be enabled");
 			if (dragging == dropzone) {
 				continue;
@@ -529,7 +562,8 @@ void InteractionSystem::HandleDropzones(
 			);
 		}
 
-		if (!dragging.Has<impl::Draggable>() || !dragging.Get<impl::Draggable>().enabled) {
+		if (!dragging || !IsVisible(dragging) || !IsGroupStackInteractive(dragging) ||
+			!dragging.Has<impl::Draggable>() || !dragging.Get<impl::Draggable>().enabled) {
 			continue;
 		}
 
@@ -549,14 +583,20 @@ void InteractionSystem::HandleDropzones(
 			PushEvent<event::DragLeave>(dragging, last_dropzone);
 		}
 
-		if (!dragging.Has<impl::Draggable>() || !dragging.Get<impl::Draggable>().enabled) {
+		if (!dragging || !IsVisible(dragging) || !IsGroupStackInteractive(dragging) ||
+			!dragging.Has<impl::Draggable>() || !dragging.Get<impl::Draggable>().enabled) {
 			continue;
 		}
 
 		// 3. Always call DragOut if not currently over a dropzone
 		for (Entity dropzone : dropzones) {
-			PTGN_ASSERT((dropzone.Has<impl::Dropzone, impl::Interactive>()), "Dropzone must have Dropzone and Interactive components");
-			PTGN_ASSERT(dropzone.Get<impl::Interactive>().enabled, "Dropzone interactive must be enabled");
+			PTGN_ASSERT(
+				(dropzone.Has<impl::Dropzone, impl::Interactive>()),
+				"Dropzone must have Dropzone and Interactive components"
+			);
+			PTGN_ASSERT(
+				dropzone.Get<impl::Interactive>().enabled, "Dropzone interactive must be enabled"
+			);
 			PTGN_ASSERT(dropzone.Get<impl::Dropzone>().enabled, "Dropzone must be enabled");
 			if (dragging == dropzone) {
 				continue;
@@ -568,7 +608,8 @@ void InteractionSystem::HandleDropzones(
 			PushEvent<event::DragOut>(dragging, dropzone);
 		}
 
-		if (!dragging.Has<impl::Draggable>() || !dragging.Get<impl::Draggable>().enabled) {
+		if (!dragging || !IsVisible(dragging) || !IsGroupStackInteractive(dragging) ||
+			!dragging.Has<impl::Draggable>() || !dragging.Get<impl::Draggable>().enabled) {
 			continue;
 		}
 
@@ -581,24 +622,48 @@ void InteractionSystem::DispatchMouseEvents(
 	const std::vector<Entity>& over, const std::vector<Entity>& out, const impl::MouseInfo& mouse
 ) {
 	for (Entity e : over) {
-
+		if (!e || !IsVisible(e) || !IsGroupStackInteractive(e)) {
+			continue;
+		}
 		if (auto lock{ e.TryGet<InteractionLock>() }; lock && lock->block_press) {
 			PTGN_ASSERT(
-				lock->remaining_time >= secondsf{ 0.0f }, "Interaction time cannot be negative"
+				lock->remaining_time >= secondsf::zero(), "Interaction time cannot be negative"
 			);
 			continue;
 		}
 
 		PushEvent<event::MouseMoveOver>(e);
 
+		std::size_t id{ e.GetECSId() };
+		auto now{ Clock::now() };
 		if (mouse.left_pressed) {
+			mouse_press_started_[id] = now;
+			mouse_long_press_emitted_.erase(id);
 			PushEvent<event::MousePressedOver>(e, Mouse::Left);
 		}
 		if (mouse.left_held) {
 			PushEvent<event::MouseHeldOver>(e, Mouse::Left);
+			auto started{ mouse_press_started_.find(id) };
+			if (started != mouse_press_started_.end() &&
+				now - started->second >= std::chrono::milliseconds{ 500 } &&
+				mouse_long_press_emitted_.insert(id).second) {
+				PushEvent<event::MouseLongPressed>(e, Mouse::Left);
+			}
 		}
 		if (mouse.left_released) {
 			PushEvent<event::MouseReleasedOver>(e, Mouse::Left);
+			if (mouse_press_started_.erase(id) > 0 && !mouse_long_press_emitted_.contains(id)) {
+				PushEvent<event::MouseClicked>(e, Mouse::Left);
+				auto previous{ last_mouse_click_.find(id) };
+				if (previous != last_mouse_click_.end() &&
+					now - previous->second <= std::chrono::milliseconds{ 350 }) {
+					PushEvent<event::MouseDoubleClicked>(e, Mouse::Left);
+					last_mouse_click_.erase(previous);
+				} else {
+					last_mouse_click_[id] = now;
+				}
+			}
+			mouse_long_press_emitted_.erase(id);
 		}
 		if (!mouse.scroll_delta.IsZero()) {
 			PushEvent<event::MouseScrollOver>(e, mouse.scroll_delta);
@@ -606,7 +671,9 @@ void InteractionSystem::DispatchMouseEvents(
 	}
 
 	for (const Entity& e : out) {
-
+		if (!e || !IsVisible(e) || !IsGroupStackInteractive(e)) {
+			continue;
+		}
 		if (std::ranges::contains(over, e)) {
 			continue;
 		}
@@ -620,6 +687,8 @@ void InteractionSystem::DispatchMouseEvents(
 			PushEvent<event::MouseHeldOut>(e, Mouse::Left);
 		}
 		if (mouse.left_released) {
+			mouse_press_started_.erase(e.GetECSId());
+			mouse_long_press_emitted_.erase(e.GetECSId());
 			PushEvent<event::MouseReleasedOut>(e, Mouse::Left);
 		}
 		if (!mouse.scroll_delta.IsZero()) {
@@ -643,7 +712,8 @@ void InteractionSystem::UpdateForCamera(
 	std::vector<Entity> camera_entities;
 
 	for (auto [entity, interactive] : scene.EntitiesWith<impl::Interactive>()) {
-		if (!interactive.enabled) {
+		if (!interactive.enabled || !IsVisible(entity) || !IsGroupStackInteractive(entity) ||
+			!scene.ctx().chunks.ShouldSimulate(entity)) {
 			continue;
 		}
 		if (filter(entity)) {
@@ -681,9 +751,16 @@ void InteractionSystem::UpdateForCamera(
 
 	CleanupDropzones(dropzones);
 
-	std::erase_if(dragging_entities, [](const auto& entity) {
-		return !entity.template Has<impl::Draggable>() ||
-			   !entity.template Get<impl::Draggable>().enabled;
+	std::erase_if(dragging_entities, [&](const Entity& entity) {
+		bool canceled{ !entity || !entity.Has<impl::Draggable>() ||
+					   !entity.Get<impl::Draggable>().enabled || !IsVisible(entity) ||
+					   !IsGroupStackInteractive(entity) };
+
+		if (canceled && entity) {
+			PushEvent<event::DragCanceled>(entity, mouse.position);
+		}
+
+		return canceled;
 	});
 
 	// Save for next frame.
@@ -696,9 +773,13 @@ void InteractionSystem::Update(Scene& scene) {
 	for (auto [entity, lock] : scene.EntitiesWith<InteractionLock>()) {
 		lock.remaining_time -= dt;
 
-		if (lock.remaining_time <= secondsf{ 0.0f }) {
+		if (lock.remaining_time <= secondsf::zero()) {
 			entity.Remove<InteractionLock>();
 		}
+	}
+
+	if (!scene.ctx().input.IsEnabled()) {
+		return;
 	}
 
 	const impl::MouseInfo mouse_state{ scene };
@@ -709,7 +790,9 @@ void InteractionSystem::Update(Scene& scene) {
 
 	if (primary_world_camera.has_value()) {
 		RenderTarget render_target{ scene.GetRenderTarget() };
-		PTGN_ASSERT(render_target, "Primary world camera scene render target must be a valid entity");
+		PTGN_ASSERT(
+			render_target, "Primary world camera scene render target must be a valid entity"
+		);
 
 		UpdateForCamera(
 			scene, mouse_state, handled_under_mouse, render_target, primary_world_camera.value(),

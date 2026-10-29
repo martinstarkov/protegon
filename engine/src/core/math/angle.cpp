@@ -1,10 +1,8 @@
 #include "core/math/angle.h"
 
-#include <nlohmann/json.hpp>
-
 #include "core/math/math_utils.h"
 #include "core/math/rng.h"
-#include "serialization/json/fwd.h"
+#include "serialization/json/json.h"
 
 namespace ptgn {
 

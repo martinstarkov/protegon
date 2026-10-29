@@ -41,20 +41,20 @@ class RenderPassBuilder;
 struct DrawTextRequest;
 
 struct ShapeDrawParams {
-	Depth depth;
+	Depth depth{};
 	FillStyle fill_style{ 1.0f };
 	Origin origin{ Origin::Center };
 	int entity_id{ impl::kNoEntityId };
-	impl::EffectParams effects;
+	impl::EffectParams effects{};
 };
 
 struct TextureDrawParams {
-	Depth depth;
-	V2_float size;
+	Depth depth{};
+	V2_float size{};
 	Origin origin{ Origin::Center };
 	Color tint{ color::White };
-	std::array<V2_float, 4> texture_coordinates;
-	impl::EffectParams effects;
+	std::array<V2_float, 4> texture_coordinates{};
+	impl::EffectParams effects{};
 	int entity_id{ impl::kNoEntityId };
 };
 

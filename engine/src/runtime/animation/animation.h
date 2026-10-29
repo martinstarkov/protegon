@@ -10,8 +10,8 @@
 #include "core/math/geometry/origin.h"
 #include "core/math/transform.h"
 #include "core/math/vector2.h"
-#include "core/util/time.h"
 #include "core/util/strong_string.h"
+#include "core/util/time.h"
 #include "core/util/timer.h"
 #include "runtime/asset/asset_key.h"
 #include "runtime/ecs/entity.h"
@@ -21,20 +21,41 @@
 
 namespace ptgn {
 
+class EntityCreationContext;
+
 class Scene;
 class DrawContext;
+class AssetManager;
 
 namespace impl {
 
+struct AnimationTextureLayout {
+	std::size_t frame_count{ 0 };
+	std::size_t row_count{ 1 };
+
+	constexpr bool operator==(const AnimationTextureLayout&) const = default;
+};
+
 constexpr std::optional<V2_int> GetFrameSize(
-	std::optional<V2_int> texture_size, std::size_t frame_count
+	std::optional<V2_int> texture_size, std::size_t frame_count, std::size_t row_count = 1
 ) {
-	if (!frame_count || !texture_size.has_value()) {
+	if (!frame_count || !row_count || !texture_size.has_value()) {
 		return std::nullopt;
 	}
+
 	PTGN_ASSERT(texture_size.value().IsPositive(), "Texture size must be positive");
-	return V2_int{ static_cast<std::size_t>(texture_size.value().x) / frame_count,
-				   texture_size.value().y };
+
+	auto width{ static_cast<std::size_t>(texture_size.value().x) / frame_count };
+	auto height{ static_cast<std::size_t>(texture_size.value().y) / row_count };
+
+	if (width == 0 || height == 0) {
+		return std::nullopt;
+	}
+
+	return V2_int{
+		static_cast<int>(width),
+		static_cast<int>(height),
+	};
 }
 
 } // namespace impl
@@ -47,24 +68,29 @@ struct AnimationConfig {
 	milliseconds duration{ 0 };
 
 	/// @brief Pixel size of an individual animation frame within the texture.
-	/// If nullopt, frame size is automatically calculated using impl::GetFrameSize(texture_size,
-	/// frame_count).
-	std::optional<V2_int> frame_size;
+	/// If nullopt, frame size is automatically calculated from the texture dimensions and the
+	/// animation texture suffix. `_framesN` means N columns and one row; `_framesNxM` means N
+	/// columns and M rows.
+	std::optional<V2_int> frame_size{};
 
 	/// @brief Number of times that the animation plays for, nullopt for infinite replay.
 	std::optional<std::size_t> play_count{ 1 };
 
 	/// @brief Pixel within the texture which indicates the top left position of the
 	/// animation sequence.
-	V2_int start_pixel;
+	V2_int start_pixel{};
 
 	/// @brief Reset animation to frame 0 when it completes.
 	bool reset_on_complete{ false };
 
-	constexpr bool IsIdentical(const AnimationConfig& o, std::optional<V2_int> texture_size) const {
+	constexpr bool IsIdentical(
+		const AnimationConfig& o, std::optional<V2_int> texture_size,
+		std::size_t automatic_row_count = 1
+	) const {
 		auto zero_frame_size = [&](const auto& a, const auto& b) {
 			return !a.frame_size.has_value() &&
-				   impl::GetFrameSize(texture_size, b.frame_count) == b.frame_size;
+				   impl::GetFrameSize(texture_size, b.frame_count, automatic_row_count) ==
+					   b.frame_size;
 		};
 
 		return frame_count == o.frame_count && duration == o.duration &&
@@ -162,13 +188,15 @@ struct Animation : public Entity {
 
 	Animation& SetTexture(TextureKey texture_key);
 
-	/// @brief Starts the animation. Can also be used to restart the animation.
-	/// @param force If false, only starts the animation if it is not already playing.
+	/// @brief Starts playback from the selected frame, or restarts from frame zero when forced.
+	/// @param force If false, does not restart active playback and preserves the selected frame.
 	Animation& Start(bool force = true);
 
-	/// @brief Stops and resets the animation.
+	/// @brief Resets playback and the cumulative completed play count.
 	Animation& Reset();
 
+	/// @brief Stops playback and returns to frame zero without clearing completed plays.
+	/// @param reset If true, performs a full Reset() instead.
 	Animation& Stop(bool reset = false);
 
 	/// @brief Toggles the pause state of the animation.
@@ -184,10 +212,10 @@ struct Animation : public Entity {
 	/// @return True if the animation is currently playing, false otherwise.
 	[[nodiscard]] bool IsPlaying() const;
 
-	/// @return The number of plays of the full animation sequence so far.
+	/// @return Total completed animation plays since the last Reset(), across starts and stops.
 	std::size_t GetPlayCount() const;
 
-	/// @return The total number of plays of individual animation frames so far.
+	/// @return The number of frame transitions in the current playback session.
 	std::size_t GetFramePlayCount() const;
 
 	/// @return Duration of the full animation sequence.
@@ -201,6 +229,11 @@ struct Animation : public Entity {
 	/// @brief Set the current animation frame.
 	/// new_frame is wrapped around frame_count using Mod().
 	Animation& SetCurrentFrame(std::size_t new_frame);
+
+	/// @brief Moves to the beginning of a frame without changing the running, paused, or stopped
+	/// state. Resets elapsed time within the frame and preserves the cumulative completed play
+	/// count.
+	Animation& SeekFrame(std::size_t new_frame);
 
 	Animation& IncrementFrame();
 
@@ -241,8 +274,15 @@ struct AnimationMapKey : public StrongString<AnimationMapKey> {
 };
 
 struct AnimationMapData {
-	AnimationMapKey active;
+	AnimationMapKey active{};
 };
+
+std::optional<AnimationTextureLayout> DetectAnimationTextureLayout(
+	AssetManager& assets, const TextureKey& texture_key
+);
+std::optional<std::size_t> DetectAnimationFrameCount(
+	AssetManager& assets, const TextureKey& texture_key
+);
 
 } // namespace impl
 
@@ -278,11 +318,14 @@ class AnimationData {
 public:
 	AnimationData() = default;
 
-	AnimationData(AnimationConfig&& config, std::optional<V2_int> texture_size);
+	AnimationData(AnimationConfig&& config, std::size_t automatic_row_count = 1);
 
 	milliseconds GetFrameDuration() const;
-	V2_int GetFrameSize(std::optional<V2_int> texture_size) const;
-	V2_int GetCurrentFramePosition(std::optional<V2_int> texture_size) const;
+	V2_int GetFrameSize(std::optional<V2_int> texture_size = std::nullopt) const;
+	V2_int GetCurrentFramePosition(std::optional<V2_int> texture_size = std::nullopt) const;
+
+	void SetAutomaticRowCount(std::size_t row_count);
+	[[nodiscard]] std::size_t GetAutomaticRowCount() const;
 
 	/// @return Total number of animation repeats.
 	std::size_t GetPlayCount() const;
@@ -292,20 +335,29 @@ public:
 
 	AnimationConfig config;
 
-	ManualTimer frame_timer;
+	DeltaTimer frame_timer;
 
 	/// @brief Current frame of the animation.
 	std::size_t current_frame{ 0 };
 
-	/// @brief Number of frames the animation has gone through. frames_played / frame_count gives
-	/// the number of repeats of the full animation sequence.
+	/// @brief Number of frames played in the current playback session.
 	std::size_t frames_played{ 0 };
+
+	/// @brief Total number of completed animation plays, including previous starts and stops.
+	std::size_t completed_plays{ 0 };
+
+	/// @brief Whether the current playback reached its configured end.
+	bool completed{ false };
 
 	/// @brief If the current frame has been changed externally.
 	bool frame_dirty{ false };
 
+	/// @brief Number of rows detected from the animation texture suffix while frame_size is Auto.
+	/// Runtime/editor-derived state only; not serialized as authored animation data.
+	std::size_t automatic_row_count{ 1 };
+
 	PTGN_REFLECT(AnimationData, config, current_frame)
-	PTGN_REFLECT_READONLY(AnimationData, frame_timer, frames_played)
+	PTGN_REFLECT_READONLY(AnimationData, frame_timer, frames_played, completed_plays, completed)
 };
 
 class AnimationSystem {
@@ -319,7 +371,7 @@ public:
 /// @param manager Which manager the entity is added to.
 /// @param texture Texture key to be used for the animation.
 Animation CreateAnimation(
-	Scene& scene, Transform transform = {}, TextureKey texture_key = {},
+	EntityCreationContext context, Transform transform = {}, TextureKey texture_key = {},
 	AnimationConfig config = {}, Origin origin = Origin::Center
 );
 
@@ -332,6 +384,6 @@ Animation PlayTemporaryAnimation(
 	AnimationConfig config = {}, milliseconds destroy_delay = 0ms, Origin origin = Origin::Center
 );
 
-AnimationMap CreateAnimationMap(Scene& scene);
+AnimationMap CreateAnimationMap(EntityCreationContext context);
 
 } // namespace ptgn

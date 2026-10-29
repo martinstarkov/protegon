@@ -13,6 +13,7 @@
 #include "core/math/vector2.h"
 #include "renderer/draw_context.h"
 #include "runtime/ecs/entity.h"
+#include "runtime/ecs/entity_creation_context.h"
 #include "runtime/ecs/tag.h"
 #include "runtime/graphics/draw.h"
 #include "runtime/graphics/drawable.h"
@@ -132,8 +133,8 @@ Graphics& Graphics::StrokePolygon(const Polygon& polygon) {
 	return *this;
 }
 
-Graphics CreateGraphics(Scene& scene, Transform transform) {
-	Graphics graphics{ scene.CreateEntity() };
+Graphics CreateGraphics(EntityCreationContext context, Transform transform) {
+	Graphics graphics{ context.CreateEntity() };
 
 	graphics.Add<Tag>("Graphics");
 	graphics.Add<impl::GraphicsData>();

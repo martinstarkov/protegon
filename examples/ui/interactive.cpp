@@ -5,7 +5,7 @@
 #include <optional>
 
 #include "app/application.h"
-#include "core/editor.h"
+#include "app/editor.h"
 #include "core/event/event.h"
 #include "core/graphics/color.h"
 #include "core/input/key.h"
@@ -135,6 +135,9 @@ struct DraggableScript : public Script {
 };
 
 struct InteractiveScene : public Scene {
+	const float rotation_speed{ 1.0f };
+	const float zoom_speed{ 0.4f };
+
 	Entity CreateInteractiveCircle(float radius) {
 		auto entity = CreateEntity();
 		entity.Add<Circle>(radius);
@@ -150,7 +153,7 @@ struct InteractiveScene : public Scene {
 	void OnNew() override {
 		SetBackgroundColor(color::DarkGray);
 
-		ctx().debug.settings.interaction.draw_enabled	= true;
+		ctx().debug.settings.interaction.draw_enabled	 = true;
 		ctx().debug.settings.interaction.draw_line_width = 3.0f;
 
 		ctx().asset.Load(
@@ -215,9 +218,6 @@ struct InteractiveScene : public Scene {
 		PTGN_LOG("Disabled circle drag: ", c4);
 	}
 
-	const float rotation_speed{ 1.0f };
-	const float zoom_speed{ 0.4f };
-
 	void OnUpdate() override {
 		if (ctx().input.KeyPressed(Key::T)) {
 			bool desired{ !ctx().interaction.IsTopOnly() };
@@ -244,7 +244,7 @@ struct InteractiveScene : public Scene {
 	}
 };
 
-PTGN_REGISTER_SCENE(InteractiveScene, "Interactive Scene");
+PTGN_REGISTER_SCENE(InteractiveScene);
 PTGN_REGISTER_SCRIPT(DropzoneScript);
 PTGN_REGISTER_SCRIPT(DraggableScript);
 
@@ -252,7 +252,5 @@ int main(int, char**) {
 	Application app{ "InteractiveScene: T: Toggle Top Only Input, WASD/QE/ZC: "
 					 "Move/Rotate/Zoom Camera" };
 	PTGN_WITH_EDITOR(app, true);
-	app.StartProject<InteractiveScene>(
-		"InteractiveSceneProject/InteractiveScene.ptgnproj"
-	);
+	app.StartProject<InteractiveScene>("InteractiveSceneProject/InteractiveScene.ptgnproj");
 }

@@ -19,8 +19,8 @@
 #include <string>
 #include <utility>
 
-#include "core/log.h"
 #include "core/assert.h"
+#include "core/log.h"
 #include "core/util/file.h"
 #include "core/util/string.h"
 
@@ -39,9 +39,13 @@ struct Track::OggDecoder {
 };
 
 Track::Track(
-	std::size_t id, ma_engine* engine, const path& audio_path, std::optional<std::int64_t> loops
+	std::size_t id, std::size_t instance_id, ma_engine* engine, const path& audio_path,
+	std::optional<std::int64_t> loops
 ) :
-	id_{ id }, sound_{ std::make_unique<ma_sound>() }, remaining_loops_{ loops } {
+	id_{ id },
+	instance_id_{ instance_id },
+	sound_{ std::make_unique<ma_sound>() },
+	remaining_loops_{ loops } {
 	PTGN_ASSERT(engine, "Audio engine must be valid");
 
 	if (loops.has_value() && loops.value() < 0) {
@@ -51,17 +55,17 @@ Track::Track(
 
 	ma_uint32 flags = MA_SOUND_FLAG_NO_SPATIALIZATION;
 
+	path absolute_path{ GetAbsolutePath(audio_path) };
+
 	PTGN_ASSERT(
-		FileExists(audio_path), "Cannot create audio from invalid path: ", audio_path.string()
+		FileExists(absolute_path), "Cannot create audio from invalid path: ", absolute_path.string()
 	);
 
-	auto abs_path{ GetAbsolutePath(audio_path) };
-
-	const auto file_path{ abs_path.string() };
+	auto file_path{ absolute_path.string() };
 
 	ma_result result = MA_ERROR;
 
-	if (IsOggFile(abs_path)) {
+	if (IsOggFile(absolute_path)) {
 		vorbis_ = std::make_unique<OggDecoder>();
 
 		PTGN_ASSERT(vorbis_);
@@ -103,6 +107,8 @@ Track::~Track() noexcept {
 
 Track::Track(Track&& other) noexcept :
 	id_{ std::exchange(other.id_, 0) },
+	instance_id_{ std::exchange(other.instance_id_, 0) },
+	completed_loops_{ std::exchange(other.completed_loops_, 0) },
 	sound_{ std::move(other.sound_) },
 	paused_{ std::exchange(other.paused_, false) },
 	remaining_loops_{ std::exchange(other.remaining_loops_, std::nullopt) },
@@ -112,6 +118,8 @@ Track& Track::operator=(Track&& other) noexcept {
 	if (this != &other) {
 		StopImmediate();
 		id_				 = std::exchange(other.id_, 0);
+		instance_id_	 = std::exchange(other.instance_id_, 0);
+		completed_loops_ = std::exchange(other.completed_loops_, 0);
 		sound_			 = std::move(other.sound_);
 		paused_			 = std::exchange(other.paused_, false);
 		remaining_loops_ = std::exchange(other.remaining_loops_, std::nullopt);
@@ -126,6 +134,14 @@ ma_sound* Track::Get() const noexcept {
 
 std::size_t Track::GetId() const noexcept {
 	return id_;
+}
+
+std::size_t Track::GetInstanceId() const noexcept {
+	return instance_id_;
+}
+
+std::size_t Track::TakeCompletedLoops() noexcept {
+	return std::exchange(completed_loops_, 0);
 }
 
 void Track::Pause() {
@@ -218,6 +234,7 @@ bool Track::IsFinished() const {
 
 	// Not playing. If at the natural end, may need to emulate finite loops.
 	if (ma_sound_at_end(sound_.get()) == MA_TRUE) {
+		++completed_loops_;
 		if (remaining_loops_.value() > 0) {
 			--(remaining_loops_.value());
 			const_cast<Track*>(this)->RestartFromBeginning(); // NOSONAR

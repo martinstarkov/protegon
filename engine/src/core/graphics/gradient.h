@@ -13,7 +13,7 @@ namespace impl {
 struct ColorStop {
 	/// @brief Range: [0, 1]
 	float t{ 0.5f };
-	Color color;
+	Color color{};
 
 	PTGN_REFLECT(ColorStop, t, color)
 };

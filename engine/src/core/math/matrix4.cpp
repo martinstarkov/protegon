@@ -4,7 +4,6 @@
 #include <array>
 #include <cmath>
 #include <functional>
-#include <nlohmann/json.hpp>
 
 #include "core/assert.h"
 #include "core/math/angle.h"
@@ -13,7 +12,7 @@
 #include "core/math/vector2.h"
 #include "core/math/vector3.h"
 #include "core/math/vector4.h"
-#include "serialization/json/fwd.h"
+#include "serialization/json/json.h"
 
 namespace ptgn {
 
@@ -32,7 +31,16 @@ Matrix4 GetOrthographicViewProjection(
 	projection = Matrix4::Orthographic(min, max);
 
 	if (pixel_rounding) {
-		transform.position = Round(transform.position);
+		// A camera zoomed to 4x needs a 1/4-world-unit step per OUTPUT pixel.
+		// Rounding to whole world units makes the camera jump four pixels at
+		// once and visibly jitters otherwise stationary sprites while following.
+		V2_float step{ Abs(transform.scale) };
+		if (step.IsPositive()) {
+			transform.position = {
+				std::round(transform.position.x / step.x) * step.x,
+				std::round(transform.position.y / step.y) * step.y
+			};
+		}
 	}
 
 	auto view{ Matrix4::MakeInverseTransform(transform) };
@@ -287,8 +295,8 @@ Matrix4 Matrix4::Translate(const Matrix4& m, V3_float axes) {
 }
 
 Matrix4 Matrix4::Rotate(const Matrix4& matrix, Radians rotation, V3_float axes) {
-	const float c{ rotation.Cos() };
-	const float s{ rotation.Sin() };
+	float c{ rotation.Cos() };
+	float s{ rotation.Sin() };
 
 	float magnitude{ axes.Dot(axes) };
 

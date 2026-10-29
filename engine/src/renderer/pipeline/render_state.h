@@ -90,7 +90,7 @@ struct Stencil {
 
 	constexpr Stencil() = default;
 
-	constexpr Stencil(std::int32_t value) : value{ value } {} // NOSONAR
+	constexpr Stencil(std::int32_t stencil_value) : value{ stencil_value } {} // NOSONAR
 
 	constexpr std::strong_ordering operator<=>(const Stencil&) const = default;
 
@@ -104,7 +104,7 @@ struct Stencil {
 struct Depth {
 	constexpr Depth() = default;
 
-	constexpr Depth(float value) : value{ value } {} // NOSONAR
+	constexpr Depth(float depth_value) : value{ depth_value } {} // NOSONAR
 
 	[[nodiscard]] constexpr Depth RelativeTo(Depth parent) const {
 		parent.value += value;
@@ -141,8 +141,8 @@ struct Depth {
 };
 
 struct DepthStencil {
-	Depth depth;
-	Stencil stencil;
+	Depth depth{};
+	Stencil stencil{};
 
 	constexpr bool operator==(const DepthStencil&) const = default;
 };
@@ -159,12 +159,12 @@ struct ColorMaskState {
 struct ScissorState {
 	ScissorState() = default;
 
-	constexpr explicit ScissorState(Viewport viewport) : viewport{ viewport }, enabled{ true } {}
+	constexpr explicit ScissorState(Viewport scissor_viewport) : viewport{ scissor_viewport }, enabled{ true } {}
 
-	constexpr explicit ScissorState(bool enabled) : enabled{ enabled } {}
+	constexpr explicit ScissorState(bool scissor_enabled) : enabled{ scissor_enabled } {}
 
 	/// @brief Viewport of the scissor rectangle.
-	Viewport viewport;
+	Viewport viewport{};
 
 	bool enabled{ false };
 
@@ -181,7 +181,7 @@ struct CullState {
 };
 
 struct RasterState {
-	CullState cull;
+	CullState cull{};
 	float line_width{ 1.0f };
 
 	constexpr bool operator==(const RasterState& other) const {
@@ -190,9 +190,9 @@ struct RasterState {
 };
 
 struct MaterialState {
-	impl::ShaderId shader;
-	std::vector<UniformWrite> uniforms;
-	std::optional<std::size_t> texture_slot_capacity;
+	impl::ShaderId shader{};
+	std::vector<UniformWrite> uniforms{};
+	std::optional<std::size_t> texture_slot_capacity{};
 
 	constexpr explicit operator bool() const {
 		return shader;
@@ -203,34 +203,34 @@ struct MaterialState {
 
 struct RenderState {
 	Viewport viewport{ { 0, 0 }, { 0, 0 } };
-	std::optional<Matrix4> view_projection;
+	std::optional<Matrix4> view_projection{};
 
 	bool blending{ false };
 	BlendMode blend_mode{ BlendMode::ReplaceRGBA };
 
 	bool depth_testing{ false };
-	DepthMaskState depth_mask;
-	ColorMaskState color_mask;
-	StencilState stencil;
+	DepthMaskState depth_mask{};
+	ColorMaskState color_mask{};
+	StencilState stencil{};
 	ScissorState scissor{ false };
-	RasterState raster;
+	RasterState raster{};
 
 	constexpr bool operator==(const RenderState&) const = default;
 };
 
 struct RenderStateDelta {
-	std::optional<Viewport> viewport;
-	std::optional<Matrix4> view_projection;
+	std::optional<Viewport> viewport{};
+	std::optional<Matrix4> view_projection{};
 
-	std::optional<bool> blending;
-	std::optional<BlendMode> blend_mode;
+	std::optional<bool> blending{};
+	std::optional<BlendMode> blend_mode{};
 
-	std::optional<bool> depth_testing;
-	std::optional<DepthMaskState> depth_mask;
-	std::optional<ColorMaskState> color_mask;
-	std::optional<StencilState> stencil;
-	std::optional<ScissorState> scissor;
-	std::optional<RasterState> raster;
+	std::optional<bool> depth_testing{};
+	std::optional<DepthMaskState> depth_mask{};
+	std::optional<ColorMaskState> color_mask{};
+	std::optional<StencilState> stencil{};
+	std::optional<ScissorState> scissor{};
+	std::optional<RasterState> raster{};
 
 	constexpr bool operator==(const RenderStateDelta&) const = default;
 };

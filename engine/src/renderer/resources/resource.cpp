@@ -8,8 +8,8 @@
 namespace ptgn::impl {
 
 template <ResourceType T>
-Resource<T>::Resource(Renderer* renderer, T resource) noexcept :
-	renderer{ renderer }, resource{ resource } {}
+Resource<T>::Resource(Renderer* renderer_ptr, T render_resource) noexcept :
+	renderer{ renderer_ptr }, resource{ render_resource } {}
 
 template <ResourceType T>
 Resource<T>::Resource(Resource&& other) noexcept :

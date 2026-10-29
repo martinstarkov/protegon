@@ -8,6 +8,7 @@
 #include <span>
 #include <string>
 #include <string_view>
+#include <type_traits>
 #include <utility>
 #include <variant>
 #include <vector>
@@ -30,13 +31,17 @@
 #include "renderer/text/text_style.h"
 #include "runtime/animation/animation.h"
 #include "runtime/animation/animation_event.h"
+#include "runtime/animation/scripted_animation.h"
 #include "runtime/asset/asset_manager.h"
 #include "runtime/audio/audio.h"
 #include "runtime/audio/audio_system.h"
 #include "runtime/ecs/entity.h"
+#include "runtime/ecs/entity_creation_context.h"
 #include "runtime/ecs/entity_hierarchy.h"
+#include "runtime/ecs/group_stack.h"
 #include "runtime/ecs/tag.h"
 #include "runtime/graphics/draw.h"
+#include "runtime/graphics/drawable.h"
 #include "runtime/graphics/shape.h"
 #include "runtime/graphics/sprite.h"
 #include "runtime/graphics/text/text.h"
@@ -49,7 +54,6 @@
 #include "runtime/scene/scene_context.h"
 #include "runtime/scene/scene_event.h"
 #include "runtime/scripting/script.h"
-#include "runtime/animation/scripted_animation.h"
 #include "runtime/ui/button_config.h"
 #include "runtime/ui/toggle_button.h"
 
@@ -148,7 +152,7 @@ constexpr Color GetDefaultShapeColor(impl::ButtonPart part, ButtonVisualState st
 		case impl::ButtonPart::Background: return GetDefaultBackgroundColor(state);
 		case impl::ButtonPart::Border:	   return GetDefaultBorderColor(state);
 
-		default:						   PTGN_ERROR("Unsupported shape button part: ", std::to_underlying(part));
+		default: PTGN_ERROR("Unsupported shape button part: ", std::to_underlying(part));
 	}
 }
 
@@ -157,7 +161,7 @@ constexpr FillStyle GetDefaultShapeFill(impl::ButtonPart part) {
 		case impl::ButtonPart::Background: return Solid{};
 		case impl::ButtonPart::Border:	   return kDefaultButtonBorderWidth;
 
-		default:						   PTGN_ERROR("Unsupported shape button part: ", std::to_underlying(part));
+		default: PTGN_ERROR("Unsupported shape button part: ", std::to_underlying(part));
 	}
 }
 
@@ -168,7 +172,7 @@ constexpr impl::ButtonDirty DirtyForPart(impl::ButtonPart part) {
 		case impl::ButtonPart::Text:	   return impl::ButtonDirty::Text;
 		case impl::ButtonPart::Sprite:	   return impl::ButtonDirty::Sprite;
 
-		default:						   PTGN_ERROR("Unsupported button part: ", std::to_underlying(part));
+		default: PTGN_ERROR("Unsupported button part: ", std::to_underlying(part));
 	}
 }
 
@@ -183,6 +187,8 @@ ButtonVisualState PressVisualState(Button button) {
 
 	return ButtonVisualState::Press;
 }
+
+} // namespace
 
 std::span<const ButtonVisualState> GetVisualStateFallbacks(ButtonVisualState state) {
 	using enum ButtonVisualState;
@@ -216,6 +222,8 @@ std::span<const ButtonVisualState> GetVisualStateFallbacks(ButtonVisualState sta
 	}
 }
 
+namespace {
+
 Rect GetButtonLocalRect(Button button) {
 	if (!button.HasAny<Rect, Circle>()) {
 		return {};
@@ -236,76 +244,50 @@ Rect GetButtonLocalRect(Button button) {
 			 button.GetOrDefault<Origin>() };
 }
 
-Rect GetButtonTextContentRect(Button button, Padding padding) {
-	auto rect{ GetButtonLocalRect(button) };
-
-	rect.min += padding.GetLeftTop();
-	rect.max -= padding.GetRightBottom();
-
-	return rect;
-}
-
-Rect GetButtonTextAutoBox(Rect content_rect, V2_float text_origin_position, Origin text_origin) {
-	if (text_origin_position.x < content_rect.min.x ||
-		text_origin_position.x > content_rect.max.x ||
-		text_origin_position.y < content_rect.min.y ||
-		text_origin_position.y > content_rect.max.y) {
+Rect GetButtonTextAutoBox(Rect content_rect, V2_float position, Origin origin) {
+	if (position.x < content_rect.min.x || position.x > content_rect.max.x ||
+		position.y < content_rect.min.y || position.y > content_rect.max.y) {
 		return {};
 	}
 
-	auto origin_alignment{ GetAlignment(text_origin) };
+	auto alignment{ GetAlignment(origin) };
 
-	PTGN_ASSERT(origin_alignment.horizontal.has_value());
-	PTGN_ASSERT(origin_alignment.vertical.has_value());
+	PTGN_ASSERT(alignment.horizontal.has_value());
+	PTGN_ASSERT(alignment.vertical.has_value());
+
+	V2_float from_min{ position - content_rect.min };
+	V2_float to_max{ content_rect.max - position };
 
 	V2_float size;
 
-	switch (origin_alignment.horizontal.value()) {
+	switch (alignment.horizontal.value()) {
 		using enum HorizontalAlign;
 
-		case Left: size.x = content_rect.max.x - text_origin_position.x; break;
-
-		case Center:
-			size.x = 2.0f * std::min(
-								text_origin_position.x - content_rect.min.x,
-								content_rect.max.x - text_origin_position.x
-							);
-			break;
-
-		case Right:	  size.x = text_origin_position.x - content_rect.min.x; break;
+		case Left:	  size.x = to_max.x; break;
+		case Center:  size.x = 2.0f * std::min(from_min.x, to_max.x); break;
+		case Right:	  size.x = from_min.x; break;
 		case Justify: PTGN_ERROR("A text Origin cannot resolve to justified alignment");
-
 		default:
 			PTGN_ERROR(
-				"Unknown HorizontalAlign: ", std::to_underlying(origin_alignment.horizontal.value())
+				"Unknown HorizontalAlign: ", std::to_underlying(alignment.horizontal.value())
 			);
 	}
 
-	switch (origin_alignment.vertical.value()) {
+	switch (alignment.vertical.value()) {
 		using enum VerticalAlign;
 
-		case Top: size.y = content_rect.max.y - text_origin_position.y; break;
-
-		case Center:
-			size.y = 2.0f * std::min(
-								text_origin_position.y - content_rect.min.y,
-								content_rect.max.y - text_origin_position.y
-							);
-			break;
-
-		case Bottom: size.y = text_origin_position.y - content_rect.min.y; break;
-
+		case Top:	 size.y = to_max.y; break;
+		case Center: size.y = 2.0f * std::min(from_min.y, to_max.y); break;
+		case Bottom: size.y = from_min.y; break;
 		default:
-			PTGN_ERROR(
-				"Unknown VerticalAlign: ", std::to_underlying(origin_alignment.vertical.value())
-			);
+			PTGN_ERROR("Unknown VerticalAlign: ", std::to_underlying(alignment.vertical.value()));
 	}
 
 	if (!size.IsPositive()) {
 		return {};
 	}
 
-	return { size, text_origin };
+	return { size, origin };
 }
 
 template <typename TVisual>
@@ -345,6 +327,56 @@ const T* ResolveProperty(
 	return nullptr;
 }
 
+template <typename Visual, std::size_t N>
+void ApplyVisualTransform(
+	Entity part, Entity owner, const std::array<Visual, N>& states, ButtonVisualState state,
+	Transform relative_transform
+) {
+	bool inherit_position{ ResolveProperty(states, state, &Visual::inherit_position)
+							   ? *ResolveProperty(states, state, &Visual::inherit_position)
+							   : true };
+	bool inherit_rotation{ ResolveProperty(states, state, &Visual::inherit_rotation)
+							   ? *ResolveProperty(states, state, &Visual::inherit_rotation)
+							   : true };
+	bool inherit_scale{ ResolveProperty(states, state, &Visual::inherit_scale)
+							? *ResolveProperty(states, state, &Visual::inherit_scale)
+							: true };
+	bool inherit_depth{ ResolveProperty(states, state, &Visual::inherit_depth)
+							? *ResolveProperty(states, state, &Visual::inherit_depth)
+							: true };
+	float relative_depth{ ResolveProperty(states, state, &Visual::depth)
+							  ? *ResolveProperty(states, state, &Visual::depth)
+							  : 0.0f };
+
+	Transform owner_world{ GetWorldTransform(owner) };
+	Transform world_transform{ relative_transform.InverseRelativeTo(owner_world) };
+	Transform applied{ relative_transform };
+	if (!inherit_position) {
+		applied.position = world_transform.position;
+	}
+	if (!inherit_rotation) {
+		applied.rotation = world_transform.rotation;
+	}
+	if (!inherit_scale) {
+		applied.scale = world_transform.scale;
+	}
+	part.Add<Transform>(applied);
+	part.Add<Depth>(Depth{ inherit_depth ? relative_depth : GetDepth(owner) + relative_depth });
+
+	auto set_ignore = [part](auto tag, bool ignore) mutable {
+		using T = decltype(tag);
+		if (ignore) {
+			part.Add<T>();
+		} else {
+			part.Remove<T>();
+		}
+	};
+	set_ignore(::ptgn::impl::IgnoreParentPosition{}, !inherit_position);
+	set_ignore(::ptgn::impl::IgnoreParentRotation{}, !inherit_rotation);
+	set_ignore(::ptgn::impl::IgnoreParentScale{}, !inherit_scale);
+	set_ignore(::ptgn::impl::IgnoreParentDepth{}, !inherit_depth);
+}
+
 void EnsureDefaultShapeVisual(impl::ButtonPart part, ButtonShapeVisual& visual) {
 	if (visual.defined) {
 		return;
@@ -361,8 +393,14 @@ void EnsureDefaultTextVisual(ButtonTextVisual& visual) {
 	}
 
 	visual.defined	   = true;
+	visual.defaults	   = TextRunDefaults{};
 	visual.styled_text = StyledText{};
-	visual.styled_text.value().runs.emplace_back();
+	visual.styled_text.value().runs.emplace_back(
+		TextRun{
+			.font  = visual.defaults->font,
+			.style = visual.defaults->style,
+		}
+	);
 	visual.anchor	= Origin::Center;
 	visual.origin	= Origin::Center;
 	visual.auto_box = true;
@@ -393,7 +431,7 @@ bool IsButtonPart(Entity entity, impl::ButtonPart part) {
 		case impl::ButtonPart::Text:	   return entity.Has<ButtonTextVisuals>();
 		case impl::ButtonPart::Sprite:	   return entity.Has<ButtonSpriteVisuals>();
 
-		default:						   PTGN_ERROR("Unsupported button part: ", std::to_underlying(part));
+		default: PTGN_ERROR("Unsupported button part: ", std::to_underlying(part));
 	}
 }
 
@@ -402,7 +440,7 @@ ButtonShapeVisuals& GetShapeVisuals(Entity entity, impl::ButtonPart part) {
 		case impl::ButtonPart::Background: return entity.Get<ButtonBackgroundVisuals>();
 		case impl::ButtonPart::Border:	   return entity.Get<ButtonBorderVisuals>();
 
-		default:						   PTGN_ERROR("Unsupported shape button part: ", std::to_underlying(part));
+		default: PTGN_ERROR("Unsupported shape button part: ", std::to_underlying(part));
 	}
 }
 
@@ -458,15 +496,14 @@ void ApplyButtonTextConfig(ButtonTextVisuals& visuals, const ButtonTextConfig& c
 	auto apply_text_state = [&config, &visuals](ButtonVisualState state, Color color) {
 		auto& visual{ visuals.states[std::to_underlying(state)] };
 
-		TextRun run;
-
-		run.text		= config.content.value_or(std::string{});
-		run.font		= config.font;
-		run.style.color = color;
-		run.style.size	= config.font_size;
+		TextRunDefaults defaults{
+			.font = config.font,
+		};
+		defaults.style.color = color;
+		defaults.style.size	 = config.font_size;
 
 		if (config.outline_width.has_value()) {
-			run.style.sdf.outline = DistanceFieldLayerStyle{
+			defaults.style.sdf.outline = DistanceFieldLayerStyle{
 				.color	  = config.outline_color,
 				.width	  = config.outline_width.value(),
 				.softness = 1.0f,
@@ -474,7 +511,8 @@ void ApplyButtonTextConfig(ButtonTextVisuals& visuals, const ButtonTextConfig& c
 		}
 
 		visual.defined	   = true;
-		visual.styled_text = { run };
+		visual.defaults	   = defaults;
+		visual.styled_text = ParseRichText(config.content.value(), defaults).text;
 		visual.box		   = config.box;
 		visual.origin	   = config.origin;
 		visual.anchor	   = config.anchor;
@@ -636,24 +674,24 @@ void ApplyButtonTextVisual(ButtonText text, const ButtonTextVisual& visual) {
 void ApplyButtonSpriteVisual(
 	Button button, ButtonVisualState state, const ButtonSpriteVisual& visual
 ) {
-	auto apply_common = [](auto& sprite, const ButtonSpriteVisual& visual) {
-		if (visual.texture.has_value()) {
-			sprite.Texture(visual.texture.value());
+	auto apply_common = [](auto& sprite, const ButtonSpriteVisual& vis) {
+		if (vis.texture.has_value()) {
+			sprite.Texture(vis.texture.value());
 		}
-		if (visual.origin.has_value()) {
-			sprite.Origin(visual.origin.value());
+		if (vis.origin.has_value()) {
+			sprite.Origin(vis.origin.value());
 		}
-		if (visual.anchor.has_value()) {
-			sprite.Anchor(visual.anchor.value());
+		if (vis.anchor.has_value()) {
+			sprite.Anchor(vis.anchor.value());
 		}
-		if (visual.transform.has_value()) {
-			sprite.Transform(visual.transform.value());
+		if (vis.transform.has_value()) {
+			sprite.Transform(vis.transform.value());
 		}
-		if (visual.size.has_value()) {
-			sprite.Size(visual.size.value());
+		if (vis.size.has_value()) {
+			sprite.Size(vis.size.value());
 		}
-		if (visual.tint.has_value()) {
-			sprite.Tint(visual.tint.value());
+		if (vis.tint.has_value()) {
+			sprite.Tint(vis.tint.value());
 		}
 	};
 
@@ -706,8 +744,8 @@ void ApplyButtonDescVisuals(Button button, const ButtonDesc& desc) {
 }
 
 void ApplyButtonMoveConfig(Button button, const MoveButtonConfig& move) {
-	button.OnHoverStart([move](Button button) {
-		auto text{ FindButtonText(button) };
+	button.OnHoverStart([move](Button button_entity) {
+		auto text{ FindButtonText(button_entity) };
 
 		if (!text.has_value()) {
 			return;
@@ -718,8 +756,8 @@ void ApplyButtonMoveConfig(Button button, const MoveButtonConfig& move) {
 		TranslateTo<Text>(texts, move.offset, move.duration, move.ease);
 	});
 
-	button.OnHoverStop([move](Button button) {
-		auto text{ FindButtonText(button) };
+	button.OnHoverStop([move](Button button_entity) {
+		auto text{ FindButtonText(button_entity) };
 
 		if (!text.has_value()) {
 			return;
@@ -735,26 +773,26 @@ void ApplyButtonScaleConfig(Button button, const ScaleButtonConfig& scale) {
 	auto text{ FindButtonText(button) };
 	auto starting_scale{ text.has_value() ? GetScale(text.value()) : V2_float{ 1.0f, 1.0f } };
 
-	button.OnHoverStart([scale](Button button) {
-		auto text{ FindButtonText(button) };
+	button.OnHoverStart([scale](Button button_entity) {
+		auto text_entity{ FindButtonText(button_entity) };
 
-		if (!text.has_value()) {
+		if (!text_entity.has_value()) {
 			return;
 		}
 
-		std::vector<Text> texts{ text.value() };
+		std::vector<Text> texts{ text_entity.value() };
 
 		ScaleTo<Text>(texts, V2_float{ scale.scale }, scale.duration, scale.ease);
 	});
 
-	button.OnHoverStop([scale, starting_scale](Button button) {
-		auto text{ FindButtonText(button) };
+	button.OnHoverStop([scale, starting_scale](Button button_entity) {
+		auto text_entity{ FindButtonText(button_entity) };
 
-		if (!text.has_value()) {
+		if (!text_entity.has_value()) {
 			return;
 		}
 
-		std::vector<Text> texts{ text.value() };
+		std::vector<Text> texts{ text_entity.value() };
 		std::vector<V2_float> target_scales{ starting_scale };
 
 		ScaleTo<Text>(texts, target_scales, scale.duration, scale.ease);
@@ -824,11 +862,12 @@ ButtonDesc ToButtonDesc(const AnimatedButtonConfig& config) {
 
 namespace impl {
 
-ButtonAnimationCompleteScript::ButtonAnimationCompleteScript(Button button) : button{ button } {}
+ButtonAnimationCompleteScript::ButtonAnimationCompleteScript(Button button_entity) :
+	button{ button_entity } {}
 
 void ButtonAnimationCompleteScript::OnEvent(Event event) {
 	event.Dispatch<ptgn::event::AnimationComplete>([this]() {
-		if (!button || !entity.Has<ButtonSpriteVisuals>()) {
+		if (!button || !Target().Has<ButtonSpriteVisuals>()) {
 			return;
 		}
 
@@ -838,7 +877,7 @@ void ButtonAnimationCompleteScript::OnEvent(Event event) {
 			return;
 		}
 
-		const auto& visuals{ entity.Get<ButtonSpriteVisuals>() };
+		const auto& visuals{ Target().Get<ButtonSpriteVisuals>() };
 
 		ButtonVisualState animation_state;
 		auto animation{ ResolveProperty(
@@ -867,8 +906,7 @@ void ButtonSystem::Prepare(Scene& scene) {
 		}
 
 		// A sprite-backed entity can become a usable button by adding ButtonData alone.
-		if (!HasInteractiveShape(entity) &&
-			entity.HasAny<ptgn::Texture, ptgn::TextureKey>()) {
+		if (!HasInteractiveShape(entity) && entity.HasAny<ptgn::Texture, ptgn::TextureKey>()) {
 			if (auto texture_size{ GetTextureSize(entity) }) {
 				entity.TryAdd<ptgn::Rect>(*texture_size);
 			}
@@ -886,18 +924,12 @@ void ButtonSystem::OnEvent(Entity entity, Event event) {
 	event.Dispatch<MouseMoveOver>([entity]() { OnMouseMoveOver(entity); });
 	event.Dispatch<MouseMoveOut>([entity]() { OnMouseMoveOut(entity); });
 
-	event.Dispatch<MousePressedOver>([entity](Mouse mouse) {
-		OnMousePressedOver(entity, mouse);
-	});
-	event.Dispatch<MousePressedOut>([entity](Mouse mouse) {
-		OnMousePressedOut(entity, mouse);
-	});
+	event.Dispatch<MousePressedOver>([entity](Mouse mouse) { OnMousePressedOver(entity, mouse); });
+	event.Dispatch<MousePressedOut>([entity](Mouse mouse) { OnMousePressedOut(entity, mouse); });
 	event.Dispatch<MouseReleasedOver>([entity](Mouse mouse) {
 		OnMouseReleasedOver(entity, mouse);
 	});
-	event.Dispatch<MouseReleasedOut>([entity](Mouse mouse) {
-		OnMouseReleasedOut(entity, mouse);
-	});
+	event.Dispatch<MouseReleasedOut>([entity](Mouse mouse) { OnMouseReleasedOut(entity, mouse); });
 }
 
 void ButtonSystem::OnMouseMoveOver(Entity entity) {
@@ -907,7 +939,7 @@ void ButtonSystem::OnMouseMoveOver(Entity entity) {
 		return;
 	}
 
-	const auto state{ button.GetInternalState() };
+	auto state{ button.GetInternalState() };
 
 	using enum InternalButtonState;
 
@@ -932,7 +964,7 @@ void ButtonSystem::OnMouseMoveOut(Entity entity) {
 		return;
 	}
 
-	const auto state{ button.GetInternalState() };
+	auto state{ button.GetInternalState() };
 
 	using enum InternalButtonState;
 
@@ -979,7 +1011,7 @@ void ButtonSystem::OnMouseReleasedOver(Entity entity, Mouse mouse) {
 		return;
 	}
 
-	const auto state{ button.GetInternalState() };
+	auto state{ button.GetInternalState() };
 
 	using enum InternalButtonState;
 
@@ -998,7 +1030,7 @@ void ButtonSystem::OnMouseReleasedOut(Entity entity, Mouse mouse) {
 		return;
 	}
 
-	const auto state{ button.GetInternalState() };
+	auto state{ button.GetInternalState() };
 
 	using enum InternalButtonState;
 
@@ -1024,7 +1056,8 @@ Button::Button(Entity entity) : Entity{ entity } {}
 bool Button::IsEnabled(bool check_for_hover_enabled) const {
 	const auto& button{ Get<impl::ButtonData>() };
 
-	return check_for_hover_enabled ? button.hover_enabled : button.press_enabled;
+	return IsGroupStackInteractive(*this) &&
+		   (check_for_hover_enabled ? button.hover_enabled : button.press_enabled);
 }
 
 ButtonState Button::GetState() const {
@@ -1044,7 +1077,8 @@ ButtonState Button::GetState() const {
 }
 
 ButtonVisualState Button::GetVisualState(ButtonState state, bool check_for_visual_lock) const {
-	if (!IsEnabled(false)) {
+	if (!Get<impl::ButtonData>().press_enabled ||
+		(!IsGroupStackInteractive(*this) && UseGroupDisabledStyle(*this))) {
 		return DisabledVisualState(state);
 	}
 
@@ -1066,6 +1100,14 @@ ButtonVisualState Button::GetVisualState() const {
 
 impl::InternalButtonState Button::GetInternalState() const {
 	return Get<impl::ButtonData>().state;
+}
+
+Button& Button::PreviewVisualState(std::optional<ButtonVisualState> state) {
+	if (state.has_value()) {
+		return LockVisualState(state.value());
+	}
+
+	return UnlockVisualState();
 }
 
 std::variant<V2_float, float> Button::GetSize() const {
@@ -1090,6 +1132,7 @@ Button& Button::Disable(bool disable_hover, bool reset_state) {
 
 Button& Button::SetEnabled(bool enable_press, bool enable_hover, bool reset_state) {
 	auto& button{ Get<impl::ButtonData>() };
+	bool was_enabled{ button.press_enabled };
 
 	button.press_enabled = enable_press;
 	button.hover_enabled = enable_hover;
@@ -1101,6 +1144,13 @@ Button& Button::SetEnabled(bool enable_press, bool enable_hover, bool reset_stat
 
 	MarkDirty(impl::ButtonDirty::All);
 	RefreshDirty();
+	if (HasScene() && was_enabled != enable_press) {
+		if (enable_press) {
+			PushEvent<event::ButtonEnabled>(*this, *this);
+		} else {
+			PushEvent<event::ButtonDisabled>(*this, *this);
+		}
+	}
 
 	return *this;
 }
@@ -1173,6 +1223,14 @@ Button& Button::StartHover() {
 		return *this;
 	}
 
+	using enum impl::InternalButtonState;
+	auto state{ GetInternalState() };
+	if (state == IdleUp) {
+		SetState(Hover);
+	} else if (state == IdleDown) {
+		SetState(HoverPressed);
+	}
+
 	PlaySound(GetVisualState());
 	PlayAnimation(ButtonState::Hover);
 	PushEvent<event::ButtonHoverStart>(*this, *this);
@@ -1193,6 +1251,16 @@ Button& Button::ContinueHover() {
 Button& Button::StopHover() {
 	if (!IsEnabled(true)) {
 		return *this;
+	}
+
+	using enum impl::InternalButtonState;
+	auto state{ GetInternalState() };
+	if (state == Hover) {
+		SetState(IdleUp);
+	} else if (state == Pressed) {
+		SetState(HeldOutside);
+	} else if (state == HoverPressed) {
+		SetState(IdleDown);
 	}
 
 	PlaySound(GetVisualState());
@@ -1331,9 +1399,7 @@ Button& Button::Sound(std::optional<AudioKey> sound_key, ButtonVisualState state
 	return *this;
 }
 
-Button& Button::Sounds(
-	std::optional<AudioKey> hover, std::optional<AudioKey> press
-) {
+Button& Button::Sounds(std::optional<AudioKey> hover, std::optional<AudioKey> press) {
 	Sound(hover, ButtonVisualState::Hover);
 	Sound(press, ButtonVisualState::Press);
 	return *this;
@@ -1341,7 +1407,10 @@ Button& Button::Sounds(
 
 Button& Button::RemoveSound(ButtonVisualState state) {
 	if (auto sounds{ TryGet<ButtonSounds>() }) {
-		sounds->states[std::to_underlying(state)].reset();
+		auto index{ std::to_underlying(state) };
+
+		sounds->states[index].reset();
+		sounds->state_exclusive[index] = false;
 	}
 
 	return *this;
@@ -1349,13 +1418,20 @@ Button& Button::RemoveSound(ButtonVisualState state) {
 
 Button& Button::RemoveSounds() {
 	if (auto sounds{ TryGet<ButtonSounds>() }) {
-		sounds->states = {};
+		sounds->states			= {};
+		sounds->state_exclusive = {};
 	}
 
 	return *this;
 }
 
-Button& Button::ExclusiveAudio(bool enabled) {
+Button& Button::ExclusiveAudio(bool enabled, ButtonVisualState state) {
+	auto& sounds{ TryAdd<ButtonSounds>() };
+	sounds.state_exclusive[std::to_underlying(state)] = enabled;
+	return *this;
+}
+
+Button& Button::GlobalExclusiveAudio(bool enabled) {
 	TryAdd<ButtonSounds>().exclusive = enabled;
 	return *this;
 }
@@ -1378,6 +1454,10 @@ void Button::MarkDirty(impl::ButtonDirty dirty) {
 }
 
 void Button::RefreshDirty() {
+	if (!HasScene()) {
+		return;
+	}
+
 	auto& data{ Get<impl::ButtonData>() };
 	auto visual_state{ GetVisualState() };
 
@@ -1441,6 +1521,11 @@ Button& Button::UnlockVisualState() {
 }
 
 Entity Button::EnsurePart(impl::ButtonPart part) {
+	EntityCreationContext creation{ GetManager() };
+	if (HasScene()) {
+		creation = GetScene();
+	}
+
 	auto existing{ FindPart(part) };
 
 	if (existing) {
@@ -1451,19 +1536,19 @@ Entity Button::EnsurePart(impl::ButtonPart part) {
 
 	switch (part) {
 		case impl::ButtonPart::Background: {
-			entity = CreateRect(GetScene(), {}, {}, {});
+			entity = CreateRect(creation, {}, {}, {});
 			entity.Add<ButtonBackgroundVisuals>();
 			break;
 		}
 
 		case impl::ButtonPart::Border: {
-			entity = CreateRect(GetScene(), {}, {}, {});
+			entity = CreateRect(creation, {}, {}, {});
 			entity.Add<ButtonBorderVisuals>();
 			break;
 		}
 
 		case impl::ButtonPart::Text: {
-			ptgn::Text text{ CreateText(GetScene()) };
+			ptgn::Text text{ CreateText(creation) };
 			text.ClearAlignment();
 			text.Remove<Origin>();
 			entity = text;
@@ -1472,10 +1557,10 @@ Entity Button::EnsurePart(impl::ButtonPart part) {
 		}
 
 		case impl::ButtonPart::Sprite: {
-			entity = CreateSprite(GetScene());
+			entity = CreateSprite(creation);
 			entity.Add<ButtonSpriteVisuals>();
 
-			if (!HasScript<impl::ButtonAnimationCompleteScript>(entity)) {
+			if (HasScene() && !HasScript<impl::ButtonAnimationCompleteScript>(entity)) {
 				AddScript<impl::ButtonAnimationCompleteScript>(entity, *this);
 			}
 
@@ -1493,7 +1578,7 @@ Entity Button::EnsurePart(impl::ButtonPart part) {
 		case impl::ButtonPart::Text:	   name += "Text"; break;
 		case impl::ButtonPart::Sprite:	   name += "Sprite"; break;
 
-		default:						   PTGN_ERROR("Unsupported button part: ", std::to_underlying(part));
+		default: PTGN_ERROR("Unsupported button part: ", std::to_underlying(part));
 	}
 
 	entity.Add<Tag>(name);
@@ -1554,22 +1639,51 @@ ButtonSpriteVisual& Button::SpriteVisual(ButtonVisualState state) {
 
 StyledText Button::GetTextFallback(ButtonVisualState state) const {
 	auto entity{ FindPart(impl::ButtonPart::Text) };
+	auto target_defaults{ GetTextDefaultsFallback(state) };
 
-	if (!entity) {
-		StyledText styled_text;
-		styled_text.runs.emplace_back();
-		return styled_text;
-	}
+	if (entity) {
+		const auto& visuals{ entity.Get<ButtonTextVisuals>() };
+		ButtonVisualState source_state{ state };
 
-	const auto& visuals{ entity.Get<ButtonTextVisuals>() };
+		if (auto value{ ResolveProperty(
+				visuals.states, state, &ButtonTextVisual::styled_text, &source_state
+			) }) {
+			// StyledText is resolved data. If content is inherited from a state with a
+			// different Defaults baseline, reconstruct its differential source against the
+			// source state's baseline and compile it against the target state's baseline.
+			auto source_defaults{ GetTextDefaultsFallback(source_state) };
 
-	if (auto value{ ResolveProperty(visuals.states, state, &ButtonTextVisual::styled_text) }) {
-		return *value;
+			if (source_defaults == target_defaults) {
+				return *value;
+			}
+
+			std::string source{ SerializeStyledTextToRichText(*value, source_defaults) };
+
+			return ParseRichText(source, target_defaults).text;
+		}
 	}
 
 	StyledText styled_text;
-	styled_text.runs.emplace_back();
+	styled_text.runs.emplace_back(
+		TextRun{
+			.font  = target_defaults.font,
+			.style = target_defaults.style,
+		}
+	);
 	return styled_text;
+}
+
+TextRunDefaults Button::GetTextDefaultsFallback(ButtonVisualState state) const {
+	auto entity{ FindPart(impl::ButtonPart::Text) };
+
+	if (entity) {
+		const auto& visuals{ entity.Get<ButtonTextVisuals>() };
+		if (auto value{ ResolveProperty(visuals.states, state, &ButtonTextVisual::defaults) }) {
+			return *value;
+		}
+	}
+
+	return {};
 }
 
 void Button::ApplyShapeVisual(impl::ButtonPart part) const {
@@ -1587,8 +1701,8 @@ void Button::ApplyShapeVisual(impl::ButtonPart part) const {
 		return;
 	}
 
-	bool button_visible{ IsVisible(*this) };
-	SetVisible(entity, button_visible);
+	bool button_visible{ IsAuthoredVisible(*this) };
+	SetVisible(entity, button_visible && !entity.Has<impl::HiddenButtonPart>());
 
 	auto size{ HasAny<Rect, Circle>() ? GetSize() : std::variant<V2_float, float>{ V2_float{} } };
 	auto origin{ GetOrDefault<Origin>() };
@@ -1596,6 +1710,18 @@ void Button::ApplyShapeVisual(impl::ButtonPart part) const {
 
 	if (auto value{ ResolveProperty(visuals.states, visual_state, &ButtonShapeVisual::size) }) {
 		size = *value;
+	} else if (part == impl::ButtonPart::Border) {
+		// An unset border size follows the effective background size. If the background also
+		// leaves its size unset, `size` remains the button/interactable size initialized above.
+		if (Entity background{ FindPart(impl::ButtonPart::Background) };
+			background && background.Has<ButtonBackgroundVisuals>()) {
+			const auto& background_visuals{ background.Get<ButtonBackgroundVisuals>() };
+			if (auto background_size{ ResolveProperty(
+					background_visuals.states, visual_state, &ButtonShapeVisual::size
+				) }) {
+				size = *background_size;
+			}
+		}
 	}
 	if (auto value{ ResolveProperty(visuals.states, visual_state, &ButtonShapeVisual::origin) }) {
 		origin = *value;
@@ -1603,16 +1729,17 @@ void Button::ApplyShapeVisual(impl::ButtonPart part) const {
 	if (auto value{ ResolveProperty(visuals.states, visual_state, &ButtonShapeVisual::anchor) }) {
 		anchor = *value;
 	}
-	if (auto value{
-			ResolveProperty(visuals.states, visual_state, &ButtonShapeVisual::transform) }) {
-		Transform transform{ *value };
+	const auto* resolved_transform{
+		ResolveProperty(visuals.states, visual_state, &ButtonShapeVisual::transform)
+	};
+	Transform transform{ resolved_transform ? *resolved_transform : Transform{} };
 
-		auto button_rect{ GetButtonLocalRect(*this) };
-		transform.position += button_rect.GetOriginPoint(anchor);
+	auto button_rect{ GetButtonLocalRect(*this) };
+	transform.position += button_rect.GetOriginPoint(anchor);
 
-		entity.Add<Transform>(transform);
-		entity.Add<Origin>(origin);
-	}
+	// Apply the authored transform/depth and per-channel parent inheritance relative to the button.
+	ApplyVisualTransform(entity, *this, visuals.states, visual_state, transform);
+	entity.Add<Origin>(origin);
 
 	std::visit(
 		[entity]<typename T>(const T& value) mutable {
@@ -1636,7 +1763,28 @@ void Button::ApplyShapeVisual(impl::ButtonPart part) const {
 	}
 	if (auto value{
 			ResolveProperty(visuals.states, visual_state, &ButtonShapeVisual::fill_style) }) {
-		entity.Add<FillStyle>(*value);
+		FillStyle fill{ *value };
+		if (part == impl::ButtonPart::Border) {
+			if (auto line_width{ fill.GetLineWidth() }) {
+				float maximum_width{ std::visit(
+					[](const auto& resolved_size) -> float {
+						using T = std::remove_cvref_t<decltype(resolved_size)>;
+						if constexpr (std::same_as<T, V2_float>) {
+							return std::max(
+								1.0f,
+								std::min(std::abs(resolved_size.x), std::abs(resolved_size.y)) *
+									0.5f
+							);
+						} else {
+							return std::max(1.0f, std::abs(resolved_size));
+						}
+					},
+					size
+				) };
+				fill = FillStyle{ std::min(*line_width, maximum_width) };
+			}
+		}
+		entity.Add<FillStyle>(fill);
 	}
 }
 
@@ -1655,19 +1803,21 @@ void Button::ApplyTextVisual() const {
 		return;
 	}
 
-	auto styled_text{
-		ResolveProperty(visuals.states, visual_state, &ButtonTextVisual::styled_text)
+	StyledText styled_text{ GetTextFallback(visual_state) };
+	const TextRunDefaults* defaults{
+		ResolveProperty(visuals.states, visual_state, &ButtonTextVisual::defaults)
 	};
 
-	if (!styled_text || !styled_text->HasContent()) {
+	if (!styled_text.HasContent()) {
 		SetVisible(entity, false);
 		return;
 	}
 
-	bool button_visible{ IsVisible(*this) };
-	SetVisible(entity, button_visible);
+	bool button_visible{ IsAuthoredVisible(*this) };
+	SetVisible(entity, button_visible && !entity.Has<impl::HiddenButtonPart>());
 
-	TextBox box{ .style = { .alignment = { .horizontal = std::nullopt, .vertical = std::nullopt } } };
+	TextBox box{ .style = {
+					 .alignment = { .horizontal = std::nullopt, .vertical = std::nullopt } } };
 	auto anchor{ Origin::Center };
 	auto origin{ anchor };
 	auto auto_box{ true };
@@ -1688,11 +1838,13 @@ void Button::ApplyTextVisual() const {
 	auto button_rect{ GetButtonLocalRect(*this) };
 	auto anchor_position{ button_rect.GetOriginPoint(anchor) };
 
-	if (auto value{ ResolveProperty(visuals.states, visual_state, &ButtonTextVisual::transform) }) {
-		Transform transform{ *value };
-		transform.position += anchor_position;
-		entity.Add<Transform>(transform);
-	}
+	const auto* resolved_transform{
+		ResolveProperty(visuals.states, visual_state, &ButtonTextVisual::transform)
+	};
+	Transform transform{ resolved_transform ? *resolved_transform : Transform{} };
+	transform.position += anchor_position;
+
+	ApplyVisualTransform(entity, *this, visuals.states, visual_state, transform);
 	if (auto value{ ResolveProperty(visuals.states, visual_state, &ButtonTextVisual::auto_box) }) {
 		auto_box = *value;
 	}
@@ -1709,14 +1861,19 @@ void Button::ApplyTextVisual() const {
 	}
 
 	if (auto_box) {
-		box.rect =
-			GetButtonTextAutoBox(GetButtonTextContentRect(*this, padding), anchor_position, origin);
+		box.rect = GetButtonTextAutoBox(
+			GetButtonLocalRect(*this).Expanded(-padding.GetLeftTop(), -padding.GetRightBottom()),
+			anchor_position, origin
+		);
 	}
 
 	ptgn::Text text{ entity };
 
+	// The managed Text entity carries the resolved button state baseline as real data.
+	// A whole text override run therefore never becomes an inferred default.
+	entity.Get<impl::TextData>().defaults = defaults ? *defaults : TextRunDefaults{};
 	text.Clear();
-	text.Content(*styled_text);
+	text.Content(styled_text);
 	text.Box(box);
 
 	text.Add<Origin>(origin);
@@ -1737,8 +1894,8 @@ void Button::ApplySpriteVisual(ButtonVisualState state) const {
 
 	auto visible{ HasResolvedState(visuals.states, state) };
 
-	bool button_visible{ IsVisible(*this) };
-	SetVisible(entity, button_visible && visible);
+	bool button_visible{ IsAuthoredVisible(*this) };
+	SetVisible(entity, button_visible && visible && !entity.Has<impl::HiddenButtonPart>());
 
 	ptgn::Sprite sprite{ entity };
 
@@ -1769,11 +1926,13 @@ void Button::ApplySpriteVisual(ButtonVisualState state) const {
 	if (auto value{ ResolveProperty(visuals.states, state, &ButtonSpriteVisual::anchor) }) {
 		anchor = *value;
 	}
-	if (auto value{ ResolveProperty(visuals.states, state, &ButtonSpriteVisual::transform) }) {
-		Transform transform{ *value };
-		transform.position += GetButtonLocalRect(*this).GetOriginPoint(anchor);
-		sprite.Add<Transform>(transform);
-	}
+	const auto* resolved_transform{
+		ResolveProperty(visuals.states, state, &ButtonSpriteVisual::transform)
+	};
+	Transform transform{ resolved_transform ? *resolved_transform : Transform{} };
+	transform.position += GetButtonLocalRect(*this).GetOriginPoint(anchor);
+
+	ApplyVisualTransform(entity, *this, visuals.states, state, transform);
 	if (auto value{ ResolveProperty(visuals.states, state, &ButtonSpriteVisual::size) }) {
 		size = *value;
 	}
@@ -1797,9 +1956,19 @@ void Button::ApplySpriteVisual(ButtonVisualState state) const {
 		}
 	}
 
-	if (texture.has_value()) {
+	bool has_texture{ texture.has_value() && !texture->value.empty() };
+
+	if (has_texture) {
 		sprite.Add<TextureKey>(texture.value());
+	} else {
+		sprite.Remove<TextureKey>();
 	}
+
+	// A defined sprite appearance with no texture is a valid editor state. Keep the managed
+	// sprite entity, but do not submit it for rendering until a texture has been configured.
+	SetVisible(
+		entity, button_visible && visible && has_texture && !entity.Has<impl::HiddenButtonPart>()
+	);
 
 	sprite.Add<Tint>(tint);
 	sprite.Add<Origin>(origin);
@@ -1810,7 +1979,7 @@ void Button::ApplySpriteVisual(ButtonVisualState state) const {
 		sprite.Remove<impl::TextureSize>();
 	}
 
-	bool has_animation{ animation && animation_state.has_value() };
+	bool has_animation{ animation && animation_state.has_value() && has_texture };
 
 	if (!has_animation) {
 		if (sprite.Has<impl::AnimationData>()) {
@@ -1839,31 +2008,33 @@ void Button::PlaySound(ButtonVisualState state) {
 	}
 
 	const auto& sounds{ Get<ButtonSounds>() };
-
-	auto& audio{ GetScene().ctx().audio };
-
-	auto get_sound = [&sounds](auto state) -> std::optional<AudioKey> {
-		for (auto fallback : GetVisualStateFallbacks(state)) {
-			const auto& sound{ sounds.states[std::to_underlying(fallback)] };
-			if (sound.has_value()) {
-				return sound.value();
-			}
-		}
-		return std::nullopt;
-	};
-
-	auto active_sound{ get_sound(state) };
+	auto index{ static_cast<std::size_t>(std::to_underlying(state)) };
+	const auto& active_sound{ sounds.states[index] };
 
 	if (!active_sound.has_value()) {
 		return;
 	}
 
+	auto& audio{ GetScene().ctx().audio };
+
+	// Global exclusivity only stops sounds belonging to other states.
 	if (sounds.exclusive) {
-		for (const auto& sound : sounds.states) {
-			if (sound.has_value()) {
-				audio.Stop(sound.value());
+		for (std::size_t i{ 0 }; i < sounds.states.size(); ++i) {
+			if (i == index) {
+				continue;
+			}
+
+			const auto& other_sound{ sounds.states[i] };
+
+			if (other_sound.has_value()) {
+				audio.Stop(other_sound.value());
 			}
 		}
+	}
+
+	// State exclusivity stops this state's own currently playing sound.
+	if (sounds.state_exclusive[index]) {
+		audio.Stop(active_sound.value());
 	}
 
 	audio.Play(active_sound.value());
@@ -2180,11 +2351,9 @@ ButtonText& ButtonText::Content(std::string_view content) {
 	if (visual.styled_text.has_value() && !visual.styled_text.value().runs.empty()) {
 		run = visual.styled_text.value().runs.front();
 	} else {
-		auto fallback{ button_.GetTextFallback(state_) };
-
-		if (!fallback.runs.empty()) {
-			run = fallback.runs.front();
-		}
+		auto defaults{ button_.GetTextDefaultsFallback(state_) };
+		run.font  = defaults.font;
+		run.style = defaults.style;
 	}
 
 	run.text = std::string{ content };
@@ -2213,6 +2382,55 @@ ButtonText& ButtonText::Content(StyledText styled_text) {
 	return *this;
 }
 
+ButtonText& ButtonText::SetRichText(std::string_view source) {
+	auto& visual{ button_.TextVisual(state_) };
+	auto defaults{ button_.GetTextDefaultsFallback(state_) };
+
+	visual.defined	   = true;
+	visual.styled_text = ParseRichText(source, defaults).text;
+
+	MarkTextDirty();
+	return *this;
+}
+
+ButtonText& ButtonText::Defaults(TextRunDefaults defaults) {
+	// Reconstruct source against the old baseline before changing it. This preserves which
+	// values were overrides instead of promoting a resolved whole text run into Defaults.
+	auto old_defaults{ button_.GetTextDefaultsFallback(state_) };
+	auto& visual{ button_.TextVisual(state_) };
+	std::optional<std::string> source;
+	if (visual.styled_text.has_value()) {
+		source = SerializeStyledTextToRichText(*visual.styled_text, old_defaults);
+	}
+
+	visual.defined	= true;
+	visual.defaults = std::move(defaults);
+	if (source.has_value()) {
+		visual.styled_text = ParseRichText(*source, *visual.defaults).text;
+	}
+
+	MarkTextDirty();
+	return *this;
+}
+
+ButtonText& ButtonText::ClearDefaults() {
+	auto old_defaults{ button_.GetTextDefaultsFallback(state_) };
+	auto& visual{ button_.TextVisual(state_) };
+	std::optional<std::string> source;
+	if (visual.styled_text.has_value()) {
+		source = SerializeStyledTextToRichText(*visual.styled_text, old_defaults);
+	}
+
+	visual.defaults.reset();
+	auto inherited_defaults{ button_.GetTextDefaultsFallback(state_) };
+	if (source.has_value()) {
+		visual.styled_text = ParseRichText(*source, inherited_defaults).text;
+	}
+
+	MarkTextDirty();
+	return *this;
+}
+
 ButtonText& ButtonText::ClearContent() {
 	auto& visual{ button_.TextVisual(state_) };
 
@@ -2221,7 +2439,6 @@ ButtonText& ButtonText::ClearContent() {
 	}
 
 	visual.styled_text.reset();
-
 	MarkTextDirty();
 
 	return *this;
@@ -2774,8 +2991,7 @@ ButtonSprite& ButtonSprite::Texture(TextureKey texture_key) {
 }
 
 ButtonSprite& ButtonSprite::Textures(
-	std::optional<TextureKey> idle, std::optional<TextureKey> hover,
-	std::optional<TextureKey> press
+	std::optional<TextureKey> idle, std::optional<TextureKey> hover, std::optional<TextureKey> press
 ) {
 	if (idle.has_value()) {
 		Texture(idle.value(), ButtonVisualState::Idle);
@@ -2922,8 +3138,7 @@ ButtonAnimation& ButtonAnimation::Texture(TextureKey texture_key) {
 }
 
 ButtonAnimation& ButtonAnimation::Textures(
-	std::optional<TextureKey> idle, std::optional<TextureKey> hover,
-	std::optional<TextureKey> press
+	std::optional<TextureKey> idle, std::optional<TextureKey> hover, std::optional<TextureKey> press
 ) {
 	ButtonSprite::Textures(idle, hover, press);
 	return *this;
@@ -3050,23 +3265,27 @@ ButtonAnimation& ButtonAnimation::Clear() {
 	return *this;
 }
 
-Button CreateButton(Scene& scene, Transform transform, Origin origin) {
+Button CreateButton(EntityCreationContext context, Transform transform, Origin origin) {
 	ButtonDesc desc;
 
 	desc.origin = origin;
 
-	return CreateButton(scene, transform, desc);
+	return CreateButton(context, transform, desc);
 }
 
-Button CreateButton(Scene& scene, Transform transform, V2_float size, Origin origin) {
-	return CreateButton(scene, transform, ButtonDesc{ .size = size, .origin = origin });
+Button CreateButton(
+	EntityCreationContext context, Transform transform, V2_float size, Origin origin
+) {
+	return CreateButton(context, transform, ButtonDesc{ .size = size, .origin = origin });
 }
 
-Button CreateButton(Scene& scene, Transform transform, float radius, Origin origin) {
-	return CreateButton(scene, transform, ButtonDesc{ .size = radius, .origin = origin });
+Button CreateButton(
+	EntityCreationContext context, Transform transform, float radius, Origin origin
+) {
+	return CreateButton(context, transform, ButtonDesc{ .size = radius, .origin = origin });
 }
 
-Button CreateButton(Scene& scene, Transform transform, const ButtonDesc& desc) {
+Button CreateButton(EntityCreationContext context, Transform transform, const ButtonDesc& desc) {
 	auto resolved_desc{ desc };
 
 	if (resolved_desc.move.has_value()) {
@@ -3077,7 +3296,7 @@ Button CreateButton(Scene& scene, Transform transform, const ButtonDesc& desc) {
 		}
 	}
 
-	Button button{ scene.CreateEntity() };
+	Button button{ context.CreateEntity() };
 
 	button.Add<Tag>("Button");
 	button.Add<Visible>(true);
@@ -3086,7 +3305,6 @@ Button CreateButton(Scene& scene, Transform transform, const ButtonDesc& desc) {
 	button.Add<Origin>(resolved_desc.origin);
 
 	SetInteractive(button);
-
 
 	if (resolved_desc.size.has_value()) {
 		std::visit(
@@ -3101,21 +3319,27 @@ Button CreateButton(Scene& scene, Transform transform, const ButtonDesc& desc) {
 	ApplyButtonDescVisuals(button, resolved_desc);
 	ApplyButtonEffects(button, resolved_desc);
 
-	button.RefreshDirty();
+	if (context.HasScene()) {
+		button.RefreshDirty();
+	}
 
 	return button;
 }
 
-Button CreateButton(Scene& scene, Transform transform, V2_float size, const ButtonConfig& config) {
+Button CreateButton(
+	EntityCreationContext context, Transform transform, V2_float size, const ButtonConfig& config
+) {
 	auto desc{ ToButtonDesc(config) };
 
 	desc.size = std::variant<V2_float, float>{ size };
 
-	return CreateButton(scene, transform, desc);
+	return CreateButton(context, transform, desc);
 }
 
-Button CreateAnimatedButton(Scene& scene, Transform transform, const AnimatedButtonConfig& config) {
-	return CreateButton(scene, transform, ToButtonDesc(config));
+Button CreateAnimatedButton(
+	EntityCreationContext context, Transform transform, const AnimatedButtonConfig& config
+) {
+	return CreateButton(context, transform, ToButtonDesc(config));
 }
 
 } // namespace ptgn

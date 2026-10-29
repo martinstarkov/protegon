@@ -19,6 +19,7 @@
 #include "renderer/text/text_layout.h"
 #include "renderer/text/text_style.h"
 #include "runtime/animation/animation.h"
+#include "runtime/graphics/text/text.h"
 #include "serialization/serialize.h"
 
 namespace ptgn {
@@ -46,11 +47,11 @@ struct Padding {
 		Padding{ amount.x, amount.y, amount.x, amount.y } {}
 
 	template <Arithmetic TL, Arithmetic TT, Arithmetic TR, Arithmetic TB>
-	constexpr Padding(TL left, TT top, TR right, TB bottom) :
-		left{ static_cast<float>(left) },
-		top{ static_cast<float>(top) },
-		right{ static_cast<float>(right) },
-		bottom{ static_cast<float>(bottom) } {}
+	constexpr Padding(TL l, TT t, TR r, TB b) :
+		left{ static_cast<float>(l) },
+		top{ static_cast<float>(t) },
+		right{ static_cast<float>(r) },
+		bottom{ static_cast<float>(b) } {}
 
 	constexpr Padding(V2_float left_top, V2_float right_bottom) :
 		Padding{ left_top.x, left_top.y, right_bottom.x, right_bottom.y } {}
@@ -121,27 +122,39 @@ struct ButtonShapeVisual {
 	bool defined{ false };
 
 	/// @brief Optional fixed size for the shape. If not set, the shape uses the button size.
-	std::optional<std::variant<V2_float, float>> size;
+	std::optional<std::variant<V2_float, float>> size{};
 
 	/// @brief Point of the child shape that lies at its transform.
-	std::optional<Origin> origin;
+	std::optional<Origin> origin{};
 
 	/// @brief Point of the button shape at which the child transform is placed.
-	std::optional<Origin> anchor;
+	std::optional<Origin> anchor{};
 
 	/// @brief Transform relative to the selected button anchor.
-	std::optional<Transform> transform;
+	std::optional<Transform> transform{};
 
-	std::optional<Color> color;
+	/// @brief Depth relative to the owning control when parent depth is inherited.
+	std::optional<float> depth{};
+
+	/// @brief Per-channel parent inheritance for the authored part transform.
+	std::optional<bool> inherit_position{};
+	std::optional<bool> inherit_rotation{};
+	std::optional<bool> inherit_scale{};
+	std::optional<bool> inherit_depth{};
+
+	std::optional<Color> color{};
 
 	/// @brief Only applicable for borders.
-	std::optional<FillStyle> fill_style;
+	std::optional<FillStyle> fill_style{};
 
-	PTGN_REFLECT(ButtonShapeVisual, defined, size, origin, anchor, transform, color, fill_style)
+	PTGN_REFLECT(
+		ButtonShapeVisual, defined, size, origin, anchor, transform, depth, inherit_position,
+		inherit_rotation, inherit_scale, inherit_depth, color, fill_style
+	)
 };
 
 struct ButtonShapeVisuals {
-	std::array<ButtonShapeVisual, kButtonVisualStateCount> states;
+	std::array<ButtonShapeVisual, kButtonVisualStateCount> states{};
 
 	PTGN_REFLECT_VALUE(ButtonShapeVisuals, states)
 };
@@ -157,33 +170,48 @@ struct ButtonBorderVisuals : ButtonShapeVisuals {
 struct ButtonTextVisual {
 	bool defined{ false };
 
-	std::optional<StyledText> styled_text;
+	/// @brief Styled text stored for this visual state. Rich text markup is compiled into this.
+	std::optional<StyledText> styled_text{};
+
+	/// @brief Bedrock rich text values for this visual state. If unset, the value inherits
+	/// through the normal button visual state fallback chain.
+	std::optional<TextRunDefaults> defaults{};
 
 	/// @brief Optional text box. If auto_box is true, the rect may be overwritten from button size.
-	std::optional<TextBox> box;
+	std::optional<TextBox> box{};
 
 	/// @brief Point of the text box that lies at its transform.
-	std::optional<Origin> origin;
+	std::optional<Origin> origin{};
 
 	/// @brief Point of the button shape at which the text transform is placed.
-	std::optional<Origin> anchor;
+	std::optional<Origin> anchor{};
 
 	/// @brief Transform relative to the selected button anchor.
-	std::optional<Transform> transform;
+	std::optional<Transform> transform{};
+
+	/// @brief Depth relative to the owning control when parent depth is inherited.
+	std::optional<float> depth{};
+
+	/// @brief Per-channel parent inheritance for the authored part transform.
+	std::optional<bool> inherit_position{};
+	std::optional<bool> inherit_rotation{};
+	std::optional<bool> inherit_scale{};
+	std::optional<bool> inherit_depth{};
 
 	/// @brief If true, the button may update the text box from the button size.
-	std::optional<bool> auto_box;
+	std::optional<bool> auto_box{};
 
 	/// @brief Padding used when auto_box resolves to true.
-	std::optional<Padding> padding;
+	std::optional<Padding> padding{};
 
 	PTGN_REFLECT(
-		ButtonTextVisual, defined, styled_text, box, origin, anchor, transform, auto_box, padding
+		ButtonTextVisual, defined, styled_text, defaults, box, origin, anchor, transform, depth,
+		inherit_position, inherit_rotation, inherit_scale, inherit_depth, auto_box, padding
 	)
 };
 
 struct ButtonTextVisuals {
-	std::array<ButtonTextVisual, kButtonVisualStateCount> states;
+	std::array<ButtonTextVisual, kButtonVisualStateCount> states{};
 
 	PTGN_REFLECT_VALUE(ButtonTextVisuals, states)
 };
@@ -192,45 +220,57 @@ struct ButtonSpriteVisual {
 	bool defined{ false };
 
 	/// @brief Texture key to use for the sprite. Must be loaded in the AssetManager.
-	std::optional<TextureKey> texture;
+	std::optional<TextureKey> texture{};
 
 	/// @brief Point of the sprite that lies at its transform.
-	std::optional<Origin> origin;
+	std::optional<Origin> origin{};
 
 	/// @brief Point of the button shape at which the sprite transform is placed.
-	std::optional<Origin> anchor;
+	std::optional<Origin> anchor{};
 
 	/// @brief Transform relative to the selected button anchor.
-	std::optional<Transform> transform;
+	std::optional<Transform> transform{};
+
+	/// @brief Depth relative to the owning control when parent depth is inherited.
+	std::optional<float> depth{};
+
+	/// @brief Per-channel parent inheritance for the authored part transform.
+	std::optional<bool> inherit_position{};
+	std::optional<bool> inherit_rotation{};
+	std::optional<bool> inherit_scale{};
+	std::optional<bool> inherit_depth{};
 
 	/// @brief Optional fixed display size for the sprite. If not set, the sprite uses texture size.
-	std::optional<V2_float> size;
+	std::optional<V2_float> size{};
 
-	std::optional<Color> tint;
+	std::optional<Color> tint{};
 
-	std::optional<AnimationConfig> animation;
-	std::optional<ButtonAnimationOptions> animation_options;
+	std::optional<AnimationConfig> animation{};
+	std::optional<ButtonAnimationOptions> animation_options{};
 
 	PTGN_REFLECT(
-		ButtonSpriteVisual, defined, texture, origin, anchor, transform, size, tint, animation,
-		animation_options
+		ButtonSpriteVisual, defined, texture, origin, anchor, transform, depth, inherit_position,
+		inherit_rotation, inherit_scale, inherit_depth, size, tint, animation, animation_options
 	)
 };
 
 struct ButtonSpriteVisuals {
-	std::array<ButtonSpriteVisual, kButtonVisualStateCount> states;
+	std::array<ButtonSpriteVisual, kButtonVisualStateCount> states{};
 
 	PTGN_REFLECT_VALUE(ButtonSpriteVisuals, states)
 };
 
 struct ButtonSounds {
 	/// @brief Sound keys per visual state. Each sound must be loaded in the AssetManager.
-	std::array<std::optional<AudioKey>, kButtonVisualStateCount> states;
+	std::array<std::optional<AudioKey>, kButtonVisualStateCount> states{};
 
-	/// @brief If true when one sound plays the others are stopped.
+	/// @brief Stop this state's sound before replaying it.
+	std::array<bool, kButtonVisualStateCount> state_exclusive{};
+
+	/// @brief Stop sounds from other button states before playing a state sound.
 	bool exclusive{ false };
 
-	PTGN_REFLECT(ButtonSounds, states, exclusive)
+	PTGN_REFLECT(ButtonSounds, states, state_exclusive, exclusive)
 };
 
 struct MoveButtonConfig {
@@ -251,7 +291,7 @@ struct ScaleButtonConfig {
 
 struct ButtonDesc {
 	/// @brief Interactive shape size.
-	std::optional<std::variant<V2_float, float>> size;
+	std::optional<std::variant<V2_float, float>> size{};
 
 	/// @brief Origin of the button interactive shape.
 	Origin origin{ Origin::Center };
@@ -259,14 +299,14 @@ struct ButtonDesc {
 	bool ui_layer{ true };
 	bool enabled{ true };
 
-	ButtonBackgroundVisuals background;
-	ButtonBorderVisuals border;
-	ButtonTextVisuals text;
-	ButtonSpriteVisuals sprite;
-	ButtonSounds sounds;
+	ButtonBackgroundVisuals background{};
+	ButtonBorderVisuals border{};
+	ButtonTextVisuals text{};
+	ButtonSpriteVisuals sprite{};
+	ButtonSounds sounds{};
 
-	std::optional<MoveButtonConfig> move;
-	std::optional<ScaleButtonConfig> scale;
+	std::optional<MoveButtonConfig> move{};
+	std::optional<ScaleButtonConfig> scale{};
 
 	PTGN_REFLECT(
 		ButtonDesc, size, origin, ui_layer, enabled, background, border, text, sprite, sounds, move,
@@ -276,22 +316,22 @@ struct ButtonDesc {
 
 struct ButtonShapeConfig {
 	/// @brief Optional fixed size for the shape. If not set, the shape uses the button size.
-	std::optional<std::variant<V2_float, float>> size;
+	std::optional<std::variant<V2_float, float>> size{};
 
 	/// @brief Point of the child shape that lies at its transform.
-	std::optional<Origin> origin;
+	std::optional<Origin> origin{};
 
 	/// @brief Point of the button shape at which the child transform is placed.
-	std::optional<Origin> anchor;
+	std::optional<Origin> anchor{};
 
 	/// @brief Transform relative to the selected button anchor.
-	std::optional<Transform> transform;
+	std::optional<Transform> transform{};
 
-	std::optional<Color> color;
-	std::optional<Color> color_hover;
-	std::optional<Color> color_press;
+	std::optional<Color> color{};
+	std::optional<Color> color_hover{};
+	std::optional<Color> color_press{};
 
-	std::optional<FillStyle> fill_style;
+	std::optional<FillStyle> fill_style{};
 
 	PTGN_REFLECT(
 		ButtonShapeConfig, size, origin, anchor, transform, color, color_hover, color_press,
@@ -300,36 +340,36 @@ struct ButtonShapeConfig {
 };
 
 struct ButtonTextConfig {
-	std::optional<std::string> content;
+	std::optional<std::string> content{};
 
 	std::optional<Color> color{ color::White };
-	std::optional<Color> color_hover;
-	std::optional<Color> color_press;
+	std::optional<Color> color_hover{};
+	std::optional<Color> color_press{};
 
 	float font_size{ kDefaultFontSize };
 
 	/// @brief Font key to use for the button text. Must be loaded in the AssetManager.
 	FontKey font{ kDefaultFont };
 
-	TextBox box;
+	TextBox box{};
 
 	/// @brief Point of the text box that lies at its transform.
-	std::optional<Origin> origin;
+	std::optional<Origin> origin{};
 
 	/// @brief Point of the button shape at which the text transform is placed.
-	std::optional<Origin> anchor;
+	std::optional<Origin> anchor{};
 
 	/// @brief Transform relative to the selected button anchor.
-	std::optional<Transform> transform;
+	std::optional<Transform> transform{};
 
-	std::optional<float> outline_width;
+	std::optional<float> outline_width{};
 	Color outline_color{ color::Black };
 
 	/// @brief If true, the button may update the text box from the button size.
 	bool auto_box{ true };
 
 	/// @brief Padding used when auto_box is true.
-	Padding padding;
+	Padding padding{};
 
 	PTGN_REFLECT(
 		ButtonTextConfig, content, color, color_hover, color_press, font_size, font, box, origin,
@@ -338,25 +378,25 @@ struct ButtonTextConfig {
 };
 
 struct ButtonSpriteConfig {
-	std::optional<TextureKey> texture;
-	std::optional<TextureKey> texture_hover;
-	std::optional<TextureKey> texture_press;
+	std::optional<TextureKey> texture{};
+	std::optional<TextureKey> texture_hover{};
+	std::optional<TextureKey> texture_press{};
 
-	std::optional<Color> tint;
-	std::optional<Color> tint_hover;
-	std::optional<Color> tint_press;
+	std::optional<Color> tint{};
+	std::optional<Color> tint_hover{};
+	std::optional<Color> tint_press{};
 
 	/// @brief Point of the sprite that lies at its transform.
-	std::optional<Origin> origin;
+	std::optional<Origin> origin{};
 
 	/// @brief Point of the button shape at which the sprite transform is placed.
-	std::optional<Origin> anchor;
+	std::optional<Origin> anchor{};
 
 	/// @brief Transform relative to the selected button anchor.
-	std::optional<Transform> transform;
+	std::optional<Transform> transform{};
 
 	/// @brief Optional fixed display size for the sprite. If not set, the sprite uses texture size.
-	std::optional<V2_float> size;
+	std::optional<V2_float> size{};
 
 	PTGN_REFLECT(
 		ButtonSpriteConfig, texture, texture_hover, texture_press, tint, tint_hover, tint_press,
@@ -365,17 +405,17 @@ struct ButtonSpriteConfig {
 };
 
 struct ButtonSoundConfig {
-	std::optional<std::string> idle;
-	std::optional<std::string> hover;
-	std::optional<std::string> press;
+	std::optional<std::string> idle{};
+	std::optional<std::string> hover{};
+	std::optional<std::string> press{};
 
-	std::optional<std::string> disabled;
-	std::optional<std::string> disabled_hover;
-	std::optional<std::string> disabled_press;
+	std::optional<std::string> disabled{};
+	std::optional<std::string> disabled_hover{};
+	std::optional<std::string> disabled_press{};
 
-	std::optional<std::string> toggled;
-	std::optional<std::string> toggled_hover;
-	std::optional<std::string> toggled_press;
+	std::optional<std::string> toggled{};
+	std::optional<std::string> toggled_hover{};
+	std::optional<std::string> toggled_press{};
 
 	PTGN_REFLECT(
 		ButtonSoundConfig, idle, hover, press, disabled, disabled_hover, disabled_press, toggled,
@@ -387,7 +427,7 @@ struct ButtonSoundConfig {
 /// ButtonDesc.
 struct ButtonConfig {
 	/// @brief Interactive shape size.
-	std::optional<std::variant<V2_float, float>> size;
+	std::optional<std::variant<V2_float, float>> size{};
 
 	/// @brief Origin of the button interactive shape.
 	Origin origin{ Origin::Center };
@@ -395,14 +435,14 @@ struct ButtonConfig {
 	bool ui_layer{ true };
 	bool enabled{ true };
 
-	ButtonShapeConfig background;
-	ButtonShapeConfig border;
-	ButtonTextConfig text;
-	ButtonSpriteConfig sprite;
-	ButtonSoundConfig sounds;
+	ButtonShapeConfig background{};
+	ButtonShapeConfig border{};
+	ButtonTextConfig text{};
+	ButtonSpriteConfig sprite{};
+	ButtonSoundConfig sounds{};
 
-	std::optional<MoveButtonConfig> move;
-	std::optional<ScaleButtonConfig> scale;
+	std::optional<MoveButtonConfig> move{};
+	std::optional<ScaleButtonConfig> scale{};
 
 	PTGN_REFLECT(
 		ButtonConfig, size, origin, ui_layer, enabled, background, border, text, sprite, sounds,
@@ -415,7 +455,7 @@ struct ButtonConfig {
 struct AnimatedButtonConfig {
 	/// @brief If set, the button uses this size. Otherwise it may use the idle texture or animation
 	/// size.
-	std::optional<V2_float> size;
+	std::optional<V2_float> size{};
 
 	/// @brief Origin of the button interactive shape.
 	Origin origin{ Origin::Center };
@@ -423,21 +463,21 @@ struct AnimatedButtonConfig {
 	bool ui_layer{ true };
 	bool enabled{ true };
 
-	ButtonSpriteConfig sprite;
+	ButtonSpriteConfig sprite{};
 
-	std::optional<AnimationConfig> animation;
-	std::optional<AnimationConfig> animation_hover;
-	std::optional<AnimationConfig> animation_press;
+	std::optional<AnimationConfig> animation{};
+	std::optional<AnimationConfig> animation_hover{};
+	std::optional<AnimationConfig> animation_press{};
 
-	ButtonAnimationOptions animation_options;
-	ButtonAnimationOptions animation_options_hover;
+	ButtonAnimationOptions animation_options{};
+	ButtonAnimationOptions animation_options_hover{};
 	ButtonAnimationOptions animation_options_press{
 		.playback	  = ButtonAnimationPlayback::PlayOnce,
 		.static_frame = 0,
 		.block_press  = false,
 	};
 
-	ButtonSoundConfig sounds;
+	ButtonSoundConfig sounds{};
 
 	PTGN_REFLECT(
 		AnimatedButtonConfig, size, origin, ui_layer, enabled, sprite, animation, animation_hover,

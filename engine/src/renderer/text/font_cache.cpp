@@ -142,7 +142,7 @@ public:
 	}
 
 	void WriteString(std::string_view string) {
-		auto size{ static_cast<std::uint64_t>(string.size()) }; // NOSONAR
+		std::uint64_t size{ string.size() };
 		Write(size);
 
 		bytes.append_range(std::as_bytes(std::span{ string.data(), string.size() }));

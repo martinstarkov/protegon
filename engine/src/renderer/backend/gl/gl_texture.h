@@ -50,7 +50,7 @@ enum class TextureParameter : std::uint32_t {
 };
 
 struct TextureCache {
-	TextureDesc desc;
+	TextureDesc desc{};
 };
 
 /// @return Number of logical components represented by the format.

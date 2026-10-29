@@ -1,6 +1,7 @@
 #pragma once
 
 #include <vector>
+#include <unordered_map>
 
 #include "core/graphics/color.h"
 #include "core/math/raycast.h"
@@ -18,7 +19,8 @@ class Scene;
 class SceneContext;
 
 [[nodiscard]] bool CanCollide(
-	Entity entity1, const Collider& collider1, Entity entity2, const Collider& collider2
+	Scene& scene, Entity entity1, const Collider& collider1, Entity entity2,
+	const Collider& collider2
 );
 
 class CollisionHandler {
@@ -34,12 +36,12 @@ private:
 	CollisionHandler& operator=(const CollisionHandler&)	 = delete;
 	CollisionHandler(const CollisionHandler&)				 = delete;
 
-	void Overlap(Entity entity) const;
+	void Overlap(Scene& scene, Entity entity) const;
 
-	void Intersect(Entity entity, secondsf dt);
+	void Intersect(Scene& scene, Entity entity, secondsf dt);
 
 	static std::vector<Entity> GetSweepCandidates(
-		Entity entity1, V2_float velocity, const impl::KDTree& tree
+		Scene& scene, Entity entity1, V2_float velocity, const impl::KDTree& tree
 	);
 
 	/// @param offset Offset from the transform position of the entity. This enables doing a
@@ -47,7 +49,7 @@ private:
 	/// @param vel Velocity of the entity. As above, this enables a second sweep in the direction
 	/// of the remaining velocity.
 	std::vector<impl::SweepCollision> GetSortedCollisions(
-		Entity entity1, V2_float offset, V2_float velocity1, secondsf dt
+		Scene& scene, Entity entity1, V2_float offset, V2_float velocity1, secondsf dt
 	) const;
 
 	/// @brief Adds all collisions which occurred at the earliest time to box.collisions. This
@@ -87,6 +89,8 @@ private:
 
 	impl::KDTree static_tree_{ 100 };
 	impl::KDTree dynamic_tree_{ 100 };
+    /// Used when incremental static broadphase is enabled in collision_handler.cpp.
+    std::unordered_map<UUID, impl::KDObject> cached_static_bounds_{};
 
 	constexpr static auto slop_{ 0.0005f };
 	constexpr static std::size_t max_sweep_iterations_{ 4 };

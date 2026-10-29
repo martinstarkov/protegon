@@ -34,7 +34,7 @@ std::vector<Axis> GetPolygonAxes(
 ) {
 	std::vector<Axis> axes;
 
-	const auto parallel_axis_exists = [&axes](const Axis& o_axis) {
+	auto parallel_axis_exists = [&axes](const Axis& o_axis) {
 		return std::ranges::any_of(axes, [&](const auto& axis) {
 			return NearlyEqual(o_axis.direction.Cross(axis.direction), 0.0f);
 		});
@@ -98,7 +98,7 @@ bool PolygonsHaveOverlapAxis(Transform t1, const Polygon& A, Transform t2, const
 	auto world_pointsA{ A.GetWorldVertices(t1) };
 	auto world_pointsB{ B.GetWorldVertices(t2) };
 
-	const auto axes{ impl::GetPolygonAxes(world_pointsA, false) };
+	auto axes{ impl::GetPolygonAxes(world_pointsA, false) };
 	for (const auto& axis : axes) {
 		auto [min1, max1] = impl::GetPolygonProjectionMinMax(world_pointsA, axis);
 		auto [min2, max2] = impl::GetPolygonProjectionMinMax(world_pointsB, axis);
@@ -116,7 +116,7 @@ bool GetPolygonMinimumOverlap(
 	Polygon world_polygonA{ A.GetWorldVertices(t1) };
 	Polygon world_polygonB{ B.GetWorldVertices(t2) };
 
-	const auto axes{ impl::GetPolygonAxes(world_polygonA.vertices, true) };
+	auto axes{ impl::GetPolygonAxes(world_polygonA.vertices, true) };
 	for (const auto& axis2 : axes) {
 		auto [min1, max1] = impl::GetPolygonProjectionMinMax(world_polygonA.vertices, axis2);
 		auto [min2, max2] = impl::GetPolygonProjectionMinMax(world_polygonB.vertices, axis2);
@@ -359,7 +359,7 @@ bool OverlapLineLine(Transform t1, const Line& A, Transform t2, const Line& B) {
 			impl::ParallelogramArea(lineB_start, lineB_end, lineA_start)
 		}; // Compute winding of cda (+ or -)
 		// Since area is constant a1 - a2 = a3 - a4, or a4 = a3 + a2 - a1
-		// const T a4 = math::ParallelogramArea(c, d, b); // Must have opposite
+		// T a4 = math::ParallelogramArea(c, d, b); // Must have opposite
 		// sign of a3
 		float a4{ a3 + a2 - a1 };
 		// Points a and b on different sides of cd if areas have different signs

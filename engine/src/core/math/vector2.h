@@ -65,18 +65,22 @@ struct Vector2 {
 
 	/// @brief Access vector elements by index, 0 for x, 1 for y.
 	constexpr T& operator[](std::size_t idx) {
-		if (idx == 1) {
+		if (idx == 0) {
+			return x;
+		} else if (idx == 1) {
 			return y;
 		}
-		return x; // idx == 0
+		PTGN_ERROR("Vector2 index out of range: ", idx);
 	}
 
 	/// @brief Access vector elements by index, 0 for x, 1 for y.
 	constexpr T operator[](std::size_t idx) const {
-		if (idx == 1) {
+		if (idx == 0) {
+			return x;
+		} else if (idx == 1) {
 			return y;
 		}
-		return x; // idx == 0
+		PTGN_ERROR("Vector2 index out of range: ", idx);
 	}
 
 	constexpr Vector2 operator-() const {
@@ -191,8 +195,8 @@ struct Vector2 {
 		return { T{ 0 }, T{ -1 } };
 	}
 
-	[[nodiscard]] constexpr static Vector2 Infinity() {
-		return { std::numeric_limits<float>::infinity(), std::numeric_limits<float>::infinity() };
+	[[nodiscard]] constexpr static Vector2 Infinity() requires std::floating_point<T> {
+		return { std::numeric_limits<T>::infinity(), std::numeric_limits<T>::infinity() };
 	}
 
 	[[nodiscard]] constexpr float Magnitude() const {
@@ -274,7 +278,7 @@ struct Vector2 {
 			return Degrees{ 0.0f };
 		}
 
-		float cos{ Dot(target) / std::sqrt(mag1 * mag2) };
+		float cos{ static_cast<float>(Dot(target)) / std::sqrt(mag1 * mag2) };
 
 		// Clamp cosine to the range [-1, 1] to avoid domain errors for acos. This can very rarely
 		// happen due to floating point inaccuracies.
@@ -299,8 +303,16 @@ struct Vector2 {
 		return x > 0 && y > 0 && !HasZero();
 	}
 
+	constexpr bool HasPositive() const {
+		return x > 0 || y > 0;
+	}
+
 	constexpr bool IsNegative() const {
 		return x < 0 && y < 0 && !HasZero();
+	}
+
+	constexpr bool HasNegative() const {
+		return x < 0 || y < 0;
 	}
 };
 
@@ -394,10 +406,16 @@ template <Arithmetic T>
 	return { std::clamp(vector.x, min.x, max.x), std::clamp(vector.y, min.y, max.y) };
 }
 
+/// @brief Clamp both components of a vector between min and max.
+template <Arithmetic T>
+[[nodiscard]] constexpr Vector2<T> Clamp(Vector2<T> vector, T min, T max) {
+	return { std::clamp(vector.x, min, max), std::clamp(vector.y, min, max) };
+}
+
 /// @brief Clamp the magnitude of the vector between min and max. This means that a (1, 1) vector
 /// clamped between -1 and 1 will be (0.7, 0.7)
 template <Arithmetic T>
-[[nodiscard]] constexpr Vector2<T> Clamp(Vector2<T> vector, T min, T max) {
+[[nodiscard]] constexpr Vector2<T> ClampMagnitude(Vector2<T> vector, T min, T max) {
 	Vector2<T> dir{ vector.Normalized() };
 	Vector2<T> dir_min{ dir * Vector2<T>{ min, min } };
 	Vector2<T> dir_max{ dir * Vector2<T>{ max, max } };

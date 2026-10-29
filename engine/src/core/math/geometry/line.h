@@ -17,33 +17,35 @@ public:
 
 	constexpr Line() = default;
 
-	constexpr Line(V2_float start, V2_float end) : start{ start }, end{ end } {}
+	constexpr Line(V2_float line_start, V2_float line_end) : start{ line_start }, end{ line_end } {}
 
-	/// @param out_size Optional parameter for the unrotated size of the quad.
-	/// @return Quad vertices relative to the given transform for this line with a given a line
-	/// width.
+	/// @param out_size Optional parameter for the unrotated world size of the quad.
+	/// @return Quad vertices for this line with an absolute line width.
 	constexpr std::array<V2_float, 4> GetWorldQuadVertices(
 		Transform transform, float line_width = 1.0f, V2_float* out_size = nullptr
 	) const {
 		PTGN_ASSERT(line_width >= 1.0f);
 
-		auto dir{ GetDirection() };
+		auto world_start{ transform.Apply(start) };
+		auto world_end{ transform.Apply(end) };
+		auto dir{ world_end - world_start };
+		float length{ dir.Magnitude() };
 
-		auto local_center{ start + dir * 0.5f };
+		Rect rect{ V2_float{ length + line_width, line_width } };
 
-		V2_float center{ transform.Apply(local_center) };
+		Transform line_transform{
+			world_start + dir * 0.5f,
+			dir.Angle(),
+			V2_float{ 1.0f },
+		};
 
-		auto rotation{ dir.Angle() };
-
-		Rect rect{ V2_float{ dir.Magnitude() + line_width, line_width } };
+		auto vertices{ rect.GetWorldVertices(line_transform) };
 
 		if (out_size) {
-			*out_size = rect.GetSize(transform);
+			*out_size = rect.GetSize();
 		}
 
-		Transform rect_transform{ center, rotation, transform.scale };
-
-		return rect.GetWorldVertices(rect_transform);
+		return vertices;
 	}
 
 	constexpr std::array<V2_float, 2> GetWorldVertices(Transform transform) const {

@@ -9,6 +9,7 @@
 #include "core/math/transform.h"
 #include "core/math/vector2.h"
 #include "runtime/ecs/entity.h"
+#include "runtime/ecs/entity_creation_context.h"
 #include "runtime/graphics/drawable.h"
 #include "serialization/serialize.h"
 
@@ -34,7 +35,7 @@ struct LightData {
 	/// @brief Angle of the light cone. If std::nullopt, the light is a
 	/// point light. Range: [0.0, 360.0]. 0.0 means no light is drawn,
 	/// 360.0 means the light is a point light and has no cone.
-	std::optional<Degrees> cone_angle;
+	std::optional<Degrees> cone_angle{};
 
 	/// @brief Initial angle of the light direction. 0.0 means pointing to the right.
 	/// Range: [0.0, 360.0]. Only applies to lights with a cone angle.
@@ -69,7 +70,7 @@ struct ShadowCaster {
 
 struct ShadowMaskInterior {
 	// World-space vertices of the occluder's filled body.
-	std::vector<V2_float> vertices;
+	std::vector<V2_float> vertices{};
 
 	// If true, the occluder's own interior remains black in the light mask.
 	// If false, the occluder's interior is painted back into the mask.
@@ -78,10 +79,10 @@ struct ShadowMaskInterior {
 
 struct VisibilityPolygon {
 	// World-space visibility polygon vertices.
-	std::vector<V2_float> vertices;
+	std::vector<V2_float> vertices{};
 
 	// World-space filled occluder bodies used by masks_light_inside.
-	std::vector<ShadowMaskInterior> occluder_interiors;
+	std::vector<ShadowMaskInterior> occluder_interiors{};
 };
 
 } // namespace impl
@@ -111,7 +112,7 @@ public:
 
 PTGN_REGISTER_DRAWABLE(Light);
 
-Light CreateLight(Scene& scene, Transform transform = {}, LightData config = {});
+Light CreateLight(EntityCreationContext context, Transform transform = {}, LightData config = {});
 
 /// @brief Marks an entity as a shadow occluder.
 /// @param entity Entity that should cast shadows.

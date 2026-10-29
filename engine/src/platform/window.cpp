@@ -62,40 +62,26 @@ void ResizeCanvasToCssSize(Window& window) {
 	double width{};
 	double height{};
 
-	auto result{
-		emscripten_get_element_css_size(
-			"#canvas",
-			&width,
-			&height
-		)
-	};
+	auto result{ emscripten_get_element_css_size("#canvas", &width, &height) };
 
 	if (result != EMSCRIPTEN_RESULT_SUCCESS) {
 		return;
 	}
 
-	V2_int size{
-		std::max(1, static_cast<int>(std::lround(width))),
-		std::max(1, static_cast<int>(std::lround(height)))
-	};
+	V2_int size{ std::max(1, static_cast<int>(std::lround(width))),
+				 std::max(1, static_cast<int>(std::lround(height))) };
 
 	if (window.GetSize() != size) {
 		window.SetSize(size, false);
 	}
 }
 
-EM_BOOL EmscriptenResize(
-	int,
-	const EmscriptenUiEvent*,
-	void* window_ptr
-) {
+EM_BOOL EmscriptenResize(int, const EmscriptenUiEvent*, void* window_ptr) {
 	if (!window_ptr) {
 		return EM_FALSE;
 	}
 
-	auto& window{
-		*static_cast<::ptgn::Window*>(window_ptr)
-	};
+	auto& window{ *static_cast<::ptgn::Window*>(window_ptr) };
 
 	ResizeCanvasToCssSize(window);
 	return EM_TRUE;
@@ -115,45 +101,26 @@ EM_BOOL EmscriptenResizeMouseLeave(
 } // namespace
 
 void Window::SetCanvasCssSize(V2_int size) {
-	emscripten_set_element_css_size(
-		"#canvas",
-		size.x,
-		size.y
-	);
+	emscripten_set_element_css_size("#canvas", size.x, size.y);
 }
 
 V2_int Window::GetCanvasCssSize() const {
 	double width{};
 	double height{};
 
-	emscripten_get_element_css_size(
-		"#canvas",
-		&width,
-		&height
-	);
+	emscripten_get_element_css_size("#canvas", &width, &height);
 
-	return {
-		static_cast<int>(std::lround(width)),
-		static_cast<int>(std::lround(height))
-	};
+	return { static_cast<int>(std::lround(width)), static_cast<int>(std::lround(height)) };
 }
 
 void Window::SetCanvasFramebufferSize(V2_int size) {
-	emscripten_set_canvas_element_size(
-		"#canvas",
-		size.x,
-		size.y
-	);
+	emscripten_set_canvas_element_size("#canvas", size.x, size.y);
 }
 
 V2_int Window::GetCanvasFramebufferSize() const {
 	V2_int size;
 
-	emscripten_get_canvas_element_size(
-		"#canvas",
-		&size.x,
-		&size.y
-	);
+	emscripten_get_canvas_element_size("#canvas", &size.x, &size.y);
 
 	return size;
 }
@@ -188,11 +155,9 @@ void Window::SetCallbacks() {
 		}
 
 		V2_int pos{ x, y };
-		bool can_cache_windowed_rect{
-			!glfwGetWindowMonitor(window) &&
-			glfwGetWindowAttrib(window, GLFW_MAXIMIZED) != GLFW_TRUE &&
-			glfwGetWindowAttrib(window, GLFW_ICONIFIED) != GLFW_TRUE
-		};
+		bool can_cache_windowed_rect{ !glfwGetWindowMonitor(window) &&
+									  glfwGetWindowAttrib(window, GLFW_MAXIMIZED) != GLFW_TRUE &&
+									  glfwGetWindowAttrib(window, GLFW_ICONIFIED) != GLFW_TRUE };
 
 		if (can_cache_windowed_rect) {
 			self->windowed_pos_ = pos;
@@ -225,21 +190,16 @@ void Window::SetCallbacks() {
 		}
 	});
 
-	glfwSetFramebufferSizeCallback(
-		win,
-		[](GLFWwindow* glfw_window, int width, int height) {
-			auto self{
-				static_cast<Window*>(glfwGetWindowUserPointer(glfw_window))
-			};
-			if (!self || width <= 0 || height <= 0) {
-				return;
-			}
-
-			V2_int size{ width, height };
-
-			self->PushEvent<event::FramebufferResized>(size);
+	glfwSetFramebufferSizeCallback(win, [](GLFWwindow* glfw_window, int width, int height) {
+		auto self{ static_cast<Window*>(glfwGetWindowUserPointer(glfw_window)) };
+		if (!self || width <= 0 || height <= 0) {
+			return;
 		}
-	);
+
+		V2_int size{ width, height };
+
+		self->PushEvent<event::FramebufferResized>(size);
+	});
 
 	glfwSetWindowSizeCallback(win, [](GLFWwindow* window, int width, int height) {
 		auto self{ static_cast<Window*>(glfwGetWindowUserPointer(window)) };
@@ -248,12 +208,8 @@ void Window::SetCallbacks() {
 		}
 
 		if (!glfwGetWindowMonitor(window)) {
-			bool maximized{
-				glfwGetWindowAttrib(window, GLFW_MAXIMIZED) == GLFW_TRUE
-			};
-			bool minimized{
-				glfwGetWindowAttrib(window, GLFW_ICONIFIED) == GLFW_TRUE
-			};
+			bool maximized{ glfwGetWindowAttrib(window, GLFW_MAXIMIZED) == GLFW_TRUE };
+			bool minimized{ glfwGetWindowAttrib(window, GLFW_ICONIFIED) == GLFW_TRUE };
 
 			if (!minimized) {
 				self->windowed_was_maximized_ = maximized;
@@ -373,10 +329,11 @@ Window::Window(const WindowConfig& config, std::function<void(impl::EventData&&)
 	file{ *this },
 	event_sink_{ std::move(event_sink) },
 	window_settings_{
+		.title			  = config.title,
 		.background_color = color::Transparent,
-		.size = config.size,
-		.resizable = config.resizable,
-		.maximized = config.maximized,
+		.size			  = config.size,
+		.resizable		  = config.resizable,
+		.maximized		  = config.maximized,
 	},
 	title_{ config.title },
 	windowed_pos_{ config.x.value_or(100), config.y.value_or(100) },
@@ -399,7 +356,6 @@ Window::Window(const WindowConfig& config, std::function<void(impl::EventData&&)
 	glfwWindowHint(GLFW_SCALE_TO_MONITOR, GLFW_FALSE);
 	// On MacOS displays disable high resolution framebuffers
 	glfwWindowHint(GLFW_COCOA_RETINA_FRAMEBUFFER, GLFW_FALSE);
-	glfwWindowHint(GLFW_SCALE_FRAMEBUFFER, GLFW_FALSE);
 	glfwWindowHint(GLFW_RESIZABLE, config.resizable ? GLFW_TRUE : GLFW_FALSE);
 	glfwWindowHint(GLFW_DECORATED, config.borderless ? GLFW_FALSE : GLFW_TRUE);
 	glfwWindowHint(GLFW_FLOATING, config.always_on_top ? GLFW_TRUE : GLFW_FALSE);
@@ -425,6 +381,7 @@ Window::Window(const WindowConfig& config, std::function<void(impl::EventData&&)
 #endif
 #endif
 
+	float main_scale = ImGui_ImplGlfw_GetContentScaleForMonitor(monitor);
 	instance_		 = std::unique_ptr<GLFWwindow, impl::WindowDeleter>{
 		glfwCreateWindow(
 			config.size.x, config.size.y, title_.c_str(), config.fullscreen ? monitor : nullptr,
@@ -443,12 +400,17 @@ Window::Window(const WindowConfig& config, std::function<void(impl::EventData&&)
 
 	IMGUI_CHECKVERSION();
 	ImGui::CreateContext();
-	ImGuiIO& io = ImGui::GetIO();
-	io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;
-	io.ConfigFlags |= ImGuiConfigFlags_NavEnableGamepad;
+	ImGuiIO& io		= ImGui::GetIO();
+	io.ConfigFlags &= ~ImGuiConfigFlags_NavEnableKeyboard;
+	io.ConfigFlags &= ~ImGuiConfigFlags_NavEnableGamepad;
 	io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;
 
 	ImGui::StyleColorsDark();
+
+	// Setup scaling
+	ImGuiStyle& style = ImGui::GetStyle();
+	style.ScaleAllSizes(main_scale);
+	style.FontScaleDpi = main_scale;
 
 #ifdef __EMSCRIPTEN__
 	emscripten_set_resize_callback(
@@ -643,11 +605,9 @@ void Window::CacheWindowedRect() {
 		return; // fullscreen, do not overwrite cached windowed rect
 	}
 
-	windowed_was_maximized_ =
-		glfwGetWindowAttrib(win, GLFW_MAXIMIZED) == GLFW_TRUE;
+	windowed_was_maximized_ = glfwGetWindowAttrib(win, GLFW_MAXIMIZED) == GLFW_TRUE;
 
-	if (windowed_was_maximized_ ||
-		glfwGetWindowAttrib(win, GLFW_ICONIFIED) == GLFW_TRUE) {
+	if (windowed_was_maximized_ || glfwGetWindowAttrib(win, GLFW_ICONIFIED) == GLFW_TRUE) {
 		return;
 	}
 
@@ -783,6 +743,7 @@ void Window::SetSettings(const WindowSettings& settings) {
 
 	window_settings_ = settings;
 
+	SetTitle(settings.title);
 	SetBackgroundColor(settings.background_color);
 
 	if (settings.resizable) {
@@ -791,18 +752,26 @@ void Window::SetSettings(const WindowSettings& settings) {
 		SetFixedSize();
 	}
 
+#ifdef __EMSCRIPTEN__
+	// WindowSettings::size is the project's default native window size.
+	// On the web, the live window size is controlled by the canvas CSS.
+	ResizeCanvasToCssSize(*this);
+	return;
+#else
 	if (GetSetting(WindowSetting::Fullscreen)) {
 		return;
 	}
 
-	if (GetSetting(WindowSetting::Maximized) ||
-		GetSetting(WindowSetting::Minimized)) {
+	if (GetSetting(WindowSetting::Maximized) || GetSetting(WindowSetting::Minimized)) {
 		SetSetting(WindowSetting::Restored);
 	}
+
+	SetSize(settings.size, false);
 
 	if (settings.maximized) {
 		SetSetting(WindowSetting::Maximized);
 	}
+#endif
 }
 
 WindowLocalSettings Window::GetLocalSettings() const {
@@ -825,8 +794,8 @@ WindowLocalSettings Window::GetLocalSettings() const {
 	}
 
 	return WindowLocalSettings{
-		.position = position,
-		.size = size,
+		.position  = position,
+		.size	   = size,
 		.maximized = maximized || (minimized && windowed_was_maximized_),
 	};
 #endif
@@ -840,12 +809,9 @@ void Window::SetLocalSettings([[maybe_unused]] const WindowLocalSettings& settin
 		return;
 	}
 
-	bool should_maximize{
-		settings.maximized.value_or(GetSetting(WindowSetting::Maximized))
-	};
+	bool should_maximize{ settings.maximized.value_or(GetSetting(WindowSetting::Maximized)) };
 
-	if (settings.position.has_value() ||
-		settings.size.has_value() ||
+	if (settings.position.has_value() || settings.size.has_value() ||
 		settings.maximized.has_value()) {
 		SetSetting(WindowSetting::Restored);
 	}
@@ -1060,6 +1026,24 @@ void Window::ClearInputState() {
 
 	raw_mouse_position_ = {};
 	raw_scroll_accum_	= {};
+}
+
+void Window::RequestQuit() {
+	quit_ = true;
+#ifndef __EMSCRIPTEN__
+	if (instance_) {
+		glfwSetWindowShouldClose(instance_.get(), GLFW_TRUE);
+	}
+#endif
+}
+
+void Window::CancelQuit() {
+	quit_ = false;
+#ifndef __EMSCRIPTEN__
+	if (instance_) {
+		glfwSetWindowShouldClose(instance_.get(), GLFW_FALSE);
+	}
+#endif
 }
 
 } // namespace ptgn

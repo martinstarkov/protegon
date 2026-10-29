@@ -17,18 +17,18 @@ namespace ptgn::impl {
 namespace {
 
 struct PaginationFragment {
-	TextRun run;
-	std::optional<std::size_t> source_run_index;
+	TextRun run{};
+	std::optional<std::size_t> source_run_index{};
 };
 
 struct PaginationWord {
-	std::vector<PaginationFragment> leading_whitespace;
-	std::vector<PaginationFragment> content;
+	std::vector<PaginationFragment> leading_whitespace{};
+	std::vector<PaginationFragment> content{};
 };
 
 struct PaginationContent {
-	std::vector<PaginationWord> words;
-	std::vector<PaginationFragment> trailing_whitespace;
+	std::vector<PaginationWord> words{};
+	std::vector<PaginationFragment> trailing_whitespace{};
 };
 
 bool IsPaginationWhitespace(char c) {

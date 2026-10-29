@@ -9,6 +9,7 @@
 #include "app/project_settings.h"
 #include "runtime/asset/asset_key.h"
 #include "runtime/asset/asset_serialization.h"
+#include "runtime/graphics/fx/screen_effect_stack.h"
 #include "serialization/serialize.h"
 
 namespace ptgn {
@@ -20,102 +21,57 @@ namespace impl {
 
 struct SceneRegistryEntry;
 
-/// @brief Saves project metadata and the specified persistent editor scenes.
-/// All scenes are captured before any files are written.
-bool SaveProjectScenes(
-	Application& app,
-	std::span<const Scene* const> scenes
-);
-
-/// @brief Performs the one time automatic save after a new scene's OnNew().
-bool SaveBootstrapProjectScene(
-	Application& app,
-	const Scene& scene,
-	bool save
-);
+bool SaveProjectScenes(Application& app, std::span<const Scene* const> scenes);
+bool SaveBootstrapProjectScene(Application& app, const Scene& scene, bool save);
 
 } // namespace impl
 
 struct ProjectSceneEntry {
-	/// @brief Unique project scene identifier used by scene transitions and runtime scene tags.
-	std::string key;
-
-	/// @brief Non-unique editor-facing label.
-	std::string display_name;
-
-	path scene_path;
+	std::string key{};
+	std::string display_name{};
+	path scene_path{};
 
 	PTGN_REFLECT(ProjectSceneEntry, key, display_name, scene_path)
 };
 
 struct Project {
-	std::string name;
+	std::string name{};
 
-	/// @brief Absolute or working directory relative location from which this project was loaded.
-	/// This is runtime state and is intentionally not serialized.
+	/// @brief Runtime only location from which the project was loaded.
 	path file_path;
 
-	/// @brief Key of the project scene used for direct runtime startup.
-	std::string startup_scene_key;
+	/// @brief Project relative root shown by the Content Browser.
+	path asset_directory{ "assets" };
 
-	/// @brief Every serialized scene belonging to the project, in editor/runtime ordering.
-	std::vector<ProjectSceneEntry> scenes;
-
-	/// @brief Complete path asset catalog known to the project.
-	std::vector<SerializedAsset> assets;
-
-	/// @brief Assets loaded globally whenever the project is opened.
-	std::vector<AssetKey> preload_assets;
-
-	/// @brief Shared, tracked project settings.
-	ProjectSettings settings;
+	std::string startup_scene_key{};
+	std::vector<ProjectSceneEntry> scenes{};
+	std::vector<SerializedAsset> assets{};
+	std::vector<AssetKey> preload_assets{};
+	ScreenEffectSettings screen_effects{};
+	ProjectSettings settings{};
 
 	PTGN_REFLECT(
-		Project,
-		name,
-		startup_scene_key,
-		scenes,
-		assets,
-		preload_assets,
-		settings
+		Project, name, asset_directory, startup_scene_key, scenes, assets, preload_assets,
+		screen_effects, settings
 	)
 };
 
-/// @brief Loads a project, using default_settings for fields missing from the manifest.
-Project LoadProject(
-	const path& file_path,
-	const ProjectSettings& default_settings = {}
-);
-
+Project LoadProject(const path& file_path, const ProjectSettings& default_settings = {});
 Project CreateProject(
-	const path& file_path,
-	const impl::SceneRegistryEntry& default_scene,
+	const path& file_path, const impl::SceneRegistryEntry* default_scene,
 	ProjectSettings settings = {}
 );
-
 void SaveProject(const Project& project);
 
-ProjectSceneEntry* FindProjectScene(
-	Project& project,
-	std::string_view scene_key
-);
+ProjectSceneEntry* FindProjectScene(Project& project, std::string_view scene_key);
+const ProjectSceneEntry* FindProjectScene(const Project& project, std::string_view scene_key);
+const ProjectSceneEntry& GetStartupProjectScene(const Project& project);
 
-const ProjectSceneEntry* FindProjectScene(
-	const Project& project,
-	std::string_view scene_key
-);
+path GetProjectScenePath(const Project& project, const ProjectSceneEntry& scene);
+path GetStartupScenePath(const Project& project);
+path GetProjectAssetDirectory(const Project& project);
 
-const ProjectSceneEntry& GetStartupProjectScene(
-	const Project& project
-);
-
-path GetProjectScenePath(
-	const Project& project,
-	const ProjectSceneEntry& scene
-);
-
-path GetStartupScenePath(
-	const Project& project
-);
+/// @brief Creates the standard project folders without deleting or moving existing files.
+void EnsureProjectAssetDirectories(const Project& project);
 
 } // namespace ptgn

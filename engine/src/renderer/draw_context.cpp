@@ -40,11 +40,13 @@ namespace ptgn {
 
 namespace {
 
-impl::CommonShapeParams ConvertToCommonShapeParams(Color color, const ShapeDrawParams& params) {
-	return { .transform{},
+impl::CommonShapeParams ConvertToCommonShapeParams(
+	Transform transform, Color color, const ShapeDrawParams& params
+) {
+	return { .transform{ transform },
 			 .fill_style{ params.fill_style },
 			 .origin = params.origin,
-			 .color{ color },
+			 .color{ color.Normalized() },
 			 .depth{ params.depth },
 			 .entity_id = params.entity_id };
 }
@@ -55,17 +57,19 @@ void DrawShapeImpl(
 	const ShapeDrawParams& params
 ) {
 	impl::VisitPrimitives(
-		shape, ConvertToCommonShapeParams(color, params),
-		[&renderer, transform, &params](auto& primitives) {
+		shape, ConvertToCommonShapeParams(transform, color, params),
+		[&renderer, &params](auto& primitives) {
 			if (primitives.empty()) {
 				return;
 			}
 
 			using TPrimitive = std::remove_reference_t<decltype(primitives[0])>;
 
-			impl::DrawRequest<TPrimitive> request{ .transform	  = transform,
-												   .primitives	  = primitives,
-												   .effect_params = params.effects };
+			impl::DrawRequest<TPrimitive> request{
+				.transform      = {},
+				.primitives     = primitives,
+				.effect_params = params.effects,
+			};
 
 			impl::RendererAccessor{ renderer }.Draw(request);
 		}
@@ -197,6 +201,8 @@ void DrawContext::DrawTexture(
 			PTGN_WARN("Texture size not found for texture ", texture, ", skipping draw");
 			return;
 		}
+
+		params.size = size.value();
 	}
 
 	if (!params.size.IsPositive()) {
@@ -234,6 +240,11 @@ void DrawContext::DrawTexture(
 void DrawContext::DrawShader(
 	Transform transform, const MaterialState& material, TextureDrawParams params
 ) {
+	// An unset Custom Shader is a valid disabled state.
+	if (!material.shader) {
+		return;
+	}
+
 	DrawTexture(transform, impl::TextureId{}, material, std::move(params));
 }
 
@@ -251,14 +262,18 @@ void DrawContext::DrawLines(
 	std::span<const V2_float> points, Color color, const ShapeDrawParams& params, bool closed,
 	std::optional<Transform> transform
 ) {
-	auto primitives{
-		impl::GetHollowPrimitives(points, closed, ConvertToCommonShapeParams(color, params))
-	};
+	auto draw_transform{ transform.value_or(Transform{}) };
+	auto primitives{ impl::GetHollowPrimitives(
+		points, closed, ConvertToCommonShapeParams(draw_transform, color, params)
+	) };
 
 	impl::DrawRequest<impl::ColorQuad> request{
-		.transform	= transform.value_or(Transform{}),
+		.transform  = {},
 		.primitives = primitives,
 	};
+
+	renderer_.SetCurrentPipeline("color");
+	SetMaterial("color");
 
 	renderer_.Draw(request);
 }

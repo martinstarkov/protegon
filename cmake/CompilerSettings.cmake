@@ -1,3 +1,5 @@
+set_property(GLOBAL PROPERTY JOB_POOLS compile_pool=8)
+
 function(set_compiler_settings project_name root_dir)
   if(NOT TARGET ${project_name})
     message(AUTHOR_WARNING
@@ -10,13 +12,18 @@ function(set_compiler_settings project_name root_dir)
     target_compile_options(
       ${project_name}
       PUBLIC
-        /Zc:preprocessor
-        /bigobj
-        /MP
+      /Zc:preprocessor
+      /bigobj
+      /MP8
       PRIVATE
-        /JMC
+      /JMC
     )
   endif()
+
+  set_property(
+    TARGET ${project_name}
+    PROPERTY JOB_POOL_COMPILE compile_pool
+  )
 
   if(MSVC AND ARGN)
     foreach(_source IN LISTS ARGN)

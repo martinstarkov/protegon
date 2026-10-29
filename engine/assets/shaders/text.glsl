@@ -58,7 +58,7 @@ float EffectDistanceToScreenPx(float distance_px, float raw_screen_px_range) {
 	return distance_px * raw_screen_px_range / max(u_PixelRange, 0.0001f);
 }
 
-vec4 SampleAtlas(vec2 uv) {
+vec4 SampleAtlas(vec2 v_TexCoord) {
 	vec4 texture_color = vec4(1.0f);
 
 	{TEXTURE_COLOR_SWITCH_BLOCK}
@@ -173,7 +173,7 @@ void main() {
 		return;
 	}
 
-float raw_screen_px_range = RawScreenPxRange();
+	float raw_screen_px_range = RawScreenPxRange();
 	float screen_px_range = max(raw_screen_px_range, 1.0f);
 
 	float outline_width_px = EffectDistanceToScreenPx(u_OutlineWidth, raw_screen_px_range);
@@ -198,7 +198,7 @@ float raw_screen_px_range = RawScreenPxRange();
 
 	vec4 color = vec4(0.0f);
 
-	// 1. Shadow behind everything.
+	// Shadow behind everything.
 	if (u_ShadowColor.a > 0.0f) {
 		vec2 shadow_uv = v_TexCoord - ScreenOffsetToTexOffset(u_ShadowOffset);
 
@@ -219,7 +219,7 @@ float raw_screen_px_range = RawScreenPxRange();
 		color = Over(color, shadow_color);
 	}
 
-	// 2. Outer glow behind outline and fill.
+	// Outer glow behind outline and fill.
 	if (u_OuterGlowColor.a > 0.0f) {
 		float outer_glow_alpha = OuterGlowAlpha(
 			effect_signed_px,
@@ -236,7 +236,7 @@ float raw_screen_px_range = RawScreenPxRange();
 		color = Over(color, outer_glow_color);
 	}
 
-	// 3. Outline behind fill.
+	// Outline behind fill.
 	if (u_OutlineColor.a > 0.0f) {
 		float outline_alpha = OutlineAlpha(
 			fill_signed_px,
@@ -253,11 +253,11 @@ float raw_screen_px_range = RawScreenPxRange();
 		color = Over(color, outline_color);
 	}
 
-	// 4. Main text fill.
+	// Main text fill.
 	vec4 fill_color = vec4(v_Color.rgb, v_Color.a * fill_alpha);
 	color = Over(color, fill_color);
 
-	// 5. Inner glow over fill.
+	// Inner glow over fill.
 	if (u_InnerGlowColor.a > 0.0f) {
 		float inner_glow_alpha = InnerGlowAlpha(
 			effect_signed_px,

@@ -39,8 +39,12 @@ SceneContext::SceneContext(Application& app, Scene& parent_scene) :
 	debug{ impl::ApplicationAccessor::ctx(app).debug },
 	scene{ impl::ApplicationAccessor::ctx(app).scene_manager, parent_scene },
 	render_queue{ impl::ApplicationAccessor::ctx(app).renderer, parent_scene },
-	event{ impl::ApplicationAccessor::ctx(app).event_handler },
-	input{ impl::ApplicationAccessor::ctx(app).window, parent_scene },
+	event{ impl::ApplicationAccessor::ctx(app).event_handler, parent_scene },
+	input{
+		impl::ApplicationAccessor::ctx(app).window,
+		impl::ApplicationAccessor::ctx(app).scene_input_state,
+		parent_scene,
+	},
 	physics{ parent_scene },
 	app_{ app } {}
 
@@ -54,12 +58,20 @@ secondsf SceneContext::dt() const {
 	return impl::ApplicationAccessor::ctx(app_).dt;
 }
 
-milliseconds SceneContext::TimeSinceStart() const {
-	return impl::ApplicationAccessor::ctx(app_).TimeSinceStart();
+secondsf SceneContext::GameTime() const {
+	return impl::ApplicationAccessor::ctx(app_).game_time;
 }
 
-secondsf SceneContext::TimeSinceStartSeconds() const {
-	return duration_cast<secondsf>(TimeSinceStart());
+secondsf SceneContext::UnscaledGameTime() const {
+	return impl::ApplicationAccessor::ctx(app_).unscaled_game_time;
+}
+
+secondsf SceneContext::RealTime() const {
+	return impl::ApplicationAccessor::ctx(app_).real_time;
+}
+
+secondsf SceneContext::TimeSinceApplicationStart() const {
+	return impl::ApplicationAccessor::ctx(app_).TimeSinceApplicationStart();
 }
 
 bool SceneContext::IsRunning() const {
@@ -71,6 +83,7 @@ std::size_t SceneContext::GetFrameCount() const {
 }
 
 void SceneContext::Rebind(Scene& parent_scene) {
+	event.Rebind(parent_scene);
 	scene.Rebind(parent_scene);
 	render_queue.Rebind(parent_scene);
 	input.Rebind(parent_scene);

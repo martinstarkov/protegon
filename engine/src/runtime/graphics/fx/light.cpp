@@ -38,6 +38,7 @@
 #include "renderer/resources/texture.h"
 #include "renderer/resources/texture_format.h"
 #include "runtime/ecs/entity.h"
+#include "runtime/ecs/entity_creation_context.h"
 #include "runtime/ecs/tag.h"
 #include "runtime/graphics/draw.h"
 #include "runtime/graphics/render_queue.h"
@@ -56,10 +57,10 @@ constexpr int kLightVisibleStencilRef{ 1 };
 constexpr int kCircleShadowSegments{ 24 };
 
 struct ShadowCasterEntry {
-	Entity entity;
+	Entity entity{};
 	float depth{ 0.0f };
 	std::size_t order{ 0 };
-	BoundingAABB aabb;
+	BoundingAABB aabb{};
 	bool masks_light_inside{ true };
 };
 
@@ -73,7 +74,11 @@ std::optional<std::vector<V2_float>> GetShadowCasterWorldVertices(Entity entity)
 	}
 
 	if (entity.Has<Circle>()) {
-		return entity.Get<Circle>().GetVertices(transform, kCircleShadowSegments);
+		const auto& circle{ entity.Get<Circle>() };
+
+		auto offset_transform{ Rect{ circle.GetSize() }.Offset(transform, origin) };
+
+		return circle.GetVertices(offset_transform, kCircleShadowSegments);
 	}
 
 	if (auto texture_size{ GetTextureSize(entity) }) {
@@ -86,21 +91,13 @@ std::optional<std::vector<V2_float>> GetShadowCasterWorldVertices(Entity entity)
 }
 
 std::optional<BoundingAABB> GetShadowCasterAABB(Entity entity) {
-	auto transform{ GetDrawTransform(entity) };
+	auto world_vertices{ GetShadowCasterWorldVertices(entity) };
 
-	if (entity.Has<Rect>()) {
-		return GetBoundingAABB(entity.Get<Rect>(), transform);
+	if (!world_vertices.has_value() || world_vertices->empty()) {
+		return std::nullopt;
 	}
 
-	if (entity.Has<Circle>()) {
-		return GetBoundingAABB(entity.Get<Circle>(), transform);
-	}
-
-	if (auto texture_size{ GetTextureSize(entity) }) {
-		return GetBoundingAABB(Rect{ texture_size.value() }, transform);
-	}
-
-	return std::nullopt;
+	return GetBoundingAABB(world_vertices.value());
 }
 
 void AddPolygonSegments(std::vector<Line>& segments, std::span<const V2_float> vertices) {
@@ -346,9 +343,10 @@ void DrawShadowedLight(
 		.format = TextureFormat::RGBA8,
 	};
 
-	TextureDesc shadow_desc{ .size = target_size, .format = TextureFormat::Stencil8 };
-
-	auto composite_params{ impl::GetTextureDrawParams(entity, size, false, color::White) };
+	TextureDesc shadow_desc{
+		.size	= target_size,
+		.format = TextureFormat::Stencil8,
+	};
 
 	Viewport viewport{
 		.position{},
@@ -359,16 +357,22 @@ void DrawShadowedLight(
 		light_desc, shadow_desc,
 		[&ctx, viewport, &visibility_polygon, entity, size, &uniforms, blend_mode,
 		 draw_transform](impl::FramebufferObject& framebuffer) {
-			framebuffer.Clear(color::Transparent, true);
-			framebuffer.Clear(Stencil{ 0 }, true);
+			ctx.WithRenderTarget(&framebuffer, viewport, [&]() {
+				ctx.WithRenderState(
+					{
+						.view_projection = Matrix4::Orthographic(viewport.size),
+						.scissor		 = ScissorState{ false },
+					},
+					[&]() {
+						framebuffer.Clear(color::Transparent);
+						framebuffer.Clear(Stencil{ 0 });
 
-			ctx.WithRenderTarget(
-				&framebuffer, viewport,
-				[&ctx, &visibility_polygon, entity, size, &uniforms, draw_transform]() {
-					WriteLightVisibilityStencil(ctx, draw_transform, visibility_polygon);
-					DrawLightThroughStencil(ctx, entity, size, std::move(uniforms));
-				}
-			);
+						WriteLightVisibilityStencil(ctx, draw_transform, visibility_polygon);
+
+						DrawLightThroughStencil(ctx, entity, size, std::move(uniforms));
+					}
+				);
+			});
 
 			auto texture{ framebuffer.GetTexture() };
 			auto composite_params{ impl::GetTextureDrawParams(entity, size, true, color::White) };
@@ -394,25 +398,25 @@ void DrawUnmaskedLight(
 	ctx.DrawShader(draw_transform, material, std::move(params));
 }
 
-std::array<UniformWrite, 9> GetUniforms(const LightData& light, Color tint) {
+std::vector<UniformWrite> GetUniforms(const LightData& light, Color tint) {
 	auto color{ Color::Multiply(light.color, tint) };
 	V4_float color_n{ color.Normalized() };
 
 	auto ambient_light_n{ light.ambient_color.Normalized() };
 	V3_float ambient_color{ ambient_light_n.xyz() };
-	constexpr V3_float light_attenuation{ 1.0f, 0.0f, 0.1f };
+	// constexpr V3_float light_attenuation{ 1.0f, 0.0f, 0.1f };
 
 	return { UniformWrite{ "u_LightIntensity", light.intensity },
 			 UniformWrite{ "u_LightRadius", 0.5f },
 			 UniformWrite{ "u_Falloff", light.falloff },
 			 UniformWrite{ "u_UseCone", light.cone_angle.has_value() ? 1.0f : 0.0f },
 			 UniformWrite{ "u_ConeAngle", light.cone_angle.has_value()
-									? (light.cone_angle.value() / 2.0f).ToRad().value
-									: kTwoPi },
+											  ? (light.cone_angle.value() / 2.0f).ToRad().value
+											  : kTwoPi },
 			 UniformWrite{ "u_Color", color_n },
 			 UniformWrite{ "u_AmbientColor", ambient_color },
-			 UniformWrite{ "u_AmbientIntensity", light.ambient_intensity },
-			 UniformWrite{ "u_LightAttenuation", light_attenuation } };
+			 UniformWrite{ "u_AmbientIntensity", light.ambient_intensity } };
+	//  UniformWrite{ "u_LightAttenuation", light_attenuation } };
 }
 
 } // namespace
@@ -520,14 +524,12 @@ void Light::Draw(DrawContext& ctx, Entity entity) {
 		return;
 	}
 
-	SetRotation(entity, light.direction_angle);
-
 	auto draw_transform{ GetDrawTransform(entity) };
 	auto size{ Circle{ light.radius }.GetSize() };
 	auto blend_mode{ GetBlendMode(entity) };
 	auto tint{ GetTint(entity) };
 
-	auto uniforms{ std::ranges::to<std::vector<UniformWrite>>(GetUniforms(light, tint)) };
+	auto uniforms{ GetUniforms(light, tint) };
 
 	if (!entity.Has<impl::VisibilityPolygon>()) {
 		DrawUnmaskedLight(ctx, entity, draw_transform, size, blend_mode, std::move(uniforms));
@@ -605,8 +607,9 @@ Light& Light::ConeAngle(std::optional<Degrees> cone_angle) {
 }
 
 Light& Light::Config(LightData config) {
+	Degrees direction_angle{ config.direction_angle };
 	Add<LightData>(std::move(config));
-	SetRotation(*this, config.direction_angle);
+	SetRotation(*this, direction_angle);
 	return *this;
 }
 
@@ -615,14 +618,15 @@ LightData Light::GetConfig() const {
 	return Get<LightData>();
 }
 
-Light CreateLight(Scene& scene, Transform transform, LightData config) {
-	Light light{ scene.CreateEntity() };
+Light CreateLight(EntityCreationContext context, Transform transform, LightData config) {
+	Light light{ context.CreateEntity() };
 
 	light.Add<Tag>("Light");
 	light.Add<Transform>(transform);
 	light.Add<Visible>(true);
+	Degrees direction_angle{ config.direction_angle };
 	light.Add<LightData>(std::move(config));
-	SetRotation(light, config.direction_angle);
+	SetRotation(light, direction_angle);
 
 	// Blend mode with which the lights are added to the scene.
 	light.Add<BlendMode>(BlendMode::PremultipliedAddRGBA);

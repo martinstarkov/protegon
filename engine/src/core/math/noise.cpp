@@ -240,10 +240,10 @@ float SimplexNoise::GetImpl(float x, float y, std::int32_t seed) {
 	constexpr float SQRT3{ std::numbers::sqrt3_v<float> };
 	constexpr float G2 = (3.0f - SQRT3) / 6.0f;
 
-	const float F2	= 0.5f * (SQRT3 - 1.0f);
-	float t0		= (x + y) * F2;
-	x			   += t0;
-	y			   += t0;
+	float F2  = 0.5f * (SQRT3 - 1.0f);
+	float t0  = (x + y) * F2;
+	x		 += t0;
+	y		 += t0;
 
 	auto i{ static_cast<std::int32_t>(Floor(x)) };
 	auto j{ static_cast<std::int32_t>(Floor(y)) };

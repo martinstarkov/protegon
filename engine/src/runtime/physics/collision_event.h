@@ -5,6 +5,14 @@
 
 namespace ptgn::event {
 
+struct CollisionStart {
+	CollisionInfo collision{};
+};
+
+struct CollisionStop {
+	CollisionInfo collision{};
+};
+
 struct Collision {
 	operator CollisionInfo() const { // NOSONAR
 		return collision;

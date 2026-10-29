@@ -11,12 +11,16 @@
 #include <imgui_impl_glfw.h>
 #include <imgui_impl_opengl3.h>
 
+#include <algorithm>
 #include <chrono>
 #include <exception>
 #include <filesystem>
 #include <functional>
+#include <iterator>
 #include <memory>
+#include <ranges>
 #include <string_view>
+#include <thread>
 #include <utility>
 #include <vector>
 
@@ -26,13 +30,17 @@
 #include "app/application_state.h"
 #include "app/project.h"
 #include "core/assert.h"
+#include "core/build_info.h"
 #include "core/event/event.h"
 #include "core/event/event_handler.h"
+#include "core/event/key_event.h"
+#include "core/event/mouse_event.h"
 #include "core/event/window_event.h"
 #include "core/log.h"
 #include "core/math/vector2.h"
 #include "core/util/hash.h"
 #include "core/util/time.h"
+#include "platform/executable.h"
 #include "platform/window.h"
 #include "renderer/draw_context.h"
 #include "renderer/renderer.h"
@@ -40,13 +48,153 @@
 #include "runtime/audio/audio_system.h"
 #include "runtime/graphics/draw.h"
 #include "runtime/graphics/drawable.h"
+#include "runtime/graphics/fx/screen_effect_stack.h"
+#include "runtime/graphics/visible.h"
 #include "runtime/scene/scene.h"
+#include "runtime/scene/scene_context.h"
+#include "runtime/scene/scene_event_handler.h"
 #include "runtime/scene/scene_file.h"
 #include "runtime/scene/scene_manager.h"
 #include "runtime/scene/scene_registry.h"
+#include "runtime/scripting/script.h"
 #include "tools/debug/debug_system.h"
 
 namespace ptgn {
+
+namespace {
+
+constexpr std::string_view kProjectExtension{ ".ptgnproj" };
+
+impl::AssetLoadTicket LoadStartupDependencies(
+	Application& app, const impl::SceneFactory& scene_factory
+) {
+	auto& assets{ impl::ApplicationAccessor::ctx(app).assets };
+	auto ticket{ assets.AcquireDependenciesAsync(scene_factory.GetPreloadDependencies(app)) };
+
+	while (!ticket.IsComplete()) {
+		assets.Update();
+#ifndef __EMSCRIPTEN__
+		std::this_thread::sleep_for(1ms);
+#endif
+	}
+
+	auto progress{ ticket.GetProgress() };
+
+	if (progress.failed_assets > 0) {
+		PTGN_WARN(
+			"Failed to load ", progress.failed_assets,
+			" startup asset(s); continuing with available assets"
+		);
+	}
+
+	return ticket;
+}
+
+void LoadProjectPreloads(Application& app) {
+	auto& assets{ impl::ApplicationAccessor::ctx(app).assets };
+	const auto& dependencies{ assets.GetProjectAssetDependencies() };
+
+	if (dependencies.empty()) {
+		return;
+	}
+
+	auto ticket{ assets.AcquireDependenciesAsync(dependencies) };
+
+	while (!ticket.IsComplete()) {
+		assets.Update();
+#ifndef __EMSCRIPTEN__
+		std::this_thread::sleep_for(1ms);
+#endif
+	}
+
+	auto progress{ ticket.GetProgress() };
+
+	if (progress.failed_assets > 0) {
+		PTGN_WARN(
+			"Failed to load ", progress.failed_assets,
+			" project preload asset(s); continuing with available assets"
+		);
+	}
+}
+
+[[nodiscard]] std::vector<path> FindProjectFiles(const path& directory) {
+	std::vector<path> projects;
+
+	std::error_code error;
+
+	if (!fs::is_directory(directory, error) || error) {
+		return projects;
+	}
+
+	for (fs::directory_iterator
+			 it{ directory, fs::directory_options::skip_permission_denied, error },
+		 end;
+		 !error && it != end; it.increment(error)) {
+		std::error_code entry_error;
+
+		if (!it->is_regular_file(entry_error) || entry_error) {
+			continue;
+		}
+
+		if (GetExtension(it->path()) != kProjectExtension) {
+			continue;
+		}
+
+		projects.emplace_back(it->path().lexically_normal());
+	}
+
+	std::ranges::sort(projects, {}, [](const path& project) { return project.generic_string(); });
+
+	return projects;
+}
+
+[[nodiscard]] path ResolveStartupProjectPath(const path& project_path) {
+	const auto& build_info{ impl::GetBuildInfo() };
+
+	PTGN_ASSERT(!build_info.project_name.empty(), "CMake project name is empty");
+
+	path requested_path{ project_path.empty() ? path{ "." } : project_path };
+
+	path resolved_path{ requested_path.is_absolute()
+							? requested_path.lexically_normal()
+							: (GetRuntimeRoot() / requested_path).lexically_normal() };
+
+	// An explicit .ptgnproj path always refers to that exact file,
+	// whether or not the file exists yet.
+	if (GetExtension(resolved_path) == kProjectExtension) {
+		return resolved_path;
+	}
+
+	// An existing regular file must be a project file.
+	if (FileExists(resolved_path)) {
+		PTGN_ASSERT(false, "Expected a .ptgnproj file: ", resolved_path.string());
+	}
+
+	// Anything other than an explicit .ptgnproj file is treated
+	// as a directory.
+	//
+	// Prefer:
+	//   <directory>/<CMake project name>.ptgnproj
+	path preferred_project{ resolved_path /
+							(build_info.project_name + std::string{ kProjectExtension }) };
+
+	if (FileExists(preferred_project)) {
+		return preferred_project;
+	}
+
+	// Otherwise use the lexicographically first project file.
+	auto projects{ FindProjectFiles(resolved_path) };
+
+	if (!projects.empty()) {
+		return projects.front();
+	}
+
+	// No project exists. Returning the preferred path allows
+	// StartProject<TDefaultScene>() to create it.
+	return preferred_project;
+}
+
+} // namespace
 
 Application::Application(const ApplicationConfig& config) : ctx_{ config } {}
 
@@ -57,20 +205,17 @@ Application::Application(std::string_view title, V2_int window_size) :
 	Application{ ApplicationConfig{ .window{ .title{ title }, .size{ window_size } } } } {}
 
 Application::~Application() noexcept {
+#if defined(__EMSCRIPTEN__)
+	return;
+#endif
 	if (!ctx_.project.has_value()) {
 		return;
 	}
 
 	try {
-		SaveProjectLocalState(
-			ctx_.project.value(),
-			GetProjectLocalState(*this)
-		);
+		SaveProjectLocalState(ctx_.project.value(), GetProjectLocalState(*this));
 	} catch (const std::exception& exception) {
-		PTGN_ERROR(
-			"Failed to save project local state: ",
-			exception.what()
-		);
+		PTGN_ERROR("Failed to save project local state: ", exception.what());
 	} catch (...) {
 		PTGN_ERROR("Failed to save project local state");
 	}
@@ -81,33 +226,25 @@ void Application::StartProject(const path& project_path) {
 }
 
 void Application::StartProjectImpl(
-	const path& project_path,
-	const impl::SceneRegistryEntry* default_scene
+	const path& project_path, const impl::SceneRegistryEntry* default_scene
 ) {
-	// Existing projects created before ProjectSettings was serialized inherit the
-	// application's current configuration for any missing settings fields.
-	const auto application_defaults{ GetProjectSettings(*this) };
+	path resolved_project_path{ ResolveStartupProjectPath(project_path) };
+
+	auto application_defaults{ GetProjectSettings(*this) };
 
 	Project project;
 
-	if (FileExists(project_path)) {
-		project = LoadProject(
-			project_path,
-			application_defaults
-		);
+	if (FileExists(resolved_project_path)) {
+		project = LoadProject(resolved_project_path, application_defaults);
 	} else {
+#if defined(__EMSCRIPTEN__)
 		PTGN_ASSERT(
-			default_scene,
-			"Project does not exist. Use "
-			"StartProject<TDefaultScene>() to create it: ",
-			project_path.string()
+			false,
+			"Project does not exist in the Web runtime filesystem: ", resolved_project_path.string()
 		);
-
-		project = CreateProject(
-			project_path,
-			*default_scene,
-			application_defaults
-		);
+#else
+		project = CreateProject(resolved_project_path, default_scene, application_defaults);
+#endif
 	}
 
 	ctx_.project = std::move(project);
@@ -116,49 +253,29 @@ void Application::StartProjectImpl(
 
 	// Tracked project defaults are applied first. The ignored .ptgnlocal file then
 	// restores this user's window geometry without mutating the tracked defaults.
-	SetProjectSettings(
-		*this,
-		loaded_project.settings
-	);
-	SetProjectLocalState(
-		*this,
-		LoadProjectLocalState(loaded_project)
-	);
+	SetProjectSettings(*this, loaded_project.settings);
+	SetScreenEffects(loaded_project.screen_effects);
+	SetProjectLocalState(*this, LoadProjectLocalState(loaded_project));
+
+	if (ctx_.assets.RegisterCatalog(loaded_project.assets, loaded_project)) {
+		loaded_project.assets = ctx_.assets.GetCatalog();
+	}
+
+	LoadProjectPreloads(*this);
 
 	if (ctx_.start_project_runtime) {
-		const auto& startup{
-			GetStartupProjectScene(loaded_project)
-		};
+		const auto& startup{ GetStartupProjectScene(loaded_project) };
 
-		auto serialized_scene{
-			LoadSceneFile(
-				GetProjectScenePath(
-					loaded_project,
-					startup
-				)
-			)
-		};
+		auto serialized_scene{ LoadSceneFile(GetProjectScenePath(loaded_project, startup)) };
 
-		auto scene_factory{
-			impl::MakeSceneFactory(
-				std::move(serialized_scene),
-				true
-			)
-		};
+		auto scene_factory{ impl::MakeSceneFactory(std::move(serialized_scene), true) };
 
-		StartWithFactory(
-			startup.key,
-			std::move(scene_factory)
-		);
+		StartWithFactory(startup.key, std::move(scene_factory));
 
 		return;
 	}
 
-	PTGN_ASSERT(
-		ctx_.scene_manager.scenes_.empty(),
-		"Application has already been started"
-	);
-
+	PTGN_ASSERT(ctx_.scene_manager.scenes_.empty(), "Application has already been started");
 
 	struct BootstrapScene {
 		const ProjectSceneEntry* entry{ nullptr };
@@ -167,54 +284,34 @@ void Application::StartProjectImpl(
 
 	std::vector<BootstrapScene> bootstrap_scenes;
 
-	for (std::size_t i{ 0 };
-		 i < loaded_project.scenes.size();
-		 ++i) {
+	for (std::size_t i{ 0 }; i < loaded_project.scenes.size(); ++i) {
 		const auto& entry{ loaded_project.scenes[i] };
 
-		auto serialized_scene{
-			LoadSceneFile(
-				GetProjectScenePath(
-					loaded_project,
-					entry
-				)
-			)
-		};
+		auto serialized_scene{ LoadSceneFile(GetProjectScenePath(loaded_project, entry)) };
 
-		bool requires_bootstrap_save{
-			!serialized_scene.content.has_value()
-		};
+		bool requires_bootstrap_save{ !serialized_scene.content.has_value() };
 
-		auto scene_factory{
-			impl::MakeSceneFactory(
-				std::move(serialized_scene),
-				false
-			)
-		};
+		auto scene_factory{ impl::MakeSceneFactory(std::move(serialized_scene), false) };
 
-		auto scene{ std::invoke(
-			scene_factory,
-			*this,
-			impl::SceneData{
-				.tag = entry.key,
-				.tag_hash = Hash(entry.key),
-				.state = impl::SceneState::Active,
-				.runtime = false,
-				.first_scene = i == 0,
-			}
+		auto asset_ticket{ LoadStartupDependencies(*this, scene_factory) };
+
+		auto scene{ scene_factory(
+			*this, impl::SceneData{
+					   .tag			= entry.key,
+					   .tag_hash	= Hash(entry.key),
+					   .state		= impl::SceneState::Active,
+					   .runtime		= false,
+					   .first_scene = i == 0,
+				   }
 		) };
 
-		PTGN_ASSERT(
-			scene,
-			"Project scene factory returned null: ",
-			entry.key
-		);
+		PTGN_ASSERT(scene, "Project scene factory returned null: ", entry.key);
+
+		scene->AdoptLoadedAssetDependencies(asset_ticket.ReleaseOwnership());
 
 		auto* scene_ptr{ scene.get() };
 
-		ctx_.scene_manager.scenes_.emplace_back(
-			std::move(scene)
-		);
+		ctx_.scene_manager.scenes_.emplace_back(std::move(scene));
 
 		if (requires_bootstrap_save) {
 			bootstrap_scenes.emplace_back(
@@ -227,33 +324,21 @@ void Application::StartProjectImpl(
 	}
 
 	if (!bootstrap_scenes.empty()) {
-		loaded_project.assets =
-			ctx_.assets.GetCatalog();
+		loaded_project.assets = ctx_.assets.GetCatalog();
 
-		loaded_project.preload_assets =
-			ctx_.assets.GetProjectAssetDependencies();
+		loaded_project.preload_assets = ctx_.assets.GetProjectAssetDependencies();
 
-		loaded_project.settings =
-			GetProjectSettings(*this);
+		loaded_project.settings = GetProjectSettings(*this);
 
 		// Save catalog entries and settings before scene dependency keys.
 		SaveProject(loaded_project);
 
-		for (const auto& bootstrap :
-			 bootstrap_scenes) {
-			PTGN_ASSERT(
-				bootstrap.entry &&
-					bootstrap.scene
-			);
+		for (const auto& bootstrap : bootstrap_scenes) {
+			PTGN_ASSERT(bootstrap.entry && bootstrap.scene);
 
 			SaveSceneFile(
-				GetProjectScenePath(
-					loaded_project,
-					*bootstrap.entry
-				),
-				CaptureScene(
-					*bootstrap.scene
-				)
+				GetProjectScenePath(loaded_project, *bootstrap.entry),
+				CaptureScene(*bootstrap.scene)
 			);
 		}
 	}
@@ -263,27 +348,25 @@ void Application::StartProjectImpl(
 	EnterMainLoop();
 }
 
-void Application::StartWithFactory(
-	std::string_view scene_tag,
-	impl::SceneFactory scene_factory
-) {
+void Application::StartWithFactory(std::string_view scene_tag, impl::SceneFactory scene_factory) {
 	PTGN_ASSERT(scene_factory, "Cannot start application with a null scene factory");
 	PTGN_ASSERT(ctx_.scene_manager.scenes_.empty(), "Application has already been started");
 
-	auto first_scene{ std::invoke(
-		scene_factory,
-		*this,
-		impl::SceneData{
-			.tag{ scene_tag },
-			.tag_hash = Hash(scene_tag),
-			.state = impl::SceneState::Active,
-			.first_scene = true,
-		}
+	auto asset_ticket{ LoadStartupDependencies(*this, scene_factory) };
+	auto first_scene{ scene_factory(
+		*this, impl::SceneData{
+				   .tag{ scene_tag },
+				   .tag_hash	= Hash(scene_tag),
+				   .state		= impl::SceneState::Active,
+				   .first_scene = true,
+			   }
 	) };
 
 	PTGN_ASSERT(first_scene, "Startup scene factory returned null");
+	first_scene->AdoptLoadedAssetDependencies(asset_ticket.ReleaseOwnership());
 
 	auto& scene{ ctx_.scene_manager.scenes_.emplace_back(std::move(first_scene)) };
+
 	scene->InternalEnter();
 
 	ctx_.state = ApplicationState::Running;
@@ -295,6 +378,21 @@ void Application::EnterMainLoop() {
 	ctx_.window.SetSetting(WindowSetting::Shown);
 
 	ctx_.running = true;
+
+#ifdef __EMSCRIPTEN__
+	// The canvas layout is authoritative on the web. Reread it after
+	// initialization and after showing the window so the first rendered
+	// frame uses the actual browser viewport dimensions.
+	V2_int canvas_size{ ctx_.window.GetCanvasCssSize() };
+
+	if (canvas_size.IsPositive() && ctx_.window.GetSize() != canvas_size) {
+		ctx_.window.SetSize(canvas_size, false);
+	}
+
+	// Force the renderer to reconsider its presentation/display viewport
+	// before the first frame.
+	ctx_.renderer.OnOutputResize(ctx_.window.GetSize());
+#endif
 
 	ctx_.renderer.UpdateDisplayViewport(true);
 
@@ -309,7 +407,9 @@ void Application::EnterMainLoop() {
 				emscripten_cancel_main_loop();
 			}
 		},
-		this, /*fps=*/0, /*simulateInfiniteLoop=*/true
+		this,
+		/*fps=*/0,
+		/*simulateInfiniteLoop=*/true
 	);
 #else
 	while (ctx_.running) {
@@ -318,24 +418,113 @@ void Application::EnterMainLoop() {
 #endif
 }
 
-void Application::HandleGlobalEvents(bool dispatch_scene_events) {
+void Application::ProcessQueuedEvents(bool dispatch_scene_events) {
+	// Commit previous frame script mutations before capturing the listener set.
+	if (dispatch_scene_events) {
+		for (const auto& scene : ctx_.scene_manager.GetScenes()) {
+			if (scene->IsRuntime()) {
+				ScriptSystem::ApplyPending(*scene);
+			}
+		}
+	}
+
+	// Snapshot all queues before invoking any callback. Events emitted by callbacks
+	// are therefore deferred to the next drain, even if they target another scope.
 	auto global_events{ std::exchange(ctx_.event_handler.global_event_queue_, {}) };
 
+	struct LocalEventBatch {
+		Scene* scene{};
+		std::vector<impl::EventData> scene_events{};
+		std::vector<impl::EntityEvent> entity_events{};
+	};
+
+	std::vector<LocalEventBatch> local_batches;
+
+	if (dispatch_scene_events) {
+		for (const auto& scene : ctx_.scene_manager.GetScenes()) {
+			auto& local{ scene->ctx().event };
+			auto scene_events{ std::exchange(local.scene_event_queue_, {}) };
+			auto entity_events{ std::exchange(local.entity_event_queue_, {}) };
+
+			if (!scene_events.empty() || !entity_events.empty()) {
+				local_batches.push_back(
+					LocalEventBatch{
+						.scene		   = scene.get(),
+						.scene_events  = std::move(scene_events),
+						.entity_events = std::move(entity_events),
+					}
+				);
+			}
+		}
+	}
+
+	// Application wide events are offered to all eligible scenes.
 	for (auto& global_event : global_events) {
 		Event event{ global_event };
-		event.Dispatch<event::FramebufferResized>([this](const auto& size) {
+
+		event.Dispatch<event::WindowResized>([this](const auto& size) {
 			ctx_.renderer.OnOutputResize(size);
+			ctx_.renderer.UpdateDisplayViewport();
 		});
-		if (!dispatch_scene_events) {
+
+		bool scene_input_event{ global_event.type_hash == Hash<event::KeyHeld>() ||
+								global_event.type_hash == Hash<event::KeyPressed>() ||
+								global_event.type_hash == Hash<event::KeyReleased>() ||
+								global_event.type_hash == Hash<event::MouseHeld>() ||
+								global_event.type_hash == Hash<event::MouseMove>() ||
+								global_event.type_hash == Hash<event::MousePressed>() ||
+								global_event.type_hash == Hash<event::MouseReleased>() ||
+								global_event.type_hash == Hash<event::MouseScroll>() };
+
+		if (!dispatch_scene_events || (!IsSceneInputEnabled() && scene_input_event)) {
 			continue;
 		}
+
 		for (const auto& scene : ctx_.scene_manager.GetScenes()) {
 			if (!scene->IsRuntime() || scene->IsAwaitingTransitionDelay()) {
 				continue;
 			}
+
 			scene->InternalOnEvent(event);
 		}
 	}
+
+	// Scene events, then targeted entity events, in scene order.
+	// Each phase retains FIFO ordering within its own queue.
+	for (auto& batch : local_batches) {
+		// A callback can request scene changes. Never dereference a removed scene.
+		const auto& scenes{ ctx_.scene_manager.GetScenes() };
+		bool scene_alive{ std::ranges::any_of(scenes, [&batch](const auto& scene) {
+			return scene.get() == batch.scene;
+		}) };
+
+		if (!scene_alive || !batch.scene->IsRuntime() || batch.scene->IsAwaitingTransitionDelay()) {
+			continue;
+		}
+
+		for (auto& scene_event : batch.scene_events) {
+			Event event{ scene_event };
+			batch.scene->InternalOnEvent(event);
+		}
+
+		for (auto& entity_event : batch.entity_events) {
+			Event event{ entity_event.event };
+			batch.scene->InternalOnEvent(entity_event.entity, event);
+		}
+	}
+
+	// Apply script additions and removals only at batch boundaries.
+	if (dispatch_scene_events) {
+		for (const auto& scene : ctx_.scene_manager.GetScenes()) {
+			if (scene->IsRuntime()) {
+				ScriptSystem::ApplyPending(*scene);
+			}
+		}
+	}
+}
+
+void Application::FlushEventsForSceneExit() {
+	ProcessQueuedEvents(true);
 }
 
 void Application::RenderScenes() {
@@ -346,14 +535,19 @@ void Application::RenderScenes() {
 	ctx_.scene_manager.Draw(draw_context);
 
 	ctx_.screen_effect_manager.Refresh();
+	impl::RefreshScreenEffectOrder(ctx_);
 
-	if (ctx_.screen_effect_manager.IsEmpty()) {
+	if (!ctx_.screen_effects_enabled || ctx_.screen_effect_order.empty()) {
 		ctx_.renderer.EndFrame(nullptr);
 		return;
 	}
 
 	ctx_.renderer.EndFrame([this](auto& draw_ctx) {
-		for (auto entity : ctx_.screen_effect_manager.Entities()) {
+		for (Entity entity : ctx_.screen_effect_order) {
+			if (!entity || !IsVisible(entity)) {
+				continue;
+			}
+
 			PTGN_ASSERT(
 				!entity.Has<impl::HDREffectTag>() ||
 					IsHDRFormat(
@@ -364,6 +558,34 @@ void Application::RenderScenes() {
 			impl::InvokeDrawable(draw_ctx, entity);
 		}
 	});
+}
+
+void Application::SetScreenEffects(const ScreenEffectSettings& settings) {
+	impl::RebuildScreenEffects(ctx_, settings);
+}
+
+void Application::SetScreenEffectsEnabled(bool enabled) {
+	ctx_.screen_effects_enabled = enabled;
+}
+
+bool Application::AreScreenEffectsEnabled() const {
+	return ctx_.screen_effects_enabled;
+}
+
+void Application::SetSceneInputEnabled(bool enabled) {
+	ctx_.scene_input_state.enabled = enabled;
+}
+
+bool Application::IsSceneInputEnabled() const {
+	return ctx_.scene_input_state.enabled;
+}
+
+void Application::SetCloseGuard(std::function<bool()> close_guard) {
+	close_guard_ = std::move(close_guard);
+}
+
+void Application::RequestQuit() {
+	ctx_.window.RequestQuit();
 }
 
 void Application::Update() {
@@ -377,35 +599,49 @@ void Application::Update() {
 
 	ctx_.debug.PreUpdate();
 
-	static auto start{ std::chrono::steady_clock::now() };
-	static auto end{ std::chrono::steady_clock::now() };
-	ctx_.dt = end - start;
+	static auto previous_time{ std::chrono::steady_clock::now() };
+
+	auto current_time{ std::chrono::steady_clock::now() };
+	secondsf real_dt{ current_time - previous_time };
+	previous_time = current_time;
+
+	secondsf unscaled_dt{ real_dt };
 
 	secondsf max_dt{ 1.0f / ctx_.fps };
 
-	if (ctx_.dt > max_dt) {
-		ctx_.dt = max_dt;
+	if (unscaled_dt > max_dt || step_requested) {
+		unscaled_dt = max_dt;
 	}
 
 	PTGN_ASSERT(ctx_.time_scale >= 0.0f, "Time scale cannot be negative");
 
-	if (step_requested) {
-		ctx_.dt = max_dt * ctx_.time_scale;
-	} else if (ctx_.state == ApplicationState::Paused) {
-		ctx_.dt = 0s;
-	} else {
-		ctx_.dt *= ctx_.time_scale;
+	if (ctx_.state == ApplicationState::Paused && !step_requested) {
+		unscaled_dt = 0s;
 	}
 
-	start = end;
+	ctx_.dt = unscaled_dt * ctx_.time_scale;
 
-	ctx_.running = ctx_.window.Update();
+	bool window_running{ ctx_.window.Update() };
+
+	if (!window_running && close_guard_ && !close_guard_()) {
+		ctx_.window.CancelQuit();
+		ctx_.running = true;
+	} else {
+		ctx_.running = window_running;
+	}
+
+	ctx_.assets.Update();
+
+	auto end_frame = [&]() {
+		ctx_.debug.PostRender();
+
+		ctx_.frame_count++;
+		ctx_.real_time += real_dt;
+	};
 
 	if (ctx_.window.GetSetting(WindowSetting::Minimized)) {
 		ctx_.audio.Update();
-		ctx_.debug.PostRender();
-		end = std::chrono::steady_clock::now();
-		ctx_.frame_count++;
+		end_frame();
 		return;
 	}
 
@@ -419,13 +655,13 @@ void Application::Update() {
 		ctx_.scene_manager.PreUpdate();
 	}
 
-	HandleGlobalEvents(scene_events);
+	ProcessQueuedEvents(scene_events);
 
-	if (scene_events) {
-		ctx_.scene_manager.OnEvent();
-	}
 	if (update_scenes) {
-		ctx_.scene_manager.Update(*this, ctx_.dt);
+		ctx_.scene_manager.Update(*this, duration_cast<milliseconds>(ctx_.dt));
+
+		ctx_.unscaled_game_time += unscaled_dt;
+		ctx_.game_time			+= ctx_.dt;
 	}
 
 	for (const auto& layer : ctx_.layers) {
@@ -453,10 +689,7 @@ void Application::Update() {
 
 	ctx_.window.SwapBuffers();
 
-	ctx_.debug.PostRender();
-
-	end = std::chrono::steady_clock::now();
-	ctx_.frame_count++;
+	end_frame();
 }
 
 } // namespace ptgn

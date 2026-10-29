@@ -1,7 +1,7 @@
 # examples/CMakeLists.txt
 # No project() call here.
 
-# Enable IDE folders
+# Enable IDE folders.
 set_property(GLOBAL PROPERTY USE_FOLDERS ON)
 set_property(GLOBAL PROPERTY PREDEFINED_TARGETS_FOLDER "CMake")
 
@@ -32,7 +32,7 @@ set(_examples_dir "${CMAKE_CURRENT_SOURCE_DIR}")
 set(_web_dir "${_examples_dir}/web")
 set(_default_assets_dir "${_examples_dir}/assets")
 
-# Discover examples by single .cpp files
+# Discover examples by single .cpp files.
 file(GLOB_RECURSE _example_sources CONFIGURE_DEPENDS "${_examples_dir}/*.cpp")
 
 if(NOT _example_sources)
@@ -40,7 +40,7 @@ if(NOT _example_sources)
   return()
 endif()
 
-# Validate requested examples early
+# Validate requested examples early.
 if(NOT _select_all)
   foreach(_req IN LISTS _select_list)
     string(STRIP "${_req}" _req)
@@ -65,7 +65,10 @@ if(NOT _select_all)
 endif()
 
 if(EMSCRIPTEN)
-  set(_shell_html "${CMAKE_CURRENT_SOURCE_DIR}/../platform/emscripten/shell.html")
+  set(
+    _shell_html
+    "${CMAKE_CURRENT_SOURCE_DIR}/../platform/emscripten/shell.html"
+  )
 
   if(NOT EXISTS "${_shell_html}")
     message(FATAL_ERROR
@@ -74,7 +77,7 @@ if(EMSCRIPTEN)
   endif()
 endif()
 
-# Track target-name collisions if leaf names repeat
+# Track target-name collisions if leaf names repeat.
 set(_used_target_names "")
 set(_built_examples "")
 set(_built_targets "")
@@ -87,7 +90,7 @@ foreach(_src IN LISTS _example_sources)
     "${_src}"
   ) # e.g. audio/basic.cpp
 
-  # Skip web support sources if present under examples/web
+  # Skip Web support sources if present under examples/web.
   if(_rel MATCHES "^web/")
     continue()
   endif()
@@ -110,11 +113,11 @@ foreach(_src IN LISTS _example_sources)
     endif()
   endif()
 
-  # Target name defaults to leaf filename
+  # Target name defaults to leaf filename.
   get_filename_component(_leaf "${_src}" NAME_WE)
   set(_t "${_leaf}")
 
-  # Disambiguate duplicate leaf names
+  # Disambiguate duplicate leaf names.
   list(FIND _used_target_names "${_t}" _taken)
 
   if(NOT _taken EQUAL -1)
@@ -134,7 +137,7 @@ foreach(_src IN LISTS _example_sources)
 
   add_executable(${_t} "${_src}")
 
-  # Choose assets directory before wiring Protegon
+  # Choose assets directory before wiring Protegon.
   set(_assets_src "${_default_assets_dir}")
 
   if(EXISTS "${_example_dir}/assets")
@@ -142,14 +145,16 @@ foreach(_src IN LISTS _example_sources)
   endif()
 
   if(EMSCRIPTEN)
-    add_protegon_to(
+    add_protegon_to_example(
       ${_t}
+      "${_rel_key}"
       ASSETS_DIR "${_assets_src}"
       SHELL_HTML "${_shell_html}"
     )
   else()
-    add_protegon_to(
+    add_protegon_to_example(
       ${_t}
+      "${_rel_key}"
       ASSETS_DIR "${_assets_src}"
     )
   endif()
@@ -157,25 +162,19 @@ foreach(_src IN LISTS _example_sources)
   set_target_properties(
     ${_t}
     PROPERTIES
-      OUTPUT_NAME "${_t}"
-  )
-
-  target_compile_definitions(
-    ${_t}
-    PRIVATE
-      PTGN_EXAMPLE_ID="${_rel}"
+    OUTPUT_NAME "${_t}"
   )
 
   if(MSVC)
     set_target_properties(
       ${_t}
       PROPERTIES
-        VS_DEBUGGER_WORKING_DIRECTORY
-          "${CMAKE_CURRENT_BINARY_DIR}/$<CONFIG>"
+      VS_DEBUGGER_WORKING_DIRECTORY
+      "${CMAKE_CURRENT_BINARY_DIR}/$<CONFIG>"
     )
   endif()
 
-  # IDE folder grouping
+  # IDE folder grouping.
   get_filename_component(_parent_path "${_rel}" DIRECTORY)
 
   if(_parent_path STREQUAL "." OR _parent_path STREQUAL "")
@@ -187,7 +186,7 @@ foreach(_src IN LISTS _example_sources)
   set_target_properties(
     ${_t}
     PROPERTIES
-      FOLDER "${_folder}"
+    FOLDER "${_folder}"
   )
 
   list(APPEND _built_examples "${_rel_key}")
@@ -248,16 +247,16 @@ if(EMSCRIPTEN AND _built_examples)
     "${PTGN_DIST_DIR}/style.css"
     COPYONLY
   )
-  
+
   foreach(_t IN LISTS _built_targets)
     add_custom_command(
       TARGET ${_t}
       POST_BUILD
       COMMAND
-        "${CMAKE_COMMAND}"
-          "-DINPUT_HTML=$<TARGET_FILE:${_t}>"
-          "-DDEST_DIR=${PTGN_DIST_DIR}"
-          -P "${CMAKE_CURRENT_SOURCE_DIR}/../cmake/CopyEmscriptenOutput.cmake"
+      "${CMAKE_COMMAND}"
+      "-DINPUT_HTML=$<TARGET_FILE:${_t}>"
+      "-DDEST_DIR=${PTGN_DIST_DIR}"
+      -P "${CMAKE_CURRENT_SOURCE_DIR}/../cmake/CopyEmscriptenOutput.cmake"
       VERBATIM
     )
   endforeach()

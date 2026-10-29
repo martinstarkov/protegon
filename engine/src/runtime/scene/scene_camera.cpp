@@ -1,4 +1,3 @@
-
 #include "runtime/scene/scene_camera.h"
 
 #include <algorithm>
@@ -18,11 +17,16 @@
 #include "renderer/renderer.h"
 #include "runtime/animation/offsets.h"
 #include "runtime/ecs/entity.h"
+#include "runtime/ecs/entity_creation_context.h"
+#include "runtime/ecs/entity_hierarchy.h"
+#include "runtime/ecs/group_stack.h"
 #include "runtime/ecs/tag.h"
 #include "runtime/graphics/draw.h"
 #include "runtime/graphics/render_target.h"
+#include "runtime/graphics/visible.h"
 #include "runtime/scene/scene.h"
 #include "runtime/scene/scene_context.h"
+#include "runtime/scene/scene_event.h"
 
 namespace ptgn {
 
@@ -68,8 +72,58 @@ V2_float ApplyCameraBounds(SceneCamera camera, V2_float position) {
 
 namespace impl {
 
+void UpdateCameraVisibilityEvents(Scene& scene) {
+	if (!scene.IsRuntime() || scene.IsPaused()) {
+		return;
+	}
+	for (auto [camera_entity, data] : scene.EntitiesWith<CameraData>()) {
+		SceneCamera camera{ camera_entity };
+		auto quad{ camera.GetWorldVertices() };
+		std::vector<Entity> current;
+		for (auto [entity, transform] : scene.EntitiesWith<Transform>()) {
+			if (entity == camera_entity || !HasDraw(entity) || !IsVisible(entity) ||
+				!camera.CanSee(entity) || !scene.ctx().chunks.ShouldRender(entity)) {
+				continue;
+			}
+			V2_float point{ GetWorldPosition(entity) };
+			float last_cross{ 0.0f };
+			bool inside{ true };
+			for (std::size_t i{ 0 }; i < quad.size(); ++i) {
+				V2_float edge{ quad[(i + 1) % quad.size()] - quad[i] };
+				float cross{ edge.Cross(point - quad[i]) };
+				if (cross != 0.0f && last_cross != 0.0f && cross * last_cross < 0.0f) {
+					inside = false;
+					break;
+				}
+				if (cross != 0.0f) {
+					last_cross = cross;
+				}
+			}
+			if (inside) {
+				current.push_back(entity);
+				if (!std::ranges::contains(data.visible_last_frame, entity)) {
+					PushEvent<event::CameraEntityEnteredView>(camera_entity, camera, entity);
+					PushEvent<event::CameraEntityEnteredView>(entity, camera, entity);
+				}
+			}
+		}
+		for (Entity previous : data.visible_last_frame) {
+			if (previous && !std::ranges::contains(current, previous)) {
+				PushEvent<event::CameraEntityExitedView>(camera_entity, camera, previous);
+				PushEvent<event::CameraEntityExitedView>(previous, camera, previous);
+			}
+		}
+		data.visible_last_frame = std::move(current);
+	}
+}
+
 void ApplyCameraBounds(SceneCamera camera) {
-	SetPosition(camera, ptgn::ApplyCameraBounds(camera, GetPosition(camera)));
+	V2_float attempted{ GetPosition(camera) };
+	V2_float clamped{ ptgn::ApplyCameraBounds(camera, attempted) };
+	if (clamped != attempted && camera.HasScene()) {
+		PushEvent<event::CameraBoundsReached>(camera, attempted, clamped);
+	}
+	SetPosition(camera, clamped);
 }
 
 void RecalculateCameraViewProjection(SceneCamera camera) {
@@ -94,14 +148,14 @@ void RecalculateCameraViewProjection(SceneCamera camera) {
 	// V2_float flip_dir{ 1.0f, 1.0f };
 	// Flip flip{ Flip::None };
 	// switch (flip) {
-	//	case Flip::None:	   break;
-	//	case Flip::Vertical:   flip_dir.y = -1.0f; break;
-	//	case Flip::Horizontal: flip_dir.x = -1.0f; break;
-	//	case Flip::Both:
-	//		flip_dir.x = -1.0f;
-	//		flip_dir.y = -1.0f;
-	//		break;
-	//	default: PTGN_ERROR("Unrecognized flip state");
+	//  case Flip::None:       break;
+	//  case Flip::Vertical:   flip_dir.y = -1.0f; break;
+	//  case Flip::Horizontal: flip_dir.x = -1.0f; break;
+	//  case Flip::Both:
+	//      flip_dir.x = -1.0f;
+	//      flip_dir.y = -1.0f;
+	//      break;
+	//  default: PTGN_ERROR("Unrecognized flip state");
 	//}
 	// view_size *= flip_dir;
 
@@ -131,15 +185,16 @@ SceneCamera::operator Camera() const {
 }
 
 SceneCamera& SceneCamera::SetZoom(V2_float new_zoom) {
-	auto clamped{ Clamp(
-		new_zoom, V2_float{ 1000.0f * kEpsilon<float> },
-		V2_float{ std::numeric_limits<float>::max() }
-	) };
+	auto clamped{ Clamp(new_zoom, 1000.0f * kEpsilon<float>, std::numeric_limits<float>::max()) };
 	if (GetZoom() == clamped) {
 		return *this;
 	}
 	PTGN_ASSERT(clamped.IsPositive(), "Cannot set negative or zero zoom");
+	V2_float previous{ GetZoom() };
 	SetScale(*this, 1.0f / clamped);
+	if (HasScene()) {
+		PushEvent<event::CameraZoomChanged>(*this, previous, clamped);
+	}
 	return *this;
 }
 
@@ -292,60 +347,60 @@ SceneCamera& SceneCamera::Reset() {
 	return *this;
 }
 
-SceneCamera& SceneCamera::SetMasks(LayerMask include, LayerMask exclude) {
+SceneCamera& SceneCamera::SetRenderMasks(RenderMaskBits include, RenderMaskBits exclude) {
 	auto& c	  = TryAdd<impl::CameraMask>();
 	c.include = include;
 	c.exclude = exclude;
 	return *this;
 }
 
-SceneCamera& SceneCamera::SetIncludeMask(LayerMask include) {
+SceneCamera& SceneCamera::SetIncludeRenderMask(RenderMaskBits include) {
 	TryAdd<impl::CameraMask>().include = include;
 	return *this;
 }
 
-SceneCamera& SceneCamera::SetExcludeMask(LayerMask exclude) {
+SceneCamera& SceneCamera::SetExcludeRenderMask(RenderMaskBits exclude) {
 	TryAdd<impl::CameraMask>().exclude = exclude;
 	return *this;
 }
 
-SceneCamera& SceneCamera::AddIncludeMasks(LayerMask layers_to_add) {
-	TryAdd<impl::CameraMask>().include |= layers_to_add;
+SceneCamera& SceneCamera::AddIncludeRenderMaskBits(RenderMaskBits masks_to_add) {
+	TryAdd<impl::CameraMask>().include |= masks_to_add;
 	return *this;
 }
 
-SceneCamera& SceneCamera::RemoveIncludeMasks(LayerMask layers_to_remove) {
-	TryAdd<impl::CameraMask>().include &= ~layers_to_remove;
+SceneCamera& SceneCamera::RemoveIncludeRenderMaskBits(RenderMaskBits masks_to_remove) {
+	TryAdd<impl::CameraMask>().include &= ~masks_to_remove;
 	return *this;
 }
 
-SceneCamera& SceneCamera::AddExcludeMasks(LayerMask layers_to_add) {
-	TryAdd<impl::CameraMask>().exclude |= layers_to_add;
+SceneCamera& SceneCamera::AddExcludeRenderMaskBits(RenderMaskBits masks_to_add) {
+	TryAdd<impl::CameraMask>().exclude |= masks_to_add;
 	return *this;
 }
 
-SceneCamera& SceneCamera::RemoveExcludeMasks(LayerMask layers_to_remove) {
-	TryAdd<impl::CameraMask>().exclude &= ~layers_to_remove;
+SceneCamera& SceneCamera::RemoveExcludeRenderMaskBits(RenderMaskBits masks_to_remove) {
+	TryAdd<impl::CameraMask>().exclude &= ~masks_to_remove;
 	return *this;
 }
 
-SceneCamera& SceneCamera::ClearMasks() {
+SceneCamera& SceneCamera::ClearRenderMasks() {
 	Remove<impl::CameraMask>();
 	return *this;
 }
 
-LayerMask SceneCamera::GetIncludeMask() const {
+RenderMaskBits SceneCamera::GetIncludeRenderMask() const {
 	return GetOrDefault<impl::CameraMask>().include;
 }
 
-LayerMask SceneCamera::GetExcludeMask() const {
+RenderMaskBits SceneCamera::GetExcludeRenderMask() const {
 	return GetOrDefault<impl::CameraMask>().exclude;
 }
 
 bool SceneCamera::CanSee(Entity entity) const {
-	auto entity_mask = GetMask(entity);
-	auto include	 = GetIncludeMask();
-	auto exclude	 = GetExcludeMask();
+	auto entity_mask = GetRenderMask(entity);
+	auto include	 = GetIncludeRenderMask();
+	auto exclude	 = GetExcludeRenderMask();
 
 	bool in_include = (entity_mask & include) != 0;
 	bool in_exclude = (entity_mask & exclude) != 0;
@@ -396,54 +451,134 @@ std::optional<Color> SceneCamera::GetClearColor() const {
 	}
 }
 
-void SetUI(Entity entity, bool ui_layer) {
-	if (ui_layer) {
-		entity.Add<impl::UILayer>();
-		SetMask(entity, kLayersNone);
+void SetUI(Entity entity, bool ui_rendering) {
+	if (!entity) {
+		return;
+	}
+
+	if (ui_rendering) {
+		entity.TryAdd<impl::UIRenderTag>();
+		entity.TryAdd<impl::RenderMask>().bits = kRenderMaskNone;
 	} else {
-		entity.Remove<impl::UILayer>();
-		SetMask(entity, impl::RenderMask{}.layers);
+		entity.Remove<impl::UIRenderTag>();
+		entity.TryAdd<impl::RenderMask>().bits = impl::RenderMask{}.bits;
+	}
+
+	// Group entities inherit the parent render mode unless explicitly overridden.
+	if (entity.Has<Group>() && HasParent(entity) && !entity.Has<impl::RenderMaskOverride>() &&
+		ui_rendering != IsUI(GetParent(entity))) {
+		entity.TryAdd<impl::RenderMaskOverride>();
+	}
+
+	// Managed controls inside a group inherit that group unless overridden.
+	GroupEntity layer{ GetGroup(entity) };
+	if (layer && layer != entity && !entity.Has<impl::RenderMaskOverride>() &&
+		ui_rendering != IsUI(layer)) {
+		entity.TryAdd<impl::RenderMaskOverride>();
 	}
 }
 
 bool IsUI(Entity entity) {
-	return entity.Has<impl::UILayer>();
+	if (!entity) {
+		return false;
+	}
+
+	if (entity.Has<Group>() && HasParent(entity) && !entity.Has<impl::RenderMaskOverride>()) {
+		return IsUI(GetParent(entity));
+	}
+
+	GroupEntity layer{ GetGroup(entity) };
+	if (layer && layer != entity) {
+		return entity.Has<impl::RenderMaskOverride>() ? entity.Has<impl::UIRenderTag>()
+													  : IsUI(layer);
+	}
+
+	GroupStack stack{ GetGroupStack(entity) };
+	if (layer && stack && layer == entity && !layer.Has<impl::RenderMaskOverride>()) {
+		return IsUI(stack);
+	}
+
+	return entity.Has<impl::UIRenderTag>();
 }
 
-LayerMask GetMask(Entity entity) {
-	return entity.GetOrDefault<impl::RenderMask>().layers;
+RenderMaskBits GetRenderMask(Entity entity) {
+	if (!entity) {
+		return kRenderMaskDefault;
+	}
+
+	if (entity.Has<Group>() && HasParent(entity) && !entity.Has<impl::RenderMaskOverride>()) {
+		return GetRenderMask(GetParent(entity));
+	}
+
+	GroupEntity layer{ GetGroup(entity) };
+	if (layer && layer != entity) {
+		return entity.Has<impl::RenderMaskOverride>() ? entity.GetOrDefault<impl::RenderMask>().bits
+													  : GetRenderMask(layer);
+	}
+
+	GroupStack stack{ GetGroupStack(entity) };
+	if (layer && stack && layer == entity && !layer.Has<impl::RenderMaskOverride>()) {
+		return GetRenderMask(stack);
+	}
+
+	return entity.GetOrDefault<impl::RenderMask>().bits;
 }
 
-void SetMask(Entity entity, LayerMask mask) {
-	entity.TryAdd<impl::RenderMask>().layers = mask;
+void SetRenderMask(Entity entity, RenderMaskBits mask) {
+	if (!entity) {
+		return;
+	}
+
+	entity.TryAdd<impl::RenderMask>().bits = mask;
+	if (GetGroup(entity)) {
+		entity.TryAdd<impl::RenderMaskOverride>();
+	}
 }
 
-void AddMasks(Entity entity, LayerMask layers_to_add) {
-	entity.TryAdd<impl::RenderMask>().layers |= layers_to_add;
+void AddRenderMaskBits(Entity entity, RenderMaskBits masks_to_add) {
+	SetRenderMask(entity, GetRenderMask(entity) | masks_to_add);
 }
 
-void RemoveMasks(Entity entity, LayerMask layers_to_remove) {
-	entity.TryAdd<impl::RenderMask>().layers &= ~layers_to_remove;
+void RemoveRenderMaskBits(Entity entity, RenderMaskBits masks_to_remove) {
+	SetRenderMask(entity, GetRenderMask(entity) & ~masks_to_remove);
 }
 
-void ClearMasks(Entity entity) {
+void ClearRenderMask(Entity entity) {
 	entity.Remove<impl::RenderMask>();
+	entity.Remove<impl::RenderMaskOverride>();
 }
 
-bool HasAnyMask(Entity entity, LayerMask test) {
-	return (GetMask(entity) & test) != 0;
+void PrepareGroupEntityRenderMaskReparent(Entity entity, Entity new_parent) {
+	if (!entity || !new_parent || entity.Has<impl::RenderMaskOverride>() || GetGroup(entity) ||
+		!GetGroup(new_parent)) {
+		return;
+	}
+
+	// Existing UI controls use None + UI rendering as their natural default.
+	// Other entities use the default (bit zero) as their natural default.
+	bool ui_rendering{ entity.Has<impl::UIRenderTag>() };
+	RenderMaskBits mask{ entity.GetOrDefault<impl::RenderMask>().bits };
+	RenderMaskBits default_mask{ ui_rendering ? kRenderMaskNone : kRenderMaskDefault };
+
+	if (mask != default_mask) {
+		entity.TryAdd<impl::RenderMaskOverride>();
+	}
 }
 
-bool HasAllMasks(Entity entity, LayerMask test) {
-	auto m{ GetMask(entity) };
+bool HasAnyRenderMaskBits(Entity entity, RenderMaskBits test) {
+	return (GetRenderMask(entity) & test) != 0;
+}
+
+bool HasAllRenderMaskBits(Entity entity, RenderMaskBits test) {
+	auto m{ GetRenderMask(entity) };
 	return (m & test) == test;
 }
 
 SceneCamera CreateCamera(
-	Scene& scene, Transform transform, std::optional<V2_float> viewport_size,
+	EntityCreationContext context, Transform transform, std::optional<V2_float> viewport_size,
 	ViewportSpace viewport_space
 ) {
-	SceneCamera camera{ scene.CreateEntity() };
+	SceneCamera camera{ context.CreateEntity() };
 
 	PTGN_ASSERT(
 		!viewport_size.has_value() || viewport_size.value().IsPositive(),
@@ -460,8 +595,8 @@ SceneCamera CreateCamera(
 		camera.SetViewport(Viewport{ {}, viewport_size.value() }, viewport_space);
 	}
 
-	camera.SetRenderTarget(std::nullopt);
-
+	// An independent camera has no default scene render target to bind.
+	// On instantiation, the absence of ParentRenderTarget selects the scene default.
 	return camera;
 }
 

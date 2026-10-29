@@ -1,12 +1,12 @@
 #include "runtime/scene/scene_file.h"
 
 #include <memory>
+#include <ranges>
 #include <string>
 #include <utility>
 #include <vector>
 
 #include "app/application_context.h"
-#include "app/project.h"
 #include "core/assert.h"
 #include "runtime/asset/asset_manager.h"
 #include "runtime/scene/scene.h"
@@ -19,77 +19,194 @@ namespace ptgn {
 namespace {
 
 void ValidateSerializedScene(const SerializedScene& scene) {
+	PTGN_ASSERT(!scene.type.empty(), "Serialized scene type cannot be empty");
+
 	PTGN_ASSERT(
-		!scene.type.empty(),
-		"Serialized scene type cannot be empty"
+		scene.parameters.is_object(), "Serialized scene parameters must be an object. Found ",
+		scene.parameters.type_name(), ": ", scene.parameters.dump(2)
 	);
 
 	PTGN_ASSERT(
-		scene.parameters.is_object(),
-		"Serialized scene parameters must be a JSON object"
-	);
-
-	PTGN_ASSERT(
-		!scene.content.has_value() ||
-			scene.content->is_object(),
-		"Serialized scene content must be an object or null"
+		!scene.content.has_value() || scene.content->is_object(),
+		"Serialized scene content must be an object or absent. Found ",
+		scene.content.has_value() ? scene.content->type_name() : "absent",
+		scene.content.has_value() ? ": " + scene.content->dump(2) : ""
 	);
 
 	for (const auto& key : scene.assets) {
+		PTGN_ASSERT(!key.value.empty(), "Serialized scene asset key cannot be empty");
+	}
+
+	for (const auto& key : scene.preload_assets) {
+		PTGN_ASSERT(!key.value.empty(), "Serialized scene preload asset key cannot be empty");
 		PTGN_ASSERT(
-			!key.value.empty(),
-			"Serialized scene asset key cannot be empty"
+			std::ranges::contains(scene.assets, key),
+			"Serialized scene preload asset must also be present in assets: ", key
 		);
 	}
 }
 
-} // namespace
+[[nodiscard]] SerializedScene FromJson(const json& value) {
+	PTGN_ASSERT(
+		value.is_object(), "Serialized scene file root must be an object. Found ",
+		value.type_name(), ": ", value.dump(2)
+	);
 
-SerializedScene LoadSceneFile(const path& file_path) {
-	auto scene{ LoadJson(file_path).get<SerializedScene>() };
+	PTGN_ASSERT(value.contains("type"), "Serialized scene file is missing type");
+
+	PTGN_ASSERT(value.contains("parameters"), "Serialized scene file is missing parameters");
+
+	PTGN_ASSERT(value.contains("assets"), "Serialized scene file is missing assets");
+
+	PTGN_ASSERT(
+		value.contains("preload_assets"), "Serialized scene file is missing preload_assets"
+	);
+
+	PTGN_ASSERT(value.contains("content"), "Serialized scene file is missing content");
+
+	const auto& type_value{ value.at("type") };
+	const auto& parameters_value{ value.at("parameters") };
+	const auto& assets_value{ value.at("assets") };
+	const auto& preload_assets_value{ value.at("preload_assets") };
+	const auto& content_value{ value.at("content") };
+
+	PTGN_ASSERT(
+		type_value.is_string(), "Serialized scene type must be a string. Found ",
+		type_value.type_name(), ": ", type_value.dump(2)
+	);
+
+	PTGN_ASSERT(
+		parameters_value.is_object(), "Serialized scene parameters must be an object. Found ",
+		parameters_value.type_name(), ": ", parameters_value.dump(2)
+	);
+
+	PTGN_ASSERT(
+		assets_value.is_array(), "Serialized scene assets must be an array. Found ",
+		assets_value.type_name(), ": ", assets_value.dump(2)
+	);
+
+	PTGN_ASSERT(
+		preload_assets_value.is_array(), "Serialized scene preload_assets must be an array. Found ",
+		preload_assets_value.type_name(), ": ", preload_assets_value.dump(2)
+	);
+
+	PTGN_ASSERT(
+		content_value.is_null() || content_value.is_object(),
+		"Serialized scene content must be an object or null. Found ", content_value.type_name(),
+		": ", content_value.dump(2)
+	);
+
+	SerializedScene scene;
+
+	type_value.get_to(scene.type);
+	scene.parameters = parameters_value;
+	assets_value.get_to(scene.assets);
+	preload_assets_value.get_to(scene.preload_assets);
+
+	if (content_value.is_object()) {
+		scene.content = content_value;
+	}
 
 	ValidateSerializedScene(scene);
 
 	return scene;
 }
 
-void SaveSceneFile(
-	const path& path,
-	const SerializedScene& scene
-) {
+[[nodiscard]] json ToJson(const SerializedScene& scene) {
 	ValidateSerializedScene(scene);
 
-	EnsureDirectory(path.parent_path());
+	json value = json::object();
 
-	json value = scene;
+	value["type"]			= scene.type;
+	value["parameters"]		= scene.parameters;
+	value["assets"]			= scene.assets;
+	value["preload_assets"] = scene.preload_assets;
 
-	SaveJson(value, path);
-}
-
-SerializedScene CaptureScene(const Scene& scene) {
-	std::string type;
-	json parameters = json::object();
-
-	if (scene.GetRegisteredType().empty()) {
-		type = std::string{ impl::kBaseSceneType };
+	if (scene.content.has_value()) {
+		value["content"] = scene.content.value();
 	} else {
-		const auto& registration{
-			impl::GetSceneRegistration(
-				scene.GetRegisteredType()
-			)
-		};
-
-		type = registration.type;
-		parameters =
-			registration.serialize_parameters(scene);
+		value["content"] = nullptr;
 	}
 
-	return SerializedScene{
-		.type = std::move(type),
-		.parameters = std::move(parameters),
-		.assets = scene.GetAssetDependencies(),
-		.content = scene.SerializeContent(),
-	};
+	return value;
+}
+
+void AddUnique(std::vector<AssetKey>& values, const AssetKey& key) {
+	if (!key.value.empty() && !std::ranges::contains(values, key)) {
+		values.emplace_back(key);
+	}
+}
+
+} // namespace
+
+SerializedScene LoadSceneFile(const path& file_path) {
+	json value = LoadJson(file_path);
+
+	return FromJson(value);
+}
+
+void SaveSceneFile(const path& file_path, const SerializedScene& scene) {
+	json value = ToJson(scene);
+
+	EnsureDirectory(file_path.parent_path());
+	SaveJson(value, file_path);
+}
+
+namespace impl {
+
+std::vector<AssetKey> DiscoverSceneAssetDependencies(
+	const Scene& scene, std::span<const AssetKey> explicit_dependencies
+) {
+	json parameters = json::object();
+
+	if (!scene.GetRegisteredType().empty()) {
+		const auto& registration{ GetSceneRegistration(scene.GetRegisteredType()) };
+		parameters = registration.serialize_parameters(scene);
+	}
+
+	json content					= scene.SerializeContent();
+	json dependency_source			= json::object();
+	dependency_source["parameters"] = std::move(parameters);
+	dependency_source["content"]	= std::move(content);
+
+	return scene.ctx().asset.DiscoverDependencies(dependency_source, explicit_dependencies);
+}
+
+} // namespace impl
+
+SerializedScene CaptureScene(const Scene& scene) {
+	SerializedScene captured;
+
+	if (scene.GetRegisteredType().empty()) {
+		captured.type		= std::string{ impl::kBaseSceneType };
+		captured.parameters = json::object();
+	} else {
+		const auto& registration{ impl::GetSceneRegistration(scene.GetRegisteredType()) };
+
+		captured.type		= registration.type;
+		captured.parameters = registration.serialize_parameters(scene);
+	}
+
+	PTGN_ASSERT(
+		captured.parameters.is_object(), "Serialized scene parameters must be an object. Found ",
+		captured.parameters.type_name(), ": ", captured.parameters.dump(2)
+	);
+
+	json content = scene.SerializeContent();
+
+	PTGN_ASSERT(
+		content.is_object(), "Scene::SerializeContent() must return an object. Found ",
+		content.type_name(), ": ", content.dump(2)
+	);
+
+	captured.preload_assets = scene.GetExplicitAssetDependencies();
+	captured.assets			= impl::DiscoverSceneAssetDependencies(scene, captured.preload_assets);
+
+	captured.content = std::move(content);
+
+	ValidateSerializedScene(captured);
+
+	return captured;
 }
 
 namespace impl {
@@ -97,119 +214,80 @@ namespace impl {
 class SceneFileAccess {
 public:
 	static void SetAssetDependencies(
-		Scene& scene,
-		std::vector<AssetKey> dependencies
+		Scene& scene, std::vector<AssetKey> dependencies,
+		std::vector<AssetKey> explicit_dependencies
 	) {
-		scene.asset_dependencies_ = std::move(dependencies);
+		scene.SetAssetDependencies(std::move(dependencies), std::move(explicit_dependencies));
 	}
 
-	static void InitNew(
-		Scene& scene,
-		Application& app,
-		SceneData&& scene_data
-	) {
+	static void InitNew(Scene& scene, Application& app, SceneData&& scene_data) {
 		scene.Init(app, std::move(scene_data));
 	}
 
 	static void InitLoaded(
-		Scene& scene,
-		Application& app,
-		SceneData&& scene_data,
-		const json& content
+		Scene& scene, Application& app, SceneData&& scene_data, const json& content
 	) {
-		scene.Init(
-			app,
-			std::move(scene_data),
-			content
-		);
+		scene.Init(app, std::move(scene_data), content);
 	}
 };
 
-SceneFactory MakeSceneFactory(
-	SerializedScene serialized,
-	bool runtime
-) {
-	return [
-		serialized = std::move(serialized),
-		runtime
-	](
-		Application& app,
-		SceneData&& scene_data
-	) mutable -> std::unique_ptr<Scene> {
-		auto& app_context{
-			ApplicationAccessor::ctx(app)
-		};
+SceneFactory MakeSceneFactory(SerializedScene scene, bool runtime) {
+	auto serialized = std::make_shared<const SerializedScene>(std::move(scene));
 
-		if (app_context.project.has_value()) {
-			const auto& project{
-				app_context.project.value()
-			};
+	SceneFactory::Construct construct =
+		[serialized, runtime](Application& app, SceneData&& scene_data) -> std::unique_ptr<Scene> {
+		std::unique_ptr<Scene> output;
 
-			app_context.assets.RegisterCatalog(
-				project.assets, project
-			);
+		if (serialized->type == kBaseSceneType) {
+			output = std::make_unique<Scene>();
 
-			app_context.assets.AddProjectAssetDependencies(
-				project.preload_assets
-			);
-
-			app_context.assets.LoadDependencies(
-				project.preload_assets
-			);
-		}
-
-		app_context.assets.LoadDependencies(
-			serialized.assets
-		);
-
-		std::unique_ptr<Scene> scene;
-
-		if (serialized.type == kBaseSceneType) {
-			scene = std::make_unique<Scene>();
 			scene_data.registered_type.clear();
 		} else {
-			const auto& registration{
-				GetSceneRegistration(serialized.type)
-			};
+			const auto& registration{ GetSceneRegistration(serialized->type) };
 
-			scene = registration.construct(
-				serialized.parameters
-			);
+			output = registration.construct(serialized->parameters);
 
-			PTGN_ASSERT(
-				scene,
-				"Registered scene factory returned null: ",
-				serialized.type
-			);
+			PTGN_ASSERT(output, "Registered scene factory returned null: ", serialized->type);
 
-			scene_data.registered_type =
-				serialized.type;
+			scene_data.registered_type = serialized->type;
 		}
 
 		scene_data.runtime = runtime;
 
 		SceneFileAccess::SetAssetDependencies(
-			*scene,
-			serialized.assets
+			*output, serialized->assets, serialized->preload_assets
 		);
 
-		if (serialized.content.has_value()) {
+		if (serialized->content.has_value()) {
 			SceneFileAccess::InitLoaded(
-				*scene,
-				app,
-				std::move(scene_data),
-				serialized.content.value()
+				*output, app, std::move(scene_data), serialized->content.value()
 			);
 		} else {
-			SceneFileAccess::InitNew(
-				*scene,
-				app,
-				std::move(scene_data)
-			);
+			SceneFileAccess::InitNew(*output, app, std::move(scene_data));
 		}
 
-		return scene;
+		return output;
 	};
+
+	SceneFactory::Preload preload = [serialized](Application& app) {
+		std::vector<AssetKey> dependencies = serialized->assets;
+
+		if (serialized->type != kBaseSceneType) {
+			const auto& registration{ GetSceneRegistration(serialized->type) };
+
+			for (const auto& key : registration.preload_dependencies(serialized->parameters)) {
+				AddUnique(dependencies, key);
+			}
+		}
+
+		json parameter_source = serialized->parameters;
+
+		return ApplicationAccessor::ctx(app).assets.DiscoverDependencies(
+			parameter_source, dependencies
+		);
+	};
+
+	return SceneFactory{ std::move(construct), std::move(preload) };
 }
 
 } // namespace impl

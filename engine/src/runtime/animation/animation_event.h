@@ -1,8 +1,15 @@
 #pragma once
 
+#include <string>
+
 #include "runtime/animation/animation.h"
 
 namespace ptgn::event {
+
+struct AnimationMapActiveChanged {
+	std::string previous{};
+	std::string current{};
+};
 
 /// @brief Triggered when an animation is started.
 struct AnimationStart {

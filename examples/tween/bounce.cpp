@@ -1,7 +1,7 @@
 #include <optional>
 
 #include "app/application.h"
-#include "core/editor.h"
+#include "app/editor.h"
 #include "core/input/mouse.h"
 #include "core/math/easing.h"
 #include "core/util/time.h"

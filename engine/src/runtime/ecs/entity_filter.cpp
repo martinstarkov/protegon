@@ -1,0 +1,163 @@
+#include "runtime/ecs/entity_filter.h"
+
+#include <algorithm>
+#include <ranges>
+#include <string_view>
+#include <vector>
+
+#include "runtime/ecs/component_registry.h"
+#include "runtime/ecs/entity_group.h"
+#include "runtime/ecs/entity_query.h"
+#include "runtime/ecs/tag.h"
+#include "runtime/scene/scene.h"
+
+namespace ptgn {
+
+namespace {
+
+bool MatchesComponentCondition(Entity entity, const ComponentQueryCondition& condition) {
+	if (condition.component.empty()) {
+		return false;
+	}
+
+	const auto* component{ ComponentRegistry::Find(std::string_view{ condition.component }) };
+	if (!component) {
+		return false;
+	}
+
+	bool has_component{ component->Has(entity) };
+	return condition.required ? has_component : !has_component;
+}
+
+bool MatchesComponentGroup(Entity entity, const ComponentQueryGroup& group) {
+	if (group.conditions.empty()) {
+		return false;
+	}
+
+	return std::ranges::all_of(group.conditions, [entity](const auto& condition) {
+		return MatchesComponentCondition(entity, condition);
+	});
+}
+
+} // namespace
+
+void SetEntityReference(EntityReference& reference, Entity entity) {
+	if (!entity) {
+		reference = {};
+		return;
+	}
+
+	reference.uuid = entity.Get<UUID>();
+	if (const auto* tag{ entity.TryGet<Tag>() }) {
+		reference.tag = tag->value;
+	} else {
+		reference.tag.clear();
+	}
+}
+
+Entity ResolveEntityReference(Scene& scene, const EntityReference& reference) {
+	if (!reference.uuid.has_value()) {
+		return {};
+	}
+
+	for (Entity entity : scene.Entities()) {
+		if (entity.Get<UUID>() == reference.uuid.value()) {
+			return entity;
+		}
+	}
+
+	return {};
+}
+
+bool MatchesComponentQuery(Entity entity, const ComponentEntityQuery& query) {
+	if (!entity || query.groups.empty()) {
+		return false;
+	}
+
+	bool has_valid_condition{ false };
+
+	for (const auto& group : query.groups) {
+		for (const auto& condition : group.conditions) {
+			if (!condition.component.empty() &&
+				ComponentRegistry::Find(std::string_view{ condition.component })) {
+				has_valid_condition = true;
+				break;
+			}
+		}
+
+		if (has_valid_condition) {
+			break;
+		}
+	}
+
+	if (!has_valid_condition) {
+		return false;
+	}
+
+	return std::ranges::any_of(query.groups, [entity](const auto& group) {
+		return MatchesComponentGroup(entity, group);
+	});
+}
+
+bool Matches(const EntityFilter& filter, Scene& scene, Entity owner, Entity target) {
+	if (!target) {
+		return false;
+	}
+
+	switch (filter.type) {
+		case EntityFilterType::Any: return true;
+		case EntityFilterType::Entity:
+			return filter.entity.uuid.has_value() &&
+				   target.Get<UUID>() == filter.entity.uuid.value();
+		case EntityFilterType::Components:
+			if (filter.components.groups.empty()) {
+				return false;
+			}
+
+			return MatchesComponentQuery(target, filter.components);
+
+		case EntityFilterType::Tags: {
+			const auto* labels{ target.TryGet<Tags>() };
+			if (!labels || filter.tags.tags.empty()) {
+				return false;
+			}
+			return std::ranges::any_of(filter.tags.tags, [labels](const std::string& label) {
+				return !label.empty() && labels->Contains(label);
+			});
+		}
+
+		case EntityFilterType::Query: {
+			if (filter.query.key.empty()) {
+				return false;
+			}
+
+			const auto* query{ EntityQueryRegistry::Find(filter.query.key) };
+
+			return query && query->evaluate &&
+				   query->evaluate(
+					   EntityQueryContext{
+						   .scene  = scene,
+						   .owner  = owner,
+						   .target = target,
+					   }
+				   );
+		}
+		case EntityFilterType::None: return false;
+	}
+
+	return false;
+}
+
+std::vector<Entity> ResolveEntityFilter(const EntityFilter& filter, Scene& scene, Entity owner) {
+	std::vector<Entity> matches;
+
+	for (Entity entity : scene.Entities()) {
+		if (Matches(filter, scene, owner, entity)) {
+			matches.emplace_back(entity);
+		}
+	}
+
+	return matches;
+}
+
+} // namespace ptgn

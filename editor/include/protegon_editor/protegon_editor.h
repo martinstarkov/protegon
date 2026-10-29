@@ -1,3 +1,3 @@
 #pragma once
 
-#include "core/editor.h"
+#include "editor/editor.h"

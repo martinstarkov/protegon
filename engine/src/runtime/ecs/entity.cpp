@@ -2,9 +2,9 @@
 
 #include <ecs/ecs.h>
 
+#include <algorithm>
 #include <cstdint>
 #include <memory>
-#include <nlohmann/json.hpp>
 #include <optional>
 #include <string>
 #include <string_view>
@@ -24,9 +24,10 @@
 #include "runtime/ecs/uuid.h"
 #include "runtime/scene/scene.h"
 #include "runtime/scene/scene_camera.h"
+#include "runtime/scene/scene_event.h"
 #include "runtime/scripting/script.h"
 #include "serialization/json/archiver.h"
-#include "serialization/json/fwd.h"
+#include "serialization/json/json.h"
 
 namespace ptgn {
 
@@ -116,8 +117,36 @@ Transform GetTransformImpl(Entity entity, Transform world_transform, std::size_t
 
 } // namespace
 
+void NotifyComponentChanged(Entity entity, std::size_t type_hash, bool added) {
+	if (!entity || !entity.HasScene() || !entity.GetScene().IsRuntime()) {
+		return;
+	}
+	if (added) {
+		PushEvent<event::ComponentAdded>(entity, entity, type_hash);
+	} else {
+		PushEvent<event::ComponentRemoved>(entity, entity, type_hash);
+	}
+}
+
 Entity& Entity::Destroy(bool orphan_children) {
 	if (!*this) {
+		return *this;
+	}
+
+	// The event is dispatched before any descendants or components are removed.
+	// Guard against scripts recursively destroying the same entity.
+	using DestructionId = std::pair<Manager*, std::size_t>;
+	static thread_local std::vector<DestructionId> destroying;
+	DestructionId identity{ &GetManager(), GetECSId() };
+	if (std::ranges::contains(destroying, identity)) {
+		return *this;
+	}
+	destroying.emplace_back(identity);
+	if (HasScene() && GetScene().IsRuntime()) {
+		PushEvent<event::EntityDestroyed>(*this, *this);
+	}
+	if (!*this) {
+		std::erase(destroying, identity);
 		return *this;
 	}
 
@@ -139,6 +168,7 @@ Entity& Entity::Destroy(bool orphan_children) {
 	}
 
 	entity_.Destroy();
+	std::erase(destroying, identity);
 	return *this;
 }
 
@@ -196,16 +226,8 @@ void Entity::OnEvent(const Event& event) {
 		scripts->OnEvent(event);
 	}
 
-	// OnEvent may have resulted in this entity being destroyed, or the scripts component being
-	// removed.
-
-	if (!*this) {
-		return;
-	}
-
-	if (auto scripts{ TryGet<impl::Scripts>() }) {
-		scripts->ApplyPending();
-	}
+	// Script additions and removals are committed after the current event batch,
+	// not between different events delivered to the same entity.
 }
 
 void to_json(json& j, const Entity& entity) {
@@ -215,8 +237,8 @@ void to_json(json& j, const Entity& entity) {
 		return;
 	}
 
-	j["uuid"]  = entity.Get<UUID>();
-	j["tag"]   = entity.Get<Tag>();
+	j["uuid"] = entity.Get<UUID>();
+	j["tag"]  = entity.Get<Tag>();
 	if (entity.HasScene()) {
 		j["scene"] = entity.GetScene().GetTag();
 	}

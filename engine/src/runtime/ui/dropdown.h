@@ -10,6 +10,7 @@
 #include "core/math/transform.h"
 #include "core/math/vector2.h"
 #include "runtime/ecs/entity.h"
+#include "runtime/ecs/entity_creation_context.h"
 #include "runtime/scripting/script.h"
 #include "runtime/ui/button.h"
 #include "serialization/serialize.h"
@@ -42,10 +43,10 @@ struct DropdownData {
 	bool initialized{ false };
 
 	/// @brief Default value of {} means each item uses the parent dropdown button size.
-	std::optional<V2_float> button_size;
+	std::optional<V2_float> button_size{};
 
 	/// @brief Fixed static offset applied to the dropdown item layout.
-	V2_float button_offset;
+	V2_float button_offset{};
 
 	/// @brief Direction in which dropdown items are stacked relative to the parent button.
 	Origin direction{ Origin::CenterBottom };
@@ -53,9 +54,7 @@ struct DropdownData {
 	/// @brief Edge/corner on which the dropdown starts relative to the parent button.
 	Origin origin{ Origin::CenterBottom };
 
-	PTGN_REFLECT(
-		DropdownData, start_open, open, button_size, button_offset, direction, origin
-	)
+	PTGN_REFLECT(DropdownData, start_open, open, button_size, button_offset, direction, origin)
 	PTGN_REFLECT_READONLY(DropdownData, initialized)
 };
 
@@ -68,7 +67,12 @@ struct DropdownEnabledState {
 
 /// @brief Marker for direct child buttons that are dropdown items.
 struct DropdownItem {
-	std::optional<DropdownEnabledState> enabled_state;
+	std::optional<DropdownEnabledState> enabled_state{};
+
+	// Runtime layout anchor. The entity Transform remains the user editable transform;
+	// layout changes preserve the delta from this anchor.
+	V2_float layout_position{};
+	bool layout_initialized{ false };
 
 	PTGN_REFLECT_VALUE(DropdownItem, enabled_state)
 };
@@ -97,6 +101,9 @@ public:
 	Dropdown& Size(float radius);
 
 	Dropdown& Origin(Origin origin);
+
+	/// @brief Recalculates dropdown item layout while preserving each item's user transform delta.
+	Dropdown& RefreshLayout();
 
 	/// @brief Adds an existing button as a direct child dropdown item.
 	Dropdown& AddButton(Button button);
@@ -186,8 +193,8 @@ struct DropdownItemPress {
 
 /// @param start_open If true, dropdown starts in an open state.
 Dropdown CreateDropdown(
-	Scene& scene, Transform transform, V2_float size, Origin origin = Origin::Center,
-	bool start_open = false
+	EntityCreationContext context, Transform transform, V2_float size,
+	Origin origin = Origin::Center, bool start_open = false
 );
 
 } // namespace ptgn

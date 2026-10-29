@@ -13,13 +13,13 @@ class KeyHash {
 public:
 	KeyHash() = default;
 
-	KeyHash(std::string_view KeyHash) : value_{ Hash(KeyHash) } {}	 // NOSONAR
+	KeyHash(std::string_view key_hash) : value_{ Hash(key_hash) } {}	 // NOSONAR
 
-	KeyHash(const char* KeyHash) : value_{ Hash(KeyHash) } {}		 // NOSONAR
+	KeyHash(const char* key_hash) : value_{ Hash(key_hash) } {}		 // NOSONAR
 
-	KeyHash(const std::string& KeyHash) : value_{ Hash(KeyHash) } {} // NOSONAR
+	KeyHash(const std::string& key_hash) : value_{ Hash(key_hash) } {} // NOSONAR
 
-	KeyHash(std::size_t hash) : value_{ hash } {}					 // NOSONAR
+	KeyHash(std::size_t key_hash) : value_{ key_hash } {}					 // NOSONAR
 
 	operator std::size_t() const {									 // NOSONAR
 		return value_;
@@ -41,7 +41,7 @@ struct KeyHasher {
 
 template <>
 struct std::hash<ptgn::KeyHash> {
-	std::size_t operator()(const ptgn::KeyHash& hash) const {
-		return hash;
+	std::size_t operator()(const ptgn::KeyHash& key_hash) const {
+		return key_hash;
 	}
 };

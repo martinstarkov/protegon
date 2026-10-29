@@ -3,7 +3,6 @@
 #include <algorithm>
 #include <functional>
 #include <list>
-#include <nlohmann/json.hpp>
 #include <string>
 #include <unordered_map>
 #include <utility>
@@ -22,7 +21,7 @@
 #include "runtime/scene/scene_context.h"
 #include "runtime/scene/scene_manager.h"
 #include "runtime/ui/button.h"
-#include "serialization/json/fwd.h"
+#include "serialization/json/json.h"
 
 namespace ptgn {
 
@@ -79,8 +78,8 @@ void ApplyGridLayout(
 	}
 }
 
-TemplateMenuScene::TemplateMenuScene(const std::string& key, const json& scene_json_arg) :
-	key{ key }, scene_json(scene_json_arg) {}
+TemplateMenuScene::TemplateMenuScene(const std::string& scene_key, const json& scene_json_arg) :
+	key{ scene_key }, scene_json(scene_json_arg) {}
 
 void TemplateMenuScene::OnEnter() {
 	ctx().debug.settings.interaction.draw_enabled = true;
@@ -94,8 +93,8 @@ void TemplateMenuScene::OnEnter() {
 	const auto& j_buttons = config.at("buttons");
 
 	for (const auto& j_button : j_buttons) {
-		const V2_float button_size{ 100, 50 };
-		const Color button_text_color{ color::White };
+		V2_float button_size{ 100, 50 };
+		Color button_text_color{ color::White };
 		const auto& text = j_button.at("text");
 		auto button{ CreateButton(*this, {}, button_size) };
 		button.Add<Tag>("Menu Button");

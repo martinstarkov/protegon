@@ -1,6 +1,6 @@
 
 #include "app/application.h"
-#include "core/editor.h"
+#include "app/editor.h"
 #include "core/math/transform.h"
 #include "renderer/renderer.h"
 #include "runtime/asset/asset_manager.h"

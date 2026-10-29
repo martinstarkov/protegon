@@ -1,4 +1,5 @@
 #include "app/application.h"
+#include "app/editor.h"
 #include "core/graphics/color.h"
 #include "runtime/graphics/shape.h"
 #include "runtime/scene/scene.h"
@@ -14,6 +15,7 @@ class LineEntityScene : public Scene {
 };
 
 int main(int, char**) {
-	Application app{ "line_entity" };
+	Application app;
+	PTGN_WITH_EDITOR(app, false);
 	app.StartWith<LineEntityScene>();
 }

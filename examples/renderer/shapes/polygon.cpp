@@ -2,6 +2,7 @@
 #include <vector>
 
 #include "app/application.h"
+#include "app/editor.h"
 #include "core/graphics/color.h"
 #include "core/graphics/fill_style.h"
 #include "core/math/math_utils.h"
@@ -35,6 +36,7 @@ class PolygonEntityScene : public Scene {
 };
 
 int main(int, char**) {
-	Application app{ "polygon_entity" };
+	Application app;
+	PTGN_WITH_EDITOR(app, false);
 	app.StartWith<PolygonEntityScene>();
 }

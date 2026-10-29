@@ -21,8 +21,8 @@ enum class KDAxis {
 };
 
 struct KDObject {
-	Entity entity;
-	BoundingAABB aabb;
+	Entity entity{};
+	BoundingAABB aabb{};
 	/// @brief Flag for lazy removals used inside partial updates
 	bool deleted{ false };
 
@@ -33,9 +33,11 @@ struct KDNode {
 	KDAxis split_axis{ KDAxis::X };
 	float split_value{ 0.0f };
 
-	std::vector<KDObject> objects; // only populated on leaves
-	std::unique_ptr<KDNode> left;
-	std::unique_ptr<KDNode> right;
+	std::vector<KDObject> objects{}; // only populated on leaves
+	BoundingAABB bounds{};
+	bool has_bounds{ false };
+	std::unique_ptr<KDNode> left{};
+	std::unique_ptr<KDNode> right{};
 };
 
 class KDTree {
@@ -67,6 +69,10 @@ public:
 	/// @brief Remove entity immediately (mark for removal), processed at EndFrame.
 	void Remove(Entity entity);
 
+	/// Remove by the stable UUID captured while the entity was alive. This also works
+	/// after the entity has been destroyed and its components are inaccessible.
+	void Remove(UUID uuid);
+
 	/// @brief Should be called once per frame after all
 	/// UpdateBoundingAABB()/Insert()/Remove()
 	void EndFrameUpdate();
@@ -85,8 +91,12 @@ public:
 
 private:
 	std::unique_ptr<KDNode> root;
-	std::unordered_map<Entity, KDObject> entity_map;
-	std::unordered_set<Entity> moved_entities;
+	// Keys never require reading a component from a destroyed Entity.
+	std::unordered_map<UUID, KDObject> entity_map;
+	// Keep the handle only as a value, to compare against KD-tree leaf objects.
+	std::unordered_map<UUID, Entity> moved_entities;
+	/// Original bounds locate old leaves during partial updates.
+	std::unordered_map<UUID, BoundingAABB> previous_aabbs_;
 
 	std::size_t max_objects_per_node{ 64 };
 	float rebuild_threshold{ 0.25f };
@@ -110,6 +120,9 @@ private:
 	}
 
 	std::unique_ptr<KDNode> BuildRecursive(const std::vector<KDObject>& objects, int depth);
+	static void RebuildNodeBounds(KDNode* node);
+	static void QueryNode(const KDNode* node, BoundingAABB region, std::vector<Entity>& result);
+	static void QueryNode(const KDNode* node, V2_float point, std::vector<Entity>& result);
 
 	/// @brief
 	/// For each moved entity that exists in the tree, find the leaf it currently resides in
@@ -131,7 +144,8 @@ private:
 	/// the object's position inside the node (search node->objects for the entity). When found,
 	/// swap-pop to remove it quickly and record the leaf pointer.
 	bool RemoveFromTree(
-		KDNode* node, Entity entity, int depth, std::vector<KDNode*>& touched_leaves
+		KDNode* node, UUID uuid, Entity entity, int depth,
+		std::vector<KDNode*>& touched_leaves
 	);
 
 	void CompactTree(KDNode* node);

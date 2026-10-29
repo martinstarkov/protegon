@@ -214,8 +214,8 @@ ScissorState GetCurrentScissorState() {
 
 } // namespace
 
-GLContext::GLContext(Stats& stats) :
-	stats{ stats },
+GLContext::GLContext(Stats& statistics) :
+	stats{ statistics },
 	bound_{ ptgn::impl::gl::GetInteger<std::size_t>(GL_MAX_TEXTURE_IMAGE_UNITS) },
 	buffers{ *this },
 	shaders{ *this, GetMaxTextureSlots() },
@@ -834,8 +834,7 @@ void GLContext::ResetState() {
 	auto slot{ active_texture_index - GL_TEXTURE0 };
 
 	PTGN_ASSERT(
-		slot >= 0,
-		"Failed to query a non-negative texture slot when resetting GLContext state"
+		slot >= 0, "Failed to query a non-negative texture slot when resetting GLContext state"
 	);
 
 	bound_.active_texture = ActiveTexture{

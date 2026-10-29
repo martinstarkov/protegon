@@ -1,13 +1,15 @@
 #pragma once
 
 #include <algorithm>
-#include <chrono>
 #include <cctype>
+#include <chrono>
+#include <cmath>
 #include <format>
 #include <ostream>
 #include <ratio>
 #include <regex>
 #include <string>
+#include <string_view>
 #include <type_traits>
 
 #include "core/log.h"
@@ -33,22 +35,22 @@ struct is_chrono_duration<std::chrono::duration<Rep, Period>> : std::true_type {
 template <typename T>
 concept DurationType = impl::is_chrono_duration<std::remove_cvref_t<T>>::value;
 
-using weeks          = std::chrono::weeks;
-using weeksf         = duration<float, weeks::period>;
-using days           = std::chrono::days;
-using daysf          = duration<float, days::period>;
-using hours          = std::chrono::hours;
-using hoursf         = duration<float, hours::period>;
-using minutes        = std::chrono::minutes;
-using minutesf       = duration<float, minutes::period>;
-using seconds        = std::chrono::seconds;
-using secondsf       = duration<float, seconds::period>;
-using milliseconds   = std::chrono::milliseconds;
-using millisecondsf  = duration<float, milliseconds::period>;
-using microseconds   = std::chrono::microseconds;
-using microsecondsf  = duration<float, microseconds::period>;
-using nanoseconds    = std::chrono::nanoseconds;
-using nanosecondsf   = duration<float, nanoseconds::period>;
+using weeks			= std::chrono::weeks;
+using weeksf		= duration<float, weeks::period>;
+using days			= std::chrono::days;
+using daysf			= duration<float, days::period>;
+using hours			= std::chrono::hours;
+using hoursf		= duration<float, hours::period>;
+using minutes		= std::chrono::minutes;
+using minutesf		= duration<float, minutes::period>;
+using seconds		= std::chrono::seconds;
+using secondsf		= duration<float, seconds::period>;
+using milliseconds	= std::chrono::milliseconds;
+using millisecondsf = duration<float, milliseconds::period>;
+using microseconds	= std::chrono::microseconds;
+using microsecondsf = duration<float, microseconds::period>;
+using nanoseconds	= std::chrono::nanoseconds;
+using nanosecondsf	= duration<float, nanoseconds::period>;
 
 template <typename Period>
 [[nodiscard]] constexpr std::string_view DurationUnit() {
@@ -77,6 +79,37 @@ template <DurationType T>
 [[nodiscard]] constexpr std::string_view DurationUnit() {
 	using Period = typename std::remove_cvref_t<T>::period;
 	return DurationUnit<Period>();
+}
+
+/// @brief Formats an elapsed time using the largest appropriate unit.
+/// Milliseconds use whole numbers; seconds and larger units use two decimal places.
+[[nodiscard]] inline std::string FormatDurationCompact(milliseconds value) {
+	auto duration{ std::abs(value.count()) };
+	float unit_scale{ 1.0f };
+	std::string_view unit{ "ms" };
+
+	if (duration >= 604800000) {
+		unit_scale = 604800000.0f;
+		unit	   = "w";
+	} else if (duration >= 86400000) {
+		unit_scale = 86400000.0f;
+		unit	   = "d";
+	} else if (duration >= 3600000) {
+		unit_scale = 3600000.0f;
+		unit	   = "h";
+	} else if (duration >= 60000) {
+		unit_scale = 60000.0f;
+		unit	   = "m";
+	} else if (duration >= 1000) {
+		unit_scale = 1000.0f;
+		unit	   = "s";
+	}
+
+	if (unit == "ms") {
+		return std::format("{:.0f} ms", static_cast<float>(value.count()));
+	}
+
+	return std::format("{:.2f} {}", static_cast<float>(value.count()) / unit_scale, unit);
 }
 
 template <typename Rep, typename Period>
@@ -113,13 +146,12 @@ struct adl_serializer<ptgn::duration<Rep, Period>> {
 
 		if (std::regex pattern{
 				R"(^\s*([+-]?(?:\d+(?:\.\d*)?|\.\d+))\s*(ns|us|ms|m|min|s|h|d|w)\s*$)",
-				std::regex::icase
-			};
+				std::regex::icase };
 			!std::regex_match(s, match, pattern)) {
 			PTGN_ERROR("Invalid duration format: ", s);
 		}
 
-		const float value{ std::stof(match[1].str()) };
+		float value{ std::stof(match[1].str()) };
 		std::string unit{ match[2].str() };
 
 		std::ranges::transform(unit, unit.begin(), [](unsigned char c) {

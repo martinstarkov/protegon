@@ -4,7 +4,7 @@
 #include <chrono>
 
 #include "app/application.h"
-#include "core/editor.h"
+#include "app/editor.h"
 #include "core/math/geometry/origin.h"
 #include "core/math/vector2.h"
 #include "renderer/resources/shader.h"
@@ -32,11 +32,11 @@ public:
 					float scale{ 0.5f };
 					float opacity{ 0.5f };
 					float time{
-						static_cast<float>(entity.GetScene().ctx().TimeSinceStart().count())
+						entity.GetScene().ctx().GameTime().count()
 					};
 
 					entity.SetMaterialUniforms(
-						{ { "u_Time", time / 1000.0f * timescale },
+						{ { "u_Time", time * timescale },
 						  { "u_Scale", scale },
 						  { "u_Opacity", opacity } }
 					);
@@ -47,9 +47,9 @@ public:
 		)
 			.SetMaterialUpdate([](auto entity) mutable {
 				float timescale{ 1.0f };
-				float time{ static_cast<float>(entity.GetScene().ctx().TimeSinceStart().count()) };
+				float time{ entity.GetScene().ctx().GameTime().count() };
 
-				entity.SetMaterialUniforms({ { "u_Time", time / 1000.0f * timescale } });
+				entity.SetMaterialUniforms({ { "u_Time", time * timescale } });
 			});
 	}
 

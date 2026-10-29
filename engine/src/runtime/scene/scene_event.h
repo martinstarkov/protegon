@@ -8,9 +8,35 @@
 
 namespace ptgn {
 
+namespace event {
+
+struct SceneLoaded {};
+
+struct SceneUnloaded {};
+
+struct ScenePaused {};
+
+struct SceneResumed {};
+
+struct SceneEnter {};
+
+struct SceneLeave {};
+
+struct SceneTransitionStart {};
+
+struct SceneTransitionUpdate {};
+
+struct SceneTransitionFinish {};
+
+} // namespace event
+
 template <typename T, typename... TArgs>
 	requires BraceConstructible<T, TArgs...>
 void PushEvent(Entity entity, TArgs&&... args) {
+	if (!entity || !entity.HasScene()) {
+		return;
+	}
+
 	Scene& scene{ entity.GetScene() };
 	SceneContext& ctx{ scene.ctx() };
 	LocalEventHandler& event_handler{ ctx.event };

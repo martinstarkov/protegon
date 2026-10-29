@@ -13,6 +13,7 @@
 #include "runtime/scene/scene_input.h"
 #include "runtime/scene/scene_manager.h"
 #include "runtime/scripting/script.h"
+#include "runtime/world/chunk.h"
 #include "tools/debug/debug_system.h"
 
 namespace ptgn {
@@ -43,9 +44,9 @@ public:
 	SceneContext() = delete;
 	explicit SceneContext(Application& app, Scene& parent_scene);
 	~SceneContext() noexcept;
-	SceneContext(const SceneContext&) = delete;
-	SceneContext& operator=(const SceneContext&) = delete;
-	SceneContext(SceneContext&&) noexcept = delete;
+	SceneContext(const SceneContext&)				 = delete;
+	SceneContext& operator=(const SceneContext&)	 = delete;
+	SceneContext(SceneContext&&) noexcept			 = delete;
 	SceneContext& operator=(SceneContext&&) noexcept = delete;
 
 	Window& window;
@@ -62,8 +63,10 @@ public:
 	InteractionSystem interaction;
 	Physics physics;
 	CollisionHandler collision;
+	/// Scene-wide viewport culling and optional bounded procedural chunk streaming.
+	ChunkManager chunks;
 
-	/// @brief Scene-local shared ScriptSequence definitions used by shared sequence bindings.
+	/// @brief Scene local shared ScriptSequence definitions used by shared sequence bindings.
 	SharedScriptSequenceRegistry shared_script_sequences;
 
 	/// @brief The default camera used by all objects in the scene. By default it resizes to the
@@ -82,11 +85,24 @@ public:
 		return duration_cast<T>(dt());
 	}
 
-	/// @brief Returns the time elapsed since the Application instance was constructed.
-	[[nodiscard]] milliseconds TimeSinceStart() const;
+	/// @brief Returns the game time since application start, affected by time scale and pause.
+	[[nodiscard]] secondsf GameTime() const;
 
-	/// @brief Returns the time elapsed since the Application instance was constructed.
-	[[nodiscard]] secondsf TimeSinceStartSeconds() const;
+	/// @brief Returns the game time since application start, affected by time scale and pause.
+	template <DurationType T>
+	[[nodiscard]] T GameTime() const {
+		return duration_cast<T>(GameTime());
+	}
+
+	/// @brief Returns the game time since application start, affected by pause but not time scale.
+	[[nodiscard]] secondsf UnscaledGameTime() const;
+
+	/// @brief Returns the real time since application start, not affected by time scale or pause.
+	[[nodiscard]] secondsf RealTime() const;
+
+	/// @brief Returns the time elapsed since the Application instance was constructed (based on
+	/// GLFW).
+	[[nodiscard]] secondsf TimeSinceApplicationStart() const;
 
 	/// @brief Returns whether the application is currently running.
 	bool IsRunning() const;

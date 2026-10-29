@@ -1,19 +1,18 @@
 #pragma once
 
-#include <cstdint>
 #include <functional>
+#include <span>
 #include <vector>
 
 #include "core/math/geometry/shape.h"
 #include "runtime/ecs/entity.h"
+#include "runtime/ecs/entity_filter.h"
 #include "runtime/physics/collision.h"
 #include "serialization/serialize.h"
 
 namespace ptgn {
 
 class CollisionHandler;
-
-using ColliderMask = std::int64_t;
 
 enum class CollisionResponse {
 	Slide,	/// Velocity set perpendicular to collision normal at same speed.
@@ -34,38 +33,22 @@ PTGN_REFLECT_ENUM(CollisionMode);
 struct Collider {
 	Collider() = default;
 
-	explicit Collider(const ColliderShape& shape);
+	explicit Collider(const ColliderShape& collider_shape);
 
-	ColliderShape shape;
+	ColliderShape shape{};
 
 	CollisionMode mode{ CollisionMode::Discrete };
 
-	/// @brief  How the velocity of the sweep should respond to obstacles.
+	/// @brief How the velocity of the sweep should respond to obstacles.
 	/// Only applicable if mode != CollisionMode::Overlap.
 	CollisionResponse response{ CollisionResponse::Slide };
+
+	/// @brief Selects which candidate entities this collider can collide or overlap with.
+	EntityFilter collides_with{};
 
 	Collider& SetOverlapMode();
 
 	Collider& SetCollisionMode(CollisionMode new_mode = CollisionMode::Discrete);
-
-	ColliderMask GetMask() const;
-
-	Collider& SetMask(ColliderMask mask);
-
-	Collider& ResetMask();
-
-	/// @brief  Allow collider to collide with anything.
-	Collider& ResetCollidesWith();
-
-	[[nodiscard]] bool CanCollideWith(ColliderMask mask) const;
-
-	[[nodiscard]] bool IsMask(ColliderMask mask) const;
-
-	Collider& AddCollidesWith(ColliderMask mask);
-
-	Collider& RemoveCollidesWith(ColliderMask mask);
-
-	Collider& SetCollidesWith(const std::vector<ColliderMask>& categories);
 
 	// @return Empty collision if the entities have not collided during this frame, or the
 	// collision.
@@ -73,15 +56,20 @@ struct Collider {
 	[[nodiscard]] CollisionInfo SweptWith(Entity other) const;
 	[[nodiscard]] bool OverlappedWith(Entity other) const;
 
+	[[nodiscard]] std::span<const Entity> GetOverlaps() const;
+	[[nodiscard]] std::span<const CollisionInfo> GetIntersections() const;
+	[[nodiscard]] std::span<const CollisionInfo> GetSweeps() const;
+
 	/// @brief Optional function to check for early outs before performing collision checks. Should
 	/// return true if the collision check should be performed, false if it should be skipped.
-	std::function<bool(Entity, Entity)> pre_collision_check;
+	std::function<bool(Entity, Entity)> pre_collision_check{};
 
 	/// @brief Optional function to check for early outs before performing overlap checks. Should
 	/// return true if the overlap check should be performed, false if it should be skipped.
-	std::function<bool(Entity, Entity)> pre_overlap_check;
+	std::function<bool(Entity, Entity)> pre_overlap_check{};
 
-	PTGN_REFLECT(Collider, shape, mode, response, mask_, collides_with_masks_)
+	PTGN_REFLECT(Collider, shape, mode, response, collides_with)
+
 private:
 	friend class CollisionHandler;
 
@@ -95,21 +83,15 @@ private:
 	void AddIntersect(const CollisionInfo& collision);
 	void AddSweep(const CollisionInfo& collision);
 
-	/// @brief  Which categories this collider collides with.
-	std::vector<ColliderMask> collides_with_masks_;
+	/// @brief Collisions from the current frame.
+	std::vector<Entity> overlaps_{};
+	std::vector<CollisionInfo> intersects_{};
+	std::vector<CollisionInfo> sweeps_{};
 
-	/// @brief  Which mask this collider is a part of.
-	ColliderMask mask_{ 0 };
-
-	/// @brief  Collisions from the current frame.
-	std::vector<Entity> overlaps_;
-	std::vector<CollisionInfo> intersects_;
-	std::vector<CollisionInfo> sweeps_;
-
-	/// @brief  Collisions from the previous frame.
-	std::vector<Entity> previous_overlaps_;
-	std::vector<CollisionInfo> previous_intersects_;
-	std::vector<CollisionInfo> previous_sweeps_;
+	/// @brief Collisions from the previous frame.
+	std::vector<Entity> previous_overlaps_{};
+	std::vector<CollisionInfo> previous_intersects_{};
+	std::vector<CollisionInfo> previous_sweeps_{};
 };
 
 } // namespace ptgn

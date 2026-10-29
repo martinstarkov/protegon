@@ -17,7 +17,7 @@ constexpr static TextureFormat GetEffectTextureFormat(bool hdr) {
 }
 
 struct EffectParams {
-	std::function<void(DrawContext&)> draw_callback;
+	std::function<void(DrawContext&)> draw_callback{};
 	bool hdr{ false };
 	int margin{ 0 };
 };

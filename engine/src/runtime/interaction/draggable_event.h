@@ -28,6 +28,10 @@ struct Drag {
 	V2_float offset;
 };
 
+struct DragCanceled {
+	V2_float position{};
+};
+
 struct DragStop {
 	operator V2_float() const { // NOSONAR
 		return stop_position;

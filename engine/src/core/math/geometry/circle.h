@@ -19,7 +19,11 @@ public:
 
 	constexpr Circle() = default;
 
-	constexpr Circle(float radius) : radius{ radius } {} // NOSONAR
+	constexpr Circle(float circle_radius) : radius{ circle_radius } {} // NOSONAR
+
+	constexpr float GetRadius() const {
+		return radius;
+	}
 
 	/// @return Radius scaled relative to the transform.
 	constexpr float GetRadius(Transform transform) const {
@@ -46,7 +50,7 @@ public:
 	}
 
 	/// @brief Approximates a circle with a polygon of segment_count vertices. Must be above 3.
-	constexpr std::vector<V2_float> GetVertices(Transform transform, std::size_t segment_count) {
+	constexpr std::vector<V2_float> GetVertices(Transform transform, std::size_t segment_count) const {
 		PTGN_ASSERT(segment_count > 3 && segment_count < 10000);
 
 		std::vector<V2_float> vertices;

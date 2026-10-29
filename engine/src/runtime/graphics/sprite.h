@@ -15,6 +15,7 @@
 #include "renderer/resources/texture.h"
 #include "runtime/asset/asset_key.h"
 #include "runtime/ecs/entity.h"
+#include "runtime/ecs/entity_creation_context.h"
 #include "runtime/graphics/drawable.h"
 #include "serialization/serialize.h"
 
@@ -38,7 +39,7 @@ TextureDrawParams GetTextureDrawParams(
 /// Component for a custom texture size to be used instead of the actual texture size. This can be
 /// used for example to render a texture at a larger size.
 struct TextureSize {
-	V2_float value;
+	V2_float value{};
 
 	operator V2_float() const { // NOSONAR
 		return value;
@@ -47,17 +48,24 @@ struct TextureSize {
 	PTGN_REFLECT_VALUE(TextureSize, value)
 };
 
+struct TextureCoordinateOverride {
+	std::array<V2_float, 4> coordinates{ V2_float{ 0.0f, 0.0f }, V2_float{ 1.0f, 0.0f },
+										 V2_float{ 1.0f, 1.0f }, V2_float{ 0.0f, 1.0f } };
+
+	PTGN_REFLECT_VALUE(TextureCoordinateOverride, coordinates)
+};
+
 struct TextureCrop {
 	/// @brief Position and size are V2_float instead of V2_int to allow for smooth increase in
 	/// display size (for example).
 
 	/// @brief Top left position (in pixels) within the texture from which the crop starts.
-	V2_float position;
+	V2_float position{};
 
 	/// @brief Size of the crop in pixels. std::nullopt will use full size of the unscaled texture.
-	std::optional<V2_float> size;
+	std::optional<V2_float> size{};
 
-	bool operator==(const TextureCrop&) const = default;
+	constexpr bool operator==(const TextureCrop&) const = default;
 
 	/// @brief Updates the crop size based on the animation data.
 	void Update(const AnimationData& anim, std::optional<V2_int> texture_size);
@@ -83,7 +91,7 @@ public:
 };
 
 Sprite CreateSprite(
-	Scene& scene, Transform transform = {}, TextureKey texture_key = {},
+	EntityCreationContext context, Transform transform = {}, TextureKey texture_key = {},
 	Origin origin = Origin::Center
 );
 

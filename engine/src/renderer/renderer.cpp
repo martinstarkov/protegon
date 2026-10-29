@@ -44,6 +44,7 @@
 #include "renderer/pipeline/render_request.h"
 #include "renderer/pipeline/render_state.h"
 #include "renderer/pipeline/scaling_mode.h"
+#include "renderer/pipeline/shader_preprocessor.h"
 #include "renderer/pipeline/vertex.h"
 #include "renderer/pipeline/viewport.h"
 #include "renderer/renderer_settings.h"
@@ -220,27 +221,31 @@ impl::RenderbufferId Renderer::GetDepthStencilRenderbuffer(impl::FramebufferId f
 	return gl_->framebuffers.GetAttachmentId<impl::gl::Attachment::DepthStencil>(framebuffer);
 }
 
-void Renderer::Clear(impl::FramebufferId framebuffer, Color clear_color, bool restore_bind) const {
-	auto bind_guard = gl_->Bind(framebuffer, restore_bind);
+void Renderer::Clear(impl::FramebufferId framebuffer, Color clear_color) {
+	FlushBatch();
+
+	auto bind_guard = gl_->Bind(framebuffer, true);
 	gl_->framebuffers.Clear(framebuffer, clear_color);
 }
 
-void Renderer::Clear(impl::FramebufferId framebuffer, Depth clear_depth, bool restore_bind) const {
-	auto bind_guard = gl_->Bind(framebuffer, restore_bind);
+void Renderer::Clear(impl::FramebufferId framebuffer, Depth clear_depth) {
+	FlushBatch();
+
+	auto bind_guard = gl_->Bind(framebuffer, true);
 	gl_->framebuffers.Clear(framebuffer, clear_depth);
 }
 
-void Renderer::Clear(
-	impl::FramebufferId framebuffer, Stencil clear_stencil, bool restore_bind
-) const {
-	auto bind_guard = gl_->Bind(framebuffer, restore_bind);
+void Renderer::Clear(impl::FramebufferId framebuffer, Stencil clear_stencil) {
+	FlushBatch();
+
+	auto bind_guard = gl_->Bind(framebuffer, true);
 	gl_->framebuffers.Clear(framebuffer, clear_stencil);
 }
 
-void Renderer::Clear(
-	impl::FramebufferId framebuffer, DepthStencil clear_depth_stencil, bool restore_bind
-) const {
-	auto bind_guard = gl_->Bind(framebuffer, restore_bind);
+void Renderer::Clear(impl::FramebufferId framebuffer, DepthStencil clear_depth_stencil) {
+	FlushBatch();
+
+	auto bind_guard = gl_->Bind(framebuffer, true);
 	gl_->framebuffers.Clear(framebuffer, clear_depth_stencil);
 }
 
@@ -275,6 +280,13 @@ void Renderer::SetShader(std::string_view shader) {
 }
 
 void Renderer::SetShader(impl::ShaderId shader) {
+	if (!shader) {
+		FlushBatch();
+		current_material_valid_ = false;
+		PTGN_WARN("Cannot bind invalid shader program; draw calls using it will be skipped");
+		return;
+	}
+	current_material_valid_ = true;
 	if (shader == GetBoundShader()) {
 		return;
 	}
@@ -452,8 +464,13 @@ void Renderer::SetLogicalSize(
 		return;
 	}
 
+	if (logical_size.has_value()) {
+		logical_size.value() = Max(logical_size.value(), { 1, 1 });
+	}
+
 	PTGN_ASSERT(
-		!logical_size.has_value() || logical_size.has_value() && logical_size.value().IsPositive(),
+		!logical_size.has_value() ||
+			(logical_size.has_value() && logical_size.value().IsPositive()),
 		"Logical size cannot be set to negative value or zero"
 	);
 
@@ -520,7 +537,7 @@ V2_int Renderer::GetPresentationPosition() const {
 
 V2_int Renderer::GetPresentationSize() const {
 	if (presentation_viewport_.has_value()) {
-		return presentation_viewport_.value().size;
+		return Ceil(presentation_viewport_.value().size);
 	}
 	return GetOutputSize();
 }
@@ -548,7 +565,7 @@ V2_float Renderer::GetScale() const {
 }
 
 V2_int Renderer::GetOutputSize() const {
-	return window_.GetFramebufferSize();
+	return window_.GetSize();
 }
 
 void Renderer::SetPrimaryWorldCamera(const std::optional<Camera>& primary_world_camera) {
@@ -586,7 +603,7 @@ void Renderer::UpdateDisplayViewport(bool emit_events) {
 }
 
 Renderer::DisplayResizeInfo Renderer::RecalculateDisplayViewport() const {
-	const auto presentation{ GetPresentationViewport() };
+	auto presentation{ GetPresentationViewport() };
 
 	PTGN_ASSERT(presentation.size.IsPositive());
 
@@ -598,7 +615,8 @@ Renderer::DisplayResizeInfo Renderer::RecalculateDisplayViewport() const {
 
 	auto compute_aspect_fit = [&viewport, logical_size, presentation](bool letterbox_mode) {
 		float presentation_aspect{ presentation.size.x / presentation.size.y };
-		float logical_aspect{ static_cast<float>(logical_size.x) / logical_size.y };
+		float logical_aspect{ static_cast<float>(logical_size.x) /
+							  static_cast<float>(logical_size.y) };
 
 		// In letterbox mode require presentation_aspect > logical_aspect to fit
 		// height, and in overscan require presentation_aspect > logical_aspect to fit
@@ -678,13 +696,18 @@ void Renderer::ResetState() {
 void Renderer::BeginFrame() {
 	ResetState();
 
-	if (!presentation_viewport_.has_value()) {
-		auto presentation{ GetPresentationViewport() };
-		Color window_background_color{ window_.GetSettings().background_color };
-		auto _ = gl_->Bind(impl::FramebufferId{ 0 }, false);
-		gl_->SetClearColor(window_background_color);
-		SetViewport(presentation);
-		gl_->framebuffers.Clear();
+	{
+		auto _{ gl_->Bind(impl::FramebufferId{ 0 }, false) };
+		gl_->SetScissor(ScissorState{ false });
+		gl_->SetColorMask(ColorMaskState{});
+		gl_->SetClearColor(window_.GetSettings().background_color);
+
+		auto framebuffer_size{ window_.GetFramebufferSize() };
+
+		if (framebuffer_size.IsPositive()) {
+			gl_->SetViewport(Viewport{ .position{}, .size{ framebuffer_size } });
+			gl_->framebuffers.Clear();
+		}
 	}
 
 	SetFramebuffer(&presentation_framebuffer_);
@@ -692,7 +715,7 @@ void Renderer::BeginFrame() {
 	SetScissor(ScissorState{ false });
 	SetViewport(display_viewport_);
 
-	Clear(presentation_framebuffer_, renderer_settings_.background_color, false);
+	Clear(presentation_framebuffer_, renderer_settings_.background_color);
 }
 
 void Renderer::BindUniforms() {
@@ -724,10 +747,6 @@ void Renderer::ExecuteEffectCallbacks(const std::function<void(DrawContext&)>& e
 
 void Renderer::DrawTexture(const impl::DrawTextureRequest& request) {
 	Draw(request);
-}
-
-bool Renderer::IsPresentationViewportVisible() const {
-	return presentation_viewport_.has_value() && !presentation_viewport_.value().size.IsPositive();
 }
 
 impl::ShaderObject Renderer::CreateShader(
@@ -957,12 +976,21 @@ void Renderer::DrawElements(const impl::RenderPipeline& pipeline, std::size_t in
 }
 
 void Renderer::SetMaterial(const MaterialState& material) {
-	const auto resolved_texture_slot_capacity{
-		material.texture_slot_capacity.value_or(1)
-	};
+	if (!material.shader) {
+		FlushBatch();
+		current_material_valid_ = false;
+		current_uniforms_.clear();
+		current_texture_slot_capacity_ = 1;
+		PTGN_WARN(
+			"Cannot use material with invalid shader program; draw calls using it will be skipped"
+		);
+		return;
+	}
 
-	if (GetBoundShader() == material.shader &&
-		current_uniforms_ == material.uniforms &&
+	current_material_valid_ = true;
+	auto resolved_texture_slot_capacity{ material.texture_slot_capacity.value_or(1) };
+
+	if (GetBoundShader() == material.shader && current_uniforms_ == material.uniforms &&
 		current_texture_slot_capacity_ == resolved_texture_slot_capacity) {
 		return;
 	}
@@ -971,7 +999,7 @@ void Renderer::SetMaterial(const MaterialState& material) {
 
 	auto _ = gl_->Bind(material.shader, false);
 
-	current_uniforms_ = material.uniforms;
+	current_uniforms_			   = material.uniforms;
 	current_texture_slot_capacity_ = resolved_texture_slot_capacity;
 }
 
@@ -1003,71 +1031,73 @@ void Renderer::DrawRenderPass(const impl::DrawPassRequest& request) {
 	auto previous_state{ GetRenderState() };
 
 	MaterialState previous_material{
-		.shader = GetBoundShader(),
-		.uniforms = current_uniforms_,
-		.texture_slot_capacity = current_texture_slot_capacity_
+		.shader				   = GetBoundShader(),
+		.uniforms			   = current_uniforms_,
+		.texture_slot_capacity = current_texture_slot_capacity_,
 	};
-	
+
 	auto previous_pipeline{ pipeline_manager_.GetCurrentPipelineId() };
 
-	auto _ = gl_->Bind(request.output, false);
+	{
+		auto framebuffer_guard{ gl_->Bind(request.output, true) };
 
-	SetCurrentPipeline(request.pipeline);
-	SetMaterial(request.material);
+		SetCurrentPipeline(request.pipeline);
+		SetMaterial(request.material);
 
-	if (request.scissor_to_viewport) {
-		SetScissor(ScissorState{ request.viewport });
-	} else {
-		SetScissor(ScissorState{ false });
-	}
+		if (request.scissor_to_viewport) {
+			SetScissor(ScissorState{ request.viewport });
+		} else {
+			SetScissor(ScissorState{ false });
+		}
 
-	SetViewport(request.viewport);
-	SetViewProjection(request.viewport.size);
-	SetBlendMode(BlendMode::ReplaceRGBA);
+		SetViewport(request.viewport);
+		SetViewProjection(request.viewport.size);
+		SetBlendMode(BlendMode::ReplaceRGBA);
 
-	std::vector<TextureBinding> bindings;
-	std::vector<impl::TextureId> textures;
+		std::vector<TextureBinding> bindings;
+		std::vector<impl::TextureId> textures;
 
-	bindings.reserve(request.inputs.size());
-	textures.reserve(request.inputs.size());
+		bindings.reserve(request.inputs.size());
+		textures.reserve(request.inputs.size());
 
-	for (const auto& input : request.inputs) {
-		auto texture{ GetTexture(input.framebuffer) };
+		for (const auto& input : request.inputs) {
+			auto texture{ GetTexture(input.framebuffer) };
 
-		PTGN_ASSERT(texture, "Render pass input must have a valid color texture");
+			PTGN_ASSERT(texture, "Render pass input must have a valid color texture");
 
-		auto input_size{ GetSize(input.framebuffer) };
+			auto input_size{ GetSize(input.framebuffer) };
 
-		PTGN_ASSERT(input_size.value().IsPositive(), "Render pass input size must be non-zero");
+			PTGN_ASSERT(input_size.value().IsPositive(), "Render pass input size must be non-zero");
 
-		PTGN_ASSERT(
-			input_size == V2_int{ Floor(request.viewport.size) },
-			"Render pass input size must match the draw viewport size"
+			PTGN_ASSERT(
+				input_size == V2_int{ Floor(request.viewport.size) },
+				"Render pass input size must match the draw viewport size"
+			);
+
+			bindings.emplace_back(input.binding);
+			textures.emplace_back(texture);
+		}
+
+		constexpr auto depth{ 0.0f };
+		constexpr auto tex_coords{ impl::GetDefaultTextureCoordinates<true>() };
+
+		auto local_vertices{ Rect{ request.viewport.size }.GetLocalVertices() };
+
+		auto local_quad{ impl::CreateTextureQuad(
+			local_vertices, depth, request.tint.Normalized(), tex_coords, impl::kNoEntityId
+		) };
+
+		std::span quads{ &local_quad, 1 };
+
+		const auto& pipeline{ pipeline_manager_.GetCurrentPipeline() };
+
+		batcher_.SubmitQuadsWithTextureBindings<impl::TextureVertex>(
+			quads, pipeline.vertex_capacity, pipeline.index_capacity, bindings, textures,
+			current_texture_slot_capacity_
 		);
 
-		bindings.emplace_back(input.binding);
-		textures.emplace_back(texture);
+		FlushBatch();
 	}
-
-	constexpr auto depth{ 0.0f };
-	constexpr auto tex_coords{ impl::GetDefaultTextureCoordinates<true>() };
-
-	auto local_vertices{ Rect{ request.viewport.size }.GetLocalVertices() };
-
-	auto local_quad{ impl::CreateTextureQuad(
-		local_vertices, depth, request.tint.Normalized(), tex_coords, impl::kNoEntityId
-	) };
-
-	std::span quads{ &local_quad, 1 };
-
-	const auto& pipeline{ pipeline_manager_.GetCurrentPipeline() };
-
-	batcher_.SubmitQuadsWithTextureBindings<impl::TextureVertex>(
-		quads, pipeline.vertex_capacity, pipeline.index_capacity, bindings, textures,
-		current_texture_slot_capacity_
-	);
-
-	FlushBatch();
 
 	SetCurrentPipeline(previous_pipeline);
 	SetMaterial(previous_material);
@@ -1192,6 +1222,31 @@ void Renderer::BindTextureSlot(std::uint32_t slot, impl::TextureId texture, bool
 	}
 #endif
 	auto _3{ gl_->Bind(texture, false, force) };
+}
+
+void Renderer::ApplyOutputColorTransform(impl::FramebufferObject& framebuffer) {
+	auto op{ renderer_settings_.tone_mapping.op };
+
+	PTGN_ASSERT(
+		!impl::RequiresHDRInput(op) || IsHDRFormat(GetFormat(framebuffer).value()),
+		"Framebuffer format must support HDR if tone mapping is enabled"
+	);
+
+	ApplyFramebufferEffect(framebuffer, [this, op](DrawContext& ctx) {
+		ctx.Pass([this, op](auto& pass) -> RenderPassHandle {
+			auto gamma_and_tonemapping_shader{ impl::GetGammaAndToneMappingShader(op) };
+
+			auto result{ pass.Apply(gamma_and_tonemapping_shader) };
+
+			result.Uniform(impl::kGammaUniform, renderer_settings_.gamma);
+
+			if (op == ToneMappingOperator::Exposure || op == ToneMappingOperator::ACES) {
+				result.Uniform(impl::kExposureUniform, renderer_settings_.tone_mapping.exposure);
+			}
+
+			return result;
+		});
+	});
 }
 
 bool Renderer::FramebufferMatches(
@@ -1323,10 +1378,12 @@ bool Renderer::IsEntityPickingEnabled(impl::FramebufferId framebuffer) const {
 	return true;
 }
 
-void Renderer::ClearEntityIds(impl::FramebufferId framebuffer) const {
+void Renderer::ClearEntityIds(impl::FramebufferId framebuffer) {
 	if (!IsEntityPickingEnabled(framebuffer)) {
 		return;
 	}
+
+	FlushBatch();
 
 	auto bind_guard{ gl_->Bind(framebuffer, true) };
 
@@ -1363,6 +1420,52 @@ std::optional<V2_int> RendererAccessor::GetSize(TextureId texture) const {
 
 TextureId RendererAccessor::GetTexture(FramebufferId framebuffer) const {
 	return renderer_.GetTexture(framebuffer);
+}
+
+std::optional<TextureDesc> RendererAccessor::GetDesc(FramebufferId framebuffer) const {
+	return renderer_.GetDesc(framebuffer);
+}
+
+RenderState RendererAccessor::GetRenderState() const {
+	return renderer_.GetRenderState();
+}
+
+void RendererAccessor::SetRenderState(const RenderState& state) {
+	renderer_.SetRenderState(state);
+}
+
+MaterialState RendererAccessor::GetMaterial() const {
+	return MaterialState{
+		.shader				   = renderer_.GetBoundShader(),
+		.uniforms			   = renderer_.current_uniforms_,
+		.texture_slot_capacity = renderer_.current_texture_slot_capacity_,
+	};
+}
+
+void RendererAccessor::SetMaterial(const MaterialState& material) {
+	renderer_.SetMaterial(material);
+}
+
+PipelineId RendererAccessor::GetCurrentPipeline() const {
+	return renderer_.pipeline_manager_.GetCurrentPipelineId();
+}
+
+void RendererAccessor::SetCurrentPipeline(PipelineId pipeline) {
+	renderer_.SetCurrentPipeline(pipeline);
+}
+
+void RendererAccessor::Clear(FramebufferId framebuffer, Color clear_color) {
+	renderer_.Clear(framebuffer, clear_color);
+}
+
+void RendererAccessor::DrawText(Transform transform, const DrawTextRequest& request) {
+	renderer_.ExecuteEffectCallbacks([&](DrawContext& ctx) {
+		ctx.DrawText(transform, request, {});
+	});
+}
+
+void RendererAccessor::ApplyOutputColorTransform(FramebufferObject& framebuffer) {
+	renderer_.ApplyOutputColorTransform(framebuffer);
 }
 
 void RendererAccessor::FlushBatch() {
@@ -1403,11 +1506,23 @@ void RendererAccessor::SetBlendMode(BlendMode blend_mode, bool force) {
 	renderer_.SetBlendMode(blend_mode, force);
 }
 
+const FramebufferObject* RendererAccessor::GetCurrentFramebuffer() const {
+	return renderer_.current_framebuffer_;
+}
+
+FramebufferObject* RendererAccessor::GetCurrentFramebuffer() {
+	return renderer_.current_framebuffer_;
+}
+
 const FramebufferObject& RendererAccessor::GetBoundFramebuffer() const {
 	return renderer_.GetBoundFramebuffer();
 }
 
-void RendererAccessor::ClearEntityIds(FramebufferId framebuffer) const {
+FramebufferObject& RendererAccessor::GetBoundFramebuffer() {
+	return renderer_.GetBoundFramebuffer();
+}
+
+void RendererAccessor::ClearEntityIds(FramebufferId framebuffer) {
 	renderer_.ClearEntityIds(framebuffer);
 }
 

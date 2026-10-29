@@ -1,6 +1,7 @@
 #pragma once
 
 #include <optional>
+#include <string>
 #include <string_view>
 #include <utility>
 #include <vector>
@@ -11,6 +12,7 @@
 #include "core/math/vector2.h"
 #include "core/util/strong_string.h"
 #include "runtime/ecs/entity.h"
+#include "runtime/ecs/entity_creation_context.h"
 #include "runtime/ecs/key_hash.h"
 #include "runtime/scripting/script.h"
 #include "runtime/ui/button.h"
@@ -52,14 +54,14 @@ struct ToggleButtonGroupKey : public StrongString<ToggleButtonGroupKey> {
 
 struct ToggleButtonGroupData {
 	bool always_active{ true };
-	std::optional<ToggleButtonGroupKey> active;
+	std::optional<ToggleButtonGroupKey> active{};
 
 	PTGN_REFLECT(ToggleButtonGroupData, always_active, active)
 };
 
 /// @brief Marker for direct child toggle buttons belonging to a toggle group.
 struct ToggleButtonGroupItem {
-	ToggleButtonGroupKey key;
+	ToggleButtonGroupKey key{};
 
 	PTGN_REFLECT_VALUE(ToggleButtonGroupItem, key)
 };
@@ -119,6 +121,19 @@ private:
 
 namespace event {
 
+struct ToggleButtonOn { ToggleButton button; };
+struct ToggleButtonOff { ToggleButton button; };
+struct ToggleGroupSelectionChanged {
+	ToggleButtonGroup group;
+	std::string key{};
+	std::string previous{};
+};
+struct ToggleGroupSelectionCleared { ToggleButtonGroup group; };
+struct ToggleGroupRequiredChanged {
+	ToggleButtonGroup group;
+	bool required{ false };
+};
+
 struct ToggleButtonToggle {
 	ToggleButton button;
 	bool toggled{ false };
@@ -127,15 +142,15 @@ struct ToggleButtonToggle {
 } // namespace event
 
 ToggleButton CreateToggleButton(
-	Scene& scene, Transform transform, V2_float size, Origin origin = Origin::Center,
-	bool toggled = false
+	EntityCreationContext context, Transform transform, V2_float size,
+	Origin origin = Origin::Center, bool toggled = false
 );
 
 ToggleButton CreateToggleButton(
-	Scene& scene, Transform transform, float radius, Origin origin = Origin::Center,
-	bool toggled = false
+	EntityCreationContext context, Transform transform, float radius,
+	Origin origin = Origin::Center, bool toggled = false
 );
 
-ToggleButtonGroup CreateToggleButtonGroup(Scene& scene);
+ToggleButtonGroup CreateToggleButtonGroup(EntityCreationContext context);
 
 } // namespace ptgn

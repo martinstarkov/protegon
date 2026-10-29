@@ -40,7 +40,7 @@ constexpr float kGlyphEffectPhaseStep{ 0.35f };
 
 struct GlyphEffectOscillation {
 	V2_float frequency_multiplier{ 1.0f, 1.0f };
-	V2_float glyph_phase_multiplier;
+	V2_float glyph_phase_multiplier{};
 };
 
 constexpr GlyphEffectOscillation kWobbleOscillation{
@@ -372,17 +372,17 @@ GlyphRenderStyle GetGlyphRenderStyle(const TextRunStyle& style) {
 
 struct LayoutBuilder {
 	LayoutBuilder(
-		const impl::ResolvedStyledText& styled_text, const TextBox& box,
-		const std::vector<SourceCharacter>& characters, float scale
+		const impl::ResolvedStyledText& styled, const TextBox& text_box,
+		const std::vector<SourceCharacter>& text_characters, float text_scale
 	) :
-		styled_text{ styled_text },
-		box{ box },
-		characters{ characters },
-		scale{ scale },
+		styled_text{ styled },
+		box{ text_box },
+		characters{ text_characters },
+		scale{ text_scale },
 		can_wrap{ box.HasWidth() && box.style.wrap.mode != WrapMode::None },
 		wrap_width{ box.rect.GetSize().x } {
 		layout.used_shrink_scale  = scale;
-		layout.batch_styles		  = BuildBatchStyles(styled_text);
+		layout.batch_styles		  = BuildBatchStyles(styled);
 		layout.source_glyph_count = static_cast<std::size_t>(
 			std::ranges::count_if(characters, [](const SourceCharacter& character) {
 				return character.codepoint != U'\n';
@@ -397,13 +397,13 @@ struct LayoutBuilder {
 	bool can_wrap{ false };
 	float wrap_width{ 0.0f };
 
-	TextLayout layout;
-	LineLayout line;
+	TextLayout layout{};
+	LineLayout line{};
 	float line_ascent{ 0.0f };
 	float line_descent{ 0.0f };
 	float line_height{ 0.0f };
 	float y{ 0.0f };
-	std::optional<SourceCharacter> previous;
+	std::optional<SourceCharacter> previous{};
 
 	bool HasLineContent() const {
 		return !line.glyphs.empty();

@@ -18,7 +18,7 @@ struct Dropzone {
 	TriggerCondition pickup_condition{ TriggerCondition::Overlaps };
 
 	/// @brief Draggables currently on the dropzone.
-	std::vector<Entity> draggables;
+	std::vector<Entity> draggables{};
 
 	PTGN_REFLECT(Dropzone, enabled, move_condition, drop_condition, pickup_condition)
 };

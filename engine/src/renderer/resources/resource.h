@@ -16,7 +16,7 @@ class Resource {
 public:
 	Resource() = default;
 
-	explicit Resource(Renderer* renderer, T resource) noexcept;
+	explicit Resource(Renderer* renderer_ptr, T render_resource) noexcept;
 
 	Resource(const Resource&)			 = delete;
 	Resource& operator=(const Resource&) = delete;

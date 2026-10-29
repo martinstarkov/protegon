@@ -11,36 +11,38 @@ namespace ptgn {
 
 class Window;
 
+struct FileDialogFilter {
+	std::string name{};
+	std::string spec{}; // e.g. "png,jpg,jpeg" or "scene,ptgn"
+};
+
+struct FileDialogOptions {
+	/// @brief Used by open/save dialogs. Ignored by folder-pick dialogs.
+	std::vector<FileDialogFilter> filters{};
+
+	/// @brief Initial directory shown by the dialog.
+	/// Used by open/save/folder dialogs.
+	std::optional<path> default_path{};
+
+	/// @brief Suggested file name for save dialogs.
+	/// Ignored by open/folder dialogs.
+	std::optional<std::string> default_name{};
+};
+
 class FileDialog {
 public:
-	struct Filter {
-		std::string name;
-		std::string spec; // e.g. "png,jpg,jpeg" or "scene,ptgn"
-	};
-
-	struct Options {
-		// Used by open/save dialogs. Ignored by folder-pick dialogs.
-		std::vector<Filter> filters;
-
-		// Initial directory shown by the dialog.
-		// Used by open/save/folder dialogs.
-		std::optional<path> default_path;
-
-		// Suggested file name for save dialogs.
-		// Ignored by open/folder dialogs.
-		std::optional<std::string> default_name;
-	};
-
 	using Error = std::string;
+	using Filter = FileDialogFilter;
+	using Options = FileDialogOptions;
 
 	template <typename T>
 	using Result = std::expected<std::optional<T>, Error>;
 
-	[[nodiscard]] Result<path> OpenFile(const Options& options = {}) const;
-	[[nodiscard]] Result<std::vector<path>> OpenFiles(const Options& options = {}) const;
-	[[nodiscard]] Result<path> SaveFile(const Options& options = {}) const;
-	[[nodiscard]] Result<path> OpenFolder(const Options& options = {}) const;
-	[[nodiscard]] Result<std::vector<path>> OpenFolders(const Options& options = {}) const;
+	[[nodiscard]] Result<path> OpenFile(Options options = {}) const;
+	[[nodiscard]] Result<std::vector<path>> OpenFiles(Options options = {}) const;
+	[[nodiscard]] Result<path> SaveFile(Options options = {}) const;
+	[[nodiscard]] Result<path> OpenFolder(Options options = {}) const;
+	[[nodiscard]] Result<std::vector<path>> OpenFolders(Options options = {}) const;
 
 private:
 	friend class Window;

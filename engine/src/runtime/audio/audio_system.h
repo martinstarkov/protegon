@@ -3,6 +3,7 @@
 #include <memory>
 #include <optional>
 #include <string_view>
+#include <unordered_map>
 #include <vector>
 
 #include "runtime/asset/asset_key.h"
@@ -14,6 +15,7 @@ namespace ptgn {
 
 class AssetManager;
 class Application;
+class EventHandler;
 
 inline constexpr float kMinVolume{ 0.0f };
 inline constexpr float kMaxVolume{ 5.0f };
@@ -86,6 +88,11 @@ public:
 	/// @brief Toggles the pause state of the audio.
 	void TogglePause(const AudioKey& audio_key);
 
+	void SetFrequencyRatio(const AudioKey& audio_key, float ratio);
+
+	/// @brief Marks the destination of a scripted audio fade.
+	void MarkFadeTarget(const AudioKey& audio_key, float target_volume);
+
 	/// @brief Only sets the volume of the specific audio if it's currently playing; otherwise, does
 	/// nothing.
 	/// @param volume Volume of the specific audio in range [kMinVolume, kMaxVolume]. Volume clamped
@@ -121,7 +128,7 @@ private:
 	friend class Application;
 	friend class impl::ApplicationContext;
 
-	explicit AudioSystem(AssetManager& assets);
+	explicit AudioSystem(AssetManager& assets, EventHandler& events);
 	~AudioSystem() noexcept						   = default;
 	AudioSystem(const AudioSystem&)				   = delete;
 	AudioSystem& operator=(const AudioSystem&)	   = delete;
@@ -131,6 +138,10 @@ private:
 	void Update();
 
 	AssetManager& assets_;
+	EventHandler& events_;
+	std::size_t next_instance_id_{ 1 };
+	std::unordered_map<std::size_t, AudioKey> audio_keys_{};
+	std::unordered_map<std::size_t, float> fade_targets_{};
 
 	std::unique_ptr<ma_engine, impl::AudioEngineDeleter> engine_;
 

@@ -20,7 +20,8 @@ class Track {
 public:
 	/// @param loops Nullopt for infinite loops.
 	Track(
-		std::size_t id, ma_engine* engine, const path& audio_path, std::optional<std::int64_t> loops
+		std::size_t id, std::size_t instance_id, ma_engine* engine, const path& audio_path,
+		std::optional<std::int64_t> loops
 	);
 
 	~Track() noexcept;
@@ -33,6 +34,8 @@ public:
 
 	[[nodiscard]] ma_sound* Get() const noexcept;
 	[[nodiscard]] std::size_t GetId() const noexcept;
+	[[nodiscard]] std::size_t GetInstanceId() const noexcept;
+	[[nodiscard]] std::size_t TakeCompletedLoops() noexcept;
 
 	void Pause();
 	void Resume();
@@ -51,6 +54,8 @@ private:
 	void RestartFromBeginning();
 
 	std::size_t id_{ 0 };
+	std::size_t instance_id_{ 0 };
+	mutable std::size_t completed_loops_{ 0 };
 	std::unique_ptr<ma_sound> sound_;
 	bool paused_{ false };
 

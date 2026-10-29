@@ -130,14 +130,14 @@ struct WrapSettings {
 };
 
 struct TextLayoutStyle {
-	Alignment alignment;
+	Alignment alignment{};
 
 	/// @brief If true, the last line of text will be justified to fill the width of the box.
 	bool justify_last_line{ false };
 
 	OverflowMode overflow{ OverflowMode::Overflow };
 
-	WrapSettings wrap;
+	WrapSettings wrap{};
 
 	/// @brief If true, consecutive whitespace characters will be collapsed into a single space.
 	bool collapse_spaces{ false };
@@ -148,7 +148,7 @@ struct TextLayoutStyle {
 
 	std::size_t max_lines{ 0 };
 
-	ShrinkScale shrink_scale;
+	ShrinkScale shrink_scale{};
 
 	constexpr bool operator==(const TextLayoutStyle&) const = default;
 
@@ -159,8 +159,8 @@ struct TextLayoutStyle {
 };
 
 struct TextBox {
-	Rect rect;
-	TextLayoutStyle style;
+	Rect rect{};
+	TextLayoutStyle style{};
 
 	constexpr bool HasWidth() const {
 		return rect.GetSize().x > 0.0f;
@@ -185,7 +185,7 @@ struct TextBox {
 
 struct TextBatchStyle {
 	impl::TextureId texture{ 0 };
-	DistanceFieldStyle sdf;
+	DistanceFieldStyle sdf{};
 
 	constexpr bool operator==(const TextBatchStyle&) const = default;
 };
@@ -197,20 +197,20 @@ enum class TextDecorationType : std::uint8_t {
 
 struct TextDecoration {
 	TextDecorationType type{ TextDecorationType::Underline };
-	Rect rect;
+	Rect rect{};
 	Color color{ color::White };
 	std::size_t source_run_index{ 0 };
 };
 
 struct LineLayout {
-	std::vector<Glyph> glyphs;
-	std::vector<TextDecoration> decorations;
+	std::vector<Glyph> glyphs{};
+	std::vector<TextDecoration> decorations{};
 
 	/// @brief Logical line size. The height includes the selected line spacing.
-	V2_float size;
+	V2_float size{};
 
 	/// @brief Logical line cell after horizontal and vertical alignment.
-	Rect bounds;
+	Rect bounds{};
 
 	/// @brief The baseline offset from the top of the line. This is the distance from the top of
 	/// the line to the baseline of the first glyph in the line.
@@ -226,20 +226,20 @@ struct LineLayout {
 };
 
 struct TextMeasurement {
-	V2_float size;
+	V2_float size{};
 	std::size_t line_count{ 0 };
 	bool truncated{ false };
 	float used_shrink_scale{ 1.0f };
 };
 
 struct TextLayout {
-	std::vector<LineLayout> lines;
+	std::vector<LineLayout> lines{};
 
 	/// @brief One style per styled text run. Glyph::source_run_index indexes this array.
-	std::vector<TextBatchStyle> batch_styles;
+	std::vector<TextBatchStyle> batch_styles{};
 
 	/// @brief Final logical size after wrapping, max-line handling, ellipsis, and justification.
-	V2_float size;
+	V2_float size{};
 
 	float used_shrink_scale{ 1.0f };
 	bool wrapped{ false };
@@ -250,7 +250,7 @@ struct TextLayout {
 	std::size_t source_glyph_count{ 0 };
 
 	/// @brief Effective alignment used when this layout was built.
-	Alignment built_alignment;
+	Alignment built_alignment{};
 
 	/// @brief Set to true when the layout has been modified and needs to be rebuilt.
 	bool dirty{ false };
@@ -314,7 +314,7 @@ enum class TextClipMode : std::uint8_t {
 PTGN_REFLECT_ENUM(TextClipMode)
 
 struct TextClip {
-	Rect rect;
+	Rect rect{};
 	TextClipMode mode{ TextClipMode::Clip };
 
 	constexpr bool operator==(const TextClip&) const = default;
@@ -325,9 +325,9 @@ struct TextClip {
 struct DrawTextRequest {
 	const TextLayout& layout;
 	Color tint{ color::White };
-	Depth depth;
+	Depth depth{};
 	int entity_id{ impl::kNoEntityId };
-	std::span<const TextClip> clips;
+	std::span<const TextClip> clips{};
 	std::size_t reveal_glyph_count{ std::numeric_limits<std::size_t>::max() };
 	float time{ 0.0f };
 };
@@ -335,15 +335,15 @@ struct DrawTextRequest {
 namespace impl {
 
 struct TextDrawBatch {
-	TextBatchStyle style;
+	TextBatchStyle style{};
 	bool decoration{ false };
-	std::vector<impl::TextureQuad> quads;
+	std::vector<impl::TextureQuad> quads{};
 };
 
 struct PreparedTextDraw {
-	Transform transform;
+	Transform transform{};
 
-	std::array<TextClip, 2> clips;
+	std::array<TextClip, 2> clips{};
 	std::size_t clip_count{ 0 };
 
 	bool drawable{ true };

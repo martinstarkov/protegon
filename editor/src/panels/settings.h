@@ -28,6 +28,8 @@ private:
 	SettingsPage selected_page_{ SettingsPage::ProjectDisplay };
 	bool open_{ false };
 	bool focus_requested_{ false };
+	bool recenter_requested_{ false };
+	bool undo_interaction_pending_{ false };
 };
 
 class UndoHistoryWindow {

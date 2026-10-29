@@ -1,5 +1,5 @@
 #include "app/application.h"
-#include "core/editor.h"
+#include "app/editor.h"
 #include "core/graphics/color.h"
 #include "core/graphics/fill_style.h"
 #include "runtime/graphics/shape.h"
@@ -16,7 +16,7 @@ class CapsuleEntityScene : public Scene {
 };
 
 int main(int, char**) {
-	Application app{ "capsule_entity" };
+	Application app;
 	PTGN_WITH_EDITOR(app, false);
 	app.StartWith<CapsuleEntityScene>();
 }

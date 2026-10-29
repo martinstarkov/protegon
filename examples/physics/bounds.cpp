@@ -41,8 +41,8 @@ struct PhysicsBoundaryScene : public Scene {
 		const V2_float& center, const V2_float& size, const Color& color,
 		bool set_random_velocity = true
 	) {
-		Entity entity		  = CreateRect(*this, center, size, color);
-		const auto random_vel = []() {
+		Entity entity	= CreateRect(*this, center, size, color);
+		auto random_vel = []() {
 			V2_float dir{ V2_float::Random(-0.5f, 0.5f) };
 			float speed = 60.0f;
 

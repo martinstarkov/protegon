@@ -1,8 +1,11 @@
 #include "runtime/graphics/sprite.h"
 
 #include <array>
+#include <functional>
 #include <optional>
+#include <string>
 #include <string_view>
+#include <utility>
 
 #include "core/assert.h"
 #include "core/graphics/color.h"
@@ -17,6 +20,7 @@
 #include "runtime/animation/animation.h"
 #include "runtime/asset/asset_manager.h"
 #include "runtime/ecs/entity.h"
+#include "runtime/ecs/entity_creation_context.h"
 #include "runtime/ecs/tag.h"
 #include "runtime/graphics/draw.h"
 #include "runtime/graphics/drawable.h"
@@ -36,7 +40,7 @@ TextureId GetTexture(Entity entity) {
 	if (auto texture{ entity.TryGet<Texture>() }) {
 		return *texture;
 	}
-	if (auto texture_key{ entity.TryGet<TextureKey>() }) {
+	if (auto texture_key{ entity.TryGet<TextureKey>() }; texture_key && entity.HasScene()) {
 		auto& scene{ entity.GetScene() };
 		auto& assets{ scene.ctx().asset };
 		if (impl::AssetAccessor{ assets }.Has<Texture>(texture_key->value)) {
@@ -48,19 +52,23 @@ TextureId GetTexture(Entity entity) {
 
 void TextureCrop::Update(const AnimationData& anim, std::optional<V2_int> texture_size) {
 	position = anim.GetCurrentFramePosition(texture_size);
-	size	 = anim.config.frame_size;
+
+	V2_int frame_size{ anim.GetFrameSize(texture_size) };
+	size = V2_float{ frame_size };
 }
 
 TextureDrawParams GetTextureDrawParams(
 	Entity entity, V2_float size, bool flip_y, Color additional_tint
 ) {
-	return { .depth{ GetDepth(entity) },
-			 .size{ size },
-			 .origin = entity.GetOrDefault<Origin>(),
-			 .tint{ Color::Multiply(GetTint(entity), additional_tint) },
-			 .texture_coordinates{ GetTextureCoordinates(entity, flip_y) },
-			 .effects{ impl::GetEffectParams(entity) },
-			 .entity_id = entity.Get<UUID>() };
+	return TextureDrawParams{
+		.depth{ GetDepth(entity) },
+		.size{ size },
+		.origin = entity.GetOrDefault<Origin>(),
+		.tint{ Color::Multiply(GetTint(entity), additional_tint) },
+		.texture_coordinates{ GetTextureCoordinates(entity, flip_y) },
+		.effects{ GetEffectParams(entity) },
+		.entity_id{ entity.Get<UUID>() },
+	};
 }
 
 } // namespace impl
@@ -71,35 +79,62 @@ void Sprite::Draw(
 	DrawContext& ctx, Entity entity, Origin offset_origin, V2_float offset_size,
 	Color additional_tint
 ) {
+	const auto* texture_key{ entity.TryGet<TextureKey>() };
+	bool has_texture_source{ entity.Has<impl::TextureId>() || entity.Has<Texture>() ||
+							 (texture_key && !texture_key->value.empty()) };
+
+	// A sprite may intentionally have no texture configured. The editor uses this state for
+	// optional Texture Key fields, so it should simply render nothing rather than warn.
+	if (!has_texture_source) {
+		return;
+	}
+
 	auto texture{ impl::GetTexture(entity) };
 
 	if (!texture) {
-		PTGN_WARN("Sprite does not have a valid texture or texture key");
+		PTGN_WARN(
+			"Sprite does not have a valid texture or texture key",
+			std::invoke([&entity] -> std::string {
+				if (const auto* key{ entity.TryGet<TextureKey>() }; key && !key->value.empty()) {
+					return ": " + key->value;
+				}
+				return "";
+			})
+		);
 		return;
 	}
 
 	auto texture_size{ GetDisplaySize(entity) };
 
 	if (!texture_size.has_value()) {
-		PTGN_WARN("Sprite texture does not have a valid texture size");
+		PTGN_WARN(
+			"Sprite texture (", std::invoke([&entity, &texture] -> std::string {
+				if (const auto* key{ entity.TryGet<TextureKey>() }; key && !key->value.empty()) {
+					return ": " + key->value;
+				}
+				return ToString(texture);
+			}),
+			") does not have a valid texture size"
+		);
 		return;
 	}
 
 	auto draw_transform{ GetDrawTransform(entity) };
 	auto scale{ draw_transform.scale };
-
 	auto scaled_offset{ offset_size * Abs(scale) };
 	V2_float offset{ GetOffset(offset_origin, scaled_offset) };
 	draw_transform.Translate(offset);
 
 	// GetDisplaySize already handles the scaling.
-	PTGN_ASSERT(!scale.HasZero(), "Scale cannot have a zero component");
+	PTGN_ASSERT(!scale.HasZero(), "Scale cannot have a zero component: ", scale);
 	// Maintain scale sign as this is used to flip the direction of a sprite.
 	draw_transform.Scale(1.0f / Abs(scale));
 
 	auto blend_mode{ GetBlendMode(entity) };
-
 	auto params{ impl::GetTextureDrawParams(entity, texture_size.value(), false, additional_tint) };
+	if (const auto* override{ entity.TryGet<impl::TextureCoordinateOverride>() }) {
+		params.texture_coordinates = override->coordinates;
+	}
 
 	ctx.SetBlendMode(blend_mode);
 	ctx.DrawTexture(draw_transform, texture, params);
@@ -114,35 +149,34 @@ Sprite& Sprite::SetTexture(TextureKey texture_key) {
 	return *this;
 }
 
-Sprite CreateSprite(Scene& scene, Transform transform, TextureKey texture_key, Origin origin) {
-	Sprite sprite{ scene.CreateEntity() };
+Sprite CreateSprite(
+	EntityCreationContext context, Transform transform, TextureKey texture_key, Origin origin
+) {
+	Sprite sprite{ context.CreateEntity() };
 
 	sprite.Add<Tag>("Sprite");
 	sprite.Add<Visible>(true);
-	sprite.Add<TextureKey>(std::move(texture_key));
+	if (texture_key) {
+		sprite.Add<TextureKey>(std::move(texture_key));
+	}
 	sprite.Add<Transform>(transform);
 	sprite.Add<Origin>(origin);
 
 	SetDraw<Sprite>(sprite);
-
 	return sprite;
 }
 
 std::optional<V2_int> GetTextureSize(Entity entity) {
+	if (!entity.HasScene()) {
+		return std::nullopt;
+	}
+
 	auto texture{ impl::GetTexture(entity) };
-
 	const auto& scene{ entity.GetScene() };
-
 	auto size{ impl::RendererAccessor{ scene.ctx().renderer }.GetSize(texture) };
-
-	if (!size.has_value()) {
+	if (!size.has_value() || !size.value().IsPositive()) {
 		return std::nullopt;
 	}
-
-	if (!size.value().IsPositive()) {
-		return std::nullopt;
-	}
-
 	return size;
 }
 
@@ -182,25 +216,26 @@ std::optional<V2_float> GetDisplaySize(Entity entity) {
 }
 
 std::array<V2_float, 4> GetTextureCoordinates(Entity entity, bool flip_vertically) {
-	if (!entity) {
-		return impl::GetDefaultTextureCoordinates(flip_vertically);
-	}
-
 	auto texture_size{ GetTextureSize(entity) };
 
-	if (!texture_size.has_value()) {
-		return impl::GetDefaultTextureCoordinates(flip_vertically);
+	if (!texture_size.has_value() || !texture_size->IsPositive()) {
+		return flip_vertically ? impl::GetDefaultTextureCoordinates<true>()
+							   : impl::GetDefaultTextureCoordinates<false>();
 	}
 
-	if (auto crop{ entity.TryGet<impl::TextureCrop>() }) {
-		auto crop_size{ crop->size.value_or(texture_size.value()) };
-		return impl::GetTextureCoordinates(
-			crop->position, crop_size, texture_size.value(), flip_vertically, true
-		);
+	V2_float source_position{};
+	V2_float source_size{ *texture_size };
+
+	if (const auto* crop{ entity.TryGet<impl::TextureCrop>() }) {
+		source_position = crop->position;
+
+		if (crop->size.has_value()) {
+			source_size = *crop->size;
+		}
 	}
 
 	return impl::GetTextureCoordinates(
-		{}, texture_size.value(), texture_size.value(), flip_vertically, true
+		source_position, source_size, *texture_size, flip_vertically, true
 	);
 }
 

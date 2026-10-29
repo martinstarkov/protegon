@@ -431,7 +431,7 @@ bool Framebuffers::HasOnlyAttachmentLayout(
 		}
 	}
 
-	const auto depth_attachments{ std::array{
+	auto depth_attachments{ std::array{
 		Attachment::Depth,
 		Attachment::Stencil,
 		Attachment::DepthStencil,
@@ -747,7 +747,7 @@ void Framebuffers::CopyRegionImpl(
 	PTGN_ASSERT(source != destination, "Source and destination framebuffers must differ");
 
 	PTGN_ASSERT(
-		!source_region.position.IsNegative() && source_region.size.IsPositive(),
+		!source_region.position.HasNegative() && source_region.size.IsPositive(),
 		"Source framebuffer copy region must be valid"
 	);
 
@@ -1158,9 +1158,9 @@ void Framebuffers::SavePNGImpl(const path& path, FramebufferId framebuffer, Atta
 		const auto* color{ std::get_if<Color>(&pixel) };
 		PTGN_ASSERT(color);
 
-		std::size_t index{
-			(static_cast<std::size_t>(pos.y) * static_cast<std::size_t>(size.x) + static_cast<std::size_t>(pos.x)) * channels
-		};
+		std::size_t index{ (static_cast<std::size_t>(pos.y) * static_cast<std::size_t>(size.x) +
+							static_cast<std::size_t>(pos.x)) *
+						   channels };
 
 		rgba[index + 0] = color->r;
 		rgba[index + 1] = color->g;

@@ -11,6 +11,7 @@
 #include "core/math/transform.h"
 #include "core/math/vector2.h"
 #include "runtime/ecs/entity.h"
+#include "runtime/ecs/entity_creation_context.h"
 #include "runtime/ecs/entity_hierarchy.h"
 #include "runtime/ecs/tag.h"
 #include "runtime/scene/scene.h"
@@ -78,8 +79,7 @@ void ToggleButtonSystem::OnButtonPress(Entity entity) {
 	}
 
 	PTGN_ASSERT(
-		HasParent(self),
-		"ToggleButtonGroupItem must be a direct child of a ToggleButtonGroup"
+		HasParent(self), "ToggleButtonGroupItem must be a direct child of a ToggleButtonGroup"
 	);
 
 	Entity parent{ GetParent(self) };
@@ -111,7 +111,14 @@ ToggleButton& ToggleButton::SetToggled(bool toggled) {
 	MarkDirty(impl::ButtonDirty::All);
 	RefreshDirty();
 
-	PushEvent<event::ToggleButtonToggle>(*this, *this, toggled);
+	if (HasScene()) {
+		PushEvent<event::ToggleButtonToggle>(*this, *this, toggled);
+		if (toggled) {
+			PushEvent<event::ToggleButtonOn>(*this, *this);
+		} else {
+			PushEvent<event::ToggleButtonOff>(*this, *this);
+		}
+	}
 
 	return *this;
 }
@@ -126,7 +133,11 @@ void ToggleButtonGroup::SetAlwaysOneActive(
 	bool always_active, std::optional<std::string_view> button_key
 ) {
 	auto& data{ TryAdd<impl::ToggleButtonGroupData>() };
+	bool was_required{ data.always_active };
 	data.always_active = always_active;
+	if (was_required != always_active && HasScene()) {
+		PushEvent<event::ToggleGroupRequiredChanged>(*this, *this, always_active);
+	}
 
 	if (!always_active) {
 		return;
@@ -223,12 +234,13 @@ std::vector<ToggleButton> ToggleButtonGroup::GetButtons() const {
 void ToggleButtonGroup::SetActiveKey(impl::ToggleButtonGroupKey key) {
 	auto& data{ TryAdd<impl::ToggleButtonGroupData>() };
 
-	const bool same_as_current{ data.active.has_value() && data.active.value() == key };
+	bool same_as_current{ data.active.has_value() && data.active.value() == key };
 
 	if (same_as_current && data.always_active) {
 		return;
 	}
 
+	std::string previous{ data.active.has_value() ? data.active->value : std::string{} };
 	if (same_as_current) {
 		data.active.reset();
 	} else {
@@ -238,17 +250,28 @@ void ToggleButtonGroup::SetActiveKey(impl::ToggleButtonGroupKey key) {
 	for (ToggleButton button : GetButtons()) {
 		const auto& item{ button.Get<impl::ToggleButtonGroupItem>() };
 
-		const bool active{ data.active.has_value() && item.key == data.active.value() };
+		bool active{ data.active.has_value() && item.key == data.active.value() };
 		button.SetToggled(active);
+	}
+
+	if (HasScene()) {
+		if (data.active.has_value()) {
+			PushEvent<event::ToggleGroupSelectionChanged>(
+				*this, *this, data.active->value, previous
+			);
+		} else {
+			PushEvent<event::ToggleGroupSelectionCleared>(*this, *this);
+		}
 	}
 }
 
 namespace {
 
+template <typename Shape>
 ToggleButton CreateToggleButton(
-	Scene& scene, Transform transform, auto shape, Origin origin, bool toggled
+	EntityCreationContext context, Transform transform, Shape shape, Origin origin, bool toggled
 ) {
-	ToggleButton button{ CreateButton(scene, transform, shape, origin) };
+	ToggleButton button{ CreateButton(context, transform, shape, origin) };
 
 	button.Add<Tag>("Toggle Button");
 	button.TryAdd<impl::ToggleButtonData>();
@@ -260,19 +283,19 @@ ToggleButton CreateToggleButton(
 } // namespace
 
 ToggleButton CreateToggleButton(
-	Scene& scene, Transform transform, V2_float size, Origin origin, bool toggled
+	EntityCreationContext context, Transform transform, V2_float size, Origin origin, bool toggled
 ) {
-	return CreateToggleButton<V2_float>(scene, transform, size, origin, toggled);
+	return CreateToggleButton<V2_float>(context, transform, size, origin, toggled);
 }
 
 ToggleButton CreateToggleButton(
-	Scene& scene, Transform transform, float radius, Origin origin, bool toggled
+	EntityCreationContext context, Transform transform, float radius, Origin origin, bool toggled
 ) {
-	return CreateToggleButton<float>(scene, transform, radius, origin, toggled);
+	return CreateToggleButton<float>(context, transform, radius, origin, toggled);
 }
 
-ToggleButtonGroup CreateToggleButtonGroup(Scene& scene) {
-	ToggleButtonGroup group{ scene.CreateEntity() };
+ToggleButtonGroup CreateToggleButtonGroup(EntityCreationContext context) {
+	ToggleButtonGroup group{ context.CreateEntity() };
 	group.Entity::Add<Tag>("Toggle Button Group");
 	group.Entity::Add<impl::ToggleButtonGroupData>();
 	return group;

@@ -43,13 +43,13 @@ struct DistanceFieldStyle {
 	float weight{ 0.5f };
 	float softness{ 1.0f };
 
-	DistanceFieldLayerStyle outline;
+	DistanceFieldLayerStyle outline{};
 
-	DistanceFieldLayerStyle shadow;
-	V2_float shadow_offset;
+	DistanceFieldLayerStyle shadow{};
+	V2_float shadow_offset{};
 
-	DistanceFieldLayerStyle outer_glow;
-	DistanceFieldLayerStyle inner_glow;
+	DistanceFieldLayerStyle outer_glow{};
+	DistanceFieldLayerStyle inner_glow{};
 
 	float pixel_range{ 0.0f };
 
@@ -88,8 +88,8 @@ struct TextRunStyle {
 
 	FontStyle flags{ FontStyle::Normal };
 
-	DistanceFieldStyle sdf;
-	GlyphEffectStyle effect;
+	DistanceFieldStyle sdf{};
+	GlyphEffectStyle effect{};
 
 	constexpr bool operator==(const TextRunStyle& o) const {
 		return color == o.color && NearlyEqual(bold_weight, o.bold_weight) &&
@@ -110,15 +110,15 @@ struct TextRunStyle {
 namespace impl {
 
 struct ResolvedTextRun {
-	std::string text;
+	std::string text{};
 	const FontAtlas* font{ nullptr };
-	TextRunStyle style;
+	TextRunStyle style{};
 
 	constexpr bool operator==(const ResolvedTextRun&) const = default;
 };
 
 struct ResolvedStyledText {
-	std::vector<ResolvedTextRun> runs;
+	std::vector<ResolvedTextRun> runs{};
 
 	constexpr bool operator==(const ResolvedStyledText&) const = default;
 };

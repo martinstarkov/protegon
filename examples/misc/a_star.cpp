@@ -146,7 +146,7 @@ class PathfindingScene : public Scene {
 			);
 		}
 
-		const auto display_waypoints = [&](const auto& waypoints, const auto& color) {
+		auto display_waypoints = [&](const auto& waypoints, const auto& color) {
 			for (auto i{ 0uz }; i + 1 < waypoints.size(); ++i) {
 				ctx().render_queue.DrawLine(
 					-logical_size * 0.5f + waypoints[i] * tile_size + tile_size / 2.0f,

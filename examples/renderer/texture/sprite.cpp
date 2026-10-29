@@ -1,7 +1,7 @@
 #include "runtime/graphics/sprite.h"
 
 #include "app/application.h"
-#include "core/editor.h"
+#include "app/editor.h"
 #include "runtime/asset/asset_manager.h"
 #include "runtime/scene/scene.h"
 #include "runtime/scene/scene_registry.h"
@@ -17,7 +17,7 @@ class SpriteScene : public Scene {
 	}
 };
 
-PTGN_REGISTER_SCENE(SpriteScene, "Sprite Scene");
+PTGN_REGISTER_SCENE(SpriteScene);
 
 int main(int, char**) {
 	Application app{ "SpriteScene" };

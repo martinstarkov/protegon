@@ -27,7 +27,7 @@ public:
 private:
 	RenderPassHandle() = default;
 
-	RenderPassHandle(std::size_t id) : id{ id } {} // NOSONAR
+	RenderPassHandle(std::size_t handle_id) : id{ handle_id } {} // NOSONAR
 
 	friend class RenderPassBuilder;
 
@@ -54,31 +54,31 @@ namespace ptgn {
 namespace impl {
 
 struct BoundInput {
-	impl::FramebufferId framebuffer;
-	TextureBinding binding;
+	impl::FramebufferId framebuffer{};
+	TextureBinding binding{};
 };
 
 struct HandleInput {
 	RenderPassHandle handle;
-	TextureBinding binding;
+	TextureBinding binding{};
 };
 
 struct RenderPassData {
-	MaterialState material;
+	MaterialState material{};
 	Color tint{ color::White };
-	std::vector<HandleInput> reads;
+	std::vector<HandleInput> reads{};
 	RenderPassHandle output;
-	TextureDesc output_desc;
+	TextureDesc output_desc{};
 	bool used{ false };
-	std::optional<Color> clear_color;
+	std::optional<Color> clear_color{};
 };
 
 struct DrawPassRequest {
-	MaterialState material;
+	MaterialState material{};
 	std::size_t pipeline{ 0 };
-	std::span<const impl::BoundInput> inputs;
-	impl::FramebufferId output;
-	Viewport viewport;
+	std::span<const impl::BoundInput> inputs{};
+	impl::FramebufferId output{};
+	Viewport viewport{};
 	Color tint{ color::White };
 	bool scissor_to_viewport{ false };
 };
@@ -143,14 +143,14 @@ private:
 	friend class RenderPass;
 
 	struct Resource {
-		RenderPassHandle handle;
-		TextureDesc desc;
+		RenderPassHandle handle{};
+		TextureDesc desc{};
 
 		bool imported{ false };
 
-		std::optional<std::size_t> writer;
-		std::optional<std::size_t> last_use;
-		std::optional<impl::FramebufferId> framebuffer;
+		std::optional<std::size_t> writer{};
+		std::optional<std::size_t> last_use{};
+		std::optional<impl::FramebufferId> framebuffer{};
 		bool used{ false };
 	};
 

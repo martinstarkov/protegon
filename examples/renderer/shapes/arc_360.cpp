@@ -1,6 +1,5 @@
-
-
 #include "app/application.h"
+#include "app/editor.h"
 #include "core/graphics/color.h"
 #include "core/math/angle.h"
 #include "core/math/vector2.h"
@@ -58,6 +57,7 @@ struct ArcScene : public Scene {
 };
 
 int main(int, char**) {
-	Application app{ "ArcScene" };
+	Application app;
+	PTGN_WITH_EDITOR(app, false);
 	app.StartWith<ArcScene>();
 }

@@ -35,13 +35,13 @@ struct RenderRange {
 
 struct RenderCommand {
 	RenderCommandKind kind{ RenderCommandKind::ColorQuads };
-	RenderRange range;
+	RenderRange range{};
 
-	MaterialState material;
-	TextureId texture;
-	std::optional<BlendMode> blend_mode;
+	MaterialState material{};
+	TextureId texture{};
+	std::optional<BlendMode> blend_mode{};
 
-	Depth depth;
+	Depth depth{};
 	std::uint64_t sequence{ 0 };
 
 	[[nodiscard]] bool CanMergeWith(const RenderCommand& next) const {
@@ -103,12 +103,12 @@ private:
 		std::optional<BlendMode> blend_mode, Depth depth
 	);
 
-	std::vector<RenderCommand> commands_;
+	std::vector<RenderCommand> commands_{};
 
-	std::vector<ColorQuad> color_quads_;
-	std::vector<ColorTriangle> color_triangles_;
-	std::vector<ShapeQuad> shape_quads_;
-	std::vector<TextureQuad> texture_quads_;
+	std::vector<ColorQuad> color_quads_{};
+	std::vector<ColorTriangle> color_triangles_{};
+	std::vector<ShapeQuad> shape_quads_{};
+	std::vector<TextureQuad> texture_quads_{};
 
 	std::uint64_t next_sequence_{ 0 };
 };

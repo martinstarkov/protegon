@@ -262,7 +262,7 @@ Intersection IntersectPolygonPolygon(
 	/*
 	// Useful debug drawing code:
 	// Draw all polygon points projected onto all the axes.
-	const auto draw_axes = [](const std::vector<Axis>& axes, const Polygon& p) {
+	auto draw_axes = [](const std::vector<Axis>& axes, const Polygon& p) {
 		for (const auto& a : axes) {
 			Application::Get().draw.Axis(a.midpoint, a.direction, color::Pink, 1.0f);
 			auto [min, max] = impl::GetProjectionMinMax(p, a);

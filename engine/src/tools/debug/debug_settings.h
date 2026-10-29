@@ -55,10 +55,10 @@ struct LightVisibilityDebugSettings {
 };
 
 struct DebugSettings {
-    InteractiveDebugSettings interaction;
-    CollisionDebugSettings collision;
-    TextDebugSettings text;
-    LightVisibilityDebugSettings light;
+    InteractiveDebugSettings interaction{};
+    CollisionDebugSettings collision{};
+    TextDebugSettings text{};
+    LightVisibilityDebugSettings light{};
 
     PTGN_REFLECT(DebugSettings, interaction, collision, text, light)
 };

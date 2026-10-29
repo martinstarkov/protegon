@@ -13,8 +13,13 @@
 #include "runtime/animation/animation.h"
 #include "runtime/animation/offsets.h"
 #include "runtime/asset/asset_key.h"
+#include "runtime/asset/prefab.h"
 #include "runtime/ecs/component_registration.h"
+#include "runtime/ecs/entity_group.h"
 #include "runtime/ecs/entity_hierarchy.h"
+#include "runtime/ecs/group_stack.h"
+#include "runtime/ecs/tag.h"
+#include "runtime/graphics/custom_shader.h"
 #include "runtime/graphics/drawable.h"
 #include "runtime/graphics/fx/bloom.h"
 #include "runtime/graphics/fx/blur.h"
@@ -24,8 +29,8 @@
 #include "runtime/graphics/graphics.h"
 #include "runtime/graphics/render_target.h"
 #include "runtime/graphics/sprite.h"
+#include "runtime/graphics/sprite_stack.h"
 #include "runtime/graphics/tint.h"
-#include "runtime/graphics/custom_shader.h"
 #include "runtime/graphics/visible.h"
 #include "runtime/interaction/draggable.h"
 #include "runtime/interaction/dropzone.h"
@@ -37,17 +42,30 @@
 #include "runtime/physics/rigid_body.h"
 #include "runtime/scene/scene_camera.h"
 #include "runtime/scripting/script.h"
+#include "runtime/scripting/variables.h"
+#include "runtime/timer/timer.h"
 #include "runtime/ui/button.h"
 #include "runtime/ui/button_config.h"
+#include "runtime/ui/dialogue.h"
 #include "runtime/ui/dropdown.h"
+#include "runtime/ui/slider.h"
 #include "runtime/ui/toggle_button.h"
 #include "runtime/ui/tooltip.h"
+#include "runtime/world/chunk.h"
+#include "runtime/world/paint_generator.h"
+#include "runtime/world/tilemap.h"
 
 namespace ptgn {
 
 PTGN_REGISTER_COMPONENT(Transform);
+PTGN_REGISTER_COMPONENT(impl::Timers);
+PTGN_REGISTER_COMPONENT(impl::Counters);
+PTGN_REGISTER_COMPONENT(impl::Booleans);
 PTGN_REGISTER_COMPONENT(impl::Scripts);
 PTGN_REGISTER_COMPONENT(impl::ParentRenderTarget);
+PTGN_REGISTER_COMPONENT(Group);
+PTGN_REGISTER_COMPONENT(Tags);
+PTGN_REGISTER_COMPONENT(PrefabInstance);
 
 PTGN_REGISTER_COMPONENT(impl::TextData);
 PTGN_REGISTER_COMPONENT(impl::GraphicsData);
@@ -92,7 +110,10 @@ PTGN_REGISTER_COMPONENT(AudioKey);
 PTGN_REGISTER_COMPONENT(ShaderKey);
 PTGN_REGISTER_COMPONENT(JsonKey);
 
+PTGN_REGISTER_COMPONENT(GroupStackData);
+PTGN_REGISTER_COMPONENT(OverlayOverride);
 PTGN_REGISTER_COMPONENT(impl::ButtonData);
+PTGN_REGISTER_COMPONENT(impl::HiddenButtonPart);
 PTGN_REGISTER_COMPONENT(impl::ButtonAnimationPart);
 PTGN_REGISTER_COMPONENT(ButtonBackgroundVisuals);
 PTGN_REGISTER_COMPONENT(ButtonBorderVisuals);
@@ -108,6 +129,15 @@ PTGN_REGISTER_COMPONENT(impl::TooltipData);
 PTGN_REGISTER_COMPONENT(impl::TooltipHoverData);
 PTGN_REGISTER_COMPONENT(impl::TooltipBackgroundPart);
 PTGN_REGISTER_COMPONENT(impl::TooltipTextPart);
+PTGN_REGISTER_COMPONENT(impl::SliderData);
+PTGN_REGISTER_COMPONENT(impl::SliderValueTextData);
+PTGN_REGISTER_COMPONENT(impl::SliderTrackData);
+PTGN_REGISTER_COMPONENT(impl::SliderTrackSpriteData);
+PTGN_REGISTER_COMPONENT(impl::SliderTrackBorderData);
+PTGN_REGISTER_COMPONENT(impl::SliderTrackBackgroundData);
+PTGN_REGISTER_COMPONENT(impl::SliderThumbData);
+PTGN_REGISTER_COMPONENT(impl::DialogueData);
+PTGN_REGISTER_COMPONENT(impl::DialoguePart);
 
 PTGN_REGISTER_COMPONENT(impl::IgnoreParentOffset);
 PTGN_REGISTER_COMPONENT(impl::IgnoreParentImmovable);
@@ -128,18 +158,26 @@ PTGN_REGISTER_COMPONENT(GaussianBlur);
 
 PTGN_REGISTER_COMPONENT(impl::RenderTargetDesc);
 PTGN_REGISTER_COMPONENT(impl::RenderMask);
+PTGN_REGISTER_COMPONENT(impl::RenderMaskOverride);
 PTGN_REGISTER_COMPONENT(impl::CameraMask);
 PTGN_REGISTER_COMPONENT(impl::CameraData);
 PTGN_REGISTER_COMPONENT(impl::ClearColor);
 PTGN_REGISTER_COMPONENT(impl::ClearDepth);
 PTGN_REGISTER_COMPONENT(impl::ClearStencil);
-PTGN_REGISTER_COMPONENT(impl::UILayer);
+PTGN_REGISTER_COMPONENT(impl::UIRenderTag);
 PTGN_REGISTER_COMPONENT(Material);
 
 PTGN_REGISTER_COMPONENT(impl::TextureSize);
 PTGN_REGISTER_COMPONENT(impl::TextureCrop);
+PTGN_REGISTER_COMPONENT(impl::TextureCoordinateOverride);
 PTGN_REGISTER_COMPONENT(impl::AnimationData);
+PTGN_REGISTER_COMPONENT(SpriteStackData);
 PTGN_REGISTER_COMPONENT(impl::Offsets);
+
+PTGN_REGISTER_COMPONENT(::ptgn::impl::TilemapData);
+PTGN_REGISTER_COMPONENT(impl::PaintGeneratorData);
+PTGN_REGISTER_COMPONENT(WorldEntityStreaming);
+PTGN_REGISTER_COMPONENT(WorldGeneratorSource);
 
 namespace impl {
 

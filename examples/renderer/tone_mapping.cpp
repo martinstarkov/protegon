@@ -6,7 +6,7 @@
 
 #include "app/application.h"
 #include "core/assert.h"
-#include "core/editor.h"
+#include "app/editor.h"
 #include "core/graphics/color.h"
 #include "core/input/key.h"
 #include "core/input/mouse.h"

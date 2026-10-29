@@ -11,8 +11,8 @@ namespace ptgn {
 class ColliderShape;
 
 struct BoundingAABB {
-	V2_float min;
-	V2_float max;
+	V2_float min{};
+	V2_float max{};
 
 	[[nodiscard]] bool Overlaps(BoundingAABB other) const;
 

@@ -1,7 +1,7 @@
 #include "runtime/graphics/fx/blur.h"
 
 #include "app/application.h"
-#include "core/editor.h"
+#include "app/editor.h"
 #include "runtime/asset/asset_manager.h"
 #include "runtime/ecs/entity.h"
 #include "runtime/graphics/draw.h"

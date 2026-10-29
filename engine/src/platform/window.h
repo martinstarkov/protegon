@@ -17,8 +17,8 @@
 #include "core/util/concepts.h"
 #include "core/util/file.h"
 #include "core/util/time.h"
-#include "platform/window_settings.h"
 #include "platform/file_dialog.h"
+#include "platform/window_settings.h"
 #include "serialization/serialize.h"
 
 struct GLFWwindow;
@@ -110,10 +110,10 @@ struct WindowConfig {
 	bool resizable{ true };
 
 	/// @brief X position of the window on the screen. If nullopt, defaults to centered.
-	std::optional<int> x;
+	std::optional<int> x{};
 
 	/// @brief Y position of the window on the screen. If nullopt, defaults to centered.
-	std::optional<int> y;
+	std::optional<int> y{};
 
 	bool minimized{ false };
 	bool maximized{ false };
@@ -150,7 +150,7 @@ public:
 	V2_int GetMaximumSize() const;
 
 	void SetSize(V2_int new_size, bool centered = true);
-	
+
 	/// @return Window content size in screen coordinates.
 	/// On the web, these correspond to CSS pixels.
 	V2_int GetSize() const;
@@ -203,6 +203,11 @@ public:
 #endif
 
 	void ClearInputState();
+
+	/// @brief Requests application shutdown through the normal window-update path.
+	void RequestQuit();
+	/// @brief Cancels a pending OS/application quit request. Used by editor unsaved-change guards.
+	void CancelQuit();
 
 	FileDialog file;
 

@@ -16,6 +16,7 @@
 #include "core/math/angle.h"
 #include "core/math/transform.h"
 #include "core/math/vector2.h"
+#include "core/util/hash.h"
 #include "core/util/type_info.h"
 #include "runtime/ecs/uuid.h"
 #include "serialization/json/archiver.h"
@@ -32,6 +33,11 @@ struct SceneEntityRange;
 
 template <typename SceneT, typename EcsView, typename... TComponents>
 struct SceneEntitiesWithRange;
+
+class Entity;
+
+/// @brief Queues a component lifecycle event for a scene entity.
+void NotifyComponentChanged(Entity entity, std::size_t type_hash, bool added);
 
 class Entity {
 public:
@@ -81,7 +87,14 @@ public:
 	template <typename TComponent, typename... TArgs>
 	TComponent& Add(TArgs&&... constructor_args) {
 		PTGN_ASSERT(entity_, "Cannot add a component to a null entity");
-		return entity_.Add<TComponent, TArgs...>(std::forward<TArgs>(constructor_args)...);
+		bool existed{ entity_.Has<TComponent>() };
+		auto& component{
+			entity_.Add<TComponent, TArgs...>(std::forward<TArgs>(constructor_args)...)
+		};
+		if (!existed) {
+			NotifyComponentChanged(*this, Hash<TComponent>(), true);
+		}
+		return component;
 	}
 
 	/// @brief Only adds the component if one does not exist on the entity.
@@ -89,7 +102,14 @@ public:
 	template <typename TComponent, typename... TArgs>
 	TComponent& TryAdd(TArgs&&... constructor_args) {
 		PTGN_ASSERT(entity_, "Cannot try add a component to a null entity");
-		return entity_.TryAdd<TComponent, TArgs...>(std::forward<TArgs>(constructor_args)...);
+		bool existed{ entity_.Has<TComponent>() };
+		auto& component{
+			entity_.TryAdd<TComponent, TArgs...>(std::forward<TArgs>(constructor_args)...)
+		};
+		if (!existed) {
+			NotifyComponentChanged(*this, Hash<TComponent>(), true);
+		}
+		return component;
 	}
 
 	template <typename... TComponents>
@@ -97,6 +117,10 @@ public:
 		if (!*this) {
 			return;
 		}
+		((entity_.Has<TComponents>()
+			  ? (NotifyComponentChanged(*this, Hash<TComponents>(), false), 0)
+			  : 0),
+		 ...);
 		entity_.Remove<TComponents...>();
 	}
 
@@ -174,21 +198,17 @@ public:
 	/// @brief Equivalent of setting the entity handle to {}
 	/// Does not destroy the entity.
 	void Invalidate();
-                                         
-	friend constexpr auto ReflectReadOnlyMembers(Entity& entity) {                       
-		return std::tuple{                                                                         
-					::ptgn::reflection::ReadOnlyMember {                  
-				std::string_view{ "uuid" }, entity.Get<UUID>()        
-			}
-		};                                                                                      
-	}                                                                                              
-	friend constexpr auto ReflectReadOnlyMembers(const Entity& entity) {                 
-		return std::tuple{                                                                         
-					::ptgn::reflection::ReadOnlyMember {                  
-				std::string_view{ "uuid" }, entity.Get<UUID>()        
-			}
-		};                                                                                         
+
+	friend constexpr auto ReflectReadOnlyMembers(Entity& entity) {
+		return std::tuple{ ::ptgn::reflection::ReadOnlyMember{ std::string_view{ "uuid" },
+															   entity.Get<UUID>() } };
 	}
+
+	friend constexpr auto ReflectReadOnlyMembers(const Entity& entity) {
+		return std::tuple{ ::ptgn::reflection::ReadOnlyMember{ std::string_view{ "uuid" },
+															   entity.Get<UUID>() } };
+	}
+
 private:
 	friend class Manager;
 	friend class Scene;
@@ -221,6 +241,25 @@ struct IgnoreParentScale {};
 using EntityFilterFunc = std::function<bool(Entity)>;
 
 } // namespace impl
+
+namespace event {
+
+/// @brief Dispatched synchronously while the entity and its components still exist.
+struct EntityDestroyed {
+	Entity entity{};
+};
+
+struct ComponentAdded {
+	Entity entity{};
+	std::size_t component_hash{ 0 };
+};
+
+struct ComponentRemoved {
+	Entity entity{};
+	std::size_t component_hash{ 0 };
+};
+
+} // namespace event
 
 /// @return The transform of the entity.
 Transform GetTransform(Entity entity);

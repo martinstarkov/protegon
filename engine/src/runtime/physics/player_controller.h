@@ -11,6 +11,7 @@
 #include "renderer/pipeline/render_state.h"
 #include "runtime/asset/asset_key.h"
 #include "runtime/ecs/entity.h"
+#include "runtime/ecs/entity_creation_context.h"
 #include "runtime/graphics/draw.h"
 #include "runtime/scripting/script.h"
 #include "serialization/serialize.h"
@@ -37,7 +38,7 @@ struct TopDownAnimationRepeat : public Script {
 	TopDownAnimationRepeat(std::size_t walk_frequency, std::string_view walk_sound);
 
 	std::size_t walk_sound_frequency{ 1 };
-	std::string_view walk_sound_key;
+	std::string walk_sound_key{};
 
 	void OnEvent(Event d) override;
 
@@ -64,20 +65,20 @@ struct TopDownPlayerConfig {
 	// Animation
 	// TODO: Move to a shared animation struct.
 	/// @brief These three are necessary for animation to work.
-	std::optional<V2_uint> animation_frame_count;
-	TextureKey animation_texture_key;
-	std::optional<V2_int> animation_frame_size;
+	std::optional<V2_uint> animation_frame_count{};
+	TextureKey animation_texture_key{};
+	std::optional<V2_int> animation_frame_size{};
 
 	/// @brief Defaults to 1000ms if not provided.
-	std::optional<milliseconds> animation_duration;
+	std::optional<milliseconds> animation_duration{};
 
-	std::optional<Depth> depth;
+	std::optional<Depth> depth{};
 
 	// TODO: Move to a shared sound struct.
 	/// @brief Required for sound to play
-	AudioKey walk_sound_key;
+	AudioKey walk_sound_key{};
 	/// @brief Defaults to 1 if not provided.
-	std::optional<std::size_t> walk_sound_frequency;
+	std::optional<std::size_t> walk_sound_frequency{};
 
 	PTGN_REFLECT(
 		TopDownPlayerConfig, max_speed, max_acceleration, max_deceleration, max_turn_speed,
@@ -88,7 +89,7 @@ struct TopDownPlayerConfig {
 };
 
 Entity CreateTopDownPlayer(
-	Scene& scene, Transform transform, const TopDownPlayerConfig& config = {}
+	EntityCreationContext context, Transform transform, const TopDownPlayerConfig& config = {}
 );
 
 } // namespace ptgn

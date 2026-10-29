@@ -15,12 +15,14 @@
 #include "renderer/resources/texture.h"
 #include "renderer/resources/texture_format.h"
 #include "runtime/ecs/entity.h"
+#include "runtime/ecs/entity_creation_context.h"
 #include "runtime/ecs/tag.h"
 #include "runtime/graphics/draw.h"
 #include "runtime/graphics/sprite.h"
 #include "runtime/graphics/visible.h"
 #include "runtime/scene/scene.h"
 #include "runtime/scene/scene_context.h"
+#include "runtime/scene/scene_event.h"
 
 namespace ptgn {
 
@@ -41,16 +43,12 @@ V2_int GetInitialDisplaySize(Renderer& renderer) {
 }
 
 RenderTarget CreateRenderTargetImpl(
-	Scene& scene, Transform transform, impl::RenderTargetDesc target, Color clear_color
+	EntityCreationContext context, Transform transform, impl::RenderTargetDesc target,
+	Color clear_color
 ) {
-	RenderTarget render_target{ scene.CreateEntity() };
+	RenderTarget render_target{ context.CreateEntity() };
 
 	target.size = Max(target.size, V2_int{ 1, 1 });
-
-	auto& renderer{ scene.ctx().renderer };
-
-	const V2_int framebuffer_size{ target.follow_display_size ? GetInitialDisplaySize(renderer)
-															  : target.size };
 
 	render_target.Add<Tag>("Render Target");
 	render_target.Add<Visible>(true);
@@ -61,17 +59,26 @@ RenderTarget CreateRenderTargetImpl(
 
 	render_target.SetClearColor(clear_color);
 
-	render_target.Add<impl::FramebufferObject>(impl::RendererAccessor{ renderer }.CreateFramebuffer(
-		{
-			.size	= framebuffer_size,
-			.format = target.format,
-		},
-		std::nullopt
-	));
+	// Prefab authoring stores only the descriptor. Framebuffers belong to scene instances.
+	if (context.HasScene()) {
+		auto* renderer{ context.GetRenderer() };
+		PTGN_ASSERT(renderer, "Scene render target creation requires a renderer");
 
-	render_target.ClearColor(std::nullopt, true);
+		render_target.UpdateSize(GetInitialDisplaySize(*renderer));
+		render_target.ClearColor(std::nullopt);
+	}
 
 	return render_target;
+}
+
+void EnsureRenderTargetFramebuffer(Entity entity) {
+	if (!entity || entity.Has<impl::FramebufferObject>() || !entity.Has<impl::RenderTargetDesc>() ||
+		!entity.HasScene()) {
+		return;
+	}
+
+	auto& renderer{ entity.GetScene().ctx().renderer };
+	RenderTarget{ entity }.UpdateSize(GetInitialDisplaySize(renderer));
 }
 
 } // namespace
@@ -79,45 +86,48 @@ RenderTarget CreateRenderTargetImpl(
 RenderTarget::RenderTarget(Entity entity) : Entity{ entity } {}
 
 void RenderTarget::Bind() {
+	EnsureRenderTargetFramebuffer(*this);
 	Get<impl::FramebufferObject>().Bind();
 }
 
-void RenderTarget::ClearColor(std::optional<Color> color, bool restore_bind) {
+void RenderTarget::ClearColor(std::optional<Color> color) {
+	EnsureRenderTargetFramebuffer(*this);
 	if (color.has_value()) {
-		Get<impl::FramebufferObject>().Clear(color.value(), restore_bind);
+		Get<impl::FramebufferObject>().Clear(color.value());
 		return;
 	}
 
-	Get<impl::FramebufferObject>().Clear(GetOrDefault<impl::ClearColor>().color, restore_bind);
+	Get<impl::FramebufferObject>().Clear(GetOrDefault<impl::ClearColor>().color);
 }
 
-void RenderTarget::ClearDepth(std::optional<Depth> depth, bool restore_bind) {
+void RenderTarget::ClearDepth(std::optional<Depth> depth) {
+	EnsureRenderTargetFramebuffer(*this);
 	if (depth.has_value()) {
-		Get<impl::FramebufferObject>().Clear(depth.value(), restore_bind);
+		Get<impl::FramebufferObject>().Clear(depth.value());
 		return;
 	}
 
-	Get<impl::FramebufferObject>().Clear(GetOrDefault<impl::ClearDepth>().depth, restore_bind);
+	Get<impl::FramebufferObject>().Clear(GetOrDefault<impl::ClearDepth>().depth);
 }
 
-void RenderTarget::ClearStencil(std::optional<Stencil> stencil, bool restore_bind) {
+void RenderTarget::ClearStencil(std::optional<Stencil> stencil) {
+	EnsureRenderTargetFramebuffer(*this);
 	if (stencil.has_value()) {
-		Get<impl::FramebufferObject>().Clear(stencil.value(), restore_bind);
+		Get<impl::FramebufferObject>().Clear(stencil.value());
 		return;
 	}
 
-	Get<impl::FramebufferObject>().Clear(GetOrDefault<impl::ClearStencil>().stencil, restore_bind);
+	Get<impl::FramebufferObject>().Clear(GetOrDefault<impl::ClearStencil>().stencil);
 }
 
-void RenderTarget::ClearDepthStencil(std::optional<DepthStencil> depth_stencil, bool restore_bind) {
+void RenderTarget::ClearDepthStencil(std::optional<DepthStencil> depth_stencil) {
+	EnsureRenderTargetFramebuffer(*this);
 	if (depth_stencil.has_value()) {
-		Get<impl::FramebufferObject>().Clear(depth_stencil.value(), restore_bind);
+		Get<impl::FramebufferObject>().Clear(depth_stencil.value());
 		return;
 	}
 
-	Get<impl::FramebufferObject>().Clear(
-		GetClearDepthStencil().value_or(DepthStencil{}), restore_bind
-	);
+	Get<impl::FramebufferObject>().Clear(GetClearDepthStencil().value_or(DepthStencil{}));
 }
 
 void RenderTarget::SetClearColor(Color clear_color) {
@@ -190,9 +200,8 @@ RenderTarget& RenderTarget::SetFollowDisplaySize(bool follow_display_size) {
 		return *this;
 	}
 
-	auto& renderer{ GetScene().ctx().renderer };
-
-	if (!follow_display_size) {
+	if (!follow_display_size && HasScene()) {
+		auto& renderer{ GetScene().ctx().renderer };
 		// Preserve the target's logical/world size when switching
 		// from display following to a custom size.
 		target.size = Max(renderer.GetLogicalSize(), V2_int{ 1, 1 });
@@ -200,7 +209,9 @@ RenderTarget& RenderTarget::SetFollowDisplaySize(bool follow_display_size) {
 
 	target.follow_display_size = follow_display_size;
 
-	UpdateSize(GetInitialDisplaySize(renderer));
+	if (HasScene()) {
+		UpdateSize(GetInitialDisplaySize(GetScene().ctx().renderer));
+	}
 
 	return *this;
 }
@@ -212,7 +223,9 @@ RenderTarget& RenderTarget::SetSize(V2_int size) {
 	target.follow_display_size = false;
 	target.size				   = size;
 
-	UpdateSize(GetScene().ctx().renderer.GetDisplaySize());
+	if (HasScene()) {
+		UpdateSize(GetScene().ctx().renderer.GetDisplaySize());
+	}
 
 	return *this;
 }
@@ -250,7 +263,7 @@ V2_float RenderTarget::GetDrawSize() const {
 		return *texture_size;
 	}
 
-	if (FollowsDisplaySize()) {
+	if (FollowsDisplaySize() && HasScene()) {
 		return V2_float{ GetScene().ctx().renderer.GetLogicalSize() };
 	}
 
@@ -258,10 +271,23 @@ V2_float RenderTarget::GetDrawSize() const {
 }
 
 V2_int RenderTarget::GetSize() const {
-	return GetDesc().size;
+	if (auto framebuffer{ TryGet<impl::FramebufferObject>() }) {
+		return framebuffer->GetDesc().size;
+	}
+
+	if (auto target{ TryGet<impl::RenderTargetDesc>() }) {
+		return target->size;
+	}
+
+	PTGN_ASSERT(false, "Render target has no framebuffer or descriptor");
+	return {};
 }
 
 TextureFormat RenderTarget::GetFormat() const {
+	if (auto target{ TryGet<impl::RenderTargetDesc>() }) {
+		return target->format;
+	}
+
 	return GetDesc().format;
 }
 
@@ -270,6 +296,7 @@ TextureParams RenderTarget::GetParams() const {
 }
 
 TextureDesc RenderTarget::GetDesc() const {
+	EnsureRenderTargetFramebuffer(*this);
 	return Get<impl::FramebufferObject>().GetDesc();
 }
 
@@ -294,11 +321,16 @@ bool RenderTarget::UpdateSize(V2_int display_size) {
 		desired_size = target.size;
 	}
 
-	const bool recreate_framebuffer{ !Has<impl::FramebufferObject>() ||
-									 Get<impl::FramebufferObject>().GetDesc().format !=
-										 target.format };
+	// Authoring entities have no Scene or GPU framebuffer. Their descriptor remains editable.
+	if (!HasScene()) {
+		return false;
+	}
+
+	bool recreate_framebuffer{ !Has<impl::FramebufferObject>() ||
+							   Get<impl::FramebufferObject>().GetDesc().format != target.format };
 
 	if (recreate_framebuffer) {
+		V2_int previous{ Has<impl::FramebufferObject>() ? GetSize() : V2_int{} };
 		auto& scene{ GetScene() };
 
 		impl::RendererAccessor renderer{ scene.ctx().renderer };
@@ -311,6 +343,9 @@ bool RenderTarget::UpdateSize(V2_int display_size) {
 			std::nullopt
 		));
 
+		if (previous != desired_size) {
+			PushEvent<event::RenderTargetResized>(*this, previous, desired_size);
+		}
 		return true;
 	}
 
@@ -320,15 +355,19 @@ bool RenderTarget::UpdateSize(V2_int display_size) {
 		return false;
 	}
 
+	V2_int previous{ framebuffer.GetDesc().size };
 	framebuffer.Resize(desired_size);
+	PushEvent<event::RenderTargetResized>(*this, previous, desired_size);
 	return true;
 }
 
 impl::TextureId RenderTarget::GetTexture() const {
+	EnsureRenderTargetFramebuffer(*this);
 	return Get<impl::FramebufferObject>().GetTexture();
 }
 
 void RenderTarget::Draw(DrawContext& ctx, Entity entity) {
+	EnsureRenderTargetFramebuffer(entity);
 	if (!entity.Has<impl::FramebufferObject>()) {
 		PTGN_WARN("Render target cannot be drawn without FramebufferObject component");
 		return;
@@ -356,20 +395,24 @@ void RenderTarget::Draw(DrawContext& ctx, Entity entity) {
 }
 
 RenderTarget CreateRenderTarget(
-	Scene& scene, Transform transform, V2_int size, Color clear_color, TextureFormat texture_format
+	EntityCreationContext context, Transform transform, V2_int size, Color clear_color,
+	TextureFormat texture_format
 ) {
-	PTGN_ASSERT(!size.IsNegative(), "Render target size cannot be negative");
+	PTGN_ASSERT(!size.HasNegative(), "Render target size cannot be negative");
 
-	const bool follow_display_size{ size.IsZero() };
+	bool follow_display_size{ size.IsZero() };
 
 	if (follow_display_size) {
-		size = scene.ctx().renderer.GetLogicalSize();
-
-		PTGN_ASSERT(size.IsPositive(), "Renderer logical size cannot be zero or negative");
+		if (auto* renderer{ context.GetRenderer() }) {
+			size = renderer->GetLogicalSize();
+			PTGN_ASSERT(size.IsPositive(), "Renderer logical size cannot be zero or negative");
+		} else {
+			size = V2_int{ 1, 1 };
+		}
 	}
 
 	return CreateRenderTargetImpl(
-		scene, transform,
+		context, transform,
 		impl::RenderTargetDesc{
 			.follow_display_size = follow_display_size, .size = size, .format = texture_format },
 		clear_color
@@ -377,14 +420,18 @@ RenderTarget CreateRenderTarget(
 }
 
 RenderTarget CreateRenderTarget(
-	Scene& scene, Transform transform, Color clear_color, TextureFormat texture_format
+	EntityCreationContext context, Transform transform, Color clear_color,
+	TextureFormat texture_format
 ) {
-	const V2_int logical_size{ scene.ctx().renderer.GetLogicalSize() };
+	V2_int logical_size{ 1, 1 };
 
-	PTGN_ASSERT(logical_size.IsPositive(), "Renderer logical size cannot be zero or negative");
+	if (auto* renderer{ context.GetRenderer() }) {
+		logical_size = renderer->GetLogicalSize();
+		PTGN_ASSERT(logical_size.IsPositive(), "Renderer logical size cannot be zero or negative");
+	}
 
 	return CreateRenderTargetImpl(
-		scene, transform,
+		context, transform,
 		impl::RenderTargetDesc{
 			.follow_display_size = true, .size = logical_size, .format = texture_format },
 		clear_color

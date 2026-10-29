@@ -1,0 +1,4345 @@
+#include "panels/inspector_scripts.h"
+
+#include <imgui.h>
+#include <imgui_stdlib.h>
+
+#include <algorithm>
+#include <array>
+#include <cctype>
+#include <cfloat>
+#include <cmath>
+#include <cstddef>
+#include <cstdint>
+#include <cstdio>
+#include <cstdlib>
+#include <memory>
+#include <optional>
+#include <ranges>
+#include <span>
+#include <string>
+#include <string_view>
+#include <unordered_map>
+#include <utility>
+#include <vector>
+
+#include "core/util/hash.h"
+#include "core/util/time.h"
+#include "editor/editor.h"
+#include "editor/editor_context.h"
+#include "editor/editor_icons.h"
+#include "editor/renamable_item.h"
+#include "panels/entity_filter_editor.h"
+#include "panels/inspector_archetype_inspector.h"
+#include "panels/inspector_components.h"
+#include "panels/inspector_fields.h"
+#include "panels/inspector_helpers.h"
+#include "panels/inspector_tabs.h"
+#include "panels/scene_hierarchy.h"
+#include "runtime/animation/animation.h"
+#include "runtime/animation/animation_event.h"
+#include "runtime/ecs/group_stack.h"
+#include "runtime/interaction/draggable.h"
+#include "runtime/interaction/draggable_event.h"
+#include "runtime/interaction/dropzone.h"
+#include "runtime/interaction/dropzone_event.h"
+#include "runtime/interaction/interactive.h"
+#include "runtime/interaction/interactive_event.h"
+#include "runtime/physics/collider.h"
+#include "runtime/physics/collision_event.h"
+#include "runtime/scene/scene.h"
+#include "runtime/scene/scene_context.h"
+#include "runtime/scripting/script.h"
+#include "runtime/scripting/scripts.h"
+#include "runtime/scripting/variable_event.h"
+#include "runtime/timer/timer.h"
+#include "runtime/timer/timer_event.h"
+#include "runtime/ui/button.h"
+#include "runtime/ui/dropdown.h"
+#include "runtime/ui/toggle_button.h"
+#include "scripting/script_editor_registry.h"
+
+namespace ptgn::editor::inspector {
+
+namespace {
+enum class ActionForm {
+	Action,
+	Tween,
+	Delay
+};
+
+struct ActionDragPayload {
+	int index{ 0 };
+};
+
+struct ConditionDragPayload {
+	int index{ 0 };
+};
+
+struct ScriptInspectorState {
+	std::optional<ImGuiID> editing_sequence_name{};
+	std::string editing_sequence_original_name{};
+	std::unordered_map<SequenceId, bool> sequence_open_states{};
+	std::unordered_map<ImGuiID, EntityFilterEditorState> target_filter_states{};
+};
+
+ScriptInspectorState& GetScriptInspectorState() {
+	static ScriptInspectorState state;
+	return state;
+}
+
+inline constexpr std::array kLifecycleLabels{
+	"On Start",			"On Complete", "On Reset",		  "On Stop",
+	"On Pause",			"On Resume",   "On Action Start", "On Action Complete",
+	"On Action Cancel", "On Repeat",   "On Yoyo"
+};
+inline constexpr std::array kActionFormLabels{ "Action", "Tween", "Delay" };
+inline constexpr std::array kConditionKindLabels{
+	std::pair{ StateConditionKind::Boolean, "Boolean" },
+	std::pair{ StateConditionKind::Counter, "Counter" },
+};
+inline constexpr std::array kEaseEntries{
+	std::pair{ Ease::Linear, "Linear" },	  std::pair{ Ease::InQuad, "In Quad" },
+	std::pair{ Ease::OutQuad, "Out Quad" },	  std::pair{ Ease::InOutQuad, "In Out Quad" },
+	std::pair{ Ease::OutCubic, "Out Cubic" }, std::pair{ Ease::OutBack, "Out Back" },
+	std::pair{ Ease::None, "None" },
+};
+
+float CompactControlSpacing() {
+	return ImGui::GetStyle().ItemSpacing.x;
+}
+
+void SameLineControl() {
+	ImGui::SameLine(0.0f, CompactControlSpacing());
+}
+
+bool IsItemRightClicked() {
+	return ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled) &&
+		   ImGui::IsMouseClicked(ImGuiMouseButton_Right);
+}
+
+bool DrawEnableDisableMenuItem(bool& enabled) {
+	if (!ImGui::MenuItem(enabled ? "Disable" : "Enable")) {
+		return false;
+	}
+
+	enabled = !enabled;
+	return true;
+}
+
+bool BeginScriptTabItem(const char* label, bool visually_disabled) {
+	if (visually_disabled) {
+		const ImGuiStyle& style{ ImGui::GetStyle() };
+		ImGui::PushStyleVar(ImGuiStyleVar_Alpha, style.Alpha * style.DisabledAlpha);
+	}
+
+	bool selected{ BeginInspectorTabItem(label) };
+
+	if (visually_disabled) {
+		ImGui::PopStyleVar();
+	}
+
+	return selected;
+}
+
+bool DrawSequenceRuntimeButton(const char* id, EditorIcon icon, const char* tooltip) {
+	bool pressed{ DrawEditorIconButton(id, icon, "") };
+
+	if (ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled)) {
+		ImVec2 min{ ImGui::GetItemRectMin() };
+		ImVec2 max{ ImGui::GetItemRectMax() };
+		ImVec2 position{ (min.x + max.x) * 0.5f, min.y - ImGui::GetStyle().ItemSpacing.y };
+		ImGui::SetNextWindowPos(position, ImGuiCond_Always, ImVec2{ 0.5f, 1.0f });
+		ImGui::BeginTooltip();
+		ImGui::TextUnformatted(tooltip);
+		ImGui::EndTooltip();
+	}
+
+	return pressed;
+}
+
+bool DrawToggleButton(const char* label, bool& value, ImVec2 size, const char* tooltip) {
+	bool dimmed{ !value };
+	if (dimmed) {
+		ImGui::PushStyleVar(ImGuiStyleVar_Alpha, ImGui::GetStyle().Alpha * 0.45f);
+	}
+	bool pressed{ ImGui::Button(label, size) };
+	if (dimmed) {
+		ImGui::PopStyleVar();
+	}
+	if (pressed) {
+		value = !value;
+	}
+	DrawTooltip(tooltip);
+	return pressed;
+}
+
+float GetCountControlWidth(const char* label) {
+	float button_width{ ImGui::GetFrameHeight() };
+	float spacing{ CompactControlSpacing() };
+	std::string widest{ std::string{ label } + ": 100" };
+	return ImGui::CalcTextSize(widest.c_str()).x + button_width * 2.0f + spacing * 2.0f;
+}
+
+bool DrawCountControl(
+	const char* label, int& value, int minimum, int maximum = 100, bool disabled = false,
+	const char* tooltip = nullptr
+) {
+	int previous{ value };
+	value = std::clamp(value, minimum, maximum);
+	float button_width{ ImGui::GetFrameHeight() };
+	float spacing{ CompactControlSpacing() };
+	std::string widest{ std::string{ label } + ": 100" };
+	float text_width{ ImGui::CalcTextSize(widest.c_str()).x };
+	float start_x{ ImGui::GetCursorScreenPos().x };
+
+	ImGui::PushID(label);
+	ImGui::BeginDisabled(disabled);
+	ImGui::AlignTextToFramePadding();
+	ImGui::Text("%s: %d", label, value);
+	DrawTooltip(tooltip);
+	ImGui::SameLine(0.0f, spacing);
+	ImGui::SetCursorScreenPos(
+		ImVec2{ start_x + text_width + spacing, ImGui::GetCursorScreenPos().y }
+	);
+	ImGui::BeginDisabled(value >= maximum);
+	if (ImGui::Button("+", ImVec2{ button_width, button_width })) {
+		++value;
+	}
+	ImGui::EndDisabled();
+	SameLineControl();
+	ImGui::BeginDisabled(value <= minimum);
+	if (ImGui::Button("-", ImVec2{ button_width, button_width })) {
+		--value;
+	}
+	ImGui::EndDisabled();
+	ImGui::EndDisabled();
+	ImGui::PopID();
+	return previous != value;
+}
+
+void DrawSelectedItemsTooltip(std::span<const std::string> items) {
+	if (!ImGui::IsItemHovered()) {
+		return;
+	}
+	std::string tooltip{ "Selected:" };
+	if (items.empty()) {
+		tooltip += "\nNone";
+	} else {
+		for (const auto& item : items) {
+			tooltip += "\n- ";
+			tooltip += item;
+		}
+	}
+	ImGui::SetTooltip("%s", tooltip.c_str());
+}
+
+[[nodiscard]] ScriptSequence* ResolveEditorSequence(
+	ScriptEditorContext& context, ScriptSequence& binding
+) {
+	return binding.shared_reference ? context.shared_sequences.Find(binding.shared_sequence_id)
+									: std::addressof(binding);
+}
+
+[[nodiscard]] Entity ResolveInspectedEntity(const ScriptEditorContext& context) {
+	if (context.owner) {
+		return context.owner;
+	}
+
+	auto& hierarchy{ context.ctx.editor.GetSceneHierarchyPanel() };
+	if (hierarchy.GetActiveTab() == SceneHierarchyTab::Prefabs) {
+		return {};
+	}
+
+	return hierarchy.GetSelectedEntity();
+}
+
+[[nodiscard]] std::vector<TimerKey> GetTimerChoices(
+	Entity owner, const std::optional<EntityFilter>& target_filter
+) {
+	if (!owner) {
+		return {};
+	}
+
+	std::vector<Entity> targets;
+
+	if (target_filter) {
+		targets = ResolveEntityFilter(*target_filter, owner.GetScene(), owner);
+	} else {
+		targets.push_back(owner);
+	}
+
+	std::vector<TimerKey> choices;
+
+	for (Entity target : targets) {
+		const auto* timers{ target.TryGet<::ptgn::impl::Timers>() };
+		if (!timers) {
+			continue;
+		}
+
+		for (const auto& entry : timers->timers) {
+			if (entry.config.key.value.empty() ||
+				std::ranges::contains(choices, entry.config.key)) {
+				continue;
+			}
+
+			choices.push_back(entry.config.key);
+		}
+	}
+
+	return choices;
+}
+
+[[nodiscard]] TimerKey GetDefaultTimerKey(
+	Entity owner, const std::optional<EntityFilter>& target_filter
+) {
+	auto choices{ GetTimerChoices(owner, target_filter) };
+	return choices.empty() ? TimerKey{} : choices.front();
+}
+
+void ApplyContextualVariableDefault(ScriptEditorContext& context, EventCondition& event) {
+	Entity owner{ ResolveInspectedEntity(context) };
+	if (!event.value.is_object() || !owner) {
+		return;
+	}
+	if (event.type_hash == Hash<event::CounterChanged>()) {
+		const auto* counters{ owner.TryGet<::ptgn::impl::Counters>() };
+		if (counters && !counters->counters.empty()) {
+			event.value["counter"] = counters->counters.front().config.key;
+		}
+	} else if (event.type_hash == Hash<event::BooleanChanged>()) {
+		const auto* booleans{ owner.TryGet<::ptgn::impl::Booleans>() };
+		if (booleans && !booleans->booleans.empty()) {
+			event.value["boolean"] = booleans->booleans.front().config.key;
+		}
+	}
+}
+
+void ApplyContextualTimerElapsedDefault(ScriptEditorContext& context, EventCondition& event) {
+	if (event.type_hash != Hash<event::TimerElapsed>()) {
+		return;
+	}
+
+	if (!event.value.is_object()) {
+		event.value = json::object();
+	}
+
+	event.value["timer"] = GetDefaultTimerKey(ResolveInspectedEntity(context), std::nullopt);
+}
+
+[[nodiscard]] bool IsRuntimeActive(const ScriptEditorContext& context) {
+	return context.ctx.editor.IsPlaying() || context.ctx.editor.IsDirectRuntime();
+}
+
+[[nodiscard]] Entity ResolveRuntimeOwner(const ScriptEditorContext& context) {
+	if (!IsRuntimeActive(context)) {
+		return {};
+	}
+
+	return ResolveInspectedEntity(context);
+}
+
+[[nodiscard]] ScriptSequence* FindRuntimeRootSequence(
+	Entity owner, SequenceId id, int resident_index = -1
+) {
+	if (!owner) {
+		return nullptr;
+	}
+
+	auto* scripts{ owner.TryGet<::ptgn::impl::Scripts>() };
+	if (!scripts) {
+		return nullptr;
+	}
+
+	scripts->Attach(owner);
+
+	auto find = [&](auto& entries) -> ScriptSequence* {
+		for (auto& entry : entries) {
+			if (entry.instance && entry.instance->sequence.id == id) {
+				return std::addressof(entry.instance->sequence);
+			}
+
+			if (entry.sequence.id == id) {
+				return entry.instance ? std::addressof(entry.instance->sequence)
+									  : std::addressof(entry.sequence);
+			}
+		}
+
+		return nullptr;
+	};
+
+	if (auto* sequence{ find(scripts->scripts) }) {
+		return sequence;
+	}
+
+	if (auto* sequence{ find(scripts->pending_additions) }) {
+		return sequence;
+	}
+
+	if (resident_index < 0 || resident_index >= static_cast<int>(scripts->scripts.size())) {
+		return nullptr;
+	}
+
+	auto& entry{ scripts->scripts[static_cast<std::size_t>(resident_index)] };
+	if (entry.type_hash != Hash<Script>()) {
+		return nullptr;
+	}
+
+	return entry.instance ? std::addressof(entry.instance->sequence)
+						  : std::addressof(entry.sequence);
+}
+
+[[nodiscard]] std::string TrimMenuText(std::string_view text) {
+	auto is_space = [](unsigned char c) {
+		return std::isspace(c) != 0;
+	};
+
+	while (!text.empty() && is_space(static_cast<unsigned char>(text.front()))) {
+		text.remove_prefix(1);
+	}
+
+	while (!text.empty() && is_space(static_cast<unsigned char>(text.back()))) {
+		text.remove_suffix(1);
+	}
+
+	return std::string{ text };
+}
+
+void AddEditorScriptEntry(
+	ScriptEditorContext& context, ::ptgn::impl::Scripts& scripts, ScriptEntry entry
+) {
+	scripts.scripts.emplace_back(std::move(entry));
+
+	Entity owner{ ::ptgn::impl::ScriptsAccessor::GetOwner(scripts) };
+	if (owner && IsRuntimeActive(context)) {
+		scripts.Attach(owner);
+		ScriptSystem::AttachEntry(owner, scripts.scripts.back());
+	}
+}
+
+void EnsureActionValue(ScriptStep& action) {
+	const auto* registration{ ScriptRegistry::Find(action.type_hash) };
+
+	if (!registration || !registration->make_default) {
+		if (action.value.is_null()) {
+			action.value = json::object();
+		}
+		return;
+	}
+
+	json defaults = registration->make_default();
+
+	if (action.value.is_null()) {
+		action.value = std::move(defaults);
+		return;
+	}
+
+	if (defaults.is_object() && action.value.is_object()) {
+		defaults.update(action.value, true);
+
+		action.value = std::move(defaults);
+	}
+}
+
+ActionForm GetActionForm(const ScriptStep& action) {
+	if (action.type_hash == Hash<WaitScript>()) {
+		return ActionForm::Delay;
+	}
+
+	const auto* registration{ ScriptRegistry::Find(action.type_hash) };
+	ScriptCompletion completion{ action.completion.value_or(
+		registration ? registration->completion : ScriptCompletion::ScriptControlled
+	) };
+
+	return completion == ScriptCompletion::Duration ? ActionForm::Tween : ActionForm::Action;
+}
+
+void SetActionForm(ScriptStep& action, ActionForm form) {
+	bool enabled{ action.enabled };
+	auto target{ action.target };
+	const auto* registration{ ScriptRegistry::Find(action.type_hash) };
+
+	switch (form) {
+		case ActionForm::Action:
+			if (!registration || registration->requires_timing ||
+				action.type_hash == Hash<WaitScript>()) {
+				action = ScriptRegistry::MakeStep<SetVisibleScript>();
+			}
+			action.completion.reset();
+			action.timing.reset();
+			break;
+		case ActionForm::Tween:
+			if (!registration || !registration->supports_timing ||
+				action.type_hash == Hash<WaitScript>()) {
+				action = ScriptRegistry::MakeStep<MoveToScript>();
+			}
+			registration	  = ScriptRegistry::Find(action.type_hash);
+			action.completion = ScriptCompletion::Duration;
+			action.timing	  = registration && registration->default_timing
+								  ? registration->default_timing
+								  : std::optional<ScriptTiming>{ ScriptTiming{} };
+			break;
+		case ActionForm::Delay:
+			action			  = ScriptRegistry::MakeStep<WaitScript>();
+			action.completion = ScriptCompletion::Duration;
+			break;
+	}
+
+	action.enabled = enabled;
+	action.target  = std::move(target);
+}
+
+std::string ActionSummary(const ScriptStep& action) {
+	const auto* editor{ ScriptEditorRegistry::Find(action.type_hash) };
+	std::string result{ editor ? editor->options.label : std::string{ "Missing Script" } };
+	if (action.timing) {
+		result += " (" + std::to_string(static_cast<int>(action.timing->duration.count())) + "ms)";
+	}
+	return result;
+}
+
+void MoveAction(std::vector<ScriptStep>& actions, int from, int to) {
+	if (from < 0 || to < 0 || from >= static_cast<int>(actions.size()) ||
+		to >= static_cast<int>(actions.size()) || from == to) {
+		return;
+	}
+	ScriptStep moved{ std::move(actions[static_cast<std::size_t>(from)]) };
+	actions.erase(actions.begin() + from);
+	actions.insert(actions.begin() + to, std::move(moved));
+}
+
+ScriptEntry MakeRootEntry(TypeHashValue type_hash) {
+	const auto* registration{ ScriptRegistry::Find(type_hash) };
+	if (!registration) {
+		return {};
+	}
+	ScriptEntry entry;
+	entry.enabled	= true;
+	entry.type_hash = type_hash;
+	entry.name		= registration->name;
+	entry.value		= registration->make_default ? registration->make_default() : json::object();
+	entry.sequence	= registration->make_default_sequence ? registration->make_default_sequence()
+														  : ScriptSequence{};
+	return entry;
+}
+
+template <ScriptClass T>
+ScriptEntry MakeRootEntry(T script) {
+	const auto* registration{ ScriptRegistry::Find(Hash<T>()) };
+	if (!registration) {
+		return {};
+	}
+
+	json value;
+	try {
+		value = script;
+	} catch (...) {
+		value = json::object();
+	}
+
+	ScriptEntry entry;
+	entry.enabled	= true;
+	entry.type_hash = registration->type_hash;
+	entry.name		= registration->name;
+	entry.value		= std::move(value);
+	entry.sequence	= script.sequence;
+	return entry;
+}
+
+void PromoteToShared(ScriptEditorContext& context, ScriptSequence& binding) {
+	if (binding.shared_reference) {
+		return;
+	}
+	ScriptSequence shared{ binding };
+	shared.shared_reference	  = false;
+	shared.shared_sequence_id = 0;
+	shared.runtime			  = ScriptSequenceRuntime{};
+	SequenceId shared_id{ shared.id };
+	context.shared_sequences.sequences.push_back(std::move(shared));
+	binding.shared_reference   = true;
+	binding.shared_sequence_id = shared_id;
+	binding.runtime			   = ScriptSequenceRuntime{};
+}
+
+void DetachToLocal(ScriptEditorContext& context, ScriptSequence& binding) {
+	if (!binding.shared_reference) {
+		return;
+	}
+	const auto* shared{ context.shared_sequences.Find(binding.shared_sequence_id) };
+	if (!shared) {
+		binding.shared_reference   = false;
+		binding.shared_sequence_id = 0;
+		return;
+	}
+	ScriptSequence local{ *shared };
+	SequenceId binding_id{ binding.id };
+	bool enabled{ binding.enabled };
+	binding					   = std::move(local);
+	binding.id				   = binding_id;
+	binding.enabled			   = enabled;
+	binding.shared_reference   = false;
+	binding.shared_sequence_id = 0;
+	binding.runtime			   = ScriptSequenceRuntime{};
+}
+
+[[nodiscard]] float SequenceTargetButtonWidth(float row_width) {
+	return std::min(64.0f, std::max(1.0f, row_width * (64.0f / 600.0f)));
+}
+
+bool DrawActionTarget(ScriptEditorContext& context, ScriptStep& action, float width) {
+	Entity owner{ ResolveInspectedEntity(context) };
+	Scene* scene{ owner ? std::addressof(owner.GetScene()) : nullptr };
+
+	ImGuiID state_id{ ImGui::GetID("##ActionTargetFilterState") };
+	auto& state{ GetScriptInspectorState().target_filter_states[state_id] };
+
+	EntityFilterEditorOptions options{};
+	options.button_width = width;
+	bool stack_action{ action.type_hash == Hash<GroupStackPushScript>() ||
+					   action.type_hash == Hash<GroupStackPopScript>() ||
+					   action.type_hash == Hash<GroupStackReplaceScript>() ||
+					   action.type_hash == Hash<GroupStackPopToScript>() ||
+					   action.type_hash == Hash<GroupStackSetScript>() ||
+					   action.type_hash == Hash<GroupStackResetScript>() ||
+					   action.type_hash == Hash<GroupStackClearScript>() };
+	options.button_tooltip = stack_action ? "Group Stack target (optional). Without one, uses the "
+											"action owner's containing stack:"
+										  : "Entities impacted by the action:";
+	options.append_filter_tooltip = true;
+	return DrawEntityFilterButton(scene, owner, action.target, state, options);
+}
+
+bool DrawActionPicker(
+	ScriptEditorContext& context, ScriptStep& action, bool timed_only, float width = -FLT_MIN,
+	bool* context_requested = nullptr
+) {
+	struct Candidate {
+		const ScriptRegistration* runtime{ nullptr };
+		const ScriptEditorRegistration* editor{ nullptr };
+		std::string_view label;
+		std::string_view group;
+		std::string_view description;
+		int menu_order{ 100 };
+		bool separator_after{ false };
+	};
+
+	auto resolve_candidate =
+		[](const ScriptRegistration& registration) -> std::optional<Candidate> {
+		const auto* editor{ ScriptEditorRegistry::Find(registration.type_hash) };
+
+		if (!editor || !HasScriptType(editor->options.type, ScriptType::Sequence)) {
+			return std::nullopt;
+		}
+
+		return Candidate{
+			.runtime		 = &registration,
+			.editor			 = editor,
+			.label			 = editor->options.label,
+			.group			 = editor->options.group,
+			.description	 = editor->options.description,
+			.menu_order		 = editor->options.menu_order,
+			.separator_after = editor->options.separator_after,
+		};
+	};
+
+	const auto* current_registration{ ScriptRegistry::Find(action.type_hash) };
+
+	std::optional<Candidate> current{ current_registration
+										  ? resolve_candidate(*current_registration)
+										  : std::nullopt };
+
+	ImGui::SetNextItemWidth(width);
+
+	float popup_min_width{ ImGui::CalcItemWidth() };
+
+	ImGui::SetNextWindowSizeConstraints(
+		ImVec2{ popup_min_width, 0.0f }, ImVec2{ FLT_MAX, FLT_MAX }
+	);
+
+	const char* current_label{ current ? current->label.data() : "Missing Action" };
+
+	bool open{ ImGui::BeginCombo("##RegisteredAction", current_label) };
+
+	if (context_requested) {
+		*context_requested |= IsItemRightClicked();
+	}
+
+	const char* picker_tooltip{ current && !current->description.empty()
+									? current->description.data()
+									: "Choose an action." };
+	DrawTooltip(picker_tooltip);
+
+	if (!open) {
+		return false;
+	}
+
+	bool changed{ false };
+
+	auto is_available = [&](const Candidate& candidate) {
+		const auto& registration{ *candidate.runtime };
+
+		return registration.serializable && registration.type_hash != Hash<Script>() &&
+			   registration.type_hash != Hash<WaitScript>() && !candidate.editor->options.hidden &&
+			   (!timed_only || registration.supports_timing) &&
+			   (timed_only || !registration.requires_timing);
+	};
+
+	auto select_candidate = [&](const Candidate& candidate) {
+		const auto& registration{ *candidate.runtime };
+
+		if (ImGui::MenuItem(
+				candidate.label.data(), nullptr, registration.type_hash == action.type_hash
+			)) {
+			bool enabled{ action.enabled };
+			auto target{ action.target };
+
+			action = ScriptRegistry::MakeStep(registration.type_hash);
+
+			action.enabled = enabled;
+			action.target  = std::move(target);
+
+			if (timed_only) {
+				action.completion = ScriptCompletion::Duration;
+
+				action.timing = registration.default_timing.value_or(ScriptTiming{});
+			} else {
+				action.completion.reset();
+				action.timing.reset();
+			}
+
+			changed = true;
+		}
+
+		// Only show the user facing description.
+		DrawTooltip(
+			candidate.description.empty() ? "Choose this script action."
+										  : candidate.description.data()
+		);
+	};
+
+	std::vector<Candidate> candidates;
+
+	for (const auto& registration : ScriptRegistry::Entries()) {
+		if (auto candidate{ resolve_candidate(registration) };
+			candidate && is_available(*candidate)) {
+			candidates.push_back(*candidate);
+		}
+	}
+
+	auto emit_signal_it{ std::ranges::find_if(candidates, [](const Candidate& candidate) {
+		return candidate.runtime->type_hash == Hash<EmitSignalScript>();
+	}) };
+
+	if (emit_signal_it != candidates.end()) {
+		select_candidate(*emit_signal_it);
+
+		ImGui::Separator();
+	}
+
+	if (context.owner && !timed_only && !context.shared_sequences.sequences.empty() &&
+		ImGui::BeginMenu("Global")) {
+		for (const auto& shared : context.shared_sequences.sequences) {
+			bool selected{ false };
+
+			if (action.type_hash == Hash<Script>()) {
+				Script current_script;
+
+				if (TryReadScriptJson(action.value, current_script)) {
+					selected = current_script.sequence.shared_reference &&
+							   current_script.sequence.shared_sequence_id == shared.id;
+				}
+			}
+
+			if (ImGui::MenuItem(shared.name.c_str(), nullptr, selected)) {
+				bool enabled{ action.enabled };
+				auto target{ action.target };
+
+				Script script;
+
+				script.sequence.name = shared.name;
+
+				script.sequence.shared_reference = true;
+
+				script.sequence.shared_sequence_id = shared.id;
+
+				action = ScriptRegistry::MakeStep(std::move(script));
+
+				action.enabled = enabled;
+				action.target  = std::move(target);
+
+				action.completion = ScriptCompletion::ScriptControlled;
+
+				action.timing.reset();
+
+				changed = true;
+			}
+
+			DrawTooltip("Run this global editor authored Script as the sequence step.");
+		}
+
+		ImGui::EndMenu();
+	}
+
+	for (const auto& candidate : candidates) {
+		if (candidate.group.empty() && candidate.runtime->type_hash != Hash<EmitSignalScript>()) {
+			select_candidate(candidate);
+		}
+	}
+
+	// All script types use their registration's group path. No special action catalog.
+	std::vector<std::string> groups;
+	for (const auto& candidate : candidates) {
+		if (!candidate.group.empty()) {
+			std::string name{ candidate.group };
+			if (!std::ranges::contains(groups, name)) {
+				groups.push_back(std::move(name));
+			}
+		}
+	}
+	std::ranges::sort(groups);
+	std::function<void(std::string_view)> draw_menu = [&](std::string_view parent) {
+		std::vector<std::string> children;
+		for (const auto& group : groups) {
+			if (!parent.empty() && !(group.starts_with(parent) && group.size() > parent.size() &&
+									 group[parent.size()] == '/')) {
+				continue;
+			}
+			std::string_view remaining{ group };
+			if (!parent.empty()) {
+				remaining.remove_prefix(parent.size() + 1);
+			}
+			if (remaining.empty()) {
+				continue;
+			}
+			auto separator{ remaining.find('/') };
+			std::string name{ remaining.substr(0, separator) };
+			if (!std::ranges::contains(children, name)) {
+				children.push_back(std::move(name));
+			}
+		}
+		for (const auto& name : children) {
+			std::string path{ parent.empty() ? name : std::string{ parent } + "/" + name };
+			if (!ImGui::BeginMenu(name.c_str())) {
+				continue;
+			}
+			std::vector<const Candidate*> direct;
+			for (const auto& candidate : candidates) {
+				if (candidate.group == path) {
+					direct.push_back(&candidate);
+				}
+			}
+			std::ranges::sort(direct, {}, [](const Candidate* item) { return item->menu_order; });
+			for (const auto* candidate : direct) {
+				select_candidate(*candidate);
+			}
+			draw_menu(path);
+			ImGui::EndMenu();
+		}
+	};
+	draw_menu({});
+
+	ImGui::EndCombo();
+
+	return changed;
+}
+
+// Reflected scripts with no members have no inline widget. Do not reserve space
+// for them: a cursor movement without a submitted ImGui item can assert at End().
+[[nodiscard]] bool HasActionInlineControls(
+	const ScriptEditorContext& context, const ScriptStep& action
+) {
+	if (action.value.is_object() && action.value.empty()) {
+		return false;
+	}
+
+	TypeHashValue type_hash{ action.type_hash };
+	bool is_animation_key_action{ type_hash == Hash<AnimationStartScript>() ||
+								  type_hash == Hash<AnimationStopScript>() ||
+								  type_hash == Hash<AnimationResetScript>() ||
+								  type_hash == Hash<AnimationPauseScript>() ||
+								  type_hash == Hash<AnimationResumeScript>() ||
+								  type_hash == Hash<AnimationTogglePlayingScript>() ||
+								  type_hash == Hash<AnimationNextFrameScript>() ||
+								  type_hash == Hash<AnimationPreviousFrameScript>() };
+
+	if (!is_animation_key_action) {
+		return true;
+	}
+
+	Entity owner{ ResolveInspectedEntity(context) };
+
+	if (!owner) {
+		return false;
+	}
+
+	if (action.target) {
+		auto targets{ ResolveEntityFilter(*action.target, owner.GetScene(), owner) };
+
+		return std::ranges::any_of(targets, [](Entity target) {
+			return target && target.Has<ptgn::impl::AnimationMapData>();
+		});
+	}
+
+	return owner.Has<ptgn::impl::AnimationMapData>();
+}
+
+bool DrawActionPickerWithInline(
+	ScriptEditorContext& context, ScriptStep& action, bool timed_only,
+	bool* context_requested = nullptr
+) {
+	EnsureActionValue(action);
+
+	const auto* registered_editor{ ScriptEditorRegistry::Find(action.type_hash) };
+	bool allow_inline{ !timed_only || action.type_hash == Hash<TintToScript>() };
+	bool has_inline_editor{ allow_inline && registered_editor &&
+							static_cast<bool>(registered_editor->draw_inline) &&
+							HasActionInlineControls(context, action) };
+
+	if (!has_inline_editor) {
+		return DrawActionPicker(context, action, timed_only, -FLT_MIN, context_requested);
+	}
+
+	float available{ ImGui::GetContentRegionAvail().x };
+	float spacing{ ImGui::GetStyle().ItemSpacing.x };
+	bool tint_inline{ action.type_hash == Hash<TintToScript>() };
+	float picker_width{ tint_inline ? std::max(1.0f, available - spacing - ImGui::GetFrameHeight())
+									: std::max(1.0f, available * 0.27f) };
+	float row_y{ ImGui::GetCursorScreenPos().y };
+
+	bool changed{ DrawActionPicker(context, action, timed_only, picker_width, context_requested) };
+
+	registered_editor = ScriptEditorRegistry::Find(action.type_hash);
+
+	if (registered_editor && registered_editor->draw_inline &&
+		HasActionInlineControls(context, action)) {
+		ImGui::SameLine(0.0f, spacing);
+
+		ImVec2 inline_position{ ImGui::GetCursorScreenPos() };
+		inline_position.y = row_y;
+		ImGui::SetCursorScreenPos(inline_position);
+
+		ImGui::SetNextItemWidth(-FLT_MIN);
+
+		auto* previous_target_filter{ context.sequence_target_filter };
+		context.sequence_target_filter = std::addressof(action.target);
+
+		bool inline_changed{ registered_editor->draw_inline(context, action.value) };
+
+		context.sequence_target_filter = previous_target_filter;
+
+		if (inline_changed) {
+			action.runtime_factory = {};
+			changed				   = true;
+		}
+	}
+
+	return changed;
+}
+
+bool DrawTimingOptions(
+	ScriptEditorContext&, ScriptStep& action, ScriptTiming& timing, float left_screen_x
+) {
+	EnsureActionValue(action);
+	bool changed{ false };
+
+	float right_screen_x{ ImGui::GetWindowPos().x + ImGui::GetWindowContentRegionMax().x };
+	float width{ std::max(1.0f, right_screen_x - left_screen_x) };
+	ImGui::SetCursorScreenPos(ImVec2{ left_screen_x, ImGui::GetCursorScreenPos().y });
+
+	std::optional<MoveToScript> move;
+	std::optional<RotateToScript> rotate;
+	std::optional<ScaleToScript> scale;
+
+	if (action.type_hash == Hash<MoveToScript>()) {
+		MoveToScript value{};
+		if (TryReadScriptJson(action.value, value)) {
+			move = std::move(value);
+		}
+	} else if (action.type_hash == Hash<RotateToScript>()) {
+		RotateToScript value{};
+		if (TryReadScriptJson(action.value, value)) {
+			rotate = std::move(value);
+		}
+	} else if (action.type_hash == Hash<ScaleToScript>()) {
+		ScaleToScript value{};
+		if (TryReadScriptJson(action.value, value)) {
+			scale = std::move(value);
+		}
+	}
+
+	int columns{ move || scale ? 5 : (rotate ? 4 : 2) };
+	if (!ImGui::BeginTable(
+			"TweenOptions", columns, ImGuiTableFlags_SizingStretchProp, ImVec2{ width, 0.0f }
+		)) {
+		return false;
+	}
+
+	if (move || scale) {
+		ImGui::TableSetupColumn("X", ImGuiTableColumnFlags_WidthStretch, 1.0f);
+		ImGui::TableSetupColumn("Y", ImGuiTableColumnFlags_WidthStretch, 1.0f);
+		ImGui::TableSetupColumn("Mode", ImGuiTableColumnFlags_WidthFixed, 82.0f);
+	} else if (rotate) {
+		ImGui::TableSetupColumn("Degrees", ImGuiTableColumnFlags_WidthStretch, 1.0f);
+		ImGui::TableSetupColumn("Shortest", ImGuiTableColumnFlags_WidthFixed, 82.0f);
+	}
+	ImGui::TableSetupColumn("Ease", ImGuiTableColumnFlags_WidthStretch, 1.0f);
+	ImGui::TableSetupColumn("Options", ImGuiTableColumnFlags_WidthStretch, 1.0f);
+	ImGui::TableNextRow(ImGuiTableRowFlags_None, ImGui::GetFrameHeight());
+
+	int column{};
+	if (move) {
+		ImGui::TableSetColumnIndex(column++);
+		ImGui::SetNextItemWidth(-FLT_MIN);
+		changed |= ImGui::DragFloat(
+			"##TweenX", &move->destination.x, 1.0f, -100000.0f, 100000.0f, "X: %.0f"
+		);
+		ImGui::TableSetColumnIndex(column++);
+		ImGui::SetNextItemWidth(-FLT_MIN);
+		changed |= ImGui::DragFloat(
+			"##TweenY", &move->destination.y, 1.0f, -100000.0f, 100000.0f, "Y: %.0f"
+		);
+		ImGui::TableSetColumnIndex(column++);
+		if (ImGui::Button(
+				move->relative ? "Relative" : "Absolute",
+				ImVec2{ -FLT_MIN, ImGui::GetFrameHeight() }
+			)) {
+			move->relative = !move->relative;
+			changed		   = true;
+		}
+		DrawTooltip(
+			move->relative ? "Offset from the entity's current position."
+						   : "Use an absolute world position."
+		);
+	} else if (scale) {
+		ImGui::TableSetColumnIndex(column++);
+		ImGui::SetNextItemWidth(-FLT_MIN);
+		changed |=
+			ImGui::DragFloat("##TweenScaleX", &scale->scale.x, 0.01f, -100.0f, 100.0f, "X: %.2f");
+		ImGui::TableSetColumnIndex(column++);
+		ImGui::SetNextItemWidth(-FLT_MIN);
+		changed |=
+			ImGui::DragFloat("##TweenScaleY", &scale->scale.y, 0.01f, -100.0f, 100.0f, "Y: %.2f");
+		ImGui::TableSetColumnIndex(column++);
+		if (ImGui::Button(
+				scale->relative ? "Relative" : "Absolute",
+				ImVec2{ -FLT_MIN, ImGui::GetFrameHeight() }
+			)) {
+			scale->relative = !scale->relative;
+			changed			= true;
+		}
+		DrawTooltip(
+			scale->relative ? "Multiply the entity's current scale." : "Use an absolute scale."
+		);
+	} else if (rotate) {
+		ImGui::TableSetColumnIndex(column++);
+		ImGui::SetNextItemWidth(-FLT_MIN);
+		changed |= ImGui::DragFloat(
+			"##TweenDegrees", &rotate->degrees, 1.0f, -3600.0f, 3600.0f, "%.1f deg"
+		);
+		ImGui::TableSetColumnIndex(column++);
+		changed |= DrawToggleButton(
+			"Shortest", rotate->shortest_path, ImVec2{ -FLT_MIN, ImGui::GetFrameHeight() },
+			"Toggle the shortest rotational path."
+		);
+	}
+
+	ImGui::TableSetColumnIndex(column++);
+	const char* ease_preview{ "Linear" };
+	for (const auto& [ease, label] : kEaseEntries) {
+		if (timing.ease == ease) {
+			ease_preview = label;
+		}
+	}
+	ImGui::SetNextItemWidth(-FLT_MIN);
+	if (ImGui::BeginCombo("##Ease", ease_preview)) {
+		for (const auto& [ease, label] : kEaseEntries) {
+			if (ImGui::Selectable(label, timing.ease == ease)) {
+				timing.ease = ease;
+				changed		= true;
+			}
+		}
+		ImGui::EndCombo();
+	}
+
+	ImGui::TableSetColumnIndex(column);
+	std::vector<std::string> selected_options;
+	if (timing.infinite_repeats) {
+		selected_options.emplace_back("Infinite");
+	}
+	if (timing.reversed) {
+		selected_options.emplace_back("Reversed");
+	}
+	if (timing.yoyo) {
+		selected_options.emplace_back("Yoyo");
+	}
+	std::string options;
+	for (const auto& option : selected_options) {
+		if (!options.empty()) {
+			options += ", ";
+		}
+		options += option;
+	}
+	if (options.empty()) {
+		options = "Options";
+	}
+	ImGui::SetNextItemWidth(-FLT_MIN);
+	if (ImGui::BeginCombo("##Options", options.c_str())) {
+		changed |= ImGui::Checkbox("Infinite", &timing.infinite_repeats);
+		DrawTooltip("Repeat this Tween indefinitely. Duration still controls every cycle.");
+		changed |= ImGui::Checkbox("Reversed", &timing.reversed);
+		changed |= ImGui::Checkbox("Yoyo", &timing.yoyo);
+		ImGui::EndCombo();
+	}
+	DrawSelectedItemsTooltip(selected_options);
+	ImGui::EndTable();
+
+	if (move) {
+		action.value		   = *move;
+		action.runtime_factory = {};
+	} else if (rotate) {
+		action.value		   = *rotate;
+		action.runtime_factory = {};
+	} else if (scale) {
+		action.value		   = *scale;
+		action.runtime_factory = {};
+	}
+	return changed;
+}
+
+bool DrawActionParameters(
+	ScriptEditorContext& context, ScriptStep& action, float /*left_screen_x*/,
+	bool editing_disabled = false
+) {
+	EnsureActionValue(action);
+	const auto* editor{ ScriptEditorRegistry::Find(action.type_hash) };
+	if ((action.value.is_object() && action.value.empty()) || !editor ||
+		!HasScriptType(editor->options.type, ScriptType::Sequence) || !editor->draw ||
+		action.type_hash == Hash<Script>() || action.type_hash == Hash<WaitScript>() ||
+		action.type_hash == Hash<EmitSignalScript>() ||
+		action.type_hash == Hash<SetVisibleScript>() || action.type_hash == Hash<MoveToScript>() ||
+		action.type_hash == Hash<RotateToScript>() || action.type_hash == Hash<ScaleToScript>() ||
+		action.type_hash == Hash<TintToScript>() ||
+		action.type_hash == Hash<RemoveComponentsScript>()) {
+		return false;
+	}
+
+	if (action.type_hash == Hash<AddComponentsScript>()) {
+		AddComponentsScript add_components;
+		if (!TryReadScriptJson(action.value, add_components) || add_components.components.empty()) {
+			return false;
+		}
+	}
+
+	// Draw property rows at the normal Inspector indentation, rather than
+	// shifting them under the action selector. Empty editors submit no items.
+	ImGui::PushID("ActionParameters");
+
+	auto* previous_target_filter{ context.sequence_target_filter };
+	context.sequence_target_filter = std::addressof(action.target);
+
+	bool changed{ false };
+	{
+		ScopedActionEditorDisabled disabled{ editing_disabled };
+		changed = editor->draw(context, action.value);
+	}
+
+	context.sequence_target_filter = previous_target_filter;
+	ImGui::PopID();
+
+	if (changed) {
+		action.runtime_factory = {};
+	}
+
+	return changed;
+}
+
+[[nodiscard]] const ScriptSequenceRuntime& GetDisplayedSequenceRuntime(
+	const ScriptSequence& sequence, const ScriptSequence& binding
+) {
+	if (binding.runtime.running || binding.runtime.paused) {
+		return binding.runtime;
+	}
+
+	return sequence.runtime;
+}
+
+void DrawActiveActionProgress(
+	const ScriptSequenceRuntime& runtime, std::size_t action_index, const ScriptStep& action
+) {
+	if (!runtime.running || runtime.step_index != action_index) {
+		return;
+	}
+
+	milliseconds duration{ action.timing ? action.timing->duration : 0ms };
+	float progress{ duration > 0ms ? std::clamp(
+										 static_cast<float>(runtime.elapsed.count()) /
+											 static_cast<float>(duration.count()),
+										 0.0f, 1.0f
+									 )
+								   : 0.0f };
+
+	ImGui::ProgressBar(progress, ImVec2{ -FLT_MIN, 2.0f }, "");
+}
+
+bool DrawActions(
+	ScriptEditorContext& context, ScriptSequence& sequence, ScriptSequence& binding,
+	int resident_index
+) {
+	ImGui::PushID("SequenceActions");
+
+	Entity runtime_owner{ ResolveRuntimeOwner(context) };
+	const ScriptSequence* runtime_binding{
+		runtime_owner ? FindRuntimeRootSequence(runtime_owner, binding.id, resident_index) : nullptr
+	};
+	const ScriptSequenceRuntime& displayed_runtime{
+		runtime_binding ? runtime_binding->runtime : GetDisplayedSequenceRuntime(sequence, binding)
+	};
+
+	bool changed{ false };
+	int remove_index{ -1 };
+	int duplicate_index{ -1 };
+	int move_from{ -1 };
+	int move_to{ -1 };
+
+	for (int index{ 0 }; index < static_cast<int>(sequence.steps.size()); ++index) {
+		auto& action{ sequence.steps[static_cast<std::size_t>(index)] };
+		bool remove{ false };
+		bool duplicate{ false };
+		bool action_context_requested{ false };
+		ImGui::PushID(index);
+
+		float drag_width{ ImGui::GetFrameHeight() };
+		float label_width{ std::max(
+			{ ImGui::CalcTextSize("Action").x, ImGui::CalcTextSize("Tween").x,
+			  ImGui::CalcTextSize("Delay").x }
+		) };
+		float type_width{ label_width + ImGui::GetFrameHeight() +
+						  ImGui::GetStyle().FramePadding.x * 2.0f };
+		float target_width{ SequenceTargetButtonWidth(ImGui::GetContentRegionAvail().x) };
+		float duration_width{ ImGui::CalcTextSize("5000ms").x +
+							  ImGui::GetStyle().FramePadding.x * 2.0f };
+		float repeats_width{ GetCountControlWidth("Repeats") };
+		float button_width{ ImGui::GetFrameHeight() };
+		ActionForm displayed_form{ GetActionForm(action) };
+		ActionForm requested_form{ displayed_form };
+		bool form_changed{ false };
+		float parameter_left_screen_x{ ImGui::GetCursorScreenPos().x };
+		int column_count{ displayed_form == ActionForm::Tween	 ? 6
+						  : displayed_form == ActionForm::Action ? 4
+																 : 3 };
+
+		if (ImGui::BeginTable(
+				"ActionRow", column_count,
+				ImGuiTableFlags_SizingStretchProp | ImGuiTableFlags_NoSavedSettings
+			)) {
+			// Stretch every editable column rather than shrinking only the action value.
+			// Preferred widths are weights, so their proportions survive inspector resizing.
+			float remaining{ std::max(
+				150.0f,
+				ImGui::GetContentRegionAvail().x - drag_width - type_width - target_width -
+					(displayed_form == ActionForm::Tween ? duration_width + repeats_width : 0.0f)
+			) };
+			ImGui::TableSetupColumn("Drag", ImGuiTableColumnFlags_WidthFixed, drag_width);
+			ImGui::TableSetupColumn("Type", ImGuiTableColumnFlags_WidthStretch, type_width);
+
+			if (displayed_form == ActionForm::Tween) {
+				ImGui::TableSetupColumn("Target", ImGuiTableColumnFlags_WidthFixed, target_width);
+				ImGui::TableSetupColumn(
+					"Duration", ImGuiTableColumnFlags_WidthStretch, duration_width
+				);
+				ImGui::TableSetupColumn("Action", ImGuiTableColumnFlags_WidthStretch, remaining);
+				ImGui::TableSetupColumn(
+					"Repeats", ImGuiTableColumnFlags_WidthStretch, repeats_width
+				);
+			} else if (displayed_form == ActionForm::Action) {
+				ImGui::TableSetupColumn("Target", ImGuiTableColumnFlags_WidthFixed, target_width);
+				ImGui::TableSetupColumn("Value", ImGuiTableColumnFlags_WidthStretch, remaining);
+			} else {
+				ImGui::TableSetupColumn("Value", ImGuiTableColumnFlags_WidthStretch, remaining);
+			}
+
+			ImGui::TableNextRow(ImGuiTableRowFlags_None, button_width);
+
+			int column{};
+			ImGui::TableSetColumnIndex(column++);
+			bool dimmed{ !action.enabled };
+
+			if (dimmed) {
+				ImGui::PushStyleVar(ImGuiStyleVar_Alpha, ImGui::GetStyle().Alpha * 0.45f);
+			}
+
+			DrawEditorIconButton("##ActionReorder", EditorIcon::Move);
+
+			if (dimmed) {
+				ImGui::PopStyleVar();
+			}
+
+			action_context_requested = IsItemRightClicked();
+
+			DrawTooltip(
+				action.enabled ? "Drag to reorder. Right click for action options."
+							   : "Disabled action. Right click for action options."
+			);
+
+			if (ImGui::BeginDragDropSource(ImGuiDragDropFlags_SourceAllowNullID)) {
+				ActionDragPayload payload{ index };
+				ImGui::SetDragDropPayload("PTGN_SCRIPT_ACTION", &payload, sizeof(payload));
+				ImGui::Text("%d. %s", index + 1, ActionSummary(action).c_str());
+				ImGui::EndDragDropSource();
+			}
+
+			if (ImGui::BeginDragDropTarget()) {
+				if (const ImGuiPayload* payload{
+						ImGui::AcceptDragDropPayload("PTGN_SCRIPT_ACTION") }) {
+					const auto* drag{ static_cast<const ActionDragPayload*>(payload->Data) };
+
+					if (drag) {
+						move_from = drag->index;
+						move_to	  = index;
+					}
+				}
+
+				ImGui::EndDragDropTarget();
+			}
+
+			{
+				ScopedActionEditorDisabled disabled{ !action.enabled };
+				ImGui::TableSetColumnIndex(column++);
+				parameter_left_screen_x = ImGui::GetCursorScreenPos().x;
+				ImGui::SetNextItemWidth(-FLT_MIN);
+
+				if (ImGui::BeginCombo(
+						"##Form", kActionFormLabels[static_cast<std::size_t>(displayed_form)]
+					)) {
+					for (int i{ 0 }; i < static_cast<int>(kActionFormLabels.size()); ++i) {
+						auto candidate{ static_cast<ActionForm>(i) };
+
+						if (ImGui::Selectable(
+								kActionFormLabels[static_cast<std::size_t>(i)],
+								candidate == displayed_form
+							)) {
+							requested_form = candidate;
+							form_changed   = true;
+						}
+					}
+
+					ImGui::EndCombo();
+				}
+
+				action_context_requested |= IsItemRightClicked();
+				DrawTooltip("Choose an Action, Tween, or Delay. Right click for action options.");
+
+				if (displayed_form == ActionForm::Tween) {
+					ImGui::TableSetColumnIndex(column++);
+					changed |= DrawActionTarget(context, action, target_width);
+
+					ImGui::TableSetColumnIndex(column++);
+					changed |= DrawDurationInput(
+						"##Duration", action.timing->duration, -FLT_MIN,
+						"Duration of each Tween cycle."
+					);
+
+					ImGui::TableSetColumnIndex(column++);
+					changed |= DrawActionPickerWithInline(
+						context, action, true, &action_context_requested
+					);
+
+					ImGui::TableSetColumnIndex(column);
+					changed |= DrawCountControl(
+						"Repeats", action.timing->additional_repeats, 0, 100,
+						action.timing->infinite_repeats, "Additional full duration cycles."
+					);
+				} else {
+					if (displayed_form == ActionForm::Action) {
+						ImGui::TableSetColumnIndex(column++);
+						changed |= DrawActionTarget(context, action, target_width);
+					}
+
+					ImGui::TableSetColumnIndex(column);
+
+					switch (displayed_form) {
+						case ActionForm::Action:
+							changed |= DrawActionPickerWithInline(
+								context, action, false, &action_context_requested
+							);
+							break;
+						case ActionForm::Delay:
+							changed |= DrawDurationInput(
+								"##Duration", action.timing->duration, -FLT_MIN,
+								"Delay before continuing."
+							);
+							break;
+						case ActionForm::Tween: break;
+					}
+				}
+			}
+			ImGui::EndTable();
+		}
+
+		if (action_context_requested) {
+			ImGui::OpenPopup("ActionContext");
+		}
+
+		if (ImGui::BeginPopup("ActionContext")) {
+			changed |= DrawEnableDisableMenuItem(action.enabled);
+
+			if (ImGui::MenuItem("Duplicate")) {
+				duplicate = true;
+			}
+
+			ImGui::Separator();
+
+			if (ImGui::MenuItem("Delete")) {
+				remove = true;
+			}
+
+			ImGui::EndPopup();
+		}
+
+		if (form_changed) {
+			SetActionForm(action, requested_form);
+			displayed_form = requested_form;
+			changed		   = true;
+		}
+
+		if (displayed_form == ActionForm::Tween && action.timing) {
+			ScopedActionEditorDisabled disabled{ !action.enabled };
+			changed |= DrawTimingOptions(context, action, *action.timing, parameter_left_screen_x);
+		}
+
+		if (displayed_form == ActionForm::Action || displayed_form == ActionForm::Tween) {
+			changed |=
+				DrawActionParameters(context, action, parameter_left_screen_x, !action.enabled);
+		}
+
+		DrawActiveActionProgress(displayed_runtime, static_cast<std::size_t>(index), action);
+
+		ImGui::PopID();
+
+		if (remove) {
+			remove_index = index;
+		}
+
+		if (duplicate) {
+			duplicate_index = index;
+		}
+	}
+
+	if (move_from >= 0 && move_to >= 0) {
+		MoveAction(sequence.steps, move_from, move_to);
+		binding.runtime = ScriptSequenceRuntime{};
+		changed			= true;
+	}
+
+	if (duplicate_index >= 0) {
+		ScriptStep copy{ sequence.steps[static_cast<std::size_t>(duplicate_index)] };
+		sequence.steps.insert(sequence.steps.begin() + duplicate_index + 1, std::move(copy));
+		binding.runtime = ScriptSequenceRuntime{};
+		changed			= true;
+	}
+
+	if (remove_index >= 0) {
+		sequence.steps.erase(sequence.steps.begin() + remove_index);
+		binding.runtime = ScriptSequenceRuntime{};
+		changed			= true;
+	}
+
+	ImGui::PopID();
+	return changed;
+}
+
+bool DrawLifecycleRows(ScriptEditorContext& context, ScriptSequence& sequence) {
+	ImGui::PushID("LifecycleRows");
+
+	bool changed{ false };
+	int remove{ -1 };
+
+	for (int i{ 0 }; i < static_cast<int>(sequence.lifecycle_actions.size()); ++i) {
+		auto& callback{ sequence.lifecycle_actions[static_cast<std::size_t>(i)] };
+		bool context_requested{ false };
+		ImGui::PushID(i);
+
+		float lifecycle_width{ 145.0f };
+
+		if (ImGui::BeginTable(
+				"LifecycleRow", 2,
+				ImGuiTableFlags_SizingStretchProp | ImGuiTableFlags_NoSavedSettings
+			)) {
+			ImGui::TableSetupColumn("Lifecycle", ImGuiTableColumnFlags_WidthFixed, lifecycle_width);
+			ImGui::TableSetupColumn("Action", ImGuiTableColumnFlags_WidthStretch);
+			ImGui::TableNextRow(ImGuiTableRowFlags_None, ImGui::GetFrameHeight());
+
+			ImGui::TableSetColumnIndex(0);
+			ImGui::BeginDisabled(!callback.enabled);
+			int lifecycle{ static_cast<int>(callback.lifecycle) };
+			ImGui::SetNextItemWidth(-FLT_MIN);
+
+			if (ImGui::Combo(
+					"##Lifecycle", &lifecycle, kLifecycleLabels.data(),
+					static_cast<int>(kLifecycleLabels.size())
+				)) {
+				callback.lifecycle = static_cast<SequenceLifecycle>(lifecycle);
+				changed			   = true;
+			}
+
+			context_requested |= IsItemRightClicked();
+			DrawTooltip("Choose when this callback runs.");
+			ImGui::EndDisabled();
+
+			ImGui::TableSetColumnIndex(1);
+			ImGui::BeginDisabled(!callback.enabled);
+			changed			  |= DrawActionPickerWithInline(context, callback.action, false);
+			context_requested |= IsItemRightClicked();
+			ImGui::EndDisabled();
+			ImGui::EndTable();
+		}
+
+		if (context_requested) {
+			ImGui::OpenPopup("LifecycleContext");
+		}
+
+		if (ImGui::BeginPopup("LifecycleContext")) {
+			changed |= DrawEnableDisableMenuItem(callback.enabled);
+			ImGui::Separator();
+
+			if (ImGui::MenuItem("Delete")) {
+				remove = i;
+			}
+
+			ImGui::EndPopup();
+		}
+
+		changed |= DrawActionParameters(
+			context, callback.action, ImGui::GetCursorScreenPos().x, !callback.enabled
+		);
+		ImGui::PopID();
+	}
+
+	if (remove >= 0) {
+		sequence.lifecycle_actions.erase(sequence.lifecycle_actions.begin() + remove);
+		changed = true;
+	}
+
+	ImGui::PopID();
+	return changed;
+}
+
+template <typename... TEvents>
+[[nodiscard]] bool IsTriggerType(TypeHashValue type_hash) {
+	return ((type_hash == Hash<TEvents>()) || ...);
+}
+
+[[nodiscard]] bool HasRequiredTriggerComponent(Entity owner, TypeHashValue type_hash) {
+	if (IsTriggerType<
+			event::MouseMoveOver, event::MouseMoveOut, event::MousePressedOver,
+			event::MouseHeldOver, event::MouseReleasedOver>(type_hash)) {
+		return owner && owner.Has<::ptgn::impl::Interactive>();
+	}
+
+	if (IsTriggerType<
+			event::ButtonPress, event::ButtonHoverStart, event::ButtonHover,
+			event::ButtonHoverStop>(type_hash)) {
+		return owner && owner.Has<::ptgn::impl::ButtonData>();
+	}
+
+	if (IsTriggerType<event::ToggleButtonToggle>(type_hash)) {
+		return owner && owner.Has<::ptgn::impl::ToggleButtonData>();
+	}
+
+	if (IsTriggerType<
+			event::DropdownOpen, event::DropdownClose, event::DropdownToggle,
+			event::DropdownItemPress>(type_hash)) {
+		return owner && owner.Has<::ptgn::impl::DropdownData>();
+	}
+
+	if (IsTriggerType<
+			event::DragStart, event::Drag, event::DragStop, event::PickupDraggable,
+			event::DropDraggable, event::DragEnter, event::DragLeave, event::DragOver,
+			event::DragOut>(type_hash)) {
+		return owner && owner.Has<::ptgn::impl::Draggable>();
+	}
+
+	if (IsTriggerType<
+			event::PickupFromDropzone, event::DropIntoDropzone, event::EnterDropzone,
+			event::LeaveDropzone, event::MoveOverDropzone, event::MoveOutsideDropzone>(type_hash)) {
+		return owner && owner.Has<::ptgn::impl::Dropzone>();
+	}
+
+	if (IsTriggerType<event::OverlapStart, event::Overlap, event::OverlapStop, event::Collision>(
+			type_hash
+		)) {
+		return owner && owner.Has<Collider>();
+	}
+
+	if (IsTriggerType<
+			event::AnimationStart, event::AnimationStop, event::AnimationPause,
+			event::AnimationResume, event::AnimationFrameChange, event::AnimationUpdate,
+			event::AnimationComplete, event::AnimationLoopComplete>(type_hash)) {
+		return owner && owner.Has<::ptgn::impl::AnimationData>();
+	}
+
+	return true;
+}
+
+[[nodiscard]] bool IsTriggerCandidateAvailable(
+	const ScriptEditorContext& context, const EventEditorRegistration& candidate
+) {
+	const auto* registration{ SequenceEventRegistry::Find(candidate.type_hash) };
+	Entity owner{ ResolveInspectedEntity(context) };
+
+	if (!registration || !HasRequiredTriggerComponent(owner, candidate.type_hash)) {
+		return false;
+	}
+
+	if (owner && registration->available && !registration->available(owner)) {
+		return false;
+	}
+
+	return true;
+}
+
+bool DrawTimerElapsedTrigger(ScriptEditorContext& context, json& value) {
+	TimerKey timer;
+	std::optional<milliseconds> duration_override;
+
+	if (value.is_object()) {
+		auto timer_it{ value.find("timer") };
+		if (timer_it != value.end()) {
+			try {
+				timer_it->get_to(timer);
+			} catch (...) {
+				timer = TimerKey{};
+			}
+		}
+
+		auto duration_it{ value.find("duration") };
+		if (duration_it != value.end() && !duration_it->is_null()) {
+			try {
+				milliseconds duration;
+				duration_it->get_to(duration);
+
+				if (duration > 0ms) {
+					duration_override = duration;
+				}
+			} catch (...) {
+				duration_override.reset();
+			}
+		}
+	}
+
+	Entity owner{ ResolveInspectedEntity(context) };
+	auto choices{ GetTimerChoices(owner, std::nullopt) };
+
+	float available{ ImGui::GetContentRegionAvail().x };
+	float spacing{ ImGui::GetStyle().ItemSpacing.x };
+	float checkbox_width{ ImGui::GetFrameHeight() };
+	float duration_width{ std::min(110.0f, std::max(72.0f, available * 0.32f)) };
+	float timer_width{
+		std::max(1.0f, available - checkbox_width - duration_width - spacing * 2.0f)
+	};
+
+	bool changed{ false };
+	ImGui::SetNextItemWidth(timer_width);
+
+	const char* preview{ timer.value.empty() ? "No Timer" : timer.value.c_str() };
+
+	if (ImGui::BeginCombo("##TimerTrigger", preview)) {
+		std::string custom_name{ timer.value };
+
+		ImGui::SetNextItemWidth(-FLT_MIN);
+		if (ImGui::InputTextWithHint("##CustomTimerName", "Custom timer name...", &custom_name)) {
+			timer.value = std::move(custom_name);
+			changed		= true;
+		}
+
+		ImGui::Separator();
+
+		bool none_selected{ timer.value.empty() };
+		if (ImGui::Selectable("None", none_selected)) {
+			if (!none_selected) {
+				timer.value.clear();
+				changed = true;
+			}
+		}
+
+		for (const auto& choice : choices) {
+			bool selected{ choice == timer };
+
+			if (ImGui::Selectable(choice.value.c_str(), selected)) {
+				if (!selected) {
+					timer	= choice;
+					changed = true;
+				}
+			}
+
+			if (selected) {
+				ImGui::SetItemDefaultFocus();
+			}
+		}
+
+		if (choices.empty()) {
+			ImGui::TextDisabled("No timers on this entity.");
+		}
+
+		ImGui::EndCombo();
+	}
+
+	DrawTooltip(
+		"Named timer whose elapsed threshold starts or stops this sequence. "
+		"Open the combo to choose an existing timer or enter a custom name."
+	);
+
+	std::optional<milliseconds> timer_duration;
+
+	if (owner) {
+		if (const auto* timers{ owner.TryGet<::ptgn::impl::Timers>() }) {
+			auto it{ std::ranges::find_if(timers->timers, [&timer](const TimerEntry& entry) {
+				return entry.config.key == timer;
+			}) };
+
+			if (it != timers->timers.end()) {
+				timer_duration = it->config.duration;
+			}
+		}
+	}
+
+	auto displayed_duration{ duration_override.value_or(timer_duration.value_or(1000ms)) };
+
+	displayed_duration = std::max(0ms, displayed_duration);
+
+	if (timer_duration && *timer_duration > 0ms) {
+		displayed_duration = std::min(displayed_duration, *timer_duration);
+	}
+
+	bool use_duration_override{ duration_override.has_value() };
+
+	ImGui::SameLine(0.0f, spacing);
+	if (ImGui::Checkbox("##TimerElapsedDurationOverride", &use_duration_override)) {
+		if (use_duration_override) {
+			duration_override = displayed_duration;
+		} else {
+			duration_override.reset();
+		}
+
+		changed = true;
+	}
+	DrawTooltip("Use a custom elapsed duration. Unchecked uses the timer's configured duration.");
+
+	ImGui::SameLine(0.0f, spacing);
+	ImGui::BeginDisabled(!use_duration_override);
+
+	if (DrawDurationTextInput(
+			"##TimerElapsedDuration", displayed_duration, duration_width, false,
+			"Elapsed duration required before this trigger matches."
+		)) {
+		displayed_duration = std::max(0ms, displayed_duration);
+
+		if (timer_duration && *timer_duration > 0ms) {
+			displayed_duration = std::min(displayed_duration, *timer_duration);
+		}
+
+		duration_override = displayed_duration;
+		changed			  = true;
+	}
+
+	ImGui::EndDisabled();
+
+	if (changed) {
+		if (!value.is_object()) {
+			value = json::object();
+		}
+
+		value["timer"] = timer;
+
+		if (duration_override) {
+			value["duration"] = *duration_override;
+		} else {
+			value["duration"] = nullptr;
+		}
+	}
+
+	return changed;
+}
+
+template <typename Key>
+bool DrawVariableTriggerKey(
+	const char* id, Key& key, const std::vector<Key>& choices, float width,
+	const char* missing_key_tooltip = nullptr, const char* empty_key_tooltip = nullptr
+) {
+	bool changed{ false };
+	ImGui::SetNextItemWidth(width);
+	ImVec2 combo_min{ ImGui::GetCursorScreenPos() };
+	ImVec2 combo_max{ combo_min.x + ImGui::CalcItemWidth(), combo_min.y + ImGui::GetFrameHeight() };
+	ImDrawList* combo_draw_list{ ImGui::GetWindowDrawList() };
+	bool open{ ImGui::BeginCombo(id, key.value.empty() ? "None" : key.value.c_str()) };
+	bool missing_key{ missing_key_tooltip && !key.value.empty() &&
+					  !std::ranges::contains(choices, key) };
+	if (missing_key) {
+		combo_draw_list->AddRect(
+			combo_min, combo_max, ImGui::GetColorU32(ImVec4{ 0.92f, 0.23f, 0.25f, 1.0f }),
+			ImGui::GetStyle().FrameRounding, 0, 2.0f
+		);
+	}
+	bool combo_hovered{ ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled) };
+	if (combo_hovered) {
+		if (key.value.empty() && empty_key_tooltip) {
+			ImGui::SetTooltip("%s", empty_key_tooltip);
+		} else if (
+			missing_key_tooltip && !key.value.empty() && !std::ranges::contains(choices, key)
+		) {
+			ImGui::SetTooltip("%s", missing_key_tooltip);
+		}
+	}
+	if (open) {
+		std::string custom{ key.value };
+		ImGui::SetNextItemWidth(-FLT_MIN);
+		if (ImGui::InputTextWithHint("##VariableName", "Name...", &custom)) {
+			key.value = std::move(custom);
+			changed	  = true;
+		}
+		// Match the warning on the dropdown when a custom key is missing.
+		bool custom_key_missing{ missing_key_tooltip && !key.value.empty() &&
+								 !std::ranges::contains(choices, key) };
+		if (custom_key_missing) {
+			ImGui::GetWindowDrawList()->AddRect(
+				ImGui::GetItemRectMin(), ImGui::GetItemRectMax(),
+				ImGui::GetColorU32(ImVec4{ 0.92f, 0.23f, 0.25f, 1.0f }),
+				ImGui::GetStyle().FrameRounding, 0, 2.0f
+			);
+		}
+		if (ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled)) {
+			if (custom_key_missing) {
+				ImGui::SetTooltip("%s", missing_key_tooltip);
+			} else if (key.value.empty() && empty_key_tooltip) {
+				ImGui::SetTooltip("%s", empty_key_tooltip);
+			}
+		}
+		ImGui::Separator();
+		if (ImGui::Selectable("None", key.value.empty()) && !key.value.empty()) {
+			key.value.clear();
+			changed = true;
+		}
+		for (const auto& choice : choices) {
+			if (ImGui::Selectable(choice.value.c_str(), choice == key) && choice != key) {
+				key		= choice;
+				changed = true;
+			}
+		}
+		ImGui::EndCombo();
+	}
+	return changed;
+}
+
+[[nodiscard]] Entity ResolveConditionTarget(Entity owner, const StateCondition& condition) {
+	if (!owner) {
+		return {};
+	}
+	if (!condition.target) {
+		return owner;
+	}
+	if (condition.target->type != EntityFilterType::Entity) {
+		return {};
+	}
+	return ResolveEntityReference(owner.GetScene(), condition.target->entity);
+}
+
+bool DrawConditionTarget(ScriptEditorContext& context, StateCondition& condition, float width) {
+	Entity owner{ ResolveInspectedEntity(context) };
+	Scene* scene{ owner ? std::addressof(owner.GetScene()) : nullptr };
+	ImGuiID state_id{ ImGui::GetID("##ConditionTargetFilterState") };
+	auto& state{ GetScriptInspectorState().target_filter_states[state_id] };
+	EntityFilterEditorOptions options{};
+	options.single_entity_only	  = true;
+	options.button_width		  = width;
+	options.button_tooltip		  = "Entity whose condition is checked:";
+	options.append_filter_tooltip = true;
+	return DrawEntityFilterButton(scene, owner, condition.target, state, options);
+}
+
+[[nodiscard]] std::vector<BooleanKey> GetBooleanConditionKeys(Entity owner) {
+	std::vector<BooleanKey> keys;
+	if (const auto* booleans{ owner ? owner.TryGet<::ptgn::impl::Booleans>() : nullptr }) {
+		for (const auto& entry : booleans->booleans) {
+			keys.push_back(entry.config.key);
+		}
+	}
+	return keys;
+}
+
+[[nodiscard]] std::vector<CounterKey> GetCounterConditionKeys(Entity owner) {
+	std::vector<CounterKey> keys;
+	if (const auto* counters{ owner ? owner.TryGet<::ptgn::impl::Counters>() : nullptr }) {
+		for (const auto& entry : counters->counters) {
+			keys.push_back(entry.config.key);
+		}
+	}
+	return keys;
+}
+
+bool DrawCounterConditionValue(std::int64_t& value, float width) {
+	ImGui::SetNextItemWidth(width);
+	return ImGui::DragScalar(
+		"##CounterThreshold", ImGuiDataType_S64, &value, 0.25f, nullptr, nullptr, "%lld"
+	);
+}
+
+bool DrawStateConditions(ScriptEditorContext& context, ScriptSequence& sequence) {
+	if (sequence.start_conditions.empty()) {
+		return false;
+	}
+
+	bool changed{ false };
+	int remove_index{ -1 };
+	int duplicate_index{ -1 };
+	int move_from{ -1 };
+	int move_to{ -1 };
+	Entity owner{ ResolveInspectedEntity(context) };
+
+	// Match the spacing used by action and trigger controls.
+	const ImGuiStyle& style{ ImGui::GetStyle() };
+	float spacing{ style.ItemSpacing.x };
+	float button_height{ ImGui::GetFrameHeight() };
+	float preferred_kind_width{ 0.0f };
+	for (const auto& candidate : kConditionKindLabels) {
+		preferred_kind_width =
+			std::max(preferred_kind_width, ImGui::CalcTextSize(candidate.second).x);
+	}
+	preferred_kind_width += button_height + style.FramePadding.x * 2.0f + 16.0f;
+	float preferred_join_width{ ImGui::CalcTextSize("AND").x + style.FramePadding.x * 2.0f +
+								24.0f };
+	float preferred_comparison_width{ ImGui::CalcTextSize(">=").x + button_height +
+									  style.FramePadding.x * 2.0f + 16.0f };
+	float preferred_value_width{ std::max(
+		ImGui::CalcTextSize("Is False").x + style.FramePadding.x * 2.0f + 8.0f,
+		ImGui::CalcTextSize("10000").x + style.FramePadding.x * 2.0f + 26.0f
+	) };
+
+	ImGui::PushID("StartConditions");
+	for (int index{ 0 }; index < static_cast<int>(sequence.start_conditions.size()); ++index) {
+		StateCondition& condition{ sequence.start_conditions[static_cast<std::size_t>(index)] };
+		bool has_next{ index + 1 < static_cast<int>(sequence.start_conditions.size()) };
+		bool context_requested{ false };
+		ImGui::PushID(index);
+
+		// Use the same table row structure as triggers and actions for matching row spacing.
+		float target_button_width{ SequenceTargetButtonWidth(ImGui::GetContentRegionAvail().x) };
+		if (ImGui::BeginTable(
+				"ConditionRow", 1,
+				ImGuiTableFlags_SizingStretchProp | ImGuiTableFlags_NoSavedSettings
+			)) {
+			ImGui::TableSetupColumn("Controls", ImGuiTableColumnFlags_WidthStretch);
+			ImGui::TableNextRow(ImGuiTableRowFlags_None, button_height);
+			ImGui::TableSetColumnIndex(0);
+
+			// Measure the actual table cell, not the outer inspector content area.
+			// All widths share the available space, with the key using any surplus.
+			float available{ std::max(1.0f, ImGui::GetContentRegionAvail().x) };
+			float drag_width{ button_height };
+			float preferred_key_width{ 96.0f };
+			float target_width{ target_button_width };
+			float preferred_controls{ preferred_kind_width + preferred_key_width +
+									  preferred_comparison_width + preferred_value_width +
+									  preferred_join_width };
+			// The drag icon is fixed; all remaining controls share the available width.
+			float scale{ std::clamp(
+				(available - drag_width - target_width - 6.0f * spacing) / preferred_controls, 0.0f,
+				1.0f
+			) };
+			float kind_width{ std::max(1.0f, preferred_kind_width * scale) };
+			float comparison_width{ std::max(1.0f, preferred_comparison_width * scale) };
+			float value_width{ std::max(1.0f, preferred_value_width * scale) };
+			float join_width{ std::max(1.0f, preferred_join_width * scale) };
+			float key_region_width{ std::max(
+				1.0f, available - drag_width - kind_width - target_width - value_width -
+						  join_width - 5.0f * spacing
+			) };
+			float counter_key_width{
+				std::max(1.0f, key_region_width - comparison_width - spacing)
+			};
+
+			// The last value control fills the space reserved for an absent join button.
+			float last_column_width{ value_width + (has_next ? 0.0f : spacing + join_width) };
+
+			if (!condition.enabled) {
+				ImGui::PushStyleVar(ImGuiStyleVar_Alpha, style.Alpha * 0.45f);
+			}
+			DrawEditorIconButton("##ConditionReorder", EditorIcon::Move);
+			if (!condition.enabled) {
+				ImGui::PopStyleVar();
+			}
+			context_requested = IsItemRightClicked();
+			DrawTooltip(
+				condition.enabled ? "Drag to reorder. Right click for condition options."
+								  : "Disabled condition. Right click for condition options."
+			);
+			if (ImGui::BeginDragDropSource(ImGuiDragDropFlags_SourceAllowNullID)) {
+				ConditionDragPayload payload{ index };
+				ImGui::SetDragDropPayload("PTGN_SCRIPT_CONDITION", &payload, sizeof(payload));
+				if (condition.kind == StateConditionKind::Counter) {
+					ImGui::Text("%d. Counter: %s", index + 1, condition.counter.value.c_str());
+				} else {
+					ImGui::Text("%d. Boolean: %s", index + 1, condition.boolean.value.c_str());
+				}
+				ImGui::EndDragDropSource();
+			}
+			if (ImGui::BeginDragDropTarget()) {
+				if (const ImGuiPayload* payload{
+						ImGui::AcceptDragDropPayload("PTGN_SCRIPT_CONDITION") }) {
+					const auto* drag{ static_cast<const ConditionDragPayload*>(payload->Data) };
+					if (drag) {
+						move_from = drag->index;
+						move_to	  = index;
+					}
+				}
+				ImGui::EndDragDropTarget();
+			}
+
+			ImGui::SameLine(0.0f, spacing);
+			ImGui::BeginDisabled(!condition.enabled);
+			ImGui::SetNextItemWidth(kind_width);
+			const char* current_kind{ "Unknown" };
+			for (const auto& [kind, label] : kConditionKindLabels) {
+				if (kind == condition.kind) {
+					current_kind = label;
+					break;
+				}
+			}
+			if (ImGui::BeginCombo("##ConditionKind", current_kind)) {
+				for (const auto& [kind, label] : kConditionKindLabels) {
+					if (ImGui::Selectable(label, condition.kind == kind)) {
+						condition.kind = kind;
+						Entity target{ ResolveConditionTarget(owner, condition) };
+						if (kind == StateConditionKind::Boolean &&
+							condition.boolean.value.empty()) {
+							auto keys{ GetBooleanConditionKeys(target) };
+							if (!keys.empty()) {
+								condition.boolean = keys.front();
+							}
+						} else if (
+							kind == StateConditionKind::Counter && condition.counter.value.empty()
+						) {
+							auto keys{ GetCounterConditionKeys(target) };
+							if (!keys.empty()) {
+								condition.counter = keys.front();
+							}
+						}
+						changed = true;
+					}
+				}
+				ImGui::EndCombo();
+			}
+			DrawTooltip("Condition type.");
+			context_requested |= IsItemRightClicked();
+
+			ImGui::SameLine(0.0f, spacing);
+			changed			  |= DrawConditionTarget(context, condition, target_width);
+			context_requested |= IsItemRightClicked();
+			Entity target{ ResolveConditionTarget(owner, condition) };
+			std::vector<BooleanKey> boolean_keys{ GetBooleanConditionKeys(target) };
+			std::vector<CounterKey> counter_keys{ GetCounterConditionKeys(target) };
+
+			ImGui::SameLine(0.0f, spacing);
+			if (condition.kind == StateConditionKind::Boolean) {
+				changed |= DrawVariableTriggerKey(
+					"##BooleanConditionKey", condition.boolean, boolean_keys, key_region_width,
+					"Boolean key does not exist on the selected entity. This condition is false.",
+					"No key selected. This condition is true."
+				);
+				context_requested |= IsItemRightClicked();
+				ImGui::SameLine(0.0f, spacing);
+				if (ImGui::Button(
+						condition.expected_value ? "Is True###BooleanExpected"
+												 : "Is False###BooleanExpected",
+						ImVec2{ last_column_width, button_height }
+					)) {
+					condition.expected_value = !condition.expected_value;
+					changed					 = true;
+				}
+				context_requested |= IsItemRightClicked();
+			} else {
+				constexpr std::array labels{ "==", "!=", "<", "<=", ">", ">=" };
+				changed |= DrawVariableTriggerKey(
+					"##CounterConditionKey", condition.counter, counter_keys, counter_key_width,
+					"Counter key does not exist on the selected entity. This condition is false.",
+					"No key selected. This condition is true."
+				);
+				context_requested |= IsItemRightClicked();
+				ImGui::SameLine(0.0f, spacing);
+				ImGui::SetNextItemWidth(comparison_width);
+				int comparison{ static_cast<int>(condition.comparison) };
+				comparison = std::clamp(comparison, 0, static_cast<int>(labels.size()) - 1);
+				if (ImGui::BeginCombo(
+						"##CounterComparison", labels[static_cast<std::size_t>(comparison)]
+					)) {
+					for (int i{ 0 }; i < static_cast<int>(labels.size()); ++i) {
+						if (ImGui::Selectable(
+								labels[static_cast<std::size_t>(i)], i == comparison
+							)) {
+							condition.comparison = static_cast<CounterComparison>(i);
+							changed				 = true;
+						}
+					}
+					ImGui::EndCombo();
+				}
+				context_requested |= IsItemRightClicked();
+				ImGui::SameLine(0.0f, spacing);
+				changed |= DrawCounterConditionValue(condition.threshold, last_column_width);
+				context_requested |= IsItemRightClicked();
+			}
+			ImGui::EndDisabled();
+
+			if (has_next) {
+				ImGui::SameLine(0.0f, spacing);
+				StateCondition& next{
+					sequence.start_conditions[static_cast<std::size_t>(index + 1)]
+				};
+				ImGui::BeginDisabled(!next.enabled);
+				if (ImGui::Button(
+						next.join == StateConditionJoin::Or ? "OR##Join" : "AND##Join",
+						ImVec2{ join_width, button_height }
+					)) {
+					next.join = next.join == StateConditionJoin::And ? StateConditionJoin::Or
+																	 : StateConditionJoin::And;
+					changed	  = true;
+				}
+				if (ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled)) {
+					ImGui::SetTooltip("AND is evaluated before OR.");
+				}
+				ImGui::EndDisabled();
+			}
+			ImGui::EndTable();
+		}
+
+		if (context_requested) {
+			ImGui::OpenPopup("ConditionContext");
+		}
+		if (ImGui::BeginPopup("ConditionContext")) {
+			changed |= DrawEnableDisableMenuItem(condition.enabled);
+			if (ImGui::MenuItem("Duplicate")) {
+				duplicate_index = index;
+			}
+			ImGui::Separator();
+			if (ImGui::MenuItem("Delete")) {
+				remove_index = index;
+			}
+			ImGui::EndPopup();
+		}
+		ImGui::PopID();
+	}
+
+	if (move_from >= 0 && move_to >= 0 && move_from != move_to &&
+		move_from < static_cast<int>(sequence.start_conditions.size()) &&
+		move_to < static_cast<int>(sequence.start_conditions.size())) {
+		// The join belongs to its position between two rows, not to the moved condition.
+		std::vector<StateConditionJoin> joins;
+		joins.reserve(sequence.start_conditions.size());
+		for (const auto& condition : sequence.start_conditions) {
+			joins.push_back(condition.join);
+		}
+		auto moved{ std::move(sequence.start_conditions[static_cast<std::size_t>(move_from)]) };
+		sequence.start_conditions.erase(sequence.start_conditions.begin() + move_from);
+		sequence.start_conditions.insert(
+			sequence.start_conditions.begin() + move_to, std::move(moved)
+		);
+		for (std::size_t index{ 0 }; index < joins.size(); ++index) {
+			sequence.start_conditions[index].join = joins[index];
+		}
+		changed = true;
+	}
+	if (duplicate_index >= 0) {
+		StateCondition copy{ sequence.start_conditions[static_cast<std::size_t>(duplicate_index)] };
+		copy.join = StateConditionJoin::And;
+		sequence.start_conditions.insert(
+			sequence.start_conditions.begin() + duplicate_index + 1, std::move(copy)
+		);
+		changed = true;
+	}
+	if (remove_index >= 0) {
+		sequence.start_conditions.erase(sequence.start_conditions.begin() + remove_index);
+		changed = true;
+	}
+	if (changed && !sequence.start_conditions.empty()) {
+		sequence.start_conditions.front().join = StateConditionJoin::And;
+	}
+	ImGui::PopID();
+	return changed;
+}
+
+bool DrawAddConditionPopup(ScriptEditorContext& context, ScriptSequence& sequence) {
+	if (!ImGui::BeginPopup("AddCondition")) {
+		return false;
+	}
+	bool changed{ false };
+	Entity owner{ ResolveInspectedEntity(context) };
+	if (ImGui::MenuItem("Boolean")) {
+		StateCondition condition;
+		condition.kind = StateConditionKind::Boolean;
+		std::vector<BooleanKey> keys{ GetBooleanConditionKeys(owner) };
+		if (!keys.empty()) {
+			condition.boolean = keys.front();
+		}
+		sequence.start_conditions.push_back(std::move(condition));
+		changed = true;
+	}
+	if (ImGui::MenuItem("Counter")) {
+		StateCondition condition;
+		condition.kind = StateConditionKind::Counter;
+		std::vector<CounterKey> keys{ GetCounterConditionKeys(owner) };
+		if (!keys.empty()) {
+			condition.counter = keys.front();
+		}
+		sequence.start_conditions.push_back(std::move(condition));
+		changed = true;
+	}
+	ImGui::EndPopup();
+	return changed;
+}
+
+bool DrawCounterTrigger(ScriptEditorContext& context, json& value) {
+	CounterKey key{};
+	int comparison{ 0 };
+	std::int64_t threshold{ 0 };
+	if (value.is_object()) {
+		try {
+			key = value.value("counter", CounterKey{});
+		} catch (...) {}
+		try {
+			comparison = value.value("comparison", 0);
+		} catch (...) {}
+		try {
+			threshold = value.value("threshold", std::int64_t{ 0 });
+		} catch (...) {}
+	}
+	Entity owner{ ResolveInspectedEntity(context) };
+	std::vector<CounterKey> choices;
+	if (const auto* counters{ owner ? owner.TryGet<::ptgn::impl::Counters>() : nullptr }) {
+		for (const auto& entry : counters->counters) {
+			choices.push_back(entry.config.key);
+		}
+	}
+	constexpr std::array labels{ "Changed",		  "Increased",		  "Decreased",
+								 "Reached",		  "Crossed At Least", "Crossed At Most",
+								 "Crossed Above", "Crossed Below" };
+	comparison = std::clamp(comparison, 0, static_cast<int>(labels.size()) - 1);
+	float available{ ImGui::GetContentRegionAvail().x };
+	float spacing{ ImGui::GetStyle().ItemSpacing.x };
+	bool uses_threshold{ comparison >= 3 };
+	float comparison_width{ 155.0f };
+	float threshold_width{ 80.0f };
+	float key_width{ std::max(
+		1.0f,
+		available - comparison_width - spacing - (uses_threshold ? threshold_width + spacing : 0.0f)
+	) };
+	bool changed{ DrawVariableTriggerKey("##CounterEventKey", key, choices, key_width) };
+	ImGui::SameLine(0.0f, spacing);
+	ImGui::SetNextItemWidth(comparison_width);
+	if (ImGui::BeginCombo(
+			"##CounterEventComparison", labels[static_cast<std::size_t>(comparison)]
+		)) {
+		for (int i{ 0 }; i < static_cast<int>(labels.size()); ++i) {
+			if (ImGui::Selectable(labels[static_cast<std::size_t>(i)], i == comparison)) {
+				comparison = i;
+				changed	   = true;
+			}
+		}
+		ImGui::EndCombo();
+	}
+	if (uses_threshold) {
+		ImGui::SameLine(0.0f, spacing);
+		ImGui::SetNextItemWidth(threshold_width);
+		changed |= ImGui::InputScalar("##CounterEventThreshold", ImGuiDataType_S64, &threshold);
+	}
+	if (changed) {
+		value =
+			json{ { "counter", key }, { "comparison", comparison }, { "threshold", threshold } };
+	}
+	return changed;
+}
+
+bool DrawBooleanTrigger(ScriptEditorContext& context, json& value) {
+	BooleanKey key{};
+	int transition{ 0 };
+	if (value.is_object()) {
+		try {
+			key = value.value("boolean", BooleanKey{});
+		} catch (...) {}
+		try {
+			transition = value.value("transition", 0);
+		} catch (...) {}
+	}
+	Entity owner{ ResolveInspectedEntity(context) };
+	std::vector<BooleanKey> choices;
+	if (const auto* booleans{ owner ? owner.TryGet<::ptgn::impl::Booleans>() : nullptr }) {
+		for (const auto& entry : booleans->booleans) {
+			choices.push_back(entry.config.key);
+		}
+	}
+	constexpr std::array labels{ "Changed", "Became True", "Became False" };
+	transition = std::clamp(transition, 0, 2);
+	float available{ ImGui::GetContentRegionAvail().x };
+	float spacing{ ImGui::GetStyle().ItemSpacing.x };
+	float transition_width{ 135.0f };
+	bool changed{ DrawVariableTriggerKey(
+		"##BooleanEventKey", key, choices, std::max(1.0f, available - transition_width - spacing)
+	) };
+	ImGui::SameLine(0.0f, spacing);
+	ImGui::SetNextItemWidth(transition_width);
+	if (ImGui::BeginCombo(
+			"##BooleanEventTransition", labels[static_cast<std::size_t>(transition)]
+		)) {
+		for (int i{ 0 }; i < 3; ++i) {
+			if (ImGui::Selectable(labels[static_cast<std::size_t>(i)], i == transition)) {
+				transition = i;
+				changed	   = true;
+			}
+		}
+		ImGui::EndCombo();
+	}
+	if (changed) {
+		value = json{ { "boolean", key }, { "transition", transition } };
+	}
+	return changed;
+}
+
+bool DrawEvent(
+	ScriptEditorContext& context, EventCondition& event, bool stop_event, bool& switch_kind,
+	bool& changed
+) {
+	bool remove{ false };
+	bool context_requested{ false };
+
+	float kind_width{ std::max(ImGui::CalcTextSize("Start").x, ImGui::CalcTextSize("Stop").x) +
+					  ImGui::GetStyle().FramePadding.x * 2.0f };
+	float consume_width{ ImGui::CalcTextSize("Consume").x +
+						 ImGui::GetStyle().FramePadding.x * 2.0f };
+	const EventEditorRegistration* selected{ EventEditorRegistry::Find(event.type_hash) };
+	bool event_type_changed{ false };
+
+	auto inline_field_count = [](const EventEditorRegistration* registration) {
+		return registration ? registration->options.inline_fields : 0;
+	};
+
+	if (ImGui::BeginTable(
+			"EventRow", 3, ImGuiTableFlags_SizingStretchProp | ImGuiTableFlags_NoSavedSettings
+		)) {
+		ImGui::TableSetupColumn("Kind", ImGuiTableColumnFlags_WidthFixed, kind_width);
+		ImGui::TableSetupColumn("Event", ImGuiTableColumnFlags_WidthStretch);
+		ImGui::TableSetupColumn("Consume", ImGuiTableColumnFlags_WidthFixed, consume_width);
+		ImGui::TableNextRow(ImGuiTableRowFlags_None, ImGui::GetFrameHeight());
+
+		int column{};
+		ImGui::TableSetColumnIndex(column++);
+		ImGui::BeginDisabled(!event.enabled);
+
+		if (ImGui::Button(
+				stop_event ? "Stop" : "Start", ImVec2{ -FLT_MIN, ImGui::GetFrameHeight() }
+			)) {
+			switch_kind = true;
+		}
+
+		context_requested |= IsItemRightClicked();
+
+		DrawTooltip(
+			stop_event ? "Change this to a start trigger. Right click for trigger options."
+					   : "Change this to a stop trigger. Right click for trigger options."
+		);
+		ImGui::EndDisabled();
+
+		ImGui::TableSetColumnIndex(column++);
+		ImGui::BeginDisabled(!event.enabled);
+
+		int initial_inline_fields{ inline_field_count(selected) };
+		float available_width{ ImGui::GetContentRegionAvail().x };
+		float spacing{ ImGui::GetStyle().ItemSpacing.x };
+		float event_width{ available_width };
+
+		if (initial_inline_fields > 0) {
+			event_width = std::clamp(available_width * 0.4f, 110.0f, 190.0f);
+			float minimum_fields_width{ 80.0f * static_cast<float>(initial_inline_fields) };
+
+			if (available_width - event_width -
+					spacing * static_cast<float>(initial_inline_fields) <
+				minimum_fields_width) {
+				event_width = std::max(
+					90.0f, available_width - spacing * static_cast<float>(initial_inline_fields) -
+							   minimum_fields_width
+				);
+			}
+		}
+
+		std::string selected_label{ selected ? TrimMenuText(selected->options.label)
+											 : std::string{ "Missing Event" } };
+		ImGui::SetNextItemWidth(std::max(1.0f, event_width));
+		bool combo_open{ ImGui::BeginCombo("##Event", selected_label.c_str()) };
+		context_requested |= IsItemRightClicked();
+
+		if (combo_open) {
+			auto select_candidate = [&](const EventEditorRegistration& candidate) {
+				const auto* registration{ SequenceEventRegistry::Find(candidate.type_hash) };
+
+				if (!IsTriggerCandidateAvailable(context, candidate)) {
+					return;
+				}
+
+				std::string label{ TrimMenuText(candidate.options.label) };
+
+				if (ImGui::MenuItem(
+						label.c_str(), nullptr, candidate.type_hash == event.type_hash
+					)) {
+					event.type_hash = candidate.type_hash;
+					event.name		= registration->name;
+					registration->set_defaults(event);
+					ApplyContextualTimerElapsedDefault(context, event);
+					ApplyContextualVariableDefault(context, event);
+					selected		   = EventEditorRegistry::Find(event.type_hash);
+					event_type_changed = true;
+					changed			   = true;
+				}
+
+				DrawTooltip(candidate.options.description.c_str());
+			};
+
+			for (const auto& candidate : EventEditorRegistry::Entries()) {
+				if (TrimMenuText(candidate.options.group).empty()) {
+					select_candidate(candidate);
+				}
+			}
+
+			std::vector<std::string> groups;
+
+			for (const auto& candidate : EventEditorRegistry::Entries()) {
+				std::string group{ TrimMenuText(candidate.options.group) };
+
+				if (!group.empty() && IsTriggerCandidateAvailable(context, candidate) &&
+					!std::ranges::contains(groups, group)) {
+					groups.push_back(group);
+				}
+			}
+
+			for (const auto& group : groups) {
+				if (!ImGui::BeginMenu(group.c_str())) {
+					continue;
+				}
+
+				for (const auto& candidate : EventEditorRegistry::Entries()) {
+					if (TrimMenuText(candidate.options.group) == group) {
+						select_candidate(candidate);
+					}
+				}
+
+				ImGui::EndMenu();
+			}
+
+			ImGui::EndCombo();
+		}
+
+		if (selected && !event_type_changed && selected->options.inline_fields > 0) {
+			ImGui::SameLine();
+
+			if (event.type_hash == Hash<event::TimerElapsed>()) {
+				changed |= DrawTimerElapsedTrigger(context, event.value);
+			} else if (event.type_hash == Hash<event::CounterChanged>()) {
+				changed |= DrawCounterTrigger(context, event.value);
+			} else if (event.type_hash == Hash<event::BooleanChanged>()) {
+				changed |= DrawBooleanTrigger(context, event.value);
+			} else if (selected->options.draw) {
+				changed |= selected->options.draw(event.value);
+			}
+		}
+
+		ImGui::EndDisabled();
+
+		ImGui::TableSetColumnIndex(column);
+		ImGui::BeginDisabled(!event.enabled);
+		changed |= DrawToggleButton(
+			"Consume", event.consume, ImVec2{ -FLT_MIN, ImGui::GetFrameHeight() },
+			"Stop propagation after this event matches."
+		);
+		ImGui::EndDisabled();
+		ImGui::EndTable();
+	}
+
+	if (context_requested) {
+		ImGui::OpenPopup("TriggerContext");
+	}
+
+	if (ImGui::BeginPopup("TriggerContext")) {
+		changed |= DrawEnableDisableMenuItem(event.enabled);
+		ImGui::Separator();
+
+		if (ImGui::MenuItem("Delete")) {
+			remove = true;
+		}
+
+		ImGui::EndPopup();
+	}
+
+	return remove;
+}
+
+bool DrawAddTriggerPopup(ScriptEditorContext& context, ScriptSequence& sequence) {
+	if (!ImGui::BeginPopup("AddTrigger")) {
+		return false;
+	}
+
+	bool changed{ false };
+	auto add_candidate = [&](const EventEditorRegistration& candidate) {
+		const auto* registration{ SequenceEventRegistry::Find(candidate.type_hash) };
+
+		if (!registration || !IsTriggerCandidateAvailable(context, candidate)) {
+			return;
+		}
+
+		std::string label{ TrimMenuText(candidate.options.label) };
+
+		if (ImGui::MenuItem(label.c_str())) {
+			EventCondition trigger{
+				.enabled   = true,
+				.type_hash = registration->type_hash,
+				.name	   = registration->name,
+			};
+			registration->set_defaults(trigger);
+			ApplyContextualTimerElapsedDefault(context, trigger);
+			ApplyContextualVariableDefault(context, trigger);
+			sequence.start_events.push_back(std::move(trigger));
+			changed = true;
+		}
+
+		DrawTooltip(candidate.options.description.c_str());
+	};
+
+	for (const auto& candidate : EventEditorRegistry::Entries()) {
+		if (TrimMenuText(candidate.options.group).empty()) {
+			add_candidate(candidate);
+		}
+	}
+
+	std::vector<std::string> groups;
+
+	for (const auto& candidate : EventEditorRegistry::Entries()) {
+		std::string group{ TrimMenuText(candidate.options.group) };
+
+		if (!group.empty() && IsTriggerCandidateAvailable(context, candidate) &&
+			!std::ranges::contains(groups, group)) {
+			groups.push_back(group);
+		}
+	}
+
+	for (const auto& group : groups) {
+		if (!ImGui::BeginMenu(group.c_str())) {
+			continue;
+		}
+
+		for (const auto& candidate : EventEditorRegistry::Entries()) {
+			if (TrimMenuText(candidate.options.group) == group) {
+				add_candidate(candidate);
+			}
+		}
+
+		ImGui::EndMenu();
+	}
+
+	ImGui::EndPopup();
+	return changed;
+}
+
+bool DrawAddActionPopup(ScriptSequence& sequence) {
+	if (!ImGui::BeginPopup("AddAction")) {
+		return false;
+	}
+
+	bool changed{ false };
+
+	if (ImGui::MenuItem("Action")) {
+		sequence.steps.push_back(ScriptRegistry::MakeStep<EmitSignalScript>());
+		changed = true;
+	}
+
+	if (ImGui::MenuItem("Tween")) {
+		auto action{ ScriptRegistry::MakeStep<MoveToScript>() };
+		SetActionForm(action, ActionForm::Tween);
+		sequence.steps.push_back(std::move(action));
+		changed = true;
+	}
+
+	if (ImGui::MenuItem("Delay")) {
+		sequence.steps.push_back(ScriptRegistry::MakeStep<WaitScript>());
+		changed = true;
+	}
+
+	ImGui::Separator();
+
+	if (ImGui::BeginMenu("Lifecycle callback")) {
+		for (int i{ 0 }; i < static_cast<int>(kLifecycleLabels.size()); ++i) {
+			if (ImGui::MenuItem(kLifecycleLabels[static_cast<std::size_t>(i)])) {
+				sequence.lifecycle_actions.push_back(
+					LifecycleScript{
+						.enabled   = true,
+						.lifecycle = static_cast<SequenceLifecycle>(i),
+						.action	   = ScriptRegistry::MakeStep<EmitSignalScript>(),
+					}
+				);
+				changed = true;
+			}
+		}
+
+		ImGui::EndMenu();
+	}
+
+	DrawTooltip("Add a lifecycle callback.");
+	ImGui::EndPopup();
+	return changed;
+}
+
+bool DrawSequenceOptionsCombo(
+	ScriptEditorContext& context, ScriptSequence& binding, ScriptSequence*& sequence,
+	float width = -FLT_MIN
+) {
+	bool changed{ false };
+	std::vector<std::string> selected_sequence_options;
+
+	if (binding.shared_reference) {
+		selected_sequence_options.emplace_back("Global sequence");
+	}
+
+	if (sequence->remove_binding_on_complete) {
+		selected_sequence_options.emplace_back("Remove binding on complete");
+	}
+
+	if (sequence->destroy_owner_on_complete) {
+		selected_sequence_options.emplace_back("Destroy owner on complete");
+	}
+
+	if (sequence->channel) {
+		selected_sequence_options.emplace_back("Channel: " + sequence->channel->value);
+	}
+
+	switch (sequence->reentry) {
+		case ReentryMode::IgnoreWhileRunning:
+			selected_sequence_options.emplace_back("Ignore on retrigger");
+			break;
+		case ReentryMode::Restart:
+			selected_sequence_options.emplace_back("Restart on retrigger");
+			break;
+		case ReentryMode::Queue:
+			selected_sequence_options.emplace_back("Queue on retrigger");
+			break;
+	}
+
+	ImGui::SetNextItemWidth(width);
+
+	if (ImGui::BeginCombo("##SequenceOptions", "Options")) {
+		if (ResolveInspectedEntity(context)) {
+			bool global{ binding.shared_reference };
+
+			if (ImGui::MenuItem("Global sequence", nullptr, global)) {
+				if (global) {
+					DetachToLocal(context, binding);
+				} else {
+					PromoteToShared(context, binding);
+				}
+
+				sequence = ResolveEditorSequence(context, binding);
+				changed	 = true;
+			}
+
+			ImGui::Separator();
+		}
+
+		if (sequence &&
+			ImGui::MenuItem(
+				"Remove binding on complete", nullptr, sequence->remove_binding_on_complete
+			)) {
+			sequence->remove_binding_on_complete = !sequence->remove_binding_on_complete;
+			changed								 = true;
+		}
+
+		if (sequence &&
+			ImGui::MenuItem(
+				"Destroy owner on complete", nullptr, sequence->destroy_owner_on_complete
+			)) {
+			sequence->destroy_owner_on_complete = !sequence->destroy_owner_on_complete;
+			changed								= true;
+		}
+
+		if (sequence) {
+			bool has_channel{ sequence->channel.has_value() };
+
+			if (ImGui::MenuItem("Use sequence channel", nullptr, has_channel)) {
+				if (has_channel) {
+					sequence->channel.reset();
+				} else {
+					sequence->channel = "default";
+				}
+
+				changed = true;
+			}
+		}
+
+		if (sequence &&
+			ImGui::MenuItem(
+				"Ignore on retrigger", nullptr, sequence->reentry == ReentryMode::IgnoreWhileRunning
+			)) {
+			sequence->reentry = ReentryMode::IgnoreWhileRunning;
+			changed			  = true;
+		}
+
+		if (sequence &&
+			ImGui::MenuItem(
+				"Restart on retrigger", nullptr, sequence->reentry == ReentryMode::Restart
+			)) {
+			sequence->reentry = ReentryMode::Restart;
+			changed			  = true;
+		}
+
+		if (sequence && ImGui::MenuItem(
+							"Queue on retrigger", nullptr, sequence->reentry == ReentryMode::Queue
+						)) {
+			sequence->reentry = ReentryMode::Queue;
+			changed			  = true;
+		}
+
+		ImGui::EndCombo();
+	}
+
+	DrawSelectedItemsTooltip(selected_sequence_options);
+	return changed;
+}
+
+bool DrawSequenceToolbar(
+	ScriptEditorContext& context, ScriptSequence& binding, ScriptSequence*& sequence,
+	int resident_index
+) {
+	bool changed{ false };
+	bool show_runtime_controls{ IsRuntimeActive(context) };
+	Entity runtime_owner{ ResolveRuntimeOwner(context) };
+	ScriptSequence* runtime_binding{
+		show_runtime_controls ? FindRuntimeRootSequence(runtime_owner, binding.id, resident_index)
+							  : nullptr
+	};
+	bool can_control_runtime{ runtime_owner && runtime_binding };
+	float button_size{ ImGui::GetFrameHeight() };
+
+	if (!ImGui::BeginTable(
+			"SequenceToolbar", show_runtime_controls ? 5 : 4,
+			ImGuiTableFlags_SizingStretchProp | ImGuiTableFlags_NoSavedSettings
+		)) {
+		return false;
+	}
+
+	ImGui::TableSetupColumn("Trigger", ImGuiTableColumnFlags_WidthStretch, 1.0f);
+	ImGui::TableSetupColumn("Condition", ImGuiTableColumnFlags_WidthStretch, 1.0f);
+	ImGui::TableSetupColumn("Action", ImGuiTableColumnFlags_WidthStretch, 1.0f);
+	ImGui::TableSetupColumn("Options", ImGuiTableColumnFlags_WidthStretch, 1.0f);
+	if (show_runtime_controls) {
+		float runtime_width{ button_size * 4.0f + ImGui::GetStyle().ItemInnerSpacing.x * 3.0f };
+		ImGui::TableSetupColumn("Runtime", ImGuiTableColumnFlags_WidthFixed, runtime_width);
+	}
+	ImGui::TableNextRow(ImGuiTableRowFlags_None, button_size);
+
+	ImGui::TableSetColumnIndex(0);
+
+	if (ImGui::Button("+ Trigger", ImVec2{ -FLT_MIN, button_size })) {
+		ImGui::OpenPopup("AddTrigger");
+	}
+
+	DrawTooltip("Add a start trigger.");
+
+	if (sequence) {
+		changed |= DrawAddTriggerPopup(context, *sequence);
+	}
+
+	ImGui::TableSetColumnIndex(1);
+
+	if (ImGui::Button("+ Condition", ImVec2{ -FLT_MIN, button_size })) {
+		ImGui::OpenPopup("AddCondition");
+	}
+	DrawTooltip("Add a Boolean or Counter start condition. Combine conditions using AND or OR.");
+	if (sequence) {
+		changed |= DrawAddConditionPopup(context, *sequence);
+	}
+
+	ImGui::TableSetColumnIndex(2);
+
+	if (ImGui::Button("+ Action", ImVec2{ -FLT_MIN, button_size })) {
+		ImGui::OpenPopup("AddAction");
+	}
+
+	DrawTooltip("Add an Action, Tween, Delay, or lifecycle callback.");
+
+	if (sequence) {
+		changed |= DrawAddActionPopup(*sequence);
+	}
+
+	ImGui::TableSetColumnIndex(3);
+
+	changed |= DrawSequenceOptionsCombo(context, binding, sequence, -FLT_MIN);
+
+	if (show_runtime_controls) {
+		ImGui::TableSetColumnIndex(4);
+		const ScriptSequenceRuntime& runtime{
+			runtime_binding
+				? runtime_binding->runtime
+				: (sequence ? GetDisplayedSequenceRuntime(*sequence, binding) : binding.runtime)
+		};
+		bool active{ runtime.running || runtime.paused };
+		ImGui::BeginDisabled(!can_control_runtime);
+		if (DrawSequenceRuntimeButton(
+				"##SequenceStartStop", active ? EditorIcon::Stop : EditorIcon::Play,
+				active ? "Stop and reset this sequence." : "Start this sequence."
+			)) {
+			if (active) {
+				ScriptSystem::Reset(runtime_owner, runtime_binding->id);
+			} else {
+				ScriptSystem::Start(runtime_owner, runtime_binding->id);
+			}
+		}
+		ImGui::EndDisabled();
+
+		ImGui::SameLine(0.0f, ImGui::GetStyle().ItemInnerSpacing.x);
+		ImGui::BeginDisabled(!can_control_runtime || !active);
+		if (DrawSequenceRuntimeButton(
+				"##SequencePauseResume", runtime.paused ? EditorIcon::Play : EditorIcon::Pause,
+				runtime.paused ? "Resume this sequence." : "Pause this sequence."
+			)) {
+			ScriptSystem::SetPaused(runtime_owner, runtime_binding->id, !runtime.paused);
+		}
+		ImGui::EndDisabled();
+
+		ImGui::SameLine(0.0f, ImGui::GetStyle().ItemInnerSpacing.x);
+		ImGui::BeginDisabled(!can_control_runtime || !active || runtime.step_index == 0);
+		if (DrawSequenceRuntimeButton(
+				"##SequencePrevious", EditorIcon::StepBackward,
+				"Return to the previous sequence step."
+			)) {
+			ScriptSystem::PreviousStep(runtime_owner, runtime_binding->id);
+		}
+		ImGui::EndDisabled();
+
+		ImGui::SameLine(0.0f, ImGui::GetStyle().ItemInnerSpacing.x);
+		ImGui::BeginDisabled(!can_control_runtime || !active);
+		if (DrawSequenceRuntimeButton(
+				"##SequenceNext", EditorIcon::StepForward, "Skip this step or finish the sequence."
+			)) {
+			ScriptSystem::Skip(runtime_owner, runtime_binding->id);
+		}
+		ImGui::EndDisabled();
+	}
+
+	ImGui::EndTable();
+
+	return changed;
+}
+
+bool DrawEvents(ScriptEditorContext& context, ScriptSequence& sequence) {
+	bool changed{ false };
+	int remove_start{ -1 };
+	int move_start_to_stop{ -1 };
+
+	ImGui::PushID("StartEvents");
+
+	for (int i{ 0 }; i < static_cast<int>(sequence.start_events.size()); ++i) {
+		ImGui::PushID(i);
+
+		bool switch_kind{ false };
+
+		if (DrawEvent(
+				context, sequence.start_events[static_cast<std::size_t>(i)], false, switch_kind,
+				changed
+			)) {
+			remove_start = i;
+		}
+
+		if (switch_kind) {
+			move_start_to_stop = i;
+		}
+
+		ImGui::PopID();
+	}
+
+	ImGui::PopID();
+
+	int remove_stop{ -1 };
+	int move_stop_to_start{ -1 };
+
+	ImGui::PushID("StopEvents");
+
+	for (int i{ 0 }; i < static_cast<int>(sequence.stop_events.size()); ++i) {
+		ImGui::PushID(i);
+
+		bool switch_kind{ false };
+
+		if (DrawEvent(
+				context, sequence.stop_events[static_cast<std::size_t>(i)], true, switch_kind,
+				changed
+			)) {
+			remove_stop = i;
+		}
+
+		if (switch_kind) {
+			move_stop_to_start = i;
+		}
+
+		ImGui::PopID();
+	}
+
+	ImGui::PopID();
+
+	std::optional<EventCondition> moved_to_stop;
+	std::optional<EventCondition> moved_to_start;
+
+	if (remove_start < 0 && move_start_to_stop >= 0) {
+		moved_to_stop.emplace(
+			std::move(sequence.start_events[static_cast<std::size_t>(move_start_to_stop)])
+		);
+	}
+
+	if (remove_stop < 0 && move_stop_to_start >= 0) {
+		moved_to_start.emplace(
+			std::move(sequence.stop_events[static_cast<std::size_t>(move_stop_to_start)])
+		);
+	}
+
+	if (remove_start >= 0) {
+		sequence.start_events.erase(sequence.start_events.begin() + remove_start);
+		changed = true;
+	} else if (move_start_to_stop >= 0) {
+		sequence.start_events.erase(sequence.start_events.begin() + move_start_to_stop);
+		changed = true;
+	}
+
+	if (remove_stop >= 0) {
+		sequence.stop_events.erase(sequence.stop_events.begin() + remove_stop);
+		changed = true;
+	} else if (move_stop_to_start >= 0) {
+		sequence.stop_events.erase(sequence.stop_events.begin() + move_stop_to_start);
+		changed = true;
+	}
+
+	if (moved_to_stop) {
+		sequence.stop_events.push_back(std::move(*moved_to_stop));
+	}
+
+	if (moved_to_start) {
+		sequence.start_events.push_back(std::move(*moved_to_start));
+	}
+
+	changed |= DrawLifecycleRows(context, sequence);
+	return changed;
+}
+
+[[maybe_unused]] bool DrawSequence(
+	ScriptEditorContext& context, ScriptSequence& binding, bool& changed, int resident_index
+) {
+	ScriptSequence* sequence{ ResolveEditorSequence(context, binding) };
+
+	if (!sequence) {
+		ImGui::TextDisabled("Missing shared Script Sequence");
+		return false;
+	}
+
+	bool remove{ false };
+	auto& state{ GetScriptInspectorState() };
+
+	ImGui::PushID("ScriptSequence");
+	ImGui::PushID(resident_index);
+
+	ImGuiID editor_id{ ImGui::GetID("EditorState") };
+	float button_size{ ImGui::GetFrameHeight() };
+	auto& stored_open{ state.sequence_open_states.try_emplace(binding.id, true).first->second };
+	bool open{ stored_open };
+	ImVec2 name_input_min{};
+	ImVec2 name_input_max{};
+	bool name_input_drawn{ false };
+	bool name_input_hovered{ false };
+	bool began_name_edit_this_frame{ false };
+	bool begin_edit{ false };
+
+	if (ImGui::BeginTable(
+			"ScriptSequenceHeader", 1,
+			ImGuiTableFlags_SizingStretchProp | ImGuiTableFlags_NoSavedSettings
+		)) {
+		ImGui::TableSetupColumn("Sequence", ImGuiTableColumnFlags_WidthStretch, 1.0f);
+		ImGui::TableNextRow(ImGuiTableRowFlags_None, button_size);
+		ImGui::TableSetColumnIndex(0);
+
+		ImVec2 header_min{ ImGui::GetCursorScreenPos() };
+		ImVec2 header_max{
+			header_min.x + std::max(1.0f, ImGui::GetContentRegionAvail().x),
+			header_min.y + button_size,
+		};
+		ImVec2 mouse{ ImGui::GetMousePos() };
+
+		ImGui::SetNextItemOpen(stored_open, ImGuiCond_Always);
+		bool editing_before_draw{ state.editing_sequence_name == editor_id };
+		ImVec4 header{ binding.enabled ? ImVec4{ 0.35f, 0.24f, 0.39f, 1.0f }
+									   : ImVec4{ 0.25f, 0.25f, 0.25f, 1.0f } };
+		ImVec4 header_hovered{ binding.enabled ? ImVec4{ 0.44f, 0.31f, 0.48f, 1.0f }
+											   : ImVec4{ 0.30f, 0.30f, 0.30f, 1.0f } };
+		ImVec4 header_active{ binding.enabled ? ImVec4{ 0.50f, 0.36f, 0.55f, 1.0f }
+											  : ImVec4{ 0.34f, 0.34f, 0.34f, 1.0f } };
+		bool header_hovered_before_draw{ ImGui::IsWindowHovered() &&
+										 ImGui::IsMouseHoveringRect(header_min, header_max) };
+		bool header_active_before_draw{ !editing_before_draw && header_hovered_before_draw &&
+										ImGui::IsMouseDown(ImGuiMouseButton_Left) };
+		ImVec4 header_color{ editing_before_draw
+								 ? header
+								 : (header_active_before_draw
+										? header_active
+										: (header_hovered_before_draw ? header_hovered : header)) };
+		ImGui::GetWindowDrawList()->AddRectFilled(
+			header_min, header_max, ImGui::GetColorU32(header_color),
+			ImGui::GetStyle().FrameRounding
+		);
+
+		ImVec4 transparent{};
+		ImGui::PushStyleColor(ImGuiCol_Header, transparent);
+		ImGui::PushStyleColor(ImGuiCol_HeaderHovered, transparent);
+		ImGui::PushStyleColor(ImGuiCol_HeaderActive, transparent);
+		open = ImGui::TreeNodeEx(
+			"##ScriptSequence",
+			ImGuiTreeNodeFlags_FramePadding | ImGuiTreeNodeFlags_SpanAvailWidth |
+				ImGuiTreeNodeFlags_NoTreePushOnOpen | ImGuiTreeNodeFlags_AllowOverlap,
+			"%s", editing_before_draw ? "" : sequence->name.c_str()
+		);
+		ImGui::PopStyleColor(3);
+		stored_open = open;
+
+		ImVec2 tree_min{ header_min };
+		ImVec2 tree_max{ header_max };
+		bool tree_hovered{ ImGui::IsItemHovered() };
+		float text_start_x{ tree_min.x + ImGui::GetFrameHeight() };
+		float minimum_name_width{ 48.0f };
+		float visible_name_width{
+			std::max(minimum_name_width, ImGui::CalcTextSize(sequence->name.c_str()).x)
+		};
+		float name_hit_end_x{ std::min(tree_max.x, text_start_x + visible_name_width) };
+		bool name_hit_hovered{ tree_hovered && mouse.x >= text_start_x &&
+							   mouse.x <= name_hit_end_x };
+		begin_edit = !editing_before_draw && name_hit_hovered &&
+					 ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left);
+
+		if (ImGui::BeginPopupContextItem("SequenceContext")) {
+			if (ImGui::MenuItem("Rename")) {
+				begin_edit = true;
+			}
+
+			if (DrawEnableDisableMenuItem(binding.enabled)) {
+				changed = true;
+			}
+
+			ImGui::Separator();
+
+			if (ImGui::MenuItem("Delete")) {
+				remove = true;
+			}
+
+			ImGui::EndPopup();
+		}
+
+		if (begin_edit) {
+			state.editing_sequence_name			 = editor_id;
+			state.editing_sequence_original_name = sequence->name;
+			began_name_edit_this_frame			 = true;
+		}
+
+		if (state.editing_sequence_name == editor_id) {
+			ImGui::SetCursorScreenPos(ImVec2{ text_start_x, tree_min.y });
+			ImGui::SetNextItemWidth(
+				std::max(
+					minimum_name_width, tree_max.x - text_start_x - ImGui::GetStyle().FramePadding.x
+				)
+			);
+
+			if (begin_edit) {
+				ImGui::SetKeyboardFocusHere();
+			}
+
+			bool submitted{ ImGui::InputText(
+				"##SequenceName", &sequence->name, ImGuiInputTextFlags_EnterReturnsTrue
+			) };
+			changed			   |= ImGui::IsItemEdited();
+			name_input_min		= ImGui::GetItemRectMin();
+			name_input_max		= ImGui::GetItemRectMax();
+			name_input_drawn	= true;
+			name_input_hovered	= ImGui::IsItemHovered() || ImGui::IsItemActive();
+
+			if (ImGui::IsKeyPressed(ImGuiKey_Escape)) {
+				sequence->name = state.editing_sequence_original_name;
+				state.editing_sequence_name.reset();
+			} else if (submitted) {
+				state.editing_sequence_name.reset();
+				changed = true;
+			}
+		}
+
+		if (tree_hovered && state.editing_sequence_name != editor_id) {
+			ImGui::SetTooltip("Double click to rename. Right click for sequence options.");
+		}
+
+		ImGui::EndTable();
+	}
+
+	if (state.editing_sequence_name == editor_id && name_input_drawn &&
+		!began_name_edit_this_frame) {
+		bool clicked{ ImGui::IsMouseClicked(ImGuiMouseButton_Left) ||
+					  ImGui::IsMouseClicked(ImGuiMouseButton_Middle) ||
+					  ImGui::IsMouseClicked(ImGuiMouseButton_Right) };
+		ImVec2 mouse{ ImGui::GetMousePos() };
+		bool inside_input{ mouse.x >= name_input_min.x && mouse.x <= name_input_max.x &&
+						   mouse.y >= name_input_min.y && mouse.y <= name_input_max.y };
+
+		if (clicked && !inside_input && !name_input_hovered) {
+			state.editing_sequence_name.reset();
+			changed = true;
+		}
+	}
+
+	if (remove) {
+		state.editing_sequence_name.reset();
+	}
+
+	if (open && !remove) {
+		sequence = ResolveEditorSequence(context, binding);
+
+		if (sequence) {
+			changed |= DrawSequenceToolbar(context, binding, sequence, resident_index);
+
+			if (sequence && sequence->channel &&
+				ImGui::BeginTable(
+					"SequenceChannelRow", 2,
+					ImGuiTableFlags_SizingStretchProp | ImGuiTableFlags_NoSavedSettings
+				)) {
+				float label_width{ ImGui::CalcTextSize("Channel:").x +
+								   ImGui::GetStyle().ItemInnerSpacing.x };
+				ImGui::TableSetupColumn("Label", ImGuiTableColumnFlags_WidthFixed, label_width);
+				ImGui::TableSetupColumn("Value", ImGuiTableColumnFlags_WidthStretch);
+				ImGui::TableNextRow(ImGuiTableRowFlags_None, ImGui::GetFrameHeight());
+				ImGui::TableSetColumnIndex(0);
+				ImGui::AlignTextToFramePadding();
+				ImGui::TextUnformatted("Channel:");
+				ImGui::TableSetColumnIndex(1);
+				ImGui::SetNextItemWidth(-FLT_MIN);
+				changed |= ImGui::InputText("##SequenceChannel", &sequence->channel->value);
+				DrawTooltip(
+					"Only one binding owns a channel at a time. Restart replaces it; Queue waits."
+				);
+				ImGui::EndTable();
+			}
+
+			if (sequence) {
+				changed |= DrawEvents(context, *sequence);
+				changed |= DrawStateConditions(context, *sequence);
+				changed |= DrawActions(context, *sequence, binding, resident_index);
+			}
+		}
+	}
+
+	ImGui::PopID();
+	ImGui::PopID();
+	return remove;
+}
+
+bool DrawSequenceTabContents(
+	ScriptEditorContext& context, ScriptSequence& binding, int resident_index
+) {
+	ScriptSequence* sequence{ ResolveEditorSequence(context, binding) };
+	if (!sequence) {
+		ImGui::TextDisabled("Missing shared Script Sequence");
+		return false;
+	}
+
+	bool changed{ DrawSequenceToolbar(context, binding, sequence, resident_index) };
+	sequence = ResolveEditorSequence(context, binding);
+	if (!sequence) {
+		return changed;
+	}
+
+	if (sequence->channel) {
+		changed |= DrawPropertyRow("Channel", [&]() {
+			ImGui::SetNextItemWidth(-FLT_MIN);
+			bool local{ ImGui::InputText("##SequenceChannel", &sequence->channel->value) };
+			DrawTooltip(
+				"Only one binding owns a channel at a time. Restart replaces it; Queue waits."
+			);
+			return local;
+		});
+	}
+
+	changed |= DrawEvents(context, *sequence);
+	changed |= DrawStateConditions(context, *sequence);
+	changed |= DrawActions(context, *sequence, binding, resident_index);
+	return changed;
+}
+
+[[nodiscard]] std::string MakeNextScriptSequenceName(const ::ptgn::impl::Scripts& scripts) {
+	for (std::size_t number{ 1 };; ++number) {
+		std::string candidate{ "Sequence " + std::to_string(number) };
+		bool exists{ std::ranges::any_of(scripts.scripts, [&](const ScriptEntry& entry) {
+			if (entry.type_hash != Hash<Script>()) {
+				return false;
+			}
+			const ScriptSequence& sequence{ entry.instance ? entry.instance->sequence
+														   : entry.sequence };
+			return sequence.name == candidate;
+		}) };
+		if (!exists) {
+			return candidate;
+		}
+	}
+}
+
+std::optional<int> DrawSequenceTabs(
+	ScriptEditorContext& context, ::ptgn::impl::Scripts& scripts, bool& changed
+) {
+	std::vector<int> sequence_indices;
+	for (int i{ 0 }; i < static_cast<int>(scripts.scripts.size()); ++i) {
+		if (scripts.scripts[static_cast<std::size_t>(i)].type_hash == Hash<Script>()) {
+			sequence_indices.push_back(i);
+		}
+	}
+	static RenameModalState rename_state{};
+	static std::optional<int> rename_index{};
+	std::optional<int> remove{};
+
+	bool add_requested{ DrawInspectorTabCollection(
+		sequence_indices.empty(),
+		InspectorTabCollectionOptions{
+			.scope_id		 = "##ScriptSequenceTabStrip",
+			.tab_bar_id		 = "##ScriptSequenceTabs",
+			.add_tab_id		 = "+##AddScriptSequence",
+			.empty_add_label = "Add Script Sequence",
+			.add_tooltip	 = "Add local script sequence",
+		},
+		[&]() {
+			for (int i : sequence_indices) {
+				auto& script{ scripts.scripts[static_cast<std::size_t>(i)] };
+				ScriptSequence* editable_sequence{ std::addressof(script.sequence) };
+				const auto* registration{ ScriptRegistry::Find(script.type_hash) };
+
+				if (context.owner) {
+					if (!script.instance && registration) {
+						ScriptSystem::AttachEntry(context.owner, script);
+					}
+					auto* sequence_script{ script.instance.get() };
+					if (!sequence_script) {
+						continue;
+					}
+					editable_sequence = std::addressof(sequence_script->sequence);
+				}
+
+				editable_sequence->enabled = script.enabled;
+				ScopedID tab_scope{ i };
+				std::string tab_label{ editable_sequence->name.empty() ? "Sequence"
+																	   : editable_sequence->name };
+				bool selected{ BeginScriptTabItem(tab_label.c_str(), !script.enabled) };
+				if (ImGui::BeginPopupContextItem("##SequenceTabContext")) {
+					if (ImGui::MenuItem("Rename")) {
+						rename_index = i;
+						rename_state.Begin(editable_sequence->name);
+					}
+					if (ImGui::MenuItem(script.enabled ? "Disable" : "Enable")) {
+						script.enabled			   = !script.enabled;
+						editable_sequence->enabled = script.enabled;
+						changed					   = true;
+					}
+					ImGui::Separator();
+					if (ImGui::MenuItem("Delete Sequence")) {
+						remove = i;
+					}
+					ImGui::EndPopup();
+				}
+				if (selected) {
+					if (!remove.has_value() &&
+						DrawSequenceTabContents(context, *editable_sequence, i)) {
+						changed = true;
+					}
+					ImGui::EndTabItem();
+				}
+				script.enabled = editable_sequence->enabled;
+				if (context.owner) {
+					SequenceId sequence_id{ editable_sequence->id };
+					script.sequence			= *editable_sequence;
+					script.sequence.id		= sequence_id;
+					script.sequence.runtime = ScriptSequenceRuntime{};
+				}
+			}
+		}
+	) };
+
+	if (add_requested) {
+		if (const auto* registration{ ScriptRegistry::Find(Hash<Script>()) }) {
+			ScriptEntry entry{ MakeRootEntry(registration->type_hash) };
+			entry.sequence.name = MakeNextScriptSequenceName(scripts);
+			AddEditorScriptEntry(context, scripts, std::move(entry));
+			changed = true;
+		}
+	}
+
+	if (remove.has_value() && rename_index.has_value()) {
+		if (*rename_index == *remove) {
+			rename_state.Cancel();
+			rename_index.reset();
+		} else if (*rename_index > *remove) {
+			--*rename_index;
+		}
+	}
+
+	if (rename_state.active && rename_index.has_value()) {
+		int index{ *rename_index };
+		DrawInspectorTabRenameModal(
+			rename_state, "Rename Script Sequence", "##RenameScriptSequence",
+			[](std::string_view name) {
+				return name.empty() ? std::string{ "Sequence name cannot be empty." }
+									: std::string{};
+			},
+			[&](std::string_view name) {
+				if (index < 0 || index >= static_cast<int>(scripts.scripts.size())) {
+					return;
+				}
+				auto& script{ scripts.scripts[static_cast<std::size_t>(index)] };
+				ScriptSequence* sequence{ std::addressof(script.sequence) };
+				if (context.owner && script.instance) {
+					sequence = std::addressof(script.instance->sequence);
+				}
+				sequence->name		 = std::string{ name };
+				script.sequence.name = sequence->name;
+				changed				 = true;
+			},
+			""
+		);
+		if (!rename_state.active) {
+			rename_index.reset();
+		}
+	}
+	return remove;
+}
+
+bool DrawAddRootScriptPopup(ScriptEditorContext& context, ::ptgn::impl::Scripts& scripts) {
+	if (!ImGui::BeginPopup("AddScript")) {
+		return false;
+	}
+
+	bool changed{ false };
+
+	auto already_added = [&](TypeHashValue type_hash) {
+		return std::ranges::any_of(scripts.scripts, [&](const ScriptEntry& entry) {
+			return entry.type_hash == type_hash;
+		});
+	};
+
+	auto is_resident_candidate = [](const ScriptRegistration& registration) {
+		if (registration.type_hash == Hash<Script>()) {
+			return false;
+		}
+
+		const auto* editor{ ScriptEditorRegistry::Find(registration.type_hash) };
+		return editor && HasScriptType(editor->options.type, ScriptType::Resident) &&
+			   !editor->options.hidden;
+	};
+
+	auto candidate_group = [](const ScriptEditorRegistration& editor) -> std::string_view {
+		return editor.options.group.empty() ? std::string_view{ "Other" }
+											: std::string_view{ editor.options.group };
+	};
+
+	auto add_registered = [&](const ScriptRegistration& registration) {
+		const auto* editor{ ScriptEditorRegistry::Find(registration.type_hash) };
+		if (!editor || !HasScriptType(editor->options.type, ScriptType::Resident) ||
+			editor->options.hidden) {
+			return;
+		}
+
+		bool available{ !already_added(registration.type_hash) };
+		if (ImGui::MenuItem(editor->options.label.c_str(), nullptr, false, available)) {
+			AddEditorScriptEntry(context, scripts, MakeRootEntry(registration.type_hash));
+			changed = true;
+		}
+		DrawTooltip(editor->options.description.c_str());
+	};
+
+	std::vector<std::string> groups;
+	for (const auto& registration : ScriptRegistry::Entries()) {
+		if (!is_resident_candidate(registration)) {
+			continue;
+		}
+
+		const auto* editor{ ScriptEditorRegistry::Find(registration.type_hash) };
+		if (!editor) {
+			continue;
+		}
+		std::string group{ candidate_group(*editor) };
+		if (!std::ranges::contains(groups, group)) {
+			groups.push_back(std::move(group));
+		}
+	}
+
+	for (const auto& group : groups) {
+		bool can_add_from_group{ std::ranges::any_of(
+			ScriptRegistry::Entries(), [&](const ScriptRegistration& registration) {
+				if (!is_resident_candidate(registration) || already_added(registration.type_hash)) {
+					return false;
+				}
+
+				const auto* editor{ ScriptEditorRegistry::Find(registration.type_hash) };
+				return editor && candidate_group(*editor) == group;
+			}
+		) };
+
+		if (!can_add_from_group) {
+			const ImGuiStyle& style{ ImGui::GetStyle() };
+			ImGui::PushStyleVar(ImGuiStyleVar_Alpha, style.Alpha * style.DisabledAlpha);
+		}
+		bool group_open{ ImGui::BeginMenu(group.c_str()) };
+		if (!can_add_from_group) {
+			ImGui::PopStyleVar();
+		}
+
+		if (!group_open) {
+			continue;
+		}
+
+		for (const auto& registration : ScriptRegistry::Entries()) {
+			if (!is_resident_candidate(registration)) {
+				continue;
+			}
+
+			const auto* editor{ ScriptEditorRegistry::Find(registration.type_hash) };
+			if (editor && candidate_group(*editor) == group) {
+				add_registered(registration);
+			}
+		}
+		ImGui::EndMenu();
+	}
+
+	ImGui::EndPopup();
+	return changed;
+}
+
+std::optional<int> DrawRegisteredScriptTabs(
+	ScriptEditorContext& context, ::ptgn::impl::Scripts& scripts, bool& changed
+) {
+	std::vector<int> script_indices;
+	script_indices.reserve(scripts.scripts.size());
+
+	for (int i{ 0 }; i < static_cast<int>(scripts.scripts.size()); ++i) {
+		if (scripts.scripts[static_cast<std::size_t>(i)].type_hash != Hash<Script>()) {
+			script_indices.push_back(i);
+		}
+	}
+
+	std::optional<int> remove{};
+
+	bool add_requested{ DrawInspectorTabCollection(
+		script_indices.empty(),
+		InspectorTabCollectionOptions{
+			.scope_id		 = "##RegisteredScriptTabStrip",
+			.tab_bar_id		 = "##RegisteredScriptTabs",
+			.add_tab_id		 = "+##AddRegisteredScript",
+			.empty_add_label = "Add Registered Script",
+			.add_tooltip	 = "Add a registered script",
+		},
+		[&]() {
+			for (int i : script_indices) {
+				auto& script{ scripts.scripts[static_cast<std::size_t>(i)] };
+				const auto* registration{ ScriptRegistry::Find(script.type_hash) };
+				const auto* registered_editor{ ScriptEditorRegistry::Find(script.type_hash) };
+				const auto* editor{
+					registered_editor &&
+							HasScriptType(registered_editor->options.type, ScriptType::Resident)
+						? registered_editor
+						: nullptr
+				};
+
+				ScopedID tab_scope{ i };
+
+				std::string tab_label{ editor ? editor->options.label
+											  : (registration ? registration->name
+															  : std::string{ "Missing Script" }) };
+
+				bool selected{ BeginScriptTabItem(tab_label.c_str(), !script.enabled) };
+				if (editor) {
+					DrawTooltip(editor->options.description.c_str());
+				}
+
+				if (ImGui::BeginPopupContextItem("##RegisteredScriptTabContext")) {
+					if (DrawEnableDisableMenuItem(script.enabled)) {
+						changed = true;
+					}
+
+					ImGui::Separator();
+
+					if (ImGui::MenuItem("Delete")) {
+						remove = i;
+					}
+
+					ImGui::EndPopup();
+				}
+
+				if (selected) {
+					if (!remove.has_value() && editor && editor->has_contents && editor->draw &&
+						editor->draw(context, script.value)) {
+						changed				   = true;
+						script.runtime_factory = {};
+
+						if (context.owner) {
+							if (!script.instance) {
+								ScriptSystem::AttachEntry(context.owner, script);
+							} else if (registration && registration->apply) {
+								registration->apply(*script.instance, script.value);
+							}
+						}
+					}
+
+					ImGui::EndTabItem();
+				}
+			}
+		}
+	) };
+
+	if (add_requested) {
+		ImGui::OpenPopup("AddScript");
+	}
+
+	changed |= DrawAddRootScriptPopup(context, scripts);
+
+	return remove;
+}
+
+bool DrawResidentScripts(ScriptEditorContext& context, ::ptgn::impl::Scripts& scripts) {
+	bool changed{ false };
+	std::optional<int> remove{};
+
+	if (auto registered_remove{ DrawRegisteredScriptTabs(context, scripts, changed) }) {
+		remove = *registered_remove;
+	}
+
+	if (auto sequence_remove{ DrawSequenceTabs(context, scripts, changed) }) {
+		remove = *sequence_remove;
+	}
+
+	if (remove.has_value()) {
+		int index{ *remove };
+
+		if (index >= 0 && index < static_cast<int>(scripts.scripts.size())) {
+			if (context.owner && IsRuntimeActive(context)) {
+				auto& entry{ scripts.scripts[static_cast<std::size_t>(index)] };
+				SequenceId id{ entry.instance ? entry.instance->sequence.id : entry.sequence.id };
+				scripts.RemoveDeferred(id);
+			} else {
+				scripts.scripts.erase(scripts.scripts.begin() + index);
+			}
+
+			changed = true;
+		}
+	}
+
+	return changed;
+}
+
+} // namespace
+
+bool DrawScriptsComponent(EditorContext& ctx, ::ptgn::impl::Scripts& scripts) {
+	auto entity{ ::ptgn::impl::ScriptsAccessor::GetOwner(scripts) };
+
+	// Prefab component editing has no live Scene or Entity. Supply an
+	// empty registry so the ordinary data editors can still be reused.
+	SharedScriptSequenceRegistry prefab_shared_sequences;
+
+	auto& shared_sequences{ entity ? entity.GetScene().ctx().shared_script_sequences
+								   : prefab_shared_sequences };
+
+	ScriptEditorContext context{ ctx, entity, shared_sequences };
+
+	bool changed{ DrawResidentScripts(context, scripts) };
+	return changed;
+}
+
+namespace {
+
+struct ScriptEntryEditorSnapshot {
+	bool enabled{ true };
+	TypeHashValue type_hash{ 0 };
+	std::string name{};
+	json value	  = json::object();
+	json sequence = json::object();
+	std::function<std::unique_ptr<Script>()> runtime_factory{};
+	std::vector<std::function<std::unique_ptr<Script>()>> step_runtime_factories{};
+	std::vector<std::function<std::unique_ptr<Script>()>> lifecycle_runtime_factories{};
+
+	[[nodiscard]] bool HasSameAuthoredState(const ScriptEntryEditorSnapshot& other) const {
+		return enabled == other.enabled && type_hash == other.type_hash && name == other.name &&
+			   value == other.value && sequence == other.sequence;
+	}
+};
+
+using ScriptEntriesEditorSnapshot = std::vector<ScriptEntryEditorSnapshot>;
+
+[[nodiscard]] ScriptEntriesEditorSnapshot CaptureScriptEntriesEditorSnapshot(
+	const std::vector<ScriptEntry>& entries
+) {
+	ScriptEntriesEditorSnapshot snapshot;
+	snapshot.reserve(entries.size());
+
+	for (const auto& entry : entries) {
+		const ScriptSequence& sequence{ entry.instance ? entry.instance->sequence
+													   : entry.sequence };
+
+		ScriptEntryEditorSnapshot entry_snapshot{
+			.enabled		 = entry.enabled,
+			.type_hash		 = entry.type_hash,
+			.name			 = entry.name,
+			.value			 = entry.value,
+			.sequence		 = sequence,
+			.runtime_factory = entry.runtime_factory,
+		};
+
+		entry_snapshot.step_runtime_factories.reserve(sequence.steps.size());
+		for (const auto& step : sequence.steps) {
+			entry_snapshot.step_runtime_factories.push_back(step.runtime_factory);
+		}
+
+		entry_snapshot.lifecycle_runtime_factories.reserve(sequence.lifecycle_actions.size());
+		for (const auto& lifecycle : sequence.lifecycle_actions) {
+			entry_snapshot.lifecycle_runtime_factories.push_back(lifecycle.action.runtime_factory);
+		}
+
+		snapshot.push_back(std::move(entry_snapshot));
+	}
+
+	return snapshot;
+}
+
+[[nodiscard]] bool HasSameAuthoredState(
+	const ScriptEntriesEditorSnapshot& lhs, const ScriptEntriesEditorSnapshot& rhs
+) {
+	if (lhs.size() != rhs.size()) {
+		return false;
+	}
+
+	for (std::size_t i{ 0 }; i < lhs.size(); ++i) {
+		if (!lhs[i].HasSameAuthoredState(rhs[i])) {
+			return false;
+		}
+	}
+
+	return true;
+}
+
+struct ScriptsEditorSnapshot {
+	ScriptEntriesEditorSnapshot scripts{};
+	ScriptEntriesEditorSnapshot pending_additions{};
+	std::vector<SequenceId> pending_removals{};
+};
+
+struct ScriptsComponentEditorSnapshot {
+	bool present{ false };
+	ScriptsEditorSnapshot value{};
+};
+
+[[nodiscard]] bool HasAuthoredScriptContents(const ::ptgn::impl::Scripts& scripts) {
+	return !scripts.scripts.empty() || !scripts.pending_additions.empty() ||
+		   !scripts.pending_removals.empty();
+}
+
+[[nodiscard]] ScriptsEditorSnapshot CaptureScriptsEditorSnapshot(
+	const ::ptgn::impl::Scripts& scripts
+) {
+	return ScriptsEditorSnapshot{
+		.scripts		   = CaptureScriptEntriesEditorSnapshot(scripts.scripts),
+		.pending_additions = CaptureScriptEntriesEditorSnapshot(scripts.pending_additions),
+		.pending_removals  = scripts.pending_removals,
+	};
+}
+
+[[nodiscard]] bool HasSameAuthoredState(
+	const ScriptsEditorSnapshot& lhs, const ScriptsEditorSnapshot& rhs
+) {
+	return HasSameAuthoredState(lhs.scripts, rhs.scripts) &&
+		   HasSameAuthoredState(lhs.pending_additions, rhs.pending_additions) &&
+		   lhs.pending_removals == rhs.pending_removals;
+}
+
+[[nodiscard]] std::vector<ScriptEntry> RestoreScriptEntriesEditorSnapshot(
+	const ScriptEntriesEditorSnapshot& snapshot
+) {
+	std::vector<ScriptEntry> entries;
+	entries.reserve(snapshot.size());
+
+	for (const auto& entry_snapshot : snapshot) {
+		ScriptSequence sequence;
+		entry_snapshot.sequence.get_to(sequence);
+
+		for (std::size_t i{ 0 };
+			 i < sequence.steps.size() && i < entry_snapshot.step_runtime_factories.size(); ++i) {
+			sequence.steps[i].runtime_factory = entry_snapshot.step_runtime_factories[i];
+		}
+
+		for (std::size_t i{ 0 }; i < sequence.lifecycle_actions.size() &&
+								 i < entry_snapshot.lifecycle_runtime_factories.size();
+			 ++i) {
+			sequence.lifecycle_actions[i].action.runtime_factory =
+				entry_snapshot.lifecycle_runtime_factories[i];
+		}
+
+		ScriptEntry entry;
+		entry.enabled		  = entry_snapshot.enabled;
+		entry.type_hash		  = entry_snapshot.type_hash;
+		entry.name			  = entry_snapshot.name;
+		entry.value			  = entry_snapshot.value;
+		entry.sequence		  = std::move(sequence);
+		entry.runtime_factory = entry_snapshot.runtime_factory;
+		entries.push_back(std::move(entry));
+	}
+
+	return entries;
+}
+
+void RestoreScriptsEditorSnapshot(Entity entity, const ScriptsEditorSnapshot& snapshot) {
+	if (!entity) {
+		return;
+	}
+
+	auto& scripts{ entity.TryAdd<::ptgn::impl::Scripts>() };
+	scripts.scripts			  = RestoreScriptEntriesEditorSnapshot(snapshot.scripts);
+	scripts.pending_additions = RestoreScriptEntriesEditorSnapshot(snapshot.pending_additions);
+	scripts.pending_removals  = snapshot.pending_removals;
+	scripts.channels.clear();
+	scripts.create_event_dispatched = false;
+	scripts.Attach(entity);
+}
+
+[[nodiscard]] ScriptsComponentEditorSnapshot CaptureScriptsComponentEditorSnapshot(Entity entity) {
+	if (!entity) {
+		return {};
+	}
+
+	const auto* scripts{ entity.TryGet<::ptgn::impl::Scripts>() };
+	if (!scripts) {
+		return {};
+	}
+
+	return ScriptsComponentEditorSnapshot{
+		.present = true,
+		.value	 = CaptureScriptsEditorSnapshot(*scripts),
+	};
+}
+
+[[nodiscard]] bool HasSameAuthoredState(
+	const ScriptsComponentEditorSnapshot& lhs, const ScriptsComponentEditorSnapshot& rhs
+) {
+	if (lhs.present != rhs.present) {
+		return false;
+	}
+	return !lhs.present || HasSameAuthoredState(lhs.value, rhs.value);
+}
+
+void RestoreScriptsComponentEditorSnapshot(
+	Entity entity, const ScriptsComponentEditorSnapshot& snapshot
+) {
+	if (!entity) {
+		return;
+	}
+
+	if (!snapshot.present) {
+		if (entity.Has<::ptgn::impl::Scripts>()) {
+			entity.Remove<::ptgn::impl::Scripts>();
+		}
+		return;
+	}
+
+	RestoreScriptsEditorSnapshot(entity, snapshot.value);
+}
+
+struct SharedScriptSequenceEditorSnapshot {
+	SequenceId id{ 0 };
+	json sequence = json::object();
+	std::vector<std::function<std::unique_ptr<Script>()>> step_runtime_factories{};
+	std::vector<std::function<std::unique_ptr<Script>()>> lifecycle_runtime_factories{};
+
+	[[nodiscard]] bool HasSameAuthoredState(const SharedScriptSequenceEditorSnapshot& other) const {
+		return id == other.id && sequence == other.sequence;
+	}
+};
+
+using SharedScriptSequencesEditorSnapshot = std::vector<SharedScriptSequenceEditorSnapshot>;
+
+[[nodiscard]] SharedScriptSequencesEditorSnapshot CaptureSharedScriptSequencesEditorSnapshot(
+	const SharedScriptSequenceRegistry& registry
+) {
+	SharedScriptSequencesEditorSnapshot snapshot;
+	snapshot.reserve(registry.sequences.size());
+
+	for (const auto& sequence : registry.sequences) {
+		SharedScriptSequenceEditorSnapshot sequence_snapshot{
+			.id		  = sequence.id,
+			.sequence = sequence,
+		};
+
+		sequence_snapshot.step_runtime_factories.reserve(sequence.steps.size());
+		for (const auto& step : sequence.steps) {
+			sequence_snapshot.step_runtime_factories.push_back(step.runtime_factory);
+		}
+
+		sequence_snapshot.lifecycle_runtime_factories.reserve(sequence.lifecycle_actions.size());
+		for (const auto& lifecycle : sequence.lifecycle_actions) {
+			sequence_snapshot.lifecycle_runtime_factories.push_back(
+				lifecycle.action.runtime_factory
+			);
+		}
+
+		snapshot.push_back(std::move(sequence_snapshot));
+	}
+
+	return snapshot;
+}
+
+[[nodiscard]] bool HasSameAuthoredState(
+	const SharedScriptSequencesEditorSnapshot& lhs, const SharedScriptSequencesEditorSnapshot& rhs
+) {
+	if (lhs.size() != rhs.size()) {
+		return false;
+	}
+
+	for (std::size_t i{ 0 }; i < lhs.size(); ++i) {
+		if (!lhs[i].HasSameAuthoredState(rhs[i])) {
+			return false;
+		}
+	}
+
+	return true;
+}
+
+void RestoreSharedScriptSequencesEditorSnapshot(
+	SharedScriptSequenceRegistry& registry, const SharedScriptSequencesEditorSnapshot& snapshot
+) {
+	registry.sequences.clear();
+	registry.sequences.reserve(snapshot.size());
+
+	for (const auto& sequence_snapshot : snapshot) {
+		ScriptSequence sequence;
+		sequence_snapshot.sequence.get_to(sequence);
+		sequence.id = sequence_snapshot.id;
+
+		for (std::size_t i{ 0 };
+			 i < sequence.steps.size() && i < sequence_snapshot.step_runtime_factories.size();
+			 ++i) {
+			sequence.steps[i].runtime_factory = sequence_snapshot.step_runtime_factories[i];
+		}
+
+		for (std::size_t i{ 0 }; i < sequence.lifecycle_actions.size() &&
+								 i < sequence_snapshot.lifecycle_runtime_factories.size();
+			 ++i) {
+			sequence.lifecycle_actions[i].action.runtime_factory =
+				sequence_snapshot.lifecycle_runtime_factories[i];
+		}
+
+		registry.sequences.push_back(std::move(sequence));
+	}
+}
+
+struct EntityScriptsEditorSnapshot {
+	EntityReference reference{};
+	ScriptsEditorSnapshot scripts{};
+};
+
+struct TimerReferenceSceneSnapshotData {
+	std::vector<EntityScriptsEditorSnapshot> entities{};
+	SharedScriptSequencesEditorSnapshot shared_sequences{};
+};
+
+[[nodiscard]] TimerReferenceSceneSnapshotData CaptureTimerReferenceSceneSnapshotData(Scene& scene) {
+	TimerReferenceSceneSnapshotData snapshot{
+		.shared_sequences =
+			CaptureSharedScriptSequencesEditorSnapshot(scene.ctx().shared_script_sequences),
+	};
+
+	for (Entity entity : scene.Entities()) {
+		const auto* scripts{ entity.TryGet<::ptgn::impl::Scripts>() };
+		if (!scripts) {
+			continue;
+		}
+
+		snapshot.entities.push_back(
+			EntityScriptsEditorSnapshot{
+				.reference = MakeEntityReference(entity),
+				.scripts   = CaptureScriptsEditorSnapshot(*scripts),
+			}
+		);
+	}
+
+	return snapshot;
+}
+
+void RestoreTimerReferenceSceneSnapshotData(
+	Editor& editor, const EntityReference& anchor_reference,
+	const TimerReferenceSceneSnapshotData& snapshot
+) {
+	Entity anchor{ anchor_reference.Resolve(editor) };
+	if (!anchor) {
+		return;
+	}
+
+	auto& scene{ anchor.GetScene() };
+	RestoreSharedScriptSequencesEditorSnapshot(
+		scene.ctx().shared_script_sequences, snapshot.shared_sequences
+	);
+
+	for (const auto& entity_snapshot : snapshot.entities) {
+		RestoreScriptsEditorSnapshot(
+			entity_snapshot.reference.Resolve(editor), entity_snapshot.scripts
+		);
+	}
+}
+
+[[nodiscard]] bool RenameTimerJsonReference(
+	json& value, const TimerKey& old_key, const TimerKey& new_key
+) {
+	if (!value.is_object()) {
+		return false;
+	}
+
+	auto timer_it{ value.find("timer") };
+	if (timer_it == value.end()) {
+		return false;
+	}
+
+	TimerKey timer;
+	try {
+		timer_it->get_to(timer);
+	} catch (...) {
+		return false;
+	}
+
+	if (timer != old_key) {
+		return false;
+	}
+
+	value["timer"] = new_key;
+	return true;
+}
+
+[[nodiscard]] bool ScriptStepTargetsEntity(Entity owner, const ScriptStep& step, Entity target) {
+	if (!owner || !target) {
+		return false;
+	}
+
+	if (!step.target) {
+		return owner == target;
+	}
+
+	auto targets{ ResolveEntityFilter(*step.target, owner.GetScene(), owner) };
+	return std::ranges::contains(targets, target);
+}
+
+bool RenameTimerActionReference(
+	Entity owner, ScriptStep& step, Entity timer_entity, const TimerKey& old_key,
+	const TimerKey& new_key
+) {
+	if (!(step.type_hash == Hash<TimerStartScript>() ||
+		  step.type_hash == Hash<TimerRestartScript>() ||
+		  step.type_hash == Hash<TimerStopScript>() || step.type_hash == Hash<TimerResetScript>() ||
+		  step.type_hash == Hash<TimerPauseScript>() ||
+		  step.type_hash == Hash<TimerResumeScript>() ||
+		  step.type_hash == Hash<TimerTogglePausedScript>() ||
+		  step.type_hash == Hash<TimerAdvanceScript>() ||
+		  step.type_hash == Hash<TimerRewindScript>() ||
+		  step.type_hash == Hash<TimerSetDurationScript>() ||
+		  step.type_hash == Hash<TimerAddDurationScript>() ||
+		  step.type_hash == Hash<TimerRemoveDurationScript>()) ||
+		!ScriptStepTargetsEntity(owner, step, timer_entity)) {
+		return false;
+	}
+
+	if (!RenameTimerJsonReference(step.value, old_key, new_key)) {
+		return false;
+	}
+
+	step.runtime_factory = {};
+	return true;
+}
+
+bool RenameTimerReferencesInSequence(
+	Entity owner, ScriptSequence& sequence, Entity timer_entity, const TimerKey& old_key,
+	const TimerKey& new_key
+) {
+	bool changed{ false };
+
+	if (owner == timer_entity) {
+		auto rename_event = [&](EventCondition& condition) {
+			if (condition.type_hash == Hash<event::TimerElapsed>()) {
+				changed |= RenameTimerJsonReference(condition.value, old_key, new_key);
+			}
+		};
+
+		for (auto& condition : sequence.start_events) {
+			rename_event(condition);
+		}
+		for (auto& condition : sequence.stop_events) {
+			rename_event(condition);
+		}
+	}
+
+	for (auto& step : sequence.steps) {
+		changed |= RenameTimerActionReference(owner, step, timer_entity, old_key, new_key);
+	}
+
+	for (auto& lifecycle : sequence.lifecycle_actions) {
+		changed |=
+			RenameTimerActionReference(owner, lifecycle.action, timer_entity, old_key, new_key);
+	}
+
+	return changed;
+}
+
+bool RenameTimerReferencesImpl(
+	Entity timer_entity, const TimerKey& old_key, const TimerKey& new_key
+) {
+	if (!timer_entity || old_key == new_key) {
+		return false;
+	}
+
+	auto& scene{ timer_entity.GetScene() };
+	bool changed{ false };
+
+	for (Entity owner : scene.Entities()) {
+		auto* scripts{ owner.TryGet<::ptgn::impl::Scripts>() };
+		if (!scripts) {
+			continue;
+		}
+
+		for (auto& entry : scripts->scripts) {
+			ScriptSequence& binding{ entry.instance ? entry.instance->sequence : entry.sequence };
+
+			ScriptSequence* sequence{ std::addressof(binding) };
+			if (binding.shared_reference) {
+				sequence = scene.ctx().shared_script_sequences.Find(binding.shared_sequence_id);
+			}
+
+			if (!sequence || !RenameTimerReferencesInSequence(
+								 owner, *sequence, timer_entity, old_key, new_key
+							 )) {
+				continue;
+			}
+
+			changed = true;
+
+			if (!binding.shared_reference && entry.instance) {
+				SequenceId sequence_id{ binding.id };
+				entry.sequence		   = binding;
+				entry.sequence.id	   = sequence_id;
+				entry.sequence.runtime = ScriptSequenceRuntime{};
+			}
+		}
+	}
+
+	return changed;
+}
+
+template <typename Key>
+[[nodiscard]] bool RenameVariableJsonReference(
+	json& value, const char* property, const Key& old_key, const Key& new_key
+) {
+	if (!value.is_object()) {
+		return false;
+	}
+	auto it{ value.find(property) };
+	if (it == value.end()) {
+		return false;
+	}
+	Key current{};
+	try {
+		it->get_to(current);
+	} catch (...) {
+		return false;
+	}
+	if (current != old_key) {
+		return false;
+	}
+	value[property] = new_key;
+	return true;
+}
+
+template <typename Key>
+bool RenameVariableReferencesImpl(Entity variable_entity, const Key& old_key, const Key& new_key) {
+	if (!variable_entity || old_key == new_key) {
+		return false;
+	}
+	constexpr bool is_counter{ std::same_as<Key, CounterKey> };
+	const char* property{ is_counter ? "counter" : "boolean" };
+	TypeHashValue event_type{ is_counter ? Hash<event::CounterChanged>()
+										 : Hash<event::BooleanChanged>() };
+	auto matches_script_type = [](TypeHashValue hash) {
+		if constexpr (is_counter) {
+			return (
+				hash == Hash<CounterSetScript>() || hash == Hash<CounterIncrementScript>() ||
+				hash == Hash<CounterDecrementScript>() || hash == Hash<CounterResetScript>()
+			);
+		} else {
+			return (
+				hash == Hash<BooleanSetTrueScript>() || hash == Hash<BooleanSetFalseScript>() ||
+				hash == Hash<BooleanToggleScript>() || hash == Hash<BooleanResetScript>()
+			);
+		}
+	};
+	Scene& scene{ variable_entity.GetScene() };
+	bool changed{ false };
+	for (Entity owner : scene.Entities()) {
+		auto* scripts{ owner.TryGet<::ptgn::impl::Scripts>() };
+		if (!scripts) {
+			continue;
+		}
+		for (auto& entry : scripts->scripts) {
+			ScriptSequence& binding{ entry.instance ? entry.instance->sequence : entry.sequence };
+			ScriptSequence* sequence{ std::addressof(binding) };
+			if (binding.shared_reference) {
+				sequence = scene.ctx().shared_script_sequences.Find(binding.shared_sequence_id);
+			}
+			if (!sequence) {
+				continue;
+			}
+			bool edited{ false };
+			for (auto& condition : sequence->start_conditions) {
+				bool targets_entity{
+					condition.target ? (condition.target->type == EntityFilterType::Entity &&
+										ResolveEntityReference(scene, condition.target->entity) ==
+											variable_entity)
+									 : owner == variable_entity
+				};
+				if (!targets_entity) {
+					continue;
+				}
+				if constexpr (is_counter) {
+					if (condition.kind == StateConditionKind::Counter &&
+						condition.counter == old_key) {
+						condition.counter = new_key;
+						edited			  = true;
+					}
+				} else {
+					if (condition.kind == StateConditionKind::Boolean &&
+						condition.boolean == old_key) {
+						condition.boolean = new_key;
+						edited			  = true;
+					}
+				}
+			}
+			if (owner == variable_entity) {
+				for (auto& condition : sequence->start_events) {
+					if (condition.type_hash == event_type) {
+						edited |= RenameVariableJsonReference(
+							condition.value, property, old_key, new_key
+						);
+					}
+				}
+				for (auto& condition : sequence->stop_events) {
+					if (condition.type_hash == event_type) {
+						edited |= RenameVariableJsonReference(
+							condition.value, property, old_key, new_key
+						);
+					}
+				}
+			}
+			auto rename_step = [&](ScriptStep& step) {
+				if (!matches_script_type(step.type_hash) ||
+					!ScriptStepTargetsEntity(owner, step, variable_entity)) {
+					return;
+				}
+				if (RenameVariableJsonReference(step.value, property, old_key, new_key)) {
+					step.runtime_factory = {};
+					edited				 = true;
+				}
+			};
+			for (auto& step : sequence->steps) {
+				rename_step(step);
+			}
+			for (auto& lifecycle : sequence->lifecycle_actions) {
+				rename_step(lifecycle.action);
+			}
+			if (edited) {
+				changed = true;
+				if (!binding.shared_reference && entry.instance) {
+					SequenceId id{ binding.id };
+					entry.sequence		   = binding;
+					entry.sequence.id	   = id;
+					entry.sequence.runtime = ScriptSequenceRuntime{};
+				}
+			}
+		}
+	}
+	return changed;
+}
+
+template <typename Target>
+bool DrawScriptsSectionImpl(Target& target) {
+	bool changed{ false };
+
+	// Scripts is an implicit editor feature: keep the section available without materializing an
+	// empty component, and clean up empty components automatically.
+	if constexpr (std::same_as<std::remove_cvref_t<Target>, EntityInspectorTarget>) {
+		if (auto* scripts{ target.entity.template TryGet<::ptgn::impl::Scripts>() };
+			scripts && !HasAuthoredScriptContents(*scripts)) {
+			target.entity.template Remove<::ptgn::impl::Scripts>();
+			changed = true;
+		}
+	} else {
+		auto scripts{ target.template Capture<::ptgn::impl::Scripts>() };
+		if (scripts && !HasAuthoredScriptContents(*scripts)) {
+			target.template SetLive<::ptgn::impl::Scripts>(std::nullopt);
+			changed = true;
+		}
+	}
+
+	auto header{ DrawInspectorSectionHeader(
+		"Scripts", "ScriptsSection",
+		InspectorSectionOptions{
+			.removable = false,
+		}
+	) };
+
+	if (!header.open) {
+		return changed;
+	}
+
+	ScopedIndent section_indent;
+
+	if constexpr (std::same_as<std::remove_cvref_t<Target>, EntityInspectorTarget>) {
+		auto& shared_sequences{ target.entity.GetScene().ctx().shared_script_sequences };
+		auto before{ CaptureScriptsComponentEditorSnapshot(target.entity) };
+		auto before_shared{ CaptureSharedScriptSequencesEditorSnapshot(shared_sequences) };
+
+		::ptgn::impl::Scripts temporary_scripts;
+		auto* scripts{ target.entity.template TryGet<::ptgn::impl::Scripts>() };
+		if (!scripts) {
+			scripts = std::addressof(temporary_scripts);
+		}
+
+		bool scripts_changed{ DrawScriptsComponent(target.ctx, *scripts) };
+		if (!scripts_changed) {
+			return changed;
+		}
+
+		if (HasAuthoredScriptContents(*scripts)) {
+			if (!before.present) {
+				RestoreScriptsEditorSnapshot(target.entity, CaptureScriptsEditorSnapshot(*scripts));
+
+				if (target.ctx.editor.IsPlaying() || target.ctx.editor.IsDirectRuntime()) {
+					auto& live_scripts{ target.entity.template Get<::ptgn::impl::Scripts>() };
+					for (auto& entry : live_scripts.scripts) {
+						ScriptSystem::AttachEntry(target.entity, entry);
+					}
+					for (auto& entry : live_scripts.pending_additions) {
+						ScriptSystem::AttachEntry(target.entity, entry);
+					}
+				}
+			}
+		} else if (target.entity.template Has<::ptgn::impl::Scripts>()) {
+			target.entity.template Remove<::ptgn::impl::Scripts>();
+		}
+
+		auto after{ CaptureScriptsComponentEditorSnapshot(target.entity) };
+		auto after_shared{ CaptureSharedScriptSequencesEditorSnapshot(shared_sequences) };
+
+		if (HasSameAuthoredState(before, after) &&
+			HasSameAuthoredState(before_shared, after_shared)) {
+			return changed;
+		}
+
+		ScopedID target_scope{ target.Id() };
+		ScopedID component_scope{ static_cast<int>(Hash<::ptgn::impl::Scripts>()) };
+		ImGuiID key{ ImGui::GetID("##ComponentEdit") };
+		Editor* editor{ std::addressof(target.ctx.editor) };
+		EntityReference reference{ MakeEntityReference(target.entity) };
+
+		TrackUndoableInteraction(
+			target.ctx, key, "Edit Scripts", true,
+			[editor, reference, before = std::move(before),
+			 before_shared = std::move(before_shared)]() {
+				Entity entity{ reference.Resolve(*editor) };
+				if (!entity) {
+					return;
+				}
+
+				RestoreSharedScriptSequencesEditorSnapshot(
+					entity.GetScene().ctx().shared_script_sequences, before_shared
+				);
+				RestoreScriptsComponentEditorSnapshot(entity, before);
+			},
+			[editor, reference, after = std::move(after),
+			 after_shared = std::move(after_shared)]() {
+				Entity entity{ reference.Resolve(*editor) };
+				if (!entity) {
+					return;
+				}
+
+				RestoreSharedScriptSequencesEditorSnapshot(
+					entity.GetScene().ctx().shared_script_sequences, after_shared
+				);
+				RestoreScriptsComponentEditorSnapshot(entity, after);
+			}
+		);
+
+		return true;
+	} else {
+		ScopedID target_scope{ target.Id() };
+		ScopedID component_scope{ static_cast<int>(Hash<::ptgn::impl::Scripts>()) };
+
+		auto before{ target.template Capture<::ptgn::impl::Scripts>() };
+		::ptgn::impl::Scripts scripts{ before.value_or(::ptgn::impl::Scripts{}) };
+
+		if (!DrawScriptsComponent(target.ctx, scripts)) {
+			return changed;
+		}
+
+		if (HasAuthoredScriptContents(scripts)) {
+			target.template SetLive<::ptgn::impl::Scripts>(std::move(scripts));
+		} else {
+			target.template SetLive<::ptgn::impl::Scripts>(std::nullopt);
+		}
+
+		auto after{ target.template Capture<::ptgn::impl::Scripts>() };
+		TrackComponentState(target, "Edit Scripts", std::move(before), std::move(after), true);
+		return true;
+	}
+}
+
+} // namespace
+
+TimerReferenceSceneSnapshot CaptureTimerReferenceSceneSnapshot(Scene& scene) {
+	auto data{ std::make_shared<TimerReferenceSceneSnapshotData>(
+		CaptureTimerReferenceSceneSnapshotData(scene)
+	) };
+	return TimerReferenceSceneSnapshot{ .data = std::move(data) };
+}
+
+void RestoreTimerReferenceSceneSnapshot(
+	Editor& editor, const EntityReference& anchor_reference,
+	const TimerReferenceSceneSnapshot& snapshot
+) {
+	if (!snapshot.data) {
+		return;
+	}
+
+	auto data{ std::static_pointer_cast<const TimerReferenceSceneSnapshotData>(snapshot.data) };
+	RestoreTimerReferenceSceneSnapshotData(editor, anchor_reference, *data);
+}
+
+bool RenameCounterReferences(Entity entity, const CounterKey& old_key, const CounterKey& new_key) {
+	return RenameVariableReferencesImpl(entity, old_key, new_key);
+}
+
+bool RenameBooleanReferences(Entity entity, const BooleanKey& old_key, const BooleanKey& new_key) {
+	return RenameVariableReferencesImpl(entity, old_key, new_key);
+}
+
+bool RenameTimerReferences(Entity timer_entity, const TimerKey& old_key, const TimerKey& new_key) {
+	return RenameTimerReferencesImpl(timer_entity, old_key, new_key);
+}
+
+bool DrawScriptsSection(EntityInspectorTarget& target) {
+	return DrawScriptsSectionImpl(target);
+}
+
+bool DrawScriptsSection(PrefabInspectorTarget& target) {
+	return DrawScriptsSectionImpl(target);
+}
+
+} // namespace ptgn::editor::inspector

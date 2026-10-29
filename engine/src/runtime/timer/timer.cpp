@@ -1,0 +1,634 @@
+#include "runtime/timer/timer.h"
+
+#include <algorithm>
+#include <memory>
+#include <ranges>
+#include <utility>
+#include <vector>
+
+#include "core/log.h"
+#include "runtime/ecs/group_stack.h"
+#include "runtime/scene/scene.h"
+#include "runtime/scene/scene_context.h"
+#include "runtime/scene/scene_event.h"
+#include "runtime/scripting/script.h"
+#include "runtime/timer/timer_event.h"
+
+namespace ptgn {
+
+namespace {
+
+[[nodiscard]] milliseconds ClampTimerDuration(milliseconds duration) {
+	return std::max(0ms, duration);
+}
+
+[[nodiscard]] TimerEntry* FindTimerEntry(Entity entity, const TimerKey& key) {
+	if (!entity) {
+		return nullptr;
+	}
+
+	auto* timers{ entity.TryGet<impl::Timers>() };
+
+	if (!timers) {
+		return nullptr;
+	}
+
+	auto it{ std::ranges::find_if(timers->timers, [&key](const TimerEntry& entry) {
+		return entry.config.key == key;
+	}) };
+
+	return it == timers->timers.end() ? nullptr : std::addressof(*it);
+}
+
+void InitializeTimerRuntime(TimerEntry& entry, bool apply_auto_start) {
+	if (entry.runtime.initialized) {
+		return;
+	}
+
+	entry.runtime.timer.Reset();
+	entry.runtime.elapsed_count = 0;
+	entry.runtime.completed		= false;
+	entry.runtime.initialized	= true;
+
+	if (apply_auto_start && entry.config.start_automatically) {
+		entry.runtime.timer.Start();
+	}
+}
+
+[[nodiscard]] TimerEntry* ResolveHandle(const TimerHandle& handle) {
+	return FindTimerEntry(handle.owner, handle.key);
+}
+
+[[nodiscard]] const TimerEntry* ResolveHandleConst(const TimerHandle& handle) {
+	return FindTimerEntry(handle.owner, handle.key);
+}
+
+[[nodiscard]] std::vector<event::TimerElapsed> AdvanceTimerEntry(
+	TimerEntry& entry, const TimerKey& key, milliseconds amount
+) {
+	std::vector<event::TimerElapsed> events;
+
+	if (amount <= 0ms) {
+		return events;
+	}
+
+	InitializeTimerRuntime(entry, false);
+	milliseconds duration{ ClampTimerDuration(entry.config.duration) };
+	milliseconds previous_elapsed{ entry.runtime.timer.ElapsedDuration<milliseconds>() };
+
+	if (entry.config.mode == TimerMode::Once && entry.runtime.completed) {
+		return events;
+	}
+
+	entry.runtime.timer.AddElapsed(amount);
+	milliseconds elapsed{ entry.runtime.timer.ElapsedDuration<milliseconds>() };
+
+	if (entry.config.mode == TimerMode::Once) {
+		if (duration <= 0ms) {
+			entry.runtime.timer.RemoveElapsed(elapsed);
+			entry.runtime.timer.Stop();
+
+			entry.runtime.completed = true;
+
+			++entry.runtime.elapsed_count;
+
+			events.push_back(
+				event::TimerElapsed{
+					.timer			  = key,
+					.previous_elapsed = 0ms,
+					.elapsed		  = 0ms,
+					.duration		  = duration,
+					.count			  = entry.runtime.elapsed_count,
+					.completed		  = true,
+				}
+			);
+			return events;
+		}
+
+		previous_elapsed = std::min(previous_elapsed, duration);
+
+		if (elapsed >= duration) {
+			if (elapsed > duration) {
+				entry.runtime.timer.RemoveElapsed(elapsed - duration);
+			}
+
+			entry.runtime.timer.Stop();
+			entry.runtime.completed = true;
+
+			++entry.runtime.elapsed_count;
+
+			events.push_back(
+				event::TimerElapsed{
+					.timer			  = key,
+					.previous_elapsed = previous_elapsed,
+					.elapsed		  = duration,
+					.duration		  = duration,
+					.count			  = entry.runtime.elapsed_count,
+					.completed		  = true,
+				}
+			);
+			return events;
+		}
+
+		entry.runtime.completed = false;
+
+		events.push_back(
+			event::TimerElapsed{
+				.timer			  = key,
+				.previous_elapsed = previous_elapsed,
+				.elapsed		  = elapsed,
+				.duration		  = duration,
+				.count			  = entry.runtime.elapsed_count,
+				.completed		  = false,
+			}
+		);
+		return events;
+	}
+
+	entry.runtime.completed = false;
+
+	if (duration <= 0ms) {
+		entry.runtime.timer.RemoveElapsed(elapsed);
+
+		++entry.runtime.elapsed_count;
+
+		events.push_back(
+			event::TimerElapsed{
+				.timer			  = key,
+				.previous_elapsed = 0ms,
+				.elapsed		  = 0ms,
+				.duration		  = duration,
+				.count			  = entry.runtime.elapsed_count,
+				.completed		  = true,
+			}
+		);
+		return events;
+	}
+
+	std::size_t fire_count{ entry.runtime.timer.ConsumeAll(duration) };
+	milliseconds remainder{ entry.runtime.timer.ElapsedDuration<milliseconds>() };
+	std::uint64_t first_count{ entry.runtime.elapsed_count + 1 };
+
+	entry.runtime.elapsed_count += static_cast<std::uint64_t>(fire_count);
+
+	for (std::size_t index{ 0 }; index < fire_count; ++index) {
+		events.push_back(
+			event::TimerElapsed{
+				.timer			  = key,
+				.previous_elapsed = index == 0 ? std::min(previous_elapsed, duration) : 0ms,
+				.elapsed		  = duration,
+				.duration		  = duration,
+				.count			  = first_count + static_cast<std::uint64_t>(index),
+				.completed		  = true,
+			}
+		);
+	}
+
+	milliseconds segment_start{ fire_count == 0 ? previous_elapsed : 0ms };
+
+	if (fire_count == 0 || remainder > 0ms) {
+		events.push_back(
+			event::TimerElapsed{
+				.timer			  = key,
+				.previous_elapsed = segment_start,
+				.elapsed		  = remainder,
+				.duration		  = duration,
+				.count			  = entry.runtime.elapsed_count,
+				.completed		  = false,
+			}
+		);
+	}
+
+	return events;
+}
+
+void DispatchTimerEvents(Entity entity, std::vector<event::TimerElapsed> events) {
+	for (auto& timer_event : events) {
+		PushEvent<event::TimerElapsed>(entity, std::move(timer_event));
+	}
+}
+
+} // namespace
+
+namespace impl {
+void to_json(json& output, const Timers& timers) {
+	output			 = json::object();
+	output["timers"] = json::array();
+	for (const auto& entry : timers.timers) {
+		output["timers"].push_back(entry.config);
+	}
+}
+
+void from_json(const json& input, Timers& timers) {
+	timers.timers.clear();
+
+	const json* entries{ nullptr };
+
+	if (input.is_array()) {
+		entries = std::addressof(input);
+	} else if (input.is_object()) {
+		auto it{ input.find("timers") };
+
+		if (it != input.end() && it->is_array()) {
+			entries = std::addressof(*it);
+		}
+	}
+
+	if (!entries) {
+		return;
+	}
+
+	for (const auto& serialized : *entries) {
+		TimerEntry entry;
+		try {
+			serialized.get_to(entry.config);
+		} catch (...) {
+			continue;
+		}
+
+		entry.config.duration = ClampTimerDuration(entry.config.duration);
+		entry.runtime		  = TimerRuntime{};
+
+		timers.timers.push_back(std::move(entry));
+	}
+}
+
+} // namespace impl
+
+TimerHandle::operator bool() const {
+	return owner && !key.value.empty() && HasTimer(owner, key);
+}
+
+bool TimerHandle::Start() const {
+	auto* entry{ ResolveHandle(*this) };
+
+	if (!entry) {
+		return false;
+	}
+
+	InitializeTimerRuntime(*entry, false);
+
+	entry->runtime.completed = false;
+
+	return entry->runtime.timer.Start(false);
+}
+
+bool TimerHandle::Restart() const {
+	auto* entry{ ResolveHandle(*this) };
+
+	if (!entry) {
+		return false;
+	}
+
+	InitializeTimerRuntime(*entry, false);
+
+	entry->runtime.completed = false;
+
+	return entry->runtime.timer.Restart();
+}
+
+bool TimerHandle::Stop() const {
+	auto* entry{ ResolveHandle(*this) };
+
+	if (!entry) {
+		return false;
+	}
+
+	bool changed{ !entry->runtime.initialized || entry->runtime.timer.IsRunning() ||
+				  entry->runtime.timer.IsPaused() || entry->runtime.timer.HasRun() ||
+				  entry->runtime.elapsed_count != 0 || entry->runtime.completed };
+
+	entry->runtime.timer.Reset();
+	// Stopping the timer should not reset the elapsed count.
+	// entry->runtime.elapsed_count = 0;
+	entry->runtime.completed   = false;
+	entry->runtime.initialized = true;
+
+	return changed;
+}
+
+bool TimerHandle::Reset() const {
+	auto* entry{ ResolveHandle(*this) };
+
+	if (!entry) {
+		return false;
+	}
+
+	entry->runtime.timer.Reset();
+	entry->runtime.elapsed_count = 0;
+	entry->runtime.completed	 = false;
+	entry->runtime.initialized	 = true;
+
+	return true;
+}
+
+bool TimerHandle::Pause() const {
+	auto* entry{ ResolveHandle(*this) };
+
+	if (!entry || !entry->runtime.initialized || !entry->runtime.timer.IsRunning()) {
+		return false;
+	}
+
+	entry->runtime.timer.Pause();
+
+	return true;
+}
+
+bool TimerHandle::Resume() const {
+	auto* entry{ ResolveHandle(*this) };
+
+	if (!entry || !entry->runtime.initialized || !entry->runtime.timer.IsPaused()) {
+		return false;
+	}
+
+	if (entry->runtime.completed) {
+		// A manually advanced one shot timer can be paused at its completed duration.
+		// Resuming it begins a new interval instead of dispatching completion twice.
+		entry->runtime.completed = false;
+		entry->runtime.timer.Restart();
+	} else {
+		entry->runtime.timer.Resume();
+	}
+
+	return true;
+}
+
+bool TimerHandle::TogglePaused() const {
+	if (IsPaused()) {
+		return Resume();
+	}
+
+	if (IsRunning()) {
+		return Pause();
+	}
+
+	return false;
+}
+
+bool TimerHandle::Advance(milliseconds amount) const {
+	auto* entry{ ResolveHandle(*this) };
+
+	if (!entry || amount <= 0ms) {
+		return false;
+	}
+
+	InitializeTimerRuntime(*entry, false);
+
+	if (entry->runtime.completed) {
+		entry->runtime.timer.Restart();
+		entry->runtime.completed = false;
+	} else if (!entry->runtime.timer.IsRunning() && !entry->runtime.timer.IsPaused()) {
+		milliseconds elapsed{ entry->runtime.timer.ElapsedDuration<milliseconds>() };
+		entry->runtime.timer.Start();
+		entry->runtime.timer.AddElapsed(elapsed);
+	}
+
+	auto events{ AdvanceTimerEntry(*entry, key, amount) };
+
+	// Manual stepping leaves the timer paused, including at completion.
+	// Preserve the completed state and elapsed count until another action changes them.
+	if (!entry->runtime.timer.IsRunning() && !entry->runtime.timer.IsPaused()) {
+		milliseconds elapsed{ entry->runtime.timer.ElapsedDuration<milliseconds>() };
+		entry->runtime.timer.Start();
+		entry->runtime.timer.AddElapsed(elapsed);
+	}
+	entry->runtime.timer.Pause();
+
+	if (events.empty()) {
+		return false;
+	}
+
+	DispatchTimerEvents(owner, std::move(events));
+
+	return true;
+}
+
+bool TimerHandle::Rewind(milliseconds amount) const {
+	auto* entry{ ResolveHandle(*this) };
+
+	if (!entry || amount <= 0ms) {
+		return false;
+	}
+
+	InitializeTimerRuntime(*entry, false);
+
+	entry->runtime.timer.RemoveElapsed(amount);
+	entry->runtime.completed = false;
+
+	if (entry->runtime.timer.ElapsedDuration<milliseconds>() <= 0ms) {
+		entry->runtime.timer.Reset();
+	}
+
+	return true;
+}
+
+bool TimerHandle::SetDuration(milliseconds duration) const {
+	auto* entry{ ResolveHandle(*this) };
+
+	if (!entry) {
+		return false;
+	}
+
+	milliseconds updated{ ClampTimerDuration(duration) };
+
+	if (entry->config.duration == updated) {
+		return false;
+	}
+
+	entry->config.duration	 = updated;
+	entry->runtime.completed = false;
+
+	return true;
+}
+
+bool TimerHandle::AddDuration(milliseconds amount) const {
+	if (amount <= 0ms) {
+		return false;
+	}
+
+	return SetDuration(Duration() + amount);
+}
+
+bool TimerHandle::RemoveDuration(milliseconds amount) const {
+	if (amount <= 0ms) {
+		return false;
+	}
+
+	return SetDuration(Duration() - amount);
+}
+
+milliseconds TimerHandle::Elapsed() const {
+	const auto* entry{ ResolveHandleConst(*this) };
+
+	if (!entry || !entry->runtime.initialized) {
+		return 0ms;
+	}
+
+	if (entry->config.mode == TimerMode::Once && entry->runtime.completed) {
+		return ClampTimerDuration(entry->config.duration);
+	}
+
+	return entry->runtime.timer.ElapsedDuration<milliseconds>();
+}
+
+milliseconds TimerHandle::Remaining() const {
+	return std::max(0ms, Duration() - Elapsed());
+}
+
+milliseconds TimerHandle::Duration() const {
+	const auto* entry{ ResolveHandleConst(*this) };
+	return entry ? ClampTimerDuration(entry->config.duration) : 0ms;
+}
+
+float TimerHandle::Progress() const {
+	const auto* entry{ ResolveHandleConst(*this) };
+
+	if (!entry) {
+		return 0.0f;
+	}
+
+	milliseconds duration{ ClampTimerDuration(entry->config.duration) };
+
+	if (duration <= 0ms) {
+		return entry->runtime.completed || entry->runtime.timer.HasRun() ? 1.0f : 0.0f;
+	}
+
+	return entry->runtime.timer.ElapsedFraction(duration);
+}
+
+bool TimerHandle::IsRunning() const {
+	const auto* entry{ ResolveHandleConst(*this) };
+	return entry && entry->runtime.initialized && entry->runtime.timer.IsRunning();
+}
+
+bool TimerHandle::IsPaused() const {
+	const auto* entry{ ResolveHandleConst(*this) };
+	return entry && entry->runtime.initialized && entry->runtime.timer.IsPaused();
+}
+
+bool TimerHandle::IsCompleted() const {
+	const auto* entry{ ResolveHandleConst(*this) };
+	return entry && entry->runtime.completed;
+}
+
+std::uint64_t TimerHandle::ElapsedCount() const {
+	const auto* entry{ ResolveHandleConst(*this) };
+	return entry ? entry->runtime.elapsed_count : 0;
+}
+
+TimerHandle AddTimer(
+	Entity entity, TimerKey key, milliseconds duration, TimerMode mode, bool start_automatically
+) {
+	if (!entity || key.value.empty()) {
+		PTGN_WARN("Cannot add a timer without an entity and a non-empty key");
+		return {};
+	}
+
+	auto& timers{ entity.TryAdd<impl::Timers>() };
+
+	if (auto* existing{ FindTimerEntry(entity, key) }) {
+		existing->config.duration			 = ClampTimerDuration(duration);
+		existing->config.mode				 = mode;
+		existing->config.start_automatically = start_automatically;
+		existing->runtime					 = TimerRuntime{};
+		InitializeTimerRuntime(*existing, true);
+		return TimerHandle{ .owner = entity, .key = std::move(key) };
+	}
+
+	TimerEntry entry{
+		.config =
+			TimerConfig{
+				.key				 = key,
+				.duration			 = ClampTimerDuration(duration),
+				.mode				 = mode,
+				.start_automatically = start_automatically,
+			},
+	};
+
+	InitializeTimerRuntime(entry, true);
+
+	timers.timers.push_back(std::move(entry));
+
+	return TimerHandle{ .owner = entity, .key = std::move(key) };
+}
+
+TimerHandle GetTimer(Entity entity, TimerKey key) {
+	return HasTimer(entity, key) ? TimerHandle{ .owner = entity, .key = std::move(key) }
+								 : TimerHandle{};
+}
+
+bool HasTimer(Entity entity, const TimerKey& key) {
+	return FindTimerEntry(entity, key) != nullptr;
+}
+
+bool RemoveTimer(Entity entity, const TimerKey& key) {
+	if (!entity) {
+		return false;
+	}
+
+	auto* timers{ entity.TryGet<impl::Timers>() };
+
+	if (!timers) {
+		return false;
+	}
+
+	return std::erase_if(timers->timers, [&key](const TimerEntry& entry) {
+			   return entry.config.key == key;
+		   }) > 0;
+}
+
+void impl::TimerSystem::Update(Scene& scene, milliseconds dt) {
+	auto entities{ scene.EntitiesWith<impl::Timers>().GetVector() };
+
+	for (Entity entity : entities) {
+		if (!IsGroupStackActive(entity) || !scene.ctx().chunks.ShouldSimulate(entity)) {
+			continue;
+		}
+		if (!entity) {
+			continue;
+		}
+
+		auto* timers{ entity.TryGet<impl::Timers>() };
+
+		if (!timers) {
+			continue;
+		}
+
+		std::vector<TimerKey> keys;
+		keys.reserve(timers->timers.size());
+
+		for (const auto& entry : timers->timers) {
+			keys.push_back(entry.config.key);
+		}
+
+		for (const auto& key : keys) {
+			auto* entry{ FindTimerEntry(entity, key) };
+
+			if (!entry) {
+				continue;
+			}
+
+			InitializeTimerRuntime(*entry, true);
+
+			if (!entry->runtime.timer.IsRunning()) {
+				continue;
+			}
+
+			auto events{ AdvanceTimerEntry(*entry, key, dt) };
+
+			DispatchTimerEvents(entity, std::move(events));
+		}
+	}
+}
+
+std::ostream& operator<<(std::ostream& os, const TimerConfig& timer) {
+	return os << "{ key: " << timer.key.value << ", duration: " << timer.duration
+			  << ", mode: " << (timer.mode == TimerMode::Repeat ? "repeat" : "once")
+			  << ", auto_start: " << timer.start_automatically << " }";
+}
+
+std::ostream& operator<<(std::ostream& os, const impl::Timers& timers) {
+	return os << "{ timer_count: " << timers.timers.size() << " }";
+}
+
+} // namespace ptgn

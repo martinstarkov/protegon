@@ -12,7 +12,7 @@ namespace ptgn::impl::gl {
 class GLContext;
 
 struct RenderbufferCache {
-	V2_int size;
+	V2_int size{};
 	TextureFormat format{ TextureFormat::RGBA8 };
 };
 

@@ -1,6 +1,7 @@
 #include "runtime/scripting/script.h"
 
 #include <algorithm>
+#include <chrono>
 #include <cmath>
 #include <memory>
 #include <ranges>
@@ -8,34 +9,43 @@
 
 #include "core/assert.h"
 #include "core/math/math_utils.h"
+#include "runtime/ecs/entity_filter.h"
+#include "runtime/ecs/group_stack.h"
 #include "runtime/scene/scene.h"
 #include "runtime/scene/scene_context.h"
+#include "runtime/scene/scene_event.h"
+#include "runtime/scripting/script_event.h"
 
 namespace ptgn {
 
 Script& Script::operator=(const Script& other) {
 	if (this != &other) {
 		sequence = other.sequence;
-		entity = {};
-		delta_seconds_ = 0.0f;
-		linear_progress_ = 0.0f;
-		progress_ = 0.0f;
-		repeat_ = 0;
-		reversed_ = false;
+		active_sequence_name_.clear();
+		owner				  = {};
+		target				  = {};
+		dt_					  = secondsf::zero();
+		linear_progress_	  = 0.0f;
+		progress_			  = 0.0f;
+		timing_ease_		  = Ease::Linear;
+		repeat_				  = 0;
+		reversed_			  = false;
 		completion_requested_ = false;
 	}
 	return *this;
 }
 
-ScriptSequenceRuntime::ScriptSequenceRuntime() = default;
-ScriptSequenceRuntime::~ScriptSequenceRuntime() = default;
-ScriptSequenceRuntime::ScriptSequenceRuntime(ScriptSequenceRuntime&&) noexcept = default;
+ScriptSequenceRuntime::ScriptSequenceRuntime()											  = default;
+ScriptSequenceRuntime::~ScriptSequenceRuntime()											  = default;
+ScriptSequenceRuntime::ScriptSequenceRuntime(ScriptSequenceRuntime&&) noexcept			  = default;
 ScriptSequenceRuntime& ScriptSequenceRuntime::operator=(ScriptSequenceRuntime&&) noexcept = default;
 
 void ScriptSequenceRuntime::ClearActiveScript() {
-	script_instance.reset();
-	elapsed_ms = 0.0f;
-	current_repeat = 0;
+	script_targets.clear();
+	script_instances.clear();
+	script_completed.clear();
+	elapsed			   = 0ms;
+	current_repeat	   = 0;
 	currently_reversed = false;
 }
 
@@ -56,6 +66,7 @@ ScriptSequence::ScriptSequence(const ScriptSequence& other) :
 	remove_binding_on_complete{ other.remove_binding_on_complete },
 	destroy_owner_on_complete{ other.destroy_owner_on_complete },
 	start_events{ other.start_events },
+	start_conditions{ other.start_conditions },
 	stop_events{ other.stop_events },
 	steps{ other.steps },
 	lifecycle_actions{ other.lifecycle_actions } {}
@@ -79,7 +90,7 @@ ScriptSequence& ScriptSequence::Channel(SequenceChannelKey value) {
 }
 
 ScriptSequence& ScriptSequence::Transient(bool remove_on_complete) {
-	transient = true;
+	transient				   = true;
 	remove_binding_on_complete = remove_on_complete;
 	return *this;
 }
@@ -89,14 +100,43 @@ ScriptSequence& ScriptSequence::DestroyOwnerOnComplete(bool value) {
 	return *this;
 }
 
-ScriptTiming& ScriptSequence::LatestDuringTiming() {
-	auto it{ std::ranges::find_if(
-		steps.rbegin(), steps.rend(), [](const ScriptStep& action) {
-			return action.timing.has_value() &&
-				action.completion == ScriptCompletion::Duration &&
-				action.type_hash != Hash<WaitScript>();
+ScriptSequence& ScriptSequence::RequireBoolean(
+	BooleanKey key, bool expected_value, StateConditionJoin join, std::optional<EntityFilter> target
+) {
+	start_conditions.push_back(
+		StateCondition{
+			.join			= start_conditions.empty() ? StateConditionJoin::And : join,
+			.kind			= StateConditionKind::Boolean,
+			.target			= std::move(target),
+			.boolean		= std::move(key),
+			.expected_value = expected_value,
 		}
-	) };
+	);
+	return *this;
+}
+
+ScriptSequence& ScriptSequence::RequireCounter(
+	CounterKey key, CounterComparison comparison, std::int64_t threshold, StateConditionJoin join,
+	std::optional<EntityFilter> target
+) {
+	start_conditions.push_back(
+		StateCondition{
+			.join		= start_conditions.empty() ? StateConditionJoin::And : join,
+			.kind		= StateConditionKind::Counter,
+			.target		= std::move(target),
+			.counter	= std::move(key),
+			.comparison = comparison,
+			.threshold	= threshold,
+		}
+	);
+	return *this;
+}
+
+ScriptTiming& ScriptSequence::LatestDuringTiming() {
+	auto it{ std::ranges::find_if(steps.rbegin(), steps.rend(), [](const ScriptStep& action) {
+		return action.timing.has_value() && action.completion == ScriptCompletion::Duration &&
+			   action.type_hash != Hash<WaitScript>();
+	}) };
 	PTGN_ASSERT(
 		it != steps.rend(),
 		"Ease, Repeat, Infinite, Reversed, and Yoyo require a preceding During call"
@@ -112,7 +152,7 @@ ScriptSequence& ScriptSequence::Ease(ptgn::Ease value) {
 ScriptSequence& ScriptSequence::Repeat(int additional_repeats) {
 	auto& timing{ LatestDuringTiming() };
 	timing.additional_repeats = std::max(0, additional_repeats);
-	timing.infinite_repeats = false;
+	timing.infinite_repeats	  = false;
 	return *this;
 }
 
@@ -131,16 +171,15 @@ ScriptSequence& ScriptSequence::Yoyo(bool value) {
 	return *this;
 }
 
-ScriptSequence& ScriptSequence::Wait(float duration_ms) {
+ScriptSequence& ScriptSequence::Wait(milliseconds duration) {
 	ScriptRegistry::EnsureRegistered<WaitScript>();
 	ScriptStep action{ ScriptRegistry::MakeStep<WaitScript>() };
-	action.completion = ScriptCompletion::Duration;
-	action.timing = action.timing.value_or(ScriptTiming{});
-	action.timing->duration_ms = std::max(0.0f, duration_ms);
+	action.completion		= ScriptCompletion::Duration;
+	action.timing			= action.timing.value_or(ScriptTiming{});
+	action.timing->duration = std::max(0ms, duration);
 	steps.push_back(std::move(action));
 	return *this;
 }
-
 
 const ScriptRegistration* ScriptRegistry::Find(TypeHashValue type_hash) {
 	for (const auto& entry : Entries()) {
@@ -181,11 +220,13 @@ ScriptStep ScriptRegistry::MakeStep(TypeHashValue type_hash) {
 		return {};
 	}
 	ScriptStep step;
-	step.enabled = true;
+	step.enabled   = true;
 	step.type_hash = registration->type_hash;
-	step.name = registration->name;
-	step.value = registration->make_default();
-	step.timing = registration->default_timing;
+	step.name	   = registration->name;
+	step.value	   = registration->make_default();
+	if (registration->requires_timing) {
+		step.timing = registration->default_timing;
+	}
 	return step;
 }
 
@@ -200,10 +241,7 @@ EventCondition SequenceEventRegistry::MakeCondition(TypeHashValue type_hash, jso
 		return {};
 	}
 	EventCondition condition{
-		.enabled = true,
-		.consume = false,
-		.type_hash = entry->type_hash,
-		.name = entry->name
+		.enabled = true, .consume = false, .type_hash = entry->type_hash, .name = entry->name
 	};
 	if (value.is_null()) {
 		entry->set_defaults(condition);
@@ -218,14 +256,14 @@ EventCondition SequenceEventRegistry::MakeCondition(TypeHashValue type_hash, jso
 
 const SequenceEventRegistration* SequenceEventRegistry::Find(TypeHashValue type_hash) {
 	const auto& entries{ Entries() };
-	const auto it{ std::ranges::find_if(entries, [type_hash](const auto& entry) {
+	auto it{ std::ranges::find_if(entries, [type_hash](const auto& entry) {
 		return entry.type_hash == type_hash;
 	}) };
 	return it == entries.end() ? nullptr : &*it;
 }
 
 ScriptSequence* SharedScriptSequenceRegistry::Find(SequenceId id) {
-	const auto it{ std::ranges::find_if(sequences, [id](const auto& sequence) {
+	auto it{ std::ranges::find_if(sequences, [id](const auto& sequence) {
 		return sequence.id == id;
 	}) };
 	return it == sequences.end() ? nullptr : &*it;
@@ -263,7 +301,7 @@ void impl::Scripts::Attach(Entity owner) {
 
 void impl::Scripts::ApplyPending() {
 	if (owner_) {
-		script_runtime::ApplyPending(owner_.GetScene());
+		ScriptSystem::ApplyPending(owner_.GetScene());
 	}
 }
 
@@ -274,7 +312,7 @@ void impl::Scripts::CancelAll(SequenceCancelReason reason) {
 	for (auto& entry : scripts) {
 		entry.enabled = false;
 		if (entry.instance) {
-			script_runtime::Stop(owner_, entry.instance->sequence.id, reason);
+			ScriptSystem::Stop(owner_, entry.instance->sequence.id, reason);
 			entry.instance->OnCancel(reason);
 		}
 	}
@@ -288,7 +326,7 @@ void impl::Scripts::CancelAll(SequenceCancelReason reason) {
 
 void impl::Scripts::OnEvent(Event event) {
 	if (owner_) {
-		script_runtime::DispatchEvent(owner_, event);
+		ScriptSystem::OnEvent(owner_, event);
 	}
 }
 
@@ -304,19 +342,19 @@ namespace {
 		return false;
 	}
 	return std::ranges::all_of(sequence.steps, &IsSerializableStep) &&
-		std::ranges::all_of(sequence.lifecycle_actions, [](const LifecycleScript& action) {
-			return IsSerializableStep(action.action);
-		});
+		   std::ranges::all_of(sequence.lifecycle_actions, [](const LifecycleScript& action) {
+			   return IsSerializableStep(action.action);
+		   });
 }
 
 [[nodiscard]] bool HasAuthoredSequenceDefinition(const ScriptSequence& sequence) {
 	return !sequence.enabled || sequence.shared_reference || sequence.shared_sequence_id != 0 ||
-		sequence.name != "New Script Sequence" ||
-		sequence.reentry != ReentryMode::IgnoreWhileRunning || sequence.channel.has_value() ||
-		sequence.transient || sequence.remove_binding_on_complete ||
-		sequence.destroy_owner_on_complete || !sequence.start_events.empty() ||
-		!sequence.stop_events.empty() || !sequence.steps.empty() ||
-		!sequence.lifecycle_actions.empty();
+		   sequence.name != "New Script Sequence" ||
+		   sequence.reentry != ReentryMode::IgnoreWhileRunning || sequence.channel.has_value() ||
+		   sequence.transient || sequence.remove_binding_on_complete ||
+		   sequence.destroy_owner_on_complete || !sequence.start_events.empty() ||
+		   !sequence.start_conditions.empty() || !sequence.stop_events.empty() ||
+		   !sequence.steps.empty() || !sequence.lifecycle_actions.empty();
 }
 
 [[nodiscard]] bool HasSerializedScriptValue(const json& value) {
@@ -338,8 +376,8 @@ void SerializeScriptEntry(json& output, const ScriptEntry& entry) {
 		return;
 	}
 
-	const bool has_value{ HasSerializedScriptValue(entry.value) };
-	const bool has_sequence{ HasAuthoredSequenceDefinition(sequence) };
+	bool has_value{ HasSerializedScriptValue(entry.value) };
+	bool has_sequence{ HasAuthoredSequenceDefinition(sequence) };
 
 	// The registered type is the Script's serialized identity. Stateless Scripts therefore need no
 	// reflected JSON payload and can use the compact string representation.
@@ -373,14 +411,8 @@ void SerializeScriptEntry(json& output, const ScriptEntry& entry) {
 		return nullptr;
 	}
 
-	if (const auto type{ input.find("type") }; type != input.end() && type->is_string()) {
+	if (auto type{ input.find("type") }; type != input.end() && type->is_string()) {
 		return ScriptRegistry::Find(type->get<std::string>());
-	}
-
-	// Backward compatibility with the previous hash-based ScriptEntry representation.
-	if (const auto hash{ input.find("type_hash") };
-		hash != input.end() && hash->is_number_unsigned()) {
-		return ScriptRegistry::Find(hash->get<TypeHashValue>());
 	}
 
 	return nullptr;
@@ -394,28 +426,27 @@ void DeserializeScriptEntry(const json& input, std::vector<ScriptEntry>& output)
 
 	ScriptEntry entry;
 	entry.type_hash = registration->type_hash;
-	entry.name = registration->name;
-	entry.enabled = true;
-	entry.value = registration->make_default ? registration->make_default() : json{};
-	entry.sequence = registration->make_default_sequence
-		? registration->make_default_sequence()
-		: ScriptSequence{};
+	entry.name		= registration->name;
+	entry.enabled	= true;
+	entry.value		= registration->make_default ? registration->make_default() : json{};
+	entry.sequence	= registration->make_default_sequence ? registration->make_default_sequence()
+														  : ScriptSequence{};
 
 	if (input.is_object()) {
-		if (const auto enabled{ input.find("enabled") };
+		if (auto enabled{ input.find("enabled") };
 			enabled != input.end() && enabled->is_boolean()) {
 			entry.enabled = enabled->get<bool>();
 		}
-		if (const auto value{ input.find("value") }; value != input.end()) {
+		if (auto value{ input.find("value") }; value != input.end()) {
 			entry.value = *value;
 		}
-		if (const auto sequence{ input.find("sequence") }; sequence != input.end()) {
+		if (auto sequence{ input.find("sequence") }; sequence != input.end()) {
 			try {
 				sequence->get_to(entry.sequence);
 			} catch (...) {
 				entry.sequence = registration->make_default_sequence
-					? registration->make_default_sequence()
-					: ScriptSequence{};
+								   ? registration->make_default_sequence()
+								   : ScriptSequence{};
 			}
 		}
 	}
@@ -448,19 +479,8 @@ void to_json(json& output, const Scripts& scripts) {
 void from_json(const json& input, Scripts& scripts) {
 	scripts.scripts.clear();
 
-	const json* serialized{ nullptr };
 	if (input.is_array()) {
-		serialized = &input;
-	} else if (input.is_object()) {
-		// Backward compatibility with the old { "scripts": [...] } component representation.
-		const auto legacy{ input.find("scripts") };
-		if (legacy != input.end() && legacy->is_array()) {
-			serialized = &*legacy;
-		}
-	}
-
-	if (serialized) {
-		for (const auto& entry : *serialized) {
+		for (const auto& entry : input) {
 			DeserializeScriptEntry(entry, scripts.scripts);
 		}
 	}
@@ -468,34 +488,29 @@ void from_json(const json& input, Scripts& scripts) {
 	scripts.channels.clear();
 	scripts.pending_additions.clear();
 	scripts.pending_removals.clear();
+	scripts.create_event_dispatched = false;
 	scripts.Attach({});
 }
 
 } // namespace impl
 
-namespace script_runtime {
-
 namespace {
 
 [[nodiscard]] bool HasSequenceDefinition(const ScriptSequence& sequence) {
-	return sequence.shared_reference || !sequence.steps.empty() ||
-		!sequence.start_events.empty() || !sequence.stop_events.empty() ||
-		!sequence.lifecycle_actions.empty();
+	return sequence.shared_reference || !sequence.steps.empty() || !sequence.start_events.empty() ||
+		   !sequence.start_conditions.empty() || !sequence.stop_events.empty() ||
+		   !sequence.lifecycle_actions.empty();
 }
 
 void CopySequenceDefinition(ScriptSequence& destination, const ScriptSequence& source) {
-	const SequenceId id{ source.id };
-	destination = source;
-	destination.id = id;
+	SequenceId id{ source.id };
+	destination			= source;
+	destination.id		= id;
 	destination.runtime = ScriptSequenceRuntime{};
 }
 
-bool StartBinding(
-	Entity owner,
-	ScriptSequence& binding,
-	bool force
-);
-void UpdateSequence(Entity owner, ScriptSequence& binding, float delta_seconds);
+bool StartBinding(Entity owner, ScriptSequence& binding, bool force);
+void UpdateSequence(Entity owner, ScriptSequence& binding, secondsf dt);
 
 Script* EnsureInstance(Entity owner, ScriptEntry& entry) {
 	if (!entry.instance) {
@@ -504,9 +519,10 @@ Script* EnsureInstance(Entity owner, ScriptEntry& entry) {
 			return nullptr;
 		}
 
-		entry.instance = entry.runtime_factory
-			? entry.runtime_factory()
-			: (registration->instantiate ? registration->instantiate(entry.value) : nullptr);
+		entry.instance =
+			entry.runtime_factory
+				? entry.runtime_factory()
+				: (registration->instantiate ? registration->instantiate(entry.value) : nullptr);
 		if (!entry.instance) {
 			return nullptr;
 		}
@@ -519,8 +535,7 @@ Script* EnsureInstance(Entity owner, ScriptEntry& entry) {
 		entry.instance->OnStart();
 		entry.initialized = true;
 
-		if (entry.instance->sequence.enabled &&
-			entry.instance->sequence.start_events.empty() &&
+		if (entry.instance->sequence.enabled && entry.instance->sequence.start_events.empty() &&
 			HasSequenceDefinition(entry.instance->sequence)) {
 			StartBinding(owner, entry.instance->sequence, false);
 		}
@@ -528,14 +543,16 @@ Script* EnsureInstance(Entity owner, ScriptEntry& entry) {
 	return entry.instance.get();
 }
 
-[[nodiscard]] ScriptSequence* FindSequenceInScript(
-	Script& script, SequenceId id
-) {
+[[nodiscard]] ScriptSequence* FindSequenceInScript(Script& script, SequenceId id) {
 	if (script.sequence.id == id) {
 		return &script.sequence;
 	}
-	if (script.sequence.runtime.script_instance) {
-		return FindSequenceInScript(*script.sequence.runtime.script_instance, id);
+	for (auto& instance : script.sequence.runtime.script_instances) {
+		if (instance) {
+			if (auto* sequence{ FindSequenceInScript(*instance, id) }) {
+				return sequence;
+			}
+		}
 	}
 	return nullptr;
 }
@@ -551,9 +568,8 @@ Script* EnsureInstance(Entity owner, ScriptEntry& entry) {
 
 	auto find = [&](auto& entries) -> ScriptEntry* {
 		for (auto& entry : entries) {
-			const SequenceId sequence_id{
-				entry.instance ? entry.instance->sequence.id : entry.sequence.id
-			};
+			SequenceId sequence_id{ entry.instance ? entry.instance->sequence.id
+												   : entry.sequence.id };
 			if (sequence_id == id) {
 				return &entry;
 			}
@@ -596,12 +612,9 @@ Script* EnsureInstance(Entity owner, ScriptEntry& entry) {
 [[nodiscard]] SequenceChannelRuntime* FindChannel(
 	impl::Scripts& scripts, const SequenceChannelKey& key
 ) {
-	const auto it{ std::ranges::find_if(
-		scripts.channels,
-		[&](const SequenceChannelRuntime& channel) {
-			return channel.key == key;
-		}
-	) };
+	auto it{ std::ranges::find_if(scripts.channels, [&](const SequenceChannelRuntime& channel) {
+		return channel.key == key;
+	}) };
 	return it == scripts.channels.end() ? nullptr : &*it;
 }
 
@@ -615,47 +628,37 @@ Script* EnsureInstance(Entity owner, ScriptEntry& entry) {
 	return scripts.channels.back();
 }
 
-void ExecuteInstantStep(Entity owner, const ScriptStep& action);
+void ExecuteInstantStep(Entity owner, const ScriptStep& action, std::string_view sequence_name);
 void ProcessImmediateSteps(Entity owner, ScriptSequence& binding);
 void CompleteSequence(Entity owner, ScriptSequence& binding);
 
-void InvokeLifecycle(
-	Entity owner,
-	ScriptSequence& binding,
-	SequenceLifecycle lifecycle
-) {
-	const auto* sequence{ Resolve(owner, binding) };
+void InvokeLifecycle(Entity owner, ScriptSequence& binding, SequenceLifecycle lifecycle) {
+	const auto* sequence{ ScriptSystem::Resolve(owner, binding) };
 	if (!sequence) {
 		return;
 	}
 	for (const auto& callback : sequence->lifecycle_actions) {
 		if (callback.enabled && callback.lifecycle == lifecycle) {
-			ExecuteInstantStep(owner, callback.action);
+			ExecuteInstantStep(owner, callback.action, sequence->name);
 		}
 	}
 }
 
-void PromoteNextInChannel(
-	Entity owner, SequenceChannelRuntime& channel
-) {
+void PromoteNextInChannel(Entity owner, SequenceChannelRuntime& channel) {
 	while (!channel.waiting.empty()) {
-		const SequenceId id{ channel.waiting.front() };
+		SequenceId id{ channel.waiting.front() };
 		channel.waiting.pop_front();
 		if (auto* binding{ FindBinding(owner, id) }) {
 			binding->runtime.waiting_for_channel = false;
-			if (Start(owner, id, true)) {
+			if (ScriptSystem::Start(owner, id, true)) {
 				return;
 			}
 		}
 	}
 }
 
-void ReleaseChannel(
-	Entity owner,
-	ScriptSequence& binding,
-	bool promote
-) {
-	const auto* sequence{ Resolve(owner, binding) };
+void ReleaseChannel(Entity owner, ScriptSequence& binding, bool promote) {
+	const auto* sequence{ ScriptSystem::Resolve(owner, binding) };
 	if (!sequence || !sequence->channel || !owner.Has<impl::Scripts>()) {
 		return;
 	}
@@ -675,33 +678,34 @@ void ReleaseChannel(
 }
 
 bool CancelBinding(
-	Entity owner,
-	ScriptSequence& binding,
-	SequenceCancelReason reason,
-	[[maybe_unused]] bool log,
-	bool promote_channel,
-	bool remove_transient = true
+	Entity owner, ScriptSequence& binding, SequenceCancelReason reason, [[maybe_unused]] bool log,
+	bool promote_channel, bool remove_transient = true
 ) {
-	const auto* sequence{ Resolve(owner, binding) };
-	const bool active{
-		binding.runtime.running || binding.runtime.waiting_for_channel
-	};
+	const auto* sequence{ ScriptSystem::Resolve(owner, binding) };
+	bool active{ binding.runtime.running || binding.runtime.waiting_for_channel };
 
-	if (binding.runtime.script_instance) {
-		auto& script{ *binding.runtime.script_instance };
+	bool cancelled_step{ false };
+
+	for (std::size_t i{ 0 }; i < binding.runtime.script_instances.size(); ++i) {
+		auto& instance{ binding.runtime.script_instances[i] };
+		if (!instance) {
+			continue;
+		}
+
 		impl::ScriptAccessor::SetFrame(
-			script,
-			0.0f, 0.0f, 0.0f,
-			binding.runtime.current_repeat,
+			*instance, secondsf::zero(), 0.0f, 0.0f, binding.runtime.current_repeat,
 			binding.runtime.currently_reversed
 		);
-		if (script.sequence.runtime.running || script.sequence.runtime.waiting_for_channel) {
-			CancelBinding(
-				owner, script.sequence, reason,
-				false, false, false
-			);
+
+		if (instance->sequence.runtime.running || instance->sequence.runtime.waiting_for_channel) {
+			CancelBinding(owner, instance->sequence, reason, false, false, false);
 		}
-		script.OnCancel(reason);
+
+		instance->OnCancel(reason);
+		cancelled_step = true;
+	}
+
+	if (cancelled_step) {
 		InvokeLifecycle(owner, binding, SequenceLifecycle::ScriptCancel);
 	}
 	if (active) {
@@ -709,46 +713,111 @@ bool CancelBinding(
 	}
 
 	ReleaseChannel(owner, binding, promote_channel);
-	const int completed_runs{ binding.runtime.completed_runs };
-	binding.runtime = ScriptSequenceRuntime{};
+	int completed_runs{ binding.runtime.completed_runs };
+	binding.runtime				   = ScriptSequenceRuntime{};
 	binding.runtime.completed_runs = completed_runs;
 
 	if (remove_transient && sequence &&
 		(sequence->transient || sequence->remove_binding_on_complete) &&
-		reason != SequenceCancelReason::Reset &&
-		reason != SequenceCancelReason::BindingRemoved &&
-		reason != SequenceCancelReason::OwnerDestroyed &&
-		owner.Has<impl::Scripts>() && FindSequenceEntry(owner, binding.id)) {
+		reason != SequenceCancelReason::Reset && reason != SequenceCancelReason::BindingRemoved &&
+		reason != SequenceCancelReason::OwnerDestroyed && owner.Has<impl::Scripts>() &&
+		FindSequenceEntry(owner, binding.id)) {
 		owner.Get<impl::Scripts>().RemoveDeferred(binding.id);
 	}
 	return active;
 }
 
-bool StartBinding(
-	Entity owner,
-	ScriptSequence& binding,
-	bool force
-) {
-	const auto* sequence{ Resolve(owner, binding) };
-	if (!sequence || !sequence->enabled || !binding.enabled) {
+[[nodiscard]] bool EvaluateStateCondition(Entity owner, const StateCondition& condition) {
+	// An unselected key is an unconditional true condition, even without a valid target.
+	if ((condition.kind == StateConditionKind::Boolean && condition.boolean.value.empty()) ||
+		(condition.kind == StateConditionKind::Counter && condition.counter.value.empty())) {
+		return true;
+	}
+
+	Entity target{ owner };
+	if (condition.target) {
+		if (condition.target->type != EntityFilterType::Entity) {
+			return false;
+		}
+		target = ResolveEntityReference(owner.GetScene(), condition.target->entity);
+		if (!target) {
+			return false;
+		}
+	}
+
+	switch (condition.kind) {
+		case StateConditionKind::Boolean: {
+			BooleanHandle boolean{ GetBoolean(target, condition.boolean) };
+			return boolean && boolean.Value() == condition.expected_value;
+		}
+		case StateConditionKind::Counter: {
+			CounterHandle counter{ GetCounter(target, condition.counter) };
+			if (!counter) {
+				return false;
+			}
+
+			std::int64_t value{ counter.Value() };
+			switch (condition.comparison) {
+				case CounterComparison::Equal:		  return value == condition.threshold;
+				case CounterComparison::NotEqual:	  return value != condition.threshold;
+				case CounterComparison::Less:		  return value < condition.threshold;
+				case CounterComparison::LessEqual:	  return value <= condition.threshold;
+				case CounterComparison::Greater:	  return value > condition.threshold;
+				case CounterComparison::GreaterEqual: return value >= condition.threshold;
+				default:							  return false;
+			}
+		}
+		default: return false;
+	}
+}
+
+[[nodiscard]] bool EvaluateStartConditions(Entity owner, const ScriptSequence& sequence) {
+	if (!owner) {
+		return false;
+	}
+
+	bool has_condition{ false };
+	bool completed_groups_match{ false };
+	bool current_group_matches{ false };
+
+	for (const StateCondition& condition : sequence.start_conditions) {
+		if (!condition.enabled) {
+			continue;
+		}
+
+		bool matched{ EvaluateStateCondition(owner, condition) };
+		if (!has_condition) {
+			current_group_matches = matched;
+			has_condition		  = true;
+		} else if (condition.join == StateConditionJoin::And) {
+			current_group_matches = current_group_matches && matched;
+		} else if (condition.join == StateConditionJoin::Or) {
+			completed_groups_match = completed_groups_match || current_group_matches;
+			current_group_matches  = matched;
+		} else {
+			return false;
+		}
+	}
+
+	return !has_condition || completed_groups_match || current_group_matches;
+}
+
+bool StartBinding(Entity owner, ScriptSequence& binding, bool force) {
+	const auto* sequence{ ScriptSystem::Resolve(owner, binding) };
+	if (!sequence || !sequence->enabled || !binding.enabled ||
+		!EvaluateStartConditions(owner, *sequence)) {
 		return false;
 	}
 
 	auto& runtime{ binding.runtime };
 	if (runtime.running) {
-		const ReentryMode mode{ force ? ReentryMode::Restart : sequence->reentry };
+		ReentryMode mode{ force ? ReentryMode::Restart : sequence->reentry };
 		switch (mode) {
-			case ReentryMode::IgnoreWhileRunning:
-				return false;
+			case ReentryMode::IgnoreWhileRunning: return false;
 			case ReentryMode::Restart:
-				CancelBinding(
-					owner, binding, SequenceCancelReason::Replaced,
-					false, false, false
-				);
+				CancelBinding(owner, binding, SequenceCancelReason::Replaced, false, false, false);
 				break;
-			case ReentryMode::Queue:
-				++runtime.queued_runs;
-				return true;
+			case ReentryMode::Queue: ++runtime.queued_runs; return true;
 		}
 	}
 
@@ -757,14 +826,11 @@ bool StartBinding(
 		scripts.Attach(owner);
 		auto& channel{ FindOrCreateChannel(scripts, *sequence->channel) };
 		if (channel.active && *channel.active != binding.id) {
-			const ReentryMode mode{ force ? ReentryMode::Restart : sequence->reentry };
+			ReentryMode mode{ force ? ReentryMode::Restart : sequence->reentry };
 			switch (mode) {
-				case ReentryMode::IgnoreWhileRunning:
-					return false;
+				case ReentryMode::IgnoreWhileRunning: return false;
 				case ReentryMode::Restart:
-					script_runtime::StopChannel(
-						owner, *sequence->channel, SequenceStopMode::All
-					);
+					ScriptSystem::StopChannel(owner, *sequence->channel, SequenceStopMode::All);
 					break;
 				case ReentryMode::Queue:
 					if (!std::ranges::contains(channel.waiting, binding.id)) {
@@ -774,89 +840,101 @@ bool StartBinding(
 					return true;
 			}
 		}
-		channel.active = binding.id;
+		channel.active				= binding.id;
 		runtime.waiting_for_channel = false;
 	}
 
-	const int completed_runs{ runtime.completed_runs };
-	const int queued_runs{ runtime.queued_runs };
-	runtime = ScriptSequenceRuntime{};
+	int completed_runs{ runtime.completed_runs };
+	int queued_runs{ runtime.queued_runs };
+	runtime				   = ScriptSequenceRuntime{};
 	runtime.completed_runs = completed_runs;
-	runtime.queued_runs = queued_runs;
-	runtime.running = true;
+	runtime.queued_runs	   = queued_runs;
+	runtime.running		   = true;
 
 	InvokeLifecycle(owner, binding, SequenceLifecycle::Start);
 	ProcessImmediateSteps(owner, binding);
 	return true;
 }
 
+[[nodiscard]] std::vector<Entity> ResolveStepTargets(Entity owner, const ScriptStep& action) {
+	if (!owner) {
+		return {};
+	}
+
+	if (!action.target) {
+		return { owner };
+	}
+
+	return ResolveEntityFilter(*action.target, owner.GetScene(), owner);
+}
+
 [[nodiscard]] std::unique_ptr<Script> InstantiateStepScript(
-	Entity owner, const ScriptStep& action
+	Entity owner, Entity target, const ScriptStep& action, std::string_view sequence_name
 ) {
 	const auto* registration{ ScriptRegistry::Find(action.type_hash) };
 	if (!registration) {
 		return nullptr;
 	}
-	auto instance{
-		action.runtime_factory
-			? action.runtime_factory()
-			: registration->instantiate(action.value)
-	};
+
+	auto instance{ action.runtime_factory ? action.runtime_factory()
+										  : registration->instantiate(action.value) };
+
 	if (instance) {
-		impl::ScriptAccessor::Attach(*instance, owner);
+		impl::ScriptAccessor::Attach(*instance, owner, target, sequence_name);
 	}
+
 	return instance;
 }
 
 void StartChildScript(
-	Entity owner,
-	Script& script,
-	float linear,
-	float progress,
-	int repeat,
-	bool reversed
+	Entity owner, Script& script, float linear, float progress, int repeat, bool reversed
 ) {
-	impl::ScriptAccessor::SetFrame(script, 0.0f, linear, progress, repeat, reversed);
+	impl::ScriptAccessor::SetFrame(script, secondsf::zero(), linear, progress, repeat, reversed);
 	script.OnCreate();
 	script.OnStart();
+
 	if (script.sequence.enabled && script.sequence.start_events.empty() &&
 		HasSequenceDefinition(script.sequence)) {
 		StartBinding(owner, script.sequence, false);
 	}
 }
 
-ScriptStatus UpdateChildScript(
-	Entity owner,
-	Script& script,
-	float delta_seconds
-) {
+ScriptStatus UpdateChildScript(Entity owner, Script& script, secondsf dt) {
 	ScriptStatus status{ script.OnUpdate() };
-	UpdateSequence(owner, script.sequence, delta_seconds);
+	UpdateSequence(owner, script.sequence, dt);
+
 	if (impl::ScriptAccessor::TakeCompletionRequest(script) ||
 		(HasSequenceDefinition(script.sequence) && script.sequence.runtime.completed)) {
 		status = ScriptStatus::Complete;
 	}
+
 	return status;
 }
 
-void ExecuteInstantStep(Entity owner, const ScriptStep& action) {
+void ExecuteInstantStep(Entity owner, const ScriptStep& action, std::string_view sequence_name) {
 	if (!action.enabled) {
 		return;
 	}
-	auto instance{ InstantiateStepScript(owner, action) };
-	if (!instance) {
-		return;
+
+	for (Entity target : ResolveStepTargets(owner, action)) {
+		if (!target) {
+			continue;
+		}
+
+		auto instance{ InstantiateStepScript(owner, target, action, sequence_name) };
+		if (!instance) {
+			continue;
+		}
+
+		StartChildScript(owner, *instance, 1.0f, 1.0f, 0, false);
+		impl::ScriptAccessor::SetFrame(*instance, secondsf::zero(), 1.0f, 1.0f, 0, false);
+		UpdateChildScript(owner, *instance, secondsf::zero());
+		instance->OnComplete();
 	}
-	StartChildScript(owner, *instance, 1.0f, 1.0f, 0, false);
-	impl::ScriptAccessor::SetFrame(*instance, 0.0f, 1.0f, 1.0f, 0, false);
-	UpdateChildScript(owner, *instance, 0.0f);
-	instance->OnComplete();
 }
 
-void ProcessImmediateSteps(
-	Entity owner, ScriptSequence& binding
-) {
-	const auto* sequence{ Resolve(owner, binding) };
+void ProcessImmediateSteps(Entity owner, ScriptSequence& binding) {
+	const auto* sequence{ ScriptSystem::Resolve(owner, binding) };
 	if (!sequence) {
 		return;
 	}
@@ -872,14 +950,12 @@ void ProcessImmediateSteps(
 			++runtime.step_index;
 			continue;
 		}
-		const ScriptCompletion completion{
-			action.completion.value_or(registration->completion)
-		};
+		ScriptCompletion completion{ action.completion.value_or(registration->completion) };
 		if (completion != ScriptCompletion::Instant) {
 			return;
 		}
 		InvokeLifecycle(owner, binding, SequenceLifecycle::ScriptStart);
-		ExecuteInstantStep(owner, action);
+		ExecuteInstantStep(owner, action, sequence->name);
 		InvokeLifecycle(owner, binding, SequenceLifecycle::ScriptComplete);
 		++runtime.step_index;
 	}
@@ -888,44 +964,44 @@ void ProcessImmediateSteps(
 	}
 }
 
-void CompleteCurrentStep(
-	Entity owner, ScriptSequence& binding
-) {
+void CompleteCurrentStep(Entity owner, ScriptSequence& binding) {
 	auto& runtime{ binding.runtime };
-	if (runtime.script_instance) {
+
+	for (auto& instance : runtime.script_instances) {
+		if (!instance) {
+			continue;
+		}
+
 		impl::ScriptAccessor::SetFrame(
-			*runtime.script_instance,
-			0.0f, 1.0f, 1.0f,
-			runtime.current_repeat,
+			*instance, secondsf::zero(), 1.0f, 1.0f, runtime.current_repeat,
 			runtime.currently_reversed
 		);
-		runtime.script_instance->OnComplete();
+		instance->OnComplete();
 	}
+
 	InvokeLifecycle(owner, binding, SequenceLifecycle::ScriptComplete);
 	++runtime.step_index;
 	runtime.ClearActiveScript();
 	ProcessImmediateSteps(owner, binding);
 }
 
-void CompleteSequence(
-	Entity owner, ScriptSequence& binding
-) {
-	const auto* sequence{ Resolve(owner, binding) };
+void CompleteSequence(Entity owner, ScriptSequence& binding) {
+	const auto* sequence{ ScriptSystem::Resolve(owner, binding) };
 	if (!sequence) {
 		return;
 	}
-	const bool remove_binding{
-		sequence->transient || sequence->remove_binding_on_complete
-	};
-	const bool destroy_owner{ sequence->destroy_owner_on_complete };
-	const int queued_runs{ binding.runtime.queued_runs };
-	const int completed_runs{ binding.runtime.completed_runs + 1 };
+	bool remove_binding{ sequence->transient || sequence->remove_binding_on_complete };
+	bool destroy_owner{ sequence->destroy_owner_on_complete };
+	int queued_runs{ binding.runtime.queued_runs };
+	int completed_runs{ binding.runtime.completed_runs + 1 };
 
-	binding.runtime.running = false;
-	binding.runtime.paused = false;
-	binding.runtime.completed = true;
+	binding.runtime.running		   = false;
+	binding.runtime.paused		   = false;
+	binding.runtime.completed	   = true;
 	binding.runtime.completed_runs = completed_runs;
-	binding.runtime.script_instance.reset();
+	binding.runtime.script_targets.clear();
+	binding.runtime.script_instances.clear();
+	binding.runtime.script_completed.clear();
 
 	InvokeLifecycle(owner, binding, SequenceLifecycle::Complete);
 
@@ -949,16 +1025,12 @@ void CompleteSequence(
 	}
 }
 
-void UpdateSequence(
-	Entity owner,
-	ScriptSequence& binding,
-	float delta_seconds
-) {
+void UpdateSequence(Entity owner, ScriptSequence& binding, secondsf dt) {
 	auto& runtime{ binding.runtime };
 	if (!runtime.running || runtime.paused || runtime.waiting_for_channel) {
 		return;
 	}
-	const auto* sequence{ Resolve(owner, binding) };
+	const auto* sequence{ ScriptSystem::Resolve(owner, binding) };
 	if (!sequence || runtime.step_index >= sequence->steps.size()) {
 		CompleteSequence(owner, binding);
 		return;
@@ -976,104 +1048,150 @@ void UpdateSequence(
 		ProcessImmediateSteps(owner, binding);
 		return;
 	}
-	const ScriptCompletion completion{
-		action.completion.value_or(registration->completion)
-	};
+	ScriptCompletion completion{ action.completion.value_or(registration->completion) };
 	if (completion == ScriptCompletion::Instant) {
 		ProcessImmediateSteps(owner, binding);
 		return;
 	}
 
-	if (!runtime.script_instance) {
-		runtime.script_instance = InstantiateStepScript(owner, action);
-		if (!runtime.script_instance) {
+	if (runtime.script_instances.empty()) {
+		auto targets{ ResolveStepTargets(owner, action) };
+
+		for (Entity target : targets) {
+			if (!target) {
+				continue;
+			}
+
+			auto instance{ InstantiateStepScript(owner, target, action, sequence->name) };
+			if (!instance) {
+				continue;
+			}
+
+			runtime.script_targets.emplace_back(target);
+			runtime.script_instances.emplace_back(std::move(instance));
+			runtime.script_completed.emplace_back(false);
+		}
+
+		if (runtime.script_instances.empty()) {
 			++runtime.step_index;
 			ProcessImmediateSteps(owner, binding);
 			return;
 		}
+
 		runtime.currently_reversed = action.timing && action.timing->reversed;
-		StartChildScript(
-			owner, *runtime.script_instance,
-			0.0f, 0.0f, 0, runtime.currently_reversed
-		);
+
+		for (std::size_t i{ 0 }; i < runtime.script_instances.size(); ++i) {
+			StartChildScript(
+				owner, *runtime.script_instances[i], 0.0f, 0.0f, 0, runtime.currently_reversed
+			);
+		}
+
 		InvokeLifecycle(owner, binding, SequenceLifecycle::ScriptStart);
 	}
 
-	const float delta_ms{ std::max(0.0f, delta_seconds) * 1000.0f };
 	if (action.timing) {
-		runtime.elapsed_ms += delta_ms;
+		runtime.elapsed += duration_cast<milliseconds>(dt);
 	}
+
 	float linear{ 0.0f };
 	float progress{ 0.0f };
+
 	if (action.timing) {
 		const auto& timing{ *action.timing };
-		linear = timing.duration_ms <= 0.0f
-			? 1.0f
-			: std::clamp(runtime.elapsed_ms / timing.duration_ms, 0.0f, 1.0f);
-		const float directed{ runtime.currently_reversed ? 1.0f - linear : linear };
-		progress = ptgn::ApplyEase(directed, timing.ease);
+		linear = timing.duration <= 0ms
+				   ? 1.0f
+				   : std::clamp(millisecondsf{ runtime.elapsed } / timing.duration, 0.0f, 1.0f);
+
+		float directed{ runtime.currently_reversed ? 1.0f - linear : linear };
+		// Ease::None is a step/hold Tween: immediately use the endpoint for the current
+		// direction and keep it there for the entire duration.
+		progress = timing.ease == Ease::None ? (runtime.currently_reversed ? 0.0f : 1.0f)
+											 : ptgn::ApplyEase(directed, timing.ease);
 	}
 
-	impl::ScriptAccessor::SetFrame(
-		*runtime.script_instance,
-		delta_seconds, linear, progress,
-		runtime.current_repeat, runtime.currently_reversed
-	);
-	const ScriptStatus status{
-		UpdateChildScript(owner, *runtime.script_instance, delta_seconds)
-	};
+	bool all_complete{ true };
 
-	bool complete{ false };
-	switch (completion) {
-		case ScriptCompletion::Instant:
-			complete = true;
-			break;
-		case ScriptCompletion::Duration:
-			complete = status == ScriptStatus::Complete || linear >= 1.0f;
-			break;
-		case ScriptCompletion::ScriptControlled:
-			complete = status == ScriptStatus::Complete;
-			break;
-		case ScriptCompletion::Infinite:
-			// Infinite disables automatic time-based completion, but the Script may
-			// still explicitly call Complete()/MoveOn().
-			complete = status == ScriptStatus::Complete;
-			break;
+	for (std::size_t i{ 0 }; i < runtime.script_instances.size(); ++i) {
+		if (runtime.script_completed[i]) {
+			continue;
+		}
+
+		Entity target{ runtime.script_targets[i] };
+		auto& instance{ runtime.script_instances[i] };
+
+		if (!target || !instance) {
+			runtime.script_completed[i] = true;
+			continue;
+		}
+
+		impl::ScriptAccessor::SetFrame(
+			*instance, dt, linear, progress, runtime.current_repeat, runtime.currently_reversed,
+			action.timing ? action.timing->ease : Ease::Linear
+		);
+
+		ScriptStatus status{ UpdateChildScript(owner, *instance, dt) };
+
+		bool instance_complete{ false };
+
+		switch (completion) {
+			case ScriptCompletion::Instant: instance_complete = true; break;
+
+			case ScriptCompletion::Duration:
+				instance_complete = status == ScriptStatus::Complete || linear >= 1.0f;
+				break;
+
+			case ScriptCompletion::ScriptControlled:
+			case ScriptCompletion::Infinite:
+				instance_complete = status == ScriptStatus::Complete;
+				break;
+		}
+
+		runtime.script_completed[i] = instance_complete;
+
+		if (!instance_complete) {
+			all_complete = false;
+		}
 	}
-	if (!complete) {
+
+	if (!all_complete) {
 		return;
 	}
 
-	const bool repeat{
-		action.timing &&
-		(action.timing->infinite_repeats ||
-		 runtime.current_repeat < action.timing->additional_repeats)
-	};
+	bool repeat{ action.timing && (action.timing->infinite_repeats ||
+								   runtime.current_repeat < action.timing->additional_repeats) };
+
 	if (repeat) {
 		++runtime.current_repeat;
-		runtime.elapsed_ms = 0.0f;
+		runtime.elapsed = 0ms;
 		InvokeLifecycle(owner, binding, SequenceLifecycle::Repeat);
+
 		if (action.timing->yoyo) {
 			runtime.currently_reversed = !runtime.currently_reversed;
 			InvokeLifecycle(owner, binding, SequenceLifecycle::Yoyo);
 		}
-		impl::ScriptAccessor::SetFrame(
-			*runtime.script_instance,
-			0.0f, 0.0f, 0.0f,
-			runtime.current_repeat, runtime.currently_reversed
-		);
-		runtime.script_instance->OnRepeat();
+
+		for (std::size_t i{ 0 }; i < runtime.script_instances.size(); ++i) {
+			auto& instance{ runtime.script_instances[i] };
+			if (!instance) {
+				continue;
+			}
+
+			runtime.script_completed[i] = false;
+			impl::ScriptAccessor::SetFrame(
+				*instance, secondsf::zero(), 0.0f, 0.0f, runtime.current_repeat,
+				runtime.currently_reversed
+			);
+			instance->OnRepeat();
+		}
+
 		return;
 	}
+
 	CompleteCurrentStep(owner, binding);
 }
 
-void HandleSequenceEvent(
-	Entity owner,
-	ScriptSequence& binding,
-	Event event
-) {
-	const auto* definition{ Resolve(owner, binding) };
+void HandleSequenceEvent(Entity owner, ScriptSequence& binding, Event event) {
+	const auto* definition{ ScriptSystem::Resolve(owner, binding) };
 	if (!definition) {
 		return;
 	}
@@ -1083,15 +1201,14 @@ void HandleSequenceEvent(
 			continue;
 		}
 		const auto* registration{ SequenceEventRegistry::Find(condition.type_hash) };
-		if (registration && registration->matches(
-				owner, event, condition, condition.consume
-			)) {
-			CancelBinding(
-				owner, binding, SequenceCancelReason::Stopped,
-				true, true
-			);
+		if (registration && registration->matches(owner, event, condition, condition.consume)) {
+			CancelBinding(owner, binding, SequenceCancelReason::Stopped, true, true);
 			return;
 		}
+	}
+
+	if (!EvaluateStartConditions(owner, *definition)) {
+		return;
 	}
 
 	for (const auto& condition : definition->start_events) {
@@ -1099,20 +1216,14 @@ void HandleSequenceEvent(
 			continue;
 		}
 		const auto* registration{ SequenceEventRegistry::Find(condition.type_hash) };
-		if (registration && registration->matches(
-				owner, event, condition, condition.consume
-			)) {
+		if (registration && registration->matches(owner, event, condition, condition.consume)) {
 			StartBinding(owner, binding, false);
 			return;
 		}
 	}
 }
 
-void DispatchToScript(
-	Entity owner,
-	Script& script,
-	Event event
-) {
+void DispatchToScript(Entity owner, Script& script, Event event) {
 	script.OnEvent(event);
 	if (event.IsHandled()) {
 		return;
@@ -1121,21 +1232,30 @@ void DispatchToScript(
 	if (event.IsHandled()) {
 		return;
 	}
-	if (script.sequence.runtime.script_instance) {
-		DispatchToScript(owner, *script.sequence.runtime.script_instance, event);
+	for (std::size_t i{ 0 }; i < script.sequence.runtime.script_instances.size(); ++i) {
+		auto& instance{ script.sequence.runtime.script_instances[i] };
+		if (!instance) {
+			continue;
+		}
+
+		DispatchToScript(owner, *instance, event);
+
+		if (event.IsHandled()) {
+			return;
+		}
 	}
 }
 
 } // namespace
 
-void AttachEntry(Entity entity, ScriptEntry& entry) {
+void ScriptSystem::AttachEntry(Entity entity, ScriptEntry& entry) {
 	if (!entity || !entry.type_hash) {
 		return;
 	}
 	EnsureInstance(entity, entry);
 }
 
-void AttachAll(Entity entity) {
+void ScriptSystem::AttachAll(Entity entity) {
 	if (!entity) {
 		return;
 	}
@@ -1144,15 +1264,20 @@ void AttachAll(Entity entity) {
 		return;
 	}
 	for (auto& entry : scripts->scripts) {
-		AttachEntry(entity, entry);
+		ScriptSystem::AttachEntry(entity, entry);
 	}
 	for (auto& entry : scripts->pending_additions) {
-		AttachEntry(entity, entry);
+		ScriptSystem::AttachEntry(entity, entry);
+	}
+
+	if (!scripts->create_event_dispatched) {
+		scripts->create_event_dispatched = true;
+		PushEvent<event::EntityCreated>(entity);
 	}
 }
 
-void ApplyPending(Scene& scene) {
-	const auto entities{ scene.EntitiesWith<impl::Scripts>().GetVector() };
+void ScriptSystem::ApplyPending(Scene& scene) {
+	auto entities{ scene.EntitiesWith<impl::Scripts>().GetVector() };
 	for (Entity entity : entities) {
 		auto* scripts_ptr{ entity.TryGet<impl::Scripts>() };
 		if (!scripts_ptr) {
@@ -1160,22 +1285,20 @@ void ApplyPending(Scene& scene) {
 		}
 		auto& scripts{ *scripts_ptr };
 		scripts.Attach(entity);
-		for (const SequenceId id : scripts.pending_removals) {
+		for (SequenceId id : scripts.pending_removals) {
 			bool completed{ false };
 			if (auto* binding{ FindBinding(entity, id) }) {
 				completed = binding->runtime.completed;
 				if (!completed) {
 					CancelBinding(
-						entity, *binding, SequenceCancelReason::BindingRemoved,
-						false, true, false
+						entity, *binding, SequenceCancelReason::BindingRemoved, false, true, false
 					);
 				}
 			}
 
-			const auto remove_matching_entry = [id, completed](ScriptEntry& entry) {
-				const SequenceId sequence_id{
-					entry.instance ? entry.instance->sequence.id : entry.sequence.id
-				};
+			auto remove_matching_entry = [id, completed](ScriptEntry& entry) {
+				SequenceId sequence_id{ entry.instance ? entry.instance->sequence.id
+													   : entry.sequence.id };
 				if (sequence_id != id) {
 					return false;
 				}
@@ -1191,33 +1314,32 @@ void ApplyPending(Scene& scene) {
 		scripts.pending_removals.clear();
 		for (auto& entry : scripts.pending_additions) {
 			scripts.scripts.push_back(std::move(entry));
-			AttachEntry(entity, scripts.scripts.back());
+			ScriptSystem::AttachEntry(entity, scripts.scripts.back());
 		}
 		scripts.pending_additions.clear();
 	}
 }
 
-void Update(Scene& scene, secondsf delta_time) {
-	const float delta_seconds{ std::max(0.0f, delta_time.count()) };
-	
-	const auto entities{ scene.EntitiesWith<impl::Scripts>().GetVector() };
-	
+void ScriptSystem::Update(Scene& scene, secondsf dt) {
+	auto entities{ scene.EntitiesWith<impl::Scripts>().GetVector() };
 	for (Entity entity : entities) {
+		if (!IsGroupStackActive(entity) || !scene.ctx().chunks.ShouldSimulate(entity)) {
+			continue;
+		}
 		auto* scripts{ entity.TryGet<impl::Scripts>() };
 		if (!scripts) {
 			continue;
 		}
 		scripts->Attach(entity);
+		AttachAll(entity);
 		for (auto& entry : scripts->scripts) {
 			auto* script{ EnsureInstance(entity, entry) };
 			if (!script || !entry.enabled) {
 				continue;
 			}
-			impl::ScriptAccessor::SetFrame(
-				*script, delta_seconds, 0.0f, 0.0f, 0, false
-			);
-			const ScriptStatus status{ script->OnUpdate() };
-			UpdateSequence(entity, script->sequence, delta_seconds);
+			impl::ScriptAccessor::SetFrame(*script, dt, 0.0f, 0.0f, 0, false);
+			ScriptStatus status{ script->OnUpdate() };
+			UpdateSequence(entity, script->sequence, dt);
 			if (status == ScriptStatus::Complete ||
 				impl::ScriptAccessor::TakeCompletionRequest(*script)) {
 				script->OnComplete();
@@ -1227,9 +1349,8 @@ void Update(Scene& scene, secondsf delta_time) {
 	}
 }
 
-
-bool DispatchEvent(Entity entity, Event event) {
-	if (!entity || !entity.Has<impl::Scripts>()) {
+bool ScriptSystem::OnEvent(Entity entity, Event event) {
+	if (!entity || !entity.Has<impl::Scripts>() || !IsGroupStackActive(entity)) {
 		return false;
 	}
 	auto& scripts{ entity.Get<impl::Scripts>() };
@@ -1248,9 +1369,12 @@ bool DispatchEvent(Entity entity, Event event) {
 	return event.IsHandled();
 }
 
-bool DispatchGlobalEvent(Scene& scene, Event event) {
-	const auto entities{ scene.EntitiesWith<impl::Scripts>().GetVector() };
+bool ScriptSystem::OnEvent(Scene& scene, Event event) {
+	auto entities{ scene.EntitiesWith<impl::Scripts>().GetVector() };
 	for (Entity entity : entities) {
+		if (!IsGroupStackActive(entity)) {
+			continue;
+		}
 		auto* scripts{ entity.TryGet<impl::Scripts>() };
 		if (!scripts) {
 			continue;
@@ -1270,68 +1394,57 @@ bool DispatchGlobalEvent(Scene& scene, Event event) {
 	return event.IsHandled();
 }
 
-ScriptSequence* Resolve(
-	Entity owner, ScriptSequence& binding
-) {
+ScriptSequence* ScriptSystem::Resolve(Entity owner, ScriptSequence& binding) {
 	return binding.shared_reference
-		? owner.GetScene().ctx().shared_script_sequences.Find(binding.shared_sequence_id)
-		: &binding;
+			 ? owner.GetScene().ctx().shared_script_sequences.Find(binding.shared_sequence_id)
+			 : &binding;
 }
 
-const ScriptSequence* Resolve(
-	Entity owner, const ScriptSequence& binding
-) {
+const ScriptSequence* ScriptSystem::Resolve(Entity owner, const ScriptSequence& binding) {
 	return binding.shared_reference
-		? owner.GetScene().ctx().shared_script_sequences.Find(binding.shared_sequence_id)
-		: &binding;
+			 ? owner.GetScene().ctx().shared_script_sequences.Find(binding.shared_sequence_id)
+			 : &binding;
 }
 
-SequenceHandle RunSequence(
-	Entity owner, ScriptSequence sequence
-) {
+SequenceHandle ScriptSystem::RunSequence(Entity owner, ScriptSequence sequence) {
 	if (!owner) {
 		return {};
 	}
 	auto& scripts{ owner.TryAdd<impl::Scripts>() };
 	scripts.Attach(owner);
-	const SequenceId id{ sequence.id };
+	SequenceId id{ sequence.id };
 	ScriptRegistry::EnsureRegistered<WaitScript>();
 	ScriptEntry entry;
-	entry.enabled = true;
+	entry.enabled	= true;
 	entry.type_hash = Hash<Script>();
-	entry.name = type_name_without_namespaces<Script>();
-	entry.value = json::object();
-	entry.sequence = std::move(sequence);
-	entry.instance = std::make_unique<Script>();
-	const SequenceId sequence_id{ entry.sequence.id };
-	entry.instance->sequence = entry.sequence;
+	entry.name		= type_name_without_namespaces<Script>();
+	entry.value		= json::object();
+	entry.sequence	= std::move(sequence);
+	entry.instance	= std::make_unique<Script>();
+	SequenceId sequence_id{ entry.sequence.id };
+	entry.instance->sequence	= entry.sequence;
 	entry.instance->sequence.id = sequence_id;
-	entry.sequence.id = sequence_id;
+	entry.sequence.id			= sequence_id;
 	scripts.pending_additions.push_back(std::move(entry));
-	AttachEntry(owner, scripts.pending_additions.back());
+	ScriptSystem::AttachEntry(owner, scripts.pending_additions.back());
 	return SequenceHandle{ .owner = owner, .binding_id = id };
 }
 
-SequenceHandle RunInChannel(
-	Entity owner,
-	SequenceChannelKey channel,
-	ScriptSequence sequence,
-	ReentryMode reentry
+SequenceHandle ScriptSystem::RunInChannel(
+	Entity owner, SequenceChannelKey channel, ScriptSequence sequence, ReentryMode reentry
 ) {
 	sequence.channel = std::move(channel);
 	sequence.reentry = reentry;
-	return RunSequence(owner, std::move(sequence));
+	return ScriptSystem::RunSequence(owner, std::move(sequence));
 }
 
-bool Start(Entity owner, SequenceId id, bool force) {
+bool ScriptSystem::Start(Entity owner, SequenceId id, bool force) {
 	auto* binding{ FindBinding(owner, id) };
 	return binding && StartBinding(owner, *binding, force);
 }
 
-void StopChannel(
-	Entity owner,
-	SequenceChannelKey channel_key,
-	SequenceStopMode mode
+void ScriptSystem::StopChannel(
+	Entity owner, SequenceChannelKey channel_key, SequenceStopMode mode
 ) {
 	if (!owner || !owner.Has<impl::Scripts>()) {
 		return;
@@ -1352,68 +1465,94 @@ void StopChannel(
 	channel->waiting.clear();
 	for (SequenceId id : ids) {
 		if (auto* binding{ FindBinding(owner, id) }) {
-			CancelBinding(
-				owner, *binding, SequenceCancelReason::Replaced,
-				false, false
-			);
+			CancelBinding(owner, *binding, SequenceCancelReason::Replaced, false, false);
 		}
 	}
 }
 
-bool Stop(Entity owner, SequenceId id, SequenceCancelReason reason) {
+bool ScriptSystem::Stop(Entity owner, SequenceId id, SequenceCancelReason reason) {
 	auto* binding{ FindBinding(owner, id) };
 	return binding && CancelBinding(owner, *binding, reason, true, true);
 }
 
-bool Reset(Entity owner, SequenceId id) {
+bool ScriptSystem::Reset(Entity owner, SequenceId id) {
 	auto* binding{ FindBinding(owner, id) };
 	if (!binding) {
 		return false;
 	}
-	CancelBinding(
-		owner, *binding, SequenceCancelReason::Reset,
-		false, true
-	);
+	CancelBinding(owner, *binding, SequenceCancelReason::Reset, false, true);
 	InvokeLifecycle(owner, *binding, SequenceLifecycle::Reset);
 	return true;
 }
 
-bool Clear(Entity owner, SequenceId id) {
+bool ScriptSystem::Clear(Entity owner, SequenceId id) {
 	auto* binding{ FindBinding(owner, id) };
 	if (!binding) {
 		return false;
 	}
-	CancelBinding(
-		owner, *binding, SequenceCancelReason::Cleared,
-		false, true
-	);
+	CancelBinding(owner, *binding, SequenceCancelReason::Cleared, false, true);
 	if (binding->shared_reference || binding->transient) {
 		owner.Get<impl::Scripts>().RemoveDeferred(id);
 	} else {
 		binding->steps.clear();
 		binding->start_events.clear();
+		binding->start_conditions.clear();
 		binding->stop_events.clear();
 		binding->lifecycle_actions.clear();
 	}
 	return true;
 }
 
-bool Skip(Entity owner, SequenceId id) {
+static void CancelCurrentStep(Entity owner, ScriptSequence& binding) {
+	bool cancelled_step{ false };
+
+	for (auto& instance : binding.runtime.script_instances) {
+		if (!instance) {
+			continue;
+		}
+
+		if (instance->sequence.runtime.running || instance->sequence.runtime.waiting_for_channel) {
+			CancelBinding(
+				owner, instance->sequence, SequenceCancelReason::Skipped, false, false, false
+			);
+		}
+
+		instance->OnCancel(SequenceCancelReason::Skipped);
+		cancelled_step = true;
+	}
+
+	if (cancelled_step) {
+		InvokeLifecycle(owner, binding, SequenceLifecycle::ScriptCancel);
+	}
+
+	binding.runtime.ClearActiveScript();
+}
+
+bool ScriptSystem::Skip(Entity owner, SequenceId id) {
 	auto* binding{ FindBinding(owner, id) };
 	if (!binding || !binding->runtime.running) {
 		return false;
 	}
-	if (binding->runtime.script_instance) {
-		binding->runtime.script_instance->OnCancel(SequenceCancelReason::Skipped);
-		InvokeLifecycle(owner, *binding, SequenceLifecycle::ScriptCancel);
-	}
+
+	CancelCurrentStep(owner, *binding);
 	++binding->runtime.step_index;
-	binding->runtime.ClearActiveScript();
 	ProcessImmediateSteps(owner, *binding);
 	return true;
 }
 
-bool Seek(Entity owner, SequenceId id, float progress) {
+bool ScriptSystem::PreviousStep(Entity owner, SequenceId id) {
+	auto* binding{ FindBinding(owner, id) };
+	if (!binding || !binding->runtime.running || binding->runtime.step_index == 0) {
+		return false;
+	}
+
+	CancelCurrentStep(owner, *binding);
+	--binding->runtime.step_index;
+	ProcessImmediateSteps(owner, *binding);
+	return true;
+}
+
+bool ScriptSystem::Seek(Entity owner, SequenceId id, float progress) {
 	auto* binding{ FindBinding(owner, id) };
 	if (!binding) {
 		return false;
@@ -1421,7 +1560,7 @@ bool Seek(Entity owner, SequenceId id, float progress) {
 	if (!binding->runtime.running && !StartBinding(owner, *binding, true)) {
 		return false;
 	}
-	const auto* sequence{ Resolve(owner, *binding) };
+	const auto* sequence{ ScriptSystem::Resolve(owner, *binding) };
 	if (!sequence || binding->runtime.step_index >= sequence->steps.size()) {
 		return false;
 	}
@@ -1429,86 +1568,79 @@ bool Seek(Entity owner, SequenceId id, float progress) {
 	if (!action.timing) {
 		return false;
 	}
-	binding->runtime.elapsed_ms =
-		std::clamp(progress, 0.0f, 1.0f) *
-		std::max(0.0f, action.timing->duration_ms);
-	UpdateSequence(owner, *binding, 0.0f);
+	binding->runtime.elapsed = duration_cast<milliseconds>(
+		std::clamp(progress, 0.0f, 1.0f) * std::max(0ms, action.timing->duration)
+	);
+	UpdateSequence(owner, *binding, secondsf::zero());
 	return true;
 }
 
-bool SetPaused(Entity owner, SequenceId id, bool paused) {
+bool ScriptSystem::SetPaused(Entity owner, SequenceId id, bool paused) {
 	auto* binding{ FindBinding(owner, id) };
 	if (!binding || !binding->runtime.running || binding->runtime.paused == paused) {
 		return false;
 	}
 	binding->runtime.paused = paused;
-	InvokeLifecycle(
-		owner, *binding,
-		paused ? SequenceLifecycle::Pause : SequenceLifecycle::Resume
-	);
+	InvokeLifecycle(owner, *binding, paused ? SequenceLifecycle::Pause : SequenceLifecycle::Resume);
 	return true;
 }
 
-float Progress(Entity owner, SequenceId id) {
+float ScriptSystem::Progress(Entity owner, SequenceId id) {
 	const auto* binding{ FindBinding(owner, id) };
 	if (!binding) {
 		return 0.0f;
 	}
-	const auto* sequence{ Resolve(owner, *binding) };
+	const auto* sequence{ ScriptSystem::Resolve(owner, *binding) };
 	if (!sequence || !binding->runtime.running ||
 		binding->runtime.step_index >= sequence->steps.size()) {
 		return binding->runtime.completed ? 1.0f : 0.0f;
 	}
 	const auto& action{ sequence->steps[binding->runtime.step_index] };
-	if (!action.timing || action.timing->duration_ms <= 0.0f) {
+	if (!action.timing || action.timing->duration <= 0ms) {
 		return 0.0f;
 	}
 	return std::clamp(
-		binding->runtime.elapsed_ms / action.timing->duration_ms,
-		0.0f, 1.0f
+		millisecondsf{ binding->runtime.elapsed } / action.timing->duration, 0.0f, 1.0f
 	);
 }
 
-bool IsRunning(Entity owner, SequenceId id) {
+bool ScriptSystem::IsRunning(Entity owner, SequenceId id) {
 	const auto* binding{ FindBinding(owner, id) };
 	return binding && binding->runtime.running;
 }
 
-bool IsPaused(Entity owner, SequenceId id) {
+bool ScriptSystem::IsPaused(Entity owner, SequenceId id) {
 	const auto* binding{ FindBinding(owner, id) };
 	return binding && binding->runtime.paused;
 }
 
-bool IsCompleted(Entity owner, SequenceId id) {
+bool ScriptSystem::IsCompleted(Entity owner, SequenceId id) {
 	const auto* binding{ FindBinding(owner, id) };
 	return binding && binding->runtime.completed;
 }
 
-} // namespace script_runtime
-
-
 SequenceHandle ScriptSequence::Start(Entity owner, bool force) const {
 	ScriptSequence definition{ *this };
 	definition.runtime = ScriptSequenceRuntime{};
-	auto handle{ script_runtime::RunSequence(owner, std::move(definition)) };
+	auto handle{ ScriptSystem::RunSequence(owner, std::move(definition)) };
 	handle.Start(force);
 	return handle;
 }
 
 bool SequenceHandle::Start(bool force) const {
-	return script_runtime::Start(owner, binding_id, force);
+	return ScriptSystem::Start(owner, binding_id, force);
 }
 
 bool SequenceHandle::Stop() const {
-	return script_runtime::Stop(owner, binding_id);
+	return ScriptSystem::Stop(owner, binding_id);
 }
 
 bool SequenceHandle::Pause() const {
-	return script_runtime::SetPaused(owner, binding_id, true);
+	return ScriptSystem::SetPaused(owner, binding_id, true);
 }
 
 bool SequenceHandle::Resume() const {
-	return script_runtime::SetPaused(owner, binding_id, false);
+	return ScriptSystem::SetPaused(owner, binding_id, false);
 }
 
 bool SequenceHandle::TogglePaused() const {
@@ -1520,35 +1652,77 @@ bool SequenceHandle::Toggle() const {
 }
 
 bool SequenceHandle::Reset() const {
-	return script_runtime::Reset(owner, binding_id);
+	return ScriptSystem::Reset(owner, binding_id);
 }
 
 bool SequenceHandle::Clear() const {
-	return script_runtime::Clear(owner, binding_id);
+	return ScriptSystem::Clear(owner, binding_id);
 }
 
 bool SequenceHandle::Skip() const {
-	return script_runtime::Skip(owner, binding_id);
+	return ScriptSystem::Skip(owner, binding_id);
+}
+
+bool SequenceHandle::PreviousStep() const {
+	return ScriptSystem::PreviousStep(owner, binding_id);
 }
 
 bool SequenceHandle::Seek(float progress) const {
-	return script_runtime::Seek(owner, binding_id, progress);
+	return ScriptSystem::Seek(owner, binding_id, progress);
 }
 
 bool SequenceHandle::IsRunning() const {
-	return script_runtime::IsRunning(owner, binding_id);
+	return ScriptSystem::IsRunning(owner, binding_id);
 }
 
 bool SequenceHandle::IsPaused() const {
-	return script_runtime::IsPaused(owner, binding_id);
+	return ScriptSystem::IsPaused(owner, binding_id);
 }
 
 bool SequenceHandle::IsCompleted() const {
-	return script_runtime::IsCompleted(owner, binding_id);
+	return ScriptSystem::IsCompleted(owner, binding_id);
 }
 
 float SequenceHandle::Progress() const {
-	return script_runtime::Progress(owner, binding_id);
+	return ScriptSystem::Progress(owner, binding_id);
+}
+
+void from_json(const json& input, ScriptStep& step) {
+	step		 = ScriptStep{};
+	step.enabled = input.value("enabled", true);
+
+	const ScriptRegistration* registration{
+		input.contains("type") && input.at("type").is_string()
+			? ScriptRegistry::Find(input.at("type").get<std::string>())
+			: nullptr
+	};
+
+	if (registration) {
+		step.type_hash = registration->type_hash;
+		step.value	   = registration->make_default ? registration->make_default() : json{};
+	}
+
+	if (input.contains("value")) {
+		step.value = input.at("value");
+	}
+
+	if (input.contains("target")) {
+		input.at("target").get_to(step.target);
+	}
+
+	if (input.contains("completion")) {
+		input.at("completion").get_to(step.completion);
+	}
+
+	if (input.contains("timing")) {
+		input.at("timing").get_to(step.timing);
+	} else if (registration) {
+		ScriptCompletion completion{ step.completion.value_or(registration->completion) };
+
+		if (registration->requires_timing || completion == ScriptCompletion::Duration) {
+			step.timing = registration->default_timing.value_or(ScriptTiming{});
+		}
+	}
 }
 
 } // namespace ptgn

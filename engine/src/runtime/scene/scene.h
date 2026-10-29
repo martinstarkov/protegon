@@ -3,17 +3,22 @@
 #include <ecs/ecs.h>
 
 #include <algorithm>
+#include <concepts>
 #include <cstdint>
+#include <functional>
 #include <memory>
 #include <optional>
+#include <ranges>
 #include <string>
 #include <string_view>
+#include <type_traits>
 #include <utility>
 #include <vector>
 
 #include "core/event/event.h"
 #include "core/graphics/color.h"
 #include "runtime/asset/asset_key.h"
+#include "runtime/asset/prefab.h"
 #include "runtime/ecs/entity.h"
 #include "runtime/ecs/manager.h"
 #include "runtime/ecs/tag.h"
@@ -35,10 +40,34 @@ class LocalEventHandler;
 class SceneContext;
 class DrawContext;
 
+/// @brief Dependency builder used before a scene is constructed and initialized.
+/// Add assets that may be needed by entities created later at runtime and therefore
+/// cannot be discovered from the serialized ECS content.
+class AssetPreloadContext {
+public:
+	void Add(AssetKey key) {
+		if (!key.value.empty() && !std::ranges::contains(dependencies_, key)) {
+			dependencies_.emplace_back(std::move(key));
+		}
+	}
+
+	template <typename T>
+		requires std::derived_from<std::remove_cvref_t<T>, AssetKey>
+	void Add(T key) {
+		Add(AssetKey{ std::move(key.value) });
+	}
+
+	[[nodiscard]] const std::vector<AssetKey>& GetDependencies() const {
+		return dependencies_;
+	}
+
+private:
+	std::vector<AssetKey> dependencies_;
+};
+
 namespace impl {
 
 class SceneFileAccess;
-
 enum class SceneState {
 	Active,
 	TransitionIn,
@@ -46,16 +75,15 @@ enum class SceneState {
 };
 
 struct SceneData {
-	std::string tag;
+	std::string tag{};
 	std::size_t tag_hash{ 0 };
 	impl::SceneState state{ impl::SceneState::Active };
-	std::unique_ptr<SceneTransition> transition;
+	std::unique_ptr<SceneTransition> transition{};
 	bool runtime{ true };
 	bool first_scene{ false };
-	std::string registered_type;
-
-	// Process local render state. This is not serialized into scene files.
+	std::string registered_type{};
 	bool render_enabled{ true };
+	bool paused{ false };
 };
 
 template <SceneType TScene>
@@ -67,7 +95,6 @@ template <typename TComponent>
 struct SceneHook {
 	Scene& scene;
 	ecs::Hook<void, ecs::impl::BaseEntity<JsonArchiver>>& hook;
-
 	template <auto Member>
 	void Connect();
 };
@@ -75,78 +102,104 @@ struct SceneHook {
 class Scene {
 public:
 	Scene() = default;
-
 	Scene(Scene&&) noexcept;
 	Scene& operator=(Scene&&) noexcept;
-
 	Scene(const Scene&)			   = delete;
 	Scene& operator=(const Scene&) = delete;
-
 	virtual ~Scene();
 
-	/// @brief Called only when a new scene has no serialized ECS contents yet.
+	/// @brief Called on a temporary, uninitialized scene before asynchronous loading begins.
+	/// Keep constructors and this method free of renderer/window access.
+	virtual void OnPreload(AssetPreloadContext&) const {
+		/* User implementation */
+	}
+
 	virtual void OnNew() {
 		/* User implementation */
 	}
 
-	/// @brief Called after either new or serialized scene contents have been initialized.
-	/// Called for both runtime and non runtime scenes.
 	virtual void OnLoad() {
 		/* User implementation */
 	}
 
-	/// @brief Called when a runtime scene is added to active scenes.
 	virtual void OnEnter() {
 		/* User implementation */
 	}
 
-	/// @brief Called once per frame for each runtime scene.
 	virtual void OnUpdate() {
 		/* User implementation */
 	}
 
-	/// @brief Called when a runtime scene is removed from active scenes.
+	virtual void OnRender() {
+		/* User implementation */
+	}
+
 	virtual void OnExit() {
 		/* User implementation */
 	}
 
-	/// @brief Called when an event is emitted to a runtime scene.
 	virtual void OnEvent(Event) {
 		/* User implementation */
 	}
 
-	/// @brief Sets the background color of the scene. The default background color is transparent.
+	[[nodiscard]] const std::vector<std::string>& GetTags() const {
+		return tags_;
+	}
+
+	// Tag definitions persist even when no entity currently uses them.
+	bool AddTag(std::string name);
+
 	void SetBackgroundColor(Color background_color);
-
-	/// @return The background color of the scene.
 	Color GetBackgroundColor() const;
-
-	/// @return Null entity if no entity with the given uuid exists in the manager.
 	Entity GetEntity(UUID uuid) const;
-
-	/// @return Null entity if no entity with the given tag exists in the scene.
-	/// If multiple entities have the same tag, returns the first one found.
 	Entity GetEntity(const Tag& tag) const;
-
-	/// @brief Creates an entity with a specified tag and UUID, or a default tag and a random UUID
-	/// if unspecified. Make sure to call Refresh() after this function.
 	Entity CreateEntity(Tag tag = {}, UUID uuid = {});
-
-	/// @brief Instantiates a project prefab with fresh UUIDs.
-	/// The string overload accepts either "player" or "prefabs/player".
-	/// The prefab asset must be present in the project asset catalog.
 	Entity CreatePrefab(std::string_view prefab_key);
 	Entity CreatePrefab(const PrefabKey& prefab_key);
+	/// @brief Captures a normal scene entity hierarchy as a prefab asset.
+	/// The source is destroyed by default, making this convenient for code authored prefabs.
+	[[nodiscard]] PrefabKey CreatePrefabAsset(
+		Entity source, std::string_view prefab_name, bool destroy_source = true
+	);
+	[[nodiscard]] bool HasPrefabAsset(std::string_view prefab_name) const;
+	/// @brief Returns the live AssetManager owned authoring entity for a prefab asset.
+	/// This entity has the same component API as scene entities but is not placed in a scene.
+	[[nodiscard]] Entity GetPrefabAsset(std::string_view prefab_name);
+	[[nodiscard]] Entity GetPrefabAsset(const PrefabKey& prefab_key);
 
-	/// @brief Copies all of the from entity's specified components into a new entity with a
-	/// specified tag and UUID, or a default tag and a random UUID if unspecified.
-	/// Make sure to call Refresh() after this function.
+	/// @brief Authors/overwrites a prefab with the same CreateX(Scene&, ...) helpers used by
+	/// ordinary scene entities.
+	template <typename Factory>
+		requires std::invocable<Factory&, Scene&> &&
+				 std::convertible_to<std::invoke_result_t<Factory&, Scene&>, Entity>
+	[[nodiscard]] PrefabKey CreatePrefabAsset(std::string_view prefab_name, Factory&& factory) {
+		Entity source{ std::invoke(factory, *this) };
+		if (!source) {
+			return {};
+		}
+		return CreatePrefabAsset(source, prefab_name, true);
+	}
+
+	/// @brief Creates a prefab asset using the same CreateX(Scene&, ...) helpers used for entities.
+	/// The factory is only invoked when the prefab does not already exist.
+	template <typename Factory>
+		requires std::invocable<Factory&, Scene&> &&
+				 std::convertible_to<std::invoke_result_t<Factory&, Scene&>, Entity>
+	[[nodiscard]] PrefabKey EnsurePrefabAsset(std::string_view prefab_name, Factory&& factory) {
+		PrefabKey key{ MakePrefabKey(prefab_name) };
+		if (HasPrefabAsset(prefab_name)) {
+			return key;
+		}
+		return CreatePrefabAsset(prefab_name, std::forward<Factory>(factory));
+	}
+
 	template <typename... Ts>
 	Entity CopyEntity(Entity from, Tag tag = {}, UUID uuid = {}) {
 		auto entity{ manager_.CopyEntity<Ts...>(from.entity_) };
 		entity.template Add<Tag>(std::move(tag));
 		entity.template Add<UUID>(uuid);
-		return Entity{ entity, this };
+		Entity copied{ entity, this };
+		return copied;
 	}
 
 	template <typename... Ts>
@@ -211,34 +264,45 @@ public:
 		return SceneHook<TComponent>{ *this, manager_.template OnUpdate<TComponent>() };
 	}
 
-	/// @brief Adds an already registered path-backed asset as a persistent dependency of this scene.
-	void AddAssetDependency(AssetKey key);
-
-	/// @return Persistent asset keys that must be loaded before this scene is initialized.
+	/// @brief Adds a persistent preload only dependency that serialized-content discovery cannot
+	/// see.
+	bool AddAssetDependency(AssetKey key);
+	/// @brief Removes a persistent preload only scene dependency. Automatically discovered
+	/// references remain part of the scene until the serialized field referencing them is changed.
+	bool RemoveAssetDependency(const AssetKey& key);
+	/// @return True when the asset is either explicitly preloaded or referenced by serialized scene
+	/// data.
+	[[nodiscard]] bool HasAssetDependency(const AssetKey& key) const;
+	/// @return True only for dependencies explicitly added through code or the editor context menu.
+	[[nodiscard]] bool HasExplicitAssetDependency(const AssetKey& key) const;
+	/// @return The effective dependency set used for scene residency and scene-file preloading.
 	[[nodiscard]] const std::vector<AssetKey>& GetAssetDependencies() const;
-
+	/// @return Explicit preload only dependencies. CaptureScene combines these with serialized
+	/// refs.
+	[[nodiscard]] const std::vector<AssetKey>& GetExplicitAssetDependencies() const;
+	/// @brief Rebuilds effective dependencies from the current serialized parameters/content plus
+	/// explicit preload only dependencies. Added assets are acquired and removed assets are
+	/// released.
+	/// @return True when the effective dependency set changed.
+	bool SyncAssetDependenciesFromSerialization();
+	/// @brief Reacquires the current effective dependency set for an already-live scene.
+	void ReloadLoadedAssetDependencies();
 	void Refresh();
-
 	std::size_t GetEntityCount() const;
-
 	RenderTarget GetRenderTarget() const;
 	SceneCamera GetCamera() const;
 	SceneCamera GetFixedCamera() const;
-
 	[[nodiscard]] const SceneContext& ctx() const;
 	[[nodiscard]] SceneContext& ctx();
-
 	std::size_t GetTagHash() const;
 	std::string GetTag() const;
-
 	void SetRenderEnabled(bool enabled = true);
-
 	[[nodiscard]] bool IsRenderEnabled() const;
-	[[nodiscard]] bool IsRuntime() const;
+	bool IsRuntime() const;
+	void SetPaused(bool paused = true);
+	[[nodiscard]] bool IsPaused() const;
 	[[nodiscard]] bool IsTransitioning() const;
 	[[nodiscard]] std::string_view GetRegisteredType() const;
-
-	/// @brief Serializes the persistent scene ECS state used by project save and editor play mode.
 	[[nodiscard]] json SerializeContent() const;
 
 private:
@@ -251,16 +315,10 @@ private:
 	friend class LocalEventHandler;
 	template <typename TComponent>
 	friend struct SceneHook;
-
 	template <SceneType TScene>
 	friend void impl::InitScene(TScene& scene, Application& app, impl::SceneData&& scene_data);
-
-	/// @brief Initializes a newly created scene with default primary entities and OnNew().
 	void Init(Application& app, impl::SceneData&& scene_data);
-
-	/// @brief Initializes a scene from serialized project contents.
 	void Init(Application& app, impl::SceneData&& scene_data, const json& serialized_content);
-
 	void InitBase(Application& app, impl::SceneData&& scene_data);
 	void CreateDefaultSceneEntities();
 	void DeserializeContent(const json& serialized_content);
@@ -270,28 +328,29 @@ private:
 		(static_cast<TScene*>(this)->*Member)(Entity{ handle, this });
 	}
 
-	/// @brief Called by scene manager when a new runtime scene is loaded and entered.
 	void InternalEnter();
 	void InternalExit();
 	void InternalOnEvent(Event event);
-	void InternalOnEvent();
+	void InternalOnEvent(Entity entity, Event event);
 	void InternalPreUpdate();
-
 	void InternalUpdate();
-	void InternalRuntimeUpdate();
-	void InternalMaintenanceUpdate();
 	void InternalDraw(DrawContext& draw_context);
 	void ClearRenderTargets();
 	void DrawCameras(DrawContext& draw_context, const std::vector<Entity>& cameras);
 	void DrawSceneTarget(DrawContext& draw_context) const;
 	[[nodiscard]] bool IsAwaitingTransitionDelay() const;
-
+	void SetAssetDependencies(
+		std::vector<AssetKey> dependencies, std::vector<AssetKey> explicit_dependencies
+	);
+	void AdoptLoadedAssetDependencies(std::vector<AssetKey> dependencies);
+	void ReleaseLoadedAssetDependencies() noexcept;
 	std::unique_ptr<SceneContext> ctx_;
-
 	Manager manager_;
-
+	std::vector<std::string> tags_{};
 	impl::SceneData data_;
 	std::vector<AssetKey> asset_dependencies_;
+	std::vector<AssetKey> explicit_asset_dependencies_;
+	std::vector<AssetKey> retained_asset_dependencies_;
 };
 
 namespace impl {
@@ -320,7 +379,6 @@ template <typename TComponent>
 template <auto Member>
 void SceneHook<TComponent>::Connect() {
 	using TScene = typename impl::MemberPointerClass<decltype(Member)>::type;
-
 	hook.template Connect<Scene, &Scene::template HookThunk<TScene, Member>>(&scene);
 }
 

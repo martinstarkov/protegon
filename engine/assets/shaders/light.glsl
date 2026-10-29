@@ -17,7 +17,7 @@ uniform float u_LightRadius;
 uniform float u_Falloff;
 uniform vec3 u_AmbientColor;
 uniform float u_AmbientIntensity;
-uniform vec3 u_LightAttenuation;
+// uniform vec3 u_LightAttenuation;
 
 float sqr(float x) {
     return x * x;

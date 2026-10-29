@@ -24,8 +24,8 @@ public:
 
 	constexpr Rect() = default;
 
-	constexpr Rect(V2_float min, V2_float max) : min{ min }, max{ max } {
-		PTGN_ASSERT(!GetSize().IsNegative(), "Rect size cannot be negative");
+	constexpr Rect(V2_float rect_min, V2_float rect_max) : min{ rect_min }, max{ rect_max } {
+		PTGN_ASSERT(!GetSize().HasNegative(), "Rect size cannot be negative: ", GetSize());
 	}
 
 	template <Arithmetic T>
@@ -88,20 +88,23 @@ public:
 
 	/// @return Center relative to the transform.
 	constexpr V2_float GetCenter(Transform transform) const {
-		auto center{ GetCenter() };
-		return center + transform.position;
+		return transform.Apply(GetCenter());
 	}
 
 	/// @return New transform offset by the origin.
 	[[nodiscard]] constexpr Transform Offset(Transform transform, Origin origin) const {
-		auto size{ GetSize(transform) };
-		auto offset{ GetOffset(origin, size) };
+		auto local_offset{ GetOffset(origin, GetSize()) };
 
-		if (offset.IsZero()) {
+		if (local_offset.IsZero()) {
 			return transform;
 		}
 
-		transform.Translate(offset);
+		// Transform the offset as a vector: apply scale + rotation, but remove translation.
+		auto world_zero{ transform.Apply(V2_float{}) };
+		auto world_offset_point{ transform.Apply(local_offset) };
+		auto world_offset{ world_offset_point - world_zero };
+
+		transform.position += world_offset;
 
 		return transform;
 	}
@@ -117,14 +120,12 @@ public:
 		return { min, V2_float{ max.x, min.y }, max, V2_float{ min.x, max.y } };
 	}
 
-	constexpr std::array<V2_float, 4> GetWorldVertices(
-		Transform transform, Origin origin
-	) const {
+	constexpr std::array<V2_float, 4> GetWorldVertices(Transform transform, Origin origin) const {
 		auto offset_transform{ Offset(transform, origin) };
 		return GetWorldVertices(offset_transform);
 	}
 
-	/// @return A Rect that bounds the given points, where the min and max are axis-aligned with the
+	/// @return A Rect that bounds the given points, where the min and max are axis aligned with the
 	/// world axes.
 	template <std::ranges::input_range TRange>
 		requires std::convertible_to<std::ranges::range_reference_t<TRange>, V2_float>

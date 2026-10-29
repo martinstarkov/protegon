@@ -14,7 +14,7 @@ struct Radians;
 struct Degrees {
 	Degrees() = default;
 
-	constexpr Degrees(float value) : value{ value } {} // NOSONAR
+	constexpr Degrees(float degree_value) : value{ degree_value } {} // NOSONAR
 
 	explicit constexpr Degrees(Radians r);
 
@@ -47,7 +47,7 @@ struct Degrees {
 struct Radians {
 	Radians() = default;
 
-	explicit constexpr Radians(float value) : value{ value } {}
+	explicit constexpr Radians(float radian_value) : value{ radian_value } {}
 
 	explicit constexpr Radians(Degrees d) : value{ d.value * kPi / 180.0f } {}
 

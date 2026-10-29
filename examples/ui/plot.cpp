@@ -29,7 +29,7 @@ public:
 		sampling.Start();
 		PTGN_ASSERT(scene);
 		return amplitude_rng() *
-			   std::sin(sine_frequency * static_cast<float>(scene->ctx().TimeSinceStart().count()));
+			   std::sin(sine_frequency * scene->ctx().GameTime().count());
 	}
 
 	float sine_frequency{ 0.0005f };

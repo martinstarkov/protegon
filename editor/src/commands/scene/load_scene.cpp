@@ -2,8 +2,8 @@
 
 #include <utility>
 
-#include "core/editor.h"
-#include "core/editor_context.h"
+#include "editor/editor.h"
+#include "editor/editor_context.h"
 #include "panels/scene_list.h"
 #include "runtime/scene/scene_manager.h"
 
@@ -36,9 +36,9 @@ std::string_view LoadSceneCommand::Label() const {
 
 void LoadSceneCommand::Apply(const SerializedScene& scene) const {
 	auto& manager{ ctx_->editor.GetSceneManager() };
-	if (!manager.ReEnterFactory(
+	if (!manager.EnterFactory(
 			scene_key_,
-			impl::MakeSceneFactory(scene, runtime_)
+			::ptgn::impl::MakeSceneFactory(scene, runtime_)
 		)) {
 		return;
 	}

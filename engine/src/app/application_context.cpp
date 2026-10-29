@@ -5,7 +5,7 @@
 #include <vector>
 
 #include "app/application.h"
-#include "application_config.h"
+#include "app/application_config.h"
 #include "core/assert.h"
 #include "core/event/event.h"
 #include "core/event/event_handler.h"
@@ -31,8 +31,8 @@ ApplicationLibrary::~ApplicationLibrary() noexcept {
 	PTGN_INFO("Deinitialized GLFW");
 }
 
-milliseconds ApplicationContext::TimeSinceStart() const {
-	return duration_cast<milliseconds>(duration<double>{ glfwGetTime() });
+secondsf ApplicationContext::TimeSinceApplicationStart() const {
+	return secondsf{ glfwGetTime() };
 }
 
 ApplicationContext& ApplicationAccessor::ctx(Application& app) {
@@ -46,28 +46,40 @@ const ApplicationContext& ApplicationAccessor::ctx(const Application& app) {
 ApplicationContext::ApplicationContext(const ApplicationConfig& config) :
 	debug{},
 	event_handler{},
-	window{ config.window,
-			[this](EventData&& event) {
-				event_handler.global_event_queue_.emplace_back(std::move(event));
-			} },
-	renderer{ window, debug.stats,
-			  [this](V2_int size, ResizeType type) {
-				  switch (type) {
-					  using enum ResizeType;
-					  case Presentation:
-						  event_handler.Push<event::PresentationResized>(size);
-						  break;
-					  case Display: event_handler.Push<event::DisplayResized>(size); break;
-					  case Logical: event_handler.Push<event::LogicalResized>(size); break;
-					  default:		PTGN_ERROR("Unknown ResizeType: ", std::to_underlying(type));
-				  }
-			  } },
-	assets{ renderer, audio, font },
+	window{
+		config.window,
+		[this](EventData&& event) { event_handler.PushData(std::move(event)); },
+	},
+	renderer{
+		window,
+		debug.stats,
+		[this](V2_int size, ResizeType type) {
+			switch (type) {
+				using enum ResizeType;
+				case Presentation: event_handler.Push<event::PresentationResized>(size); break;
+				case Display:	   event_handler.Push<event::DisplayResized>(size); break;
+				case Logical:	   event_handler.Push<event::LogicalResized>(size); break;
+				default:		   PTGN_ERROR("Unknown ResizeType: ", std::to_underlying(type));
+			}
+		},
+	},
+	assets{ renderer },
 	font{ renderer, assets },
-	audio{ assets } {
+	audio{ assets, event_handler } {
+	// AssetManager is constructed before the systems that use it. Connect them only after
+	// all three objects have begun their lifetimes; this avoids storing references to
+	// not-yet-constructed members.
+	assets.font_  = &font;
+	assets.audio_ = &audio;
+
 	PTGN_INFO("Application Config: ", json(config));
 }
 
-ApplicationContext::~ApplicationContext() noexcept = default;
+ApplicationContext::~ApplicationContext() noexcept {
+	// Scenes own asset references, so release them before AssetManager is destroyed.
+	scene_manager.pending_loads_.clear();
+	scene_manager.commands_.clear();
+	scene_manager.scenes_.clear();
+}
 
 } // namespace ptgn::impl

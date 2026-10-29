@@ -39,7 +39,7 @@ struct GlyphEffectStyle {
 
 struct GlyphRenderStyle {
 	Color color{ color::White };
-	GlyphEffectStyle effect;
+	GlyphEffectStyle effect{};
 	FontStyle flags{ FontStyle::Normal };
 
 	constexpr bool operator==(const GlyphRenderStyle&) const = default;
@@ -49,17 +49,17 @@ struct Glyph {
 	std::uint32_t codepoint{ 0 };
 
 	/// @brief Baseline pen position in local text coordinates.
-	V2_float position;
+	V2_float position{};
 
-	Rect plane;
-	Rect uv;
+	Rect plane{};
+	Rect uv{};
 	impl::TextureId texture{ 0 };
 
 	std::size_t source_run_index{ 0 };
 	std::size_t source_codepoint_index{ 0 };
 	std::size_t visible_order{ 0 };
 
-	GlyphRenderStyle render_style;
+	GlyphRenderStyle render_style{};
 
 	/// @brief Logical cursor advance excluding spacing before the glyph.
 	float advance{ 0.0f };

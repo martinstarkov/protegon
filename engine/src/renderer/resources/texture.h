@@ -16,9 +16,9 @@
 namespace ptgn {
 
 struct TextureDesc {
-	V2_int size;
+	V2_int size{};
 	TextureFormat format{ TextureFormat::RGBA8 };
-	TextureParams params;
+	TextureParams params{};
 
 	constexpr bool operator==(const TextureDesc&) const = default;
 };

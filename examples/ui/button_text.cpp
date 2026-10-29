@@ -1,5 +1,5 @@
 #include "app/application.h"
-#include "core/editor.h"
+#include "app/editor.h"
 #include "core/event/event.h"
 #include "core/event/key_event.h"
 #include "core/graphics/color.h"
@@ -122,7 +122,7 @@ public:
 			button.OnPress([]() { PTGN_LOG("Pressed state-specific text button"); });
 		}
 
-		// Disabled-state text. Press Q/E to disable/enable.
+		// Disabled state text. Press Q/E to disable/enable.
 		disabled_button = CreateButton(*this, { -170, 0 }, button_size);
 
 		disabled_button.Background().Border();

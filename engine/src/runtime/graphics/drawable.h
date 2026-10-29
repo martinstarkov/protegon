@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <concepts>
 #include <optional>
+#include <string>
 #include <string_view>
 #include <vector>
 
@@ -31,13 +32,13 @@ concept DrawableType = requires(DrawContext& render_context, Entity entity) {
 namespace impl {
 
 struct DrawableRegistrationOptions {
-	std::optional<std::string_view> name;
-	std::optional<std::string_view> group;
+	std::optional<std::string_view> name{};
+	std::optional<std::string_view> group{};
 };
 
 struct DrawableRegistrationData {
-	std::string_view type_name;
-	DrawableRegistrationOptions options;
+	std::string_view type_name{};
+	DrawableRegistrationOptions options{};
 };
 
 constexpr DrawableRegistrationData MakeDrawableRegistration(
@@ -68,18 +69,19 @@ public:
 		std::size_t hash{ 0 };
 
 		/// @brief Actual registered C++ type name.
-		std::string_view type_name;
+		std::string type_name{};
 
 		/// @brief Optional name.
-		std::optional<std::string_view> name;
+		std::optional<std::string> name{};
 
 		/// @brief Optional group.
-		std::optional<std::string_view> group;
+		std::optional<std::string> group{};
 
 		DrawFunc draw{ nullptr };
 
 		[[nodiscard]] constexpr std::string_view GetDisplayName() const {
-			return name.value_or(type_name);
+			return name.has_value() ? std::string_view{ name.value() }
+									: std::string_view{ type_name };
 		}
 	};
 
@@ -95,11 +97,19 @@ public:
 
 		auto it{ std::ranges::find(drawables, type_hash, &Info::hash) };
 
+		std::optional<std::string> name{ registration.options.name.has_value()
+											 ? std::optional<std::string>{ std::string{
+												   registration.options.name.value() } }
+											 : std::nullopt };
+		std::optional<std::string> group{ registration.options.group.has_value()
+											  ? std::optional<std::string>{ std::string{
+													registration.options.group.value() } }
+											  : std::nullopt };
+
 		if (it != drawables.end()) {
 			PTGN_ASSERT(
-				it->draw == draw && it->type_name == registration.type_name &&
-					it->name == registration.options.name &&
-					it->group == registration.options.group,
+				it->draw == draw && it->type_name == registration.type_name && it->name == name &&
+					it->group == group,
 				"Drawable hash collision or duplicate drawable registration with different metadata"
 			);
 
@@ -109,9 +119,9 @@ public:
 		drawables.push_back(
 			Info{
 				.hash	   = type_hash,
-				.type_name = registration.type_name,
-				.name	   = registration.options.name,
-				.group	   = registration.options.group,
+				.type_name = std::string{ registration.type_name },
+				.name	   = name,
+				.group	   = group,
 				.draw	   = draw,
 			}
 		);
@@ -156,7 +166,7 @@ class DrawableRegistrar {
 
 public:
 	static void Touch() {
-		(void)registered_draw;
+		static_cast<void>(registered_draw);
 	}
 
 private:
@@ -182,13 +192,13 @@ EffectParams GetEffectParams(const Entity& entity);
 
 } // namespace ptgn
 
-#define PTGN_REGISTER_DRAWABLE(Type, ...)                                                 \
-	template <>                                                                           \
-	struct ::ptgn::impl::DrawableRegistration<Type> {                                     \
-		static constexpr ::ptgn::impl::DrawableRegistrationData Get() {                   \
-			return ::ptgn::impl::MakeDrawableRegistration(                                \
-				#Type __VA_OPT__(, ::ptgn::impl::DrawableRegistrationOptions __VA_ARGS__) \
-			);                                                                            \
-		}                                                                                 \
-	};                                                                                    \
-	template class ::ptgn::impl::DrawableRegistrar<Type>
+#define PTGN_REGISTER_DRAWABLE(Type, ...)                                               \
+	template <>                                                                         \
+	struct ptgn::impl::DrawableRegistration<Type> {                                     \
+		static constexpr ptgn::impl::DrawableRegistrationData Get() {                   \
+			return ptgn::impl::MakeDrawableRegistration(                                \
+				#Type __VA_OPT__(, ptgn::impl::DrawableRegistrationOptions __VA_ARGS__) \
+			);                                                                          \
+		}                                                                               \
+	};                                                                                  \
+	template class ptgn::impl::DrawableRegistrar<Type>

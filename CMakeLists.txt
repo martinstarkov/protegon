@@ -18,18 +18,13 @@ set(
   PTGN_EXAMPLES
   "ALL"
   CACHE STRING
-  "Examples to build: ALL, an empty value to disable, or a semicolon-separated list such as basic/hello_world;audio/mixer_demo"
+  "Examples to build: ALL, an empty value to disable, or a semicolon separated list such as basic/hello_world;audio/mixer_demo"
 )
 
 if(NOT EMSCRIPTEN)
   include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/CompilerWarnings.cmake)
   include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/CompilerSettings.cmake)
 endif()
-
-set(
-  PTGN_REGISTRATION_SOURCES
-  "${CMAKE_CURRENT_SOURCE_DIR}/engine/src/runtime/scripting/script_registry.cpp"
-)
 
 add_subdirectory(engine)
 

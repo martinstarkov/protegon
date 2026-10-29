@@ -1,8 +1,11 @@
 #pragma once
 
+#include <chrono>
+#include <cstddef>
 #include <functional>
 #include <ostream>
 #include <unordered_map>
+#include <unordered_set>
 #include <utility>
 #include <vector>
 
@@ -15,6 +18,7 @@
 #include "runtime/interaction/dropzone.h"
 #include "runtime/interaction/trigger_condition.h"
 #include "runtime/scene/scene_camera.h"
+#include "serialization/serialize.h"
 
 namespace ptgn {
 
@@ -27,8 +31,8 @@ namespace impl {
 struct MouseInfo {
 	explicit MouseInfo(const Scene& scene);
 
-	V2_float position;
-	V2_float scroll_delta;
+	V2_float position{};
+	V2_float scroll_delta{};
 
 	bool left_held{ false };
 	bool left_pressed{ false };
@@ -36,7 +40,7 @@ struct MouseInfo {
 };
 
 struct InteractedEntities {
-	std::vector<Entity> entities;
+	std::vector<Entity> entities{};
 };
 
 void GetShapes(
@@ -44,6 +48,12 @@ void GetShapes(
 );
 
 } // namespace impl
+
+struct InteractionDebugInfo {
+	std::size_t tracked_cameras{ 0 };
+	std::size_t dragging_entities{ 0 };
+	std::size_t hovered_entities{ 0 };
+};
 
 class InteractionSystem {
 public:
@@ -58,10 +68,36 @@ public:
 	/// @return True if any draggable entity is being dragged.
 	[[nodiscard]] bool IsAnyDragging(SceneCamera camera) const;
 
+	[[nodiscard]] InteractionDebugInfo GetDebugInfo() const {
+		InteractionDebugInfo info{};
+
+		for (const auto& [_camera, entities] : dragging_entities_) {
+			info.dragging_entities += entities.entities.size();
+		}
+
+		for (const auto& [_camera, entities] : last_mouse_over_) {
+			info.hovered_entities += entities.entities.size();
+		}
+
+		info.tracked_cameras = dragging_entities_.size();
+		for (const auto& [camera, _entities] : last_mouse_over_) {
+			if (!dragging_entities_.contains(camera)) {
+				++info.tracked_cameras;
+			}
+		}
+
+		return info;
+	}
+
 	[[nodiscard]] static bool Overlap(V2_float point, Entity interactive_entity);
 	[[nodiscard]] static bool Overlap(Entity entityA, Entity entityB);
 
+	PTGN_REFLECT(InteractionSystem, top_only_)
 private:
+	using Clock = std::chrono::steady_clock;
+	std::unordered_map<std::size_t, Clock::time_point> mouse_press_started_{};
+	std::unordered_map<std::size_t, Clock::time_point> last_mouse_click_{};
+	std::unordered_set<std::size_t> mouse_long_press_emitted_{};
 	friend class Scene;
 	friend class SceneContext;
 	friend bool IsDragging(Entity entity);
@@ -73,8 +109,8 @@ private:
 	};
 
 	struct InteractiveEntities {
-		std::vector<Entity> under_mouse;
-		std::vector<Entity> not_under_mouse;
+		std::vector<Entity> under_mouse{};
+		std::vector<Entity> not_under_mouse{};
 
 		friend std::ostream& operator<<(std::ostream& os, const InteractiveEntities& entities) {
 			os << "{ under_mouse: " << entities.under_mouse.size();
@@ -159,7 +195,7 @@ private:
 
 	std::vector<Entity> GetDropzones(const Scene& scene);
 
-	static void DispatchMouseEvents(
+	void DispatchMouseEvents(
 		const std::vector<Entity>& over, const std::vector<Entity>& out,
 		const impl::MouseInfo& mouse
 	);
@@ -184,6 +220,7 @@ private:
 	/// @brief Stores the set of entities that were under the mouse cursor in the previous frame per
 	/// a given camera.
 	std::unordered_map<SceneCamera, impl::InteractedEntities> last_mouse_over_;
+
 	/// @brief Indicates whether only the top interactable entity should be processed or considered.
 	bool top_only_{ false };
 };

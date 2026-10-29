@@ -1,10 +1,8 @@
 #include "core/math/vector2.h"
 
-#include <nlohmann/json.hpp>
-
 #include "core/assert.h"
 #include "core/util/concepts.h"
-#include "serialization/json/fwd.h"
+#include "serialization/json/json.h"
 
 namespace ptgn {
 

@@ -21,6 +21,7 @@
 #include "renderer/resources/texture.h"
 #include "runtime/animation/scripted_animation.h"
 #include "runtime/ecs/entity.h"
+#include "runtime/ecs/entity_creation_context.h"
 #include "runtime/ecs/entity_hierarchy.h"
 #include "runtime/ecs/tag.h"
 #include "runtime/graphics/sprite.h"
@@ -29,6 +30,7 @@
 #include "runtime/interaction/interactive.h"
 #include "runtime/interaction/interactive_event.h"
 #include "runtime/scene/scene.h"
+#include "runtime/scene/scene_event.h"
 
 namespace ptgn {
 
@@ -37,7 +39,7 @@ namespace {
 bool IsTooltipPart(Entity entity, impl::TooltipPart part) {
 	switch (part) {
 		case impl::TooltipPart::Background: return entity.Has<impl::TooltipBackgroundPart>();
-		case impl::TooltipPart::Text:       return entity.Has<impl::TooltipTextPart>();
+		case impl::TooltipPart::Text:		return entity.Has<impl::TooltipTextPart>();
 	}
 
 	return false;
@@ -47,19 +49,20 @@ bool IsTooltipPart(Entity entity, impl::TooltipPart part) {
 
 Tooltip::Tooltip(Entity entity) : Entity{ entity } {}
 
-void Tooltip::Show(V2_float position) {
-	auto parent_scale{ GetScale(GetParent(*this)) };
-	PTGN_ASSERT(!parent_scale.HasZero(), "Attempting division by zero");
-	SetPosition(*this, position / parent_scale);
-
-	const auto& instance{ Entity::Get<impl::TooltipData>() };
+void Tooltip::Show() {
+	auto& instance{ Entity::Get<impl::TooltipData>() };
+	bool was_visible{ instance.visible };
+	instance.visible = true;
+	if (!was_visible && HasScene()) {
+		PushEvent<event::TooltipShown>(*this, *this);
+	}
 
 	milliseconds fade_in_duration{ instance.fade_in_duration };
 	Ease fade_in_ease{ instance.fade_in_ease };
 
 	bool fade_in_force{ true };
 
-	const auto fade_in = [=](auto& entity) {
+	auto fade_in = [=](auto& entity) {
 		FadeIn(entity, fade_in_duration, fade_in_ease, fade_in_force, true);
 	};
 
@@ -74,15 +77,31 @@ void Tooltip::Show(V2_float position) {
 	}
 }
 
+void Tooltip::Show(V2_float position) {
+	if (HasParent(*this)) {
+		auto parent_scale{ GetScale(GetParent(*this)) };
+		PTGN_ASSERT(!parent_scale.HasZero(), "Attempting division by zero");
+		position /= parent_scale;
+	}
+
+	SetPosition(*this, position);
+	Show();
+}
+
 void Tooltip::Hide() {
-	const auto& instance{ Entity::Get<impl::TooltipData>() };
+	auto& instance{ Entity::Get<impl::TooltipData>() };
+	bool was_visible{ instance.visible };
+	instance.visible = false;
+	if (was_visible && HasScene()) {
+		PushEvent<event::TooltipHidden>(*this, *this);
+	}
 
 	milliseconds fade_out_duration{ instance.fade_out_duration };
 	Ease fade_out_ease{ instance.fade_out_ease };
 
 	bool fade_out_force{ true };
 
-	const auto fade_out = [=](auto& entity) {
+	auto fade_out = [=](auto& entity) {
 		FadeOut(entity, fade_out_duration, fade_out_ease, fade_out_force);
 	};
 
@@ -94,6 +113,18 @@ void Tooltip::Hide() {
 	if (auto background_entity{ FindPart(impl::TooltipPart::Background) }) {
 		Sprite background{ background_entity };
 		fade_out(background);
+	}
+}
+
+bool Tooltip::IsVisible() const {
+	return Entity::Get<impl::TooltipData>().visible;
+}
+
+void Tooltip::Toggle() {
+	if (IsVisible()) {
+		Hide();
+	} else {
+		Show();
 	}
 }
 
@@ -127,8 +158,7 @@ Tooltip TooltipSystem::GetTooltip(Entity entity) {
 	auto tooltip{ Tooltip::Get(entity.GetScene(), hover.name) };
 
 	PTGN_ASSERT(
-		tooltip.has_value(), "Tooltip with the name: ", hover.name,
-		" does not exist in the scene"
+		tooltip.has_value(), "Tooltip with the name: ", hover.name, " does not exist in the scene"
 	);
 
 	return tooltip.value();
@@ -161,8 +191,8 @@ void TooltipSystem::Prepare(Scene& scene) {
 		);
 
 		PTGN_ASSERT(
-			!HasParent(tooltip.value()) || GetParent(tooltip.value()) == entity,
-			"Tooltip '", hover.name, "' is already attached to another entity"
+			!HasParent(tooltip.value()) || GetParent(tooltip.value()) == entity, "Tooltip '",
+			hover.name, "' is already attached to another entity"
 		);
 
 		if (!HasParent(tooltip.value())) {
@@ -178,30 +208,38 @@ void TooltipSystem::OnEvent(Entity entity, Event event) {
 		return;
 	}
 
-	event.Dispatch<event::MouseEnter>([entity]() { OnMouseEnter(entity); });
+	event.Dispatch<event::MouseEnter>([entity]() {
+		if (entity.Get<TooltipHoverData>().enabled) {
+			OnMouseEnter(entity);
+		}
+	});
+
+	// Always process leave so a tooltip cannot remain visible if hover is disabled while hovered.
 	event.Dispatch<event::MouseLeave>([entity]() { OnMouseLeave(entity); });
 }
 
 void TooltipSystem::OnMouseEnter(Entity entity) {
-	const auto& hover{ entity.Get<TooltipHoverData>() };
-	GetTooltip(entity).Show(hover.offset);
+	ShowTooltip(entity);
 }
 
 void TooltipSystem::OnMouseLeave(Entity entity) {
-	GetTooltip(entity).Hide();
+	HideTooltip(entity);
 }
 
 } // namespace impl
 
 Tooltip CreateTooltip(
-	Scene& scene, std::string_view tooltip_name, const TooltipProperties& tooltip_properties
+	EntityCreationContext context, std::string_view tooltip_name,
+	const TooltipProperties& tooltip_properties
 ) {
-	PTGN_ASSERT(
-		!Tooltip::Get(scene, tooltip_name).has_value(), "Tooltip with the name: ", tooltip_name,
-		" already exists in the manager"
-	);
+	if (Scene * scene{ context.GetScene() }) {
+		PTGN_ASSERT(
+			!Tooltip::Get(*scene, tooltip_name).has_value(),
+			"Tooltip with the name: ", tooltip_name, " already exists in the manager"
+		);
+	}
 
-	Tooltip tooltip{ scene.CreateEntity() };
+	Tooltip tooltip{ context.CreateEntity() };
 	tooltip.Add<Tag>("Tooltip");
 
 	auto& instance{ tooltip.Add<impl::TooltipData>() };
@@ -214,7 +252,7 @@ Tooltip CreateTooltip(
 
 	if (tooltip_properties.texture.has_value()) {
 		auto background{
-			CreateSprite(scene, {}, tooltip_properties.texture.value(), Origin::Center)
+			CreateSprite(context, {}, tooltip_properties.texture.value(), Origin::Center)
 		};
 		background.Add<Tag>("Tooltip Sprite");
 		background.Add<impl::TooltipBackgroundPart>();
@@ -223,7 +261,7 @@ Tooltip CreateTooltip(
 	}
 
 	Text text{
-		CreateText(scene).Content(tooltip_properties.content).Color(tooltip_properties.text_color)
+		CreateText(context).Content(tooltip_properties.content).Color(tooltip_properties.text_color)
 	};
 	text.Add<Tag>("Tooltip Text");
 	text.Add<impl::TooltipTextPart>();
@@ -235,8 +273,9 @@ Tooltip CreateTooltip(
 
 void ShowTooltipOnHover(Entity entity, std::string_view tooltip_name, V2_float tooltip_offset) {
 	auto& hover{ entity.TryAdd<impl::TooltipHoverData>() };
-	hover.name = tooltip_name;
-	hover.offset = tooltip_offset;
+	hover.name	  = tooltip_name;
+	hover.offset  = tooltip_offset;
+	hover.enabled = true;
 
 	if (!entity.Has<impl::Interactive>()) {
 		SetInteractive(entity);
@@ -268,6 +307,108 @@ Tooltip AddTooltipOnHover(
 	ShowTooltipOnHover(entity, tooltip_name, tooltip_offset);
 
 	return tooltip;
+}
+
+void ShowTooltip(Entity entity) {
+	PTGN_ASSERT(entity, "Cannot show tooltip for a null entity");
+
+	if (entity.Has<impl::TooltipData>()) {
+		Tooltip{ entity }.Show();
+		return;
+	}
+
+	PTGN_ASSERT(
+		entity.Has<impl::TooltipHoverData>(),
+		"Cannot show tooltip: entity is neither a Tooltip nor configured with TooltipHoverData"
+	);
+
+	const auto& hover{ entity.Get<impl::TooltipHoverData>() };
+	auto tooltip{ Tooltip::Get(entity.GetScene(), hover.name) };
+	PTGN_ASSERT(
+		tooltip.has_value(), "Tooltip with the name: ", hover.name, " does not exist in the scene"
+	);
+	tooltip->Show(hover.offset);
+}
+
+void HideTooltip(Entity entity) {
+	PTGN_ASSERT(entity, "Cannot hide tooltip for a null entity");
+
+	if (entity.Has<impl::TooltipData>()) {
+		Tooltip{ entity }.Hide();
+		return;
+	}
+
+	PTGN_ASSERT(
+		entity.Has<impl::TooltipHoverData>(),
+		"Cannot hide tooltip: entity is neither a Tooltip nor configured with TooltipHoverData"
+	);
+
+	const auto& hover{ entity.Get<impl::TooltipHoverData>() };
+	auto tooltip{ Tooltip::Get(entity.GetScene(), hover.name) };
+	PTGN_ASSERT(
+		tooltip.has_value(), "Tooltip with the name: ", hover.name, " does not exist in the scene"
+	);
+	tooltip->Hide();
+}
+
+bool IsTooltipVisible(Entity entity) {
+	PTGN_ASSERT(entity, "Cannot query tooltip visibility for a null entity");
+
+	if (entity.Has<impl::TooltipData>()) {
+		return Tooltip{ entity }.IsVisible();
+	}
+
+	PTGN_ASSERT(
+		entity.Has<impl::TooltipHoverData>(),
+		"Cannot query tooltip visibility: entity is neither a Tooltip nor configured with "
+		"TooltipHoverData"
+	);
+
+	const auto& hover{ entity.Get<impl::TooltipHoverData>() };
+	auto tooltip{ Tooltip::Get(entity.GetScene(), hover.name) };
+	PTGN_ASSERT(
+		tooltip.has_value(), "Tooltip with the name: ", hover.name, " does not exist in the scene"
+	);
+	return tooltip->IsVisible();
+}
+
+void ToggleTooltip(Entity entity) {
+	if (IsTooltipVisible(entity)) {
+		HideTooltip(entity);
+	} else {
+		ShowTooltip(entity);
+	}
+}
+
+bool IsTooltipOnHoverEnabled(Entity entity) {
+	return entity && entity.Has<impl::TooltipHoverData>() &&
+		   entity.Get<impl::TooltipHoverData>().enabled;
+}
+
+void SetTooltipOnHoverEnabled(Entity entity, bool enabled) {
+	PTGN_ASSERT(entity, "Cannot change tooltip hover state for a null entity");
+	PTGN_ASSERT(
+		entity.Has<impl::TooltipHoverData>(),
+		"Cannot change tooltip hover state for an entity without TooltipHoverData"
+	);
+
+	auto& hover{ entity.Get<impl::TooltipHoverData>() };
+	bool was_enabled{ hover.enabled };
+	hover.enabled = enabled;
+	if (was_enabled != enabled && entity.HasScene()) {
+		if (enabled) {
+			PushEvent<event::TooltipHoverEnabled>(entity, entity);
+		} else {
+			PushEvent<event::TooltipHoverDisabled>(entity, entity);
+		}
+	}
+	if (!enabled) {
+		HideTooltip(entity);
+	}
+}
+
+void ToggleTooltipOnHover(Entity entity) {
+	SetTooltipOnHoverEnabled(entity, !IsTooltipOnHoverEnabled(entity));
 }
 
 } // namespace ptgn

@@ -22,9 +22,9 @@ namespace impl {
 using PipelineId = std::size_t;
 
 struct RenderPipeline {
-	ElementBufferObject ebo;
-	VertexBufferObject vbo;
-	VertexArrayObject vao;
+	ElementBufferObject ebo{};
+	VertexBufferObject vbo{};
+	VertexArrayObject vao{};
 
 	std::uint32_t vertex_capacity{ 0 };
 	std::uint32_t index_capacity{ 0 };

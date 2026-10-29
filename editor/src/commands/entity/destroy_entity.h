@@ -5,7 +5,7 @@
 #include "commands/editor_command.h"
 #include "commands/entity/entity_reference.h"
 #include "commands/entity/entity_snapshot.h"
-#include "core/editor_selection.h"
+#include "editor/editor_selection.h"
 
 namespace ptgn::editor {
 

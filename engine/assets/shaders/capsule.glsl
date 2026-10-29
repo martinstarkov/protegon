@@ -24,17 +24,18 @@ float CapsuleDistance(vec2 point, float radius) {
 }
 
 void main() {
-    float thickness    = v_ShapeData.x; // 0.0f = hollow, 1.0f = filled
-    float fade         = v_ShapeData.y;
-    float radius       = v_ShapeData.z;
+    float thickness = v_ShapeData.x;
+    float fade = v_ShapeData.y;
+    float radius = v_ShapeData.z;
 
     float distance = CapsuleDistance(v_LocalCoord, radius);
 
     float alpha = smoothstep(0.0f, fade, distance);
-    alpha *= smoothstep(thickness + fade, thickness, distance);
+    alpha *= 1.0f - smoothstep(thickness, thickness + fade, distance);
 
-    if (alpha <= 0.0f)
+    if (alpha <= 0.0f) {
         discard;
+    }
 
     o_Color = vec4(v_Color.rgb, v_Color.a * alpha);
     o_EntityID = v_EntityID;

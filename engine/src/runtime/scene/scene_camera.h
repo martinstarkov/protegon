@@ -2,7 +2,9 @@
 
 #include <array>
 #include <cstdint>
+#include <functional>
 #include <optional>
+#include <vector>
 
 #include "core/graphics/color.h"
 #include "core/math/geometry/origin.h"
@@ -14,6 +16,7 @@
 #include "renderer/pipeline/camera.h"
 #include "renderer/pipeline/viewport.h"
 #include "runtime/ecs/entity.h"
+#include "runtime/ecs/entity_creation_context.h"
 #include "runtime/ecs/uuid.h"
 #include "runtime/graphics/render_target.h"
 
@@ -22,19 +25,21 @@ namespace ptgn {
 class Scene;
 class Renderer;
 
-using LayerMask = std::uint64_t;
+/// @brief Bits used to determine which entities pass a camera visibility filter.
+/// Render mask bits select which entities each camera renders.
+using RenderMaskBits = std::uint64_t;
 
-constexpr LayerMask GetLayer(int i) {
-	return LayerMask{ 1 } << i;
+constexpr RenderMaskBits GetRenderMaskBit(int index) {
+	return RenderMaskBits{ 1 } << index;
 }
 
-inline constexpr LayerMask kLayersAll	 = ~LayerMask{ 0 }; // 0b11111111
-inline constexpr LayerMask kLayersNone	 = LayerMask{ 0 };	// 0b00000000
-inline constexpr LayerMask kLayerDefault = GetLayer(0);		// 0b00000001
+inline constexpr RenderMaskBits kRenderMaskAll	   = ~RenderMaskBits{ 0 };
+inline constexpr RenderMaskBits kRenderMaskNone	   = RenderMaskBits{ 0 };
+inline constexpr RenderMaskBits kRenderMaskDefault = GetRenderMaskBit(0);
 
 struct BoundingBox {
-	V2_float position;
-	Rect rect;
+	V2_float position{};
+	Rect rect{};
 	Origin origin{ Origin::Center };
 
 	PTGN_REFLECT(BoundingBox, position, rect, origin)
@@ -43,44 +48,52 @@ struct BoundingBox {
 namespace impl {
 
 struct ParentRenderTarget {
-	UUID render_target;
+	UUID render_target{};
 
 	PTGN_REFLECT_VALUE(ParentRenderTarget, render_target)
 };
 
-struct UILayer {};
+/// @brief Marks an entity for rendering by UI cameras, without depending on entity hierarchy
+/// placement.
+struct UIRenderTag {};
 
 struct CameraData {
 	/// @brief If nullopt, viewport is set to the size of the parent render target.
-	std::optional<Viewport> raw_viewport;
+	std::optional<Viewport> raw_viewport{};
 	ViewportSpace viewport_space{ ViewportSpace::Logical };
 
 	/// @brief If true, rounds camera position to pixel precision.
 	bool pixel_rounding{ false };
 
 	/// @brief If nullopt, no bounds are enforced.
-	std::optional<BoundingBox> bounding_box;
+	std::optional<BoundingBox> bounding_box{};
 
 	Matrix4 view_projection{ 1.0f };
+	std::vector<Entity> visible_last_frame{};
 
 	PTGN_REFLECT(CameraData, raw_viewport, viewport_space, pixel_rounding, bounding_box)
 	PTGN_REFLECT_READONLY(CameraData, view_projection)
 };
 
-/// @brief If an entity has no RenderMask, treat it as having
-/// RenderMask{} (default ctor).
+/// @brief Render mask bits assigned to an entity, independently of its parent entity.
+/// If absent, an entity uses the default render mask.
 struct RenderMask {
-	/// @brief Neutral engine default: entity belongs to default layer.
-	LayerMask layers{ kLayerDefault };
+	RenderMaskBits bits{ kRenderMaskDefault };
 
-	PTGN_REFLECT_VALUE(RenderMask, layers)
+	PTGN_REFLECT_VALUE(RenderMask, bits)
 };
 
-/// @brief If a camera has no CameraMask, treat it as having
-/// CameraMask{} (default ctor). Neutral engine default: include all, exclude none.
+/// @brief When present on a group or one of its members, use this entity's
+/// authored render mask instead of inheriting the containing layer/stack mask.
+/// Without a group this marker has no effect.
+struct RenderMaskOverride {};
+
+/// @brief Camera visibility filter using render mask bits, not hierarchy organization.
+/// An entity passes when it shares at least one include bit and has no excluded bits.
+/// If absent, a camera includes all render bits and excludes none.
 struct CameraMask {
-	LayerMask include{ kLayersAll };
-	LayerMask exclude{ kLayersNone };
+	RenderMaskBits include{ kRenderMaskAll };
+	RenderMaskBits exclude{ kRenderMaskNone };
 
 	PTGN_REFLECT(CameraMask, include, exclude)
 };
@@ -120,9 +133,7 @@ public:
 	V2_float GetSize() const;
 
 	V2_float GetZoom() const;
-
 	bool GetPixelRounding() const;
-
 	const Matrix4& GetViewProjection() const;
 
 	/// @return Bounding box viewport if set.
@@ -153,22 +164,24 @@ public:
 	/// Does not change the parent render target of the camera.
 	SceneCamera& Reset();
 
-	SceneCamera& SetMasks(LayerMask include, LayerMask exclude = kLayersNone);
-	SceneCamera& SetIncludeMask(LayerMask include);
-	SceneCamera& SetExcludeMask(LayerMask exclude);
+	/// @brief Sets the camera render mask include and exclude filters. These are independent
+	/// of hierarchy organization.
+	SceneCamera& SetRenderMasks(RenderMaskBits include, RenderMaskBits exclude = kRenderMaskNone);
+	SceneCamera& SetIncludeRenderMask(RenderMaskBits include);
+	SceneCamera& SetExcludeRenderMask(RenderMaskBits exclude);
 
-	SceneCamera& AddIncludeMasks(LayerMask layers_to_add);
-	SceneCamera& RemoveIncludeMasks(LayerMask layers_to_remove);
-	SceneCamera& AddExcludeMasks(LayerMask layers_to_add);
-	SceneCamera& RemoveExcludeMasks(LayerMask layers_to_remove);
+	SceneCamera& AddIncludeRenderMaskBits(RenderMaskBits masks_to_add);
+	SceneCamera& RemoveIncludeRenderMaskBits(RenderMaskBits masks_to_remove);
+	SceneCamera& AddExcludeRenderMaskBits(RenderMaskBits masks_to_add);
+	SceneCamera& RemoveExcludeRenderMaskBits(RenderMaskBits masks_to_remove);
 
-	SceneCamera& ClearMasks();
+	SceneCamera& ClearRenderMasks();
 
-	LayerMask GetIncludeMask() const;
-	LayerMask GetExcludeMask() const;
+	RenderMaskBits GetIncludeRenderMask() const;
+	RenderMaskBits GetExcludeRenderMask() const;
 
-	/// @return True if the entity is visible to the camera based on layer masks. UI entities are
-	/// always visible to UI cameras.
+	/// @return True if the entity passes the camera's render masks. UI entities are always visible
+	/// to UI cameras. Scene layer visibility is enforced separately by scene rendering.
 	[[nodiscard]] bool CanSee(Entity entity) const;
 
 	/// @param parent The render target to set as the camera's parent. Setting to nullopt will use
@@ -184,28 +197,34 @@ public:
 	std::optional<Color> GetClearColor() const;
 };
 
-LayerMask GetMask(Entity entity);
+/// @brief Gets the effective render mask. group members inherit the layer's
+/// mask, which in turn inherits its group stack's mask, unless explicitly overridden.
+RenderMaskBits GetRenderMask(Entity entity);
 
-/// @brief If ui_layer is true, the entity will be rendered on the UI layer, which uses the scene's
-/// fixed_camera. Note this will modify the entity's layer mask.
-void SetUI(Entity entity, bool ui_layer = true);
+/// @brief Enables UI rendering, which is distinct from hierarchy organization.
+/// This also changes the entity's render mask bits.
+void SetUI(Entity entity, bool ui_rendering = true);
 
-/// @return True if the entity is on the UI layer, false otherwise.
+/// @return True if effective rendering uses the UI camera (including inherited UI masks).
 bool IsUI(Entity entity);
 
-void SetMask(Entity entity, LayerMask mask);
-void AddMasks(Entity entity, LayerMask layers_to_add);
-void RemoveMasks(Entity entity, LayerMask layers_to_remove);
-void ClearMasks(Entity entity);
+void SetRenderMask(Entity entity, RenderMaskBits mask);
+void AddRenderMaskBits(Entity entity, RenderMaskBits masks_to_add);
+void RemoveRenderMaskBits(Entity entity, RenderMaskBits masks_to_remove);
+void ClearRenderMask(Entity entity);
 
-bool HasAnyMask(Entity entity, LayerMask test);
-bool HasAllMasks(Entity entity, LayerMask test);
+/// @brief Preserves nondefault authored masks when moving an entity into a group.
+/// Ordinary default masks instead inherit the destination layer's render mask.
+void PrepareGroupEntityRenderMaskReparent(Entity entity, Entity new_parent);
+
+bool HasAnyRenderMaskBits(Entity entity, RenderMaskBits test);
+bool HasAllRenderMaskBits(Entity entity, RenderMaskBits test);
 
 namespace impl {
 
 void RecalculateCameraViewProjection(SceneCamera camera);
-
 void ApplyCameraBounds(SceneCamera camera);
+void UpdateCameraVisibilityEvents(Scene& scene);
 
 } // namespace impl
 
@@ -213,9 +232,34 @@ void ApplyCameraBounds(SceneCamera camera);
 /// parent render target.
 /// If unset, the camera's parent render target is the scene's default render target.
 SceneCamera CreateCamera(
-	Scene& scene, Transform transform = {}, std::optional<V2_float> viewport_size = std::nullopt,
-	ViewportSpace viewport_space = ViewportSpace::Logical
+	EntityCreationContext context, Transform transform = {},
+	std::optional<V2_float> viewport_size = std::nullopt,
+	ViewportSpace viewport_space		  = ViewportSpace::Logical
 );
+
+namespace event {
+
+struct CameraEntityEnteredView {
+	SceneCamera camera{};
+	Entity entity{};
+};
+
+struct CameraEntityExitedView {
+	SceneCamera camera{};
+	Entity entity{};
+};
+
+struct CameraBoundsReached {
+	V2_float attempted{};
+	V2_float clamped{};
+};
+
+struct CameraZoomChanged {
+	V2_float previous{};
+	V2_float current{};
+};
+
+} // namespace event
 
 } // namespace ptgn
 

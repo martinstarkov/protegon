@@ -25,7 +25,7 @@ bool IsFilePath(std::string_view potential_path);
 bool IsDirectoryPath(std::string_view potential_path);
 path GetAbsolutePath(const path& relative_path);
 path GetRelativePath(const path& absolute_path);
-path GetAssetRoot();
+path GetRuntimeRoot();
 
 enum class FileWriteError {
 	OpenFailed,

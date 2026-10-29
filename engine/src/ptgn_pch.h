@@ -17,7 +17,6 @@
 #include <limits>
 #include <magic_enum/magic_enum.hpp>
 #include <memory>
-#include <nlohmann/json.hpp>
 #include <numbers>
 #include <optional>
 #include <ostream>
@@ -39,3 +38,4 @@
 #include "core/config.h"
 #include "core/log.h"
 #include "core/util/string.h"
+#include "serialization/json/json.h"

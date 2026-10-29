@@ -1,6 +1,7 @@
 #include "runtime/physics/broadphase.h"
 
 #include <algorithm>
+#include <functional>
 #include <list>
 #include <memory>
 #include <optional>
@@ -25,45 +26,105 @@ float KDObject::GetCenter(KDAxis axis) const {
 	return center;
 }
 
-KDTree::KDTree(std::size_t max_objects_per_node, float rebuild_threshold) :
-	max_objects_per_node{ max_objects_per_node }, rebuild_threshold{ rebuild_threshold } {}
+KDTree::KDTree(std::size_t max_objects, float threshold) :
+	max_objects_per_node{ max_objects }, rebuild_threshold{ threshold } {}
 
 void KDTree::Build(const std::vector<KDObject>& objects) {
 	entity_map.clear();
-	std::vector<KDObject> objs = objects; // copy
-	for (const auto& o : objs) {
-		entity_map[o.entity] = o;
+	std::vector<KDObject> alive;
+	alive.reserve(objects.size());
+
+	for (const auto& object : objects) {
+		if (!object.entity) {
+			continue;
+		}
+
+		UUID uuid{ object.entity.Get<UUID>() };
+		entity_map.insert_or_assign(uuid, object);
+		alive.push_back(object);
 	}
-	root = BuildRecursive(objs, 0);
+
+	root = BuildRecursive(alive, 0);
+	RebuildNodeBounds(root.get());
 	moved_entities.clear();
+	previous_aabbs_.clear();
 }
 
-void KDTree::UpdateBoundingAABB(Entity e, BoundingAABB aabb) {
-	auto it = entity_map.find(e);
-	if (it != entity_map.end()) {
-		it->second.aabb = aabb; // update map (source of truth)
-		moved_entities.insert(e);
-	} else {
-		// new entity; treat as inserted
-		KDObject o{ e, aabb, false };
-		entity_map[e] = o;
-		moved_entities.insert(e);
+void KDTree::UpdateBoundingAABB(Entity entity, BoundingAABB aabb) {
+	if (!entity) {
+		return;
 	}
+
+	UUID uuid{ entity.Get<UUID>() };
+	auto existing{ entity_map.find(uuid) };
+
+	if (existing != entity_map.end() && existing->second.entity != entity) {
+		// This UUID now belongs to a different handle: evict the old leaf first.
+		Remove(uuid);
+		EndFrameUpdate();
+		existing = entity_map.end();
+	}
+
+	if (existing != entity_map.end()) {
+		previous_aabbs_.try_emplace(uuid, existing->second.aabb);
+		existing->second = KDObject{ entity, aabb, false };
+	} else {
+		entity_map.emplace(uuid, KDObject{ entity, aabb, false });
+	}
+
+	moved_entities.insert_or_assign(uuid, entity);
 }
 
-void KDTree::Insert(Entity e, BoundingAABB aabb) {
-	KDObject o{ e, aabb, false };
-	entity_map[e] = o;
-	moved_entities.insert(e);
+void KDTree::Insert(Entity entity, BoundingAABB aabb) {
+	UpdateBoundingAABB(entity, aabb);
 }
 
-void KDTree::Remove(Entity e) {
-	entity_map.erase(e);
-	// mark so partial update will remove it if applicable
-	moved_entities.insert(e);
+void KDTree::Remove(Entity entity) {
+	if (!entity) {
+		// A destroyed handle has no readable UUID. This path is uncommon,
+		// so a linear search is preferable to storing unsafe Entity hash keys.
+		for (const auto& [uuid, object] : entity_map) {
+			if (object.entity == entity) {
+				Remove(uuid);
+				return;
+			}
+		}
+
+		return;
+	}
+
+	Remove(entity.Get<UUID>());
+}
+
+void KDTree::Remove(UUID uuid) {
+	auto existing{ entity_map.find(uuid) };
+
+	if (existing == entity_map.end()) {
+		return;
+	}
+
+	// Capture the old position and handle BEFORE erasing. The handle can already
+	// be destroyed; its component data will never be accessed during removal.
+	previous_aabbs_.try_emplace(uuid, existing->second.aabb);
+	moved_entities.insert_or_assign(uuid, existing->second.entity);
+	entity_map.erase(existing);
 }
 
 void KDTree::EndFrameUpdate() {
+	// Prune destroyed handles even if the caller has not explicitly removed them.
+	// The cached UUID is safe to access; the Entity's components are not.
+	for (auto it{ entity_map.begin() }; it != entity_map.end();) {
+		if (it->second.entity) {
+			++it;
+			continue;
+		}
+
+		UUID uuid{ it->first };
+		previous_aabbs_.try_emplace(uuid, it->second.aabb);
+		moved_entities.insert_or_assign(uuid, it->second.entity);
+		it = entity_map.erase(it);
+	}
+
 	std::size_t moved = moved_entities.size();
 	std::size_t total = entity_map.size();
 
@@ -75,19 +136,24 @@ void KDTree::EndFrameUpdate() {
 		// nothing to do
 		root.reset();
 		moved_entities.clear();
+		previous_aabbs_.clear();
 		return;
 	}
 
-	// If too many changed, rebuild fully from entity_map (fast, cache-friendly)
+	// If too many changed, rebuild fully from entity_map (fast, cache friendly)
 	if (moved >=
 		std::max(1uz, static_cast<std::size_t>(rebuild_threshold * static_cast<float>(total)))) {
 		std::vector<KDObject> all;
 		all.reserve(entity_map.size());
 		for (const auto& [_, object] : entity_map) {
-			all.emplace_back(object);
+			if (object.entity) {
+				all.emplace_back(object);
+			}
 		}
 		root = BuildRecursive(all, 0);
+		RebuildNodeBounds(root.get());
 		moved_entities.clear();
+		previous_aabbs_.clear();
 		return;
 	}
 
@@ -95,44 +161,104 @@ void KDTree::EndFrameUpdate() {
 	PartialUpdate();
 
 	CompactTree(root.get());
+	RebuildNodeBounds(root.get());
 
 	moved_entities.clear();
+	previous_aabbs_.clear();
+}
+
+void KDTree::RebuildNodeBounds(KDNode* node) {
+	if (!node) {
+		return;
+	}
+	node->has_bounds = false;
+	auto include	 = [node](BoundingAABB other) {
+		if (!node->has_bounds) {
+			node->bounds	 = other;
+			node->has_bounds = true;
+		} else {
+			node->bounds.min.x = std::min(node->bounds.min.x, other.min.x);
+			node->bounds.min.y = std::min(node->bounds.min.y, other.min.y);
+			node->bounds.max.x = std::max(node->bounds.max.x, other.max.x);
+			node->bounds.max.y = std::max(node->bounds.max.y, other.max.y);
+		}
+	};
+	for (const auto& object : node->objects) {
+		if (!object.deleted) {
+			include(object.aabb);
+		}
+	}
+	for (KDNode* child : { node->left.get(), node->right.get() }) {
+		if (child) {
+			RebuildNodeBounds(child);
+			if (child->has_bounds) {
+				include(child->bounds);
+			}
+		}
+	}
+}
+
+void KDTree::QueryNode(const KDNode* node, BoundingAABB region, std::vector<Entity>& result) {
+	if (!node || !node->has_bounds || !node->bounds.Overlaps(region)) {
+		return;
+	}
+	for (const auto& object : node->objects) {
+		if (!object.deleted && object.entity && object.aabb.Overlaps(region)) {
+			result.push_back(object.entity);
+		}
+	}
+	QueryNode(node->left.get(), region, result);
+	QueryNode(node->right.get(), region, result);
+}
+
+void KDTree::QueryNode(const KDNode* node, V2_float point, std::vector<Entity>& result) {
+	if (!node || !node->has_bounds || !node->bounds.Overlaps(point)) {
+		return;
+	}
+	for (const auto& object : node->objects) {
+		if (!object.deleted && object.entity && object.aabb.Overlaps(point)) {
+			result.push_back(object.entity);
+		}
+	}
+	QueryNode(node->left.get(), point, result);
+	QueryNode(node->right.get(), point, result);
 }
 
 std::vector<Entity> KDTree::Query(BoundingAABB region) const {
 	std::vector<Entity> result;
-	Traverse(root.get(), [&region, &result](const KDObject& obj) {
-		if (obj.aabb.Overlaps(region)) {
-			result.emplace_back(obj.entity);
-		}
-	});
+	QueryNode(root.get(), region, result);
 	return result;
 }
 
 std::vector<Entity> KDTree::Query(V2_float point) const {
 	std::vector<Entity> result;
-	Traverse(root.get(), [&point, &result](const KDObject& obj) {
-		if (obj.aabb.Overlaps(point)) {
-			result.emplace_back(obj.entity);
-		}
-	});
+	QueryNode(root.get(), point, result);
 	return result;
 }
 
 std::vector<Entity> KDTree::Raycast(Entity entity, V2_float dir, BoundingAABB aabb) const {
 	std::vector<Entity> hits;
 	Rect rect{ aabb.min, aabb.max };
-	Traverse(root.get(), [&entity, &dir, &rect, &hits](const KDObject& obj) {
-		if (obj.entity == entity) {
+	BoundingAABB sweep{ aabb.ExpandByVelocity(dir) };
+	std::function<void(const KDNode*)> visit = [&](const KDNode* node) {
+		if (!node || !node->has_bounds || !node->bounds.Overlaps(sweep)) {
 			return;
 		}
-		auto raycast{
-			RaycastRectRect(dir, Transform{}, rect, Transform{}, Rect{ obj.aabb.min, obj.aabb.max })
-		};
-		if (raycast.Occurred()) {
-			hits.emplace_back(obj.entity);
+		for (const auto& obj : node->objects) {
+			if (obj.deleted || !obj.entity || obj.entity == entity) {
+				continue;
+			}
+			auto raycast{ RaycastRectRect(
+				dir, Transform{}, rect, Transform{}, Rect{ obj.aabb.min, obj.aabb.max }
+			) };
+			if (raycast.Occurred()) {
+				hits.emplace_back(obj.entity);
+			}
 		}
-	});
+		visit(node->left.get());
+		visit(node->right.get());
+	};
+	visit(root.get());
 	return hits;
 }
 
@@ -140,18 +266,27 @@ Entity KDTree::RaycastFirst(Entity entity, V2_float dir, BoundingAABB aabb) cons
 	Entity closest_hit;
 	float closest_t{ 1.0f };
 	Rect rect{ aabb.min, aabb.max };
-	Traverse(root.get(), [&entity, &dir, &rect, &closest_t, &closest_hit](const KDObject& obj) {
-		if (obj.entity == entity) {
+	BoundingAABB sweep{ aabb.ExpandByVelocity(dir) };
+	std::function<void(const KDNode*)> visit = [&](const KDNode* node) {
+		if (!node || !node->has_bounds || !node->bounds.Overlaps(sweep)) {
 			return;
 		}
-		auto raycast{
-			RaycastRectRect(dir, Transform{}, rect, Transform{}, Rect{ obj.aabb.min, obj.aabb.max })
-		};
-		if (raycast.Occurred() && raycast.t < closest_t) {
-			closest_t	= raycast.t;
-			closest_hit = obj.entity;
+		for (const auto& obj : node->objects) {
+			if (obj.deleted || !obj.entity || obj.entity == entity) {
+				continue;
+			}
+			auto raycast{ RaycastRectRect(
+				dir, Transform{}, rect, Transform{}, Rect{ obj.aabb.min, obj.aabb.max }
+			) };
+			if (raycast.Occurred() && raycast.t < closest_t) {
+				closest_t	= raycast.t;
+				closest_hit = obj.entity;
+			}
 		}
-	});
+		visit(node->left.get());
+		visit(node->right.get());
+	};
+	visit(root.get());
 	return closest_hit;
 }
 
@@ -214,29 +349,31 @@ void KDTree::PartialUpdate() {
 		std::vector<KDObject> all;
 		all.reserve(entity_map.size());
 		for (const auto& [_, object] : entity_map) {
-			all.emplace_back(object);
+			if (object.entity) {
+				all.emplace_back(object);
+			}
 		}
 		root = BuildRecursive(all, 0);
 		return;
 	}
 
 	// Mark/removal step: for each moved entity, try to find it in the tree and remove by
-	// swap-pop. Also record which leaves were touched so leaves can later be split if
+	// swap pop. Also record which leaves were touched so leaves can later be split if
 	// needed.
 	std::vector<KDNode*> touched_leaves;
 	touched_leaves.reserve(moved_entities.size());
 
-	for (const auto& entity : moved_entities) {
-		// If entity isn't present in the tree (inserted this frame), skip removal
-		// Insert it below from entity_map
-		[[maybe_unused]] bool found_and_removed = RemoveFromTree(root.get(), entity, 0, touched_leaves);
+	for (const auto& [uuid, entity] : moved_entities) {
+		[[maybe_unused]] bool removed{ RemoveFromTree(
+			root.get(), uuid, entity, 0, touched_leaves
+		) };
 	}
 
-	// Bulk-insert: gather moved objects from entity_map and insert into leaves without
+	// Bulk insert: gather moved objects from entity_map and insert into leaves without
 	// splitting yet Insert directly into leaves to avoid repeated traversals doing node
-	// splitting mid-flight.
-	for (const auto& entity : moved_entities) {
-		auto it = entity_map.find(entity);
+	// splitting mid flight.
+	for (const auto& [uuid, entity] : moved_entities) {
+		auto it = entity_map.find(uuid);
 		if (it == entity_map.end()) {
 			continue; // removed completely by user
 		}
@@ -264,7 +401,8 @@ void KDTree::PartialUpdate() {
 }
 
 bool KDTree::RemoveFromTree(
-	KDNode* node, Entity e, int depth, std::vector<KDNode*>& touched_leaves
+	KDNode* node, UUID uuid, Entity entity, int depth,
+	std::vector<KDNode*>& touched_leaves
 ) {
 	if (!node) {
 		return false;
@@ -274,7 +412,7 @@ bool KDTree::RemoveFromTree(
 	if (!node->left && !node->right) {
 		auto& vec = node->objects;
 		for (auto i{ 0uz }; i < vec.size(); ++i) {
-			if (vec[i].entity == e) {
+			if (vec[i].entity == entity) {
 				vec[i].deleted = true; // Lazy delete
 				touched_leaves.push_back(node);
 				return true;
@@ -283,16 +421,17 @@ bool KDTree::RemoveFromTree(
 		return false;
 	}
 
-	// Continue traversal
-	auto it = entity_map.find(e);
-	if (it == entity_map.end()) {
-		return false;
+	// Continue traversal using the entity's PREVIOUS bounds, not its new position.
+	auto old{ previous_aabbs_.find(uuid) };
+	if (old == previous_aabbs_.end()) {
+		return false; // Newly inserted this frame.
 	}
-	float val = it->second.GetCenter(node->split_axis);
+	float val = node->split_axis == KDAxis::X ? (old->second.min.x + old->second.max.x) * 0.5f
+											  : (old->second.min.y + old->second.max.y) * 0.5f;
 	if (val < node->split_value) {
-		return RemoveFromTree(node->left.get(), e, depth + 1, touched_leaves);
+		return RemoveFromTree(node->left.get(), uuid, entity, depth + 1, touched_leaves);
 	} else {
-		return RemoveFromTree(node->right.get(), e, depth + 1, touched_leaves);
+		return RemoveFromTree(node->right.get(), uuid, entity, depth + 1, touched_leaves);
 	}
 }
 

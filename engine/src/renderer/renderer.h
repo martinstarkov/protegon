@@ -19,6 +19,7 @@
 #include "core/graphics/color.h"
 #include "core/math/geometry/rect.h"
 #include "core/math/matrix4.h"
+#include "core/math/transform.h"
 #include "core/math/vector2.h"
 #include "core/math/vector3.h"
 #include "core/math/vector4.h"
@@ -162,7 +163,7 @@ private:
 	struct DisplayResizeInfo {
 		bool moved{ false };
 		bool resized{ false };
-		Viewport viewport;
+		Viewport viewport{};
 	};
 
 	using EventSink = std::function<void(V2_int, impl::ResizeType)>;
@@ -219,48 +220,66 @@ private:
 			"Batched effect vertices must have uniform depth and entity ID"
 		);
 
-		auto bounds{ Rect::FromPoints(
+		Rect bounds{ Rect::FromPoints(
 			request.primitives | std::views::join |
 			std::views::transform([](const TVertex& vertex) {
 				const auto& pos{ impl::PositionAccessor<TVertex>::Get(vertex) };
-				return V2_float{ pos[0], pos[1] };
+
+				return V2_float{
+					pos[0],
+					pos[1],
+				};
 			})
 		) };
 
-		V2_float size{ bounds.GetSize() };
+		V2_float bounds_center{ bounds.GetCenter() };
 
-		PTGN_ASSERT(size.IsPositive(), "Bounds size must be positive");
+		V2_float size{ bounds.GetSize() + V2_float{ request.effect_params.margin * 2 } };
 
-		size += V2_float{ request.effect_params.margin * 2 };
+		PTGN_ASSERT(size.IsPositive(), "Effect bounds size must be positive");
 
-		TextureDesc desc{ .size	  = size,
-						  .format = impl::GetEffectTextureFormat(request.effect_params.hdr) };
+		size = Max(V2_int{ Ceil(size) }, V2_int{ 1, 1 });
+
+		TextureDesc desc{
+			.size	= size,
+			.format = impl::GetEffectTextureFormat(request.effect_params.hdr),
+		};
 
 		if (request.texture) {
-			// Inherit texture parameters from the original texture if it exists, to ensure
-			// consistency of sampling behavior between the original and expanded framebuffer.
 			desc.params = GetParams(request.texture).value();
 		}
 
 		auto expanded_framebuffer{ CreateFramebuffer(desc, std::nullopt) };
 
-		PTGN_ASSERT(GetSize(expanded_framebuffer) == V2_int{ size });
-
-		auto previous_framebuffer{ current_framebuffer_ };
+		auto* previous_framebuffer{ current_framebuffer_ };
 
 		SetFramebuffer(&expanded_framebuffer);
 
 		auto previous_state{ GetRenderState() };
 
-		Viewport viewport{ .position{}, .size{ size } };
+		Viewport viewport{
+			.position{},
+			.size{ size },
+		};
+
 		SetScissor(ScissorState{ viewport });
 		SetViewport(viewport);
+
+		// Temporary effect framebuffer is centered around zero.
 		SetViewProjection(size);
 
-		impl::DrawRequest<T> local_request;
+		// Important: The temporary framebuffer is centered around the origin, while
+		// the primitive's bounds may not be. Copy the primitives and
+		// translate their bounds center to zero before rendering.
+		// Do not transform request.primitives directly because DrawNormally
+		// mutates vertex positions in place.
+		std::vector<T> local_primitives{ request.primitives.begin(), request.primitives.end() };
 
-		local_request.primitives = request.primitives;
-		local_request.texture	 = request.texture;
+		impl::DrawRequest<T> local_request{
+			.texture	= request.texture,
+			.transform	= Transform{ -bounds_center },
+			.primitives = local_primitives,
+		};
 
 		DrawNormally(local_request);
 
@@ -272,20 +291,19 @@ private:
 
 		SetCurrentPipeline("texture");
 		SetFramebuffer(previous_framebuffer);
+
 		SetMaterial(
-			{ .shader = GetShader("texture"), .texture_slot_capacity = GetMaxTextureSlots() }
+			{
+				.shader				   = GetShader("texture"),
+				.texture_slot_capacity = GetMaxTextureSlots(),
+			}
 		);
+
 		SetRenderState(previous_state);
 
 		auto positions{ Rect{ size }.GetLocalVertices() };
 
-		PTGN_ASSERT(!request.primitives.empty());
-
-		const auto& first_primitive{ request.primitives.front() };
-
-		PTGN_ASSERT(!first_primitive.empty());
-
-		const auto& first_vertex{ first_primitive.front() };
+		const auto& first_vertex{ request.primitives.front().front() };
 
 		auto depth{ impl::PositionAccessor<TVertex>::Get(first_vertex)[2] };
 
@@ -299,9 +317,20 @@ private:
 			impl::CreateTextureQuad(positions, depth, color_n, tex_coords, entity_id)
 		};
 
-		impl::DrawTextureRequest new_request{ .texture	  = GetTexture(expanded_framebuffer),
-											  .transform  = request.transform,
-											  .primitives = { &local_quad, 1 } };
+		// The temporary texture is centered at zero, but represents the
+		// original primitive bounds centered at bounds_center. Transform
+		// that local center through the entity / world transform.
+		Transform composite_transform{
+			request.transform.Apply(bounds_center),
+			request.transform.rotation,
+			request.transform.scale,
+		};
+
+		impl::DrawTextureRequest new_request{
+			.texture	= GetTexture(expanded_framebuffer),
+			.transform	= composite_transform,
+			.primitives = { &local_quad, 1 },
+		};
 
 		DrawNormally(new_request);
 
@@ -311,6 +340,9 @@ private:
 	template <impl::RenderPrimitive T>
 	void DrawNormally(const impl::DrawRequest<T>& request) {
 		PTGN_ASSERT(!request.primitives.empty());
+		if (!current_material_valid_) {
+			return;
+		}
 		PTGN_ASSERT(!request.effect_params.draw_callback);
 
 		std::span<const impl::TextureId> textures;
@@ -382,12 +414,10 @@ private:
 	void SetParams(impl::FramebufferId framebuffer, TextureParams params);
 	void SetParams(impl::TextureId texture, TextureParams params);
 	void Resize(impl::FramebufferId framebuffer, V2_int new_size);
-	void Clear(impl::FramebufferId framebuffer, Color clear_color, bool restore_bind) const;
-	void Clear(impl::FramebufferId framebuffer, Depth clear_depth, bool restore_bind) const;
-	void Clear(impl::FramebufferId framebuffer, Stencil clear_stencil, bool restore_bind) const;
-	void Clear(
-		impl::FramebufferId framebuffer, DepthStencil clear_depth_stencil, bool restore_bind
-	) const;
+	void Clear(impl::FramebufferId framebuffer, Color clear_color);
+	void Clear(impl::FramebufferId framebuffer, Depth clear_depth);
+	void Clear(impl::FramebufferId framebuffer, Stencil clear_stencil);
+	void Clear(impl::FramebufferId framebuffer, DepthStencil clear_depth_stencil);
 	void BindPresentationFramebuffer();
 
 	impl::FramebufferId GetPresentationFramebuffer() const;
@@ -453,29 +483,7 @@ private:
 			ApplyPresentationEffect(std::forward<F>(presentation_effect_callback));
 		}
 
-		auto op{ renderer_settings_.tone_mapping.op };
-
-		PTGN_ASSERT(
-			!impl::RequiresHDRInput(op) ||
-				IsHDRFormat(GetFormat(presentation_framebuffer_).value()),
-			"Presentation framebuffer format must support HDR if tone mapping is enabled"
-		);
-
-		ApplyPresentationEffect([this, op](DrawContext& ctx) {
-			ctx.Pass([this, op](auto& pass) -> RenderPassHandle {
-				auto gamma_and_tonemapping_shader{ impl::GetGammaAndToneMappingShader(op) };
-
-				auto result{ pass.Apply(gamma_and_tonemapping_shader) };
-
-				result.Uniform(impl::kGammaUniform, renderer_settings_.gamma);
-
-				if (op == ToneMappingOperator::Exposure || op == ToneMappingOperator::ACES) {
-					result.Uniform(impl::kExposureUniform, renderer_settings_.tone_mapping.exposure);
-				}
-
-				return result;
-			});
-		});
+		ApplyOutputColorTransform(presentation_framebuffer_);
 
 		SetFramebuffer(nullptr);
 
@@ -496,8 +504,11 @@ private:
 		SetCurrentPipeline("texture");
 		SetMaterial(
 			MaterialState{
-				.shader				   = GetShader("texture"),
-				.texture_slot_capacity = GetMaxTextureSlots(),
+				.shader = GetShader("passthrough"),
+				.uniforms = {
+					UniformWrite{ "u_Texture", 0 },
+				},
+				.texture_slot_capacity = 1,
 			}
 		);
 		SetBlendMode(BlendMode::ReplaceRGBA);
@@ -530,8 +541,6 @@ private:
 	}
 
 	void SetUniformValue(impl::ShaderId id, const char* uniform_name, const UniformValue& v);
-
-	[[nodiscard]] bool IsPresentationViewportVisible() const;
 
 	std::size_t GetMaxTextureSlots() const;
 
@@ -572,7 +581,7 @@ private:
 
 	[[nodiscard]] bool IsEntityPickingEnabled(impl::FramebufferId framebuffer) const;
 
-	void ClearEntityIds(impl::FramebufferId framebuffer) const;
+	void ClearEntityIds(impl::FramebufferId framebuffer);
 
 	[[nodiscard]] std::optional<std::int32_t> ReadEntityId(
 		impl::FramebufferId framebuffer, V2_int pixel
@@ -584,21 +593,26 @@ private:
 
 	void ExecuteEffectCallbacks(const std::function<void(DrawContext&)>& effect_callback);
 
+	// Apply the same final gamma/tone-mapping transform used by the presentation framebuffer.
+	// This is framebuffer-generic so editor owned offscreen targets can be displayed with the
+	// exact same output color pipeline as the runtime viewport.
+	void ApplyOutputColorTransform(impl::FramebufferObject& framebuffer);
+
 	bool FramebufferMatches(
 		impl::FramebufferId framebuffer, TextureDesc desc, std::optional<TextureDesc> other_desc
 	) const;
 
 	template <InvocableR<void, DrawContext&> F>
-	void ApplyPresentationEffect(F&& function) {
+	void ApplyFramebufferEffect(impl::FramebufferObject& framebuffer, F&& function) {
 		FlushBatch();
 
-		PTGN_ASSERT(presentation_framebuffer_, "Presentation framebuffer must be valid");
+		PTGN_ASSERT(framebuffer, "Framebuffer must be valid");
 
-		auto size{ GetSize(presentation_framebuffer_).value() };
+		auto size{ GetSize(framebuffer).value() };
 
-		PTGN_ASSERT(size.IsPositive(), "Presentation framebuffer size must be valid");
+		PTGN_ASSERT(size.IsPositive(), "Framebuffer size must be valid");
 
-		SetFramebuffer(&presentation_framebuffer_);
+		SetFramebuffer(&framebuffer);
 
 		Viewport viewport{
 			.position = {},
@@ -617,6 +631,11 @@ private:
 		FlushBatch();
 	}
 
+	template <InvocableR<void, DrawContext&> F>
+	void ApplyPresentationEffect(F&& function) {
+		ApplyFramebufferEffect(presentation_framebuffer_, std::forward<F>(function));
+	}
+
 	Window& window_;
 
 	Stats& stats_;
@@ -629,15 +648,17 @@ private:
 
 	std::size_t current_texture_slot_capacity_{ 1 };
 	std::vector<UniformWrite> current_uniforms_;
+	bool current_material_valid_{ true };
 	impl::FramebufferObject* current_framebuffer_{ nullptr };
 
 	impl::RenderBatcher batcher_;
 	impl::FramebufferPool framebuffer_pool_;
 	impl::RenderPipelineManager pipeline_manager_;
 	std::vector<impl::FramebufferObject> temp_framebuffers_;
+
 	impl::TextureObject white_texture_;
 
-	RendererSettings renderer_settings_;
+	RendererSettings renderer_settings_{};
 
 	Viewport display_viewport_;
 	/// @brief Flag to indicate whether the display viewport needs to be recalculated.
@@ -673,6 +694,26 @@ public:
 
 	TextureId GetTexture(FramebufferId framebuffer) const;
 
+	std::optional<TextureDesc> GetDesc(FramebufferId framebuffer) const;
+
+	RenderState GetRenderState() const;
+
+	void SetRenderState(const RenderState& state);
+
+	MaterialState GetMaterial() const;
+
+	void SetMaterial(const MaterialState& material);
+
+	PipelineId GetCurrentPipeline() const;
+
+	void SetCurrentPipeline(PipelineId pipeline);
+
+	void Clear(FramebufferId framebuffer, Color clear_color);
+
+	void DrawText(Transform transform, const DrawTextRequest& request);
+
+	void ApplyOutputColorTransform(FramebufferObject& framebuffer);
+
 	void FlushBatch();
 
 	void SetupPresentationFramebuffer();
@@ -694,17 +735,21 @@ public:
 		renderer_.Draw(request);
 	}
 
-	const FramebufferObject& GetBoundFramebuffer() const;
+	// Returns nullptr when rendering is currently targeting the default framebuffer.
+	// Unlike GetBoundFramebuffer(), this is valid between the renderer frame and editor/ImGui pass.
+	const FramebufferObject* GetCurrentFramebuffer() const;
+	FramebufferObject* GetCurrentFramebuffer();
 
-	void ClearEntityIds(FramebufferId framebuffer) const;
+	const FramebufferObject& GetBoundFramebuffer() const;
+	FramebufferObject& GetBoundFramebuffer();
+
+	void ClearEntityIds(FramebufferId framebuffer);
 
 	impl::FramebufferId GetPresentationFramebuffer() const;
 
 	void SetEntityPickingEnabled(impl::FramebufferId framebuffer, bool enabled);
 
-	std::optional<std::int32_t> ReadEntityId(
-		FramebufferId framebuffer, V2_int pixel
-	) const;
+	std::optional<std::int32_t> ReadEntityId(FramebufferId framebuffer, V2_int pixel) const;
 
 	bool IsEntityPickingEnabled(FramebufferId framebuffer) const;
 

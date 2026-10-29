@@ -1,3 +1,24 @@
+if(UNIX AND NOT APPLE AND NOT EMSCRIPTEN)
+  find_program(PTGN_IONICE ionice)
+  find_program(PTGN_NICE nice)
+
+  if(PTGN_IONICE AND PTGN_NICE)
+    set(
+      PTGN_COMPILER_LAUNCHER
+      "${PTGN_IONICE}" -c 2 -n 7
+      "${PTGN_NICE}" -n 10
+    )
+    set(
+      CMAKE_C_COMPILER_LAUNCHER
+      ${PTGN_COMPILER_LAUNCHER}
+    )
+    set(
+      CMAKE_CXX_COMPILER_LAUNCHER
+      ${PTGN_COMPILER_LAUNCHER}
+    )
+  endif()
+endif()
+
 add_subdirectory(vendor)
 
 include(${CMAKE_CURRENT_SOURCE_DIR}/../cmake/CMakeRC.cmake)
@@ -20,16 +41,8 @@ file(
   LIST_DIRECTORIES false
   "${PTGN_SHADER_DIR}/*.glsl")
 
-if(PTGN_EDITOR)
-  list(
-    REMOVE_ITEM
-    PTGN_SOURCES
-    "${PTGN_REGISTRATION_SOURCES}"
-  )
-endif()
-
 set(PTGN_FILES ${PTGN_SOURCES} ${PTGN_HEADERS} ${PTGN_SHADERS}
-               "${PTGN_SHADER_DIR}/manifest.json")
+  "${PTGN_SHADER_DIR}/manifest.json")
 
 add_library(protegon STATIC ${PTGN_FILES})
 
@@ -53,9 +66,6 @@ target_include_directories(
 
 target_compile_features(protegon PUBLIC cxx_std_23)
 
-target_compile_definitions(
-  protegon PRIVATE PTGN_ENGINE_ROOT="${CMAKE_CURRENT_SOURCE_DIR}")
-
 if(EMSCRIPTEN AND (CMAKE_BUILD_TYPE STREQUAL "Debug"))
   target_compile_definitions(protegon PRIVATE JSON_DIAGNOSTICS=1)
 endif()
@@ -65,9 +75,9 @@ target_precompile_headers(protegon PRIVATE "${PTGN_SRC_DIR}/ptgn_pch.h")
 target_link_libraries(
   protegon
   PUBLIC protegon::shaders ptgn_ecs nlohmann_json::nlohmann_json ptgn_imgui
-         magic_enum::magic_enum
+  magic_enum::magic_enum
   PUBLIC ptgn_glad glfw ptgn_miniaudio ptgn_stb Freetype::Freetype
-          msdf-atlas-gen::msdf-atlas-gen)
+  msdf-atlas-gen::msdf-atlas-gen)
 
 if(NOT EMSCRIPTEN)
   target_link_libraries(protegon PRIVATE nfd)

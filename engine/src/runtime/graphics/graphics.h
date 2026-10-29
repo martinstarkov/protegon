@@ -13,6 +13,7 @@
 #include "core/math/vector2.h"
 #include "renderer/pipeline/blend_mode.h"
 #include "runtime/ecs/entity.h"
+#include "runtime/ecs/entity_creation_context.h"
 #include "runtime/graphics/draw.h"
 #include "runtime/graphics/drawable.h"
 #include "serialization/serialize.h"
@@ -25,10 +26,10 @@ class Scene;
 namespace impl {
 
 struct GraphicsCommand {
-	Transform transform;
-	Shape shape;
-	Color color;
-	FillStyle line_width;
+	Transform transform{};
+	Shape shape{};
+	Color color{};
+	FillStyle line_width{};
 
 	PTGN_REFLECT(GraphicsCommand, transform, shape, color, line_width)
 };
@@ -38,10 +39,11 @@ struct GraphicsData {
 
 	Color fill_color_{ color::White };
 	Color stroke_color_{ color::White };
-	FillStyle line_width_;
-	std::vector<GraphicsCommand> commands_;
+	FillStyle line_width_{};
+	std::vector<GraphicsCommand> commands_{};
 
-	PTGN_REFLECT(GraphicsData, fill_color_, stroke_color_, line_width_, commands_)
+	PTGN_REFLECT_VALUE(GraphicsData, commands_)
+	PTGN_REFLECT_READONLY(GraphicsData, fill_color_, stroke_color_, line_width_)
 };
 
 } // namespace impl
@@ -74,6 +76,6 @@ public:
 
 PTGN_REGISTER_DRAWABLE(Graphics);
 
-Graphics CreateGraphics(Scene& scene, Transform transform = {});
+Graphics CreateGraphics(EntityCreationContext context, Transform transform = {});
 
 } // namespace ptgn

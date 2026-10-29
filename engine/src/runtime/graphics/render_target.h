@@ -10,6 +10,7 @@
 #include "renderer/resources/texture.h"
 #include "renderer/resources/texture_format.h"
 #include "runtime/ecs/entity.h"
+#include "runtime/ecs/entity_creation_context.h"
 #include "runtime/graphics/drawable.h"
 #include "serialization/serialize.h"
 
@@ -69,25 +70,19 @@ public:
 
 	/// @brief Clears the render target's color attachment.
 	/// @param color Clear color. If empty, uses the target's configured clear color.
-	/// @param restore_bind If true, restores the previously bound render target after clearing.
-	void ClearColor(std::optional<Color> color = {}, bool restore_bind = true);
+	void ClearColor(std::optional<Color> color = {});
 
 	/// @brief Clears the render target's depth attachment.
 	/// @param depth Clear depth. If empty, uses the default depth clear value.
-	/// @param restore_bind If true, restores the previously bound render target after clearing.
-	void ClearDepth(std::optional<Depth> depth = {}, bool restore_bind = true);
+	void ClearDepth(std::optional<Depth> depth = {});
 
 	/// @brief Clears the render target's stencil attachment.
 	/// @param stencil Clear stencil. If empty, uses the default stencil clear value.
-	/// @param restore_bind If true, restores the previously bound render target after clearing.
-	void ClearStencil(std::optional<Stencil> stencil = {}, bool restore_bind = true);
+	void ClearStencil(std::optional<Stencil> stencil = {});
 
 	/// @brief Clears the render target's depth and stencil attachment.
 	/// @param depth_stencil Clear depth/stencil values. If empty, uses default clear values.
-	/// @param restore_bind If true, restores the previously bound render target after clearing.
-	void ClearDepthStencil(
-		std::optional<DepthStencil> depth_stencil = {}, bool restore_bind = true
-	);
+	void ClearDepthStencil(std::optional<DepthStencil> depth_stencil = {});
 
 	void SetClearColor(Color clear_color);
 	std::optional<Color> GetClearColor() const;
@@ -134,6 +129,7 @@ public:
 	/// @param display_size Current renderer display size.
 	/// @return Whether the frame buffer was resized.
 	bool UpdateSize(V2_int display_size);
+
 private:
 	friend class Scene;
 
@@ -141,12 +137,11 @@ private:
 };
 
 /// @brief Create a render target with a custom size.
-/// A zero size is retained as backwards compatible shorthand for following the display size.
 /// @param size The size of the render target.
 /// @param clear_color The color to which the render target is cleared.
 /// @param texture_format Format of the render target texture.
 RenderTarget CreateRenderTarget(
-	Scene& scene, Transform transform, V2_int size,
+	EntityCreationContext context, Transform transform, V2_int size,
 	Color clear_color			 = kDefaultRenderTargetClearColor,
 	TextureFormat texture_format = kDefaultRenderTargetFormat
 );
@@ -155,9 +150,19 @@ RenderTarget CreateRenderTarget(
 /// @param clear_color The color to which the render target is cleared.
 /// @param texture_format Format of the render target texture.
 RenderTarget CreateRenderTarget(
-	Scene& scene, Transform transform = {}, Color clear_color = kDefaultRenderTargetClearColor,
+	EntityCreationContext context, Transform transform = {},
+	Color clear_color			 = kDefaultRenderTargetClearColor,
 	TextureFormat texture_format = kDefaultRenderTargetFormat
 );
+
+namespace event {
+
+struct RenderTargetResized {
+	V2_int previous{};
+	V2_int current{};
+};
+
+} // namespace event
 
 PTGN_REGISTER_DRAWABLE(RenderTarget, { .name = "Render Target" });
 

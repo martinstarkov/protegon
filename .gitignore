@@ -28,9 +28,11 @@ engine/vendor/*
 [Bb]uild-wasm/
 [Bb]uild-web/
 [Dd]ebug/
+[Bb]uild-[Rr]elease/
 [Dd]ebugPublic/
 [Rr]elease/
 [Rr]eleases/
+[Rr]elease-[Ww]eb/
 [Ww][Ii][Nn]32/
 [Aa][Rr][Mm]/
 [Aa][Rr][Mm]64/

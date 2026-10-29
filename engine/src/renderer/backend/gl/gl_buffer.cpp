@@ -116,7 +116,7 @@ T Buffers::CreateBuffer(
 	auto _1 = gl_.Bind(VertexArrayId{ 0 }, true);
 	auto _2 = gl_.Bind(id, false);
 
-	const std::uint32_t size = element_count * element_size;
+	std::uint32_t size = element_count * element_size;
 
 	GLCall(glBufferData(std::to_underlying(target), size, data, std::to_underlying(usage)));
 

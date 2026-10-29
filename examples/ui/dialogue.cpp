@@ -3,13 +3,12 @@
 #include <fstream>
 
 #include "app/application.h"
+#include "app/editor.h"
 #include "core/assert.h"
-#include "core/editor.h"
 #include "core/input/key.h"
 #include "core/log.h"
 #include "core/math/geometry/origin.h"
 #include "core/util/file.h"
-#include "nlohmann/json.hpp"
 #include "runtime/asset/asset_manager.h"
 #include "runtime/ecs/entity.h"
 #include "runtime/ecs/entity_hierarchy.h"
@@ -24,7 +23,7 @@ using namespace ptgn;
 
 struct DialogueScene : public Scene {
 	Entity npc;
-	DialogueBox dialogue;
+	Dialogue dialogue;
 
 	[[nodiscard]] json LoadDialogueJson() const {
 		std::ifstream file{ GetAbsolutePath("assets/dialogue.json") };
@@ -35,7 +34,7 @@ struct DialogueScene : public Scene {
 		return data;
 	}
 
-	DialogueBox CreateNpcDialogue() {
+	Dialogue CreateNpcDialogue() {
 		auto dialogue_box{ CreateDialogueBox(
 			*this, { 0, 220 },
 			DialogueDesc{
@@ -53,7 +52,7 @@ struct DialogueScene : public Scene {
 	}
 
 	void OnEnter() override {
-		ctx().debug.settings.text.draw_enabled = true;
+		ctx().debug.settings.text.draw_enabled		  = true;
 		ctx().debug.settings.interaction.draw_enabled = true;
 
 		PTGN_LOG("Entity count: ", GetEntityCount());

@@ -1,6 +1,7 @@
 #pragma once
 
 #include <functional>
+#include <optional>
 #include <string_view>
 #include <vector>
 
@@ -11,6 +12,7 @@
 #include "renderer/resources/shader.h"
 #include "runtime/asset/asset_key.h"
 #include "runtime/ecs/entity.h"
+#include "runtime/ecs/entity_creation_context.h"
 #include "runtime/graphics/drawable.h"
 
 namespace ptgn {
@@ -19,9 +21,9 @@ class DrawContext;
 class Scene;
 
 struct Material {
-	ShaderKey shader;
-	std::vector<UniformWrite> uniforms;
-	std::optional<std::size_t> texture_slot_capacity;
+	ShaderKey shader{};
+	std::vector<UniformWrite> uniforms{};
+	std::optional<std::size_t> texture_slot_capacity{};
 
 	constexpr bool operator==(const Material&) const = default;
 
@@ -40,9 +42,7 @@ public:
 	CustomShader& SetMaterialUniforms(const std::vector<UniformWrite>& material_uniforms);
 
 	/// @brief If uniform is already set, its value is updated.
-	CustomShader& SetMaterialUniform(
-		std::string_view name, const UniformValue& value
-	);
+	CustomShader& SetMaterialUniform(std::string_view name, const UniformValue& value);
 
 	CustomShader& SetMaterial(Material material);
 };
@@ -55,14 +55,14 @@ MaterialState GetMaterialState(Entity entity);
 /// function for the effect.
 struct MaterialUpdate {
 	/// @brief Called once per draw for the entity with this component.
-	std::function<void(CustomShader)> update;
+	std::function<void(CustomShader)> update{};
 };
 
 } // namespace impl
 
 CustomShader CreateCustomShader(
-	Scene& scene, Transform transform = {}, ShaderKey shader_key = {}, TextureKey texture_key = {},
-	V2_float size = {}, const std::vector<UniformWrite>& uniforms = {},
+	EntityCreationContext context, Transform transform = {}, ShaderKey shader_key = {},
+	TextureKey texture_key = {}, V2_float size = {}, const std::vector<UniformWrite>& uniforms = {},
 	Origin origin = Origin::Center
 );
 

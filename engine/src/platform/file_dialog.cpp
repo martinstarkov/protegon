@@ -14,23 +14,23 @@ FileDialog::FileDialog(Window& window) : window_{ window } {}
 
 FileDialog::~FileDialog() {}
 
-FileDialog::Result<path> FileDialog::OpenFile(const Options&) const {
+FileDialog::Result<path> FileDialog::OpenFile(Options) const {
 	return std::unexpected("OpenFile is not supported on Emscripten");
 }
 
-FileDialog::Result<std::vector<path>> FileDialog::OpenFiles(const Options&) const {
+FileDialog::Result<std::vector<path>> FileDialog::OpenFiles(Options) const {
 	return std::unexpected("OpenFiles is not supported on Emscripten");
 }
 
-FileDialog::Result<path> FileDialog::SaveFile(const Options&) const {
+FileDialog::Result<path> FileDialog::SaveFile(Options) const {
 	return std::unexpected("SaveFile is not supported on Emscripten");
 }
 
-FileDialog::Result<path> FileDialog::OpenFolder(const Options&) const {
+FileDialog::Result<path> FileDialog::OpenFolder(Options) const {
 	return std::unexpected("OpenFolder is not supported on Emscripten");
 }
 
-FileDialog::Result<std::vector<path>> FileDialog::OpenFolders(const Options&) const {
+FileDialog::Result<std::vector<path>> FileDialog::OpenFolders(Options) const {
 	return std::unexpected("OpenFolders is not supported on Emscripten");
 }
 
@@ -129,7 +129,7 @@ FileDialog::~FileDialog() {
 	NFD::Quit();
 }
 
-FileDialog::Result<path> FileDialog::OpenFile(const Options& options) const {
+FileDialog::Result<path> FileDialog::OpenFile(Options options) const {
 	return GetResult<NFD::UniquePathU8, path>(
 		window_.instance_.get(), options,
 		[](auto& out, auto filter_data, auto filter_count, auto default_path, auto,
@@ -140,7 +140,7 @@ FileDialog::Result<path> FileDialog::OpenFile(const Options& options) const {
 	);
 }
 
-FileDialog::Result<std::vector<path>> FileDialog::OpenFiles(const Options& options) const {
+FileDialog::Result<std::vector<path>> FileDialog::OpenFiles(Options options) const {
 	return GetResult<NFD::UniquePathSet, std::vector<path>>(
 		window_.instance_.get(), options,
 		[](auto& out, auto filter_data, auto filter_count, auto default_path, auto,
@@ -153,7 +153,7 @@ FileDialog::Result<std::vector<path>> FileDialog::OpenFiles(const Options& optio
 	);
 }
 
-FileDialog::Result<path> FileDialog::SaveFile(const Options& options) const {
+FileDialog::Result<path> FileDialog::SaveFile(Options options) const {
 	return GetResult<NFD::UniquePathU8, path>(
 		window_.instance_.get(), options,
 		[](auto& out, auto filter_data, auto filter_count, auto default_path, auto default_name,
@@ -166,7 +166,7 @@ FileDialog::Result<path> FileDialog::SaveFile(const Options& options) const {
 	);
 }
 
-FileDialog::Result<path> FileDialog::OpenFolder(const Options& options) const {
+FileDialog::Result<path> FileDialog::OpenFolder(Options options) const {
 	return GetResult<NFD::UniquePathU8, path>(
 		window_.instance_.get(), options,
 		[](auto& out, auto, auto, auto default_path, auto, auto native_window) {
@@ -176,7 +176,7 @@ FileDialog::Result<path> FileDialog::OpenFolder(const Options& options) const {
 	);
 }
 
-FileDialog::Result<std::vector<path>> FileDialog::OpenFolders(const Options& options) const {
+FileDialog::Result<std::vector<path>> FileDialog::OpenFolders(Options options) const {
 	return GetResult<NFD::UniquePathSet, std::vector<path>>(
 		window_.instance_.get(), options,
 		[](auto& out, auto, auto, auto default_path, auto, auto native_window) {

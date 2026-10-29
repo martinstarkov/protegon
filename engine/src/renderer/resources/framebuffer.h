@@ -18,10 +18,10 @@ public:
 
 	void Bind();
 
-	void Clear(Color clear_color, bool restore_bind);
-	void Clear(Depth clear_depth, bool restore_bind);
-	void Clear(Stencil clear_stencil, bool restore_bind);
-	void Clear(DepthStencil clear_depth_stencil, bool restore_bind);
+	void Clear(Color clear_color);
+	void Clear(Depth clear_depth);
+	void Clear(Stencil clear_stencil);
+	void Clear(DepthStencil clear_depth_stencil);
 
 	std::optional<std::int32_t> ReadEntityId(V2_int pixel) const;
 

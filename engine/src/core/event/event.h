@@ -20,12 +20,11 @@ struct EventData {
 	using Payload = std::unique_ptr<void, void (*)(void*)>;
 
 	/// @brief For debug purposes.
-	std::string name;
+	std::string name{};
 
 	std::size_t type_hash{ 0 };
 	bool handled{ false };
-	Payload payload{ nullptr, +[](void*) {
-					} };
+	Payload payload{ nullptr, +[](void*) {} };
 
 	template <typename T, typename... TArgs>
 		requires BraceConstructible<T, TArgs...>

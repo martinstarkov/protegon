@@ -32,6 +32,8 @@
 #include "renderer/resources/texture.h"
 #include "runtime/asset/asset_manager.h"
 #include "runtime/ecs/entity.h"
+#include "runtime/ecs/entity_creation_context.h"
+#include "runtime/ecs/group_stack.h"
 #include "runtime/ecs/tag.h"
 #include "runtime/graphics/draw.h"
 #include "runtime/graphics/fx/particle_event.h"
@@ -45,11 +47,11 @@ namespace ptgn {
 namespace {
 
 struct ParticleDrawInfo {
-	Transform transform;
+	Transform transform{};
 	float size{ 0.0f };
-	Color color;
-	FillStyle fill_style;
-	Depth depth;
+	Color color{ color::White };
+	FillStyle fill_style{};
+	Depth depth{};
 	BlendMode blend_mode{ BlendMode::Blend };
 	Origin origin{ Origin::Center };
 };
@@ -217,8 +219,8 @@ void ParticleEmitterPlayback::Update(
 	}
 }
 
-ParticleEmitterData::ParticleEmitterData(const ParticleConfig& config) :
-	config{ config } {}
+ParticleEmitterData::ParticleEmitterData(const ParticleConfig& particle_config) :
+	config{ particle_config } {}
 
 Entity ParticleEmitterData::TrySpawnParticle() {
 	if (live_particle_count >= config.max_particles) {
@@ -228,7 +230,11 @@ Entity ParticleEmitterData::TrySpawnParticle() {
 	auto particle_entity{ manager.CreateEntity() };
 	particle_entity.Add<Particle>(config);
 	++live_particle_count;
-
+	if (owner && owner.HasScene() && owner.GetScene().IsRuntime()) {
+		PushEvent<event::ParticleSpawned>(
+			owner, ParticleEmitter{ owner }, particle_entity.Get<Particle>()
+		);
+	}
 	return particle_entity;
 }
 
@@ -256,11 +262,13 @@ void ParticleEmitterData::Start() {
 
 	// Prewarm means: make the emitter look like it has already been running
 	// for one full cycle.
-	auto cycle_particles{ rate.rate_over_time * duration_cast<secondsf>(rate.duration).count() };
+	auto cycle_particles{ rate.rate_over_time * duration_cast<secondsf>(rate.duration) };
 
-	PTGN_ASSERT(cycle_particles >= 0.0f, "Prewarm cycle particle count cannot be negative");
+	PTGN_ASSERT(
+		cycle_particles >= secondsf::zero(), "Prewarm cycle particle count cannot be negative"
+	);
 
-	auto prewarm_count{ static_cast<std::size_t>(cycle_particles) };
+	auto prewarm_count{ static_cast<std::size_t>(cycle_particles.count()) };
 
 	for (auto i{ 0uz }; i < prewarm_count; ++i) {
 		auto particle_entity{ TrySpawnParticle() };
@@ -278,6 +286,7 @@ void ParticleEmitterData::Start() {
 }
 
 void ParticleEmitterData::Update(const ParticleEmitter& emitter, secondsf dt) {
+	owner = emitter;
 	if (playback.state == impl::ParticleEmitterState::Playing) {
 		// Update emission (spawn new particles).
 		std::visit(
@@ -338,7 +347,7 @@ Particle::Particle(const ParticleConfig& config) {
 		lifetime = std::get<ParticleRate>(config.rate_or_burst).duration;
 	}
 
-	const auto optional_range_or = [](const auto& range, const auto& constant) {
+	auto optional_range_or = [](const auto& range, const auto& constant) {
 		if (range.has_value()) {
 			return range.value().Evaluate();
 		} else {
@@ -404,6 +413,7 @@ ParticleEmitter& ParticleEmitter::Start() {
 	using enum impl::ParticleEmitterState;
 
 	auto& emitter{ Get<impl::ParticleEmitterData>() };
+	emitter.owner = *this;
 
 	if (emitter.playback.state == Paused) {
 		emitter.playback.state = Playing;
@@ -460,18 +470,15 @@ ParticleEmitter& ParticleEmitter::Reset() {
 }
 
 bool ParticleEmitter::IsPlaying() const {
-	return Get<impl::ParticleEmitterData>().playback.state ==
-		   impl::ParticleEmitterState::Playing;
+	return Get<impl::ParticleEmitterData>().playback.state == impl::ParticleEmitterState::Playing;
 }
 
 bool ParticleEmitter::IsPaused() const {
-	return Get<impl::ParticleEmitterData>().playback.state ==
-		   impl::ParticleEmitterState::Paused;
+	return Get<impl::ParticleEmitterData>().playback.state == impl::ParticleEmitterState::Paused;
 }
 
 bool ParticleEmitter::IsStopped() const {
-	return Get<impl::ParticleEmitterData>().playback.state ==
-		   impl::ParticleEmitterState::Stopped;
+	return Get<impl::ParticleEmitterData>().playback.state == impl::ParticleEmitterState::Stopped;
 }
 
 void ParticleEmitter::Draw(DrawContext& ctx, Entity entity) {
@@ -488,7 +495,7 @@ void ParticleEmitter::Draw(DrawContext& ctx, Entity entity) {
 	auto& scene{ entity.GetScene() };
 	auto& assets{ scene.ctx().asset };
 
-	const Transform base_transform{ GetDrawTransform(entity) };
+	Transform base_transform{ GetDrawTransform(entity) };
 
 	for (const auto& [particle_entity, particle] :
 		 std::as_const(emitter.manager).EntitiesWith<Particle>()) {
@@ -515,14 +522,17 @@ void ParticleEmitter::Draw(DrawContext& ctx, Entity entity) {
 
 void ParticleEmitter::Update(Scene& scene, secondsf dt) {
 	for (auto [entity, emitter] : scene.EntitiesWith<impl::ParticleEmitterData>()) {
+		if (!IsGroupStackActive(entity) || !scene.ctx().chunks.ShouldSimulate(entity)) {
+			continue;
+		}
 		emitter.Update(ParticleEmitter{ entity }, dt);
 	}
 }
 
 ParticleEmitter CreateParticleEmitter(
-	Scene& scene, Transform transform, const ParticleConfig& config, bool start
+	EntityCreationContext context, Transform transform, const ParticleConfig& config, bool start
 ) {
-	ParticleEmitter particle{ scene.CreateEntity() };
+	ParticleEmitter particle{ context.CreateEntity() };
 
 	particle.Add<Tag>("Particle Emitter");
 	particle.Add<Transform>(transform);

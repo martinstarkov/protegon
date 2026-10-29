@@ -79,10 +79,10 @@ struct GlyphMetrics {
 	/// @brief The glyph's bounds in the font's layout coordinate system, sometimes called plane
 	/// bounds. This rectangle describes where the glyph quad should be positioned relative to its
 	/// pen position or baseline.
-	Rect plane;
+	Rect plane{};
 
 	/// @brief Normalized texture coordinates of the glyph within the atlas texture.
-	Rect uv;
+	Rect uv{};
 };
 
 /// @brief Font-wide measurements shared by all glyphs.
@@ -93,7 +93,7 @@ struct FontMetrics {
 	/// @brief Distance from the baseline to the font's furthest lower extent. Typically negative.
 	float descender{ 0.0f };
 
-	/// @brief Recommended baseline-to-baseline distance between adjacent lines. Not necessarily
+	/// @brief Recommended baseline to baseline distance between adjacent lines. Not necessarily
 	/// equal to ascender - descender because the font may include additional line gap.
 	float line_height{ 0.0f };
 
@@ -101,19 +101,19 @@ struct FontMetrics {
 	/// text size.
 	float em_size{ 0.0f };
 
-	/// @brief Distance-field range represented in atlas texels. This tells the shader how encoded
+	/// @brief Distance field range represented in atlas texels. This tells the shader how encoded
 	/// texture values correspond to actual signed distance.
 	float pixel_range{ 0.0f };
 };
 
 struct FontData {
 	/// @brief Path of the original font file used to generate this atlas.
-	path path;
+	fs::path path{};
 
-	FontMetrics metrics;
+	FontMetrics metrics{};
 
 	/// @brief Key is a Unicode codepoint. Value is the glyph metrics for that codepoint.
-	std::unordered_map<std::uint32_t, GlyphMetrics> glyphs;
+	std::unordered_map<std::uint32_t, GlyphMetrics> glyphs{};
 
 	/// @brief Key is a 64-bit integer where the high 32 bits are the current codepoint and the low
 	/// 32 bits are the next codepoint. Value is the kerning adjustment to apply to the advance when
@@ -123,22 +123,23 @@ struct FontData {
 	/// For example:
 	/// current = U'A'; next = U'V';
 	/// advance = current.advance + kerning[current << 32 | next];
-	std::unordered_map<std::uint64_t, float> kerning;
+	std::unordered_map<std::uint64_t, float> kerning{};
 };
 
 struct FontBinary {
 	constexpr FontBinary() = default;
 
-	explicit FontBinary(std::span<const std::byte> buffer) :
-		buffer{ std::span{ reinterpret_cast<const std::uint8_t*>(buffer.data()), // NOSONAR
-						   buffer.size() } } {}
+	explicit FontBinary(std::span<const std::byte> font_buffer) :
+		buffer{ std::span{ reinterpret_cast<const std::uint8_t*>(font_buffer.data()), // NOSONAR
+						   font_buffer.size() } } {}
 
-	constexpr explicit FontBinary(std::span<const std::uint8_t> buffer) : buffer{ buffer } {}
+	constexpr explicit FontBinary(std::span<const std::uint8_t> font_buffer) :
+		buffer{ font_buffer } {}
 
-	std::span<const std::uint8_t> buffer;
+	std::span<const std::uint8_t> buffer{};
 };
 
-/// @brief CPU-side atlas data, produced either by generation or cache loading.
+/// @brief CPU side atlas data, produced either by generation or cache loading.
 struct FontAtlasData {
 	Surface surface;
 	FontData font;
@@ -159,6 +160,20 @@ public:
 
 	/// @brief Load built-in font from generated header binary.
 	FontAtlas(Renderer& renderer, FontBinary font_png);
+
+	/// @brief Finalizes already prepared CPU side atlas data into the renderer texture.
+	FontAtlas(Renderer& renderer, FontAtlasData&& data);
+
+	/// @brief Generates atlas pixels and metrics and writes the cache without accessing Renderer.
+	[[nodiscard]] static FontAtlasData PrepareGenerated(
+		path font_path, const path& cache_png_path, const FontAtlasInfo& atlas_info = {}
+	);
+
+	/// @brief Loads CPU side atlas data from a cached PNG without accessing Renderer.
+	[[nodiscard]] static FontAtlasData PrepareCached(path cache_png_path);
+
+	/// @brief Loads CPU side atlas data from an embedded cache without accessing Renderer.
+	[[nodiscard]] static FontAtlasData PrepareCached(FontBinary font_png);
 
 	/// @return std::nullopt if the requested codepoint is not present in the font atlas.
 	std::optional<GlyphMetrics> GetGlyph(std::uint32_t codepoint) const;
@@ -187,9 +202,9 @@ public:
 private:
 	void Initialize(Renderer& renderer, FontAtlasData&& payload);
 
-	TextureObject atlas_texture_;
+	TextureObject atlas_texture_{};
 
-	FontData data_;
+	FontData data_{};
 };
 
 } // namespace impl

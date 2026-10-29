@@ -124,7 +124,7 @@ void VertexArrays::SetBufferLayout(VertexArrayId vertex_array, const BufferLayou
 
 	const auto& elements{ layout.elements };
 	PTGN_ASSERT(
-		max_vertex_attribs_ > 0 && elements.size() < max_vertex_attribs_,
+		max_vertex_attribs_ > 0 && elements.size() <= max_vertex_attribs_,
 		"Vertex buffer layout cannot exceed maximum number of vertex array attributes"
 	);
 

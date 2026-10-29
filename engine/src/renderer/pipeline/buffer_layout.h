@@ -87,9 +87,9 @@ constexpr BufferElementType GetBufferElementType() {
 struct BufferElement {
 	constexpr BufferElement(
 		std::uint16_t buffer_size, std::uint16_t buffer_count, bool buffer_is_integer,
-		BufferElementType type
+		BufferElementType buffer_type
 	) :
-		size{ buffer_size }, count{ buffer_count }, type{ type }, is_integer{ buffer_is_integer } {}
+		size{ buffer_size }, count{ buffer_count }, type{ buffer_type }, is_integer{ buffer_is_integer } {}
 
 	std::uint16_t size{ 0 };  // Number of elements x Size of element.
 	std::uint16_t count{ 0 }; // Number of elements
@@ -123,7 +123,7 @@ struct BufferLayout {
 		return std::is_same_v<V, bool> || std::is_same_v<V, std::uint32_t> ||
 			   std::is_same_v<V, std::int32_t> || std::is_same_v<V, std::uint16_t> ||
 			   std::is_same_v<V, std::int16_t> || std::is_same_v<V, std::uint8_t> ||
-			   std::is_same_v<V, std::int16_t>;
+			   std::is_same_v<V, std::int8_t>;
 	}
 
 	std::int32_t stride_{ 0 };
@@ -151,7 +151,7 @@ struct BufferLayout {
 };
 
 struct BufferLayoutView {
-	std::span<const BufferElement> elements;
+	std::span<const BufferElement> elements{};
 	std::int32_t stride{ 0 };
 };
 
@@ -174,6 +174,11 @@ struct VertexLayout {
 	}
 
 	static constexpr BufferLayoutView GetLayoutView() {
+		static_assert(
+			sizeof(Derived) == static_cast<std::size_t>(layout.GetStride()),
+			"Vertex struct contains padding not accounted for by BufferLayout"
+		);
+
 		return ToBufferLayoutView(layout);
 	}
 };

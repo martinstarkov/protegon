@@ -5,6 +5,18 @@
 
 namespace ptgn::event {
 
+struct MouseClicked {
+	Mouse button{ Mouse::Left };
+};
+
+struct MouseDoubleClicked {
+	Mouse button{ Mouse::Left };
+};
+
+struct MouseLongPressed {
+	Mouse button{ Mouse::Left };
+};
+
 struct MouseEnter {};
 
 struct MouseLeave {};
