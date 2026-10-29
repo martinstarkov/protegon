@@ -372,14 +372,18 @@ void InspectorPanel::OnRender(EditorContext& ctx) {
 	}
 	ImGui::End();
 
-	bool tile_visible{ ImGui::Begin("Tile Inspector###TileInspector") };
-	if (inspector_dock_id == 0) {
-		inspector_dock_id = ImGui::GetWindowDockID();
+	bool tile_visible{ false };
+
+	if (hierarchy.IsTilesWindowVisible()) {
+		tile_visible = ImGui::Begin("Tile Inspector###TileInspector");
+		if (inspector_dock_id == 0) {
+			inspector_dock_id = ImGui::GetWindowDockID();
+		}
+		if (tile_visible) {
+			paint.DrawTileInspector(ctx);
+		}
+		ImGui::End();
 	}
-	if (tile_visible) {
-		paint.DrawTileInspector(ctx);
-	}
-	ImGui::End();
 
 	auto screen_effect_selection{ ctx.local.selection.selected_screen_effect };
 	bool screen_effect_visible{};

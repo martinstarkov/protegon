@@ -2473,8 +2473,10 @@ void SceneHierarchyPanel::OnRender(EditorContext& ctx) {
 	// Selection can change while DrawSceneHierarchy is running, so render it first.
 	DrawSceneHierarchy(ctx);
 	Entity selected{ GetSelectedEntity() };
+	tiles_window_visible_ = false;
+
 	if (selected && IsTilemap(selected)) {
-		DrawTiles(ctx);
+		tiles_window_visible_ = DrawTiles(ctx);
 	} else {
 		DrawPrefabs(ctx);
 	}

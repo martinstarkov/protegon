@@ -44,12 +44,18 @@ public:
 	[[nodiscard]] SceneHierarchyTab GetActiveTab() const;
 	void SetActiveTab(SceneHierarchyTab tab);
 
+	/// Whether Tiles is the visible dock window in the current frame.
+	[[nodiscard]] bool IsTilesWindowVisible() const {
+		return tiles_window_visible_;
+	}
+
 private:
 	bool DrawSceneHierarchy(EditorContext& ctx);
 	bool DrawPrefabs(EditorContext& ctx);
 	bool DrawTiles(EditorContext& ctx);
 
 	EditorContext* context_{ nullptr };
+	bool tiles_window_visible_{ false };
 
 	std::optional<SceneEntitySelection> renaming_entity_;
 	std::string entity_rename_text_;
