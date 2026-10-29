@@ -6,6 +6,8 @@
 #include <functional>
 #include <optional>
 #include <string>
+#include <string_view>
+#include <string_view>
 #include <unordered_map>
 #include <unordered_set>
 #include <vector>
@@ -165,6 +167,11 @@ public:
 	/// Disabling writes retains in memory deltas for the current runtime only.
 	void SetDiskWritesEnabled(bool enabled);
 	[[nodiscard]] bool AreDiskWritesEnabled() const;
+	/// Whether a saved delta removed a generated entity. Used by the editor preview
+	/// without generating ECS instances; results are cached by streaming page.
+	[[nodiscard]] bool IsSavedGeneratedEntityRemoved(
+		std::string_view generator_id, V2_int cell, V2_float generated_anchor
+	) const;
 	/// Discard all saved chunk deltas and reset resident generated content to its
 	/// deterministic baseline. Intended for editor reset actions; does not touch
 	/// authored scene entities or any unrelated files in the save directory.
@@ -288,6 +295,8 @@ private:
 	std::unordered_set<int> always_active_{};
 	/// Delta dictionaries: "entities", "tiles", and full UUID preserving "spawned" snapshots.
 	std::unordered_map<V2_int, json> changes_{};
+	// Read only edit mode preview: don't reparse a page for every generated sprite.
+	mutable std::unordered_map<V2_int, json> preview_saved_deltas_{};
 	/// Coalesce gameplay removals and limit disk commits to one page per tick.
 	std::unordered_set<V2_int> pending_commits_{};
 	std::chrono::steady_clock::time_point next_pending_commit_{};

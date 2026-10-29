@@ -1786,6 +1786,7 @@ void ChunkManager::SetSaveDirectory(path directory) {
 	save_directory_ = StoragePath(std::move(directory));
 	legacy_save_path_.clear();
 	storage_prepared_ = false;
+	preview_saved_deltas_.clear();
 	last_auto_save_ = std::chrono::steady_clock::now();
 	corrupt_chunks_.clear();
 }
@@ -1912,7 +1913,7 @@ bool ChunkManager::PrepareStorage() {
 					continue;
 				}
 				if (error || !WriteChunkDelta(coordinate, delta)) {
-					PTGN_WARN("Cannot migrate old chunk journal to per-chunk files");
+					PTGN_WARN("Cannot migrate old chunk journal to per chunk files");
 					return false;
 				}
 			}
@@ -2097,6 +2098,7 @@ bool ChunkManager::ResetSavedChanges(Scene& scene) {
 	settings_.save_mode = previous_mode;
 
 	changes_.clear();
+	preview_saved_deltas_.clear();
 	pending_commits_.clear();
 	corrupt_chunks_.clear();
 	// Remove only our own per chunk journal files; other project files are safe.
@@ -2141,6 +2143,39 @@ void ChunkManager::SetDiskWritesEnabled(bool enabled) {
 
 bool ChunkManager::AreDiskWritesEnabled() const {
 	return disk_writes_enabled_;
+}
+
+bool ChunkManager::IsSavedGeneratedEntityRemoved(
+	std::string_view generator_id, V2_int cell, V2_float generated_anchor
+) const {
+	if (save_directory_.empty() || generator_id.empty()) {
+		return false;
+	}
+
+	V2_int coordinate{ WorldToChunk(generated_anchor) };
+	auto cached{ preview_saved_deltas_.find(coordinate) };
+
+	if (cached == preview_saved_deltas_.end()) {
+		json saved{ json::object() };
+
+		if (!ReadChunkDelta(coordinate, saved)) {
+			// An unreadable page must not silently appear to be pristine.
+			PTGN_WARN("Unable to read generated entity preview delta: ",
+				coordinate.x, ", ", coordinate.y);
+			return false;
+		}
+
+		// Cap the cache for editor cameras travelling through a very large world.
+		if (preview_saved_deltas_.size() >= 256) {
+			preview_saved_deltas_.clear();
+		}
+
+		cached = preview_saved_deltas_.emplace(coordinate, std::move(saved)).first;
+	}
+
+	const json& delta{ cached->second };
+	std::string key{ CellKey(generator_id, cell) };
+	return HasOverride(delta, "entities", key) && delta["entities"][key].is_null();
 }
 
 bool ChunkManager::SaveConfigured() {

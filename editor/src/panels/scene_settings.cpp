@@ -1,6 +1,7 @@
 #include "panels/scene_settings.h"
 
 #include <imgui.h>
+#include <imgui_stdlib.h>
 
 #include <algorithm>
 #include <cfloat>
@@ -12,6 +13,7 @@
 #include <utility>
 
 #include "core/graphics/color.h"
+#include "core/log.h"
 #include "core/math/vector2.h"
 #include "core/util/hash.h"
 #include "editor/editor.h"
@@ -20,6 +22,8 @@
 #include "panels/inspector_fields.h"
 #include "panels/inspector_helpers.h"
 #include "panels/scene_list.h"
+#include "platform/file_dialog.h"
+#include "platform/window.h"
 #include "runtime/graphics/render_target.h"
 #include "runtime/interaction/interaction_system.h"
 #include "runtime/physics/physics.h"
@@ -194,8 +198,7 @@ void SceneSettingsPanel::OnRender(EditorContext& ctx) {
 			ChunkSettings after{ before };
 			bool enabled{ after.world_size.IsPositive() };
 			bool changed{ DrawValue(ctx, "Enable Chunks", enabled) };
-			DrawTooltip("Enable a finite chunk grid for streaming and persistence. "
-				"Disabled scenes still use viewport culling and bounded procedural pages.");
+			DrawTooltip("Use explicit chunks for world streaming.");
 			if (enabled && !after.world_size.IsPositive()) {
 				after.world_size = { 512, 512 };
 			}
@@ -204,31 +207,74 @@ void SceneSettingsPanel::OnRender(EditorContext& ctx) {
 			}
 
 			changed |= DrawValue(ctx, "Render Viewports", after.render_viewports);
-			DrawTooltip("Camera viewport multiplier for rendering. "
-				"1.0 means the visible camera area; 1.5 adds a margin around it.");
+			DrawTooltip("Render area in camera viewports (1.0 = visible area).");
 			changed |= DrawValue(ctx, "Simulation Viewports", after.simulation_viewports);
-			DrawTooltip("Camera viewport multiplier for simulation. "
-				"Entities beyond this area can sleep until they approach the camera.");
+			DrawTooltip("Simulation area in camera viewports.");
 
 			if (enabled) {
 				changed |=
 					DrawWHValue("Chunk Size (World Units)", after.world_size, 1.0f, 1, 65536);
-				DrawTooltip("Size of a world chunk in world units. "
-					"Changing it changes the streaming and save grid.");
+				DrawTooltip("Chunk width and height in world units.");
 				after.world_size.x	= std::max(1, after.world_size.x);
 				after.world_size.y	= std::max(1, after.world_size.y);
 				changed			   |= DrawValue(ctx, "Render Distance", after.render_distance);
-				DrawTooltip("Additional chunks around the camera render bounds to keep resident.");
+				DrawTooltip("Extra chunks loaded around the render area.");
 				changed |= DrawValue(ctx, "Simulation Distance", after.simulation_distance);
-				DrawTooltip("Additional chunks around the camera simulation bounds.");
+				DrawTooltip("Extra chunks around the simulation area.");
 				changed |= DrawValue(ctx, "Keep Alive Distance", after.keep_alive_distance);
-				DrawTooltip("Extra chunk margin retained before distant chunks are unloaded.");
+				DrawTooltip("Unload margin beyond the active area.");
 			}
 			changed |= DrawValue(ctx, "Max Loaded Pages", after.max_loaded_chunks);
-			DrawTooltip("Maximum resident streaming pages, limiting memory and generation work.");
-			changed |= DrawValue(ctx, "Save Directory", after.save_directory);
-			DrawTooltip("Folder containing sparse per-chunk change files. "
-				"Empty stores changes in memory only. Browser saves are temporary.");
+			DrawTooltip("Maximum number of loaded chunks/pages.");
+			changed |= DrawPropertyRow("Save Directory", [&]() {
+				bool directory_changed{ false };
+				float spacing{ ImGui::GetStyle().ItemInnerSpacing.x };
+				float browse_width{ ImGui::CalcTextSize("Browse...").x +
+					2.0f * ImGui::GetStyle().FramePadding.x };
+				float clear_width{ ImGui::CalcTextSize("X").x +
+					2.0f * ImGui::GetStyle().FramePadding.x };
+
+				if (ImGui::Button("Browse...", { browse_width, 0.0f })) {
+					FileDialog::Options options{};
+					if (!after.save_directory.empty()) {
+						options.default_path = path{ after.save_directory };
+					}
+
+					auto selected{ ctx.editor.GetWindow().file.OpenFolder(options) };
+					if (!selected.has_value()) {
+						PTGN_WARN("Unable to browse for chunk save directory: ", selected.error());
+					} else if (selected->has_value()) {
+						std::string filepath{ selected->value().string() };
+						if (filepath != after.save_directory) {
+							after.save_directory = std::move(filepath);
+							directory_changed = true;
+						}
+					}
+				}
+				DrawTooltip("Choose a chunk save folder.");
+
+				ImGui::SameLine(0.0f, spacing);
+				std::string displayed_directory{ after.save_directory.empty()
+					? "No directory selected" : after.save_directory };
+				ImGui::SetNextItemWidth(std::max(
+					1.0f, ImGui::GetContentRegionAvail().x - clear_width - spacing
+				));
+				ImGui::InputText(
+					"##ChunkSaveDirectory", &displayed_directory, ImGuiInputTextFlags_ReadOnly
+				);
+				DrawTooltip("Folder for saved chunk changes.");
+
+				ImGui::SameLine(0.0f, spacing);
+				ImGui::BeginDisabled(after.save_directory.empty());
+				if (ImGui::Button("X##ClearChunkSaveDirectory", { clear_width, 0.0f })) {
+					after.save_directory.clear();
+					directory_changed = true;
+				}
+				ImGui::EndDisabled();
+				DrawTooltip("Use memory only changes.");
+
+				return directory_changed;
+			});
             changed |= DrawPropertyRow("Save Mode", [&]() {
                 int mode{ static_cast<int>(after.save_mode) };
                 bool selected{ ImGui::Combo(
@@ -239,8 +285,7 @@ void SceneSettingsPanel::OnRender(EditorContext& ctx) {
                 }
                 return selected;
             });
-			DrawTooltip("Manual: save only on request. On Unload: save when chunks leave "
-				"memory or the scene exits. Automatic: also save periodically.");
+			DrawTooltip("Manual, on unload, or periodic autosave.");
             if (after.save_mode == ChunkSaveMode::Automatic) {
                 changed |= DrawPropertyRow("Autosave Interval", [&]() {
                     int interval{ static_cast<int>(after.autosave_interval.count()) };
@@ -253,18 +298,15 @@ void SceneSettingsPanel::OnRender(EditorContext& ctx) {
                     }
                     return interval_changed;
                 });
-				DrawTooltip("How often Automatic mode saves resident modified chunks, in seconds.");
+				DrawTooltip("Seconds between autosaves.");
             }
 			ImGui::TextDisabled(
 				"%zu active pages | %s", chunks.GetLoadedCount(),
-				chunks.GetSaveDirectory().empty() ? "In-memory deltas"
+				chunks.GetSaveDirectory().empty() ? "In memory deltas"
 												  : "Chunk persistence configured"
 			);
 			if (ImGui::IsItemHovered()) {
-				ImGui::SetTooltip(
-					"Viewport culling is always active. Without explicit chunks, procedural "
-					"content and tile collisions stream through internal 512-unit pages."
-				);
+				ImGui::SetTooltip("Viewport culling remains active without chunks.");
 			}
 
 			if (changed) {
@@ -296,7 +338,10 @@ void SceneSettingsPanel::OnRender(EditorContext& ctx) {
 
 			bool use_bounds{ after.bounds.has_value() };
 
-			if (DrawValue(ctx, "Use Bounds", use_bounds)) {
+			bool bounds_toggled{ DrawValue(ctx, "Use Bounds", use_bounds) };
+			DrawTooltip("Constrain physics bodies to these bounds.");
+
+			if (bounds_toggled) {
 				changed = true;
 
 				if (use_bounds) {
@@ -381,9 +426,7 @@ void SceneSettingsPanel::OnRender(EditorContext& ctx) {
 				scene->ctx().chunks.SetDiskWritesEnabled(persist_changes);
 			}
 		}
-		DrawTooltip("Off (default): chunk edits made while testing are in-memory only "
-			"and discarded when you stop play. On: normal manual/unload/autosave "
-			"policies can write chunk changes to disk.");
+		DrawTooltip("Keep world changes after Stop. Off discards play session edits.");
 		bool has_save_directory{ !scene->ctx().chunks.GetSaveDirectory().empty() };
 		bool can_write{ ctx.editor.GetSettings().persist_runtime_chunk_changes };
 		ImGui::BeginDisabled(!scene->IsRuntime() || !has_save_directory || !can_write);
@@ -393,8 +436,7 @@ void SceneSettingsPanel::OnRender(EditorContext& ctx) {
 			}
 		}
 		ImGui::EndDisabled();
-		DrawTooltip("Manually write current modified chunk deltas to disk while the game runs, "
-			"regardless of the configured save mode.");
+		DrawTooltip("Save modified chunks now.");
 		if (ImGui::BeginPopupModal("Chunk Save Failed", nullptr, ImGuiWindowFlags_AlwaysAutoResize)) {
 			ImGui::TextUnformatted("Could not save chunk changes. Check the save directory.");
 			if (ImGui::Button("OK")) {
@@ -405,8 +447,7 @@ void SceneSettingsPanel::OnRender(EditorContext& ctx) {
 		if (ImGui::Button("Reset Saved Chunk Changes", ImVec2{ -1.0f, 0.0f })) {
 			ImGui::OpenPopup("Reset Saved Chunk Changes?");
 		}
-		DrawTooltip("Permanently delete saved chunk deltas and restore loaded procedural "
-			"content to its original generated state. Authored scene content is kept.");
+		DrawTooltip("Delete saved changes and regenerate the world.");
 		// Match the shared editor modal proportions, centering and immovability.
 		if (const ImGuiViewport* viewport{ ImGui::GetMainViewport() }) {
 			ImGui::SetNextWindowPos(viewport->GetCenter(), ImGuiCond_Always, { 0.5f, 0.5f });
@@ -448,7 +489,7 @@ void SceneSettingsPanel::OnRender(EditorContext& ctx) {
 		ImGui::PopStyleVar(3);
 
 		if (ctx.editor.GetSettings().show_read_only_scene_data) {
-			DrawSectionTitle("Read-Only Data");
+			DrawSectionTitle("Read Only Data");
 			DrawReadOnlySceneData(*scene);
 		}
 	}

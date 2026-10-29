@@ -744,15 +744,15 @@ public:
 
 		std::error_code error;
 		auto timestamp{ std::chrono::steady_clock::now().time_since_epoch().count() };
-		backup_directory_ = std::filesystem::temp_directory_path(error) /
+		backup_directory_ = fs::temp_directory_path(error) /
 							("protegon_project_checkpoint_" + std::to_string(timestamp));
-		if (error || !std::filesystem::create_directories(backup_directory_, error) || error) {
+		if (error || !fs::create_directories(backup_directory_, error) || error) {
 			Clear();
 			return false;
 		}
 
-		if (std::filesystem::exists(project_file_, error) && !error) {
-			std::filesystem::copy_file(project_file_, backup_directory_ / "project", error);
+		if (fs::exists(project_file_, error) && !error) {
+			fs::copy_file(project_file_, backup_directory_ / "project", error);
 			if (error) {
 				Clear();
 				return false;
@@ -760,11 +760,11 @@ public:
 		}
 
 		error.clear();
-		if (std::filesystem::exists(asset_directory_, error) && !error) {
-			std::filesystem::copy(
+		if (fs::exists(asset_directory_, error) && !error) {
+			fs::copy(
 				asset_directory_, backup_directory_ / "assets",
-				std::filesystem::copy_options::recursive |
-					std::filesystem::copy_options::copy_symlinks,
+				fs::copy_options::recursive |
+					fs::copy_options::copy_symlinks,
 				error
 			);
 			if (error) {
@@ -787,8 +787,8 @@ public:
 
 			extra_scene_files_.push_back(scene_path);
 			error.clear();
-			if (std::filesystem::exists(scene_path, error) && !error) {
-				std::filesystem::copy_file(
+			if (fs::exists(scene_path, error) && !error) {
+				fs::copy_file(
 					scene_path,
 					backup_directory_ / ("scene_" + std::to_string(extra_scene_files_.size())),
 					error
@@ -841,15 +841,15 @@ public:
 		}
 
 		std::error_code error;
-		std::filesystem::remove_all(asset_directory_, error);
+		fs::remove_all(asset_directory_, error);
 		if (error) {
 			return false;
 		}
-		if (std::filesystem::exists(backup_directory_ / "assets")) {
-			std::filesystem::copy(
+		if (fs::exists(backup_directory_ / "assets")) {
+			fs::copy(
 				backup_directory_ / "assets", asset_directory_,
-				std::filesystem::copy_options::recursive |
-					std::filesystem::copy_options::copy_symlinks,
+				fs::copy_options::recursive |
+					fs::copy_options::copy_symlinks,
 				error
 			);
 			if (error) {
@@ -859,30 +859,30 @@ public:
 
 		for (std::size_t i{ 0 }; i < extra_scene_files_.size(); ++i) {
 			path backup{ backup_directory_ / ("scene_" + std::to_string(i + 1)) };
-			if (std::filesystem::exists(backup)) {
-				std::filesystem::create_directories(extra_scene_files_[i].parent_path(), error);
+			if (fs::exists(backup)) {
+				fs::create_directories(extra_scene_files_[i].parent_path(), error);
 				if (error) {
 					return false;
 				}
-				std::filesystem::copy_file(
+				fs::copy_file(
 					backup, extra_scene_files_[i],
-					std::filesystem::copy_options::overwrite_existing, error
+					fs::copy_options::overwrite_existing, error
 				);
 			} else {
-				std::filesystem::remove(extra_scene_files_[i], error);
+				fs::remove(extra_scene_files_[i], error);
 			}
 			if (error) {
 				return false;
 			}
 		}
 
-		if (std::filesystem::exists(backup_directory_ / "project")) {
-			std::filesystem::copy_file(
+		if (fs::exists(backup_directory_ / "project")) {
+			fs::copy_file(
 				backup_directory_ / "project", project_file_,
-				std::filesystem::copy_options::overwrite_existing, error
+				fs::copy_options::overwrite_existing, error
 			);
 		} else {
-			std::filesystem::remove(project_file_, error);
+			fs::remove(project_file_, error);
 		}
 		return !error;
 	}
@@ -919,7 +919,7 @@ private:
 		path file{};
 		bool directory{ false };
 		std::uintmax_t size{ 0 };
-		std::filesystem::file_time_type modified{};
+		fs::file_time_type modified{};
 		bool operator==(const FileState&) const = default;
 	};
 
@@ -927,15 +927,15 @@ private:
 		std::map<path, FileState> result;
 		auto record = [&result](const path& file, const path& key) {
 			std::error_code error;
-			bool directory{ std::filesystem::is_directory(file, error) };
+			bool directory{ fs::is_directory(file, error) };
 			if (error) {
 				return;
 			}
 			FileState state{ .file = file, .directory = directory };
 			if (!directory) {
-				state.size = std::filesystem::file_size(file, error);
+				state.size = fs::file_size(file, error);
 				if (!error) {
-					state.modified = std::filesystem::last_write_time(file, error);
+					state.modified = fs::last_write_time(file, error);
 				}
 			}
 			if (!error) {
@@ -944,16 +944,16 @@ private:
 		};
 
 		std::error_code error;
-		if (std::filesystem::exists(project_file_, error) && !error) {
+		if (fs::exists(project_file_, error) && !error) {
 			record(project_file_, "project");
 		}
 		error.clear();
-		if (std::filesystem::is_directory(asset_directory_, error) && !error) {
+		if (fs::is_directory(asset_directory_, error) && !error) {
 			record(asset_directory_, "assets");
-			for (std::filesystem::recursive_directory_iterator it{
-					 asset_directory_, std::filesystem::directory_options::skip_permission_denied,
+			for (fs::recursive_directory_iterator it{
+					 asset_directory_, fs::directory_options::skip_permission_denied,
 					 error };
-				 !error && it != std::filesystem::recursive_directory_iterator{};
+				 !error && it != fs::recursive_directory_iterator{};
 				 it.increment(error)) {
 				record(
 					it->path(), path{ "assets" } / it->path().lexically_relative(asset_directory_)
@@ -962,7 +962,7 @@ private:
 		}
 		for (std::size_t i{ 0 }; i < extra_scene_files_.size(); ++i) {
 			error.clear();
-			if (std::filesystem::exists(extra_scene_files_[i], error) && !error) {
+			if (fs::exists(extra_scene_files_[i], error) && !error) {
 				record(extra_scene_files_[i], "scene_" + std::to_string(i + 1));
 			}
 		}
@@ -975,7 +975,7 @@ private:
 		extra_scene_files_.clear();
 		if (!backup_directory_.empty()) {
 			std::error_code error;
-			std::filesystem::remove_all(backup_directory_, error);
+			fs::remove_all(backup_directory_, error);
 			backup_directory_.clear();
 		}
 	}
@@ -3699,13 +3699,13 @@ Editor& Editor::EnableRendering(bool enable) {
 
 void Editor::OnUpdate() {
 	// A stop requested by a viewport button happens after RenderScenes. Defer scene
-	// reconstruction until this pre-render phase to prevent a partial snow-only frame.
+	// reconstruction until this pre render phase to prevent a partial snow only frame.
 	if (stop_requested_) {
 		stop_requested_ = false;
 		Stop();
 	}
 
-	// Apply editor play-session policy to every runtime scene, including scenes
+	// Apply editor play session policy to every runtime scene, including scenes
 	// entered after Play. Disk reads remain enabled to restore existing saves.
 	if (context_) {
 		bool writes_enabled{ context_->local.settings.persist_runtime_chunk_changes };
@@ -3958,7 +3958,7 @@ void Editor::Play() {
 		.screen_effect_preview_before_play = context_->local.settings.preview_screen_effects,
 	};
 
-	// Editor-only group visibility is deliberately not serialized. Keep it
+	// Editor only group visibility is deliberately not serialized. Keep it
 	// across the edit -> runtime -> edit scene reconstruction instead.
 	for (const auto& entry : project->scenes) {
 		auto& editor_scene{ manager.GetScene(Hash(entry.key)) };
@@ -4194,6 +4194,28 @@ void Editor::Stop() {
 
 	auto& app_context{ ::ptgn::impl::ApplicationAccessor::ctx(app) };
 	auto& manager{ GetSceneManager() };
+
+	// Persist is a play session decision: commit all current runtime deltas before
+	// the editor rebuilds the authored scene from its pre play snapshot. Explicit
+	// Stop is a save point even when the scene's regular policy is Manual.
+	if (GetSettings().persist_runtime_chunk_changes) {
+		for (const auto& running_scene : manager.GetScenes()) {
+			if (!running_scene || !running_scene->IsRuntime()) {
+				continue;
+			}
+
+			auto& chunks{ running_scene->ctx().chunks };
+			chunks.SetDiskWritesEnabled(true);
+
+			if (chunks.GetSaveDirectory().empty()) {
+				PTGN_WARN("Runtime chunk persistence enabled but no save directory is set for ",
+					running_scene->GetTag());
+			} else if (!chunks.SaveConfigured()) {
+				PTGN_WARN("Unable to save runtime chunk changes before stopping scene: ",
+					running_scene->GetTag());
+			}
+		}
+	}
 
 	for (const auto& snapshot : app_context.runtime_project_scenes) {
 		auto factory{ ::ptgn::impl::MakeSceneFactory(snapshot.scene, false) };

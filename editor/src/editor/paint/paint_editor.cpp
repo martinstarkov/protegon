@@ -8429,7 +8429,7 @@ std::vector<V2_int> PaintEditor::BrushCells(V2_int center) const {
 		}
 	}
 	// Classic 15 uses the occupancy of four grid vertices to choose one display tile.
-	// A regular N-cell brush needs (N + 1) x (N + 1) occupied vertices so the
+	// A regular N cell brush needs (N + 1) x (N + 1) occupied vertices so the
 	// visible result is N + 2 cells wide: one full tile at the click for diameter
 	// one, with the eight edge and corner variants surrounding it.
 	if (recipe_.source_kind == PaintSourceKind::Autotile &&
@@ -8989,7 +8989,12 @@ void DrawCustomGeneratorSelection(
 	for (int y{ first.y }; y <= last.y; ++y) {
 		for (int x{ first.x }; x <= last.x; ++x) {
 			V2_int cell{ x, y };
-			if (generator.IsSuppressed(cell)) {
+			if (generator.IsSuppressed(cell) ||
+				generator.GetScene().ctx().chunks.IsSavedGeneratedEntityRemoved(
+					source.id, cell,
+					origin + V2_float{ static_cast<float>(x) * spacing.x,
+						static_cast<float>(y) * spacing.y }
+				)) {
 				continue;
 			}
 			V2_float position{ origin + V2_float{ static_cast<float>(x) * spacing.x,
@@ -11559,8 +11564,8 @@ void PaintEditor::SelectClick(
 
 	Hit hit{};
 
-	// Prefer the actual visible pixel under the cursor for UI, including fixed-camera
-	// UI elements. World-space root bounds cannot distinguish a stack from its children.
+	// Prefer the actual visible pixel under the cursor for UI, including fixed camera
+	// UI elements. World space root bounds cannot distinguish a stack from its children.
 	if (picked_ui && !picked_ui.HasAny<GroupStackData, Group>()) {
 		hit.kind   = Hit::Kind::Entity;
 		hit.entity = picked_ui;

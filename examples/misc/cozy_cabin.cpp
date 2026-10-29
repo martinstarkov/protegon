@@ -56,8 +56,8 @@ constexpr std::int32_t kTerrainSeed{ 2105 };
 constexpr std::int32_t kTreesSeed{ 7213 };
 constexpr std::int32_t kMushroomsSeed{ 4139 };
 
-// A per-cell hash is used only for local density variation; Perlin noise defines
-// continuous large-scale patches. No global RNG or generation-order dependencies.
+// A per cell hash is used only for local density variation; Perlin noise defines
+// continuous large scale patches. No global RNG or generation order dependencies.
 std::uint32_t CellHash(V2_int cell, std::uint32_t salt) {
 	std::uint32_t x{ static_cast<std::uint32_t>(cell.x) };
 	std::uint32_t y{ static_cast<std::uint32_t>(cell.y) };
@@ -112,7 +112,7 @@ bool ResourceGrows(const PaintGeneratorRecipe& recipe, V2_float position, V2_int
 	}
 
 	// Noise determines the organic grove/patch boundaries; the stable cell hash
-	// thins candidates without introducing any generation-order dependence.
+	// thins candidates without introducing any generation order dependence.
 	return in_region && HashUnit(cell, salt) < std::clamp(recipe.density, 0.0f, 1.0f);
 }
 
@@ -134,7 +134,7 @@ Color SnowTint(V2_int cell, const PaintGeneratorNoise& noise_source) {
 }
 
 bool NearHouse(V2_float position) {
-	// Leave an open, authored clearing around the pre-placed house, including the entrance.
+	// Leave an open, authored clearing around the pre placed house, including the entrance.
 	return std::abs(position.x) < 132.0f && std::abs(position.y) < 132.0f;
 }
 
@@ -245,7 +245,7 @@ public:
 			}
 		);
 
-		// Cell keys remain stable while sprites get near-full-cell world-space jitter.
+		// Cell keys remain stable while sprites get near full cell world space jitter.
 		// ChunkManager uses the keys to suppress previously harvested resources.
 		if (tree_source && tree_source.Has<WorldGeneratorSource>() &&
 			tree_source.GetData().enabled &&
@@ -299,7 +299,7 @@ public:
 					};
 					mushroom.Add<Tag>(Tag{ "Winter Mushroom" });
 					SetDepth(mushroom, 15.0f);
-					// Intentionally no Collider: picking uses the distance-based interaction.
+					// Intentionally no Collider: picking uses the distance based interaction.
 					return mushroom;
 				},
 				origin
@@ -381,7 +381,7 @@ public:
 		}
 
 		// The physics step runs after OnUpdate. Following here eliminates the
-		// one-frame camera lag that made the player appear to jitter while moving.
+		// one frame camera lag that made the player appear to jitter while moving.
 		SetPosition(ctx().camera, GetWorldPosition(player_));
 
 		V2_float logical{ V2_float{ ctx().renderer.GetLogicalSize() } };
@@ -399,7 +399,7 @@ public:
 
 		// Center horizontally on the sprite's visual center, above its top edge.
 		// Scale the glyph size, not the whole transform: scaling a text transform
-		// otherwise displaces its anchor towards the top-left as zoom changes.
+		// otherwise displaces its anchor towards the top left as zoom changes.
 		V2_float size{ GetDisplaySize(nearest_resource_).value_or(V2_float{ 24.0f, 32.0f }) };
 		V2_float resource_position{ GetWorldPosition(nearest_resource_) };
 		resource_position.y -= size.y * 0.5f + 6.0f;
@@ -438,7 +438,7 @@ private:
 		int min_y{ static_cast<int>(std::floor(lower.y / kTileSize.y)) - 1 };
 		int max_x{ static_cast<int>(std::floor(upper.x / kTileSize.x)) + 1 };
 		int max_y{ static_cast<int>(std::floor(upper.y / kTileSize.y)) + 1 };
-		// Protect the editor against enormous zoom-out viewports.
+		// Protect the editor against enormous zoom out viewports.
 		if (static_cast<long long>(max_x - min_x + 1) * (max_y - min_y + 1) <= 8192) {
 			for (int y{ min_y }; y <= max_y; ++y) {
 				for (int x{ min_x }; x <= max_x; ++x) {
@@ -484,7 +484,11 @@ private:
 					V2_int cell{ x, y };
 					V2_float point{ JitterPosition(cell, spacing, anchor, jitter_salt) };
 					if (NearHouse(point) || generator.IsSuppressed(cell) ||
-						!ResourceGrows(data.recipe, point, cell, density_salt)) {
+						ctx().chunks.IsSavedGeneratedEntityRemoved(
+							generator.Get<WorldGeneratorSource>().id, cell,
+							anchor + V2_float{ static_cast<float>(x) * spacing.x,
+								static_cast<float>(y) * spacing.y }
+						) || !ResourceGrows(data.recipe, point, cell, density_salt)) {
 						continue;
 					}
 					ctx().render_queue.DrawTexture(
@@ -572,7 +576,7 @@ PTGN_REGISTER_SCENE(CozyCabinScene);
 int main(int, char**) {
 	Application app{ "Cozy Cabin: Infinite World", kWindowSize };
 #if defined(__EMSCRIPTEN__)
-	// Browser builds can run without a pre-baked editor project file.
+	// Browser builds can run without a pre baked editor project file.
 	PTGN_WITH_EDITOR(app, false);
 	app.StartWith<CozyCabinScene>();
 #else

@@ -498,24 +498,28 @@ bool DrawPaintGeneratorArchetype(Target& target, bool& stop_after_archetype) {
 			}
 		}
 
-		ImGui::Separator();
 		// A generator bound to a Tilemap is a tile generator; no tile layer exists.
 		bool missing_tilemap{ HasParent(entity) && IsTilemap(GetParent(entity)) &&
 							  !PaintGenerator{ entity }.GetTargetTilemap() };
-		ImGui::BeginDisabled(data.geometry == PaintGeneratorGeometry::Infinite || missing_tilemap);
-		if (ImGui::Button("Bake Generator")) {
-			paint.BakeGenerator(target.ctx, scene, entity);
-			stop_after_archetype = true;
-		}
-		ImGui::EndDisabled();
 
-		if (ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled)) {
-			if (data.geometry == PaintGeneratorGeometry::Infinite) {
-				ImGui::SetTooltip("Infinite generators cannot be baked without a finite region.");
-			} else if (missing_tilemap) {
-				ImGui::SetTooltip(
-					"Tile generators must be children of a Tilemap before they can be baked."
-				);
+		bool show_bake_button{ data.geometry != PaintGeneratorGeometry::Infinite && !missing_tilemap };
+		
+		if (show_bake_button) {
+			ImGui::Separator();
+
+			if (ImGui::Button("Bake Generator")) {
+				paint.BakeGenerator(target.ctx, scene, entity);
+				stop_after_archetype = true;
+			}
+
+			if (ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled)) {
+				if (data.geometry == PaintGeneratorGeometry::Infinite) {
+					ImGui::SetTooltip("Infinite generators cannot be baked without a finite region.");
+				} else if (missing_tilemap) {
+					ImGui::SetTooltip(
+						"Tile generators must be children of a Tilemap before they can be baked."
+					);
+				}
 			}
 		}
 	}
