@@ -147,7 +147,9 @@ void CollisionHandler::UpdateKDTree(Entity entity, secondsf dt) {
     } else if (!entity.Has<RigidBody>()) {
         static_tree_.UpdateBoundingAABB(entity, new_bounding_aabb);
         static_tree_.EndFrameUpdate();
-        cached_static_bounds_[entity] = new_bounding_aabb;
+        cached_static_bounds_.insert_or_assign(
+            entity.Get<UUID>(), impl::KDObject{ entity, new_bounding_aabb }
+        );
     }
 	if (const auto* rb{ entity.TryGet<RigidBody>() }) {
 		auto v{ rb->velocity * dt.count() };
@@ -563,7 +565,7 @@ V2_float CollisionHandler::GetRemainingVelocity(
 void CollisionHandler::Update(Scene& scene, secondsf dt) {
 	std::vector<impl::KDObject> objects;
 	std::vector<impl::KDObject> dynamic_objects;
-    std::unordered_map<Entity, BoundingAABB> static_bounds;
+    std::unordered_map<UUID, impl::KDObject> static_bounds;
 
 	for (auto [entity, collider] : scene.EntitiesWith<Collider>()) {
 		collider.ResetContainers();
@@ -576,7 +578,9 @@ void CollisionHandler::Update(Scene& scene, secondsf dt) {
 		objects.emplace_back(entity, bounding_aabb);
         if constexpr (kIncrementalStaticBroadphase) {
             if (!entity.Has<RigidBody>()) {
-                static_bounds.emplace(entity, bounding_aabb);
+                static_bounds.emplace(
+                    entity.Get<UUID>(), impl::KDObject{ entity, bounding_aabb }
+                );
             }
         }
 		if (entity.Has<RigidBody>()) {
@@ -588,20 +592,32 @@ void CollisionHandler::Update(Scene& scene, secondsf dt) {
 	}
 
     if constexpr (kIncrementalStaticBroadphase) {
-        for (const auto& [entity, bounds] : static_bounds) {
-            auto existing{ cached_static_bounds_.find(entity) };
+        for (const auto& [uuid, object] : static_bounds) {
+            auto existing{ cached_static_bounds_.find(uuid) };
+
             if (existing == cached_static_bounds_.end()) {
-                static_tree_.Insert(entity, bounds);
-            } else if (existing->second.min != bounds.min ||
-                       existing->second.max != bounds.max) {
-                static_tree_.UpdateBoundingAABB(entity, bounds);
+                static_tree_.Insert(object.entity, object.aabb);
+            } else if (existing->second.entity != object.entity) {
+                // An ID might have been reassigned to a different entity.
+                static_tree_.Remove(uuid);
+                // Finish removal before inserting a different handle with
+                // the same UUID; otherwise the old leaf could be retained.
+                static_tree_.EndFrameUpdate();
+                static_tree_.Insert(object.entity, object.aabb);
+            } else if (existing->second.aabb.min != object.aabb.min ||
+                       existing->second.aabb.max != object.aabb.max) {
+                static_tree_.UpdateBoundingAABB(object.entity, object.aabb);
             }
         }
-        for (const auto& [entity, bounds] : cached_static_bounds_) {
-            if (!static_bounds.contains(entity)) {
-                static_tree_.Remove(entity);
+
+        // Keys were captured while the entities were alive. Removing a destroyed
+        // entity never attempts to read its UUID component.
+        for (const auto& [uuid, object] : cached_static_bounds_) {
+            if (!static_bounds.contains(uuid)) {
+                static_tree_.Remove(uuid);
             }
         }
+
         static_tree_.EndFrameUpdate();
         cached_static_bounds_ = std::move(static_bounds);
     } else {
