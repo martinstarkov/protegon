@@ -1,7 +1,6 @@
 #include "runtime/graphics/sprite.h"
 
 #include <array>
-#include <cmath>
 #include <functional>
 #include <optional>
 #include <string>
@@ -28,7 +27,6 @@
 #include "runtime/graphics/tint.h"
 #include "runtime/graphics/visible.h"
 #include "runtime/scene/scene.h"
-#include "runtime/scene/scene_camera.h"
 #include "runtime/scene/scene_context.h"
 
 namespace ptgn {
@@ -122,12 +120,6 @@ void Sprite::Draw(
 	}
 
 	auto draw_transform{ GetDrawTransform(entity) };
-
-	// Keep world positions continuous. Pixel alignment is performed once by
-	// GetOrthographicViewProjection, in screen-pixel increments based on zoom.
-	// Independently quantizing sprite origins in world space causes shimmer when
-	// the camera follows an object with fractional movement.
-
 	auto scale{ draw_transform.scale };
 	auto scaled_offset{ offset_size * Abs(scale) };
 	V2_float offset{ GetOffset(offset_origin, scaled_offset) };
