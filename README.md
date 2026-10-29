@@ -12,7 +12,7 @@ protegon is a C++23 2D game engine with an optional ImGui editor. It uses OpenGL
 - **Audio**: Audio playback through miniaudio.
 - **Input**: Keyboard and mouse input through GLFW.
 - **Physics & Collision**: 2D rigid bodies, colliders, collision handling, and scene bounds.
-- **Scripting**: Built-in scripts, sequences, triggers, actions, timers, tweens, and animation utilities.
+- **Scripting**: Built in scripts, sequences, triggers, actions, timers, tweens, and animation utilities.
 - **UI**: Buttons, toggle groups, dropdowns, dialogue, and interaction helpers.
 - **Math**: Vectors, matrices, geometry, transforms, interpolation, RNG, and noise.
 - **Platforms**: Windows, Linux, macOS, and WebAssembly/Emscripten.
@@ -97,35 +97,7 @@ Examples can be selected with:
 
 protegon includes an optional editor built with ImGui.
 
-The editor provides:
-
-- Scene creation, deletion, duplication, renaming, and ordering
-- Scene hierarchy and entity selection
-- Component and script inspection
-- Scene and project settings
-- Content browser and asset importing
-- Game viewport and editor camera
-- Play, pause, and stop controls
-- Undo/redo history
-- Console and debug tools
-- Desktop and web export
-
-Editor scenes are stored as part of a protegon project. Changes can also be made in web builds, but browser-side project changes are not written permanently back to the source project files.
-
-## Web Builds
-
-Activate the Emscripten environment first:
-
-```bash
-source ~/emsdk/emsdk_env.sh
-```
-
-Verify it is available:
-
-```bash
-emcc --version
-emcmake --version
-```
+Editor scenes are stored as part of a protegon project. Changes can also be made in web builds, but browser side project changes are not written permanently back to the source project files.
 
 ### Engine examples
 
@@ -146,23 +118,6 @@ Or build and run together:
 `build_web_dependencies.sh` only needs to be rerun when the web dependencies change.
 
 Projects can be exported for the web directly from the editor using the Export window.
-
-## Editor Project
-
-A protegon editor project uses a `.ptgnproj` manifest and typically contains an asset directory with folders such as:
-
-```text
-assets/
-├── audio/
-├── data/
-├── fonts/
-├── prefabs/
-├── scenes/
-├── shaders/
-└── textures/
-```
-
-Scenes are stored as `.ptgnscene` files and referenced by a unique scene key in the project manifest.
 
 ## Troubleshooting
 
