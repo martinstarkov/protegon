@@ -59,13 +59,13 @@ struct WorldGeneratorSource {
 };
 
 namespace impl {
-/// Runtime-only marker. Never save generated instances into the authored scene.
+/// Runtime only marker. Never save generated instances into the authored scene.
 struct WorldStreamingRuntimeTag {};
 } // namespace impl
 
-/// Manual: explicit SaveConfigured() only; in-memory changes remain until saved.
+/// Manual: explicit SaveConfigured() only; in memory changes remain until saved.
 /// OnUnload: save when pages leave memory and on normal scene exit.
-/// Automatic: on unload plus periodic resident-page autosaves (default).
+/// Automatic: on unload plus periodic resident page autosaves (default).
 enum class ChunkSaveMode : std::uint8_t {
     Manual,
     OnUnload,
@@ -74,7 +74,7 @@ enum class ChunkSaveMode : std::uint8_t {
 PTGN_REFLECT_ENUM(ChunkSaveMode);
 
 /// Viewport culling is always available, whether or not explicit chunks are enabled.
-/// A non-positive world_size disables explicit chunks. Procedural content can still use
+/// A non positive world_size disables explicit chunks. Procedural content can still use
 /// bounded internal streaming pages: there is no infinite default chunk.
 /// Chunk distances are additional chunk counts around the camera bounds.
 struct ChunkSettings {
@@ -86,7 +86,7 @@ struct ChunkSettings {
 	int simulation_distance{ 1 };
 	int keep_alive_distance{ 2 };
 	int max_loaded_chunks{ 128 };
-	/// Empty means in-memory deltas only; set a directory to enable automatic disk saves.
+	/// Empty means in memory deltas only; set a directory to enable automatic disk saves.
 	std::string save_directory{};
     ChunkSaveMode save_mode{ ChunkSaveMode::Automatic };
     seconds autosave_interval{ 15s };
@@ -115,25 +115,25 @@ public:
 	[[nodiscard]] bool IsEnabled() const;
 	[[nodiscard]] ChunkSettings GetSettings() const;
 	void SetSettings(ChunkSettings settings);
-	/// Convenient opt-in: world pixel size; (0,0) disables explicit chunks only.
+	/// Convenient opt in: world pixel size; (0,0) disables explicit chunks only.
 	void SetChunkSize(V2_int world_size);
 	void Disable();
 	[[nodiscard]] V2_int WorldToChunk(V2_float world_position) const;
 	[[nodiscard]] bool IsLoaded(V2_int coordinate) const;
 	[[nodiscard]] std::size_t GetLoadedCount() const;
 	[[nodiscard]] bool OwnsEntity(Entity entity) const;
-	/// True for runtime-owned entities, including generated tile collider proxies.
+	/// True for runtime owned entities, including generated tile collider proxies.
 	/// Useful for filtering runtime implementation details out of the editor hierarchy.
 	[[nodiscard]] bool IsManagedRuntimeEntity(Entity entity) const;
-	/// Generated entities outside simulation distance are omitted by built-in update systems.
+	/// Generated entities outside simulation distance are omitted by built in update systems.
 	[[nodiscard]] bool ShouldSimulate(Entity entity) const;
 	[[nodiscard]] bool ShouldRender(Entity entity) const;
 	/// Uses the camera receiving the draw command, rather than the primary camera.
 	[[nodiscard]] bool ShouldRender(Entity entity, SceneCamera camera) const;
-	/// Explicit opt out for global world entities and camera-independent controllers.
+	/// Explicit opt out for global world entities and camera independent controllers.
 	/// UI entities and camera entities are already exempt automatically.
 	void SetAlwaysActive(Entity entity, bool active = true);
-	/// Opt into a policy explicitly, including for editor-authored objects during runtime.
+	/// Opt into a policy explicitly, including for editor authored objects during runtime.
 	void SetEntityPolicy(Entity entity, WorldEntityPolicy policy);
 	/// Called by Scene::CreateEntity; normal runtime created roots are streamed automatically.
 	void OnEntityCreated(Entity entity);
@@ -149,12 +149,12 @@ public:
 	void AddTileGenerator(std::string id, Tilemap tilemap, TileFactory factory);
 	void ClearGenerators();
 
-	/// Set a directory of sparse per-chunk delta files. Streaming saves changes on eviction,
+	/// Set a directory of sparse per chunk delta files. Streaming saves changes on eviction,
 	/// and restores saved deltas before generating a chunk. Empty disables disk persistence.
 	/// On the web, directories are rooted at /tmp/protegon_chunks (ephemeral MEMFS).
 	void SetSaveDirectory(path directory);
 	[[nodiscard]] const path& GetSaveDirectory() const;
-	/// Backward-compatible configuration: "saves/world/chunks.json" uses the sibling
+	/// Backward compatible configuration: "saves/world/chunks.json" uses the sibling
 	/// "saves/world/chunks/" directory. Existing monolithic journals are migrated once.
 	/// A path without .json is treated as a directory.
 	void SetSavePath(path filepath);
@@ -162,7 +162,7 @@ public:
 	[[nodiscard]] bool SaveToFile(const path& filepath);
 	[[nodiscard]] bool SaveConfigured();
 	/// Editor play sessions can read existing chunk saves without changing any files.
-	/// Disabling writes retains in-memory deltas for the current runtime only.
+	/// Disabling writes retains in memory deltas for the current runtime only.
 	void SetDiskWritesEnabled(bool enabled);
 	[[nodiscard]] bool AreDiskWritesEnabled() const;
 	/// Discard all saved chunk deltas and reset resident generated content to its
@@ -230,7 +230,7 @@ private:
 	};
 
 	struct Chunk {
-		/// Last on-disk delta, so periodic autosaves only write changed chunks.
+		/// Last on disk delta, so periodic autosaves only write changed chunks.
 		json last_saved_delta{ json::object() };
 		std::vector<GeneratedEntity> entities;
 		std::vector<SpawnedEntity> spawned;
@@ -271,7 +271,7 @@ private:
 	std::vector<EntityGenerator> entity_generators_{};
 	std::vector<TileGenerator> tile_generators_{};
 	std::unordered_map<V2_int, Chunk> chunks_{};
-	/// Constant-time lookup for generated entity simulation and scene serialization.
+	/// Constant time lookup for generated entity simulation and scene serialization.
 	std::unordered_map<int, V2_int> owned_entities_{};
 	std::unordered_set<int> pending_new_entities_{};
 	bool tracking_runtime_{ false };
@@ -286,7 +286,7 @@ private:
 	BoundingAABB simulation_bounds_{};
 	bool view_bounds_valid_{ false };
 	std::unordered_set<int> always_active_{};
-	/// Delta dictionaries: "entities", "tiles", and full UUID-preserving "spawned" snapshots.
+	/// Delta dictionaries: "entities", "tiles", and full UUID preserving "spawned" snapshots.
 	std::unordered_map<V2_int, json> changes_{};
 	/// Coalesce gameplay removals and limit disk commits to one page per tick.
 	std::unordered_set<V2_int> pending_commits_{};

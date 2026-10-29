@@ -1,4 +1,6 @@
 #include "runtime/world/chunk.h"
+#include "renderer/pipeline/camera.h"
+#include "renderer/renderer.h"
 
 #include "runtime/asset/asset_manager.h"
 #include "runtime/asset/prefab.h"
@@ -13,6 +15,7 @@
 #include <map>
 #include <limits>
 #include <queue>
+#include <regex>
 #include <ranges>
 #include <string>
 #include <system_error>
@@ -47,7 +50,7 @@ namespace ptgn {
 
 namespace {
 
-/// Change to false to use the original one-Collider-per-tile behavior.
+/// Change to false to use the original one Collider per tile behavior.
 constexpr bool kMergeTileColliders = true;
 
 int FloorToInt(float value) {
@@ -445,7 +448,7 @@ PaintSource SelectPaintSource(const impl::PaintGeneratorData& data, V2_int cell,
                 if (!threshold.enabled) {
                     continue;
                 }
-                float value{ PaintNoise(recipe.noise, center) };
+                float value{ SamplePaintGeneratorNoise(recipe.noise, center) };
                 float lo{ std::min(threshold.minimum, threshold.maximum) };
                 float hi{ std::max(threshold.minimum, threshold.maximum) };
                 if (value < lo || (value >= hi && !(hi >= 0.99999f && value <= 1.0f))) {
@@ -475,7 +478,7 @@ PaintSource SelectPaintSource(const impl::PaintGeneratorData& data, V2_int cell,
     return result;
 }
 
-// Runtime-spawned entities retain their UUIDs across chunk unload and reload.
+// Runtime spawned entities retain their UUIDs across chunk unload and reload.
 Entity RestoreStreamedTree(Scene& scene, const SerializedEntity& saved) {
     Entity entity{ scene.CreateEntity(Tag{ saved.tag },
         saved.uuid.value_or(UUID{})) };
@@ -490,6 +493,10 @@ Entity RestoreStreamedTree(Scene& scene, const SerializedEntity& saved) {
 }
 
 } // namespace
+
+float SamplePaintGeneratorNoise(const PaintGeneratorNoise& noise, V2_float world) {
+	return PaintNoise(noise, world);
+}
 
 bool ChunkManager::IsEnabled() const {
 	return settings_.world_size.IsPositive();
@@ -510,6 +517,7 @@ void ChunkManager::SetSettings(ChunkSettings settings) {
 		settings.keep_alive_distance, std::max(settings.render_distance, settings.simulation_distance), 1024
 	);
 	settings.max_loaded_chunks = std::clamp(settings.max_loaded_chunks, 1, 16384);
+    settings.autosave_interval = std::clamp(settings.autosave_interval, 1s, seconds{ 24h });
 	PTGN_ASSERT(
 		chunks_.empty() || settings.world_size == settings_.world_size,
 		"Unload chunks before changing the world chunk size"
@@ -648,7 +656,7 @@ bool ChunkManager::IsSpatiallyVisible(Entity entity, BoundingAABB bounds) const 
 		always_active_.contains(static_cast<int>(entity.Get<UUID>()))) {
 		return true;
 	}
-	// Script-only scene controllers should not become dormant merely because the
+	// Script only scene controllers should not become dormant merely because the
 	// camera moves away from world origin. Physics and drawable objects are spatial.
 	if (!HasDraw(entity) && !entity.Has<Collider>() && !entity.Has<RigidBody>() &&
 		!entity.Has<TopDownMovement>() && !entity.Has<PlatformerMovement>() &&
@@ -669,7 +677,7 @@ bool ChunkManager::IsSpatiallyVisible(Entity entity, BoundingAABB bounds) const 
 		} else if (HasDraw<Sprite>(entity)) {
 			if (auto size{ GetDisplaySize(entity) }) {
 				V2_float position{ GetWorldPosition(entity) };
-				// Full-size conservative bounds also cover bottom-aligned sprites.
+				// Full size conservative bounds also cover bottom aligned sprites.
 				entity_bounds = { position - *size, position + *size };
 				has_bounds = true;
 			}
@@ -752,6 +760,21 @@ bool ChunkManager::ShouldRender(Entity entity, SceneCamera camera) const {
 void ChunkManager::UpdateViewBounds(SceneCamera camera) {
 	auto vertices{ camera.GetWorldVertices() };
 	BoundingAABB bounds{ GetBoundingAABB(vertices) };
+	V2_float center{ (bounds.min + bounds.max) * 0.5f };
+	V2_float half{ (bounds.max - bounds.min) * 0.5f };
+	render_bounds_ = {
+		center - half * settings_.render_viewports,
+		center + half * settings_.render_viewports
+	};
+	simulation_bounds_ = {
+		center - half * settings_.simulation_viewports,
+		center + half * settings_.simulation_viewports
+	};
+	view_bounds_valid_ = true;
+}
+
+void ChunkManager::UpdateViewBounds(const Camera& camera, V2_int logical_size) {
+	BoundingAABB bounds{ GetBoundingAABB(camera.GetWorldVertices(logical_size)) };
 	V2_float center{ (bounds.min + bounds.max) * 0.5f };
 	V2_float half{ (bounds.max - bounds.min) * 0.5f };
 	render_bounds_ = {
@@ -888,7 +911,7 @@ void ChunkManager::PopulateColliders(Scene& scene, V2_int coordinate) {
         return;
     }
 	// Use the Tilemap's indexed cell lookups when the requested streaming page is
-	// sparse relative to the authored map. No whole-world per-page scan is needed.
+	// sparse relative to the authored map. No whole world per page scan is needed.
 	V2_int page_size{ EffectiveSize() };
 	V2_float page_min{ static_cast<float>(coordinate.x) * static_cast<float>(page_size.x),
 		static_cast<float>(coordinate.y) * static_cast<float>(page_size.y) };
@@ -929,24 +952,29 @@ void ChunkManager::PopulateColliders(Scene& scene, V2_int coordinate) {
 }
 
 bool ChunkManager::LoadChunk(Scene& scene, V2_int coordinate) {
-	// Read ONLY this chunk's saved modifications, just before generation. Never
-	// generate a corrupt chunk and subsequently overwrite its original save.
-	if (!changes_.contains(coordinate)) {
-		json delta{ json::object() };
-		if (!ReadChunkDelta(coordinate, delta)) {
-			if (corrupt_chunks_.insert(coordinate).second) {
-				PTGN_WARN("Skipping chunk with unreadable delta: ", coordinate.x, ", ", coordinate.y);
-			}
-			return false;
-		}
-		changes_.emplace(coordinate, std::move(delta));
-	}
-	Chunk chunk;
-	json& changes{ changes_[coordinate] };
-	chunk.last_saved_delta = changes;
-	if (!changes.is_object()) {
-		changes = json::object();
-	}
+    // The in memory delta may contain unsaved Manual mode edits from an earlier
+    // visit. Read the actual disk state independently: it is the comparison
+    // baseline for SaveConfigured(), not necessarily the current world state.
+    json saved_delta{ json::object() };
+
+    if (!ReadChunkDelta(coordinate, saved_delta)) {
+        if (corrupt_chunks_.insert(coordinate).second) {
+            PTGN_WARN("Skipping chunk with unreadable delta: ", coordinate.x, ", ", coordinate.y);
+        }
+        return false;
+    }
+
+    if (!changes_.contains(coordinate)) {
+        changes_.emplace(coordinate, saved_delta);
+    }
+
+    Chunk chunk;
+    json& changes{ changes_[coordinate] };
+    chunk.last_saved_delta = std::move(saved_delta);
+
+    if (!changes.is_object()) {
+        changes = json::object();
+    }
 	V2_int size{ EffectiveSize() };
 	V2_float origin{
 		static_cast<float>(coordinate.x) * static_cast<float>(size.x),
@@ -1048,7 +1076,7 @@ bool ChunkManager::LoadChunk(Scene& scene, V2_int coordinate) {
 				cell = { std::stoi(suffix.substr(0, separator)),
 					std::stoi(suffix.substr(separator + 1)) };
 			} catch (const std::exception&) {
-				continue;  // Ignore malformed or out-of-range journal keys.
+				continue;  // Ignore malformed or out of range journal keys.
 			}
 			if (!IsTilemap(target)) {
 				continue;
@@ -1067,7 +1095,7 @@ bool ChunkManager::LoadChunk(Scene& scene, V2_int coordinate) {
 		}
 	}
 	modifying_tiles_ = false;
-    // UUID-preserving runtime-spawned entities are restored independently of generators.
+    // UUID preserving runtime spawned entities are restored independently of generators.
     // Their snapshots include children and references to serializable components.
     if (changes.contains("spawned") && changes["spawned"].is_object()) {
         for (auto it = changes["spawned"].begin(); it != changes["spawned"].end(); ++it) {
@@ -1138,14 +1166,22 @@ void ChunkManager::UnloadChunk(V2_int coordinate, Scene& scene) {
 		return;
 	}
 	SnapshotChunk(coordinate, it->second);
-	// Commit before destroying live entities/tiles. Unchanged chunks remove any
-	// obsolete delta file, so clean worlds do not consume persistent storage.
-	if (disk_writes_enabled_ && settings_.save_mode != ChunkSaveMode::Manual &&
-		!save_directory_.empty()) {
+    // In Manual mode a previously saved chunk can return to its pristine
+    // baseline while unloaded. Keep an explicit empty delta so the next
+    // SaveConfigured() removes its old disk file instead of resurrecting it.
+    if ((settings_.save_mode == ChunkSaveMode::Manual || !disk_writes_enabled_) &&
+        !changes_.contains(coordinate) && !EmptyDelta(it->second.last_saved_delta)) {
+        changes_[coordinate] = json::object();
+    }
+	// Commit before destroying live entities/tiles. In editor Play discard mode,
+	// keep the delta in memory so returning to this page retains the runtime edits.
+	if (disk_writes_enabled_ && !save_directory_.empty() &&
+		settings_.save_mode != ChunkSaveMode::Manual) {
 		auto delta{ changes_.find(coordinate) };
 		json empty{ json::object() };
 		const json& state{ delta != changes_.end() ? delta->second : empty };
 		if (state == it->second.last_saved_delta || WriteChunkDelta(coordinate, state)) {
+			pending_commits_.erase(coordinate);
 			if (delta != changes_.end()) {
 				changes_.erase(delta);
 			}
@@ -1205,10 +1241,17 @@ void ChunkManager::Update(Scene& scene) {
         RegisterPaintGenerators(scene);
     }
 	SceneCamera camera{ scene.GetCamera() };
-	UpdateViewBounds(camera);
+	// The editor can replace the scene camera when previewing a running scene.
+	// Use whichever world camera is actually displayed for both residency and culling.
+	const auto& preview_camera{ scene.ctx().renderer.GetPrimaryWorldCamera() };
+	if (preview_camera.has_value()) {
+		UpdateViewBounds(*preview_camera, scene.ctx().renderer.GetLogicalSize());
+	} else {
+		UpdateViewBounds(camera);
+	}
 
 	// Explicit chunks and internal streaming pages share the same finite scheduler.
-	// UI-only games create no streaming pages at all.
+	// UI only games create no streaming pages at all.
 	viewport_pages_ = !IsEnabled() &&
 		(!entity_generators_.empty() || !tile_generators_.empty());
 	if (!IsEnabled() && !viewport_pages_) {
@@ -1221,6 +1264,40 @@ void ChunkManager::Update(Scene& scene) {
 	if (!PrepareStorage()) {
 		return;
 	}
+
+	// Gameplay removals are cheap in their own frame. Coalesce nearby pickups,
+	// then write at most one affected chunk per update after a short delay.
+	if (disk_writes_enabled_ && settings_.save_mode == ChunkSaveMode::Automatic &&
+		!pending_commits_.empty()) {
+		auto now{ std::chrono::steady_clock::now() };
+
+		if (now >= next_pending_commit_) {
+			auto pending_it{ pending_commits_.begin() };
+			V2_int coordinate{ *pending_it };
+			auto resident{ chunks_.find(coordinate) };
+
+			if (resident != chunks_.end()) {
+				SnapshotChunk(coordinate, resident->second);
+			}
+
+			auto delta_it{ changes_.find(coordinate) };
+			json empty{ json::object() };
+			const json& delta{ delta_it != changes_.end() ? delta_it->second : empty };
+
+			if (WriteChunkDelta(coordinate, delta)) {
+				if (resident != chunks_.end()) {
+					resident->second.last_saved_delta = delta;
+				} else if (delta_it != changes_.end()) {
+					changes_.erase(delta_it);
+				}
+
+				pending_commits_.erase(pending_it);
+			}
+
+			next_pending_commit_ = now + 100ms;
+		}
+	}
+
 	if (disk_writes_enabled_ && settings_.save_mode == ChunkSaveMode::Automatic &&
 		!save_directory_.empty() && !chunks_.empty()) {
 		auto now{ std::chrono::steady_clock::now() };
@@ -1249,7 +1326,7 @@ void ChunkManager::Update(Scene& scene) {
 	V2_int wanted_max{ Max(simulation_max_, render_max_) };
 	V2_float view_center{ (render_bounds_.min + render_bounds_.max) * 0.5f };
 	V2_int focus{ WorldToChunk(view_center) };
-	// Visit nearest cells first, without allocating a viewport-sized rectangle. This is
+	// Visit nearest cells first, without allocating a viewport sized rectangle. This is
 	// bounded by max_loaded_chunks even for tiny chunk sizes in a huge camera viewport.
 	struct Candidate {
 		V2_int coordinate;
@@ -1296,7 +1373,7 @@ void ChunkManager::Update(Scene& scene) {
 		}
 	}
 	std::unordered_set<V2_int> desired{ wanted.begin(), wanted.end() };
-	// Hysteresis: retain already generated chunks inside the larger keep-alive bounds
+	// Hysteresis: retain already generated chunks inside the larger keep alive bounds
 	// when there is spare capacity, without generating new chunks outside the view.
 	int keep_alive{ IsEnabled() ? settings_.keep_alive_distance : 1 };
 	V2_int keep_min{ wanted_min - V2_int{ keep_alive, keep_alive } };
@@ -1320,7 +1397,7 @@ void ChunkManager::Update(Scene& scene) {
     // Adopt freshly spawned entities after loading desired pages, so new entities
     // created during OnEnter are not retired before their first resident page loads.
     MigrateEntities(scene);
-	// Incremental, main-thread streaming (not asynchronous). Keep the amount of
+	// Incremental, main thread streaming (not asynchronous). Keep the amount of
 	// generation and file I/O bounded on individual frames.
 	constexpr int kMaxLoadsPerFrame{ 1 };
 	constexpr int kMaxUnloadsPerFrame{ 1 };
@@ -1633,7 +1710,7 @@ void ChunkManager::RegisterPaintGenerators(Scene& scene) {
                     static_cast<float>(cell.x) * data.grid_size.x,
                     static_cast<float>(cell.y) * data.grid_size.y } };
                 V2_float epsilon{ data.grid_size * 0.001f };
-                // Only tile-sized placements aligned to the generator grid are emitted.
+                // Only tile sized placements aligned to the generator grid are emitted.
                 if (std::abs(anchor.x - world.x) > epsilon.x ||
                     std::abs(anchor.y - world.y) > epsilon.y ||
                     !PaintIncludes(data, cell)) {
@@ -1818,7 +1895,7 @@ bool ChunkManager::PrepareStorage() {
 		return true;
 	}
 	// Import a legacy monolithic journal, if configured.
-	// Migrate all chunks before deleting the old journal. New per-chunk files win if
+	// Migrate all chunks before deleting the old journal. New per chunk files win if
 	// migration was interrupted and restarted partway through.
 	if (disk_writes_enabled_ && !legacy_save_path_.empty()) {
 		std::error_code error;
@@ -1857,7 +1934,7 @@ json ChunkManager::SerializeChanges() {
 	for (auto& [coordinate, chunk] : chunks_) {
 		SnapshotChunk(coordinate, chunk);
 	}
-	// This explicit export API produces the old whole-world journal. Regular
+	// This explicit export API produces the old whole world journal. Regular
 	// streaming never scans other chunks; this may intentionally be expensive.
 	std::map<std::pair<int, int>, json> entries;
 	if (storage_prepared_ && !save_directory_.empty()) {
@@ -1950,8 +2027,112 @@ bool ChunkManager::SaveToFile(const path& filepath) {
 	if (!disk_writes_enabled_ || filepath.empty() || !PrepareStorage()) {
 		return false;
 	}
-	// Optional explicit export of a whole-world journal; not part of streaming.
+	// Optional explicit export of a whole world journal; not part of streaming.
 	return CommitJson(StoragePath(filepath), SerializeChanges());
+}
+
+bool ChunkManager::DestroyAndPersist(Entity entity) {
+	if (!entity) {
+		return false;
+	}
+
+	std::optional<V2_int> coordinate{ OwnedCoordinate(entity) };
+	if (!coordinate) {
+		entity.Destroy();
+		return true;
+	}
+
+	auto chunk_it{ chunks_.find(*coordinate) };
+	if (chunk_it == chunks_.end()) {
+		// Do not lose a resource just because its owning chunk is not writable.
+		return false;
+	}
+
+	int id{ static_cast<int>(entity.Get<UUID>()) };
+	entity.Destroy();
+
+	// The root is no longer present. Clear its cached handle immediately so a
+	// snapshot taken before the ECS has refreshed still records its deletion.
+	for (auto& slot : chunk_it->second.entities) {
+		if (slot.uuid == id) {
+			slot.entity = {};
+		}
+	}
+
+	for (auto& slot : chunk_it->second.spawned) {
+		if (slot.uuid == id) {
+			slot.entity = {};
+		}
+	}
+
+	owned_entities_.erase(id);
+	SnapshotChunk(*coordinate, chunk_it->second);
+
+	if (disk_writes_enabled_ && !save_directory_.empty() &&
+		settings_.save_mode == ChunkSaveMode::Automatic) {
+		if (pending_commits_.empty()) {
+			next_pending_commit_ = std::chrono::steady_clock::now() + 500ms;
+		}
+
+		pending_commits_.insert(*coordinate);
+	}
+
+	return true;
+}
+
+bool ChunkManager::ResetSavedChanges(Scene& scene) {
+	// First discard the resident content without saving its current state.
+	// Manual mode prevents UnloadChunk from recreating deleted delta files.
+	ChunkSaveMode previous_mode{ settings_.save_mode };
+	settings_.save_mode = ChunkSaveMode::Manual;
+	std::vector<V2_int> resident;
+	resident.reserve(chunks_.size());
+	for (const auto& [coordinate, chunk] : chunks_) {
+		(void)chunk;
+		resident.push_back(coordinate);
+	}
+	for (V2_int coordinate : resident) {
+		UnloadChunk(coordinate, scene);
+	}
+	settings_.save_mode = previous_mode;
+
+	changes_.clear();
+	pending_commits_.clear();
+	corrupt_chunks_.clear();
+	// Remove only our own per chunk journal files; other project files are safe.
+	if (!save_directory_.empty()) {
+		std::error_code error;
+		if (fs::exists(save_directory_, error) && !error) {
+			fs::recursive_directory_iterator it{
+				save_directory_, fs::directory_options::skip_permission_denied, error
+			};
+			if (error) {
+				return false;
+			}
+			for (const auto& entry : it) {
+				if (!entry.is_regular_file(error)) {
+					if (error) {
+						return false;
+					}
+					continue;
+				}
+				std::string name{ entry.path().filename().string() };
+				// Current chunk filenames are coordinate pairs; remove .bak copies too
+				// so a reset cannot resurrect an older journal on next load.
+				static const std::regex kChunkFilename{ R"(-?[0-9]+_-?[0-9]+\.json(\.bak)?)" };
+				if (std::regex_match(name, kChunkFilename)) {
+					fs::remove(entry.path(), error);
+					if (error) {
+						return false;
+					}
+				}
+			}
+		} else if (error) {
+			return false;
+		}
+	}
+	scene.Refresh();
+	return true;
 }
 
 void ChunkManager::SetDiskWritesEnabled(bool enabled) {
@@ -1998,6 +2179,10 @@ bool ChunkManager::SaveConfigured() {
 			}
 		}
 	}
+	if (saved) {
+		pending_commits_.clear();
+	}
+
 	return saved;
 }
 
