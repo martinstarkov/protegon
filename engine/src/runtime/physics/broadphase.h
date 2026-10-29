@@ -1,11 +1,13 @@
 #pragma once
 
 #include <memory>
+#include <optional>
 #include <unordered_map>
 #include <unordered_set>
 #include <vector>
 
 #include "core/math/vector2.h"
+#include "core/util/concepts.h"
 #include "runtime/ecs/entity.h"
 #include "runtime/physics/bounding_aabb.h"
 
@@ -19,8 +21,8 @@ enum class KDAxis {
 };
 
 struct KDObject {
-	Entity entity;
-	BoundingAABB aabb;
+	Entity entity{};
+	BoundingAABB aabb{};
 	/// @brief Flag for lazy removals used inside partial updates
 	bool deleted{ false };
 
@@ -31,9 +33,11 @@ struct KDNode {
 	KDAxis split_axis{ KDAxis::X };
 	float split_value{ 0.0f };
 
-	std::vector<KDObject> objects; // only populated on leaves
-	std::unique_ptr<KDNode> left;
-	std::unique_ptr<KDNode> right;
+	std::vector<KDObject> objects{}; // only populated on leaves
+	BoundingAABB bounds{};
+	bool has_bounds{ false };
+	std::unique_ptr<KDNode> left{};
+	std::unique_ptr<KDNode> right{};
 };
 
 class KDTree {
@@ -65,6 +69,10 @@ public:
 	/// @brief Remove entity immediately (mark for removal), processed at EndFrame.
 	void Remove(Entity entity);
 
+	/// Remove by the stable UUID captured while the entity was alive. This also works
+	/// after the entity has been destroyed and its components are inaccessible.
+	void Remove(UUID uuid);
+
 	/// @brief Should be called once per frame after all
 	/// UpdateBoundingAABB()/Insert()/Remove()
 	void EndFrameUpdate();
@@ -83,63 +91,71 @@ public:
 
 private:
 	std::unique_ptr<KDNode> root;
-	std::unordered_map<Entity, KDObject> entity_map;
-	std::unordered_set<Entity> moved_entities;
+	// Keys never require reading a component from a destroyed Entity.
+	std::unordered_map<UUID, KDObject> entity_map;
+	// Keep the handle only as a value, to compare against KD-tree leaf objects.
+	std::unordered_map<UUID, Entity> moved_entities;
+	/// Original bounds locate old leaves during partial updates.
+	std::unordered_map<UUID, BoundingAABB> previous_aabbs_;
 
 	std::size_t max_objects_per_node{ 64 };
 	float rebuild_threshold{ 0.25f };
 
-	template <typename Func>
-	void Traverse(const KDNode* node, Func&& visit) const {
+	template <InvocableR<void, const KDObject&> F>
+	void Traverse(const KDNode* node, F&& func) const {
 		if (!node) {
 			return;
 		}
 		for (const auto& obj : node->objects) {
 			if (!obj.deleted) {
-				visit(obj);
+				std::invoke(std::forward<F>(func), obj);
 			}
 		}
 		if (node->left) {
-			Traverse(node->left.get(), visit);
+			Traverse(node->left.get(), std::forward<F>(func));
 		}
 		if (node->right) {
-			Traverse(node->right.get(), visit);
+			Traverse(node->right.get(), std::forward<F>(func));
 		}
 	}
 
 	std::unique_ptr<KDNode> BuildRecursive(const std::vector<KDObject>& objects, int depth);
+	static void RebuildNodeBounds(KDNode* node);
+	static void QueryNode(const KDNode* node, BoundingAABB region, std::vector<Entity>& result);
+	static void QueryNode(const KDNode* node, V2_float point, std::vector<Entity>& result);
 
-	/// @brief Strategy:
-	/// 1) For each moved entity that exists in the tree, find the leaf it currently resides in
-	/// (using the
-	///    *old* rect stored in entity_map before the move). We use the entity_map's rect because
-	///    when the user called UpdateRect we already wrote the new rect there. To find the old tree
-	///    leaf we need the "previous" rect; to keep it simple here, we assume UpdateRect replaced
-	///    rect in entity_map but we have also kept a copy of the previous rect in the node's
-	///    objects (we will match by entity id). So we traverse the tree like in Remove() to find
-	///    the leaf and mark that object as deleted (swap-remove) so the node keeps compact storage.
-	/// 2) Collect the moved objects from entity_map (current rect) and insert them into leaf nodes
-	/// in bulk. 3) For any leaf nodes that exceed capacity, call SplitNode once per such node
+	/// @brief
+	/// For each moved entity that exists in the tree, find the leaf it currently resides in
+	/// using the *old* rect stored in entity_map before the move). Use the entity_map's rect
+	/// because when the user called UpdateRect the new rect was already written there. To find the
+	/// old tree leaf the "previous" rect is needed; to keep it simple here, assume UpdateRect
+	/// replaced rect in entity_map but also kept a copy of the previous rect in the node's
+	/// objects (match by entity id). So traverse the tree like in Remove() to find
+	/// the leaf and mark that object as deleted (swap remove) so the node keeps compact storage.
+	///
+	/// Collect the moved objects from entity_map (current rect) and insert them into leaf nodes
+	/// in bulk.
+	///
+	/// For any leaf nodes that exceed capacity, call SplitNode once per such node
 	/// (recursive splitting)
 	void PartialUpdate();
 
 	/// @brief Find and remove the object with entity id from the tree by traversing to leaves using
-	/// the object's position inside the node (we search node->objects for the entity). When found,
-	/// we swap-pop to remove it quickly and record the leaf pointer.
+	/// the object's position inside the node (search node->objects for the entity). When found,
+	/// swap-pop to remove it quickly and record the leaf pointer.
 	bool RemoveFromTree(
-		KDNode* node, Entity entity, int depth, std::vector<KDNode*>& touched_leaves
+		KDNode* node, UUID uuid, Entity entity, int depth,
+		std::vector<KDNode*>& touched_leaves
 	);
 
 	void CompactTree(KDNode* node);
 
-	/// @brief Insert object into a leaf (descend using object's rect). We do NOT split here.
+	/// @brief Insert object into a leaf (descend using object's rect). Do NOT split here.
 	void InsertIntoLeaf(KDNode* node, const KDObject& obj, int depth);
 
-	/// @brief Compute depth of a target leaf by walking tree; returns -1 if not found.
-	[[nodiscard]] int ComputeDepth(KDNode* current, KDNode* target, int depth);
+	/// @brief Compute depth of a target leaf by walking tree; returns nullopt if not found.
+	[[nodiscard]] std::optional<int> ComputeDepth(const KDNode* current, KDNode* target, int depth);
 
-	/// @brief External SplitNode: we'll emulate the same logic as your original SplitNode but
-	/// accept a pointer to an existing leaf.
 	void SplitNodeExternal(KDNode* node, int depth);
 };
 

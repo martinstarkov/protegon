@@ -1,0 +1,46 @@
+#pragma once
+
+#include "core/util/concepts.h"
+#include "runtime/ecs/entity.h"
+#include "runtime/scene/scene.h"
+#include "runtime/scene/scene_context.h"
+#include "runtime/scene/scene_event_handler.h"
+
+namespace ptgn {
+
+namespace event {
+
+struct SceneLoaded {};
+
+struct SceneUnloaded {};
+
+struct ScenePaused {};
+
+struct SceneResumed {};
+
+struct SceneEnter {};
+
+struct SceneLeave {};
+
+struct SceneTransitionStart {};
+
+struct SceneTransitionUpdate {};
+
+struct SceneTransitionFinish {};
+
+} // namespace event
+
+template <typename T, typename... TArgs>
+	requires BraceConstructible<T, TArgs...>
+void PushEvent(Entity entity, TArgs&&... args) {
+	if (!entity || !entity.HasScene()) {
+		return;
+	}
+
+	Scene& scene{ entity.GetScene() };
+	SceneContext& ctx{ scene.ctx() };
+	LocalEventHandler& event_handler{ ctx.event };
+	event_handler.Push<T>(entity, std::forward<TArgs>(args)...);
+}
+
+} // namespace ptgn

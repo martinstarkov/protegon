@@ -1,7 +1,9 @@
 #include "core/math/noise.h"
 
+#include <algorithm>
 #include <cstdint>
 #include <cstdlib>
+#include <numbers>
 
 #include "core/assert.h"
 #include "core/log.h"
@@ -127,10 +129,11 @@ float FractalNoise::GetImpl(
 	float sum{ 0.0f };
 	float amplitude = noise_bounding;
 
-	for (std::size_t i = 0; i < octaves; i++) {
-		float noise	 = GetNoiseImpl(x, y, seed++, noise_type);
-		sum			+= noise * amplitude;
-		amplitude	*= Lerp(1.0f, std::min(noise + 1.0f, 2.0f) * 0.5f, weighted_strength);
+	for (auto i{ 0uz }; i < octaves; ++i) {
+		float noise = GetNoiseImpl(x, y, seed, noise_type);
+		++seed;
+		sum		  += noise * amplitude;
+		amplitude *= Lerp(1.0f, std::min(noise + 1.0f, 2.0f) * 0.5f, weighted_strength);
 
 		x		  *= lacunarity;
 		y		  *= lacunarity;
@@ -143,7 +146,7 @@ float FractalNoise::GetNoiseBounding(std::size_t octaves, float persistence) {
 	float gain		= std::abs(persistence);
 	float amplitude = gain;
 	float max_amplitude{ 1.0f };
-	for (std::size_t i{ 1 }; i < octaves; i++) {
+	for (auto i{ 1uz }; i < octaves; ++i) {
 		max_amplitude += amplitude;
 		amplitude	  *= gain;
 	}
@@ -163,8 +166,8 @@ float PerlinNoise::GetValue(float x, float y, std::int32_t seed, float frequency
 }
 
 float PerlinNoise::GetImpl(float x, float y, std::int32_t seed) {
-	auto x0 = static_cast<std::int32_t>(FastFloor(x));
-	auto y0 = static_cast<std::int32_t>(FastFloor(y));
+	auto x0 = static_cast<std::int32_t>(Floor(x));
+	auto y0 = static_cast<std::int32_t>(Floor(y));
 
 	auto xd0  = x - static_cast<float>(x0);
 	auto yd0  = y - static_cast<float>(y0);
@@ -202,8 +205,8 @@ float ValueNoise::GetValue(float x, float y, std::int32_t seed, float frequency)
 }
 
 float ValueNoise::GetImpl(float x, float y, std::int32_t seed) {
-	auto x0 = static_cast<std::int32_t>(FastFloor(x));
-	auto y0 = static_cast<std::int32_t>(FastFloor(y));
+	auto x0 = static_cast<std::int32_t>(Floor(x));
+	auto y0 = static_cast<std::int32_t>(Floor(y));
 
 	float xs = Smoothstep(x - static_cast<float>(x0));
 	float ys = Smoothstep(y - static_cast<float>(y0));
@@ -234,45 +237,45 @@ float SimplexNoise::GetValue(float x, float y, std::int32_t seed, float frequenc
 float SimplexNoise::GetImpl(float x, float y, std::int32_t seed) {
 	// From: https://github.com/Auburn/FastNoiseLite
 
-	constexpr float SQRT3 = 1.7320508075688772935274463415059f;
-	constexpr float G2	  = (3.0f - SQRT3) / 6.0f;
+	constexpr float SQRT3{ std::numbers::sqrt3_v<float> };
+	constexpr float G2 = (3.0f - SQRT3) / 6.0f;
 
-	const float F2	= 0.5f * (SQRT3 - 1.0f);
-	float t0		= (x + y) * F2;
-	x			   += t0;
-	y			   += t0;
+	float F2  = 0.5f * (SQRT3 - 1.0f);
+	float t0  = (x + y) * F2;
+	x		 += t0;
+	y		 += t0;
 
-	auto i	 = static_cast<std::int32_t>(FastFloor(x));
-	auto j	 = static_cast<std::int32_t>(FastFloor(y));
-	float xi = x - static_cast<float>(i);
-	float yi = y - static_cast<float>(j);
+	auto i{ static_cast<std::int32_t>(Floor(x)) };
+	auto j{ static_cast<std::int32_t>(Floor(y)) };
+	auto xi{ x - static_cast<float>(i) };
+	auto yi{ y - static_cast<float>(j) };
 
-	float t	 = (xi + yi) * G2;
-	float x0 = xi - t;
-	float y0 = yi - t;
+	auto t{ (xi + yi) * G2 };
+	auto x0{ xi - t };
+	auto y0{ yi - t };
 
 	i *= impl::Noise::prime_x;
 	j *= impl::Noise::prime_y;
 
-	float n0{ 0.0f };
-	float n1{ 0.0f };
-	float n2{ 0.0f };
+	auto n0{ 0.0f };
+	auto n1{ 0.0f };
+	auto n2{ 0.0f };
 
-	float a = 0.5f - x0 * x0 - y0 * y0;
+	auto a{ 0.5f - x0 * x0 - y0 * y0 };
 	if (a <= 0.0f) {
 		n0 = 0.0f;
 	} else {
 		n0 = (a * a) * (a * a) * GradientCoordinate(seed, i, j, x0, y0);
 	}
 
-	float c = 2 * (1 - 2 * G2) * (1 / G2 - 2) * t + (-2 * (1 - 2 * G2) * (1 - 2 * G2) + a);
+	auto c{ 2 * (1 - 2 * G2) * (1 / G2 - 2) * t + (-2 * (1 - 2 * G2) * (1 - 2 * G2) + a) };
 
 	if (c <= 0.0f) {
 		n2 = 0.0f;
 	} else {
 		float x2 = x0 + 2.0f * G2 - 1.0f;
 		float y2 = y0 + 2.0f * G2 - 1.0f;
-		n2		 = (c * c) * (c * c) *
+		n2 = (c * c) * (c * c) *
 			 GradientCoordinate(seed, i + impl::Noise::prime_x, j + impl::Noise::prime_y, x2, y2);
 	}
 

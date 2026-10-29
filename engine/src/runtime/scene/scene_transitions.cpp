@@ -2,16 +2,16 @@
 
 #include <chrono>
 
+#include "core/graphics/color.h"
 #include "core/math/easing.h"
 #include "core/math/vector2.h"
-#include "core/time/time.h"
-#include "renderer/primitives/color.h"
-#include "runtime/animation/tween_effect.h"
+#include "core/util/time.h"
+#include "renderer/renderer.h"
+#include "runtime/animation/scripted_animation.h"
 #include "runtime/ecs/entity.h"
-#include "runtime/graphics/draw.h"
-#include "runtime/graphics/render_context.h"
-#include "runtime/graphics/render_target_component.h"
+#include "runtime/graphics/tint.h"
 #include "runtime/scene/scene.h"
+#include "runtime/scene/scene_context.h"
 #include "runtime/scene/scene_transition.h"
 
 namespace ptgn {
@@ -22,7 +22,7 @@ FadeInTransition::FadeInTransition(milliseconds duration, milliseconds delay, Ea
 	SceneTransition{ duration, delay, ease } {}
 
 void FadeInTransition::OnDelayStart(Scene& scene) {
-	SetTint(scene.GetRenderTarget(), color::Transparent);
+	scene.GetRenderTarget().Add<Tint>(color::Transparent);
 }
 
 void FadeInTransition::OnStart(Scene& scene) {
@@ -30,14 +30,14 @@ void FadeInTransition::OnStart(Scene& scene) {
 }
 
 void FadeInTransition::OnStop(Scene& scene) {
-	SetTint(scene.GetRenderTarget(), color::White);
+	scene.GetRenderTarget().Add<Tint>(color::White);
 }
 
 FadeOutTransition::FadeOutTransition(milliseconds duration, milliseconds delay, Ease ease) :
 	SceneTransition{ duration, delay, ease } {}
 
 void FadeOutTransition::OnDelayStart(Scene& scene) {
-	SetTint(scene.GetRenderTarget(), color::White);
+	scene.GetRenderTarget().Add<Tint>(color::White);
 }
 
 void FadeOutTransition::OnStart(Scene& scene) {
@@ -45,7 +45,7 @@ void FadeOutTransition::OnStart(Scene& scene) {
 }
 
 void FadeOutTransition::OnStop(Scene& scene) {
-	SetTint(scene.GetRenderTarget(), color::Transparent);
+	scene.GetRenderTarget().Add<Tint>(color::Transparent);
 }
 
 FadeTransition::FadeTransition(milliseconds duration, milliseconds delay, Ease ease) :
@@ -62,7 +62,7 @@ SlideInTransition::SlideInTransition(
 	SceneTransition{ duration, delay, ease }, direction{ from_direction.Normalized() } {}
 
 void SlideInTransition::OnDelayStart(Scene& scene) {
-	auto size{ scene.ctx().renderer.GetGameSize() };
+	auto size{ scene.ctx().renderer.GetLogicalSize() };
 	auto start_position{ size * direction };
 	SetPosition(scene.GetRenderTarget(), start_position);
 }
@@ -88,13 +88,13 @@ void SlideOutTransition::OnDelayStart(Scene& scene) {
 }
 
 void SlideOutTransition::OnStart(Scene& scene) {
-	auto size{ scene.ctx().renderer.GetGameSize() };
+	auto size{ scene.ctx().renderer.GetLogicalSize() };
 	auto destination{ size * direction };
 	TranslateTo(scene.GetRenderTarget(), destination, GetDuration(), GetEase(), true);
 }
 
 void SlideOutTransition::OnStop(Scene& scene) {
-	auto size{ scene.ctx().renderer.GetGameSize() };
+	auto size{ scene.ctx().renderer.GetLogicalSize() };
 	auto destination{ size * direction };
 	SetPosition(scene.GetRenderTarget(), destination);
 }

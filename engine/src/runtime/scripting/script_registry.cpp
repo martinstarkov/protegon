@@ -1,0 +1,1294 @@
+// script_registry.cpp
+
+#ifndef MAGIC_ENUM_RANGE_MAX
+#define MAGIC_ENUM_RANGE_MAX 512
+#endif
+
+#include <algorithm>
+#include <cctype>
+#include <chrono>
+#include <concepts>
+#include <magic_enum/magic_enum.hpp>
+#include <optional>
+#include <ranges>
+#include <string>
+#include <string_view>
+#include <utility>
+#include <vector>
+
+#include "core/event/key_event.h"
+#include "core/event/mouse_event.h"
+#include "core/input/key.h"
+#include "core/input/mouse.h"
+#include "core/util/time.h"
+#include "platform/window.h"
+#include "runtime/animation/animation_event.h"
+#include "runtime/audio/audio_event.h"
+#include "runtime/ecs/component_registry.h"
+#include "runtime/ecs/entity.h"
+#include "runtime/graphics/fx/particle_event.h"
+#include "runtime/graphics/render_target.h"
+#include "runtime/interaction/draggable.h"
+#include "runtime/interaction/draggable_event.h"
+#include "runtime/interaction/dropzone.h"
+#include "runtime/interaction/dropzone_event.h"
+#include "runtime/interaction/interactive.h"
+#include "runtime/interaction/interactive_event.h"
+#include "runtime/physics/collider.h"
+#include "runtime/physics/collision_event.h"
+#include "runtime/physics/lifetime.h"
+#include "runtime/physics/physics.h"
+#include "runtime/physics/platformer_event.h"
+#include "runtime/scene/scene.h"
+#include "runtime/scene/scene_camera.h"
+#include "runtime/scene/scene_context.h"
+#include "runtime/scene/scene_event.h"
+#include "runtime/scripting/script_event.h"
+#include "runtime/scripting/script_registration_engine.h"
+#include "runtime/scripting/scripts.h"
+#include "runtime/scripting/variable_event.h"
+#include "runtime/timer/timer.h"
+#include "runtime/timer/timer_event.h"
+#include "runtime/ui/button.h"
+#include "runtime/ui/dialogue.h"
+#include "runtime/ui/dropdown.h"
+#include "runtime/ui/slider.h"
+#include "runtime/ui/toggle_button.h"
+#include "runtime/ui/tooltip.h"
+
+namespace ptgn {
+
+namespace {
+template <typename T>
+[[nodiscard]] T JsonValueOr(const json& input, std::string_view key, T fallback) {
+	if (!input.is_object()) {
+		return fallback;
+	}
+
+	auto it{ input.find(std::string{ key }) };
+
+	if (it == input.end() || it->is_null()) {
+		return fallback;
+	}
+
+	try {
+		return it->template get<T>();
+	} catch (...) {
+		return fallback;
+	}
+}
+
+template <typename T>
+[[nodiscard]] json MakeEventDefault(std::string_view key, T value) {
+	json result				   = json::object();
+	result[std::string{ key }] = std::move(value);
+
+	return result;
+}
+
+template <typename TEvent>
+[[nodiscard]] Mouse EventMouse(const TEvent& event) {
+	if constexpr (requires { event.mouse; }) {
+		return event.mouse;
+	} else if constexpr (requires { event.button; }) {
+		return event.button;
+	} else {
+		return Mouse::Left;
+	}
+}
+
+[[nodiscard]] std::string TrimKeyToken(std::string token) {
+	auto first{ token.find_first_not_of(" \t\n\r\f\v") };
+
+	if (first == std::string::npos) {
+		return {};
+	}
+
+	auto last{ token.find_last_not_of(" \t\n\r\f\v") };
+
+	return token.substr(first, last - first + 1);
+}
+
+[[nodiscard]] std::string NormalizeKeyToken(std::string_view token) {
+	std::string normalized;
+	normalized.reserve(token.size());
+	for (char c : token) {
+		if (std::isalnum(static_cast<unsigned char>(c))) {
+			normalized.push_back(static_cast<char>(std::tolower(static_cast<unsigned char>(c))));
+		}
+	}
+
+	return normalized;
+}
+
+[[nodiscard]] std::optional<Key> ParseKeyToken(std::string_view token) {
+	std::string normalized{ NormalizeKeyToken(token) };
+	if (normalized.empty()) {
+		return std::nullopt;
+	}
+
+	if (normalized.size() == 1 && std::isdigit(static_cast<unsigned char>(normalized.front()))) {
+		normalized.insert(normalized.begin(), 'k');
+	}
+
+	if (normalized == "shift" || normalized == "lshift") {
+		normalized = "leftshift";
+	} else if (normalized == "rshift") {
+		normalized = "rightshift";
+	} else if (
+		normalized == "ctrl" || normalized == "control" || normalized == "lctrl" ||
+		normalized == "leftcontrol"
+	) {
+		normalized = "leftctrl";
+	} else if (normalized == "rctrl" || normalized == "rightcontrol") {
+		normalized = "rightctrl";
+	} else if (normalized == "alt" || normalized == "option" || normalized == "lalt") {
+		normalized = "leftalt";
+	} else if (normalized == "ralt") {
+		normalized = "rightalt";
+	} else if (normalized == "super" || normalized == "cmd" || normalized == "command") {
+		normalized = "leftsuper";
+	}
+
+	for (const auto& [key, name] : magic_enum::enum_entries<Key>()) {
+		if (NormalizeKeyToken(name) == normalized) {
+			return key;
+		}
+	}
+
+	return std::nullopt;
+}
+
+[[nodiscard]] std::vector<std::vector<Key>> ParseKeyExpression(std::string expression) {
+	std::vector<std::vector<Key>> alternatives;
+	expression = TrimKeyToken(std::move(expression));
+	while (true) {
+		std::size_t comma{ expression.find(',') };
+		std::string group{ TrimKeyToken(expression.substr(0, comma)) };
+
+		if (group.empty()) {
+			return {};
+		}
+
+		std::vector<Key> keys;
+		while (true) {
+			std::size_t plus{ group.find('+') };
+			std::string token{ TrimKeyToken(group.substr(0, plus)) };
+
+			auto key{ ParseKeyToken(token) };
+			if (!key) {
+				return {};
+			}
+
+			if (std::ranges::find(keys, *key) == keys.end()) {
+				keys.push_back(*key);
+			}
+
+			if (plus == std::string::npos) {
+				break;
+			}
+
+			group.erase(0, plus + 1);
+			if (TrimKeyToken(group).empty()) {
+				return {};
+			}
+		}
+
+		if (keys.empty()) {
+			return {};
+		}
+
+		alternatives.push_back(std::move(keys));
+		if (comma == std::string::npos) {
+			break;
+		}
+
+		expression.erase(0, comma + 1);
+		if (TrimKeyToken(expression).empty()) {
+			return {};
+		}
+	}
+
+	return alternatives;
+}
+
+template <typename TEvent>
+[[nodiscard]] bool MatchKeyEvent(Entity owner, const json& value, const TEvent& event) {
+	if (!owner) {
+		return false;
+	}
+
+	auto alternatives{ ParseKeyExpression(JsonValueOr<std::string>(value, "keys", "W")) };
+
+	if (alternatives.empty()) {
+		return false;
+	}
+
+	const auto& input{ owner.GetScene().ctx().input };
+
+	constexpr bool held_event{ std::same_as<TEvent, event::KeyHeld> };
+
+	constexpr bool released_event{ std::same_as<TEvent, event::KeyReleased> };
+
+	bool require_held_duration{ JsonValueOr<bool>(value, "require_held_duration", true) };
+
+	auto held_duration{ std::max(0ms, JsonValueOr<milliseconds>(value, "held_duration", 250ms)) };
+
+	for (const auto& keys : alternatives) {
+		if (std::ranges::find(keys, event.key) == keys.end()) {
+			continue;
+		}
+
+		bool complete{ std::ranges::all_of(
+			keys, [&](Key key) {
+				if constexpr (released_event) {
+					if (key == event.key) {
+						return true;
+					}
+				}
+
+				if constexpr (held_event) {
+					return require_held_duration ? input.KeyHeld(key, held_duration)
+												 : input.KeyHeld(key);
+				}
+
+				return input.KeyHeld(key);
+			}
+
+		) };
+
+		if (complete) {
+			return true;
+		}
+	}
+
+	return false;
+}
+
+template <typename TEvent>
+[[nodiscard]] bool MatchMouseEvent(Entity owner, const json& value, const TEvent& event) {
+	Mouse button{ JsonValueOr<Mouse>(value, "button", Mouse::Left) };
+
+	if (EventMouse(event) != button) {
+		return false;
+	}
+
+	if constexpr (
+		std::same_as<TEvent, event::MouseHeld> || std::same_as<TEvent, event::MouseHeldOver>
+	) {
+		if (!owner) {
+			return false;
+		}
+
+		bool require_held_duration{ JsonValueOr<bool>(value, "require_held_duration", true) };
+
+		if (!require_held_duration) {
+			return owner.GetScene().ctx().input.MouseHeld(button);
+		}
+
+		auto held_duration{
+			std::max(0ms, JsonValueOr<milliseconds>(value, "held_duration", 250ms))
+		};
+
+		return owner.GetScene().ctx().input.MouseHeld(button, held_duration);
+	}
+
+	return true;
+}
+
+[[nodiscard]] bool HasOverlapCollider(Entity entity) {
+	if (!entity || !entity.Has<Collider>()) {
+		return false;
+	}
+
+	const auto& collider{ entity.Get<Collider>() };
+
+	return collider.mode == CollisionMode::Overlap;
+}
+
+[[nodiscard]] bool HasCollisionCollider(Entity entity) {
+	if (!entity || !entity.Has<Collider>()) {
+		return false;
+	}
+
+	const auto& collider{ entity.Get<Collider>() };
+
+	return collider.mode == CollisionMode::Discrete || collider.mode == CollisionMode::Continuous;
+}
+
+[[nodiscard]] bool HasInteractive(Entity entity) {
+	return entity && entity.Has<impl::Interactive>();
+}
+
+[[nodiscard]] bool HasDraggable(Entity entity) {
+	return HasInteractive(entity) && entity.Has<impl::Draggable>();
+}
+
+[[nodiscard]] bool HasDropzone(Entity entity) {
+	return HasInteractive(entity) && entity.Has<impl::Dropzone>();
+}
+
+[[nodiscard]] bool HasAnimationData(Entity entity) {
+	return entity && entity.Has<impl::AnimationData>();
+}
+
+[[nodiscard]] bool HasButtonData(Entity entity) {
+	return entity && entity.Has<impl::ButtonData>();
+}
+
+[[nodiscard]] bool HasSliderData(Entity entity) {
+	return entity && entity.Has<impl::SliderData>();
+}
+
+[[nodiscard]] bool HasToggleGroupData(Entity entity) {
+	return entity && entity.Has<impl::ToggleButtonGroupData>();
+}
+
+[[nodiscard]] bool HasTooltipData(Entity entity) {
+	return entity && entity.Has<impl::TooltipData>();
+}
+
+[[nodiscard]] bool HasTooltipHoverData(Entity entity) {
+	return entity && entity.Has<impl::TooltipHoverData>();
+}
+
+[[nodiscard]] bool HasToggleButtonData(Entity entity) {
+	return entity && entity.Has<impl::ToggleButtonData>();
+}
+
+[[nodiscard]] bool HasDropdownData(Entity entity) {
+	return entity && entity.Has<impl::DropdownData>();
+}
+
+[[nodiscard]] bool HasDialogueData(Entity entity) {
+	return entity && entity.Has<impl::DialogueData>();
+}
+
+[[nodiscard]] bool MatchDialogueKey(const json& value, std::string_view key) {
+	std::string expected{ JsonValueOr<std::string>(value, "dialogue", "") };
+
+	return expected.empty() || expected == key;
+}
+
+[[nodiscard]] bool MatchDialoguePage(const json& value, std::string_view key, std::size_t page) {
+	if (!MatchDialogueKey(value, key)) {
+		return false;
+	}
+
+	int expected_page{ JsonValueOr<int>(value, "page", -1) };
+
+	return expected_page < 0 || static_cast<std::size_t>(expected_page) == page;
+}
+
+[[nodiscard]] bool HasTimers(Entity entity) {
+	return entity && entity.Has<impl::Timers>();
+}
+
+[[nodiscard]] bool HasCounters(Entity entity) {
+	return entity && entity.Has<impl::Counters>();
+}
+
+[[nodiscard]] bool HasBooleans(Entity entity) {
+	return entity && entity.Has<impl::Booleans>();
+}
+
+} // namespace
+
+PTGN_REGISTER_SCRIPT(Script);
+PTGN_REGISTER_SCRIPT(
+	WaitScript, {
+					.completion		 = ScriptCompletion::Duration,
+					.supports_timing = true,
+					.requires_timing = true,
+					.default_timing	 = ScriptTiming{ .duration = 250ms },
+				}
+);
+PTGN_REGISTER_SCRIPT(
+	MoveToScript, {
+					  .completion	   = ScriptCompletion::Instant,
+					  .supports_timing = true,
+					  .default_timing =
+						  ScriptTiming{
+							  .duration = 300ms,
+							  .ease		= Ease::OutCubic,
+						  },
+				  }
+);
+PTGN_REGISTER_SCRIPT(
+	RotateToScript, {
+						.completion		 = ScriptCompletion::Instant,
+						.supports_timing = true,
+						.default_timing	 = ScriptTiming{ .duration = 300ms },
+					}
+);
+PTGN_REGISTER_SCRIPT(
+	ScaleToScript, {
+					   .completion		= ScriptCompletion::Instant,
+					   .supports_timing = true,
+					   .default_timing =
+						   ScriptTiming{
+							   .duration = 180ms,
+							   .ease	 = Ease::OutBack,
+						   },
+				   }
+);
+PTGN_REGISTER_SCRIPT(
+	TintToScript, {
+					  .completion	   = ScriptCompletion::Instant,
+					  .supports_timing = true,
+					  .default_timing  = ScriptTiming{ .duration = 300ms },
+				  }
+);
+PTGN_REGISTER_SCRIPT(
+	FadeInScript, {
+					  .completion	   = ScriptCompletion::Duration,
+					  .supports_timing = true,
+					  .requires_timing = true,
+					  .default_timing  = ScriptTiming{ .duration = 300ms },
+				  }
+);
+PTGN_REGISTER_SCRIPT(
+	FadeOutScript, {
+					   .completion		= ScriptCompletion::Duration,
+					   .supports_timing = true,
+					   .requires_timing = true,
+					   .default_timing	= ScriptTiming{ .duration = 300ms },
+				   }
+);
+PTGN_REGISTER_SCRIPT(
+	BounceScript, {
+					  .completion	   = ScriptCompletion::Duration,
+					  .supports_timing = true,
+					  .requires_timing = true,
+					  .default_timing  = ScriptTiming{ .duration = 500ms },
+				  }
+);
+PTGN_REGISTER_SCRIPT(StartBounceScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(StopBounceScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(
+	ShakeScript, {
+					 .completion	  = ScriptCompletion::Duration,
+					 .supports_timing = true,
+					 .requires_timing = true,
+					 .default_timing  = ScriptTiming{ .duration = 300ms },
+				 }
+);
+PTGN_REGISTER_SCRIPT(
+	ShakeActionScript, {
+						   .completion = ScriptCompletion::Instant,
+					   }
+);
+PTGN_REGISTER_SCRIPT(AddShakeTraumaScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(
+	SetShakeTraumaScript, {
+							  .completion = ScriptCompletion::Instant,
+						  }
+);
+PTGN_REGISTER_SCRIPT(
+	MaintainShakeScript, {
+							 .completion = ScriptCompletion::ScriptControlled,
+						 }
+);
+PTGN_REGISTER_SCRIPT(RecoverShakeScript, { .completion = ScriptCompletion::ScriptControlled });
+PTGN_REGISTER_SCRIPT(ResetShakeScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(StartShakeScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(StopShakeScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(FollowTargetScript, { .completion = ScriptCompletion::ScriptControlled });
+PTGN_REGISTER_SCRIPT(FollowEntityScript, { .completion = ScriptCompletion::ScriptControlled });
+PTGN_REGISTER_SCRIPT(FollowPathScript, { .completion = ScriptCompletion::ScriptControlled });
+PTGN_REGISTER_SCRIPT(StartFollowEntityScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(StartFollowPathScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(StopFollowScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(
+	NativeScript, {
+					  .completion	   = ScriptCompletion::ScriptControlled,
+					  .supports_timing = true,
+					  .serializable	   = false,
+				  }
+);
+PTGN_REGISTER_SCRIPT(PrintConsoleScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(SetVisibleScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(PlaySoundScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(AnimationStartScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(AnimationStopScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(AnimationResetScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(AnimationPauseScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(AnimationResumeScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(AnimationTogglePlayingScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(AnimationSetFrameScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(AnimationNextFrameScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(AnimationPreviousFrameScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(TimerStartScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(TimerRestartScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(TimerStopScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(TimerResetScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(TimerPauseScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(TimerResumeScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(TimerTogglePausedScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(TimerAdvanceScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(TimerRewindScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(TimerSetDurationScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(TimerAddDurationScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(TimerRemoveDurationScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(LifetimeStartScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(LifetimeRestartScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(LifetimeStopScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(LifetimeResetScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(LifetimePauseScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(LifetimeResumeScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(LifetimeTogglePausedScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(LifetimeAdvanceScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(LifetimeRewindScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(LifetimeSetDurationScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(LifetimeAddDurationScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(LifetimeRemoveDurationScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(CounterSetScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(CounterIncrementScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(CounterDecrementScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(CounterResetScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(BooleanSetTrueScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(BooleanSetFalseScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(BooleanToggleScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(BooleanResetScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(DialogueOpenScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(DialogueCloseScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(DialogueAdvanceScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(DialogueNextPageScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(DialogueCompletePageScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(DialogueChangeDialogueScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(DialogueSelectDialogueScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(DialogueNextDialogueScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(DialogueOpenNextDialogueScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(TooltipShowScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(TooltipHideScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(TooltipEnableHoverScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(TooltipDisableHoverScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(TooltipToggleHoverScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(TooltipToggleVisibilityScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(ButtonPressScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(ButtonHoverStartScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(ButtonHoverContinueScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(ButtonHoverStopScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(ButtonEnableScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(ButtonDisableScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(SliderSetValueScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(SliderIncreaseScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(SliderDecreaseScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(ToggleButtonOnScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(ToggleButtonOffScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(ToggleButtonToggleScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(ToggleGroupSelectScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(ToggleGroupAllowNoneScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(ToggleGroupRequireActiveScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(DropdownOpenScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(DropdownCloseScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(DropdownToggleScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(DropdownPressItemScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(EntityDestroyEntityScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(EntitySpawnPrefabScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(EntitySetColorScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(EntitySetDepthScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(EntitySetPositionScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(EntityAddPositionScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(EntitySetRotationScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(EntityAddRotationScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(EntitySetScaleScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(EntityMultiplyScaleScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(EntitySetRenderMaskScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(EntitySetBlendModeScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(EntitySetOriginScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(EntitySetParentScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(EntityRemoveParentScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(TilemapSetTileScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(TilemapRemoveTileScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(ShapeSetColorScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(ShapeSetFillStyleScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(ShapeSetStrokeWidthScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(ShapeSetSizeScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(ShapeSetRadiusScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(ShapeSetGeometryScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(ShapeRectSetBoundsOrSizeScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(ShapeRectSetCenterScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(ShapeCircleSetDiameterScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(
+	ShapeRoundedRectSetCornerRadiusScript, { .completion = ScriptCompletion::Instant }
+);
+PTGN_REGISTER_SCRIPT(ShapePolygonSetVerticesScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(ShapePolygonSetVertexScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(ShapeEllipseSetRadiiScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(ShapeEllipseSetWidthScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(ShapeEllipseSetHeightScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(ShapeTriangleSetVerticesScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(ShapeTriangleSetVertexScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(ShapeLineSetStartScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(ShapeLineSetEndScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(ShapeLineSetEndpointsScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(ShapeLineSetWidthScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(ShapeCapsuleSetStartScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(ShapeCapsuleSetEndScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(ShapeCapsuleSetRadiusScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(ShapeCapsuleSetLengthScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(ShapeArcSetRadiusScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(ShapeArcSetStartAngleScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(ShapeArcSetEndAngleScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(ShapeArcSetDirectionScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(SpriteSetDisplaySizeScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(SpriteSetCropScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(SpriteClearCropScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(
+	SpriteSetTextureCoordinatesScript, { .completion = ScriptCompletion::Instant }
+);
+PTGN_REGISTER_SCRIPT(SpriteSetOriginScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(SpriteFlipXScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(SpriteFlipYScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(SpriteStackSetTextureScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(SpriteStackSetSliceCountScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(SpriteStackSetSliceOrderScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(SpriteStackSetLayerOffsetScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(
+	SpriteStackSetPixelSnappingScript, { .completion = ScriptCompletion::Instant }
+);
+PTGN_REGISTER_SCRIPT(TextSetTextScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(TextAppendTextScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(TextClearTextScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(TextSetRichTextScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(TextSetTextColorScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(TextSetFontScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(TextSetFontSizeScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(TextSetRevealCountScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(TextSetRevealFractionScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(TextRevealAllScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(TextTypewriterRevealScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(TextSetAlignmentScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(TextSetWrapModeScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(TextSetTextBoxScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(TextSetClipScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(TextSetOutlineScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(TextSetShadowScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(TextSetGlowScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(TextSetTextEffectScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(ParticlesStartScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(ParticlesStopScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(ParticlesPauseScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(ParticlesResumeScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(ParticlesToggleScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(ParticlesResetScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(ParticlesEmitBurstScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(ParticlesSetEmissionRateScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(ParticlesSetStartColorScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(ParticlesSetStartSpeedScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(ParticlesSetStartSizeScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(ParticlesSetLifetimeScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(ParticlesSetEmissionShapeScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(ParticlesSetGravityScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(
+	ParticlesSetSimulationSpeedScript, { .completion = ScriptCompletion::Instant }
+);
+PTGN_REGISTER_SCRIPT(
+	ParticlesSetMaximumParticlesScript, { .completion = ScriptCompletion::Instant }
+);
+PTGN_REGISTER_SCRIPT(ParticlesSetEndColorScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(ParticlesSetEndSizeScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(ParticlesSetEndVelocityScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(ParticlesSetParticleTypeScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(LightSetColorScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(LightSetIntensityScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(LightSetRadiusScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(LightSetFalloffScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(LightSetConeAngleScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(LightSetDirectionAngleScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(LightSetAmbientColorScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(LightSetAmbientIntensityScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(LightSetLightConfigScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(ShaderSetUniformScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(ShaderSetShaderScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(ShaderSetMaterialScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(ShaderSetMultipleUniformsScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(RenderTargetSetClearColorScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(RenderTargetClearColorScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(RenderTargetClearDepthScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(RenderTargetClearStencilScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(RenderTargetSetSizeScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(
+	RenderTargetFollowDisplaySizeScript, { .completion = ScriptCompletion::Instant }
+);
+PTGN_REGISTER_SCRIPT(
+	RenderTargetSetClearDepthValueScript, { .completion = ScriptCompletion::Instant }
+);
+PTGN_REGISTER_SCRIPT(
+	RenderTargetSetClearStencilValueScript, { .completion = ScriptCompletion::Instant }
+);
+PTGN_REGISTER_SCRIPT(CameraSetZoomScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(CameraZoomByScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(CameraZoomToScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(CameraResetCameraScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(CameraSetCameraBoundsScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(CameraSetPixelRoundingScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(CameraSetRenderMaskScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(CameraAddRenderMaskBitsScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(CameraRemoveRenderMaskBitsScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(CameraSetClearColorScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(CameraSetRenderTargetScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(CameraSetViewportScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(EffectEnableEffectScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(EffectDisableEffectScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(EffectToggleEffectScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(EffectSetEffectPropertyScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(EffectAddEffectScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(EffectRemoveEffectScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(EffectAddScreenEffectScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(EffectRemoveScreenEffectScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(EffectClearEffectsScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(EffectClearScreenEffectsScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(EffectSetEffectMarginScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(RigidBodySetVelocityScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(RigidBodyAddVelocityScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(RigidBodyAddImpulseScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(RigidBodyAddAccelerationScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(RigidBodyStopMovementScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(RigidBodySetGravityScaleScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(RigidBodySetDragScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(
+	RigidBodySetAngularVelocityScript, { .completion = ScriptCompletion::Instant }
+);
+PTGN_REGISTER_SCRIPT(RigidBodyAddAngularImpulseScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(RigidBodySetMaximumSpeedScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(RigidBodySetImmovableScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(ColliderSetCollisionModeScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(ColliderSetColliderShapeScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(
+	ColliderSetCollisionResponseScript, { .completion = ScriptCompletion::Instant }
+);
+PTGN_REGISTER_SCRIPT(ColliderSetCollisionFilterScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(ColliderSetOverlapModeScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(DraggableSetFollowMouseScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(DraggableSetMoveConditionScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(DraggableSetDropConditionScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(
+	DraggableSetPickupConditionScript, { .completion = ScriptCompletion::Instant }
+);
+PTGN_REGISTER_SCRIPT(DropzoneSetMoveConditionScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(DropzoneSetDropConditionScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(DropzoneSetPickupConditionScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(
+	InteractionAddInteractiveShapeScript, { .completion = ScriptCompletion::Instant }
+);
+PTGN_REGISTER_SCRIPT(
+	InteractionRemoveInteractiveShapeScript, { .completion = ScriptCompletion::Instant }
+);
+PTGN_REGISTER_SCRIPT(
+	InteractionClearInteractiveShapesScript, { .completion = ScriptCompletion::Instant }
+);
+PTGN_REGISTER_SCRIPT(
+	InteractionLockInteractionsScript, { .completion = ScriptCompletion::Instant }
+);
+PTGN_REGISTER_SCRIPT(
+	InteractionUnlockInteractionsScript, { .completion = ScriptCompletion::Instant }
+);
+PTGN_REGISTER_SCRIPT(TopDownSetMaximumSpeedScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(TopDownMoveDirectionScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(TopDownSetAccelerationScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(PlatformerSetMaximumSpeedScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(
+	PlatformerSetJumpControllerScript, { .completion = ScriptCompletion::Instant }
+);
+PTGN_REGISTER_SCRIPT(JumpJumpScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(JumpSetJumpHeightScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(JumpSetGravityMultipliersScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(JumpSetAirJumpsScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(PhysicsSetGravityScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(PhysicsEnablePhysicsScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(PhysicsDisablePhysicsScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(PhysicsSetBoundsScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(PhysicsClearBoundsScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(AudioStopSoundScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(AudioPauseSoundScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(AudioResumeSoundScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(AudioToggleSoundPauseScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(AudioSetSoundVolumeScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(AudioToggleSoundVolumeScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(AudioSetMasterVolumeScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(AudioToggleMasterVolumeScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(AudioStopAllAudioScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(AudioPauseAllAudioScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(AudioResumeAllAudioScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(AudioFadeInSoundScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(AudioFadeOutSoundScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(AudioSetPlaybackSpeedScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(GroupStackPushScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(GroupStackPopScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(GroupStackReplaceScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(GroupStackPopToScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(GroupStackSetScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(GroupStackResetScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(GroupStackClearScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(SetUITextScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(TooltipSetPositionScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(TooltipSetHoverOffsetScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(DialogueGoToPageScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(DialogueSetPortraitScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(SetTextureScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(SetEnabledScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(SceneChangeScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(EmitSignalScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(AddComponentsScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(RemoveComponentsScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_EVENT(
+	event::KeyPressed, {
+						   .default_value = json{ { "keys", "W" } },
+						   .matches		  = &MatchKeyEvent<event::KeyPressed>,
+					   }
+);
+PTGN_REGISTER_EVENT(
+	event::KeyHeld, {
+						.default_value =
+							json{
+								{ "keys", "W" },
+								{ "require_held_duration", true },
+								{ "held_duration", 250.0f },
+							},
+						.matches = &MatchKeyEvent<event::KeyHeld>,
+					}
+);
+PTGN_REGISTER_EVENT(
+	event::KeyReleased, {
+							.default_value = json{ { "keys", "W" } },
+							.matches	   = &MatchKeyEvent<event::KeyReleased>,
+						}
+);
+PTGN_REGISTER_EVENT(
+	event::MousePressed, {
+							 .default_value = MakeEventDefault("button", Mouse::Left),
+							 .matches		= &MatchMouseEvent<event::MousePressed>,
+						 }
+);
+PTGN_REGISTER_EVENT(
+	event::MouseHeld, {
+						  .default_value =
+							  json{
+								  { "button", Mouse::Left },
+								  { "require_held_duration", true },
+								  { "held_duration", 250.0f },
+							  },
+						  .matches = &MatchMouseEvent<event::MouseHeld>,
+					  }
+);
+PTGN_REGISTER_EVENT(
+	event::MouseReleased, {
+							  .default_value = MakeEventDefault("button", Mouse::Left),
+							  .matches		 = &MatchMouseEvent<event::MouseReleased>,
+						  }
+);
+PTGN_REGISTER_EVENT(
+	event::MouseMoveOver, {
+							  .available = &HasInteractive,
+						  }
+);
+PTGN_REGISTER_EVENT(
+	event::MouseMoveOut, {
+							 .available = &HasInteractive,
+						 }
+);
+PTGN_REGISTER_EVENT(
+	event::MousePressedOver, {
+								 .default_value = MakeEventDefault("button", Mouse::Left),
+								 .matches		= &MatchMouseEvent<event::MousePressedOver>,
+								 .available		= &HasInteractive,
+							 }
+);
+PTGN_REGISTER_EVENT(
+	event::MouseHeldOver, {
+							  .default_value =
+								  json{
+									  { "button", Mouse::Left },
+									  { "require_held_duration", true },
+									  { "held_duration", 250.0f },
+								  },
+							  .matches	 = &MatchMouseEvent<event::MouseHeldOver>,
+							  .available = &HasInteractive,
+						  }
+);
+PTGN_REGISTER_EVENT(
+	event::MouseReleasedOver, {
+								  .default_value = MakeEventDefault("button", Mouse::Left),
+								  .matches		 = &MatchMouseEvent<event::MouseReleasedOver>,
+								  .available	 = &HasInteractive,
+							  }
+);
+PTGN_REGISTER_EVENT(event::ButtonPress, { .available = &HasButtonData });
+PTGN_REGISTER_EVENT(event::ButtonHoverStart, { .available = &HasButtonData });
+PTGN_REGISTER_EVENT(event::ButtonHover, { .available = &HasButtonData });
+PTGN_REGISTER_EVENT(event::ButtonHoverStop, { .available = &HasButtonData });
+PTGN_REGISTER_EVENT(event::ButtonEnabled, { .available = &HasButtonData });
+PTGN_REGISTER_EVENT(event::ButtonDisabled, { .available = &HasButtonData });
+PTGN_REGISTER_EVENT(event::SliderChange, { .available = &HasSliderData });
+PTGN_REGISTER_EVENT(event::TooltipShown, { .available = &HasTooltipData });
+PTGN_REGISTER_EVENT(event::TooltipHidden, { .available = &HasTooltipData });
+PTGN_REGISTER_EVENT(event::TooltipHoverEnabled, { .available = &HasTooltipHoverData });
+PTGN_REGISTER_EVENT(event::TooltipHoverDisabled, { .available = &HasTooltipHoverData });
+PTGN_REGISTER_EVENT(
+	event::DialogueOpened, { .default_value = MakeEventDefault("dialogue", std::string{}),
+							 .matches =
+								 [](Entity, const json& value, const event::DialogueOpened& event) {
+									 return MatchDialogueKey(value, event.key);
+								 },
+							 .available = &HasDialogueData }
+);
+PTGN_REGISTER_EVENT(
+	event::DialogueClosed, { .default_value = MakeEventDefault("dialogue", std::string{}),
+							 .matches =
+								 [](Entity, const json& value, const event::DialogueClosed& event) {
+									 return MatchDialogueKey(value, event.key);
+								 },
+							 .available = &HasDialogueData }
+);
+PTGN_REGISTER_EVENT(
+	event::DialogueChanged,
+	{ .default_value = MakeEventDefault("dialogue", std::string{}),
+	  .matches =
+		  [](Entity, const json& value, const event::DialogueChanged& event) {
+			  return MatchDialogueKey(value, event.current);
+		  },
+	  .available = &HasDialogueData }
+);
+PTGN_REGISTER_EVENT(
+	event::DialogueContinued,
+	{ .default_value = json{ { "dialogue", std::string{} }, { "page", -1 } },
+	  .matches =
+		  [](Entity, const json& value, const event::DialogueContinued& event) {
+			  return MatchDialoguePage(value, event.key, event.page);
+		  },
+	  .available = &HasDialogueData }
+);
+PTGN_REGISTER_EVENT(
+	event::DialoguePageChanged,
+	{ .default_value =
+		  json{
+			  { "dialogue", std::string{} },
+			  { "page", -1 },
+		  },
+	  .matches =
+		  [](Entity, const json& value, const event::DialoguePageChanged& event) {
+			  return MatchDialoguePage(value, event.key, event.page);
+		  },
+	  .available = &HasDialogueData }
+);
+PTGN_REGISTER_EVENT(
+	event::DialoguePageCompleted,
+	{ .default_value =
+		  json{
+			  { "dialogue", std::string{} },
+			  { "page", -1 },
+		  },
+	  .matches =
+		  [](Entity, const json& value, const event::DialoguePageCompleted& event) {
+			  return MatchDialoguePage(value, event.key, event.page);
+		  },
+	  .available = &HasDialogueData }
+);
+PTGN_REGISTER_EVENT(
+	event::DialogueFinished,
+	{ .default_value = MakeEventDefault("dialogue", std::string{}),
+	  .matches =
+		  [](Entity, const json& value, const event::DialogueFinished& event) {
+			  return MatchDialogueKey(value, event.key);
+		  },
+	  .available = &HasDialogueData }
+);
+PTGN_REGISTER_EVENT(event::ToggleButtonToggle, { .available = &HasToggleButtonData });
+PTGN_REGISTER_EVENT(event::ToggleButtonOn, { .available = &HasToggleButtonData });
+PTGN_REGISTER_EVENT(event::ToggleButtonOff, { .available = &HasToggleButtonData });
+PTGN_REGISTER_EVENT(event::ToggleGroupSelectionChanged, { .available = &HasToggleGroupData });
+PTGN_REGISTER_EVENT(event::ToggleGroupSelectionCleared, { .available = &HasToggleGroupData });
+PTGN_REGISTER_EVENT(event::ToggleGroupRequiredChanged, { .available = &HasToggleGroupData });
+PTGN_REGISTER_EVENT(event::DropdownOpen, { .available = &HasDropdownData });
+PTGN_REGISTER_EVENT(event::DropdownClose, { .available = &HasDropdownData });
+PTGN_REGISTER_EVENT(event::DropdownToggle, { .available = &HasDropdownData });
+PTGN_REGISTER_EVENT(event::DropdownItemPress, { .available = &HasDropdownData });
+PTGN_REGISTER_EVENT(event::DragStart, { .available = &HasDraggable });
+PTGN_REGISTER_EVENT(event::Drag, { .available = &HasDraggable });
+PTGN_REGISTER_EVENT(event::DragStop, { .available = &HasDraggable });
+PTGN_REGISTER_EVENT(event::PickupDraggable, { .available = &HasDraggable });
+PTGN_REGISTER_EVENT(event::DropDraggable, { .available = &HasDraggable });
+PTGN_REGISTER_EVENT(event::DragEnter, { .available = &HasDraggable });
+PTGN_REGISTER_EVENT(event::DragLeave, { .available = &HasDraggable });
+PTGN_REGISTER_EVENT(event::DragOver, { .available = &HasDraggable });
+PTGN_REGISTER_EVENT(event::DragOut, { .available = &HasDraggable });
+PTGN_REGISTER_EVENT(event::PickupFromDropzone, { .available = &HasDropzone });
+PTGN_REGISTER_EVENT(event::DropIntoDropzone, { .available = &HasDropzone });
+PTGN_REGISTER_EVENT(event::EnterDropzone, { .available = &HasDropzone });
+PTGN_REGISTER_EVENT(event::LeaveDropzone, { .available = &HasDropzone });
+PTGN_REGISTER_EVENT(event::MoveOverDropzone, { .available = &HasDropzone });
+PTGN_REGISTER_EVENT(event::MoveOutsideDropzone, { .available = &HasDropzone });
+PTGN_REGISTER_EVENT(event::OverlapStart, { .available = &HasOverlapCollider });
+PTGN_REGISTER_EVENT(event::Overlap, { .available = &HasOverlapCollider });
+PTGN_REGISTER_EVENT(event::OverlapStop, { .available = &HasOverlapCollider });
+PTGN_REGISTER_EVENT(event::Collision, { .available = &HasCollisionCollider });
+PTGN_REGISTER_EVENT(event::AnimationStart, { .available = &HasAnimationData });
+PTGN_REGISTER_EVENT(event::AnimationStop, { .available = &HasAnimationData });
+PTGN_REGISTER_EVENT(event::AnimationPause, { .available = &HasAnimationData });
+PTGN_REGISTER_EVENT(event::AnimationResume, { .available = &HasAnimationData });
+PTGN_REGISTER_EVENT(event::AnimationFrameChange, { .available = &HasAnimationData });
+PTGN_REGISTER_EVENT(event::AnimationUpdate, { .available = &HasAnimationData });
+PTGN_REGISTER_EVENT(event::AnimationFinalFrame, { .available = &HasAnimationData });
+PTGN_REGISTER_EVENT(event::AnimationComplete, { .available = &HasAnimationData });
+PTGN_REGISTER_EVENT(event::AnimationLoopComplete, { .available = &HasAnimationData });
+PTGN_REGISTER_EVENT(event::SceneEnter);
+PTGN_REGISTER_EVENT(event::SceneLeave);
+PTGN_REGISTER_EVENT(event::SceneTransitionStart);
+PTGN_REGISTER_EVENT(event::SceneTransitionUpdate);
+PTGN_REGISTER_EVENT(event::SceneTransitionFinish);
+PTGN_REGISTER_EVENT(event::EntityCreated);
+PTGN_REGISTER_EVENT(
+	event::TimerElapsed,
+	{
+		.default_value =
+			[] {
+				auto value		  = MakeEventDefault("timer", TimerKey{});
+				value["duration"] = nullptr;
+
+				return value;
+			}(),
+		.matches =
+			[](Entity, const json& value, const event::TimerElapsed& event) {
+				if (event.timer != JsonValueOr<TimerKey>(value, "timer", TimerKey{})) {
+					return false;
+				}
+
+				if (!value.is_object()) {
+					return event.completed;
+				}
+
+				auto duration_it{ value.find("duration") };
+
+				if (duration_it == value.end() || duration_it->is_null()) {
+					return event.completed;
+				}
+
+				milliseconds duration;
+				try {
+					duration_it->get_to(duration);
+				} catch (...) {
+					return false;
+				}
+
+				if (duration <= 0ms) {
+					return false;
+				}
+
+				return event.previous_elapsed < duration && event.elapsed >= duration;
+			},
+		.available = &HasTimers,
+	}
+);
+// Comparison values are stored in the trigger JSON so they can be edited in the inspector.
+// "crossed" comparisons use the previous value and fire only on threshold entry.
+PTGN_REGISTER_EVENT(
+	event::CounterChanged,
+	{
+		.default_value =
+			[] {
+				auto value			= MakeEventDefault("counter", CounterKey{});
+				value["comparison"] = 0;
+				value["threshold"]	= std::int64_t{ 0 };
+				return value;
+			}(),
+		.matches =
+			[](Entity, const json& value, const event::CounterChanged& event) {
+				if (event.counter != JsonValueOr<CounterKey>(value, "counter", CounterKey{})) {
+					return false;
+				}
+				std::int64_t threshold{ JsonValueOr<std::int64_t>(value, "threshold", 0) };
+				switch (JsonValueOr<int>(value, "comparison", 0)) {
+					case 0: return true;							   // Changed
+					case 1: return event.value > event.previous_value; // Increased
+					case 2: return event.value < event.previous_value; // Decreased
+					case 3:
+						return event.previous_value != threshold &&
+							   event.value == threshold; // Reached
+					case 4:
+						return event.previous_value < threshold &&
+							   event.value >= threshold; // Crossed above or reached
+					case 5:
+						return event.previous_value > threshold &&
+							   event.value <= threshold; // Crossed below or reached
+					case 6:
+						return event.previous_value <= threshold &&
+							   event.value > threshold; // Crossed strictly above
+					case 7:
+						return event.previous_value >= threshold &&
+							   event.value < threshold; // Crossed strictly below
+					default: return false;
+				}
+			},
+		.available = &HasCounters,
+	}
+);
+PTGN_REGISTER_EVENT(
+	event::BooleanChanged,
+	{
+		.default_value =
+			[] {
+				auto value			= MakeEventDefault("boolean", BooleanKey{});
+				value["transition"] = 0;
+				return value;
+			}(),
+		.matches =
+			[](Entity, const json& value, const event::BooleanChanged& event) {
+				if (event.boolean != JsonValueOr<BooleanKey>(value, "boolean", BooleanKey{})) {
+					return false;
+				}
+				switch (JsonValueOr<int>(value, "transition", 0)) {
+					case 0:	 return true;
+					case 1:	 return event.value;
+					case 2:	 return !event.value;
+					default: return false;
+				}
+			},
+		.available = &HasBooleans,
+	}
+);
+PTGN_REGISTER_EVENT(
+	Signal, {
+				.default_value = MakeEventDefault("signal", std::string{}),
+				.matches =
+					[](Entity, const json& value, const Signal& event) {
+						return std::string_view{ event.key } ==
+							   JsonValueOr<std::string>(value, "signal", "");
+					},
+			}
+);
+
+namespace impl {
+
+void EnsureEngineScriptsRegistered() {
+	// Intentionally empty.
+	//
+	// Referencing this function forces the linker to include this object file. The namespace scope
+	// registration initializers then populate the runtime registries.
+}
+
+} // namespace impl
+
+PTGN_REGISTER_EVENT(event::EntityDestroyed);
+PTGN_REGISTER_EVENT(
+	event::ComponentAdded,
+	{ .default_value = MakeEventDefault("component", std::string{}),
+	  .matches		 = [](Entity, const json& value, const event::ComponentAdded& e) {
+		  auto name{ JsonValueOr<std::string>(value, "component", "") };
+		  const auto* type{ ComponentRegistry::Find(name) };
+		  return name.empty() || (type && type->type_id == e.component_hash);
+	  } }
+);
+PTGN_REGISTER_EVENT(
+	event::ComponentRemoved,
+	{ .default_value = MakeEventDefault("component", std::string{}),
+	  .matches		 = [](Entity, const json& value, const event::ComponentRemoved& e) {
+		  auto name{ JsonValueOr<std::string>(value, "component", "") };
+		  const auto* type{ ComponentRegistry::Find(name) };
+		  return name.empty() || (type && type->type_id == e.component_hash);
+	  } }
+);
+PTGN_REGISTER_EVENT(event::CollisionStart);
+PTGN_REGISTER_EVENT(event::CollisionStop);
+PTGN_REGISTER_EVENT(event::PlayerLanded);
+PTGN_REGISTER_EVENT(event::PlayerJumpApex);
+PTGN_REGISTER_EVENT(event::PlayerHitCeiling);
+PTGN_REGISTER_EVENT(event::PlayerWallContactStart);
+PTGN_REGISTER_EVENT(event::PlayerWallContactStop);
+PTGN_REGISTER_EVENT(event::EntityHitBounds);
+PTGN_REGISTER_EVENT(event::EntityEnteredBounds);
+PTGN_REGISTER_EVENT(event::EntityExitedBounds);
+PTGN_REGISTER_EVENT(event::LifetimeExpiring);
+PTGN_REGISTER_EVENT(
+	event::AudioStarted, { .default_value = json{ { "audio", std::string{} } },
+						   .matches = [](Entity, const json& value, const event::AudioStarted& e) {
+							   std::string filter{ JsonValueOr<std::string>(value, "audio", "") };
+							   return filter.empty() || filter == e.audio.value;
+						   } }
+);
+PTGN_REGISTER_EVENT(
+	event::AudioFinished,
+	{ .default_value = json{ { "audio", std::string{} } },
+	  .matches		 = [](Entity, const json& value, const event::AudioFinished& e) {
+		  std::string filter{ JsonValueOr<std::string>(value, "audio", "") };
+		  return filter.empty() || filter == e.audio.value;
+	  } }
+);
+PTGN_REGISTER_EVENT(
+	event::AudioStopped, { .default_value = json{ { "audio", std::string{} } },
+						   .matches = [](Entity, const json& value, const event::AudioStopped& e) {
+							   std::string filter{ JsonValueOr<std::string>(value, "audio", "") };
+							   return filter.empty() || filter == e.audio.value;
+						   } }
+);
+PTGN_REGISTER_EVENT(
+	event::AudioPaused, { .default_value = json{ { "audio", std::string{} } },
+						  .matches = [](Entity, const json& value, const event::AudioPaused& e) {
+							  std::string filter{ JsonValueOr<std::string>(value, "audio", "") };
+							  return filter.empty() || filter == e.audio.value;
+						  } }
+);
+PTGN_REGISTER_EVENT(
+	event::AudioResumed, { .default_value = json{ { "audio", std::string{} } },
+						   .matches = [](Entity, const json& value, const event::AudioResumed& e) {
+							   std::string filter{ JsonValueOr<std::string>(value, "audio", "") };
+							   return filter.empty() || filter == e.audio.value;
+						   } }
+);
+PTGN_REGISTER_EVENT(
+	event::AudioLoopCompleted,
+	{ .default_value = json{ { "audio", std::string{} } },
+	  .matches		 = [](Entity, const json& value, const event::AudioLoopCompleted& e) {
+		  std::string filter{ JsonValueOr<std::string>(value, "audio", "") };
+		  return filter.empty() || filter == e.audio.value;
+	  } }
+);
+PTGN_REGISTER_EVENT(
+	event::AudioFadeCompleted,
+	{ .default_value = json{ { "audio", std::string{} } },
+	  .matches		 = [](Entity, const json& value, const event::AudioFadeCompleted& e) {
+		  std::string filter{ JsonValueOr<std::string>(value, "audio", "") };
+		  return filter.empty() || filter == e.audio.value;
+	  } }
+);
+PTGN_REGISTER_EVENT(
+	event::AudioVolumeChanged,
+	{ .default_value = json{ { "audio", std::string{} } },
+	  .matches		 = [](Entity, const json& value, const event::AudioVolumeChanged& e) {
+		  std::string filter{ JsonValueOr<std::string>(value, "audio", "") };
+		  return filter.empty() || filter == e.audio.value;
+	  } }
+);
+PTGN_REGISTER_EVENT(event::ParticleSpawned);
+PTGN_REGISTER_EVENT(event::ParticleDestroyed);
+PTGN_REGISTER_EVENT(
+	event::MouseClicked, { .default_value = MakeEventDefault("button", Mouse::Left),
+						   .matches		  = &MatchMouseEvent<event::MouseClicked>,
+						   .available	  = &HasInteractive }
+);
+PTGN_REGISTER_EVENT(
+	event::MouseDoubleClicked, { .default_value = MakeEventDefault("button", Mouse::Left),
+								 .matches		= &MatchMouseEvent<event::MouseDoubleClicked>,
+								 .available		= &HasInteractive }
+);
+PTGN_REGISTER_EVENT(
+	event::MouseLongPressed, { .default_value = MakeEventDefault("button", Mouse::Left),
+							   .matches		  = &MatchMouseEvent<event::MouseLongPressed>,
+							   .available	  = &HasInteractive }
+);
+PTGN_REGISTER_EVENT(event::DragCanceled);
+PTGN_REGISTER_EVENT(event::SliderDragStarted);
+PTGN_REGISTER_EVENT(event::SliderDragFinished);
+PTGN_REGISTER_EVENT(event::CameraEntityEnteredView);
+PTGN_REGISTER_EVENT(event::CameraEntityExitedView);
+PTGN_REGISTER_EVENT(event::CameraBoundsReached);
+PTGN_REGISTER_EVENT(event::CameraZoomChanged);
+PTGN_REGISTER_EVENT(event::RenderTargetResized);
+PTGN_REGISTER_EVENT(event::AnimationMapActiveChanged);
+PTGN_REGISTER_EVENT(event::SceneLoaded);
+PTGN_REGISTER_EVENT(event::SceneUnloaded);
+PTGN_REGISTER_EVENT(event::ScenePaused);
+PTGN_REGISTER_EVENT(event::SceneResumed);
+
+} // namespace ptgn

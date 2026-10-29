@@ -1,0 +1,83 @@
+{
+  "color": {
+    "source": "color"
+  },
+  "texture": {
+    "source": "texture"
+  },
+  "passthrough": {
+    "source": "passthrough"
+  },
+  "ellipse": {
+    "vertex": "shape",
+    "fragment": "ellipse"
+  },
+  "capsule": {
+    "vertex": "shape",
+    "fragment": "capsule"
+  },
+  "rounded_rect": {
+    "vertex": "shape",
+    "fragment": "rounded_rect"
+  },
+  "arc": {
+    "vertex": "shape",
+    "fragment": "arc"
+  },
+  "text": {
+    "vertex": "texture",
+    "fragment": "text"
+  },
+  "blur": {
+    "vertex": "passthrough",
+    "fragment": "blur"
+  },
+  "gaussian_blur": {
+    "vertex": "passthrough",
+    "fragment": "gaussian_blur"
+  },
+  "composite_additive": {
+    "vertex": "passthrough",
+    "fragment": "composite_additive"
+  },
+  "edge_detection": {
+    "vertex": "passthrough",
+    "fragment": "edge_detection"
+  },
+  "grayscale": {
+    "vertex": "passthrough",
+    "fragment": "grayscale"
+  },
+  "isolate_bright": {
+    "vertex": "passthrough",
+    "fragment": "isolate_bright"
+  },
+  "inverse_color": {
+    "vertex": "passthrough",
+    "fragment": "inverse_color"
+  },
+  "sharpen": {
+    "vertex": "passthrough",
+    "fragment": "sharpen"
+  },
+  "light": {
+    "vertex": "texture",
+    "fragment": "light"
+  },
+  "linear_to_srgb": {
+    "vertex": "passthrough",
+    "fragment": "linear_to_srgb"
+  },
+  "tone_mapping_reinhard": {
+    "vertex": "passthrough",
+    "fragment": "tone_mapping_reinhard"
+  },
+  "tone_mapping_exposure": {
+    "vertex": "passthrough",
+    "fragment": "tone_mapping_exposure"
+  },
+  "tone_mapping_aces": {
+    "vertex": "passthrough",
+    "fragment": "tone_mapping_aces"
+  }
+}

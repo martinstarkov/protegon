@@ -1,70 +1,66 @@
 #pragma once
 
 #include <memory>
+#include <optional>
+#include <string_view>
+#include <unordered_map>
 #include <vector>
 
-#include "core/util/file.h"
-#include "runtime/asset/asset.h"
+#include "runtime/asset/asset_key.h"
 #include "runtime/audio/track.h"
 
-struct MIX_Audio;
-struct MIX_Mixer;
-struct MIX_Track;
+struct ma_engine;
 
 namespace ptgn {
+
+class AssetManager;
+class Application;
+class EventHandler;
 
 inline constexpr float kMinVolume{ 0.0f };
 inline constexpr float kMaxVolume{ 5.0f };
 inline constexpr float kMinFrequencyRatio{ 0.01f };
 inline constexpr float kMaxFrequencyRatio{ 100.0f };
 
-class AssetManager;
-class Application;
-
 namespace impl {
 
-class SDLInstance;
+class ApplicationContext;
 
-struct MIX_AudioDeleter {
-	void operator()(MIX_Audio* audio) const;
+struct AudioEngineDeleter {
+	void operator()(ma_engine* engine) const noexcept;
 };
 
 } // namespace impl
 
 class AudioSystem {
 public:
-	explicit AudioSystem(AssetManager& assets);
-	~AudioSystem() noexcept;
-	AudioSystem(const AudioSystem&)				   = delete;
-	AudioSystem& operator=(const AudioSystem&)	   = delete;
-	AudioSystem(AudioSystem&&) noexcept			   = delete;
-	AudioSystem& operator=(AudioSystem&&) noexcept = delete;
-
-	/// @param volume Volume of the master audio in range [kMinVolume, kMaxVolume].
-	void SetVolume(float volume);
+	/// @param volume Volume of the master audio in range [kMinVolume, kMaxVolume].  Volume clamped
+	/// if outside of range.
+	void SetVolume(float volume) const;
 
 	/// @return Volume of the master audio in range [kMinVolume, kMaxVolume].
-	float GetVolume();
+	float GetVolume() const;
 
 	/// @brief Toggles the master volume between kMinVolume and new_volume.
 	/// @param new_volume When toggle unmutes, it will set the new master volume to this value
-	/// in range [kMinVolume, kMaxVolume].
-	void ToggleVolume(float new_volume);
+	/// in range [kMinVolume, kMaxVolume]. Volume clamped if outside of range.
+	void ToggleVolume(float new_volume) const;
 
 	/// @brief Stops all audio tracks.
 	void StopAll();
 
 	/// @brief Pauses all audio tracks.
-	void PauseAll() const;
+	void PauseAll();
 
 	/// @brief Resumes all audio tracks.
-	void ResumeAll() const;
+	void ResumeAll();
 
 	/// @return True if any audio track is playing.
 	[[nodiscard]] bool IsAnyPlaying() const;
 
-	/// @param loops The number of loops to play the audio for, -1 for infinite looping.
-	/// @param volume Volume of the specific audio in range [kMinVolume, kMaxVolume].
+	/// @param loops The number of loops to play the audio for, nullopt for infinite looping.
+	/// @param volume Volume of the specific audio in range [kMinVolume, kMaxVolume]. Volume clamped
+	/// if outside of range.
 	/// @param frequency_ratio The frequency ratio is used to adjust the rate at which audio data is
 	/// consumed. Range: [0.01, 100.0]. Changing this effectively modifies the speed and pitch of
 	/// the track's audio. A value greater than 1.0f will play the audio faster, and at a higher
@@ -76,63 +72,78 @@ public:
 	/// will stop the currently playing track and start a new one. If false, when exclusive is true
 	/// and the audio is already playing, it will do nothing.
 	void Play(
-		AudioOrKey audio, float volume = 1.0f, int loops = 0, float frequency_ratio = 1.0f,
-		bool exclusive = false, bool force_restart = true
+		const AudioKey& audio_key, float volume = 1.0f, std::optional<int> loops = 0,
+		float frequency_ratio = 1.0f, bool exclusive = false, bool force_restart = true
 	);
 
 	/// @brief Stop the audio.
-	void Stop(AudioOrKey audio);
+	void Stop(const AudioKey& audio_key);
 
 	/// @brief Pauses the audio.
-	void Pause(AudioOrKey audio);
+	void Pause(const AudioKey& audio_key);
 
 	/// @brief Resumes the audio.
-	void Resume(AudioOrKey audio);
+	void Resume(const AudioKey& audio_key);
 
 	/// @brief Toggles the pause state of the audio.
-	void TogglePause(AudioOrKey audio);
+	void TogglePause(const AudioKey& audio_key);
+
+	void SetFrequencyRatio(const AudioKey& audio_key, float ratio);
+
+	/// @brief Marks the destination of a scripted audio fade.
+	void MarkFadeTarget(const AudioKey& audio_key, float target_volume);
 
 	/// @brief Only sets the volume of the specific audio if it's currently playing; otherwise, does
 	/// nothing.
-	/// @param volume Volume of the specific audio in range [kMinVolume, kMaxVolume].
-	void SetVolume(AudioOrKey audio, float volume);
+	/// @param volume Volume of the specific audio in range [kMinVolume, kMaxVolume]. Volume clamped
+	/// if outside of range.
+	void SetVolume(const AudioKey& audio_key, float volume);
 
 	/// @brief Only gets the volume of the specific audio if it's currently playing; otherwise,
 	/// returns 0
 	/// @return Volume of the specific audio in range [kMinVolume, kMaxVolume].
-	float GetVolume(AudioOrKey audio);
+	float GetVolume(const AudioKey& audio_key);
 
 	/// @brief Toggles the volume between kMinVolume and new_volume.
 	/// @param new_volume When toggle unmutes, it will set the new volume of the audio to this value
-	/// in range [kMinVolume, kMaxVolume].
-	void ToggleVolume(AudioOrKey audio, float new_volume = 1.0f);
+	/// in range [kMinVolume, kMaxVolume]. Volume clamped if outside of range.
+	void ToggleVolume(const AudioKey& audio_key, float new_volume = 1.0f);
 
 	/// @return True if the audio is currently, false otherwise.
-	[[nodiscard]] bool IsPlaying(AudioOrKey audio);
+	[[nodiscard]] bool IsPlaying(const AudioKey& audio_key);
 
 	/// @return True if the audio is currently paused, false otherwise.
-	[[nodiscard]] bool IsPaused(AudioOrKey audio);
+	[[nodiscard]] bool IsPaused(const AudioKey& audio_key);
 
 	///// @return True if the audio is currently fading in OR out, false otherwise.
-	//[[nodiscard]] bool IsFading(AudioOrKey audio);
+	//[[nodiscard]] bool IsFading(const AudioKey& audio_key);
 	///// @param fade_time How long to fade the audio in for.
-	///// @param loops The number of loops to play the audio for, -1 for infinite looping.
-	// void FadeIn(AudioOrKey audio, milliseconds fade_time, int loops =
-	// -1);
+	///// @param loops The number of loops to play the audio for, nullopt for infinite looping.
+	// void FadeIn(const AudioKey& audio_key, milliseconds fade_time, std::optional<int> loops);
 	///// @param fade_time Time over which to fade the audio out.
-	// void FadeOut(AudioOrKey audio, milliseconds fade_time);
+	// void FadeOut(const AudioKey& audio_key, milliseconds fade_time);
 
 private:
 	friend class AssetManager;
 	friend class Application;
+	friend class impl::ApplicationContext;
+
+	explicit AudioSystem(AssetManager& assets, EventHandler& events);
+	~AudioSystem() noexcept						   = default;
+	AudioSystem(const AudioSystem&)				   = delete;
+	AudioSystem& operator=(const AudioSystem&)	   = delete;
+	AudioSystem(AudioSystem&&) noexcept			   = delete;
+	AudioSystem& operator=(AudioSystem&&) noexcept = delete;
 
 	void Update();
 
-	std::shared_ptr<MIX_Audio> CreateAudio(const path& audio_path) const;
-
 	AssetManager& assets_;
+	EventHandler& events_;
+	std::size_t next_instance_id_{ 1 };
+	std::unordered_map<std::size_t, AudioKey> audio_keys_{};
+	std::unordered_map<std::size_t, float> fade_targets_{};
 
-	MIX_Mixer* mixer_{ nullptr };
+	std::unique_ptr<ma_engine, impl::AudioEngineDeleter> engine_;
 
 	std::vector<impl::Track> tracks_;
 };

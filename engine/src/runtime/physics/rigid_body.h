@@ -1,8 +1,11 @@
 #pragma once
 
+#include <optional>
+
+#include "core/math/angle.h"
 #include "core/math/vector2.h"
-#include "core/time/time.h"
-#include "serialization/json/serialize.h"
+#include "core/util/time.h"
+#include "serialization/serialize.h"
 
 namespace ptgn {
 
@@ -12,40 +15,52 @@ struct RigidBody {
 	RigidBody() = default;
 	RigidBody(float max_speed, float drag, float gravity, bool immovable);
 
-	// vel += accel * dt
-	// @param dt Unit: seconds.
+	/// @brief vel += accel * dt
 	void AddAcceleration(V2_float acceleration, secondsf dt);
 
-	// angular_vel += angular_accel * dt
-	// @param dt Unit: seconds.
-	void AddAngularAcceleration(float angular_acceleration, secondsf dt);
+	/// @brief angular_vel += angular_accel * dt
+	void AddAngularAcceleration(Radians angular_acceleration, secondsf dt);
+	void AddAngularAcceleration(Degrees angular_acceleration, secondsf dt);
 
-	// vel += impulse
+	/// @brief vel += impulse
 	void AddImpulse(V2_float impulse);
 
-	// angular_vel += angular_impulse
-	void AddAngularImpulse(float angular_impulse);
+	/// @brief angular_vel += angular_impulse
+	void AddAngularImpulse(Radians angular_impulse);
+	void AddAngularImpulse(Degrees angular_impulse);
 
-	// @param dt Unit: seconds.
 	void Update(V2_float physics_gravity, secondsf dt);
 
-	PTGN_SERIALIZER_REGISTER_IGNORE_DEFAULTS(
+	/// @brief nullopt means no enforcement of maximum speed.
+	std::optional<float> max_speed{};
+	/// @brief nullopt means no enforcement of maximum angular speed.
+	std::optional<float> max_angular_speed{};
+
+	float drag{ 0.0f };
+	float angular_drag{ 0.0f };
+
+	/// @brief Gravity relative to scene.physics.GetGravity().
+	float gravity{ 0.0f };
+
+	bool immovable{ false };
+
+	V2_float velocity{};
+	Radians angular_velocity{ 0.0f };
+
+	PTGN_REFLECT(
 		RigidBody, max_speed, max_angular_speed, drag, angular_drag, gravity, immovable, velocity,
 		angular_velocity
 	)
-
-	// -1 means no enforcement of maximum speed.
-	float max_speed{ -1.0f };
-	float max_angular_speed{ -1.0f };
-	float drag{ 0.0f };
-	float angular_drag{ 0.0f };
-	// Gravity relative to scene.physics.GetGravity().
-	float gravity{ 0.0f };
-	bool immovable{ false };
-	V2_float velocity;
-	float angular_velocity{ 0.0f };
 };
 
+namespace impl {
+
+struct IgnoreParentImmovable {};
+
+} // namespace impl
+
 [[nodiscard]] bool IsImmovable(Entity entity, bool check_parents = true);
+
+void IgnoreParentImmovable(Entity entity, bool ignore_parent_immovable = true);
 
 } // namespace ptgn

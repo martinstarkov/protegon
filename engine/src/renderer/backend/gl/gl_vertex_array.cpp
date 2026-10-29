@@ -1,29 +1,29 @@
 #include "renderer/backend/gl/gl_vertex_array.h"
 
 #include <cstdint>
-#include <ostream>
+#include <span>
 #include <utility>
 
 #include "core/assert.h"
-#include "core/log.h"
 #include "core/util/id_map.h"
 #include "renderer/backend/gl/gl.h"
-#include "renderer/backend/gl/gl_bind_guard.h"
 #include "renderer/backend/gl/gl_context.h"
-#include "renderer/backend/gl/gl_debug.h"
-#include "renderer/primitives/buffer_layout.h"
-#include "renderer/primitives/id.h"
+#include "renderer/pipeline/buffer_layout.h"
+#include "renderer/pipeline/primitive_mode.h"
+#include "renderer/resources/id.h"
+#include "tools/debug/stats.h"
 
 namespace ptgn::impl::gl {
 
-VertexArrays::VertexArrays(GLContext& gl) : gl_{ gl } {}
+VertexArrays::VertexArrays(GLContext& gl, std::size_t max_vertex_attribs) :
+	gl_{ gl }, max_vertex_attribs_{ max_vertex_attribs } {}
 
 void VertexArrays::SetVertexBuffer(VertexArrayId vertex_array, VertexBufferId vertex_buffer) {
 	PTGN_ASSERT(
 		gl_.IsBound(vertex_array), "Vertex array must be bound before setting vertex buffer"
 	);
 
-	auto _ = gl_.Bind(vertex_buffer, false);
+	auto _{ gl_.Bind(vertex_buffer, false) };
 }
 
 void VertexArrays::SetElementBuffer(VertexArrayId vertex_array, ElementBufferId element_buffer) {
@@ -31,57 +31,40 @@ void VertexArrays::SetElementBuffer(VertexArrayId vertex_array, ElementBufferId 
 		gl_.IsBound(vertex_array), "Vertex array must be bound before setting element buffer"
 	);
 
-	auto _ = gl_.Bind(element_buffer, false);
+	auto _{ gl_.Bind(element_buffer, false) };
 }
 
 void VertexArrays::SetupVertexAttrib(
 	std::uint32_t index, const BufferElement& element, std::int32_t stride
 ) {
-	GLCall(EnableVertexAttribArray(index));
-#ifdef PTGN_GL_DEBUG_VERTEX_ARRAYS
-	PTGN_LOG("glEnableVertexAttribArray(index=", index, ")");
-#endif
+	GLCall(glEnableVertexAttribArray(index));
 
 	if (element.is_integer) {
-		GLCall(VertexAttribIPointer(
+		GLCall(glVertexAttribIPointer(
 			index, element.count, std::to_underlying(element.type), stride,
 			reinterpret_cast<const void*>(element.offset)
 		));
-#ifdef PTGN_GL_DEBUG_VERTEX_ARRAYS
-		PTGN_LOG(
-			"glVertexAttribIPointer(index=", index, ",size=", element.count, ",type=", element.type,
-			",stride=", stride, ",offset=", element.offset, ")"
-		);
-#endif
 	} else {
-		GLCall(VertexAttribPointer(
+		GLCall(glVertexAttribPointer(
 			index, element.count, std::to_underlying(element.type), element.normalized, stride,
 			reinterpret_cast<const void*>(element.offset)
 		));
-#ifdef PTGN_GL_DEBUG_VERTEX_ARRAYS
-		PTGN_LOG(
-			"glVertexAttribPointer(index=", index, ",size=", element.count, ",type=", element.type,
-			",normalized=", element.normalized, ",stride=", stride, ",offset=", element.offset, ")"
-		);
-#endif
 	}
 }
 
 void VertexArrays::DrawElements(
 	VertexArrayId vertex_array, int index_count, IndexType index_type, PrimitiveMode primitive_mode
 ) const {
+	PTGN_ASSERT(index_count > 0);
 	PTGN_ASSERT(gl_.IsBound(vertex_array));
 	PTGN_ASSERT(cache_.Get(vertex_array).layout_set);
 	PTGN_ASSERT(gl_.GetBoundElementBuffer());
+
 	GLCall(glDrawElements(
 		std::to_underlying(primitive_mode), index_count, std::to_underlying(index_type), nullptr
 	));
-#ifdef PTGN_GL_DEBUG_VERTEX_ARRAYS
-	PTGN_LOG(
-		"glDrawElements(primitive=", primitive_mode, ",index_count=", index_count,
-		",index_type=", index_type, ")"
-	);
-#endif
+
+	gl_.stats.Increment("draw_calls");
 }
 
 void VertexArrays::DrawArrays(
@@ -92,27 +75,15 @@ void VertexArrays::DrawArrays(
 
 	constexpr GLint starting_index{ 0 };
 	GLCall(glDrawArrays(std::to_underlying(primitive_mode), starting_index, vertex_count));
-#ifdef PTGN_GL_DEBUG_VERTEX_ARRAYS
-	PTGN_LOG(
-		"glDrawArrays(primitive=", primitive_mode, ",first=", starting_index,
-		",vertex_count=", vertex_count, ")"
-	);
-#endif
+	gl_.stats.Increment("draw_calls");
 }
 
-VertexArrayId VertexArrays::CreateVertexArray() {
+VertexArrayId VertexArrays::CreateImpl() {
 	VertexArrayId id{ 0 };
-	GLCall(GenVertexArrays(1, &id.value));
-#ifdef PTGN_GL_DEBUG_VERTEX_ARRAYS
-	PTGN_LOG("glGenVertexArrays() -> id=", id.value);
-#endif
+	GLCall(glGenVertexArrays(1, &id.value));
 	PTGN_ASSERT(id, "Failed to create vertex array");
 	cache_.Add(id, VertexArrayCache{});
 	return id;
-}
-
-int VertexArrays::GetMaxVertexAttribs() const {
-	return gl_.GetInteger(GL_MAX_VERTEX_ATTRIBS);
 }
 
 void VertexArrays::InvalidateElementBuffer(ElementBufferId element_buffer) {
@@ -126,49 +97,56 @@ void VertexArrays::InvalidateElementBuffer(ElementBufferId element_buffer) {
 	}
 }
 
-void VertexArrays::DestroyVertexArray(VertexArrayId id) {
+VertexArrayId VertexArrays::Create(
+	VertexBufferId vertex_buffer, const BufferLayoutView& vertex_buffer_layout,
+	ElementBufferId element_buffer, bool restore_bind
+) {
+	auto vertex_array{ CreateImpl() };
+
+	auto _{ gl_.Bind(vertex_array, restore_bind) };
+
+	SetVertexBuffer(vertex_array, vertex_buffer);
+	SetElementBuffer(vertex_array, element_buffer);
+	SetBufferLayout(vertex_array, vertex_buffer_layout);
+
+	return vertex_array;
+}
+
+void VertexArrays::SetBufferLayout(VertexArrayId vertex_array, const BufferLayoutView& layout) {
+	PTGN_ASSERT(
+		gl_.IsBound(vertex_array), "Vertex array must be bound before setting its buffer layout"
+	);
+
+	PTGN_ASSERT(
+		!layout.elements.empty(),
+		"Cannot add a vertex buffer with an empty (unset) layout to a vertex array"
+	);
+
+	const auto& elements{ layout.elements };
+	PTGN_ASSERT(
+		max_vertex_attribs_ > 0 && elements.size() <= max_vertex_attribs_,
+		"Vertex buffer layout cannot exceed maximum number of vertex array attributes"
+	);
+
+	auto stride{ layout.stride };
+
+	PTGN_ASSERT(stride > 0, "Failed to calculate buffer layout stride");
+
+	for (std::uint32_t i{ 0 }; i < elements.size(); ++i) {
+		SetupVertexAttrib(i, elements[i], stride);
+	}
+
+	cache_.Get(vertex_array).layout_set = true;
+}
+
+void VertexArrays::Destroy(VertexArrayId id) {
 	if (!id) {
 		return;
 	}
-	GLCall(DeleteVertexArrays(1, &id.value));
-#ifdef PTGN_GL_DEBUG_VERTEX_ARRAYS
-	PTGN_LOG("glDeleteVertexArrays(id=", id.value, ")");
-#endif
+	gl_.ForgetId(id);
+	PTGN_ASSERT(!gl_.IsBound(id), "VertexArrayId must not be bound when destroying it");
+	GLCall(glDeleteVertexArrays(1, &id.value));
 	cache_.Remove(id);
-}
-
-BindGuard<VertexArrayId> VertexArrays::BindVertexArray(
-	VertexArrayId vertex_array, bool restore_bind
-) {
-	return gl_.Bind(vertex_array, restore_bind);
-}
-
-bool VertexArrays::IsBound(VertexArrayId vertex_array) const {
-	return gl_.IsBound(vertex_array);
-}
-
-std::ostream& operator<<(std::ostream& os, PrimitiveMode mode) {
-	switch (mode) {
-		using enum PrimitiveMode;
-		case Points:		return os << "Points";
-		case Lines:			return os << "Lines";
-		case LineLoop:		return os << "LineLoop";
-		case LineStrip:		return os << "LineStrip";
-		case Triangles:		return os << "Triangles";
-		case TriangleStrip: return os << "TriangleStrip";
-		case TriangleFan:	return os << "TriangleFan";
-		default:			PTGN_ERROR("Unknown PrimitiveMode: ", std::to_underlying(mode));
-	}
-}
-
-std::ostream& operator<<(std::ostream& os, IndexType type) {
-	switch (type) {
-		using enum IndexType;
-		case UnsignedByte:	return os << "UnsignedByte";
-		case UnsignedShort: return os << "UnsignedShort";
-		case UnsignedInt:	return os << "UnsignedInt";
-		default:			PTGN_ERROR("Unknown IndexType: ", std::to_underlying(type));
-	}
 }
 
 } // namespace ptgn::impl::gl

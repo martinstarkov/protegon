@@ -1,0 +1,912 @@
+#pragma once
+
+#include <imgui.h>
+#include <imgui_internal.h>
+#include <imgui_stdlib.h>
+
+#include <concepts>
+#include <cstddef>
+#include <functional>
+#include <memory>
+#include <optional>
+#include <ranges>
+#include <span>
+#include <string>
+#include <string_view>
+#include <type_traits>
+#include <utility>
+
+#include "commands/entity/entity_reference.h"
+#include "core/util/hash.h"
+#include "editor/editor.h"
+#include "editor/editor_context.h"
+#include "editor/editor_selection.h"
+#include "panels/inspector_components.h"
+#include "panels/inspector_fields.h"
+#include "panels/inspector_helpers.h"
+#include "runtime/asset/asset_manager.h"
+#include "runtime/asset/prefab.h"
+#include "runtime/ecs/component_registry.h"
+#include "runtime/ecs/entity.h"
+#include "runtime/graphics/draw.h"
+#include "runtime/graphics/fx/particle.h"
+#include "runtime/scene/scene.h"
+#include "runtime/scene/scene_camera.h"
+#include "runtime/scene/scene_manager.h"
+#include "runtime/ui/slider.h"
+
+namespace ptgn::impl {
+
+class Scripts;
+struct RenderTargetDesc;
+
+} // namespace ptgn::impl
+
+namespace ptgn::editor::inspector {
+
+template <typename T>
+using ComponentState = std::optional<T>;
+
+// Keep navigation interactive while restricting fields in a linked prefab instance.
+// This is also used for other component fields within an editable root Transform section.
+class ScopedComponentReadOnly {
+public:
+	explicit ScopedComponentReadOnly(bool read_only) : read_only_{ read_only } {
+		if (read_only_) {
+			ImGui::PushItemFlag(ImGuiItemFlags_ReadOnly, true);
+		}
+	}
+
+	~ScopedComponentReadOnly() {
+		if (read_only_) {
+			ImGui::PopItemFlag();
+		}
+	}
+
+	ScopedComponentReadOnly(const ScopedComponentReadOnly&)			   = delete;
+	ScopedComponentReadOnly& operator=(const ScopedComponentReadOnly&) = delete;
+
+private:
+	bool read_only_{ false };
+};
+
+struct FeatureTargetKey {
+	const Scene* scene{ nullptr };
+	std::optional<UUID> entity{};
+	std::optional<PrefabKey> prefab{};
+	SerializedEntityPath prefab_entity_path{};
+
+	bool operator==(const FeatureTargetKey&) const = default;
+};
+
+using InspectorTargetKey = FeatureTargetKey;
+
+template <typename T>
+void AssignEntityComponent(Entity entity, ComponentState<T> state) {
+	if constexpr (std::same_as<T, ::ptgn::impl::ParticleEmitterData>) {
+		const auto* registration{ ComponentRegistry::Find<T>() };
+
+		if (!state) {
+			if (entity.Has<T>()) {
+				entity.Remove<T>();
+			}
+			return;
+		}
+
+		if (!registration) {
+			return;
+		}
+
+		if (!entity.Has<T>()) {
+			registration->AddDefault(entity);
+		}
+
+		json serialized = *state;
+		registration->Deserialize(serialized, entity);
+		return;
+	}
+
+	if (!state) {
+		if (entity.Has<T>()) {
+			entity.Remove<T>();
+		}
+		return;
+	}
+
+	if constexpr (std::is_empty_v<T>) {
+		entity.TryAdd<T>();
+	} else if (entity.Has<T>()) {
+		entity.Get<T>() = *state;
+	} else {
+		entity.Add<T>(*state);
+	}
+}
+
+template <typename T>
+ComponentState<T> CapturePrefabComponent(const SerializedEntity& serialized) {
+	const auto* registration{ ComponentRegistry::Find<T>() };
+
+	if (!registration) {
+		return std::nullopt;
+	}
+
+	std::string name{ registration->name };
+
+	if constexpr (std::is_empty_v<T>) {
+		return std::ranges::contains(serialized.tags, name) ? ComponentState<T>{ T{} }
+															: std::nullopt;
+	} else {
+		auto it{ serialized.components.find(name) };
+
+		if (it == serialized.components.end()) {
+			return std::nullopt;
+		}
+
+		if constexpr (JsonDeserializable<T> && std::default_initializable<T>) {
+			T value{};
+
+			try {
+				it->second.get_to(value);
+				return ComponentState<T>{ std::move(value) };
+			} catch (...) {
+				return std::nullopt;
+			}
+		} else if constexpr (::ptgn::impl::JsonGettable<T>) {
+			try {
+				return it->second.template get<T>();
+			} catch (...) {
+				return std::nullopt;
+			}
+		} else {
+			return std::nullopt;
+		}
+	}
+}
+
+template <typename T>
+void AssignPrefabComponent(SerializedEntity& serialized, ComponentState<T> state) {
+	const auto* registration{ ComponentRegistry::Find<T>() };
+
+	if (!registration) {
+		return;
+	}
+
+	std::string name{ registration->name };
+
+	if (!state) {
+		if constexpr (std::is_empty_v<T>) {
+			std::erase(serialized.tags, name);
+		} else {
+			serialized.components.erase(name);
+		}
+
+		return;
+	}
+
+	if constexpr (std::is_empty_v<T>) {
+		if (!std::ranges::contains(serialized.tags, name)) {
+			serialized.tags.emplace_back(name);
+		}
+	} else if constexpr (JsonSerializable<T>) {
+		json value = *state;
+
+		serialized.components.insert_or_assign(name, std::move(value));
+	}
+}
+
+template <typename Callback>
+void InvokeEntityChanged(Callback callback, Entity entity) {
+	if constexpr (!std::same_as<Callback, std::nullptr_t>) {
+		if (callback) {
+			callback(entity);
+		}
+	}
+}
+
+template <typename T>
+void AssignEntityInspectorComponent(Entity entity, ComponentState<T> state) {
+	// SliderData::line is local to the slider or enabled Track Transform. Moving the slider
+	// transform must therefore not translate the stored line coordinates.
+	AssignEntityComponent<T>(entity, std::move(state));
+}
+
+struct EntityInspectorTarget {
+	EditorContext& ctx;
+	Entity entity{};
+	bool editing_instance_transform{ false };
+
+	[[nodiscard]] bool IsReadOnly() const {
+		return entity && GetPrefabInstance(entity) != nullptr && !editing_instance_transform;
+	}
+
+	[[nodiscard]] bool IsComponentStructureReadOnly() const {
+		return entity && GetPrefabInstance(entity) != nullptr;
+	}
+
+	template <typename T>
+	[[nodiscard]] bool IsComponentReadOnly() const {
+		if (!entity || !GetPrefabInstance(entity)) {
+			return false;
+		}
+		return !(
+			std::same_as<T, Transform> && editing_instance_transform && IsPrefabInstanceRoot(entity)
+		);
+	}
+
+	template <typename T>
+	[[nodiscard]] bool CanApplyComponentEdit() const {
+		return entity && (!GetPrefabInstance(entity) ||
+						  (std::same_as<T, Transform> && IsPrefabInstanceRoot(entity)));
+	}
+
+	template <typename T>
+	[[nodiscard]] bool NeedsComponentReadOnlyFlag() const {
+		return editing_instance_transform && IsComponentReadOnly<T>();
+	}
+
+	template <typename T>
+	[[nodiscard]] static constexpr bool Supports() {
+		return true;
+	}
+
+	[[nodiscard]] const void* Id() const {
+		return std::addressof(entity.Get<UUID>());
+	}
+
+	[[nodiscard]] FeatureTargetKey GetFeatureTargetKey() const {
+		return FeatureTargetKey{
+			.scene	= std::addressof(entity.GetScene()),
+			.entity = entity.Get<UUID>(),
+		};
+	}
+
+	[[nodiscard]] InspectorTargetKey GetInspectorTargetKey() const {
+		return GetFeatureTargetKey();
+	}
+
+	template <typename T>
+	[[nodiscard]] ComponentState<T> Capture() const {
+		if (!entity.Has<T>()) {
+			return std::nullopt;
+		}
+
+		if constexpr (std::is_empty_v<T>) {
+			return T{};
+		} else if constexpr (std::same_as<T, ::ptgn::impl::ParticleEmitterData>) {
+			const auto* registration{ ComponentRegistry::Find<T>() };
+			if (!registration) {
+				return std::nullopt;
+			}
+
+			json serialized;
+			if (!registration->Serialize(serialized, entity)) {
+				return std::nullopt;
+			}
+
+			T value{};
+			try {
+				serialized.get_to(value);
+			} catch (...) {
+				return std::nullopt;
+			}
+
+			return ComponentState<T>{ std::move(value) };
+		} else {
+			return entity.Get<T>();
+		}
+	}
+
+	template <typename T, typename Callback = std::nullptr_t>
+	void SetLive(ComponentState<T> state, Callback callback = nullptr) {
+		if (!CanApplyComponentEdit<T>() || (IsComponentStructureReadOnly() && !state)) {
+			return;
+		}
+		AssignEntityInspectorComponent<T>(entity, std::move(state));
+		InvokeEntityChanged(callback, entity);
+		::ptgn::impl::SliderSystem::SynchronizeEntity(entity);
+	}
+
+	template <typename T, typename Callback = std::nullptr_t>
+	auto MakeApply(Callback callback = nullptr) const {
+		Editor* editor{ std::addressof(ctx.editor) };
+		EntityReference reference{ MakeEntityReference(entity) };
+
+		return [editor, reference, callback](ComponentState<T> state) mutable {
+			Entity resolved{ reference.Resolve(*editor) };
+
+			if (!resolved ||
+				(GetPrefabInstance(resolved) &&
+				 (!std::same_as<T, Transform> || !IsPrefabInstanceRoot(resolved) || !state))) {
+				return;
+			}
+
+			AssignEntityInspectorComponent<T>(resolved, std::move(state));
+			InvokeEntityChanged(callback, resolved);
+			::ptgn::impl::SliderSystem::SynchronizeEntity(resolved);
+		};
+	}
+
+	[[nodiscard]] std::string GetName() const {
+		return std::string{ entity.Get<Tag>() };
+	}
+
+	[[nodiscard]] std::string GetUUIDText() const {
+		const auto& uuid{ entity.Get<UUID>() };
+
+		return [&]<typename T>(const T& value) {
+			if constexpr (JsonSerializable<T>) {
+				json serialized = value;
+
+				if (serialized.is_string()) {
+					return serialized.template get<std::string>();
+				}
+
+				return serialized.dump();
+			} else if constexpr (requires { std::to_string(value.value); }) {
+				return std::to_string(value.value);
+			} else if constexpr (requires { std::to_string(value.value()); }) {
+				return std::to_string(value.value());
+			} else {
+				return std::to_string(Hash(value));
+			}
+		}(uuid);
+	}
+
+	void SetName(std::string name) {
+		if (!IsReadOnly()) {
+			entity.Add<Tag>(std::move(name));
+		}
+	}
+
+	auto MakeNameApply() const {
+		Editor* editor{ std::addressof(ctx.editor) };
+		EntityReference reference{ MakeEntityReference(entity) };
+
+		return [editor, reference](std::string name) {
+			Entity resolved{ reference.Resolve(*editor) };
+
+			if (resolved && !GetPrefabInstance(resolved)) {
+				resolved.Add<Tag>(std::move(name));
+			}
+		};
+	}
+};
+
+inline void SyncPrefabTargetInstances(EditorContext& ctx, const PrefabKey& key) {
+	for (const auto& scene : ctx.editor.GetSceneManager().GetScenes()) {
+		if (scene && !scene->IsRuntime()) {
+			SyncPrefabInstances(*scene, key);
+		}
+	}
+}
+
+struct PrefabInspectorTarget {
+	EditorContext& ctx;
+	PrefabKey key{};
+	SerializedEntityPath entity_path{};
+	Entity prefab{};
+
+	[[nodiscard]] bool IsReadOnly() const {
+		return false;
+	}
+
+	[[nodiscard]] bool IsComponentStructureReadOnly() const {
+		return false;
+	}
+
+	template <typename T>
+	[[nodiscard]] bool IsComponentReadOnly() const {
+		return false;
+	}
+
+	template <typename T>
+	[[nodiscard]] bool NeedsComponentReadOnlyFlag() const {
+		return false;
+	}
+
+	template <typename T>
+	[[nodiscard]] static constexpr bool Supports() {
+		return std::is_empty_v<T> ||
+			   (JsonSerializable<T> && JsonDeserializable<T> &&
+				(std::default_initializable<T> || ::ptgn::impl::JsonGettable<T>));
+	}
+
+	[[nodiscard]] const void* Id() const {
+		if (prefab && prefab.Has<UUID>()) {
+			return static_cast<const void*>(std::addressof(prefab.Get<UUID>()));
+		}
+		return static_cast<const void*>(std::addressof(prefab));
+	}
+
+	[[nodiscard]] FeatureTargetKey GetFeatureTargetKey() const {
+		return FeatureTargetKey{
+			.prefab				= key,
+			.prefab_entity_path = entity_path,
+		};
+	}
+
+	[[nodiscard]] InspectorTargetKey GetInspectorTargetKey() const {
+		return GetFeatureTargetKey();
+	}
+
+	template <typename T>
+	[[nodiscard]] ComponentState<T> Capture() const {
+		if (!prefab || !prefab.Has<T>()) {
+			return std::nullopt;
+		}
+
+		if constexpr (std::is_empty_v<T>) {
+			return T{};
+		} else if constexpr (std::same_as<T, ::ptgn::impl::ParticleEmitterData>) {
+			const auto* registration{ ComponentRegistry::Find<T>() };
+			if (!registration) {
+				return std::nullopt;
+			}
+
+			json serialized;
+			if (!registration->Serialize(serialized, prefab)) {
+				return std::nullopt;
+			}
+
+			T value{};
+			try {
+				serialized.get_to(value);
+			} catch (...) {
+				return std::nullopt;
+			}
+			return ComponentState<T>{ std::move(value) };
+		} else {
+			return prefab.Get<T>();
+		}
+	}
+
+	template <typename T, typename Callback = std::nullptr_t>
+	void SetLive(ComponentState<T> state, Callback callback = nullptr) {
+		if (!prefab) {
+			return;
+		}
+
+		AssignEntityInspectorComponent<T>(prefab, std::move(state));
+		InvokeEntityChanged(callback, prefab);
+		::ptgn::impl::SliderSystem::SynchronizeEntity(prefab);
+	}
+
+	template <typename T, typename Callback = std::nullptr_t>
+	auto MakeApply(Callback callback = nullptr) const {
+		EditorContext* context{ std::addressof(ctx) };
+		PrefabKey prefab_key{ key };
+		SerializedEntityPath path{ entity_path };
+
+		return [context, prefab_key, path = std::move(path),
+				callback](ComponentState<T> state) mutable {
+			auto& assets{ context->editor.GetAssetManager() };
+			Entity resolved{ assets.GetPrefabEntity(prefab_key, path) };
+			if (!resolved || GetPrefabInstance(resolved)) {
+				return;
+			}
+
+			AssignEntityInspectorComponent<T>(resolved, std::move(state));
+			InvokeEntityChanged(callback, resolved);
+			::ptgn::impl::SliderSystem::SynchronizeEntity(resolved);
+			assets.SavePrefabEntity(prefab_key);
+			SyncPrefabTargetInstances(*context, prefab_key);
+			context->local.state.is_dirty = true;
+		};
+	}
+
+	[[nodiscard]] std::string GetName() const {
+		return prefab && prefab.Has<Tag>() ? std::string{ prefab.Get<Tag>() } : std::string{};
+	}
+
+	void SetName(std::string name) {
+		if (prefab) {
+			prefab.Add<Tag>(std::move(name));
+		}
+	}
+
+	auto MakeNameApply() const {
+		EditorContext* context{ std::addressof(ctx) };
+		PrefabKey prefab_key{ key };
+		SerializedEntityPath path{ entity_path };
+
+		return [context, prefab_key, path = std::move(path)](std::string name) {
+			auto& assets{ context->editor.GetAssetManager() };
+			Entity resolved{ assets.GetPrefabEntity(prefab_key, path) };
+			if (!resolved) {
+				return;
+			}
+
+			resolved.Add<Tag>(std::move(name));
+			assets.SavePrefabEntity(prefab_key);
+			SyncPrefabTargetInstances(*context, prefab_key);
+			context->local.state.is_dirty = true;
+		};
+	}
+};
+
+template <typename Target, typename T, typename Callback>
+void TrackComponentState(
+	Target& target, std::string_view label, ComponentState<T> before, ComponentState<T> after,
+	bool changed, Callback callback
+) {
+	if (!changed || target.template IsComponentReadOnly<T>()) {
+		return;
+	}
+
+	ScopedID target_scope{ target.Id() };
+	ScopedID component_scope{ static_cast<int>(Hash<T>()) };
+	ImGuiID key{ ImGui::GetID("##ComponentEdit") };
+
+	auto apply{ target.template MakeApply<T>(callback) };
+
+	TrackUndoableInteraction(
+		target.ctx, key, std::string{ label }, true, [apply, before]() mutable { apply(before); },
+		[apply, after]() mutable { apply(after); }
+	);
+}
+
+template <typename Target, typename T>
+void TrackComponentState(
+	Target& target, std::string_view label, ComponentState<T> before, ComponentState<T> after,
+	bool changed
+) {
+	TrackComponentState(target, label, std::move(before), std::move(after), changed, nullptr);
+}
+
+/// Edit an existing component with one capture/apply/undo path. Specialized archetype drawers can
+/// focus on the actual UI and avoid repeating the standard before/value/SetLive/after sequence.
+template <typename Target, typename T, typename Edit, typename Callback = std::nullptr_t>
+bool EditComponent(
+	Target& target, std::string_view label, Edit&& edit, Callback callback = nullptr
+) {
+	if constexpr (!Target::template Supports<T>()) {
+		return false;
+	} else {
+		ScopedID target_scope{ target.Id() };
+		ScopedID component_scope{ static_cast<int>(Hash<T>()) };
+		auto before{ target.template Capture<T>() };
+		if (!before) {
+			return false;
+		}
+
+		T value{ *before };
+		ScopedComponentReadOnly read_only{ target.template NeedsComponentReadOnlyFlag<T>() };
+		if (!std::invoke(std::forward<Edit>(edit), value) ||
+			target.template IsComponentReadOnly<T>()) {
+			return false;
+		}
+		target.template SetLive<T>(std::move(value), callback);
+		auto after{ target.template Capture<T>() };
+		TrackComponentState(
+			target, std::string{ label }, std::move(before), std::move(after), true, callback
+		);
+		return true;
+	}
+}
+
+/// Apply a structural component state change as one undoable action. This is the common backend for
+/// add/remove/reset helpers where there is no active ImGui drag to coalesce.
+template <typename Target, typename T, typename Callback = std::nullptr_t>
+bool SetComponentStateUndoable(
+	Target& target, std::string_view label, ComponentState<T> state, Callback callback = nullptr
+) {
+	if constexpr (!Target::template Supports<T>()) {
+		return false;
+	} else {
+		if (target.template IsComponentReadOnly<T>() || target.IsComponentStructureReadOnly()) {
+			return false;
+		}
+		auto before{ target.template Capture<T>() };
+		target.template SetLive<T>(std::move(state), callback);
+		auto after{ target.template Capture<T>() };
+		TrackComponentState(target, label, std::move(before), std::move(after), true, callback);
+		return true;
+	}
+}
+
+/// Draw an already present component as a semantic inspector section. Presence is represented by
+/// the section itself rather than an enable checkbox; reset/remove live in the section menu and are
+/// recorded as one undoable component state change.
+template <typename Target, typename T, typename Draw, typename Callback = std::nullptr_t>
+bool DrawComponentSection(
+	Target& target, std::string_view label, Draw&& draw, bool default_open = true,
+	bool removable = true, bool resettable = true, Callback callback = nullptr
+) {
+	if constexpr (!Target::template Supports<T>()) {
+		return false;
+	}
+
+	ScopedID target_scope{ target.Id() };
+	ScopedID component_scope{ static_cast<int>(Hash<T>()) };
+	auto before{ target.template Capture<T>() };
+	if (!before) {
+		return false;
+	}
+
+	auto header{ DrawInspectorSectionHeader(
+		label, "##ComponentSection",
+		InspectorSectionOptions{
+			.default_open = default_open,
+			.removable	  = removable && !target.IsComponentStructureReadOnly(),
+			.resettable	  = resettable && !target.IsComponentStructureReadOnly(),
+		}
+	) };
+
+	bool changed{ false };
+	if (header.remove_requested) {
+		target.template SetLive<T>(std::nullopt, callback);
+		changed = true;
+	} else if (header.reset_requested) {
+		target.template SetLive<T>(T{}, callback);
+		changed = true;
+	} else if (header.open) {
+		T value{ *before };
+		ScopedIndent indent;
+		ScopedComponentReadOnly read_only{ target.template NeedsComponentReadOnlyFlag<T>() };
+		if (std::invoke(std::forward<Draw>(draw), value) &&
+			!target.template IsComponentReadOnly<T>()) {
+			target.template SetLive<T>(std::move(value), callback);
+			changed = true;
+		}
+	}
+
+	if (changed) {
+		auto after{ target.template Capture<T>() };
+		TrackComponentState(
+			target,
+			header.remove_requested	 ? std::string{ "Remove " } + std::string{ label }
+			: header.reset_requested ? std::string{ "Reset " } + std::string{ label }
+									 : std::string{ "Edit " } + std::string{ label },
+			std::move(before), std::move(after), true, callback
+		);
+	}
+	return changed;
+}
+
+/// Low-boilerplate common case for one reflected/member value stored inside an existing component.
+/// The helper owns capture/live apply/undo coalescing so archetype implementations only name the
+/// field they intend to expose.
+template <typename Target, typename Component, typename Member, typename Callback = std::nullptr_t>
+bool DrawComponentField(
+	Target& target, std::string_view label, Member Component::* member,
+	FieldOptions options = kDefaultFieldOptions<std::remove_cvref_t<Member>>,
+	Callback callback	 = nullptr
+) {
+	return EditComponent<Target, Component>(
+		target, std::string{ "Edit " } + std::string{ label },
+		[&](Component& value) { return DrawValue(target.ctx, label, value.*member, options); },
+		callback
+	);
+}
+
+template <typename Target, typename T, typename Draw, typename Callback = std::nullptr_t>
+bool DrawRequiredComponent(
+	Target& target, std::string_view label, bool tree, Draw&& draw, Callback callback = nullptr
+) {
+	ScopedID target_scope{ target.Id() };
+	ScopedID component_scope{ static_cast<int>(Hash<T>()) };
+
+	auto before{ target.template Capture<T>() };
+	bool changed{ false };
+
+	if (!before && !target.template IsComponentReadOnly<T>() &&
+		!target.IsComponentStructureReadOnly()) {
+		target.template SetLive<T>(T{}, callback);
+		changed = true;
+	}
+	T value{ target.template Capture<T>().value_or(T{}) };
+
+	if (tree) {
+		std::string node_label{ std::string{ label } + "##Tree" };
+
+		if (ImGui::TreeNodeEx(node_label.c_str(), ImGuiTreeNodeFlags_SpanAvailWidth)) {
+			ScopedIndent indent;
+			ScopedComponentReadOnly read_only{ target.template NeedsComponentReadOnlyFlag<T>() };
+			changed |= std::invoke(std::forward<Draw>(draw), value);
+			ImGui::TreePop();
+		}
+	} else {
+		ScopedComponentReadOnly read_only{ target.template NeedsComponentReadOnlyFlag<T>() };
+		changed |= std::invoke(std::forward<Draw>(draw), value);
+	}
+
+	if (changed && !target.template IsComponentReadOnly<T>()) {
+		target.template SetLive<T>(std::move(value), callback);
+	}
+
+	auto after{ target.template Capture<T>() };
+
+	TrackComponentState(
+		target, std::string{ "Edit " } + std::string{ label }, std::move(before), std::move(after),
+		changed, callback
+	);
+
+	return changed;
+}
+
+template <typename Target, typename T, typename Draw, typename Callback = std::nullptr_t>
+bool DrawOptionalComponent(
+	Target& target, std::string_view label, bool tree, Draw&& draw, bool contents_read_only = false,
+	bool toggle_read_only = false, Callback callback = nullptr, T enabled_default = T{}
+) {
+	if (!Target::template Supports<T>()) {
+		return false;
+	}
+
+	if ((contents_read_only || toggle_read_only) &&
+		!target.ctx.local.settings.show_read_only_inspector_data) {
+		return false;
+	}
+
+	ScopedID target_scope{ target.Id() };
+	ScopedID component_scope{ static_cast<int>(Hash<T>()) };
+
+	auto before{ target.template Capture<T>() };
+	bool enabled{ before.has_value() };
+	bool changed{ false };
+	bool open{ !tree };
+
+	if (tree) {
+		// Optional sections keep their enable toggle immediately to the left of the tree node.
+		changed |=
+			DrawDisabledIf(toggle_read_only || target.template IsComponentReadOnly<T>(), [&]() {
+				return ImGui::Checkbox("##Enabled", &enabled);
+			});
+		ImGui::SameLine(0.0f, ImGui::GetStyle().ItemInnerSpacing.x);
+		std::string node_label{ std::string{ label } + "##Tree" };
+		open = ImGui::TreeNodeEx(
+			node_label.c_str(), ImGuiTreeNodeFlags_SpanAvailWidth |
+									ImGuiTreeNodeFlags_FramePadding |
+									ImGuiTreeNodeFlags_NoTreePushOnOpen
+		);
+	} else if constexpr (std::is_empty_v<T>) {
+		changed |= DrawInspectorPropertyRow(label, [&]() {
+			return DrawDisabledIf(
+				toggle_read_only || target.template IsComponentReadOnly<T>(),
+				[&]() { return ImGui::Checkbox("##Enabled", &enabled); }
+			);
+		});
+	} else {
+		// Ordinary optional values are a single row: Label | [enable] [value...]. Nested field
+		// drawers are put into inline-value mode so they reuse this value cell instead of emitting
+		// another property row.
+		changed |= DrawInspectorPropertyRow(label, [&]() {
+			bool toggle_changed{ DrawDisabledIf(
+				toggle_read_only || target.template IsComponentReadOnly<T>(),
+				[&]() { return ImGui::Checkbox("##Enabled", &enabled); }
+			) };
+			bool local_changed{ toggle_changed };
+			if (toggle_changed) {
+				target.template SetLive<T>(
+					enabled ? ComponentState<T>{ enabled_default } : std::nullopt, callback
+				);
+			}
+			ImGui::SameLine(0.0f, ImGui::GetStyle().ItemInnerSpacing.x);
+
+			T displayed{ target.template Capture<T>().value_or(enabled_default) };
+			ScopedDisabled disabled{ !enabled || contents_read_only ||
+									 target.template IsComponentReadOnly<T>() };
+			ScopedInspectorInlineValue inline_value;
+			bool contents_changed{ std::invoke(std::forward<Draw>(draw), displayed) };
+			if (enabled && !contents_read_only && !target.template IsComponentReadOnly<T>() &&
+				contents_changed) {
+				target.template SetLive<T>(std::move(displayed), callback);
+				local_changed = true;
+			}
+			return local_changed;
+		});
+	}
+
+	if (!target.template IsComponentReadOnly<T>() && (tree || std::is_empty_v<T>) &&
+		enabled != before.has_value()) {
+		if (enabled) {
+			target.template SetLive<T>(enabled_default, callback);
+		} else {
+			target.template SetLive<T>(std::nullopt, callback);
+		}
+		changed = true;
+	}
+
+	if constexpr (!std::is_empty_v<T>) {
+		if (tree && open) {
+			ScopedIndent indent;
+			ScopedDisabled disabled{ !enabled || contents_read_only };
+			ScopedComponentReadOnly read_only{ target.template NeedsComponentReadOnlyFlag<T>() };
+			T value{ target.template Capture<T>().value_or(enabled_default) };
+			bool contents_changed{ std::invoke(std::forward<Draw>(draw), value) };
+			if (enabled && !contents_read_only && !target.template IsComponentReadOnly<T>() &&
+				contents_changed) {
+				target.template SetLive<T>(std::move(value), callback);
+				changed = true;
+			}
+		}
+	}
+
+	auto after{ target.template Capture<T>() };
+	TrackComponentState(
+		target, std::string{ "Edit " } + std::string{ label }, std::move(before), std::move(after),
+		changed, callback
+	);
+	return changed;
+}
+
+template <typename Target, typename T>
+bool DrawOptionalReflected(
+	Target& target, std::string_view label, bool tree = true, bool contents_read_only = false,
+	bool toggle_read_only = false
+) {
+	if constexpr (std::is_empty_v<T>) {
+		return DrawOptionalComponent<Target, T>(
+			target, label, false, [](T&) { return false; }, contents_read_only, toggle_read_only
+		);
+	} else {
+		return DrawOptionalComponent<Target, T>(
+			target, label, tree,
+			[&target](T& value) {
+				return DrawRegisteredComponentContents(
+					target.ctx, Hash<T>(), std::addressof(value)
+				);
+			},
+			contents_read_only, toggle_read_only
+		);
+	}
+}
+
+template <typename Target, typename T>
+bool DrawOptionalValue(Target& target, std::string_view label, FieldOptions options = {}) {
+	return DrawOptionalComponent<Target, T>(target, label, false, [&](T& value) {
+		return DrawValue(target.ctx, label, value, options);
+	});
+}
+
+template <typename T, typename Target>
+bool AddFeature(Target& target, std::string_view label) {
+	if (target.template Capture<T>()) {
+		return false;
+	}
+	return SetComponentStateUndoable<Target, T>(
+		target, std::string{ "Add " } + std::string{ label }, ComponentState<T>{ T{} }
+	);
+}
+
+template <typename Target>
+bool DrawName(Target& target) {
+	std::string before{ target.GetName() };
+	std::string value{ before };
+
+	bool changed{ DrawPropertyRow("Name", [&]() {
+		ImGui::SetNextItemWidth(-FLT_MIN);
+		ScopedDisabled disabled{ target.IsReadOnly() };
+		return ImGui::InputText("##Tag", &value);
+	}) };
+
+	if (changed && !target.IsReadOnly()) {
+		target.SetName(value);
+
+		ScopedID target_scope{ target.Id() };
+		ImGuiID key{ ImGui::GetID("##NameEdit") };
+		auto apply{ target.MakeNameApply() };
+
+		TrackUndoableInteraction(
+			target.ctx, key, "Rename Entity", true, [apply, before]() mutable { apply(before); },
+			[apply, value]() mutable { apply(value); }
+		);
+	}
+
+	if constexpr (requires { target.GetUUIDText(); }) {
+		std::string uuid{ target.GetUUIDText() };
+
+		DrawPropertyRow("UUID", [&]() {
+			ImGui::SetNextItemWidth(-FLT_MIN);
+			std::string displayed{ uuid };
+			ScopedDisabled read_only{ true };
+			ImGui::InputText("##UUID", &displayed, ImGuiInputTextFlags_ReadOnly);
+			DrawTooltip("Read only entity identifier.");
+			return false;
+		});
+	}
+
+	return changed;
+}
+
+} // namespace ptgn::editor::inspector

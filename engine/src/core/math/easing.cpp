@@ -1,7 +1,6 @@
 #include "core/math/easing.h"
 
 #include <cmath>
-#include <ostream>
 #include <utility>
 
 #include "core/assert.h"
@@ -17,7 +16,7 @@ float ApplyEase(float t, Ease ease) {
 		using enum Ease;
 		case Linear:	return t;
 		case None:		return 1.0f;
-		case InOutSine: return -(std::cos(pi<float> * t) - 1.0f) / 2.0f;
+		case InOutSine: return -(std::cos(kPi * t) - 1.0f) / 2.0f;
 		case InOutQuad:
 			return t < 0.5f ? 2.0f * t * t : 1.0f - std::pow(-2.0f * t + 2.0f, 2.0f) / 2.0f;
 		case InOutCubic:
@@ -40,7 +39,7 @@ float ApplyEase(float t, Ease ease) {
 			return t < 0.5f ? (1.0f - sqrtf(1.0f - 4.0f * t * t)) / 2.0f
 							: (sqrtf(1.0f - std::pow(-2.0f * t + 2.0f, 2.0f)) + 1.0f) / 2.0f;
 		case InOutElastic: {
-			constexpr float c5 = two_pi<float> / 4.5f;
+			constexpr float c5 = kTwoPi / 4.5f;
 			if (t == 0.0f || t == 1.0f) {
 				return t;
 			}
@@ -63,8 +62,8 @@ float ApplyEase(float t, Ease ease) {
 		case InOutBounce:
 			return t < 0.5f ? (1.0f - ApplyEase(1.0f - 2.0f * t, OutBounce)) * 0.5f
 							: (1.0f + ApplyEase(2.0f * t - 1.0f, OutBounce)) * 0.5f;
-		case InSine:	return 1.0f - std::cos(t * half_pi<float>);
-		case OutSine:	return std::sin(t * half_pi<float>);
+		case InSine:	return 1.0f - std::cos(t * kHalfPi);
+		case OutSine:	return std::sin(t * kHalfPi);
 		case InQuad:	return t * t;
 		case OutQuad:	return 1.0f - (1.0f - t) * (1.0f - t);
 		case InCubic:	return t * t * t;
@@ -78,7 +77,7 @@ float ApplyEase(float t, Ease ease) {
 		case InCirc:	return 1.0f - sqrtf(1.0f - t * t);
 		case OutCirc:	return sqrtf(1.0f - std::pow(t - 1.0f, 2.0f));
 		case InElastic: {
-			constexpr float c4 = two_pi<float> / 3.0f;
+			constexpr float c4 = kTwoPi / 3.0f;
 			if (t == 0.0f) {
 				return 0.0f;
 			}
@@ -88,7 +87,7 @@ float ApplyEase(float t, Ease ease) {
 			return -std::pow(2.0f, 10.0f * t - 10.0f) * std::sin((t * 10.0f - 10.75f) * c4);
 		}
 		case OutElastic: {
-			constexpr float c4 = two_pi<float> / 3.0f;
+			constexpr float c4 = kTwoPi / 3.0f;
 			if (t == 0.0f) {
 				return 0.0f;
 			}
@@ -125,45 +124,6 @@ float ApplyEase(float t, Ease ease) {
 			}
 		}
 		default: PTGN_ERROR("Unknown Ease: ", std::to_underlying(ease));
-	}
-}
-
-std::ostream& operator<<(std::ostream& os, Ease ease) {
-	switch (ease) {
-		using enum Ease;
-		case None:		   return os << "None";
-		case Linear:	   return os << "Linear";
-		case InOutSine:	   return os << "InOutSine";
-		case InOutQuad:	   return os << "InOutQuad";
-		case InOutCubic:   return os << "InOutCubic";
-		case InOutQuart:   return os << "InOutQuart";
-		case InOutQuint:   return os << "InOutQuint";
-		case InOutExpo:	   return os << "InOutExpo";
-		case InOutCirc:	   return os << "InOutCirc";
-		case InOutElastic: return os << "InOutElastic";
-		case InOutBack:	   return os << "InOutBack";
-		case InOutBounce:  return os << "InOutBounce";
-		case InSine:	   return os << "InSine";
-		case OutSine:	   return os << "OutSine";
-		case InQuad:	   return os << "InQuad";
-		case OutQuad:	   return os << "OutQuad";
-		case InCubic:	   return os << "InCubic";
-		case OutCubic:	   return os << "OutCubic";
-		case InQuart:	   return os << "InQuart";
-		case OutQuart:	   return os << "OutQuart";
-		case InQuint:	   return os << "InQuint";
-		case OutQuint:	   return os << "OutQuint";
-		case InExpo:	   return os << "InExpo";
-		case OutExpo:	   return os << "OutExpo";
-		case InCirc:	   return os << "InCirc";
-		case OutCirc:	   return os << "OutCirc";
-		case InElastic:	   return os << "InElastic";
-		case OutElastic:   return os << "OutElastic";
-		case InBack:	   return os << "InBack";
-		case OutBack:	   return os << "OutBack";
-		case InBounce:	   return os << "InBounce";
-		case OutBounce:	   return os << "OutBounce";
-		default:		   PTGN_ERROR("Unknown Ease: ", std::to_underlying(ease));
 	}
 }
 

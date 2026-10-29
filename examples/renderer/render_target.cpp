@@ -1,112 +1,55 @@
 
+#include "runtime/graphics/render_target.h"
+
+#include <chrono>
+
 #include "app/application.h"
+#include "app/editor.h"
+#include "core/graphics/color.h"
 #include "core/math/vector2.h"
-#include "platform/window/window.h"
-#include "renderer/primitives/shader.h"
-#include "renderer/renderer.h"
-#include "runtime/graphics/draw.h"
+#include "runtime/ecs/entity.h"
 #include "runtime/graphics/shape.h"
-#include "runtime/graphics/sprite.h"
 #include "runtime/physics/movement.h"
 #include "runtime/scene/scene.h"
+#include "runtime/scene/scene_camera.h"
 #include "runtime/scene/scene_context.h"
-#include "runtime/scene/scene_manager.h"
 
 using namespace ptgn;
 
-constexpr V2_int game_size{ 800, 800 };
-
-float rect_thickness{ -1.0f };
-float circle_thickness{ -1.0f };
-
-class PostProcessingEffect {
-public:
-	PostProcessingEffect() {}
-
-	static void Draw(const Entity& entity) {
-		impl::DrawShader(entity);
-	}
-};
-
-PTGN_DRAWABLE_REGISTER(PostProcessingEffect);
-
-Entity CreatePostFX(Scene& scene) {
-	auto effect{ scene.CreateEntity() };
-
-	SetDraw<PostProcessingEffect>(effect);
-	Show(effect);
-	SetBlendMode(effect, BlendMode::ReplaceRGBA);
-
-	return effect;
-}
-
-Entity CreateBlur(Scene& scene) {
-	auto blur{ CreatePostFX(scene) };
-	blur.Add<impl::ShaderPass>(game.shader.Get("blur"), nullptr);
-	return blur;
-}
-
-Entity CreateGrayscale(Scene& scene) {
-	auto grayscale{ CreatePostFX(scene) };
-	grayscale.Add<impl::ShaderPass>(game.shader.Get("grayscale"), nullptr);
-	return grayscale;
-}
-
-Entity AddRect(Scene& s, V2_float pos, V2_float size, Color color) {
-	auto e = CreateRect(s, pos, size, color, rect_thickness);
-	return e;
-}
-
-Entity AddCircle(Scene& s, V2_float pos, float radius, Color color) {
-	auto e = CreateCircle(s, pos, radius, color, circle_thickness);
-	return e;
-}
-
-Entity AddSprite(Scene& s, V2_float pos) {
-	auto e = CreateSprite(s, "test", pos);
-	return e;
-}
-
 struct RenderTargetScene : public Scene {
-	RenderTarget rt1;
-	RenderTarget rt2;
+	RenderTarget rt;
+	SceneCamera rt_camera;
 
 	void OnEnter() override {
-		SetBackgroundColor(color::LightGray);
+		constexpr V2_float rt_size{ 200 };
+		constexpr auto rt_layer{ GetRenderMaskBit(3) };
 
-		ctx().renderer.SetGameSize(game_size);
+		SetBackgroundColor(color::LightBlue);
 
-		CreateRect(*this, V2_float{ 200, -200 }, { 200, 200 }, color::Gray, -1.0f, Origin::Center);
+		CreateRect(*this, { -300, -300 }, { 100, 100 }, color::Blue);
 
-		rt1 = CreateRenderTarget(*this, { 400, 400 }, color::Red);
-		SetDrawOrigin(rt1, Origin::TopLeft);
-		SetPosition(rt1, -game_size * 0.5f);
+		ctx().camera.SetExcludeRenderMask(rt_layer);
 
-		auto rect1 =
-			CreateRect(*this, V2_float{ 0, 0 }, { 100, 100 }, color::Orange, -1.0f, Origin::Center);
+		rt = CreateRenderTarget(*this, { 200, 200 }, rt_size, color::Red);
 
-		rt1.AddToDisplayList(rect1);
+		rt_camera = CreateCamera(*this, {}, rt.GetSize());
+		rt_camera.SetRenderTarget(rt);
+		rt_camera.SetIncludeRenderMask(rt_layer);
 
-		rt2 = CreateRenderTarget(*this, { 400, 400 }, color::Cyan);
-		SetDrawOrigin(rt2, Origin::TopLeft);
-		SetPosition(rt2, -game_size * 0.5f + V2_float{ 400, 400 });
-
-		// Rect2 position is relative to rt position (0, 0 is center of rt).
-		auto rect2 =
-			CreateRect(*this, V2_float{ 0, 0 }, { 100, 100 }, color::White, -1.0f, Origin::Center);
-
-		rt2.AddToDisplayList(rect2);
+		auto rect2{ CreateRect(*this, { 0, 0 }, { 100, 100 }, color::Orange) };
+		SetRenderMask(rect2, rt_layer);
 	}
 
 	void OnUpdate() override {
 		float dt{ ctx().dt().count() };
 		constexpr V2_float speed{ 300.0f };
-		MoveArrowKeys(camera1, speed * dt);
-		MoveWASD(camera2, speed * dt);
+		MoveArrowKeys(rt_camera, speed * dt);
+		MoveWASD(rt, speed * dt);
 	}
 };
 
 int main(int, char**) {
-	Application app{ "RenderTargetScene", game_size };
+	Application app{ "RenderTargetScene" };
+	PTGN_WITH_EDITOR(app, false);
 	app.StartWith<RenderTargetScene>();
 }

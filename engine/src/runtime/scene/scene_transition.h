@@ -1,22 +1,28 @@
 #pragma once
 
+#include <chrono>
 #include <concepts>
 #include <type_traits>
 
 #include "core/math/easing.h"
-#include "core/time/time.h"
+#include "core/util/time.h"
+#include "serialization/serialize.h"
 
 namespace ptgn {
 
 class Scene;
+
+namespace impl {
+
 class SceneManager;
-class EventHandler;
+
+} // namespace impl
 
 class SceneTransition {
 public:
 	SceneTransition() = default;
 	explicit SceneTransition(
-		milliseconds duration, milliseconds delay = milliseconds{ 0 }, Ease ease = Ease::Linear
+		milliseconds duration, milliseconds delay = 0ms, Ease ease = Ease::Linear
 	);
 
 	virtual ~SceneTransition() = default;
@@ -32,7 +38,10 @@ public:
 	milliseconds GetDuration() const;
 	Ease GetEase() const;
 
-	virtual void OnDelayStart([[maybe_unused]] Scene& target_scene
+	[[nodiscard]] bool IsStarted() const;
+
+	virtual void OnDelayStart(
+		[[maybe_unused]] Scene& target_scene
 	) { /* Optional user implementation */ }
 
 	virtual void OnStart([[maybe_unused]] Scene& target_scene) { /* Optional user implementation */
@@ -43,12 +52,14 @@ public:
 
 	virtual void OnStop([[maybe_unused]] Scene& target_scene) { /* Optional user implementation */ }
 
+	PTGN_REFLECT(
+		SceneTransition, elapsed_, duration_, delay_elapsed_, delay_duration_, started_, ease_
+	)
 private:
-	friend class SceneManager;
-	friend class EventHandler;
+	friend class impl::SceneManager;
 
-	void UpdateTime(secondsf dt);
-	void UpdateDelayTime(secondsf dt);
+	void UpdateTime(milliseconds dt);
+	void UpdateDelayTime(milliseconds dt);
 	[[nodiscard]] bool IsFinished() const;
 	[[nodiscard]] bool IsInDelay() const;
 
@@ -74,8 +85,8 @@ template <
 struct SceneTransitionPair {
 	SceneTransitionPair() = default;
 
-	SceneTransitionPair(TransitionOut&& out, TransitionIn&& in) :
-		out{ std::move(out) }, in{ std::move(in) } {}
+	SceneTransitionPair(TransitionOut&& transition_out, TransitionIn&& transition_in) :
+		out{ std::move(transition_out) }, in{ std::move(transition_in) } {}
 
 	TransitionOut out{};
 	TransitionIn in{};

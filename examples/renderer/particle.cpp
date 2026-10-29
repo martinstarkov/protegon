@@ -1,22 +1,23 @@
-#include "runtime/graphics/particle.h"
+#include "runtime/graphics/fx/particle.h"
 
-#include <chrono>
+#include <ecs/ecs.h>
+
 #include <functional>
+#include <optional>
 #include <string_view>
-#include <utility>
 
 #include "app/application.h"
+#include "app/editor.h"
+#include "core/graphics/color.h"
 #include "core/math/geometry/origin.h"
-#include "core/math/math_utils.h"
+#include "core/math/geometry/rect.h"
 #include "core/math/vector2.h"
-#include "core/time/time.h"
-#include "renderer/primitives/color.h"
-#include "renderer/renderer.h"
 #include "runtime/ecs/entity.h"
-#include "runtime/ecs/entity_hierarchy.h"
 #include "runtime/graphics/draw.h"
+#include "runtime/graphics/fx/particle_presets.h"
+#include "runtime/graphics/render_queue.h"
 #include "runtime/scene/scene.h"
-#include "runtime/scene/scene_input.h"
+#include "runtime/scene/scene_context.h"
 #include "runtime/ui/button.h"
 #include "runtime/world/grid.h"
 
@@ -26,93 +27,95 @@ class ParticleScene : public Scene {
 public:
 	ParticleEmitter p;
 
-	Grid<Button> grid{ { 1, 3 } };
+	Grid<Button> grid{ { 2, 4 } };
+
+	ParticlePreset current_effect{ ParticlePreset::Smoke1 };
 
 	Button CreateParticleButton(std::string_view content, const std::function<void()>& on_press) {
 		Button b{ CreateButton(*this) };
-		b.SetBackgroundColor(color::Gold)
-			.SetBackgroundColor(color::Red, ButtonState::Hover)
-			.SetBackgroundColor(color::DarkRed, ButtonState::Hover)
-			.SetBorderColor(color::LightGray)
-			.SetBorderWidth(3.0f)
-			.SetText(content, color::Black)
-			.OnPress(on_press);
-		SetParent(b, p, true);
+		b.OnPress(on_press).Background().Colors(color::Gold, color::Red, color::DarkRed).Button().Border().Color(color::LightGray).Fill(3.0f).Button()
+			.Text().Content(content).Color(color::Black);
+
 		return b;
 	}
 
-	void CreateFixedEmitter(const V2_float& position, const Color& start, const Color& end) {
-		ParticleInfo fixed_info;
-		fixed_info.lifetime		  = milliseconds{ 2000 };
-		fixed_info.start_scale	  = 1.0f;
-		fixed_info.end_scale	  = 0.0f;
-		fixed_info.min_speed	  = 10.0f;
-		fixed_info.max_speed	  = 100.0f;
-		fixed_info.start_color	  = start;
-		fixed_info.end_color	  = end;
-		fixed_info.emission_delay = milliseconds{ 3 };
-		fixed_info.max_particles  = 1000;
-		fixed_info.radius		  = 5.0f;
-		fixed_info.particle_shape = ParticleShape::Circle;
+	void RecreateMainEmitter(bool start, std::optional<V2_float> position) {
+		p.Reset();
+		p.Destroy();
+		p = CreateParticleEmitter(
+			*this, position.value_or(V2_float{}), GetParticleConfig(current_effect)
+		);
 
-		auto fixed_emitter{ CreateParticleEmitter(*this, fixed_info) };
-		SetPosition(fixed_emitter, position);
-		fixed_emitter.Start();
+		if (start) {
+			p.Start();
+		}
+	}
+
+	void SelectEffect(ParticlePreset preset, std::optional<V2_float> position = std::nullopt) {
+		current_effect = preset;
+		RecreateMainEmitter(true, position);
+	}
+
+	void SetParticleButton(
+		V2_int grid_index, std::string_view name, ParticlePreset effect,
+		std::optional<V2_float> position = std::nullopt
+	) {
+		grid.Set(grid_index, CreateParticleButton(name, [this, effect, position]() {
+					 SelectEffect(effect, position);
+				 }));
 	}
 
 	void OnEnter() override {
-		p = CreateParticleEmitter(*this);
-
-		p.SetMaxParticles(1000);
-		p.SetShape(ParticleShape::Circle);
-		p.SetRadius(30.0f);
-		p.SetStartColor(color::Red);
-		p.SetEndColor(color::Blue);
-		p.SetEmissionDelay(milliseconds{ 1 });
+		p = CreateParticleEmitter(*this, {}, GetParticleConfig(current_effect));
 		p.Start();
 
-		V2_float ws{ ctx().renderer.GetGameSize() };
+		V2_float weather_offset{ 0.0f,
+								 static_cast<float>(-ctx().renderer.GetLogicalSize().y) / 2.0f };
 
-		CreateFixedEmitter(-ws * 0.5f + V2_float{ 400, 300 }, color::Orange, color::Red);
-		CreateFixedEmitter(-ws * 0.5f + V2_float{ 500, 500 }, color::Cyan, color::Magenta);
+		SetParticleButton({ 0, 0 }, "Smoke", ParticlePreset::Smoke1);
+		SetParticleButton({ 0, 1 }, "Fire", ParticlePreset::Fire1);
+		SetParticleButton({ 0, 2 }, "Explosion", ParticlePreset::FireExplosion1);
+		SetParticleButton({ 1, 0 }, "Rain", ParticlePreset::Rain1, weather_offset);
+		SetParticleButton({ 1, 1 }, "Snow", ParticlePreset::Snow1, weather_offset);
 
-		grid.Set({ 0, 0 }, CreateParticleButton("Switch Particle Shape", [=]() {
-					 int shape{ std::to_underlying(p.GetShape()) };
-					 shape++;
-					 shape = Mod(shape, 2);
-					 p.SetShape(static_cast<ParticleShape>(shape));
-				 }));
+		grid.Set({ 1, 2 }, CreateParticleButton("Toggle Emission", [this]() { p.Toggle(); }));
 
-		grid.Set({ 0, 1 }, CreateParticleButton("Toggle Particle Emission", [=]() { p.Toggle(); }));
+		grid.Set({ 1, 3 }, CreateParticleButton("Toggle Gravity", [this]() {
+					 auto& emitter = p.Get<impl::ParticleEmitterData>();
 
-		grid.Set({ 0, 2 }, CreateParticleButton("Toggle Gravity", [=]() {
-					 if (p.GetGravity().IsZero()) {
-						 p.SetGravity({ 0, 300.0f });
+					 if (constexpr V2_float toggled_gravity{ 0.0f, 300.0f };
+						 emitter.config.start_gravity.has_value() &&
+						 emitter.config.start_gravity.value() == toggled_gravity) {
+						 emitter.config.start_gravity = std::nullopt;
 					 } else {
-						 p.SetGravity({});
+						 emitter.config.start_gravity = toggled_gravity;
+					 }
+
+					 // Apply to existing particles
+					 for (auto [e, particle] : emitter.manager.EntitiesWith<Particle>()) {
+						 particle.gravity = emitter.config.start_gravity.value_or(V2_float{});
 					 }
 				 }));
 
-		V2_int offset{ 6, 6 };
-		V2_int size{ 200, 90 };
+		grid.ForEach([this](auto coord, Button& b) {
+			constexpr V2_int offset{ 6, 6 };
+			constexpr V2_int size{ 150, 40 };
 
-		grid.ForEach([&](auto coord, Button& b) {
-			SetPosition(b, -ws * 0.5f + coord * size + (coord + V2_int{ 1, 1 }) * offset);
-			b.SetShape(size);
-			SetDrawOrigin(b, Origin::TopLeft);
+			if (!b) {
+				return;
+			}
+			SetPosition(
+				b, -ctx().renderer.GetLogicalSize() * 0.5f + coord * size +
+					   (coord + V2_int{ 1, 1 }) * offset
+			);
+			b.Size(size);
+			b.Add<Origin>(Origin::TopLeft);
 		});
-	}
-
-	void OnExit() override {
-		p.Reset();
-	}
-
-	void OnUpdate() override {
-		SetPosition(p, ctx().input.GetMousePosition());
 	}
 };
 
 int main(int, char**) {
 	Application app{ "ParticleScene" };
+	PTGN_WITH_EDITOR(app, true);
 	app.StartWith<ParticleScene>();
 }

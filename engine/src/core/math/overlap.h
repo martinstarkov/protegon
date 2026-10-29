@@ -1,5 +1,6 @@
 #pragma once
 
+#include <span>
 #include <utility>
 #include <vector>
 
@@ -18,13 +19,11 @@ namespace ptgn {
 
 namespace impl {
 
-std::vector<Axis> GetPolygonAxes(
-	const V2_float* vertices, std::size_t vertex_count, bool intersection_info
-);
+std::vector<Axis> GetPolygonAxes(std::span<const V2_float> vertices, bool intersection_info);
 
 /// @return { min, max } of all the polygon vertices projected onto the given axis.
 std::pair<float, float> GetPolygonProjectionMinMax(
-	const V2_float* vertices, std::size_t vertex_count, const Axis& axis
+	std::span<const V2_float> vertices, const Axis& axis
 );
 
 [[nodiscard]] bool PolygonsHaveOverlapAxis(
@@ -36,6 +35,11 @@ bool GetPolygonMinimumOverlap(
 );
 
 [[nodiscard]] bool LineContainsLine(Transform t1, const Line& A, Transform t2, const Line& B);
+
+[[nodiscard]] constexpr bool RectContainsRect(Rect outer, Rect inner) {
+	return inner.min.x >= outer.min.x && inner.max.x <= outer.max.x && inner.min.y >= outer.min.y &&
+		   inner.max.y <= outer.max.y;
+}
 
 [[nodiscard]] bool PolygonContainsPolygon(
 	Transform t1, const Polygon& A, Transform t2, const Polygon& B

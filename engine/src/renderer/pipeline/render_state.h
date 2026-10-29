@@ -1,0 +1,273 @@
+#pragma once
+
+#include <compare>
+#include <cstdint>
+#include <optional>
+#include <string>
+#include <vector>
+
+#include "core/math/matrix4.h"
+#include "core/math/tolerance.h"
+#include "renderer/pipeline/blend_mode.h"
+#include "renderer/pipeline/viewport.h"
+#include "renderer/resources/id.h"
+#include "renderer/resources/shader.h"
+#include "serialization/serialize.h"
+
+namespace ptgn {
+
+/// @brief Comparison function (glStencilFunc, glDepthFunc)
+enum class CompareFunc : std::uint32_t {
+	Never	 = 0x0200, // GL_NEVER
+	Less	 = 0x0201, // GL_LESS
+	Equal	 = 0x0202, // GL_EQUAL
+	LEqual	 = 0x0203, // GL_LEQUAL
+	Greater	 = 0x0204, // GL_GREATER
+	NotEqual = 0x0205, // GL_NOTEQUAL
+	GEqual	 = 0x0206, // GL_GEQUAL
+	Always	 = 0x0207  // GL_ALWAYS
+};
+
+/// @brief Stencil operations (glStencilOp / GL_STENCIL_FAIL, etc.)
+enum class StencilOp : std::uint32_t {
+	Keep	 = 0x1E00, // GL_KEEP
+	Zero	 = 0x0000, // GL_ZERO
+	Replace	 = 0x1E01, // GL_REPLACE
+	Incr	 = 0x1E02, // GL_INCR
+	IncrWrap = 0x8507, // GL_INCR_WRAP
+	Decr	 = 0x1E03, // GL_DECR
+	DecrWrap = 0x8508, // GL_DECR_WRAP
+	Invert	 = 0x150A  // GL_INVERT
+};
+
+/// @brief Cull face selection (glCullFace)
+enum class CullFace : std::uint32_t {
+	Front		 = 0x0404, // GL_FRONT
+	Back		 = 0x0405, // GL_BACK
+	FrontAndBack = 0x0408  // GL_FRONT_AND_BACK
+};
+
+/// @brief Front face winding order (glFrontFace)
+enum class FrontFace : std::uint32_t {
+	CW	= 0x0900, // GL_CW, Clockwise
+	CCW = 0x0901  // GL_CCW, Counter-clockwise
+};
+
+struct StencilState {
+	bool enabled{ false };
+
+	CompareFunc func{ CompareFunc::Always };
+
+	int ref{ 0 };
+
+	std::uint32_t mask{ 0xFFFFFFFF };
+
+	StencilOp fail_op{ StencilOp::Keep };
+	StencilOp zfail_op{ StencilOp::Keep };
+	StencilOp zpass_op{ StencilOp::Keep };
+
+	std::uint32_t write_mask{ 0xFFFFFFFF };
+
+	constexpr bool operator==(const StencilState&) const = default;
+};
+
+struct DepthMaskState {
+	bool write{ true };
+
+	CompareFunc func{ CompareFunc::Less };
+
+	float range_near{ 0.0f };
+	float range_far{ 1.0f };
+
+	constexpr bool operator==(const DepthMaskState& other) const {
+		return write == other.write && func == other.func &&
+			   NearlyEqual(range_near, other.range_near) && NearlyEqual(range_far, other.range_far);
+	}
+};
+
+struct Stencil {
+	std::int32_t value{ 0 };
+
+	constexpr Stencil() = default;
+
+	constexpr Stencil(std::int32_t stencil_value) : value{ stencil_value } {} // NOSONAR
+
+	constexpr std::strong_ordering operator<=>(const Stencil&) const = default;
+
+	constexpr operator std::int32_t() const { // NOSONAR
+		return value;
+	}
+
+	PTGN_REFLECT_VALUE(Stencil, value)
+};
+
+struct Depth {
+	constexpr Depth() = default;
+
+	constexpr Depth(float depth_value) : value{ depth_value } {} // NOSONAR
+
+	[[nodiscard]] constexpr Depth RelativeTo(Depth parent) const {
+		parent.value += value;
+		return parent;
+	}
+
+	friend constexpr bool operator==(const Depth& lhs, const Depth& rhs) {
+		return NearlyEqual(lhs.value, rhs.value);
+	}
+
+	friend constexpr std::partial_ordering operator<=>(const Depth& lhs, const Depth& rhs) {
+		if (NearlyEqual(lhs.value, rhs.value)) {
+			return std::partial_ordering::equivalent;
+		}
+
+		if (lhs.value < rhs.value) {
+			return std::partial_ordering::less;
+		}
+
+		if (lhs.value > rhs.value) {
+			return std::partial_ordering::greater;
+		}
+
+		return std::partial_ordering::unordered;
+	}
+
+	constexpr operator float() const { // NOSONAR
+		return value;
+	}
+
+	float value{ 0.0f };
+
+	PTGN_REFLECT_VALUE(Depth, value)
+};
+
+struct DepthStencil {
+	Depth depth{};
+	Stencil stencil{};
+
+	constexpr bool operator==(const DepthStencil&) const = default;
+};
+
+struct ColorMaskState {
+	bool red{ true };
+	bool green{ true };
+	bool blue{ true };
+	bool alpha{ true };
+
+	constexpr bool operator==(const ColorMaskState&) const = default;
+};
+
+struct ScissorState {
+	ScissorState() = default;
+
+	constexpr explicit ScissorState(Viewport scissor_viewport) : viewport{ scissor_viewport }, enabled{ true } {}
+
+	constexpr explicit ScissorState(bool scissor_enabled) : enabled{ scissor_enabled } {}
+
+	/// @brief Viewport of the scissor rectangle.
+	Viewport viewport{};
+
+	bool enabled{ false };
+
+	constexpr bool operator==(const ScissorState&) const = default;
+};
+
+struct CullState {
+	bool enabled{ false };
+
+	CullFace cull_face{ CullFace::Back };
+	FrontFace front_face{ FrontFace::CCW };
+
+	constexpr bool operator==(const CullState&) const = default;
+};
+
+struct RasterState {
+	CullState cull{};
+	float line_width{ 1.0f };
+
+	constexpr bool operator==(const RasterState& other) const {
+		return cull == other.cull && NearlyEqual(line_width, other.line_width);
+	}
+};
+
+struct MaterialState {
+	impl::ShaderId shader{};
+	std::vector<UniformWrite> uniforms{};
+	std::optional<std::size_t> texture_slot_capacity{};
+
+	constexpr explicit operator bool() const {
+		return shader;
+	}
+
+	constexpr bool operator==(const MaterialState&) const = default;
+};
+
+struct RenderState {
+	Viewport viewport{ { 0, 0 }, { 0, 0 } };
+	std::optional<Matrix4> view_projection{};
+
+	bool blending{ false };
+	BlendMode blend_mode{ BlendMode::ReplaceRGBA };
+
+	bool depth_testing{ false };
+	DepthMaskState depth_mask{};
+	ColorMaskState color_mask{};
+	StencilState stencil{};
+	ScissorState scissor{ false };
+	RasterState raster{};
+
+	constexpr bool operator==(const RenderState&) const = default;
+};
+
+struct RenderStateDelta {
+	std::optional<Viewport> viewport{};
+	std::optional<Matrix4> view_projection{};
+
+	std::optional<bool> blending{};
+	std::optional<BlendMode> blend_mode{};
+
+	std::optional<bool> depth_testing{};
+	std::optional<DepthMaskState> depth_mask{};
+	std::optional<ColorMaskState> color_mask{};
+	std::optional<StencilState> stencil{};
+	std::optional<ScissorState> scissor{};
+	std::optional<RasterState> raster{};
+
+	constexpr bool operator==(const RenderStateDelta&) const = default;
+};
+
+namespace impl {
+
+constexpr RenderState ApplyDeltaRenderState(RenderState base, const RenderStateDelta& delta) {
+	if (delta.view_projection.has_value()) {
+		base.view_projection = delta.view_projection.value();
+	}
+	if (delta.viewport.has_value()) {
+		base.viewport = delta.viewport.value();
+	}
+	if (delta.blend_mode.has_value()) {
+		base.blend_mode = delta.blend_mode.value();
+	}
+	if (delta.depth_testing.has_value()) {
+		base.depth_testing = delta.depth_testing.value();
+	}
+	if (delta.depth_mask.has_value()) {
+		base.depth_mask = delta.depth_mask.value();
+	}
+	if (delta.stencil.has_value()) {
+		base.stencil = delta.stencil.value();
+	}
+	if (delta.raster.has_value()) {
+		base.raster = delta.raster.value();
+	}
+	if (delta.scissor.has_value()) {
+		base.scissor = delta.scissor.value();
+	}
+	if (delta.color_mask.has_value()) {
+		base.color_mask = delta.color_mask.value();
+	}
+	return base;
+}
+
+} // namespace impl
+
+} // namespace ptgn

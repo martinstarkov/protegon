@@ -3,7 +3,7 @@
 #include "core/config.h"
 #include "platform/platform.h"
 
-#define PTGN_DEBUGBREAK() ((void)0)
+#define PTGN_DEBUGBREAK() static_cast<void>(0)
 
 #ifdef PTGN_DEBUG
 
@@ -17,6 +17,11 @@
 #include <signal.h>
 #undef PTGN_DEBUGBREAK
 #define PTGN_DEBUGBREAK() raise(SIGTRAP)
+
+#elif defined(__clang__)
+
+#undef PTGN_DEBUGBREAK
+#define PTGN_DEBUGBREAK() __builtin_debugtrap()
 
 #endif
 

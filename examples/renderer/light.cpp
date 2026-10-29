@@ -1,13 +1,15 @@
-#include "runtime/graphics/light.h"
+#include "runtime/graphics/fx/light.h"
 
 #include <chrono>
 #include <optional>
 
 #include "app/application.h"
+#include "app/editor.h"
+#include "core/graphics/color.h"
+#include "core/graphics/fill_style.h"
+#include "core/math/angle.h"
 #include "core/math/geometry/origin.h"
-#include "core/math/math_utils.h"
 #include "core/math/vector2.h"
-#include "renderer/primitives/color.h"
 #include "renderer/renderer.h"
 #include "runtime/asset/asset_manager.h"
 #include "runtime/ecs/entity.h"
@@ -15,7 +17,7 @@
 #include "runtime/graphics/shape.h"
 #include "runtime/graphics/sprite.h"
 #include "runtime/scene/scene.h"
-
+#include "runtime/scene/scene_context.h"
 #include "runtime/scene/scene_input.h"
 
 using namespace ptgn;
@@ -31,10 +33,10 @@ public:
 
 		ctx().asset.Load("tree", "assets/jpg.jpg");
 
-		auto sprite = CreateSprite(*this, "tree", { -200, -200 });
-		SetDrawOrigin(sprite, Origin::TopLeft);
+		auto sprite = CreateSprite(*this, { -200, -200 }, "tree");
+		sprite.Add<Origin>(Origin::TopLeft);
 
-		CreateRect(*this, { 0, 0 }, { 100, 100 }, color::Blue, -1.0f, Origin::TopLeft);
+		CreateRect(*this, { 0, 0 }, { 100, 100 }, color::Blue, Solid{}, Origin::TopLeft);
 
 		float intensity{ 0.5f };
 		float radius{ 30.0f };
@@ -42,11 +44,11 @@ public:
 
 		float step{ 80 };
 
-		const auto create_light = [&](const Color& color) {
+		auto create_light = [&](const Color& color) {
 			static float i = 1.0f;
 			CreateLight(
-				*this, V2_float{ -ctx().renderer.GetGameSize() * 0.5f } + V2_float{ i * step },
-				{ .radius = radius, .color = color, .intensity = intensity, .falloff = falloff }
+				*this, V2_float{ -ctx().renderer.GetLogicalSize() * 0.5f } + V2_float{ i * step },
+				{ .color = color, .radius = radius, .intensity = intensity, .falloff = falloff }
 			);
 			i++;
 		};
@@ -61,42 +63,47 @@ public:
 
 		mouse_light = CreateLight(
 			*this, {},
-			{ .radius = 50.0f, .color = color::White, .intensity = 0.1f, .falloff = 0.2f }
+			{ .color = color::White, .radius = 50.0f, .intensity = 0.1f, .falloff = 0.2f }
 		);
 
 		mouse_directional_light = CreateLight(
 			*this, V2_float{ 0, -300 },
-			{ .radius	  = 100.0f,
-			  .color	  = color::Red,
-			  .cone_angle = 10.0f,
+			{ .color	  = color::Red,
+			  .radius	  = 100.0f,
 			  .intensity  = 0.8f,
-			  .falloff	  = 0.2f }
+			  .falloff	  = 0.2f,
+			  .cone_angle = 10.0f }
 		);
 
-		auto sprite2 = CreateSprite(*this, "tree", { -200, 150 });
-		SetDrawOrigin(sprite2, Origin::TopLeft);
+		auto sprite2 = CreateSprite(*this, { -200, 150 }, "tree");
+		sprite2.Add<Origin>(Origin::TopLeft);
 
-		CreateRect(*this, { 200, 200 }, { 100, 100 }, color::Red, -1.0f, Origin::TopLeft);
+		CreateRect(*this, { 200, 200 }, { 100, 100 }, color::Red, Solid{}, Origin::TopLeft);
 	}
 
 	void OnUpdate() override {
 		SetPosition(mouse_light, ctx().input.GetMousePosition());
 		SetPosition(mouse_directional_light, ctx().input.GetMousePosition());
-		float time_scale{ 0.1f };
-		auto time{ static_cast<float>(ctx().TimeSinceStart().count()) };
-		SetRotation(mouse_directional_light, DegToRad(time * time_scale));
+		float time_scale{ 100.0f };
+		float time{ ctx().GameTime().count() };
+		SetRotation(mouse_directional_light, Degrees{ time * time_scale });
 
 		auto scroll{ ctx().input.GetMouseScroll() };
 
-		if (scroll > 0.0f) {
-			mouse_directional_light.SetConeAngle(*mouse_directional_light.GetConeAngle() + 5.0f);
-		} else if (scroll < 0.0f) {
-			mouse_directional_light.SetConeAngle(*mouse_directional_light.GetConeAngle() - 5.0f);
+		if (scroll.y > 0.0f) {
+			mouse_directional_light.ConeAngle(
+				*mouse_directional_light.GetConfig().cone_angle + 5.0f
+			);
+		} else if (scroll.y < 0.0f) {
+			mouse_directional_light.ConeAngle(
+				*mouse_directional_light.GetConfig().cone_angle - 5.0f
+			);
 		}
 	}
 };
 
 int main(int, char**) {
 	Application app{ "LightScene: Scroll to resize cone angle" };
+	PTGN_WITH_EDITOR(app, false);
 	app.StartWith<LightScene>();
 }

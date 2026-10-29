@@ -4,24 +4,21 @@
 
 #include "core/assert.h"
 #include "core/math/easing.h"
-#include "core/time/time.h"
+#include "core/util/time.h"
 
 namespace ptgn {
 
 SceneTransition::SceneTransition(milliseconds duration, milliseconds delay, Ease ease) :
-	duration_{ duration },
-	delay_duration_{ delay },
-	started_{ delay == milliseconds{ 0 } },
-	ease_{ ease } {
-	PTGN_ASSERT(delay >= milliseconds{ 0 });
+	duration_{ duration }, delay_duration_{ delay }, started_{ delay == 0ms }, ease_{ ease } {
+	PTGN_ASSERT(delay >= 0ms);
 }
 
-void SceneTransition::UpdateTime(secondsf dt) {
-	elapsed_ += duration_cast<milliseconds>(dt);
+void SceneTransition::UpdateTime(milliseconds dt) {
+	elapsed_ += dt;
 }
 
-void SceneTransition::UpdateDelayTime(secondsf dt) {
-	delay_elapsed_ += duration_cast<milliseconds>(dt);
+void SceneTransition::UpdateDelayTime(milliseconds dt) {
+	delay_elapsed_ += dt;
 }
 
 bool SceneTransition::IsFinished() const {
@@ -40,12 +37,18 @@ Ease SceneTransition::GetEase() const {
 	return ease_;
 }
 
+bool SceneTransition::IsStarted() const {
+	return started_;
+}
+
 float SceneTransition::GetUneasedElapsedFraction() const {
-	PTGN_ASSERT(duration_ >= milliseconds{ 0 });
-	if (duration_.count() == 0) {
+	PTGN_ASSERT(duration_ >= 0ms);
+
+	if (duration_ == 0ms) {
 		return 1.0f;
 	}
-	return static_cast<float>(elapsed_.count()) / static_cast<float>(duration_.count());
+
+	return millisecondsf{ elapsed_ } / duration_;
 }
 
 milliseconds SceneTransition::GetDuration() const {

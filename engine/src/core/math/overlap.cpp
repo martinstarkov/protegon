@@ -4,9 +4,9 @@
 #include <cstdlib>
 #include <functional>
 #include <limits>
+#include <span>
 #include <type_traits>
 #include <utility>
-#include <variant>
 #include <vector>
 
 #include "core/assert.h"
@@ -23,77 +23,30 @@
 #include "core/math/tolerance.h"
 #include "core/math/transform.h"
 #include "core/math/vector2.h"
-
-#define PTGN_HANDLE_OVERLAP_SOLO_PAIR(TypeA, TypeB, PREFIX)                 \
-	if constexpr (std::is_same_v<S1, TypeA> && std::is_same_v<S2, TypeB>) { \
-		return impl::PREFIX##TypeA##TypeB(t1, s1, t2, s2);                  \
-	} else
-
-#define PTGN_HANDLE_OVERLAP_PAIR(TypeA, TypeB, PREFIX)                             \
-	if constexpr (std::is_same_v<S1, TypeA> && std::is_same_v<S2, TypeB>) {        \
-		return impl::PREFIX##TypeA##TypeB(t1, s1, t2, s2);                         \
-	} else if constexpr (std::is_same_v<S1, TypeB> && std::is_same_v<S2, TypeA>) { \
-		return impl::PREFIX##TypeA##TypeB(t2, s2, t1, s1);                         \
-	} else
-
-#define PTGN_OVERLAP_SHAPE_PAIR_TABLE                          \
-	PTGN_HANDLE_OVERLAP_SOLO_PAIR(Point, Point, Overlap)       \
-	PTGN_HANDLE_OVERLAP_PAIR(Point, Line, Overlap)             \
-	PTGN_HANDLE_OVERLAP_PAIR(Point, Triangle, Overlap)         \
-	PTGN_HANDLE_OVERLAP_PAIR(Point, Capsule, Overlap)          \
-	PTGN_HANDLE_OVERLAP_PAIR(Point, Rect, Overlap)             \
-	PTGN_HANDLE_OVERLAP_PAIR(Point, Circle, Overlap)           \
-	PTGN_HANDLE_OVERLAP_PAIR(Point, Polygon, Overlap)          \
-	PTGN_HANDLE_OVERLAP_PAIR(Line, Line, Overlap)              \
-	PTGN_HANDLE_OVERLAP_PAIR(Line, Triangle, Overlap)          \
-	PTGN_HANDLE_OVERLAP_PAIR(Line, Capsule, Overlap)           \
-	PTGN_HANDLE_OVERLAP_PAIR(Line, Rect, Overlap)              \
-	PTGN_HANDLE_OVERLAP_PAIR(Line, Circle, Overlap)            \
-	PTGN_HANDLE_OVERLAP_PAIR(Line, Polygon, Overlap)           \
-	PTGN_HANDLE_OVERLAP_SOLO_PAIR(Circle, Circle, Overlap)     \
-	PTGN_HANDLE_OVERLAP_PAIR(Circle, Rect, Overlap)            \
-	PTGN_HANDLE_OVERLAP_PAIR(Circle, Polygon, Overlap)         \
-	PTGN_HANDLE_OVERLAP_PAIR(Circle, Triangle, Overlap)        \
-	PTGN_HANDLE_OVERLAP_PAIR(Circle, Capsule, Overlap)         \
-	PTGN_HANDLE_OVERLAP_SOLO_PAIR(Triangle, Triangle, Overlap) \
-	PTGN_HANDLE_OVERLAP_PAIR(Triangle, Capsule, Overlap)       \
-	PTGN_HANDLE_OVERLAP_PAIR(Triangle, Rect, Overlap)          \
-	PTGN_HANDLE_OVERLAP_PAIR(Triangle, Polygon, Overlap)       \
-	PTGN_HANDLE_OVERLAP_SOLO_PAIR(Rect, Rect, Overlap)         \
-	PTGN_HANDLE_OVERLAP_PAIR(Rect, Polygon, Overlap)           \
-	PTGN_HANDLE_OVERLAP_PAIR(Rect, Capsule, Overlap)           \
-	PTGN_HANDLE_OVERLAP_SOLO_PAIR(Polygon, Polygon, Overlap)   \
-	PTGN_HANDLE_OVERLAP_PAIR(Polygon, Capsule, Overlap)        \
-	PTGN_HANDLE_OVERLAP_SOLO_PAIR(Capsule, Capsule, Overlap)
+#include "core/util/type_info.h"
 
 namespace ptgn {
-
-using Point = V2_float;
 
 namespace impl {
 
 std::vector<Axis> GetPolygonAxes(
-	const V2_float* vertices, std::size_t vertex_count, [[maybe_unused]] bool intersection_info
+	std::span<const V2_float> vertices, [[maybe_unused]] bool intersection_info
 ) {
 	std::vector<Axis> axes;
 
-	const auto parallel_axis_exists = [&axes](const Axis& o_axis) {
-		for (const auto& axis : axes) {
-			if (NearlyEqual(o_axis.direction.Cross(axis.direction), 0.0f)) {
-				return true;
-			}
-		}
-		return false;
+	auto parallel_axis_exists = [&axes](const Axis& o_axis) {
+		return std::ranges::any_of(axes, [&](const auto& axis) {
+			return NearlyEqual(o_axis.direction.Cross(axis.direction), 0.0f);
+		});
 	};
 
-	axes.reserve(vertex_count);
+	axes.reserve(vertices.size());
 
-	for (std::size_t a{ 0 }; a < vertex_count; a++) {
-		std::size_t b{ a + 1 == vertex_count ? 0 : a + 1 };
+	for (auto i{ 0uz }; i < vertices.size(); ++i) {
+		auto n{ (i + 1) % vertices.size() };
 
-		Axis axis;
-		axis.midpoint  = Midpoint(vertices[a], vertices[b]);
-		axis.direction = vertices[a] - vertices[b];
+		Axis axis{ .direction = vertices[i] - vertices[n],
+				   .midpoint  = Midpoint(vertices[i], vertices[n]) };
 
 		// Skip coinciding points with no axis.
 		if (axis.direction.IsZero()) {
@@ -116,9 +69,9 @@ std::vector<Axis> GetPolygonAxes(
 }
 
 std::pair<float, float> GetPolygonProjectionMinMax(
-	const V2_float* vertices, std::size_t vertex_count, const Axis& axis
+	std::span<const V2_float> vertices, const Axis& axis
 ) {
-	PTGN_ASSERT(vertex_count > 0);
+	PTGN_ASSERT(vertices.size() > 0);
 	PTGN_ASSERT(
 		std::invoke([&]() {
 			float mag2{ axis.direction.MagnitudeSquared() };
@@ -129,8 +82,8 @@ std::pair<float, float> GetPolygonProjectionMinMax(
 
 	float min{ axis.direction.Dot(vertices[0]) };
 	float max{ min };
-	for (std::size_t i{ 1 }; i < vertex_count; i++) {
-		float p = vertices[i].Dot(axis.direction);
+	for (const auto& vertex : vertices) {
+		float p{ vertex.Dot(axis.direction) };
 		if (p < min) {
 			min = p;
 		} else if (p > max) {
@@ -145,12 +98,10 @@ bool PolygonsHaveOverlapAxis(Transform t1, const Polygon& A, Transform t2, const
 	auto world_pointsA{ A.GetWorldVertices(t1) };
 	auto world_pointsB{ B.GetWorldVertices(t2) };
 
-	const auto axes{ impl::GetPolygonAxes(world_pointsA.data(), world_pointsA.size(), false) };
-	for (const Axis& a : axes) {
-		auto [min1, max1] =
-			impl::GetPolygonProjectionMinMax(world_pointsA.data(), world_pointsA.size(), a);
-		auto [min2, max2] =
-			impl::GetPolygonProjectionMinMax(world_pointsB.data(), world_pointsB.size(), a);
+	auto axes{ impl::GetPolygonAxes(world_pointsA, false) };
+	for (const auto& axis : axes) {
+		auto [min1, max1] = impl::GetPolygonProjectionMinMax(world_pointsA, axis);
+		auto [min2, max2] = impl::GetPolygonProjectionMinMax(world_pointsB, axis);
 
 		if (!impl::IntervalsOverlap(min1, max1, min2, max2)) {
 			return false;
@@ -165,16 +116,10 @@ bool GetPolygonMinimumOverlap(
 	Polygon world_polygonA{ A.GetWorldVertices(t1) };
 	Polygon world_polygonB{ B.GetWorldVertices(t2) };
 
-	const auto axes{
-		impl::GetPolygonAxes(world_polygonA.vertices.data(), world_polygonA.vertices.size(), true)
-	};
-	for (const Axis& a : axes) {
-		auto [min1, max1] = impl::GetPolygonProjectionMinMax(
-			world_polygonA.vertices.data(), world_polygonA.vertices.size(), a
-		);
-		auto [min2, max2] = impl::GetPolygonProjectionMinMax(
-			world_polygonB.vertices.data(), world_polygonB.vertices.size(), a
-		);
+	auto axes{ impl::GetPolygonAxes(world_polygonA.vertices, true) };
+	for (const auto& axis2 : axes) {
+		auto [min1, max1] = impl::GetPolygonProjectionMinMax(world_polygonA.vertices, axis2);
+		auto [min2, max2] = impl::GetPolygonProjectionMinMax(world_polygonB.vertices, axis2);
 
 		if (!impl::IntervalsOverlap(min1, max1, min2, max2)) {
 			return false;
@@ -184,11 +129,13 @@ bool GetPolygonMinimumOverlap(
 			PolygonContainsPolygon(Transform{}, world_polygonB, Transform{}, world_polygonA)
 		};
 
-		float o{ impl::GetIntervalOverlap(min1, max1, min2, max2, contained, axis.direction) };
+		float overlap{
+			impl::GetIntervalOverlap(min1, max1, min2, max2, contained, axis.direction)
+		};
 
-		if (o < depth) {
-			depth = o;
-			axis  = a;
+		if (overlap < depth) {
+			depth = overlap;
+			axis  = axis2;
 		}
 	}
 	return true;
@@ -198,16 +145,17 @@ bool LineContainsLine(Transform t1, const Line& A, Transform t2, const Line& B) 
 	auto [lineA_start, lineA_end] = A.GetWorldVertices(t1);
 	auto [lineB_start, lineB_end] = B.GetWorldVertices(t2);
 
-	if (auto d{ (lineA_end - lineA_start).Cross(lineB_end - lineB_start) }; !NearlyEqual(d, 0.0f)) {
+	if (auto distance{ (lineA_end - lineA_start).Cross(lineB_end - lineB_start) };
+		!NearlyEqual(distance, 0.0f)) {
 		return false;
 	}
 
-	float a1{
+	float area1{
 		impl::ParallelogramArea(lineA_start, lineA_end, lineB_end)
 	}; // Compute winding of abd (+ or -)
-	float a2{ impl::ParallelogramArea(lineA_start, lineA_end, lineB_start) };
+	float area2{ impl::ParallelogramArea(lineA_start, lineA_end, lineB_start) };
 
-	if (bool collinear{ NearlyEqual(a1, 0.0f) || NearlyEqual(a2, 0.0f) }; !collinear) {
+	if (bool collinear{ NearlyEqual(area1, 0.0f) || NearlyEqual(area2, 0.0f) }; !collinear) {
 		return false;
 	}
 
@@ -223,12 +171,9 @@ bool PolygonContainsPolygon(Transform t1, const Polygon& A, Transform t2, const 
 	Polygon world_polygonA{ A.GetWorldVertices(t1) };
 	Polygon world_polygonB{ B.GetWorldVertices(t2) };
 
-	for (const auto& vertexB : world_polygonB.vertices) {
-		if (!OverlapPointPolygon(Transform{}, vertexB, Transform{}, world_polygonA)) {
-			return false;
-		}
-	}
-	return true;
+	return std::ranges::all_of(world_polygonB.vertices, [&](const auto& vertexB) {
+		return impl::OverlapPointPolygon(Transform{}, vertexB, Transform{}, world_polygonA);
+	});
 }
 
 bool TriangleContainsTriangle(Transform t1, const Triangle& A, Transform t2, const Triangle& B) {
@@ -302,7 +247,7 @@ bool OverlapPointCircle(Transform t1, V2_float A, Transform t2, const Circle& B)
 		return false;
 	}
 	auto point{ t1.Apply(A) };
-	auto circle_center{ B.GetCenter(t2) };
+	auto circle_center{ t2.position };
 
 	V2_float dist{ circle_center - point };
 	return impl::WithinPerimeter(circle_radius, dist.Dot(dist));
@@ -313,7 +258,7 @@ bool OverlapPointRect(Transform t1, V2_float A, Transform t2, const Rect& B) {
 	if (rect_size.IsZero()) {
 		return false;
 	}
-	if (t2.GetRotation() != 0.0f) {
+	if (t2.HasRotation()) {
 		return OverlapPointPolygon(t1, A, t2, Polygon{ B.GetLocalVertices() });
 	}
 
@@ -350,7 +295,7 @@ bool OverlapPointCapsule(Transform t1, V2_float A, Transform t2, const Capsule& 
 	}
 
 	auto point{ t1.Apply(A) };
-	auto [capsule_start, capsule_end] = B.GetWorldVertices(t2);
+	auto [capsule_start, capsule_end] = B.line.GetWorldVertices(t2);
 
 	// Source:
 	// http://www.r-5.org/files/books/computers/algo-list/realtime-3d/Christer_Ericson-Real-Time_Collision_Detection-EN.pdf
@@ -363,15 +308,15 @@ bool OverlapPointCapsule(Transform t1, V2_float A, Transform t2, const Capsule& 
 bool OverlapPointPolygon(Transform t1, V2_float A, Transform t2, const Polygon& B) {
 	auto point{ t1.Apply(A) };
 
-	auto world_points{ t2.Apply(B.vertices) };
+	auto world_points{ B.GetWorldVertices(t2) };
 	std::size_t count{ world_points.size() };
 	const auto& v{ world_points };
 
 	bool c{ false };
-	std::size_t i{ 0 };
+	auto i{ 0uz };
 	std::size_t j{ count - 1 };
 	// Algorithm from: https://wrfranklin.org/Research/Short_Notes/pnpoly.html
-	for (; i < count; j = i++) {
+	for (; i < count; j = ++i) {
 		bool a{ (v[i].y > point.y) != (v[j].y > point.y) };
 		auto vji{ v[j] - v[i] };
 		auto d{ (point.y - v[i].y) * vji.x / vji.y };
@@ -389,13 +334,13 @@ bool OverlapLineLine(Transform t1, const Line& A, Transform t2, const Line& B) {
 	// Source:
 	// https://www.geeksforgeeks.org/check-if-two-given-line-segments-intersect/
 
-	// Sign of areas correspond to which side of ab points c and d are
-	float a1{
-		impl::ParallelogramArea(lineA_start, lineA_end, lineB_end)
-	}; // Compute winding of abd (+ or -)
-	float a2{
-		impl::ParallelogramArea(lineA_start, lineA_end, lineB_start)
-	}; // To intersect, must have sign opposite of a1
+	// Sign of areas correspond to which side of ab points c and d are.
+	// Compute winding of abd (+ or -)
+	float a1{ impl::ParallelogramArea(lineA_start, lineA_end, lineB_end) };
+
+	// To intersect, must have sign opposite of a1
+	float a2{ impl::ParallelogramArea(lineA_start, lineA_end, lineB_start) };
+
 	// If c and d are on different sides of ab, areas have different signs
 	bool polarity_diff{ false };
 	bool collinear{ false };
@@ -414,7 +359,7 @@ bool OverlapLineLine(Transform t1, const Line& A, Transform t2, const Line& B) {
 			impl::ParallelogramArea(lineB_start, lineB_end, lineA_start)
 		}; // Compute winding of cda (+ or -)
 		// Since area is constant a1 - a2 = a3 - a4, or a4 = a3 + a2 - a1
-		// const T a4 = math::ParallelogramArea(c, d, b); // Must have opposite
+		// T a4 = math::ParallelogramArea(c, d, b); // Must have opposite
 		// sign of a3
 		float a4{ a3 + a2 - a1 };
 		// Points a and b on different sides of cd if areas have different signs
@@ -460,7 +405,7 @@ bool OverlapLineCircle(Transform t1, const Line& A, Transform t2, const Circle& 
 
 	float min_dist2{ std::numeric_limits<float>::infinity() };
 
-	auto circle_center{ B.GetCenter(t2) };
+	auto circle_center{ t2.position };
 
 	// O is the circle center, P is the line start, Q is the line end.
 	V2_float OP{ line_start - circle_center };
@@ -500,7 +445,7 @@ bool OverlapLineRect(Transform t1, const Line& A, Transform t2, const Rect& B) {
 		return false;
 	}
 	auto [line_start, line_end] = A.GetWorldVertices(t1);
-	if (t2.GetRotation() != 0.0f) {
+	if (t2.HasRotation()) {
 		return OverlapLinePolygon(
 			Transform{}, Line{ line_start, line_end }, t2, Polygon{ B.GetLocalVertices() }
 		);
@@ -528,8 +473,8 @@ bool OverlapLineRect(Transform t1, const Line& A, Transform t2, const Rect& B) {
 
 	// Add in an epsilon term to counteract arithmetic errors when segment is
 	// (near) parallel to a coordinate axis.
-	adx += epsilon<float>;
-	ady += epsilon<float>;
+	adx += kEpsilon<float>;
+	ady += kEpsilon<float>;
 
 	// Try cross products of segment direction vector with coordinate axes.
 	float cross{ m.Cross(d) };
@@ -551,7 +496,7 @@ bool OverlapLineCapsule(Transform t1, const Line& A, Transform t2, const Capsule
 		return false;
 	}
 	auto [line_start, line_end]		  = A.GetWorldVertices(t1);
-	auto [capsule_start, capsule_end] = B.GetWorldVertices(t2);
+	auto [capsule_start, capsule_end] = B.line.GetWorldVertices(t2);
 	// Source:
 	// http://www.r-5.org/files/books/computers/algo-list/realtime-3d/Christer_Ericson-Real-Time_Collision_Detection-EN.pdf
 	// Page 114-115.
@@ -568,18 +513,17 @@ bool OverlapLineCapsule(Transform t1, const Line& A, Transform t2, const Capsule
 bool OverlapLinePolygon(Transform t1, const Line& A, Transform t2, const Polygon& B) {
 	auto [line_start, line_end] = A.GetWorldVertices(t1);
 	auto polygon_vertices		= B.GetWorldVertices(t2);
+
 	if (OverlapPointPolygon(Transform{}, line_start, Transform{}, Polygon{ polygon_vertices })) {
 		return true;
 	}
 
-	std::size_t polygon_vertex_count{ polygon_vertices.size() };
+	PTGN_ASSERT(B.IsConvex());
 
-	PTGN_ASSERT(impl::IsConvexPolygon(polygon_vertices.data(), polygon_vertex_count));
-
-	for (std::size_t i{ 0 }; i < polygon_vertex_count; ++i) {
+	for (auto i{ 0uz }; i < polygon_vertices.size(); ++i) {
 		if (OverlapLineLine(
 				Transform{}, { line_start, line_end }, Transform{},
-				Line{ polygon_vertices[i], polygon_vertices[(i + 1) % polygon_vertex_count] }
+				Line{ polygon_vertices[i], polygon_vertices[(i + 1) % polygon_vertices.size()] }
 			)) {
 			return true;
 		}
@@ -588,8 +532,8 @@ bool OverlapLinePolygon(Transform t1, const Line& A, Transform t2, const Polygon
 }
 
 bool OverlapCircleCircle(Transform t1, const Circle& A, Transform t2, const Circle& B) {
-	auto circleA_center{ A.GetCenter(t1) };
-	auto circleB_center{ B.GetCenter(t2) };
+	auto circleA_center{ t1.position };
+	auto circleB_center{ t2.position };
 	auto circleA_radius{ A.GetRadius(t1) };
 	auto circleB_radius{ B.GetRadius(t2) };
 	// Source:
@@ -604,7 +548,7 @@ bool OverlapCircleTriangle(Transform t1, const Circle& A, Transform t2, const Tr
 	if (auto circle_radius{ A.GetRadius(t1) }; circle_radius <= 0.0f) {
 		return false;
 	}
-	auto circle_center{ A.GetCenter(t1) };
+	auto circle_center{ t1.position };
 	auto [a, b, c] = B.GetWorldVertices(t2);
 	return OverlapPointTriangle(Transform{}, circle_center, Transform{}, Triangle{ a, b, c }) ||
 		   OverlapLineCircle(Transform{}, Line{ a, b }, t1, A) ||
@@ -621,10 +565,10 @@ bool OverlapCircleRect(Transform t1, const Circle& A, Transform t2, const Rect& 
 	if (rect_size.IsZero()) {
 		return false;
 	}
-	if (t2.GetRotation() != 0.0f) {
+	if (t2.HasRotation()) {
 		return OverlapCirclePolygon(t1, A, t2, Polygon{ B.GetLocalVertices() });
 	}
-	auto circle_center{ A.GetCenter(t1) };
+	auto circle_center{ t1.position };
 	auto rect_center{ B.GetCenter(t2) };
 	// Source:
 	// http://www.r-5.org/files/books/computers/algo-list/realtime-3d/Christer_Ericson-Real-Time_Collision_Detection-EN.pdf
@@ -643,20 +587,19 @@ bool OverlapCirclePolygon(Transform t1, const Circle& A, Transform t2, const Pol
 		return false;
 	}
 
-	if (auto circle_center{ A.GetCenter(t1) };
-		OverlapPointPolygon(Transform{}, circle_center, t2, B)) {
+	if (auto circle_center{ t1.position }; OverlapPointPolygon(Transform{}, circle_center, t2, B)) {
 		return true;
 	}
 
+	PTGN_ASSERT(B.IsConvex());
+
 	auto polygon_vertices{ B.GetWorldVertices(t2) };
-	std::size_t polygon_vertex_count{ polygon_vertices.size() };
 
-	PTGN_ASSERT(impl::IsConvexPolygon(polygon_vertices.data(), polygon_vertex_count));
-
-	for (std::size_t i{ 0 }; i < polygon_vertex_count; ++i) {
+	for (auto i{ 0uz }; i < polygon_vertices.size(); ++i) {
 		if (OverlapLineCircle(
 				Transform{},
-				Line{ polygon_vertices[i], polygon_vertices[(i + 1) % polygon_vertex_count] }, t1, A
+				Line{ polygon_vertices[i], polygon_vertices[(i + 1) % polygon_vertices.size()] },
+				t1, A
 			)) {
 			return true;
 		}
@@ -674,12 +617,12 @@ bool OverlapCircleCapsule(Transform t1, const Circle& A, Transform t2, const Cap
 	if (capsule_radius <= 0.0f) {
 		return false;
 	}
-	auto circle_center{ A.GetCenter(t1) };
-	auto [capsule_start, capsule_end] = B.GetWorldVertices(t2);
+	auto circle_center{ t1.position };
+	auto [capsule_start, capsule_end] = B.line.GetWorldVertices(t2);
 	// Source:
 	// http://www.r-5.org/files/books/computers/algo-list/realtime-3d/Christer_Ericson-Real-Time_Collision_Detection-EN.pdf
 	// Page 114.
-	// If (squared) distance smaller than (squared) sum of radii, they collide
+	// If (squared) distance smaller than (squared) sum of radii, a collision has occurred
 	return impl::WithinPerimeter(
 		circle_radius + capsule_radius,
 		impl::SquareDistancePointLine(circle_center, capsule_start, capsule_end)
@@ -708,9 +651,7 @@ bool OverlapTriangleRect(
 	if (auto rect_size{ B.GetSize(t2) }; rect_size.IsZero()) {
 		return false;
 	}
-	return OverlapPolygonPolygon(
-		t1, Polygon{ A.GetLocalVertices() }, t2, Polygon{ B.GetLocalVertices() }
-	);
+	return OverlapPolygonPolygon(t1, Polygon{ A.vertices }, t2, Polygon{ B.GetLocalVertices() });
 }
 
 bool OverlapTrianglePolygon(Transform t1, const Triangle& A, Transform t2, const Polygon& B) {
@@ -719,15 +660,14 @@ bool OverlapTrianglePolygon(Transform t1, const Triangle& A, Transform t2, const
 		return true;
 	}
 
+	PTGN_ASSERT(B.IsConvex());
+
 	auto polygon_vertices{ B.GetWorldVertices(t2) };
-	std::size_t polygon_vertex_count{ polygon_vertices.size() };
 
-	PTGN_ASSERT(impl::IsConvexPolygon(polygon_vertices.data(), polygon_vertex_count));
-
-	for (std::size_t i{ 0 }; i < polygon_vertex_count; ++i) {
+	for (auto i{ 0uz }; i < polygon_vertices.size(); ++i) {
 		if (OverlapLineTriangle(
 				Transform{},
-				Line{ polygon_vertices[i], polygon_vertices[(i + 1) % polygon_vertex_count] },
+				Line{ polygon_vertices[i], polygon_vertices[(i + 1) % polygon_vertices.size()] },
 				Transform{}, Triangle{ a, b, c }
 			)) {
 			return true;
@@ -743,7 +683,7 @@ bool OverlapTriangleCapsule(Transform t1, const Triangle& A, Transform t2, const
 		return false;
 	}
 
-	auto [capsule_start, capsule_end] = B.GetWorldVertices(t2);
+	auto [capsule_start, capsule_end] = B.line.GetWorldVertices(t2);
 
 	auto triangle_polygon{ A.GetWorldVertices(t1) };
 
@@ -764,7 +704,7 @@ bool OverlapTriangleCapsule(Transform t1, const Triangle& A, Transform t2, const
 }
 
 bool OverlapRectRect(Transform t1, const Rect& A, Transform t2, const Rect& B) {
-	if (t1.GetRotation() != 0.0f || t2.GetRotation() != 0.0f) {
+	if (t1.HasRotation() || t2.HasRotation()) {
 		return OverlapPolygonPolygon(
 			t1, Polygon{ A.GetLocalVertices() }, t2, Polygon{ B.GetLocalVertices() }
 		);
@@ -813,7 +753,7 @@ bool OverlapRectCapsule(Transform t1, const Rect& A, Transform t2, const Capsule
 		return false;
 	}
 
-	auto [capsule_start, capsule_end] = B.GetWorldVertices(t2);
+	auto [capsule_start, capsule_end] = B.line.GetWorldVertices(t2);
 
 	if (OverlapPointRect(Transform{}, capsule_start, t1, A)) {
 		return true;
@@ -824,7 +764,7 @@ bool OverlapRectCapsule(Transform t1, const Rect& A, Transform t2, const Capsule
 	}
 
 	// Rotated rect.
-	if (t1.GetRotation() != 0.0f) {
+	if (t1.HasRotation()) {
 		return OverlapPolygonCapsule(
 			t1, Polygon{ A.GetLocalVertices() }, Transform{},
 			Capsule{ capsule_start, capsule_end, capsule_radius }
@@ -887,8 +827,8 @@ bool OverlapCapsuleCapsule(Transform t1, const Capsule& A, Transform t2, const C
 	auto capsuleA_radius{ A.GetRadius(t1) };
 	auto capsuleB_radius{ B.GetRadius(t2) };
 
-	auto [capsuleA_start, capsuleA_end] = A.GetWorldVertices(t1);
-	auto [capsuleB_start, capsuleB_end] = B.GetWorldVertices(t2);
+	auto [capsuleA_start, capsuleA_end] = A.line.GetWorldVertices(t1);
+	auto [capsuleB_start, capsuleB_end] = B.line.GetWorldVertices(t2);
 
 	return impl::WithinPerimeter(
 		capsuleA_radius + capsuleB_radius,
@@ -900,12 +840,10 @@ bool OverlapCapsuleCapsule(Transform t1, const Capsule& A, Transform t2, const C
 
 bool OverlapPolygonPolygon(Transform t1, const Polygon& A, Transform t2, const Polygon& B) {
 	PTGN_ASSERT(
-		impl::IsConvexPolygon(A.vertices.data(), A.vertices.size()),
-		"PolygonPolygon overlap check only works if both polygons are convex"
+		A.IsConvex(), "PolygonPolygon overlap check only works if both polygons are convex"
 	);
 	PTGN_ASSERT(
-		impl::IsConvexPolygon(B.vertices.data(), B.vertices.size()),
-		"PolygonPolygon overlap check only works if both polygons are convex"
+		B.IsConvex(), "PolygonPolygon overlap check only works if both polygons are convex"
 	);
 	return impl::PolygonsHaveOverlapAxis(t1, A, t2, B) &&
 		   impl::PolygonsHaveOverlapAxis(t2, B, t1, A);
@@ -919,11 +857,11 @@ bool OverlapPolygonCapsule(Transform t1, const Polygon& A, Transform t2, const C
 	}
 
 	auto world_polygon{ A.GetWorldVertices(t1) };
-	auto [capsule_start, capsule_end] = B.GetWorldVertices(t2);
+	auto [capsule_start, capsule_end] = B.line.GetWorldVertices(t2);
 
-	std::size_t vertex_count{ world_polygon.size() };
+	auto vertex_count{ world_polygon.size() };
 
-	for (std::size_t i{ 0 }; i < vertex_count; ++i) {
+	for (auto i{ 0uz }; i < vertex_count; ++i) {
 		if (OverlapLineCapsule(
 				Transform{}, Line{ world_polygon[i], world_polygon[(i + 1) % vertex_count] },
 				Transform{}, Capsule{ capsule_start, capsule_end, capsule_radius }
@@ -937,22 +875,116 @@ bool OverlapPolygonCapsule(Transform t1, const Polygon& A, Transform t2, const C
 } // namespace impl
 
 bool Overlap(Transform t1, const ColliderShape& shape1, Transform t2, const ColliderShape& shape2) {
-	return std::visit(
-		[&]<typename S1>(const S1& s1) -> bool {
-			return std::visit(
-				[&]<typename S2>(const S2& s2) -> bool {
-					PTGN_OVERLAP_SHAPE_PAIR_TABLE {
-						PTGN_ERROR(
-							"Cannot find overlap function for the given shapes: ", type_name<S1>(),
-							" and ", type_name<S2>()
-						);
-					}
-				},
-				shape2
-			);
-		},
-		shape1
-	);
+	return shape1.Visit([&]<typename S1>(const S1& s1) -> bool {
+		return shape2.Visit([&]<typename S2>(const S2& s2) -> bool {
+			if constexpr (std::is_same_v<S1, V2_float> && std::is_same_v<S2, V2_float>) {
+				return impl::OverlapPointPoint(t1, s1, t2, s2);
+			} else if constexpr (std::is_same_v<S1, V2_float> && std::is_same_v<S2, Line>) {
+				return impl::OverlapPointLine(t1, s1, t2, s2);
+			} else if constexpr (std::is_same_v<S1, Line> && std::is_same_v<S2, V2_float>) {
+				return impl::OverlapPointLine(t2, s2, t1, s1);
+			} else if constexpr (std::is_same_v<S1, V2_float> && std::is_same_v<S2, Triangle>) {
+				return impl::OverlapPointTriangle(t1, s1, t2, s2);
+			} else if constexpr (std::is_same_v<S1, Triangle> && std::is_same_v<S2, V2_float>) {
+				return impl::OverlapPointTriangle(t2, s2, t1, s1);
+			} else if constexpr (std::is_same_v<S1, V2_float> && std::is_same_v<S2, Capsule>) {
+				return impl::OverlapPointCapsule(t1, s1, t2, s2);
+			} else if constexpr (std::is_same_v<S1, Capsule> && std::is_same_v<S2, V2_float>) {
+				return impl::OverlapPointCapsule(t2, s2, t1, s1);
+			} else if constexpr (std::is_same_v<S1, V2_float> && std::is_same_v<S2, Rect>) {
+				return impl::OverlapPointRect(t1, s1, t2, s2);
+			} else if constexpr (std::is_same_v<S1, Rect> && std::is_same_v<S2, V2_float>) {
+				return impl::OverlapPointRect(t2, s2, t1, s1);
+			} else if constexpr (std::is_same_v<S1, V2_float> && std::is_same_v<S2, Circle>) {
+				return impl::OverlapPointCircle(t1, s1, t2, s2);
+			} else if constexpr (std::is_same_v<S1, Circle> && std::is_same_v<S2, V2_float>) {
+				return impl::OverlapPointCircle(t2, s2, t1, s1);
+			} else if constexpr (std::is_same_v<S1, V2_float> && std::is_same_v<S2, Polygon>) {
+				return impl::OverlapPointPolygon(t1, s1, t2, s2);
+			} else if constexpr (std::is_same_v<S1, Polygon> && std::is_same_v<S2, V2_float>) {
+				return impl::OverlapPointPolygon(t2, s2, t1, s1);
+			} else if constexpr (std::is_same_v<S1, Line> && std::is_same_v<S2, Line>) {
+				return impl::OverlapLineLine(t1, s1, t2, s2);
+			} else if constexpr (std::is_same_v<S1, Line> && std::is_same_v<S2, Line>) {
+				return impl::OverlapLineLine(t2, s2, t1, s1);
+			} else if constexpr (std::is_same_v<S1, Line> && std::is_same_v<S2, Triangle>) {
+				return impl::OverlapLineTriangle(t1, s1, t2, s2);
+			} else if constexpr (std::is_same_v<S1, Triangle> && std::is_same_v<S2, Line>) {
+				return impl::OverlapLineTriangle(t2, s2, t1, s1);
+			} else if constexpr (std::is_same_v<S1, Line> && std::is_same_v<S2, Capsule>) {
+				return impl::OverlapLineCapsule(t1, s1, t2, s2);
+			} else if constexpr (std::is_same_v<S1, Capsule> && std::is_same_v<S2, Line>) {
+				return impl::OverlapLineCapsule(t2, s2, t1, s1);
+			} else if constexpr (std::is_same_v<S1, Line> && std::is_same_v<S2, Rect>) {
+				return impl::OverlapLineRect(t1, s1, t2, s2);
+			} else if constexpr (std::is_same_v<S1, Rect> && std::is_same_v<S2, Line>) {
+				return impl::OverlapLineRect(t2, s2, t1, s1);
+			} else if constexpr (std::is_same_v<S1, Line> && std::is_same_v<S2, Circle>) {
+				return impl::OverlapLineCircle(t1, s1, t2, s2);
+			} else if constexpr (std::is_same_v<S1, Circle> && std::is_same_v<S2, Line>) {
+				return impl::OverlapLineCircle(t2, s2, t1, s1);
+			} else if constexpr (std::is_same_v<S1, Line> && std::is_same_v<S2, Polygon>) {
+				return impl::OverlapLinePolygon(t1, s1, t2, s2);
+			} else if constexpr (std::is_same_v<S1, Polygon> && std::is_same_v<S2, Line>) {
+				return impl::OverlapLinePolygon(t2, s2, t1, s1);
+			} else if constexpr (std::is_same_v<S1, Circle> && std::is_same_v<S2, Circle>) {
+				return impl::OverlapCircleCircle(t1, s1, t2, s2);
+			} else if constexpr (std::is_same_v<S1, Circle> && std::is_same_v<S2, Rect>) {
+				return impl::OverlapCircleRect(t1, s1, t2, s2);
+			} else if constexpr (std::is_same_v<S1, Rect> && std::is_same_v<S2, Circle>) {
+				return impl::OverlapCircleRect(t2, s2, t1, s1);
+			} else if constexpr (std::is_same_v<S1, Circle> && std::is_same_v<S2, Polygon>) {
+				return impl::OverlapCirclePolygon(t1, s1, t2, s2);
+			} else if constexpr (std::is_same_v<S1, Polygon> && std::is_same_v<S2, Circle>) {
+				return impl::OverlapCirclePolygon(t2, s2, t1, s1);
+			} else if constexpr (std::is_same_v<S1, Circle> && std::is_same_v<S2, Triangle>) {
+				return impl::OverlapCircleTriangle(t1, s1, t2, s2);
+			} else if constexpr (std::is_same_v<S1, Triangle> && std::is_same_v<S2, Circle>) {
+				return impl::OverlapCircleTriangle(t2, s2, t1, s1);
+			} else if constexpr (std::is_same_v<S1, Circle> && std::is_same_v<S2, Capsule>) {
+				return impl::OverlapCircleCapsule(t1, s1, t2, s2);
+			} else if constexpr (std::is_same_v<S1, Capsule> && std::is_same_v<S2, Circle>) {
+				return impl::OverlapCircleCapsule(t2, s2, t1, s1);
+			} else if constexpr (std::is_same_v<S1, Triangle> && std::is_same_v<S2, Triangle>) {
+				return impl::OverlapTriangleTriangle(t1, s1, t2, s2);
+			} else if constexpr (std::is_same_v<S1, Triangle> && std::is_same_v<S2, Capsule>) {
+				return impl::OverlapTriangleCapsule(t1, s1, t2, s2);
+			} else if constexpr (std::is_same_v<S1, Capsule> && std::is_same_v<S2, Triangle>) {
+				return impl::OverlapTriangleCapsule(t2, s2, t1, s1);
+			} else if constexpr (std::is_same_v<S1, Triangle> && std::is_same_v<S2, Rect>) {
+				return impl::OverlapTriangleRect(t1, s1, t2, s2);
+			} else if constexpr (std::is_same_v<S1, Rect> && std::is_same_v<S2, Triangle>) {
+				return impl::OverlapTriangleRect(t2, s2, t1, s1);
+			} else if constexpr (std::is_same_v<S1, Triangle> && std::is_same_v<S2, Polygon>) {
+				return impl::OverlapTrianglePolygon(t1, s1, t2, s2);
+			} else if constexpr (std::is_same_v<S1, Polygon> && std::is_same_v<S2, Triangle>) {
+				return impl::OverlapTrianglePolygon(t2, s2, t1, s1);
+			} else if constexpr (std::is_same_v<S1, Rect> && std::is_same_v<S2, Rect>) {
+				return impl::OverlapRectRect(t1, s1, t2, s2);
+			} else if constexpr (std::is_same_v<S1, Rect> && std::is_same_v<S2, Polygon>) {
+				return impl::OverlapRectPolygon(t1, s1, t2, s2);
+			} else if constexpr (std::is_same_v<S1, Polygon> && std::is_same_v<S2, Rect>) {
+				return impl::OverlapRectPolygon(t2, s2, t1, s1);
+			} else if constexpr (std::is_same_v<S1, Rect> && std::is_same_v<S2, Capsule>) {
+				return impl::OverlapRectCapsule(t1, s1, t2, s2);
+			} else if constexpr (std::is_same_v<S1, Capsule> && std::is_same_v<S2, Rect>) {
+				return impl::OverlapRectCapsule(t2, s2, t1, s1);
+			} else if constexpr (std::is_same_v<S1, Polygon> && std::is_same_v<S2, Polygon>) {
+				return impl::OverlapPolygonPolygon(t1, s1, t2, s2);
+			} else if constexpr (std::is_same_v<S1, Polygon> && std::is_same_v<S2, Capsule>) {
+				return impl::OverlapPolygonCapsule(t1, s1, t2, s2);
+			} else if constexpr (std::is_same_v<S1, Capsule> && std::is_same_v<S2, Polygon>) {
+				return impl::OverlapPolygonCapsule(t2, s2, t1, s1);
+			} else if constexpr (std::is_same_v<S1, Capsule> && std::is_same_v<S2, Capsule>) {
+				return impl::OverlapCapsuleCapsule(t1, s1, t2, s2);
+			} else {
+				PTGN_ERROR(
+					"Cannot find overlap function for the given shapes: ", type_name<S1>(), " and ",
+					type_name<S2>()
+				);
+			}
+		});
+	});
 }
 
 bool Overlap(V2_float point, Transform t2, const ColliderShape& shape2) {

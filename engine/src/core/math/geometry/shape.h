@@ -1,6 +1,7 @@
 #pragma once
 
-#include <optional>
+#include <ranges>
+#include <type_traits>
 #include <variant>
 #include <vector>
 
@@ -8,6 +9,7 @@
 #include "core/math/geometry/capsule.h"
 #include "core/math/geometry/circle.h"
 #include "core/math/geometry/ellipse.h"
+#include "core/math/geometry/geometry_utils.h"
 #include "core/math/geometry/line.h"
 #include "core/math/geometry/polygon.h"
 #include "core/math/geometry/rect.h"
@@ -15,99 +17,170 @@
 #include "core/math/geometry/triangle.h"
 #include "core/math/transform.h"
 #include "core/math/vector2.h"
+#include "core/util/concepts.h"
 #include "serialization/json/fwd.h"
+#include "serialization/serialize.h"
 
 namespace ptgn {
 
-class Shape;
-
-namespace impl {
-
-template <typename... Ts>
-struct NamedVariant : public std::variant<Ts...> {
-	using std::variant<Ts...>::variant;
-	using variant_type = std::variant<Ts...>;
-
-	template <typename T>
-	static constexpr bool contains = (std::is_same_v<T, Ts> || ...);
-};
-
-using ShapeVariant = NamedVariant<
+using ShapeVariant = std::variant<
 	V2_float, Rect, Circle, Ellipse, Polygon, RoundedRect, Arc, Line, Triangle, Capsule>;
+using ColliderShapeVariant	  = ShapeVariant;
+using InteractiveShapeVariant = std::variant<Rect, Circle>;
 
-using ColliderVariant = NamedVariant<
-	V2_float, Rect, Circle, Ellipse, Polygon, RoundedRect, Arc, Line, Triangle, Capsule>;
-
-using InteractiveVariant = NamedVariant<Rect, Circle>;
-
-} // namespace impl
-
-template <typename T>
-concept Visitable = requires(const T& v) {
-	std::visit([](const auto&) {}, static_cast<const typename T::variant_type&>(v));
-};
-
-template <typename T>
-concept ShapeType = impl::ShapeVariant::template contains<T>;
-
-template <typename T>
-concept InteractiveType = impl::InteractiveVariant::template contains<T>;
-
-template <typename T>
-concept ColliderType = impl::ColliderVariant::template contains<T>;
-
-class InteractiveShape : public impl::InteractiveVariant {
+class Shape {
 public:
-	using impl::InteractiveVariant::InteractiveVariant;
+	constexpr Shape() = default;
 
-	template <Visitable T>
-	InteractiveShape(const T& shape) {
-		std::visit([&](const auto& value) { *this = InteractiveShape{ value }; }, shape);
+	template <VariantContains<ShapeVariant> T>
+	constexpr Shape(const T& shape) : shape_{ shape } {} // NOSONAR
+
+	template <VariantContains<ShapeVariant> T>
+	[[nodiscard]] constexpr bool HoldsAlternative() const {
+		return std::holds_alternative<T>(shape_);
 	}
 
-	bool operator==(const InteractiveShape&) const = default;
-
-	// friend void to_json(json& j, const InteractiveShape& shape);
-	// friend void from_json(const json& j, InteractiveShape& shape);
-};
-
-class ColliderShape : public impl::ColliderVariant {
-public:
-	using impl::ColliderVariant::ColliderVariant;
-
-	template <Visitable T>
-	ColliderShape(const T& shape) {
-		std::visit([&](const auto& value) { *this = ColliderShape{ value }; }, shape);
+	template <VariantContains<ShapeVariant> T>
+	[[nodiscard]] constexpr const T& Get() const {
+		return std::get<T>(shape_);
 	}
 
-	bool operator==(const ColliderShape&) const = default;
+	template <typename F>
+	constexpr decltype(auto) Visit(F&& f) const {
+		return std::visit(std::forward<F>(f), shape_);
+	}
+
+	constexpr bool operator==(const Shape&) const = default;
+
+	PTGN_REFLECT_VALUE(Shape, shape_)
+private:
+	ShapeVariant shape_;
+};
+
+class ColliderShape {
+public:
+	constexpr ColliderShape() = default;
+
+	template <VariantContains<ColliderShapeVariant> T>
+	constexpr ColliderShape(const T& shape) : shape_{ shape } {} // NOSONAR
+
+	template <VariantContains<ColliderShapeVariant> T>
+	[[nodiscard]] constexpr bool HoldsAlternative() const {
+		return std::holds_alternative<T>(shape_);
+	}
+
+	template <VariantContains<ColliderShapeVariant> T>
+	[[nodiscard]] constexpr const T& Get() const {
+		return std::get<T>(shape_);
+	}
+
+	template <typename F>
+	constexpr decltype(auto) Visit(F&& f) const {
+		return std::visit(std::forward<F>(f), shape_);
+	}
+
+	constexpr operator Shape() const { // NOSONAR
+		return std::visit([](const auto& s) { return Shape{ s }; }, shape_);
+	}
+
+	constexpr bool operator==(const ColliderShape&) const = default;
 
 	// friend void to_json(json& j, const ColliderShape& shape);
 	// friend void from_json(const json& j, ColliderShape& shape);
+
+	PTGN_REFLECT_VALUE(ColliderShape, shape_)
+private:
+	ColliderShapeVariant shape_;
 };
 
-class Shape : public impl::ShapeVariant {
+class InteractiveShape {
 public:
-	using impl::ShapeVariant::ShapeVariant;
+	constexpr InteractiveShape() = default;
 
-	Shape() = default;
+	template <VariantContains<InteractiveShapeVariant> T>
+	constexpr InteractiveShape(const T& shape) : shape_{ shape } {} // NOSONAR
 
-	template <Visitable T>
-	Shape(const T& shape) {
-		std::visit([&](const auto& value) { *this = Shape{ value }; }, shape);
+	template <VariantContains<InteractiveShapeVariant> T>
+	[[nodiscard]] constexpr bool HoldsAlternative() const {
+		return std::holds_alternative<T>(shape_);
 	}
 
-	bool operator==(const Shape&) const = default;
+	template <VariantContains<InteractiveShapeVariant> T>
+	[[nodiscard]] constexpr const T& Get() const {
+		return std::get<T>(shape_);
+	}
 
-	// friend void to_json(json& j, const Shape& shape);
-	// friend void from_json(const json& j, Shape& shape);
+	template <typename F>
+	constexpr decltype(auto) Visit(F&& f) const {
+		return std::visit(std::forward<F>(f), shape_);
+	}
+
+	constexpr operator Shape() const { // NOSONAR
+		return std::visit([](const auto& s) { return Shape{ s }; }, shape_);
+	}
+
+	constexpr operator ColliderShape() const { // NOSONAR
+		return std::visit([](const auto& s) { return ColliderShape{ s }; }, shape_);
+	}
+
+	constexpr bool operator==(const InteractiveShape&) const = default;
+
+	// friend void to_json(json& j, const InteractiveShape& shape);
+	// friend void from_json(const json& j, InteractiveShape& shape);
+
+	PTGN_REFLECT_VALUE(InteractiveShape, shape_)
+private:
+	InteractiveShapeVariant shape_;
 };
 
-/// @return The vertices that fully contain the shape.
-/// For a line, this is the start and end points.
-/// For polygons, this is equivalent to their vertices.
-/// For shapes with curved edges, this is the quad that contains them.
-std::vector<V2_float> GetWorldVertices(const Shape& shape, Transform transform);
+template <typename T>
+concept ShapeType = VariantContains<T, ShapeVariant>;
+
+template <typename T>
+concept InteractiveType = VariantContains<T, InteractiveShapeVariant>;
+
+template <typename T>
+concept ColliderType = VariantContains<T, ColliderShapeVariant>;
+
+constexpr std::array<V2_float, 4> GetWorldVertices(const Rect& shape, Transform transform) {
+	return shape.GetWorldVertices(transform);
+}
+
+constexpr std::array<V2_float, 2> GetWorldVertices(const Line& shape, Transform transform) {
+	return shape.GetWorldVertices(transform);
+}
+
+constexpr std::array<V2_float, 3> GetWorldVertices(const Triangle& shape, Transform transform) {
+	return transform.Apply(shape.vertices);
+}
+
+constexpr std::vector<V2_float> GetWorldVertices(const Polygon& shape, Transform transform) {
+	return transform.Apply(shape.vertices);
+}
+
+constexpr std::array<V2_float, 4> GetWorldVertices(const Ellipse& shape, Transform transform) {
+	return shape.GetWorldQuadVertices(transform);
+}
+
+constexpr std::array<V2_float, 4> GetWorldVertices(const Circle& shape, Transform transform) {
+	return shape.GetWorldQuadVertices(transform);
+}
+
+constexpr std::array<V2_float, 4> GetWorldVertices(const Arc& shape, Transform transform) {
+	return shape.GetWorldQuadVertices(transform);
+}
+
+constexpr std::array<V2_float, 4> GetWorldVertices(const Capsule& shape, Transform transform) {
+	return shape.GetWorldQuadVertices(transform);
+}
+
+constexpr std::array<V2_float, 4> GetWorldVertices(const RoundedRect& shape, Transform transform) {
+	return GetWorldVertices(shape.rect, transform);
+}
+
+constexpr std::array<V2_float, 4> GetWorldVertices(V2_float, Transform transform) {
+	return GetWorldVertices(Rect{ V2_float{ 1.0f } }, transform);
+}
 
 struct EdgeInfo {
 	/// @brief If a shape has arced edges, this is set to true and edges is populated with the quad
@@ -117,6 +190,19 @@ struct EdgeInfo {
 	std::vector<Line> edges;
 };
 
-EdgeInfo GetEdges(const Shape& shape, Transform transform);
+template <ShapeType T>
+constexpr EdgeInfo GetEdges(const T& shape, Transform transform) {
+	EdgeInfo info;
+
+	if constexpr (IsAnyOf<T, RoundedRect, Ellipse, Circle, Arc, Capsule>) {
+		info.quad_approximation = true;
+	}
+
+	auto world_vertices{ GetWorldVertices(shape, transform) };
+
+	info.edges = PointsToLines(world_vertices, true);
+
+	return info;
+}
 
 } // namespace ptgn

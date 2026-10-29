@@ -1,8 +1,8 @@
 #pragma once
 
-#include "ecs/ecs.h"
+#include <ecs/ecs.h>
+
 #include "serialization/json/archiver.h"
-#include "serialization/json/fwd.h"
 
 namespace ptgn {
 
@@ -14,9 +14,9 @@ class RenderData;
 
 } // namespace impl
 
-class Manager : public ecs::impl::Manager<JsonArchiver> {
+class Manager : public ecs::impl::BaseManager<JsonArchiver> {
 private:
-	using ManagerBase = ecs::impl::Manager<JsonArchiver>;
+	using ManagerBase = ecs::impl::BaseManager<JsonArchiver>;
 
 public:
 	Manager()							   = default;
@@ -35,9 +35,6 @@ public:
 		ManagerBase::GetOrAddPool<T>(ManagerBase::GetId<T>());
 	}
 
-	friend void to_json(json& j, const Manager& manager);
-	friend void from_json(const json& j, Manager& manager);
-
 private:
 	friend class Entity;
 	friend class Scene;
@@ -49,11 +46,3 @@ private:
 };
 
 } // namespace ptgn
-
-namespace ecs::impl {
-
-void to_json(ptgn::json& j, const DynamicBitset& bitset);
-
-void from_json(const ptgn::json& j, DynamicBitset& bitset);
-
-} // namespace ecs::impl

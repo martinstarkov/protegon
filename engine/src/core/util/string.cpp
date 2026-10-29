@@ -1,25 +1,25 @@
 #include "core/util/string.h"
 
-#include <algorithm>
-#include <cctype>
+#include <iomanip>
+#include <ios>
+#include <ostream>
+#include <sstream>
 #include <string>
 
 namespace ptgn {
 
-std::string ToLower(const std::string& str) {
-	std::string lower = str;
-	std::transform(lower.begin(), lower.end(), lower.begin(), [](unsigned char c) {
-		return static_cast<char>(std::tolower(c));
-	});
-	return lower;
-}
+std::string ToString(double value, int precision) {
+	std::ostringstream ss;
+	ss << std::fixed << std::setprecision(precision) << value;
 
-std::string ToUpper(const std::string& str) {
-	std::string upper = str;
-	std::transform(upper.begin(), upper.end(), upper.begin(), [](unsigned char c) {
-		return static_cast<char>(std::toupper(c));
-	});
-	return upper;
+	std::string s{ ss.str() };
+
+	// Catch and remove -0s. As per: https://stackoverflow.com/a/21538723
+	if (!s.empty() && s[0] == '-' && s.find_first_of("123456789") == std::string::npos) {
+		s.erase(0, 1);
+	}
+
+	return s;
 }
 
 } // namespace ptgn

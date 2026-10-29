@@ -1,20 +1,22 @@
 #pragma once
 
+#include <algorithm>
 #include <array>
 #include <iomanip>
 #include <ios>
 #include <iterator>
 #include <limits>
 #include <ostream>
-#include <type_traits>
 
 #include "core/assert.h"
+#include "core/math/angle.h"
 #include "core/math/tolerance.h"
 #include "core/math/transform.h"
 #include "core/math/vector2.h"
 #include "core/math/vector3.h"
 #include "core/math/vector4.h"
 #include "core/util/concepts.h"
+#include "core/util/reflection.h"
 #include "serialization/json/fwd.h"
 
 namespace ptgn {
@@ -23,31 +25,34 @@ class Quaternion;
 
 struct Matrix4 {
 public:
-	constexpr static V2_size size{ 4, 4 };
+	constexpr static V2_int size{ 4, 4 };
 	constexpr static std::size_t length{ size.x * size.y };
 
 	friend void to_json(json& j, const Matrix4& m);
 
 	friend void from_json(const json& j, Matrix4& m);
 
+	PTGN_REFLECT_VALUE(Matrix4, m_)
+
 	friend std::ostream& operator<<(std::ostream& os, const Matrix4& m) {
 		os << "\n";
-		os << std::fixed << std::right << std::setprecision(static_cast<std::streamsize>(3))
-		   << std::setfill(' ') << "[";
-		for (std::size_t i{ 0 }; i < m.size.x; ++i) {
-			if (i != 0) {
+		os << std::fixed << std::right									   // NOSONAR
+		   << std::setprecision(static_cast<std::streamsize>(3))		   // NOSONAR
+		   << std::setfill(' ') << "[";									   // NOSONAR
+		for (auto i{ 0uz }; i < static_cast<std::size_t>(m.size.x); ++i) { // NOSONAR
+			if (i) {
 				os << " ";
 			}
 			os << "[";
-			for (std::size_t j = 0; j < m.size.y; ++j) {
+			for (auto j{ 0uz }; j < static_cast<std::size_t>(m.size.y); ++j) { // NOSONAR
 				os << std::setw(9);
 				os << m(i, j);
-				if (j != static_cast<std::size_t>(m.size.y) - 1) {
+				if (j != m.size.y - 1uz) { // NOSONAR
 					os << ",";
 				}
 			}
 			os << "]";
-			if (i != static_cast<std::size_t>(m.size.x) - 1) {
+			if (i != m.size.x - 1uz) { // NOSONAR
 				// os << ",";
 				os << "\n";
 			}
@@ -102,29 +107,29 @@ public:
 	}
 
 	explicit constexpr Matrix4(float diag) {
-		for (std::size_t x{ 0 }; x < size.x; x++) {
-			m_[x + x * size.x] = diag;
+		for (auto i{ 0uz }; i < static_cast<std::size_t>(size.x); ++i) {
+			m_[i + i * size.x] = diag;
 		}
 	}
 
-	[[nodiscard]] constexpr float& operator()(std::size_t x, std::size_t y) {
-		PTGN_ASSERT(x < size.x);
-		PTGN_ASSERT(y < size.y);
+	constexpr float& operator()(std::size_t x, std::size_t y) {
+		PTGN_ASSERT(x < static_cast<std::size_t>(size.x));
+		PTGN_ASSERT(y < static_cast<std::size_t>(size.y));
 		return m_[x + y * size.x];
 	}
 
-	[[nodiscard]] constexpr const float& operator()(std::size_t x, std::size_t y) const {
-		PTGN_ASSERT(x < size.x);
-		PTGN_ASSERT(y < size.y);
+	constexpr const float& operator()(std::size_t x, std::size_t y) const {
+		PTGN_ASSERT(x < static_cast<std::size_t>(size.x));
+		PTGN_ASSERT(y < static_cast<std::size_t>(size.y));
 		return m_[x + y * size.x];
 	}
 
-	[[nodiscard]] constexpr float& operator[](std::size_t col_major_index) {
+	constexpr float& operator[](std::size_t col_major_index) {
 		PTGN_ASSERT(col_major_index < length);
 		return m_[col_major_index];
 	}
 
-	[[nodiscard]] constexpr const float& operator[](std::size_t col_major_index) const {
+	constexpr const float& operator[](std::size_t col_major_index) const {
 		PTGN_ASSERT(col_major_index < length);
 		return m_[col_major_index];
 	}
@@ -157,8 +162,12 @@ public:
 		*this = Scale(*this, axes);
 	}
 
-	void Rotate(float rotation_radians, V3_float axes) {
-		*this = Rotate(*this, rotation_radians, axes);
+	void Rotate(Radians rotation, V3_float axes) {
+		*this = Rotate(*this, rotation, axes);
+	}
+
+	void Rotate(Degrees rotation, V3_float axes) {
+		*this = Rotate(*this, rotation, axes);
 	}
 
 	void Translate(V3_float translation) {
@@ -182,39 +191,55 @@ public:
 		float far = std::numeric_limits<float>::infinity()
 	);
 
-	[[nodiscard]] static Matrix4 MakeTransform(
-		V3_float position, float rotation_radians, V3_float rotation_axis, V3_float scale
+	/// @brief Creates an orthographic projection matrix with the given view size, centered at the
+	/// origin.
+	[[nodiscard]] static Matrix4 Orthographic(
+		V2_float view_size, float near = -std::numeric_limits<float>::infinity(),
+		float far = std::numeric_limits<float>::infinity()
 	);
 
 	[[nodiscard]] static Matrix4 MakeTransform(
-		V2_float position, float rotation_radians, V2_float scale
+		V3_float position, Radians rotation, V3_float rotation_axis, V3_float scale
 	);
+	[[nodiscard]] static Matrix4 MakeTransform(
+		V3_float position, Degrees rotation, V3_float rotation_axis, V3_float scale
+	);
+
+	[[nodiscard]] static Matrix4 MakeTransform(V2_float position, Radians rotation, V2_float scale);
+	[[nodiscard]] static Matrix4 MakeTransform(V2_float position, Degrees rotation, V2_float scale);
 
 	[[nodiscard]] static Matrix4 MakeTransform(Transform transform);
 
 	[[nodiscard]] static Matrix4 MakeInverseTransform(
-		V3_float position, float rotation_radians, V3_float rotation_axis, V3_float scale
+		V3_float position, Radians rotation, V3_float rotation_axis, V3_float scale
+	);
+	[[nodiscard]] static Matrix4 MakeInverseTransform(
+		V3_float position, Degrees rotation, V3_float rotation_axis, V3_float scale
 	);
 
 	[[nodiscard]] static Matrix4 MakeInverseTransform(
-		V2_float position, float rotation_radians, V2_float scale
+		V2_float position, Radians rotation, V2_float scale
+	);
+	[[nodiscard]] static Matrix4 MakeInverseTransform(
+		V2_float position, Degrees rotation, V2_float scale
 	);
 
 	[[nodiscard]] static Matrix4 MakeInverseTransform(Transform transform);
 
-	/// @brief Field of view angle fov_x in radians.
-	/// Example usage: Matrix4 proj = Matrix4::Perspective(DegToRad(45.0f), width / height, 0.1f,
-	/// 100.0f);
+	/// @brief Example usage: Matrix4 proj = Matrix4::Perspective(Radians{ 45.0f }, width / height,
+	/// 0.1f, 100.0f);
+	/// @param fov_x Field of view angle
 	[[nodiscard]] static Matrix4 Perspective(
-		float fov_x_radians, float aspect_ratio, float front, float back
+		Radians fov_x, float aspect_ratio, float front, float back
+	);
+	[[nodiscard]] static Matrix4 Perspective(
+		Degrees fov_x, float aspect_ratio, float front, float back
 	);
 
 	[[nodiscard]] static Matrix4 Translate(const Matrix4& matrix, V3_float axes);
 
-	/// @brief Angle in radians.
-	[[nodiscard]] static Matrix4 Rotate(
-		const Matrix4& matrix, float rotation_radians, V3_float axes
-	);
+	[[nodiscard]] static Matrix4 Rotate(const Matrix4& matrix, Radians rotation, V3_float axes);
+	[[nodiscard]] static Matrix4 Rotate(const Matrix4& matrix, Degrees rotation, V3_float axes);
 
 	[[nodiscard]] static Matrix4 Scale(const Matrix4& matrix, V3_float axes);
 
@@ -222,57 +247,57 @@ public:
 
 	[[nodiscard]] bool ExactlyEquals(const Matrix4& o) const;
 
-	friend bool operator==(const Matrix4& a, const Matrix4& b) {
-		for (std::size_t i{ 0 }; i < length; i++) {
-			if (!NearlyEqual(a.m_[i], b.m_[i])) {
-				return false;
-			}
-		}
-		return true;
+	constexpr friend bool operator==(const Matrix4& a, const Matrix4& b) {
+		return std::ranges::equal(a.m_, b.m_, [](float lhs, float rhs) {
+			return NearlyEqual(lhs, rhs);
+		});
 	}
 
-	[[nodiscard]] Matrix4 operator+(const Matrix4& rhs);
+	[[nodiscard]] Matrix4 operator+(const Matrix4& rhs) const;
 
-	[[nodiscard]] Matrix4 operator-(const Matrix4& rhs);
+	[[nodiscard]] Matrix4 operator-(const Matrix4& rhs) const;
 
-	[[nodiscard]] Matrix4 operator*(const Matrix4& rhs);
+	[[nodiscard]] Matrix4 operator*(const Matrix4& rhs) const;
 
-	template <Arithmetic U>
-	[[nodiscard]] inline V4_float operator*(Vector4<U> rhs) {
+	[[nodiscard]] friend V4_float operator*(const Matrix4& lhs, const V4_float& rhs) {
 		V4_float res;
 
-		for (std::size_t row{ 0 }; row < size.x; ++row) {
-			for (std::size_t i{ 0 }; i < size.y; ++i) {
-				res[row] += m_[row + i * size.x] * rhs[i];
+		for (auto row{ 0uz }; row < static_cast<std::size_t>(size.x); ++row) {
+			for (auto i{ 0uz }; i < static_cast<std::size_t>(size.y); ++i) {
+				res[row] += lhs.m_[row + i * size.x] * rhs[i];
 			}
 		}
 		return res;
 	}
 
 	template <Arithmetic U>
-	[[nodiscard]] inline Matrix4 operator*(U rhs) {
+	[[nodiscard]] friend Matrix4 operator*(const Matrix4& lhs, U rhs) {
 		Matrix4 res;
 
-		for (std::size_t i{ 0 }; i < res.length; ++i) {
-			res[i] = m_[i] * rhs;
+		for (auto i{ 0uz }; i < res.length; ++i) { // NOSONAR
+			res[i] = lhs.m_[i] * rhs;
 		}
 		return res;
 	}
 
 	template <Arithmetic U>
-	[[nodiscard]] inline Matrix4 operator/(U rhs) {
+	[[nodiscard]] friend Matrix4 operator/(const Matrix4& lhs, U rhs) {
 		Matrix4 res;
 
-		for (std::size_t i{ 0 }; i < res.length; ++i) {
-			res[i] = m_[i] / static_cast<float>(rhs);
+		for (auto i{ 0uz }; i < res.length; ++i) { // NOSONAR
+			res[i] = lhs.m_[i] / static_cast<float>(rhs);
 		}
 		return res;
 	}
 };
 
 template <Arithmetic U>
-[[nodiscard]] inline Matrix4 operator*(U A, const Matrix4& B) {
+[[nodiscard]] Matrix4 operator*(U A, const Matrix4& B) { // NOSONAR
 	return B * A;
 }
+
+Matrix4 GetOrthographicViewProjection(
+	Transform transform, V2_float viewport_size, bool pixel_rounding
+);
 
 } // namespace ptgn

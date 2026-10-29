@@ -1,0 +1,137 @@
+#include "runtime/world/paint_generator.h"
+
+#include <algorithm>
+#include <optional>
+#include <ranges>
+#include <utility>
+
+#include "core/assert.h"
+#include "core/math/transform.h"
+#include "runtime/ecs/entity_creation_context.h"
+#include "runtime/ecs/entity_hierarchy.h"
+#include "runtime/scene/scene.h"
+#include "runtime/world/tilemap.h"
+
+namespace ptgn {
+
+PaintGenerator::PaintGenerator(Entity entity) : Entity{ entity } {
+	PTGN_ASSERT(
+		!entity || entity.Has<impl::PaintGeneratorData>(), "Entity is not a PaintGenerator"
+	);
+}
+
+const impl::PaintGeneratorData& PaintGenerator::GetData() const {
+	PTGN_ASSERT(*this, "Cannot access a null PaintGenerator");
+	return Get<impl::PaintGeneratorData>();
+}
+
+impl::PaintGeneratorData& PaintGenerator::GetData() {
+	return const_cast<impl::PaintGeneratorData&>(std::as_const(*this).GetData());
+}
+
+PaintGenerator& PaintGenerator::SetGeometry(PaintGeneratorGeometry geometry) {
+	GetData().geometry = geometry;
+	return *this;
+}
+
+PaintGenerator& PaintGenerator::SetGrid(V2_float size, V2_float offset) {
+	PTGN_ASSERT(size.IsPositive(), "Generator grid size must be positive");
+	GetData().grid_size	  = size;
+	GetData().grid_offset = offset;
+	return *this;
+}
+
+PaintGenerator& PaintGenerator::SetEnabled(bool enabled) {
+	GetData().enabled = enabled;
+	return *this;
+}
+
+Tilemap PaintGenerator::GetTargetTilemap() const {
+	if (!*this || !HasParent(*this)) {
+		return {};
+	}
+
+	Entity parent{ GetParent(*this) };
+	if (!parent || !IsTilemap(parent)) {
+		return {};
+	}
+
+	return Tilemap{ parent };
+}
+
+bool PaintGenerator::SetTargetTilemap(std::optional<Tilemap> target) {
+	if (!*this) {
+		return false;
+	}
+
+	std::optional<Transform> world_transform{
+		Has<Transform>() ? std::optional<Transform>{ GetWorldTransform(*this) } : std::nullopt
+	};
+
+	if (!target.has_value()) {
+		if (HasParent(*this) && IsTilemap(GetParent(*this))) {
+			RemoveParent(*this);
+			if (world_transform.has_value()) {
+				SetWorldTransform(*this, *world_transform);
+			}
+		}
+		return true;
+	}
+
+	if (!*target || !IsTilemap(*target)) {
+		return false;
+	}
+
+	if (HasScene()) {
+		if (!target->HasScene() || &target->GetScene() != &GetScene()) {
+			return false;
+		}
+	} else if (target->HasScene() || &target->GetManager() != &GetManager()) {
+		return false;
+	}
+
+	SetParent(*this, *target);
+	if (world_transform.has_value()) {
+		SetWorldTransform(*this, *world_transform);
+	}
+
+	return true;
+}
+
+bool PaintGenerator::IsSuppressed(V2_int cell) const {
+	return std::ranges::contains(GetData().suppressed_cells, cell);
+}
+
+bool PaintGenerator::SetSuppressed(V2_int cell, bool suppressed) {
+	auto& cells{ GetData().suppressed_cells };
+	auto it{ std::ranges::find(cells, cell) };
+	if (suppressed) {
+		if (it != cells.end()) {
+			return false;
+		}
+		cells.emplace_back(cell);
+		return true;
+	}
+	if (it == cells.end()) {
+		return false;
+	}
+	cells.erase(it);
+	return true;
+}
+
+void PaintGenerator::ClearSuppressions() {
+	GetData().suppressed_cells.clear();
+}
+
+bool IsPaintGenerator(Entity entity) {
+	return entity && entity.Has<impl::PaintGeneratorData>();
+}
+
+PaintGenerator CreatePaintGenerator(EntityCreationContext context, Tag tag) {
+	Entity entity{ context.CreateEntity(std::move(tag)) };
+	entity.TryAdd<Transform>();
+	entity.Add<impl::PaintGeneratorData>();
+	return PaintGenerator{ entity };
+}
+
+} // namespace ptgn

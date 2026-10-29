@@ -6,7 +6,6 @@
 #include <vector>
 
 #include "core/math/vector2.h"
-#include "core/util/file.h"
 #include "runtime/ecs/entity.h"
 #include "runtime/scene/scene.h"
 #include "serialization/json/fwd.h"
@@ -31,10 +30,10 @@ class TemplateMenuScene : public Scene {
 public:
 	TemplateMenuScene() = default;
 
-	TemplateMenuScene(const std::string& key, const json& scene_json_arg);
+	TemplateMenuScene(const std::string& scene_key, const json& scene_json_arg);
 
 	std::string key;
-	json scene_json;
+	json scene_json = json::object();
 
 	void OnEnter() override;
 };
@@ -65,6 +64,6 @@ private:
 	std::unordered_map<std::string, PrefixFunc> prefix_handlers_;
 };
 
-void EnterSceneConfig(Scene& scene, const path& template_json_path);
+void EnterSceneConfig(Scene& scene, const json& template_json);
 
 } // namespace ptgn

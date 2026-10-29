@@ -1,138 +1,315 @@
 #include "tools/debug/debug_system.h"
 
+#include <functional>
 #include <optional>
-#include <string_view>
+#include <span>
 #include <utility>
-#include <variant>
 #include <vector>
 
-#include "core/math/geometry/line.h"
+#include "core/graphics/color.h"
+#include "core/graphics/fill_style.h"
 #include "core/math/geometry/origin.h"
 #include "core/math/geometry/rect.h"
 #include "core/math/geometry/shape.h"
 #include "core/math/transform.h"
 #include "core/math/vector2.h"
-#include "renderer/primitives/color.h"
-#include "renderer/primitives/id.h"
-#include "renderer/primitives/texture.h"
-#include "renderer/primitives/vertex.h"
-#include "renderer/renderer.h"
-#include "runtime/asset/asset.h"
-#include "runtime/asset/asset_manager.h"
-#include "runtime/graphics/camera.h"
+#include "renderer/pipeline/camera.h"
+#include "renderer/pipeline/render_state.h"
+#include "renderer/text/text_layout.h"
+#include "renderer/text/text_style.h"
+#include "runtime/ecs/entity.h"
 #include "runtime/graphics/draw.h"
-#include "runtime/graphics/font.h"
-#include "runtime/graphics/render_context.h"
-#include "runtime/graphics/text.h"
+#include "runtime/graphics/frame_context.h"
+#include "runtime/graphics/fx/light.h"
+#include "runtime/graphics/render_queue.h"
+#include "runtime/graphics/render_target.h"
+#include "runtime/graphics/text/text.h"
+#include "runtime/interaction/interaction_system.h"
+#include "runtime/interaction/interactive.h"
+#include "runtime/physics/collider.h"
 #include "runtime/scene/scene.h"
+#include "runtime/scene/scene_camera.h"
+#include "runtime/scene/scene_context.h"
+#include "tools/debug/debug_settings.h"
 #include "tools/debug/profiling.h"
 #include "tools/debug/stats.h"
 
 namespace ptgn {
 
-DebugContext::DebugContext(RenderContext& render_context) : render_context_{ render_context } {}
+namespace {
 
-void DebugContext::DrawText(
-	std::string_view text_content, Transform transform, Color text_color, FontSize font_size,
-	FontOrKey font, const TextProperties& properties, Origin draw_origin,
-	std::optional<V2_float> text_size, bool hd_text, const std::optional<Camera>& camera
+void DrawPolygonLines(
+	Scene& scene, const SceneCamera& camera, std::span<const V2_float> vertices, Color color,
+	const FillStyle& fill_style, Depth depth
 ) {
-	auto hd_scale{ impl::ApplyHDTextScaling(hd_text, transform, render_context_.scene_, camera) };
-
-	auto texture_object{ render_context_.scene_.ctx().asset.CreateTextTextureObject(
-		text_content, text_color, font_size, font, properties, hd_scale
-	) };
-
-	if (!texture_object.has_value()) {
+	if (vertices.size() < 2) {
 		return;
 	}
 
-	auto texture_size{ texture_object->GetSize() };
-
-	auto texture_id{ texture_object->operator impl::TextureId() };
-
-	render_context_.temporary_textures_.emplace_back(std::move(*texture_object));
-
-	auto quad_shader{ render_context_.renderer_.GetShader("quad") };
-
-	auto& debug_commands{ render_context_.GetDebugCommandsForCamera(camera) };
-
-	Rect rect{ text_size.value_or(texture_size) };
-
-	auto positions{ rect.GetWorldVertices(transform, draw_origin) };
-
-	auto tex_coords{ impl::GetDefaultTextureCoordinates<false>() };
-
-	constexpr bool floor_positions{ true };
-
-	impl::TextureCommand texture_command{ quad_shader,	  texture_id, positions,
-										  color::White,	  tex_coords, debug_blend_mode,
-										  floor_positions };
-
-	debug_commands.emplace_back(texture_command, debug_depth);
-}
-
-void DebugContext::DrawShape(
-	const Shape& shape, Transform transform, Color color, FillStyle fill_style, Origin draw_origin,
-	const std::optional<Camera>& camera
-) {
-	auto shape_draw_commands{ DrawContext::GetShapeDrawCommand(
-		render_context_.renderer_, shape, transform, color, fill_style, draw_origin,
-		debug_blend_mode
-	) };
-
-	auto& debug_commands{ render_context_.GetDebugCommandsForCamera(camera) };
-
-	if (!shape_draw_commands.has_value()) {
-		return;
-	}
-
-	std::visit(
-		[&](const auto& cmd) { RenderContext::AddDrawCommand(debug_commands, cmd, debug_depth); },
-		*shape_draw_commands
+	scene.ctx().render_queue.DrawLines(
+		vertices, color,
+		ShapeRenderParams{
+			.fill_style = fill_style,
+			.origin		= Origin::Center,
+			.depth		= depth,
+			.camera		= camera,
+			.debug		= true,
+		},
+		true, {}
 	);
 }
 
-void DebugContext::DrawLines(
-	const std::vector<V2_float>& points, Color color, float line_width, bool connect_last_to_first,
-	std::optional<Transform> transform, const std::optional<Camera>& camera
+void DrawDebugColliders(
+	Scene& scene, const SceneCamera& camera, const impl::EntityFilterFunc& filter,
+	const CollisionDebugSettings& settings
 ) {
-	auto& debug_commands{ render_context_.GetDebugCommandsForCamera(camera) };
+	if (!settings.draw_enabled) {
+		return;
+	}
 
-	constexpr bool floor_positions{ false };
+	for (auto [entity, collider] : scene.EntitiesWith<Collider>()) {
+		// Camera render mask test, independent of scene hierarchy organization.
+		if (filter(entity)) {
+			continue;
+		}
 
-	auto line_draw_commands{ DrawContext::GetLineDrawCommands(
-		points, line_width, transform.value_or(Transform{}), color, debug_blend_mode,
-		connect_last_to_first, floor_positions
-	) };
+		auto transform{ GetDrawTransform(entity) };
+		auto origin{ entity.GetOrDefault<Origin>() };
 
-	RenderContext::AddDrawCommand(debug_commands, line_draw_commands, debug_depth);
+		scene.ctx().render_queue.DrawShape(
+			transform, collider.shape, settings.draw_color,
+			ShapeRenderParams{ .fill_style = settings.draw_fill_style,
+							   .origin	   = origin,
+							   .camera	   = camera,
+							   .debug	   = true }
+		);
+	}
 }
 
-void DebugContext::DrawLine(
-	V2_float start, V2_float end, Color color, float line_width, const std::optional<Camera>& camera
+void DrawDebugTextBoundingBoxes(
+	Scene& scene, const SceneCamera& camera, const impl::EntityFilterFunc& filter,
+	const TextDebugSettings& settings
 ) {
-	DrawShape(Line{ start, end }, {}, color, FillStyle::Hollow(line_width), Origin::Center, camera);
+	if (!settings.draw_enabled) {
+		return;
+	}
+
+	for (const auto& [entity, data] : std::as_const(scene).EntitiesWith<impl::TextData>()) {
+		if (filter(entity)) {
+			continue;
+		}
+
+		if (!data.text.HasContent()) {
+			continue;
+		}
+
+		Text text{ entity };
+		const auto& layout{ text.GetLayout() };
+
+		auto transform{ GetDrawTransform(entity) };
+		auto origin{ entity.GetOrDefault<Origin>() };
+		const auto& box{ data.box };
+
+		auto prepared{ impl::PrepareTextDraw(transform, layout, box, origin) };
+
+		if (!prepared.drawable) {
+			continue;
+		}
+
+		auto shape_params = [&] {
+			return ShapeRenderParams{
+				.fill_style = settings.draw_line_width,
+				.origin		= Origin::Center,
+				.camera		= camera,
+				.debug		= true,
+			};
+		};
+
+		auto draw_rect = [&](Rect rect, Color color) {
+			if (!rect.GetSize().IsPositive()) {
+				return;
+			}
+
+			// TODO: Dont translate.
+			auto transformed{ prepared.transform };
+			transformed.Translate(rect.GetCenter());
+
+			scene.ctx().render_queue.DrawShape(
+				transformed, Rect{ rect.GetSize() }, color, shape_params()
+			);
+		};
+
+		auto draw_line = [&](V2_float start, V2_float end, Color color) {
+			scene.ctx().render_queue.DrawLine(
+				start, end, color, shape_params(), prepared.transform
+			);
+		};
+
+		auto layout_bounds{ layout.GetBounds() };
+
+		if (box.HasArea()) {
+			// Both dimensions are constrained, so draw the complete text box.
+			draw_rect(box.rect, settings.draw_color);
+		} else if (box.HasWidth()) {
+			// Only width is constrained. Draw the two vertical boundaries
+			// where the left and right sides of the text box would be.
+			draw_line(
+				{ box.rect.min.x, layout_bounds.min.y }, { box.rect.min.x, layout_bounds.max.y },
+				settings.draw_color
+			);
+
+			draw_line(
+				{ box.rect.max.x, layout_bounds.min.y }, { box.rect.max.x, layout_bounds.max.y },
+				settings.draw_color
+			);
+		} else if (box.HasHeight()) {
+			// Only height is constrained. Draw the two horizontal boundaries
+			// where the top and bottom sides of the text box would be.
+			draw_line(
+				{ layout_bounds.min.x, box.rect.min.y }, { layout_bounds.max.x, box.rect.min.y },
+				settings.draw_color
+			);
+
+			draw_line(
+				{ layout_bounds.min.x, box.rect.max.y }, { layout_bounds.max.x, box.rect.max.y },
+				settings.draw_color
+			);
+		} else {
+			// Unconstrained text has no explicit box, so show its generated
+			// logical bounds instead.
+			draw_rect(layout_bounds, settings.draw_color);
+		}
+
+		// An explicit clip rectangle always has both dimensions and is local
+		// to the same prepared text transform.
+		if (data.clip.has_value()) {
+			draw_rect(data.clip.value().rect, settings.clip_draw_color);
+		}
+	}
 }
 
-void DebugContext::DrawPoint(V2_float point, Color color, const std::optional<Camera>& camera) {
-	DrawShape(point, {}, color, FillStyle::Hollow(1.0f), Origin::Center, camera);
+void DrawDebugInteractiveShapes(
+	Scene& scene, const SceneCamera& camera, const Camera& cam, const RenderTarget& render_target,
+	const impl::EntityFilterFunc& filter, const InteractiveDebugSettings& settings
+) {
+	if (!settings.draw_enabled) {
+		return;
+	}
+
+	impl::MouseInfo mouse{ scene };
+
+	mouse.position = ConvertPoint(
+		mouse.position, Frame::Window, Frame::World,
+		FrameContext{ scene.ctx().renderer, render_target, cam }
+	);
+
+	scene.ctx().render_queue.DrawPoint(
+		mouse.position, settings.draw_color, { .camera = camera, .debug = true }
+	);
+
+	for (auto [entity, interactive] : scene.EntitiesWith<impl::Interactive>()) {
+		if (!interactive.enabled) {
+			continue;
+		}
+
+		if (filter(entity)) {
+			continue;
+		}
+
+		if (auto lock{ entity.TryGet<InteractionLock>() }; lock && lock->block_hover) {
+			continue;
+		}
+
+		std::vector<std::pair<InteractiveShape, Entity>> shapes;
+
+		impl::GetShapes(entity, entity, shapes);
+
+		for (const auto& [shape, shape_entity] : shapes) {
+			auto draw_transform{ GetDrawTransform(shape_entity) };
+
+			scene.ctx().render_queue.DrawShape(
+				draw_transform, shape, settings.draw_color,
+				{ .fill_style = settings.draw_line_width,
+				  .origin	  = shape_entity.GetOrDefault<Origin>(),
+				  .camera	  = camera,
+				  .debug	  = true }
+			);
+		}
+	}
 }
 
-DebugSystem::DebugSystem() {}
+void DrawDebugLightVisibilityPolygons(
+	Scene& scene, const SceneCamera& camera, const impl::EntityFilterFunc& filter,
+	const LightVisibilityDebugSettings& settings
+) {
+	if (!settings.draw_enabled) {
+		return;
+	}
+
+	for (auto [entity, _light, visibility_polygon] :
+		 scene.EntitiesWith<LightData, impl::VisibilityPolygon>()) {
+		// Camera render mask test, independent of scene hierarchy organization.
+		if (filter(entity)) {
+			continue;
+		}
+
+		if (visibility_polygon.vertices.empty()) {
+			continue;
+		}
+
+		auto depth{ GetDepth(entity) };
+
+		DrawPolygonLines(
+			scene, camera, visibility_polygon.vertices, settings.polygon_color,
+			settings.draw_fill_style, depth
+		);
+
+		if (!settings.draw_interiors) {
+			continue;
+		}
+
+		for (const auto& interior : visibility_polygon.occluder_interiors) {
+			auto color{ interior.masks_light_inside ? settings.masks_inside_color
+													: settings.does_not_mask_inside_color };
+
+			DrawPolygonLines(
+				scene, camera, interior.vertices, color, settings.draw_fill_style, depth
+			);
+		}
+	}
+}
+
+} // namespace
+
+namespace impl {
+
+void DrawDebug(
+	Scene& scene, const SceneCamera& camera, const Camera& cam, const RenderTarget& render_target,
+	const impl::EntityFilterFunc& filter, const DebugSystem& debug
+) {
+	DrawDebugLightVisibilityPolygons(scene, camera, filter, debug.settings.light);
+	DrawDebugTextBoundingBoxes(scene, camera, filter, debug.settings.text);
+	DrawDebugColliders(scene, camera, filter, debug.settings.collision);
+	DrawDebugInteractiveShapes(
+		scene, camera, cam, render_target, filter, debug.settings.interaction
+	);
+}
+
+} // namespace impl
+
+void DebugSystem::SetSettings(const DebugSettings& debug_settings) {
+	settings = debug_settings;
+}
+
+DebugSettings DebugSystem::GetSettings() const {
+	return settings;
+}
 
 void DebugSystem::PreUpdate() {
 	impl::GetProfiler().timings_.clear();
 }
 
-void DebugSystem::PostUpdate() {
-	// stats.PrintCollisionOverlap();
-	// stats.PrintCollisionIntersect();
-	// stats.PrintCollisionRaycast();
-	// stats.PrintRenderer();
-	// PTGN_LOG("--------------------------------------");
-	// profiler.PrintAll();
-
+void DebugSystem::PostRender() {
 	stats.Reset();
 }
 

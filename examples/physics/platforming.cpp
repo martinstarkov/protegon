@@ -1,66 +1,57 @@
 #include "app/application.h"
-#include "core/event/dispatcher.h"
+#include "app/editor.h"
+#include "core/graphics/color.h"
+#include "core/graphics/fill_style.h"
 #include "core/math/geometry/origin.h"
 #include "core/math/geometry/rect.h"
 #include "core/math/vector2.h"
-#include "renderer/primitives/color.h"
 #include "runtime/ecs/entity.h"
+#include "runtime/ecs/entity_filter.h"
+#include "runtime/ecs/entity_group.h"
 #include "runtime/graphics/shape.h"
 #include "runtime/physics/collider.h"
-#include "runtime/physics/collision_handler.h"
 #include "runtime/physics/movement.h"
 #include "runtime/physics/physics.h"
+#include "runtime/physics/platformer_jump_registry.h"
 #include "runtime/physics/rigid_body.h"
 #include "runtime/scene/scene.h"
-
-#include "runtime/scripting/script.h"
-#include "runtime/scripting/scripts.h"
+#include "runtime/scene/scene_context.h"
+#include "tools/debug/debug_system.h"
 
 using namespace ptgn;
 
-constexpr V2_int game_size{ 960, 540 };
-
-constexpr ColliderMask ground_mask{ 1 };
-
-class GroundScript : public Script {
-public:
-	void OnEvent(EventDispatcher d) override {
-		d.Dispatch<CollisionEvent>([this](const auto& e) { Ground(e.collision); });
-	}
-
-	void Ground(const Collision& c) const {
-		if (c.normal == V2_float{ 0.0f, -1.0f }) {
-			PlatformerJump::Ground(entity, c, ground_mask);
-		}
-	}
-};
+constexpr V2_int logical_size{ 960, 540 };
 
 class PlatformingScene : public Scene {
 	Entity CreatePlatform(const V2_float& position, const V2_float& size, Origin origin) {
-		auto entity = CreateRect(*this, position, size, color::Purple, -1.0f, origin);
-		auto& box	= entity.Add<Collider>(Rect{ size });
-		box.SetMask(ground_mask);
+		auto entity = CreateRect(*this, position, size, color::Purple, Solid{}, origin);
+		entity.Add<Collider>(Rect{ size });
+		entity.Add<Group>().groups.emplace_back("Ground");
 		return entity;
 	}
 
 	Entity CreatePlayer() {
-		auto entity = CreateRect(
-			*this, V2_float{ 100, 100 }, V2_float{ 20, 40 }, color::DarkGreen, -1.0f, Origin::Center
-		);
-		auto& rb   = entity.Add<RigidBody>();
-		rb.gravity = 1.0f;
-		entity.Add<PlatformerMovement>();
-		entity.Add<PlatformerJump>();
-		auto& b = entity.Add<Collider>(Rect{ V2_float{ 20, 40 } });
-		b.SetCollisionMode(CollisionMode::Continuous);
-		AddScript<GroundScript>(entity);
+		auto entity =
+			CreateRect(*this, { 100, 100 }, { 20, 40 }, color::DarkGreen, Solid{}, Origin::Center);
+
+		entity.Add<RigidBody>();
+
+		auto& collider{ entity.Add<Collider>(Rect{ 20, 40 }) };
+		collider.SetCollisionMode(CollisionMode::Continuous);
+
+		auto& movement{ entity.Add<PlatformerMovement>() };
+		movement.grounding.direction			 = GroundingDirection::AgainstGravity;
+		movement.grounding.entities.type		 = EntityFilterType::Group;
+		movement.grounding.entities.group.groups = { "Ground" };
+
+		SetPlatformerJumpController(entity, "standard");
 		return entity;
 	}
 
 	void OnEnter() override {
-		ctx().collision.SetSettings({ .debug_draw_ccd = true, .debug_draw_enabled = true });
+		ctx().debug.settings.collision = { .draw_ccd = true, .draw_enabled = true };
 
-		V2_float ws{ game_size };
+		V2_float ws{ logical_size };
 		ctx().physics.SetGravity({ 0.0f, 1.0f });
 
 		CreatePlayer();
@@ -75,6 +66,7 @@ class PlatformingScene : public Scene {
 };
 
 int main(int, char**) {
-	Application app{ "PlatformingScene", game_size };
+	Application app{ "PlatformingScene", logical_size };
+	PTGN_WITH_EDITOR(app, true);
 	app.StartWith<PlatformingScene>();
 }

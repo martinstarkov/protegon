@@ -1,23 +1,16 @@
 #include "runtime/graphics/graphics.h"
 
+#include <chrono>
+
 #include "app/application.h"
-#include "core/event/dispatcher.h"
-#include "core/log.h"
+#include "core/graphics/color.h"
 #include "core/math/geometry/circle.h"
-#include "core/math/geometry/origin.h"
 #include "core/math/geometry/rect.h"
 #include "core/math/transform.h"
 #include "core/math/vector2.h"
-#include "platform/input/events.h"
-#include "platform/input/key.h"
-#include "platform/window/window.h"
-#include "renderer/primitives/color.h"
-#include "runtime/ecs/entity.h"
-#include "runtime/graphics/draw.h"
 #include "runtime/physics/movement.h"
 #include "runtime/scene/scene.h"
-
-#include "runtime/ui/button.h"
+#include "runtime/scene/scene_context.h"
 
 using namespace ptgn;
 
@@ -28,7 +21,7 @@ struct GraphicsScene : public Scene {
 		graphics = CreateGraphics(*this);
 
 		graphics.SetStrokeColor(color::Blue);
-		graphics.SetLineWidth(FillStyle::Hollow(2.0f));
+		graphics.SetLineWidth(2.0f);
 		graphics.StrokeCircle({ 0, 80 }, Circle{ 40.0f });
 		graphics.StrokeCircle({ 40, 80 }, Circle{ 20.0f });
 

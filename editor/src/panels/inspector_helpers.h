@@ -1,0 +1,260 @@
+#pragma once
+
+#include <imgui.h>
+
+#include <cstdint>
+#include <optional>
+#include <string>
+#include <string_view>
+#include <utility>
+
+#include "core/math/vector2.h"
+#include "editor/editor_context.h"
+
+namespace ptgn::editor::inspector {
+
+class ScopedDisabled {
+public:
+	explicit ScopedDisabled(bool disabled) : disabled_{ disabled } {
+		if (disabled_) {
+			ImGui::BeginDisabled();
+		}
+	}
+
+	~ScopedDisabled() {
+		if (disabled_) {
+			ImGui::EndDisabled();
+		}
+	}
+
+	ScopedDisabled(const ScopedDisabled&)			 = delete;
+	ScopedDisabled& operator=(const ScopedDisabled&) = delete;
+
+private:
+	bool disabled_{ false };
+};
+
+// Keeps data controls read only while allowing inspection of nested navigation widgets.
+inline int& ActionEditorDisabledDepth() {
+	static thread_local int depth{ 0 };
+	return depth;
+}
+
+class ScopedActionEditorDisabled {
+public:
+	explicit ScopedActionEditorDisabled(bool disabled) : disabled_{ disabled } {
+		if (disabled_) {
+			++ActionEditorDisabledDepth();
+			ImGui::BeginDisabled();
+		}
+	}
+
+	~ScopedActionEditorDisabled() {
+		if (disabled_) {
+			ImGui::EndDisabled();
+			--ActionEditorDisabledDepth();
+		}
+	}
+
+	ScopedActionEditorDisabled(const ScopedActionEditorDisabled&)			 = delete;
+	ScopedActionEditorDisabled& operator=(const ScopedActionEditorDisabled&) = delete;
+
+private:
+	bool disabled_{ false };
+};
+
+inline bool DrawInspectOnlyTreeNodeEx(const char* label, ImGuiTreeNodeFlags flags) {
+	if (ActionEditorDisabledDepth() == 0) {
+		return ImGui::TreeNodeEx(label, flags);
+	}
+
+	// Restore input for the tree header only. Its children remain read only.
+	ImGui::EndDisabled();
+	const ImGuiStyle& style{ ImGui::GetStyle() };
+	ImGui::PushStyleVar(ImGuiStyleVar_Alpha, style.Alpha * style.DisabledAlpha);
+	bool open{ ImGui::TreeNodeEx(label, flags) };
+	ImGui::PopStyleVar();
+	ImGui::BeginDisabled();
+	return open;
+}
+
+class ScopedID {
+public:
+	explicit ScopedID(const void* id) {
+		ImGui::PushID(id);
+	}
+
+	explicit ScopedID(int id) {
+		ImGui::PushID(id);
+	}
+
+	explicit ScopedID(std::string_view id) {
+		ImGui::PushID(id.data(), id.data() + id.size());
+	}
+
+	~ScopedID() {
+		ImGui::PopID();
+	}
+
+	ScopedID(const ScopedID&)			 = delete;
+	ScopedID& operator=(const ScopedID&) = delete;
+};
+
+class ScopedIndent {
+public:
+	explicit ScopedIndent(float width = 0.0f) : width_{ width } {
+		ImGui::Indent(width_);
+	}
+
+	~ScopedIndent() {
+		ImGui::Unindent(width_);
+	}
+
+	ScopedIndent(const ScopedIndent&)			 = delete;
+	ScopedIndent& operator=(const ScopedIndent&) = delete;
+
+private:
+	float width_{ 0.0f };
+};
+
+class ScopedUnindent {
+public:
+	explicit ScopedUnindent(float width = 0.0f) : width_{ width } {
+		ImGui::Unindent(width_);
+	}
+
+	~ScopedUnindent() {
+		ImGui::Indent(width_);
+	}
+
+	ScopedUnindent(const ScopedUnindent&)			 = delete;
+	ScopedUnindent& operator=(const ScopedUnindent&) = delete;
+
+private:
+	float width_{ 0.0f };
+};
+
+class ScopedItemWidth {
+public:
+	explicit ScopedItemWidth(float width) {
+		ImGui::PushItemWidth(width);
+	}
+
+	~ScopedItemWidth() {
+		ImGui::PopItemWidth();
+	}
+
+	ScopedItemWidth(const ScopedItemWidth&)			   = delete;
+	ScopedItemWidth& operator=(const ScopedItemWidth&) = delete;
+};
+
+inline void DrawTooltip(std::string_view text) {
+	if (!text.empty() && ImGui::IsItemHovered()) {
+		ImGui::SetTooltip("%.*s", static_cast<int>(text.size()), text.data());
+	}
+}
+
+inline void CommitInactiveInspectorEdit(EditorContext& ctx) {
+	ctx.undo.CommitInactiveInteraction(ImGui::IsAnyItemActive());
+}
+
+inline void TrackUndoableInteraction(
+	EditorContext& ctx, ImGuiID key, std::string label, bool changed, UndoStack::Action undo,
+	UndoStack::Action redo
+) {
+	ctx.undo.TrackInteraction(
+		static_cast<std::uint64_t>(key), std::move(label), changed, ImGui::IsAnyItemActive(),
+		std::move(undo), std::move(redo)
+	);
+}
+
+inline PositionPicker& GetPositionPicker(EditorContext& ctx) {
+	return ctx.local.position_picker;
+}
+
+[[nodiscard]] inline bool IsPositionPickingActive(EditorContext& ctx) {
+	return GetPositionPicker(ctx).IsActive();
+}
+
+[[nodiscard]] inline std::string_view GetPositionPickLabel(EditorContext& ctx) {
+	return GetPositionPicker(ctx).Label();
+}
+
+[[nodiscard]] inline std::optional<V2_float> GetPositionPickInitial(EditorContext& ctx) {
+	return GetPositionPicker(ctx).Initial();
+}
+
+[[nodiscard]] inline std::optional<V2_float> GetPositionPickReferenceWorld(EditorContext& ctx) {
+	return GetPositionPicker(ctx).ReferenceWorld();
+}
+
+[[nodiscard]] inline std::optional<PositionPicker::PreviewData> PreviewPickedPosition(
+	EditorContext& ctx, V2_float world_position
+) {
+	return GetPositionPicker(ctx).Preview(world_position);
+}
+
+inline void CancelPositionPicking(EditorContext& ctx) {
+	GetPositionPicker(ctx).Cancel();
+}
+
+[[nodiscard]] PositionPicker::Finish PreparePositionPickSession(EditorContext& ctx);
+
+inline bool DrawPositionPickButton(
+	EditorContext& ctx, std::string_view id, V2_float current, PositionPicker::Convert convert,
+	PositionPicker::Apply apply, std::optional<V2_float> reference_world = std::nullopt,
+	bool show_relative = false
+) {
+	ScopedID scope{ id };
+
+	bool picking_active{ IsPositionPickingActive(ctx) };
+	ScopedDisabled disabled{ picking_active };
+	bool pressed{ ImGui::Button("Pick") };
+
+	if (!picking_active && pressed) {
+		auto finish{ PreparePositionPickSession(ctx) };
+
+		GetPositionPicker(ctx).Begin(
+			"Pick Position", current, std::move(convert), std::move(apply), reference_world,
+			show_relative, std::move(finish)
+		);
+
+		return true;
+	}
+
+	if (ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled)) {
+		ImGui::SetTooltip(
+			picking_active ? "A position pick is already active. Finish or cancel it first."
+						   : "Press left click to adjust picked position; release to confirm."
+		);
+	}
+
+	return false;
+}
+
+inline bool DrawPositionPickButton(
+	EditorContext& ctx, std::string_view id, V2_float current, PositionPicker::Apply apply,
+	std::optional<V2_float> reference_world = std::nullopt, bool show_relative = false
+) {
+	return DrawPositionPickButton(
+		ctx, id, current, {}, std::move(apply), reference_world, show_relative
+	);
+}
+
+[[nodiscard]] inline bool IsPositionPickDragging(EditorContext& ctx) {
+	return GetPositionPicker(ctx).IsDragging();
+}
+
+inline bool BeginPickedPositionDrag(EditorContext& ctx, V2_float world_position) {
+	return GetPositionPicker(ctx).BeginDrag(world_position);
+}
+
+inline bool UpdatePickedPositionDrag(EditorContext& ctx, V2_float world_position) {
+	return GetPositionPicker(ctx).UpdateDrag(world_position);
+}
+
+inline bool CompletePickedPosition(EditorContext& ctx) {
+	return GetPositionPicker(ctx).Complete(ctx.undo);
+}
+
+} // namespace ptgn::editor::inspector

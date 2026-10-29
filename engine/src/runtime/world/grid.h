@@ -3,14 +3,13 @@
 #include <algorithm>
 #include <concepts>
 #include <functional>
+#include <optional>
 #include <type_traits>
 #include <vector>
 
 #include "core/assert.h"
 #include "core/math/vector2.h"
 #include "core/util/concepts.h"
-
-// TODO: Add serialization.
 
 namespace ptgn {
 
@@ -34,50 +33,47 @@ public:
 		PTGN_ASSERT(static_cast<std::size_t>(length) == cells.size(), "Failed to construct grid");
 	}
 
-	void ForEachCoordinate(const std::function<void(V2_int)>& function) const {
-		for (int i{ 0 }; i < size.x; i++) {
-			for (int j{ 0 }; j < size.y; j++) {
-				function(V2_int{ i, j });
+	void ForEachCoordinate(InvocableR<void, V2_int> auto&& fn) const {
+		for (auto i{ 0 }; i < size.x; ++i) {
+			for (auto j{ 0 }; j < size.y; ++j) {
+				fn(V2_int{ i, j });
 			}
 		}
 	}
 
-	void ForEach(const std::function<void(V2_int, const T&)>& function) const {
-		for (int i{ 0 }; i < size.x; i++) {
-			for (int j{ 0 }; j < size.y; j++) {
+	void ForEach(InvocableR<void, V2_int, const T&> auto&& fn) const {
+		for (auto i{ 0 }; i < size.x; ++i) {
+			for (auto j{ 0 }; j < size.y; ++j) {
 				V2_int coordinate{ i, j };
-				function(coordinate, Get(coordinate));
+				fn(coordinate, Get(coordinate));
 			}
 		}
 	}
 
-	void ForEach(const std::function<void(V2_int, T&)>& function) {
-		for (int i{ 0 }; i < size.x; i++) {
-			for (int j{ 0 }; j < size.y; j++) {
+	void ForEach(InvocableR<void, V2_int, T&> auto&& fn) {
+		for (auto i{ 0 }; i < size.x; ++i) {
+			for (auto j{ 0 }; j < size.y; ++j) {
 				V2_int coordinate{ i, j };
-				function(coordinate, Get(coordinate));
+				fn(coordinate, Get(coordinate));
 			}
 		}
 	}
 
-	template <InvocableR<void, int> F>
-	void ForEachIndex(F function) const {
-		for (int i{ 0 }; i < length; i++) {
-			function(i);
+	void ForEachIndex(InvocableR<void, int> auto&& fn) const {
+		for (auto i{ 0 }; i < length; ++i) {
+			fn(i);
 		}
 	}
 
-	template <InvocableR<void, T&> F>
-	void ForEachElement(F function) {
+	void ForEachElement(InvocableR<void, T&> auto&& fn) {
 		for (auto& cell : cells) {
-			function(cell);
+			fn(cell);
 		}
 	}
 
-	template <InvocableR<void, const T&> F>
-	void ForEachElement(F function) const {
+	void ForEachElement(InvocableR<void, const T&> auto&& fn) const {
 		for (auto& cell : cells) {
-			function(cell);
+			fn(cell);
 		}
 	}
 
@@ -96,15 +92,21 @@ public:
 	}
 
 	const T& Get(V2_int coordinate) const {
-		return Get(OneDimensionalize(coordinate));
+		auto c{ OneDimensionalize(coordinate) };
+		PTGN_ASSERT(c.has_value(), "Coordinate out of range");
+		return Get(c.value());
 	}
 
 	[[nodiscard]] T Pop(V2_int coordinate) {
-		return Pop(OneDimensionalize(coordinate));
+		auto c{ OneDimensionalize(coordinate) };
+		PTGN_ASSERT(c.has_value(), "Coordinate out of range");
+		return Pop(c.value());
 	}
 
 	T& Get(V2_int coordinate) {
-		return Get(OneDimensionalize(coordinate));
+		auto c{ OneDimensionalize(coordinate) };
+		PTGN_ASSERT(c.has_value(), "Coordinate out of range");
+		return Get(c.value());
 	}
 
 	[[nodiscard]] T Pop(int index) {
@@ -124,7 +126,9 @@ public:
 	}
 
 	T& Set(V2_int coordinate, T&& object) {
-		return Set(OneDimensionalize(coordinate), std::move(object));
+		auto c{ OneDimensionalize(coordinate) };
+		PTGN_ASSERT(c.has_value(), "Coordinate out of range");
+		return Set(c.value(), std::move(object));
 	}
 
 	T& Set(int index, T&& object) {
@@ -146,13 +150,13 @@ public:
 		return length;
 	}
 
-	/// @return -1 if coordinate is invalid, otherwise: coordinate.x + coordinate.y * size.x.
-	[[nodiscard]] int OneDimensionalize(V2_int coordinate) const {
+	/// @return nullopt if coordinate is invalid, otherwise: coordinate.x + coordinate.y * size.x.
+	[[nodiscard]] std::optional<int> OneDimensionalize(V2_int coordinate) const {
 		if (coordinate.x < 0 || coordinate.y < 0) {
-			return -1;
+			return std::nullopt;
 		}
 		if (coordinate.x >= size.x || coordinate.y >= size.y) {
-			return -1;
+			return std::nullopt;
 		}
 		return coordinate.x + coordinate.y * size.x;
 	}
@@ -170,9 +174,9 @@ public:
 	}
 
 protected:
-	V2_int size;
+	V2_int size{};
 	int length{ 0 };
-	std::vector<T> cells;
+	std::vector<T> cells{};
 };
 
 } // namespace ptgn

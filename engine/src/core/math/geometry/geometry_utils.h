@@ -1,26 +1,15 @@
 #pragma once
 
-#include <array>
-#include <limits>
 #include <optional>
 #include <span>
 #include <vector>
 
+#include "core/math/angle.h"
 #include "core/math/geometry/line.h"
 #include "core/math/geometry/triangle.h"
 #include "core/math/vector2.h"
 
 namespace ptgn {
-
-// TODO: Move to tolerance.h
-
-[[nodiscard]] bool StrictlyLess(
-	float a, float b, float epsilon = std::numeric_limits<float>::epsilon()
-);
-
-[[nodiscard]] bool StrictlyLess(
-	V2_float a, V2_float b, float epsilon = std::numeric_limits<float>::epsilon()
-);
 
 namespace impl {
 
@@ -30,7 +19,7 @@ namespace impl {
 /// @param end_angle Must be in range: [0, 2pi).
 /// @return The vertices which make up the arc.
 std::vector<V2_float> GetArcVertices(
-	V2_float center, float radius, float start_angle, float end_angle, bool clockwise
+	V2_float center, float radius, Radians start_angle, Radians end_angle, bool clockwise
 );
 
 [[nodiscard]] float TriangulateArea(std::span<const V2_float> vertices);
@@ -44,7 +33,7 @@ std::vector<V2_float> GetArcVertices(
 );
 
 /// @return A vector of triangles which make up the polygon contour.
-[[nodiscard]] std::vector<std::array<V2_float, 3>> Triangulate(std::span<const V2_float> vertices);
+[[nodiscard]] std::vector<Triangle> Triangulate(std::span<const V2_float> vertices);
 
 enum class Orientation {
 	LeftTurn  = 1,
@@ -66,7 +55,7 @@ bool VisibilityRayIntersects(
 
 struct VisibilityEvent {
 	/// @brief Events used in the visibility polygon algorithm
-	enum Type {
+	enum class Type {
 		StartVertex,
 		EndVertex
 	};
@@ -84,18 +73,18 @@ struct VisibilityEvent {
 /// @param begin iterator of the list of line segments (obstacles).
 /// @param end iterator of the list of line segments (obstacles).
 /// @return vector of vertices of the visibility polygon.
-std::vector<V2_float> GetVisibilityPolygon(V2_float origin, const std::vector<Line>& segments);
+std::vector<V2_float> GetVisibilityPolygon(V2_float origin, std::span<const Line> segments);
 
-std::vector<Triangle> GetVisibilityTriangles(V2_float origin, const std::vector<Line>& segments);
+std::vector<Triangle> GetVisibilityTriangles(V2_float origin, std::span<const Line> segments);
 
 [[nodiscard]] std::vector<Line> PointsToLines(
-	const std::vector<V2_float>& points, bool connect_last_to_first
+	std::span<const V2_float> points, bool connect_last_to_first
 );
 
 namespace impl {
 
-/// @return True if point `p` is inside the edge (i.e., to the left of the edge from start to end).
-[[nodiscard]] bool IsInside(V2_float p, const Line& edge);
+/// @return True if point is inside the edge (i.e., to the left of the edge from start to end).
+[[nodiscard]] bool IsInside(V2_float p, const Line& edge, bool clip_is_counter_clockwise);
 
 /// @brief Computes intersection point between segment AB and line CD (clip edge).
 /// @return Nullopt if lines are parallel or no intersection on AB segment.
@@ -105,10 +94,14 @@ namespace impl {
 
 } // namespace impl
 
-/// @brief Clips the subject polygon by the convex clip polygon using Sutherland-Hodgman algorithm.
-/// Both polygons are represented as vectors of points (in order).
+/// @brief Clips the subject polygon by a convex clip polygon using the
+/// Sutherland-Hodgman algorithm.
+///
+/// The clip polygon may be specified in either clockwise or counter clockwise order.
+/// The clip polygon must be convex and non degenerate.
 [[nodiscard]] std::vector<V2_float> ClipPolygons(
-	const std::vector<V2_float>& subject_polygon, const std::vector<V2_float>& clip_polygon
+	const std::vector<V2_float>& subject_polygon,
+	const std::vector<V2_float>& clip_polygon
 );
 
 namespace impl {
@@ -140,17 +133,11 @@ float ClosestPointLineLine(
 
 [[nodiscard]] bool IntervalsOverlap(float min1, float max1, float min2, float max2);
 
-/// @return Amount by which the two intervals overlap. 0 is they do not overlap.
+/// @return Amount by which the two intervals overlap. 0 means no overlap.
 float GetIntervalOverlap(
 	float min1, float max1, float min2, float max2, bool contained_polygon,
 	V2_float& out_axis_direction
 );
-
-/// @return True if all the interior angles are less than 180 degrees.
-[[nodiscard]] bool IsConvexPolygon(const V2_float* vertices, std::size_t vertex_count);
-
-/// @return True if any of the interior angles are above 180 degrees.
-[[nodiscard]] bool IsConcavePolygon(const V2_float* vertices, std::size_t vertex_count);
 
 } // namespace impl
 

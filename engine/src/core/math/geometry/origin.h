@@ -1,15 +1,15 @@
 #pragma once
 
-#include <ostream>
 #include <utility>
 
 #include "core/log.h"
 #include "core/math/vector2.h"
-#include "serialization/json/enum.h"
+#include "serialization/serialize.h"
 
 namespace ptgn {
 
 enum class Origin {
+	/// @brief Default origin value.
 	Center,
 	TopLeft,
 	CenterTop,
@@ -20,42 +20,25 @@ enum class Origin {
 	BottomLeft,
 	CenterLeft,
 };
-
-namespace impl {
-
-V2_float GetOriginOffsetHalf(Origin origin, V2_float half);
-
-} // namespace impl
+PTGN_REFLECT_ENUM(Origin);
 
 /// @return Vector to be added to a position to get the object center given an origin and size.
-V2_float GetOriginOffset(Origin origin, V2_float size);
+constexpr V2_float GetOffset(Origin origin, V2_float size) {
+	auto half{ size * 0.5f };
 
-inline std::ostream& operator<<(std::ostream& os, Origin origin) {
 	switch (origin) {
 		using enum Origin;
-		case TopLeft:	   return os << "TopLeft";
-		case CenterTop:	   return os << "CenterTop";
-		case TopRight:	   return os << "TopRight";
-		case CenterLeft:   return os << "CenterLeft";
-		case Center:	   return os << "Center";
-		case CenterRight:  return os << "CenterRight";
-		case BottomLeft:   return os << "BottomLeft";
-		case CenterBottom: return os << "CenterBottom";
-		case BottomRight:  return os << "BottomRight";
+		case Center:	   return {};
+		case TopLeft:	   return half;
+		case CenterBottom: return V2_float{ 0.0f, -half.y };
+		case CenterTop:	   return { 0.0f, half.y };
+		case BottomRight:  return -half;
+		case BottomLeft:   return V2_float{ half.x, -half.y };
+		case TopRight:	   return V2_float{ -half.x, half.y };
+		case CenterLeft:   return { half.x, 0.0f };
+		case CenterRight:  return { -half.x, 0.0f };
 		default:		   PTGN_ERROR("Unknown Origin: ", std::to_underlying(origin));
 	}
 }
-
-PTGN_SERIALIZE_ENUM(
-	Origin, { { Origin::Center, "center" },
-			  { Origin::TopLeft, "top_left" },
-			  { Origin::CenterTop, "center_top" },
-			  { Origin::TopRight, "top_right" },
-			  { Origin::CenterRight, "center_right" },
-			  { Origin::BottomRight, "bottom_right" },
-			  { Origin::CenterBottom, "center_bottom" },
-			  { Origin::BottomLeft, "bottom_left" },
-			  { Origin::CenterLeft, "center_left" } }
-);
 
 } // namespace ptgn

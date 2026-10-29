@@ -1,5 +1,6 @@
 #include "renderer/backend/gl/gl_renderbuffer.h"
 
+#include <optional>
 #include <utility>
 
 #include "core/assert.h"
@@ -7,31 +8,27 @@
 #include "core/util/id_map.h"
 #include "renderer/backend/gl/gl.h"
 #include "renderer/backend/gl/gl_context.h"
-#include "renderer/backend/gl/gl_debug.h"
-#include "renderer/backend/gl/gl_framebuffer.h"
-#include "renderer/primitives/id.h"
-#include "renderer/primitives/texture_format.h"
+#include "renderer/resources/id.h"
+#include "renderer/resources/texture_format.h"
 
 namespace ptgn::impl::gl {
 
 Renderbuffers::Renderbuffers(GLContext& gl) : gl_{ gl } {}
 
-RenderbufferId Renderbuffers::CreateRenderbuffer(
-	V2_int size, TextureFormat format, bool restore_bind
-) {
-	auto renderbuffer{ CreateRenderbuffer() };
+RenderbufferId Renderbuffers::Create(V2_int size, TextureFormat format, bool restore_bind) {
+	auto renderbuffer{ CreateImpl() };
 
 	auto _ = gl_.Bind(renderbuffer, restore_bind);
 
-	SetRenderbufferStorage(renderbuffer, size, format);
+	SetStorage(renderbuffer, size, format);
 
 	return renderbuffer;
 }
 
-void Renderbuffers::ResizeRenderbuffer(RenderbufferId renderbuffer, V2_int new_size) {
+void Renderbuffers::Resize(RenderbufferId renderbuffer, V2_int new_size) {
 	PTGN_ASSERT(renderbuffer);
 
-	const auto& cache = cache_.Get(renderbuffer);
+	const auto& cache{ cache_.Get(renderbuffer) };
 
 	if (cache.size == new_size) {
 		return;
@@ -39,7 +36,7 @@ void Renderbuffers::ResizeRenderbuffer(RenderbufferId renderbuffer, V2_int new_s
 
 	auto _ = gl_.Bind(renderbuffer, true);
 
-	SetRenderbufferStorage(renderbuffer, new_size, cache.format);
+	SetStorage(renderbuffer, new_size, cache.format);
 }
 
 RenderbufferCache& Renderbuffers::GetCache(RenderbufferId renderbuffer) {
@@ -52,46 +49,50 @@ const RenderbufferCache& Renderbuffers::GetCache(RenderbufferId renderbuffer) co
 	return cache_.Get(renderbuffer);
 }
 
-void Renderbuffers::SetRenderbufferStorage(
-	RenderbufferId renderbuffer, V2_int size, TextureFormat format
-) {
+std::optional<V2_int> Renderbuffers::GetSize(RenderbufferId renderbuffer) const {
+	if (!cache_.Has(renderbuffer)) {
+		return std::nullopt;
+	}
+	return cache_.Get(renderbuffer).size;
+}
+
+std::optional<TextureFormat> Renderbuffers::GetFormat(RenderbufferId renderbuffer) const {
+	if (!cache_.Has(renderbuffer)) {
+		return std::nullopt;
+	}
+	return cache_.Get(renderbuffer).format;
+}
+
+void Renderbuffers::SetStorage(RenderbufferId renderbuffer, V2_int size, TextureFormat format) {
 	PTGN_ASSERT(
 		gl_.IsBound(renderbuffer), "RenderbufferId must be bound prior to setting its storage"
 	);
-
-	constexpr AttachmentObject target{ AttachmentObject::Renderbuffer };
+	PTGN_ASSERT(size.IsPositive(), "Cannot create renderbuffer with zero size");
 
 	GLCall(
-		RenderbufferStorage(std::to_underlying(target), std::to_underlying(format), size.x, size.y)
+		glRenderbufferStorage(GL_RENDERBUFFER, static_cast<std::uint32_t>(format), size.x, size.y)
 	);
-#ifdef PTGN_GL_DEBUG_RENDERBUFFERS
-	PTGN_LOG("glRenderbufferStorage(target=", target, ",format=", format, ",size=", size, ")");
-#endif
 
-	auto& cache	 = cache_.Get(renderbuffer);
+	auto& cache{ cache_.Get(renderbuffer) };
 	cache.size	 = size;
 	cache.format = format;
 }
 
-RenderbufferId Renderbuffers::CreateRenderbuffer() {
+RenderbufferId Renderbuffers::CreateImpl() {
 	RenderbufferId id{ 0 };
-	GLCall(GenRenderbuffers(1, &id.value));
-#ifdef PTGN_GL_DEBUG_RENDERBUFFERS
-	PTGN_LOG("glGenRenderbuffers() -> id=", id.value);
-#endif
+	GLCall(glGenRenderbuffers(1, &id.value));
 	PTGN_ASSERT(id, "Failed to create renderbuffer");
 	cache_.Add(id, RenderbufferCache{});
 	return id;
 }
 
-void Renderbuffers::DestroyRenderbuffer(RenderbufferId id) {
+void Renderbuffers::Destroy(RenderbufferId id) {
 	if (!id) {
 		return;
 	}
-	GLCall(DeleteRenderbuffers(1, &id.value));
-#ifdef PTGN_GL_DEBUG_RENDERBUFFERS
-	PTGN_LOG("glDeleteRenderbuffers(id=", id.value, ")");
-#endif
+	gl_.ForgetId(id);
+	PTGN_ASSERT(!gl_.IsBound(id), "RenderbufferId must not be bound when destroying it");
+	GLCall(glDeleteRenderbuffers(1, &id.value));
 	cache_.Remove(id);
 }
 

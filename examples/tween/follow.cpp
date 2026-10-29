@@ -1,18 +1,19 @@
+#include <optional>
 #include <vector>
 
 #include "app/application.h"
+#include "app/editor.h"
+#include "core/graphics/color.h"
+#include "core/input/mouse.h"
 #include "core/math/vector2.h"
-#include "platform/input/mouse.h"
-#include "renderer/primitives/color.h"
-#include "renderer/renderer.h"
 #include "runtime/animation/follow_config.h"
-#include "runtime/animation/tween_effect.h"
+#include "runtime/animation/scripted_animation.h"
 #include "runtime/asset/asset_manager.h"
 #include "runtime/ecs/entity.h"
-#include "runtime/graphics/draw.h"
 #include "runtime/graphics/sprite.h"
+#include "runtime/graphics/tint.h"
 #include "runtime/scene/scene.h"
-
+#include "runtime/scene/scene_context.h"
 #include "runtime/scene/scene_input.h"
 
 using namespace ptgn;
@@ -35,7 +36,7 @@ struct FollowEffectScene : public Scene {
 	std::vector<V2_float> waypoints;
 
 	Sprite CreateFollower(const Color& color, const V2_float& start_position) {
-		auto follower{ CreateSprite(*this, "smile", start_position) };
+		auto follower{ CreateSprite(*this, start_position, "smile") };
 		SetTint(follower, color);
 		return follower;
 	}
@@ -74,8 +75,8 @@ struct FollowEffectScene : public Scene {
 		config5.stop_distance = 40.0f;
 		config5.move_mode	  = MoveMode::Velocity;
 
-		V2_float game_size{ ctx().renderer.GetGameSize() };
-		V2_float half{ game_size * 0.5f };
+		V2_float logical_size{ ctx().renderer.GetLogicalSize() };
+		V2_float half{ logical_size * 0.5f };
 		V2_float center{ 0, 0 };
 
 		waypoints = { -half, center, V2_float{ half.x, -half.y }, center,
@@ -118,5 +119,6 @@ struct FollowEffectScene : public Scene {
 
 int main(int, char**) {
 	Application app{ "FollowEffectScene: Left/Right: Stop/Start Follow" };
+	PTGN_WITH_EDITOR(app, false);
 	app.StartWith<FollowEffectScene>();
 }

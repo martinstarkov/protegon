@@ -21,7 +21,7 @@
 // class BinaryInputArchive {
 // public:
 //	BinaryInputArchive() = delete;
-//	explicit BinaryInputArchive(const path& filepath);
+//	explicit BinaryInputArchive(const path& file_path);
 //	BinaryInputArchive& operator=(BinaryInputArchive&&) noexcept = default;
 //	BinaryInputArchive(BinaryInputArchive&&) noexcept			 = default;
 //	BinaryInputArchive& operator=(const BinaryInputArchive&)	 = delete;
@@ -57,7 +57,7 @@
 //		} else if constexpr (tt::is_map_like_v<T>) {
 //			std::size_t size{ 0 };
 //			ReadRaw(size);
-//			for (std::size_t i{ 0 }; i < size; i++) {
+//			for (auto i{ 0uz }; i < size; ++i) {
 //				typename T::key_type key;
 //				Read(key);
 //				Read(type[key]);
@@ -65,14 +65,14 @@
 //		} else if constexpr (tt::is_std_array_v<T>) {
 //			std::size_t size{ 0 };
 //			ReadRaw(size);
-//			for (std::size_t i{ 0 }; i < size; i++) {
+//			for (auto i{ 0uz }; i < size; ++i) {
 //				Read(type[i]);
 //			}
 //		} else if constexpr (tt::is_std_vector_v<T>) {
 //			std::size_t size{ 0 };
 //			ReadRaw(size);
 //			type.resize(size);
-//			for (std::size_t i{ 0 }; i < size; i++) {
+//			for (auto i{ 0uz }; i < size; ++i) {
 //				Read(type[i]);
 //			}
 //		} else if constexpr (std::is_same_v<T, std::string>) {
@@ -130,7 +130,7 @@
 // class BinaryOutputArchive {
 // public:
 //	BinaryOutputArchive() = delete;
-//	explicit BinaryOutputArchive(const path& filepath);
+//	explicit BinaryOutputArchive(const path& file_path);
 //	BinaryOutputArchive& operator=(BinaryOutputArchive&&) noexcept = default;
 //	BinaryOutputArchive(BinaryOutputArchive&&) noexcept			   = default;
 //	BinaryOutputArchive& operator=(const BinaryOutputArchive&)	   = delete;
@@ -155,7 +155,7 @@
 //
 //	operator bool() const;
 //
-//	// Useful for inserting unknown values and then later populating them by storing their stream
+//	// Useful for inserting unknown values and then later populating them by storing stream
 //	// positions.
 //	// @param count The number of zero bytes to write.
 //	void WriteZeroByte(std::size_t count);

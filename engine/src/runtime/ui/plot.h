@@ -1,29 +1,5 @@
 // #pragma once
 //
-// #include <array>
-// #include <cstdint>
-// #include <string>
-// #include <string_view>
-// #include <vector>
-//
-// #include "runtime/ecs/component.h"
-// #include "core/asset/asset_manager.h"
-// #include "ecs/entity.h"
-// #include "core/app/manager.h"
-//
-// #include "math/geometry_utils.h"
-// #include "math/vector2.h"
-// #include "renderer/api/color.h"
-// #include "runtime/graphics/font.h"
-// #include "renderer/api/origin.h"
-// #include "renderer/render_target.h"
-// #include "runtime/graphics/text.h"
-//
-// #include "runtime/graphics/fonts.h"
-// #include "ui/button.h"
-// #include "core/assert.h"
-//
-//
 // namespace ptgn {
 //
 // struct DataPoints {
@@ -293,12 +269,12 @@
 //	void DrawAxis(const std::array<Line, 4>& edges, std::size_t component_index) {
 //		static_assert(tt::is_any_of_v<TAxis, VerticalAxis, HorizontalAxis>, "Invalid axis type");
 //		const auto& axis{ entity_.Get<TAxis>() };
-//		auto edge{ edges[component_index + static_cast<std::size_t>(axis.regular_align * 2)] };
+//		auto edge{ edges[component_index + axis.regular_align * 2uz] };
 //		edge.Draw(axis.line_color, axis.line_thickness);
 //
 //		// Since the rect.GetEdges() function goes in clockwise direction starting from top left,
-//		// the non regularly aligned axes will point in the wrong directions so they need to be
-//		// flipped.
+//		// the non regularly aligned axes will point in the wrong directions so the directions need
+//      // to be flipped.
 //		bool swap_dir{ (axis.regular_align && component_index == 0) ||
 //					   (!axis.regular_align && component_index == 1) };
 //
@@ -331,7 +307,7 @@
 //
 //		PTGN_ASSERT(division_number_offset > 0.0f);
 //
-//		for (std::size_t i{ 0 }; i <= axis.divisions; i++) {
+//		for (auto i{ 0uz }; i <= axis.divisions; ++i) {
 //			// Offset of each division along the axis with respect to the start of the axis.
 //			V2_float offset{ axis_dir * i * division_offset };
 //

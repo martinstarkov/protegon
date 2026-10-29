@@ -1,32 +1,29 @@
-
 #include "renderer/renderer.h"
 
-#include <SDL3/SDL_video.h>
-
 #include <algorithm>
-#include <array>
-#include <concepts>
+#include <cstddef>
 #include <cstdint>
 #include <functional>
 #include <memory>
 #include <numeric>
 #include <optional>
+#include <span>
+#include <string>
 #include <string_view>
-#include <type_traits>
 #include <utility>
 #include <variant>
 #include <vector>
 
 #include "core/assert.h"
-#include "core/event/dispatcher.h"
+#include "core/graphics/color.h"
 #include "core/log.h"
+#include "core/math/geometry/rect.h"
 #include "core/math/matrix4.h"
 #include "core/math/vector2.h"
 #include "core/math/vector3.h"
 #include "core/math/vector4.h"
-#include "platform/input/events.h"
-#include "platform/window/window.h"
-#include "primitives/shader.h"
+#include "core/util/hash.h"
+#include "platform/window.h"
 #include "renderer/backend/gl/gl_buffer.h"
 #include "renderer/backend/gl/gl_context.h"
 #include "renderer/backend/gl/gl_framebuffer.h"
@@ -35,742 +32,522 @@
 #include "renderer/backend/gl/gl_state.h"
 #include "renderer/backend/gl/gl_texture.h"
 #include "renderer/backend/gl/gl_vertex_array.h"
-#include "renderer/primitives/blend_mode.h"
-#include "renderer/primitives/buffer.h"
-#include "renderer/primitives/buffer_layout.h"
-#include "renderer/primitives/color.h"
-#include "renderer/primitives/id.h"
-#include "renderer/primitives/render_state.h"
-#include "renderer/primitives/render_target.h"
-#include "renderer/primitives/resource.h"
-#include "renderer/primitives/scaling_mode.h"
-#include "renderer/primitives/texture.h"
-#include "renderer/primitives/texture_format.h"
-#include "renderer/primitives/vertex.h"
-#include "renderer/primitives/vertex_array.h"
-#include "renderer/primitives/viewport.h"
-#include "runtime/event/event_handler.h"
+#include "renderer/draw_context.h"
+#include "renderer/pipeline/blend_mode.h"
+#include "renderer/pipeline/camera.h"
+#include "renderer/pipeline/framebuffer_pool.h"
+#include "renderer/pipeline/primitive_mode.h"
+#include "renderer/pipeline/render_batcher.h"
+#include "renderer/pipeline/render_pass_builder.h"
+#include "renderer/pipeline/render_pipeline.h"
+#include "renderer/pipeline/render_primitives.h"
+#include "renderer/pipeline/render_request.h"
+#include "renderer/pipeline/render_state.h"
+#include "renderer/pipeline/scaling_mode.h"
+#include "renderer/pipeline/shader_preprocessor.h"
+#include "renderer/pipeline/vertex.h"
+#include "renderer/pipeline/viewport.h"
+#include "renderer/renderer_settings.h"
+#include "renderer/resources/framebuffer.h"
+#include "renderer/resources/id.h"
+#include "renderer/resources/shader.h"
+#include "renderer/resources/texture.h"
+#include "renderer/resources/texture_format.h"
 
 namespace ptgn {
 
-Renderer::Renderer(Window& window, EventHandler& events) :
-	window_{ window }, events_{ events }, gl_{ std::make_unique<impl::gl::GLContext>(window) } {
-	ebo_ = impl::ElementBufferObject{ this, gl_->buffers.CreateElementBuffer(
-												nullptr, impl::kIndexCapacity, sizeof(impl::Index),
-												impl::gl::BufferUsage::DynamicDraw
-											) };
+namespace {
 
-	vbo_ = impl::VertexBufferObject{ this, gl_->buffers.CreateVertexBuffer(
-											   nullptr, impl::kVertexCapacity, sizeof(impl::Vertex),
-											   impl::gl::BufferUsage::DynamicDraw
-										   ) };
+constexpr TextureFormat kDefaultPresentationTargetFormat{ kDefaultHDRFormat };
+constexpr const char* kViewProjectionUniform{ "u_ViewProjection" };
 
-	vao_ = impl::VertexArrayObject{
-		this, gl_->vertex_arrays.CreateVertexArray(vbo_, impl::Vertex::GetLayout(), ebo_)
-	};
+TextureDesc GetEntityIdTextureDesc(V2_int size) {
+	return { .size{ size },
+			 .format = TextureFormat::R32I,
+			 .params{
+				 .min_filter = TextureMinFilter::Nearest,
+				 .mag_filter = TextureMagFilter::Nearest,
+				 .wrap_s	 = TextureWrap::ClampToEdge,
+				 .wrap_t	 = TextureWrap::ClampToEdge,
+			 } };
+}
 
-	// Important to use unsigned byte for the white texture as color::White is stored in
-	// std::uint8_t.
-	constexpr impl::gl::PixelDataType pixel_type{ impl::gl::PixelDataType::UnsignedByte };
+} // namespace
 
-	white_texture_ = impl::TextureObject{ this, gl_->textures.CreateTexture(
-													static_cast<const void*>(&color::White),
-													impl::gl::PixelDataFormat::RGBA, pixel_type,
-													V2_int{ 1, 1 }, TextureFormat::RGBA8
-												) };
-
-	auto viewport{ window.GetSize() };
-
-	PTGN_ASSERT(viewport.BothAboveZero(), "Viewport cannot be zero");
-
-	screen_target_ = CreateRenderTarget(viewport, TextureFormat::RGBA8);
-	BindScreenTarget();
-	V2_float half_viewport{ viewport / 2.0f };
-	auto view_projection{ Matrix4::Orthographic(-half_viewport, half_viewport) };
-	SetViewProjection(view_projection);
-
-	auto max_texture_slots{ gl_->GetMaxTextureSlots() };
-
-	std::vector<std::int32_t> samplers(max_texture_slots);
-	std::iota(samplers.begin(), samplers.end(), 0);
-
-	auto quad{ gl_->shaders.GetProgram("quad") };
-	auto _1 = gl_->Bind(quad, false);
-	SetUniform(quad, "u_Textures", samplers);
+Renderer::Renderer(Window& window, Stats& stats, EventSink&& event_sink) :
+	window_{ window },
+	stats_{ stats },
+	event_sink_{ std::move(event_sink) },
+	gl_{ std::make_unique<impl::gl::GLContext>(stats) },
+	batcher_{ *this },
+	framebuffer_pool_{ *this },
+	pipeline_manager_{ *this },
+	white_texture_{ CreateTexture(color::White.Data(), { .size = { 1, 1 } }, false) } {
+	auto max_texture_slots{ GetMaxTextureSlots() };
 
 #ifdef PTGN_PLATFORM_MACOS
 	//  Prevents MacOS warning: "UNSUPPORTED (log once): POSSIBLE ISSUE: unit X
 	//  GLD_TEXTURE_INDEX_2D is unloadable and bound to sampler type (Float) - using zero
 	//  texture because texture unloadable."
-	for (std::uint32_t slot{ 0 }; slot < max_texture_slots; slot++) {
-		gl_->SetActiveTextureSlot(slot);
-		auto _3 = gl_->Bind(white_texture_, false);
+	for (auto i{ 0u }; i < max_texture_slots; ++i) {
+		gl_->SetActiveTextureSlot(i, true);
+		auto _999 = gl_->Bind(white_texture_, false, true);
 	}
-#endif
 	gl_->SetActiveTextureSlot(0);
-	auto _2 = gl_->Bind(white_texture_, false);
+#endif
 
-	PTGN_ASSERT(batch_textures_.empty());
-	batch_textures_.push_back(white_texture_);
+	pipeline_manager_.AddPipeline<impl::TextureVertex>(
+		"texture", impl::kVertexCapacity, impl::kIndexCapacity, impl::PrimitiveMode::Triangles
+	);
+	pipeline_manager_.AddPipeline<impl::ShapeVertex>(
+		"shape", impl::kVertexCapacity, impl::kIndexCapacity, impl::PrimitiveMode::Triangles
+	);
+	pipeline_manager_.AddPipeline<impl::ColorVertex>(
+		"color", impl::kVertexCapacity, impl::kIndexCapacity, impl::PrimitiveMode::Triangles
+	);
+
+	SetCurrentPipeline("texture");
+
+	renderer_settings_.logical_size = window_.GetSettings().size;
+
+	auto display{ RecalculateDisplayViewport() };
+
+	display_viewport_		= display.viewport;
+	display_viewport_dirty_ = false;
+
+	auto display_size{ GetDisplaySize() };
+
+	PTGN_ASSERT(display_size.IsPositive(), "Display size cannot be zero");
+
+	presentation_framebuffer_ = CreateFramebuffer(
+		{ .size{ display_size }, .format = kDefaultPresentationTargetFormat }, std::nullopt
+	);
+	BindPresentationFramebuffer();
+	SetViewProjection(display_size);
+
+	std::vector<std::int32_t> samplers(max_texture_slots);
+	std::ranges::iota(samplers, 0);
+
+	auto texture_shader{ GetShader("texture") };
+	auto _1 = gl_->Bind(texture_shader, false);
+	SetUniform(texture_shader, impl::kTexturesUniform, samplers);
+
+	auto text_shader{ GetShader("text") };
+	auto _2 = gl_->Bind(text_shader, false);
+	SetUniform(text_shader, impl::kTexturesUniform, samplers);
 }
 
 Renderer::~Renderer() noexcept {
-	// Destructor access to impl::gl::GLContext is needed.
-}
-
-impl::RenderTargetObject Renderer::CreateRenderTarget(V2_int size, TextureFormat format) {
-	auto color = gl_->textures.CreateTexture(size, format);
-
-	std::optional<impl::RenderbufferId> depth;
-
-	if (!IsColorFormat(format)) {
-		depth = gl_->renderbuffers.CreateRenderbuffer(size, format);
-	}
-
-	auto framebuffer = gl_->framebuffers.CreateFramebuffer(
-		color, impl::gl::Attachment::Color0, depth,
-		IsDepthOnlyFormat(format) ? impl::gl::Attachment::Depth : impl::gl::Attachment::DepthStencil
-	);
-
-	return impl::RenderTargetObject{ this, impl::RenderTargetId{ framebuffer } };
-}
-
-impl::RenderPass Renderer::BeginPass(impl::RenderTargetId scene_render_target) {
-	impl::RenderPass p;
-	p.source_			= scene_render_target;
-	p.ping_				= AcquirePooledTargetCopy(scene_render_target);
-	p.has_ping_			= true;
-	p.has_written_once_ = false; // latest = source initially
-	p.latest_is_ping_	= true;	 // irrelevant until has_written_once==true
-
-	return p;
-}
-
-impl::RenderTargetId Renderer::AcquirePooledTargetCopy(impl::RenderTargetId render_target) {
-	auto size{ GetRenderTargetSize(render_target) };
-	auto format{ GetRenderTargetTextureFormat(render_target) };
-
-	return AcquirePooledTarget(size, format);
-}
-
-impl::RenderTargetId Renderer::AcquirePooledTarget(V2_int size, TextureFormat format) {
-	++pool_tick_;
-
-	auto claim = [&](impl::PooledTarget& e) {
-		if (e.target.GetSize() != size) {
-			ResizeRenderTarget(e.target.resource_, size);
-		}
-		e.in_use		 = true;
-		e.last_used_tick = pool_tick_;
-		return e.target.resource_;
-	};
-
-	// Find a free candidate:
-	//  - Prefer exact size+format
-	//  - Otherwise pick least-recently-used with same format
-	impl::PooledTarget* exact			= nullptr;
-	impl::PooledTarget* lru_same_format = nullptr;
-
-	for (auto& e : rt_pool_) {
-		if (e.in_use) {
-			continue;
-		}
-		if (e.target.GetFormat() != format) {
-			continue;
-		}
-
-		if (e.target.GetSize() == size) {
-			exact = &e;
-			break; // can't beat an exact match
-		}
-
-		if (!lru_same_format || e.last_used_tick < lru_same_format->last_used_tick) {
-			lru_same_format = &e;
-		}
-	}
-
-	if (exact) {
-		return claim(*exact);
-	}
-	if (lru_same_format) {
-		return claim(*lru_same_format);
-	}
-
-	// No compatible free target available.
-	// If we have room in the pool, create one.
-	// Pool is at/over the limit and no compatible spare existed:
-	impl::PooledTarget entry{ CreateRenderTarget(size, format), pool_tick_, true };
-	const auto& rt{ rt_pool_.emplace_back(std::move(entry)) };
-#ifdef PTGN_GL_DEBUG_RENDERER
-	PTGN_LOG("Renderer::AcquirePooledTarget -> rt_pool_.size() = ", rt_pool_.size());
-#endif
-
-	return rt.target.resource_;
-}
-
-void Renderer::ReleasePooledTarget(impl::RenderTargetId render_target) {
-	++pool_tick_;
-
-	std::erase_if(rt_pool_, [render_target](auto& e) {
-		if (e.target.resource_ == render_target) {
-			return true; // remove from pool
-		}
-		return false;
-	});
-
-#ifdef PTGN_GL_DEBUG_RENDERER
-	PTGN_LOG("Renderer::ReleasePooledTarget -> rt_pool_.size() = ", rt_pool_.size());
-#endif
-}
-
-void Renderer::DrawTexture(
-	impl::ShaderId shader, impl::RenderPass& p, impl::RenderTargetId scene_render_target,
-	const std::function<void()>& shader_setup
-) {
-	impl::RenderTargetId input;
-
-	// Input = latest output, or source before first draw
-	if (!p.has_written_once_) {
-		input = p.source_;
-	} else if (p.latest_is_ping_) {
-		input = p.ping_;
-	} else {
-		input = p.pong_;
-	}
-
-	auto bound_frame_buffer{ gl_->GetBoundFramebuffer() };
-
-	// Are we rendering *into this pass*?
-	bool writing_to_pass =
-		bound_frame_buffer == p.ping_ || (p.has_pong_ && bound_frame_buffer == p.pong_);
-
-	bool input_is_offscreen = input != scene_render_target;
-
-	bool output_is_offscreen = bound_frame_buffer != scene_render_target;
-
-	bool flip_y = input_is_offscreen && !output_is_offscreen;
-
-	auto texture_size{ GetRenderTargetSize(input) };
-	auto points{ impl::GetCenteredQuadPoints(texture_size) };
-	auto tex_coords{ impl::GetDefaultTextureCoordinates(flip_y) };
-
-	// Only ping-pong if we're writing into the pass
-	if (writing_to_pass) {
-		impl::RenderTargetId write;
-
-		if (!p.has_written_once_) {
-			write = p.ping_;
-		} else {
-			if (!p.has_pong_ && p.latest_is_ping_) {
-				p.pong_		= AcquirePooledTargetCopy(p.source_);
-				p.has_pong_ = true;
-			}
-			write = p.latest_is_ping_ ? p.pong_ : p.ping_;
-		}
-
-		BindRenderTarget(write);
-
-		auto texture{ GetRenderTargetTexture(input) };
-
-		DrawTexture(shader, texture, points, color::White, 0.0f, tex_coords, shader_setup);
-
-		// Update pass state
-		p.has_written_once_ = true;
-		p.latest_is_ping_	= write == p.ping_;
-	} else {
-		auto texture{ GetRenderTargetTexture(input) };
-		// Read-only draw: no mutation, no flip
-		DrawTexture(shader, texture, points, color::White, 0.0f, tex_coords, shader_setup);
-	}
-}
-
-void Renderer::Destroy(impl::VertexBufferId id) {
-	gl_->Destroy(id);
-}
-
-void Renderer::Destroy(impl::ElementBufferId id) {
-	gl_->Destroy(id);
-}
-
-void Renderer::Destroy(impl::UniformBufferId id) {
-	gl_->Destroy(id);
-}
-
-void Renderer::Destroy(impl::ShaderId id) {
-	gl_->Destroy(id);
-}
-
-void Renderer::Destroy(impl::TextureId id) {
-	gl_->Destroy(id);
-}
-
-void Renderer::Destroy(impl::RenderbufferId id) {
-	gl_->Destroy(id);
-}
-
-void Renderer::Destroy(impl::FramebufferId id) {
-	gl_->Destroy(id);
-}
-
-void Renderer::Destroy(impl::VertexArrayId id) {
-	gl_->Destroy(id);
-}
-
-void Renderer::Destroy(impl::RenderTargetId id) {
-	gl_->Destroy(id);
-};
-
-V2_int Renderer::GetTextureSize(impl::TextureId texture) const {
-	return gl_->textures.GetTextureSize(texture);
-}
-
-TextureFormat Renderer::GetTextureFormat(impl::TextureId texture) const {
-	return gl_->textures.GetTextureFormat(texture);
-}
-
-void Renderer::ResizeRenderTarget(impl::RenderTargetId render_target, V2_int new_size) {
-	gl_->framebuffers.ResizeFramebuffer(impl::FramebufferId{ render_target }, new_size);
-}
-
-impl::TextureId Renderer::GetRenderTargetTexture(impl::RenderTargetId render_target) const {
-	const auto& color_attachment{ gl_->framebuffers.GetFramebufferAttachment(
-		impl::FramebufferId{ render_target }, impl::gl::Attachment::Color0
-	) };
-	PTGN_ASSERT(
-		color_attachment.id,
-		"Render target must have a valid color attachment for its texture to be retrieved"
-	);
-	return impl::TextureId{ color_attachment.id };
-}
-
-V2_int Renderer::GetRenderTargetSize(impl::RenderTargetId render_target) const {
-	auto id{ GetRenderTargetTexture(render_target) };
-
-	auto size{ gl_->textures.GetTextureSize(id) };
-
-	return size;
-}
-
-TextureFormat Renderer::GetRenderTargetTextureFormat(impl::RenderTargetId render_target) const {
-	auto id{ GetRenderTargetTexture(render_target) };
-
-	auto texture_format{ gl_->textures.GetTextureFormat(id) };
-
-	return texture_format;
-}
-
-void Renderer::ClearRenderTarget(impl::RenderTargetId render_target, Color color, bool set_viewport)
-	const {
-	auto bind_guard = gl_->Bind(impl::FramebufferId{ render_target }, true);
-
-	std::optional<Viewport> viewport;
-	if (set_viewport) {
-		viewport = gl_->GetViewport();
-
-		auto render_target_size{ GetRenderTargetSize(render_target) };
-
-		gl_->SetViewport({ {}, render_target_size });
-	}
-
-	gl_->framebuffers.ClearToColor(impl::FramebufferId{ render_target }, color);
-
-	if (set_viewport && viewport.has_value()) {
-		gl_->SetViewport(*viewport);
-	}
-}
-
-void Renderer::BindRenderTarget(impl::RenderTargetId render_target) {
-	SetFramebuffer(impl::FramebufferId{ render_target });
-}
-
-void Renderer::BindRenderPass(impl::RenderPass& render_pass) {
-	// Bind the next write target (opposite of latest output; ping for first write)
-	impl::RenderTargetId write;
-
-	if (!render_pass.has_written_once_) {
-		write = render_pass.ping_;
-	} else {
-		if (!render_pass.has_pong_ && render_pass.latest_is_ping_) {
-			render_pass.pong_	  = AcquirePooledTargetCopy(render_pass.source_);
-			render_pass.has_pong_ = true;
-		}
-		write = render_pass.latest_is_ping_ ? render_pass.pong_ : render_pass.ping_;
-	}
-
-	BindRenderTarget(write);
+	// Guarantees that a vertex array object is bound before destroying any buffers.
+	auto _{ gl_->Bind(impl::VertexArrayId{ 0 }, false) };
 }
 
 void Renderer::FlushBatch() {
-	if (batch_indices_.empty()) {
-		return; // Nothing to draw
-	}
-
-	auto _vao = gl_->Bind(vao_, false);
-
-	// Upload vertex data
-	gl_->buffers.SetBufferSubData<impl::VertexBufferId>(
-		vbo_, impl::gl::BufferTarget::ArrayBuffer, batch_vertices_.data(), 0,
-		static_cast<std::uint32_t>(batch_vertices_.size()), sizeof(impl::Vertex)
-	);
-
-	// Upload index data
-	gl_->buffers.SetBufferSubData<impl::ElementBufferId>(
-		ebo_, impl::gl::BufferTarget::ElementArrayBuffer, batch_indices_.data(), 0,
-		static_cast<std::uint32_t>(batch_indices_.size()), sizeof(impl::Index)
-	);
-
-	// Bind all textures
-	for (std::uint32_t slot = 0; slot < batch_textures_.size(); ++slot) {
-		gl_->SetActiveTextureSlot(slot);
-		auto _ = gl_->Bind(batch_textures_[slot], false);
-	}
-
-	gl_->vertex_arrays.DrawElements(
-		vao_, static_cast<std::uint32_t>(batch_indices_.size()), impl::gl::IndexType::UnsignedInt,
-		impl::gl::PrimitiveMode::Triangles
-	);
-
-#ifdef PTGN_GL_DEBUG_RENDERER
-	PTGN_LOG("Renderer::FlushBatch");
-	PTGN_LOG("Framebuffer: ", gl_->GetBoundState().framebuffer);
-	PTGN_LOG("Blend Mode: ", gl_->GetBoundState().blend);
-	auto shader_id{ gl_->GetBoundShader() };
-	Print("Shader: (id=", shader_id);
-	if (auto shader{ gl_->shaders.cache_.TryGet(shader_id) }) {
-		Print(", name=", shader->program_name);
-	}
-	PrintLine(")");
-	PTGN_LOG("Vertices: (", batch_vertices_.size(), "):");
-
-	for (std::size_t i = 0; i < batch_vertices_.size(); ++i) {
-		PTGN_LOG("  [", i, "] ", batch_vertices_[i]);
-	}
-
-	Print("Indices: (", batch_indices_.size(), "): [");
-
-	for (std::size_t i = 0; i < batch_indices_.size(); ++i) {
-		Print(batch_indices_[i]);
-		if (i + 1 < batch_indices_.size()) {
-			Print(", ");
-		}
-	}
-	PrintLine("]");
-
-	Print("Textures: (", batch_textures_.size(), "): [");
-
-	for (std::size_t i = 0; i < batch_textures_.size(); ++i) {
-		Print(batch_textures_[i]);
-		if (i + 1 < batch_textures_.size()) {
-			Print(", ");
-		}
-	}
-	PrintLine("]");
-#endif
-
-	// Clear batch (keep white texture)
-	batch_vertices_.clear();
-	batch_indices_.clear();
-	batch_textures_.resize(1);
-	batch_textures_[0] = white_texture_;
+	batcher_.Flush();
+	temp_framebuffers_.clear();
 }
 
-std::pair<std::uint32_t, bool> Renderer::GetTextureSlot(impl::TextureId tex) {
-	if (tex == white_texture_.operator impl::TextureId()) {
-		return { 0, false }; // always slot 0
+impl::RenderPipeline& Renderer::GetPipeline(impl::PipelineId id) {
+	return pipeline_manager_.GetPipeline(id);
+}
+
+const impl::RenderPipeline& Renderer::GetPipeline(impl::PipelineId id) const {
+	return pipeline_manager_.GetPipeline(id);
+}
+
+impl::FramebufferObject Renderer::CreateFramebuffer(
+	TextureDesc desc, std::optional<TextureDesc> other_desc
+) {
+	PTGN_ASSERT(
+		!other_desc.has_value() || desc != other_desc.value(),
+		"Other texture description cannot match the first one"
+	);
+
+	PTGN_ASSERT(desc.size.IsPositive(), "Cannot create framebuffer with zero size");
+
+	if (other_desc.has_value()) {
+		PTGN_ASSERT(IsColorFormat(desc.format), "Cannot specify other_desc for non-color format");
+		PTGN_ASSERT(
+			other_desc.value().size == desc.size, "Framebuffer attachments must have matching sizes"
+		);
+		PTGN_ASSERT(
+			!IsColorFormat(other_desc.value().format),
+			"Other framebuffer attachment must be depth, stencil, or depth-stencil"
+		);
 	}
 
-	// Check if texture already exists in batch
-	for (std::uint32_t i = 1; i < batch_textures_.size(); ++i) {
-		if (batch_textures_[i] == tex) {
-			return { i, false };
+	impl::FramebufferId framebuffer{};
+
+	if (IsColorFormat(desc.format)) {
+		auto texture{ gl_->textures.Create(desc, true) };
+
+		std::optional<impl::RenderbufferId> renderbuffer;
+		auto attachment{ impl::gl::Attachment::DepthStencil };
+
+		if (other_desc.has_value()) {
+			attachment = impl::gl::GetDepthStencilAttachment(other_desc.value().format);
+			renderbuffer =
+				gl_->renderbuffers.Create(other_desc.value().size, other_desc.value().format);
 		}
+
+		framebuffer = gl_->framebuffers.Create(texture, renderbuffer, attachment, true);
+	} else {
+		PTGN_ASSERT(!other_desc.has_value(), "Cannot specify other_desc for non-color format");
+
+		auto attachment{ impl::gl::GetDepthStencilAttachment(desc.format) };
+		auto renderbuffer{ gl_->renderbuffers.Create(desc.size, desc.format) };
+
+		framebuffer = gl_->framebuffers.Create(renderbuffer, attachment, true);
 	}
 
-	// Flush if we would exceed GPU texture slots
-	if (batch_textures_.size() >= gl_->GetMaxTextureSlots()) {
-		FlushBatch();
-	}
+	PTGN_ASSERT(framebuffer, "Failed to create valid framebuffer");
 
-	// Its slot is index in the vector
-	return { static_cast<std::uint32_t>(batch_textures_.size()), true };
+	return impl::FramebufferObject{ this, framebuffer };
 }
 
-namespace impl {
-
-template <typename State, typename F>
-	requires std::same_as<std::invoke_result_t<F&>, void>
-void UpdateStateIfChanged(Renderer& r, const State& cached, const State& desired, F&& func) {
-	if (cached != desired) {
-		r.FlushBatch();
-		std::invoke(std::forward<F>(func));
-	}
+impl::TextureId Renderer::GetTexture(impl::FramebufferId framebuffer) const {
+	return gl_->framebuffers.GetAttachmentId(framebuffer);
 }
 
-} // namespace impl
+impl::RenderbufferId Renderer::GetDepthRenderbuffer(impl::FramebufferId framebuffer) const {
+	return gl_->framebuffers.GetAttachmentId<impl::gl::Attachment::Depth>(framebuffer);
+}
+
+impl::RenderbufferId Renderer::GetStencilRenderbuffer(impl::FramebufferId framebuffer) const {
+	return gl_->framebuffers.GetAttachmentId<impl::gl::Attachment::Stencil>(framebuffer);
+}
+
+impl::RenderbufferId Renderer::GetDepthStencilRenderbuffer(impl::FramebufferId framebuffer) const {
+	return gl_->framebuffers.GetAttachmentId<impl::gl::Attachment::DepthStencil>(framebuffer);
+}
+
+void Renderer::Clear(impl::FramebufferId framebuffer, Color clear_color) {
+	FlushBatch();
+
+	auto bind_guard = gl_->Bind(framebuffer, true);
+	gl_->framebuffers.Clear(framebuffer, clear_color);
+}
+
+void Renderer::Clear(impl::FramebufferId framebuffer, Depth clear_depth) {
+	FlushBatch();
+
+	auto bind_guard = gl_->Bind(framebuffer, true);
+	gl_->framebuffers.Clear(framebuffer, clear_depth);
+}
+
+void Renderer::Clear(impl::FramebufferId framebuffer, Stencil clear_stencil) {
+	FlushBatch();
+
+	auto bind_guard = gl_->Bind(framebuffer, true);
+	gl_->framebuffers.Clear(framebuffer, clear_stencil);
+}
+
+void Renderer::Clear(impl::FramebufferId framebuffer, DepthStencil clear_depth_stencil) {
+	FlushBatch();
+
+	auto bind_guard = gl_->Bind(framebuffer, true);
+	gl_->framebuffers.Clear(framebuffer, clear_depth_stencil);
+}
+
+void Renderer::SetCurrentPipeline(std::string_view name) {
+	SetCurrentPipeline(Hash(name));
+}
+
+void Renderer::SetCurrentPipeline(std::size_t id) {
+	PTGN_ASSERT(id, "Cannot set current pipeline to 0");
+
+	if (pipeline_manager_.IsCurrentPipeline(id)) {
+		return;
+	}
+
+	PTGN_ASSERT(pipeline_manager_.HasPipeline(id), "No matching pipeline found: ", id);
+
+	FlushBatch();
+
+	pipeline_manager_.SetCurrentPipeline(id);
+}
 
 void Renderer::SetViewport(Viewport viewport) {
-	impl::UpdateStateIfChanged(*this, gl_->GetBoundState().viewport, viewport, [this, viewport] {
-		gl_->SetViewport(viewport);
-	});
+	if (viewport == gl_->GetViewport()) {
+		return;
+	}
+	FlushBatch();
+	gl_->SetViewport(viewport);
 }
 
-void Renderer::SetViewProjection(const Matrix4& view_projection) {
-	if (view_projection_ != view_projection) {
-		FlushBatch();
-		view_projection_ = view_projection;
-	}
-	// TODO: Find a better way to do this. This is needed to ensure that the shader's uniform is
-	// updated even if the shader itself doesn't change.
-	if (auto shader{ gl_->GetBoundShader() }; shader) {
-		gl_->shaders.SetUniform(shader, "u_ViewProjection", view_projection_);
-	}
+void Renderer::SetShader(std::string_view shader) {
+	SetShader(GetShader(shader));
 }
 
 void Renderer::SetShader(impl::ShaderId shader) {
-	if (gl_->GetBoundState().shader_program != shader) {
+	if (!shader) {
 		FlushBatch();
-		auto _ = gl_->Bind(shader, false);
-		gl_->shaders.SetUniform(shader, "u_ViewProjection", view_projection_);
+		current_material_valid_ = false;
+		PTGN_WARN("Cannot bind invalid shader program; draw calls using it will be skipped");
+		return;
+	}
+	current_material_valid_ = true;
+	if (shader == GetBoundShader()) {
+		return;
+	}
+	FlushBatch();
+	auto _ = gl_->Bind(shader, false);
+}
+
+BlendMode Renderer::GetBlendMode() const {
+	return gl_->GetBoundState().render_state.blend_mode;
+}
+
+void Renderer::SetBlendMode(BlendMode blend_mode, bool force) {
+	if (!force && blend_mode == gl_->GetBoundState().render_state.blend_mode) {
+		return;
+	}
+	FlushBatch();
+	gl_->SetBlendMode(blend_mode, force);
+}
+
+void Renderer::SetBlending(bool enabled) {
+	if (enabled == gl_->GetBoundState().render_state.blending) {
+		return;
+	}
+	FlushBatch();
+	gl_->SetBlend(enabled);
+}
+
+impl::PipelineId Renderer::GetTexturePipeline() const {
+	return Hash("texture");
+}
+
+void Renderer::SetFramebuffer(impl::FramebufferObject* framebuffer) {
+	impl::FramebufferId id{ framebuffer ? framebuffer->operator impl::FramebufferId() : 0u };
+
+	if (id == gl_->GetBoundFramebuffer()) {
+		current_framebuffer_ = framebuffer;
+		return;
+	}
+
+	FlushBatch();
+	auto _ = gl_->Bind(id, false);
+
+	current_framebuffer_ = framebuffer;
+}
+
+void Renderer::SetViewProjection(V2_float size) {
+	SetViewProjection(Matrix4::Orthographic(size));
+}
+
+void Renderer::SetViewProjection(const Matrix4& view_projection) {
+	if (view_projection != gl_->GetBoundState().render_state.view_projection) {
+		FlushBatch();
+		gl_->SetViewProjection(view_projection);
+	}
+	// TODO: Find a better way to do this. This is needed to ensure that the shader's
+	// uniform is updated even if the shader itself doesn't change.
+	// EDIT: Possibly no longer needed due to BindUniforms setting the view projection.
+	const auto& bound{ gl_->GetBoundState().render_state };
+	PTGN_ASSERT(bound.view_projection.has_value());
+	if (auto shader{ GetBoundShader() }) {
+		gl_->shaders.SetUniform(shader, kViewProjectionUniform, bound.view_projection.value());
 	}
 }
 
-void Renderer::SetBlend(BlendMode mode, bool enabled) {
-	BlendState desired{ mode, enabled };
-
-	impl::UpdateStateIfChanged(*this, gl_->GetBoundState().blend, desired, [this, desired] {
-		gl_->SetBlend(desired);
-	});
-}
-
-void Renderer::SetFramebuffer(impl::FramebufferId framebuffer) {
-	if (gl_->GetBoundState().framebuffer != framebuffer) {
-		FlushBatch();
-		auto _ = gl_->Bind(framebuffer, false);
+void Renderer::SetDepthTesting(bool enabled) {
+	if (enabled == gl_->GetBoundState().render_state.depth_testing) {
+		return;
 	}
+	FlushBatch();
+	gl_->SetDepthTesting(enabled);
 }
 
-void Renderer::SetDepth(const DepthState& depth) {
-	impl::UpdateStateIfChanged(*this, gl_->GetBoundState().depth, depth, [this, depth] {
-		gl_->SetDepth(depth);
-	});
+void Renderer::SetDepthMask(const DepthMaskState& mask) {
+	if (mask == gl_->GetBoundState().render_state.depth_mask) {
+		return;
+	}
+	FlushBatch();
+	gl_->SetDepthMask(mask);
 }
 
 void Renderer::SetStencil(const StencilState& stencil) {
-	impl::UpdateStateIfChanged(*this, gl_->GetBoundState().stencil, stencil, [this, stencil] {
-		gl_->SetStencil(stencil);
-	});
+	if (stencil == gl_->GetBoundState().render_state.stencil) {
+		return;
+	}
+	FlushBatch();
+	gl_->SetStencil(stencil);
 }
 
 void Renderer::SetRaster(const RasterState& raster) {
-	impl::UpdateStateIfChanged(*this, gl_->GetBoundState().raster, raster, [this, raster] {
-		gl_->SetRaster(raster);
-	});
+	if (raster == gl_->GetBoundState().render_state.raster) {
+		return;
+	}
+	FlushBatch();
+	gl_->SetRaster(raster);
 }
 
 void Renderer::SetScissor(const ScissorState& scissor) {
-	impl::UpdateStateIfChanged(*this, gl_->GetBoundState().scissor, scissor, [this, scissor] {
-		gl_->SetScissor(scissor);
-	});
+	if (scissor == gl_->GetBoundState().render_state.scissor) {
+		return;
+	}
+	FlushBatch();
+	gl_->SetScissor(scissor);
 }
 
 void Renderer::SetColorMask(const ColorMaskState& color_mask) {
-	impl::UpdateStateIfChanged(
-		*this, gl_->GetBoundState().color_mask, color_mask,
-		[this, color_mask] { gl_->SetColorMask(color_mask); }
-	);
-}
-
-void Renderer::FlushIfExceedsCapacity(std::size_t vertices, std::size_t indices) {
-	if (batch_vertices_.size() + vertices > impl::kVertexCapacity ||
-		batch_indices_.size() + indices > impl::kIndexCapacity) {
-		FlushBatch();
+	if (color_mask == gl_->GetBoundState().render_state.color_mask) {
+		return;
 	}
-}
-
-void Renderer::DrawQuad(
-	impl::ShaderId shader, const impl::QuadParams& params,
-	const std::function<bool(impl::ShaderId, impl::QuadDesc&)>& setup
-) {
-	impl::QuadDesc quad;
-	quad.quad = params.quad;
-
-	bool push_texture{ false };
-
-	// Texture -> user data slot 0 (convention)
-	if (params.texture.has_value()) {
-		auto [slot, push] = GetTextureSlot(*params.texture);
-		push_texture	  = push;
-		quad.user_data[0] = static_cast<float>(slot);
-	}
-
-	SetShader(shader);
-
-	bool flush_after{ setup(shader, quad) };
-
-	auto vertices{ impl::Vertex::GetQuad(
-		quad.quad.positions, quad.quad.color, quad.quad.depth, quad.user_data, quad.quad.tex_coords
-	) };
-
-	constexpr std::array<impl::Index, 6> indices{ 0, 1, 2, 2, 3, 0 };
-
-	FlushIfExceedsCapacity(vertices.size(), indices.size());
-
-	auto start_index = static_cast<std::uint32_t>(batch_vertices_.size());
-
-	batch_vertices_.insert(batch_vertices_.end(), vertices.begin(), vertices.end());
-
-	for (auto idx : indices) {
-		batch_indices_.push_back(idx + start_index);
-	}
-
-	if (push_texture) {
-		PTGN_ASSERT(params.texture.has_value(), "Texture must have a value for it to be pushed");
-		batch_textures_.push_back(*params.texture);
-	}
-
-	if (flush_after) {
-		FlushBatch();
-	}
-}
-
-void Renderer::DrawTriangle(
-	impl::ShaderId shader, const std::array<V2_float, 3>& positions, Color tint, float depth
-) {
-	SetShader(shader);
-
-	auto vertices{ impl::Vertex::GetTriangle(positions, tint, depth) };
-
-	constexpr std::size_t triangle_indices{ 3 };
-
-	FlushIfExceedsCapacity(vertices.size(), triangle_indices);
-
-	auto start_index = static_cast<std::uint32_t>(batch_vertices_.size());
-
-	batch_vertices_.insert(batch_vertices_.end(), vertices.begin(), vertices.end());
-	batch_indices_.insert(batch_indices_.end(), { start_index, start_index + 1, start_index + 2 });
+	FlushBatch();
+	gl_->SetColorMask(color_mask);
 }
 
 impl::ShaderId Renderer::GetShader(std::string_view name) const {
 	return gl_->shaders.GetProgram(name);
 }
 
-bool Renderer::IsTextureAttachedToCurrentFramebuffer(impl::TextureId texture) const {
+bool Renderer::IsAttachedToCurrentFramebuffer(impl::TextureId texture) const {
 	auto bound{ gl_->GetBoundFramebuffer() };
 
-	if (bound == impl::FramebufferId{ 0 }) {
+	if (!bound) {
 		return false;
 	}
 
-	return gl_->framebuffers.GetFramebufferAttachment(bound, impl::gl::Attachment::Color0).id ==
-		   texture;
+	return gl_->framebuffers.GetAttachment(bound) == texture;
 }
 
-void Renderer::DrawTexture(
-	impl::ShaderId shader, impl::TextureId texture, const std::array<V2_float, 4>& positions,
-	Color tint, float depth, const std::array<V2_float, 4>& tex_coords,
-	const std::function<void()>& shader_setup
+void Renderer::OnOutputResize(V2_int size) {
+	if (presentation_viewport_.has_value()) {
+		return;
+	}
+
+	if (!renderer_settings_.logical_size.has_value()) {
+		event_sink_(size, impl::ResizeType::Logical);
+	}
+
+	event_sink_(size, impl::ResizeType::Presentation);
+
+	display_viewport_dirty_ = true;
+}
+
+RendererSettings Renderer::GetSettings() const {
+	return renderer_settings_;
+}
+
+void Renderer::SetSettings(const RendererSettings& settings) {
+	SetToneMappingOperator(settings.tone_mapping.op);
+	SetToneMappingExposure(settings.tone_mapping.exposure);
+	SetGamma(settings.gamma);
+	SetBackgroundColor(settings.background_color);
+	SetLogicalSize(settings.logical_size, settings.scaling_mode);
+}
+
+void Renderer::SetToneMappingOperator(ToneMappingOperator op) {
+	renderer_settings_.tone_mapping.op = op;
+}
+
+void Renderer::SetToneMappingExposure(float exposure) {
+	renderer_settings_.tone_mapping.exposure = exposure;
+}
+
+void Renderer::SetGamma(float gamma) {
+	renderer_settings_.gamma = gamma;
+}
+
+void Renderer::SetBackgroundColor(Color background_color) {
+	renderer_settings_.background_color = background_color;
+}
+
+void Renderer::SetLogicalSize(
+	std::optional<V2_int> logical_size, std::optional<ScalingMode> scaling_mode
 ) {
+	if (renderer_settings_.logical_size == logical_size &&
+		(!scaling_mode.has_value() ||
+		 (scaling_mode.has_value() && renderer_settings_.scaling_mode == scaling_mode))) {
+		return;
+	}
+
+	if (logical_size.has_value()) {
+		logical_size.value() = Max(logical_size.value(), { 1, 1 });
+	}
+
 	PTGN_ASSERT(
-		!IsTextureAttachedToCurrentFramebuffer(texture),
-		"Cannot draw a texture that is attached to the currently set framebuffer"
+		!logical_size.has_value() ||
+			(logical_size.has_value() && logical_size.value().IsPositive()),
+		"Logical size cannot be set to negative value or zero"
 	);
 
-	impl::QuadParams p;
-	p.quad.positions  = positions;
-	p.quad.depth	  = depth;
-	p.quad.color	  = tint;
-	p.quad.tex_coords = tex_coords;
-	p.texture		  = texture;
+	renderer_settings_.logical_size = logical_size;
+	if (scaling_mode.has_value()) {
+		renderer_settings_.scaling_mode = scaling_mode.value();
+	}
 
-	auto setup = [this, shader_setup](auto s, auto& q) {
-		// Only quad drawn textures are batchable.
-		bool batchable{ s == gl_->shaders.GetProgram("quad") };
+	auto size{ GetLogicalSize() };
 
-		if (!batchable) {
-			gl_->shaders.SetUniform(s, "u_Texture", static_cast<std::int32_t>(q.user_data[0]));
-		} else {
-			PTGN_ASSERT(!shader_setup, "Quad shader should have no shader setup");
-		}
+	event_sink_(size, impl::ResizeType::Logical);
 
-		if (!batchable && shader_setup) {
-			shader_setup();
-		}
-
-		return !batchable;
-	};
-
-	DrawQuad(shader, p, setup);
-}
-
-void Renderer::DrawQuad(
-	impl::ShaderId shader, const std::array<V2_float, 4>& positions,
-	const std::array<float, 4>& user_data, Color tint, float depth,
-	const std::function<void()>& shader_setup
-) {
-	impl::QuadParams p;
-	p.quad.positions  = positions;
-	p.quad.depth	  = depth;
-	p.quad.color	  = tint;
-	p.quad.tex_coords = impl::GetDefaultTextureCoordinates<false>();
-
-	DrawQuad(shader, p, [this, user_data, shader_setup](auto, auto& q) {
-		q.user_data = user_data;
-		if (shader_setup) {
-			shader_setup();
-			return true;
-		}
-		return false;
-	});
-}
-
-impl::TextureId Renderer::GetWhiteTexture() const {
-	return white_texture_;
-}
-
-void Renderer::OnEvent(EventDispatcher d) {
-	d.Dispatch<WindowResized>([this](auto& e) {
-		if (!game_size_.has_value()) {
-			// PTGN_LOG("Emitting game resized: ", e.size);
-			impl::InternalGameResized internal_game_resized{ e.size };
-			GameResized game_resized{ e.size };
-			events_.Emit(internal_game_resized);
-			events_.Emit(game_resized);
-		}
-
-		UpdateDisplayViewport(e.size);
-	});
+	display_viewport_dirty_ = true;
 }
 
 void Renderer::SetScalingMode(ScalingMode scaling_mode) {
-	if (scaling_mode_ == scaling_mode) {
+	if (renderer_settings_.scaling_mode == scaling_mode) {
 		return;
 	}
 
-	scaling_mode_ = scaling_mode;
+	renderer_settings_.scaling_mode = scaling_mode;
 
-	UpdateDisplayViewport(window_.GetSize());
+	display_viewport_dirty_ = true;
 }
 
-void Renderer::SetGameSize(std::optional<V2_int> game_size, ScalingMode scaling_mode) {
-	if (game_size_ == game_size && scaling_mode_ == scaling_mode) {
+void Renderer::SetPresentationViewport(std::optional<Viewport> presentation_viewport) {
+	if (presentation_viewport_ == presentation_viewport) {
+		return;
+	}
+	presentation_viewport_ = presentation_viewport;
+
+	if (!presentation_viewport_.has_value()) {
+		OnOutputResize(GetOutputSize());
 		return;
 	}
 
-	PTGN_ASSERT(
-		!game_size.has_value() || game_size.has_value() && game_size->BothAboveZero(),
-		"Game size cannot be negative or zero"
-	);
+	auto size{ Ceil(presentation_viewport_.value().size) };
 
-	game_size_	  = game_size;
-	scaling_mode_ = scaling_mode;
+	if (!renderer_settings_.logical_size.has_value()) {
+		event_sink_(size, impl::ResizeType::Logical);
+	}
 
-	impl::InternalGameResized internal_game_resized{ GetGameSize() };
-	GameResized game_resized{ internal_game_resized.size };
-	// PTGN_LOG("Emitting game resized: ", game_resized.size);
-	events_.Emit(internal_game_resized);
-	events_.Emit(game_resized);
+	event_sink_(size, impl::ResizeType::Presentation);
+	display_viewport_dirty_ = true;
+}
 
-	UpdateDisplayViewport(window_.GetSize());
+V2_int Renderer::GetLogicalSize() const {
+	if (renderer_settings_.logical_size.has_value()) {
+		return renderer_settings_.logical_size.value();
+	}
+	return GetPresentationSize();
+}
+
+Viewport Renderer::GetPresentationViewport() const {
+	return { .position{ GetPresentationPosition() }, .size{ GetPresentationSize() } };
+}
+
+V2_int Renderer::GetPresentationPosition() const {
+	if (presentation_viewport_.has_value()) {
+		return presentation_viewport_.value().position;
+	}
+	return { 0, 0 };
+}
+
+V2_int Renderer::GetPresentationSize() const {
+	if (presentation_viewport_.has_value()) {
+		return Ceil(presentation_viewport_.value().size);
+	}
+	return GetOutputSize();
+}
+
+Viewport Renderer::GetDisplayViewport() const {
+	return display_viewport_;
+}
+
+V2_int Renderer::GetDisplayPosition() const {
+	return display_viewport_.position;
 }
 
 V2_int Renderer::GetDisplaySize() const {
@@ -779,93 +556,111 @@ V2_int Renderer::GetDisplaySize() const {
 
 V2_float Renderer::GetScale() const {
 	auto display_size{ GetDisplaySize() };
-	auto game_size{ GetGameSize() };
+	auto logical_size{ GetLogicalSize() };
 
-	PTGN_ASSERT(display_size.BothAboveZero());
-	PTGN_ASSERT(game_size.BothAboveZero());
+	PTGN_ASSERT(display_size.IsPositive());
+	PTGN_ASSERT(logical_size.IsPositive());
 
-	return V2_float{ display_size } / game_size;
+	return V2_float{ display_size } / logical_size;
 }
 
-V2_int Renderer::GetGameSize() const {
-	if (game_size_) {
-		return *game_size_;
-	}
+V2_int Renderer::GetOutputSize() const {
 	return window_.GetSize();
 }
 
-ScalingMode Renderer::GetScalingMode() const {
-	return scaling_mode_;
+void Renderer::SetPrimaryWorldCamera(const std::optional<Camera>& primary_world_camera) {
+	primary_world_camera_ = primary_world_camera;
 }
 
-void Renderer::SetBackgroundColor(Color background_color) {
-	background_color_.value = background_color;
+const std::optional<Camera>& Renderer::GetPrimaryWorldCamera() const {
+	return primary_world_camera_;
 }
 
-Color Renderer::GetBackgroundColor() const {
-	return background_color_.value;
+void Renderer::UpdateDisplayViewport(bool emit_events) {
+	if (!display_viewport_dirty_) {
+		return;
+	}
+
+	auto resize_info = RecalculateDisplayViewport();
+
+	display_viewport_dirty_ = false;
+
+	if (!resize_info.moved && !resize_info.resized) {
+		return;
+	}
+
+	display_viewport_ = resize_info.viewport;
+
+	if (resize_info.resized) {
+		auto size{ Ceil(display_viewport_.size) };
+
+		ResizePresentationFramebuffer(size);
+
+		if (emit_events) {
+			event_sink_(size, impl::ResizeType::Display);
+		}
+	}
 }
 
-Viewport Renderer::GetDisplayViewport() const {
-	return display_viewport_;
-}
+Renderer::DisplayResizeInfo Renderer::RecalculateDisplayViewport() const {
+	auto presentation{ GetPresentationViewport() };
 
-void Renderer::UpdateDisplayViewport(V2_int window_size, bool emit_events) {
-	PTGN_ASSERT(window_size == window_.GetSize());
+	PTGN_ASSERT(presentation.size.IsPositive());
 
-	auto game_size{ game_size_.value_or(window_size) };
+	auto logical_size{ renderer_settings_.logical_size.value_or(presentation.size) };
 
-	PTGN_ASSERT(window_size.BothAboveZero());
-	PTGN_ASSERT(game_size.BothAboveZero());
+	PTGN_ASSERT(logical_size.IsPositive());
 
-	Viewport viewport{ .position = { 0, 0 }, .size = window_size };
+	Viewport viewport{ .position{}, .size{ presentation.size } };
 
-	auto compute_aspect_fit = [&viewport, game_size, window_size](bool letterbox_mode) {
-		float window_aspect{ static_cast<float>(window_size.x) / window_size.y };
-		float game_aspect{ static_cast<float>(game_size.x) / game_size.y };
+	auto compute_aspect_fit = [&viewport, logical_size, presentation](bool letterbox_mode) {
+		float presentation_aspect{ presentation.size.x / presentation.size.y };
+		float logical_aspect{ static_cast<float>(logical_size.x) /
+							  static_cast<float>(logical_size.y) };
 
-		// In letterbox mode we need require window_aspect > game_aspect to fit height, and in
-		// overscan we require window_aspect > game_aspect to fit height.
-		bool fit_height{ (window_aspect > game_aspect) == letterbox_mode };
+		// In letterbox mode require presentation_aspect > logical_aspect to fit
+		// height, and in overscan require presentation_aspect > logical_aspect to fit
+		// height.
+		bool fit_height{ (presentation_aspect > logical_aspect) == letterbox_mode };
 
 		if (fit_height) {
-			viewport.size.y = window_size.y;
-			viewport.size.x =
-				static_cast<int>(static_cast<float>(window_size.y) * game_aspect + 0.5f);
-			viewport.position.x = (window_size.x - viewport.size.x) / 2; // left edge.
+			viewport.size.y		= presentation.size.y;
+			viewport.size.x		= presentation.size.y * logical_aspect;
+			viewport.position.x = (presentation.size.x - viewport.size.x) / 2.0f; // left edge.
 			viewport.position.y = 0;
 		} else {
 			// Fit width.
-			viewport.size.x = window_size.x;
-			viewport.size.y =
-				static_cast<int>(static_cast<float>(window_size.x) / game_aspect + 0.5f);
+			viewport.size.x		= presentation.size.x;
+			viewport.size.y		= presentation.size.x / logical_aspect;
 			viewport.position.x = 0;
-			viewport.position.y = (window_size.y - viewport.size.y) / 2; // top edge.
+			viewport.position.y = (presentation.size.y - viewport.size.y) / 2.0f; // top edge.
 		}
 	};
 
-	switch (scaling_mode_) {
+	switch (renderer_settings_.scaling_mode) {
 		case ScalingMode::Letterbox: compute_aspect_fit(true); break;
 		case ScalingMode::Overscan:	 compute_aspect_fit(false); break;
 
 		case ScalingMode::Stretch:
-			PTGN_ASSERT(viewport.position == V2_int{});
-			PTGN_ASSERT(viewport.size == window_.GetSize());
-			// Viewport is full window (default).
+			PTGN_ASSERT(viewport.size == presentation.size);
+			PTGN_ASSERT(viewport.position.IsZero());
+			// Viewport is full presentation area (default).
 			break;
 
 		case ScalingMode::IntegerScale: {
-			V2_int ratio{ window_size / game_size };
+			V2_int ratio{ presentation.size / logical_size };
 			// Find which dimension limits the scaling factor.
 			int scale{ std::max(1, std::min(ratio.x, ratio.y)) };
-			viewport.size	  = game_size * scale;				   // scale up.
-			viewport.position = (window_size - viewport.size) / 2; // center of window.
+			viewport.size = logical_size * scale;		 // scale up.
+			viewport.position =
+				(presentation.size - viewport.size) / 2; // center of presentation viewport.
 			break;
 		}
 
 		case ScalingMode::Disabled:
-			viewport.size	  = game_size;						   // no change.
-			viewport.position = (window_size - viewport.size) / 2; // center of window.
+			viewport.size = logical_size;				 // no change.
+			viewport.position =
+				(presentation.size - viewport.size) / 2; // center of presentation viewport.
 			break;
 
 		default: PTGN_ERROR("Unsupported resolution mode");
@@ -874,118 +669,84 @@ void Renderer::UpdateDisplayViewport(V2_int window_size, bool emit_events) {
 	bool resized{ viewport.size != display_viewport_.size };
 	bool moved{ viewport.position != display_viewport_.position };
 
-	if (resized || moved) {
-		PTGN_ASSERT(viewport.size.BothAboveZero());
+	PTGN_ASSERT(viewport.size.IsPositive());
 
-		display_viewport_ = viewport;
+	return { .moved = moved, .resized = resized, .viewport{ viewport } };
+}
 
-		if (resized) {
-			ResizeScreenTarget(display_viewport_.size);
-
-			if (emit_events) {
-				impl::InternalDisplayResized internal_display_resized;
-				internal_display_resized.size = display_viewport_.size;
-				// PTGN_LOG("Emitting display resized: ", display_resized.size);
-				events_.Emit(internal_display_resized);
-			}
-		}
-
-		if (emit_events) {
-			impl::InternalDisplayViewportChanged display_changed;
-			display_changed.viewport = display_viewport_;
-			// PTGN_LOG("Emitting viewport changed: ", display_changed.viewport);
-			events_.Emit(display_changed);
-		}
+void Renderer::ResizePresentationFramebuffer(V2_int size) {
+	if (size.IsZero()) {
+		return;
 	}
+	Resize(GetPresentationFramebuffer(), size);
 }
 
-void Renderer::ResizeScreenTarget(V2_int size) {
-	ResizeRenderTarget(screen_target_.resource_, size);
+void Renderer::BindPresentationFramebuffer() {
+	SetFramebuffer(&presentation_framebuffer_);
 }
 
-void Renderer::BindScreenTarget() {
-	BindRenderTarget(screen_target_);
+impl::FramebufferId Renderer::GetPresentationFramebuffer() const {
+	return presentation_framebuffer_.operator impl::FramebufferId();
+}
+
+void Renderer::ResetState() {
+	gl_->ResetState();
 }
 
 void Renderer::BeginFrame() {
-#ifdef PTGN_GL_DEBUG_RENDERER
-	PTGN_LOG("Renderer::BeginFrame: BEGIN");
-#endif
-	PTGN_ASSERT(batch_vertices_.empty());
-	PTGN_ASSERT(batch_indices_.empty());
+	ResetState();
 
-#ifdef PTGN_GL_DEBUG_RENDERER
-	PTGN_LOG("Renderer::BeginFrame: Clearing back buffer to transparent");
-#endif
+	{
+		auto _{ gl_->Bind(impl::FramebufferId{ 0 }, false) };
+		gl_->SetScissor(ScissorState{ false });
+		gl_->SetColorMask(ColorMaskState{});
+		gl_->SetClearColor(window_.GetSettings().background_color);
 
-	V2_int window_size{ window_.GetSize() };
-	Color window_background_color{ window_.GetBackgroundColor() };
+		auto framebuffer_size{ window_.GetFramebufferSize() };
 
-	auto _1 = gl_->Bind(impl::FramebufferId{ 0 }, false);
-	gl_->SetClearColor(window_background_color);
-	SetViewport({ {}, window_size });
-	gl_->framebuffers.Clear();
+		if (framebuffer_size.IsPositive()) {
+			gl_->SetViewport(Viewport{ .position{}, .size{ framebuffer_size } });
+			gl_->framebuffers.Clear();
+		}
+	}
 
-#ifdef PTGN_GL_DEBUG_RENDERER
-	PTGN_LOG("Renderer::BeginFrame: Clearing screen target to transparent");
-#endif
+	SetFramebuffer(&presentation_framebuffer_);
 
-	BindScreenTarget();
-	SetViewport({ {}, screen_target_.GetSize() });
-	gl_->framebuffers.ClearToColor(
-		impl::FramebufferId{ screen_target_.resource_ }, background_color_.value
-	);
-
-#ifdef PTGN_GL_DEBUG_RENDERER
-	PTGN_LOG("Renderer::BeginFrame: END");
-#endif
-}
-
-void Renderer::EndFrame() {
-#ifdef PTGN_GL_DEBUG_RENDERER
-	PTGN_LOG("Renderer::EndFrame(display_viewport=", display_viewport_, "): BEGIN");
-#endif
-	PTGN_ASSERT(display_viewport_.size.BothAboveZero());
-
-#ifdef PTGN_GL_DEBUG_RENDERER
-	PTGN_LOG("Renderer::EndFrame: Binding back buffer");
-#endif
-
-	SetFramebuffer({});
-
-	V2_float half_viewport{ display_viewport_.size * 0.5f };
+	SetScissor(ScissorState{ false });
 	SetViewport(display_viewport_);
-	auto view_projection{ Matrix4::Orthographic(-half_viewport, half_viewport) };
-	SetViewProjection(view_projection);
-	SetBlend(BlendMode::ReplaceRGBA, true);
 
-#ifdef PTGN_GL_DEBUG_RENDERER
-	PTGN_LOG("Renderer::EndFrame: Drawing screen target to back buffer");
-#endif
-
-	PTGN_ASSERT(
-		GetRenderTargetSize(screen_target_.resource_) == display_viewport_.size,
-		"Screen target texture size must match display viewport size"
-	);
-	auto quad_shader{ GetShader("quad") };
-	auto points{ impl::GetCenteredQuadPoints(display_viewport_.size) };
-	auto tex_coords{ impl::GetDefaultTextureCoordinates<true>() };
-
-	auto screen_texture{ GetRenderTargetTexture(screen_target_.resource_) };
-
-	DrawTexture(quad_shader, screen_texture, points, color::White, 0.0f, tex_coords, {});
-
-	FlushBatch();
-
-#ifdef PTGN_GL_DEBUG_RENDERER
-	PTGN_LOG("Renderer::EndFrame: END");
-#endif
+	Clear(presentation_framebuffer_, renderer_settings_.background_color);
 }
 
-void Renderer::SetGLVersion() {
-	SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, PTGN_OPENGL_CONTEXT_PROFILE);
-	SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, PTGN_OPENGL_MAJOR_VERSION);
-	SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, PTGN_OPENGL_MINOR_VERSION);
+void Renderer::BindUniforms() {
+	const auto& bound{ gl_->GetBoundState() };
+	if (!bound.shader_program) {
+		return;
+	}
+	if (bound.render_state.view_projection.has_value()) {
+		gl_->shaders.SetUniform(
+			bound.shader_program, kViewProjectionUniform, bound.render_state.view_projection.value()
+		);
+	}
+	for (const auto& [name, value] : current_uniforms_) {
+		SetUniformValue(bound.shader_program, name.c_str(), value);
+	}
+}
+
+impl::ShaderId Renderer::GetBoundShader() const {
+	return gl_->GetBoundShader();
+}
+
+void Renderer::ExecuteEffectCallbacks(const std::function<void(DrawContext&)>& effect_callback) {
+	DrawContext ctx{ *this };
+
+	if (effect_callback) {
+		effect_callback(ctx);
+	}
+}
+
+void Renderer::DrawTexture(const impl::DrawTextureRequest& request) {
+	Draw(request);
 }
 
 impl::ShaderObject Renderer::CreateShader(
@@ -995,16 +756,17 @@ impl::ShaderObject Renderer::CreateShader(
 }
 
 impl::TextureObject Renderer::CreateTexture(
-	const std::uint8_t* pixel_data, V2_int size, TextureFormat format
+	const std::uint8_t* pixel_data, TextureDesc desc, bool restore_bind
 ) {
-	auto [pixel_format, pixel_type] = impl::gl::GetPixelDataFormat(format);
-	PTGN_ASSERT(
-		pixel_type == impl::gl::PixelDataType::UnsignedByte,
-		"Texture format must have a type of bytes"
-	);
-	return impl::TextureObject{
-		this, gl_->textures.CreateTexture(pixel_data, pixel_format, pixel_type, size, format)
-	};
+	return impl::TextureObject{ this, gl_->textures.Create(pixel_data, desc, restore_bind) };
+}
+
+void Renderer::SetBoundShaderUniform(const char* uniform_name, int value) {
+	auto shader{ GetBoundShader() };
+
+	PTGN_ASSERT(shader, "Shader must be bound before calling SetBoundShaderUniform");
+
+	gl_->shaders.SetUniform(shader, uniform_name, value);
 }
 
 void Renderer::SetUniform(impl::ShaderId shader, const char* uniform_name, const Matrix4& v) {
@@ -1028,7 +790,7 @@ void Renderer::SetUniform(impl::ShaderId shader, const char* uniform_name, V4_fl
 }
 
 void Renderer::SetUniform(
-	impl::ShaderId shader, const char* uniform_name, const std::vector<float>& v
+	impl::ShaderId shader, const char* uniform_name, std::span<const float> v
 ) {
 	gl_->shaders.SetUniform(shader, uniform_name, v);
 }
@@ -1049,14 +811,743 @@ void Renderer::SetUniform(impl::ShaderId shader, const char* uniform_name, V4_in
 	gl_->shaders.SetUniform(shader, uniform_name, v);
 }
 
-void Renderer::SetUniform(
-	impl::ShaderId shader, const char* uniform_name, const std::vector<int>& v
-) {
+void Renderer::SetUniform(impl::ShaderId shader, const char* uniform_name, std::span<const int> v) {
 	gl_->shaders.SetUniform(shader, uniform_name, v);
 }
 
 void Renderer::SetUniform(impl::ShaderId shader, const char* uniform_name, bool v) {
 	gl_->shaders.SetUniform(shader, uniform_name, v);
 }
+
+void Renderer::SetUniformValue(
+	impl::ShaderId shader, const char* uniform_name, const UniformValue& v
+) {
+	std::visit([&]<typename T>(T&& s) { SetUniform(shader, uniform_name, std::forward<T>(s)); }, v);
+}
+
+void Renderer::Destroy(impl::VertexBufferId id) {
+	gl_->Destroy(id);
+}
+
+void Renderer::Destroy(impl::ElementBufferId id) {
+	gl_->Destroy(id);
+}
+
+void Renderer::Destroy(impl::UniformBufferId id) {
+	gl_->Destroy(id);
+}
+
+void Renderer::Destroy(impl::ShaderId id) {
+	gl_->Destroy(id);
+}
+
+void Renderer::Destroy(impl::TextureId id) {
+#ifdef PTGN_PLATFORM_MACOS
+	gl_->Destroy(id, white_texture_.operator impl::TextureId());
+#else
+	gl_->Destroy(id, impl::TextureId{ 0 });
+#endif
+}
+
+void Renderer::Destroy(impl::RenderbufferId id) {
+	gl_->Destroy(id);
+}
+
+void Renderer::Destroy(impl::FramebufferId id) {
+#ifdef PTGN_PLATFORM_MACOS
+	gl_->Destroy(id, white_texture_.operator impl::TextureId());
+#else
+	gl_->Destroy(id, impl::TextureId{ 0 });
+#endif
+}
+
+void Renderer::Destroy(impl::VertexArrayId id) {
+	gl_->Destroy(id);
+}
+
+std::optional<V2_int> Renderer::GetSize(impl::FramebufferId framebuffer) const {
+	auto texture{ GetTexture(framebuffer) };
+	return GetSize(texture);
+}
+
+std::optional<TextureFormat> Renderer::GetFormat(impl::FramebufferId framebuffer) const {
+	auto texture{ GetTexture(framebuffer) };
+	return GetFormat(texture);
+}
+
+std::optional<TextureParams> Renderer::GetParams(impl::FramebufferId framebuffer) const {
+	auto texture{ GetTexture(framebuffer) };
+	return GetParams(texture);
+}
+
+std::optional<TextureDesc> Renderer::GetDesc(impl::FramebufferId framebuffer) const {
+	auto texture{ GetTexture(framebuffer) };
+	return GetDesc(texture);
+}
+
+std::optional<V2_int> Renderer::GetSize(impl::TextureId texture) const {
+	if (auto desc{ GetDesc(texture) }) {
+		return desc.value().size;
+	}
+	return std::nullopt;
+}
+
+std::optional<TextureFormat> Renderer::GetFormat(impl::TextureId texture) const {
+	if (auto desc{ GetDesc(texture) }) {
+		return desc.value().format;
+	}
+	return std::nullopt;
+}
+
+std::optional<TextureParams> Renderer::GetParams(impl::TextureId texture) const {
+	if (auto desc{ GetDesc(texture) }) {
+		return desc.value().params;
+	}
+	return std::nullopt;
+}
+
+std::optional<TextureDesc> Renderer::GetDesc(impl::TextureId texture) const {
+	return gl_->textures.GetDesc(texture);
+}
+
+std::optional<V2_int> Renderer::GetSize(impl::RenderbufferId renderbuffer) const {
+	return gl_->renderbuffers.GetSize(renderbuffer);
+}
+
+std::optional<TextureFormat> Renderer::GetFormat(impl::RenderbufferId renderbuffer) const {
+	return gl_->renderbuffers.GetFormat(renderbuffer);
+}
+
+void Renderer::Resize(impl::FramebufferId framebuffer, V2_int new_size) {
+	gl_->framebuffers.Resize(framebuffer, new_size);
+}
+
+void Renderer::SetParams(impl::FramebufferId framebuffer, TextureParams params) {
+	auto texture{ GetTexture(framebuffer) };
+	SetParams(texture, params);
+}
+
+void Renderer::SetParams(impl::TextureId texture, TextureParams params) {
+	using enum impl::gl::TextureParameter;
+	gl_->textures.SetParameter(texture, MinFilter, std::to_underlying(params.min_filter));
+	gl_->textures.SetParameter(texture, MagFilter, std::to_underlying(params.mag_filter));
+	gl_->textures.SetParameter(texture, WrapS, std::to_underlying(params.wrap_s));
+	gl_->textures.SetParameter(texture, WrapT, std::to_underlying(params.wrap_t));
+}
+
+std::size_t Renderer::GetMaxTextureSlots() const {
+	return gl_->GetMaxTextureSlots();
+}
+
+void Renderer::UploadVertices(
+	const impl::RenderPipeline& pipeline, std::span<const std::byte> vertices,
+	std::uint32_t vertex_size
+) {
+	auto _0{ gl_->Bind(pipeline.vao, false) };
+	auto _{ gl_->Bind(pipeline.vbo, false) };
+
+	auto vertex_count{ static_cast<std::uint32_t>(vertices.size() / vertex_size) };
+
+	gl_->buffers.SetBufferSubData<impl::VertexBufferId>(
+		pipeline.vbo, impl::gl::BufferTarget::ArrayBuffer, vertices.data(), 0, vertex_count,
+		vertex_size
+	);
+}
+
+void Renderer::UploadIndices(
+	const impl::RenderPipeline& pipeline, std::span<const impl::Index> indices
+) {
+	auto _0{ gl_->Bind(pipeline.vao, false) };
+	auto _{ gl_->Bind(pipeline.ebo, false) };
+
+	gl_->buffers.SetBufferSubData<impl::ElementBufferId>(
+		pipeline.ebo, impl::gl::BufferTarget::ElementArrayBuffer, indices.data(), 0,
+		static_cast<std::uint32_t>(indices.size()), sizeof(impl::Index)
+	);
+}
+
+void Renderer::DrawElements(const impl::RenderPipeline& pipeline, std::size_t index_count) {
+	auto _0{ gl_->Bind(pipeline.vao, false) };
+
+	gl_->vertex_arrays.DrawElements(
+		pipeline.vao, static_cast<int>(index_count), impl::gl::IndexType::UnsignedInt,
+		pipeline.primitive_mode
+	);
+}
+
+void Renderer::SetMaterial(const MaterialState& material) {
+	if (!material.shader) {
+		FlushBatch();
+		current_material_valid_ = false;
+		current_uniforms_.clear();
+		current_texture_slot_capacity_ = 1;
+		PTGN_WARN(
+			"Cannot use material with invalid shader program; draw calls using it will be skipped"
+		);
+		return;
+	}
+
+	current_material_valid_ = true;
+	auto resolved_texture_slot_capacity{ material.texture_slot_capacity.value_or(1) };
+
+	if (GetBoundShader() == material.shader && current_uniforms_ == material.uniforms &&
+		current_texture_slot_capacity_ == resolved_texture_slot_capacity) {
+		return;
+	}
+
+	FlushBatch();
+
+	auto _ = gl_->Bind(material.shader, false);
+
+	current_uniforms_			   = material.uniforms;
+	current_texture_slot_capacity_ = resolved_texture_slot_capacity;
+}
+
+RenderState Renderer::GetRenderState() const {
+	const auto& state{ gl_->GetBoundState() };
+	return state.render_state;
+}
+
+const impl::FramebufferObject& Renderer::GetBoundFramebuffer() const {
+	PTGN_ASSERT(current_framebuffer_, "No current framebuffer has been set");
+	return *current_framebuffer_;
+}
+
+impl::FramebufferObject& Renderer::GetBoundFramebuffer() {
+	PTGN_ASSERT(current_framebuffer_, "No current framebuffer has been set");
+	return *current_framebuffer_;
+}
+
+void Renderer::DrawRenderPass(const impl::DrawPassRequest& request) {
+	FlushBatch();
+
+	PTGN_ASSERT(request.output, "Render pass output must be valid");
+
+	auto output_size{ GetSize(request.output) };
+
+	PTGN_ASSERT(output_size.value().IsPositive(), "Render pass output size must be non-zero");
+	PTGN_ASSERT(request.viewport.size.IsPositive(), "Render pass viewport size must be non-zero");
+
+	auto previous_state{ GetRenderState() };
+
+	MaterialState previous_material{
+		.shader				   = GetBoundShader(),
+		.uniforms			   = current_uniforms_,
+		.texture_slot_capacity = current_texture_slot_capacity_,
+	};
+
+	auto previous_pipeline{ pipeline_manager_.GetCurrentPipelineId() };
+
+	{
+		auto framebuffer_guard{ gl_->Bind(request.output, true) };
+
+		SetCurrentPipeline(request.pipeline);
+		SetMaterial(request.material);
+
+		if (request.scissor_to_viewport) {
+			SetScissor(ScissorState{ request.viewport });
+		} else {
+			SetScissor(ScissorState{ false });
+		}
+
+		SetViewport(request.viewport);
+		SetViewProjection(request.viewport.size);
+		SetBlendMode(BlendMode::ReplaceRGBA);
+
+		std::vector<TextureBinding> bindings;
+		std::vector<impl::TextureId> textures;
+
+		bindings.reserve(request.inputs.size());
+		textures.reserve(request.inputs.size());
+
+		for (const auto& input : request.inputs) {
+			auto texture{ GetTexture(input.framebuffer) };
+
+			PTGN_ASSERT(texture, "Render pass input must have a valid color texture");
+
+			auto input_size{ GetSize(input.framebuffer) };
+
+			PTGN_ASSERT(input_size.value().IsPositive(), "Render pass input size must be non-zero");
+
+			PTGN_ASSERT(
+				input_size == V2_int{ Floor(request.viewport.size) },
+				"Render pass input size must match the draw viewport size"
+			);
+
+			bindings.emplace_back(input.binding);
+			textures.emplace_back(texture);
+		}
+
+		constexpr auto depth{ 0.0f };
+		constexpr auto tex_coords{ impl::GetDefaultTextureCoordinates<true>() };
+
+		auto local_vertices{ Rect{ request.viewport.size }.GetLocalVertices() };
+
+		auto local_quad{ impl::CreateTextureQuad(
+			local_vertices, depth, request.tint.Normalized(), tex_coords, impl::kNoEntityId
+		) };
+
+		std::span quads{ &local_quad, 1 };
+
+		const auto& pipeline{ pipeline_manager_.GetCurrentPipeline() };
+
+		batcher_.SubmitQuadsWithTextureBindings<impl::TextureVertex>(
+			quads, pipeline.vertex_capacity, pipeline.index_capacity, bindings, textures,
+			current_texture_slot_capacity_
+		);
+
+		FlushBatch();
+	}
+
+	SetCurrentPipeline(previous_pipeline);
+	SetMaterial(previous_material);
+	SetRenderState(previous_state);
+}
+
+void Renderer::CopyFramebufferRegion(
+	impl::FramebufferId source, impl::FramebufferId destination, Viewport source_region,
+	V2_int destination_position
+) {
+	// Batch must be flushed before copying framebuffer regions to ensure that all rendering
+	// commands that may affect the source or destination regions are completed.
+	FlushBatch();
+
+	gl_->framebuffers.CopyRegion(source, destination, source_region, destination_position);
+}
+
+std::optional<std::int32_t> Renderer::ReadEntityId(
+	impl::FramebufferId framebuffer, V2_int pixel
+) const {
+	if (!gl_->framebuffers.HasAttachment<impl::gl::Attachment::Color1>(framebuffer)) {
+		return std::nullopt;
+	}
+
+	auto bind_guard{ gl_->Bind(framebuffer, true) };
+
+	auto entity_id{ gl_->framebuffers.ReadPixel<impl::gl::Attachment::Color1>(framebuffer, pixel) };
+
+	if (!std::holds_alternative<std::int32_t>(entity_id)) {
+		return std::nullopt;
+	}
+
+	return std::get<std::int32_t>(entity_id);
+}
+
+void Renderer::CompositeRenderPassResult(
+	impl::FramebufferId color_source, impl::FramebufferId destination, Viewport destination_region
+) {
+	PTGN_ASSERT(color_source, "Render pass source must be valid");
+	PTGN_ASSERT(destination, "Render pass destination must be valid");
+	PTGN_ASSERT(destination_region.size.IsPositive(), "Composite region must be valid");
+
+	auto source_size{ GetSize(color_source) };
+
+	PTGN_ASSERT(
+		source_size == V2_int{ destination_region.size },
+		"Composite source size must match destination region size"
+	);
+
+	auto input{ impl::BoundInput{
+		.framebuffer = color_source,
+		.binding	 = TextureBinding{ 0, kTextureUniform },
+	} };
+
+	DrawRenderPass(
+		impl::DrawPassRequest{
+			.material{
+				.shader = GetShader("passthrough"),
+			},
+			.pipeline			 = Hash("texture"),
+			.inputs				 = std::span{ &input, 1 },
+			.output				 = destination,
+			.viewport			 = destination_region,
+			.scissor_to_viewport = true,
+		}
+	);
+}
+
+void Renderer::SetRenderState(const RenderState& state) {
+	SetViewport(state.viewport);
+	if (state.view_projection.has_value()) {
+		SetViewProjection(state.view_projection.value());
+	}
+	SetBlending(state.blending);
+	SetBlendMode(state.blend_mode);
+	SetDepthTesting(state.depth_testing);
+	SetDepthMask(state.depth_mask);
+	SetStencil(state.stencil);
+	SetRaster(state.raster);
+	SetScissor(state.scissor);
+	SetColorMask(state.color_mask);
+}
+
+void Renderer::SetRenderStateDelta(const RenderStateDelta& delta) {
+	if (delta.viewport.has_value()) {
+		SetViewport(delta.viewport.value());
+	}
+	if (delta.view_projection.has_value()) {
+		SetViewProjection(delta.view_projection.value());
+	}
+	if (delta.blending.has_value()) {
+		SetBlending(delta.blending.value());
+	}
+	if (delta.blend_mode.has_value()) {
+		SetBlendMode(delta.blend_mode.value());
+	}
+	if (delta.depth_testing.has_value()) {
+		SetDepthTesting(delta.depth_testing.value());
+	}
+	if (delta.depth_mask.has_value()) {
+		SetDepthMask(delta.depth_mask.value());
+	}
+	if (delta.stencil.has_value()) {
+		SetStencil(delta.stencil.value());
+	}
+	if (delta.raster.has_value()) {
+		SetRaster(delta.raster.value());
+	}
+	if (delta.scissor.has_value()) {
+		SetScissor(delta.scissor.value());
+	}
+	if (delta.color_mask.has_value()) {
+		SetColorMask(delta.color_mask.value());
+	}
+}
+
+void Renderer::BindTextureSlot(std::uint32_t slot, impl::TextureId texture, bool force) {
+	gl_->SetActiveTextureSlot(slot, force);
+#ifdef PTGN_PLATFORM_MACOS
+	if (!texture) {
+		texture = white_texture_;
+	}
+#endif
+	auto _3{ gl_->Bind(texture, false, force) };
+}
+
+void Renderer::ApplyOutputColorTransform(impl::FramebufferObject& framebuffer) {
+	auto op{ renderer_settings_.tone_mapping.op };
+
+	PTGN_ASSERT(
+		!impl::RequiresHDRInput(op) || IsHDRFormat(GetFormat(framebuffer).value()),
+		"Framebuffer format must support HDR if tone mapping is enabled"
+	);
+
+	ApplyFramebufferEffect(framebuffer, [this, op](DrawContext& ctx) {
+		ctx.Pass([this, op](auto& pass) -> RenderPassHandle {
+			auto gamma_and_tonemapping_shader{ impl::GetGammaAndToneMappingShader(op) };
+
+			auto result{ pass.Apply(gamma_and_tonemapping_shader) };
+
+			result.Uniform(impl::kGammaUniform, renderer_settings_.gamma);
+
+			if (op == ToneMappingOperator::Exposure || op == ToneMappingOperator::ACES) {
+				result.Uniform(impl::kExposureUniform, renderer_settings_.tone_mapping.exposure);
+			}
+
+			return result;
+		});
+	});
+}
+
+bool Renderer::FramebufferMatches(
+	impl::FramebufferId framebuffer, TextureDesc desc, std::optional<TextureDesc> other_desc
+) const {
+	using enum impl::gl::Attachment;
+	using enum impl::gl::AttachmentStorage;
+
+	if (IsColorFormat(desc.format)) {
+		if (auto expected_depth_stencil{ other_desc.has_value()
+											 ? std::optional{ impl::gl::GetDepthStencilAttachment(
+												   other_desc.value().format
+											   ) }
+											 : std::nullopt };
+			!gl_->framebuffers.HasOnlyAttachmentLayout(
+				framebuffer, Color0, expected_depth_stencil
+			)) {
+			return false;
+		}
+
+		auto color{ gl_->framebuffers.FindAttachment(framebuffer, Color0, Texture) };
+
+		PTGN_ASSERT(color.has_value());
+
+		if (auto color_texture{ impl::TextureId{ color.value().id } };
+			GetFormat(color_texture) != desc.format || GetSize(color_texture) != desc.size) {
+			return false;
+		}
+
+		if (!other_desc.has_value()) {
+			return true;
+		}
+
+		auto depth_stencil_attachment{
+			impl::gl::GetDepthStencilAttachment(other_desc.value().format)
+		};
+		auto depth_stencil{
+			gl_->framebuffers.FindAttachment(framebuffer, depth_stencil_attachment, Renderbuffer)
+		};
+
+		PTGN_ASSERT(depth_stencil.has_value());
+
+		auto renderbuffer{ impl::RenderbufferId{ depth_stencil.value().id } };
+
+		return GetFormat(renderbuffer) == other_desc.value().format &&
+			   GetSize(renderbuffer) == other_desc.value().size;
+	}
+
+	auto expected_attachment{ impl::gl::GetDepthStencilAttachment(desc.format) };
+
+	if (!gl_->framebuffers.HasOnlyAttachmentLayout(
+			framebuffer, std::nullopt, expected_attachment
+		)) {
+		return false;
+	}
+
+	auto depth_stencil{
+		gl_->framebuffers.FindAttachment(framebuffer, expected_attachment, Renderbuffer)
+	};
+
+	PTGN_ASSERT(depth_stencil.has_value());
+
+	auto renderbuffer{ impl::RenderbufferId{ depth_stencil.value().id } };
+
+	return GetFormat(renderbuffer) == desc.format && GetSize(renderbuffer) == desc.size;
+}
+
+void Renderer::SetEntityPickingEnabled(impl::FramebufferId framebuffer, bool enabled) {
+	PTGN_ASSERT(framebuffer, "Framebuffer must be valid");
+
+	auto currently_enabled{
+		gl_->framebuffers.HasAttachment<impl::gl::Attachment::Color1>(framebuffer)
+	};
+
+	if (currently_enabled == enabled) {
+		return;
+	}
+
+	// Attachment state must not change while vertices targeting the previous
+	// attachment configuration are still pending.
+	FlushBatch();
+
+	auto bind_guard{ gl_->Bind(framebuffer, true) };
+
+	if (enabled) {
+		auto size{ GetSize(framebuffer) };
+
+		PTGN_ASSERT(
+			size.has_value(),
+			"Framebuffer must have a color attachment before enabling entity picking"
+		);
+		PTGN_ASSERT(
+			size->IsPositive(), "Framebuffer size must be positive before enabling entity picking"
+		);
+
+		auto entity_id_texture{ gl_->textures.Create(GetEntityIdTextureDesc(size.value()), true) };
+
+		gl_->framebuffers.Attach<impl::gl::Attachment::Color1>(framebuffer, entity_id_texture);
+
+		gl_->framebuffers.ClearInt<impl::gl::Attachment::Color1>(framebuffer, impl::kNoEntityId);
+
+		return;
+	}
+
+	auto entity_id_texture{
+		gl_->framebuffers.GetAttachment<impl::gl::Attachment::Color1>(framebuffer)
+	};
+
+	// Detach first so destroying the texture does not leave a dead attachment
+	// on the framebuffer.
+	gl_->framebuffers.Detach<impl::gl::Attachment::Color1>(framebuffer);
+
+	Destroy(entity_id_texture);
+}
+
+bool Renderer::IsEntityPickingEnabled(impl::FramebufferId framebuffer) const {
+	if (!framebuffer) {
+		return false;
+	}
+
+	if (!gl_->framebuffers.HasAttachment<impl::gl::Attachment::Color1>(framebuffer)) {
+		return false;
+	}
+
+	auto texture{ gl_->framebuffers.GetAttachment<impl::gl::Attachment::Color1>(framebuffer) };
+
+	PTGN_ASSERT(GetFormat(texture) == TextureFormat::R32I, "Entity ID attachment must use R32I");
+
+	return true;
+}
+
+void Renderer::ClearEntityIds(impl::FramebufferId framebuffer) {
+	if (!IsEntityPickingEnabled(framebuffer)) {
+		return;
+	}
+
+	FlushBatch();
+
+	auto bind_guard{ gl_->Bind(framebuffer, true) };
+
+	gl_->framebuffers.ClearInt<impl::gl::Attachment::Color1>(framebuffer, impl::kNoEntityId);
+}
+
+namespace impl {
+
+RendererAccessor::RendererAccessor(Renderer& renderer) : renderer_{ renderer } {}
+
+TextureObject RendererAccessor::CreateTexture(const std::uint8_t* pixel_data, TextureDesc desc) {
+	return renderer_.CreateTexture(pixel_data, desc);
+}
+
+ShaderObject RendererAccessor::CreateShader(
+	const std::variant<ShaderCode, ShaderPath, ShaderPair>& source, std::string_view shader_name
+) {
+	return renderer_.CreateShader(source, shader_name);
+}
+
+FramebufferObject RendererAccessor::CreateFramebuffer(
+	TextureDesc desc, const std::optional<TextureDesc>& other_desc
+) {
+	return renderer_.CreateFramebuffer(desc, other_desc);
+}
+
+TextureId RendererAccessor::GetPresentationTexture() const {
+	return GetTexture(renderer_.GetPresentationFramebuffer());
+}
+
+std::optional<V2_int> RendererAccessor::GetSize(TextureId texture) const {
+	return renderer_.GetSize(texture);
+}
+
+TextureId RendererAccessor::GetTexture(FramebufferId framebuffer) const {
+	return renderer_.GetTexture(framebuffer);
+}
+
+std::optional<TextureDesc> RendererAccessor::GetDesc(FramebufferId framebuffer) const {
+	return renderer_.GetDesc(framebuffer);
+}
+
+RenderState RendererAccessor::GetRenderState() const {
+	return renderer_.GetRenderState();
+}
+
+void RendererAccessor::SetRenderState(const RenderState& state) {
+	renderer_.SetRenderState(state);
+}
+
+MaterialState RendererAccessor::GetMaterial() const {
+	return MaterialState{
+		.shader				   = renderer_.GetBoundShader(),
+		.uniforms			   = renderer_.current_uniforms_,
+		.texture_slot_capacity = renderer_.current_texture_slot_capacity_,
+	};
+}
+
+void RendererAccessor::SetMaterial(const MaterialState& material) {
+	renderer_.SetMaterial(material);
+}
+
+PipelineId RendererAccessor::GetCurrentPipeline() const {
+	return renderer_.pipeline_manager_.GetCurrentPipelineId();
+}
+
+void RendererAccessor::SetCurrentPipeline(PipelineId pipeline) {
+	renderer_.SetCurrentPipeline(pipeline);
+}
+
+void RendererAccessor::Clear(FramebufferId framebuffer, Color clear_color) {
+	renderer_.Clear(framebuffer, clear_color);
+}
+
+void RendererAccessor::DrawText(Transform transform, const DrawTextRequest& request) {
+	renderer_.ExecuteEffectCallbacks([&](DrawContext& ctx) {
+		ctx.DrawText(transform, request, {});
+	});
+}
+
+void RendererAccessor::ApplyOutputColorTransform(FramebufferObject& framebuffer) {
+	renderer_.ApplyOutputColorTransform(framebuffer);
+}
+
+void RendererAccessor::FlushBatch() {
+	renderer_.FlushBatch();
+}
+
+void RendererAccessor::SetupPresentationFramebuffer() {
+	Viewport viewport{ {}, renderer_.GetDisplayViewport().size };
+
+	renderer_.BindPresentationFramebuffer();
+	renderer_.SetViewport(viewport);
+	renderer_.SetScissor(ScissorState{ false });
+	renderer_.SetViewProjection(viewport.size);
+	renderer_.SetBlendMode(BlendMode::Blend);
+}
+
+ShaderId RendererAccessor::GetShader(std::string_view name) const {
+	return renderer_.GetShader(name);
+}
+
+void RendererAccessor::SetFramebuffer(FramebufferObject* framebuffer) {
+	renderer_.SetFramebuffer(framebuffer);
+}
+
+void RendererAccessor::SetScissor(const ScissorState& scissor) {
+	renderer_.SetScissor(scissor);
+}
+
+void RendererAccessor::SetViewProjection(const Matrix4& view_projection) {
+	renderer_.SetViewProjection(view_projection);
+}
+
+void RendererAccessor::SetViewport(Viewport viewport) {
+	renderer_.SetViewport(viewport);
+}
+
+void RendererAccessor::SetBlendMode(BlendMode blend_mode, bool force) {
+	renderer_.SetBlendMode(blend_mode, force);
+}
+
+const FramebufferObject* RendererAccessor::GetCurrentFramebuffer() const {
+	return renderer_.current_framebuffer_;
+}
+
+FramebufferObject* RendererAccessor::GetCurrentFramebuffer() {
+	return renderer_.current_framebuffer_;
+}
+
+const FramebufferObject& RendererAccessor::GetBoundFramebuffer() const {
+	return renderer_.GetBoundFramebuffer();
+}
+
+FramebufferObject& RendererAccessor::GetBoundFramebuffer() {
+	return renderer_.GetBoundFramebuffer();
+}
+
+void RendererAccessor::ClearEntityIds(FramebufferId framebuffer) {
+	renderer_.ClearEntityIds(framebuffer);
+}
+
+impl::FramebufferId RendererAccessor::GetPresentationFramebuffer() const {
+	return renderer_.GetPresentationFramebuffer();
+}
+
+void RendererAccessor::SetEntityPickingEnabled(impl::FramebufferId framebuffer, bool enabled) {
+	renderer_.SetEntityPickingEnabled(framebuffer, enabled);
+}
+
+bool RendererAccessor::IsEntityPickingEnabled(FramebufferId framebuffer) const {
+	return renderer_.IsEntityPickingEnabled(framebuffer);
+}
+
+std::optional<std::int32_t> RendererAccessor::ReadEntityId(
+	FramebufferId framebuffer, V2_int pixel
+) const {
+	return renderer_.ReadEntityId(framebuffer, pixel);
+}
+
+std::size_t RendererAccessor::GetMaxTextureSlots() const {
+	return renderer_.GetMaxTextureSlots();
+}
+
+} // namespace impl
 
 } // namespace ptgn

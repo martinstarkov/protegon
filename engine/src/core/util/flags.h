@@ -4,7 +4,7 @@
 #include <utility>
 
 #include "core/util/concepts.h"
-#include "serialization/json/serialize.h"
+#include "serialization/serialize.h"
 
 #define PTGN_FLAGS_OPERATORS(EnumName)                                         \
 	inline EnumName operator|(EnumName a, EnumName b) {                        \
@@ -81,7 +81,7 @@ public:
 		bits_ = bits;
 	}
 
-	PTGN_SERIALIZER_REGISTER_NAMELESS(Flags<TEnum>, bits_)
+	PTGN_REFLECT(Flags<TEnum>, bits_)
 
 private:
 	underlying bits_{ 0 };

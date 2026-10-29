@@ -1,8 +1,9 @@
 #pragma once
 
+#include "core/math/angle.h"
 #include "core/math/math_utils.h"
 #include "core/math/vector2.h"
-#include "serialization/json/serialize.h"
+#include "serialization/serialize.h"
 
 namespace ptgn {
 
@@ -10,8 +11,8 @@ struct ShakeConfig {
 	/// @brief Maximum translation distance during shaking.
 	V2_float maximum_translation{ 30.0f, 30.0f };
 
-	/// @brief Maximum rotation (in radians) during shaking.
-	float maximum_rotation{ DegToRad(30.0f) };
+	/// @brief Maximum rotation during shaking.
+	Degrees maximum_rotation{ 30.0f };
 
 	/// @brief Frequency of the Perlin noise function. Higher values will result in faster shaking.
 	float frequency{ 10.0f };
@@ -23,9 +24,9 @@ struct ShakeConfig {
 	/// @brief Amount of trauma per second that is recovered.
 	float recovery_speed{ 0.5f };
 
-	bool operator==(const ShakeConfig&) const = default;
+	constexpr bool operator==(const ShakeConfig&) const = default;
 
-	PTGN_SERIALIZER_REGISTER_IGNORE_DEFAULTS(
+	PTGN_REFLECT(
 		ShakeConfig, maximum_translation, maximum_rotation, frequency, trauma_exponent,
 		recovery_speed
 	)

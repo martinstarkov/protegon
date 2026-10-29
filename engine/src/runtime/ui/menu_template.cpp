@@ -9,17 +9,18 @@
 #include <vector>
 
 #include "core/assert.h"
+#include "core/graphics/color.h"
 #include "core/log.h"
 #include "core/math/vector2.h"
-#include "core/util/file.h"
 #include "core/util/hash.h"
-#include "nlohmann/json.hpp"
-#include "renderer/primitives/color.h"
 #include "runtime/ecs/entity.h"
+#include "runtime/ecs/tag.h"
+#include "runtime/graphics/text/text.h"
+#include "runtime/interaction/interaction_system.h"
 #include "runtime/scene/scene.h"
-#include "runtime/scene/scene_input.h"
+#include "runtime/scene/scene_context.h"
+#include "runtime/scene/scene_manager.h"
 #include "runtime/ui/button.h"
-#include "serialization/json/fwd.h"
 #include "serialization/json/json.h"
 
 namespace ptgn {
@@ -36,7 +37,7 @@ void ApplyVerticalLayout(
 		start_y = origin.y - (total_height - spacing) / 2.0f;
 	}
 
-	for (std::size_t i = 0; i < entities.size(); ++i) {
+	for (auto i{ 0uz }; i < entities.size(); ++i) {
 		SetPosition(entities[i], { origin.x, start_y + static_cast<float>(i) * spacing });
 	}
 }
@@ -51,7 +52,7 @@ void ApplyHorizontalLayout(
 		start_x = origin.x - (total_width - spacing) / 2.0f;
 	}
 
-	for (std::size_t i = 0; i < entities.size(); ++i) {
+	for (auto i{ 0uz }; i < entities.size(); ++i) {
 		SetPosition(entities[i], { start_x + static_cast<float>(i) * spacing, origin.y });
 	}
 }
@@ -70,18 +71,18 @@ void ApplyGridLayout(
 
 	V2_float start{ origin - (total - spacing) / 2.0f };
 
-	for (std::size_t i = 0; i < entities.size(); ++i) {
+	for (auto i{ 0uz }; i < entities.size(); ++i) {
 		int r = static_cast<int>(i) / cols; // entities[i].row.value_or
 		int c = static_cast<int>(i) % cols; // entities[i].col.value_or
 		SetPosition(entities[i], { start + V2_float{ c, r } * spacing });
 	}
 }
 
-TemplateMenuScene::TemplateMenuScene(const std::string& key, const json& scene_json_arg) :
-	key{ key }, scene_json(scene_json_arg) {}
+TemplateMenuScene::TemplateMenuScene(const std::string& scene_key, const json& scene_json_arg) :
+	key{ scene_key }, scene_json(scene_json_arg) {}
 
 void TemplateMenuScene::OnEnter() {
-	ctx().input.SetSettings({ .debug_draw_enabled = true });
+	ctx().debug.settings.interaction.draw_enabled = true;
 
 	PTGN_ASSERT(scene_json.contains(key));
 
@@ -92,14 +93,13 @@ void TemplateMenuScene::OnEnter() {
 	const auto& j_buttons = config.at("buttons");
 
 	for (const auto& j_button : j_buttons) {
-		const V2_float button_size{ 100, 50 };
-		const Color button_text_color{ color::White };
-
-		const auto& label = j_button.at("label");
-		auto button{ CreateButton(*this) };
-		button.SetShape(button_size);
-		auto label_string{ label.get<std::string>() };
-		button.SetText(label_string, button_text_color);
+		V2_float button_size{ 100, 50 };
+		Color button_text_color{ color::White };
+		const auto& text = j_button.at("text");
+		auto button{ CreateButton(*this, {}, button_size) };
+		button.Add<Tag>("Menu Button");
+		auto text_string{ text.get<std::string>() };
+		button.Text().Content(text_string).Color(button_text_color);
 		const auto& action_name{ j_button.at("action").get<std::string>() };
 		button.OnPress([key = key, scene_json = scene_json, action_name, button]() mutable {
 			std::invoke(SceneAction::Get(key, scene_json, action_name), button.GetScene());
@@ -149,9 +149,7 @@ void SceneAction::Register(const std::string& name, const std::function<void(Sce
 }
 
 SceneAction::SceneAction() {
-	actions_ = { { Hash("quit"), [](Scene& scene) mutable {
-					  scene.ctx().Stop();
-				  } } };
+	actions_ = { { Hash("quit"), [](Scene& scene) mutable { scene.ctx().Stop(); } } };
 
 	prefix_handlers_ = {
 		{ "enter:",
@@ -159,10 +157,9 @@ SceneAction::SceneAction() {
 			  scene.ctx().scene.Switch<impl::TemplateMenuScene>(to, scenes, scenes);
 		  } },
 		{ "transition:",
-		  [](const std::string& from, const json& scenes, const std::string& to,
-			 Scene& scene) mutable {
-			  scene.ctx().scene.Switch<impl::TemplateMenuScene>(from, to, scenes);
-		  } }
+		  [](
+			  const std::string& from, const json& scenes, const std::string& to, Scene& scene
+		  ) mutable { scene.ctx().scene.Switch<impl::TemplateMenuScene>(from, to, scenes); } }
 	};
 }
 
@@ -194,15 +191,13 @@ std::function<void(Scene&)> SceneAction::Get(
 	PTGN_ERROR("Unknown action: ", action_name);
 }
 
-void EnterSceneConfig(Scene& scene, const path& template_json_path) {
-	json j = LoadJson(template_json_path);
+void EnterSceneConfig(Scene& scene, const json& template_json) {
+	PTGN_ASSERT(template_json.contains("scenes"), "Scene config must contain a scenes dictionary");
+	PTGN_ASSERT(template_json.contains("start_scene"), "Scene config must specify a start scene");
 
-	PTGN_ASSERT(j.contains("scenes"), "Scene config must contain a scenes dictionary");
-	PTGN_ASSERT(j.contains("start_scene"), "Scene config must specify a start scene");
+	const json& scene_json = template_json.at("scenes");
 
-	const json& scene_json = j.at("scenes");
-
-	std::string start_scene{ j.at("start_scene").get<std::string>() };
+	std::string start_scene{ template_json.at("start_scene").get<std::string>() };
 
 	PTGN_ASSERT(scene_json.contains(start_scene), "Start scene must be in the scenes dictionary");
 

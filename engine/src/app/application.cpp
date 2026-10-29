@@ -1,291 +1,695 @@
 #include "app/application.h"
 
-#include <SDL3/SDL_error.h>
-#include <SDL3/SDL_init.h>
-#include <SDL3/SDL_timer.h>
-#include <SDL3/SDL_version.h>
-#include <SDL3_image/SDL_image.h>
-#include <SDL3_mixer/SDL_mixer.h>
-#include <SDL3_ttf/SDL_ttf.h>
-
-#include <chrono>
-#include <cstdint>
-#include <format>
-#include <memory>
-#include <string>
-
-#include "core/assert.h"
-#include "core/config.h"
-#include "core/event/dispatcher.h"
-#include "core/event/event.h"
-#include "core/log.h"
-#include "core/math/vector2.h"
-#include "core/time/time.h"
-#include "platform/input/events.h"
-#include "platform/input/input_handler.h"
-#include "platform/window/window.h"
-#include "renderer/renderer.h"
-#include "runtime/asset/asset_manager.h"
-#include "runtime/audio/audio_system.h"
-#include "runtime/event/event_handler.h"
-#include "runtime/scene/scene_manager.h"
-#include "tools/debug/debug_system.h"
-
 #ifdef __EMSCRIPTEN__
 
 #include <emscripten.h>
-#include <emscripten/html5.h>
-
-EM_JS(int, get_screen_width, (), { return window.screen.width; });
-EM_JS(int, get_screen_height, (), { return window.screen.height; });
-EM_JS(double, get_device_pixel_ratio, (), { return window.devicePixelRatio || 1.0; });
 
 #endif
 
-#ifdef PTGN_PLATFORM_MACOS
+#include <ecs/ecs.h>
+#include <imgui.h>
+#include <imgui_impl_glfw.h>
+#include <imgui_impl_opengl3.h>
 
-#include <mach-o/dyld.h>
-
+#include <algorithm>
+#include <chrono>
+#include <exception>
 #include <filesystem>
-#include <iostream>
+#include <functional>
+#include <iterator>
+#include <memory>
+#include <ranges>
+#include <string_view>
+#include <thread>
+#include <utility>
+#include <vector>
 
-#include "CoreFoundation/CoreFoundation.h"
-
-#endif
+#include "app/application_config.h"
+#include "app/application_context.h"
+#include "app/application_layer.h"
+#include "app/application_state.h"
+#include "app/project.h"
+#include "core/assert.h"
+#include "core/build_info.h"
+#include "core/event/event.h"
+#include "core/event/event_handler.h"
+#include "core/event/key_event.h"
+#include "core/event/mouse_event.h"
+#include "core/event/window_event.h"
+#include "core/log.h"
+#include "core/math/vector2.h"
+#include "core/util/hash.h"
+#include "core/util/time.h"
+#include "platform/executable.h"
+#include "platform/window.h"
+#include "renderer/draw_context.h"
+#include "renderer/renderer.h"
+#include "renderer/resources/texture_format.h"
+#include "runtime/audio/audio_system.h"
+#include "runtime/graphics/draw.h"
+#include "runtime/graphics/drawable.h"
+#include "runtime/graphics/fx/screen_effect_stack.h"
+#include "runtime/graphics/visible.h"
+#include "runtime/scene/scene.h"
+#include "runtime/scene/scene_context.h"
+#include "runtime/scene/scene_event_handler.h"
+#include "runtime/scene/scene_file.h"
+#include "runtime/scene/scene_manager.h"
+#include "runtime/scene/scene_registry.h"
+#include "runtime/scripting/script.h"
+#include "tools/debug/debug_system.h"
 
 namespace ptgn {
 
-namespace impl {
+namespace {
 
-static std::string FormatSDLVersion(int packed_version) {
-	const int major = packed_version / 1'000'000;
-	const int minor = (packed_version / 1'000) % 1'000;
-	const int patch = packed_version % 1'000;
+constexpr std::string_view kProjectExtension{ ".ptgnproj" };
 
-	return std::format("{}.{}.{}", major, minor, patch);
-}
-
-#ifdef __EMSCRIPTEN__
-
-static EM_BOOL EmscriptenResize(
-	int event_type, const EmscriptenUiEvent* ui_event, void* window_ptr
+impl::AssetLoadTicket LoadStartupDependencies(
+	Application& app, const impl::SceneFactory& scene_factory
 ) {
-	auto& window{ *static_cast<::ptgn::Window*>(window_ptr) };
-	V2_int window_size{ ui_event->windowInnerWidth, ui_event->windowInnerHeight };
-	// TODO: Figure out how to deal with itch.io fullscreen button not changing SDL status to
-	// fullscreen.
-	V2_int screen_size{ get_screen_width(), get_screen_height() };
-	if (window_size == screen_size) {
-		auto device_pixel_ratio{ get_device_pixel_ratio() };
-		window_size = window_size * device_pixel_ratio;
-	}
-	window.SetSize(window_size);
-	return 0;
-}
+	auto& assets{ impl::ApplicationAccessor::ctx(app).assets };
+	auto ticket{ assets.AcquireDependenciesAsync(scene_factory.GetPreloadDependencies(app)) };
 
-static void EmscriptenInit(Window& window) {
-	emscripten_set_resize_callback(
-		EMSCRIPTEN_EVENT_TARGET_WINDOW, static_cast<void*>(&window), 0, EmscriptenResize
-	);
-}
-
-void EmscriptenMainLoop(void* application) {
-	auto& app{ *static_cast<Application*>(application) };
-
-	app.Update();
-
-	if (!app.running_) {
-		emscripten_cancel_main_loop();
-	}
-}
-
+	while (!ticket.IsComplete()) {
+		assets.Update();
+#ifndef __EMSCRIPTEN__
+		std::this_thread::sleep_for(1ms);
 #endif
-
-SDLInstance::SDLInstance() {
-#if defined(PTGN_PLATFORM_MACOS) && !defined(__EMSCRIPTEN__)
-	// When using AppleClang, the working directory for the executable is set to $HOME instead of
-	// the executable directory. Therefore, the C++ code corrects the working directory using
-	// std::filesystem so that relative paths work properly.
-	// TODO: Add check that this hasnt happened yet.
-	char path[1024];
-	std::uint32_t size = sizeof(path);
-	std::filesystem::path exe_dir;
-	if (_NSGetExecutablePath(path, &size) == 0) {
-		exe_dir = std::filesystem::path(path).parent_path();
-	} else {
-		std::cout << "Buffer too small to retrieve executable path. Please run "
-					 "the executable from a terminal"
-				  << std::endl;
-		exe_dir = std::getenv("PWD");
 	}
-	std::filesystem::current_path(exe_dir);
-	// TODO: Check if needed:
-	/*CFBundleRef main_bundle = CFBundleGetMainBundle();
-	CFURLRef resources_url = CFBundleCopyResourcesDirectoryURL(main_bundle);
-	char path[PATH_MAX];
-	if (!CFURLGetFileSystemRepresentation(resources_url, TRUE, (UInt8*)path,
-	PATH_MAX)) { std::cout << "Couldn't get file system representation! " <<
-	std::endl;
+
+	auto progress{ ticket.GetProgress() };
+
+	if (progress.failed_assets > 0) {
+		PTGN_WARN(
+			"Failed to load ", progress.failed_assets,
+			" startup asset(s); continuing with available assets"
+		);
 	}
-	CFRelease(resources_url);
-	chdir(path);*/
-#endif
 
-	std::uint32_t sdl_flags{ SDL_INIT_VIDEO | SDL_INIT_AUDIO };
-	PTGN_ASSERT(
-		SDL_WasInit(sdl_flags) != sdl_flags, "Cannot reinitialize SDL instance before shutting down"
-	);
-
-	bool sdl_init{ SDL_Init(sdl_flags) };
-	PTGN_ASSERT(sdl_init, SDL_GetError());
-
-#ifdef PTGN_DEBUG
-	PTGN_INFO("Build Type: Debug");
-#else
-	PTGN_INFO("Build Type: Release");
-#endif
-
-	PTGN_INFO("Initialized SDL version: ", FormatSDLVersion(SDL_GetVersion()));
-
-	Renderer::SetGLVersion();
-
-	PTGN_INFO("Initialized SDL_image version: ", FormatSDLVersion(IMG_Version()));
-
-	bool ttf_init{ TTF_Init() };
-
-	PTGN_ASSERT(ttf_init, SDL_GetError());
-
-	PTGN_INFO("Initialized SDL_ttf version: ", FormatSDLVersion(TTF_Version()));
-
-	bool mix_init{ MIX_Init() };
-
-	PTGN_ASSERT(mix_init, SDL_GetError());
-
-	PTGN_INFO("Initialized SDL_mixer version: ", FormatSDLVersion(MIX_Version()));
+	return ticket;
 }
 
-SDLInstance::~SDLInstance() noexcept {
-	MIX_Quit();
-	PTGN_INFO("Deinitialized SDL_mixer");
-	TTF_Quit();
-	PTGN_INFO("Deinitialized SDL_ttf");
-	SDL_Quit();
-	PTGN_INFO("Deinitialized SDL_image");
-	PTGN_INFO("Deinitialized SDL");
+void LoadProjectPreloads(Application& app) {
+	auto& assets{ impl::ApplicationAccessor::ctx(app).assets };
+	const auto& dependencies{ assets.GetProjectAssetDependencies() };
+
+	if (dependencies.empty()) {
+		return;
+	}
+
+	auto ticket{ assets.AcquireDependenciesAsync(dependencies) };
+
+	while (!ticket.IsComplete()) {
+		assets.Update();
+#ifndef __EMSCRIPTEN__
+		std::this_thread::sleep_for(1ms);
+#endif
+	}
+
+	auto progress{ ticket.GetProgress() };
+
+	if (progress.failed_assets > 0) {
+		PTGN_WARN(
+			"Failed to load ", progress.failed_assets,
+			" project preload asset(s); continuing with available assets"
+		);
+	}
 }
 
-} // namespace impl
+[[nodiscard]] std::vector<path> FindProjectFiles(const path& directory) {
+	std::vector<path> projects;
 
-Application::Application(const ApplicationConfig& config) :
-	window_{ config.window },
-	renderer_{ window_, events_ },
-	events_{ scenes_ },
-	scenes_{},
-	input_{ window_ },
-	assets_{ renderer_, audio_, font_ },
-	font_{ assets_ },
-	audio_{ assets_ },
-	debug_{} {}
+	std::error_code error;
 
-Application::Application(const std::string& title) :
-	Application{ ApplicationConfig{ .window = { .title = title } } } {}
+	if (!fs::is_directory(directory, error) || error) {
+		return projects;
+	}
 
-Application::Application(const std::string& title, V2_int window_size) :
-	Application{ ApplicationConfig{ .window = { .title = title, .size = window_size } } } {}
+	for (fs::directory_iterator
+			 it{ directory, fs::directory_options::skip_permission_denied, error },
+		 end;
+		 !error && it != end; it.increment(error)) {
+		std::error_code entry_error;
+
+		if (!it->is_regular_file(entry_error) || entry_error) {
+			continue;
+		}
+
+		if (GetExtension(it->path()) != kProjectExtension) {
+			continue;
+		}
+
+		projects.emplace_back(it->path().lexically_normal());
+	}
+
+	std::ranges::sort(projects, {}, [](const path& project) { return project.generic_string(); });
+
+	return projects;
+}
+
+[[nodiscard]] path ResolveStartupProjectPath(const path& project_path) {
+	const auto& build_info{ impl::GetBuildInfo() };
+
+	PTGN_ASSERT(!build_info.project_name.empty(), "CMake project name is empty");
+
+	path requested_path{ project_path.empty() ? path{ "." } : project_path };
+
+	path resolved_path{ requested_path.is_absolute()
+							? requested_path.lexically_normal()
+							: (GetRuntimeRoot() / requested_path).lexically_normal() };
+
+	// An explicit .ptgnproj path always refers to that exact file,
+	// whether or not the file exists yet.
+	if (GetExtension(resolved_path) == kProjectExtension) {
+		return resolved_path;
+	}
+
+	// An existing regular file must be a project file.
+	if (FileExists(resolved_path)) {
+		PTGN_ASSERT(false, "Expected a .ptgnproj file: ", resolved_path.string());
+	}
+
+	// Anything other than an explicit .ptgnproj file is treated
+	// as a directory.
+	//
+	// Prefer:
+	//   <directory>/<CMake project name>.ptgnproj
+	path preferred_project{ resolved_path /
+							(build_info.project_name + std::string{ kProjectExtension }) };
+
+	if (FileExists(preferred_project)) {
+		return preferred_project;
+	}
+
+	// Otherwise use the lexicographically first project file.
+	auto projects{ FindProjectFiles(resolved_path) };
+
+	if (!projects.empty()) {
+		return projects.front();
+	}
+
+	// No project exists. Returning the preferred path allows
+	// StartProject<TDefaultScene>() to create it.
+	return preferred_project;
+}
+
+} // namespace
+
+Application::Application(const ApplicationConfig& config) : ctx_{ config } {}
+
+Application::Application(std::string_view title) :
+	Application{ ApplicationConfig{ .window{ .title{ title } } } } {}
+
+Application::Application(std::string_view title, V2_int window_size) :
+	Application{ ApplicationConfig{ .window{ .title{ title }, .size{ window_size } } } } {}
 
 Application::~Application() noexcept {
-	// Requires access to destructors.
+#if defined(__EMSCRIPTEN__)
+	return;
+#endif
+	if (!ctx_.project.has_value()) {
+		return;
+	}
+
+	try {
+		SaveProjectLocalState(ctx_.project.value(), GetProjectLocalState(*this));
+	} catch (const std::exception& exception) {
+		PTGN_ERROR("Failed to save project local state: ", exception.what());
+	} catch (...) {
+		PTGN_ERROR("Failed to save project local state");
+	}
+}
+
+void Application::StartProject(const path& project_path) {
+	StartProjectImpl(project_path, nullptr);
+}
+
+void Application::StartProjectImpl(
+	const path& project_path, const impl::SceneRegistryEntry* default_scene
+) {
+	path resolved_project_path{ ResolveStartupProjectPath(project_path) };
+
+	auto application_defaults{ GetProjectSettings(*this) };
+
+	Project project;
+
+	if (FileExists(resolved_project_path)) {
+		project = LoadProject(resolved_project_path, application_defaults);
+	} else {
+#if defined(__EMSCRIPTEN__)
+		PTGN_ASSERT(
+			false,
+			"Project does not exist in the Web runtime filesystem: ", resolved_project_path.string()
+		);
+#else
+		project = CreateProject(resolved_project_path, default_scene, application_defaults);
+#endif
+	}
+
+	ctx_.project = std::move(project);
+
+	auto& loaded_project{ ctx_.project.value() };
+
+	// Tracked project defaults are applied first. The ignored .ptgnlocal file then
+	// restores this user's window geometry without mutating the tracked defaults.
+	SetProjectSettings(*this, loaded_project.settings);
+	SetScreenEffects(loaded_project.screen_effects);
+	SetProjectLocalState(*this, LoadProjectLocalState(loaded_project));
+
+	if (ctx_.assets.RegisterCatalog(loaded_project.assets, loaded_project)) {
+		loaded_project.assets = ctx_.assets.GetCatalog();
+	}
+
+	LoadProjectPreloads(*this);
+
+	if (ctx_.start_project_runtime) {
+		const auto& startup{ GetStartupProjectScene(loaded_project) };
+
+		auto serialized_scene{ LoadSceneFile(GetProjectScenePath(loaded_project, startup)) };
+
+		auto scene_factory{ impl::MakeSceneFactory(std::move(serialized_scene), true) };
+
+		StartWithFactory(startup.key, std::move(scene_factory));
+
+		return;
+	}
+
+	PTGN_ASSERT(ctx_.scene_manager.scenes_.empty(), "Application has already been started");
+
+	struct BootstrapScene {
+		const ProjectSceneEntry* entry{ nullptr };
+		Scene* scene{ nullptr };
+	};
+
+	std::vector<BootstrapScene> bootstrap_scenes;
+
+	for (std::size_t i{ 0 }; i < loaded_project.scenes.size(); ++i) {
+		const auto& entry{ loaded_project.scenes[i] };
+
+		auto serialized_scene{ LoadSceneFile(GetProjectScenePath(loaded_project, entry)) };
+
+		bool requires_bootstrap_save{ !serialized_scene.content.has_value() };
+
+		auto scene_factory{ impl::MakeSceneFactory(std::move(serialized_scene), false) };
+
+		auto asset_ticket{ LoadStartupDependencies(*this, scene_factory) };
+
+		auto scene{ scene_factory(
+			*this, impl::SceneData{
+					   .tag			= entry.key,
+					   .tag_hash	= Hash(entry.key),
+					   .state		= impl::SceneState::Active,
+					   .runtime		= false,
+					   .first_scene = i == 0,
+				   }
+		) };
+
+		PTGN_ASSERT(scene, "Project scene factory returned null: ", entry.key);
+
+		scene->AdoptLoadedAssetDependencies(asset_ticket.ReleaseOwnership());
+
+		auto* scene_ptr{ scene.get() };
+
+		ctx_.scene_manager.scenes_.emplace_back(std::move(scene));
+
+		if (requires_bootstrap_save) {
+			bootstrap_scenes.emplace_back(
+				BootstrapScene{
+					.entry = &entry,
+					.scene = scene_ptr,
+				}
+			);
+		}
+	}
+
+	if (!bootstrap_scenes.empty()) {
+		loaded_project.assets = ctx_.assets.GetCatalog();
+
+		loaded_project.preload_assets = ctx_.assets.GetProjectAssetDependencies();
+
+		loaded_project.settings = GetProjectSettings(*this);
+
+		// Save catalog entries and settings before scene dependency keys.
+		SaveProject(loaded_project);
+
+		for (const auto& bootstrap : bootstrap_scenes) {
+			PTGN_ASSERT(bootstrap.entry && bootstrap.scene);
+
+			SaveSceneFile(
+				GetProjectScenePath(loaded_project, *bootstrap.entry),
+				CaptureScene(*bootstrap.scene)
+			);
+		}
+	}
+
+	ctx_.state = ApplicationState::Running;
+
+	EnterMainLoop();
+}
+
+void Application::StartWithFactory(std::string_view scene_tag, impl::SceneFactory scene_factory) {
+	PTGN_ASSERT(scene_factory, "Cannot start application with a null scene factory");
+	PTGN_ASSERT(ctx_.scene_manager.scenes_.empty(), "Application has already been started");
+
+	auto asset_ticket{ LoadStartupDependencies(*this, scene_factory) };
+	auto first_scene{ scene_factory(
+		*this, impl::SceneData{
+				   .tag{ scene_tag },
+				   .tag_hash	= Hash(scene_tag),
+				   .state		= impl::SceneState::Active,
+				   .first_scene = true,
+			   }
+	) };
+
+	PTGN_ASSERT(first_scene, "Startup scene factory returned null");
+	first_scene->AdoptLoadedAssetDependencies(asset_ticket.ReleaseOwnership());
+
+	auto& scene{ ctx_.scene_manager.scenes_.emplace_back(std::move(first_scene)) };
+
+	scene->InternalEnter();
+
+	ctx_.state = ApplicationState::Running;
+	EnterMainLoop();
 }
 
 void Application::EnterMainLoop() {
-	// Design decision: Latest possible point to show window is right before
-	// loop starts. Comment this if you wish the window to appear hidden for an
-	// indefinite period of time.
-	window_.SetSetting(WindowSetting::Shown);
-	running_ = true;
+	// Only show window after initialization has completed.
+	ctx_.window.SetSetting(WindowSetting::Shown);
 
-	renderer_.UpdateDisplayViewport(window_.GetSize(), true);
+	ctx_.running = true;
 
 #ifdef __EMSCRIPTEN__
-	// TODO: Replace with new SDL3 callbacks.
-	impl::EmscriptenInit(window_);
+	// The canvas layout is authoritative on the web. Reread it after
+	// initialization and after showing the window so the first rendered
+	// frame uses the actual browser viewport dimensions.
+	V2_int canvas_size{ ctx_.window.GetCanvasCssSize() };
+
+	if (canvas_size.IsPositive() && ctx_.window.GetSize() != canvas_size) {
+		ctx_.window.SetSize(canvas_size, false);
+	}
+
+	// Force the renderer to reconsider its presentation/display viewport
+	// before the first frame.
+	ctx_.renderer.OnOutputResize(ctx_.window.GetSize());
+#endif
+
+	ctx_.renderer.UpdateDisplayViewport(true);
+
+#ifdef __EMSCRIPTEN__
 	emscripten_set_main_loop_arg(
-		impl::EmscriptenMainLoop, this, /*fps=*/0, /*simulateInfiniteLoop=*/true
+		[](void* application) {
+			auto& app{ *static_cast<Application*>(application) };
+
+			app.Update();
+
+			if (!app.ctx_.running) {
+				emscripten_cancel_main_loop();
+			}
+		},
+		this,
+		/*fps=*/0,
+		/*simulateInfiniteLoop=*/true
 	);
 #else
-	while (running_) {
+	while (ctx_.running) {
 		Update();
 	}
 #endif
 }
 
-void Application::Update() {
-	debug_.PreUpdate();
+void Application::ProcessQueuedEvents(bool dispatch_scene_events) {
+	// Commit previous frame script mutations before capturing the listener set.
+	if (dispatch_scene_events) {
+		for (const auto& scene : ctx_.scene_manager.GetScenes()) {
+			if (scene->IsRuntime()) {
+				ScriptSystem::ApplyPending(*scene);
+			}
+		}
+	}
 
-	static auto start{ std::chrono::system_clock::now() };
-	static auto end{ std::chrono::system_clock::now() };
-	// Calculate time elapsed during previous frame. Unit: seconds.
-	dt_ = end - start;
+	// Snapshot all queues before invoking any callback. Events emitted by callbacks
+	// are therefore deferred to the next drain, even if they target another scope.
+	auto global_events{ std::exchange(ctx_.event_handler.global_event_queue_, {}) };
 
-	// TODO: Consider fixed FPS vs dynamic: https://gafferongames.com/post/fix_your_timestep/.
-	/*constexpr const float fps{ 60.0f };
-	dt_ = 1.0f / fps;*/
+	struct LocalEventBatch {
+		Scene* scene{};
+		std::vector<impl::EventData> scene_events{};
+		std::vector<impl::EntityEvent> entity_events{};
+	};
 
-	/*if (elapsed < dt_) {
-		impl::SDLInstance::Delay(to_duration<milliseconds>(secondsf{
-			dt_ - elapsed }));
-	}*/ // TODO: Add accumulator for when elapsed > dt (such as in Debug mode).
-	// PTGN_LOG("Dt: ", dt_);
+	std::vector<LocalEventBatch> local_batches;
 
-	start = end;
+	if (dispatch_scene_events) {
+		for (const auto& scene : ctx_.scene_manager.GetScenes()) {
+			auto& local{ scene->ctx().event };
+			auto scene_events{ std::exchange(local.scene_event_queue_, {}) };
+			auto entity_events{ std::exchange(local.entity_event_queue_, {}) };
 
-	input_.Update([this](impl::EventBase& e) {
-		renderer_.OnEvent(e);
+			if (!scene_events.empty() || !entity_events.empty()) {
+				local_batches.push_back(
+					LocalEventBatch{
+						.scene		   = scene.get(),
+						.scene_events  = std::move(scene_events),
+						.entity_events = std::move(entity_events),
+					}
+				);
+			}
+		}
+	}
 
-		events_.Emit(e);
+	// Application wide events are offered to all eligible scenes.
+	for (auto& global_event : global_events) {
+		Event event{ global_event };
 
-		if (EventDispatcher{ e }.IsType<WindowQuit>()) {
-			running_ = false;
+		event.Dispatch<event::WindowResized>([this](const auto& size) {
+			ctx_.renderer.OnOutputResize(size);
+			ctx_.renderer.UpdateDisplayViewport();
+		});
+
+		bool scene_input_event{ global_event.type_hash == Hash<event::KeyHeld>() ||
+								global_event.type_hash == Hash<event::KeyPressed>() ||
+								global_event.type_hash == Hash<event::KeyReleased>() ||
+								global_event.type_hash == Hash<event::MouseHeld>() ||
+								global_event.type_hash == Hash<event::MouseMove>() ||
+								global_event.type_hash == Hash<event::MousePressed>() ||
+								global_event.type_hash == Hash<event::MouseReleased>() ||
+								global_event.type_hash == Hash<event::MouseScroll>() };
+
+		if (!dispatch_scene_events || (!IsSceneInputEnabled() && scene_input_event)) {
+			continue;
+		}
+
+		for (const auto& scene : ctx_.scene_manager.GetScenes()) {
+			if (!scene->IsRuntime() || scene->IsAwaitingTransitionDelay()) {
+				continue;
+			}
+
+			scene->InternalOnEvent(event);
+		}
+	}
+
+	// Scene events, then targeted entity events, in scene order.
+	// Each phase retains FIFO ordering within its own queue.
+	for (auto& batch : local_batches) {
+		// A callback can request scene changes. Never dereference a removed scene.
+		const auto& scenes{ ctx_.scene_manager.GetScenes() };
+		bool scene_alive{ std::ranges::any_of(scenes, [&batch](const auto& scene) {
+			return scene.get() == batch.scene;
+		}) };
+
+		if (!scene_alive || !batch.scene->IsRuntime() || batch.scene->IsAwaitingTransitionDelay()) {
+			continue;
+		}
+
+		for (auto& scene_event : batch.scene_events) {
+			Event event{ scene_event };
+			batch.scene->InternalOnEvent(event);
+		}
+
+		for (auto& entity_event : batch.entity_events) {
+			Event event{ entity_event.event };
+			batch.scene->InternalOnEvent(entity_event.entity, event);
+		}
+	}
+
+	// Apply script additions and removals only at batch boundaries.
+	if (dispatch_scene_events) {
+		for (const auto& scene : ctx_.scene_manager.GetScenes()) {
+			if (scene->IsRuntime()) {
+				ScriptSystem::ApplyPending(*scene);
+			}
+		}
+	}
+}
+
+void Application::FlushEventsForSceneExit() {
+	ProcessQueuedEvents(true);
+}
+
+void Application::RenderScenes() {
+	ctx_.renderer.BeginFrame();
+
+	DrawContext draw_context{ ctx_.renderer };
+
+	ctx_.scene_manager.Draw(draw_context);
+
+	ctx_.screen_effect_manager.Refresh();
+	impl::RefreshScreenEffectOrder(ctx_);
+
+	if (!ctx_.screen_effects_enabled || ctx_.screen_effect_order.empty()) {
+		ctx_.renderer.EndFrame(nullptr);
+		return;
+	}
+
+	ctx_.renderer.EndFrame([this](auto& draw_ctx) {
+		for (Entity entity : ctx_.screen_effect_order) {
+			if (!entity || !IsVisible(entity)) {
+				continue;
+			}
+
+			PTGN_ASSERT(
+				!entity.Has<impl::HDREffectTag>() ||
+					IsHDRFormat(
+						ctx_.renderer.GetFormat(ctx_.renderer.presentation_framebuffer_).value()
+					),
+				"Presentation framebuffer must use HDR format if it has an HDR effect"
+			);
+			impl::InvokeDrawable(draw_ctx, entity);
 		}
 	});
-
-	renderer_.BeginFrame();
-	scenes_.Update(dt());
-
-	audio_.Update();
-
-	debug_.PostUpdate();
-
-	renderer_.EndFrame();
-
-	window_.SwapBuffers();
-
-	end = std::chrono::system_clock::now();
-
-	frame_count_++;
 }
 
-milliseconds Application::TimeSinceStart() const {
-	return milliseconds{ static_cast<milliseconds::rep>(SDL_GetTicks()) };
-	// return std::chrono::duration_cast<milliseconds>(
-	//	std::chrono::steady_clock::now().time_since_epoch()
-	//);
+void Application::SetScreenEffects(const ScreenEffectSettings& settings) {
+	impl::RebuildScreenEffects(ctx_, settings);
 }
 
-void Application::Stop() {
-	running_ = false;
+void Application::SetScreenEffectsEnabled(bool enabled) {
+	ctx_.screen_effects_enabled = enabled;
 }
 
-secondsf Application::dt() const {
-	return dt_;
+bool Application::AreScreenEffectsEnabled() const {
+	return ctx_.screen_effects_enabled;
 }
 
-bool Application::IsRunning() const {
-	return running_;
+void Application::SetSceneInputEnabled(bool enabled) {
+	ctx_.scene_input_state.enabled = enabled;
 }
 
-std::size_t Application::GetFrameCount() const {
-	return frame_count_;
+bool Application::IsSceneInputEnabled() const {
+	return ctx_.scene_input_state.enabled;
+}
+
+void Application::SetCloseGuard(std::function<bool()> close_guard) {
+	close_guard_ = std::move(close_guard);
+}
+
+void Application::RequestQuit() {
+	ctx_.window.RequestQuit();
+}
+
+void Application::Update() {
+	bool step_requested{ ctx_.step_requested };
+
+	bool update_scenes{ Can(impl::ApplicationFeature::UpdateScenes) || step_requested };
+	bool scene_events{ Can(impl::ApplicationFeature::DispatchSceneEvents) || step_requested };
+	bool scene_rendering{ Can(impl::ApplicationFeature::RenderScenes) || step_requested };
+
+	ctx_.step_requested = false;
+
+	ctx_.debug.PreUpdate();
+
+	static auto previous_time{ std::chrono::steady_clock::now() };
+
+	auto current_time{ std::chrono::steady_clock::now() };
+	secondsf real_dt{ current_time - previous_time };
+	previous_time = current_time;
+
+	secondsf unscaled_dt{ real_dt };
+
+	secondsf max_dt{ 1.0f / ctx_.fps };
+
+	if (unscaled_dt > max_dt || step_requested) {
+		unscaled_dt = max_dt;
+	}
+
+	PTGN_ASSERT(ctx_.time_scale >= 0.0f, "Time scale cannot be negative");
+
+	if (ctx_.state == ApplicationState::Paused && !step_requested) {
+		unscaled_dt = 0s;
+	}
+
+	ctx_.dt = unscaled_dt * ctx_.time_scale;
+
+	bool window_running{ ctx_.window.Update() };
+
+	if (!window_running && close_guard_ && !close_guard_()) {
+		ctx_.window.CancelQuit();
+		ctx_.running = true;
+	} else {
+		ctx_.running = window_running;
+	}
+
+	ctx_.assets.Update();
+
+	auto end_frame = [&]() {
+		ctx_.debug.PostRender();
+
+		ctx_.frame_count++;
+		ctx_.real_time += real_dt;
+	};
+
+	if (ctx_.window.GetSetting(WindowSetting::Minimized)) {
+		ctx_.audio.Update();
+		end_frame();
+		return;
+	}
+
+	ctx_.renderer.UpdateDisplayViewport();
+
+	ImGui_ImplOpenGL3_NewFrame();
+	ImGui_ImplGlfw_NewFrame();
+	ImGui::NewFrame();
+
+	if (update_scenes) {
+		ctx_.scene_manager.PreUpdate();
+	}
+
+	ProcessQueuedEvents(scene_events);
+
+	if (update_scenes) {
+		ctx_.scene_manager.Update(*this, duration_cast<milliseconds>(ctx_.dt));
+
+		ctx_.unscaled_game_time += unscaled_dt;
+		ctx_.game_time			+= ctx_.dt;
+	}
+
+	for (const auto& layer : ctx_.layers) {
+		PTGN_ASSERT(layer);
+		if (layer->update_enabled_) {
+			layer->OnUpdate();
+		}
+	}
+
+	ctx_.audio.Update();
+
+	if (scene_rendering) {
+		RenderScenes();
+	}
+
+	for (const auto& layer : ctx_.layers) {
+		PTGN_ASSERT(layer);
+		if (layer->render_enabled_) {
+			layer->OnRender();
+		}
+	}
+
+	ImGui::Render();
+	ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
+
+	ctx_.window.SwapBuffers();
+
+	end_frame();
 }
 
 } // namespace ptgn

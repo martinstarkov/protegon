@@ -1,155 +1,41 @@
 #pragma once
 
+#include <algorithm>
+#include <cmath>
 #include <concepts>
 #include <cstdint>
+#include <cstdlib>
+#include <numbers>
 #include <tuple>
 #include <type_traits>
+#include <utility>
 
 #include "core/assert.h"
-#include "core/math/tolerance.h"
 #include "core/util/concepts.h"
 
 namespace ptgn {
 
-namespace impl {
+inline constexpr float kPi{ std::numbers::pi_v<float> };
 
-template <std::floating_point T>
-class Pi {};
+inline constexpr float kTwoPi{ 2.0f * kPi };
 
-template <std::floating_point T>
-class TwoPi {};
+inline constexpr float kHalfPi{ kPi / 2.0f };
 
-template <std::floating_point T>
-class HalfPi {};
+inline constexpr float kSqrtTwo{ std::numbers::sqrt2_v<float> };
 
-template <std::floating_point T>
-class SqrtTwo {};
+inline constexpr float kEuler{ std::numbers::e_v<float> };
 
-template <>
-class Pi<float> {
-public:
-	static constexpr float value() {
-		return 3.14159265f;
-	}
-};
-
-template <>
-class Pi<double> {
-public:
-	static constexpr double value() {
-		return 3.141592653589793;
-	}
-};
-
-template <>
-class TwoPi<float> {
-public:
-	static constexpr float value() {
-		return 6.2831853f;
-	}
-};
-
-template <>
-class TwoPi<double> {
-public:
-	static constexpr double value() {
-		return 6.283185307179586;
-	}
-};
-
-template <>
-class HalfPi<float> {
-public:
-	static constexpr float value() {
-		return 1.570796325f;
-	}
-};
-
-template <>
-class HalfPi<double> {
-public:
-	static constexpr double value() {
-		return 1.5707963267948965;
-	}
-};
-
-template <>
-class SqrtTwo<float> {
-public:
-	static constexpr float value() {
-		return 1.414213563f;
-	}
-};
-
-template <>
-class SqrtTwo<double> {
-public:
-	static constexpr double value() {
-		return 1.4142135623730951;
-	}
-};
-
-} // namespace impl
-
-template <std::floating_point T = float>
-inline constexpr T pi{ impl::Pi<T>::value() };
-
-template <std::floating_point T = float>
-inline constexpr T two_pi{ impl::TwoPi<T>::value() };
-
-template <std::floating_point T = float>
-inline constexpr T half_pi{ impl::HalfPi<T>::value() };
-
-template <std::floating_point T = float>
-inline constexpr T sqrt_two{ impl::SqrtTwo<T>::value() };
-
-/// @brief Convert degrees to radians.
-template <std::floating_point T>
-[[nodiscard]] constexpr T DegToRad(T angle_degrees) {
-	return angle_degrees * pi<T> / T{ 180 };
-}
-
-/// @brief Convert radians to degrees.
-template <std::floating_point T>
-[[nodiscard]] constexpr T RadToDeg(T angle_radians) {
-	return angle_radians / pi<T> * T{ 180 };
+/// @brief Clamp a value between 0 and 1.
+template <Arithmetic T>
+[[nodiscard]] constexpr T Clamp01(T value) {
+	return std::clamp(value, T{ 0 }, T{ 1 });
 }
 
 /// @brief Modulo operator which supports wrapping negative numbers.
 /// e.g. Mod(-1, 2) returns 1.
 template <std::integral T>
-[[nodiscard]] T Mod(T a, T b) {
+[[nodiscard]] constexpr T Mod(T a, T b) {
 	return (a % b + b) % b;
-}
-
-/// @brief Angle in degrees from [0, 360).
-template <Arithmetic T>
-[[nodiscard]] T ClampAngle360(T angle_degrees) {
-	T clamped{ 0 };
-
-	if constexpr (std::is_floating_point_v<T>) {
-		clamped = std::fmod(angle_degrees, T{ 360 });
-	} else {
-		clamped = Mod(angle_degrees, T{ 360 });
-	}
-
-	if (clamped < 0) {
-		clamped += T{ 360 };
-	}
-
-	return clamped;
-}
-
-/// @return Angle in radians in range [0, 2 pi).
-template <std::floating_point T>
-[[nodiscard]] T ClampAngle2Pi(T angle_radians) {
-	T clamped{ std::fmod(angle_radians, two_pi<T>) };
-
-	if (clamped < T{ 0 }) {
-		clamped += two_pi<T>;
-	}
-
-	return clamped;
 }
 
 /// @brief Signum function.
@@ -157,23 +43,25 @@ template <std::floating_point T>
 /// Returns  0  if value is zero.
 /// Returns -1  if value is negative.
 /// No NaN/inf checking.
-template <typename T>
-[[nodiscard]] T Sign(T value) {
+template <Arithmetic T>
+[[nodiscard]] constexpr T Sign(T value) {
 	return static_cast<T>((0 < value) - (value < 0));
 }
 
 /// @return Integer value wrapped to mod n in positive and negative directions.
-[[nodiscard]] inline int ModFloor(int a, int n) {
+[[nodiscard]] constexpr int ModFloor(int a, int n) {
 	return ((a % n) + n) % n;
 }
 
 /// @brief Fast floor function (same as std::floor but without NaN/inf checking).
 /// From: https://stackoverflow.com/a/30308919
-template <typename T>
-[[nodiscard]] T FastFloor(T value) {
+template <Arithmetic T>
+[[nodiscard]] constexpr T Floor(T value) {
 	if constexpr (std::is_floating_point_v<T>) {
+		auto truncated{ static_cast<std::int64_t>(value) };
+
 		return static_cast<T>(
-			static_cast<std::int64_t>(value) - (value < static_cast<std::int64_t>(value))
+			truncated - static_cast<std::int64_t>(value < static_cast<T>(truncated))
 		);
 	} else {
 		return value;
@@ -181,21 +69,23 @@ template <typename T>
 }
 
 /// @brief Fast round function (same as std::round but without NaN/inf checking).
-template <typename T>
-[[nodiscard]] T FastRound(T value) {
+template <Arithmetic T>
+[[nodiscard]] constexpr T Round(T value) {
 	if constexpr (std::is_floating_point_v<T>) {
-		return FastFloor(value + 0.5f);
+		return Floor(value + 0.5f);
 	} else {
 		return value;
 	}
 }
 
 /// @brief Fast ceil function (same as std::ceil but without NaN/inf checking).
-template <typename T>
-[[nodiscard]] T FastCeil(T value) {
+template <Arithmetic T>
+[[nodiscard]] constexpr T Ceil(T value) {
 	if constexpr (std::is_floating_point_v<T>) {
+		auto truncated{ static_cast<std::int64_t>(value) };
+
 		return static_cast<T>(
-			static_cast<std::int64_t>(value) + (value > static_cast<std::int64_t>(value))
+			truncated + static_cast<std::int64_t>(value > static_cast<T>(truncated))
 		);
 	} else {
 		return value;
@@ -204,81 +94,59 @@ template <typename T>
 
 /// @return True if there is a real solution followed by both roots
 /// (equal if repeated), false and roots of 0 if imaginary.
-template <std::floating_point T>
-[[nodiscard]] std::tuple<bool, T, T> QuadraticFormula(T a, T b, T c) {
-	const T disc{ b * b - 4.0f * a * c };
-	if (disc < 0.0f) {
-		// Imaginary roots.
-		return { false, 0.0f, 0.0f };
-	} else if (NearlyEqual(disc, T{ 0 })) {
-		// Repeated roots.
-		const T root{ -0.5f * b / a };
-		return { true, root, root };
-	}
-	// Real roots.
-	const T q = (b > 0.0f) ? -0.5f * (b + std::sqrt(disc)) : -0.5f * (b - std::sqrt(disc));
-	// This may look weird but the algebra checks out here (I checked).
-	return { true, q / a, c / q };
-}
+[[nodiscard]] std::tuple<bool, float, float> QuadraticFormula(float a, float b, float c);
 
 /// @brief Triangle wave mimicking the typical sine wave. y values in range [-1, 1], x values in
 /// domain [0, 1]. Starts from y=0 going toward y=1.
-template <std::floating_point T>
-[[nodiscard]] T TriangleWave(
-	T t, T period = static_cast<T>(1.0), T phase_shift = static_cast<T>(0.0)
-) {
-	PTGN_ASSERT(period != static_cast<T>(0.0), "Triangle wave period can not be 0");
+[[nodiscard]] constexpr float TriangleWave(float t, float period = 1.0f, float phase_shift = 0.0f) {
+	PTGN_ASSERT(period != 0.0f, "Triangle wave period can not be 0");
 
-	t += phase_shift + static_cast<T>(0.25);
+	t += phase_shift + 0.25f;
 	t /= period;
 
-	return static_cast<T>(2.0) * std::abs(static_cast<T>(2.0) * (t - FastRound(t))) -
-		   static_cast<T>(1.0);
+	return 2.0f * std::abs(2.0f * (t - Round(t))) - 1.0f;
 }
 
 /// @brief Linearly interpolate between a and b by t.
-template <Arithmetic T, std::floating_point U>
-[[nodiscard]] U Lerp(T a, T b, U t) {
+template <Arithmetic T>
+[[nodiscard]] constexpr float Lerp(T a, T b, float t) {
 	return a + t * (b - a);
 }
 
 /// @brief Cosine interpolate between a and b by t.
-template <Arithmetic T, std::floating_point U>
-[[nodiscard]] U CosineInterpolate(T a, T b, U t) {
-	return Lerp(a, b, static_cast<U>(0.5) * (static_cast<U>(1) - std::cos(t * pi<U>)));
+template <Arithmetic T>
+[[nodiscard]] constexpr float CosineInterpolate(T a, T b, float t) {
+	return Lerp(a, b, 0.5f * (1.0f - std::cos(t * kPi)));
 }
 
 /// @brief From https://paulbourke.net/miscellaneous/interpolation/
-template <Arithmetic T, std::floating_point U>
-[[nodiscard]] U CubicInterpolate(T y0, T y1, T y2, T y3, U t) {
-	U mu2 = t * t;
-	U a0  = y3 - y2 - y0 + y1;
-	U a1  = y0 - y1 - a0;
-	U a2  = y2 - y0;
-	U a3  = y1;
+template <Arithmetic T>
+[[nodiscard]] constexpr float CubicInterpolate(T y0, T y1, T y2, T y3, float t) {
+	float mu2 = t * t;
+	float a0  = y3 - y2 - y0 + y1;
+	float a1  = y0 - y1 - a0;
+	float a2  = y2 - y0;
+	float a3  = y1;
 	return (a0 * t * mu2 + a1 * mu2 + a2 * t + a3);
 }
 
-template <std::floating_point U>
-[[nodiscard]] U Quintic(U t) {
+[[nodiscard]] constexpr float Quintic(float t) {
 	return t * t * t * (t * (t * 6.0f - 15.0f) + 10.0f);
 }
 
 /// @brief Quintic interpolate between a and b by t.
-template <std::floating_point U>
-[[nodiscard]] U QuinticInterpolate(U a, U b, U t) {
+[[nodiscard]] constexpr float QuinticInterpolate(float a, float b, float t) {
 	return Lerp(a, b, Quintic(t));
 }
 
-template <std::floating_point U>
-[[nodiscard]] U Smoothstep(U t) {
+[[nodiscard]] constexpr float Smoothstep(float t) {
 	return t * t * (3.0f - 2.0f * t);
 }
 
 /// @brief Smoothstep interpolate between a and b by t.
 /// From: https://en.wikipedia.org/wiki/Smoothstep
-template <std::floating_point U>
-[[nodiscard]] U SmoothstepInterpolate(U a, U b, U t) {
+[[nodiscard]] constexpr float SmoothstepInterpolate(float a, float b, float t) {
+	/// From: https://en.wikipedia.org/wiki/Smoothstep
 	return Lerp(a, b, Smoothstep(t));
 }
 

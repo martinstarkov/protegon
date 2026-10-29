@@ -1,0 +1,87 @@
+#include "runtime/graphics/visible.h"
+
+#include "runtime/ecs/entity.h"
+#include "runtime/ecs/entity_hierarchy.h"
+#include "runtime/ecs/group_stack.h"
+#include "runtime/scene/scene_event.h"
+
+namespace ptgn {
+
+namespace {
+
+bool IsLocallyVisible(Entity entity) {
+	// Layer visibility is controlled by the group stack in runtime and the editor
+	// preview otherwise; old authored Visible flags must not suppress either.
+	if (entity.Has<Group>() && GetGroupStack(entity)) {
+		return true;
+	}
+
+	return !entity.Has<Visible>() || entity.Get<Visible>().visible;
+}
+
+} // namespace
+
+void SetVisible(Entity entity, bool visible) {
+	if (entity.Has<Visible>() && entity.Get<Visible>().visible == visible) {
+		return;
+	}
+
+	auto& visibility{ entity.TryAdd<Visible>() };
+	visibility.visible = visible;
+
+	if (entity.HasScene()) {
+		if (visible) {
+			PushEvent<event::EntityShow>(entity, entity);
+		} else {
+			PushEvent<event::EntityHide>(entity, entity);
+		}
+	}
+}
+
+void Show(Entity entity) {
+	SetVisible(entity, true);
+}
+
+void Hide(Entity entity) {
+	SetVisible(entity, false);
+}
+
+bool IsAuthoredVisible(Entity entity, bool check_parent_visibility) {
+	if (!check_parent_visibility) {
+		return IsLocallyVisible(entity);
+	}
+
+	if (!IsLocallyVisible(entity)) {
+		return false;
+	}
+
+	bool visible{ true };
+
+	ForEachParent(
+		entity, [](Entity e) { return e.Has<impl::IgnoreParentVisibility>(); },
+		[&visible](Entity parent) {
+			if (!IsLocallyVisible(parent)) {
+				visible = false;
+				return false;
+			}
+
+			return true;
+		}
+	);
+
+	return visible;
+}
+
+bool IsVisible(Entity entity, bool check_parent_visibility) {
+	return IsAuthoredVisible(entity, check_parent_visibility) && IsGroupStackVisible(entity);
+}
+
+void IgnoreParentVisibility(Entity entity, bool ignore) {
+	if (ignore) {
+		entity.Add<impl::IgnoreParentVisibility>();
+	} else {
+		entity.Remove<impl::IgnoreParentVisibility>();
+	}
+}
+
+} // namespace ptgn

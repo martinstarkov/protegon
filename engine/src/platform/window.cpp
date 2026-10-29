@@ -1,0 +1,1049 @@
+#include "platform/window.h"
+
+#ifdef __EMSCRIPTEN__
+
+#include <emscripten.h>
+#include <emscripten/html5.h>
+
+EM_JS(int, get_canvas_width, (), { return Module.canvas.width; });
+EM_JS(int, get_canvas_height, (), { return Module.canvas.height; });
+EM_JS(int, get_screen_width, (), { return window.screen.width; });
+EM_JS(int, get_screen_height, (), { return window.screen.height; });
+EM_JS(double, get_device_pixel_ratio, (), { return window.devicePixelRatio || 1.0; });
+
+#endif
+
+#include <imgui.h>
+#include <imgui_impl_glfw.h>
+#include <imgui_impl_opengl3.h>
+
+#include <array>
+#include <chrono>
+#include <cstdint>
+#include <functional>
+#include <memory>
+#include <optional>
+#include <string>
+#include <string_view>
+#include <utility>
+
+#include "core/assert.h"
+#include "core/event/event.h"
+#include "core/event/key_event.h"
+#include "core/event/mouse_event.h"
+#include "core/event/window_event.h"
+#include "core/graphics/color.h"
+#include "core/graphics/surface.h"
+#include "core/input/key.h"
+#include "core/input/mouse.h"
+#include "core/log.h"
+#include "core/math/vector2.h"
+#include "core/util/file.h"
+#include "core/util/time.h"
+#include "platform/glfw.h"
+#include "renderer/backend/gl/gl.h"
+#include "renderer/renderer.h"
+
+namespace ptgn {
+
+namespace {
+
+duration<double> GetTimeSince(impl::Timestamp timestamp) {
+	return duration<double>{ glfwGetTime() - timestamp };
+}
+
+} // namespace
+
+#ifdef __EMSCRIPTEN__
+
+namespace {
+
+void ResizeCanvasToCssSize(Window& window) {
+	double width{};
+	double height{};
+
+	auto result{ emscripten_get_element_css_size("#canvas", &width, &height) };
+
+	if (result != EMSCRIPTEN_RESULT_SUCCESS) {
+		return;
+	}
+
+	V2_int size{ std::max(1, static_cast<int>(std::lround(width))),
+				 std::max(1, static_cast<int>(std::lround(height))) };
+
+	if (window.GetSize() != size) {
+		window.SetSize(size, false);
+	}
+}
+
+EM_BOOL EmscriptenResize(int, const EmscriptenUiEvent*, void* window_ptr) {
+	if (!window_ptr) {
+		return EM_FALSE;
+	}
+
+	auto& window{ *static_cast<::ptgn::Window*>(window_ptr) };
+
+	ResizeCanvasToCssSize(window);
+	return EM_TRUE;
+}
+
+EM_BOOL EmscriptenResizeMouseLeave(
+	int event_type, const EmscriptenMouseEvent* mouse_event, void* window_ptr
+) {
+	if (!window_ptr) {
+		return -1;
+	}
+	auto& window{ *static_cast<::ptgn::Window*>(window_ptr) };
+	window.ClearInputState();
+	return 0;
+}
+
+} // namespace
+
+void Window::SetCanvasCssSize(V2_int size) {
+	emscripten_set_element_css_size("#canvas", size.x, size.y);
+}
+
+V2_int Window::GetCanvasCssSize() const {
+	double width{};
+	double height{};
+
+	emscripten_get_element_css_size("#canvas", &width, &height);
+
+	return { static_cast<int>(std::lround(width)), static_cast<int>(std::lround(height)) };
+}
+
+void Window::SetCanvasFramebufferSize(V2_int size) {
+	emscripten_set_canvas_element_size("#canvas", size.x, size.y);
+}
+
+V2_int Window::GetCanvasFramebufferSize() const {
+	V2_int size;
+
+	emscripten_get_canvas_element_size("#canvas", &size.x, &size.y);
+
+	return size;
+}
+
+#endif
+
+namespace impl {
+
+void WindowDeleter::operator()(GLFWwindow* window) const {
+	if (window) {
+		glfwDestroyWindow(window);
+		PTGN_INFO("Destroyed window");
+	}
+}
+
+void CursorDeleter::operator()(GLFWcursor* cursor) const {
+	if (cursor) {
+		glfwDestroyCursor(cursor);
+	}
+}
+
+} // namespace impl
+
+void Window::SetCallbacks() {
+	auto win{ instance_.get() };
+	PTGN_ASSERT(win);
+
+	glfwSetWindowPosCallback(win, [](GLFWwindow* window, int x, int y) {
+		auto self{ static_cast<Window*>(glfwGetWindowUserPointer(window)) };
+		if (!self) {
+			return;
+		}
+
+		V2_int pos{ x, y };
+		bool can_cache_windowed_rect{ !glfwGetWindowMonitor(window) &&
+									  glfwGetWindowAttrib(window, GLFW_MAXIMIZED) != GLFW_TRUE &&
+									  glfwGetWindowAttrib(window, GLFW_ICONIFIED) != GLFW_TRUE };
+
+		if (can_cache_windowed_rect) {
+			self->windowed_pos_ = pos;
+		}
+
+		self->PushEvent<event::WindowMoved>(pos);
+	});
+
+	glfwSetWindowMaximizeCallback(win, [](GLFWwindow* window, int maximized) {
+		auto self{ static_cast<Window*>(glfwGetWindowUserPointer(window)) };
+		if (!self) {
+			return;
+		}
+		self->windowed_was_maximized_ = maximized == GLFW_TRUE;
+
+		if (maximized) {
+			self->PushEvent<event::WindowMaximized>(self->windowed_size_);
+		} else if (glfwGetWindowAttrib(window, GLFW_ICONIFIED) != GLFW_TRUE) {
+			self->CacheWindowedRect();
+		}
+	});
+
+	glfwSetWindowIconifyCallback(win, [](GLFWwindow* window, int iconified) {
+		auto self{ static_cast<Window*>(glfwGetWindowUserPointer(window)) };
+		if (!self) {
+			return;
+		}
+		if (iconified) {
+			self->PushEvent<event::WindowMinimized>(self->windowed_size_);
+		}
+	});
+
+	glfwSetFramebufferSizeCallback(win, [](GLFWwindow* glfw_window, int width, int height) {
+		auto self{ static_cast<Window*>(glfwGetWindowUserPointer(glfw_window)) };
+		if (!self || width <= 0 || height <= 0) {
+			return;
+		}
+
+		V2_int size{ width, height };
+
+		self->PushEvent<event::FramebufferResized>(size);
+	});
+
+	glfwSetWindowSizeCallback(win, [](GLFWwindow* window, int width, int height) {
+		auto self{ static_cast<Window*>(glfwGetWindowUserPointer(window)) };
+		if (!self) {
+			return;
+		}
+
+		if (!glfwGetWindowMonitor(window)) {
+			bool maximized{ glfwGetWindowAttrib(window, GLFW_MAXIMIZED) == GLFW_TRUE };
+			bool minimized{ glfwGetWindowAttrib(window, GLFW_ICONIFIED) == GLFW_TRUE };
+
+			if (!minimized) {
+				self->windowed_was_maximized_ = maximized;
+			}
+
+			if (!maximized && !minimized) {
+				self->windowed_size_ = { width, height };
+			}
+		}
+
+		V2_int size{ width, height };
+
+		self->PushEvent<event::WindowResized>(size);
+	});
+
+	glfwSetWindowFocusCallback(win, [](GLFWwindow* window, int focused) {
+		auto self{ static_cast<Window*>(glfwGetWindowUserPointer(window)) };
+		if (!self) {
+			return;
+		}
+		if (focused) {
+			self->focused_ = true;
+			self->PushEvent<event::WindowFocusGained>();
+		} else {
+			self->ClearInputState();
+			self->focused_ = false;
+			self->PushEvent<event::WindowFocusLost>();
+		}
+	});
+
+	glfwSetWindowCloseCallback(win, [](GLFWwindow* window) {
+		auto self{ static_cast<Window*>(glfwGetWindowUserPointer(window)) };
+		if (!self) {
+			return;
+		}
+
+		self->quit_ = true;
+		self->PushEvent<event::WindowQuit>();
+	});
+
+	glfwSetKeyCallback(
+		win, [](GLFWwindow* window, int key, [[maybe_unused]] int scancode, int action,
+				[[maybe_unused]] int mods) {
+			auto self{ static_cast<Window*>(glfwGetWindowUserPointer(window)) };
+			if (!self || key < 0 || static_cast<std::size_t>(key) >= self->key_states_.size()) {
+				return;
+			}
+
+			switch (action) {
+				case GLFW_PRESS: {
+					self->key_down_[static_cast<std::size_t>(key)] = true;
+					break;
+				}
+				case GLFW_RELEASE: {
+					self->key_down_[static_cast<std::size_t>(key)] = false;
+					break;
+				}
+				case GLFW_REPEAT:
+					// Ignore for physical state.
+					// The key is already down.
+					break;
+				default: PTGN_ERROR("Unknown key action: ", action);
+			}
+		}
+	);
+
+	// TODO: In the future add unicode callback.
+	// glfwSetCharCallback(win, [](GLFWwindow* window, unsigned int keycode) {
+	//	auto self{ static_cast<Window*>(glfwGetWindowUserPointer(window)) };
+	//	if (!self) {
+	//		return;
+	//	}
+	//});
+
+	glfwSetMouseButtonCallback(
+		win, [](GLFWwindow* window, int button, int action, [[maybe_unused]] int mods) {
+			auto self{ static_cast<Window*>(glfwGetWindowUserPointer(window)) };
+			if (!self || button < 0 ||
+				static_cast<std::size_t>(button) >= self->mouse_states_.size()) {
+				return;
+			}
+
+			switch (action) {
+				case GLFW_PRESS: {
+					self->mouse_down_[static_cast<std::size_t>(button)] = true;
+					break;
+				}
+				case GLFW_RELEASE: {
+					self->mouse_down_[static_cast<std::size_t>(button)] = false;
+					break;
+				}
+				default: PTGN_ERROR("Unknown mouse action: ", action);
+			}
+		}
+	);
+
+	glfwSetScrollCallback(win, [](GLFWwindow* window, double x, double y) {
+		auto self{ static_cast<Window*>(glfwGetWindowUserPointer(window)) };
+		if (!self) {
+			return;
+		}
+
+		self->raw_scroll_accum_ += V2_float{ x, y };
+	});
+
+	glfwSetCursorPosCallback(win, [](GLFWwindow* window, double x, double y) {
+		auto self{ static_cast<Window*>(glfwGetWindowUserPointer(window)) };
+		if (!self) {
+			return;
+		}
+
+		self->raw_mouse_position_ = { x, y };
+	});
+}
+
+Window::Window(const WindowConfig& config, std::function<void(impl::EventData&&)>&& event_sink) :
+	file{ *this },
+	event_sink_{ std::move(event_sink) },
+	window_settings_{
+		.title			  = config.title,
+		.background_color = color::Transparent,
+		.size			  = config.size,
+		.resizable		  = config.resizable,
+		.maximized		  = config.maximized,
+	},
+	title_{ config.title },
+	windowed_pos_{ config.x.value_or(100), config.y.value_or(100) },
+	windowed_size_{ config.size },
+	windowed_was_maximized_{ config.maximized } {
+	PTGN_ASSERT(event_sink_, "Window event sink must be set to a function");
+
+	int exclusive_states = static_cast<int>(config.minimized) + static_cast<int>(config.maximized) +
+						   static_cast<int>(config.fullscreen);
+
+	PTGN_ASSERT(
+		exclusive_states <= 1,
+		"Window config can only be one of fullscreen, minimized or maximized at once"
+	);
+
+	glfwDefaultWindowHints();
+	glfwWindowHint(GLFW_CLIENT_API, GLFW_OPENGL_API);
+	glfwWindowHint(GLFW_VISIBLE, GLFW_FALSE);
+	// Disable OS DPI aware resizing so window is 1:1 with screen coordinates
+	glfwWindowHint(GLFW_SCALE_TO_MONITOR, GLFW_FALSE);
+	// On MacOS displays disable high resolution framebuffers
+	glfwWindowHint(GLFW_COCOA_RETINA_FRAMEBUFFER, GLFW_FALSE);
+	glfwWindowHint(GLFW_RESIZABLE, config.resizable ? GLFW_TRUE : GLFW_FALSE);
+	glfwWindowHint(GLFW_DECORATED, config.borderless ? GLFW_FALSE : GLFW_TRUE);
+	glfwWindowHint(GLFW_FLOATING, config.always_on_top ? GLFW_TRUE : GLFW_FALSE);
+	glfwWindowHint(GLFW_TRANSPARENT_FRAMEBUFFER, config.transparent ? GLFW_TRUE : GLFW_FALSE);
+	glfwWindowHint(GLFW_MAXIMIZED, config.maximized ? GLFW_TRUE : GLFW_FALSE);
+
+	GLFWmonitor* monitor{ glfwGetPrimaryMonitor() };
+	PTGN_ASSERT(monitor, "glfwGetPrimaryMonitor failed");
+
+#ifdef __EMSCRIPTEN__
+	const char* glsl_version = "#version 300 es";
+	glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
+	glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 0);
+	glfwWindowHint(GLFW_CLIENT_API, GLFW_OPENGL_ES_API);
+
+#else
+	const char* glsl_version = "#version 330 core";
+	glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
+	glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
+	glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
+#ifdef __APPLE__
+	glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GLFW_TRUE);
+#endif
+#endif
+
+	float main_scale = ImGui_ImplGlfw_GetContentScaleForMonitor(monitor);
+	instance_		 = std::unique_ptr<GLFWwindow, impl::WindowDeleter>{
+		glfwCreateWindow(
+			config.size.x, config.size.y, title_.c_str(), config.fullscreen ? monitor : nullptr,
+			nullptr
+		),
+		impl::WindowDeleter{}
+	};
+
+	PTGN_ASSERT(instance_, "glfwCreateWindow failed");
+
+	glfwMakeContextCurrent(instance_.get());
+
+#ifndef __EMSCRIPTEN__
+	glfwSwapInterval(1); // Enable vsync
+#endif
+
+	IMGUI_CHECKVERSION();
+	ImGui::CreateContext();
+	ImGuiIO& io		= ImGui::GetIO();
+	io.ConfigFlags &= ~ImGuiConfigFlags_NavEnableKeyboard;
+	io.ConfigFlags &= ~ImGuiConfigFlags_NavEnableGamepad;
+	io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;
+
+	ImGui::StyleColorsDark();
+
+	// Setup scaling
+	ImGuiStyle& style = ImGui::GetStyle();
+	style.ScaleAllSizes(main_scale);
+	style.FontScaleDpi = main_scale;
+
+#ifdef __EMSCRIPTEN__
+	emscripten_set_resize_callback(
+		EMSCRIPTEN_EVENT_TARGET_WINDOW, static_cast<void*>(this), EM_FALSE, EmscriptenResize
+	);
+	emscripten_set_mouseleave_callback(
+		EMSCRIPTEN_EVENT_TARGET_WINDOW, static_cast<void*>(this), EM_TRUE,
+		EmscriptenResizeMouseLeave
+	);
+	ResizeCanvasToCssSize(*this);
+#else
+	int status{ gladLoadGL(glfwGetProcAddress) };
+	PTGN_ASSERT(status, "Failed to load OpenGL functions");
+#endif
+
+	PTGN_INFO("Graphics Card: ", glGetString(GL_RENDERER));
+	PTGN_INFO("OpenGL Version: ", glGetString(GL_VERSION));
+
+	glfwSetWindowUserPointer(instance_.get(), this);
+
+	if (!config.fullscreen) {
+		if (config.x.has_value() && config.y.has_value()) {
+			glfwSetWindowPos(instance_.get(), config.x.value(), config.y.value());
+		} else {
+			Center();
+		}
+	}
+
+	if (config.minimized) {
+		glfwIconifyWindow(instance_.get());
+	}
+
+	SetMouseMode(config.mouse_mode);
+
+	if (!config.fullscreen && !config.maximized && !config.minimized) {
+		CacheWindowedRect();
+	}
+
+	glfwSetWindowSizeLimits(instance_.get(), 1, 1, GLFW_DONT_CARE, GLFW_DONT_CARE);
+
+	// Callbacks should be set after window setup so the callbacks dont trigger initially.
+	SetCallbacks();
+
+	ImGui_ImplGlfw_InitForOpenGL(instance_.get(), true);
+#ifdef __EMSCRIPTEN__
+	ImGui_ImplGlfw_InstallEmscriptenCallbacks(instance_.get(), "#canvas");
+#endif
+	ImGui_ImplOpenGL3_Init(glsl_version);
+}
+
+Window::~Window() {
+	ImGui_ImplOpenGL3_Shutdown();
+	ImGui_ImplGlfw_Shutdown();
+	ImGui::DestroyContext();
+}
+
+void Window::SwapBuffers() const {
+	glfwSwapBuffers(instance_.get());
+}
+
+void Window::PollEvents() {
+	PTGN_ASSERT(event_sink_, "Cannot poll window events before setting an event sink");
+
+	glfwPollEvents();
+}
+
+bool Window::Update() {
+	PollEvents();
+
+	auto context{ glfwGetCurrentContext() };
+	PTGN_ASSERT(context == instance_.get());
+	PTGN_ASSERT(instance_.get());
+
+	bool focused{ focused_ };
+
+#ifdef __EMSCRIPTEN__
+	// Emscripten does not support window focus, so assume the window is always focused.
+	focused = true;
+#endif
+
+	previous_mouse_position_ = mouse_position_;
+
+	bool mouse_moved{ !raw_mouse_position_.IsZero() };
+
+	V2_int half_window_size{ GetSize() / 2.0f };
+
+	if (mouse_moved) {
+		mouse_position_ = raw_mouse_position_ - half_window_size;
+		auto delta{ mouse_position_ - previous_mouse_position_ };
+		if (focused) {
+			PushEvent<event::MouseMove>(mouse_position_, delta);
+		}
+		raw_mouse_position_ = {};
+		mouse_set_			= true;
+	} else if (focused) {
+		double x{ 0.0 };
+		double y{ 0.0 };
+		glfwGetCursorPos(instance_.get(), &x, &y);
+
+		auto new_mouse_position{ V2_float{ x, y } - half_window_size };
+
+		auto delta{ new_mouse_position - mouse_position_ };
+
+		if (!delta.IsZero()) {
+			mouse_position_ = new_mouse_position;
+			if (mouse_set_) {
+				PushEvent<event::MouseMove>(mouse_position_, delta);
+			}
+			mouse_set_ = true;
+		}
+	}
+
+	mouse_scroll_ = raw_scroll_accum_;
+	if (!mouse_scroll_.IsZero()) {
+		mouse_scroll_timestamp_ = glfwGetTime();
+	}
+	raw_scroll_accum_ = {};
+
+	if (focused && !mouse_scroll_.IsZero()) {
+		PushEvent<event::MouseScroll>(mouse_scroll_, mouse_position_);
+	}
+
+	for (auto i{ 0uz }; i < mouse_states_.size(); ++i) {
+		bool was_down = prev_mouse_down_[i];
+		bool is_down  = mouse_down_[i];
+
+		using enum impl::MouseState;
+		if (!was_down && is_down) {
+			mouse_states_[i]	 = Pressed;
+			mouse_timestamps_[i] = glfwGetTime();
+			if (focused) {
+				PushEvent<event::MousePressed>(static_cast<Mouse>(i), mouse_position_);
+				PushEvent<event::MouseHeld>(static_cast<Mouse>(i), mouse_position_);
+			}
+		} else if (was_down && is_down) {
+			mouse_states_[i] = Held;
+			if (focused) {
+				PushEvent<event::MouseHeld>(static_cast<Mouse>(i), mouse_position_);
+			}
+		} else if (was_down && !is_down) {
+			mouse_states_[i]	 = Released;
+			mouse_timestamps_[i] = glfwGetTime();
+			if (focused) {
+				PushEvent<event::MouseReleased>(static_cast<Mouse>(i), mouse_position_);
+			}
+		} else {
+			mouse_states_[i] = Idle;
+		}
+	}
+
+	for (auto i{ 0uz }; i < key_states_.size(); ++i) {
+		bool was_down = prev_key_down_[i];
+		bool is_down  = key_down_[i];
+
+		using enum impl::KeyState;
+		if (!was_down && is_down) {
+			key_states_[i]	   = Pressed;
+			key_timestamps_[i] = glfwGetTime();
+			if (focused) {
+				PushEvent<event::KeyPressed>(static_cast<Key>(i));
+				PushEvent<event::KeyHeld>(static_cast<Key>(i));
+			}
+		} else if (was_down && is_down) {
+			key_states_[i] = Held;
+			if (focused) {
+				PushEvent<event::KeyHeld>(static_cast<Key>(i));
+			}
+		} else if (was_down && !is_down) {
+			key_states_[i]	   = Released;
+			key_timestamps_[i] = glfwGetTime();
+			if (focused) {
+				PushEvent<event::KeyReleased>(static_cast<Key>(i));
+			}
+		} else {
+			key_states_[i] = Idle;
+		}
+	}
+
+	prev_mouse_down_ = mouse_down_;
+	prev_key_down_	 = key_down_;
+
+	return !quit_;
+}
+
+void Window::CacheWindowedRect() {
+	auto win{ instance_.get() };
+	if (!win) {
+		return;
+	}
+
+	if (glfwGetWindowMonitor(win)) {
+		return; // fullscreen, do not overwrite cached windowed rect
+	}
+
+	windowed_was_maximized_ = glfwGetWindowAttrib(win, GLFW_MAXIMIZED) == GLFW_TRUE;
+
+	if (windowed_was_maximized_ || glfwGetWindowAttrib(win, GLFW_ICONIFIED) == GLFW_TRUE) {
+		return;
+	}
+
+	glfwGetWindowPos(win, &windowed_pos_.x, &windowed_pos_.y);
+	glfwGetWindowSize(win, &windowed_size_.x, &windowed_size_.y);
+}
+
+void Window::SetMouseMode(MouseMode mode) {
+	using enum MouseMode;
+	int glfw_mode = GLFW_CURSOR_NORMAL;
+
+	switch (mode) {
+		case Normal:   glfw_mode = GLFW_CURSOR_NORMAL; break;
+		case Hidden:   glfw_mode = GLFW_CURSOR_HIDDEN; break;
+		case Disabled: glfw_mode = GLFW_CURSOR_DISABLED; break;
+	}
+
+	glfwSetInputMode(instance_.get(), GLFW_CURSOR, glfw_mode);
+
+	// Optional: raw mouse input for better FPS camera behavior
+	if (glfwRawMouseMotionSupported()) {
+		if (mode == Disabled) {
+			glfwSetInputMode(instance_.get(), GLFW_RAW_MOUSE_MOTION, GLFW_TRUE);
+		} else {
+			glfwSetInputMode(instance_.get(), GLFW_RAW_MOUSE_MOTION, GLFW_FALSE);
+		}
+	}
+}
+
+void Window::SetAlwaysOnTop(bool on) {
+	glfwSetWindowAttrib(instance_.get(), GLFW_FLOATING, on ? GLFW_TRUE : GLFW_FALSE);
+}
+
+void Window::SetOSCursor(const path& img_path, V2_int cursor_hotspot) {
+	impl::Surface surface{ img_path };
+	PTGN_ASSERT(!surface.IsEmpty(), "Failed to load cursor surface");
+
+	GLFWimage image{};
+	image.width	 = surface.GetSize().x;
+	image.height = surface.GetSize().y;
+	image.pixels = const_cast<std::uint8_t*>(surface.Data()); // NOSONAR
+
+	auto cursor = glfwCreateCursor(&image, cursor_hotspot.x, cursor_hotspot.y);
+	PTGN_ASSERT(cursor, "glfwCreateCursor failed");
+
+	custom_cursor_.reset(cursor);
+	glfwSetCursor(instance_.get(), custom_cursor_.get());
+}
+
+void Window::ResetOSCursor() {
+	custom_cursor_.reset();
+	glfwSetCursor(instance_.get(), nullptr);
+}
+
+void Window::SetOSCursorVisibility(bool visibility) {
+	glfwSetInputMode(
+		instance_.get(), GLFW_CURSOR, visibility ? GLFW_CURSOR_NORMAL : GLFW_CURSOR_HIDDEN
+	);
+}
+
+void Window::SetMinimumSize(V2_int minimum_size) {
+	minimum_size_ = minimum_size;
+	glfwSetWindowSizeLimits(
+		instance_.get(), minimum_size_.x, minimum_size_.y, maximum_size_.x, maximum_size_.y
+	);
+}
+
+V2_int Window::GetMinimumSize() const {
+	return minimum_size_;
+}
+
+void Window::SetMaximumSize(V2_int maximum_size) {
+	maximum_size_ = maximum_size;
+	glfwSetWindowSizeLimits(
+		instance_.get(), minimum_size_.x, minimum_size_.y, maximum_size_.x, maximum_size_.y
+	);
+}
+
+V2_int Window::GetMaximumSize() const {
+	return maximum_size_;
+}
+
+void Window::SetPosition(V2_int new_origin) {
+	auto win{ instance_.get() };
+	PTGN_ASSERT(win, "Window is null");
+
+	if (!glfwGetWindowMonitor(win)) {
+		glfwSetWindowPos(win, new_origin.x, new_origin.y);
+	}
+}
+
+V2_int Window::GetPosition() const {
+	V2_int pos;
+	glfwGetWindowPos(instance_.get(), &pos.x, &pos.y);
+	return pos;
+}
+
+void Window::SetSize(V2_int new_size, bool centered) {
+	auto win{ instance_.get() };
+	PTGN_ASSERT(win, "Window is null");
+
+	glfwSetWindowSize(win, new_size.x, new_size.y);
+
+	if (centered && !glfwGetWindowMonitor(win)) {
+		Center();
+	}
+}
+
+V2_int Window::GetSize() const {
+	auto win{ instance_.get() };
+	PTGN_ASSERT(win, "Window is null");
+
+	V2_int size;
+	glfwGetWindowSize(win, &size.x, &size.y);
+	return size;
+}
+
+V2_int Window::GetFramebufferSize() const {
+	auto win{ instance_.get() };
+	PTGN_ASSERT(win, "Window is null");
+
+	V2_int size;
+	glfwGetFramebufferSize(win, &size.x, &size.y);
+	return size;
+}
+
+WindowSettings Window::GetSettings() const {
+	return window_settings_;
+}
+
+void Window::SetSettings(const WindowSettings& settings) {
+	PTGN_ASSERT(settings.size.IsPositive(), "Window settings size must be positive");
+
+	window_settings_ = settings;
+
+	SetTitle(settings.title);
+	SetBackgroundColor(settings.background_color);
+
+	if (settings.resizable) {
+		SetResizable();
+	} else {
+		SetFixedSize();
+	}
+
+#ifdef __EMSCRIPTEN__
+	// WindowSettings::size is the project's default native window size.
+	// On the web, the live window size is controlled by the canvas CSS.
+	ResizeCanvasToCssSize(*this);
+	return;
+#else
+	if (GetSetting(WindowSetting::Fullscreen)) {
+		return;
+	}
+
+	if (GetSetting(WindowSetting::Maximized) || GetSetting(WindowSetting::Minimized)) {
+		SetSetting(WindowSetting::Restored);
+	}
+
+	SetSize(settings.size, false);
+
+	if (settings.maximized) {
+		SetSetting(WindowSetting::Maximized);
+	}
+#endif
+}
+
+WindowLocalSettings Window::GetLocalSettings() const {
+#ifdef __EMSCRIPTEN__
+	return {};
+#else
+	auto win{ instance_.get() };
+	PTGN_ASSERT(win, "Window is null");
+
+	V2_int position{ windowed_pos_ };
+	V2_int size{ windowed_size_ };
+
+	bool is_windowed{ glfwGetWindowMonitor(win) == nullptr };
+	bool maximized{ glfwGetWindowAttrib(win, GLFW_MAXIMIZED) == GLFW_TRUE };
+	bool minimized{ glfwGetWindowAttrib(win, GLFW_ICONIFIED) == GLFW_TRUE };
+
+	if (is_windowed && !maximized && !minimized) {
+		glfwGetWindowPos(win, &position.x, &position.y);
+		glfwGetWindowSize(win, &size.x, &size.y);
+	}
+
+	return WindowLocalSettings{
+		.position  = position,
+		.size	   = size,
+		.maximized = maximized || (minimized && windowed_was_maximized_),
+	};
+#endif
+}
+
+void Window::SetLocalSettings([[maybe_unused]] const WindowLocalSettings& settings) {
+#ifdef __EMSCRIPTEN__
+	return;
+#else
+	if (GetSetting(WindowSetting::Fullscreen)) {
+		return;
+	}
+
+	bool should_maximize{ settings.maximized.value_or(GetSetting(WindowSetting::Maximized)) };
+
+	if (settings.position.has_value() || settings.size.has_value() ||
+		settings.maximized.has_value()) {
+		SetSetting(WindowSetting::Restored);
+	}
+
+	if (settings.size.has_value()) {
+		PTGN_ASSERT(settings.size->IsPositive(), "Local window size must be positive");
+		SetSize(settings.size.value(), false);
+	}
+
+	if (settings.position.has_value()) {
+		SetPosition(settings.position.value());
+	}
+
+	if (should_maximize) {
+		SetSetting(WindowSetting::Maximized);
+	}
+#endif
+}
+
+void Window::SetBackgroundColor(Color background_color) {
+	window_settings_.background_color = background_color;
+}
+
+void Window::Center() {
+	auto monitor{ glfwGetPrimaryMonitor() };
+	PTGN_ASSERT(monitor, "glfwGetPrimaryMonitor failed");
+
+	V2_int monitor_pos;
+	V2_int monitor_size;
+	glfwGetMonitorWorkarea(
+		monitor, &monitor_pos.x, &monitor_pos.y, &monitor_size.x, &monitor_size.y
+	);
+
+	V2_int window_size;
+	glfwGetWindowSize(instance_.get(), &window_size.x, &window_size.y);
+
+	auto window_pos{ monitor_pos + (monitor_size - window_size) / 2 };
+
+	glfwSetWindowPos(instance_.get(), window_pos.x, window_pos.y);
+}
+
+void Window::SetTitle(std::string_view title) {
+	title_ = title;
+	glfwSetWindowTitle(instance_.get(), title_.c_str());
+}
+
+std::string_view Window::GetTitle() const {
+	return title_;
+}
+
+void Window::SetSetting(WindowSetting setting) {
+	auto win{ instance_.get() };
+	PTGN_ASSERT(win, "Window is null");
+
+	switch (setting) {
+		using enum WindowSetting;
+		case None:		 break;
+		case Shown:		 glfwShowWindow(win); break;
+		case Hidden:	 glfwHideWindow(win); break;
+		case Windowed:	 SetFullscreen(false); break;
+		case Fullscreen: SetFullscreen(true); break;
+		case Borderless: glfwSetWindowAttrib(win, GLFW_DECORATED, GLFW_FALSE); break;
+		case Bordered:	 glfwSetWindowAttrib(win, GLFW_DECORATED, GLFW_TRUE); break;
+		case Resizable:	 glfwSetWindowAttrib(win, GLFW_RESIZABLE, GLFW_TRUE); break;
+		case FixedSize:	 glfwSetWindowAttrib(win, GLFW_RESIZABLE, GLFW_FALSE); break;
+		case Minimized:	 glfwIconifyWindow(win); break;
+		case Restored:	 glfwRestoreWindow(win); break;
+		case Maximized:
+			if (!glfwGetWindowMonitor(win)) {
+				glfwMaximizeWindow(win);
+				windowed_was_maximized_ = true;
+			}
+			break;
+		default: PTGN_ERROR("Unknown WindowSetting: ", std::to_underlying(setting));
+	}
+}
+
+bool Window::IsFocused() const {
+	auto win{ instance_.get() };
+	PTGN_ASSERT(win, "Window is null");
+	return glfwGetWindowAttrib(win, GLFW_FOCUSED) == GLFW_TRUE;
+}
+
+bool Window::GetSetting(WindowSetting setting) const {
+	auto win{ instance_.get() };
+	PTGN_ASSERT(win, "Window is null");
+
+	switch (setting) {
+		using enum WindowSetting;
+		case None:		 return false;
+		case Shown:		 return glfwGetWindowAttrib(win, GLFW_VISIBLE);
+		case Hidden:	 return !glfwGetWindowAttrib(win, GLFW_VISIBLE);
+		case Windowed:	 return !glfwGetWindowMonitor(win);
+		case Fullscreen: return glfwGetWindowMonitor(win);
+		case Borderless: return !glfwGetWindowAttrib(win, GLFW_DECORATED);
+		case Bordered:	 return glfwGetWindowAttrib(win, GLFW_DECORATED);
+		case Resizable:	 return glfwGetWindowAttrib(win, GLFW_RESIZABLE);
+		case FixedSize:	 return !glfwGetWindowAttrib(win, GLFW_RESIZABLE);
+		case Maximized:	 return glfwGetWindowAttrib(win, GLFW_MAXIMIZED);
+		case Minimized:	 return glfwGetWindowAttrib(win, GLFW_ICONIFIED);
+		case Restored:
+			return !glfwGetWindowAttrib(win, GLFW_MAXIMIZED) &&
+				   !glfwGetWindowAttrib(win, GLFW_ICONIFIED);
+		default: PTGN_ERROR("Unknown WindowSetting: ", std::to_underlying(setting));
+	}
+}
+
+void Window::SetResizable() {
+	SetSetting(WindowSetting::Resizable);
+}
+
+void Window::SetFixedSize() {
+	SetSetting(WindowSetting::FixedSize);
+}
+
+void Window::SetFullscreen(bool on) {
+	auto win{ instance_.get() };
+	PTGN_ASSERT(win, "Window is null");
+
+	if (bool is_fullscreen{ glfwGetWindowMonitor(win) != nullptr }; on == is_fullscreen) {
+		return;
+	}
+
+	if (on) {
+		CacheWindowedRect();
+
+		auto monitor{ glfwGetPrimaryMonitor() };
+		PTGN_ASSERT(monitor, "glfwGetPrimaryMonitor failed");
+
+		auto mode{ glfwGetVideoMode(monitor) };
+		PTGN_ASSERT(mode, "glfwGetVideoMode failed");
+
+		glfwSetWindowMonitor(win, monitor, 0, 0, mode->width, mode->height, mode->refreshRate);
+	} else {
+		glfwSetWindowMonitor(
+			win, nullptr, windowed_pos_.x, windowed_pos_.y, windowed_size_.x, windowed_size_.y,
+			GLFW_DONT_CARE
+		);
+
+		if (windowed_was_maximized_) {
+			glfwMaximizeWindow(win);
+		}
+	}
+}
+
+V2_float Window::GetMousePosition() const {
+	return mouse_position_;
+}
+
+V2_float Window::GetPreviousMousePosition() const {
+	return previous_mouse_position_;
+}
+
+V2_float Window::GetMouseDelta() const {
+	return GetMousePosition() - GetPreviousMousePosition();
+}
+
+V2_float Window::GetMouseScroll() const {
+	return mouse_scroll_;
+}
+
+bool Window::MousePressed(Mouse mouse_button) const {
+	return mouse_states_[std::to_underlying(mouse_button)] == impl::MouseState::Pressed;
+}
+
+bool Window::MouseReleased(Mouse mouse_button) const {
+	return mouse_states_[std::to_underlying(mouse_button)] == impl::MouseState::Released;
+}
+
+bool Window::MouseHeld(Mouse mouse_button) const {
+	auto state{ mouse_states_[std::to_underlying(mouse_button)] };
+	return state == impl::MouseState::Held || state == impl::MouseState::Pressed;
+}
+
+bool Window::MouseHeld(Mouse mouse_button, milliseconds time) const {
+	return GetMouseHeldTime(mouse_button) >= time;
+}
+
+milliseconds Window::GetMouseHeldTime(Mouse button) const {
+	return duration_cast<milliseconds>(GetTimeSince(mouse_timestamps_[std::to_underlying(button)]));
+}
+
+bool Window::KeyPressed(Key key) const {
+	return key_states_[std::to_underlying(key)] == impl::KeyState::Pressed;
+}
+
+bool Window::KeyReleased(Key key) const {
+	return key_states_[std::to_underlying(key)] == impl::KeyState::Released;
+}
+
+bool Window::KeyHeld(Key key) const {
+	auto state{ key_states_[std::to_underlying(key)] };
+	return state == impl::KeyState::Held || state == impl::KeyState::Pressed;
+}
+
+bool Window::KeyHeld(Key key, milliseconds time) const {
+	return GetKeyHeldTime(key) >= time;
+}
+
+milliseconds Window::GetKeyHeldTime(Key key) const {
+	return duration_cast<milliseconds>(GetTimeSince(key_timestamps_[std::to_underlying(key)]));
+}
+
+void Window::ClearInputState() {
+	for (auto i{ 0uz }; i < key_states_.size(); ++i) {
+		key_down_[i] = false;
+	}
+
+	for (auto i{ 0uz }; i < mouse_states_.size(); ++i) {
+		mouse_down_[i] = false;
+	}
+
+	raw_mouse_position_ = {};
+	raw_scroll_accum_	= {};
+}
+
+void Window::RequestQuit() {
+	quit_ = true;
+#ifndef __EMSCRIPTEN__
+	if (instance_) {
+		glfwSetWindowShouldClose(instance_.get(), GLFW_TRUE);
+	}
+#endif
+}
+
+void Window::CancelQuit() {
+	quit_ = false;
+#ifndef __EMSCRIPTEN__
+	if (instance_) {
+		glfwSetWindowShouldClose(instance_.get(), GLFW_FALSE);
+	}
+#endif
+}
+
+} // namespace ptgn

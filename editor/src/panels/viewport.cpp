@@ -1,0 +1,2087 @@
+#include "panels/viewport.h"
+
+#include <imgui.h>
+#include <imgui_internal.h>
+
+#include <algorithm>
+#include <array>
+#include <cmath>
+#include <cstdint>
+#include <cstdio>
+#include <limits>
+#include <optional>
+#include <vector>
+
+#include "commands/entity/entity_reference.h"
+#include "core/assert.h"
+#include "core/graphics/color.h"
+#include "core/math/geometry/origin.h"
+#include "core/math/geometry/rect.h"
+#include "core/math/matrix4.h"
+#include "core/math/vector2.h"
+#include "core/math/vector4.h"
+#include "editor/editor.h"
+#include "editor/editor_context.h"
+#include "editor/editor_icons.h"
+#include "editor/editor_state.h"
+#include "editor/editor_transform_ops.h"
+#include "editor/paint/paint_editor.h"
+#include "panels/inspector_helpers.h"
+#include "panels/scene_hierarchy.h"
+#include "platform/window.h"
+#include "renderer/pipeline/blend_mode.h"
+#include "renderer/pipeline/camera.h"
+#include "renderer/pipeline/viewport.h"
+#include "renderer/renderer.h"
+#include "runtime/ecs/entity.h"
+#include "runtime/ecs/entity_hierarchy.h"
+#include "runtime/ecs/group_stack.h"
+#include "runtime/graphics/draw.h"
+#include "runtime/graphics/render_target.h"
+#include "runtime/graphics/visible.h"
+#include "runtime/scene/scene.h"
+#include "runtime/scene/scene_camera.h"
+#include "runtime/scene/scene_context.h"
+#include "runtime/ui/button.h"
+#include "runtime/ui/button_config.h"
+#include "runtime/ui/dropdown.h"
+#include "runtime/ui/slider.h"
+#include "tools/debug/stats.h"
+
+namespace ptgn::editor {
+
+namespace {
+
+constexpr Color kCameraOutlineColor{ color::Blue };
+constexpr Color kFixedCameraOutlineColor{ color::Red };
+
+constexpr GizmoOccurrenceId kDirectOccurrenceId{ 0 };
+constexpr std::size_t kMaximumRenderPathDepth{ 16 };
+
+constexpr float kViewportToolbarSidePadding{ 8.0f };
+constexpr float kViewportPaintToolSpacing{ 8.0f };
+constexpr float kViewportRuntimeControlSpacing{ 8.0f };
+constexpr float kViewportPaintOptionSpacing{ 8.0f };
+
+constexpr V2_float kGizmoAxisLengthPixels{ 70.0f, 70.0f };
+constexpr float kGizmoHandleRadiusPixels{ 8.0f };
+constexpr V2_float kGizmoCenterHalfSizePixels{ 7.0f, 7.0f };
+constexpr float kGizmoRotateRadiusPixels{ 48.0f };
+constexpr float kGizmoRotateThicknessPixels{ 8.0f };
+constexpr float kGizmoAxisHitThicknessPixels{ 6.0f };
+constexpr float kScaleDragPixels{ 100.0f };
+constexpr float kMinimumScale{ 0.01f };
+constexpr float kEditorCameraPanSpeedPixelsPerSecond{ 600.0f };
+
+float ViewportCameraButtonWidth() {
+	const auto& style{ ImGui::GetStyle() };
+	float icon_extent{ 16.0f };
+	float label_width{ std::max(ImGui::CalcTextSize("Editor").x, ImGui::CalcTextSize("Scene").x) };
+	return style.FramePadding.x * 2.0f + label_width + style.ItemInnerSpacing.x + icon_extent;
+}
+
+bool DrawViewportCameraButton(const char* id, const char* label, const char* tooltip) {
+	const auto& style{ ImGui::GetStyle() };
+	float height{ ImGui::GetFrameHeight() };
+	float width{ ViewportCameraButtonWidth() };
+	ImVec2 p0{ ImGui::GetCursorScreenPos() };
+
+	ImGui::InvisibleButton(id, { width, height });
+
+	bool hovered{ ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled) };
+	bool active{ ImGui::IsItemActive() };
+	bool pressed{ ImGui::IsItemClicked(ImGuiMouseButton_Left) };
+
+	ImVec4 background{ active	 ? style.Colors[ImGuiCol_ButtonActive]
+					   : hovered ? style.Colors[ImGuiCol_ButtonHovered]
+								 : style.Colors[ImGuiCol_Button] };
+
+	auto* draw{ ImGui::GetWindowDrawList() };
+	draw->AddRectFilled(
+		p0, { p0.x + width, p0.y + height }, ImGui::GetColorU32(background), style.FrameRounding
+	);
+
+	ImVec2 text_size{ ImGui::CalcTextSize(label) };
+	ImVec2 text_pos{
+		p0.x + style.FramePadding.x,
+		p0.y + (height - text_size.y) * 0.5f,
+	};
+	draw->AddText(text_pos, ImGui::GetColorU32(ImGuiCol_Text), label);
+
+	float icon_extent{ std::clamp(height - 10.0f, 12.0f, 16.0f) };
+	ImVec2 icon_min{
+		p0.x + width - style.FramePadding.x - icon_extent,
+		p0.y + (height - icon_extent) * 0.5f,
+	};
+	DrawEditorIcon(
+		draw, EditorIcon::Camera, icon_min, icon_extent, ImGui::GetColorU32(ImGuiCol_Text)
+	);
+
+	if (hovered && tooltip && *tooltip != '\0') {
+		ImGui::SetTooltip("%s", tooltip);
+	}
+
+	return pressed;
+}
+
+void DrawRuntimeSpeedControl(EditorContext& ctx, float width) {
+	float speed{ std::clamp(ctx.editor.GetTimeScale(), 0.0f, 1000.0f) };
+	if (speed != ctx.editor.GetTimeScale()) {
+		ctx.editor.SetTimeScale(speed);
+	}
+
+	char preview[32]{};
+	std::snprintf(preview, sizeof(preview), "%.3gx", static_cast<double>(speed));
+
+	ImGui::SetNextItemWidth(width);
+
+	if (ImGui::BeginCombo("##RuntimeSpeed", preview)) {
+		static constexpr std::array common_speeds{
+			0.0f, 0.25f, 0.5f, 0.75f, 1.0f, 1.5f, 2.0f, 3.0f, 4.0f, 5.0f, 10.0f,
+		};
+
+		for (float preset : common_speeds) {
+			char label[24]{};
+			std::snprintf(label, sizeof(label), "%.3gx", static_cast<double>(preset));
+
+			bool selected{ std::abs(speed - preset) <= 0.0001f };
+			if (ImGui::Selectable(label, selected)) {
+				speed = preset;
+				ctx.editor.SetTimeScale(speed);
+			}
+			if (selected) {
+				ImGui::SetItemDefaultFocus();
+			}
+		}
+
+		ImGui::Separator();
+		ImGui::TextDisabled("Custom");
+		ImGui::SetNextItemWidth(120.0f);
+
+		float custom{ speed };
+		if (ImGui::InputFloat("##RuntimeSpeedCustom", &custom, 0.0f, 0.0f, "%.3f")) {
+			speed = std::clamp(custom, 0.0f, 1000.0f);
+			ctx.editor.SetTimeScale(speed);
+		}
+		if (ImGui::IsItemDeactivatedAfterEdit()) {
+			speed = std::clamp(speed, 0.0f, 1000.0f);
+			ctx.editor.SetTimeScale(speed);
+		}
+
+		ImGui::EndCombo();
+	}
+
+	if (ImGui::IsItemHovered()) {
+		ImGui::SetTooltip("Runtime speed (0x to 1000x)");
+	}
+}
+
+struct EntityRenderPath {
+	GizmoOccurrenceId id{};
+	std::vector<Entity> cameras{};
+};
+
+struct GizmoProjection2D {
+	V2_float world_anchor{};
+	V2_float screen_anchor{};
+	V2_float screen_basis_x{};
+	V2_float screen_basis_y{};
+
+	[[nodiscard]] V2_float Project(V2_float world_position) const {
+		auto local{ world_position - world_anchor };
+		return screen_anchor + screen_basis_x * local.x + screen_basis_y * local.y;
+	}
+
+	[[nodiscard]] std::optional<V2_float> Unproject(V2_float screen_position) const {
+		auto delta{ screen_position - screen_anchor };
+
+		float determinant{ screen_basis_x.x * screen_basis_y.y -
+						   screen_basis_x.y * screen_basis_y.x };
+
+		if (std::abs(determinant) <= 1e-6f) {
+			return std::nullopt;
+		}
+
+		V2_float local{
+			(delta.x * screen_basis_y.y - delta.y * screen_basis_y.x) / determinant,
+			(screen_basis_x.x * delta.y - screen_basis_x.y * delta.x) / determinant,
+		};
+
+		return world_anchor + local;
+	}
+};
+
+struct GizmoInstance {
+	GizmoOccurrenceId id{};
+	GizmoProjection2D projection{};
+	std::size_t draw_order{};
+};
+
+struct GizmoGeometry {
+	V2_float pivot_screen{};
+	V2_float axis_x_screen{};
+	V2_float axis_y_screen{};
+	V2_float world_axis_x{};
+	V2_float world_axis_y{};
+};
+
+struct GizmoHit {
+	GizmoOccurrenceId occurrence{};
+	GizmoHandle handle{ GizmoHandle::None };
+	float distance{ std::numeric_limits<float>::max() };
+	std::size_t draw_order{ 0 };
+};
+
+void ApplyGizmoDeltaToTransform(
+	Transform& transform, GizmoHandle handle, const Transform& before, const Transform& after
+) {
+	switch (handle) {
+		case GizmoHandle::MoveCenter:
+		case GizmoHandle::MoveX:
+		case GizmoHandle::MoveY:	  {
+			transform.position += after.position - before.position;
+			break;
+		}
+
+		case GizmoHandle::Rotate: {
+			transform.rotation =
+				Radians{ transform.rotation.value + after.rotation.value - before.rotation.value };
+			break;
+		}
+
+		case GizmoHandle::ScaleX:
+		case GizmoHandle::ScaleY:
+		case GizmoHandle::ScaleUniform: {
+			PTGN_ASSERT(
+				std::abs(before.scale.x) > 1e-6f && std::abs(before.scale.y) > 1e-6f,
+				"Cannot calculate gizmo scale delta from a zero scale"
+			);
+
+			V2_float scale_factor{
+				after.scale.x / before.scale.x,
+				after.scale.y / before.scale.y,
+			};
+
+			transform.scale *= scale_factor;
+			transform.ClampScale();
+			break;
+		}
+
+		default: break;
+	}
+}
+
+template <typename TVisuals>
+bool ApplyGizmoDeltaToVisualTransforms(
+	TVisuals& visuals, GizmoHandle handle, const Transform& before, const Transform& after
+) {
+	bool changed{ false };
+
+	for (auto& visual : visuals.states) {
+		if (!visual.transform.has_value()) {
+			continue;
+		}
+
+		ApplyGizmoDeltaToTransform(visual.transform.value(), handle, before, after);
+		changed = true;
+	}
+
+	return changed;
+}
+
+void SetEditorWorldTransform(Entity entity, Transform transform) {
+	SetWorldTransform(entity, transform);
+	::ptgn::impl::SliderSystem::SynchronizeEntity(entity);
+}
+
+[[maybe_unused]] void SetEditorLocalTransform(Entity entity, Transform transform) {
+	SetTransform(entity, transform);
+	::ptgn::impl::SliderSystem::SynchronizeEntity(entity);
+}
+
+void MarkParentButtonDirty(Entity entity, ::ptgn::impl::ButtonDirty dirty) {
+	Entity parent{ GetParent(entity) };
+
+	if (!parent || !parent.Has<::ptgn::impl::ButtonData>()) {
+		return;
+	}
+
+	parent.Get<::ptgn::impl::ButtonData>().dirty |= dirty;
+}
+
+bool ApplyGizmoDeltaToButtonVisualTransforms(
+	Entity entity, GizmoHandle handle, const Transform& before, const Transform& after
+) {
+	bool changed{ false };
+
+	if (auto visuals{ entity.TryGet<ButtonBackgroundVisuals>() }) {
+		if (ApplyGizmoDeltaToVisualTransforms(*visuals, handle, before, after)) {
+			MarkParentButtonDirty(entity, ::ptgn::impl::ButtonDirty::Background);
+			changed = true;
+		}
+	}
+
+	if (auto visuals{ entity.TryGet<ButtonBorderVisuals>() }) {
+		if (ApplyGizmoDeltaToVisualTransforms(*visuals, handle, before, after)) {
+			MarkParentButtonDirty(entity, ::ptgn::impl::ButtonDirty::Border);
+			changed = true;
+		}
+	}
+
+	if (auto visuals{ entity.TryGet<ButtonTextVisuals>() }) {
+		if (ApplyGizmoDeltaToVisualTransforms(*visuals, handle, before, after)) {
+			MarkParentButtonDirty(entity, ::ptgn::impl::ButtonDirty::Text);
+
+			if (entity.Has<TextLayout>()) {
+				entity.Get<TextLayout>().dirty = true;
+			}
+
+			changed = true;
+		}
+	}
+
+	if (auto visuals{ entity.TryGet<ButtonSpriteVisuals>() }) {
+		if (ApplyGizmoDeltaToVisualTransforms(*visuals, handle, before, after)) {
+			MarkParentButtonDirty(entity, ::ptgn::impl::ButtonDirty::Sprite);
+			changed = true;
+		}
+	}
+
+	return changed;
+}
+
+[[maybe_unused]] ImVec2 ToImGui(V2_float v) {
+	return { v.x, v.y };
+}
+
+[[maybe_unused]] ImU32 ToImGui(Color c) {
+	return c.ToUint32(ColorPacking::ABGR);
+}
+
+[[maybe_unused]] V2_float FromImGui(ImVec2 v) {
+	return { v.x, v.y };
+}
+
+[[maybe_unused]] Color FromImGui(ImU32 color) {
+	return Color{ color };
+}
+
+V2_float PresentationToScreen(V2_float presentation_point, Viewport presentation_viewport) {
+	return presentation_point + presentation_viewport.GetCenter();
+}
+
+V2_float WorldToScreen(
+	V2_float world_point, const FrameContext& frame_context, Viewport presentation_viewport,
+	Frame from
+) {
+	auto presentation_point{ ConvertPoint(world_point, from, Frame::Presentation, frame_context) };
+
+	return PresentationToScreen(presentation_point, presentation_viewport);
+}
+
+V2_float ScreenToPresentation(V2_float screen_point, Viewport presentation_viewport) {
+	return screen_point - presentation_viewport.GetCenter();
+}
+
+V2_float ScreenToWorld(
+	V2_float screen_point, const FrameContext& frame_context, Viewport presentation_viewport,
+	Frame to
+) {
+	auto presentation_point{ ScreenToPresentation(screen_point, presentation_viewport) };
+
+	return ConvertPoint(presentation_point, Frame::Presentation, to, frame_context);
+}
+
+std::optional<V2_int> WorldToRenderTargetPixel(
+	Entity render_target_entity, V2_float world_position
+) {
+	if (!render_target_entity.Has<::ptgn::impl::FramebufferObject>()) {
+		return std::nullopt;
+	}
+
+	RenderTarget render_target{ render_target_entity };
+
+	V2_int framebuffer_size{ render_target.GetSize() };
+	V2_float draw_size{ render_target.GetDrawSize() };
+
+	if (!framebuffer_size.IsPositive() || !draw_size.IsPositive()) {
+		return std::nullopt;
+	}
+
+	auto draw_transform{ GetDrawTransform(render_target_entity) };
+	auto local_position{ draw_transform.ApplyInverse(world_position) };
+
+	Rect local_rect{ draw_size, render_target_entity.GetOrDefault<Origin>() };
+
+	if (local_position.x < local_rect.min.x || local_position.x >= local_rect.max.x ||
+		local_position.y < local_rect.min.y || local_position.y >= local_rect.max.y) {
+		return std::nullopt;
+	}
+
+	V2_float uv{ (local_position - local_rect.min) / local_rect.GetSize() };
+
+	V2_int pixel{ static_cast<int>(uv.x * static_cast<float>(framebuffer_size.x)),
+				  static_cast<int>(uv.y * static_cast<float>(framebuffer_size.y)) };
+
+	return Clamp(pixel, V2_int{ 0, 0 }, framebuffer_size - V2_int{ 1, 1 });
+}
+
+std::optional<V2_int> ScreenToFramebufferPixel(
+	V2_float screen_position, Viewport image_viewport, V2_int framebuffer_size
+) {
+	auto image_min{ image_viewport.position };
+	auto image_max{ image_viewport.position + image_viewport.size };
+
+	if (screen_position.x < image_min.x || screen_position.x >= image_max.x ||
+		screen_position.y < image_min.y || screen_position.y >= image_max.y) {
+		return std::nullopt;
+	}
+
+	auto local{ screen_position - image_min };
+
+	V2_float uv{
+		local.x / image_viewport.size.x,
+		local.y / image_viewport.size.y,
+	};
+
+	V2_int pixel{
+		static_cast<int>(uv.x * static_cast<float>(framebuffer_size.x)),
+		static_cast<int>(uv.y * static_cast<float>(framebuffer_size.y)),
+	};
+
+	return Clamp(pixel, V2_int{ 0, 0 }, framebuffer_size - V2_int{ 1, 1 });
+}
+
+Entity ResolveRenderTargetPick(
+	Scene& scene, ::ptgn::impl::RendererAccessor& renderer, Entity outer_entity,
+	V2_float world_position
+) {
+	if (!outer_entity || !outer_entity.Has<::ptgn::impl::FramebufferObject>()) {
+		return outer_entity;
+	}
+
+	RenderTarget render_target{ outer_entity };
+
+	auto framebuffer{ static_cast<::ptgn::impl::FramebufferId>(
+		render_target.Get<::ptgn::impl::FramebufferObject>()
+	) };
+
+	if (!renderer.IsEntityPickingEnabled(framebuffer)) {
+		return outer_entity;
+	}
+
+	auto pixel{ WorldToRenderTargetPixel(outer_entity, world_position) };
+
+	if (!pixel.has_value()) {
+		return outer_entity;
+	}
+
+	auto nested_id{ renderer.ReadEntityId(framebuffer, pixel.value()) };
+
+	if (!nested_id.has_value() || nested_id.value() == ::ptgn::impl::kNoEntityId) {
+		return outer_entity;
+	}
+
+	PTGN_ASSERT(
+		nested_id.value() >= 0, "Render target returned an invalid entity ID: ", nested_id.value()
+	);
+
+	auto nested_entity{ scene.GetEntity(UUID{ nested_id.value() }) };
+
+	if (!nested_entity) {
+		return outer_entity;
+	}
+
+	if (nested_entity == outer_entity) {
+		return outer_entity;
+	}
+
+	return nested_entity;
+}
+
+[[nodiscard]] bool ContainsPoint(Viewport viewport, V2_float point) {
+	return point.x >= viewport.position.x && point.y >= viewport.position.y &&
+		   point.x < viewport.position.x + viewport.size.x &&
+		   point.y < viewport.position.y + viewport.size.y;
+}
+
+void DrawPositionPickerPreview(
+	EditorContext& ctx, Viewport image_viewport, Viewport presentation_viewport,
+	const FrameContext& frame_context, Frame pick_frame
+) {
+	auto* draw_list{ ImGui::GetForegroundDrawList() };
+	draw_list->PushClipRectFullScreen();
+
+	if (auto reference_world{ inspector::GetPositionPickReferenceWorld(ctx) }) {
+		V2_float reference_screen{
+			WorldToScreen(*reference_world, frame_context, presentation_viewport, pick_frame)
+		};
+
+		if (ContainsPoint(image_viewport, reference_screen)) {
+			ImVec2 point{ ToImGui(reference_screen) };
+			draw_list->AddCircleFilled(point, 5.0f, IM_COL32(0, 0, 0, 220));
+			draw_list->AddCircleFilled(point, 3.5f, IM_COL32(255, 255, 255, 255));
+		}
+	}
+
+	V2_float mouse_screen{ FromImGui(ImGui::GetIO().MousePos) };
+
+	if (!ContainsPoint(image_viewport, mouse_screen)) {
+		draw_list->PopClipRect();
+		return;
+	}
+
+	V2_float world_position{
+		ScreenToWorld(mouse_screen, frame_context, presentation_viewport, pick_frame)
+	};
+
+	auto preview{ inspector::PreviewPickedPosition(ctx, world_position) };
+
+	if (!preview) {
+		draw_list->PopClipRect();
+		return;
+	}
+
+	ImVec2 mouse{ ToImGui(mouse_screen) };
+	ImVec2 viewport_min{ ToImGui(image_viewport.position) };
+	ImVec2 viewport_max{ ToImGui(image_viewport.position + image_viewport.size) };
+	ImU32 color{ ImGui::GetColorU32(ImGuiCol_Text) };
+	constexpr float kCrosshairRadius{ 7.0f };
+
+	draw_list->AddLine(
+		ImVec2{ mouse.x - kCrosshairRadius, mouse.y },
+		ImVec2{ mouse.x + kCrosshairRadius, mouse.y }, color, 1.5f
+	);
+	draw_list->AddLine(
+		ImVec2{ mouse.x, mouse.y - kCrosshairRadius },
+		ImVec2{ mouse.x, mouse.y + kCrosshairRadius }, color, 1.5f
+	);
+
+	char coordinates[240]{};
+
+	if (preview->relative) {
+		std::snprintf(
+			coordinates, sizeof(coordinates),
+			"Absolute  X %.0f  Y %.0f\nRelative  X %.0f  Y %.0f\nDelta     X %+.0f  Y %+.0f",
+			static_cast<double>(preview->absolute.x), static_cast<double>(preview->absolute.y),
+			static_cast<double>(preview->relative->x), static_cast<double>(preview->relative->y),
+			static_cast<double>(preview->delta.x), static_cast<double>(preview->delta.y)
+		);
+	} else {
+		std::snprintf(
+			coordinates, sizeof(coordinates),
+			"Absolute  X %.0f  Y %.0f\nDelta     X %+.0f  Y %+.0f",
+			static_cast<double>(preview->absolute.x), static_cast<double>(preview->absolute.y),
+			static_cast<double>(preview->delta.x), static_cast<double>(preview->delta.y)
+		);
+	}
+
+	ImVec2 text_size{ ImGui::CalcTextSize(coordinates) };
+	ImVec2 padding{ 5.0f, 3.0f };
+	ImVec2 box_size{ text_size.x + padding.x * 2.0f, text_size.y + padding.y * 2.0f };
+
+	ImVec2 box_min{ mouse.x + 12.0f, mouse.y + 12.0f };
+
+	if (box_min.x + box_size.x > viewport_max.x) {
+		box_min.x = mouse.x - 12.0f - box_size.x;
+	}
+
+	if (box_min.y + box_size.y > viewport_max.y) {
+		box_min.y = mouse.y - 12.0f - box_size.y;
+	}
+
+	box_min.x = std::clamp(
+		box_min.x, viewport_min.x, std::max(viewport_min.x, viewport_max.x - box_size.x)
+	);
+	box_min.y = std::clamp(
+		box_min.y, viewport_min.y, std::max(viewport_min.y, viewport_max.y - box_size.y)
+	);
+
+	ImVec2 box_max{ box_min.x + box_size.x, box_min.y + box_size.y };
+	ImVec2 text_position{ box_min.x + padding.x, box_min.y + padding.y };
+
+	draw_list->AddRectFilled(box_min, box_max, ImGui::GetColorU32(ImGuiCol_PopupBg), 3.0f);
+	draw_list->AddRect(box_min, box_max, ImGui::GetColorU32(ImGuiCol_Border), 3.0f);
+	draw_list->AddText(text_position, color, coordinates);
+	draw_list->PopClipRect();
+}
+
+void UpdateEditorCamera(
+	EditorCamera& editor_camera, bool& middle_mouse_panning, bool mouse_inside_viewport
+) {
+	const auto& io{ ImGui::GetIO() };
+	auto& camera{ editor_camera.camera };
+
+	PTGN_ASSERT(camera.transform.scale.IsPositive());
+
+	auto zoom{ 1.0f / camera.transform.scale };
+
+	// ImGui still gets first priority for keyboard input used by active widgets (for example,
+	// moving the caret or selection in an InputText). Only use the arrow keys for camera
+	// movement when ImGui does not currently need the keyboard.
+	if (!io.WantCaptureKeyboard) {
+		V2_float pan_direction{
+			static_cast<float>(ImGui::IsKeyDown(ImGuiKey_RightArrow)) -
+				static_cast<float>(ImGui::IsKeyDown(ImGuiKey_LeftArrow)),
+			static_cast<float>(ImGui::IsKeyDown(ImGuiKey_DownArrow)) -
+				static_cast<float>(ImGui::IsKeyDown(ImGuiKey_UpArrow)),
+		};
+
+		if (Length(pan_direction) > 0.0f) {
+			pan_direction = Normalize(pan_direction);
+
+			V2_float pan_distance{ kEditorCameraPanSpeedPixelsPerSecond * io.DeltaTime / zoom };
+			camera.transform.position += pan_direction * pan_distance;
+		}
+	}
+
+	if (!ImGui::IsMouseDown(ImGuiMouseButton_Middle)) {
+		middle_mouse_panning = false;
+	}
+
+	if (mouse_inside_viewport && ImGui::IsMouseClicked(ImGuiMouseButton_Middle)) {
+		middle_mouse_panning = true;
+	}
+
+	if (middle_mouse_panning) {
+		// Drag the image under the cursor, adjusting camera movement for zoom.
+		camera.transform.position -= V2_float{ io.MouseDelta.x, io.MouseDelta.y } / zoom;
+	}
+
+	// Mouse-wheel zoom remains local to the viewport, while arrow-key panning is global whenever
+	// the editor camera is active.
+	if (!ImGui::IsWindowHovered()) {
+		return;
+	}
+
+	if (io.MouseWheel != 0.0f) {
+		float zoom_factor{ std::pow(1.1f, io.MouseWheel) };
+
+		zoom = Clamp(zoom * zoom_factor, 0.1f, 10.0f);
+		PTGN_ASSERT(zoom.IsPositive());
+		camera.transform.scale = 1.0f / zoom;
+	}
+}
+
+std::optional<V2_float> RenderTargetPixelToWorld(Entity render_target_entity, V2_float pixel) {
+	if (!render_target_entity.Has<::ptgn::impl::FramebufferObject>()) {
+		return std::nullopt;
+	}
+
+	RenderTarget render_target{ render_target_entity };
+
+	V2_int framebuffer_size{ render_target.GetSize() };
+	V2_float draw_size{ render_target.GetDrawSize() };
+
+	if (!framebuffer_size.IsPositive() || !draw_size.IsPositive()) {
+		return std::nullopt;
+	}
+
+	Rect local_rect{ draw_size, render_target_entity.GetOrDefault<Origin>() };
+
+	V2_float uv{ pixel / V2_float{ framebuffer_size } };
+
+	V2_float local_position{ local_rect.min + uv * local_rect.GetSize() };
+
+	return GetDrawTransform(render_target_entity).Apply(local_position);
+}
+
+std::optional<V2_float> ProjectWorldToCameraTarget(SceneCamera camera, V2_float world_position) {
+	auto clip{ camera.GetViewProjection() *
+			   V4_float{ world_position.x, world_position.y, 0.0f, 1.0f } };
+
+	if (std::abs(clip.w) <= 1e-6f) {
+		return std::nullopt;
+	}
+
+	float inverse_w{ 1.0f / clip.w };
+	V2_float ndc{ clip.x * inverse_w, clip.y * inverse_w };
+
+	auto viewport{ camera.GetDisplayViewport() };
+
+	return V2_float{
+		viewport.position.x + (ndc.x * 0.5f + 0.5f) * viewport.size.x,
+		viewport.position.y + (-ndc.y * 0.5f + 0.5f) * viewport.size.y,
+	};
+}
+
+bool ContainsEntity(const std::vector<Entity>& entities, Entity entity) {
+	return std::find(entities.begin(), entities.end(), entity) != entities.end();
+}
+
+std::vector<Entity> GetCustomTargetCameras(Scene& scene) {
+	std::vector<Entity> cameras;
+
+	for (auto [entity, _camera] : scene.EntitiesWith<::ptgn::impl::CameraData>()) {
+		SceneCamera camera{ entity };
+
+		if (camera.GetRenderTarget() != scene.GetRenderTarget()) {
+			cameras.push_back(entity);
+		}
+	}
+
+	std::stable_sort(cameras.begin(), cameras.end(), [](Entity lhs, Entity rhs) {
+		auto lhs_depth{ GetDepth(lhs) };
+		auto rhs_depth{ GetDepth(rhs) };
+
+		if (lhs_depth != rhs_depth) {
+			return lhs_depth < rhs_depth;
+		}
+
+		return lhs.WasCreatedBefore(rhs);
+	});
+
+	return cameras;
+}
+
+bool IsRenderedByEditorCamera(Scene& scene, Entity entity) {
+	if (!IsVisible(entity)) {
+		return false;
+	}
+
+	auto entity_mask{ GetRenderMask(entity) };
+	auto include{ scene.ctx().camera.GetIncludeRenderMask() };
+	auto exclude{ scene.ctx().camera.GetExcludeRenderMask() };
+
+	bool in_include{ (entity_mask & include) != 0 };
+	bool in_exclude{ (entity_mask & exclude) != 0 };
+
+	return (in_include && !in_exclude) || IsUI(entity);
+}
+
+bool IsRenderedByCamera(SceneCamera camera, Entity entity) {
+	return IsVisible(entity) && camera.CanSee(entity);
+}
+
+GizmoOccurrenceId MakeOccurrenceId(const std::vector<Entity>& camera_path) {
+	constexpr std::uint64_t kOffsetBasis{ 1469598103934665603ull };
+	constexpr std::uint64_t kPrime{ 1099511628211ull };
+
+	std::uint64_t hash{ kOffsetBasis };
+
+	for (auto camera : camera_path) {
+		hash ^= static_cast<std::uint64_t>(camera.Get<UUID>());
+		hash *= kPrime;
+	}
+
+	if (hash == kDirectOccurrenceId.value) {
+		hash = 1;
+	}
+
+	return GizmoOccurrenceId{ hash };
+}
+
+void AppendCustomRenderPaths(
+	Scene& scene, Entity rendered_entity, std::vector<Entity>& camera_path,
+	std::vector<Entity>& target_path, std::vector<EntityRenderPath>& paths,
+	std::size_t recursion_depth
+) {
+	if (recursion_depth >= kMaximumRenderPathDepth) {
+		return;
+	}
+
+	for (auto camera_entity : GetCustomTargetCameras(scene)) {
+		SceneCamera camera{ camera_entity };
+		auto render_target{ camera.GetRenderTarget() };
+
+		if (ContainsEntity(camera_path, camera_entity) ||
+			ContainsEntity(target_path, render_target) || render_target == rendered_entity) {
+			continue;
+		}
+
+		if (!IsRenderedByCamera(camera, rendered_entity)) {
+			continue;
+		}
+
+		camera_path.push_back(camera_entity);
+		target_path.push_back(render_target);
+
+		if (IsRenderedByEditorCamera(scene, render_target)) {
+			paths.push_back(
+				EntityRenderPath{
+					.id{ MakeOccurrenceId(camera_path) },
+					.cameras{ camera_path },
+				}
+			);
+		}
+
+		AppendCustomRenderPaths(
+			scene, render_target, camera_path, target_path, paths, recursion_depth + 1
+		);
+
+		target_path.pop_back();
+		camera_path.pop_back();
+	}
+}
+
+std::vector<EntityRenderPath> BuildEntityRenderPaths(Scene& scene, Entity entity) {
+	std::vector<EntityRenderPath> paths;
+
+	if (IsRenderedByEditorCamera(scene, entity)) {
+		paths.push_back(EntityRenderPath{ .id{ kDirectOccurrenceId } });
+	}
+
+	std::vector<Entity> camera_path;
+	std::vector<Entity> target_path;
+
+	AppendCustomRenderPaths(scene, entity, camera_path, target_path, paths, 0);
+
+	if (paths.empty()) {
+		paths.push_back(EntityRenderPath{ .id{ kDirectOccurrenceId } });
+	}
+
+	return paths;
+}
+
+std::optional<V2_float> ProjectWorldPointThroughPath(
+	V2_float world_position, const EntityRenderPath& path, Frame direct_frame,
+	const FrameContext& frame_context, Viewport presentation_viewport
+) {
+	if (path.cameras.empty()) {
+		return WorldToScreen(world_position, frame_context, presentation_viewport, direct_frame);
+	}
+
+	V2_float point{ world_position };
+
+	for (auto camera_entity : path.cameras) {
+		SceneCamera camera{ camera_entity };
+
+		auto target_pixel{ ProjectWorldToCameraTarget(camera, point) };
+		if (!target_pixel.has_value()) {
+			return std::nullopt;
+		}
+
+		auto parent_world{
+			RenderTargetPixelToWorld(camera.GetRenderTarget(), target_pixel.value())
+		};
+		if (!parent_world.has_value()) {
+			return std::nullopt;
+		}
+
+		point = parent_world.value();
+	}
+
+	return WorldToScreen(point, frame_context, presentation_viewport, Frame::World);
+}
+
+std::optional<GizmoProjection2D> BuildGizmoProjection(
+	const EntityRenderPath& path, V2_float world_anchor, Frame direct_frame,
+	const FrameContext& frame_context, Viewport presentation_viewport
+) {
+	auto screen_anchor{ ProjectWorldPointThroughPath(
+		world_anchor, path, direct_frame, frame_context, presentation_viewport
+	) };
+
+	auto screen_x{ ProjectWorldPointThroughPath(
+		world_anchor + V2_float{ 1.0f, 0.0f }, path, direct_frame, frame_context,
+		presentation_viewport
+	) };
+
+	auto screen_y{ ProjectWorldPointThroughPath(
+		world_anchor + V2_float{ 0.0f, 1.0f }, path, direct_frame, frame_context,
+		presentation_viewport
+	) };
+
+	if (!screen_anchor.has_value() || !screen_x.has_value() || !screen_y.has_value()) {
+		return std::nullopt;
+	}
+
+	GizmoProjection2D projection{
+		.world_anchor{ world_anchor },
+		.screen_anchor{ screen_anchor.value() },
+		.screen_basis_x{ screen_x.value() - screen_anchor.value() },
+		.screen_basis_y{ screen_y.value() - screen_anchor.value() },
+	};
+
+	float determinant{ projection.screen_basis_x.x * projection.screen_basis_y.y -
+					   projection.screen_basis_x.y * projection.screen_basis_y.x };
+
+	if (std::abs(determinant) <= 1e-6f) {
+		return std::nullopt;
+	}
+
+	return projection;
+}
+
+std::vector<GizmoInstance> BuildGizmoInstances(
+	const std::vector<EntityRenderPath>& paths, V2_float world_anchor, Frame direct_frame,
+	const FrameContext& frame_context, Viewport presentation_viewport
+) {
+	std::vector<GizmoInstance> instances;
+	instances.reserve(paths.size());
+
+	for (std::size_t i{ 0 }; i < paths.size(); ++i) {
+		auto projection{ BuildGizmoProjection(
+			paths[i], world_anchor, direct_frame, frame_context, presentation_viewport
+		) };
+
+		if (!projection.has_value()) {
+			continue;
+		}
+
+		instances.push_back(
+			GizmoInstance{
+				.id{ paths[i].id },
+				.projection{ projection.value() },
+				.draw_order = i,
+			}
+		);
+	}
+
+	return instances;
+}
+
+float SignedAngle(V2_float from, V2_float to) {
+	float cross{ from.x * to.y - from.y * to.x };
+	float dot{ Dot(from, to) };
+	return std::atan2(cross, dot);
+}
+
+V2_float GizmoLocalToScreen(
+	V2_float pivot_screen, V2_float axis_x_screen, V2_float axis_y_screen, V2_float local
+) {
+	return pivot_screen + axis_x_screen * local.x + axis_y_screen * local.y;
+}
+
+float DistanceToSegment(V2_float point, V2_float a, V2_float b) {
+	auto ab{ b - a };
+	float ab_length_squared{ Dot(ab, ab) };
+
+	if (ab_length_squared <= 1e-6f) {
+		return Length(point - a);
+	}
+
+	float t{ Dot(point - a, ab) / ab_length_squared };
+	t = Clamp01(t);
+
+	return Length(point - (a + ab * t));
+}
+
+std::optional<V2_float> ScreenDeltaToGizmoLocal(
+	V2_float delta, V2_float axis_x_screen, V2_float axis_y_screen
+) {
+	float determinant{ axis_x_screen.x * axis_y_screen.y - axis_x_screen.y * axis_y_screen.x };
+
+	if (std::abs(determinant) <= 1e-6f) {
+		return std::nullopt;
+	}
+
+	return V2_float{
+		(delta.x * axis_y_screen.y - delta.y * axis_y_screen.x) / determinant,
+		(axis_x_screen.x * delta.y - axis_x_screen.y * delta.x) / determinant,
+	};
+}
+
+std::optional<GizmoGeometry> BuildGizmoGeometry(
+	const GizmoInstance& instance, const Transform& transform, bool use_local_orientation
+) {
+	float gizmo_angle{ use_local_orientation ? transform.rotation.value : 0.0f };
+
+	V2_float world_axis_x{
+		std::cos(gizmo_angle),
+		std::sin(gizmo_angle),
+	};
+
+	V2_float world_axis_y{
+		-std::sin(gizmo_angle),
+		std::cos(gizmo_angle),
+	};
+
+	auto pivot_screen{ instance.projection.Project(transform.position) };
+
+	auto axis_x_screen{ instance.projection.Project(transform.position + world_axis_x) -
+						pivot_screen };
+
+	auto axis_y_screen{ instance.projection.Project(transform.position + world_axis_y) -
+						pivot_screen };
+
+	if (Length(axis_x_screen) <= 1e-6f || Length(axis_y_screen) <= 1e-6f) {
+		return std::nullopt;
+	}
+
+	axis_x_screen = Normalize(axis_x_screen);
+	axis_y_screen = Normalize(axis_y_screen);
+
+	return GizmoGeometry{
+		.pivot_screen{ pivot_screen },
+		.axis_x_screen{ axis_x_screen },
+		.axis_y_screen{ axis_y_screen },
+		.world_axis_x{ world_axis_x },
+		.world_axis_y{ world_axis_y },
+	};
+}
+
+std::optional<GizmoHit> HitTestGizmo(
+	const GizmoInstance& instance, const Transform& transform, GizmoTool tool,
+	V2_float mouse_screen, bool use_local_orientation
+) {
+	auto geometry{ BuildGizmoGeometry(instance, transform, use_local_orientation) };
+	if (!geometry.has_value()) {
+		return std::nullopt;
+	}
+
+	const auto& g{ geometry.value() };
+	auto mouse_local{
+		ScreenDeltaToGizmoLocal(mouse_screen - g.pivot_screen, g.axis_x_screen, g.axis_y_screen)
+	};
+
+	if (!mouse_local.has_value()) {
+		return std::nullopt;
+	}
+
+	auto make_hit = [&](GizmoHandle handle, float distance) {
+		return GizmoHit{
+			.occurrence{ instance.id },
+			.handle		= handle,
+			.distance	= distance,
+			.draw_order = instance.draw_order,
+		};
+	};
+
+	bool inside_center{ std::abs(mouse_local->x) <= kGizmoCenterHalfSizePixels.x &&
+						std::abs(mouse_local->y) <= kGizmoCenterHalfSizePixels.y };
+
+	if (tool == GizmoTool::Translate) {
+		if (inside_center) {
+			return make_hit(GizmoHandle::MoveCenter, Length(mouse_screen - g.pivot_screen));
+		}
+
+		auto x_end{ g.pivot_screen + g.axis_x_screen * kGizmoAxisLengthPixels.x };
+		auto y_end{ g.pivot_screen + g.axis_y_screen * kGizmoAxisLengthPixels.y };
+
+		float distance_x{ DistanceToSegment(mouse_screen, g.pivot_screen, x_end) };
+		float distance_y{ DistanceToSegment(mouse_screen, g.pivot_screen, y_end) };
+
+		if (distance_x < kGizmoAxisHitThicknessPixels && distance_x <= distance_y) {
+			return make_hit(GizmoHandle::MoveX, distance_x);
+		}
+
+		if (distance_y < kGizmoAxisHitThicknessPixels) {
+			return make_hit(GizmoHandle::MoveY, distance_y);
+		}
+	} else if (tool == GizmoTool::Rotate) {
+		float radius_distance{
+			std::abs(Length(mouse_screen - g.pivot_screen) - kGizmoRotateRadiusPixels)
+		};
+
+		if (radius_distance <= kGizmoRotateThicknessPixels * 0.5f) {
+			return make_hit(GizmoHandle::Rotate, radius_distance);
+		}
+	} else if (tool == GizmoTool::Scale) {
+		if (inside_center) {
+			return make_hit(GizmoHandle::ScaleUniform, Length(mouse_screen - g.pivot_screen));
+		}
+
+		auto x_end{ g.pivot_screen + g.axis_x_screen * kGizmoAxisLengthPixels.x };
+		auto y_end{ g.pivot_screen + g.axis_y_screen * kGizmoAxisLengthPixels.y };
+
+		float distance_x{ Distance(mouse_screen, x_end) };
+		float distance_y{ Distance(mouse_screen, y_end) };
+
+		if (distance_x <= kGizmoHandleRadiusPixels && distance_x <= distance_y) {
+			return make_hit(GizmoHandle::ScaleX, distance_x);
+		}
+
+		if (distance_y <= kGizmoHandleRadiusPixels) {
+			return make_hit(GizmoHandle::ScaleY, distance_y);
+		}
+	}
+
+	return std::nullopt;
+}
+
+std::optional<GizmoHit> FindBestGizmoHit(
+	const std::vector<GizmoInstance>& instances, const Transform& transform, GizmoTool tool,
+	V2_float mouse_screen, bool use_local_orientation
+) {
+	std::optional<GizmoHit> best;
+
+	for (const auto& instance : instances) {
+		auto hit{ HitTestGizmo(instance, transform, tool, mouse_screen, use_local_orientation) };
+
+		if (!hit.has_value()) {
+			continue;
+		}
+
+		if (!best.has_value() || hit->distance < best->distance - 1e-4f ||
+			(std::abs(hit->distance - best->distance) <= 1e-4f &&
+			 hit->draw_order >= best->draw_order)) {
+			best = hit;
+		}
+	}
+
+	return best;
+}
+
+const GizmoInstance* FindGizmoInstance(
+	const std::vector<GizmoInstance>& instances, GizmoOccurrenceId occurrence
+) {
+	auto it{ std::find_if(instances.begin(), instances.end(), [&](const GizmoInstance& instance) {
+		return instance.id == occurrence;
+	}) };
+
+	return it != instances.end() ? &*it : nullptr;
+}
+
+void ResetGizmoInteraction(GizmoState& gizmo) {
+	gizmo.hot = GizmoHandle::None;
+	gizmo.hot_occurrence.reset();
+	gizmo.active = GizmoHandle::None;
+	gizmo.active_occurrence.reset();
+}
+
+void BeginGizmoDrag(
+	GizmoState& gizmo, const GizmoInstance& instance, const GizmoGeometry& geometry,
+	Transform& transform, V2_float mouse_screen
+) {
+	auto mouse_world{ instance.projection.Unproject(mouse_screen) };
+	if (!mouse_world.has_value()) {
+		return;
+	}
+
+	gizmo.active				   = gizmo.hot;
+	gizmo.active_occurrence		   = instance.id;
+	gizmo.drag_start_mouse_world   = mouse_world.value();
+	gizmo.drag_start_mouse_screen  = mouse_screen;
+	gizmo.drag_start_pivot_screen  = geometry.pivot_screen;
+	gizmo.drag_start_position	   = transform.position;
+	gizmo.drag_start_scale		   = transform.scale;
+	gizmo.drag_start_rotation	   = transform.rotation;
+	gizmo.drag_start_axis_x_world  = geometry.world_axis_x;
+	gizmo.drag_start_axis_y_world  = geometry.world_axis_y;
+	gizmo.drag_start_axis_x_screen = geometry.axis_x_screen;
+	gizmo.drag_start_axis_y_screen = geometry.axis_y_screen;
+}
+
+void UpdateActiveGizmo(
+	GizmoState& gizmo, const GizmoInstance& instance, Transform& transform, V2_float mouse_screen
+) {
+	auto current_mouse_world{ instance.projection.Unproject(mouse_screen) };
+	if (!current_mouse_world.has_value()) {
+		return;
+	}
+
+	V2_float screen_delta{ mouse_screen - gizmo.drag_start_mouse_screen };
+	V2_float world_delta{ current_mouse_world.value() - gizmo.drag_start_mouse_world };
+
+	auto drag_axis_x_world{ gizmo.drag_start_axis_x_world };
+	auto drag_axis_y_world{ gizmo.drag_start_axis_y_world };
+
+	switch (gizmo.active) {
+		case GizmoHandle::MoveCenter: {
+			transform.position = gizmo.drag_start_position + world_delta;
+			break;
+		}
+
+		case GizmoHandle::MoveX: {
+			float amount{ Dot(world_delta, drag_axis_x_world) };
+			transform.position = gizmo.drag_start_position + drag_axis_x_world * amount;
+			break;
+		}
+
+		case GizmoHandle::MoveY: {
+			float amount{ Dot(world_delta, drag_axis_y_world) };
+			transform.position = gizmo.drag_start_position + drag_axis_y_world * amount;
+			break;
+		}
+
+		case GizmoHandle::Rotate: {
+			V2_float start_direction{ gizmo.drag_start_mouse_world - gizmo.drag_start_position };
+			V2_float current_direction{ current_mouse_world.value() - gizmo.drag_start_position };
+
+			if (Length(start_direction) > 1e-6f && Length(current_direction) > 1e-6f) {
+				start_direction	  = Normalize(start_direction);
+				current_direction = Normalize(current_direction);
+
+				float delta{ SignedAngle(start_direction, current_direction) };
+				transform.rotation = Radians{ gizmo.drag_start_rotation.value + delta };
+			}
+			break;
+		}
+
+		case GizmoHandle::ScaleX: {
+			float delta_pixels{ Dot(screen_delta, gizmo.drag_start_axis_x_screen) };
+			float factor{ std::max(0.01f, 1.0f + delta_pixels / kScaleDragPixels) };
+
+			auto scale{ gizmo.drag_start_scale };
+			scale.x = std::max(kMinimumScale, gizmo.drag_start_scale.x * factor);
+
+			transform.scale = scale;
+			transform.ClampScale();
+			break;
+		}
+
+		case GizmoHandle::ScaleY: {
+			float delta_pixels{ Dot(screen_delta, gizmo.drag_start_axis_y_screen) };
+			float factor{ std::max(0.01f, 1.0f + delta_pixels / kScaleDragPixels) };
+
+			auto scale{ gizmo.drag_start_scale };
+			scale.y = std::max(kMinimumScale, gizmo.drag_start_scale.y * factor);
+
+			transform.scale = scale;
+			transform.ClampScale();
+			break;
+		}
+
+		case GizmoHandle::ScaleUniform: {
+			auto uniform_direction{ gizmo.drag_start_axis_x_screen +
+									gizmo.drag_start_axis_y_screen };
+
+			if (Length(uniform_direction) > 1e-6f) {
+				uniform_direction = Normalize(uniform_direction);
+
+				float delta_pixels{ Dot(screen_delta, uniform_direction) };
+				float factor{ std::max(0.01f, 1.0f + delta_pixels / kScaleDragPixels) };
+
+				auto scale{ gizmo.drag_start_scale * factor };
+				scale.x = std::max(kMinimumScale, scale.x);
+				scale.y = std::max(kMinimumScale, scale.y);
+
+				transform.scale = scale;
+				transform.ClampScale();
+			}
+			break;
+		}
+
+		default: break;
+	}
+}
+
+void DrawGizmoInstance(
+	ImDrawList* draw_list, const GizmoState& gizmo, const GizmoInstance& instance,
+	const Transform& transform, bool use_local_orientation
+) {
+	auto geometry{ BuildGizmoGeometry(instance, transform, use_local_orientation) };
+	if (!geometry.has_value()) {
+		return;
+	}
+
+	const auto& g{ geometry.value() };
+
+	auto is_hot = [&](GizmoHandle handle) {
+		return gizmo.hot == handle && gizmo.hot_occurrence.has_value() &&
+			   gizmo.hot_occurrence.value() == instance.id;
+	};
+
+	auto is_active = [&](GizmoHandle handle) {
+		return gizmo.active == handle && gizmo.active_occurrence.has_value() &&
+			   gizmo.active_occurrence.value() == instance.id;
+	};
+
+	auto col_x{ ToImGui(Color{ 220, 60, 60, 255 }) };
+	auto col_y{ ToImGui(Color{ 60, 220, 60, 255 }) };
+	auto col_center{ ToImGui(Color{ 230, 200, 80, 255 }) };
+	auto col_rotate{ ToImGui(Color{ 80, 160, 255, 255 }) };
+	auto col_hot{ ToImGui(Color{ 255, 255, 255, 255 }) };
+
+	auto x_end_screen{ g.pivot_screen + g.axis_x_screen * kGizmoAxisLengthPixels.x };
+	auto y_end_screen{ g.pivot_screen + g.axis_y_screen * kGizmoAxisLengthPixels.y };
+
+	if (gizmo.tool == GizmoTool::Translate) {
+		draw_list->AddLine(
+			ToImGui(g.pivot_screen), ToImGui(x_end_screen),
+			is_hot(GizmoHandle::MoveX) || is_active(GizmoHandle::MoveX) ? col_hot : col_x, 2.0f
+		);
+
+		draw_list->AddLine(
+			ToImGui(g.pivot_screen), ToImGui(y_end_screen),
+			is_hot(GizmoHandle::MoveY) || is_active(GizmoHandle::MoveY) ? col_hot : col_y, 2.0f
+		);
+
+		auto h{ kGizmoCenterHalfSizePixels };
+
+		auto c0{ GizmoLocalToScreen(
+			g.pivot_screen, g.axis_x_screen, g.axis_y_screen, V2_float{ -h.x, -h.y }
+		) };
+		auto c1{ GizmoLocalToScreen(
+			g.pivot_screen, g.axis_x_screen, g.axis_y_screen, V2_float{ h.x, -h.y }
+		) };
+		auto c2{ GizmoLocalToScreen(
+			g.pivot_screen, g.axis_x_screen, g.axis_y_screen, V2_float{ h.x, h.y }
+		) };
+		auto c3{ GizmoLocalToScreen(
+			g.pivot_screen, g.axis_x_screen, g.axis_y_screen, V2_float{ -h.x, h.y }
+		) };
+
+		draw_list->AddQuadFilled(
+			ToImGui(c0), ToImGui(c1), ToImGui(c2), ToImGui(c3),
+			is_hot(GizmoHandle::MoveCenter) || is_active(GizmoHandle::MoveCenter) ? col_hot
+																				  : col_center
+		);
+	} else if (gizmo.tool == GizmoTool::Rotate) {
+		draw_list->AddCircle(
+			ToImGui(g.pivot_screen), kGizmoRotateRadiusPixels,
+			is_hot(GizmoHandle::Rotate) || is_active(GizmoHandle::Rotate) ? col_hot : col_rotate,
+			64, kGizmoRotateThicknessPixels
+		);
+	} else if (gizmo.tool == GizmoTool::Scale) {
+		draw_list->AddLine(ToImGui(g.pivot_screen), ToImGui(x_end_screen), col_x, 2.0f);
+		draw_list->AddLine(ToImGui(g.pivot_screen), ToImGui(y_end_screen), col_y, 2.0f);
+
+		draw_list->AddCircleFilled(
+			ToImGui(x_end_screen), kGizmoHandleRadiusPixels,
+			is_hot(GizmoHandle::ScaleX) || is_active(GizmoHandle::ScaleX) ? col_hot : col_x
+		);
+
+		draw_list->AddCircleFilled(
+			ToImGui(y_end_screen), kGizmoHandleRadiusPixels,
+			is_hot(GizmoHandle::ScaleY) || is_active(GizmoHandle::ScaleY) ? col_hot : col_y
+		);
+
+		draw_list->AddCircleFilled(
+			ToImGui(g.pivot_screen), kGizmoHandleRadiusPixels,
+			is_hot(GizmoHandle::ScaleUniform) || is_active(GizmoHandle::ScaleUniform) ? col_hot
+																					  : col_center
+		);
+	}
+}
+
+void UpdateAndDrawGizmoInstances(
+	ImDrawList* draw_list, GizmoState& gizmo, Transform& transform,
+	const std::vector<GizmoInstance>& instances, bool viewport_hovered,
+	[[maybe_unused]] bool viewport_focused, bool use_local_orientation
+) {
+	const auto& io{ ImGui::GetIO() };
+	V2_float mouse_screen{ io.MousePos.x, io.MousePos.y };
+
+	gizmo.pivot_world = transform.position;
+
+	if (instances.empty()) {
+		ResetGizmoInteraction(gizmo);
+		return;
+	}
+
+	if (gizmo.active == GizmoHandle::None) {
+		gizmo.hot = GizmoHandle::None;
+		gizmo.hot_occurrence.reset();
+
+		if (viewport_hovered) {
+			auto hit{ FindBestGizmoHit(
+				instances, transform, gizmo.tool, mouse_screen, use_local_orientation
+			) };
+
+			if (hit.has_value()) {
+				gizmo.hot			 = hit->handle;
+				gizmo.hot_occurrence = hit->occurrence;
+			}
+		}
+	}
+
+	if (viewport_hovered && gizmo.hot != GizmoHandle::None && gizmo.active == GizmoHandle::None &&
+		gizmo.hot_occurrence.has_value() && ImGui::IsMouseClicked(ImGuiMouseButton_Left)) {
+		auto* instance{ FindGizmoInstance(instances, gizmo.hot_occurrence.value()) };
+
+		if (instance) {
+			auto geometry{ BuildGizmoGeometry(*instance, transform, use_local_orientation) };
+
+			if (geometry.has_value()) {
+				BeginGizmoDrag(gizmo, *instance, geometry.value(), transform, mouse_screen);
+			}
+		}
+	}
+
+	if (gizmo.active != GizmoHandle::None && gizmo.active_occurrence.has_value() &&
+		ImGui::IsMouseDown(ImGuiMouseButton_Left)) {
+		auto* instance{ FindGizmoInstance(instances, gizmo.active_occurrence.value()) };
+
+		if (instance) {
+			UpdateActiveGizmo(gizmo, *instance, transform, mouse_screen);
+		} else {
+			ResetGizmoInteraction(gizmo);
+		}
+	}
+
+	if (gizmo.active != GizmoHandle::None && ImGui::IsMouseReleased(ImGuiMouseButton_Left)) {
+		gizmo.active = GizmoHandle::None;
+		gizmo.active_occurrence.reset();
+	}
+
+	for (const auto& instance : instances) {
+		DrawGizmoInstance(draw_list, gizmo, instance, transform, use_local_orientation);
+	}
+}
+
+} // namespace
+
+void ViewportPanel::DrawSceneCameraOutlines(
+	EditorContext& ctx, Viewport presentation_viewport, const FrameContext& frame_context
+) {
+	if (!use_editor_camera_) {
+		return;
+	}
+
+	auto scene{ ctx.editor.GetSceneListPanel().GetSelectedScene() };
+
+	if (!scene) {
+		return;
+	}
+
+	auto* draw_list{ ImGui::GetWindowDrawList() };
+
+	float thickness{ 3.0f };
+	Frame from{ Frame::World };
+
+	for (auto [c, _camera] : scene->EntitiesWith<::ptgn::impl::CameraData>()) {
+		SceneCamera camera{ c };
+
+		auto color{ kCameraOutlineColor };
+
+		if (IsUI(camera)) {
+			color = kFixedCameraOutlineColor;
+		}
+
+		Rect rect{ camera.GetLogicalViewport().size };
+		auto transform{ GetTransform(camera).RelativeTo(GetTransform(camera.GetRenderTarget())) };
+		auto world_vertices{ rect.GetWorldVertices(transform) };
+
+		std::array points{
+			ToImGui(WorldToScreen(world_vertices[0], frame_context, presentation_viewport, from)),
+			ToImGui(WorldToScreen(world_vertices[1], frame_context, presentation_viewport, from)),
+			ToImGui(WorldToScreen(world_vertices[2], frame_context, presentation_viewport, from)),
+			ToImGui(WorldToScreen(world_vertices[3], frame_context, presentation_viewport, from)),
+			ToImGui(WorldToScreen(world_vertices[0], frame_context, presentation_viewport, from))
+		};
+
+		draw_list->AddPolyline(
+			points.data(), static_cast<int>(points.size()), ToImGui(color), 0, thickness
+		);
+	}
+}
+
+void ViewportPanel::DrawViewportToolbar(EditorContext& ctx) {
+	auto& paint{ ctx.editor.GetPaintEditor() };
+	bool runtime_active{ ctx.editor.CanPause() };
+	bool paint_tools_available{ !runtime_active || use_editor_camera_ };
+	float default_item_spacing_y{ ImGui::GetStyle().ItemSpacing.y };
+
+	ImGui::PushStyleVar(
+		ImGuiStyleVar_ItemSpacing, ImVec2{ kViewportPaintToolSpacing, default_item_spacing_y }
+	);
+	ImGui::BeginDisabled(!paint_tools_available);
+	paint.DrawViewportToolButtons(ctx);
+	ImGui::EndDisabled();
+	ImGui::PopStyleVar();
+
+	bool paused{ ctx.editor.IsPaused() };
+	bool can_play{ ctx.editor.CanPlay() };
+	bool can_stop{ ctx.editor.CanStop() };
+	bool can_pause{ ctx.editor.CanPause() };
+	bool direct_runtime{ ctx.editor.IsDirectRuntime() };
+
+	float icon_side{ ImGui::GetFrameHeight() };
+	float speed_width{ 66.0f };
+	const char* camera_label{ use_editor_camera_ ? "Editor" : "Scene" };
+	float camera_width{ ViewportCameraButtonWidth() };
+
+	float runtime_width{ icon_side * 4.0f + speed_width + camera_width +
+						 kViewportRuntimeControlSpacing * 5.0f };
+	float right_x{ ImGui::GetWindowContentRegionMax().x - kViewportToolbarSidePadding -
+				   runtime_width };
+
+	ImGui::SameLine(0.0f, kViewportRuntimeControlSpacing);
+	if (right_x > ImGui::GetCursorPosX()) {
+		ImGui::SetCursorPosX(right_x);
+	}
+
+	ImGui::PushStyleVar(
+		ImGuiStyleVar_ItemSpacing, ImVec2{ kViewportRuntimeControlSpacing, default_item_spacing_y }
+	);
+
+	if (can_stop) {
+		if (DrawEditorIconButton("##StopRuntime", EditorIcon::Stop, "Stop")) {
+			ctx.editor.RequestStop();
+		}
+	} else if (direct_runtime) {
+		ImGui::BeginDisabled();
+		DrawEditorIconButton("##DirectRuntime", EditorIcon::Stop, "Direct runtime is active");
+		ImGui::EndDisabled();
+	} else {
+		ImGui::BeginDisabled(!can_play);
+		if (DrawEditorIconButton("##PlayRuntime", EditorIcon::Play, "Play")) {
+			ctx.editor.Play();
+		}
+		ImGui::EndDisabled();
+	}
+
+	ImGui::SameLine(0.0f, kViewportRuntimeControlSpacing);
+	ImGui::BeginDisabled(!can_pause);
+	if (DrawEditorIconButton(
+			"##PauseRuntime", paused ? EditorIcon::Play : EditorIcon::Pause,
+			paused ? "Resume" : "Pause"
+		)) {
+		ctx.editor.TogglePause();
+	}
+	ImGui::EndDisabled();
+
+	ImGui::SameLine(0.0f, kViewportRuntimeControlSpacing);
+	ImGui::BeginDisabled(!can_pause || !paused);
+	ImGui::PushButtonRepeat(true);
+	if (DrawEditorIconButton(
+			"##StepRuntime", EditorIcon::StepForward,
+			(!can_pause || !paused) ? "Step is available only while paused." : "Step one frame"
+		)) {
+		ctx.editor.RequestStep();
+	}
+	ImGui::PopButtonRepeat();
+	ImGui::EndDisabled();
+
+	ImGui::SameLine(0.0f, kViewportRuntimeControlSpacing);
+	DrawRuntimeSpeedControl(ctx, speed_width);
+
+	ImGui::SameLine(0.0f, kViewportRuntimeControlSpacing);
+	if (DrawEditorIconButton(
+			"##RecenterViewport", EditorIcon::Recenter,
+			"Recenter the editor viewport and reset zoom."
+		)) {
+		editor_camera_.camera.transform = Transform{};
+		middle_mouse_panning_			= false;
+		SetUseEditorCamera(true);
+	}
+
+	ImGui::SameLine(0.0f, kViewportRuntimeControlSpacing);
+	if (DrawViewportCameraButton(
+			"##ViewportCameraMode", camera_label,
+			use_editor_camera_ ? "Using the editor camera. Click to use scene cameras."
+							   : "Using scene cameras. Click to use the editor camera."
+		)) {
+		if (!use_editor_camera_) {
+			// Entering the editor camera should initially show the same world area
+			// as the scene camera. Further editor panning remains independent.
+			if (Scene* scene{ ctx.editor.GetSceneListPanel().GetSelectedScene() }) {
+				MatchSceneCamera(scene->GetCamera());
+			}
+		}
+		SetUseEditorCamera(!use_editor_camera_);
+	}
+
+	ImGui::PopStyleVar();
+
+	float first_row_bottom{ ImGui::GetItemRectMax().y };
+	ImVec2 options_start{
+		ImGui::GetWindowPos().x + ImGui::GetWindowContentRegionMin().x +
+			kViewportToolbarSidePadding,
+		first_row_bottom + kViewportToolbarSidePadding,
+	};
+
+	ImGui::SetCursorScreenPos(options_start);
+	ImGui::PushStyleVar(
+		ImGuiStyleVar_ItemSpacing, ImVec2{ kViewportPaintOptionSpacing, default_item_spacing_y }
+	);
+	ImGui::BeginDisabled(!paint_tools_available);
+	bool drew_options{ paint.DrawViewportOptionsToolbar(ctx) };
+	ImGui::EndDisabled();
+	ImGui::PopStyleVar();
+
+	if (drew_options) {
+		ImGui::SetCursorScreenPos(
+			{
+				options_start.x,
+				options_start.y + ImGui::GetFrameHeight(),
+			}
+		);
+	} else {
+		ImGui::SetCursorScreenPos(
+			{
+				options_start.x,
+				first_row_bottom,
+			}
+		);
+	}
+}
+
+void SetImageBlendMode(const ImDrawList*, const ImDrawCmd* cmd) {
+	auto* renderer_ptr{ static_cast<Renderer*>(cmd->UserCallbackData) };
+	PTGN_ASSERT(renderer_ptr);
+
+	::ptgn::impl::RendererAccessor renderer{ *renderer_ptr };
+	renderer.SetBlendMode(BlendMode::ReplaceRGBA, true);
+}
+
+void ViewportPanel::OnRender(EditorContext& ctx) {
+	ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2{ 0.0f, 0.0f });
+
+	constexpr ImGuiWindowFlags kFlags{ ImGuiWindowFlags_NoScrollbar |
+									   ImGuiWindowFlags_NoScrollWithMouse |
+									   ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoCollapse };
+
+	ImGui::Begin("Viewport", nullptr, kFlags);
+	ImGui::PopStyleVar();
+
+	ImGuiWindow* viewport_window{ ImGui::GetCurrentWindow() };
+
+	if (viewport_window->DockNode) {
+		viewport_window->DockNode->LocalFlags |= ImGuiDockNodeFlags_HiddenTabBar;
+	}
+
+	ImGui::SetCursorPosY(ImGui::GetCursorPosY() + kViewportToolbarSidePadding);
+
+	ImGui::Indent(kViewportToolbarSidePadding);
+	DrawViewportToolbar(ctx);
+	ImGui::Unindent(kViewportToolbarSidePadding);
+	ImGui::SetCursorPosY(ImGui::GetCursorPosY() + kViewportToolbarSidePadding);
+
+	ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2{ 0.0f, 0.0f });
+	ImGui::Separator();
+	ImGui::PopStyleVar();
+
+	V2_float content_min{ FromImGui(ImGui::GetCursorScreenPos()) };
+	V2_float content_size{ FromImGui(ImGui::GetContentRegionAvail()) };
+	V2_float content_max{ content_min + content_size };
+
+	auto& renderer{ ctx.editor.GetRenderer() };
+	auto& window{ ctx.editor.GetWindow() };
+
+	V2_float min{ content_min };
+	V2_float size{ content_size };
+
+	if (size.x <= 0.0f || size.y <= 0.0f) {
+		ImGui::End();
+		return;
+	}
+
+	Viewport presentation_viewport{ .position{ min }, .size{ size } };
+
+	ctx.local.state.viewport.viewport = presentation_viewport;
+	ctx.local.state.viewport.focused  = ImGui::IsWindowFocused();
+	ctx.local.state.viewport.hovered  = ImGui::IsWindowHovered();
+
+	renderer.SetPresentationViewport(presentation_viewport);
+
+	auto* draw_list{ ImGui::GetWindowDrawList() };
+
+	auto window_background_color{ window.GetSettings().background_color };
+
+	draw_list->AddRectFilled(
+		ToImGui(content_min), ToImGui(content_max), ToImGui(window_background_color)
+	);
+
+	auto display_viewport{ renderer.GetDisplayViewport() };
+	auto presentation_texture{ ctx.editor.GetPresentationTexture() };
+	auto presentation_size{ ctx.editor.GetPresentationTextureSize() };
+
+	// Align the presentation texture to whole ImGui pixels. A fractional
+	// destination origin can introduce an extra sampling phase while panning,
+	// even if the scene camera itself is correctly aligned.
+	Viewport viewport{ .position{ Round(min + display_viewport.position) },
+					   .size{ display_viewport.size } };
+	bool mouse_inside_viewport{ ImGui::IsWindowHovered() &&
+								ContainsPoint(viewport, FromImGui(ImGui::GetIO().MousePos)) };
+
+	if (use_editor_camera_) {
+		UpdateEditorCamera(editor_camera_, middle_mouse_panning_, mouse_inside_viewport);
+
+		editor_camera_.camera.raw_viewport	 = { .position{}, .size{ 1.0f, 1.0f } };
+		editor_camera_.camera.viewport_space = ViewportSpace::Normalized;
+
+		auto logical_viewport{ GetLogicalViewport(
+			editor_camera_.camera.raw_viewport, editor_camera_.camera.viewport_space,
+			renderer.GetLogicalSize()
+		) };
+
+		editor_camera_.camera.view_projection = GetOrthographicViewProjection(
+			editor_camera_.camera.transform, logical_viewport.size, editor_camera_.pixel_rounding
+		);
+
+		renderer.SetPrimaryWorldCamera(editor_camera_.camera);
+	} else {
+		middle_mouse_panning_ = false;
+		renderer.SetPrimaryWorldCamera(std::nullopt);
+	}
+
+	draw_list->AddCallback(SetImageBlendMode, &renderer);
+
+	draw_list->AddImage(
+		static_cast<ImTextureID>(presentation_texture), ToImGui(viewport.position),
+		ToImGui(viewport.position + viewport.size), ImVec2{ 0.0f, 1.0f }, ImVec2{ 1.0f, 0.0f }
+	);
+
+	draw_list->AddCallback(ImGui::GetPlatformIO().DrawCallback_ResetRenderState, nullptr);
+
+	ctx.editor.GetDebugSystem().stats.Increment("draw_calls");
+
+	bool position_pick_was_active_at_viewport_start{ inspector::IsPositionPickingActive(ctx) };
+	bool position_pick_just_activated{ ctx.local.position_picker.ConsumeActivation() };
+	V2_float mouse_screen{ FromImGui(ImGui::GetIO().MousePos) };
+	bool mouse_inside_image{ ContainsPoint(viewport, mouse_screen) };
+
+	if (position_pick_was_active_at_viewport_start) {
+		ImGui::GetForegroundDrawList()->AddRect(
+			ToImGui(viewport.position), ToImGui(viewport.position + viewport.size),
+			IM_COL32(255, 214, 64, 255), 0.0f, 0, 3.0f
+		);
+	}
+
+	if (position_pick_was_active_at_viewport_start) {
+		bool cancel_with_escape{ ImGui::IsKeyPressed(ImGuiKey_Escape, false) };
+		bool cancel_with_right_click{ ImGui::IsMouseClicked(ImGuiMouseButton_Right) };
+		bool cancel_with_other_panel_click{ !position_pick_just_activated &&
+											ImGui::IsMouseClicked(ImGuiMouseButton_Left) &&
+											!mouse_inside_image &&
+											!inspector::IsPositionPickDragging(ctx) };
+
+		if (cancel_with_escape || cancel_with_right_click || cancel_with_other_panel_click) {
+			inspector::CancelPositionPicking(ctx);
+		}
+	}
+
+	auto* scene{ ctx.editor.GetSceneListPanel().GetSelectedScene() };
+	bool paint_tools_available{ !ctx.editor.CanPause() || use_editor_camera_ };
+
+	std::optional<FrameContext> frame_context;
+
+	if (scene) {
+		if (use_editor_camera_) {
+			auto camera_display_viewport{ GetDisplayViewport(
+				editor_camera_.camera.raw_viewport, editor_camera_.camera.viewport_space,
+				renderer.GetLogicalSize(), presentation_size, true
+			) };
+
+			frame_context.emplace(
+				renderer, GetTransform(scene->GetRenderTarget()), presentation_size,
+				editor_camera_.camera.transform, camera_display_viewport
+			);
+		} else {
+			frame_context.emplace(*scene);
+		}
+	}
+
+	if (scene && frame_context.has_value()) {
+		const FrameContext& frame{ frame_context.value() };
+
+		Frame position_pick_frame{ ctx.local.position_picker.UsesDisplayFrame() ? Frame::Display
+																				: Frame::World };
+
+		draw_list->PushClipRect(
+			ToImGui(viewport.position), ToImGui(viewport.position + viewport.size), true
+		);
+
+		DrawSceneCameraOutlines(ctx, presentation_viewport, frame);
+
+		if (inspector::IsPositionPickingActive(ctx)) {
+			// Position picking is a modal viewport interaction. It takes priority over
+			// every paint tool and entity-picking path until it completes or is cancelled.
+			DrawPositionPickerPreview(
+				ctx, viewport, presentation_viewport, frame, position_pick_frame
+			);
+
+			// Do not gate this on io.WantTextInput. The numeric/vector field that launched
+			// the picker can retain keyboard focus for a frame (or longer), which used to
+			// make the viewport ignore the left mouse entirely. Once a PositionPicker is
+			// active, clicking the viewport is an explicit request to pick.
+			if (mouse_inside_image && !inspector::IsPositionPickDragging(ctx) &&
+				ImGui::IsMouseClicked(ImGuiMouseButton_Left)) {
+				V2_float world_position{
+					ScreenToWorld(mouse_screen, frame, presentation_viewport, position_pick_frame)
+				};
+
+				inspector::BeginPickedPositionDrag(ctx, world_position);
+			}
+
+			if (inspector::IsPositionPickDragging(ctx) &&
+				ImGui::IsMouseDown(ImGuiMouseButton_Left)) {
+				V2_float world_position{
+					ScreenToWorld(mouse_screen, frame, presentation_viewport, position_pick_frame)
+				};
+
+				inspector::UpdatePickedPositionDrag(ctx, world_position);
+			}
+
+			if (inspector::IsPositionPickDragging(ctx) &&
+				ImGui::IsMouseReleased(ImGuiMouseButton_Left)) {
+				// Clamp the final sample to the last valid viewport point. This preserves the
+				// live value if the user drags out of the image before releasing instead of
+				// converting an unrelated toolbar/panel coordinate as a world position.
+				if (mouse_inside_image) {
+					V2_float world_position{ ScreenToWorld(
+						mouse_screen, frame, presentation_viewport, position_pick_frame
+					) };
+
+					inspector::UpdatePickedPositionDrag(ctx, world_position);
+				}
+
+				inspector::CompletePickedPosition(ctx);
+			}
+		} else if (paint_tools_available) {
+			auto& paint{ ctx.editor.GetPaintEditor() };
+			paint.DrawViewportAndHandleInput(ctx, *scene, viewport, presentation_viewport, frame);
+		}
+
+		draw_list->PopClipRect();
+	}
+
+	ImGui::End();
+}
+
+void ViewportPanel::PrepareCameraForRender(Renderer& renderer) {
+	// Projection override must be ready BEFORE RenderScenes, not only when the
+	// ImGui viewport is composed afterward. Otherwise transitions can draw a
+	// frame of procedural snow with the previous camera state.
+	if (!use_editor_camera_) {
+		renderer.SetPrimaryWorldCamera(std::nullopt);
+		return;
+	}
+
+	editor_camera_.camera.raw_viewport = { .position{}, .size{ 1.0f, 1.0f } };
+	editor_camera_.camera.viewport_space = ViewportSpace::Normalized;
+	auto logical{ GetLogicalViewport(
+		editor_camera_.camera.raw_viewport, editor_camera_.camera.viewport_space,
+		renderer.GetLogicalSize()
+	) };
+	editor_camera_.camera.view_projection = GetOrthographicViewProjection(
+		editor_camera_.camera.transform, logical.size, editor_camera_.pixel_rounding
+	);
+	renderer.SetPrimaryWorldCamera(editor_camera_.camera);
+}
+
+void ViewportPanel::MatchSceneCamera(SceneCamera camera) {
+	if (!camera) {
+		return;
+	}
+	editor_camera_.camera.transform = GetTransform(camera);
+	editor_camera_.pixel_rounding = camera.GetPixelRounding();
+	middle_mouse_panning_ = false;
+}
+
+void ViewportPanel::SetUseEditorCamera(bool use_editor_camera) {
+	use_editor_camera_ = use_editor_camera;
+}
+
+bool ViewportPanel::IsUsingEditorCamera() const {
+	return use_editor_camera_;
+}
+
+void ViewportPanel::DrawSelectedEntityGizmo(
+	EditorContext& ctx, Viewport presentation_viewport, const FrameContext& frame_context
+) {
+	auto selected_entity{ ctx.editor.GetSceneHierarchyPanel().GetSelectedEntity() };
+
+	if (!selected_entity || !selected_entity.Has<Transform>()) {
+		gizmo_entity_uuid_.reset();
+		ResetGizmoInteraction(gizmo_state_);
+		return;
+	}
+
+	auto selected_uuid{ static_cast<std::uint64_t>(selected_entity.Get<UUID>()) };
+
+	if (gizmo_entity_uuid_ != selected_uuid) {
+		gizmo_entity_uuid_ = selected_uuid;
+		ResetGizmoInteraction(gizmo_state_);
+	}
+
+	if (ctx.local.state.viewport.hovered && !ImGui::GetIO().WantTextInput) {
+		if (ImGui::IsKeyPressed(ImGuiKey_W)) {
+			gizmo_state_.tool = GizmoTool::Translate;
+		}
+		if (ImGui::IsKeyPressed(ImGuiKey_E)) {
+			gizmo_state_.tool = GizmoTool::Rotate;
+		}
+		if (ImGui::IsKeyPressed(ImGuiKey_R)) {
+			gizmo_state_.tool = GizmoTool::Scale;
+		}
+	}
+
+	auto& scene{ selected_entity.GetScene() };
+
+	Frame direct_frame{ Frame::World };
+	Transform editable_transform{ GetWorldTransform(selected_entity) };
+	Transform render_target_transform;
+
+	std::vector<EntityRenderPath> render_paths;
+
+	if (selected_entity == scene.GetRenderTarget()) {
+		direct_frame = Frame::Display;
+		render_paths.push_back(EntityRenderPath{ .id{ kDirectOccurrenceId } });
+	} else if (selected_entity.Has<::ptgn::impl::CameraData>()) {
+		render_target_transform = GetTransform(SceneCamera{ selected_entity }.GetRenderTarget());
+		editable_transform		= editable_transform.RelativeTo(render_target_transform);
+		render_paths.push_back(EntityRenderPath{ .id{ kDirectOccurrenceId } });
+	} else {
+		render_paths = BuildEntityRenderPaths(scene, selected_entity);
+	}
+
+	auto gizmo_instances{ BuildGizmoInstances(
+		render_paths, editable_transform.position, direct_frame, frame_context,
+		presentation_viewport
+	) };
+
+	EditorEntityTransformSnapshot snapshot_before{ CaptureEditorEntityTransform(selected_entity) };
+	Transform local_transform_before{ snapshot_before.local };
+	auto active_handle_before_update{ gizmo_state_.active };
+
+	UpdateAndDrawGizmoInstances(
+		ImGui::GetWindowDrawList(), gizmo_state_, editable_transform, gizmo_instances,
+		ctx.local.state.viewport.hovered, ctx.local.state.viewport.focused,
+		ctx.editor.GetSettings().gizmo_uses_local_orientation
+	);
+
+	auto applied_handle{ gizmo_state_.active != GizmoHandle::None ? gizmo_state_.active
+																  : active_handle_before_update };
+
+	if (selected_entity.Has<::ptgn::impl::CameraData>()) {
+		editable_transform = editable_transform.InverseRelativeTo(render_target_transform);
+	}
+
+	SetEditorWorldTransform(selected_entity, editable_transform);
+
+	Transform local_transform_after{ GetTransform(selected_entity) };
+
+	if (applied_handle != GizmoHandle::None) {
+		ApplyGizmoDeltaToButtonVisualTransforms(
+			selected_entity, applied_handle, local_transform_before, local_transform_after
+		);
+	}
+
+	local_transform_after = GetTransform(selected_entity);
+
+	EditorEntityTransformSnapshot snapshot_after{ CaptureEditorEntityTransform(selected_entity) };
+	if (snapshot_before.local != snapshot_after.local) {
+		auto reference{ MakeEntityReference(selected_entity) };
+		Editor* editor{ std::addressof(ctx.editor) };
+		auto apply = [editor, reference](const EditorEntityTransformSnapshot& snapshot) {
+			if (Entity entity{ reference.Resolve(*editor) }; entity && entity.Has<Transform>()) {
+				ApplyEditorEntityTransform(entity, snapshot);
+			}
+		};
+
+		ctx.undo.TrackInteraction(
+			selected_uuid, "Edit Transform", true, gizmo_state_.active != GizmoHandle::None,
+			[apply, snapshot_before]() mutable { apply(snapshot_before); },
+			[apply, snapshot_after]() mutable { apply(snapshot_after); }
+		);
+	}
+
+	if (active_handle_before_update != GizmoHandle::None &&
+		gizmo_state_.active == GizmoHandle::None) {
+		ctx.undo.CommitActiveEdit();
+	}
+}
+
+[[nodiscard]] bool IsManagedUIPickEntity(Entity entity) {
+	return entity &&
+		   entity.HasAny<
+			   ButtonBackgroundVisuals, ButtonBorderVisuals, ButtonSpriteVisuals, ButtonTextVisuals,
+			   ::ptgn::impl::SliderThumbData, ::ptgn::impl::SliderTrackData,
+			   ::ptgn::impl::SliderTrackBackgroundData, ::ptgn::impl::SliderTrackBorderData,
+			   ::ptgn::impl::SliderTrackSpriteData, ::ptgn::impl::SliderValueTextData>();
+}
+
+[[nodiscard]] Entity ResolveManagedUIPick(Entity entity) {
+	Entity current{ entity };
+
+	while (current && IsManagedUIPickEntity(current) && HasParent(current)) {
+		Entity parent{ GetParent(current) };
+
+		// Dropdown items are semantic controls in their own right. A managed visual child of an
+		// item resolves to that item, rather than continuing up to the parent dropdown header.
+		if (parent && parent.Has<::ptgn::impl::DropdownItem>()) {
+			return parent;
+		}
+
+		current = parent;
+	}
+
+	return current;
+}
+
+void ViewportPanel::HandleEntityPicking(
+	EditorContext& ctx, Viewport image_viewport, V2_int presentation_framebuffer_size,
+	Viewport presentation_viewport, const FrameContext& frame_context
+) {
+	auto* scene{ ctx.editor.GetSceneListPanel().GetSelectedScene() };
+
+	if (!scene) {
+		return;
+	}
+
+	auto scene_target{ scene->GetRenderTarget() };
+
+	auto scene_framebuffer{ static_cast<::ptgn::impl::FramebufferId>(
+		scene_target.Get<::ptgn::impl::FramebufferObject>()
+	) };
+
+	::ptgn::impl::RendererAccessor renderer{ ctx.editor.GetRenderer() };
+
+	if (!renderer.IsEntityPickingEnabled(scene_framebuffer)) {
+		return;
+	}
+
+	if (!ctx.local.state.viewport.hovered) {
+		return;
+	}
+
+	if (!ImGui::IsMouseClicked(ImGuiMouseButton_Left)) {
+		return;
+	}
+
+	if (ImGui::GetIO().WantTextInput) {
+		return;
+	}
+
+	V2_float mouse_position{
+		ImGui::GetIO().MousePos.x,
+		ImGui::GetIO().MousePos.y,
+	};
+
+	auto scene_target_size{ scene_target.GetSize() };
+
+	PTGN_ASSERT(scene_target_size.IsPositive());
+	PTGN_ASSERT(presentation_framebuffer_size.IsPositive());
+
+	auto scene_pixel{ ScreenToFramebufferPixel(mouse_position, image_viewport, scene_target_size) };
+
+	if (!scene_pixel.has_value()) {
+		return;
+	}
+
+	renderer.FlushBatch();
+
+	auto outer_id{ renderer.ReadEntityId(scene_framebuffer, scene_pixel.value()) };
+
+	auto& hierarchy{ ctx.editor.GetSceneHierarchyPanel() };
+
+	if (!outer_id.has_value() || outer_id.value() == ::ptgn::impl::kNoEntityId) {
+		hierarchy.SetSelectedEntity({}, false);
+		ctx.editor.GetPaintEditor().ClearSelection();
+		return;
+	}
+
+	PTGN_ASSERT(
+		outer_id.value() >= 0, "Entity picking returned an invalid entity ID: ", outer_id.value()
+	);
+
+	auto outer_entity{ scene->GetEntity(UUID{ outer_id.value() }) };
+
+	if (!outer_entity) {
+		hierarchy.SetSelectedEntity({}, false);
+		return;
+	}
+
+	auto mouse_world{
+		ScreenToWorld(mouse_position, frame_context, presentation_viewport, Frame::World)
+	};
+
+	auto selected_entity{ ResolveRenderTargetPick(*scene, renderer, outer_entity, mouse_world) };
+
+	// group stacks and layers are navigation containers, not pickable graphics.
+	// Retain the actual rendered child under the cursor rather than selecting a container.
+	if (selected_entity && selected_entity.HasAny<GroupStackData, Group>()) {
+		return;
+	}
+
+	if (selected_entity && !ctx.editor.GetSettings().show_managed_ui_parts) {
+		selected_entity = ResolveManagedUIPick(selected_entity);
+	}
+
+	if (selected_entity && selected_entity.HasAny<GroupStackData, Group>()) {
+		return;
+	}
+
+	ctx.editor.GetPaintEditor().ClearSelection();
+	if (selected_entity) {
+		hierarchy.SetSelectedEntity(selected_entity, false);
+	} else {
+		hierarchy.SetSelectedEntity({}, false);
+	}
+}
+
+} // namespace ptgn::editor

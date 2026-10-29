@@ -1,30 +1,25 @@
 #pragma once
 
-#include <cstdint>
+namespace ptgn {
 
-namespace ptgn::impl {
+// TODO: Implement a stat registration map.
+class Stats {
+public:
+	void Reset() {
+		counts_.clear();
+	}
 
-struct Stats {
-	// Draw stats.
-	std::int32_t shader_binds{ 0 };
-	std::int32_t texture_binds{ 0 };
-	std::int32_t buffer_binds{ 0 };
-	std::int32_t vertex_array_binds{ 0 };
-	std::int32_t framebuffer_binds{ 0 };
-	std::int32_t renderbuffer_binds{ 0 };
-	std::int32_t blend_mode_changes{ 0 };
-	std::int32_t viewport_changes{ 0 };
-	std::int32_t clears{ 0 };
-	std::int32_t clear_colors{ 0 };
-	std::int32_t draw_calls{ 0 };
-	// TODO: Fix. This requires GLCall to have access to stats somehow.
-	// std::int32_t gl_calls{ 0 };
+	void Increment(std::string_view stat_name, std::size_t amount = 1) {
+		counts_[stat_name] += amount;
+	}
 
-	void Reset();
+	std::size_t GetCount(std::string_view stat_name) const {
+		auto it = counts_.find(stat_name);
+		return (it != counts_.end()) ? it->second : 0;
+	}
 
-	void ResetRendererRelated();
-
-	void PrintRenderer() const;
+private:
+	std::unordered_map<std::string_view, std::size_t, StringHash, std::equal_to<>> counts_;
 };
 
-} // namespace ptgn::impl
+} // namespace ptgn

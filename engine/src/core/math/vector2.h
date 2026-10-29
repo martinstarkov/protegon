@@ -1,21 +1,20 @@
 #pragma once
 
+#include <algorithm>
 #include <array>
 #include <cmath>
 #include <functional>
-#include <iosfwd>
 #include <limits>
 #include <ostream>
 #include <type_traits>
 
-#include "core/assert.h"
+#include "core/math/angle.h"
 #include "core/math/math_utils.h"
 #include "core/math/rng.h"
 #include "core/math/tolerance.h"
 #include "core/util/concepts.h"
+#include "core/util/hash.h"
 #include "serialization/json/fwd.h"
-
-// TODO: Stop exposing assert.h
 
 namespace ptgn {
 
@@ -24,12 +23,12 @@ struct Vector2 {
 	T x{ 0 };
 	T y{ 0 };
 
-	constexpr T* Data() noexcept {
+	[[nodiscard]] constexpr T* Data() noexcept {
 		static_assert(std::is_standard_layout_v<Vector2>);
 		return &x;
 	}
 
-	constexpr const T* Data() const noexcept {
+	[[nodiscard]] constexpr const T* Data() const noexcept {
 		static_assert(std::is_standard_layout_v<Vector2>);
 		return &x;
 	}
@@ -37,47 +36,51 @@ struct Vector2 {
 	constexpr Vector2() = default;
 
 	template <Arithmetic U>
-	explicit constexpr Vector2(U all) : x{ static_cast<T>(all) }, y{ static_cast<T>(all) } {}
-
-	explicit Vector2(const json& j);
+	explicit constexpr Vector2(U both) : x{ static_cast<T>(both) }, y{ static_cast<T>(both) } {}
 
 	template <Arithmetic U>
-	constexpr Vector2(Vector2<U> o) : x{ static_cast<T>(o.x) }, y{ static_cast<T>(o.y) } {}
+	constexpr Vector2(Vector2<U> o) // NOSONAR
+		:
+		x{ static_cast<T>(o.x) }, y{ static_cast<T>(o.y) } {}
 
-	template <ConvertibleToArithmetic U, ConvertibleToArithmetic S>
-	constexpr Vector2(U x_component, S y_component) :
+	template <ConvertibleToArithmetic TX, ConvertibleToArithmetic TY>
+	constexpr Vector2(TX x_component, TY y_component) :
 		x{ static_cast<T>(x_component) }, y{ static_cast<T>(y_component) } {}
 
 	template <Arithmetic U>
 	explicit constexpr Vector2(std::array<U, 2> o) :
 		x{ static_cast<T>(o[0]) }, y{ static_cast<T>(o[1]) } {}
 
-	constexpr Vector2 xx() const {
+	[[nodiscard]] constexpr Vector2 xx() {
 		return { x, x };
 	}
 
-	constexpr Vector2 yy() const {
+	[[nodiscard]] constexpr Vector2 yy() const {
 		return { y, y };
 	}
 
-	friend bool operator==(Vector2 lhs, Vector2 rhs) {
+	constexpr friend bool operator==(Vector2 lhs, Vector2 rhs) {
 		return NearlyEqual(lhs.x, rhs.x) && NearlyEqual(lhs.y, rhs.y);
 	}
 
-	// Access vector elements by index, 0 for x, 1 for y.
+	/// @brief Access vector elements by index, 0 for x, 1 for y.
 	constexpr T& operator[](std::size_t idx) {
-		if (idx == 1) {
+		if (idx == 0) {
+			return x;
+		} else if (idx == 1) {
 			return y;
 		}
-		return x; // idx == 0
+		PTGN_ERROR("Vector2 index out of range: ", idx);
 	}
 
-	// Access vector elements by index, 0 for x, 1 for y.
+	/// @brief Access vector elements by index, 0 for x, 1 for y.
 	constexpr T operator[](std::size_t idx) const {
-		if (idx == 1) {
+		if (idx == 0) {
+			return x;
+		} else if (idx == 1) {
 			return y;
 		}
-		return x; // idx == 0
+		PTGN_ERROR("Vector2 index out of range: ", idx);
 	}
 
 	constexpr Vector2 operator-() const {
@@ -132,20 +135,22 @@ struct Vector2 {
 		return *this;
 	}
 
-	// Returns the dot product (this * o).
+	/// @return The dot product (this * o).
 	[[nodiscard]] constexpr T Dot(Vector2 o) const {
 		return x * o.x + y * o.y;
 	}
 
-	// Returns the cross product (this x o).
+	/// @return The cross product (this x o).
 	[[nodiscard]] constexpr T Cross(Vector2 o) const {
 		return x * o.y - y * o.x;
 	}
 
+	/// @return { -y, x }
 	[[nodiscard]] constexpr Vector2 Skewed() const {
 		return { -y, x };
 	}
 
+	/// @return { y, x }
 	[[nodiscard]] constexpr Vector2 Swapped() const {
 		return { y, x };
 	}
@@ -154,12 +159,12 @@ struct Vector2 {
 		return Dot(*this);
 	}
 
-	static Vector2 Random(T min, T max) {
+	[[nodiscard]] static Vector2 Random(T min, T max) {
 		RNG<T> rng{ min, max };
 		return { rng(), rng() };
 	}
 
-	static Vector2 RandomNormalized(T min, T max) {
+	[[nodiscard]] static Vector2 RandomNormalized(T min, T max) {
 		auto dir{ Vector2::Random(min, max) };
 		if (dir.IsZero()) {
 			return Vector2{};
@@ -168,131 +173,146 @@ struct Vector2 {
 		}
 	}
 
-	static Vector2 Random(Vector2 min, Vector2 max) {
+	[[nodiscard]] static Vector2 Random(Vector2 min, Vector2 max) {
 		RNG<T> rng_x{ min.x, max.x };
 		RNG<T> rng_y{ min.y, max.y };
 		return { rng_x(), rng_y() };
 	}
 
-	static Vector2 Right() {
+	[[nodiscard]] constexpr static Vector2 Right() {
 		return { T{ 1 }, T{ 0 } };
 	}
 
-	static Vector2 Up() {
+	[[nodiscard]] constexpr static Vector2 Up() {
 		return { T{ 0 }, T{ 1 } };
 	}
 
-	static Vector2 Left() {
+	[[nodiscard]] constexpr static Vector2 Left() {
 		return { T{ -1 }, T{ 0 } };
 	}
 
-	static Vector2 Down() {
+	[[nodiscard]] constexpr static Vector2 Down() {
 		return { T{ 0 }, T{ -1 } };
 	}
 
-	static Vector2 Infinity() {
-		return { std::numeric_limits<float>::infinity(), std::numeric_limits<float>::infinity() };
+	[[nodiscard]] constexpr static Vector2 Infinity() requires std::floating_point<T> {
+		return { std::numeric_limits<T>::infinity(), std::numeric_limits<T>::infinity() };
 	}
 
-	template <std::floating_point S = typename std::common_type_t<T, float>>
-	[[nodiscard]] constexpr S Magnitude() const {
-		return std::sqrt(static_cast<S>(MagnitudeSquared()));
+	[[nodiscard]] constexpr float Magnitude() const {
+		return std::sqrt(static_cast<float>(MagnitudeSquared()));
 	}
 
-	// @return Random unit vector in a heading within the given range of angles (radians).
-	template <std::floating_point S = typename std::common_type_t<T, float>>
-	static Vector2 RandomHeading(
-		S min_angle_radians = S{ 0 }, S max_angle_radians = S{ two_pi<S> }
+	/// @return Random unit vector in a heading within the given range of angles.
+	[[nodiscard]] static Vector2 RandomHeading(
+		Degrees min_angle = 0.0f, Degrees max_angle = 360.0f
 	) {
-		RNG<S> heading_rng{ ClampAngle2Pi(min_angle_radians), ClampAngle2Pi(max_angle_radians) };
-		S heading{ heading_rng() };
-		return { std::cos(heading), std::sin(heading) };
+		RNG<float> heading_rng{ Clamp(min_angle).value, Clamp(max_angle).value };
+		Radians heading{ Degrees{ heading_rng() } };
+		return { heading.Cos(), heading.Sin() };
 	}
 
-	// Returns a unit vector (magnitude = 1) except for zero vectors (magnitude
-	// = 0).
-	template <std::floating_point S = typename std::common_type_t<T, float>>
-	[[nodiscard]] Vector2<S> Normalized() const {
-		T m{ MagnitudeSquared() };
-		if (NearlyEqual(m, T{ 0 })) {
+	/// @return Unit vector (magnitude = 1) except for zero vectors (magnitude = 0).
+	[[nodiscard]] constexpr Vector2<float> Normalized() const {
+		float m{ static_cast<float>(MagnitudeSquared()) };
+
+		if (NearlyEqual(m, 0.0f)) {
 			return *this;
 		}
-		return *this / std::sqrt(static_cast<S>(m));
+
+		float inv_magnitude{ 1.0f / std::sqrt(m) };
+
+		return { static_cast<float>(x) * inv_magnitude, static_cast<float>(y) * inv_magnitude };
 	}
 
-	// Returns a normalized (unit) direction vector toward a target position.
-	template <std::floating_point S = typename std::common_type_t<T, float>>
-	[[nodiscard]] Vector2<S> DirectionTowards(Vector2 target) const {
-		Vector2<S> dir{ target - *this };
+	/// @return Normalized (unit) direction vector toward a target position.
+	[[nodiscard]] constexpr Vector2<float> DirectionTowards(Vector2 target) const {
+		Vector2<float> dir{ target - *this };
 		return dir.Normalized();
 	}
 
-	// @return New vector rotated by the given angle.
-	// See https://en.wikipedia.org/wiki/Rotation_matrix for details.
-	// Angle in radians. Positive angle rotates clockwise.
-	template <std::floating_point S = typename std::common_type_t<T, float>>
-	[[nodiscard]] Vector2<S> Rotated(S angle_radians) const {
-		if (NearlyEqual(angle_radians, 0.0f)) {
+	/// @brief See https://en.wikipedia.org/wiki/Rotation_matrix for details.
+	/// Positive clockwise.
+	/// @return New vector rotated by the given angle.
+	[[nodiscard]] constexpr Vector2<float> Rotated(Radians angle) const {
+		if (NearlyEqual(angle.value, 0.0f)) {
 			return { x, y };
 		}
-		auto c{ std::cos(angle_radians) };
-		auto s{ std::sin(angle_radians) };
+		auto c{ angle.Cos() };
+		auto s{ angle.Sin() };
 		return Rotated(c, s);
 	}
 
-	// Provide cached std::cos(angle_radians) and std::sin(angle_radians) values.
-	template <std::floating_point S = typename std::common_type_t<T, float>>
-	[[nodiscard]] Vector2<S> Rotated(S cos_angle_radians, S sin_angle_radians) const {
-		return { x * cos_angle_radians - y * sin_angle_radians,
-				 x * sin_angle_radians + y * cos_angle_radians };
+	/// @brief See https://en.wikipedia.org/wiki/Rotation_matrix for details.
+	/// Positive clockwise.
+	/// @return New vector rotated by the given angle.
+	[[nodiscard]] constexpr Vector2<float> Rotated(Degrees angle) const {
+		return Rotated(angle.ToRad());
 	}
 
-	/*
-	 * @return Angle in radians between vector x and y components in radians.
-	 * Relative to the horizontal x-axis (1, 0).
-	 * Range: (-3.14159, 3.14159].
-	 * (clockwise positive).
-	 *           -1.5708
-	 *               |
-	 *    3.14159 ---o--- 0
-	 *               |
-	 *            1.5708
-	 */
-	template <std::floating_point S = typename std::common_type_t<T, float>>
-	[[nodiscard]] S Angle() const {
-		return std::atan2(static_cast<S>(y), static_cast<S>(x));
+	/// @brief Provide cached std::cos(angle) and std::sin(angle) values.
+	[[nodiscard]] constexpr Vector2<float> Rotated(float cos, float sin) const {
+		return { static_cast<float>(x) * cos - static_cast<float>(y) * sin,
+				 static_cast<float>(x) * sin + static_cast<float>(y) * cos };
 	}
 
-	template <std::floating_point S = typename std::common_type_t<T, float>>
-	[[nodiscard]] S Angle(Vector2 target) const {
-		S mag1{ MagnitudeSquared() };
-		S mag2{ target.MagnitudeSquared() };
+	/// @return Angle in degrees between vector x and y components in radians.
+	/// Relative to the horizontal x-axis (1, 0).
+	/// Range: (-180.0f, 180.0f].
+	/// Positive clockwise.
+	///          -90
+	///           |
+	///    180 ---o--- 0
+	///           |
+	///           90
+	[[nodiscard]] constexpr Degrees Angle() const {
+		return Radians{ std::atan2(static_cast<float>(y), static_cast<float>(x)) }.ToDeg();
+	}
 
-		if (NearlyEqual(mag1, S{ 0 }) || NearlyEqual(mag2, S{ 0 })) {
-			return S{ 0 };
+	/// @brief Angle between this vector and a target vector in degrees.
+	[[nodiscard]] constexpr Degrees Angle(Vector2 target) const {
+		float mag1{ static_cast<float>(MagnitudeSquared()) };
+		float mag2{ static_cast<float>(target.MagnitudeSquared()) };
+
+		if (NearlyEqual(mag1, 0.0f) || NearlyEqual(mag2, 0.0f)) {
+			return Degrees{ 0.0f };
 		}
 
-		S cosine{ Dot(target) / std::sqrt(mag1 * mag2) };
+		float cos{ static_cast<float>(Dot(target)) / std::sqrt(mag1 * mag2) };
 
 		// Clamp cosine to the range [-1, 1] to avoid domain errors for acos. This can very rarely
 		// happen due to floating point inaccuracies.
-		cosine = std::clamp(cosine, S{ -1 }, S{ 1 });
+		cos = std::clamp(cos, -1.0f, 1.0f);
 
-		return std::acos(cosine);
+		return Radians{ std::acos(cos) }.ToDeg();
 	}
 
-	// @return True if both components are zero.
-	bool IsZero() const {
+	/// @return True if both components are zero (or very close to zero within a small epsilon).
+	constexpr bool IsZero() const {
 		return NearlyEqual(x, T{ 0 }) && NearlyEqual(y, T{ 0 });
 	}
 
-	// @return True if either component is zero.
-	bool HasZero() const {
+	/// @return True if either component are zero (or very close to zero within a small epsilon).
+	constexpr bool HasZero() const {
 		return NearlyEqual(x, T{ 0 }) || NearlyEqual(y, T{ 0 });
 	}
 
-	bool BothAboveZero() const {
+	/// @return True if both components are greater than zero. Returns false if either component is
+	/// zero (or very close to zero within a small epsilon).
+	constexpr bool IsPositive() const {
 		return x > 0 && y > 0 && !HasZero();
+	}
+
+	constexpr bool HasPositive() const {
+		return x > 0 || y > 0;
+	}
+
+	constexpr bool IsNegative() const {
+		return x < 0 && y < 0 && !HasZero();
+	}
+
+	constexpr bool HasNegative() const {
+		return x < 0 || y < 0;
 	}
 };
 
@@ -302,79 +322,100 @@ void to_json(json& j, const Vector2<T>& vector);
 template <Arithmetic T>
 void from_json(const json& j, Vector2<T>& vector);
 
-using V2_int	= Vector2<int>;
-using V2_uint	= Vector2<unsigned int>;
-using V2_size	= Vector2<std::size_t>;
-using V2_float	= Vector2<float>;
-using V2_double = Vector2<double>;
+using V2_int   = Vector2<int>;
+using V2_uint  = Vector2<unsigned int>;
+using V2_float = Vector2<float>;
 
-template <StreamWritable S> /* Some types such as std::uint8_t are not stream writable */
-inline std::ostream& operator<<(std::ostream& os, ptgn::Vector2<S> v) {
+template <Arithmetic S>
+std::ostream& operator<<(std::ostream& os, Vector2<S> v) { // NOSONAR
 	os << "(" << v.x << ", " << v.y << ")";
 	return os;
 }
 
 template <Arithmetic V, Arithmetic U, Arithmetic S = typename std::common_type_t<V, U>>
-constexpr Vector2<S> operator+(Vector2<V> lhs, Vector2<U> rhs) {
+constexpr Vector2<S> operator+(Vector2<V> lhs, Vector2<U> rhs) { // NOSONAR
 	return { static_cast<S>(lhs.x) + static_cast<S>(rhs.x),
 			 static_cast<S>(lhs.y) + static_cast<S>(rhs.y) };
 }
 
 template <Arithmetic V, Arithmetic U, Arithmetic S = typename std::common_type_t<V, U>>
-constexpr Vector2<S> operator-(Vector2<V> lhs, Vector2<U> rhs) {
+constexpr Vector2<S> operator-(Vector2<V> lhs, Vector2<U> rhs) { // NOSONAR
 	return { static_cast<S>(lhs.x) - static_cast<S>(rhs.x),
 			 static_cast<S>(lhs.y) - static_cast<S>(rhs.y) };
 }
 
 template <Arithmetic V, Arithmetic U, Arithmetic S = typename std::common_type_t<V, U>>
-constexpr Vector2<S> operator*(Vector2<V> lhs, Vector2<U> rhs) {
+constexpr Vector2<S> operator*(Vector2<V> lhs, Vector2<U> rhs) { // NOSONAR
 	return { static_cast<S>(lhs.x) * static_cast<S>(rhs.x),
 			 static_cast<S>(lhs.y) * static_cast<S>(rhs.y) };
 }
 
 template <Arithmetic V, Arithmetic U, Arithmetic S = typename std::common_type_t<V, U>>
-constexpr Vector2<S> operator/(Vector2<V> lhs, Vector2<U> rhs) {
+constexpr Vector2<S> operator/(Vector2<V> lhs, Vector2<U> rhs) { // NOSONAR
 	return { static_cast<S>(lhs.x) / static_cast<S>(rhs.x),
 			 static_cast<S>(lhs.y) / static_cast<S>(rhs.y) };
 }
 
 template <Arithmetic V, Arithmetic U, Arithmetic S = typename std::common_type_t<V, U>>
-
-constexpr Vector2<S> operator*(V lhs, Vector2<U> rhs) {
+constexpr Vector2<S> operator*(V lhs, Vector2<U> rhs) { // NOSONAR
 	return { static_cast<S>(lhs) * static_cast<S>(rhs.x),
 			 static_cast<S>(lhs) * static_cast<S>(rhs.y) };
 }
 
 template <Arithmetic V, Arithmetic U, Arithmetic S = typename std::common_type_t<V, U>>
-constexpr Vector2<S> operator*(Vector2<V> lhs, U rhs) {
+constexpr Vector2<S> operator*(Vector2<V> lhs, U rhs) { // NOSONAR
 	return { static_cast<S>(lhs.x) * static_cast<S>(rhs),
 			 static_cast<S>(lhs.y) * static_cast<S>(rhs) };
 }
 
 template <Arithmetic V, Arithmetic U, Arithmetic S = typename std::common_type_t<V, U>>
-
-constexpr Vector2<S> operator/(V lhs, Vector2<U> rhs) {
+constexpr Vector2<S> operator/(V lhs, Vector2<U> rhs) { // NOSONAR
 	return { static_cast<S>(lhs) / static_cast<S>(rhs.x),
 			 static_cast<S>(lhs) / static_cast<S>(rhs.y) };
 }
 
 template <Arithmetic V, Arithmetic U, Arithmetic S = typename std::common_type_t<V, U>>
-
-constexpr Vector2<S> operator/(Vector2<V> lhs, U rhs) {
+constexpr Vector2<S> operator/(Vector2<V> lhs, U rhs) { // NOSONAR
 	return { static_cast<S>(lhs.x) / static_cast<S>(rhs),
 			 static_cast<S>(lhs.y) / static_cast<S>(rhs) };
 }
 
-// Clamp both components of a vector between min and max (component specific).
 template <Arithmetic T>
-[[nodiscard]] inline Vector2<T> Clamp(Vector2<T> vector, Vector2<T> min, Vector2<T> max) {
+[[nodiscard]] constexpr float Dot(Vector2<T> a, Vector2<T> b) {
+	return a.Dot(b);
+}
+
+template <Arithmetic T>
+[[nodiscard]] constexpr float Length(Vector2<T> v) {
+	return v.Magnitude();
+}
+
+template <Arithmetic T>
+[[nodiscard]] constexpr Vector2<T> Normalize(Vector2<T> v) {
+	return v.Normalized();
+}
+
+template <Arithmetic T>
+[[nodiscard]] constexpr float Distance(Vector2<T> a, Vector2<T> b) {
+	return Length(a - b);
+}
+
+/// @brief Clamp both components of a vector between min and max (component specific).
+template <Arithmetic T>
+[[nodiscard]] constexpr Vector2<T> Clamp(Vector2<T> vector, Vector2<T> min, Vector2<T> max) {
 	return { std::clamp(vector.x, min.x, max.x), std::clamp(vector.y, min.y, max.y) };
 }
 
-// Clamp the magnitude of the vector between min and max. This means that a (1, 1) vector clamped
-// between -1 and 1 will be (0.7, 0.7)
+/// @brief Clamp both components of a vector between min and max.
 template <Arithmetic T>
-[[nodiscard]] inline Vector2<T> Clamp(Vector2<T> vector, T min, T max) {
+[[nodiscard]] constexpr Vector2<T> Clamp(Vector2<T> vector, T min, T max) {
+	return { std::clamp(vector.x, min, max), std::clamp(vector.y, min, max) };
+}
+
+/// @brief Clamp the magnitude of the vector between min and max. This means that a (1, 1) vector
+/// clamped between -1 and 1 will be (0.7, 0.7)
+template <Arithmetic T>
+[[nodiscard]] constexpr Vector2<T> ClampMagnitude(Vector2<T> vector, T min, T max) {
 	Vector2<T> dir{ vector.Normalized() };
 	Vector2<T> dir_min{ dir * Vector2<T>{ min, min } };
 	Vector2<T> dir_max{ dir * Vector2<T>{ max, max } };
@@ -385,85 +426,151 @@ template <Arithmetic T>
 	return Clamp(vector, min_v, max_v);
 }
 
-// @return True if both the components of a and b are within margin of each other.
+/// @return True if both the components of a and b are within margin of each other.
 template <Arithmetic T>
-[[nodiscard]] inline bool WithinMargin(Vector2<T> a, Vector2<T> b, Vector2<T> margin) {
+[[nodiscard]] constexpr bool WithinMargin(Vector2<T> a, Vector2<T> b, Vector2<T> margin) {
 	return std::abs(a.x - b.x) <= margin.x && std::abs(a.y - b.y) <= margin.y;
+}
+
+template <Arithmetic T>
+[[nodiscard]] constexpr bool LessOrNearlyEqual(Vector2<T> a, Vector2<T> b) noexcept {
+	return LessOrNearlyEqual(a.x, b.x) && LessOrNearlyEqual(a.y, b.y);
+}
+
+template <Arithmetic T>
+[[nodiscard]] constexpr bool LessOrNearlyEqual(Vector2<T> a, T b) noexcept {
+	return LessOrNearlyEqual(a.x, b) && LessOrNearlyEqual(a.y, b);
+}
+
+template <Arithmetic T>
+[[nodiscard]] constexpr bool WithinRangeInclusive(
+	Vector2<T> value, Vector2<T> min, Vector2<T> max
+) noexcept {
+	return WithinRangeInclusive(value.x, min.x, max.x) &&
+		   WithinRangeInclusive(value.y, min.y, max.y);
+}
+
+template <Arithmetic T>
+[[nodiscard]] constexpr bool WithinRangeInclusive(Vector2<T> value, T min, T max) noexcept {
+	return WithinRangeInclusive(value.x, min, max) && WithinRangeInclusive(value.y, min, max);
+}
+
+template <Arithmetic T>
+[[nodiscard]] constexpr bool WithinRangeExclusive(
+	Vector2<T> value, Vector2<T> min, Vector2<T> max
+) noexcept {
+	return WithinRangeExclusive(value.x, min.x, max.x) &&
+		   WithinRangeExclusive(value.y, min.y, max.y);
+}
+
+template <Arithmetic T>
+[[nodiscard]] constexpr bool WithinRangeExclusive(Vector2<T> value, T min, T max) noexcept {
+	return WithinRangeExclusive(value.x, min, max) && WithinRangeExclusive(value.y, min, max);
+}
+
+template <Arithmetic T>
+[[nodiscard]] constexpr bool NearlyWithinRangeInclusive(
+	Vector2<T> value, Vector2<T> min, Vector2<T> max
+) noexcept {
+	return NearlyWithinRangeInclusive(value.x, min.x, max.x) &&
+		   NearlyWithinRangeInclusive(value.y, min.y, max.y);
 }
 
 /// @return Ceil both components of a vector.
 template <Arithmetic T>
-[[nodiscard]] inline Vector2<T> FastCeil(Vector2<T> vector) {
-	return { FastCeil(vector.x), FastCeil(vector.y) };
+[[nodiscard]] constexpr Vector2<T> Ceil(Vector2<T> vector) {
+	return { Ceil(vector.x), Ceil(vector.y) };
 }
 
 /// @return Floor both components of a vector.
 template <Arithmetic T>
-[[nodiscard]] inline Vector2<T> FastFloor(Vector2<T> vector) {
-	return { FastFloor(vector.x), FastFloor(vector.y) };
+[[nodiscard]] constexpr Vector2<T> Floor(Vector2<T> vector) {
+	return { Floor(vector.x), Floor(vector.y) };
 }
 
 /// @return Round both components of a vector.
 template <Arithmetic T>
-[[nodiscard]] inline Vector2<T> FastRound(Vector2<T> vector) {
-	return { FastRound(vector.x), FastRound(vector.y) };
+[[nodiscard]] constexpr Vector2<T> Round(Vector2<T> vector) {
+	return { Round(vector.x), Round(vector.y) };
 }
 
-// Absolute value for both components of a vector.
+/// @return Absolute value for both components of a vector.
 template <Arithmetic T>
-[[nodiscard]] inline Vector2<T> Abs(Vector2<T> vector) {
+[[nodiscard]] constexpr Vector2<T> Abs(Vector2<T> vector) {
 	return { std::abs(vector.x), std::abs(vector.y) };
 }
 
-// Swap both components of vectors a and b.
+/// @return Sign for both components of a vector.
 template <Arithmetic T>
-inline void Swap(Vector2<T>& a, Vector2<T>& b) {
+[[nodiscard]] constexpr Vector2<T> Sign(Vector2<T> vector) {
+	return { Sign(vector.x), Sign(vector.y) };
+}
+
+/// @brief Swap both components of vectors a and b.
+template <Arithmetic T>
+constexpr void Swap(Vector2<T>& a, Vector2<T>& b) {
 	std::swap(a.x, b.x);
 	std::swap(a.y, b.y);
 }
 
-// Linearly interpolate both components of a vector.
+/// @return Linearly interpolate both components of a vector.
 template <Arithmetic T>
-[[nodiscard]] inline Vector2<T> Lerp(Vector2<T> lhs, Vector2<T> rhs, T t) {
+[[nodiscard]] constexpr Vector2<T> Lerp(Vector2<T> lhs, Vector2<T> rhs, T t) {
 	return Vector2<T>{ Lerp(lhs.x, rhs.x, t), Lerp(lhs.y, rhs.y, t) };
 }
 
-// Linearly interpolate both components of a vector by their respective t values.
+/// @return Linearly interpolate both components of a vector by respective t values.
 template <Arithmetic T>
-[[nodiscard]] inline Vector2<T> Lerp(Vector2<T> lhs, Vector2<T> rhs, Vector2<T> t) {
+[[nodiscard]] constexpr Vector2<T> Lerp(Vector2<T> lhs, Vector2<T> rhs, Vector2<T> t) {
 	return Vector2<T>{ Lerp(lhs.x, rhs.x, t.x), Lerp(lhs.y, rhs.y, t.y) };
 }
 
-// @return The midpoint between vectors a and b.
+/// @return The midpoint between vectors a and b.
 template <Arithmetic T>
-[[nodiscard]] inline Vector2<T> Midpoint(Vector2<T> a, Vector2<T> b) {
+[[nodiscard]] constexpr Vector2<T> Midpoint(Vector2<T> a, Vector2<T> b) {
 	return Vector2<T>{ (a + b) / 2.0f };
 }
 
-// @return The larger component of a vector.
+/// @return The larger component of a vector.
 template <Arithmetic T>
-[[nodiscard]] inline T Max(Vector2<T> vector) {
+[[nodiscard]] constexpr T Max(Vector2<T> vector) {
 	return std::max(vector.x, vector.y);
 }
 
-// @return The smaller component of a vector.
+/// @return The smaller component of a vector.
 template <Arithmetic T>
-[[nodiscard]] inline T Min(Vector2<T> vector) {
+[[nodiscard]] constexpr T Min(Vector2<T> vector) {
 	return std::min(vector.x, vector.y);
 }
 
+/// @return Element wise maximum of two vectors.
+template <Arithmetic T>
+[[nodiscard]] constexpr Vector2<T> Max(Vector2<T> a, Vector2<T> b) {
+	return { std::max(a.x, b.x), std::max(a.y, b.y) };
+}
+
+/// @return Element wise minimum of two vectors.
+template <Arithmetic T>
+[[nodiscard]] constexpr Vector2<T> Min(Vector2<T> a, Vector2<T> b) {
+	return { std::min(a.x, b.x), std::min(a.y, b.y) };
+}
+
+[[nodiscard]] constexpr bool StrictlyLess(V2_float a, V2_float b, float epsilon = kEpsilon<float>) {
+	return StrictlyLess(a.x, b.x, epsilon) && StrictlyLess(a.y, b.y, epsilon);
+}
+
+template struct Vector2<int>;
+template struct Vector2<float>;
+
 } // namespace ptgn
 
-// Custom hashing function for Vector2 class.
-// This allows for use of unordered maps and sets with Vector2s as keys.
 template <ptgn::Arithmetic T>
 struct std::hash<ptgn::Vector2<T>> {
 	std::size_t operator()(ptgn::Vector2<T> v) const noexcept {
-		// Hashing combination algorithm from:
-		// https://stackoverflow.com/a/17017281
-		std::size_t value{ 17 };
-		value = value * 31 + std::hash<T>()(v.x);
-		value = value * 31 + std::hash<T>()(v.y);
-		return value;
+		if constexpr (std::is_floating_point_v<T>) {
+			return ptgn::Hash(ptgn::QuantizeSigned(v.x), ptgn::QuantizeSigned(v.y));
+		} else {
+			return ptgn::Hash(v.x, v.y);
+		}
 	}
 };

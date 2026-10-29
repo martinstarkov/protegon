@@ -1,81 +1,32 @@
 #pragma once
 
 #include <cstdint>
+#include <optional>
 
-#include "renderer/backend/gl/gl.h"
+#include "core/graphics/color.h"
+#include "core/math/matrix4.h"
 #include "renderer/backend/gl/gl_bind_guard.h"
 #include "renderer/backend/gl/gl_buffer.h"
-#include "renderer/backend/gl/gl_debug.h"
 #include "renderer/backend/gl/gl_framebuffer.h"
 #include "renderer/backend/gl/gl_renderbuffer.h"
 #include "renderer/backend/gl/gl_shader.h"
 #include "renderer/backend/gl/gl_state.h"
 #include "renderer/backend/gl/gl_texture.h"
 #include "renderer/backend/gl/gl_vertex_array.h"
-#include "renderer/primitives/blend_mode.h"
-#include "renderer/primitives/color.h"
-#include "renderer/primitives/id.h"
-#include "renderer/primitives/render_state.h"
-#include "renderer/primitives/viewport.h"
-
-#ifdef __EMSCRIPTEN__
-
-constexpr auto PTGN_OPENGL_MAJOR_VERSION = 3;
-constexpr auto PTGN_OPENGL_MINOR_VERSION = 0;
-#define PTGN_OPENGL_CONTEXT_PROFILE SDL_GL_CONTEXT_PROFILE_ES
-
-#else
-
-constexpr auto PTGN_OPENGL_MAJOR_VERSION = 3;
-constexpr auto PTGN_OPENGL_MINOR_VERSION = 3;
-#define PTGN_OPENGL_CONTEXT_PROFILE SDL_GL_CONTEXT_PROFILE_CORE
-
-#endif
-
-#define PTGN_IMPL_BLEND_CASE(name, srcRGB, dstRGB, srcA, dstA) \
-	case BlendMode::name: GLCall(BlendFuncSeparate(srcRGB, dstRGB, srcA, dstA)); break;
-
-struct SDL_GLContextState;
+#include "renderer/pipeline/blend_mode.h"
+#include "renderer/pipeline/render_state.h"
+#include "renderer/pipeline/viewport.h"
+#include "renderer/resources/id.h"
 
 namespace ptgn {
 
-class Window;
+class Stats;
 
-namespace impl {
-
-class RenderTargetData;
-
-} // namespace impl
-
-} // namespace ptgn
-
-namespace ptgn::impl::gl {
-
-class GLContext;
-
-/// @brief This class exists to ensure the OpenGL context is destroyed after things like shaders.
-class SDLGLContext {
-private:
-	friend class GLContext;
-
-	SDLGLContext() = delete;
-	explicit SDLGLContext(const Window& window);
-	~SDLGLContext() noexcept;
-	SDLGLContext(const SDLGLContext&)				 = delete;
-	SDLGLContext(SDLGLContext&&) noexcept			 = delete;
-	SDLGLContext& operator=(const SDLGLContext&)	 = delete;
-	SDLGLContext& operator=(SDLGLContext&&) noexcept = delete;
-
-	SDL_GLContextState* context_{ nullptr };
-};
+namespace impl::gl {
 
 class GLContext {
-private:
-	SDLGLContext context_;
-
 public:
-	GLContext() = delete;
-	explicit GLContext(const Window& window);
+	explicit GLContext(Stats& stats);
 	~GLContext() noexcept					   = default;
 	GLContext(const GLContext&)				   = delete;
 	GLContext(GLContext&&) noexcept			   = delete;
@@ -86,14 +37,20 @@ public:
 	[[nodiscard]] BindGuard<ElementBufferId> Bind(ElementBufferId id, bool restore_bind = false);
 	[[nodiscard]] BindGuard<UniformBufferId> Bind(UniformBufferId id, bool restore_bind = false);
 	[[nodiscard]] BindGuard<ShaderId> Bind(ShaderId id, bool restore_bind = false);
-	[[nodiscard]] BindGuard<TextureId> Bind(TextureId id, bool restore_bind = false);
+	[[nodiscard]] BindGuard<TextureId> Bind(
+		TextureId id, bool restore_bind = false, bool force = false
+	);
 	[[nodiscard]] BindGuard<RenderbufferId> Bind(RenderbufferId id, bool restore_bind = false);
-	[[nodiscard]] BindGuard<FramebufferId> Bind(FramebufferId id, bool restore_bind = false);
+	[[nodiscard]] BindGuard<FramebufferId> Bind(
+		FramebufferId id, bool restore_bind = false, bool force = false
+	);
 	[[nodiscard]] BindGuard<VertexArrayId> Bind(VertexArrayId id, bool restore_bind = false);
 
 	const State& GetBoundState() const;
 	State& GetBoundState();
 	VertexBufferId GetBoundVertexBuffer() const;
+	/// @brief One important assumption in this being correct is that a protegon VertexArray's
+	/// element buffer is never modified by an external library / application.
 	ElementBufferId GetBoundElementBuffer() const;
 	UniformBufferId GetBoundUniformBuffer() const;
 	ShaderId GetBoundShader() const;
@@ -115,48 +72,66 @@ public:
 	void Destroy(ElementBufferId id);
 	void Destroy(UniformBufferId id);
 	void Destroy(ShaderId id);
-	void Destroy(TextureId id);
+	/// @param replacement_texture The replacement texture id that will be bound instead of the id.
+	void Destroy(TextureId id, TextureId replacement_texture);
 	void Destroy(RenderbufferId id);
-	void Destroy(FramebufferId id);
+	/// @param replacement_texture The replacement texture id that will be bound instead of the
+	/// framebuffer's attached texture id (if applicable).
+	void Destroy(FramebufferId id, TextureId replacement_texture);
 	void Destroy(VertexArrayId id);
-	void Destroy(RenderTargetId id);
 
-	void EnableGammaCorrection() const;
-	void DisableGammaCorrection() const;
+	void ForgetId(VertexBufferId id);
+	void ForgetId(UniformBufferId id);
+	void ForgetId(ShaderId id);
+	/// @param replacement_texture The replacement texture id that will be bound instead of the id.
+	void ForgetId(TextureId id, TextureId replacement_texture);
+	void ForgetId(RenderbufferId id);
+	void ForgetId(FramebufferId id);
+	void ForgetId(VertexArrayId id);
 
 	/// @brief Enabling blending will disable depth testing.
-	void SetBlending(bool enabled);
-	void SetBlend(const BlendState& blend_state);
+	void SetBlend(bool enabled, bool force = false);
 	/// @brief Will disable depth testing.
-	void SetBlendMode(BlendMode mode);
+	void SetBlendMode(BlendMode blend, bool force = false);
 
 	/// @brief Enabling depth testing will disable blending.
-	void SetDepthTesting(bool enabled);
+	void SetDepthTesting(bool enabled, bool force = false);
+	void SetDepthMask(const DepthMaskState& mask);
 
-	void SetDepth(const DepthState& state);
-	void SetDepthMask(bool enabled);
-	void SetDepthFunc(CompareFunc depth_func);
-	void SetDepthRange(float near_val, float far_val);
-	void SetLineWidth(float width);
-	void SetLineSmoothing(bool enabled);
-	void SetPolygonMode(PolygonMode front_mode, PolygonMode back_mode);
 	void SetColorMask(const ColorMaskState& mask);
 	void SetScissor(const ScissorState& scissor);
-	void SetCull(const CullState& cull);
 	void SetRaster(const RasterState& raster);
 	void SetStencil(const StencilState& stencil);
 	void SetClearColor(Color color);
-	void SetClearDepth(double depth);
-	void SetClearStencil(int stencil);
+	void SetClearDepth(Depth depth);
+	void SetClearStencil(Stencil stencil);
 
 	void SetViewport(Viewport viewport);
-	Viewport GetViewport() const;
+	std::optional<Viewport> GetViewport() const;
 
-	void SetActiveTextureSlot(std::uint32_t slot);
+	void SetViewProjection(const Matrix4& view_projection);
+
+	const std::optional<Matrix4>& GetViewProjection() const;
+
+	void SetActiveTextureSlot(std::uint32_t slot, bool force = false);
 
 	/// @return The maximum number of texture slots available on the current hardware.
 	std::size_t GetMaxTextureSlots() const;
 
+	[[nodiscard]] bool ViewportCoversFramebuffer(FramebufferId framebuffer) const;
+	[[nodiscard]] bool ScissorCoversFramebuffer(FramebufferId framebuffer) const;
+
+	std::uint32_t GetActiveTextureSlot() const;
+
+	void ResetState();
+
+	Stats& stats;
+
+private:
+	// Must be constructed before shaders, because it fetches max texture slots.
+	State bound_;
+
+public:
 	Buffers buffers;
 	Shaders shaders;
 	Textures textures;
@@ -164,11 +139,10 @@ public:
 	Framebuffers framebuffers;
 	VertexArrays vertex_arrays;
 
-	int GetInteger(GLenum pname) const;
-	std::uint32_t GetActiveTextureSlot() const;
-
 private:
-	State bound_;
+	friend class Framebuffers;
 };
 
-} // namespace ptgn::impl::gl
+} // namespace impl::gl
+
+} // namespace ptgn

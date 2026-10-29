@@ -1,52 +1,170 @@
 #pragma once
 
+#include <algorithm>
 #include <array>
+#include <concepts>
+#include <ranges>
 
+#include "core/assert.h"
 #include "core/math/geometry/origin.h"
 #include "core/math/transform.h"
 #include "core/math/vector2.h"
 #include "core/util/concepts.h"
-#include "serialization/json/serialize.h"
+#include "core/util/hash.h"
+#include "serialization/serialize.h"
 
 namespace ptgn {
 
 /// @brief Rect has no rotation center because this can be achieved via using a parent Entity and
 /// positioning it where the origin should be.
-struct Rect {
-	Rect() = default;
-
-	Rect(V2_float min, V2_float max);
-
-	template <Arithmetic T>
-	Rect(Vector2<T> size) : min{ -size * 0.5f }, max{ size * 0.5f } {} // NOSONAR
-
-	template <Arithmetic T>
-	Rect(T x, T y) : Rect{ Vector2<T>{ x, y } } {}
-
-	V2_float GetSize() const;
-
-	/// @return Size scaled relative to the transform.
-	V2_float GetSize(Transform transform) const;
-
-	/// @return New transform offset by the draw_origin.
-	[[nodiscard]] Transform Offset(Transform transform, Origin draw_origin) const;
-
-	/// @return Quad vertices relative to the transform where transform.position is taken as the
-	/// rectangle center.
-	std::array<V2_float, 4> GetWorldVertices(Transform transform) const;
-	std::array<V2_float, 4> GetLocalVertices() const;
-
-	std::array<V2_float, 4> GetWorldVertices(Transform transform, Origin draw_origin) const;
-
-	/// @return Center relative to the world.
-	V2_float GetCenter(Transform transform) const;
-
-	bool operator==(const Rect&) const = default;
-
+class Rect {
+public:
 	V2_float min;
 	V2_float max;
 
-	PTGN_SERIALIZER_REGISTER_IGNORE_DEFAULTS(Rect, min, max)
+	constexpr Rect() = default;
+
+	constexpr Rect(V2_float rect_min, V2_float rect_max) : min{ rect_min }, max{ rect_max } {
+		PTGN_ASSERT(!GetSize().HasNegative(), "Rect size cannot be negative: ", GetSize());
+	}
+
+	template <Arithmetic T>
+	constexpr Rect(Vector2<T> size) : Rect{ -size * 0.5f, size * 0.5f } {} // NOSONAR
+
+	template <Arithmetic TX, Arithmetic TY>
+	constexpr Rect(TX x, TY y) : Rect{ V2_float{ x, y } } {}
+
+	template <Arithmetic T>
+	constexpr Rect(Vector2<T> size, Origin origin) : Rect{ size } { // NOSONAR
+		auto offset{ GetOffset(origin, size) };
+		*this = Translated(offset);
+	}
+
+	template <Arithmetic T>
+	constexpr Rect(V2_float position, Vector2<T> size, Origin origin) : Rect{ size, origin } {
+		*this = Translated(position);
+	}
+
+	[[nodiscard]] constexpr Rect Expanded(V2_float left_top, V2_float right_bottom) const {
+		return {
+			min - left_top,
+			max + right_bottom,
+		};
+	}
+
+	/// @return New Rect with min and max expanded by the +margin.
+	[[nodiscard]] constexpr Rect Expanded(V2_float margin) const {
+		return Expanded(margin, margin);
+	}
+
+	/// @return New Rect with min and max translated by the +offset.
+	[[nodiscard]] constexpr Rect Translated(V2_float offset) const {
+		return {
+			min + offset,
+			max + offset,
+		};
+	}
+
+	constexpr V2_float GetSize() const {
+		return max - min;
+	}
+
+	/// @return Size scaled relative to the transform.
+	constexpr V2_float GetSize(Transform transform) const {
+		auto size{ GetSize() };
+		auto abs_scale{ Abs(transform.scale) };
+		return size * abs_scale;
+	}
+
+	/// @return Center relative to the local shape.
+	constexpr V2_float GetCenter() const {
+		return (max + min) * 0.5f;
+	}
+
+	/// @return Center relative to the local shape, offset by the given origin.
+	constexpr V2_float GetOriginPoint(Origin origin) const {
+		return GetCenter() - GetOffset(origin, GetSize());
+	}
+
+	/// @return Center relative to the transform.
+	constexpr V2_float GetCenter(Transform transform) const {
+		return transform.Apply(GetCenter());
+	}
+
+	/// @return New transform offset by the origin.
+	[[nodiscard]] constexpr Transform Offset(Transform transform, Origin origin) const {
+		auto local_offset{ GetOffset(origin, GetSize()) };
+
+		if (local_offset.IsZero()) {
+			return transform;
+		}
+
+		// Transform the offset as a vector: apply scale + rotation, but remove translation.
+		auto world_zero{ transform.Apply(V2_float{}) };
+		auto world_offset_point{ transform.Apply(local_offset) };
+		auto world_offset{ world_offset_point - world_zero };
+
+		transform.position += world_offset;
+
+		return transform;
+	}
+
+	/// @return Quad vertices relative to the transform where transform.position is taken as the
+	/// rectangle center.
+	constexpr std::array<V2_float, 4> GetWorldVertices(Transform transform) const {
+		auto local_vertices{ GetLocalVertices() };
+		return transform.Apply(local_vertices);
+	}
+
+	constexpr std::array<V2_float, 4> GetLocalVertices() const {
+		return { min, V2_float{ max.x, min.y }, max, V2_float{ min.x, max.y } };
+	}
+
+	constexpr std::array<V2_float, 4> GetWorldVertices(Transform transform, Origin origin) const {
+		auto offset_transform{ Offset(transform, origin) };
+		return GetWorldVertices(offset_transform);
+	}
+
+	/// @return A Rect that bounds the given points, where the min and max are axis aligned with the
+	/// world axes.
+	template <std::ranges::input_range TRange>
+		requires std::convertible_to<std::ranges::range_reference_t<TRange>, V2_float>
+	[[nodiscard]] constexpr static Rect FromPoints(TRange&& points) {
+		auto it{ std::ranges::begin(points) };
+		auto end{ std::ranges::end(points) };
+
+		PTGN_ASSERT(it != end, "Must provide at least one point to form bounds from");
+
+		Rect bounds{
+			*it,
+			*it,
+		};
+
+		// Skip the first element since it is the default value.
+		++it;
+
+		PTGN_ASSERT(it != end, "Must provide at least two points to form bounds from");
+
+		auto expand_to_include = [&](V2_float point) {
+			bounds.min = Min(bounds.min, point);
+			bounds.max = Max(bounds.max, point);
+		};
+
+		std::ranges::for_each(std::ranges::subrange{ it, end }, expand_to_include);
+
+		return bounds;
+	}
+
+	constexpr bool operator==(const Rect&) const = default;
+
+	PTGN_REFLECT(Rect, min, max)
 };
 
 } // namespace ptgn
+
+template <>
+struct std::hash<ptgn::Rect> {
+	std::size_t operator()(const ptgn::Rect& rect) const {
+		return ptgn::Hash(rect.min, rect.max);
+	}
+};

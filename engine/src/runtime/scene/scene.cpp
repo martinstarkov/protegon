@@ -1,413 +1,1139 @@
 #include "runtime/scene/scene.h"
 
+#include <ecs/ecs.h>
+
 #include <algorithm>
-#include <list>
+#include <cstdint>
 #include <memory>
 #include <optional>
+#include <string>
+#include <string_view>
+#include <tuple>
 #include <utility>
-#include <variant>
 #include <vector>
 
 #include "app/application.h"
+#include "app/application_context.h"
 #include "core/assert.h"
-#include "core/event/dispatcher.h"
-#include "core/math/geometry/origin.h"
-#include "core/math/geometry/rect.h"
+#include "core/event/event.h"
+#include "core/graphics/color.h"
+#include "core/log.h"
 #include "core/math/matrix4.h"
 #include "core/math/vector2.h"
-#include "core/time/time.h"
-#include "core/util/span.h"
-#include "ecs/ecs.h"
-#include "renderer/primitives/blend_mode.h"
-#include "renderer/primitives/color.h"
-#include "renderer/primitives/render_state.h"
-#include "renderer/primitives/texture_format.h"
-#include "renderer/primitives/vertex.h"
-#include "renderer/primitives/viewport.h"
+#include "core/util/concepts.h"
+#include "core/util/hash.h"
+#include "renderer/draw_context.h"
+#include "renderer/pipeline/blend_mode.h"
+#include "renderer/pipeline/camera.h"
+#include "renderer/pipeline/effect_params.h"
+#include "renderer/pipeline/render_state.h"
+#include "renderer/pipeline/viewport.h"
 #include "renderer/renderer.h"
+#include "renderer/resources/framebuffer.h"
+#include "renderer/resources/texture.h"
+#include "renderer/resources/texture_format.h"
 #include "runtime/animation/animation.h"
-#include "runtime/animation/tween.h"
+#include "runtime/asset/asset_manager.h"
+#include "runtime/asset/prefab.h"
+#include "runtime/ecs/component_registry.h"
 #include "runtime/ecs/entity.h"
+#include "runtime/ecs/entity_hierarchy.h"
+#include "runtime/ecs/entity_serialization.h"
 #include "runtime/ecs/manager.h"
-#include "runtime/graphics/camera.h"
+#include "runtime/ecs/tag.h"
+#include "runtime/ecs/uuid.h"
 #include "runtime/graphics/draw.h"
 #include "runtime/graphics/drawable.h"
-#include "runtime/graphics/particle.h"
-#include "runtime/graphics/render_context.h"
-#include "runtime/graphics/render_target_component.h"
-#include "runtime/physics/collider.h"
+#include "runtime/graphics/fx/light.h"
+#include "runtime/graphics/fx/particle.h"
+#include "runtime/graphics/render_queue.h"
+#include "runtime/graphics/render_target.h"
+#include "runtime/graphics/tint.h"
+#include "runtime/graphics/visible.h"
+#include "runtime/interaction/interaction_system.h"
+#include "runtime/physics/bounding_aabb.h"
 #include "runtime/physics/collision_handler.h"
 #include "runtime/physics/lifetime.h"
 #include "runtime/physics/physics.h"
-#include "runtime/scene/scene_input.h"
-#include "runtime/scene/scene_manager.h"
-#include "runtime/scene/scene_state.h"
-#include "runtime/scripting/scripts.h"
-#include "serialization/json/json.h"
+#include "runtime/scene/scene_camera.h"
+#include "runtime/scene/scene_context.h"
+#include "runtime/scene/scene_event.h"
+#include "runtime/scene/scene_event_handler.h"
+#include "runtime/scene/scene_file.h"
+#include "runtime/scene/scene_transition.h"
+#include "runtime/scripting/script.h"
+#include "runtime/timer/timer.h"
+#include "runtime/ui/button.h"
+#include "runtime/ui/dialogue.h"
+#include "runtime/ui/dropdown.h"
+#include "runtime/ui/slider.h"
+#include "runtime/ui/toggle_button.h"
+#include "runtime/ui/tooltip.h"
+#include "runtime/world/chunk.h"
+#include "runtime/world/tilemap.h"
 #include "tools/debug/debug_system.h"
 
 namespace ptgn {
 
-SceneEventHandler::SceneEventHandler(Scene& scene) : scene_{ scene } {}
+namespace {
 
-void SceneEventHandler::Emit(EventDispatcher d) {
-	scene_.InternalEmit(d);
+constexpr TextureFormat kDefaultSceneTargetFormat{ kDefaultRenderTargetFormat };
+constexpr Color kDefaultSceneBackgroundColor{ kDefaultRenderTargetClearColor };
+constexpr BlendMode kDefaultFirstSceneBlendMode{ BlendMode::ReplaceRGBA };
+constexpr std::string_view kDefaultSceneTargetTag{ "Scene Target" };
+constexpr std::string_view kDefaultSceneCameraTag{ "Main Camera" };
+constexpr std::string_view kDefaultSceneFixedCameraTag{ "Fixed Camera" };
+constexpr RenderMaskBits kDefaultFixedCameraIncludeRenderMask{ kRenderMaskNone };
+constexpr RenderMaskBits kDefaultFixedCameraExcludeRenderMask{ kRenderMaskAll };
+
+void UpdateRenderTargetSizes(Scene& scene) {
+	auto display_size{ scene.ctx().renderer.GetDisplaySize() };
+
+	if (!display_size.IsPositive()) {
+		display_size = scene.ctx().renderer.GetPresentationSize();
+	}
+
+	for (auto [entity, _target] : scene.EntitiesWith<impl::RenderTargetDesc>()) {
+		RenderTarget{ entity }.UpdateSize(display_size);
+	}
 }
 
-LocalSceneManager::LocalSceneManager(SceneManager& scene_manager, Scene& scene) :
-	scene_manager_{ scene_manager }, scene_{ scene } {}
+// Tilemap entities are intentionally ordinary ECS objects. Rendering is derived from
+// the tiles currently present in those entities, irrespective of their provenance
+// (authored placements, generators, or edits restored from the chunk journal).
+void QueueRuntimeTilemaps(Scene& scene) {
+	SceneCamera camera{ scene.GetCamera() };
+	const auto& preview_camera{ scene.ctx().renderer.GetPrimaryWorldCamera() };
+	BoundingAABB visible{ preview_camera.has_value()
+		? GetBoundingAABB(preview_camera->GetWorldVertices(
+			scene.ctx().renderer.GetLogicalSize()))
+		: GetBoundingAABB(camera.GetWorldVertices()) };
+	float multiplier{ scene.ctx().chunks.GetSettings().render_viewports };
+	V2_float center{ (visible.min + visible.max) * 0.5f };
+	V2_float half{ (visible.max - visible.min) * (0.5f * multiplier) };
+	visible = { center - half, center + half };
 
-bool LocalSceneManager::CanIssueCommands(std::size_t target_key) const {
-	if (scene_.IsTransitioning()) {
+	impl::AssetAccessor asset{ scene.ctx().asset };
+	for (auto [entity, data] : scene.EntitiesWith<impl::TilemapData>()) {
+		if (!IsVisible(entity) || !camera.CanSee(entity)) {
+			continue;
+		}
+
+		Tilemap tilemap{ entity };
+		Depth depth{ GetDepth(entity) };
+		auto draw_tile = [&](const TilemapTile& tile) {
+			if (!tile.texture) {
+				return;
+			}
+
+			V2_float size{ tile.pixel_size.IsPositive() ? V2_float{ tile.pixel_size }
+														: data.cell_size };
+			V2_float anchor{ tilemap.CellToWorld(tile.coordinate) + tile.offset };
+			V2_float tile_center{ anchor + GetOffset(tile.origin, size) };
+			V2_float tile_min{ tile_center - size * 0.5f };
+			V2_float tile_max{ tile_center + size * 0.5f };
+			if (tile_max.x < visible.min.x || tile_min.x > visible.max.x ||
+				tile_max.y < visible.min.y || tile_min.y > visible.max.y) {
+				return;
+			}
+
+			if (!asset.Has<Texture>(tile.texture)) {
+				return;
+			}
+
+			scene.ctx().render_queue.DrawTexture(
+				Transform{ anchor }, tile.texture,
+				{
+					.size				 = size,
+					.origin				 = tile.origin,
+					.tint				 = tile.tint,
+					.depth				 = depth,
+					.texture_coordinates = tile.texture_coordinates,
+				}
+			);
+		};
+
+		// Resident procedural maps and large authored maps can contain many cells.
+		// Use the tilemap's indexed cell lookup when the visible window is smaller
+		// than the resident tile collection; otherwise a linear pass is cheaper.
+		V2_int min_cell{ tilemap.WorldToCell(visible.min) };
+		V2_int max_cell{ tilemap.WorldToCell(visible.max) };
+		// One extra cell catches ordinary edge-aligned sprites on viewport edges.
+		// Custom oversized offset sprites are still handled by the linear fallback.
+		long long nx{ static_cast<long long>(max_cell.x) - min_cell.x + 3 };
+		long long ny{ static_cast<long long>(max_cell.y) - min_cell.y + 3 };
+		bool indexed{ nx > 0 && ny > 0 && nx <= 8192 && ny <= 8192 &&
+					  nx * ny < static_cast<long long>(data.tiles.size()) };
+
+		if (indexed) {
+			for (int y = min_cell.y - 1; y <= max_cell.y + 1; ++y) {
+				for (int x = min_cell.x - 1; x <= max_cell.x + 1; ++x) {
+					if (const auto* tile{ tilemap.FindTile({ x, y }) }) {
+						draw_tile(*tile);
+					}
+				}
+			}
+		} else {
+			for (const auto& tile : data.tiles) {
+				draw_tile(tile);
+			}
+		}
+	}
+}
+
+void ValidateUIControlTypes(Scene& scene) {
+	for (Entity entity : scene.Entities()) {
+		int specialized_count{ static_cast<int>(entity.Has<impl::SliderData>()) +
+							   static_cast<int>(entity.Has<impl::ToggleButtonData>()) +
+							   static_cast<int>(entity.Has<impl::DropdownData>()) };
+
+		PTGN_ASSERT(
+			specialized_count <= 1,
+			"A UI control cannot simultaneously be a Slider, ToggleButton, and/or Dropdown. "
+			"ButtonData is the shared base and may coexist with one specialized control type."
+		);
+	}
+}
+
+void ApplyCameraEffects(
+	Renderer& render, DrawContext& draw_context, Viewport display_viewport,
+	V2_float render_target_size, const Matrix4& view_projection, Color tint,
+	const impl::EffectParams& effect_params
+) {
+	if (tint == color::White && !effect_params.draw_callback) {
+		return;
+	}
+
+	impl::RendererAccessor renderer{ render };
+	auto texture{ renderer.GetTexture(renderer.GetBoundFramebuffer()) };
+
+	PTGN_ASSERT(view_projection == draw_context.GetRenderState().view_projection);
+	PTGN_ASSERT(display_viewport == draw_context.GetRenderState().viewport);
+	PTGN_ASSERT(
+		display_viewport == draw_context.GetRenderState().scissor.viewport &&
+		draw_context.GetRenderState().scissor.enabled
+	);
+
+	renderer.FlushBatch();
+	TextureDrawParams params{ .size{ display_viewport.size },
+							  .tint{ tint },
+							  .texture_coordinates{ impl::GetTextureCoordinates(
+								  display_viewport.position, display_viewport.size,
+								  render_target_size, true, true
+							  ) },
+							  .effects{ effect_params } };
+
+	// No margin for camera effects so cameras do not exceed viewports
+	params.effects.margin = 0;
+
+	draw_context.WithRenderState(
+		{ .view_projection = Matrix4::Orthographic(display_viewport.size),
+		  .blend_mode	   = BlendMode::ReplaceRGBA },
+		[&draw_context, texture, params, &renderer]() {
+			draw_context.DrawTexture({}, texture, std::move(params));
+			renderer.FlushBatch();
+		}
+	);
+}
+
+template <typename T>
+std::vector<impl::EntityRenderCommand> GetSortedEntityCommands(
+	T entity_view, InvocableR<bool, Entity> auto filter
+) {
+	std::vector<impl::EntityRenderCommand> entity_commands;
+
+	for (auto tuple : entity_view) {
+		Entity entity;
+
+		if constexpr (T::with_filter) {
+			entity = std::get<0>(tuple);
+		} else {
+			entity = tuple;
+		}
+
+		if (filter(entity)) {
+			continue;
+		}
+
+		entity_commands.emplace_back(entity, GetDepth(entity));
+	}
+
+	std::ranges::stable_sort(entity_commands, [](const auto& a, const auto& b) {
+		if (a.depth != b.depth) {
+			return a.depth < b.depth;
+		}
+		return a.entity.WasCreatedBefore(b.entity);
+	});
+
+	return entity_commands;
+}
+
+void DrawCommands(
+	Renderer& renderer, DrawContext& draw_context, auto& manual_commands, auto entities,
+	InvocableR<bool, Entity> auto filter, bool debug
+) {
+	std::size_t entity_index{ 0 };
+	std::size_t manual_index{ 0 };
+
+	std::vector<impl::EntityRenderCommand> entity_commands;
+
+	// Debug entity commands not supported.
+	if (!debug) {
+		entity_commands = GetSortedEntityCommands(entities, filter);
+	}
+
+	manual_commands.Sort();
+
+	auto entity_count{ entity_commands.size() };
+	auto manual_count{ manual_commands.Count() };
+
+	auto draw_entity = [&]() {
+		PTGN_ASSERT(entity_index < entity_commands.size());
+		const auto& entity_cmd{ entity_commands[entity_index] };
+		PTGN_ASSERT(IsVisible(entity_cmd.entity), "Cannot render entity without visible component");
+		impl::InvokeDrawable(draw_context, entity_cmd.entity);
+		entity_index++;
+	};
+
+	auto draw_command = [&]() {
+		manual_commands.Draw(renderer, manual_index);
+		manual_index++;
+	};
+
+	while (entity_index < entity_count || manual_index < manual_count) {
+		if (manual_index >= manual_count) {
+			draw_entity();
+			continue;
+		}
+
+		if (entity_index >= entity_count) {
+			draw_command();
+			continue;
+		}
+
+		PTGN_ASSERT(entity_index < entity_commands.size());
+
+		auto entity_cmd_depth{ entity_commands[entity_index].depth };
+		auto manual_cmd_depth{ manual_commands.GetDepth(manual_index) };
+
+		if (entity_cmd_depth <= manual_cmd_depth) {
+			draw_entity();
+		} else {
+			draw_command();
+		}
+	}
+	entity_commands.clear();
+	manual_commands.Clear();
+}
+
+void DrawCamera(
+	Renderer& render, DrawContext& draw_context, auto view, RenderTarget render_target,
+	const Camera& camera, std::optional<Color> clear_color, auto& commands, auto& debug_commands,
+	Color tint, const impl::EffectParams& effect_params, InvocableR<bool, Entity> auto filter
+) {
+	auto logical_size{ render.GetLogicalSize() };
+	auto render_target_size{ render_target.GetSize() };
+
+	auto display_viewport{ ptgn::GetDisplayViewport(
+		camera.raw_viewport, camera.viewport_space, logical_size, render_target_size,
+		render_target == render_target.GetScene().GetRenderTarget()
+	) };
+
+	impl::RendererAccessor renderer{ render };
+	renderer.SetFramebuffer(&render_target.Get<impl::FramebufferObject>());
+	renderer.SetViewport(display_viewport);
+	renderer.SetViewProjection(camera.view_projection);
+	renderer.SetScissor(ScissorState{ display_viewport });
+
+	if (clear_color.has_value()) {
+		render_target.ClearColor(clear_color.value());
+	}
+
+	DrawCommands(render, draw_context, commands, view, filter, false);
+
+	draw_context.SetBlendMode(BlendMode::Blend);
+
+	DrawCommands(render, draw_context, debug_commands, view, filter, true);
+
+	ApplyCameraEffects(
+		render, draw_context, display_viewport, render_target_size, camera.view_projection, tint,
+		effect_params
+	);
+}
+
+void DrawScene(
+	Scene& scene, auto& commands, auto& debug_commands, DrawContext& draw_context,
+	const RenderTarget& render_target, const Camera& cam, const SceneCamera& camera,
+	std::optional<Color> clear_color, Color tint, const impl::EffectParams& effect_params,
+	InvocableR<bool, Entity> auto filter
+) {
+	auto entity_commands{ GetSortedEntityCommands(scene.Entities(), filter) };
+
+	impl::UpdateLightVisibilityPolygons(
+		entity_commands, cam.GetWorldVertices(scene.ctx().renderer.GetLogicalSize())
+	);
+
+	draw_context.SetBlendMode(BlendMode::Blend);
+
+	impl::DrawDebug(scene, camera, cam, render_target, filter, scene.ctx().debug);
+
+	auto view{ scene.EntitiesWith<impl::IDrawable>() };
+
+	DrawCamera(
+		scene.ctx().renderer, draw_context, view, render_target, cam, clear_color, commands,
+		debug_commands, tint, effect_params, filter
+	);
+}
+
+[[nodiscard]] const SerializedEntity* FindSerializedEntity(
+	const SerializedEntity& serialized, UUID uuid
+) {
+	if (GetSerializedEntityUUID(serialized) == uuid) {
+		return &serialized;
+	}
+
+	for (const auto& child : serialized.children) {
+		if (const auto* result{ FindSerializedEntity(child, uuid) }) {
+			return result;
+		}
+	}
+	return nullptr;
+}
+
+[[nodiscard]] const SerializedEntity* FindSerializedEntity(
+	const std::vector<SerializedEntity>& roots, UUID uuid
+) {
+	for (const auto& root : roots) {
+		if (const auto* result{ FindSerializedEntity(root, uuid) }) {
+			return result;
+		}
+	}
+	return nullptr;
+}
+
+void CollectSerializedUUIDs(const SerializedEntity& serialized, std::vector<UUID>& uuids) {
+	UUID uuid{ GetSerializedEntityUUID(serialized) };
+
+	PTGN_ASSERT(
+		!std::ranges::contains(uuids, uuid), "Serialized scene contains duplicate entity UUID"
+	);
+
+	uuids.emplace_back(uuid);
+
+	for (const auto& child : serialized.children) {
+		CollectSerializedUUIDs(child, uuids);
+	}
+}
+
+void ApplySerializedIdentity(Entity entity, const SerializedEntity& serialized) {
+	PTGN_ASSERT(entity, "Cannot apply serialized identity to a null entity");
+	PTGN_ASSERT(entity.Has<UUID>(), "Created entity is missing UUID");
+	PTGN_ASSERT(entity.Has<Tag>(), "Created entity is missing Tag");
+
+	entity.Get<UUID>()		= GetSerializedEntityUUID(serialized);
+	entity.Get<Tag>().value = serialized.tag;
+}
+
+[[nodiscard]] bool IsPrimarySerializedEntity(
+	UUID uuid, UUID render_target_uuid, UUID camera_uuid, UUID fixed_camera_uuid
+) {
+	return uuid == render_target_uuid || uuid == camera_uuid || uuid == fixed_camera_uuid;
+}
+
+void CreateSerializedNodes(
+	Scene& scene, const SerializedEntity& serialized, UUID render_target_uuid, UUID camera_uuid,
+	UUID fixed_camera_uuid
+) {
+	UUID uuid{ GetSerializedEntityUUID(serialized) };
+
+	if (!IsPrimarySerializedEntity(uuid, render_target_uuid, camera_uuid, fixed_camera_uuid)) {
+		scene.CreateEntity(Tag{ serialized.tag }, uuid);
+	}
+
+	for (const auto& child : serialized.children) {
+		CreateSerializedNodes(scene, child, render_target_uuid, camera_uuid, fixed_camera_uuid);
+	}
+}
+
+void DeserializeSerializedNodes(Scene& scene, const SerializedEntity& serialized) {
+	Entity entity{ scene.GetEntity(GetSerializedEntityUUID(serialized)) };
+
+	PTGN_ASSERT(entity, "Failed to find entity created for serialized UUID");
+
+	DeserializeEntity(serialized, entity);
+
+	for (const auto& child : serialized.children) {
+		DeserializeSerializedNodes(scene, child);
+	}
+}
+
+void RestoreSerializedChildren(Scene& scene, const SerializedEntity& serialized) {
+	Entity parent{ scene.GetEntity(GetSerializedEntityUUID(serialized)) };
+
+	PTGN_ASSERT(parent, "Failed to find serialized hierarchy parent entity");
+
+	for (const auto& child_serialized : serialized.children) {
+		Entity child{ scene.GetEntity(GetSerializedEntityUUID(child_serialized)) };
+
+		PTGN_ASSERT(child, "Serialized hierarchy references a missing child UUID");
+		PTGN_ASSERT(
+			!HasParent(child), "Serialized hierarchy assigns the same child to multiple parents"
+		);
+
+		SetParent(child, parent);
+
+		RestoreSerializedChildren(scene, child_serialized);
+	}
+}
+
+} // namespace
+
+Scene::Scene(Scene&& other) noexcept :
+	ctx_{ std::exchange(other.ctx_, nullptr) },
+	manager_{ std::exchange(other.manager_, {}) },
+	tags_{ std::exchange(other.tags_, {}) },
+	data_{ std::exchange(other.data_, {}) },
+	asset_dependencies_{ std::exchange(other.asset_dependencies_, {}) },
+	explicit_asset_dependencies_{ std::exchange(other.explicit_asset_dependencies_, {}) },
+	retained_asset_dependencies_{ std::exchange(other.retained_asset_dependencies_, {}) } {
+	if (ctx_) {
+		ctx_->Rebind(*this);
+	}
+}
+
+Scene& Scene::operator=(Scene&& other) noexcept {
+	if (this != &other) {
+		ReleaseLoadedAssetDependencies();
+
+		ctx_						 = std::exchange(other.ctx_, nullptr);
+		manager_					 = std::exchange(other.manager_, {});
+		data_						 = std::exchange(other.data_, {});
+		tags_						 = std::exchange(other.tags_, {});
+		asset_dependencies_			 = std::exchange(other.asset_dependencies_, {});
+		explicit_asset_dependencies_ = std::exchange(other.explicit_asset_dependencies_, {});
+		retained_asset_dependencies_ = std::exchange(other.retained_asset_dependencies_, {});
+
+		if (ctx_) {
+			ctx_->Rebind(*this);
+		}
+	}
+	return *this;
+}
+
+Scene::~Scene() {
+	ReleaseLoadedAssetDependencies();
+}
+
+void Scene::InitBase(Application& app, impl::SceneData&& scene_data) {
+	data_ = std::move(scene_data);
+	ctx_  = std::make_unique<SceneContext>(app, *this);
+}
+
+void Scene::Init(Application& app, impl::SceneData&& scene_data) {
+	InitBase(app, std::move(scene_data));
+	CreateDefaultSceneEntities();
+
+	std::vector<AssetKey> loaded_during_on_new;
+
+	auto& assets{ impl::ApplicationAccessor::ctx(app).assets };
+	assets.BeginAssetCapture(loaded_during_on_new);
+
+	OnNew();
+	assets.EndAssetCapture(loaded_during_on_new);
+	Refresh();
+
+	auto discovered_dependencies{ impl::DiscoverSceneAssetDependencies(*this) };
+
+	for (const auto& key : loaded_during_on_new) {
+		if (!std::ranges::contains(discovered_dependencies, key) &&
+			!std::ranges::contains(explicit_asset_dependencies_, key)) {
+			explicit_asset_dependencies_.emplace_back(key);
+		}
+	}
+
+	asset_dependencies_ = impl::DiscoverSceneAssetDependencies(*this, explicit_asset_dependencies_);
+
+	UpdateRenderTargetSizes(*this);
+
+	auto& app_context{ impl::ApplicationAccessor::ctx(app) };
+
+	impl::SaveBootstrapProjectScene(app, *this, app_context.project_bootstrap_save_pending);
+
+	OnLoad();
+	Refresh();
+	if (IsRuntime()) {
+		ctx().event.PushGlobal<event::SceneLoaded>();
+		ScriptSystem::ApplyPending(*this);
+	}
+}
+
+void Scene::Init(Application& app, impl::SceneData&& scene_data, const json& serialized_content) {
+	InitBase(app, std::move(scene_data));
+	DeserializeContent(serialized_content);
+
+	Refresh();
+
+	if (IsRuntime()) {
+		// Runtime receives a freshly synchronized hierarchy but no editor prefab link metadata.
+		BakePrefabInstances(*this);
+	} else {
+		// Serialized editor scenes are only a cache of the last synchronized prefab state.
+		// Reresolve the assets on load so external or prior session prefab edits propagate.
+		SyncPrefabInstances(*this);
+	}
+
+	Refresh();
+	OnLoad();
+	Refresh();
+	if (IsRuntime()) {
+		ctx().event.PushGlobal<event::SceneLoaded>();
+		ScriptSystem::ApplyPending(*this);
+	}
+}
+
+void Scene::CreateDefaultSceneEntities() {
+	// Must be created before scene camera.
+	ctx_->render_target_ =
+		CreateRenderTarget(*this, {}, kDefaultSceneBackgroundColor, kDefaultSceneTargetFormat);
+	ctx_->render_target_.Add<Tag>(kDefaultSceneTargetTag);
+	ctx_->render_target_.Remove<impl::IDrawable>();
+	ctx_->camera = CreateCamera(*this, {}, std::nullopt, ViewportSpace::Logical);
+	ctx_->camera.Add<Tag>(kDefaultSceneCameraTag);
+	ctx_->fixed_camera_ = CreateCamera(*this, {}, std::nullopt, ViewportSpace::Logical);
+	ctx_->fixed_camera_.Add<Tag>(kDefaultSceneFixedCameraTag);
+	ctx_->fixed_camera_.SetRenderMasks(
+		kDefaultFixedCameraIncludeRenderMask, kDefaultFixedCameraExcludeRenderMask
+	);
+
+	SetUI(ctx_->fixed_camera_, true);
+
+	if (data_.first_scene) {
+		SetBlendMode(GetRenderTarget(), kDefaultFirstSceneBlendMode);
+	}
+
+	Refresh();
+}
+
+bool Scene::AddTag(std::string name) {
+	if (name.empty() || name == "Untagged" || std::ranges::contains(tags_, name)) {
 		return false;
 	}
-
-	if (!scene_manager_.Has(target_key)) {
-		return true;
-	}
-
-	if (const auto& target_scene{ scene_manager_.Get(target_key) };
-		target_scene.IsTransitioning()) {
-		return false;
-	}
-
+	tags_.push_back(std::move(name));
+	std::ranges::sort(tags_);
 	return true;
 }
 
-SceneContext::SceneContext(Application& app, Scene& parent_scene) :
-	global_event{ app.events_ },
-	window{ app.window_ },
-	asset{ app.assets_ },
-	font{ app.font_ },
-	audio{ app.audio_ },
-	scene{ app.scenes_, parent_scene },
-	renderer{ parent_scene, app.renderer_ },
-	debug{ renderer },
-	event{ parent_scene },
-	input{ parent_scene, app.input_ },
-	physics{ parent_scene },
-	global_renderer_{ app.renderer_ },
-	app_{ app } {}
+json Scene::SerializeContent() const {
+	std::vector<Entity> roots;
 
-SceneContext::~SceneContext() noexcept {
-	// Needs access to destructors.
-}
-
-void SceneContext::Stop() {
-	app_.Stop();
-}
-
-secondsf SceneContext::dt() const {
-	return app_.dt();
-}
-
-milliseconds SceneContext::TimeSinceStart() const {
-	return app_.TimeSinceStart();
-}
-
-bool SceneContext::IsRunning() const {
-	return app_.IsRunning();
-}
-
-std::size_t SceneContext::GetFrameCount() const {
-	return app_.GetFrameCount();
-}
-
-Scene::Scene() {}
-
-Scene::~Scene() {}
-
-void Scene::Init(Application& app) {
-	ctx_ = std::make_unique<SceneContext>(app, *this);
-
-	ctx_->camera		= CreateCamera(*this);
-	ctx_->fixed_camera_ = CreateCamera(*this);
-	ctx_->fixed_camera_.SetMasks(kLayersNone, kLayersAll);
-	SetUI(ctx_->fixed_camera_, true);
-
-	render_target_ = CreateRenderTarget(
-		*this, ResizeMode::DisplaySize, color::Transparent, TextureFormat::RGBA8
-	);
-	render_target_.Remove<impl::IDrawable>();
-
-	// PTGN_LOG("[scene=", this, "]");
-	// PTGN_LOG("[rt=", render_target_, "]");
-	// PTGN_LOG("[camera=", camera, "]");
-	// PTGN_LOG("[fixed_camera=", fixed_camera, "]");
-	Refresh();
-
-	for (auto [e, scripts] : EntitiesWith<impl::Scripts>()) {
-		scripts.ApplyPending();
+	for (Entity entity : Entities()) {
+		if (!HasParent(entity) && !ctx_->chunks.OwnsEntity(entity)) {
+			roots.emplace_back(entity);
+		}
 	}
 
+	SortByLocalDepth(roots);
+
+	json serialized_entities = json::array();
+
+	for (Entity root : roots) {
+		serialized_entities.emplace_back(SerializeEntity(
+			root, {
+					  .include_uuid		= true,
+					  .include_children = true,
+				  }
+		));
+	}
+
+	json primary_entities;
+
+	primary_entities["render_target"] = GetRenderTarget().Get<UUID>();
+	primary_entities["camera"]		  = GetCamera().Get<UUID>();
+	primary_entities["fixed_camera"]  = GetFixedCamera().Get<UUID>();
+
+	json content;
+
+	content["primary_entities"]		   = std::move(primary_entities);
+	content["entities"]				   = std::move(serialized_entities);
+	content["tags"]					   = tags_;
+	content["settings"]["physics"]	   = ctx_->physics;
+	content["settings"]["interaction"] = ctx_->interaction;
+	content["settings"]["chunks"]	   = ctx_->chunks.GetSettings();
+
+	return content;
+}
+
+void Scene::DeserializeContent(const json& serialized_content) {
+	PTGN_ASSERT(serialized_content.is_object(), "Serialized scene content must be a JSON object");
+
+	tags_.clear();
+	if (auto it{ serialized_content.find("tags") };
+		it != serialized_content.end() && it->is_array()) {
+		for (const auto& value : *it) {
+			if (value.is_string()) {
+				AddTag(value.get<std::string>());
+			}
+		}
+	}
+
+	const auto& primary_entities{ serialized_content.at("primary_entities") };
+	const auto& serialized_entities_json{ serialized_content.at("entities") };
+
+	PTGN_ASSERT(primary_entities.is_object(), "Serialized primary entities must be a JSON object");
+	PTGN_ASSERT(
+		serialized_entities_json.is_array(), "Serialized scene entities must be a JSON array"
+	);
+
+	UUID render_target_uuid{ primary_entities.at("render_target").get<UUID>() };
+	UUID camera_uuid{ primary_entities.at("camera").get<UUID>() };
+	UUID fixed_camera_uuid{ primary_entities.at("fixed_camera").get<UUID>() };
+
+	PTGN_ASSERT(
+		render_target_uuid != camera_uuid && render_target_uuid != fixed_camera_uuid &&
+			camera_uuid != fixed_camera_uuid,
+		"Serialized primary entity UUIDs must be unique"
+	);
+
+	std::vector<SerializedEntity> serialized_entities;
+	serialized_entities_json.get_to(serialized_entities);
+	std::vector<UUID> serialized_uuids;
+
+	for (const auto& root : serialized_entities) {
+		CollectSerializedUUIDs(root, serialized_uuids);
+	}
+
+	const SerializedEntity* render_target_serialized{
+		FindSerializedEntity(serialized_entities, render_target_uuid)
+	};
+	const SerializedEntity* camera_serialized{
+		FindSerializedEntity(serialized_entities, camera_uuid)
+	};
+	const SerializedEntity* fixed_camera_serialized{
+		FindSerializedEntity(serialized_entities, fixed_camera_uuid)
+	};
+
+	PTGN_ASSERT(render_target_serialized, "Serialized primary render target entity is missing");
+	PTGN_ASSERT(camera_serialized, "Serialized primary camera entity is missing");
+	PTGN_ASSERT(fixed_camera_serialized, "Serialized fixed camera entity is missing");
+
+	// Pass 1: construct primary entities through their specialized
+	// factories and assign their persistent identities.
+	ctx_->render_target_ =
+		CreateRenderTarget(*this, {}, kDefaultSceneBackgroundColor, kDefaultSceneTargetFormat);
+
+	ApplySerializedIdentity(ctx_->render_target_, *render_target_serialized);
+
+	ctx_->render_target_.Remove<impl::IDrawable>();
+	ctx_->camera = CreateCamera(*this, {}, std::nullopt, ViewportSpace::Logical);
+
+	ApplySerializedIdentity(ctx_->camera, *camera_serialized);
+
+	ctx_->fixed_camera_ = CreateCamera(*this, {}, std::nullopt, ViewportSpace::Logical);
+
+	ApplySerializedIdentity(ctx_->fixed_camera_, *fixed_camera_serialized);
+
+	ctx_->fixed_camera_.SetRenderMasks(
+		kDefaultFixedCameraIncludeRenderMask, kDefaultFixedCameraExcludeRenderMask
+	);
+
+	SetUI(ctx_->fixed_camera_, true);
+
+	if (data_.first_scene) {
+		SetBlendMode(GetRenderTarget(), kDefaultFirstSceneBlendMode);
+	}
+	// Create all non-primary entities before component data is
+	// deserialized so every persistent UUID can be resolved.
+	for (const auto& root : serialized_entities) {
+		CreateSerializedNodes(*this, root, render_target_uuid, camera_uuid, fixed_camera_uuid);
+	}
 	Refresh();
+
+	// Pass 2: restore Tag, marker components, and ordinary components.
+	for (const auto& root : serialized_entities) {
+		DeserializeSerializedNodes(*this, root);
+	}
+	Refresh();
+
+	// Pass 3: rebuild the recursively represented hierarchy.
+	for (const auto& root : serialized_entities) {
+		RestoreSerializedChildren(*this, root);
+	}
+	Refresh();
+
+	UpdateRenderTargetSizes(*this);
+
+	serialized_content.at("settings").at("physics").get_to(ctx_->physics);
+	serialized_content.at("settings").at("interaction").get_to(ctx_->interaction);
+	if (auto it{ serialized_content.at("settings").find("chunks") };
+		it != serialized_content.at("settings").end()) {
+		// Scenes saved before persistent chunk directories were introduced do not
+		// contain this field. Retain their previous in-memory-only behavior.
+		json chunk_settings{ *it };
+		if (!chunk_settings.contains("save_directory")) {
+			chunk_settings["save_directory"] = "";
+		}
+		if (!chunk_settings.contains("render_viewports")) {
+			chunk_settings["render_viewports"] = 1.0f;
+		}
+		if (!chunk_settings.contains("simulation_viewports")) {
+			chunk_settings["simulation_viewports"] = 1.5f;
+		}
+		ctx_->chunks.SetSettings(chunk_settings.get<ChunkSettings>());
+	}
+}
+
+void Scene::InternalOnEvent(Event event) {
+	if (!data_.runtime) {
+		return;
+	}
+
+	impl::DialogueSystem::OnEvent(*this, event);
+	ScriptSystem::OnEvent(*this, event);
+
+	if (!event.IsHandled()) {
+		OnEvent(event);
+	}
+}
+
+void Scene::InternalOnEvent(Entity entity, Event event) {
+	if (!data_.runtime || !entity || !entity.HasScene() || &entity.GetScene() != this) {
+		return;
+	}
+
+	// All built in and scripted listeners see the event in one queue draining phase.
+	impl::ButtonSystem::OnEvent(entity, event);
+	impl::ToggleButtonSystem::OnEvent(entity, event);
+	impl::DropdownSystem::OnEvent(entity, event);
+	impl::TooltipSystem::OnEvent(entity, event);
+	entity.OnEvent(event);
+}
+
+void Scene::InternalPreUpdate() {
+	if (data_.runtime) {
+		ctx().chunks.Update(*this);
+		ValidateUIControlTypes(*this);
+
+		// Derived UI components first add ButtonData; ButtonSystem then adds Interactive.
+		impl::SliderSystem::Prepare(*this);
+		impl::ToggleButtonSystem::Prepare(*this);
+		impl::DropdownSystem::Prepare(*this);
+		impl::TooltipSystem::Prepare(*this);
+		Refresh();
+
+		impl::ButtonSystem::Prepare(*this);
+		Refresh();
+
+		ctx().interaction.Update(*this);
+
+		// InteractionSystem lets the draggable follow the mouse. Clamp sliders
+		// back onto their configured start/end segment immediately afterward.
+		impl::SliderSystem::Update(*this);
+	}
 }
 
 void Scene::InternalEnter() {
+	if (!data_.runtime) {
+		return;
+	}
+
+	ctx().chunks.BeginRuntime();
+
+	for (auto [entity, _scripts] : EntitiesWith<impl::Scripts>()) {
+		ScriptSystem::AttachAll(entity);
+	}
+
+	ScriptSystem::ApplyPending(*this);
+	Refresh();
+
 	OnEnter();
 	Refresh();
 
-	for (auto [e, scripts] : EntitiesWith<impl::Scripts>()) {
-		scripts.ApplyPending();
+	for (auto [entity, _scripts] : EntitiesWith<impl::Scripts>()) {
+		ScriptSystem::AttachAll(entity);
 	}
 
+	ScriptSystem::ApplyPending(*this);
 	Refresh();
 }
 
-void Scene::InternalEmit(EventDispatcher d) {
-	for (auto [e, scripts] : EntitiesWith<impl::Scripts>()) {
-		scripts.Emit(d);
-		if (d.IsHandled()) {
-			return;
-		}
+void Scene::SetPaused(bool paused) {
+	if (data_.paused == paused) {
+		return;
 	}
-	if (!d.IsHandled()) {
-		OnEvent(d);
+	data_.paused = paused;
+	if (!data_.runtime) {
+		return;
 	}
+	if (paused) {
+		ctx().event.PushScene<event::ScenePaused>();
+	} else {
+		ctx().event.PushScene<event::SceneResumed>();
+	}
+}
+
+bool Scene::IsPaused() const {
+	return data_.paused;
+}
+
+void Scene::SetRenderEnabled(bool enabled) {
+	data_.render_enabled = enabled;
+}
+
+bool Scene::IsRenderEnabled() const {
+	return data_.render_enabled;
+}
+
+bool Scene::IsRuntime() const {
+	return data_.runtime;
+}
+
+std::string_view Scene::GetRegisteredType() const {
+	return data_.registered_type;
 }
 
 bool Scene::IsTransitioning() const {
-	return state_ == impl::SceneState::TransitionIn || state_ == impl::SceneState::TransitionOut;
+	return data_.state == impl::SceneState::TransitionIn ||
+		   data_.state == impl::SceneState::TransitionOut;
 }
 
-static void InvokeDrawable(DrawContext& draw_context, Entity entity, Camera camera) {
-	PTGN_ASSERT(entity.Has<impl::IDrawable>(), "Cannot render entity without drawable component");
-	PTGN_ASSERT(entity.Has<impl::Visible>(), "Cannot render entity without visible component");
-
-	const auto& drawable{ entity.Get<impl::IDrawable>() };
-
-	const auto& drawable_functions{ impl::IDrawable::data() };
-
-	PTGN_ASSERT(drawable_functions.contains(drawable.hash), "Failed to identify drawable hash");
-
-	const auto& draw_function{ drawable_functions.find(drawable.hash)->second };
-
-	draw_function(draw_context, entity, camera);
+bool Scene::IsAwaitingTransitionDelay() const {
+	return data_.transition && !data_.transition->IsStarted();
 }
 
-void Scene::InternalDraw() {
-	auto game_size{ ctx().renderer.GetGameSize() };
+void Scene::ClearRenderTargets() {
+	impl::RendererAccessor renderer{ ctx().renderer };
 
-	for (auto [c, _camera] : EntitiesWith<impl::CameraData>()) {
-		Camera cam{ c };
-		impl::RecalculateCameraViewProjection(Camera{ cam });
+	for (auto [entity, framebuffer] : EntitiesWith<impl::FramebufferObject>()) {
+		RenderTarget render_target{ entity };
 
-		for (auto entity : Entities()) {
-			bool visible{ entity.Has<impl::Visible, impl::IDrawable>() };
-
-			if (!ctx().collision.settings_.debug_draw_enabled && !visible) {
-				continue;
+		renderer.SetFramebuffer(&framebuffer);
+		renderer.SetViewport(
+			{
+				.position{},
+				.size{ render_target.GetSize() },
 			}
+		);
+		renderer.SetScissor(ScissorState{ false });
+		render_target.ClearColor();
 
-			// Mask test (entity layers vs camera include/exclude).
-			if (!cam.IsVisible(entity)) {
-				continue;
-			}
+		renderer.ClearEntityIds(static_cast<impl::FramebufferId>(framebuffer));
+	}
+}
 
-			// Frustum culling.
-			/*if (!VectorContains(frustum_objects, drawable)) {
-				continue;
-			}*/
+void Scene::DrawCameras(DrawContext& draw_context, const std::vector<Entity>& cameras) {
+	for (const auto& camera_entity : cameras) {
+		SceneCamera camera{ camera_entity };
 
-			if (visible) {
-				auto& draw_commands{ ctx().renderer.GetDrawCommandsForCamera(cam) };
-				draw_commands.emplace_back(entity, GetDepth(entity));
-			}
+		auto render_target{ camera.GetRenderTarget() };
+		auto tint{ GetTint(camera) };
+		auto effect_params{ impl::GetEffectParams(camera) };
+		auto cam{ camera.operator Camera() };
+		auto clear_color{ camera.GetClearColor() };
 
-			if (ctx().collision.settings_.debug_draw_enabled && entity.Has<Collider>()) {
-				const auto& collider{ entity.Get<Collider>() };
-				auto transform{ GetDrawTransform(entity) };
-				auto draw_origin{ GetDrawOrigin(entity) };
-				ctx().debug.DrawShape(
-					collider.shape, transform, ctx().collision.settings_.debug_draw_color,
-					ctx().collision.settings_.debug_draw_fill_style, draw_origin, cam
-				);
-			}
-		}
+		auto filter = [this, camera](auto entity) {
+			return !camera.CanSee(entity) || !IsVisible(entity) ||
+				   !ctx().chunks.ShouldRender(entity, camera);
+		};
+
+		auto& commands{ ctx().render_queue.GetRenderCommands(camera, false) };
+		auto& debug_commands{ ctx().render_queue.GetRenderCommands(camera, true) };
+
+		DrawScene(
+			*this, commands, debug_commands, draw_context, render_target, cam, camera, clear_color,
+			tint, effect_params, filter
+		);
+	}
+}
+
+void Scene::InternalDraw(DrawContext& draw_context) {
+	// Runs for editor and runtime scenes, unlike gameplay only resize events.
+	UpdateRenderTargetSizes(*this);
+
+	for (auto [camera_entity, _data] : EntitiesWith<impl::CameraData>()) {
+		impl::ApplyCameraBounds(SceneCamera{ camera_entity });
 	}
 
-	impl::EntityDepthCompare compare{ true };
+	if (!data_.render_enabled) {
+		// Draw commands may still be generated during update. Discard them
+		// every frame while this scene is excluded from rendering.
+		ctx().render_queue.render_commands_.clear();
+		ctx().render_queue.debug_commands_.clear();
+		return;
+	}
 
-	DrawContext draw_context{ ctx().global_renderer_ };
+	ClearRenderTargets();
 
-	std::vector<Camera> cleared_cameras;
-	std::vector<RenderTarget> cleared_render_targets;
+	// Let OnRender update the camera after physics, before tiles and other render
+	// commands are culled. This also keeps the camera and UI in the same frame.
+	OnRender();
 
-	const auto draw_commands = [&](auto& commands, const auto& sort_func, const auto& draw_func) {
-		PTGN_ASSERT((!VectorContainsDuplicates(commands, [](const auto& c1, const auto& c2) {
-			return c1.first == c2.first;
-		})));
+	// Editor tile previews use their own overlay; runtime draws through the normal
+	// render queue so tilemaps share camera, depth and batching with other entities.
+	if (data_.runtime) {
+		QueueRuntimeTilemaps(*this);
+	}
 
-		std::ranges::sort(commands, [&](const auto& a, const auto& b) {
-			return compare(a.first, b.first);
-		});
+	if (const auto& primary_world_camera{ ctx().renderer.GetPrimaryWorldCamera() };
+		primary_world_camera.has_value()) {
+		std::vector<Entity> non_scene_cameras;
 
-		for (auto& [cam, cmds] : commands) {
-			RenderTarget render_target;
-
-			if (auto parent_rt = cam.template TryGet<impl::ParentRenderTarget>()) {
-				render_target = parent_rt->render_target;
-			} else {
-				render_target = render_target_;
+		for (auto [camera_entity, _data] : EntitiesWith<impl::CameraData>()) {
+			impl::RecalculateCameraViewProjection(SceneCamera{ camera_entity });
+			if ((camera_entity == ctx_->camera || camera_entity == ctx_->fixed_camera_) &&
+				SceneCamera{ camera_entity }.GetRenderTarget() == ctx_->render_target_) {
+				continue;
 			}
-
-			render_target.Bind();
-
-			bool clear_render_target{ !VectorContains(cleared_render_targets, render_target) };
-
-			if (clear_render_target) {
-				render_target.Clear();
-				cleared_render_targets.emplace_back(render_target);
-			}
-
-			auto rt_size{ render_target.GetSize() };
-			V2_float scale{ V2_float{ rt_size } / game_size };
-
-			auto viewport{ cam.GetViewport() };
-			viewport.position = viewport.position * scale;
-			viewport.size	  = viewport.size * scale;
-			draw_context.SetViewport(viewport);
-			draw_context.SetViewProjection(cam.GetViewProjection());
-
-			bool clear_camera{ !VectorContains(cleared_cameras, cam) };
-
-			if (clear_camera) {
-				if (auto clear_color{ cam.GetClearColor() }; clear_color.has_value()) {
-					draw_context.SetScissor(ScissorState{ viewport });
-					render_target.Clear(*clear_color, false);
-					draw_context.SetScissor(ScissorState{ false });
-					cleared_cameras.emplace_back(cam);
-				}
-			}
-
-			sort_func(cmds);
-
-			draw_func(cmds, cam);
+			non_scene_cameras.emplace_back(camera_entity);
 		}
-		commands.clear();
-	};
 
-	draw_commands(
-		ctx().renderer.draw_commands_,
-		[](auto& cmds) {
-			std::ranges::stable_sort(
-				cmds,
-				[&](const impl::DrawCommand& a, const impl::DrawCommand& b) {
-					// For consecutive entity draw commands with the same depth, we sort them by
-					// reverse creation order (logic explained below).
-					if (a.depth == b.depth && std::holds_alternative<Entity>(a.payload) &&
-						std::holds_alternative<Entity>(b.payload)) {
-						return !std::get<Entity>(a.payload).WasCreatedBefore(
-							std::get<Entity>(b.payload)
-						);
-					}
+		SortByDepth(non_scene_cameras, false);
 
-					// Sorting in reverse depth order so that we can iterate backwards and
-					// prioritize entities drawing before manual draw commands.
-					return a.depth >= b.depth;
-				}
-			);
-		},
-		[&draw_context](const auto& cmds, auto camera) {
-			for (std::size_t i{ 0 }; i < cmds.size(); i++) {
-				// By iterating backwards, we ensure that the most recently added commands are drawn
-				// last. This prioritizes drawing entities first followed by manual draw commands.
-				const auto& draw_cmd{ cmds[cmds.size() - 1 - i] };
-				if (std::holds_alternative<Entity>(draw_cmd.payload)) {
-					InvokeDrawable(draw_context, std::get<Entity>(draw_cmd.payload), camera);
-				} else {
-					draw_context.Draw(
-						std::get<impl::ManualCommand>(draw_cmd.payload), draw_cmd.depth
-					);
-				}
-			}
+		DrawCameras(draw_context, non_scene_cameras);
+
+		// Only replace the scene WORLD projection. Do not collapse scene and
+		// fixed-camera commands into one bucket: snow/tile commands and the HUD
+		// otherwise acquire the wrong camera state or ordering during a toggle.
+		SceneCamera scene_camera{ ctx_->camera };
+		Camera cam{ primary_world_camera.value() };
+		auto filter = [this, scene_camera](Entity entity) {
+			return !scene_camera.CanSee(entity) || !IsVisible(entity) ||
+				!ctx().chunks.ShouldRender(entity, SceneCamera{});
+		};
+		auto& commands{ ctx().render_queue.GetRenderCommands(scene_camera, false) };
+		auto& debug_commands{ ctx().render_queue.GetRenderCommands(scene_camera, true) };
+		DrawScene(
+			*this, commands, debug_commands, draw_context, GetRenderTarget(), cam,
+			scene_camera, std::nullopt, color::White, impl::EffectParams{}, filter
+		);
+
+		// The fixed UI camera still needs its own orthographic projection.
+		DrawCameras(draw_context, std::vector<Entity>{ ctx_->fixed_camera_ });
+	} else {
+		std::vector<Entity> cameras;
+
+		for (auto [camera_entity, _data] : EntitiesWith<impl::CameraData>()) {
+			impl::RecalculateCameraViewProjection(SceneCamera{ camera_entity });
+			cameras.emplace_back(camera_entity);
 		}
-	);
 
-	draw_commands(
-		ctx().renderer.debug_commands_,
-		[](auto&) {
-			/* No-op, debug commands are not sorted by depth */
-		},
-		[&draw_context](const auto& cmds, [[maybe_unused]] auto camera) {
-			for (const auto& draw_cmd : cmds) {
-				draw_context.Draw(draw_cmd.payload, draw_cmd.depth);
-			}
+		SortByDepth(cameras, false);
+
+		DrawCameras(draw_context, cameras);
+	}
+	impl::RendererAccessor renderer{ ctx().renderer };
+
+	renderer.FlushBatch();
+	renderer.SetupPresentationFramebuffer();
+
+	DrawSceneTarget(draw_context);
+
+	renderer.FlushBatch();
+
+	ctx().render_queue.render_commands_.clear();
+	ctx().render_queue.debug_commands_.clear();
+}
+
+void Scene::DrawSceneTarget(DrawContext& draw_context) const {
+	if (!IsVisible(ctx_->render_target_)) {
+		return;
+	}
+
+	auto texture{ ctx_->render_target_.GetTexture() };
+	auto draw_transform{ GetDrawTransform(ctx_->render_target_) };
+	auto blend_mode{ GetBlendMode(ctx_->render_target_) };
+	auto effects{ impl::GetEffectParams(ctx_->render_target_) };
+
+	// No margin for scene effects so render targets do not exceed sizes.
+	effects.margin = 0;
+
+	draw_context.SetBlendMode(blend_mode);
+	draw_context.DrawTexture(
+		draw_transform, texture,
+		{
+			.size				 = ctx_->render_target_.GetSize(),
+			.tint				 = GetTint(ctx_->render_target_),
+			.texture_coordinates = impl::GetDefaultTextureCoordinates<true>(),
+			.effects			 = std::move(effects),
 		}
 	);
-
-	ctx().global_renderer_.FlushBatch();
-
-	Viewport viewport{ {}, ctx().renderer.GetDisplayViewport().size };
-	V2_float half_viewport{ viewport.size * 0.5f };
-
-	auto view_projection{ Matrix4::Orthographic(-half_viewport, half_viewport) };
-	draw_context.BindScreenTarget();
-	draw_context.SetViewport(viewport);
-	draw_context.SetViewProjection(view_projection);
-	draw_context.SetBlend(BlendMode::Blend);
-
-	auto transform{ GetDrawTransform(render_target_) };
-	auto scene_target_size{ render_target_.GetSize() };
-	Rect scene_rect{ V2_float{ scene_target_size } };
-	auto positions{ scene_rect.GetWorldVertices(transform, Origin::Center) };
-
-	auto tex_coords{ impl::GetDefaultTextureCoordinates<true>() };
-	auto rt_tint{ GetTint(render_target_) };
-
-	auto quad_shader{ ctx().global_renderer_.GetShader("quad") };
-
-	auto render_target_texture{ ctx().global_renderer_.GetRenderTargetTexture(render_target_) };
-
-	ctx().global_renderer_.DrawTexture(
-		quad_shader, render_target_texture, positions, rt_tint, 0.0f, tex_coords, {}
-	);
-
-	ctx().global_renderer_.FlushBatch();
-
-	// Must be cleared after BindScreenTarget, as that flushes the batch.
-	ctx().renderer.temporary_textures_.clear();
 }
 
 void Scene::InternalUpdate() {
-	ctx().input.Update();
+	ScriptSystem::ApplyPending(*this);
+	impl::AnimationSystem::Prepare(*this);
 
-	Refresh();
+	if (data_.runtime && !data_.paused) {
+		auto dt{ ctx().dt() };
+		auto dt_ms{ duration_cast<milliseconds>(dt) };
 
-	for (auto [e, scripts] : EntitiesWith<impl::Scripts>()) {
-		scripts.Update();
+		ScriptSystem::Update(*this, dt);
+
+		impl::DialogueSystem::Update(*this, dt_ms);
+
+		OnUpdate();
+		// Handle camera movement requested by the game before collision broad phase construction.
+		ctx().chunks.Update(*this);
+
+		// Timers advance after script and scene updates so newly triggered timed actions do not
+		// receive the current frame's full dt.
+		impl::TimerSystem::Update(*this, dt_ms);
+		ParticleEmitter::Update(*this, dt);
+		impl::AnimationSystem::Update(*this, dt);
+		Lifetime::Update(*this, dt);
+
+		ctx().physics.PreCollisionUpdate();
+		ctx().collision.Update(*this, dt);
+		ctx().physics.PostCollisionUpdate();
+
+		impl::ButtonSystem::Update(*this);
 	}
 
-	OnUpdate();
 	Refresh();
 
-	ParticleEmitter::Update(*this);
-	Tween::Update(*this, ctx().dt());
-	impl::AnimationSystem::Update(*this);
-	Lifetime::Update(*this);
-	ctx().physics.PreCollisionUpdate();
-	ctx().collision.Update(*this);
-	ctx().physics.PostCollisionUpdate();
+	impl::UpdateCameraVisibilityEvents(*this);
+	impl::OrphanChildren(*this);
+	impl::ClearDeadChildren(*this);
 }
 
 void Scene::InternalExit() {
 	Refresh();
-	OnExit();
+
+	if (data_.runtime) {
+		// Application wide events are processed on the next event pass. This scene
+		// will be gone by then, so queue a local notification for each scripted
+		// entity and drain it before tearing down its components and scripts.
+		for (auto [entity, _scripts] : EntitiesWith<impl::Scripts>()) {
+			ctx().event.Push<event::SceneUnloaded>(entity);
+		}
+
+		// Deliver queued local notifications before the scene is destroyed.
+		impl::SceneContextAccessor::app(ctx()).FlushEventsForSceneExit();
+
+		OnExit();
+		Refresh();
+	}
+
+	for (auto [entity, scripts] : EntitiesWith<impl::Scripts>()) {
+		scripts.Attach(entity);
+		scripts.CancelAll(SequenceCancelReason::OwnerDestroyed);
+	}
+
+	ScriptSystem::ApplyPending(*this);
 	Refresh();
+	ctx().chunks.UnloadAll(*this);
+	// In Manual mode the game must call SaveConfigured() explicitly.
+    if (ctx().chunks.GetSettings().save_mode != ChunkSaveMode::Manual) {
+        [[maybe_unused]] bool saved_chunks{ ctx().chunks.SaveConfigured() };
+    }
+
 	// Clears component hooks.
 	manager_.Reset();
 	ctx().physics.Reset();
 	Refresh();
 }
 
-// TODO: Fix.
-// void Scene::ReEnter() {
-//	app().scene.Enter(*this);
-// }
-
-Entity Scene::GetEntityByUUID(UUID uuid) const {
-	auto entities{ Entities() };
-	for (Entity e : entities) {
+Entity Scene::GetEntity(UUID uuid) const {
+	for (const Entity& e : Entities()) {
 		PTGN_ASSERT(e.Has<UUID>(), "Entity does not have a valid UUID component");
 		if (e.Get<UUID>() == uuid) {
 			return e;
@@ -416,35 +1142,215 @@ Entity Scene::GetEntityByUUID(UUID uuid) const {
 	return {};
 }
 
-Entity Scene::CreateEntity() {
-	return CreateEntity(UUID{});
+Entity Scene::GetEntity(const Tag& tag) const {
+	for (const Entity& e : Entities()) {
+		if (!e.Has<Tag>()) {
+			continue;
+		}
+		if (e.Get<Tag>().value == tag.value) {
+			return e;
+		}
+	}
+	return {};
 }
 
-Entity Scene::CreateEntity(UUID uuid) {
+Entity Scene::CreateEntity(Tag tag, UUID uuid) {
 	auto entity{ manager_.CreateEntity() };
+	entity.Add<Tag>(std::move(tag));
 	entity.Add<UUID>(uuid);
-	return Entity{ entity, this };
+	Entity created{ entity, this };
+	if (ctx_ && data_.runtime) {
+		ctx_->chunks.OnEntityCreated(created);
+	}
+	return created;
 }
 
-Entity Scene::CreateEntity(const json& j) {
-	auto entity{ manager_.CreateEntity() };
-	PTGN_ASSERT(entity, "Failed to create entity");
-	Entity e{ entity, this };
-	e.Deserialize(j);
-	PTGN_ASSERT(e.Has<UUID>(), "Entity created from json must have a UUID");
-	return e;
+Entity Scene::CreatePrefab(std::string_view prefab_key) {
+	return CreatePrefab(MakePrefabKey(prefab_key));
+}
+
+Entity Scene::CreatePrefab(const PrefabKey& prefab_key) {
+	auto& asset_manager{ ctx().asset };
+	PrefabKey key{ MakePrefabKey(prefab_key.value) };
+	if (!asset_manager.EnsurePrefabResident(key)) {
+		PTGN_WARN("Cannot create missing prefab asset: ", key);
+		return {};
+	}
+	auto prefab{ impl::AssetAccessor{ asset_manager }.Get<Prefab>(key) };
+	return InstantiatePrefab(*this, prefab.get(), PrefabInstantiationMode::Auto);
+}
+
+PrefabKey Scene::CreatePrefabAsset(
+	Entity source, std::string_view prefab_name, bool destroy_source
+) {
+	if (!source) {
+		return {};
+	}
+	PrefabKey key{ MakePrefabKey(prefab_name) };
+
+	auto& assets{ ctx().asset };
+
+	if (!assets.GetProjectRoot().has_value()) {
+		PTGN_WARN("Cannot create prefab asset without an active project: ", key);
+		return {};
+	}
+
+	Prefab& saved{ assets.SavePrefab(source, key) };
+	PrefabKey result{ saved.key };
+
+	if (destroy_source && source) {
+		source.Destroy();
+		Refresh();
+	}
+	return result;
+}
+
+bool Scene::HasPrefabAsset(std::string_view prefab_name) const {
+	PrefabKey key{ MakePrefabKey(prefab_name) };
+	const auto& assets{ ctx().asset };
+	return assets.HasCatalogAsset(key, AssetKind::Prefab);
+}
+
+Entity Scene::GetPrefabAsset(std::string_view prefab_name) {
+	return GetPrefabAsset(MakePrefabKey(prefab_name));
+}
+
+Entity Scene::GetPrefabAsset(const PrefabKey& prefab_key) {
+	return ctx().asset.GetPrefabEntity(prefab_key);
 }
 
 void Scene::SetBackgroundColor(Color background_color) {
-	render_target_.SetClearColor(background_color);
+	ctx_->render_target_.SetClearColor(background_color);
 }
 
 Color Scene::GetBackgroundColor() const {
-	return render_target_.GetClearColor();
+	return ctx_->render_target_.GetClearColor().value_or(impl::ClearColor{}.color);
+}
+
+std::size_t Scene::GetTagHash() const {
+	return data_.tag_hash;
+}
+
+std::string Scene::GetTag() const {
+	return data_.tag;
 }
 
 RenderTarget Scene::GetRenderTarget() const {
-	return render_target_;
+	return ctx_->render_target_;
+}
+
+SceneCamera Scene::GetCamera() const {
+	return ctx_->camera;
+}
+
+SceneCamera Scene::GetFixedCamera() const {
+	return ctx_->fixed_camera_;
+}
+
+bool Scene::AddAssetDependency(AssetKey key) {
+	if (key.value.empty() || std::ranges::contains(explicit_asset_dependencies_, key)) {
+		return false;
+	}
+	explicit_asset_dependencies_.emplace_back(std::move(key));
+	return true;
+}
+
+bool Scene::RemoveAssetDependency(const AssetKey& key) {
+	return std::erase(explicit_asset_dependencies_, key) > 0;
+}
+
+bool Scene::HasAssetDependency(const AssetKey& key) const {
+	return std::ranges::contains(asset_dependencies_, key);
+}
+
+bool Scene::HasExplicitAssetDependency(const AssetKey& key) const {
+	return std::ranges::contains(explicit_asset_dependencies_, key);
+}
+
+const std::vector<AssetKey>& Scene::GetAssetDependencies() const {
+	return asset_dependencies_;
+}
+
+const std::vector<AssetKey>& Scene::GetExplicitAssetDependencies() const {
+	return explicit_asset_dependencies_;
+}
+
+bool Scene::SyncAssetDependenciesFromSerialization() {
+	if (!ctx_) {
+		return false;
+	}
+
+	auto dependencies{ impl::DiscoverSceneAssetDependencies(*this, explicit_asset_dependencies_) };
+
+	if (dependencies == asset_dependencies_) {
+		return false;
+	}
+
+	asset_dependencies_ = std::move(dependencies);
+
+	ReloadLoadedAssetDependencies();
+
+	return true;
+}
+
+void Scene::SetAssetDependencies(
+	std::vector<AssetKey> dependencies, std::vector<AssetKey> explicit_dependencies
+) {
+	asset_dependencies_			 = std::move(dependencies);
+	explicit_asset_dependencies_ = std::move(explicit_dependencies);
+}
+
+void Scene::ReloadLoadedAssetDependencies() {
+	if (!ctx_) {
+		return;
+	}
+
+	auto ticket{ ctx_->asset.AcquireDependenciesAsync(asset_dependencies_) };
+	auto dependencies{ ticket.ReleaseOwnership() };
+
+	ReleaseLoadedAssetDependencies();
+
+	retained_asset_dependencies_ = std::move(dependencies);
+}
+
+void Scene::AdoptLoadedAssetDependencies(std::vector<AssetKey> dependencies) {
+	if (ctx_) {
+		asset_dependencies_ =
+			impl::DiscoverSceneAssetDependencies(*this, explicit_asset_dependencies_);
+		std::vector<AssetKey> missing_dependencies;
+
+		for (const auto& key : asset_dependencies_) {
+			if (!std::ranges::contains(dependencies, key) && ctx_->asset.HasCatalogAsset(key)) {
+				missing_dependencies.emplace_back(key);
+			}
+		}
+
+		if (!missing_dependencies.empty()) {
+			auto ticket{ ctx_->asset.AcquireDependenciesAsync(missing_dependencies) };
+			auto acquired_dependencies{ ticket.ReleaseOwnership() };
+
+			for (auto& key : acquired_dependencies) {
+				if (!std::ranges::contains(dependencies, key)) {
+					dependencies.emplace_back(std::move(key));
+				}
+			}
+		}
+	}
+
+	ReleaseLoadedAssetDependencies();
+
+	retained_asset_dependencies_ = std::move(dependencies);
+}
+
+void Scene::ReleaseLoadedAssetDependencies() noexcept {
+	if (!ctx_ || retained_asset_dependencies_.empty()) {
+		retained_asset_dependencies_.clear();
+		return;
+	}
+
+	ctx_->asset.ReleaseDependencies(retained_asset_dependencies_);
+
+	retained_asset_dependencies_.clear();
 }
 
 void Scene::Refresh() {
@@ -455,35 +1361,13 @@ std::size_t Scene::GetEntityCount() const {
 	return manager_.Size();
 }
 
-void to_json(json& j, const Scene& scene) {
-	to_json(j["manager"], scene.manager_);
-	/*
-	j["key"]				 = scene.key_;
-	j["physics"]			 = scene.physics;
-	j["input"]				 = scene.input;
-	j["collider_visibility"] = scene.collider_visibility_;
-	j["collider_color"]		 = scene.collider_color_;
-	*/
-}
-
-void from_json(const json& j, Scene& scene) {
-	scene.manager_.Reset();
-
-	// Ensure manager is deserialized before any of the other scene systems which may reference
-	// manager entities (such as the CameraManager).
-	from_json(j.at("manager"), scene.manager_);
-
-	// j.at("physics").get_to(scene.physics);
-	// j.at("input").get_to(scene.input);
-}
-
 SceneContext& Scene::ctx() {
-	PTGN_ASSERT(ctx_ != nullptr, "Scene context has not been set yet");
+	PTGN_ASSERT(ctx_, "Scene context has not been set yet");
 	return *ctx_;
 }
 
 const SceneContext& Scene::ctx() const {
-	PTGN_ASSERT(ctx_ != nullptr, "Scene context has not been set yet");
+	PTGN_ASSERT(ctx_, "Scene context has not been set yet");
 	return *ctx_;
 }
 

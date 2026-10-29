@@ -1,179 +1,81 @@
 #pragma once
 
-#include <array>
-#include <optional>
-#include <string_view>
-#include <variant>
 #include <vector>
 
-#include "core/event/event.h"
-#include "core/math/geometry/origin.h"
-#include "core/math/geometry/shape.h"
-#include "core/math/vector2.h"
-#include "renderer/primitives/blend_mode.h"
-#include "renderer/primitives/color.h"
-#include "runtime/ecs/component.h"
+#include "core/graphics/fill_style.h"
+#include "core/util/hash.h"
+#include "renderer/pipeline/blend_mode.h"
+#include "renderer/pipeline/render_state.h"
+#include "renderer/resources/shader.h"
 #include "runtime/ecs/entity.h"
-#include "runtime/graphics/camera.h"
 #include "runtime/graphics/drawable.h"
+#include "serialization/serialize.h"
 
 namespace ptgn {
 
-class DrawContext;
+struct EffectMargin {
+	/// @brief Number of pixels on all sides added to the effect render target.
+	/// Only applies to texture effects.
+	int value{ 0 };
 
-inline constexpr float kMinLineWidth{ 1.0f };
-
-namespace impl {
-
-struct Solid {};
-
-struct Hollow {
-	float line_width{ kMinLineWidth }; // must be positive and >= kMinLineWidth
-};
-
-} // namespace impl
-
-struct FillStyle {
-	FillStyle() = default;
-	FillStyle(float line_width);
-
-	static FillStyle Hollow(float line_width = 1.0f);
-	static FillStyle Solid();
-
-	std::variant<impl::Hollow, impl::Solid> style{ impl::Hollow{} };
-
-private:
-	FillStyle(impl::Solid);
-};
-
-struct Depth : public ArithmeticComponent<float> {
-	using ArithmeticComponent::ArithmeticComponent;
-
-	[[nodiscard]] Depth RelativeTo(Depth parent) const;
+	PTGN_REFLECT_VALUE(EffectMargin, value)
 };
 
 namespace impl {
 
-struct Visible {};
+struct IgnoreParentDepth {};
 
-struct Tint : public ColorComponent {
-	using ColorComponent::ColorComponent;
+struct EffectTag {};
 
-	Tint() : ColorComponent{ color::White } {}
-};
+struct HDREffectTag {};
 
 struct EntityDepthCompare {
 	EntityDepthCompare() = default;
-	explicit EntityDepthCompare(bool ascending);
+	explicit EntityDepthCompare(bool compare_ascending);
 
 	bool operator()(Entity a, Entity b) const;
 
 	bool ascending{ true };
 };
 
-void SetDraw(Entity entity, std::string_view drawable_name);
-
-struct CapsuleDraw {
-	static void Draw(DrawContext& renderer, Entity entity, Camera camera);
-};
-
-struct CircleDraw {
-	static void Draw(DrawContext& renderer, Entity entity, Camera camera);
-};
-
-struct EllipseDraw {
-	static void Draw(DrawContext& renderer, Entity entity, Camera camera);
-};
-
-struct ArcDraw {
-	static void Draw(DrawContext& renderer, Entity entity, Camera camera);
-};
-
-struct PolygonDraw {
-	static void Draw(DrawContext& renderer, Entity entity, Camera camera);
-};
-
-struct RectDraw {
-	static void Draw(DrawContext& renderer, Entity entity, Camera camera);
-};
-
-struct RoundedRectDraw {
-	static void Draw(DrawContext& renderer, Entity entity, Camera camera);
-};
-
-struct TriangleDraw {
-	static void Draw(DrawContext& renderer, Entity entity, Camera camera);
-};
-
-struct LineDraw {
-	static void Draw(DrawContext& renderer, Entity entity, Camera camera);
-};
+void SetDraw(Entity entity, std::size_t drawable_type_hash);
 
 } // namespace impl
 
+void SortByLocalDepth(std::vector<Entity>& entities, bool ascending = true);
 void SortByDepth(std::vector<Entity>& entities, bool ascending = true);
 
-void SetDrawOrigin(Entity entity, Origin origin);
-
-Origin GetDrawOrigin(Entity entity);
+void SetFillStyle(Entity entity, FillStyle fill_style);
 
 template <DrawableType T>
 void SetDraw(Entity entity) {
-	impl::SetDraw(entity, type_name<T>());
+	impl::DrawableRegistrar<T>::Touch();
+	impl::SetDraw(entity, Hash<T>());
 }
 
+/// @return True if the entity has a drawable component with the specified drawable type hash.
+template <DrawableType T>
+bool HasDraw(Entity entity) {
+	return entity.Has<impl::IDrawable>() && Hash<T>() == entity.Get<impl::IDrawable>().hash;
+}
+
+/// @return True if the entity has any drawable component.
 [[nodiscard]] bool HasDraw(Entity entity);
 
 void RemoveDraw(Entity entity);
 
-void SetVisible(Entity entity, bool visible, bool emit_visibility_event = true);
-
-void Show(Entity entity, bool emit_visibility_event = true);
-
-void Hide(Entity entity, bool emit_visibility_event = true);
-
-struct EntityShow : public Event<EntityShow> {};
-
-struct EntityHide : public Event<EntityHide> {};
-
-/// @return True if the entity is visible, false otherwise.
-[[nodiscard]] bool IsVisible(Entity entity);
-
 void SetDepth(Entity entity, Depth depth);
 
+/// @return Local depth of the entity.
+Depth GetLocalDepth(Entity entity);
+
+/// @return Global depth of the entity, relative to all its parent depths.
 Depth GetDepth(Entity entity);
+
+void IgnoreParentDepth(Entity entity, bool ignore_parent_depth = true);
 
 void SetBlendMode(Entity entity, BlendMode blend_mode);
 
 BlendMode GetBlendMode(Entity entity);
-
-/// @param color color::White will clear any tint.
-void SetTint(Entity entity, Color color = color::White);
-
-Color GetTint(Entity entity);
-
-/// @return Unscaled size of the entire texture in pixels.
-std::optional<V2_int> GetTextureSize(Entity entity);
-
-/// @return Unscaled size of the cropped texture in pixels.
-std::optional<V2_int> GetCroppedTextureSize(Entity entity);
-
-/// @return Scaled size of the cropped texture in pixels.
-std::optional<V2_float> GetDisplaySize(Entity entity);
-
-/// @brief Overrides the scale of the entity.
-void SetDisplaySize(Entity entity, V2_float display_size);
-
-std::array<V2_float, 4> GetTextureCoordinates(Entity entity, bool flip_vertically);
-
-PTGN_REGISTER_DRAWABLE(impl::CapsuleDraw);
-PTGN_REGISTER_DRAWABLE(impl::CircleDraw);
-PTGN_REGISTER_DRAWABLE(impl::EllipseDraw);
-PTGN_REGISTER_DRAWABLE(impl::ArcDraw);
-PTGN_REGISTER_DRAWABLE(impl::PolygonDraw);
-PTGN_REGISTER_DRAWABLE(impl::RectDraw);
-PTGN_REGISTER_DRAWABLE(impl::RoundedRectDraw);
-PTGN_REGISTER_DRAWABLE(impl::TriangleDraw);
-PTGN_REGISTER_DRAWABLE(impl::LineDraw);
 
 } // namespace ptgn

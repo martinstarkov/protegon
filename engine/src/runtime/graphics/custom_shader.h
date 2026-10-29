@@ -1,0 +1,71 @@
+#pragma once
+
+#include <functional>
+#include <optional>
+#include <string_view>
+#include <vector>
+
+#include "core/math/geometry/origin.h"
+#include "core/math/transform.h"
+#include "core/math/vector2.h"
+#include "renderer/pipeline/render_state.h"
+#include "renderer/resources/shader.h"
+#include "runtime/asset/asset_key.h"
+#include "runtime/ecs/entity.h"
+#include "runtime/ecs/entity_creation_context.h"
+#include "runtime/graphics/drawable.h"
+
+namespace ptgn {
+
+class DrawContext;
+class Scene;
+
+struct Material {
+	ShaderKey shader{};
+	std::vector<UniformWrite> uniforms{};
+	std::optional<std::size_t> texture_slot_capacity{};
+
+	constexpr bool operator==(const Material&) const = default;
+
+	PTGN_REFLECT(Material, shader, uniforms, texture_slot_capacity)
+};
+
+class CustomShader : public Entity {
+public:
+	CustomShader() = default;
+	explicit CustomShader(Entity entity);
+
+	static void Draw(DrawContext& ctx, Entity entity);
+
+	CustomShader& SetMaterialUpdate(const std::function<void(CustomShader)>& update);
+
+	CustomShader& SetMaterialUniforms(const std::vector<UniformWrite>& material_uniforms);
+
+	/// @brief If uniform is already set, its value is updated.
+	CustomShader& SetMaterialUniform(std::string_view name, const UniformValue& value);
+
+	CustomShader& SetMaterial(Material material);
+};
+
+namespace impl {
+
+MaterialState GetMaterialState(Entity entity);
+
+/// @brief Optional component that can be added to an effect entity to specify a custom update
+/// function for the effect.
+struct MaterialUpdate {
+	/// @brief Called once per draw for the entity with this component.
+	std::function<void(CustomShader)> update{};
+};
+
+} // namespace impl
+
+CustomShader CreateCustomShader(
+	EntityCreationContext context, Transform transform = {}, ShaderKey shader_key = {},
+	TextureKey texture_key = {}, V2_float size = {}, const std::vector<UniformWrite>& uniforms = {},
+	Origin origin = Origin::Center
+);
+
+PTGN_REGISTER_DRAWABLE(CustomShader, { .name = "Custom Shader" });
+
+} // namespace ptgn

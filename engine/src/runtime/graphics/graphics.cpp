@@ -2,20 +2,22 @@
 
 #include <vector>
 
+#include "core/graphics/color.h"
+#include "core/graphics/fill_style.h"
 #include "core/math/geometry/circle.h"
 #include "core/math/geometry/line.h"
-#include "core/math/geometry/origin.h"
 #include "core/math/geometry/polygon.h"
 #include "core/math/geometry/rect.h"
 #include "core/math/geometry/shape.h"
 #include "core/math/transform.h"
 #include "core/math/vector2.h"
-#include "renderer/primitives/blend_mode.h"
-#include "renderer/primitives/color.h"
+#include "renderer/draw_context.h"
 #include "runtime/ecs/entity.h"
-#include "runtime/graphics/camera.h"
+#include "runtime/ecs/entity_creation_context.h"
+#include "runtime/ecs/tag.h"
 #include "runtime/graphics/draw.h"
-#include "runtime/graphics/render_context.h"
+#include "runtime/graphics/drawable.h"
+#include "runtime/graphics/visible.h"
 #include "runtime/scene/scene.h"
 
 namespace ptgn {
@@ -23,43 +25,49 @@ namespace ptgn {
 namespace impl {
 
 void GraphicsData::AddCommand(Transform transform, const Shape& shape, bool fill) {
-	Command cmd;
+	GraphicsCommand cmd{
+		.transform = transform,
+		.shape	   = shape,
+	};
 
 	if (fill) {
 		cmd.color	   = fill_color_;
-		cmd.line_width = FillStyle::Solid();
+		cmd.line_width = Solid{};
 	} else {
 		cmd.color	   = stroke_color_;
 		cmd.line_width = line_width_;
 	}
 
-	cmd.transform = transform;
-	cmd.shape	  = shape;
-
 	commands_.emplace_back(cmd);
-}
-
-void GraphicsData::Draw(
-	DrawContext& renderer, Transform transform, Depth depth, BlendMode blend_mode
-) const {
-	for (const auto& cmd : commands_) {
-		renderer.DrawShape(
-			cmd.shape, cmd.transform.RelativeTo(transform), cmd.color, cmd.line_width,
-			Origin::Center, depth, blend_mode
-		);
-	}
 }
 
 } // namespace impl
 
 Graphics::Graphics(Entity entity) : Entity{ entity } {}
 
-void Graphics::Draw(DrawContext& renderer, Entity entity, Camera) {
+void Graphics::Draw(DrawContext& ctx, Entity entity) {
+	if (!entity.Has<impl::GraphicsData>()) {
+		PTGN_WARN("Graphics entity cannot be drawn without GraphicsData component");
+		return;
+	}
+
 	const auto& instance{ entity.Get<impl::GraphicsData>() };
 
-	const auto& transform{ GetDrawTransform(entity) };
+	auto transform{ GetDrawTransform(entity) };
+	auto blend_mode{ GetBlendMode(entity) };
 
-	instance.Draw(renderer, transform, GetDepth(entity), GetBlendMode(entity));
+	ctx.SetBlendMode(blend_mode);
+	for (const auto& cmd : instance.commands_) {
+		auto cmd_transform{ cmd.transform.RelativeTo(transform) };
+
+		ctx.DrawShape(
+			cmd_transform, cmd.shape, cmd.color,
+			{ .depth	  = GetDepth(entity),
+			  .fill_style = cmd.line_width,
+			  .entity_id  = entity.Get<UUID>(),
+			  .effects	  = impl::GetEffectParams(entity) }
+		);
+	}
 }
 
 Graphics& Graphics::Clear() {
@@ -125,13 +133,15 @@ Graphics& Graphics::StrokePolygon(const Polygon& polygon) {
 	return *this;
 }
 
-Graphics CreateGraphics(Scene& scene, V2_float position) {
-	Graphics graphics{ scene.CreateEntity() };
+Graphics CreateGraphics(EntityCreationContext context, Transform transform) {
+	Graphics graphics{ context.CreateEntity() };
 
+	graphics.Add<Tag>("Graphics");
 	graphics.Add<impl::GraphicsData>();
-	SetPosition(graphics, position);
+	graphics.Add<Transform>(transform);
+	graphics.Add<Visible>(true);
+
 	SetDraw<Graphics>(graphics);
-	Show(graphics, false);
 
 	return graphics;
 }

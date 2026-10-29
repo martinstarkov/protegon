@@ -1,35 +1,104 @@
 #include "runtime/audio/track.h"
 
-#include <SDL3/SDL_error.h>
-#include <SDL3/SDL_properties.h>
-#include <SDL3_mixer/SDL_mixer.h>
+#if defined(__clang__) || defined(__GNUC__)
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wold-style-cast"
+#endif
+
+#include <extras/decoders/libvorbis/miniaudio_libvorbis.h>
+#include <miniaudio.h>
+
+#if defined(__clang__) || defined(__GNUC__)
+#pragma GCC diagnostic pop
+#endif
 
 #include <cstdint>
+#include <filesystem>
+#include <memory>
+#include <optional>
+#include <string>
 #include <utility>
 
 #include "core/assert.h"
+#include "core/log.h"
+#include "core/util/file.h"
+#include "core/util/string.h"
 
 namespace ptgn::impl {
 
-Track::Track(std::size_t id, MIX_Mixer* mixer, MIX_Audio* audio, std::int64_t loops) : id_{ id } {
-	PTGN_ASSERT(loops == -1 || loops >= 0, "Loops cannot be negative unless -1 (infinite)");
+namespace {
 
-	track_ = MIX_CreateTrack(mixer);
-	PTGN_ASSERT(track_, SDL_GetError());
+bool IsOggFile(const path& p) {
+	return HasExtension(p, ".ogg");
+}
 
-	auto set_audio{ MIX_SetTrackAudio(track_, audio) };
-	PTGN_ASSERT(set_audio, SDL_GetError());
+} // namespace
 
-	SDL_PropertiesID props = SDL_CreateProperties();
-	PTGN_ASSERT(props != 0);
+struct Track::OggDecoder {
+	ma_libvorbis vorbis{};
+};
 
-	auto loop_set{ SDL_SetNumberProperty(props, MIX_PROP_PLAY_LOOPS_NUMBER, loops) };
-	PTGN_ASSERT(loop_set, SDL_GetError());
+Track::Track(
+	std::size_t id, std::size_t instance_id, ma_engine* engine, const path& audio_path,
+	std::optional<std::int64_t> loops
+) :
+	id_{ id },
+	instance_id_{ instance_id },
+	sound_{ std::make_unique<ma_sound>() },
+	remaining_loops_{ loops } {
+	PTGN_ASSERT(engine, "Audio engine must be valid");
 
-	auto play_track{ MIX_PlayTrack(track_, props) };
-	PTGN_ASSERT(play_track, SDL_GetError());
+	if (loops.has_value() && loops.value() < 0) {
+		PTGN_WARN("Cannot play negative number of audio loops, clamping to 0");
+		loops = 0;
+	}
 
-	SDL_DestroyProperties(props);
+	ma_uint32 flags = MA_SOUND_FLAG_NO_SPATIALIZATION;
+
+	path absolute_path{ GetAbsolutePath(audio_path) };
+
+	PTGN_ASSERT(
+		FileExists(absolute_path), "Cannot create audio from invalid path: ", absolute_path.string()
+	);
+
+	auto file_path{ absolute_path.string() };
+
+	ma_result result = MA_ERROR;
+
+	if (IsOggFile(absolute_path)) {
+		vorbis_ = std::make_unique<OggDecoder>();
+
+		PTGN_ASSERT(vorbis_);
+
+		result = ma_libvorbis_init_file(file_path.c_str(), nullptr, nullptr, &vorbis_->vorbis);
+		PTGN_ASSERT(
+			result == MA_SUCCESS, "ma_libvorbis_init_file() failed for: ", file_path,
+			", result=", result
+		);
+
+		result = ma_sound_init_from_data_source(
+			engine, static_cast<ma_data_source*>(vorbis_.get()), flags, nullptr, sound_.get()
+		);
+		PTGN_ASSERT(
+			result == MA_SUCCESS, "ma_sound_init_from_data_source() failed for: ", file_path,
+			", result=", result
+		);
+	} else {
+		result = ma_sound_init_from_file(
+			engine, file_path.c_str(), flags, nullptr, nullptr, sound_.get()
+		);
+		PTGN_ASSERT(
+			result == MA_SUCCESS, "ma_sound_init_from_file() failed for: ", file_path,
+			", result=", result
+		);
+	}
+
+	if (!loops.has_value()) {
+		ma_sound_set_looping(sound_.get(), MA_TRUE);
+	}
+
+	result = ma_sound_start(sound_.get());
+	PTGN_ASSERT(result == MA_SUCCESS, "ma_sound_start() failed");
 }
 
 Track::~Track() noexcept {
@@ -37,30 +106,144 @@ Track::~Track() noexcept {
 }
 
 Track::Track(Track&& other) noexcept :
-	id_{ std::exchange(other.id_, 0) }, track_{ std::exchange(other.track_, nullptr) } {}
+	id_{ std::exchange(other.id_, 0) },
+	instance_id_{ std::exchange(other.instance_id_, 0) },
+	completed_loops_{ std::exchange(other.completed_loops_, 0) },
+	sound_{ std::move(other.sound_) },
+	paused_{ std::exchange(other.paused_, false) },
+	remaining_loops_{ std::exchange(other.remaining_loops_, std::nullopt) },
+	vorbis_{ std::move(other.vorbis_) } {}
 
 Track& Track::operator=(Track&& other) noexcept {
 	if (this != &other) {
 		StopImmediate();
-		id_	   = std::exchange(other.id_, 0);
-		track_ = std::exchange(other.track_, nullptr);
+		id_				 = std::exchange(other.id_, 0);
+		instance_id_	 = std::exchange(other.instance_id_, 0);
+		completed_loops_ = std::exchange(other.completed_loops_, 0);
+		sound_			 = std::move(other.sound_);
+		paused_			 = std::exchange(other.paused_, false);
+		remaining_loops_ = std::exchange(other.remaining_loops_, std::nullopt);
+		vorbis_			 = std::move(other.vorbis_);
 	}
 	return *this;
 }
 
-MIX_Track* Track::Get() const noexcept {
-	return track_;
+ma_sound* Track::Get() const noexcept {
+	return sound_.get();
 }
 
 std::size_t Track::GetId() const noexcept {
 	return id_;
 }
 
-void Track::StopImmediate() {
-	if (track_) {
-		MIX_DestroyTrack(track_);
-		track_ = nullptr;
+std::size_t Track::GetInstanceId() const noexcept {
+	return instance_id_;
+}
+
+std::size_t Track::TakeCompletedLoops() noexcept {
+	return std::exchange(completed_loops_, 0);
+}
+
+void Track::Pause() {
+	if (!sound_ || paused_) {
+		return;
 	}
+
+	// miniaudio has stop/start, and stop does not rewind.
+	auto result = ma_sound_stop(sound_.get());
+	PTGN_ASSERT(result == MA_SUCCESS, "ma_sound_stop() failed while pausing");
+
+	paused_ = true;
+}
+
+void Track::Resume() {
+	if (!sound_ || !paused_) {
+		return;
+	}
+
+	auto result = ma_sound_start(sound_.get());
+	PTGN_ASSERT(result == MA_SUCCESS, "ma_sound_start() failed while resuming");
+
+	paused_ = false;
+}
+
+void Track::StopImmediate() {
+	if (sound_) {
+		ma_sound_uninit(sound_.get());
+		sound_.reset();
+	}
+
+	if (vorbis_) {
+		ma_libvorbis_uninit(&vorbis_->vorbis, nullptr);
+		vorbis_.reset();
+	}
+	paused_ = false;
+}
+
+bool Track::IsPlaying() const {
+	return sound_ && ma_sound_is_playing(sound_.get()) == MA_TRUE;
+}
+
+bool Track::IsPaused() const {
+	return sound_ && paused_;
+}
+
+void Track::SetVolume(float volume) {
+	if (sound_) {
+		ma_sound_set_volume(sound_.get(), volume);
+	}
+}
+
+float Track::GetVolume() const {
+	return sound_ ? ma_sound_get_volume(sound_.get()) : 0.0f;
+}
+
+void Track::SetPitch(float pitch) {
+	if (sound_) {
+		ma_sound_set_pitch(sound_.get(), pitch);
+	}
+}
+
+void Track::RestartFromBeginning() {
+	PTGN_ASSERT(sound_, "Cannot restart an invalid sound");
+
+	auto seek_result = ma_sound_seek_to_pcm_frame(sound_.get(), 0);
+	PTGN_ASSERT(seek_result == MA_SUCCESS, "ma_sound_seek_to_pcm_frame() failed");
+
+	auto start_result = ma_sound_start(sound_.get());
+	PTGN_ASSERT(start_result == MA_SUCCESS, "ma_sound_start() failed");
+}
+
+bool Track::IsFinished() const {
+	if (!sound_) {
+		return true;
+	}
+
+	if (paused_) {
+		return false;
+	}
+
+	// Infinite loops never finish unless stopped explicitly.
+	if (!remaining_loops_.has_value()) {
+		return false;
+	}
+
+	if (ma_sound_is_playing(sound_.get()) == MA_TRUE) {
+		return false;
+	}
+
+	// Not playing. If at the natural end, may need to emulate finite loops.
+	if (ma_sound_at_end(sound_.get()) == MA_TRUE) {
+		++completed_loops_;
+		if (remaining_loops_.value() > 0) {
+			--(remaining_loops_.value());
+			const_cast<Track*>(this)->RestartFromBeginning(); // NOSONAR
+			return false;
+		}
+		return true;
+	}
+
+	return false;
 }
 
 } // namespace ptgn::impl

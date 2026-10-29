@@ -2,14 +2,18 @@
 #include <string_view>
 
 #include "app/application.h"
+#include "app/editor.h"
+#include "core/graphics/color.h"
 #include "core/log.h"
 #include "core/math/geometry/origin.h"
 #include "core/math/vector2.h"
-#include "renderer/primitives/color.h"
 #include "renderer/renderer.h"
-#include "runtime/ecs/entity.h"
+#include "renderer/text/text_layout.h"
+#include "runtime/asset/asset_manager.h"
+#include "runtime/graphics/text/text.h"
+#include "runtime/interaction/interaction_system.h"
 #include "runtime/scene/scene.h"
-#include "runtime/scene/scene_input.h"
+#include "runtime/scene/scene_context.h"
 #include "runtime/ui/button.h"
 #include "runtime/ui/dropdown.h"
 
@@ -17,73 +21,95 @@ using namespace ptgn;
 
 class DropdownScene : public Scene {
 public:
-	Button CreateButton(std::string_view content, const std::function<void()>& on_press) {
-		Button button{ ptgn::CreateButton(*this, {}) };
-		button.SetTextContent(content);
-		button.SetTextColor(color::White);
-		button.SetBackgroundColor(color::Gray);
-		button.SetBackgroundColor(color::LightGray, ButtonState::Hover);
-		button.SetBackgroundColor(color::DarkGray, ButtonState::Press);
-		button.OnPress(on_press);
-		button.SetBorderColor(color::Red);
-		button.SetBorderWidth(3.0f);
+	static constexpr V2_float kDropdownSize{ 200, 100 };
+	static constexpr V2_float kButtonSize{ 100, 50 };
+	static constexpr V2_float kTextPadding{ 6, 4 };
+
+	Button CreateMenuButton(std::string_view content, const std::function<void()>& on_press) {
+		Button button{ CreateButton(*this, {}) };
+
+		button.Background()
+			.BorderColor(color::Red)
+			.OnPress(on_press)
+			.TextPadding(kTextPadding)
+			.Text()
+			.Font("arial")
+			.Content(content)
+			.Color(color::White)
+			.Size(20)
+			.Align(HorizontalAlign::Center, VerticalAlign::Center)
+			.Wrap(WrapMode::Word)
+			.Overflow(OverflowMode::Ellipsis);
+
 		return button;
 	}
 
-	Dropdown CreateDropdown(bool open = false) {
-		Dropdown d = ptgn::CreateDropdown(*this, V2_int{ 200, 100 }, open)
-						 .SetText("Dropdown", color::Yellow)
-						 .SetBackgroundColor(color::Gray)
-						 .SetBackgroundColor(color::LightGray, ButtonState::Hover)
-						 .SetBackgroundColor(color::DarkGray, ButtonState::Press)
-						 .SetBorderColor(color::Gold)
-						 .SetBorderWidth(3.0f)
-						 .SetButtonSize(V2_float{ 100, 50 })
-						 .SetDropdownDirection(Origin::CenterBottom);
-		// SetDrawOrigin(d, Origin::Center);
-		SetPosition(d, -ctx().renderer.GetGameSize() * 0.5f + V2_float{ 400, 200 });
-		return d;
+	Dropdown CreateMenuDropdown(std::string_view content, bool open = false) {
+		V2_float position{ -ctx().renderer.GetLogicalSize() * 0.5f + V2_float{ 400, 200 } };
+
+		Dropdown dropdown{ CreateDropdown(*this, position, kDropdownSize, Origin::Center, open) };
+
+		dropdown.Background()
+			.BorderColor(color::Gold)
+			.TextPadding(kTextPadding)
+			.Text(content, color::Yellow, 20)
+			.Font("arial")
+			.Align(HorizontalAlign::Center, VerticalAlign::Center)
+			.Wrap(WrapMode::Word)
+			.Overflow(OverflowMode::Ellipsis);
+
+		dropdown.SetButtonSize(kButtonSize).SetDropdownDirection(Origin::CenterBottom);
+
+		return dropdown;
 	}
 
 	void OnEnter() override {
-		ctx().input.SetSettings({ .debug_draw_enabled = true });
+		ctx().asset.Load("arial", "assets/Arial.ttf");
+		ctx().debug.settings.interaction.draw_enabled = true;
 
-		Dropdown dropdown  = CreateDropdown();
-		Dropdown dropdown2 = CreateDropdown(false);
-		Dropdown dropdown3 = CreateDropdown(true);
-		Dropdown dropdown4 = CreateDropdown(false);
+		Dropdown dropdown{ CreateMenuDropdown("Dropdown") };
+		Dropdown dropdown2{ CreateMenuDropdown("Dropdown 2", false) };
+		Dropdown dropdown3{ CreateMenuDropdown("Dropdown 3", true) };
+		Dropdown dropdown4{ CreateMenuDropdown("Dropdown 4", false) };
 
-		dropdown.AddButton(CreateButton("First", []() { PTGN_LOG("Pressed first"); }));
-		dropdown.AddButton(CreateButton("Second", []() { PTGN_LOG("Pressed second"); }));
+		dropdown.AddButton(CreateMenuButton("First", []() { PTGN_LOG("Pressed first"); }));
+
+		dropdown.AddButton(CreateMenuButton("Second", []() { PTGN_LOG("Pressed second"); }));
+
 		dropdown.AddButton(dropdown2);
-		// dropdown.SetDropdownOrigin(Origin::CenterTop);
-		dropdown2.AddButton(CreateButton("Third", []() { PTGN_LOG("Pressed third"); }));
-		dropdown2.AddButton(CreateButton("Fourth", []() { PTGN_LOG("Pressed fourth"); }));
-		dropdown2.AddButton(CreateButton("Fifth", []() { PTGN_LOG("Pressed fifth"); }));
-		dropdown2.AddButton(dropdown3);
-		dropdown2.SetText("Dropdown 2", color::Yellow);
 
+		dropdown2.AddButton(CreateMenuButton("Third", []() { PTGN_LOG("Pressed third"); }));
+
+		dropdown2.AddButton(CreateMenuButton("Fourth", []() { PTGN_LOG("Pressed fourth"); }));
+
+		dropdown2.AddButton(CreateMenuButton("Fifth", []() { PTGN_LOG("Pressed fifth"); }));
+
+		dropdown2.AddButton(dropdown3);
 		dropdown2.SetDropdownOrigin(Origin::CenterRight);
-		dropdown3.AddButton(CreateButton("Sixth", []() { PTGN_LOG("Pressed sixth"); }));
+
+		dropdown3.AddButton(CreateMenuButton("Sixth", []() { PTGN_LOG("Pressed sixth"); }));
+
 		dropdown3.AddButton(dropdown4);
 		dropdown3.SetDropdownDirection(Origin::CenterLeft);
 		dropdown3.SetDropdownOrigin(Origin::CenterLeft);
-		dropdown3.SetText("Dropdown 3", color::Yellow);
 
-		dropdown4.AddButton(CreateButton("Seventh", []() { PTGN_LOG("Pressed seventh"); }));
-		dropdown4.AddButton(CreateButton("Eight", []() { PTGN_LOG("Pressed eight"); }));
-		dropdown4.AddButton(CreateButton("Ninth", []() { PTGN_LOG("Pressed ninth"); }));
-		dropdown4.SetText("Dropdown 4", color::Yellow);
+		dropdown4.AddButton(CreateMenuButton("Seventh", []() { PTGN_LOG("Pressed seventh"); }));
+
+		dropdown4.AddButton(CreateMenuButton("Eighth", []() { PTGN_LOG("Pressed eighth"); }));
+
+		dropdown4.AddButton(CreateMenuButton("Ninth", []() { PTGN_LOG("Pressed ninth"); }));
+
 		dropdown4.SetDropdownOrigin(Origin::CenterTop);
 		dropdown4.SetDropdownDirection(Origin::CenterTop);
-		dropdown2.SetShape(V2_int{ 200, 50 });
-		dropdown3.SetShape(V2_int{ 200, 50 });
-		dropdown4.SetShape(V2_int{ 200, 50 });
-		// dropdown3.SetButtonOffset();
+
+		dropdown2.Size({ 200, 50 });
+		dropdown3.Size({ 200, 50 });
+		dropdown4.Size({ 200, 50 });
 	}
 };
 
 int main(int, char**) {
-	Application game{ "DropdownScene" };
-	game.StartWith<DropdownScene>();
+	Application app{ "DropdownScene" };
+	PTGN_WITH_EDITOR(app, false);
+	app.StartWith<DropdownScene>();
 }

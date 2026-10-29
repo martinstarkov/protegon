@@ -1,23 +1,24 @@
 #include <vector>
 
 #include "app/application.h"
+#include "app/editor.h"
+#include "core/graphics/color.h"
+#include "core/graphics/fill_style.h"
+#include "core/input/key.h"
+#include "core/input/mouse.h"
 #include "core/math/geometry/origin.h"
 #include "core/math/geometry/rect.h"
 #include "core/math/transform.h"
 #include "core/math/vector2.h"
 #include "core/util/string.h"
-#include "platform/input/input_handler.h"
-#include "platform/input/key.h"
-#include "platform/input/mouse.h"
-#include "renderer/primitives/blend_mode.h"
-#include "renderer/primitives/color.h"
-#include "renderer/renderer.h"
+#include "renderer/pipeline/blend_mode.h"
 #include "runtime/ecs/entity.h"
 #include "runtime/graphics/draw.h"
-#include "runtime/graphics/text.h"
+#include "runtime/graphics/render_queue.h"
+#include "runtime/graphics/text/text.h"
 #include "runtime/scene/scene.h"
-
-#include "runtime/scene/scene_manager.h"
+#include "runtime/scene/scene_context.h"
+#include "runtime/scene/scene_input.h"
 #include "runtime/world/grid.h"
 
 using namespace ptgn;
@@ -33,7 +34,7 @@ public:
 
 	void OnEnter() override {
 		outer_grid.Fill(0);
-		text = CreateText(*this, "", color::Orange);
+		text = CreateText(*this, {}, "", color::Orange);
 		SetDepth(text, 1);
 	}
 
@@ -43,7 +44,7 @@ public:
 		std::vector<int> cells_without;
 		cells_without.resize(static_cast<std::size_t>(outer_grid.GetLength()), -1);
 		outer_grid.ForEachIndex([&](int index) {
-			int value = outer_grid.Get(index);
+			int value{ outer_grid.Get(index) };
 			if (value != 1) {
 				cells_without[static_cast<std::size_t>(index)] = value;
 			}
@@ -58,7 +59,7 @@ public:
 			grid = inner_grid;
 		}
 
-		auto res{ ctx().renderer.GetGameSize() };
+		auto res{ ctx().renderer.GetLogicalSize() };
 
 		V2_int mouse_pos = ctx().input.GetMousePosition() + res * 0.5f;
 
@@ -82,16 +83,15 @@ public:
 				}
 			}
 
-			ctx().renderer.DrawShape(
-				Rect{ tile_size },
-				Transform{ -res * 0.5f + V2_int{ p.x * tile_size.x, p.y * tile_size.y } }, c,
-				FillStyle::Solid(), Origin::TopLeft, Depth{}, BlendMode::Blend
+			ctx().render_queue.DrawShape(
+				Transform{ -res * 0.5f + V2_int{ p.x * tile_size.x, p.y * tile_size.y } },
+				Rect{ tile_size }, c, { .fill_style = Solid{}, .origin = Origin::TopLeft }
 			);
 		});
 		if (grid.Has(mouse_tile)) {
-			ctx().renderer.DrawShape(
-				Rect{ tile_size }, Transform{ -res * 0.5f + mouse_tile * tile_size }, color::Yellow,
-				FillStyle::Hollow(1.0f), Origin::TopLeft, Depth{}, BlendMode::Blend
+			ctx().render_queue.DrawShape(
+				Transform{ -res * 0.5f + mouse_tile * tile_size }, Rect{ tile_size }, color::Yellow,
+				{ .fill_style = 1.0f, .origin = Origin::TopLeft }
 			);
 		}
 		text.SetContent(ToString(mouse_tile));
@@ -102,5 +102,6 @@ public:
 int main(int, char**) {
 	Application app{ "paint: left click to draw; right click to erase; B to flip color",
 					 { 720, 720 } };
+	PTGN_WITH_EDITOR(app, false);
 	app.StartWith<Paint>();
 }

@@ -1,13 +1,9 @@
 #pragma once
 
-#include <ostream>
-#include <utility>
-#include <vector>
+#include <optional>
 
-#include "core/log.h"
 #include "core/math/vector2.h"
-#include "serialization/json/enum.h"
-#include "serialization/json/serialize.h"
+#include "serialization/serialize.h"
 
 namespace ptgn {
 
@@ -15,17 +11,7 @@ enum class MoveMode {
 	Lerp,
 	Velocity
 };
-
-inline std::ostream& operator<<(std::ostream& os, MoveMode mode) {
-	switch (mode) {
-		using enum MoveMode;
-		case Lerp:	   return os << "Lerp";
-		case Velocity: return os << "Velocity";
-		default:	   PTGN_ERROR("Unknown MoveMode: ", std::to_underlying(mode));
-	}
-}
-
-PTGN_SERIALIZE_ENUM(MoveMode, { { MoveMode::Lerp, "lerp" }, { MoveMode::Velocity, "velocity" } });
+PTGN_REFLECT_ENUM(MoveMode);
 
 struct FollowConfig {
 	MoveMode move_mode{ MoveMode::Lerp };
@@ -39,56 +25,56 @@ struct FollowConfig {
 	/// @brief Teleport to the target when the following starts.
 	bool teleport_on_start{ false };
 
-	/// @brief What is considered close enough to the target, -1 means that the follow will never
-	/// complete.
-	float stop_distance{ -1.0f };
+	/// @brief What is considered close enough to the target, nullopt means that the follow will
+	/// never complete.
+	std::optional<float> stop_distance{};
 
 	/// @brief Value from 0 to 1 which determines how aggressively the move mode interpolates. Only
 	/// applicable when move mode is set to lerp.
 	V2_float lerp{ 0.9f, 0.9f };
 
+	/// @brief Distance below which the entity snaps to the target position instead of lerping. Only
+	/// applicable when move mode is set to lerp.
+	float snap_distance{ 0.1f };
+
 	/// @brief Area around target within which no following occurs.
-	V2_float deadzone;
+	V2_float deadzone{};
 
 	/// @brief Offset from the target position that is followed (if zero, uses target transform).
-	V2_float offset;
+	V2_float offset{};
 
 	/// @brief Only applicable when move mode is set to velocity.
 	float max_speed{ 4.0f * 60.0f };
 	float max_acceleration{ 20.0f * 60.0f };
 
-	bool operator==(const FollowConfig&) const = default;
+	constexpr bool operator==(const FollowConfig&) const = default;
 
-	PTGN_SERIALIZER_REGISTER(
+	PTGN_REFLECT(
 		FollowConfig, move_mode, follow_x, follow_y, teleport_on_start, stop_distance, lerp,
-		deadzone, offset, max_speed, max_acceleration
+		snap_distance, deadzone, offset, max_speed, max_acceleration
 	)
 };
 
 struct TargetFollowConfig : public FollowConfig {
-	explicit TargetFollowConfig(const FollowConfig& config) : FollowConfig{ config } {}
+	constexpr explicit TargetFollowConfig(const FollowConfig& config) :
+		FollowConfig{ config } {}
 
 	using FollowConfig::FollowConfig;
 
-	bool operator==(const TargetFollowConfig&) const = default;
+	constexpr bool operator==(const TargetFollowConfig&) const = default;
+
+	PTGN_REFLECT_DERIVED(TargetFollowConfig, FollowConfig)
 };
 
 struct PathFollowConfig : public FollowConfig {
 	bool loop_path{ true };
 
-	PathFollowConfig() : FollowConfig{ .move_mode = MoveMode::Velocity, .stop_distance = 10.0f } {}
+	constexpr PathFollowConfig() :
+		FollowConfig{ .move_mode = MoveMode::Velocity, .stop_distance = 10.0f } {}
 
-	bool operator==(const PathFollowConfig&) const = default;
+	constexpr bool operator==(const PathFollowConfig&) const = default;
 
-	friend void to_json(json& j, const PathFollowConfig& config) {
-		to_json(j, static_cast<const FollowConfig&>(config));
-		j["loop_path"] = config.loop_path;
-	}
-
-	friend void from_json(const json& j, PathFollowConfig& config) {
-		from_json(j, static_cast<FollowConfig&>(config));
-		j.at("loop_path").get_to(config.loop_path);
-	}
+	PTGN_REFLECT_DERIVED(PathFollowConfig, FollowConfig, loop_path)
 };
 
 } // namespace ptgn

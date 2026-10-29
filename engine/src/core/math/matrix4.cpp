@@ -1,19 +1,54 @@
 #include "core/math/matrix4.h"
 
+#include <algorithm>
 #include <array>
 #include <cmath>
 #include <functional>
 
 #include "core/assert.h"
+#include "core/math/angle.h"
 #include "core/math/tolerance.h"
 #include "core/math/transform.h"
 #include "core/math/vector2.h"
 #include "core/math/vector3.h"
 #include "core/math/vector4.h"
-#include "serialization/json/fwd.h"
 #include "serialization/json/json.h"
 
 namespace ptgn {
+
+Matrix4 GetOrthographicViewProjection(
+	Transform transform, V2_float viewport_size, bool pixel_rounding
+) {
+	V2_float rounded_size{ pixel_rounding ? Round(viewport_size) : viewport_size };
+
+	V2_float half_size{ rounded_size * 0.5f };
+
+	auto min{ -half_size };
+	auto max{ half_size };
+
+	Matrix4 projection;
+
+	projection = Matrix4::Orthographic(min, max);
+
+	if (pixel_rounding) {
+		// A camera zoomed to 4x needs a 1/4-world-unit step per OUTPUT pixel.
+		// Rounding to whole world units makes the camera jump four pixels at
+		// once and visibly jitters otherwise stationary sprites while following.
+		V2_float step{ Abs(transform.scale) };
+		if (step.IsPositive()) {
+			transform.position = {
+				std::round(transform.position.x / step.x) * step.x,
+				std::round(transform.position.y / step.y) * step.y
+			};
+		}
+	}
+
+	auto view{ Matrix4::MakeInverseTransform(transform) };
+
+	auto view_projection{ projection * view };
+
+	return view_projection;
+}
 
 void to_json(json& j, const Matrix4& matrix) {
 	if (matrix != Matrix4{}) {
@@ -111,53 +146,69 @@ Matrix4 Matrix4::Inverse() const {
 }
 
 Matrix4 Matrix4::MakeTransform(
-	V3_float position, float rotation_radians, V3_float rotation_axis, V3_float scale
+	V3_float position, Radians rotation, V3_float rotation_axis, V3_float scale
 ) {
 	Matrix4 m{ Matrix4::Identity() };
 
 	m = Matrix4::Scale(m, scale);
-	m = Matrix4::Rotate(m, rotation_radians, rotation_axis);
+	m = Matrix4::Rotate(m, rotation, rotation_axis);
 	m = Matrix4::Translate(m, position);
 
 	return m;
 }
 
-Matrix4 Matrix4::MakeTransform(V2_float position, float rotation_radians, V2_float scale) {
+Matrix4 Matrix4::MakeTransform(
+	V3_float position, Degrees rotation, V3_float rotation_axis, V3_float scale
+) {
+	return MakeTransform(position, rotation.ToRad(), rotation_axis, scale);
+}
+
+Matrix4 Matrix4::MakeTransform(V2_float position, Radians rotation, V2_float scale) {
 	return MakeTransform(
-		{ position.x, position.y, 0.0f }, rotation_radians, { 0.0f, 0.0f, 1.0f },
-		{ scale.x, scale.y, 1.0f }
+		{ position.x, position.y, 0.0f }, rotation, { 0.0f, 0.0f, 1.0f }, { scale.x, scale.y, 1.0f }
 	);
 }
 
+Matrix4 Matrix4::MakeTransform(V2_float position, Degrees rotation, V2_float scale) {
+	return MakeTransform(position, rotation.ToRad(), scale);
+}
+
 Matrix4 Matrix4::MakeTransform(Transform transform) {
-	return MakeTransform(transform.GetPosition(), transform.GetRotation(), transform.GetScale());
+	return MakeTransform(transform.position, transform.rotation, transform.scale);
 }
 
 Matrix4 Matrix4::MakeInverseTransform(
-	V3_float position, float rotation_radians, V3_float rotation_axis, V3_float scale
+	V3_float position, Radians rotation, V3_float rotation_axis, V3_float scale
 ) {
 	PTGN_ASSERT(!scale.HasZero(), "Cannot get inverse transform with zero scale");
 
 	Matrix4 m{ Matrix4::Identity() };
 
 	m = Matrix4::Scale(m, 1.0f / scale);
-	m = Matrix4::Rotate(m, -rotation_radians, rotation_axis);
+	m = Matrix4::Rotate(m, -rotation, rotation_axis);
 	m = Matrix4::Translate(m, -position);
 
 	return m;
 }
 
-Matrix4 Matrix4::MakeInverseTransform(V2_float position, float rotation_radians, V2_float scale) {
+Matrix4 Matrix4::MakeInverseTransform(
+	V3_float position, Degrees rotation, V3_float rotation_axis, V3_float scale
+) {
+	return MakeInverseTransform(position, rotation.ToRad(), rotation_axis, scale);
+}
+
+Matrix4 Matrix4::MakeInverseTransform(V2_float position, Radians rotation, V2_float scale) {
 	return MakeInverseTransform(
-		{ position.x, position.y, 0.0f }, rotation_radians, { 0.0f, 0.0f, 1.0f },
-		{ scale.x, scale.y, 1.0f }
+		{ position.x, position.y, 0.0f }, rotation, { 0.0f, 0.0f, 1.0f }, { scale.x, scale.y, 1.0f }
 	);
 }
 
+Matrix4 Matrix4::MakeInverseTransform(V2_float position, Degrees rotation, V2_float scale) {
+	return MakeInverseTransform(position, rotation.ToRad(), scale);
+}
+
 Matrix4 Matrix4::MakeInverseTransform(Transform transform) {
-	return MakeInverseTransform(
-		transform.GetPosition(), transform.GetRotation(), transform.GetScale()
-	);
+	return MakeInverseTransform(transform.position, transform.rotation, transform.scale);
 }
 
 Matrix4 Matrix4::Orthographic(
@@ -189,8 +240,8 @@ Matrix4 Matrix4::Orthographic(
 
 	PTGN_ASSERT(
 		std::invoke([&]() -> bool {
-			for (std::size_t i{ 0 }; i < ortho.length; i++) {
-				if (std::isnan(ortho[i]) || std::isinf(ortho[i])) {
+			for (auto v : ortho) {
+				if (std::isnan(v) || std::isinf(v)) {
 					return false;
 				}
 			}
@@ -206,11 +257,16 @@ Matrix4 Matrix4::Orthographic(V2_float min, V2_float max, float near, float far)
 	return Orthographic(min.x, max.x, max.y, min.y, near, far);
 }
 
-Matrix4 Matrix4::Perspective(float fov_x_radians, float aspect_ratio, float front, float back) {
-	float tangent{ std::tan(fov_x_radians / 2.0f) }; // tangent of half fovX
-	float right{ front * tangent };					 // half width of near plane
+Matrix4 Matrix4::Orthographic(V2_float view_size, float near, float far) {
+	auto half_size{ view_size * 0.5f };
+	return Orthographic(-half_size, half_size, near, far);
+}
+
+Matrix4 Matrix4::Perspective(Radians fov_x, float aspect_ratio, float front, float back) {
+	float tangent{ (fov_x / 2.0f).Tan() }; // tangent of half fovX
+	float right{ front * tangent };		   // half width of near plane
 	PTGN_ASSERT(!NearlyEqual(aspect_ratio, 0.0f), "Perspective matrix aspect ratio cannot be zero");
-	float top{ right / aspect_ratio };				 // half height of near plane
+	float top{ right / aspect_ratio };	   // half height of near plane
 
 	float depth{ back - front };
 
@@ -226,17 +282,21 @@ Matrix4 Matrix4::Perspective(float fov_x_radians, float aspect_ratio, float fron
 	return p;
 }
 
+Matrix4 Matrix4::Perspective(Degrees fov_x, float aspect_ratio, float front, float back) {
+	return Perspective(fov_x.ToRad(), aspect_ratio, front, back);
+}
+
 Matrix4 Matrix4::Translate(const Matrix4& m, V3_float axes) {
 	Matrix4 result{ m };
-	for (std::size_t i{ 0 }; i < result.size.x; i++) {
+	for (auto i{ 0uz }; i < static_cast<std::size_t>(result.size.x); ++i) { // NOSONAR
 		result[i + 12] = m[i] * axes.x + m[i + 4] * axes.y + m[i + 8] * axes.z + m[i + 12];
 	}
 	return result;
 }
 
-Matrix4 Matrix4::Rotate(const Matrix4& matrix, float rotation_radians, V3_float axes) {
-	const float c{ std::cos(rotation_radians) };
-	const float s{ std::sin(rotation_radians) };
+Matrix4 Matrix4::Rotate(const Matrix4& matrix, Radians rotation, V3_float axes) {
+	float c{ rotation.Cos() };
+	float s{ rotation.Sin() };
 
 	float magnitude{ axes.Dot(axes) };
 
@@ -266,7 +326,7 @@ Matrix4 Matrix4::Rotate(const Matrix4& matrix, float rotation_radians, V3_float 
 
 	Matrix4 result;
 
-	for (std::size_t i{ 0 }; i < result.size.x; i++) {
+	for (auto i{ 0uz }; i < static_cast<std::size_t>(result.size.x); ++i) { // NOSONAR
 		result[i + 0] =
 			matrix[i + 0] * rotate[0] + matrix[i + 4] * rotate[4] + matrix[i + 8] * rotate[8];
 		result[i + 4] =
@@ -278,9 +338,13 @@ Matrix4 Matrix4::Rotate(const Matrix4& matrix, float rotation_radians, V3_float 
 	return result;
 }
 
+Matrix4 Matrix4::Rotate(const Matrix4& matrix, Degrees rotation, V3_float axes) {
+	return Rotate(matrix, rotation.ToRad(), axes);
+}
+
 Matrix4 Matrix4::Scale(const Matrix4& m, V3_float axes) {
 	Matrix4 result;
-	for (std::size_t i{ 0 }; i < result.size.x; i++) {
+	for (auto i{ 0uz }; i < static_cast<std::size_t>(result.size.x); ++i) { // NOSONAR
 		result[i + 0]  = m[i + 0] * axes.x;
 		result[i + 4]  = m[i + 4] * axes.y;
 		result[i + 8]  = m[i + 8] * axes.z;
@@ -290,48 +354,38 @@ Matrix4 Matrix4::Scale(const Matrix4& m, V3_float axes) {
 }
 
 bool Matrix4::IsZero() const {
-	for (std::size_t i{ 0 }; i < length; i++) {
-		if (!NearlyEqual(m_[i], 0.0f)) {
-			return false;
-		}
-	}
-	return true;
+	return std::ranges::all_of(m_, [](float f) { return NearlyEqual(f, 0.0f); });
 }
 
 bool Matrix4::ExactlyEquals(const Matrix4& o) const {
-	for (std::size_t i{ 0 }; i < length; i++) {
-		if (m_[i] != o[i]) {
-			return false;
-		}
-	}
-	return true;
+	return std::ranges::equal(m_, o.m_);
 }
 
-Matrix4 Matrix4::operator+(const Matrix4& rhs) {
+Matrix4 Matrix4::operator+(const Matrix4& rhs) const {
 	Matrix4 result;
-	for (std::size_t i{ 0 }; i < result.length; i++) {
+	for (auto i{ 0uz }; i < result.length; ++i) { // NOSONAR
 		result[i] = m_[i] + rhs[i];
 	}
 	return result;
 }
 
-Matrix4 Matrix4::operator-(const Matrix4& rhs) {
+Matrix4 Matrix4::operator-(const Matrix4& rhs) const {
 	Matrix4 result;
-	for (std::size_t i{ 0 }; i < result.length; i++) {
+	for (auto i{ 0uz }; i < result.length; ++i) { // NOSONAR
 		result[i] = m_[i] - rhs[i];
 	}
 	return result;
 }
 
-Matrix4 Matrix4::operator*(const Matrix4& rhs) {
+Matrix4 Matrix4::operator*(const Matrix4& rhs) const {
 	Matrix4 res;
 
-	for (std::size_t col = 0; col < rhs.size.y; ++col) {
-		std::size_t res_stride{ col * res.size.x };
-		std::size_t B_stride{ col * rhs.size.x };
-		for (std::size_t row = 0; row < size.x; ++row) {
-			std::size_t res_index{ row + res_stride };
-			for (std::size_t i{ 0 }; i < rhs.size.x; ++i) {
+	for (auto col{ 0uz }; col < static_cast<std::size_t>(rhs.size.y); ++col) { // NOSONAR
+		auto res_stride{ col * res.size.x };								   // NOSONAR
+		auto B_stride{ col * rhs.size.x };									   // NOSONAR
+		for (auto row{ 0uz }; row < static_cast<std::size_t>(size.x); ++row) {
+			auto res_index{ row + res_stride };
+			for (auto i{ 0uz }; i < static_cast<std::size_t>(rhs.size.x); ++i) { // NOSONAR
 				res[res_index] += m_[row + i * size.x] * rhs[i + B_stride];
 			}
 		}

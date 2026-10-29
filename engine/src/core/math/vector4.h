@@ -1,18 +1,17 @@
 #pragma once
 
 #include <array>
-#include <iosfwd>
+#include <cmath>
+#include <functional>
 #include <ostream>
 #include <type_traits>
 
-#include "core/assert.h"
 #include "core/math/tolerance.h"
 #include "core/math/vector2.h"
 #include "core/math/vector3.h"
 #include "core/util/concepts.h"
+#include "core/util/hash.h"
 #include "serialization/json/fwd.h"
-
-// TODO: Stop exposing assert.h
 
 namespace ptgn {
 
@@ -45,14 +44,12 @@ struct Vector4 {
 	constexpr Vector4(T x_component, T y_component, T z_component, T w_component) :
 		x{ x_component }, y{ y_component }, z{ z_component }, w{ w_component } {}
 
-	explicit Vector4(const json& j);
-
 	template <Arithmetic U>
-	constexpr Vector4(Vector4<U> o) :
+	constexpr Vector4(Vector4<U> o) : // NOSONAR
 		x{ static_cast<T>(o.x) },
 		y{ static_cast<T>(o.y) },
 		z{ static_cast<T>(o.z) },
-		w{ static_cast<T>(w.z) } {}
+		w{ static_cast<T>(o.w) } {}
 
 	template <
 		ConvertibleToArithmetic U, ConvertibleToArithmetic S, ConvertibleToArithmetic V,
@@ -64,59 +61,63 @@ struct Vector4 {
 		w{ static_cast<T>(w_component) } {}
 
 	template <Arithmetic U>
-	constexpr Vector4(std::array<U, 4> o) :
+	explicit constexpr Vector4(std::array<U, 4> o) :
 		x{ static_cast<T>(o[0]) },
 		y{ static_cast<T>(o[1]) },
 		z{ static_cast<T>(o[2]) },
 		w{ static_cast<T>(o[3]) } {}
 
-	constexpr Vector2<T> xy() const {
+	[[nodiscard]] constexpr Vector2<T> xy() const {
 		return { x, y };
 	}
 
-	constexpr Vector2<T> xx() const {
+	[[nodiscard]] constexpr Vector2<T> xx() const {
 		return { x, x };
 	}
 
-	constexpr Vector2<T> yy() const {
+	[[nodiscard]] constexpr Vector2<T> yy() const {
 		return { y, y };
 	}
 
-	constexpr Vector2<T> zz() const {
+	[[nodiscard]] constexpr Vector2<T> zz() const {
 		return { z, z };
 	}
 
-	constexpr Vector3<T> xyz() const {
+	[[nodiscard]] constexpr Vector3<T> xyz() const {
 		return { x, y, z };
 	}
 
-	friend bool operator==(const Vector4& lhs, const Vector4& rhs) {
+	constexpr friend bool operator==(const Vector4& lhs, const Vector4& rhs) {
 		return NearlyEqual(lhs.x, rhs.x) && NearlyEqual(lhs.y, rhs.y) &&
 			   NearlyEqual(lhs.z, rhs.z) && NearlyEqual(lhs.w, rhs.w);
 	}
 
-	// Access vector elements by index, 0 for x, 1 for y, 2 for z, 3 for w.
+	/// @brief Access vector elements by index, 0 for x, 1 for y, 2 for z, 3 for w.
 	constexpr T& operator[](std::size_t idx) {
-		if (idx == 1) {
+		if (idx == 0) {
+			return x;
+		} else if (idx == 1) {
 			return y;
 		} else if (idx == 2) {
 			return z;
 		} else if (idx == 3) {
 			return w;
 		}
-		return x; // 0
+		PTGN_ERROR("Vector4 index out of range: ", idx);
 	}
 
-	// Access vector elements by index, 0 for x, 1 for y, 2 for z, 3 for w.
+	/// @brief Access vector elements by index, 0 for x, 1 for y, 2 for z, 3 for w.
 	constexpr T operator[](std::size_t idx) const {
-		if (idx == 1) {
+		if (idx == 0) {
+			return x;
+		} else if (idx == 1) {
 			return y;
 		} else if (idx == 2) {
 			return z;
 		} else if (idx == 3) {
 			return w;
 		}
-		return x; // 0
+		PTGN_ERROR("Vector4 index out of range: ", idx);
 	}
 
 	constexpr Vector4 operator-() const {
@@ -183,39 +184,64 @@ struct Vector4 {
 		return *this;
 	}
 
-	// Returns the dot product (this * o).
+	/// @return The dot product (this * o).
 	[[nodiscard]] constexpr T Dot(Vector4 o) const {
 		return x * o.x + y * o.y + z * o.z + w * o.w;
 	}
 
-	template <std::floating_point S = typename std::common_type_t<T, float>>
-	[[nodiscard]] constexpr S Magnitude() const {
-		return std::sqrt(static_cast<S>(MagnitudeSquared()));
+	[[nodiscard]] float Magnitude() const {
+		return std::sqrt(static_cast<float>(MagnitudeSquared()));
 	}
 
 	[[nodiscard]] constexpr T MagnitudeSquared() const {
 		return Dot(*this);
 	}
 
-	// Returns a unit vector (magnitude = 1) except for zero vectors (magnitude
-	// = 0).
-	template <std::floating_point S = typename std::common_type_t<T, float>>
-	[[nodiscard]] Vector4<S> Normalized() const {
+	/// @return Unit vector (magnitude = 1) except for zero vectors (magnitude = 0).
+	[[nodiscard]] Vector4<float> Normalized() const {
 		T m{ MagnitudeSquared() };
 		if (NearlyEqual(m, T{ 0 })) {
 			return *this;
 		}
-		return *this / std::sqrt(static_cast<S>(m));
+		return *this / std::sqrt(static_cast<float>(m));
 	}
 
+	/// @return True if all components are in range [0.0, 1.0].
 	constexpr bool IsNormalized() const {
-		return x >= 0.0f && x <= 1.0f && y >= 0.0f && y <= 1.0f && z >= 0.0f && z <= 1.0f &&
-			   w >= 0.0f && w <= 1.0f;
+		return static_cast<float>(x) >= 0.0f && static_cast<float>(x) <= 1.0f &&
+			   static_cast<float>(y) >= 0.0f && static_cast<float>(y) <= 1.0f &&
+			   static_cast<float>(z) >= 0.0f && static_cast<float>(z) <= 1.0f &&
+			   static_cast<float>(w) >= 0.0f && static_cast<float>(w) <= 1.0f;
 	}
 
-	bool IsZero() const {
+	/// @return True if all components are zero (or very close to zero within a small epsilon).
+	constexpr bool IsZero() const {
 		return NearlyEqual(x, T{ 0 }) && NearlyEqual(y, T{ 0 }) && NearlyEqual(z, T{ 0 }) &&
 			   NearlyEqual(w, T{ 0 });
+	}
+
+	/// @return True if any component is zero (or very close to zero within a small epsilon).
+	constexpr bool HasZero() const {
+		return NearlyEqual(x, T{ 0 }) || NearlyEqual(y, T{ 0 }) || NearlyEqual(z, T{ 0 }) ||
+			   NearlyEqual(w, T{ 0 });
+	}
+
+	/// @return True if all components are greater than zero. Returns false if any component is
+	/// zero (or very close to zero within a small epsilon).
+	constexpr bool IsPositive() const {
+		return x > 0 && y > 0 && z > 0 && w > 0 && !HasZero();
+	}
+
+	constexpr bool HasPositive() const {
+		return x > 0 || y > 0 || z > 0 || w > 0;
+	}
+
+	constexpr bool IsNegative() const {
+		return x < 0 && y < 0 && z < 0 && w < 0 && !HasZero();
+	}
+
+	constexpr bool HasNegative() const {
+		return x < 0 || y < 0 || z < 0 || w < 0;
 	}
 };
 
@@ -225,78 +251,119 @@ void to_json(json& j, const Vector4<T>& vector);
 template <Arithmetic T>
 void from_json(const json& j, Vector4<T>& vector);
 
-using V4_int	= Vector4<int>;
-using V4_uint	= Vector4<unsigned int>;
-using V4_float	= Vector4<float>;
-using V4_double = Vector4<double>;
+using V4_int   = Vector4<int>;
+using V4_uint  = Vector4<unsigned int>;
+using V4_float = Vector4<float>;
 
-template <StreamWritable V>
-inline std::ostream& operator<<(std::ostream& os, ptgn::Vector4<V> v) {
+template <Arithmetic V>
+std::ostream& operator<<(std::ostream& os, Vector4<V> v) { // NOSONAR
 	os << "(" << v.x << ", " << v.y << ", " << v.z << ", " << v.w << ")";
 	return os;
 }
 
 template <Arithmetic V, Arithmetic U, Arithmetic S = typename std::common_type_t<V, U>>
-constexpr Vector4<S> operator+(Vector4<V> lhs, Vector4<U> rhs) {
-	return { lhs.x + rhs.x, lhs.y + rhs.y, lhs.z + rhs.z, lhs.w + rhs.w };
+constexpr Vector4<S> operator+(Vector4<V> lhs, Vector4<U> rhs) { // NOSONAR
+	return {
+		lhs.x + rhs.x,
+		lhs.y + rhs.y,
+		lhs.z + rhs.z,
+		lhs.w + rhs.w,
+	};
 }
 
 template <Arithmetic V, Arithmetic U, Arithmetic S = typename std::common_type_t<V, U>>
-constexpr Vector4<S> operator-(Vector4<V> lhs, Vector4<U> rhs) {
-	return { lhs.x - rhs.x, lhs.y - rhs.y, lhs.z - rhs.z, lhs.w - rhs.w };
+constexpr Vector4<S> operator-(Vector4<V> lhs, Vector4<U> rhs) { // NOSONAR
+	return {
+		lhs.x - rhs.x,
+		lhs.y - rhs.y,
+		lhs.z - rhs.z,
+		lhs.w - rhs.w,
+	};
 }
 
 template <Arithmetic V, Arithmetic U, Arithmetic S = typename std::common_type_t<V, U>>
-constexpr Vector4<S> operator*(Vector4<V> lhs, Vector4<U> rhs) {
-	return { lhs.x * rhs.x, lhs.y * rhs.y, lhs.z * rhs.z, lhs.w * rhs.w };
+constexpr Vector4<S> operator*(Vector4<V> lhs, Vector4<U> rhs) { // NOSONAR
+	return {
+		lhs.x * rhs.x,
+		lhs.y * rhs.y,
+		lhs.z * rhs.z,
+		lhs.w * rhs.w,
+	};
 }
 
 template <Arithmetic V, Arithmetic U, Arithmetic S = typename std::common_type_t<V, U>>
-constexpr Vector4<S> operator/(Vector4<V> lhs, Vector4<U> rhs) {
-	return { lhs.x / rhs.x, lhs.y / rhs.y, lhs.z / rhs.z, lhs.w / rhs.w };
+constexpr Vector4<S> operator/(Vector4<V> lhs, Vector4<U> rhs) { // NOSONAR
+	return {
+		lhs.x / rhs.x,
+		lhs.y / rhs.y,
+		lhs.z / rhs.z,
+		lhs.w / rhs.w,
+	};
 }
 
 template <Arithmetic V, Arithmetic U, Arithmetic S = typename std::common_type_t<V, U>>
-constexpr Vector4<S> operator*(V lhs, Vector4<U> rhs) {
-	return { lhs * rhs.x, lhs * rhs.y, lhs * rhs.z, lhs * rhs.w };
+constexpr Vector4<S> operator*(V lhs, Vector4<U> rhs) { // NOSONAR
+	return {
+		lhs * rhs.x,
+		lhs * rhs.y,
+		lhs * rhs.z,
+		lhs * rhs.w,
+	};
 }
 
 template <Arithmetic V, Arithmetic U, Arithmetic S = typename std::common_type_t<V, U>>
-constexpr Vector4<S> operator*(Vector4<V> lhs, U rhs) {
-	return { lhs.x * rhs, lhs.y * rhs, lhs.z * rhs, lhs.w * rhs };
+constexpr Vector4<S> operator*(Vector4<V> lhs, U rhs) { // NOSONAR
+	return {
+		lhs.x * rhs,
+		lhs.y * rhs,
+		lhs.z * rhs,
+		lhs.w * rhs,
+	};
 }
 
 template <Arithmetic V, Arithmetic U, Arithmetic S = typename std::common_type_t<V, U>>
-constexpr Vector4<S> operator/(V lhs, Vector4<U> rhs) {
-	return { lhs / rhs.x, lhs / rhs.y, lhs / rhs.z, lhs / rhs.w };
+constexpr Vector4<S> operator/(V lhs, Vector4<U> rhs) { // NOSONAR
+	return {
+		lhs / rhs.x,
+		lhs / rhs.y,
+		lhs / rhs.z,
+		lhs / rhs.w,
+	};
 }
 
 template <Arithmetic V, Arithmetic U, Arithmetic S = typename std::common_type_t<V, U>>
-constexpr Vector4<S> operator/(Vector4<V> lhs, U rhs) {
-	return { lhs.x / rhs, lhs.y / rhs, lhs.z / rhs, lhs.w / rhs };
+constexpr Vector4<S> operator/(Vector4<V> lhs, U rhs) { // NOSONAR
+	return {
+		static_cast<S>(lhs.x) / rhs,
+		static_cast<S>(lhs.y) / rhs,
+		static_cast<S>(lhs.z) / rhs,
+		static_cast<S>(lhs.w) / rhs,
+	};
 }
 
-// Clamp all components of the vector between min and max (component specific).
+/// @brief Clamp all components of the vector between min and max (component specific).
 template <Arithmetic T>
-[[nodiscard]] inline Vector4<T> Clamp(Vector4<T> vector, Vector4<T> min, Vector4<T> max) {
-	return { std::clamp(vector.x, min.x, max.x), std::clamp(vector.y, min.y, max.y),
-			 std::clamp(vector.z, min.z, max.z), std::clamp(vector.w, min.w, max.w) };
+[[nodiscard]] constexpr Vector4<T> Clamp(Vector4<T> vector, Vector4<T> min, Vector4<T> max) {
+	return {
+		std::clamp(vector.x, min.x, max.x),
+		std::clamp(vector.y, min.y, max.y),
+		std::clamp(vector.z, min.z, max.z),
+		std::clamp(vector.w, min.w, max.w),
+	};
 }
 
 } // namespace ptgn
 
-// Custom hashing function for Vector4 class.
-// This allows for use of unordered maps and sets with Vector2s as keys.
 template <ptgn::Arithmetic T>
 struct std::hash<ptgn::Vector4<T>> {
-	std::size_t operator()(const ptgn::Vector4<T>& v) const noexcept {
-		// Hashing combination algorithm from:
-		// https://stackoverflow.com/a/17017281
-		std::size_t value{ 17 };
-		value = value * 31 + std::hash<T>()(v.x);
-		value = value * 31 + std::hash<T>()(v.y);
-		value = value * 31 + std::hash<T>()(v.z);
-		value = value * 31 + std::hash<T>()(v.w);
-		return value;
+	std::size_t operator()(ptgn::Vector4<T> v) const noexcept {
+		if constexpr (std::is_floating_point_v<T>) {
+			return ptgn::Hash(
+				ptgn::QuantizeSigned(v.x), ptgn::QuantizeSigned(v.y), ptgn::QuantizeSigned(v.z),
+				ptgn::QuantizeSigned(v.w)
+			);
+		} else {
+			return ptgn::Hash(v.x, v.y, v.z, v.w);
+		}
 	}
 };

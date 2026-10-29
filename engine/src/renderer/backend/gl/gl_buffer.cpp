@@ -1,16 +1,14 @@
 #include "renderer/backend/gl/gl_buffer.h"
 
 #include <cstdint>
-#include <ostream>
 #include <utility>
 
 #include "core/assert.h"
-#include "core/log.h"
+#include "core/util/concepts.h"
 #include "core/util/id_map.h"
 #include "renderer/backend/gl/gl.h"
 #include "renderer/backend/gl/gl_context.h"
-#include "renderer/backend/gl/gl_debug.h"
-#include "renderer/primitives/id.h"
+#include "renderer/resources/id.h"
 
 namespace ptgn::impl::gl {
 
@@ -59,15 +57,13 @@ void Buffers::SetBufferSubData(
 	PTGN_ASSERT(element_count > 0, "Number of buffer elements must be greater than 0");
 	PTGN_ASSERT(element_size > 0, "Byte size of a buffer element must be greater than 0");
 
-	PTGN_ASSERT(data != nullptr);
+	PTGN_ASSERT(data);
 
 	std::uint32_t size{ element_count * element_size };
 
 	// This buffer size check must be done after the buffer is bound.
 	PTGN_ASSERT(
-		(size <= static_cast<std::uint32_t>(
-					 GetBufferParameter(BufferTarget::ArrayBuffer, BufferParameter::Size)
-				 )),
+		(size <= static_cast<std::uint32_t>(GetBufferParameter(target, BufferParameter::Size))),
 		"Attempting to bind data outside of allocated buffer size"
 	);
 
@@ -78,31 +74,20 @@ void Buffers::SetBufferSubData(
 			std::uint32_t buffer_size{ cache.count * element_size };
 			PTGN_ASSERT(buffer_size > 0);
 			PTGN_ASSERT(
-				(buffer_size <= static_cast<std::uint32_t>(GetBufferParameter(
-									BufferTarget::ArrayBuffer, BufferParameter::Size
-								))),
-				"Buffer element size does not appear to match the "
-				"originally allocated buffer element size"
+				(buffer_size <=
+				 static_cast<std::uint32_t>(GetBufferParameter(target, BufferParameter::Size))),
+				"Buffer size ", buffer_size,
+				" does not appear to match the "
+				"originally allocated buffer size: ",
+				GetBufferParameter(target, BufferParameter::Size)
 			);
-			GLCall(BufferData(
+			GLCall(glBufferData(
 				std::to_underlying(target), buffer_size, nullptr, std::to_underlying(cache.usage)
 			));
-#ifdef PTGN_GL_DEBUG_BUFFERS
-			PTGN_LOG(
-				"glBufferData(target=", target, ",size=", buffer_size,
-				",data=nullptr(orphaning),usage=", cache.usage, ")"
-			);
-#endif
 		}
 	}
 
-	GLCall(BufferSubData(std::to_underlying(target), byte_offset, size, data));
-#ifdef PTGN_GL_DEBUG_BUFFERS
-	PTGN_LOG(
-		"glBufferSubData(target=", target, ",offset=", byte_offset, ",size=", size, ",data=", data,
-		")"
-	);
-#endif
+	GLCall(glBufferSubData(std::to_underlying(target), byte_offset, size, data));
 }
 
 template void Buffers::SetBufferSubData<VertexBufferId>(
@@ -124,22 +109,24 @@ T Buffers::CreateBuffer(
 	PTGN_ASSERT(element_size > 0, "Byte size of a buffer element must be greater than 0");
 
 	T id{ 0 };
-	GLCall(GenBuffers(1, &id.value));
-#ifdef PTGN_GL_DEBUG_BUFFERS
-	PTGN_LOG("glGenBuffers() -> id=", id.value);
-#endif
+	GLCall(glGenBuffers(1, &id.value));
 
 	PTGN_ASSERT(id, "Failed to create buffer");
 
 	auto _1 = gl_.Bind(VertexArrayId{ 0 }, true);
 	auto _2 = gl_.Bind(id, false);
 
-	const std::uint32_t size = element_count * element_size;
+	std::uint32_t size = element_count * element_size;
 
-	GLCall(BufferData(std::to_underlying(target), size, data, std::to_underlying(usage)));
-#ifdef PTGN_GL_DEBUG_BUFFERS
-	PTGN_LOG("glBufferData(target=", target, ",size=", size, ",data=", data, ",usage=", usage, ")");
-#endif
+	GLCall(glBufferData(std::to_underlying(target), size, data, std::to_underlying(usage)));
+
+	PTGN_ASSERT(
+		(size == static_cast<std::uint32_t>(GetBufferParameter(target, BufferParameter::Size))),
+		"Buffer size ", size,
+		" does not appear to match the "
+		"allocated buffer size: ",
+		GetBufferParameter(target, BufferParameter::Size)
+	);
 
 	cache_.Add(id, BufferCache{ .usage = usage, .count = element_count });
 
@@ -161,10 +148,11 @@ void Buffers::DestroyBuffer(T id) {
 	if (!id) {
 		return;
 	}
-	GLCall(DeleteBuffers(1, &id.value));
-#ifdef PTGN_GL_DEBUG_BUFFERS
-	PTGN_LOG("glDeleteBuffers(id=", id.value, ")");
-#endif
+	if constexpr (IsAnyOf<VertexBufferId, UniformBufferId>) {
+		gl_.ForgetId(id);
+		PTGN_ASSERT(!gl_.IsBound(id), "Buffer must not be bound when destroying it");
+	}
+	GLCall(glDeleteBuffers(1, &id.value));
 	cache_.Remove(id);
 }
 
@@ -174,68 +162,11 @@ template void Buffers::DestroyBuffer<UniformBufferId>(UniformBufferId);
 
 int Buffers::GetBufferParameter(BufferTarget target, BufferParameter parameter) const {
 	int value{ -1 };
-	GLCall(GetBufferParameteriv(std::to_underlying(target), std::to_underlying(parameter), &value));
-	// NOSONAR
-	// #ifdef PTGN_GL_DEBUG_BUFFERS
-	//	PTGN_LOG(
-	//		"glGetBufferParameteriv(target=", target, ",parameter=", parameter, ") -> value=", value
-	//	);
-	// #endif
+	GLCall(
+		glGetBufferParameteriv(std::to_underlying(target), std::to_underlying(parameter), &value)
+	);
 	PTGN_ASSERT(value >= 0, "Failed to query buffer parameter");
 	return value;
-}
-
-std::ostream& operator<<(std::ostream& os, BufferUsage usage) {
-	switch (usage) {
-		using enum BufferUsage;
-		case StaticDraw:  return os << "StaticDraw";
-		case DynamicDraw: return os << "DynamicDraw";
-		case StreamDraw:  return os << "StreamDraw";
-		case StaticRead:  return os << "StaticRead";
-		case DynamicRead: return os << "DynamicRead";
-		case StreamRead:  return os << "StreamRead";
-		case StaticCopy:  return os << "StaticCopy";
-		case DynamicCopy: return os << "DynamicCopy";
-		case StreamCopy:  return os << "StreamCopy";
-		default:		  PTGN_ERROR("Unknown BufferUsage: ", std::to_underlying(usage));
-	}
-}
-
-std::ostream& operator<<(std::ostream& os, BufferTarget target) {
-	switch (target) {
-		using enum BufferTarget;
-		case ArrayBuffer:			  return os << "VertexBuffer";
-		case AtomicCounterBuffer:	  return os << "AtomicCounterBuffer";
-		case CopyReadBuffer:		  return os << "CopyReadBuffer";
-		case CopyWriteBuffer:		  return os << "CopyWriteBuffer";
-		case DispatchIndirectBuffer:  return os << "DispatchIndirectBuffer";
-		case DrawIndirectBuffer:	  return os << "DrawIndirectBuffer";
-		case ElementArrayBuffer:	  return os << "ElementBuffer";
-		case PixelPackBuffer:		  return os << "PixelPackBuffer";
-		case PixelUnpackBuffer:		  return os << "PixelUnpackBuffer";
-		case QueryBuffer:			  return os << "QueryBuffer";
-		case ShaderStorageBuffer:	  return os << "ShaderStorageBuffer";
-		case TextureBuffer:			  return os << "TextureBuffer";
-		case TransformFeedbackBuffer: return os << "TransformFeedbackBuffer";
-		case UniformBuffer:			  return os << "UniformBuffer";
-		default:					  PTGN_ERROR("Unknown BufferTarget: ", std::to_underlying(target));
-	}
-}
-
-std::ostream& operator<<(std::ostream& os, BufferParameter parameter) {
-	switch (parameter) {
-		using enum BufferParameter;
-		case Access:		   return os << "Access";
-		case AccessFlags:	   return os << "AccessFlags";
-		case ImmutableStorage: return os << "ImmutableStorage";
-		case Mapped:		   return os << "Mapped";
-		case MapLength:		   return os << "MapLength";
-		case MapOffset:		   return os << "MapOffset";
-		case Size:			   return os << "Size";
-		case StorageFlags:	   return os << "StorageFlags";
-		case Usage:			   return os << "Usage";
-		default:			   PTGN_ERROR("Unknown BufferParameter: ", std::to_underlying(parameter));
-	}
 }
 
 } // namespace ptgn::impl::gl

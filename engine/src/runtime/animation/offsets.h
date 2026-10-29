@@ -2,13 +2,15 @@
 
 #include "core/math/transform.h"
 #include "core/math/vector2.h"
-#include "serialization/json/serialize.h"
+#include "serialization/serialize.h"
 
 namespace ptgn {
 
 class Entity;
 
 namespace impl {
+
+struct IgnoreParentOffset {};
 
 /// @brief Holds temporary transform offsets that do not permanently change an entity's transform.
 ///
@@ -21,15 +23,15 @@ struct Offsets {
 	Transform GetTotal() const;
 
 	/// @brief Temporary transform applied for camera or entity shake effect.
-	Transform shake;
+	Transform shake{};
 
 	/// @brief Temporary transform applied for bounce effect.
-	Transform bounce;
+	Transform bounce{};
 
 	/// @brief User applied offset.
-	Transform custom;
+	Transform custom{};
 
-	PTGN_SERIALIZER_REGISTER_IGNORE_DEFAULTS(Offsets, shake, bounce, custom)
+	PTGN_REFLECT(Offsets, shake, bounce, custom)
 };
 
 } // namespace impl
@@ -55,5 +57,7 @@ Transform GetOffset(Entity entity);
 
 /// @brief Sets a custom draw offset for the entity relative to its transform position.
 void SetDrawOffset(Entity entity, V2_float offset = {});
+
+void IgnoreParentOffset(Entity entity, bool ignore_parent_offset = true);
 
 } // namespace ptgn

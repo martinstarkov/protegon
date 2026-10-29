@@ -7,9 +7,9 @@ if(NOT DEFINED INPUT_HTML OR NOT DEFINED DEST_DIR)
   message(FATAL_ERROR "CopyEmscriptenOutput.cmake requires INPUT_HTML and DEST_DIR")
 endif()
 
-get_filename_component(_dir  "${INPUT_HTML}" DIRECTORY)
-get_filename_component(_name "${INPUT_HTML}" NAME)         # example_x.html
-get_filename_component(_stem "${INPUT_HTML}" NAME_WE)      # example_x
+get_filename_component(_dir "${INPUT_HTML}" DIRECTORY)
+get_filename_component(_name "${INPUT_HTML}" NAME) # example_x.html
+get_filename_component(_stem "${INPUT_HTML}" NAME_WE) # example_x
 
 file(MAKE_DIRECTORY "${DEST_DIR}")
 

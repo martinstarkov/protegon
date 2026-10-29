@@ -1,0 +1,107 @@
+#pragma once
+
+#include <expected>
+#include <optional>
+#include <string>
+#include <vector>
+
+#include "commands/editor_commands.h"
+#include "commands/undo_stack.h"
+#include "core/graphics/color.h"
+#include "core/util/file.h"
+#include "editor/editor_position_picker.h"
+#include "editor/editor_selection.h"
+#include "editor/editor_settings.h"
+#include "editor/editor_state.h"
+#include "editor/paint/paint_settings.h"
+#include "serialization/json/fwd.h"
+#include "serialization/serialize.h"
+
+namespace ptgn {
+
+struct Project;
+
+namespace editor {
+
+class Editor;
+
+struct EditorPaletteColor {
+	std::string name{ "Color" };
+	Color color{};
+
+	bool operator==(const EditorPaletteColor&) const = default;
+};
+
+struct EditorColorPalette {
+	std::string name{ "Palette" };
+	std::vector<EditorPaletteColor> colors{};
+
+	bool operator==(const EditorColorPalette&) const = default;
+};
+
+/// @brief Explicit JSON serialization keeps palette files tolerant of empty palettes and malformed
+/// individual color entries.
+void to_json(json& value, const EditorColorPalette& palette);
+void from_json(const json& value, EditorColorPalette& palette);
+
+/// @brief Editor only project data shared by every user of the project.
+/// Stored beside the project manifest in the tracked .ptgneditor file.
+struct EditorProjectState {
+	std::vector<EditorColorPalette> color_palettes{};
+	PaintProjectState paint{};
+
+	bool operator==(const EditorProjectState&) const = default;
+};
+
+void to_json(json& value, const EditorProjectState& state);
+void from_json(const json& value, EditorProjectState& state);
+
+/// @brief Machine specific editor state stored inside the editor object of .ptgnlocal.
+struct EditorLocalState {
+	EditorSettings settings{};
+	EditorState state{};
+	EditorSelection selection{};
+	std::optional<PaintLocalState> paint{};
+
+	/// @brief Runtime editor state. This is intentionally not serialized.
+	PositionPicker position_picker{};
+
+	PTGN_REFLECT(EditorLocalState, settings, state, selection, paint)
+};
+
+class EditorContext {
+public:
+	Editor& editor;
+	EditorCommands& commands;
+	UndoStack& undo;
+
+	EditorLocalState local{};
+	EditorProjectState project_state{};
+};
+
+/// @brief Opens the editor's native file picker filtered to .pal palette files.
+/// The outer expected reports dialog errors; the inner optional is empty when the user cancels.
+[[nodiscard]] std::expected<std::optional<path>, std::string> OpenPaletteFileDialog(
+	EditorContext& ctx
+);
+
+/// @return Path of the shared editor project state file stored beside the project manifest.
+path GetEditorProjectStatePath(const Project& project);
+
+/// @brief Loads editor only project data shared by all users. Missing/invalid fields preserve
+/// defaults. Invalid individual palette colors are ignored instead of aborting project startup.
+[[nodiscard]] EditorProjectState LoadEditorProjectState(const Project& project);
+
+/// @brief Writes shared editor only project data to the project .ptgneditor file.
+void SaveEditorProjectState(const Project& project, const EditorProjectState& state);
+
+/// @brief Loads this user's editor state from the editor object in .ptgnlocal.
+[[nodiscard]] EditorLocalState LoadEditorLocalState(const Project& project);
+
+/// @brief Writes this user's editor state into the editor object in .ptgnlocal while preserving
+/// other local state such as window geometry.
+void SaveEditorLocalState(const Project& project, const EditorLocalState& state);
+
+} // namespace editor
+
+} // namespace ptgn

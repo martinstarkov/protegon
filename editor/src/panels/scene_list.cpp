@@ -1,0 +1,586 @@
+#include "panels/scene_list.h"
+
+#include <imgui.h>
+#include <imgui_stdlib.h>
+
+#include <algorithm>
+#include <cctype>
+#include <cstddef>
+#include <cstdint>
+#include <optional>
+#include <ranges>
+#include <string>
+#include <string_view>
+#include <utility>
+#include <vector>
+
+#include "app/project.h"
+#include "core/assert.h"
+#include "core/util/hash.h"
+#include "editor/editor.h"
+#include "editor/editor_context.h"
+#include "editor/renamable_item.h"
+#include "panels/scene_hierarchy.h"
+#include "runtime/scene/scene.h"
+#include "runtime/scene/scene_context.h"
+#include "runtime/scene/scene_file.h"
+#include "runtime/scene/scene_manager.h"
+#include "runtime/scene/scene_registry.h"
+
+namespace ptgn::editor {
+namespace {
+struct SceneOrderDrag {
+	std::size_t index{ 0 };
+	bool runtime{ false };
+};
+
+struct PendingSceneOrderMove {
+	std::size_t from{ 0 };
+	std::size_t to{ 0 };
+	bool runtime{ false };
+};
+
+[[nodiscard]] bool IsRuntimeSceneList(const Editor& editor) {
+	return editor.IsPlaying() || editor.IsDirectRuntime();
+}
+
+[[nodiscard]] Scene* FindLoadedScene(Editor& editor, std::string_view key, bool runtime) {
+	auto& scenes{ editor.GetSceneManager().GetScenes() };
+	auto it{ std::ranges::find_if(scenes, [key, runtime](const auto& scene) {
+		return scene && scene->GetTag() == key && scene->IsRuntime() == runtime;
+	}) };
+	return it == scenes.end() ? nullptr : it->get();
+}
+
+[[nodiscard]] std::string SceneTypeName(const Scene& scene) {
+	if (scene.GetRegisteredType().empty()) {
+		return "Scene";
+	}
+	return std::string{ ::ptgn::impl::GetSceneRegistration(scene.GetRegisteredType()).type };
+}
+
+[[nodiscard]] std::string ProjectSceneLabel(const ProjectSceneEntry& entry, const Scene* scene) {
+	return entry.key + " [" + (scene ? SceneTypeName(*scene) : std::string{ "Scene" }) + "]";
+}
+
+[[nodiscard]] std::string ValidateSceneKey(
+	const Project& project, std::string_view current_key, std::string_view value
+) {
+	if (value.empty()) {
+		return "Scene key cannot be empty.";
+	}
+	bool valid_characters{ std::ranges::all_of(value, [](char character) {
+		auto c{ static_cast<unsigned char>(character) };
+		return std::isalnum(c) || c == '_' || c == '-';
+	}) };
+	if (!valid_characters) {
+		return "Scene keys may only contain letters, numbers, '_' and '-'.";
+	}
+	if (value != current_key && FindProjectScene(project, value)) {
+		return "Scene key must be unique.";
+	}
+	return {};
+}
+
+bool DrawJsonEditor(const char* label, json& value) {
+	bool changed{ false };
+	if (value.is_boolean()) {
+		bool current{ value.get<bool>() };
+		if (ImGui::Checkbox(label, &current)) {
+			value	= current;
+			changed = true;
+		}
+	} else if (value.is_number_integer()) {
+		int current{ value.get<int>() };
+		if (ImGui::InputInt(label, &current)) {
+			value	= current;
+			changed = true;
+		}
+	} else if (value.is_number_unsigned()) {
+		std::uint64_t current{ value.get<std::uint64_t>() };
+		if (ImGui::InputScalar(label, ImGuiDataType_U64, &current)) {
+			value	= current;
+			changed = true;
+		}
+	} else if (value.is_number_float()) {
+		float current{ value.get<float>() };
+		if (ImGui::InputFloat(label, &current)) {
+			value	= current;
+			changed = true;
+		}
+	} else if (value.is_string()) {
+		std::string current{ value.get<std::string>() };
+		if (ImGui::InputText(label, &current)) {
+			value	= std::move(current);
+			changed = true;
+		}
+	} else if (value.is_object()) {
+		if (ImGui::TreeNode(label)) {
+			for (auto it{ value.begin() }; it != value.end(); ++it) {
+				ImGui::PushID(it.key().c_str());
+				changed |= DrawJsonEditor(it.key().c_str(), it.value());
+				ImGui::PopID();
+			}
+			ImGui::TreePop();
+		}
+	} else if (value.is_array()) {
+		if (ImGui::TreeNode(label)) {
+			for (std::size_t index{ 0 }; index < value.size(); ++index) {
+				std::string item{ "[" + std::to_string(index) + "]" };
+				ImGui::PushID(static_cast<int>(index));
+				changed |= DrawJsonEditor(item.c_str(), value[index]);
+				ImGui::PopID();
+			}
+			ImGui::TreePop();
+		}
+	} else {
+		ImGui::TextDisabled("%s: unsupported", label);
+	}
+	return changed;
+}
+
+void SelectDefaultEntity(
+	EditorContext& ctx, Scene& scene, std::optional<UUID> selected_entity_uuid = std::nullopt
+) {
+	auto& hierarchy{ ctx.editor.GetSceneHierarchyPanel() };
+	auto entities{ scene.Entities() };
+	if (!selected_entity_uuid &&
+		ctx.local.selection.HasEntitySelection(scene.GetTag(), scene.IsRuntime())) {
+		selected_entity_uuid = ctx.local.selection.GetEntityUUID(scene.GetTag(), scene.IsRuntime());
+		if (!selected_entity_uuid) {
+			hierarchy.SetSelectedEntity({}, false);
+			return;
+		}
+	}
+	auto select_if_present = [&](Entity entity) {
+		if (!entity || !entities.Contains(entity)) {
+			return false;
+		}
+		hierarchy.SetSelectedEntity(entity, false);
+		return true;
+	};
+	if (selected_entity_uuid && select_if_present(scene.GetEntity(selected_entity_uuid.value()))) {
+		return;
+	}
+	auto& scene_ctx{ scene.ctx() };
+	auto render_target{ scene.GetRenderTarget() };
+	auto fixed_camera{ ::ptgn::impl::SceneContextAccessor::GetFixedCamera(scene_ctx) };
+	auto camera{ scene_ctx.camera };
+	auto regular_entity{ entities.FindIf([&](Entity entity) {
+		return entity != render_target && entity != fixed_camera && entity != camera;
+	}) };
+	if (select_if_present(regular_entity) || select_if_present(camera) ||
+		select_if_present(fixed_camera)) {
+		return;
+	}
+	select_if_present(render_target);
+}
+
+void DrawSceneOrderDragSource(std::size_t index, bool runtime, std::string_view label) {
+	if (!ImGui::BeginDragDropSource()) {
+		return;
+	}
+	SceneOrderDrag payload{
+		.index	 = index,
+		.runtime = runtime,
+	};
+	ImGui::SetDragDropPayload("PTGN_SCENE_ORDER", &payload, sizeof(payload));
+	ImGui::TextUnformatted(label.data(), label.data() + label.size());
+	ImGui::EndDragDropSource();
+}
+
+void DrawSceneOrderDropTarget(
+	std::size_t index, bool runtime, std::optional<PendingSceneOrderMove>& pending_move
+) {
+	if (!ImGui::BeginDragDropTarget()) {
+		return;
+	}
+	if (const auto* payload{ ImGui::AcceptDragDropPayload("PTGN_SCENE_ORDER") }) {
+		PTGN_ASSERT(payload->DataSize == sizeof(SceneOrderDrag));
+		auto dragged{ *static_cast<const SceneOrderDrag*>(payload->Data) };
+		if (dragged.runtime == runtime && dragged.index != index) {
+			pending_move = PendingSceneOrderMove{
+				.from	 = dragged.index,
+				.to		 = index,
+				.runtime = runtime,
+			};
+		}
+	}
+	ImGui::EndDragDropTarget();
+}
+
+void MoveRuntimeScene(Editor& editor, std::size_t from_index, std::size_t to_index) {
+	std::vector<std::string> keys;
+	for (const auto& scene : editor.GetSceneManager().GetScenes()) {
+		if (scene && scene->IsRuntime()) {
+			keys.emplace_back(scene->GetTag());
+		}
+	}
+	if (from_index >= keys.size() || to_index >= keys.size() || from_index == to_index) {
+		return;
+	}
+	if (from_index < to_index) {
+		std::rotate(
+			keys.begin() + static_cast<std::ptrdiff_t>(from_index),
+			keys.begin() + static_cast<std::ptrdiff_t>(from_index + 1),
+			keys.begin() + static_cast<std::ptrdiff_t>(to_index + 1)
+		);
+	} else {
+		std::rotate(
+			keys.begin() + static_cast<std::ptrdiff_t>(to_index),
+			keys.begin() + static_cast<std::ptrdiff_t>(from_index),
+			keys.begin() + static_cast<std::ptrdiff_t>(from_index + 1)
+		);
+	}
+	editor.GetSceneManager().ReorderScenes(keys, true);
+}
+
+void DrawAddScenePopup(EditorContext& ctx) {
+	if (!ImGui::BeginPopup("AddProjectScene")) {
+		return;
+	}
+	if (ImGui::MenuItem("Scene")) {
+		ctx.editor.CreateProjectScene(::ptgn::impl::kBaseSceneType);
+		ImGui::CloseCurrentPopup();
+	}
+	std::vector<const ::ptgn::impl::SceneRegistryEntry*> registrations;
+	registrations.reserve(::ptgn::impl::GetSceneRegistry().size());
+	for (const auto& [_type, registration] : ::ptgn::impl::GetSceneRegistry()) {
+		registrations.emplace_back(&registration);
+	}
+	std::ranges::sort(registrations, {}, [](const auto* registration) {
+		return registration->type;
+	});
+	if (!registrations.empty()) {
+		ImGui::Separator();
+	}
+	for (const auto* registration : registrations) {
+		PTGN_ASSERT(registration);
+		if (ImGui::MenuItem(registration->type.c_str())) {
+			ctx.editor.CreateProjectScene(registration->type);
+			ImGui::CloseCurrentPopup();
+			break;
+		}
+	}
+	ImGui::EndPopup();
+}
+} // namespace
+
+void SceneListPanel::ClearInvalidSceneSelection(EditorContext& ctx) {
+	auto* selected_scene{ GetSelectedScene() };
+	if (selected_scene || !ctx.local.selection.HasSceneSelection()) {
+		return;
+	}
+	EditorSelection selection{ ctx.local.selection };
+	selection.selected_scene_key.clear();
+	selection.selected_scene_runtime = false;
+	ApplyEditorSelection(ctx, std::move(selection));
+	state_.reset();
+}
+
+void SceneListPanel::DrawSceneDetails(EditorContext& ctx) {
+	if (pending_scene_selection_) {
+		ImGui::SeparatorText("Parameters");
+		ImGui::TextDisabled("Loading scene...");
+		return;
+	}
+	auto* selected_scene{ GetSelectedScene() };
+	if (!selected_scene || !state_) {
+		return;
+	}
+	auto& state{ state_.value() };
+	bool runtime{ selected_scene->IsRuntime() };
+	ImGui::SeparatorText("Parameters");
+	if (state.parameters.empty()) {
+		ImGui::TextDisabled("No serialized scene parameters.");
+		return;
+	}
+	bool changed{ false };
+	for (auto it{ state.parameters.begin() }; it != state.parameters.end(); ++it) {
+		ImGui::PushID(it.key().c_str());
+		changed |= DrawJsonEditor(it.key().c_str(), it.value());
+		ImGui::PopID();
+	}
+	if (!changed) {
+		return;
+	}
+	if (state.scene_type != ::ptgn::impl::kBaseSceneType) {
+		const auto& registration{ ::ptgn::impl::GetSceneRegistration(state.scene_type) };
+		registration.deserialize_parameters(state.parameters, *selected_scene);
+		selected_scene->Refresh();
+	}
+	if (!runtime) {
+		ctx.editor.MarkProjectDirty();
+	}
+}
+
+void SceneListPanel::DrawSceneKeyRenameModal(EditorContext& ctx) {
+	if (!scene_key_rename_.active || !renaming_scene_key_) {
+		return;
+	}
+
+	auto* project{ ctx.editor.GetProject() };
+
+	if (!project || IsRuntimeSceneList(ctx.editor) ||
+		!FindProjectScene(*project, *renaming_scene_key_)) {
+		scene_key_rename_.Cancel();
+		renaming_scene_key_.reset();
+		return;
+	}
+	std::string current_key{ *renaming_scene_key_ };
+
+	RenameModalOptions options;
+	options.title = "Rename Scene Key";
+
+	RenameResult result{ DrawRenameModal(
+		scene_key_rename_, "RenameSceneKey", "##SceneKey",
+		[project, &current_key](std::string_view value) {
+			return ValidateSceneKey(*project, current_key, value);
+		},
+		[&ctx, &current_key](std::string_view value) {
+			bool renamed{ ctx.editor.RenameProjectSceneKey(current_key, value) };
+			PTGN_ASSERT(renamed, "Validated scene key rename failed");
+		},
+		std::move(options)
+	) };
+
+	if (result != RenameResult::None) {
+		renaming_scene_key_.reset();
+	}
+}
+
+bool SceneListPanel::ResolvePendingSceneSelection(EditorContext& ctx) {
+	if (!pending_scene_selection_ ||
+		ImGui::GetFrameCount() < pending_scene_selection_->earliest_frame) {
+		return false;
+	}
+	auto pending{ pending_scene_selection_.value() };
+	auto* scene{ FindLoadedScene(ctx.editor, pending.key, pending.runtime) };
+	if (!scene) {
+		return false;
+	}
+	pending_scene_selection_.reset();
+	SetSelectedScene(ctx, scene, false);
+	SelectDefaultEntity(ctx, *scene, pending.selected_entity_uuid);
+	return true;
+}
+
+void SceneListPanel::OnRender(EditorContext& ctx) {
+	bool visible{ ImGui::Begin("Scenes") };
+	if (visible) {
+		SyncVisibleSceneListTab(ctx, SceneListTab::Scenes);
+	}
+	ClearInvalidSceneSelection(ctx);
+	bool runtime_scene_list{ IsRuntimeSceneList(ctx.editor) };
+	auto& manager{ ctx.editor.GetSceneManager() };
+	auto& loaded_scenes{ manager.GetScenes() };
+	auto* project{ ctx.editor.GetProject() };
+	if (!GetSelectedScene() && !pending_scene_selection_) {
+		if (runtime_scene_list) {
+			auto it{ std::ranges::find_if(loaded_scenes, [](const auto& scene) {
+				return scene && scene->IsRuntime();
+			}) };
+			if (it != loaded_scenes.end()) {
+				SetSelectedScene(ctx, it->get(), false);
+				SelectDefaultEntity(ctx, **it);
+			}
+		} else if (project && !project->scenes.empty()) {
+			if (auto* scene{ FindLoadedScene(ctx.editor, project->scenes.front().key, false) }) {
+				SetSelectedScene(ctx, scene, false);
+				SelectDefaultEntity(ctx, *scene);
+			}
+		}
+	}
+	std::optional<PendingSceneOrderMove> pending_move;
+	if (!runtime_scene_list) {
+		ImGui::BeginDisabled(!project);
+		if (ImGui::Button("+ Add Scene", ImVec2{ -1.0f, 0.0f })) {
+			ImGui::OpenPopup("AddProjectScene");
+		}
+		ImGui::EndDisabled();
+		DrawAddScenePopup(ctx);
+		ImGui::SeparatorText("Project Scenes");
+		if (!project) {
+			ImGui::TextDisabled("No project is open.");
+		} else {
+			for (std::size_t index{ 0 }; index < project->scenes.size(); ++index) {
+				auto& entry{ project->scenes[index] };
+				auto* scene{ FindLoadedScene(ctx.editor, entry.key, false) };
+				bool selected{ scene && scene == GetSelectedScene() };
+				std::string label{ ProjectSceneLabel(entry, scene) };
+				if (ctx.editor.IsStartupProjectScene(entry.key)) {
+					label += " [Startup]";
+				}
+				std::string item_label{ label + "###ProjectScene" + std::to_string(index) };
+				RenamableItemResult item{ DrawRenamableItem([&] {
+					if (ImGui::Selectable(item_label.c_str(), selected) && scene) {
+						SetSelectedScene(ctx, scene);
+						SelectDefaultEntity(ctx, *scene);
+					}
+				}) };
+				DrawSceneOrderDragSource(index, false, label);
+				DrawSceneOrderDropTarget(index, false, pending_move);
+				bool scene_list_changed{ false };
+				std::string popup_id{ "SceneContext###ProjectSceneContext" +
+									  std::to_string(index) };
+				DrawRenamableContextMenu(
+					item, popup_id.c_str(), entry.key,
+					[this, &entry](std::string_view current_value) {
+						renaming_scene_key_ = entry.key;
+						scene_key_rename_.Begin(current_value);
+					},
+					[&] {
+						if (ImGui::MenuItem("Duplicate")) {
+							ctx.editor.DuplicateProjectScene(entry.key);
+							scene_list_changed = true;
+							return;
+						}
+						bool startup{ ctx.editor.IsStartupProjectScene(entry.key) };
+						if (ImGui::MenuItem("Set as Startup Scene", nullptr, startup, !startup)) {
+							ctx.editor.SetStartupProjectScene(entry.key);
+						}
+						ImGui::Separator();
+						if (ImGui::MenuItem("Delete")) {
+							ctx.editor.DeleteProjectScene(entry.key);
+							scene_list_changed = true;
+						}
+					}
+				);
+				if (scene_list_changed) {
+					break;
+				}
+			}
+		}
+	} else {
+		ImGui::SeparatorText("Active Runtime Scenes");
+		std::size_t runtime_index{ 0 };
+		for (const auto& scene : loaded_scenes) {
+			if (!scene || !scene->IsRuntime()) {
+				continue;
+			}
+			const auto* entry{ project ? FindProjectScene(*project, scene->GetTag()) : nullptr };
+			std::string label{ entry ? ProjectSceneLabel(*entry, scene.get())
+									 : scene->GetTag() + " [" + SceneTypeName(*scene) + "]" };
+			if (scene->IsTransitioning()) {
+				label += " [Transitioning]";
+			}
+			std::string item_label{ label + "###RuntimeScene" + std::to_string(runtime_index) };
+			if (ImGui::Selectable(item_label.c_str(), scene.get() == GetSelectedScene())) {
+				SetSelectedScene(ctx, scene.get());
+				SelectDefaultEntity(ctx, *scene);
+			}
+			DrawSceneOrderDragSource(runtime_index, true, label);
+			DrawSceneOrderDropTarget(runtime_index, true, pending_move);
+			++runtime_index;
+		}
+	}
+	if (pending_move) {
+		if (pending_move->runtime) {
+			MoveRuntimeScene(ctx.editor, pending_move->from, pending_move->to);
+		} else {
+			ctx.editor.MoveProjectScene(pending_move->from, pending_move->to);
+		}
+	}
+	DrawSceneKeyRenameModal(ctx);
+	DrawSceneDetails(ctx);
+	ImGui::End();
+}
+
+void SceneListPanel::Bind(EditorContext& ctx) {
+	context_ = &ctx;
+}
+
+Scene* SceneListPanel::GetSelectedScene() const {
+	return context_ ? ResolveSelectedScene(*context_) : nullptr;
+}
+
+void SceneListPanel::QueueSceneSelection(
+	EditorContext& ctx, std::string scene_key, bool runtime,
+	std::optional<UUID> selected_entity_uuid
+) {
+	ClearInvalidSceneSelection(ctx);
+	pending_scene_selection_ = PendingSceneSelection{
+		.key				  = std::move(scene_key),
+		.runtime			  = runtime,
+		.selected_entity_uuid = selected_entity_uuid,
+		.earliest_frame		  = ImGui::GetFrameCount() + 1,
+	};
+}
+
+void SceneListPanel::SetSelectedScene(EditorContext& ctx, Scene* scene, bool undoable) {
+	const auto& loaded_scenes{ ctx.editor.GetSceneManager().GetScenes() };
+	auto is_loaded_scene = [&loaded_scenes](const Scene* candidate) {
+		return candidate &&
+			   std::ranges::any_of(loaded_scenes, [candidate](const auto& loaded_scene) {
+				   return loaded_scene && loaded_scene.get() == candidate;
+			   });
+	};
+	Scene* next_scene{ is_loaded_scene(scene) ? scene : nullptr };
+	Scene* previous_scene{ GetSelectedScene() };
+	if (previous_scene == next_scene &&
+		(ctx.local.selection.HasSceneSelection() == (next_scene != nullptr))) {
+		return;
+	}
+	EditorSelection selection{ ctx.local.selection };
+	if (next_scene) {
+		selection.selected_scene_key	 = next_scene->GetTag();
+		selection.selected_scene_runtime = next_scene->IsRuntime();
+		selection.mode					 = EditorSelectionMode::SceneHierarchy;
+		if (!selection.HasEntitySelection(next_scene->GetTag(), next_scene->IsRuntime())) {
+			auto entities{ next_scene->Entities() };
+			auto& scene_ctx{ next_scene->ctx() };
+			Entity render_target{ next_scene->GetRenderTarget() };
+			Entity fixed_camera{ ::ptgn::impl::SceneContextAccessor::GetFixedCamera(scene_ctx) };
+			Entity camera{ scene_ctx.camera };
+			Entity selected{ entities.FindIf([&](Entity entity) {
+				return entity != render_target && entity != fixed_camera && entity != camera;
+			}) };
+			if (!selected) {
+				selected = camera ? camera : fixed_camera;
+			}
+			if (!selected) {
+				selected = render_target;
+			}
+			selection.SetEntityUUID(
+				next_scene->GetTag(), next_scene->IsRuntime(),
+				selected ? std::optional<UUID>{ selected.Get<UUID>() } : std::nullopt
+			);
+		}
+	} else {
+		selection.selected_scene_key.clear();
+		selection.selected_scene_runtime = false;
+	}
+	if (undoable) {
+		SetEditorSelection(ctx, std::move(selection), "Select Scene");
+	} else {
+		ApplyEditorSelection(ctx, std::move(selection));
+	}
+	RebuildSceneEditorState(next_scene);
+}
+
+void SceneListPanel::RefreshSelectedSceneState() {
+	RebuildSceneEditorState(GetSelectedScene());
+}
+
+void SceneListPanel::RebuildSceneEditorState(Scene* scene) {
+	state_.reset();
+	if (!scene) {
+		return;
+	}
+	std::string scene_type{ scene->GetRegisteredType().empty()
+								? std::string{ ::ptgn::impl::kBaseSceneType }
+								: std::string{ scene->GetRegisteredType() } };
+	if (scene_type == ::ptgn::impl::kBaseSceneType) {
+		state_ = SceneEditorState{
+			.scene_type = std::string{ ::ptgn::impl::kBaseSceneType },
+			.parameters = json::object(),
+		};
+		return;
+	}
+	const auto& registration{ ::ptgn::impl::GetSceneRegistration(scene_type) };
+	state_ = SceneEditorState{
+		.scene_type = registration.type,
+		.parameters = registration.serialize_parameters(*scene),
+	};
+}
+} // namespace ptgn::editor

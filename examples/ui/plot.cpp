@@ -2,29 +2,22 @@
 #include <cmath>
 
 #include "app/application.h"
-#include "core/math/geometry/origin.h"
+#include "core/assert.h"
 #include "core/math/rng.h"
-#include "core/math/vector2.h"
-#include "core/time/time.h"
-#include "core/time/timer.h"
-#include "platform/input/input_handler.h"
-#include "platform/input/key.h"
-#include "platform/window/window.h"
-#include "renderer/primitives/color.h"
+#include "core/util/time.h"
+#include "core/util/timer.h"
 #include "runtime/scene/scene.h"
-
-#include "runtime/scene/scene_manager.h"
+#include "runtime/scene/scene_context.h"
 
 using namespace ptgn;
-
-constexpr V2_int game_size{ 800, 800 };
 
 class Sensor {
 public:
 	Sensor() = default;
 
 	// @param samping_rate How often the sensor samples its function.
-	Sensor(milliseconds samping_rate) : samping_rate_{ samping_rate } {
+	Sensor(milliseconds samping_rate, Scene* scene) :
+		samping_rate_{ samping_rate }, scene{ scene } {
 		sampling.Start();
 	}
 
@@ -34,7 +27,9 @@ public:
 
 	float GetValue() {
 		sampling.Start();
-		return amplitude_rng() * std::sin(sine_frequency * ctx().TimeSinceStart());
+		PTGN_ASSERT(scene);
+		return amplitude_rng() *
+			   std::sin(sine_frequency * scene->ctx().GameTime().count());
 	}
 
 	float sine_frequency{ 0.0005f };
@@ -44,6 +39,8 @@ private:
 
 	milliseconds samping_rate_{ 250 };
 	Timer sampling;
+
+	Scene* scene{ nullptr };
 };
 
 class PlotScene : public Scene {
@@ -51,8 +48,8 @@ class PlotScene : public Scene {
 	/*
 	Plot plot;
 
-	Sensor temperature{ milliseconds{ 50 } };
-	Sensor acceleration{ milliseconds{ 100 } };
+	Sensor temperature{ 50ms };
+	Sensor acceleration{ 100ms };
 
 	Timer clock;
 
@@ -101,14 +98,14 @@ class PlotScene : public Scene {
 		if (temperature.HasNewValue()) {
 			plot.Get("temperature")
 				.data.points.emplace_back(
-					clock.Elapsed<x_axis_unit>().count(), temperature.GetValue()
+					clock.ElapsedDuration<x_axis_unit>().count(), temperature.GetValue()
 				);
 		}
 
 		if (acceleration.HasNewValue()) {
 			plot.Get("acceleration")
 				.data.points.emplace_back(
-					clock.Elapsed<x_axis_unit>().count(), acceleration.GetValue()
+					clock.ElapsedDuration<x_axis_unit>().count(), acceleration.GetValue()
 				);
 		}
 
@@ -121,6 +118,6 @@ class PlotScene : public Scene {
 };
 
 int main(int, char**) {
-	Application app{ "PlotScene", game_size };
+	Application app{ "PlotScene" };
 	app.StartWith<PlotScene>();
 }

@@ -1,9 +1,9 @@
 #pragma once
 
-#include "core/time/time.h"
-#include "core/time/timer.h"
+#include "core/util/time.h"
+#include "core/util/timer.h"
 #include "runtime/ecs/entity.h"
-#include "serialization/json/serialize.h"
+#include "serialization/serialize.h"
 
 namespace ptgn {
 
@@ -16,21 +16,50 @@ struct Lifetime {
 
 	/// @brief Will restart if lifetime is already running.
 	void Start();
+	void Stop();
+	void Reset();
+	void Pause();
+	void Resume();
 
-	void Update(Entity entity) const;
+	/// @brief Manual advancement pauses the timer and destroys the entity at expiration.
+	void Advance(Entity entity, milliseconds amount);
+	void Rewind(milliseconds amount);
 
-	milliseconds duration{ 0 };
+	/// @brief Duration changes expire an already started lifetime immediately when reached.
+	void SetDuration(Entity entity, milliseconds value);
+	void AddDuration(Entity entity, milliseconds amount);
+	void RemoveDuration(Entity entity, milliseconds amount);
 
-	PTGN_SERIALIZER_REGISTER_NAMED(
-		Lifetime, KeyValue("duration", duration), KeyValue("timer", timer_)
-	)
+	[[nodiscard]] milliseconds Elapsed() const;
+	[[nodiscard]] milliseconds Remaining() const;
+	[[nodiscard]] float Progress() const;
+	[[nodiscard]] bool IsRunning() const;
+	[[nodiscard]] bool IsPaused() const;
+	[[nodiscard]] bool HasRun() const;
+
+	void Update(Entity entity, secondsf dt);
+
+	milliseconds duration{ 5000 };
+
+	PTGN_REFLECT(Lifetime, duration, timer_)
 
 private:
 	friend class Scene;
 
-	static void Update(Scene& scene);
+	static void Update(Scene& scene, secondsf dt);
 
-	Timer timer_;
+	void ExpireIfComplete(Entity entity);
+
+	DeltaTimer timer_{};
 };
+
+namespace event {
+
+/// @brief Synchronous notification on the final lifetime update before destruction.
+struct LifetimeExpiring {
+	Entity entity{};
+};
+
+} // namespace event
 
 } // namespace ptgn

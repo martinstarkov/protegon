@@ -1,0 +1,29 @@
+#include "runtime/scene/scene.h"
+
+#include "app/application.h"
+#include "app/editor.h"
+#include "runtime/asset/asset_manager.h"
+#include "runtime/scene/scene_context.h"
+#include "serialization/json/json.h"
+
+using namespace ptgn;
+
+// TODO: Add resource manager serialization and deserialization.
+
+class DeserializedScene : public Scene {
+public:
+	void OnEnter() override {
+		ctx().asset.Load("anim", "assets/animation.png");
+		ctx().asset.Load("test", "assets/test1.jpg");
+		json j = ctx().asset.CreateJson("assets/animation_scene.json");
+		j	   = ctx().asset.CreateJson("assets/light_scene.json");
+		j.at("manager").get_to(*this);
+		// TODO: Figure this out: j.get_to(*this);
+	}
+};
+
+int main(int, char**) {
+	Application app{ "DeserializedScene" };
+	PTGN_WITH_EDITOR(app, false);
+	app.StartWith<DeserializedScene>();
+}

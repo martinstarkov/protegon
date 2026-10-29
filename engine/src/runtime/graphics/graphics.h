@@ -2,6 +2,8 @@
 
 #include <vector>
 
+#include "core/graphics/color.h"
+#include "core/graphics/fill_style.h"
 #include "core/math/geometry/circle.h"
 #include "core/math/geometry/line.h"
 #include "core/math/geometry/polygon.h"
@@ -9,12 +11,12 @@
 #include "core/math/geometry/shape.h"
 #include "core/math/transform.h"
 #include "core/math/vector2.h"
-#include "renderer/primitives/blend_mode.h"
-#include "renderer/primitives/color.h"
+#include "renderer/pipeline/blend_mode.h"
 #include "runtime/ecs/entity.h"
-#include "runtime/graphics/camera.h"
+#include "runtime/ecs/entity_creation_context.h"
 #include "runtime/graphics/draw.h"
 #include "runtime/graphics/drawable.h"
+#include "serialization/serialize.h"
 
 namespace ptgn {
 
@@ -23,22 +25,25 @@ class Scene;
 
 namespace impl {
 
-struct GraphicsData {
-	struct Command {
-		Transform transform;
-		Shape shape;
-		Color color;
-		FillStyle line_width;
-	};
+struct GraphicsCommand {
+	Transform transform{};
+	Shape shape{};
+	Color color{};
+	FillStyle line_width{};
 
+	PTGN_REFLECT(GraphicsCommand, transform, shape, color, line_width)
+};
+
+struct GraphicsData {
 	void AddCommand(Transform transform, const Shape& shape, bool fill);
 
-	void Draw(DrawContext& renderer, Transform transform, Depth depth, BlendMode blend_mode) const;
-
-	std::vector<Command> commands_;
 	Color fill_color_{ color::White };
 	Color stroke_color_{ color::White };
-	FillStyle line_width_;
+	FillStyle line_width_{};
+	std::vector<GraphicsCommand> commands_{};
+
+	PTGN_REFLECT_VALUE(GraphicsData, commands_)
+	PTGN_REFLECT_READONLY(GraphicsData, fill_color_, stroke_color_, line_width_)
 };
 
 } // namespace impl
@@ -48,7 +53,7 @@ public:
 	Graphics() = default;
 	explicit Graphics(Entity entity);
 
-	static void Draw(DrawContext& renderer, Entity entity, Camera camera);
+	static void Draw(DrawContext& ctx, Entity entity);
 
 	Graphics& Clear();
 
@@ -71,6 +76,6 @@ public:
 
 PTGN_REGISTER_DRAWABLE(Graphics);
 
-Graphics CreateGraphics(Scene& scene, V2_float position = {});
+Graphics CreateGraphics(EntityCreationContext context, Transform transform = {});
 
 } // namespace ptgn

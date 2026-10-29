@@ -5,7 +5,6 @@
 #include <cstdlib>
 #include <limits>
 #include <type_traits>
-#include <variant>
 #include <vector>
 
 #include "core/assert.h"
@@ -21,25 +20,7 @@
 #include "core/math/tolerance.h"
 #include "core/math/transform.h"
 #include "core/math/vector2.h"
-
-#define PTGN_HANDLE_INTERSECT_SOLO_PAIR(TypeA, TypeB, PREFIX)               \
-	if constexpr (std::is_same_v<S1, TypeA> && std::is_same_v<S2, TypeB>) { \
-		return impl::PREFIX##TypeA##TypeB(t1, s1, t2, s2);                  \
-	} else
-
-#define PTGN_HANDLE_INTERSECT_PAIR(TypeA, TypeB, PREFIX)                           \
-	if constexpr (std::is_same_v<S1, TypeA> && std::is_same_v<S2, TypeB>) {        \
-		return impl::PREFIX##TypeA##TypeB(t1, s1, t2, s2);                         \
-	} else if constexpr (std::is_same_v<S1, TypeB> && std::is_same_v<S2, TypeA>) { \
-		return impl::PREFIX##TypeA##TypeB(t2, s2, t1, s1);                         \
-	} else
-
-#define PTGN_INTERSECT_SHAPE_PAIR_TABLE                        \
-	PTGN_HANDLE_INTERSECT_SOLO_PAIR(Circle, Circle, Intersect) \
-	PTGN_HANDLE_INTERSECT_PAIR(Circle, Rect, Intersect)        \
-	PTGN_HANDLE_INTERSECT_PAIR(Circle, Polygon, Intersect)     \
-	PTGN_HANDLE_INTERSECT_SOLO_PAIR(Rect, Rect, Intersect)     \
-	PTGN_HANDLE_INTERSECT_SOLO_PAIR(Polygon, Polygon, Intersect)
+#include "core/util/type_info.h"
 
 namespace ptgn {
 
@@ -51,13 +32,17 @@ bool Intersection::Occurred() const {
 	return !normal.IsZero();
 }
 
+Intersection::operator bool() const {
+	return Occurred();
+}
+
 namespace impl {
 
 Intersection IntersectCircleCircle(Transform t1, const Circle& A, Transform t2, const Circle& B) {
 	Intersection c;
 
-	auto circleA_center{ A.GetCenter(t1) };
-	auto circleB_center{ B.GetCenter(t2) };
+	auto circleA_center{ t1.position };
+	auto circleB_center{ t2.position };
 
 	auto circleA_radius{ A.GetRadius(t1) };
 	auto circleB_radius{ B.GetRadius(t2) };
@@ -71,7 +56,7 @@ Intersection IntersectCircleCircle(Transform t1, const Circle& A, Transform t2, 
 		return c;
 	}
 
-	if (dist2 > epsilon<float> * epsilon<float>) {
+	if (dist2 > kEpsilon<float> * kEpsilon<float>) {
 		float dist{ std::sqrt(dist2) };
 		PTGN_ASSERT(!NearlyEqual(dist, 0.0f));
 		c.normal = -d / dist;
@@ -88,7 +73,7 @@ Intersection IntersectCircleCircle(Transform t1, const Circle& A, Transform t2, 
 }
 
 Intersection IntersectCircleRect(Transform t1, const Circle& A, Transform t2, const Rect& B) {
-	if (t2.GetRotation() != 0.0f) {
+	if (t2.HasRotation()) {
 		return IntersectCirclePolygon(t1, A, t2, Polygon{ B.GetLocalVertices() });
 	}
 
@@ -96,7 +81,7 @@ Intersection IntersectCircleRect(Transform t1, const Circle& A, Transform t2, co
 	// https://steamcdn-a.akamaihd.net/apps/valve/2015/DirkGregorius_Contacts.pdf
 	Intersection c;
 
-	auto circle_center{ A.GetCenter(t1) };
+	auto circle_center{ t1.position };
 	auto circle_radius{ A.GetRadius(t1) };
 
 	auto rect_center{ B.GetCenter(t2) };
@@ -148,16 +133,16 @@ Intersection IntersectCirclePolygon(Transform t1, const Circle& A, Transform t2,
 	float min_penetration{ std::numeric_limits<float>::infinity() };
 	V2_float collision_normal;
 
-	auto polygon_vertices{ B.GetWorldVertices(t2) };
-	std::size_t polygon_vertex_count{ polygon_vertices.size() };
+	auto vertices{ B.GetWorldVertices(t2) };
+	auto count{ vertices.size() };
 
 	auto circle_radius{ A.GetRadius(t1) };
-	auto circle_center{ A.GetCenter(t1) };
+	auto circle_center{ t1.position };
 
 	// Check each edge of the polygon
-	for (std::size_t i{ 0 }; i < polygon_vertex_count; ++i) {
-		V2_float a{ polygon_vertices[i] };
-		V2_float b{ polygon_vertices[(i + 1) % polygon_vertex_count] };
+	for (auto i{ 0uz }; i < count; ++i) {
+		V2_float a{ vertices[i] };
+		V2_float b{ vertices[(i + 1) % count] };
 		V2_float edge{ b - a };
 		V2_float edge_normal{ edge.Skewed().Normalized() }; // outward normal
 
@@ -177,18 +162,20 @@ Intersection IntersectCirclePolygon(Transform t1, const Circle& A, Transform t2,
 		}
 	}
 
-	// If we got here, the circle intersects or is inside the polygon
+	// The circle intersects or is inside the polygon
 	PTGN_ASSERT(min_penetration != std::numeric_limits<float>::infinity());
 	PTGN_ASSERT(!collision_normal.IsZero());
+
 	c.depth	 = min_penetration;
 	c.normal = collision_normal;
+
 	return c;
 }
 
 Intersection IntersectRectRect(Transform t1, const Rect& A, Transform t2, const Rect& B) {
 	Intersection c;
 
-	if (t1.GetRotation() != 0.0f || t2.GetRotation() != 0.0f) {
+	if (t1.HasRotation() || t2.HasRotation()) {
 		return IntersectPolygonPolygon(
 			t1, Polygon{ A.GetLocalVertices() }, t2, Polygon{ B.GetLocalVertices() }
 		);
@@ -235,12 +222,12 @@ Intersection IntersectPolygonPolygon(
 	Polygon polygon_B{ B.GetWorldVertices(t2) };
 
 	PTGN_ASSERT(
-		impl::IsConvexPolygon(polygon_A.vertices.data(), polygon_A.vertices.size()),
+		polygon_A.IsConvex(),
 		"PolygonPolygon intersection check only works if both polygons are convex"
 	);
 
 	PTGN_ASSERT(
-		impl::IsConvexPolygon(polygon_B.vertices.data(), polygon_B.vertices.size()),
+		polygon_B.IsConvex(),
 		"PolygonPolygon intersection check only works if both polygons are convex"
 	);
 
@@ -275,7 +262,7 @@ Intersection IntersectPolygonPolygon(
 	/*
 	// Useful debug drawing code:
 	// Draw all polygon points projected onto all the axes.
-	const auto draw_axes = [](const std::vector<Axis>& axes, const Polygon& p) {
+	auto draw_axes = [](const std::vector<Axis>& axes, const Polygon& p) {
 		for (const auto& a : axes) {
 			Application::Get().draw.Axis(a.midpoint, a.direction, color::Pink, 1.0f);
 			auto [min, max] = impl::GetProjectionMinMax(p, a);
@@ -307,22 +294,30 @@ Intersection IntersectPolygonPolygon(
 Intersection Intersect(
 	Transform t1, const ColliderShape& shape1, Transform t2, const ColliderShape& shape2
 ) {
-	return std::visit(
-		[&]<typename S1>(const S1& s1) -> Intersection {
-			return std::visit(
-				[&]<typename S2>(const S2& s2) -> Intersection {
-					PTGN_INTERSECT_SHAPE_PAIR_TABLE {
-						PTGN_ERROR(
-							"Cannot find intersect function for the given shapes: ",
-							type_name<S1>(), " and ", type_name<S2>()
-						);
-					}
-				},
-				shape2
-			);
-		},
-		shape1
-	);
+	return shape1.Visit([&]<typename S1>(const S1& s1) -> Intersection {
+		return shape2.Visit([&]<typename S2>(const S2& s2) -> Intersection {
+			if constexpr (std::is_same_v<S1, Circle> && std::is_same_v<S2, Circle>) {
+				return impl::IntersectCircleCircle(t1, s1, t2, s2);
+			} else if constexpr (std::is_same_v<S1, Circle> && std::is_same_v<S2, Rect>) {
+				return impl::IntersectCircleRect(t1, s1, t2, s2);
+			} else if constexpr (std::is_same_v<S1, Rect> && std::is_same_v<S2, Circle>) {
+				return impl::IntersectCircleRect(t2, s2, t1, s1);
+			} else if constexpr (std::is_same_v<S1, Circle> && std::is_same_v<S2, Polygon>) {
+				return impl::IntersectCirclePolygon(t1, s1, t2, s2);
+			} else if constexpr (std::is_same_v<S1, Polygon> && std::is_same_v<S2, Circle>) {
+				return impl::IntersectCirclePolygon(t2, s2, t1, s1);
+			} else if constexpr (std::is_same_v<S1, Rect> && std::is_same_v<S2, Rect>) {
+				return impl::IntersectRectRect(t1, s1, t2, s2);
+			} else if constexpr (std::is_same_v<S1, Polygon> && std::is_same_v<S2, Polygon>) {
+				return impl::IntersectPolygonPolygon(t1, s1, t2, s2);
+			} else {
+				PTGN_ERROR(
+					"Cannot find intersect function for the given shapes: ", type_name<S1>(),
+					" and ", type_name<S2>()
+				);
+			}
+		});
+	});
 }
 
 } // namespace ptgn

@@ -1,12 +1,15 @@
 #pragma once
 
+#include <cstddef>
 #include <optional>
-#include <ostream>
+#include <unordered_map>
+#include <unordered_set>
 
 #include "core/math/transform.h"
 #include "core/math/vector2.h"
-#include "serialization/json/enum.h"
-#include "serialization/json/serialize.h"
+#include "core/util/time.h"
+#include "runtime/ecs/entity.h"
+#include "serialization/serialize.h"
 
 namespace ptgn {
 
@@ -14,46 +17,50 @@ class Scene;
 class SceneContext;
 
 enum class BoundaryBehavior {
-	StopVelocity,	// Clamp position and stop velocity.
-	SlideVelocity,	// Clamp position and do not change velocity.
-	ReflectVelocity // Bounce off bounds by flipping velocity
+	/// @brief Clamp position and stop velocity.
+	StopVelocity,
+	/// @brief Clamp position and do not change velocity.
+	SlideVelocity,
+	/// @brief Bounce off bounds by flipping velocity.
+	ReflectVelocity
 };
-
-std::ostream& operator<<(std::ostream& os, BoundaryBehavior behavior);
-
-PTGN_SERIALIZE_ENUM(
-	BoundaryBehavior, { { BoundaryBehavior::StopVelocity, "stop_velocity" },
-						{ BoundaryBehavior::SlideVelocity, "slide_velocity" },
-						{ BoundaryBehavior::ReflectVelocity, "reflect_velocity" } }
-);
+PTGN_REFLECT_ENUM(BoundaryBehavior);
 
 struct Bounds {
-	/// @brief Center position of the bounding box.
-	V2_float position;
-
-	V2_float size;
-
+	V2_float position{};
+	V2_float size{};
 	BoundaryBehavior behavior{ BoundaryBehavior::SlideVelocity };
 
-	friend std::ostream& operator<<(std::ostream& os, const Bounds& bounds) {
-		os << "{ position: " << bounds.position;
-		os << ", size: " << bounds.size;
-		os << ", behavior: " << bounds.behavior << " }";
-		return os;
-	}
+	PTGN_REFLECT(Bounds, position, size, behavior)
 };
+
+namespace event {
+
+struct EntityHitBounds {
+	V2_float attempted{};
+	V2_float clamped{};
+};
+
+struct EntityEnteredBounds {
+	V2_float position{};
+};
+
+struct EntityExitedBounds {
+	V2_float position{};
+};
+
+} // namespace event
 
 class Physics {
 public:
 	std::optional<Bounds> GetBounds() const;
 	/// @param bounds Nullopt results in no boundary enforcement.
-	void SetBounds(std::optional<Bounds> bounds = {});
+	void SetBounds(std::optional<Bounds> bounds = std::nullopt);
 
 	V2_float GetGravity() const;
 	void SetGravity(V2_float gravity);
 
-	/// @return Physics time step in seconds.
-	[[nodiscard]] float dt() const;
+	[[nodiscard]] secondsf dt() const;
 
 	void SetEnabled(bool enabled = true);
 	void Disable();
@@ -62,139 +69,36 @@ public:
 	/// @return True if physics is enabled, false otherwise.
 	[[nodiscard]] bool IsEnabled() const;
 
-	// TODO: Fix serialization.
-	// PTGN_SERIALIZER_REGISTER_NAMED(
-	//	Physics, KeyValue("gravity", gravity_), KeyValue("bounds_top_left", bounds_top_left_),
-	//	KeyValue("bounds_size", bounds_size_), KeyValue("boundary_behavior", boundary_behavior_),
-	//	KeyValue("enabled", enabled_)
-	//)
+	PTGN_REFLECT(Physics, gravity_, bounds_, enabled_)
 
 private:
 	friend class Scene;
 	friend class SceneContext;
 
+	Physics() = delete;
 	explicit Physics(Scene& scene);
+	~Physics() noexcept					   = default;
+	Physics(const Physics&)				   = delete;
+	Physics& operator=(const Physics&)	   = delete;
+	Physics(Physics&&) noexcept			   = delete;
+	Physics& operator=(Physics&&) noexcept = delete;
 
-	void PreCollisionUpdate() const;
-	void PostCollisionUpdate() const;
+	void PreCollisionUpdate();
+	void PostCollisionUpdate();
+	void UpdatePlatformerGrounding();
 
 	static void HandleBoundary(Transform& transform, V2_float& velocity, const Bounds& bounds);
 
-	Scene& scene_;
-
+	void Rebind(Scene& scene);
 	void Reset();
 
+	Scene* scene_{ nullptr };
 	bool enabled_{ true };
 	std::optional<Bounds> bounds_;
 	V2_float gravity_{ 0.0f, 0.0f };
+	std::unordered_map<std::size_t, float> previous_gravity_velocity_{};
+	std::unordered_map<std::size_t, Entity> previous_wall_contacts_{};
+	std::unordered_map<std::size_t, bool> previous_inside_bounds_{};
 };
 
 } // namespace ptgn
-
-/// Calculates a Body's per-axis velocity.
-/// @param body - The Body to compute the velocity for.
-/// @param {number} delta - The delta value to be used in the calculation, in seconds.
-/*
- computeVelocity : function(body, delta) {
-	var velocityX	  = body.velocity.x;
-	var accelerationX = body.acceleration.x;
-	var dragX		  = body.drag.x;
-	var maxX		  = body.maxVelocity.x;
-
-	var velocityY	  = body.velocity.y;
-	var accelerationY = body.acceleration.y;
-	var dragY		  = body.drag.y;
-	var maxY		  = body.maxVelocity.y;
-
-	var speed	   = body.speed;
-	var maxSpeed   = body.maxSpeed;
-	var allowDrag  = body.allowDrag;
-	var useDamping = body.useDamping;
-
-	if (body.allowGravity) {
-		velocityX += (this.gravity.x + body.gravity.x) * delta;
-		velocityY += (this.gravity.y + body.gravity.y) * delta;
-	}
-
-	if (accelerationX) {
-		velocityX += accelerationX * delta;
-	} else if (allowDrag && dragX) {
-		if (useDamping) {
-			//  Damping based deceleration
-			dragX = Math.pow(dragX, delta);
-
-			velocityX *= dragX;
-
-			speed = Math.sqrt(velocityX * velocityX + velocityY * velocityY);
-
-			if (FuzzyEqual(speed, 0, 0.001)) {
-				velocityX = 0;
-			}
-		} else {
-			//  Linear deceleration
-			dragX *= delta;
-
-			if (FuzzyGreaterThan(velocityX - dragX, 0, 0.01)) {
-				velocityX -= dragX;
-			} else if (FuzzyLessThan(velocityX + dragX, 0, 0.01)) {
-				velocityX += dragX;
-			} else {
-				velocityX = 0;
-			}
-		}
-	}
-
-	if (accelerationY) {
-		velocityY += accelerationY * delta;
-	} else if (allowDrag && dragY) {
-		if (useDamping) {
-			//  Damping based deceleration
-			dragY = Math.pow(dragY, delta);
-
-			velocityY *= dragY;
-
-			speed = Math.sqrt(velocityX * velocityX + velocityY * velocityY);
-
-			if (FuzzyEqual(speed, 0, 0.001)) {
-				velocityY = 0;
-			}
-		} else {
-			//  Linear deceleration
-			dragY *= delta;
-
-			if (FuzzyGreaterThan(velocityY - dragY, 0, 0.01)) {
-				velocityY -= dragY;
-			} else if (FuzzyLessThan(velocityY + dragY, 0, 0.01)) {
-				velocityY += dragY;
-			} else {
-				velocityY = 0;
-			}
-		}
-	}
-
-	velocityX = Clamp(velocityX, -maxX, maxX);
-	velocityY = Clamp(velocityY, -maxY, maxY);
-
-	body.velocity.set(velocityX, velocityY);
-
-	if (maxSpeed > -1 && body.velocity.length() > maxSpeed) {
-		body.velocity.normalize().scale(maxSpeed);
-		speed = maxSpeed;
-	}
-
-	body.speed = speed;
- }
-*/
-
-// RigidBody
-
-// velocity = ApplyForces(velocity);
-// velocity *= Mathf.Clamp01(1-drag * dt);
-// or
-// velocity *= 1 / (1 + drag*dt);
-// velocity = ApplyCollisionForces(velocity);
-// position += velocity * dt;
-
-// if (velocity.MagnitudeSquared() > max_velocity * max_velocity) {
-//     velocity = velocity.Normalized() * max_velocity;
-// }

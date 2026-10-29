@@ -1,31 +1,38 @@
 #include "runtime/physics/broadphase.h"
 
+#include <chrono>
 #include <vector>
 
 #include "app/application.h"
+#include "app/editor.h"
+#include "core/graphics/color.h"
+#include "core/math/geometry/line.h"
+#include "core/math/geometry/origin.h"
 #include "core/math/geometry/rect.h"
 #include "core/math/rng.h"
+#include "core/math/transform.h"
 #include "core/math/vector2.h"
-#include "platform/input/input_handler.h"
-#include "renderer/renderer.h"
+#include "renderer/pipeline/blend_mode.h"
 #include "runtime/ecs/entity.h"
-#include "runtime/ecs/manager.h"
 #include "runtime/graphics/draw.h"
+#include "runtime/graphics/render_queue.h"
 #include "runtime/graphics/shape.h"
+#include "runtime/graphics/tint.h"
 #include "runtime/physics/bounding_aabb.h"
 #include "runtime/physics/movement.h"
 #include "runtime/physics/physics.h"
 #include "runtime/physics/rigid_body.h"
 #include "runtime/scene/scene.h"
-
-#include "runtime/scene/scene_manager.h"
-#include "tools/debug/profiling.h"
+#include "runtime/scene/scene_context.h"
+#include "runtime/scene/scene_input.h"
 
 using namespace ptgn;
 
-constexpr V2_float game_size{ 800, 600 };
+constexpr V2_float logical_size{ 800, 600 };
 
 // TODO: Move all of this into the collision system.
+
+namespace {
 
 BoundingAABB GetBoundingAABB(const Entity& entity) {
 	return GetBoundingAABB(entity.Get<Rect>(), GetTransform(entity));
@@ -45,6 +52,8 @@ Entity AddEntity(
 	return entity;
 }
 
+} // namespace
+
 #define KDTREE 0
 
 struct BroadphaseScene : public Scene {
@@ -55,17 +64,19 @@ struct BroadphaseScene : public Scene {
 	Entity player;
 	V2_float player_size{ 20, 20 };
 
-	RNG<float> rngx{ -(float)game_size.x * 0.5f, (float)game_size.x * 0.5f };
-	RNG<float> rngy{ -(float)game_size.y * 0.5f, (float)game_size.y * 0.5f };
+	RNG<float> rngx{ -(float)logical_size.x * 0.5f, (float)logical_size.x * 0.5f };
+	RNG<float> rngy{ -(float)logical_size.y * 0.5f, (float)logical_size.y * 0.5f };
 	RNG<float> rngsize{ 5.0f, 30.0f };
 
 	void OnEnter() override {
-		ctx().physics.SetBounds(Bounds{ V2_float{}, game_size, BoundaryBehavior::ReflectVelocity });
+		ctx().physics.SetBounds(
+			Bounds{ V2_float{}, logical_size, BoundaryBehavior::ReflectVelocity }
+		);
 
 		player = AddEntity(*this, {}, player_size, color::Purple, false);
 		SetDepth(player, 1);
 
-		for (std::size_t i{ 0 }; i < entity_count; ++i) {
+		for (auto i{ 0uz }; i < entity_count; ++i) {
 			AddEntity(
 				*this, { rngx(), rngy() }, { rngsize(), rngsize() }, color::Green,
 				FlipCoin() // false
@@ -86,18 +97,18 @@ struct BroadphaseScene : public Scene {
 		MoveWASD(*this, pos, speed * dt, false);
 		SetPosition(player, pos);
 
-		for (auto [e, tint] : EntitiesWith<impl::Tint>()) {
-			SetTint(e, color::Green);
+		for (auto [e, color] : EntitiesWith<Color>()) {
+			color = color::Green;
 		}
 
-		SetTint(player, color::Purple);
+		player.Add<Color>(color::Purple);
 
 		auto player_volume{ GetBoundingAABB(player) };
 
 #ifdef KDTREE
 
 		if (KDTREE) {
-			// TOOD: Fix.
+			// TODO: Fix.
 			// PTGN_PROFILE_FUNCTION();
 			// Check only collisions with relevant k-d tree nodes.
 
@@ -110,7 +121,7 @@ struct BroadphaseScene : public Scene {
 			// }
 			tree.EndFrameUpdate();
 		} else {
-			// TOOD: Fix.
+			// TODO: Fix.
 			// PTGN_PROFILE_FUNCTION();
 			std::vector<impl::KDObject> objects;
 			objects.reserve(GetEntityCount());
@@ -136,8 +147,8 @@ struct BroadphaseScene : public Scene {
 		//		auto bounding{ GetBoundingAABB(e2) };
 		//		Rect rectb2{ bounding.min, bounding.max };
 		//		if (Overlap(Transform{}, rectb1, Transform{}, rectb2)) {
-		//			SetTint(e1, color::Red);
-		//			SetTint(e2, color::Red);
+		//			e1.Add<Color>(color::Red);
+		//			e2.Add<Color>(color::Red);
 		//		}
 		//	}
 		//}
@@ -153,7 +164,7 @@ struct BroadphaseScene : public Scene {
 		auto candidates = tree.Raycast(player, dir, player_rect);
 		for (auto& candidate : candidates) {
 			if (candidate && candidate != player) {
-				SetTint(candidate, color::Orange);
+				candidate.Add<Color>(color::Orange);
 			}
 		}
 
@@ -161,13 +172,10 @@ struct BroadphaseScene : public Scene {
 
 		auto candidate = tree.RaycastFirst(player, dir, player_rect);
 		if (candidate && candidate != player) {
-			SetTint(candidate, color::Red);
+			candidate.Add<Color>(color::Red);
 		}
 
-		ctx().renderer.DrawShape(
-			Line{ player_pos, mouse_pos }, Transform{}, color::Gold, FillStyle::Hollow(2.0f),
-			Origin::Center, Depth{}, BlendMode::Blend
-		);
+		ctx().render_queue.DrawLine(player_pos, mouse_pos, color::Gold, { .fill_style = 2.0f });
 
 #else
 		PTGN_PROFILE_FUNCTION();
@@ -178,8 +186,8 @@ struct BroadphaseScene : public Scene {
 					continue;
 				}
 				if (Overlap(Transform{}, b1, Transform{}, GetBoundingAABB(e2)) {
-					SetTint(e1, color::Red);
-					SetTint(e2, color::Red);
+					e1.Add<Color>(color::Red);
+					e2.Add<Color>(color::Red);
 				}
 			}
 		}
@@ -188,6 +196,7 @@ struct BroadphaseScene : public Scene {
 };
 
 int main(int, char**) {
-	Application app{ "BroadphaseScene", game_size };
+	Application app{ "BroadphaseScene", logical_size };
+	PTGN_WITH_EDITOR(app, false);
 	app.StartWith<BroadphaseScene>();
 }

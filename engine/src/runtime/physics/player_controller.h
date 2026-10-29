@@ -2,15 +2,50 @@
 
 #include <optional>
 #include <string>
+#include <string_view>
 
+#include "core/event/event.h"
+#include "core/math/transform.h"
 #include "core/math/vector2.h"
-#include "core/time/time.h"
+#include "core/util/time.h"
+#include "renderer/pipeline/render_state.h"
+#include "runtime/asset/asset_key.h"
 #include "runtime/ecs/entity.h"
+#include "runtime/ecs/entity_creation_context.h"
 #include "runtime/graphics/draw.h"
+#include "runtime/scripting/script.h"
+#include "serialization/serialize.h"
 
 namespace ptgn {
 
 class Scene;
+
+namespace impl {
+
+struct TopDownMovementScript : public Script {
+	void OnEvent(Event d) override;
+
+	void OnMoveStart();
+
+	void OnMoveStop();
+
+	void OnDirectionChange();
+};
+
+struct TopDownAnimationRepeat : public Script {
+	TopDownAnimationRepeat() = default;
+
+	TopDownAnimationRepeat(std::size_t walk_frequency, std::string_view walk_sound);
+
+	std::size_t walk_sound_frequency{ 1 };
+	std::string walk_sound_key{};
+
+	void OnEvent(Event d) override;
+
+	void OnAnimationFrameChange();
+};
+
+} // namespace impl
 
 struct TopDownPlayerConfig {
 	// Movement
@@ -30,22 +65,31 @@ struct TopDownPlayerConfig {
 	// Animation
 	// TODO: Move to a shared animation struct.
 	/// @brief These three are necessary for animation to work.
-	std::optional<V2_uint> animation_frame_count;
-	std::optional<std::string> animation_texture_key;
-	std::optional<V2_int> animation_frame_size;
+	std::optional<V2_uint> animation_frame_count{};
+	TextureKey animation_texture_key{};
+	std::optional<V2_int> animation_frame_size{};
 
-	/// @brief Defaults to 1000 if not provided.
-	std::optional<milliseconds> animation_duration;
+	/// @brief Defaults to 1000ms if not provided.
+	std::optional<milliseconds> animation_duration{};
 
-	std::optional<Depth> depth;
+	std::optional<Depth> depth{};
 
 	// TODO: Move to a shared sound struct.
 	/// @brief Required for sound to play
-	std::optional<std::string> walk_sound_key;
+	AudioKey walk_sound_key{};
 	/// @brief Defaults to 1 if not provided.
-	std::optional<std::size_t> walk_sound_frequency;
+	std::optional<std::size_t> walk_sound_frequency{};
+
+	PTGN_REFLECT(
+		TopDownPlayerConfig, max_speed, max_acceleration, max_deceleration, max_turn_speed,
+		friction, body_hitbox_size, body_hitbox_offset, interaction_hitbox_size,
+		interaction_hitbox_offset, animation_frame_count, animation_texture_key,
+		animation_frame_size, animation_duration, depth, walk_sound_key, walk_sound_frequency
+	)
 };
 
-Entity CreateTopDownPlayer(Scene& scene, V2_float position, const TopDownPlayerConfig& config = {});
+Entity CreateTopDownPlayer(
+	EntityCreationContext context, Transform transform, const TopDownPlayerConfig& config = {}
+);
 
 } // namespace ptgn

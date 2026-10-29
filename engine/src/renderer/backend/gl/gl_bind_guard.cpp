@@ -1,7 +1,7 @@
 #include "renderer/backend/gl/gl_bind_guard.h"
 
 #include "renderer/backend/gl/gl_context.h"
-#include "renderer/primitives/id.h"
+#include "renderer/resources/id.h"
 
 namespace ptgn::impl::gl {
 

@@ -1,26 +1,41 @@
 #pragma once
 
+#include <cstddef>
+#include <expected>
 #include <filesystem>
+#include <span>
 #include <string>
-
-#include "serialization/json/fwd.h"
+#include <string_view>
+#include <vector>
 
 namespace ptgn {
 
 namespace fs = std::filesystem;
-using path	 = std::filesystem::path;
+using path	 = fs::path;
 
+void EnsureDirectory(const path& path);
 [[nodiscard]] std::string FileToString(const path& file);
 path GetWorkingDirectory();
+std::string GetExtension(const path& file);
+bool HasExtension(const path& file, std::string_view extension);
 [[nodiscard]] path MergePaths(const path& path_A, const path& path_B);
 [[nodiscard]] bool FileExists(const path& file_path);
 [[nodiscard]] bool DirectoryExists(const path& directory_path);
-[[nodiscard]] bool IsFilePath(const std::string& potential_file_path);
-[[nodiscard]] bool IsDirectoryPath(const std::string& potential_directory_path);
-path GetAbsolutePath(const path& relative_file_path);
-path GetRelativePath(const path& absolute_file_path);
+bool IsFilePath(std::string_view potential_path);
+bool IsDirectoryPath(std::string_view potential_path);
+path GetAbsolutePath(const path& relative_path);
+path GetRelativePath(const path& absolute_path);
+path GetRuntimeRoot();
 
-void to_json(json& j, const path& p);
-void from_json(const json& j, path& p);
+enum class FileWriteError {
+	OpenFailed,
+	WriteFailed
+};
+
+[[nodiscard]] std::vector<std::byte> ReadBinary(const path& file);
+
+std::expected<void, FileWriteError> WriteBinary(
+	const path& file_path, std::span<const std::byte> bytes
+);
 
 } // namespace ptgn

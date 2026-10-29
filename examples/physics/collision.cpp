@@ -1,96 +1,113 @@
+#include "runtime/physics/collision.h"
+
+#include <chrono>
 #include <memory>
 #include <new>
 #include <string>
 #include <vector>
 
-#include "core/app/game.h"
-#include "core/app/manager.h"
-#include "core/ecs/entity.h"
-#include "core/input/input_handler.h"
+#include "app/application.h"
+#include "app/editor.h"
+#include "core/assert.h"
+#include "core/event/event.h"
+#include "core/graphics/color.h"
 #include "core/input/key.h"
-#include "core/scripting/script.h"
-#include "debug/core/log.h"
-#include "debug/runtime/assert.h"
-#include "debug/runtime/debug_system.h"
-#include "math/geometry/circle.h"
-#include "math/geometry/rect.h"
-#include "math/math_utils.h"
-#include "math/vector2.h"
-#include "physics/collider.h"
-#include "physics/physics.h"
-#include "physics/rigid_body.h"
-#include "platform/window/window.h"
-#include "renderer/api/color.h"
-#include "renderer/api/origin.h"
-#include "runtime/ecs/components/draw.h"
-#include "runtime/ecs/components/movement.h"
-#include "runtime/ecs/components/transform.h"
-#include "world/scene/scene.h"
-#include "world/scene/scene_manager.h"
+#include "core/log.h"
+#include "core/math/geometry/circle.h"
+#include "core/math/geometry/origin.h"
+#include "core/math/geometry/rect.h"
+#include "core/math/math_utils.h"
+#include "core/math/transform.h"
+#include "core/math/vector2.h"
+#include "runtime/ecs/entity.h"
+#include "runtime/graphics/draw.h"
+#include "runtime/graphics/shape.h"
+#include "runtime/graphics/tint.h"
+#include "runtime/graphics/visible.h"
+#include "runtime/physics/collider.h"
+#include "runtime/physics/collision_event.h"
+#include "runtime/physics/movement.h"
+#include "runtime/physics/physics.h"
+#include "runtime/physics/rigid_body.h"
+#include "runtime/scene/scene.h"
+#include "runtime/scene/scene_context.h"
+#include "runtime/scene/scene_input.h"
+#include "runtime/scripting/script.h"
+#include "tools/debug/debug_system.h"
 
 using namespace ptgn;
 
-constexpr V2_int game_size{ 800, 800 };
-
-V2_float ws;
+constexpr V2_int logical_size{ 800, 800 };
 
 struct CollisionTest {
 	virtual ~CollisionTest() = default;
 
-	Manager* manager;
+	Scene* scene;
 
-	CollisionTest() {
-		manager = &game.scene.Get("");
-	}
+	CollisionTest(Scene* scene) : scene{ scene } {}
 
-	virtual void Enter() {}
+	virtual void OnEnter() {}
 
-	virtual void Exit() {}
+	virtual void OnExit() {}
 
-	virtual void Update() {}
+	virtual void OnUpdate() {}
 
-	virtual void Draw() {}
+	virtual void OnDraw() {}
 };
 
-struct TestOverlapScript : public Script<TestOverlapScript, OverlapScript> {
+struct TestOverlapScript : public Script {
 	TestOverlapScript() = default;
 
 	explicit TestOverlapScript(const std::string& name) : name{ name } {}
 
-	void OnOverlapStart(Entity other) override {
-		PTGN_LOG(name, " started overlap with ", other.GetId());
+	void OnEvent(Event d) final {
+		d.Dispatch<event::OverlapStart>(&TestOverlapScript::OnOverlapStart, this);
+		d.Dispatch<event::Overlap>(&TestOverlapScript::OnOverlap, this);
+		d.Dispatch<event::OverlapStop>(&TestOverlapScript::OnOverlapStop, this);
 	}
 
-	void OnOverlap(Entity other) override {
-		PTGN_LOG(name, " continued overlap with ", other.GetId());
+	void OnOverlapStart(Entity other) {
+		PTGN_LOG(name, " started overlap with ", other.GetECSId());
 	}
 
-	void OnOverlapStop(Entity other) override {
-		PTGN_LOG(name, " stopped overlap with ", other.GetId());
+	void OnOverlap(Entity other) {
+		PTGN_LOG(name, " continued overlap with ", other.GetECSId());
+	}
+
+	void OnOverlapStop(Entity other) {
+		PTGN_LOG(name, " stopped overlap with ", other.GetECSId());
 	}
 
 	std::string name;
 };
 
-struct TestIntersectScript : public Script<TestIntersectScript, CollisionScript> {
+struct TestIntersectScript : public Script {
 	TestIntersectScript() = default;
 
 	explicit TestIntersectScript(const std::string& name) : name{ name } {}
 
-	void OnCollision(Collision c) override {
-		PTGN_LOG(name, " intersected with ", c.entity.GetId(), ", normal: ", c.normal);
+	void OnEvent(Event d) final {
+		d.Dispatch<event::Collision>(&TestIntersectScript::OnCollision, this);
+	}
+
+	void OnCollision(CollisionInfo c) {
+		PTGN_LOG(name, " intersected with ", c.entity.GetECSId(), ", normal: ", c.normal);
 	}
 
 	std::string name;
 };
 
-struct TestRaycastScript : public Script<TestRaycastScript, CollisionScript> {
+struct TestRaycastScript : public Script {
 	TestRaycastScript() = default;
 
 	explicit TestRaycastScript(const std::string& name) : name{ name } {}
 
-	void OnCollision(Collision c) override {
-		PTGN_LOG(name, " ray collided with ", c.entity.GetId(), ", normal: ", c.normal);
+	void OnEvent(Event d) final {
+		d.Dispatch<event::Collision>(&TestRaycastScript::OnCollision, this);
+	}
+
+	void OnCollision(CollisionInfo c) {
+		PTGN_LOG(name, " ray collided with ", c.entity.GetECSId(), ", normal: ", c.normal);
 	}
 
 	std::string name;
@@ -98,6 +115,8 @@ struct TestRaycastScript : public Script<TestRaycastScript, CollisionScript> {
 
 class CollisionCallbackTest : public CollisionTest {
 public:
+	using CollisionTest::CollisionTest;
+
 	Entity intersect;
 	Entity overlap;
 	Entity sweep;
@@ -106,19 +125,19 @@ public:
 	Entity sweep_circle;
 
 	// Total number.
-	const int move_entities{ 6 };
+	int move_entities{ 6 };
 	// Current move entity.
 	int move_entity{ 5 };
 	V2_float speed{ 300.0f };
 
 	void OnEnter() override {
-		PTGN_ASSERT(manager != nullptr);
-		intersect		 = manager->CreateEntity();
-		sweep			 = manager->CreateEntity();
-		overlap			 = manager->CreateEntity();
-		intersect_circle = manager->CreateEntity();
-		sweep_circle	 = manager->CreateEntity();
-		overlap_circle	 = manager->CreateEntity();
+		PTGN_ASSERT(scene);
+		intersect		 = scene->CreateEntity();
+		sweep			 = scene->CreateEntity();
+		overlap			 = scene->CreateEntity();
+		intersect_circle = scene->CreateEntity();
+		sweep_circle	 = scene->CreateEntity();
+		overlap_circle	 = scene->CreateEntity();
 
 		Show(intersect);
 		Show(sweep);
@@ -127,19 +146,19 @@ public:
 		Show(sweep_circle);
 		Show(overlap_circle);
 
-		SetTint(intersect, color::Purple);
-		SetTint(intersect_circle, color::Purple);
-		SetTint(sweep, color::Cyan);
-		SetTint(sweep_circle, color::Cyan);
-		SetTint(overlap, color::Orange);
-		SetTint(overlap_circle, color::Orange);
+		intersect.Add<Color>(color::Purple);
+		intersect_circle.Add<Color>(color::Purple);
+		sweep.Add<Color>(color::Cyan);
+		sweep_circle.Add<Color>(color::Cyan);
+		overlap.Add<Color>(color::Orange);
+		overlap_circle.Add<Color>(color::Orange);
 
-		SetPosition(intersect, -game_size * 0.5f + V2_float{ 100, 100 });
-		SetPosition(overlap, -game_size * 0.5f + V2_float{ 200, 200 });
-		SetPosition(sweep, -game_size * 0.5f + V2_float{ 300, 300 });
-		SetPosition(intersect_circle, -game_size * 0.5f + V2_float{ 400, 400 });
-		SetPosition(overlap_circle, -game_size * 0.5f + V2_float{ 500, 500 });
-		SetPosition(sweep_circle, -game_size * 0.5f + V2_float{ 300, 600 });
+		SetPosition(intersect, -logical_size * 0.5f + V2_float{ 100, 100 });
+		SetPosition(overlap, -logical_size * 0.5f + V2_float{ 200, 200 });
+		SetPosition(sweep, -logical_size * 0.5f + V2_float{ 300, 300 });
+		SetPosition(intersect_circle, -logical_size * 0.5f + V2_float{ 400, 400 });
+		SetPosition(overlap_circle, -logical_size * 0.5f + V2_float{ 500, 500 });
+		SetPosition(sweep_circle, -logical_size * 0.5f + V2_float{ 300, 600 });
 
 		intersect.Add<RigidBody>();
 		overlap.Add<RigidBody>();
@@ -157,18 +176,18 @@ public:
 		intersect.Add<Rect>(rect_size);
 		overlap.Add<Rect>(rect_size);
 		sweep.Add<Rect>(rect_size);
-		SetDraw<Rect>(intersect);
-		SetDraw<Rect>(overlap);
-		SetDraw<Rect>(sweep);
+		SetDraw<RectDraw>(intersect);
+		SetDraw<RectDraw>(overlap);
+		SetDraw<RectDraw>(sweep);
 		intersect_circle.Add<Collider>(Circle{ circle_radius });
 		overlap_circle.Add<Collider>(Circle{ circle_radius });
 		sweep_circle.Add<Collider>(Circle{ circle_radius });
 		intersect_circle.Add<Circle>(circle_radius);
 		overlap_circle.Add<Circle>(circle_radius);
 		sweep_circle.Add<Circle>(circle_radius);
-		SetDraw<Circle>(intersect_circle);
-		SetDraw<Circle>(overlap_circle);
-		SetDraw<Circle>(sweep_circle);
+		SetDraw<CircleDraw>(intersect_circle);
+		SetDraw<CircleDraw>(overlap_circle);
+		SetDraw<CircleDraw>(sweep_circle);
 
 		auto& b1{ intersect.Get<Collider>() };
 		auto& b2{ overlap.Get<Collider>() };
@@ -198,18 +217,18 @@ public:
 	}
 
 	void CreateObstacle(const V2_float& pos, const V2_float& size, Origin origin) {
-		PTGN_ASSERT(manager != nullptr);
-		auto obstacle = manager->CreateEntity();
+		PTGN_ASSERT(scene);
+		auto obstacle = scene->CreateEntity();
 		SetPosition(obstacle, pos);
 		obstacle.Add<Collider>(Rect{ size });
-		SetDrawOrigin(obstacle, origin);
+		obstacle.Add<Origin>(origin);
 	}
 
 	void OnUpdate() override {
-		if (ctx().input.KeyDown(Key::E)) {
+		if (scene->ctx().input.KeyPressed(Key::E)) {
 			move_entity++;
 		}
-		if (ctx().input.KeyDown(Key::Q)) {
+		if (scene->ctx().input.KeyPressed(Key::Q)) {
 			move_entity--;
 		}
 		move_entity = Mod(move_entity, move_entities);
@@ -230,23 +249,31 @@ public:
 			vel = &sweep_circle.Get<RigidBody>().velocity;
 		}
 
-		PTGN_ASSERT(vel != nullptr);
+		PTGN_ASSERT(vel);
 
-		MoveWASD(*this, *vel, speed * ctx().physics.dt());
+		MoveWASD(*scene, *vel, speed * scene->ctx().physics.dt().count());
 	}
 
-	void Draw() override {
+	void OnDraw() override {
 		constexpr Color text_color{ color::Blue };
-		for (auto [e, collider] : game.scene.Get("").EntitiesWith<Collider>()) {
-			auto transform{ GetAbsoluteTransform(e) };
+		for (auto [e, collider] : scene->EntitiesWith<Collider>()) {
+			auto transform{ GetWorldTransform(e) };
 			if (collider.mode == CollisionMode::Discrete) {
-				game.ctx().debug.DrawText("Intersect", transform.GetPosition(), text_color);
+				scene->ctx().render_queue.DrawText(
+					transform, "Intersect", text_color, { .debug = true }
+				);
 			} else if (collider.mode == CollisionMode::Overlap) {
-				game.ctx().debug.DrawText("Overlap", transform.GetPosition(), text_color);
+				scene->ctx().render_queue.DrawText(
+					transform, "Overlap", text_color, { .debug = true }
+				);
 			} else if (collider.mode == CollisionMode::Continuous) {
-				game.ctx().debug.DrawText("Sweep", transform.GetPosition(), text_color);
+				scene->ctx().render_queue.DrawText(
+					transform, "Sweep", text_color, { .debug = true }
+				);
 			} else if (collider.mode == CollisionMode::None) {
-				game.ctx().debug.DrawText("None", transform.GetPosition(), text_color);
+				scene->ctx().render_queue.DrawText(
+					transform, "None", text_color, { .debug = true }
+				);
 			}
 		}
 	}
@@ -287,7 +314,6 @@ public:
 
 	void Draw() override {
 		// TODO: Fix debug drawing.
-		/*
 		for (auto [e, b] : manager.EntitiesWith<BoxCollider>()) {
 			Rect r{ b.GetAbsoluteRect() };
 			DrawRect(e, r);
@@ -369,19 +395,19 @@ public:
 		V2_float c0{ p1 };
 		c0.Draw(color::Green, 1.0f);
 
-		const auto overlap = [](auto s1, auto s2) {
+		auto overlap = [](auto s1, auto s2) {
 			if (s2.Overlaps(s1)) {
 				s1.Draw(color::Red, 1.0f);
 				if constexpr (std::is_same_v<decltype(s2), Line>) {
 					s2.Draw(color::Red, 1.0f);
 				} else {
-					s2.Draw(color::Red, -1.0f);
+					s2.Draw(color::Red, Solid{});
 				}
 			} else {
 				if constexpr (std::is_same_v<decltype(s2), Line>) {
 					s2.Draw(color::Green, 1.0f);
 				} else {
-					s2.Draw(color::Green, -1.0f);
+					s2.Draw(color::Green, Solid{});
 				}
 			}
 		};
@@ -409,19 +435,19 @@ public:
 		Line c0{ p0, p1 };
 		c0.Draw(color::Green);
 
-		const auto overlap = [](auto s1, auto s2) {
+		auto overlap = [](auto s1, auto s2) {
 			if (s2.Overlaps(s1)) {
 				s1.Draw(color::Red);
 				if constexpr (std::is_same_v<decltype(s2), Line>) {
 					s2.Draw(color::Red, 1.0f);
 				} else {
-					s2.Draw(color::Red, -1.0f);
+					s2.Draw(color::Red, Solid{});
 				}
 			} else {
 				if constexpr (std::is_same_v<decltype(s2), Line>) {
 					s2.Draw(color::Green, 1.0f);
 				} else {
-					s2.Draw(color::Green, -1.0f);
+					s2.Draw(color::Green, Solid{});
 				}
 			}
 		};
@@ -447,21 +473,21 @@ public:
 		p1 = V2_int{ ctx().input.GetMousePosition() };
 
 		Circle c0{ p1, circle_radius };
-		c0.Draw(color::Green, -1.0f);
+		c0.Draw(color::Green, Solid{});
 
-		const auto overlap = [](auto s1, auto s2) {
+		auto overlap = [](auto s1, auto s2) {
 			if (s2.Overlaps(s1)) {
-				s1.Draw(color::Red, -1.0f);
+				s1.Draw(color::Red, Solid{});
 				if constexpr (std::is_same_v<decltype(s2), Line>) {
 					s2.Draw(color::Red, 1.0f);
 				} else {
-					s2.Draw(color::Red, -1.0f);
+					s2.Draw(color::Red, Solid{});
 				}
 			} else {
 				if constexpr (std::is_same_v<decltype(s2), Line>) {
 					s2.Draw(color::Green, 1.0f);
 				} else {
-					s2.Draw(color::Green, -1.0f);
+					s2.Draw(color::Green, Solid{});
 				}
 			}
 		};
@@ -487,21 +513,21 @@ public:
 		p1 = V2_int{ ctx().input.GetMousePosition() };
 
 		Rect c0{ p1, rect_size, Origin::Center, 0.0f };
-		c0.Draw(color::Green, -1.0f);
+		c0.Draw(color::Green, Solid{});
 
-		const auto overlap = [](auto s1, auto s2) {
+		auto overlap = [](auto s1, auto s2) {
 			if (s2.Overlaps(s1)) {
-				s1.Draw(color::Red, -1.0f);
+				s1.Draw(color::Red, Solid{});
 				if constexpr (std::is_same_v<decltype(s2), Line>) {
 					s2.Draw(color::Red, 1.0f);
 				} else {
-					s2.Draw(color::Red, -1.0f);
+					s2.Draw(color::Red, Solid{});
 				}
 			} else {
 				if constexpr (std::is_same_v<decltype(s2), Line>) {
 					s2.Draw(color::Green, 1.0f);
 				} else {
-					s2.Draw(color::Green, -1.0f);
+					s2.Draw(color::Green, Solid{});
 				}
 			}
 		};
@@ -527,21 +553,21 @@ public:
 		ShapeCollisionTest::Update();
 
 		Capsule c0{ p0, p1, capsule_radius };
-		c0.Draw(color::Green, -1.0f);
+		c0.Draw(color::Green, Solid{});
 
-		const auto overlap = [](auto s1, auto s2) {
+		auto overlap = [](auto s1, auto s2) {
 			if (s2.Overlaps(s1)) {
-				s1.Draw(color::Red, -1.0f);
+				s1.Draw(color::Red, Solid{});
 				if constexpr (std::is_same_v<decltype(s2), Line>) {
 					s2.Draw(color::Red, 1.0f);
 				} else {
-					s2.Draw(color::Red, -1.0f);
+					s2.Draw(color::Red, Solid{});
 				}
 			} else {
 				if constexpr (std::is_same_v<decltype(s2), Line>) {
 					s2.Draw(color::Green, 1.0f);
 				} else {
-					s2.Draw(color::Green, -1.0f);
+					s2.Draw(color::Green, Solid{});
 				}
 			}
 		};
@@ -569,18 +595,18 @@ public:
 		V2_float vel{ p1 - p0 };
 
 		Rect c0{ p0, rect_size };
-		c0.Draw(color::Green, -1.0f);
+		c0.Draw(color::Green, Solid{});
 
-		const auto sweep = [&](auto s1, auto s2) {
+		auto sweep = [&](auto s1, auto s2) {
 			Raycast raycast{ s1.Raycast(vel, s2) };
 			if (raycast.Occurred()) {
 				Rect c1{ p0 + vel * raycast.t, rect_size };
-				s1.Draw(color::Red, -1.0f);
-				s2.Draw(color::Red, -1.0f);
-				c1.Draw(color::Purple, -1.0f);
+				s1.Draw(color::Red, Solid{});
+				s2.Draw(color::Red, Solid{});
+				c1.Draw(color::Purple, Solid{});
 			} else {
-				s1.Draw(color::Green, -1.0f);
-				s2.Draw(color::Green, -1.0f);
+				s1.Draw(color::Green, Solid{});
+				s2.Draw(color::Green, Solid{});
 			}
 		};
 
@@ -613,11 +639,11 @@ public:
 	int option{ 4 };
 	int type{ 2 };
 
-	const float line_thickness{ 3.0f };
+	float line_thickness{ 3.0f };
 
-	// rotation of rectangles in radians.
-	float rot_1{ DegToRad(45.0f) };
-	float rot_2{ DegToRad(0.0f) };
+	// rotation of rectangles.
+	Degrees rot_1{ 45.0f };
+	Degrees rot_2{ 0.0f };
 
 	float rot_speed{ 1.0f };
 
@@ -741,7 +767,7 @@ public:
 			}
 		} else if (type == 1) { // intersect
 			options = 4;
-			const float slop{ 0.005f };
+			float slop{ 0.005f };
 			Intersection c;
 			if (option == 0) {
 				// circle2.center = circle1.center;
@@ -881,7 +907,7 @@ public:
 				V2_float pos = position4;
 				V2_float vel{ mouse - pos };
 				Line l{ pos, pos + vel };
-				const float point_radius{ 5.0f };
+				float point_radius{ 5.0f };
 				Circle c2{ pos + vel, point_radius };
 				c2.Draw(color::Gray, line_thickness);
 				l.Draw(color::Gray);
@@ -918,7 +944,7 @@ public:
 				V2_float pos = position4;
 				V2_float vel{ mouse - pos };
 				Line l{ pos, pos + vel };
-				const float point_radius{ 5.0f };
+				float point_radius{ 5.0f };
 				Circle c1{ pos + vel, point_radius };
 				c1.Draw(color::Gray, line_thickness);
 				l.Draw(color::Gray);
@@ -1368,14 +1394,14 @@ struct SweepTest : public CollisionTest {
 		}
 
 		if (ctx().input.KeyDown(Key::Space)) {
-			transform.position += rb.velocity * game.dt();
+			transform.Translate(rb.velocity * game.dt());
 		}
 
-		const auto edge_exclusive_overlap = [](const Rect& a, const Rect& b) {
-			const V2_float a_max{ a.Max() };
-			const V2_float a_min{ a.Min() };
-			const V2_float b_max{ b.Max() };
-			const V2_float b_min{ b.Min() };
+		auto edge_exclusive_overlap = [](const Rect& a, const Rect& b) {
+			V2_float a_max{ a.Max() };
+			V2_float a_min{ a.Min() };
+			V2_float b_max{ b.Max() };
+			V2_float b_min{ b.Min() };
 
 			if (a_max.x <= b_min.x || a_min.x >= b_max.x) {
 				return false;
@@ -1394,10 +1420,10 @@ struct SweepTest : public CollisionTest {
 
 	void Draw() override {
 
-		V2_int grid_size = game.renderer.GetGameSize() / size;
+		V2_int grid_size = game.renderer.GetLogicalSize() / size;
 
-		for (std::size_t i = 0; i < grid_size.x; i++) {
-			for (std::size_t j = 0; j < grid_size.y; j++) {
+		for (auto i{ 0uz }; i < grid_size.x; i++) {
+			for (auto j{ 0uz }; j < grid_size.y; j++) {
 				V2_float pos{ i * size.x, j * size.y };
 				game.draw.Rect(pos, size, color::Black, Origin::Center, 1.0f);
 			}
@@ -1532,7 +1558,7 @@ struct DynamicRectCollisionTest : public CollisionTest {
 	void OnEnter() override {
 
 
-		for (std::size_t i = 0; i < entity_data.size(); ++i) {
+		for (auto i{ 0uz }; i < entity_data.size(); ++i) {
 			ecs::Entity entity = manager.CreateEntity();
 			const auto& data   = entity_data[i];
 			auto& t			   = entity.SetPosition({});
@@ -1575,7 +1601,7 @@ struct DynamicRectCollisionTest : public CollisionTest {
 			 manager.EntitiesWith<BoxCollider, RigidBody, Id, NextVel>()) {
 			 auto& t{ GetTransform(e) };
 			if (space_down) {
-				t.position += rb.velocity * game.dt();
+				t.Translate(rb.velocity * game.dt());
 			}
 			for (auto [e2, b2, rb2] :
 				 manager.EntitiesWith<BoxCollider, RigidBody>()) {
@@ -1587,7 +1613,7 @@ struct DynamicRectCollisionTest : public CollisionTest {
 				Rect r2{ t2.position + b2.offset, b2.size, b2.origin };
 				Intersection c{ r1.Intersects(r2) };
 				if (c.Occurred()) {
-					t.position += c.normal * c.depth;
+					t.Translate(c.normal * c.depth);
 				}
 				if (r1.Overlaps(r2)) {
 					PTGN_LOG("Intersection after sweep | normal: ", c.normal, ", depth: ", c.depth);
@@ -1732,7 +1758,7 @@ public:
 
 	void OnEnter() override {
 		// TODO: Rework this whole test thing.
-		tests.emplace_back(new CollisionCallbackTest());
+		tests.emplace_back(new CollisionCallbackTest(this));
 		/*
 		tests.emplace_back(new SweepEntityCollisionTest());
 		tests.emplace_back(new RectangleSweepTest());
@@ -1760,27 +1786,28 @@ public:
 		tests.emplace_back(new SweepCornerTest1(velocity));
 		*/
 
-		tests[static_cast<std::size_t>(current_test)]->Enter();
+		tests[static_cast<std::size_t>(current_test)]->OnEnter();
 	}
 
 	void OnUpdate() override {
-		if (ctx().input.KeyDown(Key::Left)) {
-			tests[static_cast<std::size_t>(current_test)]->Exit();
+		if (ctx().input.KeyPressed(Key::Left)) {
+			tests[static_cast<std::size_t>(current_test)]->OnExit();
 			current_test--;
 			current_test = Mod(current_test, static_cast<int>(tests.size()));
-			tests[static_cast<std::size_t>(current_test)]->Enter();
-		} else if (ctx().input.KeyDown(Key::Right)) {
-			tests[static_cast<std::size_t>(current_test)]->Exit();
+			tests[static_cast<std::size_t>(current_test)]->OnEnter();
+		} else if (ctx().input.KeyPressed(Key::Right)) {
+			tests[static_cast<std::size_t>(current_test)]->OnExit();
 			current_test++;
 			current_test = Mod(current_test, static_cast<int>(tests.size()));
-			tests[static_cast<std::size_t>(current_test)]->Enter();
+			tests[static_cast<std::size_t>(current_test)]->OnEnter();
 		}
-		tests[static_cast<std::size_t>(current_test)]->Update();
-		tests[static_cast<std::size_t>(current_test)]->Draw();
+		tests[static_cast<std::size_t>(current_test)]->OnUpdate();
+		tests[static_cast<std::size_t>(current_test)]->OnDraw();
 	}
 };
 
 int main([[maybe_unused]] int c, [[maybe_unused]] char** v) {
-	Application app{ "CollisionScene: Arrow keys to flip between tests", game_size };
+	Application app{ "CollisionScene: Arrow keys to flip between tests", logical_size };
+	PTGN_WITH_EDITOR(app, false);
 	app.StartWith<CollisionScene>();
 }

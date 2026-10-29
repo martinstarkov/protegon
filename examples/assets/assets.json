@@ -1,11 +1,11 @@
 {
-  "png": "assets/png.png",
-  "jpg": "assets/jpg.jpg",
-  "bmp": "assets/bmp.bmp",
-  "music": "assets/music.ogg",
-  "sound": "assets/sound.ogg",
-  "ttf": "assets/ttf.ttf",
-  "otf": "assets/otf.otf",
-  "json": "assets/json.json",
-  "shader": "assets/shader.glsl"
+  "png": "examples/assets/png.png",
+  "jpg": "examples/assets/jpg.jpg",
+  "bmp": "examples/assets/bmp.bmp",
+  "music": "examples/assets/music.ogg",
+  "sound": "examples/assets/sound.ogg",
+  "ttf": "examples/assets/ttf.ttf",
+  "otf": "examples/assets/otf.otf",
+  "json": "examples/assets/json.json",
+  "shader": "examples/assets/shader.glsl"
 }

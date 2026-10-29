@@ -33,7 +33,7 @@ constexpr bool starts_with(std::string_view input, std::string_view prefix) {
 	if (input.size() < prefix.size()) {
 		return false;
 	}
-	for (std::size_t i{ 0 }; i < prefix.size(); ++i) {
+	for (auto i{ 0uz }; i < prefix.size(); ++i) {
 		if (input[i] != prefix[i]) {
 			return false;
 		}

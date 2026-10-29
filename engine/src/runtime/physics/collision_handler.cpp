@@ -3,9 +3,12 @@
 #include <algorithm>
 #include <chrono>
 #include <functional>
+#include <span>
+#include <utility>
 #include <vector>
 
 #include "core/assert.h"
+#include "core/graphics/color.h"
 #include "core/log.h"
 #include "core/math/intersect.h"
 #include "core/math/math_utils.h"
@@ -15,45 +18,63 @@
 #include "core/math/transform.h"
 #include "core/math/vector2.h"
 #include "core/util/span.h"
-#include "renderer/primitives/color.h"
+#include "core/util/time.h"
 #include "runtime/ecs/entity.h"
+#include "runtime/ecs/entity_filter.h"
 #include "runtime/ecs/entity_hierarchy.h"
+#include "runtime/ecs/group_stack.h"
+#include "runtime/graphics/render_queue.h"
 #include "runtime/graphics/shape.h"
 #include "runtime/physics/bounding_aabb.h"
 #include "runtime/physics/broadphase.h"
 #include "runtime/physics/collider.h"
+#include "runtime/physics/collision.h"
+#include "runtime/physics/collision_event.h"
 #include "runtime/physics/rigid_body.h"
 #include "runtime/scene/scene.h"
-
-#include "runtime/scripting/scripts.h"
+#include "runtime/scene/scene_context.h"
+#include "runtime/scene/scene_event.h"
+#include "runtime/scripting/script.h"
 #include "tools/debug/debug_system.h"
 
 namespace ptgn {
 
-bool CollisionHandler::CanCollide(
-	Entity entity1, const Collider& collider1, Entity entity2, const Collider& collider2
+namespace {
+/// Disable to retain the old full KD tree rebuild implementation.
+constexpr bool kIncrementalStaticBroadphase = true;
+}
+
+bool CanCollide(
+	Scene& scene, Entity entity1, const Collider& collider1, Entity entity2,
+	const Collider& collider2
 ) {
 	if (collider2.mode == CollisionMode::None) {
 		return false;
 	}
-	// Entity collision categories / masks do not match.
-	if (!collider1.CanCollideWith(collider2.GetMask())) {
+
+	if (!Matches(collider1.collides_with, scene, entity1, entity2)) {
 		return false;
 	}
-	const Entity root1{ GetRootEntity(entity1) };
-	const Entity root2{ GetRootEntity(entity2) };
-	// Entities share the same root entity.
+
+	Entity root1{ GetRootEntity(entity1) };
+	Entity root2{ GetRootEntity(entity2) };
+
 	if (root1 == root2) {
 		return false;
 	}
+
 	if (!root1 || !root2 || !entity1 || !entity2) {
 		return false;
 	}
+
 	return true;
 }
 
 template <auto EarlyExit, bool kPreOverlapCheck>
-std::vector<Entity> GetDiscreteCollideables(Entity entity1, const impl::KDTree& tree) {
+std::vector<Entity> GetDiscreteCollideables(
+	Scene& scene, Entity entity1, const impl::KDTree& tree,
+    const impl::KDTree& dynamic_tree
+) {
 	const auto& collider{ entity1.Get<Collider>() };
 
 	Transform transform{ GetWorldTransform(entity1) };
@@ -62,6 +83,10 @@ std::vector<Entity> GetDiscreteCollideables(Entity entity1, const impl::KDTree& 
 	auto bounding_aabb{ GetBoundingAABB(collider.shape, transform) };
 
 	auto candidates{ tree.Query(bounding_aabb) };
+    if constexpr (kIncrementalStaticBroadphase) {
+        auto moving{ dynamic_tree.Query(bounding_aabb) };
+        candidates.insert(candidates.end(), moving.begin(), moving.end());
+    }
 
 	std::vector<Entity> collideables;
 	collideables.reserve(candidates.size());
@@ -85,8 +110,7 @@ std::vector<Entity> GetDiscreteCollideables(Entity entity1, const impl::KDTree& 
 		if (EarlyExit(entity1, collider1, entity2, collider2)) {
 			continue;
 		}
-
-		if (!CollisionHandler::CanCollide(entity1, collider1, entity2, collider2)) {
+		if (!CanCollide(scene, entity1, collider1, entity2, collider2)) {
 			continue;
 		}
 
@@ -112,22 +136,30 @@ std::vector<Entity> GetDiscreteCollideables(Entity entity1, const impl::KDTree& 
 	return collideables;
 }
 
-void CollisionHandler::UpdateKDTree(Entity entity, float dt) {
+void CollisionHandler::UpdateKDTree(Entity entity, secondsf dt) {
 	const auto& collider{ entity.Get<Collider>() };
 	auto transform{ GetWorldTransform(entity) };
 	transform = OffsetByOrigin(collider.shape, transform, entity);
-	const auto new_bounding_aabb{ GetBoundingAABB(collider.shape, transform) };
-	static_tree_.UpdateBoundingAABB(entity, new_bounding_aabb);
-	static_tree_.EndFrameUpdate();
-	if (const auto rb{ entity.TryGet<RigidBody>() }) {
-		auto v{ rb->velocity * dt };
+	auto new_bounding_aabb{ GetBoundingAABB(collider.shape, transform) };
+    if constexpr (!kIncrementalStaticBroadphase) {
+        static_tree_.UpdateBoundingAABB(entity, new_bounding_aabb);
+        static_tree_.EndFrameUpdate();
+    } else if (!entity.Has<RigidBody>()) {
+        static_tree_.UpdateBoundingAABB(entity, new_bounding_aabb);
+        static_tree_.EndFrameUpdate();
+        cached_static_bounds_.insert_or_assign(
+            entity.Get<UUID>(), impl::KDObject{ entity, new_bounding_aabb }
+        );
+    }
+	if (const auto* rb{ entity.TryGet<RigidBody>() }) {
+		auto v{ rb->velocity * dt.count() };
 		auto new_expanded_aabb{ new_bounding_aabb.ExpandByVelocity(v) };
 		dynamic_tree_.UpdateBoundingAABB(entity, new_expanded_aabb);
 		dynamic_tree_.EndFrameUpdate();
 	}
 }
 
-void CollisionHandler::Overlap(Entity entity1) const {
+void CollisionHandler::Overlap(Scene& scene, Entity entity1) const {
 	PTGN_ASSERT(entity1.Has<Collider>());
 	PTGN_ASSERT(entity1.Get<Collider>().mode == CollisionMode::Overlap);
 
@@ -135,8 +167,7 @@ void CollisionHandler::Overlap(Entity entity1) const {
 		[]([[maybe_unused]] Entity e1, const Collider& c1, Entity e2, const Collider& c2) {
 			return c2.mode == CollisionMode::None || c1.OverlappedWith(e2);
 		},
-		true>(entity1, static_tree_) };
-
+		true>(scene, entity1, static_tree_, dynamic_tree_) };
 	for (const auto& entity2 : collideables) {
 		auto& collider1{ entity1.Get<Collider>() };
 		auto& collider2{ entity2.Get<Collider>() };
@@ -156,7 +187,7 @@ void CollisionHandler::Overlap(Entity entity1) const {
 	}
 }
 
-void CollisionHandler::Intersect(Entity entity1, float dt) {
+void CollisionHandler::Intersect(Scene& scene, Entity entity1, secondsf dt) {
 	PTGN_ASSERT(entity1.Has<Collider>());
 
 	auto collideables{ GetDiscreteCollideables<
@@ -165,8 +196,7 @@ void CollisionHandler::Intersect(Entity entity1, float dt) {
 			return c2.mode == CollisionMode::Overlap ||
 				   c2.mode == CollisionMode::None; //|| c1.IntersectedWith(e2);
 		},
-		false>(entity1, static_tree_) };
-
+		false>(scene, entity1, static_tree_, dynamic_tree_) };
 	std::vector<Entity> moved_entities;
 
 	for (auto& entity2 : collideables) {
@@ -187,19 +217,11 @@ void CollisionHandler::Intersect(Entity entity1, float dt) {
 			continue;
 		}
 
-		if (auto scripts1{ entity1.TryGet<impl::Scripts>() }) {
-			CollisionEvent event;
-			event.collision = Collision{ entity2, intersection.normal };
-			scripts1->Emit(event);
-		}
-		if (auto scripts2{ entity2.TryGet<impl::Scripts>() }) {
-			CollisionEvent event;
-			event.collision = Collision{ entity1, -intersection.normal };
-			scripts2->Emit(event);
-		}
+		PushEvent<event::Collision>(entity1, CollisionInfo{ entity2, intersection.normal });
+		PushEvent<event::Collision>(entity2, CollisionInfo{ entity1, -intersection.normal });
 
-		collider1.AddIntersect(Collision{ entity2, intersection.normal });
-		collider2.AddIntersect(Collision{ entity1, -intersection.normal });
+		collider1.AddIntersect(CollisionInfo{ entity2, intersection.normal });
+		collider2.AddIntersect(CollisionInfo{ entity1, -intersection.normal });
 
 		if (!entity1.Has<RigidBody>()) {
 			continue;
@@ -232,7 +254,7 @@ void CollisionHandler::Intersect(Entity entity1, float dt) {
 }
 
 std::vector<Entity> CollisionHandler::GetSweepCandidates(
-	Entity entity1, V2_float velocity, const impl::KDTree& tree
+	Scene& scene, Entity entity1, V2_float velocity, const impl::KDTree& tree
 ) {
 	const auto& collider{ entity1.Get<Collider>() };
 
@@ -268,8 +290,7 @@ std::vector<Entity> CollisionHandler::GetSweepCandidates(
 		/*if (collider1.SweptWith(entity2)) {
 			continue;
 		}*/
-
-		if (!CanCollide(entity1, collider1, entity2, collider2)) {
+		if (!CanCollide(scene, entity1, collider1, entity2, collider2)) {
 			continue;
 		}
 
@@ -290,12 +311,11 @@ std::vector<Entity> CollisionHandler::GetSweepCandidates(
 }
 
 std::vector<impl::SweepCollision> CollisionHandler::GetSortedCollisions(
-	Entity entity1, V2_float offset, V2_float velocity1, float dt
+	Scene& scene, Entity entity1, V2_float offset, V2_float velocity1, secondsf dt
 ) const {
-	auto static_collideables{ GetSweepCandidates(entity1, velocity1, static_tree_) };
-	auto dynamic_collideables{ GetSweepCandidates(entity1, velocity1, dynamic_tree_) };
-
-	auto collideables{ ConcatenateVectors(static_collideables, dynamic_collideables) };
+	auto static_collideables{ GetSweepCandidates(scene, entity1, velocity1, static_tree_) };
+	auto dynamic_collideables{ GetSweepCandidates(scene, entity1, velocity1, dynamic_tree_) };
+	auto collideables{ VectorConcat(static_collideables, dynamic_collideables) };
 
 	VectorRemoveDuplicates(collideables);
 
@@ -328,8 +348,8 @@ std::vector<impl::SweepCollision> CollisionHandler::GetSortedCollisions(
 			continue;
 		}
 
-		auto center1{ transform1.GetPosition() };
-		auto center2{ transform2.GetPosition() };
+		auto center1{ transform1.position };
+		auto center2{ transform2.position };
 		V2_float center_dist{ center1 - center2 };
 		float dist2{ center_dist.MagnitudeSquared() };
 		collisions.emplace_back(raycast, dist2, entity2);
@@ -340,7 +360,9 @@ std::vector<impl::SweepCollision> CollisionHandler::GetSortedCollisions(
 	return collisions;
 }
 
-void CollisionHandler::Sweep(Scene& scene, Entity entity, float dt) {
+void CollisionHandler::Sweep(Scene& scene, Entity entity, secondsf dt) {
+	bool draw_ccd{ scene.ctx().debug.settings.collision.DrawCCD() };
+
 	PTGN_ASSERT(entity.Has<Collider>());
 	PTGN_ASSERT(entity.Get<Collider>().mode == CollisionMode::Continuous);
 	PTGN_ASSERT(entity.Has<RigidBody>());
@@ -352,14 +374,12 @@ void CollisionHandler::Sweep(Scene& scene, Entity entity, float dt) {
 	bool raycast_hit{ false };
 
 	do {
-		auto velocity{ entity.Get<RigidBody>().velocity * dt };
+		auto velocity{ entity.Get<RigidBody>().velocity * dt.count() };
 
 		if (velocity.IsZero()) {
 			break;
 		}
-
-		auto collisions{ GetSortedCollisions(entity, offset, velocity, dt) };
-
+		auto collisions{ GetSortedCollisions(scene, entity, offset, velocity, dt) };
 		if (collisions.empty()) {
 			break;
 		}
@@ -367,12 +387,12 @@ void CollisionHandler::Sweep(Scene& scene, Entity entity, float dt) {
 		raycast_hit = true;
 
 		// no collisions occured.
-		TryDrawDebugLine(scene, entity, {}, velocity, color::Gray);
+		TryDrawDebugLine(scene, entity, {}, velocity, color::Gray, draw_ccd);
 
 		auto earliest{ collisions.front().collision };
 
-		TryDrawDebugLine(scene, entity, {}, velocity * earliest.t, color::Blue);
-		TryDrawDebugCollider(scene, entity, velocity * earliest.t, color::Purple);
+		TryDrawDebugLine(scene, entity, {}, velocity * earliest.t, color::Blue, draw_ccd);
+		TryDrawDebugCollider(scene, entity, velocity * earliest.t, color::Purple, draw_ccd);
 
 		AddEarliestCollisions(entity, collisions);
 
@@ -387,27 +407,27 @@ void CollisionHandler::Sweep(Scene& scene, Entity entity, float dt) {
 		}
 
 		offset += velocity * earliest.t;
-
-		auto collisions2{ GetSortedCollisions(entity, offset, new_velocity, dt) };
-
-		PTGN_ASSERT(dt > 0.0f);
+		auto collisions2{ GetSortedCollisions(scene, entity, offset, new_velocity, dt) };
+		PTGN_ASSERT(dt > 0s);
 
 		if (collisions2.empty()) {
-			TryDrawDebugLine(scene, entity, velocity * earliest.t, new_velocity, color::Orange);
+			TryDrawDebugLine(
+				scene, entity, velocity * earliest.t, new_velocity, color::Orange, draw_ccd
+			);
 
-			entity.Get<RigidBody>().AddImpulse(new_velocity / dt);
+			entity.Get<RigidBody>().AddImpulse(new_velocity / dt.count());
 			break;
 		}
 
 		auto earliest2{ collisions2.front().collision };
 
 		TryDrawDebugLine(
-			scene, entity, velocity * earliest.t, new_velocity * earliest2.t, color::Green
+			scene, entity, velocity * earliest.t, new_velocity * earliest2.t, color::Green, draw_ccd
 		);
 
 		AddEarliestCollisions(entity, collisions2);
 
-		entity.Get<RigidBody>().AddImpulse(new_velocity / dt * earliest2.t);
+		entity.Get<RigidBody>().AddImpulse(new_velocity / dt.count() * earliest2.t);
 
 		iterations++;
 	} while (false /*TODO: Consider readding: iterations < max_sweep_iterations_*/);
@@ -419,30 +439,33 @@ void CollisionHandler::Sweep(Scene& scene, Entity entity, float dt) {
 }
 
 void CollisionHandler::TryDrawDebugCollider(
-	Scene& scene, Entity entity, V2_float offset, Color color
+	Scene& scene, Entity entity, V2_float offset, Color color, bool draw_ccd
 ) const {
-	if (settings_.DrawCCD()) {
+	if (draw_ccd) {
 		auto transform{ GetWorldTransform(entity) };
 		transform.Translate(offset);
 		const auto& collider{ entity.Get<Collider>() };
-		scene.ctx().debug.DrawShape(collider.shape, transform, color);
+		scene.ctx().render_queue.DrawShape(transform, collider.shape, color, { .debug = true });
 	}
 }
 
 void CollisionHandler::TryDrawDebugLine(
-	Scene& scene, Entity entity, V2_float start_offset, V2_float end_offset, Color color
+	Scene& scene, Entity entity, V2_float start_offset, V2_float end_offset, Color color,
+	bool draw_ccd
 ) const {
-	if (settings_.DrawCCD()) {
+	if (draw_ccd) {
 		auto transform{ GetWorldTransform(entity) };
-		auto position{ transform.GetPosition() };
-		scene.ctx().debug.DrawLine(position + start_offset, position + end_offset, color);
+		auto position{ transform.position };
+		scene.ctx().render_queue.DrawLine(
+			position + start_offset, position + end_offset, color, { .debug = true }
+		);
 	}
 }
 
-V2_float CollisionHandler::GetRelativeVelocity(V2_float velocity1, Entity entity2, float dt) {
+V2_float CollisionHandler::GetRelativeVelocity(V2_float velocity1, Entity entity2, secondsf dt) {
 	V2_float relative_velocity{ velocity1 };
-	if (const auto rb2{ entity2.TryGet<RigidBody>() }) {
-		auto velocity2{ rb2->velocity * dt };
+	if (const auto* rb2{ entity2.TryGet<RigidBody>() }) {
+		auto velocity2{ rb2->velocity * dt.count() };
 		relative_velocity -= velocity2;
 	}
 	return relative_velocity;
@@ -457,28 +480,23 @@ void CollisionHandler::AddEarliestCollisions(
 
 	PTGN_ASSERT(entity != first_sweep.entity, "Self collision not possible");
 
-	Collision first{ first_sweep.entity, first_sweep.collision.normal };
+	CollisionInfo first{ first_sweep.entity, first_sweep.collision.normal };
 
 	auto& collider{ entity.Get<Collider>() };
 
-	if (auto scripts{ entity.TryGet<impl::Scripts>() }) {
-		CollisionEvent event;
-		event.collision = first;
-		scripts->Emit(event);
-	}
+	PushEvent<event::Collision>(entity, first);
+
 	collider.AddSweep(first);
 
-	for (std::size_t i{ 1 }; i < sweep_collisions.size(); ++i) {
+	for (auto i{ 1uz }; i < sweep_collisions.size(); ++i) {
 		const auto& sweep{ sweep_collisions[i] };
 
 		if (sweep.collision.t == first_sweep.collision.t) {
 			PTGN_ASSERT(entity != sweep.entity, "Self collision not possible");
-			Collision matching{ sweep.entity, sweep.collision.normal };
-			if (auto scripts{ entity.TryGet<impl::Scripts>() }) {
-				CollisionEvent event;
-				event.collision = matching;
-				scripts->Emit(event);
-			}
+			CollisionInfo matching{ sweep.entity, sweep.collision.normal };
+
+			PushEvent<event::Collision>(entity, matching);
+
 			collider.AddSweep(matching);
 		}
 	}
@@ -498,7 +516,8 @@ void CollisionHandler::SortCollisions(std::vector<impl::SweepCollision>& collisi
 	std::ranges::sort(collisions, [](const impl::SweepCollision& a, const impl::SweepCollision& b) {
 		return a.dist2 < b.dist2;
 	});
-	// Sort based on collision times, and if they are equal, by collision normal magnitudes.
+	// Sort based on collision times, and if collision times are equal, by collision normal
+	// magnitudes.
 	std::ranges::sort(collisions, [](const impl::SweepCollision& a, const impl::SweepCollision& b) {
 		// If time of collision are equal, prioritize walls to corners, i.e. normals
 		// (1,0) come before (1,1).
@@ -543,38 +562,78 @@ V2_float CollisionHandler::GetRemainingVelocity(
 	PTGN_ERROR("Failed to identify DynamicCollisionResponse type");
 }
 
-void CollisionHandler::Update(Scene& scene) {
+void CollisionHandler::Update(Scene& scene, secondsf dt) {
 	std::vector<impl::KDObject> objects;
 	std::vector<impl::KDObject> dynamic_objects;
-
-	float dt{ scene.ctx().dt().count() };
+    std::unordered_map<UUID, impl::KDObject> static_bounds;
 
 	for (auto [entity, collider] : scene.EntitiesWith<Collider>()) {
 		collider.ResetContainers();
+		if (!IsGroupStackActive(entity) || !scene.ctx().chunks.ShouldSimulate(entity)) {
+			continue;
+		}
 		auto transform{ GetWorldTransform(entity) };
 		transform = OffsetByOrigin(collider.shape, transform, entity);
 		auto bounding_aabb{ GetBoundingAABB(collider.shape, transform) };
 		objects.emplace_back(entity, bounding_aabb);
+        if constexpr (kIncrementalStaticBroadphase) {
+            if (!entity.Has<RigidBody>()) {
+                static_bounds.emplace(
+                    entity.Get<UUID>(), impl::KDObject{ entity, bounding_aabb }
+                );
+            }
+        }
 		if (entity.Has<RigidBody>()) {
 			const auto& rb{ entity.Get<RigidBody>() };
-			auto velocity{ rb.velocity * dt };
+			auto velocity{ rb.velocity * dt.count() };
 			auto expanded_aabb{ bounding_aabb.ExpandByVelocity(velocity) };
 			dynamic_objects.emplace_back(entity, expanded_aabb);
 		}
 	}
 
-	static_tree_.Build(objects);
+    if constexpr (kIncrementalStaticBroadphase) {
+        for (const auto& [uuid, object] : static_bounds) {
+            auto existing{ cached_static_bounds_.find(uuid) };
+
+            if (existing == cached_static_bounds_.end()) {
+                static_tree_.Insert(object.entity, object.aabb);
+            } else if (existing->second.entity != object.entity) {
+                // An ID might have been reassigned to a different entity.
+                static_tree_.Remove(uuid);
+                // Finish removal before inserting a different handle with
+                // the same UUID; otherwise the old leaf could be retained.
+                static_tree_.EndFrameUpdate();
+                static_tree_.Insert(object.entity, object.aabb);
+            } else if (existing->second.aabb.min != object.aabb.min ||
+                       existing->second.aabb.max != object.aabb.max) {
+                static_tree_.UpdateBoundingAABB(object.entity, object.aabb);
+            }
+        }
+
+        // Keys were captured while the entities were alive. Removing a destroyed
+        // entity never attempts to read its UUID component.
+        for (const auto& [uuid, object] : cached_static_bounds_) {
+            if (!static_bounds.contains(uuid)) {
+                static_tree_.Remove(uuid);
+            }
+        }
+
+        static_tree_.EndFrameUpdate();
+        cached_static_bounds_ = std::move(static_bounds);
+    } else {
+        static_tree_.Build(objects);
+    }
 	dynamic_tree_.Build(dynamic_objects);
 
 	for (auto& object : objects) {
 		const auto& collider{ object.entity.Get<Collider>() };
 		switch (collider.mode) {
 			case CollisionMode::Discrete: {
-				Intersect(object.entity, dt);
+				Intersect(scene, object.entity, dt);
 				break;
 			}
 			case CollisionMode::Overlap: {
-				Overlap(object.entity);
+				Overlap(scene, object.entity);
 				break;
 			}
 			case CollisionMode::Continuous: {
@@ -583,7 +642,7 @@ void CollisionHandler::Update(Scene& scene) {
 				}
 				// Ensure the collider does not start within an object (at least most of
 				// the time).
-				Intersect(object.entity, dt);
+				Intersect(scene, object.entity, dt);
 				Sweep(scene, object.entity, dt);
 				break;
 			}
@@ -594,43 +653,66 @@ void CollisionHandler::Update(Scene& scene) {
 		}
 	}
 
-	for (auto [entity, collider, _scripts] : scene.EntitiesWith<Collider, impl::Scripts>()) {
-		if (collider.mode != CollisionMode::Overlap) {
+	// Compare contact pairs after all collision passes. Deduplicate sweep and intersection.
+	for (auto [entity, collider] : scene.EntitiesWith<Collider>()) {
+		if (collider.mode == CollisionMode::None || collider.mode == CollisionMode::Overlap) {
 			continue;
 		}
-		for (const auto& current : collider.overlaps_) {
-			PTGN_ASSERT(current != entity);
-			if (!VectorContains(collider.previous_overlaps_, current)) {
-				if (auto scripts{ entity.TryGet<impl::Scripts>() }) {
-					OverlapStart event;
-					event.overlap_entity = current;
-					scripts->Emit(event);
+		auto contact_in = [](std::span<const CollisionInfo> first,
+							 std::span<const CollisionInfo> second, Entity other) {
+			auto contains = [other](const CollisionInfo& hit) {
+				return hit.entity == other;
+			};
+			return std::ranges::any_of(first, contains) || std::ranges::any_of(second, contains);
+		};
+		for (const auto& hit : collider.intersects_) {
+			if (!contact_in(collider.previous_intersects_, collider.previous_sweeps_, hit.entity)) {
+				PushEvent<event::CollisionStart>(entity, hit);
+			}
+		}
+		for (const auto& hit : collider.sweeps_) {
+			if (!contact_in(collider.intersects_, std::span<const CollisionInfo>{}, hit.entity)) {
+				if (!contact_in(
+						collider.previous_intersects_, collider.previous_sweeps_, hit.entity
+					)) {
+					PushEvent<event::CollisionStart>(entity, hit);
 				}
 			}
 		}
-		for (const auto& previous : collider.previous_overlaps_) {
-			PTGN_ASSERT(previous != entity);
-			if (!VectorContains(collider.overlaps_, previous)) {
-				if (auto scripts{ entity.TryGet<impl::Scripts>() }) {
-					OverlapStop event;
-					event.overlap_entity = previous;
-					scripts->Emit(event);
-				}
-			} else {
-				if (auto scripts{ entity.TryGet<impl::Scripts>() }) {
-					OverlapContinue event;
-					event.overlap_entity = previous;
-					scripts->Emit(event);
-				}
+		for (const auto& hit : collider.previous_intersects_) {
+			if (!contact_in(collider.intersects_, collider.sweeps_, hit.entity)) {
+				PushEvent<event::CollisionStop>(entity, hit);
+			}
+		}
+		for (const auto& hit : collider.previous_sweeps_) {
+			if (!contact_in(
+					collider.previous_intersects_, std::span<const CollisionInfo>{}, hit.entity
+				) &&
+				!contact_in(collider.intersects_, collider.sweeps_, hit.entity)) {
+				PushEvent<event::CollisionStop>(entity, hit);
 			}
 		}
 	}
 
-	scene.Refresh();
-}
-
-void CollisionHandler::SetSettings(const CollisionHandlerSettings& settings) {
-	settings_ = settings;
+	for (auto [entity, collider, _scripts] : scene.EntitiesWith<Collider, impl::Scripts>()) {
+		if (!IsGroupStackActive(entity) || collider.mode != CollisionMode::Overlap) {
+			continue;
+		}
+		for (const auto& current : collider.overlaps_) {
+			PTGN_ASSERT(current != entity);
+			if (!std::ranges::contains(collider.previous_overlaps_, current)) {
+				PushEvent<event::OverlapStart>(entity, current);
+			}
+		}
+		for (const auto& previous : collider.previous_overlaps_) {
+			PTGN_ASSERT(previous != entity);
+			if (!std::ranges::contains(collider.overlaps_, previous)) {
+				PushEvent<event::OverlapStop>(entity, previous);
+			} else {
+				PushEvent<event::Overlap>(entity, previous);
+			}
+		}
+	}
 }
 
 namespace impl {

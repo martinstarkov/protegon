@@ -7,10 +7,10 @@
 
 #include "core/assert.h"
 #include "core/log.h"
-#include "core/time/time.h"
-#include "core/time/timer.h"
 #include "core/util/function.h"
 #include "core/util/macro.h"
+#include "core/util/time.h"
+#include "core/util/timer.h"
 
 namespace ptgn {
 
@@ -31,7 +31,7 @@ private:
 	ProfileInstance() = default;
 
 	std::string name_{};
-	Timer timer_;
+	Stopwatch timer_;
 };
 
 class Profiler {
@@ -50,7 +50,7 @@ public:
 	template <DurationType D = milliseconds>
 	void PrintAll() const {
 		for (const auto& [name, time] : timings_) {
-			PrintInfo<D>(name, to_duration<D>(time));
+			PrintInfo<D>(name, duration_cast<D>(time));
 		}
 	}
 
@@ -61,7 +61,7 @@ public:
 			"Cannot print profiling info for name which is not being profiled"
 		);
 		auto& time{ timings_.find(name)->second };
-		PrintInfo<D>(name, to_duration<D>(time));
+		PrintInfo<D>(name, duration_cast<D>(time));
 	}
 
 private:
@@ -76,10 +76,7 @@ private:
 	std::unordered_map<std::string, nanoseconds> timings_;
 };
 
-static Profiler& GetProfiler() {
-	static Profiler profiler;
-	return profiler;
-}
+Profiler& GetProfiler();
 
 } // namespace impl
 
@@ -96,6 +93,6 @@ static Profiler& GetProfiler() {
 // Optional: In the future profiling could be disabled for distribution builds.
 // #ifdef PTGN_DISTRIBUTION
 //
-// #define PTGN_PROFILE_FUNCTION(...) ((void)0)
+// #define PTGN_PROFILE_FUNCTION(...) static_cast<void>(0)
 //
 // #endif

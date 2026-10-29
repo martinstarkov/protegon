@@ -4,27 +4,27 @@
 
 #include "core/math/transform.h"
 #include "core/math/vector2.h"
-#include "serialization/json/serialize.h"
+#include "serialization/serialize.h"
 
 namespace ptgn {
 
-struct Triangle {
-	Triangle() = default;
+class Triangle {
+public:
+	std::array<V2_float, 3> vertices;
 
-	Triangle(V2_float a, V2_float b, V2_float c);
-	explicit Triangle(const std::array<V2_float, 3>& vertices);
+	constexpr Triangle() = default;
 
-	std::array<V2_float, 3> GetWorldVertices(Transform transform) const;
+	constexpr Triangle(V2_float a, V2_float b, V2_float c) : vertices{ a, b, c } {}
 
-	std::array<V2_float, 3> GetLocalVertices() const;
+	constexpr explicit Triangle(const std::array<V2_float, 3>& triangle_vertices) : vertices{ triangle_vertices } {}
 
-	bool operator==(const Triangle&) const = default;
+	constexpr std::array<V2_float, 3> GetWorldVertices(Transform transform) const {
+		return transform.Apply(vertices);
+	}
 
-	V2_float a;
-	V2_float b;
-	V2_float c;
+	constexpr bool operator==(const Triangle&) const = default;
 
-	PTGN_SERIALIZER_REGISTER_IGNORE_DEFAULTS(Triangle, a, b, c)
+	PTGN_REFLECT(Triangle, vertices)
 };
 
 } // namespace ptgn

@@ -1,18 +1,17 @@
 #pragma once
 
 #include <array>
+#include <cmath>
 #include <functional>
-#include <iosfwd>
 #include <ostream>
 #include <type_traits>
 
-#include "core/assert.h"
-#include "core/math/math_utils.h"
+#include "core/math/angle.h"
+#include "core/math/tolerance.h"
 #include "core/math/vector2.h"
 #include "core/util/concepts.h"
+#include "core/util/hash.h"
 #include "serialization/json/fwd.h"
-
-// TODO: Stop exposing assert.h
 
 namespace ptgn {
 
@@ -22,12 +21,12 @@ struct Vector3 {
 	T y{ 0 };
 	T z{ 0 };
 
-	constexpr T* Data() noexcept {
+	[[nodiscard]] constexpr T* Data() noexcept {
 		static_assert(std::is_standard_layout_v<Vector3>);
 		return &x;
 	}
 
-	constexpr const T* Data() const noexcept {
+	[[nodiscard]] constexpr const T* Data() const noexcept {
 		static_assert(std::is_standard_layout_v<Vector3>);
 		return &x;
 	}
@@ -41,10 +40,8 @@ struct Vector3 {
 	constexpr Vector3(T x_component, T y_component, T z_component) :
 		x{ x_component }, y{ y_component }, z{ z_component } {}
 
-	explicit Vector3(const json& j);
-
 	template <Arithmetic U>
-	constexpr Vector3(Vector3<U> o) :
+	constexpr Vector3(Vector3<U> o) : // NOSONAR
 		x{ static_cast<T>(o.x) }, y{ static_cast<T>(o.y) }, z{ static_cast<T>(o.z) } {}
 
 	template <ConvertibleToArithmetic U, ConvertibleToArithmetic S, ConvertibleToArithmetic V>
@@ -54,47 +51,51 @@ struct Vector3 {
 		z{ static_cast<T>(z_component) } {}
 
 	template <Arithmetic U>
-	constexpr Vector3(std::array<U, 3> o) :
+	explicit constexpr Vector3(std::array<U, 3> o) :
 		x{ static_cast<T>(o[0]) }, y{ static_cast<T>(o[1]) }, z{ static_cast<T>(o[2]) } {}
 
-	constexpr Vector2<T> xy() const {
+	[[nodiscard]] constexpr Vector2<T> xy() const {
 		return { x, y };
 	}
 
-	constexpr Vector2<T> xx() const {
+	[[nodiscard]] constexpr Vector2<T> xx() const {
 		return { x, x };
 	}
 
-	constexpr Vector2<T> yy() const {
+	[[nodiscard]] constexpr Vector2<T> yy() const {
 		return { y, y };
 	}
 
-	constexpr Vector2<T> zz() const {
+	[[nodiscard]] constexpr Vector2<T> zz() const {
 		return { z, z };
 	}
 
-	friend bool operator==(const Vector3& lhs, const Vector3& rhs) {
+	constexpr friend bool operator==(const Vector3& lhs, const Vector3& rhs) {
 		return NearlyEqual(lhs.x, rhs.x) && NearlyEqual(lhs.y, rhs.y) && NearlyEqual(lhs.z, rhs.z);
 	}
 
-	// Access vector elements by index, 0 for x, 1 for y, 2 for z.
+	/// @brief Access vector elements by index, 0 for x, 1 for y, 2 for z.
 	constexpr T& operator[](std::size_t idx) {
-		if (idx == 1) {
+		if (idx == 0) {
+			return x;
+		} else if (idx == 1) {
 			return y;
 		} else if (idx == 2) {
 			return z;
 		}
-		return x; // 0
+		PTGN_ERROR("Vector3 index out of range: ", idx);
 	}
 
-	// Access vector elements by index, 0 for x, 1 for y, 2 for z.
+	/// @brief Access vector elements by index, 0 for x, 1 for y, 2 for z.
 	constexpr T operator[](std::size_t idx) const {
-		if (idx == 1) {
+		if (idx == 0) {
+			return x;
+		} else if (idx == 1) {
 			return y;
 		} else if (idx == 2) {
 			return z;
 		}
-		return x; // 0
+		PTGN_ERROR("Vector3 index out of range: ", idx);
 	}
 
 	constexpr Vector3 operator-() const {
@@ -155,61 +156,84 @@ struct Vector3 {
 		return *this;
 	}
 
-	// Returns the dot product (this * o).
+	/// @return The dot product (this * o).
 	[[nodiscard]] constexpr T Dot(Vector3 o) const {
 		return x * o.x + y * o.y + z * o.z;
 	}
 
-	// Returns the cross product (this x o).
+	/// @return The cross product (this x o).
 	[[nodiscard]] constexpr Vector3 Cross(Vector3 o) const {
 		return { y * o.z - z * o.y, z * o.x - x * o.z, x * o.y - y * o.z };
 	}
 
-	template <std::floating_point S = typename std::common_type_t<T, float>>
-	[[nodiscard]] constexpr S Magnitude() const {
-		return std::sqrt(static_cast<S>(MagnitudeSquared()));
+	[[nodiscard]] float Magnitude() const {
+		return std::sqrt(static_cast<float>(MagnitudeSquared()));
 	}
 
 	[[nodiscard]] constexpr T MagnitudeSquared() const {
 		return Dot(*this);
 	}
 
-	// Returns a unit vector (magnitude = 1) except for zero vectors (magnitude
-	// = 0).
-	template <std::floating_point S = typename std::common_type_t<T, float>>
-	[[nodiscard]] Vector3<S> Normalized() const {
+	/// @return Unit vector (magnitude = 1) except for zero vectors (magnitude = 0).
+	[[nodiscard]] Vector3<float> Normalized() const {
 		T m{ MagnitudeSquared() };
 		if (NearlyEqual(m, T{ 0 })) {
 			return *this;
 		}
-		return *this / std::sqrt(static_cast<S>(m));
+		return *this / std::sqrt(static_cast<float>(m));
 	}
 
-	// See https://en.wikipedia.org/wiki/Rotation_matrix for details
-	// Note: This is Euler angles and not Tait-Bryan angles.
-	// Angles in radians.
-	template <std::floating_point S = typename std::common_type_t<T, float>>
-	[[nodiscard]] Vector3<S> Rotated(S yaw_radians, S pitch_radians, S roll_radians) const {
-		auto sin_a = std::sin(yaw_radians);
-		auto cos_a = std::cos(yaw_radians);
-		auto sin_B = std::sin(pitch_radians);
-		auto cos_B = std::cos(pitch_radians);
-		auto sin_y = std::sin(roll_radians);
-		auto cos_y = std::cos(roll_radians);
-		return { x * (cos_B * cos_y) + y * (sin_a * sin_B * cos_y - cos_a * sin_y) +
-					 z * (cos_a * sin_B * cos_y + sin_a * sin_y),
-				 x * (cos_B * sin_y) + y * (sin_a * sin_B * sin_y + cos_a * cos_y) +
-					 z * (cos_a * sin_B * sin_y - sin_a * cos_y),
-				 x * (-sin_B) + y * (sin_a * cos_B) + z * (cos_a * cos_B) };
+	/// @brief See https://en.wikipedia.org/wiki/Rotation_matrix for details
+	/// Note: This is Euler angles and not Tait-Bryan angles.
+	[[nodiscard]] Vector3<float> Rotated(Radians yaw, Radians pitch, Radians roll) const {
+		auto sin_a = yaw.Sin();
+		auto cos_a = yaw.Cos();
+		auto sin_B = pitch.Sin();
+		auto cos_B = pitch.Cos();
+		auto sin_y = roll.Sin();
+		auto cos_y = roll.Cos();
+		return { static_cast<float>(x) * (cos_B * cos_y) +
+					 static_cast<float>(y) * (sin_a * sin_B * cos_y - cos_a * sin_y) +
+					 static_cast<float>(z) * (cos_a * sin_B * cos_y + sin_a * sin_y),
+				 static_cast<float>(x) * (cos_B * sin_y) +
+					 static_cast<float>(y) * (sin_a * sin_B * sin_y + cos_a * cos_y) +
+					 static_cast<float>(z) * (cos_a * sin_B * sin_y - sin_a * cos_y),
+				 static_cast<float>(x) * (-sin_B) + static_cast<float>(y) * (sin_a * cos_B) +
+					 static_cast<float>(z) * (cos_a * cos_B) };
 	}
 
-	bool IsZero() const {
+	/// @brief See https://en.wikipedia.org/wiki/Rotation_matrix for details
+	/// Note: This is Euler angles and not Tait-Bryan angles.
+	[[nodiscard]] Vector3<float> Rotated(Degrees yaw, Degrees pitch, Degrees roll) const {
+		return Rotated(yaw.ToRad(), pitch.ToRad(), roll.ToRad());
+	}
+
+	/// @return True if all components are zero (or very close to zero within a small epsilon).
+	constexpr bool IsZero() const {
 		return NearlyEqual(x, T{ 0 }) && NearlyEqual(y, T{ 0 }) && NearlyEqual(z, T{ 0 });
 	}
 
-	// @return True if any component is zero.
-	bool HasZero() const {
+	/// @return True if any component is zero (or very close to zero within a small epsilon).
+	constexpr bool HasZero() const {
 		return NearlyEqual(x, T{ 0 }) || NearlyEqual(y, T{ 0 }) || NearlyEqual(z, T{ 0 });
+	}
+
+	/// @return True if all components are greater than zero. Returns false if any component is
+	/// zero (or very close to zero within a small epsilon).
+	constexpr bool IsPositive() const {
+		return x > 0 && y > 0 && z > 0 && !HasZero();
+	}
+
+	constexpr bool HasPositive() const {
+		return x > 0 || y > 0 || z > 0;
+	}
+
+	constexpr bool IsNegative() const {
+		return x < 0 && y < 0 && z < 0 && !HasZero();
+	}
+
+	constexpr bool HasNegative() const {
+		return x < 0 || y < 0 || z < 0;
 	}
 };
 
@@ -219,70 +243,67 @@ void to_json(json& j, const Vector3<T>& vector);
 template <Arithmetic T>
 void from_json(const json& j, Vector3<T>& vector);
 
-using V3_int	= Vector3<int>;
-using V3_uint	= Vector3<unsigned int>;
-using V3_float	= Vector3<float>;
-using V3_double = Vector3<double>;
+using V3_int   = Vector3<int>;
+using V3_uint  = Vector3<unsigned int>;
+using V3_float = Vector3<float>;
 
-template <StreamWritable V>
-inline std::ostream& operator<<(std::ostream& os, Vector3<V> v) {
+template <Arithmetic V>
+std::ostream& operator<<(std::ostream& os, Vector3<V> v) { // NOSONAR
 	os << "(" << v.x << ", " << v.y << ", " << v.z << ")";
 	return os;
 }
 
 template <Arithmetic V, Arithmetic U, Arithmetic S = typename std::common_type_t<V, U>>
-constexpr Vector3<S> operator+(Vector3<V> lhs, Vector3<U> rhs) {
+constexpr Vector3<S> operator+(Vector3<V> lhs, Vector3<U> rhs) { // NOSONAR
 	return { lhs.x + rhs.x, lhs.y + rhs.y, lhs.z + rhs.z };
 }
 
 template <Arithmetic V, Arithmetic U, Arithmetic S = typename std::common_type_t<V, U>>
-constexpr Vector3<S> operator-(Vector3<V> lhs, Vector3<U> rhs) {
+constexpr Vector3<S> operator-(Vector3<V> lhs, Vector3<U> rhs) { // NOSONAR
 	return { lhs.x - rhs.x, lhs.y - rhs.y, lhs.z - rhs.z };
 }
 
 template <Arithmetic V, Arithmetic U, Arithmetic S = typename std::common_type_t<V, U>>
-constexpr Vector3<S> operator*(Vector3<V> lhs, Vector3<U> rhs) {
+constexpr Vector3<S> operator*(Vector3<V> lhs, Vector3<U> rhs) { // NOSONAR
 	return { lhs.x * rhs.x, lhs.y * rhs.y, lhs.z * rhs.z };
 }
 
 template <Arithmetic V, Arithmetic U, Arithmetic S = typename std::common_type_t<V, U>>
-constexpr Vector3<S> operator/(Vector3<V> lhs, Vector3<U> rhs) {
+constexpr Vector3<S> operator/(Vector3<V> lhs, Vector3<U> rhs) { // NOSONAR
 	return { lhs.x / rhs.x, lhs.y / rhs.y, lhs.z / rhs.z };
 }
 
 template <Arithmetic V, Arithmetic U, Arithmetic S = typename std::common_type_t<V, U>>
-constexpr Vector3<S> operator*(V lhs, Vector3<U> rhs) {
+constexpr Vector3<S> operator*(V lhs, Vector3<U> rhs) { // NOSONAR
 	return { lhs * rhs.x, lhs * rhs.y, lhs * rhs.z };
 }
 
 template <Arithmetic V, Arithmetic U, Arithmetic S = typename std::common_type_t<V, U>>
-constexpr Vector3<S> operator*(Vector3<V> lhs, U rhs) {
+constexpr Vector3<S> operator*(Vector3<V> lhs, U rhs) { // NOSONAR
 	return { lhs.x * rhs, lhs.y * rhs, lhs.z * rhs };
 }
 
 template <Arithmetic V, Arithmetic U, Arithmetic S = typename std::common_type_t<V, U>>
-constexpr Vector3<S> operator/(V lhs, Vector3<U> rhs) {
+constexpr Vector3<S> operator/(V lhs, Vector3<U> rhs) { // NOSONAR
 	return { lhs / rhs.x, lhs / rhs.y, lhs / rhs.z };
 }
 
 template <Arithmetic V, Arithmetic U, Arithmetic S = typename std::common_type_t<V, U>>
-constexpr Vector3<S> operator/(Vector3<V> lhs, U rhs) {
-	return { lhs.x / rhs, lhs.y / rhs, lhs.z / rhs };
+constexpr Vector3<S> operator/(Vector3<V> lhs, U rhs) { // NOSONAR
+	return { static_cast<S>(lhs.x) / rhs, static_cast<S>(lhs.y) / rhs, static_cast<S>(lhs.z) / rhs };
 }
 
 } // namespace ptgn
 
-// Custom hashing function for Vector3 class.
-// This allows for use of unordered maps and sets with Vector2s as keys.
 template <ptgn::Arithmetic T>
 struct std::hash<ptgn::Vector3<T>> {
-	std::size_t operator()(const ptgn::Vector3<T>& v) const noexcept {
-		// Hashing combination algorithm from:
-		// https://stackoverflow.com/a/17017281
-		std::size_t value{ 17 };
-		value = value * 31 + std::hash<T>()(v.x);
-		value = value * 31 + std::hash<T>()(v.y);
-		value = value * 31 + std::hash<T>()(v.z);
-		return value;
+	std::size_t operator()(ptgn::Vector3<T> v) const noexcept {
+		if constexpr (std::is_floating_point_v<T>) {
+			return ptgn::Hash(
+				ptgn::QuantizeSigned(v.x), ptgn::QuantizeSigned(v.y), ptgn::QuantizeSigned(v.z)
+			);
+		} else {
+			return ptgn::Hash(v.x, v.y, v.z);
+		}
 	}
 };

@@ -1,82 +1,166 @@
-#include "runtime/graphics/text.h"
+#include "runtime/graphics/text/text.h"
 
-#include <string>
+#include <algorithm>
+#include <cmath>
 #include <string_view>
 
 #include "app/application.h"
-#include "core/math/geometry/origin.h"
+#include "app/editor.h"
+#include "core/graphics/color.h"
+#include "core/input/key.h"
 #include "core/math/vector2.h"
-#include "renderer/primitives/color.h"
 #include "renderer/renderer.h"
+#include "renderer/text/text_glyph.h"
+#include "renderer/text/text_style.h"
 #include "runtime/asset/asset_manager.h"
-#include "runtime/ecs/entity.h"
-#include "runtime/graphics/draw.h"
-#include "runtime/graphics/font.h"
+#include "runtime/graphics/render_queue.h"
+#include "runtime/physics/movement.h"
 #include "runtime/scene/scene.h"
-
+#include "runtime/scene/scene_context.h"
 
 using namespace ptgn;
 
-constexpr V2_int game_size{ 800, 800 };
+struct TextEffectsScene : public Scene {
+	static constexpr float stride{ 26.0f };
 
-struct TextScene : public Scene {
-	static constexpr std::string_view font{ "arial" };
-	std::string content{ "The quick brown fox jumps over the lazy dog" };
+	static constexpr std::string_view reveal_content{ "Sine reveal hides and shows this text" };
 
-	Text CreateText(const Color& color, int index, std::string_view font_key = font) {
-		constexpr float stride{ 44.0f };
-		float font_size{ 30.0f };
+	Text reveal_text;
+	float reveal_time{ 0.0f };
 
-		auto text = ptgn::CreateText(*this, content, color, font_size, font_key);
-		SetDrawOrigin(text, Origin::CenterTop);
-		SetPosition(text, { 0.0f, -game_size.y * 0.5f + stride * static_cast<float>(index) });
+	std::size_t current_line{ 0 };
+
+	V2_float GetTextPosition(std::size_t line) const {
+		return { 0.0f, -static_cast<float>(ctx().renderer.GetLogicalSize().y) * 0.5f +
+						   stride * (1.0f + static_cast<float>(line)) };
+	}
+
+	Text CreateLine(
+		std::string_view text_content, const Color& color = color::Black, FontKey font_key = {},
+		float font_size = 20.0f
+	) {
+		auto text{ CreateText(*this, GetTextPosition(current_line)) };
+
+		text.Content(text_content).Font(font_key).Size(font_size).Color(color);
+
+		current_line++;
+
 		return text;
 	}
 
 	void OnEnter() override {
-		ctx().renderer.SetGameSize(game_size);
+		ctx().debug.settings.text.draw_enabled = true;
 		SetBackgroundColor(color::LightGray);
 
-		ctx().asset.Load(font, "assets/Arial.ttf");
+		ctx().asset.Load("custom_ttf", "assets/Inter-VariableFont.ttf");
+		ctx().asset.Load("custom_otf", "assets/otf.otf");
+		ctx().asset.Load("custom_png", "assets/retro_gaming.png");
 
-		// Default font.
-		CreateText(color::Black, 0, {});
+		current_line++;
+		current_line++;
+		CreateLine("Plain black text (default font)", color::Black);
+		CreateLine("Plain black text (custom ttf font)", color::Black, "custom_ttf");
+		CreateLine("Plain black text (custom otf font)", color::Black, "custom_otf");
+		CreateLine("Plain black text (custom font atlas png)", color::Black, "custom_png");
 
-		// Colors.
-		CreateText(color::Black, 1);
-		CreateText(color::Green, 2);
+		CreateLine("Increased font size", color::Black, {}, 26.0f);
+		CreateLine("Decreased font size", color::Black, {}, 12.0f);
 
-		// Styles.
-		CreateText(color::Green, 3).SetFontStyle(FontStyle::Bold);
-		CreateText(color::Black, 4).SetFontStyle(FontStyle::Italic);
-		CreateText(color::Black, 5).SetFontStyle(FontStyle::Strikethrough);
-		CreateText(color::Black, 6).SetFontStyle(FontStyle::Underline);
-		CreateText(color::Black, 7)
-			.SetFontStyle(
-				FontStyle::Bold & FontStyle::Italic & FontStyle::Strikethrough &
-				FontStyle::Underline
-			);
+		CreateLine("Colored text", color::Green);
 
-		// Shading.
-		CreateText(color::Black, 8)
-			.SetFontRenderMode(FontRenderMode::Shaded)
-			.SetShadingColor(color::Gold);
+		CreateLine("Fake bold", color::Black).Bold(true, 0.06f);
+		CreateLine("Fake italics", color::Black).Italic();
+		CreateLine("Underline", color::Black).Underline();
+		CreateLine("Strikethrough", color::Black).Strikethrough();
 
-		// Blending (visually this text should be bright blue but isnt due to alpha blending).
-		CreateText(Color{ 0, 0, 255, 50 }, 9).SetFontRenderMode(FontRenderMode::Blended);
+		CreateLine("Bold + italic + underline + strikethrough", color::Black)
+			.Bold(true)
+			.Italic()
+			.Underline()
+			.Strikethrough();
 
-		// Everything at the same time.
-		CreateText(color::Red, 10)
-			.SetFontStyle(
-				FontStyle::Bold & FontStyle::Italic & FontStyle::Strikethrough &
-				FontStyle::Underline
-			)
-			.SetFontRenderMode(FontRenderMode::Shaded)
-			.SetShadingColor(color::Cyan);
+		auto rich{ CreateLine("Rich text: ", color::Black) };
+
+		rich.Content("red bold ").Color(color::Red).Bold(true);
+
+		rich.Content("green italic ").Color(color::Green).Bold(false).Italic();
+
+		rich.Content("blue underline").Color(color::Blue).Italic(false).Underline();
+
+		CreateLine("Black outline", color::White).Outline(color::Black, 1.5f, 1.0f);
+
+		CreateLine("Soft red outline", color::White).Outline(color::Red, 2.5f, 2.0f);
+
+		CreateLine("Drop shadow", color::Black)
+			.Shadow(color::Black.WithAlpha(120), { 3.0f, -3.0f }, 2.0f, 2.5f);
+
+		CreateLine("Outline + shadow", color::White)
+			.Outline(color::Black, 1.5f, 1.0f)
+			.Shadow(color::Black.WithAlpha(130), { 3.0f, -3.0f }, 2.0f, 2.5f);
+
+		CreateLine("Inner glow", color::Blue).InnerGlow(color::Red.WithAlpha(160), 2.0f, 2.0f);
+
+		CreateLine("Outer glow", color::Blue).OuterGlow(color::Red.WithAlpha(160), 4.0f, 3.0f);
+
+		CreateLine("Inner + outer glow", color::Blue)
+			.OuterGlow(color::Red.WithAlpha(160), 4.0f, 3.0f)
+			.InnerGlow(color::Red.WithAlpha(160), 2.0f, 2.0f);
+
+		CreateLine("Outline + outer glow", color::White)
+			.Outline(color::Black, 1.5f, 1.0f)
+			.OuterGlow(color::Purple.WithAlpha(150), 4.0f, 3.0f);
+
+		CreateLine("Wobble effect", color::Purple)
+			.Effect(GlyphEffectType::Wobble, 4.0f, 2.5f, 2.0f);
+
+		CreateLine("Wave effect", color::Purple).Effect(GlyphEffectType::Wave, 7.0f, 2.0f, 1.5f);
+
+		CreateLine("Shake effect", color::Red).Effect(GlyphEffectType::Shake, 1.5f, 1.0f, 1.0f);
+
+		CreateLine("Pulse effect", color::Green).Effect(GlyphEffectType::Pulse, 0.12f, 1.0f, 3.0f);
+
+		reveal_text = CreateLine(reveal_content, color::Black)
+						  .Effect(GlyphEffectType::Wave, 2.0f, 2.0f, 1.5f);
+
+		CreateLine("This text does tracking: AV", color::Black).Tracking(0.5f);
+		CreateLine("This text does kerning: AV", color::Black).Kerning(2.0f);
+	}
+
+	void OnUpdate() override {
+		ctx().render_queue.DrawText(
+			GetTextPosition(0), "Render queue text with custom size!", color::Blue, 14.0f
+		);
+		ctx().render_queue.DrawText(
+			GetTextPosition(1), { { .text  = "Render queue text with custom font and style!",
+									.font  = "custom_otf",
+									.style = { .color = color::Green } } }
+		);
+
+		MoveWASD(ctx().camera, V2_float{ 300.0f } * ctx().dt().count());
+
+		if (ctx().input.KeyHeld(Key::Q)) {
+			ctx().camera.Zoom(V2_float{ 1.0f } * ctx().dt().count());
+		} else if (ctx().input.KeyHeld(Key::E)) {
+			ctx().camera.Zoom(-V2_float{ 1.0f } * ctx().dt().count());
+		}
+
+		reveal_time += ctx().dt().count();
+
+		float phase{ (std::sin(reveal_time * 2.0f) + 1.0f) * 0.5f };
+
+		std::size_t min_reveal{ 4 };
+		std::size_t max_reveal{ reveal_content.size() };
+
+		auto reveal_count{ static_cast<std::size_t>(std::ceil(
+			static_cast<float>(min_reveal) + phase * static_cast<float>(max_reveal - min_reveal)
+		)) };
+
+		reveal_text.Reveal(reveal_count);
 	}
 };
 
 int main(int, char**) {
-	Application app{ "TextScene", game_size };
-	app.StartWith<TextScene>();
+	Application app{ "TextEffectsScene" };
+	PTGN_WITH_EDITOR(app, false);
+	app.StartWith<TextEffectsScene>();
 }

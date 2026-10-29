@@ -1,0 +1,315 @@
+#pragma once
+
+#include <cstddef>
+#include <cstdint>
+#include <memory>
+#include <optional>
+#include <string>
+#include <string_view>
+#include <unordered_set>
+#include <vector>
+
+#include "app/application_layer.h"
+#include "app/application_state.h"
+#include "app/project.h"
+#include "commands/editor_commands.h"
+#include "commands/undo_stack.h"
+#include "core/math/vector2.h"
+#include "core/util/file.h"
+#include "editor/editor_context.h"
+#include "editor/editor_settings.h"
+#include "editor/paint/paint_editor.h"
+#include "panels/console.h"
+#include "panels/content_browser.h"
+#include "panels/inspector.h"
+#include "panels/scene_hierarchy.h"
+#include "panels/scene_list.h"
+#include "panels/scene_settings.h"
+#include "panels/screen_effects.h"
+#include "panels/settings.h"
+#include "panels/viewport.h"
+#include "renderer/resources/framebuffer.h"
+#include "renderer/resources/id.h"
+#include "runtime/ecs/entity.h"
+#include "runtime/ecs/uuid.h"
+#include "runtime/graphics/fx/screen_effect_stack.h"
+#include "runtime/scene/scene_file.h"
+
+#if !defined(__EMSCRIPTEN__)
+#include "editor/export_manager.h"
+#endif
+
+namespace ptgn {
+
+class Application;
+class Scene;
+class Stats;
+class Renderer;
+class DebugSystem;
+class AssetManager;
+class Window;
+struct Color;
+struct DrawTextRequest;
+struct Transform;
+
+namespace impl {
+
+class SceneManager;
+
+} // namespace impl
+
+namespace editor {
+
+struct ScreenEffectSelection;
+
+inline constexpr bool kUnsavedDialogDefault{ true };
+
+struct EditorLaunchOptions {
+	bool rendering{ true };
+	bool unsaved_dialog{ kUnsavedDialogDefault };
+};
+
+class Editor : public ApplicationLayer {
+public:
+	explicit Editor(Application& application);
+
+	void OnUpdate() override;
+	void OnRender() override;
+
+	const Window& GetWindow() const;
+	Window& GetWindow();
+	const AssetManager& GetAssetManager() const;
+	AssetManager& GetAssetManager();
+	const DebugSystem& GetDebugSystem() const;
+	DebugSystem& GetDebugSystem();
+	const ::ptgn::impl::SceneManager& GetSceneManager() const;
+	::ptgn::impl::SceneManager& GetSceneManager();
+	const Renderer& GetRenderer() const;
+	Renderer& GetRenderer();
+	std::size_t GetMaxTextureSlots() const;
+	::ptgn::impl::TextureId GetPresentationTexture() const;
+	V2_int GetPresentationTextureSize() const;
+
+	/// @brief Render editor text into a retained offscreen framebuffer for ImGui previewing.
+	::ptgn::impl::TextureId RenderTextPreview(
+		std::uint64_t frame_token, V2_int target_size, Color clear_color, Transform transform,
+		const DrawTextRequest& request
+	);
+
+	void SetTimeScale(float time_scale);
+	float GetTimeScale() const;
+	void RequestStep();
+	void SetApplicationState(ApplicationState state);
+	ApplicationState GetApplicationState() const;
+	void Play();
+	void Stop();
+	/// Stop after the current ImGui frame so the next presentation renders a complete editor scene.
+	void RequestStop();
+	void TogglePause();
+	void SaveProjectScene();
+
+	SceneHierarchyPanel& GetSceneHierarchyPanel();
+	SceneListPanel& GetSceneListPanel();
+	PaintEditor& GetPaintEditor();
+	const PaintEditor& GetPaintEditor() const;
+
+	Editor& EnableRendering(bool enable = true);
+	Editor& EnableRendering(EditorLaunchOptions options);
+	Editor& EnableUnsavedDialogue(bool enabled = kUnsavedDialogDefault);
+
+	void OnSelectedSceneChanged(Scene* previous_scene, Scene* selected_scene);
+
+	const EditorSettings& GetSettings() const;
+	EditorSettings& GetSettings();
+	void SetEditorSettings(EditorSettings settings);
+
+	void SetEntityPickingMode(bool enabled);
+	void SetGizmoUsesLocalOrientation(bool enabled);
+	void SetRenderOnlySelectedScene(bool enabled);
+	void SetSceneEntityPickingEnabled(Scene& scene, bool enabled);
+
+	[[nodiscard]] Project* GetProject();
+	[[nodiscard]] const Project* GetProject() const;
+	[[nodiscard]] const ScreenEffectSettings* GetProjectScreenEffects() const;
+	[[nodiscard]] bool ShouldPreviewScreenEffects() const;
+	void SetScreenEffectPreview(bool enabled);
+	void ApplyScreenEffectPreviewState();
+
+	bool AddProjectScreenEffect(std::string_view type);
+	bool DuplicateProjectScreenEffect(ScreenEffectId id);
+	bool DeleteProjectScreenEffect(ScreenEffectId id);
+	bool MoveProjectScreenEffect(std::size_t from_index, std::size_t to_index);
+	bool SetProjectScreenEffectEnabled(ScreenEffectId id, bool enabled);
+	bool UpdateProjectScreenEffect(
+		ScreenEffectId id, const SerializedScreenEffect& value,
+		std::string label = "Change Screen Effect", std::uint64_t interaction_key = 0
+	);
+
+	[[nodiscard]] const std::vector<Entity>& GetRuntimeScreenEffects() const;
+	[[nodiscard]] Entity ResolveScreenEffect(const ScreenEffectSelection& selection) const;
+	Entity AddRuntimeScreenEffect(std::string_view type);
+	bool DuplicateRuntimeScreenEffect(std::uint64_t runtime_id);
+	bool DeleteRuntimeScreenEffect(std::uint64_t runtime_id);
+	bool MoveRuntimeScreenEffect(std::size_t from_index, std::size_t to_index);
+	bool SetRuntimeScreenEffectEnabled(std::uint64_t runtime_id, bool enabled);
+	bool UpdateRuntimeScreenEffect(
+		std::uint64_t runtime_id, const json& parameters,
+		std::string label = "Change Runtime Screen Effect", std::uint64_t interaction_key = 0
+	);
+
+	void MarkProjectDirty();
+	/// @brief Requests a fresh dependency scan of the selected serialized scene without forcing
+	/// an untracked project dirty state. Editor commands whose serialized component data changes
+	/// AssetKey references should call this after apply/undo/redo.
+	void MarkSceneAssetDependenciesDirty();
+	void RequestQuit();
+
+	bool CreateProjectScene(std::string_view scene_type);
+	bool DuplicateProjectScene(std::string_view scene_key);
+	bool DeleteProjectScene(std::string_view scene_key);
+	bool RenameProjectSceneKey(std::string_view current_key, std::string_view new_key);
+	bool RenameProjectSceneDisplayName(std::string_view scene_key, std::string display_name);
+	bool MoveProjectScene(std::size_t from_index, std::size_t to_index);
+	bool SetStartupProjectScene(std::string_view scene_key);
+
+	[[nodiscard]] bool IsStartupProjectScene(std::string_view scene_key) const;
+
+	bool CanSaveProject() const;
+	bool IsPlaying() const;
+	bool IsPaused() const;
+	bool CanPlay() const;
+	bool CanStop() const;
+	bool CanPause() const;
+	bool IsDirectRuntime() const;
+	std::optional<path> GetProjectRoot() const;
+
+private:
+	struct GroupPreviewSnapshot {
+		std::string scene_key{};
+		UUID stack_uuid{};
+		std::vector<UUID> visible_groups{};
+	};
+
+	struct PlaySnapshot {
+		std::string selected_scene_key{};
+		bool was_dirty{ false };
+		bool was_untracked_project_dirty{ false };
+		EditorProjectState project_state_before_play{};
+		bool screen_effect_preview_before_play{ true };
+		std::vector<GroupPreviewSnapshot> layer_previews{};
+	};
+
+	void StopDirectRuntime();
+	[[nodiscard]] bool CanApplicationClose();
+	[[nodiscard]] bool HasUnsavedProjectChanges() const;
+	void DrawUnsavedProjectClosePopup();
+
+#if !defined(__EMSCRIPTEN__)
+	enum class PendingTaskConfirmation {
+		None,
+		Export,
+		Clean,
+		CloseExportWindowWhileRunning,
+		CloseApplicationWhileRunning,
+	};
+#endif
+
+	Application& app;
+
+	void SyncProjectSceneOrder();
+	void UpdateProjectLocalState();
+	void UpdateRuntimeViewportState();
+	void SaveEditorLocalStateIfChanged();
+	void SaveEditorProjectStateIfChanged();
+	void OnProjectChanged();
+	void RefreshProjectDirtyState();
+	void UpdateWindowTitle();
+	void DrawMainMenuBar();
+	void DrawPanels();
+	void BuildDefaultDockLayout(std::uint32_t dockspace_id);
+	void UpdateDockLayout(std::uint32_t dockspace_id, float width);
+	bool ShouldEnableEntityPicking() const;
+	void ApplyEntityPickingSettings();
+	void ApplySceneRenderSettings();
+	void ApplyScreenEffectPreview(bool enabled);
+	void ApplyProjectScreenEffects(const ScreenEffectSettings& settings);
+	void SyncSelectedSceneAssetDependencies();
+	::ptgn::impl::FramebufferId GetSceneFramebuffer(Scene& scene) const;
+
+#if !defined(__EMSCRIPTEN__)
+	void OpenExportWindow();
+	void DrawExportWindow();
+	void DrawTaskConfirmationPopup();
+	ExportRequest MakeExportRequest() const;
+	bool ExportRequestNeedsConfirmation(const ExportRequest& request) const;
+	void StartExport(ExportRequest request);
+#endif
+
+	std::unique_ptr<EditorContext> context_;
+	UndoStack undo_stack_;
+	EditorCommands commands_;
+	ViewportPanel viewport_panel_;
+	PaintEditor paint_editor_;
+	ContentBrowserPanel content_browser_panel_;
+	ConsolePanel console_panel_;
+	SettingsWindow settings_window_;
+	UndoHistoryWindow undo_history_window_;
+	InspectorPanel inspector_panel_;
+	SceneHierarchyPanel scene_hierarchy_panel_;
+	SceneSettingsPanel scene_settings_panel_;
+	SceneListPanel scene_list_panel_;
+	ScreenEffectsPanel screen_effects_panel_;
+
+	std::optional<PlaySnapshot> play_snapshot_;
+	std::optional<path> local_state_project_path_;
+	std::optional<std::string> saved_editor_local_state_json_;
+	std::optional<std::string> saved_editor_project_state_json_;
+
+	std::uint32_t dock_left_column_id_{ 0 };
+	std::uint32_t dock_right_column_id_{ 0 };
+	std::uint8_t dock_resize_frames_remaining_{ 0 };
+	bool dock_layout_update_requested_{ false };
+	V2_float previous_dockspace_size_;
+	bool dock_layout_built_{ false };
+	bool scene_asset_dependencies_dirty_{ true };
+	bool untracked_project_dirty_{ false };
+	bool runtime_was_active_{ false };
+	bool shortcut_runtime_active_{ false };
+	bool pending_close_after_runtime_stop_{ false };
+	bool stop_requested_{ false };
+	bool project_initialization_pending_{ false };
+	std::uint8_t runtime_window_center_frames_remaining_{ 0 };
+	V2_int runtime_window_center_last_size_{};
+	bool unsaved_dialog_enabled_{ kUnsavedDialogDefault };
+	bool unsaved_project_close_requested_{ false };
+	bool allow_unsaved_project_close_{ false };
+
+	// Editor owned framebuffer lifetime for text previews. Every preview created during one
+	// ImGui frame remains valid until the next frame token is observed.
+	std::optional<std::uint64_t> text_preview_frame_token_;
+	std::vector<::ptgn::impl::FramebufferObject> text_preview_framebuffers_;
+
+#if !defined(__EMSCRIPTEN__)
+	ExportManager export_manager_;
+	bool export_window_open_{ false };
+	bool export_window_recenter_requested_{ false };
+	ExportTarget export_target_{ ExportTarget::Desktop };
+	ExportConfiguration export_configuration_{ ExportConfiguration::Release };
+	bool export_include_editor_{ false };
+	std::string desktop_export_directory_;
+	std::string web_export_directory_;
+	PendingTaskConfirmation pending_task_confirmation_{ PendingTaskConfirmation::None };
+	std::optional<ExportRequest> pending_export_request_;
+	std::optional<ExportTarget> pending_clean_target_;
+	std::optional<ExportConfiguration> pending_clean_configuration_;
+	bool task_confirmation_popup_requested_{ false };
+	bool allow_application_close_{ false };
+#endif
+};
+
+} // namespace editor
+
+} // namespace ptgn
+
+#define PTGN_WITH_EDITOR(application, ...) \
+	application.PushLayer<::ptgn::editor::Editor>(application).EnableRendering(__VA_ARGS__)

@@ -88,68 +88,69 @@
 #define PTGN_MAP_LIST(f, ...) PTGN_EVAL(PTGN_MAP_LIST2(f, __VA_ARGS__, ()()(), ()()(), ()()(), 0))
 
 /// @brief Applies the function macro `f` to each of the remaining parameters and passes userdata as
-/// the second parameter to each invocation, e.g. PTGN_MAP_UD(f, x, a, b, c) evaluates to f(a, x)
+/// the second parameter to each invocation, e.g. PTGN_MAP_DATA(f, x, a, b, c) evaluates to f(a, x)
 /// f(b, x) f(c, x)
 #define PTGN_MAP_DATA(f, userdata, ...) \
 	PTGN_EVAL(PTGN_MAP1_UD(f, userdata, __VA_ARGS__, ()()(), ()()(), ()()(), 0))
 
 /// @brief Applies the function macro `f` to each of the remaining parameters, inserts commas
 /// between the results, and passes userdata as the second parameter to each invocation, e.g.
-/// PTGN_MAP_LIST_UD(f, x, a, b, c) evaluates to f(a, x), f(b, x), f(c, x)
+/// PTGN_MAP_LIST_DATA(f, x, a, b, c) evaluates to f(a, x), f(b, x), f(c, x)
 #define PTGN_MAP_LIST_DATA(f, userdata, ...) \
 	PTGN_EVAL(PTGN_MAP_LIST2_UD(f, userdata, __VA_ARGS__, ()()(), ()()(), ()()(), 0))
 
 /// @brief Applies the function macro `f` to each of the remaining parameters, passes userdata as
 /// the second parameter to each invocation, and the index of the invocation as the third parameter,
-/// e.g. PTGN_MAP_UD_I(f, x, a, b, c) evaluates to f(a, x, 0) f(b, x, 1) f(c, x, 2)
+/// e.g. PTGN_MAP_DATA_INDEX(f, x, a, b, c) evaluates to f(a, x, 0) f(b, x, 1) f(c, x, 2)
 #define PTGN_MAP_DATA_INDEX(f, userdata, ...) \
 	PTGN_EVAL(PTGN_MAP1_UD_I(f, userdata, 0, __VA_ARGS__, ()()(), ()()(), ()()(), 0))
 
 /// @brief Applies the function macro `f` to each of the remaining parameters, inserts commas
 /// between the results, passes userdata as the second parameter to each invocation, and the index
-/// of the invocation as the third parameter, e.g. PTGN_MAP_LIST_UD_I(f, x, a, b, c) evaluates to
-/// f(a, x, 0), f(b, x, 1), f(c, x, 2)
+/// of the invocation as the third parameter, e.g. PTGN_MAP_LIST_DATA_INDEX(f, x, a, b, c) evaluates
+/// to f(a, x, 0), f(b, x, 1), f(c, x, 2)
 #define PTGN_MAP_LIST_DATA_INDEX(f, userdata, ...) \
 	PTGN_EVAL(PTGN_MAP_LIST2_UD_I(f, userdata, 0, __VA_ARGS__, ()()(), ()()(), ()()(), 0))
 
 /// Because the preprocessor can't do arithmetic that produces integer literals for the *_I macros,
-/// we have to do it manually. Since the number of parameters is limited anyways, this is sufficient
+/// it is done here manually. Since the number of parameters is limited anyways, this is sufficient
 /// for all cases. If extra PTGN_EVAL layers are added, these definitions have to be extended. This
 /// is equivalent to the way Boost.preprocessor does it:
 /// https://github.com/boostorg/preprocessor/blob/develop/include/boost/preprocessor/arithmetic/inc.hpp
 /// The *_I macros could alternatively pass C expressions such as (0), (0+1), (0+1+1...) to the user
 /// macro, but passing 0, 1, 2 ... allows the user to incorporate the index into C identifiers, e.g.
 /// to define a function like test_##index () for each macro invocation.
-#define PTGN_MAP_INC_0	 1
-#define PTGN_MAP_INC_1	 2
-#define PTGN_MAP_INC_2	 3
-#define PTGN_MAP_INC_3	 4
-#define PTGN_MAP_INC_4	 5
-#define PTGN_MAP_INC_5	 6
-#define PTGN_MAP_INC_6	 7
-#define PTGN_MAP_INC_7	 8
-#define PTGN_MAP_INC_8	 9
-#define PTGN_MAP_INC_9	 10
-#define PTGN_MAP_INC_10	 11
-#define PTGN_MAP_INC_11	 12
-#define PTGN_MAP_INC_12	 13
-#define PTGN_MAP_INC_13	 14
-#define PTGN_MAP_INC_14	 15
-#define PTGN_MAP_INC_15	 16
-#define PTGN_MAP_INC_16	 17
-#define PTGN_MAP_INC_17	 18
-#define PTGN_MAP_INC_18	 19
-#define PTGN_MAP_INC_19	 20
-#define PTGN_MAP_INC_20	 21
-#define PTGN_MAP_INC_21	 22
-#define PTGN_MAP_INC_22	 23
-#define PTGN_MAP_INC_23	 24
-#define PTGN_MAP_INC_24	 25
-#define PTGN_MAP_INC_25	 26
-#define PTGN_MAP_INC_26	 27
-#define PTGN_MAP_INC_27	 28
-#define PTGN_MAP_INC_28	 29
-#define PTGN_MAP_INC_29	 30
+#define PTGN_MAP_INC_0	1
+#define PTGN_MAP_INC_1	2
+#define PTGN_MAP_INC_2	3
+#define PTGN_MAP_INC_3	4
+#define PTGN_MAP_INC_4	5
+#define PTGN_MAP_INC_5	6
+#define PTGN_MAP_INC_6	7
+#define PTGN_MAP_INC_7	8
+#define PTGN_MAP_INC_8	9
+#define PTGN_MAP_INC_9	10
+#define PTGN_MAP_INC_10 11
+#define PTGN_MAP_INC_11 12
+#define PTGN_MAP_INC_12 13
+#define PTGN_MAP_INC_13 14
+#define PTGN_MAP_INC_14 15
+#define PTGN_MAP_INC_15 16
+#define PTGN_MAP_INC_16 17
+#define PTGN_MAP_INC_17 18
+#define PTGN_MAP_INC_18 19
+#define PTGN_MAP_INC_19 20
+#define PTGN_MAP_INC_20 21
+#define PTGN_MAP_INC_21 22
+#define PTGN_MAP_INC_22 23
+#define PTGN_MAP_INC_23 24
+#define PTGN_MAP_INC_24 25
+#define PTGN_MAP_INC_25 26
+#define PTGN_MAP_INC_26 27
+#define PTGN_MAP_INC_27 28
+#define PTGN_MAP_INC_28 29
+#define PTGN_MAP_INC_29 30
+/*
 #define PTGN_MAP_INC_30	 31
 #define PTGN_MAP_INC_31	 32
 #define PTGN_MAP_INC_32	 33
@@ -486,3 +487,4 @@
 #define PTGN_MAP_INC_363 364
 #define PTGN_MAP_INC_364 365
 #define PTGN_MAP_INC_365 366
+*/

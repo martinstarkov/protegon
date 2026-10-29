@@ -1,0 +1,62 @@
+#include "renderer/resources/framebuffer.h"
+
+#include "core/assert.h"
+#include "core/graphics/color.h"
+#include "core/math/vector2.h"
+#include "renderer/pipeline/render_state.h"
+#include "renderer/renderer.h"
+#include "renderer/resources/id.h"
+#include "renderer/resources/resource.h"
+#include "renderer/resources/texture.h"
+
+namespace ptgn {
+
+namespace impl {
+
+void FramebufferObject::Resize(V2_int new_size) {
+	PTGN_ASSERT(*this, "Framebuffer must be valid");
+	renderer->Resize(*this, new_size);
+}
+
+void FramebufferObject::Bind() {
+	PTGN_ASSERT(*this, "Framebuffer must be valid");
+	renderer->SetFramebuffer(this);
+}
+
+void FramebufferObject::Clear(Color clear_color) {
+	PTGN_ASSERT(*this, "Framebuffer must be valid");
+	renderer->Clear(*this, clear_color);
+}
+
+void FramebufferObject::Clear(Depth clear_depth) {
+	PTGN_ASSERT(*this, "Framebuffer must be valid");
+	renderer->Clear(*this, clear_depth);
+}
+
+void FramebufferObject::Clear(Stencil clear_stencil) {
+	PTGN_ASSERT(*this, "Framebuffer must be valid");
+	renderer->Clear(*this, clear_stencil);
+}
+
+void FramebufferObject::Clear(DepthStencil clear_depth_stencil) {
+	PTGN_ASSERT(*this, "Framebuffer must be valid");
+	renderer->Clear(*this, clear_depth_stencil);
+}
+
+TextureId FramebufferObject::GetTexture() const {
+	PTGN_ASSERT(*this, "Framebuffer must be valid");
+	return renderer->GetTexture(*this);
+}
+
+TextureDesc FramebufferObject::GetDesc() const {
+	PTGN_ASSERT(*this, "Framebuffer must be valid");
+	return renderer->GetDesc(*this).value();
+}
+
+std::optional<std::int32_t> FramebufferObject::ReadEntityId(V2_int pixel) const {
+	return renderer->ReadEntityId(*this, pixel);
+}
+
+} // namespace impl
+
+} // namespace ptgn

@@ -1,84 +1,95 @@
-
-#include <utility>
+#include <chrono>
+#include <optional>
 
 #include "app/application.h"
+#include "app/editor.h"
 #include "core/log.h"
+#include "core/math/geometry/origin.h"
 #include "core/math/vector2.h"
-#include "core/time/time.h"
-#include "platform/window/window.h"
-#include "renderer/primitives/color.h"
 #include "runtime/animation/animation.h"
 #include "runtime/asset/asset_manager.h"
 #include "runtime/ecs/entity.h"
-#include "runtime/graphics/draw.h"
 #include "runtime/scene/scene.h"
-#include "runtime/scene/scene_input.h"
-#include "runtime/scene/scene_manager.h"
+#include "runtime/scene/scene_context.h"
 #include "runtime/ui/button.h"
 
 using namespace ptgn;
 
 class AnimatedButtonScene : public Scene {
 public:
-	Button b1;
-	Button b2;
-
 	void OnEnter() override {
-		ctx().input.SetSettings({ .debug_draw_enabled = true });
+		ctx().debug.settings.interaction.draw_enabled = true;
 
-		ctx().asset.Load("idle", "assets/bell.png");
-		ctx().asset.Load("animation_hover", "assets/bell_hover_animation.png");
-		ctx().asset.Load("animation_press", "assets/bell_press_animation.png");
-		ctx().asset.LoadAudio("hover", "assets/hover.ogg");
-		ctx().asset.LoadAudio("press", "assets/bell.ogg");
+		ctx().asset.Load(
+			{ { "idle", "assets/bell.png" },
+			  { "animation_hover", "assets/bell_hover_animation.png" },
+			  { "animation_press", "assets/bell_press_animation.png" },
+			  { "hover", "assets/hover.ogg" },
+			  { "press", "assets/bell.ogg" },
+			  { "idle2", "assets/button_idle.png" },
+			  { "animation_hover2", "assets/button_hover_animation.png" },
+			  { "animation_press2", "assets/button_press_animation.png" },
+			  { "press2", "assets/press.ogg" } }
+		);
 
-		ctx().asset.Load("idle2", "assets/button_idle.png");
-		ctx().asset.Load("animation_hover2", "assets/button_hover_animation.png");
-		ctx().asset.Load("animation_press2", "assets/button_press_animation.png");
-		ctx().asset.LoadAudio("press2", "assets/press.ogg");
+		{
+			V2_int frame_size{ 253, 167 };
 
-		auto hover_animation{ CreateAnimation(
-			*this, "animation_hover", V2_int{}, { 3, milliseconds{ 400 }, V2_int{ 253, 167 }, -1 }
-		) };
+			auto button{ CreateButton(*this, {}, frame_size, Origin::TopLeft) };
 
-		auto press_animation{ CreateAnimation(
-			*this, "animation_press", V2_int{}, { 3, milliseconds{ 200 }, V2_int{ 253, 167 }, 1 }
-		) };
+			button.Sprites("idle", "animation_hover", "animation_press")
+				.Sounds("press", "hover")
+				.OnPress([]() { PTGN_LOG("Pressed bell!"); })
+				.Animations(
+					std::nullopt,
+					AnimationConfig{
+						.frame_count = 3,
+						.duration	 = 400ms,
+						.frame_size	 = frame_size,
+						.play_count	 = std::nullopt,
+					},
+					AnimationConfig{
+						.frame_count = 3,
+						.duration	 = 200ms,
+						.frame_size	 = frame_size,
+						.play_count	 = 1,
+					}
+				);
 
-		b1 = CreateButton(*this, *GetDisplaySize(press_animation));
-		b1.SetTexture("idle")
-			.SetAnimation(std::move(hover_animation), ButtonState::Hover)
-			.SetAnimation(std::move(press_animation), ButtonState::Press)
-			.SetSound("hover", ButtonState::Hover)
-			.SetSound("press", ButtonState::Press);
+			SetScale(button, 1);
+		}
 
-		SetScale(b1, 1.0f);
+		{
+			V2_int frame_size{ 32, 16 };
 
-		b1.OnPress([]() { PTGN_LOG("Pressed bell!"); });
+			auto button{ CreateButton(*this, { 0, 200 }, frame_size, Origin::TopLeft) };
 
-		auto hover_animation2{ CreateAnimation(
-			*this, "animation_hover2", V2_int{}, { 4, milliseconds{ 400 }, V2_int{ 32, 16 }, -1 }
-		) };
+			button.Sprites("idle2", "animation_hover2", "animation_press2")
+				.Sounds("press2", "hover")
+				.OnPress([]() { PTGN_LOG("Pressed button!"); })
+				.Animations(
+					std::nullopt,
+					AnimationConfig{
+						.frame_count = 4,
+						.duration	 = 400ms,
+						.frame_size	 = frame_size,
+						.play_count	 = std::nullopt,
+					},
+					AnimationConfig{
+						.frame_count = 4,
+						.duration	 = 200ms,
+						.frame_size	 = frame_size,
+						.play_count	 = 1,
+					}
+				);
 
-		auto press_animation2{ CreateAnimation(
-			*this, "animation_press2", V2_int{}, { 4, milliseconds{ 200 }, V2_int{ 32, 16 }, 1 }
-		) };
-
-		b2 = CreateButton(*this, *GetDisplaySize(press_animation2));
-		b2.SetTexture("idle2")
-			.SetAnimation(std::move(hover_animation2), ButtonState::Hover)
-			.SetAnimation(std::move(press_animation2), ButtonState::Press)
-			.SetSound("hover", ButtonState::Hover)
-			.SetSound("press2", ButtonState::Press);
-
-		SetPosition(b2, { 0, 200 });
-		SetScale(b2, 4.0f);
-
-		b2.OnPress([]() { PTGN_LOG("Pressed button!"); });
+			SetScale(button, 4);
+		}
 	}
 };
 
 int main(int, char**) {
 	Application app{ "AnimatedButtonScene" };
+	PTGN_WITH_EDITOR(app, false);
 	app.StartWith<AnimatedButtonScene>();
 }

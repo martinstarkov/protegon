@@ -1,442 +1,209 @@
 #pragma once
 
+#include <ecs/ecs.h>
+
+#include <algorithm>
 #include <concepts>
+#include <cstdint>
 #include <functional>
-#include <limits>
 #include <memory>
+#include <optional>
+#include <ranges>
+#include <string>
 #include <string_view>
 #include <type_traits>
+#include <utility>
 #include <vector>
 
-#include "core/assert.h"
-#include "core/event/dispatcher.h"
-#include "core/time/time.h"
-#include "core/util/hash.h"
-#include "ecs/ecs.h"
-#include "renderer/primitives/color.h"
+#include "core/event/event.h"
+#include "core/graphics/color.h"
+#include "runtime/asset/asset_key.h"
+#include "runtime/asset/prefab.h"
 #include "runtime/ecs/entity.h"
 #include "runtime/ecs/manager.h"
-#include "runtime/graphics/camera.h"
-#include "runtime/graphics/render_context.h"
-#include "runtime/graphics/render_target_component.h"
-#include "runtime/physics/collision_handler.h"
-#include "runtime/physics/physics.h"
-#include "runtime/scene/scene_command.h"
-#include "runtime/scene/scene_input.h"
-#include "runtime/scene/scene_manager.h"
-#include "runtime/scene/scene_state.h"
+#include "runtime/ecs/tag.h"
+#include "runtime/ecs/uuid.h"
+#include "runtime/graphics/render_target.h"
+#include "runtime/scene/scene_camera.h"
+#include "runtime/scene/scene_common.h"
 #include "runtime/scene/scene_transition.h"
 #include "runtime/scene/scene_view.h"
 #include "serialization/json/archiver.h"
-#include "serialization/json/fwd.h"
-#include "tools/debug/debug_system.h"
+#include "serialization/json/json.h"
 
 namespace ptgn {
 
 class Application;
 class Scene;
-class SceneManager;
-class SceneTransition;
-class SceneEventHandler;
-class LocalSceneManager;
-class Renderer;
-class RenderTarget;
-class FontSystem;
-class AssetManager;
 class EventHandler;
-class Window;
-class AudioSystem;
+class LocalEventHandler;
+class SceneContext;
+class DrawContext;
 
-template <typename T>
-concept SceneType = std::derived_from<T, Scene>;
-
-class SceneEventHandler {
+/// @brief Dependency builder used before a scene is constructed and initialized.
+/// Add assets that may be needed by entities created later at runtime and therefore
+/// cannot be discovered from the serialized ECS content.
+class AssetPreloadContext {
 public:
-	explicit SceneEventHandler(Scene& scene);
+	void Add(AssetKey key) {
+		if (!key.value.empty() && !std::ranges::contains(dependencies_, key)) {
+			dependencies_.emplace_back(std::move(key));
+		}
+	}
 
-	void Emit(EventDispatcher d);
+	template <typename T>
+		requires std::derived_from<std::remove_cvref_t<T>, AssetKey>
+	void Add(T key) {
+		Add(AssetKey{ std::move(key.value) });
+	}
+
+	[[nodiscard]] const std::vector<AssetKey>& GetDependencies() const {
+		return dependencies_;
+	}
 
 private:
-	Scene& scene_;
+	std::vector<AssetKey> dependencies_;
 };
+
+namespace impl {
+
+class SceneFileAccess;
+enum class SceneState {
+	Active,
+	TransitionIn,
+	TransitionOut
+};
+
+struct SceneData {
+	std::string tag{};
+	std::size_t tag_hash{ 0 };
+	impl::SceneState state{ impl::SceneState::Active };
+	std::unique_ptr<SceneTransition> transition{};
+	bool runtime{ true };
+	bool first_scene{ false };
+	std::string registered_type{};
+	bool render_enabled{ true };
+	bool paused{ false };
+};
+
+template <SceneType TScene>
+void InitScene(TScene& scene, Application& app, SceneData&& scene_data);
+
+} // namespace impl
 
 template <typename TComponent>
 struct SceneHook {
 	Scene& scene;
-	ecs::Hook<void, ecs::impl::EntityHandle<JsonArchiver>>& hook;
-
+	ecs::Hook<void, ecs::impl::BaseEntity<JsonArchiver>>& hook;
 	template <auto Member>
 	void Connect();
 };
 
-class LocalSceneManager {
-public:
-	template <SceneType T, SceneTransitionType TransitionIn, typename... TArgs>
-		requires std::constructible_from<T, TArgs...>
-	bool Enter(
-		std::string_view scene_key, TransitionIn&& transition_in, SceneTransitionPriority priority,
-		TArgs&&... constructor_args
-	) {
-		return Enter<T>(
-			Hash(scene_key), std::forward<TransitionIn>(transition_in), priority,
-			std::forward<TArgs>(constructor_args)...
-		);
-	}
-
-	template <SceneType T, SceneTransitionType TransitionIn, typename... TArgs>
-		requires std::constructible_from<T, TArgs...>
-	bool Enter(
-		std::string_view scene_key, TransitionIn&& transition_in, TArgs&&... constructor_args
-	) {
-		return Enter<T>(
-			scene_key, std::forward<TransitionIn>(transition_in), SceneTransitionPriority{},
-			std::forward<TArgs>(constructor_args)...
-		);
-	}
-
-	template <SceneType T, typename... TArgs>
-		requires std::constructible_from<T, TArgs...>
-	bool Enter(
-		std::string_view scene_key, SceneTransitionPriority priority, TArgs&&... constructor_args
-	) {
-		return Enter<T>(
-			scene_key, NoTransition{}, priority, std::forward<TArgs>(constructor_args)...
-		);
-	}
-
-	template <SceneType T, typename... TArgs>
-		requires std::constructible_from<T, TArgs...>
-	bool Enter(std::string_view scene_key, TArgs&&... constructor_args) {
-		return Enter<T>(
-			scene_key, NoTransition{}, SceneTransitionPriority{},
-			std::forward<TArgs>(constructor_args)...
-		);
-	}
-
-	template <SceneTransitionType TransitionOut>
-	bool Exit(
-		std::string_view scene_key, TransitionOut&& transition_out,
-		SceneTransitionPriority priority = SceneTransitionPriority{ 0 }
-	) {
-		return Exit(Hash(scene_key), std::forward<TransitionOut>(transition_out), priority);
-	}
-
-	bool Exit(
-		std::string_view scene_key, SceneTransitionPriority priority = SceneTransitionPriority{ 0 }
-	) {
-		return Exit(scene_key, NoTransition{}, priority);
-	}
-
-	template <
-		SceneType T, SceneTransitionType TransitionOut, SceneTransitionType TransitionIn,
-		typename... TArgs>
-		requires std::constructible_from<T, TArgs...>
-	bool ReEnter(
-		std::string_view scene_key, SceneTransitionPair<TransitionOut, TransitionIn>&& transition,
-		TArgs&&... constructor_args
-	) {
-		return ReEnter<T>(
-			Hash(scene_key), std::move(transition), std::forward<TArgs>(constructor_args)...
-		);
-	}
-
-	template <SceneType T, typename... TArgs>
-		requires std::constructible_from<T, TArgs...>
-	bool ReEnter(std::string_view scene_key, TArgs&&... constructor_args) {
-		return ReEnter<T>(
-			scene_key, SceneTransitionPair{}, std::forward<TArgs>(constructor_args)...
-		);
-	}
-
-	template <
-		SceneType ToScene, SceneTransitionType TransitionOut, SceneTransitionType TransitionIn,
-		typename... TArgs>
-		requires std::constructible_from<ToScene, TArgs...>
-	bool Transition(
-		std::string_view from_scene_key, std::string_view to_scene_key,
-		SceneTransitionPair<TransitionOut, TransitionIn>&& transition,
-		SceneTransitionPriority priority, TArgs&&... to_scene_constructor_args
-	) {
-		return Transition<ToScene>(
-			Hash(from_scene_key), Hash(to_scene_key), std::move(transition), priority,
-			std::forward<TArgs>(to_scene_constructor_args)...
-		);
-	}
-
-	template <
-		SceneType ToScene, SceneTransitionType TransitionOut, SceneTransitionType TransitionIn,
-		typename... TArgs>
-		requires std::constructible_from<ToScene, TArgs...>
-	bool Transition(
-		std::string_view from_scene_key, std::string_view to_scene_key,
-		SceneTransitionPair<TransitionOut, TransitionIn>&& transition,
-		TArgs&&... to_scene_constructor_args
-	) {
-		return Transition<ToScene>(
-			from_scene_key, to_scene_key, std::move(transition), SceneTransitionPriority{},
-			std::forward<TArgs>(to_scene_constructor_args)...
-		);
-	}
-
-	template <SceneType ToScene, typename... TArgs>
-		requires std::constructible_from<ToScene, TArgs...>
-	bool Transition(
-		std::string_view from_scene_key, std::string_view to_scene_key,
-		SceneTransitionPriority priority, TArgs&&... to_scene_constructor_args
-	) {
-		return Transition<ToScene>(
-			from_scene_key, to_scene_key, SceneTransitionPair{}, priority,
-			std::forward<TArgs>(to_scene_constructor_args)...
-		);
-	}
-
-	template <SceneType ToScene, typename... TArgs>
-		requires std::constructible_from<ToScene, TArgs...>
-	bool Transition(
-		std::string_view from_scene_key, std::string_view to_scene_key,
-		TArgs&&... to_scene_constructor_args
-	) {
-		return Transition<ToScene>(
-			from_scene_key, to_scene_key, SceneTransitionPair{}, SceneTransitionPriority{},
-			std::forward<TArgs>(to_scene_constructor_args)...
-		);
-	}
-
-	template <
-		SceneType ToScene, SceneTransitionType TransitionOut, SceneTransitionType TransitionIn,
-		typename... TArgs>
-		requires std::constructible_from<ToScene, TArgs...>
-	bool Switch(
-		std::string_view scene_key, SceneTransitionPair<TransitionOut, TransitionIn>&& transition,
-		SceneTransitionPriority priority, TArgs&&... constructor_args
-	);
-
-	template <
-		SceneType ToScene, SceneTransitionType TransitionOut, SceneTransitionType TransitionIn,
-		typename... TArgs>
-		requires std::constructible_from<ToScene, TArgs...>
-	bool Switch(
-		std::string_view scene_key, SceneTransitionPair<TransitionOut, TransitionIn>&& transition,
-		TArgs&&... constructor_args
-	) {
-		return Switch<ToScene>(
-			scene_key, std::move(transition), SceneTransitionPriority{},
-			std::forward<TArgs>(constructor_args)...
-		);
-	}
-
-	template <SceneType ToScene, typename... TArgs>
-		requires std::constructible_from<ToScene, TArgs...>
-	bool Switch(
-		std::string_view scene_key, SceneTransitionPriority priority, TArgs&&... constructor_args
-	) {
-		return Switch<ToScene>(
-			scene_key, SceneTransitionPair{}, priority, std::forward<TArgs>(constructor_args)...
-		);
-	}
-
-	template <SceneType ToScene, typename... TArgs>
-		requires std::constructible_from<ToScene, TArgs...>
-	bool Switch(std::string_view scene_key, TArgs&&... constructor_args) {
-		return Switch<ToScene>(
-			scene_key, SceneTransitionPair{}, SceneTransitionPriority{},
-			std::forward<TArgs>(constructor_args)...
-		);
-	}
-
-private:
-	friend class Scene;
-	friend class SceneContext;
-
-	explicit LocalSceneManager(SceneManager& scene_manager, Scene& scene);
-
-	[[nodiscard]] bool CanIssueCommands(std::size_t target_key) const;
-
-	template <SceneType T, typename... TArgs>
-	std::function<std::unique_ptr<Scene>()> GetInitFunction(TArgs&&... constructor_args);
-
-	template <
-		SceneType T, SceneTransitionType TransitionOut, SceneTransitionType TransitionIn,
-		typename... TArgs>
-		requires std::constructible_from<T, TArgs...>
-	bool ReEnter(
-		std::size_t scene_key_hash, SceneTransitionPair<TransitionOut, TransitionIn>&& transition,
-		TArgs&&... constructor_args
-	);
-
-	template <SceneType T, SceneTransitionType TransitionIn, typename... TArgs>
-		requires std::constructible_from<T, TArgs...>
-	bool Enter(
-		std::size_t scene_key_hash, TransitionIn&& transition_in, SceneTransitionPriority priority,
-		TArgs&&... constructor_args
-	);
-
-	template <SceneTransitionType TransitionOut>
-	bool Exit(
-		std::size_t scene_key_hash, TransitionOut&& transition_out,
-		SceneTransitionPriority priority = SceneTransitionPriority{ 0 }
-	);
-
-	template <
-		SceneType ToScene, SceneTransitionType TransitionOut, SceneTransitionType TransitionIn,
-		typename... TArgs>
-		requires std::constructible_from<ToScene, TArgs...>
-	bool Transition(
-		std::size_t from_scene_key_hash, std::size_t to_scene_key_hash,
-		SceneTransitionPair<TransitionOut, TransitionIn>&& transition,
-		SceneTransitionPriority priority, TArgs&&... to_scene_constructor_args
-	) {
-		if (from_scene_key_hash == to_scene_key_hash) {
-			return ReEnter<ToScene>(
-				to_scene_key_hash, std::move(transition),
-				std::forward<TArgs>(to_scene_constructor_args)...
-			);
-		}
-
-		bool exited{ Exit(from_scene_key_hash, std::move(transition.out), priority) };
-		bool entered{ Enter<ToScene>(
-			to_scene_key_hash, std::move(transition.in), priority,
-			std::forward<TArgs>(to_scene_constructor_args)...
-		) };
-		return exited || entered;
-	}
-
-	SceneManager& scene_manager_;
-	Scene& scene_;
-};
-
-class SceneContext {
-public:
-	SceneContext() = delete;
-	explicit SceneContext(Application& app, Scene& parent_scene);
-	~SceneContext() noexcept;
-	SceneContext(const SceneContext&)				 = delete;
-	SceneContext& operator=(const SceneContext&)	 = delete;
-	SceneContext(SceneContext&&) noexcept			 = default;
-	SceneContext& operator=(SceneContext&&) noexcept = delete;
-
-	EventHandler& global_event;
-	Window& window;
-	AssetManager& asset;
-	FontSystem& font;
-	AudioSystem& audio;
-
-	LocalSceneManager scene;
-	RenderContext renderer;
-	DebugContext debug;
-	SceneEventHandler event;
-	SceneInput input;
-	Physics physics;
-	CollisionHandler collision;
-
-	/// @brief The default camera used by all objects in the scene. By default it resizes to the
-	/// game size.
-	Camera camera;
-
-	/// @brief Terminates the main application loop.
-	void Stop();
-
-	/// @brief Returns the delta time of the current frame.
-	secondsf dt() const;
-
-	/// @brief Returns the time elapsed since the Application instance was constructed.
-	[[nodiscard]] milliseconds TimeSinceStart() const;
-
-	/// @brief Returns whether the application is currently running.
-	bool IsRunning() const;
-
-	/// @brief Returns the total number of frames that the application has run for.
-	std::size_t GetFrameCount() const;
-
-private:
-	friend class RenderTarget;
-	friend class Scene;
-	friend class LocalSceneManager;
-
-	/// @brief An optional secondary fixed camera for the scene. By default it resizes to the game
-	/// size.
-	Camera fixed_camera_;
-
-	Renderer& global_renderer_;
-	Application& app_;
-};
-
 class Scene {
 public:
-	Scene();
+	Scene() = default;
+	Scene(Scene&&) noexcept;
+	Scene& operator=(Scene&&) noexcept;
+	Scene(const Scene&)			   = delete;
+	Scene& operator=(const Scene&) = delete;
 	virtual ~Scene();
 
-	/// @brief Called when the scene is added to active scenes.
+	/// @brief Called on a temporary, uninitialized scene before asynchronous loading begins.
+	/// Keep constructors and this method free of renderer/window access.
+	virtual void OnPreload(AssetPreloadContext&) const {
+		/* User implementation */
+	}
+
+	virtual void OnNew() {
+		/* User implementation */
+	}
+
+	virtual void OnLoad() {
+		/* User implementation */
+	}
+
 	virtual void OnEnter() {
-		/* user implementation */
+		/* User implementation */
 	}
 
-	/// @brief Called once per frame for each active scene.
 	virtual void OnUpdate() {
-		/* user implementation */
+		/* User implementation */
 	}
 
-	/// @brief Called when the scene is removed from active scenes.
+	virtual void OnRender() {
+		/* User implementation */
+	}
+
 	virtual void OnExit() {
-		/* user implementation */
+		/* User implementation */
 	}
 
-	/// @brief Called an event is emitted by the event handler.
-	virtual void OnEvent(EventDispatcher) {
-		/* user implementation */
+	virtual void OnEvent(Event) {
+		/* User implementation */
 	}
 
-	template <
-		SceneType T, SceneTransitionType TransitionOut, SceneTransitionType TransitionIn,
-		typename... TArgs>
-		requires std::constructible_from<T, TArgs...>
-	bool ReEnter(
-		SceneTransitionPair<TransitionOut, TransitionIn>&& transition, TArgs&&... constructor_args
-	) {
-		return ctx().scene.ReEnter<T>(
-			key_, std::move(transition), std::forward<TArgs>(constructor_args)...
-		);
+	[[nodiscard]] const std::vector<std::string>& GetTags() const {
+		return tags_;
 	}
 
-	template <SceneType T, typename... TArgs>
-		requires std::constructible_from<T, TArgs...>
-	bool ReEnter(TArgs&&... constructor_args) {
-		return ctx().scene.ReEnter<T>(
-			key_, SceneTransitionPair{}, std::forward<TArgs>(constructor_args)...
-		);
-	}
+	// Tag definitions persist even when no entity currently uses them.
+	bool AddTag(std::string name);
 
-	/// @brief Sets the background color of the scene. The default background color is transparent.
 	void SetBackgroundColor(Color background_color);
-
-	/// @return The background color of the scene.
 	Color GetBackgroundColor() const;
+	Entity GetEntity(UUID uuid) const;
+	Entity GetEntity(const Tag& tag) const;
+	Entity CreateEntity(Tag tag = {}, UUID uuid = {});
+	Entity CreatePrefab(std::string_view prefab_key);
+	Entity CreatePrefab(const PrefabKey& prefab_key);
+	/// @brief Captures a normal scene entity hierarchy as a prefab asset.
+	/// The source is destroyed by default, making this convenient for code authored prefabs.
+	[[nodiscard]] PrefabKey CreatePrefabAsset(
+		Entity source, std::string_view prefab_name, bool destroy_source = true
+	);
+	[[nodiscard]] bool HasPrefabAsset(std::string_view prefab_name) const;
+	/// @brief Returns the live AssetManager owned authoring entity for a prefab asset.
+	/// This entity has the same component API as scene entities but is not placed in a scene.
+	[[nodiscard]] Entity GetPrefabAsset(std::string_view prefab_name);
+	[[nodiscard]] Entity GetPrefabAsset(const PrefabKey& prefab_key);
 
-	/// @return {} if no entity with the given uuid exists in the manager.
-	Entity GetEntityByUUID(UUID uuid) const;
+	/// @brief Authors/overwrites a prefab with the same CreateX(Scene&, ...) helpers used by
+	/// ordinary scene entities.
+	template <typename Factory>
+		requires std::invocable<Factory&, Scene&> &&
+				 std::convertible_to<std::invoke_result_t<Factory&, Scene&>, Entity>
+	[[nodiscard]] PrefabKey CreatePrefabAsset(std::string_view prefab_name, Factory&& factory) {
+		Entity source{ std::invoke(factory, *this) };
+		if (!source) {
+			return {};
+		}
+		return CreatePrefabAsset(source, prefab_name, true);
+	}
 
-	/// @brief Make sure to call Refresh() after this function.
-	Entity CreateEntity();
+	/// @brief Creates a prefab asset using the same CreateX(Scene&, ...) helpers used for entities.
+	/// The factory is only invoked when the prefab does not already exist.
+	template <typename Factory>
+		requires std::invocable<Factory&, Scene&> &&
+				 std::convertible_to<std::invoke_result_t<Factory&, Scene&>, Entity>
+	[[nodiscard]] PrefabKey EnsurePrefabAsset(std::string_view prefab_name, Factory&& factory) {
+		PrefabKey key{ MakePrefabKey(prefab_name) };
+		if (HasPrefabAsset(prefab_name)) {
+			return key;
+		}
+		return CreatePrefabAsset(prefab_name, std::forward<Factory>(factory));
+	}
 
-	/// @brief Creates an entity with a specific uuid.
-	/// Make sure to call Refresh() after this function.
-	Entity CreateEntity(UUID uuid);
-
-	/// @brief Creates an entity from a json object.
-	/// Make sure to call Refresh() after this function.
-	Entity CreateEntity(const json& j);
-
-	/// @brief Make sure to call Refresh() after this function.
 	template <typename... Ts>
-	Entity CopyEntity(Entity from) {
-		auto entity{ manager_.CopyEntity<Ts...>(from) };
-		entity.template Add<UUID>();
-		return entity;
+	Entity CopyEntity(Entity from, Tag tag = {}, UUID uuid = {}) {
+		auto entity{ manager_.CopyEntity<Ts...>(from.entity_) };
+		entity.template Add<Tag>(std::move(tag));
+		entity.template Add<UUID>(uuid);
+		Entity copied{ entity, this };
+		return copied;
 	}
 
 	template <typename... Ts>
 	void CopyEntity(const Entity& from, Entity& to) {
-		manager_.CopyEntity<UUID>(from.entity_, to.entity_);
 		manager_.CopyEntity<Ts...>(from.entity_, to.entity_);
 	}
 
@@ -497,184 +264,122 @@ public:
 		return SceneHook<TComponent>{ *this, manager_.template OnUpdate<TComponent>() };
 	}
 
-	friend void to_json(json& j, const Scene& scene);
-	friend void from_json(const json& j, Scene& scene);
-
+	/// @brief Adds a persistent preload only dependency that serialized-content discovery cannot
+	/// see.
+	bool AddAssetDependency(AssetKey key);
+	/// @brief Removes a persistent preload only scene dependency. Automatically discovered
+	/// references remain part of the scene until the serialized field referencing them is changed.
+	bool RemoveAssetDependency(const AssetKey& key);
+	/// @return True when the asset is either explicitly preloaded or referenced by serialized scene
+	/// data.
+	[[nodiscard]] bool HasAssetDependency(const AssetKey& key) const;
+	/// @return True only for dependencies explicitly added through code or the editor context menu.
+	[[nodiscard]] bool HasExplicitAssetDependency(const AssetKey& key) const;
+	/// @return The effective dependency set used for scene residency and scene-file preloading.
+	[[nodiscard]] const std::vector<AssetKey>& GetAssetDependencies() const;
+	/// @return Explicit preload only dependencies. CaptureScene combines these with serialized
+	/// refs.
+	[[nodiscard]] const std::vector<AssetKey>& GetExplicitAssetDependencies() const;
+	/// @brief Rebuilds effective dependencies from the current serialized parameters/content plus
+	/// explicit preload only dependencies. Added assets are acquired and removed assets are
+	/// released.
+	/// @return True when the effective dependency set changed.
+	bool SyncAssetDependenciesFromSerialization();
+	/// @brief Reacquires the current effective dependency set for an already-live scene.
+	void ReloadLoadedAssetDependencies();
 	void Refresh();
-
 	std::size_t GetEntityCount() const;
-
 	RenderTarget GetRenderTarget() const;
-
+	SceneCamera GetCamera() const;
+	SceneCamera GetFixedCamera() const;
 	[[nodiscard]] const SceneContext& ctx() const;
 	[[nodiscard]] SceneContext& ctx();
+	std::size_t GetTagHash() const;
+	std::string GetTag() const;
+	void SetRenderEnabled(bool enabled = true);
+	[[nodiscard]] bool IsRenderEnabled() const;
+	bool IsRuntime() const;
+	void SetPaused(bool paused = true);
+	[[nodiscard]] bool IsPaused() const;
+	[[nodiscard]] bool IsTransitioning() const;
+	[[nodiscard]] std::string_view GetRegisteredType() const;
+	[[nodiscard]] json SerializeContent() const;
 
 private:
-	friend class SceneManager;
+	friend class impl::SceneManager;
+	friend class impl::SceneFileAccess;
 	friend class EventHandler;
 	friend class Application;
 	friend class FrameContext;
 	friend class SceneInput;
-	friend class LocalSceneManager;
-	friend class SceneManager;
-	friend class SceneEventHandler;
+	friend class LocalEventHandler;
 	template <typename TComponent>
 	friend struct SceneHook;
+	template <SceneType TScene>
+	friend void impl::InitScene(TScene& scene, Application& app, impl::SceneData&& scene_data);
+	void Init(Application& app, impl::SceneData&& scene_data);
+	void Init(Application& app, impl::SceneData&& scene_data, const json& serialized_content);
+	void InitBase(Application& app, impl::SceneData&& scene_data);
+	void CreateDefaultSceneEntities();
+	void DeserializeContent(const json& serialized_content);
 
-	template <auto Member>
-	void HookThunk(ecs::impl::EntityHandle<JsonArchiver> handle) {
-		(this->*Member)(Entity{ handle, this });
+	template <typename TScene, auto Member>
+	void HookThunk(ecs::impl::BaseEntity<JsonArchiver> handle) {
+		(static_cast<TScene*>(this)->*Member)(Entity{ handle, this });
 	}
 
-	void Init(Application& app);
-
-	/// @brief Called by scene manager when a new scene is loaded and entered.
 	void InternalEnter();
 	void InternalExit();
-
+	void InternalOnEvent(Event event);
+	void InternalOnEvent(Entity entity, Event event);
+	void InternalPreUpdate();
 	void InternalUpdate();
-	void InternalDraw();
-	void InternalEmit(EventDispatcher d);
-
-	[[nodiscard]] bool IsTransitioning() const;
-
+	void InternalDraw(DrawContext& draw_context);
+	void ClearRenderTargets();
+	void DrawCameras(DrawContext& draw_context, const std::vector<Entity>& cameras);
+	void DrawSceneTarget(DrawContext& draw_context) const;
+	[[nodiscard]] bool IsAwaitingTransitionDelay() const;
+	void SetAssetDependencies(
+		std::vector<AssetKey> dependencies, std::vector<AssetKey> explicit_dependencies
+	);
+	void AdoptLoadedAssetDependencies(std::vector<AssetKey> dependencies);
+	void ReleaseLoadedAssetDependencies() noexcept;
 	std::unique_ptr<SceneContext> ctx_;
 	Manager manager_;
-	RenderTarget render_target_;
-
-	std::size_t key_{ 0 };
-	std::unique_ptr<SceneTransition> transition_;
-	impl::SceneState state_{ impl::SceneState::Active };
+	std::vector<std::string> tags_{};
+	impl::SceneData data_;
+	std::vector<AssetKey> asset_dependencies_;
+	std::vector<AssetKey> explicit_asset_dependencies_;
+	std::vector<AssetKey> retained_asset_dependencies_;
 };
+
+namespace impl {
+
+template <typename T>
+struct MemberPointerClass;
+
+template <typename C, typename R, typename... Args>
+struct MemberPointerClass<R (C::*)(Args...)> {
+	using type = C;
+};
+
+template <typename C, typename R, typename... Args>
+struct MemberPointerClass<R (C::*)(Args...) const> {
+	using type = C;
+};
+
+template <SceneType TScene>
+void InitScene(TScene& scene, Application& app, SceneData&& scene_data) {
+	scene.Init(app, std::move(scene_data));
+}
+
+} // namespace impl
 
 template <typename TComponent>
 template <auto Member>
 void SceneHook<TComponent>::Connect() {
-	hook.template Connect<Scene, &Scene::template HookThunk<Member>>(&scene);
-}
-
-template <SceneType T, typename... TArgs>
-std::function<std::unique_ptr<Scene>()> LocalSceneManager::LocalSceneManager::GetInitFunction(
-	TArgs&&... constructor_args
-) {
-	return [app = &scene_.ctx().app_, constructor_args...]() -> std::unique_ptr<Scene> {
-		auto scene{ std::make_unique<T>(constructor_args...) };
-		scene->Init(*app);
-		return scene;
-	};
-}
-
-template <
-	SceneType T, SceneTransitionType TransitionOut, SceneTransitionType TransitionIn,
-	typename... TArgs>
-	requires std::constructible_from<T, TArgs...>
-bool LocalSceneManager::ReEnter(
-	std::size_t scene_key_hash, SceneTransitionPair<TransitionOut, TransitionIn>&& transition,
-	TArgs&&... constructor_args
-) {
-	if (!CanIssueCommands(scene_key_hash)) {
-		return false;
-	}
-
-	PTGN_ASSERT(
-		scene_manager_.Has(scene_key_hash), "Cannot re-enter a scene key which has not been entered"
-	);
-
-	std::unique_ptr<SceneTransition> transition_out_ptr;
-	std::unique_ptr<SceneTransition> transition_in_ptr;
-
-	if constexpr (!std::same_as<std::decay_t<TransitionOut>, NoTransition>) {
-		transition_out_ptr =
-			std::make_unique<std::decay_t<TransitionOut>>(std::move(transition.out));
-	}
-
-	if constexpr (!std::same_as<std::decay_t<TransitionIn>, NoTransition>) {
-		transition_in_ptr = std::make_unique<std::decay_t<TransitionIn>>(std::move(transition.in));
-	}
-
-	scene_manager_.commands_.emplace_back(
-		impl::SceneCommandType::ReEnter, scene_.key_, scene_key_hash,
-		SceneTransitionPriority{ std::numeric_limits<std::size_t>::max() },
-		GetInitFunction<T>(std::forward<TArgs>(constructor_args)...), std::move(transition_out_ptr),
-		std::move(transition_in_ptr)
-	);
-
-	return true;
-}
-
-template <SceneType T, SceneTransitionType TransitionIn, typename... TArgs>
-	requires std::constructible_from<T, TArgs...>
-bool LocalSceneManager::Enter(
-	std::size_t scene_key_hash, TransitionIn&& transition_in, SceneTransitionPriority priority,
-	TArgs&&... constructor_args
-) {
-	if (!CanIssueCommands(scene_key_hash)) {
-		return false;
-	}
-
-	if (scene_manager_.Has(scene_key_hash)) {
-		return ReEnter<T>(
-			scene_key_hash, SceneTransitionPair{ {}, std::forward<TransitionIn>(transition_in) },
-			std::forward<TArgs>(constructor_args)...
-		);
-	}
-
-	std::unique_ptr<SceneTransition> transition_in_ptr;
-
-	if constexpr (!std::same_as<std::decay_t<TransitionIn>, NoTransition>) {
-		transition_in_ptr =
-			std::make_unique<std::decay_t<TransitionIn>>(std::forward<TransitionIn>(transition_in));
-	}
-
-	scene_manager_.commands_.emplace_back(
-		impl::SceneCommandType::Enter, scene_.key_, scene_key_hash, priority,
-		GetInitFunction<T>(std::forward<TArgs>(constructor_args)...), nullptr,
-		std::move(transition_in_ptr)
-	);
-
-	return true;
-}
-
-template <SceneTransitionType TransitionOut>
-bool LocalSceneManager::Exit(
-	std::size_t scene_key_hash, TransitionOut&& transition_out, SceneTransitionPriority priority
-) {
-	if (!CanIssueCommands(scene_key_hash)) {
-		return false;
-	}
-
-	if (!scene_manager_.Has(scene_key_hash)) {
-		return false;
-	}
-
-	std::unique_ptr<SceneTransition> transition_out_ptr;
-
-	if constexpr (!std::same_as<std::decay_t<TransitionOut>, NoTransition>) {
-		transition_out_ptr =
-			std::make_unique<std::decay_t<TransitionOut>>(std::forward<TransitionOut>(transition_out
-			));
-	}
-
-	scene_manager_.commands_.emplace_back(
-		impl::SceneCommandType::Exit, scene_.key_, scene_key_hash, priority, nullptr,
-		std::move(transition_out_ptr), nullptr
-	);
-
-	return true;
-}
-
-template <
-	SceneType ToScene, SceneTransitionType TransitionOut, SceneTransitionType TransitionIn,
-	typename... TArgs>
-	requires std::constructible_from<ToScene, TArgs...>
-bool LocalSceneManager::Switch(
-	std::string_view scene_key, SceneTransitionPair<TransitionOut, TransitionIn>&& transition,
-	SceneTransitionPriority priority, TArgs&&... constructor_args
-) {
-	return Transition<ToScene>(
-		scene_.key_, Hash(scene_key), std::move(transition), priority,
-		std::forward<TArgs>(constructor_args)...
-	);
+	using TScene = typename impl::MemberPointerClass<decltype(Member)>::type;
+	hook.template Connect<Scene, &Scene::template HookThunk<TScene, Member>>(&scene);
 }
 
 } // namespace ptgn

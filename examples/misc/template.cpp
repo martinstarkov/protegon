@@ -1,7 +1,8 @@
 
 #include "app/application.h"
-#include "core/event/dispatcher.h"
+#include "core/event/event.h"
 #include "runtime/scene/scene.h"
+#include "runtime/scene/scene_context.h"
 
 using namespace ptgn;
 
@@ -13,7 +14,7 @@ public:
 
 	void OnExit() override {}
 
-	void OnEvent(EventDispatcher d) override {}
+	void OnEvent(Event d) override {}
 };
 
 int main(int, char**) {

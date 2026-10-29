@@ -1,26 +1,4 @@
-// #include "ui/plot.h"
-//
-// #include <algorithm>
-// #include <array>
-// #include <cstdint>
-// #include <limits>
-// #include <utility>
-// #include <vector>
-//
-// #include "ecs/entity.h"
-// #include "core/input/input_handler.h"
-// #include "core/input/mouse.h"
-//
-// #include "math/geometry_utils.h"
-// #include "math/math_utils.h"
-// #include "math/vector2.h"
-// #include "renderer/api/color.h"
-// #include "runtime/graphics/font.h"
-// #include "renderer/api/origin.h"
-// #include "runtime/graphics/text.h"
-// #include "runtime/graphics/fonts.h"
-// #include "ui/button.h"
-// #include "core/assert.h"
+// #include "runtime/ui/plot.h"
 //
 // namespace ptgn {
 //
@@ -150,7 +128,7 @@
 //	auto scroll{ input.GetMouseScroll() };
 //
 //	if (scroll != 0 && mouse_on_plot) {
-//		// To zoom into where mouse is located, we scale zoom amount for each axis
+//		// To zoom into where mouse is located, scale zoom amount for each axis
 //		// by the fraction of axis remaining on either side of the mouse position.
 //		V2_float mouse_frac{ (mouse_pos - canvas_rect.Min()) / canvas_rect.size };
 //		PTGN_ASSERT(mouse_frac.x >= 0.0f && mouse_frac.x <= 1.0f);
@@ -225,7 +203,7 @@
 //	/*
 //	Rect r{ ... };
 //
-//	r.Draw(entity_.Get<BackgroundColor>(), -1.0f, canvas_);
+//	r.Draw(entity_.Get<BackgroundColor>(), Solid{}, canvas_);
 //
 //	DrawPoints(r);
 //
@@ -347,7 +325,7 @@
 //
 //	legend_rect_ = Rect{ dest.Center() + GetOffsetFromCenter(dest.size, legend.origin), legend_size,
 //						 legend.origin };
-//	legend_rect_.Draw(legend.background_color, -1.0f, legend_layer);
+//	legend_rect_.Draw(legend.background_color, Solid{}, legend_layer);
 //
 //	V2_float text_offset;
 //	V2_float button_offset;
@@ -433,7 +411,7 @@
 //				}
 //			}
 //		}
-//		for (std::size_t i = 0; i < series.data.points.size(); ++i) {
+//		for (auto i{ 0uz }; i < series.data.points.size(); ++i) {
 //			const auto& point{ series.data.points[i] };
 //			bool final_point{ i + 1 == series.data.points.size() };
 //			if (!final_point) {

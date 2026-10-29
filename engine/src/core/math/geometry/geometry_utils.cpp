@@ -1,7 +1,6 @@
 #include "core/math/geometry/geometry_utils.h"
 
 #include <algorithm>
-#include <array>
 #include <cmath>
 #include <cstdint>
 #include <cstdlib>
@@ -9,63 +8,84 @@
 #include <set>
 #include <span>
 #include <utility>
-#include <variant>
 #include <vector>
 
 #include "core/assert.h"
+#include "core/math/angle.h"
 #include "core/math/geometry/line.h"
 #include "core/math/geometry/triangle.h"
+#include "core/math/math_utils.h"
 #include "core/math/tolerance.h"
 #include "core/math/vector2.h"
 
 namespace ptgn {
 
-bool StrictlyLess(float a, float b, float epsilon) {
-	return (b - a) > std::max(std::abs(a), std::abs(b)) * epsilon;
-}
-
-bool StrictlyLess(V2_float a, V2_float b, float epsilon) {
-	return StrictlyLess(a.x, b.x, epsilon) && StrictlyLess(a.y, b.y, epsilon);
-}
-
 namespace impl {
 
 std::vector<V2_float> GetArcVertices(
-	V2_float center, float radius, float start_angle, float end_angle, bool clockwise
+	V2_float center, float radius, Radians start_angle, Radians end_angle, bool clockwise
 ) {
-	if (start_angle > end_angle) {
-		end_angle += two_pi<float>;
+	PTGN_ASSERT(std::isfinite(radius), "Arc radius must be finite");
+	PTGN_ASSERT(radius >= 0.0f, "Arc radius cannot be negative");
+
+	if (!std::isfinite(radius) || radius < 0.0f) {
+		return {};
 	}
 
-	float arc_angle{ end_angle - start_angle };
+	float start{ start_angle.value };
+	float end{ end_angle.value };
 
-	PTGN_ASSERT(arc_angle >= 0.0f);
+	PTGN_ASSERT(start >= 0.0f && start < kTwoPi, "Arc start angle must be in range [0, 2pi)");
+	PTGN_ASSERT(end >= 0.0f && end < kTwoPi, "Arc end angle must be in range [0, 2pi)");
 
-	// Resolution indicates the number of vertices the arc is made up of. Each consecutive vertex,
-	// alongside the center of the arc, makes up a triangle which is used to draw solid arcs.
-	std::size_t resolution{
-		std::max(static_cast<std::size_t>(360), static_cast<std::size_t>(30.0f * radius))
+	// A zero radius arc is a single point regardless of aperture.
+	if (NearlyEqual(radius, 0.0f)) {
+		return { center };
+	}
+
+	float aperture{};
+
+	if (clockwise) {
+		aperture = start - end;
+	} else {
+		aperture = end - start;
+	}
+
+	if (aperture < 0.0f) {
+		aperture += kTwoPi;
+	}
+
+	// start == end represents a zero length arc.
+	if (NearlyEqual(aperture, 0.0f)) {
+		return { center + radius * V2_float{ start_angle.Cos(), start_angle.Sin() } };
+	}
+
+	// Number of segments that would be used for an entire circle.
+	//
+	// Preserve roughly the old quality target, but scale it according to
+	// the fraction of a full circle actually being generated.
+	auto full_circle_segment_count{
+		std::max(360uz, static_cast<std::size_t>(std::ceil(30.0f * radius)))
 	};
 
-	PTGN_ASSERT(
-		resolution > 1, "Arc must be made up of at least two vertices (forming one triangle with "
-						"the arc center point)"
-	);
+	float aperture_fraction{ aperture / kTwoPi };
 
-	float delta_angle{ arc_angle / static_cast<float>(resolution) };
+	auto segment_count{ std::max(
+		1uz, static_cast<std::size_t>(
+				 std::ceil(static_cast<float>(full_circle_segment_count) * aperture_fraction)
+			 )
+	) };
 
-	std::vector<V2_float> vertices(resolution);
+	// N segments require N + 1 vertices so both endpoints are present.
+	std::vector<V2_float> vertices(segment_count + 1);
+	float direction{ clockwise ? -1.0f : 1.0f };
 
-	for (std::size_t i{ 0 }; i < vertices.size(); i++) {
-		float angle{ start_angle };
-		float delta{ static_cast<float>(i) * delta_angle };
-		if (clockwise) {
-			angle -= delta;
-		} else {
-			angle += delta;
-		}
+	for (auto i{ 0uz }; i <= segment_count; ++i) {
+		float t{ static_cast<float>(i) / static_cast<float>(segment_count) };
 
-		vertices[i] = center + radius * V2_float{ std::cos(angle), std::sin(angle) };
+		Radians angle{ start + direction * aperture * t };
+
+		vertices[i] = center + radius * V2_float{ angle.Cos(), angle.Sin() };
 	}
 
 	return vertices;
@@ -80,9 +100,9 @@ float TriangulateArea(std::span<const V2_float> vertices) {
 
 	float area{ 0.0f };
 
-	for (std::size_t i{ 0 }; i < count; ++i) {
-		V2_float current{ vertices[i] };
-		V2_float next{ vertices[(i + 1) % count] };
+	for (auto i{ 0uz }; i < count; ++i) {
+		auto current{ vertices[i] };
+		auto next{ vertices[(i + 1) % count] };
 
 		area += current.Cross(next);
 	}
@@ -100,23 +120,39 @@ bool TriangulateSnip(
 	const std::vector<std::size_t>& V
 ) {
 	PTGN_ASSERT(contour);
+	PTGN_ASSERT(u < n);
+	PTGN_ASSERT(v < n);
+	PTGN_ASSERT(w < n);
+	PTGN_ASSERT(n <= V.size());
 
-	auto A{ contour[V[u]] };
-	auto B{ contour[V[v]] };
-	auto C{ contour[V[w]] };
+	V2_float A{ contour[V[u]] };
+	V2_float B{ contour[V[v]] };
+	V2_float C{ contour[V[w]] };
 
-	auto AB{ B - A };
-	auto AC{ C - A };
+	V2_float AB{ B - A };
+	V2_float AC{ C - A };
 
-	if (float cross{ AB.Cross(AC) }; NearlyEqual(cross, 0.0f)) {
+	// Triangulate() normalizes the working vertex order to counter clockwise.
+	// Therefore an ear must be a strictly convex / left turn vertex.
+	//
+	// Reject both:
+	//   cross < 0  -> reflex vertex
+	//   cross ~= 0 -> degenerate/collinear triangle
+	float cross{ AB.Cross(AC) };
+
+	if (cross <= kEpsilon<float>) {
 		return false;
 	}
 
-	for (std::size_t p{ 0 }; p < n; p++) {
-		if ((p == u) || (p == v) || (p == w)) {
+	// The triangle is geometrically valid. It is only an ear if no other
+	// remaining polygon vertex lies inside or on its boundary.
+	for (auto i{ 0uz }; i < n; ++i) {
+		if (i == u || i == v || i == w) {
 			continue;
 		}
-		auto P{ contour[V[p]] };
+
+		V2_float P{ contour[V[i]] };
+
 		if (TriangulateInsideTriangle(A, B, C, P)) {
 			return false;
 		}
@@ -125,10 +161,10 @@ bool TriangulateSnip(
 	return true;
 }
 
-std::vector<std::array<V2_float, 3>> Triangulate(std::span<const V2_float> vertices) {
+std::vector<Triangle> Triangulate(std::span<const V2_float> vertices) {
 	// From: https://www.flipcode.com/archives/Efficient_Polygon_Triangulation.shtml
 
-	std::vector<std::array<V2_float, 3>> result;
+	std::vector<Triangle> result;
 
 	auto n{ vertices.size() };
 
@@ -139,61 +175,61 @@ std::vector<std::array<V2_float, 3>> Triangulate(std::span<const V2_float> verti
 	std::vector<std::size_t> V(n);
 
 	if (impl::TriangulateArea(vertices) > 0) {
-		for (std::size_t v{ 0 }; v < n; v++) {
-			V[v] = v;
+		for (auto i{ 0uz }; i < n; ++i) {
+			V[i] = i;
 		}
 	} else {
-		for (std::size_t v{ 0 }; v < n; v++) {
-			V[v] = (n - 1) - v;
+		for (auto i{ 0uz }; i < n; ++i) {
+			V[i] = (n - 1) - i;
 		}
 	}
 
 	std::size_t nv{ n };
 
-	/*  remove nv-2 Vertices, creating 1 triangle every time */
-	std::int64_t r_count{ 2 * static_cast<std::int64_t>(nv) }; /* error detection */
+	// Remove nv 2 Vertices, creating 1 triangle every time
+	std::int64_t r_count{ 2 * static_cast<std::int64_t>(nv) }; // Error detection
 
-	for ([[maybe_unused]] std::size_t m{ 0 }, v = nv - 1; nv > 2;) {
-		/* if we loop, it is probably a non-simple polygon */
+	for ([[maybe_unused]] auto m{ 0uz }, v = nv - 1; nv > 2;) {
+		// If this loop is entered, it is probably a non simple polygon
 		if ((r_count--) < 0) {
-			//** Triangulate: ERROR - probable bad polygon!
+			// Triangulate: ERROR - probable bad polygon
 			return result;
 		}
 
-		/* three consecutive vertices in current polygon, <u,v,w> */
+		// Three consecutive vertices in current polygon, <u,v,w>
 		auto u{ v };
 		if (nv <= u) {
-			u = 0; /* previous */
+			u = 0; // previous
 		}
 		v = u + 1;
 		if (nv <= v) {
-			v = 0; /* new v    */
+			v = 0; // new v
 		}
 		auto w{ v + 1 };
 		if (nv <= w) {
-			w = 0; /* next     */
+			w = 0; // next
 		}
 
 		if (TriangulateSnip(vertices.data(), u, v, w, nv, V)) {
-			/* true names of the vertices */
+			// True names of the vertices
 			auto a{ V[u] };
 			auto b{ V[v] };
 			auto c{ V[w] };
 
-			result.emplace_back(std::array<V2_float, 3>{ vertices[a], vertices[b], vertices[c] });
+			result.emplace_back(vertices[a], vertices[b], vertices[c]);
 
 			m++;
 
-			/* remove v from remaining polygon */
-			for (auto t{ v + 1 }; t < nv; t++) {
-				auto s{ t - 1 };
+			// Remove v from remaining polygon
+			for (auto i{ v + 1 }; i < nv; ++i) {
+				auto s{ i - 1 };
 				PTGN_ASSERT(s < V.size());
-				PTGN_ASSERT(t < V.size());
-				V[s] = V[t];
+				PTGN_ASSERT(i < V.size());
+				V[s] = V[i];
 			}
 			nv--;
 
-			/* resest error detection counter */
+			// Reset error detection counter
 			r_count = 2 * static_cast<std::int64_t>(nv);
 		}
 	}
@@ -213,7 +249,7 @@ bool VisibilityRayIntersects(
 	V2_float origin, V2_float direction, const Line& segment, V2_float& out_point
 ) {
 	auto ao{ origin - segment.start };
-	auto ab{ segment.end - segment.start };
+	auto ab{ segment.GetDirection() };
 	auto det{ ab.Cross(direction) };
 
 	if (NearlyEqual(det, 0.f)) {
@@ -250,30 +286,63 @@ bool VisibilityRayIntersects(
 
 } // namespace impl
 
-std::vector<V2_float> GetVisibilityPolygon(
-	V2_float point, const std::vector<Line>& shadow_segments
-) {
-	using namespace ptgn::impl;
+std::vector<V2_float> GetVisibilityPolygon(V2_float point, std::span<const Line> shadow_segments) {
+	auto same_segment = [](const Line& x, const Line& y) {
+		return (x.start == y.start && x.end == y.end) || (x.start == y.end && x.end == y.start);
+	};
 
-	/* Compare 2 line segments based on their distance from given point.
-	 * Assumes: (1) The line segments are intersected by some ray from the origin.
-	 *          (2) The line segments do not intersect except at their endpoints.
-	 *          (3) No line segment is Collinear with the origin.
-	 * Check whether the line segment x is closer to the origin than the line segment y.
-	 * @param x Line segment: Left hand side of the comparison operator.
-	 * @param y Line segment: Right hand side of the comparison operator.
-	 * @return True if x < y (x is closer than y).
-	 */
-	const auto cmp_dist = [origin = point](const Line& x, const Line& y) {
+	auto point_less = [](V2_float a, V2_float b) {
+		if (a.x < b.x) {
+			return true;
+		}
+		if (b.x < a.x) {
+			return false;
+		}
+		return a.y < b.y;
+	};
+
+	auto line_less = [&](const Line& x, const Line& y) {
+		auto [a, b] = x.GetLocalVertices();
+		auto [c, d] = y.GetLocalVertices();
+
+		// Canonicalize endpoint order so Line{A, B} and Line{B, A}
+		// do not get different tie break order.
+		if (point_less(b, a)) {
+			std::swap(a, b);
+		}
+		if (point_less(d, c)) {
+			std::swap(c, d);
+		}
+
+		if (point_less(a, c)) {
+			return true;
+		}
+		if (point_less(c, a)) {
+			return false;
+		}
+
+		return point_less(b, d);
+	};
+
+	// Compare 2 line segments based on distance from given point.
+	// Assumes: The line segments are intersected by some ray from the origin.
+	//          The line segments do not intersect except at endpoints.
+	//          No line segment is Collinear with the origin.
+	// Check whether the line segment x is closer to the origin than the line segment y.
+	// @param x Line segment: Left hand side of the comparison operator.
+	// @param y Line segment: Right hand side of the comparison operator.
+	// @return True if x < y (x is closer than y).
+	//
+	auto closer = [origin = point](const Line& x, const Line& y) {
 		auto [a, b] = x.GetLocalVertices();
 		auto [c, d] = y.GetLocalVertices();
 
 		PTGN_ASSERT(
-			GetOrientation(origin, a, b) != Orientation::Collinear,
+			impl::GetOrientation(origin, a, b) != impl::Orientation::Collinear,
 			"AB must not be Collinear with the origin."
 		);
 		PTGN_ASSERT(
-			GetOrientation(origin, c, d) != Orientation::Collinear,
+			impl::GetOrientation(origin, c, d) != impl::Orientation::Collinear,
 			"CD must not be Collinear with the origin."
 		);
 
@@ -287,42 +356,67 @@ std::vector<V2_float> GetVisibilityPolygon(
 
 		// Cases with common endpoints.
 		if (a == c) {
-			if (b == d || GetOrientation(origin, a, d) != GetOrientation(origin, a, b)) {
+			if (b == d ||
+				impl::GetOrientation(origin, a, d) != impl::GetOrientation(origin, a, b)) {
 				return false;
 			}
-			return GetOrientation(a, b, d) != GetOrientation(a, b, origin);
+			return impl::GetOrientation(a, b, d) != impl::GetOrientation(a, b, origin);
 		}
 
 		// Cases without common endpoints.
-		auto cda{ GetOrientation(c, d, a) };
-		auto cdb{ GetOrientation(c, d, b) };
+		auto cda{ impl::GetOrientation(c, d, a) };
+		auto cdb{ impl::GetOrientation(c, d, b) };
 
-		if (cdb == Orientation::Collinear && cda == Orientation::Collinear) {
+		if (cdb == impl::Orientation::Collinear && cda == impl::Orientation::Collinear) {
 			return (origin - a).MagnitudeSquared() < (origin - c).MagnitudeSquared();
-		} else if (cda == cdb || cda == Orientation::Collinear || cdb == Orientation::Collinear) {
-			auto cdo = GetOrientation(c, d, origin);
+		} else if (
+			cda == cdb || cda == impl::Orientation::Collinear || cdb == impl::Orientation::Collinear
+		) {
+			auto cdo = impl::GetOrientation(c, d, origin);
 			return cdo == cda || cdo == cdb;
 		} else {
-			auto abo = GetOrientation(a, b, origin);
-			return abo != GetOrientation(a, b, c);
+			auto abo = impl::GetOrientation(a, b, origin);
+			return abo != impl::GetOrientation(a, b, c);
 		}
 	};
 
+	auto cmp_dist = [&](const Line& x, const Line& y) {
+		if (same_segment(x, y)) {
+			return false;
+		}
+
+		auto xy{ closer(x, y) };
+		auto yx{ closer(y, x) };
+
+		if (xy != yx) {
+			return xy;
+		}
+
+		// Either both false or both true.
+		// Both false means geometrically ambiguous/equal for this comparison.
+		// In both cases, fall back to a stable strict ordering.
+		return line_less(x, y);
+	};
+
 	std::set<Line, decltype(cmp_dist)> state{ cmp_dist };
-	std::vector<VisibilityEvent> events;
+	std::vector<impl::VisibilityEvent> events;
 
 	for (const auto& segment : shadow_segments) {
 		// Sort line segment endpoints and add them as events.
 		// Skip line segments Collinear with the point.
-		if (auto pab{ GetOrientation(point, segment.start, segment.end) };
-			pab == Orientation::Collinear) {
+		if (auto pab{ impl::GetOrientation(point, segment.start, segment.end) };
+			pab == impl::Orientation::Collinear) {
 			continue;
-		} else if (pab == Orientation::RightTurn) {
-			events.emplace_back(VisibilityEvent::StartVertex, segment);
-			events.emplace_back(VisibilityEvent::EndVertex, Line{ segment.end, segment.start });
+		} else if (pab == impl::Orientation::RightTurn) {
+			events.emplace_back(impl::VisibilityEvent::Type::StartVertex, segment);
+			events.emplace_back(
+				impl::VisibilityEvent::Type::EndVertex, Line{ segment.end, segment.start }
+			);
 		} else {
-			events.emplace_back(VisibilityEvent::StartVertex, Line{ segment.end, segment.start });
-			events.emplace_back(VisibilityEvent::EndVertex, segment);
+			events.emplace_back(
+				impl::VisibilityEvent::Type::StartVertex, Line{ segment.end, segment.start }
+			);
+			events.emplace_back(impl::VisibilityEvent::Type::EndVertex, segment);
 		}
 
 		// Initialize state by adding line segments that are intersected
@@ -333,14 +427,14 @@ std::vector<V2_float> GetVisibilityPolygon(
 			std::swap(a, b);
 		}
 
-		if (GetOrientation(a, b, point) == Orientation::RightTurn &&
+		if (impl::GetOrientation(a, b, point) == impl::Orientation::RightTurn &&
 			(NearlyEqual(b.x, point.x) || (a.x < point.x && point.x < b.x))) {
 			state.insert(segment);
 		}
 	}
 
 	// compare angles clockwise starting at the positive y axis
-	const auto angle_comparer = [point](V2_float a, V2_float b) {
+	auto angle_comparer = [point](V2_float a, V2_float b) {
 		auto is_a_left{ StrictlyLess(a.x, point.x) };
 		auto is_b_left{ StrictlyLess(b.x, point.x) };
 
@@ -370,7 +464,8 @@ std::vector<V2_float> GetVisibilityPolygon(
 	std::sort(events.begin(), events.end(), [&angle_comparer](const auto& a, const auto& b) {
 		// If the points are equal, sort end vertices first.
 		if (a.segment.start == b.segment.start) {
-			return a.type == VisibilityEvent::EndVertex && b.type == VisibilityEvent::StartVertex;
+			return a.type == impl::VisibilityEvent::Type::EndVertex &&
+				   b.type == impl::VisibilityEvent::Type::StartVertex;
 		}
 		return angle_comparer(a.segment.start, b.segment.start);
 	});
@@ -379,7 +474,7 @@ std::vector<V2_float> GetVisibilityPolygon(
 	std::vector<V2_float> vertices;
 
 	for (const auto& event : events) {
-		if (event.type == VisibilityEvent::EndVertex) {
+		if (event.type == impl::VisibilityEvent::Type::EndVertex) {
 			state.erase(event.segment);
 		}
 
@@ -390,14 +485,14 @@ std::vector<V2_float> GetVisibilityPolygon(
 			// Compute the intersection point with this segment.
 			V2_float intersection;
 			Line nearest_segment{ *state.begin() };
-			[[maybe_unused]] auto intersects{ VisibilityRayIntersects(
+			[[maybe_unused]] auto intersects{ impl::VisibilityRayIntersects(
 				point, event.segment.start - point, nearest_segment, intersection
 			) };
 
 			// TODO: Readd this assert once the resolution change no longer crashes the algorithm.
 			// PTGN_ASSERT(intersects, "Ray intersects line segment L if L is in the state");
 
-			if (event.type == VisibilityEvent::StartVertex) {
+			if (event.type == impl::VisibilityEvent::Type::StartVertex) {
 				vertices.emplace_back(intersection);
 				vertices.emplace_back(event.segment.start);
 			} else {
@@ -406,7 +501,7 @@ std::vector<V2_float> GetVisibilityPolygon(
 			}
 		}
 
-		if (event.type == VisibilityEvent::StartVertex) {
+		if (event.type == impl::VisibilityEvent::Type::StartVertex) {
 			state.insert(event.segment);
 		}
 	}
@@ -418,7 +513,7 @@ std::vector<V2_float> GetVisibilityPolygon(
 		auto prev{ top == vertices.begin() ? vertices.end() - 1 : top - 1 };
 		auto next{ it + 1 == vertices.end() ? vertices.begin() : it + 1 };
 
-		if (GetOrientation(*prev, *it, *next) != Orientation::Collinear) {
+		if (impl::GetOrientation(*prev, *it, *next) != impl::Orientation::Collinear) {
 			*top++ = *it;
 		}
 	}
@@ -427,21 +522,23 @@ std::vector<V2_float> GetVisibilityPolygon(
 }
 
 std::vector<Triangle> GetVisibilityTriangles(
-	V2_float origin, const std::vector<Line>& shadow_segments
+	V2_float origin, std::span<const Line> shadow_segments
 ) {
 	auto polygon{ GetVisibilityPolygon(origin, shadow_segments) };
 
-	// We need at least 3 points to form a triangle.
-	if (polygon.size() < 3) {
+	auto count{ polygon.size() };
+
+	// At least 3 points needed to form a triangle.
+	if (count < 3) {
 		return {};
 	}
 
 	std::vector<Triangle> triangles;
-	triangles.reserve(polygon.size());
+	triangles.reserve(count);
 
-	for (std::size_t i = 0; i < polygon.size(); ++i) {
+	for (auto i{ 0uz }; i < count; ++i) {
 		V2_float a{ polygon[i] };
-		V2_float b{ polygon[(i + 1) % polygon.size()] };
+		V2_float b{ polygon[(i + 1) % count] };
 
 		triangles.emplace_back(origin, a, b);
 	}
@@ -449,7 +546,7 @@ std::vector<Triangle> GetVisibilityTriangles(
 	return triangles;
 }
 
-std::vector<Line> PointsToLines(const std::vector<V2_float>& points, bool connect_last_to_first) {
+std::vector<Line> PointsToLines(std::span<const V2_float> points, bool connect_last_to_first) {
 	std::size_t count{ points.size() };
 
 	if (count < 2) {
@@ -461,7 +558,7 @@ std::vector<Line> PointsToLines(const std::vector<V2_float>& points, bool connec
 	std::vector<Line> lines;
 	lines.reserve(end);
 
-	for (std::size_t i{ 0 }; i < end; ++i) {
+	for (auto i{ 0uz }; i < end; ++i) {
 		// Wraps around if connect_last_to_first is true.
 		lines.emplace_back(points[i], points[(i + 1) % count]);
 	}
@@ -470,12 +567,21 @@ std::vector<Line> PointsToLines(const std::vector<V2_float>& points, bool connec
 
 namespace impl {
 
-bool IsInside(V2_float p, const Line& edge) {
-	V2_float edge_vec{ edge.end - edge.start };
+bool IsInside(V2_float p, const Line& edge, bool clip_is_counter_clockwise) {
+	V2_float edge_vec{ edge.GetDirection() };
 	V2_float point_vec{ p - edge.start };
 
-	// Cross product >= 0 means p is to the left or on the edge line.
-	return edge_vec.Cross(point_vec) >= 0;
+	float cross{ edge_vec.Cross(point_vec) };
+
+	// For a CCW polygon, its interior lies to the left of each edge.
+	// For a CW polygon, its interior lies to the right.
+	//
+	// Include points very slightly outside due to floating point error.
+	if (clip_is_counter_clockwise) {
+		return cross >= -kEpsilon<float>;
+	}
+
+	return cross <= kEpsilon<float>;
 }
 
 std::optional<V2_float> ComputeIntersection(V2_float a, V2_float b, V2_float c, V2_float d) {
@@ -484,14 +590,15 @@ std::optional<V2_float> ComputeIntersection(V2_float a, V2_float b, V2_float c, 
 
 	float denominator{ ab.Cross(cd) };
 
-	if (std::abs(denominator) < epsilon<float>) {
-		return std::nullopt; // Lines are parallel.
+	if (std::abs(denominator) < kEpsilon<float>) {
+		return std::nullopt;
 	}
 
+	// Intersection of segment AB with the infinite line through CD.
 	float t{ (c - a).Cross(cd) / denominator };
 
 	if (t < 0.0f || t > 1.0f) {
-		return std::nullopt; // Intersection not within segment AB.
+		return std::nullopt;
 	}
 
 	return a + ab * t;
@@ -502,16 +609,34 @@ std::optional<V2_float> ComputeIntersection(V2_float a, V2_float b, V2_float c, 
 std::vector<V2_float> ClipPolygons(
 	const std::vector<V2_float>& subject_polygon, const std::vector<V2_float>& clip_polygon
 ) {
+	if (subject_polygon.empty()) {
+		return {};
+	}
+
+	if (clip_polygon.size() < 3) {
+		return {};
+	}
+
+	float clip_area{ impl::TriangulateArea(clip_polygon) };
+
+	// A clipping polygon with zero area does not define a valid interior.
+	if (NearlyEqual(clip_area, 0.0f)) {
+		return {};
+	}
+
+	bool clip_is_counter_clockwise{ clip_area > 0.0f };
+
 	std::vector<V2_float> output_list{ subject_polygon };
 
-	for (std::size_t i{ 0 }; i < clip_polygon.size(); ++i) {
-		V2_float clip_start = clip_polygon[i];
-		V2_float clip_end	= clip_polygon[(i + 1) % clip_polygon.size()];
+	auto count{ clip_polygon.size() };
+
+	for (auto i{ 0uz }; i < count; ++i) {
+		V2_float clip_start{ clip_polygon[i] };
+		V2_float clip_end{ clip_polygon[(i + 1) % count] };
 
 		Line clip_edge{ clip_start, clip_end };
 
-		std::vector<V2_float> input_list{ output_list };
-
+		auto input_list{ std::move(output_list) };
 		output_list.clear();
 
 		if (input_list.empty()) {
@@ -519,27 +644,39 @@ std::vector<V2_float> ClipPolygons(
 		}
 
 		V2_float s{ input_list.back() };
+		bool s_inside{ impl::IsInside(s, clip_edge, clip_is_counter_clockwise) };
 
 		for (V2_float e : input_list) {
-			bool e_inside{ impl::IsInside(e, clip_edge) };
-			bool s_inside{ impl::IsInside(s, clip_edge) };
+			bool e_inside{ impl::IsInside(e, clip_edge, clip_is_counter_clockwise) };
 
 			if (e_inside) {
+				// Outside -> inside:
+				//
+				//       S -----|---- E
+				//             ^
+				//          intersection
 				if (!s_inside) {
 					if (auto intersection{
 							impl::ComputeIntersection(s, e, clip_edge.start, clip_edge.end) }) {
-						output_list.push_back(*intersection);
+						output_list.emplace_back(*intersection);
 					}
 				}
-				output_list.push_back(e);
+
+				output_list.emplace_back(e);
 			} else if (s_inside) {
+				// Inside -> outside:
+				//
+				//       S ----|----- E
+				//            ^
+				//         intersection
 				if (auto intersection{
 						impl::ComputeIntersection(s, e, clip_edge.start, clip_edge.end) }) {
-					output_list.push_back(*intersection);
+					output_list.emplace_back(*intersection);
 				}
 			}
 
-			s = e;
+			s		 = e;
+			s_inside = e_inside;
 		}
 	}
 
@@ -567,24 +704,24 @@ float ClosestPointLineLine(
 	float e = d2.Dot(d2);					// Squared length of segment S2, always nonnegative
 	float f = d2.Dot(r);
 	// Checke if one or both segments degenerate into points.
-	if (a <= epsilon<float> && e <= epsilon<float>) {
+	if (a <= kEpsilon<float> && e <= kEpsilon<float>) {
 		// Both segments degenerate into points
 		s = t = 0.0f;
 		c1	  = lineA_start;
 		c2	  = lineB_start;
 		return (c1 - c2).Dot(c1 - c2);
 	}
-	if (a <= epsilon<float>) {
+	if (a <= kEpsilon<float>) {
 		// First segment degenerates into a point
 		s = 0.0f;
 		t = f / e; // s = 0 => t = (b*s + f) / e = f / e
-		t = std::clamp(t, 0.0f, 1.0f);
+		t = Clamp01(t);
 	} else {
 		float c = d1.Dot(r);
-		if (e <= epsilon<float>) {
+		if (e <= kEpsilon<float>) {
 			// Second segment degenerates into a point
 			t = 0.0f;
-			s = std::clamp(-c / a, 0.0f, 1.0f); // t = 0 => s = (b*t - c) / a = -c / a
+			s = Clamp01(-c / a); // t = 0 => s = (b*t - c) / a = -c / a
 		} else {
 			// The general nondegenerate case starts here
 			float b		= d1.Dot(d2);
@@ -592,7 +729,7 @@ float ClosestPointLineLine(
 			// If segments not parallel, compute closest point on L1 to L2 and
 			// clamp to segment S1. Else pick arbitrary s (here 0)
 			if (denom != 0.0f) {
-				s = std::clamp((b * f - c * e) / denom, 0.0f, 1.0f);
+				s = Clamp01((b * f - c * e) / denom);
 			} else {
 				s = 0.0f;
 			}
@@ -603,10 +740,10 @@ float ClosestPointLineLine(
 
 			if (tnom < 0.0f) {
 				t = 0.0f;
-				s = std::clamp(-c / a, 0.0f, 1.0f);
+				s = Clamp01(-c / a);
 			} else if (tnom > e) {
 				t = 1.0f;
-				s = std::clamp((b - c) / a, 0.0f, 1.0f);
+				s = Clamp01((b - c) / a);
 			} else {
 				t = tnom / e;
 			}
@@ -639,8 +776,8 @@ float SquareDistancePointLine(V2_float point, V2_float start, V2_float end) {
 
 float SquareDistancePointRect(V2_float point, V2_float rect_min, V2_float rect_max) {
 	float dist2{ 0.0f };
-	for (std::size_t i{ 0 }; i < 2; ++i) {
-		const float v{ point[i] };
+	for (auto i{ 0uz }; i < 2; ++i) {
+		float v{ point[i] };
 		if (v < rect_min[i]) {
 			dist2 += (rect_min[i] - v) * (rect_min[i] - v);
 		}
@@ -701,43 +838,6 @@ float GetIntervalOverlap(
 
 	// Entirely within the interval.
 	return std::min(right_dist, left_dist);
-}
-
-bool IsConvexPolygon(const V2_float* vertices, std::size_t vertex_count) {
-	PTGN_ASSERT(vertex_count >= 3, "Line or point convexity check is redundant");
-
-	const auto get_cross = [](V2_float a, V2_float b, V2_float c) {
-		return (b.x - a.x) * (c.y - b.y) - (b.y - a.y) * (c.x - b.x);
-	};
-
-	int sign{ static_cast<int>(Sign(get_cross(vertices[0], vertices[1], vertices[2]))) };
-
-	// For convex polygons, all sequential point triplet cross products must have the same sign
-	// (+ or -). For convex polygon every triplet makes turn in the same side (or CW, or CCW
-	// depending on walk direction). For concave one some signs will differ (where inner angle
-	// exceeds 180 degrees). Note that you don't need to calculate angle values. Source:
-	// https://stackoverflow.com/a/40739079
-
-	// Skip first point since that is the established reference.
-	for (std::size_t i = 1; i < vertex_count; i++) {
-		V2_float a{ vertices[(i + 0)] };
-		V2_float b{ vertices[(i + 1) % vertex_count] };
-		V2_float c{ vertices[(i + 2) % vertex_count] };
-
-		int new_sign{ static_cast<int>(Sign(get_cross(a, b, c))) };
-
-		if (new_sign != sign) {
-			// Polygon is concave.
-			return false;
-		}
-	}
-
-	// Convex.
-	return true;
-}
-
-bool IsConcavePolygon(const V2_float* vertices, std::size_t vertex_count) {
-	return !IsConvexPolygon(vertices, vertex_count);
 }
 
 } // namespace impl

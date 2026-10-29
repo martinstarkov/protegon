@@ -1,54 +1,223 @@
 #pragma once
 
-#include <iomanip>
-#include <ios>
-#include <iosfwd>
-#include <ostream>
+#include <algorithm>
+#include <cctype>
+#include <cstddef>
+#include <functional>
+#include <initializer_list>
+#include <iterator>
 #include <sstream>
 #include <string>
 #include <string_view>
-#include <type_traits>
+#include <utility>
 
-#include "core/util/concepts.h"
+#include "core/util/concepts_stream.h"
 
 namespace ptgn {
 
+struct StringHash {
+	using hash_type		 = std::hash<std::string_view>;
+	using is_transparent = void;
+
+	std::size_t operator()(const char* str) const {
+		return hash_type{}(str);
+	}
+
+	std::size_t operator()(std::string_view str) const {
+		return hash_type{}(str);
+	}
+
+	std::size_t operator()(const std::string& str) const {
+		return hash_type{}(str);
+	}
+};
+
 template <StreamWritable T>
-std::string ToString(const T& object) {
+[[nodiscard]] std::string ToString(const T& object) {
 	std::ostringstream ss;
 	ss << object;
 	return ss.str();
 }
 
-/// @param precision The number of decimal places of precision to have in numbers converted to
-/// string.
-template <StreamWritable T>
-std::string ToString(const T& object, int precision) {
-	std::ostringstream ss;
-	ss << std::fixed << std::setprecision(precision);
-	ss << object;
-	if constexpr (std::is_floating_point_v<T>) {
-		// Catch and remove -0s. As per: https://stackoverflow.com/a/21538723
-		const std::string& t{ ss.str() };
-		return t.find_first_of("123456789") == std::string::npos && t[0] == '-' ? t.substr(1) : t;
-	} else {
-		return ss.str();
-	}
+template <StreamWritable... Ts>
+[[nodiscard]] std::string ToString(Ts&&... parts) {
+	std::ostringstream oss;
+	((oss << std::forward<Ts>(parts)), ...);
+	return oss.str();
 }
 
-std::string ToLower(const std::string& str);
+/// @param precision The number of decimal places of precision to have in numbers converted to
+/// string.
+[[nodiscard]] std::string ToString(double value, int precision);
 
-std::string ToUpper(const std::string& str);
+[[nodiscard]] constexpr char LowerAscii(char c) {
+	return c >= 'A' && c <= 'Z' ? static_cast<char>(c - 'A' + 'a') : c;
+}
+
+[[nodiscard]] constexpr std::string ToLowerAscii(std::string_view str) {
+	std::string out;
+	out.reserve(str.size());
+	std::ranges::transform(str, std::back_inserter(out), LowerAscii);
+	return out;
+}
+
+/// @brief Tests whether text contains a substring, ignoring ASCII letter case.
+[[nodiscard]] constexpr bool ContainsCaseInsensitive(
+	std::string_view text, std::string_view query
+) {
+	if (query.empty()) {
+		return true;
+	}
+
+	if (query.size() > text.size()) {
+		return false;
+	}
+
+	for (std::size_t i{ 0 }; i + query.size() <= text.size(); ++i) {
+		bool matches{ true };
+
+		for (std::size_t j{ 0 }; j < query.size(); ++j) {
+			if (LowerAscii(text[i + j]) != LowerAscii(query[j])) {
+				matches = false;
+				break;
+			}
+		}
+
+		if (matches) {
+			return true;
+		}
+	}
+
+	return false;
+}
+
+[[nodiscard]] constexpr std::string ToLower(std::string_view str) {
+	std::string out;
+	out.reserve(str.size());
+	std::ranges::transform(str, std::back_inserter(out), [](unsigned char c) {
+		return static_cast<char>(std::tolower(c));
+	});
+	return out;
+}
+
+[[nodiscard]] constexpr std::string ToUpper(std::string_view str) {
+	std::string out;
+	out.reserve(str.size());
+	std::ranges::transform(str, std::back_inserter(out), [](unsigned char c) {
+		return static_cast<char>(std::toupper(c));
+	});
+	return out;
+}
 
 /// @return True if str begins with the specified prefix.
-constexpr bool BeginsWith(std::string_view str, std::string_view prefix) {
+[[nodiscard]] constexpr bool BeginsWithPrefix(std::string_view str, std::string_view prefix) {
 	return str.size() >= prefix.size() && str.compare(0, prefix.size(), prefix) == 0;
 }
 
 /// @return True if str ends with the specified suffix.
-constexpr bool EndsWith(std::string_view str, std::string_view suffix) {
+[[nodiscard]] constexpr bool EndsWithSuffix(std::string_view str, std::string_view suffix) {
 	return str.size() >= suffix.size() &&
 		   str.compare(str.size() - suffix.size(), suffix.size(), suffix) == 0;
+}
+
+/// @brief Replaces all occurrences of a substring with another substring.
+/// @return A new string with all occurrences of `from` replaced by `to`.
+[[nodiscard]] constexpr std::string ReplaceAll(
+	std::string_view input, std::string_view from, std::string_view to
+) {
+	std::string result{ input };
+
+	if (from.empty() || from == to) {
+		return result;
+	}
+
+	std::size_t pos{ 0 };
+	while ((pos = result.find(from, pos)) != std::string::npos) {
+		result.replace(pos, from.size(), to);
+		pos += to.size();
+	}
+
+	return result;
+}
+
+/// @brief Removes leading and trailing ASCII whitespace.
+/// @return A view into the original string, without copying its contents.
+[[nodiscard]] constexpr std::string_view TrimWhitespace(std::string_view s) {
+	std::size_t start{ s.find_first_not_of(" \f\n\r\t\v") };
+	if (start == std::string_view::npos) {
+		return {};
+	}
+	std::size_t end{ s.find_last_not_of(" \f\n\r\t\v") };
+	return s.substr(start, end - start + 1);
+}
+
+/// @brief Matches comma separated include and exclude terms against any of the supplied texts.
+/// Positive terms use OR and every excluded term must be absent.
+[[nodiscard]] constexpr bool MatchesTextFilter(
+	std::string_view filter, std::initializer_list<std::string_view> texts
+) {
+	bool has_include{ false };
+	bool matched_include{ false };
+	std::size_t start{ 0 };
+
+	while (start <= filter.size()) {
+		std::size_t comma{ filter.find(',', start) };
+		std::string_view term{ TrimWhitespace(filter.substr(
+			start, comma == std::string_view::npos ? std::string_view::npos : comma - start
+		)) };
+
+		if (!term.empty()) {
+			bool exclude{ term.front() == '-' };
+			if (exclude) {
+				term = TrimWhitespace(term.substr(1));
+			}
+
+			if (!term.empty()) {
+				bool contains{ false };
+				for (std::string_view text : texts) {
+					if (ContainsCaseInsensitive(text, term)) {
+						contains = true;
+						break;
+					}
+				}
+
+				if (exclude && contains) {
+					return false;
+				}
+
+				if (!exclude) {
+					has_include		 = true;
+					matched_include |= contains;
+				}
+			}
+		}
+
+		if (comma == std::string_view::npos) {
+			break;
+		}
+		start = comma + 1;
+	}
+
+	return !has_include || matched_include;
+}
+
+/// @return New string with just the content inside R"( ... )"
+/// This function does not handle delimiters such as R"delim( ... )delim".
+[[nodiscard]] constexpr std::string TrimRawStringLiteral(std::string_view content) {
+	constexpr std::string_view raw_start{ "R\"(" };
+	constexpr std::string_view raw_end{ ")\"" };
+
+	std::size_t start{ content.find(raw_start) };
+	std::size_t end{ content.rfind(raw_end) };
+
+	if (start != std::string_view::npos && end != std::string_view::npos &&
+		end > start + raw_start.size()) {
+		return std::string{
+			content.substr(start + raw_start.size(), end - (start + raw_start.size()))
+		};
+	}
+
+	return std::string{ content };
 }
 
 } // namespace ptgn

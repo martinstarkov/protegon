@@ -1,40 +1,55 @@
 #pragma once
 
 #include <array>
+#include <cstdlib>
+#include <algorithm>
 
+#include "core/math/geometry/line.h"
 #include "core/math/transform.h"
 #include "core/math/vector2.h"
-#include "serialization/json/serialize.h"
+#include "serialization/serialize.h"
 
 namespace ptgn {
 
-struct Capsule {
-	Capsule() = default;
-
-	Capsule(V2_float start, V2_float end, float radius);
-
-	/// @param out_size Optional parameter for the unrotated size of the quad.
-	/// @return Quad vertices relative to the given transform for this line with a given a line
-	/// width.
-	std::array<V2_float, 4> GetWorldQuadVertices(Transform transform, V2_float* out_size = nullptr)
-		const;
-
-	std::array<V2_float, 2> GetWorldVertices(Transform transform) const;
-
-	std::array<V2_float, 2> GetLocalVertices() const;
-
-	float GetRadius() const;
-
-	/// @return Radius scaled relative to the transform.
-	float GetRadius(Transform transform) const;
-
-	bool operator==(const Capsule&) const = default;
-
-	V2_float start;
-	V2_float end;
+class Capsule {
+public:
+	Line line;
 	float radius{ 0.0f };
 
-	PTGN_SERIALIZER_REGISTER_IGNORE_DEFAULTS(Capsule, start, end, radius)
+	constexpr Capsule() = default;
+
+	constexpr Capsule(V2_float start, V2_float end, float capsule_radius) :
+		line{ start, end }, radius{ capsule_radius } {}
+
+	/// @param out_size Optional parameter for the unrotated world size of the quad.
+	constexpr std::array<V2_float, 4> GetWorldQuadVertices(
+		Transform transform, V2_float* out_size = nullptr
+	) const {
+		float diameter{
+			std::max(1.0f, 2.0f * GetRadius(transform))
+		};
+
+		return line.GetWorldQuadVertices(
+			transform,
+			diameter,
+			out_size
+		);
+	}
+
+	constexpr float GetRadius() const {
+		return radius;
+	}
+
+	/// @return Radius scaled relative to the transform.
+	constexpr float GetRadius(Transform transform) const {
+		auto avg_scale{ transform.GetAverageScale() };
+		auto abs_scale{ std::abs(avg_scale) };
+		return radius * abs_scale;
+	}
+
+	constexpr bool operator==(const Capsule&) const = default;
+
+	PTGN_REFLECT(Capsule, line, radius)
 };
 
 } // namespace ptgn

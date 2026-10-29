@@ -1,53 +1,56 @@
 
+#include "runtime/graphics/custom_shader.h"
+
 #include <chrono>
 
 #include "app/application.h"
+#include "app/editor.h"
 #include "core/math/geometry/origin.h"
 #include "core/math/vector2.h"
-#include "renderer/primitives/shader.h"
+#include "renderer/resources/shader.h"
 #include "runtime/asset/asset_manager.h"
 #include "runtime/ecs/entity.h"
-#include "runtime/graphics/shader_component.h"
 #include "runtime/physics/movement.h"
 #include "runtime/scene/scene.h"
-
+#include "runtime/scene/scene_context.h"
 
 using namespace ptgn;
 
 class CustomShaderScene : public Scene {
 public:
-	ShaderEntity shader_entity;
-	ShaderEntity shader_entity2;
+	CustomShader shader_entity;
 
 	void OnEnter() override {
-		ctx().asset.LoadShader("whirlpool", "assets/shader.glsl");
-		ctx().asset.LoadShader("ripple", ShaderPair{ "quad", "assets/ripple.glsl" });
-		ctx().asset.LoadTexture("noise", "assets/noise.png");
+		ctx().asset.Load("whirlpool", "assets/shader.glsl");
+		ctx().asset.Load("ripple", ShaderPair{ "texture", "assets/ripple.glsl" });
+		ctx().asset.Load("noise", "assets/noise.png");
 
-		shader_entity = CreateShaderEntity(
-			*this, "whirlpool", "noise", V2_float{}, V2_float{ 150 },
-			[this](auto, auto s) mutable {
+		shader_entity =
+			CreateCustomShader(*this, {}, "whirlpool", "noise", V2_float{ 150 }, {}, Origin::Center)
+				.SetMaterialUpdate([](auto entity) mutable {
+					float timescale{ 1.0f };
+					float scale{ 0.5f };
+					float opacity{ 0.5f };
+					float time{
+						entity.GetScene().ctx().GameTime().count()
+					};
+
+					entity.SetMaterialUniforms(
+						{ { "u_Time", time * timescale },
+						  { "u_Scale", scale },
+						  { "u_Opacity", opacity } }
+					);
+				});
+
+		CreateCustomShader(
+			*this, V2_float{ 200 }, "ripple", {}, V2_float{ 300 }, {}, Origin::Center
+		)
+			.SetMaterialUpdate([](auto entity) mutable {
 				float timescale{ 1.0f };
-				float scale{ 0.5f };
-				float opacity{ 0.5f };
+				float time{ entity.GetScene().ctx().GameTime().count() };
 
-				float time{ static_cast<float>(ctx().TimeSinceStart().count()) };
-				s.SetUniform("u_Time", time / 1000.0f * timescale);
-				s.SetUniform("u_Scale", scale);
-				s.SetUniform("u_Opacity", opacity);
-			},
-			Origin::Center
-		);
-
-		shader_entity2 = CreateShaderEntity(
-			*this, "ripple", {}, V2_float{ 200 }, V2_float{ 300 },
-			[this](auto, auto s) mutable {
-				float timescale{ 1.0f };
-				float time{ static_cast<float>(ctx().TimeSinceStart().count()) };
-				s.SetUniform("u_Time", time / 1000.0f * timescale);
-			},
-			Origin::Center
-		);
+				entity.SetMaterialUniforms({ { "u_Time", time * timescale } });
+			});
 	}
 
 	void OnUpdate() override {
@@ -60,6 +63,7 @@ public:
 };
 
 int main(int, char**) {
-	Application game{ "CustomShaderScene: WASD: Move" };
-	game.StartWith<CustomShaderScene>();
+	Application app{ "CustomShaderScene: WASD: Move" };
+	PTGN_WITH_EDITOR(app, false);
+	app.StartWith<CustomShaderScene>();
 }

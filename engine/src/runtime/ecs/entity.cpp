@@ -1,105 +1,207 @@
 #include "runtime/ecs/entity.h"
 
+#include <ecs/ecs.h>
+
+#include <algorithm>
 #include <cstdint>
 #include <memory>
-#include <random>
+#include <optional>
+#include <string>
+#include <string_view>
 #include <utility>
+#include <vector>
 
 #include "core/assert.h"
+#include "core/event/event.h"
+#include "core/math/angle.h"
 #include "core/math/transform.h"
 #include "core/math/vector2.h"
-#include "core/util/type_info.h"
-#include "ecs/ecs.h"
 #include "runtime/animation/offsets.h"
 #include "runtime/ecs/component_registry.h"
 #include "runtime/ecs/entity_hierarchy.h"
 #include "runtime/ecs/manager.h"
-#include "runtime/graphics/camera.h"
+#include "runtime/ecs/tag.h"
+#include "runtime/ecs/uuid.h"
 #include "runtime/scene/scene.h"
+#include "runtime/scene/scene_camera.h"
+#include "runtime/scene/scene_event.h"
+#include "runtime/scripting/script.h"
 #include "serialization/json/archiver.h"
-#include "serialization/json/fwd.h"
+#include "serialization/json/json.h"
 
 namespace ptgn {
 
-namespace impl {
+namespace {
 
-static std::random_device uuid_random_device;
-static std::mt19937_64 uuid_engine(uuid_random_device());
-static std::uniform_int_distribution<std::uint64_t> uuid_distribution;
+Transform GetWorldTransformImpl(Entity entity, std::size_t search_depth) {
+	auto transform{ GetTransform(entity) };
 
-} // namespace impl
+	if (entity.Has<impl::IgnoreParentTransform>()) {
+		return transform;
+	}
 
-UUID::UUID() : uuid_{ impl::uuid_distribution(impl::uuid_engine) } {}
+	if (!HasParent(entity)) {
+		return transform;
+	}
 
-UUID::UUID(std::uint64_t uuid) : uuid_{ uuid } {}
+	if (search_depth >= kMaxParentDepth) {
+		PTGN_WARN("Maximum parent depth exceeded while resolving world transform");
+		return transform;
+	}
 
-UUID::operator std::uint64_t() const {
-	return uuid_;
+	auto parent{ GetParent(entity) };
+
+	if (parent == entity) {
+		PTGN_WARN("Entity cannot be its own parent while resolving world transform");
+		return transform;
+	}
+
+	auto relative_to{ GetWorldTransformImpl(parent, search_depth + 1) };
+	auto world_transform{ transform.RelativeTo(relative_to) };
+
+	if (entity.Has<impl::IgnoreParentPosition>()) {
+		world_transform.position = transform.position;
+	}
+
+	if (entity.Has<impl::IgnoreParentScale>()) {
+		world_transform.scale = transform.scale;
+		world_transform.ClampScale();
+	}
+
+	if (entity.Has<impl::IgnoreParentRotation>()) {
+		world_transform.rotation = transform.rotation;
+	}
+
+	return world_transform;
 }
 
-Entity::Entity(Scene& scene) : Entity{ scene.CreateEntity() } {}
+Transform GetTransformImpl(Entity entity, Transform world_transform, std::size_t search_depth) {
+	if (entity.Has<impl::IgnoreParentTransform>()) {
+		return world_transform;
+	}
 
-// void Entity::Clear() const {
-//	entity_.Clear();
-// }
+	if (!HasParent(entity)) {
+		return world_transform;
+	}
+
+	if (search_depth >= kMaxParentDepth) {
+		PTGN_WARN("Maximum parent depth exceeded while resolving local transform");
+		return world_transform;
+	}
+
+	auto parent{ GetParent(entity) };
+
+	if (parent == entity) {
+		PTGN_WARN("Entity cannot be its own parent while resolving local transform");
+		return world_transform;
+	}
+
+	auto parent_world_transform{ GetWorldTransformImpl(parent, search_depth + 1) };
+	auto local_transform{ world_transform.InverseRelativeTo(parent_world_transform) };
+
+	if (entity.Has<impl::IgnoreParentPosition>()) {
+		local_transform.position = world_transform.position;
+	}
+
+	if (entity.Has<impl::IgnoreParentScale>()) {
+		local_transform.scale = world_transform.scale;
+		local_transform.ClampScale();
+	}
+
+	if (entity.Has<impl::IgnoreParentRotation>()) {
+		local_transform.rotation = world_transform.rotation;
+	}
+
+	return local_transform;
+}
+
+} // namespace
+
+void NotifyComponentChanged(Entity entity, std::size_t type_hash, bool added) {
+	if (!entity || !entity.HasScene() || !entity.GetScene().IsRuntime()) {
+		return;
+	}
+	if (added) {
+		PushEvent<event::ComponentAdded>(entity, entity, type_hash);
+	} else {
+		PushEvent<event::ComponentRemoved>(entity, entity, type_hash);
+	}
+}
 
 Entity& Entity::Destroy(bool orphan_children) {
-	if (*this == Entity{}) {
+	if (!*this) {
+		return *this;
+	}
+
+	// The event is dispatched before any descendants or components are removed.
+	// Guard against scripts recursively destroying the same entity.
+	using DestructionId = std::pair<Manager*, std::size_t>;
+	static thread_local std::vector<DestructionId> destroying;
+	DestructionId identity{ &GetManager(), GetECSId() };
+	if (std::ranges::contains(destroying, identity)) {
+		return *this;
+	}
+	destroying.emplace_back(identity);
+	if (HasScene() && GetScene().IsRuntime()) {
+		PushEvent<event::EntityDestroyed>(*this, *this);
+	}
+	if (!*this) {
+		std::erase(destroying, identity);
 		return *this;
 	}
 
 	if (HasChildren(*this)) {
-		auto children{ GetChildren(*this) };
+		// Prevent iterator invalidation by copying the children list.
+		std::vector<Entity> children{ GetChildren(*this) };
+
 		if (orphan_children) {
 			for (Entity child : children) {
-				impl::RemoveParentImpl(child);
+				PTGN_ASSERT(child != *this, "Entity cannot be its own child");
+				impl::OrphanChild(child);
 			}
 		} else {
 			for (Entity child : children) {
+				PTGN_ASSERT(child != *this, "Entity cannot be its own child");
 				child.Destroy();
 			}
 		}
 	}
 
 	entity_.Destroy();
+	std::erase(destroying, identity);
 	return *this;
 }
 
 Manager& Entity::GetManager() {
+	PTGN_ASSERT(entity_, "Cannot get manager of a null entity");
 	return static_cast<Manager&>(entity_.GetManager());
 }
 
 const Manager& Entity::GetManager() const {
+	PTGN_ASSERT(entity_, "Cannot get manager of a null entity");
 	return static_cast<const Manager&>(entity_.GetManager());
 }
 
 const Scene& Entity::GetScene() const {
+	PTGN_ASSERT(entity_, "Cannot get scene of a null entity");
+	PTGN_ASSERT(HasScene(), "Scene of each valid entity must be set upon construction");
 	return *scene_;
 }
 
 Scene& Entity::GetScene() {
-	return const_cast<Scene&>(std::as_const(*this).GetScene());
+	return const_cast<Scene&>(std::as_const(*this).GetScene()); // NOSONAR
 }
 
 bool Entity::HasScene() const {
-	return scene_ != nullptr;
+	return scene_;
 }
 
 bool Entity::IsIdenticalTo(Entity entity) const {
 	return entity_.IsIdenticalTo(entity.entity_);
 }
 
-UUID Entity::GetUUID() const {
-	PTGN_ASSERT(Has<UUID>(), "Every entity must have a UUID");
-	return Get<UUID>();
-}
-
-std::size_t Entity::GetId() const {
+std::size_t Entity::GetECSId() const {
 	return entity_.GetId();
-}
-
-std::size_t Entity::GetHash() const {
-	return std::hash<ecs::impl::EntityHandle<JsonArchiver>>()(entity_);
 }
 
 bool Entity::WasCreatedBefore(Entity other) const {
@@ -108,85 +210,60 @@ bool Entity::WasCreatedBefore(Entity other) const {
 	if (auto other_version{ other.entity_.GetVersion() }; version != other_version) {
 		return version < other_version;
 	}
-	return entity_.GetId() < other.entity_.GetId();
+	return GetECSId() < other.GetECSId();
 }
 
 void Entity::Invalidate() {
 	*this = {};
 }
 
-void Entity::SerializeAllImpl(json& j) const {
-	JsonArchiver archiver;
-
-	const auto& pools{ GetManager().pools_ };
-
-	for (const auto& pool : pools) {
-		if (!pool) {
-			continue;
-		}
-		pool->Serialize(archiver, entity_.GetId());
+void Entity::OnEvent(const Event& event) {
+	if (!*this) {
+		return;
 	}
 
-	j = archiver.j;
-}
-
-void Entity::DeserializeAllImpl(const json& j) {
-	JsonArchiver archiver;
-	archiver.j = j;
-
-	impl::ComponentRegistry::AddTypes(GetManager());
-
-	auto& manager{ GetManager() };
-
-	for (auto& pool : manager.pools_) {
-		if (!pool) {
-			continue;
-		}
-		pool->Deserialize(archiver, manager, entity_.GetId());
+	if (auto scripts{ TryGet<impl::Scripts>() }) {
+		scripts->OnEvent(event);
 	}
+
+	// Script additions and removals are committed after the current event batch,
+	// not between different events delivered to the same entity.
 }
 
 void to_json(json& j, const Entity& entity) {
-	j = json{};
+	j = json::object();
 
 	if (!entity) {
 		return;
 	}
 
-	constexpr auto uuid_name{ type_name_without_namespaces<UUID>() };
-
-	j[uuid_name] = entity.GetUUID();
-
-	// TODO: Fix scene key serialization.
+	j["uuid"] = entity.Get<UUID>();
+	j["tag"]  = entity.Get<Tag>();
+	if (entity.HasScene()) {
+		j["scene"] = entity.GetScene().GetTag();
+	}
 }
 
 void from_json(const json& j, Entity& entity) {
-	// TODO: Consider being able to fetch a manager using either a JSON key or the current scene.
 	PTGN_ASSERT(entity, "Cannot read JSON into null entity");
 
-	constexpr auto uuid_name{ type_name_without_namespaces<UUID>() };
+	if (j.contains("uuid")) {
+		UUID uuid;
+		j["uuid"].get_to(uuid);
+		entity.Add<UUID>(uuid);
+	}
 
-	PTGN_ASSERT(
-		j.contains(uuid_name), "Cannot create entity from JSON which does not contain a UUID"
-	);
+	if (j.contains("tag")) {
+		Tag tag;
+		j["tag"].get_to(tag.value);
+		entity.Add<Tag>(std::move(tag));
+	}
 
-	UUID uuid;
-
-	j[uuid_name].get_to(uuid);
-
-	const auto& scene{ entity.GetScene() };
-
-	auto found_entity{ scene.GetEntityByUUID(uuid) };
-
-	PTGN_ASSERT(!found_entity || (found_entity && found_entity == entity));
-
-	PTGN_ASSERT(entity, "Failed to find entity with UUID: ", uuid);
-
-	// TODO: Fix scene key serialization.
-}
-
-std::size_t Hash(Entity entity) {
-	return std::hash<Entity>()(entity);
+	if (j.contains("scene")) {
+		std::string scene_tag;
+		j["scene"].get_to(scene_tag);
+		PTGN_ASSERT(entity.GetScene().GetTag() == scene_tag, "Entity scene tag mismatch");
+	}
 }
 
 Transform GetTransform(Entity entity) {
@@ -194,58 +271,46 @@ Transform GetTransform(Entity entity) {
 }
 
 Transform GetWorldTransform(Entity entity) {
-	const auto transform{ GetTransform(entity) };
-	if (entity.Has<impl::IgnoreParentTransform>()) {
-		return transform;
-	}
-	Transform relative_to;
-	if (HasParent(entity)) {
-		Entity parent{ GetParent(entity) };
-		relative_to = GetWorldTransform(parent);
-	}
-	auto world_transform{ transform.RelativeTo(relative_to) };
-	if (entity.Has<impl::IgnoreParentPosition>()) {
-		world_transform.SetPosition(transform.GetPosition());
-	}
-	if (entity.Has<impl::IgnoreParentScale>()) {
-		world_transform.SetScale(transform.GetScale());
-	}
-	if (entity.Has<impl::IgnoreParentRotation>()) {
-		world_transform.SetRotation(transform.GetRotation());
-	}
-	return world_transform;
+	return GetWorldTransformImpl(entity, 0uz);
+}
+
+Transform GetTransform(Entity entity, Transform world_transform) {
+	return GetTransformImpl(entity, world_transform, 0uz);
+}
+
+void SetWorldTransform(Entity entity, Transform world_transform) {
+	entity.template Add<Transform>(GetTransform(entity, world_transform));
 }
 
 Transform GetDrawTransform(Entity entity) {
 	auto offset_transform{ GetOffset(entity) };
-	PTGN_ASSERT(!entity.Has<impl::CameraData>(), "GetDrawTransform is not meant for cameras");
 	auto transform{ GetWorldTransform(entity) };
 	transform = transform.RelativeTo(offset_transform);
 	return transform;
 }
 
 V2_float GetPosition(Entity entity) {
-	return GetTransform(entity).GetPosition();
+	return GetTransform(entity).position;
 }
 
 V2_float GetWorldPosition(Entity entity) {
-	return GetWorldTransform(entity).GetPosition();
+	return GetWorldTransform(entity).position;
 }
 
-float GetRotation(Entity entity) {
-	return GetTransform(entity).GetRotation();
+Degrees GetRotation(Entity entity) {
+	return GetTransform(entity).rotation.ToDeg();
 }
 
-float GetWorldRotation(Entity entity) {
-	return GetWorldTransform(entity).GetRotation();
+Degrees GetWorldRotation(Entity entity) {
+	return GetWorldTransform(entity).rotation.ToDeg();
 }
 
 V2_float GetScale(Entity entity) {
-	return GetTransform(entity).GetScale();
+	return GetTransform(entity).scale;
 }
 
 V2_float GetWorldScale(Entity entity) {
-	return GetWorldTransform(entity).GetScale();
+	return GetWorldTransform(entity).scale;
 }
 
 void SetTransform(Entity entity, Transform transform) {
@@ -254,8 +319,8 @@ void SetTransform(Entity entity, Transform transform) {
 
 void SetPosition(Entity entity, V2_float position) {
 	auto transform{ GetTransform(entity) };
-	transform.SetPosition(position);
-	SetTransform(entity, transform);
+	transform.position = position;
+	entity.template Add<Transform>(transform);
 }
 
 void SetPositionX(Entity entity, float position_x) {
@@ -278,20 +343,29 @@ void TranslateY(Entity entity, float position_y_difference) {
 	Translate(entity, V2_float{ 0.0f, position_y_difference });
 }
 
-void SetRotation(Entity entity, float rotation) {
+void SetRotation(Entity entity, Radians rotation) {
 	auto transform{ GetTransform(entity) };
-	transform.SetRotation(rotation);
-	SetTransform(entity, transform);
+	transform.rotation = rotation;
+	entity.template Add<Transform>(transform);
 }
 
-void Rotate(Entity entity, float angle_difference) {
-	SetRotation(entity, GetRotation(entity) + angle_difference);
+void SetRotation(Entity entity, Degrees rotation) {
+	SetRotation(entity, rotation.ToRad());
+}
+
+void Rotate(Entity entity, Radians angle_difference) {
+	SetRotation(entity, GetRotation(entity).ToRad() + angle_difference);
+}
+
+void Rotate(Entity entity, Degrees angle_difference) {
+	Rotate(entity, angle_difference.ToRad());
 }
 
 void SetScale(Entity entity, V2_float scale) {
 	auto transform{ GetTransform(entity) };
-	transform.SetScale(scale);
-	SetTransform(entity, transform);
+	transform.scale = scale;
+	transform.ClampScale();
+	entity.template Add<Transform>(transform);
 }
 
 void SetScale(Entity entity, float scale) {
@@ -320,6 +394,38 @@ void ScaleY(Entity entity, float scale_y_multiplier) {
 	V2_float scale{ GetScale(entity) };
 	scale.y *= scale_y_multiplier;
 	SetScale(entity, scale);
+}
+
+void IgnoreParentTransform(Entity entity, bool ignore_parent_transform) {
+	if (ignore_parent_transform) {
+		entity.Add<impl::IgnoreParentTransform>();
+	} else {
+		entity.Remove<impl::IgnoreParentTransform>();
+	}
+}
+
+void IgnoreParentPosition(Entity entity, bool ignore_parent_position) {
+	if (ignore_parent_position) {
+		entity.Add<impl::IgnoreParentPosition>();
+	} else {
+		entity.Remove<impl::IgnoreParentPosition>();
+	}
+}
+
+void IgnoreParentRotation(Entity entity, bool ignore_parent_rotation) {
+	if (ignore_parent_rotation) {
+		entity.Add<impl::IgnoreParentRotation>();
+	} else {
+		entity.Remove<impl::IgnoreParentRotation>();
+	}
+}
+
+void IgnoreParentScale(Entity entity, bool ignore_parent_scale) {
+	if (ignore_parent_scale) {
+		entity.Add<impl::IgnoreParentScale>();
+	} else {
+		entity.Remove<impl::IgnoreParentScale>();
+	}
 }
 
 } // namespace ptgn

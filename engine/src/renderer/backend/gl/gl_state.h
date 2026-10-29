@@ -1,76 +1,66 @@
 #pragma once
 
 #include <cstdint>
-#include <ostream>
 #include <vector>
 
-#include "renderer/primitives/id.h"
-#include "renderer/primitives/render_state.h"
-#include "renderer/primitives/texture_format.h"
-#include "renderer/primitives/viewport.h"
+#include "core/assert.h"
+#include "core/graphics/color.h"
+#include "renderer/pipeline/render_state.h"
+#include "renderer/resources/id.h"
+#include "renderer/resources/texture_format.h"
 
 namespace ptgn::impl::gl {
 
 struct ActiveTexture {
-	ActiveTexture() = default;
-
-	explicit ActiveTexture(std::uint32_t slot) : slot{ slot } {}
-
 	std::uint32_t slot{ 0 };
 
-	bool operator==(const ActiveTexture&) const = default;
-
-	friend std::ostream& operator<<(std::ostream& os, const ActiveTexture& active_texture) {
-		os << "{ slot: " << active_texture.slot << " }";
-		return os;
-	}
+	constexpr bool operator==(const ActiveTexture&) const = default;
 };
 
 struct TextureUnitState {
-	TextureId id;
+	TextureId id{};
 
-	TextureMinFilter min_filter{ TextureMinFilter::Linear };
-	TextureMagFilter mag_filter{ TextureMagFilter::Linear };
-	TextureWrap wrap_s{ TextureWrap::Repeat };
-	TextureWrap wrap_t{ TextureWrap::Repeat };
+	TextureParams params{
+		.min_filter = TextureMinFilter::Linear,
+		.mag_filter = TextureMagFilter::Linear,
+		.wrap_s = TextureWrap::Repeat,
+		.wrap_t = TextureWrap::Repeat,
+	};
 
-	bool operator==(const TextureUnitState&) const = default;
+	constexpr bool operator==(const TextureUnitState&) const = default;
 };
 
 using TextureUnits = std::vector<TextureUnitState>;
 
 struct State {
-	// Core object bindings
-	FramebufferId framebuffer;
-	RenderbufferId renderbuffer;
-	VertexBufferId vertex_buffer;
-	UniformBufferId uniform_buffer;
-	ShaderId shader_program;
-	VertexArrayId vertex_array;
+	State() = default;
 
-	Viewport viewport;
+	/// @brief Constructs a default state with all values set to OpenGL defaults.
+	explicit State(std::size_t max_texture_slots) :
+		texture_units(max_texture_slots),
+		// Important as Depth default constructs to 0.0, whereas OpenGL default value is 1.0.
+		clear_depth{ Depth{ 1.0f } },
+		clear_color{ color::Transparent } {
+		PTGN_ASSERT(max_texture_slots > 0);
+	}
 
-	DepthState depth;
+	RenderState render_state{};
 
-	BlendState blend;
+	FramebufferId framebuffer{};
+	RenderbufferId renderbuffer{};
+	VertexBufferId vertex_buffer{};
+	UniformBufferId uniform_buffer{};
+	ShaderId shader_program{};
+	VertexArrayId vertex_array{};
 
-	ColorMaskState color_mask;
+	ActiveTexture active_texture{};
+	TextureUnits texture_units{};
 
-	ActiveTexture active_texture;
-	TextureUnits texture_units;
+	Depth clear_depth{};
+	Stencil clear_stencil{};
+	Color clear_color{};
 
-	ClearColor clear_color;
-	ClearDepth clear_depth;
-	ClearStencil clear_stencil;
-
-	ScissorState scissor;
-
-	// Polygon rasterization
-	RasterState raster;
-
-	StencilState stencil;
-
-	bool operator==(const State&) const = default;
+	constexpr bool operator==(const State&) const = default;
 };
 
 } // namespace ptgn::impl::gl

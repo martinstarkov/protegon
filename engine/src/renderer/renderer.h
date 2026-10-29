@@ -1,116 +1,67 @@
 #pragma once
 
-#include <array>
+#include <algorithm>
 #include <concepts>
+#include <cstddef>
 #include <cstdint>
 #include <functional>
 #include <memory>
 #include <optional>
+#include <ranges>
+#include <span>
 #include <string_view>
 #include <type_traits>
+#include <utility>
 #include <variant>
 #include <vector>
 
-#include "core/event/dispatcher.h"
-#include "core/event/event.h"
+#include "core/assert.h"
+#include "core/graphics/color.h"
+#include "core/math/geometry/rect.h"
 #include "core/math/matrix4.h"
+#include "core/math/transform.h"
 #include "core/math/vector2.h"
 #include "core/math/vector3.h"
 #include "core/math/vector4.h"
-#include "renderer/primitives/blend_mode.h"
-#include "renderer/primitives/buffer.h"
-#include "renderer/primitives/color.h"
-#include "renderer/primitives/id.h"
-#include "renderer/primitives/render_state.h"
-#include "renderer/primitives/render_target.h"
-#include "renderer/primitives/resource.h"
-#include "renderer/primitives/scaling_mode.h"
-#include "renderer/primitives/shader.h"
-#include "renderer/primitives/texture.h"
-#include "renderer/primitives/texture_format.h"
-#include "renderer/primitives/vertex.h"
-#include "renderer/primitives/vertex_array.h"
-#include "renderer/primitives/viewport.h"
+#include "core/util/concepts.h"
+#include "renderer/draw_context.h"
+#include "renderer/pipeline/blend_mode.h"
+#include "renderer/pipeline/camera.h"
+#include "renderer/pipeline/effect_params.h"
+#include "renderer/pipeline/framebuffer_pool.h"
+#include "renderer/pipeline/render_batcher.h"
+#include "renderer/pipeline/render_pass_builder.h"
+#include "renderer/pipeline/render_pipeline.h"
+#include "renderer/pipeline/render_primitives.h"
+#include "renderer/pipeline/render_request.h"
+#include "renderer/pipeline/render_state.h"
+#include "renderer/pipeline/scaling_mode.h"
+#include "renderer/pipeline/vertex.h"
+#include "renderer/pipeline/viewport.h"
+#include "renderer/renderer_settings.h"
+#include "renderer/resources/framebuffer.h"
+#include "renderer/resources/id.h"
+#include "renderer/resources/resource.h"
+#include "renderer/resources/shader.h"
+#include "renderer/resources/texture.h"
+#include "renderer/resources/texture_format.h"
 
 namespace ptgn {
 
 class Application;
-class EventHandler;
-class RenderContext;
-class DrawContext;
-class DebugContext;
 class Window;
-class Scene;
-class AssetManager;
-class RenderTarget;
-class Renderer;
-
-struct GameResized : public Event<GameResized> {
-	GameResized() = default;
-
-	explicit GameResized(V2_int game_size) : size{ game_size } {}
-
-	V2_int size;
-};
+class RenderPassBuilder;
+class DrawContext;
+class Stats;
 
 namespace impl {
 
-class ShaderObject;
-class SDLInstance;
-class RenderTargetObject;
-class TextureObject;
+class ApplicationContext;
+class RenderCommands;
+class RendererAccessor;
 
-template <ResourceType T>
-class Resource;
-
-template <typename State, typename F>
-	requires std::same_as<std::invoke_result_t<F&>, void>
-void UpdateStateIfChanged(Renderer&, const State&, const State&, F&&);
-
-struct InternalGameResized : public Event<InternalGameResized> {
-	InternalGameResized() = default;
-
-	explicit InternalGameResized(V2_int game_size) : size{ game_size } {}
-
-	V2_int size;
-};
-
-struct QuadInfo {
-	std::array<V2_float, 4> positions;
-	std::array<V2_float, 4> tex_coords;
-	Color color{ color::White };
-	float depth{ 0.0f };
-};
-
-struct QuadDesc {
-	QuadInfo quad;
-	std::array<float, 4> user_data{};
-};
-
-struct TriangleParams {
-	std::array<V2_float, 3> positions;
-	Color tint{ color::White };
-	float depth{ 0.0f };
-};
-
-struct QuadParams {
-	QuadInfo quad;
-	std::optional<TextureId> texture;
-};
-
-struct InternalDisplayResized : public Event<InternalDisplayResized> {
-	V2_int size;
-};
-
-struct InternalDisplayViewportChanged : public Event<InternalDisplayViewportChanged> {
-	Viewport viewport;
-};
-
-struct PooledTarget {
-	RenderTargetObject target;
-	std::uint64_t last_used_tick{ 0 };
-	bool in_use{ false };
-};
+inline constexpr const char* kGammaUniform{ "u_Gamma" };
+inline constexpr const char* kExposureUniform{ "u_Exposure" };
 
 namespace gl {
 
@@ -118,96 +69,384 @@ class GLContext;
 
 } // namespace gl
 
-using Index = std::uint32_t;
-
-inline constexpr std::size_t kBatchCapacity{ 10000 };
-inline constexpr std::size_t kVertexCapacity{ kBatchCapacity * 4 };
-inline constexpr std::size_t kIndexCapacity{ kBatchCapacity * 6 };
+enum class ResizeType {
+	Logical,
+	Display,
+	Presentation
+};
 
 } // namespace impl
 
 class Renderer {
+public:
+	RendererSettings GetSettings() const;
+	void SetSettings(const RendererSettings& settings);
+
+	void SetToneMappingOperator(ToneMappingOperator op);
+
+	void SetToneMappingExposure(float exposure);
+
+	void SetGamma(float gamma);
+
+	void SetBackgroundColor(Color background_color);
+
+	/// @param logical_size Setting to nullopt will dynamically use the presentation viewport size.
+	void SetLogicalSize(
+		std::optional<V2_int> logical_size		= std::nullopt,
+		std::optional<ScalingMode> scaling_mode = ScalingMode::Letterbox
+	);
+
+	/// @param scaling_mode The method by which the logical size is scaled to fit the presentation
+	/// viewport.
+	void SetScalingMode(ScalingMode scaling_mode = ScalingMode::Letterbox);
+
+	/// @param presentation_viewport Setting to nullopt will use full window size.
+	/// Viewport position should be relative to the window top left.
+	void SetPresentationViewport(std::optional<Viewport> presentation_viewport = std::nullopt);
+
+	/// @return The logical size of the renderer. Returns presentation viewport size if unset.
+	V2_int GetLogicalSize() const;
+
+	/// @return The presentation viewport with position relative to the window top left.
+	/// Returns a viewport covering the entire window if unset.
+	Viewport GetPresentationViewport() const;
+
+	/// @return The presentation viewport position relative to the window top left. Returns {0, 0}
+	/// if unset.
+	V2_int GetPresentationPosition() const;
+
+	/// @return The presentation viewport of the renderer. If unset, returns the window size.
+	V2_int GetPresentationSize() const;
+
+	/// @brief The display viewport is the area inside presentation rectangle that the application
+	/// is rendered to. It is defined by scaling the logical size to fit inside the presentation
+	/// viewport according to the scaling mode. The position of the display viewport is relative to
+	/// the top left of the window.
+	Viewport GetDisplayViewport() const;
+
+	/// @return The display position of the renderer.
+	V2_int GetDisplayPosition() const;
+
+	/// @return The display size of the renderer.
+	V2_int GetDisplaySize() const;
+
+	/// @return The amount by which logical size is scaled to achieve the display size.
+	V2_float GetScale() const;
+
+	/// @return The size of the entire viewport that the presentation viewport is within. This is
+	/// always equal to the window size.
+	V2_int GetOutputSize() const;
+
+	void SetPrimaryWorldCamera(const std::optional<Camera>& primary_world_camera = std::nullopt);
+
+	const std::optional<Camera>& GetPrimaryWorldCamera() const;
+
+	impl::ShaderId GetShader(std::string_view name) const;
+
 private:
 	friend class Application;
-	friend class AssetManager;
-	friend class EventHandler;
-	friend class Scene;
-	friend class RenderTarget;
-	friend class DrawContext;
-	friend class RenderContext;
-	friend class DebugContext;
-	friend class impl::ShaderObject;
-	friend class impl::RenderTargetObject;
+	friend class impl::ApplicationContext;
+	friend class impl::RenderPipelineManager;
+	friend class impl::RenderBatcher;
+	friend class impl::FramebufferPool;
+	friend class impl::FramebufferObject;
 	friend class impl::TextureObject;
-	friend class impl::SDLInstance;
+	friend class impl::ShaderObject;
+	friend class impl::RenderCommands;
+	friend class impl::RendererAccessor;
+	friend class Texture;
+	friend class RenderPassBuilder;
+	friend class DrawContext;
 	template <impl::ResourceType T>
 	friend class impl::Resource;
 
+	struct DisplayResizeInfo {
+		bool moved{ false };
+		bool resized{ false };
+		Viewport viewport{};
+	};
+
+	using EventSink = std::function<void(V2_int, impl::ResizeType)>;
+
 	Renderer() = delete;
-	explicit Renderer(Window& window, EventHandler& events);
+	explicit Renderer(Window& window, Stats& stats, EventSink&& event_sink);
 	~Renderer() noexcept;
 	Renderer(const Renderer&)				 = delete;
 	Renderer(Renderer&&) noexcept			 = delete;
 	Renderer& operator=(const Renderer&)	 = delete;
 	Renderer& operator=(Renderer&&) noexcept = delete;
 
-	/// @param game_size Setting to {} will use dynamic window size.
-	void SetGameSize(
-		std::optional<V2_int> game_size = {}, ScalingMode scaling_mode = ScalingMode::Letterbox
-	);
+	impl::PipelineId GetTexturePipeline() const;
 
-	void SetScalingMode(ScalingMode scaling_mode = ScalingMode::Letterbox);
+	RenderState GetRenderState() const;
 
-	/// @return The display size of the renderer.
-	V2_int GetDisplaySize() const;
+	void SetRenderState(const RenderState& state);
+	void SetRenderStateDelta(const RenderStateDelta& delta);
 
-	Viewport GetDisplayViewport() const;
+	void SetMaterial(const MaterialState& material);
 
-	/// @return The amount by which game size is scaled to achieve the display size.
-	V2_float GetScale() const;
+	void FlushBatch();
 
-	/// @return The game size of the renderer. Returns window size if unset.
-	V2_int GetGameSize() const;
+	void DrawTexture(const impl::DrawTextureRequest& request);
 
-	/// @return The game size scaling mode.
-	ScalingMode GetScalingMode() const;
+	template <impl::RenderPrimitive T>
+	void Draw(const impl::DrawRequest<T>& request) {
+		if (request.primitives.empty()) {
+			return;
+		}
 
-	void SetBackgroundColor(Color background_color);
-	Color GetBackgroundColor() const;
+		if (request.effect_params.draw_callback ||
+			IsAttachedToCurrentFramebuffer(request.texture)) {
+			DrawWithEffect(request);
+		} else {
+			DrawNormally(request);
+		}
+	}
 
-	template <typename State, typename F>
-		requires std::same_as<std::invoke_result_t<F&>, void>
-	friend void impl::UpdateStateIfChanged(Renderer&, const State&, const State&, F&&);
+	impl::RenderPipeline& GetPipeline(impl::PipelineId id);
 
-	static void SetGLVersion();
+	const impl::RenderPipeline& GetPipeline(impl::PipelineId id) const;
 
-	impl::ShaderObject CreateShader(
+	void SetFramebuffer(impl::FramebufferObject* framebuffer);
+
+	template <impl::RenderPrimitive T>
+	void DrawWithEffect(const impl::DrawRequest<T>& request) {
+		PTGN_ASSERT(!request.primitives.empty());
+
+		using TVertex = typename impl::RenderPrimitiveInfo<std::remove_cvref_t<T>>::Vertex;
+
+		PTGN_ASSERT(
+			impl::HaveUniformDepthAndEntityId(request.primitives),
+			"Batched effect vertices must have uniform depth and entity ID"
+		);
+
+		Rect bounds{ Rect::FromPoints(
+			request.primitives | std::views::join |
+			std::views::transform([](const TVertex& vertex) {
+				const auto& pos{ impl::PositionAccessor<TVertex>::Get(vertex) };
+
+				return V2_float{
+					pos[0],
+					pos[1],
+				};
+			})
+		) };
+
+		V2_float bounds_center{ bounds.GetCenter() };
+
+		V2_float size{ bounds.GetSize() + V2_float{ request.effect_params.margin * 2 } };
+
+		PTGN_ASSERT(size.IsPositive(), "Effect bounds size must be positive");
+
+		size = Max(V2_int{ Ceil(size) }, V2_int{ 1, 1 });
+
+		TextureDesc desc{
+			.size	= size,
+			.format = impl::GetEffectTextureFormat(request.effect_params.hdr),
+		};
+
+		if (request.texture) {
+			desc.params = GetParams(request.texture).value();
+		}
+
+		auto expanded_framebuffer{ CreateFramebuffer(desc, std::nullopt) };
+
+		auto* previous_framebuffer{ current_framebuffer_ };
+
+		SetFramebuffer(&expanded_framebuffer);
+
+		auto previous_state{ GetRenderState() };
+
+		Viewport viewport{
+			.position{},
+			.size{ size },
+		};
+
+		SetScissor(ScissorState{ viewport });
+		SetViewport(viewport);
+
+		// Temporary effect framebuffer is centered around zero.
+		SetViewProjection(size);
+
+		// Important: The temporary framebuffer is centered around the origin, while
+		// the primitive's bounds may not be. Copy the primitives and
+		// translate their bounds center to zero before rendering.
+		// Do not transform request.primitives directly because DrawNormally
+		// mutates vertex positions in place.
+		std::vector<T> local_primitives{ request.primitives.begin(), request.primitives.end() };
+
+		impl::DrawRequest<T> local_request{
+			.texture	= request.texture,
+			.transform	= Transform{ -bounds_center },
+			.primitives = local_primitives,
+		};
+
+		DrawNormally(local_request);
+
+		FlushBatch();
+
+		ExecuteEffectCallbacks(request.effect_params.draw_callback);
+
+		FlushBatch();
+
+		SetCurrentPipeline("texture");
+		SetFramebuffer(previous_framebuffer);
+
+		SetMaterial(
+			{
+				.shader				   = GetShader("texture"),
+				.texture_slot_capacity = GetMaxTextureSlots(),
+			}
+		);
+
+		SetRenderState(previous_state);
+
+		auto positions{ Rect{ size }.GetLocalVertices() };
+
+		const auto& first_vertex{ request.primitives.front().front() };
+
+		auto depth{ impl::PositionAccessor<TVertex>::Get(first_vertex)[2] };
+
+		constexpr auto color_n{ color::White.Normalized() };
+
+		constexpr auto tex_coords{ impl::GetDefaultTextureCoordinates<true>() };
+
+		auto entity_id{ impl::EntityIdAccessor<TVertex>::Get(first_vertex) };
+
+		auto local_quad{
+			impl::CreateTextureQuad(positions, depth, color_n, tex_coords, entity_id)
+		};
+
+		// The temporary texture is centered at zero, but represents the
+		// original primitive bounds centered at bounds_center. Transform
+		// that local center through the entity / world transform.
+		Transform composite_transform{
+			request.transform.Apply(bounds_center),
+			request.transform.rotation,
+			request.transform.scale,
+		};
+
+		impl::DrawTextureRequest new_request{
+			.texture	= GetTexture(expanded_framebuffer),
+			.transform	= composite_transform,
+			.primitives = { &local_quad, 1 },
+		};
+
+		DrawNormally(new_request);
+
+		temp_framebuffers_.emplace_back(std::move(expanded_framebuffer));
+	}
+
+	template <impl::RenderPrimitive T>
+	void DrawNormally(const impl::DrawRequest<T>& request) {
+		PTGN_ASSERT(!request.primitives.empty());
+		if (!current_material_valid_) {
+			return;
+		}
+		PTGN_ASSERT(!request.effect_params.draw_callback);
+
+		std::span<const impl::TextureId> textures;
+
+		if (request.texture) {
+			textures = { &request.texture, 1 };
+		}
+
+		impl::ApplyTransform(request.transform, request.primitives);
+
+		const auto& pipeline{ pipeline_manager_.GetCurrentPipeline() };
+
+		constexpr auto vertex_count{
+			impl::RenderPrimitiveInfo<std::remove_cvref_t<T>>::vertex_count
+		};
+
+		if constexpr (vertex_count == 4) {
+			batcher_.SubmitQuads(
+				request.primitives, pipeline.vertex_capacity, pipeline.index_capacity, textures,
+				current_texture_slot_capacity_
+			);
+		} else if constexpr (vertex_count == 3) {
+			batcher_.SubmitTriangles(
+				request.primitives, pipeline.vertex_capacity, pipeline.index_capacity, textures,
+				current_texture_slot_capacity_
+			);
+		} else {
+			static_assert(false, "Unsupported vertex count");
+		}
+	}
+
+	/// @brief Set the view projection to an orthographic projection matrix with the given size,
+	/// centered at the origin.
+	void SetViewProjection(V2_float size);
+
+	void SetViewProjection(const Matrix4& view_projection);
+	void SetViewport(Viewport viewport);
+	/// @param force If true, will set the blend mode even if it is the same as the current blend
+	/// mode. This is useful for resetting blend mode state that may have been changed by external
+	/// code.
+	void SetBlendMode(BlendMode blend_mode, bool force = false);
+	void SetBlending(bool enabled);
+	void SetShader(impl::ShaderId shader);
+	void SetShader(std::string_view shader);
+	void SetDepthTesting(bool enabled);
+	void SetDepthMask(const DepthMaskState& mask);
+	void SetStencil(const StencilState& stencil);
+	void SetRaster(const RasterState& raster);
+	void SetScissor(const ScissorState& scissor);
+	void SetColorMask(const ColorMaskState& color_mask);
+
+	BlendMode GetBlendMode() const;
+
+	[[nodiscard]] impl::ShaderObject CreateShader(
 		const std::variant<ShaderCode, ShaderPath, ShaderPair>& source, std::string_view shader_name
 	);
-
-	impl::TextureObject CreateTexture(
-		const std::uint8_t* pixel_data, V2_int size, TextureFormat format
+	[[nodiscard]] impl::TextureObject CreateTexture(
+		const std::uint8_t* pixel_data, TextureDesc desc, bool restore_bind = true
+	);
+	[[nodiscard]] impl::FramebufferObject CreateFramebuffer(
+		TextureDesc desc, std::optional<TextureDesc> other_desc
 	);
 
+	impl::TextureId GetTexture(impl::FramebufferId framebuffer) const;
+	impl::RenderbufferId GetDepthRenderbuffer(impl::FramebufferId framebuffer) const;
+	impl::RenderbufferId GetStencilRenderbuffer(impl::FramebufferId framebuffer) const;
+	impl::RenderbufferId GetDepthStencilRenderbuffer(impl::FramebufferId framebuffer) const;
+
+	void SetParams(impl::FramebufferId framebuffer, TextureParams params);
+	void SetParams(impl::TextureId texture, TextureParams params);
+	void Resize(impl::FramebufferId framebuffer, V2_int new_size);
+	void Clear(impl::FramebufferId framebuffer, Color clear_color);
+	void Clear(impl::FramebufferId framebuffer, Depth clear_depth);
+	void Clear(impl::FramebufferId framebuffer, Stencil clear_stencil);
+	void Clear(impl::FramebufferId framebuffer, DepthStencil clear_depth_stencil);
+	void BindPresentationFramebuffer();
+
+	impl::FramebufferId GetPresentationFramebuffer() const;
+
+	std::optional<V2_int> GetSize(impl::FramebufferId framebuffer) const;
+	std::optional<TextureFormat> GetFormat(impl::FramebufferId framebuffer) const;
+	std::optional<TextureParams> GetParams(impl::FramebufferId framebuffer) const;
+	std::optional<TextureDesc> GetDesc(impl::FramebufferId framebuffer) const;
+	std::optional<V2_int> GetSize(impl::TextureId texture) const;
+	std::optional<TextureFormat> GetFormat(impl::TextureId texture) const;
+	std::optional<V2_int> GetSize(impl::RenderbufferId renderbuffer) const;
+	std::optional<TextureFormat> GetFormat(impl::RenderbufferId renderbuffer) const;
+	std::optional<TextureParams> GetParams(impl::TextureId texture) const;
+	std::optional<TextureDesc> GetDesc(impl::TextureId texture) const;
+
+	/// @brief For binding textures to shader uniforms.
+	void SetBoundShaderUniform(const char* uniform_name, int value);
 	void SetUniform(impl::ShaderId id, const char* uniform_name, const Matrix4& v);
 	void SetUniform(impl::ShaderId id, const char* uniform_name, float v);
 	void SetUniform(impl::ShaderId id, const char* uniform_name, V2_float v);
 	void SetUniform(impl::ShaderId id, const char* uniform_name, V3_float v);
 	void SetUniform(impl::ShaderId id, const char* uniform_name, V4_float v);
-	void SetUniform(impl::ShaderId id, const char* uniform_name, const std::vector<float>& v);
+	void SetUniform(impl::ShaderId id, const char* uniform_name, std::span<const float> v);
 	void SetUniform(impl::ShaderId id, const char* uniform_name, int v);
 	void SetUniform(impl::ShaderId id, const char* uniform_name, V2_int v);
 	void SetUniform(impl::ShaderId id, const char* uniform_name, V3_int v);
 	void SetUniform(impl::ShaderId id, const char* uniform_name, V4_int v);
-	void SetUniform(impl::ShaderId id, const char* uniform_name, const std::vector<int>& v);
+	void SetUniform(impl::ShaderId id, const char* uniform_name, std::span<const int> v);
 	void SetUniform(impl::ShaderId id, const char* uniform_name, bool v);
-
-	/// @return The texture slot the given texture is bound to, and whether it should be pushed to
-	/// batch_textures.
-	std::pair<std::uint32_t, bool> GetTextureSlot(impl::TextureId tex);
-
-	V2_int GetTextureSize(impl::TextureId id) const;
-	TextureFormat GetTextureFormat(impl::TextureId id) const;
 
 	void Destroy(impl::VertexBufferId id);
 	void Destroy(impl::ElementBufferId id);
@@ -217,119 +456,309 @@ private:
 	void Destroy(impl::RenderbufferId id);
 	void Destroy(impl::FramebufferId id);
 	void Destroy(impl::VertexArrayId id);
-	void Destroy(impl::RenderTargetId id);
 
-	impl::TextureId GetRenderTargetTexture(impl::RenderTargetId render_target) const;
-	V2_int GetRenderTargetSize(impl::RenderTargetId render_target) const;
-	TextureFormat GetRenderTargetTextureFormat(impl::RenderTargetId render_target) const;
-	void ResizeRenderTarget(impl::RenderTargetId render_target, V2_int new_size);
-	void ClearRenderTarget(impl::RenderTargetId render_target, Color color, bool set_viewport)
-		const;
-	void BindRenderTarget(impl::RenderTargetId render_target);
-	void BindRenderPass(impl::RenderPass& render_pass);
+	void SetCurrentPipeline(std::size_t id);
+	void SetCurrentPipeline(std::string_view name);
 
-	/// @brief Flushes the batch if adding the given number of vertices and indices would exceed
-	/// batch.
-	void FlushIfExceedsCapacity(std::size_t vertices, std::size_t indices);
-	void FlushBatch();
-
-	void SetViewport(Viewport viewport);
-	void SetShader(impl::ShaderId shader);
-	void SetViewProjection(const Matrix4& view_projection);
-	void SetFramebuffer(impl::FramebufferId framebuffer);
-	void SetBlend(BlendMode mode, bool enabled);
-	void SetDepth(const DepthState& depth);
-	void SetStencil(const StencilState& stencil);
-	void SetRaster(const RasterState& raster);
-	void SetScissor(const ScissorState& scissor);
-	void SetColorMask(const ColorMaskState& color_mask);
-
-	impl::TextureId GetWhiteTexture() const;
-
-	impl::ShaderId GetShader(std::string_view name) const;
-
-	void DrawTriangle(
-		impl::ShaderId shader, const std::array<V2_float, 3>& positions, Color tint, float depth
+	void UploadVertices(
+		const impl::RenderPipeline& pipeline, std::span<const std::byte> vertices,
+		std::uint32_t vertex_size
 	);
+	void UploadIndices(const impl::RenderPipeline& pipeline, std::span<const impl::Index> indices);
+	void DrawElements(const impl::RenderPipeline& pipeline, std::size_t index_count);
 
-	void DrawQuad(
-		impl::ShaderId shader, const std::array<V2_float, 4>& positions,
-		const std::array<float, 4>& user_data, Color tint, float depth,
-		const std::function<void()>& shader_setup
-	);
+	void BeginFrame();
 
-	void DrawTexture(
-		impl::ShaderId shader, impl::TextureId texture, const std::array<V2_float, 4>& positions,
-		Color tint, float depth, const std::array<V2_float, 4>& tex_coords,
-		const std::function<void()>& shader_setup
-	);
+	template <typename F>
+	void EndFrame(F&& presentation_effect_callback) {
+		PTGN_ASSERT(display_viewport_.size.IsPositive());
 
-	void DrawTexture(
-		impl::ShaderId shader, impl::RenderPass& pass, impl::RenderTargetId scene_render_target,
-		const std::function<void()>& shader_setup
-	);
+		FlushBatch();
 
-	/// @param setup Returns true if the renderer should flush the batch after adding the quad
-	/// params. This allows shader uniforms to be applied to each unique quad in the batch.
-	void DrawQuad(
-		impl::ShaderId shader, const impl::QuadParams& p,
-		const std::function<bool(impl::ShaderId, impl::QuadDesc&)>& setup
-	);
+		if constexpr (!std::same_as<std::remove_cvref_t<F>, std::nullptr_t>) {
+			static_assert(
+				InvocableR<F, void, DrawContext&>,
+				"Incorrect presentation effect callback signature"
+			);
+			ApplyPresentationEffect(std::forward<F>(presentation_effect_callback));
+		}
+
+		ApplyOutputColorTransform(presentation_framebuffer_);
+
+		SetFramebuffer(nullptr);
+
+		if (presentation_viewport_.has_value()) {
+			framebuffer_pool_.Update();
+			PTGN_ASSERT(
+				batcher_.IsEmpty(),
+				"No indices should be left in the batcher after finishing the render frame"
+			);
+			return;
+		}
+
+		PTGN_ASSERT(
+			GetSize(presentation_framebuffer_) == V2_int{ Ceil(display_viewport_.size) },
+			"Presentation framebuffer size must match display size"
+		);
+
+		SetCurrentPipeline("texture");
+		SetMaterial(
+			MaterialState{
+				.shader = GetShader("passthrough"),
+				.uniforms = {
+					UniformWrite{ "u_Texture", 0 },
+				},
+				.texture_slot_capacity = 1,
+			}
+		);
+		SetBlendMode(BlendMode::ReplaceRGBA);
+		SetViewport(display_viewport_);
+		SetScissor(ScissorState{ false });
+		SetViewProjection(display_viewport_.size);
+
+		constexpr auto depth{ 0.0f };
+		constexpr auto tint{ color::White };
+		constexpr auto tex_coords{ impl::GetDefaultTextureCoordinates<true>() };
+
+		auto local_vertices{ Rect{ display_viewport_.size }.GetLocalVertices() };
+		auto local_quad{ impl::CreateTextureQuad(
+			local_vertices, depth, tint.Normalized(), tex_coords, impl::kNoEntityId
+		) };
+
+		impl::DrawTextureRequest request;
+		request.primitives = { &local_quad, 1 };
+		request.texture	   = GetTexture(presentation_framebuffer_);
+
+		DrawTexture(request);
+
+		FlushBatch();
+
+		framebuffer_pool_.Update();
+		PTGN_ASSERT(
+			batcher_.IsEmpty(),
+			"No indices should be left in the batcher after finishing the render frame"
+		);
+	}
+
+	void SetUniformValue(impl::ShaderId id, const char* uniform_name, const UniformValue& v);
+
+	std::size_t GetMaxTextureSlots() const;
 
 	/// @return True if the given texture is currently attached to the framebuffer that is currently
 	/// bound.
-	bool IsTextureAttachedToCurrentFramebuffer(impl::TextureId texture) const;
+	[[nodiscard]] bool IsAttachedToCurrentFramebuffer(impl::TextureId texture) const;
 
-	void BindScreenTarget();
-	void ResizeScreenTarget(V2_int size);
+	void ResizePresentationFramebuffer(V2_int size);
 
-	void OnEvent(EventDispatcher d);
+	void OnOutputResize(V2_int size);
 
-	void BeginFrame();
-	void EndFrame();
-
-	impl::RenderPass BeginPass(impl::RenderTargetId scene_render_target);
-
-	impl::RenderTargetObject CreateRenderTarget(V2_int size, TextureFormat format);
-
-	impl::RenderTargetId AcquirePooledTargetCopy(impl::RenderTargetId render_target);
-	impl::RenderTargetId AcquirePooledTarget(V2_int size, TextureFormat format);
-
-	void ReleasePooledTarget(impl::RenderTargetId render_target);
-
-	Window& window_;
-
-	// TODO: Figure out a way to decouple event emission (specifically with the user accessible
-	// SetGameSize function, which can trigger DisplayResize events) from the renderer.
-	EventHandler& events_;
-
-	std::unique_ptr<impl::gl::GLContext> gl_;
+	void ResetState();
 
 	// emit_events = false is used to prevent emitting events when initializing the window and
 	// scene.
-	void UpdateDisplayViewport(V2_int window_size, bool emit_events = true);
+	void UpdateDisplayViewport(bool emit_events = true);
 
-	impl::VertexBufferObject vbo_;
-	impl::ElementBufferObject ebo_;
-	impl::VertexArrayObject vao_;
+	void BindTextureSlot(std::uint32_t slot, impl::TextureId texture, bool force = false);
+
+	[[nodiscard]] DisplayResizeInfo RecalculateDisplayViewport() const;
+
+	const impl::FramebufferObject& GetBoundFramebuffer() const;
+	impl::FramebufferObject& GetBoundFramebuffer();
+
+	void DrawRenderPass(const impl::DrawPassRequest& request);
+
+	void CopyFramebufferRegion(
+		impl::FramebufferId source, impl::FramebufferId destination, Viewport source_region,
+		V2_int destination_position
+	);
+
+	void CompositeRenderPassResult(
+		impl::FramebufferId color_source, impl::FramebufferId destination,
+		Viewport destination_region
+	);
+
+	void SetEntityPickingEnabled(impl::FramebufferId framebuffer, bool enabled);
+
+	[[nodiscard]] bool IsEntityPickingEnabled(impl::FramebufferId framebuffer) const;
+
+	void ClearEntityIds(impl::FramebufferId framebuffer);
+
+	[[nodiscard]] std::optional<std::int32_t> ReadEntityId(
+		impl::FramebufferId framebuffer, V2_int pixel
+	) const;
+
+	void BindUniforms();
+
+	impl::ShaderId GetBoundShader() const;
+
+	void ExecuteEffectCallbacks(const std::function<void(DrawContext&)>& effect_callback);
+
+	// Apply the same final gamma/tone-mapping transform used by the presentation framebuffer.
+	// This is framebuffer-generic so editor owned offscreen targets can be displayed with the
+	// exact same output color pipeline as the runtime viewport.
+	void ApplyOutputColorTransform(impl::FramebufferObject& framebuffer);
+
+	bool FramebufferMatches(
+		impl::FramebufferId framebuffer, TextureDesc desc, std::optional<TextureDesc> other_desc
+	) const;
+
+	template <InvocableR<void, DrawContext&> F>
+	void ApplyFramebufferEffect(impl::FramebufferObject& framebuffer, F&& function) {
+		FlushBatch();
+
+		PTGN_ASSERT(framebuffer, "Framebuffer must be valid");
+
+		auto size{ GetSize(framebuffer).value() };
+
+		PTGN_ASSERT(size.IsPositive(), "Framebuffer size must be valid");
+
+		SetFramebuffer(&framebuffer);
+
+		Viewport viewport{
+			.position = {},
+			.size	  = size,
+		};
+
+		SetViewport(viewport);
+		SetViewProjection(viewport.size);
+		SetScissor(ScissorState{ false });
+		SetBlendMode(BlendMode::ReplaceRGBA);
+
+		DrawContext ctx{ *this };
+
+		std::invoke(std::forward<F>(function), ctx);
+
+		FlushBatch();
+	}
+
+	template <InvocableR<void, DrawContext&> F>
+	void ApplyPresentationEffect(F&& function) {
+		ApplyFramebufferEffect(presentation_framebuffer_, std::forward<F>(function));
+	}
+
+	Window& window_;
+
+	Stats& stats_;
+
+	EventSink event_sink_;
+
+	std::unique_ptr<impl::gl::GLContext> gl_;
+
+	impl::FramebufferObject presentation_framebuffer_;
+
+	std::size_t current_texture_slot_capacity_{ 1 };
+	std::vector<UniformWrite> current_uniforms_;
+	bool current_material_valid_{ true };
+	impl::FramebufferObject* current_framebuffer_{ nullptr };
+
+	impl::RenderBatcher batcher_;
+	impl::FramebufferPool framebuffer_pool_;
+	impl::RenderPipelineManager pipeline_manager_;
+	std::vector<impl::FramebufferObject> temp_framebuffers_;
+
 	impl::TextureObject white_texture_;
 
-	std::vector<impl::Vertex> batch_vertices_;
-	std::vector<impl::Index> batch_indices_;
-	std::vector<impl::TextureId> batch_textures_;
+	RendererSettings renderer_settings_{};
 
-	Matrix4 view_projection_;
-
-	ClearColor background_color_;
-	impl::RenderTargetObject screen_target_;
-
-	std::optional<V2_int> game_size_;
 	Viewport display_viewport_;
-	ScalingMode scaling_mode_{ ScalingMode::Letterbox };
+	/// @brief Flag to indicate whether the display viewport needs to be recalculated.
+	bool display_viewport_dirty_{ true };
 
-	std::vector<impl::PooledTarget> rt_pool_;
-	std::uint64_t pool_tick_{ 0 };
-	std::size_t max_pool_size_{ 16 };
+	/// @brief The viewport used for presentation (i.e. the final output to the screen). This
+	/// may be different from the window if using the editor, which has a separate viewport for
+	/// the presentation.
+	std::optional<Viewport> presentation_viewport_;
+
+	std::optional<Camera> primary_world_camera_;
 };
+
+namespace impl {
+
+class RendererAccessor {
+public:
+	explicit RendererAccessor(Renderer& renderer);
+
+	[[nodiscard]] TextureObject CreateTexture(const std::uint8_t* pixel_data, TextureDesc desc);
+
+	[[nodiscard]] ShaderObject CreateShader(
+		const std::variant<ShaderCode, ShaderPath, ShaderPair>& source, std::string_view shader_name
+	);
+
+	[[nodiscard]] FramebufferObject CreateFramebuffer(
+		TextureDesc desc, const std::optional<TextureDesc>& other_desc
+	);
+
+	TextureId GetPresentationTexture() const;
+
+	std::optional<V2_int> GetSize(TextureId texture) const;
+
+	TextureId GetTexture(FramebufferId framebuffer) const;
+
+	std::optional<TextureDesc> GetDesc(FramebufferId framebuffer) const;
+
+	RenderState GetRenderState() const;
+
+	void SetRenderState(const RenderState& state);
+
+	MaterialState GetMaterial() const;
+
+	void SetMaterial(const MaterialState& material);
+
+	PipelineId GetCurrentPipeline() const;
+
+	void SetCurrentPipeline(PipelineId pipeline);
+
+	void Clear(FramebufferId framebuffer, Color clear_color);
+
+	void DrawText(Transform transform, const DrawTextRequest& request);
+
+	void ApplyOutputColorTransform(FramebufferObject& framebuffer);
+
+	void FlushBatch();
+
+	void SetupPresentationFramebuffer();
+
+	ShaderId GetShader(std::string_view name) const;
+
+	void SetFramebuffer(FramebufferObject* framebuffer);
+
+	void SetScissor(const ScissorState& scissor);
+
+	void SetViewProjection(const Matrix4& view_projection);
+
+	void SetViewport(Viewport viewport);
+
+	void SetBlendMode(BlendMode blend_mode, bool force = false);
+
+	template <impl::RenderPrimitive T>
+	void Draw(const impl::DrawRequest<T>& request) {
+		renderer_.Draw(request);
+	}
+
+	// Returns nullptr when rendering is currently targeting the default framebuffer.
+	// Unlike GetBoundFramebuffer(), this is valid between the renderer frame and editor/ImGui pass.
+	const FramebufferObject* GetCurrentFramebuffer() const;
+	FramebufferObject* GetCurrentFramebuffer();
+
+	const FramebufferObject& GetBoundFramebuffer() const;
+	FramebufferObject& GetBoundFramebuffer();
+
+	void ClearEntityIds(FramebufferId framebuffer);
+
+	impl::FramebufferId GetPresentationFramebuffer() const;
+
+	void SetEntityPickingEnabled(impl::FramebufferId framebuffer, bool enabled);
+
+	std::optional<std::int32_t> ReadEntityId(FramebufferId framebuffer, V2_int pixel) const;
+
+	bool IsEntityPickingEnabled(FramebufferId framebuffer) const;
+
+	std::size_t GetMaxTextureSlots() const;
+
+private:
+	Renderer& renderer_;
+};
+
+} // namespace impl
 
 } // namespace ptgn

@@ -1,64 +1,18 @@
 #pragma once
 
-#include <cstdint>
 #include <functional>
-#include <ostream>
+#include <span>
 #include <vector>
 
 #include "core/math/geometry/shape.h"
-#include "core/math/vector2.h"
 #include "runtime/ecs/entity.h"
-#include "serialization/json/enum.h"
-#include "serialization/json/serialize.h"
+#include "runtime/ecs/entity_filter.h"
+#include "runtime/physics/collision.h"
+#include "serialization/serialize.h"
 
 namespace ptgn {
 
 class CollisionHandler;
-
-struct Collision {
-	Collision() = default;
-
-	Collision(Entity other, V2_float collision_normal) :
-		entity{ other }, normal{ collision_normal } {}
-
-	operator bool() const {
-		return entity.operator bool();
-	}
-
-	Entity entity;
-	/// @brief Normal set to {} for overlap only collisions.
-	V2_float normal;
-
-	friend bool operator==(const Collision& a, const Collision& b) {
-		return a.entity == b.entity;
-	}
-
-	friend std::ostream& operator<<(std::ostream& os, const Collision& collision) {
-		os << "{ entity: " << collision.entity;
-		os << ", normal: " << collision.normal << " }";
-		return os;
-	}
-
-	PTGN_SERIALIZER_REGISTER_IGNORE_DEFAULTS(Collision, entity, normal)
-};
-
-} // namespace ptgn
-
-template <>
-struct std::hash<ptgn::Collision> {
-	std::size_t operator()(const ptgn::Collision& c) const noexcept {
-		// Hashing combination algorithm from:
-		// https://stackoverflow.com/a/17017281
-		std::size_t value{ 17 };
-		value = value * 31 + c.entity.GetHash();
-		value = value * 31 + std::hash<ptgn::V2_float>()(c.normal);
-		return value;
-	}
-};
-
-namespace ptgn {
-
-using ColliderMask = std::int64_t;
 
 enum class CollisionResponse {
 	Slide,	/// Velocity set perpendicular to collision normal at same speed.
@@ -66,15 +20,7 @@ enum class CollisionResponse {
 	Push,	/// Velocity set perpendicular to collision normal at partial speed.
 	Stick	/// Velocity set to 0.
 };
-
-std::ostream& operator<<(std::ostream& os, CollisionResponse response);
-
-PTGN_SERIALIZE_ENUM(
-	CollisionResponse, { { CollisionResponse::Slide, "slide" },
-						 { CollisionResponse::Bounce, "bounce" },
-						 { CollisionResponse::Push, "push" },
-						 { CollisionResponse::Stick, "stick" } }
-);
+PTGN_REFLECT_ENUM(CollisionResponse);
 
 enum class CollisionMode {
 	None,		/// No collision checks.
@@ -82,72 +28,47 @@ enum class CollisionMode {
 	Discrete,	/// Discrete collision detection.
 	Continuous, /// Continuous collision detection for high velocity colliders.
 };
-
-std::ostream& operator<<(std::ostream& os, CollisionMode mode);
-
-PTGN_SERIALIZE_ENUM(
-	CollisionMode, { { CollisionMode::None, nullptr },
-					 { CollisionMode::Overlap, "overlap" },
-					 { CollisionMode::Discrete, "discrete" },
-					 { CollisionMode::Continuous, "continuous" } }
-);
+PTGN_REFLECT_ENUM(CollisionMode);
 
 struct Collider {
 	Collider() = default;
 
-	explicit Collider(const ColliderShape& shape);
+	explicit Collider(const ColliderShape& collider_shape);
 
-	ColliderShape shape;
+	ColliderShape shape{};
 
 	CollisionMode mode{ CollisionMode::Discrete };
 
-	/// @brief  How the velocity of the sweep should respond to obstacles.
+	/// @brief How the velocity of the sweep should respond to obstacles.
 	/// Only applicable if mode != CollisionMode::Overlap.
 	CollisionResponse response{ CollisionResponse::Slide };
+
+	/// @brief Selects which candidate entities this collider can collide or overlap with.
+	EntityFilter collides_with{};
 
 	Collider& SetOverlapMode();
 
 	Collider& SetCollisionMode(CollisionMode new_mode = CollisionMode::Discrete);
 
-	ColliderMask GetMask() const;
-
-	Collider& SetMask(ColliderMask mask);
-
-	Collider& ResetMask();
-
-	/// @brief  Allow collider to collide with anything.
-	Collider& ResetCollidesWith();
-
-	[[nodiscard]] bool CanCollideWith(ColliderMask mask) const;
-
-	[[nodiscard]] bool IsMask(ColliderMask mask) const;
-
-	Collider& AddCollidesWith(ColliderMask mask);
-
-	Collider& RemoveCollidesWith(ColliderMask mask);
-
-	Collider& SetCollidesWith(const std::vector<ColliderMask>& categories);
-
 	// @return Empty collision if the entities have not collided during this frame, or the
 	// collision.
-	[[nodiscard]] Collision IntersectedWith(Entity other) const;
-	[[nodiscard]] Collision SweptWith(Entity other) const;
+	[[nodiscard]] CollisionInfo IntersectedWith(Entity other) const;
+	[[nodiscard]] CollisionInfo SweptWith(Entity other) const;
 	[[nodiscard]] bool OverlappedWith(Entity other) const;
 
-	// TODO: Fix collider shape serialization: KeyValue("shape", shape)
-
-	PTGN_SERIALIZER_REGISTER_NAMED(
-		Collider, KeyValue("mode", mode), KeyValue("response", response), KeyValue("mask", mask_),
-		KeyValue("collides_with_masks_", collides_with_masks_)
-	)
+	[[nodiscard]] std::span<const Entity> GetOverlaps() const;
+	[[nodiscard]] std::span<const CollisionInfo> GetIntersections() const;
+	[[nodiscard]] std::span<const CollisionInfo> GetSweeps() const;
 
 	/// @brief Optional function to check for early outs before performing collision checks. Should
 	/// return true if the collision check should be performed, false if it should be skipped.
-	std::function<bool(Entity, Entity)> pre_collision_check;
+	std::function<bool(Entity, Entity)> pre_collision_check{};
 
 	/// @brief Optional function to check for early outs before performing overlap checks. Should
 	/// return true if the overlap check should be performed, false if it should be skipped.
-	std::function<bool(Entity, Entity)> pre_overlap_check;
+	std::function<bool(Entity, Entity)> pre_overlap_check{};
+
+	PTGN_REFLECT(Collider, shape, mode, response, collides_with)
 
 private:
 	friend class CollisionHandler;
@@ -159,24 +80,18 @@ private:
 	void ResetSweeps();
 
 	void AddOverlap(Entity other);
-	void AddIntersect(const Collision& collision);
-	void AddSweep(const Collision& collision);
+	void AddIntersect(const CollisionInfo& collision);
+	void AddSweep(const CollisionInfo& collision);
 
-	/// @brief  Which categories this collider collides with.
-	std::vector<ColliderMask> collides_with_masks_;
+	/// @brief Collisions from the current frame.
+	std::vector<Entity> overlaps_{};
+	std::vector<CollisionInfo> intersects_{};
+	std::vector<CollisionInfo> sweeps_{};
 
-	/// @brief  Which mask this collider is a part of.
-	ColliderMask mask_{ 0 };
-
-	/// @brief  Collisions from the current frame.
-	std::vector<Entity> overlaps_;
-	std::vector<Collision> intersects_;
-	std::vector<Collision> sweeps_;
-
-	/// @brief  Collisions from the previous frame.
-	std::vector<Entity> previous_overlaps_;
-	std::vector<Collision> previous_intersects_;
-	std::vector<Collision> previous_sweeps_;
+	/// @brief Collisions from the previous frame.
+	std::vector<Entity> previous_overlaps_{};
+	std::vector<CollisionInfo> previous_intersects_{};
+	std::vector<CollisionInfo> previous_sweeps_{};
 };
 
 } // namespace ptgn

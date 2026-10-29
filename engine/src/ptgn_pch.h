@@ -1,0 +1,41 @@
+#pragma once
+
+#include <ecs/ecs.h>
+
+#include <algorithm>
+#include <array>
+#include <chrono>
+#include <cmath>
+#include <concepts>
+#include <cstddef>
+#include <cstdint>
+#include <cstdlib>
+#include <filesystem>
+#include <functional>
+#include <istream>
+#include <iterator>
+#include <limits>
+#include <magic_enum/magic_enum.hpp>
+#include <memory>
+#include <numbers>
+#include <optional>
+#include <ostream>
+#include <random>
+#include <ranges>
+#include <regex>
+#include <sstream>
+#include <stdexcept>
+#include <string>
+#include <string_view>
+#include <tuple>
+#include <type_traits>
+#include <unordered_map>
+#include <utility>
+#include <variant>
+#include <vector>
+
+#include "core/assert.h"
+#include "core/config.h"
+#include "core/log.h"
+#include "core/util/string.h"
+#include "serialization/json/json.h"

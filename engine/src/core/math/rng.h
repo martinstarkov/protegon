@@ -3,16 +3,18 @@
 #include <algorithm>
 #include <concepts>
 #include <cstdint>
+#include <functional>
 #include <limits>
 #include <numeric>
 #include <optional>
 #include <random>
+#include <ranges>
+#include <stdexcept>
 #include <type_traits>
 #include <vector>
 
-#include "core/assert.h"
-#include "serialization/json/enum.h"
-#include "serialization/json/json.h"
+#include "core/util/concepts.h"
+#include "core/util/time.h"
 
 namespace ptgn {
 
@@ -77,10 +79,6 @@ public:
 	/// @brief Generate a new random number in the specified range.
 	[[nodiscard]] T operator()() {
 		auto v = distribution_(generator_);
-		// TODO: Check if this assert triggers occasionally for normal distributions. I saw a
-		// PTGN_ASSERT(v <= min_ && v >= max_, "RNG failed to generate number in the correct
-		// negative value once when generating [0.0f, 1.0f]
-		// range");
 		if constexpr (D == Distribution::Normal) {
 			v = std::clamp(v, min_, max_);
 		}
@@ -112,24 +110,11 @@ public:
 		return max_;
 	}
 
-	// TODO: Add binary de/serialization.
-
-	friend void to_json(json& j, const RNG& rng) {
-		j["seed"] = rng.GetSeed();
-		j["min"]  = rng.GetMin();
-		j["max"]  = rng.GetMax();
-	}
-
-	friend void from_json(const json& j, RNG& rng) {
-		rng.min_ = j.at("min").get<T>();
-		rng.max_ = j.at("max").get<T>();
-		rng.SetSeed(j.at("seed").get<std::uint32_t>());
-		rng.SetupDistribution();
-	}
-
 private:
 	void SetupDistribution() {
-		PTGN_ASSERT(min_ <= max_);
+		if (min_ >= max_) {
+			throw std::invalid_argument("RNG: min must be less than or equal to max");
+		}
 		T a = min_;
 		T b = AdjustedMax(max_);
 		if constexpr (D == Distribution::Normal) {
@@ -169,10 +154,6 @@ private:
 template <typename T>
 using Gaussian = RNG<T, Distribution::Normal>;
 
-PTGN_SERIALIZE_ENUM(
-	Distribution, { { Distribution::Uniform, "uniform" }, { Distribution::Normal, "normal" } }
-);
-
 /// @return True for "heads", false for "tails"
 [[nodiscard]] bool FlipCoin();
 
@@ -182,16 +163,41 @@ template <impl::RNGType T = std::int32_t>
 	return rng();
 }
 
+/// @brief Get a random number of type T in the range [1, max], inclusive.
+template <impl::RNGType T = std::int32_t>
+[[nodiscard]] T RandomPositiveNumber() {
+	static RNG<T> rng{ 1, std::numeric_limits<T>::max() };
+	return rng();
+}
+
 template <impl::RNGType T = std::int32_t>
 [[nodiscard]] T RandomNumber(T min, T max) {
 	RNG<T> rng{ min, max };
 	return rng();
 }
 
-/// @return Random value in the range [0.0, 1.0].
-[[nodiscard]] inline float Random01() {
-	static RNG<float> rng{ 0.0f, 1.0f };
-	return rng();
+[[nodiscard]] std::size_t RandomSize(std::size_t min, std::size_t max);
+
+[[nodiscard]] int RandomInt(int min, int max);
+
+[[nodiscard]] float RandomFloat(float min, float max);
+
+[[nodiscard]] std::uint8_t Random0255();
+
+/// @return Random float in the range [-1.0, 1.0].
+[[nodiscard]] float Random11();
+
+/// @return Random float in the range [0.0, 1.0].
+[[nodiscard]] float Random01();
+
+/// @return True with the given probability, clamped to [0.0, 1.0]. 0.0 means never, 1.0 means
+/// always.
+[[nodiscard]] bool Chance(float probability);
+
+template <DurationType T = milliseconds>
+[[nodiscard]] T RandomDuration(T min, T max) {
+	RNG<typename T::rep> rng{ min.count(), max.count() };
+	return T{ rng() };
 }
 
 template <typename Container>
@@ -215,13 +221,13 @@ template <typename Container>
 
 		count = std::min(count, indices.size());
 
-		for (std::size_t i = 0; i < count; ++i) {
+		for (auto i{ 0uz }; i < count; ++i) {
 			result.push_back(choices[indices[i]]);
 		}
 	} else {
 		std::uniform_int_distribution<std::size_t> dist(0, choices.size() - 1);
 
-		for (std::size_t i = 0; i < count; ++i) {
+		for (auto i{ 0uz }; i < count; ++i) {
 			result.push_back(choices[dist(rng)]);
 		}
 	}
@@ -266,11 +272,12 @@ public:
 		return items_.size();
 	}
 
-	template <typename Func>
-	void ForEach(Func func) {
-		for (auto i = 0; i < Size(); i++) {
-			func(items_[i]);
-		}
+	void ForEach(InvocableR<void, T&> auto fn) {
+		std::ranges::for_each(items_, fn);
+	}
+
+	void ForEach(InvocableR<void, const T&> auto fn) const {
+		std::ranges::for_each(items_, fn);
 	}
 
 private:
